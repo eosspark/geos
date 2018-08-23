@@ -21,6 +21,15 @@ const (
 	TransactionStatusUnknown  = TransactionStatus(255)
 )
 
+type BlockStatus uint8
+
+const (
+	Irreversible BlockStatus = iota ///< this block has already been applied before by this node and is considered irreversible
+	Validated                       ///< this is a complete block signed by a valid producer and has been previously applied by this node and therefore validated but it is not yet irreversible
+	Complete                        ///< this is a complete block signed by a valid producer but is not yet irreversible nor has it yet been applied by this node
+	Incomplete                      ///< this is an incomplete block (either being produced by a producer or speculatively produced by a node)
+)
+
 func (s *TransactionStatus) UnmarshalJSON(data []byte) error {
 	var decoded string
 	if err := json.Unmarshal(data, &decoded); err != nil {
@@ -159,6 +168,48 @@ func (m *SignedBlock) String() string {
 	return "SignedBlock"
 }
 
+type IncrementalMerkle struct {
+	NodeCount   uint64    `json:"node_count"`
+	ActiveNodes [4]unit64 `json:"active_nodes"`
+}
+
+type FlatMap struct {
+	AccountName common.AccountName `json:"account_name"`
+	ProducerKey unit32             `json:"producer_key"`
+}
+
+type HeaderConfirmation struct {
+	BlockId           common.BlockIDType
+	Producer          common.AccountName
+	ProducerSignature common.PublicKey
+}
+type BlockHeaderState struct {
+	ID                               common.BlockIDType `storm:"id,unique"`
+	BlockNum                         uint32             `storm:"block_num,unique"`
+	Header                           SignedBlockHeader
+	DposProposedIrreversibleBlocknum uint32    `json:"dpos_proposed_irreversible_blocknum"`
+	DposIrreversibleBlocknum         uint32    `json:"dpos_irreversible_blocknum"`
+	BftIrreversibleBlocknum          uint32    `json:"bft_irreversible_blocknum"`
+	PendingScheduleLibNum            uint32    `json:"pending_schedule_lib_num"`
+	PendingScheduleHash              [4]unit64 `json:"pending_schedule_hash"`
+	PendingSchedule                  ProducerScheduleType
+	ActiveSchedule                   ProducerScheduleType
+	BlockrootMerkle                  IncrementalMerkle
+	ProducerToLastProduced           FlatMap
+	ProducerToLastImpliedIrb         FlatMap
+	BlockSigningKey                  ecc.PublicKey
+	ConfirmCount                     []uint8              `json:"confirm_count"`
+	Confirmations                    []HeaderConfirmation `json:"confirmations"`
+}
+
+type BlockState struct {
+	BlockHeaderState
+	SignedBlock    SignedBlock
+	Validated      bool `json:validated`
+	InCurrentChain bool `json:"in_current_chain"`
+	Trxs           []TransactionMetadata
+}
+
 type TransactionReceiptHeader struct {
 	Status               TransactionStatus `json:"status"`
 	CPUUsageMicroSeconds uint32            `json:"cpu_usage_us"`
@@ -168,6 +219,19 @@ type TransactionReceiptHeader struct {
 type TransactionReceipt struct {
 	TransactionReceiptHeader
 	Transaction TransactionWithID `json:"trx"`
+}
+
+type Optional struct {
+	Valid bool
+	Pair  map[common.ChainIdType][]ecc.PublicKey
+}
+type TransactionMetadata struct {
+	ID          common.TransactionIDType
+	SignedID    common.TransactionIDType
+	Trx         SignedTransaction
+	PackedTrx   PackedTransaction
+	SigningKeys Optional
+	Accepted    bool
 }
 
 type TransactionWithID struct {
