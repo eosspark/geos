@@ -31,7 +31,7 @@ type HandshakeMessage struct {
 	// net_plugin/protocol.hpp handshake_message
 	NetworkVersion           uint16             `json:"network_version"`
 	ChainID                  common.ChainIDType `json:"chain_id"`
-	NodeID                   common.Sha256      `json:"node_id"` // sha256
+	NodeID                   common.NodeIDType  `json:"node_id"` // sha256
 	Key                      ecc.PublicKey      `json:"key"`     // can be empty, producer key, or peer key
 	Time                     common.Tstamp      `json:"time"`    // time?!
 	Token                    common.Sha256      `json:"token"`   // digest of time to prove we own the private `key`
@@ -43,7 +43,7 @@ type HandshakeMessage struct {
 	HeadID                   common.BlockIDType `json:"head_id"`
 	OS                       string             `json:"os"`
 	Agent                    string             `json:"agent"`
-	Generation               int16              `json:"generation"`
+	Generation               uint16             `json:"generation"`
 }
 
 func (m *HandshakeMessage) GetType() P2PMessageType {
