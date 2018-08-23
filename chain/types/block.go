@@ -170,18 +170,18 @@ func (m *SignedBlock) String() string {
 
 type IncrementalMerkle struct {
 	NodeCount   uint64    `json:"node_count"`
-	ActiveNodes [4]unit64 `json:"active_nodes"`
+	ActiveNodes [4]uint64 `json:"active_nodes"`
 }
 
 type FlatMap struct {
 	AccountName common.AccountName `json:"account_name"`
-	ProducerKey unit32             `json:"producer_key"`
+	ProducerKey uint32             `json:"producer_key"`
 }
 
 type HeaderConfirmation struct {
 	BlockId           common.BlockIDType
 	Producer          common.AccountName
-	ProducerSignature common.PublicKey
+	ProducerSignature ecc.PublicKey
 }
 type BlockHeaderState struct {
 	ID                               common.BlockIDType `storm:"id,unique"`
@@ -191,7 +191,7 @@ type BlockHeaderState struct {
 	DposIrreversibleBlocknum         uint32    `json:"dpos_irreversible_blocknum"`
 	BftIrreversibleBlocknum          uint32    `json:"bft_irreversible_blocknum"`
 	PendingScheduleLibNum            uint32    `json:"pending_schedule_lib_num"`
-	PendingScheduleHash              [4]unit64 `json:"pending_schedule_hash"`
+	PendingScheduleHash              [4]uint64 `json:"pending_schedule_hash"`
 	PendingSchedule                  ProducerScheduleType
 	ActiveSchedule                   ProducerScheduleType
 	BlockrootMerkle                  IncrementalMerkle
@@ -223,7 +223,7 @@ type TransactionReceipt struct {
 
 type Optional struct {
 	Valid bool
-	Pair  map[common.ChainIdType][]ecc.PublicKey
+	Pair  map[common.ChainIDType][]ecc.PublicKey
 }
 type TransactionMetadata struct {
 	ID          common.TransactionIDType
