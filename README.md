@@ -21,4 +21,4 @@ MIT
 TODO notes
 -------
 
-need to complete all eosio protocol
+need to complete all eosio protocol eos
