@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"reflect"
 
-	"github.com/eos-go/db/coreos/bbolt"
-	"github.com/eos-go/db/storm/index"
-	"github.com/eos-go/db/storm/q"
+	"github.com/eosspark/eos-go/db/coreos/bbolt"
+	"github.com/eosspark/eos-go/db/storm/index"
+	"github.com/eosspark/eos-go/db/storm/q"
 )
 
 // A Finder can fetch types from BoltDB.
