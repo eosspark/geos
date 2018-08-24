@@ -3,7 +3,6 @@ package types
 import (
 	"math"
 	"fmt"
-	"github.com/eosspark/eos-go/chain"
 	"github.com/eosspark/eos-go/chain/config"
 	"github.com/eosspark/eos-go/common"
 )
@@ -22,11 +21,11 @@ type ExponentialMovingAverageAccumulator struct {
 	Consumed    uint64 `json:"consumed"`
 }
 
-func makeRatio(numerator uint64, denominator uint64) chain.Ratio{
-	return chain.Ratio{numerator, denominator}
+func makeRatio(numerator uint64, denominator uint64) Ratio{
+	return Ratio{numerator, denominator}
 }
 
-func MultiWithRatio(value uint64, ratio chain.Ratio) uint64{
+func MultiWithRatio(value uint64, ratio Ratio) uint64{
 	//eos.Asset{ratio.Denominator != 0 , "Usage exceeds maximum value representable after extending for precision"}
 	return value * ratio.Numerator / ratio.Denominator
 }
@@ -71,7 +70,7 @@ type UsageAccumulator struct{
 type ResourceLimitsObject struct {
 	Rlo		  RloIndex           `storm:"id"`
 	Id        ResourceObjectType `storm:"index"`
-	Owner     common.AccountName    `storm:"index"`
+	Owner     common.AccountName `storm:"index"`
 	Pending   bool               `storm:"index"`
 	NetWeight int64              `json:"net_weight"`
 	CpuWeight int64              `json:"cpu_weight"`
@@ -80,14 +79,14 @@ type ResourceLimitsObject struct {
 
 type RloIndex struct {
 	Id        ResourceObjectType `json:"id"`
-	Owner     common.AccountName    `json:"owner"`
+	Owner     common.AccountName `json:"owner"`
 	Pending   bool               `json:"pending"`
 }
 
 type ResourceUsageObject struct {
 	Ruo		 RuoIndex           `storm:"id"`
 	Id       ResourceObjectType `storm:"index"`
-	Owner    common.AccountName    `storm:"index"`
+	Owner    common.AccountName `storm:"index"`
 	NetUsage UsageAccumulator   `json:"net_usage"`
 	CpuUsage UsageAccumulator   `json:"cpu_usage"`
 	RamUsage uint64             `json:"ram_usage"`
@@ -95,13 +94,13 @@ type ResourceUsageObject struct {
 
 type RuoIndex struct {
 	Id       ResourceObjectType `json:"id"`
-	Owner    common.AccountName    `json:"owner"`
+	Owner    common.AccountName `json:"owner"`
 }
 
 type ResourceLimitsConfigObject struct {
 	Id                           ResourceObjectType     `storm:"id"`
-	CpuLimitParameters           chain.ElasticLimitParameters `json:"cpu_limit_parameters"`
-	NetLimitParameters           chain.ElasticLimitParameters `json:"net_limit_parameters"`
+	CpuLimitParameters           ElasticLimitParameters `json:"cpu_limit_parameters"`
+	NetLimitParameters           ElasticLimitParameters `json:"net_limit_parameters"`
 	AccountCpuUsageAverageWindow uint32                 `json:"account_cpu_usage_average_window"`
 	AccountNetUsageAverageWindow uint32                 `json:"account_net_usage_average_window"`
 }
