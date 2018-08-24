@@ -22,12 +22,56 @@ type TransactionIDType [4]uint64
 type CheckSum256Type [4]uint64
 type Sha256 [4]uint64
 
+func DecodeIDTypeString(str string) (id [4]uint64, err error) {
+	b, err := hex.DecodeString(str)
+	if err != nil {
+		return
+	}
+
+	fmt.Println(b)
+	for i := range id {
+		id[i] = binary.LittleEndian.Uint64(b[i*8 : (i+1)*8])
+	}
+
+	return
+}
+func DecodeIDTypeByte(b []byte) (id [4]uint64, err error) {
+	for i := range id {
+		id[i] = binary.LittleEndian.Uint64(b[i*8 : (i+1)*8])
+	}
+
+	return id, nil
+}
 func (n ChainIDType) MarshalJSON() ([]byte, error) {
 	b := make([]byte, 32)
 	for i := range n {
 		binary.LittleEndian.PutUint64(b[i*8:(i+1)*8], n[i])
 	}
 	return json.Marshal(hex.EncodeToString(b))
+}
+
+func (n *ChainIDType) UnmarshalJSON(data []byte) error {
+	fmt.Println(47)
+	fmt.Println(data)
+	var s string
+	err := json.Unmarshal(data, &s)
+	if err != nil {
+		fmt.Println(err)
+		return err
+	}
+	fmt.Println(s)
+
+	b, err := hex.DecodeString(s)
+	if err != nil {
+		return err
+	}
+
+	fmt.Println(b)
+	for i := range n {
+		n[i] = binary.LittleEndian.Uint64(b[i*8 : (i+1)*8])
+	}
+
+	return nil
 }
 
 func (n NodeIDType) MarshalJSON() ([]byte, error) {
@@ -551,6 +595,21 @@ func (t *BlockTimeStamp) UnmarshalJSON(data []byte) (err error) {
 	slot := (temp.UnixNano() - block_timestamp_epoch) / 1000000 / block_interval_ms
 	*t = BlockTimeStamp(slot)
 	return err
+}
+
+// func TimeNow() uint64 { //微妙 s*1000000   from 1970
+// 	tm := time.Now().UTC()
+
+// 	dur := tm.UnixNano() / 1000
+
+// 	return uint64(dur)
+// }
+func TimeNow() Tstamp { //微妙 s*1000000   from 1970
+	tm := time.Now().UTC()
+
+	dur := tm.UnixNano() / 1000
+
+	return Tstamp(dur)
 }
 
 type JSONFloat64 float64
