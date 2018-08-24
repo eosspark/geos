@@ -72,6 +72,11 @@ func TestFind(t *testing.T) {
 	if obj == account {
 		fmt.Println("find error two")
 	}
+
+	err = db.Insert(&obj)
+	if err != nil {
+		t.Error(err)
+	}
 }
 
 func TestInsertSome(t *testing.T) {
@@ -102,7 +107,10 @@ func TestGet(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	fmt.Println(len(objs))
+	if len(objs) != 5 {
+		fmt.Println("TestGet Failed")
+		return
+	}
 }
 
 func TestAll(t *testing.T) {
@@ -117,7 +125,10 @@ func TestAll(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	fmt.Println(len(objs))
+	if len(objs) != 6 {
+		fmt.Println("TestAll Failed")
+		return
+	}
 }
 
 func TestUpdateItem(t *testing.T) {
@@ -183,7 +194,10 @@ func TestRemove(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	fmt.Println(len(objs))
+	if len(objs) != 5 {
+		fmt.Println("TestRemove Failed")
+		return
+	}
 }
 
 func TestUnique(t *testing.T) {
@@ -205,6 +219,122 @@ func TestUnique(t *testing.T) {
 	if err == nil {
 		fmt.Println("TestUnique error")
 		return
+	}
+	fmt.Println(err.Error())
+}
+
+///////////////////////////////////////////////////////// Inline Test ////////////////////////////////////////////////////////////////
+
+type Base struct {
+	Id  uint64 `storm:"id,increment"`
+	Tag string `storm:"index"`
+}
+
+type Country struct {
+	Base  Base   `storm:"inline,unique"`
+	Name  string `storm:"unique"`
+	users []User `storm:"inline"`
+}
+
+func TestInlineWriteOne(t *testing.T) {
+	db, err := NewDatabase("./", "eos.db", true)
+	if err != nil {
+		t.Error(err)
+	}
+	defer db.Close()
+
+	country := &Country{
+		Base: Base{
+			Tag: "Big Country",
+		},
+		Name: "China",
+	}
+	err = db.Insert(country)
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = db.Insert(country)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestInlineAll(t *testing.T) {
+	db, err := NewDatabase("./", "eos.db", true)
+	if err != nil {
+		t.Error(err)
+	}
+	defer db.Close()
+
+	var countrys []Country
+	err = db.All(&countrys)
+	if err != nil {
+		t.Error(err)
+	}
+	fmt.Println(countrys)
+}
+
+func TestInlineFind(t *testing.T) {
+	db, err := NewDatabase("./", "eos.db", true)
+	if err != nil {
+		t.Error(err)
+	}
+	defer db.Close()
+
+	var country Country
+	err = db.Find("Base", Base{Id: 1, Tag: "Big Country"}, &country)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+type UserNested struct {
+	ID        int
+	OneNested struct {
+		A         string
+		TwoNested struct {
+			C int
+			D int
+		} `storm:"unique"`
+	} `storm:"inline"`
+}
+
+func TestInlineNested(t *testing.T) {
+	db, err := NewDatabase("./", "eos.db", true)
+	if err != nil {
+		t.Error(err)
+	}
+	defer db.Close()
+
+	var nested UserNested
+	nested.ID = 10
+	nested.OneNested.A = "A"
+	nested.OneNested.TwoNested.C = 100
+	nested.OneNested.TwoNested.D = 200
+
+	err = db.Insert(&nested)
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = db.Insert(&nested) // NOTE Repeat the same value of the same unique field, the database will ignore it and will not return failure
+	if err != nil {
+		t.Error(err)
+	}
+
+	nested.ID = 11
+	var nesteds []UserNested
+	err = db.All(&nesteds)
+	if len(nesteds) != 1 {
+		fmt.Println("TestInlineNested All Failed")
+		return
+	}
+
+	nested.ID = 11
+	err = db.Insert(&nested)
+	if err == nil {
+		fmt.Println("TestInlineNested Insert Failed")
 	}
 	fmt.Println(err.Error())
 }

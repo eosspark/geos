@@ -1,5 +1,7 @@
 #!/bin/sh
 
+rm -rf ./eos.db
+rm -rf ./build
 set -e
 
 #if [ ! -f "build/env.sh" ]; then
