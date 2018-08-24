@@ -32,6 +32,7 @@ type tuple struct {
 
 // producer_plugin
 type ProducerPlugin struct {
+	timer              scheduleTimer
 	producers          map[common.AccountName]struct{}
 	pendingBlockMode   PendingBlockMode
 	productionEnabled  bool
@@ -40,11 +41,11 @@ type ProducerPlugin struct {
 	producerWatermarks map[common.AccountName]uint32
 
 	maxTransactionTimeMs      int32
-	maxIrreversibleBlockAgeUs time.Duration
+	maxIrreversibleBlockAgeUs int32
 	produceTImeOffsetUs       int32
 	lastBlockTimeOffsetUs     int32
 	irreversibleBlockTime     time.Time
-	keosdProviderTimeoutUs    time.Duration
+	keosdProviderTimeoutUs    int32
 
 	lastSignedBlockTime time.Time
 	startTime           time.Time
@@ -59,6 +60,8 @@ func (pp *ProducerPlugin) init() {
 	pp.producers = make(map[common.AccountName]struct{})
 	pp.signatureProviders = make(map[ecc.PublicKey]signatureProviderType)
 	pp.producerWatermarks = make(map[common.AccountName]uint32)
+
+	pp.timer = scheduleTimer{}
 }
 
 func (pp *ProducerPlugin) IsProducerKey(key ecc.PublicKey) bool {
@@ -82,16 +85,20 @@ func (pp *ProducerPlugin) SignCompact(key *ecc.PublicKey, digest common.SHA256By
 	return ecc.Signature{}, nil
 }
 
-func (pp *ProducerPlugin) Startup() {
-	pp.scheduleProductionLoop()
-}
-
 func (pp *ProducerPlugin) Initialize() {
 	pp.signatureProviders[ecc.PublicKey{}] = func(hash []byte) ecc.Signature {
 		priKey, _ := ecc.NewPrivateKey("privateKey")
 		sig, _ := priKey.Sign(hash)
 		return sig
 	}
+}
+
+func (pp *ProducerPlugin) Startup() {
+	pp.scheduleProductionLoop()
+}
+
+func (pp *ProducerPlugin) Shutdown() {
+	pp.timer.cancel()
 }
 
 func (pp *ProducerPlugin) Pause() {
@@ -107,6 +114,10 @@ func (pp *ProducerPlugin) Resume() {
 		chain.AbortBlock()
 		pp.scheduleProductionLoop()
 	}
+}
+
+func (pp *ProducerPlugin) Paused() bool {
+	return pp.productionPaused
 }
 
 // producer_plugin_impl
@@ -258,11 +269,11 @@ func (pp *ProducerPlugin) onIncomingTransactionAsync(trx *types.PackedTransactio
 
 	id := trx.ID()
 
-	fmt.Println(blockTime, sendResponse, id)
+	fmt.Println(blockTime, &sendResponse, id)
 
 }
 
-func (pp *ProducerPlugin) getIrreversibleBlockAge() time.Duration {
+func (pp *ProducerPlugin) getIrreversibleBlockAge() time.Duration /*Microsecond*/ {
 	now := time.Now()
 	if now.Before(pp.irreversibleBlockTime) {
 		return 0
@@ -285,6 +296,8 @@ const (
 )
 
 func (pp *ProducerPlugin) calculateNextBlockTime(producerName common.AccountName, currentBlockTime common.BlockTimeStamp) *time.Time {
+	var result time.Time
+
 	hbs := chain.HeadBlockState()
 	activeSchedule := hbs.ActiveSchedule.Producers
 
@@ -293,11 +306,11 @@ func (pp *ProducerPlugin) calculateNextBlockTime(producerName common.AccountName
 
 	// determine if this producer is in the active schedule and if so, where
 	var itr *types.ProducerKey
-	var producerIndex int
+	var producerIndex uint32
 	for index, asp := range activeSchedule {
 		if asp.AccountName == producerName {
 			itr = &asp
-			producerIndex = index
+			producerIndex = uint32(index)
 			break
 		}
 	}
@@ -316,6 +329,7 @@ func (pp *ProducerPlugin) calculateNextBlockTime(producerName common.AccountName
 	// information then
 	currentWatermark, hasCurrentWatermark := pp.producerWatermarks[producerName]
 	if hasCurrentWatermark {
+		blockNum := chain.PendingBlockState().BlockNum
 		if currentWatermark > pbs.BlockNum {
 			minOffset = currentWatermark - pbs.BlockNum + 1
 		}
@@ -323,10 +337,28 @@ func (pp *ProducerPlugin) calculateNextBlockTime(producerName common.AccountName
 	fmt.Println(minOffset, producerIndex, pbt)
 
 	// this producers next opportuity to produce is the next time its slot arrives after or at the calculated minimum
-	//TODO
+	minSlot := uint32(currentBlockTime) + minOffset
+	minSlotProducerIndex := (minSlot % (uint32(len(activeSchedule)) * uint32(common.ProducerRepetitions))) / uint32(common.ProducerRepetitions)
+	if producerIndex == minSlotProducerIndex {
+		// this is the producer for the minimum slot, go with that
+		result = common.BlockTimeStamp(minSlot).ToTimePoint()
+	} else {
+		// calculate how many rounds are between the minimum producer and the producer in question
+		producerDistance := producerIndex - minSlotProducerIndex
+		// check for unsigned underflow
+		if producerDistance > producerIndex {
+			producerDistance += uint32(len(activeSchedule))
+		}
 
-	now := time.Now()
-	return &now
+		// align the minimum slot to the first of its set of reps
+		firstMinProducerSlot := minSlot - (minSlot % uint32(common.ProducerRepetitions))
+
+		// offset the aligned minimum to the *earliest* next set of slots for this producer
+		nextBlockSlot := firstMinProducerSlot + (producerDistance * uint32(common.ProducerRepetitions))
+		result = common.BlockTimeStamp(nextBlockSlot).ToTimePoint()
+
+	}
+	return &result
 }
 
 func (pp *ProducerPlugin) calculatePendingBlockTime() time.Time {
@@ -347,7 +379,7 @@ func (pp *ProducerPlugin) calculatePendingBlockTime() time.Time {
 	return blockTime
 }
 
-func (pp *ProducerPlugin) startBlock() StartBlockRusult {
+func (pp *ProducerPlugin) startBlock() (StartBlockRusult, bool) {
 	fmt.Println("start_block")
 
 	hbs := chain.HeadBlockState()
@@ -358,6 +390,7 @@ func (pp *ProducerPlugin) startBlock() StartBlockRusult {
 	pp.pendingBlockMode = producing
 
 	// Not our turn
+	lastBlock := uint32(common.NewBlockTimeStamp(blockTime))%uint32(common.ProducerRepetitions) == uint32(common.ProducerRepetitions)-1
 	scheduleProducer := hbs.GetScheduledProducer(common.NewBlockTimeStamp(blockTime))
 	currentWatermark, hasCurrentWatermark := pp.producerWatermarks[scheduleProducer.AccountName]
 	_, hasSignatureProvider := pp.signatureProviders[scheduleProducer.BlockSigningKey]
@@ -383,10 +416,10 @@ func (pp *ProducerPlugin) startBlock() StartBlockRusult {
 		if hasCurrentWatermark {
 			if currentWatermark >= hbs.BlockNum+1 {
 				/*
-								elog("Not producing block because \"${producer}\" signed a BFT confirmation OR block at a higher block number (${watermark}) than the current fork's head (${head_block_num})",
-				                ("producer", scheduled_producer.producer_name)
-				                ("watermark", currrent_watermark_itr->second)
-				                ("head_block_num", hbs->block_num));
+									elog("Not producing block because \"${producer}\" signed a BFT confirmation OR block at a higher block number (${watermark}) than the current fork's head (${head_block_num})",
+					                ("producer", scheduled_producer.producer_name)
+					                ("watermark", currrent_watermark_itr->second)
+					                ("head_block_num", hbs->block_num));
 				*/
 				pp.pendingBlockMode = speculating
 			}
@@ -397,7 +430,7 @@ func (pp *ProducerPlugin) startBlock() StartBlockRusult {
 	if pp.pendingBlockMode == speculating {
 		headBlockAge := now //- chain.head_block_time();
 		if headBlockAge.Unix() > 5 {
-			return waiting
+			return waiting, lastBlock
 		}
 	}
 
@@ -434,24 +467,29 @@ func (pp *ProducerPlugin) startBlock() StartBlockRusult {
 			pp.pendingBlockMode = speculating
 		}
 
+		//TODO
+
 		// attempt to play persisted transactions first
 		//exhausted := false
 	}
 
-	return failed
+	return failed, lastBlock
 }
 
 func (pp *ProducerPlugin) scheduleProductionLoop() {
-	result := pp.startBlock()
+	pp.timer.cancel()
+
+	result, lastBlock := pp.startBlock()
 
 	if result == failed {
+		//elog("Failed to start a pending block, will try again later");
+		pp.timer.expiresFromNow(time.Microsecond * (time.Duration(chain.BlockIntervalUs / 10)))
+
 		// we failed to start a block, so try again later?
 		timerCorelationId++
 		cid := timerCorelationId
-		time.AfterFunc(time.Microsecond*(time.Duration(chain.BlockIntervalUs/10)), func() {
-			if cid == timerCorelationId {
-				pp.scheduleProductionLoop()
-			}
+		pp.timer.asyncWait(func() bool { return cid == timerCorelationId }, func() {
+			pp.scheduleProductionLoop()
 		})
 
 	} else if result == waiting {
@@ -465,19 +503,32 @@ func (pp *ProducerPlugin) scheduleProductionLoop() {
 
 	} else if pp.pendingBlockMode == producing {
 		// we succeeded but block may be exhausted
-		var expires time.Duration
 		if result == succeeded {
-			expires = time.Millisecond * time.Duration(chain.BlockIntervalMs)
+			// ship this block off no later than its deadline
+			epoch := chain.PendingBlockTime().UnixNano() / 1e3
+			if lastBlock {
+				epoch += int64(pp.lastBlockTimeOffsetUs)
+			} else {
+				epoch += int64(pp.produceTImeOffsetUs)
+			}
+			pp.timer.expiresAt(epoch)
+			//fc_dlog(_log, "Scheduling Block Production on Normal Block #${num} for ${time}", ("num", chain.pending_block_state()->block_num)("time",chain.pending_block_time()));
 		} else {
-			expires = 0
+			expectTime := chain.PendingBlockTime().UnixNano()/1e3 - int64(common.BlockIntervalUs)
+			// ship this block off up to 1 block time earlier or immediately
+			if time.Now().UnixNano()/1e3 >= expectTime {
+				pp.timer.expiresFromNow(0)
+			} else {
+				pp.timer.expiresAt(expectTime)
+			}
+			//fc_dlog(_log, "Scheduling Block Production on Exhausted Block #${num} immediately", ("num", chain.pending_block_state()->block_num));
 		}
 
 		timerCorelationId++
 		cid := timerCorelationId
-		time.AfterFunc(expires, func() {
-			if cid == timerCorelationId {
-				pp.maybeProduceBlock()
-			}
+		pp.timer.asyncWait(func() bool { return cid == timerCorelationId }, func() {
+			pp.maybeProduceBlock()
+			//fc_dlog(_log, "Producing Block #${num} returned: ${res}", ("num", chain.pending_block_state()->block_num)("res", res) );
 		})
 
 	} else if pp.pendingBlockMode == speculating && len(pp.producers) > 0 && !pp.productionDisabledByPolicy() {
@@ -508,12 +559,12 @@ func (pp *ProducerPlugin) scheduleDelayedProductionLoop(currentBlockTime common.
 
 	if wakeUpTime != nil {
 		//fc_dlog(_log, "Scheduling Speculative/Production Change at ${time}", ("time", wake_up_time));
+		pp.timer.expiresAt(wakeUpTime.UnixNano() / 1e3)
+
 		timerCorelationId++
 		cid := timerCorelationId
-		time.AfterFunc(wakeUpTime.Sub(time.Now()), func() {
-			if cid == timerCorelationId {
-				pp.scheduleProductionLoop()
-			}
+		pp.timer.asyncWait(func() bool { return cid == timerCorelationId }, func() {
+			pp.scheduleProductionLoop()
 		})
 	} else {
 		//fc_dlog(_log, "Speculative Block Created; Not Scheduling Speculative/Production, no local producers had valid wake up times");

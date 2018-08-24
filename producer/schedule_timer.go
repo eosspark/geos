@@ -14,8 +14,12 @@ func (pt *scheduleTimer) expiresFromNow(d time.Duration) {
 	pt.duration = d
 }
 
-func (pt *scheduleTimer) expiresAt(ex time.Time) {
-	pt.expiresFromNow(time.Until(ex))
+func (pt *scheduleTimer) expiresUntil(t time.Time) {
+	pt.expiresFromNow(time.Until(t))
+}
+
+func (pt *scheduleTimer) expiresAt(epoch int64) {
+	pt.expiresUntil(time.Unix(0, epoch*1e3))
 }
 
 func (pt *scheduleTimer) asyncWait(valid func() bool, call func()) {
