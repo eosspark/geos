@@ -569,13 +569,37 @@ func (t *Tstamp) UnmarshalJSON(data []byte) (err error) {
 type BlockTimeStamp uint32
 
 const blockTimestampFormat = "2006-01-02T15:04:05.000"
-const block_interval_ms int64 = 500
-const block_timestamp_epoch int64 = 946684800000000000 // epoch is year 2000. nsec 纳秒 1s = 10^9纳秒
+
+func (t *BlockTimeStamp) Next() BlockTimeStamp {
+	result := NewBlockTimeStamp(t.ToTimePoint())
+	result += 1
+	return result
+}
+
+func (t *BlockTimeStamp) ToTimePoint() time.Time {
+	msec := int64(*t) * int64(BlockIntervalMs)
+	msec += int64(BlockTimestampEpochMs)
+	return time.Unix(0, msec*1e6)
+}
+
+func MaxBlockTime() BlockTimeStamp {
+	return BlockTimeStamp(0xffff)
+}
+
+func MinBlockTime() BlockTimeStamp {
+	return BlockTimeStamp(0)
+}
+
+func NewBlockTimeStamp(t time.Time) BlockTimeStamp {
+	msecSinceEpoch := uint64(t.UnixNano() / 1e6)
+	bt := (msecSinceEpoch - BlockTimestampEpochMs) / uint64(BlockIntervalMs)
+	return BlockTimeStamp(bt)
+}
 
 func (t BlockTimeStamp) MarshalJSON() ([]byte, error) {
 
-	slot := int64(t)*block_interval_ms*1000000 + block_timestamp_epoch //为了显示0.5s
-	tm := time.Unix(0, slot).UTC()
+	//slot := int64(t)*block_interval_ms*1000000 + block_timestamp_epoch //为了显示0.5s
+	tm := time.Unix(0, int64(t)).UTC()
 
 	return []byte(fmt.Sprintf("%q", tm.Format(blockTimestampFormat))), nil
 }
