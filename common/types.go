@@ -616,7 +616,7 @@ func (t *BlockTimeStamp) UnmarshalJSON(data []byte) (err error) {
 			return err
 		}
 	}
-	slot := (temp.UnixNano() - block_timestamp_epoch) / 1000000 / block_interval_ms
+	slot := (temp.UnixNano() - int64(BlockTimestampEpochMs)) / 1e6 / int64(BlockIntervalMs)
 	*t = BlockTimeStamp(slot)
 	return err
 }
