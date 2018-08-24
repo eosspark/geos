@@ -10,3 +10,5 @@ const BlockTimestamoEpochNanos int64 = 946684800000000000
  */
 const ProducerRepetitions int = 12
 const MaxProducers int = 125
+
+const MaxTrackedDposConfirmations = 1024 ///<
