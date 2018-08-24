@@ -23,7 +23,7 @@ func TestTimer(t *testing.T) {
 		minTimeToNextBlock := int64(common.BlockIntervalUs) - base.UnixNano()/1e3%int64(common.BlockIntervalUs)
 		wakeTime := base.Add(time.Microsecond * time.Duration(minTimeToNextBlock))
 
-		timer.expiresAt(wakeTime)
+		timer.expiresUntil(wakeTime)
 
 		// test after 12 block need to apply new block to continue
 		if blockNum%12 == 0 {

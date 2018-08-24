@@ -4,9 +4,9 @@ import (
 	"reflect"
 	"sort"
 
-	"github.com/coreos/bbolt"
-	"github.com/storm/index"
-	"github.com/storm/q"
+	"github.com/eosspark/eos-go/db/coreos/bbolt"
+	"github.com/eosspark/eos-go/db/storm/index"
+	"github.com/eosspark/eos-go/db/storm/q"
 )
 
 type item struct {

@@ -3,8 +3,8 @@ package index
 import (
 	"bytes"
 
-	"github.com/coreos/bbolt"
-	"github.com/storm/internal"
+	"github.com/eosspark/eos-go/db/coreos/bbolt"
+	"github.com/eosspark/eos-go/db/storm/internal"
 )
 
 // NewListIndex loads a ListIndex

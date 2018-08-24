@@ -85,6 +85,7 @@ type Decoder struct {
 	data     []byte
 	pos      int
 	optional bool
+	vuint32  bool
 }
 
 func NewDecoder(data []byte) *Decoder {
@@ -129,6 +130,14 @@ func (d *Decoder) decode(v interface{}) (err error) {
 				return
 			}
 		}
+		return
+	}
+
+	if d.vuint32 {
+		d.vuint32 = false
+		var r uint64
+		r, _ = d.readUvarint()
+		rv.SetUint(r)
 		return
 	}
 
@@ -267,7 +276,10 @@ func (d *Decoder) decodeStruct(v interface{}, t reflect.Type, rv reflect.Value) 
 			continue
 		} else if tag == "optional" {
 			d.optional = true
-			fmt.Println("276 walker", d.optional)
+			// fmt.Println("276 walker", d.optional)
+		} else if tag == "vuint32" {
+			d.vuint32 = true
+			// fmt.Println("276 walker", d.vuint32)
 		}
 
 		if v := rv.Field(i); v.CanSet() && t.Field(i).Name != "_" {

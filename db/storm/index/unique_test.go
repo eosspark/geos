@@ -7,11 +7,11 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/asdine/storm"
-	"github.com/asdine/storm/codec/gob"
-	"github.com/asdine/storm/index"
-	"github.com/coreos/bbolt"
-	"github.com/stretchr/testify/require"
+	"github.com/eos-go/db/coreos/bbolt"
+	"github.com/eos-go/db/storm"
+	"github.com/eos-go/db/storm/codec/gob"
+	"github.com/eos-go/db/storm/index"
+	"github.com/eos-go/db/stretchr/testify/require"
 )
 
 func TestUniqueIndex(t *testing.T) {

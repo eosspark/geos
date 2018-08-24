@@ -3,7 +3,7 @@ package storm
 import (
 	"reflect"
 
-	"github.com/coreos/bbolt"
+	"github.com/eosspark/eos-go/db/coreos/bbolt"
 )
 
 const (

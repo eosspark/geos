@@ -3,7 +3,7 @@ package internal
 import (
 	"bytes"
 
-	"github.com/coreos/bbolt"
+	"github.com/eosspark/eos-go/db/coreos/bbolt"
 )
 
 // Cursor that can be reversed
