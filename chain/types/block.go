@@ -3,7 +3,7 @@ package types
 import (
 	"crypto/sha256"
 	"encoding/binary"
-	"encoding/hex"
+	// "encoding/hex"
 	"encoding/json"
 	"fmt"
 	"github.com/eosspark/eos-go/common"
@@ -213,7 +213,7 @@ type BlockState struct {
 type TransactionReceiptHeader struct {
 	Status               TransactionStatus `json:"status"`
 	CPUUsageMicroSeconds uint32            `json:"cpu_usage_us"`
-	NetUsageWords        uint32            `json:"net_usage_words"`
+	NetUsageWords        uint32            `json:"net_usage_words" eos:"vuint32"`
 }
 
 type TransactionReceipt struct {
@@ -235,91 +235,92 @@ type TransactionMetadata struct {
 }
 
 type TransactionWithID struct {
-	ID     common.TransactionIDType
-	Packed *PackedTransaction
+	// ID     common.TransactionIDType
+	Tag    uint8              `json:"-"`
+	Packed *PackedTransaction `json:"packed_transaction"`
 }
 
-func (t TransactionWithID) MarshalJSON() ([]byte, error) {
-	return json.Marshal([]interface{}{
-		t.ID,
-		t.Packed,
-	})
-}
+// func (t TransactionWithID) MarshalJSON() ([]byte, error) {
+// 	return json.Marshal([]interface{}{
+// 		t.ID,
+// 		t.Packed,
+// 	})
+// }
 
-func (t *TransactionWithID) UnmarshalJSON(data []byte) error {
-	var packed PackedTransaction
-	if data[0] == '{' {
-		if err := json.Unmarshal(data, &packed); err != nil {
-			return err
-		}
-		*t = TransactionWithID{
-			ID:     packed.ID(),
-			Packed: &packed,
-		}
+// func (t *TransactionWithID) UnmarshalJSON(data []byte) error {
+// 	var packed PackedTransaction
+// 	if data[0] == '{' {
+// 		if err := json.Unmarshal(data, &packed); err != nil {
+// 			return err
+// 		}
+// 		*t = TransactionWithID{
+// 			ID:     packed.ID(),
+// 			Packed: &packed,
+// 		}
 
-		return nil
-	} else if data[0] == '"' {
-		var id string
-		err := json.Unmarshal(data, &id)
-		if err != nil {
-			return err
-		}
+// 		return nil
+// 	} else if data[0] == '"' {
+// 		var id string
+// 		err := json.Unmarshal(data, &id)
+// 		if err != nil {
+// 			return err
+// 		}
 
-		shaID, err := hex.DecodeString(id)
-		if err != nil {
-			return fmt.Errorf("decoding id in trx: %s", err)
-		}
+// 		shaID, err := hex.DecodeString(id)
+// 		if err != nil {
+// 			return fmt.Errorf("decoding id in trx: %s", err)
+// 		}
 
-		// *t = TransactionWithID{
-		// 	ID: SHA256Bytes(shaID),
-		// }
-		var temp [4]uint64
-		temp[0] = binary.LittleEndian.Uint64(shaID[:8])
-		temp[1] = binary.LittleEndian.Uint64(shaID[8:16])
-		temp[2] = binary.LittleEndian.Uint64(shaID[16:24])
-		temp[3] = binary.LittleEndian.Uint64(shaID[24:32])
-		*t = TransactionWithID{
-			ID: temp,
-		}
-		return nil
-	}
+// 		// *t = TransactionWithID{
+// 		// 	ID: SHA256Bytes(shaID),
+// 		// }
+// 		var temp [4]uint64
+// 		temp[0] = binary.LittleEndian.Uint64(shaID[:8])
+// 		temp[1] = binary.LittleEndian.Uint64(shaID[8:16])
+// 		temp[2] = binary.LittleEndian.Uint64(shaID[16:24])
+// 		temp[3] = binary.LittleEndian.Uint64(shaID[24:32])
+// 		*t = TransactionWithID{
+// 			ID: temp,
+// 		}
+// 		return nil
+// 	}
 
-	var in []json.RawMessage
-	err := json.Unmarshal(data, &in)
-	if err != nil {
-		return err
-	}
+// 	var in []json.RawMessage
+// 	err := json.Unmarshal(data, &in)
+// 	if err != nil {
+// 		return err
+// 	}
 
-	if len(in) != 2 {
-		return fmt.Errorf("expected two params for TransactionWithID, got %d", len(in))
-	}
+// 	if len(in) != 2 {
+// 		return fmt.Errorf("expected two params for TransactionWithID, got %d", len(in))
+// 	}
 
-	typ := string(in[0])
-	switch typ {
-	case "0":
-		var s string
-		if err := json.Unmarshal(in[1], &s); err != nil {
-			return err
-		}
+// 	typ := string(in[0])
+// 	switch typ {
+// 	case "0":
+// 		var s string
+// 		if err := json.Unmarshal(in[1], &s); err != nil {
+// 			return err
+// 		}
 
-		*t = TransactionWithID{}
-		if err := json.Unmarshal(in[1], &t.ID); err != nil {
-			return err
-		}
-	case "1":
+// 		*t = TransactionWithID{}
+// 		if err := json.Unmarshal(in[1], &t.ID); err != nil {
+// 			return err
+// 		}
+// 	case "1":
 
-		// ignore the ID field right now..
-		err = json.Unmarshal(in[1], &packed)
-		if err != nil {
-			return err
-		}
+// 		// ignore the ID field right now..
+// 		err = json.Unmarshal(in[1], &packed)
+// 		if err != nil {
+// 			return err
+// 		}
 
-		*t = TransactionWithID{
-			ID:     packed.ID(),
-			Packed: &packed,
-		}
-	default:
-		return fmt.Errorf("unsupported multi-variant trx serialization type from C++ code into Go: %q", typ)
-	}
-	return nil
-}
+// 		*t = TransactionWithID{
+// 			ID:     packed.ID(),
+// 			Packed: &packed,
+// 		}
+// 	default:
+// 		return fmt.Errorf("unsupported multi-variant trx serialization type from C++ code into Go: %q", typ)
+// 	}
+// 	return nil
+// }
