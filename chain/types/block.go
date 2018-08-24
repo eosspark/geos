@@ -202,6 +202,12 @@ type BlockHeaderState struct {
 	Confirmations                    []HeaderConfirmation `json:"confirmations"`
 }
 
+func (bs *BlockHeaderState) GetScheduledProducer(t common.BlockTimeStamp) ProducerKey {
+	index := uint32(t) % uint32(len(bs.ActiveSchedule.Producers)*12)
+	index /= 12
+	return bs.ActiveSchedule.Producers[index]
+}
+
 type BlockState struct {
 	BlockHeaderState
 	SignedBlock    SignedBlock

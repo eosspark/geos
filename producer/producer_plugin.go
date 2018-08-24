@@ -273,12 +273,12 @@ func (pp *ProducerPlugin) onIncomingTransactionAsync(trx *types.PackedTransactio
 
 }
 
-func (pp *ProducerPlugin) getIrreversibleBlockAge() time.Duration /*Microsecond*/ {
+func (pp *ProducerPlugin) getIrreversibleBlockAge() int32 /*Microsecond*/ {
 	now := time.Now()
 	if now.Before(pp.irreversibleBlockTime) {
 		return 0
 	} else {
-		return time.Duration((now.UnixNano() - pp.irreversibleBlockTime.UnixNano()) / 1e3)
+		return int32((now.UnixNano() - pp.irreversibleBlockTime.UnixNano()) / 1e3)
 	}
 }
 
@@ -624,6 +624,5 @@ func (pp *ProducerPlugin) produceBlock() error {
 	  ("p",new_bs->header.producer)("id",fc::variant(new_bs->id).as_string().substr(0,16))
 	  ("n",new_bs->block_num)("t",new_bs->header.timestamp)
 	  ("count",new_bs->block->transactions.size())("lib",chain.last_irreversible_block_num())("confs", new_bs->header.confirmed));*/
-
 	return nil
 }
