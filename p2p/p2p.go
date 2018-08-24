@@ -1,7 +1,6 @@
 package p2p
 
 import (
-	// "bytes"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -15,19 +14,19 @@ import (
 // See /home/abourget/build/eos3/plugins/net_plugin/include/eosio/net_plugin/protocol.hpp:219
 //
 
-// type P2PMessageType byte
+type P2PMessageType byte
 
-// const (
-// 	HandshakeMessageType P2PMessageType = iota // 0
-// 	ChainSizeType
-// 	GoAwayMessageType // 2
-// 	TimeMessageType
-// 	NoticeMessageType // 4
-// 	RequestMessageType
-// 	SyncRequestMessageType       // 6
-// 	SignedBlockType              // 7
-// 	PackedTransactionMessageType // 8
-// )
+const (
+	HandshakeMessageType P2PMessageType = iota // 0
+	ChainSizeType
+	GoAwayMessageType // 2
+	TimeMessageType
+	NoticeMessageType // 4
+	RequestMessageType
+	SyncRequestMessageType       // 6
+	SignedBlockType              // 7
+	PackedTransactionMessageType // 8
+)
 
 type MessageReflectTypes struct {
 	Name        string

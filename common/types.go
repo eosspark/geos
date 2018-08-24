@@ -597,9 +597,8 @@ func NewBlockTimeStamp(t time.Time) BlockTimeStamp {
 }
 
 func (t BlockTimeStamp) MarshalJSON() ([]byte, error) {
-
-	//slot := int64(t)*block_interval_ms*1000000 + block_timestamp_epoch //为了显示0.5s
-	tm := time.Unix(0, int64(t)).UTC()
+	slot := int64(t)*BlockIntervalMs*1000000 + BlockTimestamoEpochNanos //为了显示0.5s
+	tm := time.Unix(0, int64(slot)).UTC()
 
 	return []byte(fmt.Sprintf("%q", tm.Format(blockTimestampFormat))), nil
 }

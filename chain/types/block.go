@@ -112,7 +112,6 @@ type ProducerScheduleType struct {
 }
 
 type BlockHeader struct {
-	// Timestamp uint32 `json:"timestamp"`
 	Timestamp        common.BlockTimeStamp     `json:"timestamp"`
 	Producer         common.AccountName        `json:"producer"`
 	Confirmed        uint16                    `json:"confirmed"`
