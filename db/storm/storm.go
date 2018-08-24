@@ -5,9 +5,9 @@ import (
 	"encoding/binary"
 	"time"
 
-	"github.com/coreos/bbolt"
-	"github.com/storm/codec"
-	"github.com/storm/codec/json"
+	"github.com/eos-go/db/coreos/bbolt"
+	"github.com/eos-go/db/storm/codec"
+	"github.com/eos-go/db/storm/codec/json"
 )
 
 const (

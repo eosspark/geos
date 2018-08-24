@@ -3,8 +3,8 @@ package index
 import (
 	"bytes"
 
-	"github.com/coreos/bbolt"
-	"github.com/storm/internal"
+	"github.com/eos-go/db/coreos/bbolt"
+	"github.com/eos-go/db/storm/internal"
 )
 
 // NewUniqueIndex loads a UniqueIndex

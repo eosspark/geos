@@ -2,7 +2,7 @@ package eosiodb
 
 import (
 	"errors"
-	"github.com/asdine/storm"
+	"github.com/eos-go/db/storm"
 	"path/filepath"
 )
 
