@@ -42,19 +42,10 @@ func NewClient(p2pAddr string, chainID common.ChainIDType, networkVersion uint16
 }
 
 func (c *Client) StartConnect() error {
-
-	nodeID := make([]byte, 32)
-	rand.Read(nodeID)
-	data, _ := common.DecodeIDTypeByte(nodeID)
-
-	return c.connect(true, 0, common.BlockIDType(data), common.TimeNow(), 0, common.BlockIDType(data))
+	return c.connect(0, 0)
 }
 
-// func (c *Client)ConnectRecent() error{
-//   return c.connect(false,0,make([]byte,32),time.Now(),0,make([]byte,32))
-// }
-
-func (c *Client) connect(sync bool, headBlock uint32, headblockID common.BlockIDType, headBlocktime common.Tstamp, lib uint32, libID common.BlockIDType) (err error) {
+func (c *Client) connect(headBlock uint32, lib uint32) (err error) {
 	conn, err := net.Dial("tcp", c.p2pAddress)
 	if err != nil {
 		return err
@@ -71,7 +62,6 @@ func (c *Client) connect(sync bool, headBlock uint32, headblockID common.BlockID
 	err = c.SendHandshake(&HandshakeInfo{
 		HeadBlockNum:             headBlock,
 		LastIrreversibleBlockNum: lib,
-		HeadBlockTime:            headBlocktime,
 	})
 	if err != nil {
 		return err
@@ -82,7 +72,6 @@ func (c *Client) connect(sync bool, headBlock uint32, headblockID common.BlockID
 type HandshakeInfo struct {
 	HeadBlockNum             uint32
 	HeadBlockID              common.BlockIDType
-	HeadBlockTime            common.Tstamp
 	LastIrreversibleBlockNum uint32
 	LastIrreversibleBlockID  common.BlockIDType
 }
@@ -155,12 +144,10 @@ func (c *Client) sendMessage(message P2PMessage) (err error) {
 		return
 	}
 	messageLen := uint32(len(payload) + 1)
-	// fmt.Printf("Message Length: %d", messageLen)
 	buf := make([]byte, 4)
 	binary.LittleEndian.PutUint32(buf, messageLen)
 	sendBuf := append(buf, byte(message.GetType()))
 	sendBuf = append(sendBuf, payload...)
-	// fmt.Printf("message lenth: %d", len(sendBuf))
 
 	c.Conn.Write(sendBuf)
 
@@ -184,8 +171,9 @@ func (c *Client) handleConnection(ready chan bool, errChannel chan error) {
 		p2pMessage, err := ReadP2PMessageData(r)
 		if err != nil {
 			fmt.Println("Error reading from p2p client:", err)
-			errChannel <- err
-			return
+			// errChannel <- err
+			continue
+			// return
 		}
 
 		data, err := json.Marshal(p2pMessage)
@@ -200,7 +188,6 @@ func (c *Client) handleConnection(ready chan bool, errChannel chan error) {
 			hInfo := &HandshakeInfo{
 				HeadBlockNum:             msg.HeadNum,
 				HeadBlockID:              msg.HeadID,
-				HeadBlockTime:            msg.Time,
 				LastIrreversibleBlockNum: msg.LastIrreversibleBlockNum,
 				LastIrreversibleBlockID:  msg.LastIrreversibleBlockID,
 			}
@@ -218,7 +205,6 @@ func (c *Client) handleConnection(ready chan bool, errChannel chan error) {
 				// hInfo = &HandshakeInfo{
 				// 	HeadBlockNum:             headBlock,
 				// 	HeadBlockID:              headBlockID,
-				// 	HeadBlockTime:            headBlockTime,
 				// 	LastIrreversibleBlockNum: lib,
 				// 	LastIrreversibleBlockID:  libID,
 				// }
@@ -246,7 +232,40 @@ func (c *Client) handleConnection(ready chan bool, errChannel chan error) {
 		case *SyncRequestMessage:
 
 		case *SignedBlockMessage:
+			syncHeadBlock = msg.BlockNumber()
 
+			if syncHeadBlock == RequestedBlock {
+
+				delta := peerHeadBlock - syncHeadBlock
+				if delta == 0 {
+
+					syncing = false
+					fmt.Println("Sync completed ... Sending handshake")
+					id, err := msg.BlockID()
+					if err != nil {
+						fmt.Println("blockID: ", err)
+						return
+					}
+					hInfo := &HandshakeInfo{
+						HeadBlockNum:             msg.BlockNumber(),
+						HeadBlockID:              id,
+						LastIrreversibleBlockNum: c.LastHandshakeReceived.LastIrreversibleBlockNum,
+						LastIrreversibleBlockID:  c.LastHandshakeReceived.LastIrreversibleBlockID,
+					}
+					if err := c.SendHandshake(hInfo); err != nil {
+						fmt.Println(err)
+						return
+					}
+					return
+				}
+
+				RequestedBlock = syncHeadBlock + uint32(math.Min(float64(delta), 250))
+				syncHeadBlock++
+				fmt.Println("************************************")
+				fmt.Printf("Requestion more block from %d to %d\n", syncHeadBlock, RequestedBlock)
+				fmt.Println("************************************")
+				c.SendSyncRequest(syncHeadBlock, RequestedBlock)
+			}
 		case *PackedTransactionMessage:
 
 		default:
