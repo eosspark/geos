@@ -65,8 +65,6 @@ func (rlm *ResourceLimitsManager) AddIndices(){
 	rlm.db.Insert(&ResourceUsageObject{Id:ResourceUsage})
 	rlm.db.Insert(&ResourceLimitsConfigObject{Id:ResourceLimitsConfig})
 	rlm.db.Insert(&ResourceLimitsStateObject{Id:ResourceLimitsState})
-	var state ResourceLimitsStateObject
-	rlm.db.Find("Id", ResourceLimitsState, &state)
 }
 
 func (rlm *ResourceLimitsManager) InitializeDatabase(){
@@ -94,7 +92,7 @@ func (rlm *ResourceLimitsManager) InitializeAccount(account common.AccountName){
 	rlm.db.Find("Rlo", RloIndex{ResourceLimits, 0, false}, &rlo)
 	rlo.Id = ResourceLimits
 	rlo.Owner = account
-	rlo.Pending = true
+	rlo.Pending = false
 	rlo.Rlo = RloIndex{ResourceLimits, account, false}
 	rlm.db.Insert(&rlo)
 
