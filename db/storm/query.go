@@ -1,9 +1,9 @@
 package storm
 
 import (
-	"github.com/coreos/bbolt"
-	"github.com/storm/internal"
-	"github.com/storm/q"
+	"github.com/eos-go/db/coreos/bbolt"
+	"github.com/eos-go/db/storm/internal"
+	"github.com/eos-go/db/storm/q"
 )
 
 // Select a list of records that match a list of matchers. Doesn't use indexes.

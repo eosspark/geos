@@ -1,8 +1,8 @@
 package storm
 
 import (
-	"github.com/coreos/bbolt"
-	"github.com/storm/codec"
+	"github.com/eos-go/db/coreos/bbolt"
+	"github.com/eos-go/db/storm/codec"
 )
 
 // A Node in Storm represents the API to a BoltDB bucket.

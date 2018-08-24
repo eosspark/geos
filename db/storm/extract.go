@@ -6,8 +6,8 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/coreos/bbolt"
-	"github.com/storm/index"
+	"github.com/eos-go/db/coreos/bbolt"
+	"github.com/eos-go/db/storm/index"
 )
 
 // Storm tags
