@@ -1,27 +1,12 @@
 package p2p
 
 import (
-	// "encoding/binary"
 	"fmt"
-
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/ecc"
 )
 
-type P2PMessageType byte
-
-const (
-	HandshakeMessageType P2PMessageType = iota // 0
-	ChainSizeType
-	GoAwayMessageType // 2
-	TimeMessageType
-	NoticeMessageType // 4
-	RequestMessageType
-	SyncRequestMessageType       // 6
-	SignedBlockType              // 7
-	PackedTransactionMessageType // 8
-)
 
 type P2PMessage interface {
 	GetType() P2PMessageType

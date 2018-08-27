@@ -143,7 +143,7 @@ func (d *Decoder) decode(v interface{}) (err error) {
 
 	switch t.Kind() {
 	case reflect.Array:
-		print("120 Array")
+		print("Reading Array")
 		len := t.Len()
 		for i := 0; i < int(len); i++ {
 			if err = d.decode(rv.Index(i).Addr().Interface()); err != nil {
@@ -271,13 +271,13 @@ func (d *Decoder) decodeStruct(v interface{}, t reflect.Type, rv reflect.Value) 
 		prefix = append(prefix, "     ")
 	}
 	for i := 0; i < l; i++ {
-		tag := t.Field(i).Tag.Get("eos")
-		if tag == "-" {
+		switch t.Field(i).Tag.Get("eos") {
+		case "-":
 			continue
-		} else if tag == "optional" {
+		case "optional":
 			d.optional = true
 			// fmt.Println("276 walker", d.optional)
-		} else if tag == "vuint32" {
+		case "vuint32":
 			d.vuint32 = true
 			// fmt.Println("276 walker", d.vuint32)
 		}
