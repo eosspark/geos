@@ -289,52 +289,57 @@ func TestInlineFind(t *testing.T) {
 	}
 }
 
-type UserNested struct {
-	ID        int
-	OneNested struct {
-		A         string
-		TwoNested struct {
-			C int
-			D int
+//////////////////////////////////////////////////////////////// zoo Struct ///////////////////////////////////////////////////////////////
+
+type Zoo struct {
+	Id     int `storm:"id,increment"`
+	Name   string
+	Animal struct {
+		Number    int
+		Carnivore struct {
+			Lion  int
+			Tiger int
 		} `storm:"unique"`
 	} `storm:"inline"`
 }
 
-func TestInlineNested(t *testing.T) {
+func TestInlinezoo(t *testing.T) {
 	db, err := NewDatabase("./", "eos.db", true)
 	if err != nil {
 		t.Error(err)
 	}
 	defer db.Close()
 
-	var nested UserNested
-	nested.ID = 10
-	nested.OneNested.A = "A"
-	nested.OneNested.TwoNested.C = 100
-	nested.OneNested.TwoNested.D = 200
+	var zoo Zoo
+	zoo.Name = "zoo"
+	zoo.Animal.Number = 10
+	zoo.Animal.Carnivore.Lion = 100
+	zoo.Animal.Carnivore.Tiger = 100
 
-	err = db.Insert(&nested)
+	err = db.Insert(&zoo)
 	if err != nil {
 		t.Error(err)
 	}
 
-	err = db.Insert(&nested) // NOTE Repeat the same value of the same unique field, the database will ignore it and will not return failure
+	err = db.Insert(&zoo) // NOTE Repeat the same value of the same unique field, the database will ignore it and will not return failure
 	if err != nil {
 		t.Error(err)
 	}
 
-	nested.ID = 11
-	var nesteds []UserNested
-	err = db.All(&nesteds)
-	if len(nesteds) != 1 {
-		fmt.Println("TestInlineNested All Failed")
+	var zoos []Zoo
+	err = db.All(&zoos)
+	if len(zoos) != 1 {
+		fmt.Println("TestInlinezoo All Failed")
 		return
 	}
 
-	nested.ID = 11
-	err = db.Insert(&nested)
+	fmt.Println(&zoo)
+	fmt.Println(&zoos)
+	zoo.Id++
+	err = db.Insert(&zoo)
 	if err == nil {
-		fmt.Println("TestInlineNested Insert Failed")
+		fmt.Println("TestInlinezoo Insert Failed")
 	}
 	fmt.Println(err.Error())
+
 }
