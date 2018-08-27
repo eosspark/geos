@@ -8,6 +8,7 @@ import (
 	"math"
 	"reflect"
 	"github.com/eosspark/eos-go/db"
+	"math/big"
 )
 
 type Ratio struct {
@@ -152,31 +153,35 @@ func (rlm *ResourceLimitsManager) AddTransactionUsage(account []common.AccountNa
 		})
 
 		if cpuWeight >=0 && state.TotalCpuWeight > 0 {
-			windowSize := uint64(config.AccountCpuUsageAverageWindow)
-			virtualNetworkCapacityInWindow := state.VirtualCpuLimit * windowSize
-			cpuUsedInWindow := ruo.CpuUsage.ValueEx * windowSize / uint64(chainConfig.RateLimitingPrecision)
+			windowSize := new(big.Int).SetUint64(uint64(config.AccountCpuUsageAverageWindow))
+			virtualNetworkCapacityInWindow := new(big.Int).Mul(windowSize, new(big.Int).SetUint64(state.VirtualCpuLimit))
+			cpuUsedInWindow := new(big.Int).Div(
+				new(big.Int).Mul(windowSize, new(big.Int).SetUint64(ruo.CpuUsage.ValueEx)),
+				new(big.Int).SetUint64(uint64(chainConfig.RateLimitingPrecision)))
 
-			userWeight := cpuWeight
-			allUserWeight := state.TotalCpuWeight
+			userWeight := new(big.Int).SetInt64(cpuWeight)
+			allUserWeight := new(big.Int).SetUint64(state.TotalCpuWeight)
 
-			maxUserUseInWindow := virtualNetworkCapacityInWindow * uint64(userWeight) /  allUserWeight
-
-			if cpuUsedInWindow > maxUserUseInWindow {
+			maxUserUseInWindow := new(big.Int).Div(
+				new(big.Int).Mul(virtualNetworkCapacityInWindow, userWeight), allUserWeight)
+			if cpuUsedInWindow.Cmp(maxUserUseInWindow) == 1  {
 				fmt.Println("error")
 			}
 		}
 
 		if netWeight >= 0 && state.TotalNetWeight > 0 {
-			windowSize := uint64(config.AccountNetUsageAverageWindow)
-			virtualNetworkCapacityInWindow := state.VirtualNetLimit * windowSize
-			netUsedInWindow := ruo.NetUsage.ValueEx * windowSize / uint64(chainConfig.RateLimitingPrecision)
+			windowSize := new(big.Int).SetUint64(uint64(config.AccountNetUsageAverageWindow))
+			virtualNetworkCapacityInWindow := new(big.Int).Mul(windowSize, new(big.Int).SetUint64(state.VirtualNetLimit))
+			netUsedInWindow := new(big.Int).Div(
+				new(big.Int).Mul(windowSize, new(big.Int).SetUint64(ruo.NetUsage.ValueEx)),
+				new(big.Int).SetUint64(uint64(chainConfig.RateLimitingPrecision)))
 
-			userWeight := netWeight
-			allUserWeight := state.TotalNetWeight
+			userWeight := new(big.Int).SetInt64(netWeight)
+			allUserWeight := new(big.Int).SetUint64(state.TotalNetWeight)
 
-			maxUserUseInWindow := virtualNetworkCapacityInWindow * uint64(userWeight) /  allUserWeight
-
-			if netUsedInWindow > maxUserUseInWindow {
+			maxUserUseInWindow := new(big.Int).Div(
+				new(big.Int).Mul(virtualNetworkCapacityInWindow, userWeight), allUserWeight)
+			if netUsedInWindow.Cmp(maxUserUseInWindow) == 1  {
 				fmt.Println("error")
 			}
 		}
@@ -382,23 +387,25 @@ func (rlm *ResourceLimitsManager) GetAccountCpuLimitEx(name common.AccountName, 
 	}
 
 	var arl AccountResourceLimit
-	windowSize := uint64(config.AccountCpuUsageAverageWindow)
-	var virtualCpuCapacityInWindow uint64
+	windowSize := new(big.Int).SetUint64(uint64(config.AccountCpuUsageAverageWindow))
+	virtualCpuCapacityInWindow := new(big.Int)
 	if elastic {
-		virtualCpuCapacityInWindow = state.VirtualCpuLimit * windowSize
+		virtualCpuCapacityInWindow = new(big.Int).Mul(new(big.Int).SetUint64(state.VirtualCpuLimit), windowSize)
 	} else {
-		virtualCpuCapacityInWindow = config.CpuLimitParameters.Max * windowSize
+		virtualCpuCapacityInWindow = new(big.Int).Mul(new(big.Int).SetUint64(config.CpuLimitParameters.Max), windowSize)
 	}
-	userWeight := uint64(cpuWeight)
-	allUserWeight := state.TotalCpuWeight
+	userWeight := new(big.Int).SetUint64(uint64(cpuWeight))
+	allUserWeight := new(big.Int).SetUint64(state.TotalCpuWeight)
 
-	maxUserUseInWindow := virtualCpuCapacityInWindow * userWeight / allUserWeight
-	cpuUsedInWindow := IntegerDivideCeil(ruo.CpuUsage.ValueEx * windowSize, uint64(chainConfig.RateLimitingPrecision))
+	maxUserUseInWindow := new(big.Int).Div(new(big.Int).Mul(virtualCpuCapacityInWindow, userWeight), allUserWeight)
+	cpuUsedInWindow := IntegerDivideCeil(
+		new(big.Int).Mul(new(big.Int).SetUint64(ruo.CpuUsage.ValueEx), windowSize),
+		new(big.Int).SetUint64(uint64(chainConfig.RateLimitingPrecision)))
 
-	if maxUserUseInWindow <= cpuUsedInWindow {
+	if maxUserUseInWindow.Cmp(cpuUsedInWindow) != 1 {
 		arl.Available = 0
 	} else {
-		arl.Available = DowngradeCast(maxUserUseInWindow - cpuUsedInWindow)
+		arl.Available = DowngradeCast(new(big.Int).Sub(maxUserUseInWindow, cpuUsedInWindow))
 	}
 
 	arl.Used = DowngradeCast(cpuUsedInWindow)
@@ -427,23 +434,25 @@ func (rlm *ResourceLimitsManager) GetAccountNetLimitEx(name common.AccountName, 
 	}
 
 	var arl AccountResourceLimit
-	windowSize := uint64(config.AccountNetUsageAverageWindow)
-	var virtualNetCapacityInWindow uint64
+	windowSize := new(big.Int).SetUint64(uint64(config.AccountNetUsageAverageWindow))
+	virtualNetCapacityInWindow := new(big.Int)
 	if elastic {
-		virtualNetCapacityInWindow = state.VirtualNetLimit * windowSize
+		virtualNetCapacityInWindow = new(big.Int).Mul(new(big.Int).SetUint64(state.VirtualNetLimit), windowSize)
 	} else {
-		virtualNetCapacityInWindow = config.NetLimitParameters.Max * windowSize
+		virtualNetCapacityInWindow = new(big.Int).Mul(new(big.Int).SetUint64(config.NetLimitParameters.Max), windowSize)
 	}
-	userWeight := uint64(netWeight)
-	allUserWeight := state.TotalNetWeight
+	userWeight := new(big.Int).SetUint64(uint64(netWeight))
+	allUserWeight := new(big.Int).SetUint64(state.TotalNetWeight)
 
-	maxUserUseInWindow := virtualNetCapacityInWindow * userWeight / allUserWeight
-	netUsedInWindow := IntegerDivideCeil(ruo.NetUsage.ValueEx * windowSize, uint64(chainConfig.RateLimitingPrecision))
+	maxUserUseInWindow := new(big.Int).Div(new(big.Int).Mul(virtualNetCapacityInWindow, userWeight), allUserWeight)
+	netUsedInWindow := IntegerDivideCeil(
+		new(big.Int).Mul(new(big.Int).SetUint64(ruo.NetUsage.ValueEx), windowSize),
+		new(big.Int).SetUint64(uint64(chainConfig.RateLimitingPrecision)))
 
-	if maxUserUseInWindow <= netUsedInWindow {
+	if maxUserUseInWindow.Cmp(netUsedInWindow) != 1 {
 		arl.Available = 0
 	} else {
-		arl.Available = DowngradeCast(maxUserUseInWindow - netUsedInWindow)
+		arl.Available = DowngradeCast(new(big.Int).Sub(maxUserUseInWindow, netUsedInWindow))
 	}
 
 	arl.Used = DowngradeCast(netUsedInWindow)

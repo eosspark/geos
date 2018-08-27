@@ -5,9 +5,19 @@ import (
 	"fmt"
 	"github.com/eosspark/eos-go/chain/config"
 	"github.com/eosspark/eos-go/common"
+	"math/big"
 )
 
-func IntegerDivideCeil(num uint64, den uint64) uint64 {
+func IntegerDivideCeil(num *big.Int, den *big.Int) *big.Int {
+	result := new(big.Int).Div(num, den)
+
+	if new(big.Int).Mod(num, den).Int64() > 0 {
+		result = new(big.Int).Add(result, big.NewInt(1))
+	}
+	return result
+}
+
+func IntegerDivideCeilUint64(num uint64, den uint64) uint64 {
 	if num % den > 0 {
 		return num / den + 1
 	} else {
@@ -30,23 +40,22 @@ func MultiWithRatio(value uint64, ratio Ratio) uint64{
 	return value * ratio.Numerator / ratio.Denominator
 }
 
-func DowngradeCast(val uint64) int64{
-	var max, min uint64
-	max = math.MaxInt64
-	min = 0
-	//min = math.MinInt64
-	if val > max || val < min {
+func DowngradeCast(val *big.Int) int64{
+	max := big.NewInt(math.MaxInt64)
+	min := big.NewInt(math.MinInt64)
+
+	if val.Cmp(max) == 1 || val.Cmp(min) == -1 {
 		fmt.Println("error")
 	}
-	return int64(val)
+	return val.Int64()
 }
 
 func (ema *ExponentialMovingAverageAccumulator) Average() uint64{
-	return IntegerDivideCeil(ema.ValueEx, uint64(config.RateLimitingPrecision))
+	return IntegerDivideCeilUint64(ema.ValueEx, uint64(config.RateLimitingPrecision))
 }
 
 func (ema *ExponentialMovingAverageAccumulator) add(units uint64, ordinal uint32, windowSize uint32){
-	valueExContrib := IntegerDivideCeil(units * uint64(config.RateLimitingPrecision), uint64(windowSize))
+	valueExContrib := IntegerDivideCeilUint64(units * uint64(config.RateLimitingPrecision), uint64(windowSize))
 	if ema.LastOrdinal != ordinal {
 
 		if ema.LastOrdinal + windowSize > ordinal {
