@@ -289,8 +289,6 @@ func TestInlineFind(t *testing.T) {
 	}
 }
 
-//////////////////////////////////////////////////////////////// zoo Struct ///////////////////////////////////////////////////////////////
-
 type Zoo struct {
 	Id     int `storm:"id,increment"`
 	Name   string
@@ -342,4 +340,60 @@ func TestInlinezoo(t *testing.T) {
 	}
 	fmt.Println(err.Error())
 
+}
+
+//////////////////////////////////////////////////////////////// Session Test  ///////////////////////////////////////////////////////////////
+
+func TestSession(t *testing.T) {
+	db, err := NewDatabase("./", "eos.db", true)
+	if err != nil {
+		t.Error(err)
+	}
+	defer db.Close()
+
+	session, err := db.Start_Session()
+	if err != nil {
+		fmt.Println(err.Error())
+		return
+	}
+	defer session.Undo()
+}
+
+func TestSessionUndo(t *testing.T) {
+	db, err := NewDatabase("./", "undo.db", true)
+	if err != nil {
+		t.Error(err)
+	}
+	defer db.Close()
+
+	session, err := db.Start_Session()
+	if err != nil {
+		fmt.Println(err.Error())
+		return
+	}
+	defer session.Undo()
+
+	user := User{Id: 14, Name: "session", Tag: 23}
+	err = session.Insert(&user)
+	if err != nil {
+		fmt.Println(err.Error())
+		return
+	}
+
+	var users []User
+	err = db.All(&users)
+	if err != nil {
+		fmt.Println(err.Error())
+		return
+	}
+
+	fmt.Println(len(users))
+	var s_users []User
+	err = session.All(&s_users)
+	if err != nil {
+		fmt.Println(err.Error())
+		return
+	}
+	fmt.Println(len(s_users))
+	fmt.Println("hello world")
 }

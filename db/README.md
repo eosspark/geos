@@ -43,7 +43,6 @@ err = db.INsert(&zoo)   // already exists(unique)
 ```
 
 
-
 ### NOTE
 - `Please read the test file carefully first`
 - `Repeat the same structure, the database will not care, and will not return failure`

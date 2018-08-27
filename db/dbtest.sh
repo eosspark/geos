@@ -1,6 +1,6 @@
 #!/bin/sh
 
-rm -rf ./eos.db
+rm -rf ./*.db
 rm -rf ./build
 set -e
 
@@ -33,6 +33,6 @@ PWD="$ethdir/db"
 go test
 cd $root
 #echo $root
-rm -rf ./eos.db
+rm -rf ./*.db
 rm -rf ./build
 #exec "$@"
