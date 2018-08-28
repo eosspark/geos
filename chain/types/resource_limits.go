@@ -157,7 +157,7 @@ func (rlm *ResourceLimitsManager) AddTransactionUsage(account []common.AccountNa
 			virtualNetworkCapacityInWindow := new(big.Int).Mul(windowSize, new(big.Int).SetUint64(state.VirtualCpuLimit))
 			cpuUsedInWindow := new(big.Int).Div(
 				new(big.Int).Mul(windowSize, new(big.Int).SetUint64(ruo.CpuUsage.ValueEx)),
-				new(big.Int).SetUint64(uint64(chainConfig.RateLimitingPrecision)))
+				new(big.Int).SetUint64(uint64(chainConfig.DefaultConfig.RateLimitingPrecision)))
 
 			userWeight := new(big.Int).SetInt64(cpuWeight)
 			allUserWeight := new(big.Int).SetUint64(state.TotalCpuWeight)
@@ -174,7 +174,7 @@ func (rlm *ResourceLimitsManager) AddTransactionUsage(account []common.AccountNa
 			virtualNetworkCapacityInWindow := new(big.Int).Mul(windowSize, new(big.Int).SetUint64(state.VirtualNetLimit))
 			netUsedInWindow := new(big.Int).Div(
 				new(big.Int).Mul(windowSize, new(big.Int).SetUint64(ruo.NetUsage.ValueEx)),
-				new(big.Int).SetUint64(uint64(chainConfig.RateLimitingPrecision)))
+				new(big.Int).SetUint64(uint64(chainConfig.DefaultConfig.RateLimitingPrecision)))
 
 			userWeight := new(big.Int).SetInt64(netWeight)
 			allUserWeight := new(big.Int).SetUint64(state.TotalNetWeight)
@@ -400,7 +400,7 @@ func (rlm *ResourceLimitsManager) GetAccountCpuLimitEx(name common.AccountName, 
 	maxUserUseInWindow := new(big.Int).Div(new(big.Int).Mul(virtualCpuCapacityInWindow, userWeight), allUserWeight)
 	cpuUsedInWindow := IntegerDivideCeil(
 		new(big.Int).Mul(new(big.Int).SetUint64(ruo.CpuUsage.ValueEx), windowSize),
-		new(big.Int).SetUint64(uint64(chainConfig.RateLimitingPrecision)))
+		new(big.Int).SetUint64(uint64(chainConfig.DefaultConfig.RateLimitingPrecision)))
 
 	if maxUserUseInWindow.Cmp(cpuUsedInWindow) != 1 {
 		arl.Available = 0
@@ -447,7 +447,7 @@ func (rlm *ResourceLimitsManager) GetAccountNetLimitEx(name common.AccountName, 
 	maxUserUseInWindow := new(big.Int).Div(new(big.Int).Mul(virtualNetCapacityInWindow, userWeight), allUserWeight)
 	netUsedInWindow := IntegerDivideCeil(
 		new(big.Int).Mul(new(big.Int).SetUint64(ruo.NetUsage.ValueEx), windowSize),
-		new(big.Int).SetUint64(uint64(chainConfig.RateLimitingPrecision)))
+		new(big.Int).SetUint64(uint64(chainConfig.DefaultConfig.RateLimitingPrecision)))
 
 	if maxUserUseInWindow.Cmp(netUsedInWindow) != 1 {
 		arl.Available = 0
