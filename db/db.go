@@ -13,7 +13,7 @@ type Database struct {
 	rw   bool // XXX read only or read write
 }
 
-func (db *Database) CkechState() error {
+func (db *Database) checkState() error {
 	if !db.rw {
 		return errors.New("read only")
 	}
@@ -21,7 +21,7 @@ func (db *Database) CkechState() error {
 }
 
 func (db *Database) Insert(data interface{}) error {
-	err := db.CkechState()
+	err := db.checkState()
 	if err != nil {
 		return err
 	}
@@ -48,7 +48,7 @@ func (db *Database) Get(fieldName string, fieldValue interface{}, to interface{}
 }
 
 func (db *Database) Remover(item interface{}) error {
-	err := db.CkechState()
+	err := db.checkState()
 	if err != nil {
 		return err
 	}
@@ -56,7 +56,7 @@ func (db *Database) Remover(item interface{}) error {
 }
 
 func (db *Database) UpdateField(data interface{}, fieldName string, value interface{}) error {
-	err := db.CkechState()
+	err := db.checkState()
 	if err != nil {
 		return err
 	}
@@ -64,7 +64,7 @@ func (db *Database) UpdateField(data interface{}, fieldName string, value interf
 }
 
 func (db *Database) Update(old interface{}, fn func(interface{}) error) error {
-	err := db.CkechState()
+	err := db.checkState()
 	if err != nil {
 		return err
 	}

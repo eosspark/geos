@@ -1,5 +1,7 @@
 #!/bin/sh
 
+rm -rf ./*.db
+rm -rf ./build
 set -e
 
 #if [ ! -f "build/env.sh" ]; then
@@ -31,6 +33,6 @@ PWD="$ethdir/db"
 go test
 cd $root
 #echo $root
-rm -rf ./eos.db
+rm -rf ./*.db
 rm -rf ./build
 #exec "$@"

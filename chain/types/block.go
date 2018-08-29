@@ -9,6 +9,7 @@ import (
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/ecc"
 	"github.com/eosspark/eos-go/rlp"
+	"sort"
 )
 
 type TransactionStatus uint8
@@ -172,11 +173,6 @@ type IncrementalMerkle struct {
 	ActiveNodes [4]uint64 `json:"active_nodes"`
 }
 
-type FlatMap struct {
-	AccountName common.AccountName `json:"account_name"`
-	ProducerKey uint32             `json:"producer_key"`
-}
-
 type HeaderConfirmation struct {
 	BlockId           common.BlockIDType
 	Producer          common.AccountName
@@ -194,11 +190,151 @@ type BlockHeaderState struct {
 	PendingSchedule                  ProducerScheduleType
 	ActiveSchedule                   ProducerScheduleType
 	BlockrootMerkle                  IncrementalMerkle
-	ProducerToLastProduced           FlatMap
-	ProducerToLastImpliedIrb         FlatMap
+	ProducerToLastProduced           map[common.AccountName]uint32
+	ProducerToLastImpliedIrb         map[common.AccountName]uint32
 	BlockSigningKey                  ecc.PublicKey
 	ConfirmCount                     []uint8              `json:"confirm_count"`
 	Confirmations                    []HeaderConfirmation `json:"confirmations"`
+}
+
+func (bs *BlockHeaderState) GetScheduledProducer(t common.BlockTimeStamp) ProducerKey {
+	index := uint32(t) % uint32(len(bs.ActiveSchedule.Producers)*12)
+	index /= 12
+	return bs.ActiveSchedule.Producers[index]
+}
+
+func (bs *BlockHeaderState) CalcDposLastIrreversible() uint32 {
+	blockNums := make([]int, 0, len(bs.ProducerToLastImpliedIrb))
+	for _, value := range bs.ProducerToLastImpliedIrb {
+		blockNums = append(blockNums, int(value))
+	}
+	/// 2/3 must be greater, so if I go 1/3 into the list sorted from low to high, then 2/3 are greater
+
+	if len(blockNums) == 0 {
+		return 0
+	}
+	/// TODO: update to nth_element
+	sort.Ints(blockNums)
+	return uint32(blockNums[(len(blockNums)-1)/3])
+}
+
+func (bs *BlockHeaderState) GenerateNext(when *common.BlockTimeStamp) *BlockHeaderState {
+	result := new(BlockHeaderState)
+
+	if when != nil {
+		//EOS_ASSERT( when > header.timestamp, block_validate_exception, "next block must be in the future" );
+		if *when > bs.Header.Timestamp {
+			return nil
+		}
+	} else {
+		when = &bs.Header.Timestamp
+		*when++
+	}
+
+	result.Header.Timestamp = *when
+	result.Header.Previous = bs.ID
+	result.Header.ScheduleVersion = bs.ActiveSchedule.Version
+
+	proKey := bs.GetScheduledProducer(*when)
+	result.BlockSigningKey = proKey.BlockSigningKey
+	result.Header.Producer = proKey.AccountName
+
+	result.PendingScheduleLibNum = bs.PendingScheduleLibNum
+	result.PendingScheduleHash = bs.PendingScheduleHash
+	result.BlockNum = bs.BlockNum + 1
+	result.ProducerToLastProduced = bs.ProducerToLastProduced
+	result.ProducerToLastImpliedIrb = bs.ProducerToLastImpliedIrb
+	result.ProducerToLastProduced[proKey.AccountName] = result.BlockNum
+	result.BlockrootMerkle = bs.BlockrootMerkle
+	//result.BlockrootMerkle.Append(ID)
+
+	result.ActiveSchedule = bs.ActiveSchedule
+	result.PendingSchedule = bs.PendingSchedule
+	result.DposProposedIrreversibleBlocknum = bs.DposProposedIrreversibleBlocknum
+	result.BftIrreversibleBlocknum = bs.BftIrreversibleBlocknum
+
+	result.ProducerToLastImpliedIrb[proKey.AccountName] = result.DposProposedIrreversibleBlocknum
+	result.DposIrreversibleBlocknum = result.CalcDposLastIrreversible()
+
+	/// grow the confirmed count
+	//C++ static_assert(std::numeric_limits<uint8_t>::max() >= (config::max_producers * 2 / 3) + 1, "8bit confirmations may not be able to hold all of the needed confirmations");
+
+	// This uses the previous block active_schedule because thats the "schedule" that signs and therefore confirms _this_ block
+	numActiveProducers := len(bs.ActiveSchedule.Producers)
+	requiredConfs := uint32(numActiveProducers*2/3) + 1
+
+	if len(bs.ConfirmCount) < common.DefaultConfig.MaxTrackedDposConfirmations {
+		result.ConfirmCount = make([]uint8, len(bs.ConfirmCount)+1)
+		copy(result.ConfirmCount, bs.ConfirmCount)
+		result.ConfirmCount[len(result.ConfirmCount)-1] = uint8(requiredConfs)
+	} else {
+		result.ConfirmCount = make([]uint8, len(bs.ConfirmCount))
+		copy(result.ConfirmCount, bs.ConfirmCount[1:])
+		result.ConfirmCount[len(result.ConfirmCount)-1] = uint8(requiredConfs)
+	}
+
+	return result
+}
+
+func (bs *BlockHeaderState) MaybePromotePending() bool {
+	if len(bs.PendingSchedule.Producers) > 0 && bs.DposIrreversibleBlocknum >= bs.PendingScheduleLibNum {
+		bs.ActiveSchedule = bs.PendingSchedule
+
+		var newProducerToLastProduced map[common.AccountName]uint32
+		var newProducerToLastImpliedIrb map[common.AccountName]uint32
+		for _, pro := range bs.ActiveSchedule.Producers {
+			existing, hasExisting := bs.ProducerToLastProduced[pro.AccountName]
+			if hasExisting {
+				newProducerToLastProduced[pro.AccountName] = existing
+			} else {
+				newProducerToLastProduced[pro.AccountName] = bs.DposIrreversibleBlocknum
+			}
+
+			existingIrb, hasExistingIrb := bs.ProducerToLastImpliedIrb[pro.AccountName]
+			if hasExistingIrb {
+				newProducerToLastImpliedIrb[pro.AccountName] = existingIrb
+			} else {
+				newProducerToLastImpliedIrb[pro.AccountName] = bs.DposIrreversibleBlocknum
+			}
+		}
+
+		bs.ProducerToLastProduced = newProducerToLastProduced
+		bs.ProducerToLastImpliedIrb = newProducerToLastImpliedIrb
+		bs.ProducerToLastProduced[bs.Header.Producer] = bs.BlockNum
+
+		return true
+	}
+	return false
+}
+
+func (bs *BlockHeaderState) SetConfirmed(numPrevBlocks uint16) {
+	bs.Header.Confirmed = numPrevBlocks
+
+	i := len(bs.ConfirmCount) - 1
+	blocksToConfirm := numPrevBlocks + 1 /// confirm the head block too
+	for i >= 0 && blocksToConfirm > 0 {
+		bs.ConfirmCount[i]--
+		if bs.ConfirmCount[i] == 0 {
+			blockNumFori := bs.BlockNum - uint32(len(bs.ConfirmCount)-1-i)
+			bs.DposProposedIrreversibleBlocknum = blockNumFori
+
+			if i == len(bs.ConfirmCount)-1 {
+				bs.ConfirmCount = make([]uint8, 0)
+			} else {
+				bs.ConfirmCount = bs.ConfirmCount[i+1:]
+			}
+
+			return
+		}
+		i--
+		blocksToConfirm--
+	}
+
+}
+
+func (bs *BlockHeaderState) SigDigest() []byte {
+	//TODO wait for sha256's pack
+	return []byte{}
 }
 
 type BlockState struct {

@@ -72,6 +72,11 @@ func TestFind(t *testing.T) {
 	if obj == account {
 		fmt.Println("find error two")
 	}
+
+	err = db.Insert(&obj)
+	if err != nil {
+		t.Error(err)
+	}
 }
 
 func TestInsertSome(t *testing.T) {
@@ -102,7 +107,10 @@ func TestGet(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	fmt.Println(len(objs))
+	if len(objs) != 5 {
+		fmt.Println("TestGet Failed")
+		return
+	}
 }
 
 func TestAll(t *testing.T) {
@@ -117,7 +125,10 @@ func TestAll(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	fmt.Println(len(objs))
+	if len(objs) != 6 {
+		fmt.Println("TestAll Failed")
+		return
+	}
 }
 
 func TestUpdateItem(t *testing.T) {
@@ -183,7 +194,10 @@ func TestRemove(t *testing.T) {
 	if err != nil {
 		t.Error(err)
 	}
-	fmt.Println(len(objs))
+	if len(objs) != 5 {
+		fmt.Println("TestRemove Failed")
+		return
+	}
 }
 
 func TestUnique(t *testing.T) {
@@ -207,4 +221,179 @@ func TestUnique(t *testing.T) {
 		return
 	}
 	fmt.Println(err.Error())
+}
+
+///////////////////////////////////////////////////////// Inline Test ////////////////////////////////////////////////////////////////
+
+type Base struct {
+	Id  uint64 `storm:"id,increment"`
+	Tag string `storm:"index"`
+}
+
+type Country struct {
+	Base  Base   `storm:"inline,unique"`
+	Name  string `storm:"unique"`
+	users []User `storm:"inline"`
+}
+
+func TestInlineWriteOne(t *testing.T) {
+	db, err := NewDatabase("./", "eos.db", true)
+	if err != nil {
+		t.Error(err)
+	}
+	defer db.Close()
+
+	country := &Country{
+		Base: Base{
+			Tag: "Big Country",
+		},
+		Name: "China",
+	}
+	err = db.Insert(country)
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = db.Insert(country)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+func TestInlineAll(t *testing.T) {
+	db, err := NewDatabase("./", "eos.db", true)
+	if err != nil {
+		t.Error(err)
+	}
+	defer db.Close()
+
+	var countrys []Country
+	err = db.All(&countrys)
+	if err != nil {
+		t.Error(err)
+	}
+	fmt.Println(countrys)
+}
+
+func TestInlineFind(t *testing.T) {
+	db, err := NewDatabase("./", "eos.db", true)
+	if err != nil {
+		t.Error(err)
+	}
+	defer db.Close()
+
+	var country Country
+	err = db.Find("Base", Base{Id: 1, Tag: "Big Country"}, &country)
+	if err != nil {
+		t.Error(err)
+	}
+}
+
+type Zoo struct {
+	Id     int `storm:"id,increment"`
+	Name   string
+	Animal struct {
+		Number    int
+		Carnivore struct {
+			Lion  int
+			Tiger int
+		} `storm:"unique"`
+	} `storm:"inline"`
+}
+
+func TestInlinezoo(t *testing.T) {
+	db, err := NewDatabase("./", "eos.db", true)
+	if err != nil {
+		t.Error(err)
+	}
+	defer db.Close()
+
+	var zoo Zoo
+	zoo.Name = "zoo"
+	zoo.Animal.Number = 10
+	zoo.Animal.Carnivore.Lion = 100
+	zoo.Animal.Carnivore.Tiger = 100
+
+	err = db.Insert(&zoo)
+	if err != nil {
+		t.Error(err)
+	}
+
+	err = db.Insert(&zoo) // NOTE Repeat the same value of the same unique field, the database will ignore it and will not return failure
+	if err != nil {
+		t.Error(err)
+	}
+
+	var zoos []Zoo
+	err = db.All(&zoos)
+	if len(zoos) != 1 {
+		fmt.Println("TestInlinezoo All Failed")
+		return
+	}
+
+	fmt.Println(&zoo)
+	fmt.Println(&zoos)
+	zoo.Id++
+	err = db.Insert(&zoo)
+	if err == nil {
+		fmt.Println("TestInlinezoo Insert Failed")
+	}
+	fmt.Println(err.Error())
+
+}
+
+//////////////////////////////////////////////////////////////// Session Test  ///////////////////////////////////////////////////////////////
+
+func TestSession(t *testing.T) {
+	db, err := NewDatabase("./", "eos.db", true)
+	if err != nil {
+		t.Error(err)
+	}
+	defer db.Close()
+
+	session, err := db.Start_Session()
+	if err != nil {
+		fmt.Println(err.Error())
+		return
+	}
+	defer session.Undo()
+}
+
+func TestSessionUndo(t *testing.T) {
+	db, err := NewDatabase("./", "undo.db", true)
+	if err != nil {
+		t.Error(err)
+	}
+	defer db.Close()
+
+	session, err := db.Start_Session()
+	if err != nil {
+		fmt.Println(err.Error())
+		return
+	}
+	defer session.Undo()
+
+	user := User{Id: 14, Name: "session", Tag: 23}
+	err = session.Insert(&user)
+	if err != nil {
+		fmt.Println(err.Error())
+		return
+	}
+
+	var users []User
+	err = db.All(&users)
+	if err != nil {
+		fmt.Println(err.Error())
+		return
+	}
+
+	fmt.Println(len(users))
+	var s_users []User
+	err = session.All(&s_users)
+	if err != nil {
+		fmt.Println(err.Error())
+		return
+	}
+	fmt.Println(len(s_users))
+	fmt.Println("hello world")
 }

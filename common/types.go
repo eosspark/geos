@@ -660,7 +660,6 @@ func (t *BlockTimeStamp) UnmarshalJSON(data []byte) (err error) {
 	if string(data) == "null" {
 		return nil
 	}
-
 	var temp time.Time
 	temp, err = time.Parse(`"`+blockTimestampFormat+`"`, string(data))
 	if err != nil {
