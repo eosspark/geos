@@ -1,14 +1,13 @@
 package types
 
 import (
+	"fmt"
 	"github.com/eosspark/eos-go/base"
 	"github.com/eosspark/eos-go/common"
-	chainConfig "github.com/eosspark/eos-go/chain/config"
-	"fmt"
-	"math"
-	"reflect"
 	"github.com/eosspark/eos-go/db"
+	"math"
 	"math/big"
+	"reflect"
 )
 
 type Ratio struct {
@@ -27,7 +26,7 @@ type ElasticLimitParameters struct {
 
 type AccountResourceLimit struct {
 	Used      int64 `json:"used"`
- 	Available int64 `json:"available"`
+	Available int64 `json:"available"`
 	Max       int64 `json:"max"`
 }
 
@@ -35,40 +34,40 @@ type ResourceLimitsManager struct {
 	db *eosiodb.Session `json:"db"`
 }
 
-func NewResourceLimitsManager(db *eosiodb.Session) *ResourceLimitsManager{
-	return &ResourceLimitsManager{db:db}
+func NewResourceLimitsManager(db *eosiodb.Session) *ResourceLimitsManager {
+	return &ResourceLimitsManager{db: db}
 }
 
-func UpdateElasticLimit(currentLimit uint64, averageUsage uint64, params ElasticLimitParameters) uint64{
+func UpdateElasticLimit(currentLimit uint64, averageUsage uint64, params ElasticLimitParameters) uint64 {
 	result := currentLimit
 	if averageUsage > params.Target {
 		result = result * params.ContractRate.Numerator / params.ContractRate.Denominator
 	} else {
 		result = result * params.ExpandRate.Numerator / params.ExpandRate.Denominator
 	}
-	return base.Min(base.Min(result, params.Max), uint64(params.Max * uint64(params.MaxMultiplier)))
+	return base.Min(base.Min(result, params.Max), uint64(params.Max*uint64(params.MaxMultiplier)))
 }
 
-func (elp ElasticLimitParameters) Validate(){
+func (elp ElasticLimitParameters) Validate() {
 
 }
 
-func (state *ResourceLimitsStateObject) UpdateVirtualCpuLimit(cfg ResourceLimitsConfigObject){
+func (state *ResourceLimitsStateObject) UpdateVirtualCpuLimit(cfg ResourceLimitsConfigObject) {
 	state.VirtualCpuLimit = UpdateElasticLimit(state.VirtualCpuLimit, state.AverageBlockCpuUsage.Average(), cfg.CpuLimitParameters)
 }
 
-func (state *ResourceLimitsStateObject) UpdateVirtualNetLimit(cfg ResourceLimitsConfigObject){
+func (state *ResourceLimitsStateObject) UpdateVirtualNetLimit(cfg ResourceLimitsConfigObject) {
 	state.VirtualNetLimit = UpdateElasticLimit(state.VirtualNetLimit, state.AverageBlockNetUsage.Average(), cfg.NetLimitParameters)
 }
 
-func (rlm *ResourceLimitsManager) AddIndices(){
-	rlm.db.Insert(&ResourceLimitsObject{Id:ResourceLimits})
-	rlm.db.Insert(&ResourceUsageObject{Id:ResourceUsage})
-	rlm.db.Insert(&ResourceLimitsConfigObject{Id:ResourceLimitsConfig})
-	rlm.db.Insert(&ResourceLimitsStateObject{Id:ResourceLimitsState})
+func (rlm *ResourceLimitsManager) AddIndices() {
+	rlm.db.Insert(&ResourceLimitsObject{Id: ResourceLimits})
+	rlm.db.Insert(&ResourceUsageObject{Id: ResourceUsage})
+	rlm.db.Insert(&ResourceLimitsConfigObject{Id: ResourceLimitsConfig})
+	rlm.db.Insert(&ResourceLimitsStateObject{Id: ResourceLimitsState})
 }
 
-func (rlm *ResourceLimitsManager) InitializeDatabase(){
+func (rlm *ResourceLimitsManager) InitializeDatabase() {
 	var config ResourceLimitsConfigObject
 	rlm.db.Find("Id", ResourceLimitsConfig, &config)
 	var state ResourceLimitsStateObject
@@ -88,7 +87,7 @@ func (rlm *ResourceLimitsManager) InitializeDatabase(){
 	})
 }
 
-func (rlm *ResourceLimitsManager) InitializeAccount(account common.AccountName){
+func (rlm *ResourceLimitsManager) InitializeAccount(account common.AccountName) {
 	var rlo ResourceLimitsObject
 	rlm.db.Find("Rlo", RloIndex{ResourceLimits, 0, false}, &rlo)
 	rlo.Id = ResourceLimits
@@ -105,7 +104,7 @@ func (rlm *ResourceLimitsManager) InitializeAccount(account common.AccountName){
 	rlm.db.Insert(&ruo)
 }
 
-func (rlm *ResourceLimitsManager) SetBlockParameters(cpuLimitParameters ElasticLimitParameters, netLimitParameters ElasticLimitParameters){
+func (rlm *ResourceLimitsManager) SetBlockParameters(cpuLimitParameters ElasticLimitParameters, netLimitParameters ElasticLimitParameters) {
 	cpuLimitParameters.Validate()
 	netLimitParameters.Validate()
 	var config ResourceLimitsConfigObject
@@ -124,7 +123,7 @@ func (rlm *ResourceLimitsManager) SetBlockParameters(cpuLimitParameters ElasticL
 	})
 }
 
-func (rlm *ResourceLimitsManager) UpdateAccountUsage(account []common.AccountName, timeSlot uint32){     //待定
+func (rlm *ResourceLimitsManager) UpdateAccountUsage(account []common.AccountName, timeSlot uint32) { //待定
 	var config ResourceLimitsConfigObject
 	rlm.db.Find("Id", ResourceLimitsConfig, &config)
 	var ruo ResourceUsageObject
@@ -138,10 +137,10 @@ func (rlm *ResourceLimitsManager) UpdateAccountUsage(account []common.AccountNam
 	}
 }
 
-func (rlm *ResourceLimitsManager) AddTransactionUsage(account []common.AccountName, cpuUsage uint64, netUsage uint64, timeSlot uint32){
+func (rlm *ResourceLimitsManager) AddTransactionUsage(account []common.AccountName, cpuUsage uint64, netUsage uint64, timeSlot uint32) {
 	var state ResourceLimitsStateObject
 	var config ResourceLimitsConfigObject
-	for _, a := range account{
+	for _, a := range account {
 		var ruo ResourceUsageObject
 		rlm.db.Find("Ruo", RuoIndex{ResourceUsage, a}, &ruo)
 		var unused, netWeight, cpuWeight int64
@@ -152,19 +151,19 @@ func (rlm *ResourceLimitsManager) AddTransactionUsage(account []common.AccountNa
 			return nil
 		})
 
-		if cpuWeight >=0 && state.TotalCpuWeight > 0 {
+		if cpuWeight >= 0 && state.TotalCpuWeight > 0 {
 			windowSize := new(big.Int).SetUint64(uint64(config.AccountCpuUsageAverageWindow))
 			virtualNetworkCapacityInWindow := new(big.Int).Mul(windowSize, new(big.Int).SetUint64(state.VirtualCpuLimit))
 			cpuUsedInWindow := new(big.Int).Div(
 				new(big.Int).Mul(windowSize, new(big.Int).SetUint64(ruo.CpuUsage.ValueEx)),
-				new(big.Int).SetUint64(uint64(chainConfig.DefaultConfig.RateLimitingPrecision)))
+				new(big.Int).SetUint64(uint64(common.DefaultConfig.RateLimitingPrecision)))
 
 			userWeight := new(big.Int).SetInt64(cpuWeight)
 			allUserWeight := new(big.Int).SetUint64(state.TotalCpuWeight)
 
 			maxUserUseInWindow := new(big.Int).Div(
 				new(big.Int).Mul(virtualNetworkCapacityInWindow, userWeight), allUserWeight)
-			if cpuUsedInWindow.Cmp(maxUserUseInWindow) == 1  {
+			if cpuUsedInWindow.Cmp(maxUserUseInWindow) == 1 {
 				fmt.Println("error")
 			}
 		}
@@ -174,14 +173,14 @@ func (rlm *ResourceLimitsManager) AddTransactionUsage(account []common.AccountNa
 			virtualNetworkCapacityInWindow := new(big.Int).Mul(windowSize, new(big.Int).SetUint64(state.VirtualNetLimit))
 			netUsedInWindow := new(big.Int).Div(
 				new(big.Int).Mul(windowSize, new(big.Int).SetUint64(ruo.NetUsage.ValueEx)),
-				new(big.Int).SetUint64(uint64(chainConfig.DefaultConfig.RateLimitingPrecision)))
+				new(big.Int).SetUint64(uint64(common.DefaultConfig.RateLimitingPrecision)))
 
 			userWeight := new(big.Int).SetInt64(netWeight)
 			allUserWeight := new(big.Int).SetUint64(state.TotalNetWeight)
 
 			maxUserUseInWindow := new(big.Int).Div(
 				new(big.Int).Mul(virtualNetworkCapacityInWindow, userWeight), allUserWeight)
-			if netUsedInWindow.Cmp(maxUserUseInWindow) == 1  {
+			if netUsedInWindow.Cmp(maxUserUseInWindow) == 1 {
 				fmt.Println("error")
 			}
 		}
@@ -195,7 +194,7 @@ func (rlm *ResourceLimitsManager) AddTransactionUsage(account []common.AccountNa
 
 }
 
-func (rlm *ResourceLimitsManager) AddPendingRamUsage(account common.AccountName, ramDelta int64){
+func (rlm *ResourceLimitsManager) AddPendingRamUsage(account common.AccountName, ramDelta int64) {
 	if ramDelta == 0 {
 		return
 	}
@@ -203,7 +202,7 @@ func (rlm *ResourceLimitsManager) AddPendingRamUsage(account common.AccountName,
 	var ruo ResourceUsageObject
 	rlm.db.Find("Ruo", RuoIndex{ResourceUsage, account}, &ruo)
 
-	if ramDelta > 0 && math.MaxUint64 - ruo.RamUsage < uint64(ramDelta) {
+	if ramDelta > 0 && math.MaxUint64-ruo.RamUsage < uint64(ramDelta) {
 		fmt.Println("error")
 	}
 	if ramDelta < 0 && ruo.RamUsage < uint64(-ramDelta) {
@@ -216,26 +215,26 @@ func (rlm *ResourceLimitsManager) AddPendingRamUsage(account common.AccountName,
 	})
 }
 
-func (rlm *ResourceLimitsManager) VerifyAccountRamUsage(account common.AccountName){
+func (rlm *ResourceLimitsManager) VerifyAccountRamUsage(account common.AccountName) {
 	var ramBytes, netWeight, cpuWeight int64
 	rlm.GetAccountLimits(account, &ramBytes, &netWeight, &cpuWeight)
 	var ruo ResourceUsageObject
 	rlm.db.Find("Ruo", RuoIndex{ResourceUsage, account}, &ruo)
 
-	if ramBytes >=0 {
+	if ramBytes >= 0 {
 		if int64(ruo.RamUsage) > ramBytes {
 			fmt.Println("error")
 		}
 	}
 }
 
-func (rlm *ResourceLimitsManager) GetAccountRamUsage(account common.AccountName) int64{
+func (rlm *ResourceLimitsManager) GetAccountRamUsage(account common.AccountName) int64 {
 	var ruo ResourceUsageObject
 	rlm.db.Find("Ruo", RuoIndex{ResourceUsage, account}, &ruo)
 	return int64(ruo.RamUsage)
 }
 
-func (rlm *ResourceLimitsManager) SetAccountLimits(account common.AccountName, ramBytes int64, netWeight int64, cpuWeight int64) bool{ //for test
+func (rlm *ResourceLimitsManager) SetAccountLimits(account common.AccountName, ramBytes int64, netWeight int64, cpuWeight int64) bool { //for test
 	var pendingRlo ResourceLimitsObject
 	err := rlm.db.Find("Rlo", RloIndex{ResourceLimits, account, true}, &pendingRlo)
 	if err != nil {
@@ -257,7 +256,7 @@ func (rlm *ResourceLimitsManager) SetAccountLimits(account common.AccountName, r
 
 	rlm.db.Update(&pendingRlo, func(data interface{}) error {
 		ref := reflect.ValueOf(data).Elem()
-		if ref.CanSet(){
+		if ref.CanSet() {
 			ref.FieldByName("RamBytes").SetInt(ramBytes)
 			ref.FieldByName("NetWeight").SetInt(netWeight)
 			ref.FieldByName("CpuWeight").SetInt(cpuWeight)
@@ -270,7 +269,7 @@ func (rlm *ResourceLimitsManager) SetAccountLimits(account common.AccountName, r
 func (rlm *ResourceLimitsManager) GetAccountLimits(account common.AccountName, ramBytes *int64, netWeight *int64, cpuWeight *int64) {
 	var pendingRlo ResourceLimitsObject
 	err := rlm.db.Find("Rlo", RloIndex{ResourceLimits, account, true}, &pendingRlo)
-	if err == nil{
+	if err == nil {
 		*ramBytes = pendingRlo.RamBytes
 		*netWeight = pendingRlo.NetWeight
 		*cpuWeight = pendingRlo.CpuWeight
@@ -283,8 +282,8 @@ func (rlm *ResourceLimitsManager) GetAccountLimits(account common.AccountName, r
 	}
 }
 
-func (rlm *ResourceLimitsManager) ProcessAccountLimitUpdates(){
-	updateStateAndValue := func(total *uint64, value *int64, pendingValue int64, debugWhich string){
+func (rlm *ResourceLimitsManager) ProcessAccountLimitUpdates() {
+	updateStateAndValue := func(total *uint64, value *int64, pendingValue int64, debugWhich string) {
 		if *value > 0 {
 			if *total < uint64(*value) {
 				fmt.Println("error")
@@ -293,7 +292,7 @@ func (rlm *ResourceLimitsManager) ProcessAccountLimitUpdates(){
 		}
 
 		if pendingValue > 0 {
-			if math.MaxUint64 - *total < uint64(pendingValue) {
+			if math.MaxUint64-*total < uint64(pendingValue) {
 				fmt.Println("error")
 			}
 			*total += uint64(pendingValue)
@@ -319,7 +318,7 @@ func (rlm *ResourceLimitsManager) ProcessAccountLimitUpdates(){
 	})
 }
 
-func (rlm *ResourceLimitsManager) ProcessBlockUsage(blockNum uint32){
+func (rlm *ResourceLimitsManager) ProcessBlockUsage(blockNum uint32) {
 	var config ResourceLimitsConfigObject
 	rlm.db.Find("Id", ResourceLimitsConfig, &config)
 	var state ResourceLimitsStateObject
@@ -338,19 +337,19 @@ func (rlm *ResourceLimitsManager) ProcessBlockUsage(blockNum uint32){
 	})
 }
 
-func (rlm *ResourceLimitsManager) GetVirtualBlockCpuLimit() uint64{
+func (rlm *ResourceLimitsManager) GetVirtualBlockCpuLimit() uint64 {
 	var state ResourceLimitsStateObject
 	rlm.db.Find("Id", ResourceLimitsState, &state)
 	return state.VirtualCpuLimit
 }
 
-func (rlm *ResourceLimitsManager) GetVirtualBlockNetLimit() uint64{
+func (rlm *ResourceLimitsManager) GetVirtualBlockNetLimit() uint64 {
 	var state ResourceLimitsStateObject
 	rlm.db.Find("Id", ResourceLimitsState, &state)
 	return state.VirtualNetLimit
 }
 
-func (rlm *ResourceLimitsManager) GetBlockCpuLimit() uint64{
+func (rlm *ResourceLimitsManager) GetBlockCpuLimit() uint64 {
 	var state ResourceLimitsStateObject
 	rlm.db.Find("Id", ResourceLimitsState, &state)
 	var config ResourceLimitsConfigObject
@@ -358,7 +357,7 @@ func (rlm *ResourceLimitsManager) GetBlockCpuLimit() uint64{
 	return config.CpuLimitParameters.Max - state.PendingCpuUsage
 }
 
-func (rlm *ResourceLimitsManager) GetBlockNetLimit() uint64{
+func (rlm *ResourceLimitsManager) GetBlockNetLimit() uint64 {
 	var state ResourceLimitsStateObject
 	rlm.db.Find("Id", ResourceLimitsState, &state)
 	var config ResourceLimitsConfigObject
@@ -366,12 +365,12 @@ func (rlm *ResourceLimitsManager) GetBlockNetLimit() uint64{
 	return config.NetLimitParameters.Max - state.PendingNetUsage
 }
 
-func (rlm *ResourceLimitsManager) GetAccountCpuLimit(name common.AccountName, elastic bool) int64{
+func (rlm *ResourceLimitsManager) GetAccountCpuLimit(name common.AccountName, elastic bool) int64 {
 	arl := rlm.GetAccountCpuLimitEx(name, elastic)
 	return arl.Available
 }
 
-func (rlm *ResourceLimitsManager) GetAccountCpuLimitEx(name common.AccountName, elastic bool) AccountResourceLimit{
+func (rlm *ResourceLimitsManager) GetAccountCpuLimitEx(name common.AccountName, elastic bool) AccountResourceLimit {
 	var state ResourceLimitsStateObject
 	rlm.db.Find("Id", ResourceLimitsState, &state)
 	var config ResourceLimitsConfigObject
@@ -400,7 +399,7 @@ func (rlm *ResourceLimitsManager) GetAccountCpuLimitEx(name common.AccountName, 
 	maxUserUseInWindow := new(big.Int).Div(new(big.Int).Mul(virtualCpuCapacityInWindow, userWeight), allUserWeight)
 	cpuUsedInWindow := IntegerDivideCeil(
 		new(big.Int).Mul(new(big.Int).SetUint64(ruo.CpuUsage.ValueEx), windowSize),
-		new(big.Int).SetUint64(uint64(chainConfig.DefaultConfig.RateLimitingPrecision)))
+		new(big.Int).SetUint64(uint64(common.DefaultConfig.RateLimitingPrecision)))
 
 	if maxUserUseInWindow.Cmp(cpuUsedInWindow) != 1 {
 		arl.Available = 0
@@ -418,7 +417,7 @@ func (rlm *ResourceLimitsManager) GetAccountNetLimit(name common.AccountName, el
 	return arl.Available
 }
 
-func (rlm *ResourceLimitsManager) GetAccountNetLimitEx(name common.AccountName, elastic bool) AccountResourceLimit{
+func (rlm *ResourceLimitsManager) GetAccountNetLimitEx(name common.AccountName, elastic bool) AccountResourceLimit {
 	var state ResourceLimitsStateObject
 	rlm.db.Find("Id", ResourceLimitsState, &state)
 	var config ResourceLimitsConfigObject
@@ -447,7 +446,7 @@ func (rlm *ResourceLimitsManager) GetAccountNetLimitEx(name common.AccountName, 
 	maxUserUseInWindow := new(big.Int).Div(new(big.Int).Mul(virtualNetCapacityInWindow, userWeight), allUserWeight)
 	netUsedInWindow := IntegerDivideCeil(
 		new(big.Int).Mul(new(big.Int).SetUint64(ruo.NetUsage.ValueEx), windowSize),
-		new(big.Int).SetUint64(uint64(chainConfig.DefaultConfig.RateLimitingPrecision)))
+		new(big.Int).SetUint64(uint64(common.DefaultConfig.RateLimitingPrecision)))
 
 	if maxUserUseInWindow.Cmp(netUsedInWindow) != 1 {
 		arl.Available = 0

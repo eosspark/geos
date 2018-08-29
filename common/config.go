@@ -1,14 +1,50 @@
 package common
 
-const BlockIntervalMs int64 = 500
-const BlockIntervalUs int64 = 1000 * BlockIntervalMs
-const BlockTimestampEpochMs uint64 = 946684800000
-const BlockTimestamoEpochNanos int64 = 946684800000000000
+var DefaultConfig Config
 
-/**
- *  The number of sequential blocks produced by a single producer
- */
-const ProducerRepetitions int = 12
-const MaxProducers int = 125
+func init() {
+	DefaultConfig = Config{
+		SystemAccountName:    AccountName(StringToName("eosio")),
+		NullAccountName:      AccountName(StringToName("eosio.null")),
+		ProducersAccountName: AccountName(StringToName("eosio.prods")),
 
-const MaxTrackedDposConfirmations = 1024 ///<
+		MajorityProducersPermissionName: AccountName(StringToName("prod.major")),
+		MinorityProducersPermissionName: AccountName(StringToName("prod.minor")),
+
+		RateLimitingPrecision: 1000 * 1000,
+	}
+
+	DefaultConfig.BlockIntervalMs = 500
+	DefaultConfig.BlockIntervalUs = 1000 * DefaultConfig.BlockIntervalMs
+	DefaultConfig.BlockTimestampEpochMs = 946684800000
+	DefaultConfig.BlockTimestamoEpochNanos = 1e6 * DefaultConfig.BlockTimestampEpochMs
+
+	DefaultConfig.ProducerRepetitions = 12
+	DefaultConfig.MaxProducers = 125
+	DefaultConfig.MaxTrackedDposConfirmations = 1024
+}
+
+type Config struct {
+	SystemAccountName    AccountName
+	NullAccountName      AccountName
+	ProducersAccountName AccountName
+
+	// Active permission of producers account requires greater than 2/3 of the producers to authorize
+	MajorityProducersPermissionName AccountName
+	MinorityProducersPermissionName AccountName
+
+	RateLimitingPrecision uint32
+
+	BlockIntervalMs          int64
+	BlockIntervalUs          int64
+	BlockTimestampEpochMs    int64
+	BlockTimestamoEpochNanos int64
+
+	/**
+	 *  The number of sequential blocks produced by a single producer
+	 */
+	ProducerRepetitions int
+	MaxProducers        int
+
+	MaxTrackedDposConfirmations int ///<
+}

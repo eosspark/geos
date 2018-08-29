@@ -7,7 +7,6 @@
 package types
 
 import (
-	"github.com/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/db"
 )
@@ -23,7 +22,7 @@ type ActionReceipt struct {
 }
 type PendingState struct {
 	DBSeesion   eosiodb.Session
-	BlockState  types.BlockState
+	BlockState  BlockState
 	Actions     []ActionReceipt
 	BlockStatus BlockStatus
 }

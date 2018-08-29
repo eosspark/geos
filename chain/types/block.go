@@ -263,7 +263,7 @@ func (bs *BlockHeaderState) GenerateNext(when *common.BlockTimeStamp) *BlockHead
 	numActiveProducers := len(bs.ActiveSchedule.Producers)
 	requiredConfs := uint32(numActiveProducers*2/3) + 1
 
-	if len(bs.ConfirmCount) < common.MaxTrackedDposConfirmations {
+	if len(bs.ConfirmCount) < common.DefaultConfig.MaxTrackedDposConfirmations {
 		result.ConfirmCount = make([]uint8, len(bs.ConfirmCount)+1)
 		copy(result.ConfirmCount, bs.ConfirmCount)
 		result.ConfirmCount[len(result.ConfirmCount)-1] = uint8(requiredConfs)
@@ -305,6 +305,36 @@ func (bs *BlockHeaderState) MaybePromotePending() bool {
 		return true
 	}
 	return false
+}
+
+func (bs *BlockHeaderState) SetConfirmed(numPrevBlocks uint16) {
+	bs.Header.Confirmed = numPrevBlocks
+
+	i := len(bs.ConfirmCount) - 1
+	blocksToConfirm := numPrevBlocks + 1 /// confirm the head block too
+	for i >= 0 && blocksToConfirm > 0 {
+		bs.ConfirmCount[i]--
+		if bs.ConfirmCount[i] == 0 {
+			blockNumFori := bs.BlockNum - uint32(len(bs.ConfirmCount)-1-i)
+			bs.DposProposedIrreversibleBlocknum = blockNumFori
+
+			if i == len(bs.ConfirmCount)-1 {
+				bs.ConfirmCount = make([]uint8, 0)
+			} else {
+				bs.ConfirmCount = bs.ConfirmCount[i+1:]
+			}
+
+			return
+		}
+		i--
+		blocksToConfirm--
+	}
+
+}
+
+func (bs *BlockHeaderState) SigDigest() []byte {
+	//TODO wait for sha256's pack
+	return []byte{}
 }
 
 type BlockState struct {

@@ -18,6 +18,8 @@ const (
 
 type signatureProviderType func([]byte) ecc.Signature
 
+type transactionIdWithExpireIndex map[common.TransactionIDType]time.Time
+
 type respVariant struct {
 	err error
 	trx int //TODO:transaction_trace_ptr
@@ -32,13 +34,16 @@ type tuple struct {
 
 // producer_plugin
 type ProducerPlugin struct {
-	timer              scheduleTimer
+	timer              *scheduleTimer
 	producers          map[common.AccountName]struct{}
 	pendingBlockMode   PendingBlockMode
 	productionEnabled  bool
 	productionPaused   bool
 	signatureProviders map[ecc.PublicKey]signatureProviderType
 	producerWatermarks map[common.AccountName]uint32
+
+	persistentTransactions  transactionIdWithExpireIndex
+	blacklistedTransactions transactionIdWithExpireIndex
 
 	maxTransactionTimeMs      int32
 	maxIrreversibleBlockAgeUs int32
@@ -53,15 +58,22 @@ type ProducerPlugin struct {
 
 	confirmedBlock func(signature ecc.Signature)
 
-	pendingIncomingTransaction []tuple
+	pendingIncomingTransactions []tuple
+
+	// keep a expected ratio between defer txn and incoming txn
+	incomingTrxWeight  float64
+	incomingDeferRadio float64 // 1:1
 }
 
 func (pp *ProducerPlugin) init() {
 	pp.producers = make(map[common.AccountName]struct{})
 	pp.signatureProviders = make(map[ecc.PublicKey]signatureProviderType)
 	pp.producerWatermarks = make(map[common.AccountName]uint32)
-
-	pp.timer = scheduleTimer{}
+	pp.persistentTransactions = make(transactionIdWithExpireIndex)
+	pp.blacklistedTransactions = make(transactionIdWithExpireIndex)
+	pp.timer = new(scheduleTimer)
+	pp.incomingTrxWeight = 0.0
+	pp.incomingDeferRadio = 1.0
 }
 
 func (pp *ProducerPlugin) IsProducerKey(key ecc.PublicKey) bool {
@@ -72,17 +84,17 @@ func (pp *ProducerPlugin) IsProducerKey(key ecc.PublicKey) bool {
 	return false
 }
 
-func (pp *ProducerPlugin) SignCompact(key *ecc.PublicKey, digest common.SHA256Bytes) (ecc.Signature, error) {
+func (pp *ProducerPlugin) SignCompact(key *ecc.PublicKey, digest common.SHA256Bytes) (*ecc.Signature, error) {
 	if key != nil {
 		privateKeyFunc := pp.signatureProviders[*key]
 		if privateKeyFunc == nil {
 			//EOS_ASSERT(private_key_itr != my->_signature_providers.end(), producer_priv_key_not_found, "Local producer has no private key in config.ini corresponding to public key ${key}", ("key", key));
-			return ecc.Signature{}, nil
+			return new(ecc.Signature), nil
 		}
 
 		privateKeyFunc(digest)
 	}
-	return ecc.Signature{}, nil
+	return new(ecc.Signature), nil
 }
 
 func (pp *ProducerPlugin) Initialize() {
@@ -133,10 +145,6 @@ func (pp *ProducerPlugin) Paused() bool {
 * cancelled but wasn't able to be.
  */
 var timerCorelationId uint32 = 0
-
-// keep a expected ratio between defer txn and incoming txn
-var incomingTrxWeight = 0.0
-var incomingDeferRadio = 1.0 // 1:1
 
 func (pp *ProducerPlugin) onBlock(bsp *types.BlockState) {
 	if !bsp.Header.Timestamp.ToTimePoint().After(pp.lastSignedBlockTime) {
@@ -190,7 +198,7 @@ func (pp *ProducerPlugin) onBlock(bsp *types.BlockState) {
 	newBlockHeader := bsp.Header
 	newBlockHeader.Timestamp = newBlockHeader.Timestamp.Next()
 	newBlockHeader.Previous = bsp.ID
-	newBs := bsp.GenerateNext(newBlockHeader.Timestamp)
+	newBs := bsp.GenerateNext(&newBlockHeader.Timestamp)
 
 	// for newly installed producers we can set their watermarks to the block they became active
 	if newBs.MaybePromotePending() && bsp.ActiveSchedule.Version != newBs.ActiveSchedule.Version {
@@ -251,7 +259,7 @@ func (pp *ProducerPlugin) onIncomingBlock(block *types.SignedBlock) {
 
 func (pp *ProducerPlugin) onIncomingTransactionAsync(trx *types.PackedTransaction, persistUntilExpired bool, next func(respVariant)) {
 	if chain.PendingBlockState() == nil {
-		pp.pendingIncomingTransaction = append(pp.pendingIncomingTransaction, tuple{trx, persistUntilExpired, next})
+		pp.pendingIncomingTransactions = append(pp.pendingIncomingTransactions, tuple{trx, persistUntilExpired, next})
 		return
 	}
 
@@ -330,6 +338,9 @@ func (pp *ProducerPlugin) calculateNextBlockTime(producerName common.AccountName
 	currentWatermark, hasCurrentWatermark := pp.producerWatermarks[producerName]
 	if hasCurrentWatermark {
 		blockNum := chain.PendingBlockState().BlockNum
+		if chain.PendingBlockState() != nil {
+			blockNum++
+		}
 		if currentWatermark > pbs.BlockNum {
 			minOffset = currentWatermark - pbs.BlockNum + 1
 		}
@@ -338,7 +349,7 @@ func (pp *ProducerPlugin) calculateNextBlockTime(producerName common.AccountName
 
 	// this producers next opportuity to produce is the next time its slot arrives after or at the calculated minimum
 	minSlot := uint32(currentBlockTime) + minOffset
-	minSlotProducerIndex := (minSlot % (uint32(len(activeSchedule)) * uint32(common.ProducerRepetitions))) / uint32(common.ProducerRepetitions)
+	minSlotProducerIndex := (minSlot % (uint32(len(activeSchedule)) * uint32(common.DefaultConfig.ProducerRepetitions))) / uint32(common.DefaultConfig.ProducerRepetitions)
 	if producerIndex == minSlotProducerIndex {
 		// this is the producer for the minimum slot, go with that
 		result = common.BlockTimeStamp(minSlot).ToTimePoint()
@@ -351,10 +362,10 @@ func (pp *ProducerPlugin) calculateNextBlockTime(producerName common.AccountName
 		}
 
 		// align the minimum slot to the first of its set of reps
-		firstMinProducerSlot := minSlot - (minSlot % uint32(common.ProducerRepetitions))
+		firstMinProducerSlot := minSlot - (minSlot % uint32(common.DefaultConfig.ProducerRepetitions))
 
 		// offset the aligned minimum to the *earliest* next set of slots for this producer
-		nextBlockSlot := firstMinProducerSlot + (producerDistance * uint32(common.ProducerRepetitions))
+		nextBlockSlot := firstMinProducerSlot + (producerDistance * uint32(common.DefaultConfig.ProducerRepetitions))
 		result = common.BlockTimeStamp(nextBlockSlot).ToTimePoint()
 
 	}
@@ -390,7 +401,7 @@ func (pp *ProducerPlugin) startBlock() (StartBlockRusult, bool) {
 	pp.pendingBlockMode = producing
 
 	// Not our turn
-	lastBlock := uint32(common.NewBlockTimeStamp(blockTime))%uint32(common.ProducerRepetitions) == uint32(common.ProducerRepetitions)-1
+	lastBlock := uint32(common.NewBlockTimeStamp(blockTime))%uint32(common.DefaultConfig.ProducerRepetitions) == uint32(common.DefaultConfig.ProducerRepetitions)-1
 	scheduleProducer := hbs.GetScheduledProducer(common.NewBlockTimeStamp(blockTime))
 	currentWatermark, hasCurrentWatermark := pp.producerWatermarks[scheduleProducer.AccountName]
 	_, hasSignatureProvider := pp.signatureProviders[scheduleProducer.BlockSigningKey]
@@ -467,12 +478,160 @@ func (pp *ProducerPlugin) startBlock() (StartBlockRusult, bool) {
 			pp.pendingBlockMode = speculating
 		}
 
-		//TODO
-
 		// attempt to play persisted transactions first
-		//exhausted := false
-	}
+		isExhausted := false
 
+		// remove all persisted transactions that have now expired
+		for byTrxId, byExpire := range pp.persistentTransactions {
+			if !byExpire.After(pbs.Header.Timestamp.ToTimePoint()) {
+				delete(pp.persistentTransactions, byTrxId)
+			}
+		}
+
+		origPendingTxnSize := len(pp.pendingIncomingTransactions)
+
+		if len(pp.persistentTransactions) > 0 || pp.pendingBlockMode == producing {
+			unappliedTrxs := chain.GetUnappliedTransactions()
+
+			if len(pp.persistentTransactions) > 0 {
+				for i, trx := range unappliedTrxs {
+					if _, has := pp.persistentTransactions[trx.ID]; has {
+						// this is a persisted transaction, push it into the block (even if we are speculating) with
+						// no deadline as it has already passed the subjective deadlines once and we want to represent
+						// the state of the chain including this transaction
+						err := chain.PushTransaction(trx, time.Unix(1e15, 0))
+						if err != nil {
+							return failed, lastBlock
+						}
+					}
+
+					// remove it from further consideration as it is applied
+					unappliedTrxs[i] = nil
+				}
+			}
+
+			if pp.pendingBlockMode == producing {
+				for _, trx := range unappliedTrxs {
+					if !blockTime.After(time.Now()) {
+						isExhausted = true
+					}
+					if isExhausted {
+						break
+					}
+
+					if trx == nil {
+						// nulled in the loop above, skip it
+						continue
+					}
+
+					//TODO
+					/*C++
+					if (trx->packed_trx.expiration() < pbs->header.timestamp.to_time_point()) {
+						// expired, drop it
+						chain.drop_unapplied_transaction(trx);
+						continue;
+					}*/
+
+					deadline := time.Now().Add(time.Millisecond * time.Duration(pp.maxTransactionTimeMs))
+					deadlineIsSubjective := false
+					if pp.maxTransactionTimeMs < 0 || pp.pendingBlockMode == producing && blockTime.Before(deadline) {
+						deadlineIsSubjective = true
+						deadline = blockTime
+					}
+
+					chain.PushTransaction(trx, deadline)
+					//TODO
+					//C++
+					/*if (trace->except) {
+						if (failure_is_subjective(*trace->except, deadline_is_subjective)) {
+							isExhausted = true;
+						} else {
+							// this failed our configured maximum transaction time, we don't want to replay it
+							chain.drop_unapplied_transaction(trx);
+						}
+					}*/
+				}
+			}
+		} ///unapplied transactions
+
+		if pp.pendingBlockMode == producing {
+			for byTrxId, byExpire := range pp.blacklistedTransactions {
+				if !byExpire.After(time.Now()) {
+					delete(pp.blacklistedTransactions, byTrxId)
+				}
+			}
+
+			scheduledTrxs := chain.GetScheduledTransactions()
+
+			for _, trx := range scheduledTrxs {
+				if !blockTime.After(time.Now()) {
+					isExhausted = true
+				}
+				if isExhausted {
+					break
+				}
+
+				// configurable ratio of incoming txns vs deferred txns
+				for pp.incomingTrxWeight >= 1.0 && origPendingTxnSize > 0 && len(pp.pendingIncomingTransactions) > 0 {
+					e := pp.pendingIncomingTransactions[0]
+					pp.pendingIncomingTransactions = pp.pendingIncomingTransactions[1:]
+					origPendingTxnSize--
+					pp.incomingTrxWeight -= 1.0
+					pp.onIncomingTransactionAsync(e.packedTransaction, e.persistUntilExpired, e.next)
+				}
+
+				if !blockTime.After(time.Now()) {
+					isExhausted = true
+					break
+				}
+
+				if _, has := pp.blacklistedTransactions[trx]; has {
+					continue
+				}
+
+				deadline := time.Now().Add(time.Millisecond * time.Duration(pp.maxTransactionTimeMs))
+				deadlineIsSubjective := false
+				if pp.maxTransactionTimeMs < 0 || pp.pendingBlockMode == producing && blockTime.Before(deadline) {
+					deadlineIsSubjective = true
+					deadline = blockTime
+				}
+
+				chain.PushScheduledTransaction(trx, deadline)
+				//TODO
+				//C++
+				/*if (trace->except) {
+					if (failure_is_subjective(*trace->except, deadline_is_subjective)) {
+						isExhausted = true;
+					} else {
+						auto expiration = fc::time_point::now() + fc::seconds(chain.get_global_properties().configuration.deferred_trx_expiration_window);
+						// this failed our configured maximum transaction time, we don't want to replay it add it to a blacklist
+						_blacklisted_transactions.insert(transaction_id_with_expiry{trx, expiration});
+					}
+				}*/
+				pp.incomingTrxWeight += pp.incomingDeferRadio
+				if origPendingTxnSize <= 0 {
+					pp.incomingTrxWeight = 0.0
+				}
+			}
+		} ///scheduled transactions
+
+		if isExhausted || !blockTime.After(time.Now()) {
+			return exhausted, lastBlock
+		} else {
+			// attempt to apply any pending incoming transactions
+			pp.incomingTrxWeight = 0.0
+			if origPendingTxnSize > 0 && len(pp.pendingIncomingTransactions) > 0 {
+				e := pp.pendingIncomingTransactions[0]
+				pp.pendingIncomingTransactions = pp.pendingIncomingTransactions[1:]
+				origPendingTxnSize--
+				pp.onIncomingTransactionAsync(e.packedTransaction, e.persistUntilExpired, e.next)
+				if !blockTime.After(time.Now()) {
+					return exhausted, lastBlock
+				}
+			}
+			return succeeded, lastBlock
+		}
+	}
 	return failed, lastBlock
 }
 
@@ -514,7 +673,7 @@ func (pp *ProducerPlugin) scheduleProductionLoop() {
 			pp.timer.expiresAt(epoch)
 			//fc_dlog(_log, "Scheduling Block Production on Normal Block #${num} for ${time}", ("num", chain.pending_block_state()->block_num)("time",chain.pending_block_time()));
 		} else {
-			expectTime := chain.PendingBlockTime().UnixNano()/1e3 - int64(common.BlockIntervalUs)
+			expectTime := chain.PendingBlockTime().UnixNano()/1e3 - int64(common.DefaultConfig.BlockIntervalUs)
 			// ship this block off up to 1 block time earlier or immediately
 			if time.Now().UnixNano()/1e3 >= expectTime {
 				pp.timer.expiresFromNow(0)

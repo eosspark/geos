@@ -1,10 +1,9 @@
 package types
 
 import (
-	"math"
 	"fmt"
-	"github.com/eosspark/eos-go/chain/config"
 	"github.com/eosspark/eos-go/common"
+	"math"
 	"math/big"
 )
 
@@ -18,8 +17,8 @@ func IntegerDivideCeil(num *big.Int, den *big.Int) *big.Int {
 }
 
 func IntegerDivideCeilUint64(num uint64, den uint64) uint64 {
-	if num % den > 0 {
-		return num / den + 1
+	if num%den > 0 {
+		return num/den + 1
 	} else {
 		return num / den
 	}
@@ -31,16 +30,16 @@ type ExponentialMovingAverageAccumulator struct {
 	Consumed    uint64 `json:"consumed"`
 }
 
-func makeRatio(numerator uint64, denominator uint64) Ratio{
+func makeRatio(numerator uint64, denominator uint64) Ratio {
 	return Ratio{numerator, denominator}
 }
 
-func MultiWithRatio(value uint64, ratio Ratio) uint64{
+func MultiWithRatio(value uint64, ratio Ratio) uint64 {
 	//eos.Asset{ratio.Denominator != 0 , "Usage exceeds maximum value representable after extending for precision"}
 	return value * ratio.Numerator / ratio.Denominator
 }
 
-func DowngradeCast(val *big.Int) int64{
+func DowngradeCast(val *big.Int) int64 {
 	max := big.NewInt(math.MaxInt64)
 	min := big.NewInt(math.MinInt64)
 
@@ -50,17 +49,17 @@ func DowngradeCast(val *big.Int) int64{
 	return val.Int64()
 }
 
-func (ema *ExponentialMovingAverageAccumulator) Average() uint64{
-	return IntegerDivideCeilUint64(ema.ValueEx, uint64(config.RateLimitingPrecision))
+func (ema *ExponentialMovingAverageAccumulator) Average() uint64 {
+	return IntegerDivideCeilUint64(ema.ValueEx, uint64(common.DefaultConfig.RateLimitingPrecision))
 }
 
-func (ema *ExponentialMovingAverageAccumulator) add(units uint64, ordinal uint32, windowSize uint32){
-	valueExContrib := IntegerDivideCeilUint64(units * uint64(config.RateLimitingPrecision), uint64(windowSize))
+func (ema *ExponentialMovingAverageAccumulator) add(units uint64, ordinal uint32, windowSize uint32) {
+	valueExContrib := IntegerDivideCeilUint64(units*uint64(common.DefaultConfig.RateLimitingPrecision), uint64(windowSize))
 	if ema.LastOrdinal != ordinal {
 
-		if ema.LastOrdinal + windowSize > ordinal {
+		if ema.LastOrdinal+windowSize > ordinal {
 			delta := ordinal - ema.LastOrdinal
-			decay := makeRatio(uint64(windowSize - delta), uint64(windowSize))
+			decay := makeRatio(uint64(windowSize-delta), uint64(windowSize))
 			ema.ValueEx = MultiWithRatio(ema.ValueEx, decay)
 		} else {
 			ema.ValueEx = 0
@@ -72,12 +71,12 @@ func (ema *ExponentialMovingAverageAccumulator) add(units uint64, ordinal uint32
 	ema.Consumed += valueExContrib
 }
 
-type UsageAccumulator struct{
+type UsageAccumulator struct {
 	ExponentialMovingAverageAccumulator
 }
 
 type ResourceLimitsObject struct {
-	Rlo		  RloIndex           `storm:"id"`
+	Rlo       RloIndex           `storm:"id"`
 	Id        ResourceObjectType `storm:"index"`
 	Owner     common.AccountName `storm:"index"`
 	Pending   bool               `storm:"index"`
@@ -87,13 +86,13 @@ type ResourceLimitsObject struct {
 }
 
 type RloIndex struct {
-	Id        ResourceObjectType `json:"id"`
-	Owner     common.AccountName `json:"owner"`
-	Pending   bool               `json:"pending"`
+	Id      ResourceObjectType `json:"id"`
+	Owner   common.AccountName `json:"owner"`
+	Pending bool               `json:"pending"`
 }
 
 type ResourceUsageObject struct {
-	Ruo		 RuoIndex           `storm:"id"`
+	Ruo      RuoIndex           `storm:"id"`
 	Id       ResourceObjectType `storm:"index"`
 	Owner    common.AccountName `storm:"index"`
 	NetUsage UsageAccumulator   `json:"net_usage"`
@@ -102,8 +101,8 @@ type ResourceUsageObject struct {
 }
 
 type RuoIndex struct {
-	Id       ResourceObjectType `json:"id"`
-	Owner    common.AccountName `json:"owner"`
+	Id    ResourceObjectType `json:"id"`
+	Owner common.AccountName `json:"owner"`
 }
 
 type ResourceLimitsConfigObject struct {
@@ -129,7 +128,7 @@ type ResourceLimitsStateObject struct {
 
 type ResourceObjectType uint64
 
-const(
+const (
 	_ ResourceObjectType = iota
 	ResourceLimits
 	ResourceUsage
