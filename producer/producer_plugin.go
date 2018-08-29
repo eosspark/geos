@@ -2,41 +2,16 @@ package producer_plugin
 
 import (
 	"fmt"
-	"github.com/eoscanada/eos-go/chain"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/ecc"
 	"time"
 )
 
-type PendingBlockMode int
-
-const (
-	producing = PendingBlockMode(iota)
-	speculating
-)
-
-type signatureProviderType func([]byte) ecc.Signature
-
-type transactionIdWithExpireIndex map[common.TransactionIDType]time.Time
-
-type respVariant struct {
-	err error
-	trx int //TODO:transaction_trace_ptr
-
-}
-
-type tuple struct {
-	packedTransaction   *types.PackedTransaction
-	persistUntilExpired bool
-	next                func(respVariant)
-}
-
-// producer_plugin
 type ProducerPlugin struct {
 	timer              *scheduleTimer
 	producers          map[common.AccountName]struct{}
-	pendingBlockMode   PendingBlockMode
+	pendingBlockMode   EnumPendingBlockMode
 	productionEnabled  bool
 	productionPaused   bool
 	signatureProviders map[ecc.PublicKey]signatureProviderType
@@ -84,17 +59,16 @@ func (pp *ProducerPlugin) IsProducerKey(key ecc.PublicKey) bool {
 	return false
 }
 
-func (pp *ProducerPlugin) SignCompact(key *ecc.PublicKey, digest common.SHA256Bytes) (*ecc.Signature, error) {
+func (pp *ProducerPlugin) SignCompact(key *ecc.PublicKey, digest common.SHA256Bytes) ecc.Signature {
 	if key != nil {
 		privateKeyFunc := pp.signatureProviders[*key]
 		if privateKeyFunc == nil {
-			//EOS_ASSERT(private_key_itr != my->_signature_providers.end(), producer_priv_key_not_found, "Local producer has no private key in config.ini corresponding to public key ${key}", ("key", key));
-			return new(ecc.Signature), nil
+			panic(ErrProducerPriKeyNotFound)
 		}
 
-		privateKeyFunc(digest)
+		return privateKeyFunc(digest)
 	}
-	return new(ecc.Signature), nil
+	return ecc.Signature{}
 }
 
 func (pp *ProducerPlugin) Initialize() {
@@ -222,7 +196,9 @@ func (pp *ProducerPlugin) onBlock(bsp *types.BlockState) {
 
 func (pp *ProducerPlugin) onIncomingBlock(block *types.SignedBlock) {
 
-	//C++ EOS_ASSERT( block->timestamp < (fc::time_point::now() + fc::seconds(7))
+	if !block.Timestamp.ToTimePoint().Before(time.Now().Add(7 * time.Second)) {
+		panic(ErrBlockFromTheFuture)
+	}
 	id, err := block.BlockID()
 	//C++ auto existing = chain.fetch_block_by_id( id );
 	fmt.Println(id, err)
@@ -248,7 +224,6 @@ func (pp *ProducerPlugin) onIncomingBlock(block *types.SignedBlock) {
 		return
 	}
 
-	//C++ if( chain.head_block_state()->header.timestamp.next().to_time_point() >= fc::time_point::now() ) {
 	if !chain.HeadBlockState().Header.Timestamp.Next().ToTimePoint().Before(time.Now()) {
 		pp.productionEnabled = true
 	}
@@ -293,15 +268,6 @@ func (pp *ProducerPlugin) getIrreversibleBlockAge() int32 /*Microsecond*/ {
 func (pp *ProducerPlugin) productionDisabledByPolicy() bool {
 	return !pp.productionEnabled || pp.productionPaused || (pp.maxIrreversibleBlockAgeUs >= 0 && pp.getIrreversibleBlockAge() >= pp.maxIrreversibleBlockAgeUs)
 }
-
-type StartBlockRusult int
-
-const (
-	succeeded = StartBlockRusult(iota)
-	failed
-	waiting
-	exhausted
-)
 
 func (pp *ProducerPlugin) calculateNextBlockTime(producerName common.AccountName, currentBlockTime common.BlockTimeStamp) *time.Time {
 	var result time.Time
@@ -380,17 +346,17 @@ func (pp *ProducerPlugin) calculatePendingBlockTime() time.Time {
 	} else {
 		base = chain.HeadBlockTime()
 	}
-	minTimeToNextBlock := int64(chain.BlockIntervalUs) - base.UnixNano()/1e3%int64(chain.BlockIntervalUs)
+	minTimeToNextBlock := int64(common.DefaultConfig.BlockIntervalUs) - base.UnixNano()/1e3%int64(common.DefaultConfig.BlockIntervalUs)
 	blockTime := base.Add(time.Microsecond * time.Duration(minTimeToNextBlock))
 
-	if blockTime.Sub(now) < time.Microsecond*time.Duration(chain.BlockIntervalUs/10) { // we must sleep for at least 50ms
-		blockTime.Add(time.Microsecond * time.Duration(chain.BlockIntervalUs))
+	if blockTime.Sub(now) < time.Microsecond*time.Duration(common.DefaultConfig.BlockIntervalUs/10) { // we must sleep for at least 50ms
+		blockTime.Add(time.Microsecond * time.Duration(common.DefaultConfig.BlockIntervalUs))
 	}
 
 	return blockTime
 }
 
-func (pp *ProducerPlugin) startBlock() (StartBlockRusult, bool) {
+func (pp *ProducerPlugin) startBlock() (EnumStartBlockRusult, bool) {
 	fmt.Println("start_block")
 
 	hbs := chain.HeadBlockState()
@@ -534,6 +500,7 @@ func (pp *ProducerPlugin) startBlock() (StartBlockRusult, bool) {
 
 					deadline := time.Now().Add(time.Millisecond * time.Duration(pp.maxTransactionTimeMs))
 					deadlineIsSubjective := false
+					fmt.Println(deadlineIsSubjective)
 					if pp.maxTransactionTimeMs < 0 || pp.pendingBlockMode == producing && blockTime.Before(deadline) {
 						deadlineIsSubjective = true
 						deadline = blockTime
@@ -591,6 +558,7 @@ func (pp *ProducerPlugin) startBlock() (StartBlockRusult, bool) {
 
 				deadline := time.Now().Add(time.Millisecond * time.Duration(pp.maxTransactionTimeMs))
 				deadlineIsSubjective := false
+				fmt.Println(deadlineIsSubjective)
 				if pp.maxTransactionTimeMs < 0 || pp.pendingBlockMode == producing && blockTime.Before(deadline) {
 					deadlineIsSubjective = true
 					deadline = blockTime
@@ -642,7 +610,7 @@ func (pp *ProducerPlugin) scheduleProductionLoop() {
 
 	if result == failed {
 		//elog("Failed to start a pending block, will try again later");
-		pp.timer.expiresFromNow(time.Microsecond * (time.Duration(chain.BlockIntervalUs / 10)))
+		pp.timer.expiresFromNow(time.Microsecond * (time.Duration(common.DefaultConfig.BlockIntervalUs / 10)))
 
 		// we failed to start a block, so try again later?
 		timerCorelationId++
@@ -705,7 +673,7 @@ func (pp *ProducerPlugin) scheduleDelayedProductionLoop(currentBlockTime common.
 	for p := range pp.producers {
 		nextProducerBlockTime := pp.calculateNextBlockTime(p, currentBlockTime)
 		if nextProducerBlockTime != nil {
-			producerWakeupTime := time.Unix(0, nextProducerBlockTime.UnixNano()-int64(time.Microsecond*time.Duration(chain.BlockIntervalUs)))
+			producerWakeupTime := time.Unix(0, nextProducerBlockTime.UnixNano()-int64(time.Microsecond*time.Duration(common.DefaultConfig.BlockIntervalUs)))
 			if wakeUpTime != nil {
 				if wakeUpTime.After(producerWakeupTime) {
 					wakeUpTime = &producerWakeupTime
@@ -745,24 +713,18 @@ func (pp *ProducerPlugin) maybeProduceBlock() bool {
 	return false
 }
 
-func makeDebugTimeLogger() func() {
-	start := time.Now()
-	return func() {
-		fmt.Println(time.Now().Sub(start))
-	}
-}
-
 func (pp *ProducerPlugin) produceBlock() error {
-	//fmt.Println("produced block 00000002c0b9e9e6... #", block_num)
 	if pp.pendingBlockMode != producing {
+		panic(ErrProducerFail)
 	}
 	pbs := chain.PendingBlockState()
-	//C++ hbs := chain.HeadBlockState()
 	if pbs == nil {
+		panic(ErrMissingPendingBlockState)
 	}
 
 	signatureProvider := pp.signatureProviders[pbs.BlockSigningKey]
 	if signatureProvider == nil {
+		panic(ErrProducerPriKeyNotFound)
 	}
 
 	chain.FinalizeBlock()

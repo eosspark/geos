@@ -618,14 +618,14 @@ type BlockTimeStamp uint32
 
 const blockTimestampFormat = "2006-01-02T15:04:05.000"
 
-func (t *BlockTimeStamp) Next() BlockTimeStamp {
+func (t BlockTimeStamp) Next() BlockTimeStamp {
 	result := NewBlockTimeStamp(t.ToTimePoint())
 	result += 1
 	return result
 }
 
-func (t *BlockTimeStamp) ToTimePoint() time.Time {
-	msec := int64(*t) * int64(DefaultConfig.BlockIntervalMs)
+func (t BlockTimeStamp) ToTimePoint() time.Time {
+	msec := int64(t) * int64(DefaultConfig.BlockIntervalMs)
 	msec += int64(DefaultConfig.BlockTimestampEpochMs)
 	return time.Unix(0, msec*1e6)
 }
