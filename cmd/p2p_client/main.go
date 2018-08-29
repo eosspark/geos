@@ -7,6 +7,7 @@ import (
 	"github.com/eosspark/eos-go/p2p"
 	"log"
 	"time"
+	"math/big"
 )
 
 // var p2pAddr = flag.String("p2p-addr", "127.0.0.1:9876", "P2P socket connection")
@@ -35,6 +36,6 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
-
+big.NewInt()
 }
-
+mat

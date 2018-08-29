@@ -13,6 +13,14 @@ import (
 // See: libraries/chain/include/eosio/chain/contracts/types.hpp:203
 // See: build/contracts/eosio.system/eosio.system.abi
 
+// NewAccount represents the newaccount
+type NewAccount struct {
+	Creator common.AccountName `json:"creator"`
+	Name    common.AccountName `json:"name"`
+	Owner   common.Authority   `json:"owner"`
+	Active  common.Authority   `json:"active"`
+}
+
 // SetCode represents the hard-coded `setcode` action.
 type SetCode struct {
 	Account   common.AccountName `json:"account"`

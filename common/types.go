@@ -51,22 +51,18 @@ func (n ChainIDType) MarshalJSON() ([]byte, error) {
 }
 
 func (n *ChainIDType) UnmarshalJSON(data []byte) error {
-	fmt.Println(47)
-	fmt.Println(data)
 	var s string
 	err := json.Unmarshal(data, &s)
 	if err != nil {
 		fmt.Println(err)
 		return err
 	}
-	fmt.Println(s)
 
 	b, err := hex.DecodeString(s)
 	if err != nil {
 		return err
 	}
 
-	fmt.Println(b)
 	for i := range n {
 		n[i] = binary.LittleEndian.Uint64(b[i*8 : (i+1)*8])
 	}
@@ -120,12 +116,30 @@ func (n TransactionIDType) MarshalJSON() ([]byte, error) {
 	}
 	return json.Marshal(hex.EncodeToString(b))
 }
+
 func (n CheckSum256Type) MarshalJSON() ([]byte, error) {
 	b := make([]byte, 32)
 	for i := range n {
 		binary.LittleEndian.PutUint64(b[i*8:(i+1)*8], n[i])
 	}
 	return json.Marshal(hex.EncodeToString(b))
+}
+
+func (n *CheckSum256Type) UnmarshalJSON(data []byte) error {
+	var s string
+	err := json.Unmarshal(data, &s)
+	if err != nil {
+		return err
+	}
+
+	b, err := hex.DecodeString(s)
+	if err != nil {
+		return err
+	}
+	for i := range n {
+		n[i] = binary.LittleEndian.Uint64(b[i*8 : (i+1)*8])
+	}
+	return nil
 }
 
 type Name uint64
@@ -152,24 +166,70 @@ func (n *AccountName) UnmarshalJSON(data []byte) error {
 func (n Name) MarshalJSON() ([]byte, error) {
 	return json.Marshal(NameToString(uint64(n)))
 }
+func (n *Name) UnmarshalJSON(data []byte) error {
+	var s string
+	err := json.Unmarshal(data, &s)
+	if err != nil {
+		return err
+	}
+	*n = Name(StringToName(s))
+	return nil
+}
+
 func (n PermissionName) MarshalJSON() ([]byte, error) {
 	return json.Marshal(NameToString(uint64(n)))
+}
+func (n *PermissionName) UnmarshalJSON(data []byte) error {
+	var s string
+	err := json.Unmarshal(data, &s)
+	if err != nil {
+		return err
+	}
+	*n = PermissionName(StringToName(s))
+	return nil
 }
 func (n ActionName) MarshalJSON() ([]byte, error) {
 	return json.Marshal(NameToString(uint64(n)))
 }
+func (n *ActionName) UnmarshalJSON(data []byte) error {
+	var s string
+	err := json.Unmarshal(data, &s)
+	if err != nil {
+		return err
+	}
+	*n = ActionName(StringToName(s))
+	return nil
+}
 func (n TableName) MarshalJSON() ([]byte, error) {
 	return json.Marshal(NameToString(uint64(n)))
+}
+func (n *TableName) UnmarshalJSON(data []byte) error {
+	var s string
+	err := json.Unmarshal(data, &s)
+	if err != nil {
+		return err
+	}
+	*n = TableName(StringToName(s))
+	return nil
 }
 func (n ScopeName) MarshalJSON() ([]byte, error) {
 	return json.Marshal(NameToString(uint64(n)))
 }
-
-type AccountResourceLimit struct {
-	Used      JSONInt64 `json:"used"`
-	Available JSONInt64 `json:"available"`
-	Max       JSONInt64 `json:"max"`
+func (n *ScopeName) UnmarshalJSON(data []byte) error {
+	var s string
+	err := json.Unmarshal(data, &s)
+	if err != nil {
+		return err
+	}
+	*n = ScopeName(StringToName(s))
+	return nil
 }
+
+// type AccountResourceLimit struct {
+// 	Used      JSONInt64 `json:"used"`
+// 	Available JSONInt64 `json:"available"`
+// 	Max       JSONInt64 `json:"max"`
+// }
 
 type DelegatedBandwidth struct {
 	From      AccountName `json:"from"`
@@ -460,18 +520,6 @@ type WaitWeight struct {
 	Weight  uint16 `json:"weight"` // weight_type
 }
 
-// type GetCodeResp struct {
-// 	AccountName AccountName `json:"account_name"`
-// 	CodeHash    string      `json:"code_hash"`
-// 	WASM        string      `json:"wasm"`
-// 	ABI         ABI         `json:"abi"`
-// }
-
-// type GetABIResp struct {
-// 	AccountName AccountName `json:"account_name"`
-// 	ABI         ABI         `json:"abi"`
-// }
-
 // JSONTime
 
 type JSONTime struct {
@@ -597,7 +645,12 @@ func NewBlockTimeStamp(t time.Time) BlockTimeStamp {
 }
 
 func (t BlockTimeStamp) MarshalJSON() ([]byte, error) {
-	slot := int64(t)*BlockIntervalMs*1000000 + BlockTimestamoEpochNanos //为了显示0.5s
+	var slot int64
+	if t > 0 {
+		slot = int64(t)*BlockIntervalMs*1000000 + BlockTimestamoEpochNanos //为了显示0.5s
+	} else {
+		slot = 0 //"1970-01-01T00:00:00.000"
+	}
 	tm := time.Unix(0, int64(slot)).UTC()
 
 	return []byte(fmt.Sprintf("%q", tm.Format(blockTimestampFormat))), nil
@@ -607,15 +660,17 @@ func (t *BlockTimeStamp) UnmarshalJSON(data []byte) (err error) {
 	if string(data) == "null" {
 		return nil
 	}
+
 	var temp time.Time
 	temp, err = time.Parse(`"`+blockTimestampFormat+`"`, string(data))
 	if err != nil {
-		temp, err = time.Parse(`"`+blockTimestampFormat+`Z07:00"`, string(data))
-		if err != nil {
-			return err
-		}
+		return
 	}
-	slot := (temp.UnixNano() - int64(BlockTimestampEpochMs)) / 1e6 / int64(BlockIntervalMs)
+	slot := (temp.UnixNano() - int64(BlockTimestamoEpochNanos)) / 1e6 / int64(BlockIntervalMs)
+	if slot < 0 {
+		slot = 0
+	}
+
 	*t = BlockTimeStamp(slot)
 	return err
 }

@@ -239,21 +239,54 @@ type TransactionWithID struct {
 	Packed *PackedTransaction `json:"packed_transaction"`
 }
 
-// func (t TransactionWithID) MarshalJSON() ([]byte, error) {
-// 	return json.Marshal([]interface{}{
-// 		t.ID,
-// 		t.Packed,
-// 	})
-// }
+func (t TransactionWithID) MarshalJSON() ([]byte, error) {
+	return json.Marshal([]interface{}{
+		t.Packed,
+	})
+}
+func (t *TransactionWithID) UnmarshalJSON(data []byte) error {
+	var packed PackedTransaction
+	if data[0] == '{' {
+		if err := json.Unmarshal(data, &packed); err != nil {
+			return err
+		}
+		*t = TransactionWithID{
+			// ID:     packed.ID(),
+			Packed: &packed,
+		}
+		// 	else if data[0] == '"' {
+		// 	var id string
+		// 	err := json.Unmarshal(data, &id)
+		// 	if err != nil {
+		// 		return err
+		// 	}
+
+		// 	shaID, err := hex.DecodeString(id)
+		// 	if err != nil {
+		// 		return fmt.Errorf("decoding id in trx: %s", err)
+		// 	}
+
+		// 	*t = TransactionWithID{
+		// 		ID: SHA256Bytes(shaID),
+		// 	}
+
+		// 	return nil
+		// }
+
+		return nil
+	}
+	return nil
+}
 
 // func (t *TransactionWithID) UnmarshalJSON(data []byte) error {
 // 	var packed PackedTransaction
 // 	if data[0] == '{' {
+
 // 		if err := json.Unmarshal(data, &packed); err != nil {
 // 			return err
 // 		}
 // 		*t = TransactionWithID{
-// 			ID:     packed.ID(),
+// 			// ID:     packed.ID(),
 // 			Packed: &packed,
 // 		}
 
@@ -270,17 +303,10 @@ type TransactionWithID struct {
 // 			return fmt.Errorf("decoding id in trx: %s", err)
 // 		}
 
-// 		// *t = TransactionWithID{
-// 		// 	ID: SHA256Bytes(shaID),
-// 		// }
-// 		var temp [4]uint64
-// 		temp[0] = binary.LittleEndian.Uint64(shaID[:8])
-// 		temp[1] = binary.LittleEndian.Uint64(shaID[8:16])
-// 		temp[2] = binary.LittleEndian.Uint64(shaID[16:24])
-// 		temp[3] = binary.LittleEndian.Uint64(shaID[24:32])
 // 		*t = TransactionWithID{
-// 			ID: temp,
+// 			ID: SHA256Bytes(shaID),
 // 		}
+
 // 		return nil
 // 	}
 
