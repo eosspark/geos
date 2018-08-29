@@ -625,8 +625,8 @@ func (t *BlockTimeStamp) Next() BlockTimeStamp {
 }
 
 func (t *BlockTimeStamp) ToTimePoint() time.Time {
-	msec := int64(*t) * int64(BlockIntervalMs)
-	msec += int64(BlockTimestampEpochMs)
+	msec := int64(*t) * int64(DefaultConfig.BlockIntervalMs)
+	msec += int64(DefaultConfig.BlockTimestampEpochMs)
 	return time.Unix(0, msec*1e6)
 }
 
@@ -639,15 +639,15 @@ func MinBlockTime() BlockTimeStamp {
 }
 
 func NewBlockTimeStamp(t time.Time) BlockTimeStamp {
-	msecSinceEpoch := uint64(t.UnixNano() / 1e6)
-	bt := (msecSinceEpoch - BlockTimestampEpochMs) / uint64(BlockIntervalMs)
+	msecSinceEpoch := t.UnixNano() / 1e6
+	bt := (msecSinceEpoch - DefaultConfig.BlockTimestampEpochMs) / DefaultConfig.BlockIntervalMs
 	return BlockTimeStamp(bt)
 }
 
 func (t BlockTimeStamp) MarshalJSON() ([]byte, error) {
 	var slot int64
 	if t > 0 {
-		slot = int64(t)*BlockIntervalMs*1000000 + BlockTimestamoEpochNanos //为了显示0.5s
+		slot = int64(t)*DefaultConfig.BlockIntervalMs*1000000 + DefaultConfig.BlockTimestamoEpochNanos //为了显示0.5s
 	} else {
 		slot = 0 //"1970-01-01T00:00:00.000"
 	}
@@ -665,7 +665,7 @@ func (t *BlockTimeStamp) UnmarshalJSON(data []byte) (err error) {
 	if err != nil {
 		return
 	}
-	slot := (temp.UnixNano() - int64(BlockTimestamoEpochNanos)) / 1e6 / int64(BlockIntervalMs)
+	slot := (temp.UnixNano() - DefaultConfig.BlockTimestamoEpochNanos) / 1e6 / DefaultConfig.BlockIntervalMs
 	if slot < 0 {
 		slot = 0
 	}
