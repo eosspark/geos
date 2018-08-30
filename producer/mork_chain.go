@@ -1,55 +1,95 @@
 package producer_plugin
 
 import (
+	"fmt"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/ecc"
 	"time"
 )
 
-var chain = new(mockChain)
+var chain *mockChain
+
+var initPriKey, _ = ecc.NewPrivateKey("5KYZdUEo39z3FPrtuX2QbbwGnNP5zTd7yyr2SC1j299sBCnWjss")
+var initPubKey = initPriKey.PublicKey()
+var eosio = common.AccountName(common.StringToName("eosio"))
+var yuanc = common.AccountName(common.StringToName("yuanc"))
 
 type mockChain struct {
+	head    *types.BlockState
+	pending *types.BlockState
+}
+
+func init() {
+	chain = new(mockChain)
+
+	initSchedule := types.ProducerScheduleType{0, []types.ProducerKey{
+		{eosio, initPubKey},
+		{yuanc, initPubKey},
+	}}
+
+	genHeader := types.BlockHeaderState{}
+	genHeader.ActiveSchedule = initSchedule
+	genHeader.PendingSchedule = initSchedule
+	genHeader.Header.Timestamp = common.NewBlockTimeStamp(time.Now())
+
+	chain.head = new(types.BlockState)
+	chain.head.BlockHeaderState = genHeader
+}
+
+func (c mockChain) LastIrreversibleBlockNum() uint32 {
+	return c.head.DposIrreversibleBlocknum
 }
 
 func (c mockChain) HeadBlockState() *types.BlockState {
-	result := new(types.BlockState)
-	header := types.SignedBlockHeader{}
-	header.Timestamp = common.NewBlockTimeStamp(time.Now())
-	result.Header = header
-	return result
+	return c.head
 
 }
-
 func (c mockChain) HeadBlockTime() time.Time {
-	return time.Now()
+	return c.head.Header.Timestamp.ToTimePoint()
 }
 
 func (c mockChain) PendingBlockTime() time.Time {
-	return time.Now()
+	return c.pending.Header.Timestamp.ToTimePoint()
 }
 
 func (c mockChain) HeadBlockNum() uint32 {
-	return 1
+	return c.head.BlockNum
 }
 
 func (c mockChain) PendingBlockState() *types.BlockState {
-	return new(types.BlockState)
+	return c.pending
 }
 
 func (c mockChain) GetUnappliedTransactions() []*types.TransactionMetadata {
-	return make([]*types.TransactionMetadata, 10)
+	return make([]*types.TransactionMetadata, 0)
 }
 
 func (c mockChain) GetScheduledTransactions() []common.TransactionIDType {
-	return make([]common.TransactionIDType, 10)
+	return make([]common.TransactionIDType, 0)
 }
 
-func (c mockChain) AbortBlock()                                                     {}
-func (c mockChain) StartBlock(when common.BlockTimeStamp, confirmBlockCount uint16) {}
-func (c mockChain) FinalizeBlock()                                                  {}
-func (c mockChain) SignBlock(func([]byte) ecc.Signature)                            {}
-func (c mockChain) CommitBlock()                                                    {}
+func (c *mockChain) AbortBlock() {
+	fmt.Println("abort block...")
+	if c.pending != nil {
+		c.pending = nil
+	}
+}
+
+func (c *mockChain) StartBlock(when common.BlockTimeStamp, confirmBlockCount uint16) {
+	fmt.Println("start block...")
+	chain.pending = new(types.BlockState)
+	chain.pending.BlockHeaderState = *chain.head.GenerateNext(&when)
+	chain.pending.SetConfirmed(confirmBlockCount)
+
+}
+func (c *mockChain) FinalizeBlock()                       { fmt.Println("finalize block...") }
+func (c *mockChain) SignBlock(func([]byte) ecc.Signature) { fmt.Println("sign block...") }
+func (c *mockChain) CommitBlock() {
+	fmt.Println("commit block...")
+	c.head = c.pending
+	c.pending = nil
+}
 
 func (c mockChain) PushTransaction(trx *types.TransactionMetadata, deadline time.Time) error {
 	return nil
@@ -58,6 +98,6 @@ func (c mockChain) PushScheduledTransaction(trx common.TransactionIDType, deadli
 	return nil
 }
 
-func (c mockChain) PushBlock(b *types.SignedBlock) error {
+func (c *mockChain) PushBlock(b *types.SignedBlock) error {
 	return nil
 }

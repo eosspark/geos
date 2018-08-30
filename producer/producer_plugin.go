@@ -5,6 +5,7 @@ import (
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/ecc"
+	"gopkg.in/urfave/cli.v1"
 	"time"
 )
 
@@ -47,6 +48,9 @@ func (pp *ProducerPlugin) init() {
 	pp.persistentTransactions = make(transactionIdWithExpireIndex)
 	pp.blacklistedTransactions = make(transactionIdWithExpireIndex)
 	pp.timer = new(scheduleTimer)
+
+	pp.maxIrreversibleBlockAgeUs = -1
+
 	pp.incomingTrxWeight = 0.0
 	pp.incomingDeferRadio = 1.0
 }
@@ -71,11 +75,36 @@ func (pp *ProducerPlugin) SignCompact(key *ecc.PublicKey, digest common.SHA256By
 	return ecc.Signature{}
 }
 
-func (pp *ProducerPlugin) Initialize() {
-	pp.signatureProviders[ecc.PublicKey{}] = func(hash []byte) ecc.Signature {
-		priKey, _ := ecc.NewPrivateKey("privateKey")
-		sig, _ := priKey.Sign(hash)
+func (pp *ProducerPlugin) Initialize(app *cli.App) {
+	pp.init()
+
+	pp.signatureProviders[initPubKey] = func(hash []byte) ecc.Signature {
+		sig, _ := initPriKey.Sign(hash)
 		return sig
+	}
+
+	var producers cli.StringSlice
+
+	app.Flags = []cli.Flag{
+		cli.BoolTFlag{
+			Name:        "enable-stale-production, e",
+			Usage:       "Enable block production, even if the chain is stale.",
+			Destination: &pp.productionEnabled,
+		},
+		cli.StringSliceFlag{
+			Name:  "producer-name, p",
+			Usage: "ID of producer controlled by this node(e.g. inita; may specify multiple times)",
+			Value: &producers,
+		},
+	}
+
+	app.Action = func(c *cli.Context) {
+		if len(producers) > 0 {
+			for _, p := range producers {
+				pp.producers[common.AccountName(common.StringToName(p))] = struct{}{}
+			}
+		}
+		fmt.Println(pp.producers)
 	}
 }
 
@@ -439,7 +468,7 @@ func (pp *ProducerPlugin) startBlock() (EnumStartBlockRusult, bool) {
 
 	if pbs != nil {
 
-		if pp.pendingBlockMode == producing && pbs.BlockSigningKey == scheduleProducer.BlockSigningKey {
+		if pp.pendingBlockMode == producing && pbs.BlockSigningKey != scheduleProducer.BlockSigningKey {
 			//C++ elog("Block Signing Key is not expected value, reverting to speculative mode! [expected: \"${expected}\", actual: \"${actual\"", ("expected", scheduled_producer.block_signing_key)("actual", pbs->block_signing_key));
 			pp.pendingBlockMode = speculating
 		}
@@ -738,7 +767,10 @@ func (pp *ProducerPlugin) produceBlock() error {
 	newBs := chain.HeadBlockState()
 	pp.producerWatermarks[newBs.Header.Producer] = chain.HeadBlockNum()
 
-	//fmt.Printf("Produced blcok %v... #%d @ %v signed by %v ",
+	fmt.Printf("Produced block #%d @ %s signed by %s [trxs: %d, lib: %d, confirmed: %d]\n",
+		newBs.BlockNum, newBs.Header.Timestamp.ToTimePoint(),
+		common.NameToString(uint64(newBs.Header.Producer)),
+		len(newBs.SignedBlock.Transactions), chain.LastIrreversibleBlockNum(), newBs.Header.Confirmed)
 	//	newBs.Id, newBs.BlockNum, newBs.Header.Timestamp, newBs.Header.Producer, newBs)
 
 	/*ilog("Produced block ${id}... #${n} @ ${t} signed by ${p} [trxs: ${count}, lib: ${lib}, confirmed: ${confs}]",

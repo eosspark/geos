@@ -222,9 +222,8 @@ func (bs *BlockHeaderState) GenerateNext(when *common.BlockTimeStamp) *BlockHead
 	result := new(BlockHeaderState)
 
 	if when != nil {
-		//EOS_ASSERT( when > header.timestamp, block_validate_exception, "next block must be in the future" );
-		if *when > bs.Header.Timestamp {
-			return nil
+		if *when <= bs.Header.Timestamp {
+			panic("next block must be in the future") //block_validate_exception
 		}
 	} else {
 		when = &bs.Header.Timestamp
@@ -244,6 +243,7 @@ func (bs *BlockHeaderState) GenerateNext(when *common.BlockTimeStamp) *BlockHead
 	result.BlockNum = bs.BlockNum + 1
 	result.ProducerToLastProduced = bs.ProducerToLastProduced
 	result.ProducerToLastImpliedIrb = bs.ProducerToLastImpliedIrb
+	result.ProducerToLastProduced = make(map[common.AccountName]uint32)
 	result.ProducerToLastProduced[proKey.AccountName] = result.BlockNum
 	result.BlockrootMerkle = bs.BlockrootMerkle
 	//result.BlockrootMerkle.Append(ID)
@@ -253,6 +253,7 @@ func (bs *BlockHeaderState) GenerateNext(when *common.BlockTimeStamp) *BlockHead
 	result.DposProposedIrreversibleBlocknum = bs.DposProposedIrreversibleBlocknum
 	result.BftIrreversibleBlocknum = bs.BftIrreversibleBlocknum
 
+	result.ProducerToLastImpliedIrb = make(map[common.AccountName]uint32)
 	result.ProducerToLastImpliedIrb[proKey.AccountName] = result.DposProposedIrreversibleBlocknum
 	result.DposIrreversibleBlocknum = result.CalcDposLastIrreversible()
 
