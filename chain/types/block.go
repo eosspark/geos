@@ -146,7 +146,7 @@ func (b *BlockHeader) BlockID() (id common.BlockIDType, err error) {
 	id[1] = binary.LittleEndian.Uint64(hashed[8:16])
 	id[2] = binary.LittleEndian.Uint64(hashed[16:24])
 	id[3] = binary.LittleEndian.Uint64(hashed[24:32])
-	return
+	return id, nil
 }
 
 type OptionalProducerSchedule struct {
@@ -166,11 +166,6 @@ type SignedBlock struct {
 
 func (m *SignedBlock) String() string {
 	return "SignedBlock"
-}
-
-type IncrementalMerkle struct {
-	NodeCount   uint64    `json:"node_count"`
-	ActiveNodes [4]uint64 `json:"active_nodes"`
 }
 
 type HeaderConfirmation struct {
@@ -246,7 +241,7 @@ func (bs *BlockHeaderState) GenerateNext(when *common.BlockTimeStamp) *BlockHead
 	result.ProducerToLastProduced = make(map[common.AccountName]uint32)
 	result.ProducerToLastProduced[proKey.AccountName] = result.BlockNum
 	result.BlockrootMerkle = bs.BlockrootMerkle
-	//result.BlockrootMerkle.Append(ID)
+	result.BlockrootMerkle.Append(bs.ID)
 
 	result.ActiveSchedule = bs.ActiveSchedule
 	result.PendingSchedule = bs.PendingSchedule
@@ -335,6 +330,7 @@ func (bs *BlockHeaderState) SetConfirmed(numPrevBlocks uint16) {
 
 func (bs *BlockHeaderState) SigDigest() []byte {
 	//TODO wait for sha256's pack
+	//headerBmroot := common.Hash([2]interface{}{bs.Header, bs.BlockrootMerkle.GetRoot()})
 	return []byte{}
 }
 

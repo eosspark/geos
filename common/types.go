@@ -1,12 +1,14 @@
 package common
 
 import (
+	"crypto/sha256"
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/eosspark/eos-go/ecc"
+	"github.com/eosspark/eos-go/rlp"
 	"math"
 	"strconv"
 	"strings"
@@ -21,6 +23,29 @@ type BlockIDType [4]uint64
 type TransactionIDType [4]uint64
 type CheckSum256Type [4]uint64
 type Sha256 [4]uint64
+
+func Hash(t interface{}) [4]uint64 {
+	cereal, err := rlp.EncodeToBytes(t)
+	if err != nil {
+		panic(err)
+	}
+	//fmt.Println(cereal)
+
+	h := sha256.New()
+	_, _ = h.Write(cereal)
+	hashed := h.Sum(nil)
+
+	//fmt.Println(hashed)
+
+	var result [4]uint64
+
+	result[0] = binary.LittleEndian.Uint64(hashed[:8])
+	result[1] = binary.LittleEndian.Uint64(hashed[8:16])
+	result[2] = binary.LittleEndian.Uint64(hashed[16:24])
+	result[3] = binary.LittleEndian.Uint64(hashed[24:32])
+
+	return result
+}
 
 func DecodeIDTypeString(str string) (id [4]uint64, err error) {
 	b, err := hex.DecodeString(str)
