@@ -304,9 +304,6 @@ func (pp *ProducerPlugin) calculateNextBlockTime(producerName common.AccountName
 	hbs := chain.HeadBlockState()
 	activeSchedule := hbs.ActiveSchedule.Producers
 
-	pbs := chain.PendingBlockState()
-	pbt := pbs.Header.Timestamp
-
 	// determine if this producer is in the active schedule and if so, where
 	var itr *types.ProducerKey
 	var producerIndex uint32
@@ -336,11 +333,10 @@ func (pp *ProducerPlugin) calculateNextBlockTime(producerName common.AccountName
 		if chain.PendingBlockState() != nil {
 			blockNum++
 		}
-		if currentWatermark > pbs.BlockNum {
-			minOffset = currentWatermark - pbs.BlockNum + 1
+		if currentWatermark > blockNum {
+			minOffset = currentWatermark - blockNum + 1
 		}
 	}
-	fmt.Println(minOffset, producerIndex, pbt)
 
 	// this producers next opportuity to produce is the next time its slot arrives after or at the calculated minimum
 	minSlot := uint32(currentBlockTime) + minOffset
@@ -386,8 +382,6 @@ func (pp *ProducerPlugin) calculatePendingBlockTime() time.Time {
 }
 
 func (pp *ProducerPlugin) startBlock() (EnumStartBlockRusult, bool) {
-	fmt.Println("start_block")
-
 	hbs := chain.HeadBlockState()
 
 	now := time.Now()
@@ -459,7 +453,6 @@ func (pp *ProducerPlugin) startBlock() (EnumStartBlockRusult, bool) {
 			}
 		}
 	}
-	fmt.Println(blocksToConfirm)
 
 	chain.AbortBlock()
 	chain.StartBlock(common.NewBlockTimeStamp(blockTime), blocksToConfirm)
