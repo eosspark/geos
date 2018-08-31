@@ -221,7 +221,7 @@ func (bs *BlockHeaderState) GenerateNext(when *common.BlockTimeStamp) *BlockHead
 			panic("next block must be in the future") //block_validate_exception
 		}
 	} else {
-		when = &bs.Header.Timestamp
+		*when = bs.Header.Timestamp
 		*when++
 	}
 
@@ -253,7 +253,9 @@ func (bs *BlockHeaderState) GenerateNext(when *common.BlockTimeStamp) *BlockHead
 	result.DposIrreversibleBlocknum = result.CalcDposLastIrreversible()
 
 	/// grow the confirmed count
-	//C++ static_assert(std::numeric_limits<uint8_t>::max() >= (config::max_producers * 2 / 3) + 1, "8bit confirmations may not be able to hold all of the needed confirmations");
+	if common.DefaultConfig.MaxProducers*2/3+1 > 0xff {
+		panic("8bit confirmations may not be able to hold all of the needed confirmations")
+	}
 
 	// This uses the previous block active_schedule because thats the "schedule" that signs and therefore confirms _this_ block
 	numActiveProducers := len(bs.ActiveSchedule.Producers)
@@ -329,9 +331,16 @@ func (bs *BlockHeaderState) SetConfirmed(numPrevBlocks uint16) {
 }
 
 func (bs *BlockHeaderState) SigDigest() []byte {
-	//TODO wait for sha256's pack
-	//headerBmroot := common.Hash([2]interface{}{bs.Header, bs.BlockrootMerkle.GetRoot()})
-	return []byte{}
+	result := make([]byte, 32)
+	headerBmroot := common.Hash([2]interface{}{bs.Header, bs.BlockrootMerkle.GetRoot()})
+	digest := common.Hash([2]interface{}{headerBmroot, bs.PendingScheduleHash})
+
+	binary.LittleEndian.PutUint64(result[0:8], digest[0])
+	binary.LittleEndian.PutUint64(result[8:16], digest[1])
+	binary.LittleEndian.PutUint64(result[16:24], digest[2])
+	binary.LittleEndian.PutUint64(result[24:32], digest[3])
+
+	return result
 }
 
 type BlockState struct {
