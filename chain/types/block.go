@@ -174,9 +174,9 @@ type IncrementalMerkle struct {
 }
 
 type HeaderConfirmation struct {
-	BlockId           common.BlockIDType
-	Producer          common.AccountName
-	ProducerSignature ecc.PublicKey
+	BlockId           common.BlockIDType	`json:"block_id"`
+	Producer          common.AccountName	`json:"producer"`
+	ProducerSignature ecc.PublicKey			`json:"producers_signature"`
 }
 type BlockHeaderState struct {
 	ID                               common.BlockIDType `storm:"id,unique"`
@@ -197,6 +197,17 @@ type BlockHeaderState struct {
 	Confirmations                    []HeaderConfirmation `json:"confirmations"`
 }
 
+type ReversibleBlockObject struct {
+	ID	uint64
+	BlockNum 	uint32
+	PackedBlock	string
+}
+
+type ReversibleBlockIndex struct{
+	rbObject ReversibleBlockObject
+	byId	uint64
+	byNum	uint32
+}
 func (bs *BlockHeaderState) GetScheduledProducer(t common.BlockTimeStamp) ProducerKey {
 	index := uint32(t) % uint32(len(bs.ActiveSchedule.Producers)*12)
 	index /= 12
@@ -305,6 +316,10 @@ func (bs *BlockHeaderState) MaybePromotePending() bool {
 		return true
 	}
 	return false
+}
+
+func (bs *BlockHeaderState) AddConfirmation(conf HeaderConfirmation){
+	//TODO
 }
 
 type BlockState struct {
