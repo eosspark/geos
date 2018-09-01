@@ -34,7 +34,9 @@ type ApplyHandler struct {
 }
 
 type Controller struct {
-	db                    *eosiodb.Session
+	db 					  eosiodb.Database
+	dbsession             *eosiodb.Session
+	reversibledb		  eosiodb.Database
 	reversibleBlocks      *eosiodb.Session
 	blog                  string //TODO
 	pending               *types.PendingState
@@ -48,7 +50,7 @@ type Controller struct {
 	rePlaying             bool
 	replayHeadTime        common.Tstamp //optional<common.Tstamp>
 	readMode              DBReadMode
-	inTrxRequiringChecks  bool
+	inTrxRequiringChecks  bool	//if true, checks that are normally skipped on replay (e.g. auth checks) cannot be skipped
 	subjectiveCupLeeway   common.Tstamp //optional<common.Tstamp>
 	handlerKey            HandlerKey
 	applyHandlers         ApplyHandler
@@ -73,7 +75,7 @@ func NewController() *Controller {
 	defer session.Undo()
 
 	session.Commit()
-	return &Controller{}
+	return &Controller{inTrxRequiringChecks : false}
 }
 
 func (self *Controller) PopBlock() {
@@ -99,7 +101,7 @@ func (self *Controller) PopBlock() {
 		}
 	}
 	self.head = prev
-	self.db.Undo() //TODO
+	self.dbsession.Undo() //TODO
 }
 
 func newApplyCon(ac types.ApplyContext) *applyCon{
@@ -135,7 +137,14 @@ func (self *Controller) StartBlock(when common.BlockTimeStamp,confirmBlockCount 
 		fmt.Println("pending block already exists")
 		return
 	}
+	// defer self.peding.reset()
 
+
+}
+
+func  Close(db eosiodb.Database,session eosiodb.Session){
+	//session.close() 	//db close前关闭session
+	db.Close()
 }
 
 /*func main(){

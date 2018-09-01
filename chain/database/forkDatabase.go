@@ -5,6 +5,7 @@ import (
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/db"
 	"github.com/eosspark/eos-go/log"
+	"fmt"
 )
 
 type ForkDatabase struct {
@@ -154,7 +155,8 @@ func (fdb *ForkDatabase) Add(c types.HeaderConfirmation){
 	if err!=nil{
 		log.Error("forkDatabase add header confirmation is error ,detail:",err)
 	}
-	header.AddConfirmation(c)
+	fmt.Println(header)
+	header.AddConfirmation(c)	//TODO
 }
 type BranchType struct {
 	branch []types.BlockState

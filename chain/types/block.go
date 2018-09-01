@@ -274,7 +274,7 @@ func (bs *BlockHeaderState) GenerateNext(when *common.BlockTimeStamp) *BlockHead
 	numActiveProducers := len(bs.ActiveSchedule.Producers)
 	requiredConfs := uint32(numActiveProducers*2/3) + 1
 
-	if len(bs.ConfirmCount) < common.MaxTrackedDposConfirmations {
+	if len(bs.ConfirmCount) < common.DefaultConfig.MaxTrackedDposConfirmations {
 		result.ConfirmCount = make([]uint8, len(bs.ConfirmCount)+1)
 		copy(result.ConfirmCount, bs.ConfirmCount)
 		result.ConfirmCount[len(result.ConfirmCount)-1] = uint8(requiredConfs)
@@ -423,6 +423,10 @@ func (t *TransactionWithID) UnmarshalJSON(data []byte) error {
 		return nil
 	}
 	return nil
+}
+
+func (bs *BlockHeaderState) AddConfirmation(conf HeaderConfirmation){
+	//TODO
 }
 
 // func (t *TransactionWithID) UnmarshalJSON(data []byte) error {
