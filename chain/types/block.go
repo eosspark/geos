@@ -174,9 +174,9 @@ type IncrementalMerkle struct {
 }
 
 type HeaderConfirmation struct {
-	BlockId           common.BlockIDType
-	Producer          common.AccountName
-	ProducerSignature ecc.PublicKey
+	BlockId           common.BlockIDType	`json:"block_id"`
+	Producer          common.AccountName	`json:"producer"`
+	ProducerSignature ecc.PublicKey			`json:"producers_signature"`
 }
 type BlockHeaderState struct {
 	ID                               common.BlockIDType `storm:"id,unique"`
@@ -197,6 +197,17 @@ type BlockHeaderState struct {
 	Confirmations                    []HeaderConfirmation `json:"confirmations"`
 }
 
+type ReversibleBlockObject struct {
+	ID	uint64
+	BlockNum 	uint32
+	PackedBlock	string
+}
+
+type ReversibleBlockIndex struct{
+	rbObject ReversibleBlockObject
+	byId	uint64
+	byNum	uint32
+}
 func (bs *BlockHeaderState) GetScheduledProducer(t common.BlockTimeStamp) ProducerKey {
 	index := uint32(t) % uint32(len(bs.ActiveSchedule.Producers)*12)
 	index /= 12
@@ -263,7 +274,7 @@ func (bs *BlockHeaderState) GenerateNext(when *common.BlockTimeStamp) *BlockHead
 	numActiveProducers := len(bs.ActiveSchedule.Producers)
 	requiredConfs := uint32(numActiveProducers*2/3) + 1
 
-	if len(bs.ConfirmCount) < common.DefaultConfig.MaxTrackedDposConfirmations {
+	if len(bs.ConfirmCount) < common.MaxTrackedDposConfirmations {
 		result.ConfirmCount = make([]uint8, len(bs.ConfirmCount)+1)
 		copy(result.ConfirmCount, bs.ConfirmCount)
 		result.ConfirmCount[len(result.ConfirmCount)-1] = uint8(requiredConfs)
@@ -417,12 +428,11 @@ func (t *TransactionWithID) UnmarshalJSON(data []byte) error {
 // func (t *TransactionWithID) UnmarshalJSON(data []byte) error {
 // 	var packed PackedTransaction
 // 	if data[0] == '{' {
-
 // 		if err := json.Unmarshal(data, &packed); err != nil {
 // 			return err
 // 		}
 // 		*t = TransactionWithID{
-// 			// ID:     packed.ID(),
+// 			ID:     packed.ID(),
 // 			Packed: &packed,
 // 		}
 
@@ -485,5 +495,3 @@ func (t *TransactionWithID) UnmarshalJSON(data []byte) error {
 // 	}
 // 	return nil
 // }
-
-//fmt.Println("error")

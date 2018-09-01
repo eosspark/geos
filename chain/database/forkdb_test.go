@@ -10,7 +10,7 @@ import (
 func Test_NewForkDatabase(t *testing.T) {
 	forkdb,err := NewForkDatabase("./","forkdb.dat",true)
 	if err != nil {
-		t.Error(err)
+		t.Error(&err)
 	}
 	log.Debug("forkdb block state:",forkdb)
 	fmt.Println("Test_NewForkDatabase run seccuss")
