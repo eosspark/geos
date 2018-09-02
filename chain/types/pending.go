@@ -1,9 +1,11 @@
 package types
 
 import (
+	"fmt"
+	"github.com/eosspark/eos-go/chain/config"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/db"
-	"fmt"
+	"github.com/eosspark/eos-go/log"
 )
 
 type ActionReceipt struct {
@@ -16,15 +18,14 @@ type ActionReceipt struct {
 	ABISequence    uint32                        `json:"abi_sequence"`
 }
 type PendingState struct {
-	DBSeesion   eosiodb.Session  `json:"db_session"`
-	PendingBlockState  BlockState `json:"pending_block_state"`
-	Actions     []ActionReceipt  `json:"actions"`
-	BlockStatus BlockStatus      `json:"block_status"`
-	//IsExist		bool
+	DBSeesion         *eosiodb.Session `json:"db_session"`
+	PendingBlockState BlockState       `json:"pending_block_state"`
+	Actions           []ActionReceipt  `json:"actions"`
+	BlockStatus       BlockStatus      `json:"block_status"`
+	Valid             bool             `json:"valid"`
 }
 
-//exec when start block
-func NewPendingState(db eosiodb.Database) *PendingState{
+func NewPendingState(db eosiodb.Database) *PendingState {
 	pending := PendingState{}
 	/*db, err := eosiodb.NewDatabase(config.DefaultConfig.BlockDir, "eos.db", true)
 	if err != nil {
@@ -35,10 +36,32 @@ func NewPendingState(db eosiodb.Database) *PendingState{
 	if err != nil {
 		fmt.Println(err.Error())
 	}
-	pending.DBSeesion = *session
+	pending.DBSeesion = session
+	pending.Valid = true
 	return &pending
 }
 
-func Reset(){
+func GetInstance() *PendingState {
+	pending := PendingState{}
+	db, err := eosiodb.NewDatabase(config.DefaultBlocksDirName, config.DBFileName, true)
+	if err != nil {
+		log.Error("pending NewPendingState is error detail:", err)
+	}
+	defer db.Close()
+	session, err := db.Start_Session()
+	if err != nil {
+		fmt.Println(err.Error())
+	}
+	pending.DBSeesion = session
+	pending.Valid = false
+	return &pending
+}
 
+func SetNewProducers() {
+
+}
+
+func Reset(pending *PendingState) {
+	pending = nil
+	log.Info("destory pending")
 }

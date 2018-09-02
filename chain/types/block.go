@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/ecc"
+	"github.com/eosspark/eos-go/log"
 	"github.com/eosspark/eos-go/rlp"
 	"sort"
 )
@@ -112,16 +113,21 @@ type ProducerScheduleType struct {
 	Producers []ProducerKey `json:"producers"`
 }
 
+type SharedProducerScheduleType struct {
+	Version   uint32
+	Producers []ProducerKey
+}
+
 type BlockHeader struct {
-	Timestamp        common.BlockTimeStamp     `json:"timestamp"`
-	Producer         common.AccountName        `json:"producer"`
-	Confirmed        uint16                    `json:"confirmed"`
-	Previous         common.BlockIDType        `json:"previous"`
-	TransactionMRoot common.CheckSum256Type    `json:"transaction_mroot"`
-	ActionMRoot      common.CheckSum256Type    `json:"action_mroot"`
-	ScheduleVersion  uint32                    `json:"schedule_version"`
-	NewProducers     *OptionalProducerSchedule `json:"new_producers" eos:"optional"`
-	HeaderExtensions []*Extension              `json:"header_extensions"`
+	Timestamp        common.BlockTimeStamp       `json:"timestamp"`
+	Producer         common.AccountName          `json:"producer"`
+	Confirmed        uint16                      `json:"confirmed"`
+	Previous         common.BlockIDType          `json:"previous"`
+	TransactionMRoot common.CheckSum256Type      `json:"transaction_mroot"`
+	ActionMRoot      common.CheckSum256Type      `json:"action_mroot"`
+	ScheduleVersion  uint32                      `json:"schedule_version"`
+	NewProducers     *SharedProducerScheduleType `json:"new_producers" eos:"optional"`
+	HeaderExtensions []*Extension                `json:"header_extensions"`
 }
 
 func (b *BlockHeader) BlockNumber() uint32 {
@@ -149,9 +155,9 @@ func (b *BlockHeader) BlockID() (id common.BlockIDType, err error) {
 	return
 }
 
-type OptionalProducerSchedule struct {
+/*type OptionalProducerSchedule struct {
 	ProducerScheduleType
-}
+}*/
 
 type SignedBlockHeader struct {
 	BlockHeader
@@ -426,6 +432,48 @@ func (t *TransactionWithID) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+func (spst *SharedProducerScheduleType) clear() {
+	spst.Version = 0
+	spst.Producers = []ProducerKey{}
+}
+
+func (spst *SharedProducerScheduleType) SharedroducerScheduleType(a ProducerScheduleType) *ProducerScheduleType {
+	var result ProducerScheduleType = ProducerScheduleType{}
+	spst.Version = a.Version
+	spst.Producers = nil
+	//spst.Producers = a.Producers
+	for i := 0; i < len(a.Producers); i++ {
+		spst.Producers[i] = a.Producers[i]
+	}
+	return &result
+}
+
+func (spst *SharedProducerScheduleType) producerScheduleType() *ProducerScheduleType {
+	var result ProducerScheduleType = ProducerScheduleType{}
+	result.Version = spst.Version
+	if len(result.Producers) == 0 {
+		result.Producers = spst.Producers
+	} else {
+		var step int = len(result.Producers)
+		for _, p := range spst.Producers {
+			result.Producers[step] = p
+			step++
+		}
+	}
+	return &result
+}
+
+func (bhs *BlockState) SetNewProducers(pending SharedProducerScheduleType) {
+	if pending.Version == bhs.ActiveSchedule.Version+1 {
+		log.Error("wrong producer schedule version specified")
+		return
+	}
+	/*	bhs.Header.NewProducers = pending.Producers
+		bhs.PendingScheduleHash = bhs.Header.NewProducers
+		bhs.PendingSchedule = bhs.Header.NewProducers*/
+	bhs.PendingScheduleLibNum = bhs.BlockNum
+
+}
 func (bs *BlockHeaderState) AddConfirmation(conf HeaderConfirmation) {
 	//TODO
 }

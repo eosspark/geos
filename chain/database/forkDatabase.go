@@ -1,17 +1,17 @@
 package database
 
 import (
+	"fmt"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/db"
 	"github.com/eosspark/eos-go/log"
-	"fmt"
 )
 
 type ForkDatabase struct {
-	database   eosiodb.Database   `json:"database"`
-	Index      ForkMultiIndexType `json:"index"`
-	Head 	   types.BlockState   `json:"head"`
+	database eosiodb.Database   `json:"database"`
+	Index    ForkMultiIndexType `json:"index"`
+	Head     types.BlockState   `json:"head"`
 }
 
 type ForkMultiIndexType struct {
@@ -57,7 +57,7 @@ func NewForkDatabase(path string, fileName string, rw bool) (*ForkDatabase, erro
 			forkdb = setHead(*forkdb, indexType.BlockState)
 		}
 	}
-	log.Debug("indexObj:",len(indexObj))
+	log.Debug("indexObj:", len(indexObj))
 	if len(indexObj) > 0 {
 		// TODO indexObj[0]
 		return &ForkDatabase{database: *db, Index: indexObj[0], Head: forkdb.Head}, err
@@ -69,7 +69,7 @@ func NewForkDatabase(path string, fileName string, rw bool) (*ForkDatabase, erro
 func (fdb *ForkDatabase) GetBlock(id common.BlockIDType) (types.BlockState, error) {
 	//blockId   = fdb.Index.ID
 	var blockState types.BlockState
-	err := fdb.database.Find("ID",id, blockState)
+	err := fdb.database.Find("ID", id, blockState)
 	if err != nil {
 		return blockState, err
 	}
@@ -150,19 +150,20 @@ func (fdb *ForkDatabase) AddSignedBlockState(signedBlcok *types.SignedBlock) (*t
 	block, er := fdb.AddBlockState(blockState)
 	return block, er
 }
-func (fdb *ForkDatabase) Add(c types.HeaderConfirmation){
-	header,err := fdb.GetBlockByID(c.BlockId)
-	if err!=nil{
-		log.Error("forkDatabase add header confirmation is error ,detail:",err)
+func (fdb *ForkDatabase) Add(c types.HeaderConfirmation) {
+	header, err := fdb.GetBlockByID(c.BlockId)
+	if err != nil {
+		log.Error("forkDatabase add header confirmation is error ,detail:", err)
 	}
 	fmt.Println(header)
-	header.AddConfirmation(c)	//TODO
+	header.AddConfirmation(c) //TODO
 }
+
 type BranchType struct {
 	branch []types.BlockState
 }
 
-func (fdb *ForkDatabase) FetchBranchFrom(first common.BlockIDType, second common.BlockIDType)  error {
+func (fdb *ForkDatabase) FetchBranchFrom(first common.BlockIDType, second common.BlockIDType) error {
 	//result := make(map[BranchType]BranchType)
 	var firstBlock, secondBlock *types.BlockState
 	firstBlock, er := fdb.GetBlockByID(first)
@@ -182,7 +183,7 @@ func (fdb *ForkDatabase) FetchBranchFrom(first common.BlockIDType, second common
 	for firstBlock.Header.Previous != secondBlock.Header.Previous {
 	}
 
-	return  err
+	return err
 }
 
 /*func main(){
