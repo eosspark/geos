@@ -1,6 +1,8 @@
 package main
 
 import (
+	// "encoding/json"
+	// "bytes"
 	"fmt"
 	"github.com/eosspark/eos-go/cmd/cli/utils"
 	"github.com/eosspark/eos-go/ecc"
@@ -11,7 +13,7 @@ var (
 	walletCommand = cli.Command{
 		Name:        "wallet",
 		Usage:       "manage EOS presalse wallets",
-		ArgsUsage:   "",
+		ArgsUsage:   "SUBCOMMAND",
 		Category:    "WALLET COMMANDS",
 		Description: `Interact with local wallet`,
 		Subcommands: []cli.Command{
@@ -104,18 +106,32 @@ var (
 	}
 )
 
-func createWallet(ctx *cli.Context) error {
+type walletkey struct {
+	key string `json:"key"`
+}
+
+func createWallet(ctx *cli.Context) (err error) {
 	walletname := ctx.String("name")
 	fmt.Println("Creating wallet: ", walletname)
 	fmt.Println("Save password to use in the future to unlock this wallet.")
 	fmt.Println("Without password imported keys will not be retrievable.")
-	return nil
 
+	var resp string
+	err = DoHttpCall(walletCreate, []string{walletname}, &resp)
+	if err != nil {
+		return err
+	}
+	fmt.Println(resp)
+	return nil
 }
 
 func openWallet(ctx *cli.Context) error {
 	walletname := ctx.String("name")
 	fmt.Println("Opened: ", walletname)
+
+	var resp string
+	DoHttpCall(walletOpen, []string{walletname}, &resp)
+	fmt.Println(resp)
 	return nil
 }
 
@@ -134,20 +150,22 @@ func unlockWallet(ctx *cli.Context) error {
 	walletname := ctx.String("name") //utils.WalletUnlockFlag.Name
 	password := ctx.String(utils.WalletPasswordFlag.Name)
 	fmt.Println(walletname, password)
+	DoHttpCall(walletUnlock, []string{walletname, password}, nil)
 	fmt.Println("Unlocked: ", walletname)
 	return nil
 }
 func importWallet(ctx *cli.Context) error {
 	walletname := ctx.String("name") //utils.WalletUnlockFlag.Name
 	keywif := ctx.String(utils.WalletPriKeyFlag.Name)
+
+	DoHttpCall(walletImportKey, []string{walletname, keywif}, nil)
+
 	prikey, err := ecc.NewPrivateKey(keywif)
 	if err != nil {
 		err = fmt.Errorf("Invalid private key: %s", keywif)
 		return err
 	}
-
 	pubkey := prikey.PublicKey()
-	fmt.Println(walletname)
 	fmt.Println("imported private key for: ", pubkey.String())
 	return nil
 }
@@ -168,10 +186,12 @@ func removeKey(ctx *cli.Context) error {
 }
 
 func listWallet(ctx *cli.Context) error {
-	fmt.Println("wallets: ")
+	fmt.Println("wallets: //TODO")
 	return nil
 }
 func listKeys(ctx *cli.Context) error {
-	fmt.Println("Keys: ")
+	var resp []string
+	DoHttpCall(walletPublicKeys, nil, &resp)
+	fmt.Println(resp)
 	return nil
 }
