@@ -78,10 +78,13 @@ func (pp *ProducerPlugin) SignCompact(key *ecc.PublicKey, digest common.SHA256By
 func (pp *ProducerPlugin) Initialize(app *cli.App) {
 	pp.init()
 
-	pp.signatureProviders[initPubKey] = func(hash []byte) ecc.Signature {
-		sig, _ := initPriKey.Sign(hash)
-		return sig
-	}
+	//pp.signatureProviders[initPubKey] = func(hash []byte) ecc.Signature {
+	//	sig, _ := initPriKey.Sign(hash)
+	//	return sig
+	//}
+
+	pp.signatureProviders[initPubKey], _ = makeKeySignatureProvider(*initPriKey)
+	pp.signatureProviders[initPubKey], _ = makeKeosdSignatureProvider(pp, "http://", initPubKey)
 
 	var producers cli.StringSlice
 
@@ -221,6 +224,10 @@ func (pp *ProducerPlugin) onBlock(bsp *types.BlockState) {
 		}
 	}
 
+}
+
+func (pp *ProducerPlugin) onIrreversibleBlock(lib *types.SignedBlock) {
+	pp.irreversibleBlockTime = lib.Timestamp.ToTimePoint()
 }
 
 func (pp *ProducerPlugin) onIncomingBlock(block *types.SignedBlock) {
@@ -698,7 +705,7 @@ func (pp *ProducerPlugin) scheduleDelayedProductionLoop(currentBlockTime common.
 			producerWakeupTime := time.Unix(0, nextProducerBlockTime.UnixNano()-int64(time.Microsecond*time.Duration(common.DefaultConfig.BlockIntervalUs)))
 			if wakeUpTime != nil {
 				if wakeUpTime.After(producerWakeupTime) {
-					wakeUpTime = &producerWakeupTime
+					*wakeUpTime = producerWakeupTime
 				}
 			} else {
 				wakeUpTime = &producerWakeupTime

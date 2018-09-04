@@ -49,8 +49,6 @@ func (pt *scheduleTimer) asyncWait(valid func() bool, call func()) {
 	<-pt.internal.C
 	if valid() {
 		go call()
-	} else {
-		fmt.Println("no call")
 	}
 }
 
@@ -82,6 +80,26 @@ func makeDebugTimeLogger() func() {
 	return func() {
 		fmt.Println(time.Now().Sub(start))
 	}
+}
+
+func makeKeySignatureProvider(key ecc.PrivateKey) (signFunc signatureProviderType, err error) {
+	signFunc = func(digest []byte) (sign ecc.Signature) {
+		sign, err = key.Sign(digest)
+		return
+	}
+	return
+}
+
+func makeKeosdSignatureProvider(produce *ProducerPlugin, url string, pubKey ecc.PublicKey) (signFunc signatureProviderType, err error) {
+	signFunc = func(digest []byte) ecc.Signature {
+		if produce != nil {
+			//TODO
+			return ecc.Signature{}
+		} else {
+			return ecc.Signature{}
+		}
+	}
+	return
 }
 
 //errors

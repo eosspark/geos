@@ -146,8 +146,6 @@ func (b *BlockHeader) BlockID() (id common.BlockIDType, err error) {
 	hashed := h.Sum(nil)
 
 	binary.BigEndian.PutUint32(hashed, b.BlockNumber())
-	fmt.Println(hashed)
-
 	id[0] = binary.LittleEndian.Uint64(hashed[:8])
 	id[1] = binary.LittleEndian.Uint64(hashed[8:16])
 	id[2] = binary.LittleEndian.Uint64(hashed[16:24])
@@ -239,7 +237,7 @@ func (bs *BlockHeaderState) GenerateNext(when *common.BlockTimeStamp) *BlockHead
 			panic("next block must be in the future") //block_validate_exception
 		}
 	} else {
-		*when = bs.Header.Timestamp
+		when = &bs.Header.Timestamp
 		*when++
 	}
 
@@ -469,17 +467,94 @@ func (spst *SharedProducerScheduleType) producerScheduleType() *ProducerSchedule
 	return &result
 }
 
-func (bhs *BlockState) SetNewProducers(pending SharedProducerScheduleType) {
-	if pending.Version == bhs.ActiveSchedule.Version+1 {
+func (bs *BlockHeaderState) SetNewProducers(pending SharedProducerScheduleType) {
+	if pending.Version == bs.ActiveSchedule.Version+1 {
 		log.Error("wrong producer schedule version specified")
 		return
 	}
 	/*	bhs.Header.NewProducers = pending.Producers
 		bhs.PendingScheduleHash = bhs.Header.NewProducers
 		bhs.PendingSchedule = bhs.Header.NewProducers*/
-	bhs.PendingScheduleLibNum = bhs.BlockNum
+	bs.PendingScheduleLibNum = bs.BlockNum
 
 }
+
+/**
+ *  Transitions the current header state into the next header state given the supplied signed block header.
+ *
+ *  Given a signed block header, generate the expected template based upon the header time,
+ *  then validate that the provided header matches the template.
+ *
+ *  If the header specifies new_producers then apply them accordingly.
+ */
+func (bs *BlockHeaderState) Next(h SignedBlockHeader, trust bool) *BlockHeaderState {
+	if h.Timestamp == common.BlockTimeStamp(0) {
+		panic(fmt.Sprintf("h:%s", h))
+	}
+	if len(h.HeaderExtensions) != 0 {
+		panic("no supported extensions")
+	}
+	if h.Timestamp <= bs.Header.Timestamp {
+		panic("block must be later in time")
+	}
+	if h.Previous != bs.ID {
+		panic("block must link to current state")
+	}
+
+	result := bs.GenerateNext(&h.Timestamp)
+
+	if result.Header.Producer != h.Producer {
+		panic("wrong producer specified")
+	}
+	if result.Header.ScheduleVersion != h.ScheduleVersion {
+		panic("wrong producer specified")
+	}
+
+	itr, has := bs.ProducerToLastProduced[h.Producer]
+	if has {
+		if itr >= result.BlockNum-uint32(h.Confirmed) {
+			panic(fmt.Sprintf("producer %s double-confirming known range", h.Producer))
+		}
+	}
+
+	/// below this point is state changes that cannot be validated with headers alone, but never-the-less,
+	/// must result in header state changes
+
+	result.SetConfirmed(h.Confirmed)
+
+	wasPendingPromoted := result.MaybePromotePending()
+
+	if h.NewProducers != nil {
+		if wasPendingPromoted {
+			panic("cannot set pending producer schedule in the same block in which pending was promoted to active")
+		}
+		result.SetNewProducers(*h.NewProducers)
+	}
+
+	result.Header.ActionMRoot = h.ActionMRoot
+	result.Header.TransactionMRoot = h.TransactionMRoot
+	result.Header.ProducerSignature = h.ProducerSignature
+
+	var idError error
+	result.ID, idError = result.Header.BlockID()
+	if idError != nil {
+		panic(idError)
+	}
+
+	if !trust {
+		if result.BlockSigningKey != result.Signee() {
+			panic(fmt.Sprintf("block not signed by expected key, block_signing_key:%s, signee:%s",
+				result.BlockSigningKey, result.Signee()))
+		}
+	}
+	return result
+}
+
+func (bs *BlockHeaderState) Signee() ecc.PublicKey {
+	//TODO
+	return ecc.PublicKey{}
+}
+
 func (bs *BlockHeaderState) AddConfirmation(conf HeaderConfirmation) {
 	//TODO
 }
