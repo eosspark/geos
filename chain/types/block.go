@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/ecc"
-	"github.com/eosspark/eos-go/log"
 	"github.com/eosspark/eos-go/rlp"
 	"sort"
 )
@@ -113,6 +112,15 @@ type ProducerScheduleType struct {
 	Producers []ProducerKey `json:"producers"`
 }
 
+func (ps *ProducerScheduleType) GetProducerKey(p common.AccountName) (ecc.PublicKey, bool) {
+	for _, i := range ps.Producers {
+		if i.AccountName == p {
+			return i.BlockSigningKey, true
+		}
+	}
+	return ecc.PublicKey{}, false
+}
+
 type SharedProducerScheduleType struct {
 	Version   uint32
 	Producers []ProducerKey
@@ -175,7 +183,7 @@ func (m *SignedBlock) String() string {
 type HeaderConfirmation struct {
 	BlockId           common.BlockIDType `json:"block_id"`
 	Producer          common.AccountName `json:"producer"`
-	ProducerSignature ecc.PublicKey      `json:"producers_signature"`
+	ProducerSignature ecc.Signature      `json:"producers_signature"`
 }
 type BlockHeaderState struct {
 	ID                               common.BlockIDType `storm:"id,unique"`
@@ -468,15 +476,16 @@ func (spst *SharedProducerScheduleType) producerScheduleType() *ProducerSchedule
 }
 
 func (bs *BlockHeaderState) SetNewProducers(pending SharedProducerScheduleType) {
-	if pending.Version == bs.ActiveSchedule.Version+1 {
-		log.Error("wrong producer schedule version specified")
-		return
+	if pending.Version != bs.ActiveSchedule.Version+1 {
+		panic("wrong producer schedule version specified")
 	}
-	/*	bhs.Header.NewProducers = pending.Producers
-		bhs.PendingScheduleHash = bhs.Header.NewProducers
-		bhs.PendingSchedule = bhs.Header.NewProducers*/
+	if len(pending.Producers) != 0 {
+		panic("cannot set new pending producers until last pending is confirmed")
+	}
+	bs.Header.NewProducers = &pending
+	bs.PendingScheduleHash = common.Hash(*bs.Header.NewProducers)
+	bs.PendingSchedule = *bs.Header.NewProducers.producerScheduleType()
 	bs.PendingScheduleLibNum = bs.BlockNum
-
 }
 
 /**
@@ -542,21 +551,55 @@ func (bs *BlockHeaderState) Next(h SignedBlockHeader, trust bool) *BlockHeaderSt
 	}
 
 	if !trust {
-		if result.BlockSigningKey != result.Signee() {
+		signKey, err := result.Signee()
+		if err != nil {
+			panic(err)
+		}
+		if result.BlockSigningKey != signKey {
 			panic(fmt.Sprintf("block not signed by expected key, block_signing_key:%s, signee:%s",
-				result.BlockSigningKey, result.Signee()))
+				result.BlockSigningKey, signKey))
 		}
 	}
 	return result
 }
 
-func (bs *BlockHeaderState) Signee() ecc.PublicKey {
-	//TODO
-	return ecc.PublicKey{}
+func (bs *BlockHeaderState) Sign(signer func([]byte) ecc.Signature) {
+	d := bs.SigDigest()
+	bs.Header.ProducerSignature = signer(d)
+	signKey, err := bs.Header.ProducerSignature.PublicKey(d)
+	if err != nil {
+		panic(err)
+	}
+	if bs.BlockSigningKey != signKey {
+		panic("block is signed with unexpected key")
+	}
+}
+
+func (bs *BlockHeaderState) Signee() (ecc.PublicKey, error) {
+	return bs.Header.ProducerSignature.PublicKey(bs.SigDigest())
 }
 
 func (bs *BlockHeaderState) AddConfirmation(conf HeaderConfirmation) {
-	//TODO
+	for _, c := range bs.Confirmations {
+		if c.Producer == conf.Producer {
+			panic("block already confirmed by this producer")
+		}
+	}
+
+	key, hasKey := bs.ActiveSchedule.GetProducerKey(conf.Producer)
+	if !hasKey {
+		panic("producer not in current schedule")
+	}
+
+	signer, err := conf.ProducerSignature.PublicKey(bs.SigDigest())
+	if err != nil {
+		panic(err)
+	}
+	if signer != key {
+		panic("confirmation not signed by expected key")
+	}
+
+	bs.Confirmations = append(bs.Confirmations, conf)
 }
 
 // func (t *TransactionWithID) UnmarshalJSON(data []byte) error {

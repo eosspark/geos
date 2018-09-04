@@ -664,7 +664,7 @@ func (t BlockTimeStamp) ToTimePoint() time.Time {
 }
 
 func MaxBlockTime() BlockTimeStamp {
-	return BlockTimeStamp(0xffff)
+	return BlockTimeStamp(0xffffffff)
 }
 
 func MinBlockTime() BlockTimeStamp {
@@ -793,4 +793,3 @@ type PublicKeyType struct {
 }
 
 type WeightType uint16
-
