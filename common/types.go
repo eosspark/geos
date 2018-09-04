@@ -23,6 +23,14 @@ type BlockIDType [4]uint64
 type TransactionIDType [4]uint64
 type CheckSum256Type [4]uint64
 type Sha256 [4]uint64
+type Sha512 [8]uint64
+
+func NewSha512() (s Sha512) {
+	for i := range s {
+		s[i] = 0
+	}
+	return
+}
 
 func Hash(t interface{}) [4]uint64 {
 	cereal, err := rlp.EncodeToBytes(t)
@@ -779,3 +787,10 @@ func (i *JSONInt64) UnmarshalJSON(data []byte) error {
 
 	return nil
 }
+
+type PublicKeyType struct {
+	ecc.PublicKey
+}
+
+type WeightType uint16
+
