@@ -40,10 +40,10 @@ func MakeAuthChecker (pta PermissionToAuthorityFunc,
 	                  providedKeys []common.PublicKeyType,
 	                  providedPermission []common.PermissionLevel,
 	                  providedDelay time.Duration,
-	                  _checktime types.Func) AuthorityChecker {
+	                  checkTime types.Func) AuthorityChecker {
 	//noopChecktime := func() {}
 	return AuthorityChecker{ permissionToAuthority: pta, RecursionDepthLimit: recursionDepthLimit,
 	                  ProvidedKeys: providedKeys, ProvidePermissions: providedPermission,
-	                  ProvideDelay: providedDelay, CheckTime: _checktime,
+	                  ProvideDelay: providedDelay, CheckTime: checkTime,
 	                 }
 }
