@@ -1,12 +1,14 @@
 package common
 
 import (
+	"crypto/sha256"
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/eosspark/eos-go/ecc"
+	"github.com/eosspark/eos-go/rlp"
 	"math"
 	"strconv"
 	"strings"
@@ -21,6 +23,37 @@ type BlockIDType [4]uint64
 type TransactionIDType [4]uint64
 type CheckSum256Type [4]uint64
 type Sha256 [4]uint64
+type Sha512 [8]uint64
+
+func NewSha512() (s Sha512) {
+	for i := range s {
+		s[i] = 0
+	}
+	return
+}
+
+func Hash(t interface{}) [4]uint64 {
+	cereal, err := rlp.EncodeToBytes(t)
+	if err != nil {
+		panic(err)
+	}
+	//fmt.Println(cereal)
+
+	h := sha256.New()
+	_, _ = h.Write(cereal)
+	hashed := h.Sum(nil)
+
+	//fmt.Println(hashed)
+
+	var result [4]uint64
+
+	result[0] = binary.LittleEndian.Uint64(hashed[:8])
+	result[1] = binary.LittleEndian.Uint64(hashed[8:16])
+	result[2] = binary.LittleEndian.Uint64(hashed[16:24])
+	result[3] = binary.LittleEndian.Uint64(hashed[24:32])
+
+	return result
+}
 
 func DecodeIDTypeString(str string) (id [4]uint64, err error) {
 	b, err := hex.DecodeString(str)
@@ -631,7 +664,7 @@ func (t BlockTimeStamp) ToTimePoint() time.Time {
 }
 
 func MaxBlockTime() BlockTimeStamp {
-	return BlockTimeStamp(0xffff)
+	return BlockTimeStamp(0xffffffff)
 }
 
 func MinBlockTime() BlockTimeStamp {
@@ -754,3 +787,9 @@ func (i *JSONInt64) UnmarshalJSON(data []byte) error {
 
 	return nil
 }
+
+type PublicKeyType struct {
+	ecc.PublicKey
+}
+
+type WeightType uint16

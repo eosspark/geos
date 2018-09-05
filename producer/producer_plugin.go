@@ -78,10 +78,13 @@ func (pp *ProducerPlugin) SignCompact(key *ecc.PublicKey, digest common.SHA256By
 func (pp *ProducerPlugin) Initialize(app *cli.App) {
 	pp.init()
 
-	pp.signatureProviders[initPubKey] = func(hash []byte) ecc.Signature {
-		sig, _ := initPriKey.Sign(hash)
-		return sig
-	}
+	//pp.signatureProviders[initPubKey] = func(hash []byte) ecc.Signature {
+	//	sig, _ := initPriKey.Sign(hash)
+	//	return sig
+	//}
+
+	pp.signatureProviders[initPubKey], _ = makeKeySignatureProvider(*initPriKey)
+	pp.signatureProviders[initPubKey], _ = makeKeosdSignatureProvider(pp, "http://", initPubKey)
 
 	var producers cli.StringSlice
 
@@ -223,6 +226,10 @@ func (pp *ProducerPlugin) onBlock(bsp *types.BlockState) {
 
 }
 
+func (pp *ProducerPlugin) onIrreversibleBlock(lib *types.SignedBlock) {
+	pp.irreversibleBlockTime = lib.Timestamp.ToTimePoint()
+}
+
 func (pp *ProducerPlugin) onIncomingBlock(block *types.SignedBlock) {
 
 	if !block.Timestamp.ToTimePoint().Before(time.Now().Add(7 * time.Second)) {
@@ -304,9 +311,6 @@ func (pp *ProducerPlugin) calculateNextBlockTime(producerName common.AccountName
 	hbs := chain.HeadBlockState()
 	activeSchedule := hbs.ActiveSchedule.Producers
 
-	pbs := chain.PendingBlockState()
-	pbt := pbs.Header.Timestamp
-
 	// determine if this producer is in the active schedule and if so, where
 	var itr *types.ProducerKey
 	var producerIndex uint32
@@ -336,11 +340,10 @@ func (pp *ProducerPlugin) calculateNextBlockTime(producerName common.AccountName
 		if chain.PendingBlockState() != nil {
 			blockNum++
 		}
-		if currentWatermark > pbs.BlockNum {
-			minOffset = currentWatermark - pbs.BlockNum + 1
+		if currentWatermark > blockNum {
+			minOffset = currentWatermark - blockNum + 1
 		}
 	}
-	fmt.Println(minOffset, producerIndex, pbt)
 
 	// this producers next opportuity to produce is the next time its slot arrives after or at the calculated minimum
 	minSlot := uint32(currentBlockTime) + minOffset
@@ -386,8 +389,6 @@ func (pp *ProducerPlugin) calculatePendingBlockTime() time.Time {
 }
 
 func (pp *ProducerPlugin) startBlock() (EnumStartBlockRusult, bool) {
-	fmt.Println("start_block")
-
 	hbs := chain.HeadBlockState()
 
 	now := time.Now()
@@ -459,7 +460,6 @@ func (pp *ProducerPlugin) startBlock() (EnumStartBlockRusult, bool) {
 			}
 		}
 	}
-	fmt.Println(blocksToConfirm)
 
 	chain.AbortBlock()
 	chain.StartBlock(common.NewBlockTimeStamp(blockTime), blocksToConfirm)
@@ -705,7 +705,7 @@ func (pp *ProducerPlugin) scheduleDelayedProductionLoop(currentBlockTime common.
 			producerWakeupTime := time.Unix(0, nextProducerBlockTime.UnixNano()-int64(time.Microsecond*time.Duration(common.DefaultConfig.BlockIntervalUs)))
 			if wakeUpTime != nil {
 				if wakeUpTime.After(producerWakeupTime) {
-					wakeUpTime = &producerWakeupTime
+					*wakeUpTime = producerWakeupTime
 				}
 			} else {
 				wakeUpTime = &producerWakeupTime

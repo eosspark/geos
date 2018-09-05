@@ -49,8 +49,6 @@ func (pt *scheduleTimer) asyncWait(valid func() bool, call func()) {
 	<-pt.internal.C
 	if valid() {
 		go call()
-	} else {
-		fmt.Println("no call")
 	}
 }
 
@@ -71,6 +69,28 @@ type respVariant struct {
 
 }
 
+type RuntimeOptions struct {
+	MaxTransactionTime      int32
+	MaxIrreversibleBlockAge int32
+	ProduceTimeOffsetUs     int32
+	LastBlockTimeOffsetUs   int32
+	SubjectiveCpuLeewayUs   int32
+	IncomingDeferRadio      float64
+}
+
+type WhitelistAndBlacklist struct {
+	ActorWhitelist    map[common.AccountName]struct{}
+	ActorBlacklist    map[common.AccountName]struct{}
+	ContractWhitelist map[common.AccountName]struct{}
+	ContractBlacklist map[common.AccountName]struct{}
+	ActionBlacklist   map[[2]common.Name]struct{}
+	KeyBlacklist      map[ecc.PublicKey]struct{}
+}
+
+type GreylistParams struct {
+	Accounts []common.AccountName
+}
+
 type tuple struct {
 	packedTransaction   *types.PackedTransaction
 	persistUntilExpired bool
@@ -82,6 +102,26 @@ func makeDebugTimeLogger() func() {
 	return func() {
 		fmt.Println(time.Now().Sub(start))
 	}
+}
+
+func makeKeySignatureProvider(key ecc.PrivateKey) (signFunc signatureProviderType, err error) {
+	signFunc = func(digest []byte) (sign ecc.Signature) {
+		sign, err = key.Sign(digest)
+		return
+	}
+	return
+}
+
+func makeKeosdSignatureProvider(produce *ProducerPlugin, url string, pubKey ecc.PublicKey) (signFunc signatureProviderType, err error) {
+	signFunc = func(digest []byte) ecc.Signature {
+		if produce != nil {
+			//TODO
+			return ecc.Signature{}
+		} else {
+			return ecc.Signature{}
+		}
+	}
+	return
 }
 
 //errors

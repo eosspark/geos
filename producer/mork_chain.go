@@ -32,6 +32,11 @@ func init() {
 	genHeader.ActiveSchedule = initSchedule
 	genHeader.PendingSchedule = initSchedule
 	genHeader.Header.Timestamp = common.NewBlockTimeStamp(time.Now())
+	genHeader.ID, _ = genHeader.Header.BlockID()
+	genHeader.BlockNum = genHeader.Header.BlockNumber()
+
+	genHeader.ProducerToLastProduced = make(map[common.AccountName]uint32)
+	genHeader.ProducerToLastImpliedIrb = make(map[common.AccountName]uint32)
 
 	chain.head = new(types.BlockState)
 	chain.head.BlockHeaderState = genHeader
