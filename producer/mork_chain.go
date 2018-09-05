@@ -35,6 +35,9 @@ func init() {
 	genHeader.ID, _ = genHeader.Header.BlockID()
 	genHeader.BlockNum = genHeader.Header.BlockNumber()
 
+	genHeader.ProducerToLastProduced = make(map[common.AccountName]uint32)
+	genHeader.ProducerToLastImpliedIrb = make(map[common.AccountName]uint32)
+
 	chain.head = new(types.BlockState)
 	chain.head.BlockHeaderState = genHeader
 }

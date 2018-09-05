@@ -27,6 +27,9 @@ func NewBlockHeaderState(t *testing.T) *BlockHeaderState {
 	genHeader.ID, _ = genHeader.Header.BlockID()
 	genHeader.BlockNum = genHeader.Header.BlockNumber()
 
+	genHeader.ProducerToLastProduced = make(map[common.AccountName]uint32)
+	genHeader.ProducerToLastImpliedIrb = make(map[common.AccountName]uint32)
+
 	assert.Equal(t, uint32(1), genHeader.BlockNum)
 
 	return genHeader

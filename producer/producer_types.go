@@ -69,6 +69,28 @@ type respVariant struct {
 
 }
 
+type RuntimeOptions struct {
+	MaxTransactionTime      int32
+	MaxIrreversibleBlockAge int32
+	ProduceTimeOffsetUs     int32
+	LastBlockTimeOffsetUs   int32
+	SubjectiveCpuLeewayUs   int32
+	IncomingDeferRadio      float64
+}
+
+type WhitelistAndBlacklist struct {
+	ActorWhitelist    map[common.AccountName]struct{}
+	ActorBlacklist    map[common.AccountName]struct{}
+	ContractWhitelist map[common.AccountName]struct{}
+	ContractBlacklist map[common.AccountName]struct{}
+	ActionBlacklist   map[[2]common.Name]struct{}
+	KeyBlacklist      map[ecc.PublicKey]struct{}
+}
+
+type GreylistParams struct {
+	Accounts []common.AccountName
+}
+
 type tuple struct {
 	packedTransaction   *types.PackedTransaction
 	persistUntilExpired bool
