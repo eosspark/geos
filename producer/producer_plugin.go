@@ -2,41 +2,17 @@ package producer_plugin
 
 import (
 	"fmt"
-	"github.com/eoscanada/eos-go/chain"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/ecc"
+	"gopkg.in/urfave/cli.v1"
 	"time"
 )
 
-type PendingBlockMode int
-
-const (
-	producing = PendingBlockMode(iota)
-	speculating
-)
-
-type signatureProviderType func([]byte) ecc.Signature
-
-type transactionIdWithExpireIndex map[common.TransactionIDType]time.Time
-
-type respVariant struct {
-	err error
-	trx int //TODO:transaction_trace_ptr
-
-}
-
-type tuple struct {
-	packedTransaction   *types.PackedTransaction
-	persistUntilExpired bool
-	next                func(respVariant)
-}
-
-// producer_plugin
 type ProducerPlugin struct {
 	timer              *scheduleTimer
 	producers          map[common.AccountName]struct{}
-	pendingBlockMode   PendingBlockMode
+	pendingBlockMode   EnumPendingBlockMode
 	productionEnabled  bool
 	productionPaused   bool
 	signatureProviders map[ecc.PublicKey]signatureProviderType
@@ -72,6 +48,9 @@ func (pp *ProducerPlugin) init() {
 	pp.persistentTransactions = make(transactionIdWithExpireIndex)
 	pp.blacklistedTransactions = make(transactionIdWithExpireIndex)
 	pp.timer = new(scheduleTimer)
+
+	pp.maxIrreversibleBlockAgeUs = -1
+
 	pp.incomingTrxWeight = 0.0
 	pp.incomingDeferRadio = 1.0
 }
@@ -84,24 +63,51 @@ func (pp *ProducerPlugin) IsProducerKey(key ecc.PublicKey) bool {
 	return false
 }
 
-func (pp *ProducerPlugin) SignCompact(key *ecc.PublicKey, digest common.SHA256Bytes) (*ecc.Signature, error) {
+func (pp *ProducerPlugin) SignCompact(key *ecc.PublicKey, digest common.SHA256Bytes) ecc.Signature {
 	if key != nil {
 		privateKeyFunc := pp.signatureProviders[*key]
 		if privateKeyFunc == nil {
-			//EOS_ASSERT(private_key_itr != my->_signature_providers.end(), producer_priv_key_not_found, "Local producer has no private key in config.ini corresponding to public key ${key}", ("key", key));
-			return new(ecc.Signature), nil
+			panic(ErrProducerPriKeyNotFound)
 		}
 
-		privateKeyFunc(digest)
+		return privateKeyFunc(digest)
 	}
-	return new(ecc.Signature), nil
+	return ecc.Signature{}
 }
 
-func (pp *ProducerPlugin) Initialize() {
-	pp.signatureProviders[ecc.PublicKey{}] = func(hash []byte) ecc.Signature {
-		priKey, _ := ecc.NewPrivateKey("privateKey")
-		sig, _ := priKey.Sign(hash)
-		return sig
+func (pp *ProducerPlugin) Initialize(app *cli.App) {
+	pp.init()
+
+	//pp.signatureProviders[initPubKey] = func(hash []byte) ecc.Signature {
+	//	sig, _ := initPriKey.Sign(hash)
+	//	return sig
+	//}
+
+	pp.signatureProviders[initPubKey], _ = makeKeySignatureProvider(*initPriKey)
+	pp.signatureProviders[initPubKey], _ = makeKeosdSignatureProvider(pp, "http://", initPubKey)
+
+	var producers cli.StringSlice
+
+	app.Flags = []cli.Flag{
+		cli.BoolTFlag{
+			Name:        "enable-stale-production, e",
+			Usage:       "Enable block production, even if the chain is stale.",
+			Destination: &pp.productionEnabled,
+		},
+		cli.StringSliceFlag{
+			Name:  "producer-name, p",
+			Usage: "ID of producer controlled by this node(e.g. inita; may specify multiple times)",
+			Value: &producers,
+		},
+	}
+
+	app.Action = func(c *cli.Context) {
+		if len(producers) > 0 {
+			for _, p := range producers {
+				pp.producers[common.AccountName(common.StringToName(p))] = struct{}{}
+			}
+		}
+		fmt.Println(pp.producers)
 	}
 }
 
@@ -220,9 +226,15 @@ func (pp *ProducerPlugin) onBlock(bsp *types.BlockState) {
 
 }
 
+func (pp *ProducerPlugin) onIrreversibleBlock(lib *types.SignedBlock) {
+	pp.irreversibleBlockTime = lib.Timestamp.ToTimePoint()
+}
+
 func (pp *ProducerPlugin) onIncomingBlock(block *types.SignedBlock) {
 
-	//C++ EOS_ASSERT( block->timestamp < (fc::time_point::now() + fc::seconds(7))
+	if !block.Timestamp.ToTimePoint().Before(time.Now().Add(7 * time.Second)) {
+		panic(ErrBlockFromTheFuture)
+	}
 	id, err := block.BlockID()
 	//C++ auto existing = chain.fetch_block_by_id( id );
 	fmt.Println(id, err)
@@ -248,7 +260,6 @@ func (pp *ProducerPlugin) onIncomingBlock(block *types.SignedBlock) {
 		return
 	}
 
-	//C++ if( chain.head_block_state()->header.timestamp.next().to_time_point() >= fc::time_point::now() ) {
 	if !chain.HeadBlockState().Header.Timestamp.Next().ToTimePoint().Before(time.Now()) {
 		pp.productionEnabled = true
 	}
@@ -294,23 +305,11 @@ func (pp *ProducerPlugin) productionDisabledByPolicy() bool {
 	return !pp.productionEnabled || pp.productionPaused || (pp.maxIrreversibleBlockAgeUs >= 0 && pp.getIrreversibleBlockAge() >= pp.maxIrreversibleBlockAgeUs)
 }
 
-type StartBlockRusult int
-
-const (
-	succeeded = StartBlockRusult(iota)
-	failed
-	waiting
-	exhausted
-)
-
 func (pp *ProducerPlugin) calculateNextBlockTime(producerName common.AccountName, currentBlockTime common.BlockTimeStamp) *time.Time {
 	var result time.Time
 
 	hbs := chain.HeadBlockState()
 	activeSchedule := hbs.ActiveSchedule.Producers
-
-	pbs := chain.PendingBlockState()
-	pbt := pbs.Header.Timestamp
 
 	// determine if this producer is in the active schedule and if so, where
 	var itr *types.ProducerKey
@@ -341,11 +340,10 @@ func (pp *ProducerPlugin) calculateNextBlockTime(producerName common.AccountName
 		if chain.PendingBlockState() != nil {
 			blockNum++
 		}
-		if currentWatermark > pbs.BlockNum {
-			minOffset = currentWatermark - pbs.BlockNum + 1
+		if currentWatermark > blockNum {
+			minOffset = currentWatermark - blockNum + 1
 		}
 	}
-	fmt.Println(minOffset, producerIndex, pbt)
 
 	// this producers next opportuity to produce is the next time its slot arrives after or at the calculated minimum
 	minSlot := uint32(currentBlockTime) + minOffset
@@ -380,19 +378,17 @@ func (pp *ProducerPlugin) calculatePendingBlockTime() time.Time {
 	} else {
 		base = chain.HeadBlockTime()
 	}
-	minTimeToNextBlock := int64(chain.BlockIntervalUs) - base.UnixNano()/1e3%int64(chain.BlockIntervalUs)
+	minTimeToNextBlock := int64(common.DefaultConfig.BlockIntervalUs) - base.UnixNano()/1e3%int64(common.DefaultConfig.BlockIntervalUs)
 	blockTime := base.Add(time.Microsecond * time.Duration(minTimeToNextBlock))
 
-	if blockTime.Sub(now) < time.Microsecond*time.Duration(chain.BlockIntervalUs/10) { // we must sleep for at least 50ms
-		blockTime.Add(time.Microsecond * time.Duration(chain.BlockIntervalUs))
+	if blockTime.Sub(now) < time.Microsecond*time.Duration(common.DefaultConfig.BlockIntervalUs/10) { // we must sleep for at least 50ms
+		blockTime.Add(time.Microsecond * time.Duration(common.DefaultConfig.BlockIntervalUs))
 	}
 
 	return blockTime
 }
 
-func (pp *ProducerPlugin) startBlock() (StartBlockRusult, bool) {
-	fmt.Println("start_block")
-
+func (pp *ProducerPlugin) startBlock() (EnumStartBlockRusult, bool) {
 	hbs := chain.HeadBlockState()
 
 	now := time.Now()
@@ -464,7 +460,6 @@ func (pp *ProducerPlugin) startBlock() (StartBlockRusult, bool) {
 			}
 		}
 	}
-	fmt.Println(blocksToConfirm)
 
 	chain.AbortBlock()
 	chain.StartBlock(common.NewBlockTimeStamp(blockTime), blocksToConfirm)
@@ -473,7 +468,7 @@ func (pp *ProducerPlugin) startBlock() (StartBlockRusult, bool) {
 
 	if pbs != nil {
 
-		if pp.pendingBlockMode == producing && pbs.BlockSigningKey == scheduleProducer.BlockSigningKey {
+		if pp.pendingBlockMode == producing && pbs.BlockSigningKey != scheduleProducer.BlockSigningKey {
 			//C++ elog("Block Signing Key is not expected value, reverting to speculative mode! [expected: \"${expected}\", actual: \"${actual\"", ("expected", scheduled_producer.block_signing_key)("actual", pbs->block_signing_key));
 			pp.pendingBlockMode = speculating
 		}
@@ -534,6 +529,7 @@ func (pp *ProducerPlugin) startBlock() (StartBlockRusult, bool) {
 
 					deadline := time.Now().Add(time.Millisecond * time.Duration(pp.maxTransactionTimeMs))
 					deadlineIsSubjective := false
+					fmt.Println(deadlineIsSubjective)
 					if pp.maxTransactionTimeMs < 0 || pp.pendingBlockMode == producing && blockTime.Before(deadline) {
 						deadlineIsSubjective = true
 						deadline = blockTime
@@ -591,6 +587,7 @@ func (pp *ProducerPlugin) startBlock() (StartBlockRusult, bool) {
 
 				deadline := time.Now().Add(time.Millisecond * time.Duration(pp.maxTransactionTimeMs))
 				deadlineIsSubjective := false
+				fmt.Println(deadlineIsSubjective)
 				if pp.maxTransactionTimeMs < 0 || pp.pendingBlockMode == producing && blockTime.Before(deadline) {
 					deadlineIsSubjective = true
 					deadline = blockTime
@@ -642,7 +639,7 @@ func (pp *ProducerPlugin) scheduleProductionLoop() {
 
 	if result == failed {
 		//elog("Failed to start a pending block, will try again later");
-		pp.timer.expiresFromNow(time.Microsecond * (time.Duration(chain.BlockIntervalUs / 10)))
+		pp.timer.expiresFromNow(time.Microsecond * (time.Duration(common.DefaultConfig.BlockIntervalUs / 10)))
 
 		// we failed to start a block, so try again later?
 		timerCorelationId++
@@ -705,10 +702,10 @@ func (pp *ProducerPlugin) scheduleDelayedProductionLoop(currentBlockTime common.
 	for p := range pp.producers {
 		nextProducerBlockTime := pp.calculateNextBlockTime(p, currentBlockTime)
 		if nextProducerBlockTime != nil {
-			producerWakeupTime := time.Unix(0, nextProducerBlockTime.UnixNano()-int64(time.Microsecond*time.Duration(chain.BlockIntervalUs)))
+			producerWakeupTime := time.Unix(0, nextProducerBlockTime.UnixNano()-int64(time.Microsecond*time.Duration(common.DefaultConfig.BlockIntervalUs)))
 			if wakeUpTime != nil {
 				if wakeUpTime.After(producerWakeupTime) {
-					wakeUpTime = &producerWakeupTime
+					*wakeUpTime = producerWakeupTime
 				}
 			} else {
 				wakeUpTime = &producerWakeupTime
@@ -745,24 +742,18 @@ func (pp *ProducerPlugin) maybeProduceBlock() bool {
 	return false
 }
 
-func makeDebugTimeLogger() func() {
-	start := time.Now()
-	return func() {
-		fmt.Println(time.Now().Sub(start))
-	}
-}
-
 func (pp *ProducerPlugin) produceBlock() error {
-	//fmt.Println("produced block 00000002c0b9e9e6... #", block_num)
 	if pp.pendingBlockMode != producing {
+		panic(ErrProducerFail)
 	}
 	pbs := chain.PendingBlockState()
-	//C++ hbs := chain.HeadBlockState()
 	if pbs == nil {
+		panic(ErrMissingPendingBlockState)
 	}
 
 	signatureProvider := pp.signatureProviders[pbs.BlockSigningKey]
 	if signatureProvider == nil {
+		panic(ErrProducerPriKeyNotFound)
 	}
 
 	chain.FinalizeBlock()
@@ -776,7 +767,10 @@ func (pp *ProducerPlugin) produceBlock() error {
 	newBs := chain.HeadBlockState()
 	pp.producerWatermarks[newBs.Header.Producer] = chain.HeadBlockNum()
 
-	//fmt.Printf("Produced blcok %v... #%d @ %v signed by %v ",
+	fmt.Printf("Produced block #%d @ %s signed by %s [trxs: %d, lib: %d, confirmed: %d]\n",
+		newBs.BlockNum, newBs.Header.Timestamp.ToTimePoint(),
+		common.NameToString(uint64(newBs.Header.Producer)),
+		len(newBs.SignedBlock.Transactions), chain.LastIrreversibleBlockNum(), newBs.Header.Confirmed)
 	//	newBs.Id, newBs.BlockNum, newBs.Header.Timestamp, newBs.Header.Producer, newBs)
 
 	/*ilog("Produced block ${id}... #${n} @ ${t} signed by ${p} [trxs: ${count}, lib: ${lib}, confirmed: ${confs}]",

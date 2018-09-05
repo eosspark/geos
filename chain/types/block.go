@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/ecc"
-	"github.com/eosspark/eos-go/log"
 	"github.com/eosspark/eos-go/rlp"
 	"sort"
 )
@@ -113,6 +112,15 @@ type ProducerScheduleType struct {
 	Producers []ProducerKey `json:"producers"`
 }
 
+func (ps *ProducerScheduleType) GetProducerKey(p common.AccountName) (ecc.PublicKey, bool) {
+	for _, i := range ps.Producers {
+		if i.AccountName == p {
+			return i.BlockSigningKey, true
+		}
+	}
+	return ecc.PublicKey{}, false
+}
+
 type SharedProducerScheduleType struct {
 	Version   uint32
 	Producers []ProducerKey
@@ -146,13 +154,11 @@ func (b *BlockHeader) BlockID() (id common.BlockIDType, err error) {
 	hashed := h.Sum(nil)
 
 	binary.BigEndian.PutUint32(hashed, b.BlockNumber())
-	fmt.Println(hashed)
-
 	id[0] = binary.LittleEndian.Uint64(hashed[:8])
 	id[1] = binary.LittleEndian.Uint64(hashed[8:16])
 	id[2] = binary.LittleEndian.Uint64(hashed[16:24])
 	id[3] = binary.LittleEndian.Uint64(hashed[24:32])
-	return
+	return id, nil
 }
 
 /*type OptionalProducerSchedule struct {
@@ -174,15 +180,10 @@ func (m *SignedBlock) String() string {
 	return "SignedBlock"
 }
 
-type IncrementalMerkle struct {
-	NodeCount   uint64    `json:"node_count"`
-	ActiveNodes [4]uint64 `json:"active_nodes"`
-}
-
 type HeaderConfirmation struct {
 	BlockId           common.BlockIDType `json:"block_id"`
 	Producer          common.AccountName `json:"producer"`
-	ProducerSignature ecc.PublicKey      `json:"producers_signature"`
+	ProducerSignature ecc.Signature      `json:"producers_signature"`
 }
 type BlockHeaderState struct {
 	ID                               common.BlockIDType `storm:"id,unique"`
@@ -240,9 +241,8 @@ func (bs *BlockHeaderState) GenerateNext(when *common.BlockTimeStamp) *BlockHead
 	result := new(BlockHeaderState)
 
 	if when != nil {
-		//EOS_ASSERT( when > header.timestamp, block_validate_exception, "next block must be in the future" );
-		if *when > bs.Header.Timestamp {
-			return nil
+		if *when <= bs.Header.Timestamp {
+			panic("next block must be in the future") //block_validate_exception
 		}
 	} else {
 		when = &bs.Header.Timestamp
@@ -264,7 +264,7 @@ func (bs *BlockHeaderState) GenerateNext(when *common.BlockTimeStamp) *BlockHead
 	result.ProducerToLastImpliedIrb = bs.ProducerToLastImpliedIrb
 	result.ProducerToLastProduced[proKey.AccountName] = result.BlockNum
 	result.BlockrootMerkle = bs.BlockrootMerkle
-	//result.BlockrootMerkle.Append(ID)
+	result.BlockrootMerkle.Append(bs.ID)
 
 	result.ActiveSchedule = bs.ActiveSchedule
 	result.PendingSchedule = bs.PendingSchedule
@@ -275,7 +275,9 @@ func (bs *BlockHeaderState) GenerateNext(when *common.BlockTimeStamp) *BlockHead
 	result.DposIrreversibleBlocknum = result.CalcDposLastIrreversible()
 
 	/// grow the confirmed count
-	//C++ static_assert(std::numeric_limits<uint8_t>::max() >= (config::max_producers * 2 / 3) + 1, "8bit confirmations may not be able to hold all of the needed confirmations");
+	if common.DefaultConfig.MaxProducers*2/3+1 > 0xff {
+		panic("8bit confirmations may not be able to hold all of the needed confirmations")
+	}
 
 	// This uses the previous block active_schedule because thats the "schedule" that signs and therefore confirms _this_ block
 	numActiveProducers := len(bs.ActiveSchedule.Producers)
@@ -351,8 +353,16 @@ func (bs *BlockHeaderState) SetConfirmed(numPrevBlocks uint16) {
 }
 
 func (bs *BlockHeaderState) SigDigest() []byte {
-	//TODO wait for sha256's pack
-	return []byte{}
+	result := make([]byte, 32)
+	headerBmroot := common.Hash([2]interface{}{bs.Header, bs.BlockrootMerkle.GetRoot()})
+	digest := common.Hash([2]interface{}{headerBmroot, bs.PendingScheduleHash})
+
+	binary.LittleEndian.PutUint64(result[0:8], digest[0])
+	binary.LittleEndian.PutUint64(result[8:16], digest[1])
+	binary.LittleEndian.PutUint64(result[16:24], digest[2])
+	binary.LittleEndian.PutUint64(result[24:32], digest[3])
+
+	return result
 }
 
 type BlockState struct {
@@ -463,19 +473,131 @@ func (spst *SharedProducerScheduleType) producerScheduleType() *ProducerSchedule
 	return &result
 }
 
-func (bhs *BlockState) SetNewProducers(pending SharedProducerScheduleType) {
-	if pending.Version == bhs.ActiveSchedule.Version+1 {
-		log.Error("wrong producer schedule version specified")
-		return
+func (bs *BlockHeaderState) SetNewProducers(pending SharedProducerScheduleType) {
+	if pending.Version != bs.ActiveSchedule.Version+1 {
+		panic("wrong producer schedule version specified")
 	}
-	/*	bhs.Header.NewProducers = pending.Producers
-		bhs.PendingScheduleHash = bhs.Header.NewProducers
-		bhs.PendingSchedule = bhs.Header.NewProducers*/
-	bhs.PendingScheduleLibNum = bhs.BlockNum
-
+	if len(pending.Producers) != 0 {
+		panic("cannot set new pending producers until last pending is confirmed")
+	}
+	bs.Header.NewProducers = &pending
+	bs.PendingScheduleHash = common.Hash(*bs.Header.NewProducers)
+	bs.PendingSchedule = *bs.Header.NewProducers.producerScheduleType()
+	bs.PendingScheduleLibNum = bs.BlockNum
 }
+
+/**
+ *  Transitions the current header state into the next header state given the supplied signed block header.
+ *
+ *  Given a signed block header, generate the expected template based upon the header time,
+ *  then validate that the provided header matches the template.
+ *
+ *  If the header specifies new_producers then apply them accordingly.
+ */
+func (bs *BlockHeaderState) Next(h SignedBlockHeader, trust bool) *BlockHeaderState {
+	if h.Timestamp == common.BlockTimeStamp(0) {
+		panic(fmt.Sprintf("h:%s", h))
+	}
+	if len(h.HeaderExtensions) != 0 {
+		panic("no supported extensions")
+	}
+	if h.Timestamp <= bs.Header.Timestamp {
+		panic("block must be later in time")
+	}
+	if h.Previous != bs.ID {
+		panic("block must link to current state")
+	}
+
+	result := bs.GenerateNext(&h.Timestamp)
+
+	if result.Header.Producer != h.Producer {
+		panic("wrong producer specified")
+	}
+	if result.Header.ScheduleVersion != h.ScheduleVersion {
+		panic("wrong producer specified")
+	}
+
+	itr, has := bs.ProducerToLastProduced[h.Producer]
+	if has {
+		if itr >= result.BlockNum-uint32(h.Confirmed) {
+			panic(fmt.Sprintf("producer %s double-confirming known range", h.Producer))
+		}
+	}
+
+	/// below this point is state changes that cannot be validated with headers alone, but never-the-less,
+	/// must result in header state changes
+
+	result.SetConfirmed(h.Confirmed)
+
+	wasPendingPromoted := result.MaybePromotePending()
+
+	if h.NewProducers != nil {
+		if wasPendingPromoted {
+			panic("cannot set pending producer schedule in the same block in which pending was promoted to active")
+		}
+		result.SetNewProducers(*h.NewProducers)
+	}
+
+	result.Header.ActionMRoot = h.ActionMRoot
+	result.Header.TransactionMRoot = h.TransactionMRoot
+	result.Header.ProducerSignature = h.ProducerSignature
+
+	var idError error
+	result.ID, idError = result.Header.BlockID()
+	if idError != nil {
+		panic(idError)
+	}
+
+	if !trust {
+		signKey, err := result.Signee()
+		if err != nil {
+			panic(err)
+		}
+		if result.BlockSigningKey != signKey {
+			panic(fmt.Sprintf("block not signed by expected key, block_signing_key:%s, signee:%s",
+				result.BlockSigningKey, signKey))
+		}
+	}
+	return result
+}
+
+func (bs *BlockHeaderState) Sign(signer func([]byte) ecc.Signature) {
+	d := bs.SigDigest()
+	bs.Header.ProducerSignature = signer(d)
+	signKey, err := bs.Header.ProducerSignature.PublicKey(d)
+	if err != nil {
+		panic(err)
+	}
+	if bs.BlockSigningKey != signKey {
+		panic("block is signed with unexpected key")
+	}
+}
+
+func (bs *BlockHeaderState) Signee() (ecc.PublicKey, error) {
+	return bs.Header.ProducerSignature.PublicKey(bs.SigDigest())
+}
+
 func (bs *BlockHeaderState) AddConfirmation(conf HeaderConfirmation) {
-	//TODO
+	for _, c := range bs.Confirmations {
+		if c.Producer == conf.Producer {
+			panic("block already confirmed by this producer")
+		}
+	}
+
+	key, hasKey := bs.ActiveSchedule.GetProducerKey(conf.Producer)
+	if !hasKey {
+		panic("producer not in current schedule")
+	}
+
+	signer, err := conf.ProducerSignature.PublicKey(bs.SigDigest())
+	if err != nil {
+		panic(err)
+	}
+	if signer != key {
+		panic("confirmation not signed by expected key")
+	}
+
+	bs.Confirmations = append(bs.Confirmations, conf)
 }
 
 // func (t *TransactionWithID) UnmarshalJSON(data []byte) error {

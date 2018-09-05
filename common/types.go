@@ -1,12 +1,14 @@
 package common
 
 import (
+	"crypto/sha256"
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/eosspark/eos-go/ecc"
+	"github.com/eosspark/eos-go/rlp"
 	"math"
 	"strconv"
 	"strings"
@@ -28,6 +30,29 @@ func NewSha512() (s Sha512) {
 		s[i] = 0
 	}
 	return
+}
+
+func Hash(t interface{}) [4]uint64 {
+	cereal, err := rlp.EncodeToBytes(t)
+	if err != nil {
+		panic(err)
+	}
+	//fmt.Println(cereal)
+
+	h := sha256.New()
+	_, _ = h.Write(cereal)
+	hashed := h.Sum(nil)
+
+	//fmt.Println(hashed)
+
+	var result [4]uint64
+
+	result[0] = binary.LittleEndian.Uint64(hashed[:8])
+	result[1] = binary.LittleEndian.Uint64(hashed[8:16])
+	result[2] = binary.LittleEndian.Uint64(hashed[16:24])
+	result[3] = binary.LittleEndian.Uint64(hashed[24:32])
+
+	return result
 }
 
 func DecodeIDTypeString(str string) (id [4]uint64, err error) {
@@ -626,20 +651,20 @@ type BlockTimeStamp uint32
 
 const blockTimestampFormat = "2006-01-02T15:04:05.000"
 
-func (t *BlockTimeStamp) Next() BlockTimeStamp {
+func (t BlockTimeStamp) Next() BlockTimeStamp {
 	result := NewBlockTimeStamp(t.ToTimePoint())
 	result += 1
 	return result
 }
 
-func (t *BlockTimeStamp) ToTimePoint() time.Time {
-	msec := int64(*t) * int64(DefaultConfig.BlockIntervalMs)
+func (t BlockTimeStamp) ToTimePoint() time.Time {
+	msec := int64(t) * int64(DefaultConfig.BlockIntervalMs)
 	msec += int64(DefaultConfig.BlockTimestampEpochMs)
 	return time.Unix(0, msec*1e6)
 }
 
 func MaxBlockTime() BlockTimeStamp {
-	return BlockTimeStamp(0xffff)
+	return BlockTimeStamp(0xffffffff)
 }
 
 func MinBlockTime() BlockTimeStamp {
@@ -768,4 +793,3 @@ type PublicKeyType struct {
 }
 
 type WeightType uint16
-
