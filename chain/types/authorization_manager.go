@@ -11,7 +11,7 @@ import (
 
 type AuthorizationManager struct {
 	control chain.Controller
-	db      *eosiodb.Session
+	db      *eosiodb.DataBase
 }
 
 type PermissionIdType uint64

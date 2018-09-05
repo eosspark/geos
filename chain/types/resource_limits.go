@@ -31,10 +31,10 @@ type AccountResourceLimit struct {
 }
 
 type ResourceLimitsManager struct {
-	db *eosiodb.Session `json:"db"`
+	db *eosiodb.DataBase `json:"db"`
 }
 
-func NewResourceLimitsManager(db *eosiodb.Session) *ResourceLimitsManager {
+func NewResourceLimitsManager(db *eosiodb.DataBase) *ResourceLimitsManager {
 	return &ResourceLimitsManager{db: db}
 }
 
