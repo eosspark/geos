@@ -295,7 +295,7 @@ func (undo *DataBase) undo() {
 	undo.Version--
 }
 
-func (undo *DataBase) startSession() *Session {
+func (undo *DataBase) StartSession() *Session {
 	undo.Version++
 	undo.Flag = true
 	state := newUndoState(undo.Version)
@@ -627,7 +627,7 @@ func UndoSession() {
 		fmt.Println("NewDatabase failed")
 	}
 	defer db.Close()
-	session := db.startSession()
+	session := db.StartSession()
 	defer session.Undo()
 	it := Item{Name: "qieqie", Tag: 190}
 	db.Insert(&it)
@@ -642,7 +642,7 @@ func MultiSession() {
 		fmt.Println("NewDatabase failed")
 	}
 	defer db.Close()
-	session := db.startSession()
+	session := db.StartSession()
 	defer session.Undo()
 	it := Item{Name: "qieqie", Tag: 190}
 	db.Insert(&it)
@@ -651,7 +651,7 @@ func MultiSession() {
 	db.All(&items)
 	fmt.Println(items)
 
-	session2 := db.startSession()
+	session2 := db.StartSession()
 	defer session2.Undo()
 
 	it2 := Item{Name: "garytone", Tag: 1088}
