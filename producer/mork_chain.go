@@ -31,7 +31,7 @@ func init() {
 	genHeader.ActiveSchedule = initSchedule
 	genHeader.PendingSchedule = initSchedule
 	genHeader.Header.Timestamp = common.NewBlockTimeStamp(common.Now())
-	genHeader.ID, _ = genHeader.Header.BlockID()
+	genHeader.ID = genHeader.Header.BlockID()
 	genHeader.BlockNum = genHeader.Header.BlockNumber()
 
 	genHeader.ProducerToLastProduced = make(map[common.AccountName]uint32)

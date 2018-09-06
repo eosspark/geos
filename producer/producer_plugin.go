@@ -235,9 +235,9 @@ func (pp *ProducerPlugin) onIncomingBlock(block *types.SignedBlock) {
 	if block.Timestamp.ToTimePoint() >= (common.Now().AddUs(common.Seconds(7))) {
 		panic(ErrBlockFromTheFuture)
 	}
-	id, err := block.BlockID()
+	id := block.BlockID()
 	//C++ auto existing = chain.fetch_block_by_id( id );
-	fmt.Println(id, err)
+	fmt.Println(id)
 
 	existing := false
 	if existing {
@@ -742,21 +742,22 @@ func (pp *ProducerPlugin) scheduleDelayedProductionLoop(currentBlockTime common.
 
 }
 
-func (pp *ProducerPlugin) maybeProduceBlock() bool {
-	defer pp.scheduleProductionLoop()
+func (pp *ProducerPlugin) maybeProduceBlock() (res bool) {
+	defer func() {
+		if err := recover(); err != nil {
+			chain.AbortBlock()
+			res = false
+		}
 
-	err := pp.produceBlock()
+		pp.scheduleProductionLoop()
+	}()
 
-	if err == nil {
-		return true
-	}
+	pp.produceBlock()
 
-	//C++ chain::controller& chain = app().get_plugin<chain_plugin>().chain();
-	chain.AbortBlock()
-	return false
+	return true
 }
 
-func (pp *ProducerPlugin) produceBlock() error {
+func (pp *ProducerPlugin) produceBlock() {
 	if pp.pendingBlockMode != producing {
 		panic(ErrProducerFail)
 	}
@@ -785,11 +786,4 @@ func (pp *ProducerPlugin) produceBlock() error {
 		newBs.BlockNum, newBs.Header.Timestamp.ToTimePoint(),
 		common.NameToString(uint64(newBs.Header.Producer)),
 		len(newBs.SignedBlock.Transactions), chain.LastIrreversibleBlockNum(), newBs.Header.Confirmed)
-	//	newBs.Id, newBs.BlockNum, newBs.Header.Timestamp, newBs.Header.Producer, newBs)
-
-	/*ilog("Produced block ${id}... #${n} @ ${t} signed by ${p} [trxs: ${count}, lib: ${lib}, confirmed: ${confs}]",
-	  ("p",new_bs->header.producer)("id",fc::variant(new_bs->id).as_string().substr(0,16))
-	  ("n",new_bs->block_num)("t",new_bs->header.timestamp)
-	  ("count",new_bs->block->transactions.size())("lib",chain.last_irreversible_block_num())("confs", new_bs->header.confirmed));*/
-	return nil
 }
