@@ -5,7 +5,6 @@ import (
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/ecc"
-	"time"
 )
 
 var chain *mockChain
@@ -31,7 +30,7 @@ func init() {
 	genHeader := types.BlockHeaderState{}
 	genHeader.ActiveSchedule = initSchedule
 	genHeader.PendingSchedule = initSchedule
-	genHeader.Header.Timestamp = common.NewBlockTimeStamp(time.Now())
+	genHeader.Header.Timestamp = common.NewBlockTimeStamp(common.Now())
 	genHeader.ID, _ = genHeader.Header.BlockID()
 	genHeader.BlockNum = genHeader.Header.BlockNumber()
 
@@ -40,6 +39,9 @@ func init() {
 
 	chain.head = new(types.BlockState)
 	chain.head.BlockHeaderState = genHeader
+
+	fmt.Println("now", common.Now())
+	fmt.Println("init", genHeader.Header.Timestamp.ToTimePoint())
 }
 
 func (c mockChain) LastIrreversibleBlockNum() uint32 {
@@ -50,11 +52,11 @@ func (c mockChain) HeadBlockState() *types.BlockState {
 	return c.head
 
 }
-func (c mockChain) HeadBlockTime() time.Time {
+func (c mockChain) HeadBlockTime() common.TimePoint {
 	return c.head.Header.Timestamp.ToTimePoint()
 }
 
-func (c mockChain) PendingBlockTime() time.Time {
+func (c mockChain) PendingBlockTime() common.TimePoint {
 	return c.pending.Header.Timestamp.ToTimePoint()
 }
 
@@ -96,10 +98,10 @@ func (c *mockChain) CommitBlock() {
 	c.pending = nil
 }
 
-func (c mockChain) PushTransaction(trx *types.TransactionMetadata, deadline time.Time) error {
+func (c mockChain) PushTransaction(trx *types.TransactionMetadata, deadline common.TimePoint) error {
 	return nil
 }
-func (c mockChain) PushScheduledTransaction(trx common.TransactionIDType, deadline time.Time) error {
+func (c mockChain) PushScheduledTransaction(trx common.TransactionIDType, deadline common.TimePoint) error {
 	return nil
 }
 

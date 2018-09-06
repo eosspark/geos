@@ -27,41 +27,41 @@ const (
 )
 
 //timer
-type scheduleTimer struct {
-	internal *time.Timer
-	duration time.Duration
-}
-
-func (pt *scheduleTimer) expiresFromNow(d time.Duration) {
-	pt.duration = d
-}
-
-func (pt *scheduleTimer) expiresUntil(t time.Time) {
-	pt.expiresFromNow(time.Until(t))
-}
-
-func (pt *scheduleTimer) expiresAt(epoch int64) {
-	pt.expiresUntil(time.Unix(0, epoch*1e3))
-}
-
-func (pt *scheduleTimer) asyncWait(valid func() bool, call func()) {
-	pt.internal = time.NewTimer(pt.duration)
-	<-pt.internal.C
-	if valid() {
-		go call()
-	}
-}
-
-func (pt *scheduleTimer) cancel() {
-	if pt.internal != nil {
-		pt.internal.Stop()
-		pt.internal = nil
-	}
-}
+//type scheduleTimer struct {
+//	internal *time.Timer
+//	duration time.Duration
+//}
+//
+//func (pt *scheduleTimer) expiresFromNow(m common.Microseconds) {
+//	pt.duration = time.Microsecond * time.Duration(m)
+//}
+//
+//func (pt *scheduleTimer) expiresUntil(t common.TimePoint) {
+//	pt.expiresFromNow(t.Sub(common.Now()))
+//}
+//
+//func (pt *scheduleTimer) expiresAt(epoch common.Microseconds) {
+//	pt.expiresUntil(common.TimePoint(epoch))
+//}
+//
+//func (pt *scheduleTimer) asyncWait(valid func() bool, call func()) {
+//	pt.internal = time.NewTimer(pt.duration)
+//	<-pt.internal.C
+//	if valid() {
+//		go call()
+//	}
+//}
+//
+//func (pt *scheduleTimer) cancel() {
+//	if pt.internal != nil {
+//		pt.internal.Stop()
+//		pt.internal = nil
+//	}
+//}
 
 type signatureProviderType func([]byte) ecc.Signature
 
-type transactionIdWithExpireIndex map[common.TransactionIDType]time.Time
+type transactionIdWithExpireIndex map[common.TransactionIDType]common.TimePoint
 
 type respVariant struct {
 	err error
