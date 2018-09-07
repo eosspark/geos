@@ -11,11 +11,11 @@ package main
 
 import (
 	"flag"
-	"github.com/eosgo/common"
 	"io/ioutil"
 	"log"
 	"os"
-	
+
+	"github.com/eosgo/common"
 	"github.com/eosgo/control"
 	"github.com/eosgo/cvm/exec"
 )
