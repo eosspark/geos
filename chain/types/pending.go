@@ -28,27 +28,15 @@ type PendingState struct {
 	Valid             bool             `json:"valid"`
 }
 
-type ProducerScheduleType struct {
-	Version   uint32        `json:"version"`
-	Producers []ProducerKey `json:"producers"`
-}
-
-type SharedProducerScheduleType struct {
-	Version   uint32
-	Producers []ProducerKey
-}
-
-func NewPendingState(db eosiodb.Database) *PendingState {
+func NewPendingState(db eosiodb.DataBase) *PendingState {
 	pending := PendingState{}
 	/*db, err := eosiodb.NewDatabase(config.DefaultConfig.BlockDir, "eos.db", true)
 	if err != nil {
 		log.Error("pending NewPendingState is error detail:",err)
 	}
 	defer db.Close()*/
-	session, err := db.Start_Session()
-	if err != nil {
-		fmt.Println(err.Error())
-	}
+	session := db.StartSession()
+
 	pending.DBSeesion = session
 	pending.Valid = true
 	return &pending
@@ -56,12 +44,12 @@ func NewPendingState(db eosiodb.Database) *PendingState {
 
 func GetInstance() *PendingState {
 	pending := PendingState{}
-	db, err := eosiodb.NewDatabase(config.DefaultBlocksDirName, config.DBFileName, true)
+	db, err := eosiodb.NewDataBase(config.DefaultBlocksDirName, config.DBFileName, true)
 	if err != nil {
 		log.Error("pending NewPendingState is error detail:", err)
 	}
 	defer db.Close()
-	session, err := db.Start_Session()
+	session := db.StartSession()
 	if err != nil {
 		fmt.Println(err.Error())
 	}
@@ -70,7 +58,7 @@ func GetInstance() *PendingState {
 	return &pending
 }
 
-func (bhs *BlockState) SetNewProducers(pending ProducerScheduleType) {
+func (bhs *BlockState) SetNewProducers(pending *SharedProducerScheduleType) {
 	if pending.Version == bhs.ActiveSchedule.Version+1 {
 		log.Error("wrong producer schedule version specified")
 		return
@@ -78,7 +66,10 @@ func (bhs *BlockState) SetNewProducers(pending ProducerScheduleType) {
 	bhs.Header.NewProducers = pending
 	tmp, _ := rlp.EncodeToBytes(bhs.Header.NewProducers)
 	bhs.PendingScheduleHash = sigDigest(tmp)
-	bhs.PendingSchedule = bhs.Header.NewProducers
+	ps := ProducerScheduleType{}
+	ps.Version = pending.Version
+	ps.Producers = pending.Producers
+	bhs.PendingSchedule = ps
 	bhs.PendingScheduleLibNum = bhs.BlockNum
 }
 
@@ -93,10 +84,10 @@ func sigDigest(p []byte) (id [4]uint64) {
 	return
 }
 
-func (spst *SharedProducerScheduleType) Clear() {
+/*func (spst *SharedProducerScheduleType) Clear() {
 	spst.Version = 0
 	spst.Producers = []ProducerKey{}
-}
+}*/
 
 func (spst *SharedProducerScheduleType) SharedroducerScheduleType(a ProducerScheduleType) *ProducerScheduleType {
 	var result ProducerScheduleType = ProducerScheduleType{}
@@ -108,7 +99,7 @@ func (spst *SharedProducerScheduleType) SharedroducerScheduleType(a ProducerSche
 	}
 	return &result
 }
-
+/*
 func (spst *SharedProducerScheduleType) ProducerScheduleType() *ProducerScheduleType {
 	var result ProducerScheduleType = ProducerScheduleType{}
 	result.Version = spst.Version
@@ -122,7 +113,7 @@ func (spst *SharedProducerScheduleType) ProducerScheduleType() *ProducerSchedule
 		}
 	}
 	return &result
-}
+}*/
 
 func Reset(pending *PendingState) {
 	pending = nil
