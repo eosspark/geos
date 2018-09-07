@@ -37,8 +37,9 @@ func main() {
 		log.Fatal(err)
 	}
 
-	wasm := exec.NewWasm_interface()
 	apply_context := &control.Apply_context{Receiver: common.AccountName(exec.N("walker")), Code: common.AccountName(exec.N("walker")), Action: common.ActionName(exec.N("hi"))}
+	
+	wasm := exec.NewWasm_interface()
 	wasm.Apply("00000000", code, apply_context)
 
 }
