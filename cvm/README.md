@@ -42,3 +42,5 @@ func main() {
 	wasm.Apply("00000000", code, apply_context)
 
 }
+
+go run hello.wasm // from eos hello contract
