@@ -1,15 +1,9 @@
 package types
 
 import (
-	"crypto/sha256"
-	"encoding/binary"
-	// "encoding/hex"
 	"encoding/json"
-	"fmt"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/ecc"
-	"github.com/eosspark/eos-go/rlp"
-	"sort"
 )
 
 type TransactionStatus uint8
@@ -102,96 +96,6 @@ func (s TransactionStatus) String() string {
 // 	CyclesSummary []Cycles `json:"cycles_summary"`
 // }
 
-type ProducerKey struct {
-	AccountName     common.AccountName `json:"account_name"`
-	BlockSigningKey ecc.PublicKey      `json:"block_signing_key"`
-}
-
-type BlockHeader struct {
-	Timestamp        common.BlockTimeStamp  `json:"timestamp"`
-	Producer         common.AccountName     `json:"producer"`
-	Confirmed        uint16                 `json:"confirmed"`
-	Previous         common.BlockIDType     `json:"previous"`
-	TransactionMRoot common.CheckSum256Type `json:"transaction_mroot"`
-	ActionMRoot      common.CheckSum256Type `json:"action_mroot"`
-	ScheduleVersion  uint32                 `json:"schedule_version"`
-	NewProducers     ProducerScheduleType   `json:"new_producers" eos:"optional"`
-	HeaderExtensions []*Extension           `json:"header_extensions"`
-}
-
-func (b *BlockHeader) BlockNumber() uint32 {
-	return common.EndianReverseU32(uint32(b.Previous[0])) + 1
-}
-
-func (b *BlockHeader) BlockID() (id common.BlockIDType, err error) {
-
-	cereal, err := rlp.EncodeToBytes(b)
-	if err != nil {
-		return id, err
-	}
-
-	h := sha256.New()
-	_, _ = h.Write(cereal)
-	hashed := h.Sum(nil)
-
-	binary.BigEndian.PutUint32(hashed, b.BlockNumber())
-	fmt.Println(hashed)
-
-	id[0] = binary.LittleEndian.Uint64(hashed[:8])
-	id[1] = binary.LittleEndian.Uint64(hashed[8:16])
-	id[2] = binary.LittleEndian.Uint64(hashed[16:24])
-	id[3] = binary.LittleEndian.Uint64(hashed[24:32])
-	return
-}
-
-/*type OptionalProducerSchedule struct {
-	ProducerScheduleType
-}*/
-
-type SignedBlockHeader struct {
-	BlockHeader
-	ProducerSignature ecc.Signature `json:"producer_signature"`
-}
-
-type SignedBlock struct {
-	SignedBlockHeader
-	Transactions    []TransactionReceipt `json:"transactions"`
-	BlockExtensions []*Extension         `json:"block_extensions"`
-}
-
-func (m *SignedBlock) String() string {
-	return "SignedBlock"
-}
-
-type IncrementalMerkle struct {
-	NodeCount   uint64    `json:"node_count"`
-	ActiveNodes [4]uint64 `json:"active_nodes"`
-}
-
-type HeaderConfirmation struct {
-	BlockId           common.BlockIDType `json:"block_id"`
-	Producer          common.AccountName `json:"producer"`
-	ProducerSignature ecc.PublicKey      `json:"producers_signature"`
-}
-type BlockHeaderState struct {
-	ID                               common.BlockIDType `storm:"id,unique"`
-	BlockNum                         uint32             `storm:"block_num,unique"`
-	Header                           SignedBlockHeader
-	DposProposedIrreversibleBlocknum uint32    `json:"dpos_proposed_irreversible_blocknum"`
-	DposIrreversibleBlocknum         uint32    `json:"dpos_irreversible_blocknum"`
-	BftIrreversibleBlocknum          uint32    `json:"bft_irreversible_blocknum"`
-	PendingScheduleLibNum            uint32    `json:"pending_schedule_lib_num"`
-	PendingScheduleHash              [4]uint64 `json:"pending_schedule_hash"`
-	PendingSchedule                  ProducerScheduleType
-	ActiveSchedule                   ProducerScheduleType
-	BlockrootMerkle                  IncrementalMerkle
-	ProducerToLastProduced           map[common.AccountName]uint32
-	ProducerToLastImpliedIrb         map[common.AccountName]uint32
-	BlockSigningKey                  ecc.PublicKey
-	ConfirmCount                     []uint8              `json:"confirm_count"`
-	Confirmations                    []HeaderConfirmation `json:"confirmations"`
-}
-
 type ReversibleBlockObject struct {
 	ID          uint64
 	BlockNum    uint32
@@ -202,154 +106,6 @@ type ReversibleBlockIndex struct {
 	rbObject ReversibleBlockObject
 	byId     uint64
 	byNum    uint32
-}
-
-func (bs *BlockHeaderState) GetScheduledProducer(t common.BlockTimeStamp) ProducerKey {
-	index := uint32(t) % uint32(len(bs.ActiveSchedule.Producers)*12)
-	index /= 12
-	return bs.ActiveSchedule.Producers[index]
-}
-
-func (bs *BlockHeaderState) CalcDposLastIrreversible() uint32 {
-	blockNums := make([]int, 0, len(bs.ProducerToLastImpliedIrb))
-	for _, value := range bs.ProducerToLastImpliedIrb {
-		blockNums = append(blockNums, int(value))
-	}
-	/// 2/3 must be greater, so if I go 1/3 into the list sorted from low to high, then 2/3 are greater
-
-	if len(blockNums) == 0 {
-		return 0
-	}
-	/// TODO: update to nth_element
-	sort.Ints(blockNums)
-	return uint32(blockNums[(len(blockNums)-1)/3])
-}
-
-func (bs *BlockHeaderState) GenerateNext(when *common.BlockTimeStamp) *BlockHeaderState {
-	result := new(BlockHeaderState)
-
-	if when != nil {
-		//EOS_ASSERT( when > header.timestamp, block_validate_exception, "next block must be in the future" );
-		if *when > bs.Header.Timestamp {
-			return nil
-		}
-	} else {
-		when = &bs.Header.Timestamp
-		*when++
-	}
-
-	result.Header.Timestamp = *when
-	result.Header.Previous = bs.ID
-	result.Header.ScheduleVersion = bs.ActiveSchedule.Version
-
-	proKey := bs.GetScheduledProducer(*when)
-	result.BlockSigningKey = proKey.BlockSigningKey
-	result.Header.Producer = proKey.AccountName
-
-	result.PendingScheduleLibNum = bs.PendingScheduleLibNum
-	result.PendingScheduleHash = bs.PendingScheduleHash
-	result.BlockNum = bs.BlockNum + 1
-	result.ProducerToLastProduced = bs.ProducerToLastProduced
-	result.ProducerToLastImpliedIrb = bs.ProducerToLastImpliedIrb
-	result.ProducerToLastProduced[proKey.AccountName] = result.BlockNum
-	result.BlockrootMerkle = bs.BlockrootMerkle
-	//result.BlockrootMerkle.Append(ID)
-
-	result.ActiveSchedule = bs.ActiveSchedule
-	result.PendingSchedule = bs.PendingSchedule
-	result.DposProposedIrreversibleBlocknum = bs.DposProposedIrreversibleBlocknum
-	result.BftIrreversibleBlocknum = bs.BftIrreversibleBlocknum
-
-	result.ProducerToLastImpliedIrb[proKey.AccountName] = result.DposProposedIrreversibleBlocknum
-	result.DposIrreversibleBlocknum = result.CalcDposLastIrreversible()
-
-	/// grow the confirmed count
-	//C++ static_assert(std::numeric_limits<uint8_t>::max() >= (config::max_producers * 2 / 3) + 1, "8bit confirmations may not be able to hold all of the needed confirmations");
-
-	// This uses the previous block active_schedule because thats the "schedule" that signs and therefore confirms _this_ block
-	numActiveProducers := len(bs.ActiveSchedule.Producers)
-	requiredConfs := uint32(numActiveProducers*2/3) + 1
-
-	if len(bs.ConfirmCount) < common.DefaultConfig.MaxTrackedDposConfirmations {
-		result.ConfirmCount = make([]uint8, len(bs.ConfirmCount)+1)
-		copy(result.ConfirmCount, bs.ConfirmCount)
-		result.ConfirmCount[len(result.ConfirmCount)-1] = uint8(requiredConfs)
-	} else {
-		result.ConfirmCount = make([]uint8, len(bs.ConfirmCount))
-		copy(result.ConfirmCount, bs.ConfirmCount[1:])
-		result.ConfirmCount[len(result.ConfirmCount)-1] = uint8(requiredConfs)
-	}
-
-	return result
-}
-
-func (bs *BlockHeaderState) MaybePromotePending() bool {
-	if len(bs.PendingSchedule.Producers) > 0 && bs.DposIrreversibleBlocknum >= bs.PendingScheduleLibNum {
-		bs.ActiveSchedule = bs.PendingSchedule
-
-		var newProducerToLastProduced map[common.AccountName]uint32
-		var newProducerToLastImpliedIrb map[common.AccountName]uint32
-		for _, pro := range bs.ActiveSchedule.Producers {
-			existing, hasExisting := bs.ProducerToLastProduced[pro.AccountName]
-			if hasExisting {
-				newProducerToLastProduced[pro.AccountName] = existing
-			} else {
-				newProducerToLastProduced[pro.AccountName] = bs.DposIrreversibleBlocknum
-			}
-
-			existingIrb, hasExistingIrb := bs.ProducerToLastImpliedIrb[pro.AccountName]
-			if hasExistingIrb {
-				newProducerToLastImpliedIrb[pro.AccountName] = existingIrb
-			} else {
-				newProducerToLastImpliedIrb[pro.AccountName] = bs.DposIrreversibleBlocknum
-			}
-		}
-
-		bs.ProducerToLastProduced = newProducerToLastProduced
-		bs.ProducerToLastImpliedIrb = newProducerToLastImpliedIrb
-		bs.ProducerToLastProduced[bs.Header.Producer] = bs.BlockNum
-
-		return true
-	}
-	return false
-}
-
-func (bs *BlockHeaderState) SetConfirmed(numPrevBlocks uint16) {
-	bs.Header.Confirmed = numPrevBlocks
-
-	i := len(bs.ConfirmCount) - 1
-	blocksToConfirm := numPrevBlocks + 1 /// confirm the head block too
-	for i >= 0 && blocksToConfirm > 0 {
-		bs.ConfirmCount[i]--
-		if bs.ConfirmCount[i] == 0 {
-			blockNumFori := bs.BlockNum - uint32(len(bs.ConfirmCount)-1-i)
-			bs.DposProposedIrreversibleBlocknum = blockNumFori
-
-			if i == len(bs.ConfirmCount)-1 {
-				bs.ConfirmCount = make([]uint8, 0)
-			} else {
-				bs.ConfirmCount = bs.ConfirmCount[i+1:]
-			}
-
-			return
-		}
-		i--
-		blocksToConfirm--
-	}
-
-}
-
-func (bs *BlockHeaderState) SigDigest() []byte {
-	//TODO wait for sha256's pack
-	return []byte{}
-}
-
-type BlockState struct {
-	BlockHeaderState
-	SignedBlock    SignedBlock
-	Validated      bool `json:validated`
-	InCurrentChain bool `json:"in_current_chain"`
-	Trxs           []TransactionMetadata
 }
 
 type TransactionReceiptHeader struct {
@@ -363,6 +119,23 @@ type TransactionReceipt struct {
 	Transaction TransactionWithID `json:"trx"`
 }
 
+type SignedBlock struct {
+	SignedBlockHeader
+	Transactions    []TransactionReceipt `json:"transactions"`
+	BlockExtensions []*Extension         `json:"block_extensions"`
+}
+
+func (m *SignedBlock) String() string {
+	return "SignedBlock"
+}
+
+type ProducerConfirmation struct {
+	BlockID     common.BlockIDType
+	BlockDigest [4]uint64
+	Producer    common.AccountName
+	Sig         ecc.Signature
+}
+
 type Optional struct {
 	Valid bool
 	Pair  map[common.ChainIDType][]ecc.PublicKey
@@ -374,8 +147,6 @@ type TransactionMetadata struct {
 	PackedTrx   PackedTransaction
 	SigningKeys Optional
 	Accepted    bool
-	Implicit    bool
-	Scheduled   bool
 }
 
 type TransactionWithID struct {
@@ -421,10 +192,6 @@ func (t *TransactionWithID) UnmarshalJSON(data []byte) error {
 		return nil
 	}
 	return nil
-}
-
-func (bs *BlockHeaderState) AddConfirmation(conf HeaderConfirmation) {
-	//TODO
 }
 
 // func (t *TransactionWithID) UnmarshalJSON(data []byte) error {

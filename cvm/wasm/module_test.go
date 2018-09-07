@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/go-interpreter/wagon/wasm"
+	"github.com/eosgo/cvm/wasm"
 )
 
 func TestReadModule(t *testing.T) {

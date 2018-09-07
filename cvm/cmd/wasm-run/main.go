@@ -10,9 +10,9 @@ import (
 	"log"
 	"os"
 
-	"github.com/go-interpreter/wagon/exec"
-	"github.com/go-interpreter/wagon/validate"
-	"github.com/go-interpreter/wagon/wasm"
+	"github.com/eosgo/cvm/exec"
+	"github.com/eosgo/cvm/validate"
+	"github.com/eosgo/cvm/wasm"
 )
 
 func main() {

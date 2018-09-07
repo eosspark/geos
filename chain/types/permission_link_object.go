@@ -9,3 +9,4 @@ type PermissionLinkObject struct {
 	MessageType        common.ActionName
 	RequiredPermission common.PermissionName
 }
+

@@ -13,7 +13,7 @@ type BlockHeader struct {
 	TransactionMRoot common.CheckSum256Type      `json:"transaction_mroot"`
 	ActionMRoot      common.CheckSum256Type      `json:"action_mroot"`
 	ScheduleVersion  uint32                      `json:"schedule_version"`
-	NewProducers     SharedProducerScheduleType `json:"new_producers" eos:"optional"`
+	NewProducers     *SharedProducerScheduleType `json:"new_producers" eos:"optional"`
 	HeaderExtensions []*Extension                `json:"header_extensions"`
 }
 

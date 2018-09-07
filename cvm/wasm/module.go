@@ -9,7 +9,8 @@ import (
 	"io"
 	"reflect"
 
-	"github.com/go-interpreter/wagon/wasm/internal/readpos"
+	//"github.com/eosgo/control"
+	"github.com/eosgo/cvm/wasm/internal/readpos"
 )
 
 var ErrInvalidMagic = errors.New("wasm: Invalid magic number")
@@ -21,6 +22,7 @@ const (
 
 // Function represents an entry in the function index space of a module.
 type Function struct {
+	Name string
 	Sig  *FunctionSig
 	Body *FunctionBody
 	Host reflect.Value
@@ -89,7 +91,7 @@ type ResolveFunc func(name string) (*Module, error)
 
 // ReadModule reads a module from the reader r. resolvePath must take a string
 // and a return a reader to the module pointed to by the string.
-func ReadModule(r io.Reader, resolvePath ResolveFunc) (*Module, error) {
+func ReadModule(r io.Reader, resolvePath ResolveFunc, wasm_interface exec.Wasm_interface_base) (*Module, error) {
 	reader := &readpos.ReadPos{
 		R:      r,
 		CurPos: 0,
@@ -121,7 +123,7 @@ func ReadModule(r io.Reader, resolvePath ResolveFunc) (*Module, error) {
 	}
 
 	if m.Import != nil && resolvePath != nil {
-		err := m.resolveImports(resolvePath)
+		err := m.resolveImports(resolvePath, wasm_interface)
 		if err != nil {
 			return nil, err
 		}

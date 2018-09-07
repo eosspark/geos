@@ -11,8 +11,8 @@ import (
 	"io"
 	"io/ioutil"
 
-	"github.com/go-interpreter/wagon/wasm/internal/readpos"
-	"github.com/go-interpreter/wagon/wasm/leb128"
+	"github.com/eosgo/cvm/wasm/internal/readpos"
+	"github.com/eosgo/cvm/wasm/leb128"
 )
 
 // SectionID is a 1-byte code that encodes the section code of both known and custom sections.

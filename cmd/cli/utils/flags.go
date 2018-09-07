@@ -6,12 +6,12 @@ import (
 
 var (
 	WalletNameCreateFlag = cli.StringFlag{
-		Name:  "name",
+		Name:  "name,n",
 		Usage: "The name of the new wallet",
 		Value: "default",
 	}
 	WalletNameOpenFlag = cli.StringFlag{
-		Name:  "name",
+		Name:  "name,n",
 		Usage: "The name of the wallet to open",
 		Value: "default",
 	}
@@ -21,7 +21,7 @@ var (
 		Value: "default",
 	}
 	WalletNameUnlockFlag = cli.StringFlag{
-		Name:  "name",
+		Name:  "name,n",
 		Usage: "The name of the wallet to unlock",
 	}
 	WalletPasswordFlag = cli.StringFlag{
@@ -30,7 +30,7 @@ var (
 	}
 
 	WalletNameImportFlag = cli.StringFlag{
-		Name:  "name",
+		Name:  "name,n",
 		Usage: "The name of the wallet to import key into",
 	}
 	WalletPriKeyFlag = cli.StringFlag{
@@ -39,7 +39,7 @@ var (
 	}
 
 	WalletNameRemoveKeyFlag = cli.StringFlag{
-		Name:  "name",
+		Name:  "name,n",
 		Usage: "The name of the wallet to remove key from",
 	}
 	WalletRemovePriKeyFlag = cli.StringFlag{
@@ -55,7 +55,7 @@ var (
 		// Value: "default",
 	}
 	AccountNewaccountFlag = cli.StringFlag{
-		Name:  "name",
+		Name:  "name,n",
 		Usage: "The name of the new account",
 		// Value: "default",
 	}
@@ -144,6 +144,13 @@ var (
 	}
 	CurrencySymbolFlag = cli.StringFlag{
 		Name:  "symbol",
+		Usage: "The symbol for the currency if the contract operates multiple currencies",
+	}
+)
+
+var (
+	OpenFileFlag = cli.StringFlag{
+		Name:  "x",
 		Usage: "The symbol for the currency if the contract operates multiple currencies",
 	}
 )

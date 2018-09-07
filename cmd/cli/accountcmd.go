@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"encoding/json"
 	"fmt"
 	"github.com/eosspark/eos-go/chain/types"
@@ -247,22 +246,24 @@ func getInfoCli(ctx *cli.Context) (err error) {
 }
 
 func getInfo() (out *InfoResp, err error) {
-	_, err = DoHttpCall(getInfoFunc, nil, &out)
+	err = DoHttpCall(getInfoFunc, nil, &out)
 	return
 }
 
 func getBlock(ctx *cli.Context) (err error) {
+
 	getBHS := ctx.Bool(utils.BlockHeadStateFlag.Name)
 	blockarg := ctx.Args().First()
 	var resp BlockResp
-	var data []byte
-	if getBHS {
-		data, err = DoHttpCall(getBlockHeaderStateFunc, M{"block_num_or_id": blockarg}, &resp)
-	} else {
-		data, err = DoHttpCall(getBlockFunc, M{"block_num_or_id": blockarg}, &resp)
-	}
 
-	fmt.Println("json: ", bytes.NewBuffer(data).String())
+	if getBHS {
+		err = DoHttpCall(getBlockHeaderStateFunc, M{"block_num_or_id": blockarg}, &resp)
+	} else {
+		err = DoHttpCall(getBlockFunc, M{"block_num_or_id": blockarg}, &resp)
+	}
+	fmt.Println(resp)
+
+	// fmt.Println("json: ", bytes.NewBuffer(data).String())
 	// display, err := json.Marshal(resp)
 	// if err != nil {
 	// 	return err
@@ -273,15 +274,13 @@ func getBlock(ctx *cli.Context) (err error) {
 }
 
 func getBlockID(getbhs bool, blockarg string) (resp *BlockResp, err error) {
-
-	var data []byte
 	if getbhs {
-		data, err = DoHttpCall(getBlockHeaderStateFunc, M{"block_num_or_id": blockarg}, &resp)
+		err = DoHttpCall(getBlockHeaderStateFunc, M{"block_num_or_id": blockarg}, &resp)
 	} else {
-		data, err = DoHttpCall(getBlockFunc, M{"block_num_or_id": blockarg}, &resp)
+		err = DoHttpCall(getBlockFunc, M{"block_num_or_id": blockarg}, &resp)
 	}
-
-	fmt.Println("json: ", bytes.NewBuffer(data).String())
+	fmt.Println(resp)
+	// fmt.Println("json: ", bytes.NewBuffer(data).String())
 	return
 }
 
@@ -289,7 +288,7 @@ func getAccount(ctx *cli.Context) (err error) {
 	printJson := ctx.Bool("json")
 	name := ctx.Args().First()
 	var resp AccountResp
-	_, err = DoHttpCall(getAccountFunc, M{"account_name": name}, &resp)
+	err = DoHttpCall(getAccountFunc, M{"account_name": name}, &resp)
 
 	display, err := json.Marshal(resp)
 	if err != nil {
@@ -314,7 +313,7 @@ func getCode(ctx *cli.Context) (err error) {
 	}
 	fmt.Println(code, abi, wasm, name)
 	var resp GetCodeResp
-	_, err = DoHttpCall(getRawCodeAndAbiFunc, M{"account_name": name, "code_as_wasm": true}, &resp)
+	err = DoHttpCall(getRawCodeAndAbiFunc, M{"account_name": name, "code_as_wasm": true}, &resp)
 
 	if err != nil {
 		return err
@@ -336,7 +335,7 @@ func getAbi(ctx *cli.Context) (err error) {
 	fmt.Println(abi, name)
 	var resp GetABIResp
 
-	_, err = DoHttpCall(getAbiFunc, M{"account_name": name}, &resp)
+	err = DoHttpCall(getAbiFunc, M{"account_name": name}, &resp)
 	if err != nil {
 		return err
 	}
@@ -361,7 +360,7 @@ func getTable(ctx *cli.Context) (err error) {
 	limit := ctx.Int("limt")
 
 	var resp GetTableRowsResp
-	_, err = DoHttpCall(getTableFunc,
+	err = DoHttpCall(getTableFunc,
 		M{"json": !binary,
 			"code":           code,
 			"scope":          scope,
@@ -393,7 +392,7 @@ func getCurrencyBalance(ctx *cli.Context) (err error) {
 		params["symbol"] = symbol
 	}
 	var resp []common.Asset
-	_, err = DoHttpCall(getCurrencyBalanceFunc, params, &resp)
+	err = DoHttpCall(getCurrencyBalanceFunc, params, &resp)
 	if err != nil {
 		return err
 	}
@@ -411,7 +410,7 @@ func getCurrencyStats(ctx *cli.Context) (err error) {
 	code := ctx.String("contract")
 	symbol := ctx.String("symbol")
 	var resp json.RawMessage //TODO
-	data, err := DoHttpCall(getCurrencyStatsFunc, M{"code": code, "symbol": symbol}, &resp)
+	err = DoHttpCall(getCurrencyStatsFunc, M{"code": code, "symbol": symbol}, &resp)
 	if err != nil {
 		return err
 	}
@@ -423,6 +422,5 @@ func getCurrencyStats(ctx *cli.Context) (err error) {
 		fmt.Println(resp[i])
 	}
 	fmt.Println("resp: ", string(display))
-	fmt.Println("json: ", bytes.NewBuffer(data).String())
 	return nil
 }

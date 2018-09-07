@@ -1,12 +1,14 @@
 package common
 
 import (
+	"crypto/sha256"
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/eosspark/eos-go/ecc"
+	"github.com/eosspark/eos-go/rlp"
 	"math"
 	"strconv"
 	"strings"
@@ -21,6 +23,37 @@ type BlockIDType [4]uint64
 type TransactionIDType [4]uint64
 type CheckSum256Type [4]uint64
 type Sha256 [4]uint64
+type Sha512 [8]uint64
+
+func NewSha512() (s Sha512) {
+	for i := range s {
+		s[i] = 0
+	}
+	return
+}
+
+func Hash(t interface{}) [4]uint64 {
+	cereal, err := rlp.EncodeToBytes(t)
+	if err != nil {
+		panic(err)
+	}
+	//fmt.Println(cereal)
+
+	h := sha256.New()
+	_, _ = h.Write(cereal)
+	hashed := h.Sum(nil)
+
+	//fmt.Println(hashed)
+
+	var result [4]uint64
+
+	result[0] = binary.LittleEndian.Uint64(hashed[:8])
+	result[1] = binary.LittleEndian.Uint64(hashed[8:16])
+	result[2] = binary.LittleEndian.Uint64(hashed[16:24])
+	result[3] = binary.LittleEndian.Uint64(hashed[24:32])
+
+	return result
+}
 
 func DecodeIDTypeString(str string) (id [4]uint64, err error) {
 	b, err := hex.DecodeString(str)
@@ -614,66 +647,6 @@ func (t *Tstamp) UnmarshalJSON(data []byte) (err error) {
 	return nil
 }
 
-type BlockTimeStamp uint32
-
-const blockTimestampFormat = "2006-01-02T15:04:05.000"
-
-func (t *BlockTimeStamp) Next() BlockTimeStamp {
-	result := NewBlockTimeStamp(t.ToTimePoint())
-	result += 1
-	return result
-}
-
-func (t *BlockTimeStamp) ToTimePoint() time.Time {
-	msec := int64(*t) * int64(DefaultConfig.BlockIntervalMs)
-	msec += int64(DefaultConfig.BlockTimestampEpochMs)
-	return time.Unix(0, msec*1e6)
-}
-
-func MaxBlockTime() BlockTimeStamp {
-	return BlockTimeStamp(0xffff)
-}
-
-func MinBlockTime() BlockTimeStamp {
-	return BlockTimeStamp(0)
-}
-
-func NewBlockTimeStamp(t time.Time) BlockTimeStamp {
-	msecSinceEpoch := t.UnixNano() / 1e6
-	bt := (msecSinceEpoch - DefaultConfig.BlockTimestampEpochMs) / DefaultConfig.BlockIntervalMs
-	return BlockTimeStamp(bt)
-}
-
-func (t BlockTimeStamp) MarshalJSON() ([]byte, error) {
-	var slot int64
-	if t > 0 {
-		slot = int64(t)*DefaultConfig.BlockIntervalMs*1000000 + DefaultConfig.BlockTimestamoEpochNanos //为了显示0.5s
-	} else {
-		slot = 0 //"1970-01-01T00:00:00.000"
-	}
-	tm := time.Unix(0, int64(slot)).UTC()
-
-	return []byte(fmt.Sprintf("%q", tm.Format(blockTimestampFormat))), nil
-}
-
-func (t *BlockTimeStamp) UnmarshalJSON(data []byte) (err error) {
-	if string(data) == "null" {
-		return nil
-	}
-	var temp time.Time
-	temp, err = time.Parse(`"`+blockTimestampFormat+`"`, string(data))
-	if err != nil {
-		return
-	}
-	slot := (temp.UnixNano() - DefaultConfig.BlockTimestamoEpochNanos) / 1e6 / DefaultConfig.BlockIntervalMs
-	if slot < 0 {
-		slot = 0
-	}
-
-	*t = BlockTimeStamp(slot)
-	return err
-}
-
 // func TimeNow() uint64 { //微妙 s*1000000   from 1970
 // 	tm := time.Now().UTC()
 
@@ -754,3 +727,9 @@ func (i *JSONInt64) UnmarshalJSON(data []byte) error {
 
 	return nil
 }
+
+type PublicKeyType struct {
+	ecc.PublicKey
+}
+
+type WeightType uint16

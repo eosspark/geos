@@ -1,6 +1,11 @@
 package common
 
+
 var DefaultConfig Config
+type billableSize struct {
+overhead uint64
+value    uint64
+}
 
 func init() {
 	DefaultConfig = Config{
@@ -12,6 +17,15 @@ func init() {
 		MinorityProducersPermissionName: AccountName(StringToName("prod.minor")),
 
 		RateLimitingPrecision: 1000 * 1000,
+
+		BillableAlignment: 16,
+		BillableSize: map[string]billableSize{
+			"permission_level_weight": {value: 24},
+			"key_weight": {value: 8},
+			"wait_weight": {value: 16},
+			"shared_authority": {value: 3 * 1 + 4},
+			"permission_link_object": {overhead: 32 * 3, value: 40 + 32},
+		},
 	}
 
 	DefaultConfig.BlockIntervalMs = 500
@@ -22,6 +36,7 @@ func init() {
 	DefaultConfig.ProducerRepetitions = 12
 	DefaultConfig.MaxProducers = 125
 	DefaultConfig.MaxTrackedDposConfirmations = 1024
+
 }
 
 type Config struct {
@@ -46,5 +61,15 @@ type Config struct {
 	ProducerRepetitions int
 	MaxProducers        int
 
+
+	FixedOverheadSharedVectorRamBytes uint32
+
+	BillableAlignment uint64
+	BillableSize      map[string]billableSize
+
 	MaxTrackedDposConfirmations int ///<
+}
+
+func BillableSizeV(kind string) uint64{
+	return  (DefaultConfig.BillableSize[kind].value + DefaultConfig.BillableAlignment - 1) / DefaultConfig.BillableAlignment * DefaultConfig.BillableAlignment
 }
