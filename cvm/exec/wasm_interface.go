@@ -208,12 +208,8 @@ func action_data_size(wasm_interface *Wasm_interface) uint32 {
 
 	fmt.Println("action_data_size")
 
-	//data := []byte{0, 0, 0, 0, 0, 0, 0, 0, 5, 12, 0, 5, 10, 3, 14} //To_string(N("cactus"))
-	//data := []byte{14, 3, 10, 5, 0, 12, 5, 0, 0, 0, 0, 0, 0, 0, 0}
-	//data := []byte{0xe1, 0xa3, 0x05, 0x5c, 0x00, 0x00, 0x00, 0x00}
-	data := []byte{0x00, 0x00, 0x00, 0x00, 0x5c, 0x05, 0xa3, 0xe1}
+	data := []byte{0x00, 0x00, 0x00, 0x00, 0x5c, 0x05, 0xa3, 0xe1} //("000000005c05a3e1") => '{"walker"}'
 	return uint32(len(data))
-	//return wasm_interface.context.act.data.size()
 
 }
 
@@ -228,9 +224,7 @@ func read_action_data(wasm_interface *Wasm_interface, memory uint32, buffer_size
 
 	fmt.Println("read_action_data")
 
-	//data := []byte{0, 0, 0, 0, 0, 0, 0, 0, 5, 12, 0, 5, 10, 3, 14} //("000000005c05a3e1")
-	//data := []byte{14, 3, 10, 5, 0, 12, 5, 0, 0, 0, 0, 0, 0, 0, 0}
-	data := []byte{0x00, 0x00, 0x00, 0x00, 0x5c, 0x05, 0xa3, 0xe1}
+	data := []byte{0x00, 0x00, 0x00, 0x00, 0x5c, 0x05, 0xa3, 0xe1} //("000000005c05a3e1") => '{"walker"}'
 
 	//s = wasm_interface.context.act.data.size()
 	s := len(data)
@@ -240,7 +234,7 @@ func read_action_data(wasm_interface *Wasm_interface, memory uint32, buffer_size
 	copy_size := min(buffer_size, uint32(s))
 	copy(wasm_interface.vm.memory[memory:memory+copy_size], data)
 	return copy_size
-	//return 0
+
 }
 
 func current_time(wasm_interface *Wasm_interface) uint64 {
@@ -265,7 +259,6 @@ func printn(wasm_interface *Wasm_interface, name uint64) {
 
 	fmt.Println("printn")
 	str := To_string(name)
-	//Prints(wasm_interface, str)
 	fmt.Println(str)
 
 }
