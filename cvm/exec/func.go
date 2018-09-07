@@ -9,7 +9,7 @@ import (
 	"math"
 	"reflect"
 
-	"github.com/go-interpreter/wagon/exec/internal/compile"
+	"github.com/eosgo/cvm/exec/internal/compile"
 )
 
 type function interface {
@@ -26,15 +26,60 @@ type compiledFunction struct {
 }
 
 type goFunction struct {
-	val reflect.Value
-	typ reflect.Type
+	val  reflect.Value
+	typ  reflect.Type
+	name string
 }
+
+// func (fn goFunction) call(vm *VM, index int64) {
+// 	numIn := fn.typ.NumIn()
+// 	args := make([]reflect.Value, numIn)
+
+// 	for i := numIn - 1; i >= 0; i-- {
+// 		val := reflect.New(fn.typ.In(i)).Elem()
+// 		raw := vm.popUint64()
+// 		kind := fn.typ.In(i).Kind()
+
+// 		switch kind {
+// 		case reflect.Float64, reflect.Float32:
+// 			val.SetFloat(math.Float64frombits(raw))
+// 		case reflect.Uint32, reflect.Uint64:
+// 			val.SetUint(raw)
+// 		case reflect.Int32, reflect.Int64:
+// 			val.SetInt(int64(raw))
+// 		default:
+// 			panic(fmt.Sprintf("exec: args %d invalid kind=%v", i, kind))
+// 		}
+
+// 		args[i] = val
+// 	}
+
+// 	rtrns := fn.val.Call(args)
+// 	for i, out := range rtrns {
+// 		kind := out.Kind()
+// 		switch kind {
+// 		case reflect.Float64, reflect.Float32:
+// 			vm.pushFloat64(out.Float())
+// 		case reflect.Uint32, reflect.Uint64:
+// 			vm.pushUint64(out.Uint())
+// 		case reflect.Int32, reflect.Int64:
+// 			vm.pushInt64(out.Int())
+// 		default:
+// 			panic(fmt.Sprintf("exec: return value %d invalid kind=%v", i, kind))
+// 		}
+// 	}
+// }
 
 func (fn goFunction) call(vm *VM, index int64) {
 	numIn := fn.typ.NumIn()
 	args := make([]reflect.Value, numIn)
 
-	for i := numIn - 1; i >= 0; i-- {
+	//name := fn.val.Type().Name()
+	//fmt.Println(fn.name)
+
+	args[0] = reflect.ValueOf(vm.Wasm_interface) //the first param is Wasm_interface
+
+	for i := numIn - 1; i >= 1; i-- {
 		val := reflect.New(fn.typ.In(i)).Elem()
 		raw := vm.popUint64()
 		kind := fn.typ.In(i).Kind()
@@ -47,10 +92,12 @@ func (fn goFunction) call(vm *VM, index int64) {
 		case reflect.Int32, reflect.Int64:
 			val.SetInt(int64(raw))
 		default:
-			panic(fmt.Sprintf("exec: args %d invalid kind=%v", i, kind))
+			//panic(fmt.Sprintf("exec: args %d invalid kind=%v", i, kind))
+			val = reflect.ValueOf(raw)
 		}
-
 		args[i] = val
+
+		//args[i] = reflect.ValueOf(vm.popUint64())
 	}
 
 	rtrns := fn.val.Call(args)

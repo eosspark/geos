@@ -7,6 +7,8 @@ package wasm
 import (
 	"errors"
 	"fmt"
+	"reflect"
+	//"github.com/eosgo/control"
 )
 
 // Import is an intreface implemented by types that can be imported by a WebAssembly module.
@@ -88,7 +90,28 @@ func (e InvalidFunctionIndexError) Error() string {
 	return fmt.Sprintf("wasm: Invalid index to function index space: %#x", uint32(e))
 }
 
-func (module *Module) resolveImports(resolve ResolveFunc) error {
+func (module *Module) resolveImportsFromHost(importEntry ImportEntry, funcs *uint32, wasm_interface exec.Wasm_interface_base) error {
+
+	switch importEntry.Kind {
+	case ExternalFunction:
+		funcType := module.Types.Entries[importEntry.Type.(FuncImport).Type]
+		fn := &Function{
+			Sig:  &FunctionSig{ParamTypes: funcType.ParamTypes, ReturnTypes: funcType.ReturnTypes},
+			Body: &FunctionBody{},
+			Name: importEntry.FieldName,
+			Host: reflect.ValueOf(wasm_interface.GetHandle(importEntry.FieldName))}
+		module.FunctionIndexSpace = append(module.FunctionIndexSpace, *fn)
+		module.Code.Bodies = append(module.Code.Bodies, *fn.Body)
+		module.imports.Funcs = append(module.imports.Funcs, *funcs)
+		*funcs++
+	default:
+		fmt.Println("not support import type")
+	}
+
+	return nil
+}
+
+func (module *Module) resolveImports(resolve ResolveFunc, wasm_interface exec.Wasm_interface_base) error {
 	if module.Import == nil {
 		return nil
 	}
@@ -97,6 +120,16 @@ func (module *Module) resolveImports(resolve ResolveFunc) error {
 
 	var funcs uint32
 	for _, importEntry := range module.Import.Entries {
+
+		if importEntry.ModuleName == "env" {
+			var err error
+			err = module.resolveImportsFromHost(importEntry, &funcs, wasm_interface)
+			if err != nil {
+				return err
+			}
+			continue
+		}
+
 		importedModule, ok := modules[importEntry.ModuleName]
 		if !ok {
 			var err error
