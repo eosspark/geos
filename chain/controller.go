@@ -54,10 +54,10 @@ type Config struct {
 }
 
 type Controller struct {
-	db                    eosiodb.Database
+	db                    eosiodb.DataBase
 	dbsession             *eosiodb.Session
-	reversibledb          eosiodb.Database
-	reversibleBlocks      *eosiodb.Session
+	reversibledb          eosiodb.DataBase
+	//reversibleBlocks      *eosiodb.Session
 	blog                  string //TODO
 	pending               *types.PendingState
 	head                  types.BlockState
@@ -79,14 +79,14 @@ type Controller struct {
 
 func NewController() *Controller {
 
-	db, err := eosiodb.NewDatabase("./", "shared_memory.bin", true)
+	db, err := eosiodb.NewDataBase("./", "shared_memory.bin", true)
 	if err != nil {
 		log.Error("pending NewPendingState is error detail:", err)
 		return nil
 	}
 	defer db.Close()
 
-	session, err := db.Start_Session()
+	session := db.StartSession()
 
 	if err != nil {
 		log.Debug("db start session is error detail:", err.Error(), session)
@@ -107,12 +107,12 @@ func (self Controller) PopBlock() {
 		log.Error("PopBlock GetBlockByID is error,detail:", err)
 	}
 	var r types.ReversibleBlockObject
-	errs := self.reversibleBlocks.Find("NUM", self.head.BlockNum, r)
+	errs := self.reversibledb.Find("NUM", self.head.BlockNum, r)
 	if errs != nil {
 		log.Error("PopBlock ReversibleBlocks Find is error,detail:", errs)
 	}
 	if &r != nil {
-		self.reversibleBlocks.Remover(&r)
+		self.reversibledb.Remove(&r)
 	}
 
 	if self.readMode == SPECULATIVE {
@@ -186,7 +186,10 @@ func (self Controller) StartBlock(when common.BlockTimeStamp, confirmBlockCount 
 			(!wasPendingPromoted) {
 			if !self.rePlaying {
 				tmp := gpo.ProposedSchedule.ProducerScheduleType()
-				self.pending.PendingBlockState.SetNewProducers(*tmp)
+				ps := types.SharedProducerScheduleType{}
+				ps.Version = tmp.Version
+				ps.Producers = tmp.Producers
+				self.pending.PendingBlockState.SetNewProducers(&ps)
 			}
 			self.db.Update(&gpo, func(i interface{}) error {
 				gpo.ProposedScheduleBlockNum = 1
@@ -258,7 +261,7 @@ func (self *Controller) skipDBSession(bs types.BlockStatus) bool {
 	return considerSkipping
 }
 
-func Close(db eosiodb.Database, session eosiodb.Session) {
+func Close(db eosiodb.DataBase, session eosiodb.Session) {
 	//session.close()
 	db.Close()
 }
