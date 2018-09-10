@@ -10,6 +10,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
+	"reflect"
 
 	"github.com/eosgo/cvm/disasm"
 	"github.com/eosgo/cvm/exec/internal/compile"
@@ -54,7 +55,7 @@ type context struct {
 type VM struct {
 	ctx context
 
-	Wasm_interface wasm.Wasm_interface_base
+	Wasm_interface *Wasm_interface
 
 	module  *wasm.Module
 	globals []uint64
@@ -78,7 +79,7 @@ var endianess = binary.LittleEndian
 
 // NewVM creates a new VM from a given module. If the module defines a
 // start function, it will be executed.
-func NewVM(module *wasm.Module, wasm_interface wasm.Wasm_interface_base) (*VM, error) {
+func NewVM(module *wasm.Module, wasm_interface *Wasm_interface) (*VM, error) {
 	var vm VM
 
 	vm.Wasm_interface = wasm_interface
@@ -105,9 +106,13 @@ func NewVM(module *wasm.Module, wasm_interface wasm.Wasm_interface_base) (*VM, e
 		// section of:
 		// https://webassembly.github.io/spec/core/exec/modules.html#allocation
 		if fn.IsHost() {
+
+			host := reflect.ValueOf(wasm_interface.GetHandle(fn.Name))
 			vm.funcs[i] = goFunction{
-				typ: fn.Host.Type(),
-				val: fn.Host,
+				//typ: fn.Host.Type(),
+				//val: fn.Host,
+				typ:  host.Type(),
+				val:  host,
 				name: fn.Name,
 			}
 			nNatives++

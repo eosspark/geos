@@ -90,7 +90,8 @@ func (e InvalidFunctionIndexError) Error() string {
 	return fmt.Sprintf("wasm: Invalid index to function index space: %#x", uint32(e))
 }
 
-func (module *Module) resolveImportsFromHost(importEntry ImportEntry, funcs *uint32, wasm_interface exec.Wasm_interface_base) error {
+//func (module *Module) resolveImportsFromHost(importEntry ImportEntry, funcs *uint32, wasm_interface exec.Wasm_interface_base) error {
+func (module *Module) resolveImportsFromHost(importEntry ImportEntry, funcs *uint32) error {
 
 	switch importEntry.Kind {
 	case ExternalFunction:
@@ -99,7 +100,8 @@ func (module *Module) resolveImportsFromHost(importEntry ImportEntry, funcs *uin
 			Sig:  &FunctionSig{ParamTypes: funcType.ParamTypes, ReturnTypes: funcType.ReturnTypes},
 			Body: &FunctionBody{},
 			Name: importEntry.FieldName,
-			Host: reflect.ValueOf(wasm_interface.GetHandle(importEntry.FieldName))}
+			//Host: reflect.ValueOf(wasm_interface.GetHandle(importEntry.FieldName))}
+			Host: reflect.Value{}};
 		module.FunctionIndexSpace = append(module.FunctionIndexSpace, *fn)
 		module.Code.Bodies = append(module.Code.Bodies, *fn.Body)
 		module.imports.Funcs = append(module.imports.Funcs, *funcs)
@@ -111,7 +113,8 @@ func (module *Module) resolveImportsFromHost(importEntry ImportEntry, funcs *uin
 	return nil
 }
 
-func (module *Module) resolveImports(resolve ResolveFunc, wasm_interface exec.Wasm_interface_base) error {
+//func (module *Module) resolveImports(resolve ResolveFunc, wasm_interface exec.Wasm_interface_base) error {
+func (module *Module) resolveImports(resolve ResolveFunc) error {
 	if module.Import == nil {
 		return nil
 	}
@@ -123,7 +126,8 @@ func (module *Module) resolveImports(resolve ResolveFunc, wasm_interface exec.Wa
 
 		if importEntry.ModuleName == "env" {
 			var err error
-			err = module.resolveImportsFromHost(importEntry, &funcs, wasm_interface)
+			//err = module.resolveImportsFromHost(importEntry, &funcs, wasm_interface)
+			err = module.resolveImportsFromHost(importEntry, &funcs)
 			if err != nil {
 				return err
 			}

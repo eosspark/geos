@@ -91,7 +91,7 @@ type ResolveFunc func(name string) (*Module, error)
 
 // ReadModule reads a module from the reader r. resolvePath must take a string
 // and a return a reader to the module pointed to by the string.
-func ReadModule(r io.Reader, resolvePath ResolveFunc, wasm_interface exec.Wasm_interface_base) (*Module, error) {
+func ReadModule(r io.Reader, resolvePath ResolveFunc) (*Module, error) {
 	reader := &readpos.ReadPos{
 		R:      r,
 		CurPos: 0,
@@ -123,7 +123,7 @@ func ReadModule(r io.Reader, resolvePath ResolveFunc, wasm_interface exec.Wasm_i
 	}
 
 	if m.Import != nil && resolvePath != nil {
-		err := m.resolveImports(resolvePath, wasm_interface)
+		err := m.resolveImports(resolvePath)
 		if err != nil {
 			return nil, err
 		}
