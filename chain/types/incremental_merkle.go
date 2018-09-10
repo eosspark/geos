@@ -135,8 +135,8 @@ func makeCanonicalRight(val [4]uint64) [4]uint64 {
 	return canonicalR
 }
 
-func makeCanonicalPair(l [4]uint64, r [4]uint64) [2]interface{} {
-	return [2]interface{}{makeCanonicalLeft(l), makeCanonicalRight(r)}
+func makeCanonicalPair(l [4]uint64, r [4]uint64) common.Pair {
+	return common.Pair{makeCanonicalLeft(l), makeCanonicalRight(r)}
 }
 
 /**

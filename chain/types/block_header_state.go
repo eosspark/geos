@@ -173,8 +173,8 @@ func (bs *BlockHeaderState) SetConfirmed(numPrevBlocks uint16) {
 
 func (bs *BlockHeaderState) SigDigest() []byte {
 	result := make([]byte, 32)
-	headerBmroot := common.Hash([2]interface{}{bs.Header, bs.BlockrootMerkle.GetRoot()})
-	digest := common.Hash([2]interface{}{headerBmroot, bs.PendingScheduleHash})
+	headerBmroot := common.Hash(common.Pair{bs.Header, bs.BlockrootMerkle.GetRoot()})
+	digest := common.Hash(common.Pair{headerBmroot, bs.PendingScheduleHash})
 
 	binary.LittleEndian.PutUint64(result[0:8], digest[0])
 	binary.LittleEndian.PutUint64(result[8:16], digest[1])
