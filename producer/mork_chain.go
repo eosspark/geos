@@ -2,6 +2,7 @@ package producer_plugin
 
 import (
 	"fmt"
+	"github.com/eoscanada/eos-go"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/ecc"
@@ -98,13 +99,23 @@ func (c *mockChain) CommitBlock() {
 	c.pending = nil
 }
 
-func (c mockChain) PushTransaction(trx *types.TransactionMetadata, deadline common.TimePoint) error {
+func (c mockChain) PushTransaction(trx *types.TransactionMetadata, deadline common.TimePoint) *types.TransactionTrace {
 	return nil
 }
-func (c mockChain) PushScheduledTransaction(trx common.TransactionIDType, deadline common.TimePoint) error {
+func (c mockChain) PushScheduledTransaction(trx common.TransactionIDType, deadline common.TimePoint) *types.TransactionTrace {
 	return nil
 }
 
 func (c *mockChain) PushBlock(b *types.SignedBlock) error {
 	return nil
 }
+
+func (c *mockChain) FetchBlockById(id common.BlockIDType) *eos.SignedBlock {
+	return nil
+}
+
+func (c *mockChain) IsKnownUnexpiredTransaction(id common.TransactionIDType) bool {
+	return false
+}
+
+func (c *mockChain) DropUnappliedTransaction(trx *types.TransactionMetadata) {}

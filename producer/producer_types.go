@@ -26,47 +26,13 @@ const (
 	exhausted
 )
 
-//timer
-//type scheduleTimer struct {
-//	internal *time.Timer
-//	duration time.Duration
-//}
-//
-//func (pt *scheduleTimer) expiresFromNow(m common.Microseconds) {
-//	pt.duration = time.Microsecond * time.Duration(m)
-//}
-//
-//func (pt *scheduleTimer) expiresUntil(t common.TimePoint) {
-//	pt.expiresFromNow(t.Sub(common.Now()))
-//}
-//
-//func (pt *scheduleTimer) expiresAt(epoch common.Microseconds) {
-//	pt.expiresUntil(common.TimePoint(epoch))
-//}
-//
-//func (pt *scheduleTimer) asyncWait(valid func() bool, call func()) {
-//	pt.internal = time.NewTimer(pt.duration)
-//	<-pt.internal.C
-//	if valid() {
-//		go call()
-//	}
-//}
-//
-//func (pt *scheduleTimer) cancel() {
-//	if pt.internal != nil {
-//		pt.internal.Stop()
-//		pt.internal = nil
-//	}
-//}
-
 type signatureProviderType func([]byte) ecc.Signature
 
 type transactionIdWithExpireIndex map[common.TransactionIDType]common.TimePoint
 
-type respVariant struct {
-	err error
-	trx int //TODO:transaction_trace_ptr
-
+type ErrorORTrace struct {
+	error error
+	trace *types.TransactionTrace
 }
 
 type RuntimeOptions struct {
@@ -91,10 +57,15 @@ type GreylistParams struct {
 	Accounts []common.AccountName
 }
 
-type tuple struct {
+type pendingIncomingTransaction struct {
 	packedTransaction   *types.PackedTransaction
 	persistUntilExpired bool
-	next                func(respVariant)
+	next                func(ErrorORTrace)
+}
+
+func failureIsSubjective(e error, deadlineIsSubjective bool) bool {
+	//TODO wait for error definition
+	return false
 }
 
 func makeDebugTimeLogger() func() {

@@ -31,6 +31,21 @@ type TransactionHeader struct {
 	DelaySec         uint32 `json:"delay_sec"` // number of secs to delay, making it cancellable for that duration
 }
 
+func (th TransactionHeader) GetRefBlocknum(headBlocknum uint32) uint32 {
+	return headBlocknum/0xffff*0xffff + headBlocknum%0xffff
+}
+
+func (th TransactionHeader) VerifyReferenceBlock(referenceBlock common.BlockIDType) bool {
+	return th.RefBlockNum == uint16(common.EndianReverseU32(uint32(referenceBlock[0]))) &&
+		th.RefBlockPrefix == uint32(referenceBlock[1])
+}
+
+func (th TransactionHeader) Validate() {
+	if th.MaxNetUsageWords >= uint32(0xffffffff)/8 {
+		panic("declared max_net_usage_words overflows when expanded to max net usage")
+	}
+}
+
 type Transaction struct { // WARN: is a `variant` in C++, can be a SignedTransaction or a Transaction.
 	TransactionHeader
 
@@ -230,12 +245,12 @@ type PackedTransaction struct {
 	PackedTransaction     common.HexBytes        `json:"packed_trx"`
 }
 
-func (p *PackedTransaction) ID() common.TransactionIDType {
-	// h := sha256.New()
-	// _, _ = h.Write(p.PackedTransaction)
-	// return h.Sum(nil)
-	a := [4]uint64{0, 0, 0, 0}
-	return common.TransactionIDType(a) //TODO
+func (p *PackedTransaction) ID() (id common.TransactionIDType) {
+	return //TODO
+}
+
+func (p *PackedTransaction) Expiration() common.TimePointSec {
+	return common.TimePointSec(0) //TODO
 }
 
 // // Unpack decodes the bytestream of the transaction, and attempts to

@@ -1,12 +1,12 @@
 package producer_plugin
 
 import (
+	"errors"
 	"fmt"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/ecc"
 	"gopkg.in/urfave/cli.v1"
-	"time"
 )
 
 type ProducerPlugin struct {
@@ -34,7 +34,7 @@ type ProducerPlugin struct {
 
 	confirmedBlock func(signature ecc.Signature)
 
-	pendingIncomingTransactions []tuple
+	pendingIncomingTransactions []pendingIncomingTransaction
 
 	// keep a expected ratio between defer txn and incoming txn
 	incomingTrxWeight  float64
@@ -231,16 +231,14 @@ func (pp *ProducerPlugin) onIrreversibleBlock(lib *types.SignedBlock) {
 }
 
 func (pp *ProducerPlugin) onIncomingBlock(block *types.SignedBlock) {
+	//fc_dlog(_log, "received incoming block ${id}", ("id", block->id()));
 
 	if block.Timestamp.ToTimePoint() >= (common.Now().AddUs(common.Seconds(7))) {
 		panic(ErrBlockFromTheFuture)
 	}
 	id := block.BlockID()
-	//C++ auto existing = chain.fetch_block_by_id( id );
-	fmt.Println(id)
-
-	existing := false
-	if existing {
+	existing := chain.FetchBlockById(id)
+	if existing != nil {
 		return
 	}
 
@@ -264,27 +262,25 @@ func (pp *ProducerPlugin) onIncomingBlock(block *types.SignedBlock) {
 		pp.productionEnabled = true
 	}
 
-	//C++ log per 1000 blocks
-	//if( fc::time_point::now() - block->timestamp < fc::minutes(5) || (block->block_num() % 1000 == 0) ) {
-	//	ilog("Received block ${id}... #${n} @ ${t} signed by ${p} [trxs: ${count}, lib: ${lib}, conf: ${confs}, latency: ${latency} ms]",
-	//		("p",block->producer)("id",fc::variant(block->id()).as_string().substr(8,16))
-	//	("n",block_header::num_from_id(block->id()))("t",block->timestamp)
-	//	("count",block->transactions.size())("lib",chain.last_irreversible_block_num())("confs", block->confirmed)("latency", (fc::time_point::now() - block->timestamp).count()/1000 ) );
-	//}
+	if common.Now().Sub(block.Timestamp.ToTimePoint()) < common.Minutes(5) || block.BlockNumber()%1000 == 0 {
+		//	ilog("Received block ${id}... #${n} @ ${t} signed by ${p} [trxs: ${count}, lib: ${lib}, conf: ${confs}, latency: ${latency} ms]",
+		//		("p",block->producer)("id",fc::variant(block->id()).as_string().substr(8,16))
+		//	("n",block_header::num_from_id(block->id()))("t",block->timestamp)
+		//	("count",block->transactions.size())("lib",chain.last_irreversible_block_num())("confs", block->confirmed)("latency", (fc::time_point::now() - block->timestamp).count()/1000 ) );
+	}
 }
 
-func (pp *ProducerPlugin) onIncomingTransactionAsync(trx *types.PackedTransaction, persistUntilExpired bool, next func(respVariant)) {
+func (pp *ProducerPlugin) onIncomingTransactionAsync(trx *types.PackedTransaction, persistUntilExpired bool, next func(ErrorORTrace)) {
 	if chain.PendingBlockState() == nil {
-		pp.pendingIncomingTransactions = append(pp.pendingIncomingTransactions, tuple{trx, persistUntilExpired, next})
+		pp.pendingIncomingTransactions = append(pp.pendingIncomingTransactions, pendingIncomingTransaction{trx, persistUntilExpired, next})
 		return
 	}
 
-	blockTime := chain.PendingBlockState().Header.Timestamp
+	blockTime := chain.PendingBlockState().Header.Timestamp.ToTimePoint()
 
-	sendResponse := func(response respVariant) {
-		//TODO
+	sendResponse := func(response ErrorORTrace) {
 		next(response)
-		if response.err != nil {
+		if response.error != nil {
 			//C++ _transaction_ack_channel.publish(std::pair<fc::exception_ptr, packed_transaction_ptr>(response.get<fc::exception_ptr>(), trx));
 		} else {
 			//C++ _transaction_ack_channel.publish(std::pair<fc::exception_ptr, packed_transaction_ptr>(nullptr, trx));
@@ -292,9 +288,39 @@ func (pp *ProducerPlugin) onIncomingTransactionAsync(trx *types.PackedTransactio
 	}
 
 	id := trx.ID()
+	if trx.Expiration().ToTimePoint() < blockTime {
+		sendResponse(ErrorORTrace{errors.New(fmt.Sprintf("expired transaction %s", id)), nil})
+		return
+	}
 
-	fmt.Println(blockTime, &sendResponse, id)
+	if chain.IsKnownUnexpiredTransaction(id) {
+		sendResponse(ErrorORTrace{errors.New(fmt.Sprintf("duplicate transaction %s", id)), nil})
+		return
+	}
 
+	deadline := common.Now().AddUs(common.Milliseconds(int64(pp.maxTransactionTimeMs)))
+	deadlineIsSubjective := false
+
+	if pp.maxTransactionTimeMs < 0 || pp.pendingBlockMode == producing && blockTime < deadline {
+		deadlineIsSubjective = true
+		deadline = blockTime
+	}
+
+	trace := chain.PushTransaction(types.NewTransactionMetadata(*trx), deadline)
+	if trace.Except != nil {
+		if failureIsSubjective(trace.Except, deadlineIsSubjective) {
+			pp.pendingIncomingTransactions = append(pp.pendingIncomingTransactions, pendingIncomingTransaction{trx, persistUntilExpired, next})
+		} else {
+			sendResponse(ErrorORTrace{trace.Except, nil})
+		}
+	} else {
+		if persistUntilExpired {
+			// if this trx didnt fail/soft-fail and the persist flag is set, store its ID so that we can
+			// ensure its applied to all future speculative blocks as well.
+			pp.persistentTransactions[trx.ID()] = trx.Expiration().ToTimePoint()
+		}
+		sendResponse(ErrorORTrace{nil, trace})
+	}
 }
 
 func (pp *ProducerPlugin) getIrreversibleBlockAge() common.Microseconds /*Microsecond*/ {
@@ -396,7 +422,9 @@ func (pp *ProducerPlugin) calculatePendingBlockTime() common.TimePoint {
 func (pp *ProducerPlugin) startBlock() (EnumStartBlockRusult, bool) {
 	hbs := chain.HeadBlockState()
 
-	now := time.Now()
+	//Schedule for the next second's tick regardless of chain state
+	// If we would wait less than 50ms (1/10 of block_interval), wait for the whole block interval.
+	now := common.Now()
 	blockTime := pp.calculatePendingBlockTime()
 
 	pp.pendingBlockMode = producing
@@ -440,8 +468,8 @@ func (pp *ProducerPlugin) startBlock() (EnumStartBlockRusult, bool) {
 	}
 
 	if pp.pendingBlockMode == speculating {
-		headBlockAge := now //- chain.head_block_time();
-		if headBlockAge.Unix() > 5 {
+		headBlockAge := now.Sub(chain.HeadBlockTime())
+		if headBlockAge > common.Seconds(5) {
 			return waiting, lastBlock
 		}
 	}
@@ -524,33 +552,30 @@ func (pp *ProducerPlugin) startBlock() (EnumStartBlockRusult, bool) {
 						continue
 					}
 
-					//TODO
-					/*C++
-					if (trx->packed_trx.expiration() < pbs->header.timestamp.to_time_point()) {
+					if trx.PackedTrx.Expiration().ToTimePoint() < pbs.Header.Timestamp.ToTimePoint() {
 						// expired, drop it
-						chain.drop_unapplied_transaction(trx);
-						continue;
-					}*/
+						chain.DropUnappliedTransaction(trx)
+						continue
+					}
 
 					deadline := common.Now().AddUs(common.Microseconds(pp.maxTransactionTimeMs))
 					deadlineIsSubjective := false
-					fmt.Println(deadlineIsSubjective)
 					if pp.maxTransactionTimeMs < 0 || pp.pendingBlockMode == producing && blockTime < deadline {
 						deadlineIsSubjective = true
 						deadline = blockTime
 					}
 
-					chain.PushTransaction(trx, deadline)
-					//TODO
-					//C++
-					/*if (trace->except) {
-						if (failure_is_subjective(*trace->except, deadline_is_subjective)) {
-							isExhausted = true;
+					trace := chain.PushTransaction(trx, deadline)
+					if trace.Except != nil {
+						if failureIsSubjective(trace.Except, deadlineIsSubjective) {
+							isExhausted = true
 						} else {
 							// this failed our configured maximum transaction time, we don't want to replay it
-							chain.drop_unapplied_transaction(trx);
+							chain.DropUnappliedTransaction(trx)
 						}
-					}*/
+					}
+
+					//TODO catch exception
 				}
 			}
 		} ///unapplied transactions
@@ -592,24 +617,24 @@ func (pp *ProducerPlugin) startBlock() (EnumStartBlockRusult, bool) {
 
 				deadline := common.Now().AddUs(common.Microseconds(pp.maxTransactionTimeMs))
 				deadlineIsSubjective := false
-				fmt.Println(deadlineIsSubjective)
 				if pp.maxTransactionTimeMs < 0 || pp.pendingBlockMode == producing && blockTime < deadline {
 					deadlineIsSubjective = true
 					deadline = blockTime
 				}
 
-				chain.PushScheduledTransaction(trx, deadline)
-				//TODO
-				//C++
-				/*if (trace->except) {
-					if (failure_is_subjective(*trace->except, deadline_is_subjective)) {
-						isExhausted = true;
+				trace := chain.PushScheduledTransaction(trx, deadline)
+				if trace.Except != nil {
+					if failureIsSubjective(trace.Except, deadlineIsSubjective) {
+						isExhausted = true
 					} else {
-						auto expiration = fc::time_point::now() + fc::seconds(chain.get_global_properties().configuration.deferred_trx_expiration_window);
+						expiration := common.Now().AddUs(common.Seconds(0) /*TODO chain.get_global_properties().configuration.deferred_trx_expiration_window*/)
 						// this failed our configured maximum transaction time, we don't want to replay it add it to a blacklist
-						_blacklisted_transactions.insert(transaction_id_with_expiry{trx, expiration});
+						pp.blacklistedTransactions[trx] = expiration
 					}
-				}*/
+				}
+
+				//TODO catch exception
+
 				pp.incomingTrxWeight += pp.incomingDeferRadio
 				if origPendingTxnSize <= 0 {
 					pp.incomingTrxWeight = 0.0

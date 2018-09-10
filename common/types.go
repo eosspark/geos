@@ -32,6 +32,11 @@ func NewSha512() (s Sha512) {
 	return
 }
 
+type Pair struct {
+	First  interface{}
+	Second interface{}
+}
+
 func Hash(t interface{}) [4]uint64 {
 	cereal, err := rlp.EncodeToBytes(t)
 	if err != nil {
@@ -614,38 +619,38 @@ func (t *SHA256Bytes) UnmarshalJSON(data []byte) (err error) {
 
 type Varuint32 uint32
 
-type Tstamp uint64
-
-const tstampFormate = "2006-01-02T15:04:05.000000"
-
-func (t Tstamp) MarshalJSON() ([]byte, error) {
-	slot := int64(t) * 1000
-	tm := time.Unix(0, slot).UTC()
-	return []byte(fmt.Sprintf("%q", tm.Format(tstampFormate))), nil
-}
-func (t *Tstamp) UnmarshalJSON(data []byte) (err error) {
-	var unixNano int64
-	if data[0] == '"' {
-		var s string
-		if err = json.Unmarshal(data, &s); err != nil {
-			return
-		}
-
-		unixNano, err = strconv.ParseInt(s, 10, 64)
-		if err != nil {
-			return err
-		}
-
-	} else {
-		unixNano, err = strconv.ParseInt(string(data), 10, 64)
-		if err != nil {
-			return err
-		}
-	}
-	*t = Tstamp(unixNano / 1000)
-
-	return nil
-}
+//type Tstamp uint64
+//
+//const tstampFormate = "2006-01-02T15:04:05.000000"
+//
+//func (t Tstamp) MarshalJSON() ([]byte, error) {
+//	slot := int64(t) * 1000
+//	tm := time.Unix(0, slot).UTC()
+//	return []byte(fmt.Sprintf("%q", tm.Format(tstampFormate))), nil
+//}
+//func (t *Tstamp) UnmarshalJSON(data []byte) (err error) {
+//	var unixNano int64
+//	if data[0] == '"' {
+//		var s string
+//		if err = json.Unmarshal(data, &s); err != nil {
+//			return
+//		}
+//
+//		unixNano, err = strconv.ParseInt(s, 10, 64)
+//		if err != nil {
+//			return err
+//		}
+//
+//	} else {
+//		unixNano, err = strconv.ParseInt(string(data), 10, 64)
+//		if err != nil {
+//			return err
+//		}
+//	}
+//	*t = Tstamp(unixNano / 1000)
+//
+//	return nil
+//}
 
 // func TimeNow() uint64 { //微妙 s*1000000   from 1970
 // 	tm := time.Now().UTC()
@@ -654,13 +659,13 @@ func (t *Tstamp) UnmarshalJSON(data []byte) (err error) {
 
 // 	return uint64(dur)
 // }
-func TimeNow() Tstamp { //微妙 s*1000000   from 1970
-	tm := time.Now().UTC()
-
-	dur := tm.UnixNano() / 1000
-
-	return Tstamp(dur)
-}
+//func TimeNow() Tstamp { //微妙 s*1000000   from 1970
+//	tm := time.Now().UTC()
+//
+//	dur := tm.UnixNano() / 1000
+//
+//	return Tstamp(dur)
+//}
 
 type JSONFloat64 float64
 

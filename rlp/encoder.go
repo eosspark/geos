@@ -70,6 +70,9 @@ func (e *Encoder) encode(v interface{}) (err error) {
 	switch t.Kind() {
 	case reflect.Array:
 		l := t.Len()
+		if err = e.writeUVarInt(l); err != nil {
+			return
+		}
 		println(fmt.Sprintf("Encode: array [%T] of length: %d", v, l))
 
 		for i := 0; i < l; i++ {

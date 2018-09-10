@@ -106,7 +106,7 @@ func (wasm_interface *Wasm_interface) Apply(code_id string, code []byte, context
 
 	bf := bytes.NewBuffer([]byte(code))
 
-	m, err := wasm.ReadModule(bf, importer, wasm_interface)
+	m, err := wasm.ReadModule(bf, importer)
 	if err != nil {
 		log.Fatalf("could not read module: %v", err)
 	}
@@ -188,7 +188,7 @@ func importer(name string) (*wasm.Module, error) {
 		return nil, err
 	}
 	defer f.Close()
-	m, err := wasm.ReadModule(f, nil, nil)
+	m, err := wasm.ReadModule(f, nil)
 	if err != nil {
 		return nil, err
 	}

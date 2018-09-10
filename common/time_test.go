@@ -3,6 +3,9 @@ package common
 import (
 	"fmt"
 	"github.com/stretchr/testify/assert"
+	"net/http"
+	_ "net/http/pprof"
+	"runtime"
 	"testing"
 	"time"
 )
@@ -70,6 +73,37 @@ func Test_Timer(t *testing.T) {
 	scheduleProductionLoop()
 	applyBlock()
 	naughty() //try to break the schedule timer
+}
+
+func Test_Timer_Memory(t *testing.T) {
+	memConsumed := func() uint64 {
+		var memStat runtime.MemStats
+		runtime.ReadMemStats(&memStat)
+		return memStat.Sys
+	}
+
+	go func() {
+		http.ListenAndServe("0.0.0.0:8080", nil)
+	}()
+
+	before := memConsumed()
+
+	var timer = new(Timer)
+
+	var loop func()
+	loop = func() {
+		timer.Cancel()
+		timer.ExpiresFromNow(1)
+		timer.AsyncWait(func() {
+			after := memConsumed()
+			fmt.Printf("%.3f KB\n", float64(after-before)/1e3)
+			loop()
+		})
+	}
+
+	loop()
+
+	select {}
 }
 
 func Test_TimePoint(t *testing.T) {
