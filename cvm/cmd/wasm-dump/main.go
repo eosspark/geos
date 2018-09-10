@@ -14,9 +14,9 @@ import (
 	"os"
 	"sort"
 
-	"github.com/go-interpreter/wagon/disasm"
-	"github.com/go-interpreter/wagon/wasm"
-	"github.com/go-interpreter/wagon/wasm/leb128"
+	"github.com/eosgo/cvm/disasm"
+	"github.com/eosgo/cvm/wasm"
+	"github.com/eosgo/cvm/wasm/leb128"
 )
 
 // TODO: track the number of imported funcs,memories,tables and globals to adjust
@@ -81,7 +81,7 @@ func process(fname string) {
 	}
 	defer f.Close()
 
-	m, err := wasm.ReadModule(f, nil)
+	m, err := wasm.ReadModule(f, importer)
 	if err != nil {
 		log.Fatalf("could not read module: %v", err)
 	}
@@ -237,7 +237,7 @@ func printFull(fname string, m *wasm.Module) {
 
 	for _, sec := range sections {
 		fmt.Printf(hdrfmt, sec.ID.String())
-		fmt.Println(hexDump(sec.Bytes, uint(sec.Start)))
+		//fmt.Println(hexDump(sec.Bytes, uint(sec.Start)))
 	}
 }
 
@@ -368,7 +368,7 @@ func printDetails(fname string, m *wasm.Module) {
 		fmt.Printf("%v:\n", sec.ID)
 		for i, e := range sec.Entries {
 			fmt.Printf(" - segment[%d] size=%d - init %#v\n", i, len(e.Data), e.Offset)
-			fmt.Printf("%s", hexDump(e.Data, 0))
+			//fmt.Printf("%s", hexDump(e.Data, 0))
 		}
 	}
 	for _, sec := range m.Other {
@@ -395,4 +395,21 @@ func printDetails(fname string, m *wasm.Module) {
 			fmt.Printf(" - func[%d] %v\n", i, string(str))
 		}
 	}
+}
+
+func importer(name string) (*wasm.Module, error) {
+	f, err := os.Open(name + ".wasm")
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+	m, err := wasm.ReadModule(f, nil)
+	if err != nil {
+		return nil, err
+	}
+	// err = validate.VerifyModule(m)
+	// if err != nil {
+	// 	return nil, err
+	// }
+	return m, nil
 }

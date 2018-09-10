@@ -18,6 +18,7 @@ import (
 
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/ecc"
+	"github.com/eosspark/eos-go/log"
 )
 
 type TransactionHeader struct {
@@ -51,6 +52,31 @@ type Transaction struct { // WARN: is a `variant` in C++, can be a SignedTransac
 	ContextFreeActions []*Action    `json:"context_free_actions"`
 	Actions            []*Action    `json:"actions"`
 	Extensions         []*Extension `json:"transaction_extensions"`
+}
+type BaseActionTrace struct {
+	Receipt       ActionReceipt
+	Act           Action
+	Elapsed       common.Tstamp
+	CpuUsage      uint64
+	Console       string
+	TotalCpuUsage uint64
+	TrxId         common.TransactionIDType
+}
+
+type ActionTrace struct {
+	BaseActionTrace
+	InlineTrace []ActionTrace
+}
+type TransactionTrace struct {
+	ID              common.TransactionIDType `json:"id"`
+	Receipt         TransactionReceiptHeader `json:"receipt"`
+	Elapsed         common.Tstamp            `json:"elapsed"`
+	NetUsage        uint64                   `json:"net_usage"`
+	Scheduled       bool                     `json:"scheduled"`
+	ActionTrace     []ActionTrace            `json:"action_trace"`
+	//FailedDtrxTrace TransactionTrace         `json:"failed"`
+	//Except	Exception
+	//ExceptPtr	ExceptionPtr
 }
 
 // NewTransaction creates a transaction. Unless you plan on adding HeadBlockID later, to be complete, opts should contain it.  Sign
@@ -120,6 +146,13 @@ func (s *SignedTransaction) String() string {
 		return err.Error()
 	}
 	return string(data)
+}
+
+func (head *TransactionHeader) SetReferenceBlock(referenceBlock common.BlockIDType) {
+	first := common.EndianReverseU32(uint32(referenceBlock[0]))
+	head.RefBlockNum = uint16(first)
+	head.RefBlockPrefix = uint32(referenceBlock[1])
+	log.Info("SetReferenceBlock:", head)
 }
 
 // func (s *SignedTransaction) SignedByKeys(chainID SHA256Bytes) (out []ecc.PublicKey, err error) {

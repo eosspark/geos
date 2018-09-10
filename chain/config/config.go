@@ -14,6 +14,8 @@ var MinorityProducersPermissionName = common.StringToName("prod.minor")
 
 var RateLimitingPrecision uint32 = 1000 * 1000
 
+var ActiveName uint64 = common.StringToName("active")
+
 var ForkDBName = "forkdb.dat"
 var DBFileName = "shared_memory.bin"
 var ReversibleFileName = "shared_memory.bin"

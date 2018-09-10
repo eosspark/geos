@@ -11,10 +11,10 @@ import (
 	"fmt"
 	"math"
 
-	"github.com/go-interpreter/wagon/disasm"
-	"github.com/go-interpreter/wagon/exec/internal/compile"
-	"github.com/go-interpreter/wagon/wasm"
-	ops "github.com/go-interpreter/wagon/wasm/operators"
+	"github.com/eosgo/cvm/disasm"
+	"github.com/eosgo/cvm/exec/internal/compile"
+	"github.com/eosgo/cvm/wasm"
+	ops "github.com/eosgo/cvm/wasm/operators"
 )
 
 var (
@@ -54,6 +54,8 @@ type context struct {
 type VM struct {
 	ctx context
 
+	Wasm_interface wasm.Wasm_interface_base
+
 	module  *wasm.Module
 	globals []uint64
 	memory  []byte
@@ -76,8 +78,10 @@ var endianess = binary.LittleEndian
 
 // NewVM creates a new VM from a given module. If the module defines a
 // start function, it will be executed.
-func NewVM(module *wasm.Module) (*VM, error) {
+func NewVM(module *wasm.Module, wasm_interface wasm.Wasm_interface_base) (*VM, error) {
 	var vm VM
+
+	vm.Wasm_interface = wasm_interface
 
 	if module.Memory != nil && len(module.Memory.Entries) != 0 {
 		if len(module.Memory.Entries) > 1 {
@@ -104,6 +108,7 @@ func NewVM(module *wasm.Module) (*VM, error) {
 			vm.funcs[i] = goFunction{
 				typ: fn.Host.Type(),
 				val: fn.Host,
+				name: fn.Name,
 			}
 			nNatives++
 			continue

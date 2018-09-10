@@ -1,13 +1,16 @@
 package chain
 
 import (
+	"time"
 	"fmt"
+
 	"github.com/eosspark/eos-go/chain/config"
-	"github.com/eosspark/eos-go/chain/database"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/db"
 	"github.com/eosspark/eos-go/log"
+	"github.com/eosspark/eos-go/rlp"
+	//"strconv"
 )
 
 type DBReadMode int8
@@ -51,14 +54,14 @@ type Config struct {
 }
 
 type Controller struct {
-	db                    eosiodb.Database
+	db                    eosiodb.DataBase
 	dbsession             *eosiodb.Session
-	reversibledb          eosiodb.Database
-	reversibleBlocks      *eosiodb.Session
+	reversibledb          eosiodb.DataBase
+	//reversibleBlocks      *eosiodb.Session
 	blog                  string //TODO
 	pending               *types.PendingState
 	head                  types.BlockState
-	forkDB                database.ForkDatabase
+	forkDB                types.ForkDatabase
 	wasmif                string //TODO
 	resourceLimist        types.ResourceLimitsManager
 	authorization         string //TODO AuthorizationManager
@@ -76,14 +79,14 @@ type Controller struct {
 
 func NewController() *Controller {
 
-	db, err := eosiodb.NewDatabase("./", "shared_memory.bin", true)
+	db, err := eosiodb.NewDataBase("./", "shared_memory.bin", true)
 	if err != nil {
 		log.Error("pending NewPendingState is error detail:", err)
 		return nil
 	}
 	defer db.Close()
 
-	session, err := db.Start_Session()
+	session := db.StartSession()
 
 	if err != nil {
 		log.Debug("db start session is error detail:", err.Error(), session)
@@ -97,19 +100,19 @@ func NewController() *Controller {
 	return con.initConfig()
 }
 
-func (self *Controller) PopBlock() {
+func (self Controller) PopBlock() {
 
 	prev, err := self.forkDB.GetBlock(self.head.Header.Previous)
 	if err != nil {
 		log.Error("PopBlock GetBlockByID is error,detail:", err)
 	}
 	var r types.ReversibleBlockObject
-	errs := self.reversibleBlocks.Find("NUM", self.head.BlockNum, r)
+	errs := self.reversibledb.Find("NUM", self.head.BlockNum, r)
 	if errs != nil {
 		log.Error("PopBlock ReversibleBlocks Find is error,detail:", errs)
 	}
 	if &r != nil {
-		self.reversibleBlocks.Remover(&r)
+		self.reversibledb.Remove(&r)
 	}
 
 	if self.readMode == SPECULATIVE {
@@ -128,7 +131,7 @@ func newApplyCon(ac types.ApplyContext) *applyCon {
 	a.applyContext = ac
 	return &a
 }
-func (self *Controller) SetApplayHandler(receiver common.AccountName, contract common.AccountName, action common.AccountName, handler types.ApplyContext) {
+func (self Controller) SetApplayHandler(receiver common.AccountName, contract common.AccountName, action common.AccountName, handler types.ApplyContext) {
 	h := make(map[common.AccountName]common.AccountName)
 	h[receiver] = contract
 	apply := newApplyCon(handler)
@@ -139,7 +142,7 @@ func (self *Controller) SetApplayHandler(receiver common.AccountName, contract c
 	fmt.Println(self.applyHandlers)
 }
 
-func (self *Controller) AbortBlock() {
+func (self Controller) AbortBlock() {
 	if self.pending != nil {
 		if self.readMode == SPECULATIVE {
 			trx := append(self.pending.PendingBlockState.Trxs)
@@ -151,7 +154,7 @@ func (self *Controller) AbortBlock() {
 	}
 }
 
-func (self *Controller) StartBlock(when common.BlockTimeStamp, confirmBlockCount uint16, s types.BlockStatus) {
+func (self Controller) StartBlock(when common.BlockTimeStamp, confirmBlockCount uint16, s types.BlockStatus) {
 	if self.pending != nil {
 		fmt.Println("pending block already exists")
 		return
@@ -182,22 +185,84 @@ func (self *Controller) StartBlock(when common.BlockTimeStamp, confirmBlockCount
 			(len(self.pending.PendingBlockState.PendingSchedule.Producers) == 0) &&
 			(!wasPendingPromoted) {
 			if !self.rePlaying {
-				self.pending.PendingBlockState.SetNewProducers(gpo.ProposedSchedule)
+				tmp := gpo.ProposedSchedule.ProducerScheduleType()
+				ps := types.SharedProducerScheduleType{}
+				ps.Version = tmp.Version
+				ps.Producers = tmp.Producers
+				self.pending.PendingBlockState.SetNewProducers(&ps)
 			}
-			//TODO
+			self.db.Update(&gpo, func(i interface{}) error {
+				gpo.ProposedScheduleBlockNum = 1
+				gpo.ProposedSchedule.Clear()
+				return nil
+			})
 		}
+
+		signedTransaction := self.getOnBlockTransaction()
+		onbtrx := types.TransactionMetadata{Trx: signedTransaction}
+		onbtrx.Implicit = true
+		//TODO defer
+		self.inTrxRequiringChecks = true
+		//PushTransaction()
+		fmt.Println(onbtrx)
 	}
 
 }
 
+func (self Controller) PushTransaction(trx types.TransactionMetadata,deadLine common.Tstamp,billedCpuTimeUs uint32,explicitBilledCpuTime bool) (trxTrace types.TransactionTrace) {
+	if deadLine == 0 {
+		log.Error("deadline cannot be uninitialized")
+		return
+	}
+
+
+	trxContext :=types.TransactionContext{}
+	trxContext = trxContext.NewTransactionContext(trx.Trx,&trx.ID,time.Time{})
+
+	if self.subjectiveCupLeeway != 0 {
+		if self.pending.BlockStatus==types.BlockStatus(types.Incomplete) {
+			trxContext.Leeway = self.subjectiveCupLeeway
+		}
+	}
+	trxContext.DeadLine = deadLine
+	trxContext.ExplicitBilledCpuTime = explicitBilledCpuTime
+	trxContext.BilledCpuTimeUs = int64(billedCpuTimeUs)
+
+	trace := trxContext.Trace
+	fmt.Println(trace)
+
+
+
+
+	return
+}
+
+func (self *Controller) getOnBlockTransaction() types.SignedTransaction {
+	var onBlockAction = types.Action{}
+	onBlockAction.Account = common.AccountName(config.SystemAccountName)
+	onBlockAction.Name = common.ActionName(common.StringToName("onblock"))
+	onBlockAction.Authorization = []common.PermissionLevel{{common.AccountName(config.SystemAccountName), common.PermissionName(config.ActiveName)}}
+
+	data, err := rlp.EncodeToBytes(self.head.Header)
+	if err != nil {
+		onBlockAction.Data = data
+	}
+	var trx = types.SignedTransaction{}
+	trx.Actions = append(trx.Actions, &onBlockAction)
+	trx.SetReferenceBlock(self.head.ID)
+	in := self.pending.PendingBlockState.Header.Timestamp + 999
+	trx.Expiration = common.JSONTime{time.Now().UTC().Add(time.Duration(in))}
+	log.Error("getOnBlockTransaction trx.Expiration:", trx)
+	return trx
+}
 func (self *Controller) skipDBSession(bs types.BlockStatus) bool {
 	var considerSkipping = (bs == types.BlockStatus(IRREVERSIBLE))
 	log.Info("considerSkipping:", considerSkipping)
 	return considerSkipping
 }
 
-func Close(db eosiodb.Database, session eosiodb.Session) {
-	//session.close() 	//db close前关闭session
+func Close(db eosiodb.DataBase, session eosiodb.Session) {
+	//session.close()
 	db.Close()
 }
 
@@ -223,5 +288,4 @@ func (self *Controller) initConfig() *Controller {
 
 	fmt.Println("asdf",c)
 }*/
-/*"github.com/eos-go/chain/types".TransactionMetadata)
-"github.com/eosspark/eos-go/chain/types".TransactionMetadata*/
+

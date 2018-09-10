@@ -147,6 +147,8 @@ type TransactionMetadata struct {
 	PackedTrx   PackedTransaction
 	SigningKeys Optional
 	Accepted    bool
+	Implicit    bool
+	Scheduled   bool
 }
 
 func NewTransactionMetadata(ptrx PackedTransaction) *TransactionMetadata {
