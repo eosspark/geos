@@ -149,6 +149,11 @@ type TransactionMetadata struct {
 	Accepted    bool
 }
 
+func NewTransactionMetadata(ptrx PackedTransaction) *TransactionMetadata {
+	//TODO
+	return new(TransactionMetadata)
+}
+
 type TransactionWithID struct {
 	// ID     common.TransactionIDType
 	Tag    uint8              `json:"-"`
