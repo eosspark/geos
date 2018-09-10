@@ -8,7 +8,7 @@ import (
 )
 
 type ForkDatabase struct {
-	database eosiodb.Database   `json:"database"`
+	database eosiodb.DataBase   `json:"database"`
 	Index    ForkMultiIndexType `json:"index"`
 	Head     BlockState   `json:"head"`
 }
@@ -38,7 +38,7 @@ func NewForkDatabase(path string, fileName string, rw bool) (*ForkDatabase, erro
 
 		}
 	*/
-	db, err := eosiodb.NewDatabase(path, fileName, rw)
+	db, err := eosiodb.NewDataBase(path, fileName, rw)
 	if err != nil {
 		return nil, err
 	}
@@ -134,7 +134,7 @@ func (fdb *ForkDatabase) AddBlockState(blockState BlockState) (*BlockState, erro
 	return &blockState, err
 }
 func (fdb *ForkDatabase) AddSignedBlockState(signedBlcok *SignedBlock) (*BlockState, error) {
-	blockId, _ := signedBlcok.BlockID()
+	blockId:= signedBlcok.BlockID()
 	var blockState BlockState
 	err := fdb.database.Get("ID", blockId, &blockState)
 	if err != nil {
