@@ -1,20 +1,21 @@
-package types
+package chain
 
 import (
+	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/db"
 	"time"
 )
 
 type TransactionContext struct {
-	/*Control               *chain.Controller*/
-	Trx                   *SignedTransaction
+	Controller            *Controller
+	Trx                   *types.SignedTransaction
 	ID                    common.TransactionIDType
 	UndoSession           eosiodb.Session
-	Trace                 TransactionTrace
+	Trace                 types.TransactionTrace
 	Start                 common.Tstamp
 	Publishe              common.Tstamp
-	Executed              []ActionReceipt
+	Executed              []types.ActionReceipt
 	BillToAccounts        []common.AccountName
 	ValidateRamUsage      []common.AccountName
 	InitialMaxBillableCpu uint64
@@ -43,7 +44,7 @@ type TransactionContext struct {
 	billingTimerDurationLimit     common.Tstamp
 }
 
-func (trxCon TransactionContext) NewTransactionContext(t SignedTransaction, trxId *common.TransactionIDType, s time.Time) (trx TransactionContext) {
+func (trxCon *TransactionContext) NewTransactionContext(t types.SignedTransaction, trxId *common.TransactionIDType, s time.Time) (trx TransactionContext) {
 
 	return
 }
