@@ -1,8 +1,8 @@
 package chain
 
 import (
-	"time"
 	"fmt"
+	"time"
 
 	"github.com/eosspark/eos-go/chain/config"
 	"github.com/eosspark/eos-go/chain/types"
@@ -28,7 +28,7 @@ type HandlerKey struct {
 
 type applyCon struct {
 	handlerKey   map[common.AccountName]common.AccountName
-	applyContext types.ApplyContext
+	applyContext ApplyContext
 }
 
 //apply_context
@@ -54,9 +54,9 @@ type Config struct {
 }
 
 type Controller struct {
-	db                    eosiodb.DataBase
-	dbsession             *eosiodb.Session
-	reversibledb          eosiodb.DataBase
+	db           eosiodb.DataBase
+	dbsession    *eosiodb.Session
+	reversibledb eosiodb.DataBase
 	//reversibleBlocks      *eosiodb.Session
 	blog                  string //TODO
 	pending               *types.PendingState
@@ -68,10 +68,10 @@ type Controller struct {
 	config                Config //local	Config
 	chainID               common.ChainIDType
 	rePlaying             bool
-	replayHeadTime        common.Tstamp //optional<common.Tstamp>
+	replayHeadTime        common.TimePoint //optional<common.Tstamp>
 	readMode              DBReadMode
-	inTrxRequiringChecks  bool          //if true, checks that are normally skipped on replay (e.g. auth checks) cannot be skipped
-	subjectiveCupLeeway   common.Tstamp //optional<common.Tstamp>
+	inTrxRequiringChecks  bool                //if true, checks that are normally skipped on replay (e.g. auth checks) cannot be skipped
+	subjectiveCupLeeway   common.Microseconds //optional<common.Tstamp>
 	handlerKey            HandlerKey
 	applyHandlers         ApplyHandler
 	unappliedTransactions map[[4]uint64]types.TransactionMetadata
@@ -126,18 +126,19 @@ func (self Controller) PopBlock() {
 	self.dbsession.Undo() //TODO
 }
 
-func newApplyCon(ac types.ApplyContext) *applyCon {
+func newApplyCon(ac ApplyContext) *applyCon {
 	a := applyCon{}
 	a.applyContext = ac
 	return &a
 }
-func (self Controller) SetApplayHandler(receiver common.AccountName, contract common.AccountName, action common.AccountName, handler types.ApplyContext) {
+func (self Controller) SetApplayHandler(receiver common.AccountName, contract common.AccountName, action common.AccountName, handler ApplyContext) {
 	h := make(map[common.AccountName]common.AccountName)
 	h[receiver] = contract
 	apply := newApplyCon(handler)
 	apply.handlerKey = h
 	t := make(map[common.AccountName]applyCon)
 	t[receiver] = *apply
+	//TODO common.types make_pair()
 	self.applyHandlers = ApplyHandler{t, receiver}
 	fmt.Println(self.applyHandlers)
 }
@@ -209,18 +210,17 @@ func (self Controller) StartBlock(when common.BlockTimeStamp, confirmBlockCount 
 
 }
 
-func (self Controller) PushTransaction(trx types.TransactionMetadata,deadLine common.Tstamp,billedCpuTimeUs uint32,explicitBilledCpuTime bool) (trxTrace types.TransactionTrace) {
+func (self Controller) PushTransaction(trx types.TransactionMetadata, deadLine common.TimePoint, billedCpuTimeUs uint32, explicitBilledCpuTime bool) (trxTrace types.TransactionTrace) {
 	if deadLine == 0 {
 		log.Error("deadline cannot be uninitialized")
 		return
 	}
 
-
-	trxContext :=types.TransactionContext{}
-	trxContext = trxContext.NewTransactionContext(trx.Trx,&trx.ID,time.Time{})
+	trxContext := TransactionContext{}
+	trxContext = *trxContext.NewTransactionContext(&self, &trx.Trx, trx.ID, common.Now())
 
 	if self.subjectiveCupLeeway != 0 {
-		if self.pending.BlockStatus==types.BlockStatus(types.Incomplete) {
+		if self.pending.BlockStatus == types.BlockStatus(types.Incomplete) {
 			trxContext.Leeway = self.subjectiveCupLeeway
 		}
 	}
@@ -231,9 +231,24 @@ func (self Controller) PushTransaction(trx types.TransactionMetadata,deadLine co
 	trace := trxContext.Trace
 	fmt.Println(trace)
 
+	return
+}
 
+func (self *Controller) GetGlobalProperties() (gp *types.GlobalPropertyObject) {
+	ggp := types.GlobalPropertyObject{}
+	err := self.db.ByIndex("ID", ggp) //TODO
+	if err != nil {
+		log.Error("GetGlobalProperties is error detail:", err)
+	}
+	return
+}
 
-
+func (self *Controller) GetDynamicGlobalProperties() (dgp *types.DynamicGlobalPropertyObject) {
+	gpo := types.DynamicGlobalPropertyObject{}
+	err := self.db.ByIndex("ID", gpo) //TODO
+	if err != nil {
+		log.Error("GetGlobalProperties is error detail:", err)
+	}
 	return
 }
 
@@ -259,6 +274,14 @@ func (self *Controller) skipDBSession(bs types.BlockStatus) bool {
 	var considerSkipping = (bs == types.BlockStatus(IRREVERSIBLE))
 	log.Info("considerSkipping:", considerSkipping)
 	return considerSkipping
+}
+
+func (self *Controller) skipDBSessions() bool {
+	if self.pending == nil {
+		return self.skipDBSession(self.pending.BlockStatus)
+	} else {
+		return false
+	}
 }
 
 func Close(db eosiodb.DataBase, session eosiodb.Session) {
@@ -288,4 +311,3 @@ func (self *Controller) initConfig() *Controller {
 
 	fmt.Println("asdf",c)
 }*/
-

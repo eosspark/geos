@@ -6,7 +6,7 @@ type GlobalPropertyObject struct {
 	ID                       common.BlockIDType         `storm:"unique" json:"id"`
 	ProposedScheduleBlockNum uint32                     `json:"proposed_schedule_block_num"`
 	ProposedSchedule         SharedProducerScheduleType `json:"proposed_schedule"`
-	//Configuration	config		//TODO
+	Configuration            common.Config              //TODO
 }
 
 type DynamicGlobalPropertyObject struct {

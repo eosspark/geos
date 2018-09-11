@@ -19,7 +19,6 @@ import (
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/ecc"
 	"github.com/eosspark/eos-go/log"
-	"github.com/eosspark/eos-go/rlp"
 )
 
 type TransactionHeader struct {
@@ -37,8 +36,8 @@ func (th TransactionHeader) GetRefBlocknum(headBlocknum uint32) uint32 {
 }
 
 func (th TransactionHeader) VerifyReferenceBlock(referenceBlock common.BlockIDType) bool {
-	return th.RefBlockNum == uint16(common.EndianReverseU32(uint32(referenceBlock.Hash_[0]))) &&
-		th.RefBlockPrefix == uint32(referenceBlock.Hash_[1])
+	return th.RefBlockNum == uint16(common.EndianReverseU32(uint32(referenceBlock[0]))) &&
+		th.RefBlockPrefix == uint32(referenceBlock[1])
 }
 
 func (th TransactionHeader) Validate() {
@@ -54,6 +53,32 @@ type Transaction struct { // WARN: is a `variant` in C++, can be a SignedTransac
 	Actions            []*Action    `json:"actions"`
 	Extensions         []*Extension `json:"transaction_extensions"`
 }
+
+/*type BaseActionTrace struct {
+	Receipt       ActionReceipt
+	Act           Action
+	Elapsed       common.Tstamp
+	CpuUsage      uint64
+	Console       string
+	TotalCpuUsage uint64
+	TrxId         common.TransactionIDType
+}
+
+type ActionTrace struct {
+	BaseActionTrace
+	InlineTrace []ActionTrace
+}
+type TransactionTrace struct {
+	ID              common.TransactionIDType `json:"id"`
+	Receipt         TransactionReceiptHeader `json:"receipt"`
+	Elapsed         common.Tstamp            `json:"elapsed"`
+	NetUsage        uint64                   `json:"net_usage"`
+	Scheduled       bool                     `json:"scheduled"`
+	ActionTrace     []ActionTrace            `json:"action_trace"`
+	//FailedDtrxTrace TransactionTrace         `json:"failed"`
+	//Except	Exception
+	//ExceptPtr	ExceptionPtr
+}*/
 
 // NewTransaction creates a transaction. Unless you plan on adding HeadBlockID later, to be complete, opts should contain it.  Sign
 func NewTransaction(actions []*Action, opts *TxOptions) *Transaction {
@@ -94,8 +119,8 @@ func (tx *Transaction) Fill(headBlockID common.BlockIDType, delaySecs, maxNetUsa
 }
 
 func (tx *Transaction) setRefBlock(blockID common.BlockIDType) {
-	tx.RefBlockNum = uint16(blockID.Hash_[0])
-	tx.RefBlockPrefix = uint32(blockID.Hash_[1])
+	tx.RefBlockNum = uint16(blockID[0])
+	tx.RefBlockPrefix = uint32(blockID[1])
 }
 
 type SignedTransaction struct {
@@ -124,11 +149,11 @@ func (s *SignedTransaction) String() string {
 	return string(data)
 }
 
-func (th *TransactionHeader) SetReferenceBlock(referenceBlock common.BlockIDType) {
-	first := common.EndianReverseU32(uint32(referenceBlock.Hash_[0]))
-	th.RefBlockNum = uint16(first)
-	th.RefBlockPrefix = uint32(referenceBlock.Hash_[1])
-	log.Info("SetReferenceBlock:", th)
+func (head *TransactionHeader) SetReferenceBlock(referenceBlock common.BlockIDType) {
+	first := common.EndianReverseU32(uint32(referenceBlock[0]))
+	head.RefBlockNum = uint16(first)
+	head.RefBlockPrefix = uint32(referenceBlock[1])
+	log.Info("SetReferenceBlock:", head)
 }
 
 // func (s *SignedTransaction) SignedByKeys(chainID SHA256Bytes) (out []ecc.PublicKey, err error) {
@@ -166,17 +191,8 @@ func (th *TransactionHeader) SetReferenceBlock(referenceBlock common.BlockIDType
 // 	return rawtrx, rawcfd, nil
 // }
 
-func (tx *Transaction) ID() common.TransactionIDType {
-	return common.TransactionIDType(rlp.Hash(*tx))
-}
-
-func (tx *Transaction) SigDigest(chainId common.ChainIDType, cfd [][]byte) rlp.Sha256 {
-	p := common.Pair{chainId, *tx}
-	if len(cfd) > 0 {
-		return rlp.Hash(common.Pair{p, rlp.Hash(cfd)})
-	} else {
-		return rlp.Hash(common.Pair{p, rlp.Sha256{}})
-	}
+func (tx *Transaction) ID() string {
+	return "ID here" //todo
 }
 
 // func (s *SignedTransaction) Pack(compression CompressionType) (*PackedTransaction, error) {
