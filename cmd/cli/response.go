@@ -1,14 +1,11 @@
 package main
 
 import (
-	// "encoding/hex"
 	"encoding/json"
-	// "fmt"
-	// "reflect"
-
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/ecc"
+	"github.com/eosspark/eos-go/rlp"
 )
 
 type InfoResp struct {
@@ -58,7 +55,7 @@ type AccountResp struct {
 type GetCodeResp struct {
 	AccountName common.AccountName `json:"account_name"`
 	Wasm        string             `json:"wasm"`
-	CodeHash    common.Sha256      `json:"-"`
+	CodeHash    rlp.Sha256         `json:"-"`
 	Abi         string             `json:"abi"`
 	// ABI         types.ABI          `json:"abi"`//TODO
 }
