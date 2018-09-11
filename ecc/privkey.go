@@ -108,13 +108,20 @@ func (p *PrivateKey) Sign(hash []byte) (out Signature, err error) {
 	return Signature{Curve: p.Curve, Content: temp}, nil
 }
 
-func (p *PrivateKey) String() string {
+// func (p *PrivateKey) String() string {
+// 	wif, _ := btcutil.NewWIF(p.privKey, '\x80', false) // no error possible
+
+// 	return wif.String()
+// 	// FIXME: when we decide to go ahead with the new representation.
+// 	//return PrivateKeyPrefix + p.Curve.StringPrefix() + wif.String()
+// }
+
+func (p PrivateKey) String() string { //TODO *PrivateKey
 	wif, _ := btcutil.NewWIF(p.privKey, '\x80', false) // no error possible
 	return wif.String()
 	// FIXME: when we decide to go ahead with the new representation.
 	//return PrivateKeyPrefix + p.Curve.StringPrefix() + wif.String()
 }
-
 func (p *PrivateKey) MarshalJSON() ([]byte, error) {
 	return json.Marshal(p.String())
 }

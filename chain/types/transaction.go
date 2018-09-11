@@ -1,24 +1,11 @@
 package types
 
 import (
-	// "bytes"
-	// "compress/flate"
-	// "compress/zlib"
-	// "crypto/sha256"
-	// "encoding/binary"
-	// "errors"
-	// "fmt"
-	"time"
-
-	// "io"
-
 	"encoding/json"
-
-	// "io/ioutil"
-
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/ecc"
 	"github.com/eosspark/eos-go/log"
+	"time"
 )
 
 type TransactionHeader struct {
@@ -53,32 +40,6 @@ type Transaction struct { // WARN: is a `variant` in C++, can be a SignedTransac
 	Actions            []*Action    `json:"actions"`
 	Extensions         []*Extension `json:"transaction_extensions"`
 }
-
-/*type BaseActionTrace struct {
-	Receipt       ActionReceipt
-	Act           Action
-	Elapsed       common.Tstamp
-	CpuUsage      uint64
-	Console       string
-	TotalCpuUsage uint64
-	TrxId         common.TransactionIDType
-}
-
-type ActionTrace struct {
-	BaseActionTrace
-	InlineTrace []ActionTrace
-}
-type TransactionTrace struct {
-	ID              common.TransactionIDType `json:"id"`
-	Receipt         TransactionReceiptHeader `json:"receipt"`
-	Elapsed         common.Tstamp            `json:"elapsed"`
-	NetUsage        uint64                   `json:"net_usage"`
-	Scheduled       bool                     `json:"scheduled"`
-	ActionTrace     []ActionTrace            `json:"action_trace"`
-	//FailedDtrxTrace TransactionTrace         `json:"failed"`
-	//Except	Exception
-	//ExceptPtr	ExceptionPtr
-}*/
 
 // NewTransaction creates a transaction. Unless you plan on adding HeadBlockID later, to be complete, opts should contain it.  Sign
 func NewTransaction(actions []*Action, opts *TxOptions) *Transaction {

@@ -7,7 +7,6 @@ import (
 	"github.com/eosspark/eos-go/ecc"
 )
 
-
 type P2PMessage interface {
 	GetType() P2PMessageType
 }

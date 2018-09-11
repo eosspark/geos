@@ -8,6 +8,7 @@ import (
 	// "github.com/eos-go/rlp"
 	"github.com/eosspark/eos-go/common"
 	// "reflect"
+	"github.com/eosspark/eos-go/chain/config"
 )
 
 // See: libraries/chain/include/eosio/chain/contracts/types.hpp:203
@@ -20,6 +21,14 @@ type NewAccount struct {
 	Owner   common.Authority   `json:"owner"`
 	Active  common.Authority   `json:"active"`
 }
+
+func (n *NewAccount) GetAccount() common.AccountName {
+	return common.AccountName(config.SystemAccountName)
+}
+
+//func (n *NewAccount) GetAction() common.ActionName{
+//	//return N(newaccount)//TODO
+//}
 
 // SetCode represents the hard-coded `setcode` action.
 type SetCode struct {

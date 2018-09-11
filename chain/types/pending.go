@@ -99,6 +99,7 @@ func (spst *SharedProducerScheduleType) SharedroducerScheduleType(a ProducerSche
 	}
 	return &result
 }
+
 /*
 func (spst *SharedProducerScheduleType) ProducerScheduleType() *ProducerScheduleType {
 	var result ProducerScheduleType = ProducerScheduleType{}

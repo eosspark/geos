@@ -158,6 +158,8 @@ var (
 	}
 )
 
+var txPrintJson bool = false
+
 func createKey(ctx *cli.Context) (err error) {
 	prikey, err := ecc.NewRandomPrivateKey()
 	if err != nil {
@@ -168,12 +170,34 @@ func createKey(ctx *cli.Context) (err error) {
 	return
 }
 
+//vector<chain::permission_level> get_account_permissions(const vector<string>& permissions) {
+//   auto fixedPermissions = permissions | boost::adaptors::transformed([](const string& p) {
+//      vector<string> pieces;
+//      split(pieces, p, boost::algorithm::is_any_of("@"));
+//      if( pieces.size() == 1 ) pieces.push_back( "active" );
+//      return chain::permission_level{ .actor = pieces[0], .permission = pieces[1] };
+//   });
+//   vector<chain::permission_level> accountPermissions;
+//   boost::range::copy(fixedPermissions, back_inserter(accountPermissions));
+//   return accountPermissions;
+//}
+
+//func getAccountPermission( permissions []string) (accountPermissions []common.PermissionLevel){
+//
+//}
+
 func createAccount(ctx *cli.Context) (err error) {
 
 	creator := ctx.String("creator")
-	newname := ctx.String("name")
+	accountname := ctx.String("name")
 	ownerkey := ctx.String("ownerkey")
 	activekey := ctx.String("activekey")
+	// stake_net :=
+	// stake_cpu :=
+	// var buy_ram_bytes_in_kbytes uint32 = 0
+	// var buy_ram_eos string
+	// var transfer bool = false
+	var simple bool = true
 
 	if len(activekey) == 0 {
 		activekey = ownerkey
@@ -187,25 +211,21 @@ func createAccount(ctx *cli.Context) (err error) {
 	if err != nil {
 		return fmt.Errorf("Invalid active public key: %s", activekey)
 	}
-	create := createNewAccount(creator, newname, ownerKey, activeKey)
-
+	create := createNewAccount(creator, accountname, ownerKey, activeKey)
 	storage, err := rlp.EncodeToBytes(create)
-	fmt.Println("encode: ", storage)
+	fmt.Println(create, "encode: ", storage)
 	aa, err := json.Marshal(create)
 	if err != nil {
 		fmt.Println(err)
 	}
 	fmt.Println("decode:", string(aa))
+	if !simple {
+		fmt.Println("system create account")
 
-	resp, err := getInfo()
-	if err != nil {
-		return err
+	} else {
+		fmt.Println("creat account in test net")
+		//sendActions(create,1000, common.CompressionNone)
 	}
-	display, err := json.Marshal(resp)
-	if err != nil {
-		return err
-	}
-	fmt.Println(string(display))
 
 	fmt.Println("New account:")
 	return
@@ -230,6 +250,36 @@ func createNewAccount(creatorstr, newaccountstr string, owner, active ecc.Public
 		Owner:   *ownerauthority,
 		Active:  *activeauthority,
 	}
+}
+
+func sendActions(actions []*types.Action, extraKcpu int32, compression common.CompressionType) {
+	//compression = common.CompressionNone
+	//extraKcpu = 1000
+	result := pushActions(actions, extraKcpu, compression)
+	if txPrintJson {
+
+		//fmt.Println(string(result))
+	} else {
+		printResult(result)
+	}
+
+}
+func pushActions(actions []*types.Action, extraKcpu int32, compression common.CompressionType) interface{} {
+	trx := types.SignedTransaction{}
+	trx.Actions = actions
+	return pushTransaction(trx, extraKcpu, compression)
+}
+func pushTransaction(trx types.SignedTransaction, extraKcpu int32, compression common.CompressionType) interface{} {
+	info, err := getInfo()
+	if err != nil {
+		return err
+	}
+	display, err := json.Marshal(info)
+	if err != nil {
+		return err
+	}
+	fmt.Println(string(display))
+	return nil
 }
 
 func getInfoCli(ctx *cli.Context) (err error) {
@@ -273,6 +323,8 @@ func getBlock(ctx *cli.Context) (err error) {
 
 }
 
+// type M map[string]interface{}
+// auto arg = fc::mutable_variant_object("block_num_or_id", blockArg);
 func getBlockID(getbhs bool, blockarg string) (resp *BlockResp, err error) {
 	if getbhs {
 		err = DoHttpCall(getBlockHeaderStateFunc, M{"block_num_or_id": blockarg}, &resp)
@@ -424,3 +476,26 @@ func getCurrencyStats(ctx *cli.Context) (err error) {
 	fmt.Println("resp: ", string(display))
 	return nil
 }
+
+func printResult(aa interface{}) {
+
+}
+
+// storage, err := rlp.EncodeToBytes(create)
+// fmt.Println("encode: ", storage)
+// aa, err := json.Marshal(create)
+// if err != nil {
+// 	fmt.Println(err)
+// }
+// fmt.Println("decode:", string(aa))
+
+// resp, err := getInfo()
+// if err != nil {
+// 	return err
+// }
+// fmt.Println(resp.HeadBlockID, resp.HeadBlockNum)
+// display, err := json.Marshal(resp)
+// if err != nil {
+// 	return err
+// }
+// fmt.Println(string(display))

@@ -46,6 +46,10 @@ var (
 		Name:  "prikey",
 		Usage: "Private key in WIF format to remove",
 	}
+	WalletNameListKeysFlag = cli.StringFlag{
+		Name:  "name,n",
+		Usage: "The name of the wallet to list keys from",
+	}
 )
 
 var (
@@ -145,6 +149,25 @@ var (
 	CurrencySymbolFlag = cli.StringFlag{
 		Name:  "symbol",
 		Usage: "The symbol for the currency if the contract operates multiple currencies",
+	}
+)
+
+var (
+	TrxJsonToSignFlag = cli.StringFlag{
+		Name:  "transaction",
+		Usage: "The JSON string or filename defining the transaction to sign",
+	}
+	StrPrivateKeyFlag = cli.StringFlag{
+		Name:  "private-key,k",
+		Usage: "The private key that will be used to sign the transaction",
+	}
+	StrChainIDFlag = cli.StringFlag{
+		Name:  "chain-id,c",
+		Usage: "The chain id that will be used to sign the transaction",
+	}
+	PushTrxFlag = cli.BoolFlag{
+		Name:  "push-transaction,p",
+		Usage: "Push transaction after signing",
 	}
 )
 

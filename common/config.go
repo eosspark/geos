@@ -91,7 +91,7 @@ type Config struct {
 	MaxTrackedDposConfirmations int ///<
 	TransactionIdNetUsage       uint32
 
-	Percent_1                   int
+	Percent_1 int
 	/**************************chain_config start****************************/
 	MaxBlockNetUsage               uint64 ///< the maxiumum net usage in instructions for a block
 	TargetBlockNetUsagePct         uint32 ///< the target percent (1% == 100, 100%= 10,000) of maximum net usage; exceeding this triggers congestion handling
@@ -106,7 +106,7 @@ type Config struct {
 	MaxTransactionCpuUsage uint32 ///< the maximum billable cpu usage (in microseconds) that the chain will allow regardless of account limits
 	MinTransactionCpuUsage uint32 ///< the minimum billable cpu usage (in microseconds) that the chain requires
 
-	MaxTrxLifetime              uint32
+	MaxTrxLifetime uint32
 	//MaxTransactionLifetime      uint32 ///< the maximum number of seconds that an input transaction's expiration can be ahead of the time of the block in which it is first included
 	DeferredTrxExpirationWindow uint32 ///< the number of seconds after the time a deferred transaction can first execute until it expires
 	MaxTrxDelay                 uint32 ///< the maximum number of seconds that can be imposed as a delay requirement by authorization checks
