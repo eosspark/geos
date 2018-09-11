@@ -53,7 +53,8 @@ type Transaction struct { // WARN: is a `variant` in C++, can be a SignedTransac
 	Actions            []*Action    `json:"actions"`
 	Extensions         []*Extension `json:"transaction_extensions"`
 }
-type BaseActionTrace struct {
+
+/*type BaseActionTrace struct {
 	Receipt       ActionReceipt
 	Act           Action
 	Elapsed       common.Tstamp
@@ -77,7 +78,7 @@ type TransactionTrace struct {
 	//FailedDtrxTrace TransactionTrace         `json:"failed"`
 	//Except	Exception
 	//ExceptPtr	ExceptionPtr
-}
+}*/
 
 // NewTransaction creates a transaction. Unless you plan on adding HeadBlockID later, to be complete, opts should contain it.  Sign
 func NewTransaction(actions []*Action, opts *TxOptions) *Transaction {

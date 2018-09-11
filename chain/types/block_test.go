@@ -24,7 +24,7 @@ func NewBlockHeaderState(t *testing.T) *BlockHeaderState {
 	genHeader.ActiveSchedule = initSchedule
 	genHeader.PendingSchedule = initSchedule
 	genHeader.Header.Timestamp = common.BlockTimeStamp(1162425600) //slot of 2018-6-2 00:00:00:000
-	genHeader.ID, _ = genHeader.Header.BlockID()
+	genHeader.ID= genHeader.Header.BlockID()
 	genHeader.BlockNum = genHeader.Header.BlockNumber()
 
 	genHeader.ProducerToLastProduced = make(map[common.AccountName]uint32)
