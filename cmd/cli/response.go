@@ -8,7 +8,7 @@ import (
 
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
-	// "github.com/eosspark/eos-go/ecc"
+	"github.com/eosspark/eos-go/ecc"
 )
 
 type InfoResp struct {
@@ -321,14 +321,14 @@ type GetTableRowsResp struct {
 
 // //
 
-// type WalletSignTransactionResp struct {
-// 	// Ignore the rest of the transaction, so the wallet server
-// 	// doesn't forge some transactions on your behalf, and you send it
-// 	// to the network..  ... although.. it's better if you can trust
-// 	// your wallet !
+type WalletSignTransactionResp struct {
+	// Ignore the rest of the transaction, so the wallet server
+	// doesn't forge some transactions on your behalf, and you send it
+	// to the network..  ... although.. it's better if you can trust
+	// your wallet !
 
-// 	Signatures []ecc.Signature `json:"signatures"`
-// }
+	Signatures []ecc.Signature `json:"signatures"`
+}
 
 // type MyStruct struct {
 // 	Currency

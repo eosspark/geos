@@ -5,9 +5,7 @@ import (
 	"crypto/cipher"
 )
 
-type AesEncrypt struct{}
-
-func (a *AesEncrypt) getKey(str string) []byte {
+func getKey(str string) []byte {
 	strKey := str
 	keyLen := len(strKey)
 	if keyLen < 16 {
@@ -23,8 +21,8 @@ func (a *AesEncrypt) getKey(str string) []byte {
 	return arrKey[:16]
 }
 
-func (a *AesEncrypt) Encrypt(keystr string, strMsg string) ([]byte, error) {
-	key := a.getKey(keystr)
+func Encrypt(keystr string, strMsg string) ([]byte, error) {
+	key := getKey(keystr)
 	var iv = []byte(key)[:aes.BlockSize]
 	encrypted := make([]byte, len(strMsg))
 	aesBlockEncrypter, err := aes.NewCipher(key)
@@ -36,13 +34,13 @@ func (a *AesEncrypt) Encrypt(keystr string, strMsg string) ([]byte, error) {
 	return encrypted, nil
 }
 
-func (a *AesEncrypt) Decrypt(keystr string, src []byte) (strDesc []byte, err error) {
+func Decrypt(keystr string, src []byte) (strDesc []byte, err error) {
 	defer func() {
 		if e := recover(); e != nil {
 			err = e.(error)
 		}
 	}()
-	key := a.getKey(keystr)
+	key := getKey(keystr)
 
 	var iv = []byte(key)[:aes.BlockSize]
 	decrypted := make([]byte, len(src))
@@ -58,14 +56,14 @@ func (a *AesEncrypt) Decrypt(keystr string, src []byte) (strDesc []byte, err err
 }
 
 // func Cipher_test() {
-//   aesEnc := AesEncrypt{}
-//   arrEncrypt, err := aesEnc.Encrypt("PW5JqYnp8DtqzLYr8wFxZuiJWTfmygPDvKaF1U45hkuL5yo68mZJ6", "5KTiH48Xj1onYwPjRjHNPW6MNwJaVeqDk5f3u3cQ3jUasc3u75f")
+//
+//   arrEncrypt, err := Encrypt("PW5JqYnp8DtqzLYr8wFxZuiJWTfmygPDvKaF1U45hkuL5yo68mZJ6", "5KTiH48Xj1onYwPjRjHNPW6MNwJaVeqDk5f3u3cQ3jUasc3u75f")
 //   if err != nil {
 //     fmt.Println(arrEncrypt)
 //     return
 //   }
 //   fmt.Println(arrEncrypt)
-//   strMsg, err := aesEnc.Decrypt("PW5JqYnp8DtqzLYr8wFxZuiJWTfmygPDvKaF1U45hkuL5yo68mZJ6", arrEncrypt)
+//   strMsg, err := Decrypt("PW5JqYnp8DtqzLYr8wFxZuiJWTfmygPDvKaF1U45hkuL5yo68mZJ6", arrEncrypt)
 //   if err != nil {
 //     fmt.Println(arrEncrypt)
 //     return

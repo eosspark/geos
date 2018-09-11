@@ -1,11 +1,14 @@
 package types
 
 import (
+	"crypto/sha256"
+	"encoding/binary"
 	"fmt"
 	"github.com/eosspark/eos-go/chain/config"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/db"
 	"github.com/eosspark/eos-go/log"
+	"github.com/eosspark/eos-go/rlp"
 )
 
 type ActionReceipt struct {

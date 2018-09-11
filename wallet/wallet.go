@@ -18,17 +18,19 @@ var (
 	ErrWalletKeyExist        = errors.New("Key already in wallet")
 )
 
-var (
-	walletFilename string
-	wallet         WalletData
-	keys           map[ecc.PublicKey]ecc.PrivateKey
-	checksum       []byte
-)
-
 const (
 	walletFilenameExtension string = ".wallet"
 	defaultKeyType          string = "K1"
 )
+
+type WalletData struct {
+	CipherKeys []byte `json:"cipher_keys"` /** encrypted keys */
+}
+
+type PlainKeys struct {
+	CheckSum []byte
+	Keys     map[ecc.PublicKey]ecc.PrivateKey
+}
 
 type Keysmap struct {
 	Pubkey ecc.PublicKey
@@ -39,22 +41,20 @@ type Keyspair struct {
 	Pubkey ecc.PublicKey
 }
 
-type WalletData struct {
-	CipherKeys []byte /** encrypted keys */
+type SoftWallet struct {
+	walletFilename string
+	wallet         WalletData
+	Keys           map[ecc.PublicKey]ecc.PrivateKey
+	checksum       []byte
 }
 
-type PlainKeys struct {
-	CheckSum []byte
-	Keys     map[ecc.PublicKey]ecc.PrivateKey
-}
-
-func (w *WalletData) CopyWalletFile(password string) {
+func (w *SoftWallet) CopyWalletFile(password string) {
 
 }
 
 //GetWalletFilename Returns the current wallet filename.
-func (w *WalletData) GetWalletFilename() string {
-	return "test"
+func (w *SoftWallet) GetWalletFilename() string {
+	return w.walletFilename
 }
 
 // func (w *WalletData) GetPrivateKey(password string) ecc.PrivateKey {
@@ -65,23 +65,24 @@ func (w *WalletData) GetWalletFilename() string {
 // 	return nil
 // }
 
-func (w *WalletData) isnew() bool {
-	if len(w.CipherKeys) == 0 {
-		fmt.Println(true)
+func (w *SoftWallet) isnew() bool {
+	if len(w.wallet.CipherKeys) == 0 {
 		return true
 	}
 	return false
 
 }
 
-func (w *WalletData) isLocked() bool {
-	if result := bytes.Compare(checksum, nil); result == 0 {
-		return true
-	}
-	return false //checksum 为 nil
+func (w *SoftWallet) isLocked() bool {
+	result := bytes.Compare(w.checksum, nil)
+	return result == 0
+	// if result := bytes.Compare(w.checksum, nil); result == 0 {
+	// 	return true
+	// }
+	// return false //checksum 为 nil
 }
 
-func (w *WalletData) Lock() (err error) {
+func (w *SoftWallet) Lock() (err error) {
 	if w.isLocked() {
 		return ErrWalletLocked
 	}
@@ -90,20 +91,20 @@ func (w *WalletData) Lock() (err error) {
 		return err
 	}
 
-	for i := range keys {
-		keys[i] = ecc.PrivateKey{}
+	for i := range w.Keys {
+		w.Keys[i] = ecc.PrivateKey{}
 	}
-	keys = nil
-	checksum = nil
+	w.Keys = nil //TODO to clear all data
+	w.checksum = nil
 
 	return nil
 }
-func (w *WalletData) UnLock(password string) (err error) {
+func (w *SoftWallet) UnLock(password string) (err error) {
 	if len([]rune(password)) == 0 {
 		return ErrWalletNoPassword
 	}
 	pw := hash512(password)
-	decrypted, err := aesEnc.Decrypt(string(pw[:]), w.CipherKeys)
+	decrypted, err := Decrypt(string(pw[:]), w.wallet.CipherKeys)
 	if err != nil {
 		return err
 	}
@@ -116,17 +117,33 @@ func (w *WalletData) UnLock(password string) (err error) {
 	if result := bytes.Compare(pw, pk.CheckSum); result != 0 {
 		return ErrWallerInvalidPassword
 	}
-	keys = pk.Keys
-	checksum = pk.CheckSum
+	w.Keys = pk.Keys
+	w.checksum = pk.CheckSum
 	return nil
 }
 
-func (w *WalletData) CheckPassword(password string) {
+func (w *SoftWallet) CheckPassword(password string) (err error) {
+	if len(password) > 0 {
+		pw := hash512(password)
+		decrypted, err := Decrypt(string(pw[:]), w.wallet.CipherKeys)
+		if err != nil {
+			return err
+		}
+		var pk PlainKeys
+		err = rlp.DecodeBytes(decrypted, &pk)
+		if err != nil {
+			return err
+		}
+		if result := bytes.Compare(pw, pk.CheckSum); result == 0 {
+			return nil
+		}
+	}
+	return ErrWallerInvalidPassword
 
 }
 
 //SetPassword Sets a new password on the wallet
-func (w *WalletData) SetPassword(password string) error {
+func (w *SoftWallet) SetPassword(password string) error {
 	if !w.isnew() {
 		fmt.Println("old ")
 		if !w.isLocked() {
@@ -134,24 +151,51 @@ func (w *WalletData) SetPassword(password string) error {
 		}
 	}
 
-	checksum = hash512(password)
+	w.checksum = hash512(password)
 	w.Lock()
 	return nil
 }
 
-func (w *WalletData) ListKeys(password string) []Keyspair {
+func (w *SoftWallet) ListKeys(password string) []Keyspair {
 	return nil
 }
-func (w *WalletData) ListPublicKeys(password string) []ecc.PublicKey {
+func (w *SoftWallet) ListPublicKeys(password string) []ecc.PublicKey {
 
 	return nil
 }
-func (w *WalletData) LoadWalletFile(walletFilename string) {
+func (w *SoftWallet) LoadWalletFile() bool { //TODO need filename ?
+	// TODO:  Merge imported wallet with existing wallet,
+	//        instead of replacing it
 
+	walletFile, err := os.Open(w.walletFilename)
+	defer walletFile.Close()
+	if err != nil {
+		fmt.Println(err)
+		return false
+	}
+	buf := make([]byte, 1024)
+	lenth, err := walletFile.Read(buf)
+	if err != nil {
+		fmt.Println(w.walletFilename, string(buf[:lenth]), err)
+		return false
+	}
+	json.Unmarshal(buf[:lenth], &w.wallet)
+	fmt.Println("wallet: ", w.wallet)
+	return true
 }
 
-// func (w *WalletData) SaveWalletFile(walletFilename string) {
-// func (w *WalletData) SaveWalletFile() (err error) { //TODO need walletFilename ?
+// if( wallet_filename == "" )
+//    wallet_filename = _wallet_filename;
+
+// if( ! fc::exists( wallet_filename ) )
+//    return false;
+
+// _wallet = fc::json::from_file( wallet_filename ).as< wallet_data >();
+
+// return true;
+
+// func (w *SoftWallet) SaveWalletFile(walletFilename string) {
+// func (w *SoftWallet) SaveWalletFile() (err error) { //TODO need walletFilename ?
 // 	w.encryptKeys()
 // 	fmt.Printf("Saving wallet to file %s\n", walletFilename)
 
@@ -168,15 +212,15 @@ func (w *WalletData) LoadWalletFile(walletFilename string) {
 // 	return nil
 // }
 
-func SaveWalletFile() (err error) { //TODO need walletFilename ?
-	d.encryptKeys()
-	fmt.Printf("Saving wallet to file %s\n", walletFilename)
+func (w *SoftWallet) SaveWalletFile() (err error) { //TODO need walletFilename ?
+	w.encryptKeys()
+	fmt.Printf("Saving wallet to file %s\n", w.walletFilename)
 
-	data, err := json.Marshal(d)
+	data, err := json.Marshal(w.wallet)
 	if err != nil {
 		return err
 	}
-	walletFile, err := os.OpenFile(walletFilename, os.O_RDWR|os.O_CREATE, 0766)
+	walletFile, err := os.OpenFile(w.walletFilename, os.O_RDWR|os.O_CREATE, 0766)
 	defer walletFile.Close()
 	_, err = walletFile.Write(data)
 	if err != nil {
@@ -184,10 +228,10 @@ func SaveWalletFile() (err error) { //TODO need walletFilename ?
 	}
 	return nil
 }
-func (w *WalletData) SetWalletFilename(filename string) {
-	walletFilename = filename
+func (w *SoftWallet) SetWalletFilename(filename string) {
+	w.walletFilename = filename
 }
-func (w *WalletData) ImportKey(wifKey string) (n bool, err error) {
+func (w *SoftWallet) ImportKey(wifKey string) (n bool, err error) {
 	if w.isLocked() {
 		return false, ErrWalletLocked
 	}
@@ -198,39 +242,38 @@ func (w *WalletData) ImportKey(wifKey string) (n bool, err error) {
 	}
 	wifPubKey := priv.PublicKey()
 
-	if _, find := keys[wifPubKey]; !find {
-		keys[wifPubKey] = *priv
+	if _, find := w.Keys[wifPubKey]; !find {
+		w.Keys[wifPubKey] = *priv
 		// fmt.Println("Keypair: ", keys[wifPubKey], wifPubKey)
 		return true, nil
 	} else {
 		return false, ErrWalletKeyExist
 	}
-
 	return false, nil
 }
-func (w *WalletData) RemoveKey(key string) bool {
+func (w *SoftWallet) RemoveKey(key string) bool {
 	return true
 }
-func (w *WalletData) CreateKey(keyType string) string {
+func (w *SoftWallet) CreateKey(keyType string) string {
 	return "test"
 }
 
-// func (w *WalletData) TrySignDigest(digest []byte, pubkey ecc.PublicKey) ecc.Signature {
+// func (w *SoftWallet) TrySignDigest(digest []byte, pubkey ecc.PublicKey) ecc.Signature {
 // 	return nil
 // }
 
-func (w *WalletData) encryptKeys() (err error) {
+func (w *SoftWallet) encryptKeys() (err error) {
 	if !w.isLocked() {
 		data := PlainKeys{}
-		data.Keys = keys
-		data.CheckSum = checksum
+		data.Keys = w.Keys
+		data.CheckSum = w.checksum
 		PlainTxt, err := rlp.EncodeToBytes(data)
 
 		if err != nil {
 			fmt.Println("error while encoding wallet's key pair")
 		}
 
-		d.CipherKeys, err = aesEnc.Encrypt(string(data.CheckSum[:]), string(PlainTxt[:]))
+		w.wallet.CipherKeys, err = Encrypt(string(data.CheckSum[:]), string(PlainTxt[:]))
 		if err != nil {
 			return err
 		}
@@ -258,7 +301,7 @@ func getdata(walletname, password string) map[ecc.PublicKey]ecc.PrivateKey {
 	json.Unmarshal(buf[:lenth], &wallet)
 
 	deckey := hash512(password)
-	decresult, err := aesEnc.Decrypt(string(deckey[:]), wallet.CipherKeys)
+	decresult, err := Decrypt(string(deckey[:]), wallet.CipherKeys)
 
 	var data PlainKeys
 	err = rlp.DecodeBytes(decresult, &data)

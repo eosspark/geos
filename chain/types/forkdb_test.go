@@ -91,7 +91,7 @@ func Test_op(t *testing.T) {
 func Test_Op(t *testing.T) {
 	d := &Demo{"EOS", 30}
 	t1 := reflect.TypeOf(d)
-fmt.Println(t1.Name())
+	fmt.Println(t1.Name())
 	t2 := reflect.ValueOf(d)
 
 	for i := 0; i < t1.NumMethod(); i++ {
