@@ -74,7 +74,7 @@ type Controller struct {
 	subjectiveCupLeeway   common.Microseconds //optional<common.Tstamp>
 	handlerKey            HandlerKey
 	applyHandlers         ApplyHandler
-	unappliedTransactions map[[4]uint64]types.TransactionMetadata
+	unappliedTransactions map[rlp.Sha256]types.TransactionMetadata
 }
 
 func NewController() *Controller {
@@ -119,7 +119,7 @@ func (self Controller) PopBlock() {
 		var trx []types.TransactionMetadata = self.head.Trxs
 		step := 0
 		for ; step < len(trx); step++ {
-			self.unappliedTransactions[trx[step].SignedID] = trx[step]
+			self.unappliedTransactions[rlp.Sha256(trx[step].SignedID)] = trx[step]
 		}
 	}
 	self.head = prev
@@ -149,7 +149,7 @@ func (self Controller) AbortBlock() {
 			trx := append(self.pending.PendingBlockState.Trxs)
 			step := 0
 			for ; step < len(trx); step++ {
-				self.unappliedTransactions[trx[step].SignedID] = trx[step]
+				self.unappliedTransactions[rlp.Sha256(trx[step].SignedID)] = trx[step]
 			}
 		}
 	}
@@ -190,7 +190,7 @@ func (self Controller) StartBlock(when common.BlockTimeStamp, confirmBlockCount 
 				ps := types.SharedProducerScheduleType{}
 				ps.Version = tmp.Version
 				ps.Producers = tmp.Producers
-				self.pending.PendingBlockState.SetNewProducers(&ps)
+				self.pending.PendingBlockState.SetNewProducers(ps)
 			}
 			self.db.Update(&gpo, func(i interface{}) error {
 				gpo.ProposedScheduleBlockNum = 1
