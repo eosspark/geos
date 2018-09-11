@@ -6,6 +6,7 @@ import (
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/ecc"
+	"github.com/eosspark/eos-go/rlp"
 	"time"
 )
 
@@ -26,7 +27,7 @@ const (
 	exhausted
 )
 
-type signatureProviderType func([]byte) ecc.Signature
+type signatureProviderType func(sha256 rlp.Sha256) ecc.Signature
 
 type transactionIdWithExpireIndex map[common.TransactionIDType]common.TimePoint
 
@@ -76,15 +77,15 @@ func makeDebugTimeLogger() func() {
 }
 
 func makeKeySignatureProvider(key ecc.PrivateKey) (signFunc signatureProviderType, err error) {
-	signFunc = func(digest []byte) (sign ecc.Signature) {
-		sign, err = key.Sign(digest)
+	signFunc = func(digest rlp.Sha256) (sign ecc.Signature) {
+		sign, err = key.Sign(digest.Bytes())
 		return
 	}
 	return
 }
 
 func makeKeosdSignatureProvider(produce *ProducerPlugin, url string, pubKey ecc.PublicKey) (signFunc signatureProviderType, err error) {
-	signFunc = func(digest []byte) ecc.Signature {
+	signFunc = func(digest rlp.Sha256) ecc.Signature {
 		if produce != nil {
 			//TODO
 			return ecc.Signature{}

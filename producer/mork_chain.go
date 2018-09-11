@@ -6,6 +6,7 @@ import (
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/ecc"
+	"github.com/eosspark/eos-go/rlp"
 )
 
 var chain *mockChain
@@ -91,8 +92,8 @@ func (c *mockChain) StartBlock(when common.BlockTimeStamp, confirmBlockCount uin
 	chain.pending.SetConfirmed(confirmBlockCount)
 
 }
-func (c *mockChain) FinalizeBlock()                       { fmt.Println("finalize block...") }
-func (c *mockChain) SignBlock(func([]byte) ecc.Signature) { fmt.Println("sign block...") }
+func (c *mockChain) FinalizeBlock()                                  { fmt.Println("finalize block...") }
+func (c *mockChain) SignBlock(func(sha256 rlp.Sha256) ecc.Signature) { fmt.Println("sign block...") }
 func (c *mockChain) CommitBlock() {
 	fmt.Println("commit block...")
 	c.head = c.pending

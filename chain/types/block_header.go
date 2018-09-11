@@ -3,6 +3,7 @@ package types
 import (
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/ecc"
+	"github.com/eosspark/eos-go/rlp"
 )
 
 type BlockHeader struct {
@@ -17,24 +18,24 @@ type BlockHeader struct {
 	HeaderExtensions []*Extension                `json:"header_extensions"`
 }
 
-func (b *BlockHeader) Digest() [4]uint64 {
-	return common.Hash(*b)
+func (b *BlockHeader) Digest() rlp.Sha256 {
+	return rlp.Hash(*b)
 }
 
 func (b *BlockHeader) BlockNumber() uint32 {
-	return common.EndianReverseU32(uint32(b.Previous[0])) + 1
+	return NumFromID(b.Previous) + 1
 }
 
 func NumFromID(id common.BlockIDType) uint32 {
-	return common.EndianReverseU32(uint32(id[0]))
+	return common.EndianReverseU32(uint32(id.Hash_[0]))
 }
 
 func (b *BlockHeader) BlockID() common.BlockIDType {
 	// Do not include signed_block_header attributes in id, specifically exclude producer_signature.
 	result := b.Digest()
-	result[0] &= 0xffffffff00000000
-	result[0] += uint64(common.EndianReverseU32(b.BlockNumber())) // store the block num in the ID, 160 bits is plenty for the hash
-	return result
+	result.Hash_[0] &= 0xffffffff00000000
+	result.Hash_[0] += uint64(common.EndianReverseU32(b.BlockNumber())) // store the block num in the ID, 160 bits is plenty for the hash
+	return common.BlockIDType(result)
 }
 
 type SignedBlockHeader struct {
