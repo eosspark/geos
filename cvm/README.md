@@ -47,5 +47,5 @@ func main() {
 
 }
 
-// hello.wasm is from eos hello contract
 ## go run hello.wasm
+// hello.wasm from eos hello contract
