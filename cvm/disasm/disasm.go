@@ -12,10 +12,10 @@ import (
 	"io"
 	"math"
 
-	"github.com/eosgo/cvm/internal/stack"
-	"github.com/eosgo/cvm/wasm"
-	"github.com/eosgo/cvm/wasm/leb128"
-	ops "github.com/eosgo/cvm/wasm/operators"
+	"github.com/eosspark/eos-go/cvm/internal/stack"
+	"github.com/eosspark/eos-go/cvm/wasm"
+	"github.com/eosspark/eos-go/cvm/wasm/leb128"
+	ops "github.com/eosspark/eos-go/cvm/wasm/operators"
 )
 
 // Instr describes an instruction, consisting of an operator, with its

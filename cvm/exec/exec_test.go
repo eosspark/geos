@@ -17,9 +17,9 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/eosgo/cvm/exec"
-	"github.com/eosgo/cvm/validate"
-	"github.com/eosgo/cvm/wasm"
+	"github.com/eosspark/eos-go/cvm/exec"
+	"github.com/eosspark/eos-go/cvm/validate"
+	"github.com/eosspark/eos-go/cvm/wasm"
 )
 
 const (

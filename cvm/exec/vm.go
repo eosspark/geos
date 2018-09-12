@@ -12,10 +12,12 @@ import (
 	"math"
 	"reflect"
 
-	"github.com/eosgo/cvm/disasm"
-	"github.com/eosgo/cvm/exec/internal/compile"
-	"github.com/eosgo/cvm/wasm"
-	ops "github.com/eosgo/cvm/wasm/operators"
+	//"reflect"
+
+	"github.com/eosspark/eos-go/cvm/disasm"
+	"github.com/eosspark/eos-go/cvm/exec/internal/compile"
+	"github.com/eosspark/eos-go/cvm/wasm"
+	ops "github.com/eosspark/eos-go/cvm/wasm/operators"
 )
 
 var (
@@ -55,7 +57,7 @@ type context struct {
 type VM struct {
 	ctx context
 
-	Wasm_interface *Wasm_interface
+	WasmInterface *WasmInterface
 
 	module  *wasm.Module
 	globals []uint64
@@ -79,10 +81,10 @@ var endianess = binary.LittleEndian
 
 // NewVM creates a new VM from a given module. If the module defines a
 // start function, it will be executed.
-func NewVM(module *wasm.Module, wasm_interface *Wasm_interface) (*VM, error) {
+func NewVM(module *wasm.Module, wasmInterface *WasmInterface) (*VM, error) {
 	var vm VM
 
-	vm.Wasm_interface = wasm_interface
+	vm.WasmInterface = wasmInterface
 
 	if module.Memory != nil && len(module.Memory.Entries) != 0 {
 		if len(module.Memory.Entries) > 1 {
@@ -107,14 +109,17 @@ func NewVM(module *wasm.Module, wasm_interface *Wasm_interface) (*VM, error) {
 		// https://webassembly.github.io/spec/core/exec/modules.html#allocation
 		if fn.IsHost() {
 
-			host := reflect.ValueOf(wasm_interface.GetHandle(fn.Name))
+			host := reflect.ValueOf(wasmInterface.GetHandle(fn.Name))
 			vm.funcs[i] = goFunction{
-				//typ: fn.Host.Type(),
-				//val: fn.Host,
 				typ:  host.Type(),
 				val:  host,
 				name: fn.Name,
 			}
+
+			// vm.funcs[i] = goFunction{
+			// 	typ: fn.Host.Type(),
+			// 	val: fn.Host,
+			// }
 			nNatives++
 			continue
 		}

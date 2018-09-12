@@ -42,8 +42,8 @@ import (
 	"bytes"
 	"encoding/binary"
 
-	"github.com/eosgo/cvm/disasm"
-	ops "github.com/eosgo/cvm/wasm/operators"
+	"github.com/eosspark/eos-go/cvm/disasm"
+	ops "github.com/eosspark/eos-go/cvm/wasm/operators"
 )
 
 // A small note on the usage of discard instructions:

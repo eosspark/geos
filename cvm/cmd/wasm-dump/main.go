@@ -14,9 +14,9 @@ import (
 	"os"
 	"sort"
 
-	"github.com/eosgo/cvm/disasm"
-	"github.com/eosgo/cvm/wasm"
-	"github.com/eosgo/cvm/wasm/leb128"
+	"github.com/eosspark/eos-go/cvm/disasm"
+	"github.com/eosspark/eos-go/cvm/wasm"
+	"github.com/eosspark/eos-go/cvm/wasm/leb128"
 )
 
 // TODO: track the number of imported funcs,memories,tables and globals to adjust

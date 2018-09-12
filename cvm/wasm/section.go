@@ -11,8 +11,8 @@ import (
 	"io"
 	"io/ioutil"
 
-	"github.com/eosgo/cvm/wasm/internal/readpos"
-	"github.com/eosgo/cvm/wasm/leb128"
+	"github.com/eosspark/eos-go/cvm/wasm/internal/readpos"
+	"github.com/eosspark/eos-go/cvm/wasm/leb128"
 )
 
 // SectionID is a 1-byte code that encodes the section code of both known and custom sections.
