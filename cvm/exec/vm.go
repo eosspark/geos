@@ -10,7 +10,6 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"reflect"
 
 	//"reflect"
 
@@ -109,17 +108,17 @@ func NewVM(module *wasm.Module, wasmInterface *WasmInterface) (*VM, error) {
 		// https://webassembly.github.io/spec/core/exec/modules.html#allocation
 		if fn.IsHost() {
 
-			host := reflect.ValueOf(wasmInterface.GetHandle(fn.Name))
-			vm.funcs[i] = goFunction{
-				typ:  host.Type(),
-				val:  host,
-				name: fn.Name,
-			}
-
+			// host := reflect.ValueOf(wasmInterface.GetHandle(fn.Name))
 			// vm.funcs[i] = goFunction{
-			// 	typ: fn.Host.Type(),
-			// 	val: fn.Host,
+			// 	typ:  host.Type(),
+			// 	val:  host,
+			// 	name: fn.Name,
 			// }
+
+			vm.funcs[i] = goFunction{
+				typ: fn.Host.Type(),
+				val: fn.Host,
+			}
 			nNatives++
 			continue
 		}
