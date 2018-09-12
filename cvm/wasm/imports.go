@@ -175,6 +175,8 @@ func (module *Module) resolveImports(resolve ResolveFunc) error {
 			if fn == nil {
 				return InvalidFunctionIndexError(index)
 			}
+			//funcType := module.Types.Entries[importEntry.Type.(FuncImport).Type]
+
 			module.FunctionIndexSpace = append(module.FunctionIndexSpace, *fn)
 			module.Code.Bodies = append(module.Code.Bodies, *fn.Body)
 			module.imports.Funcs = append(module.imports.Funcs, funcs)

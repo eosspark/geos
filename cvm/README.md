@@ -15,8 +15,6 @@ import (
 	"log"
 	"os"
 
-	"github.com/eosspark/eos-go/chain"
-	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/cvm/exec"
 )
 
@@ -38,7 +36,13 @@ func main() {
 	}
 
 	wasm := exec.NewWasmInterface()
-	applyContext := &chain.ApplyContext{Receiver: common.AccountName(exec.N("walker")), Code: common.AccountName(exec.N("walker")), Action: common.ActionName(exec.N("hi"))}
+
+	applyContext := &exec.ApplyContext{
+		Receiver: exec.AccountName(exec.N("walker")),
+		Contract: exec.AccountName(exec.N("walker")),
+		Action:   exec.ActionName(exec.N("hi")),
+	}
+
 	wasm.Apply("00000000", code, applyContext)
 
 }
