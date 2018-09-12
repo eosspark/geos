@@ -1,8 +1,8 @@
 package types
 
 import (
-	"time"
 	"github.com/eosspark/eos-go/common"
+	"time"
 )
 
 type PermissionUsageObject struct {
@@ -10,7 +10,7 @@ type PermissionUsageObject struct {
 	LastUsed time.Duration `json:"last_used"`
 }
 type PermissionObject struct {
-	Id     	  	uint64
+	Id          uint64
 	UsageId     uint64
 	Parent      uint64
 	Owner       common.AccountName

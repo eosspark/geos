@@ -1,10 +1,13 @@
 package types
 
-import "github.com/eosspark/eos-go/common"
+import (
+	"github.com/eosspark/eos-go/common"
+	"github.com/eosspark/eos-go/rlp"
+)
 
 type IncrementalMerkle struct {
-	NodeCount   uint64      `json:"node_count"`
-	ActiveNodes [][4]uint64 `json:"active_nodes"`
+	NodeCount   uint64       `json:"node_count"`
+	ActiveNodes []rlp.Sha256 `json:"active_nodes"`
 }
 
 /**
@@ -12,11 +15,11 @@ type IncrementalMerkle struct {
  *
  * @return
  */
-func (m IncrementalMerkle) GetRoot() [4]uint64 {
+func (m IncrementalMerkle) GetRoot() rlp.Sha256 {
 	if m.NodeCount > 0 {
 		return m.ActiveNodes[len(m.ActiveNodes)-1]
 	} else {
-		return [4]uint64{}
+		return rlp.Sha256{}
 	}
 }
 
@@ -66,14 +69,14 @@ func (m IncrementalMerkle) GetRoot() [4]uint64 {
  * @param digest - the node to add
  * @return - the new root
  */
-func (m *IncrementalMerkle) Append(digest [4]uint64) [4]uint64 {
+func (m *IncrementalMerkle) Append(digest rlp.Sha256) rlp.Sha256 {
 	partial := false
 	maxDepth := calculateMaxDepth(m.NodeCount + 1)
 	currentDepth := maxDepth - 1
 	index := m.NodeCount
 	top := digest
 	activeIter := 0
-	updateActiveNodes := make([][4]uint64, 0, maxDepth)
+	updateActiveNodes := make([]rlp.Sha256, 0, maxDepth)
 
 	for currentDepth > 0 {
 		if index&0x1 == 0 {
@@ -88,7 +91,7 @@ func (m *IncrementalMerkle) Append(digest [4]uint64) [4]uint64 {
 
 			// calculate the partially realized node value by implying the "right" value is identical
 			// to the "left" value
-			top = common.Hash(makeCanonicalPair(top, top))
+			top = rlp.Hash(makeCanonicalPair(top, top))
 			partial = true
 		} else {
 			// we are collapsing from a "right" value and an fully-realized "left"
@@ -104,7 +107,7 @@ func (m *IncrementalMerkle) Append(digest [4]uint64) [4]uint64 {
 			}
 
 			// calculate the node
-			top = common.Hash(makeCanonicalPair(leftValue, top))
+			top = rlp.Hash(makeCanonicalPair(leftValue, top))
 		}
 
 		// move up a level in the tree
@@ -124,19 +127,47 @@ func (m *IncrementalMerkle) Append(digest [4]uint64) [4]uint64 {
 	return m.ActiveNodes[len(m.ActiveNodes)-1]
 }
 
-func makeCanonicalLeft(val [4]uint64) [4]uint64 {
+func Merkle(ids []rlp.Sha256) rlp.Sha256 {
+	if 0 == len(ids) {
+		return rlp.Sha256{}
+	}
+
+	for len(ids) > 1 {
+		if len(ids)%2 > 0 {
+			ids = append(ids, ids[len(ids)-1])
+		}
+
+		for i := 0; i < len(ids)/2; i++ {
+			ids[i] = rlp.Hash(makeCanonicalPair(ids[2*i], ids[(2*i)+1]))
+		}
+
+		ids = ids[:len(ids)/2]
+	}
+
+	return ids[0]
+}
+
+func makeCanonicalLeft(val rlp.Sha256) rlp.Sha256 {
 	canonicalL := val
-	canonicalL[0] &= 0xFFFFFFFFFFFFFF7F
+	canonicalL.Hash_[0] &= 0xFFFFFFFFFFFFFF7F
 	return canonicalL
 }
-func makeCanonicalRight(val [4]uint64) [4]uint64 {
+func makeCanonicalRight(val rlp.Sha256) rlp.Sha256 {
 	canonicalR := val
-	canonicalR[0] &= 0x0000000000000080
+	canonicalR.Hash_[0] &= 0x0000000000000080
 	return canonicalR
 }
 
-func makeCanonicalPair(l [4]uint64, r [4]uint64) common.Pair {
+func makeCanonicalPair(l rlp.Sha256, r rlp.Sha256) common.Pair {
 	return common.Pair{makeCanonicalLeft(l), makeCanonicalRight(r)}
+}
+
+func isCanonicalLeft(val rlp.Sha256) bool {
+	return val.Hash_[0]&0x0000000000000080 == 0
+}
+
+func isCanonicalRight(val rlp.Sha256) bool {
+	return val.Hash_[0]&0x0000000000000080 != 0
 }
 
 /**
@@ -210,7 +241,7 @@ func clzPower2(value uint64) int {
 	return lz
 }
 
-func moveNodes(to *[][4]uint64, from *[][4]uint64) {
-	*to = make([][4]uint64, len(*from))
+func moveNodes(to *[]rlp.Sha256, from *[]rlp.Sha256) {
+	*to = make([]rlp.Sha256, len(*from))
 	copy(*to, *from)
 }

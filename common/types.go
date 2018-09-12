@@ -1,7 +1,6 @@
 package common
 
 import (
-	"crypto/sha256"
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
@@ -17,12 +16,12 @@ import (
 
 // For reference:
 // https://github.com/mithrilcoin-io/EosCommander/blob/master/app/src/main/java/io/mithrilcoin/eoscommander/data/remote/model/types/EosByteWriter.java
-type ChainIDType [4]uint64
-type NodeIDType [4]uint64
-type BlockIDType [4]uint64
-type TransactionIDType [4]uint64
-type CheckSum256Type [4]uint64
-type Sha256 [4]uint64
+type ChainIDType rlp.Sha256
+type NodeIDType rlp.Sha256
+type BlockIDType rlp.Sha256
+type TransactionIDType rlp.Sha256
+type CheckSum256Type rlp.Sha256
+
 type Sha512 [8]uint64
 
 func NewSha512() (s Sha512) {
@@ -37,28 +36,28 @@ type Pair struct {
 	Second interface{}
 }
 
-func Hash(t interface{}) [4]uint64 {
-	cereal, err := rlp.EncodeToBytes(t)
-	if err != nil {
-		panic(err)
-	}
-	//fmt.Println(cereal)
-
-	h := sha256.New()
-	_, _ = h.Write(cereal)
-	hashed := h.Sum(nil)
-
-	//fmt.Println(hashed)
-
-	var result [4]uint64
-
-	result[0] = binary.LittleEndian.Uint64(hashed[:8])
-	result[1] = binary.LittleEndian.Uint64(hashed[8:16])
-	result[2] = binary.LittleEndian.Uint64(hashed[16:24])
-	result[3] = binary.LittleEndian.Uint64(hashed[24:32])
-
-	return result
-}
+//func Hash(t interface{}) [4]uint64 {
+//	cereal, err := rlp.EncodeToBytes(t)
+//	if err != nil {
+//		panic(err)
+//	}
+//	//fmt.Println(cereal)
+//
+//	h := sha256.New()
+//	_, _ = h.Write(cereal)
+//	hashed := h.Sum(nil)
+//
+//	//fmt.Println(hashed)
+//
+//	var result [4]uint64
+//
+//	result[0] = binary.LittleEndian.Uint64(hashed[:8])
+//	result[1] = binary.LittleEndian.Uint64(hashed[8:16])
+//	result[2] = binary.LittleEndian.Uint64(hashed[16:24])
+//	result[3] = binary.LittleEndian.Uint64(hashed[24:32])
+//
+//	return result
+//}
 
 func DecodeIDTypeString(str string) (id [4]uint64, err error) {
 	b, err := hex.DecodeString(str)
@@ -82,8 +81,8 @@ func DecodeIDTypeByte(b []byte) (id [4]uint64, err error) {
 }
 func (n ChainIDType) MarshalJSON() ([]byte, error) {
 	b := make([]byte, 32)
-	for i := range n {
-		binary.LittleEndian.PutUint64(b[i*8:(i+1)*8], n[i])
+	for i := range n.Hash_ {
+		binary.LittleEndian.PutUint64(b[i*8:(i+1)*8], n.Hash_[i])
 	}
 	return json.Marshal(hex.EncodeToString(b))
 }
@@ -101,33 +100,19 @@ func (n *ChainIDType) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	for i := range n {
-		n[i] = binary.LittleEndian.Uint64(b[i*8 : (i+1)*8])
+	for i := range n.Hash_ {
+		n.Hash_[i] = binary.LittleEndian.Uint64(b[i*8 : (i+1)*8])
 	}
 
 	return nil
 }
 
 func (n NodeIDType) MarshalJSON() ([]byte, error) {
-	b := make([]byte, 32)
-	for i := range n {
-		binary.LittleEndian.PutUint64(b[i*8:(i+1)*8], n[i])
-	}
-	return json.Marshal(hex.EncodeToString(b))
+	return rlp.Sha256(n).MarshalJSON()
 }
-func (n Sha256) MarshalJSON() ([]byte, error) {
-	b := make([]byte, 32)
-	for i := range n {
-		binary.LittleEndian.PutUint64(b[i*8:(i+1)*8], n[i])
-	}
-	return json.Marshal(hex.EncodeToString(b))
-}
+
 func (n BlockIDType) MarshalJSON() ([]byte, error) {
-	b := make([]byte, 32)
-	for i := range n {
-		binary.LittleEndian.PutUint64(b[i*8:(i+1)*8], n[i])
-	}
-	return json.Marshal(hex.EncodeToString(b))
+	return rlp.Sha256(n).MarshalJSON()
 }
 
 func (n *BlockIDType) UnmarshalJSON(data []byte) error {
@@ -141,26 +126,18 @@ func (n *BlockIDType) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return err
 	}
-	for i := range n {
-		n[i] = binary.LittleEndian.Uint64(b[i*8 : (i+1)*8])
+	for i := range n.Hash_ {
+		n.Hash_[i] = binary.LittleEndian.Uint64(b[i*8 : (i+1)*8])
 	}
 	return nil
 }
 
 func (n TransactionIDType) MarshalJSON() ([]byte, error) {
-	b := make([]byte, 32)
-	for i := range n {
-		binary.LittleEndian.PutUint64(b[i*8:(i+1)*8], n[i])
-	}
-	return json.Marshal(hex.EncodeToString(b))
+	return rlp.Sha256(n).MarshalJSON()
 }
 
 func (n CheckSum256Type) MarshalJSON() ([]byte, error) {
-	b := make([]byte, 32)
-	for i := range n {
-		binary.LittleEndian.PutUint64(b[i*8:(i+1)*8], n[i])
-	}
-	return json.Marshal(hex.EncodeToString(b))
+	return rlp.Sha256(n).MarshalJSON()
 }
 
 func (n *CheckSum256Type) UnmarshalJSON(data []byte) error {
@@ -174,8 +151,8 @@ func (n *CheckSum256Type) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return err
 	}
-	for i := range n {
-		n[i] = binary.LittleEndian.Uint64(b[i*8 : (i+1)*8])
+	for i := range n.Hash_ {
+		n.Hash_[i] = binary.LittleEndian.Uint64(b[i*8 : (i+1)*8])
 	}
 	return nil
 }
@@ -186,6 +163,10 @@ type PermissionName uint64
 type ActionName uint64
 type TableName uint64
 type ScopeName uint64
+
+func (n AccountName) String() string {
+	return NameToString(uint64(n))
+}
 
 func (n AccountName) MarshalJSON() ([]byte, error) {
 	return json.Marshal(NameToString(uint64(n)))
@@ -204,6 +185,7 @@ func (n *AccountName) UnmarshalJSON(data []byte) error {
 func (n Name) MarshalJSON() ([]byte, error) {
 	return json.Marshal(NameToString(uint64(n)))
 }
+
 func (n *Name) UnmarshalJSON(data []byte) error {
 	var s string
 	err := json.Unmarshal(data, &s)

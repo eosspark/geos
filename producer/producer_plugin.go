@@ -6,6 +6,7 @@ import (
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/ecc"
+	"github.com/eosspark/eos-go/rlp"
 	"gopkg.in/urfave/cli.v1"
 )
 
@@ -63,7 +64,7 @@ func (pp *ProducerPlugin) IsProducerKey(key ecc.PublicKey) bool {
 	return false
 }
 
-func (pp *ProducerPlugin) SignCompact(key *ecc.PublicKey, digest common.SHA256Bytes) ecc.Signature {
+func (pp *ProducerPlugin) SignCompact(key *ecc.PublicKey, digest rlp.Sha256) ecc.Signature {
 	if key != nil {
 		privateKeyFunc := pp.signatureProviders[*key]
 		if privateKeyFunc == nil {
@@ -797,7 +798,7 @@ func (pp *ProducerPlugin) produceBlock() {
 	}
 
 	chain.FinalizeBlock()
-	chain.SignBlock(func(d []byte) ecc.Signature {
+	chain.SignBlock(func(d rlp.Sha256) ecc.Signature {
 		defer makeDebugTimeLogger()
 		return signatureProvider(d)
 	})

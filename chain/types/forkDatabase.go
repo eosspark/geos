@@ -10,7 +10,7 @@ import (
 type ForkDatabase struct {
 	database eosiodb.DataBase   `json:"database"`
 	Index    ForkMultiIndexType `json:"index"`
-	Head     BlockState   `json:"head"`
+	Head     BlockState         `json:"head"`
 }
 
 type ForkMultiIndexType struct {
@@ -18,7 +18,7 @@ type ForkMultiIndexType struct {
 	Prev        common.BlockIDType `storm:"index"  json:"prev"`
 	BlockNum    uint32             `storm:"index"  json:"block_num"`
 	LibBlockNum uint32             `storm:"index"  json:"lib_block_num"`
-	BlockState  BlockState   `storm:"inline"`
+	BlockState  BlockState         `storm:"inline"`
 }
 
 func setHead(forkdb ForkDatabase, head BlockState) *ForkDatabase {
@@ -134,7 +134,7 @@ func (fdb *ForkDatabase) AddBlockState(blockState BlockState) (*BlockState, erro
 	return &blockState, err
 }
 func (fdb *ForkDatabase) AddSignedBlockState(signedBlcok *SignedBlock) (*BlockState, error) {
-	blockId:= signedBlcok.BlockID()
+	blockId := signedBlcok.BlockID()
 	var blockState BlockState
 	err := fdb.database.Get("ID", blockId, &blockState)
 	if err != nil {

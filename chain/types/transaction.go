@@ -1,24 +1,11 @@
 package types
 
 import (
-	// "bytes"
-	// "compress/flate"
-	// "compress/zlib"
-	// "crypto/sha256"
-	// "encoding/binary"
-	// "errors"
-	// "fmt"
-	"time"
-
-	// "io"
-
 	"encoding/json"
-
-	// "io/ioutil"
-
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/ecc"
 	"github.com/eosspark/eos-go/log"
+	"time"
 )
 
 type TransactionHeader struct {
@@ -36,8 +23,8 @@ func (th TransactionHeader) GetRefBlocknum(headBlocknum uint32) uint32 {
 }
 
 func (th TransactionHeader) VerifyReferenceBlock(referenceBlock common.BlockIDType) bool {
-	return th.RefBlockNum == uint16(common.EndianReverseU32(uint32(referenceBlock[0]))) &&
-		th.RefBlockPrefix == uint32(referenceBlock[1])
+	return th.RefBlockNum == uint16(common.EndianReverseU32(uint32(referenceBlock.Hash_[0]))) &&
+		th.RefBlockPrefix == uint32(referenceBlock.Hash_[1])
 }
 
 func (th TransactionHeader) Validate() {
@@ -52,31 +39,6 @@ type Transaction struct { // WARN: is a `variant` in C++, can be a SignedTransac
 	ContextFreeActions []*Action    `json:"context_free_actions"`
 	Actions            []*Action    `json:"actions"`
 	Extensions         []*Extension `json:"transaction_extensions"`
-}
-type BaseActionTrace struct {
-	Receipt       ActionReceipt
-	Act           Action
-	Elapsed       common.Tstamp
-	CpuUsage      uint64
-	Console       string
-	TotalCpuUsage uint64
-	TrxId         common.TransactionIDType
-}
-
-type ActionTrace struct {
-	BaseActionTrace
-	InlineTrace []ActionTrace
-}
-type TransactionTrace struct {
-	ID              common.TransactionIDType `json:"id"`
-	Receipt         TransactionReceiptHeader `json:"receipt"`
-	Elapsed         common.Tstamp            `json:"elapsed"`
-	NetUsage        uint64                   `json:"net_usage"`
-	Scheduled       bool                     `json:"scheduled"`
-	ActionTrace     []ActionTrace            `json:"action_trace"`
-	//FailedDtrxTrace TransactionTrace         `json:"failed"`
-	//Except	Exception
-	//ExceptPtr	ExceptionPtr
 }
 
 // NewTransaction creates a transaction. Unless you plan on adding HeadBlockID later, to be complete, opts should contain it.  Sign
@@ -118,8 +80,8 @@ func (tx *Transaction) Fill(headBlockID common.BlockIDType, delaySecs, maxNetUsa
 }
 
 func (tx *Transaction) setRefBlock(blockID common.BlockIDType) {
-	tx.RefBlockNum = uint16(blockID[0])
-	tx.RefBlockPrefix = uint32(blockID[1])
+	tx.RefBlockNum = uint16(blockID.Hash_[0])
+	tx.RefBlockPrefix = uint32(blockID.Hash_[1])
 }
 
 type SignedTransaction struct {
@@ -149,9 +111,9 @@ func (s *SignedTransaction) String() string {
 }
 
 func (head *TransactionHeader) SetReferenceBlock(referenceBlock common.BlockIDType) {
-	first := common.EndianReverseU32(uint32(referenceBlock[0]))
+	first := common.EndianReverseU32(uint32(referenceBlock.Hash_[0]))
 	head.RefBlockNum = uint16(first)
-	head.RefBlockPrefix = uint32(referenceBlock[1])
+	head.RefBlockPrefix = uint32(referenceBlock.Hash_[1])
 	log.Info("SetReferenceBlock:", head)
 }
 

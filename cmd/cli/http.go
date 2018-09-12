@@ -10,6 +10,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httputil"
+	"strings"
 	"time"
 )
 
@@ -90,13 +91,15 @@ func (api *API) call(path string, body interface{}, out interface{}) error {
 		return ErrNotFound
 	}
 	if resp.StatusCode > 299 {
+		// fmt.Println("error: ", resp.StatusCode, req.URL.String(), resp.StatusCode, cnt.String())
 		return fmt.Errorf("%s: status code=%d, body=%s", req.URL.String(), resp.StatusCode, cnt.String())
+
 	}
 
 	if api.Debug {
 		fmt.Println("RESPONSE:")
 		fmt.Println(cnt.String())
-		fmt.Println("返回数据： ", cnt)
+		// fmt.Println("返回数据： ", cnt)
 		fmt.Println(cnt.Bytes())
 		fmt.Println("")
 	}
@@ -123,8 +126,20 @@ func enc(v interface{}) (io.Reader, error) {
 	return bytes.NewReader(cnt), nil
 }
 
+var httpurl string
+
 func DoHttpCall(path string, body interface{}, out interface{}) (err error) {
-	http := NewHttp("http://127.0.0.1:8000")
+
+	if strings.Contains(path, "wallet") {
+		fmt.Println("wallet")
+		httpurl = walletUrl
+
+	} else {
+		fmt.Println("chain")
+		httpurl = url
+	}
+	http := NewHttp(httpurl)
+	// http := NewHttp("http://127.0.0.1:8000")
 	// http := NewHttp("http://127.0.0.1:8888")
 	err = http.call(path, body, &out)
 	return

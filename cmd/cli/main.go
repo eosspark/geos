@@ -5,7 +5,6 @@ import (
 	"gopkg.in/urfave/cli.v1"
 	"os"
 	"sort"
-	// "github.com/gin-gonic/gin"
 )
 
 func main() {
@@ -14,6 +13,7 @@ func main() {
 		walletCommand,
 		accountCommand,
 		getCommand,
+		SignCommand,
 	}
 	sort.Sort(cli.CommandsByName(app.Commands))
 	sort.Sort(cli.FlagsByName(app.Flags))
@@ -23,8 +23,4 @@ func main() {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
-
-	// var Router *gin.Engine
-
-	// Router.POST()
 }
