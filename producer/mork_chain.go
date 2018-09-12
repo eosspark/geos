@@ -2,7 +2,6 @@ package producer_plugin
 
 import (
 	"fmt"
-	"github.com/eoscanada/eos-go"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/ecc"
@@ -111,7 +110,7 @@ func (c *mockChain) PushBlock(b *types.SignedBlock) error {
 	return nil
 }
 
-func (c *mockChain) FetchBlockById(id common.BlockIDType) *eos.SignedBlock {
+func (c *mockChain) FetchBlockById(id common.BlockIDType) *types.SignedBlock {
 	return nil
 }
 
