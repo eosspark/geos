@@ -48,4 +48,4 @@ func main() {
 }
 
 // hello.wasm is from eos hello contract
-go run hello.wasm 
+## go run hello.wasm
