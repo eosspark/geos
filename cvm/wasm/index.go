@@ -46,6 +46,7 @@ func (m *Module) populateFunctions() error {
 		fn := Function{
 			Sig:  &m.Types.Entries[typeIndex],
 			Body: &m.Code.Bodies[codeIndex],
+			//Name: m.Function.Name
 		}
 
 		m.FunctionIndexSpace = append(m.FunctionIndexSpace, fn)

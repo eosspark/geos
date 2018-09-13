@@ -9,8 +9,8 @@ import (
 	"bytes"
 	"io"
 
-	"github.com/eosgo/cvm/wasm"
-	ops "github.com/eosgo/cvm/wasm/operators"
+	"github.com/eosspark/eos-go/cvm/wasm"
+	ops "github.com/eosspark/eos-go/cvm/wasm/operators"
 )
 
 // vibhavp: TODO: We do not verify whether blocks don't access for the parent block, do that.

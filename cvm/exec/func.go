@@ -9,7 +9,7 @@ import (
 	"math"
 	"reflect"
 
-	"github.com/eosgo/cvm/exec/internal/compile"
+	"github.com/eosspark/eos-go/cvm/exec/internal/compile"
 )
 
 type function interface {
@@ -77,7 +77,7 @@ func (fn goFunction) call(vm *VM, index int64) {
 	//name := fn.val.Type().Name()
 	//fmt.Println(fn.name)
 
-	args[0] = reflect.ValueOf(vm.Wasm_interface) //the first param is Wasm_interface
+	args[0] = reflect.ValueOf(vm.WasmInterface) //the first param is WasmInterface
 
 	for i := numIn - 1; i >= 1; i-- {
 		val := reflect.New(fn.typ.In(i)).Elem()

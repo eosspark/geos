@@ -9,7 +9,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/eosgo/cvm/wasm"
+	"github.com/eosspark/eos-go/cvm/wasm"
 )
 
 func TestHostCall(t *testing.T) {
