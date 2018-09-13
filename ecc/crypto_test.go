@@ -24,7 +24,7 @@ func TestNewPublicKeyAndSerializeCompress(t *testing.T) {
 	// Copied test from eosjs(-.*)?
 	key, err := NewPublicKey("EOS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV")
 	require.NoError(t, err)
-	assert.Equal(t, "02c0ded2bc1f1305fb0faac5e6c03ee3a1924234985427b6167ca569d13df435cf", hex.EncodeToString(key.Content))
+	assert.Equal(t, "02c0ded2bc1f1305fb0faac5e6c03ee3a1924234985427b6167ca569d13df435cf", hex.EncodeToString(key.Content[:]))
 }
 
 func TestNewRandomPrivateKey(t *testing.T) {

@@ -2,6 +2,7 @@ package producer_plugin
 
 import (
 	"fmt"
+	Chain "github.com/eosspark/eos-go/chain"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/ecc"
@@ -114,8 +115,16 @@ func (c *mockChain) FetchBlockById(id common.BlockIDType) *types.SignedBlock {
 	return nil
 }
 
+func (c *mockChain) FetchBlockByNumber(num uint32) *types.SignedBlock {
+	return nil
+}
+
 func (c *mockChain) IsKnownUnexpiredTransaction(id common.TransactionIDType) bool {
 	return false
 }
 
 func (c *mockChain) DropUnappliedTransaction(trx *types.TransactionMetadata) {}
+
+func (c *mockChain) GetReadMode() Chain.DBReadMode {
+	return Chain.DBReadMode(Chain.SPECULATIVE)
+}
