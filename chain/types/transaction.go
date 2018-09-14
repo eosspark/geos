@@ -9,7 +9,7 @@ import (
 )
 
 type TransactionHeader struct {
-	Expiration     common.TimePointSec `json:"expiration"`
+	Expiration     common.JSONTime `json:"expiration"`
 	RefBlockNum    uint16              `json:"ref_block_num"`
 	RefBlockPrefix uint32              `json:"ref_block_prefix"`
 
@@ -85,7 +85,7 @@ func (tx *Transaction) setRefBlock(blockID common.BlockIDType) {
 }
 
 type SignedTransaction struct {
-	*Transaction
+	Transaction
 
 	Signatures      []ecc.Signature   `json:"signatures"`
 	ContextFreeData []common.HexBytes `json:"context_free_data"`
@@ -95,7 +95,7 @@ type SignedTransaction struct {
 
 func NewSignedTransaction(tx *Transaction) *SignedTransaction {
 	return &SignedTransaction{
-		Transaction:     tx,
+		Transaction:     *tx,
 		Signatures:      make([]ecc.Signature, 0),
 		ContextFreeData: make([]common.HexBytes, 0),
 	}
