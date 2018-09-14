@@ -84,7 +84,8 @@ func check_transaction_authorization(wasmInterface *WasmInterface, trx_data int,
 //       }
 func check_permission_authorization(wasmInterface *WasmInterface, permission PermissionName,
 	pubkeys_data int, pubkeys_size size_t,
-	perms_data int, perms_size size_t, int64) int {
+	perms_data int, perms_size size_t,
+	delay_us int64) int {
 	fmt.Println("check_permission_authorization")
 }
 
