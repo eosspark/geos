@@ -16,6 +16,13 @@ func init() {
 		MajorityProducersPermissionName: AccountName(StringToName("prod.major")),
 		MinorityProducersPermissionName: AccountName(StringToName("prod.minor")),
 
+		EosioAuthScope: StringToName("eosio.auth"),
+		EosioAllScope:  StringToName("eosio.all"),
+		ActiveName:     StringToName("active"),
+		OwnerName:      StringToName("owner"),
+		EosioAnyName:   StringToName("eosio.any"),
+		EosioCodeName:  StringToName("eosio.code"),
+
 		RateLimitingPrecision: 1000 * 1000,
 
 		BillableAlignment: 16,
@@ -69,6 +76,13 @@ type Config struct {
 	// Active permission of producers account requires greater than 2/3 of the producers to authorize
 	MajorityProducersPermissionName AccountName
 	MinorityProducersPermissionName AccountName
+
+	EosioAuthScope uint64
+	EosioAllScope  uint64
+	ActiveName     uint64
+	OwnerName      uint64
+	EosioAnyName   uint64
+	EosioCodeName  uint64
 
 	RateLimitingPrecision uint32
 
@@ -154,3 +168,5 @@ func (c *Config) Validate() {
 func BillableSizeV(kind string) uint64 {
 	return (DefaultConfig.BillableSize[kind].value + DefaultConfig.BillableAlignment - 1) / DefaultConfig.BillableAlignment * DefaultConfig.BillableAlignment
 }
+
+const ()
