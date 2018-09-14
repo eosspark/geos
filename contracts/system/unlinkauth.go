@@ -1,6 +1,7 @@
 package system
 
 import (
+	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 )
 
@@ -9,18 +10,18 @@ import (
 //
 // `unlinkauth` detaches a previously set resouce from a
 // `code::actionName`. See `linkauth`.
-func NewUnlinkAuth(account, code common.AccountName, actionName common.ActionName) *common.Action {
-	a := &common.Action{
+func NewUnlinkAuth(account, code common.AccountName, actionName common.ActionName) *types.Action {
+	a := &types.Action{
 		Account: common.AccountName(common.StringToName("eosio")),
 		Name:    common.ActionName(common.StringToName("unlinkauth")),
 		Authorization: []common.PermissionLevel{
 			{account, common.PermissionName(common.StringToName("active"))},
 		},
-		ActionData: common.NewActionData(UnlinkAuth{
-			Account: account,
-			Code:    code,
-			Type:    actionName,
-		}),
+		// Data: common.NewActionData(UnlinkAuth{//TODO
+		// 	Account: account,
+		// 	Code:    code,
+		// 	Type:    actionName,
+		// }),
 	}
 
 	return a

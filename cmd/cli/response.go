@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"github.com/eosspark/eos-go/chain"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/ecc"
@@ -43,8 +44,8 @@ type AccountResp struct {
 	RAMUsage               int64                      `json:"ram_usage"`
 	NetWeight              int64                      `json:"net_weight"`
 	CPUWeight              int64                      `json:"cpu_weight"`
-	NetLimit               types.AccountResourceLimit `json:"net_limit"`
-	CPULimit               types.AccountResourceLimit `json:"cpu_limit"`
+	NetLimit               chain.AccountResourceLimit `json:"net_limit"`
+	CPULimit               chain.AccountResourceLimit `json:"cpu_limit"`
 	Permissions            []common.Permission        `json:"permissions"`
 	TotalResources         common.TotalResources      `json:"total_resources"`
 	SelfDelegatedBandwidth common.DelegatedBandwidth  `json:"self_delegated_bandwidth"`

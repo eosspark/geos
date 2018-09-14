@@ -63,7 +63,7 @@ type Controller struct {
 	head                  types.BlockState
 	forkDB                types.ForkDatabase
 	wasmif                string //TODO
-	resourceLimist        types.ResourceLimitsManager
+	resourceLimist        ResourceLimitsManager
 	authorization         string //TODO AuthorizationManager
 	config                Config //local	Config
 	chainID               common.ChainIDType

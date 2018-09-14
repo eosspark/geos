@@ -62,11 +62,11 @@ func (applyContext *ApplyContext) RequireRecipient(recipient common.AccountName)
 
 }
 
-func (applyContext *ApplyContext) ExecuteInline(a *common.Action) {
+func (applyContext *ApplyContext) ExecuteInline(a *types.Action) {
 
 }
 
-func (applyContext *ApplyContext) ExecuteContextFreeInline(a *common.Action) {
+func (applyContext *ApplyContext) ExecuteContextFreeInline(a *types.Action) {
 
 }
 

@@ -1,6 +1,7 @@
 package system
 
 import (
+	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 )
 
@@ -11,17 +12,17 @@ import (
 // previously sent to the chain with a `delay_sec` larger than 0.  You
 // need to sign with cancelingAuth, to cancel a transaction signed
 // with that same authority.
-func NewCancelDelay(cancelingAuth common.PermissionLevel, transactionID common.SHA256Bytes) *common.Action {
-	a := &common.Action{
+func NewCancelDelay(cancelingAuth common.PermissionLevel, transactionID common.SHA256Bytes) *types.Action {
+	a := &types.Action{
 		Account: common.AccountName(common.StringToName("eosio")),
 		Name:    common.ActionName(common.StringToName("canceldelay")),
 		Authorization: []common.PermissionLevel{
 			cancelingAuth,
 		},
-		ActionData: common.NewActionData(CancelDelay{
-			CancelingAuth: cancelingAuth,
-			TransactionID: transactionID,
-		}),
+		// Data: common.NewActionData(CancelDelay{//TODO
+		// 	CancelingAuth: cancelingAuth,
+		// 	TransactionID: transactionID,
+		// }),
 	}
 
 	return a
