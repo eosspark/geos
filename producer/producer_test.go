@@ -76,6 +76,7 @@ const KEEPTESTSEC = 99910 /*seconds*/
 func Test_producer_start(t *testing.T) {
 	start := time.Now()
 	os.Args = []string{"--enable-stale-production", "-p", "eosio", "-p", "yuanc"}
+	//os.Args = []string{"--enable-stale-production", "-p", "eosio", "-p", "yuanc", "--max-irreversible-block-age", "10"}
 
 	//for i:=0; i< len(os.Args); i++ {
 	//	fmt.Println(os.Args[i])
