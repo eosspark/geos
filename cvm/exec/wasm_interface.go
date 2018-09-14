@@ -87,9 +87,11 @@ func N(str string) uint64 {
 	return name
 }
 
-type AccountName uint64
-type ActionName uint64
-type PermissionName uint64
+type size_t int
+
+type AccountName int64
+type ActionName int64
+type PermissionName int64
 
 type ApplyContext struct {
 	Receiver AccountName
@@ -316,9 +318,13 @@ func reflect2wasm(kind reflect.Kind) wasm.ValueType {
 		return wasm.ValueTypeF64
 	case reflect.Float32:
 		return wasm.ValueTypeF32
+	case reflect.Uint:
+		return wasm.ValueTypeI32
 	case reflect.Uint32:
 		return wasm.ValueTypeI32
 	case reflect.Uint64:
+		return wasm.ValueTypeI32
+	case reflect.Int:
 		return wasm.ValueTypeI32
 	case reflect.Int32:
 		return wasm.ValueTypeI32
@@ -335,19 +341,19 @@ func reflect2wasm(kind reflect.Kind) wasm.ValueType {
 	}
 }
 
-func eosio_assert(wasmInterface *WasmInterface, condition uint32, msg uint32) {
-
-	fmt.Println("eosio_assert")
-}
-
-func action_data_size(wasmInterface *WasmInterface) uint32 {
-
-	fmt.Println("action_data_size")
-
-	data := []byte{0x00, 0x00, 0x00, 0x00, 0x5c, 0x05, 0xa3, 0xe1} //("000000005c05a3e1") => '{"walker"}'
-	return uint32(len(data))
-
-}
+//func eosio_assert(wasmInterface *WasmInterface, condition uint32, msg uint32) {
+//
+//	fmt.Println("eosio_assert")
+//}
+//
+//func action_data_size(wasmInterface *WasmInterface) uint32 {
+//
+//	fmt.Println("action_data_size")
+//
+//	data := []byte{0x00, 0x00, 0x00, 0x00, 0x5c, 0x05, 0xa3, 0xe1} //("000000005c05a3e1") => '{"walker"}'
+//	return uint32(len(data))
+//
+//}
 
 func min(x, y uint32) uint32 {
 	if x < y {
@@ -356,61 +362,61 @@ func min(x, y uint32) uint32 {
 	return y
 }
 
-func read_action_data(wasmInterface *WasmInterface, memory uint32, buffer_size uint32) uint32 {
-
-	fmt.Println("read_action_data")
-
-	data := []byte{0x00, 0x00, 0x00, 0x00, 0x5c, 0x05, 0xa3, 0xe1} //("000000005c05a3e1") => '{"walker"}'
-
-	//s = wasmInterface.context.act.data.size()
-	s := len(data)
-	if buffer_size == 0 {
-		return uint32(s)
-	}
-	copy_size := min(buffer_size, uint32(s))
-	copy(wasmInterface.vm.memory[memory:memory+copy_size], data)
-	return copy_size
-
-}
-
-func current_time(wasmInterface *WasmInterface) uint64 {
-
-	fmt.Println("current_time")
-	return 0
-}
-
-func require_auth2(wasmInterface *WasmInterface, name common.AccountName, permission common.PermissionName) {
-
-	fmt.Println("require_auth2")
-}
-
-func memcpy(wasmInterface *WasmInterface, dest uint32, src uint32, length uint32) uint32 {
-
-	fmt.Println("memcpy")
-	copy(wasmInterface.vm.memory[dest:dest+length], wasmInterface.vm.memory[src:src+length])
-	return length
-}
-
-func printn(wasmInterface *WasmInterface, name uint64) {
-
-	fmt.Println("printn")
-	str := To_string(name)
-	fmt.Println(str)
-
-}
-
-func prints(wasmInterface *WasmInterface, str uint32) {
-
-	fmt.Println("prints")
-
-	var size uint32
-	var i uint32
-	for i = 0; i < 256; i++ {
-		if wasmInterface.vm.memory[str+i] == 0 {
-			break
-		}
-		size++
-	}
-
-	fmt.Println(string(wasmInterface.vm.memory[str : str+size]))
-}
+//func read_action_data(wasmInterface *WasmInterface, memory uint32, buffer_size uint32) uint32 {
+//
+//	fmt.Println("read_action_data")
+//
+//	data := []byte{0x00, 0x00, 0x00, 0x00, 0x5c, 0x05, 0xa3, 0xe1} //("000000005c05a3e1") => '{"walker"}'
+//
+//	//s = wasmInterface.context.act.data.size()
+//	s := len(data)
+//	if buffer_size == 0 {
+//		return uint32(s)
+//	}
+//	copy_size := min(buffer_size, uint32(s))
+//	copy(wasmInterface.vm.memory[memory:memory+copy_size], data)
+//	return copy_size
+//
+//}
+//
+//func current_time(wasmInterface *WasmInterface) uint64 {
+//
+//	fmt.Println("current_time")
+//	return 0
+//}
+//
+//func require_auth2(wasmInterface *WasmInterface, name common.AccountName, permission common.PermissionName) {
+//
+//	fmt.Println("require_auth2")
+//}
+//
+//func memcpy(wasmInterface *WasmInterface, dest uint32, src uint32, length uint32) uint32 {
+//
+//	fmt.Println("memcpy")
+//	copy(wasmInterface.vm.memory[dest:dest+length], wasmInterface.vm.memory[src:src+length])
+//	return length
+//}
+//
+//func printn(wasmInterface *WasmInterface, name uint64) {
+//
+//	fmt.Println("printn")
+//	str := To_string(name)
+//	fmt.Println(str)
+//
+//}
+//
+//func prints(wasmInterface *WasmInterface, str uint32) {
+//
+//	fmt.Println("prints")
+//
+//	var size uint32
+//	var i uint32
+//	for i = 0; i < 256; i++ {
+//		if wasmInterface.vm.memory[str+i] == 0 {
+//			break
+//		}
+//		size++
+//	}
+//
+//	fmt.Println(string(wasmInterface.vm.memory[str : str+size]))
+//}
