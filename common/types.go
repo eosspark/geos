@@ -14,6 +14,8 @@ import (
 	"time"
 )
 
+type SizeT int
+
 // For reference:
 // https://github.com/mithrilcoin-io/EosCommander/blob/master/app/src/main/java/io/mithrilcoin/eoscommander/data/remote/model/types/EosByteWriter.java
 type ChainIDType rlp.Sha256
