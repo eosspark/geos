@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"flag"
 	"fmt"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/cmd/cli/utils"
@@ -9,6 +10,22 @@ import (
 	"github.com/eosspark/eos-go/ecc"
 	"github.com/eosspark/eos-go/rlp"
 	"gopkg.in/urfave/cli.v1"
+	"time"
+)
+
+var tx_expiration time.Duration = 30 * time.Second
+var (
+	parse_expiration = flag.Duration("-x,--expiration", 30*time.Second, "set the time in seconds before a transaction expires, defaults to 30s")
+	tx_force_unique  = flag.Bool("-f,--force-unique", false, "force the transaction to be unique. this will consume extra bandwidth and remove any "+
+		"protections against accidently issuing the same transaction multiple times")
+	tx_skip_sign = flag.Bool("-s,--skip-sign", false, "Specify if unlocked wallet keys should be used to sign transaction")
+
+	tx_print_json          = flag.Bool("-j,--json", false, "print result as json")
+	tx_dont_broadcast      = flag.Bool("-d,--dont-broadcast", false, "don't broadcast transaction to the network (just print to stdout)")
+	tx_ref_block_num_or_id = flag.String("-r,--ref-block", "", "set the reference block num or block id used for TAPOS (Transaction as Proof-of-Stake)")
+	//tx_permission = flag.String("-p,--permission","","An account and permission level to authorize, as in 'account@permission' (defaults to '" + default_permission + "')")
+	tx_max_cpu_usage = flag.Uint("--max-cpu-usage-ms", 0, "set an upper limit on the milliseconds of cpu usage budget, for the execution of the transaction (defaults to 0 which means no limit)")
+	tx_max_net_usage = flag.Uint("--max-net-usage", 0, "set an upper limit on the net usage budget, in bytes, for the transaction (defaults to 0 which means no limit)")
 )
 
 var (
@@ -212,19 +229,21 @@ func createAccount(ctx *cli.Context) (err error) {
 		return fmt.Errorf("Invalid active public key: %s", activekey)
 	}
 	create := createNewAccount(creator, accountname, ownerKey, activeKey)
-	storage, err := rlp.EncodeToBytes(create)
-	fmt.Println(create, "encode: ", storage)
-	aa, err := json.Marshal(create)
-	if err != nil {
-		fmt.Println(err)
-	}
-	fmt.Println("decode:", string(aa))
+	createAction := []*types.Action{create}
+	// storage, err := rlp.EncodeToBytes(create)
+	// fmt.Println(create, "encode: ", storage)
+	// aa, err := json.Marshal(create)
+	// if err != nil {
+	// 	fmt.Println(err)
+	// }
+	// fmt.Println("decode:", string(aa))
+
 	if !simple {
 		fmt.Println("system create account")
 
 	} else {
 		fmt.Println("creat account in test net")
-		//sendActions(create,1000, common.CompressionNone)
+		sendActions(createAction, 1000, common.CompressionNone)
 	}
 
 	fmt.Println("New account:")
@@ -232,9 +251,9 @@ func createAccount(ctx *cli.Context) (err error) {
 }
 
 // ./accountcmd create account -creator eosio -name walker -ownerkey EOS7vnBoERUwrqeRTfot79xhwFvWsTjhg1YU9KA5hinAYMETREWYT -activekey EOS7vnBoERUwrqeRTfot79xhwFvWsTjhg1YU9KA5hinAYMETREWYT
-func createNewAccount(creatorstr, newaccountstr string, owner, active ecc.PublicKey) *types.NewAccount {
+func createNewAccount(creatorstr, newaccountstr string, owner, active ecc.PublicKey) *types.Action {
 	creator := common.StringToName(creatorstr)
-	newaccount := common.StringToName(newaccountstr)
+	accountName := common.StringToName(newaccountstr)
 	ownerauthority := &common.Authority{
 		Threshold: 1,
 		Keys:      []common.KeyWeight{{PublicKey: owner, Weight: 1}},
@@ -243,42 +262,122 @@ func createNewAccount(creatorstr, newaccountstr string, owner, active ecc.Public
 		Threshold: 1,
 		Keys:      []common.KeyWeight{{PublicKey: active, Weight: 1}},
 	}
-	// {PublicKey: active, Weight: 1}
-	return &types.NewAccount{
+
+	var auth = []common.PermissionLevel{{common.AccountName(creator), common.PermissionName(common.DefaultConfig.ActiveName)}} //TODO -p
+
+	newaccount := &types.NewAccount{
 		Creator: common.AccountName(creator),
-		Name:    common.AccountName(newaccount),
+		Name:    common.AccountName(accountName),
 		Owner:   *ownerauthority,
 		Active:  *activeauthority,
 	}
+
+	data, err := rlp.EncodeToBytes(newaccount)
+	if err != nil {
+		panic("create new account error")
+	}
+
+	return &types.Action{
+		Account:       newaccount.GetAccount(),
+		Name:          newaccount.GetName(),
+		Authorization: auth,
+		Data:          data,
+	}
 }
-
 func sendActions(actions []*types.Action, extraKcpu int32, compression common.CompressionType) {
-	//compression = common.CompressionNone
-	//extraKcpu = 1000
+	fmt.Println("send action")
 	result := pushActions(actions, extraKcpu, compression)
-	if txPrintJson {
 
-		//fmt.Println(string(result))
+	if txPrintJson {
+		fmt.Println("txPrintJson")
+		// fmt.Println(string(result))
 	} else {
 		printResult(result)
 	}
 
 }
 func pushActions(actions []*types.Action, extraKcpu int32, compression common.CompressionType) interface{} {
-	trx := types.SignedTransaction{}
+	fmt.Println("push actions")
+	trx := &types.SignedTransaction{}
 	trx.Actions = actions
+	fmt.Println("trx.Actions")
 	return pushTransaction(trx, extraKcpu, compression)
 }
-func pushTransaction(trx types.SignedTransaction, extraKcpu int32, compression common.CompressionType) interface{} {
+func pushTransaction(trx *types.SignedTransaction, extraKcpu int32, compression common.CompressionType) interface{} {
+	fmt.Println("push transaction")
 	info, err := getInfo()
 	if err != nil {
-		return err
+		panic(err)
 	}
-	display, err := json.Marshal(info)
+
+	fmt.Println(313)
+	fmt.Println(info.HeadBlockTime.Totime(), info.HeadBlockTime.Totime().Add(tx_expiration))
+	// trx.SetExpiration(tx_expiration)//now()
+	// calculate expiration date
+	trx.Expiration = common.JSONTime{info.HeadBlockTime.Totime().Add(tx_expiration)}
+	fmt.Println(trx.Expiration)
+
+	refBlockID := info.LastIrreversibleBlockID
+	if len(*tx_ref_block_num_or_id) > 0 {
+		fmt.Println("tx_ref_block_num_or_id")
+		var resp BlockResp
+		variant, err := DoHttpCall(chainUrl, getBlockHeaderStateFunc, Variants{"block_num_or_id": tx_ref_block_num_or_id})
+		if err != nil {
+			panic(err)
+		}
+		if err := json.Unmarshal(variant, &resp); err != nil {
+			return fmt.Errorf("Unmarshal: %s", err)
+		}
+		refBlockID = resp.ID
+	}
+	trx.SetReferenceBlock(refBlockID)
+
+	if *tx_force_unique {
+		// trx.ContextFreeActions. //TODO
+	}
+	trx.MaxCPUUsageMS = uint8(*tx_max_cpu_usage)
+	trx.MaxNetUsageWords = (uint32(*tx_max_net_usage) + 7) / 8
+
+	if !*tx_skip_sign {
+		requiredKeys := determineRequiredKeys(trx)
+		fmt.Println(requiredKeys)
+		// signTransaction(trx, requiredKeys, info.ChainID)
+	}
+	if !*tx_dont_broadcast {
+		fmt.Println("push transaction")
+		return nil
+	} else {
+		return trx
+	}
+
+	return nil
+}
+
+func determineRequiredKeys(trx *types.SignedTransaction) Variants {
+	var publicKey []string
+	variant, err := DoHttpCall(walletUrl, walletPublicKeys, nil)
 	if err != nil {
-		return err
+		panic(err)
 	}
-	fmt.Println(string(display))
+	if err := json.Unmarshal(variant, &publicKey); err != nil {
+		return nil
+	}
+	fmt.Println("get public keys: ", publicKey)
+
+	var keys map[string][]string
+
+	arg := &Variants{
+		"transaction":    trx,
+		"available_keys": publicKey,
+	}
+	variant, err = DoHttpCall(chainUrl, getRequiredKeys, arg)
+	if err != nil {
+		panic(err)
+	}
+	if err := json.Unmarshal(variant, &keys); err != nil {
+		return nil
+	}
+
 	return nil
 }
 
@@ -296,29 +395,33 @@ func getInfoCli(ctx *cli.Context) (err error) {
 }
 
 func getInfo() (out *InfoResp, err error) {
-	err = DoHttpCall(getInfoFunc, nil, &out)
+	variant, err := DoHttpCall(chainUrl, getInfoFunc, nil)
+	if err := json.Unmarshal(variant, &out); err != nil {
+		return nil, fmt.Errorf("Unmarshal: %s", err)
+	}
 	return
 }
 
 func getBlock(ctx *cli.Context) (err error) {
-
 	getBHS := ctx.Bool(utils.BlockHeadStateFlag.Name)
 	blockarg := ctx.Args().First()
-	var resp BlockResp
-
+	// var resp BlockResp
+	var variant []byte
 	if getBHS {
-		err = DoHttpCall(getBlockHeaderStateFunc, M{"block_num_or_id": blockarg}, &resp)
+		variant, err = DoHttpCall(chainUrl, getBlockHeaderStateFunc, Variants{"block_num_or_id": blockarg})
 	} else {
-		err = DoHttpCall(getBlockFunc, M{"block_num_or_id": blockarg}, &resp)
+		variant, err = DoHttpCall(chainUrl, getBlockFunc, Variants{"block_num_or_id": blockarg})
 	}
-	fmt.Println(resp)
+	if err != nil {
+		return
+	}
+	fmt.Println("resp: ", string(variant))
 
-	// fmt.Println("json: ", bytes.NewBuffer(data).String())
-	// display, err := json.Marshal(resp)
-	// if err != nil {
-	// 	return err
+	// if err := json.Unmarshal(variant, &resp); err != nil {
+	// 	return fmt.Errorf("Unmarshal: %s", err)
 	// }
-	// fmt.Println("解构以后： ", string(display))
+	// fmt.Println(resp.BlockNumber())
+
 	return
 
 }
@@ -326,13 +429,17 @@ func getBlock(ctx *cli.Context) (err error) {
 // type M map[string]interface{}
 // auto arg = fc::mutable_variant_object("block_num_or_id", blockArg);
 func getBlockID(getbhs bool, blockarg string) (resp *BlockResp, err error) {
+	var variant []byte
 	if getbhs {
-		err = DoHttpCall(getBlockHeaderStateFunc, M{"block_num_or_id": blockarg}, &resp)
+		variant, err = DoHttpCall(chainUrl, getBlockHeaderStateFunc, Variants{"block_num_or_id": blockarg})
 	} else {
-		err = DoHttpCall(getBlockFunc, M{"block_num_or_id": blockarg}, &resp)
+		variant, err = DoHttpCall(chainUrl, getBlockFunc, Variants{"block_num_or_id": blockarg})
+	}
+	if err := json.Unmarshal(variant, &resp); err != nil {
+		return nil, fmt.Errorf("Unmarshal: %s", err)
 	}
 	fmt.Println(resp)
-	// fmt.Println("json: ", bytes.NewBuffer(data).String())
+
 	return
 }
 
@@ -340,13 +447,13 @@ func getAccount(ctx *cli.Context) (err error) {
 	printJson := ctx.Bool("json")
 	name := ctx.Args().First()
 	var resp AccountResp
-	err = DoHttpCall(getAccountFunc, M{"account_name": name}, &resp)
-
-	display, err := json.Marshal(resp)
-	if err != nil {
-		return err
+	variant, err := DoHttpCall(chainUrl, getAccountFunc, Variants{"account_name": name})
+	if err := json.Unmarshal(variant, &resp); err != nil {
+		return fmt.Errorf("Unmarshal: %s", err)
 	}
-	fmt.Println(string(display))
+	fmt.Println(string(variant)) //for display
+
+	// fmt.Println(resp.AccountName)
 	if !printJson {
 		//TODO
 	} else {
@@ -365,8 +472,10 @@ func getCode(ctx *cli.Context) (err error) {
 	}
 	fmt.Println(code, abi, wasm, name)
 	var resp GetCodeResp
-	err = DoHttpCall(getRawCodeAndAbiFunc, M{"account_name": name, "code_as_wasm": true}, &resp)
-
+	variant, err := DoHttpCall(chainUrl, getRawCodeAndAbiFunc, Variants{"account_name": name, "code_as_wasm": true})
+	if err := json.Unmarshal(variant, &resp); err != nil {
+		return fmt.Errorf("Unmarshal: %s", err)
+	}
 	if err != nil {
 		return err
 	}
@@ -387,9 +496,12 @@ func getAbi(ctx *cli.Context) (err error) {
 	fmt.Println(abi, name)
 	var resp GetABIResp
 
-	err = DoHttpCall(getAbiFunc, M{"account_name": name}, &resp)
+	variant, err := DoHttpCall(chainUrl, getAbiFunc, Variants{"account_name": name})
 	if err != nil {
 		return err
+	}
+	if err := json.Unmarshal(variant, &resp); err != nil {
+		return fmt.Errorf("Unmarshal: %s", err)
 	}
 	display, err := json.Marshal(resp)
 	if err != nil {
@@ -412,8 +524,8 @@ func getTable(ctx *cli.Context) (err error) {
 	limit := ctx.Int("limt")
 
 	var resp GetTableRowsResp
-	err = DoHttpCall(getTableFunc,
-		M{"json": !binary,
+	variant, err := DoHttpCall(chainUrl, getTableFunc,
+		Variants{"json": !binary,
 			"code":           code,
 			"scope":          scope,
 			"table":          table,
@@ -422,63 +534,67 @@ func getTable(ctx *cli.Context) (err error) {
 			"upper_bound":    upper,
 			"limit":          limit,
 			"key_type":       keyType,
-			"index_position": indexPosition},
-		&resp)
+			"index_position": indexPosition})
 	if err != nil {
 		return err
 	}
-	display, err := json.Marshal(resp)
-	if err != nil {
-		return err
+	fmt.Println("resp: ", string(variant))
+
+	if err := json.Unmarshal(variant, &resp); err != nil {
+		return fmt.Errorf("Unmarshal: %s", err)
 	}
-	fmt.Println("resp: ", string(display))
+
 	return nil
 }
+
 func getCurrencyBalance(ctx *cli.Context) (err error) {
 	name := ctx.String("account")
 	code := ctx.String("contract")
 	symbol := ctx.String("symbol")
-	params := M{"account_name": name, "code": code}
+	params := Variants{"account_name": name, "code": code}
 
 	if symbol != "" {
 		params["symbol"] = symbol
 	}
 	var resp []common.Asset
-	err = DoHttpCall(getCurrencyBalanceFunc, params, &resp)
+	variant, err := DoHttpCall(chainUrl, getCurrencyBalanceFunc, params)
 	if err != nil {
 		return err
 	}
-	display, err := json.Marshal(resp)
-	if err != nil {
-		return err
+	if err := json.Unmarshal(variant, &resp); err != nil {
+		return fmt.Errorf("Unmarshal: %s", err)
 	}
+	fmt.Println("resp: ", string(variant))
+
 	for i := 0; i < len(resp); i++ {
 		fmt.Println(resp[i])
 	}
-	fmt.Println("resp: ", string(display))
 	return nil
 }
 func getCurrencyStats(ctx *cli.Context) (err error) {
 	code := ctx.String("contract")
 	symbol := ctx.String("symbol")
 	var resp json.RawMessage //TODO
-	err = DoHttpCall(getCurrencyStatsFunc, M{"code": code, "symbol": symbol}, &resp)
+	variant, err := DoHttpCall(chainUrl, getCurrencyStatsFunc, Variants{"code": code, "symbol": symbol})
 	if err != nil {
 		return err
 	}
-	display, err := json.Marshal(resp)
-	if err != nil {
-		return err
+	fmt.Println("resp: ", string(variant))
+	if err := json.Unmarshal(variant, &resp); err != nil {
+		return fmt.Errorf("Unmarshal: %s", err)
 	}
+
 	for i := 0; i < len(resp); i++ {
 		fmt.Println(resp[i])
 	}
-	fmt.Println("resp: ", string(display))
 	return nil
 }
 
-func printResult(aa interface{}) {
-
+func printResult(v interface{}) {
+	data, err := json.Marshal(v)
+	if err != nil {
+		fmt.Println("%v\n", string(data))
+	}
 }
 
 // storage, err := rlp.EncodeToBytes(create)

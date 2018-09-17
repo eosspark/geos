@@ -3,6 +3,7 @@ package walletPlugin
 import (
 	"bytes"
 	"crypto/sha512"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -23,8 +24,27 @@ const (
 	defaultKeyType          string = "K1"
 )
 
+type CKeys []byte
 type WalletData struct {
-	CipherKeys []byte `json:"cipher_keys"` /** encrypted keys */
+	CipherKeys CKeys `json:"cipher_keys"` /** encrypted keys */
+}
+
+func (w CKeys) MarshalJSON() ([]byte, error) {
+	return json.Marshal(hex.EncodeToString(w))
+}
+
+func (w *CKeys) UnmarshalJSON(data []byte) (err error) {
+	fmt.Println(data)
+	var s string
+	err = json.Unmarshal(data, &s)
+	if err != nil {
+		return err
+	}
+	out, err := hex.DecodeString(s)
+	fmt.Println("out: ", out)
+	*w = CKeys(out)
+	fmt.Println(w)
+	return err
 }
 
 type PlainKeys struct {
@@ -173,14 +193,14 @@ func (w *SoftWallet) LoadWalletFile() bool { //TODO need filename ?
 		fmt.Println(err)
 		return false
 	}
-	buf := make([]byte, 1024)
+	buf := make([]byte, 1024) //TODO
 	lenth, err := walletFile.Read(buf)
 	if err != nil {
 		fmt.Println(w.walletFilename, string(buf[:lenth]), err)
 		return false
 	}
-	json.Unmarshal(buf[:lenth], &w.wallet)
-	fmt.Println("wallet: ", w.wallet)
+	err = json.Unmarshal(buf[:lenth], &w.wallet)
+	fmt.Println("wallet: ", w.wallet, err)
 	return true
 }
 
@@ -212,14 +232,22 @@ func (w *SoftWallet) LoadWalletFile() bool { //TODO need filename ?
 // 	return nil
 // }
 
+// func (w CipherKeys) MarshalJSON() ([]byte, error) {
+
+// 	return json.Marshal(hex.EncodeToString(w))
+// }
+
 func (w *SoftWallet) SaveWalletFile() (err error) { //TODO need walletFilename ?
 	w.encryptKeys()
 	fmt.Printf("Saving wallet to file %s\n", w.walletFilename)
-
+	fmt.Println(w.wallet)
 	data, err := json.Marshal(w.wallet)
 	if err != nil {
+		fmt.Println(w.wallet, err)
 		return err
 	}
+	fmt.Println("data: ", data, w.wallet)
+
 	walletFile, err := os.OpenFile(w.walletFilename, os.O_RDWR|os.O_CREATE, 0766)
 	defer walletFile.Close()
 	_, err = walletFile.Write(data)
@@ -228,6 +256,7 @@ func (w *SoftWallet) SaveWalletFile() (err error) { //TODO need walletFilename ?
 	}
 	return nil
 }
+
 func (w *SoftWallet) SetWalletFilename(filename string) {
 	w.walletFilename = filename
 }

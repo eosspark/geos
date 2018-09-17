@@ -10,7 +10,7 @@ import (
 	"net"
 	"net/http"
 	"net/http/httputil"
-	"strings"
+	// "strings"
 	"time"
 )
 
@@ -50,18 +50,27 @@ func NewHttp(baseURL string) *API {
 	return api
 }
 
-// See more here: libraries/chain/contracts/abi_serializer.cpp:58...
+func enc(v interface{}) (io.Reader, error) {
+	if v == nil {
+		return nil, nil
+	}
+	cnt, err := json.Marshal(v)
+	if err != nil {
+		return nil, err
+	}
+	return bytes.NewReader(cnt), nil
+}
 
-func (api *API) call(path string, body interface{}, out interface{}) error {
+func (api *API) call(path string, body interface{}) ([]byte, error) {
 	jsonBody, err := enc(body)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	targetURL := api.BaseURL + path
 	// targetURL := fmt.Sprintf("%s/v1/%s/%s", api.BaseURL, baseAPI, endpoint)
 	req, err := http.NewRequest("POST", targetURL, jsonBody)
 	if err != nil {
-		return fmt.Errorf("NewRequest: %s", err)
+		return nil, fmt.Errorf("NewRequest: %s", err)
 	}
 
 	if api.Debug {
@@ -77,70 +86,35 @@ func (api *API) call(path string, body interface{}, out interface{}) error {
 
 	resp, err := api.HttpClient.Do(req)
 	if err != nil {
-		return fmt.Errorf("%s: %s", req.URL.String(), err)
+		return nil, fmt.Errorf("%s: %s", req.URL.String(), err)
 	}
 	defer resp.Body.Close()
 
 	var cnt bytes.Buffer
 	_, err = io.Copy(&cnt, resp.Body)
 	if err != nil {
-		return fmt.Errorf("Copy: %s", err)
+		return nil, fmt.Errorf("Copy: %s", err)
 	}
 
 	if resp.StatusCode == 404 {
-		return ErrNotFound
+		return nil, ErrNotFound
 	}
 	if resp.StatusCode > 299 {
-		// fmt.Println("error: ", resp.StatusCode, req.URL.String(), resp.StatusCode, cnt.String())
-		return fmt.Errorf("%s: status code=%d, body=%s", req.URL.String(), resp.StatusCode, cnt.String())
-
+		return nil, fmt.Errorf("%s: status code=%d, body=%s", req.URL.String(), resp.StatusCode, cnt.String())
 	}
 
 	if api.Debug {
 		fmt.Println("RESPONSE:")
-		fmt.Println(cnt.String())
-		// fmt.Println("返回数据： ", cnt)
-		fmt.Println(cnt.Bytes())
+		fmt.Println("string: ", cnt.String())
+		fmt.Println("byte: ", cnt.Bytes())
 		fmt.Println("")
 	}
 
-	if err := json.Unmarshal(cnt.Bytes(), &out); err != nil {
-		return fmt.Errorf("Unmarshal: %s", err)
-	}
-
-	return nil
+	return cnt.Bytes(), nil
 }
 
-type M map[string]interface{}
-
-func enc(v interface{}) (io.Reader, error) {
-	if v == nil {
-		return nil, nil
-	}
-
-	cnt, err := json.Marshal(v)
-	if err != nil {
-		return nil, err
-	}
-
-	return bytes.NewReader(cnt), nil
-}
-
-var httpurl string
-
-func DoHttpCall(path string, body interface{}, out interface{}) (err error) {
-
-	if strings.Contains(path, "wallet") {
-		fmt.Println("wallet")
-		httpurl = walletUrl
-
-	} else {
-		fmt.Println("chain")
-		httpurl = url
-	}
-	http := NewHttp(httpurl)
-	// http := NewHttp("http://127.0.0.1:8000")
-	// http := NewHttp("http://127.0.0.1:8888")
-	err = http.call(path, body, &out)
+func DoHttpCall(url, path string, body interface{}) (out []byte, err error) {
+	http := NewHttp(url)
+	out, err = http.call(path, body)
 	return
 }

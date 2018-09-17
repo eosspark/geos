@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/hex"
+	"encoding/json"
 	// "bytes"
 	"fmt"
 	"github.com/eosspark/eos-go/chain/types"
@@ -137,11 +138,15 @@ var (
 func createWallet(ctx *cli.Context) (err error) {
 	walletname := ctx.String("name")
 
-	var resp string
-	err = DoHttpCall(walletCreate, []string{walletname}, &resp)
+	variant, err := DoHttpCall(walletUrl, walletCreate, []string{walletname})
 	if err != nil {
 		return
 	}
+	var resp string
+	if err := json.Unmarshal(variant, &resp); err != nil {
+		return fmt.Errorf("Unmarshal: %s", err)
+	}
+
 	fmt.Println("Creating wallet: ", walletname)
 	fmt.Println("Save password to use in the future to unlock this wallet.")
 	fmt.Println("Without password imported keys will not be retrievable.")
@@ -151,14 +156,12 @@ func createWallet(ctx *cli.Context) (err error) {
 
 func openWallet(ctx *cli.Context) (err error) {
 	walletname := ctx.String("name")
-	fmt.Println("Opened: ", walletname)
 
-	var resp string
-	err = DoHttpCall(walletOpen, []string{walletname}, &resp)
+	_, err = DoHttpCall(walletUrl, walletOpen, []string{walletname})
 	if err != nil {
 		return
 	}
-	fmt.Println(resp)
+	fmt.Println("Opened: ", walletname)
 	return
 }
 
@@ -177,18 +180,19 @@ func unlockWallet(ctx *cli.Context) (err error) {
 	walletname := ctx.String("name") //utils.WalletUnlockFlag.Name
 	password := ctx.String(utils.WalletPasswordFlag.Name)
 	fmt.Println(walletname, password)
-	err = DoHttpCall(walletUnlock, []string{walletname, password}, nil)
+	_, err = DoHttpCall(walletUrl, walletUnlock, []string{walletname, password})
 	if err != nil {
 		return
 	}
 	fmt.Println("Unlocked: ", walletname)
 	return nil
 }
+
 func importWallet(ctx *cli.Context) (err error) {
-	walletname := ctx.String("name") //utils.WalletUnlockFlag.Name
+	walletname := ctx.String("name")
 	keywif := ctx.String(utils.WalletPriKeyFlag.Name)
 
-	err = DoHttpCall(walletImportKey, []string{walletname, keywif}, nil)
+	_, err = DoHttpCall(walletUrl, walletImportKey, []string{walletname, keywif})
 	if err != nil {
 		return
 	}
@@ -201,6 +205,7 @@ func importWallet(ctx *cli.Context) (err error) {
 	fmt.Println("imported private key for: ", pubkey.String())
 	return
 }
+
 func removeKey(ctx *cli.Context) (err error) {
 	walletname := ctx.String("name")
 	keywif := ctx.String("prikey")
@@ -211,6 +216,8 @@ func removeKey(ctx *cli.Context) (err error) {
 		return err
 	}
 
+	//TODO
+
 	pubkey := prikey.PublicKey()
 	fmt.Println(walletname, password)
 	fmt.Println("removed private key for: ", pubkey.String())
@@ -219,10 +226,14 @@ func removeKey(ctx *cli.Context) (err error) {
 
 func listWallet(ctx *cli.Context) (err error) {
 	var resp []string
-	err = DoHttpCall(walletList, nil, &resp)
+	variant, err := DoHttpCall(walletUrl, walletList, nil)
 	if err != nil {
 		return
 	}
+	if err := json.Unmarshal(variant, &resp); err != nil {
+		return fmt.Errorf("Unmarshal: %s", err)
+	}
+
 	fmt.Println("wallets: ")
 	for _, wallet := range resp {
 		fmt.Println(wallet)
@@ -231,9 +242,12 @@ func listWallet(ctx *cli.Context) (err error) {
 }
 func getPublicKeys(ctx *cli.Context) (err error) {
 	var resp []string
-	err = DoHttpCall(walletPublicKeys, nil, &resp)
+	variant, err := DoHttpCall(walletUrl, walletPublicKeys, nil)
 	if err != nil {
 		return
+	}
+	if err := json.Unmarshal(variant, &resp); err != nil {
+		return fmt.Errorf("Unmarshal: %s", err)
 	}
 	fmt.Println(resp)
 	return
@@ -245,15 +259,18 @@ func listKeys(ctx *cli.Context) (err error) {
 
 	fmt.Println(walletname, password)
 	var resp map[string]string
-	err = DoHttpCall(walletListKeys, []string{walletname, password}, &resp)
+	variant, err := DoHttpCall(walletUrl, walletListKeys, []string{walletname, password})
 	if err != nil {
 		return
+	}
+	if err := json.Unmarshal(variant, &resp); err != nil {
+		return fmt.Errorf("Unmarshal: %s", err)
 	}
 	fmt.Println(resp)
 	return
 }
 
-func signTransactionCli(ctx *cli.Context) error {
+func signTransactionCli(ctx *cli.Context) (err error) {
 	fmt.Println("sign transaction")
 	trx_json_to_sign := ctx.String("transaction")
 	str_private_key := ctx.String("private-key")
@@ -263,13 +280,18 @@ func signTransactionCli(ctx *cli.Context) error {
 	fmt.Println("cli body: ", trx_json_to_sign, str_private_key, str_chain_id, push_trx)
 
 	// SignTransaction()
-	var out WalletSignTransactionResp
-	err := DoHttpCall(walletSignTrx, []interface{}{
+
+	variant, err := DoHttpCall(walletUrl, walletSignTrx, []interface{}{
 		trx_json_to_sign,
 		str_private_key,
 		str_chain_id,
-	}, &out)
-	fmt.Println(out)
+	})
+
+	var resp WalletSignTransactionResp
+	if err = json.Unmarshal(variant, &resp); err != nil {
+		return fmt.Errorf("Unmarshal: %s", err)
+	}
+	fmt.Println(resp)
 	return err
 }
 
@@ -279,11 +301,14 @@ func SignTransaction(tx *types.SignedTransaction, chainID common.ChainIDType, pu
 		textKeys = append(textKeys, key.String())
 	}
 	chainid, _ := chainID.MarshalJSON()
-	err = DoHttpCall(walletSignTrx, []interface{}{
+	variant, err := DoHttpCall(walletUrl, walletSignTrx, []interface{}{
 		tx,
 		textKeys,
 		hex.EncodeToString(chainid),
-	}, &out)
+	})
+	if err = json.Unmarshal(variant, &out); err != nil {
+		return nil, fmt.Errorf("Unmarshal: %s", err)
+	}
 	fmt.Println(out)
 	return
 }
