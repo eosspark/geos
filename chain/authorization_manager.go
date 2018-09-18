@@ -1,24 +1,25 @@
-package types
+package chain
 
 import (
+	"time"
 	"fmt"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/contracts/system"
 	"github.com/eosspark/eos-go/db"
-	"time"
+	"github.com/eosspark/eos-go/chain/types"
 )
 
 type AuthorizationManager struct {
-	//control chain.Controller
+	control Controller
 	db *eosiodb.DataBase
 }
 
 type PermissionIdType uint64
 
 func (am *AuthorizationManager) AddIndices() {
-	am.db.Insert(&PermissionObject{})
-	am.db.Insert(&PermissionUsageObject{})
-	am.db.Insert(&PermissionLinkObject{})
+	am.db.Insert(&types.PermissionObject{})
+	am.db.Insert(&types.PermissionUsageObject{})
+	am.db.Insert(&types.PermissionLinkObject{})
 }
 
 func (am *AuthorizationManager) InitializeDataBase() {
@@ -36,25 +37,25 @@ func (am *AuthorizationManager) CreatePermission(account common.AccountName,
 		//createTime = pendingBlockTime
 	}
 
-	var permUsage PermissionUsageObject
+	var permUsage types.PermissionUsageObject
 	permUsage.LastUsed = creationTime
 	am.db.Insert(&permUsage)
 
-	perm := PermissionObject{
+	perm := types.PermissionObject{
 		UsageId:     permUsage.Id,
 		Parent:      uint64(parent),
 		Owner:       account,
 		Name:        name,
 		LastUpdated: creationTime,
-		//Auth:        SharedAuthority(),
+		Auth:        am.AuthToShared(auth),
 	}
 	am.db.Insert(&perm)
 	return perm
 }
 
-func (am *AuthorizationManager) ModifyPermission(permission PermissionObject, auth common.Authority) {
+func (am *AuthorizationManager) ModifyPermission(permission types.PermissionObject, auth types.Authority) {
 	am.db.Update(&permission, func(data interface{}) error {
-		//permission.Auth = auth
+		permission.Auth = am.AuthToShared(auth)
 		//permission.LastUpdated = pendingBlockTime
 		return nil
 	})
@@ -65,7 +66,7 @@ func (am *AuthorizationManager) RemovePermission() {
 }
 
 func (am *AuthorizationManager) UpdatePermissionUsage() {
-	var puo PermissionUsageObject
+	var puo types.PermissionUsageObject
 	am.db.Update(&puo, func(data interface{}) error {
 		//puo.LastUsed = pendingBlockTime
 		return nil
@@ -73,18 +74,18 @@ func (am *AuthorizationManager) UpdatePermissionUsage() {
 }
 
 func (am *AuthorizationManager) GetPermissionLastUsed(permission common.Permission) time.Duration {
-	var puo PermissionUsageObject
+	var puo types.PermissionUsageObject
 	return puo.LastUsed
 }
 
-func (am *AuthorizationManager) FindPermission(level common.PermissionLevel) *PermissionObject {
-	var po PermissionObject
+func (am *AuthorizationManager) FindPermission(level common.PermissionLevel) *types.PermissionObject {
+	var po types.PermissionObject
 	am.db.Find("", 0, &po)
 	return &po
 }
 
-func (am *AuthorizationManager) GetPermission(level common.PermissionLevel) PermissionObject {
-	var po PermissionObject
+func (am *AuthorizationManager) GetPermission(level common.PermissionLevel) types.PermissionObject {
+	var po types.PermissionObject
 	am.db.Find("", 0, &po)
 	return po
 }
@@ -197,8 +198,12 @@ func (am *AuthorizationManager) CheckAuthorization(actions []common.Action,
 
 }
 
-func (am *AuthorizationManager) GetRequiredKeys(trx Transaction,
+func (am *AuthorizationManager) GetRequiredKeys(trx types.Transaction,
 	candidateKeys []common.PublicKeyType,
 	providedDelay time.Time) {
 	//check := MakeAuthChecker()
+}
+
+func (am *AuthorizationManager) AuthToShared(auth types.Authority) types.SharedAuthority{
+	return types.SharedAuthority{auth.Threshold,auth.Keys,auth.Accounts,auth.Waits}
 }
