@@ -5,16 +5,18 @@
 
 ### Simple Struct 
 ``` go
+Animal  struct {
+    Number    int
+    Carnivore struct {
+        Lion  int
+        Tiger int
+    }`storm:"unique"`
+} `storm:"inline"`
+
 type Zoo struct {
-	Id     int `storm:"id,increment"` // id or ID 
-	Name    string
-	Animal  struct {
-	    Number      int
-		Carnivore   struct {
-			Lion    int
-			Tiger   int
-		} `storm:"unique"`
-	} `storm:"inline"`
+	Id   int `storm:"id,increment"` // id or ID
+	Name string
+    Ani  Animal
 }
 
 ``` 

@@ -33,6 +33,50 @@ func TestNewBase(t *testing.T) {
 	fmt.Println("database successful")
 }
 
+type House struct {
+	Id   uint64 `storm:"id,increment"`
+	Area uint64
+	Name string
+}
+
+func Test_Lower_Upper(t *testing.T) {
+	db, err := NewDataBase("./", "test.db", true)
+	if err != nil {
+		fmt.Println("NewDataBase failed")
+		return
+	}
+	defer db.Close()
+	fmt.Println("database successful")
+
+	for key, value := range names {
+		house := House{Area: (uint64(key + 1)), Name: value}
+		err = db.Insert(&house)
+		if err != nil {
+			fmt.Println(err.Error())
+		}
+	}
+	/////////////////// Lower_Bound(///////////////////////////
+	var houses []House
+	err = db.All(&houses)
+	if err != nil {
+		fmt.Println(err.Error())
+	}
+	fmt.Println(houses)
+	houses = nil
+	err = db.LowerBound("Area", 3, &houses)
+	if err != nil {
+		fmt.Println(err.Error())
+	}
+	fmt.Println(houses)
+	/////////////////// Upper_Bound(///////////////////////////
+	houses = nil
+	err = db.UpperBound("Area", 3, &houses)
+	if err != nil {
+		fmt.Println(err.Error())
+	}
+	fmt.Println(houses)
+}
+
 func TestInser(t *testing.T) {
 	db, err := NewDataBase("./", "test.db", true)
 	if err != nil {
@@ -54,30 +98,11 @@ func TestInser(t *testing.T) {
 		fmt.Println("Insert error : ", err.Error())
 		return
 	}
-
-	var tu User
-	err = db.Find("Id", 10, &tu)
-	if err != nil {
-		fmt.Println("Insert error : ", err.Error())
-		return
-	}
-	fmt.Println(tu)
-
 	var tmp User
 	err = db.Find("Acc", AccountObject{11, "11"}, &tmp)
 	if err != nil {
 		fmt.Println("Insert error : ", err.Error())
 		return
 	}
-	fmt.Println("***********************************")
 	fmt.Println(tmp)
-	fmt.Println("***********************************")
-
-	var users []User
-	err = db.All(&users)
-	if err != nil {
-		fmt.Println(err.Error())
-		return
-	}
-	fmt.Println(users)
 }

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/eosspark/eos-go/db/storm"
+	"github.com/eosspark/eos-go/db/storm/q"
 	"path/filepath"
 	"reflect"
 	"sync"
@@ -158,6 +159,14 @@ func (db *base) find(fieldName string, value interface{}, to interface{}) error 
 
 func (db *base) get(fieldName string, fieldValue interface{}, to interface{}) error {
 	return db.db.Find(fieldName, fieldValue, to)
+}
+
+func (db *base) lowerBound(fieldName string, value interface{}, out interface{}) error {
+	return db.db.Select(q.Lte(fieldName, value)).Find(out)
+}
+
+func (db *base) upperBound(fieldName string, value interface{}, out interface{}) error {
+	return db.db.Select(q.Gt(fieldName, value)).Find(out)
 }
 
 func (db *base) updateField(data interface{}, fieldName string, value interface{}) error {
@@ -404,6 +413,14 @@ func (undo *DataBase) Find(fieldName string, value interface{}, to interface{}) 
 
 func (undo *DataBase) Get(fieldName string, fieldValue interface{}, to interface{}) error {
 	return undo.db.get(fieldName, fieldValue, to)
+}
+
+func (undo *DataBase) LowerBound(fieldName string, value interface{}, out interface{}) error {
+	return undo.db.lowerBound(fieldName, value, out)
+}
+
+func (undo *DataBase) UpperBound(fieldName string, value interface{}, out interface{}) error {
+	return undo.db.upperBound(fieldName, value, out)
 }
 
 func (undo *DataBase) ByIndex(fieldName string, to interface{}) error {
