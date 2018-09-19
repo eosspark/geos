@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"time"
 
-	types2 "github.com/eosspark/eos-go-09-07/chain/types"
+
 	"github.com/eosspark/eos-go/chain/config"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
-	"github.com/eosspark/eos-go/cvm/exec"
+	//"github.com/eosspark/eos-go/cvm/exec"
 	"github.com/eosspark/eos-go/db"
 	"github.com/eosspark/eos-go/log"
 	"github.com/eosspark/eos-go/rlp"
@@ -58,7 +58,7 @@ type Config struct {
 	disableReplay       bool
 	contractsConsole    bool
 	genesis             types.GenesisState
-	vmType              exec.WasmInterface
+	//vmType              exec.WasmInterface
 	readMode            DBReadMode
 	blockValidationMode ValidationMode
 	resourceGreylist    []common.AccountName
@@ -73,9 +73,9 @@ type Controller struct {
 	pending               *types.PendingState
 	head                  types.BlockState
 	forkDB                types.ForkDatabase
-	wasmif                exec.WasmInterface
+	//wasmif                exec.WasmInterface
 	resourceLimist        ResourceLimitsManager
-	authorization         types2.AuthorizationManager
+	authorization         AuthorizationManager
 	config                Config //local	Config
 	chainID               common.ChainIDType
 	rePlaying             bool
@@ -372,7 +372,7 @@ func (self *Controller) initConfig() *Controller {
 		forceAllChecks:      false,
 		disableReplayOpts:   false,
 		contractsConsole:    false,
-		vmType:              config.DefaultWasmRuntime, //TODO
+		//vmType:              config.DefaultWasmRuntime, //TODO
 		readMode:            SPECULATIVE,
 		blockValidationMode: FULL,
 	}
