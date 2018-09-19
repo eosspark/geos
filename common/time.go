@@ -14,12 +14,12 @@ func MaxMicroseconds() Microseconds { return Microseconds(0x7fffffffffffffff) }
 func MinMicroseconds() Microseconds { return Microseconds(0) }
 
 func (ms Microseconds) ToSeconds() int64 { return int64(ms / 1e6) }
-
-func Seconds(s int64) Microseconds      { return Microseconds(s * 1e6) }
-func Milliseconds(s int64) Microseconds { return Microseconds(s * 1e3) }
-func Minutes(m int64) Microseconds      { return Seconds(60 * m) }
-func Hours(h int64) Microseconds        { return Minutes(60 * h) }
-func Days(d int64) Microseconds         { return Hours(24 * d) }
+func (ms Microseconds) Count() int64     { return int64(ms) }
+func Seconds(s int64) Microseconds       { return Microseconds(s * 1e6) }
+func Milliseconds(s int64) Microseconds  { return Microseconds(s * 1e3) }
+func Minutes(m int64) Microseconds       { return Seconds(60 * m) }
+func Hours(h int64) Microseconds         { return Minutes(60 * h) }
+func Days(d int64) Microseconds          { return Hours(24 * d) }
 
 type TimePoint Microseconds
 
@@ -76,6 +76,7 @@ func MinTimePointSec() TimePointSec { return TimePointSec(0) }
 func (tp TimePointSec) ToTimePoint() TimePoint { return TimePoint(Seconds(int64(tp))) }
 func (tp TimePointSec) SecSinceEpoch() uint32  { return uint32(tp) }
 func (tp TimePointSec) String() string         { return tp.ToTimePoint().String() }
+
 func FromIsoStringSec(s string) (TimePointSec, error) {
 	pt, err := time.Parse(format, s)
 	return TimePointSec(pt.Unix()), err
@@ -98,7 +99,6 @@ type Timer struct {
 func (my *Timer) ExpiresFromNow(m Microseconds) { my.duration = time.Microsecond * time.Duration(m) }
 func (my *Timer) ExpiresUntil(t TimePoint)      { my.ExpiresFromNow(t.Sub(Now())) }
 func (my *Timer) ExpiresAt(epoch Microseconds)  { my.ExpiresUntil(TimePoint(epoch)) }
-
 func (my *Timer) AsyncWait(call func()) {
 	my.internal = time.NewTimer(my.duration)
 	<-my.internal.C
