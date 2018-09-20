@@ -89,15 +89,13 @@ func (fn goFunction) call(vm *VM, index int64) {
 			val.SetFloat(math.Float64frombits(raw))
 		case reflect.Uint32, reflect.Uint64:
 			val.SetUint(raw)
-		case reflect.Int32, reflect.Int64:
+		case reflect.Int32, reflect.Int64, reflect.Int:
 			val.SetInt(int64(raw))
 		default:
 			//panic(fmt.Sprintf("exec: args %d invalid kind=%v", i, kind))
 			val = reflect.ValueOf(raw)
 		}
 		args[i] = val
-
-		//args[i] = reflect.ValueOf(vm.popUint64())
 	}
 
 	rtrns := fn.val.Call(args)
@@ -108,7 +106,7 @@ func (fn goFunction) call(vm *VM, index int64) {
 			vm.pushFloat64(out.Float())
 		case reflect.Uint32, reflect.Uint64:
 			vm.pushUint64(out.Uint())
-		case reflect.Int32, reflect.Int64:
+		case reflect.Int32, reflect.Int64, reflect.Int:
 			vm.pushInt64(out.Int())
 		default:
 			panic(fmt.Sprintf("exec: return value %d invalid kind=%v", i, kind))

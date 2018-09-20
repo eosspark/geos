@@ -1,44 +1,40 @@
 package exec
 
 import (
-	//	"errors"
-	"bytes"
-	"errors"
 	"fmt"
-	"log"
-	"reflect"
-
-	//"math"
-	//"os"
-	"strings"
-
-	"github.com/eosspark/eos-go/common"
-	"github.com/eosspark/eos-go/cvm/wasm"
 )
 
-var (
-	ignore bool
-)
+func checktime(w *WasmInterface) {
+
+	fmt.Println("checktime")
+	w.context.CheckTime()
+
+}
 
 // uint64_t current_time() {
 //    return static_cast<uint64_t>( context.control.pending_block_time().time_since_epoch().count() );
 // }
-func current_time(wasmInterface *WasmInterface) int64 {
-	fmt.Println("prints")
+func current_time(w *WasmInterface) int64 {
+	fmt.Println("current_time")
+
+	//return uint64(wasmInterface.Context.Controller.PendingBlockTime().TimeSinceEpoch().Count())
+	return w.context.CurrentTime()
 }
 
 // uint64_t publication_time() {
 //    return static_cast<uint64_t>( context.trx_context.published.time_since_epoch().count() );
 // }
-func publication_time(wasmInterface *WasmInterface) int64 {
-	fmt.Println("prints_l")
+func publication_time(w *WasmInterface) int64 {
+	fmt.Println("publication_time")
+
+	return w.context.PublicationTime()
 }
 
 // void abort() {
 //    edump(("abort() called"));
 //    EOS_ASSERT( false, abort_called, "abort() called");
 // }
-func abort(wasmInterface *WasmInterface) {
+func abort(w *WasmInterface) {
 	fmt.Println("abort")
 }
 
@@ -49,8 +45,15 @@ func abort(wasmInterface *WasmInterface) {
 //       EOS_THROW( eosio_assert_message_exception, "assertion failure with message: ${s}", ("s",message) );
 //    }
 // }
-func eosio_assert(wasmInterface *WasmInterface, condition int, val int) {
+func eosio_assert(w *WasmInterface, condition int, val int) {
 	fmt.Println("eosio_assert")
+
+	if condition != 1 {
+		message := getString(w, val)
+		fmt.Println(message)
+		// edump(message)
+		// E_THROW()
+	}
 }
 
 // void eosio_assert_message( bool condition, array_ptr<const char> msg, size_t msg_len ) {
@@ -60,7 +63,7 @@ func eosio_assert(wasmInterface *WasmInterface, condition int, val int) {
 //       EOS_THROW( eosio_assert_message_exception, "assertion failure with message: ${s}", ("s",message) );
 //    }
 // }
-func eosio_assert_message(wasmInterface *WasmInterface, condition int, msg int, msg_len size_t) {
+func eosio_assert_message(w *WasmInterface, condition int, msg int, msg_len size_t) {
 	fmt.Println("eosio_assert_message")
 }
 
@@ -71,13 +74,13 @@ func eosio_assert_message(wasmInterface *WasmInterface, condition int, msg int, 
 //                  "assertion failure with error code: ${error_code}", ("error_code", error_code) );
 //    }
 // }
-func eosio_assert_code(wasmInterface *WasmInterface, condition int, error_code int64) {
+func eosio_assert_code(w *WasmInterface, condition int, error_code int64) {
 	fmt.Println("eosio_assert_code")
 }
 
 // void eosio_exit(int32_t code) {
 //    throw wasm_exit{code};
 // }
-func eosio_exit(wasmInterface *WasmInterface, code int) {
+func eosio_exit(w *WasmInterface, code int) {
 	fmt.Println("eosio_exit")
 }

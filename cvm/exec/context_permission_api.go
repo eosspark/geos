@@ -1,20 +1,8 @@
 package exec
 
 import (
-	//	"errors"
-	"bytes"
-	"errors"
 	"fmt"
-	"log"
-	"reflect"
-
-	//"math"
-	//"os"
-	"strings"
-
-	//"github.com/eosspark/eos-go/chain"
 	"github.com/eosspark/eos-go/common"
-	"github.com/eosspark/eos-go/cvm/wasm"
 )
 
 // bool check_transaction_authorization( array_ptr<char> trx_data,     size_t trx_size,
@@ -45,10 +33,11 @@ import (
 
 //          return false;
 //       }
-func check_transaction_authorization(wasmInterface *WasmInterface, trx_data int, trx_size size_t,
+func check_transaction_authorization(w *WasmInterface, trx_data int, trx_size size_t,
 	pubkeys_data int, pubkeys_size size_t,
 	perms_data int, perms_size size_t) int {
 	fmt.Println("check_transaction_authorization")
+	return 0
 }
 
 //       bool check_permission_authorization( account_name account, permission_name permission,
@@ -82,19 +71,22 @@ func check_transaction_authorization(wasmInterface *WasmInterface, trx_data int,
 
 //          return false;
 //       }
-func check_permission_authorization(wasmInterface *WasmInterface, permission PermissionName,
+func check_permission_authorization(w *WasmInterface, permission common.PermissionName,
 	pubkeys_data int, pubkeys_size size_t,
 	perms_data int, perms_size size_t,
 	delay_us int64) int {
 	fmt.Println("check_permission_authorization")
+	return 0
 }
 
 //       int64_t get_permission_last_used( account_name account, permission_name permission ) {
 //          const auto& am = context.control.get_authorization_manager();
 //          return am.get_permission_last_used( am.get_permission({account, permission}) ).time_since_epoch().count();
 //       };
-func get_permission_last_used(wasmInterface *WasmInterface, account AccountName, permission PermissionName) int64 {
+func get_permission_last_used(w *WasmInterface, account common.AccountName, permission common.PermissionName) int64 {
 	fmt.Println("get_permission_last_used")
+
+	return w.context.GetPermissionLastUsed(account, permission)
 }
 
 //       int64_t get_account_creation_time( account_name account ) {
@@ -103,8 +95,10 @@ func get_permission_last_used(wasmInterface *WasmInterface, account AccountName,
 //                      "account '${account}' does not exist", ("account", account) );
 //          return time_point(acct->creation_date).time_since_epoch().count();
 //       }
-func get_account_creation_time(wasmInterface *WasmInterface, account AccountName) int64 {
+func get_account_creation_time(w *WasmInterface, account common.AccountName) int64 {
 	fmt.Println("get_account_creation_time")
+
+	return w.context.GetAccountCreateTime(account)
 }
 
 //    private:

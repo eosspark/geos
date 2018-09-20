@@ -1,19 +1,7 @@
 package exec
 
 import (
-	//	"errors"
-	"bytes"
-	"errors"
 	"fmt"
-	"log"
-	"reflect"
-
-	//"math"
-	//"os"
-	"strings"
-
-	"github.com/eosspark/eos-go/common"
-	"github.com/eosspark/eos-go/cvm/wasm"
 )
 
 // int read_action_data(array_ptr<char> memory, size_t buffer_size) {
@@ -25,20 +13,35 @@ import (
 
 //    return copy_size;
 // }
-func read_action_data(wasmInterface *WasmInterface, memory int, buffer_size size_t) int {
-	fmt.current_time("read_action_data")
+func read_action_data(w *WasmInterface, memory int, bufferSize int) int {
+	fmt.Println("read_action_data")
+
+	data := w.context.GetActionData()
+	s := len(data)
+	if bufferSize == 0 {
+		return s
+	}
+
+	copySize := min(bufferSize, s)
+	copy(w.vm.memory[memory:memory+copySize], data[0:copySize])
+
+	return copySize
+
 }
 
 // int action_data_size() {
 //    return context.act.data.size();
 // }
-func action_data_size(wasmInterface *WasmInterface) int {
-	fmt.current_time("action_data_size")
+func action_data_size(w *WasmInterface) int {
+	fmt.Println("action_data_size")
+	return len(w.context.GetActionData())
 }
 
 // name current_receiver() {
 //    return context.receiver;
 // }
-func current_receiver(wasmInterface *WasmInterface) int64 {
-	fmt.current_time("current_receiver")
+func current_receiver(w *WasmInterface) int64 {
+	fmt.Println("current_receiver")
+
+	return int64(w.context.GetReceiver())
 }

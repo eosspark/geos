@@ -1,32 +1,32 @@
 package exec
 
 import (
-	//	"errors"
 	"bytes"
+	"encoding/binary"
 	"errors"
 	"fmt"
 	"log"
 	"reflect"
 
-	//"math"
-	//"os"
 	"strings"
 
-	//"github.com/eosspark/eos-go/chain"
-	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/cvm/wasm"
 )
 
 var (
 	envModule *wasm.Module
+	ignore    bool = false
 )
+
+type size_t int
 
 func To_string(name uint64) string {
 
 	charmap := []byte(".12345abcdefghijklmnopqrstuvwxyz")
 	tmp := name
 
-	var bytes [13]byte
+	//var bytes [13]byte
+	bytes := []byte{'.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.'}
 
 	for i := 0; i <= 12; i++ {
 		var c byte
@@ -44,11 +44,9 @@ func To_string(name uint64) string {
 			tmp >>= 5
 		}
 
-		//trim_right_dots( str );
 	}
 
 	str := string(bytes[:])
-	//strings.Trim(str,".")
 
 	return strings.Trim(str, ".")
 
@@ -87,20 +85,8 @@ func N(str string) uint64 {
 	return name
 }
 
-type size_t int
-
-type AccountName int64
-type ActionName int64
-type PermissionName int64
-
-type ApplyContext struct {
-	Receiver AccountName
-	Contract AccountName
-	Action   ActionName
-}
-
 type WasmInterface struct {
-	context *ApplyContext
+	context WasmContextInterface
 	handles map[string]interface{}
 	vm      *VM
 }
@@ -120,7 +106,7 @@ func NewWasmInterface() *WasmInterface {
 	return &wasmInterface
 }
 
-func (wasmInterface *WasmInterface) Apply(code_id string, code []byte, context *ApplyContext) {
+func (wasmInterface *WasmInterface) Apply(code_id string, code []byte, context WasmContextInterface) {
 	wasmInterface.context = context
 
 	bf := bytes.NewBuffer([]byte(code))
@@ -154,9 +140,9 @@ func (wasmInterface *WasmInterface) Apply(code_id string, code []byte, context *
 	wasmInterface.vm = vm
 
 	args := make([]uint64, 3)
-	args[0] = uint64(context.Receiver)
-	args[1] = uint64(context.Contract)
-	args[2] = uint64(context.Action)
+	args[0] = uint64(context.GetReceiver())
+	args[1] = uint64(context.GetCode())
+	args[2] = uint64(context.GetAct())
 
 	o, err := vm.ExecCode(i, args[0], args[1], args[2])
 	if err != nil {
@@ -318,20 +304,9 @@ func reflect2wasm(kind reflect.Kind) wasm.ValueType {
 		return wasm.ValueTypeF64
 	case reflect.Float32:
 		return wasm.ValueTypeF32
-	case reflect.Uint:
+	case reflect.Uint, reflect.Uint32, reflect.Uint64:
 		return wasm.ValueTypeI32
-	case reflect.Uint32:
-		return wasm.ValueTypeI32
-	case reflect.Uint64:
-		return wasm.ValueTypeI32
-	case reflect.Int:
-		return wasm.ValueTypeI32
-	case reflect.Int32:
-		return wasm.ValueTypeI32
-	case reflect.Int64:
-		return wasm.ValueTypeI32
-
-	case reflect.Struct:
+	case reflect.Int, reflect.Int32, reflect.Int64, reflect.Struct:
 		return wasm.ValueTypeI32
 	case reflect.Ptr:
 		return wasm.ValueTypeI64
@@ -341,82 +316,64 @@ func reflect2wasm(kind reflect.Kind) wasm.ValueType {
 	}
 }
 
-//func eosio_assert(wasmInterface *WasmInterface, condition uint32, msg uint32) {
-//
-//	fmt.Println("eosio_assert")
-//}
-//
-//func action_data_size(wasmInterface *WasmInterface) uint32 {
-//
-//	fmt.Println("action_data_size")
-//
-//	data := []byte{0x00, 0x00, 0x00, 0x00, 0x5c, 0x05, 0xa3, 0xe1} //("000000005c05a3e1") => '{"walker"}'
-//	return uint32(len(data))
-//
-//}
-
-func min(x, y uint32) uint32 {
+func min(x, y int) int {
 	if x < y {
 		return x
 	}
 	return y
 }
 
-//func read_action_data(wasmInterface *WasmInterface, memory uint32, buffer_size uint32) uint32 {
-//
-//	fmt.Println("read_action_data")
-//
-//	data := []byte{0x00, 0x00, 0x00, 0x00, 0x5c, 0x05, 0xa3, 0xe1} //("000000005c05a3e1") => '{"walker"}'
-//
-//	//s = wasmInterface.context.act.data.size()
-//	s := len(data)
-//	if buffer_size == 0 {
-//		return uint32(s)
-//	}
-//	copy_size := min(buffer_size, uint32(s))
-//	copy(wasmInterface.vm.memory[memory:memory+copy_size], data)
-//	return copy_size
-//
-//}
-//
-//func current_time(wasmInterface *WasmInterface) uint64 {
-//
-//	fmt.Println("current_time")
-//	return 0
-//}
-//
-//func require_auth2(wasmInterface *WasmInterface, name common.AccountName, permission common.PermissionName) {
-//
-//	fmt.Println("require_auth2")
-//}
-//
-//func memcpy(wasmInterface *WasmInterface, dest uint32, src uint32, length uint32) uint32 {
-//
-//	fmt.Println("memcpy")
-//	copy(wasmInterface.vm.memory[dest:dest+length], wasmInterface.vm.memory[src:src+length])
-//	return length
-//}
-//
-//func printn(wasmInterface *WasmInterface, name uint64) {
-//
-//	fmt.Println("printn")
-//	str := To_string(name)
-//	fmt.Println(str)
-//
-//}
-//
-//func prints(wasmInterface *WasmInterface, str uint32) {
-//
-//	fmt.Println("prints")
-//
-//	var size uint32
-//	var i uint32
-//	for i = 0; i < 256; i++ {
-//		if wasmInterface.vm.memory[str+i] == 0 {
-//			break
-//		}
-//		size++
-//	}
-//
-//	fmt.Println(string(wasmInterface.vm.memory[str : str+size]))
-//}
+func i2b(i int) bool {
+	if i > 0 {
+		return true
+	}
+	return false
+}
+
+func b2i(b bool) int {
+	if b {
+		return 1
+	}
+	return 0
+}
+
+func setUint64(w *WasmInterface, index int, val uint64) {
+	c := make([]byte, 8)
+	binary.LittleEndian.PutUint64(c, val)
+
+	copy(w.vm.memory[index:index+8], c[:])
+}
+
+func getUint64(w *WasmInterface, index int, val *uint64) {
+	c := make([]byte, 8)
+	copy(c[:], w.vm.memory[index:index+8])
+
+	*val = binary.LittleEndian.Uint64(c[:])
+
+}
+
+func getStringSize(w *WasmInterface, val int) int {
+
+	var size int
+	var i int
+	for i = 0; i < 256; i++ {
+		if w.vm.memory[val+i] == 0 {
+			break
+		}
+		size++
+	}
+
+	return size
+
+}
+
+func getString(w *WasmInterface, val int) string {
+
+	return string(w.vm.memory[val : val+getStringSize(w, val)])
+
+}
+
+func getData(w *WasmInterface, val int, datalen int) []byte {
+
+	return w.vm.memory[val : val+datalen]
+}
