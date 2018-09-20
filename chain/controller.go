@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"time"
 
-
 	"github.com/eosspark/eos-go/chain/config"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
@@ -69,10 +68,10 @@ type Controller struct {
 	dbsession    *eosiodb.Session
 	reversibledb eosiodb.DataBase
 	//reversibleBlocks      *eosiodb.Session
-	blog                  string //TODO
-	pending               *types.PendingState
-	head                  types.BlockState
-	forkDB                types.ForkDatabase
+	blog    string //TODO
+	pending *types.PendingState
+	head    types.BlockState
+	forkDB  types.ForkDatabase
 	//wasmif                exec.WasmInterface
 	resourceLimist        ResourceLimitsManager
 	authorization         AuthorizationManager
@@ -279,7 +278,7 @@ func (self *Controller) getOnBlockTransaction() types.SignedTransaction {
 	var onBlockAction = types.Action{}
 	onBlockAction.Account = common.AccountName(config.SystemAccountName)
 	onBlockAction.Name = common.ActionName(common.StringToName("onblock"))
-	onBlockAction.Authorization = []common.PermissionLevel{{common.AccountName(config.SystemAccountName), common.PermissionName(config.ActiveName)}}
+	onBlockAction.Authorization = []types.PermissionLevel{{common.AccountName(config.SystemAccountName), common.PermissionName(config.ActiveName)}}
 
 	data, err := rlp.EncodeToBytes(self.head.Header)
 	if err != nil {

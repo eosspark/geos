@@ -26,6 +26,7 @@ var (
 	//tx_permission = flag.String("-p,--permission","","An account and permission level to authorize, as in 'account@permission' (defaults to '" + default_permission + "')")
 	tx_max_cpu_usage = flag.Uint("--max-cpu-usage-ms", 0, "set an upper limit on the milliseconds of cpu usage budget, for the execution of the transaction (defaults to 0 which means no limit)")
 	tx_max_net_usage = flag.Uint("--max-net-usage", 0, "set an upper limit on the net usage budget, in bytes, for the transaction (defaults to 0 which means no limit)")
+	delaysec         = flag.Uint("--delay-sec", 0, "set the delay_sec seconds, defaults to 0s")
 )
 
 var (
@@ -254,16 +255,16 @@ func createAccount(ctx *cli.Context) (err error) {
 func createNewAccount(creatorstr, newaccountstr string, owner, active ecc.PublicKey) *types.Action {
 	creator := common.StringToName(creatorstr)
 	accountName := common.StringToName(newaccountstr)
-	ownerauthority := &common.Authority{
+	ownerauthority := &types.Authority{
 		Threshold: 1,
-		Keys:      []common.KeyWeight{{PublicKey: owner, Weight: 1}},
+		Keys:      []types.KeyWeight{{Key: owner, Weight: 1}},
 	}
-	activeauthority := &common.Authority{
+	activeauthority := &types.Authority{
 		Threshold: 1,
-		Keys:      []common.KeyWeight{{PublicKey: active, Weight: 1}},
+		Keys:      []types.KeyWeight{{Key: active, Weight: 1}},
 	}
 
-	var auth = []common.PermissionLevel{{common.AccountName(creator), common.PermissionName(common.DefaultConfig.ActiveName)}} //TODO -p
+	var auth = []types.PermissionLevel{{common.AccountName(creator), common.PermissionName(common.DefaultConfig.ActiveName)}} //TODO -p
 
 	newaccount := &types.NewAccount{
 		Creator: common.AccountName(creator),
@@ -309,34 +310,37 @@ func pushTransaction(trx *types.SignedTransaction, extraKcpu int32, compression 
 	if err != nil {
 		panic(err)
 	}
+	if len(trx.Signatures) == 0 { // #5445 can't change txn content if already signed
 
-	fmt.Println(313)
-	fmt.Println(info.HeadBlockTime.Totime(), info.HeadBlockTime.Totime().Add(tx_expiration))
-	// trx.SetExpiration(tx_expiration)//now()
-	// calculate expiration date
-	trx.Expiration = common.JSONTime{info.HeadBlockTime.Totime().Add(tx_expiration)}
-	fmt.Println(trx.Expiration)
+		// fmt.Println(info.HeadBlockTime.Totime(), info.HeadBlockTime.Totime().Add(tx_expiration))
+		// trx.SetExpiration(tx_expiration)//now()
+		// calculate expiration date
+		trx.Expiration = common.JSONTime{info.HeadBlockTime.Totime().Add(tx_expiration)}
+		// fmt.Println(trx.Expiration)
 
-	refBlockID := info.LastIrreversibleBlockID
-	if len(*tx_ref_block_num_or_id) > 0 {
-		fmt.Println("tx_ref_block_num_or_id")
-		var resp BlockResp
-		variant, err := DoHttpCall(chainUrl, getBlockHeaderStateFunc, Variants{"block_num_or_id": tx_ref_block_num_or_id})
-		if err != nil {
-			panic(err)
+		// Set tapos, default to last irreversible block if it's not specified by the user
+		refBlockID := info.LastIrreversibleBlockID
+		if len(*tx_ref_block_num_or_id) > 0 {
+			fmt.Println("tx_ref_block_num_or_id")
+			var resp BlockResp
+			variant, err := DoHttpCall(chainUrl, getBlockHeaderStateFunc, Variants{"block_num_or_id": tx_ref_block_num_or_id})
+			if err != nil {
+				panic(err)
+			}
+			if err := json.Unmarshal(variant, &resp); err != nil {
+				return fmt.Errorf("Unmarshal: %s", err)
+			}
+			refBlockID = resp.ID
 		}
-		if err := json.Unmarshal(variant, &resp); err != nil {
-			return fmt.Errorf("Unmarshal: %s", err)
-		}
-		refBlockID = resp.ID
-	}
-	trx.SetReferenceBlock(refBlockID)
+		trx.SetReferenceBlock(refBlockID)
 
-	if *tx_force_unique {
-		// trx.ContextFreeActions. //TODO
+		if *tx_force_unique {
+			// trx.ContextFreeActions. //TODO
+		}
+		trx.MaxCPUUsageMS = uint8(*tx_max_cpu_usage)
+		trx.MaxNetUsageWords = (uint32(*tx_max_net_usage) + 7) / 8
+		trx.DelaySec = uint32(*delaysec)
 	}
-	trx.MaxCPUUsageMS = uint8(*tx_max_cpu_usage)
-	trx.MaxNetUsageWords = (uint32(*tx_max_net_usage) + 7) / 8
 
 	if !*tx_skip_sign {
 		requiredKeys := determineRequiredKeys(trx)
@@ -354,21 +358,21 @@ func pushTransaction(trx *types.SignedTransaction, extraKcpu int32, compression 
 }
 
 func determineRequiredKeys(trx *types.SignedTransaction) Variants {
-	var publicKey []string
+	var publicKeys []string
 	variant, err := DoHttpCall(walletUrl, walletPublicKeys, nil)
 	if err != nil {
 		panic(err)
 	}
-	if err := json.Unmarshal(variant, &publicKey); err != nil {
+	if err := json.Unmarshal(variant, &publicKeys); err != nil {
 		return nil
 	}
-	fmt.Println("get public keys: ", publicKey)
+	fmt.Println("get public keys: ", publicKeys)
 
 	var keys map[string][]string
 
 	arg := &Variants{
 		"transaction":    trx,
-		"available_keys": publicKey,
+		"available_keys": publicKeys,
 	}
 	variant, err = DoHttpCall(chainUrl, getRequiredKeys, arg)
 	if err != nil {

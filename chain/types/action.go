@@ -12,8 +12,8 @@ import (
 type NewAccount struct {
 	Creator common.AccountName `json:"creator"`
 	Name    common.AccountName `json:"name"`
-	Owner   common.Authority   `json:"owner"`
-	Active  common.Authority   `json:"active"`
+	Owner   Authority          `json:"owner"`
+	Active  Authority          `json:"active"`
 }
 
 func (n *NewAccount) GetAccount() common.AccountName {
@@ -59,10 +59,10 @@ func (n *SetABI) GetName() common.ActionName {
 
 // Action
 type Action struct {
-	Account       common.AccountName       `json:"account"`
-	Name          common.ActionName        `json:"name"`
-	Authorization []common.PermissionLevel `json:"authorization,omitempty"`
-	Data          []byte                   `json:"data"`
+	Account       common.AccountName `json:"account"`
+	Name          common.ActionName  `json:"name"`
+	Authorization []PermissionLevel  `json:"authorization,omitempty"`
+	Data          []byte             `json:"data"`
 }
 
 // func (a Action) Digest() SHA256Bytes {
@@ -105,18 +105,18 @@ func (a *ActionData) SetToServer(toServer bool) {
 //  jsonActionToServer represents what /v1/chain/push_transaction
 //  expects, which isn't allllways the same everywhere.
 type jsonActionToServer struct {
-	Account       common.AccountName       `json:"account"`
-	Name          common.ActionName        `json:"name"`
-	Authorization []common.PermissionLevel `json:"authorization,omitempty"`
-	Data          common.HexBytes          `json:"data,omitempty"`
+	Account       common.AccountName `json:"account"`
+	Name          common.ActionName  `json:"name"`
+	Authorization []PermissionLevel  `json:"authorization,omitempty"`
+	Data          common.HexBytes    `json:"data,omitempty"`
 }
 
 type jsonActionFromServer struct {
-	Account       common.AccountName       `json:"account"`
-	Name          common.ActionName        `json:"name"`
-	Authorization []common.PermissionLevel `json:"authorization,omitempty"`
-	Data          interface{}              `json:"data,omitempty"`
-	HexData       common.HexBytes          `json:"hex_data,omitempty"`
+	Account       common.AccountName `json:"account"`
+	Name          common.ActionName  `json:"name"`
+	Authorization []PermissionLevel  `json:"authorization,omitempty"`
+	Data          interface{}        `json:"data,omitempty"`
+	HexData       common.HexBytes    `json:"hex_data,omitempty"`
 }
 
 // func (a *Action) MarshalJSON() ([]byte, error) {
