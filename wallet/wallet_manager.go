@@ -96,10 +96,7 @@ func Create() http.Handler {
 		var name string
 		_ = json.NewDecoder(r.Body).Decode(&name)
 
-		password, err := genPassword()
-		if err != nil {
-			fmt.Println(err)
-		}
+		password, _ := genPassword()
 
 		file, err := os.Open(dir)
 		defer file.Close()
@@ -130,6 +127,8 @@ func Create() http.Handler {
 		err = wallet.UnLock(password)
 		if err != nil {
 			fmt.Println(err)
+			http.Error(w, err.Error(), 500)
+			return
 		}
 		wallet.Lock()
 		wallet.UnLock(password)
@@ -217,7 +216,7 @@ func ListKeys() http.Handler {
 		Resp := RespKeys{}
 		for pub, pri := range wallet.Keys {
 			Resp[pub] = pri
-			fmt.Println(pub, wallet.Keys[pub])
+			// fmt.Println(pub, wallet.Keys[pub])
 		}
 
 		w.WriteHeader(201)
@@ -333,9 +332,9 @@ func UnLock() http.Handler {
 		delete(wallets, walletname)
 		wallets[walletname] = wallet
 
-		for pub, pri := range wallet.Keys {
-			fmt.Println(pub, pri, wallet.Keys[pub])
-		}
+		// for pub, pri := range wallet.Keys {
+		// 	fmt.Println(pub, pri, wallet.Keys[pub])
+		// }
 	}
 	return http.HandlerFunc(fn)
 }

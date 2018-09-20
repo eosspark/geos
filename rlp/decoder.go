@@ -164,8 +164,10 @@ func (d *Decoder) decode(v interface{}) (err error) {
 	case reflect.Array:
 		print("Reading Array")
 		len := t.Len()
-		d.pos += 1 //TODO the length of array?
-		fmt.Println("长度： ", len)
+		l, _ := d.readUvarint()
+		if len != int(l) {
+			fmt.Println("the length of array is wrong", len, l)
+		}
 		for i := 0; i < int(len); i++ {
 			if err = d.decode(rv.Index(i).Addr().Interface()); err != nil {
 				return

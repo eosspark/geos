@@ -52,8 +52,7 @@ type PlainKeys struct {
 }
 
 type Sprivate struct {
-	Curve ecc.CurveID
-	// PrivKey [4]uint64
+	Curve   ecc.CurveID
 	PrivKey []byte
 }
 
@@ -304,21 +303,17 @@ func (w *SoftWallet) CreateKey(keyType string) string {
 
 func (w *SoftWallet) encryptKeys() (err error) {
 	if !w.isLocked() {
-		var Skey SprivateKeys
 		keymap := make(map[ecc.PublicKey]Sprivate, 0)
-
 		for pub, pri := range w.Keys {
 			keymap[pub] = Sprivate{Curve: pri.Curve, PrivKey: pri.PrivKey.Serialize()}
 		}
-		Skey.Keys = keymap
-		Skey.CheckSum = w.checksum
-
-		PlainTxt, err := rlp.EncodeToBytes(Skey)
+		plainkeys := SprivateKeys{Keys: keymap, CheckSum: w.checksum}
+		PlainTxt, err := rlp.EncodeToBytes(plainkeys)
 		if err != nil {
 			fmt.Println("error while encoding wallet's key pair")
 		}
 
-		w.wallet.CipherKeys, err = Encrypt(string(Skey.CheckSum[:]), string(PlainTxt[:]))
+		w.wallet.CipherKeys, err = Encrypt(string(plainkeys.CheckSum[:]), string(PlainTxt[:]))
 		if err != nil {
 			return err
 		}
