@@ -17,7 +17,7 @@ func NewLinkAuth(account, code common.AccountName, actionName common.ActionName,
 	a := &types.Action{
 		Account: common.AccountName(common.StringToName("eosio")),
 		Name:    common.ActionName(common.StringToName("linkauth")),
-		Authorization: []common.PermissionLevel{
+		Authorization: []types.PermissionLevel{
 			{account, common.PermissionName(common.StringToName("active"))},
 		},
 		// Data: common.NewActionData(LinkAuth{//TODO

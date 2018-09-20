@@ -7,11 +7,11 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/eos-go/db/coreos/bbolt"
-	"github.com/eos-go/db/storm"
-	"github.com/eos-go/db/storm/codec/gob"
-	"github.com/eos-go/db/storm/index"
-	"github.com/eos-go/db/stretchr/testify/require"
+	"github.com/eosspark/eos-go/db/coreos/bbolt"
+	"github.com/eosspark/eos-go/db/storm"
+	"github.com/eosspark/eos-go/db/storm/codec/gob"
+	"github.com/eosspark/eos-go/db/storm/index"
+	"github.com/stretchr/testify/require"
 )
 
 func TestUniqueIndex(t *testing.T) {

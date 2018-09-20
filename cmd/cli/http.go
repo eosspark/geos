@@ -106,7 +106,7 @@ func (api *API) call(path string, body interface{}) ([]byte, error) {
 	if api.Debug {
 		fmt.Println("RESPONSE:")
 		fmt.Println("string: ", cnt.String())
-		fmt.Println("byte: ", cnt.Bytes())
+		// fmt.Println("byte: ", cnt.Bytes())
 		fmt.Println("")
 	}
 

@@ -138,7 +138,7 @@ var (
 func createWallet(ctx *cli.Context) (err error) {
 	walletname := ctx.String("name")
 
-	variant, err := DoHttpCall(walletUrl, walletCreate, []string{walletname})
+	variant, err := DoHttpCall(walletUrl, walletCreate, walletname)
 	if err != nil {
 		return
 	}
@@ -157,7 +157,7 @@ func createWallet(ctx *cli.Context) (err error) {
 func openWallet(ctx *cli.Context) (err error) {
 	walletname := ctx.String("name")
 
-	_, err = DoHttpCall(walletUrl, walletOpen, []string{walletname})
+	_, err = DoHttpCall(walletUrl, walletOpen, walletname)
 	if err != nil {
 		return
 	}
@@ -257,16 +257,16 @@ func listKeys(ctx *cli.Context) (err error) {
 	walletname := ctx.String("name")
 	password := ctx.String("password")
 
-	fmt.Println(walletname, password)
-	var resp map[string]string
 	variant, err := DoHttpCall(walletUrl, walletListKeys, []string{walletname, password})
 	if err != nil {
 		return
 	}
-	if err := json.Unmarshal(variant, &resp); err != nil {
-		return fmt.Errorf("Unmarshal: %s", err)
-	}
-	fmt.Println(resp)
+	fmt.Println(string(variant))
+	// var resp map[string]string
+	// if err := json.Unmarshal(variant, &resp); err != nil {
+	// 	return fmt.Errorf("Unmarshal: %s", err)
+	// }
+	// fmt.Println(resp)
 	return
 }
 
