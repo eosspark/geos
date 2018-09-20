@@ -7,6 +7,7 @@ fork from https://github.com/go-interpreter/wagon
 
 ## examples
 
+```
 package main
 
 import (
@@ -15,6 +16,9 @@ import (
 	"log"
 	"os"
 
+	"github.com/eosspark/eos-go/chain"
+	"github.com/eosspark/eos-go/chain/types"
+	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/cvm/exec"
 )
 
@@ -36,16 +40,19 @@ func main() {
 	}
 
 	wasm := exec.NewWasmInterface()
-
-	applyContext := &exec.ApplyContext{
-		Receiver: exec.AccountName(exec.N("walker")),
-		Contract: exec.AccountName(exec.N("walker")),
-		Action:   exec.ActionName(exec.N("hi")),
+	applyContext := &chain.ApplyContext{
+		Receiver: common.AccountName(exec.N("walker")),
+		Act: types.Action{
+			Account: common.AccountName(exec.N("walker")),
+			Name:    common.ActionName(exec.N("hi")),
+			Data:    []byte{0x00, 0x00, 0x00, 0x00, 0x5c, 0x05, 0xa3, 0xe1}, //'{"walker"}'
+		},
 	}
 
 	wasm.Apply("00000000", code, applyContext)
 
 }
+```
 
 ## go run hello.wasm
 // hello.wasm from eos hello contract
