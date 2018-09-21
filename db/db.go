@@ -116,22 +116,22 @@ func (db *base) insert(data interface{}) error {
 	if err != nil {
 		return err
 	}
-	tx, err := db.db.Begin(true)
-	if err != nil {
-		return err
-	}
-	err = tx.Save(data)
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
-	err = tx.Commit()
-	if err != nil {
-		tx.Rollback()
-		return err
-	}
-	return nil
-	//return db.db.Save(data)
+	//tx, err := db.db.Begin(true)
+	i //f err != nil {
+	//	return err
+	//	}//
+	//	err = tx.Save(data)
+	//	if err != nil {
+	//		tx.Rollback()
+	//		return err
+	//	}
+	//	err = tx.Commit()
+	//	if err != nil {
+	//		tx.Rollback()
+	//		return err
+	//	}
+	//	return nil
+	return db.db.Save(data)
 }
 
 func (db *base) remove(data interface{}) error {
