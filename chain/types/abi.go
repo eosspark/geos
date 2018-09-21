@@ -6,6 +6,10 @@ import (
 
 // see: libraries/chain/contracts/abi_serializer.cpp:53...
 // see: libraries/chain/include/eosio/chain/contracts/types.hpp:100
+
+type TypeName string
+type FieldName string
+
 type ABI struct {
 	Version          string            `json:"version"`
 	Types            []ABIType         `json:"types,omitempty"`
@@ -57,4 +61,19 @@ type ClausePair struct {
 type ABIErrorMessage struct {
 	Code    uint64 `json:"error_code"`
 	Message string `json:"error_msg"`
+}
+
+type TypeDef struct {
+	NewTypeName TypeName
+	Type        TypeName
+}
+type AbiDef struct {
+	Version          string //c++ default value "eosio::abi/1.0"
+	types            []TypeDef
+	Structs          []StructDef
+	Actions          []ActionDef
+	tables           []TableDef
+	RicardianClauses []ClausePair
+	ErrorMessages    []ABIErrorMessage
+	AbiExtensions    []Extension
 }

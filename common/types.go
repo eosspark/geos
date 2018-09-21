@@ -170,6 +170,13 @@ func (n AccountName) String() string {
 	return NameToString(uint64(n))
 }
 
+func (n ScopeName) String() string {
+	return NameToString(uint64(n))
+}
+
+func (n TableName) String() string {
+	return NameToString(uint64(n))
+}
 func (n AccountName) MarshalJSON() ([]byte, error) {
 	return json.Marshal(NameToString(uint64(n)))
 }

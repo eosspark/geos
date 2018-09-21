@@ -13,3 +13,13 @@ type DynamicGlobalPropertyObject struct {
 	ID                   int64  `storm:"unique" json:"id"` //c++ chainbase.hpp id_type
 	GlobalActionSequence uint64 `json:"global_action_sequence"`
 }
+
+type GlobalPropertyMultiIndex struct {
+	GlobalPropertyObject
+	ID int64		`storm:"unique" json:"id"`
+}
+
+type DynamicGlobalPropertyMultiIndex struct {
+	DynamicGlobalPropertyObject
+	ID int64	`storm:"unique" json:"id"`
+}

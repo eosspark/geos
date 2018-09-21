@@ -26,10 +26,10 @@ func Test_AddBlockState(t *testing.T) {
 		t.Error(err)
 	}
 
-	b, er := forkdb.AddBlockState(blockState)
-	if er != nil {
+	b := forkdb.AddBlockState(blockState)
+	/*if er != nil {
 		t.Error(er)
-	}
+	}*/
 	log.Debug("AddBlockState return info:", b)
 }
 

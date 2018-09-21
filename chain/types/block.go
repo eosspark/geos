@@ -140,21 +140,7 @@ type Optional struct {
 	Valid bool
 	Pair  map[common.ChainIDType][]ecc.PublicKey
 }
-type TransactionMetadata struct {
-	ID          common.TransactionIDType
-	SignedID    common.TransactionIDType
-	Trx         SignedTransaction
-	PackedTrx   PackedTransaction
-	SigningKeys Optional
-	Accepted    bool
-	Implicit    bool
-	Scheduled   bool
-}
 
-func NewTransactionMetadata(ptrx PackedTransaction) *TransactionMetadata {
-	//TODO
-	return new(TransactionMetadata)
-}
 
 type TransactionWithID struct {
 	// ID     common.TransactionIDType

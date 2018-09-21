@@ -2,16 +2,16 @@ package exec
 
 import (
 	//	"errors"
-	"bytes"
+	/*"bytes"
 	"errors"
-	"fmt"
+
 	"log"
-	"reflect"
+	"reflect"*/
 
 	//"math"
 	//"os"
 	"strings"
-
+	"fmt"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/cvm/wasm"
 )
@@ -26,19 +26,19 @@ import (
 //    return copy_size;
 // }
 func read_action_data(wasmInterface *WasmInterface, memory int, buffer_size size_t) int {
-	fmt.current_time("read_action_data")
+	//fmt.current_time("read_action_data")
 }
 
 // int action_data_size() {
 //    return context.act.data.size();
 // }
 func action_data_size(wasmInterface *WasmInterface) int {
-	fmt.current_time("action_data_size")
+	//fmt.current_time("action_data_size")
 }
 
 // name current_receiver() {
 //    return context.receiver;
 // }
 func current_receiver(wasmInterface *WasmInterface) int64 {
-	fmt.current_time("current_receiver")
+	//fmt.current_time("current_receiver")
 }

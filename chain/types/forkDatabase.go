@@ -5,6 +5,8 @@ import (
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/db"
 	"github.com/eosspark/eos-go/log"
+
+
 )
 
 type ForkDatabase struct {
@@ -21,6 +23,15 @@ type ForkMultiIndexType struct {
 	BlockState  BlockState         `storm:"inline"`
 }
 
+type ForkMultiIndexType1 struct {
+	ID          common.BlockIDType `storm:"unique" json:"id"`
+	BlockState  BlockState         `storm:"inline"`
+	byBlockNum struct{
+		blockNum 	uint32
+		inCurrentChain	bool
+	}
+}
+
 func setHead(forkdb ForkDatabase, head BlockState) *ForkDatabase {
 	if &forkdb.Head == nil {
 		forkdb.Head = head
@@ -32,12 +43,7 @@ func setHead(forkdb ForkDatabase, head BlockState) *ForkDatabase {
 
 func NewForkDatabase(path string, fileName string, rw bool) (*ForkDatabase, error) {
 	forkdb := new(ForkDatabase)
-	/*
-		_,err := os.Stat(path+fileName)
-		if err != nil{
 
-		}
-	*/
 	db, err := eosiodb.NewDataBase(path, fileName, rw)
 	if err != nil {
 		return nil, err
@@ -65,14 +71,14 @@ func NewForkDatabase(path string, fileName string, rw bool) (*ForkDatabase, erro
 	}
 }
 
-func (fdb *ForkDatabase) GetBlock(id common.BlockIDType) (BlockState, error) {
+func (fdb *ForkDatabase) GetBlock(id common.BlockIDType) (BlockState) {
 	//blockId   = fdb.Index.ID
 	var blockState BlockState
 	err := fdb.database.Find("ID", id, blockState)
 	if err != nil {
-		return blockState, err
+		return blockState
 	}
-	return blockState, nil
+	return blockState
 }
 
 func (fdb *ForkDatabase) GetBlockByID(blockId common.BlockIDType) (*BlockState, error) {
@@ -94,7 +100,7 @@ func (fdb *ForkDatabase) GetBlockByNum(blockNum uint32) (*BlockState, error) {
 	return &indexObj.BlockState, nil
 }
 
-func (fdb *ForkDatabase) AddBlockState(blockState BlockState) (*BlockState, error) {
+func (fdb *ForkDatabase) AddBlockState(blockState BlockState) (*BlockState) {
 
 	var index ForkMultiIndexType = ForkMultiIndexType{ID: blockState.ID,
 		Prev:       blockState.SignedBlock.Previous,
@@ -131,9 +137,9 @@ func (fdb *ForkDatabase) AddBlockState(blockState BlockState) (*BlockState, erro
 		//TODO delete
 	}
 	//if fdb.BlockState.DposIrreversibleBlocknum <
-	return &blockState, err
+	return &blockState
 }
-func (fdb *ForkDatabase) AddSignedBlockState(signedBlcok *SignedBlock) (*BlockState, error) {
+func (fdb *ForkDatabase) AddSignedBlockState(signedBlcok *SignedBlock) (*BlockState) {
 	blockId := signedBlcok.BlockID()
 	var blockState BlockState
 	err := fdb.database.Get("ID", blockId, &blockState)
@@ -146,8 +152,8 @@ func (fdb *ForkDatabase) AddSignedBlockState(signedBlcok *SignedBlock) (*BlockSt
 			log.Error("AddSignedBlockState is error,detail:", err)
 		}
 	}
-	block, er := fdb.AddBlockState(blockState)
-	return block, er
+	block := fdb.AddBlockState(blockState)
+	return block
 }
 func (fdb *ForkDatabase) Add(c HeaderConfirmation) {
 	header, err := fdb.GetBlockByID(c.BlockId)

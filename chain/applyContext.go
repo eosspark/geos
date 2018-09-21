@@ -22,7 +22,10 @@ type ApplyContext struct {
 	UsedContestFreeApi bool
 	Trace              types.ActionTrace
 
-	//GenericIndex
+	notified	[]common.AccountName
+	inlineActions []types.Action
+	cfaInlineActions	[]types.Action
+	//pendingConsoleOutput	cipher.Stream
 
 }
 
@@ -79,17 +82,17 @@ func (applyContext *ApplyContext) CancelDeferredTransaction(sendId *big.Int, sen
 	return false
 }
 
-func (applyContext *ApplyContext) FindTable(code common.Name, scope common.Name, table common.Name) (tid *types.TableIDObject) {
+func (applyContext *ApplyContext) FindTable(code common.Name, scope common.Name, table common.Name) (tid *types.TableIdObject) {
 
 	return
 }
 
-func (applyContext *ApplyContext) FindOrCreateTable(code common.Name, scope common.Name, table common.Name, payer *common.AccountName) (tid *types.TableIDObject) {
+func (applyContext *ApplyContext) FindOrCreateTable(code common.Name, scope common.Name, table common.Name, payer *common.AccountName) (tid *types.TableIdObject) {
 
 	return
 }
 
-func (applyContext *ApplyContext) RemoveTable(tid types.TableIDObject) {
+func (applyContext *ApplyContext) RemoveTable(tid types.TableIdObject) {
 
 }
 

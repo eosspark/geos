@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"time"
 
-	types2 "github.com/eosspark/eos-go-09-07/chain/types"
+
 	"github.com/eosspark/eos-go/chain/config"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
@@ -13,6 +13,8 @@ import (
 	"github.com/eosspark/eos-go/log"
 	"github.com/eosspark/eos-go/rlp"
 )
+
+//var self *Controller
 
 type DBReadMode int8
 
@@ -58,7 +60,7 @@ type Config struct {
 	disableReplay       bool
 	contractsConsole    bool
 	genesis             types.GenesisState
-	vmType              exec.WasmInterface
+	//vmType              exec.WasmInterface
 	readMode            DBReadMode
 	blockValidationMode ValidationMode
 	resourceGreylist    []common.AccountName
@@ -75,7 +77,7 @@ type Controller struct {
 	forkDB                types.ForkDatabase
 	wasmif                exec.WasmInterface
 	resourceLimist        ResourceLimitsManager
-	authorization         types2.AuthorizationManager
+	authorization         AuthorizationManager
 	config                Config //local	Config
 	chainID               common.ChainIDType
 	rePlaying             bool
@@ -88,7 +90,7 @@ type Controller struct {
 	unappliedTransactions map[rlp.Sha256]types.TransactionMetadata
 }
 
-func NewController() *Controller {
+func newController() *Controller {
 
 	db, err := eosiodb.NewDataBase("./", "shared_memory.bin", true)
 	if err != nil {
@@ -113,10 +115,8 @@ func NewController() *Controller {
 
 func (self Controller) PopBlock() {
 
-	prev, err := self.forkDB.GetBlock(self.head.Header.Previous)
-	if err != nil {
-		log.Error("PopBlock GetBlockByID is error,detail:", err)
-	}
+	prev := self.forkDB.GetBlock(self.head.Header.Previous)
+
 	var r types.ReversibleBlockObject
 	errs := self.reversibledb.Find("NUM", self.head.BlockNum, r)
 	if errs != nil {
@@ -245,7 +245,7 @@ func (self *Controller) PushTransaction(trx types.TransactionMetadata, deadLine 
 		trxContext.CanSubjectivelyFail = false
 	} else {
 		/*skipRecording := (self.replayHeadTime !=0) && (common.TimePoint(trx.Trx.Expiration) <= self.replayHeadTime)
-		trxContext.InitForInputTrx(trx.PackedTrx.g)*/
+		trxContext.InitForInputTrx(uint64(trx.PackedTrx.GetUnprunableSize()),uint64(trx.PackedTrx.GetPrunableSize()), uint32(len(trx.Trx.Signatures)),skipRecording)*/
 	}
 
 	fmt.Println(trace)
@@ -372,7 +372,7 @@ func (self *Controller) initConfig() *Controller {
 		forceAllChecks:      false,
 		disableReplayOpts:   false,
 		contractsConsole:    false,
-		vmType:              config.DefaultWasmRuntime, //TODO
+		//vmType:              config.DefaultWasmRuntime, //TODO
 		readMode:            SPECULATIVE,
 		blockValidationMode: FULL,
 	}
