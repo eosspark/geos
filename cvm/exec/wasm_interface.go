@@ -185,7 +185,7 @@ func NewWasmInterface() *WasmInterface {
 func (wasmInterface *WasmInterface) Apply(code_id string, code []byte, context WasmContextInterface) {
 	wasmInterface.context = context
 
-	bf := bytes.NewBuffer([]byte(code))
+	bf := bytes.NewReader(code)
 
 	m, err := wasm.ReadModule(bf, wasmInterface.importer)
 	if err != nil {

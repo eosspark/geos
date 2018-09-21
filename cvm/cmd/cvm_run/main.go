@@ -10,6 +10,7 @@ import (
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/cvm/exec"
+	"github.com/eosspark/eos-go/rlp"
 )
 
 func main() {
@@ -39,6 +40,6 @@ func main() {
 		},
 	}
 
-	wasm.Apply("00000000", code, applyContext)
+	wasm.Apply(rlp.NewSha256Byte([]byte(code)).String(), code, applyContext)
 
 }

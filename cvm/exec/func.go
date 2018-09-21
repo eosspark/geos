@@ -26,9 +26,9 @@ type compiledFunction struct {
 }
 
 type goFunction struct {
-	val  reflect.Value
-	typ  reflect.Type
-	name string
+	val reflect.Value
+	typ reflect.Type
+	//name string
 }
 
 // func (fn goFunction) call(vm *VM, index int64) {
