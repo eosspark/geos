@@ -16,10 +16,10 @@ type DynamicGlobalPropertyObject struct {
 
 type GlobalPropertyMultiIndex struct {
 	GlobalPropertyObject
-	ID int64		`storm:"unique" json:"id"`
+	ID int64 `storm:"unique" json:"id"`
 }
 
 type DynamicGlobalPropertyMultiIndex struct {
 	DynamicGlobalPropertyObject
-	ID int64	`storm:"unique" json:"id"`
+	ID int64 `storm:"unique" json:"id"`
 }

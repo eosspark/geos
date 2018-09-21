@@ -5,8 +5,8 @@ import (
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/ecc"
 	"github.com/eosspark/eos-go/log"
-	"time"
 	"github.com/eosspark/eos-go/rlp"
+	"time"
 )
 
 type TransactionHeader struct {
@@ -57,7 +57,7 @@ func (tx *Transaction) SetExpiration(in time.Duration) {
 	tx.Expiration = common.JSONTime{time.Now().UTC().Add(in)}
 }
 
-func (tx *Transaction) GetSignatureKeys(chainId common.ChainIDType,allowDeplicateKeys bool,useCache bool) []common.PublicKeyType{
+func (tx *Transaction) GetSignatureKeys(chainId common.ChainIDType, allowDeplicateKeys bool, useCache bool) []common.PublicKeyType {
 	//TODO
 	return nil
 }
@@ -116,10 +116,10 @@ func (s *SignedTransaction) String() string {
 	return string(data)
 }
 
-func (st *SignedTransaction) GetSignatureKeys(chainId common.ChainIDType,allowDeplicateKeys bool,useCache bool) []common.PublicKeyType{
+func (st *SignedTransaction) GetSignatureKeys(chainId common.ChainIDType, allowDeplicateKeys bool, useCache bool) []common.PublicKeyType {
 	//TODO
 
-	return st.Transaction.GetSignatureKeys(chainId,allowDeplicateKeys,useCache)
+	return st.Transaction.GetSignatureKeys(chainId, allowDeplicateKeys, useCache)
 }
 
 func (head *TransactionHeader) SetReferenceBlock(referenceBlock common.BlockIDType) {
@@ -227,22 +227,22 @@ func (p *PackedTransaction) Expiration() common.TimePointSec {
 	return common.TimePointSec(0) //TODO
 }
 
-func (p *PackedTransaction) GetUnprunableSize() uint32{
+func (p *PackedTransaction) GetUnprunableSize() uint32 {
 	size := common.DefaultConfig.FixedNetOverheadOfPackedTrx
 	size += uint32(len(p.PackedTransaction))
-	max := ^uint(0)>>1 / 2
-	if size >= uint32(max){
+	max := ^uint(0) >> 1 / 2
+	if size >= uint32(max) {
 		log.Error("packed_transaction is too big")
 		return 0
 	}
 	return size
 }
 
-func (p *PackedTransaction) GetPrunableSize() uint32{
-	size,_ := rlp.EncodeSize(p.Signatures)
+func (p *PackedTransaction) GetPrunableSize() uint32 {
+	size, _ := rlp.EncodeSize(p.Signatures)
 	size += len(p.PackedContextFreeData)
-	max := ^uint(0)>>1 / 2
-	if uint32(size) >= uint32(max){
+	max := ^uint(0) >> 1 / 2
+	if uint32(size) >= uint32(max) {
 		log.Error("packed_transaction is too big")
 		return 0
 	}

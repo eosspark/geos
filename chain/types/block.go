@@ -141,7 +141,6 @@ type Optional struct {
 	Pair  map[common.ChainIDType][]ecc.PublicKey
 }
 
-
 type TransactionWithID struct {
 	// ID     common.TransactionIDType
 	Tag    uint8              `json:"-"`

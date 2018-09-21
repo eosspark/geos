@@ -91,7 +91,7 @@ func (m *IncrementalMerkle) Append(digest rlp.Sha256) rlp.Sha256 {
 
 			// calculate the partially realized node value by implying the "right" value is identical
 			// to the "left" value
-			top = rlp.Hash(makeCanonicalPair(top, top))
+			top = rlp.Hash256(makeCanonicalPair(top, top))
 			partial = true
 		} else {
 			// we are collapsing from a "right" value and an fully-realized "left"
@@ -107,7 +107,7 @@ func (m *IncrementalMerkle) Append(digest rlp.Sha256) rlp.Sha256 {
 			}
 
 			// calculate the node
-			top = rlp.Hash(makeCanonicalPair(leftValue, top))
+			top = rlp.Hash256(makeCanonicalPair(leftValue, top))
 		}
 
 		// move up a level in the tree
@@ -138,7 +138,7 @@ func Merkle(ids []rlp.Sha256) rlp.Sha256 {
 		}
 
 		for i := 0; i < len(ids)/2; i++ {
-			ids[i] = rlp.Hash(makeCanonicalPair(ids[2*i], ids[(2*i)+1]))
+			ids[i] = rlp.Hash256(makeCanonicalPair(ids[2*i], ids[(2*i)+1]))
 		}
 
 		ids = ids[:len(ids)/2]

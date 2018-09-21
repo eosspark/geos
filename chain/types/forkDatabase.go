@@ -5,8 +5,6 @@ import (
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/db"
 	"github.com/eosspark/eos-go/log"
-
-
 )
 
 type ForkDatabase struct {
@@ -24,11 +22,11 @@ type ForkMultiIndexType struct {
 }
 
 type ForkMultiIndexType1 struct {
-	ID          common.BlockIDType `storm:"unique" json:"id"`
-	BlockState  BlockState         `storm:"inline"`
-	byBlockNum struct{
-		blockNum 	uint32
-		inCurrentChain	bool
+	ID         common.BlockIDType `storm:"unique" json:"id"`
+	BlockState BlockState         `storm:"inline"`
+	byBlockNum struct {
+		blockNum       uint32
+		inCurrentChain bool
 	}
 }
 
@@ -71,7 +69,7 @@ func NewForkDatabase(path string, fileName string, rw bool) (*ForkDatabase, erro
 	}
 }
 
-func (fdb *ForkDatabase) GetBlock(id common.BlockIDType) (BlockState) {
+func (fdb *ForkDatabase) GetBlock(id common.BlockIDType) BlockState {
 	//blockId   = fdb.Index.ID
 	var blockState BlockState
 	err := fdb.database.Find("ID", id, blockState)
@@ -100,7 +98,7 @@ func (fdb *ForkDatabase) GetBlockByNum(blockNum uint32) (*BlockState, error) {
 	return &indexObj.BlockState, nil
 }
 
-func (fdb *ForkDatabase) AddBlockState(blockState BlockState) (*BlockState) {
+func (fdb *ForkDatabase) AddBlockState(blockState BlockState) *BlockState {
 
 	var index ForkMultiIndexType = ForkMultiIndexType{ID: blockState.ID,
 		Prev:       blockState.SignedBlock.Previous,
@@ -139,7 +137,7 @@ func (fdb *ForkDatabase) AddBlockState(blockState BlockState) (*BlockState) {
 	//if fdb.BlockState.DposIrreversibleBlocknum <
 	return &blockState
 }
-func (fdb *ForkDatabase) AddSignedBlockState(signedBlcok *SignedBlock) (*BlockState) {
+func (fdb *ForkDatabase) AddSignedBlockState(signedBlcok *SignedBlock) *BlockState {
 	blockId := signedBlcok.BlockID()
 	var blockState BlockState
 	err := fdb.database.Get("ID", blockId, &blockState)

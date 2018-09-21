@@ -62,7 +62,7 @@ type Action struct {
 	Account       common.AccountName `json:"account"`
 	Name          common.ActionName  `json:"name"`
 	Authorization []PermissionLevel  `json:"authorization,omitempty"`
-	Data          []byte             `json:"data"`
+	Data          common.HexBytes    `json:"data"`
 }
 
 // func (a Action) Digest() SHA256Bytes {
