@@ -74,9 +74,6 @@ func (fn goFunction) call(vm *VM, index int64) {
 	numIn := fn.typ.NumIn()
 	args := make([]reflect.Value, numIn)
 
-	//name := fn.val.Type().Name()
-	//fmt.Println(fn.name)
-
 	args[0] = reflect.ValueOf(vm.WasmInterface) //the first param is WasmInterface
 
 	for i := numIn - 1; i >= 1; i-- {
