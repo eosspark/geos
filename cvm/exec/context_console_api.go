@@ -26,10 +26,10 @@ func prints(w *WasmInterface, str int) {
 //     context.console_append(string(str, str_len));
 //  }
 // }
-func prints_l(w *WasmInterface, str int, str_len int) {
+func printsl(w *WasmInterface, str int, strLen int) {
 	fmt.Println("prints_l")
 
-	s := string(w.vm.memory[str : str+str_len])
+	s := string(w.vm.memory[str : str+strLen])
 	w.context.ContextAppend(s)
 
 }
@@ -167,7 +167,7 @@ func printqf(w *WasmInterface, val int) {
 func printn(w *WasmInterface, value int64) {
 	fmt.Println("printn")
 
-	s := To_string(uint64(value))
+	s := toString(uint64(value))
 	w.context.ContextAppend(s)
 }
 

@@ -8,7 +8,7 @@ import (
 // void require_authorization( const account_name& account ) {
 //   context.require_authorization( account );
 // }
-func require_authorization(w *WasmInterface, account common.AccountName) {
+func requireAuthorization(w *WasmInterface, account common.AccountName) {
 	fmt.Println("require_authorization")
 	w.context.RequireAuthorization(account)
 }
@@ -16,7 +16,7 @@ func require_authorization(w *WasmInterface, account common.AccountName) {
 // bool has_authorization( const account_name& account )const {
 //   return context.has_authorization( account );
 // }
-func has_authorization(w *WasmInterface, account common.AccountName) int {
+func hasAuthorization(w *WasmInterface, account common.AccountName) int {
 	fmt.Println("has_authorization")
 	return b2i(w.context.HasAuthorization(account))
 }
@@ -28,7 +28,7 @@ func has_authorization(w *WasmInterface, account common.AccountName) int {
 // func require_authorization(wasmInterface *WasmInterface, account int64, permission int64) int {
 // 	fmt.Println("require_authorization")
 // }
-func require_auth2(w *WasmInterface, account common.AccountName, permission common.PermissionName) {
+func requireAuth2(w *WasmInterface, account common.AccountName, permission common.PermissionName) {
 	fmt.Println("require_authorization")
 	w.context.RequireAuthorization2(account, permission)
 }
@@ -36,7 +36,7 @@ func require_auth2(w *WasmInterface, account common.AccountName, permission comm
 // void require_recipient( account_name recipient ) {
 //   context.require_recipient( recipient );
 // }
-func require_recipient(w *WasmInterface, recipient common.AccountName) {
+func requireRecipient(w *WasmInterface, recipient common.AccountName) {
 	fmt.Println("require_recipient")
 	w.context.RequireRecipient(recipient)
 
@@ -45,7 +45,7 @@ func require_recipient(w *WasmInterface, recipient common.AccountName) {
 // bool is_account( const account_name& account )const {
 //   return context.is_account( account );
 // }
-func is_account(w *WasmInterface, account common.AccountName) int {
+func isAccount(w *WasmInterface, account common.AccountName) int {
 	fmt.Println("is_account")
 	return b2i(w.context.IsAccount(account))
 }

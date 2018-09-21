@@ -2,12 +2,12 @@ package main
 
 import (
 	"flag"
-	"github.com/eosspark/eos-go/chain/types"
 	"io/ioutil"
 	"log"
 	"os"
 
 	"github.com/eosspark/eos-go/chain"
+	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/cvm/exec"
 )
@@ -38,12 +38,6 @@ func main() {
 			Data:    []byte{0x00, 0x00, 0x00, 0x00, 0x5c, 0x05, 0xa3, 0xe1}, //'{"walker"}'
 		},
 	}
-
-	// applyContext := &exec.ApplyContext{
-	// 	Receiver: exec.AccountName(exec.N("walker")),
-	// 	Contract: exec.AccountName(exec.N("walker")),
-	// 	Action:   exec.ActionName(exec.N("hi")),
-	// }
 
 	wasm.Apply("00000000", code, applyContext)
 

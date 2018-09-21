@@ -20,7 +20,7 @@ var (
 
 type size_t int
 
-func To_string(name uint64) string {
+func toString(name uint64) string {
 
 	charmap := []byte(".12345abcdefghijklmnopqrstuvwxyz")
 	tmp := name
@@ -52,7 +52,7 @@ func To_string(name uint64) string {
 
 }
 
-func char_to_symbol(c byte) uint64 {
+func char2Symbol(c byte) uint64 {
 	if c >= 'a' && c <= 'z' {
 		return uint64((c - 'a') + 6)
 	}
@@ -72,14 +72,14 @@ func N(str string) uint64 {
 		// NOTE: char_to_symbol() returns char type, and without this explicit
 		// expansion to uint64 type, the compilation fails at the point of usage
 		// of string_to_name(), where the usage requires constant (compile time) expression.
-		name |= (char_to_symbol(str[i]) & 0x1f) << uint(64-5*(i+1))
+		name |= (char2Symbol(str[i]) & 0x1f) << uint(64-5*(i+1))
 	}
 
 	// The for-loop encoded up to 60 high bits into uint64 'name' variable,
 	// if (strlen(str) > 12) then encode str[12] into the low (remaining)
 	// 4 bits of 'name'
 	if i == 12 {
-		name |= char_to_symbol(str[12]) & 0x0F
+		name |= char2Symbol(str[12]) & 0x0F
 	}
 
 	return name
@@ -94,14 +94,82 @@ type WasmInterface struct {
 func NewWasmInterface() *WasmInterface {
 	wasmInterface := WasmInterface{handles: make(map[string]interface{})}
 
-	wasmInterface.Register("eosio_assert", eosio_assert)
-	wasmInterface.Register("action_data_size", action_data_size)
-	wasmInterface.Register("read_action_data", read_action_data)
-	wasmInterface.Register("current_time", current_time)
-	wasmInterface.Register("require_auth2", require_auth2)
-	wasmInterface.Register("memcpy", memcpy)
-	wasmInterface.Register("printn", printn)
+	wasmInterface.Register("action_data_size", actionDataSize)
+	wasmInterface.Register("read_action_data", readActionData)
+	wasmInterface.Register("current_receiver", currentReceiver)
+
+	wasmInterface.Register("require_authorization", requireAuthorization)
+	wasmInterface.Register("has_authorization", hasAuthorization)
+	wasmInterface.Register("require_auth2", requireAuth2)
+	wasmInterface.Register("require_recipient", requireRecipient)
+	wasmInterface.Register("is_account", isAccount)
+
 	wasmInterface.Register("prints", prints)
+	wasmInterface.Register("prints_l", printsl)
+	wasmInterface.Register("printi", printi)
+	wasmInterface.Register("printui", printui)
+	wasmInterface.Register("printi128", printi128)
+	wasmInterface.Register("printui128", printui128)
+	wasmInterface.Register("printsf", printsf)
+	wasmInterface.Register("printdf", printdf)
+	wasmInterface.Register("printqf", printqf)
+	wasmInterface.Register("printn", printn)
+	wasmInterface.Register("printhex", printhex)
+
+	wasmInterface.Register("assert_recover_key", assertRecoverKey)
+	wasmInterface.Register("recover_key", recoverKey)
+	wasmInterface.Register("assert_sha256", assertSha256)
+	wasmInterface.Register("assert_sha1", assertSha1)
+	wasmInterface.Register("assert_sha256", assertSha256)
+	wasmInterface.Register("assert_sha512", assertSha512)
+	wasmInterface.Register("assert_ripemd160", assertRipemd160)
+	wasmInterface.Register("sha1", sha1)
+	wasmInterface.Register("sha256", sha256)
+	wasmInterface.Register("sha512", sha512)
+	wasmInterface.Register("ripemd160", ripemd160)
+
+	wasmInterface.Register("memcpy", memcpy)
+	wasmInterface.Register("memmove", memmove)
+	wasmInterface.Register("memcmp", memcmp)
+	wasmInterface.Register("memset", memset)
+
+	wasmInterface.Register("check_transaction_authorization", checkTransactionAuthorization)
+	wasmInterface.Register("check_permission_authorization", checkPermissionAuthorization)
+	wasmInterface.Register("get_permission_last_used", getPermissionLastUsed)
+	wasmInterface.Register("get_account_creation_time", getAccountCreationTime)
+
+	wasmInterface.Register("is_feature_active", isFeatureActive)
+	wasmInterface.Register("activate_feature", activateFeature)
+	wasmInterface.Register("set_resource_limits", setResourceLimits)
+	wasmInterface.Register("get_resource_limits", getResourceLimits)
+	wasmInterface.Register("get_blockchain_parameters_packed", getBlockchainParametersPacked)
+	wasmInterface.Register("set_blockchain_parameters_packed", setBlockchainParametersPacked)
+	wasmInterface.Register("is_privileged", isPrivileged)
+	wasmInterface.Register("set_privileged", setPrivileged)
+
+	wasmInterface.Register("set_proposed_producers", setProposedProducers)
+	wasmInterface.Register("get_active_producers", getActiveProducers)
+
+	wasmInterface.Register("checktime", checkTime)
+	wasmInterface.Register("current_time", currentTime)
+	wasmInterface.Register("publication_time", publicationTime)
+	wasmInterface.Register("abort", abort)
+	wasmInterface.Register("eosio_assert", eosioAssert)
+	wasmInterface.Register("eosio_assert_message", eosioAssertMessage)
+	wasmInterface.Register("eosio_assert_code", eosioAssertCode)
+	wasmInterface.Register("eosio_exit", eosioExit)
+
+	wasmInterface.Register("send_inline", sendInline)
+	wasmInterface.Register("send_context_free_inline", sendContextFreeInline)
+	wasmInterface.Register("send_deferred", sendDeferred)
+	wasmInterface.Register("cancel_deferred", cancelDeferred)
+	wasmInterface.Register("read_transaction", readTransaction)
+	wasmInterface.Register("transaction_size", transactionSize)
+	wasmInterface.Register("expiration", expiration)
+	wasmInterface.Register("tapos_block_num", taposBlockNum)
+	wasmInterface.Register("tapos_block_prefix", taposBlockPrefix)
+	wasmInterface.Register("get_action", getAction)
+	wasmInterface.Register("get_context_free_data", getContextFreeData)
 
 	return &wasmInterface
 }
@@ -322,14 +390,12 @@ func min(x, y int) int {
 	}
 	return y
 }
-
 func i2b(i int) bool {
 	if i > 0 {
 		return true
 	}
 	return false
 }
-
 func b2i(b bool) int {
 	if b {
 		return 1
@@ -344,36 +410,44 @@ func setUint64(w *WasmInterface, index int, val uint64) {
 	copy(w.vm.memory[index:index+8], c[:])
 }
 
-func getUint64(w *WasmInterface, index int, val *uint64) {
+func getUint64(w *WasmInterface, index int) uint64 {
 	c := make([]byte, 8)
 	copy(c[:], w.vm.memory[index:index+8])
 
-	*val = binary.LittleEndian.Uint64(c[:])
+	return binary.LittleEndian.Uint64(c[:])
 
 }
 
-func getStringSize(w *WasmInterface, val int) int {
-
+func getStringSize(w *WasmInterface, index int) int {
 	var size int
 	var i int
 	for i = 0; i < 256; i++ {
-		if w.vm.memory[val+i] == 0 {
+		if w.vm.memory[index+i] == 0 {
 			break
 		}
 		size++
 	}
 
 	return size
-
 }
 
-func getString(w *WasmInterface, val int) string {
-
-	return string(w.vm.memory[val : val+getStringSize(w, val)])
-
+func getString(w *WasmInterface, index int) string {
+	return string(w.vm.memory[index : index+getStringSize(w, index)])
 }
-
-func getData(w *WasmInterface, val int, datalen int) []byte {
-
-	return w.vm.memory[val : val+datalen]
+func getBytes(w *WasmInterface, index int, datalen int) []byte {
+	return w.vm.memory[index : index+datalen]
 }
+func setSha256(w *WasmInterface, index int, sha256 []byte) {
+	copy(w.vm.memory[index:index+32], sha256[0:32])
+}
+func getSha256(w *WasmInterface, index int) []byte { return w.vm.memory[index : index+32] }
+func setSha512(w *WasmInterface, index int, sha512 []byte) {
+	copy(w.vm.memory[index:index+64], sha512[0:64])
+}
+func getSha512(w *WasmInterface, index int) []byte     { return w.vm.memory[index : index+64] }
+func setSha1(w *WasmInterface, index int, sha1 []byte) { copy(w.vm.memory[index:index+20], sha1[0:20]) }
+func getSha1(w *WasmInterface, index int) []byte       { return w.vm.memory[index : index+20] }
+func setRipemd160(w *WasmInterface, index int, ripemd160 []byte) {
+	copy(w.vm.memory[index:index+20], ripemd160[0:20])
+}
+func getRipemd160(w *WasmInterface, index int) []byte { return w.vm.memory[index : index+20] }

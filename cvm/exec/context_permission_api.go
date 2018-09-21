@@ -33,7 +33,7 @@ import (
 
 //          return false;
 //       }
-func check_transaction_authorization(w *WasmInterface, trx_data int, trx_size size_t,
+func checkTransactionAuthorization(w *WasmInterface, trx_data int, trx_size size_t,
 	pubkeys_data int, pubkeys_size size_t,
 	perms_data int, perms_size size_t) int {
 	fmt.Println("check_transaction_authorization")
@@ -71,7 +71,7 @@ func check_transaction_authorization(w *WasmInterface, trx_data int, trx_size si
 
 //          return false;
 //       }
-func check_permission_authorization(w *WasmInterface, permission common.PermissionName,
+func checkPermissionAuthorization(w *WasmInterface, permission common.PermissionName,
 	pubkeys_data int, pubkeys_size size_t,
 	perms_data int, perms_size size_t,
 	delay_us int64) int {
@@ -83,7 +83,7 @@ func check_permission_authorization(w *WasmInterface, permission common.Permissi
 //          const auto& am = context.control.get_authorization_manager();
 //          return am.get_permission_last_used( am.get_permission({account, permission}) ).time_since_epoch().count();
 //       };
-func get_permission_last_used(w *WasmInterface, account common.AccountName, permission common.PermissionName) int64 {
+func getPermissionLastUsed(w *WasmInterface, account common.AccountName, permission common.PermissionName) int64 {
 	fmt.Println("get_permission_last_used")
 
 	return w.context.GetPermissionLastUsed(account, permission)
@@ -95,7 +95,7 @@ func get_permission_last_used(w *WasmInterface, account common.AccountName, perm
 //                      "account '${account}' does not exist", ("account", account) );
 //          return time_point(acct->creation_date).time_since_epoch().count();
 //       }
-func get_account_creation_time(w *WasmInterface, account common.AccountName) int64 {
+func getAccountCreationTime(w *WasmInterface, account common.AccountName) int64 {
 	fmt.Println("get_account_creation_time")
 
 	return w.context.GetAccountCreateTime(account)

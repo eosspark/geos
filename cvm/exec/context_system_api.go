@@ -4,7 +4,7 @@ import (
 	"fmt"
 )
 
-func checktime(w *WasmInterface) {
+func checkTime(w *WasmInterface) {
 
 	fmt.Println("checktime")
 	w.context.CheckTime()
@@ -14,7 +14,7 @@ func checktime(w *WasmInterface) {
 // uint64_t current_time() {
 //    return static_cast<uint64_t>( context.control.pending_block_time().time_since_epoch().count() );
 // }
-func current_time(w *WasmInterface) int64 {
+func currentTime(w *WasmInterface) int64 {
 	fmt.Println("current_time")
 
 	//return uint64(wasmInterface.Context.Controller.PendingBlockTime().TimeSinceEpoch().Count())
@@ -24,7 +24,7 @@ func current_time(w *WasmInterface) int64 {
 // uint64_t publication_time() {
 //    return static_cast<uint64_t>( context.trx_context.published.time_since_epoch().count() );
 // }
-func publication_time(w *WasmInterface) int64 {
+func publicationTime(w *WasmInterface) int64 {
 	fmt.Println("publication_time")
 
 	return w.context.PublicationTime()
@@ -45,7 +45,7 @@ func abort(w *WasmInterface) {
 //       EOS_THROW( eosio_assert_message_exception, "assertion failure with message: ${s}", ("s",message) );
 //    }
 // }
-func eosio_assert(w *WasmInterface, condition int, val int) {
+func eosioAssert(w *WasmInterface, condition int, val int) {
 	fmt.Println("eosio_assert")
 
 	if condition != 1 {
@@ -63,7 +63,7 @@ func eosio_assert(w *WasmInterface, condition int, val int) {
 //       EOS_THROW( eosio_assert_message_exception, "assertion failure with message: ${s}", ("s",message) );
 //    }
 // }
-func eosio_assert_message(w *WasmInterface, condition int, msg int, msg_len size_t) {
+func eosioAssertMessage(w *WasmInterface, condition int, msg int, msgLen size_t) {
 	fmt.Println("eosio_assert_message")
 }
 
@@ -74,13 +74,13 @@ func eosio_assert_message(w *WasmInterface, condition int, msg int, msg_len size
 //                  "assertion failure with error code: ${error_code}", ("error_code", error_code) );
 //    }
 // }
-func eosio_assert_code(w *WasmInterface, condition int, error_code int64) {
+func eosioAssertCode(w *WasmInterface, condition int, errorCode int64) {
 	fmt.Println("eosio_assert_code")
 }
 
 // void eosio_exit(int32_t code) {
 //    throw wasm_exit{code};
 // }
-func eosio_exit(w *WasmInterface, code int) {
+func eosioExit(w *WasmInterface, code int) {
 	fmt.Println("eosio_exit")
 }

@@ -19,10 +19,10 @@ import (
 //  EOS_ASSERT( producers.size() == unique_producers.size(), wasm_execution_error, "duplicate producer name in producer schedule" );
 //  return context.control.set_proposed_producers( std::move(producers) );
 // }
-func set_proposed_producers(w *WasmInterface, packed_producer_schedule int, datalen int) {
+func setProposedProducers(w *WasmInterface, packedProducerSchedule int, datalen int) {
 	fmt.Println("set_proposed_producers")
 
-	p := getData(w, packed_producer_schedule, datalen)
+	p := getBytes(w, packedProducerSchedule, datalen)
 	w.context.SetProposedProducers(p)
 
 }
@@ -39,18 +39,18 @@ func set_proposed_producers(w *WasmInterface, packed_producer_schedule int, data
 
 //  return copy_size;
 // }
-func get_active_producers(w *WasmInterface, producers int, buffer_size int) int {
+func getActiveProducers(w *WasmInterface, producers int, bufferSize int) int {
 	fmt.Println("get_active_producers")
 	//return false
 
 	p := w.context.GetActiveProducersInBytes()
 	s := len(p)
 
-	if buffer_size == 0 {
+	if bufferSize == 0 {
 		return s
 	}
 
-	copySize := min(buffer_size, s)
+	copySize := min(bufferSize, s)
 	copy(w.vm.memory[producers:producers+copySize], p[:])
 
 	return copySize
