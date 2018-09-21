@@ -32,14 +32,16 @@ func main() {
 
 	wasm := exec.NewWasmInterface()
 	applyContext := &chain.ApplyContext{
-		Receiver: common.AccountName(exec.N("walker")),
+		Receiver: common.AccountName(exec.N("hello")),
 		Act: types.Action{
-			Account: common.AccountName(exec.N("walker")),
+			Account: common.AccountName(exec.N("hello")),
 			Name:    common.ActionName(exec.N("hi")),
 			Data:    []byte{0x00, 0x00, 0x00, 0x00, 0x5c, 0x05, 0xa3, 0xe1}, //'{"walker"}'
 		},
 	}
 
-	wasm.Apply(rlp.NewSha256Byte([]byte(code)).String(), code, applyContext)
+	//print "hello,walker"
+	codeVersion := rlp.NewSha256Byte([]byte(code)).String()
+	wasm.Apply(codeVersion, code, applyContext)
 
 }

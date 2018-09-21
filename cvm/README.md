@@ -20,6 +20,7 @@ import (
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/cvm/exec"
+	"github.com/eosspark/eos-go/rlp"
 )
 
 func main() {
@@ -41,18 +42,19 @@ func main() {
 
 	wasm := exec.NewWasmInterface()
 	applyContext := &chain.ApplyContext{
-		Receiver: common.AccountName(exec.N("walker")),
+		Receiver: common.AccountName(exec.N("hello")),
 		Act: types.Action{
-			Account: common.AccountName(exec.N("walker")),
+			Account: common.AccountName(exec.N("hello")),
 			Name:    common.ActionName(exec.N("hi")),
 			Data:    []byte{0x00, 0x00, 0x00, 0x00, 0x5c, 0x05, 0xa3, 0xe1}, //'{"walker"}'
 		},
 	}
 
-	wasm.Apply("00000000", code, applyContext)
-
+    //print "hello,walker"
+	codeVersion := rlp.NewSha256Byte([]byte(code)).String()
+	wasm.Apply(codeVersion, code, applyContext)
 }
 ```
 
 ## go run hello.wasm
-// hello.wasm from eos hello contract
+// hello.wasm from eosio hello contract
