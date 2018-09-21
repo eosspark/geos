@@ -101,8 +101,54 @@ func TestInser(t *testing.T) {
 	var tmp User
 	err = db.Find("Acc", AccountObject{11, "11"}, &tmp)
 	if err != nil {
-		fmt.Println("Insert error : ", err.Error())
+		fmt.Println("Insert error : ", err)
 		return
 	}
 	fmt.Println(tmp)
+	var new_ User
+	new_ = tmp
+	new_.Name = "hello"
+	db.UpdateObject(&tmp, &new_)
+	var users []User
+	err = db.All(&users)
+	if err != nil {
+		fmt.Println(err.Error())
+	}
+	fmt.Println("====================")
+	fmt.Println(users)
+}
+
+func Test_db(t *testing.T) {
+	db, err := NewDataBase("./", "test.db", true)
+	if err != nil {
+		fmt.Println("NewDataBase failed")
+		return
+	}
+	defer db.Close()
+	fmt.Println("-----------database successful")
+
+	for i := 1; i < 10; i++ {
+		house := House{Area: (uint64(i + 1)), Name: string(i)}
+		err = db.Insert(&house)
+		if err != nil {
+			fmt.Println(err.Error())
+		}
+	}
+	var houses []House
+	err = db.All(&houses)
+
+	if err != nil {
+		fmt.Println(err.Error())
+	}
+	fmt.Println(len(houses))
+}
+
+func TetsUpdateObj(t *testing.T) {
+	db, err := NewDataBase("./", "test.db", true)
+	if err != nil {
+		fmt.Println("NewDataBase failed")
+		return
+	}
+	defer db.Close()
+	fmt.Println("-----------database successful")
 }
