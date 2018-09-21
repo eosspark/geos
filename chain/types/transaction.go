@@ -11,8 +11,8 @@ import (
 
 type TransactionHeader struct {
 	Expiration     common.JSONTime `json:"expiration"`
-	RefBlockNum    uint16              `json:"ref_block_num"`
-	RefBlockPrefix uint32              `json:"ref_block_prefix"`
+	RefBlockNum    uint16          `json:"ref_block_num"`
+	RefBlockPrefix uint32          `json:"ref_block_prefix"`
 
 	MaxNetUsageWords uint32 `json:"max_net_usage_words"`
 	MaxCPUUsageMS    uint8  `json:"max_cpu_usage_ms"`

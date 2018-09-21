@@ -12,11 +12,11 @@ import (
 // previously sent to the chain with a `delay_sec` larger than 0.  You
 // need to sign with cancelingAuth, to cancel a transaction signed
 // with that same authority.
-func NewCancelDelay(cancelingAuth common.PermissionLevel, transactionID common.SHA256Bytes) *types.Action {
+func NewCancelDelay(cancelingAuth types.PermissionLevel, transactionID common.SHA256Bytes) *types.Action {
 	a := &types.Action{
 		Account: common.AccountName(common.StringToName("eosio")),
 		Name:    common.ActionName(common.StringToName("canceldelay")),
-		Authorization: []common.PermissionLevel{
+		Authorization: []types.PermissionLevel{
 			cancelingAuth,
 		},
 		// Data: common.NewActionData(CancelDelay{//TODO
@@ -31,6 +31,6 @@ func NewCancelDelay(cancelingAuth common.PermissionLevel, transactionID common.S
 // CancelDelay represents the native `canceldelay` action, through the
 // system contract.
 type CancelDelay struct {
-	CancelingAuth common.PermissionLevel `json:"canceling_auth"`
-	TransactionID common.SHA256Bytes     `json:"trx_id"`
+	CancelingAuth types.PermissionLevel `json:"canceling_auth"`
+	TransactionID common.SHA256Bytes    `json:"trx_id"`
 }

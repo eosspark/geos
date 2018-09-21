@@ -14,8 +14,6 @@ import (
 	"github.com/eosspark/eos-go/rlp"
 )
 
-//var self *Controller
-
 type DBReadMode int8
 
 const (

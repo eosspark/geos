@@ -1,23 +1,13 @@
-cvm
-=====
-
-fork from https://github.com/go-interpreter/wagon
-
-**NOTE:** `cvm` requires `Go >= 1.9.x`.
-
-## examples
-
-```
 package main
 
 import (
 	"flag"
+	"github.com/eosspark/eos-go/chain/types"
 	"io/ioutil"
 	"log"
 	"os"
 
 	"github.com/eosspark/eos-go/chain"
-	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/cvm/exec"
 )
@@ -49,10 +39,12 @@ func main() {
 		},
 	}
 
+	// applyContext := &exec.ApplyContext{
+	// 	Receiver: exec.AccountName(exec.N("walker")),
+	// 	Contract: exec.AccountName(exec.N("walker")),
+	// 	Action:   exec.ActionName(exec.N("hi")),
+	// }
+
 	wasm.Apply("00000000", code, applyContext)
 
 }
-```
-
-## go run hello.wasm
-// hello.wasm from eos hello contract

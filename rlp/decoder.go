@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"math/big"
 	"reflect"
 )
 
@@ -19,32 +20,40 @@ var (
 )
 
 var TypeSize = struct {
-	Bool   int
-	Byte   int
-	UInt8  int
-	Int8   int
-	UInt16 int
-	Int16  int
-	UInt32 int
-	Int32  int
-	UInt   int
-	Int    int
-	UInt64 int
-	Int64  int
+	Bool        int
+	Byte        int
+	UInt8       int
+	Int8        int
+	UInt16      int
+	Int16       int
+	UInt32      int
+	Int32       int
+	UInt        int
+	Int         int
+	UInt64      int
+	Int64       int
+	SHA256Bytes int
 }{
-	Bool:   1,
-	Byte:   1,
-	UInt8:  1,
-	Int8:   1,
-	UInt16: 2,
-	Int16:  2,
-	UInt32: 4,
-	Int32:  4,
-	UInt:   4,
-	Int:    4,
-	UInt64: 8,
-	Int64:  8,
+	Bool:        1,
+	Byte:        1,
+	UInt8:       1,
+	Int8:        1,
+	UInt16:      2,
+	Int16:       2,
+	UInt32:      4,
+	Int32:       4,
+	UInt:        4,
+	Int:         4,
+	UInt64:      8,
+	Int64:       8,
+	SHA256Bytes: 32,
 }
+
+var (
+	//decoderInterface = reflect.TypeOf(new(Decoder)).Elem()
+	bigInt = reflect.TypeOf(big.Int{})
+	big0   = big.NewInt(0)
+)
 var prefix = make([]string, 0)
 
 var Debug bool
@@ -86,6 +95,7 @@ type Decoder struct {
 	pos      int
 	optional bool
 	vuint32  bool
+	hash     bool
 }
 
 func NewDecoder(data []byte) *Decoder {
@@ -131,6 +141,15 @@ func (d *Decoder) decode(v interface{}) (err error) {
 			}
 		}
 		return
+	} else if d.hash {
+		d.hash = false
+		fmt.Println("hash")
+
+		//s,err :=readSHA256Bytes()
+		//if err != nil{
+		//	return
+		//}
+
 	}
 
 	if d.vuint32 {
@@ -145,6 +164,10 @@ func (d *Decoder) decode(v interface{}) (err error) {
 	case reflect.Array:
 		print("Reading Array")
 		len := t.Len()
+		l, _ := d.readUvarint()
+		if len != int(l) {
+			fmt.Println("the length of array is wrong", len, l)
+		}
 		for i := 0; i < int(len); i++ {
 			if err = d.decode(rv.Index(i).Addr().Interface()); err != nil {
 				return
@@ -280,6 +303,8 @@ func (d *Decoder) decodeStruct(v interface{}, t reflect.Type, rv reflect.Value) 
 		case "vuint32":
 			d.vuint32 = true
 			// fmt.Println("276 walker", d.vuint32)
+		case "hash":
+			d.hash = true
 		}
 
 		if v := rv.Field(i); v.CanSet() && t.Field(i).Name != "_" {
@@ -294,6 +319,20 @@ func (d *Decoder) decodeStruct(v interface{}, t reflect.Type, rv reflect.Value) 
 	if Debug {
 		prefix = prefix[:len(prefix)-1]
 	}
+	return
+}
+
+func (d *Decoder) readSHA256Bytes() (out Sha256, err error) {
+
+	if d.remaining() < TypeSize.SHA256Bytes {
+		err = fmt.Errorf("sha256 required [%d] bytes, remaining [%d]", TypeSize.SHA256Bytes, d.remaining())
+		return
+	}
+	for i := range out.Hash_ {
+		out.Hash_[i] = binary.LittleEndian.Uint64(d.data[i*8 : (i+1)*8])
+	}
+	d.pos += TypeSize.SHA256Bytes
+	println(fmt.Sprintf("readSHA256Bytes [%s]", hex.EncodeToString(out.Bytes())))
 	return
 }
 

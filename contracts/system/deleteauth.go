@@ -15,7 +15,7 @@ func NewDeleteAuth(account common.AccountName, permission common.PermissionName)
 	a := &types.Action{
 		Account: common.AccountName(common.StringToName("eosio")),
 		Name:    common.ActionName(common.StringToName("deleteauth")),
-		Authorization: []common.PermissionLevel{
+		Authorization: []types.PermissionLevel{
 			{Actor: account, Permission: common.PermissionName(common.StringToName("active"))},
 		},
 		// Data: common.NewActionData(DeleteAuth{//TODO

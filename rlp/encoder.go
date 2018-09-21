@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	// "math/big"
 	"reflect"
 )
 
@@ -67,7 +68,17 @@ func EncodeSize(val interface{}) (int, error) {
 func (e *Encoder) encode(v interface{}) (err error) {
 	rv := reflect.Indirect(reflect.ValueOf(v))
 	t := rv.Type()
+
+	// if t.AssignableTo(reflect.PtrTo(bigInt)) {
+	// 	fmt.Println("writeBigIntPtr")
+	// 	return e.writeBigIntPtr(rv)
+	// } else if t.AssignableTo(bigInt) {
+	// 	fmt.Println("writeBigIntNoPtr")
+	// 	return e.writeBigIntNoPtr(rv)
+	// }
+
 	switch t.Kind() {
+
 	case reflect.Array:
 		l := t.Len()
 		if err = e.writeUVarInt(l); err != nil {
@@ -171,6 +182,27 @@ func (e *Encoder) encode(v interface{}) (err error) {
 
 	return
 }
+
+// func (e *Encoder) writeBigIntNoPtr(val reflect.Value) (err error) {
+// 	i := val.Interface().(big.Int)
+// 	e.writeBigInt(&i)
+// 	return nil
+// }
+
+// func (e *Encoder) writeBigIntPtr(val reflect.Value) (err error) {
+
+// 	return nil
+// }
+// func (e *Encoder) writeBigInt(i *big.Int) (err error) {
+// 	if cmp := i.Cmp(big0); cmp == -1 {
+// 		return fmt.Errorf("rlp: cannot encode negative *big.Int")
+// 	} else if cmp == 0 {
+// 		e.writeByte(0)
+// 	} else {
+// 		e.writeByteArray(i.Bytes())
+// 	}
+// 	return nil
+// }
 
 func (e *Encoder) toWriter(bytes []byte) (err error) {
 	e.count += len(bytes)

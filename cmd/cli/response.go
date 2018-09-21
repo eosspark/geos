@@ -23,6 +23,7 @@ type InfoResp struct {
 	VirtualBlockNetLimit common.JSONInt64 `json:"virtual_block_net_limit"`
 	BlockCPULimit        common.JSONInt64 `json:"block_cpu_limit"`
 	BlockNetLimit        common.JSONInt64 `json:"block_net_limit"`
+	ServerVersionString  string           `json:"server_version_string"`
 }
 
 type BlockResp struct { //we don't need all blockresp??only need "id"
@@ -46,7 +47,7 @@ type AccountResp struct {
 	CPUWeight              int64                      `json:"cpu_weight"`
 	NetLimit               chain.AccountResourceLimit `json:"net_limit"`
 	CPULimit               chain.AccountResourceLimit `json:"cpu_limit"`
-	Permissions            []common.Permission        `json:"permissions"`
+	Permissions            []types.Permission         `json:"permissions"`
 	TotalResources         common.TotalResources      `json:"total_resources"`
 	SelfDelegatedBandwidth common.DelegatedBandwidth  `json:"self_delegated_bandwidth"`
 	RefundRequest          *common.RefundRequest      `json:"refund_request"`

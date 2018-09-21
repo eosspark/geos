@@ -92,14 +92,11 @@ func Create() http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
 		fmt.Println("wallet creating")
 		checkTimeout()
-		var inputs []string
-		_ = json.NewDecoder(r.Body).Decode(&inputs)
-		name := inputs[0]
 
-		password, err := genPassword()
-		if err != nil {
-			fmt.Println(err)
-		}
+		var name string
+		_ = json.NewDecoder(r.Body).Decode(&name)
+
+		password, _ := genPassword()
 
 		file, err := os.Open(dir)
 		defer file.Close()
@@ -130,6 +127,8 @@ func Create() http.Handler {
 		err = wallet.UnLock(password)
 		if err != nil {
 			fmt.Println(err)
+			http.Error(w, err.Error(), 500)
+			return
 		}
 		wallet.Lock()
 		wallet.UnLock(password)
@@ -139,10 +138,6 @@ func Create() http.Handler {
 			delete(wallets, name)
 		}
 		wallets[name] = wallet
-		// fmt.Println("all wallets:")
-		// for name, v := range wallets {
-		// 	fmt.Println(name, v.wallet.CipherKeys)
-		// }
 
 		w.WriteHeader(201)
 		json.NewEncoder(w).Encode(password)
@@ -154,11 +149,10 @@ func Create() http.Handler {
 func Open() http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
 		checkTimeout()
-		fmt.Println("Open wallet")
-		var inputs []string
-		_ = json.NewDecoder(r.Body).Decode(&inputs)
-		walletname := inputs[0]
-		fmt.Println("wallet name: ", walletname)
+		var walletname string
+		_ = json.NewDecoder(r.Body).Decode(&walletname)
+
+		fmt.Println("Opening wallet :   wallet name: ", walletname)
 		var wallet SoftWallet
 		walletFileName := fmt.Sprintf("%s/%s%s", dir, walletname, fileExt)
 		wallet.SetWalletFilename(walletFileName)
@@ -171,6 +165,7 @@ func Open() http.Handler {
 			delete(wallets, walletname)
 		}
 		wallets[walletname] = wallet
+		// fmt.Println(walletname, wallet.wallet.CipherKeys)
 	}
 	return http.HandlerFunc(fn)
 }
@@ -200,6 +195,7 @@ func ListKeys() http.Handler {
 		_ = json.NewDecoder(r.Body).Decode(&inputs)
 		name := inputs[0]
 		pw := inputs[1]
+
 		if _, ok := wallets[name]; !ok {
 			errResp := fmt.Sprintf("Wallet not found: %s", name)
 			http.Error(w, errResp, 500)
@@ -216,11 +212,11 @@ func ListKeys() http.Handler {
 			http.Error(w, "Invalid password for wallet", 500)
 			return
 		}
-		// fmt.Println("keys: ", wallet.Keys)
 
 		Resp := RespKeys{}
 		for pub, pri := range wallet.Keys {
 			Resp[pub] = pri
+			// fmt.Println(pub, wallet.Keys[pub])
 		}
 
 		w.WriteHeader(201)
@@ -268,21 +264,27 @@ func LockAllwallets() http.Handler {
 	return http.HandlerFunc(fn)
 }
 func lockAll() {
-	fmt.Println("locak all wallets")
-	// for i := range wallets {
-
-	// }
+	for _, wallet := range wallets {
+		if !wallet.isLocked() {
+			wallet.Lock()
+		}
+	}
 }
 
 func Lock() http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
 		fmt.Println("lock wallet")
-		var inputs []string
-		_ = json.NewDecoder(r.Body).Decode(&inputs)
+		var name string
+		_ = json.NewDecoder(r.Body).Decode(&name)
 
-		for i := 0; i < len(inputs); i++ {
-			fmt.Println(inputs[i])
+		if _, ok := wallets[name]; !ok {
+			errResp := fmt.Sprintf("Wallet not found: %s", name)
+			http.Error(w, errResp, 500)
+			return
 		}
+		wallet := wallets[name]
+		wallet.Lock()
+
 		w.WriteHeader(201)
 		w.Write([]byte("{TODO}"))
 
@@ -292,17 +294,16 @@ func Lock() http.Handler {
 
 func UnLock() http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
-		fmt.Println("unlock wallet")
 		checkTimeout()
+		var wallet SoftWallet
 		var inputs []string
 		_ = json.NewDecoder(r.Body).Decode(&inputs)
 		walletname := inputs[0]
 		password := inputs[1]
-		fmt.Println(walletname, password)
+		fmt.Println("unlock wallet", walletname, password)
 
 		if _, ok := wallets[walletname]; !ok {
 			// open(){
-			var wallet SoftWallet
 			walletFileName := fmt.Sprintf("%s/%s%s", dir, walletname, fileExt)
 			wallet.SetWalletFilename(walletFileName)
 			if !wallet.LoadWalletFile() {
@@ -317,17 +318,22 @@ func UnLock() http.Handler {
 			// }
 		}
 
-		wallet := wallets[walletname]
+		wallet = wallets[walletname]
 		if !wallet.isLocked() {
 			errResp := fmt.Sprintf("Wallet is already unlocked: %s", walletname)
 			http.Error(w, errResp, 500)
 			return
 		}
-		wallet.UnLock(password)
-		// walletFileName := fmt.Sprintf("%s/%s%s", dir, name, fileExt)
-		// result := getdata(walletFileName, password)
-		// for pub, pri := range result {
-		// 	fmt.Println(pub, pri)
+
+		err := wallet.UnLock(password)
+		if err != nil {
+			http.Error(w, err.Error(), 500)
+		}
+		delete(wallets, walletname)
+		wallets[walletname] = wallet
+
+		// for pub, pri := range wallet.Keys {
+		// 	fmt.Println(pub, pri, wallet.Keys[pub])
 		// }
 	}
 	return http.HandlerFunc(fn)
@@ -335,18 +341,16 @@ func UnLock() http.Handler {
 
 func ImportKey() http.Handler {
 	fn := func(w http.ResponseWriter, r *http.Request) {
-		fmt.Println("wallet import keys")
 		var inputs []string
 		_ = json.NewDecoder(r.Body).Decode(&inputs)
-
 		name := inputs[0]
 		wifkey := inputs[1]
-		fmt.Println(name, wifkey)
+
+		fmt.Println("wallet import keys", name, wifkey)
 
 		wallet, ok := wallets[name]
 		if !ok {
 			errResp := fmt.Sprintf("Wallet not found: %s\n", name)
-			fmt.Println(errResp)
 			http.Error(w, errResp, 500)
 			return
 		}
@@ -356,6 +360,7 @@ func ImportKey() http.Handler {
 			http.Error(w, errResp, 500)
 			return
 		}
+
 		ok, err := wallet.ImportKey(wifkey)
 		if err != nil {
 			http.Error(w, "Unable to import key", 500)

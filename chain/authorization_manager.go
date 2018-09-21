@@ -29,7 +29,7 @@ func (am *AuthorizationManager) InitializeDataBase() {
 func (am *AuthorizationManager) CreatePermission(account common.AccountName,
 	name common.PermissionName,
 	parent PermissionIdType,
-	auth common.Authority,
+	auth types.Authority,
 	initialCreationTime time.Duration,
 ) types.PermissionObject {
 	creationTime := initialCreationTime
@@ -53,7 +53,7 @@ func (am *AuthorizationManager) CreatePermission(account common.AccountName,
 	return perm
 }
 
-func (am *AuthorizationManager) ModifyPermission(permission types.PermissionObject, auth common.Authority) {
+func (am *AuthorizationManager) ModifyPermission(permission types.PermissionObject, auth types.Authority) {
 	am.db.Update(&permission, func(data interface{}) error {
 		//permission.Auth = auth
 		//permission.LastUpdated = pendingBlockTime
@@ -73,18 +73,18 @@ func (am *AuthorizationManager) UpdatePermissionUsage() {
 	})
 }
 
-func (am *AuthorizationManager) GetPermissionLastUsed(permission common.Permission) time.Duration {
+func (am *AuthorizationManager) GetPermissionLastUsed(permission types.Permission) time.Duration {
 	var puo types.PermissionUsageObject
 	return puo.LastUsed
 }
 
-func (am *AuthorizationManager) FindPermission(level common.PermissionLevel) *types.PermissionObject {
+func (am *AuthorizationManager) FindPermission(level types.PermissionLevel) *types.PermissionObject {
 	var po types.PermissionObject
 	am.db.Find("", 0, &po)
 	return &po
 }
 
-func (am *AuthorizationManager) GetPermission(level common.PermissionLevel) types.PermissionObject {
+func (am *AuthorizationManager) GetPermission(level types.PermissionLevel) types.PermissionObject {
 	var po types.PermissionObject
 	am.db.Find("", 0, &po)
 	return po
@@ -106,7 +106,7 @@ func (am *AuthorizationManager) LookupMinimumPermission(authorizerAccount common
 	return pn
 }
 
-func (am *AuthorizationManager) CheckUpdateauthAuthorization(update system.UpdateAuth, auths []common.PermissionLevel) {
+func (am *AuthorizationManager) CheckUpdateauthAuthorization(update system.UpdateAuth, auths []types.PermissionLevel) {
 	if len(auths) != 1 {
 		fmt.Println("error")
 		return
@@ -116,9 +116,9 @@ func (am *AuthorizationManager) CheckUpdateauthAuthorization(update system.Updat
 		fmt.Println("error")
 		return
 	}
-	minPermission := am.FindPermission(common.PermissionLevel{update.Account, update.Permission})
+	minPermission := am.FindPermission(types.PermissionLevel{update.Account, update.Permission})
 	if minPermission == nil {
-		permission := am.GetPermission(common.PermissionLevel{update.Account, update.Permission})
+		permission := am.GetPermission(types.PermissionLevel{update.Account, update.Permission})
 		minPermission = &permission
 	}
 	if am.GetPermission(auth).Satisfies(*minPermission) == false {
@@ -127,7 +127,7 @@ func (am *AuthorizationManager) CheckUpdateauthAuthorization(update system.Updat
 	}
 }
 
-func (am *AuthorizationManager) CheckDeleteauthAuthorization(del system.DeleteAuth, auths []common.PermissionLevel) {
+func (am *AuthorizationManager) CheckDeleteauthAuthorization(del system.DeleteAuth, auths []types.PermissionLevel) {
 	if len(auths) != 1 {
 		fmt.Println("error")
 		return
@@ -137,14 +137,14 @@ func (am *AuthorizationManager) CheckDeleteauthAuthorization(del system.DeleteAu
 		fmt.Println("error")
 		return
 	}
-	minPermission := am.GetPermission(common.PermissionLevel{del.Account, del.Permission})
+	minPermission := am.GetPermission(types.PermissionLevel{del.Account, del.Permission})
 	if am.GetPermission(auth).Satisfies(minPermission) == false {
 		fmt.Println("error")
 		return
 	}
 }
 
-func (am *AuthorizationManager) CheckLinkauthAuthorization(link system.LinkAuth, auths []common.PermissionLevel) {
+func (am *AuthorizationManager) CheckLinkauthAuthorization(link system.LinkAuth, auths []types.PermissionLevel) {
 	if len(auths) != 1 {
 		fmt.Println("error")
 		return
@@ -162,7 +162,7 @@ func (am *AuthorizationManager) CheckLinkauthAuthorization(link system.LinkAuth,
 	//待完善
 }
 
-func (am *AuthorizationManager) CheckUnlinkauthAuthorization(unlink system.UnlinkAuth, auths []common.PermissionLevel) {
+func (am *AuthorizationManager) CheckUnlinkauthAuthorization(unlink system.UnlinkAuth, auths []types.PermissionLevel) {
 	if len(auths) != 1 {
 		fmt.Println("error")
 		return
@@ -175,7 +175,7 @@ func (am *AuthorizationManager) CheckUnlinkauthAuthorization(unlink system.Unlin
 	//待完善
 }
 
-func (am *AuthorizationManager) CheckCanceldelayAuthorization(canceldelay system.CancelDelay, auths []common.PermissionLevel) {
+func (am *AuthorizationManager) CheckCanceldelayAuthorization(canceldelay system.CancelDelay, auths []types.PermissionLevel) {
 	if len(auths) != 1 {
 		fmt.Println("error")
 		return
@@ -190,7 +190,7 @@ func (am *AuthorizationManager) CheckCanceldelayAuthorization(canceldelay system
 
 func (am *AuthorizationManager) CheckAuthorization(actions []types.Action,
 	providedKeys []common.PublicKeyType,
-	providedPermission []common.PermissionLevel,
+	providedPermission []types.PermissionLevel,
 	providedDelay time.Time,
 	allowUnusedKeys bool,
 ) {

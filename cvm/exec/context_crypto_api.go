@@ -1,19 +1,7 @@
 package exec
 
 import (
-	//	"errors"
-	"bytes"
-	"errors"
 	"fmt"
-	"log"
-	"reflect"
-
-	//"math"
-	//"os"
-	"strings"
-
-	"github.com/eosspark/eos-go/common"
-	"github.com/eosspark/eos-go/cvm/wasm"
 )
 
 // void assert_recover_key( const fc::sha256& digest,
@@ -30,7 +18,7 @@ import (
 //    auto check = fc::crypto::public_key( s, digest, false );
 //    EOS_ASSERT( check == p, crypto_api_exception, "Error expected key different than recovered key" );
 // }
-func assert_recover_key(wasmInterface *WasmInterface, digest int,
+func assert_recover_key(w *WasmInterface, digest int,
 	sig int, siglen size_t,
 	pub int, publen size_t) {
 	fmt.Println("assert_recover_key")
@@ -47,10 +35,11 @@ func assert_recover_key(wasmInterface *WasmInterface, digest int,
 //    fc::raw::pack( pubds, fc::crypto::public_key( s, digest, false ) );
 //    return pubds.tellp();
 // }
-func recover_key(wasmInterface *WasmInterface, digest int,
+func recover_key(w *WasmInterface, digest int,
 	sig int, siglen size_t,
 	pub int, publen size_t) int {
 	fmt.Println("recover_key")
+	return 0
 }
 
 // template<class Encoder> auto encode(char* data, size_t datalen) {
@@ -70,7 +59,7 @@ func recover_key(wasmInterface *WasmInterface, digest int,
 //    auto result = encode<fc::sha256::encoder>( data, datalen );
 //    EOS_ASSERT( result == hash_val, crypto_api_exception, "hash mismatch" );
 // }
-func assert_sha256(wasmInterface *WasmInterface, data int, datalen size_t, hash_val int) {
+func assert_sha256(w *WasmInterface, data int, datalen size_t, hash_val int) {
 	fmt.Println("assert_sha256")
 }
 
@@ -78,7 +67,7 @@ func assert_sha256(wasmInterface *WasmInterface, data int, datalen size_t, hash_
 //    auto result = encode<fc::sha1::encoder>( data, datalen );
 //    EOS_ASSERT( result == hash_val, crypto_api_exception, "hash mismatch" );
 // }
-func assert_sha1(wasmInterface *WasmInterface, data int, datalen size_t, hash_val int) {
+func assert_sha1(w *WasmInterface, data int, datalen size_t, hash_val int) {
 	fmt.Println("assert_sha1")
 }
 
@@ -86,7 +75,7 @@ func assert_sha1(wasmInterface *WasmInterface, data int, datalen size_t, hash_va
 //    auto result = encode<fc::sha512::encoder>( data, datalen );
 //    EOS_ASSERT( result == hash_val, crypto_api_exception, "hash mismatch" );
 // }
-func assert_sha512(wasmInterface *WasmInterface, data int, datalen size_t, hash_val int) {
+func assert_sha512(w *WasmInterface, data int, datalen size_t, hash_val int) {
 	fmt.Println("assert_sha512")
 }
 
@@ -94,34 +83,34 @@ func assert_sha512(wasmInterface *WasmInterface, data int, datalen size_t, hash_
 //    auto result = encode<fc::ripemd160::encoder>( data, datalen );
 //    EOS_ASSERT( result == hash_val, crypto_api_exception, "hash mismatch" );
 // }
-func assert_ripemd160(wasmInterface *WasmInterface, data int, datalen size_t, hash_val int) {
+func assert_ripemd160(w *WasmInterface, data int, datalen size_t, hash_val int) {
 	fmt.Println("assert_ripemd160")
 }
 
 // void sha1(array_ptr<char> data, size_t datalen, fc::sha1& hash_val) {
 //    hash_val = encode<fc::sha1::encoder>( data, datalen );
 // }
-func sha1(wasmInterface *WasmInterface, data int, datalen size_t, hash_val int) {
+func sha1(w *WasmInterface, data int, datalen size_t, hash_val int) {
 	fmt.Println("sha1")
 }
 
 // void sha256(array_ptr<char> data, size_t datalen, fc::sha256& hash_val) {
 //    hash_val = encode<fc::sha256::encoder>( data, datalen );
 // }
-func sha256(wasmInterface *WasmInterface, data int, datalen size_t, hash_val int) {
+func sha256(w *WasmInterface, data int, datalen size_t, hash_val int) {
 	fmt.Println("sha256")
 }
 
 // void sha512(array_ptr<char> data, size_t datalen, fc::sha512& hash_val) {
 //    hash_val = encode<fc::sha512::encoder>( data, datalen );
 // }
-func sha512(wasmInterface *WasmInterface, data int, datalen size_t, hash_val int) {
+func sha512(w *WasmInterface, data int, datalen size_t, hash_val int) {
 	fmt.Println("sha512")
 }
 
 // void ripemd160(array_ptr<char> data, size_t datalen, fc::ripemd160& hash_val) {
 //    hash_val = encode<fc::ripemd160::encoder>( data, datalen );
 // }
-func ripemd160(wasmInterface *WasmInterface, data int, datalen size_t, hash_val int) {
+func ripemd160(w *WasmInterface, data int, datalen size_t, hash_val int) {
 	fmt.Println("ripemd160")
 }

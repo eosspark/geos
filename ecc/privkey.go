@@ -33,7 +33,7 @@ func newRandomPrivateKey(randSource io.Reader) (*PrivateKey, error) {
 
 	privKey, _ := btcec.PrivKeyFromBytes(btcec.S256(), rawPrivKey)
 
-	return &PrivateKey{Curve: CurveK1, privKey: privKey}, nil
+	return &PrivateKey{Curve: CurveK1, PrivKey: privKey}, nil
 }
 
 func NewPrivateKey(wif string) (*PrivateKey, error) {
@@ -66,18 +66,18 @@ func NewPrivateKey(wif string) (*PrivateKey, error) {
 		return nil, err
 	}
 
-	return &PrivateKey{Curve: curveID, privKey: wifObj.PrivKey}, nil
+	return &PrivateKey{Curve: curveID, PrivKey: wifObj.PrivKey}, nil
 }
 
 type PrivateKey struct {
 	Curve   CurveID
-	privKey *btcec.PrivateKey
+	PrivKey *btcec.PrivateKey
 }
 
 func (p *PrivateKey) PublicKey() PublicKey {
 
 	var data [33]byte
-	temp := p.privKey.PubKey().SerializeCompressed()
+	temp := p.PrivKey.PubKey().SerializeCompressed()
 	for i := range temp {
 		data[i] = temp[i]
 	}
@@ -97,7 +97,7 @@ func (p *PrivateKey) Sign(hash []byte) (out Signature, err error) {
 	}
 
 	// TODO: implement the R1 curve..
-	compactSig, err := p.privKey.SignCanonical(btcec.S256(), hash)
+	compactSig, err := p.PrivKey.SignCanonical(btcec.S256(), hash)
 	if err != nil {
 		return out, fmt.Errorf("canonical, %s", err)
 	}
@@ -117,7 +117,7 @@ func (p *PrivateKey) Sign(hash []byte) (out Signature, err error) {
 // }
 
 func (p PrivateKey) String() string { //TODO *PrivateKey
-	wif, _ := btcutil.NewWIF(p.privKey, '\x80', false) // no error possible
+	wif, _ := btcutil.NewWIF(p.PrivKey, '\x80', false) // no error possible
 	return wif.String()
 	// FIXME: when we decide to go ahead with the new representation.
 	//return PrivateKeyPrefix + p.Curve.StringPrefix() + wif.String()
