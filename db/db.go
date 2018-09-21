@@ -116,7 +116,22 @@ func (db *base) insert(data interface{}) error {
 	if err != nil {
 		return err
 	}
-	return db.db.Save(data)
+	tx, err := db.db.Begin(true)
+	if err != nil {
+		return err
+	}
+	err = tx.Save(data)
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+	err = tx.Commit()
+	if err != nil {
+		tx.Rollback()
+		return err
+	}
+	return nil
+	//return db.db.Save(data)
 }
 
 func (db *base) remove(data interface{}) error {
@@ -143,6 +158,10 @@ func (db *base) update(old interface{}, fn func(interface{}) error) error {
 	}
 
 	return db.updateItem(old)
+}
+
+func (db *base) updateObject(new_ interface{}) error {
+	return db.updateItem(new_)
 }
 
 func (db *base) byIndex(fieldName string, to interface{}) error {
@@ -403,6 +422,14 @@ func (undo *DataBase) Update(old interface{}, fn func(interface{}) error) error 
 	return nil
 }
 
+func (undo *DataBase) UpdateObject(old interface{}, new_ interface{}) error {
+	if reflect.TypeOf(old) != reflect.TypeOf(new_) {
+		return errors.New("type not found")
+		//return errors.New(reflect.TypeOf(old), " --> ", reflect.TypeOf(new_))
+	}
+	return undo.db.updateObject(new_)
+}
+
 func (undo *DataBase) All(data interface{}) error {
 	return undo.db.all(data)
 }
@@ -620,19 +647,34 @@ func Update() {
 	}
 	defer db.Close()
 
-	fn := func(data interface{}) error {
-		ref := reflect.ValueOf(data).Elem()
-		if ref.CanSet() {
-			ref.Field(1).SetString("linx")
-			ref.Field(2).SetInt(110)
-		} else {
-			fmt.Println("ref can not set")
-			// error log ?
-		}
-		return nil
+	//	fn := func(data interface{}) error {
+	//		ref := reflect.ValueOf(data).Elem()
+	//		if ref.CanSet() {
+	//			ref.Field(1).SetString("linx")
+	//			ref.Field(2).SetInt(110)
+	//		} else {
+	//			fmt.Println("ref can not set")
+	//			// error log ?
+	//		}
+	//		return nil
+	//	}
+
+	var it Item
+	err = db.Find("ID", 2, &it)
+	if err != nil {
+		fmt.Println("find failed")
 	}
-	it := Item{ID: 2, Name: "fox", Tag: 100}
-	err = db.Update(&it, fn)
+	fmt.Println(it)
+
+	it_ := Item{ID: 2, Name: "fox", Tag: 100}
+	err = db.UpdateObject(&it, it_)
+	if err != nil {
+		fmt.Println("updata failed")
+	}
+
+	var items []Item
+
+	err = db.All(&items)
 	if err != nil {
 		fmt.Println("updata failed")
 	}

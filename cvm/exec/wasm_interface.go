@@ -15,6 +15,7 @@ import (
 
 var (
 	envModule *wasm.Module
+	wasmIf    *WasmInterface
 	ignore    bool = false
 )
 
@@ -92,6 +93,11 @@ type WasmInterface struct {
 }
 
 func NewWasmInterface() *WasmInterface {
+
+	if wasmIf != nil {
+		return wasmIf
+	}
+
 	wasmInterface := WasmInterface{handles: make(map[string]interface{})}
 
 	wasmInterface.Register("action_data_size", actionDataSize)
@@ -171,7 +177,9 @@ func NewWasmInterface() *WasmInterface {
 	wasmInterface.Register("get_action", getAction)
 	wasmInterface.Register("get_context_free_data", getContextFreeData)
 
-	return &wasmInterface
+	wasmIf = &wasmInterface
+
+	return wasmIf
 }
 
 func (wasmInterface *WasmInterface) Apply(code_id string, code []byte, context WasmContextInterface) {

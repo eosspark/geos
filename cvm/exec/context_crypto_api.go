@@ -61,7 +61,7 @@ func assertRecoverKey(w *WasmInterface, digest int,
 //    fc::raw::pack( pubds, fc::crypto::public_key( s, digest, false ) );
 //    return pubds.tellp();
 // }
-func recover_key(w *WasmInterface, digest int,
+func recoverKey(w *WasmInterface, digest int,
 	sig int, siglen int,
 	pub int, publen int) int {
 	fmt.Println("recover_key")
@@ -134,7 +134,7 @@ func encode(w *WasmInterface, s shaInterface, data []byte, dataLen int) []byte {
 
 }
 
-func assert_sha256(w *WasmInterface, data int, datalen int, hash_val int) {
+func assertSha256(w *WasmInterface, data int, datalen int, hash_val int) {
 	fmt.Println("assert_sha256")
 
 	dataBytes := getBytes(w, data, datalen)
@@ -154,7 +154,7 @@ func assert_sha256(w *WasmInterface, data int, datalen int, hash_val int) {
 //    auto result = encode<fc::sha1::encoder>( data, datalen );
 //    EOS_ASSERT( result == hash_val, crypto_api_exception, "hash mismatch" );
 // }
-func assert_sha1(w *WasmInterface, data int, dataLen int, hash_val int) {
+func assertSha1(w *WasmInterface, data int, dataLen int, hash_val int) {
 	fmt.Println("assert_sha1")
 
 	dataBytes := getBytes(w, data, dataLen)
@@ -174,7 +174,7 @@ func assert_sha1(w *WasmInterface, data int, dataLen int, hash_val int) {
 //    auto result = encode<fc::sha512::encoder>( data, datalen );
 //    EOS_ASSERT( result == hash_val, crypto_api_exception, "hash mismatch" );
 // }
-func assert_sha512(w *WasmInterface, data int, dataLen int, hash_val int) {
+func assertSha512(w *WasmInterface, data int, dataLen int, hash_val int) {
 	fmt.Println("assert_sha512")
 
 	dataBytes := getBytes(w, data, dataLen)
@@ -196,7 +196,7 @@ func assert_sha512(w *WasmInterface, data int, dataLen int, hash_val int) {
 //    auto result = encode<fc::ripemd160::encoder>( data, datalen );
 //    EOS_ASSERT( result == hash_val, crypto_api_exception, "hash mismatch" );
 // }
-func assert_ripemd160(w *WasmInterface, data int, dataLen int, hash_val int) {
+func assertRipemd160(w *WasmInterface, data int, dataLen int, hash_val int) {
 	fmt.Println("assert_ripemd160")
 
 	dataBytes := getBytes(w, data, dataLen)
