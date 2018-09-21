@@ -322,19 +322,19 @@ func (d *Decoder) decodeStruct(v interface{}, t reflect.Type, rv reflect.Value) 
 	return
 }
 
-func (d *Decoder) readSHA256Bytes() (out Sha256, err error) {
-
-	if d.remaining() < TypeSize.SHA256Bytes {
-		err = fmt.Errorf("sha256 required [%d] bytes, remaining [%d]", TypeSize.SHA256Bytes, d.remaining())
-		return
-	}
-	for i := range out.Hash_ {
-		out.Hash_[i] = binary.LittleEndian.Uint64(d.data[i*8 : (i+1)*8])
-	}
-	d.pos += TypeSize.SHA256Bytes
-	println(fmt.Sprintf("readSHA256Bytes [%s]", hex.EncodeToString(out.Bytes())))
-	return
-}
+//func (d *Decoder) readSHA256Bytes() (out Sha256, err error) {
+//
+//	if d.remaining() < TypeSize.SHA256Bytes {
+//		err = fmt.Errorf("sha256 required [%d] bytes, remaining [%d]", TypeSize.SHA256Bytes, d.remaining())
+//		return
+//	}
+//	for i := range out.Hash_ {
+//		out.Hash_[i] = binary.LittleEndian.Uint64(d.data[i*8 : (i+1)*8])
+//	}
+//	d.pos += TypeSize.SHA256Bytes
+//	println(fmt.Sprintf("readSHA256Bytes [%s]", hex.EncodeToString(out.Bytes())))
+//	return
+//}
 
 func (d *Decoder) readUvarint() (uint64, error) {
 	l, read := binary.Uvarint(d.data[d.pos:])

@@ -38,29 +38,6 @@ type Pair struct {
 	Second interface{}
 }
 
-//func Hash(t interface{}) [4]uint64 {
-//	cereal, err := rlp.EncodeToBytes(t)
-//	if err != nil {
-//		panic(err)
-//	}
-//	//fmt.Println(cereal)
-//
-//	h := sha256.New()
-//	_, _ = h.Write(cereal)
-//	hashed := h.Sum(nil)
-//
-//	//fmt.Println(hashed)
-//
-//	var result [4]uint64
-//
-//	result[0] = binary.LittleEndian.Uint64(hashed[:8])
-//	result[1] = binary.LittleEndian.Uint64(hashed[8:16])
-//	result[2] = binary.LittleEndian.Uint64(hashed[16:24])
-//	result[3] = binary.LittleEndian.Uint64(hashed[24:32])
-//
-//	return result
-//}
-
 func DecodeIDTypeString(str string) (id [4]uint64, err error) {
 	b, err := hex.DecodeString(str)
 	if err != nil {
@@ -166,17 +143,25 @@ type ActionName uint64
 type TableName uint64
 type ScopeName uint64
 
+func (n Name) String() string {
+	return NameToString(uint64(n))
+}
 func (n AccountName) String() string {
 	return NameToString(uint64(n))
 }
-
+func (n PermissionName) String() string {
+	return NameToString(uint64(n))
+}
+func (n ActionName) String() string {
+	return NameToString(uint64(n))
+}
+func (n TableName) String() string {
+	return NameToString(uint64(n))
+}
 func (n ScopeName) String() string {
 	return NameToString(uint64(n))
 }
 
-func (n TableName) String() string {
-	return NameToString(uint64(n))
-}
 func (n AccountName) MarshalJSON() ([]byte, error) {
 	return json.Marshal(NameToString(uint64(n)))
 }

@@ -98,3 +98,5 @@ func TestHash(t *testing.T) {
 	//
 	//fmt.Printf("twice: %x\n", result)
 }
+
+

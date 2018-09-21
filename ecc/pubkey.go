@@ -152,3 +152,14 @@ func (p *PublicKey) UnmarshalJSON(data []byte) error {
 
 	return nil
 }
+
+func (p PublicKey) Compare(pub PublicKey) bool {
+	if p.Curve != pub.Curve {
+		return false
+	}
+	if p.Content != pub.Content{
+		return false
+	}
+	return true
+
+}

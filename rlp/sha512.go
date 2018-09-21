@@ -5,18 +5,32 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
+	"hash"
 )
 
 type Sha512 struct {
 	Hash_ [8]uint64 `eos:"hash"`
 }
 
-func NewSha512(s string) *Sha512 {
+func NewSha512() hash.Hash {
+	return sha512.New()
+}
+
+func NewSha512String(s string) *Sha512 {
 	bytes, err := hex.DecodeString(s)
 	if err != nil {
 		panic(err)
 	}
 
+	result := new(Sha512)
+	for i := range result.Hash_ {
+		result.Hash_[i] = binary.LittleEndian.Uint64(bytes[i*8 : (i+1)*8])
+	}
+
+	return result
+}
+
+func NewSha512Byte(bytes []byte) *Sha512 {
 	result := new(Sha512)
 	for i := range result.Hash_ {
 		result.Hash_[i] = binary.LittleEndian.Uint64(bytes[i*8 : (i+1)*8])
