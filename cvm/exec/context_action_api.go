@@ -13,7 +13,7 @@ import (
 
 //    return copy_size;
 // }
-func read_action_data(w *WasmInterface, memory int, bufferSize int) int {
+func readActionData(w *WasmInterface, memory int, bufferSize int) int {
 	fmt.Println("read_action_data")
 
 	data := w.context.GetActionData()
@@ -32,7 +32,7 @@ func read_action_data(w *WasmInterface, memory int, bufferSize int) int {
 // int action_data_size() {
 //    return context.act.data.size();
 // }
-func action_data_size(w *WasmInterface) int {
+func actionDataSize(w *WasmInterface) int {
 	fmt.Println("action_data_size")
 	return len(w.context.GetActionData())
 }
@@ -40,7 +40,7 @@ func action_data_size(w *WasmInterface) int {
 // name current_receiver() {
 //    return context.receiver;
 // }
-func current_receiver(w *WasmInterface) int64 {
+func currentReceiver(w *WasmInterface) int64 {
 	fmt.Println("current_receiver")
 
 	return int64(w.context.GetReceiver())

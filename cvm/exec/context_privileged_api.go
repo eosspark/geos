@@ -10,7 +10,7 @@ import (
 // int is_feature_active( int64_t feature_name ) {
 //          return false;
 // }
-func is_feature_active(w *WasmInterface, feature_name int64) int {
+func isFeatureActive(w *WasmInterface, featureName int64) int {
 	fmt.Println("is_feature_active")
 	return b2i(false)
 }
@@ -18,7 +18,7 @@ func is_feature_active(w *WasmInterface, feature_name int64) int {
 // void activate_feature( int64_t feature_name ) {
 //  EOS_ASSERT( false, unsupported_feature, "Unsupported Hardfork Detected" );
 // }
-func activate_feature(w *WasmInterface, feature_name int64) {
+func activateFeature(w *WasmInterface, featureName int64) {
 	fmt.Println("activate_feature")
 	//EOS_ASSERT( false, unsupported_feature, "Unsupported Hardfork Detected" );
 }
@@ -31,7 +31,7 @@ func activate_feature(w *WasmInterface, feature_name int64) {
 //     context.trx_context.validate_ram_usage.insert( account );
 //  }
 // }
-func set_resource_limits(w *WasmInterface, account common.AccountName, ramBytes uint64, netWeight uint64, cpuWeigth uint64) {
+func setResourceLimits(w *WasmInterface, account common.AccountName, ramBytes uint64, netWeight uint64, cpuWeigth uint64) {
 	fmt.Println("set_resource_limits")
 
 	w.context.SetResourceLimits(account, ramBytes, netWeight, cpuWeigth)
@@ -41,7 +41,7 @@ func set_resource_limits(w *WasmInterface, account common.AccountName, ramBytes 
 // void get_resource_limits( account_name account, int64_t& ram_bytes, int64_t& net_weight, int64_t& cpu_weight ) {
 //  context.control.get_resource_limits_manager().get_account_limits( account, ram_bytes, net_weight, cpu_weight);
 // }
-func get_resource_limits(w *WasmInterface, account common.AccountName, ramBytes int, netWeight int, cpuWeigth int) {
+func getResourceLimits(w *WasmInterface, account common.AccountName, ramBytes int, netWeight int, cpuWeigth int) {
 	fmt.Println("get_resource_limits")
 
 	var r, n, c uint64
@@ -66,14 +66,14 @@ func get_resource_limits(w *WasmInterface, account common.AccountName, ramBytes 
 //  }
 //  return 0;
 // }
-func get_blockchain_parameters_packed(w *WasmInterface, packed_blockchain_parameters int, buffer_size int) int {
+func getBlockchainParametersPacked(w *WasmInterface, packedBlockchainParameters int, buffer_size int) int {
 	fmt.Println("get_blockchain_parameters_packed")
 
 	p := w.context.GetBlockchainParametersPacked()
 	s := len(p)
 
 	if s <= buffer_size {
-		copy(w.vm.memory[packed_blockchain_parameters:packed_blockchain_parameters+s], p[0:s])
+		copy(w.vm.memory[packedBlockchainParameters:packedBlockchainParameters+s], p[0:s])
 		return s
 	}
 
@@ -90,11 +90,11 @@ func get_blockchain_parameters_packed(w *WasmInterface, packed_blockchain_parame
 //          gprops.configuration = cfg;
 //  });
 // }
-func set_blockchain_parameters_packed(w *WasmInterface, packed_blockchain_parameters int, datalen int) {
+func setBlockchainParametersPacked(w *WasmInterface, packedBlockchainParameters int, datalen int) {
 	fmt.Println("set_blockchain_parameters_packed")
 
 	p := make([]byte, datalen)
-	copy(p[0:datalen], w.vm.memory[packed_blockchain_parameters:packed_blockchain_parameters+datalen])
+	copy(p[0:datalen], w.vm.memory[packedBlockchainParameters:packedBlockchainParameters+datalen])
 
 	w.context.SetBlockchainParametersPacked(p)
 }
@@ -102,7 +102,7 @@ func set_blockchain_parameters_packed(w *WasmInterface, packed_blockchain_parame
 // bool is_privileged( account_name n )const {
 //  return context.db.get<account_object, by_name>( n ).privileged;
 // }
-func is_privileged(w *WasmInterface, n common.AccountName) int {
+func isPrivileged(w *WasmInterface, n common.AccountName) int {
 	fmt.Println("is_privileged")
 
 	return b2i(w.context.IsPrivileged(n))
@@ -114,8 +114,8 @@ func is_privileged(w *WasmInterface, n common.AccountName) int {
 //     ma.privileged = is_priv;
 //  });
 // }
-func set_privileged(w *WasmInterface, n common.AccountName, is_priv int) {
+func setPrivileged(w *WasmInterface, n common.AccountName, isPriv int) {
 	fmt.Println("set_privileged")
 
-	w.context.SetPrivileged(n, i2b(is_priv))
+	w.context.SetPrivileged(n, i2b(isPriv))
 }

@@ -14,10 +14,10 @@ import (
 //    fc::raw::unpack<action>(data, data_len, act);
 //    context.execute_inline(std::move(act));
 // }
-func send_inline(w *WasmInterface, data int, datalen int) {
+func sendInline(w *WasmInterface, data int, dataLen int) {
 	fmt.Println("send_inline")
 
-	action := getData(w, data, datalen)
+	action := getBytes(w, data, dataLen)
 	w.context.ExecuteInline(action)
 
 }
@@ -31,10 +31,10 @@ func send_inline(w *WasmInterface, data int, datalen int) {
 //    fc::raw::unpack<action>(data, data_len, act);
 //    context.execute_context_free_inline(std::move(act));
 // }
-func send_context_free_inline(w *WasmInterface, data int, datalen int) {
+func sendContextFreeInline(w *WasmInterface, data int, dataLen int) {
 	fmt.Println("send_context_free_inline")
 
-	action := getData(w, data, datalen)
+	action := getBytes(w, data, dataLen)
 	w.context.ExecuteContextFreeInline(action)
 }
 
@@ -45,12 +45,12 @@ func send_context_free_inline(w *WasmInterface, data int, datalen int) {
 //       context.schedule_deferred_transaction(sender_id, payer, std::move(trx), replace_existing);
 //    } FC_RETHROW_EXCEPTIONS(warn, "data as hex: ${data}", ("data", fc::to_hex(data, data_len)))
 // }
-func send_deferred(w *WasmInterface, sender_id int, payer common.AccountName, data int, datalen int, replaceExisting int32) {
+func sendDeferred(w *WasmInterface, sender_id int, payer common.AccountName, data int, dataLen int, replaceExisting int32) {
 	fmt.Println("send_deferred")
 
 	//id := big.Int.SetBytes(w.vm.memory[sender_id : sender_id+32])
 	id, _ := common.DecodeIDTypeByte(w.vm.memory[sender_id : sender_id+32])
-	trx := getData(w, data, datalen)
+	trx := getBytes(w, data, dataLen)
 	w.context.ScheduleDeferredTransaction(common.TransactionIDType{id}, payer, trx, i2b(int(replaceExisting)))
 }
 
@@ -58,7 +58,7 @@ func send_deferred(w *WasmInterface, sender_id int, payer common.AccountName, da
 //    fc::uint128_t sender_id(val>>64, uint64_t(val) );
 //    return context.cancel_deferred_transaction( (unsigned __int128)sender_id );
 // }
-func cancel_deferred(w *WasmInterface, senderId int) int {
+func cancelDeferred(w *WasmInterface, senderId int) int {
 	fmt.Println("cancel_deferred")
 
 	id, _ := common.DecodeIDTypeByte(w.vm.memory[senderId : senderId+32])
@@ -77,17 +77,17 @@ func cancel_deferred(w *WasmInterface, senderId int) int {
 
 //    return copy_size;
 // }
-func read_transaction(w *WasmInterface, data int, buffer_size int) int {
+func readTransaction(w *WasmInterface, data int, bufferSize int) int {
 	fmt.Println("read_transaction")
 
 	trx := w.context.GetPackedTransaction()
 
 	s := len(trx)
-	if buffer_size == 0 {
+	if bufferSize == 0 {
 		return s
 	}
 
-	copySize := min(buffer_size, s)
+	copySize := min(bufferSize, s)
 	copy(w.vm.memory[data:data+copySize], trx[0:copySize])
 	return copySize
 }
@@ -95,7 +95,7 @@ func read_transaction(w *WasmInterface, data int, buffer_size int) int {
 // int transaction_size() {
 //    return context.get_packed_transaction().size();
 // }
-func transaction_size(w *WasmInterface) int {
+func transactionSize(w *WasmInterface) int {
 	fmt.Println("transaction_size")
 
 	return len(w.context.GetPackedTransaction())
@@ -113,7 +113,7 @@ func expiration(w *WasmInterface) int {
 // int tapos_block_num() {
 //   return context.trx_context.trx.ref_block_num;
 // }
-func tapos_block_num(w *WasmInterface) int {
+func taposBlockNum(w *WasmInterface) int {
 	fmt.Println("tapos_block_num")
 
 	return w.context.TaposBlockNum()
@@ -122,7 +122,7 @@ func tapos_block_num(w *WasmInterface) int {
 // int tapos_block_prefix() {
 //   return context.trx_context.trx.ref_block_prefix;
 // }
-func tapos_block_prefix(w *WasmInterface) int {
+func taposBlockPrefix(w *WasmInterface) int {
 	fmt.Println("tapos_block_prefix")
 
 	return w.context.TaposBlockPrefix()
@@ -131,11 +131,11 @@ func tapos_block_prefix(w *WasmInterface) int {
 // int get_action( uint32_t type, uint32_t index, array_ptr<char> buffer, size_t buffer_size )const {
 //    return context.get_action( type, index, buffer, buffer_size );
 // }
-func get_action(w *WasmInterface, typ int, index int, buffer int, buffer_size int) int {
+func getAction(w *WasmInterface, typ int, index int, buffer int, bufferSize int) int {
 	fmt.Println("get_action")
 
-	s, bytes := w.context.GetAction(uint32(typ), index, buffer_size)
-	if buffer_size == 0 || s == -1 {
+	s, bytes := w.context.GetAction(uint32(typ), index, bufferSize)
+	if bufferSize == 0 || s == -1 {
 		return s
 	}
 	copy(w.vm.memory[buffer:buffer+s], bytes[0:s])
@@ -146,12 +146,12 @@ func get_action(w *WasmInterface, typ int, index int, buffer int, buffer_size in
 // int get_context_free_data( uint32_t index, array_ptr<char> buffer, size_t buffer_size )const {
 //  return context.get_context_free_data( index, buffer, buffer_size );
 // }
-func get_context_free_data(w *WasmInterface, index int, buffer int, buffer_size int) int {
+func getContextFreeData(w *WasmInterface, index int, buffer int, bufferSize int) int {
 
 	fmt.Println("get_context_free_data")
 
-	s, bytes := w.context.GetContextFreeData(index, buffer_size)
-	if buffer_size == 0 || s == -1 {
+	s, bytes := w.context.GetContextFreeData(index, bufferSize)
+	if bufferSize == 0 || s == -1 {
 		return s
 	}
 	copy(w.vm.memory[buffer:buffer+s], bytes[0:s])
