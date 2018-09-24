@@ -84,7 +84,7 @@ func TestContextAtion(t *testing.T) {
 		//print "hello,walker"
 		fmt.Println(applyContext.PendingConsoleOutput)
 		if strings.Compare(applyContext.PendingConsoleOutput, "receiver:ctx.action,code:ctx.action,action:test,hello, walker") != 0 {
-			t.Fatalf("error excute hello.wasm")
+			t.Fatalf("error excute action.wasm")
 		}
 
 	})
@@ -103,9 +103,9 @@ func TestContextConsole(t *testing.T) {
 		fmt.Println(name)
 		wasm := exec.NewWasmInterface()
 		applyContext := &chain.ApplyContext{
-			Receiver: common.AccountName(exec.N("ctx.action")),
+			Receiver: common.AccountName(exec.N("ctx.console")),
 			Act: types.Action{
-				Account: common.AccountName(exec.N("ctx.action")),
+				Account: common.AccountName(exec.N("ctx.console")),
 				Name:    common.ActionName(exec.N("test")),
 				Data:    []byte{0x00, 0x00, 0x00, 0x00, 0x5c, 0x05, 0xa3, 0xe1}, //'{"walker"}'
 			},
@@ -117,7 +117,40 @@ func TestContextConsole(t *testing.T) {
 		//print "hello,walker"
 		fmt.Println(applyContext.PendingConsoleOutput)
 		if strings.Compare(applyContext.PendingConsoleOutput, "hello,mic,-3,20,3.14E+38,3.14E+300,walker,0x313233343536") != 0 {
-			t.Fatalf("error excute hello.wasm")
+			t.Fatalf("error excute console.wasm")
+		}
+
+	})
+
+}
+
+func TestContextMemory(t *testing.T) {
+
+	name := "testdata_context/memory.wasm"
+	t.Run(filepath.Base(name), func(t *testing.T) {
+		code, err := ioutil.ReadFile(name)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		fmt.Println(name)
+		wasm := exec.NewWasmInterface()
+		applyContext := &chain.ApplyContext{
+			Receiver: common.AccountName(exec.N("ctx.memory")),
+			Act: types.Action{
+				Account: common.AccountName(exec.N("ctx.memory")),
+				Name:    common.ActionName(exec.N("test")),
+				Data:    []byte{0x00, 0x00, 0x00, 0x00, 0x5c, 0x05, 0xa3, 0xe1}, //'{"walker"}'
+			},
+		}
+
+		codeVersion := rlp.NewSha256Byte([]byte(code)).String()
+		wasm.Apply(codeVersion, code, applyContext)
+
+		//print "hello,walker"
+		fmt.Println(applyContext.PendingConsoleOutput)
+		if strings.Compare(applyContext.PendingConsoleOutput, "cccccccccccccchecksum256 ok") != 0 {
+			t.Fatalf("error excute memory.wasm")
 		}
 
 	})

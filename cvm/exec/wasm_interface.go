@@ -446,7 +446,7 @@ func getUint64(w *WasmInterface, index int) uint64 {
 func getStringSize(w *WasmInterface, index int) int {
 	var size int
 	var i int
-	for i = 0; i < 256; i++ {
+	for i = 0; i < 512; i++ {
 		if w.vm.memory[index+i] == 0 {
 			break
 		}
