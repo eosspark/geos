@@ -44,7 +44,7 @@ func main() {
 	codeVersion := rlp.NewSha256Byte([]byte(code)).String()
 	wasm.Apply(codeVersion, code, applyContext)
 
-	//print "hello,walker"
+	//print "hello, walker"
 	fmt.Println(applyContext.PendingConsoleOutput)
 
 }

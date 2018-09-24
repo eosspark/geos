@@ -82,15 +82,17 @@ func (fn goFunction) call(vm *VM, index int64) {
 		kind := fn.typ.In(i).Kind()
 
 		switch kind {
-		case reflect.Float64, reflect.Float32:
+		case reflect.Float64:
 			val.SetFloat(math.Float64frombits(raw))
+		case reflect.Float32:
+			val.SetFloat(float64(math.Float32frombits(uint32(raw))))
 		case reflect.Uint32, reflect.Uint64:
 			val.SetUint(raw)
 		case reflect.Int32, reflect.Int64, reflect.Int:
 			val.SetInt(int64(raw))
 		default:
-			//panic(fmt.Sprintf("exec: args %d invalid kind=%v", i, kind))
-			val = reflect.ValueOf(raw)
+			panic(fmt.Sprintf("exec: args %d invalid kind=%v", i, kind))
+			//val = reflect.ValueOf(raw)
 		}
 		args[i] = val
 	}
