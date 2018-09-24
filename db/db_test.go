@@ -34,9 +34,13 @@ func TestNewBase(t *testing.T) {
 }
 
 type House struct {
-	Id   uint64 `storm:"id,increment"`
-	Area uint64
-	Name string
+	Id        uint64 `storm:"id,increment"`
+	Area      uint64
+	Name      string
+	Carnivore struct {
+		Lion  int `storm:"index"`
+		Tiger int
+	} `storm:"inline"`
 }
 
 func Test_Lower_Upper(t *testing.T) {
@@ -73,6 +77,13 @@ func Test_Lower_Upper(t *testing.T) {
 	err = db.UpperBound("Area", 3, &houses)
 	if err != nil {
 		fmt.Println(err.Error())
+	}
+	fmt.Println(houses)
+
+	houses = nil
+	err = db.Get("House.Carnivore.Lion", 0, &houses)
+	if err != nil {
+		fmt.Println(err)
 	}
 	fmt.Println(houses)
 }
