@@ -2,6 +2,7 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"io/ioutil"
 	"log"
 	"os"
@@ -40,8 +41,10 @@ func main() {
 		},
 	}
 
-	//print "hello,walker"
 	codeVersion := rlp.NewSha256Byte([]byte(code)).String()
 	wasm.Apply(codeVersion, code, applyContext)
+
+	//print "hello,walker"
+	fmt.Println(applyContext.PendingConsoleOutput)
 
 }

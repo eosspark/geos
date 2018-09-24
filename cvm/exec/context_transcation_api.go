@@ -77,7 +77,7 @@ func cancelDeferred(w *WasmInterface, senderId int) int {
 
 //    return copy_size;
 // }
-func readTransaction(w *WasmInterface, data int, bufferSize int) int {
+func readTransaction(w *WasmInterface, buffer int, bufferSize int) int {
 	fmt.Println("read_transaction")
 
 	trx := w.context.GetPackedTransaction()
@@ -88,7 +88,8 @@ func readTransaction(w *WasmInterface, data int, bufferSize int) int {
 	}
 
 	copySize := min(bufferSize, s)
-	copy(w.vm.memory[data:data+copySize], trx[0:copySize])
+	//copy(w.vm.memory[data:data+copySize], trx[0:copySize])
+	setMemory(w, buffer, 0, trx, copySize)
 	return copySize
 }
 
@@ -134,11 +135,12 @@ func taposBlockPrefix(w *WasmInterface) int {
 func getAction(w *WasmInterface, typ int, index int, buffer int, bufferSize int) int {
 	fmt.Println("get_action")
 
-	s, bytes := w.context.GetAction(uint32(typ), index, bufferSize)
+	s, action := w.context.GetAction(uint32(typ), index, bufferSize)
 	if bufferSize == 0 || s == -1 {
 		return s
 	}
-	copy(w.vm.memory[buffer:buffer+s], bytes[0:s])
+	//copy(w.vm.memory[buffer:buffer+s], bytes[0:s])
+	setMemory(w, buffer, 0, action, s)
 	return s
 
 }
@@ -150,11 +152,12 @@ func getContextFreeData(w *WasmInterface, index int, buffer int, bufferSize int)
 
 	fmt.Println("get_context_free_data")
 
-	s, bytes := w.context.GetContextFreeData(index, bufferSize)
+	s, data := w.context.GetContextFreeData(index, bufferSize)
 	if bufferSize == 0 || s == -1 {
 		return s
 	}
-	copy(w.vm.memory[buffer:buffer+s], bytes[0:s])
+	//copy(w.vm.memory[buffer:buffer+s], bytes[0:s])
+	setMemory(w, buffer, 0, data, s)
 	return s
 
 }

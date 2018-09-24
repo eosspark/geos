@@ -46,6 +46,12 @@ func TestContextApis(t *testing.T) {
 
 				codeVersion := rlp.NewSha256Byte([]byte(code)).String()
 				wasm.Apply(codeVersion, code, applyContext)
+
+				//print "hello,walker"
+				//fmt.Println(applyContext.PendingConsoleOutput)
+				if strings.Compare(applyContext.PendingConsoleOutput, "Hello, walker") != 0 {
+					t.Fatalf("error excute hello.wasm")
+				}
 			}
 
 		})

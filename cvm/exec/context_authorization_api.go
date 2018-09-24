@@ -25,9 +25,6 @@ func hasAuthorization(w *WasmInterface, account common.AccountName) int {
 //                                              const permission_name& permission) {
 //   context.require_authorization( account, permission );
 // }
-// func require_authorization(wasmInterface *WasmInterface, account int64, permission int64) int {
-// 	fmt.Println("require_authorization")
-// }
 func requireAuth2(w *WasmInterface, account common.AccountName, permission common.PermissionName) {
 	fmt.Println("require_authorization")
 	w.context.RequireAuthorization2(account, permission)

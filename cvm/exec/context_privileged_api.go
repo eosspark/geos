@@ -73,7 +73,8 @@ func getBlockchainParametersPacked(w *WasmInterface, packedBlockchainParameters 
 	s := len(p)
 
 	if s <= buffer_size {
-		copy(w.vm.memory[packedBlockchainParameters:packedBlockchainParameters+s], p[0:s])
+		//copy(w.vm.memory[packedBlockchainParameters:packedBlockchainParameters+s], p[0:s])
+		setMemory(w, packedBlockchainParameters, 0, p, s)
 		return s
 	}
 
@@ -93,9 +94,9 @@ func getBlockchainParametersPacked(w *WasmInterface, packedBlockchainParameters 
 func setBlockchainParametersPacked(w *WasmInterface, packedBlockchainParameters int, datalen int) {
 	fmt.Println("set_blockchain_parameters_packed")
 
-	p := make([]byte, datalen)
-	copy(p[0:datalen], w.vm.memory[packedBlockchainParameters:packedBlockchainParameters+datalen])
-
+	// p := make([]byte, datalen)
+	// getMemory(w,packedBlockchainParameters, 0, p, datalen)
+	p := getMemory(w, packedBlockchainParameters, datalen)
 	w.context.SetBlockchainParametersPacked(p)
 }
 

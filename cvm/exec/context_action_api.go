@@ -23,7 +23,8 @@ func readActionData(w *WasmInterface, memory int, bufferSize int) int {
 	}
 
 	copySize := min(bufferSize, s)
-	copy(w.vm.memory[memory:memory+copySize], data[0:copySize])
+	//copy(w.vm.memory[memory:memory+copySize], data[0:copySize])
+	setMemory(w, memory, 0, data, copySize)
 
 	return copySize
 

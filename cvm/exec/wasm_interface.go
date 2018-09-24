@@ -210,8 +210,8 @@ func (wasmInterface *WasmInterface) Apply(code_id string, code []byte, context W
 
 	e, _ := m.Export.Entries["apply"]
 	i := int64(e.Index)
-	fidx := m.Function.Types[int(i)]
-	ftype := m.Types.Entries[int(fidx)]
+	//fidx := m.Function.Types[int(i)]
+	//ftype := m.Types.Entries[int(fidx)]
 
 	wasmInterface.vm = vm
 
@@ -220,16 +220,18 @@ func (wasmInterface *WasmInterface) Apply(code_id string, code []byte, context W
 	args[1] = uint64(context.GetCode())
 	args[2] = uint64(context.GetAct())
 
+	//o, err := vm.ExecCode(i, args[0], args[1], args[2])
 	o, err := vm.ExecCode(i, args[0], args[1], args[2])
 	if err != nil {
 		fmt.Printf("\n")
 		log.Printf("err=%v", err)
 	}
-	if len(ftype.ReturnTypes) == 0 {
-		fmt.Printf("\n")
+	//if len(ftype.ReturnTypes) == 0 {
+	//	fmt.Printf("\n")
+	//}
+	if o != nil {
+		fmt.Printf("%[1]v (%[1]T)\n", o)
 	}
-	fmt.Printf("%[1]v (%[1]T)\n", o)
-
 }
 
 func (wasmInterface *WasmInterface) Register(name string, handler interface{}) bool {
@@ -409,6 +411,21 @@ func b2i(b bool) int {
 		return 1
 	}
 	return 0
+}
+
+// func copyMemory(w *WasmInterface, dest int, src int, bufferSize int) {
+// 	copy(w.vm.memory[dest:dest+bufferSize], w.vm.memory[src:src+bufferSize])
+// }
+func setMemory(w *WasmInterface, mIndex int, dIndex int, data []byte, bufferSize int) {
+	copy(w.vm.memory[mIndex:mIndex+bufferSize], data[dIndex:dIndex+bufferSize])
+}
+
+//func getMemory(w *WasmInterface, mIndex int, dIndex int, data []byte, bufferSize int) {
+func getMemory(w *WasmInterface, mIndex int, bufferSize int) []byte {
+	data := make([]byte, bufferSize)
+	copy(data[0:0+bufferSize], w.vm.memory[0:0+bufferSize])
+
+	return data
 }
 
 func setUint64(w *WasmInterface, index int, val uint64) {

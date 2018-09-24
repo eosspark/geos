@@ -51,7 +51,8 @@ func getActiveProducers(w *WasmInterface, producers int, bufferSize int) int {
 	}
 
 	copySize := min(bufferSize, s)
-	copy(w.vm.memory[producers:producers+copySize], p[:])
+	//copy(w.vm.memory[producers:producers+copySize], p[:])
+	setMemory(w, producers, 0, p, copySize)
 
 	return copySize
 
