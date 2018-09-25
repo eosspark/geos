@@ -25,6 +25,7 @@ type ApplyContext struct {
 	//GenericIndex
 	//_pending_console_output
 	PendingConsoleOutput string
+	Notified             []common.AccountName
 }
 
 func (a *ApplyContext) execOne() (trace types.ActionTrace) { return }
@@ -37,15 +38,53 @@ func (a *ApplyContext) GetCode() common.AccountName     { return a.Act.Account }
 func (a *ApplyContext) GetAct() common.ActionName       { return a.Act.Name }
 
 //context authorization api
-func (a *ApplyContext) RequireAuthorization(account common.AccountName)  { return }
-func (a *ApplyContext) HasAuthorization(account common.AccountName) bool { return false }
-func (a *ApplyContext) RequireAuthorization2(account common.AccountName, permission common.PermissionName) {
-	return
+func (a *ApplyContext) RequireAuthorization(account common.AccountName) {
+	for k, v := range a.Act.Authorization {
+		if v.Actor == account {
+			a.UsedAuthorizations[k] = true
+			return
+		}
+	}
+	// EOS_ASSERT( false, missing_auth_exception, "missing authority of ${account}/${permission}",
+	//              ("account",account)("permission",permission) );
 }
-func (a *ApplyContext) RequireAuthorizations(account common.AccountName) {}
-func (a *ApplyContext) RequireRecipient(recipient common.AccountName)    {}
-func (a *ApplyContext) IsAccount(account common.AccountName) bool        { return false }
-func (a *ApplyContext) HasReciptient(code common.AccountName) bool       { return false }
+func (a *ApplyContext) HasAuthorization(account common.AccountName) bool {
+	for _, v := range a.Act.Authorization {
+		if v.Actor == account {
+			return true
+		}
+	}
+	return false
+}
+func (a *ApplyContext) RequireAuthorization2(account common.AccountName, permission common.PermissionName) {
+	for k, v := range a.Act.Authorization {
+		if v.Actor == account && v.Permission == permission {
+			a.UsedAuthorizations[k] = true
+			return
+		}
+	}
+
+	//EOS_ASSERT( false, missing_auth_exception, "missing authority of ${account}", ("account",account));
+}
+
+//func (a *ApplyContext) RequireAuthorizations(account common.AccountName) {}
+func (a *ApplyContext) RequireRecipient(recipient common.AccountName) {
+	if a.HasReciptient(recipient) {
+		a.Notified = append(a.Notified, recipient)
+	}
+}
+func (a *ApplyContext) IsAccount(account common.AccountName) bool {
+	return false
+	//return nullptr != db.find<account_object,by_name>( account );
+}
+func (a *ApplyContext) HasReciptient(code common.AccountName) bool {
+	for _, a := range a.Notified {
+		if a == code {
+			return true
+		}
+	}
+	return false
+}
 
 //context console api
 func (a *ApplyContext) ResetConsole()            { return }
@@ -92,6 +131,7 @@ func (a *ApplyContext) SetResourceLimits(
 	ramBytes uint64,
 	netWeight uint64,
 	cpuWeigth uint64) {
+
 }
 func (a *ApplyContext) GetResourceLimits(
 	account common.AccountName,
