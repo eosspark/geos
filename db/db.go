@@ -116,8 +116,8 @@ func (db *base) insert(data interface{}) error {
 	if err != nil {
 		return err
 	}
-	//tx, err := db.db.Begin(true)
-	i //f err != nil {
+	// tx, err := db.db.Begin(true)
+	// if err != nil {
 	//	return err
 	//	}//
 	//	err = tx.Save(data)
