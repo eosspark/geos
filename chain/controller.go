@@ -4,15 +4,17 @@ import (
 	"fmt"
 	"time"
 
+
 	"github.com/eosspark/eos-go/chain/config"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
-	//"github.com/eosspark/eos-go/cvm/exec"
+	"github.com/eosspark/eos-go/cvm/exec"
 	"github.com/eosspark/eos-go/db"
 	"github.com/eosspark/eos-go/log"
 	"github.com/eosspark/eos-go/rlp"
-	//"github.com/eosspark/eos-go/cvm/exec"
 )
+
+//var self *Controller
 
 type DBReadMode int8
 
@@ -73,7 +75,7 @@ type Controller struct {
 	pending               *types.PendingState
 	head                  types.BlockState
 	forkDB                types.ForkDatabase
-	//wasmif                exec.WasmInterface
+	wasmif                exec.WasmInterface
 	resourceLimist        ResourceLimitsManager
 	authorization         AuthorizationManager
 	config                Config //local	Config
@@ -277,7 +279,7 @@ func (self *Controller) getOnBlockTransaction() types.SignedTransaction {
 	var onBlockAction = types.Action{}
 	onBlockAction.Account = common.AccountName(config.SystemAccountName)
 	onBlockAction.Name = common.ActionName(common.StringToName("onblock"))
-	onBlockAction.Authorization = []types.PermissionLevel{{common.AccountName(config.SystemAccountName), common.PermissionName(config.ActiveName)}}
+	onBlockAction.Authorization = []common.PermissionLevel{{common.AccountName(config.SystemAccountName), common.PermissionName(config.ActiveName)}}
 
 	data, err := rlp.EncodeToBytes(self.head.Header)
 	if err != nil {

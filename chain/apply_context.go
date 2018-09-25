@@ -10,7 +10,7 @@ import (
 )
 
 type ApplyContext struct {
-	Controller *Controller
+	Control *Controller
 
 	DB                 *eosiodb.DataBase
 	TrxContext         *TransactionContext
@@ -175,7 +175,7 @@ func (a *ApplyContext) RequireRecipient(recipient common.AccountName) {
 func (a *ApplyContext) IsAccount(n common.AccountName) bool {
 	//return nullptr != db.find<account_object,by_name>( account );
 	account := types.AccountObject{Name: n}
-	err := a.Controller.db.ByIndex("byName", &account)
+	err := a.Control.db.ByIndex("byName", &account)
 	if err == nil {
 		return true
 	}
@@ -264,13 +264,13 @@ func (a *ApplyContext) SetBlockchainParametersPacked(parameters []byte) {
 
 	newGPO := types.GlobalPropertyObject{}
 	rlp.DecodeBytes(parameters, &newGPO)
-	oldGPO := a.Controller.GetGlobalProperties()
-	a.Controller.db.UpdateObject(&oldGPO, &newGPO)
+	oldGPO := a.Control.GetGlobalProperties()
+	a.Control.db.UpdateObject(&oldGPO, &newGPO)
 
 }
 
 func (a *ApplyContext) GetBlockchainParametersPacked() []byte {
-	gpo := a.Controller.GetGlobalProperties()
+	gpo := a.Control.GetGlobalProperties()
 	bytes, err := rlp.EncodeToBytes(gpo)
 	if err != nil {
 		log.Error("EncodeToBytes is error detail:", err)
@@ -282,7 +282,7 @@ func (a *ApplyContext) IsPrivileged(n common.AccountName) bool {
 	//return false
 	account := types.AccountObject{Name: n}
 
-	err := a.Controller.db.ByIndex("byName", &account)
+	err := a.Control.db.ByIndex("byName", &account)
 	if err != nil {
 		log.Error("getaAccount is error detail:", err)
 		return false
@@ -292,7 +292,7 @@ func (a *ApplyContext) IsPrivileged(n common.AccountName) bool {
 }
 func (a *ApplyContext) SetPrivileged(n common.AccountName, isPriv bool) {
 	oldAccount := types.AccountObject{Name: n}
-	err := a.Controller.db.ByIndex("byName", &oldAccount)
+	err := a.Control.db.ByIndex("byName", &oldAccount)
 	if err != nil {
 		log.Error("getaAccount is error detail:", err)
 		return
@@ -300,7 +300,7 @@ func (a *ApplyContext) SetPrivileged(n common.AccountName, isPriv bool) {
 
 	newAccount := oldAccount
 	newAccount.Privileged = isPriv
-	a.Controller.db.UpdateObject(&oldAccount, &newAccount)
+	a.Control.db.UpdateObject(&oldAccount, &newAccount)
 }
 
 //context producer api
@@ -342,7 +342,7 @@ func (a *ApplyContext) CheckTime() {
 	a.TrxContext.CheckTime()
 }
 func (a *ApplyContext) CurrentTime() int64 {
-	return a.Controller.PendingBlockTime().TimeSinceEpoch().Count()
+	return a.Control.PendingBlockTime().TimeSinceEpoch().Count()
 }
 func (a *ApplyContext) PublicationTime() int64 {
 	return a.TrxContext.Published.TimeSinceEpoch().Count()

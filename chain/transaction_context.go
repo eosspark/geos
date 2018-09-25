@@ -9,7 +9,7 @@ import (
 )
 
 type TransactionContext struct {
-	Controller            *Controller
+	Control               *Controller
 	Trx                   *types.SignedTransaction
 	ID                    common.TransactionIDType
 	UndoSession           *eosiodb.Session
@@ -47,13 +47,13 @@ type TransactionContext struct {
 }
 
 func (trxCon *TransactionContext) NewTransactionContext(c *Controller, t *types.SignedTransaction, trxId common.TransactionIDType, s common.TimePoint) *TransactionContext {
-	trxCon.Controller = c
+	trxCon.Control = c
 	trxCon.Trx = t
 	trxCon.Start = s
 	trxCon.netUsage = trxCon.Trace.NetUsage
 	trxCon.pseudoStart = s
 
-	if !c.skipDBSessions() {
+	if !c.SkipDBSessions() {
 		trxCon.UndoSession = c.db.StartSession()
 	}
 	trxCon.Trace.Id = trxId
@@ -66,8 +66,8 @@ func (trxCon *TransactionContext) NewTransactionContext(c *Controller, t *types.
 func (trxCon *TransactionContext) init(initialNetUsage uint64) {
 	const LargeNumberNoOverflow = int64(^uint(0)>>1) / 2
 
-	cfg := trxCon.Controller.GetGlobalProperties().Configuration
-	rl := trxCon.Controller.GetMutableResourceLimitsManager()
+	cfg := trxCon.Control.GetGlobalProperties().Configuration
+	rl := trxCon.Control.GetMutableResourceLimitsManager()
 	trxCon.netLimit = rl.GetBlockNetLimit()
 	trxCon.objectiveDurationLimit = common.Microseconds(rl.GetBlockCpuLimit())
 	trxCon.deadline = trxCon.Start + common.TimePoint(trxCon.objectiveDurationLimit)
@@ -112,7 +112,7 @@ func (trxCon *TransactionContext) init(initialNetUsage uint64) {
 		}
 	}
 
-	bts := common.BlockTimeStamp(trxCon.Controller.PendingBlockTime())
+	bts := common.BlockTimeStamp(trxCon.Control.PendingBlockTime())
 	rl.UpdateAccountUsage(trxCon.BillToAccounts, uint32(bts))
 
 	t := trxCon.MaxBandwidthBilledAccountsCanPay(false) //default false
@@ -141,9 +141,9 @@ func (trxCon *TransactionContext) init(initialNetUsage uint64) {
 }
 
 func (trx *TransactionContext) validateCpuUsageToBill(bctu int64, checkMinimum bool) {
-	if !trx.Controller.skipTrxChecks() {
+	if !trx.Control.SkipTrxChecks() {
 		if checkMinimum {
-			cfg := trx.Controller.GetGlobalProperties().Configuration
+			cfg := trx.Control.GetGlobalProperties().Configuration
 			fmt.Println(cfg)
 			/*EOS_ASSERT( billed_us >= cfg.min_transaction_cpu_usage, transaction_exception,
 				"cannot bill CPU time less than the minimum of ${min_billable} us",
@@ -176,7 +176,7 @@ func (trx *TransactionContext) validateCpuUsageToBill(bctu int64, checkMinimum b
 
 func (trx *TransactionContext) CheckTime() {
 
-	if !trx.Controller.skipTrxChecks() {
+	if !trx.Control.SkipTrxChecks() {
 		_now := common.Now()
 		if _now > trx.deadline {
 			if trx.ExplicitBilledCpuTime { //|| deadline_exception_code TODO
@@ -220,7 +220,7 @@ func (trx *TransactionContext) AddNetUsage(u uint64) {
 }
 
 func (trx *TransactionContext) CheckNetUsage() {
-	if !trx.Controller.skipTrxChecks() {
+	if !trx.Control.SkipTrxChecks() {
 		if trx.netUsage > trx.eagerNetLimit {
 			//TODO Throw Exception
 			if trx.netLimitDueToBlock {
@@ -234,7 +234,7 @@ func (trx *TransactionContext) CheckNetUsage() {
 	}
 }
 func (trx *TransactionContext) AddRamUsage(account common.AccountName, ramDelta int64) {
-	rl := trx.Controller.GetMutableResourceLimitsManager()
+	rl := trx.Control.GetMutableResourceLimitsManager()
 	rl.AddPendingRamUsage(account, ramDelta)
 	if ramDelta > 0 {
 		if len(trx.ValidateRamUsage) == 0 {
@@ -250,7 +250,7 @@ func (trx *TransactionContext) UpdateBilledCpuTime(now common.TimePoint) uint32 
 	if trx.ExplicitBilledCpuTime {
 		return uint32(trx.BilledCpuTimeUs)
 	}
-	cfg := trx.Controller.GetGlobalProperties().Configuration
+	cfg := trx.Control.GetGlobalProperties().Configuration
 	first := common.Microseconds(now - trx.pseudoStart)
 	second := common.Microseconds(cfg.MinTransactionCpuUsage)
 	if first > second {
@@ -269,14 +269,14 @@ type tmp struct {
 }
 
 func (trx *TransactionContext) MaxBandwidthBilledAccountsCanPay(forceElasticLimits bool) tmp {
-	rl := trx.Controller.GetMutableResourceLimitsManager()
+	rl := trx.Control.GetMutableResourceLimitsManager()
 	_largeNumberNoOverflow := int64(^uint(0)>>1) / 2
 	_accountNetLimit := _largeNumberNoOverflow
 	_accountCpuLimit := _largeNumberNoOverflow
 	_greylistedNet := false
 	_greylistedCpu := false
 	for _, a := range trx.BillToAccounts {
-		elastic := forceElasticLimits || !(trx.Controller.isProducingBlock()) && trx.Controller.isResourceGreylisted(&a)
+		elastic := forceElasticLimits || !(trx.Control.isProducingBlock()) && trx.Control.IsResourceGreylisted(&a)
 		netLimit := rl.GetAccountNetLimit(a, elastic)
 		if netLimit >= 0 {
 			if _accountNetLimit > netLimit {
@@ -302,12 +302,12 @@ func (trx *TransactionContext) MaxBandwidthBilledAccountsCanPay(forceElasticLimi
 }
 
 func (trx *TransactionContext) InitForImplicitTrx(initialNetUsage uint64) {
-	trx.Published = trx.Controller.PendingBlockTime()
+	trx.Published = trx.Control.PendingBlockTime()
 	trx.init(initialNetUsage)
 }
 
 func (trx *TransactionContext) InitForInputTrx(packeTrxUnprunableSize uint64, packeTrxPrunableSize uint64, nunSignatures uint32, skipRecording bool) {
-	cfg := trx.Controller.GetGlobalProperties().Configuration
+	cfg := trx.Control.GetGlobalProperties().Configuration
 	dsfpd := packeTrxPrunableSize
 	if cfg.ContextFreeDiscountNetUsageDen > 0 && cfg.ContextFreeDiscountNetUsageNum < cfg.ContextFreeDiscountNetUsageDen {
 		dsfpd *= uint64(cfg.ContextFreeDiscountNetUsageNum)
