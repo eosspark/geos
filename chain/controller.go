@@ -66,6 +66,10 @@ type Config struct {
 	resourceGreylist    []common.AccountName
 }
 
+var IsActive bool	//default value false ;Does the process include control ;
+
+var instance	*Controller
+
 type Controller struct {
 	db           eosiodb.DataBase
 	dbsession    *eosiodb.Session
@@ -88,6 +92,14 @@ type Controller struct {
 	handlerKey            HandlerKey
 	applyHandlers         ApplyHandler
 	unappliedTransactions map[rlp.Sha256]types.TransactionMetadata
+
+}
+
+func GetControlInstance() *Controller{
+	if !IsActive {
+		instance = newController()
+	}
+	return instance
 }
 
 func newController() *Controller {
@@ -109,7 +121,7 @@ func newController() *Controller {
 
 	session.Commit()
 	var con = &Controller{inTrxRequiringChecks: false, rePlaying: false}
-
+	IsActive = true
 	return con.initConfig()
 }
 
@@ -210,7 +222,7 @@ func (self Controller) StartBlock(when common.BlockTimeStamp, confirmBlockCount 
 			})
 		}
 
-		signedTransaction := self.getOnBlockTransaction()
+		signedTransaction := self.GetOnBlockTransaction()
 		onbtrx := types.TransactionMetadata{Trx: signedTransaction}
 		onbtrx.Implicit = true
 		//TODO defer
@@ -275,7 +287,7 @@ func (self *Controller) GetMutableResourceLimitsManager() ResourceLimitsManager 
 	return self.resourceLimist
 }
 
-func (self *Controller) getOnBlockTransaction() types.SignedTransaction {
+func (self *Controller) GetOnBlockTransaction() types.SignedTransaction {
 	var onBlockAction = types.Action{}
 	onBlockAction.Account = common.AccountName(config.SystemAccountName)
 	onBlockAction.Name = common.ActionName(common.StringToName("onblock"))
@@ -299,7 +311,7 @@ func (self *Controller) skipDBSession(bs types.BlockStatus) bool {
 	return considerSkipping
 }
 
-func (self *Controller) skipDBSessions() bool {
+func (self *Controller) SkipDBSessions() bool {
 	if self.pending == nil {
 		return self.skipDBSession(self.pending.BlockStatus)
 	} else {
@@ -307,12 +319,12 @@ func (self *Controller) skipDBSessions() bool {
 	}
 }
 
-func (self *Controller) skipTrxChecks() (b bool) {
-	b = self.lightValidationAllowed(self.config.disableReplayOpts)
+func (self *Controller) SkipTrxChecks() (b bool) {
+	b = self.LightValidationAllowed(self.config.disableReplayOpts)
 	return
 }
 
-func (self *Controller) lightValidationAllowed(dro bool) (b bool) {
+func (self *Controller) LightValidationAllowed(dro bool) (b bool) {
 	if self.pending != nil || self.inTrxRequiringChecks {
 		return false
 	}
@@ -332,7 +344,7 @@ func (self *Controller) isProducingBlock() bool {
 	return self.pending.BlockStatus == types.Incomplete
 }
 
-func (self *Controller) isResourceGreylisted(name *common.AccountName) bool {
+func (self *Controller) IsResourceGreylisted(name *common.AccountName) bool {
 	for _, account := range self.config.resourceGreylist {
 		if &account == name {
 			return true
@@ -379,6 +391,118 @@ func (self *Controller) initConfig() *Controller {
 	return self
 
 }
+
+func (self *Controller) HeadBlockId() common.BlockIDType{ return common.BlockIDType{}}
+
+func (self *Controller) HeadBlockProducer() common.AccountName{return 0}
+
+func (self *Controller) HeadBlockHeader() *types.BlockHeader{return nil}
+
+func (self *Controller) HeadBlockState() types.BlockState{return types.BlockState{}}
+
+func (self *Controller) ForkDbHeadBlockNum() uint32 { return 0}
+
+func (self *Controller) ForkDbHeadBlockId() common.BlockIDType{ return common.BlockIDType{}}
+
+func (self *Controller) ForkDbHeadBlockTime() common.TimePoint { return 0}
+
+func (self *Controller) ForkDbHeadBlockProducer() common.AccountName{ return 0}
+
+func (self *Controller) ActiveProducers() *types.ProducerScheduleType{ return nil}
+
+func (self *Controller) PendingProducers() *types.ProducerScheduleType{return nil}
+
+func (self *Controller) ProposedProducers() types.ProducerScheduleType{ return types.ProducerScheduleType{}}
+
+func (self *Controller) LastIrreversibleBlockNum() uint32{ return 0}
+
+func (self *Controller) LastIrreversibleBlockId() common.BlockIDType { return common.BlockIDType{}}
+
+func (self *Controller) FetchBlockByNumber(blockNum uint32) eos.SignedBlock { return eos.SignedBlock{}}
+
+func (self *Controller) FetchBlockById(id common.BlockIDType) eos.SignedBlock{ return eos.SignedBlock{}}
+
+func (self *Controller) FetchBlockStateByNumber(blockNum uint32) types.BlockState{ return types.BlockState{}}
+
+func (self *Controller) FetchBlockStateById(id common.BlockIDType) types.BlockState{ return types.BlockState{}}
+
+func (self *Controller) GetBlcokIdForNum(blockNum uint32) common.BlockIDType { return common.BlockIDType{}}
+
+func (self *Controller) CheckContractList(code common.AccountName){}
+
+func (self *Controller) CheckActionList(code common.AccountName,action common.ActionName){}
+
+func (self *Controller) CheckKeyList(key *common.PublicKeyType){}
+
+func (self *Controller) IsProducing() bool { return false}
+
+func (self *Controller) IsRamBillingInNotifyAllowed() bool { return false}
+
+func (self *Controller) AddResourceGreyList(name *common.AccountName){}
+
+func (self *Controller) RemoveResourceGreyList(name *common.AccountName){}
+
+func (self *Controller) IsResourceGreyListed(name *common.AccountName) bool{ return false}
+
+func (self *Controller) GetResourceGreyList() *map[common.AccountName]struct{} { return nil}
+
+func (self *Controller) ValidateReferencedAccounts(t types.Transaction){}
+
+func (self *Controller) ValidateExpiration(t types.Transaction){}
+
+func (self *Controller) ValidateTapos(t types.Transaction){}
+
+func (self *Controller) ValidateDbAvailableSize(){}
+
+func (self *Controller) ValidateReversibleAvailableSize(){}
+
+func (self *Controller) IsKnownUnexpiredTransaction(id common.TransactionIDType) bool { return false}
+
+func (self *Controller) SetProposedProducers(producers []types.ProducerKey) int64{ return 0}
+
+func (self *Controller) SkipAuthCheck() bool{ return false}
+
+func (self *Controller) ContractsConsole() bool{ return false}
+
+func (self *Controller) GetChainId() common.ChainIDType { return common.ChainIDType{}}
+
+func (self *Controller) GetReadMode()DBReadMode{ return 0}
+
+func (self *Controller) GetValidationMode()ValidationMode{ return 0}
+
+func (self *Controller) SetSubjectiveCpuLeeway(leeway common.Microseconds){}
+
+func (self *Controller) FindApplyHandler(contract common.AccountName,
+	scope common.ScopeName,
+	act common.ActionName	) *ApplyContext{
+		return nil
+}
+
+func (self *Controller) GetWasmInterface() *exec.WasmInterface{return nil}
+
+func (self *Controller) GetAbiSerializer(name common.AccountName,
+	maxSerializationTime common.Microseconds) types.AbiSerializer{
+	return types.AbiSerializer{}
+}
+
+func (self *Controller) ToVariantWithAbi(obj interface{},maxSerializationTime common.Microseconds){}
+
+
+
+
+
+
+
+/*    about chan
+
+signal<void(const signed_block_ptr&)>         pre_accepted_block;
+signal<void(const block_state_ptr&)>          accepted_block_header;
+signal<void(const block_state_ptr&)>          accepted_block;
+signal<void(const block_state_ptr&)>          irreversible_block;
+signal<void(const transaction_metadata_ptr&)> accepted_transaction;
+signal<void(const transaction_trace_ptr&)>    applied_transaction;
+signal<void(const header_confirmation&)>      accepted_confirmation;
+signal<void(const int&)>                      bad_alloc;*/
 
 /*func main(){
 	c := new(Controller)
