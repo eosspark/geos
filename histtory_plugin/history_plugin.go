@@ -8,111 +8,109 @@ import (
 )
 
 type AccountHistoryObject struct {
-	ID                 types.IdType `storm:"id,increment"`
-	Account            common.AccountName
+	ID                 types.IdType       `storm:"id,increment" json:"ById"`
+	Account            common.AccountName `storm:"index"`
 	ActionSequenceNum  uint64
 	AccountSequenceNum int32
+	ByAccountActionSeq ByAccountActionSeq `storm:"index"`
+	/*ByAccountActionSeq struct {
+		Account            common.AccountName
+		AccountSequenceNum int32
+	}`storm:"index"`*/
 }
 
-type AccountHistoryIndex struct {
-	Id                 types.IdType `storm:"id,increment"`
-	Aho                *AccountHistoryObject
-	ById               types.IdType       `storm:"unique"`
-	ByAccount          common.AccountName `storm:"index"`
-	ByAccountActionSeq struct {
-		account            common.AccountName
-		accountSequenceNum int32
-	} `strom:"unique"`
+/*search condition*/
+type ByAccountActionSeq struct {
+	Account            common.AccountName
+	AccountSequenceNum int32
 }
 
 type ActionHistoryObject struct {
 	ID                types.IdType `storm:"id,increment"`
-	ActionSequenceNum uint64
+	ActionSequenceNum uint64       `storm:"by_action_sequence_num unique"`
 	PackedActionTrace *string
 	BlockNum          uint32
 	BlockTime         common.BlockTimeStamp
 	TrxId             common.TransactionIDType
-}
-
-type ActionHistoryIndex struct {
-	Id                  types.IdType `storm:"id ,increment"`
-	Aho                 *ActionHistoryObject
-	ByActionSequenceNum uint64       `storm:"index"`
-	ById                types.IdType `storm:"unique"`
-	condition           struct {
-		trxId             common.TransactionIDType
-		actionSequenceNum uint64
+	//c++ no param
+	ByTrxId struct {
+		TrxId             common.TransactionIDType
+		ActionSequenceNum uint64
 	} `storm:"unique"`
 }
 
-func AddAccountHistoryIndex(db *eosiodb.DataBase, aho *AccountHistoryObject) {
-	index := AccountHistoryIndex{}
-	index.Aho = aho
-	//aho.ID=1
-	index.ById = aho.ID
-	index.ByAccount = aho.Account
-	index.ByAccountActionSeq.account = aho.Account
-	index.ByAccountActionSeq.accountSequenceNum = aho.AccountSequenceNum
-	fmt.Println(index)
-	err := db.Insert(&index)
-	if err != nil {
-		fmt.Println(err.Error())
-		return
-	}
-	var indexs []AccountHistoryIndex
-	err = db.All(&indexs)
-	if err != nil {
-		fmt.Println(err.Error())
-		return
-	}
-	fmt.Println(indexs)
+func AddAccountHistoryObject(db *eosiodb.DataBase, aho *AccountHistoryObject) {
+	fmt.Println("params:", aho)
+	err := db.Insert(&aho)
 	defer db.Close()
+	if err != nil {
+		fmt.Println(err.Error())
+		return
+	}
 }
 
-func GetAccountHistoryIndexById(db *eosiodb.DataBase, id types.IdType) {
-	index := AccountHistoryIndex{}
-	err := db.Find("ById", id, &index)
+func GetAccountHistoryObjectById(db *eosiodb.DataBase, id types.IdType) {
+	result := AccountHistoryObject{}
+	err := db.Find("ById", id, &result)
+	defer db.Close()
 	if err != nil {
 		fmt.Println(err.Error())
 		return
 	}
-	fmt.Println(index)
-	defer db.Close()
+	fmt.Println("GetAccountHistoryObjectById result :", result)
 }
 
-func GetAccountHistoryIndexByNum(db *eosiodb.DataBase, num uint64) {
-	index := AccountHistoryIndex{}
-	err := db.Find("ByActionSequenceNum", num, &index)
+func GetAccountByAccountActionSeq(db *eosiodb.DataBase, asNum int32, account common.AccountName) {
+
+	aho := AccountHistoryObject{}
+	aho.ByAccountActionSeq.AccountSequenceNum = asNum
+	aho.ByAccountActionSeq.Account = account
+	result := AccountHistoryObject{}
+	err := db.Find("condition", aho.ByAccountActionSeq, &result)
+	defer db.Close()
 	if err != nil {
 		fmt.Println(err.Error())
 		return
 	}
-	fmt.Println(index)
-	defer db.Close()
+	fmt.Println("GetAccountByAccActSeq result:", result)
 }
 
-func GetAccountIndexByAccountActionSeq(db *eosiodb.DataBase, asNum int32, account common.AccountName) {
+func GetActionHistoryObjectByActSeqNum(db *eosiodb.DataBase, asNum uint64) *ActionHistoryObject {
+	result := ActionHistoryObject{}
+	err := db.Find("ActionSequenceNum", asNum, &result)
+	defer db.Close()
+	if err != nil {
+		fmt.Println("GetActionHistoryObjectByActSeqNum is error detail :", err.Error())
+	}
+	return &result
+}
 
-	index := AccountHistoryIndex{}
-	index.ByAccountActionSeq.accountSequenceNum = asNum
-	index.ByAccountActionSeq.account = account
-	result := AccountHistoryIndex{}
-	err := db.Find("condition", index.ByAccountActionSeq, &result)
+func GetActionHistoryByAccActSeq(db *eosiodb.DataBase, asNum uint64, trxId common.TransactionIDType) {
+	result := ActionHistoryObject{}
+	result.ByTrxId.TrxId = trxId
+	result.ByTrxId.ActionSequenceNum = asNum
+	err := db.Find("ByAccountActionSeq", result.ByTrxId, &result)
+	defer db.Close()
 	if err != nil {
 		fmt.Println(err.Error())
 		return
 	}
-	fmt.Println(result)
-	defer db.Close()
+	fmt.Println("result:", result)
+
 }
 
-func GetAccountIndexByAccount(db *eosiodb.DataBase, account common.AccountName) *AccountHistoryIndex {
-	index := AccountHistoryIndex{}
-	index.ByAccount = account
-	err := db.Find("ByAccount", account, index)
+func GetAccountHistoryObjectByAccount(db *eosiodb.DataBase, account common.AccountName) *[]AccountHistoryObject {
+	aho := AccountHistoryObject{}
+	aho.Account = account
+	//aho.ByAccountActionSeq.AccountSequenceNum = 4
+	fmt.Println("+++++++++++++++++:", aho.ByAccountActionSeq.Account)
+	var result []AccountHistoryObject
+	err := db.Get("Account", aho.Account, &result)
+	defer db.Close()
 	if err != nil {
 		fmt.Println(err.Error())
 		return nil
 	}
-	return &index
+	//fmt.Print("result :", result)
+	return &result
 }
