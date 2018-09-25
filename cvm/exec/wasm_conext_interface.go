@@ -27,7 +27,7 @@ type WasmContextInterface interface {
 	ContextAppend(str string)
 
 	//context database api
-	DBStoreI64() int
+	DBStoreI64(scope int64, table int64, payer int64, id int64, buffer int, buffer_size int) int
 	DBUpdateI64(iterator int, payer common.AccountName, buffer []byte, bufferSize int)
 	DBRemoveI64(iterator int)
 	DBGetI64(iterator int, buffer *[]byte, bufferSize int) int
@@ -37,7 +37,7 @@ type WasmContextInterface interface {
 	DBLowerboundI64(iterator int, primary uint64) int
 	UpdateDBUsage(pager common.AccountName, delta int64)
 	FindTable(code common.Name, scope common.Name, table common.Name) types.TableIDObject
-	FindOrCreateTable(code common.Name, scope common.Name, table common.Name, payer *common.AccountName) types.TableIDObject
+	//FindOrCreateTable(code common.Name, scope common.Name, table common.Name, payer *common.AccountName) types.TableIDObject
 	RemoveTable(tid types.TableIDObject)
 
 	//context permission api
