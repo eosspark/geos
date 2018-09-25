@@ -19,7 +19,7 @@ type WasmContextInterface interface {
 	RequireAuthorization2(account common.AccountName, permission common.PermissionName)
 	//RequireAuthorizations(account common.AccountName)
 	RequireRecipient(recipient common.AccountName)
-	IsAccount(account common.AccountName) bool
+	IsAccount(n common.AccountName) bool
 	HasReciptient(code common.AccountName) bool
 
 	//contet console text
