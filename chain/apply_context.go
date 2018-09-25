@@ -77,7 +77,7 @@ func (a *ApplyContext) RequireRecipient(recipient common.AccountName) {
 func (a *ApplyContext) IsAccount(n common.AccountName) bool {
 	//return nullptr != db.find<account_object,by_name>( account );
 	account := types.AccountObject{Name: n}
-	err := a.Controller.db.ByIndex("byName", &account)
+	err := a.Control.db.ByIndex("byName", &account)
 	if err == nil {
 		return true
 	}
@@ -230,7 +230,7 @@ func (a *ApplyContext) CheckTime() {
 	a.TrxContext.CheckTime()
 }
 func (a *ApplyContext) CurrentTime() int64 {
-	return a.Controller.PendingBlockTime().TimeSinceEpoch().Count()
+	return a.Control.PendingBlockTime().TimeSinceEpoch().Count()
 }
 func (a *ApplyContext) PublicationTime() int64 {
 	return a.TrxContext.Published.TimeSinceEpoch().Count()

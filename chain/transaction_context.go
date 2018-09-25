@@ -9,7 +9,7 @@ import (
 )
 
 type TransactionContext struct {
-	Control            *Controller
+	Control               *Controller
 	Trx                   *types.SignedTransaction
 	ID                    common.TransactionIDType
 	UndoSession           *eosiodb.Session
@@ -54,7 +54,7 @@ func (trxCon *TransactionContext) NewTransactionContext(c *Controller, t *types.
 	trxCon.pseudoStart = s
 
 	if !c.skipDBSessions() {
-		trxCon.UndoSession = c.Db.StartSession()
+		trxCon.UndoSession = c.db.StartSession()
 	}
 	trxCon.Trace.Id = trxId
 
