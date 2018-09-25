@@ -7,7 +7,7 @@ import (
 )
 
 type AccountObject struct {
-	ID             IdType             `storm:"id,increment" json:"ById"`
+	ID             IdType             `storm:"id,increment" json:"id"`
 	Name           common.AccountName `storm:"unique" json :"name"`
 	VmType         uint8              //c++ default value 0
 	VmVersion      uint8              //c++ default value 0
@@ -15,13 +15,13 @@ type AccountObject struct {
 	LastCodeUpdate common.TimePoint
 	CodeVersion    rlp.Sha256
 	CreationDate   common.BlockTimeStamp
-	Code           string
-	Abi            string
+	Code           common.HexBytes
+	Abi            common.HexBytes
 }
 
 type AccountSequenceObject struct {
-	ID           IdType             `storm:"id,increment" json:"ById"`
-	Name         common.AccountName `storm:"unique" json:ByName`
+	ID           IdType             `storm:"id,increment" json:"id"`
+	Name         common.AccountName `storm:"unique" json:name`
 	RecvSequence uint64             //default value 0
 	authSequence uint64
 	CodeSequence uint64
@@ -30,12 +30,17 @@ type AccountSequenceObject struct {
 
 func (self *AccountObject) SetAbi(a AbiDef) {
 	d, _ := rlp.EncodeToBytes(a)
-	fmt.Println(d)
+	self.Abi = d
 }
 
-func (self *AccountObject) GetAbi() *AbiDef {
+func (self *AccountObject) GetAbi() AbiDef {
+	abiDef := AbiDef{}
 	if len(self.Abi) != 0 {
-		//self.Abi
+		fmt.Println("abi_not_found_exception ,No ABI set on account", self.Name)
 	}
-	return nil
+	err := rlp.DecodeBytes(self.Abi, abiDef)
+	if err != nil {
+		fmt.Println("account_object GetAbi DecodeBytes is error:", err.Error())
+	}
+	return abiDef
 }

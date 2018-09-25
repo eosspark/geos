@@ -53,7 +53,7 @@ func (trxCon *TransactionContext) NewTransactionContext(c *Controller, t *types.
 	trxCon.netUsage = trxCon.Trace.NetUsage
 	trxCon.pseudoStart = s
 
-	if !c.skipDBSessions() {
+	if !c.SkipDBSessions() {
 		trxCon.UndoSession = c.db.StartSession()
 	}
 	trxCon.Trace.Id = trxId
@@ -141,7 +141,7 @@ func (trxCon *TransactionContext) init(initialNetUsage uint64) {
 }
 
 func (trx *TransactionContext) validateCpuUsageToBill(bctu int64, checkMinimum bool) {
-	if !trx.Control.skipTrxChecks() {
+	if !trx.Control.SkipTrxChecks() {
 		if checkMinimum {
 			cfg := trx.Control.GetGlobalProperties().Configuration
 			fmt.Println(cfg)
@@ -176,7 +176,7 @@ func (trx *TransactionContext) validateCpuUsageToBill(bctu int64, checkMinimum b
 
 func (trx *TransactionContext) CheckTime() {
 
-	if !trx.Control.skipTrxChecks() {
+	if !trx.Control.SkipTrxChecks() {
 		_now := common.Now()
 		if _now > trx.deadline {
 			if trx.ExplicitBilledCpuTime { //|| deadline_exception_code TODO
@@ -220,7 +220,7 @@ func (trx *TransactionContext) AddNetUsage(u uint64) {
 }
 
 func (trx *TransactionContext) CheckNetUsage() {
-	if !trx.Control.skipTrxChecks() {
+	if !trx.Control.SkipTrxChecks() {
 		if trx.netUsage > trx.eagerNetLimit {
 			//TODO Throw Exception
 			if trx.netLimitDueToBlock {
@@ -276,7 +276,7 @@ func (trx *TransactionContext) MaxBandwidthBilledAccountsCanPay(forceElasticLimi
 	_greylistedNet := false
 	_greylistedCpu := false
 	for _, a := range trx.BillToAccounts {
-		elastic := forceElasticLimits || !(trx.Control.isProducingBlock()) && trx.Control.isResourceGreylisted(&a)
+		elastic := forceElasticLimits || !(trx.Control.isProducingBlock()) && trx.Control.IsResourceGreylisted(&a)
 		netLimit := rl.GetAccountNetLimit(a, elastic)
 		if netLimit >= 0 {
 			if _accountNetLimit > netLimit {
