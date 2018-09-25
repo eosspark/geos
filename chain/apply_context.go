@@ -25,8 +25,106 @@ type ApplyContext struct {
 
 	//GenericIndex
 	//_pending_console_output
-	PendingConsoleOutput string
+	KeyvalCache          iteratorCache
 	Notified             []common.AccountName
+	PendingConsoleOutput string
+}
+
+type pairTableIterator struct {
+	tableIDObject *types.TableIDObject
+	iterator      int
+}
+type iteratorCache struct {
+	tableCache         map[types.IdType]*pairTableIterator
+	endIteratorToTable []*types.TableIDObject
+	iteratorToObject   []interface{}
+	objectToIterator   map[interface{}]int
+}
+
+func NewIteratorCache() *iteratorCache {
+
+	i := &iteratorCache{
+		tableCache:         make(map[types.IdType]*pairTableIterator),
+		endIteratorToTable: make([]*types.TableIDObject, 8),
+		iteratorToObject:   make([]interface{}, 32),
+		objectToIterator:   make(map[interface{}]int),
+	}
+
+	return i
+}
+
+func (i *iteratorCache) endIteratorToIndex(ei int) int   { return (-ei - 2) }
+func (i *iteratorCache) IndexToEndIterator(indx int) int { return -(indx + 2) }
+func (i *iteratorCache) cacheTable(tobj *types.TableIDObject) int {
+	if itr, ok := i.tableCache[tobj.ID]; ok {
+		return itr.iterator
+	}
+	ei := i.IndexToEndIterator(len(i.endIteratorToTable))
+	i.endIteratorToTable = append(i.endIteratorToTable, tobj)
+
+	pair := &pairTableIterator{
+		tableIDObject: tobj,
+		iterator:      ei,
+	}
+	i.tableCache[tobj.ID] = pair
+	return ei
+}
+func (i *iteratorCache) getTable(id types.IdType) *types.TableIDObject {
+	if itr, ok := i.tableCache[id]; ok {
+		return itr.tableIDObject
+	}
+
+	return &types.TableIDObject{}
+	//EOS_ASSERT( itr != _table_cache.end(), table_not_in_cache, "an invariant was broken, table should be in cache" );
+}
+func (i *iteratorCache) getEndIteratorByTableID(id types.IdType) int {
+	if itr, ok := i.tableCache[id]; ok {
+		return itr.iterator
+	}
+	//EOS_ASSERT( itr != _table_cache.end(), table_not_in_cache, "an invariant was broken, table should be in cache" );
+	return -1
+}
+func (i *iteratorCache) findTablebyEndIterator(ei int) *types.TableIDObject {
+	//EOS_ASSERT( ei < -1, invalid_table_iterator, "not an end iterator" );
+	indx := i.endIteratorToIndex(ei)
+
+	if indx >= len(i.endIteratorToTable) {
+		return nil
+	}
+	return i.endIteratorToTable[indx]
+}
+func (i *iteratorCache) get(iterator int) interface{} {
+	// EOS_ASSERT( iterator != -1, invalid_table_iterator, "invalid iterator" );
+	// EOS_ASSERT( iterator >= 0, table_operation_not_permitted, "dereference of end iterator" );
+	// EOS_ASSERT( iterator < _iterator_to_object.size(), invalid_table_iterator, "iterator out of range" );
+	//auto result = _iterator_to_object[iterator];
+
+	obj := i.iteratorToObject[iterator]
+	return obj
+
+	//return nil
+	//EOS_ASSERT( result, table_operation_not_permitted, "dereference of deleted object" );
+}
+func (i *iteratorCache) remove(iterator int) {
+	// EOS_ASSERT( iterator != -1, invalid_table_iterator, "invalid iterator" );
+	// EOS_ASSERT( iterator >= 0, table_operation_not_permitted, "cannot call remove on end iterators" );
+	// EOS_ASSERT( iterator < _iterator_to_object.size(), invalid_table_iterator, "iterator out of range" );
+
+	obj := i.iteratorToObject[iterator]
+	i.iteratorToObject[iterator] = nil
+	delete(i.objectToIterator, obj)
+
+	//EOS_ASSERT( result, table_operation_not_permitted, "dereference of deleted object" );
+}
+
+func (i *iteratorCache) add(obj interface{}) int {
+	if itr, ok := i.objectToIterator[obj]; ok {
+		return itr
+	}
+
+	i.iteratorToObject = append(i.iteratorToObject, obj)
+	i.objectToIterator[obj] = len(i.iteratorToObject) - 1
+	return len(i.iteratorToObject) - 1
 }
 
 func (a *ApplyContext) execOne() (trace types.ActionTrace) { return }
@@ -98,7 +196,21 @@ func (a *ApplyContext) ResetConsole()            { return }
 func (a *ApplyContext) ContextAppend(str string) { a.PendingConsoleOutput += str }
 
 //context database api
-func (a *ApplyContext) DBStoreI64() int { return 0 }
+func (a *ApplyContext) DBStoreI64(scope int64, table int64, payer int64, id int64, buffer int, buffer_size int) int {
+	return a.dbStoreI64(int64(a.Receiver), scope, table, payer, id, buffer, buffer_size)
+}
+func (a *ApplyContext) dbStoreI64(code int64,
+	scope int64, table int64, payer int64, id int64,
+	buffer int, buffer_size int) int {
+
+	//tab := a.FindOrCreateTable(common.Name(code), common.Name(scope), common.Name(table), common.AccountName(payer))
+	//tid := tab.ID
+
+	//assert( payer != common.AccountName{}, "must specify a valid account to pay for new record")
+
+	return 0
+
+}
 func (a *ApplyContext) DBUpdateI64(
 	iterator int,
 	payer common.AccountName,
@@ -121,7 +233,7 @@ func (a *ApplyContext) FindTable(
 func (a *ApplyContext) FindOrCreateTable(code common.Name,
 	scope common.Name,
 	table common.Name,
-	payer *common.AccountName) types.TableIDObject {
+	payer common.AccountName) types.TableIDObject {
 	return types.TableIDObject{}
 }
 func (a *ApplyContext) RemoveTable(tid types.TableIDObject) {}

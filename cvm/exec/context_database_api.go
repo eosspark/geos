@@ -12,7 +12,8 @@ func db_store_i64(w *WasmInterface,
 	buffer int, buffer_size int) int {
 	fmt.Println("db_store_i64")
 
-	return 0
+	return w.context.DBStoreI64(scope, table, payer, id, buffer, buffer_size)
+
 }
 
 // void db_update_i64( int itr, uint64_t payer, array_ptr<const char> buffer, size_t buffer_size ) {
