@@ -74,9 +74,15 @@ func (a *ApplyContext) RequireRecipient(recipient common.AccountName) {
 		a.Notified = append(a.Notified, recipient)
 	}
 }
-func (a *ApplyContext) IsAccount(account common.AccountName) bool {
-	return false
+func (a *ApplyContext) IsAccount(n common.AccountName) bool {
 	//return nullptr != db.find<account_object,by_name>( account );
+	account := types.AccountObject{Name: n}
+	err := a.Controller.db.ByIndex("byName", &account)
+	if err == nil {
+		return true
+	}
+	return false
+
 }
 func (a *ApplyContext) HasReciptient(code common.AccountName) bool {
 	for _, a := range a.Notified {
@@ -186,22 +192,49 @@ func (a *ApplyContext) SetPrivileged(n common.AccountName, isPriv bool) {
 }
 
 //context producer api
-func (a *ApplyContext) SetProposedProducers(producers []byte) { return }
+func (a *ApplyContext) SetProposedProducers(data []byte) {
+
+	// producers []types.ProducerKey
+	// rlp.DecodeBytes(data, &producers)
+
+	// uniqueProducers map[common.AccountName]bool
+	// for _,v := range producers {
+	// 	//assert(a.IsAccount(v), "producer schedule includes a nonexisting account")
+	// 	has = uniqueProducers[v]
+	// 	if has == nil {
+	// 		uniqueProducers[v] = true
+	// 	}
+	// }
+
+	// //assert(len(producer) == len(uniqueProducers),"duplicate producer name in producer schedule")
+	// a.Controller.SetProposed_Producers(producters)
+}
+
 func (a *ApplyContext) GetActiveProducersInBytes() []byte {
-	b := make([]byte, 256)
-	return b
+
+	// ap := a.Controller.ActiveProducers()
+	// accounts := make([]types.ProducerKey,len(ap.Producers))
+	// for _,producer := range ap.Producers {
+	// 	accounts = append(accounts,producer)
+	// }
+
+	// bytes,_ := rlp.EncodeToBytes(accounts)
+	// return bytes
+	return []byte{}
 }
 
 //func (a *ApplyContext) GetActiveProducers() []common.AccountName { return }
 
 //context system api
-func (a *ApplyContext) CheckTime() { return }
-func (a *ApplyContext) CurrentTime() int64 {
-
-	//return a.Controller.PendingBlockTime().TimeSinceEpoch().Count()
-	return 0
+func (a *ApplyContext) CheckTime() {
+	a.TrxContext.CheckTime()
 }
-func (a *ApplyContext) PublicationTime() int64 { return 0 }
+func (a *ApplyContext) CurrentTime() int64 {
+	return a.Controller.PendingBlockTime().TimeSinceEpoch().Count()
+}
+func (a *ApplyContext) PublicationTime() int64 {
+	return a.TrxContext.Published.TimeSinceEpoch().Count()
+}
 
 //context transaction api
 func (a *ApplyContext) ExecuteInline(action []byte)            {}
