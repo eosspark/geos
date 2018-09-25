@@ -69,10 +69,10 @@ type Controller struct {
 	dbsession    *eosiodb.Session
 	reversibledb eosiodb.DataBase
 	//reversibleBlocks      *eosiodb.Session
-	blog                  string //TODO
-	pending               *types.PendingState
-	head                  types.BlockState
-	forkDB                types.ForkDatabase
+	blog    string //TODO
+	pending *types.PendingState
+	head    types.BlockState
+	forkDB  types.ForkDatabase
 	//wasmif                exec.WasmInterface
 	resourceLimist        ResourceLimitsManager
 	authorization         AuthorizationManager
@@ -111,7 +111,7 @@ func newController() *Controller {
 	return con.initConfig()
 }
 
-func (self Controller) PopBlock() {
+func (self *Controller) PopBlock() {
 
 	prev := self.forkDB.GetBlock(self.head.Header.Previous)
 
@@ -140,7 +140,7 @@ func newApplyCon(ac ApplyContext) *applyCon {
 	a.applyContext = ac
 	return &a
 }
-func (self Controller) SetApplayHandler(receiver common.AccountName, contract common.AccountName, action common.AccountName, handler ApplyContext) {
+func (self *Controller) SetApplayHandler(receiver common.AccountName, contract common.AccountName, action common.AccountName, handler ApplyContext) {
 	h := make(map[common.AccountName]common.AccountName)
 	h[receiver] = contract
 	apply := newApplyCon(handler)
@@ -152,7 +152,7 @@ func (self Controller) SetApplayHandler(receiver common.AccountName, contract co
 	fmt.Println(self.applyHandlers)
 }
 
-func (self Controller) AbortBlock() {
+func (self *Controller) AbortBlock() {
 	if self.pending != nil {
 		if self.readMode == SPECULATIVE {
 			trx := append(self.pending.PendingBlockState.Trxs)
@@ -164,7 +164,7 @@ func (self Controller) AbortBlock() {
 	}
 }
 
-func (self Controller) StartBlock(when common.BlockTimeStamp, confirmBlockCount uint16, s types.BlockStatus) {
+func (self *Controller) StartBlock(when common.BlockTimeStamp, confirmBlockCount uint16, s types.BlockStatus) {
 	if self.pending != nil {
 		fmt.Println("pending block already exists")
 		return
@@ -252,8 +252,8 @@ func (self *Controller) PushTransaction(trx types.TransactionMetadata, deadLine 
 }
 
 func (self *Controller) GetGlobalProperties() (gp *types.GlobalPropertyObject) {
-	ggp := types.GlobalPropertyObject{}
-	err := self.db.ByIndex("ID", ggp) //TODO
+	gpo := types.GlobalPropertyObject{}
+	err := self.db.ByIndex("ID", gpo) //TODO
 	if err != nil {
 		log.Error("GetGlobalProperties is error detail:", err)
 	}
@@ -261,8 +261,8 @@ func (self *Controller) GetGlobalProperties() (gp *types.GlobalPropertyObject) {
 }
 
 func (self *Controller) GetDynamicGlobalProperties() (dgp *types.DynamicGlobalPropertyObject) {
-	gpo := types.DynamicGlobalPropertyObject{}
-	err := self.db.ByIndex("ID", gpo) //TODO
+	dgpo := types.DynamicGlobalPropertyObject{}
+	err := self.db.ByIndex("ID", dgpo) //TODO
 	if err != nil {
 		log.Error("GetGlobalProperties is error detail:", err)
 	}
@@ -286,7 +286,7 @@ func (self *Controller) getOnBlockTransaction() types.SignedTransaction {
 	var trx = types.SignedTransaction{}
 	trx.Actions = append(trx.Actions, &onBlockAction)
 	trx.SetReferenceBlock(self.head.ID)
-	in := self.pending.PendingBlockState.Header.Timestamp + 999999
+	in := self.pending.PendingBlockState.Header.Timestamp + 999999 //TODO
 	trx.Expiration = common.JSONTime{time.Now().UTC().Add(time.Duration(in))}
 	log.Error("getOnBlockTransaction trx.Expiration:", trx)
 	return trx
@@ -353,7 +353,7 @@ func (self *Controller) PendingBlockTime() common.TimePoint {
 	return self.pending.PendingBlockState.Header.Timestamp.ToTimePoint()
 }
 
-func Close(db eosiodb.DataBase, session eosiodb.Session) {
+func Close(db *eosiodb.DataBase, session *eosiodb.Session) {
 	//session.close()
 	db.Close()
 }
@@ -375,8 +375,78 @@ func (self *Controller) initConfig() *Controller {
 		blockValidationMode: FULL,
 	}
 	return self
-
 }
+
+func (self *Controller) GetUnAppliedTransactions() *[]types.TransactionMetadata { return nil }
+
+func (self *Controller) DropUnAppliedTransaction(metadata *types.TransactionMetadata) {}
+
+func (self *Controller) GetScheduledTransactions() *[]common.TransactionIDType { return nil }
+
+func (self *Controller) PushScheduledTransaction(sheduled common.TransactionIDType,
+	deadLine common.TimePoint,
+	billedCpuTimeUs uint32) *types.TransactionTrace {
+	return nil
+}
+
+func (self *Controller) FinalizeBlock() {}
+
+func (self *Controller) SignBlock(callBack interface{}) {}
+
+func (self *Controller) CommitBlock() {}
+
+func (self *Controller) PushBlock(sbp *types.SignedBlock, status types.BlockStatus) {} //status default value block_status s = block_status::complete
+
+func (self *Controller) PushConfirnation(hc types.HeaderConfirmation) {}
+
+func (self *Controller) DB() *eosiodb.DataBase {
+	return &self.db
+}
+
+func (self *Controller) ForkDB() *types.ForkDatabase {
+	return &self.forkDB
+}
+
+func (self *Controller) GetAccount(name common.AccountName) *types.AccountObject {
+	return nil
+}
+
+func (self *Controller) GetPermission(level *types.PermissionLevel) *types.PermissionObject {
+	return nil
+}
+
+func (self *Controller) GetResourceLimitsManager() *ResourceLimitsManager { return nil }
+
+func (self *Controller) GetAuthorizationManager() *AuthorizationManager { return nil }
+
+func (self *Controller) GetMutableAuthorizationManager() *AuthorizationManager { return nil }
+
+//c++ flat_set<account_name> map[common.AccountName]interface{}
+func (self *Controller) GetActorWhiteList() *map[common.AccountName]struct{} { return nil }
+
+func (self *Controller) GetActorBlackList() *map[common.AccountName]struct{} { return nil }
+
+func (self *Controller) GetContractWhiteList() *map[common.AccountName]struct{} { return nil }
+
+func (self *Controller) GetContractBlackList() *map[common.AccountName]struct{} { return nil }
+
+func (self *Controller) GetActionBlockList() *map[[2]common.AccountName]struct{} { return nil }
+
+func (self *Controller) GetKeyBlackList() *map[common.PublicKeyType]struct{} { return nil }
+
+func (self *Controller) SetActorWhiteList(params *map[common.AccountName]struct{}) {}
+
+func (self *Controller) SetActorBlackList(params *map[common.AccountName]struct{}) {}
+
+func (self *Controller) SetContractWhiteList(params *map[common.AccountName]struct{}) {}
+
+func (self *Controller) SetActionBlackList(params *map[[2]common.AccountName]struct{}) {}
+
+func (self *Controller) SetKeyBlackList(params *map[common.PublicKeyType]struct{}) {}
+
+func (self *Controller) HeadBlockNum() uint32 { return 0 }
+
+func (self *Controller) HeadBlockTime() common.TimePoint { return 0 }
 
 /*func main(){
 	c := new(Controller)
