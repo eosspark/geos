@@ -5,6 +5,7 @@ import (
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/db"
+	"github.com/eosspark/eos-go/log"
 	"github.com/eosspark/eos-go/rlp"
 )
 
@@ -121,6 +122,8 @@ func (a *ApplyContext) RemoveTable(tid types.TableIDObject) {}
 
 //context permission api
 func (a *ApplyContext) GetPermissionLastUsed(account common.AccountName, permission common.PermissionName) int64 {
+	//return 0
+	//am := a.Controller.G
 	return 0
 }
 func (a *ApplyContext) GetAccountCreateTime(account common.AccountName) int64 { return 0 }
@@ -139,13 +142,48 @@ func (a *ApplyContext) GetResourceLimits(
 	netWeight *uint64,
 	cpuWeigth *uint64) {
 }
-func (a *ApplyContext) SetBlockchainParametersPacked(parameters []byte) { return }
-func (a *ApplyContext) GetBlockchainParametersPacked() []byte {
-	b := make([]byte, 256)
-	return b
+func (a *ApplyContext) SetBlockchainParametersPacked(parameters []byte) {
+
+	newGPO := types.GlobalPropertyObject{}
+	rlp.DecodeBytes(parameters, &newGPO)
+	oldGPO := a.Controller.GetGlobalProperties()
+	a.Controller.db.UpdateObject(&oldGPO, &newGPO)
+
 }
-func (a *ApplyContext) IsPrivileged(n common.AccountName) bool          { return false }
-func (a *ApplyContext) SetPrivileged(n common.AccountName, isPriv bool) {}
+
+func (a *ApplyContext) GetBlockchainParametersPacked() []byte {
+	gpo := a.Controller.GetGlobalProperties()
+	bytes, err := rlp.EncodeToBytes(gpo)
+	if err != nil {
+		log.Error("EncodeToBytes is error detail:", err)
+		return nil
+	}
+	return bytes
+}
+func (a *ApplyContext) IsPrivileged(n common.AccountName) bool {
+	//return false
+	account := types.AccountObject{Name: n}
+
+	err := a.Controller.db.ByIndex("byName", &account)
+	if err != nil {
+		log.Error("getaAccount is error detail:", err)
+		return false
+	}
+	return account.Privileged
+
+}
+func (a *ApplyContext) SetPrivileged(n common.AccountName, isPriv bool) {
+	oldAccount := types.AccountObject{Name: n}
+	err := a.Controller.db.ByIndex("byName", &oldAccount)
+	if err != nil {
+		log.Error("getaAccount is error detail:", err)
+		return
+	}
+
+	newAccount := oldAccount
+	newAccount.Privileged = isPriv
+	a.Controller.db.UpdateObject(&oldAccount, &newAccount)
+}
 
 //context producer api
 func (a *ApplyContext) SetProposedProducers(producers []byte) { return }
