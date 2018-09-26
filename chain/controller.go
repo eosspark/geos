@@ -418,9 +418,9 @@ func (self *Controller) LastIrreversibleBlockNum() uint32{ return 0}
 
 func (self *Controller) LastIrreversibleBlockId() common.BlockIDType { return common.BlockIDType{}}
 
-func (self *Controller) FetchBlockByNumber(blockNum uint32) eos.SignedBlock { return eos.SignedBlock{}}
+func (self *Controller) FetchBlockByNumber(blockNum uint32) types.SignedBlock { return types.SignedBlock{}}
 
-func (self *Controller) FetchBlockById(id common.BlockIDType) eos.SignedBlock{ return eos.SignedBlock{}}
+func (self *Controller) FetchBlockById(id common.BlockIDType) types.SignedBlock{ return types.SignedBlock{}}
 
 func (self *Controller) FetchBlockStateByNumber(blockNum uint32) types.BlockState{ return types.BlockState{}}
 
