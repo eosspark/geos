@@ -2,11 +2,11 @@ package storm
 
 import (
 	"bytes"
-	"reflect"
-
+	"fmt"
 	"github.com/eosspark/eos-go/db/coreos/bbolt"
 	"github.com/eosspark/eos-go/db/storm/index"
 	"github.com/eosspark/eos-go/db/storm/q"
+	"reflect"
 )
 
 // TypeStore stores user defined types in BoltDB.
@@ -236,7 +236,7 @@ func (n *node) save(tx *bolt.Tx, cfg *structConfig, data interface{}, update boo
 		if err != nil {
 			return err
 		}
-
+		fmt.Println(fieldName, " --> tobytes : ", fieldCfg.Value.Interface())
 		err = idx.Add(value, id)
 		if err != nil {
 			if err == index.ErrAlreadyExists {

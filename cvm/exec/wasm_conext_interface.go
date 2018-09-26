@@ -27,13 +27,13 @@ type WasmContextInterface interface {
 	ContextAppend(str string)
 
 	//context database api
-	DBStoreI64(scope int64, table int64, payer int64, id int64, buffer int, buffer_size int) int
-	DBUpdateI64(iterator int, payer common.AccountName, buffer []byte, bufferSize int)
+	DBStoreI64(scope int64, table int64, payer int64, id int64, buffer []byte) int
+	DBUpdateI64(iterator int, payer common.AccountName, buffer []byte)
 	DBRemoveI64(iterator int)
-	DBGetI64(iterator int, buffer *[]byte, bufferSize int) int
+	DBGetI64(iterator int, buffer []byte, bufferSize int) int
 	DBNextI64(iterator int, primary uint64) int
 	DBPreviousI64(iterator int, primary uint64) int
-	DBFindI64(iterator int, primary uint64) int
+	DBFindI64(code int64, scope int64, table int64, id int64) int
 	DBLowerboundI64(iterator int, primary uint64) int
 	UpdateDBUsage(pager common.AccountName, delta int64)
 	FindTable(code common.Name, scope common.Name, table common.Name) types.TableIDObject

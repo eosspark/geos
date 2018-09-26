@@ -33,7 +33,7 @@ func init() {
 			"shared_authority":        {value: 3*1 + 4},
 			"permission_link_object":  {overhead: 32 * 3, value: 40 + 32},
 		},
-		FixedNetOverheadOfPackedTrx : 16,
+		FixedNetOverheadOfPackedTrx: 16,
 	}
 
 	DefaultConfig.BlockIntervalMs = 500

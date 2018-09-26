@@ -19,9 +19,10 @@ type Pack interface {
 // Encoder implements the EOS packing, similar to FC_BUFFER
 // --------------------------------------------------------------
 type Encoder struct {
-	output io.Writer
-	Order  binary.ByteOrder
-	count  int
+	output     io.Writer
+	Order      binary.ByteOrder
+	count      int
+	eosArray bool
 }
 
 func NewEncoder(w io.Writer) *Encoder {
@@ -78,13 +79,39 @@ func (e *Encoder) encode(v interface{}) (err error) {
 	// }
 
 	switch t.Kind() {
+	case reflect.String:
+		return e.writeString(rv.String())
+	case reflect.Bool:
+		return e.writeBool(rv.Bool())
+	case reflect.Int8:
+		return e.writeByte(byte(rv.Int()))
+	case reflect.Int16:
+		return e.writeInt16(int16(rv.Int()))
+	case reflect.Int32:
+		return e.writeInt32(int32(rv.Int()))
+	case reflect.Int:
+		return e.writeInt32(int32(rv.Int()))
+	case reflect.Int64:
+		return e.writeInt64(rv.Int())
+	case reflect.Uint8:
+		return e.writeUint8(uint8(rv.Uint()))
+	case reflect.Uint16:
+		return e.writeUint16(uint16(rv.Uint()))
+	case reflect.Uint32:
+		return e.writeUint32(uint32(rv.Uint()))
+	case reflect.Uint:
+		return e.writeUint32(uint32(rv.Uint()))
+	case reflect.Uint64:
+		return e.writeUint64(rv.Uint())
 
 	case reflect.Array:
 		l := t.Len()
-		if err = e.writeUVarInt(l); err != nil {
-			return
+		if !e.eosArray {
+			if err = e.writeUVarInt(l); err != nil {
+				return
+			}
 		}
-		println(fmt.Sprintf("Encode: array [%T] of length: %d", v, l))
+		e.eosArray = false //normal array like [4]int need length of array
 
 		for i := 0; i < l; i++ {
 			if err = e.encode(rv.Index(i).Interface()); err != nil {
@@ -112,6 +139,9 @@ func (e *Encoder) encode(v interface{}) (err error) {
 			tag := field.Tag.Get("eos")
 			if tag == "-" {
 				continue
+			}
+			if tag == "array" {
+				e.eosArray = true
 			}
 
 			if v := rv.Field(i); t.Field(i).Name != "_" {
@@ -150,31 +180,6 @@ func (e *Encoder) encode(v interface{}) (err error) {
 				return err
 			}
 		}
-
-	case reflect.String:
-		return e.writeString(rv.String())
-	case reflect.Bool:
-		return e.writeBool(rv.Bool())
-	case reflect.Int8:
-		return e.writeByte(byte(rv.Int()))
-	case reflect.Int16:
-		return e.writeInt16(int16(rv.Int()))
-	case reflect.Int32:
-		return e.writeInt32(int32(rv.Int()))
-	case reflect.Int:
-		return e.writeInt32(int32(rv.Int()))
-	case reflect.Int64:
-		return e.writeInt64(rv.Int())
-	case reflect.Uint8:
-		return e.writeUint8(uint8(rv.Uint()))
-	case reflect.Uint16:
-		return e.writeUint16(uint16(rv.Uint()))
-	case reflect.Uint32:
-		return e.writeUint32(uint32(rv.Uint()))
-	case reflect.Uint:
-		return e.writeUint32(uint32(rv.Uint()))
-	case reflect.Uint64:
-		return e.writeUint64(rv.Uint())
 
 	default:
 		return errors.New("Encode: unsupported type " + t.String())
