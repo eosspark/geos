@@ -5,6 +5,7 @@ import (
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/ecc"
+	"github.com/eosspark/eos-go/rlp"
 )
 
 type P2PMessage interface {
@@ -17,8 +18,8 @@ type HandshakeMessage struct {
 	ChainID                  common.ChainIDType `json:"chain_id"`
 	NodeID                   common.NodeIDType  `json:"node_id"` // sha256
 	Key                      ecc.PublicKey      `json:"key"`     // can be empty, producer key, or peer key
-	Time                     common.Tstamp      `json:"time"`    // time?!
-	Token                    common.Sha256      `json:"token"`   // digest of time to prove we own the private `key`
+	Time                     common.TimePoint      `json:"time"`    // time?!
+	Token                    rlp.Sha256      `json:"token"`   // digest of time to prove we own the private `key`
 	Signature                ecc.Signature      `json:"sig"`     // can be empty if no key, signature of the digest above
 	P2PAddress               string             `json:"p2p_address"`
 	LastIrreversibleBlockNum uint32             `json:"last_irreversible_block_num"`
@@ -70,7 +71,7 @@ const (
 
 type GoAwayMessage struct {
 	Reason GoAwayReason  `json:"reason"`
-	NodeID common.Sha256 `json:"node_id"`
+	NodeID rlp.Sha256 `json:"node_id"`
 }
 
 func (m *GoAwayMessage) GetType() P2PMessageType {
@@ -78,10 +79,10 @@ func (m *GoAwayMessage) GetType() P2PMessageType {
 }
 
 type TimeMessage struct {
-	Origin      common.Tstamp `json:"org"`
-	Receive     common.Tstamp `json:"rec"`
-	Transmit    common.Tstamp `json:"xmt"`
-	Destination common.Tstamp `json:"dst"`
+	Origin      common.TimePoint `json:"org"`
+	Receive     common.TimePoint `json:"rec"`
+	Transmit    common.TimePoint `json:"xmt"`
+	Destination common.TimePoint `json:"dst"`
 }
 
 func (m *TimeMessage) GetType() P2PMessageType {

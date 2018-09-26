@@ -9,13 +9,18 @@ import (
 )
 
 type Ripemd160 struct {
-	Hash_ [5]uint32 `eos:"hash"`
+	Hash_ [5]uint32 `eos:"array"`
 }
 
 func NewRipemd160() hash.Hash {
 	return ripemd160.New()
 }
-
+func NewRipemd160Nil()*Ripemd160{
+	data :=[5]uint32{0,0,0,0,0}
+	return &Ripemd160{
+		Hash_:data,
+	}
+}
 func NewRipemd160String(s string) *Ripemd160 {
 	bytes, err := hex.DecodeString(s)
 	if err != nil {

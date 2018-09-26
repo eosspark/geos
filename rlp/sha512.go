@@ -9,11 +9,18 @@ import (
 )
 
 type Sha512 struct {
-	Hash_ [8]uint64 `eos:"hash"`
+	Hash_ [8]uint64 `eos:"array"`
 }
 
 func NewSha512() hash.Hash {
 	return sha512.New()
+}
+
+func NewSha512Nil() *Sha512{
+	data := [8]uint64{0,0,0,0,0,0,0,0}
+	return &Sha512{
+		Hash_:data,
+	}
 }
 
 func NewSha512String(s string) *Sha512 {

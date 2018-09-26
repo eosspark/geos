@@ -2,7 +2,7 @@ package index
 
 import (
 	"bytes"
-
+	"fmt"
 	"github.com/eosspark/eos-go/db/coreos/bbolt"
 	"github.com/eosspark/eos-go/db/storm/internal"
 )
@@ -73,7 +73,7 @@ func (idx *ListIndex) Add(newValue []byte, targetID []byte) error {
 	if err != nil {
 		return err
 	}
-
+	fmt.Println("list --> ", key, " : ", targetID)
 	return idx.IndexBucket.Put(key, targetID)
 }
 

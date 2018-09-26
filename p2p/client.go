@@ -28,7 +28,7 @@ type Client struct {
 func NewClient(p2pAddr string, chainID common.ChainIDType, networkVersion uint16) *Client {
 	nodeID := make([]byte, 32)
 	rand.Read(nodeID)
-	data, _ := common.DecodeIDTypeByte(nodeID)
+	data := *rlp.NewSha256Byte(nodeID)
 
 	c := &Client{
 		p2pAddress:     p2pAddr,
@@ -62,6 +62,7 @@ func (c *Client) connect(headBlock uint32, lib uint32) (err error) {
 	err = c.SendHandshake(&HandshakeInfo{
 		HeadBlockNum:             headBlock,
 		LastIrreversibleBlockNum: lib,
+		Generation:               1,
 	})
 	if err != nil {
 		return err
@@ -74,6 +75,7 @@ type HandshakeInfo struct {
 	HeadBlockID              common.BlockIDType
 	LastIrreversibleBlockNum uint32
 	LastIrreversibleBlockID  common.BlockIDType
+	Generation               uint16
 }
 
 func (c *Client) SendHandshake(info *HandshakeInfo) (err error) {
@@ -88,13 +90,13 @@ func (c *Client) SendHandshake(info *HandshakeInfo) (err error) {
 		data[i] = content[i]
 	}
 
-	tstamp := common.TimeNow()
+	tstamp := common.Now()
 	signature := ecc.Signature{
 		Curve:   ecc.CurveK1,
 		Content: data,
 	}
-	token := make([]byte, 32)
-	token1, _ := common.DecodeIDTypeByte(token)
+	byteSlice := make([]byte, 32)
+	token := *rlp.NewSha256Byte(byteSlice)
 
 	handshake := &HandshakeMessage{
 		NetworkVersion:           c.NetWorkVersion,
@@ -102,7 +104,7 @@ func (c *Client) SendHandshake(info *HandshakeInfo) (err error) {
 		NodeID:                   c.NodeID,
 		Key:                      publickey,
 		Time:                     tstamp,
-		Token:                    common.Sha256(token1),
+		Token:                    token,
 		Signature:                signature,
 		P2PAddress:               c.p2pAddress,
 		LastIrreversibleBlockNum: info.LastIrreversibleBlockNum,
@@ -111,14 +113,8 @@ func (c *Client) SendHandshake(info *HandshakeInfo) (err error) {
 		HeadID:                   info.HeadBlockID,
 		OS:                       runtime.GOOS,
 		Agent:                    c.AgentName,
-		Generation:               uint16(1),
+		Generation:               info.Generation,
 	}
-
-	// message, err := json.Marshal(handshake)
-	// if err != nil {
-	// 	fmt.Println(err)
-	// }
-	// fmt.Println("send handshakemessage: ", string(message))
 
 	err = c.sendMessage(handshake)
 	if err != nil {
@@ -151,7 +147,12 @@ func (c *Client) sendMessage(message P2PMessage) (err error) {
 
 	c.Conn.Write(sendBuf)
 
-	// fmt.Println("已发送Message", sendBuf)
+	fmt.Println("已发送Message", sendBuf)
+	data, err := json.Marshal(message)
+	if err != nil {
+		fmt.Println(err)
+	}
+	fmt.Println("struct:  ", string(data))
 
 	return
 }
@@ -218,7 +219,7 @@ func (c *Client) handleConnection(ready chan bool, errChannel chan error) {
 		case *GoAwayMessage:
 			fmt.Printf("GO AWAY Reason[%d] \n", msg.Reason)
 		case *TimeMessage:
-			msg.Destination = common.TimeNow()
+			msg.Destination = common.Now()
 			data, err := json.Marshal(msg)
 			if err != nil {
 				fmt.Println(err)
@@ -233,6 +234,7 @@ func (c *Client) handleConnection(ready chan bool, errChannel chan error) {
 
 		case *SignedBlockMessage:
 			syncHeadBlock = msg.BlockNumber()
+			fmt.Printf("signed Block Num: %d\n", syncHeadBlock)
 
 			if syncHeadBlock == RequestedBlock {
 
@@ -241,7 +243,7 @@ func (c *Client) handleConnection(ready chan bool, errChannel chan error) {
 
 					syncing = false
 					fmt.Println("Sync completed ... Sending handshake")
-					id, err := msg.BlockID()
+					id := msg.BlockID()
 					if err != nil {
 						fmt.Println("blockID: ", err)
 						return
@@ -251,6 +253,7 @@ func (c *Client) handleConnection(ready chan bool, errChannel chan error) {
 						HeadBlockID:              id,
 						LastIrreversibleBlockNum: c.LastHandshakeReceived.LastIrreversibleBlockNum,
 						LastIrreversibleBlockID:  c.LastHandshakeReceived.LastIrreversibleBlockID,
+						Generation:               2,
 					}
 					if err := c.SendHandshake(hInfo); err != nil {
 						fmt.Println(err)

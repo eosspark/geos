@@ -16,7 +16,7 @@ const PublicKeyPrefixCompat = "EOS"
 
 type PublicKey struct {
 	Curve   CurveID
-	Content [33]byte
+	Content [33]byte `eos:"array"`
 }
 
 func NewPublicKey(pubKey string) (out PublicKey, err error) {

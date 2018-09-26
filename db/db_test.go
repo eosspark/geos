@@ -115,6 +115,7 @@ func TestInser(t *testing.T) {
 		fmt.Println("Insert error : ", err)
 		return
 	}
+	fmt.Println("acc found")
 	fmt.Println(tmp)
 	var new_ User
 	new_ = tmp

@@ -1,16 +1,17 @@
 package histtory_plugin
 
 import (
-	"testing"
 	"fmt"
-	"github.com/eosspark/eos-go/db"
+	"testing"
+
 	"github.com/eosspark/eos-go/common"
+	"github.com/eosspark/eos-go/db"
 )
 
-func Test_AddAccountHistoryObject(t *testing.T){
+func Test_AddAccountHistoryObject(t *testing.T) {
 	db, err := eosiodb.NewDataBase("./", "shared_memory.bin", true)
 	if err != nil {
-		fmt.Println("Test_AddAccountHistoryObject is error detail:",err.Error())
+		fmt.Println("Test_AddAccountHistoryObject is error detail:", err.Error())
 	}
 	defer db.Close()
 
@@ -22,11 +23,11 @@ func Test_AddAccountHistoryObject(t *testing.T){
 	aho.ByAccountActionSeq.Account = acount
 	aho.ByAccountActionSeq.AccountSequenceNum = num
 	aho.ActionSequenceNum = uint64(aho.ByAccountActionSeq.AccountSequenceNum)
-	c :=ByAccountActionSeq{}
+	c := ByAccountActionSeq{}
 	c.Account = aho.ByAccountActionSeq.Account
 	c.AccountSequenceNum = aho.ByAccountActionSeq.AccountSequenceNum
 	err = db.Insert(&aho)
-	if err !=nil{
+	if err != nil {
 		fmt.Println(err.Error())
 		return
 	}
@@ -35,7 +36,7 @@ func Test_AddAccountHistoryObject(t *testing.T){
 	fmt.Println("*******************************************")
 	result := []AccountHistoryObject{}
 	db.All(&result)
-	fmt.Print("all context:",result)
+	fmt.Print("all context:", result)
 }
 
 /*func Test_AddAccountHistorys(t *testing.T) {
@@ -81,68 +82,68 @@ func Test_AddAccountHistoryObject(t *testing.T){
 func Test_GetAccountHistoryObject(t *testing.T) {
 	db, err := eosiodb.NewDataBase("./", "shared_memory.bin", true)
 	if err != nil {
-		fmt.Println("Test_GetAccountHistoryObject is error detail:",err.Error())
+		fmt.Println("Test_GetAccountHistoryObject is error detail:", err.Error())
 	}
 	defer db.Close()
 
 	result := AccountHistoryObject{}
-	result.ID = 5
-	err = db.Find("ID",result.ID,&result)
+	result.ID = 2
+	err = db.Find("ID", result.ID, &result)
 	if err != nil {
-		fmt.Println("Test_GetAccountHistoryObject is error detail:",err.Error())
+		fmt.Println("Test_GetAccountHistoryObject is error detail:", err.Error())
 		return
 	}
-	fmt.Println("object:",result)
+	fmt.Println("object:", result)
 
 	//results := []AccountHistoryIndex{}
-	var results  []AccountHistoryObject
+	var results []AccountHistoryObject
 
 	err = db.All(&results)
-	if err != nil{
+	if err != nil {
 		fmt.Println(err.Error())
 	}
-	fmt.Println("query all data:",results)
+	fmt.Println("query all data:", results)
 }
 
-func Test_UpdateAccountHistoryObject(t *testing.T){
+func Test_UpdateAccountHistoryObject(t *testing.T) {
 	db, err := eosiodb.NewDataBase("./", "shared_memory.bin", true)
 	if err != nil {
-		fmt.Println("Test_UpdateAccountHistoryObject is error detail:",err.Error())
+		fmt.Println("Test_UpdateAccountHistoryObject is error detail:", err.Error())
 	}
 	defer db.Close()
 
 	var results []AccountHistoryObject
 	err = db.All(&results)
-	if err != nil{
-		fmt.Println("update is err :",err.Error())
+	if err != nil {
+		fmt.Println("update is err :", err.Error())
 		return
 	}
 
 	//updateObject All properties can not be empty.
 
 	//param :=AccountHistoryObject{}
-param := results[0]
+	param := results[0]
 	aho := AccountHistoryObject{}
 	aho.ID = param.ID
 	//aho.Condition.AccountSequenceNum = param.ByAccountActionSeq.AccountSequenceNum+5
 	//aho.Condition.Account = param.ByAccountActionSeq.Account
-fmt.Println("modify object param:",param)
-	err = db.UpdateObject(&param,&aho)
-	if err!=nil{
-		fmt.Println("modify object is error:",err.Error())
+	fmt.Println("modify object param:", param)
+	err = db.UpdateObject(&param, &aho)
+	if err != nil {
+		fmt.Println("modify object is error:", err.Error())
 		return
 	}
 }
 
-func Test_GetAccountHistoryObjectsByAccount(t *testing.T){
+func Test_GetAccountHistoryObjectsByAccount(t *testing.T) {
 	db, err := eosiodb.NewDataBase("./", "shared_memory.bin", true)
 	if err != nil {
-		fmt.Println("Test_GetAccountHistoryObjectByAccount is error detail:",err.Error())
+		fmt.Println("Test_GetAccountHistoryObjectByAccount is error detail:", err.Error())
 		return
 	}
 	defer db.Close()
 
-	result :=GetAccountHistoryObjectByAccount(db,common.AccountName(common.StringToName("tuanhuo2")))
+	result := GetAccountHistoryObjectByAccount(db, common.AccountName(common.StringToName("tuanhuo2")))
 	fmt.Print("Query many data :")
 	fmt.Println(result)
 }
