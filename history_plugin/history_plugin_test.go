@@ -1,4 +1,4 @@
-package histtory_plugin
+package history_plugin
 
 import (
 	"fmt"
@@ -16,8 +16,8 @@ func Test_AddAccountHistoryObject(t *testing.T) {
 	defer db.Close()
 
 	aho := AccountHistoryObject{}
-	acount := common.AccountName(common.StringToName("tuanhuo2"))
-	num := int32(4)
+	acount := common.AccountName(common.StringToName("tuanhuo"))
+	num := int32(66)
 	aho.Account = acount
 	aho.AccountSequenceNum = num
 	aho.ByAccountActionSeq.Account = acount
@@ -146,4 +146,14 @@ func Test_GetAccountHistoryObjectsByAccount(t *testing.T) {
 	result := GetAccountHistoryObjectByAccount(db, common.AccountName(common.StringToName("tuanhuo2")))
 	fmt.Print("Query many data :")
 	fmt.Println(result)
+}
+
+func Test_GetActions(t *testing.T){
+	param :=GetActionParam{}
+	param.Pos = 0
+	param.Offset = 3
+	param.AccountName=common.AccountName(common.StringToName("tuanhuo"))
+
+	result := GetActions(&param)
+	fmt.Println("Test_GetActions result :",result)
 }
