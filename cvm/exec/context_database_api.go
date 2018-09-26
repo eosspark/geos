@@ -2,6 +2,7 @@ package exec
 
 import (
 	"fmt"
+	"github.com/eosspark/eos-go/common"
 )
 
 // int db_store_i64( uint64_t scope, uint64_t table, uint64_t payer, uint64_t id, array_ptr<const char> buffer, size_t buffer_size ) {
@@ -9,10 +10,11 @@ import (
 // }
 func db_store_i64(w *WasmInterface,
 	scope int64, table int64, payer int64, id int64,
-	buffer int, buffer_size int) int {
+	buffer int, bufferSize int) int {
 	fmt.Println("db_store_i64")
 
-	return w.context.DBStoreI64(scope, table, payer, id, buffer, buffer_size)
+	bytes := getMemory(w, buffer, bufferSize)
+	return w.context.DBStoreI64(scope, table, payer, id, bytes)
 
 }
 
@@ -21,8 +23,11 @@ func db_store_i64(w *WasmInterface,
 // }
 func db_update_i64(w *WasmInterface,
 	itr int, payer int64,
-	buffer int, buffer_size int) {
+	buffer int, bufferSize int) {
 	fmt.Println("db_update_i64")
+
+	bytes := getMemory(w, buffer, bufferSize)
+	w.context.DBUpdateI64(itr, common.AccountName(payer), bytes)
 }
 
 // void db_remove_i64( int itr ) {
@@ -30,14 +35,18 @@ func db_update_i64(w *WasmInterface,
 // }
 func db_remove_i64(w *WasmInterface, itr int) {
 	fmt.Println("db_update_i64")
+
+	w.context.DBRemoveI64(itr)
 }
 
 // int db_get_i64( int itr, array_ptr<char> buffer, size_t buffer_size ) {
 //    return context.db_get_i64( itr, buffer, buffer_size );
 // }
-func db_get_i64(w *WasmInterface, itr int, buffer int, buffer_size int) int {
+func db_get_i64(w *WasmInterface, itr int, buffer int, bufferSize int) int {
 	fmt.Println("db_get_i64")
-	return 0
+
+	bytes := make([]byte, bufferSize)
+	return w.context.DBGetI64(itr, bytes, bufferSize)
 }
 
 // int db_next_i64( int itr, uint64_t& primary ) {
