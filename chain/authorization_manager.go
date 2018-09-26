@@ -10,7 +10,7 @@ import (
 )
 
 type AuthorizationManager struct {
-	control Controller
+	//control Controller
 	db      *eosiodb.DataBase
 }
 
