@@ -447,7 +447,7 @@ func (a *ApplyContext) SetProposedProducers(data []byte) {
 	// }
 
 	// //assert(len(producer) == len(uniqueProducers),"duplicate producer name in producer schedule")
-	// a.Controller.SetProposed_Producers(producters)
+	// a.Controller.SetProposed_Producers(producers)
 }
 
 func (a *ApplyContext) GetActiveProducersInBytes() []byte {
