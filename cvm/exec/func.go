@@ -26,9 +26,9 @@ type compiledFunction struct {
 }
 
 type goFunction struct {
-	val  reflect.Value
-	typ  reflect.Type
-	name string
+	val reflect.Value
+	typ reflect.Type
+	//name string
 }
 
 // func (fn goFunction) call(vm *VM, index int64) {
@@ -74,9 +74,6 @@ func (fn goFunction) call(vm *VM, index int64) {
 	numIn := fn.typ.NumIn()
 	args := make([]reflect.Value, numIn)
 
-	//name := fn.val.Type().Name()
-	//fmt.Println(fn.name)
-
 	args[0] = reflect.ValueOf(vm.WasmInterface) //the first param is WasmInterface
 
 	for i := numIn - 1; i >= 1; i-- {
@@ -85,19 +82,19 @@ func (fn goFunction) call(vm *VM, index int64) {
 		kind := fn.typ.In(i).Kind()
 
 		switch kind {
-		case reflect.Float64, reflect.Float32:
+		case reflect.Float64:
 			val.SetFloat(math.Float64frombits(raw))
+		case reflect.Float32:
+			val.SetFloat(float64(math.Float32frombits(uint32(raw))))
 		case reflect.Uint32, reflect.Uint64:
 			val.SetUint(raw)
-		case reflect.Int32, reflect.Int64:
+		case reflect.Int32, reflect.Int64, reflect.Int:
 			val.SetInt(int64(raw))
 		default:
-			//panic(fmt.Sprintf("exec: args %d invalid kind=%v", i, kind))
-			val = reflect.ValueOf(raw)
+			panic(fmt.Sprintf("exec: args %d invalid kind=%v", i, kind))
+			//val = reflect.ValueOf(raw)
 		}
 		args[i] = val
-
-		//args[i] = reflect.ValueOf(vm.popUint64())
 	}
 
 	rtrns := fn.val.Call(args)
@@ -108,7 +105,7 @@ func (fn goFunction) call(vm *VM, index int64) {
 			vm.pushFloat64(out.Float())
 		case reflect.Uint32, reflect.Uint64:
 			vm.pushUint64(out.Uint())
-		case reflect.Int32, reflect.Int64:
+		case reflect.Int32, reflect.Int64, reflect.Int:
 			vm.pushInt64(out.Int())
 		default:
 			panic(fmt.Sprintf("exec: return value %d invalid kind=%v", i, kind))

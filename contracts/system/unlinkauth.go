@@ -14,7 +14,7 @@ func NewUnlinkAuth(account, code common.AccountName, actionName common.ActionNam
 	a := &types.Action{
 		Account: common.AccountName(common.StringToName("eosio")),
 		Name:    common.ActionName(common.StringToName("unlinkauth")),
-		Authorization: []common.PermissionLevel{
+		Authorization: []types.PermissionLevel{
 			{account, common.PermissionName(common.StringToName("active"))},
 		},
 		// Data: common.NewActionData(UnlinkAuth{//TODO

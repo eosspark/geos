@@ -26,10 +26,10 @@ func Test_AddBlockState(t *testing.T) {
 		t.Error(err)
 	}
 
-	b, er := forkdb.AddBlockState(blockState)
-	if er != nil {
+	b := forkdb.AddBlockState(blockState)
+	/*if er != nil {
 		t.Error(er)
-	}
+	}*/
 	log.Debug("AddBlockState return info:", b)
 }
 
@@ -64,12 +64,12 @@ type Demo struct {
 	age  int
 }
 
-func Test_o(t *testing.T){
+func Test_o(t *testing.T) {
 	d := &Demo{"hehe", 7}
 	d1 := &Demo{"hehe", 9}
 	a := *d
 	b := *d1
-	if a==b{
+	if a == b {
 		fmt.Println("aaa")
 	}
 	fmt.Println("bbb")

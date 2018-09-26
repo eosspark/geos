@@ -90,34 +90,6 @@ func (e InvalidFunctionIndexError) Error() string {
 	return fmt.Sprintf("wasm: Invalid index to function index space: %#x", uint32(e))
 }
 
-// func hello() {
-
-// 	fmt.Sprintln("hello")
-// }
-
-// func (module *Module) resolveImportsFromHost(importEntry ImportEntry, funcs *uint32) error {
-
-// 	switch importEntry.Kind {
-// 	case ExternalFunction:
-// 		funcType := module.Types.Entries[importEntry.Type.(FuncImport).Type]
-// 		fn := &Function{
-// 			Sig:  &FunctionSig{ParamTypes: funcType.ParamTypes, ReturnTypes: funcType.ReturnTypes},
-// 			Body: &FunctionBody{},
-// 			Name: importEntry.FieldName,
-// 			//Host: reflect.ValueOf(wasmInterface.GetHandle(importEntry.FieldName))}
-// 			//Host: reflect.Value{}}
-// 			Host: reflect.ValueOf(hello)}
-// 		module.FunctionIndexSpace = append(module.FunctionIndexSpace, *fn)
-// 		module.Code.Bodies = append(module.Code.Bodies, *fn.Body)
-// 		module.imports.Funcs = append(module.imports.Funcs, *funcs)
-// 		*funcs++
-// 	default:
-// 		fmt.Println("not support import type")
-// 	}
-
-// 	return nil
-// }
-
 func (module *Module) resolveImports(resolve ResolveFunc) error {
 	if module.Import == nil {
 		return nil
@@ -127,16 +99,6 @@ func (module *Module) resolveImports(resolve ResolveFunc) error {
 
 	var funcs uint32
 	for _, importEntry := range module.Import.Entries {
-
-		// if importEntry.ModuleName == "env" {
-		// 	var err error
-		// 	//err = module.resolveImportsFromHost(importEntry, &funcs, wasmInterface)
-		// 	err = module.resolveImportsFromHost(importEntry, &funcs)
-		// 	if err != nil {
-		// 		return err
-		// 	}
-		// 	continue
-		// }
 
 		importedModule, ok := modules[importEntry.ModuleName]
 		if !ok {

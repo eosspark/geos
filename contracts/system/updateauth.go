@@ -10,11 +10,11 @@ import (
 //
 // usingPermission needs to be `owner` if you want to modify the
 // `owner` authorization, otherwise `active` will do for the rest.
-func NewUpdateAuth(account common.AccountName, permission, parent common.PermissionName, authority common.Authority, usingPermission common.PermissionName) *types.Action {
+func NewUpdateAuth(account common.AccountName, permission, parent common.PermissionName, authority types.Authority, usingPermission common.PermissionName) *types.Action {
 	a := &types.Action{
 		Account: common.AccountName(common.StringToName("eosio")),
 		Name:    common.ActionName(common.StringToName("updateauth")),
-		Authorization: []common.PermissionLevel{
+		Authorization: []types.PermissionLevel{
 			{account, usingPermission},
 		},
 		// Data: common.NewActionData(UpdateAuth{ //TODO
@@ -37,5 +37,5 @@ type UpdateAuth struct {
 	Account    common.AccountName    `json:"account"`
 	Permission common.PermissionName `json:"resouce"`
 	Parent     common.PermissionName `json:"parent"`
-	Auth       common.Authority      `json:"auth"`
+	Auth       types.Authority       `json:"auth"`
 }

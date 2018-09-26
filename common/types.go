@@ -24,42 +24,19 @@ type BlockIDType rlp.Sha256
 type TransactionIDType rlp.Sha256
 type CheckSum256Type rlp.Sha256
 
-type Sha512 [8]uint64
-
-func NewSha512() (s Sha512) {
-	for i := range s {
-		s[i] = 0
-	}
-	return
-}
+//type Sha512 [8]uint64
+//
+//func NewSha512() (s Sha512) {
+//	for i := range s {
+//		s[i] = 0
+//	}
+//	return
+//}
 
 type Pair struct {
 	First  interface{}
 	Second interface{}
 }
-
-//func Hash(t interface{}) [4]uint64 {
-//	cereal, err := rlp.EncodeToBytes(t)
-//	if err != nil {
-//		panic(err)
-//	}
-//	//fmt.Println(cereal)
-//
-//	h := sha256.New()
-//	_, _ = h.Write(cereal)
-//	hashed := h.Sum(nil)
-//
-//	//fmt.Println(hashed)
-//
-//	var result [4]uint64
-//
-//	result[0] = binary.LittleEndian.Uint64(hashed[:8])
-//	result[1] = binary.LittleEndian.Uint64(hashed[8:16])
-//	result[2] = binary.LittleEndian.Uint64(hashed[16:24])
-//	result[3] = binary.LittleEndian.Uint64(hashed[24:32])
-//
-//	return result
-//}
 
 func DecodeIDTypeString(str string) (id [4]uint64, err error) {
 	b, err := hex.DecodeString(str)
@@ -166,7 +143,22 @@ type ActionName uint64
 type TableName uint64
 type ScopeName uint64
 
+func (n Name) String() string {
+	return NameToString(uint64(n))
+}
 func (n AccountName) String() string {
+	return NameToString(uint64(n))
+}
+func (n PermissionName) String() string {
+	return NameToString(uint64(n))
+}
+func (n ActionName) String() string {
+	return NameToString(uint64(n))
+}
+func (n TableName) String() string {
+	return NameToString(uint64(n))
+}
+func (n ScopeName) String() string {
 	return NameToString(uint64(n))
 }
 
@@ -480,68 +472,6 @@ func (a Asset) MarshalJSON() (data []byte, err error) {
 	return json.Marshal(a.String())
 }
 
-type Permission struct {
-	PermName     string    `json:"perm_name"`
-	Parent       string    `json:"parent"`
-	RequiredAuth Authority `json:"required_auth"`
-}
-
-type PermissionLevel struct {
-	Actor      AccountName    `json:"actor"`
-	Permission PermissionName `json:"permission"`
-}
-
-// NewPermissionLevel parses strings like `account@active`,
-// `otheraccount@owner` and builds a PermissionLevel struct. It
-// validates that there is a single optional @ (where permission
-// defaults to 'active'), and validates length of account and
-// permission names.
-func NewPermissionLevel(in string) (out PermissionLevel, err error) {
-	parts := strings.Split(in, "@")
-	if len(parts) > 2 {
-		return out, fmt.Errorf("permission %q invalid, use account[@permission]", in)
-	}
-
-	if len(parts[0]) > 12 {
-		return out, fmt.Errorf("account name %q too long", parts[0])
-	}
-
-	out.Actor = AccountName(StringToName(parts[0]))
-	out.Permission = PermissionName(StringToName("active"))
-
-	if len(parts) == 2 {
-		if len(parts[1]) > 12 {
-			return out, fmt.Errorf("permission %q name too long", parts[1])
-		}
-
-		out.Permission = PermissionName(StringToName("active"))
-	}
-
-	return
-}
-
-type PermissionLevelWeight struct {
-	Permission PermissionLevel `json:"permission"`
-	Weight     uint16          `json:"weight"` // weight_type
-}
-
-type Authority struct {
-	Threshold uint32                  `json:"threshold"`
-	Keys      []KeyWeight             `json:"keys,omitempty"`
-	Accounts  []PermissionLevelWeight `json:"accounts,omitempty"`
-	Waits     []WaitWeight            `json:"waits,omitempty"`
-}
-
-type KeyWeight struct {
-	PublicKey ecc.PublicKey `json:"key"`
-	Weight    uint16        `json:"weight"` // weight_type
-}
-
-type WaitWeight struct {
-	WaitSec uint32 `json:"wait_sec"`
-	Weight  uint16 `json:"weight"` // weight_type
-}
-
 // JSONTime
 
 type JSONTime struct {
@@ -602,54 +532,6 @@ func (t *SHA256Bytes) UnmarshalJSON(data []byte) (err error) {
 }
 
 type Varuint32 uint32
-
-//type Tstamp uint64
-//
-//const tstampFormate = "2006-01-02T15:04:05.000000"
-//
-//func (t Tstamp) MarshalJSON() ([]byte, error) {
-//	slot := int64(t) * 1000
-//	tm := time.Unix(0, slot).UTC()
-//	return []byte(fmt.Sprintf("%q", tm.Format(tstampFormate))), nil
-//}
-//func (t *Tstamp) UnmarshalJSON(data []byte) (err error) {
-//	var unixNano int64
-//	if data[0] == '"' {
-//		var s string
-//		if err = json.Unmarshal(data, &s); err != nil {
-//			return
-//		}
-//
-//		unixNano, err = strconv.ParseInt(s, 10, 64)
-//		if err != nil {
-//			return err
-//		}
-//
-//	} else {
-//		unixNano, err = strconv.ParseInt(string(data), 10, 64)
-//		if err != nil {
-//			return err
-//		}
-//	}
-//	*t = Tstamp(unixNano / 1000)
-//
-//	return nil
-//}
-
-// func TimeNow() uint64 { //微妙 s*1000000   from 1970
-// 	tm := time.Now().UTC()
-
-// 	dur := tm.UnixNano() / 1000
-
-// 	return uint64(dur)
-// }
-//func TimeNow() Tstamp { //微妙 s*1000000   from 1970
-//	tm := time.Now().UTC()
-//
-//	dur := tm.UnixNano() / 1000
-//
-//	return Tstamp(dur)
-//}
 
 type JSONFloat64 float64
 
@@ -720,5 +602,3 @@ func (i *JSONInt64) UnmarshalJSON(data []byte) error {
 type PublicKeyType struct {
 	ecc.PublicKey
 }
-
-type WeightType uint16

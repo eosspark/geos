@@ -1,29 +1,46 @@
 package types
 
 import (
+	"fmt"
 	"github.com/eosspark/eos-go/common"
+	"github.com/eosspark/eos-go/ecc"
+	"strings"
 )
 
+type WeightType uint16
+
+type Permission struct {
+	PermName     string    `json:"perm_name"`
+	Parent       string    `json:"parent"`
+	RequiredAuth Authority `json:"required_auth"`
+}
+
+type PermissionLevel struct {
+	Actor      common.AccountName    `json:"actor"`
+	Permission common.PermissionName `json:"permission"`
+}
+
 type PermissionLevelWeight struct {
-	Permission common.PermissionLevel `json:"permission"`
-	Weight     common.WeightType      `json:"weight"` // weight_type
+	Permission PermissionLevel `json:"permission"`
+	Weight     WeightType      `json:"weight"` // weight_type
 }
 
 type KeyWeight struct {
-	Key    common.PublicKeyType `json:"key"`
-	Weight common.WeightType    `json:"weight"`
+	// Key    common.PublicKeyType `json:"key"`
+	Key    ecc.PublicKey `json:"key"`
+	Weight WeightType    `json:"weight"`
 }
 
 type WaitWeight struct {
-	WaitSec uint32            `json:"wait_sec"`
-	Weight  common.WeightType `json:"weight"`
+	WaitSec uint32     `json:"wait_sec"`
+	Weight  WeightType `json:"weight"`
 }
 
 type Authority struct {
 	Threshold uint32                  `json:"threshold"`
-	Keys      []KeyWeight             `json:"keys"`
-	Accounts  []PermissionLevelWeight `json:"accounts"`
-	Waits     []WaitWeight            `json:"waits"`
+	Keys      []KeyWeight             `json:"keys,omitempty"`
+	Accounts  []PermissionLevelWeight `json:"accounts,omitempty"`
+	Waits     []WaitWeight            `json:"waits,omitempty"`
 }
 
 type SharedAuthority struct {
@@ -31,6 +48,35 @@ type SharedAuthority struct {
 	Keys      []KeyWeight             `json:"keys"`
 	Accounts  []PermissionLevelWeight `json:"accounts"`
 	Waits     []WaitWeight            `json:"waits"`
+}
+
+// NewPermissionLevel parses strings like `account@active`,
+// `otheraccount@owner` and builds a PermissionLevel struct. It
+// validates that there is a single optional @ (where permission
+// defaults to 'active'), and validates length of account and
+// permission names.
+func NewPermissionLevel(in string) (out PermissionLevel, err error) {
+	parts := strings.Split(in, "@")
+	if len(parts) > 2 {
+		return out, fmt.Errorf("permission %q invalid, use account[@permission]", in)
+	}
+
+	if len(parts[0]) > 12 {
+		return out, fmt.Errorf("account name %q too long", parts[0])
+	}
+
+	out.Actor = common.AccountName(common.StringToName(parts[0]))
+	out.Permission = common.PermissionName(common.StringToName("active"))
+
+	if len(parts) == 2 {
+		if len(parts[1]) > 12 {
+			return out, fmt.Errorf("permission %q name too long", parts[1])
+		}
+
+		out.Permission = common.PermissionName(common.StringToName("active"))
+	}
+
+	return
 }
 
 func (auth Authority) Equals(author Authority) bool {

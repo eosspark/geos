@@ -1,23 +1,9 @@
 package exec
 
 import (
-	//	"errors"
-	"bytes"
-	"errors"
+	"encoding/hex"
 	"fmt"
-	"log"
-	"reflect"
-
-	//"math"
-	//"os"
-	"strings"
-
-	"github.com/eosspark/eos-go/common"
-	"github.com/eosspark/eos-go/cvm/wasm"
-)
-
-var (
-	ignore bool
+	"strconv"
 )
 
 // void prints(null_terminated_ptr str) {
@@ -25,8 +11,14 @@ var (
 //     context.console_append<const char*>(str);
 //  }
 // }
-func prints(wasmInterface *WasmInterface, str int) {
+func prints(w *WasmInterface, str int) {
 	fmt.Println("prints")
+
+	if !ignore {
+		s := getString(w, str)
+		w.context.ContextAppend(s)
+	}
+
 }
 
 // void prints_l(array_ptr<const char> str, size_t str_len ) {
@@ -34,8 +26,12 @@ func prints(wasmInterface *WasmInterface, str int) {
 //     context.console_append(string(str, str_len));
 //  }
 // }
-func prints_l(wasmInterface *WasmInterface, str int, str_len size_t) {
+func printsl(w *WasmInterface, str int, strLen int) {
 	fmt.Println("prints_l")
+
+	s := string(w.vm.memory[str : str+strLen])
+	w.context.ContextAppend(s)
+
 }
 
 // void printi(int64_t val) {
@@ -43,8 +39,11 @@ func prints_l(wasmInterface *WasmInterface, str int, str_len size_t) {
 //     context.console_append(val);
 //  }
 // }
-func printi(wasmInterface *WasmInterface, val int64) {
+func printi(w *WasmInterface, val int64) {
 	fmt.Println("printi")
+
+	s := strconv.FormatInt(val, 10)
+	w.context.ContextAppend(s)
 }
 
 // void printui(uint64_t val) {
@@ -52,8 +51,11 @@ func printi(wasmInterface *WasmInterface, val int64) {
 //     context.console_append(val);
 //  }
 // }
-func printui(wasmInterface *WasmInterface, val int64) {
+func printui(w *WasmInterface, val uint64) {
 	fmt.Println("printui")
+
+	s := strconv.FormatUint(val, 10)
+	w.context.ContextAppend(s)
 }
 
 // void printi128(const __int128& val) {
@@ -75,7 +77,7 @@ func printui(wasmInterface *WasmInterface, val int64) {
 //     context.console_append(fc::variant(v).get_string());
 //  }
 // }
-func printi128(wasmInterface *WasmInterface, val int) {
+func printi128(w *WasmInterface, val int) {
 	fmt.Println("printi128")
 }
 
@@ -85,7 +87,7 @@ func printi128(wasmInterface *WasmInterface, val int) {
 //     context.console_append(fc::variant(v).get_string());
 //  }
 // }
-func printui128(wasmInterface *WasmInterface, val int) {
+func printui128(w *WasmInterface, val int) {
 	fmt.Println("printui128")
 }
 
@@ -101,8 +103,12 @@ func printui128(wasmInterface *WasmInterface, val int) {
 //     console.precision( orig_prec );
 //  }
 // }
-func printsf(wasmInterface *WasmInterface, val Float32) {
+func printsf(w *WasmInterface, val float32) {
 	fmt.Println("printsf")
+
+	s := strconv.FormatFloat(float64(val), 'E', -1, 32)
+	w.context.ContextAppend(s)
+
 }
 
 // void printdf( double val ) {
@@ -117,8 +123,11 @@ func printsf(wasmInterface *WasmInterface, val Float32) {
 //     console.precision( orig_prec );
 //  }
 // }
-func printdf(wasmInterface *WasmInterface, val Float64) {
+func printdf(w *WasmInterface, val float64) {
 	fmt.Println("printdf")
+
+	s := strconv.FormatFloat(val, 'E', -1, 64)
+	w.context.ContextAppend(s)
 }
 
 // void printqf( const float128_t& val ) {
@@ -146,7 +155,7 @@ func printdf(wasmInterface *WasmInterface, val Float64) {
 //     console.precision( orig_prec );
 //  }
 // }
-func printqf(wasmInterface *WasmInterface, val int) {
+func printqf(w *WasmInterface, val int) {
 	fmt.Println("printqf")
 }
 
@@ -155,8 +164,11 @@ func printqf(wasmInterface *WasmInterface, val int) {
 //     context.console_append(value.to_string());
 //  }
 // }
-func printn(wasmInterface *WasmInterface, value int64) {
+func printn(w *WasmInterface, value int64) {
 	fmt.Println("printn")
+
+	s := toString(uint64(value))
+	w.context.ContextAppend(s)
 }
 
 // void printhex(array_ptr<const char> data, size_t data_len ) {
@@ -164,6 +176,12 @@ func printn(wasmInterface *WasmInterface, value int64) {
 //     context.console_append(fc::to_hex(data, data_len));
 //  }
 // }
-func printhex(wasmInterface *WasmInterface, data int, data_len size_t) {
+func printhex(w *WasmInterface, data int, data_len int) {
 	fmt.Println("printhex")
+
+	bytes := w.vm.memory[data : data+data_len]
+	s := hex.EncodeToString(bytes)
+
+	w.context.ContextAppend(s)
+
 }

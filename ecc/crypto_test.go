@@ -87,3 +87,20 @@ func TestSignature(t *testing.T) {
 
 	assert.True(t, signature.Verify(digest, privKey.PublicKey()))
 }
+
+func TestPubCompare(t *testing.T) {
+	wif1 := "5KYZdUEo39z3FPrtuX2QbbwGnNP5zTd7yyr2SC1j299sBCnWjss"
+	privKey1, err := NewPrivateKey(wif1)
+	require.NoError(t, err)
+
+	wif2 := "5KYZdUEo39z3FPrtuX2QbbwGnNP5zTd7yyr2SC1j299sBCnWjss"
+	privKey2, err := NewPrivateKey(wif2)
+	require.NoError(t, err)
+	assert.True(t, privKey1.PublicKey().Compare(privKey2.PublicKey()))
+
+	wif3 := "5JGFVCESmDHEK4HWY5CEYxh5xQfg8vJpUVhcEUJLXsHPXfPhkDU"
+	privKey3, err := NewPrivateKey(wif3)
+	require.NoError(t, err)
+	assert.Equal(t, false, privKey1.PublicKey().Compare(privKey3.PublicKey()))
+
+}

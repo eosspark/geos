@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/eosspark/eos-go/db/storm"
+	"github.com/eosspark/eos-go/db/storm/q"
 	"path/filepath"
 	"reflect"
 	"sync"
@@ -115,6 +116,21 @@ func (db *base) insert(data interface{}) error {
 	if err != nil {
 		return err
 	}
+	// tx, err := db.db.Begin(true)
+	// if err != nil {
+	//	return err
+	//	}//
+	//	err = tx.Save(data)
+	//	if err != nil {
+	//		tx.Rollback()
+	//		return err
+	//	}
+	//	err = tx.Commit()
+	//	if err != nil {
+	//		tx.Rollback()
+	//		return err
+	//	}
+	//	return nil
 	return db.db.Save(data)
 }
 
@@ -144,6 +160,10 @@ func (db *base) update(old interface{}, fn func(interface{}) error) error {
 	return db.updateItem(old)
 }
 
+func (db *base) updateObject(new_ interface{}) error {
+	return db.updateItem(new_)
+}
+
 func (db *base) byIndex(fieldName string, to interface{}) error {
 	return db.db.AllByIndex(fieldName, to)
 }
@@ -158,6 +178,14 @@ func (db *base) find(fieldName string, value interface{}, to interface{}) error 
 
 func (db *base) get(fieldName string, fieldValue interface{}, to interface{}) error {
 	return db.db.Find(fieldName, fieldValue, to)
+}
+
+func (db *base) lowerBound(fieldName string, value interface{}, out interface{}) error {
+	return db.db.Select(q.Lte(fieldName, value)).Find(out)
+}
+
+func (db *base) upperBound(fieldName string, value interface{}, out interface{}) error {
+	return db.db.Select(q.Gt(fieldName, value)).Find(out)
 }
 
 func (db *base) updateField(data interface{}, fieldName string, value interface{}) error {
@@ -394,6 +422,14 @@ func (undo *DataBase) Update(old interface{}, fn func(interface{}) error) error 
 	return nil
 }
 
+func (undo *DataBase) UpdateObject(old interface{}, new_ interface{}) error {
+	if reflect.TypeOf(old) != reflect.TypeOf(new_) {
+		return errors.New("type not found")
+		//return errors.New(reflect.TypeOf(old), " --> ", reflect.TypeOf(new_))
+	}
+	return undo.db.updateObject(new_)
+}
+
 func (undo *DataBase) All(data interface{}) error {
 	return undo.db.all(data)
 }
@@ -404,6 +440,14 @@ func (undo *DataBase) Find(fieldName string, value interface{}, to interface{}) 
 
 func (undo *DataBase) Get(fieldName string, fieldValue interface{}, to interface{}) error {
 	return undo.db.get(fieldName, fieldValue, to)
+}
+
+func (undo *DataBase) LowerBound(fieldName string, value interface{}, out interface{}) error {
+	return undo.db.lowerBound(fieldName, value, out)
+}
+
+func (undo *DataBase) UpperBound(fieldName string, value interface{}, out interface{}) error {
+	return undo.db.upperBound(fieldName, value, out)
 }
 
 func (undo *DataBase) ByIndex(fieldName string, to interface{}) error {
@@ -603,19 +647,34 @@ func Update() {
 	}
 	defer db.Close()
 
-	fn := func(data interface{}) error {
-		ref := reflect.ValueOf(data).Elem()
-		if ref.CanSet() {
-			ref.Field(1).SetString("linx")
-			ref.Field(2).SetInt(110)
-		} else {
-			fmt.Println("ref can not set")
-			// error log ?
-		}
-		return nil
+	//	fn := func(data interface{}) error {
+	//		ref := reflect.ValueOf(data).Elem()
+	//		if ref.CanSet() {
+	//			ref.Field(1).SetString("linx")
+	//			ref.Field(2).SetInt(110)
+	//		} else {
+	//			fmt.Println("ref can not set")
+	//			// error log ?
+	//		}
+	//		return nil
+	//	}
+
+	var it Item
+	err = db.Find("ID", 2, &it)
+	if err != nil {
+		fmt.Println("find failed")
 	}
-	it := Item{ID: 2, Name: "fox", Tag: 100}
-	err = db.Update(&it, fn)
+	fmt.Println(it)
+
+	it_ := Item{ID: 2, Name: "fox", Tag: 100}
+	err = db.UpdateObject(&it, it_)
+	if err != nil {
+		fmt.Println("updata failed")
+	}
+
+	var items []Item
+
+	err = db.All(&items)
 	if err != nil {
 		fmt.Println("updata failed")
 	}

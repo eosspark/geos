@@ -19,7 +19,7 @@ type BlockHeader struct {
 }
 
 func (b *BlockHeader) Digest() rlp.Sha256 {
-	return rlp.Hash(*b)
+	return rlp.Hash256(*b)
 }
 
 func (b *BlockHeader) BlockNumber() uint32 {

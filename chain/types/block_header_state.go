@@ -172,8 +172,8 @@ func (bs *BlockHeaderState) SetConfirmed(numPrevBlocks uint16) {
 }
 
 func (bs *BlockHeaderState) SigDigest() rlp.Sha256 {
-	headerBmroot := rlp.Hash(common.Pair{bs.Header, bs.BlockrootMerkle.GetRoot()})
-	digest := rlp.Hash(common.Pair{headerBmroot, bs.PendingScheduleHash})
+	headerBmroot := rlp.Hash256(common.Pair{bs.Header, bs.BlockrootMerkle.GetRoot()})
+	digest := rlp.Hash256(common.Pair{headerBmroot, bs.PendingScheduleHash})
 	return digest
 }
 
@@ -185,7 +185,7 @@ func (bs *BlockHeaderState) SetNewProducers(pending SharedProducerScheduleType) 
 		panic("cannot set new pending producers until last pending is confirmed")
 	}
 	bs.Header.NewProducers = &pending
-	bs.PendingScheduleHash = rlp.Hash(*bs.Header.NewProducers)
+	bs.PendingScheduleHash = rlp.Hash256(*bs.Header.NewProducers)
 	bs.PendingSchedule = *bs.Header.NewProducers.ProducerScheduleType()
 	bs.PendingScheduleLibNum = bs.BlockNum
 }

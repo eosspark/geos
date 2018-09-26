@@ -1,34 +1,24 @@
 package exec
 
 import (
-	//	"errors"
-	"bytes"
-	"errors"
 	"fmt"
-	"log"
-	"reflect"
-
-	//"math"
-	//"os"
-	"strings"
 
 	//"github.com/eosspark/eos-go/chain"
 	"github.com/eosspark/eos-go/common"
-	"github.com/eosspark/eos-go/cvm/wasm"
 )
 
 // int is_feature_active( int64_t feature_name ) {
 //          return false;
 // }
-func is_feature_active(wasmInterface *WasmInterface, feature_name int64) int {
+func isFeatureActive(w *WasmInterface, featureName int64) int {
 	fmt.Println("is_feature_active")
-	return false
+	return b2i(false)
 }
 
 // void activate_feature( int64_t feature_name ) {
 //  EOS_ASSERT( false, unsupported_feature, "Unsupported Hardfork Detected" );
 // }
-func activate_feature(wasmInterface *WasmInterface, feature_name int64) {
+func activateFeature(w *WasmInterface, featureName int64) {
 	fmt.Println("activate_feature")
 	//EOS_ASSERT( false, unsupported_feature, "Unsupported Hardfork Detected" );
 }
@@ -41,35 +31,26 @@ func activate_feature(wasmInterface *WasmInterface, feature_name int64) {
 //     context.trx_context.validate_ram_usage.insert( account );
 //  }
 // }
-func set_resource_limits(wasmInterface *WasmInterface, account AccountName, ramBytes int64, netWeight int64, cpuWeigth int64) {
+func setResourceLimits(w *WasmInterface, account common.AccountName, ramBytes uint64, netWeight uint64, cpuWeigth uint64) {
 	fmt.Println("set_resource_limits")
+
+	w.context.SetResourceLimits(account, ramBytes, netWeight, cpuWeigth)
 
 }
 
 // void get_resource_limits( account_name account, int64_t& ram_bytes, int64_t& net_weight, int64_t& cpu_weight ) {
 //  context.control.get_resource_limits_manager().get_account_limits( account, ram_bytes, net_weight, cpu_weight);
 // }
-func get_resource_limits(wasmInterface *WasmInterface, account AccountName, ramBytes *int, netWeight *int, cpuWeigth *int) {
+func getResourceLimits(w *WasmInterface, account common.AccountName, ramBytes int, netWeight int, cpuWeigth int) {
 	fmt.Println("get_resource_limits")
-}
 
-// int64_t set_proposed_producers( array_ptr<char> packed_producer_schedule, size_t datalen) {
-//  datastream<const char*> ds( packed_producer_schedule, datalen );
-//  vector<producer_key> producers;
-//  fc::raw::unpack(ds, producers);
-//  EOS_ASSERT(producers.size() <= config::max_producers, wasm_execution_error, "Producer schedule exceeds the maximum producer count for this chain");
-//  // check that producers are unique
-//  std::set<account_name> unique_producers;
-//  for (const auto& p: producers) {
-//     EOS_ASSERT( context.is_account(p.producer_name), wasm_execution_error, "producer schedule includes a nonexisting account" );
-//     EOS_ASSERT( p.block_signing_key.valid(), wasm_execution_error, "producer schedule includes an invalid key" );
-//     unique_producers.insert(p.producer_name);
-//  }
-//  EOS_ASSERT( producers.size() == unique_producers.size(), wasm_execution_error, "duplicate producer name in producer schedule" );
-//  return context.control.set_proposed_producers( std::move(producers) );
-// }
-func set_proposed_producers(wasmInterface *WasmInterface, packed_producer_schedule int, datalen size_t) {
-	fmt.Println("set_proposed_producers")
+	var r, n, c uint64
+	w.context.GetResourceLimits(account, &r, &n, &c)
+
+	setUint64(w, ramBytes, r)
+	setUint64(w, netWeight, n)
+	setUint64(w, cpuWeigth, c)
+
 }
 
 // uint32_t get_blockchain_parameters_packed( array_ptr<char> packed_blockchain_parameters, size_t buffer_size) {
@@ -85,8 +66,19 @@ func set_proposed_producers(wasmInterface *WasmInterface, packed_producer_schedu
 //  }
 //  return 0;
 // }
-func get_blockchain_parameters_packed(wasmInterface *WasmInterface, packed_blockchain_parameters int, buffer_size size_t) int {
+func getBlockchainParametersPacked(w *WasmInterface, packedBlockchainParameters int, buffer_size int) int {
 	fmt.Println("get_blockchain_parameters_packed")
+
+	p := w.context.GetBlockchainParametersPacked()
+	s := len(p)
+
+	if s <= buffer_size {
+		//copy(w.vm.memory[packedBlockchainParameters:packedBlockchainParameters+s], p[0:s])
+		setMemory(w, packedBlockchainParameters, 0, p, s)
+		return s
+	}
+
+	return 0
 }
 
 // void set_blockchain_parameters_packed( array_ptr<char> packed_blockchain_parameters, size_t datalen) {
@@ -99,15 +91,22 @@ func get_blockchain_parameters_packed(wasmInterface *WasmInterface, packed_block
 //          gprops.configuration = cfg;
 //  });
 // }
-func set_blockchain_parameters_packed(wasmInterface *WasmInterface, packed_blockchain_parameters int, datalen size_t) {
+func setBlockchainParametersPacked(w *WasmInterface, packedBlockchainParameters int, datalen int) {
 	fmt.Println("set_blockchain_parameters_packed")
+
+	// p := make([]byte, datalen)
+	// getMemory(w,packedBlockchainParameters, 0, p, datalen)
+	p := getMemory(w, packedBlockchainParameters, datalen)
+	w.context.SetBlockchainParametersPacked(p)
 }
 
 // bool is_privileged( account_name n )const {
 //  return context.db.get<account_object, by_name>( n ).privileged;
 // }
-func is_privileged(wasmInterface *WasmInterface, n AccountName) int {
+func isPrivileged(w *WasmInterface, n common.AccountName) int {
 	fmt.Println("is_privileged")
+
+	return b2i(w.context.IsPrivileged(n))
 }
 
 // void set_privileged( account_name n, bool is_priv ) {
@@ -116,6 +115,8 @@ func is_privileged(wasmInterface *WasmInterface, n AccountName) int {
 //     ma.privileged = is_priv;
 //  });
 // }
-func set_privileged(wasmInterface *WasmInterface, n AccountName, is_priv int) {
+func setPrivileged(w *WasmInterface, n common.AccountName, isPriv int) {
 	fmt.Println("set_privileged")
+
+	w.context.SetPrivileged(n, i2b(isPriv))
 }

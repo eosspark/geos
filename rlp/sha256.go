@@ -5,13 +5,26 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
+	"hash"
 )
 
 type Sha256 struct {
-	Hash_ [4]uint64 `eos:"hash"`
+	Hash_ [4]uint64 `eos:"array"`
 }
 
-func NewSha256(s string) *Sha256 {
+func NewSha256() hash.Hash {
+	return sha256.New()
+}
+
+func NewSha256Nil() *Sha256{
+	data :=[4]uint64{0,0,0,0}
+	return &Sha256{
+		Hash_:data,
+	}
+
+}
+
+func NewSha256String(s string) *Sha256 {
 	bytes, err := hex.DecodeString(s)
 	if err != nil {
 		panic(err)
@@ -25,7 +38,19 @@ func NewSha256(s string) *Sha256 {
 	return result
 }
 
-func Hash(t interface{}) Sha256 {
+func NewSha256Byte(s []byte) *Sha256 {
+	result := new(Sha256)
+	//if len(s) <32{
+	//	return nil,errors.New("the length of slice is less then 32")
+	//}
+
+	for i := range result.Hash_ {
+		result.Hash_[i] = binary.LittleEndian.Uint64(s[i*8 : (i+1)*8])
+	}
+	return result
+}
+
+func Hash256(t interface{}) Sha256 {
 	cereal, err := EncodeToBytes(t)
 	if err != nil {
 		panic(err)

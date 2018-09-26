@@ -74,7 +74,7 @@ func TestHostCall(t *testing.T) {
 
 	// Once called, NewVM will execute the module's main
 	// function.
-	vm, err := NewVM(m)
+	vm, err := NewVM(m, nil)
 	if err != nil {
 		t.Fatalf("Error creating VM: %v", vm)
 	}
@@ -141,7 +141,7 @@ func TestHostSymbolCall(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Could not read module: %v", err)
 	}
-	vm, err := NewVM(m)
+	vm, err := NewVM(m, nil)
 	if err != nil {
 		t.Fatalf("Could not instantiate vm: %v", err)
 	}

@@ -2,7 +2,6 @@ package config
 
 import (
 	"github.com/eosspark/eos-go/common"
-	"github.com/eosspark/eos-go/cvm/exec"
 )
 
 var SystemAccountName = common.StringToName("eosio")
@@ -28,4 +27,4 @@ var DefaultStateGuardSize uint64 = 0
 var DefaultReversibleCacheSize uint64 = 0
 var DefaultReversibleGuardSize uint64 = 0
 
-var DefaultWasmRuntime = exec.WasmInterface{}
+//var DefaultWasmRuntime = exec.WasmInterface{}

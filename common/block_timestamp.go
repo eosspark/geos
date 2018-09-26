@@ -78,3 +78,8 @@ func (t *BlockTimeStamp) UnmarshalJSON(data []byte) (err error) {
 	*t = BlockTimeStamp(slot)
 	return err
 }
+
+func (t BlockTimeStamp) Totime() time.Time {
+	slot := int64(t)*DefaultConfig.BlockIntervalMs*1000000 + DefaultConfig.BlockTimestamoEpochNanos //为了显示0.5s
+	return time.Unix(0, int64(slot)).UTC()
+}

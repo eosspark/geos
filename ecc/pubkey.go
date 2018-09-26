@@ -16,7 +16,7 @@ const PublicKeyPrefixCompat = "EOS"
 
 type PublicKey struct {
 	Curve   CurveID
-	Content [33]byte
+	Content [33]byte `eos:"array"`
 }
 
 func NewPublicKey(pubKey string) (out PublicKey, err error) {
@@ -151,4 +151,15 @@ func (p *PublicKey) UnmarshalJSON(data []byte) error {
 	*p = newKey
 
 	return nil
+}
+
+func (p PublicKey) Compare(pub PublicKey) bool {
+	if p.Curve != pub.Curve {
+		return false
+	}
+	if p.Content != pub.Content{
+		return false
+	}
+	return true
+
 }
