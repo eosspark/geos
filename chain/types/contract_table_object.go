@@ -15,7 +15,6 @@ type Object struct {
 }
 
 type TableIDObject struct {
-	//Object
 	ID    IdType `storm:"id,increment"`
 	Code  common.AccountName
 	Scope common.ScopeName
@@ -34,27 +33,16 @@ type TableIDMultiIndex struct {
 	TableIDObject
 	Id  IdType           `storm:"id,increment"`
 	Bst ByCodeScopeTable `strom:"unique"`
-	/*Bst struct{
-		Code  common.AccountName
-		Scope common.ScopeName
-		Table common.TableName
-	} `strom:"unique"`*/
 }
 
 type KeyValueObject struct {
-	//Object
 	KeyType      KeyType
 	NumberOfKeys int //default 1
-	ID           IdType
+	ID           IdType				`storm:"id,increment"`
 	TId          IdType
 	PrimaryKey   uint64
 	Payer        common.AccountName
-	Value        *string // c++ SharedString TODO
-}
-
-type KeyValueIndex struct {
-	KeyValueObject
-	ID                IdType `strom:"id unique"`
+	Value        common.HexBytes // c++ SharedString
 	ByScopePrimaryKey struct {
 		TID        IdType
 		PrimaryKey uint64
