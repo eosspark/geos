@@ -1,18 +1,18 @@
 package histtory_plugin
 
 import (
-	"testing"
 	"fmt"
-	"time"
 	"github.com/eosspark/eos-go/db"
+	"testing"
+	"time"
 
 	"github.com/eosspark/eos-go/common"
 )
 
-func Test_AddAccountHistoryObject(t *testing.T){
+func Test_AddAccountHistoryObject(t *testing.T) {
 	db, err := eosiodb.NewDataBase("./", "shared_memory.bin", true)
 	if err != nil {
-		fmt.Println("Test_AddAccountHistoryObject is error detail:",err.Error())
+		fmt.Println("Test_AddAccountHistoryObject is error detail:", err.Error())
 	}
 	defer db.Close()
 
@@ -21,7 +21,7 @@ func Test_AddAccountHistoryObject(t *testing.T){
 	aho.AccountSequenceNum = int32(2)
 	aho.ActionSequenceNum = uint64(aho.AccountSequenceNum)
 	err = db.Insert(&aho)
-	if err !=nil{
+	if err != nil {
 		fmt.Println(err.Error())
 		return
 	}
@@ -32,13 +32,13 @@ func Test_AddAccountHistoryIndex(t *testing.T) {
 	fmt.Println(time.Now())
 	db, err := eosiodb.NewDataBase("./", "shared_memory.bin", true)
 	if err != nil {
-		fmt.Println("Test_AddAccountHistoryIndex is error detail:",err.Error())
+		fmt.Println("Test_AddAccountHistoryIndex is error detail:", err.Error())
 	}
 	defer db.Close()
 
 	aho := AccountHistoryObject{}
-	err = db.Get("ID",1,&aho)
-	if err != nil{
+	err = db.Get("ID", 1, &aho)
+	if err != nil {
 		fmt.Println(err.Error())
 		return
 	}
@@ -53,14 +53,13 @@ func Test_AddAccountHistoryIndex(t *testing.T) {
 		AddAccountHistoryIndex(db, aho)
 	}*/
 
-
 	fmt.Println(time.Now())
 }
 
 func Test_GetAccountHistoryIndex(t *testing.T) {
 	db, err := eosiodb.NewDataBase("./", "shared_memory.bin", true)
 	if err != nil {
-		fmt.Println("Test_GetAccountHistoryIndex is error detail:",err.Error())
+		fmt.Println("Test_GetAccountHistoryIndex is error detail:", err.Error())
 	}
 	defer db.Close()
 
@@ -73,10 +72,10 @@ func Test_GetAccountHistoryIndex(t *testing.T) {
 	fmt.Println(result)*/
 
 	//results := []AccountHistoryIndex{}
-	var results  []AccountHistoryIndex
+	var results []AccountHistoryIndex
 
 	err = db.All(&results)
-	if err != nil{
+	if err != nil {
 		fmt.Println(err.Error())
 	}
 	fmt.Println(results)

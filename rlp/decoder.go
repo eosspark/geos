@@ -95,7 +95,7 @@ type Decoder struct {
 	pos      int
 	optional bool
 	vuint32  bool
-	hash     bool
+	eosArray bool
 }
 
 func NewDecoder(data []byte) *Decoder {
@@ -124,7 +124,8 @@ func (d *Decoder) decode(v interface{}) (err error) {
 
 	if d.optional {
 		d.optional = false
-		println("optinoal")
+		println("optional")
+
 		isPresent, e := d.readByte()
 		if e != nil {
 			err = fmt.Errorf("decode: OptionalProducerSchedule isPresent, %s", e)
@@ -141,15 +142,6 @@ func (d *Decoder) decode(v interface{}) (err error) {
 			}
 		}
 		return
-	} else if d.hash {
-		d.hash = false
-		fmt.Println("hash")
-
-		//s,err :=readSHA256Bytes()
-		//if err != nil{
-		//	return
-		//}
-
 	}
 
 	if d.vuint32 {
@@ -164,10 +156,18 @@ func (d *Decoder) decode(v interface{}) (err error) {
 	case reflect.Array:
 		print("Reading Array")
 		len := t.Len()
-		l, _ := d.readUvarint()
-		if len != int(l) {
-			fmt.Println("the length of array is wrong", len, l)
+
+		if !d.eosArray {
+			var l uint64
+			if l, err = d.readUvarint(); err != nil {
+				return
+			}
+			if int(l) != len {
+				print("the l is not equal to len of array")
+			}
 		}
+		d.eosArray = false
+
 		for i := 0; i < int(len); i++ {
 			if err = d.decode(rv.Index(i).Addr().Interface()); err != nil {
 				return
@@ -303,8 +303,8 @@ func (d *Decoder) decodeStruct(v interface{}, t reflect.Type, rv reflect.Value) 
 		case "vuint32":
 			d.vuint32 = true
 			// fmt.Println("276 walker", d.vuint32)
-		case "hash":
-			d.hash = true
+		case "array":
+			d.eosArray = true
 		}
 
 		if v := rv.Field(i); v.CanSet() && t.Field(i).Name != "_" {

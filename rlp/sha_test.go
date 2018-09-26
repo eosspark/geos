@@ -99,4 +99,28 @@ func TestHash(t *testing.T) {
 	//fmt.Printf("twice: %x\n", result)
 }
 
+func TestHashArray(t *testing.T) {
 
+	ccc := [4]int{1, 2, 3, 4}
+	check1 := [4]uint64{0xc6895e8c3f82d1af, 0xe67215330aa2b680, 0xe11dd3dd62c3b13a, 0xb3a379ee2dd73853}
+	h := Hash256(ccc).Hash_
+	assert.Equal(t, h, check1)
+
+	check2 := [4]uint64{
+		0x681f30cfa3bd116a, 0x3b5edac83ec7fa75, 0xfbd14f61baee7e8, 0xd5fae22e1b86e7d3,
+	}
+	h2 := Hash256(Hash256(ccc)).Hash_
+	assert.Equal(t, h2, check2)
+
+	check3 := [4]uint64{
+		0xfff0241072ddab67, 0xc53bc12f4c3f0b4e, 0x56d451780b2dd4ba, 0x50a4aa153d208dd8,
+	}
+
+	h3 := Hash256(1).Hash_
+	assert.Equal(t, h3, check3)
+
+	check4 := [4]uint64{0x8d07cce5f258f741, 0x2d0cb60cfcb49537, 0x2b5720c02ca95f73, 0x1bd164d5d22d98dc}
+	h4 := Hash256(Hash256(1)).Hash_
+	assert.Equal(t, h4, check4)
+
+}

@@ -9,12 +9,19 @@ import (
 )
 
 type Sha1 struct {
-	Hash_ [5]uint32 `eos:"hash"`
+	Hash_ [5]uint32 `eos:"array"`
 }
 
 func NewSha1() hash.Hash {
 	return sha1.New()
 }
+func NewSha1Nil()*Sha1{
+	data :=[5]uint32{0,0,0,0,0}
+	return &Sha1{
+		Hash_:data,
+	}
+}
+
 
 func NewSha1String(s string) *Sha1 {
 	bytes, err := hex.DecodeString(s)
