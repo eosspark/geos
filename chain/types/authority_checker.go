@@ -19,14 +19,14 @@ type AuthorityChecker struct {
 
 type PermissionCacheStatus uint64
 
-const(
+const (
 	_ PermissionCacheStatus = iota
 	BeingEvaluated
 	PermissionUnsatisfied
 	PermissionSatisfied
 )
 
-type PermissionCacheType map[common.PermissionLevel] PermissionCacheStatus
+type PermissionCacheType map[common.PermissionLevel]PermissionCacheStatus
 
 type WeightTallyVisitor struct {
 	Checker          AuthorityChecker
@@ -35,15 +35,15 @@ type WeightTallyVisitor struct {
 	TotalWeight      uint32
 }
 
-func MakeAuthChecker (pta PermissionToAuthorityFunc,
-	                  recursionDepthLimit uint16,
-	                  providedKeys []common.PublicKeyType,
-	                  providedPermission []common.PermissionLevel,
-	                  providedDelay time.Duration,
-	                  checkTime types.Func) AuthorityChecker {
+func MakeAuthChecker(pta PermissionToAuthorityFunc,
+	recursionDepthLimit uint16,
+	providedKeys []common.PublicKeyType,
+	providedPermission []common.PermissionLevel,
+	providedDelay time.Duration,
+	checkTime types.Func) AuthorityChecker {
 	//noopChecktime := func() {}
-	return AuthorityChecker{ permissionToAuthority: pta, RecursionDepthLimit: recursionDepthLimit,
-	                  ProvidedKeys: providedKeys, ProvidePermissions: providedPermission,
-	                  ProvideDelay: providedDelay, CheckTime: checkTime,
-	                 }
+	return AuthorityChecker{permissionToAuthority: pta, RecursionDepthLimit: recursionDepthLimit,
+		ProvidedKeys: providedKeys, ProvidePermissions: providedPermission,
+		ProvideDelay: providedDelay, CheckTime: checkTime,
+	}
 }

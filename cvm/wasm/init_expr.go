@@ -11,7 +11,7 @@ import (
 	"io"
 	"math"
 
-	"github.com/eosgo/cvm/wasm/leb128"
+	"github.com/eosspark/eos-go/cvm/wasm/leb128"
 )
 
 const (

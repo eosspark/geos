@@ -189,10 +189,10 @@ func newBase(path string, name string, rw bool /*read and  write*/) (*base, erro
 
 /////////////////////////////////////////////////////// DataBase  //////////////////////////////////////////////////////////
 type DataBase struct {
-	Db      *base
-	Stack   *deque
-	Version uint64
-	Flag    bool
+	db      *base
+	stack   *deque
+	version uint64
+	flag    bool
 }
 
 func NewDataBase(path string, name string, rw bool) (*DataBase, error) {
@@ -200,18 +200,18 @@ func NewDataBase(path string, name string, rw bool) (*DataBase, error) {
 	if err != nil {
 		return nil, err
 	}
-	return &DataBase{Db: db, Stack: newDeque()}, nil
+	return &DataBase{db: db, stack: newDeque()}, nil
 }
 
 func (undo *DataBase) Close() {
-	undo.Db.close()
-	if undo.Flag {
+	undo.db.close()
+	if undo.flag {
 		undo.undo()
 	}
 }
 
 func (undo *DataBase) commit(version uint64) {
-	if !undo.Flag {
+	if !undo.flag {
 		return
 	}
 	for {
@@ -220,8 +220,8 @@ func (undo *DataBase) commit(version uint64) {
 			break
 		}
 		if stack.version <= version {
-			undo.Stack.PopFront()
-			undo.Version--
+			undo.stack.PopFront()
+			undo.version--
 		} else {
 			break
 		}
@@ -229,12 +229,12 @@ func (undo *DataBase) commit(version uint64) {
 }
 
 func (undo *DataBase) squash() {
-	if !undo.Flag {
+	if !undo.flag {
 		return
 	}
-	if undo.Stack.Size() == 1 {
-		undo.Stack.Pop()
-		undo.Version--
+	if undo.stack.Size() == 1 {
+		undo.stack.Pop()
+		undo.version--
 		return
 	}
 	stack := undo.getStack()
@@ -270,12 +270,12 @@ func (undo *DataBase) squash() {
 		}
 		prestack.RemoveValue[key] = value
 	}
-	undo.Stack.Pop()
-	undo.Version--
+	undo.stack.Pop()
+	undo.version--
 }
 
 func (undo *DataBase) undo() {
-	if !undo.Flag {
+	if !undo.flag {
 		return
 	}
 	stack := undo.getStack()
@@ -283,28 +283,28 @@ func (undo *DataBase) undo() {
 		return
 	}
 	for key, _ := range stack.OldValue {
-		undo.Db.updateItem(key)
+		undo.db.updateItem(key)
 	}
 	for key, _ := range stack.NewValue {
-		undo.Db.remove(key)
+		undo.db.remove(key)
 	}
 	for key, _ := range stack.RemoveValue {
-		undo.Db.insert(key)
+		undo.db.insert(key)
 	}
-	undo.Stack.Pop()
-	undo.Version--
+	undo.stack.Pop()
+	undo.version--
 }
 
 func (undo *DataBase) StartSession() *Session {
-	undo.Version++
-	undo.Flag = true
-	state := newUndoState(undo.Version)
-	undo.Stack.Append(state)
-	return &Session{Db: undo, apply: true, version: undo.Version}
+	undo.version++
+	undo.flag = true
+	state := newUndoState(undo.version)
+	undo.stack.Append(state)
+	return &Session{db: undo, apply: true, version: undo.version}
 }
 
 func (undo *DataBase) getFirstStack() *undoState {
-	stack := undo.Stack.First()
+	stack := undo.stack.First()
 	switch typ := stack.(type) {
 	case *undoState:
 		return typ
@@ -316,7 +316,7 @@ func (undo *DataBase) getFirstStack() *undoState {
 }
 
 func (undo *DataBase) getSecond() *undoState {
-	stack := undo.Stack.LastSecond()
+	stack := undo.stack.LastSecond()
 	switch typ := stack.(type) {
 	case *undoState:
 		return typ
@@ -329,7 +329,7 @@ func (undo *DataBase) getSecond() *undoState {
 }
 
 func (undo *DataBase) getStack() *undoState {
-	stack := undo.Stack.Last()
+	stack := undo.stack.Last()
 	if stack == nil {
 		return nil
 	}
@@ -344,11 +344,11 @@ func (undo *DataBase) getStack() *undoState {
 }
 
 func (undo *DataBase) Insert(data interface{}) error {
-	err := undo.Db.insert(data)
+	err := undo.db.insert(data)
 	if err != nil {
 		return err
 	}
-	if !undo.Flag {
+	if !undo.flag {
 		return nil
 	}
 	stack := undo.getStack()
@@ -361,11 +361,11 @@ func (undo *DataBase) Insert(data interface{}) error {
 }
 
 func (undo *DataBase) Remove(data interface{}) error {
-	err := undo.Db.remove(data)
+	err := undo.db.remove(data)
 	if err != nil {
 		return err
 	}
-	if !undo.Flag {
+	if !undo.flag {
 		return nil
 	}
 	stack := undo.getStack()
@@ -379,11 +379,11 @@ func (undo *DataBase) Remove(data interface{}) error {
 
 func (undo *DataBase) Update(old interface{}, fn func(interface{}) error) error {
 	copy := copyInterface(old)
-	err := undo.Db.update(old, fn)
+	err := undo.db.update(old, fn)
 	if err != nil {
 		return err
 	}
-	if !undo.Flag {
+	if !undo.flag {
 		return nil
 	}
 	stack := undo.getStack()
@@ -395,24 +395,24 @@ func (undo *DataBase) Update(old interface{}, fn func(interface{}) error) error 
 }
 
 func (undo *DataBase) All(data interface{}) error {
-	return undo.Db.all(data)
+	return undo.db.all(data)
 }
 
 func (undo *DataBase) Find(fieldName string, value interface{}, to interface{}) error {
-	return undo.Db.find(fieldName, value, to)
+	return undo.db.find(fieldName, value, to)
 }
 
 func (undo *DataBase) Get(fieldName string, fieldValue interface{}, to interface{}) error {
-	return undo.Db.get(fieldName, fieldValue, to)
+	return undo.db.get(fieldName, fieldValue, to)
 }
 
 func (undo *DataBase) ByIndex(fieldName string, to interface{}) error {
-	return undo.Db.byIndex(fieldName, to)
+	return undo.db.byIndex(fieldName, to)
 }
 
 /////////////////////////////////////////////////////// Session  //////////////////////////////////////////////////////////
 type Session struct {
-	Db      *DataBase
+	db      *DataBase
 	version uint64
 	apply   bool
 }
@@ -423,7 +423,7 @@ func (session *Session) Commit() {
 		return
 	}
 	version := session.version
-	session.Db.commit(version)
+	session.db.commit(version)
 	session.apply = false
 }
 
@@ -431,7 +431,7 @@ func (session *Session) Squash() {
 	if !session.apply {
 		return
 	}
-	session.Db.squash()
+	session.db.squash()
 	session.apply = false
 }
 
@@ -439,7 +439,7 @@ func (session *Session) Undo() {
 	if !session.apply {
 		return
 	}
-	session.Db.undo()
+	session.db.undo()
 	session.apply = false
 }
 

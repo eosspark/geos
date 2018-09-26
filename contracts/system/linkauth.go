@@ -1,6 +1,7 @@
 package system
 
 import (
+	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 )
 
@@ -12,19 +13,19 @@ import (
 // `requiredPermission` to sign transactions for `code::actionName`
 // and not rely on your `active` (which might be more sensitive as it
 // can sign anything) for the given operation.
-func NewLinkAuth(account, code common.AccountName, actionName common.ActionName, requiredPermission common.PermissionName) *common.Action {
-	a := &common.Action{
+func NewLinkAuth(account, code common.AccountName, actionName common.ActionName, requiredPermission common.PermissionName) *types.Action {
+	a := &types.Action{
 		Account: common.AccountName(common.StringToName("eosio")),
 		Name:    common.ActionName(common.StringToName("linkauth")),
 		Authorization: []common.PermissionLevel{
 			{account, common.PermissionName(common.StringToName("active"))},
 		},
-		ActionData: common.NewActionData(LinkAuth{
-			Account:     account,
-			Code:        code,
-			Type:        actionName,
-			Requirement: requiredPermission,
-		}),
+		// Data: common.NewActionData(LinkAuth{//TODO
+		// 	Account:     account,
+		// 	Code:        code,
+		// 	Type:        actionName,
+		// 	Requirement: requiredPermission,
+		// }),
 	}
 
 	return a

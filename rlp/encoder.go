@@ -56,7 +56,7 @@ func EncodeToReader(val interface{}) (size int, r io.Reader, err error) {
 	return buf.Len(), bytes.NewReader(buf.Bytes()), nil
 }
 
-func EocodeSize(val interface{}) (int, error) {
+func EncodeSize(val interface{}) (int, error) {
 	buffer, err := EncodeToBytes(val)
 	if err != nil {
 		return 0, err

@@ -64,6 +64,17 @@ type Demo struct {
 	age  int
 }
 
+func Test_o(t *testing.T){
+	d := &Demo{"hehe", 7}
+	d1 := &Demo{"hehe", 9}
+	a := *d
+	b := *d1
+	if a==b{
+		fmt.Println("aaa")
+	}
+	fmt.Println("bbb")
+}
+
 func (d *Demo) Operation(n string, a int) *Demo {
 	d.name = "test"
 	d.age = a + 1
@@ -91,7 +102,7 @@ func Test_op(t *testing.T) {
 func Test_Op(t *testing.T) {
 	d := &Demo{"EOS", 30}
 	t1 := reflect.TypeOf(d)
-fmt.Println(t1.Name())
+	fmt.Println(t1.Name())
 	t2 := reflect.ValueOf(d)
 
 	for i := 0; i < t1.NumMethod(); i++ {
@@ -113,6 +124,14 @@ func Test_p(t *testing.T) {
 	}
 	//fmt.Println(p1.MethodByName("Operation").Call(params))
 	t1.MethodByName("Operation").Call(params)
+
+	LargeNumberNoOverflow := int64(^uint(64)>>1) / 2
+	fmt.Println(LargeNumberNoOverflow)
+
+	b := int(^uint(0)>>1) / 2
+	fmt.Println(b)
+
+	fmt.Println(int64(b) - LargeNumberNoOverflow)
 
 }
 

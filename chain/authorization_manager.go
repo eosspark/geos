@@ -31,7 +31,7 @@ func (am *AuthorizationManager) CreatePermission(account common.AccountName,
 	parent PermissionIdType,
 	auth common.Authority,
 	initialCreationTime time.Duration,
-) PermissionObject {
+) types.PermissionObject {
 	creationTime := initialCreationTime
 	if creationTime == 1 {
 		//createTime = pendingBlockTime
@@ -188,7 +188,7 @@ func (am *AuthorizationManager) CheckCanceldelayAuthorization(canceldelay system
 	//待完善
 }
 
-func (am *AuthorizationManager) CheckAuthorization(actions []common.Action,
+func (am *AuthorizationManager) CheckAuthorization(actions []types.Action,
 	providedKeys []common.PublicKeyType,
 	providedPermission []common.PermissionLevel,
 	providedDelay time.Time,

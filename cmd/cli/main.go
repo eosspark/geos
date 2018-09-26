@@ -5,7 +5,6 @@ import (
 	"gopkg.in/urfave/cli.v1"
 	"os"
 	"sort"
-	// "github.com/gin-gonic/gin"
 )
 
 func main() {
@@ -14,9 +13,19 @@ func main() {
 		walletCommand,
 		accountCommand,
 		getCommand,
+		SignCommand,
 	}
 	sort.Sort(cli.CommandsByName(app.Commands))
 	sort.Sort(cli.FlagsByName(app.Flags))
+
+	// app.Before = func(c *cli.Context) error {
+	// 	fmt.Fprintf(c.App.Writer, "EOSIO Client \n")
+	// 	return nil
+	// }
+	// app.After = func(c *cli.Context) error {
+	// 	fmt.Fprintf(c.App.Writer, "finish EOSIO Client\n")
+	// 	return nil
+	// }
 
 	err := app.Run(os.Args)
 	if err != nil {
@@ -24,7 +33,4 @@ func main() {
 		os.Exit(1)
 	}
 
-	// var Router *gin.Engine
-
-	// Router.POST()
 }

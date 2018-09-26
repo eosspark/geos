@@ -10,7 +10,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/eosgo/cvm/wasm"
+	"github.com/eosspark/eos-go/cvm/wasm"
 )
 
 func TestReadModule(t *testing.T) {

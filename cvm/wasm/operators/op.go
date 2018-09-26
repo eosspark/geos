@@ -9,7 +9,7 @@ package operators
 import (
 	"fmt"
 
-	"github.com/eosgo/cvm/wasm"
+	"github.com/eosspark/eos-go/cvm/wasm"
 )
 
 var (

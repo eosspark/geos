@@ -1,9 +1,12 @@
 package main
 
 const (
-	url       = "http://127.0.0.1:8888/"
-	walletUrl = "http://127.0.0.1:8900/"
+	chainUrl = "http://127.0.0.1:8888"
+	// walletUrl = "http://127.0.0.1:8900"
+	walletUrl = "http://127.0.0.1:8000"
 )
+
+type Variants map[string]interface{}
 
 const (
 	chainFuncBase           string = "/v1/chain"
@@ -53,5 +56,5 @@ const (
 	walletCreateKey  string = walletFuncBase + "/create_key"
 	walletSignTrx    string = walletFuncBase + "/sign_transaction"
 
-	keosdStop string = "/v1/keosd/stop"
+	// keosdStop string = "/v1/keosd/stop"
 )

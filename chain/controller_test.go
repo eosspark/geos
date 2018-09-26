@@ -9,7 +9,6 @@ package chain
 
 import (
 	"fmt"
-	"github.com/eosspark/eos-go/chain/types"
 	"testing"
 )
 
@@ -29,6 +28,6 @@ func TestAbortBlock(t *testing.T) {
 func TestSetApplayHandler(t *testing.T) {
 	con := NewController()
 	fmt.Println(con)
-	applyCon := types.ApplyContext{}
+	applyCon := ApplyContext{}
 	con.SetApplayHandler(111, 111, 111, applyCon)
 }

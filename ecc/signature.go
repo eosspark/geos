@@ -21,7 +21,7 @@ type Signature struct {
 // hash of the payload to verify.
 func (s Signature) Verify(hash []byte, pubKey PublicKey) bool {
 	if s.Curve != CurveK1 {
-		fmt.Println("WARN: github.com/eoscanada/eos-go/ecc library does not support the R1 curve yet")
+		fmt.Println("WARN: github.com/eosspark/eos-go/ecc library does not support the R1 curve yet")
 		return false
 	}
 
@@ -45,7 +45,7 @@ func (s Signature) Verify(hash []byte, pubKey PublicKey) bool {
 // you only want to validate.
 func (s Signature) PublicKey(hash []byte) (out PublicKey, err error) {
 	if s.Curve != CurveK1 {
-		return out, fmt.Errorf("WARN: github.com/eoscanada/eos-go/ecc library does not support the R1 curve yet")
+		return out, fmt.Errorf("WARN: github.com/eosspark/eos-go/ecc library does not support the R1 curve yet")
 	}
 
 	recoveredKey, _, err := btcec.RecoverCompact(btcec.S256(), s.Content, hash)

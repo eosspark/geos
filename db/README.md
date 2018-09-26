@@ -21,7 +21,8 @@ type Zoo struct {
 
 ### Test Code
 
-*** Repeat deposit***
+- Repeat deposit
+
 ``` go
 var zoo Zoo
 zoo.Name = "zoo"

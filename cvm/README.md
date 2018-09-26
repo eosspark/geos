@@ -15,9 +15,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/eosgo/common"
-	"github.com/eosgo/control"
-	"github.com/eosgo/cvm/exec"
+	"github.com/eosspark/eos-go/cvm/exec"
 )
 
 func main() {
@@ -37,11 +35,17 @@ func main() {
 		log.Fatal(err)
 	}
 
-	apply_context := &control.Apply_context{Receiver: common.AccountName(exec.N("walker")), Code: common.AccountName(exec.N("walker")), Action: common.ActionName(exec.N("hi"))}
-	
-	wasm := exec.NewWasm_interface()
-	wasm.Apply("00000000", code, apply_context)
+	wasm := exec.NewWasmInterface()
+
+	applyContext := &exec.ApplyContext{
+		Receiver: exec.AccountName(exec.N("walker")),
+		Contract: exec.AccountName(exec.N("walker")),
+		Action:   exec.ActionName(exec.N("hi")),
+	}
+
+	wasm.Apply("00000000", code, applyContext)
 
 }
 
-go run hello.wasm // from eos hello contract
+## go run hello.wasm
+// hello.wasm from eos hello contract

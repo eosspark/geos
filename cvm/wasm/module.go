@@ -10,7 +10,7 @@ import (
 	"reflect"
 
 	//"github.com/eosgo/control"
-	"github.com/eosgo/cvm/wasm/internal/readpos"
+	"github.com/eosspark/eos-go/cvm/wasm/internal/readpos"
 )
 
 var ErrInvalidMagic = errors.New("wasm: Invalid magic number")

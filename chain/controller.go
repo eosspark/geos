@@ -1,16 +1,17 @@
 package chain
 
 import (
-	"time"
 	"fmt"
+	"time"
 
+	types2 "github.com/eosspark/eos-go-09-07/chain/types"
 	"github.com/eosspark/eos-go/chain/config"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
+	"github.com/eosspark/eos-go/cvm/exec"
 	"github.com/eosspark/eos-go/db"
 	"github.com/eosspark/eos-go/log"
 	"github.com/eosspark/eos-go/rlp"
-	//"strconv"
 )
 
 type DBReadMode int8
@@ -22,13 +23,20 @@ const (
 	IRREVERSIBLE
 )
 
+type ValidationMode int8
+
+const (
+	FULL = ValidationMode(iota)
+	LIGHT
+)
+
 type HandlerKey struct {
 	handKey map[common.AccountName]common.AccountName
 }
 
 type applyCon struct {
 	handlerKey   map[common.AccountName]common.AccountName
-	applyContext types.ApplyContext
+	applyContext ApplyContext
 }
 
 //apply_context
@@ -49,32 +57,35 @@ type Config struct {
 	disableReplayOpts   bool
 	disableReplay       bool
 	contractsConsole    bool
-	//genesis_state TODO
-
+	genesis             types.GenesisState
+	vmType              exec.WasmInterface
+	readMode            DBReadMode
+	blockValidationMode ValidationMode
+	resourceGreylist    []common.AccountName
 }
 
 type Controller struct {
-	db                    eosiodb.DataBase
-	dbsession             *eosiodb.Session
-	reversibledb          eosiodb.DataBase
+	db           eosiodb.DataBase
+	dbsession    *eosiodb.Session
+	reversibledb eosiodb.DataBase
 	//reversibleBlocks      *eosiodb.Session
 	blog                  string //TODO
 	pending               *types.PendingState
 	head                  types.BlockState
 	forkDB                types.ForkDatabase
-	wasmif                string //TODO
-	resourceLimist        types.ResourceLimitsManager
-	authorization         string //TODO AuthorizationManager
+	wasmif                exec.WasmInterface
+	resourceLimist        ResourceLimitsManager
+	authorization         types2.AuthorizationManager
 	config                Config //local	Config
 	chainID               common.ChainIDType
 	rePlaying             bool
-	replayHeadTime        common.Tstamp //optional<common.Tstamp>
+	replayHeadTime        common.TimePoint //optional<common.Tstamp>
 	readMode              DBReadMode
-	inTrxRequiringChecks  bool          //if true, checks that are normally skipped on replay (e.g. auth checks) cannot be skipped
-	subjectiveCupLeeway   common.Tstamp //optional<common.Tstamp>
+	inTrxRequiringChecks  bool                //if true, checks that are normally skipped on replay (e.g. auth checks) cannot be skipped
+	subjectiveCupLeeway   common.Microseconds //optional<common.Tstamp>
 	handlerKey            HandlerKey
 	applyHandlers         ApplyHandler
-	unappliedTransactions map[[4]uint64]types.TransactionMetadata
+	unappliedTransactions map[rlp.Sha256]types.TransactionMetadata
 }
 
 func NewController() *Controller {
@@ -119,25 +130,26 @@ func (self Controller) PopBlock() {
 		var trx []types.TransactionMetadata = self.head.Trxs
 		step := 0
 		for ; step < len(trx); step++ {
-			self.unappliedTransactions[trx[step].SignedID] = trx[step]
+			self.unappliedTransactions[rlp.Sha256(trx[step].SignedID)] = trx[step]
 		}
 	}
 	self.head = prev
 	self.dbsession.Undo() //TODO
 }
 
-func newApplyCon(ac types.ApplyContext) *applyCon {
+func newApplyCon(ac ApplyContext) *applyCon {
 	a := applyCon{}
 	a.applyContext = ac
 	return &a
 }
-func (self Controller) SetApplayHandler(receiver common.AccountName, contract common.AccountName, action common.AccountName, handler types.ApplyContext) {
+func (self Controller) SetApplayHandler(receiver common.AccountName, contract common.AccountName, action common.AccountName, handler ApplyContext) {
 	h := make(map[common.AccountName]common.AccountName)
 	h[receiver] = contract
 	apply := newApplyCon(handler)
 	apply.handlerKey = h
 	t := make(map[common.AccountName]applyCon)
 	t[receiver] = *apply
+	//TODO common.types make_pair()
 	self.applyHandlers = ApplyHandler{t, receiver}
 	fmt.Println(self.applyHandlers)
 }
@@ -148,7 +160,7 @@ func (self Controller) AbortBlock() {
 			trx := append(self.pending.PendingBlockState.Trxs)
 			step := 0
 			for ; step < len(trx); step++ {
-				self.unappliedTransactions[trx[step].SignedID] = trx[step]
+				self.unappliedTransactions[rlp.Sha256(trx[step].SignedID)] = trx[step]
 			}
 		}
 	}
@@ -189,7 +201,7 @@ func (self Controller) StartBlock(when common.BlockTimeStamp, confirmBlockCount 
 				ps := types.SharedProducerScheduleType{}
 				ps.Version = tmp.Version
 				ps.Producers = tmp.Producers
-				self.pending.PendingBlockState.SetNewProducers(&ps)
+				self.pending.PendingBlockState.SetNewProducers(ps)
 			}
 			self.db.Update(&gpo, func(i interface{}) error {
 				gpo.ProposedScheduleBlockNum = 1
@@ -209,18 +221,17 @@ func (self Controller) StartBlock(when common.BlockTimeStamp, confirmBlockCount 
 
 }
 
-func (self Controller) PushTransaction(trx types.TransactionMetadata,deadLine common.Tstamp,billedCpuTimeUs uint32,explicitBilledCpuTime bool) (trxTrace types.TransactionTrace) {
+func (self *Controller) PushTransaction(trx types.TransactionMetadata, deadLine common.TimePoint, billedCpuTimeUs uint32, explicitBilledCpuTime bool) (trxTrace types.TransactionTrace) {
 	if deadLine == 0 {
 		log.Error("deadline cannot be uninitialized")
 		return
 	}
 
-
-	trxContext :=types.TransactionContext{}
-	trxContext = trxContext.NewTransactionContext(trx.Trx,&trx.ID,time.Time{})
+	trxContext := TransactionContext{}
+	trxContext = *trxContext.NewTransactionContext(self, &trx.Trx, trx.ID, common.Now())
 
 	if self.subjectiveCupLeeway != 0 {
-		if self.pending.BlockStatus==types.BlockStatus(types.Incomplete) {
+		if self.pending.BlockStatus == types.BlockStatus(types.Incomplete) {
 			trxContext.Leeway = self.subjectiveCupLeeway
 		}
 	}
@@ -229,12 +240,39 @@ func (self Controller) PushTransaction(trx types.TransactionMetadata,deadLine co
 	trxContext.BilledCpuTimeUs = int64(billedCpuTimeUs)
 
 	trace := trxContext.Trace
+	if trx.Implicit {
+		trxContext.InitForImplicitTrx(0) //default value 0
+		trxContext.CanSubjectivelyFail = false
+	} else {
+		/*skipRecording := (self.replayHeadTime !=0) && (common.TimePoint(trx.Trx.Expiration) <= self.replayHeadTime)
+		trxContext.InitForInputTrx(trx.PackedTrx.g)*/
+	}
+
 	fmt.Println(trace)
 
-
-
-
 	return
+}
+
+func (self *Controller) GetGlobalProperties() (gp *types.GlobalPropertyObject) {
+	ggp := types.GlobalPropertyObject{}
+	err := self.db.ByIndex("ID", ggp) //TODO
+	if err != nil {
+		log.Error("GetGlobalProperties is error detail:", err)
+	}
+	return
+}
+
+func (self *Controller) GetDynamicGlobalProperties() (dgp *types.DynamicGlobalPropertyObject) {
+	gpo := types.DynamicGlobalPropertyObject{}
+	err := self.db.ByIndex("ID", gpo) //TODO
+	if err != nil {
+		log.Error("GetGlobalProperties is error detail:", err)
+	}
+	return
+}
+
+func (self *Controller) GetMutableResourceLimitsManager() ResourceLimitsManager {
+	return self.resourceLimist
 }
 
 func (self *Controller) getOnBlockTransaction() types.SignedTransaction {
@@ -250,7 +288,7 @@ func (self *Controller) getOnBlockTransaction() types.SignedTransaction {
 	var trx = types.SignedTransaction{}
 	trx.Actions = append(trx.Actions, &onBlockAction)
 	trx.SetReferenceBlock(self.head.ID)
-	in := self.pending.PendingBlockState.Header.Timestamp + 999
+	in := self.pending.PendingBlockState.Header.Timestamp + 999999
 	trx.Expiration = common.JSONTime{time.Now().UTC().Add(time.Duration(in))}
 	log.Error("getOnBlockTransaction trx.Expiration:", trx)
 	return trx
@@ -259,6 +297,62 @@ func (self *Controller) skipDBSession(bs types.BlockStatus) bool {
 	var considerSkipping = (bs == types.BlockStatus(IRREVERSIBLE))
 	log.Info("considerSkipping:", considerSkipping)
 	return considerSkipping
+}
+
+func (self *Controller) skipDBSessions() bool {
+	if self.pending == nil {
+		return self.skipDBSession(self.pending.BlockStatus)
+	} else {
+		return false
+	}
+}
+
+func (self *Controller) skipTrxChecks() (b bool) {
+	b = self.lightValidationAllowed(self.config.disableReplayOpts)
+	return
+}
+
+func (self *Controller) lightValidationAllowed(dro bool) (b bool) {
+	if self.pending != nil || self.inTrxRequiringChecks {
+		return false
+	}
+
+	pbStatus := self.pending.BlockStatus
+	considerSkippingOnReplay := (pbStatus == types.Irreversible || pbStatus == types.Validated) && !dro
+
+	considerSkippingOnvalidate := (pbStatus == types.Complete && self.config.blockValidationMode == LIGHT)
+
+	return considerSkippingOnReplay || considerSkippingOnvalidate
+}
+
+func (self *Controller) isProducingBlock() bool {
+	if self.pending == nil {
+		return false
+	}
+	return self.pending.BlockStatus == types.Incomplete
+}
+
+func (self *Controller) isResourceGreylisted(name *common.AccountName) bool {
+	for _, account := range self.config.resourceGreylist {
+		if &account == name {
+			return true
+		}
+	}
+	return false
+}
+
+func (self *Controller) PendingBlockState() types.BlockState {
+	if self.pending != nil {
+		return self.pending.PendingBlockState
+	}
+	return types.BlockState{}
+}
+
+func (self *Controller) PendingBlockTime() common.TimePoint {
+	if self.pending == nil {
+		log.Error("PendingBlockTime is error", "no pending block")
+	}
+	return self.pending.PendingBlockState.Header.Timestamp.ToTimePoint()
 }
 
 func Close(db eosiodb.DataBase, session eosiodb.Session) {
@@ -278,6 +372,9 @@ func (self *Controller) initConfig() *Controller {
 		forceAllChecks:      false,
 		disableReplayOpts:   false,
 		contractsConsole:    false,
+		vmType:              config.DefaultWasmRuntime, //TODO
+		readMode:            SPECULATIVE,
+		blockValidationMode: FULL,
 	}
 	return self
 
@@ -288,4 +385,3 @@ func (self *Controller) initConfig() *Controller {
 
 	fmt.Println("asdf",c)
 }*/
-

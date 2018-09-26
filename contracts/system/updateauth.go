@@ -1,6 +1,7 @@
 package system
 
 import (
+	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 )
 
@@ -9,19 +10,19 @@ import (
 //
 // usingPermission needs to be `owner` if you want to modify the
 // `owner` authorization, otherwise `active` will do for the rest.
-func NewUpdateAuth(account common.AccountName, permission, parent common.PermissionName, authority common.Authority, usingPermission common.PermissionName) *common.Action {
-	a := &common.Action{
+func NewUpdateAuth(account common.AccountName, permission, parent common.PermissionName, authority common.Authority, usingPermission common.PermissionName) *types.Action {
+	a := &types.Action{
 		Account: common.AccountName(common.StringToName("eosio")),
 		Name:    common.ActionName(common.StringToName("updateauth")),
 		Authorization: []common.PermissionLevel{
 			{account, usingPermission},
 		},
-		ActionData: common.NewActionData(UpdateAuth{
-			Account:    account,
-			Permission: permission,
-			Parent:     parent,
-			Auth:       authority,
-		}),
+		// Data: common.NewActionData(UpdateAuth{ //TODO
+		// 	Account:    account,
+		// 	Permission: permission,
+		// 	Parent:     parent,
+		// 	Auth:       authority,
+		// }),
 	}
 
 	return a

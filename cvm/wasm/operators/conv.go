@@ -7,7 +7,7 @@ package operators
 import (
 	"regexp"
 
-	"github.com/eosgo/cvm/wasm"
+	"github.com/eosspark/eos-go/cvm/wasm"
 )
 
 var reCvrtOp = regexp.MustCompile(`(.+)\.(?:[a-z]|\_)+\/(.+)`)

@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/eosgo/cvm/wasm/leb128"
+	"github.com/eosspark/eos-go/cvm/wasm/leb128"
 )
 
 // ValueType represents the type of a valid value in Wasm

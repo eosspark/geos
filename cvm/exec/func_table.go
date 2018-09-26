@@ -5,7 +5,7 @@
 package exec
 
 import (
-	ops "github.com/eosgo/cvm/wasm/operators"
+	ops "github.com/eosspark/eos-go/cvm/wasm/operators"
 )
 
 func (vm *VM) newFuncTable() {
