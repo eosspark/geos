@@ -10,8 +10,8 @@ import (
 )
 
 type AuthorizationManager struct {
-	control Controller
-	db      *eosiodb.DataBase
+	//control Controller
+	db *eosiodb.DataBase
 }
 
 type PermissionIdType uint64

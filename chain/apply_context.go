@@ -175,7 +175,7 @@ func (a *ApplyContext) RequireRecipient(recipient common.AccountName) {
 func (a *ApplyContext) IsAccount(n common.AccountName) bool {
 	//return nullptr != db.find<account_object,by_name>( account );
 	account := types.AccountObject{Name: n}
-	err := a.Control.db.ByIndex("byName", &account)
+	err := a.DB.ByIndex("byName", &account)
 	if err == nil {
 		return true
 	}
@@ -212,14 +212,15 @@ func (a *ApplyContext) dbStoreI64(code int64, scope int64, table int64, payer in
 	//	Payer:      payer,
 	//	ID:         id,
 	//}
-	//a.Control.db.Insert(&obj)
-	//
-	//newTab := tab
-	//newTab.Count++
-	//a.Control.db.UpdateObject(&tab, &newTab)
+	//a.DB.Insert(&obj)
+
+	// a.DB.Modify(tab, func(t *types.TableIDObject) {
+	// 	t.Count++
+	// })
+
 	//
 	//// int64_t billable_size = (int64_t)(buffer_size + config::billable_size_v<key_value_object>);
-	////    update_db_usage( payer, billable_size);
+	////    UpdateDBUsage( payer, billable_size);
 	//
 	//a.KeyvalCache.cacheTable(&newTab)
 	//return a.KeyvalCache.add(&obj)
@@ -227,54 +228,52 @@ func (a *ApplyContext) dbStoreI64(code int64, scope int64, table int64, payer in
 }
 func (a *ApplyContext) DBUpdateI64(iterator int, payer common.AccountName, buffer []byte) {
 
-	//obj := a.KeyvalCache.get(iterator)
-	//objTable := a.KeyvalCache.getTable(obj.ID)
-	//
-	////EOS_ASSERT( table_obj.code == receiver, table_access_violation, "db access violation" );
-	//// const int64_t overhead = config::billable_size_v<key_value_object>;
-	////    int64_t old_size = (int64_t)(obj.value.size() + overhead);
-	////    int64_t new_size = (int64_t)(buffer_size + overhead);
-	//
-	////    if( payer == account_name() ) payer = obj.payer;
-	//
-	////    if( account_name(obj.payer) != payer ) {
-	////      // refund the existing payer
-	////       update_db_usage( obj.payer,  -(old_size) );
-	////      // charge the new payer
-	////       update_db_usage( payer,  (new_size));
-	////    } else if(old_size != new_size) {
-	////      // charge/refund the existing payer the difference
-	////       update_db_usage( obj.payer, new_size - old_size);
-	////    }
-	//
-	//a.Control.db.ByIndex("ID", &obj)
-	//objNew := obj
-	//objNew.Value = buffer
-	//objNew.Payer = payer
-	//
-	//a.Control.db.UpdateObject(&obj, &objNew)
+	// obj := a.KeyvalCache.get(iterator)
+	// objTable := a.KeyvalCache.getTable(obj.ID)
+
+	// //EOS_ASSERT( table_obj.code == receiver, table_access_violation, "db access violation" );
+
+	// // const int64_t overhead = config::billable_size_v<key_value_object>;
+	// overhead = 0
+	// oldSize := len(obj.Value) + overhead
+	// newSize := len(buffer) + overhead
+
+	//    if payer == common.AccountName{} { payer = obj.Payer}
+
+	//    if obj.Payer == payer {
+	//    	a.UpdateDBUsage(obj.Payer, -(oldSize))
+	//    	a.UpdateDBUsage(payer, newSize)
+	//    } else if oldSize != newSize{
+	//    	a.UpdateDBUsage(obj.Payer, newSize - oldSize)
+	//    }
+
+	// a.DB.Modify(obj, func(t *types.KeyValueObject) {
+	// 	t.Count++
+
+	// 	obj.Value = buffer
+	// 	obj.Payer = payer
+	// })
 
 }
 func (a *ApplyContext) DBRemoveI64(iterator int) {
-	//obj := a.KeyvalCache.get(iterator)
-	//objTable := a.KeyvalCache.getTable(obj.ID)
-	//
-	//// 	EOS_ASSERT( table_obj.code == receiver, table_access_violation, "db access violation" );
-	//// //   require_write_lock( table_obj.scope );
-	////     update_db_usage( obj.payer,  -(obj.value.size() + config::billable_size_v<key_value_object>) );
-	//a.Control.db.ByIndex("ID", &objTable)
-	//
-	//newTable := objTable
-	//newTable.Count--
-	//a.Control.db.UpdateObject(&objTable, &newTable)
-	//
-	//a.Control.db.Remove(&obj)
-	//
-	//if newTable.Count == 0 {
-	//	a.Control.db.Remove(&newTable)
-	//}
-	//
-	//a.KeyvalCache.remove(iterator)
+	// obj := a.KeyvalCache.get(iterator)
+	// tab := a.KeyvalCache.getTable(obj.ID)
+
+	// // 	EOS_ASSERT( table_obj.code == receiver, table_access_violation, "db access violation" );
+	// // //   require_write_lock( table_obj.scope );
+	// overhead := 0//config::billable_size_v<key_value_object>)
+	// UpdateDBUsage( obj.Payer,  -(len(obj.Value) + overhead) )
+	// a.DB.Get("ID", &tab)
+	// a.DB.Modify(tab, func(t *types.TableIDObject) {
+	// 	t.Count--
+	// })
+
+	// a.DB.Remove(&obj)
+
+	// if tab.Count == 0 {
+	// 	a.DB.Remove(&tab)
+	// }
+	// a.KeyvalCache.remove(iterator)
 
 }
 func (a *ApplyContext) DBGetI64(iterator int, buffer []byte, bufferSize int) int {
@@ -293,45 +292,51 @@ func (a *ApplyContext) DBGetI64(iterator int, buffer []byte, bufferSize int) int
 func (a *ApplyContext) DBNextI64(iterator int, primary uint64) int {
 
 	return 0
-	// if iterator < -1 {return -1}
+	// if iterator < -1 {
+	// 	return -1
+	// }
 	// obj := a.KeyvalCache.get(iterator)
 
-	// idx := a.Control.db.GetIndex("byScopePrimary",obj)
+	// idx := a.DB.GetIndex("byScopePrimary", obj)
 	// itr := idx.IteratorTo(obj)
-	// itr ++
-	// if itr == idx.end() || itr.TId != obj.TId {
+	// itrNext := itr.Next()
+	// objNext := types.KeyValueObject(itr.GetObject()) //return -1 for nil
+	// if itr == idx.end() || objNext.TId != obj.TId {
 	// 	return a.KeyvalCache.getEndIteratorByTableID(obj.TId)
 	// }
 
-	//setUint64(itr.primaryKey)
-	// return a.KeyvalCache.add(*itr)
+	// setUint64(itr.primaryKey)
+	// return a.KeyvalCache.add(objNext)
 }
 
 func (a *ApplyContext) DBPreviousI64(iterator int, primary uint64) int {
 	return 0
-	// idx := a.Control.db.GetIndex("byScopePrimary",obj)
+	// idx := a.DB.GetIndex("byScopePrimary",obj)
 
-	//     if iterator < -1 {
-	//        tab = a.KeyvalCache.findTablebyEndIterator(iterator)
-	//        //EOS_ASSERT( tab, invalid_table_iterator, "not a valid end iterator" );
+	//    if iterator < -1 {
+	//       tab = a.KeyvalCache.findTablebyEndIterator(iterator)
+	//       //EOS_ASSERT( tab, invalid_table_iterator, "not a valid end iterator" );
 
-	//        itr := idx.upperBound(tab.ID)
-	//        if( idx.begin() == idx.end() || itr == idx.begin() ) return -1;
+	//       itr := idx.upperBound(tab.ID)
+	//       if( idx.begin() == idx.end() || itr == idx.begin() ) return -1;
 
-	//        itr --
-	//        if( itr->TId != tab->ID ) return -1;
+	//       itrPrev := itr.Prev()
+	//       objPrev := types.KeyValueObject(itr.GetObject())
+	//       if( objPrev->TId != tab->ID ) return -1;
 
-	//        setUint32(itr.PrimaryKey)
-	//        return a.KeyvalCache.add(*itr)
-	//     }
+	//       setUint32(objPrev.PrimaryKey)
+	//       return a.KeyvalCache.add(objPrev)
+	//    }
 
 	// obj := a.KeyvalCache.get(iterator)
 	// itr := idx.IteratorTo(obj)
-	// itr --
-	// if itr.TId != obj.TId {return -1}
-	// setUint64(itr.primaryKey)
+	// itrPrev := itr.Prev()
 
-	// return keyval_cache.add(*itr);
+	//    objPrev := types.KeyValueObject(itr.GetObject()) //return -1 for nil
+	// if objPrev.TId != obj.TId {return -1}
+	// setUint64(objPrev.primaryKey)
+
+	// return keyval_cache.add(objPrev)
 }
 func (a *ApplyContext) DBFindI64(code int64, scope int64, table int64, id int64) int {
 	return 0
@@ -344,27 +349,79 @@ func (a *ApplyContext) DBFindI64(code int64, scope int64, table int64, id int64)
 	// tableEndItr := a.KeyvalCache.cacheTable(tab)
 
 	// objTable := tab
-	// err := a.Control.db.ByIndex("ID", &objTable)
+	// err := a.DB.Get("byID", &objTable)
 
 	// if err == nil {return tableEndItr}
 	// return a.KeyvalCache.add(&objTable)
 
 }
-func (a *ApplyContext) DBLowerboundI64(iterator int, primary uint64) int    { return 0 }
-func (a *ApplyContext) UpdateDBUsage(payer common.AccountName, delta int64) {}
-func (a *ApplyContext) FindTable(
-	code common.Name,
-	scope common.Name,
-	table common.Name) types.TableIDObject {
+func (a *ApplyContext) DBLowerBoundI64(code int64, scope int64, table int64, id int64) int {
+	return 0
+
+	// tab := a.FindTable(code, scope, table)
+	// if tab == nil {return -1}
+
+	// tableEndItr := a.KeyvalCache.cacheTable(tab)
+
+	// Obj := types.KeyValueObject{}
+	// idx := a.DB.GetIndex("byScopePrimary",&Obj)
+
+	// itr := idx.LowerBound(makeTupe(tab.ID,id))
+	// if itr == idx.End()  {return tableEndItr}
+
+	// obj := types.KeyValueObject(itr.GetObject())
+	// return keyval_cache.add(types.KeyValueObject(itr.GetObject()))
+
+}
+func (a *ApplyContext) DBUpperBoundI64(code int64, scope int64, table int64, id int64) int {
+	return 0
+
+	// tab := a.FindTable(code, scope, table)
+	// if tab == nil {return -1}
+
+	// tableEndItr := a.KeyvalCache.cacheTable(tab)
+
+	// Obj := types.KeyValueObject{}
+	// idx := a.DB.GetIndex("byScopePrimary",&Obj)
+
+	// itr := idx.UpperBound(makeTupe(tab.ID,id))
+	// if itr == idx.End()  {return tableEndItr}
+
+	// obj := types.KeyValueObject(itr.GetObject())
+	// if obj.ID != tab.ID {return tableEndItr}
+
+	// return keyval_cache.add(obj)
+
+}
+func (a *ApplyContext) DBEndI64(code int64, scope int64, table int64) int { return 0 }
+
+func (a *ApplyContext) FindTable(code int64, scope int64, table int64) types.TableIDObject {
+	// table := types.TableIDObject{Code: common.AccountName(code), Scope: common.ScopeName(scope), Table: common.TableName(table)}
+	// a.DB.Get("byCodeScopeTable", &table)
+	// return table
 	return types.TableIDObject{}
 }
-func (a *ApplyContext) FindOrCreateTable(code common.Name,
-	scope common.Name,
-	table common.Name,
-	payer common.AccountName) types.TableIDObject {
+func (a *ApplyContext) FindOrCreateTable(code int64, scope int64, table int64, payer int64) types.TableIDObject {
+
 	return types.TableIDObject{}
+	// table := types.TableIDObject{Code: common.AccountName(code), Scope: common.ScopeName(scope), Table: common.TableName(table), Payer: common.AccountName(payer)}
+	// err := a.DB.Get("byCodeScopeTable", &table)
+	// if err == nil {
+	// 	return table
+	// }
+	// a.DB.Insert(&table)
+	// return table
 }
-func (a *ApplyContext) RemoveTable(tid types.TableIDObject) {}
+func (a *ApplyContext) RemoveTable(tid types.TableIDObject) {
+	// overhead := 0 //config::billable_size_v<table_id_object>
+
+	// UpdateDBUsage(tid.Payer, -overhead)
+	// a.DB.remove(tid)
+}
+
+func (a *ApplyContext) UpdateDBUsage(payer common.AccountName, delta int64) {
+
+}
 
 //context permission api
 func (a *ApplyContext) GetPermissionLastUsed(account common.AccountName, permission common.PermissionName) int64 {
@@ -393,7 +450,7 @@ func (a *ApplyContext) SetBlockchainParametersPacked(parameters []byte) {
 	newGPO := types.GlobalPropertyObject{}
 	rlp.DecodeBytes(parameters, &newGPO)
 	oldGPO := a.Control.GetGlobalProperties()
-	a.Control.db.UpdateObject(&oldGPO, &newGPO)
+	a.DB.UpdateObject(&oldGPO, &newGPO)
 
 }
 
@@ -410,7 +467,7 @@ func (a *ApplyContext) IsPrivileged(n common.AccountName) bool {
 	//return false
 	account := types.AccountObject{Name: n}
 
-	err := a.Control.db.ByIndex("byName", &account)
+	err := a.DB.ByIndex("byName", &account)
 	if err != nil {
 		log.Error("getaAccount is error detail:", err)
 		return false
@@ -420,7 +477,7 @@ func (a *ApplyContext) IsPrivileged(n common.AccountName) bool {
 }
 func (a *ApplyContext) SetPrivileged(n common.AccountName, isPriv bool) {
 	oldAccount := types.AccountObject{Name: n}
-	err := a.Control.db.ByIndex("byName", &oldAccount)
+	err := a.DB.ByIndex("byName", &oldAccount)
 	if err != nil {
 		log.Error("getaAccount is error detail:", err)
 		return
@@ -428,7 +485,7 @@ func (a *ApplyContext) SetPrivileged(n common.AccountName, isPriv bool) {
 
 	newAccount := oldAccount
 	newAccount.Privileged = isPriv
-	a.Control.db.UpdateObject(&oldAccount, &newAccount)
+	a.DB.UpdateObject(&oldAccount, &newAccount)
 }
 
 //context producer api
