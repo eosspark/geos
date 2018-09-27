@@ -9,6 +9,10 @@ type Pair struct {
 	Second interface{}
 }
 
+func MakePair(a, b interface{}) *Pair {
+	return &Pair{First: a, Second: b}
+}
+
 func (p *Pair) GetIndex() []byte {
 	f, _ := rlp.EncodeToBytes(p.First)
 	s, _ := rlp.EncodeToBytes(p.Second)
@@ -20,6 +24,10 @@ type Tuple struct {
 	First  interface{}
 	Second interface{}
 	Third  interface{}
+}
+
+func MakeTuple(a, b, c interface{}) *Tuple {
+	return &Tuple{First: a, Second: b, Third: c}
 }
 
 func (p *Tuple) GetIndex() []byte {

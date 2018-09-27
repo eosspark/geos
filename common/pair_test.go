@@ -6,6 +6,12 @@ import (
 	"testing"
 )
 
+func TestMakePair(t *testing.T) {
+	test := MakePair(100, 99999)
+	assert.Equal(t, test.First, 100)
+	assert.Equal(t, test.Second, 99999)
+}
+
 func TestNewPair(t *testing.T) {
 	test := Pair{First: 100, Second: 8}
 	check := struct {
@@ -28,12 +34,12 @@ func TestGetIndex(t *testing.T) {
 	//fmt.Printf("%#v\n", b)
 }
 
-//func TestTupleGet(t *testing.T) {
-//	f := test.Get(0)
-//	s := test.Get(1)
-//	third := test.Get(2)
-//	fmt.Println(f,s,third)
-//}
+func TestMakeTuple(t *testing.T) {
+	test := MakeTuple(100, 99999, 80000)
+	assert.Equal(t, test.First, 100)
+	assert.Equal(t, test.Second, 99999)
+	assert.Equal(t, test.Third, 80000)
+}
 
 func TestNewTuple(t *testing.T) {
 	test := Tuple{First: 100, Second: 8, Third: 9999}
