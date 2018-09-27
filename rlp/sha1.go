@@ -4,8 +4,8 @@ import (
 	"crypto/sha1"
 	"encoding/binary"
 	"encoding/hex"
-	"hash"
 	"encoding/json"
+	"hash"
 )
 
 type Sha1 struct {
@@ -15,13 +15,12 @@ type Sha1 struct {
 func NewSha1() hash.Hash {
 	return sha1.New()
 }
-func NewSha1Nil()*Sha1{
-	data :=[5]uint32{0,0,0,0,0}
+func NewSha1Nil() *Sha1 {
+	data := [5]uint32{0, 0, 0, 0, 0}
 	return &Sha1{
-		Hash_:data,
+		Hash_: data,
 	}
 }
-
 
 func NewSha1String(s string) *Sha1 {
 	bytes, err := hex.DecodeString(s)
@@ -56,7 +55,6 @@ func (h Sha1) Bytes() []byte {
 func (h Sha1) String() string {
 	return hex.EncodeToString(h.Bytes())
 }
-
 
 func Hash1(t interface{}) Sha1 {
 	cereal, err := EncodeToBytes(t)

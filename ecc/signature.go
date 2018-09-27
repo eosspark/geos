@@ -14,7 +14,7 @@ import (
 type Signature struct {
 	Curve CurveID
 	// Content []byte // the Compact signature as bytes
-	Content [65]byte `eos:"array"`// the Compact signature as bytes
+	Content [65]byte `eos:"array"` // the Compact signature as bytes
 }
 
 // Verify checks the signature against the pubKey. `hash` is a sha256

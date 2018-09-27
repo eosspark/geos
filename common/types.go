@@ -24,20 +24,6 @@ type BlockIDType rlp.Sha256
 type TransactionIDType rlp.Sha256
 type CheckSum256Type rlp.Sha256
 
-//type Sha512 [8]uint64
-//
-//func NewSha512() (s Sha512) {
-//	for i := range s {
-//		s[i] = 0
-//	}
-//	return
-//}
-
-type Pair struct {
-	First  interface{}
-	Second interface{}
-}
-
 func DecodeIDTypeString(str string) (id [4]uint64, err error) {
 	b, err := hex.DecodeString(str)
 	if err != nil {
