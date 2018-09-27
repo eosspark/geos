@@ -12,95 +12,54 @@ import (
 	"time"
 )
 
-type EnumPendingBlockMode int
-
-const (
-	producing = EnumPendingBlockMode(iota)
-	speculating
-)
-
-type EnumStartBlockRusult int
-
-const (
-	succeeded = EnumStartBlockRusult(iota)
-	failed
-	waiting
-	exhausted
-)
-
-type signatureProviderType func(sha256 rlp.Sha256) ecc.Signature
-
-type transactionIdWithExpireIndex map[common.TransactionIDType]common.TimePoint
-
 type ProducerPlugin struct {
-	timer              *common.Timer
-	producers          map[common.AccountName]struct{}
-	pendingBlockMode   EnumPendingBlockMode
-	productionEnabled  bool
-	productionPaused   bool
-	signatureProviders map[ecc.PublicKey]signatureProviderType
-	producerWatermarks map[common.AccountName]uint32
-
-	persistentTransactions  transactionIdWithExpireIndex
-	blacklistedTransactions transactionIdWithExpireIndex
-
-	maxTransactionTimeMs      int32
-	maxIrreversibleBlockAgeUs common.Microseconds
-	produceTImeOffsetUs       int32
-	lastBlockTimeOffsetUs     int32
-	irreversibleBlockTime     common.TimePoint
-	keosdProviderTimeoutUs    common.Microseconds
-
-	lastSignedBlockTime common.TimePoint
-	startTime           common.TimePoint
-	lastSignedBlockNum  uint32
-
-	confirmedBlock func(signature ecc.Signature) //TODO
-
-	pendingIncomingTransactions []pendingIncomingTransaction
-
-	// keep a expected ratio between defer txn and incoming txn
-	incomingTrxWeight  float64
-	incomingDeferRadio float64
+	my *ProducerPluginImpl
 }
 
 type RuntimeOptions struct {
-	MaxTransactionTime      int32
-	MaxIrreversibleBlockAge int32
-	ProduceTimeOffsetUs     int32
-	LastBlockTimeOffsetUs   int32
-	SubjectiveCpuLeewayUs   int32
-	IncomingDeferRadio      float64
+	MaxTransactionTime      *int32
+	MaxIrreversibleBlockAge *int32
+	ProduceTimeOffsetUs     *int32
+	LastBlockTimeOffsetUs   *int32
+	SubjectiveCpuLeewayUs   *int32
+	IncomingDeferRadio      *float64
 }
 
 type WhitelistAndBlacklist struct {
-	ActorWhitelist    map[common.AccountName]struct{}
-	ActorBlacklist    map[common.AccountName]struct{}
-	ContractWhitelist map[common.AccountName]struct{}
-	ContractBlacklist map[common.AccountName]struct{}
-	ActionBlacklist   map[[2]common.Name]struct{}
-	KeyBlacklist      map[ecc.PublicKey]struct{}
+	ActorWhitelist    *map[common.AccountName]struct{}
+	ActorBlacklist    *map[common.AccountName]struct{}
+	ContractWhitelist *map[common.AccountName]struct{}
+	ContractBlacklist *map[common.AccountName]struct{}
+	ActionBlacklist   *map[[2]common.AccountName]struct{}
+	KeyBlacklist      *map[common.PublicKeyType]struct{}
 }
 
 type GreylistParams struct {
 	Accounts []common.AccountName
 }
 
-func (pp *ProducerPlugin) init() {
-	pp.timer = new(common.Timer)
-	pp.producers = make(map[common.AccountName]struct{})
-	pp.signatureProviders = make(map[ecc.PublicKey]signatureProviderType)
-	pp.producerWatermarks = make(map[common.AccountName]uint32)
+func NewProducerPlugin() ProducerPlugin {
+	pp := new(ProducerPlugin)
 
-	pp.persistentTransactions = make(transactionIdWithExpireIndex)
-	pp.blacklistedTransactions = make(transactionIdWithExpireIndex)
+	impl := new(ProducerPluginImpl)
+	impl.Timer = new(common.Timer)
+	impl.Producers = make(map[common.AccountName]struct{})
+	impl.SignatureProviders = make(map[ecc.PublicKey]signatureProviderType)
+	impl.ProducerWatermarks = make(map[common.AccountName]uint32)
 
-	pp.incomingTrxWeight = 0.0
-	pp.incomingDeferRadio = 1.0 // 1:1
+	impl.PersistentTransactions = make(transactionIdWithExpireIndex)
+	impl.BlacklistedTransactions = make(transactionIdWithExpireIndex)
+
+	impl.IncomingTrxWeight = 0.0
+	impl.IncomingDeferRadio = 1.0 // 1:1
+	impl.Self = pp
+
+	pp.my = impl
+	return *pp
 }
 
 func (pp *ProducerPlugin) IsProducerKey(key ecc.PublicKey) bool {
-	privateKey := pp.signatureProviders[key]
+	privateKey := pp.my.SignatureProviders[key]
 	if privateKey != nil {
 		return true
 	}
@@ -109,7 +68,7 @@ func (pp *ProducerPlugin) IsProducerKey(key ecc.PublicKey) bool {
 
 func (pp *ProducerPlugin) SignCompact(key *ecc.PublicKey, digest rlp.Sha256) ecc.Signature {
 	if key != nil {
-		privateKeyFunc := pp.signatureProviders[*key]
+		privateKeyFunc := pp.my.SignatureProviders[*key]
 		if privateKeyFunc == nil {
 			panic(ErrProducerPriKeyNotFound)
 		}
@@ -119,16 +78,14 @@ func (pp *ProducerPlugin) SignCompact(key *ecc.PublicKey, digest rlp.Sha256) ecc
 	return ecc.Signature{}
 }
 
-func (pp *ProducerPlugin) Initialize(app *cli.App) {
-	pp.init()
-
+func (pp *ProducerPlugin) PluginInitialize(app *cli.App) {
 	//pp.signatureProviders[initPubKey] = func(hash []byte) ecc.Signature {
 	//	sig, _ := initPriKey.Sign(hash)
 	//	return sig
 	//}
 
-	pp.signatureProviders[initPubKey], _ = makeKeySignatureProvider(*initPriKey)
-	pp.signatureProviders[initPubKey], _ = makeKeosdSignatureProvider(pp, "http://", initPubKey)
+	pp.my.SignatureProviders[initPubKey], _ = makeKeySignatureProvider(*initPriKey)
+	pp.my.SignatureProviders[initPubKey], _ = makeKeosdSignatureProvider(pp, "http://", initPubKey)
 
 	var maxTransactionTimeMs int
 	var maxIrreversibleBlockAgeUs int
@@ -138,7 +95,7 @@ func (pp *ProducerPlugin) Initialize(app *cli.App) {
 		cli.BoolTFlag{
 			Name:        "enable-stale-production, e",
 			Usage:       "Enable block production, even if the chain is stale.",
-			Destination: &pp.productionEnabled,
+			Destination: &pp.my.ProductionEnabled,
 		},
 		cli.IntFlag{
 			Name:        "max-transaction-age",
@@ -160,25 +117,25 @@ func (pp *ProducerPlugin) Initialize(app *cli.App) {
 	}
 
 	app.Action = func(c *cli.Context) {
-		pp.maxTransactionTimeMs = int32(maxTransactionTimeMs)
-		pp.maxIrreversibleBlockAgeUs = common.Seconds(int64(maxIrreversibleBlockAgeUs))
+		pp.my.MaxTransactionTimeMs = int32(maxTransactionTimeMs)
+		pp.my.MaxIrreversibleBlockAgeUs = common.Seconds(int64(maxIrreversibleBlockAgeUs))
 
 		if len(producerName) > 0 {
 			for _, p := range producerName {
-				pp.producers[common.AccountName(common.StringToName(p))] = struct{}{}
+				pp.my.Producers[common.AccountName(common.StringToName(p))] = struct{}{}
 			}
 		}
 
-		fmt.Println("max-transaction-age:", pp.maxTransactionTimeMs)
-		fmt.Println("max-irreversible-block-age:", pp.maxIrreversibleBlockAgeUs)
-		fmt.Println("producer-name:", pp.producers)
+		fmt.Println("max-transaction-age:", pp.my.MaxTransactionTimeMs)
+		fmt.Println("max-irreversible-block-age:", pp.my.MaxIrreversibleBlockAgeUs)
+		fmt.Println("producer-name:", pp.my.Producers)
 	}
 }
 
-func (pp *ProducerPlugin) Startup() {
+func (pp *ProducerPlugin) PluginStartup() {
 	log.Info("producer plugin:  plugin_startup() begin")
 
-	if !(len(pp.producers) == 0 || chain.GetReadMode() == Chain.DBReadMode(Chain.SPECULATIVE)) {
+	if !(len(pp.my.Producers) == 0 || chain.GetReadMode() == Chain.DBReadMode(Chain.SPECULATIVE)) {
 		panic("node cannot have any producer-name configured because block production is impossible when read_mode is not \"speculative\"")
 	}
 
@@ -189,47 +146,155 @@ func (pp *ProducerPlugin) Startup() {
 	libNum := chain.LastIrreversibleBlockNum()
 	lib := chain.FetchBlockByNumber(libNum)
 	if lib != nil {
-		pp.onIrreversibleBlock(lib)
+		pp.my.OnIrreversibleBlock(lib)
 	} else {
-		pp.irreversibleBlockTime = common.MaxTimePoint()
+		pp.my.IrreversibleBlockTime = common.MaxTimePoint()
 	}
 
-	if len(pp.producers) > 0 {
-		log.Info(fmt.Sprintf("Launching block production for %d producers at %s.", len(pp.producers), common.Now()))
+	if len(pp.my.Producers) > 0 {
+		log.Info(fmt.Sprintf("Launching block production for %d producers at %s.", len(pp.my.Producers), common.Now()))
 
-		if pp.productionEnabled {
+		if pp.my.ProductionEnabled {
 			if chain.HeadBlockNum() == 0 {
 				newChainBanner(Chain.Controller{}) //TODO
 			}
 		}
 	}
 
-	pp.scheduleProductionLoop()
+	pp.my.ScheduleProductionLoop()
 
 	log.Info("producer plugin:  plugin_startup() end")
 }
 
-func (pp *ProducerPlugin) Shutdown() {
-	pp.timer.Cancel()
+func (pp *ProducerPlugin) PluginShutdown() {
+	pp.my.Timer.Cancel()
 }
 
 func (pp *ProducerPlugin) Pause() {
-	pp.productionPaused = true
+	pp.my.ProductionPaused = true
 }
 
 func (pp *ProducerPlugin) Resume() {
-	pp.productionPaused = false
+	pp.my.ProductionPaused = false
 	// it is possible that we are only speculating because of this policy which we have now changed
 	// re-evaluate that now
 	//
-	if pp.pendingBlockMode == EnumPendingBlockMode(speculating) {
+	if pp.my.PendingBlockMode == EnumPendingBlockMode(speculating) {
 		chain.AbortBlock()
-		pp.scheduleProductionLoop()
+		pp.my.ScheduleProductionLoop()
 	}
 }
 
 func (pp *ProducerPlugin) Paused() bool {
-	return pp.productionPaused
+	return pp.my.ProductionPaused
+}
+
+func (pp *ProducerPlugin) UpdateRuntimeOptions(options RuntimeOptions) {
+	checkSpeculation := false
+
+	if options.MaxTransactionTime != nil {
+		pp.my.MaxTransactionTimeMs = *options.MaxTransactionTime
+	}
+
+	if options.MaxIrreversibleBlockAge != nil {
+		pp.my.MaxIrreversibleBlockAgeUs = common.Seconds(int64(*options.MaxIrreversibleBlockAge))
+		checkSpeculation = true
+	}
+
+	if options.ProduceTimeOffsetUs != nil {
+		pp.my.ProduceTimeOffsetUs = *options.ProduceTimeOffsetUs
+	}
+
+	if options.LastBlockTimeOffsetUs != nil {
+		pp.my.LastBlockTimeOffsetUs = *options.LastBlockTimeOffsetUs
+	}
+
+	if options.IncomingDeferRadio != nil {
+		pp.my.IncomingDeferRadio = *options.IncomingDeferRadio
+	}
+
+	if checkSpeculation && pp.my.PendingBlockMode == EnumPendingBlockMode(speculating) {
+		chain.AbortBlock()
+		pp.my.ScheduleProductionLoop()
+	}
+
+	if options.SubjectiveCpuLeewayUs != nil {
+		chain := Chain.GetControlInstance()
+		chain.SetSubjectiveCpuLeeway(common.Microseconds(*options.SubjectiveCpuLeewayUs))
+	}
+}
+
+func (pp *ProducerPlugin) GetRuntimeOptions() RuntimeOptions {
+	var maxIrreversibleBlockAge int32 = -1
+	if pp.my.MaxIrreversibleBlockAgeUs.Count() >= 0 {
+		maxIrreversibleBlockAge = int32(pp.my.MaxIrreversibleBlockAgeUs.Count() / 1e6)
+	}
+	return RuntimeOptions{
+		&pp.my.MaxTransactionTimeMs,
+		&maxIrreversibleBlockAge,
+		&pp.my.ProduceTimeOffsetUs,
+		&pp.my.LastBlockTimeOffsetUs,
+		nil, nil,
+	}
+}
+
+func (pp *ProducerPlugin) AddGreylistAccounts(params GreylistParams) {
+	chain := Chain.GetControlInstance()
+	for _, acc := range params.Accounts {
+		chain.AddResourceGreyList(&acc)
+	}
+}
+
+func (pp *ProducerPlugin) RemoveGreylistAccounts(params GreylistParams) {
+	chain := Chain.GetControlInstance()
+	for _, acc := range params.Accounts {
+		chain.RemoveResourceGreyList(&acc)
+	}
+}
+
+func (pp *ProducerPlugin) GetGreylist() GreylistParams {
+	chain := Chain.GetControlInstance()
+	result := GreylistParams{}
+	list := chain.GetResourceGreyList()
+	result.Accounts = make([]common.AccountName, 0, len(*list))
+	for acc := range *list {
+		result.Accounts = append(result.Accounts, acc)
+	}
+	return result
+}
+
+func (pp *ProducerPlugin) GetWhitelistBlacklist() WhitelistAndBlacklist {
+	chain := Chain.GetControlInstance()
+	return WhitelistAndBlacklist{
+		chain.GetActorWhiteList(),
+		chain.GetActorBlackList(),
+		chain.GetContractWhiteList(),
+		chain.GetContractBlackList(),
+		chain.GetActionBlockList(),
+		chain.GetKeyBlackList(),
+	}
+}
+
+func (pp *ProducerPlugin) SetWhitelistBlacklist(params WhitelistAndBlacklist) {
+	chain := Chain.GetControlInstance()
+	if params.ActorWhitelist != nil {
+		chain.SetActorWhiteList(params.ActorWhitelist)
+	}
+	if params.ActorBlacklist != nil {
+		chain.SetActorBlackList(params.ActorBlacklist)
+	}
+	if params.ContractWhitelist != nil {
+		chain.SetContractWhiteList(params.ContractWhitelist)
+	}
+	if params.ContractBlacklist != nil {
+		chain.SetContractBlackList(params.ContractBlacklist)
+	}
+	if params.ActionBlacklist != nil {
+		chain.SetActionBlackList(params.ActionBlacklist)
+	}
+	if params.KeyBlacklist != nil {
+		chain.SetKeyBlackList(params.KeyBlacklist)
+	}
 }
 
 func failureIsSubjective(e error, deadlineIsSubjective bool) bool {
@@ -277,6 +342,16 @@ func newChainBanner(db Chain.Controller) {
 
 	//TODO
 }
+
+type EnumPendingBlockMode int
+
+const (
+	producing = EnumPendingBlockMode(iota)
+	speculating
+)
+
+type signatureProviderType func(sha256 rlp.Sha256) ecc.Signature
+type transactionIdWithExpireIndex map[common.TransactionIDType]common.TimePoint
 
 //errors
 var (

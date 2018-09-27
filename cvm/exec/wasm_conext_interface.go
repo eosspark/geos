@@ -31,12 +31,15 @@ type WasmContextInterface interface {
 	DBUpdateI64(iterator int, payer common.AccountName, buffer []byte)
 	DBRemoveI64(iterator int)
 	DBGetI64(iterator int, buffer []byte, bufferSize int) int
-	DBNextI64(iterator int, primary uint64) int
-	DBPreviousI64(iterator int, primary uint64) int
+	DBNextI64(iterator int, primary *uint64) int
+	DBPreviousI64(iterator int, primary *uint64) int
 	DBFindI64(code int64, scope int64, table int64, id int64) int
-	DBLowerboundI64(iterator int, primary uint64) int
+	DBLowerBoundI64(code int64, scope int64, table int64, id int64) int
+	DBUpperBoundI64(code int64, scope int64, table int64, id int64) int
+	DBEndI64(code int64, scope int64, table int64) int
+
 	UpdateDBUsage(pager common.AccountName, delta int64)
-	FindTable(code common.Name, scope common.Name, table common.Name) types.TableIDObject
+	//FindTable(code int64, scope int64, table int64) types.TableIDObject
 	//FindOrCreateTable(code common.Name, scope common.Name, table common.Name, payer *common.AccountName) types.TableIDObject
 	RemoveTable(tid types.TableIDObject)
 

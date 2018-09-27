@@ -585,6 +585,4 @@ func (i *JSONInt64) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-type PublicKeyType struct {
-	ecc.PublicKey
-}
+type PublicKeyType ecc.PublicKey
