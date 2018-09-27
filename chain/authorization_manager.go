@@ -11,7 +11,7 @@ import (
 
 type AuthorizationManager struct {
 	//control Controller
-	db *eosiodb.DataBase
+	db      *eosiodb.DataBase
 }
 
 type PermissionIdType uint64
@@ -47,7 +47,7 @@ func (am *AuthorizationManager) CreatePermission(account common.AccountName,
 		Owner:       account,
 		Name:        name,
 		LastUpdated: creationTime,
-		//Auth:        SharedAuthority(),
+		Auth:        am.AuthToShared(auth),
 	}
 	am.db.Insert(&perm)
 	return perm
@@ -55,7 +55,7 @@ func (am *AuthorizationManager) CreatePermission(account common.AccountName,
 
 func (am *AuthorizationManager) ModifyPermission(permission types.PermissionObject, auth types.Authority) {
 	am.db.Update(&permission, func(data interface{}) error {
-		//permission.Auth = auth
+		permission.Auth = am.AuthToShared(auth)
 		//permission.LastUpdated = pendingBlockTime
 		return nil
 	})
@@ -202,4 +202,8 @@ func (am *AuthorizationManager) GetRequiredKeys(trx types.Transaction,
 	candidateKeys []common.PublicKeyType,
 	providedDelay time.Time) {
 	//check := MakeAuthChecker()
+}
+
+func (am *AuthorizationManager) AuthToShared(auth types.Authority) types.SharedAuthority{
+	return types.SharedAuthority{auth.Threshold,auth.Keys,auth.Accounts,auth.Waits}
 }
