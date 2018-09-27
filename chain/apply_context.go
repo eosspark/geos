@@ -289,7 +289,7 @@ func (a *ApplyContext) DBGetI64(iterator int, buffer []byte, bufferSize int) int
 	//copy(buffer[0:copySize], obj.value[:])
 	//return copySize
 }
-func (a *ApplyContext) DBNextI64(iterator int, primary uint64) int {
+func (a *ApplyContext) DBNextI64(iterator int, primary *uint64) int {
 
 	return 0
 	// if iterator < -1 {
@@ -305,28 +305,28 @@ func (a *ApplyContext) DBNextI64(iterator int, primary uint64) int {
 	// 	return a.KeyvalCache.getEndIteratorByTableID(obj.TId)
 	// }
 
-	// setUint64(itr.primaryKey)
+	// *primary = itr.primaryKey
 	// return a.KeyvalCache.add(objNext)
 }
 
-func (a *ApplyContext) DBPreviousI64(iterator int, primary uint64) int {
+func (a *ApplyContext) DBPreviousI64(iterator int, primary *uint64) int {
 	return 0
 	// idx := a.DB.GetIndex("byScopePrimary",obj)
 
-	//    if iterator < -1 {
-	//       tab = a.KeyvalCache.findTablebyEndIterator(iterator)
-	//       //EOS_ASSERT( tab, invalid_table_iterator, "not a valid end iterator" );
+	// if iterator < -1 {
+	//    tab = a.KeyvalCache.findTablebyEndIterator(iterator)
+	//    //EOS_ASSERT( tab, invalid_table_iterator, "not a valid end iterator" );
 
-	//       itr := idx.upperBound(tab.ID)
-	//       if( idx.begin() == idx.end() || itr == idx.begin() ) return -1;
+	//    itr := idx.UpperBound(tab.ID)
+	//    if( idx.begin() == idx.end() || itr == idx.begin() ) return -1;
 
-	//       itrPrev := itr.Prev()
-	//       objPrev := types.KeyValueObject(itr.GetObject())
-	//       if( objPrev->TId != tab->ID ) return -1;
+	//    itrPrev := itr.Prev()
+	//    objPrev := types.KeyValueObject(itr.GetObject())
+	//    if( objPrev->TId != tab->ID ) return -1;
 
-	//       setUint32(objPrev.PrimaryKey)
-	//       return a.KeyvalCache.add(objPrev)
-	//    }
+	//    setUint32(objPrev.PrimaryKey)
+	//    return a.KeyvalCache.add(objPrev)
+	// }
 
 	// obj := a.KeyvalCache.get(iterator)
 	// itr := idx.IteratorTo(obj)
@@ -334,8 +334,8 @@ func (a *ApplyContext) DBPreviousI64(iterator int, primary uint64) int {
 
 	//    objPrev := types.KeyValueObject(itr.GetObject()) //return -1 for nil
 	// if objPrev.TId != obj.TId {return -1}
-	// setUint64(objPrev.primaryKey)
 
+	// *primary = objPrev.primaryKey
 	// return keyval_cache.add(objPrev)
 }
 func (a *ApplyContext) DBFindI64(code int64, scope int64, table int64, id int64) int {
@@ -348,11 +348,11 @@ func (a *ApplyContext) DBFindI64(code int64, scope int64, table int64, id int64)
 
 	// tableEndItr := a.KeyvalCache.cacheTable(tab)
 
-	// objTable := tab
-	// err := a.DB.Get("byID", &objTable)
+	// obj := types.KeyValueObject{TId:tab.ID,Primary:id}
+	// err := a.DB.Get("byScopePrimary", &obj ) //, makeTupe(tab.ID,id))
 
 	// if err == nil {return tableEndItr}
-	// return a.KeyvalCache.add(&objTable)
+	// return a.KeyvalCache.add(&obj)
 
 }
 func (a *ApplyContext) DBLowerBoundI64(code int64, scope int64, table int64, id int64) int {
@@ -393,13 +393,22 @@ func (a *ApplyContext) DBUpperBoundI64(code int64, scope int64, table int64, id 
 	// return keyval_cache.add(obj)
 
 }
-func (a *ApplyContext) DBEndI64(code int64, scope int64, table int64) int { return 0 }
+func (a *ApplyContext) DBEndI64(code int64, scope int64, table int64) int {
+	return 0
 
-func (a *ApplyContext) FindTable(code int64, scope int64, table int64) types.TableIDObject {
+	tab := a.FindTable(code, scope, table)
+	if tab == nil {
+		return -1
+	}
+
+	return a.KeyvalCache.cacheTable(tab)
+}
+
+func (a *ApplyContext) FindTable(code int64, scope int64, table int64) *types.TableIDObject {
 	// table := types.TableIDObject{Code: common.AccountName(code), Scope: common.ScopeName(scope), Table: common.TableName(table)}
 	// a.DB.Get("byCodeScopeTable", &table)
 	// return table
-	return types.TableIDObject{}
+	return &types.TableIDObject{}
 }
 func (a *ApplyContext) FindOrCreateTable(code int64, scope int64, table int64, payer int64) types.TableIDObject {
 
@@ -447,16 +456,18 @@ func (a *ApplyContext) GetResourceLimits(
 }
 func (a *ApplyContext) SetBlockchainParametersPacked(parameters []byte) {
 
-	newGPO := types.GlobalPropertyObject{}
-	rlp.DecodeBytes(parameters, &newGPO)
-	oldGPO := a.Control.GetGlobalProperties()
-	a.DB.UpdateObject(&oldGPO, &newGPO)
+	cfg := common.Config{}
+	rlp.DecodeBytes(parameters, &cfg)
+
+	// a.DB.modify(a.Control.GetGlobalProperties(), func(gpo *types.GlobalPropertyObject){
+	//       gpo.Configuration = cfg
+	// })
 
 }
 
 func (a *ApplyContext) GetBlockchainParametersPacked() []byte {
 	gpo := a.Control.GetGlobalProperties()
-	bytes, err := rlp.EncodeToBytes(gpo)
+	bytes, err := rlp.EncodeToBytes(gpo.Configuration)
 	if err != nil {
 		log.Error("EncodeToBytes is error detail:", err)
 		return nil

@@ -54,7 +54,13 @@ func db_get_i64(w *WasmInterface, itr int, buffer int, bufferSize int) int {
 // }
 func db_next_i64(w *WasmInterface, itr int, primary int) int {
 	fmt.Println("db_next_i64")
-	return 0
+
+	var p uint64
+
+	iterator := w.context.DBNextI64(itr, &p)
+	setUint64(w, primary, p)
+
+	return iterator
 }
 
 // int db_previous_i64( int itr, uint64_t& primary ) {
@@ -62,7 +68,12 @@ func db_next_i64(w *WasmInterface, itr int, primary int) int {
 // }
 func db_previous_i64(w *WasmInterface, itr int, primary int) int {
 	fmt.Println("db_previous_i64")
-	return 0
+
+	var p uint64
+
+	iterator := w.context.DBPreviousI64(itr, &p)
+	setUint64(w, primary, p)
+	return iterator
 }
 
 // int db_find_i64( uint64_t code, uint64_t scope, uint64_t table, uint64_t id ) {
@@ -70,7 +81,7 @@ func db_previous_i64(w *WasmInterface, itr int, primary int) int {
 // }
 func db_find_i64(w *WasmInterface, code int64, scope int64, table int64, id int64) int {
 	fmt.Println("db_find_i64")
-	return 0
+	return w.context.DBFindI64(code, scope, table, id)
 }
 
 // int db_lowerbound_i64( uint64_t code, uint64_t scope, uint64_t table, uint64_t id ) {
@@ -79,7 +90,7 @@ func db_find_i64(w *WasmInterface, code int64, scope int64, table int64, id int6
 func db_lowerbound_i64(w *WasmInterface, code int64, scope int64, table int64, id int64) int {
 	fmt.Println("db_lowerbound_i64")
 
-	return 0
+	return w.context.DBLowerBoundI64(code, scope, table, id)
 }
 
 // int db_upperbound_i64( uint64_t code, uint64_t scope, uint64_t table, uint64_t id ) {
@@ -87,7 +98,7 @@ func db_lowerbound_i64(w *WasmInterface, code int64, scope int64, table int64, i
 // }
 func db_upperbound_i64(w *WasmInterface, code int64, scope int64, table int64, id int64) int {
 	fmt.Println("db_upperbound_i64")
-	return 0
+	return w.context.DBUpperBoundI64(code, scope, table, id)
 }
 
 // int db_end_i64( uint64_t code, uint64_t scope, uint64_t table ) {
@@ -95,7 +106,7 @@ func db_upperbound_i64(w *WasmInterface, code int64, scope int64, table int64, i
 // }
 func db_end_i64(w *WasmInterface, code int64, scope int64, table int64) int {
 	fmt.Println("db_end_i64")
-	return 0
+	return w.context.DBEndI64(code, scope, table)
 }
 
 // DB_API_METHOD_WRAPPERS_SIMPLE_SECONDARY(idx64,  uint64_t)
