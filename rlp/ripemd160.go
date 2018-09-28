@@ -3,9 +3,9 @@ package rlp
 import (
 	"encoding/binary"
 	"encoding/hex"
+	"encoding/json"
 	"golang.org/x/crypto/ripemd160"
 	"hash"
-	"encoding/json"
 )
 
 type Ripemd160 struct {
@@ -15,10 +15,10 @@ type Ripemd160 struct {
 func NewRipemd160() hash.Hash {
 	return ripemd160.New()
 }
-func NewRipemd160Nil()*Ripemd160{
-	data :=[5]uint32{0,0,0,0,0}
+func NewRipemd160Nil() *Ripemd160 {
+	data := [5]uint32{0, 0, 0, 0, 0}
 	return &Ripemd160{
-		Hash_:data,
+		Hash_: data,
 	}
 }
 func NewRipemd160String(s string) *Ripemd160 {

@@ -417,7 +417,7 @@ func SignTransaction() http.Handler {
 
 		var tx *types.SignedTransaction
 		var requiredKeys []ecc.PublicKey
-		var chainID common.ChainIDType
+		var chainID common.ChainIdType
 		fmt.Println(string(inputs[0]), string(inputs[1]), string(inputs[2]))
 		if len(inputs) != 3 {
 			http.Error(w, "invalid length of message, should be 3 parameters", 500)

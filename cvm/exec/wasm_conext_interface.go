@@ -31,14 +31,22 @@ type WasmContextInterface interface {
 	DBUpdateI64(iterator int, payer common.AccountName, buffer []byte)
 	DBRemoveI64(iterator int)
 	DBGetI64(iterator int, buffer []byte, bufferSize int) int
-	DBNextI64(iterator int, primary uint64) int
-	DBPreviousI64(iterator int, primary uint64) int
+	DBNextI64(iterator int, primary *uint64) int
+	DBPreviousI64(iterator int, primary *uint64) int
 	DBFindI64(code int64, scope int64, table int64, id int64) int
-	DBLowerboundI64(iterator int, primary uint64) int
+	DBLowerBoundI64(code int64, scope int64, table int64, id int64) int
+	DBUpperBoundI64(code int64, scope int64, table int64, id int64) int
+	DBEndI64(code int64, scope int64, table int64) int
+
+	IdxI64Store(scope int64, table int64, payer int64, id int64, value *types.Uint64_t) int
+	IdxI64Remove(iterator int)
+	IdxI64Update(iterator int, payer int64, value *types.Uint64_t)
+	IdxI64FindSecondary(code int64, scope int64, table int64, secondary *types.Uint64_t, primary *uint64) int
+
 	UpdateDBUsage(pager common.AccountName, delta int64)
-	FindTable(code common.Name, scope common.Name, table common.Name) types.TableIDObject
+	//FindTable(code int64, scope int64, table int64) types.TableIDObject
 	//FindOrCreateTable(code common.Name, scope common.Name, table common.Name, payer *common.AccountName) types.TableIDObject
-	RemoveTable(tid types.TableIDObject)
+	RemoveTable(tid types.TableIdObject)
 
 	//context permission api
 	GetPermissionLastUsed(account common.AccountName, permission common.PermissionName) int64
@@ -65,8 +73,8 @@ type WasmContextInterface interface {
 	//context transaction api
 	ExecuteInline(action []byte)
 	ExecuteContextFreeInline(action []byte)
-	ScheduleDeferredTransaction(sendId common.TransactionIDType, payer common.AccountName, trx []byte, replaceExisting bool)
-	CancelDeferredTransaction(sendId common.TransactionIDType) bool
+	ScheduleDeferredTransaction(sendId common.TransactionIdType, payer common.AccountName, trx []byte, replaceExisting bool)
+	CancelDeferredTransaction(sendId common.TransactionIdType) bool
 	GetPackedTransaction() []byte
 	Expiration() int
 	TaposBlockNum() int

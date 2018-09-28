@@ -19,9 +19,9 @@ type Pack interface {
 // Encoder implements the EOS packing, similar to FC_BUFFER
 // --------------------------------------------------------------
 type Encoder struct {
-	output     io.Writer
-	Order      binary.ByteOrder
-	count      int
+	output   io.Writer
+	Order    binary.ByteOrder
+	count    int
 	eosArray bool
 }
 

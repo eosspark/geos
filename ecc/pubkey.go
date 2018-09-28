@@ -157,7 +157,7 @@ func (p PublicKey) Compare(pub PublicKey) bool {
 	if p.Curve != pub.Curve {
 		return false
 	}
-	if p.Content != pub.Content{
+	if p.Content != pub.Content {
 		return false
 	}
 	return true

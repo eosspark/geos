@@ -20,7 +20,7 @@ func Test_Add_TableIdObject(t *testing.T) {
 	code := common.AccountName(common.StringToName("eostest"))
 	scope := common.ScopeName(common.StringToName("eostest"))
 	table := common.TableName(common.StringToName("eostest"))
-	tid := TableIDObject{}
+	tid := TableIdObject{}
 	tid.Code = code
 	tid.Scope = scope
 	tid.Payer = code
@@ -44,15 +44,15 @@ func Test_Add_TableIdMeltiIndex(t *testing.T) {
 	code := common.AccountName(common.StringToName("eosio.token"))
 	scope := common.ScopeName(common.StringToName("xiaoyu"))
 	table := common.TableName(common.StringToName("accounts"))
-	tid := TableIDObject{}
+	tid := TableIdObject{}
 	tid.Code = code
 	tid.Scope = scope
 	tid.Payer = code
 	tid.Table = table
 	tid.Count = tid.Count + 1
 
-	ti := TableIDMultiIndex{}
-	ti.TableIDObject = tid
+	ti := TableIdMultiIndex{}
+	ti.TableIdObject = tid
 	ti.Bst.Code = tid.Code
 	ti.Bst.Scope = tid.Scope
 	ti.Bst.Table = tid.Table
@@ -72,21 +72,21 @@ func Test_Get_TableIdMultiIndex(t *testing.T) {
 		log.Error("Test_Add_TableIdMeltiIndex is error detail:", err)
 	}
 	defer db.Close()
-	ti := TableIDMultiIndex{}
+	ti := TableIdMultiIndex{}
 	code := common.AccountName(common.StringToName("eostest"))
 	scope := common.ScopeName(common.StringToName("eostest"))
 	table := common.TableName(common.StringToName("eostest"))
 	ti.Bst.Code = code
 	ti.Bst.Scope = scope
 	ti.Bst.Table = table
-	tmp := TableIDMultiIndex{}
+	tmp := TableIdMultiIndex{}
 	err = db.Find("Bst", ti.Bst, &tmp)
 	if err != nil {
 		log.Error("Test_Get_TableIdMeltiIndex byCodeScopeTable is error detail:", err)
 	}
 	fmt.Println(&tmp)
 	log.Info("find table id multi index,info:", tmp)
-	var tis []TableIDMultiIndex
+	var tis []TableIdMultiIndex
 	db.All(&tis)
 	fmt.Println(tis)
 }
@@ -98,12 +98,12 @@ func Test_GetById(t *testing.T) {
 	}
 	defer db.Close()
 
-	tt := TableIDObject{}
+	tt := TableIdObject{}
 
 	tt.ID = 1
 	db.Find("ID", tt.ID, &tt)
 	fmt.Println(tt)
-	var tmp []TableIDObject
+	var tmp []TableIdObject
 	db.All(&tmp)
 	fmt.Println(tmp)
 }
@@ -115,7 +115,7 @@ func Test_GetByIndexId(t *testing.T) {
 	}
 	defer db.Close()
 
-	tt := TableIDMultiIndex{}
+	tt := TableIdMultiIndex{}
 	//var tt TableIdMultiIndex
 	tt.Id = 1
 	err = db.Find("ID", tt.Id, &tt)
@@ -143,7 +143,7 @@ func Test_GetByCodeScopeTable(t *testing.T) {
 	tmp:=GetByCodeScopeTable(db,cst)
 	fmt.Println(tmp)*/
 
-	tmi := TableIDMultiIndex{}
+	tmi := TableIdMultiIndex{}
 	err = db.Find("Bst", cst, &tmi)
 	if err != nil {
 		fmt.Println(err.Error())

@@ -3,9 +3,9 @@ package history_plugin
 import (
 	"fmt"
 	"github.com/eosspark/eos-go/chain/types"
+	"github.com/eosspark/eos-go/chain_plugin"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/db"
-	"github.com/eosspark/eos-go/chain_plugin"
 )
 
 type AccountHistoryObject struct {
@@ -32,10 +32,10 @@ type ActionHistoryObject struct {
 	PackedActionTrace common.HexBytes
 	BlockNum          uint32
 	BlockTime         common.BlockTimeStamp
-	TrxId             common.TransactionIDType
+	TrxId             common.TransactionIdType
 	//c++ no param
 	ByTrxId struct {
-		TrxId             common.TransactionIDType
+		TrxId             common.TransactionIdType
 		ActionSequenceNum uint64
 	} `storm:"unique"`
 }
@@ -86,7 +86,7 @@ func GetActionHistoryObjectByActSeqNum(db *eosiodb.DataBase, asNum uint64) *Acti
 	return &result
 }
 
-func GetActionHistoryByAccActSeq(db *eosiodb.DataBase, asNum uint64, trxId common.TransactionIDType) {
+func GetActionHistoryByAccActSeq(db *eosiodb.DataBase, asNum uint64, trxId common.TransactionIdType) {
 	result := ActionHistoryObject{}
 	result.ByTrxId.TrxId = trxId
 	result.ByTrxId.ActionSequenceNum = asNum
@@ -117,23 +117,24 @@ func GetAccountHistoryObjectByAccount(db *eosiodb.DataBase, account common.Accou
 
 type GetActionParam struct {
 	AccountName common.AccountName
-	Pos 	int32
-	Offset  int32
+	Pos         int32
+	Offset      int32
 }
 
 type OrderedActionResult struct {
-	GlobalActionSeq		uint64
-	AccountActionSeq 	int32
-	BlockNum 			uint32
-	BlockTime 			common.BlockTimeStamp
-	ActionTrace 		types.ActionTrace
+	GlobalActionSeq  uint64
+	AccountActionSeq int32
+	BlockNum         uint32
+	BlockTime        common.BlockTimeStamp
+	ActionTrace      types.ActionTrace
 }
 type GetActionResult struct {
-	Actions []OrderedActionResult
-	LastIrreversibleBlock	uint32
-	TimeLimitExceededError	bool
+	Actions                []OrderedActionResult
+	LastIrreversibleBlock  uint32
+	TimeLimitExceededError bool
 }
-func GetActions(params *GetActionParam) *[]GetActionResult{
+
+func GetActions(params *GetActionParam) *[]GetActionResult {
 	//control := chain.GetControlInstance()
 	//db := control.DB()
 	//chain.get_abi_serializer_max_time
@@ -145,22 +146,22 @@ func GetActions(params *GetActionParam) *[]GetActionResult{
 	}
 	defer db.Close()
 
-	ahoList := *GetAccountHistoryObjectByAccount(db,params.AccountName)
+	ahoList := *GetAccountHistoryObjectByAccount(db, params.AccountName)
 	var pageNum, start, end int32
 	start = params.Pos
-	if start == 0{
-		end = params.Offset		//data count per page
+	if start == 0 {
+		end = params.Offset //data count per page
 	}
 	//end = params.Offset+5
-	if len(ahoList)>0{
-		pageNum = int32(len(ahoList))/end
+	if len(ahoList) > 0 {
+		pageNum = int32(len(ahoList)) / end
 	}
 	//db.Find("ByAccountActionSeq",AccountHistoryObject,[]AccountHistoryObject)
 
 	array := ahoList[0:3]
 	fmt.Println(array)
 
-	fmt.Println(abiSerializerMaxTime,pageNum,start,end)
+	fmt.Println(abiSerializerMaxTime, pageNum, start, end)
 
 	//return &array
 	return nil
