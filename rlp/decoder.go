@@ -50,16 +50,15 @@ var TypeSize = struct {
 }
 
 var (
-	//decoderInterface = reflect.TypeOf(new(Decoder)).Elem()
 	bigInt = reflect.TypeOf(big.Int{})
 	big0   = big.NewInt(0)
 )
 var prefix = make([]string, 0)
 
-var Debug bool
+var debug bool
 
 var print = func(s string) {
-	if Debug {
+	if debug {
 		for _, s := range prefix {
 			fmt.Print(s)
 		}
@@ -67,7 +66,7 @@ var print = func(s string) {
 	}
 }
 var println = func(args ...interface{}) {
-	if Debug {
+	if debug {
 		print(fmt.Sprintf("%s\n", args...))
 	}
 }
@@ -77,12 +76,12 @@ func Decode(r io.Reader, val interface{}) error {
 	if err != nil {
 		return err
 	}
-	return NewDecoder(data).decode(val)
+	return newDecoder(data).decode(val)
 
 }
 
 func DecodeBytes(b []byte, val interface{}) error {
-	err := NewDecoder(b).decode(val)
+	err := newDecoder(b).decode(val)
 	if err != nil {
 		return err
 	}
@@ -90,7 +89,7 @@ func DecodeBytes(b []byte, val interface{}) error {
 }
 
 // Decoder implements the EOS unpacking, similar to FC_BUFFER
-type Decoder struct {
+type decoder struct {
 	data     []byte
 	pos      int
 	optional bool
@@ -98,15 +97,15 @@ type Decoder struct {
 	eosArray bool
 }
 
-func NewDecoder(data []byte) *Decoder {
-	return &Decoder{
+func newDecoder(data []byte) *decoder {
+	return &decoder{
 		data:     data,
 		pos:      0,
 		optional: false,
 	}
 }
 
-func (d *Decoder) decode(v interface{}) (err error) {
+func (d *decoder) decode(v interface{}) (err error) {
 	rv := reflect.Indirect(reflect.ValueOf(v))
 	if !rv.CanAddr() {
 		return ErrUnPointer
@@ -153,68 +152,6 @@ func (d *Decoder) decode(v interface{}) (err error) {
 	}
 
 	switch t.Kind() {
-	case reflect.Array:
-		print("Reading Array")
-		len := t.Len()
-
-		if !d.eosArray {
-			var l uint64
-			if l, err = d.readUvarint(); err != nil {
-				return
-			}
-			if int(l) != len {
-				print("the l is not equal to len of array")
-			}
-		}
-		d.eosArray = false
-
-		for i := 0; i < int(len); i++ {
-			if err = d.decode(rv.Index(i).Addr().Interface()); err != nil {
-				return
-			}
-		}
-		return
-
-	case reflect.Slice:
-		print("Reading Slice length ")
-		var l uint64
-		if l, err = d.readUvarint(); err != nil {
-			return
-		}
-		println(fmt.Sprintf("Slice [%T] of length: %d", v, l))
-		rv.Set(reflect.MakeSlice(t, int(l), int(l)))
-		for i := 0; i < int(l); i++ {
-			if err = d.decode(rv.Index(i).Addr().Interface()); err != nil {
-				return
-			}
-		}
-
-	case reflect.Struct:
-		err = d.decodeStruct(v, t, rv)
-		if err != nil {
-			return
-		}
-
-	case reflect.Map:
-		var l uint64
-		if l, err = d.readUvarint(); err != nil {
-			return
-		}
-		kt := t.Key()
-		vt := t.Elem()
-		rv.Set(reflect.MakeMap(t))
-		for i := 0; i < int(l); i++ {
-			kv := reflect.Indirect(reflect.New(kt))
-			if err = d.decode(kv.Addr().Interface()); err != nil {
-				return
-			}
-			vv := reflect.Indirect(reflect.New(vt))
-			if err = d.decode(vv.Addr().Interface()); err != nil {
-				return
-			}
-			rv.SetMapIndex(kv, vv)
-		}
-
 	case reflect.String:
 		s, e := d.readString()
 		if e != nil {
@@ -228,7 +165,6 @@ func (d *Decoder) decode(v interface{}) (err error) {
 		r, err = d.readBool()
 		rv.SetBool(r)
 		return
-
 	case reflect.Int:
 		var n int
 		n, err = d.readInt()
@@ -280,6 +216,68 @@ func (d *Decoder) decode(v interface{}) (err error) {
 		rv.SetUint(n)
 		return
 
+	case reflect.Array:
+		print("Reading Array")
+		len := t.Len()
+
+		if !d.eosArray {
+			var l uint64
+			if l, err = d.readUvarint(); err != nil {
+				return
+			}
+			if int(l) != len {
+				print("the l is not equal to len of array")
+			}
+		}
+		d.eosArray = false
+
+		for i := 0; i < int(len); i++ {
+			if err = d.decode(rv.Index(i).Addr().Interface()); err != nil {
+				return
+			}
+		}
+		return
+
+	case reflect.Slice:
+		print("Reading Slice length ")
+		var l uint64
+		if l, err = d.readUvarint(); err != nil {
+			return
+		}
+		println(fmt.Sprintf("Slice [%T] of length: %d", v, l))
+		rv.Set(reflect.MakeSlice(t, int(l), int(l)))
+		for i := 0; i < int(l); i++ {
+			if err = d.decode(rv.Index(i).Addr().Interface()); err != nil {
+				return
+			}
+		}
+
+	case reflect.Map:
+		var l uint64
+		if l, err = d.readUvarint(); err != nil {
+			return
+		}
+		kt := t.Key()
+		vt := t.Elem()
+		rv.Set(reflect.MakeMap(t))
+		for i := 0; i < int(l); i++ {
+			kv := reflect.Indirect(reflect.New(kt))
+			if err = d.decode(kv.Addr().Interface()); err != nil {
+				return
+			}
+			vv := reflect.Indirect(reflect.New(vt))
+			if err = d.decode(vv.Addr().Interface()); err != nil {
+				return
+			}
+			rv.SetMapIndex(kv, vv)
+		}
+
+	case reflect.Struct:
+		err = d.decodeStruct(v, t, rv)
+		if err != nil {
+			return
+		}
+
 	default:
 		return errors.New("decode, unsupported type " + t.String())
 	}
@@ -287,10 +285,10 @@ func (d *Decoder) decode(v interface{}) (err error) {
 	return
 }
 
-func (d *Decoder) decodeStruct(v interface{}, t reflect.Type, rv reflect.Value) (err error) {
+func (d *decoder) decodeStruct(v interface{}, t reflect.Type, rv reflect.Value) (err error) {
 	l := rv.NumField()
 
-	if Debug {
+	if debug {
 		prefix = append(prefix, "     ")
 	}
 	for i := 0; i < l; i++ {
@@ -299,10 +297,8 @@ func (d *Decoder) decodeStruct(v interface{}, t reflect.Type, rv reflect.Value) 
 			continue
 		case "optional":
 			d.optional = true
-			// fmt.Println("276 walker", d.optional)
 		case "vuint32":
 			d.vuint32 = true
-			// fmt.Println("276 walker", d.vuint32)
 		case "array":
 			d.eosArray = true
 		}
@@ -316,27 +312,13 @@ func (d *Decoder) decodeStruct(v interface{}, t reflect.Type, rv reflect.Value) 
 
 		}
 	}
-	if Debug {
+	if debug {
 		prefix = prefix[:len(prefix)-1]
 	}
 	return
 }
 
-//func (d *Decoder) readSHA256Bytes() (out Sha256, err error) {
-//
-//	if d.remaining() < TypeSize.SHA256Bytes {
-//		err = fmt.Errorf("sha256 required [%d] bytes, remaining [%d]", TypeSize.SHA256Bytes, d.remaining())
-//		return
-//	}
-//	for i := range out.Hash_ {
-//		out.Hash_[i] = binary.LittleEndian.Uint64(d.data[i*8 : (i+1)*8])
-//	}
-//	d.pos += TypeSize.SHA256Bytes
-//	println(fmt.Sprintf("readSHA256Bytes [%s]", hex.EncodeToString(out.Bytes())))
-//	return
-//}
-
-func (d *Decoder) readUvarint() (uint64, error) {
+func (d *decoder) readUvarint() (uint64, error) {
 	l, read := binary.Uvarint(d.data[d.pos:])
 	if read <= 0 {
 		println(fmt.Sprintf("readUvarint [%d]", l))
@@ -347,7 +329,7 @@ func (d *Decoder) readUvarint() (uint64, error) {
 	return l, nil
 }
 
-func (d *Decoder) readByteArray() (out []byte, err error) {
+func (d *decoder) readByteArray() (out []byte, err error) {
 	l, err := d.readUvarint()
 	if err != nil {
 		return nil, err
@@ -364,14 +346,14 @@ func (d *Decoder) readByteArray() (out []byte, err error) {
 	return
 }
 
-func (d *Decoder) readString() (out string, err error) {
+func (d *decoder) readString() (out string, err error) {
 	data, err := d.readByteArray()
 	out = string(data)
 	println(fmt.Sprintf("readString [%s]", out))
 	return
 }
 
-func (d *Decoder) readByte() (out byte, err error) {
+func (d *decoder) readByte() (out byte, err error) {
 	if d.remaining() < TypeSize.Byte {
 		err = fmt.Errorf("byte required [1] byte, remaining [%d]", d.remaining())
 		return
@@ -383,7 +365,7 @@ func (d *Decoder) readByte() (out byte, err error) {
 	return
 }
 
-func (d *Decoder) readBool() (out bool, err error) {
+func (d *decoder) readBool() (out bool, err error) {
 	if d.remaining() < TypeSize.Bool {
 		err = fmt.Errorf("rlp: bool required [%d] byte, remaining [%d]", TypeSize.Bool, d.remaining())
 		return
@@ -397,7 +379,7 @@ func (d *Decoder) readBool() (out bool, err error) {
 	return
 
 }
-func (d *Decoder) readUint8() (out byte, err error) {
+func (d *decoder) readUint8() (out byte, err error) {
 	if d.remaining() < TypeSize.UInt8 {
 		err = fmt.Errorf("rlp: byte required [1] byte, remaining [%d]", d.remaining())
 		return
@@ -407,7 +389,7 @@ func (d *Decoder) readUint8() (out byte, err error) {
 	println(fmt.Sprintf("readUint8 [%d]", out))
 	return
 }
-func (d *Decoder) readUint16() (out uint16, err error) {
+func (d *decoder) readUint16() (out uint16, err error) {
 	if d.remaining() < TypeSize.UInt16 {
 		err = fmt.Errorf("rlp: uint16 required [%d] bytes, remaining [%d]", TypeSize.UInt16, d.remaining())
 		return
@@ -418,7 +400,7 @@ func (d *Decoder) readUint16() (out uint16, err error) {
 	println(fmt.Sprintf("readUint16 [%d]", out))
 	return
 }
-func (d *Decoder) readUint32() (out uint32, err error) {
+func (d *decoder) readUint32() (out uint32, err error) {
 	if d.remaining() < TypeSize.UInt32 {
 		err = fmt.Errorf("rlp: uint32 required [%d] bytes, remaining [%d]", TypeSize.UInt32, d.remaining())
 		return
@@ -429,7 +411,7 @@ func (d *Decoder) readUint32() (out uint32, err error) {
 	println(fmt.Sprintf("readUint32 [%d]", out))
 	return
 }
-func (d *Decoder) readUint() (out uint, err error) {
+func (d *decoder) readUint() (out uint, err error) {
 	if d.remaining() < TypeSize.UInt {
 		err = fmt.Errorf("rlp: uint required [%d] bytes, remaining [%d]", TypeSize.UInt, d.remaining())
 		return
@@ -440,7 +422,7 @@ func (d *Decoder) readUint() (out uint, err error) {
 	println(fmt.Sprintf("readUint [%d]", out))
 	return
 }
-func (d *Decoder) readUint64() (out uint64, err error) {
+func (d *decoder) readUint64() (out uint64, err error) {
 	if d.remaining() < TypeSize.UInt64 {
 		err = fmt.Errorf("rlp: uint64 required [%d] bytes, remaining [%d]", TypeSize.UInt64, d.remaining())
 		return
@@ -453,33 +435,33 @@ func (d *Decoder) readUint64() (out uint64, err error) {
 	return
 }
 
-func (d *Decoder) readInt8() (out int8, err error) {
+func (d *decoder) readInt8() (out int8, err error) {
 	n, err := d.readUint8()
 	out = int8(n)
 	return
 }
 
-func (d *Decoder) readInt16() (out int16, err error) {
+func (d *decoder) readInt16() (out int16, err error) {
 	n, err := d.readUint16()
 	out = int16(n)
 	return
 }
-func (d *Decoder) readInt32() (out int32, err error) {
+func (d *decoder) readInt32() (out int32, err error) {
 	n, err := d.readUint32()
 	out = int32(n)
 	return
 }
-func (d *Decoder) readInt() (out int, err error) {
+func (d *decoder) readInt() (out int, err error) {
 	n, err := d.readUint()
 	out = int(n)
 	return
 }
-func (d *Decoder) readInt64() (out int64, err error) {
+func (d *decoder) readInt64() (out int64, err error) {
 	n, err := d.readUint64()
 	out = int64(n)
 	return
 }
 
-func (d *Decoder) remaining() int {
+func (d *decoder) remaining() int {
 	return len(d.data) - d.pos
 }

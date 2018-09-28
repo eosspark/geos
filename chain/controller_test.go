@@ -7,27 +7,26 @@
 
 package chain
 
-import (
-	"fmt"
-	"testing"
-)
+import "testing"
 
-func TestPopBlock(t *testing.T) {
-	con := NewController()
-	//con.PopBlock()
-	fmt.Println(con)
-}
+//func TestPopBlock(t *testing.T) {
+//	con := NewController()
+//	//con.PopBlock()
+//	fmt.Println(con)
+//}
+//
+//func TestAbortBlock(t *testing.T) {
+//	con := NewController()
+//
+//	con.AbortBlock()
+//	fmt.Println(con)
+//}
+//
+//func TestSetApplayHandler(t *testing.T) {
+//	con := NewController()
+//	fmt.Println(con)
+//	applyCon := ApplyContext{}
+//	con.SetApplayHandler(111, 111, 111, applyCon)
+//}
 
-func TestAbortBlock(t *testing.T) {
-	con := NewController()
-
-	con.AbortBlock()
-	fmt.Println(con)
-}
-
-func TestSetApplayHandler(t *testing.T) {
-	con := NewController()
-	fmt.Println(con)
-	applyCon := ApplyContext{}
-	con.SetApplayHandler(111, 111, 111, applyCon)
-}
+func Test_Controller(t *testing.T) {}

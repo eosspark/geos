@@ -53,8 +53,8 @@ func (trxCon *TransactionContext) NewTransactionContext(c *Controller, t *types.
 	trxCon.netUsage = trxCon.Trace.NetUsage
 	trxCon.pseudoStart = s
 
-	if !c.SkipDBSessions() {
-		trxCon.UndoSession = c.db.StartSession()
+	if !c.SkipDbSessions() {
+		trxCon.UndoSession = c.DB.StartSession()
 	}
 	trxCon.Trace.Id = trxId
 
