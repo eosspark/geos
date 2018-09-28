@@ -5,7 +5,6 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
-	"github.com/eosspark/eos-go/chainp2p"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/ecc"
 	"github.com/eosspark/eos-go/rlp"
@@ -238,7 +237,7 @@ func (c *Client) handleConnection(ready chan bool, errChannel chan error) {
 			fmt.Printf("signed Block Num: %d\n", syncHeadBlock)
 			signedBlock := make(chan uint32, 1)
 			signedBlock <- syncHeadBlock
-			chainp2p.GetSignedBlock(signedBlock)
+			//chainp2p.GetSignedBlock(signedBlock)
 
 			if syncHeadBlock == RequestedBlock {
 
