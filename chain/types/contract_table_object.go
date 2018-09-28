@@ -7,14 +7,14 @@ import (
 	"github.com/eosspark/eos-go/log"
 )
 
-type IdType uint16
+type IdType uint64
 type KeyType uint64
 
 type Object struct {
 	TypeId uint16 `storm:"id,increment"`
 }
 
-type TableIDObject struct {
+type TableIdObject struct {
 	ID    IdType `storm:"id,increment"`
 	Code  common.AccountName
 	Scope common.ScopeName
@@ -23,7 +23,7 @@ type TableIDObject struct {
 	Count uint32
 }
 
-func (u *TableIDObject) GetBillableSize() uint64 {
+func (u *TableIdObject) GetBillableSize() uint64 {
 	return 44 + overhead_per_row_per_index_ram_bytes*2
 }
 
@@ -34,7 +34,7 @@ type ByCodeScopeTable struct {
 }
 
 type TableIDMultiIndex struct {
-	TableIDObject
+	TableIdObject
 	Id  IdType           `storm:"id,increment"`
 	Bst ByCodeScopeTable `strom:"unique"`
 }
@@ -57,9 +57,9 @@ func (u *KeyValueObject) GetBillableSize() uint64 {
 	return 32 + 8 + 4 + overhead_per_row_per_index_ram_bytes*2
 }
 
-func AddTableIdObjectIndex(dbs *eosiodb.DataBase, tio TableIDObject) {
+func AddTableIdObjectIndex(dbs *eosiodb.DataBase, tio TableIdObject) {
 	ti := TableIDMultiIndex{}
-	ti.TableIDObject = tio
+	ti.TableIdObject = tio
 	ti.Bst.Code = tio.Code
 	ti.Bst.Scope = tio.Scope
 	ti.Bst.Table = tio.Table
