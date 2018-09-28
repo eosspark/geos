@@ -27,7 +27,7 @@ type forkDatabase struct {
 	index []*types.BlockState
 }
 
-func (db *forkDatabase) find(id common.BlockIDType) *types.BlockState {
+func (db *forkDatabase) find(id common.BlockIdType) *types.BlockState {
 	for _, n := range db.index {
 		if n.ID == id {
 			return n
@@ -112,8 +112,8 @@ func (c mockChain) GetUnappliedTransactions() []*types.TransactionMetadata {
 	return make([]*types.TransactionMetadata, 0)
 }
 
-func (c mockChain) GetScheduledTransactions() []common.TransactionIDType {
-	return make([]common.TransactionIDType, 0)
+func (c mockChain) GetScheduledTransactions() []common.TransactionIdType {
+	return make([]common.TransactionIdType, 0)
 }
 
 func (c *mockChain) AbortBlock() {
@@ -158,7 +158,7 @@ func (c *mockChain) PushTransaction(trx *types.TransactionMetadata, deadline com
 	c.pending.Trxs = append(c.pending.Trxs, trx)
 	return nil
 }
-func (c *mockChain) PushScheduledTransaction(trx common.TransactionIDType, deadline common.TimePoint) *types.TransactionTrace {
+func (c *mockChain) PushScheduledTransaction(trx common.TransactionIdType, deadline common.TimePoint) *types.TransactionTrace {
 	return nil
 }
 
@@ -196,7 +196,7 @@ func (c *mockChain) ApplyBlock(b *types.SignedBlock) {
 	c.CommitBlock(false)
 }
 
-func (c *mockChain) FetchBlockById(id common.BlockIDType) *types.SignedBlock {
+func (c *mockChain) FetchBlockById(id common.BlockIdType) *types.SignedBlock {
 	state := c.forkDb.find(id)
 	if state != nil {
 		return state.SignedBlock
@@ -216,7 +216,7 @@ func (c *mockChain) FetchBlockByNumber(num uint32) *types.SignedBlock {
 	return nil
 }
 
-func (c *mockChain) IsKnownUnexpiredTransaction(id common.TransactionIDType) bool {
+func (c *mockChain) IsKnownUnexpiredTransaction(id common.TransactionIdType) bool {
 	return false
 }
 

@@ -80,7 +80,7 @@ type Controller struct {
 	resourceLimist        ResourceLimitsManager
 	authorization         AuthorizationManager
 	config                Config //local	Config
-	chainID               common.ChainIDType
+	chainID               common.ChainIdType
 	rePlaying             bool
 	replayHeadTime        common.TimePoint //optional<common.Tstamp>
 	readMode              DBReadMode
@@ -391,9 +391,9 @@ func (self *Controller) GetUnAppliedTransactions() *[]types.TransactionMetadata 
 
 func (self *Controller) DropUnAppliedTransaction(metadata *types.TransactionMetadata) {}
 
-func (self *Controller) GetScheduledTransactions() *[]common.TransactionIDType { return nil }
+func (self *Controller) GetScheduledTransactions() *[]common.TransactionIdType { return nil }
 
-func (self *Controller) PushScheduledTransaction(sheduled common.TransactionIDType,
+func (self *Controller) PushScheduledTransaction(sheduled common.TransactionIdType,
 	deadLine common.TimePoint,
 	billedCpuTimeUs uint32) *types.TransactionTrace {
 	return nil
@@ -460,7 +460,7 @@ func (self *Controller) HeadBlockNum() uint32 { return 0 }
 
 func (self *Controller) HeadBlockTime() common.TimePoint { return 0 }
 
-func (self *Controller) HeadBlockId() common.BlockIDType { return common.BlockIDType{} }
+func (self *Controller) HeadBlockId() common.BlockIdType { return common.BlockIdType{} }
 
 func (self *Controller) HeadBlockProducer() common.AccountName { return 0 }
 
@@ -470,7 +470,7 @@ func (self *Controller) HeadBlockState() types.BlockState { return types.BlockSt
 
 func (self *Controller) ForkDbHeadBlockNum() uint32 { return 0 }
 
-func (self *Controller) ForkDbHeadBlockId() common.BlockIDType { return common.BlockIDType{} }
+func (self *Controller) ForkDbHeadBlockId() common.BlockIdType { return common.BlockIdType{} }
 
 func (self *Controller) ForkDbHeadBlockTime() common.TimePoint { return 0 }
 
@@ -486,13 +486,13 @@ func (self *Controller) ProposedProducers() types.ProducerScheduleType {
 
 func (self *Controller) LastIrreversibleBlockNum() uint32 { return 0 }
 
-func (self *Controller) LastIrreversibleBlockId() common.BlockIDType { return common.BlockIDType{} }
+func (self *Controller) LastIrreversibleBlockId() common.BlockIdType { return common.BlockIdType{} }
 
 func (self *Controller) FetchBlockByNumber(blockNum uint32) types.SignedBlock {
 	return types.SignedBlock{}
 }
 
-func (self *Controller) FetchBlockById(id common.BlockIDType) types.SignedBlock {
+func (self *Controller) FetchBlockById(id common.BlockIdType) types.SignedBlock {
 	return types.SignedBlock{}
 }
 
@@ -500,12 +500,12 @@ func (self *Controller) FetchBlockStateByNumber(blockNum uint32) types.BlockStat
 	return types.BlockState{}
 }
 
-func (self *Controller) FetchBlockStateById(id common.BlockIDType) types.BlockState {
+func (self *Controller) FetchBlockStateById(id common.BlockIdType) types.BlockState {
 	return types.BlockState{}
 }
 
-func (self *Controller) GetBlcokIdForNum(blockNum uint32) common.BlockIDType {
-	return common.BlockIDType{}
+func (self *Controller) GetBlcokIdForNum(blockNum uint32) common.BlockIdType {
+	return common.BlockIdType{}
 }
 
 func (self *Controller) CheckContractList(code common.AccountName) {}
@@ -536,7 +536,7 @@ func (self *Controller) ValidateDbAvailableSize() {}
 
 func (self *Controller) ValidateReversibleAvailableSize() {}
 
-func (self *Controller) IsKnownUnexpiredTransaction(id common.TransactionIDType) bool { return false }
+func (self *Controller) IsKnownUnexpiredTransaction(id common.TransactionIdType) bool { return false }
 
 func (self *Controller) SetProposedProducers(producers []types.ProducerKey) int64 { return 0 }
 
@@ -544,7 +544,7 @@ func (self *Controller) SkipAuthCheck() bool { return false }
 
 func (self *Controller) ContractsConsole() bool { return false }
 
-func (self *Controller) GetChainId() common.ChainIDType { return common.ChainIDType{} }
+func (self *Controller) GetChainId() common.ChainIdType { return common.ChainIdType{} }
 
 func (self *Controller) GetReadMode() DBReadMode { return 0 }
 
