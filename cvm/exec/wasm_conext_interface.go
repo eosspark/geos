@@ -38,6 +38,11 @@ type WasmContextInterface interface {
 	DBUpperBoundI64(code int64, scope int64, table int64, id int64) int
 	DBEndI64(code int64, scope int64, table int64) int
 
+	IdxI64Store(scope int64, table int64, payer int64, id int64, value *types.Uint64_t) int
+	IdxI64Remove(iterator int)
+	IdxI64Update(iterator int, payer int64, value *types.Uint64_t)
+	IdxI64FindSecondary(code int64, scope int64, table int64, secondary *types.Uint64_t, primary *uint64) int
+
 	UpdateDBUsage(pager common.AccountName, delta int64)
 	//FindTable(code int64, scope int64, table int64) types.TableIDObject
 	//FindOrCreateTable(code common.Name, scope common.Name, table common.Name, payer *common.AccountName) types.TableIDObject

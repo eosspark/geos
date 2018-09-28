@@ -23,6 +23,12 @@ type ApplyContext struct {
 	UsedContestFreeApi bool
 	Trace              types.ActionTrace
 
+	IDX64         DBGenericIndex
+	IDX128        DBGenericIndex
+	IDX256        DBGenericIndex
+	IDXDouble     DBGenericIndex
+	IDXLongDouble DBGenericIndex
+
 	//GenericIndex
 	//_pending_console_output
 	KeyvalCache          iteratorCache
@@ -30,15 +36,20 @@ type ApplyContext struct {
 	PendingConsoleOutput string
 }
 
+type itrObjectInterface interface {
+	GetBillableSize() uint64
+}
+
 type pairTableIterator struct {
 	tableIDObject *types.TableIDObject
 	iterator      int
 }
+
 type iteratorCache struct {
 	tableCache         map[types.IdType]*pairTableIterator
 	endIteratorToTable []*types.TableIDObject
-	iteratorToObject   []interface{}
-	objectToIterator   map[interface{}]int
+	iteratorToObject   []itrObjectInterface
+	objectToIterator   map[itrObjectInterface]int
 }
 
 func NewIteratorCache() *iteratorCache {
@@ -46,8 +57,8 @@ func NewIteratorCache() *iteratorCache {
 	i := &iteratorCache{
 		tableCache:         make(map[types.IdType]*pairTableIterator),
 		endIteratorToTable: make([]*types.TableIDObject, 8),
-		iteratorToObject:   make([]interface{}, 32),
-		objectToIterator:   make(map[interface{}]int),
+		iteratorToObject:   make([]itrObjectInterface, 32),
+		objectToIterator:   make(map[itrObjectInterface]int),
 	}
 
 	return i
@@ -93,7 +104,7 @@ func (i *iteratorCache) findTablebyEndIterator(ei int) *types.TableIDObject {
 	}
 	return i.endIteratorToTable[indx]
 }
-func (i *iteratorCache) get(iterator int) interface{} {
+func (i *iteratorCache) get(iterator int) itrObjectInterface {
 	// EOS_ASSERT( iterator != -1, invalid_table_iterator, "invalid iterator" );
 	// EOS_ASSERT( iterator >= 0, table_operation_not_permitted, "dereference of end iterator" );
 	// EOS_ASSERT( iterator < _iterator_to_object.size(), invalid_table_iterator, "iterator out of range" );
@@ -117,7 +128,7 @@ func (i *iteratorCache) remove(iterator int) {
 	//EOS_ASSERT( result, table_operation_not_permitted, "dereference of deleted object" );
 }
 
-func (i *iteratorCache) add(obj interface{}) int {
+func (i *iteratorCache) add(obj itrObjectInterface) int {
 	if itr, ok := i.objectToIterator[obj]; ok {
 		return itr
 	}
@@ -221,8 +232,8 @@ func (a *ApplyContext) dbStoreI64(code int64, scope int64, table int64, payer in
 	//
 	//// int64_t billable_size = (int64_t)(buffer_size + config::billable_size_v<key_value_object>);
 	////    UpdateDBUsage( payer, billable_size);
-	//
-	//a.KeyvalCache.cacheTable(&newTab)
+	// UpdateDBUsage( payer, len(buffer) + obj.GetBillableSize());
+	//a.KeyvalCache.cacheTable(&tab)
 	//return a.KeyvalCache.add(&obj)
 
 }
@@ -234,7 +245,7 @@ func (a *ApplyContext) DBUpdateI64(iterator int, payer common.AccountName, buffe
 	// //EOS_ASSERT( table_obj.code == receiver, table_access_violation, "db access violation" );
 
 	// // const int64_t overhead = config::billable_size_v<key_value_object>;
-	// overhead = 0
+	// overhead = obj.GetBillableSize()
 	// oldSize := len(obj.Value) + overhead
 	// newSize := len(buffer) + overhead
 
@@ -402,6 +413,21 @@ func (a *ApplyContext) DBEndI64(code int64, scope int64, table int64) int {
 	}
 
 	return a.KeyvalCache.cacheTable(tab)
+}
+
+//index for sceondarykey
+func (a *ApplyContext) IdxI64Store(scope int64, table int64, payer int64, id int64, value *types.Uint64_t) int {
+	return a.IDX64.store(scope, table, payer, id, value)
+}
+func (a *ApplyContext) IdxI64Remove(iterator int) {
+	a.IDX64.remove(iterator)
+}
+func (a *ApplyContext) IdxI64Update(iterator int, payer int64, value *types.Uint64_t) {
+	a.IDX64.update(iterator, payer, value)
+}
+func (a *ApplyContext) IdxI64FindSecondary(code int64, scope int64, table int64, secondary *types.Uint64_t, primary *uint64) int {
+	//a.IDX64.update(iterator, payer, value)
+	return a.IDX64.findSecondary(code, scope, table, secondary, primary)
 }
 
 func (a *ApplyContext) FindTable(code int64, scope int64, table int64) *types.TableIDObject {
