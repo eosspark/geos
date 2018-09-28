@@ -45,7 +45,13 @@ func init() {
 	DefaultConfig.MaxProducers = 125
 	DefaultConfig.MaxTrackedDposConfirmations = 1024
 
-	DefaultConfig.Percent_1 = 100
+	DefaultConfig.Percent_100 = 10000
+	DefaultConfig.Percent_1   = 100
+	DefaultConfig.AccountCpuUsageAverageWindowMs = 24 * 60 * 60 * 1000
+	DefaultConfig.AccountNetUsageAverageWindowMs = 24 * 60 * 60 * 1000
+	DefaultConfig.BlockCpuUsageAverageWindowMs   = 60 * 1000
+	DefaultConfig.BlockSizeAverageWindowMs       = 60 * 1000
+
 	DefaultConfig.MaxBlockNetUsage = 1024 * 1024                                /// at 500ms blocks and 200byte trx, this enables ~10,000 TPS burst
 	DefaultConfig.TargetBlockNetUsagePct = uint32(10 * DefaultConfig.Percent_1) /// we target 1000 TPS
 	DefaultConfig.MaxTransactionNetUsage = uint32(DefaultConfig.MaxBlockNetUsage) / 2
@@ -106,7 +112,14 @@ type Config struct {
 	MaxTrackedDposConfirmations int ///<
 	TransactionIdNetUsage       uint32
 
-	Percent_1 int
+	Percent_100 int
+	Percent_1   int
+
+	AccountCpuUsageAverageWindowMs uint32
+	AccountNetUsageAverageWindowMs uint32
+	BlockCpuUsageAverageWindowMs   uint32
+	BlockSizeAverageWindowMs       uint32
+
 	/**************************chain_config start****************************/
 	MaxBlockNetUsage               uint64 ///< the maxiumum net usage in instructions for a block
 	TargetBlockNetUsagePct         uint32 ///< the target percent (1% == 100, 100%= 10,000) of maximum net usage; exceeding this triggers congestion handling
@@ -170,6 +183,10 @@ func (c *Config) Validate() {
 
 func BillableSizeV(kind string) uint64 {
 	return (DefaultConfig.BillableSize[kind].value + DefaultConfig.BillableAlignment - 1) / DefaultConfig.BillableAlignment * DefaultConfig.BillableAlignment
+}
+
+func EosPercent(value uint64, percentage uint32) uint64{
+	return (value * uint64(percentage)) / uint64(DefaultConfig.Percent_100)
 }
 
 const ()

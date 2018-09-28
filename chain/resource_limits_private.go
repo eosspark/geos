@@ -68,7 +68,7 @@ func (ema *ExponentialMovingAverageAccumulator) add(units uint64, ordinal uint32
 		ema.Consumed = ema.Average()
 	}
 	ema.Consumed += units
-	ema.Consumed += valueExContrib
+	ema.ValueEx += valueExContrib
 }
 
 type UsageAccumulator struct {
@@ -83,6 +83,12 @@ type ResourceLimitsObject struct {
 	NetWeight int64              `json:"net_weight"`
 	CpuWeight int64              `json:"cpu_weight"`
 	RamBytes  int64              `json:"ram_bytes"`
+}
+
+func (rlo *ResourceLimitsObject) Init() {
+	rlo.NetWeight = -1
+	rlo.CpuWeight = -1
+	rlo.RamBytes = -1
 }
 
 type RloIndex struct {
@@ -111,6 +117,22 @@ type ResourceLimitsConfigObject struct {
 	NetLimitParameters           ElasticLimitParameters `json:"net_limit_parameters"`
 	AccountCpuUsageAverageWindow uint32                 `json:"account_cpu_usage_average_window"`
 	AccountNetUsageAverageWindow uint32                 `json:"account_net_usage_average_window"`
+}
+
+func (config *ResourceLimitsConfigObject) Init() {
+	config.CpuLimitParameters = ElasticLimitParameters{common.EosPercent(uint64(common.DefaultConfig.MaxBlockCpuUsage), common.DefaultConfig.TargetBlockCpuUsagePct),
+		uint64(common.DefaultConfig.MaxBlockCpuUsage),
+		uint32(common.DefaultConfig.BlockCpuUsageAverageWindowMs) / uint32(common.DefaultConfig.BlockIntervalMs),
+		1000, Ratio{99, 100}, Ratio{1000, 999},
+	}
+
+	config.NetLimitParameters = ElasticLimitParameters{common.EosPercent(uint64(common.DefaultConfig.MaxBlockNetUsage), common.DefaultConfig.TargetBlockNetUsagePct),
+		uint64(common.DefaultConfig.MaxBlockCpuUsage),
+		uint32(common.DefaultConfig.BlockSizeAverageWindowMs) / uint32(common.DefaultConfig.BlockIntervalMs),
+		1000, Ratio{99, 100}, Ratio{1000, 999},
+	}
+	config.AccountCpuUsageAverageWindow = common.DefaultConfig.AccountCpuUsageAverageWindowMs / uint32(common.DefaultConfig.BlockIntervalMs)
+	config.AccountNetUsageAverageWindow = common.DefaultConfig.AccountNetUsageAverageWindowMs / uint32(common.DefaultConfig.BlockIntervalMs)
 }
 
 type ResourceLimitsStateObject struct {

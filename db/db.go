@@ -286,7 +286,7 @@ func (undo *DataBase) squash() {
 	}
 
 	for key, value := range stack.RemoveValue {
-		fmt.Println(key, " --> ", value)
+		//fmt.Println(key, " --> ", value)
 		if _, ok := prestack.NewValue[key]; ok {
 			k := equal(prestack.NewValue, key)
 			delete(prestack.NewValue, k)
