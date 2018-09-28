@@ -135,10 +135,10 @@ func (self *Controller) PopBlock() {
 	}
 
 	if self.readMode == SPECULATIVE {
-		var trx []types.TransactionMetadata = self.head.Trxs
+		var trx []*types.TransactionMetadata = self.head.Trxs
 		step := 0
 		for ; step < len(trx); step++ {
-			self.unappliedTransactions[rlp.Sha256(trx[step].SignedID)] = trx[step]
+			self.unappliedTransactions[rlp.Sha256(trx[step].SignedID)] = *trx[step]
 		}
 	}
 	self.head = prev
@@ -168,7 +168,7 @@ func (self *Controller) AbortBlock() {
 			trx := append(self.pending.PendingBlockState.Trxs)
 			step := 0
 			for ; step < len(trx); step++ {
-				self.unappliedTransactions[rlp.Sha256(trx[step].SignedID)] = trx[step]
+				self.unappliedTransactions[rlp.Sha256(trx[step].SignedID)] = *trx[step]
 			}
 		}
 	}

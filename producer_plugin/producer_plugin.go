@@ -85,7 +85,7 @@ func (pp *ProducerPlugin) PluginInitialize(app *cli.App) {
 	//}
 
 	pp.my.SignatureProviders[initPubKey], _ = makeKeySignatureProvider(*initPriKey)
-	pp.my.SignatureProviders[initPubKey], _ = makeKeosdSignatureProvider(pp, "http://", initPubKey)
+	// pp.my.SignatureProviders[initPubKey], _ = makeKeosdSignatureProvider(pp, "http://", initPubKey)
 
 	var maxTransactionTimeMs int
 	var maxIrreversibleBlockAgeUs int

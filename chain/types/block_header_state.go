@@ -8,14 +8,6 @@ import (
 	"sort"
 )
 
-type BlockState struct {
-	BlockHeaderState
-	SignedBlock    SignedBlock
-	Validated      bool `json:"validated"`
-	InCurrentChain bool `json:"in_current_chain"`
-	Trxs           []TransactionMetadata
-}
-
 type BlockHeaderState struct {
 	ID                               common.BlockIDType `storm:"id,unique"`
 	BlockNum                         uint32             `storm:"block_num,unique"`
