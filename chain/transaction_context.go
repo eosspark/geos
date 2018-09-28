@@ -11,7 +11,7 @@ import (
 type TransactionContext struct {
 	Control               *Controller
 	Trx                   *types.SignedTransaction
-	ID                    common.TransactionIDType
+	ID                    common.TransactionIdType
 	UndoSession           *eosiodb.Session
 	Trace                 types.TransactionTrace
 	Start                 common.TimePoint
@@ -46,7 +46,7 @@ type TransactionContext struct {
 	billingTimerDurationLimit     common.Microseconds
 }
 
-func (trxCon *TransactionContext) NewTransactionContext(c *Controller, t *types.SignedTransaction, trxId common.TransactionIDType, s common.TimePoint) *TransactionContext {
+func (trxCon *TransactionContext) NewTransactionContext(c *Controller, t *types.SignedTransaction, trxId common.TransactionIdType, s common.TimePoint) *TransactionContext {
 	trxCon.Control = c
 	trxCon.Trx = t
 	trxCon.Start = s

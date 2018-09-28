@@ -15,17 +15,17 @@ type P2PMessage interface {
 type HandshakeMessage struct {
 	// net_plugin/protocol.hpp handshake_message
 	NetworkVersion           uint16             `json:"network_version"`
-	ChainID                  common.ChainIDType `json:"chain_id"`
-	NodeID                   common.NodeIDType  `json:"node_id"` // sha256
+	ChainID                  common.ChainIdType `json:"chain_id"`
+	NodeID                   common.NodeIdType  `json:"node_id"` // sha256
 	Key                      ecc.PublicKey      `json:"key"`     // can be empty, producer key, or peer key
-	Time                     common.TimePoint      `json:"time"`    // time?!
-	Token                    rlp.Sha256      `json:"token"`   // digest of time to prove we own the private `key`
+	Time                     common.TimePoint   `json:"time"`    // time?!
+	Token                    rlp.Sha256         `json:"token"`   // digest of time to prove we own the private `key`
 	Signature                ecc.Signature      `json:"sig"`     // can be empty if no key, signature of the digest above
 	P2PAddress               string             `json:"p2p_address"`
 	LastIrreversibleBlockNum uint32             `json:"last_irreversible_block_num"`
-	LastIrreversibleBlockID  common.BlockIDType `json:"last_irreversible_block_id"`
+	LastIrreversibleBlockID  common.BlockIdType `json:"last_irreversible_block_id"`
 	HeadNum                  uint32             `json:"head_num"`
-	HeadID                   common.BlockIDType `json:"head_id"`
+	HeadID                   common.BlockIdType `json:"head_id"`
 	OS                       string             `json:"os"`
 	Agent                    string             `json:"agent"`
 	Generation               uint16             `json:"generation"`
@@ -42,9 +42,9 @@ func (m *HandshakeMessage) String() string {
 
 type ChainSizeMessage struct {
 	LastIrreversibleBlockNum uint32             `json:"last_irreversible_block_num"`
-	LastIrreversibleBlockID  common.BlockIDType `json:"last_irreversible_block_id"`
+	LastIrreversibleBlockID  common.BlockIdType `json:"last_irreversible_block_id"`
 	HeadNum                  uint32             `json:"head_num"`
-	HeadID                   common.BlockIDType `json:"head_id"`
+	HeadID                   common.BlockIdType `json:"head_id"`
 }
 
 func (m *ChainSizeMessage) GetType() P2PMessageType {
@@ -70,8 +70,8 @@ const (
 )
 
 type GoAwayMessage struct {
-	Reason GoAwayReason  `json:"reason"`
-	NodeID rlp.Sha256 `json:"node_id"`
+	Reason GoAwayReason `json:"reason"`
+	NodeID rlp.Sha256   `json:"node_id"`
 }
 
 func (m *GoAwayMessage) GetType() P2PMessageType {
@@ -93,10 +93,10 @@ func (t *TimeMessage) String() string {
 	return fmt.Sprintf("Origin [%s], Receive [%s], Transmit [%s], Destination [%s]", t.Origin, t.Receive, t.Transmit, t.Destination)
 }
 
-type IDListMode uint32
+type IdListMode uint32
 
 const (
-	none IDListMode = iota
+	none IdListMode = iota
 	catch_up
 	last_irr_catch_up
 	normal
@@ -104,15 +104,15 @@ const (
 
 type OrderedTransactionIDs struct {
 	// Unknown [3]byte             `json:"-"` ///// WWUUuuuuuuuuuuuutzthat ?
-	Mode    IDListMode                  `json:"mode"`
+	Mode    IdListMode                  `json:"mode"`
 	Pending uint32                      `json:"pending"`
-	IDs     []*common.TransactionIDType `json:"ids"`
+	IDs     []*common.TransactionIdType `json:"ids"`
 }
 type OrderedBlockIDs struct {
 	// Unknown [3]byte             `json:"-"` ///// wuuttzthat?
-	Mode    IDListMode            `json:"mode"`
+	Mode    IdListMode            `json:"mode"`
 	Pending uint32                `json:"pending"`
-	IDs     []*common.BlockIDType `json:"ids"`
+	IDs     []*common.BlockIdType `json:"ids"`
 }
 
 type NoticeMessage struct {

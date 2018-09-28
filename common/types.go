@@ -18,13 +18,13 @@ type SizeT int
 
 // For reference:
 // https://github.com/mithrilcoin-io/EosCommander/blob/master/app/src/main/java/io/mithrilcoin/eoscommander/data/remote/model/types/EosByteWriter.java
-type ChainIDType rlp.Sha256
-type NodeIDType rlp.Sha256
-type BlockIDType rlp.Sha256
-type TransactionIDType rlp.Sha256
+type ChainIdType rlp.Sha256
+type NodeIdType rlp.Sha256
+type BlockIdType rlp.Sha256
+type TransactionIdType rlp.Sha256
 type CheckSum256Type rlp.Sha256
 
-func DecodeIDTypeString(str string) (id [4]uint64, err error) {
+func DecodeIdTypeString(str string) (id [4]uint64, err error) {
 	b, err := hex.DecodeString(str)
 	if err != nil {
 		return
@@ -37,14 +37,14 @@ func DecodeIDTypeString(str string) (id [4]uint64, err error) {
 
 	return
 }
-func DecodeIDTypeByte(b []byte) (id [4]uint64, err error) {
+func DecodeIdTypeByte(b []byte) (id [4]uint64, err error) {
 	for i := range id {
 		id[i] = binary.LittleEndian.Uint64(b[i*8 : (i+1)*8])
 	}
 
 	return id, nil
 }
-func (n ChainIDType) MarshalJSON() ([]byte, error) {
+func (n ChainIdType) MarshalJSON() ([]byte, error) {
 	b := make([]byte, 32)
 	for i := range n.Hash_ {
 		binary.LittleEndian.PutUint64(b[i*8:(i+1)*8], n.Hash_[i])
@@ -52,7 +52,7 @@ func (n ChainIDType) MarshalJSON() ([]byte, error) {
 	return json.Marshal(hex.EncodeToString(b))
 }
 
-func (n *ChainIDType) UnmarshalJSON(data []byte) error {
+func (n *ChainIdType) UnmarshalJSON(data []byte) error {
 	var s string
 	err := json.Unmarshal(data, &s)
 	if err != nil {
@@ -72,15 +72,15 @@ func (n *ChainIDType) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func (n NodeIDType) MarshalJSON() ([]byte, error) {
+func (n NodeIdType) MarshalJSON() ([]byte, error) {
 	return rlp.Sha256(n).MarshalJSON()
 }
 
-func (n BlockIDType) MarshalJSON() ([]byte, error) {
+func (n BlockIdType) MarshalJSON() ([]byte, error) {
 	return rlp.Sha256(n).MarshalJSON()
 }
 
-func (n *BlockIDType) UnmarshalJSON(data []byte) error {
+func (n *BlockIdType) UnmarshalJSON(data []byte) error {
 	var s string
 	err := json.Unmarshal(data, &s)
 	if err != nil {
@@ -97,7 +97,7 @@ func (n *BlockIDType) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
-func (n TransactionIDType) MarshalJSON() ([]byte, error) {
+func (n TransactionIdType) MarshalJSON() ([]byte, error) {
 	return rlp.Sha256(n).MarshalJSON()
 }
 

@@ -11,11 +11,11 @@ import (
 
 type InfoResp struct {
 	ServerVersion            string                `json:"server_version"` // "2cc40a4e"
-	ChainID                  common.ChainIDType    `json:"chain_id"`
+	ChainID                  common.ChainIdType    `json:"chain_id"`
 	HeadBlockNum             uint32                `json:"head_block_num"`              // 2465669,
 	LastIrreversibleBlockNum uint32                `json:"last_irreversible_block_num"` // 2465655
-	LastIrreversibleBlockID  common.BlockIDType    `json:"last_irreversible_block_id"`  // "00000008f98f0580d7efe7abc60abaaf8a865c9428a4267df30ff7d1937a1084"
-	HeadBlockID              common.BlockIDType    `json:"head_block_id"`               // "00259f856bfa142d1d60aff77e70f0c4f3eab30789e9539d2684f9f8758f1b88",
+	LastIrreversibleBlockID  common.BlockIdType    `json:"last_irreversible_block_id"`  // "00000008f98f0580d7efe7abc60abaaf8a865c9428a4267df30ff7d1937a1084"
+	HeadBlockID              common.BlockIdType    `json:"head_block_id"`               // "00259f856bfa142d1d60aff77e70f0c4f3eab30789e9539d2684f9f8758f1b88",
 	HeadBlockTime            common.BlockTimeStamp `json:"head_block_time"`             //  "2018-02-02T04:19:32"
 	HeadBlockProducer        common.AccountName    `json:"head_block_producer"`         // "inita"
 
@@ -28,7 +28,7 @@ type InfoResp struct {
 
 type BlockResp struct { //we don't need all blockresp??only need "id"
 	types.SignedBlock
-	ID             common.BlockIDType `json:"id"`
+	ID             common.BlockIdType `json:"id"`
 	BlockNum       uint32             `json:"block_num"`
 	RefBlockPrefix uint32             `json:"ref_block_prefix"`
 }
@@ -91,7 +91,7 @@ type GetABIResp struct {
 // }
 
 // type TransactionAll struct {
-// 	ID common.TransactionIDType `json:"id"`
+// 	ID common.TransactionIdType `json:"id"`
 // 	TransactionPack
 // }
 
@@ -108,7 +108,7 @@ type GetABIResp struct {
 
 // type BlockResp struct {
 // 	BlockData
-// 	ID             common.BlockIDType `json:"id"`
+// 	ID             common.BlockIdType `json:"id"`
 // 	BlockNum       uint32             `json:"block_num"`
 // 	RefBlockPrefix uint32             `json:"ref_block_prefix"`
 // }

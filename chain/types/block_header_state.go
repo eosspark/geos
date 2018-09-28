@@ -17,7 +17,7 @@ type BlockState struct {
 }
 
 type BlockHeaderState struct {
-	ID                               common.BlockIDType `storm:"id,unique"`
+	ID                               common.BlockIdType `storm:"id,unique"`
 	BlockNum                         uint32             `storm:"block_num,unique"`
 	Header                           SignedBlockHeader
 	DposProposedIrreversibleBlocknum uint32     `json:"dpos_proposed_irreversible_blocknum"`

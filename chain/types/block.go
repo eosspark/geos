@@ -130,7 +130,7 @@ func (m *SignedBlock) String() string {
 }
 
 type ProducerConfirmation struct {
-	BlockID     common.BlockIDType
+	BlockID     common.BlockIdType
 	BlockDigest [4]uint64
 	Producer    common.AccountName
 	Sig         ecc.Signature
@@ -138,11 +138,11 @@ type ProducerConfirmation struct {
 
 type Optional struct {
 	Valid bool
-	Pair  map[common.ChainIDType][]ecc.PublicKey
+	Pair  map[common.ChainIdType][]ecc.PublicKey
 }
 
 type TransactionWithID struct {
-	// ID     common.TransactionIDType
+	// ID     common.TransactionIdType
 	Tag    uint8              `json:"-"`
 	Packed *PackedTransaction `json:"packed_transaction"`
 }

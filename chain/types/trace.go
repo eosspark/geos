@@ -9,7 +9,7 @@ type BaseActionTrace struct {
 	CpuUsage      uint64
 	Console       string
 	TotalCpuUsage uint64                   /// total of inline_traces[x].cpu_usage + cpu_usage
-	TrxId         common.TransactionIDType ///< the transaction that generated this action
+	TrxId         common.TransactionIdType ///< the transaction that generated this action
 }
 
 type ActionTrace struct {
@@ -18,7 +18,7 @@ type ActionTrace struct {
 }
 
 type TransactionTrace struct {
-	Id           common.TransactionIDType
+	Id           common.TransactionIdType
 	Receipt      *TransactionReceiptHeader
 	Elapsed      common.Microseconds
 	NetUsage     uint64

@@ -129,7 +129,7 @@ var (
 		Flags: []cli.Flag{
 			utils.TrxJsonToSignFlag,
 			utils.StrPrivateKeyFlag,
-			utils.StrChainIDFlag,
+			utils.StrChainIdFlag,
 			utils.PushTrxFlag,
 		},
 	}
@@ -295,7 +295,7 @@ func signTransactionCli(ctx *cli.Context) (err error) {
 	return err
 }
 
-func SignTransaction(tx *types.SignedTransaction, chainID common.ChainIDType, pubKeys ...ecc.PublicKey) (out *WalletSignTransactionResp, err error) {
+func SignTransaction(tx *types.SignedTransaction, chainID common.ChainIdType, pubKeys ...ecc.PublicKey) (out *WalletSignTransactionResp, err error) {
 	textKeys := make([]string, 1)
 	for _, key := range pubKeys {
 		textKeys = append(textKeys, key.String())

@@ -74,8 +74,8 @@ func (c mockChain) GetUnappliedTransactions() []*types.TransactionMetadata {
 	return make([]*types.TransactionMetadata, 0)
 }
 
-func (c mockChain) GetScheduledTransactions() []common.TransactionIDType {
-	return make([]common.TransactionIDType, 0)
+func (c mockChain) GetScheduledTransactions() []common.TransactionIdType {
+	return make([]common.TransactionIdType, 0)
 }
 
 func (c *mockChain) AbortBlock() {
@@ -103,7 +103,7 @@ func (c *mockChain) CommitBlock() {
 func (c mockChain) PushTransaction(trx *types.TransactionMetadata, deadline common.TimePoint) *types.TransactionTrace {
 	return nil
 }
-func (c mockChain) PushScheduledTransaction(trx common.TransactionIDType, deadline common.TimePoint) *types.TransactionTrace {
+func (c mockChain) PushScheduledTransaction(trx common.TransactionIdType, deadline common.TimePoint) *types.TransactionTrace {
 	return nil
 }
 
@@ -111,7 +111,7 @@ func (c *mockChain) PushBlock(b *types.SignedBlock) error {
 	return nil
 }
 
-func (c *mockChain) FetchBlockById(id common.BlockIDType) *types.SignedBlock {
+func (c *mockChain) FetchBlockById(id common.BlockIdType) *types.SignedBlock {
 	return nil
 }
 
@@ -119,7 +119,7 @@ func (c *mockChain) FetchBlockByNumber(num uint32) *types.SignedBlock {
 	return nil
 }
 
-func (c *mockChain) IsKnownUnexpiredTransaction(id common.TransactionIDType) bool {
+func (c *mockChain) IsKnownUnexpiredTransaction(id common.TransactionIdType) bool {
 	return false
 }
 

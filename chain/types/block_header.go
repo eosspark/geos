@@ -10,7 +10,7 @@ type BlockHeader struct {
 	Timestamp        common.BlockTimeStamp       `json:"timestamp"`
 	Producer         common.AccountName          `json:"producer"`
 	Confirmed        uint16                      `json:"confirmed"`
-	Previous         common.BlockIDType          `json:"previous"`
+	Previous         common.BlockIdType          `json:"previous"`
 	TransactionMRoot common.CheckSum256Type      `json:"transaction_mroot"`
 	ActionMRoot      common.CheckSum256Type      `json:"action_mroot"`
 	ScheduleVersion  uint32                      `json:"schedule_version"`
@@ -26,16 +26,16 @@ func (b *BlockHeader) BlockNumber() uint32 {
 	return NumFromID(b.Previous) + 1
 }
 
-func NumFromID(id common.BlockIDType) uint32 {
+func NumFromID(id common.BlockIdType) uint32 {
 	return common.EndianReverseU32(uint32(id.Hash_[0]))
 }
 
-func (b *BlockHeader) BlockID() common.BlockIDType {
+func (b *BlockHeader) BlockID() common.BlockIdType {
 	// Do not include signed_block_header attributes in id, specifically exclude producer_signature.
 	result := b.Digest()
 	result.Hash_[0] &= 0xffffffff00000000
 	result.Hash_[0] += uint64(common.EndianReverseU32(b.BlockNumber())) // store the block num in the ID, 160 bits is plenty for the hash
-	return common.BlockIDType(result)
+	return common.BlockIdType(result)
 }
 
 type SignedBlockHeader struct {
@@ -44,7 +44,7 @@ type SignedBlockHeader struct {
 }
 
 type HeaderConfirmation struct {
-	BlockId           common.BlockIDType `json:"block_id"`
+	BlockId           common.BlockIdType `json:"block_id"`
 	Producer          common.AccountName `json:"producer"`
 	ProducerSignature ecc.Signature      `json:"producers_signature"`
 }

@@ -351,7 +351,7 @@ const (
 )
 
 type signatureProviderType func(sha256 rlp.Sha256) ecc.Signature
-type transactionIdWithExpireIndex map[common.TransactionIDType]common.TimePoint
+type transactionIdWithExpireIndex map[common.TransactionIdType]common.TimePoint
 
 //errors
 var (
