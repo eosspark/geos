@@ -46,7 +46,7 @@ type WasmContextInterface interface {
 	UpdateDBUsage(pager common.AccountName, delta int64)
 	//FindTable(code int64, scope int64, table int64) types.TableIDObject
 	//FindOrCreateTable(code common.Name, scope common.Name, table common.Name, payer *common.AccountName) types.TableIDObject
-	RemoveTable(tid types.TableIDObject)
+	RemoveTable(tid types.TableIdObject)
 
 	//context permission api
 	GetPermissionLastUsed(account common.AccountName, permission common.PermissionName) int64
@@ -73,8 +73,8 @@ type WasmContextInterface interface {
 	//context transaction api
 	ExecuteInline(action []byte)
 	ExecuteContextFreeInline(action []byte)
-	ScheduleDeferredTransaction(sendId common.TransactionIDType, payer common.AccountName, trx []byte, replaceExisting bool)
-	CancelDeferredTransaction(sendId common.TransactionIDType) bool
+	ScheduleDeferredTransaction(sendId common.TransactionIdType, payer common.AccountName, trx []byte, replaceExisting bool)
+	CancelDeferredTransaction(sendId common.TransactionIdType) bool
 	GetPackedTransaction() []byte
 	Expiration() int
 	TaposBlockNum() int

@@ -49,9 +49,9 @@ func sendDeferred(w *WasmInterface, sender_id int, payer common.AccountName, dat
 	fmt.Println("send_deferred")
 
 	//id := big.Int.SetBytes(w.vm.memory[sender_id : sender_id+32])
-	id, _ := common.DecodeIDTypeByte(w.vm.memory[sender_id : sender_id+32])
+	id, _ := common.DecodeIdTypeByte(w.vm.memory[sender_id : sender_id+32])
 	trx := getBytes(w, data, dataLen)
-	w.context.ScheduleDeferredTransaction(common.TransactionIDType{id}, payer, trx, i2b(int(replaceExisting)))
+	w.context.ScheduleDeferredTransaction(common.TransactionIdType{id}, payer, trx, i2b(int(replaceExisting)))
 }
 
 // bool cancel_deferred( const unsigned __int128& val ) {
@@ -61,8 +61,8 @@ func sendDeferred(w *WasmInterface, sender_id int, payer common.AccountName, dat
 func cancelDeferred(w *WasmInterface, senderId int) int {
 	fmt.Println("cancel_deferred")
 
-	id, _ := common.DecodeIDTypeByte(w.vm.memory[senderId : senderId+32])
-	return b2i(w.context.CancelDeferredTransaction(common.TransactionIDType{id}))
+	id, _ := common.DecodeIdTypeByte(w.vm.memory[senderId : senderId+32])
+	return b2i(w.context.CancelDeferredTransaction(common.TransactionIdType{id}))
 
 }
 

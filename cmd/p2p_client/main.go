@@ -7,8 +7,8 @@ import (
 	"github.com/eosspark/eos-go/p2p"
 	"log"
 
-	"time"
 	"github.com/eosspark/eos-go/rlp"
+	"time"
 )
 
 var p2pAddr = flag.String("p2p-addr", "127.0.0.1:9876", "P2P socket connection")
@@ -29,8 +29,8 @@ func main() {
 	}
 	//data, _ := common.DecodeIDTypeByte(cID)
 
-	data :=*rlp.NewSha256Byte(cID)
-	client := p2p.NewClient(*p2pAddr, common.ChainIDType(data), uint16(*networkVersion))
+	data := *rlp.NewSha256Byte(cID)
+	client := p2p.NewClient(*p2pAddr, common.ChainIdType(data), uint16(*networkVersion))
 	if err != nil {
 		log.Fatal(err)
 	}

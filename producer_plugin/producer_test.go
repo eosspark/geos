@@ -78,73 +78,23 @@ func Test_producer_start(t *testing.T) {
 	os.Args = []string{"--enable-stale-production", "-p", "eosio", "-p", "yuanc"}
 	//os.Args = []string{"--enable-stale-production", "-p", "eosio", "-p", "yuanc", "--max-irreversible-block-age", "10"}
 
-	//for i:=0; i< len(os.Args); i++ {
-	//	fmt.Println(os.Args[i])
-	//}
-
 	app := cli.NewApp()
 	app.Name = "nodeos"
 	app.Version = "0.1.0beta"
 
-	//app.Commands = []cli.Command{
-	//	{
-	//		Name:     "add",
-	//		Aliases:  []string{"a"},
-	//		Usage:    "calc 1+1",
-	//		Category: "arithmetic",
-	//		Action: func(c *cli.Context) error {
-	//			fmt.Println("1 + 1 = ", 1+1)
-	//			return nil
-	//		},
-	//	},
-	//	{
-	//		Name:     "sub",
-	//		Aliases:  []string{"s"},
-	//		Usage:    "calc 5-3",
-	//		Category: "arithmetic",
-	//		Action: func(c *cli.Context) error {
-	//			fmt.Println("5 - 3 = ", 5-3)
-	//			return nil
-	//		},
-	//	},
-	//	{
-	//		Name:     "db",
-	//		Usage:    "database operations",
-	//		Category: "database",
-	//		Subcommands: []cli.Command{
-	//			{
-	//				Name:  "insert",
-	//				Usage: "insert data",
-	//				Action: func(c *cli.Context) error {
-	//					fmt.Println("insert subcommand")
-	//					return nil
-	//				},
-	//			},
-	//			{
-	//				Name:  "delete",
-	//				Usage: "delete data",
-	//				Action: func(c *cli.Context) error {
-	//					fmt.Println("delete subcommand")
-	//					return nil
-	//				},
-	//			},
-	//		},
-	//	},
-	//}
-
-	produce := new(ProducerPlugin)
-	produce.Initialize(app)
+	produce := NewProducerPlugin()
+	produce.PluginInitialize(app)
 
 	err := app.Run(os.Args)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	produce.Startup()
+	produce.PluginStartup()
 
 	for {
 		if time.Now().Sub(start) > KEEPTESTSEC*time.Second {
-			produce.Shutdown()
+			produce.PluginShutdown()
 			break
 		}
 	}

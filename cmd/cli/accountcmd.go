@@ -369,6 +369,7 @@ func determineRequiredKeys(trx *types.SignedTransaction) Variants {
 	fmt.Println("get public keys: ", publicKeys)
 
 	var keys map[string][]string
+	fmt.Println("action data:", trx.Actions[0])
 
 	arg := &Variants{
 		"transaction":    trx,

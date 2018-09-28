@@ -16,16 +16,16 @@ import (
 
 type Client struct {
 	p2pAddress            string
-	ChainID               common.ChainIDType
+	ChainID               common.ChainIdType
 	NetWorkVersion        uint16
 	Conn                  net.Conn
-	NodeID                common.NodeIDType
+	NodeID                common.NodeIdType
 	SigningKey            ecc.PrivateKey
 	AgentName             string
 	LastHandshakeReceived *HandshakeMessage
 }
 
-func NewClient(p2pAddr string, chainID common.ChainIDType, networkVersion uint16) *Client {
+func NewClient(p2pAddr string, chainID common.ChainIdType, networkVersion uint16) *Client {
 	nodeID := make([]byte, 32)
 	rand.Read(nodeID)
 	data := *rlp.NewSha256Byte(nodeID)
@@ -35,7 +35,7 @@ func NewClient(p2pAddr string, chainID common.ChainIDType, networkVersion uint16
 		ChainID:        chainID,
 		NetWorkVersion: networkVersion,
 		AgentName:      "EOS Test Agent",
-		NodeID:         common.NodeIDType(data),
+		NodeID:         common.NodeIdType(data),
 	}
 	return c
 
@@ -72,9 +72,9 @@ func (c *Client) connect(headBlock uint32, lib uint32) (err error) {
 
 type HandshakeInfo struct {
 	HeadBlockNum             uint32
-	HeadBlockID              common.BlockIDType
+	HeadBlockID              common.BlockIdType
 	LastIrreversibleBlockNum uint32
-	LastIrreversibleBlockID  common.BlockIDType
+	LastIrreversibleBlockID  common.BlockIdType
 	Generation               uint16
 }
 
@@ -147,12 +147,12 @@ func (c *Client) sendMessage(message P2PMessage) (err error) {
 
 	c.Conn.Write(sendBuf)
 
-	fmt.Println("已发送Message", sendBuf)
-	data, err := json.Marshal(message)
-	if err != nil {
-		fmt.Println(err)
-	}
-	fmt.Println("struct:  ", string(data))
+	//fmt.Println("已发送Message", sendBuf)
+	//data, err := json.Marshal(message)
+	//if err != nil {
+	//	fmt.Println(err)
+	//}
+	//fmt.Println("struct:  ", string(data))
 
 	return
 }
@@ -235,6 +235,9 @@ func (c *Client) handleConnection(ready chan bool, errChannel chan error) {
 		case *SignedBlockMessage:
 			syncHeadBlock = msg.BlockNumber()
 			fmt.Printf("signed Block Num: %d\n", syncHeadBlock)
+			signedBlock := make(chan uint32, 1)
+			signedBlock <- syncHeadBlock
+			//chainp2p.GetSignedBlock(signedBlock)
 
 			if syncHeadBlock == RequestedBlock {
 

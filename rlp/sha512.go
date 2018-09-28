@@ -16,10 +16,10 @@ func NewSha512() hash.Hash {
 	return sha512.New()
 }
 
-func NewSha512Nil() *Sha512{
-	data := [8]uint64{0,0,0,0,0,0,0,0}
+func NewSha512Nil() *Sha512 {
+	data := [8]uint64{0, 0, 0, 0, 0, 0, 0, 0}
 	return &Sha512{
-		Hash_:data,
+		Hash_: data,
 	}
 }
 

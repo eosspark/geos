@@ -161,7 +161,7 @@ var (
 		Name:  "private-key,k",
 		Usage: "The private key that will be used to sign the transaction",
 	}
-	StrChainIDFlag = cli.StringFlag{
+	StrChainIdFlag = cli.StringFlag{
 		Name:  "chain-id,c",
 		Usage: "The chain id that will be used to sign the transaction",
 	}

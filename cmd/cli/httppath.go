@@ -4,6 +4,7 @@ const (
 	chainUrl = "http://127.0.0.1:8888"
 	// walletUrl = "http://127.0.0.1:8900"
 	walletUrl = "http://127.0.0.1:8000"
+	// walletUrl = "http://127.0.0.1:8765"
 )
 
 type Variants map[string]interface{}

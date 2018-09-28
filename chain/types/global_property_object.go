@@ -3,7 +3,7 @@ package types
 import "github.com/eosspark/eos-go/common"
 
 type GlobalPropertyObject struct {
-	ID                       common.BlockIDType         `storm:"unique" json:"id"`
+	ID                       common.BlockIdType         `storm:"unique" json:"id"`
 	ProposedScheduleBlockNum uint32                     `json:"proposed_schedule_block_num"`
 	ProposedSchedule         SharedProducerScheduleType `json:"proposed_schedule"`
 	Configuration            common.Config              //TODO

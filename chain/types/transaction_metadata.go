@@ -5,8 +5,8 @@ import (
 )
 
 type TransactionMetadata struct {
-	ID          common.TransactionIDType
-	SignedID    common.TransactionIDType
+	ID          common.TransactionIdType
+	SignedID    common.TransactionIdType
 	Trx         SignedTransaction
 	PackedTrx   PackedTransaction
 	SigningKeys pair
@@ -16,7 +16,7 @@ type TransactionMetadata struct {
 }
 
 type pair struct {
-	id        common.ChainIDType
+	id        common.ChainIdType
 	publicKey []common.PublicKeyType
 }
 
@@ -25,7 +25,7 @@ func NewTransactionMetadata(ptrx PackedTransaction) *TransactionMetadata {
 	return new(TransactionMetadata)
 }
 
-func (tm *TransactionMetadata) RecoverKeys(chainId common.ChainIDType) []common.PublicKeyType {
+func (tm *TransactionMetadata) RecoverKeys(chainId common.ChainIdType) []common.PublicKeyType {
 	if /*unsafe.Sizeof(tm.SigningKeys) || */ tm.SigningKeys.id != chainId {
 		tm.SigningKeys.id = chainId
 		//tm.SigningKeys.publicKey = tm.Trx.GetSignatureKeys(chainId)

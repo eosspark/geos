@@ -6,11 +6,10 @@ var IsActive bool = false
 var chain *ChainPlugin
 
 type ChainPlugin struct {
-
 	AbiSerializerMaxTimeMs common.Microseconds
 }
 
-func GetInstance() *ChainPlugin{
+func GetInstance() *ChainPlugin {
 	if !IsActive {
 		chain = newChainPlugin()
 		IsActive = true
@@ -19,17 +18,15 @@ func GetInstance() *ChainPlugin{
 	return chain
 }
 
-func newChainPlugin() *ChainPlugin{
+func newChainPlugin() *ChainPlugin {
 	chain = &ChainPlugin{}
 	return chain
 }
 
-func (chain *ChainPlugin) GetAbiSerializerMaxTime() common.Microseconds{
+func (chain *ChainPlugin) GetAbiSerializerMaxTime() common.Microseconds {
 	return chain.AbiSerializerMaxTimeMs
 }
 
-func (chain *ChainPlugin) Init(){
-	chain.AbiSerializerMaxTimeMs = 1000	//TODO tmp value
+func (chain *ChainPlugin) Init() {
+	chain.AbiSerializerMaxTimeMs = 1000 //TODO tmp value
 }
-
-

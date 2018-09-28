@@ -23,7 +23,7 @@ func (th TransactionHeader) GetRefBlocknum(headBlocknum uint32) uint32 {
 	return headBlocknum/0xffff*0xffff + headBlocknum%0xffff
 }
 
-func (th TransactionHeader) VerifyReferenceBlock(referenceBlock common.BlockIDType) bool {
+func (th TransactionHeader) VerifyReferenceBlock(referenceBlock common.BlockIdType) bool {
 	return th.RefBlockNum == uint16(common.EndianReverseU32(uint32(referenceBlock.Hash_[0]))) &&
 		th.RefBlockPrefix == uint32(referenceBlock.Hash_[1])
 }
@@ -57,7 +57,7 @@ func (tx *Transaction) SetExpiration(in time.Duration) {
 	tx.Expiration = common.JSONTime{time.Now().UTC().Add(in)}
 }
 
-func (tx *Transaction) GetSignatureKeys(chainId common.ChainIDType, allowDeplicateKeys bool, useCache bool) []common.PublicKeyType {
+func (tx *Transaction) GetSignatureKeys(chainId common.ChainIdType, allowDeplicateKeys bool, useCache bool) []common.PublicKeyType {
 	//TODO
 	return nil
 }
@@ -68,7 +68,7 @@ type Extension struct {
 }
 
 // Fill sets the fields on a transaction.  If you pass `headBlockID`, then `api` can be nil. If you don't pass `headBlockID`, then the `api` is going to be called to fetch
-func (tx *Transaction) Fill(headBlockID common.BlockIDType, delaySecs, maxNetUsageWords uint32, maxCPUUsageMS uint8) {
+func (tx *Transaction) Fill(headBlockID common.BlockIdType, delaySecs, maxNetUsageWords uint32, maxCPUUsageMS uint8) {
 	tx.setRefBlock(headBlockID)
 
 	if tx.ContextFreeActions == nil {
@@ -85,7 +85,7 @@ func (tx *Transaction) Fill(headBlockID common.BlockIDType, delaySecs, maxNetUsa
 	tx.SetExpiration(30 * time.Second)
 }
 
-func (tx *Transaction) setRefBlock(blockID common.BlockIDType) {
+func (tx *Transaction) setRefBlock(blockID common.BlockIdType) {
 	tx.RefBlockNum = uint16(blockID.Hash_[0])
 	tx.RefBlockPrefix = uint32(blockID.Hash_[1])
 }
@@ -116,13 +116,13 @@ func (s *SignedTransaction) String() string {
 	return string(data)
 }
 
-func (st *SignedTransaction) GetSignatureKeys(chainId common.ChainIDType, allowDeplicateKeys bool, useCache bool) []common.PublicKeyType {
+func (st *SignedTransaction) GetSignatureKeys(chainId common.ChainIdType, allowDeplicateKeys bool, useCache bool) []common.PublicKeyType {
 	//TODO
 
 	return st.Transaction.GetSignatureKeys(chainId, allowDeplicateKeys, useCache)
 }
 
-func (head *TransactionHeader) SetReferenceBlock(referenceBlock common.BlockIDType) {
+func (head *TransactionHeader) SetReferenceBlock(referenceBlock common.BlockIdType) {
 	first := common.EndianReverseU32(uint32(referenceBlock.Hash_[0]))
 	head.RefBlockNum = uint16(first)
 	head.RefBlockPrefix = uint32(referenceBlock.Hash_[1])
@@ -219,7 +219,7 @@ type PackedTransaction struct {
 	PackedTransaction     common.HexBytes        `json:"packed_trx"`
 }
 
-func (p *PackedTransaction) ID() (id common.TransactionIDType) {
+func (p *PackedTransaction) ID() (id common.TransactionIdType) {
 	return //TODO
 }
 
@@ -315,8 +315,8 @@ type DeferredTransaction struct {
 // TxOptions represents options you want to pass to the transaction
 // you're sending.
 type TxOptions struct {
-	ChainID          common.ChainIDType // If specified, we won't hit the API to fetch it
-	HeadBlockID      common.BlockIDType // If provided, don't hit API to fetch it.  This allows offline transaction signing.
+	ChainID          common.ChainIdType // If specified, we won't hit the API to fetch it
+	HeadBlockID      common.BlockIdType // If provided, don't hit API to fetch it.  This allows offline transaction signing.
 	MaxNetUsageWords uint32
 	DelaySecs        uint32
 	MaxCPUUsageMS    uint8 // If you want to override the CPU usage (in counts of 1024)

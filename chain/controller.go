@@ -7,10 +7,10 @@ import (
 	"github.com/eosspark/eos-go/chain/config"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
+	"github.com/eosspark/eos-go/cvm/exec"
 	"github.com/eosspark/eos-go/db"
 	"github.com/eosspark/eos-go/log"
 	"github.com/eosspark/eos-go/rlp"
-	"github.com/eosspark/eos-go/cvm/exec"
 )
 
 type DBReadMode int8
@@ -63,9 +63,9 @@ type Config struct {
 	resourceGreylist    []common.AccountName
 }
 
-var IsActive bool	//default value false ;Does the process include control ;
+var IsActive bool //default value false ;Does the process include control ;
 
-var instance	*Controller
+var instance *Controller
 
 type Controller struct {
 	db           eosiodb.DataBase
@@ -80,7 +80,7 @@ type Controller struct {
 	resourceLimist        ResourceLimitsManager
 	authorization         AuthorizationManager
 	config                Config //local	Config
-	chainID               common.ChainIDType
+	chainID               common.ChainIdType
 	rePlaying             bool
 	replayHeadTime        common.TimePoint //optional<common.Tstamp>
 	readMode              DBReadMode
@@ -89,10 +89,9 @@ type Controller struct {
 	handlerKey            HandlerKey
 	applyHandlers         ApplyHandler
 	unappliedTransactions map[rlp.Sha256]types.TransactionMetadata
-
 }
 
-func GetControlInstance() *Controller{
+func GetControlInstance() *Controller {
 	if !IsActive {
 		instance = newController()
 	}
@@ -136,10 +135,10 @@ func (self *Controller) PopBlock() {
 	}
 
 	if self.readMode == SPECULATIVE {
-		var trx []types.TransactionMetadata = self.head.Trxs
+		var trx []*types.TransactionMetadata = self.head.Trxs
 		step := 0
 		for ; step < len(trx); step++ {
-			self.unappliedTransactions[rlp.Sha256(trx[step].SignedID)] = trx[step]
+			self.unappliedTransactions[rlp.Sha256(trx[step].SignedID)] = *trx[step]
 		}
 	}
 	self.head = prev
@@ -169,7 +168,7 @@ func (self *Controller) AbortBlock() {
 			trx := append(self.pending.PendingBlockState.Trxs)
 			step := 0
 			for ; step < len(trx); step++ {
-				self.unappliedTransactions[rlp.Sha256(trx[step].SignedID)] = trx[step]
+				self.unappliedTransactions[rlp.Sha256(trx[step].SignedID)] = *trx[step]
 			}
 		}
 	}
@@ -392,9 +391,9 @@ func (self *Controller) GetUnAppliedTransactions() *[]types.TransactionMetadata 
 
 func (self *Controller) DropUnAppliedTransaction(metadata *types.TransactionMetadata) {}
 
-func (self *Controller) GetScheduledTransactions() *[]common.TransactionIDType { return nil }
+func (self *Controller) GetScheduledTransactions() *[]common.TransactionIdType { return nil }
 
-func (self *Controller) PushScheduledTransaction(sheduled common.TransactionIDType,
+func (self *Controller) PushScheduledTransaction(sheduled common.TransactionIdType,
 	deadLine common.TimePoint,
 	billedCpuTimeUs uint32) *types.TransactionTrace {
 	return nil
@@ -451,6 +450,8 @@ func (self *Controller) SetActorBlackList(params *map[common.AccountName]struct{
 
 func (self *Controller) SetContractWhiteList(params *map[common.AccountName]struct{}) {}
 
+func (self *Controller) SetContractBlackList(params *map[common.AccountName]struct{}) {}
+
 func (self *Controller) SetActionBlackList(params *map[[2]common.AccountName]struct{}) {}
 
 func (self *Controller) SetKeyBlackList(params *map[common.PublicKeyType]struct{}) {}
@@ -459,106 +460,112 @@ func (self *Controller) HeadBlockNum() uint32 { return 0 }
 
 func (self *Controller) HeadBlockTime() common.TimePoint { return 0 }
 
-func (self *Controller) HeadBlockId() common.BlockIDType{ return common.BlockIDType{}}
+func (self *Controller) HeadBlockId() common.BlockIdType { return common.BlockIdType{} }
 
-func (self *Controller) HeadBlockProducer() common.AccountName{return 0}
+func (self *Controller) HeadBlockProducer() common.AccountName { return 0 }
 
-func (self *Controller) HeadBlockHeader() *types.BlockHeader{return nil}
+func (self *Controller) HeadBlockHeader() *types.BlockHeader { return nil }
 
-func (self *Controller) HeadBlockState() types.BlockState{return types.BlockState{}}
+func (self *Controller) HeadBlockState() types.BlockState { return types.BlockState{} }
 
-func (self *Controller) ForkDbHeadBlockNum() uint32 { return 0}
+func (self *Controller) ForkDbHeadBlockNum() uint32 { return 0 }
 
-func (self *Controller) ForkDbHeadBlockId() common.BlockIDType{ return common.BlockIDType{}}
+func (self *Controller) ForkDbHeadBlockId() common.BlockIdType { return common.BlockIdType{} }
 
-func (self *Controller) ForkDbHeadBlockTime() common.TimePoint { return 0}
+func (self *Controller) ForkDbHeadBlockTime() common.TimePoint { return 0 }
 
-func (self *Controller) ForkDbHeadBlockProducer() common.AccountName{ return 0}
+func (self *Controller) ForkDbHeadBlockProducer() common.AccountName { return 0 }
 
-func (self *Controller) ActiveProducers() *types.ProducerScheduleType{ return nil}
+func (self *Controller) ActiveProducers() *types.ProducerScheduleType { return nil }
 
-func (self *Controller) PendingProducers() *types.ProducerScheduleType{return nil}
+func (self *Controller) PendingProducers() *types.ProducerScheduleType { return nil }
 
-func (self *Controller) ProposedProducers() types.ProducerScheduleType{ return types.ProducerScheduleType{}}
+func (self *Controller) ProposedProducers() types.ProducerScheduleType {
+	return types.ProducerScheduleType{}
+}
 
-func (self *Controller) LastIrreversibleBlockNum() uint32{ return 0}
+func (self *Controller) LastIrreversibleBlockNum() uint32 { return 0 }
 
-func (self *Controller) LastIrreversibleBlockId() common.BlockIDType { return common.BlockIDType{}}
+func (self *Controller) LastIrreversibleBlockId() common.BlockIdType { return common.BlockIdType{} }
 
-func (self *Controller) FetchBlockByNumber(blockNum uint32) types.SignedBlock { return types.SignedBlock{}}
+func (self *Controller) FetchBlockByNumber(blockNum uint32) types.SignedBlock {
+	return types.SignedBlock{}
+}
 
-func (self *Controller) FetchBlockById(id common.BlockIDType) types.SignedBlock{ return types.SignedBlock{}}
+func (self *Controller) FetchBlockById(id common.BlockIdType) types.SignedBlock {
+	return types.SignedBlock{}
+}
 
-func (self *Controller) FetchBlockStateByNumber(blockNum uint32) types.BlockState{ return types.BlockState{}}
+func (self *Controller) FetchBlockStateByNumber(blockNum uint32) types.BlockState {
+	return types.BlockState{}
+}
 
-func (self *Controller) FetchBlockStateById(id common.BlockIDType) types.BlockState{ return types.BlockState{}}
+func (self *Controller) FetchBlockStateById(id common.BlockIdType) types.BlockState {
+	return types.BlockState{}
+}
 
-func (self *Controller) GetBlcokIdForNum(blockNum uint32) common.BlockIDType { return common.BlockIDType{}}
+func (self *Controller) GetBlcokIdForNum(blockNum uint32) common.BlockIdType {
+	return common.BlockIdType{}
+}
 
-func (self *Controller) CheckContractList(code common.AccountName){}
+func (self *Controller) CheckContractList(code common.AccountName) {}
 
-func (self *Controller) CheckActionList(code common.AccountName,action common.ActionName){}
+func (self *Controller) CheckActionList(code common.AccountName, action common.ActionName) {}
 
-func (self *Controller) CheckKeyList(key *common.PublicKeyType){}
+func (self *Controller) CheckKeyList(key *common.PublicKeyType) {}
 
-func (self *Controller) IsProducing() bool { return false}
+func (self *Controller) IsProducing() bool { return false }
 
-func (self *Controller) IsRamBillingInNotifyAllowed() bool { return false}
+func (self *Controller) IsRamBillingInNotifyAllowed() bool { return false }
 
-func (self *Controller) AddResourceGreyList(name *common.AccountName){}
+func (self *Controller) AddResourceGreyList(name *common.AccountName) {}
 
-func (self *Controller) RemoveResourceGreyList(name *common.AccountName){}
+func (self *Controller) RemoveResourceGreyList(name *common.AccountName) {}
 
-func (self *Controller) IsResourceGreyListed(name *common.AccountName) bool{ return false}
+func (self *Controller) IsResourceGreyListed(name *common.AccountName) bool { return false }
 
-func (self *Controller) GetResourceGreyList() *map[common.AccountName]struct{} { return nil}
+func (self *Controller) GetResourceGreyList() *map[common.AccountName]struct{} { return nil }
 
-func (self *Controller) ValidateReferencedAccounts(t types.Transaction){}
+func (self *Controller) ValidateReferencedAccounts(t types.Transaction) {}
 
-func (self *Controller) ValidateExpiration(t types.Transaction){}
+func (self *Controller) ValidateExpiration(t types.Transaction) {}
 
-func (self *Controller) ValidateTapos(t types.Transaction){}
+func (self *Controller) ValidateTapos(t types.Transaction) {}
 
-func (self *Controller) ValidateDbAvailableSize(){}
+func (self *Controller) ValidateDbAvailableSize() {}
 
-func (self *Controller) ValidateReversibleAvailableSize(){}
+func (self *Controller) ValidateReversibleAvailableSize() {}
 
-func (self *Controller) IsKnownUnexpiredTransaction(id common.TransactionIDType) bool { return false}
+func (self *Controller) IsKnownUnexpiredTransaction(id common.TransactionIdType) bool { return false }
 
-func (self *Controller) SetProposedProducers(producers []types.ProducerKey) int64{ return 0}
+func (self *Controller) SetProposedProducers(producers []types.ProducerKey) int64 { return 0 }
 
-func (self *Controller) SkipAuthCheck() bool{ return false}
+func (self *Controller) SkipAuthCheck() bool { return false }
 
-func (self *Controller) ContractsConsole() bool{ return false}
+func (self *Controller) ContractsConsole() bool { return false }
 
-func (self *Controller) GetChainId() common.ChainIDType { return common.ChainIDType{}}
+func (self *Controller) GetChainId() common.ChainIdType { return common.ChainIdType{} }
 
-func (self *Controller) GetReadMode()DBReadMode{ return 0}
+func (self *Controller) GetReadMode() DBReadMode { return 0 }
 
-func (self *Controller) GetValidationMode()ValidationMode{ return 0}
+func (self *Controller) GetValidationMode() ValidationMode { return 0 }
 
-func (self *Controller) SetSubjectiveCpuLeeway(leeway common.Microseconds){}
+func (self *Controller) SetSubjectiveCpuLeeway(leeway common.Microseconds) {}
 
 func (self *Controller) FindApplyHandler(contract common.AccountName,
 	scope common.ScopeName,
-	act common.ActionName	) *ApplyContext{
-		return nil
+	act common.ActionName) *ApplyContext {
+	return nil
 }
 
-func (self *Controller) GetWasmInterface() *exec.WasmInterface{return nil}
+func (self *Controller) GetWasmInterface() *exec.WasmInterface { return nil }
 
 func (self *Controller) GetAbiSerializer(name common.AccountName,
-	maxSerializationTime common.Microseconds) types.AbiSerializer{
+	maxSerializationTime common.Microseconds) types.AbiSerializer {
 	return types.AbiSerializer{}
 }
 
-func (self *Controller) ToVariantWithAbi(obj interface{},maxSerializationTime common.Microseconds){}
-
-
-
-
-
-
+func (self *Controller) ToVariantWithAbi(obj interface{}, maxSerializationTime common.Microseconds) {}
 
 /*    about chan
 

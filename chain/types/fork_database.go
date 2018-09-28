@@ -14,15 +14,15 @@ type ForkDatabase struct {
 }
 
 type ForkMultiIndexType struct {
-	ID          common.BlockIDType `storm:"unique" json:"id"`
-	Prev        common.BlockIDType `storm:"index"  json:"prev"`
+	ID          common.BlockIdType `storm:"unique" json:"id"`
+	Prev        common.BlockIdType `storm:"index"  json:"prev"`
 	BlockNum    uint32             `storm:"index"  json:"block_num"`
 	LibBlockNum uint32             `storm:"index"  json:"lib_block_num"`
 	BlockState  BlockState         `storm:"inline"`
 }
 
 type ForkMultiIndexType1 struct {
-	ID         common.BlockIDType `storm:"unique" json:"id"`
+	ID         common.BlockIdType `storm:"unique" json:"id"`
 	BlockState BlockState         `storm:"inline"`
 	byBlockNum struct {
 		blockNum       uint32
@@ -69,7 +69,7 @@ func NewForkDatabase(path string, fileName string, rw bool) (*ForkDatabase, erro
 	}
 }
 
-func (fdb *ForkDatabase) GetBlock(id common.BlockIDType) BlockState {
+func (fdb *ForkDatabase) GetBlock(id common.BlockIdType) BlockState {
 	//blockId   = fdb.Index.ID
 	var blockState BlockState
 	err := fdb.database.Find("ID", id, blockState)
@@ -79,7 +79,7 @@ func (fdb *ForkDatabase) GetBlock(id common.BlockIDType) BlockState {
 	return blockState
 }
 
-func (fdb *ForkDatabase) GetBlockByID(blockId common.BlockIDType) (*BlockState, error) {
+func (fdb *ForkDatabase) GetBlockByID(blockId common.BlockIdType) (*BlockState, error) {
 	var indexObj ForkMultiIndexType
 	err := fdb.database.Find("ID", blockId, &indexObj)
 	if err != nil {
@@ -166,7 +166,7 @@ type BranchType struct {
 	branch []BlockState
 }
 
-func (fdb *ForkDatabase) FetchBranchFrom(first common.BlockIDType, second common.BlockIDType) error {
+func (fdb *ForkDatabase) FetchBranchFrom(first common.BlockIdType, second common.BlockIdType) error {
 	//result := make(map[BranchType]BranchType)
 	var firstBlock, secondBlock *BlockState
 	firstBlock, er := fdb.GetBlockByID(first)
