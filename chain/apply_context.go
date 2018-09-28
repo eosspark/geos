@@ -31,12 +31,12 @@ type ApplyContext struct {
 }
 
 type pairTableIterator struct {
-	tableIDObject *types.TableIDObject
+	TableIdObject *types.TableIdObject
 	iterator      int
 }
 type iteratorCache struct {
 	tableCache         map[types.IdType]*pairTableIterator
-	endIteratorToTable []*types.TableIDObject
+	endIteratorToTable []*types.TableIdObject
 	iteratorToObject   []interface{}
 	objectToIterator   map[interface{}]int
 }
@@ -45,7 +45,7 @@ func NewIteratorCache() *iteratorCache {
 
 	i := &iteratorCache{
 		tableCache:         make(map[types.IdType]*pairTableIterator),
-		endIteratorToTable: make([]*types.TableIDObject, 8),
+		endIteratorToTable: make([]*types.TableIdObject, 8),
 		iteratorToObject:   make([]interface{}, 32),
 		objectToIterator:   make(map[interface{}]int),
 	}
@@ -55,7 +55,7 @@ func NewIteratorCache() *iteratorCache {
 
 func (i *iteratorCache) endIteratorToIndex(ei int) int   { return (-ei - 2) }
 func (i *iteratorCache) IndexToEndIterator(indx int) int { return -(indx + 2) }
-func (i *iteratorCache) cacheTable(tobj *types.TableIDObject) int {
+func (i *iteratorCache) cacheTable(tobj *types.TableIdObject) int {
 	if itr, ok := i.tableCache[tobj.ID]; ok {
 		return itr.iterator
 	}
@@ -63,18 +63,18 @@ func (i *iteratorCache) cacheTable(tobj *types.TableIDObject) int {
 	i.endIteratorToTable = append(i.endIteratorToTable, tobj)
 
 	pair := &pairTableIterator{
-		tableIDObject: tobj,
+		TableIdObject: tobj,
 		iterator:      ei,
 	}
 	i.tableCache[tobj.ID] = pair
 	return ei
 }
-func (i *iteratorCache) getTable(id types.IdType) *types.TableIDObject {
+func (i *iteratorCache) getTable(id types.IdType) *types.TableIdObject {
 	if itr, ok := i.tableCache[id]; ok {
-		return itr.tableIDObject
+		return itr.TableIdObject
 	}
 
-	return &types.TableIDObject{}
+	return &types.TableIdObject{}
 	//EOS_ASSERT( itr != _table_cache.end(), table_not_in_cache, "an invariant was broken, table should be in cache" );
 }
 func (i *iteratorCache) getEndIteratorByTableID(id types.IdType) int {
@@ -84,7 +84,7 @@ func (i *iteratorCache) getEndIteratorByTableID(id types.IdType) int {
 	//EOS_ASSERT( itr != _table_cache.end(), table_not_in_cache, "an invariant was broken, table should be in cache" );
 	return -1
 }
-func (i *iteratorCache) findTablebyEndIterator(ei int) *types.TableIDObject {
+func (i *iteratorCache) findTablebyEndIterator(ei int) *types.TableIdObject {
 	//EOS_ASSERT( ei < -1, invalid_table_iterator, "not an end iterator" );
 	indx := i.endIteratorToIndex(ei)
 
@@ -214,7 +214,7 @@ func (a *ApplyContext) dbStoreI64(code int64, scope int64, table int64, payer in
 	//}
 	//a.DB.Insert(&obj)
 
-	// a.DB.Modify(tab, func(t *types.TableIDObject) {
+	// a.DB.Modify(tab, func(t *types.TableIdObject) {
 	// 	t.Count++
 	// })
 
@@ -264,7 +264,7 @@ func (a *ApplyContext) DBRemoveI64(iterator int) {
 	// overhead := 0//config::billable_size_v<key_value_object>)
 	// UpdateDBUsage( obj.Payer,  -(len(obj.Value) + overhead) )
 	// a.DB.Get("ID", &tab)
-	// a.DB.Modify(tab, func(t *types.TableIDObject) {
+	// a.DB.Modify(tab, func(t *types.TableIdObject) {
 	// 	t.Count--
 	// })
 
@@ -404,16 +404,16 @@ func (a *ApplyContext) DBEndI64(code int64, scope int64, table int64) int {
 	return a.KeyvalCache.cacheTable(tab)
 }
 
-func (a *ApplyContext) FindTable(code int64, scope int64, table int64) *types.TableIDObject {
-	// table := types.TableIDObject{Code: common.AccountName(code), Scope: common.ScopeName(scope), Table: common.TableName(table)}
+func (a *ApplyContext) FindTable(code int64, scope int64, table int64) *types.TableIdObject {
+	// table := types.TableIdObject{Code: common.AccountName(code), Scope: common.ScopeName(scope), Table: common.TableName(table)}
 	// a.DB.Get("byCodeScopeTable", &table)
 	// return table
-	return &types.TableIDObject{}
+	return &types.TableIdObject{}
 }
-func (a *ApplyContext) FindOrCreateTable(code int64, scope int64, table int64, payer int64) types.TableIDObject {
+func (a *ApplyContext) FindOrCreateTable(code int64, scope int64, table int64, payer int64) types.TableIdObject {
 
-	return types.TableIDObject{}
-	// table := types.TableIDObject{Code: common.AccountName(code), Scope: common.ScopeName(scope), Table: common.TableName(table), Payer: common.AccountName(payer)}
+	return types.TableIdObject{}
+	// table := types.TableIdObject{Code: common.AccountName(code), Scope: common.ScopeName(scope), Table: common.TableName(table), Payer: common.AccountName(payer)}
 	// err := a.DB.Get("byCodeScopeTable", &table)
 	// if err == nil {
 	// 	return table
@@ -421,7 +421,7 @@ func (a *ApplyContext) FindOrCreateTable(code int64, scope int64, table int64, p
 	// a.DB.Insert(&table)
 	// return table
 }
-func (a *ApplyContext) RemoveTable(tid types.TableIDObject) {
+func (a *ApplyContext) RemoveTable(tid types.TableIdObject) {
 	// overhead := 0 //config::billable_size_v<table_id_object>
 
 	// UpdateDBUsage(tid.Payer, -overhead)
@@ -547,9 +547,9 @@ func (a *ApplyContext) PublicationTime() int64 {
 //context transaction api
 func (a *ApplyContext) ExecuteInline(action []byte)            {}
 func (a *ApplyContext) ExecuteContextFreeInline(action []byte) {}
-func (a *ApplyContext) ScheduleDeferredTransaction(sendId common.TransactionIDType, payer common.AccountName, trx []byte, replaceExisting bool) {
+func (a *ApplyContext) ScheduleDeferredTransaction(sendId common.TransactionIdType, payer common.AccountName, trx []byte, replaceExisting bool) {
 }
-func (a *ApplyContext) CancelDeferredTransaction(sendId common.TransactionIDType) bool { return false }
+func (a *ApplyContext) CancelDeferredTransaction(sendId common.TransactionIdType) bool { return false }
 func (a *ApplyContext) GetPackedTransaction() []byte                                   { return []byte{} }
 func (a *ApplyContext) Expiration() int                                                { return 0 }
 func (a *ApplyContext) TaposBlockNum() int                                             { return 0 }

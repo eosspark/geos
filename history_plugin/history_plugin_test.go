@@ -148,12 +148,12 @@ func Test_GetAccountHistoryObjectsByAccount(t *testing.T) {
 	fmt.Println(result)
 }
 
-func Test_GetActions(t *testing.T){
-	param :=GetActionParam{}
+func Test_GetActions(t *testing.T) {
+	param := GetActionParam{}
 	param.Pos = 0
 	param.Offset = 3
-	param.AccountName=common.AccountName(common.StringToName("tuanhuo"))
+	param.AccountName = common.AccountName(common.StringToName("tuanhuo"))
 
 	result := GetActions(&param)
-	fmt.Println("Test_GetActions result :",result)
+	fmt.Println("Test_GetActions result :", result)
 }

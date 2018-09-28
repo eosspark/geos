@@ -16,10 +16,10 @@ func NewSha256() hash.Hash {
 	return sha256.New()
 }
 
-func NewSha256Nil() *Sha256{
-	data :=[4]uint64{0,0,0,0}
+func NewSha256Nil() *Sha256 {
+	data := [4]uint64{0, 0, 0, 0}
 	return &Sha256{
-		Hash_:data,
+		Hash_: data,
 	}
 
 }

@@ -18,6 +18,7 @@ func TestPrivateToPublic(t *testing.T) {
 
 	pubKeyString := pubKey.String()
 	assert.Equal(t, "PUB_K1_859gxfnXyUriMgUeThh1fWv3oqcpLFyHa3TfFYC4PK2HqhToVM", pubKeyString)
+
 }
 
 func TestNewPublicKeyAndSerializeCompress(t *testing.T) {

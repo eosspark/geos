@@ -14,7 +14,7 @@ type Object struct {
 	TypeId uint16 `storm:"id,increment"`
 }
 
-type TableIDObject struct {
+type TableIdObject struct {
 	ID    IdType `storm:"id,increment"`
 	Code  common.AccountName
 	Scope common.ScopeName
@@ -29,29 +29,29 @@ type ByCodeScopeTable struct {
 	Table common.TableName
 }
 
-type TableIDMultiIndex struct {
-	TableIDObject
+type TableIdMultiIndex struct {
+	TableIdObject
 	Id  IdType           `storm:"id,increment"`
 	Bst ByCodeScopeTable `strom:"unique"`
 }
 
 type KeyValueObject struct {
-	KeyType      KeyType
-	NumberOfKeys int //default 1
-	ID           IdType				`storm:"id,increment"`
-	TId          IdType
-	PrimaryKey   uint64
-	Payer        common.AccountName
-	Value        common.HexBytes // c++ SharedString
+	KeyType           KeyType
+	NumberOfKeys      int    //default 1
+	ID                IdType `storm:"id,increment"`
+	TId               IdType
+	PrimaryKey        uint64
+	Payer             common.AccountName
+	Value             common.HexBytes // c++ SharedString
 	ByScopePrimaryKey struct {
 		TID        IdType
 		PrimaryKey uint64
 	} `strom:"unique"`
 }
 
-func AddTableIdObjectIndex(dbs *eosiodb.DataBase, tio TableIDObject) {
-	ti := TableIDMultiIndex{}
-	ti.TableIDObject = tio
+func AddTableIdObjectIndex(dbs *eosiodb.DataBase, tio TableIdObject) {
+	ti := TableIdMultiIndex{}
+	ti.TableIdObject = tio
 	ti.Bst.Code = tio.Code
 	ti.Bst.Scope = tio.Scope
 	ti.Bst.Table = tio.Table
@@ -62,8 +62,8 @@ func AddTableIdObjectIndex(dbs *eosiodb.DataBase, tio TableIDObject) {
 	}
 }
 
-func GetTableObjectById(dbs *eosiodb.DataBase, id IdType) *TableIDMultiIndex {
-	tmi := TableIDMultiIndex{}
+func GetTableObjectById(dbs *eosiodb.DataBase, id IdType) *TableIdMultiIndex {
+	tmi := TableIdMultiIndex{}
 	err := dbs.Find("ID", id, &tmi)
 	if err != nil {
 		fmt.Println(err.Error())
@@ -71,8 +71,8 @@ func GetTableObjectById(dbs *eosiodb.DataBase, id IdType) *TableIDMultiIndex {
 	return &tmi
 }
 
-func GetByCodeScopeTable(dbs *eosiodb.DataBase, bst ByCodeScopeTable) *TableIDMultiIndex {
-	tmi := TableIDMultiIndex{}
+func GetByCodeScopeTable(dbs *eosiodb.DataBase, bst ByCodeScopeTable) *TableIdMultiIndex {
+	tmi := TableIdMultiIndex{}
 	err := dbs.Find("Bst", bst, &tmi)
 	if err != nil {
 		log.Error("GetByCodeScopeTable is error", err)
