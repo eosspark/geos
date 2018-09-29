@@ -2,6 +2,7 @@ package types
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/ecc"
 	"github.com/eosspark/eos-go/log"
@@ -122,6 +123,43 @@ func (st *SignedTransaction) GetSignatureKeys(chainId common.ChainIdType, allowD
 	return st.Transaction.GetSignatureKeys(chainId, allowDeplicateKeys, useCache)
 }
 
+func (ptrx *PackedTransaction) GetSignedTransaction() *SignedTransaction {
+
+	switch ptrx.Compression {
+	case common.CompressionNone:
+		return &SignedTransaction{GetTransaction(), ptrx.Signatures, UnpackContextFreeData(ptrx.PackedContextFreeData), nil}
+	case common.CompressionZlib:
+		return &SignedTransaction{}
+	default:
+		return nil
+	}
+	return nil //TODO
+}
+
+func UnpackContextFreeData(data []byte) []common.HexBytes {
+	t := []common.HexBytes{}
+	if len(data) == 0 {
+		return t
+	}
+	err := rlp.DecodeBytes(data, t)
+	if err != nil {
+		fmt.Println("UnpackContextFreeData is error :", err.Error())
+	}
+	return t
+}
+
+func ZlibDecompressContextFreeData(data []byte) []common.HexBytes {
+	t := []common.HexBytes{}
+	if len(data) == 0 {
+		return t
+	}
+
+	//out := ZlibDecompress()	//TODO
+	return nil
+}
+
+func ZlibDecompress() []common.HexBytes { return nil }
+
 func (head *TransactionHeader) SetReferenceBlock(referenceBlock common.BlockIdType) {
 	first := common.EndianReverseU32(uint32(referenceBlock.Hash_[0]))
 	head.RefBlockNum = uint16(first)
@@ -164,8 +202,17 @@ func (head *TransactionHeader) SetReferenceBlock(referenceBlock common.BlockIdTy
 // 	return rawtrx, rawcfd, nil
 // }
 
-func (tx *Transaction) ID() string {
+/*func (tx *Transaction) ID() string {
 	return "ID here" //todo
+}*/
+func (tx *Transaction) ID() common.TransactionIdType {
+
+	b, err := rlp.EncodeToBytes(tx)
+	if err != nil {
+		fmt.Println("Transaction ID() is error :", err.Error()) //TODO
+	}
+
+	return common.TransactionIdType(rlp.Hash256(b))
 }
 
 // func (s *SignedTransaction) Pack(compression CompressionType) (*PackedTransaction, error) {
@@ -247,6 +294,26 @@ func (p *PackedTransaction) GetPrunableSize() uint32 {
 		return 0
 	}
 	return uint32(size)
+}
+
+func GetTransaction() Transaction {
+	//LocalUnpack()
+	/*if (!unpacked_trx) {
+		try {
+			switch(compression) {
+		case none:
+			unpacked_trx = unpack_transaction(packed_trx);
+			break;
+		case zlib:
+			unpacked_trx = zlib_decompress_transaction(packed_trx);
+			break;
+		default:
+			EOS_THROW(unknown_transaction_compression, "Unknown transaction compression algorithm");
+		}
+		} FC_CAPTURE_AND_RETHROW((compression)(packed_trx))
+	}*/
+	t := Transaction{}
+	return t
 }
 
 // // Unpack decodes the bytestream of the transaction, and attempts to

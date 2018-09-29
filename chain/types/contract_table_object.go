@@ -33,7 +33,7 @@ type ByCodeScopeTable struct {
 	Table common.TableName
 }
 
-type TableIDMultiIndex struct {
+type TableIdMultiIndex struct {
 	TableIdObject
 	Id  IdType           `storm:"id,increment"`
 	Bst ByCodeScopeTable `strom:"unique"`
@@ -58,7 +58,7 @@ func (u *KeyValueObject) GetBillableSize() uint64 {
 }
 
 func AddTableIdObjectIndex(dbs *eosiodb.DataBase, tio TableIdObject) {
-	ti := TableIDMultiIndex{}
+	ti := TableIdMultiIndex{}
 	ti.TableIdObject = tio
 	ti.Bst.Code = tio.Code
 	ti.Bst.Scope = tio.Scope
@@ -70,8 +70,8 @@ func AddTableIdObjectIndex(dbs *eosiodb.DataBase, tio TableIdObject) {
 	}
 }
 
-func GetTableObjectById(dbs *eosiodb.DataBase, id IdType) *TableIDMultiIndex {
-	tmi := TableIDMultiIndex{}
+func GetTableObjectById(dbs *eosiodb.DataBase, id IdType) *TableIdMultiIndex {
+	tmi := TableIdMultiIndex{}
 	err := dbs.Find("ID", id, &tmi)
 	if err != nil {
 		fmt.Println(err.Error())
@@ -79,8 +79,8 @@ func GetTableObjectById(dbs *eosiodb.DataBase, id IdType) *TableIDMultiIndex {
 	return &tmi
 }
 
-func GetByCodeScopeTable(dbs *eosiodb.DataBase, bst ByCodeScopeTable) *TableIDMultiIndex {
-	tmi := TableIDMultiIndex{}
+func GetByCodeScopeTable(dbs *eosiodb.DataBase, bst ByCodeScopeTable) *TableIdMultiIndex {
+	tmi := TableIdMultiIndex{}
 	err := dbs.Find("Bst", bst, &tmi)
 	if err != nil {
 		log.Error("GetByCodeScopeTable is error", err)
