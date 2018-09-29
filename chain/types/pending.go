@@ -25,7 +25,7 @@ type PendingState struct {
 	Valid             bool             `json:"valid"`
 }
 
-func NewPendingState(db eosiodb.DataBase) *PendingState {
+func NewPendingState(db *eosiodb.DataBase) *PendingState {
 	pending := PendingState{}
 	/*db, err := eosiodb.NewDatabase(config.DefaultConfig.BlockDir, "eos.db", true)
 	if err != nil {
