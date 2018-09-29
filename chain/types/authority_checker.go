@@ -2,21 +2,41 @@ package types
 
 import (
 	"github.com/eosspark/eos-go/common"
-	"go/types"
-	"time"
 )
 
-type PermissionToAuthorityFunc uint64
+type PermissionToAuthorityFunc interface {}
 type AuthorityChecker struct {
 	permissionToAuthority PermissionToAuthorityFunc
-	CheckTime             types.Func
+	CheckTime             func()
 	ProvidedKeys          []common.PublicKeyType
 	ProvidePermissions    []PermissionLevel
 	UsedKeys              []bool
-	ProvideDelay          time.Duration
+	ProvideDelay          common.Microseconds
 	RecursionDepthLimit   uint16
 }
 
+func (ac *AuthorityChecker) SatisfiedLoc( permission *PermissionLevel,
+										  overrideProvidedDelay common.Microseconds,
+	    								  cacheType PermissionCacheType) bool {
+	return true
+}
+
+func (ac *AuthorityChecker) SatisfiedLc(permission *PermissionLevel, cacheType PermissionCacheType) bool {
+ 	return true
+}
+
+func (ac *AuthorityChecker) AllKeysUsed() bool {
+	for _, usedKey := range ac.UsedKeys {
+		if usedKey == false {
+			return false
+		}
+	}
+	return true
+}
+
+func (ac *AuthorityChecker) GetUsedKeys() []common.PublicKeyType {
+	return nil
+}
 type PermissionCacheStatus uint64
 
 const (
@@ -39,8 +59,8 @@ func MakeAuthChecker(pta PermissionToAuthorityFunc,
 	recursionDepthLimit uint16,
 	providedKeys []common.PublicKeyType,
 	providedPermission []PermissionLevel,
-	providedDelay time.Duration,
-	checkTime types.Func) AuthorityChecker {
+	providedDelay common.Microseconds,
+	checkTime func()) AuthorityChecker {
 	//noopChecktime := func() {}
 	return AuthorityChecker{permissionToAuthority: pta, RecursionDepthLimit: recursionDepthLimit,
 		ProvidedKeys: providedKeys, ProvidePermissions: providedPermission,
