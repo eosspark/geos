@@ -9,7 +9,7 @@ import (
 	"time"
 )
 
-var IsAzActive bool
+var IsActiveAz bool
 
 var azInstance *AuthorizationManager
 
@@ -19,19 +19,19 @@ type AuthorizationManager struct {
 }
 
 func GetAuthorizationManager() *AuthorizationManager {
-	if !IsAzActive {
+	if !IsActiveAz {
 		azInstance = newAuthorizationManager()
 	}
 	return azInstance
 }
 
 func newAuthorizationManager() *AuthorizationManager {
-	control := GetControlInstance()
+	control := GetControllerInstance()
 	db := control.DataBase()
 	return &AuthorizationManager{control: control, db: db}
 }
 
-type PermissionIdType uint64
+type PermissionIdType types.IdType
 
 //func (am *AuthorizationManager) AddIndices() {
 //	am.db.Insert(&types.PermissionObject{})
@@ -60,7 +60,7 @@ func (am *AuthorizationManager) CreatePermission(account common.AccountName,
 
 	perm := types.PermissionObject{
 		UsageId:     permUsage.ID,
-		Parent:      uint64(parent),
+		Parent:      types.IdType(parent),
 		Owner:       account,
 		Name:        name,
 		LastUpdated: creationTime,
