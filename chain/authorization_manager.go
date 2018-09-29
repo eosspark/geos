@@ -37,12 +37,12 @@ func (am *AuthorizationManager) CreatePermission(account common.AccountName,
 		//createTime = pendingBlockTime
 	}
 
-	var permUsage types.PermissionUsageObject
+	permUsage := types.PermissionUsageObject{}
 	permUsage.LastUsed = creationTime
 	am.db.Insert(&permUsage)
 
 	perm := types.PermissionObject{
-		UsageId:     permUsage.Id,
+		UsageId:     permUsage.ID,
 		Parent:      uint64(parent),
 		Owner:       account,
 		Name:        name,
@@ -66,7 +66,7 @@ func (am *AuthorizationManager) RemovePermission() {
 }
 
 func (am *AuthorizationManager) UpdatePermissionUsage() {
-	var puo types.PermissionUsageObject
+	puo := types.PermissionUsageObject{}
 	am.db.Update(&puo, func(data interface{}) error {
 		//puo.LastUsed = pendingBlockTime
 		return nil
@@ -74,18 +74,18 @@ func (am *AuthorizationManager) UpdatePermissionUsage() {
 }
 
 func (am *AuthorizationManager) GetPermissionLastUsed(permission types.Permission) time.Duration {
-	var puo types.PermissionUsageObject
+	puo := types.PermissionUsageObject{}
 	return puo.LastUsed
 }
 
 func (am *AuthorizationManager) FindPermission(level types.PermissionLevel) *types.PermissionObject {
-	var po types.PermissionObject
+	po := types.PermissionObject{}
 	am.db.Find("", 0, &po)
 	return &po
 }
 
 func (am *AuthorizationManager) GetPermission(level types.PermissionLevel) types.PermissionObject {
-	var po types.PermissionObject
+	po := types.PermissionObject{}
 	am.db.Find("", 0, &po)
 	return po
 }

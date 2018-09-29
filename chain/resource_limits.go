@@ -61,21 +61,21 @@ func (state *ResourceLimitsStateObject) UpdateVirtualNetLimit(cfg ResourceLimits
 }
 
 func (rlm *ResourceLimitsManager) AddIndices() {
-	rlm.db.Insert(&ResourceLimitsObject{Id: ResourceLimits})
-	rlm.db.Insert(&ResourceUsageObject{Id: ResourceUsage})
-	rlm.db.Insert(&ResourceLimitsConfigObject{Id: ResourceLimitsConfig})
-	rlm.db.Insert(&ResourceLimitsStateObject{Id: ResourceLimitsState})
+	rlm.db.Insert(&ResourceLimitsObject{ID: ResourceLimits})
+	rlm.db.Insert(&ResourceUsageObject{ID: ResourceUsage})
+	rlm.db.Insert(&ResourceLimitsConfigObject{ID: ResourceLimitsConfig})
+	rlm.db.Insert(&ResourceLimitsStateObject{ID: ResourceLimitsState})
 }
 
 func (rlm *ResourceLimitsManager) InitializeDatabase() {
 	config := ResourceLimitsConfigObject{}
-	rlm.db.Find("Id", ResourceLimitsConfig, &config)
-	rlm.db.Update(&config, func(data interface{}) error{
+	rlm.db.Find("ID", ResourceLimitsConfig, &config)
+	rlm.db.Update(&config, func(data interface{}) error {
 		config.Init()
 		return nil
 	})
 	state := ResourceLimitsStateObject{}
-	rlm.db.Find("Id", ResourceLimitsState, &state)
+	rlm.db.Find("ID", ResourceLimitsState, &state)
 	rlm.db.Update(&state, func(data interface{}) error {
 		ref := reflect.ValueOf(data).Elem()
 		if ref.CanSet() {
@@ -94,7 +94,7 @@ func (rlm *ResourceLimitsManager) InitializeDatabase() {
 func (rlm *ResourceLimitsManager) InitializeAccount(account common.AccountName) {
 	rlo := ResourceLimitsObject{}
 	rlm.db.Find("Rlo", RloIndex{ResourceLimits, 0, false}, &rlo)
-	rlo.Id = ResourceLimits
+	rlo.ID = ResourceLimits
 	rlo.Owner = account
 	rlo.Pending = false
 	rlo.Rlo = RloIndex{ResourceLimits, account, false}
@@ -102,7 +102,7 @@ func (rlm *ResourceLimitsManager) InitializeAccount(account common.AccountName) 
 
 	ruo := ResourceUsageObject{}
 	rlm.db.Find("Ruo", RuoIndex{ResourceUsage, 0}, &ruo)
-	ruo.Id = ResourceUsage
+	ruo.ID = ResourceUsage
 	ruo.Owner = account
 	ruo.Ruo = RuoIndex{ResourceUsage, account}
 	rlm.db.Insert(&ruo)
@@ -112,7 +112,7 @@ func (rlm *ResourceLimitsManager) SetBlockParameters(cpuLimitParameters ElasticL
 	cpuLimitParameters.Validate()
 	netLimitParameters.Validate()
 	config := ResourceLimitsConfigObject{}
-	rlm.db.Find("Id", ResourceLimitsConfig, &config)
+	rlm.db.Find("ID", ResourceLimitsConfig, &config)
 	rlm.db.Update(&config, func(data interface{}) error {
 		//ref := reflect.ValueOf(data).Elem()
 		//if ref.CanSet() {
@@ -129,7 +129,7 @@ func (rlm *ResourceLimitsManager) SetBlockParameters(cpuLimitParameters ElasticL
 
 func (rlm *ResourceLimitsManager) UpdateAccountUsage(account []common.AccountName, timeSlot uint32) { //待定
 	config := ResourceLimitsConfigObject{}
-	rlm.db.Find("Id", ResourceLimitsConfig, &config)
+	rlm.db.Find("ID", ResourceLimitsConfig, &config)
 	ruo := ResourceUsageObject{}
 	for _, a := range account {
 		rlm.db.Find("Ruo", RuoIndex{ResourceUsage, a}, &ruo)
@@ -143,9 +143,9 @@ func (rlm *ResourceLimitsManager) UpdateAccountUsage(account []common.AccountNam
 
 func (rlm *ResourceLimitsManager) AddTransactionUsage(account []common.AccountName, cpuUsage uint64, netUsage uint64, timeSlot uint32) {
 	state := ResourceLimitsStateObject{}
-	rlm.db.Find("Id", ResourceLimitsState, &state)
+	rlm.db.Find("ID", ResourceLimitsState, &state)
 	config := ResourceLimitsConfigObject{}
-	rlm.db.Find("Id", ResourceLimitsConfig, &config)
+	rlm.db.Find("ID", ResourceLimitsConfig, &config)
 	for _, a := range account {
 		ruo := ResourceUsageObject{}
 		rlm.db.Find("Ruo", RuoIndex{ResourceUsage, a}, &ruo)
@@ -246,8 +246,8 @@ func (rlm *ResourceLimitsManager) SetAccountLimits(account common.AccountName, r
 	if err != nil {
 		rlo := ResourceLimitsObject{}
 		rlm.db.Find("Rlo", RloIndex{ResourceLimits, account, false}, &rlo)
-		pendingRlo.Rlo = RloIndex{rlo.Id, rlo.Owner, true}
-		pendingRlo.Id = rlo.Id
+		pendingRlo.Rlo = RloIndex{rlo.ID, rlo.Owner, true}
+		pendingRlo.ID = rlo.ID
 		pendingRlo.Owner = rlo.Owner
 		pendingRlo.Pending = true
 		pendingRlo.CpuWeight = rlo.CpuWeight
@@ -309,7 +309,7 @@ func (rlm *ResourceLimitsManager) ProcessAccountLimitUpdates() {
 	var pendingRlo []ResourceLimitsObject
 	rlm.db.Get("Pending", true, &pendingRlo)
 	state := ResourceLimitsStateObject{}
-	rlm.db.Find("Id", ResourceLimitsState, &state)
+	rlm.db.Find("ID", ResourceLimitsState, &state)
 	rlm.db.Update(&state, func(data interface{}) error {
 		for _, itr := range pendingRlo {
 			rlo := ResourceLimitsObject{}
@@ -327,9 +327,9 @@ func (rlm *ResourceLimitsManager) ProcessAccountLimitUpdates() {
 
 func (rlm *ResourceLimitsManager) ProcessBlockUsage(blockNum uint32) {
 	config := ResourceLimitsConfigObject{}
-	rlm.db.Find("Id", ResourceLimitsConfig, &config)
+	rlm.db.Find("ID", ResourceLimitsConfig, &config)
 	state := ResourceLimitsStateObject{}
-	rlm.db.Find("Id", ResourceLimitsState, &state)
+	rlm.db.Find("ID", ResourceLimitsState, &state)
 	rlm.db.Update(&state, func(data interface{}) error {
 
 		state.AverageBlockCpuUsage.add(state.PendingCpuUsage, blockNum, config.CpuLimitParameters.Periods)
@@ -346,29 +346,29 @@ func (rlm *ResourceLimitsManager) ProcessBlockUsage(blockNum uint32) {
 
 func (rlm *ResourceLimitsManager) GetVirtualBlockCpuLimit() uint64 {
 	state := ResourceLimitsStateObject{}
-	rlm.db.Find("Id", ResourceLimitsState, &state)
+	rlm.db.Find("ID", ResourceLimitsState, &state)
 	return state.VirtualCpuLimit
 }
 
 func (rlm *ResourceLimitsManager) GetVirtualBlockNetLimit() uint64 {
 	state := ResourceLimitsStateObject{}
-	rlm.db.Find("Id", ResourceLimitsState, &state)
+	rlm.db.Find("ID", ResourceLimitsState, &state)
 	return state.VirtualNetLimit
 }
 
 func (rlm *ResourceLimitsManager) GetBlockCpuLimit() uint64 {
 	state := ResourceLimitsStateObject{}
-	rlm.db.Find("Id", ResourceLimitsState, &state)
+	rlm.db.Find("ID", ResourceLimitsState, &state)
 	config := ResourceLimitsConfigObject{}
-	rlm.db.Find("Id", ResourceLimitsConfig, &config)
+	rlm.db.Find("ID", ResourceLimitsConfig, &config)
 	return config.CpuLimitParameters.Max - state.PendingCpuUsage
 }
 
 func (rlm *ResourceLimitsManager) GetBlockNetLimit() uint64 {
 	state := ResourceLimitsStateObject{}
-	rlm.db.Find("Id", ResourceLimitsState, &state)
+	rlm.db.Find("ID", ResourceLimitsState, &state)
 	config := ResourceLimitsConfigObject{}
-	rlm.db.Find("Id", ResourceLimitsConfig, &config)
+	rlm.db.Find("ID", ResourceLimitsConfig, &config)
 	return config.NetLimitParameters.Max - state.PendingNetUsage
 }
 
@@ -379,9 +379,9 @@ func (rlm *ResourceLimitsManager) GetAccountCpuLimit(name common.AccountName, el
 
 func (rlm *ResourceLimitsManager) GetAccountCpuLimitEx(name common.AccountName, elastic bool) AccountResourceLimit {
 	state := ResourceLimitsStateObject{}
-	rlm.db.Find("Id", ResourceLimitsState, &state)
+	rlm.db.Find("ID", ResourceLimitsState, &state)
 	config := ResourceLimitsConfigObject{}
-	rlm.db.Find("Id", ResourceLimitsConfig, &config)
+	rlm.db.Find("ID", ResourceLimitsConfig, &config)
 	ruo := ResourceUsageObject{}
 	rlm.db.Find("Ruo", RuoIndex{ResourceUsage, name}, &ruo)
 
@@ -426,9 +426,9 @@ func (rlm *ResourceLimitsManager) GetAccountNetLimit(name common.AccountName, el
 
 func (rlm *ResourceLimitsManager) GetAccountNetLimitEx(name common.AccountName, elastic bool) AccountResourceLimit {
 	state := ResourceLimitsStateObject{}
-	rlm.db.Find("Id", ResourceLimitsState, &state)
+	rlm.db.Find("ID", ResourceLimitsState, &state)
 	config := ResourceLimitsConfigObject{}
-	rlm.db.Find("Id", ResourceLimitsConfig, &config)
+	rlm.db.Find("ID", ResourceLimitsConfig, &config)
 	ruo := ResourceUsageObject{}
 	rlm.db.Find("Ruo", RuoIndex{ResourceUsage, name}, &ruo)
 

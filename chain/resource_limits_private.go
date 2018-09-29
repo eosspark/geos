@@ -77,7 +77,7 @@ type UsageAccumulator struct {
 
 type ResourceLimitsObject struct {
 	Rlo       RloIndex           `storm:"id"`
-	Id        ResourceObjectType `storm:"index"`
+	ID        ResourceObjectType `storm:"index"`
 	Owner     common.AccountName `storm:"index"`
 	Pending   bool               `storm:"index"`
 	NetWeight int64              `json:"net_weight"`
@@ -92,14 +92,14 @@ func (rlo *ResourceLimitsObject) Init() {
 }
 
 type RloIndex struct {
-	Id      ResourceObjectType `json:"id"`
+	ID      ResourceObjectType `json:"id"`
 	Owner   common.AccountName `json:"owner"`
 	Pending bool               `json:"pending"`
 }
 
 type ResourceUsageObject struct {
 	Ruo      RuoIndex           `storm:"id"`
-	Id       ResourceObjectType `storm:"index"`
+	ID       ResourceObjectType `storm:"index"`
 	Owner    common.AccountName `storm:"index"`
 	NetUsage UsageAccumulator   `json:"net_usage"`
 	CpuUsage UsageAccumulator   `json:"cpu_usage"`
@@ -107,12 +107,12 @@ type ResourceUsageObject struct {
 }
 
 type RuoIndex struct {
-	Id    ResourceObjectType `json:"id"`
+	ID    ResourceObjectType `json:"id"`
 	Owner common.AccountName `json:"owner"`
 }
 
 type ResourceLimitsConfigObject struct {
-	Id                           ResourceObjectType     `storm:"id"`
+	ID                           ResourceObjectType     `storm:"id"`
 	CpuLimitParameters           ElasticLimitParameters `json:"cpu_limit_parameters"`
 	NetLimitParameters           ElasticLimitParameters `json:"net_limit_parameters"`
 	AccountCpuUsageAverageWindow uint32                 `json:"account_cpu_usage_average_window"`
@@ -136,7 +136,7 @@ func (config *ResourceLimitsConfigObject) Init() {
 }
 
 type ResourceLimitsStateObject struct {
-	Id                   ResourceObjectType `storm:"id"`
+	ID                   ResourceObjectType `storm:"id"`
 	AverageBlockNetUsage UsageAccumulator   `json:"average_block_net_usage"`
 	AverageBlockCpuUsage UsageAccumulator   `json:"average_block_cpu_usage"`
 	PendingNetUsage      uint64             `json:"pending_net_usage"`
