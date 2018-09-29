@@ -9,7 +9,7 @@ import (
 )
 
 type Sha256 struct {
-	Hash_ [4]uint64 `eos:"array"`
+	Hash [4]uint64 `eos:"array"`
 }
 
 func NewSha256() hash.Hash {
@@ -19,7 +19,7 @@ func NewSha256() hash.Hash {
 func NewSha256Nil() *Sha256 {
 	data := [4]uint64{0, 0, 0, 0}
 	return &Sha256{
-		Hash_: data,
+		Hash: data,
 	}
 
 }
@@ -31,8 +31,8 @@ func NewSha256String(s string) *Sha256 {
 	}
 
 	result := new(Sha256)
-	for i := range result.Hash_ {
-		result.Hash_[i] = binary.LittleEndian.Uint64(bytes[i*8 : (i+1)*8])
+	for i := range result.Hash {
+		result.Hash[i] = binary.LittleEndian.Uint64(bytes[i*8 : (i+1)*8])
 	}
 
 	return result
@@ -44,8 +44,8 @@ func NewSha256Byte(s []byte) *Sha256 {
 	//	return nil,errors.New("the length of slice is less then 32")
 	//}
 
-	for i := range result.Hash_ {
-		result.Hash_[i] = binary.LittleEndian.Uint64(s[i*8 : (i+1)*8])
+	for i := range result.Hash {
+		result.Hash[i] = binary.LittleEndian.Uint64(s[i*8 : (i+1)*8])
 	}
 	return result
 }
@@ -60,8 +60,8 @@ func Hash256(t interface{}) Sha256 {
 	hashed := h.Sum(nil)
 
 	result := Sha256{}
-	for i := range result.Hash_ {
-		result.Hash_[i] = binary.LittleEndian.Uint64(hashed[i*8 : (i+1)*8])
+	for i := range result.Hash {
+		result.Hash[i] = binary.LittleEndian.Uint64(hashed[i*8 : (i+1)*8])
 	}
 
 	return result
@@ -77,16 +77,25 @@ func (h Sha256) String() string {
 
 func (h Sha256) Bytes() []byte {
 	result := make([]byte, 32)
-	for i := range h.Hash_ {
-		binary.LittleEndian.PutUint64(result[i*8:(i+1)*8], h.Hash_[i])
+	for i := range h.Hash {
+		binary.LittleEndian.PutUint64(result[i*8:(i+1)*8], h.Hash[i])
 	}
 	return result
 }
 
 func (h Sha256) Or(h1 Sha256) Sha256 {
 	result := Sha256{}
-	for i := range result.Hash_ {
-		result.Hash_[i] = h.Hash_[i] ^ h1.Hash_[i]
+	for i := range result.Hash {
+		result.Hash[i] = h.Hash[i] ^ h1.Hash[i]
 	}
 	return result
+}
+
+func (h Sha256) Compare(h1 *Sha256) bool {
+	// idea to not use memcmp, from:
+	//   https://lemire.me/blog/2018/08/22/avoid-lexicographical-comparisons-when-testing-for-string-equality/
+	return h.Hash[0] == h1.Hash[0] &&
+		h.Hash[1] == h1.Hash[1] &&
+		h.Hash[2] == h1.Hash[2] &&
+		h.Hash[3] == h1.Hash[3]
 }
