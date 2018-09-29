@@ -16,15 +16,17 @@ type AuthorizationManager struct {
 	db      *eosiodb.DataBase
 }
 
-func GetAuthorizationManager(con *Controller, db *eosiodb.DataBase) *AuthorizationManager {
+func GetAuthorizationManager() *AuthorizationManager {
 	if !IsActive {
-		azInstance = newAuthorizationManager(con, db)
+		azInstance = newAuthorizationManager()
 	}
 	return azInstance
 }
 
-func newAuthorizationManager(con *Controller, db *eosiodb.DataBase) *AuthorizationManager {
-	return &AuthorizationManager{control: con, db: db}
+func newAuthorizationManager() *AuthorizationManager {
+	control := GetControlInstance()
+	db := control.DataBase()
+	return &AuthorizationManager{control: control, db: db}
 }
 
 type PermissionIdType uint64

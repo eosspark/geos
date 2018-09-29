@@ -36,14 +36,16 @@ type ResourceLimitsManager struct {
 	db *eosiodb.DataBase `json:"db"`
 }
 
-func GetResourceLimitsManager(db *eosiodb.DataBase) *ResourceLimitsManager {
+func GetResourceLimitsManager() *ResourceLimitsManager {
 	if !IsActive {
-		rcInstance = newResourceLimitsManager(db)
+		rcInstance = newResourceLimitsManager()
 	}
 	return rcInstance
 }
 
-func newResourceLimitsManager(db *eosiodb.DataBase) *ResourceLimitsManager {
+func newResourceLimitsManager() *ResourceLimitsManager {
+	control := GetControlInstance()
+	db := control.DataBase()
 	return &ResourceLimitsManager{db: db}
 }
 
