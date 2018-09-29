@@ -30,6 +30,8 @@ type AccountResourceLimit struct {
 	Max       int64 `json:"max"`
 }
 
+var IsRcActive bool
+
 var rcInstance *ResourceLimitsManager
 
 type ResourceLimitsManager struct {
@@ -37,7 +39,7 @@ type ResourceLimitsManager struct {
 }
 
 func GetResourceLimitsManager() *ResourceLimitsManager {
-	if !IsActive {
+	if !IsRcActive {
 		rcInstance = newResourceLimitsManager()
 	}
 	return rcInstance
