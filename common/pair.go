@@ -14,10 +14,11 @@ func MakePair(a, b interface{}) *Pair {
 }
 
 func (p *Pair) GetIndex() []byte { //TODO
-	f, _ := rlp.EncodeToBytes(p.First)
-	s, _ := rlp.EncodeToBytes(p.Second)
-	f = append(f, s...)
-	return f
+	first, _ := rlp.EncodeToBytes(p.First)
+	out := first
+	second, _ := rlp.EncodeToBytes(p.Second)
+	out = append(out, second...)
+	return out
 }
 
 type Tuple struct {
@@ -31,10 +32,34 @@ func MakeTuple(a, b, c interface{}) *Tuple {
 }
 
 func (p *Tuple) GetIndex() []byte { //TODO
-	f, _ := rlp.EncodeToBytes(p.First)
-	s, _ := rlp.EncodeToBytes(p.Second)
-	f = append(f, s...)
+	first, _ := rlp.EncodeToBytes(p.First)
+	out := first
+	second, _ := rlp.EncodeToBytes(p.Second)
+	out = append(out, second...)
 	t, _ := rlp.EncodeToBytes(p.Third)
-	f = append(f, t...)
-	return f
+	out = append(out, t...)
+	return out
+}
+
+type Tuple4 struct {
+	First  interface{}
+	Second interface{}
+	Third  interface{}
+	Fourth interface{}
+}
+
+func MakeTuple4(a, b, c, d interface{}) *Tuple4 {
+	return &Tuple4{First: a, Second: b, Third: c, Fourth: d}
+}
+
+func (p *Tuple4) GetIndex() []byte { //TODO
+	first, _ := rlp.EncodeToBytes(p.First)
+	out := first
+	second, _ := rlp.EncodeToBytes(p.Second)
+	out = append(out, second...)
+	third, _ := rlp.EncodeToBytes(p.Third)
+	out = append(out, third...)
+	fourth, _ := rlp.EncodeToBytes(p.Fourth)
+	out = append(out, fourth...)
+	return out
 }

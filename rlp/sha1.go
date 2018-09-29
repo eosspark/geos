@@ -9,7 +9,7 @@ import (
 )
 
 type Sha1 struct {
-	Hash_ [5]uint32 `eos:"array"`
+	Hash [5]uint32 `eos:"array"`
 }
 
 func NewSha1() hash.Hash {
@@ -18,7 +18,7 @@ func NewSha1() hash.Hash {
 func NewSha1Nil() *Sha1 {
 	data := [5]uint32{0, 0, 0, 0, 0}
 	return &Sha1{
-		Hash_: data,
+		Hash: data,
 	}
 }
 
@@ -29,8 +29,8 @@ func NewSha1String(s string) *Sha1 {
 	}
 
 	result := new(Sha1)
-	for i := range result.Hash_ {
-		result.Hash_[i] = binary.LittleEndian.Uint32(bytes[i*4 : (i+1)*4])
+	for i := range result.Hash {
+		result.Hash[i] = binary.LittleEndian.Uint32(bytes[i*4 : (i+1)*4])
 	}
 
 	return result
@@ -38,16 +38,16 @@ func NewSha1String(s string) *Sha1 {
 
 func NewSha1Byte(s []byte) *Sha1 {
 	result := new(Sha1)
-	for i := range result.Hash_ {
-		result.Hash_[i] = binary.LittleEndian.Uint32(s[i*4 : (i+1)*4])
+	for i := range result.Hash {
+		result.Hash[i] = binary.LittleEndian.Uint32(s[i*4 : (i+1)*4])
 	}
 	return result
 }
 
 func (h Sha1) Bytes() []byte {
 	result := make([]byte, 20)
-	for i := range h.Hash_ {
-		binary.LittleEndian.PutUint32(result[i*4:(i+1)*4], h.Hash_[i])
+	for i := range h.Hash {
+		binary.LittleEndian.PutUint32(result[i*4:(i+1)*4], h.Hash[i])
 	}
 	return result
 }
@@ -66,8 +66,8 @@ func Hash1(t interface{}) Sha1 {
 	hashed := h.Sum(nil)
 
 	result := Sha1{}
-	for i := range result.Hash_ {
-		result.Hash_[i] = binary.LittleEndian.Uint32(hashed[i*4 : (i+1)*4])
+	for i := range result.Hash {
+		result.Hash[i] = binary.LittleEndian.Uint32(hashed[i*4 : (i+1)*4])
 	}
 
 	return result
