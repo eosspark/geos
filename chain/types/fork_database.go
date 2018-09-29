@@ -2,45 +2,53 @@ package types
 
 import (
 	"fmt"
+	"github.com/eosspark/eos-go/chain/config"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/db"
 	"github.com/eosspark/eos-go/log"
 )
 
+var isActive bool = false
+
 type ForkDatabase struct {
-	database eosiodb.DataBase   `json:"database"`
-	Index    ForkMultiIndexType `json:"index"`
-	Head     BlockState         `json:"head"`
+	db      *eosiodb.DataBase
+	Index   *ForkMultiIndexType `json:"index"`
+	Head    *BlockState         `json:"head"`
+	DataDir string
 }
 
 type ForkMultiIndexType struct {
-	ID          common.BlockIdType `storm:"unique" json:"id"`
-	Prev        common.BlockIdType `storm:"index"  json:"prev"`
-	BlockNum    uint32             `storm:"index"  json:"block_num"`
-	LibBlockNum uint32             `storm:"index"  json:"lib_block_num"`
-	BlockState  BlockState         `storm:"inline"`
+	ByBlockID common.BlockIdType `storm:"unique" json:"id"`
+	ByPrev    common.BlockIdType `storm:"index"  json:"prev"`
+	//Pair<block_num,in_current_chain>
+	ByBlockNum common.Tuple `storm:"index"  json:"block_num"`
+	//tuple<dpos_irreversible_blocknum,bft_irreversible_blocknum,block_num>
+	ByLibBlockNum common.Tuple `storm:"index"  json:"lib_block_num"`
+	BlockState    BlockState   `storm:"inline"`
 }
 
-type ForkMultiIndexType1 struct {
-	ID         common.BlockIdType `storm:"unique" json:"id"`
-	BlockState BlockState         `storm:"inline"`
-	byBlockNum struct {
-		blockNum       uint32
-		inCurrentChain bool
+func (f *ForkDatabase) setHead(head *BlockState) *ForkDatabase {
+	if f.Head == nil {
+		f.Head = head
+	} else if f.Head.BlockNum < head.BlockNum {
+		f.Head = head
 	}
+	return f
 }
 
-func setHead(forkdb ForkDatabase, head BlockState) *ForkDatabase {
-	if &forkdb.Head == nil {
-		forkdb.Head = head
-	} else if forkdb.Head.BlockNum < head.BlockNum {
-		forkdb.Head = head
+func GetForkDbInstance(stateDir string) *ForkDatabase {
+	forkDB := ForkDatabase{}
+	if !isActive {
+		forkd, err := newForkDatabase(stateDir, config.ForkDBName, true)
+		if err != nil {
+			log.Error("GetForkDbInstance is error ,detail:", err)
+		}
+		forkDB = *forkd
 	}
-	return &forkdb
+	return &forkDB
 }
-
-func NewForkDatabase(path string, fileName string, rw bool) (*ForkDatabase, error) {
-	forkdb := new(ForkDatabase)
+func newForkDatabase(path string, fileName string, rw bool) (*ForkDatabase, error) {
+	forkdb := &ForkDatabase{}
 
 	db, err := eosiodb.NewDataBase(path, fileName, rw)
 	if err != nil {
@@ -57,22 +65,23 @@ func NewForkDatabase(path string, fileName string, rw bool) (*ForkDatabase, erro
 			var indexType = value
 			log.Debug("init fork database :", index)
 
-			forkdb = setHead(*forkdb, indexType.BlockState)
+			forkdb = forkdb.setHead(&indexType.BlockState)
 		}
 	}
 	log.Debug("indexObj:", len(indexObj))
+	isActive = true //set active is true
 	if len(indexObj) > 0 {
 		// TODO indexObj[0]
-		return &ForkDatabase{database: *db, Index: indexObj[0], Head: forkdb.Head}, err
+		return &ForkDatabase{db: db, Index: &indexObj[0], Head: forkdb.Head}, err
 	} else {
-		return &ForkDatabase{database: *db}, err
+		return &ForkDatabase{db: db}, err
 	}
 }
 
 func (fdb *ForkDatabase) GetBlock(id common.BlockIdType) BlockState {
 	//blockId   = fdb.Index.ID
 	var blockState BlockState
-	err := fdb.database.Find("ID", id, blockState)
+	err := fdb.db.Find("ID", id, blockState)
 	if err != nil {
 		return blockState
 	}
@@ -81,7 +90,7 @@ func (fdb *ForkDatabase) GetBlock(id common.BlockIdType) BlockState {
 
 func (fdb *ForkDatabase) GetBlockByID(blockId common.BlockIdType) (*BlockState, error) {
 	var indexObj ForkMultiIndexType
-	err := fdb.database.Find("ID", blockId, &indexObj)
+	err := fdb.db.Find("ID", blockId, &indexObj)
 	if err != nil {
 		return nil, err
 	}
@@ -90,7 +99,7 @@ func (fdb *ForkDatabase) GetBlockByID(blockId common.BlockIdType) (*BlockState, 
 
 func (fdb *ForkDatabase) GetBlockByNum(blockNum uint32) (*BlockState, error) {
 	var indexObj ForkMultiIndexType
-	err := fdb.database.Get("BlockNum", blockNum, &indexObj)
+	err := fdb.db.Get("BlockNum", blockNum, &indexObj)
 	if err != nil {
 		return nil, err
 	}
@@ -100,28 +109,28 @@ func (fdb *ForkDatabase) GetBlockByNum(blockNum uint32) (*BlockState, error) {
 
 func (fdb *ForkDatabase) AddBlockState(blockState BlockState) *BlockState {
 
-	var index ForkMultiIndexType = ForkMultiIndexType{ID: blockState.ID,
-		Prev:       blockState.SignedBlock.Previous,
-		BlockNum:   blockState.BlockNum,
+	var index ForkMultiIndexType = ForkMultiIndexType{ByBlockID: blockState.ID,
+		ByPrev:     blockState.SignedBlock.Previous,
+		ByBlockNum: common.MakeTuple(blockState.BlockNum, true),
 		BlockState: blockState}
 
-	err := fdb.database.Insert(index)
+	err := fdb.db.Insert(index)
 	if err != nil {
 		log.Error("AddBlockState is error for detail:", err)
 	}
 
 	var libHeaderObj []BlockState
-	err = fdb.database.ByIndex("blockLibNum", &libHeaderObj)
+	err = fdb.db.ByIndex("blockLibNum", &libHeaderObj)
 	if err != nil {
 		log.Error("AddBlockState find ByIndex is error for detail:", err)
 	}
 	if libHeaderObj != nil && len(libHeaderObj) > 0 {
-		fdb.Head = libHeaderObj[0]
+		fdb.Head = &libHeaderObj[0]
 	}
 	var libNum = fdb.Head.DposIrreversibleBlocknum
 
 	var headerObj []BlockState
-	err = fdb.database.ByIndex("blockNum", &headerObj)
+	err = fdb.db.ByIndex("blockNum", &headerObj)
 	if err != nil {
 		log.Error("AddBlockState find ByIndex is error for detail:", err)
 	}
@@ -140,12 +149,12 @@ func (fdb *ForkDatabase) AddBlockState(blockState BlockState) *BlockState {
 func (fdb *ForkDatabase) AddSignedBlockState(signedBlcok *SignedBlock) *BlockState {
 	blockId := signedBlcok.BlockID()
 	var blockState BlockState
-	err := fdb.database.Get("ID", blockId, &blockState)
+	err := fdb.db.Get("ID", blockId, &blockState)
 	if err != nil {
 		log.Error("AddSignedBlockState is error,detail:", err)
 	}
 	if &blockState != nil {
-		err := fdb.database.Get("ID", signedBlcok.Previous, blockState)
+		err := fdb.db.Get("ID", signedBlcok.Previous, blockState)
 		if err != nil {
 			log.Error("AddSignedBlockState is error,detail:", err)
 		}

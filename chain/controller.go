@@ -61,21 +61,21 @@ type Config struct {
 	readMode            DBReadMode
 	blockValidationMode ValidationMode
 	resourceGreylist    []common.AccountName
+	trustedProducers    []common.AccountName
 }
 
-var IsActive bool //default value false ;Does the process include control ;
+var isActiveController bool //default value false ;Does the process include control ;
 
 var instance *Controller
 
 type Controller struct {
-	DB           eosiodb.DataBase
-	DbSession    *eosiodb.Session
-	ReversibleDB eosiodb.DataBase
-	//reversibleBlocks      *eosiodb.Session
-	Blog    string //TODO
-	Pending *types.PendingState
-	Head    types.BlockState
-	ForkDB  types.ForkDatabase
+	DB               *eosiodb.DataBase
+	DbSession        *eosiodb.Session
+	ReversibleBlocks *eosiodb.DataBase
+	Blog             string //TODO
+	Pending          *types.PendingState
+	Head             types.BlockState
+	ForkDB           *types.ForkDatabase
 	//wasmif                exec.WasmInterface
 	ResourceLimists       *ResourceLimitsManager
 	Authorization         *AuthorizationManager
@@ -91,15 +91,15 @@ type Controller struct {
 	UnAppliedTransactions map[rlp.Sha256]types.TransactionMetadata
 }
 
-func GetControlInstance() *Controller {
-	if !IsActive {
+func GetControllerInstance() *Controller {
+	if !isActiveController {
 		instance = newController()
 	}
 	return instance
 }
 
 func newController() *Controller {
-
+	//init db
 	db, err := eosiodb.NewDataBase("./", "shared_memory.bin", true)
 	if err != nil {
 		log.Error("pending NewPendingState is error detail:", err)
@@ -107,18 +107,25 @@ func newController() *Controller {
 	}
 	defer db.Close()
 
-	session := db.StartSession()
-
+	//init ReversibleBlocks
+	reversibleDir := config.DefaultBlocksDirName + "/" + config.DefaultReversibleBlocksDirName
+	reversibleDB, err := eosiodb.NewDataBase(reversibleDir, config.ReversibleFileName, true)
 	if err != nil {
-		log.Debug("db start session is error detail:", err.Error(), session)
-		return nil
+		log.Error("newController init reversibleDB is error", err)
 	}
-	defer session.Undo()
-
-	session.Commit()
-	var con = &Controller{InTrxRequiringChecks: false, RePlaying: false}
-	IsActive = true
-	return con.initConfig()
+	//eosiodb.NewDataBase(config.DefaultStateDirName,config.ForkDBName,true)
+	con := &Controller{InTrxRequiringChecks: false, RePlaying: false}
+	con.DB = db
+	con.ReversibleBlocks = reversibleDB
+	//con.Blog
+	con.ForkDB = types.GetForkDbInstance(config.DefaultStateDirName)
+	con.ResourceLimists = NewResourceLimitsManager(con.DB) //TODO  modify GetInstance
+	//con.Authorization = NewAu												//TODO
+	con.initConfig()
+	con.ChainID = types.GetGenesisStateInstance().ComputeChainID()
+	con.ReadMode = con.Config.readMode
+	isActiveController = true //control is active
+	return con
 }
 
 func (self *Controller) PopBlock() {
@@ -126,12 +133,12 @@ func (self *Controller) PopBlock() {
 	prev := self.ForkDB.GetBlock(self.Head.Header.Previous)
 
 	var r types.ReversibleBlockObject
-	errs := self.ReversibleDB.Find("NUM", self.Head.BlockNum, r)
+	errs := self.ReversibleBlocks.Find("NUM", self.Head.BlockNum, r)
 	if errs != nil {
 		log.Error("PopBlock ReversibleBlocks Find is error,detail:", errs)
 	}
 	if &r != nil {
-		self.ReversibleDB.Remove(&r)
+		self.ReversibleBlocks.Remove(&r)
 	}
 
 	if self.ReadMode == SPECULATIVE {
@@ -441,7 +448,7 @@ func (self *Controller) PushScheduledTransaction1(gto types.GeneratedTransaction
 	deadLine common.TimePoint,
 	billedCpuTimeUs uint32) *types.TransactionTrace {
 
-	err := self.DB.Find("ByExpiration", common.MakePair(gto.Id, gto.Expiration), gto)
+	err := self.DB.Find("ByExpiration", common.MakeTuple(gto.Id, gto.Expiration), gto)
 	if err != nil {
 		fmt.Println("GetGeneratedTransactionObjectByExpiration is error :", err.Error())
 	}
@@ -486,11 +493,11 @@ func (self *Controller) PushBlock(sbp *types.SignedBlock, status types.BlockStat
 func (self *Controller) PushConfirnation(hc types.HeaderConfirmation) {}
 
 func (self *Controller) DataBase() *eosiodb.DataBase {
-	return &self.DB
+	return self.DB
 }
 
 func (self *Controller) ForkDataBase() *types.ForkDatabase {
-	return &self.ForkDB
+	return self.ForkDB
 }
 
 func (self *Controller) GetAccount(name common.AccountName) *types.AccountObject {

@@ -5,7 +5,10 @@ import (
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/ecc"
 	"github.com/eosspark/eos-go/log"
+	"github.com/eosspark/eos-go/rlp"
 )
+
+var isActiveGenesis bool = false
 
 type GenesisState struct {
 	EosioRootKey     string           `json:"eosio_root_key"`
@@ -13,7 +16,16 @@ type GenesisState struct {
 	InitialKey       ecc.PublicKey    `json:"initial_key"`
 }
 
-func (g *GenesisState) NewGenesisState() {
+func GetGenesisStateInstance() *GenesisState {
+	instance := &GenesisState{}
+	if !isActiveGenesis {
+		instance = newGenesisState()
+	}
+	return instance
+}
+
+func newGenesisState() *GenesisState {
+	g := &GenesisState{}
 	its, err := common.FromIsoString("2018-09-10T12:00:00")
 	if err != nil {
 		log.Error("NewGenesisState is error detail:", err)
@@ -26,6 +38,16 @@ func (g *GenesisState) NewGenesisState() {
 	}
 	g.InitialKey = key
 	g.initial()
+	return g
+}
+
+func (self *GenesisState) ComputeChainID() common.ChainIdType {
+
+	b, err := rlp.EncodeToBytes(self)
+	if err != nil {
+		log.Error("ComputeChainID EncodeToBytes is error:", err)
+	}
+	return common.ChainIdType(rlp.Hash256(b))
 }
 
 func (gs *GenesisState) initial() {

@@ -164,8 +164,8 @@ func (bs *BlockHeaderState) SetConfirmed(numPrevBlocks uint16) {
 }
 
 func (bs *BlockHeaderState) SigDigest() rlp.Sha256 {
-	headerBmroot := rlp.Hash256(common.Pair{bs.Header, bs.BlockrootMerkle.GetRoot()})
-	digest := rlp.Hash256(common.Pair{headerBmroot, bs.PendingScheduleHash})
+	headerBmroot := rlp.Hash256(common.MakeTuple(bs.Header, bs.BlockrootMerkle.GetRoot()))
+	digest := rlp.Hash256(common.MakeTuple(headerBmroot, bs.PendingScheduleHash))
 	return digest
 }
 

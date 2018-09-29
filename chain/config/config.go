@@ -21,6 +21,7 @@ var DBFileName = "shared_memory.bin"
 var ReversibleFileName = "shared_memory.bin"
 var BlockFileName = "blog.log"
 var DefaultBlocksDirName = "blocks"
+var DefaultReversibleBlocksDirName="reversible"
 var DefaultStateDirName = "state"
 var DefaultStateSize uint64 = 0
 var DefaultStateGuardSize uint64 = 0

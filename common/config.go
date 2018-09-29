@@ -16,12 +16,12 @@ func init() {
 		MajorityProducersPermissionName: AccountName(StringToName("prod.major")),
 		MinorityProducersPermissionName: AccountName(StringToName("prod.minor")),
 
-		EosioAuthScope: StringToName("eosio.auth"),
-		EosioAllScope:  StringToName("eosio.all"),
-		ActiveName:     StringToName("active"),
-		OwnerName:      StringToName("owner"),
-		EosioAnyName:   StringToName("eosio.any"),
-		EosioCodeName:  StringToName("eosio.code"),
+		EosioAuthScope: AccountName(StringToName("eosio.auth")),
+		EosioAllScope:  AccountName(StringToName("eosio.all")),
+		ActiveName:     AccountName(StringToName("active")),
+		OwnerName:      AccountName(StringToName("owner")),
+		EosioAnyName:   AccountName(StringToName("eosio.any")),
+		EosioCodeName:  AccountName(StringToName("eosio.code")),
 
 		RateLimitingPrecision: 1000 * 1000,
 
@@ -46,11 +46,11 @@ func init() {
 	DefaultConfig.MaxTrackedDposConfirmations = 1024
 
 	DefaultConfig.Percent_100 = 10000
-	DefaultConfig.Percent_1   = 100
+	DefaultConfig.Percent_1 = 100
 	DefaultConfig.AccountCpuUsageAverageWindowMs = 24 * 60 * 60 * 1000
 	DefaultConfig.AccountNetUsageAverageWindowMs = 24 * 60 * 60 * 1000
-	DefaultConfig.BlockCpuUsageAverageWindowMs   = 60 * 1000
-	DefaultConfig.BlockSizeAverageWindowMs       = 60 * 1000
+	DefaultConfig.BlockCpuUsageAverageWindowMs = 60 * 1000
+	DefaultConfig.BlockSizeAverageWindowMs = 60 * 1000
 
 	DefaultConfig.MaxBlockNetUsage = 1024 * 1024                                /// at 500ms blocks and 200byte trx, this enables ~10,000 TPS burst
 	DefaultConfig.TargetBlockNetUsagePct = uint32(10 * DefaultConfig.Percent_1) /// we target 1000 TPS
@@ -84,12 +84,12 @@ type Config struct {
 	MajorityProducersPermissionName AccountName
 	MinorityProducersPermissionName AccountName
 
-	EosioAuthScope uint64
-	EosioAllScope  uint64
-	ActiveName     uint64
-	OwnerName      uint64
-	EosioAnyName   uint64
-	EosioCodeName  uint64
+	EosioAuthScope AccountName
+	EosioAllScope  AccountName
+	ActiveName     AccountName
+	OwnerName      AccountName
+	EosioAnyName   AccountName
+	EosioCodeName  AccountName
 
 	RateLimitingPrecision uint32
 
@@ -185,7 +185,7 @@ func BillableSizeV(kind string) uint64 {
 	return (DefaultConfig.BillableSize[kind].value + DefaultConfig.BillableAlignment - 1) / DefaultConfig.BillableAlignment * DefaultConfig.BillableAlignment
 }
 
-func EosPercent(value uint64, percentage uint32) uint64{
+func EosPercent(value uint64, percentage uint32) uint64 {
 	return (value * uint64(percentage)) / uint64(DefaultConfig.Percent_100)
 }
 
