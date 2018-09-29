@@ -331,6 +331,6 @@ func (am *AuthorizationManager) GetRequiredKeys( trx types.Transaction,
 	return checker.GetUsedKeys()
 }
 
-func (am *AuthorizationManager) AuthToShared(auth types.Authority) types.SharedAuthority{
-	return types.SharedAuthority{auth.Threshold,auth.Keys,auth.Accounts,auth.Waits}
+func (am *AuthorizationManager) AuthToShared(auth types.Authority) types.SharedAuthority {
+	return types.SharedAuthority{auth.Threshold, auth.Keys, auth.Accounts, auth.Waits}
 }

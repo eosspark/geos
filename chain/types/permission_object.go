@@ -7,7 +7,7 @@ import (
 type PermissionUsageObject struct {
 	ID                  IdType           `storm:"id"`
 	LastUsed            common.TimePoint `json:"last_used"`
-	ByAccountPermission common.Pair      `storm:"index"`
+	ByAccountPermission common.Tuple     `storm:"index"`
 }
 type PermissionObject struct {
 	ID          IdType `storm:"id,increment"`
@@ -18,11 +18,11 @@ type PermissionObject struct {
 	LastUpdated common.TimePoint
 	Auth        SharedAuthority
 	/*ID、Parent*/
-	ByParent    common.Pair `storm:"index"`
+	ByParent common.Tuple `storm:"index"`
 	/*Owner、name*/
-	ByOwner     common.Pair `storm:"index"`
+	ByOwner common.Tuple `storm:"index"`
 	/*Name、ID*/
-	ByName      common.Pair `storm:"index"`
+	ByName common.Tuple `storm:"index"`
 }
 
 func (po PermissionObject) Satisfies(other PermissionObject) bool {
