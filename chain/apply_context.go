@@ -23,11 +23,11 @@ type ApplyContext struct {
 	UsedContestFreeApi bool
 	Trace              types.ActionTrace
 
-	IDX64         DBGenericIndex
-	IDX128        DBGenericIndex
-	IDX256        DBGenericIndex
-	IDXDouble     DBGenericIndex
-	IDXLongDouble DBGenericIndex
+	IDX64         GenericIndex
+	IDX128        GenericIndex
+	IDX256        GenericIndex
+	IDXDouble     GenericIndex
+	IDXLongDouble GenericIndex
 
 	//GenericIndex
 	//_pending_console_output
@@ -207,7 +207,7 @@ func (a *ApplyContext) ResetConsole()            { return }
 func (a *ApplyContext) ContextAppend(str string) { a.PendingConsoleOutput += str }
 
 //context database api
-func (a *ApplyContext) DBStoreI64(scope int64, table int64, payer int64, id int64, buffer []byte) int {
+func (a *ApplyContext) DbStoreI64(scope int64, table int64, payer int64, id int64, buffer []byte) int {
 	return a.dbStoreI64(int64(a.Receiver), scope, table, payer, id, buffer)
 }
 func (a *ApplyContext) dbStoreI64(code int64, scope int64, table int64, payer int64, id int64, buffer []byte) int {
@@ -237,7 +237,7 @@ func (a *ApplyContext) dbStoreI64(code int64, scope int64, table int64, payer in
 	//return a.KeyvalCache.add(&obj)
 
 }
-func (a *ApplyContext) DBUpdateI64(iterator int, payer common.AccountName, buffer []byte) {
+func (a *ApplyContext) DbUpdateI64(iterator int, payer common.AccountName, buffer []byte) {
 
 	// obj := a.KeyvalCache.get(iterator)
 	// objTable := a.KeyvalCache.getTable(obj.ID)
@@ -266,7 +266,7 @@ func (a *ApplyContext) DBUpdateI64(iterator int, payer common.AccountName, buffe
 	// })
 
 }
-func (a *ApplyContext) DBRemoveI64(iterator int) {
+func (a *ApplyContext) DbRemoveI64(iterator int) {
 	// obj := a.KeyvalCache.get(iterator)
 	// tab := a.KeyvalCache.getTable(obj.ID)
 
@@ -287,7 +287,7 @@ func (a *ApplyContext) DBRemoveI64(iterator int) {
 	// a.KeyvalCache.remove(iterator)
 
 }
-func (a *ApplyContext) DBGetI64(iterator int, buffer []byte, bufferSize int) int {
+func (a *ApplyContext) DbGetI64(iterator int, buffer []byte, bufferSize int) int {
 	return 0
 	//obj := a.KeyvalCache.get(iterator)
 	//s := len(obj.value)
@@ -300,7 +300,7 @@ func (a *ApplyContext) DBGetI64(iterator int, buffer []byte, bufferSize int) int
 	//copy(buffer[0:copySize], obj.value[:])
 	//return copySize
 }
-func (a *ApplyContext) DBNextI64(iterator int, primary *uint64) int {
+func (a *ApplyContext) DbNextI64(iterator int, primary *uint64) int {
 
 	return 0
 	// if iterator < -1 {
@@ -320,7 +320,7 @@ func (a *ApplyContext) DBNextI64(iterator int, primary *uint64) int {
 	// return a.KeyvalCache.add(objNext)
 }
 
-func (a *ApplyContext) DBPreviousI64(iterator int, primary *uint64) int {
+func (a *ApplyContext) DbPreviousI64(iterator int, primary *uint64) int {
 	return 0
 	// idx := a.DB.GetIndex("byScopePrimary",obj)
 
@@ -349,7 +349,7 @@ func (a *ApplyContext) DBPreviousI64(iterator int, primary *uint64) int {
 	// *primary = objPrev.primaryKey
 	// return keyval_cache.add(objPrev)
 }
-func (a *ApplyContext) DBFindI64(code int64, scope int64, table int64, id int64) int {
+func (a *ApplyContext) DbFindI64(code int64, scope int64, table int64, id int64) int {
 	return 0
 
 	// tab := a.FindTable(code, scope, table)
@@ -366,7 +366,7 @@ func (a *ApplyContext) DBFindI64(code int64, scope int64, table int64, id int64)
 	// return a.KeyvalCache.add(&obj)
 
 }
-func (a *ApplyContext) DBLowerBoundI64(code int64, scope int64, table int64, id int64) int {
+func (a *ApplyContext) DbLowerBoundI64(code int64, scope int64, table int64, id int64) int {
 	return 0
 
 	// tab := a.FindTable(code, scope, table)
@@ -384,7 +384,7 @@ func (a *ApplyContext) DBLowerBoundI64(code int64, scope int64, table int64, id 
 	// return keyval_cache.add(types.KeyValueObject(itr.GetObject()))
 
 }
-func (a *ApplyContext) DBUpperBoundI64(code int64, scope int64, table int64, id int64) int {
+func (a *ApplyContext) DbUpperBoundI64(code int64, scope int64, table int64, id int64) int {
 	return 0
 
 	// tab := a.FindTable(code, scope, table)
@@ -404,7 +404,7 @@ func (a *ApplyContext) DBUpperBoundI64(code int64, scope int64, table int64, id 
 	// return keyval_cache.add(obj)
 
 }
-func (a *ApplyContext) DBEndI64(code int64, scope int64, table int64) int {
+func (a *ApplyContext) DbEndI64(code int64, scope int64, table int64) int {
 	return 0
 
 	tab := a.FindTable(code, scope, table)
@@ -428,6 +428,25 @@ func (a *ApplyContext) IdxI64Update(iterator int, payer int64, value *types.Uint
 func (a *ApplyContext) IdxI64FindSecondary(code int64, scope int64, table int64, secondary *types.Uint64_t, primary *uint64) int {
 	//a.IDX64.update(iterator, payer, value)
 	return a.IDX64.findSecondary(code, scope, table, secondary, primary)
+}
+func (a *ApplyContext) IdxI64LowerBound(code int64, scope int64, table int64, secondary *types.Uint64_t, primary *uint64) int {
+	//a.IDX64.update(iterator, payer, value)
+	return a.IDX64.lowerbound(code, scope, table, secondary, primary)
+}
+func (a *ApplyContext) IdxI64UpperBound(code int64, scope int64, table int64, secondary *types.Uint64_t, primary *uint64) int {
+	//a.IDX64.update(iterator, payer, value)
+	return a.IDX64.upperbound(code, scope, table, secondary, primary)
+}
+func (a *ApplyContext) IdxI64End(code int64, scope int64, table int64) int {
+	//a.IDX64.update(iterator, payer, value)
+	return a.IDX64.end(code, scope, table)
+}
+
+func (a *ApplyContext) IdxI64Next(iterator int, primary *uint64) int {
+	return a.IDX64.next(iterator, primary)
+}
+func (a *ApplyContext) IdxI64Previous(iterator int, primary *uint64) int {
+	return a.IDX64.previous(iterator, primary)
 }
 
 func (a *ApplyContext) FindTable(code int64, scope int64, table int64) *types.TableIdObject {
@@ -454,7 +473,7 @@ func (a *ApplyContext) RemoveTable(tid types.TableIdObject) {
 	// a.DB.remove(tid)
 }
 
-func (a *ApplyContext) UpdateDBUsage(payer common.AccountName, delta int64) {
+func (a *ApplyContext) UpdateDbUsage(payer common.AccountName, delta int64) {
 
 }
 
