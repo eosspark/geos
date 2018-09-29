@@ -30,11 +30,20 @@ type AccountResourceLimit struct {
 	Max       int64 `json:"max"`
 }
 
+var rcInstance *ResourceLimitsManager
+
 type ResourceLimitsManager struct {
 	db *eosiodb.DataBase `json:"db"`
 }
 
-func NewResourceLimitsManager(db *eosiodb.DataBase) *ResourceLimitsManager {
+func GetResourceLimitsManager(db *eosiodb.DataBase) *ResourceLimitsManager {
+	if !IsActive {
+		rcInstance = newResourceLimitsManager(db)
+	}
+	return rcInstance
+}
+
+func newResourceLimitsManager(db *eosiodb.DataBase) *ResourceLimitsManager {
 	return &ResourceLimitsManager{db: db}
 }
 
