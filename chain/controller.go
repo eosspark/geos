@@ -441,7 +441,7 @@ func (self *Controller) PushScheduledTransaction1(gto types.GeneratedTransaction
 	deadLine common.TimePoint,
 	billedCpuTimeUs uint32) *types.TransactionTrace {
 
-	err := self.DB.Find("ByExpiration", common.MakePair(gto.Id, gto.Expiration), gto)
+	err := self.DB.Find("ByExpiration", common.MakeTuple(gto.Id, gto.Expiration), gto)
 	if err != nil {
 		fmt.Println("GetGeneratedTransactionObjectByExpiration is error :", err.Error())
 	}

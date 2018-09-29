@@ -1,38 +1,39 @@
 package types
 
 import (
+	"fmt"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/db"
 	"math/big"
-	"fmt"
 )
+
 type GeneratedTransaction struct {
-	TrxId	common.TransactionIdType
-	Sender	common.AccountName
-	SenderId	big.Int		//c++ uint128_t
-	Payer	common.AccountName
-	DelayUntil   common.TimePoint
-	Expiration   common.TimePoint
-	Published    common.TimePoint
-	PackedTrx	[]byte
+	TrxId      common.TransactionIdType
+	Sender     common.AccountName
+	SenderId   big.Int //c++ uint128_t
+	Payer      common.AccountName
+	DelayUntil common.TimePoint
+	Expiration common.TimePoint
+	Published  common.TimePoint
+	PackedTrx  []byte
 }
 
 type GeneratedTransactionObject struct {
-	Id           IdType                   `storm:"id,increment"`
-	TrxId        common.TransactionIdType `storm:"unique"`
-	Sender       common.AccountName
-	SenderId     big.Int //c++ uint128_t
-	Payer        common.AccountName
-	DelayUntil   common.TimePoint
-	Expiration   common.TimePoint
-	Published    common.TimePoint
-	PackedTrx    common.HexBytes //c++ shared_string
+	Id         IdType                   `storm:"id,increment"`
+	TrxId      common.TransactionIdType `storm:"unique"`
+	Sender     common.AccountName
+	SenderId   big.Int //c++ uint128_t
+	Payer      common.AccountName
+	DelayUntil common.TimePoint
+	Expiration common.TimePoint
+	Published  common.TimePoint
+	PackedTrx  common.HexBytes //c++ shared_string
 	/*expiration、Id*/
-	ByExpiration common.Pair
+	ByExpiration common.Tuple
 	/*DelayUntil、Id*/
-	ByDelay		 common.Pair
+	ByDelay common.Tuple
 	/*Sender、SenderId*/
-	BySenderId	 common.Pair
+	BySenderId common.Tuple
 }
 
 /* c++
@@ -43,50 +44,50 @@ type billable_size struct {
 
 //const overhead_per_row_per_index_ram_bytes uint32 = 32
 
-func (g *GeneratedTransactionObject) GetBillableSize() uint64{
-	overhead :=overhead_per_row_per_index_ram_bytes*5
-	value:=96+4+overhead
+func (g *GeneratedTransactionObject) GetBillableSize() uint64 {
+	overhead := overhead_per_row_per_index_ram_bytes * 5
+	value := 96 + 4 + overhead
 	return uint64(value)
 }
 
-func GetGTOByTrxId(db eosiodb.DataBase,trxId common.TransactionIdType) *GeneratedTransactionObject{
-	gto:=GeneratedTransactionObject{}
-	err:=db.Find("TrxId",trxId,gto)
-	if err != nil{
+func GetGTOByTrxId(db eosiodb.DataBase, trxId common.TransactionIdType) *GeneratedTransactionObject {
+	gto := GeneratedTransactionObject{}
+	err := db.Find("TrxId", trxId, gto)
+	if err != nil {
 		fmt.Println(GetGTOByTrxId)
 	}
 	return &gto
 }
 
-func GetGeneratedTransactionObjectByExpiration(db eosiodb.DataBase,be common.Pair) *GeneratedTransactionObject{
+func GetGeneratedTransactionObjectByExpiration(db eosiodb.DataBase, be common.Tuple) *GeneratedTransactionObject {
 	gto := GeneratedTransactionObject{}
-	err := db.Find("ByExpiration",be,gto)
-	if err != nil{
-		fmt.Println("GetGeneratedTransactionObjectByExpiration is error :",err.Error())
+	err := db.Find("ByExpiration", be, gto)
+	if err != nil {
+		fmt.Println("GetGeneratedTransactionObjectByExpiration is error :", err.Error())
 	}
 	return &gto
 }
 
-func GetGeneratedTransactionObjectByDelay(db eosiodb.DataBase,be common.Pair) *GeneratedTransactionObject{
+func GetGeneratedTransactionObjectByDelay(db eosiodb.DataBase, be common.Tuple) *GeneratedTransactionObject {
 	gto := GeneratedTransactionObject{}
-	err := db.Find("ByDelay",be,gto)
-	if err != nil{
-		fmt.Println("GetGeneratedTransactionObjectByDelay is error :",err.Error())
+	err := db.Find("ByDelay", be, gto)
+	if err != nil {
+		fmt.Println("GetGeneratedTransactionObjectByDelay is error :", err.Error())
 	}
 	return &gto
 }
 
-func GetGeneratedTransactionObjectBySenderId(db eosiodb.DataBase,be common.Pair) *GeneratedTransactionObject{
+func GetGeneratedTransactionObjectBySenderId(db eosiodb.DataBase, be common.Tuple) *GeneratedTransactionObject {
 	gto := GeneratedTransactionObject{}
-	err := db.Find("BySenderId",be,gto)
-	if err != nil{
-		fmt.Println("GetGeneratedTransactionObjectBySenderId is error :",err.Error())
+	err := db.Find("BySenderId", be, gto)
+	if err != nil {
+		fmt.Println("GetGeneratedTransactionObjectBySenderId is error :", err.Error())
 	}
 	return &gto
 }
 
-func GeneratedTransactions(gto *GeneratedTransactionObject) *GeneratedTransaction{
-	gt:=GeneratedTransaction{}
+func GeneratedTransactions(gto *GeneratedTransactionObject) *GeneratedTransaction {
+	gt := GeneratedTransaction{}
 	gt.TrxId = gto.TrxId
 	gt.Sender = gto.Sender
 	gt.SenderId = gto.SenderId
