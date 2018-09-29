@@ -23,8 +23,16 @@ type TableIdObject struct {
 	Count uint32
 }
 
+// func (u *TableIdObject) GetTableId() IdType {
+// 	return u.ID
+// }
 func (u *TableIdObject) GetBillableSize() uint64 {
 	return 44 + overhead_per_row_per_index_ram_bytes*2
+}
+func (s *TableIdObject) MakeTuple(values ...interface{}) *common.Tuple {
+	//return s.SecondaryKey.MakeTupe(values...)
+	tuple := common.Tuple{}
+	return &tuple
 }
 
 type ByCodeScopeTable struct {
@@ -53,8 +61,19 @@ type KeyValueObject struct {
 	} `strom:"unique"`
 }
 
+// func (u *KeyValueObject) GetValue() IdType {
+// 	return u.Value
+// }
+// func (u *KeyValueObject) GetTableId() IdType {
+// 	return u.TId
+// }
 func (u *KeyValueObject) GetBillableSize() uint64 {
 	return 32 + 8 + 4 + overhead_per_row_per_index_ram_bytes*2
+}
+func (s *KeyValueObject) MakeTuple(values ...interface{}) *common.Tuple {
+	//return s.SecondaryKey.MakeTupe(values...)
+	tuple := common.Tuple{}
+	return &tuple
 }
 
 func AddTableIdObjectIndex(dbs *eosiodb.DataBase, tio TableIdObject) {
@@ -100,6 +119,7 @@ type SecondaryKeyInterface interface {
 	//GetValue() interface{}
 	GetBillSize() int64
 	Size() int64
+	MakeTuple(values ...interface{}) *common.Tuple
 }
 
 type Uint64_t struct {
@@ -117,6 +137,11 @@ func (u *Uint64_t) GetBillSize() int64 {
 }
 func (u *Uint64_t) Size() int64 {
 	return 8
+}
+func (s *Uint64_t) MakeTuple(values ...interface{}) *common.Tuple {
+	//return s.SecondaryKey.MakeTupe(values...)
+	tuple := common.Tuple{}
+	return &tuple
 }
 
 type Uint128_t struct {
@@ -143,6 +168,11 @@ func (u *Float64_t) GetBillSize() int64 {
 func (u *Float64_t) Size() int64 {
 	return 8
 }
+func (s *Float64_t) MakeTuple(values ...interface{}) *common.Tuple {
+	//return s.SecondaryKey.MakeTupe(values...)
+	tuple := common.Tuple{}
+	return &tuple
+}
 
 type Float128_t struct {
 	Value [16]byte
@@ -156,8 +186,19 @@ type SecondaryObject struct {
 	SecondaryKey SecondaryKeyInterface
 }
 
+// func (u *KeyValueObject) GetValue() common.HexBytes {
+// 	return nil
+// }
+
+// func (u *SecondaryObject) GetTableId() IdType {
+// 	return u.TId
+// }
 func (s *SecondaryObject) GetBillableSize() int64 {
 	return s.SecondaryKey.GetBillSize()
+}
+
+func (s *SecondaryObject) MakeTuple(values ...interface{}) *common.Tuple {
+	return s.SecondaryKey.MakeTuple(values...)
 }
 
 // type SecondaryObjectI64 struct {

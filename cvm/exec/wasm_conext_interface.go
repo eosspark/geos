@@ -27,23 +27,29 @@ type WasmContextInterface interface {
 	ContextAppend(str string)
 
 	//context database api
-	DBStoreI64(scope int64, table int64, payer int64, id int64, buffer []byte) int
-	DBUpdateI64(iterator int, payer common.AccountName, buffer []byte)
-	DBRemoveI64(iterator int)
-	DBGetI64(iterator int, buffer []byte, bufferSize int) int
-	DBNextI64(iterator int, primary *uint64) int
-	DBPreviousI64(iterator int, primary *uint64) int
-	DBFindI64(code int64, scope int64, table int64, id int64) int
-	DBLowerBoundI64(code int64, scope int64, table int64, id int64) int
-	DBUpperBoundI64(code int64, scope int64, table int64, id int64) int
-	DBEndI64(code int64, scope int64, table int64) int
+	DbStoreI64(scope int64, table int64, payer int64, id int64, buffer []byte) int
+	DbUpdateI64(iterator int, payer int64, buffer []byte)
+	DbRemoveI64(iterator int)
+	DbGetI64(iterator int, buffer []byte, bufferSize int) int
+	DbNextI64(iterator int, primary *uint64) int
+	DbPreviousI64(iterator int, primary *uint64) int
+	DbFindI64(code int64, scope int64, table int64, id int64) int
+	DbLowerBoundI64(code int64, scope int64, table int64, id int64) int
+	DbUpperBoundI64(code int64, scope int64, table int64, id int64) int
+	DbEndI64(code int64, scope int64, table int64) int
 
 	IdxI64Store(scope int64, table int64, payer int64, id int64, value *types.Uint64_t) int
 	IdxI64Remove(iterator int)
 	IdxI64Update(iterator int, payer int64, value *types.Uint64_t)
 	IdxI64FindSecondary(code int64, scope int64, table int64, secondary *types.Uint64_t, primary *uint64) int
+	IdxI64LowerBound(code int64, scope int64, table int64, secondary *types.Uint64_t, primary *uint64) int
+	IdxI64UpperBound(code int64, scope int64, table int64, secondary *types.Uint64_t, primary *uint64) int
+	IdxI64End(code int64, scope int64, table int64) int
+	IdxI64Next(iterator int, primary *uint64) int
+	IdxI64Previous(iterator int, primary *uint64) int
+	IdxI64FindPrimary(code int64, scope int64, table int64, secondary *types.Uint64_t, primary *uint64) int
 
-	UpdateDBUsage(pager common.AccountName, delta int64)
+	UpdateDbUsage(pager common.AccountName, delta int64)
 	//FindTable(code int64, scope int64, table int64) types.TableIDObject
 	//FindOrCreateTable(code common.Name, scope common.Name, table common.Name, payer *common.AccountName) types.TableIDObject
 	RemoveTable(tid types.TableIdObject)
