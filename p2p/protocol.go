@@ -13,14 +13,13 @@ type P2PMessage interface {
 }
 
 type HandshakeMessage struct {
-	// net_plugin/protocol.hpp handshake_message
-	NetworkVersion           uint16             `json:"network_version"`
-	ChainID                  common.ChainIdType `json:"chain_id"`
-	NodeID                   common.NodeIdType  `json:"node_id"` // sha256
-	Key                      ecc.PublicKey      `json:"key"`     // can be empty, producer key, or peer key
-	Time                     common.TimePoint   `json:"time"`    // time?!
-	Token                    rlp.Sha256         `json:"token"`   // digest of time to prove we own the private `key`
-	Signature                ecc.Signature      `json:"sig"`     // can be empty if no key, signature of the digest above
+	NetworkVersion           uint16             `json:"network_version"` // incremental value above a computed base
+	ChainID                  common.ChainIdType `json:"chain_id"`        // used to identify chain
+	NodeID                   common.NodeIdType  `json:"node_id"`         // used to identify peers and prevent self-connect
+	Key                      ecc.PublicKey      `json:"key"`             // authentication key; may be a producer or peer key, or empty
+	Time                     common.TimePoint   `json:"time"`
+	Token                    rlp.Sha256         `json:"token"` // digest of time to prove we own the private `key`
+	Signature                ecc.Signature      `json:"sig"`   // signature for the digest
 	P2PAddress               string             `json:"p2p_address"`
 	LastIrreversibleBlockNum uint32             `json:"last_irreversible_block_num"`
 	LastIrreversibleBlockID  common.BlockIdType `json:"last_irreversible_block_id"`
@@ -54,24 +53,24 @@ func (m *ChainSizeMessage) GetType() P2PMessageType {
 type GoAwayReason uint32
 
 const (
-	GoAwayNoReason = uint8(iota)
-	GoAwaySelfConnect
-	GoAwayDuplicate
-	GoAwayWrongChain
-	GoAwayWrongVersion
-	GoAwayForked
-	GoAwayUnlinkable
-	GoAwayBadTransaction
-	GoAwayValidation
-	GoAwayAuthentication
-	GoAwayFatalOther
-	GoAwayBenignOther
-	GoAwayCrazy
+	GoAwayNoReason       = uint8(iota) //no reason to go away
+	GoAwaySelfConnect                  //the connection is to itself
+	GoAwayDuplicate                    //the connection is redundant
+	GoAwayWrongChain                   //the peer's chain id doesn't match
+	GoAwayWrongVersion                 //the peer's network version doesn't match
+	GoAwayForked                       //the peer's irreversible blocks are different
+	GoAwayUnlinkable                   //the peer sent a block we couldn't use
+	GoAwayBadTransaction               //the peer sent a transaction that failed verification
+	GoAwayValidation                   //the peer sent a block that failed validation
+	GoAwayBenignOther                  //reasons such as a timeout. not fatal but warrant resetting
+	GoAwayFatalOther                   //a catch-all for errors we don't have discriminated
+	GoAwayAuthentication               //peer failed authenicatio
+	//GoAwayCrazy                        //
 )
 
 type GoAwayMessage struct {
 	Reason GoAwayReason `json:"reason"`
-	NodeID rlp.Sha256   `json:"node_id"`
+	NodeID rlp.Sha256   `json:"node_id"` //for duplicate notification
 }
 
 func (m *GoAwayMessage) GetType() P2PMessageType {
@@ -79,10 +78,10 @@ func (m *GoAwayMessage) GetType() P2PMessageType {
 }
 
 type TimeMessage struct {
-	Origin      common.TimePoint `json:"org"`
-	Receive     common.TimePoint `json:"rec"`
-	Transmit    common.TimePoint `json:"xmt"`
-	Destination common.TimePoint `json:"dst"`
+	Org common.TimePoint `json:"org"` //origin timestamp
+	Rec common.TimePoint `json:"rec"` //receive timestamp
+	Xmt common.TimePoint `json:"xmt"` //transmit timestamp
+	Dst common.TimePoint `json:"dst"` //destination timestamp
 }
 
 func (m *TimeMessage) GetType() P2PMessageType {
@@ -97,19 +96,17 @@ type IdListMode uint32
 
 const (
 	none IdListMode = iota
-	catch_up
-	last_irr_catch_up
+	catchUp
+	lastIrrCatchUp
 	normal
 )
 
 type OrderedTransactionIDs struct {
-	// Unknown [3]byte             `json:"-"` ///// WWUUuuuuuuuuuuuutzthat ?
 	Mode    IdListMode                  `json:"mode"`
 	Pending uint32                      `json:"pending"`
 	IDs     []*common.TransactionIdType `json:"ids"`
 }
 type OrderedBlockIDs struct {
-	// Unknown [3]byte             `json:"-"` ///// wuuttzthat?
 	Mode    IdListMode            `json:"mode"`
 	Pending uint32                `json:"pending"`
 	IDs     []*common.BlockIdType `json:"ids"`
@@ -160,3 +157,77 @@ type PackedTransactionMessage struct {
 func (m *PackedTransactionMessage) GetType() P2PMessageType {
 	return PackedTransactionMessageType
 }
+
+/**
+ *
+Goals of Network Code
+1. low latency to minimize missed blocks and potentially reduce block interval
+2. minimize redundant data between blocks and transactions.
+3. enable rapid sync of a new node
+4. update to new boost / fc
+
+
+
+State:
+   All nodes know which blocks and transactions they have
+   All nodes know which blocks and transactions their peers have
+   A node knows which blocks and transactions it has requested
+   All nodes know when they learned of a transaction
+
+   send hello message
+   write loop (true)
+      if peer knows the last irreversible block {
+         if peer does not know you know a block or transactions
+            send the ids you know (so they don't send it to you)
+            yield continue
+         if peer does not know about a block
+            send transactions in block peer doesn't know then send block summary
+            yield continue
+         if peer does not know about new public endpoints that you have verified
+            relay new endpoints to peer
+            yield continue
+         if peer does not know about transactions
+            sends the oldest transactions that is not known by the remote peer
+            yield continue
+         wait for new validated block, transaction, or peer signal from network fiber
+      } else {
+         we assume peer is in sync mode in which case it is operating on a
+         request / response basis
+
+         wait for notice of sync from the read loop
+      }
+
+
+    read loop
+      if hello message
+         verify that peers Last Ir Block is in our state or disconnect, they are on fork
+         verify peer network protocol
+
+      if notice message update list of transactions known by remote peer
+      if trx message then insert into global state as unvalidated
+      if blk summary message then insert into global state *if* we know of all dependent transactions
+         else close connection
+
+
+    if my head block < the LIB of a peer and my head block age > block interval * round_size/2 then
+    enter sync mode...
+        divide the block numbers you need to fetch among peers and send fetch request
+        if peer does not respond to request in a timely manner then make request to another peer
+        ensure that there is a constant queue of requests in flight and everytime a request is filled
+        send of another request.
+
+     Once you have caught up to all peers, notify all peers of your head block so they know that you
+     know the LIB and will start sending you real time transactions
+
+parallel fetches, request in groups
+
+
+only relay transactions to peers if we don't already know about it.
+
+send a notification rather than a transaction if the txn is > 3mtu size.
+
+
+
+
+
+*/

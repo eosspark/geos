@@ -46,8 +46,8 @@ func DecodeIdTypeByte(b []byte) (id [4]uint64, err error) {
 }
 func (n ChainIdType) MarshalJSON() ([]byte, error) {
 	b := make([]byte, 32)
-	for i := range n.Hash_ {
-		binary.LittleEndian.PutUint64(b[i*8:(i+1)*8], n.Hash_[i])
+	for i := range n.Hash {
+		binary.LittleEndian.PutUint64(b[i*8:(i+1)*8], n.Hash[i])
 	}
 	return json.Marshal(hex.EncodeToString(b))
 }
@@ -65,8 +65,8 @@ func (n *ChainIdType) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	for i := range n.Hash_ {
-		n.Hash_[i] = binary.LittleEndian.Uint64(b[i*8 : (i+1)*8])
+	for i := range n.Hash {
+		n.Hash[i] = binary.LittleEndian.Uint64(b[i*8 : (i+1)*8])
 	}
 
 	return nil
@@ -91,8 +91,8 @@ func (n *BlockIdType) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return err
 	}
-	for i := range n.Hash_ {
-		n.Hash_[i] = binary.LittleEndian.Uint64(b[i*8 : (i+1)*8])
+	for i := range n.Hash {
+		n.Hash[i] = binary.LittleEndian.Uint64(b[i*8 : (i+1)*8])
 	}
 	return nil
 }
@@ -116,8 +116,8 @@ func (n *CheckSum256Type) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return err
 	}
-	for i := range n.Hash_ {
-		n.Hash_[i] = binary.LittleEndian.Uint64(b[i*8 : (i+1)*8])
+	for i := range n.Hash {
+		n.Hash[i] = binary.LittleEndian.Uint64(b[i*8 : (i+1)*8])
 	}
 	return nil
 }
@@ -586,3 +586,11 @@ func (i *JSONInt64) UnmarshalJSON(data []byte) error {
 }
 
 type PublicKeyType ecc.PublicKey
+
+type Compare interface {
+	String() string
+}
+
+func CompareString(a, b Compare) int {
+	return strings.Compare(a.String(), b.String())
+}

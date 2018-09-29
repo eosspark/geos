@@ -6,10 +6,11 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"hash"
+	"strings"
 )
 
 type Sha512 struct {
-	Hash_ [8]uint64 `eos:"array"`
+	Hash [8]uint64 `eos:"array"`
 }
 
 func NewSha512() hash.Hash {
@@ -19,7 +20,7 @@ func NewSha512() hash.Hash {
 func NewSha512Nil() *Sha512 {
 	data := [8]uint64{0, 0, 0, 0, 0, 0, 0, 0}
 	return &Sha512{
-		Hash_: data,
+		Hash: data,
 	}
 }
 
@@ -30,8 +31,8 @@ func NewSha512String(s string) *Sha512 {
 	}
 
 	result := new(Sha512)
-	for i := range result.Hash_ {
-		result.Hash_[i] = binary.LittleEndian.Uint64(bytes[i*8 : (i+1)*8])
+	for i := range result.Hash {
+		result.Hash[i] = binary.LittleEndian.Uint64(bytes[i*8 : (i+1)*8])
 	}
 
 	return result
@@ -39,8 +40,8 @@ func NewSha512String(s string) *Sha512 {
 
 func NewSha512Byte(bytes []byte) *Sha512 {
 	result := new(Sha512)
-	for i := range result.Hash_ {
-		result.Hash_[i] = binary.LittleEndian.Uint64(bytes[i*8 : (i+1)*8])
+	for i := range result.Hash {
+		result.Hash[i] = binary.LittleEndian.Uint64(bytes[i*8 : (i+1)*8])
 	}
 
 	return result
@@ -56,33 +57,37 @@ func Hash512(t interface{}) Sha512 {
 	hashed := h.Sum(nil)
 
 	result := Sha512{}
-	for i := range result.Hash_ {
-		result.Hash_[i] = binary.LittleEndian.Uint64(hashed[i*8 : (i+1)*8])
+	for i := range result.Hash {
+		result.Hash[i] = binary.LittleEndian.Uint64(hashed[i*8 : (i+1)*8])
 	}
 
 	return result
 }
 
-func (h Sha512) MarshalJSON() ([]byte, error) {
+func (h *Sha512) MarshalJSON() ([]byte, error) {
 	return json.Marshal(hex.EncodeToString(h.Bytes()))
 }
 
-func (h Sha512) String() string {
+func (h *Sha512) String() string {
 	return hex.EncodeToString(h.Bytes())
 }
 
-func (h Sha512) Bytes() []byte {
+func (h *Sha512) Bytes() []byte {
 	result := make([]byte, 64)
-	for i := range h.Hash_ {
-		binary.LittleEndian.PutUint64(result[i*8:(i+1)*8], h.Hash_[i])
+	for i := range h.Hash {
+		binary.LittleEndian.PutUint64(result[i*8:(i+1)*8], h.Hash[i])
 	}
 	return result
 }
 
-func (h Sha512) Or(h1 Sha512) Sha512 {
+func (h *Sha512) Or(h1 Sha512) Sha512 {
 	result := Sha512{}
-	for i := range result.Hash_ {
-		result.Hash_[i] = h.Hash_[i] ^ h1.Hash_[i]
+	for i := range result.Hash {
+		result.Hash[i] = h.Hash[i] ^ h1.Hash[i]
 	}
 	return result
+}
+
+func (h *Sha512) Compare(h1 *Sha512) bool {
+	return strings.Compare(h.String(), h1.String()) == 0
 }

@@ -27,14 +27,14 @@ func (b *BlockHeader) BlockNumber() uint32 {
 }
 
 func NumFromID(id common.BlockIdType) uint32 {
-	return common.EndianReverseU32(uint32(id.Hash_[0]))
+	return common.EndianReverseU32(uint32(id.Hash[0]))
 }
 
 func (b *BlockHeader) BlockID() common.BlockIdType {
 	// Do not include signed_block_header attributes in id, specifically exclude producer_signature.
 	result := b.Digest()
-	result.Hash_[0] &= 0xffffffff00000000
-	result.Hash_[0] += uint64(common.EndianReverseU32(b.BlockNumber())) // store the block num in the ID, 160 bits is plenty for the hash
+	result.Hash[0] &= 0xffffffff00000000
+	result.Hash[0] += uint64(common.EndianReverseU32(b.BlockNumber())) // store the block num in the ID, 160 bits is plenty for the hash
 	return common.BlockIdType(result)
 }
 

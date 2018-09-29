@@ -149,12 +149,12 @@ func Merkle(ids []rlp.Sha256) rlp.Sha256 {
 
 func makeCanonicalLeft(val rlp.Sha256) rlp.Sha256 {
 	canonicalL := val
-	canonicalL.Hash_[0] &= 0xFFFFFFFFFFFFFF7F
+	canonicalL.Hash[0] &= 0xFFFFFFFFFFFFFF7F
 	return canonicalL
 }
 func makeCanonicalRight(val rlp.Sha256) rlp.Sha256 {
 	canonicalR := val
-	canonicalR.Hash_[0] &= 0x0000000000000080
+	canonicalR.Hash[0] &= 0x0000000000000080
 	return canonicalR
 }
 
@@ -163,11 +163,11 @@ func makeCanonicalPair(l rlp.Sha256, r rlp.Sha256) common.Pair {
 }
 
 func isCanonicalLeft(val rlp.Sha256) bool {
-	return val.Hash_[0]&0x0000000000000080 == 0
+	return val.Hash[0]&0x0000000000000080 == 0
 }
 
 func isCanonicalRight(val rlp.Sha256) bool {
-	return val.Hash_[0]&0x0000000000000080 != 0
+	return val.Hash[0]&0x0000000000000080 != 0
 }
 
 /**
