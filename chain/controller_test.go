@@ -7,7 +7,10 @@
 
 package chain
 
-import "testing"
+import (
+	"testing"
+	"fmt"
+)
 
 //func TestPopBlock(t *testing.T) {
 //	con := NewController()
@@ -29,4 +32,8 @@ import "testing"
 //	con.SetApplayHandler(111, 111, 111, applyCon)
 //}
 
-func Test_Controller(t *testing.T) {}
+func Test_ControllerDB(t *testing.T) {
+	control := GetControllerInstance()		//chain.GetControllerInstance()
+	db := control.DataBase()
+	fmt.Println(db)
+}
