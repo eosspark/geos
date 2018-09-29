@@ -25,8 +25,8 @@ func (th TransactionHeader) GetRefBlocknum(headBlocknum uint32) uint32 {
 }
 
 func (th TransactionHeader) VerifyReferenceBlock(referenceBlock common.BlockIdType) bool {
-	return th.RefBlockNum == uint16(common.EndianReverseU32(uint32(referenceBlock.Hash_[0]))) &&
-		th.RefBlockPrefix == uint32(referenceBlock.Hash_[1])
+	return th.RefBlockNum == uint16(common.EndianReverseU32(uint32(referenceBlock.Hash[0]))) &&
+		th.RefBlockPrefix == uint32(referenceBlock.Hash[1])
 }
 
 func (th TransactionHeader) Validate() {
@@ -87,8 +87,8 @@ func (tx *Transaction) Fill(headBlockID common.BlockIdType, delaySecs, maxNetUsa
 }
 
 func (tx *Transaction) setRefBlock(blockID common.BlockIdType) {
-	tx.RefBlockNum = uint16(blockID.Hash_[0])
-	tx.RefBlockPrefix = uint32(blockID.Hash_[1])
+	tx.RefBlockNum = uint16(blockID.Hash[0])
+	tx.RefBlockPrefix = uint32(blockID.Hash[1])
 }
 
 type SignedTransaction struct {
@@ -161,9 +161,9 @@ func ZlibDecompressContextFreeData(data []byte) []common.HexBytes {
 func ZlibDecompress() []common.HexBytes { return nil }
 
 func (head *TransactionHeader) SetReferenceBlock(referenceBlock common.BlockIdType) {
-	first := common.EndianReverseU32(uint32(referenceBlock.Hash_[0]))
+	first := common.EndianReverseU32(uint32(referenceBlock.Hash[0]))
 	head.RefBlockNum = uint16(first)
-	head.RefBlockPrefix = uint32(referenceBlock.Hash_[1])
+	head.RefBlockPrefix = uint32(referenceBlock.Hash[1])
 	log.Info("SetReferenceBlock:", head)
 }
 

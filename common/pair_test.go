@@ -62,3 +62,20 @@ func TestTupleGetIndex(t *testing.T) {
 	assert.Equal(t, b, check)
 	//fmt.Printf("%#v\n", b)
 }
+
+func TestNewTuple4(t *testing.T) {
+	test := Tuple4{First: 100, Second: 8, Third: 9999, Fourth: 1000000001}
+	check := struct {
+		First  int
+		Second int
+		Third  int
+		Fourth int
+	}{100, 8, 9999, 1000000001}
+
+	assert.Equal(t, fmt.Sprintf("%v\n", test), fmt.Sprintf("%v\n", check))
+	assert.Equal(t, test.First, 100)
+	assert.Equal(t, test.Second, 8)
+	assert.Equal(t, test.Third, 9999)
+	assert.Equal(t, test.Fourth, 1000000001)
+
+}

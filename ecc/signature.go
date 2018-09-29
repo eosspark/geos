@@ -130,3 +130,8 @@ func (a *Signature) UnmarshalJSON(data []byte) (err error) {
 
 	return
 }
+
+func NewSigNil() *Signature {
+	return &Signature{Curve: CurveK1,
+		Content: [65]byte{}}
+}
