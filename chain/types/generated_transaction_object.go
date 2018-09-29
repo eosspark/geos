@@ -1,33 +1,32 @@
 package types
 
 import (
-	"fmt"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/db"
 	"math/big"
+	"fmt"
 )
-
 type GeneratedTransaction struct {
-	TrxId      common.TransactionIdType
-	Sender     common.AccountName
-	SenderId   big.Int //c++ uint128_t
-	Payer      common.AccountName
-	DelayUntil common.TimePoint
-	Expiration common.TimePoint
-	Published  common.TimePoint
-	PackedTrx  []byte
+	TrxId	common.TransactionIdType
+	Sender	common.AccountName
+	SenderId	big.Int		//c++ uint128_t
+	Payer	common.AccountName
+	DelayUntil   common.TimePoint
+	Expiration   common.TimePoint
+	Published    common.TimePoint
+	PackedTrx	[]byte
 }
 
 type GeneratedTransactionObject struct {
-	Id         IdType                   `storm:"id,increment"`
-	TrxId      common.TransactionIdType `storm:"unique"`
-	Sender     common.AccountName
-	SenderId   big.Int //c++ uint128_t
-	Payer      common.AccountName
-	DelayUntil common.TimePoint
-	Expiration common.TimePoint
-	Published  common.TimePoint
-	PackedTrx  common.HexBytes //c++ shared_string
+	Id           IdType                   `storm:"id,increment"`
+	TrxId        common.TransactionIdType `storm:"unique"`
+	Sender       common.AccountName
+	SenderId     big.Int //c++ uint128_t
+	Payer        common.AccountName
+	DelayUntil   common.TimePoint
+	Expiration   common.TimePoint
+	Published    common.TimePoint
+	PackedTrx    common.HexBytes //c++ shared_string
 	/*expiration、Id*/
 	ByExpiration common.Tuple
 	/*DelayUntil、Id*/
@@ -50,7 +49,7 @@ func (g *GeneratedTransactionObject) GetBillableSize() uint64 {
 	return uint64(value)
 }
 
-func GetGTOByTrxId(db eosiodb.DataBase, trxId common.TransactionIdType) *GeneratedTransactionObject {
+func GetGTOByTrxId(db *eosiodb.DataBase, trxId common.TransactionIdType) *GeneratedTransactionObject {
 	gto := GeneratedTransactionObject{}
 	err := db.Find("TrxId", trxId, gto)
 	if err != nil {
@@ -61,7 +60,7 @@ func GetGTOByTrxId(db eosiodb.DataBase, trxId common.TransactionIdType) *Generat
 
 func GetGeneratedTransactionObjectByExpiration(db eosiodb.DataBase, be common.Tuple) *GeneratedTransactionObject {
 	gto := GeneratedTransactionObject{}
-	err := db.Find("ByExpiration", be, gto)
+	err := db.Find("ByExpiration", be, &gto)
 	if err != nil {
 		fmt.Println("GetGeneratedTransactionObjectByExpiration is error :", err.Error())
 	}
@@ -70,7 +69,7 @@ func GetGeneratedTransactionObjectByExpiration(db eosiodb.DataBase, be common.Tu
 
 func GetGeneratedTransactionObjectByDelay(db eosiodb.DataBase, be common.Tuple) *GeneratedTransactionObject {
 	gto := GeneratedTransactionObject{}
-	err := db.Find("ByDelay", be, gto)
+	err := db.Find("ByDelay", be, &gto)
 	if err != nil {
 		fmt.Println("GetGeneratedTransactionObjectByDelay is error :", err.Error())
 	}
@@ -79,15 +78,15 @@ func GetGeneratedTransactionObjectByDelay(db eosiodb.DataBase, be common.Tuple) 
 
 func GetGeneratedTransactionObjectBySenderId(db eosiodb.DataBase, be common.Tuple) *GeneratedTransactionObject {
 	gto := GeneratedTransactionObject{}
-	err := db.Find("BySenderId", be, gto)
+	err := db.Find("BySenderId", be, &gto)
 	if err != nil {
 		fmt.Println("GetGeneratedTransactionObjectBySenderId is error :", err.Error())
 	}
 	return &gto
 }
 
-func GeneratedTransactions(gto *GeneratedTransactionObject) *GeneratedTransaction {
-	gt := GeneratedTransaction{}
+func GeneratedTransactions(gto *GeneratedTransactionObject) *GeneratedTransaction{
+	gt:=GeneratedTransaction{}
 	gt.TrxId = gto.TrxId
 	gt.Sender = gto.Sender
 	gt.SenderId = gto.SenderId

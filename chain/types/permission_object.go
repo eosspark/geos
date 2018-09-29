@@ -2,21 +2,27 @@ package types
 
 import (
 	"github.com/eosspark/eos-go/common"
-	"time"
 )
 
 type PermissionUsageObject struct {
-	ID       uint64        `storm:"id"`
-	LastUsed time.Duration `json:"last_used"`
+	ID                  IdType           `storm:"id"`
+	LastUsed            common.TimePoint `json:"last_used"`
+	ByAccountPermission common.Pair      `storm:"index"`
 }
 type PermissionObject struct {
-	ID          uint64
-	UsageId     uint64
-	Parent      uint64
+	ID          IdType `storm:"id,increment"`
+	UsageId     IdType
+	Parent      IdType
 	Owner       common.AccountName
 	Name        common.PermissionName
-	LastUpdated time.Duration
+	LastUpdated common.TimePoint
 	Auth        SharedAuthority
+	/*ID、Parent*/
+	ByParent    common.Pair `storm:"index"`
+	/*Owner、name*/
+	ByOwner     common.Pair `storm:"index"`
+	/*Name、ID*/
+	ByName      common.Pair `storm:"index"`
 }
 
 func (po PermissionObject) Satisfies(other PermissionObject) bool {

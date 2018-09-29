@@ -9,32 +9,49 @@ import (
 	"time"
 )
 
+var IsActiveAz bool
+
+var azInstance *AuthorizationManager
+
 type AuthorizationManager struct {
 	control *Controller
 	db      *eosiodb.DataBase
 }
 
-type PermissionIdType uint64
-
-func (am *AuthorizationManager) AddIndices() {
-	am.db.Insert(&types.PermissionObject{})
-	am.db.Insert(&types.PermissionUsageObject{})
-	am.db.Insert(&types.PermissionLinkObject{})
+func GetAuthorizationManager() *AuthorizationManager {
+	if !IsActiveAz {
+		azInstance = newAuthorizationManager()
+	}
+	return azInstance
 }
+
+func newAuthorizationManager() *AuthorizationManager {
+	control := GetControllerInstance()
+	db := control.DataBase()
+	return &AuthorizationManager{control: control, db: db}
+}
+
+type PermissionIdType types.IdType
+
+//func (am *AuthorizationManager) AddIndices() {
+//	am.db.Insert(&types.PermissionObject{})
+//	am.db.Insert(&types.PermissionUsageObject{})
+//	am.db.Insert(&types.PermissionLinkObject{})
+//}
 
 func (am *AuthorizationManager) InitializeDataBase() {
 
 }
 
 func (am *AuthorizationManager) CreatePermission(account common.AccountName,
-	name common.PermissionName,
-	parent PermissionIdType,
-	auth types.Authority,
-	initialCreationTime time.Duration,
-) types.PermissionObject {
+												 name common.PermissionName,
+												 parent PermissionIdType,
+												 auth types.Authority,
+												 initialCreationTime common.TimePoint,
+											    ) types.PermissionObject {
 	creationTime := initialCreationTime
 	if creationTime == 1 {
-		//createTime = pendingBlockTime
+		creationTime = am.control.PendingBlockTime()
 	}
 
 	permUsage := types.PermissionUsageObject{}
@@ -43,7 +60,7 @@ func (am *AuthorizationManager) CreatePermission(account common.AccountName,
 
 	perm := types.PermissionObject{
 		UsageId:     permUsage.ID,
-		Parent:      uint64(parent),
+		Parent:      types.IdType(parent),
 		Owner:       account,
 		Name:        name,
 		LastUpdated: creationTime,
@@ -53,28 +70,30 @@ func (am *AuthorizationManager) CreatePermission(account common.AccountName,
 	return perm
 }
 
-func (am *AuthorizationManager) ModifyPermission(permission types.PermissionObject, auth types.Authority) {
+func (am *AuthorizationManager) ModifyPermission(permission *types.PermissionObject, auth *types.Authority) {
 	am.db.Update(&permission, func(data interface{}) error {
-		permission.Auth = am.AuthToShared(auth)
-		//permission.LastUpdated = pendingBlockTime
+		permission.Auth = am.AuthToShared(*auth)
+		permission.LastUpdated = am.control.PendingBlockTime()
 		return nil
 	})
 }
 
-func (am *AuthorizationManager) RemovePermission() {
+func (am *AuthorizationManager) RemovePermission(permission *types.PermissionObject) {
 
 }
 
-func (am *AuthorizationManager) UpdatePermissionUsage() {
+func (am *AuthorizationManager) UpdatePermissionUsage(permission *types.PermissionObject) {
 	puo := types.PermissionUsageObject{}
+	am.db.Find("ID", permission.UsageId, &puo)
 	am.db.Update(&puo, func(data interface{}) error {
-		//puo.LastUsed = pendingBlockTime
+		puo.LastUsed = am.control.PendingBlockTime()
 		return nil
 	})
 }
 
-func (am *AuthorizationManager) GetPermissionLastUsed(permission types.Permission) time.Duration {
+func (am *AuthorizationManager) GetPermissionLastUsed(permission *types.Permission) common.TimePoint {
 	puo := types.PermissionUsageObject{}
+
 	return puo.LastUsed
 }
 

@@ -46,11 +46,11 @@ func init() {
 	DefaultConfig.MaxTrackedDposConfirmations = 1024
 
 	DefaultConfig.Percent_100 = 10000
-	DefaultConfig.Percent_1   = 100
+	DefaultConfig.Percent_1 = 100
 	DefaultConfig.AccountCpuUsageAverageWindowMs = 24 * 60 * 60 * 1000
 	DefaultConfig.AccountNetUsageAverageWindowMs = 24 * 60 * 60 * 1000
-	DefaultConfig.BlockCpuUsageAverageWindowMs   = 60 * 1000
-	DefaultConfig.BlockSizeAverageWindowMs       = 60 * 1000
+	DefaultConfig.BlockCpuUsageAverageWindowMs = 60 * 1000
+	DefaultConfig.BlockSizeAverageWindowMs = 60 * 1000
 
 	DefaultConfig.MaxBlockNetUsage = 1024 * 1024                                /// at 500ms blocks and 200byte trx, this enables ~10,000 TPS burst
 	DefaultConfig.TargetBlockNetUsagePct = uint32(10 * DefaultConfig.Percent_1) /// we target 1000 TPS
@@ -185,7 +185,7 @@ func BillableSizeV(kind string) uint64 {
 	return (DefaultConfig.BillableSize[kind].value + DefaultConfig.BillableAlignment - 1) / DefaultConfig.BillableAlignment * DefaultConfig.BillableAlignment
 }
 
-func EosPercent(value uint64, percentage uint32) uint64{
+func EosPercent(value uint64, percentage uint32) uint64 {
 	return (value * uint64(percentage)) / uint64(DefaultConfig.Percent_100)
 }
 
