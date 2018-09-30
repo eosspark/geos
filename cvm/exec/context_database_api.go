@@ -89,7 +89,7 @@ func db_find_i64(w *WasmInterface, code int64, scope int64, table int64, id int6
 func db_lowerbound_i64(w *WasmInterface, code int64, scope int64, table int64, id int64) int {
 	fmt.Println("db_lowerbound_i64")
 
-	return w.context.DbLowerBoundI64(code, scope, table, id)
+	return w.context.DbLowerboundI64(code, scope, table, id)
 }
 
 // int db_upperbound_i64( uint64_t code, uint64_t scope, uint64_t table, uint64_t id ) {
@@ -97,7 +97,7 @@ func db_lowerbound_i64(w *WasmInterface, code int64, scope int64, table int64, i
 // }
 func db_upperbound_i64(w *WasmInterface, code int64, scope int64, table int64, id int64) int {
 	fmt.Println("db_upperbound_i64")
-	return w.context.DbUpperBoundI64(code, scope, table, id)
+	return w.context.DbUpperboundI64(code, scope, table, id)
 }
 
 // int db_end_i64( uint64_t code, uint64_t scope, uint64_t table ) {
@@ -148,7 +148,7 @@ func db_idx64_lowerbound(w *WasmInterface, code int64, scope int64, table int64,
 
 	var primaryKey uint64 //:= getUint64(w, pPrimary)
 	secondaryKey := types.Uint64_t{}
-	itr := w.context.IdxI64LowerBound(code, scope, table, &secondaryKey, &primaryKey)
+	itr := w.context.IdxI64Lowerbound(code, scope, table, &secondaryKey, &primaryKey)
 	setUint64(w, pPrimary, primaryKey)
 	setUint64(w, pSecondary, secondaryKey.Value)
 
@@ -161,7 +161,7 @@ func db_idx64_upperbound(w *WasmInterface, code int64, scope int64, table int64,
 
 	var primaryKey uint64 //:= getUint64(w, pPrimary)
 	secondaryKey := types.Uint64_t{}
-	itr := w.context.IdxI64LowerBound(code, scope, table, &secondaryKey, &primaryKey)
+	itr := w.context.IdxI64Lowerbound(code, scope, table, &secondaryKey, &primaryKey)
 	setUint64(w, pPrimary, primaryKey)
 	setUint64(w, pSecondary, secondaryKey.Value)
 
