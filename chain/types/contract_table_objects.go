@@ -7,7 +7,7 @@ import (
 	"github.com/eosspark/eos-go/log"
 )
 
-type IdType uint64
+type IdType uint16
 type KeyType uint64
 
 type Object struct {
