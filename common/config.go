@@ -16,12 +16,12 @@ func init() {
 		MajorityProducersPermissionName: AccountName(StringToName("prod.major")),
 		MinorityProducersPermissionName: AccountName(StringToName("prod.minor")),
 
-		EosioAuthScope: StringToName("eosio.auth"),
-		EosioAllScope:  StringToName("eosio.all"),
-		ActiveName:     StringToName("active"),
-		OwnerName:      StringToName("owner"),
-		EosioAnyName:   StringToName("eosio.any"),
-		EosioCodeName:  StringToName("eosio.code"),
+		EosioAuthScope: AccountName(StringToName("eosio.auth")),
+		EosioAllScope:  AccountName(StringToName("eosio.all")),
+		ActiveName:     AccountName(StringToName("active")),
+		OwnerName:      AccountName(StringToName("owner")),
+		EosioAnyName:   AccountName(StringToName("eosio.any")),
+		EosioCodeName:  AccountName(StringToName("eosio.code")),
 
 		RateLimitingPrecision: 1000 * 1000,
 
@@ -90,12 +90,12 @@ type Config struct {
 	MajorityProducersPermissionName AccountName
 	MinorityProducersPermissionName AccountName
 
-	EosioAuthScope uint64
-	EosioAllScope  uint64
-	ActiveName     uint64
-	OwnerName      uint64
-	EosioAnyName   uint64
-	EosioCodeName  uint64
+	EosioAuthScope AccountName
+	EosioAllScope  AccountName
+	ActiveName     AccountName
+	OwnerName      AccountName
+	EosioAnyName   AccountName
+	EosioCodeName  AccountName
 
 	RateLimitingPrecision uint32
 

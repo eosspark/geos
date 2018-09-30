@@ -2,7 +2,6 @@ package chain
 
 import (
 	"fmt"
-	"github.com/eosspark/eos-go/base"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/db"
 	"math"
@@ -30,6 +29,8 @@ type AccountResourceLimit struct {
 	Max       int64 `json:"max"`
 }
 
+var IsActiveRc bool
+
 var rcInstance *ResourceLimitsManager
 
 type ResourceLimitsManager struct {
@@ -37,7 +38,7 @@ type ResourceLimitsManager struct {
 }
 
 func GetResourceLimitsManager() *ResourceLimitsManager {
-	if !IsActive {
+	if !IsActiveRc {
 		rcInstance = newResourceLimitsManager()
 	}
 	return rcInstance
@@ -56,7 +57,7 @@ func UpdateElasticLimit(currentLimit uint64, averageUsage uint64, params Elastic
 	} else {
 		result = result * params.ExpandRate.Numerator / params.ExpandRate.Denominator
 	}
-	return base.Min(base.Min(result, params.Max), uint64(params.Max*uint64(params.MaxMultiplier)))
+	return common.Min(common.Min(result, params.Max), uint64(params.Max*uint64(params.MaxMultiplier)))
 }
 
 func (elp ElasticLimitParameters) Validate() {

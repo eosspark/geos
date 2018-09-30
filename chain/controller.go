@@ -160,10 +160,10 @@ func (self *Controller) PopBlock() {
 		self.ReversibleBlocks.Remove(&r)
 	}
 	if self.ReadMode == SPECULATIVE {
-		var trx []types.TransactionMetadata = self.Head.Trxs
+		var trx []*types.TransactionMetadata = self.Head.Trxs
 		step := 0
 		for ; step < len(trx); step++ {
-			self.UnAppliedTransactions[rlp.Sha256(trx[step].SignedID)] = trx[step]
+			self.UnAppliedTransactions[rlp.Sha256(trx[step].SignedID)] = *trx[step]
 		}
 	}
 	self.Head = prev
@@ -489,7 +489,6 @@ func (self *Controller) PushScheduledTransaction1(gto types.GeneratedTransaction
 
 	trx := types.TransactionMetadata{}
 	//trx.
-	//TODO wait append
 	fmt.Println(undo_session, dtrx, trx)
 	return nil
 }

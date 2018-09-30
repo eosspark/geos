@@ -1,24 +1,24 @@
 package chain
 
 import (
-	"testing"
-	"github.com/eosspark/eos-go/db"
-	"github.com/eosspark/eos-go/common"
 	"fmt"
+	"github.com/eosspark/eos-go/common"
+	"github.com/eosspark/eos-go/db"
+	"testing"
 )
 
 func Test_resourceSetGet(t *testing.T) {
 	var rlm *ResourceLimitsManager
-	db, _ := eosiodb.NewDataBase("./","eos.db", true)
+	db, _ := eosiodb.NewDataBase("./", "eos.db", true)
 	defer db.Close()
-	rlm.AddIndices()
+	//rlm.AddIndices()
 	rlm.InitializeDatabase()
 	account := common.AccountName(common.StringToName("yc"))
 	rlm.InitializeAccount(account)
 	rlm.SetAccountLimits(account, 123, 456, 789)
-	var r , n , c int64
+	var r, n, c int64
 	rlm.GetAccountLimits(account, &r, &n, &c)
-	fmt.Println(r,n,c)
+	fmt.Println(r, n, c)
 	var rlo []ResourceLimitsObject
 	db.All(&rlo)
 	fmt.Println(rlo)
@@ -37,7 +37,7 @@ func Test_resourceSetGet(t *testing.T) {
 }
 func Test_resourceFuncAdd(t *testing.T) {
 	var rlm *ResourceLimitsManager
-	db, _ := eosiodb.NewDataBase("./","eos.db", true)
+	db, _ := eosiodb.NewDataBase("./", "eos.db", true)
 	defer db.Close()
 	rlm.AddIndices()
 	rlm.InitializeDatabase()

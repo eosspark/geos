@@ -23,10 +23,10 @@ type ForkMultiIndexType struct {
 	ByBlockID common.BlockIdType `storm:"unique" json:"id"`
 	ByPrev    common.BlockIdType `storm:"index"  json:"prev"`
 	//Pair<block_num,in_current_chain>
-	ByBlockNum *common.Pair `storm:"index"  json:"block_num"`
+	ByBlockNum common.Tuple `storm:"index"  json:"block_num"`
 	//tuple<dpos_irreversible_blocknum,bft_irreversible_blocknum,block_num>
-	ByLibBlockNum *common.Tuple `storm:"index"  json:"lib_block_num"`
-	BlockState    BlockState    `storm:"inline"`
+	ByLibBlockNum common.Tuple `storm:"index"  json:"lib_block_num"`
+	BlockState    BlockState   `storm:"inline"`
 }
 
 func (f *ForkDatabase) setHead(head *BlockState) *ForkDatabase {
@@ -121,7 +121,7 @@ func (fdb *ForkDatabase) AddBlockState(blockState BlockState) *BlockState {
 
 	var index ForkMultiIndexType = ForkMultiIndexType{ByBlockID: blockState.ID,
 		ByPrev:     blockState.SignedBlock.Previous,
-		ByBlockNum: common.MakePair(blockState.BlockNum, true),
+		ByBlockNum: common.MakeTuple(blockState.BlockNum, true),
 		BlockState: blockState}
 
 	err := fdb.db.Insert(index)
