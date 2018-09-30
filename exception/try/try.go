@@ -65,13 +65,19 @@ func (c *CatchOrFinally) Catch(f interface{}) (r *CatchOrFinally) {
 		it := ft.In(0)
 		ct := reflect.TypeOf(c.e)
 
-		if ct.ConvertibleTo(it) || ct.Implements(it) {
+		its, cts := it.String(), ct.String()
+
+		if its == cts || (it.Kind() == reflect.Interface && ct.Implements(it)) {
 			reflect.ValueOf(f).Call([]reflect.Value{reflect.ValueOf(c.e)})
 			return nil
 
-		} else if ct.String() == "runtime.errorString" && it.String() == "try.RuntimeError" {
+		} else if ct.Kind() == reflect.Ptr && cts[1:] == its { // make pointer can be caught by its value type
+			reflect.ValueOf(f).Call([]reflect.Value{reflect.ValueOf(reflect.ValueOf(c.e).Elem().Interface())})
+			return nil
+
+		} else if cts == "runtime.errorString" && its == "try.RuntimeError" {
 			var rte RuntimeError
-			rte.Message = c.e.(error).Error() //not .(fmt.Stringer).String()
+			rte.Message = c.e.(error).Error()
 			rte.StackTrace = c.StackTrace
 			ev := reflect.ValueOf(rte)
 			reflect.ValueOf(f).Call([]reflect.Value{ev})
