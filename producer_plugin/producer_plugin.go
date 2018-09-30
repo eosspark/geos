@@ -84,7 +84,8 @@ func (pp *ProducerPlugin) PluginInitialize(app *cli.App) {
 	//	return sig
 	//}
 
-	pp.my.SignatureProviders[initPubKey], _ = makeKeySignatureProvider(*initPriKey)
+	pp.my.SignatureProviders[initPubKey], _  = makeKeySignatureProvider(*initPriKey)
+	pp.my.SignatureProviders[initPubKey2], _ = makeKeySignatureProvider(*initPriKey2)
 	// pp.my.SignatureProviders[initPubKey], _ = makeKeosdSignatureProvider(pp, "http://", initPubKey)
 
 	var maxTransactionTimeMs int
