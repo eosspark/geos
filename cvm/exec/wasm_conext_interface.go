@@ -34,16 +34,16 @@ type WasmContextInterface interface {
 	DbNextI64(iterator int, primary *uint64) int
 	DbPreviousI64(iterator int, primary *uint64) int
 	DbFindI64(code int64, scope int64, table int64, id int64) int
-	DbLowerBoundI64(code int64, scope int64, table int64, id int64) int
-	DbUpperBoundI64(code int64, scope int64, table int64, id int64) int
+	DbLowerboundI64(code int64, scope int64, table int64, id int64) int
+	DbUpperboundI64(code int64, scope int64, table int64, id int64) int
 	DbEndI64(code int64, scope int64, table int64) int
 
 	IdxI64Store(scope int64, table int64, payer int64, id int64, value *types.Uint64_t) int
 	IdxI64Remove(iterator int)
 	IdxI64Update(iterator int, payer int64, value *types.Uint64_t)
 	IdxI64FindSecondary(code int64, scope int64, table int64, secondary *types.Uint64_t, primary *uint64) int
-	IdxI64LowerBound(code int64, scope int64, table int64, secondary *types.Uint64_t, primary *uint64) int
-	IdxI64UpperBound(code int64, scope int64, table int64, secondary *types.Uint64_t, primary *uint64) int
+	IdxI64Lowerbound(code int64, scope int64, table int64, secondary *types.Uint64_t, primary *uint64) int
+	IdxI64Upperbound(code int64, scope int64, table int64, secondary *types.Uint64_t, primary *uint64) int
 	IdxI64End(code int64, scope int64, table int64) int
 	IdxI64Next(iterator int, primary *uint64) int
 	IdxI64Previous(iterator int, primary *uint64) int
