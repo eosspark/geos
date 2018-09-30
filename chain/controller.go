@@ -99,10 +99,11 @@ func GetControllerInstance() *Controller {
 }
 
 func newController() *Controller {
+	isActiveController = true //controller is active
 	//init db
 	db, err := eosiodb.NewDataBase("./", "shared_memory.bin", true)
 	if err != nil {
-		log.Error("pending NewPendingState is error detail:", err)
+		fmt.Println("pending NewPendingState is error detail:", err)
 		return nil
 	}
 	defer db.Close()
@@ -111,7 +112,7 @@ func newController() *Controller {
 	reversibleDir := config.DefaultBlocksDirName + "/" + config.DefaultReversibleBlocksDirName
 	reversibleDB, err := eosiodb.NewDataBase(reversibleDir, config.ReversibleFileName, true)
 	if err != nil {
-		log.Error("newController init reversibleDB is error", err)
+		fmt.Println("newController init reversibleDB is error", err)
 	}
 	//eosiodb.NewDataBase(config.DefaultStateDirName,config.ForkDBName,true)
 	con := &Controller{InTrxRequiringChecks: false, RePlaying: false}
@@ -124,7 +125,7 @@ func newController() *Controller {
 	con.initConfig()
 	con.ChainID = types.GetGenesisStateInstance().ComputeChainID()
 	con.ReadMode = con.Config.readMode
-	isActiveController = true //controller is active
+
 
 	//TODO wait append
 	/*
@@ -193,7 +194,7 @@ func (self *Controller) AbortBlock() {
 			trx := append(self.Pending.PendingBlockState.Trxs)
 			step := 0
 			for ; step < len(trx); step++ {
-				self.UnAppliedTransactions[rlp.Sha256(trx[step].SignedID)] = trx[step]
+				self.UnAppliedTransactions[rlp.Sha256(trx[step].SignedID)] = *trx[step]
 			}
 		}
 	}
@@ -466,7 +467,7 @@ func (self *Controller) PushScheduledTransaction1(gto types.GeneratedTransaction
 	deadLine common.TimePoint,
 	billedCpuTimeUs uint32) *types.TransactionTrace {
 
-	err := self.DB.Find("ByExpiration", common.MakePair(gto.Id, gto.Expiration), gto)
+	err := self.DB.Find("ByExpiration", common.MakeTuple(gto.Id, gto.Expiration), gto)
 	if err != nil {
 		fmt.Println("GetGeneratedTransactionObjectByExpiration is error :", err.Error())
 	}

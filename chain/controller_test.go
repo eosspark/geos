@@ -12,6 +12,7 @@ import (
 	"fmt"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
+	"strings"
 )
 
 func TestPopBlock(t *testing.T) {
@@ -52,4 +53,8 @@ func TestController_CreateNativeAccount(t *testing.T){
 	active.Threshold=1
 	control.CreateNativeAccount(name,owner,active,false)
 	fmt.Println(name)
+	result := types.AccountObject{}
+	control.DB.Find("name",name,result)
+
+	fmt.Println("check account name:",strings.Compare(name.String(),"eos"))
 }
