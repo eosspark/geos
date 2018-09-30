@@ -6,12 +6,16 @@ import (
 	"os"
 	"testing"
 	"time"
+	"github.com/stretchr/testify/assert"
+	"github.com/eosspark/eos-go/common"
+	"github.com/eosspark/eos-go/rlp"
+	"crypto/sha256"
+	"github.com/eosspark/eos-go/ecc"
 )
 
-const KEEPTESTSEC = 99910 /*seconds*/
+var plugin *ProducerPlugin
 
-func Test_producer_start(t *testing.T) {
-	start := time.Now()
+func initialize() {
 	os.Args = []string{"--enable-stale-production", "-p", "eosio", "-p", "yuanc"}
 	//os.Args = []string{"--enable-stale-production", "-p", "eosio", "-p", "yuanc", "--max-irreversible-block-age", "10"}
 
@@ -19,22 +23,107 @@ func Test_producer_start(t *testing.T) {
 	app.Name = "nodeos"
 	app.Version = "0.1.0beta"
 
-	produce := NewProducerPlugin()
-	produce.PluginInitialize(app)
+	producerPlugin := NewProducerPlugin()
+	producerPlugin.PluginInitialize(app)
 
 	err := app.Run(os.Args)
 	if err != nil {
 		log.Fatal(err)
 	}
 
-	produce.PluginStartup()
+	plugin = &producerPlugin
+}
+
+func TestProducerPlugin_PluginInitialize(t *testing.T) {
+	initialize()
+	assert.Equal(t, true, plugin.my.ProductionEnabled)
+	assert.Equal(t, int32(30), plugin.my.MaxTransactionTimeMs)
+	assert.Equal(t, common.Seconds(-1), plugin.my.MaxIrreversibleBlockAgeUs)
+	assert.Equal(t, struct {}{}, plugin.my.Producers[common.AccountName(common.StringToName("eosio"))])
+	assert.Equal(t, struct {}{}, plugin.my.Producers[common.AccountName(common.StringToName("yuanc"))])
+}
+
+func TestProducerPlugin_PluginStartup(t *testing.T) {
+	initialize()
+	start := time.Now()
+	const keepsec = 999 /*seconds*/
+
+	plugin.PluginStartup()
 
 	for {
-		if time.Now().Sub(start) > KEEPTESTSEC*time.Second {
-			produce.PluginShutdown()
+		if time.Now().Sub(start) > keepsec*time.Second {
+			plugin.PluginShutdown()
 			break
 		}
 	}
+}
+
+func TestProducerPlugin_Pause(t *testing.T) {
+
+}
+
+func TestProducerPlugin_SignCompact(t *testing.T) {
+	initialize()
+	data := "test producer_plugin's is_producer_key "
+
+	dataByte,_ := rlp.EncodeToBytes(data)
+	h := sha256.New()
+	h.Write(dataByte)
+
+	dataByteHash := h.Sum(nil)
+
+	dataHash   := rlp.Hash256(data)
+
+	sign1,_ := initPriKey.Sign(dataByteHash)
+	sign2 := plugin.SignCompact(&initPubKey, dataHash)
+	sign3 := plugin.SignCompact(&initPubKey2, dataHash)
+
+	assert.Equal(t, sign1, sign2)
+	assert.NotEqual(t, sign1, sign3)
+}
+
+func TestProducerPlugin_IsProducerKey(t *testing.T) {
+	initialize()
+	pub1,_ := ecc.NewPublicKey("EOS859gxfnXyUriMgUeThh1fWv3oqcpLFyHa3TfFYC4PK2HqhToVM")
+	pub2,_ := ecc.NewPublicKey("EOS5jeUuKEZ8s8LLoxz4rNysYdHWboup8KtkyJzZYQzcVKFGek9Zu")
+	assert.Equal(t, true, plugin.IsProducerKey(pub1))
+	assert.Equal(t, true, plugin.IsProducerKey(pub2))
+}
+
+func Test_makeKeySignatureProvider(t *testing.T) {
+
+}
+
+func TestProducerPluginImpl_StartBlock(t *testing.T) {
+
+}
+
+func TestProducerPluginImpl_ScheduleProductionLoop(t *testing.T) {
+
+}
+
+func TestProducerPluginImpl_ScheduleDelayedProductionLoop(t *testing.T) {
+
+}
+
+func TestProducerPluginImpl_OnIncomingBlock(t *testing.T) {
+
+}
+
+func TestProducerPluginImpl_OnIncomingTransactionAsync(t *testing.T) {
+
+}
+
+func TestProducerPluginImpl_OnBlock(t *testing.T) {
+
+}
+
+func TestProducerPluginImpl_CalculateNextBlockTime(t *testing.T) {
+
+}
+
+func TestProducerPluginImpl_CalculatePendingBlockTime(t *testing.T) {
+
 }
 
 //func Test_Timer(t *testing.T) {

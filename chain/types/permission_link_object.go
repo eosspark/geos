@@ -9,7 +9,7 @@ type PermissionLinkObject struct {
 	MessageType        common.ActionName
 	RequiredPermission common.PermissionName
 	/*Account、Code、MessageType*/
-	ByActionName common.Tuple `storm:"index"`
+	ByActionName       common.Tuple `storm:"index"`
 	/*Account、RequiredPermission、Code、MessageType*/
-	ByPermissionName common.Tuple `storm:"index"`
+	ByPermissionName   common.Tuple `storm:"index"`
 }

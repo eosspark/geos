@@ -13,6 +13,8 @@ var chain *mockChain
 
 var initPriKey, _ = ecc.NewPrivateKey("5KYZdUEo39z3FPrtuX2QbbwGnNP5zTd7yyr2SC1j299sBCnWjss")
 var initPubKey = initPriKey.PublicKey()
+var initPriKey2, _ = ecc.NewPrivateKey("5Ja3h2wJNUnNcoj39jDMHGigsazvbGHAeLYEHM5uTwtfUoRDoYP")
+var initPubKey2 = initPriKey2.PublicKey()
 var eosio = common.AccountName(common.StringToName("eosio"))
 var yuanc = common.AccountName(common.StringToName("yuanc"))
 
@@ -58,11 +60,13 @@ func (db *forkDatabase) add2(b *types.SignedBlock, trust bool) *types.BlockState
 }
 
 func init() {
+	fmt.Println(initPubKey)
+	fmt.Println(initPubKey2)
 	chain = new(mockChain)
 
 	initSchedule := types.ProducerScheduleType{0, []types.ProducerKey{
 		{eosio, initPubKey},
-		{yuanc, initPubKey},
+		{yuanc, initPubKey2},
 	}}
 
 	genHeader := types.BlockHeaderState{}

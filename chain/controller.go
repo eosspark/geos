@@ -119,7 +119,7 @@ func newController() *Controller {
 	con.ReversibleBlocks = reversibleDB
 	//con.Blog
 	con.ForkDB = types.GetForkDbInstance(config.DefaultStateDirName)
-	con.ResourceLimists = NewResourceLimitsManager(con.DB) //TODO  modify GetInstance
+	//con.ResourceLimists = NewResourceLimitsManager(con.DB) //TODO  modify GetInstance
 	//con.Authorization = NewAu												//TODO
 	con.initConfig()
 	con.ChainID = types.GetGenesisStateInstance().ComputeChainID()
@@ -142,10 +142,10 @@ func (self *Controller) PopBlock() {
 	}
 
 	if self.ReadMode == SPECULATIVE {
-		var trx []types.TransactionMetadata = self.Head.Trxs
+		var trx []*types.TransactionMetadata = self.Head.Trxs
 		step := 0
 		for ; step < len(trx); step++ {
-			self.UnAppliedTransactions[rlp.Sha256(trx[step].SignedID)] = trx[step]
+			self.UnAppliedTransactions[rlp.Sha256(trx[step].SignedID)] = *trx[step]
 		}
 	}
 	self.Head = prev
@@ -175,7 +175,7 @@ func (self *Controller) AbortBlock() {
 			trx := append(self.Pending.PendingBlockState.Trxs)
 			step := 0
 			for ; step < len(trx); step++ {
-				self.UnAppliedTransactions[rlp.Sha256(trx[step].SignedID)] = trx[step]
+				self.UnAppliedTransactions[rlp.Sha256(trx[step].SignedID)] = *trx[step]
 			}
 		}
 	}
