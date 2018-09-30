@@ -44,7 +44,7 @@ func GetResourceLimitsManager() *ResourceLimitsManager {
 }
 
 func newResourceLimitsManager() *ResourceLimitsManager {
-	control := GetControlInstance()
+	control := GetControllerInstance()
 	db := control.DataBase()
 	return &ResourceLimitsManager{db: db}
 }
