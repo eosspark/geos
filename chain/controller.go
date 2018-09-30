@@ -546,6 +546,8 @@ func (self *Controller) SetActorBlackList(params *map[common.AccountName]struct{
 
 func (self *Controller) SetContractWhiteList(params *map[common.AccountName]struct{}) {}
 
+func (self *Controller) SetContractBlackList(params *map[common.AccountName]struct{}) {}
+
 func (self *Controller) SetActionBlackList(params *map[[2]common.AccountName]struct{}) {}
 
 func (self *Controller) SetKeyBlackList(params *map[common.PublicKeyType]struct{}) {}

@@ -20,13 +20,13 @@ type pair struct {
 	publicKey []common.PublicKeyType
 }
 
-func (self *TransactionMetadata) TransactionMetadata1(ptrx PackedTransaction) *TransactionMetadata {
+func TransactionMetadata1(ptrx PackedTransaction) *TransactionMetadata {
 	tm := TransactionMetadata{}
 	tm.Trx = *ptrx.GetSignedTransaction()
 	tm.PackedTrx = ptrx
-	tm.ID = self.Trx.ID()
+	tm.ID = ptrx.ID()
 
-	return nil
+	return &tm
 }
 
 func (tm *TransactionMetadata) RecoverKeys(chainId common.ChainIdType) []common.PublicKeyType {
