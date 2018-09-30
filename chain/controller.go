@@ -94,6 +94,10 @@ type Controller struct {
 func GetControllerInstance() *Controller {
 	if !isActiveController {
 		instance = newController()
+
+		readycontroller <- true
+		time.Sleep(2 * time.Second) //TODO for test case
+
 	}
 	return instance
 }
@@ -114,39 +118,40 @@ func newController() *Controller {
 	if err != nil {
 		fmt.Println("newController init reversibleDB is error", err)
 	}
-	//eosiodb.NewDataBase(config.DefaultStateDirName,config.ForkDBName,true)
 	con := &Controller{InTrxRequiringChecks: false, RePlaying: false}
 	con.DB = db
 	con.ReversibleBlocks = reversibleDB
-	//con.Blog
 	con.ForkDB = types.GetForkDbInstance(config.DefaultStateDirName)
-	con.ResourceLimists = GetResourceLimitsManager()
-	con.Authorization = GetAuthorizationManager()
-	con.initConfig()
-	con.ChainID = types.GetGenesisStateInstance().ComputeChainID()
-	con.ReadMode = con.Config.readMode
 
+	con.ChainID = types.GetGenesisStateInstance().ComputeChainID()
+
+	con.initConfig()
+	con.ReadMode = con.Config.readMode
 
 	//TODO wait append
 	/*
-	set_apply_handler( #receiver, #contract, #action, &BOOST_PP_CAT(apply_, BOOST_PP_CAT(contract, BOOST_PP_CAT(_,action) ) ) )
-	SET_APP_HANDLER( eosio, eosio, newaccount );
-	SET_APP_HANDLER( eosio, eosio, setcode );
-	SET_APP_HANDLER( eosio, eosio, setabi );
-	SET_APP_HANDLER( eosio, eosio, updateauth );
-	SET_APP_HANDLER( eosio, eosio, deleteauth );
-	SET_APP_HANDLER( eosio, eosio, unlinkauth );
-	SET_APP_HANDLER( eosio, eosio, linkauth );
-	SET_APP_HANDLER( eosio, eosio, canceldelay );
-    fork_db.irreversible.connect( [&]( auto b ) {
-                                 on_irreversible(b);
-                                 });
+			set_apply_handler( #receiver, #contract, #action, &BOOST_PP_CAT(apply_, BOOST_PP_CAT(contract, BOOST_PP_CAT(_,action) ) ) )
+			SET_APP_HANDLER( eosio, eosio, newaccount );
+			SET_APP_HANDLER( eosio, eosio, setcode );
+			SET_APP_HANDLER( eosio, eosio, setabi );
+			SET_APP_HANDLER( eosio, eosio, updateauth );
+			SET_APP_HANDLER( eosio, eosio, deleteauth );
+			SET_APP_HANDLER( eosio, eosio, unlinkauth );
+			SET_APP_HANDLER( eosio, eosio, linkauth );
+			SET_APP_HANDLER( eosio, eosio, canceldelay );
+		    fork_db.irreversible.connect( [&]( auto b ) {
+		                                 on_irreversible(b);
+		                                 });
 	*/
 	//IrreversibleBlock.connect()
+	readycontroller = make(chan bool)
+	go initResource(con, readycontroller)
+
 	return con
 }
 
-func (self *Controller) onIrreversible(b *types.BlockState){
+//initResource()
+func (self *Controller) onIrreversible(b *types.BlockState) {
 
 }
 
@@ -473,7 +478,6 @@ func (self *Controller) PushScheduledTransaction1(gto types.GeneratedTransaction
 	}
 
 	undo_session := self.DB.StartSession()
-	//if !self.SkiDbSessions() {}
 	gtrx := types.GeneratedTransactions(&gto)
 
 	self.RemoveScheduledTransaction(&gto)
@@ -489,8 +493,7 @@ func (self *Controller) PushScheduledTransaction1(gto types.GeneratedTransaction
 	}
 
 	trx := types.TransactionMetadata{}
-	//trx.
-	fmt.Println(undo_session, dtrx, trx)
+	fmt.Println(undo_session, dtrx, trx)			//TODO
 	return nil
 }
 
@@ -680,14 +683,15 @@ func (self *Controller) GetAbiSerializer(name common.AccountName,
 
 func (self *Controller) ToVariantWithAbi(obj interface{}, maxSerializationTime common.Microseconds) {}
 
+var readycontroller chan bool
 
-func (self *Controller) CreateNativeAccount(name common.AccountName,owner types.Authority,active types.Authority,isPrivileged bool){
-	account :=types.AccountObject{}
+func (self *Controller) CreateNativeAccount(name common.AccountName, owner types.Authority, active types.Authority, isPrivileged bool) {
+	account := types.AccountObject{}
 	account.Name = name
 	account.CreationDate = common.BlockTimeStamp(self.Config.genesis.InitialTimestamp)
 	account.Privileged = isPrivileged
-	if name == common.AccountName(config.SystemAccountName){
-		abiDef :=types.AbiDef{}
+	if name == common.AccountName(config.SystemAccountName) {
+		abiDef := types.AbiDef{}
 		account.SetAbi(EosioContractAbi(abiDef))
 	}
 	self.DB.Insert(account)
@@ -695,19 +699,28 @@ func (self *Controller) CreateNativeAccount(name common.AccountName,owner types.
 	aso := types.AccountSequenceObject{}
 	aso.Name = name
 	self.DB.Insert(aso)
-	ownerPermission:=self.Authorization.CreatePermission(name,common.PermissionName(common.DefaultConfig.OwnerName),0,owner,self.Config.genesis.InitialTimestamp)
 
-	activePermission:=self.Authorization.CreatePermission(name,common.PermissionName(common.DefaultConfig.ActiveName),PermissionIdType(ownerPermission.ID),active,self.Config.genesis.InitialTimestamp)
-	//self.DB.Insert()
+	ownerPermission := self.Authorization.CreatePermission(name, common.PermissionName(common.DefaultConfig.OwnerName), 0, owner, self.Config.genesis.InitialTimestamp)
+
+	activePermission := self.Authorization.CreatePermission(name, common.PermissionName(common.DefaultConfig.ActiveName), PermissionIdType(ownerPermission.ID), active, self.Config.genesis.InitialTimestamp)
+
 	self.ResourceLimists.InitializeAccount(name)
-	ramDelta := uint64(common.DefaultConfig.OverheadPerRowPerIndexRamBytes)	//TODO c++ reference int64 but statement uint32
-	ramDelta += 2*common.BillableSizeV("permission_object")      //::billable_size_v<permission_object>
+	ramDelta := uint64(common.DefaultConfig.OverheadPerRowPerIndexRamBytes) //TODO c++ reference int64 but statement uint32
+	ramDelta += 2 * common.BillableSizeV("permission_object")               //::billable_size_v<permission_object>
 	ramDelta += ownerPermission.Auth.GetBillableSize()
 	ramDelta += activePermission.Auth.GetBillableSize()
-	self.ResourceLimists.AddPendingRamUsage(name,int64(ramDelta))
+	self.ResourceLimists.AddPendingRamUsage(name, int64(ramDelta))
 	self.ResourceLimists.VerifyAccountRamUsage(name)
-	//fmt.Println(ownerPermission,activePermission,ramDelta)
 }
+
+func initResource(self *Controller, ready chan bool) {
+	<-ready
+	//con.Blog
+	self.ForkDB = types.GetForkDbInstance(config.DefaultStateDirName)
+	self.ResourceLimists = GetResourceLimitsManager()
+	self.Authorization = GetAuthorizationManager()
+}
+
 /*    about chain
 
 signal<void(const signed_block_ptr&)>         pre_accepted_block;
