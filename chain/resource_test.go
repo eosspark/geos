@@ -11,7 +11,7 @@ func Test_resourceSetGet(t *testing.T) {
 	var rlm *ResourceLimitsManager
 	db, _ := eosiodb.NewDataBase("./", "eos.db", true)
 	defer db.Close()
-	rlm.AddIndices()
+	//rlm.AddIndices()
 	rlm.InitializeDatabase()
 	account := common.AccountName(common.StringToName("yc"))
 	rlm.InitializeAccount(account)

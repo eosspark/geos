@@ -119,7 +119,7 @@ func newController() *Controller {
 	con.ReversibleBlocks = reversibleDB
 	//con.Blog
 	con.ForkDB = types.GetForkDbInstance(config.DefaultStateDirName)
-	con.ResourceLimists = NewResourceLimitsManager(con.DB) //TODO  modify GetInstance
+	//con.ResourceLimists = NewResourceLimitsManager(con.DB) //TODO  modify GetInstance
 	//con.Authorization = NewAu												//TODO
 	con.initConfig()
 	con.ChainID = types.GetGenesisStateInstance().ComputeChainID()

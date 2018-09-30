@@ -1,7 +1,6 @@
 package chain
 
 import (
-	"github.com/eosspark/eos-go/base"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/db"
@@ -635,7 +634,7 @@ func (a *ApplyContext) GetContextFreeData(index int, bufferSize int) (int, []byt
 	if bufferSize == 0 {
 		return s, nil
 	}
-	copySize := base.Min(uint64(bufferSize), uint64(s))
+	copySize := common.Min(uint64(bufferSize), uint64(s))
 	return int(copySize), trx.ContextFreeData[index][0:copySize]
 
 }
