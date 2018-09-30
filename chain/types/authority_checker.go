@@ -5,7 +5,7 @@ import (
 
 )
 
-type PermissionToAuthorityFunc interface {}
+type PermissionToAuthorityFunc func(*PermissionLevel) SharedAuthority
 type AuthorityChecker struct {
 	permissionToAuthority PermissionToAuthorityFunc
 	CheckTime             func()
@@ -33,6 +33,10 @@ func (ac *AuthorityChecker) SatisfiedLc(permission *PermissionLevel, cachedPerms
 	return Visitor.Visit(PermissionLevelWeight{*permission, 1}) > 0
 }
 
+func (ac *AuthorityChecker) SatisfiedAcd(authority *SharedAuthority, cachedPermissions *PermissionCacheType, depth uint16) bool {
+	return false
+}
+
 func (ac *AuthorityChecker) AllKeysUsed() bool {
 	for _, usedKey := range ac.UsedKeys {
 		if usedKey == false {
@@ -57,6 +61,18 @@ const (
 
 type PermissionCacheType map[PermissionLevel]PermissionCacheStatus
 
+func (ac *AuthorityChecker) PermissionStatusInCache( permissions PermissionCacheType, level *PermissionLevel) PermissionCacheStatus{
+	itr, ok := map[PermissionLevel]PermissionCacheStatus(permissions)[*level]
+	if ok {
+		return itr
+	}
+	itr2, ok := map[PermissionLevel]PermissionCacheStatus(permissions)[PermissionLevel{level.Actor,common.PermissionName(common.StringToName(""))}]
+	if ok {
+		return itr2
+	}
+	return 0
+}
+
 func (ac *AuthorityChecker) initializePermissionCache( cachedPermission *PermissionCacheType ) *PermissionCacheType {
 	//for _, p := range ac.ProvidedPermissions {
 	//
@@ -66,10 +82,10 @@ func (ac *AuthorityChecker) initializePermissionCache( cachedPermission *Permiss
 
 
 type WeightTallyVisitor struct {
-	Checker          *AuthorityChecker
-	CachePermissions *PermissionCacheType
-	RecursionDepth   uint16
-	TotalWeight      uint32
+	Checker           *AuthorityChecker
+	CachedPermissions *PermissionCacheType
+	RecursionDepth    uint16
+	TotalWeight       uint32
 }
 
 func (wtv *WeightTallyVisitor) Visit (permission interface{}) uint32 {
@@ -93,11 +109,45 @@ func (wtv *WeightTallyVisitor) VisitWaitWeight (permission WaitWeight) uint32 {
 }
 
 func (wtv *WeightTallyVisitor) VisitKeyWeight (permission KeyWeight) uint32 {
-	return 1
+	var itr int
+	for _, key := range wtv.Checker.ProvidedKeys {
+		if key.Content == permission.Key.Content && key.Curve == permission.Key.Curve{
+			wtv.Checker.UsedKeys[itr] = true
+			wtv.TotalWeight += uint32(permission.Weight)
+			break
+		}
+		itr++
+	}
+	return wtv.TotalWeight
 }
 
 func (wtv *WeightTallyVisitor) VisitPermissionLevelWeight (permission PermissionLevelWeight) uint32 {
-	return 1
+	status := wtv.Checker.PermissionStatusInCache(*wtv.CachedPermissions, &permission.Permission)
+	if status != 0 {
+		if wtv.RecursionDepth < wtv.Checker.RecursionDepthLimit {
+			r := false
+			propagateError := false
+			//try_catch
+			auth := wtv.Checker.permissionToAuthority(&permission.Permission)
+			propagateError = true
+			map[PermissionLevel]PermissionCacheStatus(*wtv.CachedPermissions)[permission.Permission] = BeingEvaluated
+			r = wtv.Checker.SatisfiedAcd(&auth, wtv.CachedPermissions, wtv.RecursionDepth +1)
+			if propagateError {
+			} else {
+
+			}
+
+			if r {
+					wtv.TotalWeight += uint32(permission.Weight)
+					map[PermissionLevel]PermissionCacheStatus(*wtv.CachedPermissions)[permission.Permission] = PermissionSatisfied
+			} else {
+					map[PermissionLevel]PermissionCacheStatus(*wtv.CachedPermissions)[permission.Permission] = PermissionUnsatisfied
+			}
+		}
+	} else if status == PermissionSatisfied {
+		wtv.TotalWeight += uint32(permission.Weight)
+	}
+	return wtv.TotalWeight
 }
 
 func MakeAuthChecker(pta PermissionToAuthorityFunc,
