@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"math"
 	"reflect"
 
 	"strings"
@@ -144,6 +145,7 @@ func NewWasmInterface() *WasmInterface {
 	wasmInterface.Register("db_lowerbound_i64", dbLowerboundI64)
 	wasmInterface.Register("db_upperbound_i64", dbUpperboundI64)
 	wasmInterface.Register("db_end_i64", dbEndI64)
+
 	wasmInterface.Register("db_idx64_store", dbIdx64Store)
 	wasmInterface.Register("db_idx64_remove", dbIdx64Remove)
 	wasmInterface.Register("db_idx64_update", dbIdx64Update)
@@ -154,6 +156,17 @@ func NewWasmInterface() *WasmInterface {
 	wasmInterface.Register("db_idx64_next", dbIdx64Next)
 	wasmInterface.Register("db_idx64_previous", dbIdx64Previous)
 	wasmInterface.Register("db_idx64_find_primary", dbIdx64FindPrimary)
+
+	wasmInterface.Register("db_idx_double_store", dbIdxDoubleStore)
+	wasmInterface.Register("db_idx_double_remove", dbIdxDoubleRemove)
+	wasmInterface.Register("db_idx_double_update", dbIdxDoubleUpdate)
+	wasmInterface.Register("db_idx_double_find_secondary", dbIdxDoublefindSecondary)
+	wasmInterface.Register("db_idx_double_lowerbound", dbIdxDoubleLowerbound)
+	wasmInterface.Register("db_idx_double_upperbound", dbIdxDoubleUpperbound)
+	wasmInterface.Register("db_idx_double_end", dbIdxDoubleEnd)
+	wasmInterface.Register("db_idx_double_next", dbIdxDoubleNext)
+	wasmInterface.Register("db_idx_double_previous", dbIdxDoublePrevious)
+	wasmInterface.Register("db_idx_double_find_primary", dbIdxDoubleFindPrimary)
 
 	wasmInterface.Register("memcpy", memcpy)
 	wasmInterface.Register("memmove", memmove)
@@ -434,34 +447,40 @@ func b2i(b bool) int {
 	return 0
 }
 
-// func copyMemory(w *WasmInterface, dest int, src int, bufferSize int) {
-// 	copy(w.vm.memory[dest:dest+bufferSize], w.vm.memory[src:src+bufferSize])
-// }
 func setMemory(w *WasmInterface, mIndex int, dIndex int, data []byte, bufferSize int) {
 	copy(w.vm.memory[mIndex:mIndex+bufferSize], data[dIndex:dIndex+bufferSize])
 }
 
-//func getMemory(w *WasmInterface, mIndex int, dIndex int, data []byte, bufferSize int) {
 func getMemory(w *WasmInterface, mIndex int, bufferSize int) []byte {
 	data := make([]byte, bufferSize)
-	copy(data[0:0+bufferSize], w.vm.memory[0:0+bufferSize])
-
+	copy(data[0:bufferSize], w.vm.memory[0:bufferSize])
 	return data
 }
 
 func setUint64(w *WasmInterface, index int, val uint64) {
 	c := make([]byte, 8)
 	binary.LittleEndian.PutUint64(c, val)
-
 	copy(w.vm.memory[index:index+8], c[:])
 }
 
 func getUint64(w *WasmInterface, index int) uint64 {
 	c := make([]byte, 8)
 	copy(c[:], w.vm.memory[index:index+8])
-
 	return binary.LittleEndian.Uint64(c[:])
+}
 
+func setFloat64(w *WasmInterface, index int, val float64) {
+	c := make([]byte, 8)
+	bits := math.Float64bits(val)
+	binary.LittleEndian.PutUint64(c, bits)
+
+	copy(w.vm.memory[index:index+8], c[:])
+}
+
+func getFloat64(w *WasmInterface, index int) float64 {
+	c := make([]byte, 8)
+	copy(c[:], w.vm.memory[index:index+8])
+	return math.Float64frombits(binary.LittleEndian.Uint64(c[:]))
 }
 
 func getStringSize(w *WasmInterface, index int) int {

@@ -23,11 +23,11 @@ type TableIdObject struct {
 	Count uint32
 }
 
-// func (u *TableIdObject) GetTableId() IdType {
-// 	return u.ID
-// }
-func (u *TableIdObject) GetBillableSize() uint64 {
-	return 44 + overhead_per_row_per_index_ram_bytes*2
+func (u *TableIdObject) GetBillableSizeOverhead() uint64 {
+	return overhead_per_row_per_index_ram_bytes * 2
+}
+func (u *TableIdObject) GetBillableSizeValue() uint64 {
+	return 44 + u.GetBillableSizeOverhead()
 }
 func (s *TableIdObject) MakeTuple(values ...interface{}) *common.Tuple {
 	//return s.SecondaryKey.MakeTupe(values...)
@@ -67,8 +67,11 @@ type KeyValueObject struct {
 // func (u *KeyValueObject) GetTableId() IdType {
 // 	return u.TId
 // }
-func (u *KeyValueObject) GetBillableSize() uint64 {
-	return 32 + 8 + 4 + overhead_per_row_per_index_ram_bytes*2
+func (u *KeyValueObject) GetBillableSizeOverhead() uint64 {
+	return overhead_per_row_per_index_ram_bytes * 2
+}
+func (u *KeyValueObject) GetBillableSizeValue() uint64 {
+	return 32 + 8 + 4 + u.GetBillableSizeOverhead()
 }
 func (s *KeyValueObject) MakeTuple(values ...interface{}) *common.Tuple {
 	//return s.SecondaryKey.MakeTupe(values...)
@@ -144,9 +147,10 @@ func (s *Uint64_t) MakeTuple(values ...interface{}) *common.Tuple {
 	return &tuple
 }
 
-// type Float64_t struct {
-// 	Value float64
-// }
+type Float64_t struct {
+	Value float64
+}
+
 // func (u *Float64_t) SetValue(value interface{}) {
 // 	u.Value = reflect.ValueOf(value).Float()
 // }
@@ -159,11 +163,11 @@ func (s *Uint64_t) MakeTuple(values ...interface{}) *common.Tuple {
 // func (u *Float64_t) Size() int64 {
 // 	return 8
 // }
-// func (s *Float64_t) MakeTuple(values ...interface{}) *common.Tuple {
-// 	//return s.SecondaryKey.MakeTupe(values...)
-// 	tuple := common.Tuple{}
-// 	return &tuple
-// }
+func (s *Float64_t) MakeTuple(values ...interface{}) *common.Tuple {
+	//return s.SecondaryKey.MakeTupe(values...)
+	tuple := common.Tuple{}
+	return &tuple
+}
 
 // type Uint128_t struct {
 // 	Value [16]byte
@@ -193,32 +197,37 @@ type SecondaryObjectI64 struct {
 	SecondaryKey Uint64_t
 }
 
-// func (u *KeyValueObject) GetValue() common.HexBytes {
-// 	return nil
-// }
-
-// func (u *SecondaryObject) GetTableId() IdType {
-// 	return u.TId
-// }
 func (s *SecondaryObjectI64) GetBillableSizeOverHead() int64 {
 	return overhead_per_row_per_index_ram_bytes * 3
 }
 
 func (s *SecondaryObjectI64) GetBillableSizeValue() int64 {
-	return 24 + 16 + s.GetBillableSizeOverHead()
+	return 24 + 8 + s.GetBillableSizeOverHead()
 }
 
 func (s *SecondaryObjectI64) MakeTuple(values ...interface{}) *common.Tuple {
 	return s.SecondaryKey.MakeTuple(values...)
 }
 
-// type SecondaryObjectI64 struct {
-// 	ID           IdType `storm:"id,increment"`
-// 	TId          IdType
-// 	PrimaryKey   uint64
-// 	Payer        common.AccountName
-// 	SecondaryKey uint64
-// }
+type SecondaryObjectDouble struct {
+	ID           IdType `storm:"id,increment"`
+	TId          IdType
+	PrimaryKey   uint64
+	Payer        common.AccountName
+	SecondaryKey Float64_t
+}
+
+func (s *SecondaryObjectDouble) GetBillableSizeOverHead() int64 {
+	return overhead_per_row_per_index_ram_bytes * 3
+}
+
+func (s *SecondaryObjectDouble) GetBillableSizeValue() int64 {
+	return 24 + 8 + s.GetBillableSizeOverHead()
+}
+
+func (s *SecondaryObjectDouble) MakeTuple(values ...interface{}) *common.Tuple {
+	return s.SecondaryKey.MakeTuple(values...)
+}
 
 // type SecondaryObjectI128 struct {
 // 	ID           IdType `storm:"id,increment"`
@@ -234,14 +243,6 @@ func (s *SecondaryObjectI64) MakeTuple(values ...interface{}) *common.Tuple {
 // 	PrimaryKey   uint64
 // 	Payer        common.AccountName
 // 	SecondaryKey uint256_t
-// }
-
-// type SecondaryObjectDouble struct {
-// 	ID           IdType `storm:"id,increment"`
-// 	TId          IdType
-// 	PrimaryKey   uint64
-// 	Payer        common.AccountName
-// 	SecondaryKey float64
 // }
 
 // type SecondaryObjectLongDouble struct {

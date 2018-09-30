@@ -4,24 +4,24 @@ import (
 	"github.com/eosspark/eos-go/chain/types"
 )
 
-type Idx64 struct {
+type IdxDouble struct {
 	context  *ApplyContext
 	itrCache *iteratorCache
 }
 
-func NewIdx64(c *ApplyContext) *Idx64 {
-	return &Idx64{
+func NewIdxDouble(c *ApplyContext) *IdxDouble {
+	return &IdxDouble{
 		context:  c,
 		itrCache: NewIteratorCache(),
 	}
 }
 
-func (i *Idx64) store(scope int64, table int64, payer int64, id int64, secondary *types.Uint64_t) int {
+func (i *IdxDouble) store(scope int64, table int64, payer int64, id int64, secondary *types.Float64_t) int {
 	return 0
 	// //EOS_ASSERT( common.AccountName(payer) != common.AccountName{}, invalid_table_payer, "must specify a valid account to pay for new record" );
 	// tab := i.context.FindOrCreateTable(int64(i.context.Receiver), scope, table, payer)
 
-	// obj := &types.SecondaryObjectI64{
+	// obj := &types.SecondaryObjectDouble{
 	// 	TId:          tab.ID,
 	// 	PrimaryKey:   id,
 	// 	SecondaryKey: *secondary,
@@ -39,10 +39,10 @@ func (i *Idx64) store(scope int64, table int64, payer int64, id int64, secondary
 	// return i.itrCache.add(obj)
 }
 
-func (i *Idx64) remove(iterator int) int {
+func (i *IdxDouble) remove(iterator int) int {
 	return 0
 
-	// obj := (*types.SecondaryObjectI64)(i.itrCache.get(iterator))
+	// obj := (*types.SecondaryObjectDouble)(i.itrCache.get(iterator))
 	// i.context.UpdateDbUsage(obj.payer, - types.BillableSizeV(obj.GetBillableSize())
 
 	// tab := i.itrCache.getTable(obj.TId)
@@ -57,9 +57,9 @@ func (i *Idx64) remove(iterator int) int {
 	// i.itrCache.remove(iterator)
 }
 
-func (i *Idx64) update(iterator int, payer int64, secondary *types.Uint64_t) {
+func (i *IdxDouble) update(iterator int, payer int64, secondary *types.Float64_t) {
 
-	// obj := (*types.SecondaryObjectI64)(i.itrCache.get(iterator))
+	// obj := (*types.SecondaryObjectDouble)(i.itrCache.get(iterator))
 	// objTable := i.itrCache.getTable(obj.TId)
 
 	// //EOS_ASSERT( table_obj.code == i.context.Receiver, table_access_violation, "db access violation" )
@@ -71,20 +71,20 @@ func (i *Idx64) update(iterator int, payer int64, secondary *types.Uint64_t) {
 	// 	i.context.UpdateDbUsage(payer, + types.BillableSizeV(billingSize))
 	// }
 
-	// i.context.DB.Modify(obj, func(o *types.SecondaryObjectI64){
+	// i.context.DB.Modify(obj, func(o *types.SecondaryObjectDouble){
 	// 	o.SecondaryKey = *secondary
 	// 	o.Payer = payer
 	// })
 }
 
-func (i *Idx64) findSecondary(code int64, scope int64, table int64, secondary *types.Uint64_t, primary *uint64) int {
+func (i *IdxDouble) findSecondary(code int64, scope int64, table int64, secondary *types.Float64_t, primary *uint64) int {
 	return 0
 	// tab := i.context.FindTable(code, scope, table)
 	// if tab == nil {return -1}
 
 	// tableEndItr := i.itrCache.cacheTable(&tab)
 
-	// obj := &types.SecondaryObjectI64{}
+	// obj := &types.SecondaryObjectDouble{}
 	// err := i.context.DB.get("bySecondary", obj, obj.MakeTuple(tab.ID, *secondary)
 
 	// *primary = obj.PrimaryKey
@@ -93,7 +93,7 @@ func (i *Idx64) findSecondary(code int64, scope int64, table int64, secondary *t
 	// return i.itrCache.add(obj)
 }
 
-func (i *Idx64) lowerbound(code int64, scope int64, table int64, secondary *types.Uint64_t, primary *uint64) int {
+func (i *IdxDouble) lowerbound(code int64, scope int64, table int64, secondary *types.Float64_t, primary *uint64) int {
 	return 0
 	// tab := i.context.FindTable(code, scope, table)
 	// if tab == nil {
@@ -102,13 +102,13 @@ func (i *Idx64) lowerbound(code int64, scope int64, table int64, secondary *type
 
 	// tableEndItr := i.itrCache.cacheTable(tab)
 
-	// obj := types.SecondaryObjectI64{}
+	// obj := types.SecondaryObjectDouble{}
 
 	// idx := i.context.DB.GetIndex("bySecondary", &obj)
 	// itr := idx.Lowerbound(obj.maketuple(tab.ID, *secondary))
 	// if itr == idx.End() {return tableEndItr}
 
-	// objLowerbound := (*types.SecondaryObjectI64)(itr.GetObject())
+	// objLowerbound := (*types.SecondaryObjectDouble)(itr.GetObject())
 	// if objLowerbound.TId != tab.ID {return tableEndItr}
 
 	// *primary = objLowerbound.PrimaryKey
@@ -117,7 +117,7 @@ func (i *Idx64) lowerbound(code int64, scope int64, table int64, secondary *type
 	// return i.itrCache.add(objLowerbound)
 }
 
-func (i *Idx64) upperbound(code int64, scope int64, table int64, secondary *types.Uint64_t, primary *uint64) int {
+func (i *IdxDouble) upperbound(code int64, scope int64, table int64, secondary *types.Float64_t, primary *uint64) int {
 	return 0
 	// tab := i.context.FindTable(code, scope, table)
 	// if tab == nil {
@@ -126,7 +126,7 @@ func (i *Idx64) upperbound(code int64, scope int64, table int64, secondary *type
 
 	// tableEndItr := i.itrCache.cacheTable(tab)
 
-	// obj := &types.SecondaryObjectI64{}
+	// obj := &types.SecondaryObjectDouble{}
 
 	// idx := i.context.DB.GetIndex("bySecondary", obj)
 	// itr := idx.Upperbound(obj.maketuple(tab.ID, *secondary))
@@ -134,7 +134,7 @@ func (i *Idx64) upperbound(code int64, scope int64, table int64, secondary *type
 	// 	return tableEndItr
 	// }
 
-	// objUpperbound = (*types.SecondaryObjectI64)(itr.GetObject())
+	// objUpperbound = (*types.SecondaryObjectDouble)(itr.GetObject())
 	// if objUpperbound.TId != tab.ID {
 	// 	return tableEndItr
 	// }
@@ -145,7 +145,7 @@ func (i *Idx64) upperbound(code int64, scope int64, table int64, secondary *type
 	// return i.itrCache.add(objUpperbound)
 }
 
-func (i *Idx64) end(code int64, scope int64, table int64) int {
+func (i *IdxDouble) end(code int64, scope int64, table int64) int {
 	return 0
 
 	// tab := i.context.FindTable(code, scope, table)
@@ -155,13 +155,13 @@ func (i *Idx64) end(code int64, scope int64, table int64) int {
 	// return i.itrCache.cacheTable(tab)
 }
 
-func (i *Idx64) next(iterator int, primary *uint64) int {
+func (i *IdxDouble) next(iterator int, primary *uint64) int {
 	return 0
 
 	// if iterator < -1 {
 	// 	return -1
 	// }
-	// obj := (*types.SecondaryObjectI64)(i.itrCache.get(iterator))
+	// obj := (*types.SecondaryObjectDouble)(i.itrCache.get(iterator))
 
 	// idx := i.context.DB.GetIndex("bySecondary", obj)
 	// itr := idx.IteratorTo(obj)
@@ -178,10 +178,10 @@ func (i *Idx64) next(iterator int, primary *uint64) int {
 
 }
 
-func (i *Idx64) previous(iterator int, primary *uint64) int {
+func (i *IdxDouble) previous(iterator int, primary *uint64) int {
 	return 0
 
-	// idx := i.context.DB.GetIndex("bySecondary", &types.SecondaryObjectI64{})
+	// idx := i.context.DB.GetIndex("bySecondary", &types.SecondaryObjectDouble{})
 
 	// if( iterator < -1) {
 	//     tab = i.itrCache.findTablebyEndIterator(iterator)
@@ -198,14 +198,14 @@ func (i *Idx64) previous(iterator int, primary *uint64) int {
 	//    return a.KeyvalCache.add(objPrev)
 	// }
 
-	// obj := (*types.SecondaryObjectI64)(i.itrCache.get(iterator))
+	// obj := (*types.SecondaryObjectDouble)(i.itrCache.get(iterator))
 	// itr := idx.IteratorTo(obj)
 
 	// if itr == idx.Begin() {
 	// 	return -1
 	// }
 	// itrNext := itr.Prev()
-	// objNext := (*types.SecondaryObjectI64)(itr.GetObject())
+	// objNext := (*types.SecondaryObjectDouble)(itr.GetObject())
 
 	// if objNext.TId != obj.TId {
 	// 	return -1
@@ -214,7 +214,7 @@ func (i *Idx64) previous(iterator int, primary *uint64) int {
 	// return i.itrCache.add(objNext)
 }
 
-func (i *Idx64) findPrimary(code int64, scope int64, table int64, secondary *types.Uint64_t, primary *uint64) int {
+func (i *IdxDouble) findPrimary(code int64, scope int64, table int64, secondary *types.Float64_t, primary *uint64) int {
 	return 0
 
 	// tab := i.context.FindTable(code, scope, table)
@@ -224,7 +224,7 @@ func (i *Idx64) findPrimary(code int64, scope int64, table int64, secondary *typ
 
 	// tableEndItr := i.itrCache.cacheTable(tab)
 
-	// obj := &types.SecondaryObjectI64{}
+	// obj := &types.SecondaryObjectDouble{}
 	// err := i.context.DB.get("byPrimary", &obj, ObjectType.makeTuple(tab.ID, *primary))
 
 	// *secondary = obj.SecondaryKey
@@ -235,7 +235,7 @@ func (i *Idx64) findPrimary(code int64, scope int64, table int64, secondary *typ
 	// return i.itrCache.add(obj)
 }
 
-func (i *Idx64) lowerboundPrimary(code int64, scope int64, table int64, primary *uint64) int {
+func (i *IdxDouble) lowerboundPrimary(code int64, scope int64, table int64, primary *uint64) int {
 	return 0
 
 	// tab := i.context.FindTable(code, scope, table)
@@ -245,18 +245,18 @@ func (i *Idx64) lowerboundPrimary(code int64, scope int64, table int64, primary 
 
 	// tableEndItr := i.itrCache.cacheTable(tab)
 
-	// obj := &types.SecondaryObjectI64{}
+	// obj := &types.SecondaryObjectDouble{}
 	// idx := i.context.DB.GetIndex("byPrimary",obj)
 	// itr := idex.Lowerbound(obj.MakeTuple(tab.ID, *primary))
 	// if itr == idx.End() {return tableEndItr}
 
-	// objLowerbound := (*types.SecondaryObjectI64)(itr.GetObject())
+	// objLowerbound := (*types.SecondaryObjectDouble)(itr.GetObject())
 	// if objLowerbound.TId != tab.ID {return tableEndItr}
 
 	// return i.itrCache.add(objLowerbound)
 }
 
-func (i *Idx64) upperboundPrimary(code int64, scope int64, table int64, primary *uint64) int {
+func (i *IdxDouble) upperboundPrimary(code int64, scope int64, table int64, primary *uint64) int {
 	return 0
 
 	// tab := i.context.FindTable(code, scope, table)
@@ -266,14 +266,14 @@ func (i *Idx64) upperboundPrimary(code int64, scope int64, table int64, primary 
 
 	// tableEndItr := i.itrCache.cacheTable(tab)
 
-	//    obj := &types.SecondaryObjectI64{}
+	//    obj := &types.SecondaryObjectDouble{}
 	// idx := i.context.DB.GetIndex("byPrimary",  obj)
 	// itr := idx.UpperBound(obj.MakeTuple(tab.ID, *primary))
 	// if itr == idx.End() {
 	// 	return tableEndItr
 	// }
 
-	// objUpperbound := (*types.SecondaryObjectI64)(itr.GetObject())
+	// objUpperbound := (*types.SecondaryObjectDouble)(itr.GetObject())
 	// if obj.TId != tab.ID {
 	// 	return tableEndItr
 	// }
@@ -282,19 +282,19 @@ func (i *Idx64) upperboundPrimary(code int64, scope int64, table int64, primary 
 	// return i.itrCache.add(objUpperbound)
 }
 
-func (i *Idx64) nextPrimary(iterator int, primary *uint64) int {
+func (i *IdxDouble) nextPrimary(iterator int, primary *uint64) int {
 	return 0
 
 	// if iterator < -1 {
 	// 	return -1
 	// }
-	// obj := (*types.SecondaryObjectI64)(i.itrCache.get(iterator))
-	// idx := i.context.DB.GetIndex("byPrimary",  &types.SecondaryObjectI64{})
+	// obj := (*types.SecondaryObjectDouble)(i.itrCache.get(iterator))
+	// idx := i.context.DB.GetIndex("byPrimary",  &types.SecondaryObjectDouble{})
 
 	// itr := idx.iteratorTo(obj)
 
 	// itrNext := itr.Next()
-	// objNext := (*types.SecondaryObjectI64)(itrNext.GetObject())
+	// objNext := (*types.SecondaryObjectDouble)(itrNext.GetObject())
 
 	// if itr == idx.End() || objNext.TId != obj.TId {
 	// 	return i.itrCache.getEndIteratorByTableID(obj.TId)
@@ -305,10 +305,10 @@ func (i *Idx64) nextPrimary(iterator int, primary *uint64) int {
 
 }
 
-func (i *Idx64) previousPrimary(iterator int, primary *uint64) int {
+func (i *IdxDouble) previousPrimary(iterator int, primary *uint64) int {
 	return 0
 
-	// idx := i.context.DB.GetIndex("byPrimary", &types.SecondaryObjectI64{})
+	// idx := i.context.DB.GetIndex("byPrimary", &types.SecondaryObjectDouble{})
 
 	// if( iterator < -1) {
 	//     tab = i.itrCache.findTablebyEndIterator(iterator)
@@ -318,21 +318,21 @@ func (i *Idx64) previousPrimary(iterator int, primary *uint64) int {
 	//    if idx.begin() == idx.end() || itr == idx.begin() {return -1}
 
 	//    itrPrev := itr.Prev()
-	//    objPrev := (*types.SecondaryObjectI64)(itr.GetObject())
+	//    objPrev := (*types.SecondaryObjectDouble)(itr.GetObject())
 	//    if objPrev.TId != tab->ID { return -1}
 
 	//    *primary = objPrev.PrimaryKey
 	//    return a.KeyvalCache.add(objPrev)
 	// }
 
-	// obj := (*types.SecondaryObjectI64)(i.itrCache.get(iterator))
+	// obj := (*types.SecondaryObjectDouble)(i.itrCache.get(iterator))
 	// itr := idx.IteratorTo(obj)
 
 	// if itr == idx.Begin() {
 	// 	return -1
 	// }
 	// itrNext := itr.Prev()
-	// objNext := (*types.SecondaryObjectI64)(itr.GetObject())
+	// objNext := (*types.SecondaryObjectDouble)(itr.GetObject())
 
 	// if objNext.TId != obj.TId {
 	// 	return -1
@@ -341,8 +341,8 @@ func (i *Idx64) previousPrimary(iterator int, primary *uint64) int {
 	// return i.itrCache.add(objNext)
 }
 
-func (i *Idx64) get(iterator int, secondary *types.Uint64_t, primary *uint64) {
-	//  obj := (*types.SecondaryObjectI64)(i.itrCache.get(iterator))
+func (i *IdxDouble) get(iterator int, secondary *types.Float64_t, primary *uint64) {
+	//  obj := (*types.SecondaryObjectDouble)(i.itrCache.get(iterator))
 
 	// *secondary = obj.SecondaryKey
 	// *primary = obj.PrimaryKey
