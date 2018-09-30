@@ -10,6 +10,33 @@ import (
 
 const KEEPTESTSEC = 99910 /*seconds*/
 
+func Test_producer_start(t *testing.T) {
+	start := time.Now()
+	os.Args = []string{"--enable-stale-production", "-p", "eosio", "-p", "yuanc"}
+	//os.Args = []string{"--enable-stale-production", "-p", "eosio", "-p", "yuanc", "--max-irreversible-block-age", "10"}
+
+	app := cli.NewApp()
+	app.Name = "nodeos"
+	app.Version = "0.1.0beta"
+
+	produce := NewProducerPlugin()
+	produce.PluginInitialize(app)
+
+	err := app.Run(os.Args)
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	produce.PluginStartup()
+
+	for {
+		if time.Now().Sub(start) > KEEPTESTSEC*time.Second {
+			produce.PluginShutdown()
+			break
+		}
+	}
+}
+
 //func Test_Timer(t *testing.T) {
 //	start := time.Now()
 //	var apply = false
@@ -72,30 +99,3 @@ const KEEPTESTSEC = 99910 /*seconds*/
 //	applyBlock()
 //	naughty() //try to break the schedule timer
 //}
-
-func Test_producer_start(t *testing.T) {
-	start := time.Now()
-	os.Args = []string{"--enable-stale-production", "-p", "eosio", "-p", "yuanc"}
-	//os.Args = []string{"--enable-stale-production", "-p", "eosio", "-p", "yuanc", "--max-irreversible-block-age", "10"}
-
-	app := cli.NewApp()
-	app.Name = "nodeos"
-	app.Version = "0.1.0beta"
-
-	produce := NewProducerPlugin()
-	produce.PluginInitialize(app)
-
-	err := app.Run(os.Args)
-	if err != nil {
-		log.Fatal(err)
-	}
-
-	produce.PluginStartup()
-
-	for {
-		if time.Now().Sub(start) > KEEPTESTSEC*time.Second {
-			produce.PluginShutdown()
-			break
-		}
-	}
-}

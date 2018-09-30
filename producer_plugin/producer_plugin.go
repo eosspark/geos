@@ -219,7 +219,7 @@ func (pp *ProducerPlugin) UpdateRuntimeOptions(options RuntimeOptions) {
 	}
 
 	if options.SubjectiveCpuLeewayUs != nil {
-		chain := Chain.GetControlInstance()
+		chain := Chain.GetControllerInstance()
 		chain.SetSubjectiveCpuLeeway(common.Microseconds(*options.SubjectiveCpuLeewayUs))
 	}
 }
@@ -239,21 +239,21 @@ func (pp *ProducerPlugin) GetRuntimeOptions() RuntimeOptions {
 }
 
 func (pp *ProducerPlugin) AddGreylistAccounts(params GreylistParams) {
-	chain := Chain.GetControlInstance()
+	chain := Chain.GetControllerInstance()
 	for _, acc := range params.Accounts {
 		chain.AddResourceGreyList(&acc)
 	}
 }
 
 func (pp *ProducerPlugin) RemoveGreylistAccounts(params GreylistParams) {
-	chain := Chain.GetControlInstance()
+	chain := Chain.GetControllerInstance()
 	for _, acc := range params.Accounts {
 		chain.RemoveResourceGreyList(&acc)
 	}
 }
 
 func (pp *ProducerPlugin) GetGreylist() GreylistParams {
-	chain := Chain.GetControlInstance()
+	chain := Chain.GetControllerInstance()
 	result := GreylistParams{}
 	list := chain.GetResourceGreyList()
 	result.Accounts = make([]common.AccountName, 0, len(*list))
@@ -264,7 +264,7 @@ func (pp *ProducerPlugin) GetGreylist() GreylistParams {
 }
 
 func (pp *ProducerPlugin) GetWhitelistBlacklist() WhitelistAndBlacklist {
-	chain := Chain.GetControlInstance()
+	chain := Chain.GetControllerInstance()
 	return WhitelistAndBlacklist{
 		chain.GetActorWhiteList(),
 		chain.GetActorBlackList(),
@@ -276,7 +276,7 @@ func (pp *ProducerPlugin) GetWhitelistBlacklist() WhitelistAndBlacklist {
 }
 
 func (pp *ProducerPlugin) SetWhitelistBlacklist(params WhitelistAndBlacklist) {
-	chain := Chain.GetControlInstance()
+	chain := Chain.GetControllerInstance()
 	if params.ActorWhitelist != nil {
 		chain.SetActorWhiteList(params.ActorWhitelist)
 	}

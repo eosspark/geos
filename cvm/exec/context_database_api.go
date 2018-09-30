@@ -3,7 +3,7 @@ package exec
 import (
 	"fmt"
 	"github.com/eosspark/eos-go/chain/types"
-	"github.com/eosspark/eos-go/common"
+	//"github.com/eosspark/eos-go/common"
 )
 
 // int db_store_i64( uint64_t scope, uint64_t table, uint64_t payer, uint64_t id, array_ptr<const char> buffer, size_t buffer_size ) {
@@ -13,7 +13,7 @@ func db_store_i64(w *WasmInterface, scope int64, table int64, payer int64, id in
 	fmt.Println("db_store_i64")
 
 	bytes := getMemory(w, buffer, bufferSize)
-	return w.context.DBStoreI64(scope, table, payer, id, bytes)
+	return w.context.DbStoreI64(scope, table, payer, id, bytes)
 
 }
 
@@ -26,7 +26,7 @@ func db_update_i64(w *WasmInterface,
 	fmt.Println("db_update_i64")
 
 	bytes := getMemory(w, buffer, bufferSize)
-	w.context.DBUpdateI64(itr, common.AccountName(payer), bytes)
+	w.context.DbUpdateI64(itr, payer, bytes)
 }
 
 // void db_remove_i64( int itr ) {
@@ -35,7 +35,7 @@ func db_update_i64(w *WasmInterface,
 func db_remove_i64(w *WasmInterface, itr int) {
 	fmt.Println("db_update_i64")
 
-	w.context.DBRemoveI64(itr)
+	w.context.DbRemoveI64(itr)
 }
 
 // int db_get_i64( int itr, array_ptr<char> buffer, size_t buffer_size ) {
@@ -45,7 +45,7 @@ func db_get_i64(w *WasmInterface, itr int, buffer int, bufferSize int) int {
 	fmt.Println("db_get_i64")
 
 	bytes := make([]byte, bufferSize)
-	return w.context.DBGetI64(itr, bytes, bufferSize)
+	return w.context.DbGetI64(itr, bytes, bufferSize)
 }
 
 // int db_next_i64( int itr, uint64_t& primary ) {
@@ -56,7 +56,7 @@ func db_next_i64(w *WasmInterface, itr int, primary int) int {
 
 	var p uint64
 
-	iterator := w.context.DBNextI64(itr, &p)
+	iterator := w.context.DbNextI64(itr, &p)
 	setUint64(w, primary, p)
 
 	return iterator
@@ -70,7 +70,7 @@ func db_previous_i64(w *WasmInterface, itr int, primary int) int {
 
 	var p uint64
 
-	iterator := w.context.DBPreviousI64(itr, &p)
+	iterator := w.context.DbPreviousI64(itr, &p)
 	setUint64(w, primary, p)
 	return iterator
 }
@@ -80,7 +80,7 @@ func db_previous_i64(w *WasmInterface, itr int, primary int) int {
 // }
 func db_find_i64(w *WasmInterface, code int64, scope int64, table int64, id int64) int {
 	fmt.Println("db_find_i64")
-	return w.context.DBFindI64(code, scope, table, id)
+	return w.context.DbFindI64(code, scope, table, id)
 }
 
 // int db_lowerbound_i64( uint64_t code, uint64_t scope, uint64_t table, uint64_t id ) {
@@ -89,7 +89,7 @@ func db_find_i64(w *WasmInterface, code int64, scope int64, table int64, id int6
 func db_lowerbound_i64(w *WasmInterface, code int64, scope int64, table int64, id int64) int {
 	fmt.Println("db_lowerbound_i64")
 
-	return w.context.DBLowerBoundI64(code, scope, table, id)
+	return w.context.DbLowerBoundI64(code, scope, table, id)
 }
 
 // int db_upperbound_i64( uint64_t code, uint64_t scope, uint64_t table, uint64_t id ) {
@@ -97,7 +97,7 @@ func db_lowerbound_i64(w *WasmInterface, code int64, scope int64, table int64, i
 // }
 func db_upperbound_i64(w *WasmInterface, code int64, scope int64, table int64, id int64) int {
 	fmt.Println("db_upperbound_i64")
-	return w.context.DBUpperBoundI64(code, scope, table, id)
+	return w.context.DbUpperBoundI64(code, scope, table, id)
 }
 
 // int db_end_i64( uint64_t code, uint64_t scope, uint64_t table ) {
@@ -105,7 +105,7 @@ func db_upperbound_i64(w *WasmInterface, code int64, scope int64, table int64, i
 // }
 func db_end_i64(w *WasmInterface, code int64, scope int64, table int64) int {
 	fmt.Println("db_end_i64")
-	return w.context.DBEndI64(code, scope, table)
+	return w.context.DbEndI64(code, scope, table)
 }
 
 //secondaryKey Index
@@ -118,27 +118,97 @@ func db_idx64_store(w *WasmInterface, scope int64, table int64, payer int64, id 
 }
 
 func db_idx64_remove(w *WasmInterface, itr int) {
-	fmt.Println("db_update_i64")
+	fmt.Println("db_idx64_remove")
 	w.context.IdxI64Remove(itr)
 }
 
 func db_idx64_update(w *WasmInterface, itr int, payer int64, pValue int) {
-	fmt.Println("db_update_i64")
+	fmt.Println("db_idx64_update")
 
 	secondaryKey := &types.Uint64_t{Value: getUint64(w, pValue)}
 	//secondaryKey.SetValue(getUint64(w, pValue))
 	w.context.IdxI64Update(itr, payer, secondaryKey)
 }
 
-func db_idx64_find_secondary(w *WasmInterface, code int64, scope int64, table int64, payer int64, pSecondary int, pPrimary int) {
+func db_idx64_find_secondary(w *WasmInterface, code int64, scope int64, table int64, payer int64, pSecondary int, pPrimary int) int {
 
-	fmt.Println("db_update_i64")
+	fmt.Println("db_idx64_find_secondary")
+
+	var primaryKey uint64 //:= getUint64(w, pPrimary)
+	secondaryKey := &types.Uint64_t{Value: getUint64(w, pSecondary)}
+	itr := w.context.IdxI64FindSecondary(code, scope, table, secondaryKey, &primaryKey)
+	setUint64(w, pPrimary, primaryKey)
+
+	return itr
+}
+
+func db_idx64_lowerbound(w *WasmInterface, code int64, scope int64, table int64, pSecondary int, pPrimary int) int {
+
+	fmt.Println("db_idx64_lowerbound")
+
+	var primaryKey uint64 //:= getUint64(w, pPrimary)
+	secondaryKey := types.Uint64_t{}
+	itr := w.context.IdxI64LowerBound(code, scope, table, &secondaryKey, &primaryKey)
+	setUint64(w, pPrimary, primaryKey)
+	setUint64(w, pSecondary, secondaryKey.Value)
+
+	return itr
+}
+
+func db_idx64_upperbound(w *WasmInterface, code int64, scope int64, table int64, pSecondary int, pPrimary int) int {
+
+	fmt.Println("db_idx64_upperbound")
+
+	var primaryKey uint64 //:= getUint64(w, pPrimary)
+	secondaryKey := types.Uint64_t{}
+	itr := w.context.IdxI64LowerBound(code, scope, table, &secondaryKey, &primaryKey)
+	setUint64(w, pPrimary, primaryKey)
+	setUint64(w, pSecondary, secondaryKey.Value)
+
+	return itr
+}
+
+func db_idx64_end(w *WasmInterface, code int64, scope int64, table int64) int {
+
+	fmt.Println("db_idx64_end")
+
+	return w.context.IdxI64End(code, scope, table)
+}
+
+func db_idx64_next(w *WasmInterface, itr int, primary int) int {
+	fmt.Println("db_idx64_next")
+
+	var p uint64
+
+	iterator := w.context.IdxI64Next(itr, &p)
+	setUint64(w, primary, p)
+
+	return iterator
+}
+
+func db_idx64_previous(w *WasmInterface, itr int, primary int) int {
+	fmt.Println("db_idx64_previous")
+
+	var p uint64
+
+	iterator := w.context.IdxI64Previous(itr, &p)
+	setUint64(w, primary, p)
+
+	return iterator
+}
+
+func db_idx64_find_primary(w *WasmInterface, code int64, scope int64, table int64, payer int64, pSecondary int, pPrimary int) int {
+
+	fmt.Println("db_idx64_find_primary")
+
+	//var primaryKey uint64 //:= getUint64(w, pPrimary)
 
 	primaryKey := getUint64(w, pPrimary)
-	secondaryKey := &types.Uint64_t{Value: getUint64(w, pSecondary)}
+	secondaryKey := types.Uint64_t{}
+	itr := w.context.IdxI64FindPrimary(code, scope, table, &secondaryKey, &primaryKey)
+	setUint64(w, pSecondary, secondaryKey.Value)
 
-	w.context.IdxI64FindSecondary(code, scope, table, secondaryKey, &primaryKey)
-
+	return itr
 }
 
 // (db_##IDX##_remove,         void(int))\

@@ -37,6 +37,8 @@ type ApplyContext struct {
 
 type itrObjectInterface interface {
 	GetBillableSize() uint64
+	// GetTableId() types.IdType
+	// GetValue() common.HexBytes
 }
 
 type pairTableIterator struct {
@@ -190,7 +192,6 @@ func (a *ApplyContext) IsAccount(n common.AccountName) bool {
 		return true
 	}
 	return false
-
 }
 func (a *ApplyContext) HasReciptient(code common.AccountName) bool {
 	for _, a := range a.Notified {
@@ -210,94 +211,85 @@ func (a *ApplyContext) DbStoreI64(scope int64, table int64, payer int64, id int6
 	return a.dbStoreI64(int64(a.Receiver), scope, table, payer, id, buffer)
 }
 func (a *ApplyContext) dbStoreI64(code int64, scope int64, table int64, payer int64, id int64, buffer []byte) int {
-
 	return 0
-	//tab := a.FindOrCreateTable(common.Name(code), common.Name(scope), common.Name(table), common.AccountName(payer))
-	//tid := tab.ID
-	//
-	//obj := types.KeyValueObject{
-	//	TId:        tid,
-	//	PrimaryKey: id,
-	//	Value:      buffer,
-	//	Payer:      payer,
-	//	ID:         id,
-	//}
-	//a.DB.Insert(&obj)
 
+	// tab := a.FindOrCreateTable(code, scope, table, payer)
+	// tid := tab.ID
+
+	// obj := types.KeyValueObject{
+	// 	TId:        tid,
+	// 	PrimaryKey: id,
+	// 	Value:      buffer,
+	// 	Payer:      common.AccountName(payer),
+	// }
+
+	// a.DB.Insert(&obj)
 	// a.DB.Modify(tab, func(t *types.TableIDObject) {
 	// 	t.Count++
 	// })
 
-	//
-	//// int64_t billable_size = (int64_t)(buffer_size + config::billable_size_v<key_value_object>);
-	////    UpdateDBUsage( payer, billable_size);
-	// UpdateDBUsage( payer, len(buffer) + obj.GetBillableSize());
-	//a.KeyvalCache.cacheTable(&tab)
-	//return a.KeyvalCache.add(&obj)
-
+	// // int64_t billable_size = (int64_t)(buffer_size + config::billable_size_v<key_value_object>);
+	// billableSize := len(buffer) + obj.GetBillableSize()
+	// UpdateDbUsage( payer, billableSize )
+	// a.KeyvalCache.cacheTable(&tab)
+	// return a.KeyvalCache.add(&obj)
 }
-func (a *ApplyContext) DbUpdateI64(iterator int, payer common.AccountName, buffer []byte) {
+func (a *ApplyContext) DbUpdateI64(iterator int, payer int64, buffer []byte) {
 
-	// obj := a.KeyvalCache.get(iterator)
-	// objTable := a.KeyvalCache.getTable(obj.ID)
+	// obj := types.KeyValueObject(a.KeyvalCache.get(iterator))
+	// objTable := a.KeyvalCache.getTable(obj.GetTableId())
 
-	// //EOS_ASSERT( table_obj.code == receiver, table_access_violation, "db access violation" );
+	// //EOS_ASSERT( objTable.Code == a.Receiver, table_access_violation, "db access violation" );
 
 	// // const int64_t overhead = config::billable_size_v<key_value_object>;
 	// overhead = obj.GetBillableSize()
 	// oldSize := len(obj.Value) + overhead
 	// newSize := len(buffer) + overhead
 
-	//    if payer == common.AccountName{} { payer = obj.Payer}
+	//    payerAccount := common.AccountName(payer)
+	// if payerAccount == common.AccountName{} { payerAccount = obj.Payer}
 
-	//    if obj.Payer == payer {
-	//    	a.UpdateDBUsage(obj.Payer, -(oldSize))
-	//    	a.UpdateDBUsage(payer, newSize)
-	//    } else if oldSize != newSize{
-	//    	a.UpdateDBUsage(obj.Payer, newSize - oldSize)
-	//    }
+	// if obj.Payer == payerAccount {
+	// 	a.UpdateDbUsage(obj.Payer, -(oldSize))
+	// 	a.UpdateDbUsage(payerAccount, newSize)
+	// } else if oldSize != newSize{
+	// 	a.UpdateDbUsage(obj.Payer, newSize - oldSize)
+	// }
 
-	// a.DB.Modify(obj, func(t *types.KeyValueObject) {
-	// 	t.Count++
-
+	// a.DB.Modify(obj, func(obj *types.KeyValueObject) {
 	// 	obj.Value = buffer
-	// 	obj.Payer = payer
+	// 	obj.Payer = payerAccount
 	// })
-
 }
 func (a *ApplyContext) DbRemoveI64(iterator int) {
-	// obj := a.KeyvalCache.get(iterator)
+	// obj := types.KeyValueObject(a.KeyvalCache.get(iterator))
 	// tab := a.KeyvalCache.getTable(obj.ID)
-
 	// // 	EOS_ASSERT( table_obj.code == receiver, table_access_violation, "db access violation" );
 	// // //   require_write_lock( table_obj.scope );
-	// overhead := 0//config::billable_size_v<key_value_object>)
-	// UpdateDBUsage( obj.Payer,  -(len(obj.Value) + overhead) )
-	// a.DB.Get("ID", &tab)
+	// billableSize := len(buffer) + obj.GetBillableSize()
+	// UpdateDBUsage( obj.Payer,  - billableSize )
 	// a.DB.Modify(tab, func(t *types.TableIDObject) {
 	// 	t.Count--
 	// })
 
-	// a.DB.Remove(&obj)
-
+	// a.DB.Remove(obj)
 	// if tab.Count == 0 {
-	// 	a.DB.Remove(&tab)
+	// 	a.DB.Remove(tab)
 	// }
 	// a.KeyvalCache.remove(iterator)
-
 }
 func (a *ApplyContext) DbGetI64(iterator int, buffer []byte, bufferSize int) int {
 	return 0
-	//obj := a.KeyvalCache.get(iterator)
-	//s := len(obj.value)
-	//
-	//if bufferSize == 0 {
-	//	return s
-	//}
-	//
-	//copySize = min(bufferSize, s)
-	//copy(buffer[0:copySize], obj.value[:])
-	//return copySize
+	// obj := types.KeyValueObject(a.KeyvalCache.get(iterator))
+	// s := len(obj.value)
+
+	// if bufferSize == 0 {
+	// 	return s
+	// }
+
+	// copySize = min(bufferSize, s)
+	// copy(buffer[0:copySize], obj.value[:])
+	// return copySize
 }
 func (a *ApplyContext) DbNextI64(iterator int, primary *uint64) int {
 
@@ -305,14 +297,14 @@ func (a *ApplyContext) DbNextI64(iterator int, primary *uint64) int {
 	// if iterator < -1 {
 	// 	return -1
 	// }
-	// obj := a.KeyvalCache.get(iterator)
+	// obj := types.KeyValueObject(a.KeyvalCache.get(iterator))
 
 	// idx := a.DB.GetIndex("byScopePrimary", obj)
 	// itr := idx.IteratorTo(obj)
 	// itrNext := itr.Next()
-	// objNext := types.KeyValueObject(itr.GetObject()) //return -1 for nil
-	// if itr == idx.end() || objNext.TId != obj.TId {
-	// 	return a.KeyvalCache.getEndIteratorByTableID(obj.TId)
+	// objNext := types.KeyValueObject(itr.GetObject())
+	// if itr == idx.end() || objNext.TId  != obj.TId  {
+	// 	return a.KeyvalCache.getEndIteratorByTableID(obj.GetTableId())
 	// }
 
 	// *primary = itr.primaryKey
@@ -332,18 +324,18 @@ func (a *ApplyContext) DbPreviousI64(iterator int, primary *uint64) int {
 
 	//    itrPrev := itr.Prev()
 	//    objPrev := types.KeyValueObject(itr.GetObject())
-	//    if( objPrev->TId != tab->ID ) return -1;
+	//    if( objPrev.TId != tab.ID ) return -1;
 
-	//    setUint32(objPrev.PrimaryKey)
+	//    *primary =  objPrev.PrimaryKey
 	//    return a.KeyvalCache.add(objPrev)
 	// }
 
-	// obj := a.KeyvalCache.get(iterator)
+	// obj := types.KeyValueObject(a.KeyvalCache.get(iterator))
 	// itr := idx.IteratorTo(obj)
 	// itrPrev := itr.Prev()
 
-	//    objPrev := types.KeyValueObject(itr.GetObject()) //return -1 for nil
-	// if objPrev.TId != obj.TId {return -1}
+	// objPrev := types.KeyValueObject(itr.GetObject()) //return -1 for nil
+	// if objPrev.TId != obj.TId  {return -1}
 
 	// *primary = objPrev.primaryKey
 	// return keyval_cache.add(objPrev)
@@ -358,11 +350,12 @@ func (a *ApplyContext) DbFindI64(code int64, scope int64, table int64, id int64)
 
 	// tableEndItr := a.KeyvalCache.cacheTable(tab)
 
-	// obj := types.KeyValueObject{TId:tab.ID,Primary:id}
-	// err := a.DB.Get("byScopePrimary", &obj ) //, makeTupe(tab.ID,id))
+	// //obj := types.KeyValueObject{TId:tab.ID,Primary:id}
+	// obj := &types.KeyValueObject{}
+	// err := a.DB.Get("byScopePrimary", obj, obj.MakeTuple(tab.ID, id) ) //, makeTupe(tab.ID,id))
 
 	// if err == nil {return tableEndItr}
-	// return a.KeyvalCache.add(&obj)
+	// return a.KeyvalCache.add(obj)
 
 }
 func (a *ApplyContext) DbLowerBoundI64(code int64, scope int64, table int64, id int64) int {
@@ -373,14 +366,16 @@ func (a *ApplyContext) DbLowerBoundI64(code int64, scope int64, table int64, id 
 
 	// tableEndItr := a.KeyvalCache.cacheTable(tab)
 
-	// Obj := types.KeyValueObject{}
-	// idx := a.DB.GetIndex("byScopePrimary",&Obj)
+	// obj := &types.KeyValueObject{}
+	// idx := a.DB.GetIndex("byScopePrimary",obj)
 
-	// itr := idx.LowerBound(makeTupe(tab.ID,id))
+	// itr := idx.LowerBound(obj.MakeTuple(tab.ID,id))
 	// if itr == idx.End()  {return tableEndItr}
 
-	// obj := types.KeyValueObject(itr.GetObject())
-	// return keyval_cache.add(types.KeyValueObject(itr.GetObject()))
+	//    objLowerBound = &types.KeyValueObject(*itr.GetObject())
+	//    if objLowerBound.TId != tab.ID {return tableEndItr}
+
+	// return keyval_cache.add(objLowerBound)
 
 }
 func (a *ApplyContext) DbUpperBoundI64(code int64, scope int64, table int64, id int64) int {
@@ -391,27 +386,27 @@ func (a *ApplyContext) DbUpperBoundI64(code int64, scope int64, table int64, id 
 
 	// tableEndItr := a.KeyvalCache.cacheTable(tab)
 
-	// Obj := types.KeyValueObject{}
-	// idx := a.DB.GetIndex("byScopePrimary",&Obj)
+	// obj := &types.KeyValueObject{}
+	// idx := a.DB.GetIndex("byScopePrimary",&obj)
 
-	// itr := idx.UpperBound(makeTupe(tab.ID,id))
+	// itr := idx.UpperBound(obj.MakeTuple(tab.ID,id))
 	// if itr == idx.End()  {return tableEndItr}
 
-	// obj := types.KeyValueObject(itr.GetObject())
-	// if obj.ID != tab.ID {return tableEndItr}
+	// objUpperBound = &types.KeyValueObject(*itr.GetObject())
+	//    if objUpperBound.TId != tab.ID {return tableEndItr}
 
-	// return keyval_cache.add(obj)
+	// return keyval_cache.add(objUpperBound)
 
 }
 func (a *ApplyContext) DbEndI64(code int64, scope int64, table int64) int {
 	return 0
 
-	tab := a.FindTable(code, scope, table)
-	if tab == nil {
-		return -1
-	}
+	// tab := a.FindTable(code, scope, table)
+	// if tab == nil {
+	// 	return -1
+	// }
 
-	return a.KeyvalCache.cacheTable(tab)
+	// return a.KeyvalCache.cacheTable(tab)
 }
 
 //index for sceondarykey
@@ -433,42 +428,42 @@ func (a *ApplyContext) IdxI64LowerBound(code int64, scope int64, table int64, se
 	return a.IDX64.lowerbound(code, scope, table, secondary, primary)
 }
 func (a *ApplyContext) IdxI64UpperBound(code int64, scope int64, table int64, secondary *types.Uint64_t, primary *uint64) int {
-	//a.IDX64.update(iterator, payer, value)
 	return a.IDX64.upperbound(code, scope, table, secondary, primary)
 }
 func (a *ApplyContext) IdxI64End(code int64, scope int64, table int64) int {
-	//a.IDX64.update(iterator, payer, value)
 	return a.IDX64.end(code, scope, table)
 }
-
 func (a *ApplyContext) IdxI64Next(iterator int, primary *uint64) int {
 	return a.IDX64.next(iterator, primary)
 }
 func (a *ApplyContext) IdxI64Previous(iterator int, primary *uint64) int {
 	return a.IDX64.previous(iterator, primary)
 }
-
+func (a *ApplyContext) IdxI64FindPrimary(code int64, scope int64, table int64, secondary *types.Uint64_t, primary *uint64) int {
+	//a.IDX64.update(iterator, payer, value)
+	return a.IDX64.findPrimary(code, scope, table, secondary, primary)
+}
 func (a *ApplyContext) FindTable(code int64, scope int64, table int64) *types.TableIdObject {
-	// table := types.TableIDObject{Code: common.AccountName(code), Scope: common.ScopeName(scope), Table: common.TableName(table)}
-	// a.DB.Get("byCodeScopeTable", &table)
+	// // table := types.TableIdObject{Code: common.AccountName(code), Scope: common.ScopeName(scope), Table: common.TableName(table)}
+	// table := types.TableIdObject{}
+	// a.DB.Get("byCodeScopeTable", &table,  table.MakeTuple(code,scope,table))
 	// return table
 	return &types.TableIdObject{}
 }
-func (a *ApplyContext) FindOrCreateTable(code int64, scope int64, table int64, payer int64) types.TableIdObject {
+func (a *ApplyContext) FindOrCreateTable(code int64, scope int64, table int64, payer int64) *types.TableIdObject {
 
-	return types.TableIdObject{}
-	// table := types.TableIDObject{Code: common.AccountName(code), Scope: common.ScopeName(scope), Table: common.TableName(table), Payer: common.AccountName(payer)}
-	// err := a.DB.Get("byCodeScopeTable", &table)
+	return &types.TableIdObject{}
+	// //table := types.TableIdObject{Code: common.AccountName(code), Scope: common.ScopeName(scope), Table: common.TableName(table), Payer: common.AccountName(payer)}
+	// table := types.TableIdObject{}
+	// err := a.DB.Get("byCodeScopeTable", &table, table.MakeTuple(code,scope,table))
 	// if err == nil {
-	// 	return table
+	// 	return &table
 	// }
 	// a.DB.Insert(&table)
-	// return table
+	// return &table
 }
 func (a *ApplyContext) RemoveTable(tid types.TableIdObject) {
-	// overhead := 0 //config::billable_size_v<table_id_object>
-
-	// UpdateDBUsage(tid.Payer, -overhead)
+	// UpdateDBUsage(tid.Payer, -types.TableIdObject{}.GetBillableSize())
 	// a.DB.remove(tid)
 }
 
