@@ -2,11 +2,10 @@ package exec
 
 import (
 	"bytes"
-	"encoding/binary"
 	"errors"
 	"fmt"
+	"github.com/eosspark/eos-go/rlp"
 	"log"
-	"math"
 	"reflect"
 
 	"strings"
@@ -448,39 +447,60 @@ func b2i(b bool) int {
 }
 
 func setMemory(w *WasmInterface, mIndex int, dIndex int, data []byte, bufferSize int) {
+	fmt.Println("setMemory")
 	copy(w.vm.memory[mIndex:mIndex+bufferSize], data[dIndex:dIndex+bufferSize])
 }
 
 func getMemory(w *WasmInterface, mIndex int, bufferSize int) []byte {
+	fmt.Println("getMemory")
 	data := make([]byte, bufferSize)
 	copy(data[0:bufferSize], w.vm.memory[0:bufferSize])
 	return data
 }
 
 func setUint64(w *WasmInterface, index int, val uint64) {
-	c := make([]byte, 8)
-	binary.LittleEndian.PutUint64(c, val)
-	copy(w.vm.memory[index:index+8], c[:])
+	//c := make([]byte, 8)
+	//binary.LittleEndian.PutUint64(c, val)
+	//copy(w.vm.memory[index:index+8], c[:])
+
+	fmt.Println("setUint64")
+	c, _ := rlp.EncodeToBytes(val)
+	setMemory(w, index, 0, c, len(c))
 }
 
 func getUint64(w *WasmInterface, index int) uint64 {
-	c := make([]byte, 8)
-	copy(c[:], w.vm.memory[index:index+8])
-	return binary.LittleEndian.Uint64(c[:])
+	//c := make([]byte, 8)
+	//copy(c[:], w.vm.memory[index:index+8])
+	//return binary.LittleEndian.Uint64(c[:])
+
+	fmt.Println("getUint64")
+	var ret uint64
+	c := getMemory(w, index, 8)
+	rlp.DecodeBytes(c, &ret)
+	return ret
 }
 
 func setFloat64(w *WasmInterface, index int, val float64) {
-	c := make([]byte, 8)
-	bits := math.Float64bits(val)
-	binary.LittleEndian.PutUint64(c, bits)
+	//c := make([]byte, 8)
+	//bits := math.Float64bits(val)
+	//binary.LittleEndian.PutUint64(c, bits)
+	//copy(w.vm.memory[index:index+8], c[:])
 
-	copy(w.vm.memory[index:index+8], c[:])
+	fmt.Println("setUint64")
+	c, _ := rlp.EncodeToBytes(val)
+	setMemory(w, index, 0, c, len(c))
 }
 
 func getFloat64(w *WasmInterface, index int) float64 {
-	c := make([]byte, 8)
-	copy(c[:], w.vm.memory[index:index+8])
-	return math.Float64frombits(binary.LittleEndian.Uint64(c[:]))
+	//c := make([]byte, 8)
+	//copy(c[:], w.vm.memory[index:index+8])
+	//return math.Float64frombits(binary.LittleEndian.Uint64(c[:]))
+
+	fmt.Println("getUint64")
+	var ret float64
+	c := getMemory(w, index, 8)
+	rlp.DecodeBytes(c, &ret)
+	return ret
 }
 
 func getStringSize(w *WasmInterface, index int) int {
