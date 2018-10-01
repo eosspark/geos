@@ -2,9 +2,9 @@ package exec
 
 import (
 	"bytes"
-	"encoding/binary"
 	"errors"
 	"fmt"
+	"github.com/eosspark/eos-go/rlp"
 	"log"
 	"reflect"
 
@@ -133,6 +133,39 @@ func NewWasmInterface() *WasmInterface {
 	wasmInterface.Register("sha256", sha256)
 	wasmInterface.Register("sha512", sha512)
 	wasmInterface.Register("ripemd160", ripemd160)
+
+	wasmInterface.Register("db_store_i64", dbStoreI64)
+	wasmInterface.Register("db_update_i64", dbUpdateI64)
+	wasmInterface.Register("db_remove_i64", dbRemoveI64)
+	wasmInterface.Register("db_get_i64", dbGetI64)
+	wasmInterface.Register("db_next_i64", dbNextI64)
+	wasmInterface.Register("db_previous_i64", dbPreviousI64)
+	wasmInterface.Register("db_find_i64", dbFindI64)
+	wasmInterface.Register("db_lowerbound_i64", dbLowerboundI64)
+	wasmInterface.Register("db_upperbound_i64", dbUpperboundI64)
+	wasmInterface.Register("db_end_i64", dbEndI64)
+
+	wasmInterface.Register("db_idx64_store", dbIdx64Store)
+	wasmInterface.Register("db_idx64_remove", dbIdx64Remove)
+	wasmInterface.Register("db_idx64_update", dbIdx64Update)
+	wasmInterface.Register("db_idx64_find_secondary", dbIdx64findSecondary)
+	wasmInterface.Register("db_idx64_lowerbound", dbIdx64Lowerbound)
+	wasmInterface.Register("db_idx64_upperbound", dbIdx64Upperbound)
+	wasmInterface.Register("db_idx64_end", dbIdx64End)
+	wasmInterface.Register("db_idx64_next", dbIdx64Next)
+	wasmInterface.Register("db_idx64_previous", dbIdx64Previous)
+	wasmInterface.Register("db_idx64_find_primary", dbIdx64FindPrimary)
+
+	wasmInterface.Register("db_idx_double_store", dbIdxDoubleStore)
+	wasmInterface.Register("db_idx_double_remove", dbIdxDoubleRemove)
+	wasmInterface.Register("db_idx_double_update", dbIdxDoubleUpdate)
+	wasmInterface.Register("db_idx_double_find_secondary", dbIdxDoublefindSecondary)
+	wasmInterface.Register("db_idx_double_lowerbound", dbIdxDoubleLowerbound)
+	wasmInterface.Register("db_idx_double_upperbound", dbIdxDoubleUpperbound)
+	wasmInterface.Register("db_idx_double_end", dbIdxDoubleEnd)
+	wasmInterface.Register("db_idx_double_next", dbIdxDoubleNext)
+	wasmInterface.Register("db_idx_double_previous", dbIdxDoublePrevious)
+	wasmInterface.Register("db_idx_double_find_primary", dbIdxDoubleFindPrimary)
 
 	wasmInterface.Register("memcpy", memcpy)
 	wasmInterface.Register("memmove", memmove)
@@ -413,34 +446,61 @@ func b2i(b bool) int {
 	return 0
 }
 
-// func copyMemory(w *WasmInterface, dest int, src int, bufferSize int) {
-// 	copy(w.vm.memory[dest:dest+bufferSize], w.vm.memory[src:src+bufferSize])
-// }
 func setMemory(w *WasmInterface, mIndex int, dIndex int, data []byte, bufferSize int) {
+	fmt.Println("setMemory")
 	copy(w.vm.memory[mIndex:mIndex+bufferSize], data[dIndex:dIndex+bufferSize])
 }
 
-//func getMemory(w *WasmInterface, mIndex int, dIndex int, data []byte, bufferSize int) {
 func getMemory(w *WasmInterface, mIndex int, bufferSize int) []byte {
+	fmt.Println("getMemory")
 	data := make([]byte, bufferSize)
-	copy(data[0:0+bufferSize], w.vm.memory[0:0+bufferSize])
-
+	copy(data[0:bufferSize], w.vm.memory[0:bufferSize])
 	return data
 }
 
 func setUint64(w *WasmInterface, index int, val uint64) {
-	c := make([]byte, 8)
-	binary.LittleEndian.PutUint64(c, val)
+	//c := make([]byte, 8)
+	//binary.LittleEndian.PutUint64(c, val)
+	//copy(w.vm.memory[index:index+8], c[:])
 
-	copy(w.vm.memory[index:index+8], c[:])
+	fmt.Println("setUint64")
+	c, _ := rlp.EncodeToBytes(val)
+	setMemory(w, index, 0, c, len(c))
 }
 
 func getUint64(w *WasmInterface, index int) uint64 {
-	c := make([]byte, 8)
-	copy(c[:], w.vm.memory[index:index+8])
+	//c := make([]byte, 8)
+	//copy(c[:], w.vm.memory[index:index+8])
+	//return binary.LittleEndian.Uint64(c[:])
 
-	return binary.LittleEndian.Uint64(c[:])
+	fmt.Println("getUint64")
+	var ret uint64
+	c := getMemory(w, index, 8)
+	rlp.DecodeBytes(c, &ret)
+	return ret
+}
 
+func setFloat64(w *WasmInterface, index int, val float64) {
+	//c := make([]byte, 8)
+	//bits := math.Float64bits(val)
+	//binary.LittleEndian.PutUint64(c, bits)
+	//copy(w.vm.memory[index:index+8], c[:])
+
+	fmt.Println("setUint64")
+	c, _ := rlp.EncodeToBytes(val)
+	setMemory(w, index, 0, c, len(c))
+}
+
+func getFloat64(w *WasmInterface, index int) float64 {
+	//c := make([]byte, 8)
+	//copy(c[:], w.vm.memory[index:index+8])
+	//return math.Float64frombits(binary.LittleEndian.Uint64(c[:]))
+
+	fmt.Println("getUint64")
+	var ret float64
+	c := getMemory(w, index, 8)
+	rlp.DecodeBytes(c, &ret)
+	return ret
 }
 
 func getStringSize(w *WasmInterface, index int) int {

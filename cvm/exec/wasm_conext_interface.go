@@ -34,20 +34,31 @@ type WasmContextInterface interface {
 	DbNextI64(iterator int, primary *uint64) int
 	DbPreviousI64(iterator int, primary *uint64) int
 	DbFindI64(code int64, scope int64, table int64, id int64) int
-	DbLowerBoundI64(code int64, scope int64, table int64, id int64) int
-	DbUpperBoundI64(code int64, scope int64, table int64, id int64) int
+	DbLowerboundI64(code int64, scope int64, table int64, id int64) int
+	DbUpperboundI64(code int64, scope int64, table int64, id int64) int
 	DbEndI64(code int64, scope int64, table int64) int
 
-	IdxI64Store(scope int64, table int64, payer int64, id int64, value *types.Uint64_t) int
-	IdxI64Remove(iterator int)
-	IdxI64Update(iterator int, payer int64, value *types.Uint64_t)
-	IdxI64FindSecondary(code int64, scope int64, table int64, secondary *types.Uint64_t, primary *uint64) int
-	IdxI64LowerBound(code int64, scope int64, table int64, secondary *types.Uint64_t, primary *uint64) int
-	IdxI64UpperBound(code int64, scope int64, table int64, secondary *types.Uint64_t, primary *uint64) int
-	IdxI64End(code int64, scope int64, table int64) int
-	IdxI64Next(iterator int, primary *uint64) int
-	IdxI64Previous(iterator int, primary *uint64) int
-	IdxI64FindPrimary(code int64, scope int64, table int64, secondary *types.Uint64_t, primary *uint64) int
+	Idx64Store(scope int64, table int64, payer int64, id int64, value *types.Uint64_t) int
+	Idx64Remove(iterator int)
+	Idx64Update(iterator int, payer int64, value *types.Uint64_t)
+	Idx64FindSecondary(code int64, scope int64, table int64, secondary *types.Uint64_t, primary *uint64) int
+	Idx64Lowerbound(code int64, scope int64, table int64, secondary *types.Uint64_t, primary *uint64) int
+	Idx64Upperbound(code int64, scope int64, table int64, secondary *types.Uint64_t, primary *uint64) int
+	Idx64End(code int64, scope int64, table int64) int
+	Idx64Next(iterator int, primary *uint64) int
+	Idx64Previous(iterator int, primary *uint64) int
+	Idx64FindPrimary(code int64, scope int64, table int64, secondary *types.Uint64_t, primary *uint64) int
+
+	IdxDoubleStore(scope int64, table int64, payer int64, id int64, value *types.Float64_t) int
+	IdxDoubleRemove(iterator int)
+	IdxDoubleUpdate(iterator int, payer int64, value *types.Float64_t)
+	IdxDoubleFindSecondary(code int64, scope int64, table int64, secondary *types.Float64_t, primary *uint64) int
+	IdxDoubleLowerbound(code int64, scope int64, table int64, secondary *types.Float64_t, primary *uint64) int
+	IdxDoubleUpperbound(code int64, scope int64, table int64, secondary *types.Float64_t, primary *uint64) int
+	IdxDoubleEnd(code int64, scope int64, table int64) int
+	IdxDoubleNext(iterator int, primary *uint64) int
+	IdxDoublePrevious(iterator int, primary *uint64) int
+	IdxDoubleFindPrimary(code int64, scope int64, table int64, secondary *types.Float64_t, primary *uint64) int
 
 	UpdateDbUsage(pager common.AccountName, delta int64)
 	//FindTable(code int64, scope int64, table int64) types.TableIDObject

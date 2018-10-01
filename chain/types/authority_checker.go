@@ -4,7 +4,6 @@ import (
 	"github.com/eosspark/eos-go/common"
 
 )
-
 type PermissionToAuthorityFunc func(*PermissionLevel) SharedAuthority
 type AuthorityChecker struct {
 	permissionToAuthority PermissionToAuthorityFunc
@@ -34,6 +33,17 @@ func (ac *AuthorityChecker) SatisfiedLc(permission *PermissionLevel, cachedPerms
 }
 
 func (ac *AuthorityChecker) SatisfiedAcd(authority *SharedAuthority, cachedPermissions *PermissionCacheType, depth uint16) bool {
+	//待完善: lack of canceled
+	var metaPermission []interface{}
+	metaPermission = append(metaPermission, authority.Waits)
+	metaPermission = append(metaPermission, authority.Keys)
+	metaPermission = append(metaPermission, authority.Accounts)
+	visitor := WeightTallyVisitor{ac, cachedPermissions, depth, 0}
+	for _, permission := range metaPermission {
+		if visitor.Visit(permission) >= authority.Threshold {
+			return true
+		}
+	}
 	return false
 }
 
@@ -74,12 +84,11 @@ func (ac *AuthorityChecker) PermissionStatusInCache( permissions PermissionCache
 }
 
 func (ac *AuthorityChecker) initializePermissionCache( cachedPermission *PermissionCacheType ) *PermissionCacheType {
-	//for _, p := range ac.ProvidedPermissions {
-	//
-	//}
+	for _, p := range ac.ProvidedPermissions {
+		map[PermissionLevel]PermissionCacheStatus(*cachedPermission)[p] = PermissionSatisfied
+	}
 	return cachedPermission
 }
-
 
 type WeightTallyVisitor struct {
 	Checker           *AuthorityChecker

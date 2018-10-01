@@ -45,7 +45,7 @@ func (n *SetCode) GetName() common.ActionName {
 // SetABI represents the hard-coded `setabi` action.
 type SetABI struct {
 	Account common.AccountName `json:"account"`
-	ABI     ABI                `json:"abi"`
+	ABI     AbiDef                `json:"abi"`
 }
 
 func (n *SetABI) GetAccount() common.AccountName {
