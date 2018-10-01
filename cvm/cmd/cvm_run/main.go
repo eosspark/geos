@@ -13,18 +13,6 @@ import (
 
 func main() {
 
-	//flag.Parse()
-	//
-	//if flag.NArg() < 1 {
-	//	flag.Usage()
-	//	flag.PrintDefaults()
-	//	os.Exit(1)
-	//}
-	//
-	//name := flag.Arg(0)
-
-	//dir, err := filepath.Abs(filepath.Dir(os.Args[0]))
-
 	name := "hello.wasm"
 	code, err := ioutil.ReadFile(name)
 	if err != nil {
