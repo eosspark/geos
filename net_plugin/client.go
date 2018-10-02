@@ -12,6 +12,10 @@ import (
 	"math/rand"
 	"net"
 	"runtime"
+
+	"github.com/eosspark/eos-go/chain/types"
+	// "github.com/eosspark/eos-go/chainp2p"
+	"time"
 )
 
 type Client struct {
@@ -54,7 +58,11 @@ func (c *Client) connect(headBlock uint32, lib uint32) (err error) {
 	fmt.Println("connecting to: ", c.p2pAddress)
 	ready := make(chan bool)
 	errChannel := make(chan error)
-	go c.handleConnection(ready, errChannel)
+
+	signedBlock := make(chan types.SignedBlock)
+	go c.handleConnection(ready, errChannel, signedBlock)
+
+	// go chainp2p.GetSignedBlock(signedBlock)
 	<-ready
 
 	fmt.Println(c.p2pAddress, " Connected")
@@ -84,27 +92,19 @@ func (c *Client) SendHandshake(info *HandshakeInfo) (err error) {
 		fmt.Println("publickey:", err)
 		return err
 	}
-	content := make([]byte, 65, 65)
-	var data [65]byte
-	for i := range content {
-		data[i] = content[i]
-	}
 
-	tstamp := common.Now()
 	signature := ecc.Signature{
 		Curve:   ecc.CurveK1,
-		Content: data,
+		Content: [65]byte{},
 	}
-	byteSlice := make([]byte, 32)
-	token := *rlp.NewSha256Byte(byteSlice)
 
 	handshake := &HandshakeMessage{
 		NetworkVersion:           c.NetWorkVersion,
 		ChainID:                  c.ChainID,
 		NodeID:                   c.NodeID,
 		Key:                      publickey,
-		Time:                     tstamp,
-		Token:                    token,
+		Time:                     common.Now(),
+		Token:                    *rlp.NewSha256Nil(),
 		Signature:                signature,
 		P2PAddress:               c.p2pAddress,
 		LastIrreversibleBlockNum: info.LastIrreversibleBlockNum,
@@ -165,16 +165,16 @@ var (
 	headBlock      = uint32(0)
 )
 
-func (c *Client) handleConnection(ready chan bool, errChannel chan error) {
+func (c *Client) handleConnection(ready chan bool, errChannel chan error, signedBlock chan types.SignedBlock) {
 	r := bufio.NewReader(c.Conn)
 	ready <- true
 	for {
 		p2pMessage, err := ReadP2PMessageData(r)
 		if err != nil {
 			fmt.Println("Error reading from p2p client:", err)
-			// errChannel <- err
-			continue
-			// return
+			errChannel <- err
+			//continue
+			return
 		}
 
 		data, err := json.Marshal(p2pMessage)
@@ -219,7 +219,7 @@ func (c *Client) handleConnection(ready chan bool, errChannel chan error) {
 		case *GoAwayMessage:
 			fmt.Printf("GO AWAY Reason[%d] \n", msg.Reason)
 		case *TimeMessage:
-			msg.Destination = common.Now()
+			msg.Dst = common.Now()
 			data, err := json.Marshal(msg)
 			if err != nil {
 				fmt.Println(err)
@@ -234,10 +234,10 @@ func (c *Client) handleConnection(ready chan bool, errChannel chan error) {
 
 		case *SignedBlockMessage:
 			syncHeadBlock = msg.BlockNumber()
+			fmt.Println(msg.Previous.Hash[0])
 			fmt.Printf("signed Block Num: %d\n", syncHeadBlock)
-			signedBlock := make(chan uint32, 1)
-			signedBlock <- syncHeadBlock
-			//chainp2p.GetSignedBlock(signedBlock)
+
+			// signedBlock <- msg.SignedBlock
 
 			if syncHeadBlock == RequestedBlock {
 
@@ -277,6 +277,8 @@ func (c *Client) handleConnection(ready chan bool, errChannel chan error) {
 		default:
 			fmt.Println("unsupport p2pmessage type")
 		}
+
+		time.Sleep(1 * time.Second)
 
 	}
 }

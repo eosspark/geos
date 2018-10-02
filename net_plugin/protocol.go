@@ -53,20 +53,36 @@ func (m *ChainSizeMessage) GetType() P2PMessageType {
 type GoAwayReason uint32
 
 const (
-	GoAwayNoReason       = uint8(iota) //no reason to go away
-	GoAwaySelfConnect                  //the connection is to itself
-	GoAwayDuplicate                    //the connection is redundant
-	GoAwayWrongChain                   //the peer's chain id doesn't match
-	GoAwayWrongVersion                 //the peer's network version doesn't match
-	GoAwayForked                       //the peer's irreversible blocks are different
-	GoAwayUnlinkable                   //the peer sent a block we couldn't use
-	GoAwayBadTransaction               //the peer sent a transaction that failed verification
-	GoAwayValidation                   //the peer sent a block that failed validation
-	GoAwayBenignOther                  //reasons such as a timeout. not fatal but warrant resetting
-	GoAwayFatalOther                   //a catch-all for errors we don't have discriminated
-	GoAwayAuthentication               //peer failed authenicatio
-	//GoAwayCrazy                        //
+	noReason       = GoAwayReason(iota) //no reason to go away
+	selfConnect                         //the connection is to itself
+	duplicate                           //the connection is redundant
+	wrongChain                          //the peer's chain id doesn't match
+	wrongVersion                        //the peer's network version doesn't match
+	forked                              //the peer's irreversible blocks are different
+	unlinkable                          //the peer sent a block we couldn't use
+	badTransaction                      //the peer sent a transaction that failed verification
+	validation                          //the peer sent a block that failed validation
+	benignOther                         //reasons such as a timeout. not fatal but warrant resetting
+	fatalOther                          //a catch-all for errors we don't have discriminated
+	authentication                      //peer failed authenicatio
+	crazy                               //some crazy reason
 )
+
+var ReasonToString = map[GoAwayReason]string{
+	noReason:       "no reason",
+	selfConnect:    "self connect",
+	duplicate:      "duplicate",
+	wrongChain:     "wrong chain",
+	wrongVersion:   "wrong version",
+	forked:         "chain is forked",
+	unlinkable:     "unlinkable block received",
+	badTransaction: "bad transaction",
+	validation:     "invalid block",
+	benignOther:    "some other non-fatal condition",
+	fatalOther:     "some other failure",
+	authentication: "authentication failure",
+	crazy:          "some crazy reason",
+}
 
 type GoAwayMessage struct {
 	Reason GoAwayReason `json:"reason"`
@@ -89,7 +105,7 @@ func (m *TimeMessage) GetType() P2PMessageType {
 }
 
 func (t *TimeMessage) String() string {
-	return fmt.Sprintf("Origin [%s], Receive [%s], Transmit [%s], Destination [%s]", t.Origin, t.Receive, t.Transmit, t.Destination)
+	return fmt.Sprintf("Origin [%s], Receive [%s], Transmit [%s], Destination [%s]", t.Org, t.Rec, t.Xmt, t.Dst)
 }
 
 type IdListMode uint32
@@ -100,6 +116,13 @@ const (
 	lastIrrCatchUp
 	normal
 )
+
+var modeTostring = map[IdListMode]string{
+	none:           "none",
+	catchUp:        "catch up",
+	lastIrrCatchUp: "last irreversible",
+	normal:         "normal",
+}
 
 type OrderedTransactionIDs struct {
 	Mode    IdListMode                  `json:"mode"`

@@ -4,7 +4,7 @@ import (
 	"encoding/hex"
 	"flag"
 	"github.com/eosspark/eos-go/common"
-	"github.com/eosspark/eos-go/p2p"
+	"github.com/eosspark/eos-go/net_plugin"
 	"log"
 
 	"github.com/eosspark/eos-go/rlp"

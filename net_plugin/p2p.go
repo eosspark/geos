@@ -112,10 +112,6 @@ func ReadP2PMessageData(r io.Reader) (p2pMessage P2PMessage, err error) {
 		return
 	}
 	msg := reflect.New(attr.ReflectType)
-	// fmt.Println(attr.Name)
-	// for i := 0; i < len(sendBuf); i++ {
-	// 	fmt.Printf("%v,", sendBuf[i])
-	// }
 	err = rlp.DecodeBytes(payloadBytes[1:], msg.Interface())
 	if err != nil {
 		return nil, err
