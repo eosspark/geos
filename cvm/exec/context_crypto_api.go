@@ -85,7 +85,7 @@ func recoverKey(w *WasmInterface, digest int,
 		l = publen
 	}
 	//copy(w.vm.memory[pub:pub+l], p[0:l])
-	setMemory(w, pub, 0, p, l)
+	setMemory(w, pub, p, 0, l)
 
 	return l
 }

@@ -3,6 +3,7 @@ package exec
 import (
 	"encoding/hex"
 	"fmt"
+	"github.com/eosspark/eos-go/common"
 	"strconv"
 )
 
@@ -15,8 +16,9 @@ func prints(w *WasmInterface, str int) {
 	fmt.Println("prints")
 
 	if !ignore {
-		s := getString(w, str)
-		w.context.ContextAppend(s)
+		// s := getString(w, str)
+		// string(getMemory(w,str,getStringLength(w,str)))
+		w.context.ContextAppend(string(getMemory(w, str, getStringLength(w, str))))
 	}
 
 }
@@ -29,8 +31,8 @@ func prints(w *WasmInterface, str int) {
 func printsl(w *WasmInterface, str int, strLen int) {
 	fmt.Println("prints_l")
 
-	s := string(w.vm.memory[str : str+strLen])
-	w.context.ContextAppend(s)
+	//s := string(w.vm.memory[str : str+strLen])
+	w.context.ContextAppend(string(getMemory(w, str, strLen)))
 
 }
 
@@ -167,8 +169,8 @@ func printqf(w *WasmInterface, val int) {
 func printn(w *WasmInterface, value int64) {
 	fmt.Println("printn")
 
-	s := toString(uint64(value))
-	w.context.ContextAppend(s)
+	//s := toString(uint64(value))
+	w.context.ContextAppend(common.NameToString(uint64(value)))
 }
 
 // void printhex(array_ptr<const char> data, size_t data_len ) {
@@ -176,12 +178,12 @@ func printn(w *WasmInterface, value int64) {
 //     context.console_append(fc::to_hex(data, data_len));
 //  }
 // }
-func printhex(w *WasmInterface, data int, data_len int) {
+func printhex(w *WasmInterface, data int, dataLen int) {
 	fmt.Println("printhex")
 
-	bytes := w.vm.memory[data : data+data_len]
-	s := hex.EncodeToString(bytes)
+	// bytes := w.vm.memory[data : data+data_len]
+	// s := hex.EncodeToString(getMemory(w,data,dataLen))
 
-	w.context.ContextAppend(s)
+	w.context.ContextAppend(hex.EncodeToString(getMemory(w, data, dataLen)))
 
 }
