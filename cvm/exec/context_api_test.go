@@ -16,6 +16,7 @@ import (
 
 	"github.com/eosspark/eos-go/cvm/exec"
 	"github.com/eosspark/eos-go/rlp"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestContextApis(t *testing.T) {
@@ -152,6 +153,47 @@ func TestContextMemory(t *testing.T) {
 		if strings.Compare(applyContext.PendingConsoleOutput, "cccccccccccccchecksum256 ok") != 0 {
 			t.Fatalf("error excute memory.wasm")
 		}
+
+	})
+
+}
+
+func TestContextAuth(t *testing.T) {
+
+	name := "testdata_context/auth.wasm"
+	t.Run(filepath.Base(name), func(t *testing.T) {
+		code, err := ioutil.ReadFile(name)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		fmt.Println(name)
+		wasm := exec.NewWasmInterface()
+		param, _ := rlp.EncodeToBytes(exec.N("walker"))
+		applyContext := &chain.ApplyContext{
+			Receiver: common.AccountName(exec.N("ctx.auth")),
+			Act: types.Action{
+				Account: common.AccountName(exec.N("ctx.auth")),
+				Name:    common.ActionName(exec.N("test")),
+				Data:    param,
+				Authorization: []types.PermissionLevel{{
+					Actor:      common.AccountName(exec.N("walker")),
+					Permission: common.PermissionName(exec.N("active")),
+				}},
+			},
+			UsedAuthorizations: make([]bool, 1),
+		}
+
+		codeVersion := rlp.NewSha256Byte([]byte(code)).String()
+		wasm.Apply(codeVersion, code, applyContext)
+
+		//fmt.Println(applyContext.PendingConsoleOutput)
+		//if strings.Compare(applyContext.PendingConsoleOutput, "walker has authorization,walker is account") != 0 {
+		//	t.Fatalf("error excute memory.wasm")
+		//}
+
+		result := fmt.Sprintf("%v", applyContext.PendingConsoleOutput)
+		assert.Equal(t, result, "walker has authorization,walker is account")
 
 	})
 

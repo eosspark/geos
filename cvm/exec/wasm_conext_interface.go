@@ -7,26 +7,27 @@ import (
 
 type WasmContextInterface interface {
 
-	//action api
+	//action
 	GetActionData() []byte
 	GetReceiver() common.AccountName
 	GetCode() common.AccountName
 	GetAct() common.ActionName
 
-	//context authorization api
-	RequireAuthorization(account common.AccountName)
-	HasAuthorization(account common.AccountName) bool
-	RequireAuthorization2(account common.AccountName, permission common.PermissionName)
+	//authorization
+	RequireAuthorization(account int64)
+	HasAuthorization(account int64) bool
+	RequireAuthorization2(account int64, permission int64)
 	//RequireAuthorizations(account common.AccountName)
-	RequireRecipient(recipient common.AccountName)
-	IsAccount(n common.AccountName) bool
-	HasReciptient(code common.AccountName) bool
+	RequireRecipient(recipient int64)
+	IsAccount(n int64) bool
+	HasReciptient(code int64) bool
 
-	//contet console text
+	//console
 	ResetConsole()
 	ContextAppend(str string)
 
-	//context database api
+	//database
+	//primaryKey
 	DbStoreI64(scope int64, table int64, payer int64, id int64, buffer []byte) int
 	DbUpdateI64(iterator int, payer int64, buffer []byte)
 	DbRemoveI64(iterator int)
@@ -38,6 +39,7 @@ type WasmContextInterface interface {
 	DbUpperboundI64(code int64, scope int64, table int64, id int64) int
 	DbEndI64(code int64, scope int64, table int64) int
 
+	//secondaryKey 64
 	Idx64Store(scope int64, table int64, payer int64, id int64, value *types.Uint64_t) int
 	Idx64Remove(iterator int)
 	Idx64Update(iterator int, payer int64, value *types.Uint64_t)
@@ -49,6 +51,7 @@ type WasmContextInterface interface {
 	Idx64Previous(iterator int, primary *uint64) int
 	Idx64FindPrimary(code int64, scope int64, table int64, secondary *types.Uint64_t, primary *uint64) int
 
+	//secondaryKey Double
 	IdxDoubleStore(scope int64, table int64, payer int64, id int64, value *types.Float64_t) int
 	IdxDoubleRemove(iterator int)
 	IdxDoubleUpdate(iterator int, payer int64, value *types.Float64_t)
@@ -60,16 +63,11 @@ type WasmContextInterface interface {
 	IdxDoublePrevious(iterator int, primary *uint64) int
 	IdxDoubleFindPrimary(code int64, scope int64, table int64, secondary *types.Float64_t, primary *uint64) int
 
-	UpdateDbUsage(pager common.AccountName, delta int64)
-	//FindTable(code int64, scope int64, table int64) types.TableIDObject
-	//FindOrCreateTable(code common.Name, scope common.Name, table common.Name, payer *common.AccountName) types.TableIDObject
-	RemoveTable(tid types.TableIdObject)
-
-	//context permission api
+	//permission
 	GetPermissionLastUsed(account common.AccountName, permission common.PermissionName) int64
 	GetAccountCreateTime(account common.AccountName) int64
 
-	//context privileged api
+	//privileged
 	SetResourceLimits(account common.AccountName, ramBytes uint64, netWeight uint64, cpuWeigth uint64)
 	GetResourceLimits(account common.AccountName, ramBytes *uint64, netWeight *uint64, cpuWeigth *uint64)
 	SetBlockchainParametersPacked(parameters []byte)
@@ -77,17 +75,17 @@ type WasmContextInterface interface {
 	IsPrivileged(n common.AccountName) bool
 	SetPrivileged(n common.AccountName, isPriv bool)
 
-	//context producer api
+	//producer
 	SetProposedProducers(producers []byte)
 	GetActiveProducersInBytes() []byte
 	//GetActiveProducers() []common.AccountName
 
-	//context system api
+	//system
 	CheckTime()
 	CurrentTime() int64
 	PublicationTime() int64
 
-	//context transaction api
+	//transaction
 	ExecuteInline(action []byte)
 	ExecuteContextFreeInline(action []byte)
 	ScheduleDeferredTransaction(sendId common.TransactionIdType, payer common.AccountName, trx []byte, replaceExisting bool)

@@ -104,8 +104,8 @@ func NewWasmInterface() *WasmInterface {
 	wasmInterface.Register("read_action_data", readActionData)
 	wasmInterface.Register("current_receiver", currentReceiver)
 
-	wasmInterface.Register("require_authorization", requireAuthorization)
-	wasmInterface.Register("has_authorization", hasAuthorization)
+	wasmInterface.Register("require_auth", requireAuthorization)
+	wasmInterface.Register("has_auth", hasAuthorization)
 	wasmInterface.Register("require_auth2", requireAuth2)
 	wasmInterface.Register("require_recipient", requireRecipient)
 	wasmInterface.Register("is_account", isAccount)

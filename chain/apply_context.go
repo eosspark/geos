@@ -26,11 +26,9 @@ type ApplyContext struct {
 	idxDouble IdxDouble
 	// IDX128        GenericIndex
 	// IDX256        GenericIndex
-	// IDXDouble     GenericIndex
 	// IDXLongDouble GenericIndex
 
 	//GenericIndex
-	//_pending_console_output
 	KeyvalCache          iteratorCache
 	Notified             []common.AccountName
 	PendingConsoleOutput string
@@ -111,10 +109,8 @@ func (i *iteratorCache) get(iterator int) interface{} {
 	// EOS_ASSERT( iterator >= 0, table_operation_not_permitted, "dereference of end iterator" );
 	// EOS_ASSERT( iterator < _iterator_to_object.size(), invalid_table_iterator, "iterator out of range" );
 	//auto result = _iterator_to_object[iterator];
-
 	obj := i.iteratorToObject[iterator]
 	return obj
-
 	//return nil
 	//EOS_ASSERT( result, table_operation_not_permitted, "dereference of deleted object" );
 }
@@ -150,9 +146,9 @@ func (a *ApplyContext) GetCode() common.AccountName     { return a.Act.Account }
 func (a *ApplyContext) GetAct() common.ActionName       { return a.Act.Name }
 
 //context authorization api
-func (a *ApplyContext) RequireAuthorization(account common.AccountName) {
+func (a *ApplyContext) RequireAuthorization(account int64) {
 	for k, v := range a.Act.Authorization {
-		if v.Actor == account {
+		if v.Actor == common.AccountName(account) {
 			a.UsedAuthorizations[k] = true
 			return
 		}
@@ -160,17 +156,17 @@ func (a *ApplyContext) RequireAuthorization(account common.AccountName) {
 	// EOS_ASSERT( false, missing_auth_exception, "missing authority of ${account}/${permission}",
 	//              ("account",account)("permission",permission) );
 }
-func (a *ApplyContext) HasAuthorization(account common.AccountName) bool {
+func (a *ApplyContext) HasAuthorization(account int64) bool {
 	for _, v := range a.Act.Authorization {
-		if v.Actor == account {
+		if v.Actor == common.AccountName(account) {
 			return true
 		}
 	}
 	return false
 }
-func (a *ApplyContext) RequireAuthorization2(account common.AccountName, permission common.PermissionName) {
+func (a *ApplyContext) RequireAuthorization2(account int64, permission int64) {
 	for k, v := range a.Act.Authorization {
-		if v.Actor == account && v.Permission == permission {
+		if v.Actor == common.AccountName(account) && v.Permission == common.PermissionName(permission) {
 			a.UsedAuthorizations[k] = true
 			return
 		}
@@ -180,23 +176,23 @@ func (a *ApplyContext) RequireAuthorization2(account common.AccountName, permiss
 }
 
 //func (a *ApplyContext) RequireAuthorizations(account common.AccountName) {}
-func (a *ApplyContext) RequireRecipient(recipient common.AccountName) {
+func (a *ApplyContext) RequireRecipient(recipient int64) {
 	if a.HasReciptient(recipient) {
-		a.Notified = append(a.Notified, recipient)
+		a.Notified = append(a.Notified, common.AccountName(recipient))
 	}
 }
-func (a *ApplyContext) IsAccount(n common.AccountName) bool {
-	//return nullptr != db.find<account_object,by_name>( account );
-	account := types.AccountObject{Name: n}
-	err := a.DB.ByIndex("byName", &account)
-	if err == nil {
-		return true
-	}
-	return false
+func (a *ApplyContext) IsAccount(n int64) bool {
+	return true
+	// account := types.AccountObject{Name: common.AccountName(n)}
+	// err := a.DB.ByIndex("byName", &account)
+	// if err == nil {
+	// 	return true
+	// }
+	// return false
 }
-func (a *ApplyContext) HasReciptient(code common.AccountName) bool {
+func (a *ApplyContext) HasReciptient(code int64) bool {
 	for _, a := range a.Notified {
-		if a == code {
+		if a == common.AccountName(code) {
 			return true
 		}
 	}
