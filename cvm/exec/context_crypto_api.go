@@ -2,6 +2,7 @@ package exec
 
 import (
 	"bytes"
+	"encoding/hex"
 	"fmt"
 	"github.com/eosspark/eos-go/ecc"
 	"github.com/eosspark/eos-go/rlp"
@@ -27,23 +28,28 @@ func assertRecoverKey(w *WasmInterface, digest int,
 	pub int, publen int) {
 	fmt.Println("assert_recover_key")
 
-	d := getSha256(w, digest)
-	sigBytes := getBytes(w, sig, siglen)
-	pubBytes := getBytes(w, pub, publen)
+	digBytes := getSha256(w, digest)
+	sigBytes := getMemory(w, sig, siglen)
+	pubBytes := getMemory(w, pub, publen)
+
+	fmt.Println("d:", hex.EncodeToString(digBytes), " s:", hex.EncodeToString(sigBytes), " p:", hex.EncodeToString(pubBytes))
 
 	var s ecc.Signature
 	var p ecc.PublicKey
+	//var d []byte
 
+	//rlp.DecodeBytes(digBytes, &d)
+	d := digBytes
 	rlp.DecodeBytes(sigBytes, &s)
 	rlp.DecodeBytes(pubBytes, &p)
 
 	check, err := s.PublicKey(d)
-	if err == nil {
+	if err != nil {
 		return
 		//assert
 	}
 
-	if !i2b(strings.Compare(check.String(), p.String())) {
+	if strings.Compare(check.String(), p.String()) != 0 {
 		println("Error expected key different than recovered key")
 		//assert
 	}
@@ -66,12 +72,13 @@ func recoverKey(w *WasmInterface, digest int,
 	pub int, publen int) int {
 	fmt.Println("recover_key")
 
-	d := getSha256(w, digest)
-	sigBytes := getBytes(w, sig, siglen)
+	digBytes := getSha256(w, digest)
+	sigBytes := getMemory(w, sig, siglen)
 
 	var s ecc.Signature
+	var d []byte
 	//var p ecc.PublicKey
-
+	rlp.DecodeBytes(digBytes, &d)
 	rlp.DecodeBytes(sigBytes, &s)
 	check, _ := s.PublicKey(d)
 
@@ -138,7 +145,7 @@ func encode(w *WasmInterface, s shaInterface, data []byte, dataLen int) []byte {
 func assertSha256(w *WasmInterface, data int, datalen int, hash_val int) {
 	fmt.Println("assert_sha256")
 
-	dataBytes := getBytes(w, data, datalen)
+	dataBytes := getMemory(w, data, datalen)
 
 	//var s rlp.Sha256
 	s := rlp.NewSha256()
@@ -158,7 +165,7 @@ func assertSha256(w *WasmInterface, data int, datalen int, hash_val int) {
 func assertSha1(w *WasmInterface, data int, dataLen int, hash_val int) {
 	fmt.Println("assert_sha1")
 
-	dataBytes := getBytes(w, data, dataLen)
+	dataBytes := getMemory(w, data, dataLen)
 
 	//var s rlp.Sha1
 	//s := sha1.New()
@@ -178,7 +185,7 @@ func assertSha1(w *WasmInterface, data int, dataLen int, hash_val int) {
 func assertSha512(w *WasmInterface, data int, dataLen int, hash_val int) {
 	fmt.Println("assert_sha512")
 
-	dataBytes := getBytes(w, data, dataLen)
+	dataBytes := getMemory(w, data, dataLen)
 
 	//var s rlp.Sha512
 	//s := sha512.New()
@@ -200,7 +207,7 @@ func assertSha512(w *WasmInterface, data int, dataLen int, hash_val int) {
 func assertRipemd160(w *WasmInterface, data int, dataLen int, hash_val int) {
 	fmt.Println("assert_ripemd160")
 
-	dataBytes := getBytes(w, data, dataLen)
+	dataBytes := getMemory(w, data, dataLen)
 
 	//var s rlp.Ripemd160
 	//s := ripemd160.New()
@@ -220,7 +227,7 @@ func assertRipemd160(w *WasmInterface, data int, dataLen int, hash_val int) {
 func sha1(w *WasmInterface, data int, dataLen int, hash_val int) {
 	fmt.Println("sha1")
 
-	dataBytes := getBytes(w, data, dataLen)
+	dataBytes := getMemory(w, data, dataLen)
 
 	//var s rlp.Sha1
 	//s := sha1.New()
@@ -235,7 +242,7 @@ func sha1(w *WasmInterface, data int, dataLen int, hash_val int) {
 func sha256(w *WasmInterface, data int, dataLen int, hash_val int) {
 	fmt.Println("sha256")
 
-	dataBytes := getBytes(w, data, dataLen)
+	dataBytes := getMemory(w, data, dataLen)
 
 	//var s rlp.Sha256
 	//s := sha256.new()
@@ -251,7 +258,7 @@ func sha256(w *WasmInterface, data int, dataLen int, hash_val int) {
 func sha512(w *WasmInterface, data int, dataLen int, hash_val int) {
 	fmt.Println("sha512")
 
-	dataBytes := getBytes(w, data, dataLen)
+	dataBytes := getMemory(w, data, dataLen)
 
 	//var s rlp.Sha512
 	//s := sha512.new()
@@ -267,7 +274,7 @@ func sha512(w *WasmInterface, data int, dataLen int, hash_val int) {
 func ripemd160(w *WasmInterface, data int, dataLen int, hash_val int) {
 	fmt.Println("ripemd160")
 
-	dataBytes := getBytes(w, data, dataLen)
+	dataBytes := getMemory(w, data, dataLen)
 
 	//var s rlp.Ripemd160
 	//s := ripemd160.New()

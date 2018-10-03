@@ -447,11 +447,16 @@ func b2i(b bool) int {
 }
 
 func setMemory(w *WasmInterface, mIndex int, data []byte, dIndex int, bufferSize int) {
+	fmt.Println("setMemory")
 	copy(w.vm.memory[mIndex:mIndex+bufferSize], data[dIndex:dIndex+bufferSize])
 }
 
 func getMemory(w *WasmInterface, mIndex int, bufferSize int) []byte {
-	return w.vm.memory[mIndex : mIndex+bufferSize]
+	fmt.Println("getMemory")
+	bytes := make([]byte, bufferSize)
+	copy(bytes[:], w.vm.memory[mIndex:mIndex+bufferSize])
+	//return w.vm.memory[mIndex : mIndex+bufferSize]
+	return bytes
 }
 
 func setUint64(w *WasmInterface, index int, val uint64) {

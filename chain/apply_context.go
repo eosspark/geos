@@ -60,7 +60,6 @@ func NewIteratorCache() *iteratorCache {
 		iteratorToObject:   make([]interface{}, 32),
 		objectToIterator:   make(map[interface{}]int),
 	}
-
 	return i
 }
 

@@ -5,10 +5,13 @@
 package exec_test
 
 import (
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"github.com/eosspark/eos-go/chain"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
+	"github.com/eosspark/eos-go/ecc"
 	"io/ioutil"
 	"path/filepath"
 	"strings"
@@ -197,4 +200,90 @@ func TestContextAuth(t *testing.T) {
 
 	})
 
+}
+
+func TestContextCrypto(t *testing.T) {
+
+	name := "testdata_context/test_api.wasm"
+	t.Run(filepath.Base(name), func(t *testing.T) {
+		code, err := ioutil.ReadFile(name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		fmt.Println(name)
+
+		wif := "5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3"
+		privKey, err := ecc.NewPrivateKey(wif)
+
+		chainID, err := hex.DecodeString("0000000000000000000000000000000000000000000000000000000000000000")
+		payload, err := hex.DecodeString("88e4b25a00006c08ac5b595b000000000000")
+		digest := sigDigest(chainID, payload)
+		sig, err := privKey.Sign(digest)
+		pubKey, err := sig.PublicKey(digest)
+
+		//fromEOSIOC := "SIG_K1_K2WBNtiTY8o4mqFSz7HPnjkiT9JhUYGFa81RrzaXr3aWRF1F8qwVfutJXroqiL35ZiHTcvn8gPWGYJDwnKZTCcbAGJy4i9"
+		//assert.Equal(t, fromEOSIOC, sig.String())
+
+		//load, _ := rlp.EncodeToBytes(digest)
+
+		load := digest
+		//fmt.Println(string(digest))
+
+		p, _ := rlp.EncodeToBytes(pubKey)
+		load = append(load, p...)
+		//fmt.Println(string(p))
+
+		s, _ := rlp.EncodeToBytes(sig)
+		load = append(load, s...)
+		//fmt.Println(string(s))
+
+		fmt.Println("d:", hex.EncodeToString(digest), " s:", hex.EncodeToString(s), " p:", hex.EncodeToString(p))
+		fmt.Println("load:", hex.EncodeToString(load))
+		callTestFunction(code, "test_crypto", "test_recover_key_assert_true", load)
+
+	})
+}
+
+func DJBH(str string) uint32 {
+	var hash uint32 = 5381
+	bytes := []byte(str)
+
+	for i := 0; i < len(bytes); i++ {
+		hash = 33*hash ^ uint32(bytes[i])
+	}
+	return hash
+}
+
+func wasmTestAction(cls string, method string) uint64 {
+	return uint64(DJBH(cls))<<32 | uint64(DJBH(method))
+}
+
+func callTestFunction(code []byte, cls string, method string, payload []byte) {
+
+	wasm := exec.NewWasmInterface()
+	action := wasmTestAction(cls, method)
+	applyContext := &chain.ApplyContext{
+		Receiver: common.AccountName(exec.N("test.api")),
+		Act: types.Action{
+			Account: common.AccountName(exec.N("test.api")),
+			Name:    common.ActionName(action),
+			Data:    payload,
+		},
+	}
+
+	fmt.Println(action)
+	codeVersion := rlp.NewSha256Byte([]byte(code)).String()
+	wasm.Apply(codeVersion, code, applyContext)
+
+}
+
+func callTestFunctionCheckException(cls string, method string, payload []byte) {
+
+}
+
+func sigDigest(chainID, payload []byte) []byte {
+	h := sha256.New()
+	_, _ = h.Write(chainID)
+	_, _ = h.Write(payload)
+	return h.Sum(nil)
 }
