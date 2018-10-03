@@ -221,25 +221,30 @@ func TestContextCrypto(t *testing.T) {
 		sig, err := privKey.Sign(digest)
 		pubKey, err := sig.PublicKey(digest)
 
-		//fromEOSIOC := "SIG_K1_K2WBNtiTY8o4mqFSz7HPnjkiT9JhUYGFa81RrzaXr3aWRF1F8qwVfutJXroqiL35ZiHTcvn8gPWGYJDwnKZTCcbAGJy4i9"
-		//assert.Equal(t, fromEOSIOC, sig.String())
-
-		//load, _ := rlp.EncodeToBytes(digest)
-
 		load := digest
-		//fmt.Println(string(digest))
 
 		p, _ := rlp.EncodeToBytes(pubKey)
 		load = append(load, p...)
-		//fmt.Println(string(p))
 
 		s, _ := rlp.EncodeToBytes(sig)
 		load = append(load, s...)
-		//fmt.Println(string(s))
 
-		fmt.Println("d:", hex.EncodeToString(digest), " s:", hex.EncodeToString(s), " p:", hex.EncodeToString(p))
 		fmt.Println("load:", hex.EncodeToString(load))
+
+		callTestFunction(code, "test_crypto", "test_recover_key", load)
 		callTestFunction(code, "test_crypto", "test_recover_key_assert_true", load)
+		callTestFunction(code, "test_crypto", "test_sha1", []byte{})
+		callTestFunction(code, "test_crypto", "test_sha256", []byte{})
+		callTestFunction(code, "test_crypto", "test_sha512", []byte{})
+		callTestFunction(code, "test_crypto", "test_ripemd160", []byte{})
+		callTestFunction(code, "test_crypto", "sha1_no_data", []byte{})
+		callTestFunction(code, "test_crypto", "sha256_no_data", []byte{})
+		callTestFunction(code, "test_crypto", "sha512_no_data", []byte{})
+		callTestFunction(code, "test_crypto", "ripemd160_no_data", []byte{})
+		callTestFunction(code, "test_crypto", "assert_sha256_true", []byte{})
+		callTestFunction(code, "test_crypto", "assert_sha1_true", []byte{})
+		callTestFunction(code, "test_crypto", "assert_sha512_true", []byte{})
+		callTestFunction(code, "test_crypto", "assert_ripemd160_true", []byte{})
 
 	})
 }

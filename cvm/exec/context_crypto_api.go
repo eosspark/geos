@@ -76,14 +76,11 @@ func recoverKey(w *WasmInterface, digest int,
 	sigBytes := getMemory(w, sig, siglen)
 
 	var s ecc.Signature
-	var d []byte
-	//var p ecc.PublicKey
-	rlp.DecodeBytes(digBytes, &d)
 	rlp.DecodeBytes(sigBytes, &s)
-	check, _ := s.PublicKey(d)
+	check, _ := s.PublicKey(digBytes)
 
 	p, err := rlp.EncodeToBytes(check)
-	if err == nil {
+	if err != nil {
 		return -1
 	}
 
@@ -91,7 +88,6 @@ func recoverKey(w *WasmInterface, digest int,
 	if l > publen {
 		l = publen
 	}
-	//copy(w.vm.memory[pub:pub+l], p[0:l])
 	setMemory(w, pub, p, 0, l)
 
 	return l
@@ -152,7 +148,7 @@ func assertSha256(w *WasmInterface, data int, datalen int, hash_val int) {
 	hashEncode := encode(w, s, dataBytes, datalen)
 	hash := getSha256(w, hash_val)
 
-	if !i2b(bytes.Compare(hashEncode, hash)) {
+	if bytes.Compare(hashEncode, hash) != 0 {
 		println("sha256 hash mismatch")
 		//assert
 	}
@@ -173,7 +169,7 @@ func assertSha1(w *WasmInterface, data int, dataLen int, hash_val int) {
 	hashEncode := encode(w, s, dataBytes, dataLen)
 	hash := getSha1(w, hash_val)
 
-	if !i2b(bytes.Compare(hashEncode, hash)) {
+	if bytes.Compare(hashEncode, hash) != 0 {
 		println("sha1 hash mismatch")
 	}
 }
@@ -193,7 +189,7 @@ func assertSha512(w *WasmInterface, data int, dataLen int, hash_val int) {
 	hashEncode := encode(w, s, dataBytes, dataLen)
 	hash := getSha512(w, hash_val)
 
-	if !i2b(bytes.Compare(hashEncode, hash)) {
+	if bytes.Compare(hashEncode, hash) != 0 {
 		println("sha512 hash mismatch")
 		//assert
 	}
@@ -215,7 +211,7 @@ func assertRipemd160(w *WasmInterface, data int, dataLen int, hash_val int) {
 	hashEncode := encode(w, s, dataBytes, dataLen)
 	hash := getRipemd160(w, hash_val)
 
-	if !i2b(bytes.Compare(hashEncode, hash)) {
+	if bytes.Compare(hashEncode, hash) != 0 {
 		println("ripemd160 hash mismatch")
 		//assert
 	}
@@ -229,8 +225,6 @@ func sha1(w *WasmInterface, data int, dataLen int, hash_val int) {
 
 	dataBytes := getMemory(w, data, dataLen)
 
-	//var s rlp.Sha1
-	//s := sha1.New()
 	s := rlp.NewSha1()
 	hashEncode := encode(w, s, dataBytes, dataLen)
 	setSha1(w, hash_val, hashEncode)
@@ -244,8 +238,6 @@ func sha256(w *WasmInterface, data int, dataLen int, hash_val int) {
 
 	dataBytes := getMemory(w, data, dataLen)
 
-	//var s rlp.Sha256
-	//s := sha256.new()
 	s := rlp.NewSha256()
 
 	hashEncode := encode(w, s, dataBytes, dataLen)
@@ -260,8 +252,6 @@ func sha512(w *WasmInterface, data int, dataLen int, hash_val int) {
 
 	dataBytes := getMemory(w, data, dataLen)
 
-	//var s rlp.Sha512
-	//s := sha512.new()
 	s := rlp.NewSha512()
 
 	hashEncode := encode(w, s, dataBytes, dataLen)
@@ -276,8 +266,6 @@ func ripemd160(w *WasmInterface, data int, dataLen int, hash_val int) {
 
 	dataBytes := getMemory(w, data, dataLen)
 
-	//var s rlp.Ripemd160
-	//s := ripemd160.New()
 	s := rlp.NewRipemd160()
 	hashEncode := encode(w, s, dataBytes, dataLen)
 	setRipemd160(w, hash_val, hashEncode)
