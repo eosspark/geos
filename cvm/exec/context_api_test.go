@@ -107,8 +107,6 @@ func TestContextPrint(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		//fmt.Println(name)
-
 		trace := callTestFunction(code, "test_print", "test_prints", []byte{})
 		result := trace.PendingConsoleOutput
 		assert.Equal(t, result, "abcefg")
@@ -130,7 +128,6 @@ func TestContextPrint(t *testing.T) {
 
 		v := -1
 		assert.Equal(t, result[7:len(result)], string(strconv.FormatUint(uint64(v), 10))) //-1 / 1844674407370955161
-		//fmt.Println(string(strconv.FormatUint(uint64(v), 10)))
 
 		trace = callTestFunction(code, "test_print", "test_printn", []byte{})
 		result = trace.PendingConsoleOutput
