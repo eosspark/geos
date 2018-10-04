@@ -65,7 +65,7 @@ func TestContextApis(t *testing.T) {
 	}
 }
 
-func TestContextAtion(t *testing.T) {
+func TestContextAction(t *testing.T) {
 
 	name := "testdata_context/action.wasm"
 	t.Run(filepath.Base(name), func(t *testing.T) {
@@ -161,35 +161,75 @@ func TestContextPrint(t *testing.T) {
 
 }
 
+// func TestContextMemory(t *testing.T) {
+
+// 	name := "testdata_context/memory.wasm"
+// 	t.Run(filepath.Base(name), func(t *testing.T) {
+// 		code, err := ioutil.ReadFile(name)
+// 		if err != nil {
+// 			t.Fatal(err)
+// 		}
+
+// 		fmt.Println(name)
+// 		wasm := exec.NewWasmInterface()
+// 		applyContext := &chain.ApplyContext{
+// 			Receiver: common.AccountName(exec.N("ctx.memory")),
+// 			Act: types.Action{
+// 				Account: common.AccountName(exec.N("ctx.memory")),
+// 				Name:    common.ActionName(exec.N("test")),
+// 				Data:    []byte{0x00, 0x00, 0x00, 0x00, 0x5c, 0x05, 0xa3, 0xe1}, //'{"walker"}'
+// 			},
+// 		}
+
+// 		codeVersion := rlp.NewSha256Byte([]byte(code)).String()
+// 		wasm.Apply(codeVersion, code, applyContext)
+
+// 		//print "hello,walker"
+// 		fmt.Println(applyContext.PendingConsoleOutput)
+// 		if strings.Compare(applyContext.PendingConsoleOutput, "cccccccccccccchecksum256 ok") != 0 {
+// 			t.Fatalf("error excute memory.wasm")
+// 		}
+
+// 	})
+
+// }
+
 func TestContextMemory(t *testing.T) {
 
-	name := "testdata_context/memory.wasm"
+	name := "testdata_context/test_api_mem.wasm"
 	t.Run(filepath.Base(name), func(t *testing.T) {
 		code, err := ioutil.ReadFile(name)
 		if err != nil {
 			t.Fatal(err)
 		}
+		callTestFunction(code, "test_memory", "test_memory_allocs", []byte{})
+		callTestFunction(code, "test_memory", "test_memory_hunk", []byte{})
+		callTestFunction(code, "test_memory", "test_memory_hunks", []byte{})
+		//callTestFunction(code, "test_memory", "test_memory_hunks_disjoint", []byte{})
+		callTestFunction(code, "test_memory", "test_memset_memcpy", []byte{})
+		callTestFunction(code, "test_memory", "test_memcpy_overlap_start", []byte{})
+		callTestFunction(code, "test_memory", "test_memcpy_overlap_end", []byte{})
+		callTestFunction(code, "test_memory", "test_memcmp", []byte{})
 
-		fmt.Println(name)
-		wasm := exec.NewWasmInterface()
-		applyContext := &chain.ApplyContext{
-			Receiver: common.AccountName(exec.N("ctx.memory")),
-			Act: types.Action{
-				Account: common.AccountName(exec.N("ctx.memory")),
-				Name:    common.ActionName(exec.N("test")),
-				Data:    []byte{0x00, 0x00, 0x00, 0x00, 0x5c, 0x05, 0xa3, 0xe1}, //'{"walker"}'
-			},
-		}
+		// callTestFunction(code, "test_memory", "test_outofbound_0", []byte{})
+		// callTestFunction(code, "test_memory", "test_outofbound_1", []byte{})
+		// callTestFunction(code, "test_memory", "test_outofbound_2", []byte{})
+		// callTestFunction(code, "test_memory", "test_outofbound_3", []byte{})
+		// callTestFunction(code, "test_memory", "test_outofbound_4", []byte{})
+		// callTestFunction(code, "test_memory", "test_outofbound_5", []byte{})
+		// callTestFunction(code, "test_memory", "test_outofbound_6", []byte{})
+		// callTestFunction(code, "test_memory", "test_outofbound_7", []byte{})
+		// callTestFunction(code, "test_memory", "test_outofbound_8", []byte{})
+		// callTestFunction(code, "test_memory", "test_outofbound_9", []byte{})
+		// callTestFunction(code, "test_memory", "test_outofbound_10", []byte{})
+		// callTestFunction(code, "test_memory", "test_outofbound_11", []byte{})
+		// callTestFunction(code, "test_memory", "test_outofbound_12", []byte{})
+		// callTestFunction(code, "test_memory", "test_outofbound_13", []byte{})
 
-		codeVersion := rlp.NewSha256Byte([]byte(code)).String()
-		wasm.Apply(codeVersion, code, applyContext)
-
-		//print "hello,walker"
-		fmt.Println(applyContext.PendingConsoleOutput)
-		if strings.Compare(applyContext.PendingConsoleOutput, "cccccccccccccchecksum256 ok") != 0 {
-			t.Fatalf("error excute memory.wasm")
-		}
-
+		callTestFunction(code, "test_extended_memory", "test_initial_buffer", []byte{})
+		callTestFunction(code, "test_extended_memory", "test_page_memory", []byte{})
+		callTestFunction(code, "test_extended_memory", "test_page_memory_exceeded", []byte{})
+		callTestFunction(code, "test_extended_memory", "test_page_memory_negative_bytes", []byte{})
 	})
 
 }
@@ -222,11 +262,6 @@ func TestContextAuth(t *testing.T) {
 
 		codeVersion := rlp.NewSha256Byte([]byte(code)).String()
 		wasm.Apply(codeVersion, code, applyContext)
-
-		//fmt.Println(applyContext.PendingConsoleOutput)
-		//if strings.Compare(applyContext.PendingConsoleOutput, "walker has authorization,walker is account") != 0 {
-		//	t.Fatalf("error excute memory.wasm")
-		//}
 
 		result := fmt.Sprintf("%v", applyContext.PendingConsoleOutput)
 		assert.Equal(t, result, "walker has authorization,walker is account")

@@ -89,7 +89,9 @@ func NewVM(module *wasm.Module, wasmInterface *WasmInterface) (*VM, error) {
 		if len(module.Memory.Entries) > 1 {
 			return nil, ErrMultipleLinearMemories
 		}
+		//module.Memory.Entries[0].Limits.Initial = 16
 		vm.memory = make([]byte, uint(module.Memory.Entries[0].Limits.Initial)*wasmPageSize)
+		//vm.memory = make([]byte, uint(15)*wasmPageSize)
 		copy(vm.memory, module.LinearMemoryIndexSpace[0])
 	}
 
