@@ -14,6 +14,7 @@ import (
 	"github.com/eosspark/eos-go/ecc"
 	"io/ioutil"
 	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -21,6 +22,8 @@ import (
 	"github.com/eosspark/eos-go/rlp"
 	"github.com/stretchr/testify/assert"
 )
+
+const crypto_api_exception int = 0
 
 func TestContextApis(t *testing.T) {
 	fnames, err := filepath.Glob(filepath.Join("testdata_context", "*.wasm"))
@@ -95,34 +98,64 @@ func TestContextAtion(t *testing.T) {
 
 }
 
-func TestContextConsole(t *testing.T) {
+func TestContextPrint(t *testing.T) {
 
-	name := "testdata_context/console.wasm"
+	name := "testdata_context/test_api.wasm"
 	t.Run(filepath.Base(name), func(t *testing.T) {
 		code, err := ioutil.ReadFile(name)
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		fmt.Println(name)
-		wasm := exec.NewWasmInterface()
-		applyContext := &chain.ApplyContext{
-			Receiver: common.AccountName(exec.N("ctx.console")),
-			Act: types.Action{
-				Account: common.AccountName(exec.N("ctx.console")),
-				Name:    common.ActionName(exec.N("test")),
-				Data:    []byte{0x00, 0x00, 0x00, 0x00, 0x5c, 0x05, 0xa3, 0xe1}, //'{"walker"}'
-			},
-		}
+		//fmt.Println(name)
 
-		codeVersion := rlp.NewSha256Byte([]byte(code)).String()
-		wasm.Apply(codeVersion, code, applyContext)
+		trace := callTestFunction(code, "test_print", "test_prints", []byte{})
+		result := trace.PendingConsoleOutput
+		assert.Equal(t, result, "abcefg")
 
-		//print "hello,walker"
-		fmt.Println(applyContext.PendingConsoleOutput)
-		if strings.Compare(applyContext.PendingConsoleOutput, "hello,mic,-3,20,3.14E+38,3.14E+300,walker,0x313233343536") != 0 {
-			t.Fatalf("error excute console.wasm")
-		}
+		trace = callTestFunction(code, "test_print", "test_prints_l", []byte{})
+		result = trace.PendingConsoleOutput
+		assert.Equal(t, result, "abatest")
+
+		trace = callTestFunction(code, "test_print", "test_printi", []byte{})
+		result = trace.PendingConsoleOutput
+		assert.Equal(t, result[0:1], string(strconv.FormatInt(0, 10)))
+		assert.Equal(t, result[1:7], string(strconv.FormatInt(556644, 10)))
+		assert.Equal(t, result[7:9], string(strconv.FormatInt(-1, 10)))
+
+		trace = callTestFunction(code, "test_print", "test_printui", []byte{})
+		result = trace.PendingConsoleOutput
+		assert.Equal(t, result[0:1], string(strconv.FormatInt(0, 10)))
+		assert.Equal(t, result[1:7], string(strconv.FormatInt(556644, 10)))
+
+		v := -1
+		assert.Equal(t, result[7:len(result)], string(strconv.FormatUint(uint64(v), 10))) //-1 / 1844674407370955161
+		//fmt.Println(string(strconv.FormatUint(uint64(v), 10)))
+
+		trace = callTestFunction(code, "test_print", "test_printn", []byte{})
+		result = trace.PendingConsoleOutput
+		assert.Equal(t, result[0:5], "abcde")
+		assert.Equal(t, result[5:10], "ab.de")
+		assert.Equal(t, result[10:16], "1q1q1q")
+		assert.Equal(t, result[16:27], "abcdefghijk")
+		assert.Equal(t, result[27:39], "abcdefghijkl")
+		assert.Equal(t, result[39:52], "abcdefghijkl1")
+		assert.Equal(t, result[52:65], "abcdefghijkl1")
+		assert.Equal(t, result[65:78], "abcdefghijkl1")
+
+		trace = callTestFunction(code, "test_print", "test_printsf", []byte{})
+		result = trace.PendingConsoleOutput
+		r := strings.Split(result, "\n")
+		assert.Equal(t, r[0], "5.000000e-01")
+		assert.Equal(t, r[1], "-3.750000e+00")
+		assert.Equal(t, r[2], "6.666667e-07")
+
+		trace = callTestFunction(code, "test_print", "test_printdf", []byte{})
+		result = trace.PendingConsoleOutput
+		r = strings.Split(result, "\n")
+		assert.Equal(t, r[0], "5.000000000000000e-01")
+		assert.Equal(t, r[1], "-3.750000000000000e+00")
+		assert.Equal(t, r[2], "6.666666666666666e-07")
 
 	})
 
@@ -246,6 +279,11 @@ func TestContextCrypto(t *testing.T) {
 		callTestFunction(code, "test_crypto", "assert_sha512_true", []byte{})
 		callTestFunction(code, "test_crypto", "assert_ripemd160_true", []byte{})
 
+		callTestFunctionCheckException(code, "test_crypto", "assert_sha256_false", []byte{}, crypto_api_exception, "hash mismatch")
+		callTestFunctionCheckException(code, "test_crypto", "assert_sha1_false", []byte{}, crypto_api_exception, "hash mismatch")
+		callTestFunctionCheckException(code, "test_crypto", "assert_sha512_false", []byte{}, crypto_api_exception, "hash mismatch")
+		callTestFunctionCheckException(code, "test_crypto", "assert_ripemd160_false", []byte{}, crypto_api_exception, "hash mismatch")
+
 	})
 }
 
@@ -263,7 +301,7 @@ func wasmTestAction(cls string, method string) uint64 {
 	return uint64(DJBH(cls))<<32 | uint64(DJBH(method))
 }
 
-func callTestFunction(code []byte, cls string, method string, payload []byte) {
+func callTestFunction(code []byte, cls string, method string, payload []byte) *chain.ApplyContext {
 
 	wasm := exec.NewWasmInterface()
 	action := wasmTestAction(cls, method)
@@ -280,9 +318,29 @@ func callTestFunction(code []byte, cls string, method string, payload []byte) {
 	codeVersion := rlp.NewSha256Byte([]byte(code)).String()
 	wasm.Apply(codeVersion, code, applyContext)
 
+	return applyContext
+
 }
 
-func callTestFunctionCheckException(cls string, method string, payload []byte) {
+func callTestFunctionCheckException(code []byte, cls string, method string, payload []byte, errCode int, errMsg string) *chain.ApplyContext {
+
+	wasm := exec.NewWasmInterface()
+	action := wasmTestAction(cls, method)
+	applyContext := &chain.ApplyContext{
+		Receiver: common.AccountName(exec.N("test.api")),
+		Act: types.Action{
+			Account: common.AccountName(exec.N("test.api")),
+			Name:    common.ActionName(action),
+			Data:    payload,
+		},
+	}
+
+	fmt.Println(action)
+	codeVersion := rlp.NewSha256Byte([]byte(code)).String()
+	wasm.Apply(codeVersion, code, applyContext)
+
+	//getException
+	return applyContext
 
 }
 

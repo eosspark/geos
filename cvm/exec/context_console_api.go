@@ -108,7 +108,7 @@ func printui128(w *WasmInterface, val int) {
 func printsf(w *WasmInterface, val float32) {
 	fmt.Println("printsf")
 
-	s := strconv.FormatFloat(float64(val), 'E', -1, 32)
+	s := strconv.FormatFloat(float64(val), 'e', 6, 32)
 	w.context.ContextAppend(s)
 
 }
@@ -128,7 +128,7 @@ func printsf(w *WasmInterface, val float32) {
 func printdf(w *WasmInterface, val float64) {
 	fmt.Println("printdf")
 
-	s := strconv.FormatFloat(val, 'E', -1, 64)
+	s := strconv.FormatFloat(val, 'e', 15, 64)
 	w.context.ContextAppend(s)
 }
 

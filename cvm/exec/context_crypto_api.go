@@ -149,7 +149,7 @@ func assertSha256(w *WasmInterface, data int, datalen int, hash_val int) {
 	hash := getSha256(w, hash_val)
 
 	if bytes.Compare(hashEncode, hash) != 0 {
-		println("sha256 hash mismatch")
+		fmt.Println("sha256 hash mismatch")
 		//assert
 	}
 }
@@ -170,7 +170,7 @@ func assertSha1(w *WasmInterface, data int, dataLen int, hash_val int) {
 	hash := getSha1(w, hash_val)
 
 	if bytes.Compare(hashEncode, hash) != 0 {
-		println("sha1 hash mismatch")
+		fmt.Println("sha1 hash mismatch")
 	}
 }
 
@@ -190,7 +190,7 @@ func assertSha512(w *WasmInterface, data int, dataLen int, hash_val int) {
 	hash := getSha512(w, hash_val)
 
 	if bytes.Compare(hashEncode, hash) != 0 {
-		println("sha512 hash mismatch")
+		fmt.Println("sha512 hash mismatch")
 		//assert
 	}
 
@@ -212,7 +212,7 @@ func assertRipemd160(w *WasmInterface, data int, dataLen int, hash_val int) {
 	hash := getRipemd160(w, hash_val)
 
 	if bytes.Compare(hashEncode, hash) != 0 {
-		println("ripemd160 hash mismatch")
+		fmt.Println("ripemd160 hash mismatch")
 		//assert
 	}
 }

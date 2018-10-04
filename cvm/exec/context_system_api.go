@@ -50,7 +50,7 @@ func eosioAssert(w *WasmInterface, condition int, val int) {
 
 	if condition != 1 {
 		message := getMemory(w, val, getStringLength(w, val))
-		fmt.Println(message)
+		fmt.Println(string(message))
 		// edump(message)
 		// E_THROW()
 	}
