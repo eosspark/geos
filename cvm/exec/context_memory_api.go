@@ -5,7 +5,7 @@ import (
 	"fmt"
 )
 
-func withBranch(n int) int {
+func abs(n int) int {
 	if n < 0 {
 		return -n
 	}
@@ -20,7 +20,7 @@ func withBranch(n int) int {
 func memcpy(w *WasmInterface, dest int, src int, length int) int {
 	fmt.Println("memcpy")
 
-	if withBranch(dest-src) < length {
+	if abs(dest-src) < length {
 		fmt.Println("memcpy can only accept non-aliasing pointers")
 		//ASSERT(math.Abs(dest-src) >= length, "memcpy can only accept non-aliasing pointers")
 		return -1
@@ -38,7 +38,7 @@ func memmove(w *WasmInterface, dest int, src int, length int) int {
 	fmt.Println("memmove")
 
 	//ASSERT(math.Abs(dest-src) >= length, "memmove can only accept non-aliasing pointers")
-	if withBranch(dest-src) < length {
+	if abs(dest-src) < length {
 		fmt.Println("memmove can only accept non-aliasing pointers")
 		//ASSERT(math.Abs(dest-src) >= length, "memcpy can only accept non-aliasing pointers")
 		return -1
