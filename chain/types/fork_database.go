@@ -2,7 +2,6 @@ package types
 
 import (
 	"fmt"
-	"github.com/eosspark/eos-go/chain/config"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/db"
 	"github.com/eosspark/eos-go/log"
@@ -41,7 +40,7 @@ func (f *ForkDatabase) setHead(head *BlockState) *ForkDatabase {
 func GetForkDbInstance(stateDir string) *ForkDatabase {
 	forkDB := ForkDatabase{}
 	if !isActive {
-		forkd, err := newForkDatabase(stateDir, config.ForkDBName, true)
+		forkd, err := newForkDatabase(stateDir, common.DefaultConfig.ForkDBName, true)
 		if err != nil {
 			log.Error("GetForkDbInstance is error ,detail:", err)
 		}

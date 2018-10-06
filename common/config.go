@@ -79,6 +79,18 @@ func init() {
 	DefaultConfig.OverheadPerAccountRamBytes = 2 * 1024
 	DefaultConfig.SetcodeRamBytesMultiplier = 10
 	DefaultConfig.HashingChecktimeBlockSize = 10 * 1024
+
+	DefaultConfig.ForkDBName = "forkdb.dat"
+	DefaultConfig.DBFileName = "shared_memory.bin"
+	DefaultConfig.ReversibleFileName = "shared_memory_tmp.bin"			//wait db modify
+	DefaultConfig.BlockFileName = "blog.log"
+	DefaultConfig.DefaultBlocksDirName = "blocks"
+	DefaultConfig.DefaultReversibleBlocksDirName="reversible"
+	DefaultConfig.DefaultStateDirName = "state"
+	DefaultConfig.DefaultStateSize = 0
+	DefaultConfig.DefaultStateGuardSize = 0
+	DefaultConfig.DefaultReversibleCacheSize = 0
+	DefaultConfig.DefaultReversibleGuardSize = 0
 }
 
 type Config struct {
@@ -155,6 +167,17 @@ type Config struct {
 	MaxAuthorityDepth           uint16 ///< recursion depth limit for checking if an authority is satisfied
 	/**************************chain_config end****************************/
 
+	ForkDBName	string
+	DBFileName string
+	ReversibleFileName string
+	BlockFileName string
+	DefaultBlocksDirName string
+	DefaultReversibleBlocksDirName string
+	DefaultStateDirName string
+	DefaultStateSize uint64
+	DefaultStateGuardSize uint64
+	DefaultReversibleCacheSize uint64
+	DefaultReversibleGuardSize uint64
 	//FixedNetOverheadOfPackedTrx uint32 // TODO: C++ default value 16 and is this reasonable?
 }
 

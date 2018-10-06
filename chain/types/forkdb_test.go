@@ -5,10 +5,9 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/eosspark/eos-go/log"
 )
 
-func Test_NewForkDatabase(t *testing.T) {
+/*func Test_NewForkDatabase(t *testing.T) {
 	forkdb, err := NewForkDatabase("./", "forkdb.dat", true)
 	if err != nil {
 		t.Error(&err)
@@ -27,11 +26,11 @@ func Test_AddBlockState(t *testing.T) {
 	}
 
 	b := forkdb.AddBlockState(blockState)
-	/*if er != nil {
-		t.Error(er)
-	}*/
+	//if er != nil {
+	//	t.Error(er)
+	//}
 	log.Debug("AddBlockState return info:", b)
-}
+}*/
 
 //**********************************reflect test**************************************
 
