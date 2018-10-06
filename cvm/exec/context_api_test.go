@@ -158,38 +158,23 @@ func TestContextPrint(t *testing.T) {
 
 }
 
-// func TestContextMemory(t *testing.T) {
+func TestContextTypes(t *testing.T) {
 
-// 	name := "testdata_context/memory.wasm"
-// 	t.Run(filepath.Base(name), func(t *testing.T) {
-// 		code, err := ioutil.ReadFile(name)
-// 		if err != nil {
-// 			t.Fatal(err)
-// 		}
+	name := "testdata_context/test_api.wasm"
+	t.Run(filepath.Base(name), func(t *testing.T) {
+		code, err := ioutil.ReadFile(name)
+		if err != nil {
+			t.Fatal(err)
+		}
 
-// 		fmt.Println(name)
-// 		wasm := exec.NewWasmInterface()
-// 		applyContext := &chain.ApplyContext{
-// 			Receiver: common.AccountName(exec.N("ctx.memory")),
-// 			Act: types.Action{
-// 				Account: common.AccountName(exec.N("ctx.memory")),
-// 				Name:    common.ActionName(exec.N("test")),
-// 				Data:    []byte{0x00, 0x00, 0x00, 0x00, 0x5c, 0x05, 0xa3, 0xe1}, //'{"walker"}'
-// 			},
-// 		}
+		callTestFunction(code, "test_types", "types_size", []byte{})
+		callTestFunction(code, "test_types", "char_to_symbol", []byte{})
+		callTestFunction(code, "test_types", "string_to_name", []byte{})
+		callTestFunction(code, "test_types", "name_class", []byte{})
 
-// 		codeVersion := rlp.NewSha256Byte([]byte(code)).String()
-// 		wasm.Apply(codeVersion, code, applyContext)
+	})
 
-// 		//print "hello,walker"
-// 		fmt.Println(applyContext.PendingConsoleOutput)
-// 		if strings.Compare(applyContext.PendingConsoleOutput, "cccccccccccccchecksum256 ok") != 0 {
-// 			t.Fatalf("error excute memory.wasm")
-// 		}
-
-// 	})
-
-// }
+}
 
 func TestContextMemory(t *testing.T) {
 
@@ -208,7 +193,7 @@ func TestContextMemory(t *testing.T) {
 		callTestFunction(code, "test_memory", "test_memcpy_overlap_end", []byte{})
 		callTestFunction(code, "test_memory", "test_memcmp", []byte{})
 
-		// callTestFunction(code, "test_memory", "test_outofbound_0", []byte{})
+		//callTestFunction(code, "test_memory", "test_outofbound_0", []byte{})
 		// callTestFunction(code, "test_memory", "test_outofbound_1", []byte{})
 		// callTestFunction(code, "test_memory", "test_outofbound_2", []byte{})
 		// callTestFunction(code, "test_memory", "test_outofbound_3", []byte{})
@@ -319,6 +304,41 @@ func TestContextCrypto(t *testing.T) {
 	})
 }
 
+func TestContextChecktime(t *testing.T) {
+
+	name := "testdata_context/test_api.wasm"
+	t.Run(filepath.Base(name), func(t *testing.T) {
+		code, err := ioutil.ReadFile(name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		callTestFunction(code, "test_checktime", "checktime_pass", []byte{})
+		//callTestFunction(code, "test_checktime", "checktime_failure", []byte{})
+		callTestFunction(code, "test_checktime", "checktime_sha1_failure", []byte{})
+		callTestFunction(code, "test_checktime", "checktime_assert_sha1_failure", []byte{})
+		callTestFunction(code, "test_checktime", "checktime_sha256_failure", []byte{})
+		callTestFunction(code, "test_checktime", "checktime_assert_sha256_failure", []byte{})
+		callTestFunction(code, "test_checktime", "checktime_sha512_failure", []byte{})
+		callTestFunction(code, "test_checktime", "checktime_assert_sha512_failure", []byte{})
+		callTestFunction(code, "test_checktime", "checktime_ripemd160_failure", []byte{})
+		callTestFunction(code, "test_checktime", "checktime_assert_ripemd160_failure", []byte{})
+
+	})
+}
+
+func TestContextDatastream(t *testing.T) {
+
+	name := "testdata_context/test_api.wasm"
+	t.Run(filepath.Base(name), func(t *testing.T) {
+		code, err := ioutil.ReadFile(name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		callTestFunction(code, "test_datastream", "test_basic", []byte{})
+
+	})
+}
+
 func DJBH(str string) uint32 {
 	var hash uint32 = 5381
 	bytes := []byte(str)
@@ -346,7 +366,7 @@ func callTestFunction(code []byte, cls string, method string, payload []byte) *c
 		},
 	}
 
-	fmt.Println(action)
+	fmt.Println(cls, ".", method, ":", action)
 	codeVersion := rlp.NewSha256Byte([]byte(code)).String()
 	wasm.Apply(codeVersion, code, applyContext)
 

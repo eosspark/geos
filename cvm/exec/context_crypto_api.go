@@ -142,7 +142,9 @@ func assertSha256(w *WasmInterface, data int, datalen int, hash_val int) {
 	fmt.Println("assert_sha256")
 
 	dataBytes := getMemory(w, data, datalen)
-
+	if dataBytes == nil {
+		return
+	}
 	//var s rlp.Sha256
 	s := rlp.NewSha256()
 	hashEncode := encode(w, s, dataBytes, datalen)
@@ -162,6 +164,9 @@ func assertSha1(w *WasmInterface, data int, dataLen int, hash_val int) {
 	fmt.Println("assert_sha1")
 
 	dataBytes := getMemory(w, data, dataLen)
+	if dataBytes == nil {
+		return
+	}
 
 	//var s rlp.Sha1
 	//s := sha1.New()
@@ -182,9 +187,10 @@ func assertSha512(w *WasmInterface, data int, dataLen int, hash_val int) {
 	fmt.Println("assert_sha512")
 
 	dataBytes := getMemory(w, data, dataLen)
+	if dataBytes == nil {
+		return
+	}
 
-	//var s rlp.Sha512
-	//s := sha512.New()
 	s := rlp.NewSha512()
 	hashEncode := encode(w, s, dataBytes, dataLen)
 	hash := getSha512(w, hash_val)
@@ -204,9 +210,10 @@ func assertRipemd160(w *WasmInterface, data int, dataLen int, hash_val int) {
 	fmt.Println("assert_ripemd160")
 
 	dataBytes := getMemory(w, data, dataLen)
+	if dataBytes == nil {
+		return
+	}
 
-	//var s rlp.Ripemd160
-	//s := ripemd160.New()
 	s := rlp.NewRipemd160()
 	hashEncode := encode(w, s, dataBytes, dataLen)
 	hash := getRipemd160(w, hash_val)
@@ -224,6 +231,9 @@ func sha1(w *WasmInterface, data int, dataLen int, hash_val int) {
 	fmt.Println("sha1")
 
 	dataBytes := getMemory(w, data, dataLen)
+	if dataBytes == nil {
+		return
+	}
 
 	s := rlp.NewSha1()
 	hashEncode := encode(w, s, dataBytes, dataLen)
@@ -237,6 +247,9 @@ func sha256(w *WasmInterface, data int, dataLen int, hash_val int) {
 	fmt.Println("sha256")
 
 	dataBytes := getMemory(w, data, dataLen)
+	if dataBytes == nil {
+		return
+	}
 
 	s := rlp.NewSha256()
 
@@ -251,6 +264,9 @@ func sha512(w *WasmInterface, data int, dataLen int, hash_val int) {
 	fmt.Println("sha512")
 
 	dataBytes := getMemory(w, data, dataLen)
+	if dataBytes == nil {
+		return
+	}
 
 	s := rlp.NewSha512()
 
@@ -265,6 +281,9 @@ func ripemd160(w *WasmInterface, data int, dataLen int, hash_val int) {
 	fmt.Println("ripemd160")
 
 	dataBytes := getMemory(w, data, dataLen)
+	if dataBytes == nil {
+		return
+	}
 
 	s := rlp.NewRipemd160()
 	hashEncode := encode(w, s, dataBytes, dataLen)
