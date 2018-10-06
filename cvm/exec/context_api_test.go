@@ -304,6 +304,24 @@ func TestContextCrypto(t *testing.T) {
 	})
 }
 
+func TestContextFixedPoint(t *testing.T) {
+
+	name := "testdata_context/test_api.wasm"
+	t.Run(filepath.Base(name), func(t *testing.T) {
+		code, err := ioutil.ReadFile(name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		callTestFunction(code, "test_fixedpoint", "create_instances", []byte{})
+		callTestFunction(code, "test_fixedpoint", "test_addition", []byte{})
+		callTestFunction(code, "test_fixedpoint", "test_subtraction", []byte{})
+		callTestFunction(code, "test_fixedpoint", "test_multiplication", []byte{})
+		callTestFunction(code, "test_fixedpoint", "test_division", []byte{})
+		callTestFunction(code, "test_fixedpoint", "test_division_by_0", []byte{})
+
+	})
+}
+
 func TestContextChecktime(t *testing.T) {
 
 	name := "testdata_context/test_api.wasm"
@@ -366,7 +384,7 @@ func callTestFunction(code []byte, cls string, method string, payload []byte) *c
 		},
 	}
 
-	fmt.Println(cls, ".", method, ":", action)
+	fmt.Println(cls, method, action)
 	codeVersion := rlp.NewSha256Byte([]byte(code)).String()
 	wasm.Apply(codeVersion, code, applyContext)
 
