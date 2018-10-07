@@ -14,7 +14,7 @@ type ApplyContext struct {
 
 	DB                 *eosiodb.DataBase
 	TrxContext         *TransactionContext
-	Act                types.Action
+	Act                *types.Action
 	Receiver           common.AccountName
 	UsedAuthorizations []bool
 	RecurseDepth       uint32
@@ -32,6 +32,8 @@ type ApplyContext struct {
 	//GenericIndex
 	KeyvalCache          iteratorCache
 	Notified             []common.AccountName
+	InlineActions        []types.Action
+	CfaInlineActions     []types.Action
 	PendingConsoleOutput string
 }
 
@@ -40,6 +42,19 @@ type ApplyContext struct {
 // 	// GetTableId() types.IdType
 // 	// GetValue() common.HexBytes
 // }
+
+func NewApplyContext(control *Controller, trxContext *TransactionContext, act *types.Action, recurseDepth uint32) *ApplyContext {
+
+	applyContext := &ApplyContext{
+		Control:      control,
+		TrxContext:   trxContext,
+		Act:          act,
+		RecurseDepth: recurseDepth,
+	}
+
+	return applyContext
+
+}
 
 type pairTableIterator struct {
 	tableIDObject *types.TableIdObject
@@ -137,7 +152,31 @@ func (i *iteratorCache) add(obj interface{}) int {
 }
 
 func (a *ApplyContext) execOne() (trace types.ActionTrace) { return }
-func (a *ApplyContext) Exec()                              {}
+func (a *ApplyContext) Exec() {
+
+	a.Notified = append(a.Notified, a.Receiver)
+	trace := a.execOne()
+	for _, r := range a.Notified {
+		a.Receiver = r
+		trace.InlineTraces = append(trace.InlineTraces, a.execOne())
+	}
+
+	if len(a.CfaInlineActions) > 0 || len(a.InlineActions) > 0 {
+		// assert(a.RecurseDepth < a.Control.GetGlobalProperties().Configuration.MaxInlineActionDepth,
+		// 	transaction_exception, "inline action recursion depth reached" )
+	}
+
+	for _, inlineAction := range a.CfaInlineActions {
+		trace.InlineTraces = append(trace.InlineTraces, types.ActionTrace{})
+		a.TrxContext.DispathAction(&trace.InlineTraces[len(trace.InlineTraces)-1], &inlineAction, inlineAction.Account, true, a.RecurseDepth+1)
+	}
+
+	for _, inlineAction := range a.InlineActions {
+		trace.InlineTraces = append(trace.InlineTraces, types.ActionTrace{})
+		a.TrxContext.DispathAction(&trace.InlineTraces[len(trace.InlineTraces)-1], &inlineAction, inlineAction.Account, true, a.RecurseDepth+1)
+	}
+
+}
 
 //context action api
 func (a *ApplyContext) GetActionData() []byte           { return a.Act.Data }
@@ -572,33 +611,34 @@ func (a *ApplyContext) SetPrivileged(n common.AccountName, isPriv bool) {
 //context producer api
 func (a *ApplyContext) SetProposedProducers(data []byte) {
 
-	// producers []types.ProducerKey
-	// rlp.DecodeBytes(data, &producers)
+	producers := []types.ProducerKey{}
+	rlp.DecodeBytes(data, &producers)
 
-	// uniqueProducers map[common.AccountName]bool
-	// for _,v := range producers {
-	// 	//assert(a.IsAccount(v), "producer schedule includes a nonexisting account")
-	// 	has = uniqueProducers[v]
-	// 	if has == nil {
-	// 		uniqueProducers[v] = true
-	// 	}
-	// }
+	uniqueProducers := make(map[types.ProducerKey]bool)
+	for _, v := range producers {
+		//assert(a.IsAccount(v), "producer schedule includes a nonexisting account")
+		has := uniqueProducers[v]
+		if has {
+			uniqueProducers[v] = true
+		}
+	}
 
-	// //assert(len(producer) == len(uniqueProducers),"duplicate producer name in producer schedule")
-	// a.Controller.SetProposed_Producers(producers)
+	//assert(len(producer) == len(uniqueProducers),"duplicate producer name in producer schedule")
+	a.Control.SetProposedProducers(producers)
+
 }
 
 func (a *ApplyContext) GetActiveProducersInBytes() []byte {
 
-	// ap := a.Controller.ActiveProducers()
-	// accounts := make([]types.ProducerKey,len(ap.Producers))
-	// for _,producer := range ap.Producers {
-	// 	accounts = append(accounts,producer)
-	// }
+	ap := a.Control.ActiveProducers()
+	accounts := make([]types.ProducerKey, len(ap.Producers))
+	for _, producer := range ap.Producers {
+		accounts = append(accounts, producer)
+	}
 
-	// bytes,_ := rlp.EncodeToBytes(accounts)
-	// return bytes
-	return []byte{}
+	bytes, _ := rlp.EncodeToBytes(accounts)
+	return bytes
+	//return []byte{}
 }
 
 //func (a *ApplyContext) GetActiveProducers() []common.AccountName { return }
@@ -615,15 +655,67 @@ func (a *ApplyContext) PublicationTime() int64 {
 }
 
 //context transaction api
-func (a *ApplyContext) ExecuteInline(action []byte)            {}
-func (a *ApplyContext) ExecuteContextFreeInline(action []byte) {}
+func (a *ApplyContext) ExecuteInline(action []byte) {
+	// auto* code = control.db().find<account_object, by_name>(a.account);
+	// EOS_ASSERT( code != nullptr, action_validate_exception,
+	//             "inline action's code account ${account} does not exist", ("account", a.account) );
+
+	// for( const auto& auth : a.authorization ) {
+	//    auto* actor = control.db().find<account_object, by_name>(auth.actor);
+	//    EOS_ASSERT( actor != nullptr, action_validate_exception,
+	//                "inline action's authorizing actor ${account} does not exist", ("account", auth.actor) );
+	//    EOS_ASSERT( control.get_authorization_manager().find_permission(auth) != nullptr, action_validate_exception,
+	//                "inline action's authorizations include a non-existent permission: ${permission}",
+	//                ("permission", auth) );
+	// }
+
+	// // No need to check authorization if: replaying irreversible blocks; contract is privileged; or, contract is calling itself.
+	// if( !control.skip_auth_check() && !privileged && a.account != receiver ) {
+	//    control.get_authorization_manager()
+	//           .check_authorization( {a},
+	//                                 {},
+	//                                 {{receiver, config::eosio_code_name}},
+	//                                 control.pending_block_time() - trx_context.published,
+	//                                 std::bind(&transaction_context::checktime, &this->trx_context),
+	//                                 false
+	//                               );
+
+	//    //QUESTION: Is it smart to allow a deferred transaction that has been delayed for some time to get away
+	//    //          with sending an inline action that requires a delay even though the decision to send that inline
+	//    //          action was made at the moment the deferred transaction was executed with potentially no forewarning?
+	// }
+
+	act := types.Action{}
+	rlp.DecodeBytes(action, &act)
+	a.InlineActions = append(a.InlineActions, act)
+
+}
+func (a *ApplyContext) ExecuteContextFreeInline(action []byte) {
+	// auto* code = control.db().find<account_object, by_name>(a.account);
+	// EOS_ASSERT( code != nullptr, action_validate_exception,
+	//             "inline action's code account ${account} does not exist", ("account", a.account) );
+
+	// EOS_ASSERT( a.authorization.size() == 0, action_validate_exception,
+	//             "context-free actions cannot have authorizations" );
+
+	act := types.Action{}
+	rlp.DecodeBytes(action, &act)
+	a.CfaInlineActions = append(a.CfaInlineActions, act)
+
+}
 func (a *ApplyContext) ScheduleDeferredTransaction(sendId common.TransactionIdType, payer common.AccountName, trx []byte, replaceExisting bool) {
 }
 func (a *ApplyContext) CancelDeferredTransaction(sendId common.TransactionIdType) bool { return false }
-func (a *ApplyContext) GetPackedTransaction() []byte                                   { return []byte{} }
-func (a *ApplyContext) Expiration() int                                                { return 0 }
-func (a *ApplyContext) TaposBlockNum() int                                             { return 0 }
-func (a *ApplyContext) TaposBlockPrefix() int                                          { return 0 }
+func (a *ApplyContext) GetPackedTransaction() []byte {
+	bytes, err := rlp.EncodeToBytes(a.TrxContext.Trx)
+	if err != nil {
+		return []byte{}
+	}
+	return bytes
+}
+func (a *ApplyContext) Expiration() int       { return a.TrxContext.Trx.Expiration.Second() }
+func (a *ApplyContext) TaposBlockNum() int    { return int(a.TrxContext.Trx.RefBlockNum) }
+func (a *ApplyContext) TaposBlockPrefix() int { return int(a.TrxContext.Trx.RefBlockPrefix) }
 func (a *ApplyContext) GetAction(typ uint32, index int, bufferSize int) (int, []byte) {
 	trx := a.TrxContext.Trx
 	var a_ptr *types.Action
