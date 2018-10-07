@@ -4,17 +4,17 @@ import (
 	"github.com/eosspark/eos-go/common"
 )
 
-var SystemAccountName = common.S("eosio")
-var NullAccountName = common.S("eosio.null")
-var ProducersAccountName = common.S("eosio.prods")
+var SystemAccountName = common.N("eosio")
+var NullAccountName = common.N("eosio.null")
+var ProducersAccountName = common.N("eosio.prods")
 
 // Active permission of producers account requires greater than 2/3 of the producers to authorize
-var MajorityProducersPermissionName = common.S("prod.major")
-var MinorityProducersPermissionName = common.S("prod.minor")
+var MajorityProducersPermissionName = common.N("prod.major")
+var MinorityProducersPermissionName = common.N("prod.minor")
 
 var RateLimitingPrecision uint32 = 1000 * 1000
 
-var ActiveName uint64 = common.S("active")
+var ActiveName uint64 = common.N("active")
 
 var ForkDBName = "forkdb.dat"
 var DBFileName = "shared_memory.bin"

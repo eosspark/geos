@@ -12,6 +12,7 @@ import (
 	"github.com/eosspark/eos-go/chain"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
+	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"io/ioutil"
 	"path/filepath"
@@ -19,7 +20,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/eosspark/eos-go/cvm/exec"
 	"github.com/stretchr/testify/assert"
@@ -78,11 +78,11 @@ type dummy_action struct {
 }
 
 func (d *dummy_action) get_name() uint64 {
-	return common.S("dummy_action")
+	return common.N("dummy_action")
 }
 
 func (d *dummy_action) get_account() uint64 {
-	return common.S("testapi")
+	return common.N("testapi")
 }
 
 func TestContextAction(t *testing.T) {
@@ -115,11 +115,11 @@ func TestContextAction(t *testing.T) {
 
 		callTestFunction(code, "test_action", "require_auth", []byte{})
 
-		a3only := []types.PermissionLevel{{common.AccountName(common.S("acc3")), common.PermissionName(common.S("active"))}}
+		a3only := []types.PermissionLevel{{common.AccountName(common.N("acc3")), common.PermissionName(common.N("active"))}}
 		b, _ = rlp.EncodeToBytes(a3only)
 		callTestFunction(code, "test_action", "require_auth", b)
 
-		a4only := []types.PermissionLevel{{common.AccountName(common.S("acc4")), common.PermissionName(common.S("active"))}}
+		a4only := []types.PermissionLevel{{common.AccountName(common.N("acc4")), common.PermissionName(common.N("active"))}}
 		b, _ = rlp.EncodeToBytes(a4only)
 		callTestFunction(code, "test_action", "require_auth", b)
 

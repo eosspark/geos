@@ -14,8 +14,8 @@ import (
 // with that same authority.
 func NewCancelDelay(cancelingAuth types.PermissionLevel, transactionID common.SHA256Bytes) *types.Action {
 	a := &types.Action{
-		Account: common.AccountName(common.S("eosio")),
-		Name:    common.ActionName(common.S("canceldelay")),
+		Account: common.AccountName(common.N("eosio")),
+		Name:    common.ActionName(common.N("canceldelay")),
 		Authorization: []types.PermissionLevel{
 			cancelingAuth,
 		},

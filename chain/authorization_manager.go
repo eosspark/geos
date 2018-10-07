@@ -117,7 +117,7 @@ func (am *AuthorizationManager) LookupLinkedPermission(authorizerAccount common.
 	link := types.PermissionLinkObject{}
 	err := am.db.Find("ByActionName", key, &link)
 	if err != nil {
-		key = common.MakeTuple(authorizerAccount, scope, common.AccountName(common.S("")))
+		key = common.MakeTuple(authorizerAccount, scope, common.AccountName(common.N("")))
 		err = am.db.Find("ByActionName", key, &link)
 	}
 	if err == nil {

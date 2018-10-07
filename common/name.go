@@ -14,7 +14,7 @@ import (
 *  @return constexpr uint64_t - 64-bit unsigned integer representation of the name
 *  @ingroup types
  */
-func S(s string) (val uint64) {
+func N(s string) (val uint64) {
 	// ported from the eosio codebase, libraries/chain/include/eosio/chain/name.hpp
 	var i uint32
 	sLen := uint32(len(s))
@@ -61,7 +61,7 @@ func charToSymbol(c byte) byte {
 
 var base32Alphabet = []byte(".12345abcdefghijklmnopqrstuvwxyz")
 
-func N(in uint64) string {
+func S(in uint64) string {
 	// ported from libraries/chain/name.cpp in eosio
 	a := []byte{'.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.'}
 
