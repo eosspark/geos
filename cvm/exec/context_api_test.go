@@ -12,6 +12,7 @@ import (
 	"github.com/eosspark/eos-go/chain"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
+	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"io/ioutil"
 	"path/filepath"
@@ -19,7 +20,6 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/eosspark/eos-go/cvm/exec"
 	"github.com/stretchr/testify/assert"
@@ -46,7 +46,7 @@ func TestContextApis(t *testing.T) {
 				wasm := exec.NewWasmInterface()
 				applyContext := &chain.ApplyContext{
 					Receiver: common.AccountName(exec.N("hello")),
-					Act: types.Action{
+					Act: &types.Action{
 						Account: common.AccountName(exec.N("hello")),
 						Name:    common.ActionName(exec.N("hi")),
 						Data:    []byte{0x00, 0x00, 0x00, 0x00, 0x5c, 0x05, 0xa3, 0xe1}, //'{"walker"}'
@@ -259,7 +259,7 @@ func TestContextAuth(t *testing.T) {
 		param, _ := rlp.EncodeToBytes(exec.N("walker"))
 		applyContext := &chain.ApplyContext{
 			Receiver: common.AccountName(exec.N("ctx.auth")),
-			Act: types.Action{
+			Act: &types.Action{
 				Account: common.AccountName(exec.N("ctx.auth")),
 				Name:    common.ActionName(exec.N("test")),
 				Data:    param,
@@ -406,7 +406,7 @@ func callTestFunction(code []byte, cls string, method string, payload []byte) *c
 	action := wasmTestAction(cls, method)
 	applyContext := &chain.ApplyContext{
 		Receiver: common.AccountName(exec.N("testapi")),
-		Act: types.Action{
+		Act: &types.Action{
 			Account: common.AccountName(exec.N("testapi")),
 			Name:    common.ActionName(action),
 			Data:    payload,
@@ -427,7 +427,7 @@ func callTestFunctionCheckException(code []byte, cls string, method string, payl
 	action := wasmTestAction(cls, method)
 	applyContext := &chain.ApplyContext{
 		Receiver: common.AccountName(exec.N("test.api")),
-		Act: types.Action{
+		Act: &types.Action{
 			Account: common.AccountName(exec.N("test.api")),
 			Name:    common.ActionName(action),
 			Data:    payload,
