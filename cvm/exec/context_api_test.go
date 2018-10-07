@@ -12,15 +12,16 @@ import (
 	"github.com/eosspark/eos-go/chain"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
-	"github.com/eosspark/eos-go/ecc"
+	"github.com/eosspark/eos-go/crypto/ecc"
 	"io/ioutil"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
 
+	"github.com/eosspark/eos-go/crypto"
+	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/eosspark/eos-go/cvm/exec"
-	"github.com/eosspark/eos-go/rlp"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -52,7 +53,7 @@ func TestContextApis(t *testing.T) {
 					},
 				}
 
-				codeVersion := rlp.NewSha256Byte([]byte(code)).String()
+				codeVersion := crypto.NewSha256Byte([]byte(code)).String()
 				wasm.Apply(codeVersion, code, applyContext)
 
 				//print "hello,walker"
@@ -77,11 +78,11 @@ type dummy_action struct {
 }
 
 func (d *dummy_action) get_name() uint64 {
-	return common.StringToName("dummy_action")
+	return common.S("dummy_action")
 }
 
 func (d *dummy_action) get_account() uint64 {
-	return common.StringToName("testapi")
+	return common.S("testapi")
 }
 
 func TestContextAction(t *testing.T) {
@@ -114,11 +115,11 @@ func TestContextAction(t *testing.T) {
 
 		callTestFunction(code, "test_action", "require_auth", []byte{})
 
-		a3only := []types.PermissionLevel{{common.AccountName(common.StringToName("acc3")), common.PermissionName(common.StringToName("active"))}}
+		a3only := []types.PermissionLevel{{common.AccountName(common.S("acc3")), common.PermissionName(common.S("active"))}}
 		b, _ = rlp.EncodeToBytes(a3only)
 		callTestFunction(code, "test_action", "require_auth", b)
 
-		a4only := []types.PermissionLevel{{common.AccountName(common.StringToName("acc4")), common.PermissionName(common.StringToName("active"))}}
+		a4only := []types.PermissionLevel{{common.AccountName(common.S("acc4")), common.PermissionName(common.S("active"))}}
 		b, _ = rlp.EncodeToBytes(a4only)
 		callTestFunction(code, "test_action", "require_auth", b)
 
@@ -270,7 +271,7 @@ func TestContextAuth(t *testing.T) {
 			UsedAuthorizations: make([]bool, 1),
 		}
 
-		codeVersion := rlp.NewSha256Byte([]byte(code)).String()
+		codeVersion := crypto.NewSha256Byte([]byte(code)).String()
 		wasm.Apply(codeVersion, code, applyContext)
 
 		result := fmt.Sprintf("%v", applyContext.PendingConsoleOutput)
@@ -413,7 +414,7 @@ func callTestFunction(code []byte, cls string, method string, payload []byte) *c
 	}
 
 	fmt.Println(cls, method, action)
-	codeVersion := rlp.NewSha256Byte([]byte(code)).String()
+	codeVersion := crypto.NewSha256Byte([]byte(code)).String()
 	wasm.Apply(codeVersion, code, applyContext)
 
 	return applyContext
@@ -434,7 +435,7 @@ func callTestFunctionCheckException(code []byte, cls string, method string, payl
 	}
 
 	fmt.Println(action)
-	codeVersion := rlp.NewSha256Byte([]byte(code)).String()
+	codeVersion := crypto.NewSha256Byte([]byte(code)).String()
 	wasm.Apply(codeVersion, code, applyContext)
 
 	//getException

@@ -2,8 +2,8 @@ package types
 
 import (
 	"github.com/eosspark/eos-go/common"
-	"github.com/eosspark/eos-go/ecc"
-	"github.com/eosspark/eos-go/rlp"
+	"github.com/eosspark/eos-go/crypto"
+	"github.com/eosspark/eos-go/crypto/ecc"
 )
 
 type BlockHeader struct {
@@ -18,8 +18,8 @@ type BlockHeader struct {
 	HeaderExtensions []*Extension                `json:"header_extensions"`
 }
 
-func (b *BlockHeader) Digest() rlp.Sha256 {
-	return rlp.Hash256(*b)
+func (b *BlockHeader) Digest() crypto.Sha256 {
+	return crypto.Hash256(*b)
 }
 
 func (b *BlockHeader) BlockNumber() uint32 {

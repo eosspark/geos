@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
-	"github.com/eosspark/eos-go/ecc"
-	"github.com/eosspark/eos-go/rlp"
+	"github.com/eosspark/eos-go/crypto"
+	"github.com/eosspark/eos-go/crypto/ecc"
 )
 
 type P2PMessage interface {
@@ -18,7 +18,7 @@ type HandshakeMessage struct {
 	NodeID                   common.NodeIdType  `json:"node_id"`         // used to identify peers and prevent self-connect
 	Key                      ecc.PublicKey      `json:"key"`             // authentication key; may be a producer or peer key, or empty
 	Time                     common.TimePoint   `json:"time"`
-	Token                    rlp.Sha256         `json:"token"` // digest of time to prove we own the private `key`
+	Token                    crypto.Sha256      `json:"token"` // digest of time to prove we own the private `key`
 	Signature                ecc.Signature      `json:"sig"`   // signature for the digest
 	P2PAddress               string             `json:"p2p_address"`
 	LastIrreversibleBlockNum uint32             `json:"last_irreversible_block_num"`
@@ -85,8 +85,8 @@ var ReasonToString = map[GoAwayReason]string{
 }
 
 type GoAwayMessage struct {
-	Reason GoAwayReason `json:"reason"`
-	NodeID rlp.Sha256   `json:"node_id"` //for duplicate notification
+	Reason GoAwayReason  `json:"reason"`
+	NodeID crypto.Sha256 `json:"node_id"` //for duplicate notification
 }
 
 func (m *GoAwayMessage) GetType() P2PMessageType {

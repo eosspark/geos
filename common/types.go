@@ -6,8 +6,8 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/eosspark/eos-go/ecc"
-	"github.com/eosspark/eos-go/rlp"
+	"github.com/eosspark/eos-go/crypto"
+	"github.com/eosspark/eos-go/crypto/ecc"
 	"math"
 	"strconv"
 	"strings"
@@ -18,11 +18,11 @@ type SizeT int
 
 // For reference:
 // https://github.com/mithrilcoin-io/EosCommander/blob/master/app/src/main/java/io/mithrilcoin/eoscommander/data/remote/model/types/EosByteWriter.java
-type ChainIdType rlp.Sha256
-type NodeIdType rlp.Sha256
-type BlockIdType rlp.Sha256
-type TransactionIdType rlp.Sha256
-type CheckSum256Type rlp.Sha256
+type ChainIdType crypto.Sha256
+type NodeIdType crypto.Sha256
+type BlockIdType crypto.Sha256
+type TransactionIdType crypto.Sha256
+type CheckSum256Type crypto.Sha256
 
 func DecodeIdTypeString(str string) (id [4]uint64, err error) {
 	b, err := hex.DecodeString(str)
@@ -73,11 +73,11 @@ func (n *ChainIdType) UnmarshalJSON(data []byte) error {
 }
 
 func (n NodeIdType) MarshalJSON() ([]byte, error) {
-	return rlp.Sha256(n).MarshalJSON()
+	return crypto.Sha256(n).MarshalJSON()
 }
 
 func (n BlockIdType) MarshalJSON() ([]byte, error) {
-	return rlp.Sha256(n).MarshalJSON()
+	return crypto.Sha256(n).MarshalJSON()
 }
 
 func (n *BlockIdType) UnmarshalJSON(data []byte) error {
@@ -98,11 +98,11 @@ func (n *BlockIdType) UnmarshalJSON(data []byte) error {
 }
 
 func (n TransactionIdType) MarshalJSON() ([]byte, error) {
-	return rlp.Sha256(n).MarshalJSON()
+	return crypto.Sha256(n).MarshalJSON()
 }
 
 func (n CheckSum256Type) MarshalJSON() ([]byte, error) {
-	return rlp.Sha256(n).MarshalJSON()
+	return crypto.Sha256(n).MarshalJSON()
 }
 
 func (n *CheckSum256Type) UnmarshalJSON(data []byte) error {
@@ -130,26 +130,26 @@ type TableName uint64
 type ScopeName uint64
 
 func (n Name) String() string {
-	return NameToString(uint64(n))
+	return N(uint64(n))
 }
 func (n AccountName) String() string {
-	return NameToString(uint64(n))
+	return N(uint64(n))
 }
 func (n PermissionName) String() string {
-	return NameToString(uint64(n))
+	return N(uint64(n))
 }
 func (n ActionName) String() string {
-	return NameToString(uint64(n))
+	return N(uint64(n))
 }
 func (n TableName) String() string {
-	return NameToString(uint64(n))
+	return N(uint64(n))
 }
 func (n ScopeName) String() string {
-	return NameToString(uint64(n))
+	return N(uint64(n))
 }
 
 func (n AccountName) MarshalJSON() ([]byte, error) {
-	return json.Marshal(NameToString(uint64(n)))
+	return json.Marshal(N(uint64(n)))
 }
 
 func (n *AccountName) UnmarshalJSON(data []byte) error {
@@ -158,12 +158,12 @@ func (n *AccountName) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return err
 	}
-	*n = AccountName(StringToName(s))
+	*n = AccountName(S(s))
 	return nil
 }
 
 func (n Name) MarshalJSON() ([]byte, error) {
-	return json.Marshal(NameToString(uint64(n)))
+	return json.Marshal(N(uint64(n)))
 }
 
 func (n *Name) UnmarshalJSON(data []byte) error {
@@ -172,12 +172,12 @@ func (n *Name) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return err
 	}
-	*n = Name(StringToName(s))
+	*n = Name(S(s))
 	return nil
 }
 
 func (n PermissionName) MarshalJSON() ([]byte, error) {
-	return json.Marshal(NameToString(uint64(n)))
+	return json.Marshal(N(uint64(n)))
 }
 func (n *PermissionName) UnmarshalJSON(data []byte) error {
 	var s string
@@ -185,11 +185,11 @@ func (n *PermissionName) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return err
 	}
-	*n = PermissionName(StringToName(s))
+	*n = PermissionName(S(s))
 	return nil
 }
 func (n ActionName) MarshalJSON() ([]byte, error) {
-	return json.Marshal(NameToString(uint64(n)))
+	return json.Marshal(N(uint64(n)))
 }
 func (n *ActionName) UnmarshalJSON(data []byte) error {
 	var s string
@@ -197,11 +197,11 @@ func (n *ActionName) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return err
 	}
-	*n = ActionName(StringToName(s))
+	*n = ActionName(S(s))
 	return nil
 }
 func (n TableName) MarshalJSON() ([]byte, error) {
-	return json.Marshal(NameToString(uint64(n)))
+	return json.Marshal(N(uint64(n)))
 }
 func (n *TableName) UnmarshalJSON(data []byte) error {
 	var s string
@@ -209,11 +209,11 @@ func (n *TableName) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return err
 	}
-	*n = TableName(StringToName(s))
+	*n = TableName(S(s))
 	return nil
 }
 func (n ScopeName) MarshalJSON() ([]byte, error) {
-	return json.Marshal(NameToString(uint64(n)))
+	return json.Marshal(N(uint64(n)))
 }
 func (n *ScopeName) UnmarshalJSON(data []byte) error {
 	var s string
@@ -221,7 +221,7 @@ func (n *ScopeName) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return err
 	}
-	*n = ScopeName(StringToName(s))
+	*n = ScopeName(S(s))
 	return nil
 }
 

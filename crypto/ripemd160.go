@@ -1,9 +1,10 @@
-package rlp
+package crypto
 
 import (
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
+	"github.com/eosspark/eos-go/crypto/rlp"
 	"golang.org/x/crypto/ripemd160"
 	"hash"
 )
@@ -56,7 +57,7 @@ func (h Ripemd160) String() string {
 }
 
 func HashRipemd160(t interface{}) Ripemd160 {
-	cereal, err := EncodeToBytes(t)
+	cereal, err := rlp.EncodeToBytes(t)
 	if err != nil {
 		panic(err)
 	}

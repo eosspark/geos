@@ -3,7 +3,7 @@ package types
 import (
 	"fmt"
 	"github.com/eosspark/eos-go/common"
-	"github.com/eosspark/eos-go/ecc"
+	"github.com/eosspark/eos-go/crypto/ecc"
 	"strings"
 )
 
@@ -65,15 +65,15 @@ func NewPermissionLevel(in string) (out PermissionLevel, err error) {
 		return out, fmt.Errorf("account name %q too long", parts[0])
 	}
 
-	out.Actor = common.AccountName(common.StringToName(parts[0]))
-	out.Permission = common.PermissionName(common.StringToName("active"))
+	out.Actor = common.AccountName(common.S(parts[0]))
+	out.Permission = common.PermissionName(common.S("active"))
 
 	if len(parts) == 2 {
 		if len(parts[1]) > 12 {
 			return out, fmt.Errorf("permission %q name too long", parts[1])
 		}
 
-		out.Permission = common.PermissionName(common.StringToName("active"))
+		out.Permission = common.PermissionName(common.S("active"))
 	}
 
 	return

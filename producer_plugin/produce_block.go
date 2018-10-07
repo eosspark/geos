@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
-	"github.com/eosspark/eos-go/ecc"
+	"github.com/eosspark/eos-go/crypto"
+	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/log"
-	"github.com/eosspark/eos-go/rlp"
 )
 
 type EnumStartBlockRusult int
@@ -480,7 +480,7 @@ func (impl *ProducerPluginImpl) ProduceBlock() {
 	}
 
 	chain.FinalizeBlock()
-	chain.SignBlock(func(d rlp.Sha256) ecc.Signature {
+	chain.SignBlock(func(d crypto.Sha256) ecc.Signature {
 		defer makeDebugTimeLogger()
 		return signatureProvider(d)
 	})
@@ -491,7 +491,7 @@ func (impl *ProducerPluginImpl) ProduceBlock() {
 	impl.ProducerWatermarks[newBs.Header.Producer] = chain.HeadBlockNum()
 
 	fmt.Printf("Produced block %s...#%d @ %s signed by %s [trxs: %d, lib: %d, confirmed: %d]\n",
-		rlp.Sha256(newBs.ID).String()[0:16], newBs.BlockNum, newBs.Header.Timestamp.ToTimePoint(),
-		common.NameToString(uint64(newBs.Header.Producer)),
+		crypto.Sha256(newBs.ID).String()[0:16], newBs.BlockNum, newBs.Header.Timestamp.ToTimePoint(),
+		common.N(uint64(newBs.Header.Producer)),
 		len(newBs.SignedBlock.Transactions), chain.LastIrreversibleBlockNum(), newBs.Header.Confirmed)
 }

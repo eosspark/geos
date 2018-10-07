@@ -6,8 +6,8 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/eosspark/eos-go/common"
-	"github.com/eosspark/eos-go/ecc"
-	"github.com/eosspark/eos-go/rlp"
+	"github.com/eosspark/eos-go/crypto/ecc"
+	"github.com/eosspark/eos-go/crypto/rlp"
 	"math"
 	"math/rand"
 	"net"
@@ -15,6 +15,7 @@ import (
 
 	"github.com/eosspark/eos-go/chain/types"
 	// "github.com/eosspark/eos-go/chainp2p"
+	"github.com/eosspark/eos-go/crypto"
 	"time"
 )
 
@@ -32,7 +33,7 @@ type Client struct {
 func NewClient(p2pAddr string, chainID common.ChainIdType, networkVersion uint16) *Client {
 	nodeID := make([]byte, 32)
 	rand.Read(nodeID)
-	data := *rlp.NewSha256Byte(nodeID)
+	data := *crypto.NewSha256Byte(nodeID)
 
 	c := &Client{
 		p2pAddress:     p2pAddr,
@@ -104,7 +105,7 @@ func (c *Client) SendHandshake(info *HandshakeInfo) (err error) {
 		NodeID:                   c.NodeID,
 		Key:                      publickey,
 		Time:                     common.Now(),
-		Token:                    *rlp.NewSha256Nil(),
+		Token:                    *crypto.NewSha256Nil(),
 		Signature:                signature,
 		P2PAddress:               c.p2pAddress,
 		LastIrreversibleBlockNum: info.LastIrreversibleBlockNum,

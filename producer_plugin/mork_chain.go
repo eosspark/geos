@@ -5,8 +5,8 @@ import (
 	Chain "github.com/eosspark/eos-go/chain"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
-	"github.com/eosspark/eos-go/ecc"
-	"github.com/eosspark/eos-go/rlp"
+	"github.com/eosspark/eos-go/crypto"
+	"github.com/eosspark/eos-go/crypto/ecc"
 )
 
 var chain *mockChain
@@ -15,8 +15,8 @@ var initPriKey, _ = ecc.NewPrivateKey("5KYZdUEo39z3FPrtuX2QbbwGnNP5zTd7yyr2SC1j2
 var initPubKey = initPriKey.PublicKey()
 var initPriKey2, _ = ecc.NewPrivateKey("5Ja3h2wJNUnNcoj39jDMHGigsazvbGHAeLYEHM5uTwtfUoRDoYP")
 var initPubKey2 = initPriKey2.PublicKey()
-var eosio = common.AccountName(common.StringToName("eosio"))
-var yuanc = common.AccountName(common.StringToName("yuanc"))
+var eosio = common.AccountName(common.S("eosio"))
+var yuanc = common.AccountName(common.S("yuanc"))
 
 type mockChain struct {
 	head    *types.BlockState
@@ -138,7 +138,7 @@ func (c *mockChain) FinalizeBlock() {
 	c.pending.ID = c.pending.Header.BlockID()
 }
 
-func (c *mockChain) SignBlock(callback func(sha256 rlp.Sha256) ecc.Signature) {
+func (c *mockChain) SignBlock(callback func(sha256 crypto.Sha256) ecc.Signature) {
 	fmt.Println("sign block...")
 	p := c.pending
 	p.Sign(callback)

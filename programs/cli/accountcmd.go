@@ -5,10 +5,10 @@ import (
 	"flag"
 	"fmt"
 	"github.com/eosspark/eos-go/chain/types"
-	"github.com/eosspark/eos-go/cmd/cli/utils"
 	"github.com/eosspark/eos-go/common"
-	"github.com/eosspark/eos-go/ecc"
-	"github.com/eosspark/eos-go/rlp"
+	"github.com/eosspark/eos-go/crypto/ecc"
+	"github.com/eosspark/eos-go/crypto/rlp"
+	"github.com/eosspark/eos-go/programs/cli/utils"
 	"gopkg.in/urfave/cli.v1"
 	"time"
 )
@@ -253,8 +253,8 @@ func createAccount(ctx *cli.Context) (err error) {
 
 // ./accountcmd create account -creator eosio -name walker -ownerkey EOS7vnBoERUwrqeRTfot79xhwFvWsTjhg1YU9KA5hinAYMETREWYT -activekey EOS7vnBoERUwrqeRTfot79xhwFvWsTjhg1YU9KA5hinAYMETREWYT
 func createNewAccount(creatorstr, newaccountstr string, owner, active ecc.PublicKey) *types.Action {
-	creator := common.StringToName(creatorstr)
-	accountName := common.StringToName(newaccountstr)
+	creator := common.S(creatorstr)
+	accountName := common.S(newaccountstr)
 	ownerauthority := &types.Authority{
 		Threshold: 1,
 		Keys:      []types.KeyWeight{{Key: owner, Weight: 1}},

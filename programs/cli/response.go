@@ -5,8 +5,8 @@ import (
 	"github.com/eosspark/eos-go/chain"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
-	"github.com/eosspark/eos-go/ecc"
-	"github.com/eosspark/eos-go/rlp"
+	"github.com/eosspark/eos-go/crypto"
+	"github.com/eosspark/eos-go/crypto/ecc"
 )
 
 type InfoResp struct {
@@ -57,14 +57,14 @@ type AccountResp struct {
 type GetCodeResp struct {
 	AccountName common.AccountName `json:"account_name"`
 	Wasm        string             `json:"wasm"`
-	CodeHash    rlp.Sha256         `json:"-"`
+	CodeHash    crypto.Sha256      `json:"-"`
 	Abi         string             `json:"abi"`
 	// ABI         types.ABI          `json:"abi"`//TODO
 }
 
 type GetABIResp struct {
 	AccountName common.AccountName `json:"account_name"`
-	ABI         types.ABI          `json:"abi"`
+	ABI         types.AbiDef       `json:"abi"`
 }
 
 // // Action
