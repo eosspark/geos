@@ -1,6 +1,7 @@
 package chain
 
 import (
+	"fmt"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/db"
@@ -152,6 +153,8 @@ func (a *ApplyContext) RequireAuthorization(account int64) {
 			return
 		}
 	}
+
+	fmt.Println("Requrie_auth assert")
 	// EOS_ASSERT( false, missing_auth_exception, "missing authority of ${account}/${permission}",
 	//              ("account",account)("permission",permission) );
 }

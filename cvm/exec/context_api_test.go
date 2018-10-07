@@ -5,6 +5,7 @@
 package exec_test
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
@@ -65,34 +66,61 @@ func TestContextApis(t *testing.T) {
 	}
 }
 
+const DUMMY_ACTION_DEFAULT_A = 0x45
+const DUMMY_ACTION_DEFAULT_B = 0xab11cd1244556677
+const DUMMY_ACTION_DEFAULT_C = 0x7451ae12
+
+type dummy_action struct {
+	A byte
+	B uint64
+	C int32
+}
+
+func (d *dummy_action) get_name() uint64 {
+	return common.StringToName("dummy_action")
+}
+
+func (d *dummy_action) get_account() uint64 {
+	return common.StringToName("testapi")
+}
+
 func TestContextAction(t *testing.T) {
 
-	name := "testdata_context/action.wasm"
+	name := "testdata_context/test_api.wasm"
 	t.Run(filepath.Base(name), func(t *testing.T) {
 		code, err := ioutil.ReadFile(name)
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		fmt.Println(name)
-		wasm := exec.NewWasmInterface()
-		applyContext := &chain.ApplyContext{
-			Receiver: common.AccountName(exec.N("ctx.action")),
-			Act: types.Action{
-				Account: common.AccountName(exec.N("ctx.action")),
-				Name:    common.ActionName(exec.N("test")),
-				Data:    []byte{0x00, 0x00, 0x00, 0x00, 0x5c, 0x05, 0xa3, 0xe1}, //'{"walker"}'
-			},
-		}
+		dummy13 := dummy_action{DUMMY_ACTION_DEFAULT_A, DUMMY_ACTION_DEFAULT_B, DUMMY_ACTION_DEFAULT_C}
 
-		codeVersion := rlp.NewSha256Byte([]byte(code)).String()
-		wasm.Apply(codeVersion, code, applyContext)
+		callTestFunction(code, "test_action", "assert_true", []byte{})
+		callTestFunction(code, "test_action", "assert_false", []byte{})
 
-		//print "hello,walker"
-		fmt.Println(applyContext.PendingConsoleOutput)
-		if strings.Compare(applyContext.PendingConsoleOutput, "receiver:ctx.action,code:ctx.action,action:test,hello, walker") != 0 {
-			t.Fatalf("error excute action.wasm")
-		}
+		b, _ := rlp.EncodeToBytes(&dummy13)
+		callTestFunction(code, "test_action", "read_action_normal", b)
+
+		//rawBytes := []byte{(1 << 16)}
+		b = bytes.Repeat([]byte{byte(0x01)}, 1<<16)
+		callTestFunction(code, "test_action", "read_action_to_0", b)
+		b = bytes.Repeat([]byte{byte(0x01)}, 1<<16+1)
+		callTestFunction(code, "test_action", "read_action_to_0", b)
+
+		b = bytes.Repeat([]byte{byte(0x01)}, 1)
+		callTestFunction(code, "test_action", "read_action_to_64k", b)
+		b = bytes.Repeat([]byte{byte(0x01)}, 3)
+		callTestFunction(code, "test_action", "read_action_to_64k", b)
+
+		callTestFunction(code, "test_action", "require_auth", []byte{})
+
+		a3only := []types.PermissionLevel{{common.AccountName(common.StringToName("acc3")), common.PermissionName(common.StringToName("active"))}}
+		b, _ = rlp.EncodeToBytes(a3only)
+		callTestFunction(code, "test_action", "require_auth", b)
+
+		a4only := []types.PermissionLevel{{common.AccountName(common.StringToName("acc4")), common.PermissionName(common.StringToName("active"))}}
+		b, _ = rlp.EncodeToBytes(a4only)
+		callTestFunction(code, "test_action", "require_auth", b)
 
 	})
 
@@ -376,9 +404,9 @@ func callTestFunction(code []byte, cls string, method string, payload []byte) *c
 	wasm := exec.NewWasmInterface()
 	action := wasmTestAction(cls, method)
 	applyContext := &chain.ApplyContext{
-		Receiver: common.AccountName(exec.N("test.api")),
+		Receiver: common.AccountName(exec.N("testapi")),
 		Act: types.Action{
-			Account: common.AccountName(exec.N("test.api")),
+			Account: common.AccountName(exec.N("testapi")),
 			Name:    common.ActionName(action),
 			Data:    payload,
 		},

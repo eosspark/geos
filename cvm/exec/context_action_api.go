@@ -16,6 +16,12 @@ import (
 func readActionData(w *WasmInterface, memory int, bufferSize int) int {
 	fmt.Println("read_action_data")
 
+	if bufferSize > (1<<16) || memory+bufferSize > (1<<16) {
+		//assert
+		fmt.Println("access violation")
+		return 0
+	}
+
 	data := w.context.GetActionData()
 	s := len(data)
 	if bufferSize == 0 {
@@ -23,9 +29,7 @@ func readActionData(w *WasmInterface, memory int, bufferSize int) int {
 	}
 
 	copySize := min(bufferSize, s)
-	//copy(w.vm.memory[memory:memory+copySize], data[0:copySize])
 	setMemory(w, memory, data, 0, copySize)
-
 	return copySize
 
 }
