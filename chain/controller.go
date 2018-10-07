@@ -318,7 +318,7 @@ func (self *Controller) GetMutableResourceLimitsManager() *ResourceLimitsManager
 func (self *Controller) GetOnBlockTransaction() types.SignedTransaction {
 	var onBlockAction = types.Action{}
 	onBlockAction.Account = common.AccountName(config.SystemAccountName)
-	onBlockAction.Name = common.ActionName(common.StringToName("onblock"))
+	onBlockAction.Name = common.ActionName(common.S("onblock"))
 	onBlockAction.Authorization = []types.PermissionLevel{{common.AccountName(config.SystemAccountName), common.PermissionName(config.ActiveName)}}
 
 	data, err := rlp.EncodeToBytes(self.Head.Header)

@@ -130,26 +130,26 @@ type TableName uint64
 type ScopeName uint64
 
 func (n Name) String() string {
-	return NameToString(uint64(n))
+	return N(uint64(n))
 }
 func (n AccountName) String() string {
-	return NameToString(uint64(n))
+	return N(uint64(n))
 }
 func (n PermissionName) String() string {
-	return NameToString(uint64(n))
+	return N(uint64(n))
 }
 func (n ActionName) String() string {
-	return NameToString(uint64(n))
+	return N(uint64(n))
 }
 func (n TableName) String() string {
-	return NameToString(uint64(n))
+	return N(uint64(n))
 }
 func (n ScopeName) String() string {
-	return NameToString(uint64(n))
+	return N(uint64(n))
 }
 
 func (n AccountName) MarshalJSON() ([]byte, error) {
-	return json.Marshal(NameToString(uint64(n)))
+	return json.Marshal(N(uint64(n)))
 }
 
 func (n *AccountName) UnmarshalJSON(data []byte) error {
@@ -158,12 +158,12 @@ func (n *AccountName) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return err
 	}
-	*n = AccountName(StringToName(s))
+	*n = AccountName(S(s))
 	return nil
 }
 
 func (n Name) MarshalJSON() ([]byte, error) {
-	return json.Marshal(NameToString(uint64(n)))
+	return json.Marshal(N(uint64(n)))
 }
 
 func (n *Name) UnmarshalJSON(data []byte) error {
@@ -172,12 +172,12 @@ func (n *Name) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return err
 	}
-	*n = Name(StringToName(s))
+	*n = Name(S(s))
 	return nil
 }
 
 func (n PermissionName) MarshalJSON() ([]byte, error) {
-	return json.Marshal(NameToString(uint64(n)))
+	return json.Marshal(N(uint64(n)))
 }
 func (n *PermissionName) UnmarshalJSON(data []byte) error {
 	var s string
@@ -185,11 +185,11 @@ func (n *PermissionName) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return err
 	}
-	*n = PermissionName(StringToName(s))
+	*n = PermissionName(S(s))
 	return nil
 }
 func (n ActionName) MarshalJSON() ([]byte, error) {
-	return json.Marshal(NameToString(uint64(n)))
+	return json.Marshal(N(uint64(n)))
 }
 func (n *ActionName) UnmarshalJSON(data []byte) error {
 	var s string
@@ -197,11 +197,11 @@ func (n *ActionName) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return err
 	}
-	*n = ActionName(StringToName(s))
+	*n = ActionName(S(s))
 	return nil
 }
 func (n TableName) MarshalJSON() ([]byte, error) {
-	return json.Marshal(NameToString(uint64(n)))
+	return json.Marshal(N(uint64(n)))
 }
 func (n *TableName) UnmarshalJSON(data []byte) error {
 	var s string
@@ -209,11 +209,11 @@ func (n *TableName) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return err
 	}
-	*n = TableName(StringToName(s))
+	*n = TableName(S(s))
 	return nil
 }
 func (n ScopeName) MarshalJSON() ([]byte, error) {
-	return json.Marshal(NameToString(uint64(n)))
+	return json.Marshal(N(uint64(n)))
 }
 func (n *ScopeName) UnmarshalJSON(data []byte) error {
 	var s string
@@ -221,7 +221,7 @@ func (n *ScopeName) UnmarshalJSON(data []byte) error {
 	if err != nil {
 		return err
 	}
-	*n = ScopeName(StringToName(s))
+	*n = ScopeName(S(s))
 	return nil
 }
 

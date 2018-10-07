@@ -6,7 +6,7 @@ import (
 )
 
 /**
-*  StringToName Converts a base32 string to a uint64_t. This is a constexpr so that
+*  S Converts a base32 string to a uint64_t. This is a constexpr so that
 *  this method can be used in template arguments as well.
 *
 *  @brief Converts a base32 string to a uint64_t.
@@ -14,7 +14,7 @@ import (
 *  @return constexpr uint64_t - 64-bit unsigned integer representation of the name
 *  @ingroup types
  */
-func StringToName(s string) (val uint64) {
+func S(s string) (val uint64) {
 	// ported from the eosio codebase, libraries/chain/include/eosio/chain/name.hpp
 	var i uint32
 	sLen := uint32(len(s))
@@ -61,7 +61,7 @@ func charToSymbol(c byte) byte {
 
 var base32Alphabet = []byte(".12345abcdefghijklmnopqrstuvwxyz")
 
-func NameToString(in uint64) string {
+func N(in uint64) string {
 	// ported from libraries/chain/name.cpp in eosio
 	a := []byte{'.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.'}
 

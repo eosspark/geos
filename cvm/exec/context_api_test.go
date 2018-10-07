@@ -78,11 +78,11 @@ type dummy_action struct {
 }
 
 func (d *dummy_action) get_name() uint64 {
-	return common.StringToName("dummy_action")
+	return common.S("dummy_action")
 }
 
 func (d *dummy_action) get_account() uint64 {
-	return common.StringToName("testapi")
+	return common.S("testapi")
 }
 
 func TestContextAction(t *testing.T) {
@@ -115,11 +115,11 @@ func TestContextAction(t *testing.T) {
 
 		callTestFunction(code, "test_action", "require_auth", []byte{})
 
-		a3only := []types.PermissionLevel{{common.AccountName(common.StringToName("acc3")), common.PermissionName(common.StringToName("active"))}}
+		a3only := []types.PermissionLevel{{common.AccountName(common.S("acc3")), common.PermissionName(common.S("active"))}}
 		b, _ = rlp.EncodeToBytes(a3only)
 		callTestFunction(code, "test_action", "require_auth", b)
 
-		a4only := []types.PermissionLevel{{common.AccountName(common.StringToName("acc4")), common.PermissionName(common.StringToName("active"))}}
+		a4only := []types.PermissionLevel{{common.AccountName(common.S("acc4")), common.PermissionName(common.S("active"))}}
 		b, _ = rlp.EncodeToBytes(a4only)
 		callTestFunction(code, "test_action", "require_auth", b)
 

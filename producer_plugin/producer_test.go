@@ -40,8 +40,8 @@ func TestProducerPlugin_PluginInitialize(t *testing.T) {
 	assert.Equal(t, true, plugin.my.ProductionEnabled)
 	assert.Equal(t, int32(30), plugin.my.MaxTransactionTimeMs)
 	assert.Equal(t, common.Seconds(-1), plugin.my.MaxIrreversibleBlockAgeUs)
-	assert.Equal(t, struct{}{}, plugin.my.Producers[common.AccountName(common.StringToName("eosio"))])
-	assert.Equal(t, struct{}{}, plugin.my.Producers[common.AccountName(common.StringToName("yuanc"))])
+	assert.Equal(t, struct{}{}, plugin.my.Producers[common.AccountName(common.S("eosio"))])
+	assert.Equal(t, struct{}{}, plugin.my.Producers[common.AccountName(common.S("yuanc"))])
 }
 
 func TestProducerPlugin_PluginStartup(t *testing.T) {

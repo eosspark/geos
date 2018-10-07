@@ -21,7 +21,7 @@ func (n *NewAccount) GetAccount() common.AccountName {
 }
 
 func (n *NewAccount) GetName() common.ActionName {
-	name := common.StringToName("newaccount")
+	name := common.S("newaccount")
 	return common.ActionName(name)
 }
 
@@ -38,14 +38,14 @@ func (n *SetCode) GetAccount() common.AccountName {
 }
 
 func (n *SetCode) GetName() common.ActionName {
-	name := common.StringToName("setcode")
+	name := common.S("setcode")
 	return common.ActionName(name)
 }
 
 // SetABI represents the hard-coded `setabi` action.
 type SetABI struct {
 	Account common.AccountName `json:"account"`
-	ABI     AbiDef                `json:"abi"`
+	ABI     AbiDef             `json:"abi"`
 }
 
 func (n *SetABI) GetAccount() common.AccountName {
@@ -53,7 +53,7 @@ func (n *SetABI) GetAccount() common.AccountName {
 }
 
 func (n *SetABI) GetName() common.ActionName {
-	name := common.StringToName("setabi")
+	name := common.S("setabi")
 	return common.ActionName(name)
 }
 

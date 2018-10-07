@@ -123,7 +123,7 @@ func (pp *ProducerPlugin) PluginInitialize(app *cli.App) {
 
 		if len(producerName) > 0 {
 			for _, p := range producerName {
-				pp.my.Producers[common.AccountName(common.StringToName(p))] = struct{}{}
+				pp.my.Producers[common.AccountName(common.S(p))] = struct{}{}
 			}
 		}
 

@@ -12,10 +12,10 @@ import (
 // `code::actionName`. See `linkauth`.
 func NewUnlinkAuth(account, code common.AccountName, actionName common.ActionName) *types.Action {
 	a := &types.Action{
-		Account: common.AccountName(common.StringToName("eosio")),
-		Name:    common.ActionName(common.StringToName("unlinkauth")),
+		Account: common.AccountName(common.S("eosio")),
+		Name:    common.ActionName(common.S("unlinkauth")),
 		Authorization: []types.PermissionLevel{
-			{account, common.PermissionName(common.StringToName("active"))},
+			{account, common.PermissionName(common.S("active"))},
 		},
 		// Data: common.NewActionData(UnlinkAuth{//TODO
 		// 	Account: account,

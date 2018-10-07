@@ -15,8 +15,8 @@ var initPriKey, _ = ecc.NewPrivateKey("5KYZdUEo39z3FPrtuX2QbbwGnNP5zTd7yyr2SC1j2
 var initPubKey = initPriKey.PublicKey()
 var initPriKey2, _ = ecc.NewPrivateKey("5Ja3h2wJNUnNcoj39jDMHGigsazvbGHAeLYEHM5uTwtfUoRDoYP")
 var initPubKey2 = initPriKey2.PublicKey()
-var eosio = common.AccountName(common.StringToName("eosio"))
-var yuanc = common.AccountName(common.StringToName("yuanc"))
+var eosio = common.AccountName(common.S("eosio"))
+var yuanc = common.AccountName(common.S("yuanc"))
 
 type mockChain struct {
 	head    *types.BlockState
