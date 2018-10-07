@@ -45,7 +45,7 @@ var IrreversibleBlock chan types.BlockState = make(chan types.BlockState)
 func TestController_CreateNativeAccount(t *testing.T) {
 	//CreateNativeAccount(name common.AccountName,owner types.Authority,active types.Authority,isPrivileged bool)
 	control := GetControllerInstance()
-	name := common.AccountName(common.S("eos"))
+	name := common.AccountName(common.N("eos"))
 
 	owner := types.Authority{}
 	owner.Threshold = 2

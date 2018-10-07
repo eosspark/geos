@@ -10,9 +10,9 @@ import (
 func NewBlockHeaderState(t *testing.T) *BlockHeaderState {
 	var initPriKey, _ = ecc.NewPrivateKey("5KYZdUEo39z3FPrtuX2QbbwGnNP5zTd7yyr2SC1j299sBCnWjss")
 	var initPubKey = initPriKey.PublicKey()
-	var eosio = common.AccountName(common.S("eosio"))
-	var yuanc = common.AccountName(common.S("yuanc"))
-	var tester = common.AccountName(common.S("tester"))
+	var eosio = common.AccountName(common.N("eosio"))
+	var yuanc = common.AccountName(common.N("yuanc"))
+	var tester = common.AccountName(common.N("tester"))
 
 	initSchedule := ProducerScheduleType{0, []ProducerKey{
 		{eosio, initPubKey},
@@ -37,9 +37,9 @@ func NewBlockHeaderState(t *testing.T) *BlockHeaderState {
 
 func Test_BlockHeaderState_GetScheduledProducer(t *testing.T) {
 	bs := NewBlockHeaderState(t)
-	assert.Equal(t, "tester", common.N(uint64(bs.GetScheduledProducer(100).AccountName)))
-	assert.Equal(t, "eosio", common.N(uint64(bs.GetScheduledProducer(110).AccountName)))
-	assert.Equal(t, "yuanc", common.N(uint64(bs.GetScheduledProducer(120).AccountName)))
+	assert.Equal(t, "tester", common.S(uint64(bs.GetScheduledProducer(100).AccountName)))
+	assert.Equal(t, "eosio", common.S(uint64(bs.GetScheduledProducer(110).AccountName)))
+	assert.Equal(t, "yuanc", common.S(uint64(bs.GetScheduledProducer(120).AccountName)))
 }
 
 func Test_BlockHeaderState_GenerateNext(t *testing.T) {

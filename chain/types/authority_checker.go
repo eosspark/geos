@@ -76,7 +76,7 @@ func (ac *AuthorityChecker) PermissionStatusInCache(permissions PermissionCacheT
 	if ok {
 		return itr
 	}
-	itr2, ok := map[PermissionLevel]PermissionCacheStatus(permissions)[PermissionLevel{level.Actor, common.PermissionName(common.S(""))}]
+	itr2, ok := map[PermissionLevel]PermissionCacheStatus(permissions)[PermissionLevel{level.Actor, common.PermissionName(common.N(""))}]
 	if ok {
 		return itr2
 	}

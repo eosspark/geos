@@ -17,9 +17,9 @@ import (
 
 func Test_Add_TableIdObject(t *testing.T) {
 
-	code := common.AccountName(common.S("eostest"))
-	scope := common.ScopeName(common.S("eostest"))
-	table := common.TableName(common.S("eostest"))
+	code := common.AccountName(common.N("eostest"))
+	scope := common.ScopeName(common.N("eostest"))
+	table := common.TableName(common.N("eostest"))
 	tid := TableIdObject{}
 	tid.Code = code
 	tid.Scope = scope
@@ -41,9 +41,9 @@ func Test_m(t *testing.T) {
 }
 
 func Test_Add_TableIdMeltiIndex(t *testing.T) {
-	code := common.AccountName(common.S("eosio.token"))
-	scope := common.ScopeName(common.S("xiaoyu"))
-	table := common.TableName(common.S("accounts"))
+	code := common.AccountName(common.N("eosio.token"))
+	scope := common.ScopeName(common.N("xiaoyu"))
+	table := common.TableName(common.N("accounts"))
 	tid := TableIdObject{}
 	tid.Code = code
 	tid.Scope = scope
@@ -73,9 +73,9 @@ func Test_Get_TableIdMultiIndex(t *testing.T) {
 	}
 	defer db.Close()
 	ti := TableIdMultiIndex{}
-	code := common.AccountName(common.S("eostest"))
-	scope := common.ScopeName(common.S("eostest"))
-	table := common.TableName(common.S("eostest"))
+	code := common.AccountName(common.N("eostest"))
+	scope := common.ScopeName(common.N("eostest"))
+	table := common.TableName(common.N("eostest"))
 	ti.Bst.Code = code
 	ti.Bst.Scope = scope
 	ti.Bst.Table = table
@@ -135,9 +135,9 @@ func Test_GetByCodeScopeTable(t *testing.T) {
 	//defer db.Close()
 
 	cst := ByCodeScopeTable{}
-	cst.Code = common.AccountName(common.S("eosio.token"))
-	cst.Scope = common.ScopeName(common.S("xiaoyu"))
-	cst.Table = common.TableName(common.S("accounts"))
+	cst.Code = common.AccountName(common.N("eosio.token"))
+	cst.Scope = common.ScopeName(common.N("xiaoyu"))
+	cst.Table = common.TableName(common.N("accounts"))
 
 	/*fmt.Println(cst)
 	tmp:=GetByCodeScopeTable(db,cst)

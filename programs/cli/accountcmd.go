@@ -253,8 +253,8 @@ func createAccount(ctx *cli.Context) (err error) {
 
 // ./accountcmd create account -creator eosio -name walker -ownerkey EOS7vnBoERUwrqeRTfot79xhwFvWsTjhg1YU9KA5hinAYMETREWYT -activekey EOS7vnBoERUwrqeRTfot79xhwFvWsTjhg1YU9KA5hinAYMETREWYT
 func createNewAccount(creatorstr, newaccountstr string, owner, active ecc.PublicKey) *types.Action {
-	creator := common.S(creatorstr)
-	accountName := common.S(newaccountstr)
+	creator := common.N(creatorstr)
+	accountName := common.N(newaccountstr)
 	ownerauthority := &types.Authority{
 		Threshold: 1,
 		Keys:      []types.KeyWeight{{Key: owner, Weight: 1}},

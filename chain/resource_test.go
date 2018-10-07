@@ -13,7 +13,7 @@ func Test_resourceSetGet(t *testing.T) {
 	defer db.Close()
 	//rlm.AddIndices()
 	rlm.InitializeDatabase()
-	account := common.AccountName(common.S("yc"))
+	account := common.AccountName(common.N("yc"))
 	rlm.InitializeAccount(account)
 	rlm.SetAccountLimits(account, 123, 456, 789)
 	var r, n, c int64
@@ -41,9 +41,9 @@ func Test_resourceFuncAdd(t *testing.T) {
 	defer db.Close()
 	rlm.AddIndices()
 	rlm.InitializeDatabase()
-	account1 := common.AccountName(common.S("yc"))
-	//account2 := common.AccountName(common.S("sf"))
-	//account3 := common.AccountName(common.S("hn"))
+	account1 := common.AccountName(common.N("yc"))
+	//account2 := common.AccountName(common.N("sf"))
+	//account3 := common.AccountName(common.N("hn"))
 	account := []common.AccountName{account1}
 	for _, a := range account {
 		rlm.InitializeAccount(a)
@@ -76,7 +76,7 @@ func Test_resourceFuncAdd(t *testing.T) {
 	fmt.Println(state)
 
 	var arl AccountResourceLimit
-	arl = rlm.GetAccountCpuLimitEx(common.AccountName(common.S("yc")), true)
+	arl = rlm.GetAccountCpuLimitEx(common.AccountName(common.N("yc")), true)
 	fmt.Println(arl)
 }
 

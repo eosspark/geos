@@ -21,7 +21,7 @@ func (n *NewAccount) GetAccount() common.AccountName {
 }
 
 func (n *NewAccount) GetName() common.ActionName {
-	name := common.S("newaccount")
+	name := common.N("newaccount")
 	return common.ActionName(name)
 }
 
@@ -38,7 +38,7 @@ func (n *SetCode) GetAccount() common.AccountName {
 }
 
 func (n *SetCode) GetName() common.ActionName {
-	name := common.S("setcode")
+	name := common.N("setcode")
 	return common.ActionName(name)
 }
 
@@ -53,7 +53,7 @@ func (n *SetABI) GetAccount() common.AccountName {
 }
 
 func (n *SetABI) GetName() common.ActionName {
-	name := common.S("setabi")
+	name := common.N("setabi")
 	return common.ActionName(name)
 }
 

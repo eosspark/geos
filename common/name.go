@@ -14,7 +14,7 @@ import (
 *  @return constexpr uint64_t - 64-bit unsigned integer representation of the name
 *  @ingroup types
  */
-func S(s string) (val uint64) {
+func N(s string) (val uint64) {
 	// ported from the eosio codebase, libraries/chain/include/eosio/chain/name.hpp
 	var i uint32
 	sLen := uint32(len(s))
@@ -41,27 +41,7 @@ func S(s string) (val uint64) {
 	return
 }
 
-/**
-*  charToSymbol Converts a base32 symbol into its binary representation, used by string_to_name()
-*
-*  @brief Converts a base32 symbol into its binary representation, used by string_to_name()
-*  @param c - Character to be converted
-*  @return constexpr char - Converted character
-*  @ingroup types
- */
-func charToSymbol(c byte) byte {
-	if c >= 'a' && c <= 'z' {
-		return c - 'a' + 6
-	}
-	if c >= '1' && c <= '5' {
-		return c - '1' + 1
-	}
-	return 0
-}
-
-var base32Alphabet = []byte(".12345abcdefghijklmnopqrstuvwxyz")
-
-func N(in uint64) string {
+func S(in uint64) string {
 	// ported from libraries/chain/name.cpp in eosio
 	a := []byte{'.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.'}
 
@@ -115,3 +95,23 @@ func NameSuffix(n uint64) uint64 {
 
 	return uint64(((n & mask) << shift) + (thirteenthCharacter << (shift - 1)))
 }
+
+/**
+*  charToSymbol Converts a base32 symbol into its binary representation, used by string_to_name()
+*
+*  @brief Converts a base32 symbol into its binary representation, used by string_to_name()
+*  @param c - Character to be converted
+*  @return constexpr char - Converted character
+*  @ingroup types
+ */
+func charToSymbol(c byte) byte {
+	if c >= 'a' && c <= 'z' {
+		return c - 'a' + 6
+	}
+	if c >= '1' && c <= '5' {
+		return c - '1' + 1
+	}
+	return 0
+}
+
+var base32Alphabet = []byte(".12345abcdefghijklmnopqrstuvwxyz")

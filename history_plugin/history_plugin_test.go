@@ -16,7 +16,7 @@ func Test_AddAccountHistoryObject(t *testing.T) {
 	defer db.Close()
 
 	aho := AccountHistoryObject{}
-	acount := common.AccountName(common.S("tuanhuo"))
+	acount := common.AccountName(common.N("tuanhuo"))
 	num := int32(66)
 	aho.Account = acount
 	aho.AccountSequenceNum = num
@@ -143,7 +143,7 @@ func Test_GetAccountHistoryObjectsByAccount(t *testing.T) {
 	}
 	defer db.Close()
 
-	result := GetAccountHistoryObjectByAccount(db, common.AccountName(common.S("tuanhuo2")))
+	result := GetAccountHistoryObjectByAccount(db, common.AccountName(common.N("tuanhuo2")))
 	fmt.Print("Query many data :")
 	fmt.Println(result)
 }
@@ -152,7 +152,7 @@ func Test_GetActions(t *testing.T) {
 	param := GetActionParam{}
 	param.Pos = 0
 	param.Offset = 3
-	param.AccountName = common.AccountName(common.S("tuanhuo"))
+	param.AccountName = common.AccountName(common.N("tuanhuo"))
 
 	result := GetActions(&param)
 	fmt.Println("Test_GetActions result :", result)

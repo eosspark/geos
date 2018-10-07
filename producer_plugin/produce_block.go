@@ -492,6 +492,6 @@ func (impl *ProducerPluginImpl) ProduceBlock() {
 
 	fmt.Printf("Produced block %s...#%d @ %s signed by %s [trxs: %d, lib: %d, confirmed: %d]\n",
 		crypto.Sha256(newBs.ID).String()[0:16], newBs.BlockNum, newBs.Header.Timestamp.ToTimePoint(),
-		common.N(uint64(newBs.Header.Producer)),
+		common.S(uint64(newBs.Header.Producer)),
 		len(newBs.SignedBlock.Transactions), chain.LastIrreversibleBlockNum(), newBs.Header.Confirmed)
 }

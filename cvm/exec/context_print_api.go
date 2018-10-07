@@ -170,7 +170,7 @@ func printn(w *WasmInterface, value int64) {
 	fmt.Println("printn")
 
 	//s := toString(uint64(value))
-	w.context.ContextAppend(common.N(uint64(value)))
+	w.context.ContextAppend(common.S(uint64(value)))
 }
 
 // void printhex(array_ptr<const char> data, size_t data_len ) {

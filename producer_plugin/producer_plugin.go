@@ -123,7 +123,7 @@ func (pp *ProducerPlugin) PluginInitialize(app *cli.App) {
 
 		if len(producerName) > 0 {
 			for _, p := range producerName {
-				pp.my.Producers[common.AccountName(common.S(p))] = struct{}{}
+				pp.my.Producers[common.AccountName(common.N(p))] = struct{}{}
 			}
 		}
 
@@ -287,9 +287,9 @@ func (pp *ProducerPlugin) SetWhitelistBlacklist(params WhitelistAndBlacklist) {
 	if params.ContractWhitelist != nil {
 		chain.SetContractWhiteList(params.ContractWhitelist)
 	}
-	if params.ContractBlacklist != nil {
-		chain.SetContractBlackList(params.ContractBlacklist)
-	}
+	//if params.ContractBlacklist != nil {
+	//	chain.SetContractBlackList(params.ContractBlacklist)
+	//}
 	if params.ActionBlacklist != nil {
 		chain.SetActionBlackList(params.ActionBlacklist)
 	}
