@@ -5,6 +5,7 @@ import (
 	"github.com/eosspark/eos-go/chain"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
+	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/eosspark/eos-go/cvm/exec"
 	"io/ioutil"
@@ -30,7 +31,7 @@ func main() {
 		},
 	}
 
-	codeVersion := rlp.NewSha256Byte([]byte(code)).String()
+	codeVersion := crypto.NewSha256Byte([]byte(code)).String()
 	wasm.Apply(codeVersion, code, applyContext)
 
 	//print "hello, walker"

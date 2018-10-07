@@ -12,7 +12,7 @@ import (
 	"github.com/eosspark/eos-go/chain"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
-	"github.com/eosspark/eos-go/ecc"
+	"github.com/eosspark/eos-go/crypto/ecc"
 	"io/ioutil"
 	"path/filepath"
 	"strconv"
@@ -20,8 +20,8 @@ import (
 	"testing"
 
 	"github.com/eosspark/eos-go/crypto"
+	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/eosspark/eos-go/cvm/exec"
-	"github.com/eosspark/eos-go/rlp"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -414,7 +414,7 @@ func callTestFunction(code []byte, cls string, method string, payload []byte) *c
 	}
 
 	fmt.Println(cls, method, action)
-	codeVersion := rlp.NewSha256Byte([]byte(code)).String()
+	codeVersion := crypto.NewSha256Byte([]byte(code)).String()
 	wasm.Apply(codeVersion, code, applyContext)
 
 	return applyContext
@@ -435,7 +435,7 @@ func callTestFunctionCheckException(code []byte, cls string, method string, payl
 	}
 
 	fmt.Println(action)
-	codeVersion := rlp.NewSha256Byte([]byte(code)).String()
+	codeVersion := crypto.NewSha256Byte([]byte(code)).String()
 	wasm.Apply(codeVersion, code, applyContext)
 
 	//getException
