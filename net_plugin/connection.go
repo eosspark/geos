@@ -3,8 +3,8 @@ package p2p
 import (
 	"fmt"
 	"github.com/eosspark/eos-go/common"
-	"github.com/eosspark/eos-go/ecc"
-	"github.com/eosspark/eos-go/rlp"
+	"github.com/eosspark/eos-go/crypto"
+	"github.com/eosspark/eos-go/crypto/ecc"
 	"time"
 )
 
@@ -21,7 +21,7 @@ type Connection struct {
 	//outstandingReadBytes optional<int>
 	blkBuffer []byte
 
-	nodeID             rlp.Sha256
+	nodeID             crypto.Sha256
 	lastHandshakeRecv  HandshakeMessage
 	lastHandshajeSent  HandshakeMessage
 	sentHandshakeCount int16
@@ -151,8 +151,8 @@ func isValid(msg *HandshakeMessage) bool {
 		fmt.Println("Handshake message validation: os field is null string")
 		valid = false
 	}
-	if (common.CompareString(msg.Signature, ecc.NewSigNil()) != 0 || common.CompareString(msg.Token, rlp.NewSha256Nil()) != 0) &&
-		common.CompareString(msg.Token, rlp.Hash256(msg.Time)) != 0 {
+	if (common.CompareString(msg.Signature, ecc.NewSigNil()) != 0 || common.CompareString(msg.Token, crypto.NewSha256Nil()) != 0) &&
+		common.CompareString(msg.Token, crypto.Hash256(msg.Time)) != 0 {
 		fmt.Println("Handshake message validation: token field invalid")
 		valid = false
 	}

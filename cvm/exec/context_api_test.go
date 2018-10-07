@@ -14,8 +14,8 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/cvm/exec"
-	"github.com/eosspark/eos-go/rlp"
 )
 
 func TestContextApis(t *testing.T) {
@@ -44,7 +44,7 @@ func TestContextApis(t *testing.T) {
 					},
 				}
 
-				codeVersion := rlp.NewSha256Byte([]byte(code)).String()
+				codeVersion := crypto.NewSha256Byte([]byte(code)).String()
 				wasm.Apply(codeVersion, code, applyContext)
 
 				//print "hello,walker"
@@ -78,7 +78,7 @@ func TestContextAtion(t *testing.T) {
 			},
 		}
 
-		codeVersion := rlp.NewSha256Byte([]byte(code)).String()
+		codeVersion := crypto.NewSha256Byte([]byte(code)).String()
 		wasm.Apply(codeVersion, code, applyContext)
 
 		//print "hello,walker"
@@ -111,7 +111,7 @@ func TestContextConsole(t *testing.T) {
 			},
 		}
 
-		codeVersion := rlp.NewSha256Byte([]byte(code)).String()
+		codeVersion := crypto.NewSha256Byte([]byte(code)).String()
 		wasm.Apply(codeVersion, code, applyContext)
 
 		//print "hello,walker"
@@ -144,7 +144,7 @@ func TestContextMemory(t *testing.T) {
 			},
 		}
 
-		codeVersion := rlp.NewSha256Byte([]byte(code)).String()
+		codeVersion := crypto.NewSha256Byte([]byte(code)).String()
 		wasm.Apply(codeVersion, code, applyContext)
 
 		//print "hello,walker"

@@ -2,7 +2,7 @@ package types
 
 import (
 	"github.com/eosspark/eos-go/common"
-	"github.com/eosspark/eos-go/ecc"
+	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )

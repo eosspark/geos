@@ -3,8 +3,9 @@ package exec
 import (
 	"bytes"
 	"fmt"
-	"github.com/eosspark/eos-go/ecc"
-	"github.com/eosspark/eos-go/rlp"
+	"github.com/eosspark/eos-go/crypto"
+	"github.com/eosspark/eos-go/crypto/ecc"
+	"github.com/eosspark/eos-go/crypto/rlp"
 	"strings"
 )
 
@@ -140,8 +141,8 @@ func assertSha256(w *WasmInterface, data int, datalen int, hash_val int) {
 
 	dataBytes := getBytes(w, data, datalen)
 
-	//var s rlp.Sha256
-	s := rlp.NewSha256()
+	//var s crypto.Sha256
+	s := crypto.NewSha256()
 	hashEncode := encode(w, s, dataBytes, datalen)
 	hash := getSha256(w, hash_val)
 
@@ -160,9 +161,9 @@ func assertSha1(w *WasmInterface, data int, dataLen int, hash_val int) {
 
 	dataBytes := getBytes(w, data, dataLen)
 
-	//var s rlp.Sha1
+	//var s crypto.Sha1
 	//s := sha1.New()
-	s := rlp.NewSha1()
+	s := crypto.NewSha1()
 	hashEncode := encode(w, s, dataBytes, dataLen)
 	hash := getSha1(w, hash_val)
 
@@ -180,9 +181,9 @@ func assertSha512(w *WasmInterface, data int, dataLen int, hash_val int) {
 
 	dataBytes := getBytes(w, data, dataLen)
 
-	//var s rlp.Sha512
+	//var s crypto.Sha512
 	//s := sha512.New()
-	s := rlp.NewSha512()
+	s := crypto.NewSha512()
 	hashEncode := encode(w, s, dataBytes, dataLen)
 	hash := getSha512(w, hash_val)
 
@@ -202,9 +203,9 @@ func assertRipemd160(w *WasmInterface, data int, dataLen int, hash_val int) {
 
 	dataBytes := getBytes(w, data, dataLen)
 
-	//var s rlp.Ripemd160
+	//var s crypto.Ripemd160
 	//s := ripemd160.New()
-	s := rlp.NewRipemd160()
+	s := crypto.NewRipemd160()
 	hashEncode := encode(w, s, dataBytes, dataLen)
 	hash := getRipemd160(w, hash_val)
 
@@ -222,9 +223,9 @@ func sha1(w *WasmInterface, data int, dataLen int, hash_val int) {
 
 	dataBytes := getBytes(w, data, dataLen)
 
-	//var s rlp.Sha1
+	//var s crypto.Sha1
 	//s := sha1.New()
-	s := rlp.NewSha1()
+	s := crypto.NewSha1()
 	hashEncode := encode(w, s, dataBytes, dataLen)
 	setSha1(w, hash_val, hashEncode)
 }
@@ -237,9 +238,9 @@ func sha256(w *WasmInterface, data int, dataLen int, hash_val int) {
 
 	dataBytes := getBytes(w, data, dataLen)
 
-	//var s rlp.Sha256
+	//var s crypto.Sha256
 	//s := sha256.new()
-	s := rlp.NewSha256()
+	s := crypto.NewSha256()
 
 	hashEncode := encode(w, s, dataBytes, dataLen)
 	setSha256(w, hash_val, hashEncode)
@@ -253,9 +254,9 @@ func sha512(w *WasmInterface, data int, dataLen int, hash_val int) {
 
 	dataBytes := getBytes(w, data, dataLen)
 
-	//var s rlp.Sha512
+	//var s crypto.Sha512
 	//s := sha512.new()
-	s := rlp.NewSha512()
+	s := crypto.NewSha512()
 
 	hashEncode := encode(w, s, dataBytes, dataLen)
 	setSha512(w, hash_val, hashEncode)
@@ -269,9 +270,9 @@ func ripemd160(w *WasmInterface, data int, dataLen int, hash_val int) {
 
 	dataBytes := getBytes(w, data, dataLen)
 
-	//var s rlp.Ripemd160
+	//var s crypto.Ripemd160
 	//s := ripemd160.New()
-	s := rlp.NewRipemd160()
+	s := crypto.NewRipemd160()
 	hashEncode := encode(w, s, dataBytes, dataLen)
 	setRipemd160(w, hash_val, hashEncode)
 }

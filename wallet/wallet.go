@@ -8,9 +8,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/eosspark/eos-go/btcsuite/btcd/btcec"
-	"github.com/eosspark/eos-go/ecc"
-	"github.com/eosspark/eos-go/rlp"
+	"github.com/eosspark/eos-go/crypto/btcsuite/btcd/btcec"
+	"github.com/eosspark/eos-go/crypto/ecc"
+	"github.com/eosspark/eos-go/crypto/rlp"
 	"os"
 )
 

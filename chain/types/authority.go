@@ -3,7 +3,7 @@ package types
 import (
 	"fmt"
 	"github.com/eosspark/eos-go/common"
-	"github.com/eosspark/eos-go/ecc"
+	"github.com/eosspark/eos-go/crypto/ecc"
 	"strings"
 )
 

@@ -4,8 +4,8 @@ package p2p
 //	"fmt"
 //	"github.com/eosspark/eos-go/chain/types"
 //	"github.com/eosspark/eos-go/common"
-//	"github.com/eosspark/eos-go/ecc"
-//	"github.com/eosspark/eos-go/rlp"
+//	"github.com/eosspark/eos-go/crypto/ecc"
+//	"github.com/eosspark/eos-go/crypto/rlp"
 //	"net"
 //	"time"
 //)

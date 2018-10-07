@@ -5,8 +5,8 @@ import (
 	"github.com/eosspark/eos-go/chain"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
+	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/eosspark/eos-go/cvm/exec"
-	"github.com/eosspark/eos-go/rlp"
 	"io/ioutil"
 	"log"
 )

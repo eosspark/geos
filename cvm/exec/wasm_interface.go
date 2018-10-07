@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"github.com/eosspark/eos-go/rlp"
+	"github.com/eosspark/eos-go/crypto/rlp"
 	"log"
 	"reflect"
 

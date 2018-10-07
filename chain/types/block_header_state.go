@@ -3,8 +3,8 @@ package types
 import (
 	"fmt"
 	"github.com/eosspark/eos-go/common"
-	"github.com/eosspark/eos-go/ecc"
-	"github.com/eosspark/eos-go/rlp"
+	"github.com/eosspark/eos-go/crypto"
+	"github.com/eosspark/eos-go/crypto/ecc"
 	"sort"
 )
 
@@ -12,11 +12,11 @@ type BlockHeaderState struct {
 	ID                               common.BlockIdType `storm:"id,unique"`
 	BlockNum                         uint32             `storm:"block_num,unique"`
 	Header                           SignedBlockHeader
-	DposProposedIrreversibleBlocknum uint32     `json:"dpos_proposed_irreversible_blocknum"`
-	DposIrreversibleBlocknum         uint32     `json:"dpos_irreversible_blocknum"`
-	BftIrreversibleBlocknum          uint32     `json:"bft_irreversible_blocknum"`
-	PendingScheduleLibNum            uint32     `json:"pending_schedule_lib_num"`
-	PendingScheduleHash              rlp.Sha256 `json:"pending_schedule_hash"`
+	DposProposedIrreversibleBlocknum uint32        `json:"dpos_proposed_irreversible_blocknum"`
+	DposIrreversibleBlocknum         uint32        `json:"dpos_irreversible_blocknum"`
+	BftIrreversibleBlocknum          uint32        `json:"bft_irreversible_blocknum"`
+	PendingScheduleLibNum            uint32        `json:"pending_schedule_lib_num"`
+	PendingScheduleHash              crypto.Sha256 `json:"pending_schedule_hash"`
 	PendingSchedule                  ProducerScheduleType
 	ActiveSchedule                   ProducerScheduleType
 	BlockrootMerkle                  IncrementalMerkle
@@ -75,7 +75,7 @@ func (bs *BlockHeaderState) GenerateNext(when *common.BlockTimeStamp) *BlockHead
 	result.ProducerToLastImpliedIrb = bs.ProducerToLastImpliedIrb
 	result.ProducerToLastProduced[proKey.AccountName] = result.BlockNum
 	result.BlockrootMerkle = bs.BlockrootMerkle
-	result.BlockrootMerkle.Append(rlp.Sha256(bs.ID))
+	result.BlockrootMerkle.Append(crypto.Sha256(bs.ID))
 
 	result.ActiveSchedule = bs.ActiveSchedule
 	result.PendingSchedule = bs.PendingSchedule
@@ -163,9 +163,9 @@ func (bs *BlockHeaderState) SetConfirmed(numPrevBlocks uint16) {
 
 }
 
-func (bs *BlockHeaderState) SigDigest() rlp.Sha256 {
-	headerBmroot := rlp.Hash256(common.MakeTuple(bs.Header, bs.BlockrootMerkle.GetRoot()))
-	digest := rlp.Hash256(common.MakeTuple(headerBmroot, bs.PendingScheduleHash))
+func (bs *BlockHeaderState) SigDigest() crypto.Sha256 {
+	headerBmroot := crypto.Hash256(common.MakeTuple(bs.Header, bs.BlockrootMerkle.GetRoot()))
+	digest := crypto.Hash256(common.MakeTuple(headerBmroot, bs.PendingScheduleHash))
 	return digest
 }
 
@@ -177,7 +177,7 @@ func (bs *BlockHeaderState) SetNewProducers(pending SharedProducerScheduleType) 
 		panic("cannot set new pending producers until last pending is confirmed")
 	}
 	bs.Header.NewProducers = &pending
-	bs.PendingScheduleHash = rlp.Hash256(*bs.Header.NewProducers)
+	bs.PendingScheduleHash = crypto.Hash256(*bs.Header.NewProducers)
 	bs.PendingSchedule = *bs.Header.NewProducers.ProducerScheduleType()
 	bs.PendingScheduleLibNum = bs.BlockNum
 }
@@ -252,7 +252,7 @@ func (bs *BlockHeaderState) Next(h SignedBlockHeader, trust bool) *BlockHeaderSt
 	return result
 }
 
-func (bs *BlockHeaderState) Sign(signer func(sha256 rlp.Sha256) ecc.Signature) {
+func (bs *BlockHeaderState) Sign(signer func(sha256 crypto.Sha256) ecc.Signature) {
 	d := bs.SigDigest()
 	bs.Header.ProducerSignature = signer(d)
 	signKey, err := bs.Header.ProducerSignature.PublicKey(d.Bytes())

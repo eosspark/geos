@@ -4,7 +4,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"github.com/eosspark/eos-go/rlp"
+	"github.com/eosspark/eos-go/crypto/rlp"
 	"io"
 	"reflect"
 )

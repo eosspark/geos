@@ -8,9 +8,10 @@ import (
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	//"github.com/eosspark/eos-go/cvm/exec"
+	"github.com/eosspark/eos-go/crypto"
+	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/eosspark/eos-go/db"
 	"github.com/eosspark/eos-go/log"
-	"github.com/eosspark/eos-go/rlp"
 )
 
 type DBReadMode int8
@@ -88,7 +89,7 @@ type Controller struct {
 	SubjectiveCupLeeway   common.Microseconds //optional<common.Tstamp>
 	HandlerKey            HandlerKey
 	ApplyHandlers         ApplyHandler
-	UnAppliedTransactions map[rlp.Sha256]types.TransactionMetadata
+	UnAppliedTransactions map[crypto.Sha256]types.TransactionMetadata
 }
 
 func GetControllerInstance() *Controller {
@@ -169,7 +170,7 @@ func (self *Controller) PopBlock() {
 		var trx []*types.TransactionMetadata = self.Head.Trxs
 		step := 0
 		for ; step < len(trx); step++ {
-			self.UnAppliedTransactions[rlp.Sha256(trx[step].SignedID)] = *trx[step]
+			self.UnAppliedTransactions[crypto.Sha256(trx[step].SignedID)] = *trx[step]
 		}
 	}
 	self.Head = prev
@@ -199,7 +200,7 @@ func (self *Controller) AbortBlock() {
 			trx := append(self.Pending.PendingBlockState.Trxs)
 			step := 0
 			for ; step < len(trx); step++ {
-				self.UnAppliedTransactions[rlp.Sha256(trx[step].SignedID)] = *trx[step]
+				self.UnAppliedTransactions[crypto.Sha256(trx[step].SignedID)] = *trx[step]
 			}
 		}
 	}
@@ -431,7 +432,7 @@ func (self *Controller) GetUnAppliedTransactions() *[]types.TransactionMetadata 
 }
 
 func (self *Controller) DropUnAppliedTransaction(metadata *types.TransactionMetadata) {
-	delete(self.UnAppliedTransactions, rlp.Sha256(metadata.SignedID))
+	delete(self.UnAppliedTransactions, crypto.Sha256(metadata.SignedID))
 }
 
 func (self *Controller) DropAllUnAppliedTransactions() {
@@ -493,7 +494,7 @@ func (self *Controller) PushScheduledTransaction1(gto types.GeneratedTransaction
 	}
 
 	trx := types.TransactionMetadata{}
-	fmt.Println(undo_session, dtrx, trx)			//TODO
+	fmt.Println(undo_session, dtrx, trx) //TODO
 	return nil
 }
 

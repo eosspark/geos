@@ -3,9 +3,10 @@ package types
 import (
 	"fmt"
 	"github.com/eosspark/eos-go/common"
-	"github.com/eosspark/eos-go/ecc"
+	"github.com/eosspark/eos-go/crypto"
+	"github.com/eosspark/eos-go/crypto/ecc"
+	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/eosspark/eos-go/log"
-	"github.com/eosspark/eos-go/rlp"
 )
 
 var isActiveGenesis bool = false
@@ -47,7 +48,7 @@ func (self *GenesisState) ComputeChainID() common.ChainIdType {
 	if err != nil {
 		log.Error("ComputeChainID EncodeToBytes is error:", err)
 	}
-	return common.ChainIdType(rlp.Hash256(b))
+	return common.ChainIdType(crypto.Hash256(b))
 }
 
 func (gs *GenesisState) initial() {

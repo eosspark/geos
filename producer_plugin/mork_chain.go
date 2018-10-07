@@ -5,8 +5,8 @@ import (
 	Chain "github.com/eosspark/eos-go/chain"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
-	"github.com/eosspark/eos-go/ecc"
-	"github.com/eosspark/eos-go/rlp"
+	"github.com/eosspark/eos-go/crypto"
+	"github.com/eosspark/eos-go/crypto/ecc"
 )
 
 var chain *mockChain
@@ -138,7 +138,7 @@ func (c *mockChain) FinalizeBlock() {
 	c.pending.ID = c.pending.Header.BlockID()
 }
 
-func (c *mockChain) SignBlock(callback func(sha256 rlp.Sha256) ecc.Signature) {
+func (c *mockChain) SignBlock(callback func(sha256 crypto.Sha256) ecc.Signature) {
 	fmt.Println("sign block...")
 	p := c.pending
 	p.Sign(callback)

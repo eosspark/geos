@@ -1,7 +1,7 @@
 package types
 
 import (
-	"github.com/eosspark/eos-go/rlp"
+	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )

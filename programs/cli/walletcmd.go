@@ -6,9 +6,9 @@ import (
 	// "bytes"
 	"fmt"
 	"github.com/eosspark/eos-go/chain/types"
-	"github.com/eosspark/eos-go/cmd/cli/utils"
 	"github.com/eosspark/eos-go/common"
-	"github.com/eosspark/eos-go/ecc"
+	"github.com/eosspark/eos-go/crypto/ecc"
+	"github.com/eosspark/eos-go/programs/cli/utils"
 	"gopkg.in/urfave/cli.v1"
 )
 

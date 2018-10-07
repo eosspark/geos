@@ -18,10 +18,10 @@ var ActiveName uint64 = common.StringToName("active")
 
 var ForkDBName = "forkdb.dat"
 var DBFileName = "shared_memory.bin"
-var ReversibleFileName = "shared_memory_tmp.bin"			//wait db modify
+var ReversibleFileName = "shared_memory_tmp.bin" //wait db modify
 var BlockFileName = "blog.log"
 var DefaultBlocksDirName = "blocks"
-var DefaultReversibleBlocksDirName="reversible"
+var DefaultReversibleBlocksDirName = "reversible"
 var DefaultStateDirName = "state"
 var DefaultStateSize uint64 = 0
 var DefaultStateGuardSize uint64 = 0

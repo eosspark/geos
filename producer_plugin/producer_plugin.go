@@ -5,9 +5,9 @@ import (
 	"fmt"
 	Chain "github.com/eosspark/eos-go/chain"
 	"github.com/eosspark/eos-go/common"
-	"github.com/eosspark/eos-go/ecc"
+	"github.com/eosspark/eos-go/crypto"
+	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/log"
-	"github.com/eosspark/eos-go/rlp"
 	"gopkg.in/urfave/cli.v1"
 	"time"
 )
@@ -66,7 +66,7 @@ func (pp *ProducerPlugin) IsProducerKey(key ecc.PublicKey) bool {
 	return false
 }
 
-func (pp *ProducerPlugin) SignCompact(key *ecc.PublicKey, digest rlp.Sha256) ecc.Signature {
+func (pp *ProducerPlugin) SignCompact(key *ecc.PublicKey, digest crypto.Sha256) ecc.Signature {
 	if key != nil {
 		privateKeyFunc := pp.my.SignatureProviders[*key]
 		if privateKeyFunc == nil {
@@ -84,7 +84,7 @@ func (pp *ProducerPlugin) PluginInitialize(app *cli.App) {
 	//	return sig
 	//}
 
-	pp.my.SignatureProviders[initPubKey], _  = makeKeySignatureProvider(*initPriKey)
+	pp.my.SignatureProviders[initPubKey], _ = makeKeySignatureProvider(*initPriKey)
 	pp.my.SignatureProviders[initPubKey2], _ = makeKeySignatureProvider(*initPriKey2)
 	// pp.my.SignatureProviders[initPubKey], _ = makeKeosdSignatureProvider(pp, "http://", initPubKey)
 
@@ -311,7 +311,7 @@ func makeDebugTimeLogger() func() {
 }
 
 func makeKeySignatureProvider(key ecc.PrivateKey) (signFunc signatureProviderType, err error) {
-	signFunc = func(digest rlp.Sha256) (sign ecc.Signature) {
+	signFunc = func(digest crypto.Sha256) (sign ecc.Signature) {
 		sign, err = key.Sign(digest.Bytes())
 		return
 	}
@@ -319,7 +319,7 @@ func makeKeySignatureProvider(key ecc.PrivateKey) (signFunc signatureProviderTyp
 }
 
 func makeKeosdSignatureProvider(produce *ProducerPlugin, url string, pubKey ecc.PublicKey) (signFunc signatureProviderType, err error) {
-	signFunc = func(digest rlp.Sha256) ecc.Signature {
+	signFunc = func(digest crypto.Sha256) ecc.Signature {
 		if produce != nil {
 			//TODO
 			return ecc.Signature{}
@@ -351,7 +351,7 @@ const (
 	speculating
 )
 
-type signatureProviderType func(sha256 rlp.Sha256) ecc.Signature
+type signatureProviderType func(sha256 crypto.Sha256) ecc.Signature
 type transactionIdWithExpireIndex map[common.TransactionIdType]common.TimePoint
 
 //errors

@@ -1,16 +1,17 @@
 package producer_plugin
 
 import (
+	"crypto/sha256"
+	"github.com/eosspark/eos-go/common"
+	"github.com/eosspark/eos-go/crypto"
+	"github.com/eosspark/eos-go/crypto/ecc"
+	"github.com/eosspark/eos-go/crypto/rlp"
+	"github.com/stretchr/testify/assert"
 	"gopkg.in/urfave/cli.v1"
 	"log"
 	"os"
 	"testing"
 	"time"
-	"github.com/stretchr/testify/assert"
-	"github.com/eosspark/eos-go/common"
-	"github.com/eosspark/eos-go/rlp"
-	"crypto/sha256"
-	"github.com/eosspark/eos-go/ecc"
 )
 
 var plugin *ProducerPlugin
@@ -39,8 +40,8 @@ func TestProducerPlugin_PluginInitialize(t *testing.T) {
 	assert.Equal(t, true, plugin.my.ProductionEnabled)
 	assert.Equal(t, int32(30), plugin.my.MaxTransactionTimeMs)
 	assert.Equal(t, common.Seconds(-1), plugin.my.MaxIrreversibleBlockAgeUs)
-	assert.Equal(t, struct {}{}, plugin.my.Producers[common.AccountName(common.StringToName("eosio"))])
-	assert.Equal(t, struct {}{}, plugin.my.Producers[common.AccountName(common.StringToName("yuanc"))])
+	assert.Equal(t, struct{}{}, plugin.my.Producers[common.AccountName(common.StringToName("eosio"))])
+	assert.Equal(t, struct{}{}, plugin.my.Producers[common.AccountName(common.StringToName("yuanc"))])
 }
 
 func TestProducerPlugin_PluginStartup(t *testing.T) {
@@ -66,15 +67,15 @@ func TestProducerPlugin_SignCompact(t *testing.T) {
 	initialize()
 	data := "test producer_plugin's is_producer_key "
 
-	dataByte,_ := rlp.EncodeToBytes(data)
+	dataByte, _ := rlp.EncodeToBytes(data)
 	h := sha256.New()
 	h.Write(dataByte)
 
 	dataByteHash := h.Sum(nil)
 
-	dataHash   := rlp.Hash256(data)
+	dataHash := crypto.Hash256(data)
 
-	sign1,_ := initPriKey.Sign(dataByteHash)
+	sign1, _ := initPriKey.Sign(dataByteHash)
 	sign2 := plugin.SignCompact(&initPubKey, dataHash)
 	sign3 := plugin.SignCompact(&initPubKey2, dataHash)
 
@@ -84,8 +85,8 @@ func TestProducerPlugin_SignCompact(t *testing.T) {
 
 func TestProducerPlugin_IsProducerKey(t *testing.T) {
 	initialize()
-	pub1,_ := ecc.NewPublicKey("EOS859gxfnXyUriMgUeThh1fWv3oqcpLFyHa3TfFYC4PK2HqhToVM")
-	pub2,_ := ecc.NewPublicKey("EOS5jeUuKEZ8s8LLoxz4rNysYdHWboup8KtkyJzZYQzcVKFGek9Zu")
+	pub1, _ := ecc.NewPublicKey("EOS859gxfnXyUriMgUeThh1fWv3oqcpLFyHa3TfFYC4PK2HqhToVM")
+	pub2, _ := ecc.NewPublicKey("EOS5jeUuKEZ8s8LLoxz4rNysYdHWboup8KtkyJzZYQzcVKFGek9Zu")
 	assert.Equal(t, true, plugin.IsProducerKey(pub1))
 	assert.Equal(t, true, plugin.IsProducerKey(pub2))
 }
