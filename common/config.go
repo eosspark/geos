@@ -32,7 +32,7 @@ func init() {
 			"wait_weight":             {value: 16},
 			"shared_authority":        {value: 3*1 + 4},
 			"permission_link_object":  {overhead: 32 * 3, value: 40 + 32},
-			"permission_object":{overhead:5*32,value: 3*1 + 4+64 + 5*32},
+			"permission_object":       {overhead: 5 * 32, value: 3*1 + 4 + 64 + 5*32},
 		},
 		FixedNetOverheadOfPackedTrx: 16,
 	}
@@ -74,11 +74,11 @@ func init() {
 	DefaultConfig.MaxInlineActionDepth = 4
 	DefaultConfig.MaxAuthorityDepth = 6
 	DefaultConfig.FixedNetOverheadOfPackedTrx = 16
-	DefaultConfig.FixedOverheadSharedVectorRamBytes=16
-	DefaultConfig.OverheadPerRowPerIndexRamBytes=32
-	DefaultConfig.OverheadPerAccountRamBytes=2*1024
-	DefaultConfig.SetcodeRamBytesMultiplier=10
-	DefaultConfig.HashingChecktimeBlockSize=10*1024
+	DefaultConfig.FixedOverheadSharedVectorRamBytes = 16
+	DefaultConfig.OverheadPerRowPerIndexRamBytes = 32
+	DefaultConfig.OverheadPerAccountRamBytes = 2 * 1024
+	DefaultConfig.SetcodeRamBytesMultiplier = 10
+	DefaultConfig.HashingChecktimeBlockSize = 10 * 1024
 }
 
 type Config struct {
@@ -110,14 +110,13 @@ type Config struct {
 	ProducerRepetitions int
 	MaxProducers        int
 
-	FixedNetOverheadOfPackedTrx		  uint32	//TODO: C++ default value 16 and is this reasonable?
+	FixedNetOverheadOfPackedTrx       uint32 //TODO: C++ default value 16 and is this reasonable?
 	FixedOverheadSharedVectorRamBytes uint32
-	OverheadPerRowPerIndexRamBytes uint32    ///< overhead accounts for basic tracking structures in a row per index
-	OverheadPerAccountRamBytes   uint32  //= 2*1024; ///< overhead accounts for basic account storage and pre-pays features like account recovery
-	SetcodeRamBytesMultiplier   uint32    //= 10;     ///< multiplier on contract size to account for multiple copies and cached compilation
+	OverheadPerRowPerIndexRamBytes    uint32 ///< overhead accounts for basic tracking structures in a row per index
+	OverheadPerAccountRamBytes        uint32 //= 2*1024; ///< overhead accounts for basic account storage and pre-pays features like account recovery
+	SetcodeRamBytesMultiplier         uint32 //= 10;     ///< multiplier on contract size to account for multiple copies and cached compilation
 
-	HashingChecktimeBlockSize   uint32    //= 10*1024;
-
+	HashingChecktimeBlockSize uint32 //= 10*1024;
 
 	BillableAlignment uint64
 	BillableSize      map[string]billableSize

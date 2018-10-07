@@ -28,14 +28,14 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	wasm := exec.NewWasmInterface()
-	param, _ := rlp.EncodeToBytes(exec.N("walker"))
+	param, _ := rlp.EncodeToBytes(exec.N("walker"))//[]byte{0x00, 0x00, 0x00, 0x00, 0x5c, 0x05, 0xa3, 0xe1}
 	applyContext := &chain.ApplyContext{
 		Receiver: common.AccountName(exec.N("hello")),
 		Act: types.Action{
 			Account: common.AccountName(exec.N("hello")),
 			Name:    common.ActionName(exec.N("hi")),
-			//Data:    []byte{0x00, 0x00, 0x00, 0x00, 0x5c, 0x05, 0xa3, 0xe1}, //'{"walker"}'
 			Data: param,
 		},
 	}

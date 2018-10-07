@@ -104,8 +104,8 @@ func NewWasmInterface() *WasmInterface {
 	wasmInterface.Register("read_action_data", readActionData)
 	wasmInterface.Register("current_receiver", currentReceiver)
 
-	wasmInterface.Register("require_authorization", requireAuthorization)
-	wasmInterface.Register("has_authorization", hasAuthorization)
+	wasmInterface.Register("require_auth", requireAuthorization)
+	wasmInterface.Register("has_auth", hasAuthorization)
 	wasmInterface.Register("require_auth2", requireAuth2)
 	wasmInterface.Register("require_recipient", requireRecipient)
 	wasmInterface.Register("is_account", isAccount)
@@ -446,16 +446,25 @@ func b2i(b bool) int {
 	return 0
 }
 
-func setMemory(w *WasmInterface, mIndex int, dIndex int, data []byte, bufferSize int) {
+func setMemory(w *WasmInterface, mIndex int, data []byte, dIndex int, bufferSize int) {
 	fmt.Println("setMemory")
 	copy(w.vm.memory[mIndex:mIndex+bufferSize], data[dIndex:dIndex+bufferSize])
 }
 
 func getMemory(w *WasmInterface, mIndex int, bufferSize int) []byte {
 	fmt.Println("getMemory")
-	data := make([]byte, bufferSize)
-	copy(data[0:bufferSize], w.vm.memory[0:bufferSize])
-	return data
+
+	cap := cap(w.vm.memory)
+	if cap < mIndex || cap < mIndex+bufferSize {
+		//assert()
+		fmt.Println("getMemory heap memory out of bound")
+		return nil
+	}
+
+	bytes := make([]byte, bufferSize)
+	copy(bytes[:], w.vm.memory[mIndex:mIndex+bufferSize])
+	//return w.vm.memory[mIndex : mIndex+bufferSize]
+	return bytes
 }
 
 func setUint64(w *WasmInterface, index int, val uint64) {
@@ -465,7 +474,7 @@ func setUint64(w *WasmInterface, index int, val uint64) {
 
 	fmt.Println("setUint64")
 	c, _ := rlp.EncodeToBytes(val)
-	setMemory(w, index, 0, c, len(c))
+	setMemory(w, index, c, 0, len(c))
 }
 
 func getUint64(w *WasmInterface, index int) uint64 {
@@ -488,7 +497,7 @@ func setFloat64(w *WasmInterface, index int, val float64) {
 
 	fmt.Println("setUint64")
 	c, _ := rlp.EncodeToBytes(val)
-	setMemory(w, index, 0, c, len(c))
+	setMemory(w, index, c, 0, len(c))
 }
 
 func getFloat64(w *WasmInterface, index int) float64 {
@@ -503,7 +512,7 @@ func getFloat64(w *WasmInterface, index int) float64 {
 	return ret
 }
 
-func getStringSize(w *WasmInterface, index int) int {
+func getStringLength(w *WasmInterface, index int) int {
 	var size int
 	var i int
 	for i = 0; i < 512; i++ {
@@ -516,23 +525,17 @@ func getStringSize(w *WasmInterface, index int) int {
 	return size
 }
 
-func getString(w *WasmInterface, index int) string {
-	return string(w.vm.memory[index : index+getStringSize(w, index)])
-}
+// func getString(w *WasmInterface, index int) string {
+// 	return string(w.vm.memory[index : index+getStringSize(w, index)])
+// }
 func getBytes(w *WasmInterface, index int, datalen int) []byte {
 	return w.vm.memory[index : index+datalen]
 }
-func setSha256(w *WasmInterface, index int, sha256 []byte) {
-	copy(w.vm.memory[index:index+32], sha256[0:32])
-}
-func getSha256(w *WasmInterface, index int) []byte { return w.vm.memory[index : index+32] }
-func setSha512(w *WasmInterface, index int, sha512 []byte) {
-	copy(w.vm.memory[index:index+64], sha512[0:64])
-}
-func getSha512(w *WasmInterface, index int) []byte     { return w.vm.memory[index : index+64] }
-func setSha1(w *WasmInterface, index int, sha1 []byte) { copy(w.vm.memory[index:index+20], sha1[0:20]) }
-func getSha1(w *WasmInterface, index int) []byte       { return w.vm.memory[index : index+20] }
-func setRipemd160(w *WasmInterface, index int, ripemd160 []byte) {
-	copy(w.vm.memory[index:index+20], ripemd160[0:20])
-}
-func getRipemd160(w *WasmInterface, index int) []byte { return w.vm.memory[index : index+20] }
+func setSha256(w *WasmInterface, index int, s []byte)    { setMemory(w, index, s, 0, 32) }
+func getSha256(w *WasmInterface, index int) []byte       { return getMemory(w, index, 32) }
+func setSha512(w *WasmInterface, index int, s []byte)    { setMemory(w, index, s, 0, 64) }
+func getSha512(w *WasmInterface, index int) []byte       { return getMemory(w, index, 64) }
+func setSha1(w *WasmInterface, index int, s []byte)      { setMemory(w, index, s, 0, 20) }
+func getSha1(w *WasmInterface, index int) []byte         { return getMemory(w, index, 20) }
+func setRipemd160(w *WasmInterface, index int, r []byte) { setMemory(w, index, r, 0, 20) }
+func getRipemd160(w *WasmInterface, index int) []byte    { return getMemory(w, index, 20) }

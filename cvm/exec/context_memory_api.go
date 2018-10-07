@@ -5,6 +5,13 @@ import (
 	"fmt"
 )
 
+func abs(n int) int {
+	if n < 0 {
+		return -n
+	}
+	return n
+}
+
 // char* memcpy( array_ptr<char> dest, array_ptr<const char> src, size_t length) {
 //    EOS_ASSERT((std::abs((ptrdiff_t)dest.value - (ptrdiff_t)src.value)) >= length,
 //          overlapping_memory_error, "memcpy can only accept non-aliasing pointers");
@@ -13,7 +20,11 @@ import (
 func memcpy(w *WasmInterface, dest int, src int, length int) int {
 	fmt.Println("memcpy")
 
-	//ASSERT(math.Abs(dest-src) >= length, "memcpy can only accept non-aliasing pointers")
+	if abs(dest-src) < length {
+		fmt.Println("memcpy can only accept non-aliasing pointers")
+		//ASSERT(math.Abs(dest-src) >= length, "memcpy can only accept non-aliasing pointers")
+		return -1
+	}
 	copy(w.vm.memory[dest:dest+length], w.vm.memory[src:src+length])
 
 	return dest
@@ -27,20 +38,18 @@ func memmove(w *WasmInterface, dest int, src int, length int) int {
 	fmt.Println("memmove")
 
 	//ASSERT(math.Abs(dest-src) >= length, "memmove can only accept non-aliasing pointers")
+	if abs(dest-src) < length {
+		fmt.Println("memmove can only accept non-aliasing pointers")
+		//ASSERT(math.Abs(dest-src) >= length, "memcpy can only accept non-aliasing pointers")
+		return -1
+	}
+
 	copy(w.vm.memory[dest:dest+length], w.vm.memory[src:src+length])
 
 	return dest
 
 }
 
-// int memcmp( array_ptr<const char> dest, array_ptr<const char> src, size_t length) {
-//    int ret = ::memcmp(dest, src, length);
-//    if(ret < 0)
-//       return -1;
-//    if(ret > 0)
-//       return 1;
-//    return 0;
-// }
 func memcmp(w *WasmInterface, dest int, src int, length int) int {
 	fmt.Println("memcmp")
 
@@ -65,6 +74,13 @@ func memset(w *WasmInterface, dest int, value int, length int) int {
 	// for i := 0; i < length; i++ {
 	// 	wasmInterface.vm.memory[dest + i] = byte(value)
 	// }
+	cap := cap(w.vm.memory)
+	if cap < dest || cap < dest+length {
+		//assert()
+		fmt.Println("memset heap memory out of bound")
+		return -1
+	}
+
 	b := bytes.Repeat([]byte{byte(value)}, length)
 	copy(w.vm.memory[dest:dest+length], b[:])
 
