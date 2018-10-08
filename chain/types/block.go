@@ -3,7 +3,7 @@ package types
 import (
 	"encoding/json"
 	"github.com/eosspark/eos-go/common"
-	"github.com/eosspark/eos-go/ecc"
+	"github.com/eosspark/eos-go/crypto/ecc"
 )
 
 type TransactionStatus uint8

@@ -12,8 +12,8 @@ import (
 // `owner` authorization, otherwise `active` will do for the rest.
 func NewUpdateAuth(account common.AccountName, permission, parent common.PermissionName, authority types.Authority, usingPermission common.PermissionName) *types.Action {
 	a := &types.Action{
-		Account: common.AccountName(common.StringToName("eosio")),
-		Name:    common.ActionName(common.StringToName("updateauth")),
+		Account: common.AccountName(common.N("eosio")),
+		Name:    common.ActionName(common.N("updateauth")),
 		Authorization: []types.PermissionLevel{
 			{account, usingPermission},
 		},

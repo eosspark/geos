@@ -5,21 +5,23 @@
 package exec_test
 
 import (
+	"bytes"
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
 	"github.com/eosspark/eos-go/chain"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
-	"github.com/eosspark/eos-go/ecc"
+	"github.com/eosspark/eos-go/crypto"
+	"github.com/eosspark/eos-go/crypto/ecc"
 	"io/ioutil"
 	"path/filepath"
 	"strconv"
 	"strings"
 	"testing"
 
+	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/eosspark/eos-go/cvm/exec"
-	"github.com/eosspark/eos-go/rlp"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -44,14 +46,14 @@ func TestContextApis(t *testing.T) {
 				wasm := exec.NewWasmInterface()
 				applyContext := &chain.ApplyContext{
 					Receiver: common.AccountName(exec.N("hello")),
-					Act: types.Action{
+					Act: &types.Action{
 						Account: common.AccountName(exec.N("hello")),
 						Name:    common.ActionName(exec.N("hi")),
 						Data:    []byte{0x00, 0x00, 0x00, 0x00, 0x5c, 0x05, 0xa3, 0xe1}, //'{"walker"}'
 					},
 				}
 
-				codeVersion := rlp.NewSha256Byte([]byte(code)).String()
+				codeVersion := crypto.NewSha256Byte([]byte(code)).String()
 				wasm.Apply(codeVersion, code, applyContext)
 
 				//print "hello,walker"
@@ -65,34 +67,61 @@ func TestContextApis(t *testing.T) {
 	}
 }
 
+const DUMMY_ACTION_DEFAULT_A = 0x45
+const DUMMY_ACTION_DEFAULT_B = 0xab11cd1244556677
+const DUMMY_ACTION_DEFAULT_C = 0x7451ae12
+
+type dummy_action struct {
+	A byte
+	B uint64
+	C int32
+}
+
+func (d *dummy_action) get_name() uint64 {
+	return common.N("dummy_action")
+}
+
+func (d *dummy_action) get_account() uint64 {
+	return common.N("testapi")
+}
+
 func TestContextAction(t *testing.T) {
 
-	name := "testdata_context/action.wasm"
+	name := "testdata_context/test_api.wasm"
 	t.Run(filepath.Base(name), func(t *testing.T) {
 		code, err := ioutil.ReadFile(name)
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		fmt.Println(name)
-		wasm := exec.NewWasmInterface()
-		applyContext := &chain.ApplyContext{
-			Receiver: common.AccountName(exec.N("ctx.action")),
-			Act: types.Action{
-				Account: common.AccountName(exec.N("ctx.action")),
-				Name:    common.ActionName(exec.N("test")),
-				Data:    []byte{0x00, 0x00, 0x00, 0x00, 0x5c, 0x05, 0xa3, 0xe1}, //'{"walker"}'
-			},
-		}
+		dummy13 := dummy_action{DUMMY_ACTION_DEFAULT_A, DUMMY_ACTION_DEFAULT_B, DUMMY_ACTION_DEFAULT_C}
 
-		codeVersion := rlp.NewSha256Byte([]byte(code)).String()
-		wasm.Apply(codeVersion, code, applyContext)
+		callTestFunction(code, "test_action", "assert_true", []byte{})
+		callTestFunction(code, "test_action", "assert_false", []byte{})
 
-		//print "hello,walker"
-		fmt.Println(applyContext.PendingConsoleOutput)
-		if strings.Compare(applyContext.PendingConsoleOutput, "receiver:ctx.action,code:ctx.action,action:test,hello, walker") != 0 {
-			t.Fatalf("error excute action.wasm")
-		}
+		b, _ := rlp.EncodeToBytes(&dummy13)
+		callTestFunction(code, "test_action", "read_action_normal", b)
+
+		//rawBytes := []byte{(1 << 16)}
+		b = bytes.Repeat([]byte{byte(0x01)}, 1<<16)
+		callTestFunction(code, "test_action", "read_action_to_0", b)
+		b = bytes.Repeat([]byte{byte(0x01)}, 1<<16+1)
+		callTestFunction(code, "test_action", "read_action_to_0", b)
+
+		b = bytes.Repeat([]byte{byte(0x01)}, 1)
+		callTestFunction(code, "test_action", "read_action_to_64k", b)
+		b = bytes.Repeat([]byte{byte(0x01)}, 3)
+		callTestFunction(code, "test_action", "read_action_to_64k", b)
+
+		callTestFunction(code, "test_action", "require_auth", []byte{})
+
+		a3only := []types.PermissionLevel{{common.AccountName(common.N("acc3")), common.PermissionName(common.N("active"))}}
+		b, _ = rlp.EncodeToBytes(a3only)
+		callTestFunction(code, "test_action", "require_auth", b)
+
+		a4only := []types.PermissionLevel{{common.AccountName(common.N("acc4")), common.PermissionName(common.N("active"))}}
+		b, _ = rlp.EncodeToBytes(a4only)
+		callTestFunction(code, "test_action", "require_auth", b)
 
 	})
 
@@ -158,38 +187,23 @@ func TestContextPrint(t *testing.T) {
 
 }
 
-// func TestContextMemory(t *testing.T) {
+func TestContextTypes(t *testing.T) {
 
-// 	name := "testdata_context/memory.wasm"
-// 	t.Run(filepath.Base(name), func(t *testing.T) {
-// 		code, err := ioutil.ReadFile(name)
-// 		if err != nil {
-// 			t.Fatal(err)
-// 		}
+	name := "testdata_context/test_api.wasm"
+	t.Run(filepath.Base(name), func(t *testing.T) {
+		code, err := ioutil.ReadFile(name)
+		if err != nil {
+			t.Fatal(err)
+		}
 
-// 		fmt.Println(name)
-// 		wasm := exec.NewWasmInterface()
-// 		applyContext := &chain.ApplyContext{
-// 			Receiver: common.AccountName(exec.N("ctx.memory")),
-// 			Act: types.Action{
-// 				Account: common.AccountName(exec.N("ctx.memory")),
-// 				Name:    common.ActionName(exec.N("test")),
-// 				Data:    []byte{0x00, 0x00, 0x00, 0x00, 0x5c, 0x05, 0xa3, 0xe1}, //'{"walker"}'
-// 			},
-// 		}
+		callTestFunction(code, "test_types", "types_size", []byte{})
+		callTestFunction(code, "test_types", "char_to_symbol", []byte{})
+		callTestFunction(code, "test_types", "string_to_name", []byte{})
+		callTestFunction(code, "test_types", "name_class", []byte{})
 
-// 		codeVersion := rlp.NewSha256Byte([]byte(code)).String()
-// 		wasm.Apply(codeVersion, code, applyContext)
+	})
 
-// 		//print "hello,walker"
-// 		fmt.Println(applyContext.PendingConsoleOutput)
-// 		if strings.Compare(applyContext.PendingConsoleOutput, "cccccccccccccchecksum256 ok") != 0 {
-// 			t.Fatalf("error excute memory.wasm")
-// 		}
-
-// 	})
-
-// }
+}
 
 func TestContextMemory(t *testing.T) {
 
@@ -208,7 +222,7 @@ func TestContextMemory(t *testing.T) {
 		callTestFunction(code, "test_memory", "test_memcpy_overlap_end", []byte{})
 		callTestFunction(code, "test_memory", "test_memcmp", []byte{})
 
-		// callTestFunction(code, "test_memory", "test_outofbound_0", []byte{})
+		//callTestFunction(code, "test_memory", "test_outofbound_0", []byte{})
 		// callTestFunction(code, "test_memory", "test_outofbound_1", []byte{})
 		// callTestFunction(code, "test_memory", "test_outofbound_2", []byte{})
 		// callTestFunction(code, "test_memory", "test_outofbound_3", []byte{})
@@ -245,7 +259,7 @@ func TestContextAuth(t *testing.T) {
 		param, _ := rlp.EncodeToBytes(exec.N("walker"))
 		applyContext := &chain.ApplyContext{
 			Receiver: common.AccountName(exec.N("ctx.auth")),
-			Act: types.Action{
+			Act: &types.Action{
 				Account: common.AccountName(exec.N("ctx.auth")),
 				Name:    common.ActionName(exec.N("test")),
 				Data:    param,
@@ -257,7 +271,7 @@ func TestContextAuth(t *testing.T) {
 			UsedAuthorizations: make([]bool, 1),
 		}
 
-		codeVersion := rlp.NewSha256Byte([]byte(code)).String()
+		codeVersion := crypto.NewSha256Byte([]byte(code)).String()
 		wasm.Apply(codeVersion, code, applyContext)
 
 		result := fmt.Sprintf("%v", applyContext.PendingConsoleOutput)
@@ -319,6 +333,59 @@ func TestContextCrypto(t *testing.T) {
 	})
 }
 
+func TestContextFixedPoint(t *testing.T) {
+
+	name := "testdata_context/test_api.wasm"
+	t.Run(filepath.Base(name), func(t *testing.T) {
+		code, err := ioutil.ReadFile(name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		callTestFunction(code, "test_fixedpoint", "create_instances", []byte{})
+		callTestFunction(code, "test_fixedpoint", "test_addition", []byte{})
+		callTestFunction(code, "test_fixedpoint", "test_subtraction", []byte{})
+		callTestFunction(code, "test_fixedpoint", "test_multiplication", []byte{})
+		callTestFunction(code, "test_fixedpoint", "test_division", []byte{})
+		callTestFunction(code, "test_fixedpoint", "test_division_by_0", []byte{})
+
+	})
+}
+
+func TestContextChecktime(t *testing.T) {
+
+	name := "testdata_context/test_api.wasm"
+	t.Run(filepath.Base(name), func(t *testing.T) {
+		code, err := ioutil.ReadFile(name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		callTestFunction(code, "test_checktime", "checktime_pass", []byte{})
+		//callTestFunction(code, "test_checktime", "checktime_failure", []byte{})
+		callTestFunction(code, "test_checktime", "checktime_sha1_failure", []byte{})
+		callTestFunction(code, "test_checktime", "checktime_assert_sha1_failure", []byte{})
+		callTestFunction(code, "test_checktime", "checktime_sha256_failure", []byte{})
+		callTestFunction(code, "test_checktime", "checktime_assert_sha256_failure", []byte{})
+		callTestFunction(code, "test_checktime", "checktime_sha512_failure", []byte{})
+		callTestFunction(code, "test_checktime", "checktime_assert_sha512_failure", []byte{})
+		callTestFunction(code, "test_checktime", "checktime_ripemd160_failure", []byte{})
+		callTestFunction(code, "test_checktime", "checktime_assert_ripemd160_failure", []byte{})
+
+	})
+}
+
+func TestContextDatastream(t *testing.T) {
+
+	name := "testdata_context/test_api.wasm"
+	t.Run(filepath.Base(name), func(t *testing.T) {
+		code, err := ioutil.ReadFile(name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		callTestFunction(code, "test_datastream", "test_basic", []byte{})
+
+	})
+}
+
 func DJBH(str string) uint32 {
 	var hash uint32 = 5381
 	bytes := []byte(str)
@@ -338,16 +405,16 @@ func callTestFunction(code []byte, cls string, method string, payload []byte) *c
 	wasm := exec.NewWasmInterface()
 	action := wasmTestAction(cls, method)
 	applyContext := &chain.ApplyContext{
-		Receiver: common.AccountName(exec.N("test.api")),
-		Act: types.Action{
-			Account: common.AccountName(exec.N("test.api")),
+		Receiver: common.AccountName(exec.N("testapi")),
+		Act: &types.Action{
+			Account: common.AccountName(exec.N("testapi")),
 			Name:    common.ActionName(action),
 			Data:    payload,
 		},
 	}
 
-	fmt.Println(action)
-	codeVersion := rlp.NewSha256Byte([]byte(code)).String()
+	fmt.Println(cls, method, action)
+	codeVersion := crypto.NewSha256Byte([]byte(code)).String()
 	wasm.Apply(codeVersion, code, applyContext)
 
 	return applyContext
@@ -360,7 +427,7 @@ func callTestFunctionCheckException(code []byte, cls string, method string, payl
 	action := wasmTestAction(cls, method)
 	applyContext := &chain.ApplyContext{
 		Receiver: common.AccountName(exec.N("test.api")),
-		Act: types.Action{
+		Act: &types.Action{
 			Account: common.AccountName(exec.N("test.api")),
 			Name:    common.ActionName(action),
 			Data:    payload,
@@ -368,7 +435,7 @@ func callTestFunctionCheckException(code []byte, cls string, method string, payl
 	}
 
 	fmt.Println(action)
-	codeVersion := rlp.NewSha256Byte([]byte(code)).String()
+	codeVersion := crypto.NewSha256Byte([]byte(code)).String()
 	wasm.Apply(codeVersion, code, applyContext)
 
 	//getException

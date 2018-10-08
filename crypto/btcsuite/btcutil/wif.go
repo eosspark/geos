@@ -8,8 +8,8 @@ import (
 	"bytes"
 	"errors"
 
-	"github.com/eosspark/eos-go/btcsuite/btcd/btcec"
-	"github.com/eosspark/eos-go/btcsuite/btcutil/base58"
+	"github.com/eosspark/eos-go/crypto/btcsuite/btcd/btcec"
+	"github.com/eosspark/eos-go/crypto/btcsuite/btcutil/base58"
 )
 
 // ErrMalformedPrivateKey describes an error where a WIF-encoded private

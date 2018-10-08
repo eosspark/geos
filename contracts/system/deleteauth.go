@@ -13,10 +13,10 @@ import (
 // you will need to `unlinkauth` first.
 func NewDeleteAuth(account common.AccountName, permission common.PermissionName) *types.Action {
 	a := &types.Action{
-		Account: common.AccountName(common.StringToName("eosio")),
-		Name:    common.ActionName(common.StringToName("deleteauth")),
+		Account: common.AccountName(common.N("eosio")),
+		Name:    common.ActionName(common.N("deleteauth")),
 		Authorization: []types.PermissionLevel{
-			{Actor: account, Permission: common.PermissionName(common.StringToName("active"))},
+			{Actor: account, Permission: common.PermissionName(common.N("active"))},
 		},
 		// Data: common.NewActionData(DeleteAuth{//TODO
 		// 	Account:    account,

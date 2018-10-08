@@ -1,10 +1,11 @@
-package rlp
+package crypto
 
 import (
 	"crypto/sha256"
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
+	"github.com/eosspark/eos-go/crypto/rlp"
 	"hash"
 )
 
@@ -51,7 +52,7 @@ func NewSha256Byte(s []byte) *Sha256 {
 }
 
 func Hash256(t interface{}) Sha256 {
-	cereal, err := EncodeToBytes(t)
+	cereal, err := rlp.EncodeToBytes(t)
 	if err != nil {
 		panic(err)
 	}

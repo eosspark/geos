@@ -7,7 +7,7 @@ import (
 	"github.com/eosspark/eos-go/net_plugin"
 	"log"
 
-	"github.com/eosspark/eos-go/rlp"
+	"github.com/eosspark/eos-go/crypto"
 	"time"
 )
 
@@ -29,7 +29,7 @@ func main() {
 	}
 	//data, _ := common.DecodeIDTypeByte(cID)
 
-	data := *rlp.NewSha256Byte(cID)
+	data := *crypto.NewSha256Byte(cID)
 	client := p2p.NewClient(*p2pAddr, common.ChainIdType(data), uint16(*networkVersion))
 	if err != nil {
 		log.Fatal(err)

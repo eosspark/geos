@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
-	"github.com/eosspark/eos-go/ecc"
+	"github.com/eosspark/eos-go/crypto/ecc"
 	"net/http"
 	"os"
 	"time"

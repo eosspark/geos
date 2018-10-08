@@ -1,6 +1,8 @@
 package rlp
 
 import (
+	"fmt"
+	"github.com/cactus/rlp"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
@@ -386,5 +388,14 @@ func TestPublicKey(t *testing.T) {
 	//fmt.Printf("%v\n", check)
 	assert.NoError(t, err, nil)
 	assert.Equal(t, test, check)
+
+}
+
+func TestSharlp(t *testing.T) {
+	//str := "nihao"
+	h := Hash256("cf057bbfb72640471fd910bcb67639c22df9f92470936cddc1ade0e2f2e7dc4f")
+	out, _ := rlp.EncodeToBytes(h)
+	fmt.Println(out, len(out))
+	fmt.Println(h.Bytes())
 
 }

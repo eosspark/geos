@@ -9,19 +9,19 @@ type billableSize struct {
 
 func init() {
 	DefaultConfig = Config{
-		SystemAccountName:    AccountName(StringToName("eosio")),
-		NullAccountName:      AccountName(StringToName("eosio.null")),
-		ProducersAccountName: AccountName(StringToName("eosio.prods")),
+		SystemAccountName:    AccountName(N("eosio")),
+		NullAccountName:      AccountName(N("eosio.null")),
+		ProducersAccountName: AccountName(N("eosio.prods")),
 
-		MajorityProducersPermissionName: AccountName(StringToName("prod.major")),
-		MinorityProducersPermissionName: AccountName(StringToName("prod.minor")),
+		MajorityProducersPermissionName: AccountName(N("prod.major")),
+		MinorityProducersPermissionName: AccountName(N("prod.minor")),
 
-		EosioAuthScope: AccountName(StringToName("eosio.auth")),
-		EosioAllScope:  AccountName(StringToName("eosio.all")),
-		ActiveName:     AccountName(StringToName("active")),
-		OwnerName:      AccountName(StringToName("owner")),
-		EosioAnyName:   AccountName(StringToName("eosio.any")),
-		EosioCodeName:  AccountName(StringToName("eosio.code")),
+		EosioAuthScope: AccountName(N("eosio.auth")),
+		EosioAllScope:  AccountName(N("eosio.all")),
+		ActiveName:     AccountName(N("active")),
+		OwnerName:      AccountName(N("owner")),
+		EosioAnyName:   AccountName(N("eosio.any")),
+		EosioCodeName:  AccountName(N("eosio.code")),
 
 		RateLimitingPrecision: 1000 * 1000,
 

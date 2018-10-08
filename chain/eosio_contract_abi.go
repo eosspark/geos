@@ -197,16 +197,16 @@ func EosioContractAbi(eosioSystemAbi types.AbiDef) types.AbiDef {
 		},
 	})
 
-	eosAbi.Actions = append(eosAbi.Actions, types.ActionDef{common.ActionName(common.StringToName("newaccount")), "newaccount", ""})
-	eosAbi.Actions = append(eosAbi.Actions, types.ActionDef{common.ActionName(common.StringToName("setcode")), "setcode", ""})
-	eosAbi.Actions = append(eosAbi.Actions, types.ActionDef{common.ActionName(common.StringToName("setabi")), "setabi", ""})
-	eosAbi.Actions = append(eosAbi.Actions, types.ActionDef{common.ActionName(common.StringToName("updateauth")), "updateauth", ""})
-	eosAbi.Actions = append(eosAbi.Actions, types.ActionDef{common.ActionName(common.StringToName("deleteauth")), "deleteauth", ""})
+	eosAbi.Actions = append(eosAbi.Actions, types.ActionDef{common.ActionName(common.N("newaccount")), "newaccount", ""})
+	eosAbi.Actions = append(eosAbi.Actions, types.ActionDef{common.ActionName(common.N("setcode")), "setcode", ""})
+	eosAbi.Actions = append(eosAbi.Actions, types.ActionDef{common.ActionName(common.N("setabi")), "setabi", ""})
+	eosAbi.Actions = append(eosAbi.Actions, types.ActionDef{common.ActionName(common.N("updateauth")), "updateauth", ""})
+	eosAbi.Actions = append(eosAbi.Actions, types.ActionDef{common.ActionName(common.N("deleteauth")), "deleteauth", ""})
 
-	eosAbi.Actions = append(eosAbi.Actions, types.ActionDef{common.ActionName(common.StringToName("linkauth")), "linkauth", ""})
-	eosAbi.Actions = append(eosAbi.Actions, types.ActionDef{common.ActionName(common.StringToName("unlinkauth")), "unlinkauth", ""})
-	eosAbi.Actions = append(eosAbi.Actions, types.ActionDef{common.ActionName(common.StringToName("canceldelay")), "canceldelay", ""})
-	eosAbi.Actions = append(eosAbi.Actions, types.ActionDef{common.ActionName(common.StringToName("onerror")), "onerror", ""})
-	eosAbi.Actions = append(eosAbi.Actions, types.ActionDef{common.ActionName(common.StringToName("onblock")), "onblock", ""})
+	eosAbi.Actions = append(eosAbi.Actions, types.ActionDef{common.ActionName(common.N("linkauth")), "linkauth", ""})
+	eosAbi.Actions = append(eosAbi.Actions, types.ActionDef{common.ActionName(common.N("unlinkauth")), "unlinkauth", ""})
+	eosAbi.Actions = append(eosAbi.Actions, types.ActionDef{common.ActionName(common.N("canceldelay")), "canceldelay", ""})
+	eosAbi.Actions = append(eosAbi.Actions, types.ActionDef{common.ActionName(common.N("onerror")), "onerror", ""})
+	eosAbi.Actions = append(eosAbi.Actions, types.ActionDef{common.ActionName(common.N("onblock")), "onblock", ""})
 	return eosAbi
 }

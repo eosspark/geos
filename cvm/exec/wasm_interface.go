@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
-	"github.com/eosspark/eos-go/rlp"
+	"github.com/eosspark/eos-go/crypto/rlp"
 	"log"
 	"reflect"
 
@@ -453,6 +453,14 @@ func setMemory(w *WasmInterface, mIndex int, data []byte, dIndex int, bufferSize
 
 func getMemory(w *WasmInterface, mIndex int, bufferSize int) []byte {
 	fmt.Println("getMemory")
+
+	cap := cap(w.vm.memory)
+	if cap < mIndex || cap < mIndex+bufferSize {
+		//assert()
+		fmt.Println("getMemory heap memory out of bound")
+		return nil
+	}
+
 	bytes := make([]byte, bufferSize)
 	copy(bytes[:], w.vm.memory[mIndex:mIndex+bufferSize])
 	//return w.vm.memory[mIndex : mIndex+bufferSize]
