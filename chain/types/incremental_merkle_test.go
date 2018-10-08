@@ -1,8 +1,8 @@
 package types
 
 import (
-	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/stretchr/testify/assert"
+	"github.com/eosspark/eos-go/crypto"
 	"testing"
 )
 
@@ -10,7 +10,7 @@ func Test_append(t *testing.T) {
 	merkel := new(IncrementalMerkle)
 
 	var merkelAdd = func(t *testing.T, merkel *IncrementalMerkle, o interface{}) {
-		test := rlp.Hash256(o)
+		test := crypto.Hash256(o)
 		assert.Equal(t, merkel.Append(test), merkel.GetRoot())
 	}
 
@@ -61,9 +61,9 @@ func Test_calculateMaxDepth(t *testing.T) {
 }
 
 func Test_moveNodes(t *testing.T) {
-	src := make([]rlp.Sha256, 1)
-	src[0] = *rlp.NewSha256String("26b25d457597a7b0463f9620f666dd10aa2c4373a505967c7c8d70922a2d6ece")
-	dst := []rlp.Sha256{{}}
+	src := make([]crypto.Sha256, 1)
+	src[0] = *crypto.NewSha256String("26b25d457597a7b0463f9620f666dd10aa2c4373a505967c7c8d70922a2d6ece")
+	dst := []crypto.Sha256{{}}
 	moveNodes(&dst, &src)
 	assert.Equal(t, [][4]uint64{{0xb0a79775455db226, 0x10dd66f620963f46, 0x7c9605a573432caa, 0xce6e2d2a92708d7c}}, dst)
 }

@@ -13,6 +13,7 @@ import (
 	"github.com/eosspark/eos-go/common"
 	"strings"
 	"testing"
+	"reflect"
 )
 
 func TestPopBlock(t *testing.T) {
@@ -62,4 +63,34 @@ func TestController_CreateNativeAccount(t *testing.T) {
 func TestController_GetWasmInterface(t *testing.T) {
 	control := GetControllerInstance()
 	fmt.Println(control.WasmIf)
+}
+
+func test(atx *ApplyContext){
+	fmt.Println("this reflect call func :hello test")
+}
+func TestController_SetApplayHandler(t *testing.T) {
+	control := GetControllerInstance()
+	receiver := common.AccountName(common.N("reveiver"))
+	scope:=common.AccountName(common.N("scope"))
+	action:=common.ActionName(common.N("action"))
+	control.SetApplayHandler(receiver,scope,action,test)
+
+	fun := control.FindApplyHandler(receiver,scope,action)
+
+	o:=reflect.TypeOf(fun)
+	/*fmt.Println("=========================",o.Kind().String())
+	fmt.Println("============1=============",o.MethodByName)
+	fmt.Println("=============2============",reflect.ValueOf(fun).MethodByName("test").String())
+
+	fmt.Println("=========================",reflect.ValueOf(fun).String())*/
+	ac := ApplyContext{}
+	v:=[]reflect.Value{
+		reflect.ValueOf(&ac)}
+
+	fmt.Println("-------address-------",fun)
+
+	reflect.ValueOf(fun).Call(v)
+	//a :="test"
+
+	//fmt.Println(strings.Compare(a,o.Name()))
 }

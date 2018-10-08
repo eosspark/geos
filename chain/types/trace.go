@@ -28,3 +28,10 @@ type TransactionTrace struct {
 	FailedDtrxTrace *TransactionTrace
 	Except          error
 }
+
+
+/*func Test(){
+	bat:=BaseActionTrace{ActionReceipt{},Action{},common.Microseconds(60),
+	10,"10",10,common.TransactionIdType{}}
+	bat.Receipt=ActionReceipt{}
+}*/
