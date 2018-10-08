@@ -151,7 +151,36 @@ func (i *iteratorCache) add(obj interface{}) int {
 	return len(i.iteratorToObject) - 1
 }
 
-func (a *ApplyContext) execOne() (trace types.ActionTrace) { return }
+func (a *ApplyContext) execOne() (trace types.ActionTrace) {
+
+	start := common.TimePoint.now()
+
+	cfg := a.Control.GetGlobalProperties().Configuration
+	action := a.Control.GetAccount(a.Receiver)
+	privileged := a.Privileged
+	native := a.Control.FindApplyHandler(a.Receiver, a.Act.Account, a.Act.Name)
+
+	if native != nil {
+		if a.TrxContext.CanSubjectivelyFail && a.Control.IsProducingBlock() {
+			a.Control.CheckContractList(a.Receiver)
+			a.Control.CheckActionList(a.Act.Account, a.Act.Name)
+		}
+		//native(a)
+	}
+
+	if len(action.Code) > 0 &&
+		!(a.Act.Account == common.DefaultConfig.SystemAccountName && a.Act.Name == common.N("setcode")) &&
+		a.Receiver == common.DefaultConfig.SystemAccountName {
+
+		if a.TrxContext.CanSubjectivelyFail && a.Control.IsProducingBlock() {
+			a.Control.CheckContractList(a.Receiver)
+			a.Control.CheckActionList(a.Act.Account, a.Act.Name)
+		}
+		//try{
+		//a.Control.GetWasmInterface().Apply(action.CodeVersion, action.Code, a)
+		//}catch(const wasm_exit&){}
+	}
+}
 func (a *ApplyContext) Exec() {
 
 	a.Notified = append(a.Notified, a.Receiver)
@@ -268,7 +297,7 @@ func (a *ApplyContext) dbStoreI64(code int64, scope int64, table int64, payer in
 
 	// // int64_t billable_size = (int64_t)(buffer_size + config::billable_size_v<key_value_object>);
 	// billableSize := len(buffer) + types.BillableSizeV(obj.GetBillableSize())
-	// UpdateDbUsage( payer, billableSize )
+	// UpdateDbUsage(payer, billableSize)
 	// a.KeyvalCache.cacheTable(tab)
 	// return a.KeyvalCache.add(obj)
 }
