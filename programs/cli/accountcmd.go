@@ -315,7 +315,8 @@ func pushTransaction(trx *types.SignedTransaction, extraKcpu int32, compression 
 		// fmt.Println(info.HeadBlockTime.Totime(), info.HeadBlockTime.Totime().Add(tx_expiration))
 		// trx.SetExpiration(tx_expiration)//now()
 		// calculate expiration date
-		trx.Expiration = common.JSONTime{info.HeadBlockTime.Totime().Add(tx_expiration)}
+		//trx.Expiration = common.TimePointSec{info.HeadBlockTime.Totime().Add(tx_expiration)}
+		trx.Expiration = common.TimePointSec(tx_expiration)
 		// fmt.Println(trx.Expiration)
 
 		// Set tapos, default to last irreversible block if it's not specified by the user
