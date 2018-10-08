@@ -791,7 +791,7 @@ func (a *ApplyContext) GetPackedTransaction() []byte {
 	}
 	return bytes
 }
-func (a *ApplyContext) Expiration() int       { return a.TrxContext.Trx.Expiration.Second() }
+func (a *ApplyContext) Expiration() int       { return int(a.TrxContext.Trx.Expiration) }
 func (a *ApplyContext) TaposBlockNum() int    { return int(a.TrxContext.Trx.RefBlockNum) }
 func (a *ApplyContext) TaposBlockPrefix() int { return int(a.TrxContext.Trx.RefBlockPrefix) }
 func (a *ApplyContext) GetAction(typ uint32, index int, bufferSize int) (int, []byte) {

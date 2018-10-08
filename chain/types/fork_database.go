@@ -2,7 +2,6 @@ package types
 
 import (
 	"fmt"
-	"github.com/eosspark/eos-go/chain/config"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/db"
 	"github.com/eosspark/eos-go/log"
@@ -15,8 +14,8 @@ type ForkDatabase struct {
 	Index   *ForkMultiIndexType `json:"index"`
 	Head    *BlockState         `json:"head"`
 	DataDir string
-
 }
+
 var IrreversibleBlock chan BlockState = make(chan BlockState)
 
 type ForkMultiIndexType struct {
@@ -41,7 +40,7 @@ func (f *ForkDatabase) setHead(head *BlockState) *ForkDatabase {
 func GetForkDbInstance(stateDir string) *ForkDatabase {
 	forkDB := ForkDatabase{}
 	if !isActive {
-		forkd, err := newForkDatabase(stateDir, config.ForkDBName, true)
+		forkd, err := newForkDatabase(stateDir, common.DefaultConfig.ForkDBName, true)
 		if err != nil {
 			log.Error("GetForkDbInstance is error ,detail:", err)
 		}
@@ -55,7 +54,7 @@ func newForkDatabase(path string, fileName string, rw bool) (*ForkDatabase, erro
 
 	db, err := eosiodb.NewDataBase(path, fileName, rw)
 	if err != nil {
-		log.Error("newForkDatabase is error:",err)
+		log.Error("newForkDatabase is error:", err)
 		return nil, err
 	}
 
@@ -85,7 +84,7 @@ func newForkDatabase(path string, fileName string, rw bool) (*ForkDatabase, erro
 	return &ForkDatabase{db: db}, err
 }
 
-func (f *ForkDatabase) set(s BlockState){
+func (f *ForkDatabase) set(s BlockState) {
 
 }
 func (fdb *ForkDatabase) GetBlock(id common.BlockIdType) BlockState {
@@ -207,7 +206,6 @@ func (fdb *ForkDatabase) FetchBranchFrom(first common.BlockIdType, second common
 
 	return err
 }
-
 
 /*func main(){
 
