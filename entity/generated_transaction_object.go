@@ -1,7 +1,8 @@
-package types
+package entity
 
 import (
 	"fmt"
+	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/db"
 	"math/big"
@@ -19,7 +20,7 @@ type GeneratedTransaction struct {
 }
 
 type GeneratedTransactionObject struct {
-	Id         IdType                   `storm:"id,increment"`
+	Id         types.IdType             `storm:"id,increment"`
 	TrxId      common.TransactionIdType `storm:"unique"`
 	Sender     common.AccountName
 	SenderId   big.Int //c++ uint128_t

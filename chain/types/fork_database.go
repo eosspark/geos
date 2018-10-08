@@ -14,8 +14,8 @@ type ForkDatabase struct {
 	Index   *ForkMultiIndexType `json:"index"`
 	Head    *BlockState         `json:"head"`
 	DataDir string
-
 }
+
 var IrreversibleBlock chan BlockState = make(chan BlockState)
 
 type ForkMultiIndexType struct {
@@ -54,7 +54,7 @@ func newForkDatabase(path string, fileName string, rw bool) (*ForkDatabase, erro
 
 	db, err := eosiodb.NewDataBase(path, fileName, rw)
 	if err != nil {
-		log.Error("newForkDatabase is error:",err)
+		log.Error("newForkDatabase is error:", err)
 		return nil, err
 	}
 
@@ -84,7 +84,7 @@ func newForkDatabase(path string, fileName string, rw bool) (*ForkDatabase, erro
 	return &ForkDatabase{db: db}, err
 }
 
-func (f *ForkDatabase) set(s BlockState){
+func (f *ForkDatabase) set(s BlockState) {
 
 }
 func (fdb *ForkDatabase) GetBlock(id common.BlockIdType) BlockState {
@@ -206,7 +206,6 @@ func (fdb *ForkDatabase) FetchBranchFrom(first common.BlockIdType, second common
 
 	return err
 }
-
 
 /*func main(){
 
