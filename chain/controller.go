@@ -4,12 +4,11 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/eosspark/eos-go/chain/config"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
-	//"github.com/eosspark/eos-go/cvm/exec"
 	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/rlp"
+	"github.com/eosspark/eos-go/cvm/exec"
 	"github.com/eosspark/eos-go/db"
 	"github.com/eosspark/eos-go/log"
 )
@@ -58,7 +57,7 @@ type Config struct {
 	disableReplay       bool
 	contractsConsole    bool
 	genesis             types.GenesisState
-	//vmType              exec.WasmInterface
+	vmType              exec.WasmInterface
 	readMode            DBReadMode
 	blockValidationMode ValidationMode
 	resourceGreylist    []common.AccountName
@@ -70,14 +69,14 @@ var isActiveController bool //default value false ;Does the process include cont
 var instance *Controller
 
 type Controller struct {
-	DB               *eosiodb.DataBase
-	DbSession        *eosiodb.Session
-	ReversibleBlocks *eosiodb.DataBase
-	Blog             string //TODO
-	Pending          *types.PendingState
-	Head             types.BlockState
-	ForkDB           *types.ForkDatabase
-	//wasmif                exec.WasmInterface
+	DB                    *eosiodb.DataBase
+	DbSession             *eosiodb.Session
+	ReversibleBlocks      *eosiodb.DataBase
+	Blog                  string //TODO
+	Pending               *types.PendingState
+	Head                  types.BlockState
+	ForkDB                *types.ForkDatabase
+	WasmIf                *exec.WasmInterface
 	ResourceLimists       *ResourceLimitsManager
 	Authorization         *AuthorizationManager
 	Config                Config //local	Config
@@ -114,21 +113,22 @@ func newController() *Controller {
 	defer db.Close()
 
 	//init ReversibleBlocks
-	reversibleDir := config.DefaultBlocksDirName + "/" + config.DefaultReversibleBlocksDirName
-	reversibleDB, err := eosiodb.NewDataBase(reversibleDir, config.ReversibleFileName, true)
+	reversibleDir := common.DefaultConfig.DefaultBlocksDirName + "/" + common.DefaultConfig.DefaultReversibleBlocksDirName
+	reversibleDB, err := eosiodb.NewDataBase(reversibleDir, common.DefaultConfig.ReversibleFileName, true)
 	if err != nil {
 		fmt.Println("newController init reversibleDB is error", err)
 	}
 	con := &Controller{InTrxRequiringChecks: false, RePlaying: false}
 	con.DB = db
 	con.ReversibleBlocks = reversibleDB
-	con.ForkDB = types.GetForkDbInstance(config.DefaultStateDirName)
+	con.ForkDB = types.GetForkDbInstance(common.DefaultConfig.DefaultStateDirName)
 
 	con.ChainID = types.GetGenesisStateInstance().ComputeChainID()
 
 	con.initConfig()
 	con.ReadMode = con.Config.readMode
 
+	con.WasmIf = exec.NewWasmInterface()
 	//TODO wait append
 	/*
 			set_apply_handler( #receiver, #contract, #action, &BOOST_PP_CAT(apply_, BOOST_PP_CAT(contract, BOOST_PP_CAT(_,action) ) ) )
@@ -152,7 +152,7 @@ func newController() *Controller {
 }
 
 //initResource()
-func (self *Controller) onIrreversible(b *types.BlockState) {
+func (self *Controller) OnIrreversible(b *types.BlockState) {
 
 }
 
@@ -182,9 +182,9 @@ func newApplyCon(ac ApplyContext) *applyCon {
 	a.applyContext = ac
 	return &a
 }
-func (self *Controller) SetApplayHandler(receiver common.AccountName, contract common.AccountName, action common.AccountName, handler ApplyContext) {
+func (self *Controller) SetApplayHandler(receiver common.AccountName, scope common.AccountName, action common.AccountName, handler ApplyContext) {
 	h := make(map[common.AccountName]common.AccountName)
-	h[receiver] = contract
+	h[receiver] = scope
 	apply := newApplyCon(handler)
 	apply.handlerKey = h
 	t := make(map[common.AccountName]applyCon)
@@ -317,9 +317,9 @@ func (self *Controller) GetMutableResourceLimitsManager() *ResourceLimitsManager
 
 func (self *Controller) GetOnBlockTransaction() types.SignedTransaction {
 	var onBlockAction = types.Action{}
-	onBlockAction.Account = common.AccountName(config.SystemAccountName)
+	onBlockAction.Account = common.AccountName(common.DefaultConfig.SystemAccountName)
 	onBlockAction.Name = common.ActionName(common.N("onblock"))
-	onBlockAction.Authorization = []types.PermissionLevel{{common.AccountName(config.SystemAccountName), common.PermissionName(config.ActiveName)}}
+	onBlockAction.Authorization = []types.PermissionLevel{{common.AccountName(common.DefaultConfig.SystemAccountName), common.PermissionName(common.DefaultConfig.ActiveName)}}
 
 	data, err := rlp.EncodeToBytes(self.Head.Header)
 	if err != nil {
@@ -329,7 +329,7 @@ func (self *Controller) GetOnBlockTransaction() types.SignedTransaction {
 	trx.Actions = append(trx.Actions, &onBlockAction)
 	trx.SetReferenceBlock(self.Head.ID)
 	in := self.Pending.PendingBlockState.Header.Timestamp + 999999 //TODO
-	trx.Expiration = common.JSONTime{time.Now().UTC().Add(time.Duration(in))}
+	trx.Expiration = common.TimePointSec(in)
 	log.Error("getOnBlockTransaction trx.Expiration:", trx)
 	return trx
 }
@@ -365,7 +365,7 @@ func (self *Controller) LightValidationAllowed(dro bool) (b bool) {
 	return considerSkippingOnReplay || considerSkippingOnvalidate
 }
 
-func (self *Controller) isProducingBlock() bool {
+func (self *Controller) IsProducingBlock() bool {
 	if self.Pending == nil {
 		return false
 	}
@@ -402,17 +402,17 @@ func Close(db *eosiodb.DataBase, session *eosiodb.Session) {
 
 func (self *Controller) initConfig() *Controller {
 	self.Config = Config{
-		blocksDir:           config.DefaultBlocksDirName,
-		stateDir:            config.DefaultStateDirName,
-		stateSize:           config.DefaultStateSize,
-		stateGuardSize:      config.DefaultStateGuardSize,
-		reversibleCacheSize: config.DefaultReversibleCacheSize,
-		reversibleGuardSize: config.DefaultReversibleGuardSize,
+		blocksDir:           common.DefaultConfig.DefaultBlocksDirName,
+		stateDir:            common.DefaultConfig.DefaultStateDirName,
+		stateSize:           common.DefaultConfig.DefaultStateSize,
+		stateGuardSize:      common.DefaultConfig.DefaultStateGuardSize,
+		reversibleCacheSize: common.DefaultConfig.DefaultReversibleCacheSize,
+		reversibleGuardSize: common.DefaultConfig.DefaultReversibleGuardSize,
 		readOnly:            false,
 		forceAllChecks:      false,
 		disableReplayOpts:   false,
 		contractsConsole:    false,
-		//vmType:              config.DefaultWasmRuntime, //TODO
+		//vmType:              common.DefaultConfig.DefaultWasmRuntime, //TODO
 		readMode:            SPECULATIVE,
 		blockValidationMode: FULL,
 	}
@@ -531,16 +531,6 @@ func (self *Controller) GetAccount(name common.AccountName) *types.AccountObject
 	}
 	return &accountObj
 }
-
-/*func (self *Controller) GetPermission(level *types.PermissionLevel) *types.PermissionObject {
-
-	return nil
-}*/
-
-/*func (self *Controller) GetResourceLimitsManager() *ResourceLimitsManager {
-
-	return nil
-}*/
 
 func (self *Controller) GetAuthorizationManager() *AuthorizationManager {
 
@@ -675,7 +665,9 @@ func (self *Controller) FindApplyHandler(contract common.AccountName,
 	return nil
 }
 
-//func (self *Controller) GetWasmInterface() *exec.WasmInterface { return nil }
+func (self *Controller) GetWasmInterface() *exec.WasmInterface {
+	return self.WasmIf
+}
 
 func (self *Controller) GetAbiSerializer(name common.AccountName,
 	maxSerializationTime common.Microseconds) types.AbiSerializer {
@@ -684,14 +676,14 @@ func (self *Controller) GetAbiSerializer(name common.AccountName,
 
 func (self *Controller) ToVariantWithAbi(obj interface{}, maxSerializationTime common.Microseconds) {}
 
-var readycontroller chan bool
+var readycontroller chan bool	//TODO test code
 
 func (self *Controller) CreateNativeAccount(name common.AccountName, owner types.Authority, active types.Authority, isPrivileged bool) {
 	account := types.AccountObject{}
 	account.Name = name
 	account.CreationDate = common.BlockTimeStamp(self.Config.genesis.InitialTimestamp)
 	account.Privileged = isPrivileged
-	if name == common.AccountName(config.SystemAccountName) {
+	if name == common.AccountName(common.DefaultConfig.SystemAccountName) {
 		abiDef := types.AbiDef{}
 		account.SetAbi(EosioContractAbi(abiDef))
 	}
@@ -717,7 +709,7 @@ func (self *Controller) CreateNativeAccount(name common.AccountName, owner types
 func initResource(self *Controller, ready chan bool) {
 	<-ready
 	//con.Blog
-	self.ForkDB = types.GetForkDbInstance(config.DefaultStateDirName)
+	self.ForkDB = types.GetForkDbInstance(common.DefaultConfig.DefaultStateDirName)
 	self.ResourceLimists = GetResourceLimitsManager()
 	self.Authorization = GetAuthorizationManager()
 }

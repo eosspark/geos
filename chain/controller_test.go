@@ -58,3 +58,8 @@ func TestController_CreateNativeAccount(t *testing.T) {
 
 	fmt.Println("check account name:", strings.Compare(name.String(), "eos"))
 }
+
+func TestController_GetWasmInterface(t *testing.T) {
+	control := GetControllerInstance()
+	fmt.Println(control.WasmIf)
+}

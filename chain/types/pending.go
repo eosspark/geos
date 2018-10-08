@@ -2,13 +2,12 @@ package types
 
 import (
 	"fmt"
-	"github.com/eosspark/eos-go/chain/config"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/db"
 	"github.com/eosspark/eos-go/log"
 )
 
-type ActionReceipt struct {
+/*type ActionReceipt struct {
 	Receiver       common.AccountName            `json:"receiver"`
 	ActDigest      common.SHA256Bytes            `json:"act_digest"`
 	GlobalSequence uint64                        `json:"global_sequence"`
@@ -16,7 +15,7 @@ type ActionReceipt struct {
 	AuthSequence   map[common.AccountName]uint64 `json:"auth_sequence"`
 	CodeSequence   uint32                        `json:"code_sequence"` //TODO
 	ABISequence    uint32                        `json:"abi_sequence"`
-}
+}*/
 type PendingState struct {
 	DBSeesion         *eosiodb.Session `json:"db_session"`
 	PendingBlockState BlockState       `json:"pending_block_state"`
@@ -41,7 +40,7 @@ func NewPendingState(db *eosiodb.DataBase) *PendingState {
 
 func GetInstance() *PendingState {
 	pending := PendingState{}
-	db, err := eosiodb.NewDataBase(config.DefaultBlocksDirName, config.DBFileName, true)
+	db, err := eosiodb.NewDataBase(common.DefaultConfig.DefaultBlocksDirName, common.DefaultConfig.DBFileName, true)
 	if err != nil {
 		log.Error("pending NewPendingState is error detail:", err)
 	}

@@ -8,11 +8,10 @@ import (
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/eosspark/eos-go/log"
-	"time"
 )
 
 type TransactionHeader struct {
-	Expiration     common.JSONTime `json:"expiration"`
+	Expiration     common.TimePointSec `json:"expiration"`
 	RefBlockNum    uint16          `json:"ref_block_num"`
 	RefBlockPrefix uint32          `json:"ref_block_prefix"`
 
@@ -55,8 +54,8 @@ func NewTransaction(actions []*Action, opts *TxOptions) *Transaction {
 	return tx
 }
 
-func (tx *Transaction) SetExpiration(in time.Duration) {
-	tx.Expiration = common.JSONTime{time.Now().UTC().Add(in)}
+func (tx *Transaction) SetExpiration(in uint32) {
+	tx.Expiration = common.TimePointSec(in)
 }
 
 func (tx *Transaction) GetSignatureKeys(chainId common.ChainIdType, allowDeplicateKeys bool, useCache bool) []common.PublicKeyType {
@@ -70,6 +69,8 @@ type Extension struct {
 }
 
 // Fill sets the fields on a transaction.  If you pass `headBlockID`, then `api` can be nil. If you don't pass `headBlockID`, then the `api` is going to be called to fetch
+
+//canada eos code
 func (tx *Transaction) Fill(headBlockID common.BlockIdType, delaySecs, maxNetUsageWords uint32, maxCPUUsageMS uint8) {
 	tx.setRefBlock(headBlockID)
 
@@ -84,7 +85,8 @@ func (tx *Transaction) Fill(headBlockID common.BlockIdType, delaySecs, maxNetUsa
 	tx.MaxCPUUsageMS = maxCPUUsageMS
 	tx.DelaySec = uint32(delaySecs)
 
-	tx.SetExpiration(30 * time.Second)
+	//tx.SetExpiration(30 * time.Second)
+	tx.SetExpiration(30)
 }
 
 func (tx *Transaction) setRefBlock(blockID common.BlockIdType) {

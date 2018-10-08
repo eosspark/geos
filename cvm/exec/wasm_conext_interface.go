@@ -23,7 +23,7 @@ type WasmContextInterface interface {
 	HasReciptient(code int64) bool
 
 	//console
-	ResetConsole()
+	//ResetConsole()
 	ContextAppend(str string)
 
 	//database

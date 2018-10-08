@@ -151,7 +151,82 @@ func (i *iteratorCache) add(obj interface{}) int {
 	return len(i.iteratorToObject) - 1
 }
 
-func (a *ApplyContext) execOne() (trace types.ActionTrace) { return }
+func (a *ApplyContext) printDebug(receiver common.AccountName, at *types.ActionTrace) {
+
+	if len(at.Console) != 0 {
+		prefix := fmt.Sprintf("\n[(%s,%s)->%s]", common.S(uint64(at.Act.Account)), common.S(uint64(at.Act.Name)), common.S(uint64(receiver)))
+		fmt.Println(prefix, ": CONSOLE OUTPUT BEGIN =====================\n")
+		fmt.Println(at.Console)
+		fmt.Println(prefix, ": CONSOLE OUTPUT END   =====================")
+	}
+
+}
+
+func (a *ApplyContext) execOne() (trace types.ActionTrace) {
+
+	start := common.Now() //common.TimePoint.now()
+
+	//cfg := a.Control.GetGlobalProperties().Configuration
+	action := a.Control.GetAccount(a.Receiver)
+	//privileged := a.Privileged
+	native := a.Control.FindApplyHandler(a.Receiver, common.ScopeName(a.Act.Account), a.Act.Name)
+
+	if native != nil {
+		if a.TrxContext.CanSubjectivelyFail && a.Control.isProducingBlock() {
+			a.Control.CheckContractList(a.Receiver)
+			a.Control.CheckActionList(a.Act.Account, a.Act.Name)
+		}
+		//native(a)
+	}
+
+	if len(action.Code) > 0 &&
+		!(a.Act.Account == common.DefaultConfig.SystemAccountName && a.Act.Name == common.ActionName(common.N("setcode"))) &&
+		a.Receiver == common.DefaultConfig.SystemAccountName {
+
+		if a.TrxContext.CanSubjectivelyFail && a.Control.isProducingBlock() {
+			a.Control.CheckContractList(a.Receiver)
+			a.Control.CheckActionList(a.Act.Account, a.Act.Name)
+		}
+		//try{
+		//a.Control.GetWasmInterface().Apply(action.CodeVersion, action.Code, a)
+		//}catch(const wasm_exit&){}
+	}
+
+	r := &types.ActionReceipt{}
+	r.Receiver = a.Receiver
+	//r.ActDigest = crypto.Hash256(a.Act)
+	r.GlobalSequence = a.nextGlobalSequence()
+	r.RecvSequence = a.nextRecvSequence(a.Receiver)
+
+	accountSequence := &types.AccountSequenceObject{Name: a.Act.Account}
+	//a.DB.Get("byName", accountSequence)
+	r.CodeSequence = uint32(accountSequence.CodeSequence)
+	r.ABISequence = uint32(accountSequence.AbiSequence)
+
+	for _, auth := range a.Act.Authorization {
+		r.AuthSequence[auth.Actor] = a.nextAuthSequence(auth.Actor)
+	}
+
+	b := types.BaseActionTrace{Receipt: *r}
+	t := &types.ActionTrace{}
+	t.BaseActionTrace = b
+	t.TrxId = a.TrxContext.ID
+	t.Act = *a.Act
+	t.Console = a.PendingConsoleOutput
+
+	a.TrxContext.Executed = append(a.TrxContext.Executed, *r)
+
+	if a.Control.ContractsConsole() {
+		a.printDebug(a.Receiver, t)
+	}
+
+	a.resetConsole()
+
+	t.Elapsed = common.Now().Sub(start)
+
+	return *t
+
+}
 func (a *ApplyContext) Exec() {
 
 	a.Notified = append(a.Notified, a.Receiver)
@@ -241,7 +316,10 @@ func (a *ApplyContext) HasReciptient(code int64) bool {
 }
 
 //context console api
-func (a *ApplyContext) ResetConsole()            { return }
+func (a *ApplyContext) resetConsole() {
+	str := ""
+	a.PendingConsoleOutput = str
+}
 func (a *ApplyContext) ContextAppend(str string) { a.PendingConsoleOutput += str }
 
 //context database api
@@ -268,7 +346,7 @@ func (a *ApplyContext) dbStoreI64(code int64, scope int64, table int64, payer in
 
 	// // int64_t billable_size = (int64_t)(buffer_size + config::billable_size_v<key_value_object>);
 	// billableSize := len(buffer) + types.BillableSizeV(obj.GetBillableSize())
-	// UpdateDbUsage( payer, billableSize )
+	// UpdateDbUsage(payer, billableSize)
 	// a.KeyvalCache.cacheTable(tab)
 	// return a.KeyvalCache.add(obj)
 }
@@ -713,7 +791,7 @@ func (a *ApplyContext) GetPackedTransaction() []byte {
 	}
 	return bytes
 }
-func (a *ApplyContext) Expiration() int       { return a.TrxContext.Trx.Expiration.Second() }
+func (a *ApplyContext) Expiration() int       { return int(a.TrxContext.Trx.Expiration) }
 func (a *ApplyContext) TaposBlockNum() int    { return int(a.TrxContext.Trx.RefBlockNum) }
 func (a *ApplyContext) TaposBlockPrefix() int { return int(a.TrxContext.Trx.RefBlockPrefix) }
 func (a *ApplyContext) GetAction(typ uint32, index int, bufferSize int) (int, []byte) {
@@ -755,4 +833,33 @@ func (a *ApplyContext) GetContextFreeData(index int, bufferSize int) (int, []byt
 	copySize := common.Min(uint64(bufferSize), uint64(s))
 	return int(copySize), trx.ContextFreeData[index][0:copySize]
 
+}
+
+func (a *ApplyContext) nextGlobalSequence() uint64 {
+	return 0
+	//p := a.Control.GetDynamicGlobalProperties()
+	//a.DB.Modify(p, func(dgp *types.DynamicGlobalPropertyObject) {
+	//	dgp.GlobalActionSequence++
+	//})
+	//return p.GlobalActionSequence
+}
+
+func (a *ApplyContext) nextRecvSequence(receiver common.AccountName) uint64 {
+	return 0
+	//rs := &types.AccountSequenceObject{Name: receiver}
+	//a.DB.Get("byName", rs)
+	//a.DB.Modify(rs, func(mrs *types.AccountSequenceObject) {
+	//	mrs.RecvSequence++
+	//})
+	//return rs.RecvSequence
+}
+
+func (a *ApplyContext) nextAuthSequence(receiver common.AccountName) uint64 {
+	return 0
+	//rs := &types.AccountSequenceObject{Name: receiver}
+	//a.DB.Get("byName", rs)
+	//a.DB.Modify(rs, func(mrs *types.AccountSequenceObject) {
+	//	mrs.AuthSequence++
+	//})
+	//return rs.AuthSequence
 }
