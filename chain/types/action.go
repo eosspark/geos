@@ -1,7 +1,6 @@
 package types
 
 import (
-	"github.com/eosspark/eos-go/chain/config"
 	"github.com/eosspark/eos-go/common"
 )
 
@@ -17,11 +16,11 @@ type NewAccount struct {
 }
 
 func (n *NewAccount) GetAccount() common.AccountName {
-	return common.AccountName(config.SystemAccountName)
+	return common.AccountName(common.DefaultConfig.SystemAccountName)
 }
 
 func (n *NewAccount) GetName() common.ActionName {
-	name := common.StringToName("newaccount")
+	name := common.N("newaccount")
 	return common.ActionName(name)
 }
 
@@ -34,26 +33,26 @@ type SetCode struct {
 }
 
 func (n *SetCode) GetAccount() common.AccountName {
-	return common.AccountName(config.SystemAccountName)
+	return common.AccountName(common.DefaultConfig.SystemAccountName)
 }
 
 func (n *SetCode) GetName() common.ActionName {
-	name := common.StringToName("setcode")
+	name := common.N("setcode")
 	return common.ActionName(name)
 }
 
 // SetABI represents the hard-coded `setabi` action.
 type SetABI struct {
 	Account common.AccountName `json:"account"`
-	ABI     ABI                `json:"abi"`
+	ABI     AbiDef             `json:"abi"`
 }
 
 func (n *SetABI) GetAccount() common.AccountName {
-	return common.AccountName(config.SystemAccountName)
+	return common.AccountName(common.DefaultConfig.SystemAccountName)
 }
 
 func (n *SetABI) GetName() common.ActionName {
-	name := common.StringToName("setabi")
+	name := common.N("setabi")
 	return common.ActionName(name)
 }
 

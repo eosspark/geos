@@ -4,13 +4,13 @@ import (
 	"fmt"
 	"time"
 
-	"github.com/eosspark/eos-go/chain/config"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	//"github.com/eosspark/eos-go/cvm/exec"
+	"github.com/eosspark/eos-go/crypto"
+	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/eosspark/eos-go/db"
 	"github.com/eosspark/eos-go/log"
-	"github.com/eosspark/eos-go/rlp"
 )
 
 type DBReadMode int8
@@ -88,50 +88,75 @@ type Controller struct {
 	SubjectiveCupLeeway   common.Microseconds //optional<common.Tstamp>
 	HandlerKey            HandlerKey
 	ApplyHandlers         ApplyHandler
-	UnAppliedTransactions map[rlp.Sha256]types.TransactionMetadata
+	UnAppliedTransactions map[crypto.Sha256]types.TransactionMetadata
 }
 
 func GetControllerInstance() *Controller {
 	if !isActiveController {
 		instance = newController()
+
+		readycontroller <- true
+		time.Sleep(2 * time.Second) //TODO for test case
+
 	}
 	return instance
 }
 
 func newController() *Controller {
+	isActiveController = true //controller is active
 	//init db
 	db, err := eosiodb.NewDataBase("./", "shared_memory.bin", true)
 	if err != nil {
-		log.Error("pending NewPendingState is error detail:", err)
+		fmt.Println("pending NewPendingState is error detail:", err)
 		return nil
 	}
 	defer db.Close()
 
 	//init ReversibleBlocks
-	reversibleDir := config.DefaultBlocksDirName + "/" + config.DefaultReversibleBlocksDirName
-	reversibleDB, err := eosiodb.NewDataBase(reversibleDir, config.ReversibleFileName, true)
+	reversibleDir := common.DefaultConfig.DefaultBlocksDirName + "/" + common.DefaultConfig.DefaultReversibleBlocksDirName
+	reversibleDB, err := eosiodb.NewDataBase(reversibleDir, common.DefaultConfig.ReversibleFileName, true)
 	if err != nil {
-		log.Error("newController init reversibleDB is error", err)
+		fmt.Println("newController init reversibleDB is error", err)
 	}
-	//eosiodb.NewDataBase(config.DefaultStateDirName,config.ForkDBName,true)
 	con := &Controller{InTrxRequiringChecks: false, RePlaying: false}
 	con.DB = db
 	con.ReversibleBlocks = reversibleDB
-	//con.Blog
-	con.ForkDB = types.GetForkDbInstance(config.DefaultStateDirName)
-	//con.ResourceLimists = NewResourceLimitsManager(con.DB) //TODO  modify GetInstance
-	//con.Authorization = NewAu												//TODO
-	con.initConfig()
+	con.ForkDB = types.GetForkDbInstance(common.DefaultConfig.DefaultStateDirName)
+
 	con.ChainID = types.GetGenesisStateInstance().ComputeChainID()
+
+	con.initConfig()
 	con.ReadMode = con.Config.readMode
-	isActiveController = true //control is active
+
+	//TODO wait append
+	/*
+			set_apply_handler( #receiver, #contract, #action, &BOOST_PP_CAT(apply_, BOOST_PP_CAT(contract, BOOST_PP_CAT(_,action) ) ) )
+			SET_APP_HANDLER( eosio, eosio, newaccount );
+			SET_APP_HANDLER( eosio, eosio, setcode );
+			SET_APP_HANDLER( eosio, eosio, setabi );
+			SET_APP_HANDLER( eosio, eosio, updateauth );
+			SET_APP_HANDLER( eosio, eosio, deleteauth );
+			SET_APP_HANDLER( eosio, eosio, unlinkauth );
+			SET_APP_HANDLER( eosio, eosio, linkauth );
+			SET_APP_HANDLER( eosio, eosio, canceldelay );
+		    fork_db.irreversible.connect( [&]( auto b ) {
+		                                 on_irreversible(b);
+		                                 });
+	*/
+	//IrreversibleBlock.connect()
+	readycontroller = make(chan bool)
+	go initResource(con, readycontroller)
+
 	return con
 }
 
+//initResource()
+func (self *Controller) onIrreversible(b *types.BlockState) {
+
+}
+
 func (self *Controller) PopBlock() {
-
 	prev := self.ForkDB.GetBlock(self.Head.Header.Previous)
-
 	var r types.ReversibleBlockObject
 	errs := self.ReversibleBlocks.Find("NUM", self.Head.BlockNum, r)
 	if errs != nil {
@@ -140,12 +165,11 @@ func (self *Controller) PopBlock() {
 	if &r != nil {
 		self.ReversibleBlocks.Remove(&r)
 	}
-
 	if self.ReadMode == SPECULATIVE {
 		var trx []*types.TransactionMetadata = self.Head.Trxs
 		step := 0
 		for ; step < len(trx); step++ {
-			self.UnAppliedTransactions[rlp.Sha256(trx[step].SignedID)] = *trx[step]
+			self.UnAppliedTransactions[crypto.Sha256(trx[step].SignedID)] = *trx[step]
 		}
 	}
 	self.Head = prev
@@ -175,7 +199,7 @@ func (self *Controller) AbortBlock() {
 			trx := append(self.Pending.PendingBlockState.Trxs)
 			step := 0
 			for ; step < len(trx); step++ {
-				self.UnAppliedTransactions[rlp.Sha256(trx[step].SignedID)] = *trx[step]
+				self.UnAppliedTransactions[crypto.Sha256(trx[step].SignedID)] = *trx[step]
 			}
 		}
 	}
@@ -292,9 +316,9 @@ func (self *Controller) GetMutableResourceLimitsManager() *ResourceLimitsManager
 
 func (self *Controller) GetOnBlockTransaction() types.SignedTransaction {
 	var onBlockAction = types.Action{}
-	onBlockAction.Account = common.AccountName(config.SystemAccountName)
+	onBlockAction.Account = common.AccountName(common.DefaultConfig.SystemAccountName)
 	onBlockAction.Name = common.ActionName(common.StringToName("onblock"))
-	onBlockAction.Authorization = []types.PermissionLevel{{common.AccountName(config.SystemAccountName), common.PermissionName(config.ActiveName)}}
+	onBlockAction.Authorization = []types.PermissionLevel{{common.AccountName(common.DefaultConfig.SystemAccountName), common.PermissionName(common.DefaultConfig.ActiveName)}}
 
 	data, err := rlp.EncodeToBytes(self.Head.Header)
 	if err != nil {
@@ -377,12 +401,12 @@ func Close(db *eosiodb.DataBase, session *eosiodb.Session) {
 
 func (self *Controller) initConfig() *Controller {
 	self.Config = Config{
-		blocksDir:           config.DefaultBlocksDirName,
-		stateDir:            config.DefaultStateDirName,
-		stateSize:           config.DefaultStateSize,
-		stateGuardSize:      config.DefaultStateGuardSize,
-		reversibleCacheSize: config.DefaultReversibleCacheSize,
-		reversibleGuardSize: config.DefaultReversibleGuardSize,
+		blocksDir:           common.DefaultConfig.DefaultBlocksDirName,
+		stateDir:            common.DefaultConfig.DefaultStateDirName,
+		stateSize:           common.DefaultConfig.DefaultStateSize,
+		stateGuardSize:      common.DefaultConfig.DefaultStateGuardSize,
+		reversibleCacheSize: common.DefaultConfig.DefaultReversibleCacheSize,
+		reversibleGuardSize: common.DefaultConfig.DefaultReversibleGuardSize,
 		readOnly:            false,
 		forceAllChecks:      false,
 		disableReplayOpts:   false,
@@ -407,7 +431,7 @@ func (self *Controller) GetUnAppliedTransactions() *[]types.TransactionMetadata 
 }
 
 func (self *Controller) DropUnAppliedTransaction(metadata *types.TransactionMetadata) {
-	delete(self.UnAppliedTransactions, rlp.Sha256(metadata.SignedID))
+	delete(self.UnAppliedTransactions, crypto.Sha256(metadata.SignedID))
 }
 
 func (self *Controller) DropAllUnAppliedTransactions() {
@@ -454,7 +478,6 @@ func (self *Controller) PushScheduledTransaction1(gto types.GeneratedTransaction
 	}
 
 	undo_session := self.DB.StartSession()
-	//if !self.SkiDbSessions() {}
 	gtrx := types.GeneratedTransactions(&gto)
 
 	self.RemoveScheduledTransaction(&gto)
@@ -470,8 +493,7 @@ func (self *Controller) PushScheduledTransaction1(gto types.GeneratedTransaction
 	}
 
 	trx := types.TransactionMetadata{}
-	//trx.
-	fmt.Println(undo_session, dtrx, trx)
+	fmt.Println(undo_session, dtrx, trx) //TODO
 	return nil
 }
 
@@ -545,8 +567,6 @@ func (self *Controller) SetActorWhiteList(params *map[common.AccountName]struct{
 func (self *Controller) SetActorBlackList(params *map[common.AccountName]struct{}) {}
 
 func (self *Controller) SetContractWhiteList(params *map[common.AccountName]struct{}) {}
-
-func (self *Controller) SetContractBlackList(params *map[common.AccountName]struct{}) {}
 
 func (self *Controller) SetActionBlackList(params *map[[2]common.AccountName]struct{}) {}
 
@@ -663,7 +683,45 @@ func (self *Controller) GetAbiSerializer(name common.AccountName,
 
 func (self *Controller) ToVariantWithAbi(obj interface{}, maxSerializationTime common.Microseconds) {}
 
-/*    about chan
+var readycontroller chan bool
+
+func (self *Controller) CreateNativeAccount(name common.AccountName, owner types.Authority, active types.Authority, isPrivileged bool) {
+	account := types.AccountObject{}
+	account.Name = name
+	account.CreationDate = common.BlockTimeStamp(self.Config.genesis.InitialTimestamp)
+	account.Privileged = isPrivileged
+	if name == common.AccountName(common.DefaultConfig.SystemAccountName) {
+		abiDef := types.AbiDef{}
+		account.SetAbi(EosioContractAbi(abiDef))
+	}
+	self.DB.Insert(account)
+
+	aso := types.AccountSequenceObject{}
+	aso.Name = name
+	self.DB.Insert(aso)
+
+	ownerPermission := self.Authorization.CreatePermission(name, common.PermissionName(common.DefaultConfig.OwnerName), 0, owner, self.Config.genesis.InitialTimestamp)
+
+	activePermission := self.Authorization.CreatePermission(name, common.PermissionName(common.DefaultConfig.ActiveName), PermissionIdType(ownerPermission.ID), active, self.Config.genesis.InitialTimestamp)
+
+	self.ResourceLimists.InitializeAccount(name)
+	ramDelta := uint64(common.DefaultConfig.OverheadPerRowPerIndexRamBytes) //TODO c++ reference int64 but statement uint32
+	ramDelta += 2 * common.BillableSizeV("permission_object")               //::billable_size_v<permission_object>
+	ramDelta += ownerPermission.Auth.GetBillableSize()
+	ramDelta += activePermission.Auth.GetBillableSize()
+	self.ResourceLimists.AddPendingRamUsage(name, int64(ramDelta))
+	self.ResourceLimists.VerifyAccountRamUsage(name)
+}
+
+func initResource(self *Controller, ready chan bool) {
+	<-ready
+	//con.Blog
+	self.ForkDB = types.GetForkDbInstance(common.DefaultConfig.DefaultStateDirName)
+	self.ResourceLimists = GetResourceLimitsManager()
+	self.Authorization = GetAuthorizationManager()
+}
+
+/*    about chain
 
 signal<void(const signed_block_ptr&)>         pre_accepted_block;
 signal<void(const block_state_ptr&)>          accepted_block_header;

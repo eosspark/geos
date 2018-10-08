@@ -10,20 +10,15 @@ import (
 type TypeName string
 type FieldName string
 
-type ABI struct {
+type AbiDef struct {
 	Version          string            `json:"version"`
-	Types            []ABIType         `json:"types,omitempty"`
+	Types            []TypeDef         `json:"types,omitempty"`
 	Structs          []StructDef       `json:"structs,omitempty"`
 	Actions          []ActionDef       `json:"actions,omitempty"`
 	Tables           []TableDef        `json:"tables,omitempty"`
 	RicardianClauses []ClausePair      `json:"ricardian_clauses,omitempty"`
-	ErrorMessages    []ABIErrorMessage `json:"error_messages,omitempty"`
+	ErrorMessages    []AbiErrorMessage `json:"error_messages,omitempty"`
 	Extensions       []*Extension      `json:"abi_extensions,omitempty"`
-}
-
-type ABIType struct {
-	NewTypeName string `json:"new_type_name"`
-	Type        string `json:"type"`
 }
 
 type StructDef struct {
@@ -58,7 +53,7 @@ type ClausePair struct {
 	Body string `json:"body"`
 }
 
-type ABIErrorMessage struct {
+type AbiErrorMessage struct {
 	Code    uint64 `json:"error_code"`
 	Message string `json:"error_msg"`
 }
@@ -67,13 +62,13 @@ type TypeDef struct {
 	NewTypeName TypeName
 	Type        TypeName
 }
-type AbiDef struct {
-	Version          string //c++ default value "eosio::abi/1.0"
-	types            []TypeDef
-	Structs          []StructDef
-	Actions          []ActionDef
-	tables           []TableDef
-	RicardianClauses []ClausePair
-	ErrorMessages    []ABIErrorMessage
-	AbiExtensions    []Extension
+
+func AbiDefs(types []TypeDef, structs []StructDef, actions []ActionDef, tables []TableDef, clauses []ClausePair, errorMsgs []AbiErrorMessage) {
+	abi := AbiDef{}
+	abi.Types = types
+	abi.Structs = structs
+	abi.Actions = actions
+	abi.Tables = tables
+	abi.RicardianClauses = clauses
+	abi.ErrorMessages = errorMsgs
 }

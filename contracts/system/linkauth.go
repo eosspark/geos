@@ -15,10 +15,10 @@ import (
 // can sign anything) for the given operation.
 func NewLinkAuth(account, code common.AccountName, actionName common.ActionName, requiredPermission common.PermissionName) *types.Action {
 	a := &types.Action{
-		Account: common.AccountName(common.StringToName("eosio")),
-		Name:    common.ActionName(common.StringToName("linkauth")),
+		Account: common.AccountName(common.N("eosio")),
+		Name:    common.ActionName(common.N("linkauth")),
 		Authorization: []types.PermissionLevel{
-			{account, common.PermissionName(common.StringToName("active"))},
+			{account, common.PermissionName(common.N("active"))},
 		},
 		// Data: common.NewActionData(LinkAuth{//TODO
 		// 	Account:     account,

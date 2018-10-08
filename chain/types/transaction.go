@@ -4,9 +4,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/eosspark/eos-go/common"
-	"github.com/eosspark/eos-go/ecc"
+	"github.com/eosspark/eos-go/crypto"
+	"github.com/eosspark/eos-go/crypto/ecc"
+	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/eosspark/eos-go/log"
-	"github.com/eosspark/eos-go/rlp"
 	"time"
 )
 
@@ -212,7 +213,7 @@ func (tx *Transaction) ID() common.TransactionIdType {
 		fmt.Println("Transaction ID() is error :", err.Error()) //TODO
 	}
 
-	return common.TransactionIdType(rlp.Hash256(b))
+	return common.TransactionIdType(crypto.Hash256(b))
 }
 
 // func (s *SignedTransaction) Pack(compression CompressionType) (*PackedTransaction, error) {

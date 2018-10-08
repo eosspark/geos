@@ -9,19 +9,19 @@ type billableSize struct {
 
 func init() {
 	DefaultConfig = Config{
-		SystemAccountName:    AccountName(StringToName("eosio")),
-		NullAccountName:      AccountName(StringToName("eosio.null")),
-		ProducersAccountName: AccountName(StringToName("eosio.prods")),
+		SystemAccountName:    AccountName(N("eosio")),
+		NullAccountName:      AccountName(N("eosio.null")),
+		ProducersAccountName: AccountName(N("eosio.prods")),
 
-		MajorityProducersPermissionName: AccountName(StringToName("prod.major")),
-		MinorityProducersPermissionName: AccountName(StringToName("prod.minor")),
+		MajorityProducersPermissionName: AccountName(N("prod.major")),
+		MinorityProducersPermissionName: AccountName(N("prod.minor")),
 
-		EosioAuthScope: AccountName(StringToName("eosio.auth")),
-		EosioAllScope:  AccountName(StringToName("eosio.all")),
-		ActiveName:     AccountName(StringToName("active")),
-		OwnerName:      AccountName(StringToName("owner")),
-		EosioAnyName:   AccountName(StringToName("eosio.any")),
-		EosioCodeName:  AccountName(StringToName("eosio.code")),
+		EosioAuthScope: AccountName(N("eosio.auth")),
+		EosioAllScope:  AccountName(N("eosio.all")),
+		ActiveName:     AccountName(N("active")),
+		OwnerName:      AccountName(N("owner")),
+		EosioAnyName:   AccountName(N("eosio.any")),
+		EosioCodeName:  AccountName(N("eosio.code")),
 
 		RateLimitingPrecision: 1000 * 1000,
 
@@ -32,6 +32,7 @@ func init() {
 			"wait_weight":             {value: 16},
 			"shared_authority":        {value: 3*1 + 4},
 			"permission_link_object":  {overhead: 32 * 3, value: 40 + 32},
+			"permission_object":       {overhead: 5 * 32, value: 3*1 + 4 + 64 + 5*32},
 		},
 		FixedNetOverheadOfPackedTrx: 16,
 	}
@@ -72,7 +73,24 @@ func init() {
 	DefaultConfig.MaxInlineActionSize = 4 * 1024        // 4 KB
 	DefaultConfig.MaxInlineActionDepth = 4
 	DefaultConfig.MaxAuthorityDepth = 6
+	DefaultConfig.FixedNetOverheadOfPackedTrx = 16
+	DefaultConfig.FixedOverheadSharedVectorRamBytes = 16
+	DefaultConfig.OverheadPerRowPerIndexRamBytes = 32
+	DefaultConfig.OverheadPerAccountRamBytes = 2 * 1024
+	DefaultConfig.SetcodeRamBytesMultiplier = 10
+	DefaultConfig.HashingChecktimeBlockSize = 10 * 1024
 
+	DefaultConfig.ForkDBName = "forkdb.dat"
+	DefaultConfig.DBFileName = "shared_memory.bin"
+	DefaultConfig.ReversibleFileName = "shared_memory_tmp.bin"			//wait db modify
+	DefaultConfig.BlockFileName = "blog.log"
+	DefaultConfig.DefaultBlocksDirName = "blocks"
+	DefaultConfig.DefaultReversibleBlocksDirName="reversible"
+	DefaultConfig.DefaultStateDirName = "state"
+	DefaultConfig.DefaultStateSize = 0
+	DefaultConfig.DefaultStateGuardSize = 0
+	DefaultConfig.DefaultReversibleCacheSize = 0
+	DefaultConfig.DefaultReversibleGuardSize = 0
 }
 
 type Config struct {
@@ -104,7 +122,13 @@ type Config struct {
 	ProducerRepetitions int
 	MaxProducers        int
 
+	FixedNetOverheadOfPackedTrx       uint32 //TODO: C++ default value 16 and is this reasonable?
 	FixedOverheadSharedVectorRamBytes uint32
+	OverheadPerRowPerIndexRamBytes    uint32 ///< overhead accounts for basic tracking structures in a row per index
+	OverheadPerAccountRamBytes        uint32 //= 2*1024; ///< overhead accounts for basic account storage and pre-pays features like account recovery
+	SetcodeRamBytesMultiplier         uint32 //= 10;     ///< multiplier on contract size to account for multiple copies and cached compilation
+
+	HashingChecktimeBlockSize uint32 //= 10*1024;
 
 	BillableAlignment uint64
 	BillableSize      map[string]billableSize
@@ -143,7 +167,18 @@ type Config struct {
 	MaxAuthorityDepth           uint16 ///< recursion depth limit for checking if an authority is satisfied
 	/**************************chain_config end****************************/
 
-	FixedNetOverheadOfPackedTrx uint32 // TODO: C++ default value 16 and is this reasonable?
+	ForkDBName	string
+	DBFileName string
+	ReversibleFileName string
+	BlockFileName string
+	DefaultBlocksDirName string
+	DefaultReversibleBlocksDirName string
+	DefaultStateDirName string
+	DefaultStateSize uint64
+	DefaultStateGuardSize uint64
+	DefaultReversibleCacheSize uint64
+	DefaultReversibleGuardSize uint64
+	//FixedNetOverheadOfPackedTrx uint32 // TODO: C++ default value 16 and is this reasonable?
 }
 
 func (c *Config) Validate() {

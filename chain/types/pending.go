@@ -2,7 +2,6 @@ package types
 
 import (
 	"fmt"
-	"github.com/eosspark/eos-go/chain/config"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/db"
 	"github.com/eosspark/eos-go/log"
@@ -41,7 +40,7 @@ func NewPendingState(db *eosiodb.DataBase) *PendingState {
 
 func GetInstance() *PendingState {
 	pending := PendingState{}
-	db, err := eosiodb.NewDataBase(config.DefaultBlocksDirName, config.DBFileName, true)
+	db, err := eosiodb.NewDataBase(common.DefaultConfig.DefaultBlocksDirName, common.DefaultConfig.DBFileName, true)
 	if err != nil {
 		log.Error("pending NewPendingState is error detail:", err)
 	}

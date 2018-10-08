@@ -18,7 +18,7 @@ var ActiveName uint64 = common.StringToName("active")
 
 var ForkDBName = "forkdb.dat"
 var DBFileName = "shared_memory.bin"
-var ReversibleFileName = "shared_memory.bin"
+var ReversibleFileName = "shared_memory_tmp.bin"			//wait db modify
 var BlockFileName = "blog.log"
 var DefaultBlocksDirName = "blocks"
 var DefaultReversibleBlocksDirName="reversible"

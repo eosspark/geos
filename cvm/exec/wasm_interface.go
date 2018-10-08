@@ -2,9 +2,9 @@ package exec
 
 import (
 	"bytes"
-	"encoding/binary"
 	"errors"
 	"fmt"
+	"github.com/eosspark/eos-go/crypto/rlp"
 	"log"
 	"reflect"
 
@@ -104,8 +104,8 @@ func NewWasmInterface() *WasmInterface {
 	wasmInterface.Register("read_action_data", readActionData)
 	wasmInterface.Register("current_receiver", currentReceiver)
 
-	wasmInterface.Register("require_authorization", requireAuthorization)
-	wasmInterface.Register("has_authorization", hasAuthorization)
+	wasmInterface.Register("require_auth", requireAuthorization)
+	wasmInterface.Register("has_auth", hasAuthorization)
 	wasmInterface.Register("require_auth2", requireAuth2)
 	wasmInterface.Register("require_recipient", requireRecipient)
 	wasmInterface.Register("is_account", isAccount)
@@ -133,6 +133,39 @@ func NewWasmInterface() *WasmInterface {
 	wasmInterface.Register("sha256", sha256)
 	wasmInterface.Register("sha512", sha512)
 	wasmInterface.Register("ripemd160", ripemd160)
+
+	wasmInterface.Register("db_store_i64", dbStoreI64)
+	wasmInterface.Register("db_update_i64", dbUpdateI64)
+	wasmInterface.Register("db_remove_i64", dbRemoveI64)
+	wasmInterface.Register("db_get_i64", dbGetI64)
+	wasmInterface.Register("db_next_i64", dbNextI64)
+	wasmInterface.Register("db_previous_i64", dbPreviousI64)
+	wasmInterface.Register("db_find_i64", dbFindI64)
+	wasmInterface.Register("db_lowerbound_i64", dbLowerboundI64)
+	wasmInterface.Register("db_upperbound_i64", dbUpperboundI64)
+	wasmInterface.Register("db_end_i64", dbEndI64)
+
+	wasmInterface.Register("db_idx64_store", dbIdx64Store)
+	wasmInterface.Register("db_idx64_remove", dbIdx64Remove)
+	wasmInterface.Register("db_idx64_update", dbIdx64Update)
+	wasmInterface.Register("db_idx64_find_secondary", dbIdx64findSecondary)
+	wasmInterface.Register("db_idx64_lowerbound", dbIdx64Lowerbound)
+	wasmInterface.Register("db_idx64_upperbound", dbIdx64Upperbound)
+	wasmInterface.Register("db_idx64_end", dbIdx64End)
+	wasmInterface.Register("db_idx64_next", dbIdx64Next)
+	wasmInterface.Register("db_idx64_previous", dbIdx64Previous)
+	wasmInterface.Register("db_idx64_find_primary", dbIdx64FindPrimary)
+
+	wasmInterface.Register("db_idx_double_store", dbIdxDoubleStore)
+	wasmInterface.Register("db_idx_double_remove", dbIdxDoubleRemove)
+	wasmInterface.Register("db_idx_double_update", dbIdxDoubleUpdate)
+	wasmInterface.Register("db_idx_double_find_secondary", dbIdxDoublefindSecondary)
+	wasmInterface.Register("db_idx_double_lowerbound", dbIdxDoubleLowerbound)
+	wasmInterface.Register("db_idx_double_upperbound", dbIdxDoubleUpperbound)
+	wasmInterface.Register("db_idx_double_end", dbIdxDoubleEnd)
+	wasmInterface.Register("db_idx_double_next", dbIdxDoubleNext)
+	wasmInterface.Register("db_idx_double_previous", dbIdxDoublePrevious)
+	wasmInterface.Register("db_idx_double_find_primary", dbIdxDoubleFindPrimary)
 
 	wasmInterface.Register("memcpy", memcpy)
 	wasmInterface.Register("memmove", memmove)
@@ -413,37 +446,73 @@ func b2i(b bool) int {
 	return 0
 }
 
-// func copyMemory(w *WasmInterface, dest int, src int, bufferSize int) {
-// 	copy(w.vm.memory[dest:dest+bufferSize], w.vm.memory[src:src+bufferSize])
-// }
-func setMemory(w *WasmInterface, mIndex int, dIndex int, data []byte, bufferSize int) {
+func setMemory(w *WasmInterface, mIndex int, data []byte, dIndex int, bufferSize int) {
+	fmt.Println("setMemory")
 	copy(w.vm.memory[mIndex:mIndex+bufferSize], data[dIndex:dIndex+bufferSize])
 }
 
-//func getMemory(w *WasmInterface, mIndex int, dIndex int, data []byte, bufferSize int) {
 func getMemory(w *WasmInterface, mIndex int, bufferSize int) []byte {
-	data := make([]byte, bufferSize)
-	copy(data[0:0+bufferSize], w.vm.memory[0:0+bufferSize])
+	fmt.Println("getMemory")
 
-	return data
+	cap := cap(w.vm.memory)
+	if cap < mIndex || cap < mIndex+bufferSize {
+		//assert()
+		fmt.Println("getMemory heap memory out of bound")
+		return nil
+	}
+
+	bytes := make([]byte, bufferSize)
+	copy(bytes[:], w.vm.memory[mIndex:mIndex+bufferSize])
+	//return w.vm.memory[mIndex : mIndex+bufferSize]
+	return bytes
 }
 
 func setUint64(w *WasmInterface, index int, val uint64) {
-	c := make([]byte, 8)
-	binary.LittleEndian.PutUint64(c, val)
+	//c := make([]byte, 8)
+	//binary.LittleEndian.PutUint64(c, val)
+	//copy(w.vm.memory[index:index+8], c[:])
 
-	copy(w.vm.memory[index:index+8], c[:])
+	fmt.Println("setUint64")
+	c, _ := rlp.EncodeToBytes(val)
+	setMemory(w, index, c, 0, len(c))
 }
 
 func getUint64(w *WasmInterface, index int) uint64 {
-	c := make([]byte, 8)
-	copy(c[:], w.vm.memory[index:index+8])
+	//c := make([]byte, 8)
+	//copy(c[:], w.vm.memory[index:index+8])
+	//return binary.LittleEndian.Uint64(c[:])
 
-	return binary.LittleEndian.Uint64(c[:])
-
+	fmt.Println("getUint64")
+	var ret uint64
+	c := getMemory(w, index, 8)
+	rlp.DecodeBytes(c, &ret)
+	return ret
 }
 
-func getStringSize(w *WasmInterface, index int) int {
+func setFloat64(w *WasmInterface, index int, val float64) {
+	//c := make([]byte, 8)
+	//bits := math.Float64bits(val)
+	//binary.LittleEndian.PutUint64(c, bits)
+	//copy(w.vm.memory[index:index+8], c[:])
+
+	fmt.Println("setUint64")
+	c, _ := rlp.EncodeToBytes(val)
+	setMemory(w, index, c, 0, len(c))
+}
+
+func getFloat64(w *WasmInterface, index int) float64 {
+	//c := make([]byte, 8)
+	//copy(c[:], w.vm.memory[index:index+8])
+	//return math.Float64frombits(binary.LittleEndian.Uint64(c[:]))
+
+	fmt.Println("getUint64")
+	var ret float64
+	c := getMemory(w, index, 8)
+	rlp.DecodeBytes(c, &ret)
+	return ret
+}
+
+func getStringLength(w *WasmInterface, index int) int {
 	var size int
 	var i int
 	for i = 0; i < 512; i++ {
@@ -456,23 +525,17 @@ func getStringSize(w *WasmInterface, index int) int {
 	return size
 }
 
-func getString(w *WasmInterface, index int) string {
-	return string(w.vm.memory[index : index+getStringSize(w, index)])
-}
+// func getString(w *WasmInterface, index int) string {
+// 	return string(w.vm.memory[index : index+getStringSize(w, index)])
+// }
 func getBytes(w *WasmInterface, index int, datalen int) []byte {
 	return w.vm.memory[index : index+datalen]
 }
-func setSha256(w *WasmInterface, index int, sha256 []byte) {
-	copy(w.vm.memory[index:index+32], sha256[0:32])
-}
-func getSha256(w *WasmInterface, index int) []byte { return w.vm.memory[index : index+32] }
-func setSha512(w *WasmInterface, index int, sha512 []byte) {
-	copy(w.vm.memory[index:index+64], sha512[0:64])
-}
-func getSha512(w *WasmInterface, index int) []byte     { return w.vm.memory[index : index+64] }
-func setSha1(w *WasmInterface, index int, sha1 []byte) { copy(w.vm.memory[index:index+20], sha1[0:20]) }
-func getSha1(w *WasmInterface, index int) []byte       { return w.vm.memory[index : index+20] }
-func setRipemd160(w *WasmInterface, index int, ripemd160 []byte) {
-	copy(w.vm.memory[index:index+20], ripemd160[0:20])
-}
-func getRipemd160(w *WasmInterface, index int) []byte { return w.vm.memory[index : index+20] }
+func setSha256(w *WasmInterface, index int, s []byte)    { setMemory(w, index, s, 0, 32) }
+func getSha256(w *WasmInterface, index int) []byte       { return getMemory(w, index, 32) }
+func setSha512(w *WasmInterface, index int, s []byte)    { setMemory(w, index, s, 0, 64) }
+func getSha512(w *WasmInterface, index int) []byte       { return getMemory(w, index, 64) }
+func setSha1(w *WasmInterface, index int, s []byte)      { setMemory(w, index, s, 0, 20) }
+func getSha1(w *WasmInterface, index int) []byte         { return getMemory(w, index, 20) }
+func setRipemd160(w *WasmInterface, index int, r []byte) { setMemory(w, index, r, 0, 20) }
+func getRipemd160(w *WasmInterface, index int) []byte    { return getMemory(w, index, 20) }

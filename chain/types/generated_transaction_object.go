@@ -1,32 +1,33 @@
 package types
 
 import (
+	"fmt"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/db"
 	"math/big"
-	"fmt"
 )
+
 type GeneratedTransaction struct {
-	TrxId	common.TransactionIdType
-	Sender	common.AccountName
-	SenderId	big.Int		//c++ uint128_t
-	Payer	common.AccountName
-	DelayUntil   common.TimePoint
-	Expiration   common.TimePoint
-	Published    common.TimePoint
-	PackedTrx	[]byte
+	TrxId      common.TransactionIdType
+	Sender     common.AccountName
+	SenderId   big.Int //c++ uint128_t
+	Payer      common.AccountName
+	DelayUntil common.TimePoint
+	Expiration common.TimePoint
+	Published  common.TimePoint
+	PackedTrx  []byte
 }
 
 type GeneratedTransactionObject struct {
-	Id           IdType                   `storm:"id,increment"`
-	TrxId        common.TransactionIdType `storm:"unique"`
-	Sender       common.AccountName
-	SenderId     big.Int //c++ uint128_t
-	Payer        common.AccountName
-	DelayUntil   common.TimePoint
-	Expiration   common.TimePoint
-	Published    common.TimePoint
-	PackedTrx    common.HexBytes //c++ shared_string
+	Id         IdType                   `storm:"id,increment"`
+	TrxId      common.TransactionIdType `storm:"unique"`
+	Sender     common.AccountName
+	SenderId   big.Int //c++ uint128_t
+	Payer      common.AccountName
+	DelayUntil common.TimePoint
+	Expiration common.TimePoint
+	Published  common.TimePoint
+	PackedTrx  common.HexBytes //c++ shared_string
 	/*expiration、Id*/
 	ByExpiration common.Tuple
 	/*DelayUntil、Id*/
@@ -85,8 +86,8 @@ func GetGeneratedTransactionObjectBySenderId(db eosiodb.DataBase, be common.Tupl
 	return &gto
 }
 
-func GeneratedTransactions(gto *GeneratedTransactionObject) *GeneratedTransaction{
-	gt:=GeneratedTransaction{}
+func GeneratedTransactions(gto *GeneratedTransactionObject) *GeneratedTransaction {
+	gt := GeneratedTransaction{}
 	gt.TrxId = gto.TrxId
 	gt.Sender = gto.Sender
 	gt.SenderId = gto.SenderId

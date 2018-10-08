@@ -314,3 +314,20 @@ func (trx *TransactionContext) InitForInputTrx(packeTrxUnprunableSize uint64, pa
 		dsfpd = (dsfpd + uint64(cfg.ContextFreeDiscountNetUsageDen) - 1) / uint64(cfg.ContextFreeDiscountNetUsageDen)
 	}
 }
+
+func (trx *TransactionContext) DispathAction(trace *types.ActionTrace, action *types.Action, receiver common.AccountName, contextFree bool, recurseDepth uint32) {
+
+	applyContext := NewApplyContext(trx.Control, trx, action, recurseDepth)
+	applyContext.ContextFree = contextFree
+	applyContext.Receiver = receiver
+
+	// try {
+	//      applyContext.exec()
+	//   } catch( ... ) {
+	//      *trace = applyContext.Trace
+	//      throw
+	//   }
+
+	*trace = applyContext.Trace
+
+}
