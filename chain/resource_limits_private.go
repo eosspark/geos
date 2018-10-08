@@ -1,10 +1,10 @@
 package chain
 
 import (
-	"fmt"
 	"github.com/eosspark/eos-go/common"
 	"math"
 	"math/big"
+	"github.com/eosspark/eos-go/log"
 )
 
 func IntegerDivideCeil(num *big.Int, den *big.Int) *big.Int {
@@ -44,7 +44,7 @@ func DowngradeCast(val *big.Int) int64 {
 	min := big.NewInt(math.MinInt64)
 
 	if val.Cmp(max) == 1 || val.Cmp(min) == -1 {
-		fmt.Println("error")
+		log.Error("Usage exceeds maximum value representable after extending for precision")
 	}
 	return val.Int64()
 }
