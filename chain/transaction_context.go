@@ -276,7 +276,7 @@ func (trx *TransactionContext) MaxBandwidthBilledAccountsCanPay(forceElasticLimi
 	_greylistedNet := false
 	_greylistedCpu := false
 	for _, a := range trx.BillToAccounts {
-		elastic := forceElasticLimits || !(trx.Control.isProducingBlock()) && trx.Control.IsResourceGreylisted(&a)
+		elastic := forceElasticLimits || !(trx.Control.IsProducingBlock()) && trx.Control.IsResourceGreylisted(&a)
 		netLimit := rl.GetAccountNetLimit(a, elastic)
 		if netLimit >= 0 {
 			if _accountNetLimit > netLimit {

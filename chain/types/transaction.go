@@ -69,8 +69,8 @@ type Extension struct {
 }
 
 // Fill sets the fields on a transaction.  If you pass `headBlockID`, then `api` can be nil. If you don't pass `headBlockID`, then the `api` is going to be called to fetch
-/*
-canada eos code
+
+//canada eos code
 func (tx *Transaction) Fill(headBlockID common.BlockIdType, delaySecs, maxNetUsageWords uint32, maxCPUUsageMS uint8) {
 	tx.setRefBlock(headBlockID)
 
@@ -87,7 +87,7 @@ func (tx *Transaction) Fill(headBlockID common.BlockIdType, delaySecs, maxNetUsa
 
 	//tx.SetExpiration(30 * time.Second)
 	tx.SetExpiration(30)
-}*/
+}
 
 func (tx *Transaction) setRefBlock(blockID common.BlockIdType) {
 	tx.RefBlockNum = uint16(blockID.Hash[0])

@@ -4,7 +4,8 @@ import (
 	"fmt"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
-	"github.com/eosspark/eos-go/rlp"
+	"github.com/eosspark/eos-go/crypto"
+	"github.com/eosspark/eos-go/crypto/rlp"
 )
 
 type AccountObject struct {
@@ -14,7 +15,7 @@ type AccountObject struct {
 	VmVersion      uint8              //c++ default value 0
 	Privileged     bool               //c++ default value false
 	LastCodeUpdate common.TimePoint
-	CodeVersion    rlp.Sha256
+	CodeVersion    crypto.Sha256
 	CreationDate   common.BlockTimeStamp
 	Code           common.HexBytes
 	Abi            common.HexBytes
