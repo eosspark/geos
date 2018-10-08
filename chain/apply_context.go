@@ -169,10 +169,10 @@ func (a *ApplyContext) execOne() (trace types.ActionTrace) {
 	//cfg := a.Control.GetGlobalProperties().Configuration
 	action := a.Control.GetAccount(a.Receiver)
 	//privileged := a.Privileged
-	native := a.Control.FindApplyHandler(a.Receiver, common.ScopeName(a.Act.Account), a.Act.Name)
+	native := a.Control.FindApplyHandler(a.Receiver, a.Act.Account, a.Act.Name)
 
 	if native != nil {
-		if a.TrxContext.CanSubjectivelyFail && a.Control.isProducingBlock() {
+		if a.TrxContext.CanSubjectivelyFail && a.Control.IsProducingBlock() {
 			a.Control.CheckContractList(a.Receiver)
 			a.Control.CheckActionList(a.Act.Account, a.Act.Name)
 		}
@@ -183,7 +183,7 @@ func (a *ApplyContext) execOne() (trace types.ActionTrace) {
 		!(a.Act.Account == common.DefaultConfig.SystemAccountName && a.Act.Name == common.ActionName(common.N("setcode"))) &&
 		a.Receiver == common.DefaultConfig.SystemAccountName {
 
-		if a.TrxContext.CanSubjectivelyFail && a.Control.isProducingBlock() {
+		if a.TrxContext.CanSubjectivelyFail && a.Control.IsProducingBlock() {
 			a.Control.CheckContractList(a.Receiver)
 			a.Control.CheckActionList(a.Act.Account, a.Act.Name)
 		}
@@ -201,7 +201,7 @@ func (a *ApplyContext) execOne() (trace types.ActionTrace) {
 	accountSequence := &types.AccountSequenceObject{Name: a.Act.Account}
 	//a.DB.Get("byName", accountSequence)
 	r.CodeSequence = uint32(accountSequence.CodeSequence)
-	r.ABISequence = uint32(accountSequence.AbiSequence)
+	r.AbiSequence = uint32(accountSequence.AbiSequence)
 
 	for _, auth := range a.Act.Authorization {
 		r.AuthSequence[auth.Actor] = a.nextAuthSequence(auth.Actor)

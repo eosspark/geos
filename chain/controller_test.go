@@ -77,8 +77,8 @@ func TestController_SetApplayHandler(t *testing.T) {
 
 	fun := control.FindApplyHandler(receiver,scope,action)
 
-	o:=reflect.TypeOf(fun)
-	/*fmt.Println("=========================",o.Kind().String())
+	/*o:=reflect.TypeOf(fun)
+	fmt.Println("=========================",o.Kind().String())
 	fmt.Println("============1=============",o.MethodByName)
 	fmt.Println("=============2============",reflect.ValueOf(fun).MethodByName("test").String())
 
