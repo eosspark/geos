@@ -46,7 +46,7 @@ func TestProducerPlugin_PluginInitialize(t *testing.T) {
 func TestProducerPlugin_PluginStartup(t *testing.T) {
 	initialize()
 	start := time.Now()
-	const keepsec = 999 /*seconds*/
+	const keepsec = 3 /*seconds*/
 
 	plugin.PluginStartup()
 
@@ -59,6 +59,28 @@ func TestProducerPlugin_PluginStartup(t *testing.T) {
 }
 
 func TestProducerPlugin_Pause(t *testing.T) {
+	initialize()
+	plugin.PluginStartup()
+	once := false
+
+	for {
+		if chain.HeadBlockNum() == 10 && !once {
+			println("pause")
+			once = true
+			plugin.Pause()
+		}
+
+		if plugin.Paused() {
+			time.Sleep(3 * time.Second)
+			println("rusume")
+			plugin.Resume()
+		}
+
+		if chain.HeadBlockNum() > 20 {
+			plugin.PluginShutdown()
+			break
+		}
+	}
 
 }
 
