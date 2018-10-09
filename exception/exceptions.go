@@ -94,3 +94,39 @@ func (e *BlockValidateException) ChainExceptions()         {}
 func (e *BlockValidateException) BlockValidateExceptions() {}
 func (e *BlockValidateException) Code() ExcTypes           { return 3030000 }
 func (e *BlockValidateException) What() string             { return "Block exception" }
+
+type TxCpuUsageExceed struct{ logMessage }
+
+func (e *TxCpuUsageExceed) ChainExceptions()        {}
+func (e *TxCpuUsageExceed) ForkDatabaseExceptions() {}
+func (e *TxCpuUsageExceed) Code() ExcTypes          { return 3080004 }
+func (e *TxCpuUsageExceed) What() string {
+	return "Transaction exceeded the current CPU usage limit imposed on the transaction"
+}
+
+type BlockCpuUsageExceeded struct{ logMessage }
+
+func (e *BlockCpuUsageExceeded) ChainExceptions()        {}
+func (e *BlockCpuUsageExceeded) ForkDatabaseExceptions() {}
+func (e *BlockCpuUsageExceeded) Code() ExcTypes          { return 3080005 }
+func (e *BlockCpuUsageExceeded) What() string {
+	return "Transaction CPU usage is too much for the remaining allowable usage of the current block"
+}
+
+type DeadlineException struct{ logMessage }
+
+func (e *DeadlineException) ChainExceptions()        {}
+func (e *DeadlineException) ForkDatabaseExceptions() {}
+func (e *DeadlineException) Code() ExcTypes          { return 3080006 }
+func (e *DeadlineException) What() string {
+	return "Transaction took too long"
+}
+
+type LeewayDeadlineException struct{ logMessage }
+
+func (e *LeewayDeadlineException) ChainExceptions()        {}
+func (e *LeewayDeadlineException) ForkDatabaseExceptions() {}
+func (e *LeewayDeadlineException) Code() ExcTypes          { return 3081001 }
+func (e *LeewayDeadlineException) What() string {
+	return "Transaction reached the deadline set due to leeway on account CPU limits"
+}
