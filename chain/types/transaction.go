@@ -16,7 +16,7 @@ type TransactionHeader struct {
 	RefBlockPrefix uint32          `json:"ref_block_prefix"`
 
 	MaxNetUsageWords uint32 `json:"max_net_usage_words"`
-	MaxCPUUsageMS    uint8  `json:"max_cpu_usage_ms"`
+	MaxCpuUsageMS    uint8  `json:"max_cpu_usage_ms"`
 	DelaySec         uint32 `json:"delay_sec"` // number of secs to delay, making it cancellable for that duration
 }
 
@@ -50,7 +50,7 @@ func NewTransaction(actions []*Action, opts *TxOptions) *Transaction {
 	}
 
 	tx := &Transaction{Actions: actions}
-	tx.Fill(opts.HeadBlockID, opts.DelaySecs, opts.MaxNetUsageWords, opts.MaxCPUUsageMS)
+	tx.Fill(opts.HeadBlockID, opts.DelaySecs, opts.MaxNetUsageWords, opts.MaxCpuUsageMS)
 	return tx
 }
 
@@ -82,7 +82,7 @@ func (tx *Transaction) Fill(headBlockID common.BlockIdType, delaySecs, maxNetUsa
 	}
 
 	tx.MaxNetUsageWords = uint32(maxNetUsageWords)
-	tx.MaxCPUUsageMS = maxCPUUsageMS
+	tx.MaxCpuUsageMS = maxCPUUsageMS
 	tx.DelaySec = uint32(delaySecs)
 
 	//tx.SetExpiration(30 * time.Second)
@@ -389,7 +389,7 @@ type TxOptions struct {
 	HeadBlockID      common.BlockIdType // If provided, don't hit API to fetch it.  This allows offline transaction signing.
 	MaxNetUsageWords uint32
 	DelaySecs        uint32
-	MaxCPUUsageMS    uint8 // If you want to override the CPU usage (in counts of 1024)
+	MaxCpuUsageMS    uint8 // If you want to override the CPU usage (in counts of 1024)
 	//ExtraKCPUUsage uint32 // If you want to *add* some CPU usage to the estimated amount (in counts of 1024)
 	Compress common.CompressionType
 }

@@ -646,6 +646,11 @@ func (self *Controller) GetValidationMode() ValidationMode { return 0 }
 
 func (self *Controller) SetSubjectiveCpuLeeway(leeway common.Microseconds) {}
 
+func (self *Controller) PendingProducerBlockId() common.BlockIdType{
+	//EOS_ASSERT( my->pending, block_validate_exception, "no pending block" )
+	return self.Pending.ProducerBlockId
+}
+
 func (self *Controller) FindApplyHandler(receiver common.AccountName,
 	scope common.AccountName,
 	act common.ActionName) func(*ApplyContext) {
