@@ -6,9 +6,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/asdine/storm/codec/gob"
-	"github.com/asdine/storm/codec/json"
-	"github.com/asdine/storm/q"
+	"github.com/eosspark/eos-go/database/storm/codec/gob"
+	"github.com/eosspark/eos-go/database/storm/codec/json"
+	"github.com/eosspark/eos-go/database/storm/q"
 	"github.com/coreos/bbolt"
 	"github.com/stretchr/testify/require"
 )

@@ -13,10 +13,10 @@ set -e
 workspace="$PWD/build/_workspace"
 root="$PWD"
 ethdir="$workspace/src/github.com/eosspark/eos-go"
-if [ ! -L "$ethdir/db" ]; then
+if [ ! -L "$ethdir/database" ]; then
     mkdir -p "$ethdir"
     cd "$ethdir"
-    ln -s ../../../../../../. db
+    ln -s ../../../../../../. database
     cd "$root"
 fi
 
@@ -26,8 +26,8 @@ GOPATH="$workspace"
 export GOPATH
 
 # Run the command inside the workspace.
-cd "$ethdir/db"
-PWD="$ethdir/db"
+cd "$ethdir/database"
+PWD="$ethdir/database"
 
 # Launch the arguments with the configured environment.
 go test

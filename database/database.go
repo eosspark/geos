@@ -4,8 +4,8 @@ import (
 	"container/list"
 	"errors"
 	"fmt"
-	"github.com/eosspark/eos-go/db/storm"
-	"github.com/eosspark/eos-go/db/storm/q"
+	"github.com/eosspark/eos-go/database/storm"
+	"github.com/eosspark/eos-go/database/storm/q"
 	"path/filepath"
 	"reflect"
 	"sync"
@@ -203,7 +203,7 @@ func (db *base) close() {
 func newBase(path string, name string, rw bool /*read and  write*/) (*base, error) {
 	dir := filepath.Join(path, name)
 	fmt.Println("database dir : ", dir)
-	db, err := storm.Open(name)
+	db, err := storm.Open(dir)
 	if err != nil {
 		return nil, err
 	}

@@ -3,9 +3,9 @@ package storm
 import (
 	"os"
 
-	"github.com/eosspark/eos-go/db/coreos/bbolt"
-	"github.com/eosspark/eos-go/db/storm/codec"
-	"github.com/eosspark/eos-go/db/storm/index"
+	"github.com/eosspark/eos-go/database/coreos/bbolt"
+	"github.com/eosspark/eos-go/database/storm/codec"
+	"github.com/eosspark/eos-go/database/storm/index"
 )
 
 // BoltOptions used to pass options to BoltDB.

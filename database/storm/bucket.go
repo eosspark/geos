@@ -1,6 +1,6 @@
 package storm
 
-import "github.com/eosspark/eos-go/db/coreos/bbolt"
+import "github.com/eosspark/eos-go/database/coreos/bbolt"
 
 // CreateBucketIfNotExists creates the bucket below the current node if it doesn't
 // already exist.
