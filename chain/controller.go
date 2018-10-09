@@ -29,21 +29,6 @@ const (
 	LIGHT
 )
 
-type HandlerKey struct {
-	handKey map[common.AccountName]common.AccountName
-}
-
-type applyCon struct {
-	handlerKey   map[common.AccountName]common.AccountName
-	applyContext ApplyContext
-}
-
-//apply_context
-type ApplyHandler struct {
-	applyHandler map[common.AccountName]applyCon
-	scopeName    common.AccountName
-}
-
 type Config struct {
 	blocksDir           string
 	stateDir            string
@@ -67,27 +52,28 @@ type Config struct {
 var isActiveController bool //default value false ;Does the process include control ;
 
 var instance *Controller
-
+//type HandlerKey common.Tuple
 type Controller struct {
-	DB                    *eosiodb.DataBase
-	DbSession             *eosiodb.Session
-	ReversibleBlocks      *eosiodb.DataBase
-	Blog                  string //TODO
-	Pending               *types.PendingState
-	Head                  types.BlockState
-	ForkDB                *types.ForkDatabase
-	WasmIf                *exec.WasmInterface
-	ResourceLimists       *ResourceLimitsManager
-	Authorization         *AuthorizationManager
-	Config                Config //local	Config
-	ChainID               common.ChainIdType
-	RePlaying             bool
-	ReplayHeadTime        common.TimePoint //optional<common.Tstamp>
-	ReadMode              DBReadMode
-	InTrxRequiringChecks  bool                //if true, checks that are normally skipped on replay (e.g. auth checks) cannot be skipped
-	SubjectiveCupLeeway   common.Microseconds //optional<common.Tstamp>
-	HandlerKey            HandlerKey
-	ApplyHandlers         ApplyHandler
+	DB                   *eosiodb.DataBase
+	DbSession            *eosiodb.Session
+	ReversibleBlocks     *eosiodb.DataBase
+	Blog                 string //TODO
+	Pending              *types.PendingState
+	Head                 types.BlockState
+	ForkDB               *types.ForkDatabase
+	WasmIf               *exec.WasmInterface
+	ResourceLimists      *ResourceLimitsManager
+	Authorization        *AuthorizationManager
+	Config               Config //local	Config
+	ChainID              common.ChainIdType
+	RePlaying            bool
+	ReplayHeadTime       common.TimePoint //optional<common.Tstamp>
+	ReadMode             DBReadMode
+	InTrxRequiringChecks bool                //if true, checks that are normally skipped on replay (e.g. auth checks) cannot be skipped
+	SubjectiveCupLeeway  common.Microseconds //optional<common.Tstamp>
+	//HandlerKey           HandlerKey
+	//ApplyHandlers         ApplyHandler
+	ApplyHandlers         map[common.AccountName]map[HandlerKey]func(ctx *ApplyContext)
 	UnAppliedTransactions map[crypto.Sha256]types.TransactionMetadata
 }
 
@@ -127,7 +113,7 @@ func newController() *Controller {
 
 	con.initConfig()
 	con.ReadMode = con.Config.readMode
-
+	con.ApplyHandlers = make(map[common.AccountName]map[HandlerKey]func(ctx *ApplyContext))
 	con.WasmIf = exec.NewWasmInterface()
 	//TODO wait append
 	/*
@@ -177,21 +163,22 @@ func (self *Controller) PopBlock() {
 	self.DbSession.Undo() //TODO
 }
 
-func newApplyCon(ac ApplyContext) *applyCon {
-	a := applyCon{}
-	a.applyContext = ac
-	return &a
-}
-func (self *Controller) SetApplayHandler(receiver common.AccountName, scope common.AccountName, action common.AccountName, handler ApplyContext) {
-	h := make(map[common.AccountName]common.AccountName)
+func (self *Controller) SetApplayHandler(receiver common.AccountName, contract common.AccountName, action common.ActionName, handler func(*ApplyContext)) {
+	/*h := make(map[common.AccountName]common.AccountName)
 	h[receiver] = scope
 	apply := newApplyCon(handler)
 	apply.handlerKey = h
 	t := make(map[common.AccountName]applyCon)
 	t[receiver] = *apply
-	//TODO common.types make_pair()
-	self.ApplyHandlers = ApplyHandler{t, receiver}
-	fmt.Println(self.ApplyHandlers)
+	//self.ApplyHandlers = ApplyHandler{t, receiver}
+	self.ApplyHandlers = make(map[common.AccountName]map[HandlerKey]func(ctx *ApplyContext))
+	fmt.Println(self.ApplyHandlers)*/
+	hk := NewHandlerKey(common.ScopeName(contract), action)
+	first := make(map[common.AccountName]map[HandlerKey]func(ctx *ApplyContext))
+	secend := make(map[HandlerKey]func(ctx *ApplyContext))
+	secend[hk] = handler
+	first[receiver] = secend
+	self.ApplyHandlers[receiver] = secend
 }
 
 func (self *Controller) AbortBlock() {
@@ -659,9 +646,25 @@ func (self *Controller) GetValidationMode() ValidationMode { return 0 }
 
 func (self *Controller) SetSubjectiveCpuLeeway(leeway common.Microseconds) {}
 
-func (self *Controller) FindApplyHandler(contract common.AccountName,
-	scope common.ScopeName,
-	act common.ActionName) *ApplyContext {
+func (self *Controller) PendingProducerBlockId() common.BlockIdType{
+	//EOS_ASSERT( my->pending, block_validate_exception, "no pending block" )
+	return self.Pending.ProducerBlockId
+}
+
+func (self *Controller) FindApplyHandler(receiver common.AccountName,
+	scope common.AccountName,
+	act common.ActionName) func(*ApplyContext) {
+
+	handlerKey := NewHandlerKey(common.ScopeName(scope), act)
+	secend,ok := self.ApplyHandlers[receiver]
+	if ok {
+		handler,success := secend[handlerKey]
+		fmt.Println("find secend:",success)
+		if success{
+			fmt.Println("-=-=-=-=-=-=-=-==-=-=-=-=-=-=",handler)
+			return handler
+		}
+	}
 	return nil
 }
 
@@ -676,7 +679,7 @@ func (self *Controller) GetAbiSerializer(name common.AccountName,
 
 func (self *Controller) ToVariantWithAbi(obj interface{}, maxSerializationTime common.Microseconds) {}
 
-var readycontroller chan bool	//TODO test code
+var readycontroller chan bool //TODO test code
 
 func (self *Controller) CreateNativeAccount(name common.AccountName, owner types.Authority, active types.Authority, isPrivileged bool) {
 	account := types.AccountObject{}
@@ -729,4 +732,31 @@ signal<void(const int&)>                      bad_alloc;*/
 	c := new(Controller)
 
 	fmt.Println("asdf",c)
+}*/
+
+//c++ pair<scope_name,action_name>
+
+type HandlerKey struct {
+	//handMap map[common.AccountName]common.ActionName
+	scope common.ScopeName
+	action common.ActionName
+}
+func NewHandlerKey(scopeName common.ScopeName, actionName common.ActionName) HandlerKey {
+	hk := HandlerKey{scopeName,actionName}
+	return hk
+}
+
+/*
+
+
+
+type applyCon struct {
+	handlerKey   map[common.AccountName]common.AccountName //c++ pair<scope_name,action_name>
+	applyContext func(*ApplyContext)
+}
+
+//apply_context
+type ApplyHandler struct {
+	applyHandler map[common.AccountName]applyCon
+	receiver     common.AccountName
 }*/

@@ -180,7 +180,7 @@ func (a *ApplyContext) execOne() (trace types.ActionTrace) {
 	//cfg := a.Control.GetGlobalProperties().Configuration
 	action := a.Control.GetAccount(a.Receiver)
 	//privileged := a.Privileged
-	native := a.Control.FindApplyHandler(a.Receiver, common.ScopeName(a.Act.Account), a.Act.Name)
+	native := a.Control.FindApplyHandler(a.Receiver, a.Act.Account, a.Act.Name)
 
 	if native != nil {
 		if a.TrxContext.CanSubjectivelyFail && a.Control.IsProducingBlock() {

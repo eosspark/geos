@@ -7,7 +7,7 @@ import (
 	"github.com/eosspark/eos-go/log"
 )
 
-var isActive bool = false
+var isFdActive bool = false
 
 type ForkDatabase struct {
 	db      *eosiodb.DataBase
@@ -39,12 +39,13 @@ func (f *ForkDatabase) setHead(head *BlockState) *ForkDatabase {
 
 func GetForkDbInstance(stateDir string) *ForkDatabase {
 	forkDB := ForkDatabase{}
-	if !isActive {
+	if !isFdActive {
 		forkd, err := newForkDatabase(stateDir, common.DefaultConfig.ForkDBName, true)
 		if err != nil {
 			log.Error("GetForkDbInstance is error ,detail:", err)
 		}
 		forkDB = *forkd
+		isFdActive=true
 	}
 	return &forkDB
 }
