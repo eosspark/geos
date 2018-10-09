@@ -2,9 +2,9 @@ package storm
 
 import (
 	"bytes"
-	"github.com/eosspark/eos-go/db/coreos/bbolt"
-	"github.com/eosspark/eos-go/db/storm/index"
-	"github.com/eosspark/eos-go/db/storm/q"
+	"github.com/eosspark/eos-go/database/coreos/bbolt"
+	"github.com/eosspark/eos-go/database/storm/index"
+	"github.com/eosspark/eos-go/database/storm/q"
 	"reflect"
 )
 

@@ -8,10 +8,10 @@ import (
 	"path/filepath"
 	"testing"
 
-	"github.com/eosspark/eos-go/db/coreos/bbolt"
-	"github.com/eosspark/eos-go/db/storm"
-	"github.com/eosspark/eos-go/db/storm/codec/gob"
-	"github.com/eosspark/eos-go/db/storm/index"
+	"github.com/eosspark/eos-go/database/coreos/bbolt"
+	"github.com/eosspark/eos-go/database/storm"
+	"github.com/eosspark/eos-go/database/storm/codec/gob"
+	"github.com/eosspark/eos-go/database/storm/index"
 	"github.com/stretchr/testify/require"
 )
 

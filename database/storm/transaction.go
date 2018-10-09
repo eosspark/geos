@@ -1,6 +1,6 @@
 package storm
 
-import "github.com/eosspark/eos-go/db/coreos/bbolt"
+import "github.com/eosspark/eos-go/database/coreos/bbolt"
 
 // Tx is a transaction.
 type Tx interface {
