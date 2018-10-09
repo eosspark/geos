@@ -84,9 +84,9 @@ func init() {
 	DefaultConfig.DBFileName = "shared_memory.bin"
 	DefaultConfig.ReversibleFileName = "shared_memory_tmp.bin"			//wait db modify
 	DefaultConfig.BlockFileName = "blog.log"
-	DefaultConfig.DefaultBlocksDirName = "blocks"
+	DefaultConfig.DefaultBlocksDirName = "/tmp/data/blocks"
 	DefaultConfig.DefaultReversibleBlocksDirName="reversible"
-	DefaultConfig.DefaultStateDirName = "state"
+	DefaultConfig.DefaultStateDirName = "/tmp/data/state"
 	DefaultConfig.DefaultStateSize = 0
 	DefaultConfig.DefaultStateGuardSize = 0
 	DefaultConfig.DefaultReversibleCacheSize = 0

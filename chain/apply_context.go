@@ -4,8 +4,9 @@ import (
 	"fmt"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
+	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/rlp"
-	"github.com/eosspark/eos-go/db"
+	"github.com/eosspark/eos-go/database"
 	"github.com/eosspark/eos-go/log"
 )
 
@@ -23,8 +24,8 @@ type ApplyContext struct {
 	UsedContestFreeApi bool
 	Trace              types.ActionTrace
 
-	idx64     Idx64
-	idxDouble IdxDouble
+	idx64     *Idx64
+	idxDouble *IdxDouble
 	// IDX128        GenericIndex
 	// IDX256        GenericIndex
 	// IDXLongDouble GenericIndex
@@ -46,11 +47,21 @@ type ApplyContext struct {
 func NewApplyContext(control *Controller, trxContext *TransactionContext, act *types.Action, recurseDepth uint32) *ApplyContext {
 
 	applyContext := &ApplyContext{
-		Control:      control,
-		TrxContext:   trxContext,
-		Act:          act,
-		RecurseDepth: recurseDepth,
+		Control:            control,
+		DB:                 control.DB,
+		TrxContext:         trxContext,
+		Act:                act,
+		Receiver:           act.Account,
+		UsedAuthorizations: make([]bool, len(act.Authorization)), //to false
+		RecurseDepth:       recurseDepth,
+
+		Privileged:         false,
+		ContextFree:        false,
+		UsedContestFreeApi: false,
 	}
+
+	applyContext.idx64 = NewIdx64(applyContext)
+	applyContext.idxDouble = NewIdxDouble(applyContext)
 
 	return applyContext
 
@@ -194,7 +205,7 @@ func (a *ApplyContext) execOne() (trace types.ActionTrace) {
 
 	r := &types.ActionReceipt{}
 	r.Receiver = a.Receiver
-	//r.ActDigest = crypto.Hash256(a.Act)
+	r.ActDigest = crypto.Hash256(a.Act)
 	r.GlobalSequence = a.nextGlobalSequence()
 	r.RecvSequence = a.nextRecvSequence(a.Receiver)
 

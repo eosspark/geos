@@ -9,7 +9,7 @@ import (
 	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/eosspark/eos-go/cvm/exec"
-	"github.com/eosspark/eos-go/db"
+	"github.com/eosspark/eos-go/database"
 	"github.com/eosspark/eos-go/log"
 )
 
@@ -91,9 +91,9 @@ func GetControllerInstance() *Controller {
 func newController() *Controller {
 	isActiveController = true //controller is active
 	//init db
-	db, err := eosiodb.NewDataBase("./", "shared_memory.bin", true)
+	db, err := eosiodb.NewDataBase(common.DefaultConfig.DefaultStateDirName, "shared_memory.bin", true)
 	if err != nil {
-		fmt.Println("pending NewPendingState is error detail:", err)
+		fmt.Println("newController is error detail:", err)
 		return nil
 	}
 	defer db.Close()
@@ -618,19 +618,19 @@ func (self *Controller) RemoveResourceGreyList(name *common.AccountName) {}
 
 func (self *Controller) IsResourceGreyListed(name *common.AccountName) bool { return false }
 
-func (self *Controller) GetResourceGreyList() *map[common.AccountName]struct{} { return nil }
+func (self *Controller) GetResourceGreyList() *map[common.AccountName]interface{} { return nil }
 
-func (self *Controller) ValidateReferencedAccounts(t types.Transaction) {}
+func (self *Controller) ValidateReferencedAccounts(t *types.Transaction) {}
 
-func (self *Controller) ValidateExpiration(t types.Transaction) {}
+func (self *Controller) ValidateExpiration(t *types.Transaction) {}
 
-func (self *Controller) ValidateTapos(t types.Transaction) {}
+func (self *Controller) ValidateTapos(t *types.Transaction) {}
 
 func (self *Controller) ValidateDbAvailableSize() {}
 
 func (self *Controller) ValidateReversibleAvailableSize() {}
 
-func (self *Controller) IsKnownUnexpiredTransaction(id common.TransactionIdType) bool { return false }
+func (self *Controller) IsKnownUnexpiredTransaction(id *common.TransactionIdType) bool { return false }
 
 func (self *Controller) SetProposedProducers(producers []types.ProducerKey) int64 { return 0 }
 
