@@ -5,6 +5,7 @@ import (
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/database"
+	"github.com/eosspark/eos-go/entity"
 	"github.com/eosspark/eos-go/exception"
 	"github.com/eosspark/eos-go/log"
 )
@@ -186,7 +187,7 @@ func (t *TransactionContext) init(initialNetUsage uint64) {
 		t.deadlineExceptionCode = t.billingTimerExceptionCode
 	}
 
-	t.eagerNetLimit = (t.netLimit / 8) * 8 // Round down to nearest multiple of word size (8 bytes) so check_net_usage can be efficient
+	t.eagerNetLimit = ((t.netLimit + 7) / 8) * 8 // Round down to nearest multiple of word size (8 bytes) so check_net_usage can be efficient
 	if initialNetUsage > 0 {
 		t.AddNetUsage(initialNetUsage) // Fail early if current net usage is already greater than the calculated limit
 	}
@@ -256,10 +257,55 @@ func (t *TransactionContext) Exec() {
 			t.Trace.ActionTraces = append(t.Trace.ActionTraces, types.ActionTrace{})
 			t.DispathAction(&t.Trace.ActionTraces[len(t.Trace.ActionTraces)-1], act, act.Account, false, 0)
 		}
+	} else {
+		t.scheduleTransaction()
 	}
-	//else {
-	//	t.scheduleTranscation()
-	//}
+}
+
+func (t *TransactionContext) Finalize() {
+	//assert(t.isInitialized, transaction_exception, "must first initialize")
+
+	// if t.IsInput {
+	// 	am := t.Control.GetMutableResourceLimitsManager()
+	// 	for _,act := range t.Trx.Actions{
+	// 		for _,auth := range act.Authorization {
+	// 			am.UpdatePermissionUsage(am.GetPermission(auth))
+	// 		}
+	// 	}
+	// }
+
+	rl := t.Control.GetMutableResourceLimitsManager()
+	for a := range t.ValidateRamUsage {
+		rl.VerifyAccountRamUsage(common.AccountName(a))
+	}
+
+	// Calculate the highest network usage and CPU time that all of the billed accounts can afford to be billed
+	accountNetLimit, accountCpuLimit, greylistedNet, greylistedCpu := t.MaxBandwidthBilledAccountsCanPay(false)
+	t.netLimitDueToGreylist = t.netLimitDueToGreylist || greylistedNet
+	t.cpuLimitDueToGreylist = t.cpuLimitDueToGreylist || greylistedCpu
+
+	if accountNetLimit <= int64(t.netLimit) {
+		t.netLimit = uint64(accountNetLimit)
+		t.netLimitDueToBlock = false
+	}
+
+	if accountCpuLimit <= t.objectiveDurationLimit.Count() {
+		t.objectiveDurationLimit = common.Microseconds(accountCpuLimit)
+		t.billingTimerExceptionCode = int64((&exception.TxCpuUsageExceed{}).Code())
+	}
+
+	*t.netUsage = ((*t.netUsage + 7) / 8) * 8
+	t.eagerNetLimit = t.netLimit
+
+	t.CheckNetUsage()
+	now := common.Now()
+	t.Trace.Elapsed = common.Microseconds(now - t.Start)
+
+	t.UpdateBilledCpuTime(now)
+	t.validateCpuUsageToBill(t.BilledCpuTimeUs, true)
+
+	rl.AddTransactionUsage(t.BillToAccounts, uint64(t.BilledCpuTimeUs), *t.netUsage, uint32(common.BlockTimeStamp(t.Control.PendingBlockTime())))
+
 }
 
 func (t *TransactionContext) Squash() {
@@ -413,14 +459,6 @@ func (t *TransactionContext) UpdateBilledCpuTime(now common.TimePoint) uint32 {
 		return uint32(t.BilledCpuTimeUs)
 	}
 	cfg := t.Control.GetGlobalProperties().Configuration
-	// first := common.Microseconds(now - t.pseudoStart)
-	// second := common.Microseconds(cfg.MinTransactionCpuUsage)
-	// if first > second {
-	// 	t.BilledCpuTimeUs = int64(first)
-	// } else {
-	// 	t.BilledCpuTimeUs = int64(second)
-	// }
-
 	t.BilledCpuTimeUs = int64(common.Max(uint64(now-t.pseudoStart), uint64(cfg.MinTransactionCpuUsage)))
 
 	return uint32(t.BilledCpuTimeUs)
@@ -458,10 +496,6 @@ func (t *TransactionContext) MaxBandwidthBilledAccountsCanPay(forceElasticLimits
 	return _accountNetLimit, _accountCpuLimit, _greylistedNet, _greylistedCpu
 }
 
-func (t *TransactionContext) scheduleTransaction() {
-
-}
-
 func (t *TransactionContext) DispathAction(trace *types.ActionTrace, action *types.Action, receiver common.AccountName, contextFree bool, recurseDepth uint32) {
 
 	applyContext := NewApplyContext(t.Control, t, action, recurseDepth)
@@ -478,8 +512,37 @@ func (t *TransactionContext) DispathAction(trace *types.ActionTrace, action *typ
 	*trace = applyContext.Trace
 }
 
-//func (t *TransactionContext) recordTransaction(common.TransactionIdType id, common.TimePointSec expire){
-//
-//	transaction := types.TransactionObject{}
-//	t.Control.DB.Insert()
-//}
+func (t *TransactionContext) scheduleTransaction() {
+
+	if t.Trx.DelaySec == 0 {
+		cfg := t.Control.GetGlobalProperties().Configuration
+		t.AddNetUsage(uint64(cfg.BasePerTransactionNetUsage + common.DefaultConfig.TransactionIdNetUsage))
+	}
+
+	firstAuth := common.AccountName(0) //t.Trx.firstAuthorizor()
+	var trxSize uint32 = 0
+
+	gto := &entity.GeneratedTransactionObject{
+		TrxId:     t.ID,
+		Payer:     firstAuth,
+		Sender:    common.AccountName(0),
+		Published: t.Control.PendingBlockTime(),
+	}
+
+	gto.DelayUntil = gto.Published + common.TimePoint(t.Delay)
+	//gto.SenderId = TransactionIdToSenderId(gto.TrxId)
+	//gto.Expiration = gto.DelayUntil t.Control.GetGlobalProperties().Configuration.DeferredTrxExpirationWindow
+	//trxSize := gto.set(t.Trx)
+
+	t.Control.DB.Insert(gto)
+
+	t.Control.DB.Insert(gto)
+	t.AddRamUsage(gto.Payer /*common.DefaultConfig.BillableSize["GeneratedTransactionObject"] + */, int64(trxSize))
+
+}
+
+func (t *TransactionContext) recordTransaction(id common.TransactionIdType, expire common.TimePointSec) {
+
+	obj := &entity.TransactionObject{Expiration: expire, TrxID: id}
+	t.Control.DB.Insert(obj)
+}
