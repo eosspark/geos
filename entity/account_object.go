@@ -9,7 +9,7 @@ import (
 )
 
 type AccountObject struct {
-	ID             types.IdType       `storm:"id,increment" json:"id"`
+	ID             common.IdType       `storm:"id,increment" json:"id"`
 	Name           common.AccountName `storm:"unique" json :"name"`
 	VmType         uint8              //c++ default value 0
 	VmVersion      uint8              //c++ default value 0
@@ -22,7 +22,7 @@ type AccountObject struct {
 }
 
 type AccountSequenceObject struct {
-	ID           types.IdType       `storm:"id,increment" json:"id"`
+	ID           common.IdType       `storm:"id,increment" json:"id"`
 	Name         common.AccountName `storm:"unique" json:name`
 	RecvSequence uint64             //default value 0
 	authSequence uint64
