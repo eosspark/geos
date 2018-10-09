@@ -3,8 +3,8 @@ package types
 import (
 	"fmt"
 	"github.com/eosspark/eos-go/common"
-	"github.com/eosspark/eos-go/db"
 	"github.com/eosspark/eos-go/log"
+	"github.com/eosspark/eos-go/database"
 )
 
 type PendingState struct {
@@ -27,7 +27,7 @@ func NewPendingState(db *eosiodb.DataBase) *PendingState {
 
 	pending.DBSession = session
 	pending.Valid = true
-	pending.DBSeesion = session
+	pending.DBSession = session
 	return &pending
 }
 //TODO wait modify Singleton
@@ -44,7 +44,7 @@ func GetInstance() *PendingState {
 	}
 	pending.DBSession = session
 	pending.Valid = false
-	pending.DBSeesion = session
+	pending.DBSession = session
 	return &pending
 }
 
