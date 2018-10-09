@@ -3,12 +3,12 @@ package types
 import (
 	"fmt"
 	"github.com/eosspark/eos-go/common"
-	"github.com/eosspark/eos-go/db"
 	"github.com/eosspark/eos-go/log"
+	"github.com/eosspark/eos-go/database"
 )
 
 type PendingState struct {
-	DBSeesion         *eosiodb.Session `json:"db_session"`
+	DBSession         *eosiodb.Session `json:"db_session"`
 	PendingBlockState BlockState       `json:"pending_block_state"`
 	Actions           []ActionReceipt  `json:"actions"`
 	BlockStatus       BlockStatus      `json:"block_status"`
@@ -25,7 +25,9 @@ func NewPendingState(db *eosiodb.DataBase) *PendingState {
 	defer db.Close()*/
 	session := db.StartSession()
 
-	pending.DBSeesion = session
+	pending.DBSession = session
+	//pending.Valid = true
+	pending.DBSession = session
 	return &pending
 }
 //TODO wait modify Singleton
@@ -40,7 +42,9 @@ func GetInstance() *PendingState {
 	if err != nil {
 		fmt.Println(err.Error())
 	}
-	pending.DBSeesion = session
+	pending.DBSession = session
+	//pending.Valid = false
+	pending.DBSession = session
 	return &pending
 }
 

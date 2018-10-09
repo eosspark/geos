@@ -34,7 +34,7 @@ type TransactionTrace struct {
 	NetUsage        uint64
 	Scheduled       bool				//false
 	ActionTraces    []ActionTrace
-	FailedDtrxTrace TransactionTrace
+	FailedDtrxTrace *TransactionTrace
 	//TODO exception
 	/*fc::optional<fc::exception>                except;
 	std::exception_ptr                         except_ptr;*/

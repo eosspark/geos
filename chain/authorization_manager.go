@@ -5,7 +5,7 @@ import (
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/contracts/system"
-	"github.com/eosspark/eos-go/db"
+	"github.com/eosspark/eos-go/database"
 )
 
 var IsActiveAz bool
@@ -72,7 +72,7 @@ func (am *AuthorizationManager) CreatePermission(account common.AccountName,
 func (am *AuthorizationManager) ModifyPermission(permission *types.PermissionObject, auth *types.Authority) {
 	am.db.Update(&permission, func(data interface{}) error {
 		permission.Auth = am.AuthToShared(*auth)
-		permission.LastUpdated = am.control.PendingBlockTime()
+		//permission.LastUpdated = am.control.PendingBlockTime()
 		return nil
 	})
 }
@@ -99,6 +99,9 @@ func (am *AuthorizationManager) GetPermissionLastUsed(permission *types.Permissi
 func (am *AuthorizationManager) FindPermission(level *types.PermissionLevel) *types.PermissionObject {
 	po := types.PermissionObject{}
 	am.db.Find("ByOwner", common.Tuple{level.Actor, level.Permission}, &po)
+	poo := []types.PermissionObject{}
+	am.db.All(&poo)
+	fmt.Println(poo)
 	return &po
 }
 
@@ -191,12 +194,12 @@ func (am *AuthorizationManager) CheckLinkauthAuthorization(link system.LinkAuth,
 		fmt.Println("error")
 		return
 	}
-	//待完善
+	//TODO
 	linkPermissionName := am.LookupMinimumPermission(link.Account, link.Code, link.Type)
 	if &linkPermissionName == nil {
 		return
 	}
-	//待完善
+	//TODO
 }
 
 func (am *AuthorizationManager) CheckUnlinkauthAuthorization(unlink system.UnlinkAuth, auths []types.PermissionLevel) {
@@ -209,7 +212,7 @@ func (am *AuthorizationManager) CheckUnlinkauthAuthorization(unlink system.Unlin
 		fmt.Println("error")
 		return
 	}
-	//待完善
+	//TODO
 }
 
 func (am *AuthorizationManager) CheckCanceldelayAuthorization(canceldelay system.CancelDelay, auths []types.PermissionLevel) {
@@ -222,7 +225,7 @@ func (am *AuthorizationManager) CheckCanceldelayAuthorization(canceldelay system
 		fmt.Println("error")
 		return
 	}
-	//待完善
+	//TODO
 }
 
 func (am *AuthorizationManager) CheckAuthorization(actions []types.Action,
@@ -253,7 +256,7 @@ func (am *AuthorizationManager) CheckAuthorization(actions []types.Action,
 		if act.Account == common.DefaultConfig.SystemAccountName {
 			specialCase = true
 
-			//待完善
+			//TODO
 		}
 
 		for _, declaredAuth := range act.Authorization {
@@ -270,7 +273,7 @@ func (am *AuthorizationManager) CheckAuthorization(actions []types.Action,
 				}
 			}
 			permissionToSatisfy[declaredAuth] = delay
-			//待完善
+			//TODO
 		}
 	}
 	for p, q := range permissionToSatisfy {
@@ -309,7 +312,7 @@ func (am *AuthorizationManager) CheckAuthorization2(account common.AccountName,
 		providedPermission,
 		effectiveProvidedDelay,
 		checkTime)
-	//待完善
+	//TODO
 	if !allowUnusedKeys {
 		if !checker.AllKeysUsed() {
 			fmt.Println("error")
