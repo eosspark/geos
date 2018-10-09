@@ -3,12 +3,12 @@ package codec_test
 import (
 	"fmt"
 
-	"github.com/asdine/storm"
-	"github.com/asdine/storm/codec/gob"
-	"github.com/asdine/storm/codec/json"
-	"github.com/asdine/storm/codec/msgpack"
-	"github.com/asdine/storm/codec/protobuf"
-	"github.com/asdine/storm/codec/sereal"
+	"github.com/eosspark/eos-go/database/storm"
+	"github.com/eosspark/eos-go/database/storm/codec/gob"
+	"github.com/eosspark/eos-go/database/storm/codec/json"
+	"github.com/eosspark/eos-go/database/storm/codec/msgpack"
+	"github.com/eosspark/eos-go/database/storm/codec/protobuf"
+	"github.com/eosspark/eos-go/database/storm/codec/sereal"
 )
 
 func Example() {
