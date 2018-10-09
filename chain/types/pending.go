@@ -26,7 +26,7 @@ func NewPendingState(db *eosiodb.DataBase) *PendingState {
 	session := db.StartSession()
 
 	pending.DBSession = session
-	pending.Valid = true
+	//pending.Valid = true
 	pending.DBSession = session
 	return &pending
 }
@@ -43,7 +43,7 @@ func GetInstance() *PendingState {
 		fmt.Println(err.Error())
 	}
 	pending.DBSession = session
-	pending.Valid = false
+	//pending.Valid = false
 	pending.DBSession = session
 	return &pending
 }

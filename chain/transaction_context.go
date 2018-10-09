@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
-	"github.com/eosspark/eos-go/db"
+	"github.com/eosspark/eos-go/database"
 	"github.com/eosspark/eos-go/exception"
 	"github.com/eosspark/eos-go/log"
 )
@@ -58,7 +58,7 @@ func NewTransactionContext(
 		Trx:         t,
 		Start:       s,
 		pseudoStart: s,
-		Trace:       types.TransactionTrace{Id: trxId},
+		Trace:       types.TransactionTrace{ID: trxId},
 		//Trace.I:trxId,
 
 		InitialMaxBillableCpu: 0,

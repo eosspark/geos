@@ -17,9 +17,9 @@ func (u *Uint128) IsZero() bool {
 }
 
 func (u *Uint128) LeftShift() Uint128 {
-	if u.Low >> 63 == 1 {
+	if u.GetAt(63) {
 		u.Low = u.Low << 1
-		u.High = u.High << 1 + 1
+		u.Set(64, 1)
 	} else {
 		u.Low = u.Low << 1
 		u.High = u.High << 1
@@ -28,10 +28,10 @@ func (u *Uint128) LeftShift() Uint128 {
 }
 
 func (u *Uint128) RightShift() Uint128 {
-	if u.High << 63 >> 63 == 1 {
+	if u.GetAt(64) {
 		u.High = u.High >> 1
 		u.Low = u.Low >> 1
-		u.Low += 0x01 << 63
+		u.Set(63, 1)
 	} else {
 		u.High = u.High >> 1
 		u.Low = u.Low >> 1
@@ -39,11 +39,31 @@ func (u *Uint128) RightShift() Uint128 {
 	return *u
 }
 
+
 func (u *Uint128) GetAt(i uint) bool {
 	if i < 64 {
 		return u.Low & ( 0x01 << i ) != 0
 	} else {
 		return u.High & ( 0x01 << (i - 64) ) != 0
+	}
+}
+
+func (u *Uint128) Set(i uint, b uint) {
+	if i < 64 {
+		if b == 1 {
+			u.Low |= 0x01 << i
+		}
+		if b == 0 {
+			u.Low &= math.MaxUint64 - 0x01 << i
+		}
+	}
+	if i >= 64 {
+		if b == 1 {
+			u.High |= 0x01 << (i - 64)
+		}
+		if b == 0 {
+			u.High &= math.MaxUint64 - 0x01 << (i - 64)
+		}
 	}
 }
 
