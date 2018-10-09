@@ -4,9 +4,9 @@ import (
 	"fmt"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
-	"github.com/eosspark/eos-go/db"
 	"github.com/eosspark/eos-go/log"
 	"github.com/eosspark/eos-go/entity"
+	"github.com/eosspark/eos-go/database"
 )
 
 type TransactionContext struct {
@@ -344,9 +344,9 @@ func (trx *TransactionContext) InitForInputTrx(packedTrxUnprunableSize uint64, p
 	trx.Published = trx.Control.PendingBlockTime()
 	trx.IsInput = true
 	if !trx.Control.SkipTrxChecks(){
-		trx.Control.ValidateExpiration(trx.Trx.Transaction)
-		trx.Control.ValidateTapos(trx.Trx.Transaction)
-		trx.Control.ValidateReferencedAccounts(trx.Trx.Transaction)
+		trx.Control.ValidateExpiration(&trx.Trx.Transaction)
+		trx.Control.ValidateTapos(&trx.Trx.Transaction)
+		trx.Control.ValidateReferencedAccounts(&trx.Trx.Transaction)
 	}
 	trx.init(initialNetUsage)
 	if !skipRecording{
