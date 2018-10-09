@@ -1,7 +1,7 @@
-EOS.IO Go
+EOS Go
 =========================
 
-golang implementation of the EOSIO protocol
+golang implementation of the EOS protocol
 
 
 Contribution
@@ -21,4 +21,4 @@ MIT
 TODO notes
 -------
 
-need to complete all eosio protocol eos
+need to implement all eos protocol
