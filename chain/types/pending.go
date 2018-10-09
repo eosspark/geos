@@ -7,23 +7,15 @@ import (
 	"github.com/eosspark/eos-go/log"
 )
 
-/*type ActionReceipt struct {
-	Receiver       common.AccountName            `json:"receiver"`
-	ActDigest      common.SHA256Bytes            `json:"act_digest"`
-	GlobalSequence uint64                        `json:"global_sequence"`
-	RecvSequence   uint64                        `json:"recv_sequence"`
-	AuthSequence   map[common.AccountName]uint64 `json:"auth_sequence"`
-	CodeSequence   uint32                        `json:"code_sequence"` //TODO
-	ABISequence    uint32                        `json:"abi_sequence"`
-}*/
 type PendingState struct {
 	DBSession         *eosiodb.Session `json:"db_session"`
 	PendingBlockState BlockState       `json:"pending_block_state"`
 	Actions           []ActionReceipt  `json:"actions"`
 	BlockStatus       BlockStatus      `json:"block_status"`
-	Valid             bool             `json:"valid"`
+	ProducerBlockId   common.BlockIdType
 }
 
+//TODO wait modify Singleton
 func NewPendingState(db *eosiodb.DataBase) *PendingState {
 	pending := PendingState{}
 	/*db, err := eosiodb.NewDatabase(config.DefaultConfig.BlockDir, "eos.db", true)
@@ -35,9 +27,10 @@ func NewPendingState(db *eosiodb.DataBase) *PendingState {
 
 	pending.DBSession = session
 	pending.Valid = true
+	pending.DBSeesion = session
 	return &pending
 }
-
+//TODO wait modify Singleton
 func GetInstance() *PendingState {
 	pending := PendingState{}
 	db, err := eosiodb.NewDataBase(common.DefaultConfig.DefaultBlocksDirName, common.DefaultConfig.DBFileName, true)
@@ -51,6 +44,7 @@ func GetInstance() *PendingState {
 	}
 	pending.DBSession = session
 	pending.Valid = false
+	pending.DBSeesion = session
 	return &pending
 }
 

@@ -6,6 +6,7 @@ import (
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/db"
 	"github.com/eosspark/eos-go/log"
+	"github.com/eosspark/eos-go/entity"
 )
 
 type TransactionContext struct {
@@ -35,7 +36,7 @@ type TransactionContext struct {
 	netLimitDueToGreylist         bool
 	cpuLimitDueToGreylist         bool
 	eagerNetLimit                 uint64
-	netUsage                      uint64
+	netUsage                      *uint64
 	initialObjectiveDurationLimit common.Microseconds //microseconds
 	objectiveDurationLimit        common.Microseconds
 	deadline                      common.TimePoint //maximum
@@ -46,21 +47,41 @@ type TransactionContext struct {
 	billingTimerDurationLimit     common.Microseconds
 }
 
-func (trxCon *TransactionContext) NewTransactionContext(c *Controller, t *types.SignedTransaction, trxId common.TransactionIdType, s common.TimePoint) *TransactionContext {
-	trxCon.Control = c
-	trxCon.Trx = t
-	trxCon.Start = s
-	trxCon.netUsage = trxCon.Trace.NetUsage
-	trxCon.pseudoStart = s
+func (self *TransactionContext) NewTransactionContext(c *Controller, t *types.SignedTransaction, trxId common.TransactionIdType, s common.TimePoint) *TransactionContext {
+	self.Control = c
+	self.Trx = t
+	self.Start = s
+	self.netUsage = &self.Trace.NetUsage
+	self.pseudoStart = s
 
 	if !c.SkipDbSessions() {
-		trxCon.UndoSession = c.DB.StartSession()
+		self.UndoSession = c.DB.StartSession()
 	}
-	trxCon.Trace.Id = trxId
+	self.Trace.ID = trxId
+	self.Trace.BlockNum = c.PendingBlockState().BlockNum
+	self.Trace.BlockTime = common.NewBlockTimeStamp(c.PendingBlockTime())
+	self.Trace.ProducerBlockId = c.PendingProducerBlockId()
 
-	trxCon.DeadLine = common.MaxTimePoint()
+	/*	TODO
+		EOS_ASSERT( trx.transaction_extensions.size() == 0, unsupported_feature, "we don't support any extensions yet" )
+	*/
 
-	return trxCon
+	self.IsInput = false
+	self.ApplyContextFree=true
+	self.DeadLine = common.MaxTimePoint()
+	self.Leeway =common.Microseconds(3000)
+	self.BilledCpuTimeUs = 0
+	self.ExplicitBilledCpuTime=false
+	self.isInitialized = false
+	self.netLimit = 0
+	self.netLimitDueToBlock = true
+	self.netLimitDueToGreylist=false
+	self.eagerNetLimit = 0
+	self.cpuLimitDueToGreylist = false
+	self.deadline = common.MaxTimePoint()
+	self.deadlineExceptionCode = 0	//TODO exception code value
+	self.billingTimerExceptionCode = 0 //TODO exception code value
+	return self
 }
 
 func (trxCon *TransactionContext) init(initialNetUsage uint64) {
@@ -91,8 +112,8 @@ func (trxCon *TransactionContext) init(initialNetUsage uint64) {
 		trxCon.netLimitDueToBlock = false
 	}
 
-	if trxCon.Trx.MaxCPUUsageMS > 0 {
-		trxSpecifiedCpuUsageLimit := common.Milliseconds(int64(trxCon.Trx.MaxCPUUsageMS))
+	if trxCon.Trx.MaxCpuUsageMS > 0 {
+		trxSpecifiedCpuUsageLimit := common.Milliseconds(int64(trxCon.Trx.MaxCpuUsageMS))
 		if trxSpecifiedCpuUsageLimit <= trxCon.objectiveDurationLimit {
 			trxCon.objectiveDurationLimit = trxSpecifiedCpuUsageLimit
 			//trxCon.billingTimerExceptionCode = excptionCode	//TODO
@@ -215,13 +236,14 @@ func (trx *TransactionContext) CheckTime() {
 	}*/
 }
 func (trx *TransactionContext) AddNetUsage(u uint64) {
-	trx.netUsage = trx.netUsage + u
+	nu:=*trx.netUsage + u
+	trx.netUsage = &nu
 	trx.CheckNetUsage()
 }
 
 func (trx *TransactionContext) CheckNetUsage() {
 	if !trx.Control.SkipTrxChecks() {
-		if trx.netUsage > trx.eagerNetLimit {
+		if *trx.netUsage > trx.eagerNetLimit {
 			//TODO Throw Exception
 			if trx.netLimitDueToBlock {
 				log.Error("not enough space left in block:${net_usage} > ${net_limit}", trx.netUsage, trx.netLimit)
@@ -306,13 +328,38 @@ func (trx *TransactionContext) InitForImplicitTrx(initialNetUsage uint64) {
 	trx.init(initialNetUsage)
 }
 
-func (trx *TransactionContext) InitForInputTrx(packeTrxUnprunableSize uint64, packeTrxPrunableSize uint64, nunSignatures uint32, skipRecording bool) {
+func (trx *TransactionContext) InitForInputTrx(packedTrxUnprunableSize uint64, packedTrxPrunableSize uint64, nunSignatures uint32, skipRecording bool) {
 	cfg := trx.Control.GetGlobalProperties().Configuration
-	dsfpd := packeTrxPrunableSize
+	dsfpd := packedTrxPrunableSize
 	if cfg.ContextFreeDiscountNetUsageDen > 0 && cfg.ContextFreeDiscountNetUsageNum < cfg.ContextFreeDiscountNetUsageDen {
 		dsfpd *= uint64(cfg.ContextFreeDiscountNetUsageNum)
 		dsfpd = (dsfpd + uint64(cfg.ContextFreeDiscountNetUsageDen) - 1) / uint64(cfg.ContextFreeDiscountNetUsageDen)
 	}
+	//TODO append
+	initialNetUsage :=uint64(cfg.BasePerTransactionNetUsage)+packedTrxUnprunableSize+dsfpd
+	if trx.Trx.DelaySec >0{
+		initialNetUsage += uint64(cfg.BasePerTransactionNetUsage+common.DefaultConfig.TransactionIdNetUsage)
+	}
+
+	trx.Published = trx.Control.PendingBlockTime()
+	trx.IsInput = true
+	if !trx.Control.SkipTrxChecks(){
+		trx.Control.ValidateExpiration(trx.Trx.Transaction)
+		trx.Control.ValidateTapos(trx.Trx.Transaction)
+		trx.Control.ValidateReferencedAccounts(trx.Trx.Transaction)
+	}
+	trx.init(initialNetUsage)
+	if !skipRecording{
+		trx.recordTransaction( &trx.ID, trx.Trx.Expiration ); /// checks for dupes
+	}
+}
+
+func (trx *TransactionContext) recordTransaction(id *common.TransactionIdType,expire common.TimePointSec){
+	//TODO wait modify callback
+	to:=entity.TransactionObject{}
+	to.TrxID = *id
+	to.Expiration = expire
+	trx.Control.DataBase().Insert(&to)
 }
 
 func (trx *TransactionContext) DispathAction(trace *types.ActionTrace, action *types.Action, receiver common.AccountName, contextFree bool, recurseDepth uint32) {
@@ -328,6 +375,6 @@ func (trx *TransactionContext) DispathAction(trace *types.ActionTrace, action *t
 	//      throw
 	//   }
 
-	*trace = applyContext.Trace
+	trace = &applyContext.Trace
 
 }

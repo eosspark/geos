@@ -44,7 +44,7 @@ type House struct {
 }
 
 func Test_Lower_Upper(t *testing.T) {
-	db, err := NewDataBase("./", "test.db", true)
+	db, err := NewDataBase("./one", "test.db", true)
 	if err != nil {
 		fmt.Println("NewDataBase failed")
 		return

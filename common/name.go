@@ -5,22 +5,15 @@ import (
 	"strings"
 )
 
-/**
-*  S Converts a base32 string to a uint64_t. This is a constexpr so that
-*  this method can be used in template arguments as well.
-*
-*  @brief Converts a base32 string to a uint64_t.
-*  @param str - String representation of the name
-*  @return constexpr uint64_t - 64-bit unsigned integer representation of the name
-*  @ingroup types
- */
+// ported from libraries/chain/name.cpp in eosio
+
+//N converts a base32 string to a uint64. 64-bit unsigned integer representation of the name.
 func N(s string) (val uint64) {
-	// ported from the eosio codebase, libraries/chain/include/eosio/chain/name.hpp
 	var i uint32
 	sLen := uint32(len(s))
 	if sLen > 13 {
 		//panic(fmt.Sprintf("Name is loger than 13 chacacters %s",s))
-		fmt.Printf("Name is loger than 13 chacacters %s\n", s)
+		fmt.Printf("Name is loger than 13 chacacters %s\n", s) //TODO
 	}
 	for ; i <= 12; i++ {
 		var c uint64
@@ -41,8 +34,8 @@ func N(s string) (val uint64) {
 	return
 }
 
+//S converts a uint64 to a base32 string. String representation of the name.
 func S(in uint64) string {
-	// ported from libraries/chain/name.cpp in eosio
 	a := []byte{'.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.', '.'}
 
 	tmp := in
@@ -96,14 +89,7 @@ func NameSuffix(n uint64) uint64 {
 	return uint64(((n & mask) << shift) + (thirteenthCharacter << (shift - 1)))
 }
 
-/**
-*  charToSymbol Converts a base32 symbol into its binary representation, used by string_to_name()
-*
-*  @brief Converts a base32 symbol into its binary representation, used by string_to_name()
-*  @param c - Character to be converted
-*  @return constexpr char - Converted character
-*  @ingroup types
- */
+//charToSymbol converts a base32 symbol into its binary representation, used by N()
 func charToSymbol(c byte) byte {
 	if c >= 'a' && c <= 'z' {
 		return c - 'a' + 6

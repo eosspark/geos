@@ -517,7 +517,8 @@ func (t *SHA256Bytes) UnmarshalJSON(data []byte) (err error) {
 	return
 }
 
-type Varuint32 uint32
+// type Varuint32 uint32
+// type Varint32 int32
 
 type JSONFloat64 float64
 
