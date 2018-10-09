@@ -36,7 +36,6 @@ func (u *Uint128) RightShift() Uint128 {
 		u.High = u.High >> 1
 		u.Low = u.Low >> 1
 	}
-
 	return *u
 }
 
