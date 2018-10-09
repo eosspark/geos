@@ -3,7 +3,7 @@ package sereal
 import (
 	"testing"
 
-	"github.com/asdine/storm/codec/internal"
+	"github.com/eosspark/eos-go/database/storm/codec/internal"
 	"github.com/stretchr/testify/require"
 )
 

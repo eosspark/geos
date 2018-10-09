@@ -12,8 +12,8 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/asdine/storm"
-	"github.com/asdine/storm/q"
+	"github.com/eosspark/eos-go/database/storm"
+	"github.com/eosspark/eos-go/database/storm/q"
 )
 
 func ExampleRe() {
