@@ -33,7 +33,7 @@ func (ac *AuthorityChecker) SatisfiedLc(permission *PermissionLevel, cachedPerms
 }
 
 func (ac *AuthorityChecker) SatisfiedAcd(authority *SharedAuthority, cachedPermissions *PermissionCacheType, depth uint16) bool {
-	//待完善: lack of canceled
+	//TODO: lack of canceled
 	var metaPermission []interface{}
 	metaPermission = append(metaPermission, authority.Waits)
 	metaPermission = append(metaPermission, authority.Keys)

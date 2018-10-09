@@ -1,4 +1,4 @@
-package eosiodb
+package database
 
 import (
 	"container/list"
