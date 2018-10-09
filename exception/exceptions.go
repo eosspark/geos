@@ -122,6 +122,24 @@ func (e *DeadlineException) What() string {
 	return "Transaction took too long"
 }
 
+type GreylistNetUsageExceeded struct{ logMessage }
+
+func (e *GreylistNetUsageExceeded) ChainExceptions()        {}
+func (e *GreylistNetUsageExceeded) ForkDatabaseExceptions() {}
+func (e *GreylistNetUsageExceeded) Code() ExcTypes          { return 3080007 }
+func (e *GreylistNetUsageExceeded) What() string {
+	return "Transaction exceeded the current greylisted account network usage limit"
+}
+
+type GreylistCpuUsageExceeded struct{ logMessage }
+
+func (e *GreylistCpuUsageExceeded) ChainExceptions()        {}
+func (e *GreylistCpuUsageExceeded) ForkDatabaseExceptions() {}
+func (e *GreylistCpuUsageExceeded) Code() ExcTypes          { return 3080008 }
+func (e *GreylistCpuUsageExceeded) What() string {
+	return "Transaction exceeded the current greylisted account CPU usage limit"
+}
+
 type LeewayDeadlineException struct{ logMessage }
 
 func (e *LeewayDeadlineException) ChainExceptions()        {}
