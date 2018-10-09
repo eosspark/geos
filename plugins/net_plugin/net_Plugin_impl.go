@@ -1,5 +1,6 @@
 package p2p
 
+//
 //import (
 //	"fmt"
 //	"github.com/eosspark/eos-go/chain/types"
@@ -238,7 +239,7 @@ package p2p
 //// Checks current connection mode and key authentication.
 //// return False if the peer should not connect, True otherwise.
 //func (n *netPluginIMpl) authenticatePeer(msg *HandshakeMessage) bool {
-//	var allowedIt, privateIt ,foundProducerKey bool
+//	var allowedIt, privateIt, foundProducerKey bool
 //
 //	if n.allowedConnections == nonePossible {
 //		return false
@@ -252,7 +253,7 @@ package p2p
 //				allowedIt = true
 //			}
 //		}
-//		_,privateIt = n.privateKeys[msg.Key]
+//		_, privateIt = n.privateKeys[msg.Key]
 //
 //		//producer_plugin* pp = app().find_plugin<producer_plugin>();
 //		//if(pp != nullptr)
@@ -266,27 +267,12 @@ package p2p
 //		}
 //	}
 //	msgTime := msg.Time
-//	t :=common.Now()
-//	if time.Duration(uint64((t -msgTime))*time.Microsecond) > n.peerAuthenticationInterval {
+//	t := common.Now()
+//	if time.Duration(uint64((t-msgTime))*time.Microsecond) > n.peerAuthenticationInterval {
 //
 //	}
 //
-//
 //}
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
-//
 //
 ////
 ////
@@ -327,7 +313,6 @@ package p2p
 ////}
 ////return true;
 ////}
-//
 //
 //// getAuthenticationKey retrieve public key used to authenticate with peers.
 //// Finds a key to use for authentication.  If this node is a producer, use
