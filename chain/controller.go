@@ -255,14 +255,14 @@ func (self *Controller) PushTransaction(trx types.TransactionMetadata, deadLine 
 	}
 
 	trxContext := TransactionContext{}
-	trxContext = *trxContext.NewTransactionContext(self, &trx.Trx, trx.ID, common.Now())
+	trxContext = *NewTransactionContext(self, &trx.Trx, trx.ID, common.Now())
 
 	if self.SubjectiveCupLeeway != 0 {
 		if self.Pending.BlockStatus == types.BlockStatus(types.Incomplete) {
 			trxContext.Leeway = self.SubjectiveCupLeeway
 		}
 	}
-	trxContext.DeadLine = deadLine
+	trxContext.Deadline = deadLine
 	trxContext.ExplicitBilledCpuTime = explicitBilledCpuTime
 	trxContext.BilledCpuTimeUs = int64(billedCpuTimeUs)
 
