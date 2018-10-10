@@ -4,7 +4,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/eosspark/eos-go/crypto"
 	"testing"
-	"github.com/eosspark/eos-go/crypto"
 )
 
 func Test_append(t *testing.T) {
