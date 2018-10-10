@@ -1,6 +1,8 @@
 package common
 
-//import "math"
+import (
+	"math"
+)
 
 type Uint256 struct {
 	High  Uint128
@@ -85,14 +87,14 @@ func (u Uint256) Add(v Uint256) Uint256{
 	u.Low = u.Low.Add(v.Low)
 	return u
 }
-//
-//func (u *Uint256) Sub(v Uint256) Uint256{
-//	if u.Low.Compare(v.Low) >= 0 {
-//		u.Low.Sub(v.Low)
-//		v.High.Sub(v.High)
-//	} else {
-//		u.Low.Sub(Uint128{math.MaxUint64,math.MaxUint64}.Sub(v.Low).Add(Uint128{0,1}))
-//		u.High.Sub(v.High.Add(Uint128{0,1}))
-//	}
-//	return *u
-//}
+
+func (u Uint256) Sub(v Uint256) Uint256{
+	if u.Low.Compare(v.Low) >= 0 {
+		u.Low = u.Low.Sub(v.Low)
+		u.High = u.High.Sub(v.High)
+	} else {
+		u.Low = u.Low.Add(Uint128{math.MaxUint64,math.MaxUint64}.Sub(v.Low).Add(Uint128{0,1}))
+		u.High = u.High.Sub(v.High.Add(Uint128{0,1}))
+	}
+	return u
+}
