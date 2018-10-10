@@ -24,7 +24,7 @@ const (
 var (
 	PluginFromConfig string
 	//Name string
-	//Age int
+	//Age int  test
 )
 
 func init() {
