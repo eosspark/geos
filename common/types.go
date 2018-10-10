@@ -25,6 +25,23 @@ type TransactionIdType crypto.Sha256
 type CheckSum256Type crypto.Sha256
 type IdType uint16
 type KeyType uint64
+
+func (n ChainIdType) String() string {
+	return crypto.Sha256(n).String()
+}
+func (n NodeIdType) String() string {
+	return crypto.Sha256(n).String()
+}
+func (n BlockIdType) String() string {
+	return crypto.Sha256(n).String()
+}
+func (n TransactionIdType) String() string {
+	return crypto.Sha256(n).String()
+}
+func (n CheckSum256Type) String() string {
+	return crypto.Sha256(n).String()
+}
+
 func DecodeIdTypeString(str string) (id [4]uint64, err error) {
 	b, err := hex.DecodeString(str)
 	if err != nil {
@@ -518,8 +535,7 @@ func (t *SHA256Bytes) UnmarshalJSON(data []byte) (err error) {
 	return
 }
 
-// type Varuint32 uint32
-// type Varint32 int32
+type Varuint32 uint32
 
 type JSONFloat64 float64
 

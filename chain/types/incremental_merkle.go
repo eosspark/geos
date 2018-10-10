@@ -158,8 +158,8 @@ func makeCanonicalRight(val crypto.Sha256) crypto.Sha256 {
 	return canonicalR
 }
 
-func makeCanonicalPair(l crypto.Sha256, r crypto.Sha256) common.Tuple {
-	return common.MakeTuple(makeCanonicalLeft(l), makeCanonicalRight(r))
+func makeCanonicalPair(l crypto.Sha256, r crypto.Sha256) common.Pair {
+	return common.MakePair(makeCanonicalLeft(l), makeCanonicalRight(r))
 }
 
 func isCanonicalLeft(val crypto.Sha256) bool {
