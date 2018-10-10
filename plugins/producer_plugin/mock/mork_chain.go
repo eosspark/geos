@@ -247,7 +247,7 @@ func (c *Controller) GetReadMode() DBReadMode {
 
 func (c *Controller) SetSubjectiveCpuLeeway(leeway common.Microseconds) {}
 
-func (c *Controller) AddResourceGreyList(name *common.AccountName) {}
+func (c *Controller) AddResourceGreyList(name *common.AccountName)    {}
 func (c *Controller) RemoveResourceGreyList(name *common.AccountName) {}
 
 func (c *Controller) GetResourceGreyList() *map[common.AccountName]struct{} { return nil }
@@ -262,7 +262,7 @@ func (c *Controller) GetContractBlackList() *map[common.AccountName]struct{} { r
 
 func (c *Controller) GetActionBlockList() *map[[2]common.AccountName]struct{} { return nil }
 
-func (c *Controller) GetKeyBlackList() *map[common.PublicKeyType]struct{} { return nil }
+func (c *Controller) GetKeyBlackList() *map[ecc.PublicKey]struct{} { return nil }
 
 func (c *Controller) SetActorWhiteList(params *map[common.AccountName]struct{}) {}
 func (c *Controller) SetActorBlackList(params *map[common.AccountName]struct{}) {}
@@ -272,4 +272,4 @@ func (c *Controller) SetContractBlackList(params *map[common.AccountName]struct{
 
 func (c *Controller) SetActionBlackList(params *map[[2]common.AccountName]struct{}) {}
 
-func (c *Controller) SetKeyBlackList(params *map[common.PublicKeyType]struct{}) {}
+func (c *Controller) SetKeyBlackList(params *map[ecc.PublicKey]struct{}) {}

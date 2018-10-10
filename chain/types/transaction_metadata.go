@@ -2,6 +2,7 @@ package types
 
 import (
 	"github.com/eosspark/eos-go/common"
+	"github.com/eosspark/eos-go/crypto/ecc"
 )
 
 type TransactionMetadata struct {
@@ -17,7 +18,7 @@ type TransactionMetadata struct {
 
 type pair struct {
 	id        common.ChainIdType
-	publicKey []common.PublicKeyType
+	publicKey []ecc.PublicKey
 }
 
 func TransactionMetadata1(ptrx PackedTransaction) *TransactionMetadata {
@@ -29,7 +30,7 @@ func TransactionMetadata1(ptrx PackedTransaction) *TransactionMetadata {
 	return &tm
 }
 
-func (tm *TransactionMetadata) RecoverKeys(chainId common.ChainIdType) []common.PublicKeyType {
+func (tm *TransactionMetadata) RecoverKeys(chainId common.ChainIdType) []ecc.PublicKey {
 	if /*unsafe.Sizeof(tm.SigningKeys) || */ tm.SigningKeys.id != chainId {
 		tm.SigningKeys.id = chainId
 		//tm.SigningKeys.publicKey = tm.Trx.GetSignatureKeys(chainId)

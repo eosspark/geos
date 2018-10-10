@@ -5,14 +5,14 @@ import (
 	"fmt"
 	Chain "github.com/eosspark/eos-go/plugins/producer_plugin/mock" /*Debug model*/
 	//Chain "github.com/eosspark/eos-go/chain"
+	"encoding/json"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/ecc"
+	. "github.com/eosspark/eos-go/exception"
 	"github.com/eosspark/eos-go/log"
 	"gopkg.in/urfave/cli.v1"
 	"time"
-	"encoding/json"
-	. "github.com/eosspark/eos-go/exception"
 )
 
 type ProducerPlugin struct {
@@ -34,7 +34,7 @@ type WhitelistAndBlacklist struct {
 	ContractWhitelist *map[common.AccountName]struct{}
 	ContractBlacklist *map[common.AccountName]struct{}
 	ActionBlacklist   *map[[2]common.AccountName]struct{}
-	KeyBlacklist      *map[common.PublicKeyType]struct{}
+	KeyBlacklist      *map[ecc.PublicKey]struct{}
 }
 
 type GreylistParams struct {
@@ -367,9 +367,9 @@ func newChainBanner(db *Chain.Controller) {
 		"*******************************\n" +
 		"\n")
 
-	if db.HeadBlockState().Header.Timestamp.ToTimePoint() < common.Now().SubUs(common.Microseconds(200 * common.DefaultConfig.BlockIntervalMs)) {
+	if db.HeadBlockState().Header.Timestamp.ToTimePoint() < common.Now().SubUs(common.Microseconds(200*common.DefaultConfig.BlockIntervalMs)) {
 		fmt.Print("Your genesis seems to have an old timestamp\n" +
-			"Please consider using the --genesis-timestamp option to give your genesis a recent timestamp\n\n" )
+			"Please consider using the --genesis-timestamp option to give your genesis a recent timestamp\n\n")
 	}
 }
 

@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/eosspark/eos-go/crypto"
-	"github.com/eosspark/eos-go/crypto/ecc"
 	"math"
 	"strconv"
 	"strings"
@@ -516,27 +515,6 @@ func (t *HexBytes) UnmarshalJSON(data []byte) (err error) {
 	return
 }
 
-// SHA256Bytes
-
-type SHA256Bytes []byte // should always be 32 bytes
-
-func (t SHA256Bytes) MarshalJSON() ([]byte, error) {
-	return json.Marshal(hex.EncodeToString(t))
-}
-
-func (t *SHA256Bytes) UnmarshalJSON(data []byte) (err error) {
-	var s string
-	err = json.Unmarshal(data, &s)
-	if err != nil {
-		return
-	}
-
-	*t, err = hex.DecodeString(s)
-	return
-}
-
-type Varuint32 uint32
-
 type JSONFloat64 float64
 
 func (f *JSONFloat64) UnmarshalJSON(data []byte) error {
@@ -602,8 +580,6 @@ func (i *JSONInt64) UnmarshalJSON(data []byte) error {
 
 	return nil
 }
-
-type PublicKeyType ecc.PublicKey
 
 type Compare interface {
 	String() string
