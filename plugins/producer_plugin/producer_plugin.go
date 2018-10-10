@@ -12,6 +12,7 @@ import (
 	"gopkg.in/urfave/cli.v1"
 	"time"
 	"encoding/json"
+	. "github.com/eosspark/eos-go/exception"
 )
 
 type ProducerPlugin struct {
@@ -323,7 +324,7 @@ func (pp *ProducerPlugin) SetWhitelistBlacklist(params WhitelistAndBlacklist) {
 	}
 }
 
-func failureIsSubjective(e error, deadlineIsSubjective bool) bool {
+func failureIsSubjective(e Exception, deadlineIsSubjective bool) bool {
 	//TODO wait for error definition
 	return false
 }

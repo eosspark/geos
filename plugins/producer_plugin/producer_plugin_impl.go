@@ -8,7 +8,8 @@ import (
 	"github.com/eosspark/eos-go/crypto/ecc"
 	Chain "github.com/eosspark/eos-go/plugins/producer_plugin/mock"
 	"github.com/eosspark/eos-go/crypto"
-		)
+	. "github.com/eosspark/eos-go/exception"
+)
 
 type ProducerPluginImpl struct {
 	ProductionEnabled   bool
@@ -222,7 +223,7 @@ func (impl *ProducerPluginImpl) OnIncomingTransactionAsync(trx *types.PackedTran
 
 	sendResponse := func(response interface{}) {
 		next(response)
-		if _, ok := response.(error); ok {
+		if _, ok := response.(Exception); ok {
 			//C++ _transaction_ack_channel.publish(std::pair<fc::exception_ptr, packed_transaction_ptr>(response.get<fc::exception_ptr>(), trx));
 		} else {
 			//C++ _transaction_ack_channel.publish(std::pair<fc::exception_ptr, packed_transaction_ptr>(nullptr, trx));
