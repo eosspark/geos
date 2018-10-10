@@ -1,19 +1,16 @@
 package net_plugin
 
 import (
-	"fmt"
-	. "appbase/app/include"
 	"appbase/app"
+	. "appbase/app/include"
+	"fmt"
 )
-
 
 type NetPlugin struct {
 	AbstractPlugin
 }
 
 var netPlugin *NetPlugin
-
-
 
 func init() {
 	netPlugin = new(NetPlugin)
@@ -30,15 +27,12 @@ func (netPlugin *NetPlugin) GetState() State {
 	return netPlugin.State
 }
 
-
 func (netPlugin *NetPlugin) Exec() bool {
 	fmt.Println("执行net_plugin的exec内容")
 	return true
 }
 
-
-
-func (netPlugin *NetPlugin) SetProgramOptions(){
+func (netPlugin *NetPlugin) SetProgramOptions() {
 	fmt.Println("NetPlugin SetProgramOptions")
 
 }
@@ -48,12 +42,13 @@ func (netPlugin *NetPlugin) PluginInitialize() {
 	netPlugin.State = Initialized
 
 }
+
 var loop = true
 
 func (netPlugin *NetPlugin) PluginStartUp() {
 
 	go func() {
-		for ;loop; {
+		for loop {
 			fmt.Println("NetPlugin PluginStartUp")
 		}
 	}()

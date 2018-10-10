@@ -21,12 +21,11 @@ import (
 
 /*
  结构的声明 没有分配内存
- */
+*/
 
-var Student1 Student        /* 声明 Student1 为 Books 类型 */
+var Student1 Student /* 声明 Student1 为 Books 类型 */
 
 var Student2 *Student
-
 
 func StructTest01Base() {
 	//structTest0101()
@@ -43,17 +42,13 @@ type Student struct {
 	age     int
 }
 
-
-
-
-
 func structTest0101() {
 	//使用new创建一个Student对象,结果为指针类型
 	var s *Student = new(Student)
 	// := 是声明并赋值，并且系统自动推断类型，不需要var关键字 效果和
 	d := Student{} //d :=new(Student) 在函数外定义会报非法错误
 	d.name = "fs"
-	e :=new(Student)
+	e := new(Student)
 	e.name = "fs"
 	s.id = 101
 	s.name = "Mikle"
@@ -131,7 +126,6 @@ func structTest0103() {
 	upPerson(p3)
 	fmt.Println(p3)
 }
-
 
 type user struct {
 	id int

@@ -1,8 +1,8 @@
 package producer_plugin
 
 import (
+	. "appbase/app/include"
 	"fmt"
-	."appbase/app/include"
 
 	"appbase/app"
 )
@@ -12,18 +12,17 @@ import (
 type ProducerPlugin struct {
 	AbstractPlugin
 }
+
 var producerPlugin *ProducerPlugin
 
-func init () {
+func init() {
 	producerPlugin = new(ProducerPlugin)
 	producerPlugin.Name = "ProducerPlugin"
 	producerPlugin.State = Registered
 	app.App.RegisterPlugin(producerPlugin)
 }
 
-
-
-func (producerPlugin *ProducerPlugin) SetProgramOptions(){
+func (producerPlugin *ProducerPlugin) SetProgramOptions() {
 	fmt.Println("ProducerPlugin SetProgramOptions")
 
 }
@@ -33,9 +32,10 @@ func (producerPlugin *ProducerPlugin) PluginInitialize() {
 }
 
 var loop = true
+
 func (producerPlugin *ProducerPlugin) PluginStartUp() {
 	go func() {
-		for ;loop; {
+		for loop {
 			fmt.Println("ProducerPlugin PluginStartUp")
 		}
 	}()
@@ -45,14 +45,10 @@ func (producerPlugin *ProducerPlugin) PluginShutDown() {
 	loop = false
 	fmt.Println("ProducerPlugin PluginShutDown")
 }
-func (producerPlugin *ProducerPlugin) GetName() string{
+func (producerPlugin *ProducerPlugin) GetName() string {
 	return producerPlugin.Name
 }
 
-func (producerPlugin *ProducerPlugin) GetState() State{
+func (producerPlugin *ProducerPlugin) GetState() State {
 	return producerPlugin.State
 }
-
-
-
-

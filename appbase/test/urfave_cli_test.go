@@ -1,22 +1,22 @@
 package test
+
 import (
 	"fmt"
-	"os"
 	"github.com/urfave/cli"
+	"os"
 	"testing"
 )
 
 func TestUrfaveCli(t *testing.T) {
 	app := cli.NewApp()
 
-	app.Flags = []cli.Flag {
+	app.Flags = []cli.Flag{
 		cli.StringFlag{
-			Name: "lang",
+			Name:  "lang",
 			Value: "english",
 			Usage: "language for the greeting",
 		},
 	}
-
 
 	app.Action = func(c *cli.Context) error {
 		name := "Nefertiti"

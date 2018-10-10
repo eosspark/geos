@@ -13,7 +13,7 @@ import (
 type stu struct {
 	name string
 	age  int
-	sex bool
+	sex  bool
 }
 
 func (s1 *stu) SetName(name string) {
@@ -26,14 +26,14 @@ func (s1 *stu) SetAge(age int) {
 
 func Test_Implement(t *testing.T) {
 
-	var stu1 = stu{"sheng", 23,false}
+	var stu1 = stu{"sheng", 23, false}
 
 	var map1 map[string]human
 	map1 = map[string]human{"1": &stu1}
 
 	if key, ok := map1["1"]; ok {
 		key.SetAge(3)
-		fmt.Println("s" )
+		fmt.Println("s")
 	} else {
 		fmt.Println("不存在")
 	}

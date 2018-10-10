@@ -59,4 +59,3 @@ Options:
 `)
 	flag.PrintDefaults()
 }
-

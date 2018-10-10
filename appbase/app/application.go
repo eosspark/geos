@@ -4,9 +4,9 @@ import (
 	. "appbase/app/include"
 	"gopkg.in/urfave/cli.v1"
 
-	"github.com/eosspark/eos-go/exception/try"
-	. "github.com/eosspark/eos-go/exception"
 	"fmt"
+	. "github.com/eosspark/eos-go/exception"
+	"github.com/eosspark/eos-go/exception/try"
 )
 
 // 完成初步架构设计
@@ -20,8 +20,8 @@ type applicationImpl struct {
 type application struct {
 	My                 *applicationImpl
 	Plugins            map[string]Plugin //< all registered plugins
-	initializedPlugins []Plugin         //< stored in the order they were started running
-	runningPlugins     []Plugin         //<  stored in the order they were started running
+	initializedPlugins []Plugin          //< stored in the order they were started running
+	runningPlugins     []Plugin          //<  stored in the order they were started running
 
 }
 
@@ -85,12 +85,12 @@ func setProgramOptions() {
 			Usage: "Logging configuration file name/path for library users",
 		},
 	}
-	cli.HelpFlag = cli.BoolFlag {
-		Name: "help, h",
+	cli.HelpFlag = cli.BoolFlag{
+		Name:  "help, h",
 		Usage: "Print this help message and exit.",
 	}
-	cli.VersionFlag = cli.BoolFlag {
-		Name: "version, v",
+	cli.VersionFlag = cli.BoolFlag{
+		Name:  "version, v",
 		Usage: "Print version information.",
 	}
 }
@@ -98,8 +98,7 @@ func setProgramOptions() {
 func (app *application) Initialize() bool {
 	setProgramOptions()
 
-
-    try.Try(func() {
+	try.Try(func() {
 		for _, v := range app.Plugins {
 			if v.GetState() == Registered {
 				v.PluginInitialize()
@@ -132,15 +131,14 @@ func (app *application) ShutDown() {
 
 	for k, v := range app.Plugins {
 		v.PluginShutDown()
-		delete(app.Plugins,k)
+		delete(app.Plugins, k)
 	}
 
 }
 
-
-func FindPlugin(name string) (plugin Plugin){
-	for _,v := range App.Plugins {
-		if _ , ok := App.Plugins[name]; ok {
+func FindPlugin(name string) (plugin Plugin) {
+	for _, v := range App.Plugins {
+		if _, ok := App.Plugins[name]; ok {
 			return v
 		}
 	}
