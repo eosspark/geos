@@ -3,19 +3,16 @@ package entity
 import (
 	"fmt"
 	"github.com/eosspark/eos-go/common"
-	"github.com/eosspark/eos-go/database"
 	"github.com/eosspark/eos-go/log"
+	"github.com/eosspark/eos-go/database"
 )
-
-type IdType uint16
-type KeyType uint64
 
 type Object struct {
 	TypeId uint16 `storm:"id,increment"`
 }
 
 type TableIdObject struct {
-	ID    IdType `storm:"id,increment"`
+	ID    common.IdType `storm:"id,increment"`
 	Code  common.AccountName
 	Scope common.ScopeName
 	Table common.TableName
@@ -43,20 +40,20 @@ type ByCodeScopeTable struct {
 
 type TableIdMultiIndex struct {
 	TableIdObject
-	Id  IdType           `storm:"id,increment"`
+	Id  common.IdType           `storm:"id,increment"`
 	Bst ByCodeScopeTable `strom:"unique"`
 }
 
 type KeyValueObject struct {
 	// KeyType      KeyType
 	// NumberOfKeys int //default 1
-	ID                IdType `storm:"id,increment"`
-	TId               IdType
+	ID                common.IdType `storm:"id,increment"`
+	TId               common.IdType
 	PrimaryKey        uint64
 	Payer             common.AccountName
 	Value             common.HexBytes // c++ SharedString
 	ByScopePrimaryKey struct {
-		TID        IdType
+		TID        common.IdType
 		PrimaryKey uint64
 	} `strom:"unique"`
 }
@@ -79,7 +76,7 @@ func (s *KeyValueObject) MakeTuple(values ...interface{}) *common.Tuple {
 	return &tuple
 }
 
-func AddTableIdObjectIndex(dbs *eosiodb.DataBase, tio TableIdObject) {
+func AddTableIdObjectIndex(dbs *database.DataBase, tio TableIdObject) {
 	ti := TableIdMultiIndex{}
 	ti.TableIdObject = tio
 	ti.Bst.Code = tio.Code
@@ -92,7 +89,7 @@ func AddTableIdObjectIndex(dbs *eosiodb.DataBase, tio TableIdObject) {
 	}
 }
 
-func GetTableObjectById(dbs *eosiodb.DataBase, id IdType) *TableIdMultiIndex {
+func GetTableObjectById(dbs *database.DataBase, id common.IdType) *TableIdMultiIndex {
 	tmi := TableIdMultiIndex{}
 	err := dbs.Find("ID", id, &tmi)
 	if err != nil {
@@ -101,7 +98,7 @@ func GetTableObjectById(dbs *eosiodb.DataBase, id IdType) *TableIdMultiIndex {
 	return &tmi
 }
 
-func GetByCodeScopeTable(dbs *eosiodb.DataBase, bst ByCodeScopeTable) *TableIdMultiIndex {
+func GetByCodeScopeTable(dbs *database.DataBase, bst ByCodeScopeTable) *TableIdMultiIndex {
 	tmi := TableIdMultiIndex{}
 	err := dbs.Find("Bst", bst, &tmi)
 	if err != nil {
@@ -190,8 +187,8 @@ func (s *Float64_t) MakeTuple(values ...interface{}) *common.Tuple {
 // }
 
 type SecondaryObjectI64 struct {
-	ID           IdType `storm:"id,increment"`
-	TId          IdType
+	ID           common.IdType `storm:"id,increment"`
+	TId          common.IdType
 	PrimaryKey   uint64
 	Payer        common.AccountName
 	SecondaryKey Uint64_t
@@ -210,8 +207,8 @@ func (s *SecondaryObjectI64) MakeTuple(values ...interface{}) *common.Tuple {
 }
 
 type SecondaryObjectDouble struct {
-	ID           IdType `storm:"id,increment"`
-	TId          IdType
+	ID           common.IdType `storm:"id,increment"`
+	TId          common.IdType
 	PrimaryKey   uint64
 	Payer        common.AccountName
 	SecondaryKey Float64_t

@@ -6,14 +6,14 @@ import (
 )
 
 type PermissionUsageObject struct {
-	ID                  types.IdType     `storm:"id"`
+	ID                  common.IdType     `storm:"id"`
 	LastUsed            common.TimePoint `json:"last_used"`
 	ByAccountPermission common.Tuple     `storm:"index"`
 }
 type PermissionObject struct {
-	ID          IdType `storm:"id,increment"`
-	UsageId     IdType
-	Parent      IdType
+	ID          common.IdType `storm:"id,increment"`
+	UsageId     common.IdType
+	Parent      common.IdType
 	Owner       common.AccountName
 	Name        common.PermissionName
 	LastUpdated common.TimePoint

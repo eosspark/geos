@@ -23,7 +23,8 @@ type NodeIdType crypto.Sha256
 type BlockIdType crypto.Sha256
 type TransactionIdType crypto.Sha256
 type CheckSum256Type crypto.Sha256
-
+type IdType uint16
+type KeyType uint64
 func DecodeIdTypeString(str string) (id [4]uint64, err error) {
 	b, err := hex.DecodeString(str)
 	if err != nil {

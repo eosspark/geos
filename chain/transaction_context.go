@@ -5,6 +5,7 @@ import (
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/database"
+	"github.com/eosspark/eos-go/entity"
 	"github.com/eosspark/eos-go/exception"
 	"github.com/eosspark/eos-go/log"
 )
@@ -186,7 +187,7 @@ func (t *TransactionContext) init(initialNetUsage uint64) {
 		t.deadlineExceptionCode = t.billingTimerExceptionCode
 	}
 
-	t.eagerNetLimit = (t.netLimit / 8) * 8 // Round down to nearest multiple of word size (8 bytes) so check_net_usage can be efficient
+	t.eagerNetLimit = ((t.netLimit + 7) / 8) * 8 // Round down to nearest multiple of word size (8 bytes) so check_net_usage can be efficient
 	if initialNetUsage > 0 {
 		t.AddNetUsage(initialNetUsage) // Fail early if current net usage is already greater than the calculated limit
 	}
@@ -227,9 +228,179 @@ func (t *TransactionContext) InitForInputTrx(packeTrxUnprunableSize uint64, pack
 
 	t.init(initialNetUsage)
 	if !skipRecording {
+		//TODO
 		//t.recordTransaction(t.ID, t.Trx.Expiration)
 	}
 
+}
+
+func (t *TransactionContext) InitForDeferredTrx(p common.TimePoint) {
+	t.Published = p
+	t.Trace.Scheduled = true
+	t.ApplyContextFree = false
+	t.init(0)
+}
+
+func (t *TransactionContext) Exec() {
+
+	//assert(t.isInitialized, transaction_exception, "must first initialize")
+
+	if t.ApplyContextFree {
+		for _, act := range t.Trx.ContextFreeActions {
+			t.Trace.ActionTraces = append(t.Trace.ActionTraces, types.ActionTrace{})
+			t.DispathAction(&t.Trace.ActionTraces[len(t.Trace.ActionTraces)-1], act, act.Account, true, 0)
+		}
+	}
+
+	if t.Delay == common.Microseconds(0) {
+		for _, act := range t.Trx.Actions {
+			t.Trace.ActionTraces = append(t.Trace.ActionTraces, types.ActionTrace{})
+			t.DispathAction(&t.Trace.ActionTraces[len(t.Trace.ActionTraces)-1], act, act.Account, false, 0)
+		}
+	} else {
+		t.scheduleTransaction()
+	}
+}
+
+func (t *TransactionContext) Finalize() {
+	//assert(t.isInitialized, transaction_exception, "must first initialize")
+
+	// if t.IsInput {
+	// 	am := t.Control.GetMutableResourceLimitsManager()
+	// 	for _,act := range t.Trx.Actions{
+	// 		for _,auth := range act.Authorization {
+	// 			am.UpdatePermissionUsage(am.GetPermission(auth))
+	// 		}
+	// 	}
+	// }
+
+	rl := t.Control.GetMutableResourceLimitsManager()
+	for a := range t.ValidateRamUsage {
+		rl.VerifyAccountRamUsage(common.AccountName(a))
+	}
+
+	// Calculate the highest network usage and CPU time that all of the billed accounts can afford to be billed
+	accountNetLimit, accountCpuLimit, greylistedNet, greylistedCpu := t.MaxBandwidthBilledAccountsCanPay(false)
+	t.netLimitDueToGreylist = t.netLimitDueToGreylist || greylistedNet
+	t.cpuLimitDueToGreylist = t.cpuLimitDueToGreylist || greylistedCpu
+
+	if accountNetLimit <= int64(t.netLimit) {
+		t.netLimit = uint64(accountNetLimit)
+		t.netLimitDueToBlock = false
+	}
+
+	if accountCpuLimit <= t.objectiveDurationLimit.Count() {
+		t.objectiveDurationLimit = common.Microseconds(accountCpuLimit)
+		t.billingTimerExceptionCode = int64((&exception.TxCpuUsageExceed{}).Code())
+	}
+
+	*t.netUsage = ((*t.netUsage + 7) / 8) * 8
+	t.eagerNetLimit = t.netLimit
+
+	t.CheckNetUsage()
+	now := common.Now()
+	t.Trace.Elapsed = common.Microseconds(now - t.Start)
+
+	t.UpdateBilledCpuTime(now)
+	t.validateCpuUsageToBill(t.BilledCpuTimeUs, true)
+
+	rl.AddTransactionUsage(t.BillToAccounts, uint64(t.BilledCpuTimeUs), *t.netUsage, uint32(common.BlockTimeStamp(t.Control.PendingBlockTime())))
+
+}
+
+func (t *TransactionContext) Squash() {
+	if t.UndoSession != nil {
+		t.UndoSession.Squash()
+	}
+}
+
+func (t *TransactionContext) Undo() {
+	if t.UndoSession != nil {
+		t.UndoSession.Undo()
+	}
+}
+
+func (t *TransactionContext) CheckNetUsage() {
+	if !t.Control.SkipTrxChecks() {
+		if *t.netUsage > t.eagerNetLimit {
+			//TODO Throw Exception
+			if t.netLimitDueToBlock {
+				log.Error("not enough space left in block:${net_usage} > ${net_limit}", t.netUsage, t.netLimit)
+			} else if t.netLimitDueToGreylist {
+				log.Error("greylisted transaction net usage is too high: ${net_usage} > ${net_limit}", t.netUsage, t.netLimit)
+			} else {
+				log.Error("transaction net usage is too high: ${net_usage} > ${net_limit}", t.netUsage, t.netLimit)
+			}
+		}
+	}
+}
+
+func (t *TransactionContext) CheckTime() {
+
+	if !t.Control.SkipTrxChecks() {
+		now := common.Now()
+		if now > t.deadline {
+			if t.ExplicitBilledCpuTime || t.deadlineExceptionCode == int64((&exception.DeadlineException{}).Code()) { //|| deadline_exception_code TODO
+				//EOS_THROW( DeadlineException, "deadline exceeded", ("now", now)("deadline", _deadline)("start", start) )
+			} else if t.deadlineExceptionCode == int64((&exception.BlockCpuUsageExceeded{}).Code()) {
+				// EOS_THROW( BlockCpuUsageExceeded,
+				//                      "not enough time left in block to complete executing transaction",
+				//                      ("now", now)("deadline", t.deadline)("start", start)("billing_timer", now - t.pseudoStart) )
+			} else if t.deadlineExceptionCode == int64((&exception.TxCpuUsageExceed{}).Code()) {
+				if t.cpuLimitDueToGreylist {
+					// EOS_THROW( GreylistCpuUsageExceeded,
+					//                        "greylisted transaction was executing for too long",
+					//                        ("now", now)("deadline", t.deadline)("start", start)("billing_timer", now - t.pseudoStart) )
+
+				} else {
+					// EOS_THROW( TxCpuUsageExceed,
+					//                        "transaction was executing for too long",
+					//                        ("now", now)("deadline", t.deadline)("start", start)("billing_timer", now - t.pseudoStart) )
+
+				}
+
+			} else if t.deadlineExceptionCode == int64((&exception.LeewayDeadlineException{}).Code()) {
+
+				// EOS_THROW( LeewayDeadlineException,
+				//                    "the transaction was unable to complete by deadline, "
+				//                    "but it is possible it could have succeeded if it were allowed to run to completion",
+				//                    ("now", now)("deadline", t.deadline)("start", t.Start)("billing_timer", now - t.pseudoStart)) )
+
+			}
+
+			//EOS_ASSERT( false,  transactionException, "unexpected deadline exception code" );
+
+		}
+	}
+}
+
+func (t *TransactionContext) PauseBillingTimer() {
+
+	if t.ExplicitBilledCpuTime || t.pseudoStart == common.TimePoint(0) {
+		return
+	}
+
+	now := common.Now()
+	t.billedTime = common.Microseconds(now - t.pseudoStart)
+	t.deadlineExceptionCode = int64((&exception.DeadlineException{}).Code())
+	t.pseudoStart = common.TimePoint(0)
+}
+
+func (t *TransactionContext) ResumeBillingTimer() {
+	if t.ExplicitBilledCpuTime || t.pseudoStart != common.TimePoint(0) {
+		return
+	}
+
+	now := common.Now()
+	t.pseudoStart = now - common.TimePoint(t.billedTime)
+	if t.pseudoStart+common.TimePoint(t.billingTimerDurationLimit) <= t.Deadline {
+		t.deadline = t.pseudoStart + common.TimePoint(t.billingTimerDurationLimit)
+		t.deadlineExceptionCode = t.billingTimerExceptionCode
+
+	} else {
+		t.deadline = t.Deadline
+		t.deadlineExceptionCode = int64((&exception.DeadlineException{}).Code())
+	}
 }
 
 func (t *TransactionContext) validateCpuUsageToBill(bctu int64, checkMinimum bool) {
@@ -265,66 +436,11 @@ func (t *TransactionContext) validateCpuUsageToBill(bctu int64, checkMinimum boo
 		}*/
 	}
 }
-
-func (t *TransactionContext) CheckTime() {
-
-	if !t.Control.SkipTrxChecks() {
-		_now := common.Now()
-		if _now > t.deadline {
-			if t.ExplicitBilledCpuTime { //|| deadline_exception_code TODO
-
-			}
-		}
-	}
-	/*if (!control.skip_t_checks()) {
-		auto now = fc::time_point::now();
-		if( BOOST_UNLIKELY( now > _deadline ) ) {
-			// edump((now-start)(now-pseudo_start));
-			if( explicit_billed_cpu_time || deadline_exception_code == deadline_exception::code_value ) {
-				EOS_THROW( deadline_exception, "deadline exceeded", ("now", now)("deadline", _deadline)("start", start) );
-			} else if( deadline_exception_code == block_cpu_usage_exceeded::code_value ) {
-				EOS_THROW( block_cpu_usage_exceeded,
-				"not enough time left in block to complete executing transaction",
-				("now", now)("deadline", _deadline)("start", start)("billing_timer", now - pseudo_start) );
-			} else if( deadline_exception_code == tx_cpu_usage_exceeded::code_value ) {
-			if (cpu_limit_due_to_greylist) {
-				EOS_THROW( greylist_cpu_usage_exceeded,
-				"greylisted transaction was executing for too long",
-				("now", now)("deadline", _deadline)("start", start)("billing_timer", now - pseudo_start) );
-			} else {
-				EOS_THROW( tx_cpu_usage_exceeded,
-				"transaction was executing for too long",
-				("now", now)("deadline", _deadline)("start", start)("billing_timer", now - pseudo_start) );
-				}
-			} else if( deadline_exception_code == leeway_deadline_exception::code_value ) {
-				EOS_THROW( leeway_deadline_exception,
-				"the transaction was unable to complete by deadline, "
-				"but it is possible it could have succeeded if it were allowed to run to completion",
-				("now", now)("deadline", _deadline)("start", start)("billing_timer", now - pseudo_start) );
-			}
-				EOS_ASSERT( false,  transaction_exception, "unexpected deadline exception code" );
-		}
-	}*/
-}
 func (t *TransactionContext) AddNetUsage(u uint64) {
 	*t.netUsage = *t.netUsage + u
 	t.CheckNetUsage()
 }
 
-func (t *TransactionContext) CheckNetUsage() {
-	if !t.Control.SkipTrxChecks() {
-		if *t.netUsage > t.eagerNetLimit {
-			//TODO Throw Exception
-			if t.netLimitDueToBlock {
-				log.Error("not enough space left in block:${net_usage} > ${net_limit}", t.netUsage, t.netLimit)
-			} else if t.netLimitDueToGreylist {
-				log.Error("greylisted transaction net usage is too high: ${net_usage} > ${net_limit}", t.netUsage, t.netLimit)
-			} else {
-				log.Error("transaction net usage is too high: ${net_usage} > ${net_limit}", t.netUsage, t.netLimit)
-			}
-		}
-	}
-}
 func (t *TransactionContext) AddRamUsage(account common.AccountName, ramDelta int64) {
 	rl := t.Control.GetMutableResourceLimitsManager()
 	rl.AddPendingRamUsage(account, ramDelta)
@@ -343,13 +459,8 @@ func (t *TransactionContext) UpdateBilledCpuTime(now common.TimePoint) uint32 {
 		return uint32(t.BilledCpuTimeUs)
 	}
 	cfg := t.Control.GetGlobalProperties().Configuration
-	first := common.Microseconds(now - t.pseudoStart)
-	second := common.Microseconds(cfg.MinTransactionCpuUsage)
-	if first > second {
-		t.BilledCpuTimeUs = int64(first)
-	} else {
-		t.BilledCpuTimeUs = int64(second)
-	}
+	t.BilledCpuTimeUs = int64(common.Max(uint64(now-t.pseudoStart), uint64(cfg.MinTransactionCpuUsage)))
+
 	return uint32(t.BilledCpuTimeUs)
 }
 
@@ -401,8 +512,37 @@ func (t *TransactionContext) DispathAction(trace *types.ActionTrace, action *typ
 	*trace = applyContext.Trace
 }
 
-//func (t *TransactionContext) recordTransaction(common.TransactionIdType id, common.TimePointSec expire){
-//
-//	transaction := types.TransactionObject{}
-//	t.Control.DB.Insert()
-//}
+func (t *TransactionContext) scheduleTransaction() {
+
+	if t.Trx.DelaySec == 0 {
+		cfg := t.Control.GetGlobalProperties().Configuration
+		t.AddNetUsage(uint64(cfg.BasePerTransactionNetUsage + common.DefaultConfig.TransactionIdNetUsage))
+	}
+
+	firstAuth := common.AccountName(0) //t.Trx.firstAuthorizor()
+	var trxSize uint32 = 0
+
+	gto := &entity.GeneratedTransactionObject{
+		TrxId:     t.ID,
+		Payer:     firstAuth,
+		Sender:    common.AccountName(0),
+		Published: t.Control.PendingBlockTime(),
+	}
+
+	gto.DelayUntil = gto.Published + common.TimePoint(t.Delay)
+	//gto.SenderId = TransactionIdToSenderId(gto.TrxId)
+	//gto.Expiration = gto.DelayUntil t.Control.GetGlobalProperties().Configuration.DeferredTrxExpirationWindow
+	//trxSize := gto.set(t.Trx)
+
+	t.Control.DB.Insert(gto)
+
+	t.Control.DB.Insert(gto)
+	t.AddRamUsage(gto.Payer /*common.DefaultConfig.BillableSize["GeneratedTransactionObject"] + */, int64(trxSize))
+
+}
+
+func (t *TransactionContext) recordTransaction(id common.TransactionIdType, expire common.TimePointSec) {
+
+	obj := &entity.TransactionObject{Expiration: expire, TrxID: id}
+	t.Control.DB.Insert(obj)
+}

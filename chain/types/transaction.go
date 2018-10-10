@@ -54,6 +54,18 @@ func NewTransaction(actions []*Action, opts *TxOptions) *Transaction {
 	return tx
 }
 
+func (tx *Transaction) TotalActions() uint32{
+	return uint32(len(tx.ContextFreeActions)+ len(tx.Actions))
+}
+
+func (tx *Transaction) FirstAuthorizor() common.AccountName{
+	for _,a:= range tx.Actions{
+		for _,auth:= range a.Authorization{
+			return auth.Actor
+		}
+	}
+	return common.AccountName(0)
+}
 func (tx *Transaction) SetExpiration(in uint32) {
 	tx.Expiration = common.TimePointSec(in)
 }

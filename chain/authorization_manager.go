@@ -14,7 +14,7 @@ var azInstance *AuthorizationManager
 
 type AuthorizationManager struct {
 	control *Controller
-	db      *eosiodb.DataBase
+	db      *database.DataBase
 }
 
 func GetAuthorizationManager() *AuthorizationManager {

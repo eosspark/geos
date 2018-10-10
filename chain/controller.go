@@ -11,6 +11,7 @@ import (
 	"github.com/eosspark/eos-go/cvm/exec"
 	"github.com/eosspark/eos-go/database"
 	"github.com/eosspark/eos-go/log"
+	"os"
 )
 
 type DBReadMode int8
@@ -54,9 +55,9 @@ var isActiveController bool //default value false ;Does the process include cont
 var instance *Controller
 //type HandlerKey common.Tuple
 type Controller struct {
-	DB                   *eosiodb.DataBase
-	DbSession            *eosiodb.Session
-	ReversibleBlocks     *eosiodb.DataBase
+	DB                   *database.DataBase
+	DbSession            *database.Session
+	ReversibleBlocks     *database.DataBase
 	Blog                 string //TODO
 	Pending              *types.PendingState
 	Head                 types.BlockState
@@ -79,6 +80,7 @@ type Controller struct {
 
 func GetControllerInstance() *Controller {
 	if !isActiveController {
+		validPath()
 		instance = newController()
 
 		readycontroller <- true
@@ -88,10 +90,26 @@ func GetControllerInstance() *Controller {
 	return instance
 }
 
+//TODO tmp code
+
+func validPath(){
+	path := []string{common.DefaultConfig.DefaultStateDirName,common.DefaultConfig.DefaultBlocksDirName,common.DefaultConfig.DefaultBlocksDirName + "/" + common.DefaultConfig.DefaultReversibleBlocksDirName}
+	for _,d := range path {
+		_, err := os.Stat(d)
+		if os.IsNotExist(err) {
+			err := os.MkdirAll(d, os.ModePerm)
+			if err != nil {
+				fmt.Printf("controller validPath mkdir failed![%v]\n", err)
+			} else {
+				fmt.Printf("controller validPath mkdir success!\n",d)
+			}
+		}
+	}
+}
 func newController() *Controller {
 	isActiveController = true //controller is active
 	//init db
-	db, err := eosiodb.NewDataBase(common.DefaultConfig.DefaultStateDirName, "shared_memory.bin", true)
+	db, err := database.NewDataBase(common.DefaultConfig.DefaultStateDirName, "shared_memory.bin", true)
 	if err != nil {
 		fmt.Println("newController is error detail:", err)
 		return nil
@@ -100,7 +118,7 @@ func newController() *Controller {
 
 	//init ReversibleBlocks
 	reversibleDir := common.DefaultConfig.DefaultBlocksDirName + "/" + common.DefaultConfig.DefaultReversibleBlocksDirName
-	reversibleDB, err := eosiodb.NewDataBase(reversibleDir, common.DefaultConfig.ReversibleFileName, true)
+	reversibleDB, err := database.NewDataBase(reversibleDir, common.DefaultConfig.ReversibleFileName, true)
 	if err != nil {
 		fmt.Println("newController init reversibleDB is error", err)
 	}
@@ -382,7 +400,7 @@ func (self *Controller) PendingBlockTime() common.TimePoint {
 	return self.Pending.PendingBlockState.Header.Timestamp.ToTimePoint()
 }
 
-func Close(db *eosiodb.DataBase, session *eosiodb.Session) {
+func Close(db *database.DataBase, session *database.Session) {
 	//session.close()
 	db.Close()
 }
@@ -502,7 +520,7 @@ func (self *Controller) PushBlock(sbp *types.SignedBlock, status types.BlockStat
 
 func (self *Controller) PushConfirnation(hc types.HeaderConfirmation) {}
 
-func (self *Controller) DataBase() *eosiodb.DataBase {
+func (self *Controller) DataBase() *database.DataBase {
 	return self.DB
 }
 

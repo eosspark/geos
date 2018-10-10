@@ -10,7 +10,7 @@ import (
 var isFdActive bool = false
 
 type ForkDatabase struct {
-	db      *eosiodb.DataBase
+	db      *database.DataBase
 	Index   *ForkMultiIndexType `json:"index"`
 	Head    *BlockState         `json:"head"`
 	DataDir string
@@ -53,7 +53,7 @@ func GetForkDbInstance(stateDir string) *ForkDatabase {
 func newForkDatabase(path string, fileName string, rw bool) (*ForkDatabase, error) {
 	//forkdb := &ForkDatabase{}
 
-	db, err := eosiodb.NewDataBase(path, fileName, rw)
+	db, err := database.NewDataBase(path, fileName, rw)
 	if err != nil {
 		log.Error("newForkDatabase is error:", err)
 		return nil, err
