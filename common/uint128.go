@@ -9,14 +9,14 @@ type Uint128 struct {
 	Low  uint64
 }
 
-func (u *Uint128) IsZero() bool {
+func (u Uint128) IsZero() bool {
 	if u.Low == 0 && u.High == 0 {
 		return true
 	}
 	return false
 }
 
-func (u *Uint128) LeftShift() Uint128 {
+func (u *Uint128) LeftShift() {
 	if u.GetAt(63) {
 		u.Low = u.Low << 1
 		u.Set(64, 1)
@@ -24,10 +24,9 @@ func (u *Uint128) LeftShift() Uint128 {
 		u.Low = u.Low << 1
 		u.High = u.High << 1
 	}
-	return *u
 }
 
-func (u *Uint128) RightShift() Uint128 {
+func (u *Uint128) RightShift() {
 	if u.GetAt(64) {
 		u.High = u.High >> 1
 		u.Low = u.Low >> 1
@@ -36,11 +35,10 @@ func (u *Uint128) RightShift() Uint128 {
 		u.High = u.High >> 1
 		u.Low = u.Low >> 1
 	}
-	return *u
 }
 
 
-func (u *Uint128) GetAt(i uint) bool {
+func (u Uint128) GetAt(i uint) bool {
 	if i < 64 {
 		return u.Low & ( 0x01 << i ) != 0
 	} else {
@@ -68,7 +66,7 @@ func (u *Uint128) Set(i uint, b uint) {
 }
 
 //if u > v , return 1; u < v , return -1; u = v , return 0 .
-func (u *Uint128) Compare(v Uint128) int {
+func (u Uint128) Compare(v Uint128) int {
 	if u.High > v.High {
 		return 1
 	} else if u.High < v.High {
@@ -82,17 +80,17 @@ func (u *Uint128) Compare(v Uint128) int {
 	return 0
 }
 
-func (u *Uint128) Add(v Uint128) Uint128 {
+func (u Uint128) Add(v Uint128) Uint128 {
 	if u.Low+v.Low < u.Low {
 		u.High += v.High + 1
 	} else {
 		u.High += v.High
 	}
 	u.Low += v.Low
-	return *u
+	return u
 }
 
-func (u *Uint128) Sub(v Uint128) Uint128 {
+func (u Uint128) Sub(v Uint128) Uint128 {
 	if u.Low >= v.Low {
 		u.Low -= v.Low
 		u.High -= v.High
@@ -100,10 +98,10 @@ func (u *Uint128) Sub(v Uint128) Uint128 {
 		u.Low += math.MaxUint64 - v.Low + 1
 		u.High -= v.High + 1
 	}
-	return *u
+	return u
 }
 
-func (u *Uint128) Div(divisor Uint128) (Uint128, Uint128) {
+func (u Uint128) Div(divisor Uint128) (Uint128, Uint128) {
 	if divisor.IsZero() {
 		fmt.Println("divisor cannot be zero")
 	}
@@ -117,7 +115,7 @@ func (u *Uint128) Div(divisor Uint128) (Uint128, Uint128) {
 		}
 		if Remainder.Compare(divisor) >= 0 {
 			Quotient.Low ++
-			Remainder.Sub(divisor)
+			Remainder = Remainder.Sub(divisor)
 		}
 	}
 	return Quotient, Remainder

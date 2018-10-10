@@ -5,11 +5,6 @@ import (
 	"github.com/eosspark/eos-go/common"
 )
 
-type PermissionUsageObject struct {
-	ID                  common.IdType     `storm:"id"`
-	LastUsed            common.TimePoint `json:"last_used"`
-	ByAccountPermission common.Tuple     `storm:"index"`
-}
 type PermissionObject struct {
 	ID          common.IdType `storm:"id,increment"`
 	UsageId     common.IdType
