@@ -24,6 +24,22 @@ type BlockIdType crypto.Sha256
 type TransactionIdType crypto.Sha256
 type CheckSum256Type crypto.Sha256
 
+func (n ChainIdType) String() string {
+	return crypto.Sha256(n).String()
+}
+func (n NodeIdType) String() string {
+	return crypto.Sha256(n).String()
+}
+func (n BlockIdType) String() string {
+	return crypto.Sha256(n).String()
+}
+func (n TransactionIdType) String() string {
+	return crypto.Sha256(n).String()
+}
+func (n CheckSum256Type) String() string {
+	return crypto.Sha256(n).String()
+}
+
 func DecodeIdTypeString(str string) (id [4]uint64, err error) {
 	b, err := hex.DecodeString(str)
 	if err != nil {
