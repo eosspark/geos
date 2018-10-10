@@ -1,9 +1,9 @@
 package main
 
 import (
-	. "appbase/app"
-	_ "appbase/plugin/net_plugin"
-	_ "appbase/plugin/producer_plugin"
+	. "github.com/eosspark/eos-go/appbase/app"
+	_ "github.com/eosspark/eos-go/appbase/plugin/net_plugin"
+	_ "github.com/eosspark/eos-go/appbase/plugin/producer_plugin"
 	"flag"
 	"github.com/eosspark/eos-go/exception/try"
 	"os"
@@ -24,7 +24,7 @@ const (
 var (
 	PluginFromConfig string
 	//Name string
-	//Age int
+	//Age int  test
 )
 
 func init() {

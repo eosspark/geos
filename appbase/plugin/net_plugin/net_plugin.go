@@ -1,8 +1,8 @@
 package net_plugin
 
 import (
-	"appbase/app"
-	. "appbase/app/include"
+	"github.com/eosspark/eos-go/appbase/app"
+	. "github.com/eosspark/eos-go/appbase/app/include"
 	"fmt"
 )
 
