@@ -32,12 +32,12 @@ const (
 )
 
 type Config struct {
-	ActorWhitelist      map[common.AccountName]common.AccountName
-	ActorBlacklist      map[common.AccountName]common.AccountName
-	ContractWhitelist   map[common.AccountName]common.AccountName
-	ContractBlacklist   map[common.AccountName]common.AccountName
-	ActionBlacklist     map[string]string //see actionBlacklist
-	KeyBlacklist        map[ecc.PublicKey]ecc.PublicKey
+	ActorWhitelist      map[common.AccountName]struct{}
+	ActorBlacklist      map[common.AccountName]struct{}
+	ContractWhitelist   map[common.AccountName]struct{}
+	ContractBlacklist   map[common.AccountName]struct{}
+	ActionBlacklist     map[common.Pair]struct{} //see actionBlacklist
+	KeyBlacklist        map[ecc.PublicKey]struct{}
 	blocksDir           string
 	stateDir            string
 	stateSize           uint64
@@ -181,7 +181,7 @@ func (self *Controller) PopBlock() {
 			self.UnAppliedTransactions[crypto.Sha256(trx[step].SignedID)] = *trx[step]
 		}
 	}
-	self.Head = prev
+	self.Head = *prev
 	self.DbSession.Undo() //TODO
 }
 
@@ -381,11 +381,11 @@ func (self *Controller) IsResourceGreylisted(name *common.AccountName) bool {
 	return false
 }
 
-func (self *Controller) PendingBlockState() types.BlockState {
+func (self *Controller) PendingBlockState() *types.BlockState {
 	if self.Pending != nil {
-		return self.Pending.PendingBlockState
+		return &self.Pending.PendingBlockState
 	}
-	return types.BlockState{}
+	return &types.BlockState{}
 }
 
 func (self *Controller) PendingBlockTime() common.TimePoint {
@@ -532,55 +532,60 @@ func (self *Controller) GetAccount(name common.AccountName) *types.AccountObject
 	return &accountObj
 }
 
-func (self *Controller) GetAuthorizationManager() *AuthorizationManager {
+func (self *Controller) GetAuthorizationManager() *AuthorizationManager { return self.Authorization }
 
+func (self *Controller) GetMutableAuthorizationManager() *AuthorizationManager {
 	return self.Authorization
 }
 
-//c++ return const
-/*func (self *Controller) GetMutableAuthorizationManager() *AuthorizationManager{ return nil }*/
-
 //c++ flat_set<account_name> map[common.AccountName]interface{}
-func (self *Controller) GetActorWhiteList() *map[common.AccountName]common.AccountName {
+func (self *Controller) GetActorWhiteList() *map[common.AccountName]struct{} {
 
 	return &self.Config.ActorWhitelist
 }
 
-func (self *Controller) GetActorBlackList() *map[common.AccountName]common.AccountName {
+func (self *Controller) GetActorBlackList() *map[common.AccountName]struct{} {
 	return &self.Config.ActorBlacklist
 }
 
-func (self *Controller) GetContractWhiteList() *map[common.AccountName]common.AccountName {
+func (self *Controller) GetContractWhiteList() *map[common.AccountName]struct{} {
 	return &self.Config.ContractWhitelist
 }
 
-func (self *Controller) GetContractBlackList() *map[common.AccountName]common.AccountName {
+func (self *Controller) GetContractBlackList() *map[common.AccountName]struct{} {
 	return &self.Config.ContractBlacklist
 }
 
-func (self *Controller) GetActionBlockList() *map[string]string { return &self.Config.ActionBlacklist }
+func (self *Controller) GetActionBlockList() *map[common.Pair]struct{} {
 
-func (self *Controller) GetKeyBlackList() *map[ecc.PublicKey]ecc.PublicKey {
+	return &self.Config.ActionBlacklist
+}
+
+func (self *Controller) GetKeyBlackList() *map[ecc.PublicKey]struct{} {
 	return &self.Config.KeyBlacklist
 }
 
-func (self *Controller) SetActorWhiteList(params *map[common.AccountName]common.AccountName) {
+func (self *Controller) SetActorWhiteList(params *map[common.AccountName]struct{}) {
 	self.Config.ActorWhitelist = *params
 }
 
-func (self *Controller) SetActorBlackList(params *map[common.AccountName]common.AccountName) {
+func (self *Controller) SetActorBlackList(params *map[common.AccountName]struct{}) {
 	self.Config.ActorBlacklist = *params
 }
 
-func (self *Controller) SetContractWhiteList(params *map[common.AccountName]common.AccountName) {
+func (self *Controller) SetContractWhiteList(params *map[common.AccountName]struct{}) {
 	self.Config.ContractWhitelist = *params
 }
 
-func (self *Controller) SetActionBlackList(params *map[string]string) {
+func (self *Controller) SetContractBlackList(params *map[common.AccountName]struct{}) {
+	self.Config.ContractBlacklist = *params
+}
+
+func (self *Controller) SetActionBlackList(params *map[common.Pair]struct{}) {
 	self.Config.ActionBlacklist = *params
 }
 
-func (self *Controller) SetKeyBlackList(params *map[ecc.PublicKey]ecc.PublicKey) {
+func (self *Controller) SetKeyBlackList(params *map[ecc.PublicKey]struct{}) {
 	self.Config.KeyBlacklist = *params
 }
 
@@ -616,20 +621,33 @@ func (self *Controller) LastIrreversibleBlockNum() uint32 { return 0 }
 
 func (self *Controller) LastIrreversibleBlockId() common.BlockIdType { return common.BlockIdType{} }
 
-func (self *Controller) FetchBlockByNumber(blockNum uint32) types.SignedBlock {
-	return types.SignedBlock{}
+func (self *Controller) FetchBlockByNumber(blockNum uint32) *types.SignedBlock {
+	blkState := self.ForkDB.GetBlockInCurrentChainByNum(blockNum)
+	if blkState != nil {
+		return blkState.SignedBlock
+	}
+	//TODO blog
+	return &types.SignedBlock{}
 }
 
-func (self *Controller) FetchBlockById(id common.BlockIdType) types.SignedBlock {
-	return types.SignedBlock{}
+func (self *Controller) FetchBlockById(id common.BlockIdType) *types.SignedBlock {
+	state := self.ForkDB.GetBlock(id)
+	if state != nil {
+		return state.SignedBlock
+	}
+	bptr := self.FetchBlockByNumber(types.NumFromID(id))
+	if bptr != nil && bptr.BlockID() == id {
+		return bptr
+	}
+	return &types.SignedBlock{}
 }
 
-func (self *Controller) FetchBlockStateByNumber(blockNum uint32) types.BlockState {
-	return types.BlockState{}
+func (self *Controller) FetchBlockStateByNumber(blockNum uint32) *types.BlockState {
+	return self.ForkDB.GetBlockInCurrentChainByNum(blockNum)
 }
 
-func (self *Controller) FetchBlockStateById(id common.BlockIdType) types.BlockState {
-	return types.BlockState{}
+func (self *Controller) FetchBlockStateById(id common.BlockIdType) *types.BlockState {
+	return self.ForkDB.GetBlock(id)
 }
 
 func (self *Controller) GetBlcokIdForNum(blockNum uint32) common.BlockIdType {
@@ -660,9 +678,9 @@ func (self *Controller) CheckContractList(code common.AccountName) {
 
 func (self *Controller) CheckActionList(code common.AccountName, action common.ActionName) {
 	if len(self.Config.ActionBlacklist) > 0 {
-		abl := ActionBlacklistParam{code, action}
-		key := Hash(abl)
-		if _, ok := self.Config.ActionBlacklist[key]; ok {
+		abl := common.MakePair(code, action)
+		//key := Hash(abl)
+		if _, ok := self.Config.ActionBlacklist[abl]; ok {
 			fmt.Println("action '${code}::${action}' is on the action blacklist")
 			return
 		}
@@ -827,6 +845,7 @@ func NewHandlerKey(scopeName common.ScopeName, actionName common.ActionName) Han
 	return hk
 }
 
+/*
 //for ActionBlacklist
 type ActionBlacklistParam struct {
 	AccountName common.AccountName
@@ -837,7 +856,7 @@ func Hash(abp ActionBlacklistParam) string {
 	return crypto.Hash256(abp).String()
 }
 
-/*
+
 
 
 
