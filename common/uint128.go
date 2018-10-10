@@ -82,16 +82,17 @@ func (u *Uint128) Compare(v Uint128) int {
 	return 0
 }
 
-func (u *Uint128) Add(v Uint128) {
+func (u *Uint128) Add(v Uint128) Uint128 {
 	if u.Low+v.Low < u.Low {
 		u.High += v.High + 1
 	} else {
 		u.High += v.High
 	}
 	u.Low += v.Low
+	return *u
 }
 
-func (u *Uint128) Sub(v Uint128) {
+func (u *Uint128) Sub(v Uint128) Uint128 {
 	if u.Low >= v.Low {
 		u.Low -= v.Low
 		u.High -= v.High
@@ -99,6 +100,7 @@ func (u *Uint128) Sub(v Uint128) {
 		u.Low += math.MaxUint64 - v.Low + 1
 		u.High -= v.High + 1
 	}
+	return *u
 }
 
 func (u *Uint128) Div(divisor Uint128) (Uint128, Uint128) {
