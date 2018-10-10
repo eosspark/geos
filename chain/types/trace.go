@@ -2,6 +2,7 @@ package types
 
 import (
 	"github.com/eosspark/eos-go/common"
+	. "github.com/eosspark/eos-go/exception"
 )
 
 type BaseActionTrace struct {
@@ -36,6 +37,7 @@ type TransactionTrace struct {
 	ActionTraces    []ActionTrace
 	FailedDtrxTrace *TransactionTrace
 	//TODO exception
+	Except			Exception
 	/*fc::optional<fc::exception>                except;
 	std::exception_ptr                         except_ptr;*/
 }

@@ -10,7 +10,7 @@ import (
 var isFdActive bool = false
 
 type ForkDatabase struct {
-	db      *eosiodb.DataBase
+	db      *database.DataBase
 	Index   *ForkMultiIndexType `json:"index"`
 	Head    *BlockState         `json:"head"`
 	DataDir string
@@ -19,13 +19,10 @@ type ForkDatabase struct {
 var IrreversibleBlock chan BlockState = make(chan BlockState)
 
 type ForkMultiIndexType struct {
-	ByBlockID common.BlockIdType `storm:"unique" json:"id"`
-	ByPrev    common.BlockIdType `storm:"index"  json:"prev"`
-	//Pair<block_num,in_current_chain>
-	ByBlockNum common.Tuple `storm:"index"  json:"block_num"`
-	//tuple<dpos_irreversible_blocknum,bft_irreversible_blocknum,block_num>
-	ByLibBlockNum common.Tuple `storm:"index"  json:"lib_block_num"`
-	BlockState    BlockState   `storm:"inline"`
+	ByBlockID  common.BlockIdType `storm:"unique" json:"id"`
+	ByPrev     common.BlockIdType `storm:"index"  json:"prev"`
+	ByBlockNum common.Tuple       `storm:"index"  json:"block_num"`
+	BlockState BlockState         `storm:"inline"`
 }
 
 func (f *ForkDatabase) setHead(head *BlockState) *ForkDatabase {
@@ -45,7 +42,7 @@ func GetForkDbInstance(stateDir string) *ForkDatabase {
 			log.Error("GetForkDbInstance is error ,detail:", err)
 		}
 		forkDB = *forkd
-		isFdActive=true
+		isFdActive = true
 	}
 	return &forkDB
 }
@@ -53,7 +50,7 @@ func GetForkDbInstance(stateDir string) *ForkDatabase {
 func newForkDatabase(path string, fileName string, rw bool) (*ForkDatabase, error) {
 	//forkdb := &ForkDatabase{}
 
-	db, err := eosiodb.NewDataBase(path, fileName, rw)
+	db, err := database.NewDataBase(path, fileName, rw)
 	if err != nil {
 		log.Error("newForkDatabase is error:", err)
 		return nil, err
@@ -88,14 +85,14 @@ func newForkDatabase(path string, fileName string, rw bool) (*ForkDatabase, erro
 func (f *ForkDatabase) set(s BlockState) {
 
 }
-func (fdb *ForkDatabase) GetBlock(id common.BlockIdType) BlockState {
+func (fdb *ForkDatabase) GetBlock(id common.BlockIdType) *BlockState {
 	//blockId   = fdb.Index.ID
 	var blockState BlockState
 	err := fdb.db.Find("ID", id, blockState)
 	if err != nil {
-		return blockState
+		return &blockState
 	}
-	return blockState
+	return &blockState
 }
 
 func (fdb *ForkDatabase) GetBlockByID(blockId common.BlockIdType) (*BlockState, error) {
@@ -206,6 +203,14 @@ func (fdb *ForkDatabase) FetchBranchFrom(first common.BlockIdType, second common
 	}
 
 	return err
+}
+
+func (fdb *ForkDatabase) GetBlockInCurrentChainByNum(n uint32) *BlockState {
+	b := BlockState{}
+	b.BlockNum = n
+	//TODO wait append
+	//numIdx := fdb.db.Find("ByBlockNum",b)
+	return &b
 }
 
 /*func main(){

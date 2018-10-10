@@ -34,7 +34,7 @@ var IsActiveRc bool
 var rcInstance *ResourceLimitsManager
 
 type ResourceLimitsManager struct {
-	db *eosiodb.DataBase `json:"db"`
+	db *database.DataBase `json:"db"`
 }
 
 func GetResourceLimitsManager() *ResourceLimitsManager {

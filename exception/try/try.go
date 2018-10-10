@@ -35,6 +35,11 @@ type OrThrowable struct {
 func Try(f func()) (r *CatchOrFinally) {
 	defer func() {
 		if e := recover(); e != nil {
+
+			if rt, ok := e.(returnTypes); ok {
+				panic(rt)
+			}
+
 			r = &CatchOrFinally{}
 			r.e = e
 			i := 1
@@ -90,30 +95,52 @@ func (c *CatchOrFinally) Catch(f interface{}) (r *CatchOrFinally) {
 	return c
 }
 
-//Finally always be called if defined.
-func (c *CatchOrFinally) Finally(f interface{}) (r *OrThrowable) {
-	reflect.ValueOf(f).Call([]reflect.Value{})
-	if c == nil || c.e == nil {
-		return nil
-	}
-	return &OrThrowable{c.e}
-}
-
-//OrThrow throw error then never catch block entered.
-func (c *CatchOrFinally) End() {
-	if c != nil && c.e != nil {
-		Throw(c.e)
-	}
-}
-
-//OrThrow throw error then never catch block entered.
-func (c *OrThrowable) End() {
-	if c != nil && c.e != nil {
-		Throw(c.e)
-	}
-}
-
-//Throw is wrapper of panic().
 func Throw(e interface{}) {
 	panic(e)
 }
+
+//Necessary to call at the and of try-catch block, to ensure panic uncaught exceptions
+func (c *CatchOrFinally) End() {
+	if c != nil && c.e != nil {
+		//println(c.StackTrace)
+		Throw(c.e)
+	}
+}
+
+type returnTypes struct{}
+
+//Just use in try-catch block, you should update return-value before call it
+func Return() {
+	panic(returnTypes{})
+}
+
+//Use defer HandleReturn() before try-catch block when the block includes Return function
+func HandleReturn() {
+	if rv := recover(); rv != nil {
+		if _, ok := rv.(returnTypes); !ok {
+			panic(rv)
+		}
+	}
+}
+
+//Finally always be called if defined.
+//func (c *CatchOrFinally) Finally(f interface{}) (r *OrThrowable) {
+//	reflect.ValueOf(f).Call([]reflect.Value{})
+//	if c == nil || c.e == nil {
+//		return nil
+//	}
+//	return &OrThrowable{c.e}
+//}
+
+//OrThrow throw error then never catch block entered.
+
+
+//OrThrow throw error then never catch block entered.
+//func (c *OrThrowable) End() {
+//	if c != nil && c.e != nil {
+//		Throw(c.e)
+//	}
+//}
+
+//Throw is wrapper of panic().
+

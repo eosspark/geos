@@ -6,6 +6,9 @@ import (
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto/ecc"
+	Chain "github.com/eosspark/eos-go/plugins/producer_plugin/mock"
+	"github.com/eosspark/eos-go/crypto"
+	. "github.com/eosspark/eos-go/exception"
 )
 
 type ProducerPluginImpl struct {
@@ -55,6 +58,25 @@ type ProducerPluginImpl struct {
 	IncomingTrxWeight  float64
 	IncomingDeferRadio float64
 }
+
+type EnumStartBlockRusult int
+
+const (
+	succeeded = EnumStartBlockRusult(iota)
+	failed
+	waiting
+	exhausted
+)
+
+type EnumPendingBlockMode int
+
+const (
+	producing = EnumPendingBlockMode(iota)
+	speculating
+)
+
+type signatureProviderType func(sha256 crypto.Sha256) ecc.Signature
+type transactionIdWithExpireIndex map[common.TransactionIdType]common.TimePoint
 
 func (impl *ProducerPluginImpl) OnBlock(bsp *types.BlockState) {
 	if bsp.Header.Timestamp.ToTimePoint() <= impl.LastSignedBlockTime {
@@ -140,6 +162,9 @@ func (impl *ProducerPluginImpl) OnIncomingBlock(block *types.SignedBlock) {
 	if block.Timestamp.ToTimePoint() >= (common.Now().AddUs(common.Seconds(7))) {
 		panic(ErrBlockFromTheFuture)
 	}
+
+	chain := Chain.GetControllerInstance()
+
 	id := block.BlockID()
 	existing := chain.FetchBlockById(id)
 	if existing != nil {
@@ -153,12 +178,20 @@ func (impl *ProducerPluginImpl) OnIncomingBlock(block *types.SignedBlock) {
 	defer impl.ScheduleProductionLoop()
 
 	// push the new block
-	except := false
+	except, re := false, false
 
-	chain.PushBlock(block)
+	//try.Try(func() {
+		chain.PushBlock(block)
+	//}).Catch(func(e exception.GuardExceptions) {
+	//	re = true
+	//}).Catch(func(e exception.Exception) {
+	//	except = true
+	//}).End()
+
+	if re { return }
 
 	if except {
-		//C++ app().get_channel<channels::rejected_block>().publish( block );
+		//TODO:C++ app().get_channel<channels::rejected_block>().publish( block );
 		return
 	}
 
@@ -167,10 +200,9 @@ func (impl *ProducerPluginImpl) OnIncomingBlock(block *types.SignedBlock) {
 	}
 
 	if common.Now().Sub(block.Timestamp.ToTimePoint()) < common.Minutes(5) || block.BlockNumber()%1000 == 0 {
-		//	ilog("Received block ${id}... #${n} @ ${t} signed by ${p} [trxs: ${count}, lib: ${lib}, conf: ${confs}, latency: ${latency} ms]",
-		//		("p",block->producer)("id",fc::variant(block->id()).as_string().substr(8,16))
-		//	("n",block_header::num_from_id(block->id()))("t",block->timestamp)
-		//	("count",block->transactions.size())("lib",chain.last_irreversible_block_num())("confs", block->confirmed)("latency", (fc::time_point::now() - block->timestamp).count()/1000 ) );
+		fmt.Printf("Received block %s... #%d @ %s signed by %s [trxs: %d, lib: %d, conf: %d, lantency: %d ms]\n",
+			block.BlockID().String()[8:16], types.NumFromID(block.BlockID()), block.Timestamp, block.Producer,
+			len(block.Transactions), chain.LastIrreversibleBlockNum(), block.Confirmed, (common.Now().Sub(block.Timestamp.ToTimePoint())).Count()/1000)
 	}
 }
 
@@ -181,6 +213,7 @@ type pendingIncomingTransaction struct {
 }
 
 func (impl *ProducerPluginImpl) OnIncomingTransactionAsync(trx *types.PackedTransaction, persistUntilExpired bool, next func(interface{})) {
+	chain := Chain.GetControllerInstance()
 	if chain.PendingBlockState() == nil {
 		impl.PendingIncomingTransactions = append(impl.PendingIncomingTransactions, pendingIncomingTransaction{trx, persistUntilExpired, next})
 		return
@@ -190,7 +223,7 @@ func (impl *ProducerPluginImpl) OnIncomingTransactionAsync(trx *types.PackedTran
 
 	sendResponse := func(response interface{}) {
 		next(response)
-		if _, ok := response.(error); ok {
+		if _, ok := response.(Exception); ok {
 			//C++ _transaction_ack_channel.publish(std::pair<fc::exception_ptr, packed_transaction_ptr>(response.get<fc::exception_ptr>(), trx));
 		} else {
 			//C++ _transaction_ack_channel.publish(std::pair<fc::exception_ptr, packed_transaction_ptr>(nullptr, trx));

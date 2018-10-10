@@ -7,19 +7,17 @@ import (
 	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/log"
+	Chain "github.com/eosspark/eos-go/plugins/producer_plugin/mock"
+	. "github.com/eosspark/eos-go/exception"
+	"github.com/eosspark/eos-go/exception/try"
 )
 
-type EnumStartBlockRusult int
 
-const (
-	succeeded = EnumStartBlockRusult(iota)
-	failed
-	waiting
-	exhausted
-)
 
 func (impl *ProducerPluginImpl) CalculateNextBlockTime(producerName common.AccountName, currentBlockTime common.BlockTimeStamp) *common.TimePoint {
 	var result common.TimePoint
+
+	chain := Chain.GetControllerInstance()
 
 	hbs := chain.HeadBlockState()
 	activeSchedule := hbs.ActiveSchedule.Producers
@@ -84,6 +82,7 @@ func (impl *ProducerPluginImpl) CalculateNextBlockTime(producerName common.Accou
 }
 
 func (impl *ProducerPluginImpl) CalculatePendingBlockTime() common.TimePoint {
+	chain := Chain.GetControllerInstance()
 	now := common.Now()
 	var base common.TimePoint
 	if now > chain.HeadBlockTime() {
@@ -102,6 +101,12 @@ func (impl *ProducerPluginImpl) CalculatePendingBlockTime() common.TimePoint {
 }
 
 func (impl *ProducerPluginImpl) StartBlock() (EnumStartBlockRusult, bool) {
+	chain := Chain.GetControllerInstance()
+
+	if chain.GetReadMode() == Chain.READONLY {
+		return EnumStartBlockRusult(waiting), false
+	}
+
 	hbs := chain.HeadBlockState()
 
 	//Schedule for the next second's tick regardless of chain state
@@ -345,6 +350,7 @@ func (impl *ProducerPluginImpl) StartBlock() (EnumStartBlockRusult, bool) {
 }
 
 func (impl *ProducerPluginImpl) ScheduleProductionLoop() {
+	chain := Chain.GetControllerInstance()
 	impl.Timer.Cancel()
 
 	result, lastBlock := impl.StartBlock()
@@ -357,7 +363,7 @@ func (impl *ProducerPluginImpl) ScheduleProductionLoop() {
 		impl.timerCorelationId++
 		cid := impl.timerCorelationId
 		impl.Timer.AsyncWait(func() {
-			if cid == impl.timerCorelationId {
+			if impl != nil && cid == impl.timerCorelationId {
 				impl.ScheduleProductionLoop()
 			}
 		})
@@ -400,7 +406,7 @@ func (impl *ProducerPluginImpl) ScheduleProductionLoop() {
 		impl.timerCorelationId++
 		cid := impl.timerCorelationId
 		impl.Timer.AsyncWait(func() {
-			if cid == impl.timerCorelationId {
+			if impl != nil && cid == impl.timerCorelationId {
 				impl.MaybeProduceBlock()
 				log.Debug("Producing Block #${num} returned: ${res}")
 				//fc_dlog(_log, "Producing Block #${num} returned: ${res}", ("num", chain.pending_block_state()->block_num)("res", res) );
@@ -440,7 +446,7 @@ func (impl *ProducerPluginImpl) ScheduleDelayedProductionLoop(currentBlockTime c
 		impl.timerCorelationId++
 		cid := impl.timerCorelationId
 		impl.Timer.AsyncWait(func() {
-			if cid == impl.timerCorelationId {
+			if impl != nil && cid == impl.timerCorelationId {
 				impl.ScheduleProductionLoop()
 			}
 		})
@@ -452,23 +458,29 @@ func (impl *ProducerPluginImpl) ScheduleDelayedProductionLoop(currentBlockTime c
 
 func (impl *ProducerPluginImpl) MaybeProduceBlock() (res bool) {
 	defer func() {
-		if err := recover(); err != nil {
-			chain.AbortBlock()
-			res = false
-		}
-
 		impl.ScheduleProductionLoop()
 	}()
 
-	impl.ProduceBlock()
+	try.Try(func() {
+		impl.ProduceBlock()
+		res = true
+	}).Catch(func(e GuardExceptions) {
+		res = false
+	}).Catch(func(e Exception) {
+		//fc_dlog(_log, "Aborting block due to produce_block error");
+		chain := Chain.GetControllerInstance()
+		chain.AbortBlock()
+		res = false
+	}).End()
 
-	return true
+	return
 }
 
 func (impl *ProducerPluginImpl) ProduceBlock() {
 	if impl.PendingBlockMode != EnumPendingBlockMode(producing) {
 		panic(ErrProducerFail)
 	}
+	chain := Chain.GetControllerInstance()
 	pbs := chain.PendingBlockState()
 	if pbs == nil {
 		panic(ErrMissingPendingBlockState)
@@ -491,7 +503,6 @@ func (impl *ProducerPluginImpl) ProduceBlock() {
 	impl.ProducerWatermarks[newBs.Header.Producer] = chain.HeadBlockNum()
 
 	fmt.Printf("Produced block %s...#%d @ %s signed by %s [trxs: %d, lib: %d, confirmed: %d]\n",
-		crypto.Sha256(newBs.ID).String()[0:16], newBs.BlockNum, newBs.Header.Timestamp.ToTimePoint(),
-		common.S(uint64(newBs.Header.Producer)),
+		newBs.ID.String()[0:16], newBs.BlockNum, newBs.Header.Timestamp, common.S(uint64(newBs.Header.Producer)),
 		len(newBs.SignedBlock.Transactions), chain.LastIrreversibleBlockNum(), newBs.Header.Confirmed)
 }

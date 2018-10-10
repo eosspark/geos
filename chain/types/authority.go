@@ -26,7 +26,7 @@ type PermissionLevelWeight struct {
 }
 
 type KeyWeight struct {
-	// Key    common.PublicKeyType `json:"key"`
+	// Key    ecc.PublicKey `json:"key"`
 	Key    ecc.PublicKey `json:"key"`
 	Weight WeightType    `json:"weight"`
 }

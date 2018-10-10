@@ -18,21 +18,29 @@ func init() {
 
 		EosioAuthScope: AccountName(N("eosio.auth")),
 		EosioAllScope:  AccountName(N("eosio.all")),
-		ActiveName:     AccountName(N("active")),
-		OwnerName:      AccountName(N("owner")),
-		EosioAnyName:   AccountName(N("eosio.any")),
-		EosioCodeName:  AccountName(N("eosio.code")),
+		ActiveName:     PermissionName(N("active")),
+		OwnerName:      PermissionName(N("owner")),
+		EosioAnyName:   PermissionName(N("eosio.any")),
+		EosioCodeName:  PermissionName(N("eosio.code")),
 
 		RateLimitingPrecision: 1000 * 1000,
 
 		BillableAlignment: 16,
 		BillableSize: map[string]billableSize{
-			"permission_level_weight": {value: 24},
-			"key_weight":              {value: 8},
-			"wait_weight":             {value: 16},
-			"shared_authority":        {value: 3*1 + 4},
-			"permission_link_object":  {overhead: 32 * 3, value: 40 + 32},
-			"permission_object":       {overhead: 5 * 32, value: 3*1 + 4 + 64 + 5*32},
+			"permission_level_weight":      {value: 24},
+			"key_weight":                   {value: 8},
+			"wait_weight":                  {value: 16},
+			"shared_authority":             {value: 3 * 1 + 4},
+			"permission_link_object":       {overhead: 32 * 3, value: 40 + 32},
+			"permission_object":            {overhead: 5 * 32, value: 3 * 1 + 4 + 64 + 5 * 32},
+			"table_id_object":              {overhead: 32 * 2, value: 44 + 32 * 2},
+			"key_value_object":             {overhead: 32 * 2, value: 32 + 8 + 4 + 32 * 2},
+			"index64_object":               {overhead: 32 * 3, value: 24 + 8 + 32 * 3},
+			"index128_object":              {overhead: 32 * 3, value: 24 + 16 + 32 * 3},
+			"index256_object":              {overhead: 32 * 3, value: 24 + 32 + 32 * 3},
+			"index_double_object":          {overhead: 32 * 3, value: 24 + 8 + 32 * 3},
+			"index_long_double_object":     {overhead: 32 * 3, value: 24 + 16 + 32 * 3},
+			"generated_transaction_object": {overhead: 32 * 5, value: 96 + 4 + 32 * 5},
 		},
 		FixedNetOverheadOfPackedTrx: 16,
 	}
@@ -104,10 +112,10 @@ type Config struct {
 
 	EosioAuthScope AccountName
 	EosioAllScope  AccountName
-	ActiveName     AccountName
-	OwnerName      AccountName
-	EosioAnyName   AccountName
-	EosioCodeName  AccountName
+	ActiveName     PermissionName
+	OwnerName      PermissionName
+	EosioAnyName   PermissionName
+	EosioCodeName  PermissionName
 
 	RateLimitingPrecision uint32
 

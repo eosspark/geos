@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/eosspark/eos-go/crypto"
-	"github.com/eosspark/eos-go/crypto/ecc"
 	"math"
 	"strconv"
 	"strings"
@@ -23,6 +22,24 @@ type NodeIdType crypto.Sha256
 type BlockIdType crypto.Sha256
 type TransactionIdType crypto.Sha256
 type CheckSum256Type crypto.Sha256
+type IdType uint16
+type KeyType uint64
+
+func (n ChainIdType) String() string {
+	return crypto.Sha256(n).String()
+}
+func (n NodeIdType) String() string {
+	return crypto.Sha256(n).String()
+}
+func (n BlockIdType) String() string {
+	return crypto.Sha256(n).String()
+}
+func (n TransactionIdType) String() string {
+	return crypto.Sha256(n).String()
+}
+func (n CheckSum256Type) String() string {
+	return crypto.Sha256(n).String()
+}
 
 func DecodeIdTypeString(str string) (id [4]uint64, err error) {
 	b, err := hex.DecodeString(str)
@@ -498,28 +515,6 @@ func (t *HexBytes) UnmarshalJSON(data []byte) (err error) {
 	return
 }
 
-// SHA256Bytes
-
-type SHA256Bytes []byte // should always be 32 bytes
-
-func (t SHA256Bytes) MarshalJSON() ([]byte, error) {
-	return json.Marshal(hex.EncodeToString(t))
-}
-
-func (t *SHA256Bytes) UnmarshalJSON(data []byte) (err error) {
-	var s string
-	err = json.Unmarshal(data, &s)
-	if err != nil {
-		return
-	}
-
-	*t, err = hex.DecodeString(s)
-	return
-}
-
-// type Varuint32 uint32
-// type Varint32 int32
-
 type JSONFloat64 float64
 
 func (f *JSONFloat64) UnmarshalJSON(data []byte) error {
@@ -585,8 +580,6 @@ func (i *JSONInt64) UnmarshalJSON(data []byte) error {
 
 	return nil
 }
-
-type PublicKeyType ecc.PublicKey
 
 type Compare interface {
 	String() string

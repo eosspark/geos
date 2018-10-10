@@ -104,6 +104,23 @@ func (e *ActionValidateException) What() string {
 	return "Transaction exceeded the current CPU usage limit imposed on the transaction"
 }
 
+type DatabaseExceptions interface {
+	ChainExceptions
+	DatabaseExceptions()
+}
+
+type DatabaseException struct{ logMessage }
+
+func (e *DatabaseException) ChainExceptions()    {}
+func (e *DatabaseException) DatabaseExceptions() {}
+func (e *DatabaseException) Code() ExcTypes      { return 3060000 }
+func (e *DatabaseException) What() string        { return "Database exception" }
+
+type GuardExceptions interface {
+	DatabaseExceptions
+	GuardExceptions()
+}
+
 type TxCpuUsageExceed struct{ logMessage }
 
 func (e *TxCpuUsageExceed) ChainExceptions()        {}

@@ -60,30 +60,39 @@ func (bs *BlockHeaderState) GenerateNext(when *common.BlockTimeStamp) *BlockHead
 		*when++
 	}
 
-	result.Header.Timestamp = *when
-	result.Header.Previous = bs.ID
+	result.Header.Timestamp  	  = *when
+	result.Header.Previous 		  = bs.ID
 	result.Header.ScheduleVersion = bs.ActiveSchedule.Version
 
-	proKey := bs.GetScheduledProducer(*when)
-	result.BlockSigningKey = proKey.BlockSigningKey
-	result.Header.Producer = proKey.AccountName
+	proKey 				           					 := bs.GetScheduledProducer(*when)
+	result.BlockSigningKey         					  = proKey.BlockSigningKey
+	result.Header.Producer         					  = proKey.AccountName
 
-	result.PendingScheduleLibNum = bs.PendingScheduleLibNum
-	result.PendingScheduleHash = bs.PendingScheduleHash
-	result.BlockNum = bs.BlockNum + 1
-	result.ProducerToLastProduced = bs.ProducerToLastProduced
-	result.ProducerToLastImpliedIrb = bs.ProducerToLastImpliedIrb
+	result.PendingScheduleLibNum   					  = bs.PendingScheduleLibNum
+	result.PendingScheduleHash 	   					  = bs.PendingScheduleHash
+	result.BlockNum 			   					  = bs.BlockNum + 1
+
+	result.ProducerToLastProduced  					  = make(map[common.AccountName]uint32, len(bs.ProducerToLastProduced))
+	for k,v := range bs.ProducerToLastProduced {
+		result.ProducerToLastProduced[k] = v
+	}
+
+	result.ProducerToLastImpliedIrb					  = make(map[common.AccountName]uint32, len(bs.ProducerToLastImpliedIrb))
+	for k,v := range bs.ProducerToLastImpliedIrb {
+		result.ProducerToLastImpliedIrb[k] = v
+	}
+
 	result.ProducerToLastProduced[proKey.AccountName] = result.BlockNum
 	result.BlockrootMerkle = bs.BlockrootMerkle
 	result.BlockrootMerkle.Append(crypto.Sha256(bs.ID))
 
-	result.ActiveSchedule = bs.ActiveSchedule
-	result.PendingSchedule = bs.PendingSchedule
+	result.ActiveSchedule 					= bs.ActiveSchedule
+	result.PendingSchedule 					= bs.PendingSchedule
 	result.DposProposedIrreversibleBlocknum = bs.DposProposedIrreversibleBlocknum
-	result.BftIrreversibleBlocknum = bs.BftIrreversibleBlocknum
+	result.BftIrreversibleBlocknum 			= bs.BftIrreversibleBlocknum
 
 	result.ProducerToLastImpliedIrb[proKey.AccountName] = result.DposProposedIrreversibleBlocknum
-	result.DposIrreversibleBlocknum = result.CalcDposLastIrreversible()
+	result.DposIrreversibleBlocknum 					= result.CalcDposLastIrreversible()
 
 	/// grow the confirmed count
 	if common.DefaultConfig.MaxProducers*2/3+1 > 0xff {
@@ -164,8 +173,8 @@ func (bs *BlockHeaderState) SetConfirmed(numPrevBlocks uint16) {
 }
 
 func (bs *BlockHeaderState) SigDigest() crypto.Sha256 {
-	headerBmroot := crypto.Hash256(common.MakeTuple(bs.Header, bs.BlockrootMerkle.GetRoot()))
-	digest := crypto.Hash256(common.MakeTuple(headerBmroot, bs.PendingScheduleHash))
+	headerBmroot := crypto.Hash256(common.MakePair(bs.Header.Digest(), bs.BlockrootMerkle.GetRoot()))
+	digest := crypto.Hash256(common.MakePair(headerBmroot, bs.PendingScheduleHash))
 	return digest
 }
 
@@ -214,10 +223,8 @@ func (bs *BlockHeaderState) Next(h SignedBlockHeader, trust bool) *BlockHeaderSt
 	}
 
 	itr, has := bs.ProducerToLastProduced[h.Producer]
-	if has {
-		if itr >= result.BlockNum-uint32(h.Confirmed) {
-			panic(fmt.Sprintf("producer %s double-confirming known range", h.Producer))
-		}
+	if has && itr >= result.BlockNum-uint32(h.Confirmed) {
+		panic(fmt.Sprintf("producer %s double-confirming known range", h.Producer))
 	}
 
 	/// below this point is state changes that cannot be validated with headers alone, but never-the-less,
