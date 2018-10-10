@@ -1,10 +1,10 @@
 package producer_plugin
 
 import (
-	. "appbase/app/include"
+	. "github.com/eosspark/eos-go/appbase/app/include"
 	"fmt"
 
-	"appbase/app"
+	"github.com/eosspark/eos-go/appbase/app"
 )
 
 //var Producer app.Plugin = app.Instance.RegisterPlugin(app.Plugin{1,"producer_plugin"}) //使用后便会被加载

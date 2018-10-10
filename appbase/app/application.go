@@ -1,7 +1,7 @@
 package app
 
 import (
-	. "appbase/app/include"
+	. "github.com/eosspark/eos-go/appbase/app/include"
 	"gopkg.in/urfave/cli.v1"
 
 	"fmt"

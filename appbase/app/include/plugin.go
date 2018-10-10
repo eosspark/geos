@@ -7,7 +7,7 @@ package include
 
 type Plugin interface {
 	SetProgramOptions()
-	PluginInitialize() bool
+	PluginInitialize()
 	PluginStartUp()
 	PluginShutDown()
 
