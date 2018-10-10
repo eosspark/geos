@@ -2,13 +2,13 @@ package entity
 
 import (
 	"github.com/eosspark/eos-go/common"
-	"github.com/eosspark/eos-go/chain"
+	"github.com/eosspark/eos-go/chain/types"
 )
 
 type ResourceLimitsStateObject struct {
 	ID                   common.IdType `multiIndex:"id,increment,byId"`
-	AverageBlockNetUsage chain.UsageAccumulator
-	AverageBlockCpuUsage chain.UsageAccumulator
+	AverageBlockNetUsage types.UsageAccumulator
+	AverageBlockCpuUsage types.UsageAccumulator
 	PendingNetUsage      uint64
 	PendingCpuUsage      uint64
 	TotalNetWeight       uint64
