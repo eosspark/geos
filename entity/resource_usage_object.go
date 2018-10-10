@@ -6,9 +6,9 @@ import (
 )
 
 type ResourceUsageObject struct {
-	ID common.IdType
-	Owner common.AccountName
-	NetUsage chain.UsageAccumulator   `json:"net_usage"`
-	CpuUsage chain.UsageAccumulator   `json:"cpu_usage"`
-	RamUsage uint64             `json:"ram_usage"`
+	ID       common.IdType      `multiIndex:"id,increment,byId"`
+	Owner    common.AccountName `multiIndex:"orderedNonUnique,byOwner"`
+	NetUsage chain.UsageAccumulator
+	CpuUsage chain.UsageAccumulator
+	RamUsage uint64
 }

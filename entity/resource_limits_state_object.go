@@ -6,15 +6,14 @@ import (
 )
 
 type ResourceLimitsStateObject struct {
-	ID                   common.IdType `storm:"id"`
-	AverageBlockNetUsage chain.UsageAccumulator   `json:"average_block_net_usage"`
-	AverageBlockCpuUsage chain.UsageAccumulator   `json:"average_block_cpu_usage"`
-	PendingNetUsage      uint64             `json:"pending_net_usage"`
-	PendingCpuUsage      uint64             `json:"pending_cpu_usage"`
-	TotalNetWeight       uint64             `json:"total_net_weight"`
-	TotalCpuWeight       uint64             `json:"total_cpu_weight"`
-	TotalRamBytes        uint64             `json:"total_ram_bytes"`
-	VirtualNetLimit      uint64             `json:"virtual_net_limit"`
-	VirtualCpuLimit      uint64             `json:"virtual_cpu_limit"`
+	ID                   common.IdType `multiIndex:"id,increment,byId"`
+	AverageBlockNetUsage chain.UsageAccumulator
+	AverageBlockCpuUsage chain.UsageAccumulator
+	PendingNetUsage      uint64
+	PendingCpuUsage      uint64
+	TotalNetWeight       uint64
+	TotalCpuWeight       uint64
+	TotalRamBytes        uint64
+	VirtualNetLimit      uint64
+	VirtualCpuLimit      uint64
 }
-

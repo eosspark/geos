@@ -6,19 +6,13 @@ import (
 )
 
 type PermissionObject struct {
-	ID          common.IdType `storm:"id,increment"`
+	ID          common.IdType         `multiIndex:"id,increment,byId,byParent,byName"`
 	UsageId     common.IdType
-	Parent      common.IdType
-	Owner       common.AccountName
-	Name        common.PermissionName
+	Parent      common.IdType         `multiIndex:"id,increment,byParent"`
+	Owner       common.AccountName    `multiIndex:"id,increment,byOwner,byName"`
+	Name        common.PermissionName `multiIndex:"id,increment,byOwner"`
 	LastUpdated common.TimePoint
 	Auth        types.SharedAuthority
-	/*ID、Parent*/
-	ByParent common.Tuple `storm:"index"`
-	/*Owner、name*/
-	ByOwner common.Tuple `storm:"index"`
-	/*Name、ID*/
-	ByName common.Tuple `storm:"index"`
 }
 
 func (po PermissionObject) Satisfies(other PermissionObject) bool {
