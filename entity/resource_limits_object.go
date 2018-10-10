@@ -2,7 +2,6 @@ package entity
 
 import (
 	"github.com/eosspark/eos-go/common"
-	"github.com/eosspark/eos-go/chain"
 )
 
 type ResourceLimitsObject struct {
@@ -27,11 +26,4 @@ type ExponentialMovingAverageAccumulator struct {
 	LastOrdinal uint32 `json:"last_ordinal"`
 	ValueEx     uint64 `json:"value_ex"`
 	Consumed    uint64 `json:"consumed"`
-}
-
-type ResourceUsageObject struct {
-	ID common.IdType
-	Owner common.AccountName
-	NetUsage chain.UsageAccumulator
-
 }

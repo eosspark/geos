@@ -2,13 +2,14 @@ package types
 
 import (
 	"github.com/eosspark/eos-go/common"
+	"github.com/eosspark/eos-go/crypto/ecc"
 )
 
 type PermissionToAuthorityFunc func(*PermissionLevel) SharedAuthority
 type AuthorityChecker struct {
 	permissionToAuthority PermissionToAuthorityFunc
 	CheckTime             func()
-	ProvidedKeys          []common.PublicKeyType
+	ProvidedKeys          []ecc.PublicKey
 	ProvidedPermissions   []PermissionLevel
 	UsedKeys              []bool
 	ProvidedDelay         common.Microseconds
@@ -56,7 +57,7 @@ func (ac *AuthorityChecker) AllKeysUsed() bool {
 	return true
 }
 
-func (ac *AuthorityChecker) GetUsedKeys() []common.PublicKeyType {
+func (ac *AuthorityChecker) GetUsedKeys() []ecc.PublicKey {
 	return nil
 }
 
@@ -161,7 +162,7 @@ func (wtv *WeightTallyVisitor) VisitPermissionLevelWeight(permission PermissionL
 
 func MakeAuthChecker(pta PermissionToAuthorityFunc,
 	recursionDepthLimit uint16,
-	providedKeys []common.PublicKeyType,
+	providedKeys []ecc.PublicKey,
 	providedPermission []PermissionLevel,
 	providedDelay common.Microseconds,
 	checkTime func()) AuthorityChecker {

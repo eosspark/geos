@@ -56,7 +56,6 @@ func (ema *ExponentialMovingAverageAccumulator) Average() uint64 {
 func (ema *ExponentialMovingAverageAccumulator) add(units uint64, ordinal uint32, windowSize uint32) {
 	valueExContrib := IntegerDivideCeilUint64(units*uint64(common.DefaultConfig.RateLimitingPrecision), uint64(windowSize))
 	if ema.LastOrdinal != ordinal {
-
 		if ema.LastOrdinal+windowSize > ordinal {
 			delta := ordinal - ema.LastOrdinal
 			decay := makeRatio(uint64(windowSize-delta), uint64(windowSize))
