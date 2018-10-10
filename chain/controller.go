@@ -2,16 +2,17 @@ package chain
 
 import (
 	"fmt"
+	"os"
 	"time"
 
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto"
+	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/eosspark/eos-go/cvm/exec"
 	"github.com/eosspark/eos-go/database"
 	"github.com/eosspark/eos-go/log"
-	"os"
 )
 
 type DBReadMode int8
@@ -31,6 +32,12 @@ const (
 )
 
 type Config struct {
+	ActorWhitelist      map[common.AccountName]common.AccountName
+	ActorBlacklist      map[common.AccountName]common.AccountName
+	ContractWhitelist   map[common.AccountName]common.AccountName
+	ContractBlacklist   map[common.AccountName]common.AccountName
+	ActionBlacklist     map[string]string //see actionBlacklist
+	KeyBlacklist        map[ecc.PublicKey]ecc.PublicKey
 	blocksDir           string
 	stateDir            string
 	stateSize           uint64
@@ -53,27 +60,26 @@ type Config struct {
 var isActiveController bool //default value false ;Does the process include control ;
 
 var instance *Controller
+
 //type HandlerKey common.Tuple
 type Controller struct {
-	DB                   *database.DataBase
-	DbSession            *database.Session
-	ReversibleBlocks     *database.DataBase
-	Blog                 string //TODO
-	Pending              *types.PendingState
-	Head                 types.BlockState
-	ForkDB               *types.ForkDatabase
-	WasmIf               *exec.WasmInterface
-	ResourceLimists      *ResourceLimitsManager
-	Authorization        *AuthorizationManager
-	Config               Config //local	Config
-	ChainID              common.ChainIdType
-	RePlaying            bool
-	ReplayHeadTime       common.TimePoint //optional<common.Tstamp>
-	ReadMode             DBReadMode
-	InTrxRequiringChecks bool                //if true, checks that are normally skipped on replay (e.g. auth checks) cannot be skipped
-	SubjectiveCupLeeway  common.Microseconds //optional<common.Tstamp>
-	//HandlerKey           HandlerKey
-	//ApplyHandlers         ApplyHandler
+	DB                    *database.DataBase
+	DbSession             *database.Session
+	ReversibleBlocks      *database.DataBase
+	Blog                  string //TODO
+	Pending               *types.PendingState
+	Head                  types.BlockState
+	ForkDB                *types.ForkDatabase
+	WasmIf                *exec.WasmInterface
+	ResourceLimists       *ResourceLimitsManager
+	Authorization         *AuthorizationManager
+	Config                Config //local	Config
+	ChainID               common.ChainIdType
+	RePlaying             bool
+	ReplayHeadTime        common.TimePoint //optional<common.Tstamp>
+	ReadMode              DBReadMode
+	InTrxRequiringChecks  bool                //if true, checks that are normally skipped on replay (e.g. auth checks) cannot be skipped
+	SubjectiveCupLeeway   common.Microseconds //optional<common.Tstamp>
 	ApplyHandlers         map[common.AccountName]map[HandlerKey]func(ctx *ApplyContext)
 	UnAppliedTransactions map[crypto.Sha256]types.TransactionMetadata
 }
@@ -82,26 +88,24 @@ func GetControllerInstance() *Controller {
 	if !isActiveController {
 		validPath()
 		instance = newController()
-
 		readycontroller <- true
 		time.Sleep(2 * time.Second) //TODO for test case
-
 	}
 	return instance
 }
 
 //TODO tmp code
 
-func validPath(){
-	path := []string{common.DefaultConfig.DefaultStateDirName,common.DefaultConfig.DefaultBlocksDirName,common.DefaultConfig.DefaultBlocksDirName + "/" + common.DefaultConfig.DefaultReversibleBlocksDirName}
-	for _,d := range path {
+func validPath() {
+	path := []string{common.DefaultConfig.DefaultStateDirName, common.DefaultConfig.DefaultBlocksDirName, common.DefaultConfig.DefaultBlocksDirName + "/" + common.DefaultConfig.DefaultReversibleBlocksDirName}
+	for _, d := range path {
 		_, err := os.Stat(d)
 		if os.IsNotExist(err) {
 			err := os.MkdirAll(d, os.ModePerm)
 			if err != nil {
 				fmt.Printf("controller validPath mkdir failed![%v]\n", err)
 			} else {
-				fmt.Printf("controller validPath mkdir success!\n",d)
+				fmt.Printf("controller validPath mkdir success!\n", d)
 			}
 		}
 	}
@@ -155,7 +159,7 @@ func newController() *Controller {
 	return con
 }
 
-//initResource()
+//TODO wait append block_log
 func (self *Controller) OnIrreversible(b *types.BlockState) {
 
 }
@@ -182,15 +186,6 @@ func (self *Controller) PopBlock() {
 }
 
 func (self *Controller) SetApplayHandler(receiver common.AccountName, contract common.AccountName, action common.ActionName, handler func(*ApplyContext)) {
-	/*h := make(map[common.AccountName]common.AccountName)
-	h[receiver] = scope
-	apply := newApplyCon(handler)
-	apply.handlerKey = h
-	t := make(map[common.AccountName]applyCon)
-	t[receiver] = *apply
-	//self.ApplyHandlers = ApplyHandler{t, receiver}
-	self.ApplyHandlers = make(map[common.AccountName]map[HandlerKey]func(ctx *ApplyContext))
-	fmt.Println(self.ApplyHandlers)*/
 	hk := NewHandlerKey(common.ScopeName(contract), action)
 	first := make(map[common.AccountName]map[HandlerKey]func(ctx *ApplyContext))
 	secend := make(map[HandlerKey]func(ctx *ApplyContext))
@@ -211,7 +206,7 @@ func (self *Controller) AbortBlock() {
 	}
 }
 
-func (self *Controller) StartBlock(when common.BlockTimeStamp, confirmBlockCount uint16, s types.BlockStatus) {
+func (self *Controller) StartBlock(when common.BlockTimeStamp, confirmBlockCount uint16, s types.BlockStatus, producerBlockId *common.BlockIdType) {
 	if self.Pending != nil {
 		fmt.Println("pending block already exists")
 		return
@@ -224,21 +219,21 @@ func (self *Controller) StartBlock(when common.BlockTimeStamp, confirmBlockCount
 	}
 
 	self.Pending.BlockStatus = s
-
-	self.Pending.PendingBlockState = self.Head
+	self.Pending.ProducerBlockId = *producerBlockId
+	self.Pending.PendingBlockState = self.Head //TODO std::make_shared<block_state>( *head, when ); // promotes pending schedule (if any) to active
 	self.Pending.PendingBlockState.SignedBlock.Timestamp = when
 	self.Pending.PendingBlockState.InCurrentChain = true
 	self.Pending.PendingBlockState.SetConfirmed(confirmBlockCount)
-	var wasPendingPromoted = self.Pending.PendingBlockState.MaybePromotePending()
+	wasPendingPromoted := self.Pending.PendingBlockState.MaybePromotePending()
 	log.Info("wasPendingPromoted", wasPendingPromoted)
 	if self.ReadMode == DBReadMode(SPECULATIVE) || self.Pending.BlockStatus != types.BlockStatus(types.Incomplete) {
-		var gpo = types.GlobalPropertyObject{}
+		gpo := types.GlobalPropertyObject{}
 		err := self.DB.ByIndex("ID", gpo)
 		if err != nil {
 			log.Error("Controller StartBlock find GlobalPropertyObject is error :", err)
 		}
-		//if(gpo.ProposedScheduleBlockNum.valid())
-		if (gpo.ProposedScheduleBlockNum <= self.Pending.PendingBlockState.DposIrreversibleBlocknum) &&
+		//gpo.ProposedScheduleBlockNum.valid() //if there is a proposed schedule that was proposed in a block ...
+		if ( /*gpo.ProposedScheduleBlockNum.valid() &&*/ gpo.ProposedScheduleBlockNum <= self.Pending.PendingBlockState.DposIrreversibleBlocknum) &&
 			(len(self.Pending.PendingBlockState.PendingSchedule.Producers) == 0) &&
 			(!wasPendingPromoted) {
 			if !self.RePlaying {
@@ -260,7 +255,7 @@ func (self *Controller) StartBlock(when common.BlockTimeStamp, confirmBlockCount
 		onbtrx.Implicit = true
 		//TODO defer
 		self.InTrxRequiringChecks = true
-		//PushTransaction()
+		//self.PushTransaction()
 		fmt.Println(onbtrx)
 	}
 
@@ -546,27 +541,48 @@ func (self *Controller) GetAuthorizationManager() *AuthorizationManager {
 /*func (self *Controller) GetMutableAuthorizationManager() *AuthorizationManager{ return nil }*/
 
 //c++ flat_set<account_name> map[common.AccountName]interface{}
-func (self *Controller) GetActorWhiteList() *map[common.AccountName]struct{} { return nil }
+func (self *Controller) GetActorWhiteList() *map[common.AccountName]common.AccountName {
 
-func (self *Controller) GetActorBlackList() *map[common.AccountName]struct{} { return nil }
+	return &self.Config.ActorWhitelist
+}
 
-func (self *Controller) GetContractWhiteList() *map[common.AccountName]struct{} { return nil }
+func (self *Controller) GetActorBlackList() *map[common.AccountName]common.AccountName {
+	return &self.Config.ActorBlacklist
+}
 
-func (self *Controller) GetContractBlackList() *map[common.AccountName]struct{} { return nil }
+func (self *Controller) GetContractWhiteList() *map[common.AccountName]common.AccountName {
+	return &self.Config.ContractWhitelist
+}
 
-func (self *Controller) GetActionBlockList() *map[[2]common.AccountName]struct{} { return nil }
+func (self *Controller) GetContractBlackList() *map[common.AccountName]common.AccountName {
+	return &self.Config.ContractBlacklist
+}
 
-func (self *Controller) GetKeyBlackList() *map[common.PublicKeyType]struct{} { return nil }
+func (self *Controller) GetActionBlockList() *map[string]string { return &self.Config.ActionBlacklist }
 
-func (self *Controller) SetActorWhiteList(params *map[common.AccountName]struct{}) {}
+func (self *Controller) GetKeyBlackList() *map[ecc.PublicKey]ecc.PublicKey {
+	return &self.Config.KeyBlacklist
+}
 
-func (self *Controller) SetActorBlackList(params *map[common.AccountName]struct{}) {}
+func (self *Controller) SetActorWhiteList(params *map[common.AccountName]common.AccountName) {
+	self.Config.ActorWhitelist = *params
+}
 
-func (self *Controller) SetContractWhiteList(params *map[common.AccountName]struct{}) {}
+func (self *Controller) SetActorBlackList(params *map[common.AccountName]common.AccountName) {
+	self.Config.ActorBlacklist = *params
+}
 
-func (self *Controller) SetActionBlackList(params *map[[2]common.AccountName]struct{}) {}
+func (self *Controller) SetContractWhiteList(params *map[common.AccountName]common.AccountName) {
+	self.Config.ContractWhitelist = *params
+}
 
-func (self *Controller) SetKeyBlackList(params *map[common.PublicKeyType]struct{}) {}
+func (self *Controller) SetActionBlackList(params *map[string]string) {
+	self.Config.ActionBlacklist = *params
+}
+
+func (self *Controller) SetKeyBlackList(params *map[ecc.PublicKey]ecc.PublicKey) {
+	self.Config.KeyBlacklist = *params
+}
 
 func (self *Controller) HeadBlockNum() uint32 { return 0 }
 
@@ -620,11 +636,57 @@ func (self *Controller) GetBlcokIdForNum(blockNum uint32) common.BlockIdType {
 	return common.BlockIdType{}
 }
 
-func (self *Controller) CheckContractList(code common.AccountName) {}
+func (self *Controller) CheckContractList(code common.AccountName) {
+	if len(self.Config.ContractWhitelist) > 0 {
+		if _, ok := self.Config.ContractWhitelist[code]; !ok {
+			fmt.Println("account is not on the contract whitelist", code)
+			return
+		}
+		/*EOS_ASSERT( conf.contract_whitelist.find( code ) != conf.contract_whitelist.end(),
+			contract_whitelist_exception,
+			"account '${code}' is not on the contract whitelist", ("code", code)
+		);*/
+	} else if len(self.Config.ContractBlacklist) > 0 {
+		if _, ok := self.Config.ContractBlacklist[code]; ok {
+			fmt.Println("account is on the contract blacklist", code)
+			return
+		}
+		/*EOS_ASSERT( conf.contract_blacklist.find( code ) == conf.contract_blacklist.end(),
+			contract_blacklist_exception,
+			"account '${code}' is on the contract blacklist", ("code", code)
+		);*/
+	}
+}
 
-func (self *Controller) CheckActionList(code common.AccountName, action common.ActionName) {}
+func (self *Controller) CheckActionList(code common.AccountName, action common.ActionName) {
+	if len(self.Config.ActionBlacklist) > 0 {
+		abl := ActionBlacklistParam{code, action}
+		key := Hash(abl)
+		if _, ok := self.Config.ActionBlacklist[key]; ok {
+			fmt.Println("action '${code}::${action}' is on the action blacklist")
+			return
+		}
+		/*EOS_ASSERT( conf.action_blacklist.find( std::make_pair(code, action) ) == conf.action_blacklist.end(),
+			action_blacklist_exception,
+			"action '${code}::${action}' is on the action blacklist",
+			("code", code)("action", action)
+		);*/
+	}
+}
 
-func (self *Controller) CheckKeyList(key *common.PublicKeyType) {}
+func (self *Controller) CheckKeyList(key *ecc.PublicKey) {
+	if len(self.Config.KeyBlacklist) > 0 {
+		if _, ok := self.Config.KeyBlacklist[*key]; ok {
+			fmt.Println("public key '${key}' is on the key blacklist", key)
+			return
+		}
+		/*EOS_ASSERT( conf.key_blacklist.find( key ) == conf.key_blacklist.end(),
+			key_blacklist_exception,
+			"public key '${key}' is on the key blacklist",
+			("key", key)
+		);*/
+	}
+}
 
 func (self *Controller) IsProducing() bool { return false }
 
@@ -664,7 +726,7 @@ func (self *Controller) GetValidationMode() ValidationMode { return 0 }
 
 func (self *Controller) SetSubjectiveCpuLeeway(leeway common.Microseconds) {}
 
-func (self *Controller) PendingProducerBlockId() common.BlockIdType{
+func (self *Controller) PendingProducerBlockId() common.BlockIdType {
 	//EOS_ASSERT( my->pending, block_validate_exception, "no pending block" )
 	return self.Pending.ProducerBlockId
 }
@@ -674,12 +736,12 @@ func (self *Controller) FindApplyHandler(receiver common.AccountName,
 	act common.ActionName) func(*ApplyContext) {
 
 	handlerKey := NewHandlerKey(common.ScopeName(scope), act)
-	secend,ok := self.ApplyHandlers[receiver]
+	secend, ok := self.ApplyHandlers[receiver]
 	if ok {
-		handler,success := secend[handlerKey]
-		fmt.Println("find secend:",success)
-		if success{
-			fmt.Println("-=-=-=-=-=-=-=-==-=-=-=-=-=-=",handler)
+		handler, success := secend[handlerKey]
+		fmt.Println("find secend:", success)
+		if success {
+			fmt.Println("-=-=-=-=-=-=-=-==-=-=-=-=-=-=", handler)
 			return handler
 		}
 	}
@@ -756,12 +818,23 @@ signal<void(const int&)>                      bad_alloc;*/
 
 type HandlerKey struct {
 	//handMap map[common.AccountName]common.ActionName
-	scope common.ScopeName
+	scope  common.ScopeName
 	action common.ActionName
 }
+
 func NewHandlerKey(scopeName common.ScopeName, actionName common.ActionName) HandlerKey {
-	hk := HandlerKey{scopeName,actionName}
+	hk := HandlerKey{scopeName, actionName}
 	return hk
+}
+
+//for ActionBlacklist
+type ActionBlacklistParam struct {
+	AccountName common.AccountName
+	ActionName  common.ActionName
+}
+
+func Hash(abp ActionBlacklistParam) string {
+	return crypto.Hash256(abp).String()
 }
 
 /*

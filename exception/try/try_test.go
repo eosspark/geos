@@ -1,14 +1,15 @@
 package try_test
 
 import (
-	"github.com/eosspark/eos-go/exception/try"
+	. "github.com/eosspark/eos-go/exception/try"
 	"github.com/stretchr/testify/assert"
 	"testing"
 	"errors"
+	"fmt"
 )
 
 func TestTry_int(t *testing.T) {
-	try.Try(func() {
+	Try(func() {
 		panic(1)
 
 	}).Catch(func(n int) {
@@ -18,7 +19,7 @@ func TestTry_int(t *testing.T) {
 }
 
 func TestTry_string(t *testing.T) {
-	try.Try(func() {
+	Try(func() {
 		panic("try")
 
 	}).Catch(func(n string) {
@@ -28,8 +29,8 @@ func TestTry_string(t *testing.T) {
 }
 
 func TestTry_pointer(t *testing.T) {
-	try.Try(func() {
-		panic(&struct {}{})
+	Try(func() {
+		panic(&struct{}{})
 
 	}).Catch(func(n struct{}) {
 		assert.Equal(t, struct{}{}, n)
@@ -37,8 +38,8 @@ func TestTry_pointer(t *testing.T) {
 	}).End()
 
 	// also catch pointer type
-	try.Try(func() {
-		panic(&struct {}{})
+	Try(func() {
+		panic(&struct{}{})
 
 	}).Catch(func(n *struct{}) {
 		assert.Equal(t, struct{}{}, *n)
@@ -47,32 +48,32 @@ func TestTry_pointer(t *testing.T) {
 }
 
 func TestTry_RuntimeError(t *testing.T) {
-	try.Try(func() {
+	Try(func() {
 		a, b := 1, 0
 		println(a / b)
 
-	}).Catch(func(n try.RuntimeError) {
+	}).Catch(func(n RuntimeError) {
 		assert.Equal(t, "runtime error: integer divide by zero", n.String())
 
 	}).End()
 }
 
 func TestCatch_all(t *testing.T) {
-	try.Try(func() {
+	Try(func() {
 		panic("123")
 
 	}).Catch(func(interface{}) {
 
 	}).End()
 
-	try.Try(func() {
+	Try(func() {
 		panic(1)
 
 	}).Catch(func(interface{}) {
 
 	}).End()
 
-	try.Try(func() {
+	Try(func() {
 		panic(struct {
 			a int
 			b string
@@ -82,13 +83,39 @@ func TestCatch_all(t *testing.T) {
 
 	}).End()
 
-	try.Try(func() {
+	Try(func() {
 		panic(errors.New(""))
 
 	}).Catch(func(interface{}) {
 
 	}).End()
 
+}
+
+func returnFunc() (r int, flag bool) {
+
+
+	defer HandleReturn()
+	Try(func() {
+		panic(1)
+		panic("one error")
+
+		r, flag = 1, false
+		Return()
+
+	}).Catch(func(a int) {
+		//r = 2
+		//Return()
+	}).Catch(func(s string) {
+		//r = 3
+		//Return()
+	}).End()
+
+	return 0, true
+}
+
+func TestReturn(t *testing.T) {
+	fmt.Println(returnFunc())
 }
 
 //func TestFinally(t *testing.T) {
@@ -99,7 +126,7 @@ func TestCatch_all(t *testing.T) {
 //		assert.Equal(t, true, dofinal)
 //	}()
 //
-//	try.Try(func() {
+//	Try(func() {
 //		panic(1)
 //
 //	}).Catch(func(e string) {

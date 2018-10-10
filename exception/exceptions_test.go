@@ -143,3 +143,33 @@ func TestReThrow(t *testing.T) {
 	}).End()
 
 }
+
+func returnFunction (a int) (r int) {
+
+	defer try.HandleReturn()
+	try.Try(func() {
+		if a == 0 {
+			r = -1 		 // return -1
+			try.Return() //
+		}
+
+		EosAssert(a != 1, &ChainTypeException{}, "error")
+		EosAssert(a != 2, &ForkDatabaseException{}, "error")
+
+	}).Catch(func(e ChainTypeExceptions) {
+		r = 1        // return 1
+		try.Return() //
+	}).Catch(func(e ForkDatabaseExceptions) {
+		r = 2 		 // return 2
+		try.Return() //
+	}).End()
+
+	return 0
+
+}
+func TestReturnFunction(t *testing.T) {
+	assert.Equal(t, -1, returnFunction(0))
+	assert.Equal(t, 1, returnFunction(1))
+	assert.Equal(t, 2, returnFunction(2))
+	assert.Equal(t, 0, returnFunction(3))
+}

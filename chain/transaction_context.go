@@ -14,7 +14,7 @@ type TransactionContext struct {
 	Control               *Controller
 	Trx                   *types.SignedTransaction
 	ID                    common.TransactionIdType
-	UndoSession           *eosiodb.Session
+	UndoSession           *database.Session
 	Trace                 types.TransactionTrace
 	Start                 common.TimePoint
 	Published             common.TimePoint
