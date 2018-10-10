@@ -18,10 +18,10 @@ func init() {
 
 		EosioAuthScope: AccountName(N("eosio.auth")),
 		EosioAllScope:  AccountName(N("eosio.all")),
-		ActiveName:     AccountName(N("active")),
-		OwnerName:      AccountName(N("owner")),
-		EosioAnyName:   AccountName(N("eosio.any")),
-		EosioCodeName:  AccountName(N("eosio.code")),
+		ActiveName:     PermissionName(N("active")),
+		OwnerName:      PermissionName(N("owner")),
+		EosioAnyName:   PermissionName(N("eosio.any")),
+		EosioCodeName:  PermissionName(N("eosio.code")),
 
 		RateLimitingPrecision: 1000 * 1000,
 
@@ -112,10 +112,10 @@ type Config struct {
 
 	EosioAuthScope AccountName
 	EosioAllScope  AccountName
-	ActiveName     AccountName
-	OwnerName      AccountName
-	EosioAnyName   AccountName
-	EosioCodeName  AccountName
+	ActiveName     PermissionName
+	OwnerName      PermissionName
+	EosioAnyName   PermissionName
+	EosioCodeName  PermissionName
 
 	RateLimitingPrecision uint32
 
