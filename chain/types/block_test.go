@@ -5,14 +5,16 @@ import (
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/stretchr/testify/assert"
 	"testing"
+		"github.com/eosspark/eos-go/crypto"
+	"fmt"
 )
 
 func NewBlockHeaderState(t *testing.T) *BlockHeaderState {
-	var initPriKey, _ = ecc.NewPrivateKey("5KYZdUEo39z3FPrtuX2QbbwGnNP5zTd7yyr2SC1j299sBCnWjss")
-	var initPubKey = initPriKey.PublicKey()
-	var eosio = common.AccountName(common.N("eosio"))
-	var yuanc = common.AccountName(common.N("yuanc"))
-	var tester = common.AccountName(common.N("tester"))
+	initPriKey, _ := ecc.NewPrivateKey("5KYZdUEo39z3FPrtuX2QbbwGnNP5zTd7yyr2SC1j299sBCnWjss")
+	initPubKey := initPriKey.PublicKey()
+	eosio := common.AccountName(common.N("eosio"))
+	yuanc := common.AccountName(common.N("yuanc"))
+	tester := common.AccountName(common.N("tester"))
 
 	initSchedule := ProducerScheduleType{0, []ProducerKey{
 		{eosio, initPubKey},
@@ -29,6 +31,8 @@ func NewBlockHeaderState(t *testing.T) *BlockHeaderState {
 
 	genHeader.ProducerToLastProduced = make(map[common.AccountName]uint32)
 	genHeader.ProducerToLastImpliedIrb = make(map[common.AccountName]uint32)
+
+	genHeader.BlockSigningKey = initPubKey
 
 	assert.Equal(t, uint32(1), genHeader.BlockNum)
 
@@ -65,5 +69,35 @@ func Test_BlockHeaderState_GenerateNext(t *testing.T) {
 	bss.SetConfirmed(2)
 
 	assert.Equal(t, []uint8{1, 2}, bss.ConfirmCount)
+
+}
+
+func TestBlockHeader_Digest(t *testing.T) {
+	bs := NewBlockHeaderState(t)
+	fmt.Println(bs.SigDigest())
+	fmt.Println(bs.SigDigest())
+}
+
+func TestBlockHeaderState_Sign(t *testing.T) {
+	initPriKey, _ := ecc.NewPrivateKey("5KYZdUEo39z3FPrtuX2QbbwGnNP5zTd7yyr2SC1j299sBCnWjss")
+	bs := NewBlockHeaderState(t)
+
+	fmt.Println("===>", bs.SigDigest())
+	bs.Sign(func(sha256 crypto.Sha256) ecc.Signature {
+		sk, _ := initPriKey.Sign(sha256.Bytes())
+		return sk
+	})
+	fmt.Println("===>", bs.SigDigest())
+	pk, _ := bs.Signee()
+
+	assert.Equal(t, initPriKey.PublicKey(), pk)
+
+	//data := ""
+	//sk,_ := initPriKey.Sign(crypto.Hash256(data).Bytes())
+	//pk,_ := sk.PublicKey(crypto.Hash256(data).Bytes())
+	//
+	//fmt.Println("pk", pk)
+	//
+	//assert.Equal(t, initPriKey.PublicKey(), pk)
 
 }
