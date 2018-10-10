@@ -3,13 +3,15 @@ package producer_plugin
 import (
 	"errors"
 	"fmt"
-	Chain "github.com/eosspark/eos-go/chain"
+	Chain "github.com/eosspark/eos-go/plugins/producer_plugin/mock" /*Debug model*/
+	//Chain "github.com/eosspark/eos-go/chain"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/log"
 	"gopkg.in/urfave/cli.v1"
 	"time"
+	"encoding/json"
 )
 
 type ProducerPlugin struct {
@@ -84,13 +86,12 @@ func (pp *ProducerPlugin) PluginInitialize(app *cli.App) {
 	//	return sig
 	//}
 
-	pp.my.SignatureProviders[initPubKey], _ = makeKeySignatureProvider(*initPriKey)
-	pp.my.SignatureProviders[initPubKey2], _ = makeKeySignatureProvider(*initPriKey2)
 	// pp.my.SignatureProviders[initPubKey], _ = makeKeosdSignatureProvider(pp, "http://", initPubKey)
 
 	var maxTransactionTimeMs int
 	var maxIrreversibleBlockAgeUs int
-	var producerName cli.StringSlice
+	var privateKeys cli.StringSlice
+	var producerNames cli.StringSlice
 
 	app.Flags = []cli.Flag{
 		cli.BoolTFlag{
@@ -113,7 +114,12 @@ func (pp *ProducerPlugin) PluginInitialize(app *cli.App) {
 		cli.StringSliceFlag{
 			Name:  "producer-name, p",
 			Usage: "ID of producer controlled by this node(e.g. inita; may specify multiple times)",
-			Value: &producerName,
+			Value: &producerNames,
+		},
+		cli.StringSliceFlag{
+			Name:  "private-key",
+			Usage: "ID of producer controlled by this node(e.g. inita; may specify multiple times)",
+			Value: &privateKeys,
 		},
 	}
 
@@ -121,9 +127,25 @@ func (pp *ProducerPlugin) PluginInitialize(app *cli.App) {
 		pp.my.MaxTransactionTimeMs = int32(maxTransactionTimeMs)
 		pp.my.MaxIrreversibleBlockAgeUs = common.Seconds(int64(maxIrreversibleBlockAgeUs))
 
-		if len(producerName) > 0 {
-			for _, p := range producerName {
+		if len(producerNames) > 0 {
+			for _, p := range producerNames {
 				pp.my.Producers[common.AccountName(common.N(p))] = struct{}{}
+			}
+		}
+
+		if len(privateKeys) > 0 {
+			for _, pairString := range privateKeys {
+				var pair [2]string
+				json.Unmarshal([]byte(pairString), &pair)
+				pubKey, err := ecc.NewPublicKey(pair[0])
+				if err != nil {
+					panic(err)
+				}
+				priKey, err2 := ecc.NewPrivateKey(pair[1])
+				if err2 != nil {
+					panic(err2)
+				}
+				pp.my.SignatureProviders[pubKey], _ = makeKeySignatureProvider(priKey)
 			}
 		}
 
@@ -136,6 +158,7 @@ func (pp *ProducerPlugin) PluginInitialize(app *cli.App) {
 func (pp *ProducerPlugin) PluginStartup() {
 	log.Info("producer plugin:  plugin_startup() begin")
 
+	chain := Chain.GetControllerInstance()
 	if !(len(pp.my.Producers) == 0 || chain.GetReadMode() == Chain.DBReadMode(Chain.SPECULATIVE)) {
 		panic("node cannot have any producer-name configured because block production is impossible when read_mode is not \"speculative\"")
 	}
@@ -157,7 +180,7 @@ func (pp *ProducerPlugin) PluginStartup() {
 
 		if pp.my.ProductionEnabled {
 			if chain.HeadBlockNum() == 0 {
-				newChainBanner(Chain.Controller{}) //TODO
+				newChainBanner(chain)
 			}
 		}
 	}
@@ -181,6 +204,7 @@ func (pp *ProducerPlugin) Resume() {
 	// re-evaluate that now
 	//
 	if pp.my.PendingBlockMode == EnumPendingBlockMode(speculating) {
+		chain := Chain.GetControllerInstance()
 		chain.AbortBlock()
 		pp.my.ScheduleProductionLoop()
 	}
@@ -215,6 +239,7 @@ func (pp *ProducerPlugin) UpdateRuntimeOptions(options RuntimeOptions) {
 	}
 
 	if checkSpeculation && pp.my.PendingBlockMode == EnumPendingBlockMode(speculating) {
+		chain := Chain.GetControllerInstance()
 		chain.AbortBlock()
 		pp.my.ScheduleProductionLoop()
 	}
@@ -287,9 +312,9 @@ func (pp *ProducerPlugin) SetWhitelistBlacklist(params WhitelistAndBlacklist) {
 	if params.ContractWhitelist != nil {
 		chain.SetContractWhiteList(params.ContractWhitelist)
 	}
-	//if params.ContractBlacklist != nil {
-	//	chain.SetContractBlackList(params.ContractBlacklist)
-	//}
+	if params.ContractBlacklist != nil {
+		chain.SetContractBlackList(params.ContractBlacklist)
+	}
 	if params.ActionBlacklist != nil {
 		chain.SetActionBlackList(params.ActionBlacklist)
 	}
@@ -310,7 +335,7 @@ func makeDebugTimeLogger() func() {
 	}
 }
 
-func makeKeySignatureProvider(key ecc.PrivateKey) (signFunc signatureProviderType, err error) {
+func makeKeySignatureProvider(key *ecc.PrivateKey) (signFunc signatureProviderType, err error) {
 	signFunc = func(digest crypto.Sha256) (sign ecc.Signature) {
 		sign, err = key.Sign(digest.Bytes())
 		return
@@ -330,7 +355,7 @@ func makeKeosdSignatureProvider(produce *ProducerPlugin, url string, pubKey ecc.
 	return
 }
 
-func newChainBanner(db Chain.Controller) {
+func newChainBanner(db *Chain.Controller) {
 	fmt.Print("\n" +
 		"*******************************\n" +
 		"*                             *\n" +
@@ -341,18 +366,11 @@ func newChainBanner(db Chain.Controller) {
 		"*******************************\n" +
 		"\n")
 
-	//TODO
+	if db.HeadBlockState().Header.Timestamp.ToTimePoint() < common.Now().SubUs(common.Microseconds(200 * common.DefaultConfig.BlockIntervalMs)) {
+		fmt.Print("Your genesis seems to have an old timestamp\n" +
+			"Please consider using the --genesis-timestamp option to give your genesis a recent timestamp\n\n" )
+	}
 }
-
-type EnumPendingBlockMode int
-
-const (
-	producing = EnumPendingBlockMode(iota)
-	speculating
-)
-
-type signatureProviderType func(sha256 crypto.Sha256) ecc.Signature
-type transactionIdWithExpireIndex map[common.TransactionIdType]common.TimePoint
 
 //errors
 var (
