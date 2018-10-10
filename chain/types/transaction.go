@@ -12,8 +12,8 @@ import (
 
 type TransactionHeader struct {
 	Expiration     common.TimePointSec `json:"expiration"`
-	RefBlockNum    uint16          `json:"ref_block_num"`
-	RefBlockPrefix uint32          `json:"ref_block_prefix"`
+	RefBlockNum    uint16              `json:"ref_block_num"`
+	RefBlockPrefix uint32              `json:"ref_block_prefix"`
 
 	MaxNetUsageWords uint32 `json:"max_net_usage_words"`
 	MaxCpuUsageMS    uint8  `json:"max_cpu_usage_ms"`
@@ -54,13 +54,13 @@ func NewTransaction(actions []*Action, opts *TxOptions) *Transaction {
 	return tx
 }
 
-func (tx *Transaction) TotalActions() uint32{
-	return uint32(len(tx.ContextFreeActions)+ len(tx.Actions))
+func (tx *Transaction) TotalActions() uint32 {
+	return uint32(len(tx.ContextFreeActions) + len(tx.Actions))
 }
 
-func (tx *Transaction) FirstAuthorizor() common.AccountName{
-	for _,a:= range tx.Actions{
-		for _,auth:= range a.Authorization{
+func (tx *Transaction) FirstAuthorizor() common.AccountName {
+	for _, a := range tx.Actions {
+		for _, auth := range a.Authorization {
 			return auth.Actor
 		}
 	}
@@ -70,7 +70,7 @@ func (tx *Transaction) SetExpiration(in uint32) {
 	tx.Expiration = common.TimePointSec(in)
 }
 
-func (tx *Transaction) GetSignatureKeys(chainId common.ChainIdType, allowDeplicateKeys bool, useCache bool) []common.PublicKeyType {
+func (tx *Transaction) GetSignatureKeys(chainId common.ChainIdType, allowDeplicateKeys bool, useCache bool) []ecc.PublicKey {
 	//TODO
 	return nil
 }
@@ -132,7 +132,7 @@ func (s *SignedTransaction) String() string {
 	return string(data)
 }
 
-func (st *SignedTransaction) GetSignatureKeys(chainId common.ChainIdType, allowDeplicateKeys bool, useCache bool) []common.PublicKeyType {
+func (st *SignedTransaction) GetSignatureKeys(chainId common.ChainIdType, allowDeplicateKeys bool, useCache bool) []ecc.PublicKey {
 	//TODO
 
 	return st.Transaction.GetSignatureKeys(chainId, allowDeplicateKeys, useCache)
