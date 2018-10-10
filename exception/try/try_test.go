@@ -91,22 +91,22 @@ func TestCatch_all(t *testing.T) {
 
 }
 
-func TestFinally(t *testing.T) {
-	dofinal := false
-
-	defer func() {
-		recover()
-		assert.Equal(t, true, dofinal)
-	}()
-
-	try.Try(func() {
-		panic(1)
-
-	}).Catch(func(e string) {
-		// not caught
-
-	}).Finally(func() {
-		dofinal = true
-
-	}).End()
-}
+//func TestFinally(t *testing.T) {
+//	dofinal := false
+//
+//	defer func() {
+//		recover()
+//		assert.Equal(t, true, dofinal)
+//	}()
+//
+//	try.Try(func() {
+//		panic(1)
+//
+//	}).Catch(func(e string) {
+//		// not caught
+//
+//	}).Finally(func() {
+//		dofinal = true
+//
+//	}).End()
+//}

@@ -91,27 +91,28 @@ func (c *CatchOrFinally) Catch(f interface{}) (r *CatchOrFinally) {
 }
 
 //Finally always be called if defined.
-func (c *CatchOrFinally) Finally(f interface{}) (r *OrThrowable) {
-	reflect.ValueOf(f).Call([]reflect.Value{})
-	if c == nil || c.e == nil {
-		return nil
-	}
-	return &OrThrowable{c.e}
-}
+//func (c *CatchOrFinally) Finally(f interface{}) (r *OrThrowable) {
+//	reflect.ValueOf(f).Call([]reflect.Value{})
+//	if c == nil || c.e == nil {
+//		return nil
+//	}
+//	return &OrThrowable{c.e}
+//}
 
 //OrThrow throw error then never catch block entered.
 func (c *CatchOrFinally) End() {
 	if c != nil && c.e != nil {
+		//println(c.StackTrace)
 		Throw(c.e)
 	}
 }
 
 //OrThrow throw error then never catch block entered.
-func (c *OrThrowable) End() {
-	if c != nil && c.e != nil {
-		Throw(c.e)
-	}
-}
+//func (c *OrThrowable) End() {
+//	if c != nil && c.e != nil {
+//		Throw(c.e)
+//	}
+//}
 
 //Throw is wrapper of panic().
 func Throw(e interface{}) {

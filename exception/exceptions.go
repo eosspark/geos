@@ -94,3 +94,20 @@ func (e *BlockValidateException) ChainExceptions()         {}
 func (e *BlockValidateException) BlockValidateExceptions() {}
 func (e *BlockValidateException) Code() ExcTypes           { return 3030000 }
 func (e *BlockValidateException) What() string             { return "Block exception" }
+
+type DatabaseExceptions interface {
+	ChainExceptions
+	DatabaseExceptions()
+}
+
+type DatabaseException struct{ logMessage }
+
+func (e *DatabaseException) ChainExceptions()    {}
+func (e *DatabaseException) DatabaseExceptions() {}
+func (e *DatabaseException) Code() ExcTypes      { return 3060000 }
+func (e *DatabaseException) What() string        { return "Database exception" }
+
+type GuardExceptions interface {
+	DatabaseExceptions
+	GuardExceptions()
+}
