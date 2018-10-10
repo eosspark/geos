@@ -93,7 +93,16 @@ type BlockValidateException struct{ logMessage }
 func (e *BlockValidateException) ChainExceptions()         {}
 func (e *BlockValidateException) BlockValidateExceptions() {}
 func (e *BlockValidateException) Code() ExcTypes           { return 3030000 }
-func (e *BlockValidateException) What() string             { return "Block exception" }
+func (e *BlockValidateException) What() string             { return "Action validate exception" }
+
+type ActionValidateException struct{ logMessage }
+
+func (e *ActionValidateException) ChainExceptions()        {}
+func (e *ActionValidateException) ForkDatabaseExceptions() {}
+func (e *ActionValidateException) Code() ExcTypes          { return 3050000 }
+func (e *ActionValidateException) What() string {
+	return "Transaction exceeded the current CPU usage limit imposed on the transaction"
+}
 
 type TxCpuUsageExceed struct{ logMessage }
 
@@ -147,4 +156,22 @@ func (e *LeewayDeadlineException) ForkDatabaseExceptions() {}
 func (e *LeewayDeadlineException) Code() ExcTypes          { return 3081001 }
 func (e *LeewayDeadlineException) What() string {
 	return "Transaction reached the deadline set due to leeway on account CPU limits"
+}
+
+type InvalidContractVmVersion struct{ logMessage }
+
+func (e *InvalidContractVmVersion) ChainExceptions()        {}
+func (e *InvalidContractVmVersion) ForkDatabaseExceptions() {}
+func (e *InvalidContractVmVersion) Code() ExcTypes          { return 3160007 }
+func (e *InvalidContractVmVersion) What() string {
+	return "Invalid contract vm version"
+}
+
+type SetExactCode struct{ logMessage }
+
+func (e *SetExactCode) ChainExceptions()        {}
+func (e *SetExactCode) ForkDatabaseExceptions() {}
+func (e *SetExactCode) Code() ExcTypes          { return 3160008 }
+func (e *SetExactCode) What() string {
+	return "Contract is already running this version of code"
 }

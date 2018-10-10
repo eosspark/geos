@@ -3,6 +3,7 @@ package exec
 import (
 	"fmt"
 	"github.com/eosspark/eos-go/common"
+	"github.com/eosspark/eos-go/crypto/rlp"
 )
 
 // void send_inline( array_ptr<char> data, size_t data_len ) {
@@ -45,13 +46,17 @@ func sendContextFreeInline(w *WasmInterface, data int, dataLen int) {
 //       context.schedule_deferred_transaction(sender_id, payer, std::move(trx), replace_existing);
 //    } FC_RETHROW_EXCEPTIONS(warn, "data as hex: ${data}", ("data", fc::to_hex(data, data_len)))
 // }
-func sendDeferred(w *WasmInterface, sender_id int, payer common.AccountName, data int, dataLen int, replaceExisting int32) {
+func sendDeferred(w *WasmInterface, senderId int, payer common.AccountName, data int, dataLen int, replaceExisting int32) {
 	fmt.Println("send_deferred")
 
 	//id := big.Int.SetBytes(w.vm.memory[sender_id : sender_id+32])
-	id, _ := common.DecodeIdTypeByte(w.vm.memory[sender_id : sender_id+32])
+	//id, _ := common.DecodeIdTypeByte(w.vm.memory[sender_id : sender_id+32])
+	bytes := getMemory(w, senderId, 16)
+	id := &common.Uint128{}
+	rlp.DecodeBytes(bytes, id)
+
 	trx := getBytes(w, data, dataLen)
-	w.context.ScheduleDeferredTransaction(common.TransactionIdType{id}, payer, trx, i2b(int(replaceExisting)))
+	w.context.ScheduleDeferredTransaction(id, payer, trx, i2b(int(replaceExisting)))
 }
 
 // bool cancel_deferred( const unsigned __int128& val ) {
@@ -61,8 +66,14 @@ func sendDeferred(w *WasmInterface, sender_id int, payer common.AccountName, dat
 func cancelDeferred(w *WasmInterface, senderId int) int {
 	fmt.Println("cancel_deferred")
 
-	id, _ := common.DecodeIdTypeByte(w.vm.memory[senderId : senderId+32])
-	return b2i(w.context.CancelDeferredTransaction(common.TransactionIdType{id}))
+	//id, _ := common.DecodeIdTypeByte(w.vm.memory[senderId : senderId+32])
+
+	bytes := getMemory(w, senderId, 16)
+	id := &common.Uint128{}
+	rlp.DecodeBytes(bytes, id)
+
+	//return b2i(w.context.CancelDeferredTransaction(common.TransactionIdType{id}))
+	return b2i(w.context.CancelDeferredTransaction(id))
 
 }
 

@@ -88,8 +88,8 @@ type WasmContextInterface interface {
 	//transaction
 	ExecuteInline(action []byte)
 	ExecuteContextFreeInline(action []byte)
-	ScheduleDeferredTransaction(sendId common.TransactionIdType, payer common.AccountName, trx []byte, replaceExisting bool)
-	CancelDeferredTransaction(sendId common.TransactionIdType) bool
+	ScheduleDeferredTransaction(sendId *common.Uint128, payer common.AccountName, trx []byte, replaceExisting bool)
+	CancelDeferredTransaction(sendId *common.Uint128) bool
 	GetPackedTransaction() []byte
 	Expiration() int
 	TaposBlockNum() int

@@ -13,7 +13,7 @@ import (
 type ApplyContext struct {
 	Control *Controller
 
-	DB                 *eosiodb.DataBase
+	DB                 *database.DataBase
 	TrxContext         *TransactionContext
 	Act                *types.Action
 	Receiver           common.AccountName
@@ -792,9 +792,16 @@ func (a *ApplyContext) ExecuteContextFreeInline(action []byte) {
 	a.CfaInlineActions = append(a.CfaInlineActions, act)
 
 }
-func (a *ApplyContext) ScheduleDeferredTransaction(sendId common.TransactionIdType, payer common.AccountName, trx []byte, replaceExisting bool) {
+func (a *ApplyContext) ScheduleDeferredTransaction(sendId *common.Uint128, payer common.AccountName, trx []byte, replaceExisting bool) {
 }
-func (a *ApplyContext) CancelDeferredTransaction(sendId common.TransactionIdType) bool { return false }
+func (a *ApplyContext) CancelDeferredTransaction2(sendId *common.Uint128, sender common.AccountName) bool {
+	return false
+}
+
+func (a *ApplyContext) CancelDeferredTransaction(sendId *common.Uint128) bool {
+	return a.CancelDeferredTransaction2(sendId, a.Receiver)
+}
+
 func (a *ApplyContext) GetPackedTransaction() []byte {
 	bytes, err := rlp.EncodeToBytes(a.TrxContext.Trx)
 	if err != nil {
@@ -873,4 +880,26 @@ func (a *ApplyContext) nextAuthSequence(receiver common.AccountName) uint64 {
 	//	mrs.AuthSequence++
 	//})
 	//return rs.AuthSequence
+}
+
+// void apply_context::add_ram_usage( account_name account, int64_t ram_delta ) {
+//    trx_context.add_ram_usage( account, ram_delta );
+
+//    auto p = _account_ram_deltas.emplace( account, ram_delta );
+//    if( !p.second ) {
+//       p.first->delta += ram_delta;
+//    }
+// }
+
+func (a *ApplyContext) AddRamUsage(account common.AccountName, ramDelta int64) {
+	return
+	//a.TrxContext.AddRamUsage(account, ramDelta)
+
+	//    trx_context.add_ram_usage( account, ram_delta );
+
+	//    auto p = _account_ram_deltas.emplace( account, ram_delta );
+	//    if( !p.second ) {
+	//       p.first->delta += ram_delta;
+	//    }
+
 }
