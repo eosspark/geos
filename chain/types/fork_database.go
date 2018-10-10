@@ -3,14 +3,14 @@ package types
 import (
 	"fmt"
 	"github.com/eosspark/eos-go/common"
-	"github.com/eosspark/eos-go/db"
+	"github.com/eosspark/eos-go/database"
 	"github.com/eosspark/eos-go/log"
 )
 
-var isActive bool = false
+var isFdActive bool = false
 
 type ForkDatabase struct {
-	db      *eosiodb.DataBase
+	db      *database.DataBase
 	Index   *ForkMultiIndexType `json:"index"`
 	Head    *BlockState         `json:"head"`
 	DataDir string
@@ -39,12 +39,13 @@ func (f *ForkDatabase) setHead(head *BlockState) *ForkDatabase {
 
 func GetForkDbInstance(stateDir string) *ForkDatabase {
 	forkDB := ForkDatabase{}
-	if !isActive {
+	if !isFdActive {
 		forkd, err := newForkDatabase(stateDir, common.DefaultConfig.ForkDBName, true)
 		if err != nil {
 			log.Error("GetForkDbInstance is error ,detail:", err)
 		}
 		forkDB = *forkd
+		isFdActive=true
 	}
 	return &forkDB
 }
@@ -52,7 +53,7 @@ func GetForkDbInstance(stateDir string) *ForkDatabase {
 func newForkDatabase(path string, fileName string, rw bool) (*ForkDatabase, error) {
 	//forkdb := &ForkDatabase{}
 
-	db, err := eosiodb.NewDataBase(path, fileName, rw)
+	db, err := database.NewDataBase(path, fileName, rw)
 	if err != nil {
 		log.Error("newForkDatabase is error:", err)
 		return nil, err

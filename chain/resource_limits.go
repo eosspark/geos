@@ -3,7 +3,7 @@ package chain
 import (
 	"fmt"
 	"github.com/eosspark/eos-go/common"
-	"github.com/eosspark/eos-go/db"
+	"github.com/eosspark/eos-go/database"
 	"math"
 	"math/big"
 	"reflect"
@@ -34,7 +34,7 @@ var IsActiveRc bool
 var rcInstance *ResourceLimitsManager
 
 type ResourceLimitsManager struct {
-	db *eosiodb.DataBase `json:"db"`
+	db *database.DataBase `json:"db"`
 }
 
 func GetResourceLimitsManager() *ResourceLimitsManager {

@@ -41,6 +41,7 @@ func Test_Exec(t *testing.T) {
 	getValue.Call(nil)
 
 	te := reflect.ValueOf(p["a"])
+	fmt.Println("------------------",te.String())
 	params := []reflect.Value{
 		reflect.ValueOf("param"),
 		reflect.ValueOf(10),

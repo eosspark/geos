@@ -16,7 +16,7 @@ type TransactionHeader struct {
 	RefBlockPrefix uint32          `json:"ref_block_prefix"`
 
 	MaxNetUsageWords uint32 `json:"max_net_usage_words"`
-	MaxCPUUsageMS    uint8  `json:"max_cpu_usage_ms"`
+	MaxCpuUsageMS    uint8  `json:"max_cpu_usage_ms"`
 	DelaySec         uint32 `json:"delay_sec"` // number of secs to delay, making it cancellable for that duration
 }
 
@@ -50,10 +50,22 @@ func NewTransaction(actions []*Action, opts *TxOptions) *Transaction {
 	}
 
 	tx := &Transaction{Actions: actions}
-	tx.Fill(opts.HeadBlockID, opts.DelaySecs, opts.MaxNetUsageWords, opts.MaxCPUUsageMS)
+	tx.Fill(opts.HeadBlockID, opts.DelaySecs, opts.MaxNetUsageWords, opts.MaxCpuUsageMS)
 	return tx
 }
 
+func (tx *Transaction) TotalActions() uint32{
+	return uint32(len(tx.ContextFreeActions)+ len(tx.Actions))
+}
+
+func (tx *Transaction) FirstAuthorizor() common.AccountName{
+	for _,a:= range tx.Actions{
+		for _,auth:= range a.Authorization{
+			return auth.Actor
+		}
+	}
+	return common.AccountName(0)
+}
 func (tx *Transaction) SetExpiration(in uint32) {
 	tx.Expiration = common.TimePointSec(in)
 }
@@ -69,8 +81,8 @@ type Extension struct {
 }
 
 // Fill sets the fields on a transaction.  If you pass `headBlockID`, then `api` can be nil. If you don't pass `headBlockID`, then the `api` is going to be called to fetch
-/*
-canada eos code
+
+//canada eos code
 func (tx *Transaction) Fill(headBlockID common.BlockIdType, delaySecs, maxNetUsageWords uint32, maxCPUUsageMS uint8) {
 	tx.setRefBlock(headBlockID)
 
@@ -82,12 +94,12 @@ func (tx *Transaction) Fill(headBlockID common.BlockIdType, delaySecs, maxNetUsa
 	}
 
 	tx.MaxNetUsageWords = uint32(maxNetUsageWords)
-	tx.MaxCPUUsageMS = maxCPUUsageMS
+	tx.MaxCpuUsageMS = maxCPUUsageMS
 	tx.DelaySec = uint32(delaySecs)
 
 	//tx.SetExpiration(30 * time.Second)
 	tx.SetExpiration(30)
-}*/
+}
 
 func (tx *Transaction) setRefBlock(blockID common.BlockIdType) {
 	tx.RefBlockNum = uint16(blockID.Hash[0])
@@ -389,7 +401,7 @@ type TxOptions struct {
 	HeadBlockID      common.BlockIdType // If provided, don't hit API to fetch it.  This allows offline transaction signing.
 	MaxNetUsageWords uint32
 	DelaySecs        uint32
-	MaxCPUUsageMS    uint8 // If you want to override the CPU usage (in counts of 1024)
+	MaxCpuUsageMS    uint8 // If you want to override the CPU usage (in counts of 1024)
 	//ExtraKCPUUsage uint32 // If you want to *add* some CPU usage to the estimated amount (in counts of 1024)
 	Compress common.CompressionType
 }

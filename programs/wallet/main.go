@@ -3,7 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/eosspark/eos-go/wallet_plugin"
+	"github.com/eosspark/eos-go/plugins/wallet_plugin"
 	"log"
 	"net/http"
 )

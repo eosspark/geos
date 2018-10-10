@@ -3,13 +3,13 @@ package chain
 import (
 	"fmt"
 	"github.com/eosspark/eos-go/common"
-	"github.com/eosspark/eos-go/db"
+	"github.com/eosspark/eos-go/database"
 	"testing"
 )
 
 func Test_resourceSetGet(t *testing.T) {
 	var rlm *ResourceLimitsManager
-	db, _ := eosiodb.NewDataBase("./", "eos.db", true)
+	db, _ := database.NewDataBase("./", "eos.db", true)
 	defer db.Close()
 	//rlm.AddIndices()
 	rlm.InitializeDatabase()
@@ -37,7 +37,7 @@ func Test_resourceSetGet(t *testing.T) {
 }
 func Test_resourceFuncAdd(t *testing.T) {
 	var rlm *ResourceLimitsManager
-	db, _ := eosiodb.NewDataBase("./", "eos.db", true)
+	db, _ := database.NewDataBase("./", "eos.db", true)
 	defer db.Close()
 	rlm.AddIndices()
 	rlm.InitializeDatabase()

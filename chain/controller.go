@@ -6,11 +6,12 @@ import (
 
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
-	//"github.com/eosspark/eos-go/cvm/exec"
 	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/rlp"
-	"github.com/eosspark/eos-go/db"
+	"github.com/eosspark/eos-go/cvm/exec"
+	"github.com/eosspark/eos-go/database"
 	"github.com/eosspark/eos-go/log"
+	"os"
 )
 
 type DBReadMode int8
@@ -29,21 +30,6 @@ const (
 	LIGHT
 )
 
-type HandlerKey struct {
-	handKey map[common.AccountName]common.AccountName
-}
-
-type applyCon struct {
-	handlerKey   map[common.AccountName]common.AccountName
-	applyContext ApplyContext
-}
-
-//apply_context
-type ApplyHandler struct {
-	applyHandler map[common.AccountName]applyCon
-	scopeName    common.AccountName
-}
-
 type Config struct {
 	blocksDir           string
 	stateDir            string
@@ -57,7 +43,7 @@ type Config struct {
 	disableReplay       bool
 	contractsConsole    bool
 	genesis             types.GenesisState
-	//vmType              exec.WasmInterface
+	vmType              exec.WasmInterface
 	readMode            DBReadMode
 	blockValidationMode ValidationMode
 	resourceGreylist    []common.AccountName
@@ -67,32 +53,34 @@ type Config struct {
 var isActiveController bool //default value false ;Does the process include control ;
 
 var instance *Controller
-
+//type HandlerKey common.Tuple
 type Controller struct {
-	DB               *eosiodb.DataBase
-	DbSession        *eosiodb.Session
-	ReversibleBlocks *eosiodb.DataBase
-	Blog             string //TODO
-	Pending          *types.PendingState
-	Head             types.BlockState
-	ForkDB           *types.ForkDatabase
-	//wasmif                exec.WasmInterface
-	ResourceLimists       *ResourceLimitsManager
-	Authorization         *AuthorizationManager
-	Config                Config //local	Config
-	ChainID               common.ChainIdType
-	RePlaying             bool
-	ReplayHeadTime        common.TimePoint //optional<common.Tstamp>
-	ReadMode              DBReadMode
-	InTrxRequiringChecks  bool                //if true, checks that are normally skipped on replay (e.g. auth checks) cannot be skipped
-	SubjectiveCupLeeway   common.Microseconds //optional<common.Tstamp>
-	HandlerKey            HandlerKey
-	ApplyHandlers         ApplyHandler
+	DB                   *database.DataBase
+	DbSession            *database.Session
+	ReversibleBlocks     *database.DataBase
+	Blog                 string //TODO
+	Pending              *types.PendingState
+	Head                 types.BlockState
+	ForkDB               *types.ForkDatabase
+	WasmIf               *exec.WasmInterface
+	ResourceLimists      *ResourceLimitsManager
+	Authorization        *AuthorizationManager
+	Config               Config //local	Config
+	ChainID              common.ChainIdType
+	RePlaying            bool
+	ReplayHeadTime       common.TimePoint //optional<common.Tstamp>
+	ReadMode             DBReadMode
+	InTrxRequiringChecks bool                //if true, checks that are normally skipped on replay (e.g. auth checks) cannot be skipped
+	SubjectiveCupLeeway  common.Microseconds //optional<common.Tstamp>
+	//HandlerKey           HandlerKey
+	//ApplyHandlers         ApplyHandler
+	ApplyHandlers         map[common.AccountName]map[HandlerKey]func(ctx *ApplyContext)
 	UnAppliedTransactions map[crypto.Sha256]types.TransactionMetadata
 }
 
 func GetControllerInstance() *Controller {
 	if !isActiveController {
+		validPath()
 		instance = newController()
 
 		readycontroller <- true
@@ -102,19 +90,35 @@ func GetControllerInstance() *Controller {
 	return instance
 }
 
+//TODO tmp code
+
+func validPath(){
+	path := []string{common.DefaultConfig.DefaultStateDirName,common.DefaultConfig.DefaultBlocksDirName,common.DefaultConfig.DefaultBlocksDirName + "/" + common.DefaultConfig.DefaultReversibleBlocksDirName}
+	for _,d := range path {
+		_, err := os.Stat(d)
+		if os.IsNotExist(err) {
+			err := os.MkdirAll(d, os.ModePerm)
+			if err != nil {
+				fmt.Printf("controller validPath mkdir failed![%v]\n", err)
+			} else {
+				fmt.Printf("controller validPath mkdir success!\n",d)
+			}
+		}
+	}
+}
 func newController() *Controller {
 	isActiveController = true //controller is active
 	//init db
-	db, err := eosiodb.NewDataBase("./", "shared_memory.bin", true)
+	db, err := database.NewDataBase(common.DefaultConfig.DefaultStateDirName, "shared_memory.bin", true)
 	if err != nil {
-		fmt.Println("pending NewPendingState is error detail:", err)
+		fmt.Println("newController is error detail:", err)
 		return nil
 	}
 	defer db.Close()
 
 	//init ReversibleBlocks
 	reversibleDir := common.DefaultConfig.DefaultBlocksDirName + "/" + common.DefaultConfig.DefaultReversibleBlocksDirName
-	reversibleDB, err := eosiodb.NewDataBase(reversibleDir, common.DefaultConfig.ReversibleFileName, true)
+	reversibleDB, err := database.NewDataBase(reversibleDir, common.DefaultConfig.ReversibleFileName, true)
 	if err != nil {
 		fmt.Println("newController init reversibleDB is error", err)
 	}
@@ -127,7 +131,8 @@ func newController() *Controller {
 
 	con.initConfig()
 	con.ReadMode = con.Config.readMode
-
+	con.ApplyHandlers = make(map[common.AccountName]map[HandlerKey]func(ctx *ApplyContext))
+	con.WasmIf = exec.NewWasmInterface()
 	//TODO wait append
 	/*
 			set_apply_handler( #receiver, #contract, #action, &BOOST_PP_CAT(apply_, BOOST_PP_CAT(contract, BOOST_PP_CAT(_,action) ) ) )
@@ -151,7 +156,7 @@ func newController() *Controller {
 }
 
 //initResource()
-func (self *Controller) onIrreversible(b *types.BlockState) {
+func (self *Controller) OnIrreversible(b *types.BlockState) {
 
 }
 
@@ -176,21 +181,22 @@ func (self *Controller) PopBlock() {
 	self.DbSession.Undo() //TODO
 }
 
-func newApplyCon(ac ApplyContext) *applyCon {
-	a := applyCon{}
-	a.applyContext = ac
-	return &a
-}
-func (self *Controller) SetApplayHandler(receiver common.AccountName, contract common.AccountName, action common.AccountName, handler ApplyContext) {
-	h := make(map[common.AccountName]common.AccountName)
-	h[receiver] = contract
+func (self *Controller) SetApplayHandler(receiver common.AccountName, contract common.AccountName, action common.ActionName, handler func(*ApplyContext)) {
+	/*h := make(map[common.AccountName]common.AccountName)
+	h[receiver] = scope
 	apply := newApplyCon(handler)
 	apply.handlerKey = h
 	t := make(map[common.AccountName]applyCon)
 	t[receiver] = *apply
-	//TODO common.types make_pair()
-	self.ApplyHandlers = ApplyHandler{t, receiver}
-	fmt.Println(self.ApplyHandlers)
+	//self.ApplyHandlers = ApplyHandler{t, receiver}
+	self.ApplyHandlers = make(map[common.AccountName]map[HandlerKey]func(ctx *ApplyContext))
+	fmt.Println(self.ApplyHandlers)*/
+	hk := NewHandlerKey(common.ScopeName(contract), action)
+	first := make(map[common.AccountName]map[HandlerKey]func(ctx *ApplyContext))
+	secend := make(map[HandlerKey]func(ctx *ApplyContext))
+	secend[hk] = handler
+	first[receiver] = secend
+	self.ApplyHandlers[receiver] = secend
 }
 
 func (self *Controller) AbortBlock() {
@@ -267,14 +273,14 @@ func (self *Controller) PushTransaction(trx types.TransactionMetadata, deadLine 
 	}
 
 	trxContext := TransactionContext{}
-	trxContext = *trxContext.NewTransactionContext(self, &trx.Trx, trx.ID, common.Now())
+	trxContext = *NewTransactionContext(self, &trx.Trx, trx.ID, common.Now())
 
 	if self.SubjectiveCupLeeway != 0 {
 		if self.Pending.BlockStatus == types.BlockStatus(types.Incomplete) {
 			trxContext.Leeway = self.SubjectiveCupLeeway
 		}
 	}
-	trxContext.DeadLine = deadLine
+	trxContext.Deadline = deadLine
 	trxContext.ExplicitBilledCpuTime = explicitBilledCpuTime
 	trxContext.BilledCpuTimeUs = int64(billedCpuTimeUs)
 
@@ -317,7 +323,7 @@ func (self *Controller) GetMutableResourceLimitsManager() *ResourceLimitsManager
 func (self *Controller) GetOnBlockTransaction() types.SignedTransaction {
 	var onBlockAction = types.Action{}
 	onBlockAction.Account = common.AccountName(common.DefaultConfig.SystemAccountName)
-	onBlockAction.Name = common.ActionName(common.StringToName("onblock"))
+	onBlockAction.Name = common.ActionName(common.N("onblock"))
 	onBlockAction.Authorization = []types.PermissionLevel{{common.AccountName(common.DefaultConfig.SystemAccountName), common.PermissionName(common.DefaultConfig.ActiveName)}}
 
 	data, err := rlp.EncodeToBytes(self.Head.Header)
@@ -328,7 +334,7 @@ func (self *Controller) GetOnBlockTransaction() types.SignedTransaction {
 	trx.Actions = append(trx.Actions, &onBlockAction)
 	trx.SetReferenceBlock(self.Head.ID)
 	in := self.Pending.PendingBlockState.Header.Timestamp + 999999 //TODO
-	trx.Expiration = common.JSONTime{time.Now().UTC().Add(time.Duration(in))}
+	trx.Expiration = common.TimePointSec(in)
 	log.Error("getOnBlockTransaction trx.Expiration:", trx)
 	return trx
 }
@@ -364,7 +370,7 @@ func (self *Controller) LightValidationAllowed(dro bool) (b bool) {
 	return considerSkippingOnReplay || considerSkippingOnvalidate
 }
 
-func (self *Controller) isProducingBlock() bool {
+func (self *Controller) IsProducingBlock() bool {
 	if self.Pending == nil {
 		return false
 	}
@@ -394,7 +400,7 @@ func (self *Controller) PendingBlockTime() common.TimePoint {
 	return self.Pending.PendingBlockState.Header.Timestamp.ToTimePoint()
 }
 
-func Close(db *eosiodb.DataBase, session *eosiodb.Session) {
+func Close(db *database.DataBase, session *database.Session) {
 	//session.close()
 	db.Close()
 }
@@ -411,7 +417,7 @@ func (self *Controller) initConfig() *Controller {
 		forceAllChecks:      false,
 		disableReplayOpts:   false,
 		contractsConsole:    false,
-		//vmType:              config.DefaultWasmRuntime, //TODO
+		//vmType:              common.DefaultConfig.DefaultWasmRuntime, //TODO
 		readMode:            SPECULATIVE,
 		blockValidationMode: FULL,
 	}
@@ -514,7 +520,7 @@ func (self *Controller) PushBlock(sbp *types.SignedBlock, status types.BlockStat
 
 func (self *Controller) PushConfirnation(hc types.HeaderConfirmation) {}
 
-func (self *Controller) DataBase() *eosiodb.DataBase {
+func (self *Controller) DataBase() *database.DataBase {
 	return self.DB
 }
 
@@ -530,16 +536,6 @@ func (self *Controller) GetAccount(name common.AccountName) *types.AccountObject
 	}
 	return &accountObj
 }
-
-/*func (self *Controller) GetPermission(level *types.PermissionLevel) *types.PermissionObject {
-
-	return nil
-}*/
-
-/*func (self *Controller) GetResourceLimitsManager() *ResourceLimitsManager {
-
-	return nil
-}*/
 
 func (self *Controller) GetAuthorizationManager() *AuthorizationManager {
 
@@ -640,19 +636,19 @@ func (self *Controller) RemoveResourceGreyList(name *common.AccountName) {}
 
 func (self *Controller) IsResourceGreyListed(name *common.AccountName) bool { return false }
 
-func (self *Controller) GetResourceGreyList() *map[common.AccountName]struct{} { return nil }
+func (self *Controller) GetResourceGreyList() *map[common.AccountName]interface{} { return nil }
 
-func (self *Controller) ValidateReferencedAccounts(t types.Transaction) {}
+func (self *Controller) ValidateReferencedAccounts(t *types.Transaction) {}
 
-func (self *Controller) ValidateExpiration(t types.Transaction) {}
+func (self *Controller) ValidateExpiration(t *types.Transaction) {}
 
-func (self *Controller) ValidateTapos(t types.Transaction) {}
+func (self *Controller) ValidateTapos(t *types.Transaction) {}
 
 func (self *Controller) ValidateDbAvailableSize() {}
 
 func (self *Controller) ValidateReversibleAvailableSize() {}
 
-func (self *Controller) IsKnownUnexpiredTransaction(id common.TransactionIdType) bool { return false }
+func (self *Controller) IsKnownUnexpiredTransaction(id *common.TransactionIdType) bool { return false }
 
 func (self *Controller) SetProposedProducers(producers []types.ProducerKey) int64 { return 0 }
 
@@ -668,13 +664,31 @@ func (self *Controller) GetValidationMode() ValidationMode { return 0 }
 
 func (self *Controller) SetSubjectiveCpuLeeway(leeway common.Microseconds) {}
 
-func (self *Controller) FindApplyHandler(contract common.AccountName,
-	scope common.ScopeName,
-	act common.ActionName) *ApplyContext {
+func (self *Controller) PendingProducerBlockId() common.BlockIdType{
+	//EOS_ASSERT( my->pending, block_validate_exception, "no pending block" )
+	return self.Pending.ProducerBlockId
+}
+
+func (self *Controller) FindApplyHandler(receiver common.AccountName,
+	scope common.AccountName,
+	act common.ActionName) func(*ApplyContext) {
+
+	handlerKey := NewHandlerKey(common.ScopeName(scope), act)
+	secend,ok := self.ApplyHandlers[receiver]
+	if ok {
+		handler,success := secend[handlerKey]
+		fmt.Println("find secend:",success)
+		if success{
+			fmt.Println("-=-=-=-=-=-=-=-==-=-=-=-=-=-=",handler)
+			return handler
+		}
+	}
 	return nil
 }
 
-//func (self *Controller) GetWasmInterface() *exec.WasmInterface { return nil }
+func (self *Controller) GetWasmInterface() *exec.WasmInterface {
+	return self.WasmIf
+}
 
 func (self *Controller) GetAbiSerializer(name common.AccountName,
 	maxSerializationTime common.Microseconds) types.AbiSerializer {
@@ -683,7 +697,7 @@ func (self *Controller) GetAbiSerializer(name common.AccountName,
 
 func (self *Controller) ToVariantWithAbi(obj interface{}, maxSerializationTime common.Microseconds) {}
 
-var readycontroller chan bool
+var readycontroller chan bool //TODO test code
 
 func (self *Controller) CreateNativeAccount(name common.AccountName, owner types.Authority, active types.Authority, isPrivileged bool) {
 	account := types.AccountObject{}
@@ -736,4 +750,31 @@ signal<void(const int&)>                      bad_alloc;*/
 	c := new(Controller)
 
 	fmt.Println("asdf",c)
+}*/
+
+//c++ pair<scope_name,action_name>
+
+type HandlerKey struct {
+	//handMap map[common.AccountName]common.ActionName
+	scope common.ScopeName
+	action common.ActionName
+}
+func NewHandlerKey(scopeName common.ScopeName, actionName common.ActionName) HandlerKey {
+	hk := HandlerKey{scopeName,actionName}
+	return hk
+}
+
+/*
+
+
+
+type applyCon struct {
+	handlerKey   map[common.AccountName]common.AccountName //c++ pair<scope_name,action_name>
+	applyContext func(*ApplyContext)
+}
+
+//apply_context
+type ApplyHandler struct {
+	applyHandler map[common.AccountName]applyCon
+	receiver     common.AccountName
 }*/

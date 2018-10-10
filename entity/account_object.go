@@ -4,24 +4,25 @@ import (
 	"fmt"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
-	"github.com/eosspark/eos-go/rlp"
+	"github.com/eosspark/eos-go/crypto"
+	"github.com/eosspark/eos-go/crypto/rlp"
 )
 
 type AccountObject struct {
-	ID             types.IdType       `storm:"id,increment" json:"id"`
+	ID             common.IdType       `storm:"id,increment" json:"id"`
 	Name           common.AccountName `storm:"unique" json :"name"`
 	VmType         uint8              //c++ default value 0
 	VmVersion      uint8              //c++ default value 0
 	Privileged     bool               //c++ default value false
 	LastCodeUpdate common.TimePoint
-	CodeVersion    rlp.Sha256
+	CodeVersion    crypto.Sha256
 	CreationDate   common.BlockTimeStamp
 	Code           common.HexBytes
 	Abi            common.HexBytes
 }
 
 type AccountSequenceObject struct {
-	ID           types.IdType       `storm:"id,increment" json:"id"`
+	ID           common.IdType       `storm:"id,increment" json:"id"`
 	Name         common.AccountName `storm:"unique" json:name`
 	RecvSequence uint64             //default value 0
 	authSequence uint64

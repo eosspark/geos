@@ -2,6 +2,7 @@ package types
 
 import (
 	"github.com/stretchr/testify/assert"
+	"github.com/eosspark/eos-go/crypto"
 	"testing"
 	"github.com/eosspark/eos-go/crypto"
 )

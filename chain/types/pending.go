@@ -3,28 +3,20 @@ package types
 import (
 	"fmt"
 	"github.com/eosspark/eos-go/common"
-	"github.com/eosspark/eos-go/db"
 	"github.com/eosspark/eos-go/log"
+	"github.com/eosspark/eos-go/database"
 )
 
-type ActionReceipt struct {
-	Receiver       common.AccountName            `json:"receiver"`
-	ActDigest      common.SHA256Bytes            `json:"act_digest"`
-	GlobalSequence uint64                        `json:"global_sequence"`
-	RecvSequence   uint64                        `json:"recv_sequence"`
-	AuthSequence   map[common.AccountName]uint64 `json:"auth_sequence"`
-	CodeSequence   uint32                        `json:"code_sequence"` //TODO
-	ABISequence    uint32                        `json:"abi_sequence"`
-}
 type PendingState struct {
-	DBSeesion         *eosiodb.Session `json:"db_session"`
+	DBSession         *database.Session `json:"db_session"`
 	PendingBlockState BlockState       `json:"pending_block_state"`
 	Actions           []ActionReceipt  `json:"actions"`
 	BlockStatus       BlockStatus      `json:"block_status"`
-	Valid             bool             `json:"valid"`
+	ProducerBlockId   common.BlockIdType
 }
 
-func NewPendingState(db *eosiodb.DataBase) *PendingState {
+//TODO wait modify Singleton
+func NewPendingState(db *database.DataBase) *PendingState {
 	pending := PendingState{}
 	/*db, err := eosiodb.NewDatabase(config.DefaultConfig.BlockDir, "eos.db", true)
 	if err != nil {
@@ -33,14 +25,15 @@ func NewPendingState(db *eosiodb.DataBase) *PendingState {
 	defer db.Close()*/
 	session := db.StartSession()
 
-	pending.DBSeesion = session
-	pending.Valid = true
+	pending.DBSession = session
+	//pending.Valid = true
+	pending.DBSession = session
 	return &pending
 }
-
+//TODO wait modify Singleton
 func GetInstance() *PendingState {
 	pending := PendingState{}
-	db, err := eosiodb.NewDataBase(common.DefaultConfig.DefaultBlocksDirName, common.DefaultConfig.DBFileName, true)
+	db, err := database.NewDataBase(common.DefaultConfig.DefaultBlocksDirName, common.DefaultConfig.DBFileName, true)
 	if err != nil {
 		log.Error("pending NewPendingState is error detail:", err)
 	}
@@ -49,8 +42,9 @@ func GetInstance() *PendingState {
 	if err != nil {
 		fmt.Println(err.Error())
 	}
-	pending.DBSeesion = session
-	pending.Valid = false
+	pending.DBSession = session
+	//pending.Valid = false
+	pending.DBSession = session
 	return &pending
 }
 
