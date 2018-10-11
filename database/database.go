@@ -160,10 +160,9 @@ func delete_(data interface{}, db *leveldb.DB) error {
 		return ErrBadType
 	}
 
-	if ref.Kind() == reflect.Ptr{
+	if ref.Kind() == reflect.Ptr {
 		return ErrStructNeeded
 	}
-
 
 	cfg, err := extractStruct(&ref)
 	if err != nil {
@@ -179,8 +178,8 @@ func delete_(data interface{}, db *leveldb.DB) error {
 	//fmt.Println(typeName)
 
 	callBack := func(key, value []byte) error {
-		exist ,err := db.Has(key,nil)
-		if err != nil{
+		exist, err := db.Has(key, nil)
+		if err != nil {
 			return nil
 		}
 		if !exist {
@@ -246,7 +245,6 @@ func update(data interface{}, fn interface{}, db *leveldb.DB) error {
 }
 
 func modify(old, new *reflect.Value, db *leveldb.DB) error {
-
 	newCfg, err := extractStruct(new)
 	if err != nil {
 		return err
@@ -256,10 +254,9 @@ func modify(old, new *reflect.Value, db *leveldb.DB) error {
 		return err
 	}
 	if !reflect.DeepEqual(oldCfg.Id.Interface(), newCfg.Id.Interface()) {
-		fmt.Println("----------------------- Id No Equal ---------------------------")
-	} else {
-		fmt.Println("----------------------- Id Equal ---------------------------")
+		return ErrNoID
 	}
+
 	callBack := func(newKey, oldKey []byte) error {
 		find, err := db.Has(oldKey, nil)
 		if err != nil {
@@ -380,14 +377,18 @@ func copyInterface(data interface{}) interface{} {
 	return dst.Interface()
 }
 
+func get(fieldName string, value interface{}, db *leveldb.DB) {
+
+}
+
 func find(fieldName string, value interface{}, db *leveldb.DB) (DbIterator, error) {
 
 	ref := reflect.ValueOf(value)
 	if !ref.IsValid() || reflect.Indirect(ref).Kind() != reflect.Struct {
 		return nil, ErrBadType
 	}
-	if ref.Kind() == reflect.Ptr{
-		return nil,ErrStructNeeded
+	if ref.Kind() == reflect.Ptr {
+		return nil, ErrStructNeeded
 	}
 	typeName := ref.Type().Name()
 	cfg, err := extractStruct(&ref)
