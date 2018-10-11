@@ -12,7 +12,7 @@ import (
 	"reflect"
 )
 
-type Database interface {
+type DataBase interface {
 
 	Insert(data interface{})
 
@@ -26,12 +26,12 @@ type Database interface {
 }
 
 
-type LDatabase struct{
+type LDataBase struct{
 	db 			*leveldb.DB
 	fn 		string
 }
 
-func NewLDatabase(fileName string)(*LDatabase,error){
+func NewLDatabase(fileName string)(*LDataBase,error){
 
 	db, err := leveldb.OpenFile(fileName, &opt.Options{
 		OpenFilesCacheCapacity: 16,
@@ -46,10 +46,10 @@ func NewLDatabase(fileName string)(*LDatabase,error){
 		return nil, err
 	}
 
-	return &LDatabase{db:db,fn:fileName},nil
+	return &LDataBase{db:db,fn:fileName},nil
 }
 
-func(ldb *LDatabase)Close(){
+func(ldb *LDataBase)Close(){
 	err := ldb.db.Close()
 	if err != nil{
 		// log
@@ -69,7 +69,7 @@ error 		-->		error object
 
  */
 
-func (ldb*LDatabase)Insert(data interface{})error{
+func (ldb*LDataBase)Insert(data interface{})error{
 	return insert(data,ldb.db)
 }
 //////////////////////////////////////////////////////	find object from database //////////////////////////////////////////////////////
@@ -85,19 +85,19 @@ error 		-->		error object
 
  */
 
-func (ldb*LDatabase)Find(fieldName string,data interface{})(Iterator,error){
+func (ldb*LDataBase)Find(fieldName string,data interface{})(Iterator,error){
 	return find(fieldName,data,ldb.db)
 }
 
-func (ldb*LDatabase)Get(fieldName string,data interface{})(Iterator,error){
+func (ldb*LDataBase)Get(fieldName string,data interface{})(Iterator,error){
 	return find(fieldName,data,ldb.db)
 }
 
-func (ldb*LDatabase)Modify(data interface{},fn interface{})error{
+func (ldb*LDataBase)Modify(data interface{},fn interface{})error{
 	return update(data,fn,ldb.db)
 }
 
-func (ldb*LDatabase)Remove(data interface{})error{
+func (ldb*LDataBase)Remove(data interface{})error{
 	return delete_(data,ldb.db)
 }
 
@@ -487,3 +487,35 @@ func incrementField(cfg *structInfo,db *leveldb.DB)error{
 	return db.Put(key,value,nil)
 }
 
+/////////////////////////////////////////////////////// Session  //////////////////////////////////////////////////////////
+type Session struct {
+	db      *DataBase
+	version uint64
+	apply   bool
+}
+
+func (session *Session) Commit() {
+	if !session.apply {
+		// log ?
+		return
+	}
+//	version := session.version
+//	session.db.commit(version)
+	session.apply = false
+}
+
+func (session *Session) Squash() {
+	if !session.apply {
+		return
+	}
+//	session.db.squash()
+	session.apply = false
+}
+
+func (session *Session) Undo() {
+	if !session.apply {
+		return
+	}
+//	session.db.undo()
+	session.apply = false
+}
