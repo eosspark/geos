@@ -29,6 +29,9 @@ type SharedProducerScheduleType struct {
 	Producers []ProducerKey
 }
 
+/*
+	老旧的方法，不建议使用了
+*/
 func (spst *SharedProducerScheduleType) Clear() {
 	spst.Version = 0
 	spst.Producers = []ProducerKey{}

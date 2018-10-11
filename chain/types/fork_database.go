@@ -10,7 +10,7 @@ import (
 var isFdActive bool = false
 
 type ForkDatabase struct {
-	db      *database.DataBase
+	db      *database.LDataBase
 	Index   *ForkMultiIndexType `json:"index"`
 	Head    *BlockState         `json:"head"`
 	DataDir string
@@ -25,13 +25,13 @@ type ForkMultiIndexType struct {
 	BlockState BlockState         `storm:"inline"`
 }
 
-func (f *ForkDatabase) setHead(head *BlockState) *ForkDatabase {
-	if f.Head == nil {
-		f.Head = head
-	} else if f.Head.BlockNum < head.BlockNum {
-		f.Head = head
+func (self *ForkDatabase) setHead(head *BlockState) *ForkDatabase {
+	if self.Head == nil {
+		self.Head = head
+	} else if self.Head.BlockNum < head.BlockNum {
+		self.Head = head
 	}
-	return f
+	return self
 }
 
 func GetForkDbInstance(stateDir string) *ForkDatabase {
@@ -50,7 +50,7 @@ func GetForkDbInstance(stateDir string) *ForkDatabase {
 func newForkDatabase(path string, fileName string, rw bool) (*ForkDatabase, error) {
 	//forkdb := &ForkDatabase{}
 
-	db, err := database.NewDataBase(path, fileName, rw)
+	db, err := database.NewDataBase(path + "/" + fileName)
 	if err != nil {
 		log.Error("newForkDatabase is error:", err)
 		return nil, err
@@ -82,51 +82,49 @@ func newForkDatabase(path string, fileName string, rw bool) (*ForkDatabase, erro
 	return &ForkDatabase{db: db}, err
 }
 
-func (f *ForkDatabase) set(s BlockState) {
-
-}
-func (fdb *ForkDatabase) GetBlock(id common.BlockIdType) *BlockState {
+func (self *ForkDatabase) GetBlock(id *common.BlockIdType) *BlockState {
 	//blockId   = fdb.Index.ID
-	var blockState BlockState
-	err := fdb.db.Find("ID", id, blockState)
+	blockState := BlockState{}
+	/*blockState.ID = id
+	err := fdb.db.Find("ID", blockState)
 	if err != nil {
 		return &blockState
-	}
+	}*/
 	return &blockState
 }
 
-func (fdb *ForkDatabase) GetBlockByID(blockId common.BlockIdType) (*BlockState, error) {
-	var indexObj ForkMultiIndexType
-	err := fdb.db.Find("ID", blockId, &indexObj)
+func (self *ForkDatabase) GetBlockByID(blockId common.BlockIdType) (*BlockState, error) {
+	indexObj := ForkMultiIndexType{}
+	/*err := fdb.db.Find("ID", blockId, &indexObj)
 	if err != nil {
 		return nil, err
-	}
+	}*/
 	return &indexObj.BlockState, nil
 }
 
-func (fdb *ForkDatabase) GetBlockByNum(blockNum uint32) (*BlockState, error) {
-	var indexObj ForkMultiIndexType
-	err := fdb.db.Get("BlockNum", blockNum, &indexObj)
+func (self *ForkDatabase) GetBlockByNum(blockNum uint32) (*BlockState, error) {
+	indexObj := ForkMultiIndexType{}
+	/*err := fdb.db.Get("BlockNum", blockNum, &indexObj)
 	if err != nil {
 		return nil, err
 	}
-
+	*/
 	return &indexObj.BlockState, nil
 }
 
-func (fdb *ForkDatabase) AddBlockState(blockState BlockState) *BlockState {
+func (self *ForkDatabase) AddBlockState(blockState BlockState) *BlockState {
 
-	var index ForkMultiIndexType = ForkMultiIndexType{ByBlockID: blockState.ID,
+	index := ForkMultiIndexType{ByBlockID: blockState.ID,
 		ByPrev:     blockState.SignedBlock.Previous,
 		ByBlockNum: common.MakeTuple(blockState.BlockNum, true),
 		BlockState: blockState}
 
-	err := fdb.db.Insert(index)
+	err := self.db.Insert(index)
 	if err != nil {
 		log.Error("AddBlockState is error for detail:", err)
 	}
 
-	var libHeaderObj []BlockState
+	/*libHeaderObj :=[]BlockState{}
 	err = fdb.db.ByIndex("blockLibNum", &libHeaderObj)
 	if err != nil {
 		log.Error("AddBlockState find ByIndex is error for detail:", err)
@@ -149,14 +147,14 @@ func (fdb *ForkDatabase) AddBlockState(blockState BlockState) *BlockState {
 
 	if num < libNum {
 		//TODO delete
-	}
+	}*/
 	//if fdb.BlockState.DposIrreversibleBlocknum <
 	return &blockState
 }
-func (fdb *ForkDatabase) AddSignedBlockState(signedBlcok *SignedBlock) *BlockState {
-	blockId := signedBlcok.BlockID()
-	var blockState BlockState
-	err := fdb.db.Get("ID", blockId, &blockState)
+func (self *ForkDatabase) AddSignedBlockState(signedBlcok *SignedBlock) *BlockState {
+	//blockId := signedBlcok.BlockID()
+	blockState := BlockState{}
+	/*err := fdb.db.Get("ID", blockId, &blockState)
 	if err != nil {
 		log.Error("AddSignedBlockState is error,detail:", err)
 	}
@@ -165,31 +163,32 @@ func (fdb *ForkDatabase) AddSignedBlockState(signedBlcok *SignedBlock) *BlockSta
 		if err != nil {
 			log.Error("AddSignedBlockState is error,detail:", err)
 		}
-	}
-	block := fdb.AddBlockState(blockState)
+	}*/
+	block := self.AddBlockState(blockState)
 	return block
 }
-func (fdb *ForkDatabase) Add(c HeaderConfirmation) {
-	header, err := fdb.GetBlockByID(c.BlockId)
+func (self *ForkDatabase) Add(c HeaderConfirmation) {
+	header, err := self.GetBlockByID(c.BlockId)
 	if err != nil {
 		log.Error("forkDatabase add header confirmation is error ,detail:", err)
 	}
 	fmt.Println(header)
 	header.AddConfirmation(c) //TODO
 }
+func (self *ForkDatabase) Header() *BlockState { return self.Head }
 
 type BranchType struct {
 	branch []BlockState
 }
 
-func (fdb *ForkDatabase) FetchBranchFrom(first common.BlockIdType, second common.BlockIdType) error {
+func (self *ForkDatabase) FetchBranchFrom(first common.BlockIdType, second common.BlockIdType) error {
 	//result := make(map[BranchType]BranchType)
 	var firstBlock, secondBlock *BlockState
-	firstBlock, er := fdb.GetBlockByID(first)
+	firstBlock, er := self.GetBlockByID(first)
 	if er != nil {
 		log.Error("FetchBranchFrom is error for detail:", er)
 	}
-	secondBlock, err := fdb.GetBlockByID(second)
+	secondBlock, err := self.GetBlockByID(second)
 	if err != nil {
 		log.Error("FetchBranchFrom is error for detail:", err)
 	}
@@ -205,13 +204,28 @@ func (fdb *ForkDatabase) FetchBranchFrom(first common.BlockIdType, second common
 	return err
 }
 
-func (fdb *ForkDatabase) GetBlockInCurrentChainByNum(n uint32) *BlockState {
+func (self *ForkDatabase) GetBlockInCurrentChainByNum(n uint32) *BlockState {
 	b := BlockState{}
 	b.BlockNum = n
 	//TODO wait append
 	//numIdx := fdb.db.Find("ByBlockNum",b)
 	return &b
 }
+
+func (self *ForkDatabase) Remove(id *common.BlockIdType) {}
+
+func (self *ForkDatabase) SetValidity(h *BlockState, valid bool) {
+	if !valid {
+		self.Remove(&h.ID)
+	} else {
+		h.Validated = true
+	}
+}
+func (self *ForkDatabase) MarkInCurrentChain(b *BlockState, inCurrentChain bool) {}
+
+func (self *ForkDatabase) Prune(b *BlockState) {}
+
+func (self *ForkDatabase) SetBftIrreversible(id common.BlockIdType) {}
 
 /*func main(){
 
