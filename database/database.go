@@ -159,6 +159,12 @@ func delete_(data interface{}, db *leveldb.DB) error {
 	if !ref.IsValid() || reflect.Indirect(ref).Kind() != reflect.Struct {
 		return ErrBadType
 	}
+
+	if ref.Kind() == reflect.Ptr{
+		return ErrStructNeeded
+	}
+
+
 	cfg, err := extractStruct(&ref)
 	if err != nil {
 		return err
@@ -211,6 +217,7 @@ func update(data interface{}, fn interface{}, db *leveldb.DB) error {
 	if dataRef.Kind() != reflect.Ptr {
 		return ErrPtrNeeded
 	}
+
 	oldInter := copyInterface(data)
 	dataType := dataRef.Type()
 
@@ -378,6 +385,9 @@ func find(fieldName string, value interface{}, db *leveldb.DB) (DbIterator, erro
 	ref := reflect.ValueOf(value)
 	if !ref.IsValid() || reflect.Indirect(ref).Kind() != reflect.Struct {
 		return nil, ErrBadType
+	}
+	if ref.Kind() == reflect.Ptr{
+		return nil,ErrStructNeeded
 	}
 	typeName := ref.Type().Name()
 	cfg, err := extractStruct(&ref)

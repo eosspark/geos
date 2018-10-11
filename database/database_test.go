@@ -2,7 +2,6 @@ package database
 
 import (
 	"fmt"
-	"github.com/eosspark/eos-go/crypto/rlp"
 	"log"
 	"os"
 	"testing"
@@ -46,6 +45,21 @@ func Test_find(t *testing.T) {
 	findLessObjs(objs_,houses_,db)
 
 	findIdObjs(objs_,houses_,db)
+
+	findErrStruct(db)
+}
+
+func Test_modify(t *testing.T) {
+	db,clo := openDb()
+
+	if db == nil{
+		log.Fatalln("db open failed")
+	}
+	defer clo()
+
+	objs,houses := Objects()
+	saveObjs(objs,houses,db)
+	modifyObjs(db)
 }
 
 func openDb()(*LDataBase,func()){
@@ -116,21 +130,29 @@ func saveObjs(objs []TableIdObject,houses []House,db *LDataBase) ([]TableIdObjec
 	}
 	return objs_,houses_
 }
+func findErrStruct(db *LDataBase){
+
+	obj:= TableIdObject{Table:13}
+	_,err := db.Find("byTable",&obj)
+	if err != ErrStructNeeded{
+		log.Fatalln(err)
+	}
+
+}
 
 func findGreaterObjs(objs []TableIdObject,houses []House,db *LDataBase) {
+
 	obj:= TableIdObject{Table:13}
 	it,err := db.Find("byTable",obj)
 	if err != nil{
 		log.Fatalln(err)
 	}
-	if it == nil{
-		log.Fatalln("iterator failed")
-	}
+
 	/*                                                         */
 	i := 2
 	for it.Next(){
 		obj = TableIdObject{}
-		err = rlp.DecodeBytes(it.Value(),&obj)
+		err = it.Data(&obj)
 		if err != nil {
 			log.Fatalln(err)
 		}
@@ -155,7 +177,7 @@ func findLessObjs(objs []TableIdObject,houses []House,db *LDataBase) {
 
 	for it.Next(){
 		obj = TableIdObject{}
-		err = rlp.DecodeBytes(it.Value(),&obj)
+		err = it.Data(&obj)
 		if err != nil {
 			log.Fatalln(err)
 		}
@@ -170,7 +192,7 @@ func findLessObjs(objs []TableIdObject,houses []House,db *LDataBase) {
 	i--
 	for it.Prev(){
 		obj = TableIdObject{}
-		err = rlp.DecodeBytes(it.Value(),&obj)
+		err = it.Data(&obj)
 		if err != nil {
 			log.Fatalln(err)
 		}
@@ -196,7 +218,7 @@ func findIdObjs(objs []TableIdObject,houses []House,db *LDataBase){
 
 	for it.Prev(){
 		obj = TableIdObject{}
-		err = rlp.DecodeBytes(it.Value(),&obj)
+		err = it.Data(&obj)
 		if err != nil {
 			log.Fatalln(err)
 		}
@@ -212,8 +234,6 @@ func findIdObjs(objs []TableIdObject,houses []House,db *LDataBase){
 
 	for it.Next(){
 		obj = TableIdObject{}
-		//err = rlp.DecodeBytes(it.Value(),&obj)
-
 		err = it.Data(&obj)
 		if err != nil {
 			log.Fatalln(err)
@@ -232,22 +252,59 @@ func findIdObjs(objs []TableIdObject,houses []House,db *LDataBase){
 func Test_remove(t *testing.T) {
 
 	db, clo := openDb()
-
 	if db == nil {
 		log.Fatalln("db open failed")
 	}
 	defer clo()
 
 	objs, houses := Objects()
-	objs_, houses_ := saveObjs(objs, houses, db)
-	removeObjs(objs_,houses_,db)
+	saveObjs(objs, houses, db)
+	removeObjs(db)
 }
 
-func removeObjs(objs []TableIdObject, houses []House, db *LDataBase) {
+func removeObjs(db *LDataBase) {
 
-	obj := TableIdObject{ID:4,Code:21,Scope:22,Table:23,Payer:24,Count:25}
+	obj := TableIdObject{Code:21,Scope:22,Table:23,Payer:24,Count:25}
 	err := db.Remove(obj)
+	if err != ErrIncompleteStructure{
+		log.Fatalln(err)
+	}
+
+	obj.ID = 4
+
+	err = db.Remove(&obj)
+	if err != ErrStructNeeded{
+		log.Fatalln(err)
+	}
+
+	err = db.Remove(obj)
 	if err != nil{
 		log.Fatalln(err)
 	}
 }
+func modifyObjs(db*LDataBase){
+
+	obj := TableIdObject{ID:4,Code:21,Scope:22,Table:23,Payer:24,Count:25}
+
+	err := db.Modify(&obj, func(object *TableIdObject) {
+		object.Code = 200
+	})
+	if err != nil{
+		log.Fatalln(err)
+	}
+
+	obj = TableIdObject{}
+	obj.Scope = 22
+	obj.Table = 23
+	it,err := db.Find("byTable",obj)
+	if err != nil{
+		log.Fatalln(err)
+	}
+	defer it.Release()
+	for it.Next(){
+		obj = TableIdObject{}
+		it.Data(&obj)
+		//fmt.Println(obj)
+	}
+}
+
