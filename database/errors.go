@@ -1,7 +1,6 @@
-package storm
+package database
 
 import "errors"
-
 // Errors
 var (
 	// ErrNoID is returned when no ID field or id tag is found in the struct.
