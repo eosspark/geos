@@ -2,7 +2,7 @@
 package database
 
 import (
-	"github.com/rlp"
+	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/syndtr/goleveldb/leveldb"
 	"reflect"
 	"regexp"
