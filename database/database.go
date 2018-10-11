@@ -68,7 +68,22 @@ error 		-->		error object
 */
 
 func (ldb *LDataBase) Insert(data interface{}) error {
-	return insert(data, ldb.db)
+	tx, err := ldb.db.OpenTransaction()
+	if err != nil {
+		return err
+	}
+	defer tx.Commit()
+
+	err = insert(data, tx)
+	if err != nil {
+		tx.Discard()
+		return err
+	}
+	return nil
+}
+
+func Save(transaction *leveldb.Transaction) {
+
 }
 
 //////////////////////////////////////////////////////	find object from database //////////////////////////////////////////////////////
@@ -93,14 +108,25 @@ func (ldb *LDataBase) Get(fieldName string, data interface{}) (DbIterator, error
 }
 
 func (ldb *LDataBase) Modify(data interface{}, fn interface{}) error {
-	return update(data, fn, ldb.db)
+
+	tx, err := ldb.db.OpenTransaction()
+	if err != nil {
+		return err
+	}
+	defer tx.Commit()
+	err = update(data, fn, tx)
+	if err != nil {
+		tx.Discard()
+		return err
+	}
+	return nil
 }
 
 func (ldb *LDataBase) Remove(data interface{}) error {
 	return delete_(data, ldb.db)
 }
 
-func insert(data interface{}, db *leveldb.DB) error {
+func insert(data interface{}, tx *leveldb.Transaction) error {
 
 	ref := reflect.ValueOf(data)
 	if !ref.IsValid() || ref.Kind() != reflect.Ptr || ref.Elem().Kind() != reflect.Struct {
@@ -116,7 +142,7 @@ func insert(data interface{}, db *leveldb.DB) error {
 		return ErrNoID
 	}
 
-	err = incrementField(cfg, db)
+	err = incrementField(cfg, tx)
 	if err != nil {
 		return err
 	}
@@ -125,7 +151,7 @@ func insert(data interface{}, db *leveldb.DB) error {
 	typeName := []byte(cfg.Name)
 
 	callBack := func(key, value []byte) error {
-		return save(key, value, db)
+		return save(key, value, tx)
 	}
 	err = fieldIndex(id, typeName, cfg, callBack)
 	if err != nil {
@@ -137,16 +163,16 @@ func insert(data interface{}, db *leveldb.DB) error {
 		return err
 	}
 
-	return save(key, value, db)
+	return save(key, value, tx)
 }
 
-func save(key, value []byte, db *leveldb.DB) error {
+func save(key, value []byte, tx *leveldb.Transaction) error {
 
-	if ok, _ := db.Has(key, nil); ok {
+	if ok, _ := tx.Has(key, nil); ok {
 		return ErrAlreadyExists
 	}
 
-	err := db.Put(key, value, nil)
+	err := tx.Put(key, value, nil)
 	if err != nil {
 		return err
 	}
@@ -183,7 +209,7 @@ func delete_(data interface{}, db *leveldb.DB) error {
 			return nil
 		}
 		if !exist {
-			return ErrIncompleteStructure
+			return ErrNotFound
 		}
 
 		return remove(key, db)
@@ -210,7 +236,7 @@ func remove(key []byte, db *leveldb.DB) error {
 	return nil
 }
 
-func update(data interface{}, fn interface{}, db *leveldb.DB) error {
+func update(data interface{}, fn interface{}, tx *leveldb.Transaction) error {
 	// ready
 	dataRef := reflect.ValueOf(data)
 	if dataRef.Kind() != reflect.Ptr {
@@ -236,7 +262,7 @@ func update(data interface{}, fn interface{}, db *leveldb.DB) error {
 	fnRef.Call([]reflect.Value{dataRef})
 	// modify
 	oldRef := reflect.ValueOf(oldInter)
-	err := modify(&oldRef, &dataRef, db)
+	err := modify(&oldRef, &dataRef, tx)
 	if err != nil {
 		return err
 	}
@@ -244,7 +270,7 @@ func update(data interface{}, fn interface{}, db *leveldb.DB) error {
 	return nil
 }
 
-func modify(old, new *reflect.Value, db *leveldb.DB) error {
+func modify(old, new *reflect.Value, tx *leveldb.Transaction) error {
 	newCfg, err := extractStruct(new)
 	if err != nil {
 		return err
@@ -258,22 +284,22 @@ func modify(old, new *reflect.Value, db *leveldb.DB) error {
 	}
 
 	callBack := func(newKey, oldKey []byte) error {
-		find, err := db.Has(oldKey, nil)
+		find, err := tx.Has(oldKey, nil)
 		if err != nil {
 			return err
 		}
 		if !find {
 			return ErrNotFound
 		}
-		value, err := db.Get(oldKey, nil)
+		value, err := tx.Get(oldKey, nil)
 		if err != nil {
 			return err
 		}
-		err = db.Delete(oldKey, nil)
+		err = tx.Delete(oldKey, nil)
 		if err != nil {
 			return err
 		}
-		save(newKey, value, db)
+		save(newKey, value, tx)
 		return nil
 	}
 
@@ -285,11 +311,11 @@ func modify(old, new *reflect.Value, db *leveldb.DB) error {
 		return err
 	}
 	modifyField(newCfg, oldCfg, callBack)
-	err = db.Delete(key, nil)
+	err = tx.Delete(key, nil)
 	if err != nil {
 		return err
 	}
-	err = save(key, val, db)
+	err = save(key, val, tx)
 	if err != nil {
 		return err
 	}
@@ -313,9 +339,10 @@ func modifyField(cfg, oldCfg *structInfo, callBack func(newKey, oldKey []byte) e
 
 		oldKey := fieldKey(key, fieldCfg)
 		newKey := fieldKey(key, oldCfg.Fields[tag])
-
-		newKey = append(newKey, id...)
-		oldKey = append(oldKey, id...)
+		if !fieldCfg.unique {
+			newKey = append(newKey, id...)
+			oldKey = append(oldKey, id...)
+		}
 
 		err := callBack(newKey, oldKey)
 		if err != nil {
@@ -351,7 +378,9 @@ func fieldIndex(id, typeName []byte, cfg *structInfo, callBack func(key, value [
 		// typeName__tag__
 		key = append(key, tag...)
 		key = fieldKey(key, fieldCfg)
-		key = append(key, id...)
+		if !fieldCfg.unique {
+			key = append(key, id...)
+		}
 		//fmt.Println("func fieldIndex value is : ",string(key))
 		//fmt.Println("func fieldIndex value is : ",key)
 		err := callBack(key, id)
@@ -472,7 +501,7 @@ key 	 --> typeName__fieldName
 value --> id
 */
 
-func incrementField(cfg *structInfo, db *leveldb.DB) error {
+func incrementField(cfg *structInfo, tx *leveldb.Transaction) error {
 
 	typeName := []byte(cfg.Name)
 	fieldName := []byte(tagID)
@@ -481,7 +510,7 @@ func incrementField(cfg *structInfo, db *leveldb.DB) error {
 	key = append(key, '_')
 	key = append(key, fieldName...)
 
-	valByte, err := db.Get(key, nil)
+	valByte, err := tx.Get(key, nil)
 	if err != nil && err != leveldb.ErrNotFound {
 		return err
 	}
@@ -500,7 +529,7 @@ func incrementField(cfg *structInfo, db *leveldb.DB) error {
 	if value == nil && err == nil {
 		return err
 	}
-	return db.Put(key, value, nil)
+	return tx.Put(key, value, nil)
 }
 
 /////////////////////////////////////////////////////// Session  //////////////////////////////////////////////////////////
