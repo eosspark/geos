@@ -381,26 +381,26 @@ func (impl *ProducerPluginImpl) ScheduleProductionLoop() {
 		// we succeeded but block may be exhausted
 		if result == EnumStartBlockRusult(succeeded) {
 			// ship this block off no later than its deadline
-			if chain.PendingBlockState() == nil {
-				panic("producing without pending_block_state, start_block succeeded")
-			}
-			epoch := chain.PendingBlockTime().TimeSinceEpoch()
+			EosAssert(chain.PendingBlockState() != nil, &MissingPendingBlockState{}, "producing without pending_block_state, start_block succeeded")
+			deadline := chain.PendingBlockTime().TimeSinceEpoch()
 			if lastBlock {
-				epoch += common.Microseconds(impl.LastBlockTimeOffsetUs)
+				deadline += common.Microseconds(impl.LastBlockTimeOffsetUs)
 			} else {
-				epoch += common.Microseconds(impl.ProduceTimeOffsetUs)
+				deadline += common.Microseconds(impl.ProduceTimeOffsetUs)
 			}
-			impl.Timer.ExpiresAt(epoch)
-			log.Debug(fmt.Sprintf("Scheduling Block Production on Normal Block #%dfor %s", chain.PendingBlockState().BlockNum, chain.PendingBlockTime()))
+			impl.Timer.ExpiresAt(deadline)
+			//TODO: fc_dlog
 		} else {
+			EosAssert(chain.PendingBlockState() != nil, &MissingPendingBlockState{}, "producing without pending_block_state")
 			expectTime := chain.PendingBlockTime().SubUs(common.Microseconds(common.DefaultConfig.BlockIntervalUs))
 			// ship this block off up to 1 block time earlier or immediately
 			if common.Now() >= expectTime {
 				impl.Timer.ExpiresFromNow(0)
+				//TODO: fc_dlog
 			} else {
 				impl.Timer.ExpiresAt(expectTime.TimeSinceEpoch())
+				//TODO: fc_dlog
 			}
-			log.Debug("Scheduling Block Production on Exhausted Block #%d immediately", chain.PendingBlockState().BlockNum)
 		}
 
 		impl.timerCorelationId++
@@ -408,28 +408,30 @@ func (impl *ProducerPluginImpl) ScheduleProductionLoop() {
 		impl.Timer.AsyncWait(func() {
 			if impl != nil && cid == impl.timerCorelationId {
 				impl.MaybeProduceBlock()
-				log.Debug("Producing Block #${num} returned: ${res}")
-				//fc_dlog(_log, "Producing Block #${num} returned: ${res}", ("num", chain.pending_block_state()->block_num)("res", res) );
+				//TODO: fc_dlog(_log, "Producing Block #${num} returned: ${res}", ("num", chain.pending_block_state()->block_num)("res", res) );
 			}
 		})
 
 	} else if impl.PendingBlockMode == EnumPendingBlockMode(speculating) && len(impl.Producers) > 0 && !impl.ProductionDisabledByPolicy() {
-		//fc_dlog(_log, "Specualtive Block Created; Scheduling Speculative/Production Change");
+		//TODO: fc_dlog(_log, "Specualtive Block Created; Scheduling Speculative/Production Change");
+		EosAssert( chain.PendingBlockState() != nil, &MissingPendingBlockState{}, "speculating without pending_block_state")
 		pbs := chain.PendingBlockState()
 		impl.ScheduleDelayedProductionLoop(pbs.Header.Timestamp)
 
 	} else {
-		//fc_dlog(_log, "Speculative Block Created");
+		//TODO: fc_dlog(_log, "Speculative Block Created");
 	}
 }
 
 func (impl *ProducerPluginImpl) ScheduleDelayedProductionLoop(currentBlockTime common.BlockTimeStamp) {
+	// if we have any producers then we should at least set a timer for our next available slot
 	var wakeUpTime *common.TimePoint
 	for p := range impl.Producers {
 		nextProducerBlockTime := impl.CalculateNextBlockTime(p, currentBlockTime)
 		if nextProducerBlockTime != nil {
 			producerWakeupTime := nextProducerBlockTime.SubUs(common.Microseconds(common.DefaultConfig.BlockIntervalUs))
 			if wakeUpTime != nil {
+				// wake up with a full block interval to the deadline
 				if *wakeUpTime > producerWakeupTime {
 					*wakeUpTime = producerWakeupTime
 				}
@@ -440,7 +442,7 @@ func (impl *ProducerPluginImpl) ScheduleDelayedProductionLoop(currentBlockTime c
 	}
 
 	if wakeUpTime != nil {
-		//fc_dlog(_log, "Scheduling Speculative/Production Change at ${time}", ("time", wake_up_time));
+		//TODO: fc_dlog(_log, "Scheduling Speculative/Production Change at ${time}", ("time", wake_up_time));
 		impl.Timer.ExpiresAt(wakeUpTime.TimeSinceEpoch())
 
 		impl.timerCorelationId++
@@ -451,7 +453,7 @@ func (impl *ProducerPluginImpl) ScheduleDelayedProductionLoop(currentBlockTime c
 			}
 		})
 	} else {
-		//fc_dlog(_log, "Speculative Block Created; Not Scheduling Speculative/Production, no local producers had valid wake up times");
+		//TODO: fc_dlog(_log, "Speculative Block Created; Not Scheduling Speculative/Production, no local producers had valid wake up times");
 	}
 
 }
@@ -477,19 +479,13 @@ func (impl *ProducerPluginImpl) MaybeProduceBlock() (res bool) {
 }
 
 func (impl *ProducerPluginImpl) ProduceBlock() {
-	if impl.PendingBlockMode != EnumPendingBlockMode(producing) {
-		panic(ErrProducerFail)
-	}
+	EosAssert(impl.PendingBlockMode == EnumPendingBlockMode(producing), &ProducerException{}, "called produce_block while not actually producing")
 	chain := Chain.GetControllerInstance()
 	pbs := chain.PendingBlockState()
-	if pbs == nil {
-		panic(ErrMissingPendingBlockState)
-	}
+	EosAssert(pbs != nil, &MissingPendingBlockState{}, "pending_block_state does not exist but it should, another plugin may have corrupted it")
 
 	signatureProvider := impl.SignatureProviders[pbs.BlockSigningKey]
-	if signatureProvider == nil {
-		panic(ErrProducerPriKeyNotFound)
-	}
+	EosAssert(signatureProvider != nil, &ProducerPrivKeyNotFound{}, "Attempting to produce a block for which we don't have the private key")
 
 	chain.FinalizeBlock()
 	chain.SignBlock(func(d crypto.Sha256) ecc.Signature {

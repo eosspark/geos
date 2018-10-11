@@ -1,7 +1,6 @@
 package producer_plugin
 
 import (
-	"errors"
 	"fmt"
 	Chain "github.com/eosspark/eos-go/plugins/producer_plugin/mock" /*Debug model*/
 	//Chain "github.com/eosspark/eos-go/chain"
@@ -72,9 +71,7 @@ func (pp *ProducerPlugin) IsProducerKey(key ecc.PublicKey) bool {
 func (pp *ProducerPlugin) SignCompact(key *ecc.PublicKey, digest crypto.Sha256) ecc.Signature {
 	if key != nil {
 		privateKeyFunc := pp.my.SignatureProviders[*key]
-		if privateKeyFunc == nil {
-			panic(ErrProducerPriKeyNotFound)
-		}
+		EosAssert(privateKeyFunc != nil, &ProducerPrivKeyNotFound{}, "Local producer has no private key in config.ini corresponding to public key %s", key)
 
 		return privateKeyFunc(digest)
 	}
@@ -160,9 +157,11 @@ func (pp *ProducerPlugin) PluginStartup() {
 	log.Info("producer plugin:  plugin_startup() begin")
 
 	chain := Chain.GetControllerInstance()
-	if !(len(pp.my.Producers) == 0 || chain.GetReadMode() == Chain.DBReadMode(Chain.SPECULATIVE)) {
-		panic("node cannot have any producer-name configured because block production is impossible when read_mode is not \"speculative\"")
-	}
+	EosAssert(len(pp.my.Producers) == 0 || chain.GetReadMode() == Chain.DBReadMode(Chain.SPECULATIVE), &PluginConfigException{},
+		"node cannot have any producer-name configured because block production is impossible when read_mode is not \"speculative\"" )
+
+	EosAssert(len(pp.my.Producers) == 0 || chain.GetValidationMode() == Chain.ValidationMode(Chain.FULL), &PluginConfigException{},
+		"node cannot have any producer-name configured because block production is not safe when validation_mode is not \"full\"" )
 
 	//TODO if
 	// my->_accepted_block_connection.emplace(chain.accepted_block.connect( [this]( const auto& bsp ){ my->on_block( bsp ); } ));
@@ -325,8 +324,10 @@ func (pp *ProducerPlugin) SetWhitelistBlacklist(params WhitelistAndBlacklist) {
 }
 
 func failureIsSubjective(e Exception, deadlineIsSubjective bool) bool {
-	//TODO wait for error definition
-	return false
+	code := e.Code()
+	return (code == BlockCpuUsageExceeded{}.Code()) ||
+		   (code == BlockCpuUsageExceeded{}.Code()) ||
+		   (code == DeadlineException{}.Code() && deadlineIsSubjective)
 }
 
 func makeDebugTimeLogger() func() {
@@ -372,11 +373,3 @@ func newChainBanner(db *Chain.Controller) {
 			"Please consider using the --genesis-timestamp option to give your genesis a recent timestamp\n\n")
 	}
 }
-
-//errors
-var (
-	ErrProducerFail             = errors.New("called produce_block while not actually producing")
-	ErrMissingPendingBlockState = errors.New("pending_block_state does not exist but it should, another plugin may have corrupted it")
-	ErrProducerPriKeyNotFound   = errors.New("attempting to produce a block for which we don't have the private key")
-	ErrBlockFromTheFuture       = errors.New("received a block from the future, ignoring it")
-)
