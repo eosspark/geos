@@ -39,6 +39,7 @@ tag
 type fieldInfo struct{
 	unique 		bool
 	greater		bool
+	typeName 	string
 	fieldName 	[]string
 	fieldValue 	[]*reflect.Value
 }
@@ -173,8 +174,9 @@ func extractF(value *reflect.Value, field *reflect.StructField, m *structInfo)er
 	if len(tags) == 1{
 		// 单一 index or unique
 		tag = tags[0]
-		f  := fieldInfo{}
 
+		f  := fieldInfo{}
+		f.typeName = m.Name
 		err := extractSort(&tag,&f)
 		if err != nil{
 			return err
@@ -204,6 +206,7 @@ func extractF(value *reflect.Value, field *reflect.StructField, m *structInfo)er
 
 		if tag == tagID{
 			f  := fieldInfo{}
+			f.typeName = m.Name
 			f.unique = true
 			f.addFieldInfo(fieldName,fieldValue)
 			m.Fields[tag] = &f
@@ -229,8 +232,9 @@ func extractF(value *reflect.Value, field *reflect.StructField, m *structInfo)er
 			}
 		}
 
-		f  := fieldInfo{}
 
+		f  := fieldInfo{}
+		f.typeName = m.Name
 		err := extractSort(&tag,&f)
 		if err != nil{
 			return err

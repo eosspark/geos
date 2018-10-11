@@ -12,7 +12,7 @@ type Carnivore struct {
 
 type House struct {
 	Id       uint64 `multiIndex:"id,increment"`
-	Area     uint64 `multiIndex:"orderedNonUnique"`
+	Area     uint64 `multiIndex:"orderedUnique"`
 	Name     string
 	Carnivore Carnivore `multiIndex:"orderedNonUnique"`
 }
