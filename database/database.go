@@ -173,6 +173,14 @@ func delete_(data interface{}, db *leveldb.DB) error {
 	//fmt.Println(typeName)
 
 	callBack := func(key, value []byte) error {
+		exist ,err := db.Has(key,nil)
+		if err != nil{
+			return nil
+		}
+		if !exist {
+			return ErrIncompleteStructure
+		}
+
 		return remove(key, db)
 	}
 
