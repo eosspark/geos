@@ -1,6 +1,8 @@
 
 package database
+
 import (
+	"github.com/rlp"
 	"github.com/syndtr/goleveldb/leveldb"
 	"regexp"
 )
@@ -21,7 +23,6 @@ func (iterator *indexIterator)Next()bool{
 		return iterator.prev()
 	}
 	return iterator.next()
-	return false
 }
 
 func (iterator *indexIterator)Prev()bool{
@@ -29,7 +30,6 @@ func (iterator *indexIterator)Prev()bool{
 		return iterator.next()
 	}
 	return iterator.prev()
-	return false
 }
 
 func (iterator *indexIterator)next()bool{
@@ -81,8 +81,12 @@ func(iterator *indexIterator)Release(){
 	iterator.it.Release()
 }
 
-func (iterator *indexIterator)Key()[]byte{
-	return iterator.key
+func(iterator *indexIterator)Data(data interface{})error{
+	return rlp.DecodeBytes(iterator.Value(),data)
+}
+
+func(iterator *indexIterator)Key()[]byte{
+	return nil
 }
 
 func (iterator *indexIterator)Value()[]byte{

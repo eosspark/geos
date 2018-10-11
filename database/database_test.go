@@ -41,7 +41,6 @@ func Test_find(t *testing.T) {
 
 	objs,houses := Objects()
 	objs_,houses_ := saveObjs(objs,houses,db)
-	logObj(objs_[3])
 	findGreaterObjs(objs_,houses_,db)
 
 	findLessObjs(objs_,houses_,db)
@@ -213,7 +212,9 @@ func findIdObjs(objs []TableIdObject,houses []House,db *LDataBase){
 
 	for it.Next(){
 		obj = TableIdObject{}
-		err = rlp.DecodeBytes(it.Value(),&obj)
+		//err = rlp.DecodeBytes(it.Value(),&obj)
+
+		err = it.Data(&obj)
 		if err != nil {
 			log.Fatalln(err)
 		}
@@ -244,11 +245,9 @@ func Test_remove(t *testing.T) {
 
 func removeObjs(objs []TableIdObject, houses []House, db *LDataBase) {
 
-	//obj := TableIdObject{id4,21,22,23,24,25}
 	obj := TableIdObject{ID:4,Code:21,Scope:22,Table:23,Payer:24,Count:25}
 	err := db.Remove(obj)
 	if err != nil{
 		log.Fatalln(err)
 	}
-	log.Println("remove over")
 }
