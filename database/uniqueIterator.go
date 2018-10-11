@@ -1,5 +1,6 @@
 package database
 import (
+	"github.com/rlp"
 	"github.com/syndtr/goleveldb/leveldb"
 	"regexp"
 )
@@ -62,6 +63,10 @@ func (iterator *uniqueIterator) Release() {
 
 func (iterator *uniqueIterator) Key() []byte {
 	return iterator.key
+}
+
+func(iterator *uniqueIterator)Data(data interface{})error{
+	return rlp.DecodeBytes(iterator.Value(),data)
 }
 
 func (iterator *uniqueIterator) Value() []byte {
