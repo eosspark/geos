@@ -41,7 +41,6 @@ func Test_find(t *testing.T) {
 
 	objs,houses := Objects()
 	objs_,houses_ := saveObjs(objs,houses,db)
-
 	findGreaterObjs(objs_,houses_,db)
 
 	findLessObjs(objs_,houses_,db)
@@ -83,8 +82,7 @@ func Objects()([]TableIdObject,[]House){
 		obj := TableIdObject{Code:AccountName(number + 1),Scope:ScopeName(number + 2),Table:TableName(number + 3),Payer:AccountName(number + 4),Count:uint32(number + 5)}
 		objs = append(objs, obj)
 		house := House{Area:uint64(number + 9),Carnivore:Carnivore{number + 8,number + 8}}
-		Houses = append(Houses,house)
-
+		Houses = append(Houses,house) 
 		obj = TableIdObject{Code:AccountName(number + 1),Scope:ScopeName(number + 2),Table:TableName(number + 3),Payer:AccountName(number + 4),Count:uint32(number + 5)}
 		objs = append(objs, obj)
 		house = House{Area:uint64(number + 9),Carnivore:Carnivore{number + 8,number + 8}}
@@ -214,7 +212,9 @@ func findIdObjs(objs []TableIdObject,houses []House,db *LDataBase){
 
 	for it.Next(){
 		obj = TableIdObject{}
-		err = rlp.DecodeBytes(it.Value(),&obj)
+		//err = rlp.DecodeBytes(it.Value(),&obj)
+
+		err = it.Data(&obj)
 		if err != nil {
 			log.Fatalln(err)
 		}
@@ -226,4 +226,28 @@ func findIdObjs(objs []TableIdObject,houses []House,db *LDataBase){
 		i++
 	}
 	it.Release()
+}
+
+
+func Test_remove(t *testing.T) {
+
+	db, clo := openDb()
+
+	if db == nil {
+		log.Fatalln("db open failed")
+	}
+	defer clo()
+
+	objs, houses := Objects()
+	objs_, houses_ := saveObjs(objs, houses, db)
+	removeObjs(objs_,houses_,db)
+}
+
+func removeObjs(objs []TableIdObject, houses []House, db *LDataBase) {
+
+	obj := TableIdObject{ID:4,Code:21,Scope:22,Table:23,Payer:24,Count:25}
+	err := db.Remove(obj)
+	if err != nil{
+		log.Fatalln(err)
+	}
 }

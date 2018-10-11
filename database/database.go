@@ -14,7 +14,7 @@ import (
 type DataBase interface {
 	Insert(data interface{})
 
-	Find(fieldName string, data interface{}) (Iterator, error)
+	Find(fieldName string, data interface{}) (DbIterator, error)
 
 	Get(fieldName string, data interface{}) (Iterator, error)
 
@@ -84,11 +84,11 @@ error 		-->		error object
 
 */
 
-func (ldb *LDataBase) Find(fieldName string, data interface{}) (Iterator, error) {
+func (ldb *LDataBase) Find(fieldName string, data interface{}) (DbIterator, error) {
 	return find(fieldName, data, ldb.db)
 }
 
-func (ldb *LDataBase) Get(fieldName string, data interface{}) (Iterator, error) {
+func (ldb *LDataBase) Get(fieldName string, data interface{}) (DbIterator, error) {
 	return find(fieldName, data, ldb.db)
 }
 
@@ -173,6 +173,14 @@ func delete_(data interface{}, db *leveldb.DB) error {
 	//fmt.Println(typeName)
 
 	callBack := func(key, value []byte) error {
+		exist ,err := db.Has(key,nil)
+		if err != nil{
+			return nil
+		}
+		if !exist {
+			return ErrIncompleteStructure
+		}
+
 		return remove(key, db)
 	}
 
@@ -365,7 +373,7 @@ func copyInterface(data interface{}) interface{} {
 	return dst.Interface()
 }
 
-func find(fieldName string, value interface{}, db *leveldb.DB) (Iterator, error) {
+func find(fieldName string, value interface{}, db *leveldb.DB) (DbIterator, error) {
 
 	ref := reflect.ValueOf(value)
 	if !ref.IsValid() || reflect.Indirect(ref).Kind() != reflect.Struct {
