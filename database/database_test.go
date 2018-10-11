@@ -49,7 +49,7 @@ func Test_find(t *testing.T) {
 	findIdObjs(objs_,houses_,db)
 }
 
-func openDb()(*LDatabase,func()){
+func openDb()(*LDataBase,func()){
 
 	fileName := "./hello"
 	reFn :=  func() {
@@ -63,7 +63,7 @@ func openDb()(*LDatabase,func()){
 		reFn()
 	}
 
-	db,err := NewLDatabase(fileName)
+	db,err := NewDataBase(fileName)
 	if err != nil{
 		fmt.Println("new database failed")
 		return nil,reFn
@@ -98,7 +98,7 @@ func Objects()([]TableIdObject,[]House){
 	return objs,Houses
 }
 
-func saveObjs(objs []TableIdObject,houses []House,db *LDatabase) ([]TableIdObject,[]House) {
+func saveObjs(objs []TableIdObject,houses []House,db *LDataBase) ([]TableIdObject,[]House) {
 	objs_ := []TableIdObject{}
 	houses_ :=  []House{}
 	for _,v:= range objs{
@@ -119,7 +119,7 @@ func saveObjs(objs []TableIdObject,houses []House,db *LDatabase) ([]TableIdObjec
 	return objs_,houses_
 }
 
-func findGreaterObjs(objs []TableIdObject,houses []House,db *LDatabase) {
+func findGreaterObjs(objs []TableIdObject,houses []House,db *LDataBase) {
 	obj:= TableIdObject{Table:13}
 	it,err := db.Find("byTable",obj)
 	if err != nil{
@@ -147,7 +147,7 @@ func findGreaterObjs(objs []TableIdObject,houses []House,db *LDatabase) {
 }
 
 
-func findLessObjs(objs []TableIdObject,houses []House,db *LDatabase) {
+func findLessObjs(objs []TableIdObject,houses []House,db *LDataBase) {
 	i := 0
 	obj := TableIdObject{Code:11}
 	it,err := db.Find("Code",obj)
@@ -187,7 +187,7 @@ func findLessObjs(objs []TableIdObject,houses []House,db *LDatabase) {
 
 }
 
-func findIdObjs(objs []TableIdObject,houses []House,db *LDatabase){
+func findIdObjs(objs []TableIdObject,houses []House,db *LDataBase){
 
 	i := 2
 	obj := TableIdObject{ID:4}
