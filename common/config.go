@@ -30,17 +30,17 @@ func init() {
 			"permission_level_weight":      {value: 24},
 			"key_weight":                   {value: 8},
 			"wait_weight":                  {value: 16},
-			"shared_authority":             {value: 3 * 1 + 4},
+			"shared_authority":             {value: 3*1 + 4},
 			"permission_link_object":       {overhead: 32 * 3, value: 40 + 32},
-			"permission_object":            {overhead: 5 * 32, value: 3 * 1 + 4 + 64 + 5 * 32},
-			"table_id_object":              {overhead: 32 * 2, value: 44 + 32 * 2},
-			"key_value_object":             {overhead: 32 * 2, value: 32 + 8 + 4 + 32 * 2},
-			"index64_object":               {overhead: 32 * 3, value: 24 + 8 + 32 * 3},
-			"index128_object":              {overhead: 32 * 3, value: 24 + 16 + 32 * 3},
-			"index256_object":              {overhead: 32 * 3, value: 24 + 32 + 32 * 3},
-			"index_double_object":          {overhead: 32 * 3, value: 24 + 8 + 32 * 3},
-			"index_long_double_object":     {overhead: 32 * 3, value: 24 + 16 + 32 * 3},
-			"generated_transaction_object": {overhead: 32 * 5, value: 96 + 4 + 32 * 5},
+			"permission_object":            {overhead: 5 * 32, value: 3*1 + 4 + 64 + 5*32},
+			"table_id_object":              {overhead: 32 * 2, value: 44 + 32*2},
+			"key_value_object":             {overhead: 32 * 2, value: 32 + 8 + 4 + 32*2},
+			"index64_object":               {overhead: 32 * 3, value: 24 + 8 + 32*3},
+			"index128_object":              {overhead: 32 * 3, value: 24 + 16 + 32*3},
+			"index256_object":              {overhead: 32 * 3, value: 24 + 32 + 32*3},
+			"index_double_object":          {overhead: 32 * 3, value: 24 + 8 + 32*3},
+			"index_long_double_object":     {overhead: 32 * 3, value: 24 + 16 + 32*3},
+			"generated_transaction_object": {overhead: 32 * 5, value: 96 + 4 + 32*5},
 		},
 		FixedNetOverheadOfPackedTrx: 16,
 	}
@@ -90,10 +90,10 @@ func init() {
 
 	DefaultConfig.ForkDBName = "forkdb.dat"
 	DefaultConfig.DBFileName = "shared_memory.bin"
-	DefaultConfig.ReversibleFileName = "shared_memory_tmp.bin"			//wait db modify
+	DefaultConfig.ReversibleFileName = "shared_memory_tmp.bin" //wait db modify
 	DefaultConfig.BlockFileName = "blog.log"
 	DefaultConfig.DefaultBlocksDirName = "/tmp/data/blocks"
-	DefaultConfig.DefaultReversibleBlocksDirName="reversible"
+	DefaultConfig.DefaultReversibleBlocksDirName = "/tmp/data/reversible"
 	DefaultConfig.DefaultStateDirName = "/tmp/data/state"
 	DefaultConfig.DefaultStateSize = 0
 	DefaultConfig.DefaultStateGuardSize = 0
@@ -175,17 +175,17 @@ type Config struct {
 	MaxAuthorityDepth           uint16 ///< recursion depth limit for checking if an authority is satisfied
 	/**************************chain_config end****************************/
 
-	ForkDBName	string
-	DBFileName string
-	ReversibleFileName string
-	BlockFileName string
-	DefaultBlocksDirName string
+	ForkDBName                     string
+	DBFileName                     string
+	ReversibleFileName             string
+	BlockFileName                  string
+	DefaultBlocksDirName           string
 	DefaultReversibleBlocksDirName string
-	DefaultStateDirName string
-	DefaultStateSize uint64
-	DefaultStateGuardSize uint64
-	DefaultReversibleCacheSize uint64
-	DefaultReversibleGuardSize uint64
+	DefaultStateDirName            string
+	DefaultStateSize               uint64
+	DefaultStateGuardSize          uint64
+	DefaultReversibleCacheSize     uint64
+	DefaultReversibleGuardSize     uint64
 	//FixedNetOverheadOfPackedTrx uint32 // TODO: C++ default value 16 and is this reasonable?
 }
 

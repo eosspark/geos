@@ -50,39 +50,47 @@ func (g *GeneratedTransactionObject) GetBillableSize() uint64 {
 	return uint64(value)
 }
 
-func GetGTOByTrxId(db *database.DataBase, trxId common.TransactionIdType) *GeneratedTransactionObject {
+func GetGTOByTrxId(db *database.LDataBase, trxId common.TransactionIdType) (g *GeneratedTransactionObject) {
 	gto := GeneratedTransactionObject{}
-	err := db.Find("TrxId", trxId, gto)
+	gto.TrxId = trxId
+	itr, err := db.Find("TrxId", gto)
 	if err != nil {
 		fmt.Println(GetGTOByTrxId)
+	}
+	defer itr.Release()
+	if itr.Next() {
+		err = itr.Data(g)
+		if err != nil {
+			fmt.Println("GetGTOByTrxId Data is error:", err)
+		}
 	}
 	return &gto
 }
 
 func GetGeneratedTransactionObjectByExpiration(db *database.DataBase, be common.Tuple) *GeneratedTransactionObject {
 	gto := GeneratedTransactionObject{}
-	err := db.Find("ByExpiration", be, &gto)
+	/*err := db.Find("ByExpiration", be, &gto)
 	if err != nil {
 		fmt.Println("GetGeneratedTransactionObjectByExpiration is error :", err.Error())
-	}
+	}*/
 	return &gto
 }
 
 func GetGeneratedTransactionObjectByDelay(db *database.DataBase, be common.Tuple) *GeneratedTransactionObject {
 	gto := GeneratedTransactionObject{}
-	err := db.Find("ByDelay", be, &gto)
+	/*err := db.Find("ByDelay", be, &gto)
 	if err != nil {
 		fmt.Println("GetGeneratedTransactionObjectByDelay is error :", err.Error())
-	}
+	}*/
 	return &gto
 }
 
 func GetGeneratedTransactionObjectBySenderId(db *database.DataBase, be common.Tuple) *GeneratedTransactionObject {
 	gto := GeneratedTransactionObject{}
-	err := db.Find("BySenderId", be, &gto)
+	/*err := db.Find("BySenderId", be, &gto)
 	if err != nil {
 		fmt.Println("GetGeneratedTransactionObjectBySenderId is error :", err.Error())
-	}
+	}*/
 	return &gto
 }
 

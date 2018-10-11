@@ -1,11 +1,10 @@
 package types
 
 import (
-	"fmt"
 	"github.com/eosspark/eos-go/common"
 	//"github.com/eosspark/eos-go/database"
-	"github.com/eosspark/eos-go/log"
 	"github.com/eosspark/eos-go/database"
+	"github.com/eosspark/eos-go/log"
 )
 
 type IdType uint16
@@ -80,7 +79,7 @@ func (s *KeyValueObject) MakeTuple(values ...interface{}) *common.Tuple {
 	return &tuple
 }
 
-func AddTableIdObjectIndex(dbs *database.DataBase, tio TableIdObject) {
+func AddTableIdObjectIndex(dbs *database.LDataBase, tio TableIdObject) {
 	ti := TableIdMultiIndex{}
 	ti.TableIdObject = tio
 	ti.Bst.Code = tio.Code
@@ -93,22 +92,22 @@ func AddTableIdObjectIndex(dbs *database.DataBase, tio TableIdObject) {
 	}
 }
 
-func GetTableObjectById(dbs *database.DataBase, id IdType) *TableIdMultiIndex {
+func GetTableObjectById(dbs *database.LDataBase, id IdType) *TableIdMultiIndex {
 	tmi := TableIdMultiIndex{}
-	err := dbs.Find("ID", id, &tmi)
+	/*err := dbs.Find("ID", id, &tmi)
 	if err != nil {
 		fmt.Println(err.Error())
-	}
+	}*/
 	return &tmi
 }
 
-func GetByCodeScopeTable(dbs *database.DataBase, bst ByCodeScopeTable) *TableIdMultiIndex {
+func GetByCodeScopeTable(dbs *database.LDataBase, bst ByCodeScopeTable) *TableIdMultiIndex {
 	tmi := TableIdMultiIndex{}
-	err := dbs.Find("Bst", bst, &tmi)
+	/*err := dbs.Find("Bst", bst, &tmi)
 	if err != nil {
 		log.Error("GetByCodeScopeTable is error", err)
 		return nil
-	}
+	}*/
 
 	/*fmt.Println("*************************************")
 	fmt.Println(tmi)
