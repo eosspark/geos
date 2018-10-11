@@ -5,7 +5,7 @@ import (
 	"github.com/eosspark/eos-go/exception/try"
 	"github.com/stretchr/testify/assert"
 	"testing"
-	)
+)
 
 func TestExceptionCode(t *testing.T) {
 	assert.Equal(t, ExcTypes(21), divideByZeroCode)
@@ -99,8 +99,6 @@ func TestException_catch_interface(t *testing.T) {
 	}).End()
 }
 
-
-
 func TestExceptions(t *testing.T) {
 	try.Try(func() {
 		EosAssert(false, &ChainTypeException{}, "wrong chain type of type:%s", "abc")
@@ -144,12 +142,12 @@ func TestReThrow(t *testing.T) {
 
 }
 
-func returnFunction (a int) (r int) {
+func returnFunction(a int) (r int) {
 
 	defer try.HandleReturn()
 	try.Try(func() {
 		if a == 0 {
-			r = -1 		 // return -1
+			r = -1       // return -1
 			try.Return() //
 		}
 
@@ -160,7 +158,7 @@ func returnFunction (a int) (r int) {
 		r = 1        // return 1
 		try.Return() //
 	}).Catch(func(e ForkDatabaseExceptions) {
-		r = 2 		 // return 2
+		r = 2        // return 2
 		try.Return() //
 	}).End()
 

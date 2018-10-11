@@ -99,7 +99,7 @@ func Throw(e interface{}) {
 	panic(e)
 }
 
-//Necessary to call at the and of try-catch block, to ensure panic uncaught exceptions
+//Necessary to call at the end of try-catch block, to ensure panic uncaught exceptions
 func (c *CatchOrFinally) End() {
 	if c != nil && c.e != nil {
 		//println(c.StackTrace)
