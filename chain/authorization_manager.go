@@ -26,6 +26,7 @@ func GetAuthorizationManager() *AuthorizationManager {
 }
 
 func newAuthorizationManager() *AuthorizationManager {
+	IsActiveAz = true
 	control := GetControllerInstance()
 	db := control.DataBase()
 	return &AuthorizationManager{control: control, db: db}
@@ -39,9 +40,9 @@ type PermissionIdType types.IdType
 //	am.db.Insert(&types.PermissionLinkObject{})
 //}
 
-func (am *AuthorizationManager) InitializeDataBase() {
-
-}
+//func (am *AuthorizationManager) InitializeDataBase() {
+//
+//}
 
 func (am *AuthorizationManager) CreatePermission(account common.AccountName,
 	name common.PermissionName,

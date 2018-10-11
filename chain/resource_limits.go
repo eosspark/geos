@@ -45,6 +45,7 @@ func GetResourceLimitsManager() *ResourceLimitsManager {
 }
 
 func newResourceLimitsManager() *ResourceLimitsManager {
+	IsActiveRc = true
 	control := GetControllerInstance()
 	db := control.DataBase()
 	return &ResourceLimitsManager{db: db}
