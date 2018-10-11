@@ -7,34 +7,16 @@ import (
 	"math"
 	"math/big"
 	"reflect"
+	"github.com/eosspark/eos-go/entity"
+	"github.com/eosspark/eos-go/chain/types"
 )
-
-type Ratio struct {
-	Numerator   uint64 `json:"numerator"`
-	Denominator uint64 `json:"denominator"`
-}
-
-type ElasticLimitParameters struct {
-	Target        uint64 `json:"target"`
-	Max           uint64 `json:"max"`
-	Periods       uint32 `json:"periods"`
-	MaxMultiplier uint32 `json:"max_multiplier"`
-	ContractRate  Ratio  `json:"contract_rate"`
-	ExpandRate    Ratio  `json:"expand_rate"`
-}
-
-type AccountResourceLimit struct {
-	Used      int64 `json:"used"`
-	Available int64 `json:"available"`
-	Max       int64 `json:"max"`
-}
 
 var IsActiveRc bool
 
 var rcInstance *ResourceLimitsManager
 
 type ResourceLimitsManager struct {
-	db *database.DataBase `json:"db"`
+	db *database.LDataBase `json:"db"`
 }
 
 func GetResourceLimitsManager() *ResourceLimitsManager {
@@ -51,45 +33,12 @@ func newResourceLimitsManager() *ResourceLimitsManager {
 	return &ResourceLimitsManager{db: db}
 }
 
-func UpdateElasticLimit(currentLimit uint64, averageUsage uint64, params ElasticLimitParameters) uint64 {
-	result := currentLimit
-	if averageUsage > params.Target {
-		result = result * params.ContractRate.Numerator / params.ContractRate.Denominator
-	} else {
-		result = result * params.ExpandRate.Numerator / params.ExpandRate.Denominator
-	}
-	return common.Min(common.Min(result, params.Max), uint64(params.Max*uint64(params.MaxMultiplier)))
-}
-
-func (elp ElasticLimitParameters) Validate() {
-
-}
-
-func (state *ResourceLimitsStateObject) UpdateVirtualCpuLimit(cfg ResourceLimitsConfigObject) {
-	state.VirtualCpuLimit = UpdateElasticLimit(state.VirtualCpuLimit, state.AverageBlockCpuUsage.Average(), cfg.CpuLimitParameters)
-}
-
-func (state *ResourceLimitsStateObject) UpdateVirtualNetLimit(cfg ResourceLimitsConfigObject) {
-	state.VirtualNetLimit = UpdateElasticLimit(state.VirtualNetLimit, state.AverageBlockNetUsage.Average(), cfg.NetLimitParameters)
-}
-
-func (rlm *ResourceLimitsManager) AddIndices() {
-	rlm.db.Insert(&ResourceLimitsObject{ID: ResourceLimits})
-	rlm.db.Insert(&ResourceUsageObject{ID: ResourceUsage})
-	rlm.db.Insert(&ResourceLimitsConfigObject{ID: ResourceLimitsConfig})
-	rlm.db.Insert(&ResourceLimitsStateObject{ID: ResourceLimitsState})
-}
-
 func (rlm *ResourceLimitsManager) InitializeDatabase() {
-	config := ResourceLimitsConfigObject{}
-	rlm.db.Find("ID", ResourceLimitsConfig, &config)
-	rlm.db.Update(&config, func(data interface{}) error {
-		config.Init()
-		return nil
-	})
-	state := ResourceLimitsStateObject{}
-	rlm.db.Find("ID", ResourceLimitsState, &state)
-	rlm.db.Update(&state, func(data interface{}) error {
+	config := entity.NewResourceLimitsConfigObject()
+	rlm.db.Insert(&config)
+	state := entity.ResourceLimitsStateObject{}
+	rlm.db.Find("byId", &state)
+	rlm.db.Modify(&state, func(data interface{}) error {
 		ref := reflect.ValueOf(data).Elem()
 		if ref.CanSet() {
 			ref.FieldByName("VirtualCpuLimit").SetUint(config.CpuLimitParameters.Max)
@@ -105,28 +54,21 @@ func (rlm *ResourceLimitsManager) InitializeDatabase() {
 }
 
 func (rlm *ResourceLimitsManager) InitializeAccount(account common.AccountName) {
-	rlo := ResourceLimitsObject{}
-	rlm.db.Find("Rlo", RloIndex{ResourceLimits, 0, false}, &rlo)
-	rlo.ID = ResourceLimits
+	rlo := entity.ResourceLimitsObject{}
 	rlo.Owner = account
-	rlo.Pending = false
-	rlo.Rlo = RloIndex{ResourceLimits, account, false}
 	rlm.db.Insert(&rlo)
 
-	ruo := ResourceUsageObject{}
-	rlm.db.Find("Ruo", RuoIndex{ResourceUsage, 0}, &ruo)
-	ruo.ID = ResourceUsage
+	ruo := entity.ResourceUsageObject{}
 	ruo.Owner = account
-	ruo.Ruo = RuoIndex{ResourceUsage, account}
 	rlm.db.Insert(&ruo)
 }
 
-func (rlm *ResourceLimitsManager) SetBlockParameters(cpuLimitParameters ElasticLimitParameters, netLimitParameters ElasticLimitParameters) {
+func (rlm *ResourceLimitsManager) SetBlockParameters(cpuLimitParameters types.ElasticLimitParameters, netLimitParameters types.ElasticLimitParameters) {
 	cpuLimitParameters.Validate()
 	netLimitParameters.Validate()
-	config := ResourceLimitsConfigObject{}
-	rlm.db.Find("ID", ResourceLimitsConfig, &config)
-	rlm.db.Update(&config, func(data interface{}) error {
+	config := entity.ResourceLimitsConfigObject{}
+	rlm.db.Find("byId", &config)
+	rlm.db.Modify(&config, func(data interface{}) error {
 		//ref := reflect.ValueOf(data).Elem()
 		//if ref.CanSet() {
 		//	ref.FieldByName("CpuLimitParameters").Set(reflect.ValueOf(cpuLimitParameters))
@@ -141,22 +83,23 @@ func (rlm *ResourceLimitsManager) SetBlockParameters(cpuLimitParameters ElasticL
 }
 
 func (rlm *ResourceLimitsManager) UpdateAccountUsage(account []common.AccountName, timeSlot uint32) { //待定
-	config := ResourceLimitsConfigObject{}
-	rlm.db.Find("ID", ResourceLimitsConfig, &config)
-	ruo := ResourceUsageObject{}
+	config := entity.ResourceLimitsConfigObject{}
+	rlm.db.Find("byId", &config)
+	ruo := entity.ResourceUsageObject{}
 	for _, a := range account {
-		rlm.db.Find("Ruo", RuoIndex{ResourceUsage, a}, &ruo)
-		rlm.db.Update(&ruo, func(data interface{}) error {
-			ruo.NetUsage.add(0, timeSlot, config.AccountNetUsageAverageWindow)
-			ruo.CpuUsage.add(0, timeSlot, config.AccountCpuUsageAverageWindow)
+		ruo.Owner = a
+		rlm.db.Find("ByOwner", &ruo)
+		rlm.db.Modify(&ruo, func(data interface{}) error {
+			ruo.NetUsage.Add(0, timeSlot, config.AccountNetUsageAverageWindow)
+			ruo.CpuUsage.Add(0, timeSlot, config.AccountCpuUsageAverageWindow)
 			return nil
 		})
 	}
 }
 
 func (rlm *ResourceLimitsManager) AddTransactionUsage(account []common.AccountName, cpuUsage uint64, netUsage uint64, timeSlot uint32) {
-	state := ResourceLimitsStateObject{}
-	rlm.db.Find("ID", ResourceLimitsState, &state)
+	state := entity.ResourceLimitsStateObject{}
+	rlm.db.Find("byId", &state)
 	config := ResourceLimitsConfigObject{}
 	rlm.db.Find("ID", ResourceLimitsConfig, &config)
 	for _, a := range account {
