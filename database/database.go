@@ -88,7 +88,7 @@ func (ldb *LDataBase) Find(fieldName string, data interface{}) (DbIterator, erro
 	return find(fieldName, data, ldb.db)
 }
 
-func (ldb *LDataBase) Get(fieldName string, data interface{}) (Iterator, error) {
+func (ldb *LDataBase) Get(fieldName string, data interface{}) (DbIterator, error) {
 	return find(fieldName, data, ldb.db)
 }
 
