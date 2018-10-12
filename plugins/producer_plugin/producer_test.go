@@ -14,7 +14,7 @@ import (
 	Chain "github.com/eosspark/eos-go/plugins/producer_plugin/mock"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/chain/types"
-	)
+)
 
 var plugin *ProducerPlugin
 
@@ -41,7 +41,6 @@ func initialize() {
 	plugin = &producerPlugin
 }
 
-
 func produceone(when common.BlockTimeStamp) (b *types.SignedBlock) {
 	b = new(types.SignedBlock)
 	control := Chain.GetControllerInstance()
@@ -64,11 +63,11 @@ func produceone(when common.BlockTimeStamp) (b *types.SignedBlock) {
 	initPubKey2 := initPriKey2.PublicKey()
 	signatureProviders := map[ecc.PublicKey]signatureProviderType{
 		initPubKey: func(sha256 crypto.Sha256) ecc.Signature {
-			sk,_ := initPriKey.Sign(sha256.Bytes())
+			sk, _ := initPriKey.Sign(sha256.Bytes())
 			return sk
 		},
 		initPubKey2: func(sha256 crypto.Sha256) ecc.Signature {
-			sk,_ := initPriKey2.Sign(sha256.Bytes())
+			sk, _ := initPriKey2.Sign(sha256.Bytes())
 			return sk
 		},
 	}
@@ -169,9 +168,9 @@ func Test_makeKeySignatureProvider(t *testing.T) {
 	initPriKey, _ := ecc.NewPrivateKey("5KYZdUEo39z3FPrtuX2QbbwGnNP5zTd7yyr2SC1j299sBCnWjss")
 	initPubKey := initPriKey.PublicKey()
 
-	sp,_ := makeKeySignatureProvider(initPriKey)
+	sp, _ := makeKeySignatureProvider(initPriKey)
 	hash := crypto.Hash256("makeKeySignatureProvider")
-	pk,_ := sp(hash).PublicKey(hash.Bytes())
+	pk, _ := sp(hash).PublicKey(hash.Bytes())
 	assert.Equal(t, initPubKey, pk)
 
 }

@@ -88,9 +88,8 @@ func TestBlockHeaderState_Sign(t *testing.T) {
 		return sk
 	})
 	fmt.Println("===>", bs.SigDigest())
-	pk, _ := bs.Signee()
 
-	assert.Equal(t, initPriKey.PublicKey(), pk)
+	assert.Equal(t, initPriKey.PublicKey(), bs.Signee())
 
 	//data := ""
 	//sk,_ := initPriKey.Sign(crypto.Hash256(data).Bytes())

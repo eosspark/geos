@@ -7,6 +7,31 @@ func (e *ResourceExhaustedException) ResourceExhaustedExceptions() {}
 func (e *ResourceExhaustedException) Code() ExcTypes               { return 3080000 }
 func (e *ResourceExhaustedException) What() string                 { return "Resource exhausted exception" }
 
+type RamUsageExceeded struct{ logMessage }
+
+func (e *RamUsageExceeded) ChainExceptions()             {}
+func (e *RamUsageExceeded) ResourceExhaustedExceptions() {}
+func (e *RamUsageExceeded) Code() ExcTypes               { return 3080001 }
+func (e *RamUsageExceeded) What() string                 { return "Account using more than allotted RAM usage" }
+
+type TxNetUsageExceeded struct{ logMessage }
+
+func (e *TxNetUsageExceeded) ChainExceptions()             {}
+func (e *TxNetUsageExceeded) ResourceExhaustedExceptions() {}
+func (e *TxNetUsageExceeded) Code() ExcTypes               { return 3080002 }
+func (e *TxNetUsageExceeded) What() string {
+	return "Transaction exceeded the current network usage limit imposed on the transaction"
+}
+
+type BlockNetUsageExceeded struct{ logMessage }
+
+func (e *BlockNetUsageExceeded) ChainExceptions()             {}
+func (e *BlockNetUsageExceeded) ResourceExhaustedExceptions() {}
+func (e *BlockNetUsageExceeded) Code() ExcTypes               { return 3080003 }
+func (e *BlockNetUsageExceeded) What() string {
+	return "Transaction network usage is too much for the remaining allowable usage of the current block"
+}
+
 type TxCpuUsageExceed struct{ logMessage }
 
 func (e *TxCpuUsageExceed) ChainExceptions()             {}

@@ -4,7 +4,7 @@ import "errors"
 // Errors
 var (
 	// ErrNoID is returned when no ID field or id tag is found in the struct.
-	ErrNoID = errors.New("database : missing struct tag id or ID field")
+	ErrNoID = errors.New("database : missing struct tag id field")
 
 	// ErrBadType is returned when a method receives an unexpected value type.
 	ErrBadType = errors.New("database : provided data must be a struct or a pointer to struct")

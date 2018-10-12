@@ -11,39 +11,27 @@ import (
 	"reflect"
 )
 
-type DataBase interface {
-	Insert(data interface{})
-
-	Find(fieldName string, data interface{}) (DbIterator, error)
-
-	Get(fieldName string, data interface{}) (Iterator, error)
-
-	Modify(data interface{}, fn interface{}) error
-
-	Remove(data interface{}) error
-}
-
 type LDataBase struct {
 	db *leveldb.DB
-	fn string
+	path string
 }
 
-func NewDataBase(fileName string) (*LDataBase, error) {
+func NewDataBase(path string) (*LDataBase, error) {
 
-	db, err := leveldb.OpenFile(fileName, &opt.Options{
+	db, err := leveldb.OpenFile(path, &opt.Options{
 		OpenFilesCacheCapacity: 16,
 		BlockCacheCapacity:     16 / 2 * opt.MiB,
 		WriteBuffer:            16 / 4 * opt.MiB, // Two of these are used internally
 		Filter:                 filter.NewBloomFilter(10),
 	})
 	if _, corrupted := err.(*errors.ErrCorrupted); corrupted {
-		db, err = leveldb.RecoverFile(fileName, nil)
+		db, err = leveldb.RecoverFile(path, nil)
 	}
 	if err != nil {
 		return nil, err
 	}
 
-	return &LDataBase{db: db, fn: fileName}, nil
+	return &LDataBase{db: db, path:path}, nil
 }
 
 func (ldb *LDataBase) Close() {
@@ -82,11 +70,26 @@ func (ldb *LDataBase) Insert(data interface{}) error {
 	return nil
 }
 
-func Save(transaction *leveldb.Transaction) {
-
-}
 
 //////////////////////////////////////////////////////	find object from database //////////////////////////////////////////////////////
+/*
+
+@parameters
+fieldName 	--> 	rule
+value 		--> 	object
+out 		-->		outPut parameters
+@return
+success 	-->		nil 	(out valid)
+error 		-->		error 	(out invalid)
+
+*/
+
+func (ldb *LDataBase) Find(fieldName string, data interface{},out interface{}) error {
+	return find(fieldName, data, out,ldb.db)
+}
+
+
+//////////////////////////////////////////////////////	get object from database //////////////////////////////////////////////////////
 /*
 
 @parameters
@@ -95,18 +98,26 @@ value 		--> 	object
 
 @return
 success 	-->		iterator
-error 		-->		error object
+error 		-->		error
 
 */
-
-func (ldb *LDataBase) Find(fieldName string, data interface{}) (DbIterator, error) {
-	return find(fieldName, data, ldb.db)
-}
-
 func (ldb *LDataBase) Get(fieldName string, data interface{}) (DbIterator, error) {
-	return find(fieldName, data, ldb.db)
+	return get(fieldName, data, ldb.db)
 }
 
+
+//////////////////////////////////////////////////////	get object from database //////////////////////////////////////////////////////
+/*
+
+@parameters
+data 		--> 	old object
+fn 			--> 	rule
+
+@return
+success 	-->		nil
+error 		-->		error
+
+*/
 func (ldb *LDataBase) Modify(data interface{}, fn interface{}) error {
 
 	tx, err := ldb.db.OpenTransaction()
@@ -122,10 +133,23 @@ func (ldb *LDataBase) Modify(data interface{}, fn interface{}) error {
 	return nil
 }
 
+//////////////////////////////////////////////////////	get object from database //////////////////////////////////////////////////////
+/*
+
+@parameters
+data 		--> 	object
+
+@return
+success 	-->		nil
+error 		-->		error
+
+*/
 func (ldb *LDataBase) Remove(data interface{}) error {
 	return delete_(data, ldb.db)
 }
 
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 func insert(data interface{}, tx *leveldb.Transaction) error {
 
 	ref := reflect.ValueOf(data)
@@ -153,7 +177,7 @@ func insert(data interface{}, tx *leveldb.Transaction) error {
 	callBack := func(key, value []byte) error {
 		return save(key, value, tx)
 	}
-	err = fieldIndex(id, typeName, cfg, callBack)
+	err = doCallBack(id, typeName, cfg, callBack)
 	if err != nil {
 		return err
 	}
@@ -197,6 +221,9 @@ func delete_(data interface{}, db *leveldb.DB) error {
 
 	//	cfg.showStructInfo()
 
+	if isZero(cfg.Id){
+		return ErrIncompleteStructure
+	}
 	id, err := numbertob(cfg.Id.Interface())
 
 	typeName := []byte(cfg.Name)
@@ -215,7 +242,7 @@ func delete_(data interface{}, db *leveldb.DB) error {
 		return remove(key, db)
 	}
 
-	err = fieldIndex(id, typeName, cfg, callBack)
+	err = doCallBack(id, typeName, cfg, callBack)
 	if err != nil {
 		return err
 	}
@@ -299,8 +326,7 @@ func modify(old, new *reflect.Value, tx *leveldb.Transaction) error {
 		if err != nil {
 			return err
 		}
-		save(newKey, value, tx)
-		return nil
+		return save(newKey, value, tx)
 	}
 
 	id, err := numbertob(newCfg.Id.Interface())
@@ -310,189 +336,93 @@ func modify(old, new *reflect.Value, tx *leveldb.Transaction) error {
 	if err != nil {
 		return err
 	}
-	modifyField(newCfg, oldCfg, callBack)
+
+	err = modifyField(newCfg, oldCfg, callBack)
+	if err != nil{
+		return err
+	}
+
 	err = tx.Delete(key, nil)
 	if err != nil {
 		return err
 	}
-	err = save(key, val, tx)
-	if err != nil {
+
+	return save(key, val, tx)
+}
+
+
+func find(fieldName string, value interface{},to interface{}, db *leveldb.DB) error{
+
+	fields,err := getFieldInfo(fieldName,value)
+	if err != nil{
 		return err
 	}
-	return nil
-}
 
-func modifyField(cfg, oldCfg *structInfo, callBack func(newKey, oldKey []byte) error) error {
+	typeName := fields.typeName
+	if !fields.unique{
+		return ErrNotFound
+	}
 
-	id, err := numbertob(cfg.Id.Interface())
+	suffix := nonUniqueValue(fields)
+	if suffix == nil{
+		return ErrNotFound
+	}
+/*
+	unique --> typename__fieldName__fieldValue
+*/
+	key := typeNameFieldName(typeName,fieldName)
+
+	key = append(key, suffix...)
+
+	v ,err:= getDbKey(key,db)
 	if err != nil {
-		return err
-	}
-	typeName := []byte(cfg.Name)
-
-	for tag, fieldCfg := range cfg.Fields {
-		// typeName__
-		key := append(typeName, '_')
-		key = append(key, '_')
-		// typeName__tag__
-		key = append(key, tag...)
-
-		oldKey := fieldKey(key, fieldCfg)
-		newKey := fieldKey(key, oldCfg.Fields[tag])
-		if !fieldCfg.unique {
-			newKey = append(newKey, id...)
-			oldKey = append(oldKey, id...)
-		}
-
-		err := callBack(newKey, oldKey)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func fieldKey(key []byte, info *fieldInfo) []byte {
-
-	for _, v := range info.fieldValue {
-		// typeName__tag__fieldValue...
-		key = append(key, '_')
-		key = append(key, '_')
-		value, err := rlp.EncodeToBytes(v.Interface())
-		if err != nil {
-			return nil
-		}
-		key = append(key, value...)
+		return  err
 	}
 
-	//fmt.Println("func fieldKey value is : ",string(key))
-	//fmt.Println("func fieldKey value is : ",key)
-	return key
-}
+	id := idKey(v,[]byte(typeName))
 
-func fieldIndex(id, typeName []byte, cfg *structInfo, callBack func(key, value []byte) error) error {
-	for tag, fieldCfg := range cfg.Fields {
-		// typeName__
-		key := append(typeName, '_')
-		key = append(key, '_')
-		// typeName__tag__
-		key = append(key, tag...)
-		key = fieldKey(key, fieldCfg)
-		if !fieldCfg.unique {
-			key = append(key, id...)
-		}
-		//fmt.Println("func fieldIndex value is : ",string(key))
-		//fmt.Println("func fieldIndex value is : ",key)
-		err := callBack(key, id)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func copyInterface(data interface{}) interface{} {
-	src := reflect.ValueOf(data)
-	dst := reflect.New(reflect.Indirect(src).Type())
-
-	srcElem := src.Elem()
-	dstElem := dst.Elem()
-	NumField := srcElem.NumField()
-	for i := 0; i < NumField; i++ {
-		sf := srcElem.Field(i)
-		df := dstElem.Field(i)
-		df.Set(sf)
-	}
-	return dst.Interface()
-}
-
-func get(fieldName string, value interface{}, db *leveldb.DB) {
-
-}
-
-func find(fieldName string, value interface{}, db *leveldb.DB) (DbIterator, error) {
-
-	ref := reflect.ValueOf(value)
-	if !ref.IsValid() || reflect.Indirect(ref).Kind() != reflect.Struct {
-		return nil, ErrBadType
-	}
-	if ref.Kind() == reflect.Ptr {
-		return nil, ErrStructNeeded
-	}
-	typeName := ref.Type().Name()
-	cfg, err := extractStruct(&ref)
+	val ,err:= getDbKey(id,db)
 	if err != nil {
-		return nil, err
+		return  err
+	}
+	err = rlp.DecodeBytes(val,to)
+	if err != nil {
+		return  err
+	}
+	return nil
+}
+
+
+func get(fieldName string, value interface{}, db *leveldb.DB) (DbIterator, error) {
+
+	fields,err := getFieldInfo(fieldName,value)
+	if err != nil{
+		return nil,err
 	}
 
-	fields, ok := cfg.Fields[fieldName]
-	if !ok {
-		return nil, ErrNotFound
-	}
-	rege := ""
-	for _, v := range fields.fieldValue {
-		rege += "__"
-		if isZero(v) {
-			rege += "(.*)"
-			continue
-		}
-		re, err := rlp.EncodeToBytes(v.Interface())
-		if err != nil {
-			return nil, err
-		}
+	typeName := fields.typeName
 
-		rege += string(re)
+	rege := getNonUniqueFieldValue(fields)
+	if rege == nil{
+		return nil,ErrNoID
 	}
 
-	key := []byte(typeName)
-	key = append(key, '_')
-	key = append(key, '_')
-	key = append(key, []byte(fieldName)...)
+	key :=typeNameFieldName(typeName,fieldName)
 	key = append(key, '_')
 	key = append(key, '_')
 
-	if fields.unique {
-		/*
-			unique --> typename__fieldName__fieldValue
-		*/
-		rege = string(key)
-		end := make([]byte, len(key))
-		copy(end, key)
-		end[len(end)-1] = end[len(end)-1] + 1
-
-		iter := db.NewIterator(&util.Range{Start: key, Limit: end}, nil)
-
-		value, err := rlp.EncodeToBytes(fields.fieldValue[0].Interface())
-		if err != nil {
-			return nil, nil
-		}
-		key = append(key, value...)
-
-		ok := iter.Seek(key)
-		if !ok {
-			return nil, ErrNotFound
-		}
-		/*	fmt.Println("unique seek key is : ",key) */
-		it := newUniqueIterator([]byte(typeName), iter, db, rege)
-		return it, nil
-	} else {
+	if !fields.unique {
 		/*
 			index --> typename__fieldName__
 		*/
-		end := make([]byte, len(key))
-		copy(end, key)
-		end[len(end)-1] = end[len(end)-1] + 1
-
+		end := indexEnd(key)
 		iter := db.NewIterator(&util.Range{Start: key, Limit: end}, nil)
-		//if iter.Next(){
-		//	fmt.Println(iter.Key())
-		//	fmt.Println(string(iter.Key()))
-		//}
-		it := newIndexIterator([]byte(typeName), iter, db, rege, fields.greater)
+
+		it := newIndexIterator([]byte(typeName), iter, db, string(rege), fields.greater)
 		return it, nil
 	}
 
-	return nil, nil
+	return nil, ErrNotFound
 }
 
 //////////////////////////////////////////////////////	save increment id to database  //////////////////////////////////////////////////////
@@ -532,35 +462,33 @@ func incrementField(cfg *structInfo, tx *leveldb.Transaction) error {
 	return tx.Put(key, value, nil)
 }
 
-/////////////////////////////////////////////////////// Session  //////////////////////////////////////////////////////////
-type Session struct {
-	db      *DataBase
-	version uint64
-	apply   bool
+func getDbKey(key []byte,db *leveldb.DB)([]byte,error){
+	exits,err := db.Has(key,nil)
+	if err != nil {
+		return  nil,err
+	}
+	if !exits{
+		return nil,ErrNotFound
+	}
+
+	val ,err:= db.Get(key,nil)
+	if err != nil {
+		return  nil,err
+	}
+	return val,err
 }
 
-func (session *Session) Commit() {
-	if !session.apply {
-		// log ?
-		return
-	}
-	//	version := session.version
-	//	session.db.commit(version)
-	session.apply = false
-}
+func copyInterface(data interface{}) interface{} {
+	src := reflect.ValueOf(data)
+	dst := reflect.New(reflect.Indirect(src).Type())
 
-func (session *Session) Squash() {
-	if !session.apply {
-		return
+	srcElem := src.Elem()
+	dstElem := dst.Elem()
+	NumField := srcElem.NumField()
+	for i := 0; i < NumField; i++ {
+		sf := srcElem.Field(i)
+		df := dstElem.Field(i)
+		df.Set(sf)
 	}
-	//	session.db.squash()
-	session.apply = false
-}
-
-func (session *Session) Undo() {
-	if !session.apply {
-		return
-	}
-	//	session.db.undo()
-	session.apply = false
+	return dst.Interface()
 }

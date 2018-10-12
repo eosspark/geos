@@ -14,9 +14,16 @@ type DBReadMode int8
 
 const (
 	SPECULATIVE = DBReadMode(iota)
-	HEADER      //HEAD
+	HEADER       //HEAD
 	READONLY
 	IRREVERSIBLE
+)
+
+type ValidationMode int8
+
+const (
+	FULL = ValidationMode(iota)
+	LIGHT
 )
 
 var initPriKey, _ = ecc.NewPrivateKey("5KYZdUEo39z3FPrtuX2QbbwGnNP5zTd7yyr2SC1j299sBCnWjss")
@@ -244,6 +251,8 @@ func (c *Controller) DropUnappliedTransaction(trx *types.TransactionMetadata) {}
 func (c *Controller) GetReadMode() DBReadMode {
 	return DBReadMode(SPECULATIVE)
 }
+
+func (self *Controller) GetValidationMode() ValidationMode { return ValidationMode(FULL) }
 
 func (c *Controller) SetSubjectiveCpuLeeway(leeway common.Microseconds) {}
 

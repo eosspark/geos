@@ -2,6 +2,7 @@ package try
 
 import (
 	"reflect"
+		"fmt"
 	"runtime"
 )
 
@@ -15,7 +16,8 @@ type StackInfo struct {
 //RuntimeError is wrapper of runtime.errorString and stacktrace.
 type RuntimeError struct {
 	Message    string
-	StackTrace []StackInfo
+	stackInfo  []byte
+	//StackTrace []StackInfo
 }
 
 func (rte RuntimeError) String() string {
@@ -23,8 +25,9 @@ func (rte RuntimeError) String() string {
 }
 
 type CatchOrFinally struct {
-	e          interface{}
-	StackTrace []StackInfo
+	e 		  interface{}
+	stackInfo []byte
+	//StackTrace []StackInfo
 }
 
 type OrThrowable struct {
@@ -42,15 +45,22 @@ func Try(f func()) (r *CatchOrFinally) {
 
 			r = &CatchOrFinally{}
 			r.e = e
-			i := 1
-			for {
-				if p, f, l, o := runtime.Caller(i); o {
-					r.StackTrace = append(r.StackTrace, StackInfo{p, f, l})
-					i++
-				} else {
-					break
-				}
-			}
+
+			const size = 64 << 10
+			buf := make([]byte, size)
+			buf = buf[:runtime.Stack(buf, false)]
+
+			r.stackInfo = buf
+
+			//i := 1
+			//for {
+			//	if p, f, l, o := runtime.Caller(i); o {
+			//		r.StackTrace = append(r.StackTrace, StackInfo{p, f, l})
+			//		i++
+			//	} else {
+			//		break
+			//	}
+			//}
 		}
 	}()
 	reflect.ValueOf(f).Call([]reflect.Value{})
@@ -83,7 +93,7 @@ func (c *CatchOrFinally) Catch(f interface{}) (r *CatchOrFinally) {
 		} else if cts == "runtime.errorString" && its == "try.RuntimeError" {
 			var rte RuntimeError
 			rte.Message = c.e.(error).Error()
-			rte.StackTrace = c.StackTrace
+			rte.stackInfo = c.stackInfo
 			ev := reflect.ValueOf(rte)
 			reflect.ValueOf(f).Call([]reflect.Value{ev})
 			return nil
@@ -102,9 +112,13 @@ func Throw(e interface{}) {
 //Necessary to call at the end of try-catch block, to ensure panic uncaught exceptions
 func (c *CatchOrFinally) End() {
 	if c != nil && c.e != nil {
-		//println(c.StackTrace)
+		c.printStackInfo()
 		Throw(c.e)
 	}
+}
+
+func (c *CatchOrFinally) printStackInfo() {
+	fmt.Println(string(c.stackInfo))
 }
 
 type returnTypes struct{}
