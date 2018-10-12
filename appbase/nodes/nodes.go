@@ -1,13 +1,15 @@
 package main
 
 import (
-	. "github.com/eosspark/eos-go/appbase/app"
 	_ "github.com/eosspark/eos-go/appbase/plugin/net_plugin"
 	_ "github.com/eosspark/eos-go/appbase/plugin/producer_plugin"
 	"flag"
 	"github.com/eosspark/eos-go/exception/try"
 	"os"
 	"os/signal"
+	. "github.com/eosspark/eos-go/appbase/app"
+	. "github.com/eosspark/eos-go/appbase/app/include"
+	"fmt"
 )
 
 const (
@@ -24,7 +26,7 @@ const (
 var (
 	PluginFromConfig string
 	//Name string
-	//Age int  test
+	//Age int
 )
 
 func init() {
@@ -39,6 +41,12 @@ func init() {
 
 func main() {
 	try.Try(func() {
+		App.SetVersion(Version)
+		App.SetDefaultDataDir()
+		App.SetDefaultConfigDir()
+		fmt.Println(App.My.DateDir)
+		fmt.Println(App.My.ConfigDir)
+		fmt.Println(App.My.Version)
 		App.My.Options.Run(os.Args)
 		if !App.Initialize() {
 			panic(INITIALIZEFAIL)
