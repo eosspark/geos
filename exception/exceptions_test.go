@@ -47,7 +47,7 @@ func TestException_catch_same_pointer(t *testing.T) {
 	try.Try(func() {
 		EosAssert(false, &NameTypeException{}, "name error")
 
-	}).Catch(func(e *NameTypeException) {
+	}).Catch(func(e NameTypeException) {
 		assert.Equal(t, "name error", e.Message())
 		assert.Equal(t, ExcTypes(3010001), e.Code())
 
@@ -76,7 +76,7 @@ func TestException_catch_diff_pointer(t *testing.T) {
 		try.Try(func() {
 			EosAssert(false, &NameTypeException{}, "name error")
 
-		}).Catch(func(e *BlockValidateException) {
+		}).Catch(func(e BlockValidateException) {
 			// BlockValidateException is not conclude NameTypeException, can't be caught
 
 		}).End()

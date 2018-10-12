@@ -7,9 +7,9 @@ type ChainExceptions interface {
 
 type ChainException struct{ logMessage }
 
-func (e *ChainException) ChainExceptions() {}
-func (e *ChainException) Code() ExcTypes   { return 3000000 }
-func (e *ChainException) What() string     { return "blockchain exception" }
+func (ChainException) ChainExceptions() {}
+func (ChainException) Code() ExcTypes   { return 3000000 }
+func (ChainException) What() string     { return "blockchain exception" }
 
 /**
  *  chain_exception

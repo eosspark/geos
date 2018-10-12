@@ -2,86 +2,86 @@ package exception
 
 type ActionValidateException struct{ logMessage }
 
-func (e *ActionValidateException) ChainExceptions()          {}
-func (e *ActionValidateException) ActionValidateExceptions() {}
-func (e *ActionValidateException) Code() ExcTypes            { return 3050000 }
-func (e *ActionValidateException) What() string {
+func (ActionValidateException) ChainExceptions()          {}
+func (ActionValidateException) ActionValidateExceptions() {}
+func (ActionValidateException) Code() ExcTypes            { return 3050000 }
+func (ActionValidateException) What() string {
 	return "Transaction exceeded the current CPU usage limit imposed on the transaction"
 }
 
 type AccountNameExistsException struct{ logMessage }
 
-func (e *AccountNameExistsException) ChainExceptions()          {}
-func (e *AccountNameExistsException) ActionValidateExceptions() {}
-func (e *AccountNameExistsException) Code() ExcTypes            { return 3050001 }
-func (e *AccountNameExistsException) What() string {
+func (AccountNameExistsException) ChainExceptions()          {}
+func (AccountNameExistsException) ActionValidateExceptions() {}
+func (AccountNameExistsException) Code() ExcTypes            { return 3050001 }
+func (AccountNameExistsException) What() string {
 	return "Account name already exists"
 }
 
 type InvalidActionArgsException struct{ logMessage }
 
-func (e *InvalidActionArgsException) ChainExceptions()          {}
-func (e *InvalidActionArgsException) ActionValidateExceptions() {}
-func (e *InvalidActionArgsException) Code() ExcTypes            { return 3050002 }
-func (e *InvalidActionArgsException) What() string              { return "Invalid Action Arguments" }
+func (InvalidActionArgsException) ChainExceptions()          {}
+func (InvalidActionArgsException) ActionValidateExceptions() {}
+func (InvalidActionArgsException) Code() ExcTypes            { return 3050002 }
+func (InvalidActionArgsException) What() string              { return "Invalid Action Arguments" }
 
 type EosioAssertMessageException struct{ logMessage }
 
-func (e *EosioAssertMessageException) ChainExceptions()          {}
-func (e *EosioAssertMessageException) ActionValidateExceptions() {}
-func (e *EosioAssertMessageException) Code() ExcTypes            { return 3050003 }
-func (e *EosioAssertMessageException) What() string {
+func (EosioAssertMessageException) ChainExceptions()          {}
+func (EosioAssertMessageException) ActionValidateExceptions() {}
+func (EosioAssertMessageException) Code() ExcTypes            { return 3050003 }
+func (EosioAssertMessageException) What() string {
 	return "eosio_assert_message assertion failure"
 }
 
 type EosioAssertCodeException struct{ logMessage }
 
-func (e *EosioAssertCodeException) ChainExceptions()          {}
-func (e *EosioAssertCodeException) ActionValidateExceptions() {}
-func (e *EosioAssertCodeException) Code() ExcTypes            { return 3050004 }
-func (e *EosioAssertCodeException) What() string {
+func (EosioAssertCodeException) ChainExceptions()          {}
+func (EosioAssertCodeException) ActionValidateExceptions() {}
+func (EosioAssertCodeException) Code() ExcTypes            { return 3050004 }
+func (EosioAssertCodeException) What() string {
 	return "eosio_assert_code assertion failure"
 }
 
 type ActionNotFoundException struct{ logMessage }
 
-func (e *ActionNotFoundException) ChainExceptions()          {}
-func (e *ActionNotFoundException) ActionValidateExceptions() {}
-func (e *ActionNotFoundException) Code() ExcTypes            { return 3050005 }
-func (e *ActionNotFoundException) What() string {
+func (ActionNotFoundException) ChainExceptions()          {}
+func (ActionNotFoundException) ActionValidateExceptions() {}
+func (ActionNotFoundException) Code() ExcTypes            { return 3050005 }
+func (ActionNotFoundException) What() string {
 	return "Action can not be found"
 }
 
 type ActionDataAndStructMismatch struct{ logMessage }
 
-func (e *ActionDataAndStructMismatch) ChainExceptions()          {}
-func (e *ActionDataAndStructMismatch) ActionValidateExceptions() {}
-func (e *ActionDataAndStructMismatch) Code() ExcTypes            { return 3050006 }
-func (e *ActionDataAndStructMismatch) What() string {
+func (ActionDataAndStructMismatch) ChainExceptions()          {}
+func (ActionDataAndStructMismatch) ActionValidateExceptions() {}
+func (ActionDataAndStructMismatch) Code() ExcTypes            { return 3050006 }
+func (ActionDataAndStructMismatch) What() string {
 	return "Mismatch between action data and its struct"
 }
 
 type UnaccessibleApi struct{ logMessage }
 
-func (e *UnaccessibleApi) ChainExceptions()          {}
-func (e *UnaccessibleApi) ActionValidateExceptions() {}
-func (e *UnaccessibleApi) Code() ExcTypes            { return 3050007 }
-func (e *UnaccessibleApi) What() string {
+func (UnaccessibleApi) ChainExceptions()          {}
+func (UnaccessibleApi) ActionValidateExceptions() {}
+func (UnaccessibleApi) Code() ExcTypes            { return 3050007 }
+func (UnaccessibleApi) What() string {
 	return "Attempt to use unaccessible API"
 }
 
 type AbortCalled struct{ logMessage }
 
-func (e *AbortCalled) ChainExceptions()          {}
-func (e *AbortCalled) ActionValidateExceptions() {}
-func (e *AbortCalled) Code() ExcTypes            { return 3050008 }
-func (e *AbortCalled) What() string              { return "Abort Called" }
+func (AbortCalled) ChainExceptions()          {}
+func (AbortCalled) ActionValidateExceptions() {}
+func (AbortCalled) Code() ExcTypes            { return 3050008 }
+func (AbortCalled) What() string              { return "Abort Called" }
 
 type InlineActionTooBig struct{ logMessage }
 
-func (e *InlineActionTooBig) ChainExceptions()          {}
-func (e *InlineActionTooBig) ActionValidateExceptions() {}
-func (e *InlineActionTooBig) Code() ExcTypes            { return 3050009 }
-func (e *InlineActionTooBig) What() string {
+func (InlineActionTooBig) ChainExceptions()          {}
+func (InlineActionTooBig) ActionValidateExceptions() {}
+func (InlineActionTooBig) Code() ExcTypes            { return 3050009 }
+func (InlineActionTooBig) What() string {
 	return "Inline Action exceeds maximum size limit"
 }
