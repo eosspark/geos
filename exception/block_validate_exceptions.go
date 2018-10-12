@@ -14,6 +14,47 @@ func (e *UnlinkableBlockException) BlockValidateExceptions() {}
 func (e *UnlinkableBlockException) Code() ExcTypes           { return 3030001 }
 func (e *UnlinkableBlockException) What() string             { return "Unlinkable block" }
 
+type BlockTxOutputException struct{ logMessage }
+
+func (e *BlockTxOutputException) ChainExceptions()         {}
+func (e *BlockTxOutputException) BlockValidateExceptions() {}
+func (e *BlockTxOutputException) Code() ExcTypes           { return 3030002 }
+func (e *BlockTxOutputException) What() string {
+	return "Transaction outputs in block do not match transaction outputs from applying block"
+}
+
+type BlockConcurrencyException struct{ logMessage }
+
+func (e *BlockConcurrencyException) ChainExceptions()         {}
+func (e *BlockConcurrencyException) BlockValidateExceptions() {}
+func (e *BlockConcurrencyException) Code() ExcTypes           { return 3030003 }
+func (e *BlockConcurrencyException) What() string {
+	return "Block does not guarantee concurrent execution without conflicts"
+}
+
+type BlockLockException struct{ logMessage }
+
+func (e *BlockLockException) ChainExceptions()         {}
+func (e *BlockLockException) BlockValidateExceptions() {}
+func (e *BlockLockException) Code() ExcTypes           { return 3030004 }
+func (e *BlockLockException) What() string {
+	return "Shard locks in block are incorrect or mal-formed"
+}
+
+type BlockResourceExhausted struct{ logMessage }
+
+func (e *BlockResourceExhausted) ChainExceptions()         {}
+func (e *BlockResourceExhausted) BlockValidateExceptions() {}
+func (e *BlockResourceExhausted) Code() ExcTypes           { return 3030005 }
+func (e *BlockResourceExhausted) What() string             { return "Block exhausted allowed resources" }
+
+type BlockTooOldException struct{ logMessage }
+
+func (e *BlockTooOldException) ChainExceptions()         {}
+func (e *BlockTooOldException) BlockValidateExceptions() {}
+func (e *BlockTooOldException) Code() ExcTypes           { return 3030006 }
+func (e *BlockTooOldException) What() string             { return "Block is too old to push" }
+
 type BlockFromTheFuture struct{ logMessage }
 
 func (e *BlockFromTheFuture) ChainExceptions()         {}
