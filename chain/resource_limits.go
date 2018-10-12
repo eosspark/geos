@@ -192,18 +192,22 @@ func (rlm *ResourceLimitsManager) VerifyAccountRamUsage(account common.AccountNa
 
 func (rlm *ResourceLimitsManager) GetAccountRamUsage(account common.AccountName) int64 {
 	//ruo := entity.ResourceUsageObject{}
-	//rlm.db.Find("Ruo", RuoIndex{ResourceUsage, account}, &ruo)
+	//ruo.Owner = account
+	//rlm.db.Find("byOwner", &ruo)
 	//return int64(ruo.RamUsage)
 	return 0
 }
 
 func (rlm *ResourceLimitsManager) SetAccountLimits(account common.AccountName, ramBytes int64, netWeight int64, cpuWeight int64) bool { //for test
-	//pendingRlo := ResourceLimitsObject{}
-	//err := rlm.db.Find("Rlo", RloIndex{ResourceLimits, account, true}, &pendingRlo)
+	//pendingRlo := entity.ResourceLimitsObject{}
+	//pendingRlo.Owner = account
+	//pendingRlo.Pending = true
+	//_, err := rlm.db.Find("byOwner", &pendingRlo)
 	//if err != nil {
-	//	rlo := ResourceLimitsObject{}
-	//	rlm.db.Find("Rlo", RloIndex{ResourceLimits, account, false}, &rlo)
-	//	pendingRlo.Rlo = RloIndex{rlo.ID, rlo.Owner, true}
+	//	rlo := entity.ResourceLimitsObject{}
+	//	rlo.Owner = account
+	//	rlo.Pending = false
+	//	rlm.db.Find("byOwner", &rlo)
 	//	pendingRlo.ID = rlo.ID
 	//	pendingRlo.Owner = rlo.Owner
 	//	pendingRlo.Pending = true
@@ -217,7 +221,7 @@ func (rlm *ResourceLimitsManager) SetAccountLimits(account common.AccountName, r
 	//	decreasedLimit = pendingRlo.RamBytes < 0 || ramBytes < pendingRlo.RamBytes
 	//}
 	//
-	//rlm.db.Update(&pendingRlo, func(data interface{}) error {
+	//rlm.db.Modify(&pendingRlo, func(data interface{}) error {
 	//	ref := reflect.ValueOf(data).Elem()
 	//	if ref.CanSet() {
 	//		ref.FieldByName("RamBytes").SetInt(ramBytes)
@@ -231,15 +235,19 @@ func (rlm *ResourceLimitsManager) SetAccountLimits(account common.AccountName, r
 }
 
 func (rlm *ResourceLimitsManager) GetAccountLimits(account common.AccountName, ramBytes *int64, netWeight *int64, cpuWeight *int64) {
-	//pendingRlo := ResourceLimitsObject{}
-	//err := rlm.db.Find("Rlo", RloIndex{ResourceLimits, account, true}, &pendingRlo)
+	//pendingRlo := entity.ResourceLimitsObject{}
+	//pendingRlo.Owner = account
+	//pendingRlo.Pending = true
+	//_, err := rlm.db.Find("byOwner", &pendingRlo)
 	//if err == nil {
 	//	*ramBytes = pendingRlo.RamBytes
 	//	*netWeight = pendingRlo.NetWeight
 	//	*cpuWeight = pendingRlo.CpuWeight
 	//} else {
-	//	rlo := ResourceLimitsObject{}
-	//	rlm.db.Find("Rlo", RloIndex{ResourceLimits, account, false}, &rlo)
+	//	rlo := entity.ResourceLimitsObject{}
+	//	rlo.Owner = account
+	//	rlo.Pending = false
+	//	rlm.db.Find("byOwner", &rlo)
 	//	*ramBytes = rlo.RamBytes
 	//	*netWeight = rlo.NetWeight
 	//	*cpuWeight = rlo.CpuWeight
@@ -264,9 +272,9 @@ func (rlm *ResourceLimitsManager) ProcessAccountLimitUpdates() {
 	//
 	//	*value = pendingValue
 	//}
-	//var pendingRlo []ResourceLimitsObject
+	//var pendingRlo []entity.ResourceLimitsObject
 	//rlm.db.Get("Pending", true, &pendingRlo)
-	//state := ResourceLimitsStateObject{}
+	//state := entity.ResourceLimitsStateObject{}
 	//rlm.db.Find("ID", ResourceLimitsState, &state)
 	//rlm.db.Update(&state, func(data interface{}) error {
 	//	for _, itr := range pendingRlo {
