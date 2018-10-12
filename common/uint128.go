@@ -26,6 +26,12 @@ func (u *Uint128) LeftShift() {
 	}
 }
 
+func (u *Uint128) LeftShifts(shift int){
+	for i := 0; i < shift; i++ {
+		u.LeftShift()
+	}
+}
+
 func (u *Uint128) RightShift() {
 	if u.GetAt(64) {
 		u.High = u.High >> 1
@@ -37,6 +43,11 @@ func (u *Uint128) RightShift() {
 	}
 }
 
+func (u *Uint128) RightShifts(shift int){
+	for i := 0; i < shift; i++ {
+		u.RightShift()
+	}
+}
 
 func (u Uint128) GetAt(i uint) bool {
 	if i < 64 {
