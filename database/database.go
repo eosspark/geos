@@ -43,6 +43,60 @@ func (ldb *LDataBase) Close() {
 	}
 }
 
+//////////////////////////////////////////////////////	get object from database //////////////////////////////////////////////////////
+/*
+
+@parameters
+fieldName 	--> 	rule
+data 		--> 	object
+to			-->		Slice
+
+@return
+success		-->		nil
+error 		-->		error
+
+*/
+
+func (ldb *LDataBase) GetObjects(fieldName string,data interface{},to interface{}) error {
+	ref := reflect.ValueOf(to)
+
+	if ref.Kind() != reflect.Ptr || reflect.Indirect(ref).Kind() != reflect.Slice {
+		return ErrSlicePtrNeeded
+	}
+
+	sliceType := reflect.Indirect(ref).Type()
+	elemType := sliceType.Elem()
+
+	if elemType.Kind() == reflect.Ptr {
+		elemType = elemType.Elem()
+	}
+
+	if elemType.Name() == "" {
+		return  ErrNoName
+	}
+	isPtr := sliceType.Elem().Kind() == reflect.Ptr
+	results := reflect.MakeSlice(reflect.Indirect(ref).Type(), 0, 0)
+
+	it,err := ldb.Get(fieldName,data)
+	if err != nil{
+		return err
+	}
+
+	defer it.Release()
+
+	for it.Next(){
+		newElem := reflect.New(elemType)
+		rlp.DecodeBytes(it.Value(),newElem.Interface())
+		if isPtr {
+			results = reflect.Append(results,newElem )
+		} else {
+			results = reflect.Append(results, reflect.Indirect(newElem))
+		}
+	}
+	reflect.Indirect(ref).Set(results)
+	return nil
+}
+
 //////////////////////////////////////////////////////	insert object to database //////////////////////////////////////////////////////
 /*
 
