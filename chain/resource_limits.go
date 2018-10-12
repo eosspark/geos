@@ -292,17 +292,17 @@ func (rlm *ResourceLimitsManager) ProcessAccountLimitUpdates() {
 }
 
 func (rlm *ResourceLimitsManager) ProcessBlockUsage(blockNum uint32) {
-	//config := ResourceLimitsConfigObject{}
-	//rlm.db.Find("ID", ResourceLimitsConfig, &config)
-	//state := ResourceLimitsStateObject{}
-	//rlm.db.Find("ID", ResourceLimitsState, &state)
-	//rlm.db.Update(&state, func(data interface{}) error {
+	//config := entity.ResourceLimitsConfigObject{}
+	//rlm.db.Find("byId", &config)
+	//state := entity.ResourceLimitsStateObject{}
+	//rlm.db.Find("byId", &state)
+	//rlm.db.Modify(&state, func(data interface{}) error {
 	//
-	//	state.AverageBlockCpuUsage.add(state.PendingCpuUsage, blockNum, config.CpuLimitParameters.Periods)
+	//	state.AverageBlockCpuUsage.Add(state.PendingCpuUsage, blockNum, config.CpuLimitParameters.Periods)
 	//	state.UpdateVirtualCpuLimit(config)
 	//	state.PendingCpuUsage = 0
 	//
-	//	state.AverageBlockNetUsage.add(state.PendingNetUsage, blockNum, config.NetLimitParameters.Periods)
+	//	state.AverageBlockNetUsage.Add(state.PendingNetUsage, blockNum, config.NetLimitParameters.Periods)
 	//	state.UpdateVirtualNetLimit(config)
 	//	state.PendingNetUsage = 0
 	//
@@ -311,33 +311,33 @@ func (rlm *ResourceLimitsManager) ProcessBlockUsage(blockNum uint32) {
 }
 
 func (rlm *ResourceLimitsManager) GetVirtualBlockCpuLimit() uint64 {
-	//state := ResourceLimitsStateObject{}
-	//rlm.db.Find("ID", ResourceLimitsState, &state)
+	//state := entity.ResourceLimitsStateObject{}
+	//rlm.db.Find("byId", &state)
 	//return state.VirtualCpuLimit
 	return 0
 }
 
 func (rlm *ResourceLimitsManager) GetVirtualBlockNetLimit() uint64 {
-	//state := ResourceLimitsStateObject{}
-	//rlm.db.Find("ID", ResourceLimitsState, &state)
+	//state := entity.ResourceLimitsStateObject{}
+	//rlm.db.Find("byId", &state)
 	//return state.VirtualNetLimit
 	return 0
 }
 
 func (rlm *ResourceLimitsManager) GetBlockCpuLimit() uint64 {
-	//state := ResourceLimitsStateObject{}
-	//rlm.db.Find("ID", ResourceLimitsState, &state)
-	//config := ResourceLimitsConfigObject{}
-	//rlm.db.Find("ID", ResourceLimitsConfig, &config)
+	//state := entity.ResourceLimitsStateObject{}
+	//rlm.db.Find("byId", &state)
+	//config := entity.ResourceLimitsConfigObject{}
+	//rlm.db.Find("byId", &config)
 	//return config.CpuLimitParameters.Max - state.PendingCpuUsage
 	return 0
 }
 
 func (rlm *ResourceLimitsManager) GetBlockNetLimit() uint64 {
-	//state := ResourceLimitsStateObject{}
-	//rlm.db.Find("ID", ResourceLimitsState, &state)
-	//config := ResourceLimitsConfigObject{}
-	//rlm.db.Find("ID", ResourceLimitsConfig, &config)
+	//state := entity.ResourceLimitsStateObject{}
+	//rlm.db.Find("byId", &state)
+	//config := entity.ResourceLimitsConfigObject{}
+	//rlm.db.Find("byId", &config)
 	//return config.NetLimitParameters.Max - state.PendingNetUsage
 	return 0
 }
@@ -348,12 +348,12 @@ func (rlm *ResourceLimitsManager) GetAccountCpuLimit(name common.AccountName, el
 }
 
 func (rlm *ResourceLimitsManager) GetAccountCpuLimitEx(name common.AccountName, elastic bool) AccountResourceLimit {
-	//state := ResourceLimitsStateObject{}
-	//rlm.db.Find("ID", ResourceLimitsState, &state)
-	//config := ResourceLimitsConfigObject{}
-	//rlm.db.Find("ID", ResourceLimitsConfig, &config)
-	//ruo := ResourceUsageObject{}
-	//rlm.db.Find("Ruo", RuoIndex{ResourceUsage, name}, &ruo)
+	//state := entity.ResourceLimitsStateObject{}
+	//rlm.db.Find("byId", &state)
+	//config := entity.ResourceLimitsConfigObject{}
+	//rlm.db.Find("byId", &config)
+	//ruo := entity.ResourceUsageObject{}
+	//rlm.db.Find("byOwner", &ruo)
 	//
 	//var cpuWeight, x, y int64
 	//rlm.GetAccountLimits(name, &x, &y, &cpuWeight)
@@ -395,12 +395,12 @@ func (rlm *ResourceLimitsManager) GetAccountNetLimit(name common.AccountName, el
 }
 
 func (rlm *ResourceLimitsManager) GetAccountNetLimitEx(name common.AccountName, elastic bool) AccountResourceLimit {
-	//state := ResourceLimitsStateObject{}
-	//rlm.db.Find("ID", ResourceLimitsState, &state)
-	//config := ResourceLimitsConfigObject{}
-	//rlm.db.Find("ID", ResourceLimitsConfig, &config)
-	//ruo := ResourceUsageObject{}
-	//rlm.db.Find("Ruo", RuoIndex{ResourceUsage, name}, &ruo)
+	//state := entity.ResourceLimitsStateObject{}
+	//rlm.db.Find("byId", &state)
+	//config := entity.ResourceLimitsConfigObject{}
+	//rlm.db.Find("byId", &config)
+	//ruo := entity.ResourceUsageObject{}
+	//rlm.db.Find("byOwner", &ruo)
 	//
 	//var netWeight, x, y int64
 	//rlm.GetAccountLimits(name, &x, &y, &netWeight)
@@ -408,7 +408,7 @@ func (rlm *ResourceLimitsManager) GetAccountNetLimitEx(name common.AccountName, 
 	//if netWeight < 0 || state.TotalNetWeight == 0 {
 	//	return AccountResourceLimit{-1, -1, -1}
 	//}
-	//
+
 	arl := AccountResourceLimit{}
 	//windowSize := new(big.Int).SetUint64(uint64(config.AccountNetUsageAverageWindow))
 	//virtualNetCapacityInWindow := new(big.Int)
