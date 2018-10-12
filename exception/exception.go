@@ -140,3 +140,42 @@ func (e *CanceledException) What() string   { return "Canceled" }
 /**
  *  @brief used inplace of assert() to report violations of pre conditions.
  */
+type AssertException struct{ logMessage }
+
+func (e *AssertException) Code() ExcTypes { return assertExceptionCode }
+func (e *AssertException) What() string   { return "Assert Exception" }
+
+type EofException struct{ logMessage }
+
+func (e *EofException) Code() ExcTypes { return eofExceptionCode }
+func (e *EofException) What() string   { return "End Of File" }
+
+type NullOptional struct{ logMessage }
+
+func (e *NullOptional) Code() ExcTypes { return nullOptionalCode }
+func (e *NullOptional) What() string   { return "null optional" }
+
+type UdtException struct{ logMessage }
+
+func (e *UdtException) Code() ExcTypes { return udtErrorCode }
+func (e *UdtException) What() string   { return "UDT error" }
+
+type AesException struct{ logMessage }
+
+func (e *AesException) Code() ExcTypes { return aesErrorCode }
+func (e *AesException) What() string   { return "AES error" }
+
+type OverflowException struct{ logMessage }
+
+func (e *OverflowException) Code() ExcTypes { return overflowCode }
+func (e *OverflowException) What() string   { return "Integer Overflow" }
+
+type UnderflowException struct{ logMessage }
+
+func (e *UnderflowException) Code() ExcTypes { return underflowCode }
+func (e *UnderflowException) What() string   { return "Integer Underflow" }
+
+type DivideByZeroException struct{ logMessage }
+
+func (e *DivideByZeroException) Code() ExcTypes { return divideByZeroCode }
+func (e *DivideByZeroException) What() string   { return "Integer Divide By Zero" }

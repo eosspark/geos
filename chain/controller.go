@@ -61,26 +61,29 @@ var isActiveController bool //default value false ;Does the process include cont
 
 var instance *Controller
 
+type v func(ctx *ApplyContext)
+
 //type HandlerKey common.Tuple
 type Controller struct {
-	DB                    *database.DataBase
-	DbSession             *database.Session
-	ReversibleBlocks      *database.DataBase
-	Blog                  string //TODO
-	Pending               *types.PendingState
-	Head                  types.BlockState
-	ForkDB                *types.ForkDatabase
-	WasmIf                *exec.WasmInterface
-	ResourceLimists       *ResourceLimitsManager
-	Authorization         *AuthorizationManager
-	Config                Config //local	Config
-	ChainID               common.ChainIdType
-	RePlaying             bool
-	ReplayHeadTime        common.TimePoint //optional<common.Tstamp>
-	ReadMode              DBReadMode
-	InTrxRequiringChecks  bool                //if true, checks that are normally skipped on replay (e.g. auth checks) cannot be skipped
-	SubjectiveCupLeeway   common.Microseconds //optional<common.Tstamp>
-	ApplyHandlers         map[common.AccountName]map[HandlerKey]func(ctx *ApplyContext)
+	DB                   *database.LDataBase
+	DbSession            *database.Session
+	ReversibleBlocks     *database.LDataBase
+	Blog                 string //TODO
+	Pending              *types.PendingState
+	Head                 types.BlockState
+	ForkDB               *types.ForkDatabase
+	WasmIf               *exec.WasmInterface
+	ResourceLimists      *ResourceLimitsManager
+	Authorization        *AuthorizationManager
+	Config               Config //local	Config
+	ChainID              common.ChainIdType
+	RePlaying            bool
+	ReplayHeadTime       common.TimePoint //optional<common.Tstamp>
+	ReadMode             DBReadMode
+	InTrxRequiringChecks bool                //if true, checks that are normally skipped on replay (e.g. auth checks) cannot be skipped
+	SubjectiveCupLeeway  common.Microseconds //optional<common.Tstamp>
+
+	ApplyHandlers         map[common.AccountName]map[HandlerKey]v
 	UnAppliedTransactions map[crypto.Sha256]types.TransactionMetadata
 }
 
@@ -97,7 +100,7 @@ func GetControllerInstance() *Controller {
 //TODO tmp code
 
 func validPath() {
-	path := []string{common.DefaultConfig.DefaultStateDirName, common.DefaultConfig.DefaultBlocksDirName, common.DefaultConfig.DefaultBlocksDirName + "/" + common.DefaultConfig.DefaultReversibleBlocksDirName}
+	path := []string{common.DefaultConfig.DefaultStateDirName, common.DefaultConfig.DefaultBlocksDirName, common.DefaultConfig.DefaultReversibleBlocksDirName}
 	for _, d := range path {
 		_, err := os.Stat(d)
 		if os.IsNotExist(err) {
@@ -113,7 +116,7 @@ func validPath() {
 func newController() *Controller {
 	isActiveController = true //controller is active
 	//init db
-	db, err := database.NewDataBase(common.DefaultConfig.DefaultStateDirName, "shared_memory.bin", true)
+	db, err := database.NewDataBase(common.DefaultConfig.DefaultStateDirName)
 	if err != nil {
 		fmt.Println("newController is error detail:", err)
 		return nil
@@ -121,42 +124,71 @@ func newController() *Controller {
 	defer db.Close()
 
 	//init ReversibleBlocks
-	reversibleDir := common.DefaultConfig.DefaultBlocksDirName + "/" + common.DefaultConfig.DefaultReversibleBlocksDirName
-	reversibleDB, err := database.NewDataBase(reversibleDir, common.DefaultConfig.ReversibleFileName, true)
+	//reversibleDir := common.DefaultConfig.DefaultBlocksDirName + "/" + common.DefaultConfig.DefaultReversibleBlocksDirName
+	reversibleDB, err := database.NewDataBase(common.DefaultConfig.DefaultReversibleBlocksDirName)
 	if err != nil {
 		fmt.Println("newController init reversibleDB is error", err)
 	}
 	con := &Controller{InTrxRequiringChecks: false, RePlaying: false}
 	con.DB = db
 	con.ReversibleBlocks = reversibleDB
-	con.ForkDB = types.GetForkDbInstance(common.DefaultConfig.DefaultStateDirName)
+	con.ForkDB = types.GetForkDbInstance(common.DefaultConfig.DefaultBlocksDirName)
 
 	con.ChainID = types.GetGenesisStateInstance().ComputeChainID()
 
 	con.initConfig()
 	con.ReadMode = con.Config.readMode
-	con.ApplyHandlers = make(map[common.AccountName]map[HandlerKey]func(ctx *ApplyContext))
+	con.ApplyHandlers = make(map[common.AccountName]map[HandlerKey]v)
 	con.WasmIf = exec.NewWasmInterface()
-	//TODO wait append
-	/*
-			set_apply_handler( #receiver, #contract, #action, &BOOST_PP_CAT(apply_, BOOST_PP_CAT(contract, BOOST_PP_CAT(_,action) ) ) )
-			SET_APP_HANDLER( eosio, eosio, newaccount );
-			SET_APP_HANDLER( eosio, eosio, setcode );
-			SET_APP_HANDLER( eosio, eosio, setabi );
-			SET_APP_HANDLER( eosio, eosio, updateauth );
-			SET_APP_HANDLER( eosio, eosio, deleteauth );
-			SET_APP_HANDLER( eosio, eosio, unlinkauth );
-			SET_APP_HANDLER( eosio, eosio, linkauth );
-			SET_APP_HANDLER( eosio, eosio, canceldelay );
-		    fork_db.irreversible.connect( [&]( auto b ) {
-		                                 on_irreversible(b);
-		                                 });
-	*/
+
+	con.SetApplayHandler(common.AccountName(common.N("eosio")), common.AccountName(common.N("eosio")),
+		common.ActionName(common.N("eosio")), applyEosioNewaccount)
+	con.SetApplayHandler(common.AccountName(common.N("eosio")), common.AccountName(common.N("eosio")),
+		common.ActionName(common.N("eosio")), applyEosioSetcode)
+	con.SetApplayHandler(common.AccountName(common.N("eosio")), common.AccountName(common.N("eosio")),
+		common.ActionName(common.N("eosio")), applyEosioSetabi)
+	con.SetApplayHandler(common.AccountName(common.N("eosio")), common.AccountName(common.N("eosio")),
+		common.ActionName(common.N("eosio")), applyEosioUpdateauth)
+	con.SetApplayHandler(common.AccountName(common.N("eosio")), common.AccountName(common.N("eosio")),
+		common.ActionName(common.N("eosio")), applyEosioDeleteauth)
+	con.SetApplayHandler(common.AccountName(common.N("eosio")), common.AccountName(common.N("eosio")),
+		common.ActionName(common.N("eosio")), applyEosioUnlinkauth)
+	con.SetApplayHandler(common.AccountName(common.N("eosio")), common.AccountName(common.N("eosio")),
+		common.ActionName(common.N("eosio")), applyEosioLinkauth)
+	con.SetApplayHandler(common.AccountName(common.N("eosio")), common.AccountName(common.N("eosio")),
+		common.ActionName(common.N("eosio")), applyEosioCanceldalay)
+
 	//IrreversibleBlock.connect()
 	readycontroller = make(chan bool)
 	go initResource(con, readycontroller)
 
 	return con
+}
+
+func condition(contract common.AccountName, action common.ActionName) string {
+	c := capitalize(common.S(uint64(contract)))
+	a := capitalize(common.S(uint64(action)))
+
+	return c + a
+}
+
+func capitalize(str string) string {
+	var upperStr string
+	vv := []rune(str)
+	for i := 0; i < len(vv); i++ {
+		if i == 0 {
+			if vv[i] >= 97 && vv[i] <= 122 {
+				vv[i] -= 32
+				upperStr += string(vv[i])
+			} else {
+				fmt.Println("Not begins with lowercase letter,")
+				return str
+			}
+		} else {
+			upperStr += string(vv[i])
+		}
+	}
+	return upperStr
 }
 
 //TODO wait append block_log
@@ -165,14 +197,18 @@ func (self *Controller) OnIrreversible(b *types.BlockState) {
 }
 
 func (self *Controller) PopBlock() {
-	prev := self.ForkDB.GetBlock(self.Head.Header.Previous)
-	var r types.ReversibleBlockObject
-	errs := self.ReversibleBlocks.Find("NUM", self.Head.BlockNum, r)
+	prev := self.ForkDB.GetBlock(&self.Head.Header.Previous)
+	r := types.ReversibleBlockObject{}
+	r.BlockNum = self.Head.BlockNum
+	itr, errs := self.ReversibleBlocks.Find("NUM", r)
+
 	if errs != nil {
 		log.Error("PopBlock ReversibleBlocks Find is error,detail:", errs)
 	}
-	if &r != nil {
-		self.ReversibleBlocks.Remove(&r)
+	defer itr.Release()
+
+	if itr.Next() {
+		self.ReversibleBlocks.Remove(itr.First())
 	}
 	if self.ReadMode == SPECULATIVE {
 		var trx []*types.TransactionMetadata = self.Head.Trxs
@@ -185,10 +221,10 @@ func (self *Controller) PopBlock() {
 	self.DbSession.Undo() //TODO
 }
 
-func (self *Controller) SetApplayHandler(receiver common.AccountName, contract common.AccountName, action common.ActionName, handler func(*ApplyContext)) {
+func (self *Controller) SetApplayHandler(receiver common.AccountName, contract common.AccountName, action common.ActionName, handler func(a *ApplyContext)) {
 	hk := NewHandlerKey(common.ScopeName(contract), action)
-	first := make(map[common.AccountName]map[HandlerKey]func(ctx *ApplyContext))
-	secend := make(map[HandlerKey]func(ctx *ApplyContext))
+	first := make(map[common.AccountName]map[HandlerKey]v)
+	secend := make(map[HandlerKey]v)
 	secend[hk] = handler
 	first[receiver] = secend
 	self.ApplyHandlers[receiver] = secend
@@ -211,7 +247,7 @@ func (self *Controller) StartBlock(when common.BlockTimeStamp, confirmBlockCount
 		fmt.Println("pending block already exists")
 		return
 	}
-	// defer self.peding.reset()
+	//defer self.Pending.reset()
 	if self.SkipDbSession(s) {
 		self.Pending = types.NewPendingState(self.DB)
 	} else {
@@ -228,10 +264,12 @@ func (self *Controller) StartBlock(when common.BlockTimeStamp, confirmBlockCount
 	log.Info("wasPendingPromoted", wasPendingPromoted)
 	if self.ReadMode == DBReadMode(SPECULATIVE) || self.Pending.BlockStatus != types.BlockStatus(types.Incomplete) {
 		gpo := types.GlobalPropertyObject{}
-		err := self.DB.ByIndex("ID", gpo)
+		itr, err := self.DB.Get("ID", gpo)
 		if err != nil {
 			log.Error("Controller StartBlock find GlobalPropertyObject is error :", err)
+			return
 		}
+		err = itr.Data(gpo)
 		//gpo.ProposedScheduleBlockNum.valid() //if there is a proposed schedule that was proposed in a block ...
 		if ( /*gpo.ProposedScheduleBlockNum.valid() &&*/ gpo.ProposedScheduleBlockNum <= self.Pending.PendingBlockState.DposIrreversibleBlocknum) &&
 			(len(self.Pending.PendingBlockState.PendingSchedule.Producers) == 0) &&
@@ -243,9 +281,10 @@ func (self *Controller) StartBlock(when common.BlockTimeStamp, confirmBlockCount
 				ps.Producers = tmp.Producers
 				self.Pending.PendingBlockState.SetNewProducers(ps)
 			}
-			self.DB.Update(&gpo, func(i interface{}) error {
-				gpo.ProposedScheduleBlockNum = 1
-				gpo.ProposedSchedule.Clear()
+
+			self.DB.Modify(&gpo, func(i *types.GlobalPropertyObject) error {
+				i.ProposedScheduleBlockNum = 1
+				i.ProposedSchedule.Clear()
 				return nil
 			})
 		}
@@ -255,8 +294,12 @@ func (self *Controller) StartBlock(when common.BlockTimeStamp, confirmBlockCount
 		onbtrx.Implicit = true
 		//TODO defer
 		self.InTrxRequiringChecks = true
-		//self.PushTransaction()
+		self.PushTransaction(onbtrx, common.MaxTimePoint(), self.GetGlobalProperties().Configuration.MinTransactionCpuUsage, true)
 		fmt.Println(onbtrx)
+
+		self.clearExpiredInputTransactions()
+		self.UpdateProducersAuthority()
+
 	}
 
 }
@@ -295,20 +338,29 @@ func (self *Controller) PushTransaction(trx types.TransactionMetadata, deadLine 
 
 func (self *Controller) GetGlobalProperties() (gp *types.GlobalPropertyObject) {
 	gpo := types.GlobalPropertyObject{}
-	err := self.DB.ByIndex("ID", gpo) //TODO
+	itr, err := self.DB.Get("ID", gpo)
 	if err != nil {
 		log.Error("GetGlobalProperties is error detail:", err)
 	}
-	return
+	if itr.Next() {
+		err = itr.Data(gp)
+	}
+	return gp
 }
 
-func (self *Controller) GetDynamicGlobalProperties() (dgp *types.DynamicGlobalPropertyObject) {
+func (self *Controller) GetDynamicGlobalProperties() (r *types.DynamicGlobalPropertyObject) {
 	dgpo := types.DynamicGlobalPropertyObject{}
-	err := self.DB.ByIndex("ID", dgpo) //TODO
+	itr, err := self.DB.Get("ID", &dgpo)
 	if err != nil {
-		log.Error("GetGlobalProperties is error detail:", err)
+		log.Error("GetDynamicGlobalProperties is error detail:", err)
 	}
-	return
+	if itr.Next() {
+		err = itr.Data(r)
+		if err != nil {
+			fmt.Println("GetDynamicGlobalProperties Data is error:", err)
+		}
+	}
+	return &dgpo
 }
 
 func (self *Controller) GetMutableResourceLimitsManager() *ResourceLimitsManager {
@@ -328,7 +380,7 @@ func (self *Controller) GetOnBlockTransaction() types.SignedTransaction {
 	var trx = types.SignedTransaction{}
 	trx.Actions = append(trx.Actions, &onBlockAction)
 	trx.SetReferenceBlock(self.Head.ID)
-	in := self.Pending.PendingBlockState.Header.Timestamp + 999999 //TODO
+	in := self.Pending.PendingBlockState.Header.Timestamp + 999999
 	trx.Expiration = common.TimePointSec(in)
 	log.Error("getOnBlockTransaction trx.Expiration:", trx)
 	return trx
@@ -395,7 +447,7 @@ func (self *Controller) PendingBlockTime() common.TimePoint {
 	return self.Pending.PendingBlockState.Header.Timestamp.ToTimePoint()
 }
 
-func Close(db *database.DataBase, session *database.Session) {
+func Close(db *database.LDataBase, session *database.Session) {
 	//session.close()
 	db.Close()
 }
@@ -473,12 +525,13 @@ func (self *Controller) PushScheduledTransaction1(gto types.GeneratedTransaction
 	deadLine common.TimePoint,
 	billedCpuTimeUs uint32) *types.TransactionTrace {
 
-	err := self.DB.Find("ByExpiration", common.MakeTuple(gto.Id, gto.Expiration), gto)
+	itr, err := self.DB.Find("ByExpiration", gto)
 	if err != nil {
 		fmt.Println("GetGeneratedTransactionObjectByExpiration is error :", err.Error())
 	}
+	defer itr.Release()
 
-	undo_session := self.DB.StartSession()
+	//undo_session := self.DB.StartSession()
 	gtrx := types.GeneratedTransactions(&gto)
 
 	self.RemoveScheduledTransaction(&gto)
@@ -494,7 +547,7 @@ func (self *Controller) PushScheduledTransaction1(gto types.GeneratedTransaction
 	}
 
 	trx := types.TransactionMetadata{}
-	fmt.Println(undo_session, dtrx, trx) //TODO
+	fmt.Println(dtrx, trx) //TODO
 	return nil
 }
 
@@ -515,7 +568,7 @@ func (self *Controller) PushBlock(sbp *types.SignedBlock, status types.BlockStat
 
 func (self *Controller) PushConfirnation(hc types.HeaderConfirmation) {}
 
-func (self *Controller) DataBase() *database.DataBase {
+func (self *Controller) DataBase() *database.LDataBase {
 	return self.DB
 }
 
@@ -525,9 +578,10 @@ func (self *Controller) ForkDataBase() *types.ForkDatabase {
 
 func (self *Controller) GetAccount(name common.AccountName) *types.AccountObject {
 	accountObj := types.AccountObject{}
-	err := self.DB.Find("Name", name, accountObj)
+	accountObj.Name = name
+	_, err := self.DB.Find("Name", accountObj)
 	if err != nil {
-		fmt.Println("GetAccount is error :", err.Error())
+		fmt.Println("GetAccount is error :", err)
 	}
 	return &accountObj
 }
@@ -631,7 +685,7 @@ func (self *Controller) FetchBlockByNumber(blockNum uint32) *types.SignedBlock {
 }
 
 func (self *Controller) FetchBlockById(id common.BlockIdType) *types.SignedBlock {
-	state := self.ForkDB.GetBlock(id)
+	state := self.ForkDB.GetBlock(&id)
 	if state != nil {
 		return state.SignedBlock
 	}
@@ -647,7 +701,7 @@ func (self *Controller) FetchBlockStateByNumber(blockNum uint32) *types.BlockSta
 }
 
 func (self *Controller) FetchBlockStateById(id common.BlockIdType) *types.BlockState {
-	return self.ForkDB.GetBlock(id)
+	return self.ForkDB.GetBlock(&id)
 }
 
 func (self *Controller) GetBlcokIdForNum(blockNum uint32) common.BlockIdType {
@@ -843,6 +897,22 @@ type HandlerKey struct {
 func NewHandlerKey(scopeName common.ScopeName, actionName common.ActionName) HandlerKey {
 	hk := HandlerKey{scopeName, actionName}
 	return hk
+}
+
+func (self *Controller) clearExpiredInputTransactions() {
+	/*
+		auto& transaction_idx = db.get_mutable_index<transaction_multi_index>();
+		const auto& dedupe_index = transaction_idx.indices().get<by_expiration>();
+		auto now = self.pending_block_time();
+		while( (!dedupe_index.empty()) && ( now > fc::time_point(dedupe_index.begin()->expiration) ) ) {
+		transaction_idx.remove(*dedupe_index.begin());
+		}
+	*/
+}
+
+func (self *Controller) UpdateProducersAuthority() {
+	/*producers := self.Pending.PendingBlockState.ActiveSchedule.Producers
+	updatePermission :=*/
 }
 
 /*

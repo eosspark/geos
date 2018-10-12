@@ -1,8 +1,6 @@
 
 package database
 
-
-
 import (
 	"github.com/syndtr/goleveldb/leveldb"
 )
@@ -24,6 +22,13 @@ type Iterator interface {
 	Release()
 }
 
+type DbIterator interface {
+
+	Iterator
+
+	Data(data interface{})error
+}
+
 type iterator struct {
 	key 		[]byte
 	value 		[]byte
@@ -41,3 +46,4 @@ type uniqueIterator struct{
 type indexIterator struct{
 	 iterator
 }
+

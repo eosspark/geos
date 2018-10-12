@@ -1,11 +1,11 @@
 package types
 
 import (
-	"fmt"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"sort"
+	. "github.com/eosspark/eos-go/exception"
 )
 
 type BlockHeaderState struct {
@@ -52,33 +52,31 @@ func (bs *BlockHeaderState) GenerateNext(when *common.BlockTimeStamp) *BlockHead
 	result := new(BlockHeaderState)
 
 	if when != nil {
-		if *when <= bs.Header.Timestamp {
-			panic("next block must be in the future") //block_validate_exception
-		}
+		EosAssert(*when > bs.Header.Timestamp, &BlockValidateException{}, "next block must be in the future")
 	} else {
-		when = &bs.Header.Timestamp
+		when = &bs.Header.Timestamp //TODO: check
 		*when++
 	}
 
-	result.Header.Timestamp  	  = *when
-	result.Header.Previous 		  = bs.ID
+	result.Header.Timestamp = *when
+	result.Header.Previous = bs.ID
 	result.Header.ScheduleVersion = bs.ActiveSchedule.Version
 
-	proKey 				           					 := bs.GetScheduledProducer(*when)
-	result.BlockSigningKey         					  = proKey.BlockSigningKey
-	result.Header.Producer         					  = proKey.AccountName
+	proKey := bs.GetScheduledProducer(*when)
+	result.BlockSigningKey = proKey.BlockSigningKey
+	result.Header.Producer = proKey.AccountName
 
-	result.PendingScheduleLibNum   					  = bs.PendingScheduleLibNum
-	result.PendingScheduleHash 	   					  = bs.PendingScheduleHash
-	result.BlockNum 			   					  = bs.BlockNum + 1
+	result.PendingScheduleLibNum = bs.PendingScheduleLibNum
+	result.PendingScheduleHash = bs.PendingScheduleHash
+	result.BlockNum = bs.BlockNum + 1
 
-	result.ProducerToLastProduced  					  = make(map[common.AccountName]uint32, len(bs.ProducerToLastProduced))
-	for k,v := range bs.ProducerToLastProduced {
+	result.ProducerToLastProduced = make(map[common.AccountName]uint32, len(bs.ProducerToLastProduced))
+	for k, v := range bs.ProducerToLastProduced {
 		result.ProducerToLastProduced[k] = v
 	}
 
-	result.ProducerToLastImpliedIrb					  = make(map[common.AccountName]uint32, len(bs.ProducerToLastImpliedIrb))
-	for k,v := range bs.ProducerToLastImpliedIrb {
+	result.ProducerToLastImpliedIrb = make(map[common.AccountName]uint32, len(bs.ProducerToLastImpliedIrb))
+	for k, v := range bs.ProducerToLastImpliedIrb {
 		result.ProducerToLastImpliedIrb[k] = v
 	}
 
@@ -86,13 +84,13 @@ func (bs *BlockHeaderState) GenerateNext(when *common.BlockTimeStamp) *BlockHead
 	result.BlockrootMerkle = bs.BlockrootMerkle
 	result.BlockrootMerkle.Append(crypto.Sha256(bs.ID))
 
-	result.ActiveSchedule 					= bs.ActiveSchedule
-	result.PendingSchedule 					= bs.PendingSchedule
+	result.ActiveSchedule = bs.ActiveSchedule
+	result.PendingSchedule = bs.PendingSchedule
 	result.DposProposedIrreversibleBlocknum = bs.DposProposedIrreversibleBlocknum
-	result.BftIrreversibleBlocknum 			= bs.BftIrreversibleBlocknum
+	result.BftIrreversibleBlocknum = bs.BftIrreversibleBlocknum
 
 	result.ProducerToLastImpliedIrb[proKey.AccountName] = result.DposProposedIrreversibleBlocknum
-	result.DposIrreversibleBlocknum 					= result.CalcDposLastIrreversible()
+	result.DposIrreversibleBlocknum = result.CalcDposLastIrreversible()
 
 	/// grow the confirmed count
 	if common.DefaultConfig.MaxProducers*2/3+1 > 0xff {
@@ -179,12 +177,9 @@ func (bs *BlockHeaderState) SigDigest() crypto.Sha256 {
 }
 
 func (bs *BlockHeaderState) SetNewProducers(pending SharedProducerScheduleType) {
-	if pending.Version != bs.ActiveSchedule.Version+1 {
-		panic("wrong producer schedule version specified")
-	}
-	if len(pending.Producers) != 0 {
-		panic("cannot set new pending producers until last pending is confirmed")
-	}
+	EosAssert(pending.Version == bs.ActiveSchedule.Version+1, &ProducerScheduleException{}, "wrong producer schedule version specified")
+	EosAssert(len(bs.PendingSchedule.Producers) == 0, &ProducerScheduleException{},
+		"cannot set new pending producers until last pending is confirmed")
 	bs.Header.NewProducers = &pending
 	bs.PendingScheduleHash = crypto.Hash256(*bs.Header.NewProducers)
 	bs.PendingSchedule = *bs.Header.NewProducers.ProducerScheduleType()
@@ -200,31 +195,20 @@ func (bs *BlockHeaderState) SetNewProducers(pending SharedProducerScheduleType) 
  *  If the header specifies new_producers then apply them accordingly.
  */
 func (bs *BlockHeaderState) Next(h SignedBlockHeader, trust bool) *BlockHeaderState {
-	if h.Timestamp == common.BlockTimeStamp(0) {
-		panic(fmt.Sprintf("h:%s", h))
-	}
-	if len(h.HeaderExtensions) != 0 {
-		panic("no supported extensions")
-	}
-	if h.Timestamp <= bs.Header.Timestamp {
-		panic("block must be later in time")
-	}
-	if h.Previous != bs.ID {
-		panic("block must link to current state")
-	}
+	EosAssert(h.Timestamp != common.BlockTimeStamp(0), &BlockValidateException{}, "%s", h)
+	EosAssert(len(h.HeaderExtensions) == 0, &BlockValidateException{}, "no supported extensions")
+
+	EosAssert(h.Timestamp > bs.Header.Timestamp, &BlockValidateException{}, "block must be later in time")
+	EosAssert(h.Previous == bs.ID, &UnlinkableBlockException{}, "block must link to current state")
 
 	result := bs.GenerateNext(&h.Timestamp)
 
-	if result.Header.Producer != h.Producer {
-		panic("wrong producer specified")
-	}
-	if result.Header.ScheduleVersion != h.ScheduleVersion {
-		panic("wrong producer specified")
-	}
+	EosAssert(result.Header.Producer == h.Producer, &WrongProducer{}, "wrong producer specified")
+	EosAssert(result.Header.ScheduleVersion == h.ScheduleVersion, &ProducerScheduleException{}, "schedule_version in signed block is corrupted")
 
 	itr, has := bs.ProducerToLastProduced[h.Producer]
 	if has && itr >= result.BlockNum-uint32(h.Confirmed) {
-		panic(fmt.Sprintf("producer %s double-confirming known range", h.Producer))
+		EosAssert(itr < result.BlockNum-uint32(h.Confirmed), &ProducerDoubleConfirm{}, "producer %s double-confirming known range", h.Producer)
 	}
 
 	/// below this point is state changes that cannot be validated with headers alone, but never-the-less,
@@ -235,9 +219,7 @@ func (bs *BlockHeaderState) Next(h SignedBlockHeader, trust bool) *BlockHeaderSt
 	wasPendingPromoted := result.MaybePromotePending()
 
 	if h.NewProducers != nil {
-		if wasPendingPromoted {
-			panic("cannot set pending producer schedule in the same block in which pending was promoted to active")
-		}
+		EosAssert(!wasPendingPromoted, &ProducerScheduleException{}, "cannot set pending producer schedule in the same block in which pending was promoted to active")
 		result.SetNewProducers(*h.NewProducers)
 	}
 
@@ -247,17 +229,12 @@ func (bs *BlockHeaderState) Next(h SignedBlockHeader, trust bool) *BlockHeaderSt
 	result.ID = result.Header.BlockID()
 
 	if !trust {
-		signKey, err := result.Signee()
-		if err != nil {
-			panic(err)
-		}
-		if result.BlockSigningKey != signKey {
-			panic(fmt.Sprintf("block not signed by expected key, block_signing_key:%s, signee:%s",
-				result.BlockSigningKey, signKey))
-		}
+		EosAssert(result.BlockSigningKey == result.Signee(), &WrongSigningKey{}, "block not signed by expected key, "+
+			"result.block_signing_key: %s, signee: %s", result.BlockSigningKey, result.Signee())
 	}
+
 	return result
-}
+} ///next
 
 func (bs *BlockHeaderState) Sign(signer func(sha256 crypto.Sha256) ecc.Signature) {
 	d := bs.SigDigest()
@@ -266,34 +243,32 @@ func (bs *BlockHeaderState) Sign(signer func(sha256 crypto.Sha256) ecc.Signature
 	if err != nil {
 		panic(err)
 	}
+	EosAssert(bs.BlockSigningKey == signKey, &WrongSigningKey{}, "block is signed with unexpected key")
 	if bs.BlockSigningKey != signKey {
 		panic("block is signed with unexpected key")
 	}
 }
 
-func (bs *BlockHeaderState) Signee() (ecc.PublicKey, error) {
-	return bs.Header.ProducerSignature.PublicKey(bs.SigDigest().Bytes())
+func (bs *BlockHeaderState) Signee() (ecc.PublicKey) {
+	pk, err := bs.Header.ProducerSignature.PublicKey(bs.SigDigest().Bytes())
+	if err != nil {
+		panic(err)
+	}
+	return pk
 }
 
 func (bs *BlockHeaderState) AddConfirmation(conf HeaderConfirmation) {
 	for _, c := range bs.Confirmations {
-		if c.Producer == conf.Producer {
-			panic("block already confirmed by this producer")
-		}
+		EosAssert(c.Producer != conf.Producer, &ProducerDoubleConfirm{}, "block already confirmed by this producer")
 	}
 
 	key, hasKey := bs.ActiveSchedule.GetProducerKey(conf.Producer)
-	if !hasKey {
-		panic("producer not in current schedule")
-	}
-
+	EosAssert(hasKey, &ProducerNotInSchedule{}, "producer not in current schedule")
 	signer, err := conf.ProducerSignature.PublicKey(bs.SigDigest().Bytes())
 	if err != nil {
 		panic(err)
 	}
-	if signer != key {
-		panic("confirmation not signed by expected key")
-	}
+	EosAssert(signer == key, &WrongSigningKey{}, "confirmation not signed by expected key")
 
 	bs.Confirmations = append(bs.Confirmations, conf)
 }

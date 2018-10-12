@@ -1,6 +1,9 @@
 package database
+
 import (
+	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/syndtr/goleveldb/leveldb"
+	"reflect"
 	"regexp"
 )
 
@@ -62,6 +65,21 @@ func (iterator *uniqueIterator) Release() {
 
 func (iterator *uniqueIterator) Key() []byte {
 	return iterator.key
+}
+
+func(iterator *uniqueIterator)Data(data interface{})error{
+
+	ref := reflect.ValueOf(data)
+
+	if !ref.IsValid() ||  reflect.Indirect(ref).Kind() != reflect.Struct {
+		return ErrStructPtrNeeded
+	}
+	rv := reflect.Indirect(ref)
+	if !rv.CanAddr() {
+		return ErrPtrNeeded
+	}
+
+	return rlp.DecodeBytes(iterator.Value(),data)
 }
 
 func (iterator *uniqueIterator) Value() []byte {

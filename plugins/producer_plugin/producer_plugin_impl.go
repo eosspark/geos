@@ -9,6 +9,7 @@ import (
 	Chain "github.com/eosspark/eos-go/plugins/producer_plugin/mock"
 	"github.com/eosspark/eos-go/crypto"
 	. "github.com/eosspark/eos-go/exception"
+	. "github.com/eosspark/eos-go/exception/try"
 )
 
 type ProducerPluginImpl struct {
@@ -157,14 +158,13 @@ func (impl *ProducerPluginImpl) OnIrreversibleBlock(lib *types.SignedBlock) {
 }
 
 func (impl *ProducerPluginImpl) OnIncomingBlock(block *types.SignedBlock) {
-	//fc_dlog(_log, "received incoming block ${id}", ("id", block->id()));
+	//TODO: fc_dlog(_log, "received incoming block ${id}", ("id", block->id()));
 
-	if block.Timestamp.ToTimePoint() >= (common.Now().AddUs(common.Seconds(7))) {
-		panic(ErrBlockFromTheFuture)
-	}
+	EosAssert( block.Timestamp.ToTimePoint() < common.Now().AddUs(common.Seconds(7)), &BlockFromTheFuture{}, "received a block from the future, ignoring it")
 
 	chain := Chain.GetControllerInstance()
 
+	/* de-dupe here... no point in aborting block if we already know the block */
 	id := block.BlockID()
 	existing := chain.FetchBlockById(id)
 	if existing != nil {
@@ -174,21 +174,21 @@ func (impl *ProducerPluginImpl) OnIncomingBlock(block *types.SignedBlock) {
 	// abort the pending block
 	chain.AbortBlock()
 
-	// make sure we restart our loop
+	// exceptions throw out, make sure we restart our loop
 	defer impl.ScheduleProductionLoop()
 
 	// push the new block
-	except, re := false, false
+	except := false
 
-	//try.Try(func() {
+	defer HandleReturn()
+	Try(func() {
 		chain.PushBlock(block)
-	//}).Catch(func(e exception.GuardExceptions) {
-	//	re = true
-	//}).Catch(func(e exception.Exception) {
-	//	except = true
-	//}).End()
-
-	if re { return }
+	}).Catch(func(e GuardExceptions) {
+		//TODO: handle_guard_exception
+		Return()
+	}).Catch(func(e Exception) {
+		except = true
+	}).End()
 
 	if except {
 		//TODO:C++ app().get_channel<channels::rejected_block>().publish( block );

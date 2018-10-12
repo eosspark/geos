@@ -1,7 +1,10 @@
 
 package database
+
 import (
+	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/syndtr/goleveldb/leveldb"
+	"reflect"
 	"regexp"
 )
 
@@ -21,7 +24,6 @@ func (iterator *indexIterator)Next()bool{
 		return iterator.prev()
 	}
 	return iterator.next()
-	return false
 }
 
 func (iterator *indexIterator)Prev()bool{
@@ -29,7 +31,6 @@ func (iterator *indexIterator)Prev()bool{
 		return iterator.next()
 	}
 	return iterator.prev()
-	return false
 }
 
 func (iterator *indexIterator)next()bool{
@@ -81,8 +82,22 @@ func(iterator *indexIterator)Release(){
 	iterator.it.Release()
 }
 
-func (iterator *indexIterator)Key()[]byte{
-	return iterator.key
+func(iterator *indexIterator)Data(data interface{})error{
+	ref := reflect.ValueOf(data)
+	if !ref.IsValid() ||  reflect.Indirect(ref).Kind() != reflect.Struct {
+		return ErrStructPtrNeeded
+	}
+
+	rv := reflect.Indirect(ref)
+	if !rv.CanAddr() {
+		return ErrPtrNeeded
+	}
+
+	return rlp.DecodeBytes(iterator.Value(),data)
+}
+
+func(iterator *indexIterator)Key()[]byte{
+	return nil
 }
 
 func (iterator *indexIterator)Value()[]byte{

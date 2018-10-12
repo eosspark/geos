@@ -94,7 +94,6 @@ func TestCatch_all(t *testing.T) {
 
 func returnFunc() (r int, flag bool) {
 
-
 	defer HandleReturn()
 	Try(func() {
 		panic(1)
@@ -137,3 +136,13 @@ func TestReturn(t *testing.T) {
 //
 //	}).End()
 //}
+
+func TestStackInfo(t *testing.T) {
+	Try(func() {
+		//a, b := 1, 0
+		//println(a / b)
+		//panic("s")
+	}).Catch(func(n int) {
+
+	}).End()
+}

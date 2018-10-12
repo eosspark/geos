@@ -17,3 +17,11 @@ type ResourceLimitsStateObject struct {
 	VirtualNetLimit      uint64
 	VirtualCpuLimit      uint64
 }
+
+func (state *ResourceLimitsStateObject) UpdateVirtualCpuLimit(cfg ResourceLimitsConfigObject) {
+	state.VirtualCpuLimit = types.UpdateElasticLimit(state.VirtualCpuLimit, state.AverageBlockCpuUsage.Average(), cfg.CpuLimitParameters)
+}
+
+func (state *ResourceLimitsStateObject) UpdateVirtualNetLimit(cfg ResourceLimitsConfigObject) {
+	state.VirtualNetLimit = types.UpdateElasticLimit(state.VirtualNetLimit, state.AverageBlockNetUsage.Average(), cfg.NetLimitParameters)
+}
