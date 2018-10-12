@@ -1,4 +1,5 @@
 package common
+
 import (
 	"fmt"
 	"math"

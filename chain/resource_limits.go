@@ -4,6 +4,7 @@ import (
 	"github.com/eosspark/eos-go/database"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/chain/types"
+	"github.com/eosspark/eos-go/entity"
 )
 
 var IsActiveRc bool
@@ -23,31 +24,21 @@ func GetResourceLimitsManager() *ResourceLimitsManager {
 }
 
 func newResourceLimitsManager() *ResourceLimitsManager {
-	//IsActiveRc = true
-	//control := GetControllerInstance()
-	//db := control.DataBase()
-	//return &ResourceLimitsManager{db: db}
-	return &ResourceLimitsManager{}
+	IsActiveRc = true
+	control := GetControllerInstance()
+	db := control.DataBase()
+	return &ResourceLimitsManager{db: db}
 }
 
 func (rlm *ResourceLimitsManager) InitializeDatabase() {
-	//config := entity.NewResourceLimitsConfigObject()
-	//rlm.db.Insert(&config)
-	//state := entity.ResourceLimitsStateObject{}
-	//rlm.db.Find("byId", &state)
-	//rlm.db.Modify(&state, func(data interface{}) error {
-	//	ref := reflect.ValueOf(data).Elem()
-	//	if ref.CanSet() {
-	//		ref.FieldByName("VirtualCpuLimit").SetUint(config.CpuLimitParameters.Max)
-	//		ref.FieldByName("VirtualNetLimit").SetUint(config.NetLimitParameters.Max)
-	//	} else {
-	//		// log ?
-	//	}
-	//	//state.VirtualCpuLimit = config.CpuLimitParameters.Max
-	//	//state.VirtualNetLimit = config.NetLimitParameters.Max
-	//	return nil
-	//
-	//})
+	config := entity.NewResourceLimitsConfigObject()
+	rlm.db.Insert(&config)
+	state := entity.ResourceLimitsStateObject{}
+	rlm.db.Find("byId", state, &state)
+	rlm.db.Modify(&state, func(data entity.ResourceLimitsStateObject) {
+		data.VirtualCpuLimit = config.CpuLimitParameters.Max
+		data.VirtualNetLimit = config.NetLimitParameters.Max
+	})
 }
 
 func (rlm *ResourceLimitsManager) InitializeAccount(account common.AccountName) {
