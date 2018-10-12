@@ -8,105 +8,6 @@ import (
 )
 
 
-func Test_open(t *testing.T) {
-	db,clo := openDb()
-	if db == nil{
-		log.Fatalln("db open failed")
-	}
-	defer clo()
-}
-
-func Test_insert(t *testing.T) {
-	db,clo := openDb()
-	if db == nil{
-		log.Fatalln("db open failed")
-	}
-	defer clo()
-
-	objs,houses := Objects()
-
-	saveObjs(objs,houses,db)
-}
-
-func Test_find(t *testing.T) {
-	db,clo := openDb()
-	if db == nil{
-		log.Fatalln("db open failed")
-	}
-	defer clo()
-
-	objs,houses := Objects()
-	objs_,houses_ := saveObjs(objs,houses,db)
-	findGreaterObjs(objs_,houses_,db)
-
-	findLessObjs(objs_,houses_,db)
-
-	getIdObjs(objs_,houses_,db)
-
-	findErrStruct(db)
-}
-
-func Test_modify(t *testing.T) {
-	db,clo := openDb()
-	if db == nil{
-		log.Fatalln("db open failed")
-	}
-	defer clo()
-
-	objs,houses := Objects()
-	saveObjs(objs,houses,db)
-	modifyObjs(db)
-}
-
-func Test_remove(t *testing.T) {
-	db, clo := openDb()
-	if db == nil {
-		log.Fatalln("db open failed")
-	}
-	defer clo()
-
-	objs, houses := Objects()
-	saveObjs(objs, houses, db)
-	removeUnique(db)
-}
-
-func removeNonUnique(db *LDataBase) {
-
-}
-func removeUnique(db *LDataBase) {
-
-	obj := TableIdObject{Code:21,Scope:22,Table:23,Payer:24,Count:25}
-	err := db.Remove(obj)
-	if err != ErrIncompleteStructure {
-		log.Fatalln(err)
-	}
-
-	obj.ID = 4
-
-	tmp := TableIdObject{}
-	err = db.Find("id",obj,&tmp)
-	if err != nil{
-		log.Fatalln(err)
-	}
-
-
-	err = db.Remove(&obj)
-	if err != ErrStructNeeded{
-		log.Fatalln(err)
-	}
-
-	err = db.Remove(obj)
-	if err != nil{
-		log.Fatalln(err)
-	}
-
-	tmp = TableIdObject{}
-	err = db.Find("id",obj,&tmp)
-	if err != ErrNotFound{
-		log.Fatalln(err)
-	}
-}
-
 func openDb()(*LDataBase,func()){
 
 	fileName := "./hello"
@@ -141,7 +42,7 @@ func Objects()([]TableIdObject,[]House){
 		obj := TableIdObject{Code:AccountName(number + 1),Scope:ScopeName(number + 2),Table:TableName(number + 3),Payer:AccountName(number + 4),Count:uint32(number + 5)}
 		objs = append(objs, obj)
 		house := House{Area:uint64(number + 7),Carnivore:Carnivore{number + 8,number + 8}}
-		Houses = append(Houses,house) 
+		Houses = append(Houses,house)
 		obj = TableIdObject{Code:AccountName(number + 1),Scope:ScopeName(number + 2),Table:TableName(number + 3),Payer:AccountName(number + 4),Count:uint32(number + 5)}
 		objs = append(objs, obj)
 		house = House{Area:uint64(number + 8),Carnivore:Carnivore{number + 8,number + 8}}
@@ -176,17 +77,54 @@ func saveObjs(objs []TableIdObject,houses []House,db *LDataBase) ([]TableIdObjec
 	return objs_,houses_
 }
 
-func findErrStruct(db *LDataBase){
+func Test_open(t *testing.T) {
+	db,clo := openDb()
+	if db == nil{
+		log.Fatalln("db open failed")
+	}
+	defer clo()
+}
+
+func Test_insert(t *testing.T) {
+	db,clo := openDb()
+	if db == nil{
+		log.Fatalln("db open failed")
+	}
+	defer clo()
+
+	objs,houses := Objects()
+
+	saveObjs(objs,houses,db)
+}
+
+func Test_find(t *testing.T) {
+	db,clo := openDb()
+	if db == nil{
+		log.Fatalln("db open failed")
+	}
+	defer clo()
+
+	objs,houses := Objects()
+	objs_,houses_ := saveObjs(objs,houses,db)
+	getGreaterObjs(objs_,houses_,db)
+
+	getLessObjs(objs_,houses_,db)
+
+	findObjs(objs_,houses_,db)
+
+	getErrStruct(db)
+}
+
+func getErrStruct(db *LDataBase){
 
 	obj:= TableIdObject{Table:13}
 	_,err := db.Get("byTable",&obj)
 	if err != ErrStructNeeded{
 		log.Fatalln(err)
 	}
-
 }
 
-func findGreaterObjs(objs []TableIdObject,houses []House,db *LDataBase) {
+func getGreaterObjs(objs []TableIdObject,houses []House,db *LDataBase) {
 
 	obj:= TableIdObject{Table:13}
 	it,err := db.Get("byTable",obj)
@@ -212,7 +150,7 @@ func findGreaterObjs(objs []TableIdObject,houses []House,db *LDataBase) {
 	it.Release()
 }
 
-func findLessObjs(objs []TableIdObject,houses []House,db *LDataBase) {
+func getLessObjs(objs []TableIdObject,houses []House,db *LDataBase) {
 	i := 0
 	obj := TableIdObject{Code:11}
 	it,err := db.Get("Code",obj)
@@ -252,20 +190,42 @@ func findLessObjs(objs []TableIdObject,houses []House,db *LDataBase) {
 
 }
 
-func getIdObjs(objs []TableIdObject,houses []House,db *LDataBase){
+func findObjs(objs []TableIdObject,houses []House,db *LDataBase){
 	obj := TableIdObject{ID:4}
 	tmp := TableIdObject{}
 	err := db.Find("id",obj,&tmp)
 	if err != nil{
 		log.Fatalln(err)
 	}
-	logObj(tmp)
+
+	{
+		hou := House{Area:17}
+		tmp := House{}
+		err := db.Find("Area",hou,&tmp)
+		if err != nil{
+			log.Fatalln(err)
+		}
+	}
+
 }
 
 
+func Test_modify(t *testing.T) {
+	db,clo := openDb()
+	if db == nil{
+		log.Fatalln("db open failed")
+	}
+	defer clo()
+
+	objs,houses := Objects()
+	saveObjs(objs,houses,db)
+	modifyObjs(db)
+}
+
 func modifyObjs(db*LDataBase){
 
-	obj := TableIdObject{ID:4,Code:21,Scope:22,Table:23,Payer:24,Count:25}
+	obj 	:= TableIdObject{ID:4,Code:21, Scope:22,Table:23,Payer:24,Count:25}
+	newobj 	:= TableIdObject{ID:4,Code:200,Scope:22,Table:23,Payer:24,Count:25}
 
 	err := db.Modify(&obj, func(object *TableIdObject) {
 		object.Code = 200
@@ -275,20 +235,65 @@ func modifyObjs(db*LDataBase){
 	}
 
 	obj = TableIdObject{}
-	obj.Scope = 22
-	obj.Table = 23
-	it,err := db.Get("byTable",obj)
+	tmp := TableIdObject{}
+	obj.ID = 4
+	err = db.Find("id",obj,&tmp)
 	if err != nil{
 		log.Fatalln(err)
 	}
-	defer it.Release()
-	for it.Next(){
-		obj = TableIdObject{}
-		it.Data(&obj)
-		//fmt.Println(obj)
+	if tmp != newobj{
+		logObj(tmp)
+		log.Fatalln("modify test error")
 	}
 }
 
+func Test_remove(t *testing.T) {
+	db, clo := openDb()
+	if db == nil {
+		log.Fatalln("db open failed")
+	}
+	defer clo()
+
+	objs, houses := Objects()
+	saveObjs(objs, houses, db)
+	removeUnique(db)
+}
+
+func removeUnique(db *LDataBase) {
+
+	obj := TableIdObject{Code:21,Scope:22,Table:23,Payer:24,Count:25}
+	err := db.Remove(obj)
+	if err != ErrIncompleteStructure {
+		log.Fatalln(err)
+	}
+
+	obj = TableIdObject{}
+	obj.ID = 4
+
+	tmp := TableIdObject{}
+	err = db.Find("id",obj,&tmp)
+	if err != nil{
+		log.Fatalln(err)
+	}
+
+	logObj(tmp)
+
+	err = db.Remove(&obj)
+	if err != ErrStructNeeded{
+		log.Fatalln(err)
+	}
+
+	err = db.Remove(tmp)
+	if err != nil{
+		log.Fatalln(err)
+	}
+
+	tmp = TableIdObject{}
+	err = db.Find("id",obj,&tmp)
+	if err != ErrNotFound{
+		log.Fatalln(err)
+	}
+}
 
 func Test_undo(t *testing.T) {
 	db, clo := openDb()
@@ -304,7 +309,7 @@ func Test_undo(t *testing.T) {
 
 func undoObjs(objs []TableIdObject,houses []House,db *LDataBase) {
 	//i := 0
-	obj := House{Carnivore:Carnivore{18,18}}
+	obj := House{Carnivore:Carnivore{38,38}}
 	it,err := db.Get("Carnivore",obj)
 	if err != nil{
 		log.Fatalln(err)
@@ -330,13 +335,12 @@ func undoObjs(objs []TableIdObject,houses []House,db *LDataBase) {
 	}
 
 	fmt.Println("-------------")
-	obj = House{Area:18}
+	obj = House{Id:10}
 	tmp := House{}
-	err = db.Find("Area",obj,&tmp)
-	if err != nil{
+	err = db.Find("id",obj,&tmp)
+	if err != ErrNotFound{
 		log.Fatalln(err)
 	}
-
 
 	it.Release()
 }

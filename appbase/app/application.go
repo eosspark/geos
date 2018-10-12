@@ -7,12 +7,17 @@ import (
 	"fmt"
 	. "github.com/eosspark/eos-go/exception"
 	"github.com/eosspark/eos-go/exception/try"
+	"path/filepath"
+	"runtime"
+	"os"
 )
 
 // 完成初步架构设计
 type applicationImpl struct {
-	Version int64
+	Version uint64
 	Options *cli.App
+	ConfigDir string
+	DateDir string
 }
 
 //var App_global *app
@@ -37,7 +42,7 @@ type application struct {
 //	return App_global
 //}
 
-var appImpl = &applicationImpl{1.0, cli.NewApp()}
+var appImpl = &applicationImpl{Version, cli.NewApp(),"",""}
 
 var App *application = &application{appImpl, make(map[string]Plugin), make([]Plugin, 0), make([]Plugin, 0)}
 
@@ -64,6 +69,7 @@ func setProgramOptions() {
 			Value: 8000,
 			Usage: "listening port",
 		},
+
 		cli.StringFlag{
 			Name:  "print-default-config",
 			Usage: "Print default configuration template",
@@ -143,4 +149,65 @@ func FindPlugin(name string) (plugin Plugin) {
 		}
 	}
 	return nil
+}
+
+func (app *application) SetVersion(Version uint64) {
+	App.My.Version = Version
+}
+
+func GetVersion() uint64{
+	return App.My.Version
+}
+
+
+func (app *application) SetDefaultConfigDir() {
+	App.My.ConfigDir = DefaultConfigDir()
+}
+
+func (app *application) SetDefaultDataDir() {
+	App.My.DateDir = DefaultDataDir()
+}
+
+
+
+func DefaultConfigDir() string {
+	// Try to place the data folder in the user's home dir
+	home := homeDir()
+	if home != "" {
+		if runtime.GOOS == "darwin" {
+			return filepath.Join(home, "Library", "Application Support","eosgo","nodes","config")
+		} else if runtime.GOOS == "windows" {
+			return filepath.Join(home, "AppData", "Roaming", "eosgo","nodes","config")
+		} else {
+			return filepath.Join(home, ".clef")
+		}
+	}
+	// As we cannot guess a stable location, return empty and handle later
+	return ""
+}
+
+func DefaultDataDir() string {
+	// Try to place the data folder in the user's home dir
+	home := homeDir()
+	if home != "" {
+		if runtime.GOOS == "darwin" {
+			return filepath.Join(home, "Library", "Application Support","eosgo","nodes","data")
+		} else if runtime.GOOS == "windows" {
+			return filepath.Join(home, "AppData", "Roaming", "eosgo","nodes","data")
+		} else {
+			return filepath.Join(home, ".clef")
+		}
+	}
+	// As we cannot guess a stable location, return empty and handle later
+	return ""
+}
+
+func homeDir() string {
+	if home := os.Getenv("HOME"); home != "" {
+		return home
+	}
+	//if usr, err := user.Current(); err == nil {
+	//	return usr.HomeDir
+	//}
+	return ""
 }
