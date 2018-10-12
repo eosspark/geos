@@ -242,7 +242,7 @@ func delete_(data interface{}, db *leveldb.DB) error {
 		return remove(key, db)
 	}
 
-	err = doCallBack(id, typeName, cfg, callBack)
+	err = doCallBack(id, typeName, cfg, callBack)// FIXME --> id --> obj --> cfg
 	if err != nil {
 		return err
 	}
