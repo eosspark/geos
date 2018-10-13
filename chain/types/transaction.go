@@ -1,6 +1,8 @@
 package types
 
 import (
+	"bytes"
+	"compress/zlib"
 	"encoding/json"
 	"fmt"
 	"github.com/eosspark/eos-go/common"
@@ -8,6 +10,7 @@ import (
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/eosspark/eos-go/log"
+	"io/ioutil"
 	"math"
 )
 
@@ -450,16 +453,15 @@ func unpackTransaction(data common.HexBytes) (tx *Transaction) {
 	return
 }
 
-func zlibDecompress(data *common.HexBytes) (out common.HexBytes) { //TODO
-	//try{}
-
-	//bio::filtering_ostream decomp;
-	//	decomp.push(bio::zlib_decompressor());
-	//	decomp.push(read_limiter<1*1024*1024>()); // limit to 10 megs decompressed for zip bomb protections
-	//	decomp.push(bio::back_inserter(out));
-	//bio::write(decomp, data.data(), data.size());
-	//bio::close(decomp);
-	return
+func zlibDecompress(data *common.HexBytes) common.HexBytes { //TODO
+	in := bytes.NewReader(*data)
+	r, err := zlib.NewReader(in)
+	if err != nil {
+		panic(err)
+	}
+	result, _ := ioutil.ReadAll(r)
+	r.Close()
+	return result
 }
 
 func zlibDecompressContextFreeData(data *common.HexBytes) []common.HexBytes {
@@ -500,22 +502,23 @@ func zlibCompressContextFreeData(cfd *[]common.HexBytes) (out []byte) {
 	}
 	in := packContextFreeData(cfd)
 
-	//bio::filtering_ostream comp;
-	//	comp.push(bio::zlib_compressor(bio::zlib::best_compression));
-	//	comp.push(bio::back_inserter(out));
-	//bio::write(comp, in.data(), in.size());
-	//bio::close(comp);
-	return
+	return zlibCompress(in)
 }
 
-func zlibCompressTransaction(t *Transaction) (out []byte) {
+func zlibCompressTransaction(t *Transaction) []byte {
 	in := packTransaction(t)
-	//bio::filtering_ostream comp;
-	//	comp.push(bio::zlib_compressor(bio::zlib::best_compression));
-	//	comp.push(bio::back_inserter(out));
-	//bio::write(comp, in.data(), in.size());
-	//bio::close(comp);
-	return out
+	return zlibCompress(in)
+}
+
+func zlibCompress(data []byte) []byte {
+	var in bytes.Buffer
+	w, err := zlib.NewWriterLevel(&in, zlib.BestCompression)
+	if err != nil {
+		panic(err)
+	}
+	w.Write(data)
+	w.Close()
+	return in.Bytes()
 }
 
 /**
