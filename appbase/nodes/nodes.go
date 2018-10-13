@@ -9,7 +9,6 @@ import (
 	"os/signal"
 	. "github.com/eosspark/eos-go/appbase/app"
 	. "github.com/eosspark/eos-go/appbase/app/include"
-	"fmt"
 )
 
 const (
@@ -44,9 +43,6 @@ func main() {
 		App.SetVersion(Version)
 		App.SetDefaultDataDir()
 		App.SetDefaultConfigDir()
-		fmt.Println(App.My.DateDir)
-		fmt.Println(App.My.ConfigDir)
-		fmt.Println(App.My.Version)
 		App.My.Options.Run(os.Args)
 		if !App.Initialize() {
 			panic(INITIALIZEFAIL)
