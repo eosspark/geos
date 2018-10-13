@@ -24,6 +24,7 @@ type TransactionIdType crypto.Sha256
 type CheckSum256Type crypto.Sha256
 type IdType uint16
 type KeyType uint64
+type DigestType crypto.Sha256
 
 func (n ChainIdType) String() string {
 	return crypto.Sha256(n).String()
