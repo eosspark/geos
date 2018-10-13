@@ -87,7 +87,7 @@ func NewTransactionContext(
 	tc.netUsage = &tc.Trace.NetUsage
 
 	if !c.SkipDbSessions() {
-		tc.UndoSession = c.DB.StartSession()
+		//tc.UndoSession = c.DB.StartSession()
 	}
 	//t.Deadline = common.MaxTimePoint()
 	//assert(len(t.Trx.Extensions) == 0), unsupported_feature, "we don't support any extensions yet")
