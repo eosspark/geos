@@ -1,7 +1,6 @@
 package types
 
 import (
-	"fmt"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/database"
 	"math/big"
@@ -53,17 +52,17 @@ func (g *GeneratedTransactionObject) GetBillableSize() uint64 {
 func GetGTOByTrxId(db *database.LDataBase, trxId common.TransactionIdType) (g *GeneratedTransactionObject) {
 	gto := GeneratedTransactionObject{}
 	gto.TrxId = trxId
-	itr, err := db.Find("TrxId", gto)
-	if err != nil {
-		fmt.Println(GetGTOByTrxId)
-	}
-	defer itr.Release()
-	if itr.Next() {
-		err = itr.Data(g)
-		if err != nil {
-			fmt.Println("GetGTOByTrxId Data is error:", err)
-		}
-	}
+	//itr, err := db.Find("TrxId", gto)
+	//if err != nil {
+	//	fmt.Println(GetGTOByTrxId)
+	//}
+	//defer itr.Release()
+	//if itr.Next() {
+	//	err = itr.Data(g)
+	//	if err != nil {
+	//		fmt.Println("GetGTOByTrxId Data is error:", err)
+	//	}
+	//}
 	return &gto
 }
 
