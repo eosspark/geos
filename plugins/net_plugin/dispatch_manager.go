@@ -1,4 +1,4 @@
-package p2p
+package net_plugin
 
 import (
 	"github.com/eosspark/eos-go/chain/types"

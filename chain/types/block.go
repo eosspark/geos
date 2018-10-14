@@ -116,7 +116,7 @@ type TransactionReceiptHeader struct {
 
 type TransactionReceipt struct {
 	TransactionReceiptHeader
-	Transaction TransactionWithID `json:"trx"`
+	Transaction TransactionWithID `json:"trx" eos:"trxID"`
 }
 
 type SignedBlock struct {
@@ -142,16 +142,17 @@ type Optional struct {
 }
 
 type TransactionWithID struct {
-	// ID     common.TransactionIdType
-	Tag    uint8              `json:"-"`
-	Packed *PackedTransaction `json:"packed_transaction"`
+	Packed *PackedTransaction       `json:"packed_transaction" eos:"tag0"`
+	ID     common.TransactionIdType `json:"transaction_id" eos:"tag1"`
 }
 
 func (t TransactionWithID) MarshalJSON() ([]byte, error) {
 	return json.Marshal([]interface{}{
+		t.ID,
 		t.Packed,
 	})
 }
+
 func (t *TransactionWithID) UnmarshalJSON(data []byte) error {
 	var packed PackedTransaction
 	if data[0] == '{' {
@@ -159,100 +160,19 @@ func (t *TransactionWithID) UnmarshalJSON(data []byte) error {
 			return err
 		}
 		*t = TransactionWithID{
-			// ID:     packed.ID(),
 			Packed: &packed,
 		}
-		// 	else if data[0] == '"' {
-		// 	var id string
-		// 	err := json.Unmarshal(data, &id)
-		// 	if err != nil {
-		// 		return err
-		// 	}
-
-		// 	shaID, err := hex.DecodeString(id)
-		// 	if err != nil {
-		// 		return fmt.Errorf("decoding id in trx: %s", err)
-		// 	}
-
-		// 	*t = TransactionWithID{
-		// 		ID: SHA256Bytes(shaID),
-		// 	}
-
-		// 	return nil
-		// }
-
+		return nil
+	} else if data[0] == '"' {
+		var id common.TransactionIdType
+		err := json.Unmarshal(data, &id)
+		if err != nil {
+			return err
+		}
+		*t = TransactionWithID{
+			ID: id,
+		}
 		return nil
 	}
-	return nil
+	panic("types.TransactionWithID unmarshalJSON error: unsupported multi-variant trx serialization type from C++ code into Go")
 }
-
-// func (t *TransactionWithID) UnmarshalJSON(data []byte) error {
-// 	var packed PackedTransaction
-// 	if data[0] == '{' {
-// 		if err := json.Unmarshal(data, &packed); err != nil {
-// 			return err
-// 		}
-// 		*t = TransactionWithID{
-// 			ID:     packed.ID(),
-// 			Packed: &packed,
-// 		}
-
-// 		return nil
-// 	} else if data[0] == '"' {
-// 		var id string
-// 		err := json.Unmarshal(data, &id)
-// 		if err != nil {
-// 			return err
-// 		}
-
-// 		shaID, err := hex.DecodeString(id)
-// 		if err != nil {
-// 			return fmt.Errorf("decoding id in trx: %s", err)
-// 		}
-
-// 		*t = TransactionWithID{
-// 			ID: SHA256Bytes(shaID),
-// 		}
-
-// 		return nil
-// 	}
-
-// 	var in []json.RawMessage
-// 	err := json.Unmarshal(data, &in)
-// 	if err != nil {
-// 		return err
-// 	}
-
-// 	if len(in) != 2 {
-// 		return fmt.Errorf("expected two params for TransactionWithID, got %d", len(in))
-// 	}
-
-// 	typ := string(in[0])
-// 	switch typ {
-// 	case "0":
-// 		var s string
-// 		if err := json.Unmarshal(in[1], &s); err != nil {
-// 			return err
-// 		}
-
-// 		*t = TransactionWithID{}
-// 		if err := json.Unmarshal(in[1], &t.ID); err != nil {
-// 			return err
-// 		}
-// 	case "1":
-
-// 		// ignore the ID field right now..
-// 		err = json.Unmarshal(in[1], &packed)
-// 		if err != nil {
-// 			return err
-// 		}
-
-// 		*t = TransactionWithID{
-// 			ID:     packed.ID(),
-// 			Packed: &packed,
-// 		}
-// 	default:
-// 		return fmt.Errorf("unsupported multi-variant trx serialization type from C++ code into Go: %q", typ)
-// 	}
-// 	return nil
-// }
