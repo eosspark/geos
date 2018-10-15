@@ -2,7 +2,6 @@ package rlp
 
 import (
 	"fmt"
-	"github.com/cactus/rlp"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
@@ -193,29 +192,34 @@ func TestOptionalNil(t *testing.T) {
 		NewProducers *SharedProducerScheduleType `eos:"optional"`
 	}
 
-	test := &optionalStruct{}
+	test := optionalStruct{}
 	//test := &optionalStruct{
 	//	NewProducers:nil,
 	//}
 	result := []byte{0x0}
 
-	enc, err := EncodeToBytes(test)
+	enc, err := EncodeToBytes(&test)
 	assert.NoError(t, err, nil)
 	assert.Equal(t, enc, result)
-	//fmt.Printf("%#v\n", enc)
+	fmt.Printf("%#v\n", enc)
 
-	check := &optionalStruct{}
-	scheduleType := &SharedProducerScheduleType{
-		Version:   0,
-		Producers: nil,
+	test1 := optionalStruct{
+		NewProducers: &SharedProducerScheduleType{
+			Version: 100,
+		},
 	}
-	expected := &optionalStruct{
-		NewProducers: scheduleType,
-	}
-	err = DecodeBytes(result, &check)
-	//fmt.Printf("decode result: %V\n", check) //check :   *rlp.SharedProducerScheduleType=&{0 []}
+
+	result1 := []byte{0x1, 0x64, 0x0, 0x0, 0x0, 0x0}
+
+	enc, err = EncodeToBytes(&test1)
 	assert.NoError(t, err, nil)
-	assert.Equal(t, expected, check)
+	assert.Equal(t, enc, result1)
+	fmt.Printf("%#v\n", enc)
+	check := optionalStruct{}
+
+	err = DecodeBytes(result1, &check)
+	assert.NoError(t, err, nil)
+	assert.Equal(t, test1.NewProducers.Version, check.NewProducers.Version)
 }
 
 func TestOptional(t *testing.T) {
@@ -255,48 +259,6 @@ func TestOptional(t *testing.T) {
 	assert.NoError(t, err, nil)
 	assert.Equal(t, test, check)
 	//fmt.Printf("%V\n", check)
-}
-
-func TestOptionalStruct(t *testing.T) {
-
-	type ProducerKey struct {
-		AccountName     uint64 `json:"account_name"`
-		BlockSigningKey []byte `json:"block_signing_key"`
-	}
-	type SharedProducerScheduleType struct {
-		Version   uint32
-		Producers []ProducerKey
-	}
-	type optionalStruct struct {
-		NewProducers *SharedProducerScheduleType `eos:"optional"`
-		Name         string
-	}
-
-	test := &optionalStruct{
-		NewProducers: nil,
-		Name:         "walker",
-	}
-	result := []byte{0x0, 0x6, 0x77, 0x61, 0x6c, 0x6b, 0x65, 0x72}
-
-	enc, err := EncodeToBytes(test)
-	assert.NoError(t, err, nil)
-	assert.Equal(t, enc, result)
-	//fmt.Printf("%#v\n", enc)
-
-	check := &optionalStruct{}
-	scheduleType := &SharedProducerScheduleType{
-		Version:   0,
-		Producers: nil,
-	}
-	expected := &optionalStruct{
-		NewProducers: scheduleType,
-		Name:         "walker",
-	}
-	err = DecodeBytes(result, &check)
-	//fmt.Printf("decode result: %V\n", check) //check :   *rlp.SharedProducerScheduleType=&{0 []}
-	//fmt.Println(check)
-	assert.NoError(t, err, nil)
-	assert.Equal(t, expected, check)
 }
 
 func TestOptionalString(t *testing.T) {
@@ -391,11 +353,38 @@ func TestPublicKey(t *testing.T) {
 
 }
 
-func TestSharlp(t *testing.T) {
-	//str := "nihao"
-	h := Hash256("cf057bbfb72640471fd910bcb67639c22df9f92470936cddc1ade0e2f2e7dc4f")
-	out, _ := rlp.EncodeToBytes(h)
-	fmt.Println(out, len(out))
-	fmt.Println(h.Bytes())
+func TestStructTag(t *testing.T) {
+	type ProducerKey struct {
+		AccountName     uint64 `json:"account_name" eos:"-"`
+		BlockSigningKey []byte `json:"block_signing_key"`
+	}
+	test := &ProducerKey{
+		AccountName:     9939393939393,
+		BlockSigningKey: []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 0},
+	}
+	test2 := &ProducerKey{
+		AccountName:     0,
+		BlockSigningKey: []byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 0},
+	}
+	result := []byte{0xa, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0x0}
+	enc, err := EncodeToBytes(test)
+	assert.NoError(t, err, nil)
+	assert.Equal(t, enc, result)
+	//fmt.Printf("%#v\n", enc)
+
+	check := &ProducerKey{}
+	err = DecodeBytes(result, &check)
+	//fmt.Printf("%v\n", check)
+	assert.NoError(t, err, nil)
+	assert.Equal(t, test2, check)
 
 }
+
+//func TestSharlp(t *testing.T) {
+//	//str := "nihao"
+//	h := crypto.Hash256("cf057bbfb72640471fd910bcb67639c22df9f92470936cddc1ade0e2f2e7dc4f")
+//	out, _ := rlp.EncodeToBytes(h)
+//	fmt.Println(out, len(out))
+//	fmt.Println(h.Bytes())
+//
+//}

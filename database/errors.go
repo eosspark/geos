@@ -1,16 +1,22 @@
 package database
 
 import "errors"
+
 // Errors
 var (
 	// ErrNoID is returned when no ID field or id tag is found in the struct.
 	ErrNoID = errors.New("database : missing struct tag id field")
+
+	// ErrNoName is returned when the specified struct has no name.
+	ErrNoName = errors.New("provided target must have a name")
 
 	// ErrBadType is returned when a method receives an unexpected value type.
 	ErrBadType = errors.New("database : provided data must be a struct or a pointer to struct")
 
 	// ErrAlreadyExists is returned uses when trying to set an existing value on a field that has a unique index.
 	ErrAlreadyExists = errors.New("database : already exists")
+
+	ErrSlicePtrNeeded = errors.New("provided target must be a pointer to slice")
 
 	// ErrUnknownTag is returned when an unexpected tag is specified.
 	ErrUnknownTag = errors.New("database : unknown tag")

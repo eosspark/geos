@@ -1,11 +1,13 @@
-package p2p
+package net_plugin
 
 import (
+	"errors"
 	"fmt"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/ecc"
+	"reflect"
 )
 
 type P2PMessage interface {
@@ -87,6 +89,7 @@ var ReasonToString = map[GoAwayReason]string{
 type GoAwayMessage struct {
 	Reason GoAwayReason  `json:"reason"`
 	NodeID crypto.Sha256 `json:"node_id"` //for duplicate notification
+	//NodeID common.NodeIdType `json:"node_id"` //for duplicate notification
 }
 
 func (m *GoAwayMessage) GetType() P2PMessageType {
@@ -181,15 +184,81 @@ func (m *PackedTransactionMessage) GetType() P2PMessageType {
 	return PackedTransactionMessageType
 }
 
+type P2PMessageType byte
+
+const (
+	HandshakeMessageType P2PMessageType = iota // 0
+	ChainSizeType
+	GoAwayMessageType
+	TimeMessageType
+	NoticeMessageType // 4
+	RequestMessageType
+	SyncRequestMessageType
+	SignedBlockType
+	PackedTransactionMessageType //8
+)
+
+type MessageReflectTypes struct {
+	Name        string
+	ReflectType reflect.Type
+}
+
+var messageAttributes = []MessageReflectTypes{
+	{Name: "Handshake", ReflectType: reflect.TypeOf(HandshakeMessage{})},
+	{Name: "ChainSize", ReflectType: reflect.TypeOf(ChainSizeMessage{})},
+	{Name: "GoAway", ReflectType: reflect.TypeOf(GoAwayMessage{})},
+	{Name: "Time", ReflectType: reflect.TypeOf(TimeMessage{})},
+	{Name: "Notice", ReflectType: reflect.TypeOf(NoticeMessage{})},
+	{Name: "Request", ReflectType: reflect.TypeOf(RequestMessage{})},
+	{Name: "SyncRequest", ReflectType: reflect.TypeOf(SyncRequestMessage{})},
+	{Name: "SignedBlock", ReflectType: reflect.TypeOf(SignedBlockMessage{})},
+	{Name: "PackedTransaction", ReflectType: reflect.TypeOf(PackedTransactionMessage{})},
+}
+
+var ErrUnknownMessageType = errors.New("unknown type")
+
+func NewMessageType(aType byte) (t P2PMessageType, err error) {
+	t = P2PMessageType(aType)
+	if !t.isValid() {
+		return t, ErrUnknownMessageType
+	}
+
+	return
+}
+
+func (t P2PMessageType) isValid() bool {
+	index := byte(t)
+	return int(index) < len(messageAttributes) && index >= 0
+}
+
+func (t P2PMessageType) Name() (string, bool) {
+	index := byte(t)
+
+	if !t.isValid() {
+		return "Unknown", false
+	}
+
+	attr := messageAttributes[index]
+	return attr.Name, true
+}
+
+func (t P2PMessageType) reflectTypes() (MessageReflectTypes, bool) {
+	index := byte(t)
+
+	if !t.isValid() {
+		return MessageReflectTypes{}, false
+	}
+
+	attr := messageAttributes[index]
+	return attr, true
+}
+
 /**
- *
 Goals of Network Code
 1. low latency to minimize missed blocks and potentially reduce block interval
 2. minimize redundant data between blocks and transactions.
 3. enable rapid sync of a new node
 4. update to new boost / fc
-
-
 
 State:
    All nodes know which blocks and transactions they have
@@ -248,9 +317,5 @@ parallel fetches, request in groups
 only relay transactions to peers if we don't already know about it.
 
 send a notification rather than a transaction if the txn is > 3mtu size.
-
-
-
-
 
 */

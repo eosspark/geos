@@ -46,13 +46,7 @@ var appImpl = &applicationImpl{Version, cli.NewApp(),"",""}
 
 var App *application = &application{appImpl, make(map[string]Plugin), make([]Plugin, 0), make([]Plugin, 0)}
 
-//func (app *app) SetDefaultDataDir(dataDir string) {
-//	app.DataDir = dataDir
-//}
 
-//func (app *app) SetConfigDir (configDir string) {
-//	app.ConfigDir = configDir
-//}
 
 func (app *application) RegisterPlugin(plugin Plugin) Plugin {
 	if p, existing := app.Plugins[plugin.GetName()]; existing {
@@ -99,6 +93,7 @@ func setProgramOptions() {
 		Name:  "version, v",
 		Usage: "Print version information.",
 	}
+
 }
 
 func (app *application) Initialize() bool {
@@ -126,6 +121,7 @@ func (app *application) StartUp() {
 	for _, v := range app.Plugins {
 		v.PluginStartUp()
 	}
+
 }
 
 func (app *application) ShutDown() {

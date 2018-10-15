@@ -78,6 +78,11 @@ func makeLog(exception Exception) {
 	println(exception.Message())
 }
 
+type UnHandledException struct{ logMessage }
+
+func (UnHandledException) Code() ExcTypes { return unhandledExceptionCode }
+func (UnHandledException) What() string   { return "" }
+
 type TimeoutException struct{ logMessage }
 
 func (TimeoutException) Code() ExcTypes { return timeoutExceptionCode }

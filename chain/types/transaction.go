@@ -1,6 +1,8 @@
 package types
 
 import (
+	"bytes"
+	"compress/zlib"
 	"encoding/json"
 	"fmt"
 	"github.com/eosspark/eos-go/common"
@@ -8,8 +10,33 @@ import (
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/eosspark/eos-go/log"
+	"io/ioutil"
+	"math"
 )
 
+type Extension struct {
+	Type uint16          `json:"type"`
+	Data common.HexBytes `json:"data"`
+}
+
+/**
+ *  TransactionHeader contains the fixed-sized data
+ *  associated with each transaction. It is separated from
+ *  the transaction body to facilitate partial parsing of
+ *  transactions without requiring dynamic memory allocation.
+ *
+ *  All transactions have an expiration time after which they
+ *  may no longer be included in the blockchain. Once a block
+ *  with a block_header::timestamp greater than expiration is
+ *  deemed irreversible, then a user can safely trust the transaction
+ *  will never be included.
+ *
+
+ *  Each region is an independent blockchain, it is included as routing
+ *  information for inter-blockchain communication. A contract in this
+ *  region might generate or authorize a transaction intended for a foreign
+ *  region.
+ */
 type TransactionHeader struct {
 	Expiration     common.TimePointSec `json:"expiration"`
 	RefBlockNum    uint16              `json:"ref_block_num"`
@@ -35,6 +62,16 @@ func (th TransactionHeader) Validate() {
 	}
 }
 
+func (th *TransactionHeader) SetReferenceBlock(referenceBlock common.BlockIdType) {
+	first := common.EndianReverseU32(uint32(referenceBlock.Hash[0]))
+	th.RefBlockNum = uint16(first)
+	th.RefBlockPrefix = uint32(referenceBlock.Hash[1])
+	log.Info("SetReferenceBlock:", th)
+}
+
+//Transaction consits of a set of messages which must all be applied or
+//all are rejected. These messages have access to data within the given
+//read and write scopes.
 type Transaction struct { // WARN: is a `variant` in C++, can be a SignedTransaction or a Transaction.
 	TransactionHeader
 
@@ -43,15 +80,93 @@ type Transaction struct { // WARN: is a `variant` in C++, can be a SignedTransac
 	Extensions         []*Extension `json:"transaction_extensions"`
 }
 
-// NewTransaction creates a transaction. Unless you plan on adding HeadBlockID later, to be complete, opts should contain it.  Sign
-func NewTransaction(actions []*Action, opts *TxOptions) *Transaction {
-	if opts == nil {
-		opts = &TxOptions{}
+func (tx *Transaction) ID() common.TransactionIdType {
+	b, err := rlp.EncodeToBytes(tx)
+	if err != nil {
+		fmt.Println("Transaction ID() is error :", err.Error()) //TODO
+	}
+	return common.TransactionIdType(crypto.Hash256(b))
+}
+
+func (tx *Transaction) SigDigest(chainID common.ChainIdType, cfd []common.HexBytes) []byte { //common.DigestType {
+	enc := crypto.NewSha256()
+	chainIDByte, err := rlp.EncodeToBytes(chainID)
+	if err != nil {
+		fmt.Println(err)
+	}
+	thByte, err := rlp.EncodeToBytes(tx)
+	if err != nil {
+		fmt.Println(err)
 	}
 
-	tx := &Transaction{Actions: actions}
-	tx.Fill(opts.HeadBlockID, opts.DelaySecs, opts.MaxNetUsageWords, opts.MaxCpuUsageMS)
-	return tx
+	enc.Write(chainIDByte)
+	enc.Write(thByte)
+	if len(cfd) > 0 {
+		enc.Write(crypto.Hash256(cfd).Bytes())
+	} else {
+		enc.Write(crypto.NewSha256Nil().Bytes())
+	}
+
+	//hashed := enc.Sum(nil)   //TODO []byte or DigestType?????
+	//out :=crypto.NewSha256Byte(hashed)
+	//return common.DigestType(*out)
+
+	return enc.Sum(nil)
+}
+
+type CachedPubKey struct {
+	TrxID  common.TransactionIdType
+	PubKey ecc.PublicKey
+	Sig    ecc.Signature
+}
+
+//allowDuplicateKeys = false
+//useCache= true
+func (tx *Transaction) GetSignatureKeys(signatures []ecc.Signature, chainID common.ChainIdType, cfd []common.HexBytes,
+	allowDuplicateKeys bool, useCache bool) []ecc.PublicKey {
+	const recoveryCacheSize common.SizeT = 1000
+	//var recoveryCache revovryCacheType
+
+	recov := ecc.PublicKey{}
+	recoveredPubKeys := []ecc.PublicKey{}
+	digest := tx.SigDigest(chainID, cfd)
+	for _, sig := range signatures {
+
+		if useCache {
+			recov, _ = sig.PublicKey(digest)
+			//if err !=nil{
+			//	fmt.Println(err)
+			//}
+
+		} else {
+			recov, _ = sig.PublicKey(digest)
+			//if err !=nil{
+			//	fmt.Println(err)
+			//}
+		}
+		successfulInsertion := false
+		samePubKey := false
+		for _, pubKey := range recoveredPubKeys {
+			if pubKey == recov {
+				samePubKey = true
+			}
+		}
+		if !samePubKey {
+			recoveredPubKeys = append(recoveredPubKeys, recov)
+			successfulInsertion = true
+		}
+		if !(allowDuplicateKeys || successfulInsertion) {
+			err := fmt.Sprintf("transaction includes more than one signature signed using the same key associated with public key: %s\n", recov)
+			panic(err)
+		}
+
+	}
+	if useCache {
+		//for recovery_cache.size() > recoveryCacheSize {
+		//	recovery_cache.erase( recovery_cache.begin() )
+		//}
+	}
+	return recoveredPubKeys
 }
 
 func (tx *Transaction) TotalActions() uint32 {
@@ -66,61 +181,49 @@ func (tx *Transaction) FirstAuthorizor() common.AccountName {
 	}
 	return common.AccountName(0)
 }
-func (tx *Transaction) SetExpiration(in uint32) {
-	tx.Expiration = common.TimePointSec(in)
-}
-
-func (tx *Transaction) GetSignatureKeys(chainId common.ChainIdType, allowDeplicateKeys bool, useCache bool) []ecc.PublicKey {
-	//TODO
-	return nil
-}
-
-type Extension struct {
-	Type uint16          `json:"type"`
-	Data common.HexBytes `json:"data"`
-}
-
-// Fill sets the fields on a transaction.  If you pass `headBlockID`, then `api` can be nil. If you don't pass `headBlockID`, then the `api` is going to be called to fetch
-
-//canada eos code
-func (tx *Transaction) Fill(headBlockID common.BlockIdType, delaySecs, maxNetUsageWords uint32, maxCPUUsageMS uint8) {
-	tx.setRefBlock(headBlockID)
-
-	if tx.ContextFreeActions == nil {
-		tx.ContextFreeActions = make([]*Action, 0, 0)
-	}
-	if tx.Extensions == nil {
-		tx.Extensions = make([]*Extension, 0, 0)
-	}
-
-	tx.MaxNetUsageWords = uint32(maxNetUsageWords)
-	tx.MaxCpuUsageMS = maxCPUUsageMS
-	tx.DelaySec = uint32(delaySecs)
-
-	//tx.SetExpiration(30 * time.Second)
-	tx.SetExpiration(30)
-}
-
-func (tx *Transaction) setRefBlock(blockID common.BlockIdType) {
-	tx.RefBlockNum = uint16(blockID.Hash[0])
-	tx.RefBlockPrefix = uint32(blockID.Hash[1])
-}
 
 type SignedTransaction struct {
 	Transaction
 
 	Signatures      []ecc.Signature   `json:"signatures"`
 	ContextFreeData []common.HexBytes `json:"context_free_data"`
-
-	packed *PackedTransaction
+	packed          *PackedTransaction
 }
 
-func NewSignedTransaction(tx *Transaction) *SignedTransaction {
+func NewSignedTransaction(tx *Transaction, signature []ecc.Signature, contextFreeData []common.HexBytes) *SignedTransaction {
 	return &SignedTransaction{
 		Transaction:     *tx,
+		Signatures:      signature,
+		ContextFreeData: contextFreeData,
+	}
+}
+
+func NewSignedTransactionNil() *SignedTransaction {
+	return &SignedTransaction{
 		Signatures:      make([]ecc.Signature, 0),
 		ContextFreeData: make([]common.HexBytes, 0),
 	}
+}
+
+func (s *SignedTransaction) sign(key ecc.PrivateKey, chainID common.ChainIdType) ecc.Signature {
+	signature, err := key.Sign(s.Transaction.SigDigest(chainID, s.ContextFreeData))
+	if err != nil {
+		fmt.Println(err) //TODO
+	}
+	s.Signatures = append(s.Signatures, signature)
+	return signature
+}
+func (s *SignedTransaction) signWithoutAppend(key ecc.PrivateKey, chainID common.ChainIdType) ecc.Signature {
+	signature, err := key.Sign(s.Transaction.SigDigest(chainID, s.ContextFreeData))
+	if err != nil {
+		fmt.Println(err) //TODO
+	}
+	return signature
+}
+
+//allowDeplicateKeys =false,useCache=true
+func (st *SignedTransaction) GetSignatureKeys(chainID common.ChainIdType, allowDeplicateKeys bool, useCache bool) []ecc.PublicKey {
+	return st.Transaction.GetSignatureKeys(st.Signatures, chainID, st.ContextFreeData, allowDeplicateKeys, useCache)
 }
 
 func (s *SignedTransaction) String() string {
@@ -132,145 +235,6 @@ func (s *SignedTransaction) String() string {
 	return string(data)
 }
 
-func (st *SignedTransaction) GetSignatureKeys(chainId common.ChainIdType, allowDeplicateKeys bool, useCache bool) []ecc.PublicKey {
-	//TODO
-
-	return st.Transaction.GetSignatureKeys(chainId, allowDeplicateKeys, useCache)
-}
-
-func (ptrx *PackedTransaction) GetSignedTransaction() *SignedTransaction {
-
-	switch ptrx.Compression {
-	case common.CompressionNone:
-		return &SignedTransaction{GetTransaction(), ptrx.Signatures, UnpackContextFreeData(ptrx.PackedContextFreeData), nil}
-	case common.CompressionZlib:
-		return &SignedTransaction{}
-	default:
-		return nil
-	}
-	return nil //TODO
-}
-
-func UnpackContextFreeData(data []byte) []common.HexBytes {
-	t := []common.HexBytes{}
-	if len(data) == 0 {
-		return t
-	}
-	err := rlp.DecodeBytes(data, t)
-	if err != nil {
-		fmt.Println("UnpackContextFreeData is error :", err.Error())
-	}
-	return t
-}
-
-func ZlibDecompressContextFreeData(data []byte) []common.HexBytes {
-	t := []common.HexBytes{}
-	if len(data) == 0 {
-		return t
-	}
-
-	//out := ZlibDecompress()	//TODO
-	return nil
-}
-
-func ZlibDecompress() []common.HexBytes { return nil }
-
-func (head *TransactionHeader) SetReferenceBlock(referenceBlock common.BlockIdType) {
-	first := common.EndianReverseU32(uint32(referenceBlock.Hash[0]))
-	head.RefBlockNum = uint16(first)
-	head.RefBlockPrefix = uint32(referenceBlock.Hash[1])
-	log.Info("SetReferenceBlock:", head)
-}
-
-// func (s *SignedTransaction) SignedByKeys(chainID SHA256Bytes) (out []ecc.PublicKey, err error) {
-// 	trx, cfd, err := s.PackedTransactionAndCFD()
-// 	if err != nil {
-// 		return
-// 	}
-
-// 	for _, sig := range s.Signatures {
-// 		pubKey, err := sig.PublicKey(SigDigest(chainID, trx, cfd))
-// 		if err != nil {
-// 			return nil, err
-// 		}
-
-// 		out = append(out, pubKey)
-// 	}
-
-// 	return
-// }
-
-// func (s *SignedTransaction) PackedTransactionAndCFD() ([]byte, []byte, error) {
-// 	rawtrx, err := MarshalBinary(s.Transaction)
-// 	if err != nil {
-// 		return nil, nil, err
-// 	}
-
-// 	rawcfd := []byte{}
-// 	if len(s.ContextFreeData) > 0 {
-// 		rawcfd, err = MarshalBinary(s.ContextFreeData)
-// 		if err != nil {
-// 			return nil, nil, err
-// 		}
-// 	}
-
-// 	return rawtrx, rawcfd, nil
-// }
-
-/*func (tx *Transaction) ID() string {
-	return "ID here" //todo
-}*/
-func (tx *Transaction) ID() common.TransactionIdType {
-
-	b, err := rlp.EncodeToBytes(tx)
-	if err != nil {
-		fmt.Println("Transaction ID() is error :", err.Error()) //TODO
-	}
-
-	return common.TransactionIdType(crypto.Hash256(b))
-}
-
-// func (s *SignedTransaction) Pack(compression CompressionType) (*PackedTransaction, error) {
-// 	rawtrx, rawcfd, err := s.PackedTransactionAndCFD()
-// 	if err != nil {
-// 		return nil, err
-// 	}
-
-// 	switch compression {
-// 	case CompressionZlib:
-// 		var trx bytes.Buffer
-// 		var cfd bytes.Buffer
-
-// 		// Compress Trx
-// 		writer, _ := zlib.NewWriterLevel(&trx, flate.BestCompression) // can only fail if invalid `level`..
-// 		writer.Write(rawtrx)                                          // ignore error, could only bust memory
-// 		err = writer.Close()
-// 		if err != nil {
-// 			return nil, fmt.Errorf("tx writer close %s", err)
-// 		}
-// 		rawtrx = trx.Bytes()
-
-// 		// Compress ContextFreeData
-// 		writer, _ = zlib.NewWriterLevel(&cfd, flate.BestCompression) // can only fail if invalid `level`..
-// 		writer.Write(rawcfd)                                         // ignore errors, memory errors only
-// 		err = writer.Close()
-// 		if err != nil {
-// 			return nil, fmt.Errorf("cfd writer close %s", err)
-// 		}
-// 		rawcfd = cfd.Bytes()
-
-// 	}
-
-// 	packed := &PackedTransaction{
-// 		Signatures:            s.Signatures,
-// 		Compression:           compression,
-// 		PackedContextFreeData: rawcfd,
-// 		PackedTransaction:     rawtrx,
-// 	}
-
-// 	return packed, nil
-// }
-
 // PackedTransaction represents a fully packed transaction, with
 // signatures, and all. They circulate like that on the P2P net, and
 // that's how they are stored.
@@ -278,154 +242,325 @@ type PackedTransaction struct {
 	Signatures            []ecc.Signature        `json:"signatures"`
 	Compression           common.CompressionType `json:"compression"` // in C++, it's an enum, not sure how it Binary-marshals..
 	PackedContextFreeData common.HexBytes        `json:"packed_context_free_data"`
-	PackedTransaction     common.HexBytes        `json:"packed_trx"`
+	PackedTrx             common.HexBytes        `json:"packed_trx"`
+	UnpackedTrx           *Transaction           `eos:"-"`
 }
 
-func (p *PackedTransaction) ID() (id common.TransactionIdType) {
-	return //TODO
+func NewPackedTransactionByTrx(t *Transaction, compression common.CompressionType) *PackedTransaction {
+	ptrx := &PackedTransaction{}
+	ptrx.SetTransaction(t, compression)
+	return ptrx
 }
 
-func (p *PackedTransaction) Expiration() common.TimePointSec {
-	return common.TimePointSec(0) //TODO
-}
-
-func (p *PackedTransaction) GetUnprunableSize() uint32 {
-	size := common.DefaultConfig.FixedNetOverheadOfPackedTrx
-	size += uint32(len(p.PackedTransaction))
-	max := ^uint(0) >> 1 / 2
-	if size >= uint32(max) {
-		log.Error("packed_transaction is too big")
-		return 0
+//compression := common.CompressionNone
+func NewPackedTransactionBySignedTrx(t *SignedTransaction, compression common.CompressionType) *PackedTransaction {
+	ptrx := &PackedTransaction{
+		Signatures: t.Signatures,
 	}
-	return size
+	ptrx.SetTransactionWithCFD(t, &t.ContextFreeData, compression)
+	return ptrx
+}
+
+func (p *PackedTransaction) GetUnprunableSize() (size uint32) {
+	size = common.DefaultConfig.FixedNetOverheadOfPackedTrx
+	size += uint32(len(p.PackedTrx))
+	//EOS_ASSERT( size <= std::numeric_limits<uint32_t>::max(), tx_too_big, "packed_transaction is too big" );
+	if size > math.MaxUint32 {
+		panic("packed_transaction is too big")
+	}
+	return
 }
 
 func (p *PackedTransaction) GetPrunableSize() uint32 {
-	size, _ := rlp.EncodeSize(p.Signatures)
+	size, err := rlp.EncodeSize(p.Signatures)
+	if err != nil {
+		panic(err)
+	}
 	size += len(p.PackedContextFreeData)
-	max := ^uint(0) >> 1 / 2
-	if uint32(size) >= uint32(max) {
-		log.Error("packed_transaction is too big")
-		return 0
+	//EOS_ASSERT( size <= std::numeric_limits<uint32_t>::max(), tx_too_big, "packed_transaction is too big" );
+	if size > math.MaxUint32 {
+		panic("packed_transaction is too big")
 	}
 	return uint32(size)
 }
 
-func GetTransaction() Transaction {
-	//LocalUnpack()
-	/*if (!unpacked_trx) {
-		try {
-			switch(compression) {
-		case none:
-			unpacked_trx = unpack_transaction(packed_trx);
-			break;
-		case zlib:
-			unpacked_trx = zlib_decompress_transaction(packed_trx);
-			break;
+func (p *PackedTransaction) PackedDigest() common.DigestType {
+	prunable := crypto.NewSha256()
+	result, err := rlp.EncodeToBytes(p.Signatures)
+	if err != nil {
+		errout := fmt.Sprintf("PackedDigest:Signatures error:%s", err)
+		panic(errout)
+	}
+	prunable.Write(result)
+	result, err = rlp.EncodeToBytes(p.PackedContextFreeData)
+	if err != nil {
+		errout := fmt.Sprintf("PackedDigest:PackedContextFreeData error:%s", err)
+		panic(errout)
+	}
+	prunable.Write(result)
+
+	prunableResult := prunable.Sum(nil)
+
+	enc := crypto.NewSha256()
+	result, err = rlp.EncodeToBytes(p.Compression)
+	if err != nil {
+		errout := fmt.Sprintf("PackedDigest:Compression error:%s", err)
+		panic(errout)
+	}
+	enc.Write(result)
+
+	result, err = rlp.EncodeToBytes(p.PackedTrx)
+	if err != nil {
+		errout := fmt.Sprintf("PackedDigest:PackedTrx error:%s", err)
+		panic(errout)
+	}
+	enc.Write(result)
+	enc.Write(prunableResult)
+
+	hashed := enc.Sum(nil) //TODO []byte or DigestType?????
+	out := crypto.NewSha256Byte(hashed)
+	return common.DigestType(*out)
+}
+
+func (p *PackedTransaction) GetRawTransaction() common.HexBytes {
+	//try{}
+	switch p.Compression {
+	case common.CompressionNone:
+		return p.PackedTrx
+	case common.CompressionZlib:
+		return zlibDecompress(&p.PackedTrx)
+	default:
+		//EOS_THROW(unknown_transaction_compression, "Unknown transaction compression algorithm");
+		panic("Unknown transaction compression algorithm")
+	}
+}
+
+func (p *PackedTransaction) GetContextFreeData() []common.HexBytes {
+	//try{}
+	switch p.Compression {
+	case common.CompressionNone:
+		return unpackContextFreeData(&p.PackedContextFreeData)
+	case common.CompressionZlib:
+		return zlibDecompressContextFreeData(&p.PackedContextFreeData)
+	default:
+		//EOS_THROW(unknown_transaction_compression, "Unknown transaction compression algorithm");
+		panic("Unknown transaction compression algorithm")
+	}
+}
+
+func (p *PackedTransaction) Expiration() common.TimePointSec {
+	p.localUnpack()
+	return p.UnpackedTrx.Expiration
+}
+
+func (p *PackedTransaction) ID() (id common.TransactionIdType) {
+	p.localUnpack()
+	return p.GetTransaction().ID()
+}
+
+func (p *PackedTransaction) GetUncachedID() common.TransactionIdType {
+	raw := p.GetRawTransaction()
+	tx := Transaction{}
+	err := rlp.DecodeBytes([]byte(raw), &tx)
+	if err != nil {
+		panic(err)
+	}
+	return tx.ID()
+}
+
+func (p *PackedTransaction) localUnpack() {
+	//try{}//TODO
+	if p.UnpackedTrx == nil {
+		switch p.Compression {
+		case common.CompressionNone:
+			p.UnpackedTrx = unpackTransaction(p.PackedTrx)
+		case common.CompressionZlib:
+			p.UnpackedTrx = zlibDecompressTransaction(&p.PackedTrx)
 		default:
-			EOS_THROW(unknown_transaction_compression, "Unknown transaction compression algorithm");
+			//EOS_THROW(unknown_transaction_compression, "Unknown transaction compression algorithm");
+			panic("Unknown transaction compression algorim")
 		}
-		} FC_CAPTURE_AND_RETHROW((compression)(packed_trx))
-	}*/
-	t := Transaction{}
-	return t
+	}
 }
 
-// // Unpack decodes the bytestream of the transaction, and attempts to
-// // decode the registered actions.
-// func (p *PackedTransaction) Unpack() (signedTx *SignedTransaction, err error) {
-// 	return p.unpack(false)
-// }
+func (p *PackedTransaction) GetTransaction() *Transaction {
+	p.localUnpack()
+	return p.UnpackedTrx
+}
 
-// // UnpackBare decodes the transcation payload, but doesn't decode the
-// // nested action data structure.  See also `Unpack`.
-// func (p *PackedTransaction) UnpackBare() (signedTx *SignedTransaction, err error) {
-// 	return p.unpack(true)
-// }
+func (p *PackedTransaction) GetSignedTransaction() *SignedTransaction {
+	//try{}
+	switch p.Compression {
+	case common.CompressionNone:
+		return NewSignedTransaction(p.GetTransaction(), p.Signatures, unpackContextFreeData(&p.PackedContextFreeData))
+	case common.CompressionZlib:
+		return NewSignedTransaction(p.GetTransaction(), p.Signatures, zlibDecompressContextFreeData(&p.PackedContextFreeData))
+	default:
+		//EOS_THROW(unknown_transaction_compression, "Unknown transaction compression algorithm");
+		panic("Unknown transaction compression algorithm")
+	}
+}
 
-// func (p *PackedTransaction) unpack(bare bool) (signedTx *SignedTransaction, err error) {
-// 	var txReader io.Reader
-// 	txReader = bytes.NewBuffer(p.PackedTransaction)
+func (p *PackedTransaction) SetTransaction(t *Transaction, compression common.CompressionType) {
+	//try{}
+	switch compression {
+	case common.CompressionNone:
+		p.PackedTrx = packTransaction(t)
+	case common.CompressionZlib:
+		p.PackedTrx = zlibCompressTransaction(t)
+	default:
+		//EOS_THROW(unknown_transaction_compression, "Unknown transaction compression algorithm");
+		panic("Unknown transaction compression algorithm")
+	}
 
-// 	var freeDataReader io.Reader
-// 	freeDataReader = bytes.NewBuffer(p.PackedContextFreeData)
+	p.PackedContextFreeData = nil //TODO clear()
+	p.Compression = compression
+}
 
-// 	switch p.Compression {
-// 	case CompressionZlib:
-// 		txReader, err = zlib.NewReader(txReader)
-// 		if err != nil {
-// 			return nil, fmt.Errorf("new reader for tx, %s", err)
-// 		}
+//func (p *PackedTransaction) SetTransactionWithCFD(t *Transaction, cfd *[]common.HexBytes, compression common.CompressionType) {
+func (p *PackedTransaction) SetTransactionWithCFD(t *SignedTransaction, cfd *[]common.HexBytes, compression common.CompressionType) {
+	//try{}
+	switch compression {
+	case common.CompressionNone:
+		p.PackedTrx = packTransaction(&t.Transaction)
+		p.PackedContextFreeData = packContextFreeData(cfd)
+	case common.CompressionZlib:
+		p.PackedTrx = zlibCompressTransaction(&t.Transaction)
+		p.PackedContextFreeData = zlibCompressContextFreeData(cfd)
+	default:
+		//EOS_THROW(unknown_transaction_compression, "Unknown transaction compression algorithm");
+		panic("Unknown transaction compression algorithm")
+	}
 
-// 		if len(p.PackedContextFreeData) > 0 {
-// 			freeDataReader, err = zlib.NewReader(freeDataReader)
-// 			if err != nil {
-// 				return nil, fmt.Errorf("new reader for free data, %s", err)
-// 			}
-// 		}
-// 	}
+	p.Compression = compression
+}
 
-// 	data, err := ioutil.ReadAll(txReader)
-// 	if err != nil {
-// 		return nil, fmt.Errorf("unpack read all, %s", err)
-// 	}
-// 	decoder := NewDecoder(data)
-// 	// decoder.DecodeActions(!bare)
+func unpackContextFreeData(data *common.HexBytes) (out []common.HexBytes) {
+	if len(*data) == 0 {
+		return
+	}
+	err := rlp.DecodeBytes([]byte(*data), out)
+	if err != nil {
+		panic(err)
+	}
+	return
+}
+func unpackTransaction(data common.HexBytes) (tx *Transaction) {
+	err := rlp.DecodeBytes([]byte(data), tx)
+	if err != nil {
+		panic(err)
+	}
+	return
+}
 
-// 	var tx Transaction
-// 	err = decoder.Decode(&tx)
-// 	if err != nil {
-// 		return nil, fmt.Errorf("unpacking Transaction, %s", err)
-// 	}
+func zlibDecompress(data *common.HexBytes) common.HexBytes { //TODO
+	in := bytes.NewReader(*data)
+	r, err := zlib.NewReader(in)
+	if err != nil {
+		panic(err)
+	}
+	result, _ := ioutil.ReadAll(r)
+	r.Close()
+	return result
+}
 
-// 	signedTx = NewSignedTransaction(&tx)
-// 	//signedTx.ContextFreeData = contextFreeData
-// 	signedTx.Signatures = p.Signatures
-// 	signedTx.packed = p
+func zlibDecompressContextFreeData(data *common.HexBytes) []common.HexBytes {
+	if len(*data) == 0 {
+		return []common.HexBytes{}
+	}
+	packedData := zlibDecompress(data)
+	return unpackContextFreeData(&packedData)
+}
 
-// 	return
-// }
+func zlibDecompressTransaction(data *common.HexBytes) *Transaction {
+	packedTrax := zlibDecompress(data)
+	return unpackTransaction(packedTrax)
+}
 
+func packTransaction(t *Transaction) (out []byte) { //Bytes
+	out, err := rlp.EncodeToBytes(t)
+	if err != nil {
+		panic(err)
+	}
+	return
+}
+
+func packContextFreeData(cfd *[]common.HexBytes) (out []byte) {
+	if len(*cfd) == 0 {
+		return []byte{}
+	}
+	out, err := rlp.EncodeToBytes(cfd)
+	if err != nil {
+		panic(err)
+	}
+	return
+}
+
+func zlibCompressContextFreeData(cfd *[]common.HexBytes) (out []byte) {
+	if len(*cfd) == 0 {
+		return
+	}
+	in := packContextFreeData(cfd)
+
+	return zlibCompress(in)
+}
+
+func zlibCompressTransaction(t *Transaction) []byte {
+	in := packTransaction(t)
+	return zlibCompress(in)
+}
+
+func zlibCompress(data []byte) []byte {
+	var in bytes.Buffer
+	w, err := zlib.NewWriterLevel(&in, zlib.BestCompression)
+	if err != nil {
+		panic(err)
+	}
+	w.Write(data)
+	w.Close()
+	return in.Bytes()
+}
+
+/**
+ *  When a transaction is generated it can be scheduled to occur
+ *  in the future. It may also fail to execute for some reason in
+ *  which case the sender needs to be notified. When the sender
+ *  sends a transaction they will assign it an ID which will be
+ *  passed back to the sender if the transaction fails for some
+ *  reason.
+ */
 type DeferredTransaction struct {
-	*Transaction
+	*SignedTransaction
 
-	SenderID   uint32             `json:"sender_id"`
-	Sender     common.AccountName `json:"sender"`
-	DelayUntil common.JSONTime    `json:"delay_until"`
+	SenderID     common.Uint128      `json:"sender_id"` // ID assigned by sender of generated, accessible via WASM api when executing normal or error
+	Sender       common.AccountName  `json:"sender"`    // receives error handler callback
+	Payer        common.AccountName  `json:"payer"`
+	ExecuteAfter common.TimePointSec `json::execute_after` // delayed execution
 }
 
-// TxOptions represents options you want to pass to the transaction
-// you're sending.
-type TxOptions struct {
-	ChainID          common.ChainIdType // If specified, we won't hit the API to fetch it
-	HeadBlockID      common.BlockIdType // If provided, don't hit API to fetch it.  This allows offline transaction signing.
-	MaxNetUsageWords uint32
-	DelaySecs        uint32
-	MaxCpuUsageMS    uint8 // If you want to override the CPU usage (in counts of 1024)
-	//ExtraKCPUUsage uint32 // If you want to *add* some CPU usage to the estimated amount (in counts of 1024)
-	Compress common.CompressionType
+func NewDeferredTransaction(senderID common.Uint128, sender common.AccountName, payer common.AccountName,
+	executeAfter common.TimePointSec, txn *SignedTransaction) *DeferredTransaction {
+	return &DeferredTransaction{
+		SignedTransaction: txn,
+		SenderID:          senderID,
+		Sender:            sender,
+		Payer:             payer,
+		ExecuteAfter:      executeAfter,
+	}
 }
 
-// FillFromChain will load ChainID (for signing transactions) and
-// HeadBlockID (to fill transaction with TaPoS data).
-// func (opts *TxOptions) FillFromChain(api *API) error {
-// 	if opts == nil {
-// 		return errors.New("TxOptions should not be nil, send an object")
-// 	}
+type DeferredReference struct {
+	Sender   common.AccountName
+	SenderID common.Uint128
+}
 
-// 	if opts.HeadBlockID == nil || opts.ChainID == nil {
-// 		info, err := api.cachedGetInfo()
-// 		if err != nil {
-// 			return err
-// 		}
+func NewDeferredReference(sender common.AccountName, senderID common.Uint128) *DeferredReference {
+	return &DeferredReference{
+		Sender:   sender,
+		SenderID: senderID,
+	}
+}
 
-// 		if opts.HeadBlockID == nil {
-// 			opts.HeadBlockID = info.HeadBlockID
-// 		}
-// 		if opts.ChainID == nil {
-// 			opts.ChainID = info.ChainID
-// 		}
-// 	}
-
-// 	return nil
-// }
+func TransactionIDtoSenderID(tid common.TransactionIdType) common.Uint128 {
+	return common.Uint128{tid.Hash[3], tid.Hash[2]}
+}

@@ -47,8 +47,8 @@ type ApplyContext struct {
 func NewApplyContext(control *Controller, trxContext *TransactionContext, act *types.Action, recurseDepth uint32) *ApplyContext {
 
 	applyContext := &ApplyContext{
-		Control:            control,
-		DB:                 control.DB,
+		Control: control,
+		//DB:                 control.DB,
 		TrxContext:         trxContext,
 		Act:                act,
 		Receiver:           act.Account,
@@ -676,25 +676,25 @@ func (a *ApplyContext) IsPrivileged(n common.AccountName) bool {
 	//return false
 	account := types.AccountObject{Name: n}
 
-	err := a.DB.ByIndex("byName", &account)
-	if err != nil {
-		log.Error("getaAccount is error detail:", err)
-		return false
-	}
+	//err := a.DB.ByIndex("byName", &account)
+	//if err != nil {
+	//	log.Error("getaAccount is error detail:", err)
+	//	return false
+	//}
 	return account.Privileged
 
 }
 func (a *ApplyContext) SetPrivileged(n common.AccountName, isPriv bool) {
-	oldAccount := types.AccountObject{Name: n}
-	err := a.DB.ByIndex("byName", &oldAccount)
-	if err != nil {
-		log.Error("getaAccount is error detail:", err)
-		return
-	}
-
-	newAccount := oldAccount
-	newAccount.Privileged = isPriv
-	a.DB.UpdateObject(&oldAccount, &newAccount)
+	//oldAccount := types.AccountObject{Name: n}
+	//err := a.DB.ByIndex("byName", &oldAccount)
+	//if err != nil {
+	//	log.Error("getaAccount is error detail:", err)
+	//	return
+	//}
+	//
+	//newAccount := oldAccount
+	//newAccount.Privileged = isPriv
+	//a.DB.UpdateObject(&oldAccount, &newAccount)
 }
 
 //context producer api

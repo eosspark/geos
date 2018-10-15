@@ -14,16 +14,26 @@ import (
 	Chain "github.com/eosspark/eos-go/plugins/producer_plugin/mock"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/chain/types"
-)
+	)
 
 var plugin *ProducerPlugin
 
-func initialize() {
-	os.Args = []string{"--enable-stale-production", "-p", "eosio", "-p", "yuanc",
+func makeArguments(values ...string) {
+	options := append([]string(values), "--") // use "--" to divide arguments
+
+	osArgs := make([]string, len(os.Args)+len(options))
+	copy(osArgs[:1], os.Args[:1])
+	copy(osArgs[1:len(options)+1], options)
+	copy(osArgs[len(options)+1:], os.Args[1:])
+
+	os.Args = osArgs
+}
+
+func initialize(t *testing.T) {
+	makeArguments("--enable-stale-production", "-p", "eosio", "-p", "yuanc",
 		"--private-key", "[\"EOS859gxfnXyUriMgUeThh1fWv3oqcpLFyHa3TfFYC4PK2HqhToVM\", \"5KYZdUEo39z3FPrtuX2QbbwGnNP5zTd7yyr2SC1j299sBCnWjss\"]",
 		"--private-key", "[\"EOS5jeUuKEZ8s8LLoxz4rNysYdHWboup8KtkyJzZYQzcVKFGek9Zu\", \"5Ja3h2wJNUnNcoj39jDMHGigsazvbGHAeLYEHM5uTwtfUoRDoYP\"]",
-		//"--max-irreversible-block-age", "10",
-	}
+		)
 
 	app := cli.NewApp()
 	app.Name = "nodeos"
@@ -38,7 +48,55 @@ func initialize() {
 		log.Fatal(err)
 	}
 
+	assert.Equal(t, true, producerPlugin.my.ProductionEnabled)
+	assert.Equal(t, int32(30), producerPlugin.my.MaxTransactionTimeMs)
+	assert.Equal(t, common.Seconds(-1), producerPlugin.my.MaxIrreversibleBlockAgeUs)
+	assert.Equal(t, struct{}{}, producerPlugin.my.Producers[common.AccountName(common.N("eosio"))])
+	assert.Equal(t, struct{}{}, producerPlugin.my.Producers[common.AccountName(common.N("yuanc"))])
+
+
 	plugin = &producerPlugin
+}
+
+func Test_commend(t *testing.T) {
+
+	makeArguments("-e", "-n", "eos", "-c", "18", "-p", "eosio", "-p", "yc")
+
+	app := cli.NewApp()
+	app.Flags = []cli.Flag{
+		cli.BoolFlag{
+			Name:        "enable, e",
+			Usage:       "Enable block production, even if the chain is stale.",
+		},
+		cli.StringFlag{
+			Name:        "name, n",
+			Usage:       "Enable block production, even if the chain is stale.",
+		},
+		cli.IntFlag{
+			Name:        "count, c",
+			Usage:       "Enable block production, even if the chain is stale.",
+			Value: 		 -1,
+		},
+		cli.StringSliceFlag{
+			Name:        "producers, p",
+			Usage:       "Enable block production, even if the chain is stale.",
+		},
+
+	}
+
+	app.Action = func(c *cli.Context) {
+		assert.Equal(t, true, c.Bool("enable"))
+		assert.Equal(t, "eos", c.String("name"))
+		assert.Equal(t, 18, c.Int("count"))
+		assert.Equal(t, "eosio", c.StringSlice("producers")[0])
+		assert.Equal(t, "yc", c.StringSlice("producers")[1])
+	}
+
+	err := app.Run(os.Args)
+	if err != nil {
+		t.Fatal(err)
+	}
+
 }
 
 func produceone(when common.BlockTimeStamp) (b *types.SignedBlock) {
@@ -79,17 +137,8 @@ func produceone(when common.BlockTimeStamp) (b *types.SignedBlock) {
 	return
 }
 
-func TestProducerPlugin_PluginInitialize(t *testing.T) {
-	initialize()
-	assert.Equal(t, true, plugin.my.ProductionEnabled)
-	assert.Equal(t, int32(30), plugin.my.MaxTransactionTimeMs)
-	assert.Equal(t, common.Seconds(-1), plugin.my.MaxIrreversibleBlockAgeUs)
-	assert.Equal(t, struct{}{}, plugin.my.Producers[common.AccountName(common.N("eosio"))])
-	assert.Equal(t, struct{}{}, plugin.my.Producers[common.AccountName(common.N("yuanc"))])
-}
-
 func TestProducerPlugin_PluginStartup(t *testing.T) {
-	initialize()
+	initialize(t)
 
 	plugin.PluginStartup()
 
@@ -104,7 +153,7 @@ func TestProducerPlugin_PluginStartup(t *testing.T) {
 }
 
 func TestProducerPlugin_Pause(t *testing.T) {
-	initialize()
+	initialize(t)
 	plugin.PluginStartup()
 	once := false
 
@@ -132,7 +181,7 @@ func TestProducerPlugin_Pause(t *testing.T) {
 }
 
 func TestProducerPlugin_SignCompact(t *testing.T) {
-	initialize()
+	initialize(t)
 	data := "test producer_plugin's is_producer_key "
 
 	dataByte, _ := rlp.EncodeToBytes(data)
@@ -157,7 +206,7 @@ func TestProducerPlugin_SignCompact(t *testing.T) {
 }
 
 func TestProducerPlugin_IsProducerKey(t *testing.T) {
-	initialize()
+	initialize(t)
 	pub1, _ := ecc.NewPublicKey("EOS859gxfnXyUriMgUeThh1fWv3oqcpLFyHa3TfFYC4PK2HqhToVM")
 	pub2, _ := ecc.NewPublicKey("EOS5jeUuKEZ8s8LLoxz4rNysYdHWboup8KtkyJzZYQzcVKFGek9Zu")
 	assert.Equal(t, true, plugin.IsProducerKey(pub1))
@@ -168,7 +217,7 @@ func Test_makeKeySignatureProvider(t *testing.T) {
 	initPriKey, _ := ecc.NewPrivateKey("5KYZdUEo39z3FPrtuX2QbbwGnNP5zTd7yyr2SC1j299sBCnWjss")
 	initPubKey := initPriKey.PublicKey()
 
-	sp, _ := makeKeySignatureProvider(initPriKey)
+	sp := makeKeySignatureProvider(initPriKey)
 	hash := crypto.Hash256("makeKeySignatureProvider")
 	pk, _ := sp(hash).PublicKey(hash.Bytes())
 	assert.Equal(t, initPubKey, pk)
@@ -188,11 +237,9 @@ func TestProducerPluginImpl_ScheduleDelayedProductionLoop(t *testing.T) {
 }
 
 func TestProducerPluginImpl_OnIncomingBlock(t *testing.T) {
-	os.Args = []string{"--enable-stale-production", "-p", "eosio", "-p", "yuanc",
+	makeArguments("--enable-stale-production", "-p", "eosio", "-p", "yuanc",
 		"--private-key", "[\"EOS859gxfnXyUriMgUeThh1fWv3oqcpLFyHa3TfFYC4PK2HqhToVM\", \"5KYZdUEo39z3FPrtuX2QbbwGnNP5zTd7yyr2SC1j299sBCnWjss\"]",
-		//"--private-key", "[\"EOS5jeUuKEZ8s8LLoxz4rNysYdHWboup8KtkyJzZYQzcVKFGek9Zu\", \"5Ja3h2wJNUnNcoj39jDMHGigsazvbGHAeLYEHM5uTwtfUoRDoYP\"]",
-		//"--max-irreversible-block-age", "10",
-	}
+		)
 
 	app := cli.NewApp()
 	app.Name = "nodeos"
@@ -237,14 +284,14 @@ func TestProducerPluginImpl_OnBlock(t *testing.T) {
 }
 
 func TestProducerPluginImpl_CalculateNextBlockTime(t *testing.T) {
-	initialize()
+	initialize(t)
 	chain := Chain.GetControllerInstance()
 	pt := *plugin.my.CalculateNextBlockTime(common.AccountName(common.N("yuanc")), chain.HeadBlockState().Header.Timestamp)
 	assert.Equal(t, pt/1e3, (pt/1e3/500)*500) // make sure pt can be divisible by 500ms
 }
 
 func TestProducerPluginImpl_CalculatePendingBlockTime(t *testing.T) {
-	initialize()
+	initialize(t)
 	pt := plugin.my.CalculatePendingBlockTime()
 	assert.Equal(t, pt/1e3, (pt/1e3/500)*500) // make sure pt can be divisible by 500ms
 }

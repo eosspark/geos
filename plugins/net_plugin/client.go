@@ -1,7 +1,8 @@
-package p2p
+package net_plugin
 
 import (
 	"bufio"
+	"crypto/rand"
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
@@ -9,7 +10,6 @@ import (
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/crypto/rlp"
 	"math"
-	"math/rand"
 	"net"
 	"runtime"
 
@@ -35,15 +35,13 @@ func NewClient(p2pAddr string, chainID common.ChainIdType, networkVersion uint16
 	rand.Read(nodeID)
 	data := *crypto.NewSha256Byte(nodeID)
 
-	c := &Client{
+	return &Client{
 		p2pAddress:     p2pAddr,
 		ChainID:        chainID,
 		NetWorkVersion: networkVersion,
 		AgentName:      "EOS Test Agent",
 		NodeID:         common.NodeIdType(data),
 	}
-	return c
-
 }
 
 func (c *Client) StartConnect() error {
@@ -148,12 +146,12 @@ func (c *Client) sendMessage(message P2PMessage) (err error) {
 
 	c.Conn.Write(sendBuf)
 
-	//fmt.Println("已发送Message", sendBuf)
-	//data, err := json.Marshal(message)
-	//if err != nil {
-	//	fmt.Println(err)
-	//}
-	//fmt.Println("struct:  ", string(data))
+	fmt.Println("已发送Message", sendBuf)
+	data, err := json.Marshal(message)
+	if err != nil {
+		fmt.Println(err)
+	}
+	fmt.Println("struct:  ", string(data))
 
 	return
 }
@@ -234,6 +232,8 @@ func (c *Client) handleConnection(ready chan bool, errChannel chan error, signed
 		case *SyncRequestMessage:
 
 		case *SignedBlockMessage:
+			signedBlockBytes, err := rlp.EncodeToBytes(p2pMessage)
+			fmt.Printf("encode result: %v\n", signedBlockBytes)
 			syncHeadBlock = msg.BlockNumber()
 			fmt.Println(msg.Previous.Hash[0])
 			fmt.Printf("signed Block Num: %d\n", syncHeadBlock)
@@ -279,7 +279,7 @@ func (c *Client) handleConnection(ready chan bool, errChannel chan error, signed
 			fmt.Println("unsupport p2pmessage type")
 		}
 
-		time.Sleep(1 * time.Second)
+		time.Sleep(100 * time.Millisecond)
 
 	}
 }
