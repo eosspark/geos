@@ -35,20 +35,20 @@ func (rlm *ResourceLimitsManager) InitializeDatabase() {
 	rlm.db.Insert(&config)
 	state := entity.ResourceLimitsStateObject{}
 	rlm.db.Find("byId", state, &state)
-	rlm.db.Modify(&state, func(data entity.ResourceLimitsStateObject) {
-		data.VirtualCpuLimit = config.CpuLimitParameters.Max
-		data.VirtualNetLimit = config.NetLimitParameters.Max
+	rlm.db.Modify(&state, func(perm entity.ResourceLimitsStateObject) {
+		perm.VirtualCpuLimit = config.CpuLimitParameters.Max
+		perm.VirtualNetLimit = config.NetLimitParameters.Max
 	})
 }
 
 func (rlm *ResourceLimitsManager) InitializeAccount(account common.AccountName) {
-	//rlo := entity.ResourceLimitsObject{}
-	//rlo.Owner = account
-	//rlm.db.Insert(&rlo)
-	//
-	//ruo := entity.ResourceUsageObject{}
-	//ruo.Owner = account
-	//rlm.db.Insert(&ruo)
+	rlo := entity.ResourceLimitsObject{}
+	rlo.Owner = account
+	rlm.db.Insert(&rlo)
+
+	ruo := entity.ResourceUsageObject{}
+	ruo.Owner = account
+	rlm.db.Insert(&ruo)
 }
 
 func (rlm *ResourceLimitsManager) SetBlockParameters(cpuLimitParameters types.ElasticLimitParameters, netLimitParameters types.ElasticLimitParameters) {
