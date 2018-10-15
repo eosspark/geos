@@ -77,8 +77,6 @@ func (s TransactionStatus) String() string {
 
 }
 
-//type TransactionID SHA256Bytes
-
 // type ShardLock struct {
 // 	AccountName common.AccountName `json:"account_name"`
 // 	ScopeName   common.ScopeName   `json:"scope_name"`
@@ -109,14 +107,14 @@ type ReversibleBlockIndex struct {
 }
 
 type TransactionReceiptHeader struct {
-	Status               TransactionStatus `json:"status"`
-	CPUUsageMicroSeconds uint32            `json:"cpu_usage_us"`
-	NetUsageWords        uint32            `json:"net_usage_words" eos:"vuint32"`
+	Status        TransactionStatus `json:"status"`
+	CpuUsageUs    uint32            `json:"cpu_usage_us"`
+	NetUsageWords uint32            `json:"net_usage_words" eos:"vuint32"`
 }
 
 type TransactionReceipt struct {
 	TransactionReceiptHeader
-	Transaction TransactionWithID `json:"trx" eos:"trxID"`
+	Trx TransactionWithID `json:"trx" eos:"trxID"`
 }
 
 type SignedBlock struct {
@@ -142,14 +140,14 @@ type Optional struct {
 }
 
 type TransactionWithID struct {
-	Packed *PackedTransaction       `json:"packed_transaction" eos:"tag0"`
-	ID     common.TransactionIdType `json:"transaction_id" eos:"tag1"`
+	PackedTransaction *PackedTransaction       `json:"packed_transaction" eos:"tag0"`
+	TransactionID     common.TransactionIdType `json:"transaction_id" eos:"tag1"`
 }
 
 func (t TransactionWithID) MarshalJSON() ([]byte, error) {
 	return json.Marshal([]interface{}{
-		t.ID,
-		t.Packed,
+		t.PackedTransaction,
+		t.TransactionID,
 	})
 }
 
@@ -160,7 +158,7 @@ func (t *TransactionWithID) UnmarshalJSON(data []byte) error {
 			return err
 		}
 		*t = TransactionWithID{
-			Packed: &packed,
+			PackedTransaction: &packed,
 		}
 		return nil
 	} else if data[0] == '"' {
@@ -170,7 +168,7 @@ func (t *TransactionWithID) UnmarshalJSON(data []byte) error {
 			return err
 		}
 		*t = TransactionWithID{
-			ID: id,
+			TransactionID: id,
 		}
 		return nil
 	}
