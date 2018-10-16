@@ -3,6 +3,7 @@ package common
 import (
 	"fmt"
 	"math"
+	"math/big"
 )
 
 type Uint128 struct {
@@ -146,6 +147,19 @@ func (u Uint128) Div(divisor Uint128) (Uint128, Uint128) {
 		}
 	}
 	return Quotient, Remainder
+}
+
+func (u Uint128) ToString() string{
+	uHigh := new(big.Int).SetUint64(u.High)
+	uLow := new(big.Int).SetUint64(u.Low)
+
+	uBigInt := new(big.Int).SetUint64(math.MaxUint64)
+	one := new(big.Int).SetUint64(1)
+	uBigInt = new(big.Int).Add(uBigInt, one)
+
+	uBigInt = new(big.Int).Mul(uBigInt,uHigh)
+	uBigInt = new(big.Int).Add(uBigInt,uLow)
+	return uBigInt.String()
 }
 
 func MulUint64(u, v uint64) Uint128 {

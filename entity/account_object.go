@@ -6,11 +6,12 @@ import (
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/rlp"
+	"github.com/eosspark/eos-go/exception"
 )
 
 type AccountObject struct {
-	ID             common.IdType       `storm:"id,increment" json:"id"`
-	Name           common.AccountName `storm:"unique" json :"name"`
+	ID             common.IdType      `storm:"id,increment" json:"id"`
+	Name           common.AccountName `storm:"unique" json:"name"`
 	VmType         uint8              //c++ default value 0
 	VmVersion      uint8              //c++ default value 0
 	Privileged     bool               //c++ default value false
@@ -22,7 +23,7 @@ type AccountObject struct {
 }
 
 type AccountSequenceObject struct {
-	ID           common.IdType       `storm:"id,increment" json:"id"`
+	ID           common.IdType      `storm:"id,increment" json:"id"`
 	Name         common.AccountName `storm:"unique" json:name`
 	RecvSequence uint64             //default value 0
 	authSequence uint64
@@ -30,17 +31,17 @@ type AccountSequenceObject struct {
 	AbiSequence  uint64
 }
 
-func (self *AccountObject) SetAbi(a types.AbiDef) {
-	d, _ := rlp.EncodeToBytes(a)
-	self.Abi = d
+func (a *AccountObject) SetAbi(ad types.AbiDef) {
+	d, _ := rlp.EncodeToBytes(ad)
+	a.Abi = d
 }
 
-func (self *AccountObject) GetAbi() types.AbiDef {
+func (a *AccountObject) GetAbi() types.AbiDef {
 	abiDef := types.AbiDef{}
-	if len(self.Abi) != 0 {
-		fmt.Println("abi_not_found_exception ,No ABI set on account", self.Name)
+	if len(a.Abi) != 0 {
+		exception.EosAssert(len(a.Abi) != 0, &exception.AbiNotFoundException{}, "No ABI set on account :", a.Name)
 	}
-	err := rlp.DecodeBytes(self.Abi, abiDef)
+	err := rlp.DecodeBytes(a.Abi, abiDef)
 	if err != nil {
 		fmt.Println("account_object GetAbi DecodeBytes is error:", err.Error())
 	}

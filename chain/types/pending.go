@@ -8,7 +8,7 @@ import (
 
 type PendingState struct {
 	DBSession         *database.Session `json:"db_session"`
-	PendingBlockState BlockState        `json:"pending_block_state"`
+	PendingBlockState *BlockState        `json:"pending_block_state"`
 	Actions           []ActionReceipt   `json:"actions"`
 	BlockStatus       BlockStatus       `json:"block_status"`
 	ProducerBlockId   common.BlockIdType

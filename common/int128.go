@@ -78,6 +78,38 @@ func (u *Int128) RightShifts(shift int){
 	}
 }
 
+func (u Int128) ToTrueForm() Uint128{
+	if u.GetAt(127){
+		for i := uint(0); i < 127; i++{
+			if u.GetAt(i){
+				u.Set(i, 0)
+			} else {
+				u.Set(i, 1)
+			}
+		}
+		One := Int128{0,1}
+		u = u.Add(One)
+		u.Set(127,1)
+	}
+	return Uint128{u.High,u.Low}
+}
+
+func (u Uint128) ToComplement() Int128{
+	if u.GetAt(127){
+		for i := uint(0); i < 127; i++{
+			if u.GetAt(i){
+				u.Set(i, 0)
+			} else {
+				u.Set(i, 1)
+			}
+		}
+		One := Uint128{0,1}
+		u = u.Add(One)
+		u.Set(127,1)
+	}
+	return Int128{u.High,u.Low}
+}
+
 func (u Int128) Add(v Int128) Int128{
 	if u.Low+v.Low < u.Low {
 		u.High += v.High + 1
@@ -100,15 +132,51 @@ func (u Int128) Sub(v Int128) Int128{
 }
 
 func (u Int128) Mul(v Int128) Int128{
-	if u.GetAt(127) == v.GetAt(127){
-
+	signBit := false
+	if u.GetAt(127) != v.GetAt(127){
+		signBit = true
 	}
-	Product := Int128{}
+	uTrueForm := u.ToTrueForm()
+	vTrueForm := v.ToTrueForm()
+	productTrueForm := uTrueForm.Mul(vTrueForm)
+	if signBit == true{
+		productTrueForm.Set(127,1)
+	} else {
+		productTrueForm.Set(127,0)
+	}
+	Product := productTrueForm.ToComplement()
 	return Product
 }
 
 func (u Int128) Div(v Int128) (Int128, Int128){
-	Quotient := Int128{}
-	Remainder := Int128{}
+	signBit := false
+	if u.GetAt(127) != v.GetAt(127){
+		signBit = true
+	}
+	uTrueForm := u.ToTrueForm()
+	vTrueForm := v.ToTrueForm()
+	uQuotient, uRemainder := uTrueForm.Div(vTrueForm)
+	if signBit{
+		uQuotient.Set(127,1)
+	}
+	if u.GetAt(127){
+		uRemainder.Set(127,1)
+	}
+	Quotient := uQuotient.ToComplement()
+	Remainder := uRemainder.ToComplement()
 	return Quotient, Remainder
+}
+
+func (u Int128) ToString() string{
+	signBit := false
+	if u.GetAt(127){
+		signBit = true
+	}
+	uTrueForm := u.ToTrueForm()
+	uTrueForm.Set(127,0)
+	str := uTrueForm.ToString()
+	if signBit{
+		str = "-" + str
+	}
+	return str
 }

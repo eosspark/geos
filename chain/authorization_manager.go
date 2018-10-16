@@ -39,7 +39,7 @@ func (am *AuthorizationManager) CreatePermission(account common.AccountName,
 	parent PermissionIdType,
 	auth types.Authority,
 	initialCreationTime common.TimePoint,
-) types.PermissionObject {
+) *types.PermissionObject {
 	//creationTime := initialCreationTime
 	//if creationTime == 1 {
 	//	creationTime = am.control.PendingBlockTime()
@@ -59,7 +59,7 @@ func (am *AuthorizationManager) CreatePermission(account common.AccountName,
 	//}
 	//am.db.Insert(&perm)
 	//return perm
-	return types.PermissionObject{}
+	return &types.PermissionObject{}
 }
 
 func (am *AuthorizationManager) ModifyPermission(permission *types.PermissionObject, auth *types.Authority) {
@@ -100,10 +100,10 @@ func (am *AuthorizationManager) FindPermission(level *types.PermissionLevel) *ty
 	return &types.PermissionObject{}
 }
 
-func (am *AuthorizationManager) GetPermission(level *types.PermissionLevel) types.PermissionObject {
+func (am *AuthorizationManager) GetPermission(level *types.PermissionLevel) *types.PermissionObject {
 	po := types.PermissionObject{}
 	//am.db.Find("ByOwner", common.Tuple{level.Actor, level.Permission}, &po)
-	return po
+	return &po
 }
 //
 //func (am *AuthorizationManager) LookupLinkedPermission(authorizerAccount common.AccountName,
@@ -223,9 +223,9 @@ func (am *AuthorizationManager) GetPermission(level *types.PermissionLevel) type
 //	//TODO
 //}
 //
-func (am *AuthorizationManager) CheckAuthorization(actions *[]types.Action,
-	providedKeys *[]ecc.PublicKey,
-	providedPermission *[]types.PermissionLevel,
+func (am *AuthorizationManager) CheckAuthorization(actions []*types.Action,
+	providedKeys []*ecc.PublicKey,
+	providedPermission []*types.PermissionLevel,
 	providedDelay common.Microseconds,
 	checkTime *func(),
 	allowUnusedKeys bool,
@@ -288,8 +288,8 @@ func (am *AuthorizationManager) CheckAuthorization(actions *[]types.Action,
 
 func (am *AuthorizationManager) CheckAuthorization2(account common.AccountName,
 	permission common.PermissionName,
-	providedKeys *[]ecc.PublicKey,
-	providedPermission *[]types.PermissionLevel,
+	providedKeys []*ecc.PublicKey,
+	providedPermission []*types.PermissionLevel,
 	providedDelay common.Microseconds,
 	checkTime *func(),
 	allowUnusedKeys bool,
@@ -317,15 +317,15 @@ func (am *AuthorizationManager) CheckAuthorization2(account common.AccountName,
 }
 
 func (am *AuthorizationManager) GetRequiredKeys(trx *types.Transaction,
-	candidateKeys *[]ecc.PublicKey,
+	candidateKeys []*ecc.PublicKey,
 	providedDelay common.Microseconds) []ecc.PublicKey {
-
-	checker := types.MakeAuthChecker(func(p *types.PermissionLevel) types.SharedAuthority { return am.GetPermission(p).Auth },
-		am.control.GetGlobalProperties().Configuration.MaxAuthorityDepth,
-		*candidateKeys,
-		nil,
-		providedDelay,
-		func() {})
+	checker := types.AuthorityChecker{}
+	//checker := types.MakeAuthChecker(func(p *types.PermissionLevel) types.SharedAuthority { return am.GetPermission(p).Auth },
+	//	am.control.GetGlobalProperties().Configuration.MaxAuthorityDepth,
+	//	candidateKeys,
+	//	nil,
+	//	providedDelay,
+	//	func() {})
 	return checker.GetUsedKeys()
 }
 

@@ -1,9 +1,7 @@
 package entity
 
 import (
-	"fmt"
 	"github.com/eosspark/eos-go/common"
-	"github.com/eosspark/eos-go/log"
 	"github.com/eosspark/eos-go/database"
 )
 
@@ -82,29 +80,29 @@ func AddTableIdObjectIndex(dbs *database.DataBase, tio TableIdObject) {
 	ti.Bst.Code = tio.Code
 	ti.Bst.Scope = tio.Scope
 	ti.Bst.Table = tio.Table
-	err := dbs.Insert(&ti)
-	if err != nil {
-		log.Error("Insert is error detail:", err)
-		return
-	}
+	//err := dbs.Insert(&ti)
+	//if err != nil {
+	//	log.Error("Insert is error detail:", err)
+	//	return
+	//}
 }
 
 func GetTableObjectById(dbs *database.DataBase, id common.IdType) *TableIdMultiIndex {
 	tmi := TableIdMultiIndex{}
-	err := dbs.Find("ID", id, &tmi)
-	if err != nil {
-		fmt.Println(err.Error())
-	}
+	//err := dbs.Find("ID", id, &tmi)
+	//if err != nil {
+	//	fmt.Println(err.Error())
+	//}
 	return &tmi
 }
 
 func GetByCodeScopeTable(dbs *database.DataBase, bst ByCodeScopeTable) *TableIdMultiIndex {
 	tmi := TableIdMultiIndex{}
-	err := dbs.Find("Bst", bst, &tmi)
-	if err != nil {
-		log.Error("GetByCodeScopeTable is error", err)
-		return nil
-	}
+	//err := dbs.Find("Bst", bst, &tmi)
+	//if err != nil {
+	//	log.Error("GetByCodeScopeTable is error", err)
+	//	return nil
+	//}
 
 	/*fmt.Println("*************************************")
 	fmt.Println(tmi)

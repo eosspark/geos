@@ -5,7 +5,7 @@ import (
 )
 
 type AccountHistoryObject struct {
-	ID                 common.IdType `storm:"id,increment"`
+	ID                 common.IdType `storm:"id,increment,byId"`
 	Account            common.AccountName	`storm:"unique,ByAccountActionSeq"`
 	ActionSequenceNum  uint64
 	AccountSequenceNum int32				`storm:"unique,ByAccountActionSeq"`

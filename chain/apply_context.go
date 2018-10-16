@@ -13,7 +13,7 @@ import (
 type ApplyContext struct {
 	Control *Controller
 
-	DB                 *database.DataBase
+	DB                 *database.LDataBase
 	TrxContext         *TransactionContext
 	Act                *types.Action
 	Receiver           common.AccountName

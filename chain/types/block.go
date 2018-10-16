@@ -174,3 +174,42 @@ func (t *TransactionWithID) UnmarshalJSON(data []byte) error {
 	}
 	panic("types.TransactionWithID unmarshalJSON error: unsupported multi-variant trx serialization type from C++ code into Go")
 }
+
+func NewTransactionReceiptHeader() *TransactionReceiptHeader{
+	trh:=TransactionReceiptHeader{}
+	trh.Status = TransactionStatusHardFail
+	return &trh
+}
+
+func NewTransactionReceiptHeader2(status TransactionStatus) *TransactionReceiptHeader{
+	trh:=TransactionReceiptHeader{}
+	trh.Status = status
+	return &trh
+}
+
+func NewTransactionReceipt() *TransactionReceipt{
+	tr := TransactionReceipt{}
+	tr.TransactionReceiptHeader = *NewTransactionReceiptHeader()
+	return &tr
+}
+
+func NewTransactionReceipt2(tid common.TransactionIdType) *TransactionReceipt{
+	tr := TransactionReceipt{}
+	tr.TransactionReceiptHeader = *NewTransactionReceiptHeader2(TransactionStatusExecuted)
+	tr.Trx.TransactionID = tid
+	return &tr
+}
+
+func NewTransactionReceipt3(ptrx PackedTransaction) *TransactionReceipt{
+	tr := TransactionReceipt{}
+	tr.TransactionReceiptHeader = *NewTransactionReceiptHeader2(TransactionStatusExecuted)
+	tr.Trx.PackedTransaction = &ptrx
+	return &tr
+}
+
+func (t *TransactionReceipt) Digest() *common.DigestType{
+
+	return nil
+}
+
+

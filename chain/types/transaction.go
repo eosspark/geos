@@ -10,7 +10,6 @@ import (
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/eosspark/eos-go/exception"
-	"github.com/eosspark/eos-go/log"
 	"io/ioutil"
 	"math"
 )
@@ -48,26 +47,25 @@ type TransactionHeader struct {
 	DelaySec         uint32 `json:"delay_sec" eos:"vuint32"` // number of secs to delay, making it cancellable for that duration
 }
 
-func (th TransactionHeader) GetRefBlocknum(headBlocknum uint32) uint32 {
+func (t TransactionHeader) GetRefBlocknum(headBlocknum uint32) uint32 {
 	return headBlocknum/0xffff*0xffff + headBlocknum%0xffff
 }
 
-func (th TransactionHeader) VerifyReferenceBlock(referenceBlock common.BlockIdType) bool {
-	return th.RefBlockNum == uint16(common.EndianReverseU32(uint32(referenceBlock.Hash[0]))) &&
-		th.RefBlockPrefix == uint32(referenceBlock.Hash[1])
+func (t TransactionHeader) VerifyReferenceBlock(referenceBlock common.BlockIdType) bool {
+	return t.RefBlockNum == uint16(common.EndianReverseU32(uint32(referenceBlock.Hash[0]))) &&
+		t.RefBlockPrefix == uint32(referenceBlock.Hash[1])
 }
 
-func (th TransactionHeader) Validate() {
-	if th.MaxNetUsageWords >= uint32(0xffffffff)/8 {
+func (t TransactionHeader) Validate() {
+	if t.MaxNetUsageWords >= uint32(0xffffffff)/8 {
 		panic("declared max_net_usage_words overflows when expanded to max net usage")
 	}
 }
 
-func (th *TransactionHeader) SetReferenceBlock(referenceBlock common.BlockIdType) {
+func (t *TransactionHeader) SetReferenceBlock(referenceBlock common.BlockIdType) {
 	first := common.EndianReverseU32(uint32(referenceBlock.Hash[0]))
-	th.RefBlockNum = uint16(first)
-	th.RefBlockPrefix = uint32(referenceBlock.Hash[1])
-	log.Info("SetReferenceBlock:", th)
+	t.RefBlockNum = uint16(first)
+	t.RefBlockPrefix = uint32(referenceBlock.Hash[1])
 }
 
 type CachedPubKey struct {
@@ -82,27 +80,28 @@ type CachedPubKey struct {
 type Transaction struct { // WARN: is a `variant` in C++, can be a SignedTransaction or a Transaction.
 	TransactionHeader
 
-	ContextFreeActions    []*Action                      `json:"context_free_actions"`
-	Actions               []*Action                      `json:"actions"`
-	TransactionExtensions []*Extension                   `json:"transaction_extensions"`
-	RecoveryCache         map[ecc.Signature]CachedPubKey `json:"-" eos:"-"`
+	ContextFreeActions    []*Action    `json:"context_free_actions"`
+	Actions               []*Action    `json:"actions"`
+	TransactionExtensions []*Extension `json:"transaction_extensions"`
+
+	RecoveryCache map[ecc.Signature]CachedPubKey `json:"-" eos:"-"` //C++ static
 }
 
-func (tx *Transaction) ID() common.TransactionIdType {
-	b, err := rlp.EncodeToBytes(tx)
+func (t *Transaction) ID() common.TransactionIdType {
+	b, err := rlp.EncodeToBytes(t)
 	if err != nil {
 		fmt.Println("Transaction ID() is error :", err.Error()) //TODO
 	}
 	return common.TransactionIdType(crypto.Hash256(b))
 }
 
-func (tx *Transaction) SigDigest(chainID common.ChainIdType, cfd []common.HexBytes) []byte { //common.DigestType {
+func (t *Transaction) SigDigest(chainID common.ChainIdType, cfd []common.HexBytes) []byte { //common.DigestType {
 	enc := crypto.NewSha256()
 	chainIDByte, err := rlp.EncodeToBytes(chainID)
 	if err != nil {
 		fmt.Println(err)
 	}
-	thByte, err := rlp.EncodeToBytes(tx)
+	thByte, err := rlp.EncodeToBytes(t)
 	if err != nil {
 		fmt.Println(err)
 	}
@@ -124,19 +123,19 @@ func (tx *Transaction) SigDigest(chainID common.ChainIdType, cfd []common.HexByt
 
 //allowDuplicateKeys = false
 //useCache= true
-func (tx *Transaction) GetSignatureKeys(signatures []ecc.Signature, chainID common.ChainIdType, cfd []common.HexBytes,
-	allowDuplicateKeys bool, useCache bool) (recoveredPubKeys []ecc.PublicKey) {
+func (t *Transaction) GetSignatureKeys(signatures []ecc.Signature, chainID common.ChainIdType, cfd []common.HexBytes,
+	allowDuplicateKeys bool, useCache bool) (recoveredPubKeys []*ecc.PublicKey) {
 	const recoveryCacheSize common.SizeT = 1000
 
 	recov := ecc.PublicKey{}
-	digest := tx.SigDigest(chainID, cfd)
+	digest := t.SigDigest(chainID, cfd)
 	for _, sig := range signatures {
 
 		if useCache {
-			it, ok := tx.RecoveryCache[sig]
-			if !ok || it.TrxID != tx.ID() {
+			it, ok := t.RecoveryCache[sig]
+			if !ok || it.TrxID != t.ID() {
 				recov, _ = sig.PublicKey(digest)
-				tx.RecoveryCache[sig] = CachedPubKey{tx.ID(), recov, sig} //could fail on dup signatures; not a problem
+				t.RecoveryCache[sig] = CachedPubKey{t.ID(), recov, sig} //could fail on dup signatures; not a problem
 			} else {
 				recov = it.PubKey
 			}
@@ -147,12 +146,12 @@ func (tx *Transaction) GetSignatureKeys(signatures []ecc.Signature, chainID comm
 		successfulInsertion := false
 		samePubKey := false
 		for _, pubKey := range recoveredPubKeys {
-			if pubKey == recov {
+			if pubKey == &recov {
 				samePubKey = true
 			}
 		}
 		if !samePubKey {
-			recoveredPubKeys = append(recoveredPubKeys, recov)
+			recoveredPubKeys = append(recoveredPubKeys, &recov)
 			successfulInsertion = true
 		}
 		if !(allowDuplicateKeys || successfulInsertion) {
@@ -171,8 +170,8 @@ func (tx *Transaction) GetSignatureKeys(signatures []ecc.Signature, chainID comm
 	return recoveredPubKeys
 }
 
-func (tx *Transaction) TotalActions() uint32 {
-	return uint32(len(tx.ContextFreeActions) + len(tx.Actions))
+func (t *Transaction) TotalActions() uint32 {
+	return uint32(len(t.ContextFreeActions) + len(t.Actions))
 }
 
 func (tx *Transaction) FirstAuthorizor() common.AccountName {
@@ -223,7 +222,7 @@ func (s *SignedTransaction) signWithoutAppend(key ecc.PrivateKey, chainID common
 }
 
 //allowDeplicateKeys =false,useCache=true
-func (st *SignedTransaction) GetSignatureKeys(chainID common.ChainIdType, allowDeplicateKeys bool, useCache bool) []ecc.PublicKey {
+func (st *SignedTransaction) GetSignatureKeys(chainID common.ChainIdType, allowDeplicateKeys bool, useCache bool) []*ecc.PublicKey {
 	return st.Transaction.GetSignatureKeys(st.Signatures, chainID, st.ContextFreeData, allowDeplicateKeys, useCache)
 }
 
