@@ -56,6 +56,12 @@ func (u Uint256) LeftShift() Uint256 {
 	return u
 }
 
+func (u *Uint256) LeftShifts(shift int){
+	for i := 0; i < shift; i++ {
+		u.LeftShift()
+	}
+}
+
 func (u Uint256) RightShift() Uint256 {
 	if u.GetAt(128) {
 		u.High.RightShift()
@@ -63,6 +69,12 @@ func (u Uint256) RightShift() Uint256 {
 		u.Set(127, 1)
 	}
 	return u
+}
+
+func (u *Uint256) RightShifts(shift int){
+	for i := 0; i < shift; i++ {
+		u.LeftShift()
+	}
 }
 
 func  (u Uint256) Compare(v Uint256) int {
