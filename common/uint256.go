@@ -131,4 +131,3 @@ func (u Uint256) Div(divisor Uint256) (Uint256, Uint256) {
 	}
 	return Quotient, Remainder
 }
-

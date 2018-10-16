@@ -7,7 +7,8 @@ import (
 	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/log"
-	Chain "github.com/eosspark/eos-go/plugins/producer_plugin/mock"
+	Chain "github.com/eosspark/eos-go/plugins/producer_plugin/mock" /*test mode*/
+	//Chain "github.com/eosspark/eos-go/chain" /*real chain*/
 	. "github.com/eosspark/eos-go/exception"
 	"github.com/eosspark/eos-go/exception/try"
 )
