@@ -39,7 +39,7 @@ func (am *AuthorizationManager) CreatePermission(account common.AccountName,
 	parent PermissionIdType,
 	auth types.Authority,
 	initialCreationTime common.TimePoint,
-) types.PermissionObject {
+) *types.PermissionObject {
 	//creationTime := initialCreationTime
 	//if creationTime == 1 {
 	//	creationTime = am.control.PendingBlockTime()
@@ -59,7 +59,7 @@ func (am *AuthorizationManager) CreatePermission(account common.AccountName,
 	//}
 	//am.db.Insert(&perm)
 	//return perm
-	return types.PermissionObject{}
+	return &types.PermissionObject{}
 }
 
 func (am *AuthorizationManager) ModifyPermission(permission *types.PermissionObject, auth *types.Authority) {
@@ -100,10 +100,10 @@ func (am *AuthorizationManager) FindPermission(level *types.PermissionLevel) *ty
 	return &types.PermissionObject{}
 }
 
-func (am *AuthorizationManager) GetPermission(level *types.PermissionLevel) types.PermissionObject {
+func (am *AuthorizationManager) GetPermission(level *types.PermissionLevel) *types.PermissionObject {
 	po := types.PermissionObject{}
 	//am.db.Find("ByOwner", common.Tuple{level.Actor, level.Permission}, &po)
-	return po
+	return &po
 }
 //
 //func (am *AuthorizationManager) LookupLinkedPermission(authorizerAccount common.AccountName,

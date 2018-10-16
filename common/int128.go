@@ -79,7 +79,19 @@ func (u *Int128) RightShifts(shift int){
 }
 
 func (u Int128) ToTrueForm() Uint128{
-	return Uint128{}
+	if u.GetAt(127){
+		for i := uint(0); i < 127; i++{
+			if u.GetAt(i){
+				u.Set(i, 0)
+			} else {
+				u.Set(i, 1)
+			}
+		}
+		One := Int128{0,1}
+		u = u.Add(One)
+		u.Set(127,1)
+	}
+	return Uint128{u.High,u.Low}
 }
 
 func (Uint128) ToComplement() Int128{

@@ -415,7 +415,6 @@ func (rlm *ResourceLimitsManager) GetAccountNetLimitEx(name common.AccountName, 
 	//netUsedInWindow := IntegerDivideCeil(
 	//	new(big.Int).Mul(new(big.Int).SetUint64(ruo.NetUsage.ValueEx), windowSize),
 	//	new(big.Int).SetUint64(uint64(common.DefaultConfig.RateLimitingPrecision)))
-	//
 	//if maxUserUseInWindow.Cmp(netUsedInWindow) != 1 {
 	//	arl.Available = 0
 	//} else {
