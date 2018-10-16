@@ -6,7 +6,8 @@ import (
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto/ecc"
-	Chain "github.com/eosspark/eos-go/plugins/producer_plugin/mock"
+	Chain "github.com/eosspark/eos-go/plugins/producer_plugin/mock" /*test mode*/
+	//Chain "github.com/eosspark/eos-go/chain" /*real chain*/
 	"github.com/eosspark/eos-go/crypto"
 	. "github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
@@ -182,7 +183,7 @@ func (impl *ProducerPluginImpl) OnIncomingBlock(block *types.SignedBlock) {
 
 	defer HandleReturn()
 	Try(func() {
-		chain.PushBlock(block)
+		chain.PushBlock(block, types.BlockStatus(types.Complete))
 	}).Catch(func(e GuardExceptions) {
 		//TODO: handle_guard_exception
 		Return()
@@ -236,7 +237,7 @@ func (impl *ProducerPluginImpl) OnIncomingTransactionAsync(trx *types.PackedTran
 		return
 	}
 
-	if chain.IsKnownUnexpiredTransaction(id) {
+	if chain.IsKnownUnexpiredTransaction(&id) {
 		sendResponse(errors.New(fmt.Sprintf("duplicate transaction %s", id)))
 		return
 	}
