@@ -1,7 +1,6 @@
 package entity
 
 import (
-	"fmt"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/database"
 	"math/big"
@@ -52,37 +51,37 @@ func (g *GeneratedTransactionObject) GetBillableSize() uint64 {
 
 func GetGTOByTrxId(db *database.DataBase, trxId common.TransactionIdType) *GeneratedTransactionObject {
 	gto := GeneratedTransactionObject{}
-	err := db.Find("TrxId", trxId, gto)
-	if err != nil {
-		fmt.Println(GetGTOByTrxId)
-	}
+	//err := db.Find("TrxId", trxId, gto)
+	//if err != nil {
+	//	fmt.Println(GetGTOByTrxId)
+	//}
 	return &gto
 }
 
 func GetGeneratedTransactionObjectByExpiration(db *database.DataBase, be common.Tuple) *GeneratedTransactionObject {
 	gto := GeneratedTransactionObject{}
-	err := db.Find("ByExpiration", be, &gto)
-	if err != nil {
-		fmt.Println("GetGeneratedTransactionObjectByExpiration is error :", err.Error())
-	}
+	//err := db.Find("ByExpiration", be, &gto)
+	//if err != nil {
+	//	fmt.Println("GetGeneratedTransactionObjectByExpiration is error :", err.Error())
+	//}
 	return &gto
 }
 
 func GetGeneratedTransactionObjectByDelay(db *database.DataBase, be common.Tuple) *GeneratedTransactionObject {
 	gto := GeneratedTransactionObject{}
-	err := db.Find("ByDelay", be, &gto)
-	if err != nil {
-		fmt.Println("GetGeneratedTransactionObjectByDelay is error :", err.Error())
-	}
+	//err := db.Find("ByDelay", be, &gto)
+	//if err != nil {
+	//	fmt.Println("GetGeneratedTransactionObjectByDelay is error :", err.Error())
+	//}
 	return &gto
 }
 
 func GetGeneratedTransactionObjectBySenderId(db *database.DataBase, be common.Tuple) *GeneratedTransactionObject {
 	gto := GeneratedTransactionObject{}
-	err := db.Find("BySenderId", be, &gto)
-	if err != nil {
-		fmt.Println("GetGeneratedTransactionObjectBySenderId is error :", err.Error())
-	}
+	//err := db.Find("BySenderId", be, &gto)
+	//if err != nil {
+	//	fmt.Println("GetGeneratedTransactionObjectBySenderId is error :", err.Error())
+	//}
 	return &gto
 }
 
