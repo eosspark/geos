@@ -19,7 +19,7 @@ type TransactionMetadata struct {
 
 type Pair struct {
 	ID        common.ChainIdType
-	PublicKey []ecc.PublicKey
+	PublicKey []*ecc.PublicKey
 }
 
 func NewTransactionMetadata(ptrx *PackedTransaction) *TransactionMetadata {
@@ -44,18 +44,18 @@ func NewTransactionMetadataBySignedTrx(t *SignedTransaction, c common.Compressio
 	}
 }
 
-func (tm *TransactionMetadata) RecoverKeys(chainID common.ChainIdType) []ecc.PublicKey {
+func (t *TransactionMetadata) RecoverKeys(chainID common.ChainIdType) []*ecc.PublicKey {
 	//if( !signing_keys || signing_keys->first != chain_id ) TODO !signing_keys ？？  ->&tm.SigningKeys ==nil
-	if tm.SigningKeys.ID != chainID { // Unlikely for more than one chain_id to be used in one nodeos instance
-		tm.SigningKeys = Pair{
+	if t.SigningKeys.ID != chainID { // Unlikely for more than one chain_id to be used in one nodeos instance
+		t.SigningKeys = Pair{
 			ID:        chainID,
-			PublicKey: tm.Trx.GetSignatureKeys(chainID, false, true),
+			PublicKey: t.Trx.GetSignatureKeys(chainID, false, true),
 		}
 	}
-	return tm.SigningKeys.PublicKey
+	return t.SigningKeys.PublicKey
 
 }
 
-func (tm *TransactionMetadata) TotalActions() uint32 {
-	return uint32(len(tm.Trx.ContextFreeActions) + len(tm.Trx.Actions))
+func (t *TransactionMetadata) TotalActions() uint32 {
+	return uint32(len(t.Trx.ContextFreeActions) + len(t.Trx.Actions))
 }

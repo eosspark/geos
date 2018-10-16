@@ -77,6 +77,7 @@ func (e *encoder) encode(v interface{}) (err error) {
 	if e.vuint32 {
 		e.vuint32 = false
 		e.writeUVarInt(int(rv.Uint()))
+		return
 	}
 
 	switch t.Kind() {
