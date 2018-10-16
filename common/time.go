@@ -99,11 +99,7 @@ type Timer struct {
 func (my *Timer) ExpiresFromNow(m Microseconds) { my.duration = time.Microsecond * time.Duration(m) }
 func (my *Timer) ExpiresUntil(t TimePoint)      { my.ExpiresFromNow(t.Sub(Now())) }
 func (my *Timer) ExpiresAt(epoch Microseconds)  { my.ExpiresUntil(TimePoint(epoch)) }
-func (my *Timer) AsyncWait(call func()) {
-	my.internal = time.NewTimer(my.duration)
-	<-my.internal.C
-	go call()
-}
+func (my *Timer) AsyncWait(call func())         { my.internal = time.AfterFunc(my.duration, call) }
 
 func (my *Timer) Cancel() {
 	if my.internal != nil {
