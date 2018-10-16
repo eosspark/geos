@@ -74,6 +74,11 @@ func (e *encoder) encode(v interface{}) (err error) {
 	rv := reflect.Indirect(reflect.ValueOf(v))
 	t := rv.Type()
 
+	if e.vuint32 {
+		e.vuint32 = false
+		e.writeUVarInt(int(rv.Uint()))
+	}
+
 	switch t.Kind() {
 	case reflect.String:
 		return e.writeString(rv.String())
