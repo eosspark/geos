@@ -2,7 +2,8 @@ package producer_plugin
 
 import (
 	"fmt"
-	Chain "github.com/eosspark/eos-go/plugins/producer_plugin/mock" /*Debug model*/
+	Chain "github.com/eosspark/eos-go/plugins/producer_plugin/mock" /*test model*/
+	//Chain "github.com/eosspark/eos-go/chain" /*real chain*/
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/ecc"
@@ -32,7 +33,7 @@ type WhitelistAndBlacklist struct {
 	ActorBlacklist    *map[common.AccountName]struct{}
 	ContractWhitelist *map[common.AccountName]struct{}
 	ContractBlacklist *map[common.AccountName]struct{}
-	ActionBlacklist   *map[[2]common.AccountName]struct{}
+	ActionBlacklist   *map[common.Pair]struct{}
 	KeyBlacklist      *map[ecc.PublicKey]struct{}
 }
 
@@ -42,11 +43,11 @@ type GreylistParams struct {
 
 func init() {
 	//TODO: initialize plugin for appbase
-	fmt.Println("register plugin")
+	fmt.Println("app register plugin")
 }
 
 func NewProducerPlugin() ProducerPlugin {
-	pp := new(ProducerPlugin)
+	p := new(ProducerPlugin)
 	my := new(ProducerPluginImpl)
 
 	my.Timer = new(common.Timer)
@@ -59,24 +60,24 @@ func NewProducerPlugin() ProducerPlugin {
 
 	my.IncomingTrxWeight = 0.0
 	my.IncomingDeferRadio = 1.0 // 1:1
-	my.Self = pp
+	my.Self = p
 
-	pp.my = my
+	p.my = my
 
-	return *pp
+	return *p
 }
 
-func (pp *ProducerPlugin) IsProducerKey(key ecc.PublicKey) bool {
-	privateKey := pp.my.SignatureProviders[key]
+func (p *ProducerPlugin) IsProducerKey(key ecc.PublicKey) bool {
+	privateKey := p.my.SignatureProviders[key]
 	if privateKey != nil {
 		return true
 	}
 	return false
 }
 
-func (pp *ProducerPlugin) SignCompact(key *ecc.PublicKey, digest crypto.Sha256) ecc.Signature {
+func (p *ProducerPlugin) SignCompact(key *ecc.PublicKey, digest crypto.Sha256) ecc.Signature {
 	if key != nil {
-		privateKeyFunc := pp.my.SignatureProviders[*key]
+		privateKeyFunc := p.my.SignatureProviders[*key]
 		EosAssert(privateKeyFunc != nil, &ProducerPrivKeyNotFound{}, "Local producer has no private key in config.ini corresponding to public key %s", key)
 
 		return privateKeyFunc(digest)
@@ -84,7 +85,7 @@ func (pp *ProducerPlugin) SignCompact(key *ecc.PublicKey, digest crypto.Sha256) 
 	return ecc.Signature{}
 }
 
-func (pp *ProducerPlugin) PluginInitialize(app *cli.App) {
+func (p *ProducerPlugin) PluginInitialize(app *cli.App) {
 	app.Flags = []cli.Flag{
 		cli.BoolFlag{
 			Name:  "enable-stale-production, e",
@@ -149,8 +150,8 @@ func (pp *ProducerPlugin) PluginInitialize(app *cli.App) {
 	}
 
 	app.Action = func(c *cli.Context) {
-		for _, p := range c.StringSlice("producer-name") {
-			pp.my.Producers[common.AccountName(common.N(p))] = struct{}{}
+		for _, n := range c.StringSlice("producer-name") {
+			p.my.Producers[common.AccountName(common.N(n))] = struct{}{}
 		}
 
 		for _, keyIdToWifPairString := range c.StringSlice("private-key") {
@@ -164,7 +165,7 @@ func (pp *ProducerPlugin) PluginInitialize(app *cli.App) {
 			if err2 != nil {
 				panic(err2)
 			}
-			pp.my.SignatureProviders[pubKey] = makeKeySignatureProvider(priKey)
+			p.my.SignatureProviders[pubKey] = makeKeySignatureProvider(priKey)
 		}
 
 		for _, keySpecPair := range c.StringSlice("signature-provider") {
@@ -184,25 +185,25 @@ func (pp *ProducerPlugin) PluginInitialize(app *cli.App) {
 			if specTypeStr == "KEY" {
 				priKey, e := ecc.NewPrivateKey(specData)
 				if e != nil { panic(nil) }
-				pp.my.SignatureProviders[pubKey] = makeKeySignatureProvider(priKey)
+				p.my.SignatureProviders[pubKey] = makeKeySignatureProvider(priKey)
 			} else if specTypeStr == "KEOSD" {
-				pp.my.SignatureProviders[pubKey] = makeKeosdSignatureProvider(pp.my, specData, pubKey)
+				p.my.SignatureProviders[pubKey] = makeKeosdSignatureProvider(p.my, specData, pubKey)
 			}
 		}
 
-		pp.my.ProductionEnabled = c.Bool("enable-stale-production")
+		p.my.ProductionEnabled = c.Bool("enable-stale-production")
 
-		pp.my.ProductionPaused = c.Bool("pause-on-startup")
+		p.my.ProductionPaused = c.Bool("pause-on-startup")
 
-		pp.my.KeosdProviderTimeoutUs = common.Milliseconds(int64(c.Int("keosd-provider-timeout")))
+		p.my.KeosdProviderTimeoutUs = common.Milliseconds(int64(c.Int("keosd-provider-timeout")))
 
-		pp.my.ProduceTimeOffsetUs = int32(c.Int("produce-time-offset-us"))
+		p.my.ProduceTimeOffsetUs = int32(c.Int("produce-time-offset-us"))
 
-		pp.my.MaxTransactionTimeMs = int32(c.Int("max-transaction-age"))
+		p.my.MaxTransactionTimeMs = int32(c.Int("max-transaction-age"))
 
-		pp.my.MaxIrreversibleBlockAgeUs = common.Seconds(int64(c.Int("max-irreversible-block-age")))
+		p.my.MaxIrreversibleBlockAgeUs = common.Seconds(int64(c.Int("max-irreversible-block-age")))
 
-		pp.my.IncomingDeferRadio = c.Float64("incoming-defer-ratio")
+		p.my.IncomingDeferRadio = c.Float64("incoming-defer-ratio")
 
 		greylist := c.StringSlice("greylist-account")
 		if len(greylist) > 0 {
@@ -210,20 +211,20 @@ func (pp *ProducerPlugin) PluginInitialize(app *cli.App) {
 			for _, a := range greylist {
 				param.Accounts = append(param.Accounts, common.AccountName(common.N(a)))
 			}
-			pp.AddGreylistAccounts(param)
+			p.AddGreylistAccounts(param)
 		}
 
 	}
 }
 
-func (pp *ProducerPlugin) PluginStartup() {
+func (p *ProducerPlugin) PluginStartup() {
 	log.Info("producer plugin:  plugin_startup() begin")
 
 	chain := Chain.GetControllerInstance()
-	EosAssert(len(pp.my.Producers) == 0 || chain.GetReadMode() == Chain.DBReadMode(Chain.SPECULATIVE), &PluginConfigException{},
+	EosAssert(len(p.my.Producers) == 0 || chain.GetReadMode() == Chain.DBReadMode(Chain.SPECULATIVE), &PluginConfigException{},
 		"node cannot have any producer-name configured because block production is impossible when read_mode is not \"speculative\"" )
 
-	EosAssert(len(pp.my.Producers) == 0 || chain.GetValidationMode() == Chain.ValidationMode(Chain.FULL), &PluginConfigException{},
+	EosAssert(len(p.my.Producers) == 0 || chain.GetValidationMode() == Chain.ValidationMode(Chain.FULL), &PluginConfigException{},
 		"node cannot have any producer-name configured because block production is not safe when validation_mode is not \"full\"" )
 
 	//TODO if
@@ -233,78 +234,78 @@ func (pp *ProducerPlugin) PluginStartup() {
 	libNum := chain.LastIrreversibleBlockNum()
 	lib := chain.FetchBlockByNumber(libNum)
 	if lib != nil {
-		pp.my.OnIrreversibleBlock(lib)
+		p.my.OnIrreversibleBlock(lib)
 	} else {
-		pp.my.IrreversibleBlockTime = common.MaxTimePoint()
+		p.my.IrreversibleBlockTime = common.MaxTimePoint()
 	}
 
-	if len(pp.my.Producers) > 0 {
-		log.Info(fmt.Sprintf("Launching block production for %d producers at %s.", len(pp.my.Producers), common.Now()))
+	if len(p.my.Producers) > 0 {
+		log.Info(fmt.Sprintf("Launching block production for %d producers at %s.", len(p.my.Producers), common.Now()))
 
-		if pp.my.ProductionEnabled {
+		if p.my.ProductionEnabled {
 			if chain.HeadBlockNum() == 0 {
 				newChainBanner(chain)
 			}
 		}
 	}
 
-	pp.my.ScheduleProductionLoop()
+	p.my.ScheduleProductionLoop()
 
 	log.Info("producer plugin:  plugin_startup() end")
 }
 
-func (pp *ProducerPlugin) PluginShutdown() {
-	pp.my.Timer.Cancel()
+func (p *ProducerPlugin) PluginShutdown() {
+	p.my.Timer.Cancel()
 }
 
-func (pp *ProducerPlugin) Pause() {
-	pp.my.ProductionPaused = true
+func (p *ProducerPlugin) Pause() {
+	p.my.ProductionPaused = true
 }
 
-func (pp *ProducerPlugin) Resume() {
-	pp.my.ProductionPaused = false
+func (p *ProducerPlugin) Resume() {
+	p.my.ProductionPaused = false
 	// it is possible that we are only speculating because of this policy which we have now changed
 	// re-evaluate that now
 	//
-	if pp.my.PendingBlockMode == EnumPendingBlockMode(speculating) {
+	if p.my.PendingBlockMode == EnumPendingBlockMode(speculating) {
 		chain := Chain.GetControllerInstance()
 		chain.AbortBlock()
-		pp.my.ScheduleProductionLoop()
+		p.my.ScheduleProductionLoop()
 	}
 }
 
-func (pp *ProducerPlugin) Paused() bool {
-	return pp.my.ProductionPaused
+func (p *ProducerPlugin) Paused() bool {
+	return p.my.ProductionPaused
 }
 
-func (pp *ProducerPlugin) UpdateRuntimeOptions(options RuntimeOptions) {
+func (p *ProducerPlugin) UpdateRuntimeOptions(options RuntimeOptions) {
 	checkSpeculation := false
 
 	if options.MaxTransactionTime != nil {
-		pp.my.MaxTransactionTimeMs = *options.MaxTransactionTime
+		p.my.MaxTransactionTimeMs = *options.MaxTransactionTime
 	}
 
 	if options.MaxIrreversibleBlockAge != nil {
-		pp.my.MaxIrreversibleBlockAgeUs = common.Seconds(int64(*options.MaxIrreversibleBlockAge))
+		p.my.MaxIrreversibleBlockAgeUs = common.Seconds(int64(*options.MaxIrreversibleBlockAge))
 		checkSpeculation = true
 	}
 
 	if options.ProduceTimeOffsetUs != nil {
-		pp.my.ProduceTimeOffsetUs = *options.ProduceTimeOffsetUs
+		p.my.ProduceTimeOffsetUs = *options.ProduceTimeOffsetUs
 	}
 
 	if options.LastBlockTimeOffsetUs != nil {
-		pp.my.LastBlockTimeOffsetUs = *options.LastBlockTimeOffsetUs
+		p.my.LastBlockTimeOffsetUs = *options.LastBlockTimeOffsetUs
 	}
 
 	if options.IncomingDeferRadio != nil {
-		pp.my.IncomingDeferRadio = *options.IncomingDeferRadio
+		p.my.IncomingDeferRadio = *options.IncomingDeferRadio
 	}
 
-	if checkSpeculation && pp.my.PendingBlockMode == EnumPendingBlockMode(speculating) {
+	if checkSpeculation && p.my.PendingBlockMode == EnumPendingBlockMode(speculating) {
 		chain := Chain.GetControllerInstance()
 		chain.AbortBlock()
-		pp.my.ScheduleProductionLoop()
+		p.my.ScheduleProductionLoop()
 	}
 
 	if options.SubjectiveCpuLeewayUs != nil {
@@ -313,35 +314,35 @@ func (pp *ProducerPlugin) UpdateRuntimeOptions(options RuntimeOptions) {
 	}
 }
 
-func (pp *ProducerPlugin) GetRuntimeOptions() RuntimeOptions {
+func (p *ProducerPlugin) GetRuntimeOptions() RuntimeOptions {
 	var maxIrreversibleBlockAge int32 = -1
-	if pp.my.MaxIrreversibleBlockAgeUs.Count() >= 0 {
-		maxIrreversibleBlockAge = int32(pp.my.MaxIrreversibleBlockAgeUs.Count() / 1e6)
+	if p.my.MaxIrreversibleBlockAgeUs.Count() >= 0 {
+		maxIrreversibleBlockAge = int32(p.my.MaxIrreversibleBlockAgeUs.Count() / 1e6)
 	}
 	return RuntimeOptions{
-		&pp.my.MaxTransactionTimeMs,
+		&p.my.MaxTransactionTimeMs,
 		&maxIrreversibleBlockAge,
-		&pp.my.ProduceTimeOffsetUs,
-		&pp.my.LastBlockTimeOffsetUs,
+		&p.my.ProduceTimeOffsetUs,
+		&p.my.LastBlockTimeOffsetUs,
 		nil, nil,
 	}
 }
 
-func (pp *ProducerPlugin) AddGreylistAccounts(params GreylistParams) {
+func (p *ProducerPlugin) AddGreylistAccounts(params GreylistParams) {
 	chain := Chain.GetControllerInstance()
 	for _, acc := range params.Accounts {
 		chain.AddResourceGreyList(&acc)
 	}
 }
 
-func (pp *ProducerPlugin) RemoveGreylistAccounts(params GreylistParams) {
+func (p *ProducerPlugin) RemoveGreylistAccounts(params GreylistParams) {
 	chain := Chain.GetControllerInstance()
 	for _, acc := range params.Accounts {
 		chain.RemoveResourceGreyList(&acc)
 	}
 }
 
-func (pp *ProducerPlugin) GetGreylist() GreylistParams {
+func (p *ProducerPlugin) GetGreylist() GreylistParams {
 	chain := Chain.GetControllerInstance()
 	result := GreylistParams{}
 	list := chain.GetResourceGreyList()
@@ -352,7 +353,7 @@ func (pp *ProducerPlugin) GetGreylist() GreylistParams {
 	return result
 }
 
-func (pp *ProducerPlugin) GetWhitelistBlacklist() WhitelistAndBlacklist {
+func (p *ProducerPlugin) GetWhitelistBlacklist() WhitelistAndBlacklist {
 	chain := Chain.GetControllerInstance()
 	return WhitelistAndBlacklist{
 		chain.GetActorWhiteList(),
@@ -364,7 +365,7 @@ func (pp *ProducerPlugin) GetWhitelistBlacklist() WhitelistAndBlacklist {
 	}
 }
 
-func (pp *ProducerPlugin) SetWhitelistBlacklist(params WhitelistAndBlacklist) {
+func (p *ProducerPlugin) SetWhitelistBlacklist(params WhitelistAndBlacklist) {
 	chain := Chain.GetControllerInstance()
 	if params.ActorWhitelist != nil {
 		chain.SetActorWhiteList(params.ActorWhitelist)

@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"github.com/eosspark/eos-go/common"
+	"github.com/eosspark/eos-go/crypto/rlp"
 	"strconv"
 )
 
@@ -81,6 +82,12 @@ func printui(w *WasmInterface, val uint64) {
 // }
 func printi128(w *WasmInterface, val int) {
 	fmt.Println("printi128")
+
+	// bytes := getMemory(w, val, 16)
+	// var v common.Int128
+	// rlp.DecodeBytes(bytes, &v)
+	// w.context.ContextAppend(v.ToString())
+
 }
 
 // void printui128(const unsigned __int128& val) {
@@ -91,6 +98,12 @@ func printi128(w *WasmInterface, val int) {
 // }
 func printui128(w *WasmInterface, val int) {
 	fmt.Println("printui128")
+
+	// bytes := getMemory(w, val, 16)
+	// var v common.Uint128
+	// rlp.DecodeBytes(bytes, &v)
+	// w.context.ContextAppend(v.ToString())
+
 }
 
 // void printsf( float val ) {
@@ -159,6 +172,12 @@ func printdf(w *WasmInterface, val float64) {
 // }
 func printqf(w *WasmInterface, val int) {
 	fmt.Println("printqf")
+
+	// bytes := getMemory(w, val, 16)
+	// var v common.Float128
+	// rlp.DecodeBytes(bytes, &v)
+	// w.context.ContextAppend(v.ToString())
+
 }
 
 // void printn(const name& value) {

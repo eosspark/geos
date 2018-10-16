@@ -5,11 +5,12 @@ import (
 	"fmt"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
-	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/ecc"
+	Chain "github.com/eosspark/eos-go/plugins/producer_plugin/mock" /*test mode*/
+	//Chain "github.com/eosspark/eos-go/chain" /*real chain*/
+	"github.com/eosspark/eos-go/crypto"
 	. "github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
-	Chain "github.com/eosspark/eos-go/plugins/producer_plugin/mock"
 )
 
 type ProducerPluginImpl struct {
@@ -160,7 +161,7 @@ func (impl *ProducerPluginImpl) OnIrreversibleBlock(lib *types.SignedBlock) {
 func (impl *ProducerPluginImpl) OnIncomingBlock(block *types.SignedBlock) {
 	//TODO: fc_dlog(_log, "received incoming block ${id}", ("id", block->id()));
 
-	EosAssert(block.Timestamp.ToTimePoint() < common.Now().AddUs(common.Seconds(7)), &BlockFromTheFuture{}, "received a block from the future, ignoring it")
+	EosAssert( block.Timestamp.ToTimePoint() < common.Now().AddUs(common.Seconds(7)), &BlockFromTheFuture{}, "received a block from the future, ignoring it")
 
 	chain := Chain.GetControllerInstance()
 
@@ -182,7 +183,7 @@ func (impl *ProducerPluginImpl) OnIncomingBlock(block *types.SignedBlock) {
 
 	defer HandleReturn()
 	Try(func() {
-		chain.PushBlock(block)
+		chain.PushBlock(block, types.BlockStatus(types.Complete))
 	}).Catch(func(e GuardExceptions) {
 		//TODO: handle_guard_exception
 		Return()
@@ -236,7 +237,7 @@ func (impl *ProducerPluginImpl) OnIncomingTransactionAsync(trx *types.PackedTran
 		return
 	}
 
-	if chain.IsKnownUnexpiredTransaction(id) {
+	if chain.IsKnownUnexpiredTransaction(&id) {
 		sendResponse(errors.New(fmt.Sprintf("duplicate transaction %s", id)))
 		return
 	}

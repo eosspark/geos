@@ -145,7 +145,7 @@ func TestProducerPlugin_PluginStartup(t *testing.T) {
 	chain := Chain.GetControllerInstance()
 	for {
 		time.Sleep(time.Second)
-		if chain.LastIrreversibleBlockNum() > 0 && chain.HeadBlockNum() > 10 {
+		if chain.LastIrreversibleBlockNum() > 0 && chain.HeadBlockNum() > 100 {
 			plugin.PluginShutdown()
 			break
 		}
@@ -268,7 +268,7 @@ func TestProducerPluginImpl_OnIncomingBlock(t *testing.T) {
 			plugin.my.OnIncomingBlock(block)
 		}
 
-		if chain.HeadBlockNum() >= 24 {
+		if chain.HeadBlockNum() >= 240 {
 			plugin.PluginShutdown()
 			break
 		}
