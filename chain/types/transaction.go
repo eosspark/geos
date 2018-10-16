@@ -9,6 +9,7 @@ import (
 	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/crypto/rlp"
+	"github.com/eosspark/eos-go/exception"
 	"github.com/eosspark/eos-go/log"
 	"io/ioutil"
 	"math"
@@ -42,9 +43,9 @@ type TransactionHeader struct {
 	RefBlockNum    uint16              `json:"ref_block_num"`
 	RefBlockPrefix uint32              `json:"ref_block_prefix"`
 
-	MaxNetUsageWords uint32 `json:"max_net_usage_words"`
+	MaxNetUsageWords uint32 `json:"max_net_usage_words" eos:"vuint32"`
 	MaxCpuUsageMS    uint8  `json:"max_cpu_usage_ms"`
-	DelaySec         uint32 `json:"delay_sec"` // number of secs to delay, making it cancellable for that duration
+	DelaySec         uint32 `json:"delay_sec" eos:"vuint32"` // number of secs to delay, making it cancellable for that duration
 }
 
 func (th TransactionHeader) GetRefBlocknum(headBlocknum uint32) uint32 {
@@ -69,15 +70,22 @@ func (th *TransactionHeader) SetReferenceBlock(referenceBlock common.BlockIdType
 	log.Info("SetReferenceBlock:", th)
 }
 
+type CachedPubKey struct {
+	TrxID  common.TransactionIdType `json:"trx_id"`
+	PubKey ecc.PublicKey            `json:"pub_key"`
+	Sig    ecc.Signature            `json:"sig"`
+}
+
 //Transaction consits of a set of messages which must all be applied or
 //all are rejected. These messages have access to data within the given
 //read and write scopes.
 type Transaction struct { // WARN: is a `variant` in C++, can be a SignedTransaction or a Transaction.
 	TransactionHeader
 
-	ContextFreeActions []*Action    `json:"context_free_actions"`
-	Actions            []*Action    `json:"actions"`
-	Extensions         []*Extension `json:"transaction_extensions"`
+	ContextFreeActions    []*Action                      `json:"context_free_actions"`
+	Actions               []*Action                      `json:"actions"`
+	TransactionExtensions []*Extension                   `json:"transaction_extensions"`
+	RecoveryCache         map[ecc.Signature]CachedPubKey `json:"-" eos:"-"`
 }
 
 func (tx *Transaction) ID() common.TransactionIdType {
@@ -114,36 +122,28 @@ func (tx *Transaction) SigDigest(chainID common.ChainIdType, cfd []common.HexByt
 	return enc.Sum(nil)
 }
 
-type CachedPubKey struct {
-	TrxID  common.TransactionIdType
-	PubKey ecc.PublicKey
-	Sig    ecc.Signature
-}
-
 //allowDuplicateKeys = false
 //useCache= true
 func (tx *Transaction) GetSignatureKeys(signatures []ecc.Signature, chainID common.ChainIdType, cfd []common.HexBytes,
-	allowDuplicateKeys bool, useCache bool) []ecc.PublicKey {
+	allowDuplicateKeys bool, useCache bool) (recoveredPubKeys []ecc.PublicKey) {
 	const recoveryCacheSize common.SizeT = 1000
-	//var recoveryCache revovryCacheType
 
 	recov := ecc.PublicKey{}
-	recoveredPubKeys := []ecc.PublicKey{}
 	digest := tx.SigDigest(chainID, cfd)
 	for _, sig := range signatures {
 
 		if useCache {
-			recov, _ = sig.PublicKey(digest)
-			//if err !=nil{
-			//	fmt.Println(err)
-			//}
-
+			it, ok := tx.RecoveryCache[sig]
+			if !ok || it.TrxID != tx.ID() {
+				recov, _ = sig.PublicKey(digest)
+				tx.RecoveryCache[sig] = CachedPubKey{tx.ID(), recov, sig} //could fail on dup signatures; not a problem
+			} else {
+				recov = it.PubKey
+			}
 		} else {
 			recov, _ = sig.PublicKey(digest)
-			//if err !=nil{
-			//	fmt.Println(err)
-			//}
 		}
+
 		successfulInsertion := false
 		samePubKey := false
 		for _, pubKey := range recoveredPubKeys {
@@ -159,6 +159,8 @@ func (tx *Transaction) GetSignatureKeys(signatures []ecc.Signature, chainID comm
 			err := fmt.Sprintf("transaction includes more than one signature signed using the same key associated with public key: %s\n", recov)
 			panic(err)
 		}
+		exception.EosAssert(allowDuplicateKeys || successfulInsertion, &exception.TxDuplicateSig{},
+			"transaction includes more than one signature signed using the same key associated with public key: %s}", recov)
 
 	}
 	if useCache {
@@ -187,7 +189,6 @@ type SignedTransaction struct {
 
 	Signatures      []ecc.Signature   `json:"signatures"`
 	ContextFreeData []common.HexBytes `json:"context_free_data"`
-	packed          *PackedTransaction
 }
 
 func NewSignedTransaction(tx *Transaction, signature []ecc.Signature, contextFreeData []common.HexBytes) *SignedTransaction {
@@ -261,6 +262,23 @@ func NewPackedTransactionBySignedTrx(t *SignedTransaction, compression common.Co
 	return ptrx
 }
 
+//func (p *PackedTransaction) SetTransactionWithCFD(t *Transaction, cfd *[]common.HexBytes, compression common.CompressionType) {
+func (p *PackedTransaction) SetTransactionWithCFD(t *SignedTransaction, cfd *[]common.HexBytes, compression common.CompressionType) {
+	//try{}
+	switch compression {
+	case common.CompressionNone:
+		p.PackedTrx = packTransaction(&t.Transaction)
+		p.PackedContextFreeData = packContextFreeData(cfd)
+	case common.CompressionZlib:
+		p.PackedTrx = zlibCompressTransaction(&t.Transaction)
+		p.PackedContextFreeData = zlibCompressContextFreeData(cfd)
+	default:
+		//EOS_THROW(unknown_transaction_compression, "Unknown transaction compression algorithm");
+		panic("Unknown transaction compression algorithm")
+	}
+
+	p.Compression = compression
+}
 func (p *PackedTransaction) GetUnprunableSize() (size uint32) {
 	size = common.DefaultConfig.FixedNetOverheadOfPackedTrx
 	size += uint32(len(p.PackedTrx))
@@ -417,24 +435,6 @@ func (p *PackedTransaction) SetTransaction(t *Transaction, compression common.Co
 	p.Compression = compression
 }
 
-//func (p *PackedTransaction) SetTransactionWithCFD(t *Transaction, cfd *[]common.HexBytes, compression common.CompressionType) {
-func (p *PackedTransaction) SetTransactionWithCFD(t *SignedTransaction, cfd *[]common.HexBytes, compression common.CompressionType) {
-	//try{}
-	switch compression {
-	case common.CompressionNone:
-		p.PackedTrx = packTransaction(&t.Transaction)
-		p.PackedContextFreeData = packContextFreeData(cfd)
-	case common.CompressionZlib:
-		p.PackedTrx = zlibCompressTransaction(&t.Transaction)
-		p.PackedContextFreeData = zlibCompressContextFreeData(cfd)
-	default:
-		//EOS_THROW(unknown_transaction_compression, "Unknown transaction compression algorithm");
-		panic("Unknown transaction compression algorithm")
-	}
-
-	p.Compression = compression
-}
-
 func unpackContextFreeData(data *common.HexBytes) (out []common.HexBytes) {
 	if len(*data) == 0 {
 		return
@@ -446,7 +446,7 @@ func unpackContextFreeData(data *common.HexBytes) (out []common.HexBytes) {
 	return
 }
 func unpackTransaction(data common.HexBytes) (tx *Transaction) {
-	err := rlp.DecodeBytes([]byte(data), tx)
+	err := rlp.DecodeBytes([]byte(data), &tx)
 	if err != nil {
 		panic(err)
 	}
@@ -550,8 +550,8 @@ func NewDeferredTransaction(senderID common.Uint128, sender common.AccountName, 
 }
 
 type DeferredReference struct {
-	Sender   common.AccountName
-	SenderID common.Uint128
+	Sender   common.AccountName `json:"sender"`
+	SenderID common.Uint128     `json:"sender_id"`
 }
 
 func NewDeferredReference(sender common.AccountName, senderID common.Uint128) *DeferredReference {

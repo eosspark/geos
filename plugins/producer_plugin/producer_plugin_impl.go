@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
-	"github.com/eosspark/eos-go/crypto/ecc"
-	Chain "github.com/eosspark/eos-go/plugins/producer_plugin/mock"
 	"github.com/eosspark/eos-go/crypto"
+	"github.com/eosspark/eos-go/crypto/ecc"
 	. "github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
+	Chain "github.com/eosspark/eos-go/plugins/producer_plugin/mock"
 )
 
 type ProducerPluginImpl struct {
@@ -160,7 +160,7 @@ func (impl *ProducerPluginImpl) OnIrreversibleBlock(lib *types.SignedBlock) {
 func (impl *ProducerPluginImpl) OnIncomingBlock(block *types.SignedBlock) {
 	//TODO: fc_dlog(_log, "received incoming block ${id}", ("id", block->id()));
 
-	EosAssert( block.Timestamp.ToTimePoint() < common.Now().AddUs(common.Seconds(7)), &BlockFromTheFuture{}, "received a block from the future, ignoring it")
+	EosAssert(block.Timestamp.ToTimePoint() < common.Now().AddUs(common.Seconds(7)), &BlockFromTheFuture{}, "received a block from the future, ignoring it")
 
 	chain := Chain.GetControllerInstance()
 
