@@ -29,17 +29,17 @@ type AccountSequenceObject struct {
 	AbiSequence  uint64
 }
 
-func (self *AccountObject) SetAbi(a AbiDef) {
-	d, _ := rlp.EncodeToBytes(a)
-	self.Abi = d
+func (a *AccountObject) SetAbi(ad AbiDef) {
+	d, _ := rlp.EncodeToBytes(ad)
+	a.Abi = d
 }
 
-func (self *AccountObject) GetAbi() AbiDef {
+func (a *AccountObject) GetAbi() AbiDef {
 	abiDef := AbiDef{}
-	if len(self.Abi) != 0 {
-		fmt.Println("abi_not_found_exception ,No ABI set on account", self.Name)
+	if len(a.Abi) != 0 {
+		fmt.Println("abi_not_found_exception ,No ABI set on account", a.Name)
 	}
-	err := rlp.DecodeBytes(self.Abi, abiDef)
+	err := rlp.DecodeBytes(a.Abi, abiDef)
 	if err != nil {
 		fmt.Println("account_object GetAbi DecodeBytes is error:", err.Error())
 	}

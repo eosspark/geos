@@ -95,10 +95,10 @@ func init() {
 	DefaultConfig.DefaultBlocksDirName = "/tmp/data/blocks"
 	DefaultConfig.DefaultReversibleBlocksDirName = "/tmp/data/reversible"
 	DefaultConfig.DefaultStateDirName = "/tmp/data/state"
-	DefaultConfig.DefaultStateSize = 0
-	DefaultConfig.DefaultStateGuardSize = 0
-	DefaultConfig.DefaultReversibleCacheSize = 0
-	DefaultConfig.DefaultReversibleGuardSize = 0
+	DefaultConfig.DefaultStateSize = 1*1024*1024*1024
+	DefaultConfig.DefaultStateGuardSize = 128*1024*1024
+	DefaultConfig.DefaultReversibleCacheSize = 340*1024*1024
+	DefaultConfig.DefaultReversibleGuardSize = 2*1024*1024
 }
 
 type Config struct {

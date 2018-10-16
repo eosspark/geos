@@ -56,7 +56,7 @@ func TestController_CreateNativeAccount(t *testing.T) {
 	fmt.Println(name)
 	result := types.AccountObject{}
 	result.Name = name
-	control.DB.Find("name", result)
+	//control.DB.Find("name", result)
 
 	fmt.Println("check account name:", strings.Compare(name.String(), "eos"))
 }
