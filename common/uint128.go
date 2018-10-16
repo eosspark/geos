@@ -148,6 +148,11 @@ func (u Uint128) Div(divisor Uint128) (Uint128, Uint128) {
 	return Quotient, Remainder
 }
 
+func (Uint128) ToString() string{
+	var str string
+	return str
+}
+
 func MulUint64(u, v uint64) Uint128 {
 	uH := u >> 32
 	vH := v >> 32
