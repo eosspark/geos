@@ -42,16 +42,16 @@ func newGenesisState() *GenesisState {
 	return g
 }
 
-func (self *GenesisState) ComputeChainID() common.ChainIdType {
+func (g *GenesisState) ComputeChainID() common.ChainIdType {
 
-	b, err := rlp.EncodeToBytes(self)
+	b, err := rlp.EncodeToBytes(g)
 	if err != nil {
 		log.Error("ComputeChainID EncodeToBytes is error:", err)
 	}
 	return common.ChainIdType(crypto.Hash256(b))
 }
 
-func (gs *GenesisState) initial() {
+func (g *GenesisState) initial() {
 	InitialConfiguration := common.Config{
 		MaxBlockNetUsage:               common.DefaultConfig.MaxBlockNetUsage,
 		TargetBlockNetUsagePct:         common.DefaultConfig.TargetBlockNetUsagePct,
