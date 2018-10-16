@@ -56,6 +56,7 @@ var (
 var prefix = make([]string, 0)
 
 var debug bool
+var destaticVariantTag uint8
 
 var print = func(s string) {
 	if debug {
@@ -90,18 +91,21 @@ func DecodeBytes(b []byte, val interface{}) error {
 
 // Decoder implements the EOS unpacking, similar to FC_BUFFER
 type decoder struct {
-	data     []byte
-	pos      int
+	data []byte
+	pos  int
+}
+
+var (
 	optional bool
 	vuint32  bool
 	eosArray bool
-}
+	trxID    bool
+)
 
 func newDecoder(data []byte) *decoder {
 	return &decoder{
-		data:     data,
-		pos:      0,
-		optional: false,
+		data: data,
+		pos:  0,
 	}
 }
 
@@ -121,30 +125,8 @@ func (d *decoder) decode(v interface{}) (err error) {
 		rv = reflect.Indirect(newRV)
 	}
 
-	if d.optional {
-		d.optional = false
-		println("optional")
-
-		isPresent, e := d.readByte()
-		if e != nil {
-			err = fmt.Errorf("decode: OptionalProducerSchedule isPresent, %s", e)
-			return
-		}
-
-		if isPresent == 0 {
-			println("Skipping optional OptionalProducerSchedule")
-			v = nil
-		} else {
-			err = d.decodeStruct(v, t, rv)
-			if err != nil {
-				return
-			}
-		}
-		return
-	}
-
-	if d.vuint32 {
-		d.vuint32 = false
+	if vuint32 {
+		vuint32 = false
 		var r uint64
 		r, _ = d.readUvarint()
 		rv.SetUint(r)
@@ -220,7 +202,7 @@ func (d *decoder) decode(v interface{}) (err error) {
 		print("Reading Array")
 		len := t.Len()
 
-		if !d.eosArray {
+		if !eosArray {
 			var l uint64
 			if l, err = d.readUvarint(); err != nil {
 				return
@@ -229,7 +211,7 @@ func (d *decoder) decode(v interface{}) (err error) {
 				print("the l is not equal to len of array")
 			}
 		}
-		d.eosArray = false
+		eosArray = false
 
 		for i := 0; i < int(len); i++ {
 			if err = d.decode(rv.Index(i).Addr().Interface()); err != nil {
@@ -293,14 +275,31 @@ func (d *decoder) decodeStruct(v interface{}, t reflect.Type, rv reflect.Value) 
 	}
 	for i := 0; i < l; i++ {
 		switch t.Field(i).Tag.Get("eos") {
-		case "-":
+		case "-", "SVTag":
 			continue
 		case "optional":
-			d.optional = true
+			println("optional")
+			isPresent, _ := d.readByte()
+			if isPresent == 0 {
+				println("Skipping optional OptionalProducerSchedule")
+				v = nil
+				continue
+			}
 		case "vuint32":
-			d.vuint32 = true
+			vuint32 = true
 		case "array":
-			d.eosArray = true
+			eosArray = true
+		//	//for types.TransactionWithID !!
+		case "trxID":
+			destaticVariantTag, _ = d.readByte()
+		case "tag0":
+			if destaticVariantTag != 1 {
+				continue
+			}
+		case "tag1":
+			if destaticVariantTag != 0 {
+				continue
+			}
 		}
 
 		if v := rv.Field(i); v.CanSet() && t.Field(i).Name != "_" {

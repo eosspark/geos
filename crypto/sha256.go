@@ -92,7 +92,7 @@ func (h Sha256) Or(h1 Sha256) Sha256 {
 	return result
 }
 
-func (h Sha256) Compare(h1 *Sha256) bool {
+func (h Sha256) Compare(h1 Sha256) bool {
 	// idea to not use memcmp, from:
 	//   https://lemire.me/blog/2018/08/22/avoid-lexicographical-comparisons-when-testing-for-string-equality/
 	return h.Hash[0] == h1.Hash[0] &&

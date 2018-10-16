@@ -7,7 +7,8 @@ import (
 	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/log"
-	Chain "github.com/eosspark/eos-go/plugins/producer_plugin/mock"
+	Chain "github.com/eosspark/eos-go/plugins/producer_plugin/mock" /*test mode*/
+	//Chain "github.com/eosspark/eos-go/chain" /*real chain*/
 	. "github.com/eosspark/eos-go/exception"
 	"github.com/eosspark/eos-go/exception/try"
 )
@@ -469,7 +470,7 @@ func (impl *ProducerPluginImpl) MaybeProduceBlock() (res bool) {
 	}).Catch(func(e GuardExceptions) {
 		res = false
 	}).Catch(func(e Exception) {
-		//fc_dlog(_log, "Aborting block due to produce_block error");
+		//TODO: fc_dlog(_log, "Aborting block due to produce_block error");
 		chain := Chain.GetControllerInstance()
 		chain.AbortBlock()
 		res = false

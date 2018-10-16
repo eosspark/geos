@@ -1,4 +1,5 @@
 package common
+
 import (
 	"fmt"
 	"math"
@@ -14,6 +15,33 @@ func (u Uint128) IsZero() bool {
 		return true
 	}
 	return false
+}
+
+func (u Uint128) GetAt(i uint) bool {
+	if i < 64 {
+		return u.Low & ( 0x01 << i ) != 0
+	} else {
+		return u.High & ( 0x01 << (i - 64) ) != 0
+	}
+}
+
+func (u *Uint128) Set(i uint, b uint) {
+	if i < 64 {
+		if b == 1 {
+			u.Low |= 0x01 << i
+		}
+		if b == 0 {
+			u.Low &= math.MaxUint64 - 0x01 << i
+		}
+	}
+	if i >= 64 {
+		if b == 1 {
+			u.High |= 0x01 << (i - 64)
+		}
+		if b == 0 {
+			u.High &= math.MaxUint64 - 0x01 << (i - 64)
+		}
+	}
 }
 
 func (u *Uint128) LeftShift() {
@@ -49,33 +77,6 @@ func (u *Uint128) RightShifts(shift int){
 	}
 }
 
-func (u Uint128) GetAt(i uint) bool {
-	if i < 64 {
-		return u.Low & ( 0x01 << i ) != 0
-	} else {
-		return u.High & ( 0x01 << (i - 64) ) != 0
-	}
-}
-
-func (u *Uint128) Set(i uint, b uint) {
-	if i < 64 {
-		if b == 1 {
-			u.Low |= 0x01 << i
-		}
-		if b == 0 {
-			u.Low &= math.MaxUint64 - 0x01 << i
-		}
-	}
-	if i >= 64 {
-		if b == 1 {
-			u.High |= 0x01 << (i - 64)
-		}
-		if b == 0 {
-			u.High &= math.MaxUint64 - 0x01 << (i - 64)
-		}
-	}
-}
-
 //if u > v , return 1; u < v , return -1; u = v , return 0 .
 func (u Uint128) Compare(v Uint128) int {
 	if u.High > v.High {
@@ -102,6 +103,9 @@ func (u Uint128) Add(v Uint128) Uint128 {
 }
 
 func (u Uint128) Sub(v Uint128) Uint128 {
+	if u.Compare(v) < 0 {
+		fmt.Println("Uint128 cannot less than 0")
+	}
 	if u.Low >= v.Low {
 		u.Low -= v.Low
 		u.High -= v.High
@@ -110,6 +114,18 @@ func (u Uint128) Sub(v Uint128) Uint128 {
 		u.High -= v.High + 1
 	}
 	return u
+}
+
+
+func (u Uint128) Mul(v Uint128) Uint128 {
+	Product := Uint128{}
+	for i := 0; i < 128; i++ {
+		if v.GetAt(uint(i)) {
+			Product = Product.Add(u)
+		}
+		u.LeftShift()
+	}
+	return Product
 }
 
 func (u Uint128) Div(divisor Uint128) (Uint128, Uint128) {
@@ -152,4 +168,3 @@ func MulUint64(u, v uint64) Uint128 {
 	}
 	return Uint128{mulH + mixH + specialH, mulL + mixL}
 }
-

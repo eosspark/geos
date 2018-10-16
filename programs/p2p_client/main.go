@@ -30,7 +30,7 @@ func main() {
 	//data, _ := common.DecodeIDTypeByte(cID)
 
 	data := *crypto.NewSha256Byte(cID)
-	client := p2p.NewClient(*p2pAddr, common.ChainIdType(data), uint16(*networkVersion))
+	client := net_plugin.NewClient(*p2pAddr, common.ChainIdType(data), uint16(*networkVersion))
 	if err != nil {
 		log.Fatal(err)
 	}

@@ -192,7 +192,7 @@ func (c *Controller) PushReceipt(trx interface{}) types.TransactionReceipt {
 	return types.TransactionReceipt{}
 }
 
-func (c *Controller) PushBlock(b *types.SignedBlock) {
+func (c *Controller) PushBlock(b *types.SignedBlock, status types.BlockStatus) {
 	c.forkDb.add2(b, false)
 	if c.GetReadMode() != DBReadMode(IRREVERSIBLE) {
 		c.MaybeSwitchForks()
@@ -242,7 +242,7 @@ func (c *Controller) FetchBlockByNumber(num uint32) *types.SignedBlock {
 	return nil
 }
 
-func (c *Controller) IsKnownUnexpiredTransaction(id common.TransactionIdType) bool {
+func (c *Controller) IsKnownUnexpiredTransaction(id *common.TransactionIdType) bool {
 	return false
 }
 
@@ -269,7 +269,7 @@ func (c *Controller) GetContractWhiteList() *map[common.AccountName]struct{} { r
 
 func (c *Controller) GetContractBlackList() *map[common.AccountName]struct{} { return nil }
 
-func (c *Controller) GetActionBlockList() *map[[2]common.AccountName]struct{} { return nil }
+func (c *Controller) GetActionBlockList() *map[common.Pair]struct{} { return nil }
 
 func (c *Controller) GetKeyBlackList() *map[ecc.PublicKey]struct{} { return nil }
 
@@ -279,6 +279,6 @@ func (c *Controller) SetActorBlackList(params *map[common.AccountName]struct{}) 
 func (c *Controller) SetContractWhiteList(params *map[common.AccountName]struct{}) {}
 func (c *Controller) SetContractBlackList(params *map[common.AccountName]struct{}) {}
 
-func (c *Controller) SetActionBlackList(params *map[[2]common.AccountName]struct{}) {}
+func (c *Controller) SetActionBlackList(params *map[common.Pair]struct{}) {}
 
 func (c *Controller) SetKeyBlackList(params *map[ecc.PublicKey]struct{}) {}

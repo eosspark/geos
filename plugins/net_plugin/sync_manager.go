@@ -1,10 +1,12 @@
-package p2p
+package net_plugin
 
 import (
 	"fmt"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 
+	"github.com/eosspark/eos-go/crypto"
+	"net"
 	"time"
 )
 
@@ -357,320 +359,324 @@ func (s *syncManager) syncRequired() bool {
 	return s.syncLastRequestedNum < s.syncKnownLibNum || 0 < s.syncLastRequestedNum                                                            //100  ---->  chain_plug->chain( ).head_block_num( )
 }
 
-//func (s *syncManager) isActive(c net.Conn) bool {
-//	if s.state == headCatchup && c {
-//		fhset := c.forkHead != common.BlockIdType()
-//		// return c.forkHead != common.BlockIdType() && c.forkHeadNum < chainPlugin
-//	}
-//	return s.state != inSync
-//
-//}
+func (s *syncManager) isActive(c net.Conn) bool {
+	//if s.state == headCatchup && c {
+	//	fhset := c.forkHead != common.BlockIdType()
+	//	// return c.forkHead != common.BlockIdType() && c.forkHeadNum < chainPlugin
+	//}
+	//return s.state != inSync
+	return true
+}
 
-// bool sync_manager::is_active(connection_ptr c) {
-//    if (state == head_catchup && c) {
-//       bool fhset = c->fork_head != block_id_type();
-//       fc_dlog(logger, "fork_head_num = ${fn} fork_head set = ${s}",
-//               ("fn", c->fork_head_num)("s", fhset));
-//          return c->fork_head != block_id_type() && c->fork_head_num < chain_plug->chain().head_block_num();
-//    }
-//    return state != in_sync;
-// }
-
-//func (s *syncManager) resetLibNum(c net.Conn) {
-//	if s.state == inSync {
-//		s.source.reset()
-//	}
-//	if c.Current() {
-//
-//	}
-//}
-
-// void sync_manager::reset_lib_num(connection_ptr c) {
-//    if(state == in_sync) {
-//       source.reset();
-//    }
-//    if( c->current() ) {
-//       if( c->last_handshake_recv.last_irreversible_block_num > sync_known_lib_num) {
-//          sync_known_lib_num =c->last_handshake_recv.last_irreversible_block_num;
-//       }
-//    } else if( c == source ) {
-//       sync_last_requested_num = 0;
-//       request_next_chunk();
-//    }
-// }
-//func (s *syncManager) requestNextChunk(conn ConnectionPtr) {
-//
-//}
-
-//func (s *syncManager) sendHandshakes() {
-//
-//	// for _,ci := range
-//
-//	// for( auto &ci : my_impl->connections) {
-//	//    if( ci->current()) {
-//	//       ci->send_handshake();
-//	//    }
-//	// }
-//}
-
-//func (s *syncManager) recvHandshake(c net.Conn, msg *HandshakeMessage) {
-//
-//}
-
-// void sync_manager::recv_handshake (connection_ptr c, const handshake_message &msg) {
-//    controller& cc = chain_plug->chain();
-//    uint32_t lib_num = cc.last_irreversible_block_num( );
-//    uint32_t peer_lib = msg.last_irreversible_block_num;
-//    reset_lib_num(c);
-//    c->syncing = false;
-
-//    //--------------------------------
-//    // sync need checks; (lib == last irreversible block)
-//    //
-//    // 0. my head block id == peer head id means we are all caugnt up block wise
-//    // 1. my head block num < peer lib - start sync locally
-//    // 2. my lib > peer head num - send an last_irr_catch_up notice if not the first generation
-//    //
-//    // 3  my head block num <= peer head block num - update sync state and send a catchup request
-//    // 4  my head block num > peer block num ssend a notice catchup if this is not the first generation
-//    //
-//    //-----------------------------
-
-//    uint32_t head = cc.head_block_num( );
-//    block_id_type head_id = cc.head_block_id();
-//    if (head_id == msg.head_id) {
-//       fc_dlog(logger, "sync check state 0");
-//       // notify peer of our pending transactions
-//       notice_message note;
-//       note.known_blocks.mode = none;
-//       note.known_trx.mode = catch_up;
-//       note.known_trx.pending = my_impl->local_txns.size();
-
-//       // transaction_id_type id ;
-//       // block_id_type bid ;
-//       // note.known_trx.ids.push_back(id);
-//       // note.known_trx.ids.push_back(id);
-//       // note.known_blocks.pending = 1000;// walker none;
-//       // note.known_blocks.ids.push_back(bid);// walker none;
-//       // note.known_blocks.ids.push_back(bid);// walker none;
-//       c->enqueue( note );
-//       return;
-//    }
-//    if (head < peer_lib) {
-//       fc_dlog(logger, "sync check state 1");
-//       wlog("sync check state 1");
-//       // wait for receipt of a notice message before initiating sync
-//       if (c->protocol_version < proto_explicit_sync) {
-//          start_sync( c, peer_lib);
-//       }
-//       return;
-//    }
-//    if (lib_num > msg.head_num ) {
-//       fc_dlog(logger, "sync check state 2");
-//       if (msg.generation > 1 || c->protocol_version > proto_base) {
-//          notice_message note;
-//          note.known_trx.pending = lib_num;
-//          note.known_trx.mode = last_irr_catch_up;
-//          note.known_blocks.mode = last_irr_catch_up;
-//          note.known_blocks.pending = head;
-//          c->enqueue( note );
-//       }
-//       c->syncing = true;
-//       return;
-//    }
-
-//    if (head <= msg.head_num ) {
-//       fc_dlog(logger, "sync check state 3");
-//       verify_catchup (c, msg.head_num, msg.head_id);
-//       return;
-//    }
-//    else {
-//       fc_dlog(logger, "sync check state 4");
-//       if (msg.generation > 1 ||  c->protocol_version > proto_base) {
-//          notice_message note;
-//          note.known_trx.mode = none;
-//          note.known_blocks.mode = catch_up;
-//          note.known_blocks.pending = head;
-//          note.known_blocks.ids.push_back(head_id);
-//          c->enqueue( note );
-//       }
-//       c->syncing = true;
-//       return;
-//    }
-//    elog ("sync check failed to resolve status");
-// }
-
-//func (s *syncManager) startSync(c net.Conn, target uint32) {
-//	if target > s.syncKnownLibNum {
-//		s.syncKnownLibNum = target
-//	}
-//	if !s.syncRequired() {
-//		bnum := 100 //chain_plug->chain().last_irreversible_block_num()
-//		hnum := 100 //chain_plug->chain().head_block_num()
-//		fmt.Printf("we are already caught up, my irr = %d,head =%d,target = %d\n", bnum, hnum, target)
-//		return
-//	}
-//	if s.state == inSync {
-//		s.setStage(libCatchup)
-//		s.syncNextExpectedNum = 99 + 1 //chain_plug->chain().last_irreversible_block_num() + 1
-//	}
-//	fmt.Printf("Catching up with chain, our last req is %d, theirs is %d peer %s\n", s.syncLastRequestedNum, target, "walker") //walker  c->peer_name()
-//	// s.requestNextChunk(c)
-//}
-
-// void sync_manager::start_sync( connection_ptr c, uint32_t target) {
-
-//    if (!sync_required()) {
-//       uint32_t bnum = chain_plug->chain().last_irreversible_block_num();
-//       uint32_t hnum = chain_plug->chain().head_block_num();
-//       fc_dlog( logger, "We are already caught up, my irr = ${b}, head = ${h}, target = ${t}",
-//                ("b",bnum)("h",hnum)("t",target));
-//       return;
-//    }
-
-//    if (state == in_sync) {
-//       set_state(lib_catchup);
-//       sync_next_expected_num = chain_plug->chain().last_irreversible_block_num() + 1;
-//    }
-
-//    fc_ilog(logger, "Catching up with chain, our last req is ${cc}, theirs is ${t} peer ${p}",
-//            ( "cc",sync_last_requested_num)("t",target)("p",c->peer_name()));
-
-//    wlog("Catching up with chain, our last req is ${cc}, theirs is ${t} peer ${p}",
-//            ( "cc",sync_last_requested_num)("t",target)("p",c->peer_name()));
-//    request_next_chunk(c);
-// }
-
-//func (s *syncManager) reassignFetch(c net.Conn, reason GoAwayReason) {
-//	fmt.Printf("reassign_fetch, our last req is %d, next expected is %d peer %s\n", s.syncLastRequestedNum, s.syncNextExpectedNum, "walker") //walker c->peer_name()
-//	if c == source {
-//		c.cancelSync(reason)
-//		s.syncLastRequestedNum = 0
-//		s.requestNextChunk()
-//	}
-//
-//}
-//
-//func (s *syncManager) verifyCatchup(c net.Conn, num uint32, id common.BlockIdType) {
-//
-//}
-
-// void sync_manager::verify_catchup(connection_ptr c, uint32_t num, block_id_type id) {
-//    request_message req;
-//    req.req_blocks.mode = catch_up;
-//    for (auto cc : my_impl->connections) {
-//       if (cc->fork_head == id ||
-//           cc->fork_head_num > num)
-//          req.req_blocks.mode = none;
-//       break;
-//    }
-//    if( req.req_blocks.mode == catch_up ) {//所有conn中最长的链
-//       c->fork_head = id;
-//       c->fork_head_num = num;
-//       ilog ("got a catch_up notice while in ${s}, fork head num = ${fhn} target LIB = ${lib} next_expected = ${ne}", ("s",stage_str(state))("fhn",num)("lib",sync_known_lib_num)("ne", sync_next_expected_num));
-//       if (state == lib_catchup)
-//          return;
-//       set_state(head_catchup);
-//    }
-//    else {
-//       c->fork_head = block_id_type();
-//       c->fork_head_num = 0;
-//    }
-//    req.req_trx.mode = none;
-//    c->enqueue( req );
-// }
-
-//func (s *syncManager) recvNotice(c net.Conn, msg *NoticeMessage) {
-//
-//}
-
-// void sync_manager::recv_notice (connection_ptr c, const notice_message &msg) {
-//    fc_ilog (logger, "sync_manager got ${m} block notice",("m",modes_str(msg.known_blocks.mode)));
-//    if (msg.known_blocks.mode == catch_up) {
-//       if (msg.known_blocks.ids.size() == 0) {
-//          elog ("got a catch up with ids size = 0");
-//       }
-//       else {
-//          verify_catchup(c,  msg.known_blocks.pending, msg.known_blocks.ids.back());
-//       }
-//    }
-//    else {
-//       c->last_handshake_recv.last_irreversible_block_num = msg.known_trx.pending;
-//       reset_lib_num (c);
-//       start_sync(c, msg.known_blocks.pending);
-//    }
-// }
-
-//func (s *syncManager) rejectedBlock(c net.conn, blkNum uint32) {
-//	if s.state != inSync {
-//		fmt.Printf("block %d not accepted from %s", blkNum, "walker") //walker c->peer_name()
-//		s.syncLastRequestedNum = 0
-//		s.source.reset()
-//		my_impl.close(c)
-//		s.setStage(inSync)
-//		s.snedHandshakes()
-//	}
-//}
-
-// void sync_manager::rejected_block (connection_ptr c, uint32_t blk_num) {
-//   if (state != in_sync ) {
-//      fc_ilog (logger, "block ${bn} not accepted from ${p}",("bn",blk_num)("p",c->peer_name()));
-//      sync_last_requested_num = 0;
-//      source.reset();
-//      my_impl->close(c);
-//      set_state(in_sync);
-//      send_handshakes();
+//bool sync_manager::is_active(connection_ptr c) {
+//   if (state == head_catchup && c) {
+//      bool fhset = c->fork_head != block_id_type();
+//      fc_dlog(logger, "fork_head_num = ${fn} fork_head set = ${s}",
+//              ("fn", c->fork_head_num)("s", fhset));
+//         return c->fork_head != block_id_type() && c->fork_head_num < chain_plug->chain().head_block_num();
 //   }
-// }
-//func (s *syncManager) recvBlock(c net.Conn, blkID *common.BlockIdType, blkNum uint32) {
-//
+//   return state != in_sync;
 //}
 
-// void sync_manager::recv_block (connection_ptr c, const block_id_type &blk_id, uint32_t blk_num) {
-//    fc_dlog(logger," got block ${bn} from ${p}",("bn",blk_num)("p",c->peer_name()));
-//    if (state == lib_catchup) {
-//       if (blk_num != sync_next_expected_num) {
-//          fc_ilog (logger, "expected block ${ne} but got ${bn}",("ne",sync_next_expected_num)("bn",blk_num));
-//          my_impl->close(c);
-//          return;
-//       }
-//       sync_next_expected_num = blk_num + 1;
-//    }
-//    if (state == head_catchup) {
-//       fc_dlog (logger, "sync_manager in head_catchup state");
-//       set_state(in_sync);
-//       source.reset();
+func (s *syncManager) resetLibNum(p *Peer) {
+	//if s.state == inSync {
+	//	s.source.reset()
+	//}
+	//if c.Current() {
+	//
+	//}
+}
 
-//       block_id_type null_id;
-//       for (auto cp : my_impl->connections) {
-//          if (cp->fork_head == null_id) {
-//             continue;
-//          }
-//          if (cp->fork_head == blk_id || cp->fork_head_num < blk_num) {
-//             c->fork_head = null_id;
-//             c->fork_head_num = 0;
-//          }
-//          else {
-//             set_state(head_catchup);
-//          }
-//       }
-//    }
-//    else if (state == lib_catchup) {
-//       if( blk_num == sync_known_lib_num ) {
-//          fc_dlog( logger, "All caught up with last known last irreversible block resending handshake");
+//void sync_manager::reset_lib_num(connection_ptr c) {
+//   if(state == in_sync) {
+//      source.reset();
+//   }
+//   if( c->current() ) {
+//      if( c->last_handshake_recv.last_irreversible_block_num > sync_known_lib_num) {
+//         sync_known_lib_num =c->last_handshake_recv.last_irreversible_block_num;
+//      }
+//   } else if( c == source ) {
+//      sync_last_requested_num = 0;
+//      request_next_chunk();
+//   }
+//}
+func (s *syncManager) requestNextChunk(peer *Peer) {
 
-//          wlog("All caught up with last known last irreversible block resending handshake");
-//          set_state(in_sync);
-//          send_handshakes();
-//       }
-//       else if (blk_num == sync_last_requested_num) {
-//          // source->request_sync_blocks(start, end);
-//          // sync_last_requested_num = end;
-//          request_next_chunk();
-//       }
-//       else {
-//          fc_dlog(logger,"calling sync_wait on connection ${p}",("p",c->peer_name()));
-//          c->sync_wait();
-//       }
-//    }
-// }
+}
+
+func (s *syncManager) sendHandshakes() {
+
+	// for _,ci := range
+
+	// for( auto &ci : my_impl->connections) {
+	//    if( ci->current()) {
+	//       ci->send_handshake();
+	//    }
+	// }
+}
+
+func (s *syncManager) recvHandshake(p *Peer, msg *HandshakeMessage) {
+	//controller& cc = chain_plug->chain();
+	//libNum := cc.last_irreversible_block_num()
+	libNum := uint32(100) //TODO
+	peerLib := msg.LastIrreversibleBlockNum
+	s.resetLibNum(p)
+	p.syncing = false
+
+	//--------------------------------
+	// sync need checks; (lib == last irreversible block)
+	//
+	// 0. my head block id == peer head id means we are all caugnt up block wise
+	// 1. my head block num < peer lib - start sync locally
+	// 2. my lib > peer head num - send an last_irr_catch_up notice if not the first generation
+	//
+	// 3  my head block num <= peer head block num - update sync state and send a catchup request
+	// 4  my head block num > peer block num ssend a notice catchup if this is not the first generation
+	//
+	//-----------------------------
+
+	//head := cc.headBlockNum()
+	//headID :=cc.headBlockID()
+
+	head := uint32(100) //TODO
+	headID := common.BlockIdType(*crypto.NewSha256Nil())
+
+	if headID.String() == msg.HeadID.String() {
+		//fc_dlog(logger, "sync check state 0")
+
+		fmt.Println("sync check statue 0")
+		// notify peer of our pending transactions
+
+		note := NoticeMessage{}
+		note.KnownBlocks.Mode = none
+		note.KnownTrx.Mode = catchUp
+		//note.KnownTrx.Pending = my_impl->local_txns.size()//TODO
+		note.KnownTrx.Pending = 0
+		p.write(&note)
+		return
+
+	}
+
+	if libNum > msg.HeadNum {
+		//fc_dlog(logger, "sync check state 1");
+		fmt.Println("sync check state 1")
+		//wait for receipt of a notice message before initiating sync
+		if p.protocolVersion < protoExplicitSync {
+			s.startSync(p, peerLib)
+		}
+		return
+	}
+
+	if libNum > msg.HeadNum {
+		//fc_dlog(logger, "sync check state 2");
+		fmt.Println("sync check state 2")
+		if msg.Generation > 1 || p.protocolVersion > protoBase {
+			note := NoticeMessage{}
+			note.KnownBlocks.Mode = lastIrrCatchUp
+			note.KnownBlocks.Pending = head
+			note.KnownTrx.Mode = lastIrrCatchUp
+			note.KnownTrx.Pending = libNum
+			p.write(&note)
+		}
+		p.syncing = true
+		return
+	}
+
+	if head <= msg.HeadNum {
+		//fc_dlog(logger, "sync check state 3")
+		fmt.Println("sync check state 3")
+		s.verifyCatchup(p, msg.HeadNum, msg.HeadID)
+		return
+	} else {
+		//fc_dlog(logger, "sync check state 4");
+		fmt.Println("sync check state 4")
+		if msg.Generation > 1 || p.protocolVersion > protoBase {
+			note := NoticeMessage{}
+			note.KnownBlocks.Mode = catchUp
+			note.KnownBlocks.Pending = head
+			note.KnownBlocks.IDs = append(note.KnownBlocks.IDs, &headID)
+			note.KnownTrx.Mode = none
+			p.write(&note)
+		}
+		p.syncing = true
+		return
+	}
+
+	fmt.Println("sync check failed to resolve status")
+}
+
+func (s *syncManager) startSync(p *Peer, target uint32) {
+	if target > s.syncKnownLibNum {
+		s.syncKnownLibNum = target
+	}
+	if !s.syncRequired() {
+		bnum := 100 //chain_plug->chain().last_irreversible_block_num()
+		hnum := 100 //chain_plug->chain().head_block_num()
+		fmt.Printf("we are already caught up, my irr = %d,head =%d,target = %d\n", bnum, hnum, target)
+		return
+	}
+	if s.state == inSync {
+		s.setStage(libCatchup)
+		s.syncNextExpectedNum = 99 + 1 //chain_plug->chain().last_irreversible_block_num() + 1
+	}
+	fmt.Printf("Catching up with chain, our last req is %d, theirs is %d peer %s\n", s.syncLastRequestedNum, target, "walker") //walker  c->peer_name()
+	// s.requestNextChunk(c)
+}
+
+//void sync_manager::start_sync( connection_ptr c, uint32_t target) {
+//
+//   if (!sync_required()) {
+//      uint32_t bnum = chain_plug->chain().last_irreversible_block_num();
+//      uint32_t hnum = chain_plug->chain().head_block_num();
+//      fc_dlog( logger, "We are already caught up, my irr = ${b}, head = ${h}, target = ${t}",
+//               ("b",bnum)("h",hnum)("t",target));
+//      return;
+//   }
+//
+//   if (state == in_sync) {
+//      set_state(lib_catchup);
+//      sync_next_expected_num = chain_plug->chain().last_irreversible_block_num() + 1;
+//   }
+//
+//   fc_ilog(logger, "Catching up with chain, our last req is ${cc}, theirs is ${t} peer ${p}",
+//           ( "cc",sync_last_requested_num)("t",target)("p",c->peer_name()));
+//
+//   wlog("Catching up with chain, our last req is ${cc}, theirs is ${t} peer ${p}",
+//           ( "cc",sync_last_requested_num)("t",target)("p",c->peer_name()));
+//   request_next_chunk(c);
+//}
+
+func (s *syncManager) reassignFetch(c net.Conn, reason GoAwayReason) {
+	fmt.Printf("reassign_fetch, our last req is %d, next expected is %d peer %s\n", s.syncLastRequestedNum, s.syncNextExpectedNum, "walker") //walker c->peer_name()
+	//if c == source {
+	//	c.cancelSync(reason)
+	//	s.syncLastRequestedNum = 0
+	//	s.requestNextChunk()
+	//}
+
+}
+
+func (s *syncManager) verifyCatchup(p *Peer, num uint32, id common.BlockIdType) {
+
+}
+
+//void sync_manager::verify_catchup(connection_ptr c, uint32_t num, block_id_type id) {
+//   request_message req;
+//   req.req_blocks.mode = catch_up;
+//   for (auto cc : my_impl->connections) {
+//      if (cc->fork_head == id ||
+//          cc->fork_head_num > num)
+//         req.req_blocks.mode = none;
+//      break;
+//   }
+//   if( req.req_blocks.mode == catch_up ) {//所有conn中最长的链
+//      c->fork_head = id;
+//      c->fork_head_num = num;
+//      ilog ("got a catch_up notice while in ${s}, fork head num = ${fhn} target LIB = ${lib} next_expected = ${ne}", ("s",stage_str(state))("fhn",num)("lib",sync_known_lib_num)("ne", sync_next_expected_num));
+//      if (state == lib_catchup)
+//         return;
+//      set_state(head_catchup);
+//   }
+//   else {
+//      c->fork_head = block_id_type();
+//      c->fork_head_num = 0;
+//   }
+//   req.req_trx.mode = none;
+//   c->enqueue( req );
+//}
+
+func (s *syncManager) recvNotice(c net.Conn, msg *NoticeMessage) {
+
+}
+
+//void sync_manager::recv_notice (connection_ptr c, const notice_message &msg) {
+//   fc_ilog (logger, "sync_manager got ${m} block notice",("m",modes_str(msg.known_blocks.mode)));
+//   if (msg.known_blocks.mode == catch_up) {
+//      if (msg.known_blocks.ids.size() == 0) {
+//         elog ("got a catch up with ids size = 0");
+//      }
+//      else {
+//         verify_catchup(c,  msg.known_blocks.pending, msg.known_blocks.ids.back());
+//      }
+//   }
+//   else {
+//      c->last_handshake_recv.last_irreversible_block_num = msg.known_trx.pending;
+//      reset_lib_num (c);
+//      start_sync(c, msg.known_blocks.pending);
+//   }
+//}
+
+func (s *syncManager) rejectedBlock(p *Peer, blkNum uint32) {
+	//if s.state != inSync {
+	//	fmt.Printf("block %d not accepted from %s", blkNum, "walker") //walker c->peer_name()
+	//	s.syncLastRequestedNum = 0
+	//	s.source.reset()
+	//	my_impl.close(c)
+	//	s.setStage(inSync)
+	//	s.snedHandshakes()
+	//}
+}
+
+//void sync_manager::rejected_block (connection_ptr c, uint32_t blk_num) {
+//  if (state != in_sync ) {
+//     fc_ilog (logger, "block ${bn} not accepted from ${p}",("bn",blk_num)("p",c->peer_name()));
+//     sync_last_requested_num = 0;
+//     source.reset();
+//     my_impl->close(c);
+//     set_state(in_sync);
+//     send_handshakes();
+//  }
+//}
+func (s *syncManager) recvBlock(p *Peer, blkID *common.BlockIdType, blkNum uint32) {
+
+}
+
+//
+//void sync_manager::recv_block (connection_ptr c, const block_id_type &blk_id, uint32_t blk_num) {
+//   fc_dlog(logger," got block ${bn} from ${p}",("bn",blk_num)("p",c->peer_name()));
+//   if (state == lib_catchup) {
+//      if (blk_num != sync_next_expected_num) {
+//         fc_ilog (logger, "expected block ${ne} but got ${bn}",("ne",sync_next_expected_num)("bn",blk_num));
+//         my_impl->close(c);
+//         return;
+//      }
+//      sync_next_expected_num = blk_num + 1;
+//   }
+//   if (state == head_catchup) {
+//      fc_dlog (logger, "sync_manager in head_catchup state");
+//      set_state(in_sync);
+//      source.reset();
+//
+//      block_id_type null_id;
+//      for (auto cp : my_impl->connections) {
+//         if (cp->fork_head == null_id) {
+//            continue;
+//         }
+//         if (cp->fork_head == blk_id || cp->fork_head_num < blk_num) {
+//            c->fork_head = null_id;
+//            c->fork_head_num = 0;
+//         }
+//         else {
+//            set_state(head_catchup);
+//         }
+//      }
+//   }
+//   else if (state == lib_catchup) {
+//      if( blk_num == sync_known_lib_num ) {
+//         fc_dlog( logger, "All caught up with last known last irreversible block resending handshake");
+//
+//         wlog("All caught up with last known last irreversible block resending handshake");
+//         set_state(in_sync);
+//         send_handshakes();
+//      }
+//      else if (blk_num == sync_last_requested_num) {
+//         // source->request_sync_blocks(start, end);
+//         // sync_last_requested_num = end;
+//         request_next_chunk();
+//      }
+//      else {
+//         fc_dlog(logger,"calling sync_wait on connection ${p}",("p",c->peer_name()));
+//         c->sync_wait();
+//      }
+//   }
+//}
