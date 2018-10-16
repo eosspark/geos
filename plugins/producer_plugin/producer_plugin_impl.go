@@ -133,7 +133,7 @@ func (impl *ProducerPluginImpl) OnBlock(bsp *types.BlockState) {
 	newBlockHeader := bsp.Header
 	newBlockHeader.Timestamp = newBlockHeader.Timestamp.Next()
 	newBlockHeader.Previous = bsp.ID
-	newBs := bsp.GenerateNext(&newBlockHeader.Timestamp)
+	newBs := bsp.GenerateNext(newBlockHeader.Timestamp)
 
 	// for newly installed producers we can set their watermarks to the block they became active
 	if newBs.MaybePromotePending() && bsp.ActiveSchedule.Version != newBs.ActiveSchedule.Version {
@@ -202,7 +202,7 @@ func (impl *ProducerPluginImpl) OnIncomingBlock(block *types.SignedBlock) {
 
 	if common.Now().Sub(block.Timestamp.ToTimePoint()) < common.Minutes(5) || block.BlockNumber()%1000 == 0 {
 		fmt.Printf("Received block %s... #%d @ %s signed by %s [trxs: %d, lib: %d, conf: %d, lantency: %d ms]\n",
-			block.BlockID().String()[8:16], types.NumFromID(block.BlockID()), block.Timestamp, block.Producer,
+			block.BlockID().String()[8:16], block.BlockNumber(), block.Timestamp, block.Producer,
 			len(block.Transactions), chain.LastIrreversibleBlockNum(), block.Confirmed, (common.Now().Sub(block.Timestamp.ToTimePoint())).Count()/1000)
 	}
 }

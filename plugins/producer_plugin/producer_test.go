@@ -103,7 +103,7 @@ func produceone(when common.BlockTimeStamp) (b *types.SignedBlock) {
 	b = new(types.SignedBlock)
 	control := Chain.GetControllerInstance()
 	hbs := control.HeadBlockState()
-	newBs := hbs.GenerateNext(&when)
+	newBs := hbs.GenerateNext(when)
 	nextProducer := hbs.GetScheduledProducer(when)
 	b.Timestamp = when
 	b.Producer = nextProducer.AccountName
@@ -145,7 +145,7 @@ func TestProducerPlugin_PluginStartup(t *testing.T) {
 	chain := Chain.GetControllerInstance()
 	for {
 		time.Sleep(time.Second)
-		if chain.LastIrreversibleBlockNum() > 0 && chain.HeadBlockNum() > 100 {
+		if chain.LastIrreversibleBlockNum() > 0 && chain.HeadBlockNum() > 10 {
 			plugin.PluginShutdown()
 			break
 		}
@@ -268,7 +268,7 @@ func TestProducerPluginImpl_OnIncomingBlock(t *testing.T) {
 			plugin.my.OnIncomingBlock(block)
 		}
 
-		if chain.HeadBlockNum() >= 240 {
+		if chain.HeadBlockNum() >= 24 {
 			plugin.PluginShutdown()
 			break
 		}
