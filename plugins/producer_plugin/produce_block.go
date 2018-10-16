@@ -469,7 +469,7 @@ func (impl *ProducerPluginImpl) MaybeProduceBlock() (res bool) {
 	}).Catch(func(e GuardExceptions) {
 		res = false
 	}).Catch(func(e Exception) {
-		//fc_dlog(_log, "Aborting block due to produce_block error");
+		//TODO: fc_dlog(_log, "Aborting block due to produce_block error");
 		chain := Chain.GetControllerInstance()
 		chain.AbortBlock()
 		res = false

@@ -223,11 +223,11 @@ func (am *AuthorizationManager) GetPermission(level *types.PermissionLevel) type
 //	//TODO
 //}
 //
-func (am *AuthorizationManager) CheckAuthorization(actions []types.Action,
-	providedKeys []ecc.PublicKey,
-	providedPermission []types.PermissionLevel,
+func (am *AuthorizationManager) CheckAuthorization(actions *[]types.Action,
+	providedKeys *[]ecc.PublicKey,
+	providedPermission *[]types.PermissionLevel,
 	providedDelay common.Microseconds,
-	checkTime func(),
+	checkTime *func(),
 	allowUnusedKeys bool,
 ) {
 	//delayMaxLimit := common.Seconds(int64(am.control.GetGlobalProperties().Configuration.MaxTrxDelay))
@@ -288,10 +288,10 @@ func (am *AuthorizationManager) CheckAuthorization(actions []types.Action,
 
 func (am *AuthorizationManager) CheckAuthorization2(account common.AccountName,
 	permission common.PermissionName,
-	providedKeys []ecc.PublicKey,
-	providedPermission []types.PermissionLevel,
+	providedKeys *[]ecc.PublicKey,
+	providedPermission *[]types.PermissionLevel,
 	providedDelay common.Microseconds,
-	checkTime func(),
+	checkTime *func(),
 	allowUnusedKeys bool,
 ) {
 	//delayMaxLimit := common.Seconds(int64(am.control.GetGlobalProperties().Configuration.MaxTrxDelay))
@@ -316,13 +316,13 @@ func (am *AuthorizationManager) CheckAuthorization2(account common.AccountName,
 	//}
 }
 
-func (am *AuthorizationManager) GetRequiredKeys(trx types.Transaction,
-	candidateKeys []ecc.PublicKey,
+func (am *AuthorizationManager) GetRequiredKeys(trx *types.Transaction,
+	candidateKeys *[]ecc.PublicKey,
 	providedDelay common.Microseconds) []ecc.PublicKey {
 
 	checker := types.MakeAuthChecker(func(p *types.PermissionLevel) types.SharedAuthority { return am.GetPermission(p).Auth },
 		am.control.GetGlobalProperties().Configuration.MaxAuthorityDepth,
-		candidateKeys,
+		*candidateKeys,
 		nil,
 		providedDelay,
 		func() {})
