@@ -11,10 +11,13 @@ package figure
 ////| (typically 'float' and 'double', and possibly 'long double').
 ////*----------------------------------------------------------------------------*/
 //
-type Float16_t uint16
-type Float32_t uint32
-type Float64_t uint64
-type Float128 [2]uint64
+type Float16 uint16
+type Float32 uint32
+type Float64 uint64
+type Float128 struct{
+	High uint64
+	Low  uint64
+}
 
 type ExtFloat80M struct {
 	signExp uint16
