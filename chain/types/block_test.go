@@ -52,9 +52,9 @@ func Test_BlockHeaderState_GenerateNext(t *testing.T) {
 	t100 := common.BlockTimeStamp(1162425600 + 100)
 	t2 := common.BlockTimeStamp(1162425602)
 
-	bsNil := bs.GenerateNext(nil)
-	bs100 := bs.GenerateNext(&t100)
-	bs2 := bs.GenerateNext(&t2)
+	bsNil := bs.GenerateNext(0)
+	bs100 := bs.GenerateNext(t100)
+	bs2 := bs.GenerateNext(t2)
 
 	assert.Equal(t, common.BlockTimeStamp(1162425601), bsNil.Header.Timestamp)
 	assert.Equal(t, common.BlockTimeStamp(1162425700), bs100.Header.Timestamp)
@@ -64,7 +64,7 @@ func Test_BlockHeaderState_GenerateNext(t *testing.T) {
 
 	assert.Equal(t, []uint8{2}, bsNil.ConfirmCount)
 
-	bss := bsNil.GenerateNext(nil)
+	bss := bsNil.GenerateNext(0)
 
 	bss.SetConfirmed(2)
 

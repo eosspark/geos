@@ -1,13 +1,13 @@
-package common
+package figure
 
 import (
-	"math"
 	"fmt"
+	"math"
 )
 
 type Uint256 struct {
-	High  Uint128
-	Low   Uint128
+	High Uint128
+	Low  Uint128
 }
 
 func (u Uint256) IsZero() bool {
@@ -56,7 +56,7 @@ func (u Uint256) LeftShift() Uint256 {
 	return u
 }
 
-func (u *Uint256) LeftShifts(shift int){
+func (u *Uint256) LeftShifts(shift int) {
 	for i := 0; i < shift; i++ {
 		u.LeftShift()
 	}
@@ -71,13 +71,13 @@ func (u Uint256) RightShift() Uint256 {
 	return u
 }
 
-func (u *Uint256) RightShifts(shift int){
+func (u *Uint256) RightShifts(shift int) {
 	for i := 0; i < shift; i++ {
 		u.LeftShift()
 	}
 }
 
-func  (u Uint256) Compare(v Uint256) int {
+func (u Uint256) Compare(v Uint256) int {
 	if u.High.Compare(v.High) > 0 {
 		return 1
 	} else if u.High.Compare(v.High) < 0 {
@@ -91,9 +91,9 @@ func  (u Uint256) Compare(v Uint256) int {
 	return 0
 }
 
-func (u Uint256) Add(v Uint256) Uint256{
+func (u Uint256) Add(v Uint256) Uint256 {
 	if u.Low.Add(v.Low).Compare(u.Low) < 0 {
-		u.High = u.High.Add(v.High).Add(Uint128{0,1})
+		u.High = u.High.Add(v.High).Add(Uint128{0, 1})
 	} else {
 		u.High = u.High.Add(v.High)
 	}
@@ -101,18 +101,18 @@ func (u Uint256) Add(v Uint256) Uint256{
 	return u
 }
 
-func (u Uint256) Sub(v Uint256) Uint256{
+func (u Uint256) Sub(v Uint256) Uint256 {
 	if u.Low.Compare(v.Low) >= 0 {
 		u.Low = u.Low.Sub(v.Low)
 		u.High = u.High.Sub(v.High)
 	} else {
-		u.Low = u.Low.Add(Uint128{math.MaxUint64,math.MaxUint64}.Sub(v.Low).Add(Uint128{0,1}))
-		u.High = u.High.Sub(v.High.Add(Uint128{0,1}))
+		u.Low = u.Low.Add(Uint128{math.MaxUint64, math.MaxUint64}.Sub(v.Low).Add(Uint128{0, 1}))
+		u.High = u.High.Sub(v.High.Add(Uint128{0, 1}))
 	}
 	return u
 }
 
-func (u Uint256) Mul(v Uint256) Uint256{
+func (u Uint256) Mul(v Uint256) Uint256 {
 	Product := Uint256{}
 	for i := 0; i < 256; i++ {
 		if v.GetAt(uint(i)) {
@@ -129,7 +129,7 @@ func (u Uint256) Div(divisor Uint256) (Uint256, Uint256) {
 	}
 	Quotient := Uint256{}
 	Remainder := Uint256{}
-	One := Uint128{0,1}
+	One := Uint128{0, 1}
 	for i := 0; i < 256; i++ {
 		Remainder.LeftShift()
 		Quotient.LeftShift()

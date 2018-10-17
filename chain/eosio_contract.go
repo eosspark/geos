@@ -7,10 +7,11 @@ import (
 	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/eosspark/eos-go/entity"
 	//"strings"
+	"github.com/eosspark/eos-go/common/figure"
 )
 
-func transactionIdToSenderId(tid common.TransactionIdType) *common.Uint128 {
-	id := &common.Uint128{tid.Hash[3], tid.Hash[2]}
+func transactionIdToSenderId(tid common.TransactionIdType) *figure.Uint128 {
+	id := &figure.Uint128{tid.Hash[3], tid.Hash[2]}
 	return id
 }
 

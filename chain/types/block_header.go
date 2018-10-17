@@ -23,10 +23,10 @@ func (b *BlockHeader) Digest() crypto.Sha256 {
 }
 
 func (b *BlockHeader) BlockNumber() uint32 {
-	return NumFromID(b.Previous) + 1
+	return NumFromID(&b.Previous) + 1
 }
 
-func NumFromID(id common.BlockIdType) uint32 {
+func NumFromID(id *common.BlockIdType) uint32 {
 	return common.EndianReverseU32(uint32(id.Hash[0]))
 }
 

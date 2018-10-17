@@ -3,7 +3,9 @@ package types
 import (
 	"encoding/json"
 	"github.com/eosspark/eos-go/common"
+	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/ecc"
+	"github.com/eosspark/eos-go/crypto/rlp"
 )
 
 type TransactionStatus uint8
@@ -175,41 +177,56 @@ func (t *TransactionWithID) UnmarshalJSON(data []byte) error {
 	panic("types.TransactionWithID unmarshalJSON error: unsupported multi-variant trx serialization type from C++ code into Go")
 }
 
-func NewTransactionReceiptHeader() *TransactionReceiptHeader{
-	trh:=TransactionReceiptHeader{}
+func NewTransactionReceiptHeader() *TransactionReceiptHeader {
+	trh := TransactionReceiptHeader{}
 	trh.Status = TransactionStatusHardFail
 	return &trh
 }
 
-func NewTransactionReceiptHeader2(status TransactionStatus) *TransactionReceiptHeader{
-	trh:=TransactionReceiptHeader{}
+func NewTransactionReceiptHeader2(status TransactionStatus) *TransactionReceiptHeader {
+	trh := TransactionReceiptHeader{}
 	trh.Status = status
 	return &trh
 }
 
-func NewTransactionReceipt() *TransactionReceipt{
+func NewTransactionReceipt() *TransactionReceipt {
 	tr := TransactionReceipt{}
 	tr.TransactionReceiptHeader = *NewTransactionReceiptHeader()
 	return &tr
 }
 
-func NewTransactionReceipt2(tid common.TransactionIdType) *TransactionReceipt{
+func NewTransactionReceipt2(tid common.TransactionIdType) *TransactionReceipt {
 	tr := TransactionReceipt{}
 	tr.TransactionReceiptHeader = *NewTransactionReceiptHeader2(TransactionStatusExecuted)
 	tr.Trx.TransactionID = tid
 	return &tr
 }
 
-func NewTransactionReceipt3(ptrx PackedTransaction) *TransactionReceipt{
+func NewTransactionReceipt3(ptrx PackedTransaction) *TransactionReceipt {
 	tr := TransactionReceipt{}
 	tr.TransactionReceiptHeader = *NewTransactionReceiptHeader2(TransactionStatusExecuted)
 	tr.Trx.PackedTransaction = &ptrx
 	return &tr
 }
 
-func (t *TransactionReceipt) Digest() *common.DigestType{
+func (t *TransactionReceipt) Digest() common.DigestType { //TODO crypto.Sha256??
+	enc := crypto.NewSha256()
+	status, _ := rlp.EncodeToBytes(t.Status)
+	cpuUsageUs, _ := rlp.EncodeToBytes(t.CpuUsageUs)
+	netUsageWords, _ := rlp.EncodeToBytes(t.NetUsageWords)
 
-	return nil
+	enc.Write(status)
+	enc.Write(cpuUsageUs)
+	enc.Write(netUsageWords)
+
+	if t.Trx.TransactionID != common.TransactionIdType(*crypto.NewSha256Nil()) {
+		trxID, _ := rlp.EncodeToBytes(t.Trx.TransactionID)
+		enc.Write(trxID)
+	} else {
+		packedTrx, _ := rlp.EncodeToBytes(t.Trx.PackedTransaction.PackedDigest())
+		enc.Write(packedTrx)
+	}
+
+	out := crypto.NewSha256Byte(enc.Sum(nil))
+	return common.DigestType(*out)
 }
-
-
