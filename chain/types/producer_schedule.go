@@ -29,33 +29,23 @@ type SharedProducerScheduleType struct {
 	Producers []ProducerKey
 }
 
-/*
-	老旧的方法，不建议使用了
-*/
-func (spst *SharedProducerScheduleType) Clear() {
-	spst.Version = 0
-	spst.Producers = []ProducerKey{}
-}
-
-func (spst *SharedProducerScheduleType) SharedProducerScheduleType(a ProducerScheduleType) *ProducerScheduleType {
-	var result = ProducerScheduleType{}
-	spst.Version = a.Version
-	spst.Producers = nil
-	//spst.Producers = a.Producers
+func (s *SharedProducerScheduleType) SharedProducerScheduleType(a ProducerScheduleType) *SharedProducerScheduleType {
+	s.Version = a.Version
+	s.Producers = nil
 	for i := 0; i < len(a.Producers); i++ {
-		spst.Producers[i] = a.Producers[i]
+		s.Producers = append(s.Producers, a.Producers[i])
 	}
-	return &result
+	return s
 }
 
-func (spst *SharedProducerScheduleType) ProducerScheduleType() *ProducerScheduleType {
+func (s *SharedProducerScheduleType) ProducerScheduleType() *ProducerScheduleType {
 	var result = ProducerScheduleType{}
-	result.Version = spst.Version
+	result.Version = s.Version
 	if len(result.Producers) == 0 {
-		result.Producers = spst.Producers
+		result.Producers = s.Producers
 	} else {
 		var step = len(result.Producers)
-		for _, p := range spst.Producers {
+		for _, p := range s.Producers {
 			result.Producers[step] = p
 			step++
 		}

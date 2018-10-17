@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/rlp"
 	"log"
 	"reflect"
@@ -215,7 +216,7 @@ func NewWasmInterface() *WasmInterface {
 	return wasmIf
 }
 
-func (wasmInterface *WasmInterface) Apply(code_id string, code []byte, context WasmContextInterface) {
+func (wasmInterface *WasmInterface) Apply(code_id *crypto.Sha256, code []byte, context WasmContextInterface) {
 	wasmInterface.context = context
 
 	bf := bytes.NewReader(code)

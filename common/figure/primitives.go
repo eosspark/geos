@@ -86,8 +86,9 @@ func softfloatCountLeadingZeros64(a uint64) uint8 {
 	a32 = uint32(a >> 32)
 	if a32 == 0 {
 		count = 32
-		a32 <<= 8
+		a32 = uint32(a)
 	}
+
 	/*------------------------------------------------------------------------
 	  | From here, result is current count + count leading zeros of `a32'.
 	  *------------------------------------------------------------------------*/
