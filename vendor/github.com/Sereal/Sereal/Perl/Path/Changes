@@ -1,0 +1,99 @@
+Revision history for Perl extension Sereal-Path
+
+4.004 Nov 13 2017
+  * fix Devel::CheckLib
+  * convert C++ comments to C comments
+  * bump Sereal prereq version to 4.004
+
+4.003 Aug 15 2017
+  * fix compilation on FreeBSD
+
+4.002 Aug 09 2017
+  * fix Solaris and AIX compilation
+  * fix refuse_zstd
+
+4.001_004 May 18 2017
+  * bump Sereal prereq version to 3.015 (issue #168)
+  * fix failing tests in some cases due to sort
+
+4.001_003 May 01 2017
+  * implement decode_and_next()
+
+4.001_002 Feb 22 2017
+  * fixed build issues
+
+4.001_001 Feb 19 2017
+  * rethink internal logic of Sereal::Path::Iterator. As result API has
+    changed. Please consult documentation for details.
+  * ass support of tied scalar in Sereal::Path::Tie
+  * add support of OBJECT/OBJECTV tags
+  * add support of ALIAS tags
+  * fix issue of how to handle REFN REFN case
+  * imporved tests
+  * improved documentation
+  * use new versioning schema similar to Sereal::Encode/Decoder
+  * bug fixes
+
+0.014 Feb  7 2017
+  * bug fixes
+  * support of Sereal protocol v4
+
+0.013 May 28 2016
+  * bug fixes
+  * extended test coverage
+  * (experimental) improved work around of autovivification
+
+0.012 Nov 09 2015
+  * bug fixes
+  * (experimental) work around of autovivification in Sereal::Path::Tie::Hash
+
+0.011 Nov 08 2015
+  * changes in API:
+    - srl_iterator_next_until_depth_and_idx() renamed to srl_iterator_until()
+    - functions works with (straigh) idx, not revered on (ridx)
+    - add srl_iterator_rewind()
+    - semantic of srl_iterator_step_out() is changed. Now, calling
+      srl_iterator_step_out() moves iterator to next element at depth-1
+  * fix memleaks
+  * fix various compilation issues
+  * Tie interface share underlying iterator
+  * srl_iterator_step_in() works correctly with REFP tag
+  * more tests
+
+0.010 Oct 29 2015
+  * experimental code for Sereal::Path::Tie
+  * fix occasional build problems
+
+0.009 Oct 28 2015
+  * rework build procedure
+  * reuse available SV to store decompressed documents
+  * performance optimizations
+  * changelogs
+
+0.008 Oct 18 2015
+  * experimental support of disjoin() and unite() function in iterator
+  * Sereal::Path accept Sereal::Path::Iterator as input
+  * performance optimizations
+
+0.007 Oct 15 2015
+  * basic support of decoding REFP and COPY tags
+  * basic support of using Sereal::Path::Iterator as separate module
+  * fix complication errors on some platforms
+  * tests improvments
+
+0.006 May 23 2015
+  * perl 5.8 compatilibity fix
+  * fix various refcounting issues
+  * use memcmp instead of strncmp
+
+0.005 May 20 2015
+  * fix compilation issues
+
+0.004 May 19 2015
+  * add support of slice operator
+
+0.003 May 13 2015
+  * C89 compatibility fixes
+
+Full change history available at https://github.com/Sereal/Sereal
+
