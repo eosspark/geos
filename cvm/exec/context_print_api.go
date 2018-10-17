@@ -4,6 +4,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"github.com/eosspark/eos-go/common"
+	//"github.com/eosspark/eos-go/crypto/rlp"
 	"strconv"
 )
 

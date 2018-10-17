@@ -48,21 +48,21 @@ func (bs *BlockHeaderState) CalcDposLastIrreversible() uint32 {
 	return uint32(blockNums[(len(blockNums)-1)/3])
 }
 
-func (bs *BlockHeaderState) GenerateNext(when *common.BlockTimeStamp) *BlockHeaderState {
+func (bs *BlockHeaderState) GenerateNext(when common.BlockTimeStamp) *BlockHeaderState {
 	result := new(BlockHeaderState)
 
-	if when != nil {
-		EosAssert(*when > bs.Header.Timestamp, &BlockValidateException{}, "next block must be in the future")
+	if when != common.BlockTimeStamp(0) {
+		EosAssert(when > bs.Header.Timestamp, &BlockValidateException{}, "next block must be in the future")
 	} else {
-		when = &bs.Header.Timestamp //TODO: check
-		*when++
+		when = bs.Header.Timestamp //TODO: check
+		when++
 	}
 
-	result.Header.Timestamp = *when
+	result.Header.Timestamp = when
 	result.Header.Previous = bs.ID
 	result.Header.ScheduleVersion = bs.ActiveSchedule.Version
 
-	proKey := bs.GetScheduledProducer(*when)
+	proKey := bs.GetScheduledProducer(when)
 	result.BlockSigningKey = proKey.BlockSigningKey
 	result.Header.Producer = proKey.AccountName
 
@@ -112,7 +112,7 @@ func (bs *BlockHeaderState) GenerateNext(when *common.BlockTimeStamp) *BlockHead
 	}
 
 	return result
-}
+} /// generate_next
 
 func (bs *BlockHeaderState) MaybePromotePending() bool {
 	if len(bs.PendingSchedule.Producers) > 0 && bs.DposIrreversibleBlocknum >= bs.PendingScheduleLibNum {
@@ -145,37 +145,6 @@ func (bs *BlockHeaderState) MaybePromotePending() bool {
 	return false
 }
 
-func (bs *BlockHeaderState) SetConfirmed(numPrevBlocks uint16) {
-	bs.Header.Confirmed = numPrevBlocks
-
-	i := len(bs.ConfirmCount) - 1
-	blocksToConfirm := numPrevBlocks + 1 /// confirm the head block too
-	for i >= 0 && blocksToConfirm > 0 {
-		bs.ConfirmCount[i]--
-		if bs.ConfirmCount[i] == 0 {
-			blockNumFori := bs.BlockNum - uint32(len(bs.ConfirmCount)-1-i)
-			bs.DposProposedIrreversibleBlocknum = blockNumFori
-
-			if i == len(bs.ConfirmCount)-1 {
-				bs.ConfirmCount = make([]uint8, 0)
-			} else {
-				bs.ConfirmCount = bs.ConfirmCount[i+1:]
-			}
-
-			return
-		}
-		i--
-		blocksToConfirm--
-	}
-
-}
-
-func (bs *BlockHeaderState) SigDigest() crypto.Sha256 {
-	headerBmroot := crypto.Hash256(common.MakePair(bs.Header.Digest(), bs.BlockrootMerkle.GetRoot()))
-	digest := crypto.Hash256(common.MakePair(headerBmroot, bs.PendingScheduleHash))
-	return digest
-}
-
 func (bs *BlockHeaderState) SetNewProducers(pending SharedProducerScheduleType) {
 	EosAssert(pending.Version == bs.ActiveSchedule.Version+1, &ProducerScheduleException{}, "wrong producer schedule version specified")
 	EosAssert(len(bs.PendingSchedule.Producers) == 0, &ProducerScheduleException{},
@@ -185,6 +154,7 @@ func (bs *BlockHeaderState) SetNewProducers(pending SharedProducerScheduleType) 
 	bs.PendingSchedule = *bs.Header.NewProducers.ProducerScheduleType()
 	bs.PendingScheduleLibNum = bs.BlockNum
 }
+
 
 /**
  *  Transitions the current header state into the next header state given the supplied signed block header.
@@ -201,7 +171,7 @@ func (bs *BlockHeaderState) Next(h SignedBlockHeader, trust bool) *BlockHeaderSt
 	EosAssert(h.Timestamp > bs.Header.Timestamp, &BlockValidateException{}, "block must be later in time")
 	EosAssert(h.Previous == bs.ID, &UnlinkableBlockException{}, "block must link to current state")
 
-	result := bs.GenerateNext(&h.Timestamp)
+	result := bs.GenerateNext(h.Timestamp)
 
 	EosAssert(result.Header.Producer == h.Producer, &WrongProducer{}, "wrong producer specified")
 	EosAssert(result.Header.ScheduleVersion == h.ScheduleVersion, &ProducerScheduleException{}, "schedule_version in signed block is corrupted")
@@ -236,6 +206,37 @@ func (bs *BlockHeaderState) Next(h SignedBlockHeader, trust bool) *BlockHeaderSt
 	return result
 } ///next
 
+func (bs *BlockHeaderState) SetConfirmed(numPrevBlocks uint16) {
+	bs.Header.Confirmed = numPrevBlocks
+
+	i := len(bs.ConfirmCount) - 1
+	blocksToConfirm := numPrevBlocks + 1 /// confirm the head block too
+	for i >= 0 && blocksToConfirm > 0 {
+		bs.ConfirmCount[i]--
+		if bs.ConfirmCount[i] == 0 {
+			blockNumFori := bs.BlockNum - uint32(len(bs.ConfirmCount)-1-i)
+			bs.DposProposedIrreversibleBlocknum = blockNumFori
+
+			if i == len(bs.ConfirmCount)-1 {
+				bs.ConfirmCount = make([]uint8, 0)
+			} else {
+				bs.ConfirmCount = bs.ConfirmCount[i+1:]
+			}
+
+			return
+		}
+		i--
+		blocksToConfirm--
+	}
+
+}
+
+func (bs *BlockHeaderState) SigDigest() crypto.Sha256 {
+	headerBmroot := crypto.Hash256(common.MakePair(bs.Header.Digest(), bs.BlockrootMerkle.GetRoot()))
+	digest := crypto.Hash256(common.MakePair(headerBmroot, bs.PendingScheduleHash))
+	return digest
+}
+
 func (bs *BlockHeaderState) Sign(signer func(sha256 crypto.Sha256) ecc.Signature) {
 	d := bs.SigDigest()
 	bs.Header.ProducerSignature = signer(d)
@@ -257,7 +258,7 @@ func (bs *BlockHeaderState) Signee() (ecc.PublicKey) {
 	return pk
 }
 
-func (bs *BlockHeaderState) AddConfirmation(conf HeaderConfirmation) {
+func (bs *BlockHeaderState) AddConfirmation(conf *HeaderConfirmation) {
 	for _, c := range bs.Confirmations {
 		EosAssert(c.Producer != conf.Producer, &ProducerDoubleConfirm{}, "block already confirmed by this producer")
 	}
@@ -270,5 +271,5 @@ func (bs *BlockHeaderState) AddConfirmation(conf HeaderConfirmation) {
 	}
 	EosAssert(signer == key, &WrongSigningKey{}, "confirmation not signed by expected key")
 
-	bs.Confirmations = append(bs.Confirmations, conf)
+	bs.Confirmations = append(bs.Confirmations, *conf)
 }

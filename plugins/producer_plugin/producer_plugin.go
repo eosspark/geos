@@ -205,8 +205,7 @@ func (p *ProducerPlugin) PluginInitialize(app *cli.App) {
 
 		p.my.IncomingDeferRadio = c.Float64("incoming-defer-ratio")
 
-		greylist := c.StringSlice("greylist-account")
-		if len(greylist) > 0 {
+		if greylist := c.StringSlice("greylist-account"); len(greylist) > 0 {
 			param := GreylistParams{}
 			for _, a := range greylist {
 				param.Accounts = append(param.Accounts, common.AccountName(common.N(a)))

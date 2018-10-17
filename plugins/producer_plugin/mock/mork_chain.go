@@ -74,7 +74,7 @@ func (db *forkDatabase) add(n *types.BlockState) *types.BlockState {
 
 func (db *forkDatabase) add2(b *types.SignedBlock, trust bool) *types.BlockState {
 	prior := db.find(b.Previous)
-	result := types.NewBlockState3(prior.BlockHeaderState, b, trust)
+	result := types.NewBlockState3(&prior.BlockHeaderState, b, trust)
 	return db.add(result)
 }
 
@@ -148,7 +148,7 @@ func (c *Controller) AbortBlock() {
 
 func (c *Controller) StartBlock(when common.BlockTimeStamp, confirmBlockCount uint16) {
 	fmt.Println("start block...")
-	chain.pending = types.NewBlockState2(c.head.BlockHeaderState, when)
+	chain.pending = types.NewBlockState2(&c.head.BlockHeaderState, when)
 	chain.pending.SetConfirmed(confirmBlockCount)
 
 }
@@ -227,7 +227,7 @@ func (c *Controller) FetchBlockById(id common.BlockIdType) *types.SignedBlock {
 	if state != nil {
 		return state.SignedBlock
 	}
-	bptr := c.FetchBlockByNumber(types.NumFromID(id))
+	bptr := c.FetchBlockByNumber(types.NumFromID(&id))
 	if bptr != nil && bptr.BlockID() == id {
 		return bptr
 	}
@@ -252,7 +252,7 @@ func (c *Controller) GetReadMode() DBReadMode {
 	return DBReadMode(SPECULATIVE)
 }
 
-func (self *Controller) GetValidationMode() ValidationMode { return ValidationMode(FULL) }
+func (c *Controller) GetValidationMode() ValidationMode { return ValidationMode(FULL) }
 
 func (c *Controller) SetSubjectiveCpuLeeway(leeway common.Microseconds) {}
 
