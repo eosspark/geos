@@ -53,7 +53,7 @@ func TestContextApis(t *testing.T) {
 					},
 				}
 
-				codeVersion := crypto.NewSha256Byte([]byte(code)).String()
+				codeVersion := crypto.NewSha256Byte([]byte(code))
 				wasm.Apply(codeVersion, code, applyContext)
 
 				//print "hello,walker"
@@ -414,7 +414,7 @@ func callTestFunction(code []byte, cls string, method string, payload []byte) *c
 	}
 
 	fmt.Println(cls, method, action)
-	codeVersion := crypto.NewSha256Byte([]byte(code)).String()
+	codeVersion := crypto.NewSha256Byte([]byte(code))
 	wasm.Apply(codeVersion, code, applyContext)
 
 	return applyContext
@@ -435,7 +435,7 @@ func callTestFunctionCheckException(code []byte, cls string, method string, payl
 	}
 
 	fmt.Println(action)
-	codeVersion := crypto.NewSha256Byte([]byte(code)).String()
+	codeVersion := crypto.NewSha256Byte([]byte(code))
 	wasm.Apply(codeVersion, code, applyContext)
 
 	//getException

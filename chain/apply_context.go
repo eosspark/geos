@@ -8,6 +8,7 @@ import (
 	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/eosspark/eos-go/database"
+	"github.com/eosspark/eos-go/entity"
 	"github.com/eosspark/eos-go/log"
 )
 
@@ -69,31 +70,31 @@ func NewApplyContext(control *Controller, trxContext *TransactionContext, act *t
 }
 
 type pairTableIterator struct {
-	tableIDObject *types.TableIdObject
+	tableIDObject *entity.TableIdObject
 	iterator      int
 }
 
 type iteratorCache struct {
-	tableCache         map[types.IdType]*pairTableIterator
-	endIteratorToTable []*types.TableIdObject
+	tableCache         map[common.IdType]*pairTableIterator
+	endIteratorToTable []*entity.TableIdObject
 	iteratorToObject   []interface{}
 	objectToIterator   map[interface{}]int
 }
 
 func NewIteratorCache() *iteratorCache {
 
-	i := &iteratorCache{
-		tableCache:         make(map[types.IdType]*pairTableIterator),
-		endIteratorToTable: make([]*types.TableIdObject, 8),
+	i := iteratorCache{
+		tableCache:         make(map[common.IdType]*pairTableIterator),
+		endIteratorToTable: make([]*entity.TableIdObject, 8),
 		iteratorToObject:   make([]interface{}, 32),
 		objectToIterator:   make(map[interface{}]int),
 	}
-	return i
+	return &i
 }
 
 func (i *iteratorCache) endIteratorToIndex(ei int) int   { return (-ei - 2) }
 func (i *iteratorCache) IndexToEndIterator(indx int) int { return -(indx + 2) }
-func (i *iteratorCache) cacheTable(tobj *types.TableIdObject) int {
+func (i *iteratorCache) cacheTable(tobj *entity.TableIdObject) int {
 	if itr, ok := i.tableCache[tobj.ID]; ok {
 		return itr.iterator
 	}
@@ -107,22 +108,22 @@ func (i *iteratorCache) cacheTable(tobj *types.TableIdObject) int {
 	i.tableCache[tobj.ID] = pair
 	return ei
 }
-func (i *iteratorCache) getTable(id types.IdType) *types.TableIdObject {
+func (i *iteratorCache) getTable(id common.IdType) *entity.TableIdObject {
 	if itr, ok := i.tableCache[id]; ok {
 		return itr.tableIDObject
 	}
 
-	return &types.TableIdObject{}
+	return &entity.TableIdObject{}
 	//EOS_ASSERT( itr != _table_cache.end(), table_not_in_cache, "an invariant was broken, table should be in cache" );
 }
-func (i *iteratorCache) getEndIteratorByTableID(id types.IdType) int {
+func (i *iteratorCache) getEndIteratorByTableID(id common.IdType) int {
 	if itr, ok := i.tableCache[id]; ok {
 		return itr.iterator
 	}
 	//EOS_ASSERT( itr != _table_cache.end(), table_not_in_cache, "an invariant was broken, table should be in cache" );
 	return -1
 }
-func (i *iteratorCache) findTablebyEndIterator(ei int) *types.TableIdObject {
+func (i *iteratorCache) findTablebyEndIterator(ei int) *entity.TableIdObject {
 	//EOS_ASSERT( ei < -1, invalid_table_iterator, "not an end iterator" );
 	indx := i.endIteratorToIndex(ei)
 
@@ -188,7 +189,7 @@ func (a *ApplyContext) execOne() (trace types.ActionTrace) {
 			a.Control.CheckContractList(a.Receiver)
 			a.Control.CheckActionList(a.Act.Account, a.Act.Name)
 		}
-		//native(a)
+		native(a)
 	}
 
 	if len(action.Code) > 0 &&
@@ -200,7 +201,7 @@ func (a *ApplyContext) execOne() (trace types.ActionTrace) {
 			a.Control.CheckActionList(a.Act.Account, a.Act.Name)
 		}
 		//try{
-		//a.Control.GetWasmInterface().Apply(action.CodeVersion, action.Code, a)
+		a.Control.GetWasmInterface().Apply(&action.CodeVersion, action.Code, a)
 		//}catch(const wasm_exit&){}
 	}
 
@@ -341,26 +342,26 @@ func (a *ApplyContext) DbStoreI64(scope int64, table int64, payer int64, id int6
 func (a *ApplyContext) dbStoreI64(code int64, scope int64, table int64, payer int64, id int64, buffer []byte) int {
 	return 0
 
-	// tab := a.FindOrCreateTable(code, scope, table, payer)
-	// tid := tab.ID
-
-	// obj := &types.KeyValueObject{
-	// 	TId:        tid,
-	// 	PrimaryKey: id,
-	// 	Value:      buffer,
-	// 	Payer:      common.AccountName(payer),
-	// }
-
-	// a.DB.Insert(obj)
-	// a.DB.Modify(tab, func(t *types.TableIDObject) {
-	// 	t.Count++
-	// })
-
-	// // int64_t billable_size = (int64_t)(buffer_size + config::billable_size_v<key_value_object>);
-	// billableSize := len(buffer) + types.BillableSizeV(obj.GetBillableSize())
-	// UpdateDbUsage(payer, billableSize)
-	// a.KeyvalCache.cacheTable(tab)
-	// return a.KeyvalCache.add(obj)
+	//tab := a.FindOrCreateTable(code, scope, table, payer)
+	//tid := tab.ID
+	//
+	//obj := &types.KeyValueObject{
+	//	TId:        tid,
+	//	PrimaryKey: id,
+	//	Value:      buffer,
+	//	Payer:      common.AccountName(payer),
+	//}
+	//
+	//a.DB.Insert(obj)
+	//a.DB.Modify(tab, func(t *types.TableIDObject) {
+	//	t.Count++
+	//})
+	//
+	//// int64_t billable_size = (int64_t)(buffer_size + config::billable_size_v<key_value_object>);
+	//billableSize := len(buffer) + types.BillableSizeV(obj.GetBillableSize())
+	//UpdateDbUsage(payer, billableSize)
+	//a.KeyvalCache.cacheTable(tab)
+	//return a.KeyvalCache.add(obj)
 }
 func (a *ApplyContext) DbUpdateI64(iterator int, payer int64, buffer []byte) {
 
