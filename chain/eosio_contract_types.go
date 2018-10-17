@@ -3,6 +3,7 @@ package chain
 import (
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
+	"github.com/eosspark/eos-go/common/figure"
 )
 
 type contractTypesInterface interface {
@@ -124,7 +125,7 @@ func (s *cancelDelay) getName() common.AccountName {
 }
 
 type onError struct {
-	SenderId common.Uint128
+	SenderId figure.Uint128
 	SentTrx  []byte
 }
 
