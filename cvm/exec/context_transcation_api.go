@@ -3,6 +3,7 @@ package exec
 import (
 	"fmt"
 	"github.com/eosspark/eos-go/common"
+	"github.com/eosspark/eos-go/common/figure"
 	"github.com/eosspark/eos-go/crypto/rlp"
 )
 
@@ -52,7 +53,7 @@ func sendDeferred(w *WasmInterface, senderId int, payer common.AccountName, data
 	//id := big.Int.SetBytes(w.vm.memory[sender_id : sender_id+32])
 	//id, _ := common.DecodeIdTypeByte(w.vm.memory[sender_id : sender_id+32])
 	bytes := getMemory(w, senderId, 16)
-	id := &common.Uint128{}
+	id := &figure.Uint128{}
 	rlp.DecodeBytes(bytes, id)
 
 	trx := getBytes(w, data, dataLen)
@@ -69,7 +70,7 @@ func cancelDeferred(w *WasmInterface, senderId int) int {
 	//id, _ := common.DecodeIdTypeByte(w.vm.memory[senderId : senderId+32])
 
 	bytes := getMemory(w, senderId, 16)
-	id := &common.Uint128{}
+	id := &figure.Uint128{}
 	rlp.DecodeBytes(bytes, id)
 
 	//return b2i(w.context.CancelDeferredTransaction(common.TransactionIdType{id}))

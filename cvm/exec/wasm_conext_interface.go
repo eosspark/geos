@@ -3,6 +3,7 @@ package exec
 import (
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
+	"github.com/eosspark/eos-go/common/figure"
 )
 
 type WasmContextInterface interface {
@@ -88,8 +89,8 @@ type WasmContextInterface interface {
 	//transaction
 	ExecuteInline(action []byte)
 	ExecuteContextFreeInline(action []byte)
-	ScheduleDeferredTransaction(sendId *common.Uint128, payer common.AccountName, trx []byte, replaceExisting bool)
-	CancelDeferredTransaction(sendId *common.Uint128) bool
+	ScheduleDeferredTransaction(sendId *figure.Uint128, payer common.AccountName, trx []byte, replaceExisting bool)
+	CancelDeferredTransaction(sendId *figure.Uint128) bool
 	GetPackedTransaction() []byte
 	Expiration() int
 	TaposBlockNum() int

@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/eosspark/eos-go/common"
+	"github.com/eosspark/eos-go/common/figure"
 	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/crypto/rlp"
@@ -445,7 +446,7 @@ func unpackContextFreeData(data *common.HexBytes) (out []common.HexBytes) {
 	return
 }
 func unpackTransaction(data common.HexBytes) (tx *Transaction) {
-	err := rlp.DecodeBytes([]byte(data), &tx)
+	err := rlp.DecodeBytes(data, &tx)
 	if err != nil {
 		panic(err)
 	}
@@ -531,13 +532,13 @@ func zlibCompress(data []byte) []byte {
 type DeferredTransaction struct {
 	*SignedTransaction
 
-	SenderID     common.Uint128      `json:"sender_id"` // ID assigned by sender of generated, accessible via WASM api when executing normal or error
+	SenderID     figure.Uint128      `json:"sender_id"` // ID assigned by sender of generated, accessible via WASM api when executing normal or error
 	Sender       common.AccountName  `json:"sender"`    // receives error handler callback
 	Payer        common.AccountName  `json:"payer"`
 	ExecuteAfter common.TimePointSec `json::execute_after` // delayed execution
 }
 
-func NewDeferredTransaction(senderID common.Uint128, sender common.AccountName, payer common.AccountName,
+func NewDeferredTransaction(senderID figure.Uint128, sender common.AccountName, payer common.AccountName,
 	executeAfter common.TimePointSec, txn *SignedTransaction) *DeferredTransaction {
 	return &DeferredTransaction{
 		SignedTransaction: txn,
@@ -550,16 +551,16 @@ func NewDeferredTransaction(senderID common.Uint128, sender common.AccountName, 
 
 type DeferredReference struct {
 	Sender   common.AccountName `json:"sender"`
-	SenderID common.Uint128     `json:"sender_id"`
+	SenderID figure.Uint128     `json:"sender_id"`
 }
 
-func NewDeferredReference(sender common.AccountName, senderID common.Uint128) *DeferredReference {
+func NewDeferredReference(sender common.AccountName, senderID figure.Uint128) *DeferredReference {
 	return &DeferredReference{
 		Sender:   sender,
 		SenderID: senderID,
 	}
 }
 
-func TransactionIDtoSenderID(tid common.TransactionIdType) common.Uint128 {
-	return common.Uint128{tid.Hash[3], tid.Hash[2]}
+func TransactionIDtoSenderID(tid common.TransactionIdType) figure.Uint128 {
+	return figure.Uint128{tid.Hash[3], tid.Hash[2]}
 }

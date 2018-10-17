@@ -3,13 +3,15 @@ package entity
 import (
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/database"
-	"math/big"
+	"github.com/eosspark/eos-go/chain/types"
+	"github.com/eosspark/eos-go/crypto/rlp"
+	"github.com/eosspark/eos-go/common/figure"
 )
 
 type GeneratedTransaction struct {
 	TrxId      common.TransactionIdType
 	Sender     common.AccountName
-	SenderId   big.Int //c++ uint128_t
+	SenderId   figure.Uint128
 	Payer      common.AccountName
 	DelayUntil common.TimePoint
 	Expiration common.TimePoint
@@ -21,7 +23,7 @@ type GeneratedTransactionObject struct {
 	Id         common.IdType             `storm:"id,increment"`
 	TrxId      common.TransactionIdType `storm:"unique"`
 	Sender     common.AccountName
-	SenderId   big.Int //c++ uint128_t
+	SenderId   figure.Uint128
 	Payer      common.AccountName
 	DelayUntil common.TimePoint
 	Expiration common.TimePoint
@@ -33,6 +35,11 @@ type GeneratedTransactionObject struct {
 	ByDelay common.Tuple
 	/*Sender、SenderId*/
 	BySenderId common.Tuple
+}
+
+func (g *GeneratedTransactionObject) Set(trx *types.Transaction) uint32{
+	g.PackedTrx,_ =rlp.EncodeToBytes(trx)
+	return uint32(len(g.PackedTrx))
 }
 
 /* c++

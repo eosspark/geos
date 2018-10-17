@@ -7,10 +7,11 @@ import (
 	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/eosspark/eos-go/entity"
 	//"strings"
+	"github.com/eosspark/eos-go/common/figure"
 )
 
-func transactionIdToSenderId(tid common.TransactionIdType) *common.Uint128 {
-	id := &common.Uint128{tid.Hash[3], tid.Hash[2]}
+func transactionIdToSenderId(tid common.TransactionIdType) *figure.Uint128 {
+	id := &figure.Uint128{tid.Hash[3], tid.Hash[2]}
 	return id
 }
 
@@ -73,7 +74,7 @@ func applyEosioNewaccount(context *ApplyContext) {
 	//assert(types.Validate(create.Owner), action_validate_exception, "Invalid owner authority")
 	//assert(types.Validate(create.Active), action_validate_exception, "Invalid owner authority")
 
-	db := context.DB
+	//db := context.DB
 	//nameStr := common.S(uint64(create.Name))
 
 	//assert(empty(uint64(create.Name)), action_validate_exception, "account name cannot be empty")
@@ -88,11 +89,11 @@ func applyEosioNewaccount(context *ApplyContext) {
 	//
 	//}
 
-	newAccountObject := &entity.AccountObject{Name: create.Name, CreationDate: common.BlockTimeStamp(context.Control.PendingBlockTime())}
-	db.Insert(newAccountObject)
-
-	newAccountSequenceObj := &entity.AccountSequenceObject{Name: create.Name}
-	db.Insert(newAccountSequenceObj)
+	//newAccountObject := &entity.AccountObject{Name: create.Name, CreationDate: common.BlockTimeStamp(context.Control.PendingBlockTime())}
+	//db.Insert(newAccountObject)
+	//
+	//newAccountSequenceObj := &entity.AccountSequenceObject{Name: create.Name}
+	//db.Insert(newAccountSequenceObj)
 
 	validateAuthorityPrecondition(context, &create.Owner)
 	validateAuthorityPrecondition(context, &create.Active)
@@ -330,7 +331,7 @@ func applyEosioLinkauth(context *ApplyContext) {
 
 func applyEosioUnlinkauth(context *ApplyContext) {
 
-	db := context.DB
+	//db := context.DB
 
 	unlink := &unlinkAuth{}
 	rlp.DecodeBytes(context.Act.Data, unlink)
@@ -342,7 +343,7 @@ func applyEosioUnlinkauth(context *ApplyContext) {
 
 	//assert(err != nil, action_validate_exception, "Attempting to unlink authority, but no link found")
 	context.AddRamUsage(link.Account, -int64(common.BillableSizeV("permission_link_object")))
-	db.Remove(link)
+	//db.Remove(link)
 }
 
 func applyEosioCanceldalay(context *ApplyContext) {

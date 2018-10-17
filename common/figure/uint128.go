@@ -1,4 +1,4 @@
-package common
+package figure
 
 import (
 	"fmt"
@@ -20,9 +20,9 @@ func (u Uint128) IsZero() bool {
 
 func (u Uint128) GetAt(i uint) bool {
 	if i < 64 {
-		return u.Low & ( 0x01 << i ) != 0
+		return u.Low&(0x01<<i) != 0
 	} else {
-		return u.High & ( 0x01 << (i - 64) ) != 0
+		return u.High&(0x01<<(i-64)) != 0
 	}
 }
 
@@ -32,7 +32,7 @@ func (u *Uint128) Set(i uint, b uint) {
 			u.Low |= 0x01 << i
 		}
 		if b == 0 {
-			u.Low &= math.MaxUint64 - 0x01 << i
+			u.Low &= math.MaxUint64 - 0x01<<i
 		}
 	}
 	if i >= 64 {
@@ -40,7 +40,7 @@ func (u *Uint128) Set(i uint, b uint) {
 			u.High |= 0x01 << (i - 64)
 		}
 		if b == 0 {
-			u.High &= math.MaxUint64 - 0x01 << (i - 64)
+			u.High &= math.MaxUint64 - 0x01<<(i-64)
 		}
 	}
 }
@@ -55,7 +55,7 @@ func (u *Uint128) LeftShift() {
 	}
 }
 
-func (u *Uint128) LeftShifts(shift int){
+func (u *Uint128) LeftShifts(shift int) {
 	for i := 0; i < shift; i++ {
 		u.LeftShift()
 	}
@@ -72,7 +72,7 @@ func (u *Uint128) RightShift() {
 	}
 }
 
-func (u *Uint128) RightShifts(shift int){
+func (u *Uint128) RightShifts(shift int) {
 	for i := 0; i < shift; i++ {
 		u.RightShift()
 	}
@@ -117,7 +117,6 @@ func (u Uint128) Sub(v Uint128) Uint128 {
 	return u
 }
 
-
 func (u Uint128) Mul(v Uint128) Uint128 {
 	Product := Uint128{}
 	for i := 0; i < 128; i++ {
@@ -139,17 +138,17 @@ func (u Uint128) Div(divisor Uint128) (Uint128, Uint128) {
 		Remainder.LeftShift()
 		Quotient.LeftShift()
 		if u.GetAt(127 - uint(i)) {
-			Remainder.Low ++
+			Remainder.Low++
 		}
 		if Remainder.Compare(divisor) >= 0 {
-			Quotient.Low ++
+			Quotient.Low++
 			Remainder = Remainder.Sub(divisor)
 		}
 	}
 	return Quotient, Remainder
 }
 
-func (u Uint128) ToString() string{
+func (u Uint128) ToString() string {
 	uHigh := new(big.Int).SetUint64(u.High)
 	uLow := new(big.Int).SetUint64(u.Low)
 
@@ -157,8 +156,8 @@ func (u Uint128) ToString() string{
 	one := new(big.Int).SetUint64(1)
 	uBigInt = new(big.Int).Add(uBigInt, one)
 
-	uBigInt = new(big.Int).Mul(uBigInt,uHigh)
-	uBigInt = new(big.Int).Add(uBigInt,uLow)
+	uBigInt = new(big.Int).Mul(uBigInt, uHigh)
+	uBigInt = new(big.Int).Add(uBigInt, uLow)
 	return uBigInt.String()
 }
 
@@ -174,10 +173,10 @@ func MulUint64(u, v uint64) Uint128 {
 	mixL := mulHL << 32 >> 32 << 32
 
 	//(uH+uL)*(vH+vL) may more than maxUint64
-	specialH := (uH+uL) >> 1 * (vH+vL) >> 1
+	specialH := (uH + uL) >> 1 * (vH + vL) >> 1
 	specialH = specialH >> 62 << 32
 
-	if mulL + mixL < mulL {
+	if mulL+mixL < mulL {
 		return Uint128{mulH + mixH + 1 + specialH, mulL + mixL}
 	}
 	return Uint128{mulH + mixH + specialH, mulL + mixL}
