@@ -33,32 +33,32 @@ type ExtFloat80M_t ExtFloat80M
 // func IsNan(f Float128)bool{
 
 // }
-//func(a *Float128_t )Add(b Float128_t) Float128_t{
-//    var uA ui128_f128
-//    var uiA64,uiA0 uint64
-//    var signA bool
-//
-//    var uB ui128_f128
-//    var uiB64,uiB0 uint64
-//    var signB bool
-//
-//    uA.f = a
-//    uiA64 = uA.ui.High
-//    uiA0 = uA.ui.Low
-//    signA = signF128UI64(uiA64)
-//
-//uB.f=b
-//uiB64 = uB.ui.High
-//uiB0 = uB.ui.Low
-//signB = signF128UI64(uiB64)
-//if signA ==signB{
-//    return softFloatAddMagsF128(uiA64,uiA0,uiB64,uiB0,signA)
-//}else{
-//    return softFloatSubMagsF128(uiA64,uiA0,uiB64,uiB0,signA)
-//}
-//
-//}
-//
+func(a Float128 )Add(b Float128) Float128{
+   //var uA ui128_f128
+   //var uiA64,uiA0 uint64
+   //var signA bool
+   //
+   //var uB ui128_f128
+   //var uiB64,uiB0 uint64
+   //var signB bool
+   //
+   //uA.f = a
+   //uiA64 = uA.ui.High
+   //uiA0 = uA.ui.Low
+   //signA = signF128UI64(uiA64)
+   //
+	//uB.f=b
+	//uiB64 = uB.ui.High
+	//uiB0 = uB.ui.Low
+	//signB = signF128UI64(uiB64)
+	//if signA ==signB{
+	//	return softFloatAddMagsF128(uiA64,uiA0,uiB64,uiB0,signA)
+	//}else{
+	//	return softFloatSubMagsF128(uiA64,uiA0,uiB64,uiB0,signA)
+	//}
+	return a
+}
+
 //
 //
 //
