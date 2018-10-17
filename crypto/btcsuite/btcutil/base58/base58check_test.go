@@ -7,7 +7,7 @@ package base58_test
 import (
 	"testing"
 
-	"github.com/eosspark/eos-go/btcsuite/btcutil/base58"
+	"github.com/eosspark/eos-go/crypto/btcsuite/btcutil/base58"
 )
 
 var checkEncodingStringTests = []struct {
