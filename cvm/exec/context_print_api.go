@@ -4,7 +4,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"github.com/eosspark/eos-go/common"
-	"github.com/eosspark/eos-go/common/figure"
+	arithmetic "github.com/eosspark/eos-go/common/arithmetic_types"
 	"github.com/eosspark/eos-go/crypto/rlp"
 
 	//"github.com/eosspark/eos-go/crypto/rlp"
@@ -87,7 +87,7 @@ func printi128(w *WasmInterface, val int) {
 	fmt.Println("printi128")
 
 	bytes := getMemory(w, val, 16)
-	var v figure.Int128
+	var v arithmetic.Int128
 	rlp.DecodeBytes(bytes, &v)
 	w.context.ContextAppend(v.ToString())
 
@@ -103,7 +103,7 @@ func printui128(w *WasmInterface, val int) {
 	fmt.Println("printui128")
 
 	bytes := getMemory(w, val, 16)
-	var v figure.Uint128
+	var v arithmetic.Uint128
 	rlp.DecodeBytes(bytes, &v)
 	w.context.ContextAppend(v.ToString())
 

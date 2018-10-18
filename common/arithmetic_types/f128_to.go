@@ -118,7 +118,6 @@ func softfloat_roundToI32(sign bool, sig uint64, roundingMode uint8, exact bool)
 		if signTrue {
 			roundIncrement = 0xFFF
 		}
-
 	}
 
 	roundBits = uint16(sig & 0xFFF)
