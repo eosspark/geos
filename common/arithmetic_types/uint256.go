@@ -17,6 +17,15 @@ func (u Uint256) IsZero() bool {
 	return false
 }
 
+func CreateUint128(i int) Uint128{
+	if i >= 0 {
+		return Uint128{0, uint64(i)}
+	} else {
+		fmt.Println("error")
+		return Uint128{}
+	}
+}
+
 func (u Uint256) GetAt(i uint) bool {
 	if i < 128 {
 		return u.Low.GetAt(i)

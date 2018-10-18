@@ -45,6 +45,14 @@ func (u *Uint128) Set(i uint, b uint) {
 	}
 }
 
+func MaxUint128() Uint128{
+	return Uint128{math.MaxUint64,math.MaxUint64}
+}
+
+func MinUint128() Uint128{
+	return Uint128{0,0}
+}
+
 func (u *Uint128) LeftShift() {
 	if u.GetAt(63) {
 		u.Low = u.Low << 1

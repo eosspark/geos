@@ -14,6 +14,16 @@ func (u Int128) IsZero() bool {
 	return false
 }
 
+func CreateInt128(i int) Int128{
+	if i >= 0  {
+		return Int128{0, uint64(i)}
+	} else {
+		result := MaxInt128().Sub(Int128{0,uint64(-i) - 1})
+		result.Set(127,1)
+		return result
+	}
+}
+
 func (u Int128) GetAt(i uint) bool {
 	if i < 64 {
 		return u.Low&(0x01<<i) != 0
@@ -39,6 +49,14 @@ func (u *Int128) Set(i uint, b uint) {
 			u.High &= math.MaxUint64 - 0x01<<(i-64)
 		}
 	}
+}
+
+func MaxInt128() Int128{
+	return Int128{0x7FFFFFFFFFFFFFFF,0xFFFFFFFFFFFFFFFF}
+}
+
+func MinInt128() Int128{
+	return Int128{0x8000000000000000,0}
 }
 
 func (u *Int128) LeftShift() {
@@ -178,6 +196,9 @@ func (u Int128) ToString() string {
 	}
 	uTrueForm := u.ToTrueForm()
 	uTrueForm.Set(127, 0)
+	if signBit == true && uTrueForm.Compare(Uint128{0,0}) == 0{
+		uTrueForm.Set(127, 1)
+	}
 	str := uTrueForm.ToString()
 	if signBit {
 		str = "-" + str

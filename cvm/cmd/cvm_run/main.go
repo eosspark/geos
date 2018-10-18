@@ -31,7 +31,7 @@ func main() {
 		},
 	}
 
-	codeVersion := crypto.NewSha256Byte([]byte(code)).String()
+	codeVersion := crypto.NewSha256Byte([]byte(code))
 	wasm.Apply(codeVersion, code, applyContext)
 
 	//print "hello, walker"
