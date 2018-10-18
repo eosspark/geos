@@ -1,15 +1,20 @@
 package database
 
-
-
 type DataBase interface {
-	Insert(data interface{})
 
-	Find(fieldName string, data interface{}) (DbIterator, error)
+	Insert(data interface{}) error
 
-	Get(fieldName string, data interface{}) (Iterator, error)
+	Find(fieldName string, data interface{}, out interface{}) error
+
+	GetIndex(fieldName string, data interface{}) (*multiIndex, error)
 
 	Modify(data interface{}, fn interface{}) error
 
 	Remove(data interface{}) error
+
+	lowerBound(key,value,typeName []byte,data interface{},greater bool) (*DbIterator,error)
+
+	upperBound(key,value,typeName []byte,data interface{},greater bool) (*DbIterator,error)
+
+	Close()
 }
