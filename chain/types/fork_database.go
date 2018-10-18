@@ -4,16 +4,16 @@ import (
 	"fmt"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/database"
-	"github.com/eosspark/eos-go/log"
 	"github.com/eosspark/eos-go/exception"
+	"github.com/eosspark/eos-go/log"
 )
 
 var isFdActive bool = false
 
 type ForkDatabase struct {
-	DB      database.DataBase
+	DB database.DataBase
 	//Index   *ForkMultiIndexType `json:"index"`
-	Head    *BlockState         `json:"head"`
+	Head *BlockState `json:"head"`
 	//DataDir string
 }
 
@@ -27,18 +27,18 @@ type ForkDatabase struct {
 }*/
 
 func GetForkDbInstance(stateDir string) *ForkDatabase {
-	forkDB := ForkDatabase{}
+	forkDB := &ForkDatabase{}
 	if !isFdActive {
 		forkd, err := newForkDatabase(stateDir, common.DefaultConfig.ForkDBName, true)
 		if err != nil {
 			log.Error("GetForkDbInstance is error ,detail:", err)
 		}
-		forkd.DB.Insert("test")
-		forkDB = *forkd
+		//forkd.DB.Insert("test")
+		forkDB = forkd
 		//
 		isFdActive = true
 	}
-	return &forkDB
+	return forkDB
 }
 
 func newForkDatabase(path string, fileName string, rw bool) (*ForkDatabase, error) {
@@ -58,12 +58,12 @@ func (f *ForkDatabase) SetHead(s *BlockState) {
 	} else if f.Head.BlockNum < s.BlockNum {
 		f.Head = s
 	}
-	exception.EosAssert( s.ID == s.Header.BlockID(), &exception.ForkDatabaseException{},
-		"block state id:s%, is different from block state header id:s%", s.ID,s.Header.BlockID() );
+	exception.EosAssert(s.ID == s.Header.BlockID(), &exception.ForkDatabaseException{},
+		"block state id:s%, is different from block state header id:s%", s.ID, s.Header.BlockID())
 
-	err:=f.DB.Insert(s)
-	if err != nil{
-		fmt.Println("ForkDB SetHead is error:",err)
+	err := f.DB.Insert(s)
+	if err != nil {
+		fmt.Println("ForkDB SetHead is error:", err)
 	}
 
 }
@@ -72,9 +72,9 @@ func (f *ForkDatabase) GetBlock(id *common.BlockIdType) *BlockState {
 	//blockId   = fdb.Index.ID
 	blockState := BlockState{}
 	blockState.ID = *id
-	err := f.DB.Find("ID",blockState, blockState)
+	err := f.DB.Find("ID", blockState, blockState)
 	if err != nil {
-		fmt.Println("ForkDB GetBlock is error:",err)
+		fmt.Println("ForkDB GetBlock is error:", err)
 	}
 	return &blockState
 }
@@ -99,7 +99,7 @@ func (f *ForkDatabase) AddBlockState(blockState *BlockState) *BlockState {
 
 	return blockState
 }
-func (f *ForkDatabase) AddSignedBlockState(signedBlcok *SignedBlock,trust bool) *BlockState {
+func (f *ForkDatabase) AddSignedBlockState(signedBlcok *SignedBlock, trust bool) *BlockState {
 	//blockId := signedBlcok.BlockID()
 	blockState := BlockState{}
 	/*err := fdb.db.Get("ID", blockId, &blockState)
@@ -116,12 +116,12 @@ func (f *ForkDatabase) AddSignedBlockState(signedBlcok *SignedBlock,trust bool) 
 	return block
 }
 func (f *ForkDatabase) Add(c *HeaderConfirmation) {
-	header:= f.GetBlock(&c.BlockId)
+	header := f.GetBlock(&c.BlockId)
 
-	exception.EosAssert( header!=nil, &exception.ForkDbBlockNotFound{}, "unable to find block id ",c.BlockId)
+	exception.EosAssert(header != nil, &exception.ForkDbBlockNotFound{}, "unable to find block id ", c.BlockId)
 	header.AddConfirmation(c)
 
-	if header.BftIrreversibleBlocknum<header.BlockNum && len(header.Confirmations)>= ((len(header.ActiveSchedule.Producers)*2)/3+1){
+	if header.BftIrreversibleBlocknum < header.BlockNum && len(header.Confirmations) >= ((len(header.ActiveSchedule.Producers)*2)/3+1) {
 		f.SetBftIrreversible(c.BlockId)
 	}
 }
@@ -131,10 +131,10 @@ type BranchType struct {
 	branch []BlockState
 }
 
-func (f *ForkDatabase) FetchBranchFrom(first common.BlockIdType, second common.BlockIdType)  {
+func (f *ForkDatabase) FetchBranchFrom(first common.BlockIdType, second common.BlockIdType) {
 	//result := make(map[BranchType]BranchType)
 	//var firstBlock, secondBlock *BlockState
-	firstBlock:= f.GetBlock(&first)
+	firstBlock := f.GetBlock(&first)
 
 	secondBlock := f.GetBlock(&second)
 
@@ -147,7 +147,7 @@ func (f *ForkDatabase) FetchBranchFrom(first common.BlockIdType, second common.B
 	for firstBlock.Header.Previous != secondBlock.Header.Previous {
 	}
 
-	fmt.Println(firstBlock,secondBlock)
+	fmt.Println(firstBlock, secondBlock)
 	//return err
 }
 

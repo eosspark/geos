@@ -16,8 +16,8 @@ import (
 	. "github.com/eosspark/eos-go/exception"
 	"github.com/eosspark/eos-go/log"
 )
-var readycontroller chan bool //TODO test code
 
+var readycontroller chan bool //TODO test code
 
 /*var PreAcceptedBlock chan *types.SignedBlock
 var AcceptedBlockdHeader chan *types.BlockState
@@ -253,21 +253,21 @@ func (c *Controller) AbortBlock() {
 		}
 	}
 }
-func (c *Controller) StartBlock(when common.BlockTimeStamp, confirmBlockCount uint16){
-	pbi:= common.BlockIdType(*crypto.NewSha256Nil())
-	c.startBlock1(when,confirmBlockCount,types.Incomplete,&pbi)
+func (c *Controller) StartBlock(when common.BlockTimeStamp, confirmBlockCount uint16) {
+	pbi := common.BlockIdType(*crypto.NewSha256Nil())
+	c.startBlock1(when, confirmBlockCount, types.Incomplete, &pbi)
 	//c.VValidateDbAvailableSize()
 }
 func (c *Controller) startBlock1(when common.BlockTimeStamp, confirmBlockCount uint16, s types.BlockStatus, producerBlockId *common.BlockIdType) {
-	EosAssert( common.Empty(c.Pending), &BlockValidateException{}, "pending block already exists" )
-	defer func(){
-		if c.Pending.Valid{
+	EosAssert(common.Empty(c.Pending), &BlockValidateException{}, "pending block already exists")
+	defer func() {
+		if c.Pending.Valid {
 			c.Pending.Reset()
 		}
 	}()
 	if c.SkipDbSession(s) {
 		/*EosAssert( c.DB.revision() == head->block_num, database_exception, "db revision is not on par with head block",
-			("db.revision()", db.revision())("controller_head_block", head->block_num)("fork_db_head_block", fork_db.head()->block_num) )*/
+		("db.revision()", db.revision())("controller_head_block", head->block_num)("fork_db_head_block", fork_db.head()->block_num) )*/
 		c.Pending = types.NewPendingState(c.DB)
 	} else {
 		c.Pending = types.GetInstance()
@@ -275,7 +275,7 @@ func (c *Controller) startBlock1(when common.BlockTimeStamp, confirmBlockCount u
 
 	c.Pending.BlockStatus = s
 	c.Pending.ProducerBlockId = *producerBlockId
-	c.Pending.PendingBlockState = types.NewBlockState2(&c.Head.BlockHeaderState,when) //TODO std::make_shared<block_state>( *head, when ); // promotes pending schedule (if any) to active
+	c.Pending.PendingBlockState = types.NewBlockState2(&c.Head.BlockHeaderState, when) //TODO std::make_shared<block_state>( *head, when ); // promotes pending schedule (if any) to active
 	//c.Pending.PendingBlockState.SignedBlock.Timestamp = when
 	c.Pending.PendingBlockState.InCurrentChain = true
 	c.Pending.PendingBlockState.SetConfirmed(confirmBlockCount)
@@ -284,12 +284,12 @@ func (c *Controller) startBlock1(when common.BlockTimeStamp, confirmBlockCount u
 	if c.ReadMode == DBReadMode(SPECULATIVE) || c.Pending.BlockStatus != types.BlockStatus(types.Incomplete) {
 		gpo := types.GlobalPropertyObject{}
 		gpo.ID = common.BlockIdType(*crypto.NewSha256Nil())
-		err := c.DB.Find("ID",gpo ,&gpo)
+		err := c.DB.Find("ID", gpo, &gpo)
 		if err != nil {
 			log.Error("GetGlobalProperties is error detail:", err)
 		}
-fmt.Println("test:",gpo)
-		if ( !common.Empty(gpo.ProposedScheduleBlockNum) && gpo.ProposedScheduleBlockNum <= c.Pending.PendingBlockState.DposIrreversibleBlocknum) &&
+		fmt.Println("test:", gpo)
+		if (!common.Empty(gpo.ProposedScheduleBlockNum) && gpo.ProposedScheduleBlockNum <= c.Pending.PendingBlockState.DposIrreversibleBlocknum) &&
 			(len(c.Pending.PendingBlockState.PendingSchedule.Producers) == 0) &&
 			(!wasPendingPromoted) {
 			if !c.RePlaying {
@@ -306,24 +306,24 @@ fmt.Println("test:",gpo)
 			})
 		}
 		//try.Try(func() {
-			signedTransaction := c.GetOnBlockTransaction()
-			onbtrx := types.TransactionMetadata{Trx: &signedTransaction}
-			onbtrx.Implicit = true
-			//TODO defer
-			defer func(b bool){
-				c.InTrxRequiringChecks = b }(c.InTrxRequiringChecks)
-			c.InTrxRequiringChecks = true
-			c.PushTransaction(onbtrx, common.MaxTimePoint(), c.GetGlobalProperties().Configuration.MinTransactionCpuUsage, true)
+		signedTransaction := c.GetOnBlockTransaction()
+		onbtrx := types.TransactionMetadata{Trx: &signedTransaction}
+		onbtrx.Implicit = true
+		//TODO defer
+		defer func(b bool) {
+			c.InTrxRequiringChecks = b
+		}(c.InTrxRequiringChecks)
+		c.InTrxRequiringChecks = true
+		c.PushTransaction(onbtrx, common.MaxTimePoint(), c.GetGlobalProperties().Configuration.MinTransactionCpuUsage, true)
 		/*}).Catch(func(e Exception) {
 			//TODO
 			fmt.Println("Controller StartBlock exception:",e.Message())
 		})*/
 
-
 		c.clearExpiredInputTransactions()
 		c.UpdateProducersAuthority()
 	}
-	c.Pending.Valid=true
+	c.Pending.Valid = true
 
 }
 
@@ -424,7 +424,7 @@ func (c *Controller) PushTransaction(trx types.TransactionMetadata, deadLine com
 	/*}catch(Exception{}){
 
 	}*/
-	if !failureIsSubjective( trace.Except ) {
+	if !failureIsSubjective(trace.Except) {
 		delete(c.UnAppliedTransactions, crypto.Sha256(trx.SignedID))
 	}
 	/*emit( c.accepted_transaction, trx )
@@ -432,22 +432,22 @@ func (c *Controller) PushTransaction(trx types.TransactionMetadata, deadLine com
 	return trace
 }
 
-func (c *Controller) GetGlobalProperties() (gp *types.GlobalPropertyObject) {
+func (c *Controller) GetGlobalProperties() *types.GlobalPropertyObject {
 	gpo := types.GlobalPropertyObject{}
 	gpo.ID = common.BlockIdType(*crypto.NewSha256Nil())
-	err := c.DB.Find("ID",gpo ,&gpo)
+	err := c.DB.Find("ID", gpo, &gpo)
 	if err != nil {
 		//log.Error("GetGlobalProperties is error detail:", err)
-		fmt.Println("GetGlobalProperties data not found:",err)
+		fmt.Println("GetGlobalProperties data not found:", err)
 	}
 
-	return gp
+	return &gpo
 }
 
 func (c *Controller) GetDynamicGlobalProperties() (r *types.DynamicGlobalPropertyObject) {
 	dgpo := types.DynamicGlobalPropertyObject{}
 	dgpo.ID = 0
-	err := c.DB.Find("ID",dgpo, &dgpo)
+	err := c.DB.Find("ID", dgpo, &dgpo)
 	if err != nil {
 		log.Error("GetDynamicGlobalProperties is error detail:", err)
 	}
@@ -484,7 +484,7 @@ func (c *Controller) SkipDbSession(bs types.BlockStatus) bool {
 }
 
 func (c *Controller) SkipDbSessions() bool {
-	if !common.Empty(c.Pending){
+	if !common.Empty(c.Pending) {
 		return c.SkipDbSession(c.Pending.BlockStatus)
 	} else {
 		return false
@@ -602,7 +602,7 @@ func (c *Controller) PushScheduledTransactionByObject(gto types.GeneratedTransac
 	trx.Scheduled = true
 
 	trace := &types.TransactionTrace{}
-	fmt.Println("test print:",trace)
+	fmt.Println("test print:", trace)
 	/*if( gtrx.expiration < c.pending_block_time() ) {
 		trace = std::make_shared<transaction_trace>();
 		trace->id = gtrx.trx_id;
@@ -616,7 +616,7 @@ func (c *Controller) PushScheduledTransactionByObject(gto types.GeneratedTransac
 		undo_session.squash();
 		return trace;
 	}*/
-	defer func(){
+	defer func() {
 		//TODO
 	}()
 	c.InTrxRequiringChecks = true
@@ -633,7 +633,7 @@ func (c *Controller) PushScheduledTransactionByObject(gto types.GeneratedTransac
 	//}
 	//TODO 2018-10-13
 
-	fmt.Println("test print:",dtrx, trx) //TODO
+	fmt.Println("test print:", dtrx, trx) //TODO
 	return nil
 }
 
@@ -644,19 +644,19 @@ func (c *Controller) RemoveScheduledTransaction(gto *types.GeneratedTransactionO
 
 func failureIsSubjective(e Exception) bool {
 	code := e.Code()
-	return code == SubjectiveBlockProductionException{}.Code()||
-		   code==BlockNetUsageExceeded{}.Code()||
-	       code == GreylistNetUsageExceeded{}.Code()||
-		   code ==BlockCpuUsageExceeded{}.Code()||
-		   code == GreylistCpuUsageExceeded{}.Code()||
-		   code == DeadlineException{}.Code()||
-		   code == LeewayDeadlineException{}.Code()||
-		   code == ActorWhitelistException{}.Code()||
-		   code == ActorBlacklistException{}.Code()||
-		   code == ContractWhitelistException{}.Code()||
-		   code == ContractBlacklistException{}.Code()||
-		   code == ActionBlacklistException{}.Code()||
-		   code == KeyBlacklistException{}.Code()
+	return code == SubjectiveBlockProductionException{}.Code() ||
+		code == BlockNetUsageExceeded{}.Code() ||
+		code == GreylistNetUsageExceeded{}.Code() ||
+		code == BlockCpuUsageExceeded{}.Code() ||
+		code == GreylistCpuUsageExceeded{}.Code() ||
+		code == DeadlineException{}.Code() ||
+		code == LeewayDeadlineException{}.Code() ||
+		code == ActorWhitelistException{}.Code() ||
+		code == ActorBlacklistException{}.Code() ||
+		code == ContractWhitelistException{}.Code() ||
+		code == ContractBlacklistException{}.Code() ||
+		code == ActionBlacklistException{}.Code() ||
+		code == KeyBlacklistException{}.Code()
 }
 
 func (c *Controller) setActionMaerkle() {
@@ -724,8 +724,8 @@ func (c *Controller) applyBlock(b *types.SignedBlock, s types.BlockStatus) {
 }
 
 func (c *Controller) CommitBlock(addToForkDb bool) {
-	defer func (){
-		if c.Pending.Valid{
+	defer func() {
+		if c.Pending.Valid {
 			c.Pending.Reset()
 		}
 	}()
@@ -870,29 +870,49 @@ func (c *Controller) GetAuthorizationManager() *AuthorizationManager { return c.
 func (c *Controller) GetMutableAuthorizationManager() *AuthorizationManager { return c.Authorization }
 
 //c++ flat_set<account_name> map[common.AccountName]interface{}
-func (c *Controller) GetActorWhiteList() *map[common.AccountName]struct{} {return &c.Config.ActorWhitelist}
+func (c *Controller) GetActorWhiteList() *map[common.AccountName]struct{} {
+	return &c.Config.ActorWhitelist
+}
 
-func (c *Controller) GetActorBlackList() *map[common.AccountName]struct{} {return &c.Config.ActorBlacklist}
+func (c *Controller) GetActorBlackList() *map[common.AccountName]struct{} {
+	return &c.Config.ActorBlacklist
+}
 
-func (c *Controller) GetContractWhiteList() *map[common.AccountName]struct{} {return &c.Config.ContractWhitelist}
+func (c *Controller) GetContractWhiteList() *map[common.AccountName]struct{} {
+	return &c.Config.ContractWhitelist
+}
 
-func (c *Controller) GetContractBlackList() *map[common.AccountName]struct{} {return &c.Config.ContractBlacklist}
+func (c *Controller) GetContractBlackList() *map[common.AccountName]struct{} {
+	return &c.Config.ContractBlacklist
+}
 
 func (c *Controller) GetActionBlockList() *map[common.Pair]struct{} { return &c.Config.ActionBlacklist }
 
 func (c *Controller) GetKeyBlackList() *map[ecc.PublicKey]struct{} { return &c.Config.KeyBlacklist }
 
-func (c *Controller) SetActorWhiteList(params *map[common.AccountName]struct{}) {c.Config.ActorWhitelist = *params}
+func (c *Controller) SetActorWhiteList(params *map[common.AccountName]struct{}) {
+	c.Config.ActorWhitelist = *params
+}
 
-func (c *Controller) SetActorBlackList(params *map[common.AccountName]struct{}) {c.Config.ActorBlacklist = *params}
+func (c *Controller) SetActorBlackList(params *map[common.AccountName]struct{}) {
+	c.Config.ActorBlacklist = *params
+}
 
-func (c *Controller) SetContractWhiteList(params *map[common.AccountName]struct{}) {c.Config.ContractWhitelist = *params}
+func (c *Controller) SetContractWhiteList(params *map[common.AccountName]struct{}) {
+	c.Config.ContractWhitelist = *params
+}
 
-func (c *Controller) SetContractBlackList(params *map[common.AccountName]struct{}) {c.Config.ContractBlacklist = *params}
+func (c *Controller) SetContractBlackList(params *map[common.AccountName]struct{}) {
+	c.Config.ContractBlacklist = *params
+}
 
-func (c *Controller) SetActionBlackList(params *map[common.Pair]struct{}) {c.Config.ActionBlacklist = *params}
+func (c *Controller) SetActionBlackList(params *map[common.Pair]struct{}) {
+	c.Config.ActionBlacklist = *params
+}
 
-func (c *Controller) SetKeyBlackList(params *map[ecc.PublicKey]struct{}) {c.Config.KeyBlacklist = *params}
+func (c *Controller) SetKeyBlackList(params *map[ecc.PublicKey]struct{}) {
+	c.Config.KeyBlacklist = *params
+}
 
 func (c *Controller) HeadBlockNum() uint32 { return c.Head.BlockNum }
 
@@ -910,9 +930,13 @@ func (c *Controller) ForkDbHeadBlockNum() uint32 { return c.ForkDB.Header().Bloc
 
 func (c *Controller) ForkDbHeadBlockId() common.BlockIdType { return common.BlockIdType{} }
 
-func (c *Controller) ForkDbHeadBlockTime() common.TimePoint { return c.ForkDB.Header().Header.Timestamp.ToTimePoint() }
+func (c *Controller) ForkDbHeadBlockTime() common.TimePoint {
+	return c.ForkDB.Header().Header.Timestamp.ToTimePoint()
+}
 
-func (c *Controller) ForkDbHeadBlockProducer() common.AccountName { return c.ForkDB.Header().Header.Producer }
+func (c *Controller) ForkDbHeadBlockProducer() common.AccountName {
+	return c.ForkDB.Header().Header.Producer
+}
 
 func (c *Controller) PendingBlockState() *types.BlockState {
 	if c.Pending != nil {
@@ -922,24 +946,24 @@ func (c *Controller) PendingBlockState() *types.BlockState {
 }
 
 func (c *Controller) PendingBlockTime() common.TimePoint {
-	EosAssert(c.Pending==nil, &BlockValidateException{}, "no pending block" )
+	EosAssert(!common.Empty(c.Pending), &BlockValidateException{}, "no pending block")
 	return c.Pending.PendingBlockState.Header.Timestamp.ToTimePoint()
 }
 
 func (c *Controller) PendingProducerBlockId() common.BlockIdType {
-	EosAssert( c.Pending!=nil, &BlockValidateException{}, "no pending block" )
+	EosAssert(c.Pending != nil, &BlockValidateException{}, "no pending block")
 	return c.Pending.ProducerBlockId
 }
 
 func (c *Controller) ActiveProducers() *types.ProducerScheduleType {
-	if c.Pending != nil{
+	if c.Pending != nil {
 		return &c.Head.ActiveSchedule
 	}
 	return &c.Pending.PendingBlockState.ActiveSchedule
 }
 
 func (c *Controller) PendingProducers() *types.ProducerScheduleType {
-	if c.Pending!=nil {
+	if c.Pending != nil {
 		return &c.Head.PendingSchedule
 	}
 	return &c.Pending.PendingBlockState.ActiveSchedule
@@ -998,14 +1022,14 @@ func (c *Controller) FetchBlockStateById(id common.BlockIdType) *types.BlockStat
 	return c.ForkDB.GetBlock(&id)
 }
 
-func (c *Controller) GetBlockIdForNum(blockNum uint32) common.BlockIdType{
+func (c *Controller) GetBlockIdForNum(blockNum uint32) common.BlockIdType {
 	blkState := c.ForkDB.GetBlockInCurrentChainByNum(blockNum)
-	if blkState != nil{
+	if blkState != nil {
 		return blkState.ID
 	}
 
 	signedBlk := c.Blog.ReadBlockByNum(blockNum)
-	EosAssert(common.Empty(signedBlk),&UnknownBlockException{},"Could not find block: d%", blockNum)
+	EosAssert(common.Empty(signedBlk), &UnknownBlockException{}, "Could not find block: d%", blockNum)
 	return signedBlk.BlockID()
 }
 
@@ -1087,51 +1111,51 @@ func (c *Controller) IsKnownUnexpiredTransaction(id *common.TransactionIdType) b
 
 func (c *Controller) SetProposedProducers(producers []types.ProducerKey) int64 {
 
-	gpo:=c.GetGlobalProperties()
-	curBlockNum := c.HeadBlockNum()+1
-	if(common.Empty(gpo.ProposedScheduleBlockNum)){
-		if( gpo.ProposedScheduleBlockNum != curBlockNum ){
+	gpo := c.GetGlobalProperties()
+	curBlockNum := c.HeadBlockNum() + 1
+	if common.Empty(gpo.ProposedScheduleBlockNum) {
+		if gpo.ProposedScheduleBlockNum != curBlockNum {
 			return -1
 		}
 
-		if compare(producers,gpo.ProposedSchedule.Producers)  {
+		if compare(producers, gpo.ProposedSchedule.Producers) {
 			return -1
 		}
 	}
 	sch := types.ProducerScheduleType{}
 	/*begin :=types.ProducerKey{}
 	end :=types.ProducerKey{}*/
-	if len(c.Pending.PendingBlockState.PendingSchedule.Producers) == 0{
+	if len(c.Pending.PendingBlockState.PendingSchedule.Producers) == 0 {
 		activeSch := c.Pending.PendingBlockState.ActiveSchedule
-		if compare(producers,activeSch.Producers){
+		if compare(producers, activeSch.Producers) {
 			return -1
 		}
-		sch.Version = activeSch.Version+1
-	}else{
+		sch.Version = activeSch.Version + 1
+	} else {
 		pendingSch := c.Pending.PendingBlockState.PendingSchedule
-		if compare(producers,pendingSch.Producers){
+		if compare(producers, pendingSch.Producers) {
 			return -1
 		}
-		sch.Version = pendingSch.Version+1
+		sch.Version = pendingSch.Version + 1
 	}
 
 	sch.Producers = producers
 	version := sch.Version
-	c.DB.Modify(&gpo,func(p *types.GlobalPropertyObject){
+	c.DB.Modify(&gpo, func(p *types.GlobalPropertyObject) {
 		p.ProposedScheduleBlockNum = curBlockNum
-		tmp:=p.ProposedSchedule.SharedProducerScheduleType(sch)
+		tmp := p.ProposedSchedule.SharedProducerScheduleType(sch)
 		p.ProposedSchedule = *tmp
 	})
 	return int64(version)
 }
 
 //for SetProposedProducers
-func compare(first []types.ProducerKey,secend []types.ProducerKey) bool{
-	if len(first) != len(secend){
+func compare(first []types.ProducerKey, secend []types.ProducerKey) bool {
+	if len(first) != len(secend) {
 		return false
 	}
-	for i:=0; i<len(first);i++{
-		if first[i]!=secend[i]{
+	for i := 0; i < len(first); i++ {
+		if first[i] != secend[i] {
 			return false
 		}
 	}
@@ -1219,10 +1243,10 @@ func initResource(c *Controller, ready chan bool) {
 
 }*/
 
-func (c *Controller) initializeForkDB(){
+func (c *Controller) initializeForkDB() {
 
 	gs := types.GetGenesisStateInstance()
-	pst := types.ProducerScheduleType{ 0, []types.ProducerKey{{common.DefaultConfig.SystemAccountName, gs.InitialKey}}}
+	pst := types.ProducerScheduleType{0, []types.ProducerKey{{common.DefaultConfig.SystemAccountName, gs.InitialKey}}}
 	genHeader := types.BlockHeaderState{}
 	genHeader.ActiveSchedule = pst
 	genHeader.PendingSchedule = pst
@@ -1241,7 +1265,7 @@ func (c *Controller) initializeForkDB(){
 	c.initializeDatabase()
 }
 
-func (c *Controller) initializeDatabase(){
+func (c *Controller) initializeDatabase() {
 
 	/*for (int i = 0; i < 0x10000; i++)
 	db.create<block_summary_object>([&](block_summary_object&) {});
@@ -1250,29 +1274,29 @@ func (c *Controller) initializeDatabase(){
 	db.modify( tapos_block_summary, [&]( auto& bs ) {
 		bs.block_id = head->id;
 	})*/
-	gi:=c.Config.genesis.Initial()
-	gi.Validate()	//check config
-	gpo:=types.GlobalPropertyObject{}
+	gi := c.Config.genesis.Initial()
+	//gi.Validate()	//check config
+	gpo := types.GlobalPropertyObject{}
 	gpo.Configuration = gi
 	c.DB.Insert(gpo)
-	systemAuth:= types.Authority{}
-	kw:=types.KeyWeight{}
+	systemAuth := types.Authority{}
+	kw := types.KeyWeight{}
 	kw.Key = c.Config.genesis.InitialKey
 	systemAuth.Keys = []types.KeyWeight{kw}
-	fmt.Println("initializeDatabase systemAuth:",systemAuth)
-	c.CreateNativeAccount(common.DefaultConfig.SystemAccountName,systemAuth,systemAuth,true)
+	fmt.Println("initializeDatabase systemAuth:", systemAuth)
+	c.CreateNativeAccount(common.DefaultConfig.SystemAccountName, systemAuth, systemAuth, true)
 	emptyAuthority := types.Authority{}
 	emptyAuthority.Threshold = 1
 	activeProducersAuthority := types.Authority{}
 	activeProducersAuthority.Threshold = 1
 	//plw:=types.PermissionLevelWeight{}
-	p:=types.PermissionLevelWeight{types.PermissionLevel{common.DefaultConfig.SystemAccountName, common.DefaultConfig.ActiveName},1}
+	p := types.PermissionLevelWeight{types.PermissionLevel{common.DefaultConfig.SystemAccountName, common.DefaultConfig.ActiveName}, 1}
 	activeProducersAuthority.Accounts = append(activeProducersAuthority.Accounts, p)
-	c.CreateNativeAccount(common.DefaultConfig.NullAccountName,emptyAuthority,emptyAuthority,false)
-	c.CreateNativeAccount(common.DefaultConfig.ProducersAccountName,emptyAuthority,activeProducersAuthority,false)
-	activePermission := c.Authorization.GetPermission(&types.PermissionLevel{common.DefaultConfig.ProducersAccountName,common.DefaultConfig.ActiveName})
+	c.CreateNativeAccount(common.DefaultConfig.NullAccountName, emptyAuthority, emptyAuthority, false)
+	c.CreateNativeAccount(common.DefaultConfig.ProducersAccountName, emptyAuthority, activeProducersAuthority, false)
+	activePermission := c.Authorization.GetPermission(&types.PermissionLevel{common.DefaultConfig.ProducersAccountName, common.DefaultConfig.ActiveName})
 
-	majorityPermission:=c.Authorization.CreatePermission(common.DefaultConfig.ProducersAccountName,
+	majorityPermission := c.Authorization.CreatePermission(common.DefaultConfig.ProducersAccountName,
 		common.DefaultConfig.MajorityProducersPermissionName,
 		PermissionIdType(activePermission.ID),
 		activeProducersAuthority,
@@ -1284,20 +1308,20 @@ func (c *Controller) initializeDatabase(){
 		activeProducersAuthority,
 		c.Config.genesis.InitialTimestamp)
 
-	fmt.Println("initializeDatabase print:",majorityPermission,minorityPermission)
+	fmt.Println("initializeDatabase print:", majorityPermission, minorityPermission)
 }
 
-func (c *Controller) initialize(){
-	if common.Empty(c.Head){
+func (c *Controller) initialize() {
+	if common.Empty(c.Head) {
 		c.initializeForkDB()
 		end := c.Blog.ReadHead()
-		if common.Empty(end) && end.BlockNumber()>1{
+		if common.Empty(end) && end.BlockNumber() > 1 {
 			endTime := end.Timestamp.ToTimePoint()
 			replaying := true
 			replayHeadTime := endTime
 			//ilog( "existing block log, attempting to replay ${n} blocks", ("n",end->block_num()) )
-			start:= common.Now()
-			next :=c.Blog.ReadBlockByNum(c.Head.BlockNum+1)
+			start := common.Now()
+			next := c.Blog.ReadBlockByNum(c.Head.BlockNum + 1)
 			/*while( auto next = blog.read_block_by_num( head->block_num + 1 ) ) {
 				self.push_block( next, controller::block_status::irreversible );
 				if( next->block_num() % 100 == 0 ) {
@@ -1306,16 +1330,16 @@ func (c *Controller) initialize(){
 			}*/
 			//ilog( "${n} blocks replayed", ("n", head->block_num) )
 			//c.DB.set_revision(head->block_num)
-			rev:=0
+			rev := 0
 			//c.ReversibleBlocks.Find("",)
 			r := entity.ReversibleBlockObject{}
 			for {
-				r.BlockNum = c.HeadBlockNum()+1
-				err:=c.ReversibleBlocks.Find("blockNum",r,r)
-				if err != nil{
+				r.BlockNum = c.HeadBlockNum() + 1
+				err := c.ReversibleBlocks.Find("blockNum", r, r)
+				if err != nil {
 					break
 				}
-				c.PushBlock(r.GetBlock(),types.Validated)
+				c.PushBlock(r.GetBlock(), types.Validated)
 			}
 			//ilog( "${n} reversible blocks replayed", ("n",rev) )
 			end := time.Now()
@@ -1325,11 +1349,11 @@ func (c *Controller) initialize(){
 			c.RePlaying = false
 			//c.ReplayHeadTime = nil
 
-			fmt.Println("test print:",replaying,replayHeadTime,start,next,rev,end)
-		}else if !common.Empty(end) {
-			c.Blog.ResetToGenesis(&c.Config.genesis,c.Head.SignedBlock)
+			fmt.Println("test print:", replaying, replayHeadTime, start, next, rev, end)
+		} else if !common.Empty(end) {
+			c.Blog.ResetToGenesis(&c.Config.genesis, c.Head.SignedBlock)
 		}
-//TODO	wait append
+		//TODO	wait append
 		/*rbi := entity.ReversibleBlockObject{}
 		ubi,err := c.ReversibleBlocks.GetIndex("byNum",&rbi)
 		if err!= nil{
@@ -1427,6 +1451,7 @@ func (c *Controller) initConfig() *Controller {
 	}
 	return c
 }
+
 /*
 //for ActionBlacklist
 type ActionBlacklistParam struct {
@@ -1452,7 +1477,6 @@ type ApplyHandler struct {
 	applyHandler map[common.AccountName]applyCon
 	receiver     common.AccountName
 }*/
-
 
 /*    about chain
 

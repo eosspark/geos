@@ -210,7 +210,7 @@ func (a *ApplyContext) execOne() (trace types.ActionTrace) {
 	r.ActDigest = crypto.Hash256(a.Act)
 	r.GlobalSequence = a.nextGlobalSequence()
 	r.RecvSequence = a.nextRecvSequence(a.Receiver)
-
+	r.AuthSequence = make(map[common.AccountName]uint64)
 	accountSequence := &types.AccountSequenceObject{Name: a.Act.Account}
 	//a.DB.Get("byName", accountSequence)
 	r.CodeSequence = uint32(accountSequence.CodeSequence)
