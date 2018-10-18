@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
-	"github.com/eosspark/eos-go/common/figure"
+	arithmetic "github.com/eosspark/eos-go/common/arithmetic_types"
 	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/eosspark/eos-go/database"
@@ -794,13 +794,13 @@ func (a *ApplyContext) ExecuteContextFreeInline(action []byte) {
 	a.CfaInlineActions = append(a.CfaInlineActions, act)
 
 }
-func (a *ApplyContext) ScheduleDeferredTransaction(sendId *figure.Uint128, payer common.AccountName, trx []byte, replaceExisting bool) {
+func (a *ApplyContext) ScheduleDeferredTransaction(sendId *arithmetic.Uint128, payer common.AccountName, trx []byte, replaceExisting bool) {
 }
-func (a *ApplyContext) CancelDeferredTransaction2(sendId *figure.Uint128, sender common.AccountName) bool {
+func (a *ApplyContext) CancelDeferredTransaction2(sendId *arithmetic.Uint128, sender common.AccountName) bool {
 	return false
 }
 
-func (a *ApplyContext) CancelDeferredTransaction(sendId *figure.Uint128) bool {
+func (a *ApplyContext) CancelDeferredTransaction(sendId *arithmetic.Uint128) bool {
 	return a.CancelDeferredTransaction2(sendId, a.Receiver)
 }
 

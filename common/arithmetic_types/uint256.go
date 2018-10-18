@@ -1,4 +1,4 @@
-package figure
+package arithmeticTypes
 
 import (
 	"fmt"
