@@ -14,6 +14,7 @@ import (
 	"reflect"
 	"strings"
 	"testing"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestPopBlock(t *testing.T) {
@@ -94,4 +95,16 @@ func TestController_SetApplayHandler(t *testing.T) {
 	//a :="test"
 
 	//fmt.Println(strings.Compare(a,o.Name()))
+}
+
+func TestController_GetGlobalProperties(t *testing.T) {
+	c:=GetControllerInstance()
+	gp:=c.GetGlobalProperties()
+	assert.Equal(t,false,common.Empty(gp))//GlobalProperties not initialized
+}
+func  TestController_StartBlock(t *testing.T) {
+	c:=GetControllerInstance()
+	w:=common.NewBlockTimeStamp(common.Now())
+	s:=types.Irreversible
+	c.StartBlock(w,uint16(s))
 }

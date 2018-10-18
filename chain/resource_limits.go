@@ -12,7 +12,7 @@ var IsActiveRc bool
 var rcInstance *ResourceLimitsManager
 
 type ResourceLimitsManager struct {
-	db *database.LDataBase `json:"db"`
+	db database.DataBase `json:"db"`
 }
 
 func GetResourceLimitsManager() *ResourceLimitsManager {

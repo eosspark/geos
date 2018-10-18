@@ -1,7 +1,6 @@
 package types
 
 import (
-	"fmt"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/ecc"
@@ -38,7 +37,7 @@ func newGenesisState() *GenesisState {
 		log.Error("", err)
 	}
 	g.InitialKey = key
-	g.initial()
+	g.Initial()
 	return g
 }
 
@@ -51,7 +50,7 @@ func (g *GenesisState) ComputeChainID() common.ChainIdType {
 	return common.ChainIdType(crypto.Hash256(b))
 }
 
-func (g *GenesisState) initial() {
+func (g *GenesisState) Initial() common.Config{
 	InitialConfiguration := common.Config{
 		MaxBlockNetUsage:               common.DefaultConfig.MaxBlockNetUsage,
 		TargetBlockNetUsagePct:         common.DefaultConfig.TargetBlockNetUsagePct,
@@ -74,5 +73,5 @@ func (g *GenesisState) initial() {
 		MaxAuthorityDepth:           common.DefaultConfig.MaxAuthorityDepth,
 	}
 
-	fmt.Println(InitialConfiguration)
+	return InitialConfiguration
 }

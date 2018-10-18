@@ -29,6 +29,11 @@ type SharedProducerScheduleType struct {
 	Producers []ProducerKey
 }
 
+func (spst *SharedProducerScheduleType) Clear() {
+	spst.Version = 0
+	spst.Producers = []ProducerKey{}
+}
+
 func (s *SharedProducerScheduleType) SharedProducerScheduleType(a ProducerScheduleType) *SharedProducerScheduleType {
 	s.Version = a.Version
 	s.Producers = nil
@@ -46,7 +51,7 @@ func (s *SharedProducerScheduleType) ProducerScheduleType() *ProducerScheduleTyp
 	} else {
 		var step = len(result.Producers)
 		for _, p := range s.Producers {
-			result.Producers[step] = p
+			result.Producers = append(result.Producers, p)
 			step++
 		}
 	}
