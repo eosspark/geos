@@ -1,4 +1,4 @@
-package figure
+package arithmeticTypes
 
 import (
 	"fmt"
@@ -43,6 +43,14 @@ func (u *Uint128) Set(i uint, b uint) {
 			u.High &= math.MaxUint64 - 0x01<<(i-64)
 		}
 	}
+}
+
+func MaxUint128() Uint128{
+	return Uint128{math.MaxUint64,math.MaxUint64}
+}
+
+func MinUint128() Uint128{
+	return Uint128{0,0}
 }
 
 func (u *Uint128) LeftShift() {
@@ -118,13 +126,11 @@ func (u Uint128) Sub(v Uint128) Uint128 {
 }
 
 func (u Uint128) Mul(v Uint128) Uint128 {
-	Product := Uint128{}
-	for i := 0; i < 128; i++ {
-		if v.GetAt(uint(i)) {
-			Product = Product.Add(u)
-		}
-		u.LeftShift()
-	}
+	Product := MulUint64(u.Low, v.Low)
+	tmp1 := MulUint64(u.High, v.Low).Low
+	tmp2 := MulUint64(u.Low, v.High).Low
+	tmp := Uint128{tmp1,0}.Add(Uint128{tmp2,0})
+	Product = Product.Add(tmp)
 	return Product
 }
 

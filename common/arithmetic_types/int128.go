@@ -1,4 +1,4 @@
-package figure
+package arithmeticTypes
 
 import "math"
 
@@ -12,6 +12,16 @@ func (u Int128) IsZero() bool {
 		return true
 	}
 	return false
+}
+
+func CreateInt128(i int) Int128{
+	if i >= 0  {
+		return Int128{0, uint64(i)}
+	} else {
+		result := MaxInt128().Sub(Int128{0,uint64(-i) - 1})
+		result.Set(127,1)
+		return result
+	}
 }
 
 func (u Int128) GetAt(i uint) bool {
@@ -39,6 +49,14 @@ func (u *Int128) Set(i uint, b uint) {
 			u.High &= math.MaxUint64 - 0x01<<(i-64)
 		}
 	}
+}
+
+func MaxInt128() Int128{
+	return Int128{0x7FFFFFFFFFFFFFFF,0xFFFFFFFFFFFFFFFF}
+}
+
+func MinInt128() Int128{
+	return Int128{0x8000000000000000,0}
 }
 
 func (u *Int128) LeftShift() {
@@ -131,40 +149,40 @@ func (u Int128) Sub(v Int128) Int128 {
 	return u
 }
 
-func (u Int128) Mul(v Int128) Int128{
+func (u Int128) Mul(v Int128) Int128 {
 	signBit := false
-	if u.GetAt(127) != v.GetAt(127){
+	if u.GetAt(127) != v.GetAt(127) {
 		signBit = true
 	}
 	uTrueForm := u.ToTrueForm()
 	vTrueForm := v.ToTrueForm()
-	uTrueForm.Set(127,0)
-	vTrueForm.Set(127,0)
+	uTrueForm.Set(127, 0)
+	vTrueForm.Set(127, 0)
 	productTrueForm := uTrueForm.Mul(vTrueForm)
-	if signBit == true{
-		productTrueForm.Set(127,1)
+	if signBit == true {
+		productTrueForm.Set(127, 1)
 	} else {
-		productTrueForm.Set(127,0)
+		productTrueForm.Set(127, 0)
 	}
 	Product := productTrueForm.ToComplement()
 	return Product
 }
 
-func (u Int128) Div(v Int128) (Int128, Int128){
+func (u Int128) Div(v Int128) (Int128, Int128) {
 	signBit := false
-	if u.GetAt(127) != v.GetAt(127){
+	if u.GetAt(127) != v.GetAt(127) {
 		signBit = true
 	}
 	uTrueForm := u.ToTrueForm()
 	vTrueForm := v.ToTrueForm()
-	uTrueForm.Set(127,0)
-	vTrueForm.Set(127,0)
+	uTrueForm.Set(127, 0)
+	vTrueForm.Set(127, 0)
 	uQuotient, uRemainder := uTrueForm.Div(vTrueForm)
-	if signBit{
-		uQuotient.Set(127,1)
+	if signBit {
+		uQuotient.Set(127, 1)
 	}
-	if u.GetAt(127){
-		uRemainder.Set(127,1)
+	if u.GetAt(127) {
+		uRemainder.Set(127, 1)
 	}
 	Quotient := uQuotient.ToComplement()
 	Remainder := uRemainder.ToComplement()
@@ -178,6 +196,9 @@ func (u Int128) ToString() string {
 	}
 	uTrueForm := u.ToTrueForm()
 	uTrueForm.Set(127, 0)
+	if signBit == true && uTrueForm.Compare(Uint128{0,0}) == 0{
+		uTrueForm.Set(127, 1)
+	}
 	str := uTrueForm.ToString()
 	if signBit {
 		str = "-" + str

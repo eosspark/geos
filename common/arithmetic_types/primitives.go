@@ -1,4 +1,4 @@
-package figure
+package arithmeticTypes
 
 var softfloatCountLeadingZeros8 = [256]uint8{
 	8, 7, 6, 6, 5, 5, 5, 5, 4, 4, 4, 4, 4, 4, 4, 4,

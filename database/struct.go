@@ -5,6 +5,10 @@ import (
 	"reflect"
 )
 
+
+
+
+/////////////////////////////////////////////////////// test struct ///////////////////////////////////////////
 type Carnivore struct {
 	Lion  int
 	Tiger int
@@ -30,7 +34,7 @@ type TableIdObject struct{
 	ID 		IdType			`multiIndex:"id,increment,byScope"`
 	Code 	AccountName		`multiIndex:"orderedNonUnique:less"`
 	Scope 	ScopeName		`multiIndex:"orderedNonUnique,byTable:greater,byScope:less"`
-	Table 	TableName		`multiIndex:"orderedNonUnique,byTable:less"`
+	Table 	TableName		`multiIndex:"orderedNonUnique,byTable:greater"`
 	Payer 	AccountName		`multiIndex:"orderedNonUnique,byScope"`
 	Count 	uint32
 }
