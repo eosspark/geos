@@ -3,7 +3,7 @@ package chain
 import (
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
-	"github.com/eosspark/eos-go/common/figure"
+	arithmetic "github.com/eosspark/eos-go/common/arithmetic_types"
 )
 
 type contractTypesInterface interface {
@@ -125,7 +125,7 @@ func (s *cancelDelay) getName() common.AccountName {
 }
 
 type onError struct {
-	SenderId figure.Uint128
+	SenderId arithmetic.Uint128
 	SentTrx  []byte
 }
 

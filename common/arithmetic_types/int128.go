@@ -1,4 +1,4 @@
-package figure
+package arithmeticTypes
 
 import "math"
 
@@ -131,40 +131,40 @@ func (u Int128) Sub(v Int128) Int128 {
 	return u
 }
 
-func (u Int128) Mul(v Int128) Int128{
+func (u Int128) Mul(v Int128) Int128 {
 	signBit := false
-	if u.GetAt(127) != v.GetAt(127){
+	if u.GetAt(127) != v.GetAt(127) {
 		signBit = true
 	}
 	uTrueForm := u.ToTrueForm()
 	vTrueForm := v.ToTrueForm()
-	uTrueForm.Set(127,0)
-	vTrueForm.Set(127,0)
+	uTrueForm.Set(127, 0)
+	vTrueForm.Set(127, 0)
 	productTrueForm := uTrueForm.Mul(vTrueForm)
-	if signBit == true{
-		productTrueForm.Set(127,1)
+	if signBit == true {
+		productTrueForm.Set(127, 1)
 	} else {
-		productTrueForm.Set(127,0)
+		productTrueForm.Set(127, 0)
 	}
 	Product := productTrueForm.ToComplement()
 	return Product
 }
 
-func (u Int128) Div(v Int128) (Int128, Int128){
+func (u Int128) Div(v Int128) (Int128, Int128) {
 	signBit := false
-	if u.GetAt(127) != v.GetAt(127){
+	if u.GetAt(127) != v.GetAt(127) {
 		signBit = true
 	}
 	uTrueForm := u.ToTrueForm()
 	vTrueForm := v.ToTrueForm()
-	uTrueForm.Set(127,0)
-	vTrueForm.Set(127,0)
+	uTrueForm.Set(127, 0)
+	vTrueForm.Set(127, 0)
 	uQuotient, uRemainder := uTrueForm.Div(vTrueForm)
-	if signBit{
-		uQuotient.Set(127,1)
+	if signBit {
+		uQuotient.Set(127, 1)
 	}
-	if u.GetAt(127){
-		uRemainder.Set(127,1)
+	if u.GetAt(127) {
+		uRemainder.Set(127, 1)
 	}
 	Quotient := uQuotient.ToComplement()
 	Remainder := uRemainder.ToComplement()
