@@ -4,6 +4,7 @@ import (
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto/rlp"
+	"github.com/eosspark/eos-go/exception"
 	"math"
 	"os"
 )
@@ -74,14 +75,22 @@ func NewBlockLog(dataDir string) *BlockLog {
 	blockLog.blockFile = dataDir + "/blocks.log"
 	blockLog.indexFile = dataDir + "/blocks.index"
 
-	//if blockLog.blockSteam.IsOpen() {blockLog.blockSteam.Close()}
-	//if blockLog.indexSteam.IsOpen() {blockLog.indexSteam.Close()}
-
-	// blockLog.blockSteam,_ = os.OpenFile(blockLog.blockFile, os.O_WRONLY|O_APPEND|O_CREATE)
-	// blockLog.indexStream,_ = os.Open(blockLog.indexFile, os.O_WRONLY|O_APPEND|O_CREATE)
-
 	blockLog.blockStream, _ = os.OpenFile(blockLog.blockFile, os.O_RDWR, os.ModePerm)
 	blockLog.indexStream, _ = os.OpenFile(blockLog.indexFile, os.O_RDWR, os.ModePerm)
+
+	if blockLog.blockStream == nil {
+		blockLog.blockStream, _ = os.Create(blockLog.blockFile)
+		bytes, _ := rlp.EncodeToBytes(blockLog.supportedVersion)
+		blockLog.blockStream.Write(bytes)
+		blockLog.blockStream.Close()
+		blockLog.blockStream, _ = os.OpenFile(blockLog.blockFile, os.O_RDWR, os.ModePerm)
+	}
+
+	if blockLog.indexStream == nil {
+		blockLog.indexStream, _ = os.Create(blockLog.indexFile)
+		blockLog.indexStream.Close()
+		blockLog.indexStream, _ = os.OpenFile(blockLog.indexFile, os.O_RDWR, os.ModePerm)
+	}
 
 	logSize, _ := blockLog.blockStream.Seek(0, 2)
 	indexSize, _ := blockLog.indexStream.Seek(0, 2)
@@ -94,23 +103,24 @@ func NewBlockLog(dataDir string) *BlockLog {
 		blockLog.blockStream.Read(bytes)
 		rlp.DecodeBytes(bytes, &version)
 
-		//assert(version > 0, block_log_exception, "Block log was not setup properly with genesis information." )
-		//assert(version == blockLog.supportedVersion, block_log_unsupported_version,
-		//            "Unsupported version of block log. Block log version is ${version} while code supports version ${supported}",
-		//            ("version", version)("supported", block_log::supported_version) )
+		exception.EosAssert(version > 0, &exception.BlockLogAppendFail{}, "Block log was not setup properly with genesis information.")
+		exception.EosAssert(version == blockLog.supportedVersion,
+			&exception.BlockLogUnsupportedVersion{},
+			"Unsupported version of block log. Block log version is %d while code supports version %d",
+			version, blockLog.supportedVersion)
 
 		blockLog.genesisWriteToBlockLog = true
-		blockLog.head = blockLog.Head()
+		blockLog.head = blockLog.ReadHead()
 		blockLog.headId = blockLog.head.BlockID()
 
 		if indexSize > 0 {
-			var blockPos uint64 = 0
+			var blockPos int64 = 0
 			bytes = make([]byte, 8)
 			blockLog.blockStream.Seek(-8, 2) //sizeof(blockPos)
 			blockLog.blockStream.Read(bytes)
 			rlp.DecodeBytes(bytes, &blockPos)
 
-			var indexPos uint64 = 0
+			var indexPos int64 = 0
 			bytes = make([]byte, 8)
 			blockLog.indexStream.Seek(-8, 2) //sizeof(blockPos)
 			blockLog.indexStream.Read(bytes)
@@ -137,7 +147,9 @@ func NewBlockLog(dataDir string) *BlockLog {
 	return blockLog
 }
 func (b *BlockLog) Append(block *types.SignedBlock) uint64 {
-	//assert(b.genesisWriteToBlockLog,block_log_append_fail, "Cannot append to block log until the genesis is first written" )
+
+	exception.EosAssert(b.genesisWriteToBlockLog, &exception.BlockLogAppendFail{}, "Cannot append to block log until the genesis is first written")
+
 	pos, _ := b.blockStream.Seek(0, 2)
 	//indexPos, _ := b.indexStream.Seek(0, 2)
 
@@ -148,6 +160,10 @@ func (b *BlockLog) Append(block *types.SignedBlock) uint64 {
 	//                ("expected", 8 * (block.BlockNumber() - 1));
 
 	data, _ := rlp.EncodeToBytes(block)
+
+	var size uint32 = uint32(len(data))
+	bytes, _ := rlp.EncodeToBytes(&size)
+	b.blockStream.Write(bytes)
 	b.blockStream.Write(data)
 
 	posData, _ := rlp.EncodeToBytes(pos)
@@ -157,19 +173,55 @@ func (b *BlockLog) Append(block *types.SignedBlock) uint64 {
 	b.head = block
 	b.headId = block.BlockID()
 
-	return 0
+	return uint64(pos)
 }
 func (b *BlockLog) flush() {
 	b.blockStream.Close()
 	b.indexStream.Close()
 }
-func (b *BlockLog) ResetToGenesis(gs *types.GenesisState, benesisBlock *types.SignedBlock) { return }
-func (b *BlockLog) ReadBlock(pos uint64, size uint64) (*types.SignedBlock, uint64) {
+func (b *BlockLog) ResetToGenesis(gs *types.GenesisState, benesisBlock *types.SignedBlock) uint64 {
+
+	if b.blockStream != nil {
+		b.blockStream.Close()
+	}
+
+	if b.indexStream != nil {
+		b.indexStream.Close()
+	}
+
+	os.Remove(b.blockFile)
+	os.Remove(b.indexFile)
+
+	b.blockStream, _ = os.Create(b.blockFile)
+	b.indexStream, _ = os.Create(b.indexFile)
+
+	bytes, _ := rlp.EncodeToBytes(b.supportedVersion)
+	b.blockStream.Write(bytes)
+
+	bytes, _ = rlp.EncodeToBytes(gs)
+
+	var size uint32 = uint32(len(bytes))
+	sizeBytes, _ := rlp.EncodeToBytes(&size)
+	b.blockStream.Write(sizeBytes)
+	b.blockStream.Write(bytes)
+
+	ret := b.Append(benesisBlock)
+
+	b.flush()
+
+	return ret
+}
+func (b *BlockLog) ReadBlock(pos uint64) (*types.SignedBlock, uint64) {
 	//    s := size
 	// if s == 0 {//the last block (head)
 	// 	s = b.blockSteam.Seek(0,2)
 	// }
 	b.blockStream.Seek(int64(pos), 0)
+
+	sizeBytes := make([]byte, 4)
+	b.blockStream.Read(sizeBytes)
+	var size uint32
+	rlp.DecodeBytes(sizeBytes, &size)
 
 	signedBlock := &types.SignedBlock{}
 	bytes := make([]byte, size)
@@ -187,10 +239,10 @@ func (b *BlockLog) ReadBlockByNum(blockNum uint32) *types.SignedBlock {
 
 	//signedBlock := &types.SignedBlock{}
 	var block *types.SignedBlock
-	pos, size := b.GetBlockPos(blockNum)
+	pos := b.GetBlockPos(blockNum)
 
 	if pos != b.nPos {
-		block, _ = b.ReadBlock(pos, size)
+		block, _ = b.ReadBlock(pos)
 	}
 
 	// assert(b.BlockNum() == block_num, reversible_blocks_exception,
@@ -198,22 +250,24 @@ func (b *BlockLog) ReadBlockByNum(blockNum uint32) *types.SignedBlock {
 
 	return block
 }
-func (b *BlockLog) GetBlockPos(blockNum uint32) (uint64, uint64) {
 
-	if !(b.head != nil && blockNum <= types.NumFromID(b.headId) && blockNum > 0) {
-		return b.nPos, b.nSize
+func (b *BlockLog) ReadBlockById(id *common.BlockIdType) *types.SignedBlock {
+	return b.ReadBlockByNum(types.NumFromID(id))
+}
+
+func (b *BlockLog) GetBlockPos(blockNum uint32) uint64 {
+
+	if !(b.head != nil && blockNum <= types.NumFromID(&b.headId) && blockNum > 0) {
+		return b.nPos
 	}
 
-	var pos, nextPos uint64
+	var pos uint64
 	bytes := make([]byte, 8)
 	b.indexStream.Seek(8*(int64(blockNum)-1), 0)
 	b.indexStream.Read(bytes)
 	rlp.DecodeBytes(bytes, &pos)
 
-	b.indexStream.Read(bytes)
-	rlp.DecodeBytes(bytes, &nextPos)
-
-	return pos, nextPos - pos
+	return pos //, nextPos - pos
 }
 func (b *BlockLog) ReadHead() *types.SignedBlock {
 
@@ -228,9 +282,7 @@ func (b *BlockLog) ReadHead() *types.SignedBlock {
 	b.blockStream.Read(bytes)
 	rlp.DecodeBytes(bytes, &pos)
 
-	size, _ := b.blockStream.Seek(0, 2)
-	block, _ := b.ReadBlock(pos, uint64(size))
-
+	block, _ := b.ReadBlock(pos)
 	return block
 }
 func (b *BlockLog) Head() *types.SignedBlock {
@@ -241,41 +293,72 @@ func (b *BlockLog) ConstructIndex() {
 	//ilog("Reconstructing Block Log Index...")
 	b.indexStream.Close()
 	os.Remove(b.indexFile)
+	b.indexStream, _ = os.Create(b.indexFile)
+	b.indexStream.Close()
 	b.indexStream, _ = os.OpenFile(b.indexFile, os.O_RDWR, os.ModePerm)
 
-	tmpfilename := ""
-	tmp, _ := os.OpenFile(tmpfilename, os.O_RDWR, os.ModePerm)
+	var gsSize uint32
+	b.blockStream.Seek(4, 0)
+	gsSizeBytes := make([]byte, 4)
+	b.blockStream.Read(gsSizeBytes)
+	rlp.DecodeBytes(gsSizeBytes, &gsSize)
+	pos, _ := b.blockStream.Seek(int64(gsSize), 1)
 
-	var endPos int64
-	bytes := make([]byte, 8)
-	b.blockStream.Seek(-8, 2)
-	b.blockStream.Read(bytes)
-	rlp.DecodeBytes(bytes, &endPos)
+	bytes, _ := rlp.EncodeToBytes(pos)
 
-	var pos int64 = 4
-	for {
-		tmp.Write(bytes)
-
-		endPos -= 8
-		if pos < endPos {
-			break
-		}
-		b.blockStream.Seek(endPos, 0)
-		b.blockStream.Read(bytes)
-		rlp.DecodeBytes(bytes, &endPos)
+	if pos == 0 {
+		return
 	}
 
-	count, _ := tmp.Seek(0, 2)
-	count /= 8
-	for i := int64(0); i < count; i++ {
-
-		tmp.Seek(-i*8, 2)
-		tmp.Read(bytes)
-
+	for pos > 0 {
 		b.indexStream.Write(bytes)
+
+		var size uint32
+		sizeBytes := make([]byte, 4)
+		b.blockStream.Read(sizeBytes)
+		rlp.DecodeBytes(sizeBytes, &size)
+		if size == 0 {
+			break
+		}
+
+		pos, _ = b.blockStream.Seek(int64(size), 1)
+		if pos == 0 {
+			break
+		}
+
+		pos += 8 //8 bytes pos
+		//rlp.DecodeBytes(bytes, &pos)
+		bytes, _ = rlp.EncodeToBytes(pos)
 	}
 
 	return
 }
 func (b *BlockLog) repairLog(dataDir string, truncateAtBlock uint32) string { return "" }
-func (b *BlockLog) ExtractGenesisState(dataDir string) types.GenesisState   { return types.GenesisState{} }
+func (b *BlockLog) ExtractGenesisState(dataDir string) types.GenesisState {
+
+	blockStream, _ := os.OpenFile(dataDir+"/blocks.log", os.O_RDWR, os.ModePerm)
+	blockStream.Seek(0, 0)
+	var version uint32 = 0
+	bytes := make([]byte, 4)
+	blockStream.Read(bytes)
+	rlp.DecodeBytes(bytes, &version)
+
+	exception.EosAssert(version > 0, &exception.BlockLogAppendFail{}, "Block log was not setup properly with genesis information.")
+	exception.EosAssert(version == b.supportedVersion,
+		&exception.BlockLogUnsupportedVersion{},
+		"Unsupported version of block log. Block log version is %d while code supports version %d",
+		version, b.supportedVersion)
+
+	var gsSize uint32
+	gsSizeBytes := make([]byte, 4)
+	blockStream.Read(gsSizeBytes)
+	rlp.DecodeBytes(gsSizeBytes, &gsSize)
+
+	gsBytes := make([]byte, gsSize)
+	blockStream.Read(gsBytes)
+
+	gs := types.GenesisState{}
+	rlp.DecodeBytes(gsBytes, &gs)
+
+	return gs
+}
