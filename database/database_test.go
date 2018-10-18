@@ -52,12 +52,12 @@ func Test_rawDb(t *testing.T) {
 		//fmt.Println(it.Key())
 	}
 
-
 	it = db.NewIterator(&util.Range{Start:[]byte(string(3)),Limit:[]byte(string(11))},nil)
 
 	for it.Next(){
 		//fmt.Println(it.Key())
 	}
+	i := 0
 	for index,v := range houses{
 		b,err := rlp.EncodeToBytes(v)
 		if err != nil{
@@ -67,6 +67,7 @@ func Test_rawDb(t *testing.T) {
 		if err != nil{
 			log.Fatalln(err)
 		}
+		i++
 	}
 }
 
@@ -127,13 +128,14 @@ func saveObjs(objs []TableIdObject, houses []House, db DataBase) ([]TableIdObjec
 		if err != nil {
 			log.Fatalln("insert table object failed")
 		}
+
 		objs_ = append(objs_, v)
 	}
 
 	for _, v := range houses {
 		err := db.Insert(&v)
 		if err != nil {
-			log.Fatalln("insert house object failed")
+			log.Fatalln(err)
 		}
 		houses_ = append(houses_, v)
 	}

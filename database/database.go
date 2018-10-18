@@ -445,6 +445,8 @@ func incrementField(cfg *structInfo, tx *leveldb.DB) error {
 	if value == nil && err == nil {
 		return err
 	}
+	tx.Delete(key,nil)
+	return saveKey(key,value,tx)
 	return tx.Put(key, value, nil)
 }
 
@@ -482,6 +484,7 @@ func copyInterface(data interface{}) interface{} {
 
 func (ldb *LDataBase) lowerBound(begin,end,fieldName []byte,data interface{},greater bool) (*DbIterator,error){
 	//TODO
+
 	fields, err := getFieldInfo(string(fieldName), data)
 	if err != nil {
 		return nil, err

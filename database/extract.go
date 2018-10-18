@@ -1,22 +1,23 @@
 
 package database
+
 import (
 	"bytes"
 	"encoding/binary"
 	"fmt"
 	"reflect"
-	"strconv"
 	"strings"
 )
 
 const (
 	tagPrefix	 	= 	"multiIndex"
 	tagID        	= 	"id"
-	tagIdx       	= 	"orderedNonUnique"
+	tagNoUniqueIdx  = 	"orderedNonUnique"
 	tagUniqueIdx 	= 	"orderedUnique"
 	tagIncrement 	= 	"increment"
 	tagLess		 	= 	"less"
 	tagGreater	 	= 	"greater"
+	tagInline	 	= 	"inline"
 )
 
 
@@ -132,31 +133,87 @@ func extractStruct(s *reflect.Value,mi ...*structInfo) (*structInfo,error) {
 			return nil, err
 		}
 	}
-
 	return m, nil
 }
 
-func (f *fieldInfo,)addFieldInfo(fieldName string,fieldValue *reflect.Value){
-	f.fieldName = append(f.fieldName,fieldName)
-	f.fieldValue = append(f.fieldValue,fieldValue)
+func addFieldInfo(tag ,fieldName string,fieldValue *reflect.Value,f *fieldInfo,m * structInfo){
+	if v,ok := m.Fields[tag];ok{
+		v.fieldName = append(v.fieldName,fieldName)
+		v.fieldValue = append(v.fieldValue,fieldValue)
+	}else{
+		f.typeName = m.Name
+		f.fieldName = append(f.fieldName,fieldName)
+		f.fieldValue = append(f.fieldValue,fieldValue)
+		m.Fields[tag] = f
+	}
+
 }
 
-func extractSort(tag *string,f *fieldInfo)error{
+func splitSubTag(fieldName string,fieldValue *reflect.Value,tag string,m *structInfo)error{
 
-	tmp := *tag
-	if strings.Contains(tmp,":"){
+	tags := strings.Split(tag,",")
+	//fmt.Println(tags)
+	tagLen := len(tags)
+	tagPre := tags[0]
+	if tagPre == tagID{
+		for _,subTag := range tags{
+			//fmt.Println(subTag)
+			if subTag == tagGreater || subTag ==  tagLess {
+				return ErrIdNoSort
+			}
 
-		parts := strings.Split(tmp,":")
-		if len(parts) != 2 && parts[1] != tagLess && parts[1] != tagGreater {
-			return ErrUnknownTag
+			f  := fieldInfo{}
+			f.unique = true
+			m.Id = fieldValue
+			m.IncrementStart = 1
+			addFieldInfo(subTag,tagID,fieldValue,&f,m)
+
 		}
+		return nil
+	}else if tagPre == tagUniqueIdx || tagPre == tagNoUniqueIdx{
+		f  := fieldInfo{}
+		if tagPre == tagUniqueIdx{
+			f.unique = true
+		}
+		subTag := fieldName
+		if tagLen > 1{
+			sor := tags[1]
+			if sor != tagGreater && sor != tagLess{
+				return ErrTagInvalid
+			}
+			if sor == tagGreater{
+				f.greater = true
+			}
+		}
+		addFieldInfo(subTag,fieldName,fieldValue,&f,m)
+		return nil
+	}
 
-		tagSort := parts[1]
-		*tag = parts[0]
-		if tagSort == tagGreater{
+	if tagLen < 2{
+		return ErrTagInvalid
+	}
+
+	f  := fieldInfo{}
+	f.typeName = m.Name
+
+	if tagLen > 2{
+		sor := tags[2]
+		if sor != tagGreater && sor != tagLess{
+			return ErrTagInvalid
+		}
+		if sor == tagGreater{
 			f.greater = true
 		}
 	}
+	tagIdx := tags[1]
+	if tagIdx != tagUniqueIdx && tagIdx != tagNoUniqueIdx{
+		return ErrTagInvalid
+	}
+
+	if tagIdx == tagUniqueIdx{
+		f.unique = true
+	}
+	addFieldInfo(tagPre,fieldName,fieldValue,&f,m)
 	return nil
 }
 
@@ -167,86 +224,16 @@ func extractF(value *reflect.Value, field *reflect.StructField, m *structInfo)er
 		return nil
 	}
 
-	fieldName := field.Name
-	fieldValue := value
+	tags := strings.Split(tag,":")
 
-	tags := strings.Split(tag,",")
-	if len(tags) == 1{
-		// 单一 index or unique
-		tag = tags[0]
-
-		f  := fieldInfo{}
-		f.typeName = m.Name
-		err := extractSort(&tag,&f)
-		if err != nil{
-			return err
-		}
-
-
-		if tag != tagIdx && tag!= tagUniqueIdx{
-			return ErrUnknownTag
-		}
-		if tag == tagUniqueIdx{
-			f.unique = true
-		}
-		if v,ok := m.Fields[fieldName];ok{
-			v.addFieldInfo(fieldName,fieldValue)
-		}else{
-
-			f.addFieldInfo(fieldName,fieldValue)
-			m.Fields[fieldName] = &f
-		}
-		return nil
-	}
+	//fmt.Println(tags)
 
 	for _,tag := range tags{
-		if tag == tagIdx || tag == tagUniqueIdx{
-			continue
-		}
-
-		if tag == tagID{
-			f  := fieldInfo{}
-			f.typeName = m.Name
-			f.unique = true
-			f.addFieldInfo(fieldName,fieldValue)
-			m.Fields[tag] = &f
-			m.Id = value
-			m.IncrementStart = 1
-			continue
-		}
-
-		if strings.HasPrefix(tag, tagIncrement) {
-			parts := strings.Split(tag, "=")
-			if parts[0] != tagIncrement {
-				return ErrUnknownTag
-			}
-			if _,ok := m.Fields[tagID];!ok{
-				return ErrUnknownTag
-			}
-			if len(parts) > 1 {
-				incrementStart, err := strconv.ParseInt(parts[1], 0, 64)
-				if err != nil {
-					return err
-				}
-				m.IncrementStart = incrementStart
-			}
-		}
-
-
-		f  := fieldInfo{}
-		f.typeName = m.Name
-		err := extractSort(&tag,&f)
+		err := splitSubTag(field.Name,value,tag,m)
 		if err != nil{
 			return err
 		}
-
-		if v,ok := m.Fields[tag];ok{
-			v.addFieldInfo(fieldName,fieldValue)
-		}else{
-			f.addFieldInfo(fieldName,fieldValue)
-			m.Fields[tag] = &f
-		}
 	}
-
 	return  nil
 }
+
