@@ -12,7 +12,7 @@ func init() {
 }
 
 type ResourceLimitsStateObject struct {
-	ID                   common.IdType `multiIndex:"id,increment,byId"`
+	ID                   common.IdType `multiIndex:"id,increment"`
 	AverageBlockNetUsage types.UsageAccumulator
 	AverageBlockCpuUsage types.UsageAccumulator
 	PendingNetUsage      uint64

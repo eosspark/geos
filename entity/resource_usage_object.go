@@ -6,8 +6,8 @@ import (
 )
 
 type ResourceUsageObject struct {
-	ID       common.IdType      `multiIndex:"id,increment,byId"`
-	Owner    common.AccountName `multiIndex:"orderedNonUnique,byOwner"`
+	ID       common.IdType      `multiIndex:"id,increment"`
+	Owner    common.AccountName `multiIndex:"byOwner,orderedNonUnique"`
 	NetUsage types.UsageAccumulator
 	CpuUsage types.UsageAccumulator
 	RamUsage uint64

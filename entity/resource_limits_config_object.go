@@ -19,7 +19,7 @@ type ResourceLimitsConfigObject struct {
 	AccountNetUsageAverageWindow uint32
 }
 
-func NewResourceLimitsConfigObject() *ResourceLimitsConfigObject{
+func NewResourceLimitsConfigObject() ResourceLimitsConfigObject{
 	config := ResourceLimitsConfigObject{}
 	config.CpuLimitParameters = types.ElasticLimitParameters{Target:common.EosPercent(uint64(common.DefaultConfig.MaxBlockCpuUsage), common.DefaultConfig.TargetBlockCpuUsagePct),
 		Max:uint64(common.DefaultConfig.MaxBlockCpuUsage),
@@ -34,5 +34,5 @@ func NewResourceLimitsConfigObject() *ResourceLimitsConfigObject{
 	}
 	config.AccountCpuUsageAverageWindow = common.DefaultConfig.AccountCpuUsageAverageWindowMs / uint32(common.DefaultConfig.BlockIntervalMs)
 	config.AccountNetUsageAverageWindow = common.DefaultConfig.AccountNetUsageAverageWindowMs / uint32(common.DefaultConfig.BlockIntervalMs)
-	return &config
+	return config
 }
