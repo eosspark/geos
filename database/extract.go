@@ -20,18 +20,12 @@ const (
 	tagInline	 	= 	"inline"
 )
 
-
-
 /*
-tag
-	fieldName	fieldName	fieldName
-	fieldValue	fieldValue	fieldValue
 
 tag
-	fieldName	fieldName	fieldName
-	fieldValue	fieldValue	fieldValue
-
-tag
+	unique
+	greater
+	typeName
 	fieldName	fieldName	fieldName
 	fieldValue	fieldValue	fieldValue
 */
@@ -45,6 +39,15 @@ type fieldInfo struct{
 	fieldValue 	[]*reflect.Value
 }
 
+/*
+
+tag
+	name 			--> TypeName
+	IncrementStart 	--> for id
+	Id
+	fields			--> tag-fieldInfo tag-fieldInfo tag-fieldInfo
+*/
+//// TODO A separate module for external use in the future
 type structInfo struct{
 	Name 			string
 	IncrementStart 	int64
@@ -78,7 +81,6 @@ func numbertob(v interface{}) ([]byte, error) {
 	}
 	return buf.Bytes(), nil
 }
-
 
 func (s*structInfo)showStructInfo(){
 	fmt.Println("name : ",s.Name)
@@ -136,59 +138,88 @@ func extractStruct(s *reflect.Value,mi ...*structInfo) (*structInfo,error) {
 	return m, nil
 }
 
-func addFieldInfo(tag ,fieldName string,fieldValue *reflect.Value,f *fieldInfo,m * structInfo){
-	if v,ok := m.Fields[tag];ok{
-		v.fieldName = append(v.fieldName,fieldName)
-		v.fieldValue = append(v.fieldValue,fieldValue)
-	}else{
-		f.typeName = m.Name
-		f.fieldName = append(f.fieldName,fieldName)
-		f.fieldValue = append(f.fieldValue,fieldValue)
-		m.Fields[tag] = f
+func extractF(value *reflect.Value, field *reflect.StructField, m *structInfo)error{
+
+	tag := field.Tag.Get(tagPrefix)
+	if tag == ""{
+		return nil
 	}
 
+	tags := strings.Split(tag,":")
+
+	//fmt.Println(tags)
+
+	for _,tag := range tags{
+		err := splitSubTag(field.Name,value,tag,m)
+		if err != nil{
+			return err
+		}
+	}
+	return  nil
 }
 
 func splitSubTag(fieldName string,fieldValue *reflect.Value,tag string,m *structInfo)error{
 
 	tags := strings.Split(tag,",")
 	//fmt.Println(tags)
-	tagLen := len(tags)
 	tagPre := tags[0]
 	if tagPre == tagID{
-		for _,subTag := range tags{
-			//fmt.Println(subTag)
-			if subTag == tagGreater || subTag ==  tagLess {
-				return ErrIdNoSort
-			}
 
-			f  := fieldInfo{}
-			f.unique = true
-			m.Id = fieldValue
-			m.IncrementStart = 1
-			addFieldInfo(subTag,tagID,fieldValue,&f,m)
-
-		}
-		return nil
+		return doIdTag(tags,fieldValue,m)
 	}else if tagPre == tagUniqueIdx || tagPre == tagNoUniqueIdx{
-		f  := fieldInfo{}
-		if tagPre == tagUniqueIdx{
-			f.unique = true
+
+		return doUniqueOrNoUniqueTag(tagPre,fieldName,tags,fieldValue,m)
+	}else if tagPre == tagInline{
+		_,err := extractStruct(fieldValue,m)
+		if err != nil{
+			return err
 		}
-		subTag := fieldName
-		if tagLen > 1{
-			sor := tags[1]
-			if sor != tagGreater && sor != tagLess{
-				return ErrTagInvalid
-			}
-			if sor == tagGreater{
-				f.greater = true
-			}
-		}
-		addFieldInfo(subTag,fieldName,fieldValue,&f,m)
 		return nil
 	}
+	return doOtherTag(tagPre,fieldName,tags,fieldValue,m)
+}
 
+func doIdTag(tags []string,fieldValue *reflect.Value,m *structInfo)error{
+	for _,subTag := range tags{
+		//fmt.Println(subTag)
+		if subTag == tagGreater || subTag ==  tagLess {
+			return ErrIdNoSort
+		}
+
+		f  := fieldInfo{}
+		f.unique = true
+		m.Id = fieldValue
+		m.IncrementStart = 1
+		addFieldInfo(subTag,tagID,fieldValue,&f,m)
+
+	}
+	return nil
+}
+
+func doUniqueOrNoUniqueTag(tagPre,fieldName string,tags []string,fieldValue *reflect.Value,m *structInfo)error{
+
+	f  := fieldInfo{}
+	if tagPre == tagUniqueIdx{
+		f.unique = true
+	}
+	tagLen := len(tags)
+	subTag := fieldName
+	if tagLen > 1{
+		sor := tags[1]
+		if sor != tagGreater && sor != tagLess{
+			return ErrTagInvalid
+		}
+		if sor == tagGreater{
+			f.greater = true
+		}
+	}
+	addFieldInfo(subTag,fieldName,fieldValue,&f,m)
+	return nil
+}
+
+func doOtherTag(tagPre,fieldName string,tags []string,fieldValue *reflect.Value,m *structInfo)error{
+
+	tagLen := len(tags)
 	if tagLen < 2{
 		return ErrTagInvalid
 	}
@@ -217,23 +248,15 @@ func splitSubTag(fieldName string,fieldValue *reflect.Value,tag string,m *struct
 	return nil
 }
 
-func extractF(value *reflect.Value, field *reflect.StructField, m *structInfo)error{
-
-	tag := field.Tag.Get(tagPrefix)
-	if tag == ""{
-		return nil
+func addFieldInfo(tag ,fieldName string,fieldValue *reflect.Value,f *fieldInfo,m * structInfo){
+	if v,ok := m.Fields[tag];ok{
+		v.fieldName = append(v.fieldName,fieldName)
+		v.fieldValue = append(v.fieldValue,fieldValue)
+	}else{
+		f.typeName = m.Name
+		f.fieldName = append(f.fieldName,fieldName)
+		f.fieldValue = append(f.fieldValue,fieldValue)
+		m.Fields[tag] = f
 	}
 
-	tags := strings.Split(tag,":")
-
-	//fmt.Println(tags)
-
-	for _,tag := range tags{
-		err := splitSubTag(field.Name,value,tag,m)
-		if err != nil{
-			return err
-		}
-	}
-	return  nil
 }
-

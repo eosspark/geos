@@ -10,15 +10,15 @@ import (
 
 /////////////////////////////////////////////////////// test struct ///////////////////////////////////////////
 type Carnivore struct {
-	Lion  int
-	Tiger int
+	Lion  int `multiIndex:"orderedNonUnique,greater"`
+	Tiger int `multiIndex:"orderedNonUnique,greater"`
 }
 
 type House struct {
 	Id       uint64 `multiIndex:"id,increment"`
 	Area     uint64 `multiIndex:"orderedUnique,greater"`
 	Name     string
-	Carnivore Carnivore `multiIndex:"orderedNonUnique"`
+	Carnivore Carnivore `multiIndex:"inline"`
 }
 
 type IdType uint64
