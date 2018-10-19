@@ -5,6 +5,12 @@ import (
 	"github.com/eosspark/eos-go/chain/types"
 )
 
+var DefaultResourceLimitsStateObject ResourceLimitsStateObject
+
+func init() {
+	DefaultResourceLimitsStateObject.ID = 1
+}
+
 type ResourceLimitsStateObject struct {
 	ID                   common.IdType `multiIndex:"id,increment,byId"`
 	AverageBlockNetUsage types.UsageAccumulator

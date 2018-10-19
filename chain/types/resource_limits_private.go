@@ -5,6 +5,7 @@ import (
 	"math"
 	"math/big"
 	"github.com/eosspark/eos-go/log"
+	. "github.com/eosspark/eos-go/exception"
 )
 
 type Ratio struct {
@@ -38,7 +39,9 @@ func UpdateElasticLimit(currentLimit uint64, averageUsage uint64, params Elastic
 }
 
 func (elp ElasticLimitParameters) Validate() {
-
+	EosAssert(elp.Periods > 0, &ResourceLimitException{}, "elastic limit parameter 'periods' cannot be zero")
+	EosAssert(elp.ContractRate.Denominator > 0, &ResourceLimitException{}, "elastic limit parameter 'contract_rate' is not a well-defined ratio")
+	EosAssert(elp.ExpandRate.Denominator > 0, &ResourceLimitException{}, "elastic limit parameter 'expand_rate' is not a well-defined ratio")
 }
 
 func IntegerDivideCeil(num *big.Int, den *big.Int) *big.Int {

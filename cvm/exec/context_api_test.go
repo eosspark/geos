@@ -174,9 +174,9 @@ func TestContextPrint(t *testing.T) {
 		result = trace.PendingConsoleOutput
 
 		s := strings.Split(result, "\n")
-		//assert.Equal(t, s[0], figure.Int128(0).ToString)
-		//assert.Equal(t, s[1], figure.Int128(1).ToString)
-		//assert.Equal(t, s[3], figure.Int128(-87654323456).ToString)
+		//assert.Equal(t, s[0], figure.Int128(0).String)
+		//assert.Equal(t, s[1], figure.Int128(1).String)
+		//assert.Equal(t, s[3], figure.Int128(-87654323456).String)
 		fmt.Println(s)
 
 		trace = callTestFunction(code, "test_print", "test_printsf", []byte{})

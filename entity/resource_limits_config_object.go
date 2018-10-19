@@ -5,8 +5,14 @@ import (
 	"github.com/eosspark/eos-go/chain/types"
 )
 
+var DefaultResourceLimitsConfigObject ResourceLimitsConfigObject
+
+func init() {
+	DefaultResourceLimitsConfigObject.ID = 1
+}
+
 type ResourceLimitsConfigObject struct {
-	ID                           common.IdType `multiIndex:"id,increment,byId"`
+	ID                           common.IdType `multiIndex:"id,increment"`
 	CpuLimitParameters           types.ElasticLimitParameters
 	NetLimitParameters           types.ElasticLimitParameters
 	AccountCpuUsageAverageWindow uint32

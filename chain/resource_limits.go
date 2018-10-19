@@ -1,11 +1,12 @@
 package chain
 
 import (
-	"fmt"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/database"
 	"github.com/eosspark/eos-go/entity"
+	"github.com/eosspark/eos-go/common/arithmetic_types"
+	. "github.com/eosspark/eos-go/exception"
 )
 
 var IsActiveRc bool
@@ -17,7 +18,6 @@ type ResourceLimitsManager struct {
 }
 
 func GetResourceLimitsManager() *ResourceLimitsManager {
-	//return &ResourceLimitsManager{}
 	if !IsActiveRc {
 		rcInstance = newResourceLimitsManager()
 	}
@@ -26,124 +26,108 @@ func GetResourceLimitsManager() *ResourceLimitsManager {
 
 func newResourceLimitsManager() *ResourceLimitsManager {
 	IsActiveRc = true
-	control := GetControllerInstance()
-	db := control.DataBase()
+	//control := GetControllerInstance()
+	//db := control.DataBase()
+	db, _ := database.NewDataBase(common.DefaultConfig.DefaultStateDirName)
 	return &ResourceLimitsManager{db: db}
 }
 
-func (rlm *ResourceLimitsManager) InitializeDatabase() {
+func (r *ResourceLimitsManager) InitializeDatabase() {
 	config := entity.NewResourceLimitsConfigObject()
-	rlm.db.Insert(&config)
-	state := entity.ResourceLimitsStateObject{}
-	rlm.db.Find("byId", state, &state)
-	rlm.db.Modify(&state, func(perm entity.ResourceLimitsStateObject) {
-		perm.VirtualCpuLimit = config.CpuLimitParameters.Max
-		perm.VirtualNetLimit = config.NetLimitParameters.Max
+	r.db.Insert(&config)
+
+	state := entity.DefaultResourceLimitsStateObject
+	state.VirtualCpuLimit = config.CpuLimitParameters.Max
+	state.VirtualNetLimit = config.NetLimitParameters.Max
+	r.db.Insert(&state)
+}
+
+func (r *ResourceLimitsManager) InitializeAccount(account common.AccountName) {
+	bl := entity.ResourceLimitsObject{}
+	bl.Owner = account
+	r.db.Insert(&bl)
+
+	bu := entity.ResourceUsageObject{}
+	bu.Owner = account
+	r.db.Insert(&bu)
+}
+
+func (r *ResourceLimitsManager) SetBlockParameters(cpuLimitParameters types.ElasticLimitParameters, netLimitParameters types.ElasticLimitParameters) {
+	cpuLimitParameters.Validate()
+	netLimitParameters.Validate()
+	config := entity.DefaultResourceLimitsConfigObject
+	r.db.Find("id", config, &config)
+	r.db.Modify(&config, func(c entity.ResourceLimitsConfigObject) {
+		c.CpuLimitParameters = cpuLimitParameters
+		c.NetLimitParameters = netLimitParameters
 	})
 }
 
-func (rlm *ResourceLimitsManager) InitializeAccount(account common.AccountName) {
-	rlo := entity.ResourceLimitsObject{}
-	rlo.Owner = account
-	fmt.Println("===============:", rlm.db)
-	rlm.db.Insert(&rlo)
-
-	ruo := entity.ResourceUsageObject{}
-	ruo.Owner = account
-	rlm.db.Insert(&ruo)
+func (r *ResourceLimitsManager) UpdateAccountUsage(account []common.AccountName, timeSlot uint32) { //待定
+	config := entity.DefaultResourceLimitsConfigObject
+	r.db.Find("id", config, &config)
+	usage := entity.ResourceUsageObject{}
+	for _, a := range account {
+		usage.Owner = a
+		r.db.Find("ByOwner", usage, &usage)
+		r.db.Modify(&usage, func(bu entity.ResourceUsageObject) {
+			bu.NetUsage.Add(0, timeSlot, config.AccountNetUsageAverageWindow)
+			bu.CpuUsage.Add(0, timeSlot, config.AccountCpuUsageAverageWindow)
+		})
+	}
 }
 
-func (rlm *ResourceLimitsManager) SetBlockParameters(cpuLimitParameters types.ElasticLimitParameters, netLimitParameters types.ElasticLimitParameters) {
-	//cpuLimitParameters.Validate()
-	//netLimitParameters.Validate()
-	//config := entity.ResourceLimitsConfigObject{}
-	//rlm.db.Find("byId", &config)
-	//rlm.db.Modify(&config, func(data interface{}) error {
-	//	//ref := reflect.ValueOf(data).Elem()
-	//	//if ref.CanSet() {
-	//	//	ref.FieldByName("CpuLimitParameters").Set(reflect.ValueOf(cpuLimitParameters))
-	//	//	ref.FieldByName("NetLimitParameters").Set(reflect.ValueOf(netLimitParameters))
-	//	//} else {
-	//	//	// log ?
-	//	//}
-	//	config.CpuLimitParameters = cpuLimitParameters
-	//	config.NetLimitParameters = netLimitParameters
-	//	return nil
-	//})
-}
+func (r *ResourceLimitsManager) AddTransactionUsage(account []common.AccountName, cpuUsage uint64, netUsage uint64, timeSlot uint32) {
+	state := entity.DefaultResourceLimitsStateObject
+	r.db.Find("id", state, &state)
+	config := entity.DefaultResourceLimitsConfigObject
+	r.db.Find("id", config, &config)
+	for _, a := range account {
+		usage := entity.ResourceUsageObject{}
+		usage.Owner = a
+		r.db.Find("byOwner", usage, &usage)
+		var unUsed, netWeight, cpuWeight int64
+		r.GetAccountLimits(a, &unUsed, &netWeight, &cpuWeight)
+		r.db.Modify(&usage, func(bu entity.ResourceUsageObject) {
+			bu.CpuUsage.Add(netUsage, timeSlot, config.AccountNetUsageAverageWindow)
+			bu.NetUsage.Add(cpuUsage, timeSlot, config.AccountCpuUsageAverageWindow)
+		})
 
-func (rlm *ResourceLimitsManager) UpdateAccountUsage(account []common.AccountName, timeSlot uint32) { //待定
-	//config := entity.ResourceLimitsConfigObject{}
-	//rlm.db.Find("byId", &config)
-	//ruo := entity.ResourceUsageObject{}
-	//for _, a := range account {
-	//	ruo.Owner = a
-	//	rlm.db.Find("ByOwner", &ruo)
-	//	rlm.db.Modify(&ruo, func(data interface{}) error {
-	//		ruo.NetUsage.Add(0, timeSlot, config.AccountNetUsageAverageWindow)
-	//		ruo.CpuUsage.Add(0, timeSlot, config.AccountCpuUsageAverageWindow)
-	//		return nil
-	//	})
-	//}
-}
+		if cpuWeight >= 0 && state.TotalCpuWeight > 0 {
+			windowSize := uint64(config.AccountCpuUsageAverageWindow)
+			virtualNetworkCapacityInWindow := arithmeticTypes.MulUint64(state.VirtualCpuLimit, windowSize)
+			cpuUsedInWindow := arithmeticTypes.MulUint64(usage.CpuUsage.ValueEx, windowSize)
+			cpuUsedInWindow, _ = cpuUsedInWindow.Div(arithmeticTypes.Uint128{0, uint64(common.DefaultConfig.RateLimitingPrecision)})
+			userWeight := arithmeticTypes.Uint128{0, uint64(cpuWeight)}
+			allUserWeight :=  arithmeticTypes.Uint128{0, state.TotalCpuWeight}
 
-func (rlm *ResourceLimitsManager) AddTransactionUsage(account []common.AccountName, cpuUsage uint64, netUsage uint64, timeSlot uint32) {
-	//state := entity.ResourceLimitsStateObject{}
-	//rlm.db.Find("byId", &state)
-	//config := entity.ResourceLimitsConfigObject{}
-	//rlm.db.Find("byId", &config)
-	//for _, a := range account {
-	//	ruo := entity.ResourceUsageObject{}
-	//	ruo.Owner = a
-	//	rlm.db.Find("byOwner", &ruo)
-	//	var unUsed, netWeight, cpuWeight int64
-	//	rlm.GetAccountLimits(a, &unUsed, &netWeight, &cpuWeight)
-	//	rlm.db.Modify(&ruo, func(data interface{}) error {
-	//		ruo.CpuUsage.Add(netUsage, timeSlot, config.AccountNetUsageAverageWindow)
-	//		ruo.NetUsage.Add(cpuUsage, timeSlot, config.AccountCpuUsageAverageWindow)
-	//		return nil
-	//	})
-	//
-	//	if cpuWeight >= 0 && state.TotalCpuWeight > 0 {
-	//		windowSize := new(big.Int).SetUint64(uint64(config.AccountCpuUsageAverageWindow))
-	//		virtualNetworkCapacityInWindow := new(big.Int).Mul(windowSize, new(big.Int).SetUint64(state.VirtualCpuLimit))
-	//		cpuUsedInWindow := new(big.Int).Div(
-	//			new(big.Int).Mul(windowSize, new(big.Int).SetUint64(ruo.CpuUsage.ValueEx)),
-	//			new(big.Int).SetUint64(uint64(common.DefaultConfig.RateLimitingPrecision)))
-	//
-	//		userWeight := new(big.Int).SetInt64(cpuWeight)
-	//		allUserWeight := new(big.Int).SetUint64(state.TotalCpuWeight)
-	//
-	//		maxUserUseInWindow := new(big.Int).Div(
-	//			new(big.Int).Mul(virtualNetworkCapacityInWindow, userWeight), allUserWeight)
-	//		if cpuUsedInWindow.Cmp(maxUserUseInWindow) == 1 {
-	//			fmt.Println("error")
-	//		}
-	//	}
-	//
-	//	if netWeight >= 0 && state.TotalNetWeight > 0 {
-	//		windowSize := new(big.Int).SetUint64(uint64(config.AccountNetUsageAverageWindow))
-	//		virtualNetworkCapacityInWindow := new(big.Int).Mul(windowSize, new(big.Int).SetUint64(state.VirtualNetLimit))
-	//		netUsedInWindow := new(big.Int).Div(
-	//			new(big.Int).Mul(windowSize, new(big.Int).SetUint64(ruo.NetUsage.ValueEx)),
-	//			new(big.Int).SetUint64(uint64(common.DefaultConfig.RateLimitingPrecision)))
-	//
-	//		userWeight := new(big.Int).SetInt64(netWeight)
-	//		allUserWeight := new(big.Int).SetUint64(state.TotalNetWeight)
-	//
-	//		maxUserUseInWindow := new(big.Int).Div(
-	//			new(big.Int).Mul(virtualNetworkCapacityInWindow, userWeight), allUserWeight)
-	//		if netUsedInWindow.Cmp(maxUserUseInWindow) == 1 {
-	//			fmt.Println("error")
-	//		}
-	//	}
-	//}
-	//
-	//rlm.db.Modify(&state, func(data interface{}) error {
-	//	state.PendingCpuUsage += cpuUsage
-	//	state.PendingNetUsage += netUsage
-	//	return nil
-	//})
+			maxUserUseInWindow := virtualNetworkCapacityInWindow.Mul(userWeight)
+			maxUserUseInWindow, _ = maxUserUseInWindow.Div(allUserWeight)
+			EosAssert(cpuUsedInWindow.Compare(maxUserUseInWindow) < 1, &TxCpuUsageExceed{},
+			"authorizing account %s has insufficient cpu resources for this transaction,\n cpu_used_in_window: %s,\n max_user_use_in_window: %s",
+			a, cpuUsedInWindow, maxUserUseInWindow)
+		}
+
+		if netWeight >= 0 && state.TotalNetWeight > 0 {
+			windowSize := uint64(config.AccountNetUsageAverageWindow)
+			virtualNetworkCapacityInWindow := arithmeticTypes.MulUint64(state.VirtualNetLimit, windowSize)
+			netUsedInWindow := arithmeticTypes.MulUint64(usage.NetUsage.ValueEx, windowSize)
+			netUsedInWindow, _ = netUsedInWindow.Div(arithmeticTypes.Uint128{0, uint64(common.DefaultConfig.RateLimitingPrecision)})
+			userWeight := arithmeticTypes.Uint128{0, uint64(cpuWeight)}
+			allUserWeight :=  arithmeticTypes.Uint128{0, state.TotalCpuWeight}
+
+			maxUserUseInWindow := virtualNetworkCapacityInWindow.Mul(userWeight)
+			maxUserUseInWindow, _ = maxUserUseInWindow.Div(allUserWeight)
+			EosAssert(netUsedInWindow.Compare(maxUserUseInWindow) < 1, &TxCpuUsageExceed{},
+				"authorizing account %s has insufficient cpu resources for this transaction,\n net_used_in_window: %s,\n max_user_use_in_window: %s",
+				a, netUsedInWindow, maxUserUseInWindow)
+		}
+	}
+
+	r.db.Modify(&state, func(rls entity.ResourceLimitsStateObject) {
+		rls.PendingCpuUsage += cpuUsage
+		rls.PendingNetUsage += netUsage
+	})
 
 }
 
