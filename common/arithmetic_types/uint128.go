@@ -4,11 +4,25 @@ import (
 	"fmt"
 	"math"
 	"math/big"
+	"encoding/binary"
 )
 
 type Uint128 struct {
 	High uint64
 	Low  uint64
+}
+
+type Uint128Bytes struct {
+	HighBytes []byte
+	LowBytes  []byte
+}
+
+func (u Uint128) ToUint128Bytes() Uint128Bytes {
+	highBytes := make([]byte, 8)
+	binary.BigEndian.PutUint64(highBytes, u.High)
+	lowBytes := make([]byte, 8)
+	binary.BigEndian.PutUint64(lowBytes, u.Low)
+	return Uint128Bytes{highBytes, lowBytes}
 }
 
 func (u Uint128) IsZero() bool {
@@ -134,10 +148,11 @@ func (u Uint128) Mul(v Uint128) Uint128 {
 	return Product
 }
 
-func (u Uint128) Div(divisor Uint128) (Uint128, Uint128) {
+func (u Uint128) Div(divisor Uint128) (Uint128,Uint128) {
 	if divisor.IsZero() {
 		fmt.Println("divisor cannot be zero")
 	}
+
 	Quotient := Uint128{}
 	Remainder := Uint128{}
 	for i := 0; i < 128; i++ {
@@ -152,6 +167,44 @@ func (u Uint128) Div(divisor Uint128) (Uint128, Uint128) {
 		}
 	}
 	return Quotient, Remainder
+
+	//new(big.Int).SetBytes()
+	//Quotient := new(big.Int).Div(bigIntU, bigIntV)
+	//if Quotient.BitLen() <= 64{
+	//	return Uint128{0,Quotient.Uint64()}
+	//} else {
+	//	return Uint128{new(big.Int).Div(Quotient, bigIntMul).Uint64(), Quotient.Uint64()}
+	//}
+}
+
+func (u Uint128) Sqrt() uint64 {
+	if u.IsZero() {
+		return 0
+	}
+	max := uint64(math.MaxUint64)
+	min := uint64(1)
+	m := max >> 1 + min
+	highUint128 := Uint128{}
+	lowUint128 := Uint128{}
+	product := Uint128{}
+	for {
+		product = MulUint64(m, m)
+		if u.Compare(product) > 0 {
+			min = m
+		} else if u.Compare(product) < 0 {
+			max = m
+		} else {
+			return m
+		}
+		highUint128.Low = max
+		lowUint128.Low = min
+		product = highUint128.Add(lowUint128)
+		product.RightShift()
+		m = product.Low
+		if max == m || min == m {
+			return m
+		}
+	}
 }
 
 func (u Uint128) ToString() string {

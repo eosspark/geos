@@ -17,11 +17,10 @@ type AuthorizationManager struct {
 }
 
 func GetAuthorizationManager() *AuthorizationManager {
-	return &AuthorizationManager{}
-	//if !IsActiveAz {
-	//	azInstance = newAuthorizationManager()
-	//}
-	//return azInstance
+	if !IsActiveAz {
+		azInstance = newAuthorizationManager()
+	}
+	return azInstance
 }
 
 func newAuthorizationManager() *AuthorizationManager {
