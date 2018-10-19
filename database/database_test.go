@@ -185,6 +185,8 @@ func Test_find(t *testing.T) {
 
 	findInLineFieldObjs(objs_, houses_, db)
 
+	findAllNonUniqueFieldObjs(objs_, houses_, db);
+
 	getErrStruct(db)
 }
 
@@ -325,6 +327,17 @@ func findInLineFieldObjs(objs []TableIdObject, houses []House, db DataBase) {
 		i--
 	}
 
+}
+
+func findAllNonUniqueFieldObjs(objs []TableIdObject, houses []House, db DataBase) {
+
+	obj := TableIdObject{Scope:12,Table:13}
+
+	err := db.Find("byTable",obj,&obj)
+	if err != nil{
+		log.Fatalln(err)
+	}
+	logObj(obj)
 }
 
 func Test_modify(t *testing.T) {

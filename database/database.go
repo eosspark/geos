@@ -20,7 +20,7 @@ type LDataBase struct {
 
 /*
 
-@param path 			--> 	database file (note:type-->d)
+@param path 		--> 	database file (note:type-->d)
 
 @return
 
@@ -79,7 +79,7 @@ func (ldb *LDataBase) Insert(in interface{}) error {
 //////////////////////////////////////////////////////	find object from database //////////////////////////////////////////////////////
 /*
 
-@param fieldName 	--> 	rule
+@param tagName 		--> 	tag in field tags
 @param in 			--> 	object
 @param out 			-->		output(pointer)
 
@@ -89,14 +89,14 @@ error 				-->		error 	(out invalid)
 
 */
 
-func (ldb *LDataBase) Find(fieldName string, in interface{}, out interface{}) error {
-	return find(fieldName, in, out, ldb.db)
+func (ldb *LDataBase) Find(tagName string, in interface{}, out interface{}) error {
+	return find(tagName, in, out, ldb.db)
 }
 
 //////////////////////////////////////////////////////	get multiIndex from database //////////////////////////////////////////////////////
 /*
 
-@param fieldName 	--> 	rule
+@param tagName 		--> 	tag in field tags
 @param in 			--> 	object
 
 @return
@@ -104,8 +104,8 @@ success 			-->		iterator
 error 				-->		error
 
 */
-func (ldb *LDataBase) GetIndex(fieldName string, in interface{}) (*multiIndex, error) {
-	return getIndex(fieldName, in,ldb)
+func (ldb *LDataBase) GetIndex(tagName string, in interface{}) (*multiIndex, error) {
+	return getIndex(tagName, in,ldb)
 }
 
 //////////////////////////////////////////////////////	modify object from database //////////////////////////////////////////////////////
@@ -189,7 +189,7 @@ func saveKey(key, value []byte, tx *leveldb.DB) error {
 	if ok, _ := tx.Has(key, nil); ok {
 		return ErrAlreadyExists
 	}
-
+	//fmt.Println(key)
 	err := tx.Put(key, value, nil)
 	if err != nil {
 		return err
@@ -264,7 +264,7 @@ func modify(data interface{}, fn interface{}, db *leveldb.DB) error {
 		return ErrPtrNeeded
 	}
 
-	oldInter := copyInterface(data)
+	oldInter := cloneInterface(data)
 	dataType := dataRef.Type()
 
 	fnRef := reflect.ValueOf(fn)
@@ -345,35 +345,63 @@ func modifyKey(old, new *reflect.Value, db *leveldb.DB) error {
 	return saveKey(key, val, db)
 }
 
-func find(fieldName string, value interface{}, to interface{}, db *leveldb.DB) error {
-
-	fields, err := getFieldInfo(fieldName, value)
+func find(tagName string, value interface{}, to interface{}, db *leveldb.DB) error {
+	// fieldName == tagName --> Just different types
+	fieldName := []byte(tagName)
+	fields, err := getFieldInfo(tagName, value)
 	if err != nil {
 		return err
 	}
 
-	typeName := fields.typeName
-	if !fields.unique {
-		return ErrNotFound
-	}
+	typeName := []byte(fields.typeName)
 
 	suffix := nonUniqueValue(fields)
 	if suffix == nil {
 		return ErrNotFound
 	}
-	/*
-		unique --> typename__fieldName__fieldValue
-	*/
+
 	key := typeNameFieldName(typeName, fieldName)
-
 	key = append(key, suffix...)
+	//fmt.Println("key is : ",key)
+	if !fields.unique{
+		/*
+		non unique --> typename__tagName__fieldValue[0]__fieldValue[1]...
+		*/
+		return findNonUniqueFields(key,typeName,to,db)
+	}else{
+		/*
+		unique --> typename__tagName__fieldValue
+		*/
 
+		return findUniqueFields(key,typeName,to,db)
+	}
+	return nil
+}
+
+func findNonUniqueFields(key,typeName []byte,to interface{},db *leveldb.DB)error{
+	end := make([]byte,len(key))
+	copy(end,key)
+	end[len(end) - 1] = end[len(end) - 1] + 1
+	it := db.NewIterator(&util.Range{Start:key,Limit:end},nil)
+	if !it.Next(){
+		return ErrNotFound
+	}
+	fmt.Println(it.Value())
+
+	return findDbObject(it.Value(),[]byte(typeName),to,db)
+}
+
+func findUniqueFields(key,typeName []byte,to interface{},db *leveldb.DB)error{
 	v, err := getDbKey(key, db)
 	if err != nil {
 		return err
 	}
+	return findDbObject(v,typeName,to,db)
+}
+// only key is id can be called
+func findDbObject(key,typeName []byte,to interface{},db *leveldb.DB)error{
 
-	id := idKey(v, []byte(typeName))
+	id := idKey(key, typeName)
 
 	val, err := getDbKey(id, db)
 	if err != nil {
@@ -386,68 +414,84 @@ func find(fieldName string, value interface{}, to interface{}, db *leveldb.DB) e
 	return nil
 }
 
-func getIndex(fieldName string, value interface{}, db DataBase) (*multiIndex, error) {
+func getIndex(tagName string, value interface{}, db DataBase) (*multiIndex, error) {
 
-	fields, err := getFieldInfo(fieldName, value)
+	// fieldName == tagName --> Just different types
+	fieldName := []byte(tagName)
+	fields, err := getFieldInfo(tagName, value)
 	if err != nil {
 		return nil, err
 	}
 
-	typeName := fields.typeName
+	if fields.unique {
+		return nil, ErrNotFound
+	}
 
+	typeName := []byte(fields.typeName)
 	begin := typeNameFieldName(typeName, fieldName)
 	begin = append(begin, '_')
 	begin = append(begin, '_')
 
-	if !fields.unique {
-		/*
-			index --> typename__fieldName__
-		*/
-		endl := indexEnd(begin)
-		//begin[len(begin)-1] = begin[len(begin)-1] - 1
-		it := newMultiIndex([]byte(typeName),[]byte(fieldName),begin,endl,fields.greater,db)
-		return it, nil
-	}
+	/*
+		non unique --> typename__fieldName__
+	*/
 
-	return nil, ErrNotFound
+	end := getNonUniqueEnd(begin)
+	it := newMultiIndex(typeName,fieldName,begin,end,fields.greater,db)
+	return it, nil
 }
 
 /*
-key 	 --> typeName__fieldName
-value --> id
+key 	 	--> typeName__tagName
+value 		--> id
 */
 
 func incrementField(cfg *structInfo, tx *leveldb.DB) error {
 
 	typeName := []byte(cfg.Name)
-	fieldName := []byte(tagID)
-	// typeName__fieldName
+	tagName := []byte(tagID)
+	// typeName__tagName
 	key := append(typeName, '_')
 	key = append(key, '_')
-	key = append(key, fieldName...)
+	key = append(key, tagName...)
 
-	valByte, err := tx.Get(key, nil)
-	if err != nil && err != leveldb.ErrNotFound {
+	counter,err := getIncrementId(key,cfg,tx)
+	if err != nil{
 		return err
 	}
-	counter := cfg.IncrementStart
-	if valByte != nil {
-		counter, err = numberfromb(valByte)
-		if err != nil {
-			return err
-		}
-		//fmt.Println(key ,"  ","found id : ",counter)
-		counter++
-	}
+	return setIncrementId(counter,key,cfg,tx)
+}
 
+func setIncrementId(counter int64,key []byte,cfg *structInfo, tx *leveldb.DB)(error){
 	cfg.Id.Set(reflect.ValueOf(counter).Convert(cfg.Id.Type()))
 	value, err := numbertob(cfg.Id.Interface())
 	if value == nil && err == nil {
 		return err
 	}
-	tx.Delete(key,nil)
+	err = tx.Delete(key,nil)
+	if err != nil{
+		return ErrIdTagIncrement
+	}
 	return saveKey(key,value,tx)
-	return tx.Put(key, value, nil)
+}
+
+func getIncrementId(key []byte,cfg *structInfo, tx *leveldb.DB)(int64,error){
+
+	valByte, err := tx.Get(key, nil)
+	if err != nil && err != leveldb.ErrNotFound {
+		return 0,ErrIdTagIncrement
+	}
+
+	counter := cfg.IncrementStart
+	if valByte != nil {
+		counter, err = numberfromb(valByte)
+		if err != nil {
+			return 0, ErrIdTagIncrement
+		}
+		//fmt.Println(key ,"  ","found id : ",counter)
+		counter++
+	}
+	return counter,nil
 }
 
 func getDbKey(key []byte, db *leveldb.DB) ([]byte, error) {
@@ -466,7 +510,7 @@ func getDbKey(key []byte, db *leveldb.DB) ([]byte, error) {
 	return val, err
 }
 
-func copyInterface(data interface{}) interface{} {
+func cloneInterface(data interface{}) interface{} {
 
 	src := reflect.ValueOf(data)
 	dst := reflect.New(reflect.Indirect(src).Type())
@@ -480,6 +524,12 @@ func copyInterface(data interface{}) interface{} {
 		df.Set(sf)
 	}
 	return dst.Interface()
+}
+
+
+func cloneByte(dst,src []byte)int{
+	dst = make([]byte,len(src))
+	return copy(dst,src)
 }
 
 func (ldb *LDataBase) lowerBound(begin,end,fieldName []byte,data interface{},greater bool) (*DbIterator,error){
