@@ -335,7 +335,7 @@ func findAllNonUniqueFieldObjs(objs []TableIdObject, houses []House, db DataBase
 	if err != nil{
 		log.Fatalln(err)
 	}
-	logObj(obj)
+	//logObj(obj)
 }
 
 func Test_modify(t *testing.T) {

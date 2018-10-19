@@ -139,10 +139,11 @@ func doCallBack(id, typeName []byte, cfg *structInfo, callBack func(key, value [
 // modify function
 func modifyField(cfg, oldCfg *structInfo, callBack func(newKey, oldKey []byte) error) error {
 
-	id, err := numbertob(cfg.Id.Interface())
-	if err != nil {
+	id,err := rlp.EncodeToBytes(cfg.Id.Interface())
+	if err != nil{
 		return err
 	}
+
 	typeName := []byte(cfg.Name)
 
 	for tag, fieldCfg := range cfg.Fields {

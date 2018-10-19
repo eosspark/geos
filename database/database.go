@@ -280,8 +280,10 @@ func save(data interface{}, tx *leveldb.DB) error {
 	if err != nil {
 		return err
 	}
-	//	cfg.showStructInfo()			// XXX id, err := numbertob(cfg.Id.Interface())
-	id, err := numbertob(cfg.Id.Interface())
+	id,err := rlp.EncodeToBytes(cfg.Id.Interface())
+	if err != nil{
+		return err
+	}
 	typeName := []byte(cfg.Name)
 
 	callBack := func(key, value []byte) error {
@@ -334,8 +336,10 @@ func remove(data interface{}, db *leveldb.DB) error {
 	if isZero(cfg.Id) {
 		return ErrIncompleteStructure
 	}
-	id, err := numbertob(cfg.Id.Interface())
-
+	id,err := rlp.EncodeToBytes(cfg.Id.Interface())
+	if err != nil{
+		return err
+	}
 	typeName := []byte(cfg.Name)
 
 	//fmt.Println(typeName)
@@ -440,7 +444,10 @@ func modifyKey(old, new *reflect.Value, db *leveldb.DB) error {
 		return saveKey(newKey, value, db)
 	}
 
-	id, err := numbertob(newCfg.Id.Interface())
+	id,err := rlp.EncodeToBytes(newCfg.Id.Interface())
+	if err != nil{
+		return err
+	}
 	typeName := []byte(newCfg.Name)
 	key := idKey(id, typeName)
 	val, err := rlp.EncodeToBytes(new.Interface())
