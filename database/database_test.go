@@ -182,6 +182,7 @@ func Test_find(t *testing.T) {
 	//
 	findObjs(objs_, houses_, db)
 
+	findMultiFieldObjs(objs_, houses_, db)
 	getErrStruct(db)
 }
 
@@ -294,6 +295,30 @@ func findObjs(objs []TableIdObject, houses []House, db DataBase) {
 			logObj(houses[1])
 			log.Fatalln("Find Object")
 		}
+	}
+
+}
+
+func findMultiFieldObjs(objs []TableIdObject, houses []House, db DataBase) {
+	hou := House{Carnivore:Carnivore{38,38}}
+	idx,err := db.GetIndex("Carnivore", hou)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	it ,err := idx.LowerBound(hou)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	defer it.Release()
+	for it.Next(){
+		tmp := House{}
+		it.Data(&tmp)
+		logObj(tmp)
+		//if tmp != objs[i]{
+		//	logObj(objs[i])
+		//	logObj(tmp)
+		//}
 	}
 
 }
