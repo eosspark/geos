@@ -45,7 +45,7 @@ func NewDataBase(path string) (DataBase, error) {
 		return nil, err
 	}
 
-	return &LDataBase{db: db, path: path}, nil
+	return &LDataBase{db: db, stack:newDeque(),path: path}, nil
 }
 
 func (ldb *LDataBase) Close() {
@@ -183,6 +183,7 @@ func (ldb *LDataBase) Insert(in interface{}) error {
 		// undo
 		return err
 	}
+	ldb.undoInsert(in)	// undo
 	return nil
 }
 
@@ -230,12 +231,12 @@ error 				-->		error
 
 */
 func (ldb *LDataBase) Modify(old interface{}, fn interface{}) error {
-
+	copy_ := cloneInterface(old)
 	err := modify(old, fn, ldb.db)
 	if err != nil {
-		// undo
 		return err
 	}
+	ldb.undoModify(copy_)
 	return nil
 }
 
@@ -250,7 +251,12 @@ error 				-->		error
 
 */
 func (ldb *LDataBase) Remove(in interface{}) error {
-	return remove(in, ldb.db)
+	err := remove(in, ldb.db)
+	if err != nil {
+		return err
+	}
+	ldb.undoRemove(in)
+	return  nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -735,4 +741,52 @@ func (ldb *LDataBase) getStack() *undoState {
 		//panic(TYPE_NOT_FOUND)
 	}
 	return nil
+}
+
+///////////////
+
+func (ldb *LDataBase)enable()bool{
+	return ldb.stack.Size()	 != 0
+}
+
+func (ldb *LDataBase) undoInsert(in interface{}){
+	if !ldb.enable(){
+		return
+	}
+
+	stack := ldb.getStack()
+	if stack == nil {
+		log.Println("undo session empty")
+		return
+	}
+	copy_ := cloneInterface(in)
+	stack.undoInsert(copy_)
+}
+
+func (ldb *LDataBase) undoModify(in interface{}){
+	if !ldb.enable(){
+		return
+	}
+
+	stack := ldb.getStack()
+	if stack == nil {
+		log.Println("undo session empty")
+		return
+	}
+	copy_ := cloneInterface(in)
+	stack.undoModify(copy_)
+}
+
+func (ldb *LDataBase) undoRemove(in interface{}){
+	if !ldb.enable(){
+		return
+	}
+
+	stack := ldb.getStack()
+	if stack == nil {
+		log.Println("undo session empty")
+		return
+	}
+	copy_ := cloneInterface(in)
+	stack.undoRemove(copy_)
 }
