@@ -60,23 +60,24 @@ func nonUniqueValue(info *fieldInfo)[]byte{
 			return nil
 		}
 	}
-
 	reg,_ :=  getNonUniqueFieldValue(info)
 	return reg
 }
 
 // non unique fields --> get function
+// TODO The function is unchanged, need to modify the implementation
 func getNonUniqueFieldValue(info *fieldInfo)([]byte,[]byte){
 	values := []byte{}
 	prefix := []byte{}
-	regexp := []byte{40,46,42,41}
+	//regexp := []byte{40,46,42,41}
 	count := 0
 	for _, v := range info.fieldValue {
 		values = append(values,'_')
 		values = append(values,'_')
 		if isZero(v) {
-			values = append(values,regexp...)
+			//values = append(values,regexp...)
 			count++
+			return prefix,prefix
 			continue
 		}
 		re, err := rlp.EncodeToBytes(v.Interface())

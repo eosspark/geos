@@ -122,6 +122,15 @@ func Objects() ([]TableIdObject, []House) {
 func saveObjs(objs []TableIdObject, houses []House, db DataBase) ([]TableIdObject, []House) {
 	objs_ := []TableIdObject{}
 	houses_ := []House{}
+
+	for _, v := range houses {
+		err := db.Insert(&v)
+		if err != nil {
+			log.Fatalln(err)
+		}
+		houses_ = append(houses_, v)
+	}
+
 	for _, v := range objs {
 
 		err := db.Insert(&v)
@@ -130,14 +139,6 @@ func saveObjs(objs []TableIdObject, houses []House, db DataBase) ([]TableIdObjec
 		}
 
 		objs_ = append(objs_, v)
-	}
-
-	for _, v := range houses {
-		err := db.Insert(&v)
-		if err != nil {
-			log.Fatalln(err)
-		}
-		houses_ = append(houses_, v)
 	}
 	return objs_, houses_
 }
@@ -300,8 +301,8 @@ func findObjs(objs []TableIdObject, houses []House, db DataBase) {
 }
 
 func findMultiFieldObjs(objs []TableIdObject, houses []House, db DataBase) {
-	hou := House{Carnivore:Carnivore{38,38}}
-	idx,err := db.GetIndex("Carnivore", hou)
+	hou := House{Carnivore:Carnivore{28,38}}
+	idx,err := db.GetIndex("Tiger", hou)
 	if err != nil {
 		log.Fatalln(err)
 	}

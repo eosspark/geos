@@ -138,34 +138,6 @@ func extractStruct(s *reflect.Value,mi ...*structInfo) (*structInfo,error) {
 	return m, nil
 }
 
-func addFieldInfo(tag ,fieldName string,fieldValue *reflect.Value,f *fieldInfo,m * structInfo){
-	if v,ok := m.Fields[tag];ok{
-		v.fieldName = append(v.fieldName,fieldName)
-		v.fieldValue = append(v.fieldValue,fieldValue)
-	}else{
-		f.typeName = m.Name
-		f.fieldName = append(f.fieldName,fieldName)
-		f.fieldValue = append(f.fieldValue,fieldValue)
-		m.Fields[tag] = f
-	}
-
-}
-
-func splitSubTag(fieldName string,fieldValue *reflect.Value,tag string,m *structInfo)error{
-
-	tags := strings.Split(tag,",")
-	//fmt.Println(tags)
-	tagPre := tags[0]
-	if tagPre == tagID{
-
-		return doIdTag(tags,fieldValue,m)
-	}else if tagPre == tagUniqueIdx || tagPre == tagNoUniqueIdx{
-
-		return doUniqueOrNoUniqueTag(tagPre,fieldName,tags,fieldValue,m)
-	}
-	return doOtherTag(tagPre,fieldName,tags,fieldValue,m)
-}
-
 func extractF(value *reflect.Value, field *reflect.StructField, m *structInfo)error{
 
 	tag := field.Tag.Get(tagPrefix)
@@ -184,6 +156,27 @@ func extractF(value *reflect.Value, field *reflect.StructField, m *structInfo)er
 		}
 	}
 	return  nil
+}
+
+func splitSubTag(fieldName string,fieldValue *reflect.Value,tag string,m *structInfo)error{
+
+	tags := strings.Split(tag,",")
+	//fmt.Println(tags)
+	tagPre := tags[0]
+	if tagPre == tagID{
+
+		return doIdTag(tags,fieldValue,m)
+	}else if tagPre == tagUniqueIdx || tagPre == tagNoUniqueIdx{
+
+		return doUniqueOrNoUniqueTag(tagPre,fieldName,tags,fieldValue,m)
+	}else if tagPre == tagInline{
+		_,err := extractStruct(fieldValue,m)
+		if err != nil{
+			return err
+		}
+		return nil
+	}
+	return doOtherTag(tagPre,fieldName,tags,fieldValue,m)
 }
 
 func doIdTag(tags []string,fieldValue *reflect.Value,m *structInfo)error{
@@ -253,4 +246,17 @@ func doOtherTag(tagPre,fieldName string,tags []string,fieldValue *reflect.Value,
 	}
 	addFieldInfo(tagPre,fieldName,fieldValue,&f,m)
 	return nil
+}
+
+func addFieldInfo(tag ,fieldName string,fieldValue *reflect.Value,f *fieldInfo,m * structInfo){
+	if v,ok := m.Fields[tag];ok{
+		v.fieldName = append(v.fieldName,fieldName)
+		v.fieldValue = append(v.fieldValue,fieldValue)
+	}else{
+		f.typeName = m.Name
+		f.fieldName = append(f.fieldName,fieldName)
+		f.fieldValue = append(f.fieldValue,fieldValue)
+		m.Fields[tag] = f
+	}
+
 }
