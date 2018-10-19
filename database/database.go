@@ -1,7 +1,6 @@
 package database
 
 import (
-	"fmt"
 	"log"
 	"math"
 	"reflect"
@@ -107,7 +106,7 @@ func (ldb *LDataBase) squash() {
 			continue
 		}
 		if _, ok := preStack.RemoveValue[key]; ok {
-			fmt.Println("squash failed")
+			//fmt.Println("squash failed")
 			// panic ?
 		}
 		preStack.OldValue[key] = value
@@ -179,13 +178,11 @@ error 				-->		error
 */
 
 func (ldb *LDataBase) Insert(in interface{}) error {
-
 	err := save(in, ldb.db)
 	if err != nil {
 		// undo
 		return err
 	}
-
 	return nil
 }
 
@@ -389,7 +386,7 @@ func modify(data interface{}, fn interface{}, db *leveldb.DB) error {
 	pType := fnType.In(0)
 
 	if pType.Kind() != dataType.Kind() {
-		fmt.Println(pType.String(), " <--> ", dataType.String())
+		//fmt.Println(pType.String(), " <--> ", dataType.String())
 		return errors.New("Parameter type does not match")
 	}
 
@@ -499,7 +496,7 @@ func findNonUniqueFields(key, typeName []byte, to interface{}, db *leveldb.DB) e
 	if !it.Next() {
 		return ErrNotFound
 	}
-	fmt.Println(it.Value())
+	//fmt.Println(it.Value())
 
 	return findDbObject(it.Value(), []byte(typeName), to, db)
 }
