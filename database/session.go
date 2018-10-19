@@ -3,9 +3,9 @@ package database
 
 /////////////////////////////////////////////////////// Session  //////////////////////////////////////////////////////////
 type Session struct {
-	db      *DataBase
-	version uint64
-	apply   bool
+	db      	DataBase
+	apply   	bool
+	revision 	int64
 }
 
 func (session *Session) Commit() {

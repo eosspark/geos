@@ -2,21 +2,24 @@ package database
 
 import (
 	"fmt"
+	"log"
+	"math"
+	"reflect"
+
 	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/errors"
 	"github.com/syndtr/goleveldb/leveldb/filter"
 	"github.com/syndtr/goleveldb/leveldb/opt"
 	"github.com/syndtr/goleveldb/leveldb/util"
-	"reflect"
 )
 
-
 type LDataBase struct {
-	db   *leveldb.DB
-	path string
+	db       *leveldb.DB
+	stack    *deque
+	path     string
+	revision int64
 }
-
 
 /*
 
@@ -55,6 +58,115 @@ func (ldb *LDataBase) Close() {
 	}
 }
 
+func (ldb *LDataBase) Revision() int64 {
+	return ldb.revision
+}
+
+func (ldb *LDataBase) Undo() {
+	//
+	stack := ldb.getStack()
+	if stack == nil {
+		return
+	}
+	for key, _ := range stack.OldValue {
+		log.Fatalln("modify do not work")
+		// db.modify
+		ldb.Modify(key,nil)
+	}
+	for key, _ := range stack.NewValue {
+		// db.remove
+		ldb.Remove(key)
+	}
+	for key, _ := range stack.RemoveValue {
+		// db.insert
+		ldb.Insert(key)
+	}
+	ldb.stack.Pop()
+	ldb.revision--
+}
+
+func (ldb *LDataBase) UndoAll() {
+	// TODO wait Undo
+	log.Fatalln("UndoAll do not work,Please call linx")
+}
+
+func (ldb *LDataBase) squash() {
+
+	if ldb.stack.Size() == 1 {
+		ldb.stack.Pop()
+		ldb.revision--
+		return
+	}
+	stack := ldb.getStack()
+	preStack := ldb.getSecond()
+	for key, value := range stack.OldValue {
+		if _, ok := preStack.NewValue[key]; ok {
+			continue
+		}
+		if _, ok := preStack.OldValue[key]; ok {
+			continue
+		}
+		if _, ok := preStack.RemoveValue[key]; ok {
+			fmt.Println("squash failed")
+			// panic ?
+		}
+		preStack.OldValue[key] = value
+	}
+
+	for key, value := range stack.NewValue {
+		preStack.NewValue[key] = value
+	}
+
+	for key, value := range stack.RemoveValue {
+		//fmt.Println(key, " --> ", value)
+		if _, ok := preStack.NewValue[key]; ok {
+			k := undoEqual(preStack.NewValue, key)
+			delete(preStack.NewValue, k)
+		}
+		if _, ok := preStack.OldValue[key]; ok {
+			preStack.RemoveValue[key] = value
+			k := undoEqual(preStack.OldValue, key)
+			delete(preStack.OldValue, k)
+		}
+		preStack.RemoveValue[key] = value
+	}
+	ldb.stack.Pop()
+	ldb.revision--
+}
+
+func (ldb *LDataBase) StartSession() *Session {
+	ldb.revision++
+	state := newUndoState(ldb.revision)
+	ldb.stack.Append(state)
+	return &Session{db: ldb, apply: true, revision: ldb.revision}
+}
+
+func (ldb *LDataBase) Commit(revision int64) {
+
+	for {
+		stack := ldb.getFirstStack()
+		if stack == nil {
+			break
+		}
+		if stack.reversion <= ldb.revision {
+			ldb.stack.PopFront()
+			ldb.revision--
+		} else {
+			break
+		}
+	}
+}
+
+func (ldb *LDataBase) SetRevision(revision int64) {
+	if ldb.stack.Size() != 0 {
+		// throw
+	}
+	if revision > math.MaxInt64 {
+		//throw
+	}
+	ldb.revision = revision
+}
+
 //////////////////////////////////////////////////////	insert object to database //////////////////////////////////////////////////////
 /*
 
@@ -73,6 +185,7 @@ func (ldb *LDataBase) Insert(in interface{}) error {
 		// undo
 		return err
 	}
+
 	return nil
 }
 
@@ -105,7 +218,7 @@ error 				-->		error
 
 */
 func (ldb *LDataBase) GetIndex(tagName string, in interface{}) (*multiIndex, error) {
-	return getIndex(tagName, in,ldb)
+	return getIndex(tagName, in, ldb)
 }
 
 //////////////////////////////////////////////////////	modify object from database //////////////////////////////////////////////////////
@@ -363,43 +476,44 @@ func find(tagName string, value interface{}, to interface{}, db *leveldb.DB) err
 	key := typeNameFieldName(typeName, fieldName)
 	key = append(key, suffix...)
 	//fmt.Println("key is : ",key)
-	if !fields.unique{
+	if !fields.unique {
 		/*
-		non unique --> typename__tagName__fieldValue[0]__fieldValue[1]...
+			non unique --> typename__tagName__fieldValue[0]__fieldValue[1]...
 		*/
-		return findNonUniqueFields(key,typeName,to,db)
-	}else{
+		return findNonUniqueFields(key, typeName, to, db)
+	} else {
 		/*
-		unique --> typename__tagName__fieldValue
+			unique --> typename__tagName__fieldValue
 		*/
 
-		return findUniqueFields(key,typeName,to,db)
+		return findUniqueFields(key, typeName, to, db)
 	}
 	return nil
 }
 
-func findNonUniqueFields(key,typeName []byte,to interface{},db *leveldb.DB)error{
-	end := make([]byte,len(key))
-	copy(end,key)
-	end[len(end) - 1] = end[len(end) - 1] + 1
-	it := db.NewIterator(&util.Range{Start:key,Limit:end},nil)
-	if !it.Next(){
+func findNonUniqueFields(key, typeName []byte, to interface{}, db *leveldb.DB) error {
+	end := make([]byte, len(key))
+	copy(end, key)
+	end[len(end)-1] = end[len(end)-1] + 1
+	it := db.NewIterator(&util.Range{Start: key, Limit: end}, nil)
+	if !it.Next() {
 		return ErrNotFound
 	}
 	fmt.Println(it.Value())
 
-	return findDbObject(it.Value(),[]byte(typeName),to,db)
+	return findDbObject(it.Value(), []byte(typeName), to, db)
 }
 
-func findUniqueFields(key,typeName []byte,to interface{},db *leveldb.DB)error{
+func findUniqueFields(key, typeName []byte, to interface{}, db *leveldb.DB) error {
 	v, err := getDbKey(key, db)
 	if err != nil {
 		return err
 	}
-	return findDbObject(v,typeName,to,db)
+	return findDbObject(v, typeName, to, db)
 }
+
 // only key is id can be called
-func findDbObject(key,typeName []byte,to interface{},db *leveldb.DB)error{
+func findDbObject(key, typeName []byte, to interface{}, db *leveldb.DB) error {
 
 	id := idKey(key, typeName)
 
@@ -437,7 +551,7 @@ func getIndex(tagName string, value interface{}, db DataBase) (*multiIndex, erro
 	*/
 
 	end := getNonUniqueEnd(begin)
-	it := newMultiIndex(typeName,fieldName,begin,end,fields.greater,db)
+	it := newMultiIndex(typeName, fieldName, begin, end, fields.greater, db)
 	return it, nil
 }
 
@@ -455,43 +569,43 @@ func incrementField(cfg *structInfo, tx *leveldb.DB) error {
 	key = append(key, '_')
 	key = append(key, tagName...)
 
-	counter,err := getIncrementId(key,cfg,tx)
-	if err != nil{
+	counter, err := getIncrementId(key, cfg, tx)
+	if err != nil {
 		return err
 	}
-	return setIncrementId(counter,key,cfg,tx)
+	return setIncrementId(counter, key, cfg, tx)
 }
 
-func setIncrementId(counter int64,key []byte,cfg *structInfo, tx *leveldb.DB)(error){
+func setIncrementId(counter int64, key []byte, cfg *structInfo, tx *leveldb.DB) error {
 	cfg.Id.Set(reflect.ValueOf(counter).Convert(cfg.Id.Type()))
-	value, err := numbertob(cfg.Id.Interface())
+	value ,err := rlp.EncodeToBytes(cfg.Id.Interface())
 	if value == nil && err == nil {
 		return err
 	}
-	err = tx.Delete(key,nil)
-	if err != nil{
+	err = tx.Delete(key, nil)
+	if err != nil {
 		return ErrIdTagIncrement
 	}
-	return saveKey(key,value,tx)
+	return saveKey(key, value, tx)
 }
 
-func getIncrementId(key []byte,cfg *structInfo, tx *leveldb.DB)(int64,error){
+func getIncrementId(key []byte, cfg *structInfo, tx *leveldb.DB) (int64, error) {
 
 	valByte, err := tx.Get(key, nil)
 	if err != nil && err != leveldb.ErrNotFound {
-		return 0,ErrIdTagIncrement
+		return 0, ErrIdTagIncrement
 	}
 
 	counter := cfg.IncrementStart
 	if valByte != nil {
-		counter, err = numberfromb(valByte)
+		err := rlp.DecodeBytes(valByte,&counter)
 		if err != nil {
 			return 0, ErrIdTagIncrement
 		}
 		//fmt.Println(key ,"  ","found id : ",counter)
 		counter++
 	}
-	return counter,nil
+	return counter, nil
 }
 
 func getDbKey(key []byte, db *leveldb.DB) ([]byte, error) {
@@ -526,13 +640,12 @@ func cloneInterface(data interface{}) interface{} {
 	return dst.Interface()
 }
 
-
-func cloneByte(dst,src []byte)int{
-	dst = make([]byte,len(src))
-	return copy(dst,src)
+func cloneByte(dst, src []byte) int {
+	dst = make([]byte, len(src))
+	return copy(dst, src)
 }
 
-func (ldb *LDataBase) lowerBound(begin,end,fieldName []byte,data interface{},greater bool) (*DbIterator,error){
+func (ldb *LDataBase) lowerBound(begin, end, fieldName []byte, data interface{}, greater bool) (*DbIterator, error) {
 	//TODO
 
 	fields, err := getFieldInfo(string(fieldName), data)
@@ -540,50 +653,89 @@ func (ldb *LDataBase) lowerBound(begin,end,fieldName []byte,data interface{},gre
 		return nil, err
 	}
 
-	reg ,prefix:= getNonUniqueFieldValue(fields)
+	reg, prefix := getNonUniqueFieldValue(fields)
 	if reg == nil {
 		return nil, ErrNoID
 	}
 	sift := string(reg)
-//	fmt.Println(begin)
-	if len(prefix) != 0{
-		begin = append(begin,prefix...)
+	//	fmt.Println(begin)
+	if len(prefix) != 0 {
+		begin = append(begin, prefix...)
 		it := ldb.db.NewIterator(&util.Range{Start: begin, Limit: end}, nil)
 		//for it.Next(){
 		//	fmt.Println(it.Key())
 		//}
-		idx,err := newDbIterator([]byte(fields.typeName),it,ldb.db,sift,greater)
-		if err != nil{
-			return nil,err
+		idx, err := newDbIterator([]byte(fields.typeName), it, ldb.db, sift, greater)
+		if err != nil {
+			return nil, err
 		}
-		return idx,nil
+		return idx, nil
 	}
 
-	return nil,ErrNotFound
+	return nil, ErrNotFound
 }
 
-func (ldb *LDataBase) upperBound(begin,end,fieldName []byte,data interface{},greater bool) (*DbIterator,error){
+func (ldb *LDataBase) upperBound(begin, end, fieldName []byte, data interface{}, greater bool) (*DbIterator, error) {
 	//TODO
 	fields, err := getFieldInfo(string(fieldName), data)
 	if err != nil {
 		return nil, err
 	}
 
-	reg ,prefix := getNonUniqueFieldValue(fields)
+	reg, prefix := getNonUniqueFieldValue(fields)
 	if reg == nil {
 		return nil, ErrNoID
 	}
-	if len(prefix) != 0{
-		begin = append(begin,prefix...)
+	if len(prefix) != 0 {
+		begin = append(begin, prefix...)
 	}
 
 	sift := string(reg)
-	begin[len(begin) - 1] = begin[len(begin) - 1] + 1
+	begin[len(begin)-1] = begin[len(begin)-1] + 1
 	it := ldb.db.NewIterator(&util.Range{Start: begin, Limit: end}, nil)
 
-	idx,err := newDbIterator([]byte(fields.typeName),it,ldb.db,sift,greater)
-	if err != nil{
-		return nil,err
+	idx, err := newDbIterator([]byte(fields.typeName), it, ldb.db, sift, greater)
+	if err != nil {
+		return nil, err
 	}
-	return idx,nil
+	return idx, nil
+}
+
+func (ldb *LDataBase) getFirstStack() *undoState {
+	stack := ldb.stack.First()
+	switch typ := stack.(type) {
+	case *undoState:
+		return typ
+	default:
+		return nil
+		//panic(TYPE_NOT_FOUND)
+	}
+	return nil
+}
+
+func (ldb *LDataBase) getSecond() *undoState {
+	stack := ldb.stack.LastSecond()
+	switch typ := stack.(type) {
+	case *undoState:
+		return typ
+	default:
+		return nil
+		//panic(TYPE_NOT_FOUND)
+	}
+	return nil
+}
+
+func (ldb *LDataBase) getStack() *undoState {
+	stack := ldb.stack.Last()
+	if stack == nil {
+		return nil
+	}
+	switch typ := stack.(type) {
+	case *undoState:
+		return typ
+	default:
+		return nil
+		//panic(TYPE_NOT_FOUND)
+	}
+	return nil
 }
