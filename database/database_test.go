@@ -183,7 +183,8 @@ func Test_find(t *testing.T) {
 	//
 	findObjs(objs_, houses_, db)
 
-	findMultiFieldObjs(objs_, houses_, db)
+	findInLineFieldObjs(objs_, houses_, db)
+
 	getErrStruct(db)
 }
 
@@ -300,9 +301,10 @@ func findObjs(objs []TableIdObject, houses []House, db DataBase) {
 
 }
 
-func findMultiFieldObjs(objs []TableIdObject, houses []House, db DataBase) {
+func findInLineFieldObjs(objs []TableIdObject, houses []House, db DataBase) {
 	hou := House{Carnivore:Carnivore{28,38}}
-	idx,err := db.GetIndex("Tiger", hou)
+	//idx,err := db.GetIndex("Tiger", hou)
+	idx,err := db.GetIndex("Lion", hou)
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -311,15 +313,16 @@ func findMultiFieldObjs(objs []TableIdObject, houses []House, db DataBase) {
 	if err != nil {
 		log.Fatalln(err)
 	}
+	i := 8
 	defer it.Release()
 	for it.Next(){
 		tmp := House{}
 		it.Data(&tmp)
-		logObj(tmp)
-		//if tmp != objs[i]{
-		//	logObj(objs[i])
-		//	logObj(tmp)
-		//}
+		if tmp != houses[i]{
+			logObj(houses[i])
+			logObj(tmp)
+		}
+		i--
 	}
 
 }
