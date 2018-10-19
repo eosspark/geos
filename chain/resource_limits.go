@@ -1,9 +1,10 @@
 package chain
 
 import (
-	"github.com/eosspark/eos-go/database"
-	"github.com/eosspark/eos-go/common"
+	"fmt"
 	"github.com/eosspark/eos-go/chain/types"
+	"github.com/eosspark/eos-go/common"
+	"github.com/eosspark/eos-go/database"
 	"github.com/eosspark/eos-go/entity"
 )
 
@@ -12,11 +13,11 @@ var IsActiveRc bool
 var rcInstance *ResourceLimitsManager
 
 type ResourceLimitsManager struct {
-	db *database.LDataBase `json:"db"`
+	db database.DataBase `json:"db"`
 }
 
 func GetResourceLimitsManager() *ResourceLimitsManager {
-	return &ResourceLimitsManager{}
+	//return &ResourceLimitsManager{}
 	if !IsActiveRc {
 		rcInstance = newResourceLimitsManager()
 	}
@@ -44,6 +45,7 @@ func (rlm *ResourceLimitsManager) InitializeDatabase() {
 func (rlm *ResourceLimitsManager) InitializeAccount(account common.AccountName) {
 	rlo := entity.ResourceLimitsObject{}
 	rlo.Owner = account
+	fmt.Println("===============:", rlm.db)
 	rlm.db.Insert(&rlo)
 
 	ruo := entity.ResourceUsageObject{}

@@ -12,6 +12,7 @@ import (
 	"github.com/eosspark/eos-go/chain"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
+	//"github.com/eosspark/eos-go/common/figure"
 	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"io/ioutil"
@@ -129,7 +130,7 @@ func TestContextAction(t *testing.T) {
 
 func TestContextPrint(t *testing.T) {
 
-	name := "testdata_context/test_api.wasm"
+	name := "testdata_context/test_api2.wasm"
 	t.Run(filepath.Base(name), func(t *testing.T) {
 		code, err := ioutil.ReadFile(name)
 		if err != nil {
@@ -168,6 +169,15 @@ func TestContextPrint(t *testing.T) {
 		assert.Equal(t, result[39:52], "abcdefghijkl1")
 		assert.Equal(t, result[52:65], "abcdefghijkl1")
 		assert.Equal(t, result[65:78], "abcdefghijkl1")
+
+		trace = callTestFunction(code, "test_print", "test_printi128", []byte{})
+		result = trace.PendingConsoleOutput
+
+		s := strings.Split(result, "\n")
+		//assert.Equal(t, s[0], figure.Int128(0).ToString)
+		//assert.Equal(t, s[1], figure.Int128(1).ToString)
+		//assert.Equal(t, s[3], figure.Int128(-87654323456).ToString)
+		fmt.Println(s)
 
 		trace = callTestFunction(code, "test_print", "test_printsf", []byte{})
 		result = trace.PendingConsoleOutput
@@ -271,7 +281,7 @@ func TestContextAuth(t *testing.T) {
 			UsedAuthorizations: make([]bool, 1),
 		}
 
-		codeVersion := crypto.NewSha256Byte([]byte(code)).String()
+		codeVersion := crypto.NewSha256Byte([]byte(code))
 		wasm.Apply(codeVersion, code, applyContext)
 
 		result := fmt.Sprintf("%v", applyContext.PendingConsoleOutput)

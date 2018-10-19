@@ -1,5 +1,7 @@
 package common
 
+import "github.com/eosspark/eos-go/exception"
+
 var DefaultConfig Config
 
 type billableSize struct {
@@ -13,8 +15,8 @@ func init() {
 		NullAccountName:      AccountName(N("eosio.null")),
 		ProducersAccountName: AccountName(N("eosio.prods")),
 
-		MajorityProducersPermissionName: AccountName(N("prod.major")),
-		MinorityProducersPermissionName: AccountName(N("prod.minor")),
+		MajorityProducersPermissionName: PermissionName(N("prod.major")),
+		MinorityProducersPermissionName: PermissionName(N("prod.minor")),
 
 		EosioAuthScope: AccountName(N("eosio.auth")),
 		EosioAllScope:  AccountName(N("eosio.all")),
@@ -99,6 +101,7 @@ func init() {
 	DefaultConfig.DefaultStateGuardSize = 128*1024*1024
 	DefaultConfig.DefaultReversibleCacheSize = 340*1024*1024
 	DefaultConfig.DefaultReversibleGuardSize = 2*1024*1024
+	DefaultConfig.MinNetUsageDeltaBetweenBaseAndMaxForTrx = 10*1024
 }
 
 type Config struct {
@@ -107,8 +110,8 @@ type Config struct {
 	ProducersAccountName AccountName
 
 	// Active permission of producers account requires greater than 2/3 of the producers to authorize
-	MajorityProducersPermissionName AccountName
-	MinorityProducersPermissionName AccountName
+	MajorityProducersPermissionName PermissionName
+	MinorityProducersPermissionName PermissionName
 
 	EosioAuthScope AccountName
 	EosioAllScope  AccountName
@@ -173,6 +176,7 @@ type Config struct {
 	MaxInlineActionSize         uint32 ///< maximum allowed size (in bytes) of an inline action
 	MaxInlineActionDepth        uint16 ///< recursion depth limit on sending inline actions
 	MaxAuthorityDepth           uint16 ///< recursion depth limit for checking if an authority is satisfied
+	MinNetUsageDeltaBetweenBaseAndMaxForTrx  uint32
 	/**************************chain_config end****************************/
 
 	ForkDBName                     string
@@ -190,38 +194,38 @@ type Config struct {
 }
 
 func (c *Config) Validate() {
-	/*EOS_ASSERT( target_block_net_usage_pct <= config::percent_100, action_validate_exception,
+	exception.EosAssert( c.TargetBlockNetUsagePct <= uint32(c.Percent_100), &exception.ActionValidateException{},
 		"target block net usage percentage cannot exceed 100%" );
-	EOS_ASSERT( target_block_net_usage_pct >= config::percent_1/10, action_validate_exception,
+	exception.EosAssert( c.TargetBlockNetUsagePct >= uint32(c.Percent_1/10), &exception.ActionValidateException{},
 		"target block net usage percentage must be at least 0.1%" );
-	EOS_ASSERT( target_block_cpu_usage_pct <= config::percent_100, action_validate_exception,
+	exception.EosAssert( c.TargetBlockCpuUsagePct <= uint32(c.Percent_100), &exception.ActionValidateException{},
 		"target block cpu usage percentage cannot exceed 100%" );
-	EOS_ASSERT( target_block_cpu_usage_pct >= config::percent_1/10, action_validate_exception,
+	exception.EosAssert( c.TargetBlockCpuUsagePct >= uint32(c.Percent_1/10), &exception.ActionValidateException{},
 		"target block cpu usage percentage must be at least 0.1%" );
 
-	EOS_ASSERT( max_transaction_net_usage < max_block_net_usage, action_validate_exception,
+	exception.EosAssert( uint64(c.MaxTransactionNetUsage) < c.MaxBlockNetUsage, &exception.ActionValidateException{},
 		"max transaction net usage must be less than max block net usage" );
-	EOS_ASSERT( max_transaction_cpu_usage < max_block_cpu_usage, action_validate_exception,
+	exception.EosAssert( c.MaxTransactionCpuUsage < c.MaxBlockCpuUsage, &exception.ActionValidateException{},
 		"max transaction cpu usage must be less than max block cpu usage" );
 
-	EOS_ASSERT( base_per_transaction_net_usage < max_transaction_net_usage, action_validate_exception,
+	exception.EosAssert( c.BasePerTransactionNetUsage < c.MaxTransactionNetUsage, &exception.ActionValidateException{},
 		"base net usage per transaction must be less than the max transaction net usage" );
-	EOS_ASSERT( (max_transaction_net_usage - base_per_transaction_net_usage) >= config::min_net_usage_delta_between_base_and_max_for_trx,
-		action_validate_exception,
-		"max transaction net usage must be at least ${delta} bytes larger than base net usage per transaction",
-		("delta", config::min_net_usage_delta_between_base_and_max_for_trx) );
-	EOS_ASSERT( context_free_discount_net_usage_den > 0, action_validate_exception,
+	exception.EosAssert( (c.MaxTransactionNetUsage - c.BasePerTransactionNetUsage) >= c.MinNetUsageDeltaBetweenBaseAndMaxForTrx,
+		&exception.ActionValidateException{},
+		"max transaction net usage must be at least: s% bytes larger than base net usage per transaction",
+		c.MinNetUsageDeltaBetweenBaseAndMaxForTrx );
+	exception.EosAssert( c.ContextFreeDiscountNetUsageDen > 0, &exception.ActionValidateException{},
 		"net usage discount ratio for context free data cannot have a 0 denominator" );
-	EOS_ASSERT( context_free_discount_net_usage_num <= context_free_discount_net_usage_den, action_validate_exception,
+	exception.EosAssert( c.ContextFreeDiscountNetUsageNum <= c.ContextFreeDiscountNetUsageDen, &exception.ActionValidateException{},
 		"net usage discount ratio for context free data cannot exceed 1" );
 
-	EOS_ASSERT( min_transaction_cpu_usage <= max_transaction_cpu_usage, action_validate_exception,
+	exception.EosAssert( c.MinTransactionCpuUsage <= c.MaxTransactionCpuUsage, &exception.ActionValidateException{},
 		"min transaction cpu usage cannot exceed max transaction cpu usage" );
-	EOS_ASSERT( max_transaction_cpu_usage < (max_block_cpu_usage - min_transaction_cpu_usage), action_validate_exception,
+	exception.EosAssert( c.MaxTransactionCpuUsage < (c.MaxBlockCpuUsage - c.MinTransactionCpuUsage), &exception.ActionValidateException{},
 		"max transaction cpu usage must be at less than the difference between the max block cpu usage and the min transaction cpu usage" );
 
-	EOS_ASSERT( 1 <= max_authority_depth, action_validate_exception,
-		"max authority depth should be at least 1" );*/
+	exception.EosAssert( 1 <= c.MaxAuthorityDepth, &exception.ActionValidateException{},
+		"max authority depth should be at least 1" );
 }
 
 func BillableSizeV(kind string) uint64 {
@@ -232,4 +236,4 @@ func EosPercent(value uint64, percentage uint32) uint64 {
 	return (value * uint64(percentage)) / uint64(DefaultConfig.Percent_100)
 }
 
-const ()
+//const ()

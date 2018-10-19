@@ -7,15 +7,16 @@ import (
 )
 
 type PendingState struct {
-	DBSession         *database.Session `json:"db_session"`
-	PendingBlockState *BlockState        `json:"pending_block_state"`
+	MaybeSession      *database.Session `json:"db_session"`
+	PendingBlockState *BlockState       `json:"pending_block_state"`
 	Actions           []ActionReceipt   `json:"actions"`
 	BlockStatus       BlockStatus       `json:"block_status"`
 	ProducerBlockId   common.BlockIdType
+	Valid             bool
 }
 
 //TODO wait modify Singleton
-func NewPendingState(db *database.LDataBase) *PendingState {
+func NewPendingState(db database.DataBase) *PendingState {
 	pending := PendingState{}
 	/*db, err := eosiodb.NewDatabase(config.DefaultConfig.BlockDir, "eos.db", true)
 	if err != nil {
@@ -48,7 +49,13 @@ func GetInstance() *PendingState {
 	return &pending
 }
 
-func Reset(pending *PendingState) {
-	pending = nil
-	log.Info("destory pending")
+func (p *PendingState) Reset() {
+	if p.Valid {
+		p = nil
+	}
+
+}
+
+func (p *PendingState) Push() {
+	//p.DBSession.Push()
 }

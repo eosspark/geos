@@ -11,7 +11,7 @@ type BlockState struct {
 }
 
 func NewBlockState(cur BlockHeaderState) *BlockState {
-	return &BlockState{cur, nil,
+	return &BlockState{cur, &SignedBlock{},
 		false, false, make([]*TransactionMetadata, 0)}
 }
 

@@ -92,8 +92,8 @@ func NewIteratorCache() *iteratorCache {
 	return &i
 }
 
-func (i *iteratorCache) endIteratorToIndex(ei int) int   { return (-ei - 2) }
-func (i *iteratorCache) IndexToEndIterator(indx int) int { return -(indx + 2) }
+func (i *iteratorCache) endIteratorToIndex(ei int) int    { return (-ei - 2) }
+func (i *iteratorCache) IndexToEndIterator(index int) int { return -(index + 2) }
 func (i *iteratorCache) cacheTable(tobj *entity.TableIdObject) int {
 	if itr, ok := i.tableCache[tobj.ID]; ok {
 		return itr.iterator
@@ -125,12 +125,12 @@ func (i *iteratorCache) getEndIteratorByTableID(id common.IdType) int {
 }
 func (i *iteratorCache) findTablebyEndIterator(ei int) *entity.TableIdObject {
 	//EOS_ASSERT( ei < -1, invalid_table_iterator, "not an end iterator" );
-	indx := i.endIteratorToIndex(ei)
+	index := i.endIteratorToIndex(ei)
 
-	if indx >= len(i.endIteratorToTable) {
+	if index >= len(i.endIteratorToTable) {
 		return nil
 	}
-	return i.endIteratorToTable[indx]
+	return i.endIteratorToTable[index]
 }
 func (i *iteratorCache) get(iterator int) interface{} {
 	// EOS_ASSERT( iterator != -1, invalid_table_iterator, "invalid iterator" );
@@ -210,7 +210,7 @@ func (a *ApplyContext) execOne() (trace types.ActionTrace) {
 	r.ActDigest = crypto.Hash256(a.Act)
 	r.GlobalSequence = a.nextGlobalSequence()
 	r.RecvSequence = a.nextRecvSequence(a.Receiver)
-
+	r.AuthSequence = make(map[common.AccountName]uint64)
 	accountSequence := &types.AccountSequenceObject{Name: a.Act.Account}
 	//a.DB.Get("byName", accountSequence)
 	r.CodeSequence = uint32(accountSequence.CodeSequence)

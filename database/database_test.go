@@ -2,12 +2,76 @@ package database
 
 import (
 	"fmt"
+	"github.com/eosspark/eos-go/crypto/rlp"
+	"github.com/syndtr/goleveldb/leveldb"
+	"github.com/syndtr/goleveldb/leveldb/util"
 	"log"
 	"os"
+	"runtime/pprof"
 	"testing"
 )
 
-func openDb() (*LDataBase, func()) {
+func Test_rawDb(t *testing.T) {
+	f, err := os.Create("./cpu.txt")
+   if err != nil {
+       log.Fatal(err)
+   }
+   pprof.StartCPUProfile(f)
+   defer pprof.StopCPUProfile()
+
+	fileName := "./hello"
+	reFn := func() {
+		errs := os.RemoveAll(fileName)
+		if errs != nil {
+			log.Fatalln(errs)
+		}
+	}
+	_, exits := os.Stat(fileName)
+	if exits == nil {
+		reFn()
+	}
+	db,err := leveldb.OpenFile(fileName,nil)
+	if err != nil{
+		log.Fatalln(err)
+	}
+	defer func() {
+		db.Close()
+		reFn()
+	}()
+
+
+	objs, houses := Objects()
+	if len(objs) != len(houses){
+		log.Fatalln("ERROR")
+	}
+	for i := 1; i <= 10; i++ {
+		db.Put([]byte(string(i)),[]byte(string(i)),nil)
+	}
+	it := db.NewIterator(nil,nil)
+	for it.Next(){
+		//fmt.Println(it.Key())
+	}
+
+	it = db.NewIterator(&util.Range{Start:[]byte(string(3)),Limit:[]byte(string(11))},nil)
+
+	for it.Next(){
+		//fmt.Println(it.Key())
+	}
+	i := 0
+	for index,v := range houses{
+		b,err := rlp.EncodeToBytes(v)
+		if err != nil{
+			log.Fatalln(err)
+		}
+		db.Put([]byte(string(index + 10)),b,nil)
+		if err != nil{
+			log.Fatalln(err)
+		}
+		i++
+	}
+}
+
+func openDb() (DataBase, func()) {
 
 	fileName := "./hello"
 	reFn := func() {
@@ -55,21 +119,23 @@ func Objects() ([]TableIdObject, []House) {
 	return objs, Houses
 }
 
-func saveObjs(objs []TableIdObject, houses []House, db *LDataBase) ([]TableIdObject, []House) {
+func saveObjs(objs []TableIdObject, houses []House, db DataBase) ([]TableIdObject, []House) {
 	objs_ := []TableIdObject{}
 	houses_ := []House{}
 	for _, v := range objs {
+
 		err := db.Insert(&v)
 		if err != nil {
 			log.Fatalln("insert table object failed")
 		}
+
 		objs_ = append(objs_, v)
 	}
 
 	for _, v := range houses {
 		err := db.Insert(&v)
 		if err != nil {
-			log.Fatalln("insert house object failed")
+			log.Fatalln(err)
 		}
 		houses_ = append(houses_, v)
 	}
@@ -85,6 +151,7 @@ func Test_open(t *testing.T) {
 }
 
 func Test_insert(t *testing.T) {
+
 	db, clo := openDb()
 	if db == nil {
 		log.Fatalln("db open failed")
@@ -92,6 +159,9 @@ func Test_insert(t *testing.T) {
 	defer clo()
 
 	objs, houses := Objects()
+	if len(objs) != len(houses){
+		log.Fatalln("ERROR")
+	}
 
 	saveObjs(objs, houses, db)
 }
@@ -105,105 +175,106 @@ func Test_find(t *testing.T) {
 
 	objs, houses := Objects()
 	objs_, houses_ := saveObjs(objs, houses, db)
+
 	getGreaterObjs(objs_, houses_, db)
 
 	getLessObjs(objs_, houses_, db)
-
+	//
 	findObjs(objs_, houses_, db)
 
 	getErrStruct(db)
 }
 
-func getErrStruct(db *LDataBase) {
+func getErrStruct(db DataBase) {
 
-	obj := TableIdObject{Table: 13}
-	_, err := db.Get("byTable", &obj)
+	obj := TableIdObject{Scope: 12,Table:13}
+	_, err := db.GetIndex("byTable", &obj)
 	if err != ErrStructNeeded {
 		log.Fatalln(err)
 	}
 }
 
-func getGreaterObjs(objs []TableIdObject, houses []House, db *LDataBase) {
+func getGreaterObjs(objs []TableIdObject, houses []House, db DataBase) {
 
-	obj := TableIdObject{Table: 13}
-	it, err := db.Get("byTable", obj)
+	obj := TableIdObject{Scope:23}
+	idx, err := db.GetIndex("byTable", obj)
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	/*                                                         */
-	i := 2
-	for it.Next() {
-		obj = TableIdObject{}
-		err = it.Data(&obj)
-		if err != nil {
-			log.Fatalln(err)
-		}
-		if obj != objs[i] {
-			logObj(obj)
-			logObj(objs[i])
-			log.Fatalln("find next failed")
-		}
-		i--
-	}
-	it.Release()
-}
 
-func getLessObjs(objs []TableIdObject, houses []House, db *LDataBase) {
-	i := 0
-	obj := TableIdObject{Code: 11}
-	it, err := db.Get("Code", obj)
-	if err != nil {
-		log.Fatalln(err)
-	}
-
-	for it.Next() {
-		obj = TableIdObject{}
-		err = it.Data(&obj)
-		if err != nil {
-			log.Fatalln(err)
-		}
-
-		if obj != objs[i] {
-			logObj(obj)
-			logObj(objs[i])
-			log.Fatalln("find failed")
-		}
-		i++
-	}
-	i--
-
-	tobjs := []TableIdObject{}
-	err = db.GetObjects("Code",obj,&tobjs)
+	it,err := idx.LowerBound(obj)
 	if err != nil{
 		log.Fatalln(err)
 	}
+	defer it.Release()
 
-	for j := 0;j < 2;j++{
-		if tobjs[j] != objs[j]{
-			log.Fatalln("get objects failed")
+	if idx.CompareBegin(it){
+		tmp := TableIdObject{}
+		idx.Begin(&tmp)
+		if tmp != objs[8]{
+			logObj(objs[8])
+			logObj(tmp)
 		}
 	}
-
-
-	for it.Prev() {
-		obj = TableIdObject{}
-		err = it.Data(&obj)
-		if err != nil {
-			log.Fatalln(err)
-		}
-		if obj != objs[i] {
-			logObj(obj)
+	i := 8
+	for it.Next(){
+		tmp := TableIdObject{}
+		it.Data(&tmp)
+		if tmp != objs[i] {
+			logObj(tmp)
 			logObj(objs[i])
-			log.Fatalln("find failed")
 		}
 		i--
 	}
+	if !idx.CompareEnd(it){
+		log.Fatalln("CompareEnd")
+	}
 	it.Release()
 
+	it ,err = idx.UpperBound(obj)
+	if err != nil{
+		log.Fatalln(err)
+	}
+	i = 8
+	for it.Next(){
+		tmp := TableIdObject{}
+		it.Data(&tmp)
+		if tmp != objs[i] {
+			logObj(tmp)
+			logObj(objs[i])
+		}
+		i--
+	}
+
+	it.Release()
 }
 
-func findObjs(objs []TableIdObject, houses []House, db *LDataBase) {
+func getLessObjs(objs []TableIdObject, houses []House, db DataBase) {
+	obj := TableIdObject{Code: 13}
+	idx, err := db.GetIndex("Code", obj)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	it ,err := idx.LowerBound(obj)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	i := 3
+	defer it.Release()
+	for it.Next(){
+		tmp := TableIdObject{}
+		it.Data(&tmp)
+		if tmp != objs[i]{
+			logObj(objs[i])
+			logObj(tmp)
+		}
+		i++
+	}
+}
+
+func findObjs(objs []TableIdObject, houses []House, db DataBase) {
 	obj := TableIdObject{ID: 4}
 	tmp := TableIdObject{}
 	err := db.Find("id", obj, &tmp)
@@ -212,11 +283,16 @@ func findObjs(objs []TableIdObject, houses []House, db *LDataBase) {
 	}
 
 	{
-		hou := House{Area: 17}
+		hou := House{Area: 18}
 		tmp := House{}
 		err := db.Find("Area", hou, &tmp)
 		if err != nil {
 			log.Fatalln(err)
+		}
+		if houses[1] != tmp{
+			logObj(tmp)
+			logObj(houses[1])
+			log.Fatalln("Find Object")
 		}
 	}
 
@@ -234,7 +310,7 @@ func Test_modify(t *testing.T) {
 	modifyObjs(db)
 }
 
-func modifyObjs(db *LDataBase) {
+func modifyObjs(db DataBase) {
 
 	obj := TableIdObject{ID: 4, Code: 21, Scope: 22, Table: 23, Payer: 24, Count: 25}
 	newobj := TableIdObject{ID: 4, Code: 200, Scope: 22, Table: 23, Payer: 24, Count: 25}
@@ -271,7 +347,7 @@ func Test_remove(t *testing.T) {
 	removeUnique(db)
 }
 
-func removeUnique(db *LDataBase) {
+func removeUnique(db DataBase) {
 
 	obj := TableIdObject{Code: 21, Scope: 22, Table: 23, Payer: 24, Count: 25}
 	err := db.Remove(obj)
@@ -307,52 +383,3 @@ func removeUnique(db *LDataBase) {
 	}
 }
 
-func Test_undo(t *testing.T) {
-	db, clo := openDb()
-	if db == nil {
-		log.Fatalln("db open failed")
-	}
-	defer clo()
-
-	objs, houses := Objects()
-	objs_, houses_ := saveObjs(objs, houses, db)
-	undoObjs(objs_, houses_, db)
-}
-
-func undoObjs(objs []TableIdObject, houses []House, db *LDataBase) {
-	//i := 0
-	obj := House{Carnivore: Carnivore{38, 38}}
-	it, err := db.Get("Carnivore", obj)
-	if err != nil {
-		log.Fatalln(err)
-	}
-
-	for it.Next() {
-		obj = House{}
-		err = it.Data(&obj)
-		if err != nil {
-			log.Fatalln(err)
-		}
-
-		// logObj(obj)
-
-	}
-
-	it.Release()
-
-	h := House{Area: 38, Carnivore: Carnivore{100, 100}}
-	err = db.Insert(&h)
-	if err != ErrAlreadyExists {
-		log.Fatalln(err)
-	}
-
-	// fmt.Println("-------------")
-	obj = House{Id: 10}
-	tmp := House{}
-	err = db.Find("id", obj, &tmp)
-	if err != ErrNotFound {
-		log.Fatalln(err)
-	}
-
-	it.Release()
-}

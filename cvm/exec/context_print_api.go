@@ -4,6 +4,9 @@ import (
 	"encoding/hex"
 	"fmt"
 	"github.com/eosspark/eos-go/common"
+	arithmetic "github.com/eosspark/eos-go/common/arithmetic_types"
+	"github.com/eosspark/eos-go/crypto/rlp"
+
 	//"github.com/eosspark/eos-go/crypto/rlp"
 	"strconv"
 )
@@ -83,10 +86,10 @@ func printui(w *WasmInterface, val uint64) {
 func printi128(w *WasmInterface, val int) {
 	fmt.Println("printi128")
 
-	// bytes := getMemory(w, val, 16)
-	// var v common.Int128
-	// rlp.DecodeBytes(bytes, &v)
-	// w.context.ContextAppend(v.ToString())
+	bytes := getMemory(w, val, 16)
+	var v arithmetic.Int128
+	rlp.DecodeBytes(bytes, &v)
+	w.context.ContextAppend(v.ToString())
 
 }
 
@@ -99,10 +102,10 @@ func printi128(w *WasmInterface, val int) {
 func printui128(w *WasmInterface, val int) {
 	fmt.Println("printui128")
 
-	// bytes := getMemory(w, val, 16)
-	// var v common.Uint128
-	// rlp.DecodeBytes(bytes, &v)
-	// w.context.ContextAppend(v.ToString())
+	bytes := getMemory(w, val, 16)
+	var v arithmetic.Uint128
+	rlp.DecodeBytes(bytes, &v)
+	w.context.ContextAppend(v.ToString())
 
 }
 
@@ -173,10 +176,10 @@ func printdf(w *WasmInterface, val float64) {
 func printqf(w *WasmInterface, val int) {
 	fmt.Println("printqf")
 
-	// bytes := getMemory(w, val, 16)
-	// var v common.Float128
-	// rlp.DecodeBytes(bytes, &v)
-	// w.context.ContextAppend(v.ToString())
+	//bytes := getMemory(w, val, 16)
+	//var v figure.Float128
+	//rlp.DecodeBytes(bytes, &v)
+	//w.context.ContextAppend(v.ToString())
 
 }
 

@@ -55,7 +55,13 @@ func NewTransactionContext(c *Controller, t *types.SignedTransaction, trxId comm
 		Trx:         t,
 		Start:       s,
 		pseudoStart: s,
-		Trace:       &types.TransactionTrace{ID: trxId},
+		Trace: &types.TransactionTrace{
+			ID:              trxId,
+			BlockNum:        c.PendingBlockState().BlockNum,
+			BlockTime:       common.BlockTimeStamp(c.PendingBlockTime()),
+			ProducerBlockId: c.PendingProducerBlockId(),
+			Except:          &exception.TransactionException{},
+		},
 		//Trace.I:trxId,
 
 		InitialMaxBillableCpu: 0,
