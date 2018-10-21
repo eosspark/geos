@@ -89,7 +89,7 @@ func printi128(w *WasmGo, val int) {
 	bytes := getMemory(w, val, 16)
 	var v arithmetic.Int128
 	rlp.DecodeBytes(bytes, &v)
-	w.context.ContextAppend(v.ToString())
+	w.context.ContextAppend(v.String())
 
 }
 
@@ -105,7 +105,7 @@ func printui128(w *WasmGo, val int) {
 	bytes := getMemory(w, val, 16)
 	var v arithmetic.Uint128
 	rlp.DecodeBytes(bytes, &v)
-	w.context.ContextAppend(v.ToString())
+	w.context.ContextAppend(v.String())
 
 }
 
@@ -179,7 +179,7 @@ func printqf(w *WasmGo, val int) {
 	//bytes := getMemory(w, val, 16)
 	//var v figure.Float128
 	//rlp.DecodeBytes(bytes, &v)
-	//w.context.ContextAppend(v.ToString())
+	//w.context.ContextAppend(v.String())
 
 }
 

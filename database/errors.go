@@ -16,6 +16,8 @@ var (
 
 	ErrTagInvalid = errors.New("database : Invalid tag")
 
+	ErrIdTagIncrement = errors.New("database : id increment failed")
+
 	ErrSlicePtrNeeded = errors.New("provided target must be a pointer to slice")
 
 	ErrUnknownTag = errors.New("database : unknown tag")

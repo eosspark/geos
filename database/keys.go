@@ -100,36 +100,34 @@ func getNonUniqueFieldValue(info *fieldInfo)([]byte,[]byte){
 }
 
 // typeName__fieldName
-func typeNameFieldName(typeName,fieldName string)[]byte{
-	key := []byte(typeName)
+func typeNameFieldName(typeName,fieldName []byte)[]byte{
+	key := []byte(typeName)// TODO copy ?
 	key = append(key, '_')
 	key = append(key, '_')
-	key = append(key, []byte(fieldName)...)
+	key = append(key, fieldName...)
 	return key
 }
 
 // non unique fields --> regexp
-func indexEnd(key []byte)[]byte{
+func getNonUniqueEnd(key []byte)[]byte{
 	end := make([]byte, len(key))
 	copy(end, key)
 	end[len(end)-1] = end[len(end)-1] + 1
 	return end
 }
 
-// remove and insert function
+// callBack --> remove and insert function
 func doCallBack(id, typeName []byte, cfg *structInfo, callBack func(key, value []byte) error) error {
 	for tag, fieldCfg := range cfg.Fields {
 		// typeName__
 		key := append(typeName, '_')
 		key = append(key, '_')
-		// typeName__tag__
+		// typeName__tagName__
 		key = append(key, tag...)
 		key =getFieldValue(key, fieldCfg)
 		if !fieldCfg.unique {
 			key = append(key, id...)
 		}
-		//fmt.Println("func fieldIndex value is : ",string(key))
-		//fmt.Println("func fieldIndex value is : ",key)
 		err := callBack(key, id)
 		if err != nil {
 			return err
@@ -141,10 +139,11 @@ func doCallBack(id, typeName []byte, cfg *structInfo, callBack func(key, value [
 // modify function
 func modifyField(cfg, oldCfg *structInfo, callBack func(newKey, oldKey []byte) error) error {
 
-	id, err := numbertob(cfg.Id.Interface())
-	if err != nil {
+	id,err := rlp.EncodeToBytes(cfg.Id.Interface())
+	if err != nil{
 		return err
 	}
+
 	typeName := []byte(cfg.Name)
 
 	for tag, fieldCfg := range cfg.Fields {

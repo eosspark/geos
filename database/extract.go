@@ -2,8 +2,6 @@
 package database
 
 import (
-	"bytes"
-	"encoding/binary"
 	"fmt"
 	"reflect"
 	"strings"
@@ -61,26 +59,6 @@ func isZero(v *reflect.Value) bool {
 	return reflect.DeepEqual(current, zero)
 }
 
-
-// from
-func numberfromb(raw []byte) (int64, error) {
-	r := bytes.NewReader(raw)
-	var to int64
-	err := binary.Read(r, binary.BigEndian, &to)
-	if err != nil {
-		return 0, err
-	}
-	return to, nil
-}
-// to
-func numbertob(v interface{}) ([]byte, error) {
-	var buf bytes.Buffer
-	err := binary.Write(&buf, binary.BigEndian, v)
-	if err != nil {
-		return nil, err
-	}
-	return buf.Bytes(), nil
-}
 
 func (s*structInfo)showStructInfo(){
 	fmt.Println("name : ",s.Name)
@@ -185,7 +163,9 @@ func doIdTag(tags []string,fieldValue *reflect.Value,m *structInfo)error{
 		if subTag == tagGreater || subTag ==  tagLess {
 			return ErrIdNoSort
 		}
-
+		if subTag == tagIncrement{
+			continue
+		}
 		f  := fieldInfo{}
 		f.unique = true
 		m.Id = fieldValue

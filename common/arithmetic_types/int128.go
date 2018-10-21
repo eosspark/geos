@@ -189,7 +189,7 @@ func (u Int128) Div(v Int128) (Int128, Int128) {
 	return Quotient, Remainder
 }
 
-func (u Int128) ToString() string {
+func (u Int128) String() string {
 	signBit := false
 	if u.GetAt(127) {
 		signBit = true
@@ -199,7 +199,7 @@ func (u Int128) ToString() string {
 	if signBit == true && uTrueForm.Compare(Uint128{0,0}) == 0{
 		uTrueForm.Set(127, 1)
 	}
-	str := uTrueForm.ToString()
+	str := uTrueForm.String()
 	if signBit {
 		str = "-" + str
 	}

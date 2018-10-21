@@ -207,7 +207,7 @@ func (u Uint128) Sqrt() uint64 {
 	}
 }
 
-func (u Uint128) ToString() string {
+func (u Uint128) String() string {
 	uHigh := new(big.Int).SetUint64(u.High)
 	uLow := new(big.Int).SetUint64(u.Low)
 

@@ -5,15 +5,21 @@ import (
 	"github.com/eosspark/eos-go/chain/types"
 )
 
+var DefaultResourceLimitsConfigObject ResourceLimitsConfigObject
+
+func init() {
+	DefaultResourceLimitsConfigObject.ID = 1
+}
+
 type ResourceLimitsConfigObject struct {
-	ID                           common.IdType `multiIndex:"id,increment,byId"`
+	ID                           common.IdType `multiIndex:"id,increment"`
 	CpuLimitParameters           types.ElasticLimitParameters
 	NetLimitParameters           types.ElasticLimitParameters
 	AccountCpuUsageAverageWindow uint32
 	AccountNetUsageAverageWindow uint32
 }
 
-func NewResourceLimitsConfigObject() *ResourceLimitsConfigObject{
+func NewResourceLimitsConfigObject() ResourceLimitsConfigObject{
 	config := ResourceLimitsConfigObject{}
 	config.CpuLimitParameters = types.ElasticLimitParameters{Target:common.EosPercent(uint64(common.DefaultConfig.MaxBlockCpuUsage), common.DefaultConfig.TargetBlockCpuUsagePct),
 		Max:uint64(common.DefaultConfig.MaxBlockCpuUsage),
@@ -28,5 +34,5 @@ func NewResourceLimitsConfigObject() *ResourceLimitsConfigObject{
 	}
 	config.AccountCpuUsageAverageWindow = common.DefaultConfig.AccountCpuUsageAverageWindowMs / uint32(common.DefaultConfig.BlockIntervalMs)
 	config.AccountNetUsageAverageWindow = common.DefaultConfig.AccountNetUsageAverageWindowMs / uint32(common.DefaultConfig.BlockIntervalMs)
-	return &config
+	return config
 }
