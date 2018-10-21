@@ -151,13 +151,11 @@ func (b *BlockLog) Append(block *types.SignedBlock) uint64 {
 	exception.EosAssert(b.genesisWriteToBlockLog, &exception.BlockLogAppendFail{}, "Cannot append to block log until the genesis is first written")
 
 	pos, _ := b.blockStream.Seek(0, 2)
-	//indexPos, _ := b.indexStream.Seek(0, 2)
+	indexPos, _ := b.indexStream.Seek(0, 2)
 
-	// assert(indexPos == 8 * (block.BlockNumber() - 1),
-	//                block_log_append_fail,
-	//                "Append to index file occuring at wrong position.",
-	//                ("position", (uint64_t) indexPos
-	//                ("expected", 8 * (block.BlockNumber() - 1));
+	exception.EosAssert(indexPos == int64(8*(block.BlockNumber()-1)),
+		&exception.BlockLogAppendFail{},
+		"Append to index file occuring at wrong position. position %d expected %d", indexPos, 8*(block.BlockNumber()-1))
 
 	data, _ := rlp.EncodeToBytes(block)
 
@@ -327,7 +325,6 @@ func (b *BlockLog) ConstructIndex() {
 		}
 
 		pos += 8 //8 bytes pos
-		//rlp.DecodeBytes(bytes, &pos)
 		bytes, _ = rlp.EncodeToBytes(pos)
 	}
 
