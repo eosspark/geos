@@ -6,11 +6,11 @@ import (
 )
 
 type PermissionObject struct {
-	ID          common.IdType         `multiIndex:"id,increment,byId,byParent,byName"`
+	ID          common.IdType         `multiIndex:"id,increment,byParent,byName"`
 	UsageId     common.IdType
-	Parent      common.IdType         `multiIndex:"id,increment,byParent"`
-	Owner       common.AccountName    `multiIndex:"id,increment,byOwner,byName"`
-	Name        common.PermissionName `multiIndex:"id,increment,byOwner"`
+	Parent      common.IdType         `multiIndex:"byParent,orderedNonUnique"`
+	Owner       common.AccountName    `multiIndex:"byOwner,orderedNonUnique"`
+	Name        common.PermissionName `multiIndex:"byOwner,orderedNonUnique:byName,orderedNonUnique"`
 	LastUpdated common.TimePoint
 	Auth        types.SharedAuthority
 }

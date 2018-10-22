@@ -4,6 +4,6 @@ import ("github.com/eosspark/eos-go/common"
 )
 
 type BlockSummaryObject struct {
-	Id      common.IdType `storm:"id,increment"`
+	Id      common.IdType `multiIndex:"id,increment"`
 	BlockId common.BlockIdType
 }

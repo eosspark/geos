@@ -6,8 +6,8 @@ import (
 )
 
 type PublicKeyHistoryObject struct {
-	ID         common.IdType         `storm:"id,increment"`
-	PublicKey  ecc.PublicKey         `storm:"index"`                      //c++ publicKey+id unique
-	Name       common.AccountName    `storm:"unique,ByAccountPermission"` //c++ ByAccountPermission+id unique
-	Permission common.PermissionName `storm:"unique,ByAccountPermission"` //c++ ByAccountPermission+id unique
+	ID         common.IdType         `multiIndex:"id,increment,byPubKey,byAccountPermission"`
+	PublicKey  ecc.PublicKey         `multiIndex:"byPubKey,orderedNonUnique"`                      //c++ publicKey+id unique
+	Name       common.AccountName    `multiIndex:"byAccountPermission,orderedNonUnique"` //c++ ByAccountPermission+id unique
+	Permission common.PermissionName `multiIndex:"byAccountPermission,orderedNonUnique"` //c++ ByAccountPermission+id unique
 }

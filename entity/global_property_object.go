@@ -6,23 +6,13 @@ import (
 )
 
 type GlobalPropertyObject struct {
-	ID                       common.BlockIdType               `storm:"unique" json:"id"`
-	ProposedScheduleBlockNum uint32                           `json:"proposed_schedule_block_num"`
-	ProposedSchedule         types.SharedProducerScheduleType `json:"proposed_schedule"`
+	ID                       common.IdType              `multiIndex:"id,increment"`
+	ProposedScheduleBlockNum uint32
+	ProposedSchedule         types.SharedProducerScheduleType
 	Configuration            common.Config                    //TODO
 }
 
 type DynamicGlobalPropertyObject struct {
-	ID                   int64  `storm:"unique" json:"id"` //c++ chainbase.hpp id_type
-	GlobalActionSequence uint64 `json:"global_action_sequence"`
-}
-
-type GlobalPropertyMultiIndex struct {
-	GlobalPropertyObject
-	ID int64 `storm:"unique" json:"id"`
-}
-
-type DynamicGlobalPropertyMultiIndex struct {
-	DynamicGlobalPropertyObject
-	ID int64 `storm:"unique" json:"id"`
+	ID                   common.IdType  `multiIndex:"id,increment"` //c++ chainbase.hpp id_type
+	GlobalActionSequence uint64
 }

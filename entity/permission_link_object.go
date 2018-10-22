@@ -5,9 +5,9 @@ import (
 )
 
 type PermissionLinkObject struct {
-	ID                 common.IdType          `multiIndex:"id,increment,byId"`
-	Account            common.AccountName     `multiIndex:"orderedNonUnique,byActionName,byPermissionName"`
-	Code               common.AccountName	  `multiIndex:"orderedNonUnique,byActionName,byPermissionName"`
-	MessageType        common.ActionName	  `multiIndex:"orderedNonUnique,byActionName,byPermissionName"`
-	RequiredPermission common.PermissionName  `multiIndex:"orderedNonUnique,byPermissionName"`
+	ID                 common.IdType          `multiIndex:"id,increment"`
+	Account            common.AccountName     `multiIndex:"byAction,orderedNonUnique:byPermissionName,orderedNonUnique"`
+	Code               common.AccountName	  `multiIndex:"byAction,orderedNonUnique:byPermissionName,orderedNonUnique"`
+	MessageType        common.ActionName	  `multiIndex:"byAction,orderedNonUnique:byPermissionName,orderedNonUnique"`
+	RequiredPermission common.PermissionName  `multiIndex:"byPermissionName,orderedNonUnique"`
 }

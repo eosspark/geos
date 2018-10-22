@@ -190,8 +190,7 @@ func (r *ResourceLimitsManager) SetAccountLimits(account common.AccountName, ram
 			pendingLimits.NetWeight = limits.NetWeight
 			pendingLimits.CpuWeight = limits.CpuWeight
 			pendingLimits.Pending = true
-			fmt.Println(r.db.Insert(&pendingLimits))
-			r.db.Find("byOwner", pendingLimits, &pendingLimits)
+			r.db.Insert(&pendingLimits)
 			return pendingLimits
 		} else {
 			return pendingLimits
@@ -219,7 +218,6 @@ func (r *ResourceLimitsManager) GetAccountLimits(account common.AccountName, ram
 	pendingBuo.Pending = true
 	err := r.db.Find("byOwner", pendingBuo, &pendingBuo)
 	if err == nil {
-		fmt.Println(pendingBuo)
 		*ramBytes = pendingBuo.RamBytes
 		*netWeight = pendingBuo.NetWeight
 		*cpuWeight = pendingBuo.CpuWeight
@@ -236,91 +234,79 @@ func (r *ResourceLimitsManager) GetAccountLimits(account common.AccountName, ram
 }
 
 func (r *ResourceLimitsManager) ProcessAccountLimitUpdates() {
+
 	//updateStateAndValue := func(total *uint64, value *int64, pendingValue int64, debugWhich string) {
 	//	if *value > 0 {
-	//		if *total < uint64(*value) {
-	//			fmt.Println("error")
-	//		}
+	//		EosAssert(*total >= uint64(*value), &RateLimitingStateInconsistent{}, "underflow when reverting old value to %s", debugWhich)
 	//		*total -= uint64(*value)
 	//	}
 	//
 	//	if pendingValue > 0 {
-	//		if math.MaxUint64-*total < uint64(pendingValue) {
-	//			fmt.Println("error")
-	//		}
+	//		EosAssert(math.MaxUint16 - *total >= uint64(pendingValue), &RateLimitingStateInconsistent{}, "overflow when applying new value to %s", debugWhich )
 	//		*total += uint64(pendingValue)
 	//	}
 	//
 	//	*value = pendingValue
 	//}
-	//var pendingRlo []entity.ResourceLimitsObject
-	//r.db.Get("Pending", true, &pendingRlo)
-	//state := entity.ResourceLimitsStateObject{}
-	//r.db.Find("ID", ResourceLimitsState, &state)
-	//r.db.Update(&state, func(data interface{}) error {
-	//	for _, itr := range pendingRlo {
-	//		rlo := ResourceLimitsObject{}
-	//		r.db.Find("Rlo", RloIndex{ResourceLimits, itr.Owner, false}, &rlo)
-	//		r.db.Update(&rlo, func(data interface{}) error {
-	//			updateStateAndValue(&state.TotalRamBytes, &rlo.RamBytes, itr.RamBytes, "ram_bytes")
-	//			updateStateAndValue(&state.TotalCpuWeight, &rlo.CpuWeight, itr.CpuWeight, "cpu_weight")
-	//			updateStateAndValue(&state.TotalNetWeight, &rlo.NetWeight, itr.NetWeight, "net_weight")
-	//			return nil
-	//		})
-	//	}
-	//	return nil
-	//})
+
+	state := entity.ResourceLimitsStateObject{}
+	r.db.Find("id", state, &state)
+	r.db.Modify(&state, func(rso entity.ResourceLimitsStateObject) {
+		//for _, itr := range pendingRlo {
+		//	rlo := ResourceLimitsObject{}
+		//	r.db.Find("Rlo", RloIndex{ResourceLimits, itr.Owner, false}, &rlo)
+		//	r.db.Modify(&rlo, func(rlo entity.ResourceLimitsObject) {
+		//		updateStateAndValue(&rso.TotalRamBytes, &rlo.RamBytes, itr.RamBytes, "ram_bytes")
+		//		updateStateAndValue(&rso.TotalCpuWeight, &rlo.CpuWeight, itr.CpuWeight, "cpu_weight")
+		//		updateStateAndValue(&rso.TotalNetWeight, &rlo.NetWeight, itr.NetWeight, "net_weight")
+		//	})
+		//}
+	})
 }
 
 func (r *ResourceLimitsManager) ProcessBlockUsage(blockNum uint32) {
-	//config := entity.ResourceLimitsConfigObject{}
-	//r.db.Find("byId", &config)
-	//state := entity.ResourceLimitsStateObject{}
-	//r.db.Find("byId", &state)
-	//r.db.Modify(&state, func(data interface{}) error {
-	//
-	//	state.AverageBlockCpuUsage.Add(state.PendingCpuUsage, blockNum, config.CpuLimitParameters.Periods)
-	//	state.UpdateVirtualCpuLimit(config)
-	//	state.PendingCpuUsage = 0
-	//
-	//	state.AverageBlockNetUsage.Add(state.PendingNetUsage, blockNum, config.NetLimitParameters.Periods)
-	//	state.UpdateVirtualNetLimit(config)
-	//	state.PendingNetUsage = 0
-	//
-	//	return nil
-	//})
+	s := entity.ResourceLimitsStateObject{}
+	r.db.Find("id", s, &s)
+	config := entity.ResourceLimitsConfigObject{}
+	r.db.Find("id", config, &config)
+	r.db.Modify(&s, func(state *entity.ResourceLimitsStateObject) {
+
+		state.AverageBlockCpuUsage.Add(state.PendingCpuUsage, blockNum, config.CpuLimitParameters.Periods)
+		state.UpdateVirtualCpuLimit(config)
+		state.PendingCpuUsage = 0
+
+		state.AverageBlockNetUsage.Add(state.PendingNetUsage, blockNum, config.NetLimitParameters.Periods)
+		state.UpdateVirtualNetLimit(config)
+		state.PendingNetUsage = 0
+	})
 }
 
 func (r *ResourceLimitsManager) GetVirtualBlockCpuLimit() uint64 {
-	//state := entity.ResourceLimitsStateObject{}
-	//r.db.Find("byId", &state)
-	//return state.VirtualCpuLimit
-	return 0
+	state := entity.ResourceLimitsStateObject{}
+	r.db.Find("id", state, &state)
+	return state.VirtualCpuLimit
 }
 
 func (r *ResourceLimitsManager) GetVirtualBlockNetLimit() uint64 {
-	//state := entity.ResourceLimitsStateObject{}
-	//r.db.Find("byId", &state)
-	//return state.VirtualNetLimit
-	return 0
+	state := entity.ResourceLimitsStateObject{}
+	r.db.Find("id", state, &state)
+	return state.VirtualNetLimit
 }
 
 func (r *ResourceLimitsManager) GetBlockCpuLimit() uint64 {
-	//state := entity.ResourceLimitsStateObject{}
-	//r.db.Find("byId", &state)
-	//config := entity.ResourceLimitsConfigObject{}
-	//r.db.Find("byId", &config)
-	//return config.CpuLimitParameters.Max - state.PendingCpuUsage
-	return 0
+	state := entity.ResourceLimitsStateObject{}
+	r.db.Find("id", state, &state)
+	config := entity.ResourceLimitsConfigObject{}
+	r.db.Find("id", config, &config)
+	return config.CpuLimitParameters.Max - state.PendingCpuUsage
 }
 
 func (r *ResourceLimitsManager) GetBlockNetLimit() uint64 {
-	//state := entity.ResourceLimitsStateObject{}
-	//r.db.Find("byId", &state)
-	//config := entity.ResourceLimitsConfigObject{}
-	//r.db.Find("byId", &config)
-	//return config.NetLimitParameters.Max - state.PendingNetUsage
-	return 0
+	state := entity.ResourceLimitsStateObject{}
+	r.db.Find("id", state, &state)
+	config := entity.ResourceLimitsConfigObject{}
+	r.db.Find("id", config, &config)
+	return config.NetLimitParameters.Max - state.PendingNetUsage
 }
 
 func (r *ResourceLimitsManager) GetAccountCpuLimit(name common.AccountName, elastic bool) int64 {
@@ -329,37 +315,40 @@ func (r *ResourceLimitsManager) GetAccountCpuLimit(name common.AccountName, elas
 }
 
 func (r *ResourceLimitsManager) GetAccountCpuLimitEx(name common.AccountName, elastic bool) AccountResourceLimit {
-	//state := entity.ResourceLimitsStateObject{}
-	//r.db.Find("byId", &state)
-	//config := entity.ResourceLimitsConfigObject{}
-	//r.db.Find("byId", &config)
-	//ruo := entity.ResourceUsageObject{}
-	//r.db.Find("byOwner", &ruo)
-	//
-	//var cpuWeight, x, y int64
-	//r.GetAccountLimits(name, &x, &y, &cpuWeight)
-	//
-	//if cpuWeight < 0 || state.TotalCpuWeight == 0 {
-	//	return AccountResourceLimit{-1, -1, -1}
-	//}
+	state := entity.ResourceLimitsStateObject{}
+	r.db.Find("id", state, &state)
+	config := entity.ResourceLimitsConfigObject{}
+	r.db.Find("id", config, &config)
+
+	usage := entity.ResourceUsageObject{}
+	usage.Owner = name
+	r.db.Find("byOwner", usage, &usage)
+
+	var cpuWeight, x, y int64
+	r.GetAccountLimits(name, &x, &y, &cpuWeight)
+
+	if cpuWeight < 0 || state.TotalCpuWeight == 0 {
+		return AccountResourceLimit{-1, -1, -1}
+	}
 
 	arl := AccountResourceLimit{}
-	//windowSize := new(big.Int).SetUint64(uint64(config.AccountCpuUsageAverageWindow))
-	//virtualCpuCapacityInWindow := new(big.Int)
+	//windowSize := uint64(config.AccountCpuUsageAverageWindow)
+	//virtualCpuCapacityInWindow := arithmeticTypes.Uint128{}
 	//if elastic {
-	//	virtualCpuCapacityInWindow = new(big.Int).Mul(new(big.Int).SetUint64(state.VirtualCpuLimit), windowSize)
+	//	virtualCpuCapacityInWindow = arithmeticTypes.MulUint64(state.VirtualCpuLimit, windowSize)
 	//} else {
-	//	virtualCpuCapacityInWindow = new(big.Int).Mul(new(big.Int).SetUint64(config.CpuLimitParameters.Max), windowSize)
+	//	virtualCpuCapacityInWindow = arithmeticTypes.MulUint64(config.CpuLimitParameters.Max, windowSize)
 	//}
-	//userWeight := new(big.Int).SetUint64(uint64(cpuWeight))
-	//allUserWeight := new(big.Int).SetUint64(state.TotalCpuWeight)
+	//userWeight := arithmeticTypes.Uint128{0, uint64(cpuWeight)}
+	//allUserWeight := arithmeticTypes.Uint128{0,state.TotalCpuWeight}
 	//
-	//maxUserUseInWindow := new(big.Int).Div(new(big.Int).Mul(virtualCpuCapacityInWindow, userWeight), allUserWeight)
+	//maxUserUseInWindow, _ := virtualCpuCapacityInWindow.Div(allUserWeight)
+	//maxUserUseInWindow = maxUserUseInWindow.Mul(userWeight)
 	//cpuUsedInWindow := IntegerDivideCeil(
 	//	new(big.Int).Mul(new(big.Int).SetUint64(ruo.CpuUsage.ValueEx), windowSize),
 	//	new(big.Int).SetUint64(uint64(common.DefaultConfig.RateLimitingPrecision)))
 	//
-	//if maxUserUseInWindow.Cmp(cpuUsedInWindow) != 1 {
+	//if maxUserUseInWindow.Compare(cpuUsedInWindow) != 1 {
 	//	arl.Available = 0
 	//} else {
 	//	arl.Available = DowngradeCast(new(big.Int).Sub(maxUserUseInWindow, cpuUsedInWindow))
