@@ -1,18 +1,19 @@
 package chain
 
 import (
-	"testing"
-	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/chain/types"
+	"github.com/eosspark/eos-go/common"
+	"testing"
 )
 
 func TestAuthorizationManager_CreatePermission(t *testing.T) {
-	az := GetAuthorizationManager()
+	control := GetControllerInstance()
+	az := newAuthorizationManager(control)
 
 	az.CreatePermission(common.AccountName(common.N("yc")),
-						common.PermissionName(common.N("active")),
-						PermissionIdType(1),
-						types.Authority{},2)
+		common.PermissionName(common.N("active")),
+		PermissionIdType(1),
+		types.Authority{}, 2)
 
 	//Need control.pending
 	//az.CreatePermission(common.AccountName(common.N("yc")),

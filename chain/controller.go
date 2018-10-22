@@ -17,7 +17,7 @@ import (
 	"github.com/eosspark/eos-go/wasmgo"
 )
 
-var readycontroller chan bool //TODO test code
+//var readycontroller chan bool //TODO test code
 
 /*var PreAcceptedBlock chan *types.SignedBlock
 var AcceptedBlockdHeader chan *types.BlockState
@@ -174,20 +174,21 @@ func newController() *Controller {
 		common.ActionName(common.N("eosio")), applyEosioCanceldalay)
 
 	//IrreversibleBlock.connect()
-	readycontroller = make(chan bool)
+	//readycontroller = make(chan bool)
 	//go initResource(con, readycontroller)
 	con.ResourceLimists = newResourceLimitsManager(con)
 	con.Authorization = newAuthorizationManager(con)
+	con.initialize()
 	return con
 }
 
-func initResource(c *Controller, ready chan bool) {
+/*func initResource(c *Controller, ready chan bool) {
 	<-ready
 	//con.Blog
 	//c.ForkDB = types.GetForkDbInstance(common.DefaultConfig.DefaultStateDirName)
 
 	c.initialize()
-}
+}*/
 
 func condition(contract common.AccountName, action common.ActionName) string {
 	c := capitalize(common.S(uint64(contract)))
