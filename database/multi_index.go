@@ -149,7 +149,24 @@ error 				-->		nil
 
 */
 
-func (index *multiIndex)IteratorTo(in interface{}) Iterator {
+func (index *multiIndex) BeginIterator() Iterator {
+	// TODO
+	if len(index.typeName) == 0{
+		return nil
+	}
+
+	key := append(index.typeName, '_')
+	key = append(key, '_')
+	// typeName__tag__
+	key = append(key, index.fieldName...)
+
+	if index.it.Seek(key){
+		return nil
+	}
+	return &index.it
+}
+
+func (index *multiIndex) IteratorTo  (in interface{}) Iterator {
 	// TODO
 	if len(index.typeName) == 0{
 		return nil
@@ -170,8 +187,7 @@ func (index *multiIndex)IteratorTo(in interface{}) Iterator {
 	return &index.it
 }
 
-
-func (index *multiIndex)Empty()error{
-
-	return nil
+func (index *multiIndex)Empty() bool {
+	return index.db.Empty(index.begin,index.end,index.fieldName)
 }
+

@@ -689,6 +689,17 @@ func (ldb *LDataBase) lowerBound(begin, end, fieldName []byte, data interface{},
 	return nil, ErrNotFound
 }
 
+
+func (ldb *LDataBase) Empty(begin, end, fieldName []byte) (bool) {
+
+	it := ldb.db.NewIterator(&util.Range{Start: begin, Limit: end}, nil)
+	if it.Next(){
+		return true
+	}
+
+	return false
+}
+
 func (ldb *LDataBase) upperBound(begin, end, fieldName []byte, data interface{}, greater bool) (*DbIterator, error) {
 	//TODO
 	fields, err := getFieldInfo(string(fieldName), data)

@@ -8,6 +8,8 @@ type DataBase interface {
 
 	Find(tagName string, in interface{}, out interface{}) error
 
+	Empty(begin, end, fieldName []byte) (bool)
+
 	GetIndex(tagName string, in interface{}) (*multiIndex, error)
 
 	GetMutableIndex(tagName string, in interface{}) (*multiIndex, error)
