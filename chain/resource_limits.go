@@ -189,8 +189,7 @@ func (r *ResourceLimitsManager) SetAccountLimits(account common.AccountName, ram
 			pendingLimits.NetWeight = limits.NetWeight
 			pendingLimits.CpuWeight = limits.CpuWeight
 			pendingLimits.Pending = true
-			fmt.Println(r.db.Insert(&pendingLimits))
-			r.db.Find("byOwner", pendingLimits, &pendingLimits)
+			r.db.Insert(&pendingLimits)
 			return pendingLimits
 		} else {
 			return pendingLimits
@@ -218,7 +217,6 @@ func (r *ResourceLimitsManager) GetAccountLimits(account common.AccountName, ram
 	pendingBuo.Pending = true
 	err := r.db.Find("byOwner", pendingBuo, &pendingBuo)
 	if err == nil {
-		fmt.Println(pendingBuo)
 		*ramBytes = pendingBuo.RamBytes
 		*netWeight = pendingBuo.NetWeight
 		*cpuWeight = pendingBuo.CpuWeight
@@ -235,40 +233,34 @@ func (r *ResourceLimitsManager) GetAccountLimits(account common.AccountName, ram
 }
 
 func (r *ResourceLimitsManager) ProcessAccountLimitUpdates() {
-	//updateStateAndValue := func(total *uint64, value *int64, pendingValue int64, debugWhich string) {
-	//	if *value > 0 {
-	//		if *total < uint64(*value) {
-	//			fmt.Println("error")
-	//		}
-	//		*total -= uint64(*value)
-	//	}
-	//
-	//	if pendingValue > 0 {
-	//		if math.MaxUint64-*total < uint64(pendingValue) {
-	//			fmt.Println("error")
-	//		}
-	//		*total += uint64(pendingValue)
-	//	}
-	//
-	//	*value = pendingValue
-	//}
-	//var pendingRlo []entity.ResourceLimitsObject
-	//r.db.Get("Pending", true, &pendingRlo)
-	//state := entity.ResourceLimitsStateObject{}
-	//r.db.Find("ID", ResourceLimitsState, &state)
-	//r.db.Update(&state, func(data interface{}) error {
-	//	for _, itr := range pendingRlo {
-	//		rlo := ResourceLimitsObject{}
-	//		r.db.Find("Rlo", RloIndex{ResourceLimits, itr.Owner, false}, &rlo)
-	//		r.db.Update(&rlo, func(data interface{}) error {
-	//			updateStateAndValue(&state.TotalRamBytes, &rlo.RamBytes, itr.RamBytes, "ram_bytes")
-	//			updateStateAndValue(&state.TotalCpuWeight, &rlo.CpuWeight, itr.CpuWeight, "cpu_weight")
-	//			updateStateAndValue(&state.TotalNetWeight, &rlo.NetWeight, itr.NetWeight, "net_weight")
-	//			return nil
-	//		})
-	//	}
-	//	return nil
-	//})
+
+	updateStateAndValue := func(total *uint64, value *int64, pendingValue int64, debugWhich string) {
+		if *value > 0 {
+			EosAssert(*total >= uint64(*value), &RateLimitingStateInconsistent{}, "underflow when reverting old value to %s", debugWhich)
+			*total -= uint64(*value)
+		}
+
+		if pendingValue > 0 {
+			EosAssert(math.MaxUint16 - *total >= uint64(pendingValue), &RateLimitingStateInconsistent{}, "overflow when applying new value to %s", debugWhich )
+			*total += uint64(pendingValue)
+		}
+
+		*value = pendingValue
+	}
+
+	state := entity.ResourceLimitsStateObject{}
+	r.db.Find("id", state, &state)
+	r.db.Modify(&state, func(rso entity.ResourceLimitsStateObject) {
+		//for _, itr := range pendingRlo {
+		//	rlo := ResourceLimitsObject{}
+		//	r.db.Find("Rlo", RloIndex{ResourceLimits, itr.Owner, false}, &rlo)
+		//	r.db.Modify(&rlo, func(rlo entity.ResourceLimitsObject) {
+		//		updateStateAndValue(&rso.TotalRamBytes, &rlo.RamBytes, itr.RamBytes, "ram_bytes")
+		//		updateStateAndValue(&rso.TotalCpuWeight, &rlo.CpuWeight, itr.CpuWeight, "cpu_weight")
+		//		updateStateAndValue(&rso.TotalNetWeight, &rlo.NetWeight, itr.NetWeight, "net_weight")
+		//	})
+		//}
+	})
 }
 
 func (r *ResourceLimitsManager) ProcessBlockUsage(blockNum uint32) {
