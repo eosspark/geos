@@ -18,7 +18,7 @@ func Test_rawDb(t *testing.T) {
    //pprof.StartCPUProfile(f)
    //defer pprof.StopCPUProfile()
 
-	fileName := "./hello"
+	fileName := "./eosspark"
 	reFn := func() {
 		errs := os.RemoveAll(fileName)
 		if errs != nil {
