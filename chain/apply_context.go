@@ -9,6 +9,7 @@ import (
 	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/eosspark/eos-go/database"
 	"github.com/eosspark/eos-go/entity"
+	"github.com/eosspark/eos-go/exception"
 	"github.com/eosspark/eos-go/log"
 )
 
@@ -39,12 +40,6 @@ type ApplyContext struct {
 	CfaInlineActions     []types.Action
 	PendingConsoleOutput string
 }
-
-// type itrObjectInterface interface {
-// 	GetBillableSize() uint64
-// 	// GetTableId() types.IdType
-// 	// GetValue() common.HexBytes
-// }
 
 func NewApplyContext(control *Controller, trxContext *TransactionContext, act *types.Action, recurseDepth uint32) *ApplyContext {
 
@@ -82,12 +77,11 @@ type iteratorCache struct {
 }
 
 func NewIteratorCache() *iteratorCache {
-
 	i := iteratorCache{
-		tableCache:         make(map[common.IdType]*pairTableIterator),
-		endIteratorToTable: make([]*entity.TableIdObject, 8),
-		iteratorToObject:   make([]interface{}, 32),
-		objectToIterator:   make(map[interface{}]int),
+		tableCache: make(map[common.IdType]*pairTableIterator),
+		// endIteratorToTable: make([]*entity.TableIdObject, 8),
+		// iteratorToObject:   make([]interface{}, 32),
+		objectToIterator: make(map[interface{}]int),
 	}
 	return &i
 }
@@ -98,6 +92,11 @@ func (i *iteratorCache) cacheTable(tobj *entity.TableIdObject) int {
 	if itr, ok := i.tableCache[tobj.ID]; ok {
 		return itr.iterator
 	}
+
+	if len(i.endIteratorToTable) >= 8 {
+		return 0 // an invalid iterator
+	}
+
 	ei := i.IndexToEndIterator(len(i.endIteratorToTable))
 	i.endIteratorToTable = append(i.endIteratorToTable, tobj)
 
@@ -113,6 +112,7 @@ func (i *iteratorCache) getTable(id common.IdType) *entity.TableIdObject {
 		return itr.tableIDObject
 	}
 
+	exception.EosAssert(false, &exception.TableNotInCache{}, "an invariant was broken, table should be in cache")
 	return &entity.TableIdObject{}
 	//EOS_ASSERT( itr != _table_cache.end(), table_not_in_cache, "an invariant was broken, table should be in cache" );
 }
@@ -120,13 +120,15 @@ func (i *iteratorCache) getEndIteratorByTableID(id common.IdType) int {
 	if itr, ok := i.tableCache[id]; ok {
 		return itr.iterator
 	}
+	exception.EosAssert(false, &exception.TableNotInCache{}, "an invariant was broken, table should be in cache")
 	//EOS_ASSERT( itr != _table_cache.end(), table_not_in_cache, "an invariant was broken, table should be in cache" );
 	return -1
 }
 func (i *iteratorCache) findTablebyEndIterator(ei int) *entity.TableIdObject {
+	exception.EosAssert(ei < -1, &exception.InvalidTableTterator{}, "not an end iterator")
+
 	//EOS_ASSERT( ei < -1, invalid_table_iterator, "not an end iterator" );
 	index := i.endIteratorToIndex(ei)
-
 	if index >= len(i.endIteratorToTable) {
 		return nil
 	}
@@ -137,26 +139,36 @@ func (i *iteratorCache) get(iterator int) interface{} {
 	// EOS_ASSERT( iterator >= 0, table_operation_not_permitted, "dereference of end iterator" );
 	// EOS_ASSERT( iterator < _iterator_to_object.size(), invalid_table_iterator, "iterator out of range" );
 	//auto result = _iterator_to_object[iterator];
-	obj := i.iteratorToObject[iterator]
-	return obj
-	//return nil
 	//EOS_ASSERT( result, table_operation_not_permitted, "dereference of deleted object" );
+	exception.EosAssert(iterator != -1, &exception.InvalidTableTterator{}, "invalid iterator")
+	exception.EosAssert(iterator >= 0, &exception.TableOperationNotPermitted{}, "dereference of end iterator")
+	exception.EosAssert(iterator < len(i.iteratorToObject), &exception.InvalidTableTterator{}, "iterator out of range")
+	obj := i.iteratorToObject[iterator]
+	exception.EosAssert(obj != nil, &exception.TableOperationNotPermitted{}, "dereference of deleted object")
+	return obj
 }
 func (i *iteratorCache) remove(iterator int) {
 	// EOS_ASSERT( iterator != -1, invalid_table_iterator, "invalid iterator" );
 	// EOS_ASSERT( iterator >= 0, table_operation_not_permitted, "cannot call remove on end iterators" );
 	// EOS_ASSERT( iterator < _iterator_to_object.size(), invalid_table_iterator, "iterator out of range" );
-
+	exception.EosAssert(iterator != -1, &exception.InvalidTableTterator{}, "invalid iterator")
+	exception.EosAssert(iterator >= 0, &exception.TableOperationNotPermitted{}, "dereference of end iterator")
+	exception.EosAssert(iterator < len(i.iteratorToObject), &exception.InvalidTableTterator{}, "iterator out of range")
 	obj := i.iteratorToObject[iterator]
+	if obj == nil {
+		return
+	}
 	i.iteratorToObject[iterator] = nil
 	delete(i.objectToIterator, obj)
-
-	//EOS_ASSERT( result, table_operation_not_permitted, "dereference of deleted object" );
 }
 
 func (i *iteratorCache) add(obj interface{}) int {
 	if itr, ok := i.objectToIterator[obj]; ok {
 		return itr
+	}
+
+	if len(i.iteratorToObject) >= 32 {
+		return -1
 	}
 
 	i.iteratorToObject = append(i.iteratorToObject, obj)

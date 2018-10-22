@@ -169,3 +169,9 @@ func (index *multiIndex)IteratorTo(in interface{}) Iterator {
 	}
 	return &index.it
 }
+
+
+func (index *multiIndex)Empty()error{
+
+	return nil
+}

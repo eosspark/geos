@@ -300,7 +300,6 @@ func findObjs(objs []TableIdObject, houses []House, db DataBase) {
 			log.Fatalln("Find Object")
 		}
 	}
-
 }
 
 func findInLineFieldObjs(objs []TableIdObject, houses []House, db DataBase) {
@@ -326,7 +325,6 @@ func findInLineFieldObjs(objs []TableIdObject, houses []House, db DataBase) {
 		}
 		i--
 	}
-
 }
 
 func findAllNonUniqueFieldObjs(objs []TableIdObject, houses []House, db DataBase) {
@@ -337,7 +335,7 @@ func findAllNonUniqueFieldObjs(objs []TableIdObject, houses []House, db DataBase
 	if err != nil{
 		log.Fatalln(err)
 	}
-	logObj(obj)
+	//logObj(obj)
 }
 
 func Test_modify(t *testing.T) {
