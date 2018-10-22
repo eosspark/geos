@@ -48,7 +48,7 @@ tag
 //// TODO A separate module for external use in the future
 type structInfo struct{
 	Name 			string
-	IncrementStart 	int64
+	IncrementStart 	int16
 	Id				*reflect.Value
 	Fields 			map[string]*fieldInfo
 }

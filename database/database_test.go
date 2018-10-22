@@ -134,6 +134,7 @@ func saveObjs(objs []TableIdObject, houses []House, db DataBase) ([]TableIdObjec
 
 		err := db.Insert(&v)
 		if err != nil {
+			log.Fatalln(err)
 			log.Fatalln("insert table object failed")
 		}
 
