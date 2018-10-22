@@ -7,17 +7,16 @@ import (
 	"github.com/syndtr/goleveldb/leveldb/util"
 	"log"
 	"os"
-	"runtime/pprof"
 	"testing"
 )
 
 func Test_rawDb(t *testing.T) {
-	f, err := os.Create("./cpu.txt")
-   if err != nil {
-       log.Fatal(err)
-   }
-   pprof.StartCPUProfile(f)
-   defer pprof.StopCPUProfile()
+	//f, err := os.Create("./cpu.txt")
+   //if err != nil {
+   //    log.Fatal(err)
+   //}
+   //pprof.StartCPUProfile(f)
+   //defer pprof.StopCPUProfile()
 
 	fileName := "./hello"
 	reFn := func() {

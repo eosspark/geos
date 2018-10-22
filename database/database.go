@@ -187,6 +187,10 @@ func (ldb *LDataBase) Insert(in interface{}) error {
 	return nil
 }
 
+func(ldb *LDataBase)GetMutableIndex(fieldName string, in interface{}) (*multiIndex, error){
+	return ldb.GetIndex(fieldName,in)
+}
+
 //////////////////////////////////////////////////////	find object from database //////////////////////////////////////////////////////
 /*
 
