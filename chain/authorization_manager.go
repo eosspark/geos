@@ -1,34 +1,27 @@
 package chain
 
 import (
-	"github.com/eosspark/eos-go/database"
-	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/chain/types"
+	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto/ecc"
+	"github.com/eosspark/eos-go/database"
 )
 
 var IsActiveAz bool
 
-var azInstance *AuthorizationManager
-
 type AuthorizationManager struct {
 	control *Controller
-	db      *database.DataBase
+	db      database.DataBase
 }
 
-func GetAuthorizationManager() *AuthorizationManager {
+func newAuthorizationManager(control *Controller) *AuthorizationManager {
+	azInstance := &AuthorizationManager{}
 	if !IsActiveAz {
-		azInstance = newAuthorizationManager()
+		azInstance.control = control
+		azInstance.db = control.DB
+		IsActiveAz = true
 	}
 	return azInstance
-}
-
-func newAuthorizationManager() *AuthorizationManager {
-	//IsActiveAz = true
-	//control := GetControllerInstance()
-	//db := control.DataBase()
-	//return &AuthorizationManager{control: control, db: db}
-	return &AuthorizationManager{}
 }
 
 type PermissionIdType types.IdType
@@ -104,6 +97,7 @@ func (am *AuthorizationManager) GetPermission(level *types.PermissionLevel) *typ
 	//am.db.Find("ByOwner", common.Tuple{level.Actor, level.Permission}, &po)
 	return &po
 }
+
 //
 //func (am *AuthorizationManager) LookupLinkedPermission(authorizerAccount common.AccountName,
 //	scope common.AccountName,

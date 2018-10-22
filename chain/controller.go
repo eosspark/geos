@@ -10,11 +10,11 @@ import (
 	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/crypto/rlp"
-	"github.com/eosspark/eos-go/cvm/exec"
 	"github.com/eosspark/eos-go/database"
 	"github.com/eosspark/eos-go/entity"
 	. "github.com/eosspark/eos-go/exception"
 	"github.com/eosspark/eos-go/log"
+	"github.com/eosspark/eos-go/wasmgo"
 )
 
 var readycontroller chan bool //TODO test code
@@ -63,7 +63,7 @@ type Config struct {
 	disableReplay       bool
 	contractsConsole    bool
 	genesis             types.GenesisState
-	vmType              exec.WasmInterface
+	vmType              wasmgo.WasmGo
 	readMode            DBReadMode
 	blockValidationMode ValidationMode
 	resourceGreylist    []common.AccountName
@@ -85,7 +85,7 @@ type Controller struct {
 	Pending                        *types.PendingState
 	Head                           *types.BlockState
 	ForkDB                         *types.ForkDatabase
-	WasmIf                         *exec.WasmInterface
+	WasmIf                         *wasmgo.WasmGo
 	ResourceLimists                *ResourceLimitsManager
 	Authorization                  *AuthorizationManager
 	Config                         Config //local	Config
@@ -104,8 +104,8 @@ func GetControllerInstance() *Controller {
 	if !isActiveController {
 		validPath()
 		instance = newController()
-		readycontroller <- true
-		time.Sleep(2 * time.Second) //TODO for test case
+		/*readycontroller <- true
+		time.Sleep(2 * time.Second) //TODO for test case*/
 	}
 	return instance
 }
@@ -154,7 +154,7 @@ func newController() *Controller {
 	con.initConfig()
 	con.ReadMode = con.Config.readMode
 	con.ApplyHandlers = make(map[common.AccountName]map[HandlerKey]v)
-	con.WasmIf = exec.NewWasmInterface()
+	con.WasmIf = wasmgo.NewWasmGo()
 
 	con.SetApplayHandler(common.AccountName(common.N("eosio")), common.AccountName(common.N("eosio")),
 		common.ActionName(common.N("eosio")), applyEosioNewaccount)
@@ -175,9 +175,18 @@ func newController() *Controller {
 
 	//IrreversibleBlock.connect()
 	readycontroller = make(chan bool)
-	go initResource(con, readycontroller)
-
+	//go initResource(con, readycontroller)
+	con.ResourceLimists = newResourceLimitsManager(con)
+	con.Authorization = newAuthorizationManager(con)
 	return con
+}
+
+func initResource(c *Controller, ready chan bool) {
+	<-ready
+	//con.Blog
+	//c.ForkDB = types.GetForkDbInstance(common.DefaultConfig.DefaultStateDirName)
+
+	c.initialize()
 }
 
 func condition(contract common.AccountName, action common.ActionName) string {
@@ -1191,7 +1200,7 @@ func (c *Controller) FindApplyHandler(receiver common.AccountName,
 	return nil
 }
 
-func (c *Controller) GetWasmInterface() *exec.WasmInterface {
+func (c *Controller) GetWasmInterface() *wasmgo.WasmGo {
 	return c.WasmIf
 }
 
@@ -1229,19 +1238,6 @@ func (c *Controller) CreateNativeAccount(name common.AccountName, owner types.Au
 	c.ResourceLimists.AddPendingRamUsage(name, int64(ramDelta))
 	c.ResourceLimists.VerifyAccountRamUsage(name)
 }
-
-func initResource(c *Controller, ready chan bool) {
-	<-ready
-	//con.Blog
-	//c.ForkDB = types.GetForkDbInstance(common.DefaultConfig.DefaultStateDirName)
-	c.ResourceLimists = GetResourceLimitsManager()
-	c.Authorization = GetAuthorizationManager()
-	c.initialize()
-}
-
-/*func init(){
-
-}*/
 
 func (c *Controller) initializeForkDB() {
 

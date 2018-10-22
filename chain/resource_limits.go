@@ -1,37 +1,38 @@
 package chain
 
 import (
+	"fmt"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
+	"github.com/eosspark/eos-go/common/arithmetic_types"
 	"github.com/eosspark/eos-go/database"
 	"github.com/eosspark/eos-go/entity"
-	"github.com/eosspark/eos-go/common/arithmetic_types"
 	. "github.com/eosspark/eos-go/exception"
-	"fmt"
 	"math"
 )
 
 var IsActiveRc bool
 
-var rcInstance *ResourceLimitsManager
-
+/*var rcInstance *ResourceLimitsManager
+ */
 type ResourceLimitsManager struct {
 	db database.DataBase `json:"db"`
 }
 
-func GetResourceLimitsManager() *ResourceLimitsManager {
+/*func GetResourceLimitsManager() *ResourceLimitsManager {
 	if !IsActiveRc {
 		rcInstance = newResourceLimitsManager()
 	}
 	return rcInstance
-}
+}*/
 
-func newResourceLimitsManager() *ResourceLimitsManager {
-	IsActiveRc = true
-	//control := GetControllerInstance()
-	//db := control.DataBase()
-	db, _ := database.NewDataBase(common.DefaultConfig.DefaultStateDirName)
-	return &ResourceLimitsManager{db: db}
+func newResourceLimitsManager(control *Controller) *ResourceLimitsManager {
+	rcInstance := ResourceLimitsManager{}
+	if !IsActiveRc {
+		rcInstance.db = control.DB
+		IsActiveRc = true
+	}
+	return &rcInstance
 }
 
 func (r *ResourceLimitsManager) InitializeDatabase() {
@@ -102,13 +103,13 @@ func (r *ResourceLimitsManager) AddTransactionUsage(account []common.AccountName
 			cpuUsedInWindow := arithmeticTypes.MulUint64(usage.CpuUsage.ValueEx, windowSize)
 			cpuUsedInWindow, _ = cpuUsedInWindow.Div(arithmeticTypes.Uint128{0, uint64(common.DefaultConfig.RateLimitingPrecision)})
 			userWeight := arithmeticTypes.Uint128{0, uint64(cpuWeight)}
-			allUserWeight :=  arithmeticTypes.Uint128{0, state.TotalCpuWeight}
+			allUserWeight := arithmeticTypes.Uint128{0, state.TotalCpuWeight}
 
 			maxUserUseInWindow := virtualNetworkCapacityInWindow.Mul(userWeight)
 			maxUserUseInWindow, _ = maxUserUseInWindow.Div(allUserWeight)
 			EosAssert(cpuUsedInWindow.Compare(maxUserUseInWindow) < 1, &TxCpuUsageExceed{},
-			"authorizing account %s has insufficient cpu resources for this transaction,\n cpu_used_in_window: %s,\n max_user_use_in_window: %s",
-			a, cpuUsedInWindow, maxUserUseInWindow)
+				"authorizing account %s has insufficient cpu resources for this transaction,\n cpu_used_in_window: %s,\n max_user_use_in_window: %s",
+				a, cpuUsedInWindow, maxUserUseInWindow)
 		}
 
 		if netWeight >= 0 && state.TotalNetWeight > 0 {
@@ -117,7 +118,7 @@ func (r *ResourceLimitsManager) AddTransactionUsage(account []common.AccountName
 			netUsedInWindow := arithmeticTypes.MulUint64(usage.NetUsage.ValueEx, windowSize)
 			netUsedInWindow, _ = netUsedInWindow.Div(arithmeticTypes.Uint128{0, uint64(common.DefaultConfig.RateLimitingPrecision)})
 			userWeight := arithmeticTypes.Uint128{0, uint64(cpuWeight)}
-			allUserWeight :=  arithmeticTypes.Uint128{0, state.TotalCpuWeight}
+			allUserWeight := arithmeticTypes.Uint128{0, state.TotalCpuWeight}
 
 			maxUserUseInWindow := virtualNetworkCapacityInWindow.Mul(userWeight)
 			maxUserUseInWindow, _ = maxUserUseInWindow.Div(allUserWeight)
@@ -161,7 +162,7 @@ func (r *ResourceLimitsManager) VerifyAccountRamUsage(account common.AccountName
 
 	if ramBytes >= 0 {
 		EosAssert(usage.RamUsage <= uint64(ramBytes), &RamUsageExceeded{},
-		"account %s has insufficient ram; needs %d bytes has %d bytes", account, usage.RamUsage, ramBytes)
+			"account %s has insufficient ram; needs %d bytes has %d bytes", account, usage.RamUsage, ramBytes)
 	}
 }
 
@@ -174,12 +175,12 @@ func (r *ResourceLimitsManager) GetAccountRamUsage(account common.AccountName) i
 
 func (r *ResourceLimitsManager) SetAccountLimits(account common.AccountName, ramBytes int64, netWeight int64, cpuWeight int64) bool { //for test
 
-	findOrCreatePendingLimits := func() entity.ResourceLimitsObject{
+	findOrCreatePendingLimits := func() entity.ResourceLimitsObject {
 		pendingLimits := entity.ResourceLimitsObject{}
 		pendingLimits.Owner = account
 		pendingLimits.Pending = true
 		err := r.db.Find("byOwner", pendingLimits, &pendingLimits)
-		if err != nil{
+		if err != nil {
 			limits := entity.ResourceLimitsObject{}
 			limits.Owner = account
 			limits.Pending = false

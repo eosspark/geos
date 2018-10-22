@@ -4,19 +4,19 @@ import (
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/ecc"
-	"sort"
 	. "github.com/eosspark/eos-go/exception"
+	"sort"
 )
 
 type BlockHeaderState struct {
-	ID                               common.BlockIdType `storm:"id,unique"`
-	BlockNum                         uint32             `storm:"block_num,unique"`
-	Header                           SignedBlockHeader
-	DposProposedIrreversibleBlocknum uint32        `json:"dpos_proposed_irreversible_blocknum"`
-	DposIrreversibleBlocknum         uint32        `json:"dpos_irreversible_blocknum"`
-	BftIrreversibleBlocknum          uint32        `json:"bft_irreversible_blocknum"`
-	PendingScheduleLibNum            uint32        `json:"pending_schedule_lib_num"`
-	PendingScheduleHash              crypto.Sha256 `json:"pending_schedule_hash"`
+	ID                               common.BlockIdType `multiIndex:"id,increment"`
+	BlockNum                         uint32             `multiIndex:"block_num,orderedUnique,byLibBlockNum,"`
+	Header                           SignedBlockHeader  `multiIndex:"inline"`
+	DposProposedIrreversibleBlocknum uint32             `json:"dpos_proposed_irreversible_blocknum"`
+	DposIrreversibleBlocknum         uint32             `multiIndex:"byLibBlockNum" json:"dpos_irreversible_blocknum"`
+	BftIrreversibleBlocknum          uint32             `multiIndex:"byLibBlockNum" json:"bft_irreversible_blocknum"`
+	PendingScheduleLibNum            uint32             `json:"pending_schedule_lib_num"`
+	PendingScheduleHash              crypto.Sha256      `json:"pending_schedule_hash"`
 	PendingSchedule                  ProducerScheduleType
 	ActiveSchedule                   ProducerScheduleType
 	BlockrootMerkle                  IncrementalMerkle
@@ -155,7 +155,6 @@ func (bs *BlockHeaderState) SetNewProducers(pending SharedProducerScheduleType) 
 	bs.PendingScheduleLibNum = bs.BlockNum
 }
 
-
 /**
  *  Transitions the current header state into the next header state given the supplied signed block header.
  *
@@ -250,7 +249,7 @@ func (bs *BlockHeaderState) Sign(signer func(sha256 crypto.Sha256) ecc.Signature
 	}
 }
 
-func (bs *BlockHeaderState) Signee() (ecc.PublicKey) {
+func (bs *BlockHeaderState) Signee() ecc.PublicKey {
 	pk, err := bs.Header.ProducerSignature.PublicKey(bs.SigDigest().Bytes())
 	if err != nil {
 		panic(err)
