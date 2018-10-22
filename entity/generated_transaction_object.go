@@ -5,8 +5,24 @@ import (
 	"github.com/eosspark/eos-go/common"
 	arithmetic "github.com/eosspark/eos-go/common/arithmetic_types"
 	"github.com/eosspark/eos-go/crypto/rlp"
-	"github.com/eosspark/eos-go/database"
 )
+
+type GeneratedTransactionObject struct {
+	Id         common.IdType            `multiIndex:"id,increment,byExpiration,byDelay"`
+	TrxId      common.TransactionIdType `multiIndex:"byTrxId,orderedUnique"`
+	Sender     common.AccountName       `multiIndex:"bySenderId,orderedUnique"`
+	SenderId   arithmetic.Uint128       `multiIndex:"bySenderId,orderedUnique"`
+	Payer      common.AccountName
+	DelayUntil common.TimePoint         `multiIndex:"byDelay,orderedUnique"`
+	Expiration common.TimePoint         `multiIndex:"byExpiration,orderedUnique"`
+	Published  common.TimePoint
+	PackedTrx  common.HexBytes //c++ shared_string
+}
+
+func (g *GeneratedTransactionObject) Set(trx *types.Transaction) uint32 {
+	g.PackedTrx, _ = rlp.EncodeToBytes(trx)
+	return uint32(len(g.PackedTrx))
+}
 
 type GeneratedTransaction struct {
 	TrxId      common.TransactionIdType
@@ -17,79 +33,6 @@ type GeneratedTransaction struct {
 	Expiration common.TimePoint
 	Published  common.TimePoint
 	PackedTrx  []byte
-}
-
-type GeneratedTransactionObject struct {
-	Id         common.IdType            `storm:"id,increment"`
-	TrxId      common.TransactionIdType `storm:"unique"`
-	Sender     common.AccountName
-	SenderId   arithmetic.Uint128
-	Payer      common.AccountName
-	DelayUntil common.TimePoint
-	Expiration common.TimePoint
-	Published  common.TimePoint
-	PackedTrx  common.HexBytes //c++ shared_string
-	/*expiration、Id*/
-	ByExpiration common.Tuple
-	/*DelayUntil、Id*/
-	ByDelay common.Tuple
-	/*Sender、SenderId*/
-	BySenderId common.Tuple
-}
-
-func (g *GeneratedTransactionObject) Set(trx *types.Transaction) uint32 {
-	g.PackedTrx, _ = rlp.EncodeToBytes(trx)
-	return uint32(len(g.PackedTrx))
-}
-
-/* c++
-type billable_size struct {
-	const uint64_t overhead = overhead_per_row_per_index_ram_bytes * 5  ///< overhead for 5x indices internal-key, txid, expiration, delay, sender_id
-	const uint64_t value = 96 + 4 + overhead ///< 96 bytes for our constant size fields, 4 bytes for a varint for packed_trx size and 96 bytes of implementation overhead
-}*/
-
-//const overhead_per_row_per_index_ram_bytes uint32 = 32
-
-func (g *GeneratedTransactionObject) GetBillableSize() uint64 {
-	overhead := overhead_per_row_per_index_ram_bytes * 5
-	value := 96 + 4 + overhead
-	return uint64(value)
-}
-
-func GetGTOByTrxId(db *database.DataBase, trxId common.TransactionIdType) *GeneratedTransactionObject {
-	gto := GeneratedTransactionObject{}
-	//err := db.Find("TrxId", trxId, gto)
-	//if err != nil {
-	//	fmt.Println(GetGTOByTrxId)
-	//}
-	return &gto
-}
-
-func GetGeneratedTransactionObjectByExpiration(db *database.DataBase, be common.Tuple) *GeneratedTransactionObject {
-	gto := GeneratedTransactionObject{}
-	//err := db.Find("ByExpiration", be, &gto)
-	//if err != nil {
-	//	fmt.Println("GetGeneratedTransactionObjectByExpiration is error :", err.Error())
-	//}
-	return &gto
-}
-
-func GetGeneratedTransactionObjectByDelay(db *database.DataBase, be common.Tuple) *GeneratedTransactionObject {
-	gto := GeneratedTransactionObject{}
-	//err := db.Find("ByDelay", be, &gto)
-	//if err != nil {
-	//	fmt.Println("GetGeneratedTransactionObjectByDelay is error :", err.Error())
-	//}
-	return &gto
-}
-
-func GetGeneratedTransactionObjectBySenderId(db *database.DataBase, be common.Tuple) *GeneratedTransactionObject {
-	gto := GeneratedTransactionObject{}
-	//err := db.Find("BySenderId", be, &gto)
-	//if err != nil {
-	//	fmt.Println("GetGeneratedTransactionObjectBySenderId is error :", err.Error())
-	//}
-	return &gto
 }
 
 func GeneratedTransactions(gto *GeneratedTransactionObject) *GeneratedTransaction {

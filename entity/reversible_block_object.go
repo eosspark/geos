@@ -8,8 +8,8 @@ import (
 )
 
 type ReversibleBlockObject struct {
-	ID          uint64          `storm:"id,increment"`
-	BlockNum    uint32          `storm:"unique,blockNum"`
+	ID          uint64          `multiIndex:"id,increment"`
+	BlockNum    uint32          `multiIndex:"byNum,orderedNonUnique"`
 	PackedBlock common.HexBytes //TODO c++ shared_string
 }
 

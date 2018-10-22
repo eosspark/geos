@@ -2,58 +2,27 @@ package entity
 
 import (
 	"github.com/eosspark/eos-go/common"
-	"github.com/eosspark/eos-go/database"
 )
 
 type Object struct {
-	TypeId uint16 `storm:"id,increment"`
+	TypeId uint16 `multiIndex:"id,increment"`
 }
 
 type TableIdObject struct {
-	ID    common.IdType `storm:"id,increment"`
-	Code  common.AccountName
-	Scope common.ScopeName
-	Table common.TableName
+	ID    common.IdType      `multiIndex:"id,increment"`
+	Code  common.AccountName `multiIndex:"id,orderedUnique,byCodeScopeTable"`
+	Scope common.ScopeName   `multiIndex:"id,orderedUnique,byCodeScopeTable"`
+	Table common.TableName   `multiIndex:"id,orderedUnique,byCodeScopeTable"`
 	Payer common.AccountName
 	Count uint32
 }
 
-func (u *TableIdObject) GetBillableSizeOverhead() uint64 {
-	return overhead_per_row_per_index_ram_bytes * 2
-}
-func (u *TableIdObject) GetBillableSizeValue() uint64 {
-	return 44 + u.GetBillableSizeOverhead()
-}
-func (s *TableIdObject) MakeTuple(values ...interface{}) *common.Tuple {
-	//return s.SecondaryKey.MakeTupe(values...)
-	tuple := common.Tuple{}
-	return &tuple
-}
-
-type ByCodeScopeTable struct {
-	Code  common.AccountName
-	Scope common.ScopeName
-	Table common.TableName
-}
-
-type TableIdMultiIndex struct {
-	TableIdObject
-	Id  common.IdType           `storm:"id,increment"`
-	Bst ByCodeScopeTable `strom:"unique"`
-}
-
 type KeyValueObject struct {
-	// KeyType      KeyType
-	// NumberOfKeys int //default 1
 	ID                common.IdType `storm:"id,increment"`
 	TId               common.IdType
 	PrimaryKey        uint64
 	Payer             common.AccountName
 	Value             common.HexBytes // c++ SharedString
-	ByScopePrimaryKey struct {
-		TID        common.IdType
-		PrimaryKey uint64
-	} `strom:"unique"`
 }
 
 // func (u *KeyValueObject) GetValue() IdType {
@@ -62,55 +31,6 @@ type KeyValueObject struct {
 // func (u *KeyValueObject) GetTableId() IdType {
 // 	return u.TId
 // }
-func (u *KeyValueObject) GetBillableSizeOverhead() uint64 {
-	return overhead_per_row_per_index_ram_bytes * 2
-}
-func (u *KeyValueObject) GetBillableSizeValue() uint64 {
-	return 32 + 8 + 4 + u.GetBillableSizeOverhead()
-}
-func (s *KeyValueObject) MakeTuple(values ...interface{}) *common.Tuple {
-	//return s.SecondaryKey.MakeTupe(values...)
-	tuple := common.Tuple{}
-	return &tuple
-}
-
-func AddTableIdObjectIndex(dbs *database.DataBase, tio TableIdObject) {
-	ti := TableIdMultiIndex{}
-	ti.TableIdObject = tio
-	ti.Bst.Code = tio.Code
-	ti.Bst.Scope = tio.Scope
-	ti.Bst.Table = tio.Table
-	//err := dbs.Insert(&ti)
-	//if err != nil {
-	//	log.Error("Insert is error detail:", err)
-	//	return
-	//}
-}
-
-func GetTableObjectById(dbs *database.DataBase, id common.IdType) *TableIdMultiIndex {
-	tmi := TableIdMultiIndex{}
-	//err := dbs.Find("ID", id, &tmi)
-	//if err != nil {
-	//	fmt.Println(err.Error())
-	//}
-	return &tmi
-}
-
-func GetByCodeScopeTable(dbs *database.DataBase, bst ByCodeScopeTable) *TableIdMultiIndex {
-	tmi := TableIdMultiIndex{}
-	//err := dbs.Find("Bst", bst, &tmi)
-	//if err != nil {
-	//	log.Error("GetByCodeScopeTable is error", err)
-	//	return nil
-	//}
-
-	/*fmt.Println("*************************************")
-	fmt.Println(tmi)
-	fmt.Println("*************************************")*/
-	return &tmi
-}
-
-const overhead_per_row_per_index_ram_bytes = 32
 
 // type SecondaryKeyInterface interface {
 // 	SetValue(value interface{})
@@ -130,17 +50,6 @@ type Uint64_t struct {
 // func (u *Uint64_t) GetValue() interface{} {
 // 	return u.Value
 // }
-// func (u *Uint64_t) GetBillSize() int64 {
-// 	return 24 + 16 + overhead_per_row_per_index_ram_bytes*3
-// }
-// func (u *Uint64_t) Size() int64 {
-// 	return 8
-// }
-func (s *Uint64_t) MakeTuple(values ...interface{}) *common.Tuple {
-	//return s.SecondaryKey.MakeTupe(values...)
-	tuple := common.Tuple{}
-	return &tuple
-}
 
 type Float64_t struct {
 	Value float64
@@ -158,11 +67,6 @@ type Float64_t struct {
 // func (u *Float64_t) Size() int64 {
 // 	return 8
 // }
-func (s *Float64_t) MakeTuple(values ...interface{}) *common.Tuple {
-	//return s.SecondaryKey.MakeTupe(values...)
-	tuple := common.Tuple{}
-	return &tuple
-}
 
 // type Uint128_t struct {
 // 	Value [16]byte
@@ -185,44 +89,22 @@ func (s *Float64_t) MakeTuple(values ...interface{}) *common.Tuple {
 // }
 
 type SecondaryObjectI64 struct {
-	ID           common.IdType `storm:"id,increment"`
-	TId          common.IdType
-	PrimaryKey   uint64
+	ID           common.IdType      `multiIndex:"id,increment"`
+	TId          common.IdType      `multiIndex:"byPrimary,orderedUnique,less:bySecondary,orderedUnique,less"`
+	PrimaryKey   uint64             `multiIndex:"byName,orderedUnique,less:bySecondary,orderedUnique,less"`
 	Payer        common.AccountName
-	SecondaryKey Uint64_t
+	SecondaryKey Uint64_t           `multiIndex:"bySecondary,orderedUnique"`
 }
 
-func (s *SecondaryObjectI64) GetBillableSizeOverHead() int64 {
-	return overhead_per_row_per_index_ram_bytes * 3
-}
-
-func (s *SecondaryObjectI64) GetBillableSizeValue() int64 {
-	return 24 + 8 + s.GetBillableSizeOverHead()
-}
-
-func (s *SecondaryObjectI64) MakeTuple(values ...interface{}) *common.Tuple {
-	return s.SecondaryKey.MakeTuple(values...)
-}
 
 type SecondaryObjectDouble struct {
-	ID           common.IdType `storm:"id,increment"`
-	TId          common.IdType
-	PrimaryKey   uint64
+	ID           common.IdType      `multiIndex:"id,increment"`
+	TId          common.IdType      `multiIndex:"byPrimary,orderedUnique,less:bySecondary,orderedUnique,less"`
+	PrimaryKey   uint64             `multiIndex:"byName,orderedUnique,less:bySecondary,orderedUnique,less"`
 	Payer        common.AccountName
-	SecondaryKey Float64_t
+	SecondaryKey Float64_t          `multiIndex:"bySecondary,orderedUnique"`
 }
 
-func (s *SecondaryObjectDouble) GetBillableSizeOverHead() int64 {
-	return overhead_per_row_per_index_ram_bytes * 3
-}
-
-func (s *SecondaryObjectDouble) GetBillableSizeValue() int64 {
-	return 24 + 8 + s.GetBillableSizeOverHead()
-}
-
-func (s *SecondaryObjectDouble) MakeTuple(values ...interface{}) *common.Tuple {
-	return s.SecondaryKey.MakeTuple(values...)
-}
 
 // type SecondaryObjectI128 struct {
 // 	ID           IdType `storm:"id,increment"`
@@ -247,8 +129,3 @@ func (s *SecondaryObjectDouble) MakeTuple(values ...interface{}) *common.Tuple {
 // 	Payer        common.AccountName
 // 	SecondaryKey float128_t
 // }
-const billableAlignment uint64 = 16
-
-func BillableSizeV(value uint64) uint64 {
-	return ((value + billableAlignment - 1) / billableAlignment) * billableAlignment
-}
