@@ -7,19 +7,18 @@ import (
 	"github.com/syndtr/goleveldb/leveldb/util"
 	"log"
 	"os"
-	"runtime/pprof"
 	"testing"
 )
 
 func Test_rawDb(t *testing.T) {
-	f, err := os.Create("./cpu.txt")
-   if err != nil {
-       log.Fatal(err)
-   }
-   pprof.StartCPUProfile(f)
-   defer pprof.StopCPUProfile()
+	//f, err := os.Create("./cpu.txt")
+   //if err != nil {
+   //    log.Fatal(err)
+   //}
+   //pprof.StartCPUProfile(f)
+   //defer pprof.StopCPUProfile()
 
-	fileName := "./hello"
+	fileName := "./eosspark"
 	reFn := func() {
 		errs := os.RemoveAll(fileName)
 		if errs != nil {
@@ -135,6 +134,7 @@ func saveObjs(objs []TableIdObject, houses []House, db DataBase) ([]TableIdObjec
 
 		err := db.Insert(&v)
 		if err != nil {
+			log.Fatalln(err)
 			log.Fatalln("insert table object failed")
 		}
 

@@ -4,11 +4,13 @@ type DataBase interface {
 
 	Close()
 
-	Insert(data interface{}) error
+	Insert(in interface{}) error
 
-	Find(fieldName string, data interface{}, out interface{}) error
+	Find(tagName string, in interface{}, out interface{}) error
 
-	GetIndex(fieldName string, data interface{}) (*multiIndex, error)
+	GetIndex(tagName string, in interface{}) (*multiIndex, error)
+
+	GetMutableIndex(tagName string, in interface{}) (*multiIndex, error)
 
 	Modify(data interface{}, fn interface{}) error
 
@@ -26,9 +28,9 @@ type DataBase interface {
 
 	Revision() int64
 
-	lowerBound(key,value,typeName []byte,data interface{},greater bool) (*DbIterator,error)
+	lowerBound(key,value,typeName []byte,in interface{},greater bool) (*DbIterator,error)
 
-	upperBound(key,value,typeName []byte,data interface{},greater bool) (*DbIterator,error)
+	upperBound(key,value,typeName []byte,in interface{},greater bool) (*DbIterator,error)
 
 	squash()
 }

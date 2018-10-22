@@ -21,7 +21,7 @@ type House struct {
 	Carnivore Carnivore `multiIndex:"inline"`
 }
 
-type IdType uint64
+type IdType int16
 type Name uint64
 type AccountName uint64
 type PermissionName uint64

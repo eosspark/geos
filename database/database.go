@@ -45,7 +45,7 @@ func NewDataBase(path string) (DataBase, error) {
 		return nil, err
 	}
 
-	return &LDataBase{db: db, stack:newDeque(),path: path}, nil
+	return &LDataBase{db: db, stack: newDeque(), path: path}, nil
 }
 
 func (ldb *LDataBase) Close() {
@@ -70,7 +70,7 @@ func (ldb *LDataBase) Undo() {
 	for key, _ := range stack.OldValue {
 		log.Fatalln("modify do not work")
 		// db.modify
-		ldb.Modify(key,nil)
+		ldb.Modify(key, nil)
 	}
 	for key, _ := range stack.NewValue {
 		// db.remove
@@ -183,8 +183,12 @@ func (ldb *LDataBase) Insert(in interface{}) error {
 		// undo
 		return err
 	}
-	ldb.undoInsert(in)	// undo
+	ldb.undoInsert(in) // undo
 	return nil
+}
+
+func (ldb *LDataBase) GetMutableIndex(fieldName string, in interface{}) (*multiIndex, error) {
+	return ldb.GetIndex(fieldName, in)
 }
 
 //////////////////////////////////////////////////////	find object from database //////////////////////////////////////////////////////
@@ -256,7 +260,7 @@ func (ldb *LDataBase) Remove(in interface{}) error {
 		return err
 	}
 	ldb.undoRemove(in)
-	return  nil
+	return nil
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -280,8 +284,8 @@ func save(data interface{}, tx *leveldb.DB) error {
 	if err != nil {
 		return err
 	}
-	id,err := rlp.EncodeToBytes(cfg.Id.Interface())
-	if err != nil{
+	id, err := rlp.EncodeToBytes(cfg.Id.Interface())
+	if err != nil {
 		return err
 	}
 	typeName := []byte(cfg.Name)
@@ -336,8 +340,8 @@ func remove(data interface{}, db *leveldb.DB) error {
 	if isZero(cfg.Id) {
 		return ErrIncompleteStructure
 	}
-	id,err := rlp.EncodeToBytes(cfg.Id.Interface())
-	if err != nil{
+	id, err := rlp.EncodeToBytes(cfg.Id.Interface())
+	if err != nil {
 		return err
 	}
 	typeName := []byte(cfg.Name)
@@ -444,8 +448,8 @@ func modifyKey(old, new *reflect.Value, db *leveldb.DB) error {
 		return saveKey(newKey, value, db)
 	}
 
-	id,err := rlp.EncodeToBytes(newCfg.Id.Interface())
-	if err != nil{
+	id, err := rlp.EncodeToBytes(newCfg.Id.Interface())
+	if err != nil {
 		return err
 	}
 	typeName := []byte(newCfg.Name)
@@ -586,9 +590,9 @@ func incrementField(cfg *structInfo, tx *leveldb.DB) error {
 	return setIncrementId(counter, key, cfg, tx)
 }
 
-func setIncrementId(counter int64, key []byte, cfg *structInfo, tx *leveldb.DB) error {
+func setIncrementId(counter int16, key []byte, cfg *structInfo, tx *leveldb.DB) error {
 	cfg.Id.Set(reflect.ValueOf(counter).Convert(cfg.Id.Type()))
-	value ,err := rlp.EncodeToBytes(cfg.Id.Interface())
+	value, err := rlp.EncodeToBytes(cfg.Id.Interface())
 	if value == nil && err == nil {
 		return err
 	}
@@ -599,7 +603,7 @@ func setIncrementId(counter int64, key []byte, cfg *structInfo, tx *leveldb.DB) 
 	return saveKey(key, value, tx)
 }
 
-func getIncrementId(key []byte, cfg *structInfo, tx *leveldb.DB) (int64, error) {
+func getIncrementId(key []byte, cfg *structInfo, tx *leveldb.DB) (int16, error) {
 
 	valByte, err := tx.Get(key, nil)
 	if err != nil && err != leveldb.ErrNotFound {
@@ -608,7 +612,7 @@ func getIncrementId(key []byte, cfg *structInfo, tx *leveldb.DB) (int64, error) 
 
 	counter := cfg.IncrementStart
 	if valByte != nil {
-		err := rlp.DecodeBytes(valByte,&counter)
+		err := rlp.DecodeBytes(valByte, &counter)
 		if err != nil {
 			return 0, ErrIdTagIncrement
 		}
@@ -752,12 +756,12 @@ func (ldb *LDataBase) getStack() *undoState {
 
 ///////////////
 
-func (ldb *LDataBase)enable()bool{
-	return ldb.stack.Size()	 != 0
+func (ldb *LDataBase) enable() bool {
+	return ldb.stack.Size() != 0
 }
 
-func (ldb *LDataBase) undoInsert(in interface{}){
-	if !ldb.enable(){
+func (ldb *LDataBase) undoInsert(in interface{}) {
+	if !ldb.enable() {
 		return
 	}
 
@@ -770,8 +774,8 @@ func (ldb *LDataBase) undoInsert(in interface{}){
 	stack.undoInsert(copy_)
 }
 
-func (ldb *LDataBase) undoModify(in interface{}){
-	if !ldb.enable(){
+func (ldb *LDataBase) undoModify(in interface{}) {
+	if !ldb.enable() {
 		return
 	}
 
@@ -784,8 +788,8 @@ func (ldb *LDataBase) undoModify(in interface{}){
 	stack.undoModify(copy_)
 }
 
-func (ldb *LDataBase) undoRemove(in interface{}){
-	if !ldb.enable(){
+func (ldb *LDataBase) undoRemove(in interface{}) {
+	if !ldb.enable() {
 		return
 	}
 
