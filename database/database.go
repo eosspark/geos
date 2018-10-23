@@ -1,6 +1,7 @@
 package database
 
 import (
+	"fmt"
 	"log"
 	"math"
 	"reflect"
@@ -68,17 +69,20 @@ func (ldb *LDataBase) Undo() {
 		return
 	}
 	for key, _ := range stack.OldValue {
-		log.Fatalln("modify do not work")
+	//	log.Fatalln("modify do not work")
 		// db.modify
-		ldb.Modify(key, nil)
+		//ldb.Modify(key, nil)
+		//remove(key,ldb.db)
+		//save(key,ldb.db)
+		undoModify(key,ldb.db)
 	}
 	for key, _ := range stack.NewValue {
 		// db.remove
-		ldb.Remove(key)
+		remove(key,ldb.db)
 	}
 	for key, _ := range stack.RemoveValue {
 		// db.insert
-		ldb.Insert(key)
+		save(key,ldb.db)
 	}
 	ldb.stack.Pop()
 	ldb.revision--
@@ -183,6 +187,10 @@ func (ldb *LDataBase) Insert(in interface{}) error {
 		// undo
 		return err
 	}
+	// 	keyByte[][]byte
+	//	valByte[][]byte
+	//	save(in,keyByte,valByte)
+	//
 	ldb.undoInsert(in) // undo
 	return nil
 }
@@ -308,10 +316,13 @@ func save(data interface{}, tx *leveldb.DB) error {
 
 func saveKey(key, value []byte, tx *leveldb.DB) error {
 
+	//.Println("save   key is : ",key," : ",string(value))
 	if ok, _ := tx.Has(key, nil); ok {
+		//log.Println("--save   key is : ",key," : ",string(key))
+		//fmt.Println("save   key is : ",string(key)," : ",value)
 		return ErrAlreadyExists
 	}
-	//fmt.Println(key)
+	//fmt.Println("save   key is : ",string(key)," : ",value)
 	err := tx.Put(key, value, nil)
 	if err != nil {
 		return err
@@ -325,7 +336,11 @@ func remove(data interface{}, db *leveldb.DB) error {
 	if !ref.IsValid() || reflect.Indirect(ref).Kind() != reflect.Struct {
 		return ErrBadType
 	}
-
+	if ref.Kind() == reflect.Ptr{
+		// XXX There may be problems
+		ref = ref.Elem()
+	}
+	//fmt.Println(ref.Kind().String())
 	if ref.Kind() == reflect.Ptr {
 		return ErrStructNeeded
 	}
@@ -349,6 +364,7 @@ func remove(data interface{}, db *leveldb.DB) error {
 	//fmt.Println(typeName)
 
 	removeField := func(key, value []byte) error {
+		//fmt.Println("remove key is : ",key)
 		exist, err := db.Has(key, nil)
 		if err != nil {
 			return nil
@@ -381,6 +397,44 @@ func removeKey(key []byte, db *leveldb.DB) error {
 	return nil
 }
 
+func undoModify(old interface{},db *leveldb.DB)error{
+
+	oldRef := reflect.ValueOf(old)
+	if oldRef.Kind() != reflect.Ptr {
+		return ErrPtrNeeded
+	}
+
+	oldCfg, err := extractStruct(&oldRef)
+	if err != nil{
+		return err
+	}
+	id, err := rlp.EncodeToBytes(oldCfg.Id.Interface())
+	if err != nil {
+		return err
+	}
+	typeName := []byte(oldCfg.Name)
+	key := idKey(id, typeName)
+	val,err := getDbKey(key,db)
+	if err != nil {
+		return err
+	}
+
+	dst := reflect.New(reflect.Indirect(oldRef).Type())
+	err = rlp.DecodeBytes(val,dst.Interface())
+	if err != nil {
+		return err
+	}
+
+	err = modifyKey(&dst,&oldRef,db)
+	if err != nil {
+		fmt.Println(dst)
+		fmt.Println(oldRef)
+		return err
+	}
+
+	return nil
+}
+
 func modify(data interface{}, fn interface{}, db *leveldb.DB) error {
 	// ready
 	dataRef := reflect.ValueOf(data)
@@ -406,8 +460,11 @@ func modify(data interface{}, fn interface{}, db *leveldb.DB) error {
 
 	fnRef.Call([]reflect.Value{dataRef})
 	// modify
-	oldRef := reflect.ValueOf(oldInter)
-	err := modifyKey(&oldRef, &dataRef, db)
+	newRef := reflect.ValueOf(oldInter)
+	fmt.Println("modify ")
+	fmt.Println(newRef)
+	fmt.Println(dataRef)
+	err := modifyKey(&newRef, &dataRef, db)
 	if err != nil {
 		return err
 	}
@@ -415,7 +472,7 @@ func modify(data interface{}, fn interface{}, db *leveldb.DB) error {
 	return nil
 }
 
-func modifyKey(old, new *reflect.Value, db *leveldb.DB) error {
+func modifyKey(new, old *reflect.Value, db *leveldb.DB) error {
 	newCfg, err := extractStruct(new)
 	if err != nil {
 		return err
@@ -428,12 +485,13 @@ func modifyKey(old, new *reflect.Value, db *leveldb.DB) error {
 		return ErrNoID
 	}
 
-	callBack := func(newKey, oldKey []byte) error {
+	callBack := func(oldKey, newKey []byte) error {
 		find, err := db.Has(oldKey, nil)
 		if err != nil {
 			return err
 		}
 		if !find {
+			//fmt.Println("remove key : ",oldKey)
 			return ErrNotFound
 		}
 		value, err := db.Get(oldKey, nil)
@@ -458,7 +516,11 @@ func modifyKey(old, new *reflect.Value, db *leveldb.DB) error {
 	if err != nil {
 		return err
 	}
-
+	//fmt.Println(new.Interface())
+	//fmt.Println(old.Interface())
+	//newCfg.showStructInfo()
+	//fmt.Println("-------------")
+	//oldCfg.showStructInfo()
 	err = modifyField(newCfg, oldCfg, callBack)
 	if err != nil {
 		return err
@@ -576,6 +638,7 @@ value 		--> id
 
 func incrementField(cfg *structInfo, tx *leveldb.DB) error {
 
+	//fmt.Println("incrementField ----------")
 	typeName := []byte(cfg.Name)
 	tagName := []byte(tagID)
 	// typeName__tagName
@@ -587,34 +650,42 @@ func incrementField(cfg *structInfo, tx *leveldb.DB) error {
 	if err != nil {
 		return err
 	}
-	return setIncrementId(counter, key, cfg, tx)
+	err = setIncrementId(counter, key, cfg, tx)
+	if err != nil {
+		//fmt.Println("incrementField ----------")
+		return err
+	}
+	//fmt.Println("incrementField ----------")
+	return nil
 }
 
-func setIncrementId(counter int16, key []byte, cfg *structInfo, tx *leveldb.DB) error {
+func setIncrementId(counter int64, key []byte, cfg *structInfo, tx *leveldb.DB) error {
 	cfg.Id.Set(reflect.ValueOf(counter).Convert(cfg.Id.Type()))
 	value, err := rlp.EncodeToBytes(cfg.Id.Interface())
 	if value == nil && err == nil {
 		return err
 	}
+	//fmt.Println("delete is : ",key)
 	err = tx.Delete(key, nil)
 	if err != nil {
-		return ErrIdTagIncrement
+		return err
 	}
+	//fmt.Println("save   is : ",key)
 	return saveKey(key, value, tx)
 }
 
-func getIncrementId(key []byte, cfg *structInfo, tx *leveldb.DB) (int16, error) {
+func getIncrementId(key []byte, cfg *structInfo, tx *leveldb.DB) (int64, error) {
 
 	valByte, err := tx.Get(key, nil)
 	if err != nil && err != leveldb.ErrNotFound {
-		return 0, ErrIdTagIncrement
+		return 0, err
 	}
 
 	counter := cfg.IncrementStart
 	if valByte != nil {
 		err := rlp.DecodeBytes(valByte, &counter)
 		if err != nil {
-			return 0, ErrIdTagIncrement
+			return 0, err
 		}
 		//fmt.Println(key ,"  ","found id : ",counter)
 		counter++
@@ -654,9 +725,10 @@ func cloneInterface(data interface{}) interface{} {
 	return dst.Interface()
 }
 
-func cloneByte(dst, src []byte) int {
-	dst = make([]byte, len(src))
-	return copy(dst, src)
+func cloneByte(src []byte) []byte {
+	dst := make([]byte, len(src))
+	copy(dst, src)
+	return dst
 }
 
 func (ldb *LDataBase) lowerBound(begin, end, fieldName []byte, data interface{}, greater bool) (*DbIterator, error) {
@@ -693,11 +765,12 @@ func (ldb *LDataBase) lowerBound(begin, end, fieldName []byte, data interface{},
 func (ldb *LDataBase) Empty(begin, end, fieldName []byte) (bool) {
 
 	it := ldb.db.NewIterator(&util.Range{Start: begin, Limit: end}, nil)
+	defer it.Release()
 	if it.Next(){
-		return true
+		return false
 	}
 
-	return false
+	return true
 }
 
 func (ldb *LDataBase) upperBound(begin, end, fieldName []byte, data interface{}, greater bool) (*DbIterator, error) {

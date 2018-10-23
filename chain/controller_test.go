@@ -11,10 +11,10 @@ import (
 	"fmt"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
+	"github.com/stretchr/testify/assert"
 	"reflect"
 	"strings"
 	"testing"
-	"github.com/stretchr/testify/assert"
 )
 
 func TestPopBlock(t *testing.T) {
@@ -98,13 +98,26 @@ func TestController_SetApplayHandler(t *testing.T) {
 }
 
 func TestController_GetGlobalProperties(t *testing.T) {
-	c:=GetControllerInstance()
-	gp:=c.GetGlobalProperties()
-	assert.Equal(t,false,common.Empty(gp))//GlobalProperties not initialized
+	c := GetControllerInstance()
+	result := c.GetGlobalProperties()
+	gp := types.GlobalPropertyObject{}
+	gp.ID = common.IdType(1)
+	err := c.DB.Find("ID", gp, &gp)
+	if err != nil {
+		assert.Error(t, err, gp)
+	}
+	assert.Equal(t, false, common.Empty(result)) //GlobalProperties not initialized
+	assert.Equal(t, false, result == &gp)
+	c.Close()
 }
-func  TestController_StartBlock(t *testing.T) {
-	c:=GetControllerInstance()
-	w:=common.NewBlockTimeStamp(common.Now())
-	s:=types.Irreversible
-	c.StartBlock(w,uint16(s))
+func TestController_StartBlock(t *testing.T) {
+	c := GetControllerInstance()
+	w := common.NewBlockTimeStamp(common.Now())
+	s := types.Irreversible
+	c.StartBlock(w, uint16(s))
+	c.Close()
+}
+
+func Test(t *testing.T) {
+	fmt.Println(common.AccountName(6138663577826885632))
 }

@@ -5,6 +5,7 @@ import (
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/database"
+	"github.com/eosspark/eos-go/entity"
 )
 
 var IsActiveAz bool
@@ -24,59 +25,57 @@ func newAuthorizationManager(control *Controller) *AuthorizationManager {
 	return azInstance
 }
 
-type PermissionIdType types.IdType
+type PermissionIdType common.IdType
 
-func (am *AuthorizationManager) CreatePermission(account common.AccountName,
+func (a *AuthorizationManager) CreatePermission(account common.AccountName,
 	name common.PermissionName,
 	parent PermissionIdType,
 	auth types.Authority,
 	initialCreationTime common.TimePoint,
-) *types.PermissionObject {
-	//creationTime := initialCreationTime
-	//if creationTime == 1 {
-	//	creationTime = am.control.PendingBlockTime()
-	//}
-	//
-	//permUsage := types.PermissionUsageObject{}
-	//permUsage.LastUsed = creationTime
-	//am.db.Insert(&permUsage)
-	//
-	//perm := types.PermissionObject{
-	//	UsageId:     permUsage.ID,
-	//	Parent:      types.IdType(parent),
-	//	Owner:       account,
-	//	Name:        name,
-	//	LastUpdated: creationTime,
-	//	Auth:        am.AuthToShared(auth),
-	//}
-	//am.db.Insert(&perm)
-	//return perm
-	return &types.PermissionObject{}
+) *entity.PermissionObject {
+	creationTime := initialCreationTime
+	if creationTime == 1 {
+		creationTime = a.control.PendingBlockTime()
+	}
+
+	permUsage := entity.PermissionUsageObject{}
+	permUsage.LastUsed = creationTime
+	a.db.Insert(&permUsage)
+
+	perm := entity.PermissionObject{
+		UsageId:     permUsage.ID,
+		Parent:      common.IdType(parent),
+		Owner:       account,
+		Name:        name,
+		LastUpdated: creationTime,
+		Auth:        a.AuthToShared(auth),
+	}
+	a.db.Insert(&perm)
+	return &perm
 }
 
-func (am *AuthorizationManager) ModifyPermission(permission *types.PermissionObject, auth *types.Authority) {
-	//am.db.Update(&permission, func(data interface{}) error {
-	//	permission.Auth = am.AuthToShared(*auth)
-	//	//permission.LastUpdated = am.control.PendingBlockTime()
-	//	return nil
-	//})
+func (a *AuthorizationManager) ModifyPermission(permission *entity.PermissionObject, auth *types.Authority) {
+	a.db.Modify(&permission, func(po *entity.PermissionObject) {
+		po.Auth = a.AuthToShared(*auth)
+		po.LastUpdated = a.control.PendingBlockTime()
+	})
 }
 
-func (am *AuthorizationManager) RemovePermission(permission *types.PermissionObject) {
+func (a *AuthorizationManager) RemovePermission(permission *entity.PermissionObject) {
 
 }
 
-func (am *AuthorizationManager) UpdatePermissionUsage(permission *types.PermissionObject) {
-	//puo := types.PermissionUsageObject{}
-	//am.db.Find("ID", permission.UsageId, &puo)
-	//am.db.Update(&puo, func(data interface{}) error {
-	//	puo.LastUsed = am.control.PendingBlockTime()
-	//	return nil
-	//})
+func (a *AuthorizationManager) UpdatePermissionUsage(permission *entity.PermissionObject) {
+	puo := entity.PermissionUsageObject{}
+	puo.ID = permission.UsageId
+	a.db.Find("id", puo, &puo)
+	a.db.Modify(&puo, func(p *entity.PermissionUsageObject) {
+		puo.LastUsed = a.control.PendingBlockTime()
+	})
 }
 
-func (am *AuthorizationManager) GetPermissionLastUsed(permission *types.PermissionObject) common.TimePoint {
-	//puo := types.PermissionUsageObject{}
+func (a *AuthorizationManager) GetPermissionLastUsed(permission *entity.PermissionObject) common.TimePoint {
+	//puo := entity.PermissionUsageObject{}
 	//am.db.Find("ID", permission.UsageId, &puo)
 	//return puo.LastUsed
 	return 0
@@ -92,8 +91,8 @@ func (am *AuthorizationManager) FindPermission(level *types.PermissionLevel) *ty
 	return &types.PermissionObject{}
 }
 
-func (am *AuthorizationManager) GetPermission(level *types.PermissionLevel) *types.PermissionObject {
-	po := types.PermissionObject{}
+func (am *AuthorizationManager) GetPermission(level *types.PermissionLevel) *entity.PermissionObject {
+	po := entity.PermissionObject{}
 	//am.db.Find("ByOwner", common.Tuple{level.Actor, level.Permission}, &po)
 	return &po
 }

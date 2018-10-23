@@ -20,8 +20,6 @@ func prints(w *WasmGo, str int) {
 	fmt.Println("prints")
 
 	if !ignore {
-		// s := getString(w, str)
-		// string(getMemory(w,str,getStringLength(w,str)))
 		w.context.ContextAppend(string(getMemory(w, str, getStringLength(w, str))))
 	}
 
@@ -35,8 +33,9 @@ func prints(w *WasmGo, str int) {
 func printsl(w *WasmGo, str int, strLen int) {
 	fmt.Println("prints_l")
 
-	//s := string(w.vm.memory[str : str+strLen])
-	w.context.ContextAppend(string(getMemory(w, str, strLen)))
+	if !ignore {
+		w.context.ContextAppend(string(getMemory(w, str, strLen)))
+	}
 
 }
 
@@ -48,8 +47,10 @@ func printsl(w *WasmGo, str int, strLen int) {
 func printi(w *WasmGo, val int64) {
 	fmt.Println("printi")
 
-	s := strconv.FormatInt(val, 10)
-	w.context.ContextAppend(s)
+	if !ignore {
+		s := strconv.FormatInt(val, 10)
+		w.context.ContextAppend(s)
+	}
 }
 
 // void printui(uint64_t val) {
@@ -60,8 +61,10 @@ func printi(w *WasmGo, val int64) {
 func printui(w *WasmGo, val uint64) {
 	fmt.Println("printui")
 
-	s := strconv.FormatUint(val, 10)
-	w.context.ContextAppend(s)
+	if !ignore {
+		s := strconv.FormatUint(val, 10)
+		w.context.ContextAppend(s)
+	}
 }
 
 // void printi128(const __int128& val) {
@@ -86,10 +89,12 @@ func printui(w *WasmGo, val uint64) {
 func printi128(w *WasmGo, val int) {
 	fmt.Println("printi128")
 
-	bytes := getMemory(w, val, 16)
-	var v arithmetic.Int128
-	rlp.DecodeBytes(bytes, &v)
-	w.context.ContextAppend(v.String())
+	if !ignore {
+		bytes := getMemory(w, val, 16)
+		var v arithmetic.Int128
+		rlp.DecodeBytes(bytes, &v)
+		w.context.ContextAppend(v.String())
+	}
 
 }
 
@@ -102,10 +107,12 @@ func printi128(w *WasmGo, val int) {
 func printui128(w *WasmGo, val int) {
 	fmt.Println("printui128")
 
-	bytes := getMemory(w, val, 16)
-	var v arithmetic.Uint128
-	rlp.DecodeBytes(bytes, &v)
-	w.context.ContextAppend(v.String())
+	if !ignore {
+		bytes := getMemory(w, val, 16)
+		var v arithmetic.Uint128
+		rlp.DecodeBytes(bytes, &v)
+		w.context.ContextAppend(v.String())
+	}
 
 }
 
@@ -124,8 +131,10 @@ func printui128(w *WasmGo, val int) {
 func printsf(w *WasmGo, val float32) {
 	fmt.Println("printsf")
 
-	s := strconv.FormatFloat(float64(val), 'e', 6, 32)
-	w.context.ContextAppend(s)
+	if !ignore {
+		s := strconv.FormatFloat(float64(val), 'e', 6, 32)
+		w.context.ContextAppend(s)
+	}
 
 }
 
@@ -144,8 +153,10 @@ func printsf(w *WasmGo, val float32) {
 func printdf(w *WasmGo, val float64) {
 	fmt.Println("printdf")
 
-	s := strconv.FormatFloat(val, 'e', 15, 64)
-	w.context.ContextAppend(s)
+	if !ignore {
+		s := strconv.FormatFloat(val, 'e', 15, 64)
+		w.context.ContextAppend(s)
+	}
 }
 
 // void printqf( const float128_t& val ) {
@@ -190,9 +201,9 @@ func printqf(w *WasmGo, val int) {
 // }
 func printn(w *WasmGo, value int64) {
 	fmt.Println("printn")
-
-	//s := toString(uint64(value))
-	w.context.ContextAppend(common.S(uint64(value)))
+	if !ignore {
+		w.context.ContextAppend(common.S(uint64(value)))
+	}
 }
 
 // void printhex(array_ptr<const char> data, size_t data_len ) {
@@ -203,9 +214,8 @@ func printn(w *WasmGo, value int64) {
 func printhex(w *WasmGo, data int, dataLen int) {
 	fmt.Println("printhex")
 
-	// bytes := w.vm.memory[data : data+data_len]
-	// s := hex.EncodeToString(getMemory(w,data,dataLen))
-
-	w.context.ContextAppend(hex.EncodeToString(getMemory(w, data, dataLen)))
+	if !ignore {
+		w.context.ContextAppend(hex.EncodeToString(getMemory(w, data, dataLen)))
+	}
 
 }

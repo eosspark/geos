@@ -5,6 +5,7 @@ import (
 	"math"
 	"math/big"
 	"github.com/eosspark/eos-go/log"
+	"github.com/eosspark/eos-go/common/arithmetic_types"
 )
 
 type Ratio struct {
@@ -69,14 +70,12 @@ func MultiWithRatio(value uint64, ratio Ratio) uint64 {
 	return value * ratio.Numerator / ratio.Denominator
 }
 
-func DowngradeCast(val *big.Int) int64 {
-	max := big.NewInt(math.MaxInt64)
-	min := big.NewInt(math.MinInt64)
-
-	if val.Cmp(max) == 1 || val.Cmp(min) == -1 {
+func DowngradeCast(val arithmeticTypes.Uint128) int64 {
+	max := uint64(math.MaxInt64)
+	if val.High != 0 && val.Low > max {
 		log.Error("Usage exceeds maximum value representable after extending for precision")
 	}
-	return val.Int64()
+	return int64(val.Low)
 }
 
 func (ema *ExponentialMovingAverageAccumulator) Average() uint64 {

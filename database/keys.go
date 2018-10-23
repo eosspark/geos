@@ -1,6 +1,7 @@
 package database
 
 import (
+	"fmt"
 	"github.com/eosspark/eos-go/crypto/rlp"
 	"reflect"
 )
@@ -14,24 +15,7 @@ func idKey(id ,typeName []byte) []byte {// FIXME
 	return key
 }
 
-// 	fieldValue[0]__fieldValue[1]...
-func getFieldValue(key []byte, info *fieldInfo) []byte {
 
-	for _, v := range info.fieldValue {
-		// typeName__tag__fieldValue...
-		key = append(key, '_')
-		key = append(key, '_')
-		value, err := rlp.EncodeToBytes(v.Interface())
-		if err != nil {
-			return nil
-		}
-		key = append(key, value...)
-	}
-
-	//fmt.Println("func fieldKey value is : ",string(key))
-	//fmt.Println("func fieldKey value is : ",key)
-	return key
-}
 
 func getFieldInfo(fieldName string,value interface{})(*fieldInfo,error){
 	ref := reflect.ValueOf(value)
@@ -55,8 +39,8 @@ func getFieldInfo(fieldName string,value interface{})(*fieldInfo,error){
 
 // non unique fields --> find function
 func nonUniqueValue(info *fieldInfo)[]byte{
-	for _, v := range info.fieldValue {
-		if isZero(v) {
+	for _, v := range info.fieldValue  {
+		if isZero(v) && v.Kind() != reflect.Bool {
 			return nil
 		}
 	}
@@ -74,7 +58,7 @@ func getNonUniqueFieldValue(info *fieldInfo)([]byte,[]byte){
 	for _, v := range info.fieldValue {
 		values = append(values,'_')
 		values = append(values,'_')
-		if isZero(v) {
+		if v.Kind() != reflect.Bool &&  isZero(v) {
 			//values = append(values,regexp...)
 			count++
 			return prefix,prefix
@@ -100,11 +84,11 @@ func getNonUniqueFieldValue(info *fieldInfo)([]byte,[]byte){
 }
 
 // typeName__fieldName
-func typeNameFieldName(typeName,fieldName []byte)[]byte{
+func typeNameFieldName(typeName,tagName []byte)[]byte{
 	key := []byte(typeName)// TODO copy ?
 	key = append(key, '_')
 	key = append(key, '_')
-	key = append(key, fieldName...)
+	key = append(key, tagName...)
 	return key
 }
 
@@ -125,7 +109,7 @@ func doCallBack(id, typeName []byte, cfg *structInfo, callBack func(key, value [
 		// typeName__tagName__
 		key = append(key, tag...)
 		key =getFieldValue(key, fieldCfg)
-		if !fieldCfg.unique {
+		if !fieldCfg.unique && len(fieldCfg.fieldValue) == 1{
 			key = append(key, id...)
 		}
 		err := callBack(key, id)
@@ -135,7 +119,21 @@ func doCallBack(id, typeName []byte, cfg *structInfo, callBack func(key, value [
 	}
 	return nil
 }
-
+// 	fieldValue[0]__fieldValue[1]...
+func getFieldValue(key []byte, info *fieldInfo) []byte {
+	cloneKey :=  cloneByte(key)
+	for _, v := range info.fieldValue {
+		// typeName__tag__fieldValue...
+		cloneKey = append(cloneKey, '_')
+		cloneKey = append(cloneKey, '_')
+		value, err := rlp.EncodeToBytes(v.Interface())
+		if err != nil {
+			return nil
+		}
+		cloneKey = append(cloneKey, value...)
+	}
+	return cloneKey
+}
 // modify function
 func modifyField(cfg, oldCfg *structInfo, callBack func(newKey, oldKey []byte) error) error {
 
@@ -153,13 +151,16 @@ func modifyField(cfg, oldCfg *structInfo, callBack func(newKey, oldKey []byte) e
 		// typeName__tag__
 		key = append(key, tag...)
 
-		oldKey := getFieldValue(key, fieldCfg)
-		newKey := getFieldValue(key, oldCfg.Fields[tag])
-		if !fieldCfg.unique {
-			newKey = append(newKey, id...)
+		newKey := getFieldValue(key, fieldCfg)
+		oldKey := getFieldValue(key, oldCfg.Fields[tag])
+		if !fieldCfg.unique && len(fieldCfg.fieldValue) == 1{
 			oldKey = append(oldKey, id...)
+			newKey = append(newKey, id...)
 		}
 
+		fmt.Println(tag)
+		fmt.Println("newKey : ",newKey)
+		fmt.Println("oldKye : ",oldKey)
 		err := callBack(newKey, oldKey)
 		if err != nil {
 			return err

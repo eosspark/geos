@@ -1,3 +1,13 @@
+wasmgo
+=====
+
+fork from https://github.com/go-interpreter/wagon
+
+**NOTE:** `cvm` requires `Go >= 1.9.x`.
+
+## examples
+
+```
 package main
 
 import (
@@ -38,3 +48,7 @@ func main() {
 	fmt.Println(applyContext.PendingConsoleOutput)
 
 }
+```
+
+## go run hello.wasm
+// hello.wasm from eosio hello contract

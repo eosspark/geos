@@ -50,6 +50,7 @@ type DbIterator struct{
 	it 			iterator
 	rege 		string // FIXME unused
 	greater		bool
+	first		bool
 }
 
 //Do not use the functions in this file
@@ -64,6 +65,9 @@ func newDbIterator (typeName []byte,it iterator,db *leveldb.DB,rege string,great
 			}
 			idx.begin = make([]byte,len(key))
 			copy(idx.begin,key)
+			idx.value = make([]byte,len(key))
+			copy(idx.value,key)
+			idx.first = true
 			return idx,nil
 		}
 
@@ -71,8 +75,22 @@ func newDbIterator (typeName []byte,it iterator,db *leveldb.DB,rege string,great
 	}
 	for it.Next(){
 		idx := &DbIterator{typeName:typeName,it:it,db:db,rege:rege,greater:greater}
-		idx.begin = make([]byte,len(it.Value()))
-		copy(idx.begin,it.Value())
+		//idx.begin = make([]byte,len(it.Value()))
+		//copy(idx.begin,it.Value())
+		//
+		//idx.value = make([]byte,len(it.Value()))
+		//copy(idx.value,it.Value())
+
+		key := idKey(it.Value(),typeName)
+		key, err := getDbKey(key,db)
+		if err != nil{
+			return nil,err
+		}
+		idx.begin = make([]byte,len(key))
+		copy(idx.begin,key)
+		idx.value = make([]byte,len(key))
+		copy(idx.value,key)
+		idx.first = true
 		return idx,nil
 	}
 	return nil, ErrNotFound
@@ -82,7 +100,8 @@ func newDbIterator (typeName []byte,it iterator,db *leveldb.DB,rege string,great
 /////////////////////////////////////////////// iterator //////////////////////////////////
 func (index *DbIterator) Next() bool {
 	if index.greater {
-		if len(index.key) == len(index.value) && len(index.key) == 0{
+		if index.first == true {
+			index.first = false
 			value := index.it.Value()
 			k := idKey(value, index.typeName)
 
@@ -96,7 +115,8 @@ func (index *DbIterator) Next() bool {
 		}
 		return index.prev()
 	}
-	if len(index.key) == len(index.value) && len(index.key) == 0{
+	if index.first == true {
+		index.first = false
 		value := index.it.Value()
 		k := idKey(value, index.typeName)
 
@@ -113,7 +133,8 @@ func (index *DbIterator) Next() bool {
 
 func (index *DbIterator) Prev() bool {
 	if index.greater {
-		if len(index.key) == len(index.value) && len(index.key) == 0{
+		if index.first == true {
+			index.first = false
 			value := index.it.Value()
 			k := idKey(value, index.typeName)
 
@@ -127,7 +148,8 @@ func (index *DbIterator) Prev() bool {
 		}
 		return index.next()
 	}
-	if len(index.key) == len(index.value) && len(index.key) == 0{
+	if index.first == true {
+		index.first = false
 		value := index.it.Value()
 		k := idKey(value, index.typeName)
 

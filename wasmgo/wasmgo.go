@@ -6,17 +6,15 @@ import (
 	"fmt"
 	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/rlp"
+	"github.com/eosspark/eos-go/exception"
 	"log"
 	"reflect"
-
-	//"strings"
 
 	"github.com/eosspark/eos-go/wasmgo/wagon/exec"
 	"github.com/eosspark/eos-go/wasmgo/wagon/wasm"
 )
 
 var (
-	//envModule *wasm.Module
 	wasmGo *WasmGo
 	ignore bool = false
 )
@@ -28,54 +26,6 @@ type WasmGo struct {
 	handles map[string]interface{}
 	vm      *exec.VM
 }
-
-// type WasmInterface interface {
-// 	GetFunction() *envFunction
-// }
-
-// type envFunction struct {
-// 	val reflect.Value
-// 	typ reflect.Type
-// }
-
-// func (fn envFunction) call(vm *exec.VM, index int64) {
-// 	numIn := fn.typ.NumIn()
-// 	args := make([]reflect.Value, numIn)
-
-// 	for i := numIn - 1; i >= 0; i-- {
-// 		val := reflect.New(fn.typ.In(i)).Elem()
-// 		raw := vm.popUint64()
-// 		kind := fn.typ.In(i).Kind()
-
-// 		switch kind {
-// 		case reflect.Float64, reflect.Float32:
-// 			val.SetFloat(math.Float64frombits(raw))
-// 		case reflect.Uint32, reflect.Uint64:
-// 			val.SetUint(raw)
-// 		case reflect.Int32, reflect.Int64:
-// 			val.SetInt(int64(raw))
-// 		default:
-// 			panic(fmt.Sprintf("exec: args %d invalid kind=%v", i, kind))
-// 		}
-
-// 		args[i] = val
-// 	}
-
-// 	rtrns := fn.val.Call(args)
-// 	for i, out := range rtrns {
-// 		kind := out.Kind()
-// 		switch kind {
-// 		case reflect.Float64, reflect.Float32:
-// 			vm.pushFloat64(out.Float())
-// 		case reflect.Uint32, reflect.Uint64:
-// 			vm.pushUint64(out.Uint())
-// 		case reflect.Int32, reflect.Int64:
-// 			vm.pushInt64(out.Int())
-// 		default:
-// 			panic(fmt.Sprintf("exec: return value %d invalid kind=%v", i, kind))
-// 		}
-// 	}
-// }
 
 func NewWasmGo() *WasmGo {
 
@@ -238,7 +188,6 @@ func (w *WasmGo) Apply(code_id *crypto.Sha256, code []byte, context EnvContext) 
 	args[1] = uint64(context.GetCode())
 	args[2] = uint64(context.GetAct())
 
-	//o, err := vm.ExecCode(i, args[0], args[1], args[2])
 	o, err := vm.ExecCode(i, args[0], args[1], args[2])
 	if err != nil {
 		fmt.Printf("\n")
@@ -283,29 +232,9 @@ func (w *WasmGo) GetHandle(name string) interface{} {
 	return nil
 }
 
-// func importer(name string) (*wasm.Module, error) {
-// 	f, err := os.Open(name + ".wasm")
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	defer f.Close()
-// 	m, err := wasm.ReadModule(f, nil)
-// 	if err != nil {
-// 		return nil, err
-// 	}
-// 	// err = validate.VerifyModule(m)
-// 	// if err != nil {
-// 	// 	return nil, err
-// 	// }
-// 	return m, nil
-// }
-
 func (w *WasmGo) importer(name string) (*wasm.Module, error) {
 
 	if name == "env" {
-		// if envModule != nil {
-		// 	return envModule, nil
-		// }
 
 		count := len(w.handles)
 
@@ -352,8 +281,6 @@ func (w *WasmGo) importer(name string) (*wasm.Module, error) {
 			i++
 
 		}
-
-		//envModule = m
 
 		return m, nil
 
@@ -441,21 +368,17 @@ func getMemory(w *WasmGo, mIndex int, bufferSize int) []byte {
 
 	cap := cap(w.vm.Memory())
 	if cap < mIndex || cap < mIndex+bufferSize {
-		//assert()
-		fmt.Println("getMemory heap Memory out of bound")
+		exception.EosAssert(false, &exception.OverlappingMemoryError{}, "memcpy can only accept non-aliasing pointers")
+		//fmt.Println("getMemory heap Memory out of bound")
 		return nil
 	}
 
 	bytes := make([]byte, bufferSize)
 	copy(bytes[:], w.vm.Memory()[mIndex:mIndex+bufferSize])
-	//return w.vm.Memory[mIndex : mIndex+bufferSize]
 	return bytes
 }
 
 func setUint64(w *WasmGo, index int, val uint64) {
-	//c := make([]byte, 8)
-	//binary.LittleEndian.PutUint64(c, val)
-	//copy(w.vm.Memory[index:index+8], c[:])
 
 	fmt.Println("setUint64")
 	c, _ := rlp.EncodeToBytes(val)
@@ -463,9 +386,6 @@ func setUint64(w *WasmGo, index int, val uint64) {
 }
 
 func getUint64(w *WasmGo, index int) uint64 {
-	//c := make([]byte, 8)
-	//copy(c[:], w.vm.Memory[index:index+8])
-	//return binary.LittleEndian.Uint64(c[:])
 
 	fmt.Println("getUint64")
 	var ret uint64
@@ -475,10 +395,6 @@ func getUint64(w *WasmGo, index int) uint64 {
 }
 
 func setFloat64(w *WasmGo, index int, val float64) {
-	//c := make([]byte, 8)
-	//bits := math.Float64bits(val)
-	//binary.LittleEndian.PutUint64(c, bits)
-	//copy(w.vm.Memory[index:index+8], c[:])
 
 	fmt.Println("setUint64")
 	c, _ := rlp.EncodeToBytes(val)
@@ -486,9 +402,6 @@ func setFloat64(w *WasmGo, index int, val float64) {
 }
 
 func getFloat64(w *WasmGo, index int) float64 {
-	//c := make([]byte, 8)
-	//copy(c[:], w.vm.Memory[index:index+8])
-	//return math.Float64frombits(binary.LittleEndian.Uint64(c[:]))
 
 	fmt.Println("getUint64")
 	var ret float64
@@ -510,9 +423,6 @@ func getStringLength(w *WasmGo, index int) int {
 	return size
 }
 
-// func getString(w *WasmGo, index int) string {
-// 	return string(w.vm.Memory[index : index+getStringSize(w, index)])
-// }
 func getBytes(w *WasmGo, index int, datalen int) []byte {
 	return w.vm.Memory()[index : index+datalen]
 }
