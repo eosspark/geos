@@ -77,7 +77,7 @@ type EnvContext interface {
 	SetPrivileged(n common.AccountName, isPriv bool)
 
 	//producer
-	SetProposedProducers(producers []byte)
+	SetProposedProducers(producers []byte) int64
 	GetActiveProducersInBytes() []byte
 	//GetActiveProducers() []common.AccountName
 

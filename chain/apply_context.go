@@ -6,6 +6,7 @@ import (
 	"github.com/eosspark/eos-go/common"
 	arithmetic "github.com/eosspark/eos-go/common/arithmetic_types"
 	"github.com/eosspark/eos-go/crypto"
+	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/eosspark/eos-go/database"
 	"github.com/eosspark/eos-go/entity"
@@ -16,7 +17,7 @@ import (
 type ApplyContext struct {
 	Control *Controller
 
-	DB                 *database.DataBase
+	DB                 *database.LDataBase
 	TrxContext         *TransactionContext
 	Act                *types.Action
 	Receiver           common.AccountName
@@ -45,7 +46,7 @@ func NewApplyContext(control *Controller, trxContext *TransactionContext, act *t
 
 	applyContext := &ApplyContext{
 		Control:            control,
-		DB:                 &control.DB,
+		DB:                 (control.DB).(*database.LDataBase),
 		TrxContext:         trxContext,
 		Act:                act,
 		Receiver:           act.Account,
@@ -181,7 +182,7 @@ func (a *ApplyContext) execOne() (trace types.ActionTrace) {
 
 	//cfg := a.Control.GetGlobalProperties().Configuration
 	action := a.Control.GetAccount(a.Receiver)
-	//privileged := a.Privileged
+	a.Privileged = action.Privileged
 	native := a.Control.FindApplyHandler(a.Receiver, a.Act.Account, a.Act.Name)
 
 	if native != nil {
@@ -200,7 +201,7 @@ func (a *ApplyContext) execOne() (trace types.ActionTrace) {
 			a.Control.CheckContractList(a.Receiver)
 			a.Control.CheckActionList(a.Act.Account, a.Act.Name)
 		}
-		//try{
+		//try
 		a.Control.GetWasmInterface().Apply(&action.CodeVersion, action.Code, a)
 		//}catch(const wasm_exit&){}
 	}
@@ -250,8 +251,9 @@ func (a *ApplyContext) Exec() {
 	}
 
 	if len(a.CfaInlineActions) > 0 || len(a.InlineActions) > 0 {
-		// assert(a.RecurseDepth < a.Control.GetGlobalProperties().Configuration.MaxInlineActionDepth,
-		// 	transaction_exception, "inline action recursion depth reached" )
+		exception.EosAssert(a.RecurseDepth < uint32(a.Control.GetGlobalProperties().Configuration.MaxInlineActionDepth),
+			&exception.TransactionException{},
+			"inline action recursion depth reached")
 	}
 
 	for _, inlineAction := range a.CfaInlineActions {
@@ -272,18 +274,22 @@ func (a *ApplyContext) GetReceiver() common.AccountName { return a.Receiver }
 func (a *ApplyContext) GetCode() common.AccountName     { return a.Act.Account }
 func (a *ApplyContext) GetAct() common.ActionName       { return a.Act.Name }
 
+//func (a *ApplyContext) RequireAuthorizations(account common.AccountName) {}
+func (a *ApplyContext) IsAccount(n int64) bool {
+	account := entity.AccountObject{Name: common.AccountName(n)}
+	return a.DB.Find("byName", account, &account) == nil
+}
+
 //context authorization api
 func (a *ApplyContext) RequireAuthorization(account int64) {
-	for k, v := range a.Act.Authorization {
-		if v.Actor == common.AccountName(account) {
-			a.UsedAuthorizations[k] = true
-			return
-		}
-	}
-
-	fmt.Println("Requrie_auth assert")
-	// EOS_ASSERT( false, missing_auth_exception, "missing authority of ${account}/${permission}",
-	//              ("account",account)("permission",permission) );
+	return
+	// for k, v := range a.Act.Authorization {
+	// 	if v.Actor == common.AccountName(account) {
+	// 		a.UsedAuthorizations[k] = true
+	// 		return
+	// 	}
+	// }
+	// exception.EosAssert(false, &exception.MissingAuthException{}, "missing authority of %s", common.S(uint64(account)))
 }
 func (a *ApplyContext) HasAuthorization(account int64) bool {
 	for _, v := range a.Act.Authorization {
@@ -300,25 +306,9 @@ func (a *ApplyContext) RequireAuthorization2(account int64, permission int64) {
 			return
 		}
 	}
-
-	//EOS_ASSERT( false, missing_auth_exception, "missing authority of ${account}", ("account",account));
+	exception.EosAssert(false, &exception.MissingAuthException{}, "missing authority of %s/%s", common.S(uint64(account)), common.S(uint64(permission)))
 }
 
-//func (a *ApplyContext) RequireAuthorizations(account common.AccountName) {}
-func (a *ApplyContext) RequireRecipient(recipient int64) {
-	if a.HasReciptient(recipient) {
-		a.Notified = append(a.Notified, common.AccountName(recipient))
-	}
-}
-func (a *ApplyContext) IsAccount(n int64) bool {
-	return true
-	// account := types.AccountObject{Name: common.AccountName(n)}
-	// err := a.DB.ByIndex("byName", &account)
-	// if err == nil {
-	// 	return true
-	// }
-	// return false
-}
 func (a *ApplyContext) HasReciptient(code int64) bool {
 	for _, a := range a.Notified {
 		if a == common.AccountName(code) {
@@ -327,13 +317,212 @@ func (a *ApplyContext) HasReciptient(code int64) bool {
 	}
 	return false
 }
+func (a *ApplyContext) RequireRecipient(recipient int64) {
+	if a.HasReciptient(recipient) {
+		a.Notified = append(a.Notified, common.AccountName(recipient))
+	}
+}
+
+//context transaction api
+func (a *ApplyContext) ExecuteInline(action []byte) {
+
+	act := types.Action{}
+	rlp.DecodeBytes(action, &act)
+
+	code := entity.AccountObject{Name: act.Account}
+	err := a.DB.Find("byName", code, &code)
+	exception.EosAssert(err != nil, &exception.ActionValidateException{},
+		"inline action's code account %s does not exist", common.S(uint64(act.Account)))
+
+	for _, auth := range act.Authorization {
+		actor := entity.AccountObject{Name: auth.Actor}
+		err := a.DB.Find("byName", actor, &actor)
+		exception.EosAssert(err != nil, &exception.ActionValidateException{}, "inline action's authorizing actor %s does not exist", common.S(uint64(auth.Actor)))
+		exception.EosAssert(a.Control.GetAuthorizationManager().FindPermission(&auth) != nil, &exception.ActionValidateException{},
+			"inline action's authorizations include a non-existent permission:%s",
+			auth) //todo permissionLevel print
+	}
+
+	if !a.Control.SkipAuthCheck() && !a.Privileged && act.Account != a.Receiver {
+
+		f := a.TrxContext.CheckTime
+		a.Control.GetAuthorizationManager().CheckAuthorization([]*types.Action{&act},
+			[]*ecc.PublicKey{},
+			[]*types.PermissionLevel{&types.PermissionLevel{a.Receiver, common.DefaultConfig.EosioCodeName}},
+			common.Microseconds(a.Control.PendingBlockTime()-a.TrxContext.Published),
+			&f,
+			false)
+
+	}
+
+	a.InlineActions = append(a.InlineActions, act)
+
+}
+func (a *ApplyContext) ExecuteContextFreeInline(action []byte) {
+
+	act := types.Action{}
+	rlp.DecodeBytes(action, &act)
+	code := entity.AccountObject{Name: act.Account}
+	err := a.DB.Find("byName", code, &code)
+	exception.EosAssert(err != nil, &exception.ActionValidateException{},
+		"inline action's code account %s does not exist", common.S(uint64(act.Account)))
+
+	exception.EosAssert(len(act.Authorization) == 0, &exception.ActionValidateException{},
+		"context-free actions cannot have authorizations")
+
+	a.CfaInlineActions = append(a.CfaInlineActions, act)
+}
+
+func (a *ApplyContext) ScheduleDeferredTransaction(sendId *arithmetic.Uint128, payer common.AccountName, trx []byte, replaceExisting bool) {
+}
+func (a *ApplyContext) CancelDeferredTransaction2(sendId *arithmetic.Uint128, sender common.AccountName) bool {
+	return false
+}
+
+func (a *ApplyContext) CancelDeferredTransaction(sendId *arithmetic.Uint128) bool {
+	return a.CancelDeferredTransaction2(sendId, a.Receiver)
+}
+
+func (a *ApplyContext) FindTable(code int64, scope int64, table int64) *entity.TableIdObject {
+	tab := entity.TableIdObject{Code: common.AccountName(code),
+		Scope: common.ScopeName(scope),
+		Table: common.TableName(table),
+	}
+
+	err := a.DB.Find("byCodeScopeTable", tab, &tab)
+	if err != nil {
+		return &tab
+	}
+	return nil
+}
+func (a *ApplyContext) FindOrCreateTable(code int64, scope int64, table int64, payer int64) *entity.TableIdObject {
+
+	tab := entity.TableIdObject{Code: common.AccountName(code),
+		Scope: common.ScopeName(scope),
+		Table: common.TableName(table),
+		Payer: common.AccountName(payer)}
+	err := a.DB.Find("byCodeScopeTable", tab, &tab)
+	if err == nil {
+		return &tab
+	}
+
+	a.UpdateDbUsage(common.AccountName(payer), int64(common.BillableSizeV("table_id_object")))
+	a.DB.Insert(&tab)
+	return &tab
+}
+func (a *ApplyContext) RemoveTable(tid entity.TableIdObject) {
+	a.UpdateDbUsage(tid.Payer, -int64(common.BillableSizeV("table_id_object")))
+
+	table := entity.TableIdObject{ID: tid.ID}
+	a.DB.Remove(&table)
+}
+
+//context producer api
+func (a *ApplyContext) SetProposedProducers(data []byte) int64 {
+
+	producers := []types.ProducerKey{}
+	rlp.DecodeBytes(data, &producers)
+
+	exception.EosAssert(len(producers) <= common.DefaultConfig.MaxProducers,
+		&exception.WasmExecutionError{},
+		"Producer schedule exceeds the maximum producer count for this chain")
+
+	uniqueProducers := make(map[types.ProducerKey]bool)
+	for _, p := range producers {
+		exception.EosAssert(a.IsAccount(int64(p.AccountName)), &exception.WasmExecutionError{}, "producer schedule includes a nonexisting account")
+		//exception.EosAssert(p.BlockSigningKey.Valid(), &exception.WasmExecutionError{},  "producer schedule includes an invalid key" )
+		if _, ok := uniqueProducers[p]; !ok {
+			uniqueProducers[p] = true
+		}
+	}
+
+	exception.EosAssert(len(producers) == len(uniqueProducers), &exception.WasmExecutionError{}, "duplicate producer name in producer schedule")
+	return a.Control.SetProposedProducers(producers)
+
+}
+
+func (a *ApplyContext) GetActiveProducersInBytes() []byte {
+
+	ap := a.Control.ActiveProducers()
+	accounts := make([]types.ProducerKey, len(ap.Producers))
+	for _, producer := range ap.Producers {
+		accounts = append(accounts, producer)
+	}
+
+	bytes, _ := rlp.EncodeToBytes(accounts)
+	return bytes
+
+}
 
 //context console api
 func (a *ApplyContext) resetConsole() {
-	str := ""
-	a.PendingConsoleOutput = str
+	//str := ""
+	a.PendingConsoleOutput = ""
 }
 func (a *ApplyContext) ContextAppend(str string) { a.PendingConsoleOutput += str }
+
+//func (a *ApplyContext) GetActiveProducers() []common.AccountName { return }
+
+func (a *ApplyContext) GetPackedTransaction() []byte {
+	bytes, err := rlp.EncodeToBytes(a.TrxContext.Trx)
+	if err != nil {
+		return []byte{}
+	}
+	return bytes
+}
+func (a *ApplyContext) UpdateDbUsage(payer common.AccountName, delta int64) {
+	if delta > 0 {
+		if !a.Privileged || payer == a.Receiver {
+
+			exception.EosAssert(a.Control.IsRamBillingInNotifyAllowed() || a.Receiver == a.Act.Account,
+				&exception.SubjectiveBlockProductionException{},
+				"Cannot charge RAM to other accounts during notify.")
+			a.RequireAuthorization(int64(payer))
+		}
+	}
+
+	a.AddRamUsage(payer, delta)
+
+}
+func (a *ApplyContext) GetAction(typ uint32, index int, bufferSize int) (int, []byte) {
+	trx := a.TrxContext.Trx
+	var a_ptr *types.Action
+	if typ == 0 {
+		if index >= len(trx.ContextFreeActions) {
+			return -1, nil
+		}
+		a_ptr = trx.ContextFreeActions[index]
+	} else if typ == 1 {
+		if index >= len(trx.ContextFreeActions) {
+			return -1, nil
+		}
+		a_ptr = trx.Actions[index]
+	}
+
+	exception.EosAssert(a_ptr != nil, &exception.ActionNotFoundException{}, "action is not found")
+
+	s, _ := rlp.EncodeSize(a_ptr)
+	if s <= bufferSize {
+		bytes, _ := rlp.EncodeToBytes(a_ptr)
+		return s, bytes
+	}
+	return s, nil
+
+}
+func (a *ApplyContext) GetContextFreeData(index int, bufferSize int) (int, []byte) {
+
+	trx := a.TrxContext.Trx
+	if index >= len(trx.ContextFreeData) {
+		return -1, nil
+	}
+	s := len(trx.ContextFreeData[index])
+	if bufferSize == 0 {
+		return s, nil
+	}
+	copySize := common.Min(uint64(bufferSize), uint64(s))
+	return int(copySize), trx.ContextFreeData[index][0:copySize]
+
+}
 
 //context database api
 func (a *ApplyContext) DbStoreI64(scope int64, table int64, payer int64, id int64, buffer []byte) int {
@@ -604,32 +793,70 @@ func (a *ApplyContext) IdxDoubleFindPrimary(code int64, scope int64, table int64
 	return a.idxDouble.findPrimary(code, scope, table, secondary, primary)
 }
 
-func (a *ApplyContext) FindTable(code int64, scope int64, table int64) *types.TableIdObject {
-	// // table := types.TableIdObject{Code: common.AccountName(code), Scope: common.ScopeName(scope), Table: common.TableName(table)}
-	// table := types.TableIdObject{}
-	// a.DB.Get("byCodeScopeTable", &table,  table.MakeTuple(code,scope,table))
-	// return table
-	return &types.TableIdObject{}
-}
-func (a *ApplyContext) FindOrCreateTable(code int64, scope int64, table int64, payer int64) *types.TableIdObject {
-
-	return &types.TableIdObject{}
-	// //table := types.TableIdObject{Code: common.AccountName(code), Scope: common.ScopeName(scope), Table: common.TableName(table), Payer: common.AccountName(payer)}
-	// table := types.TableIdObject{}
-	// err := a.DB.Get("byCodeScopeTable", &table, table.MakeTuple(code,scope,table))
-	// if err == nil {
-	// 	return &table
-	// }
-	// a.DB.Insert(&table)
-	// return &table
-}
-func (a *ApplyContext) RemoveTable(tid types.TableIdObject) {
-	// UpdateDBUsage(tid.Payer, -types.TableIdObject{}.GetBillableSize())
-	// a.DB.remove(tid)
+func (a *ApplyContext) nextGlobalSequence() uint64 {
+	return 0
+	//p := a.Control.GetDynamicGlobalProperties()
+	//a.DB.Modify(p, func(dgp *types.DynamicGlobalPropertyObject) {
+	//	dgp.GlobalActionSequence++
+	//})
+	//return p.GlobalActionSequence
 }
 
-func (a *ApplyContext) UpdateDbUsage(payer common.AccountName, delta int64) {
+func (a *ApplyContext) nextRecvSequence(receiver common.AccountName) uint64 {
+	return 0
+	//rs := &types.AccountSequenceObject{Name: receiver}
+	//a.DB.Get("byName", rs)
+	//a.DB.Modify(rs, func(mrs *types.AccountSequenceObject) {
+	//	mrs.RecvSequence++
+	//})
+	//return rs.RecvSequence
+}
 
+func (a *ApplyContext) nextAuthSequence(receiver common.AccountName) uint64 {
+	return 0
+	//rs := &types.AccountSequenceObject{Name: receiver}
+	//a.DB.Get("byName", rs)
+	//a.DB.Modify(rs, func(mrs *types.AccountSequenceObject) {
+	//	mrs.AuthSequence++
+	//})
+	//return rs.AuthSequence
+}
+
+// void apply_context::add_ram_usage( account_name account, int64_t ram_delta ) {
+//    trx_context.add_ram_usage( account, ram_delta );
+
+//    auto p = _account_ram_deltas.emplace( account, ram_delta );
+//    if( !p.second ) {
+//       p.first->delta += ram_delta;
+//    }
+// }
+
+func (a *ApplyContext) AddRamUsage(account common.AccountName, ramDelta int64) {
+	return
+	//a.TrxContext.AddRamUsage(account, ramDelta)
+
+	//    trx_context.add_ram_usage( account, ram_delta );
+
+	//    auto p = _account_ram_deltas.emplace( account, ram_delta );
+	//    if( !p.second ) {
+	//       p.first->delta += ram_delta;
+	//    }
+
+}
+
+func (a *ApplyContext) Expiration() int       { return int(a.TrxContext.Trx.Expiration) }
+func (a *ApplyContext) TaposBlockNum() int    { return int(a.TrxContext.Trx.RefBlockNum) }
+func (a *ApplyContext) TaposBlockPrefix() int { return int(a.TrxContext.Trx.RefBlockPrefix) }
+
+//context system api
+func (a *ApplyContext) CheckTime() {
+	a.TrxContext.CheckTime()
+}
+func (a *ApplyContext) CurrentTime() int64 {
+	return a.Control.PendingBlockTime().TimeSinceEpoch().Count()
+}
+func (a *ApplyContext) PublicationTime() int64 {
+	return a.TrxContext.Published.TimeSinceEpoch().Count()
 }
 
 //context permission api
@@ -697,211 +924,4 @@ func (a *ApplyContext) SetPrivileged(n common.AccountName, isPriv bool) {
 	//newAccount := oldAccount
 	//newAccount.Privileged = isPriv
 	//a.DB.UpdateObject(&oldAccount, &newAccount)
-}
-
-//context producer api
-func (a *ApplyContext) SetProposedProducers(data []byte) {
-
-	producers := []types.ProducerKey{}
-	rlp.DecodeBytes(data, &producers)
-
-	uniqueProducers := make(map[types.ProducerKey]bool)
-	for _, v := range producers {
-		//assert(a.IsAccount(v), "producer schedule includes a nonexisting account")
-		has := uniqueProducers[v]
-		if has {
-			uniqueProducers[v] = true
-		}
-	}
-
-	//assert(len(producer) == len(uniqueProducers),"duplicate producer name in producer schedule")
-	a.Control.SetProposedProducers(producers)
-
-}
-
-func (a *ApplyContext) GetActiveProducersInBytes() []byte {
-
-	ap := a.Control.ActiveProducers()
-	accounts := make([]types.ProducerKey, len(ap.Producers))
-	for _, producer := range ap.Producers {
-		accounts = append(accounts, producer)
-	}
-
-	bytes, _ := rlp.EncodeToBytes(accounts)
-	return bytes
-	//return []byte{}
-}
-
-//func (a *ApplyContext) GetActiveProducers() []common.AccountName { return }
-
-//context system api
-func (a *ApplyContext) CheckTime() {
-	a.TrxContext.CheckTime()
-}
-func (a *ApplyContext) CurrentTime() int64 {
-	return a.Control.PendingBlockTime().TimeSinceEpoch().Count()
-}
-func (a *ApplyContext) PublicationTime() int64 {
-	return a.TrxContext.Published.TimeSinceEpoch().Count()
-}
-
-//context transaction api
-func (a *ApplyContext) ExecuteInline(action []byte) {
-	// auto* code = control.db().find<account_object, by_name>(a.account);
-	// EOS_ASSERT( code != nullptr, action_validate_exception,
-	//             "inline action's code account ${account} does not exist", ("account", a.account) );
-
-	// for( const auto& auth : a.authorization ) {
-	//    auto* actor = control.db().find<account_object, by_name>(auth.actor);
-	//    EOS_ASSERT( actor != nullptr, action_validate_exception,
-	//                "inline action's authorizing actor ${account} does not exist", ("account", auth.actor) );
-	//    EOS_ASSERT( control.get_authorization_manager().find_permission(auth) != nullptr, action_validate_exception,
-	//                "inline action's authorizations include a non-existent permission: ${permission}",
-	//                ("permission", auth) );
-	// }
-
-	// // No need to check authorization if: replaying irreversible blocks; contract is privileged; or, contract is calling itself.
-	// if( !control.skip_auth_check() && !privileged && a.account != receiver ) {
-	//    control.get_authorization_manager()
-	//           .check_authorization( {a},
-	//                                 {},
-	//                                 {{receiver, config::eosio_code_name}},
-	//                                 control.pending_block_time() - trx_context.published,
-	//                                 std::bind(&transaction_context::checktime, &this->trx_context),
-	//                                 false
-	//                               );
-
-	//    //QUESTION: Is it smart to allow a deferred transaction that has been delayed for some time to get away
-	//    //          with sending an inline action that requires a delay even though the decision to send that inline
-	//    //          action was made at the moment the deferred transaction was executed with potentially no forewarning?
-	// }
-
-	act := types.Action{}
-	rlp.DecodeBytes(action, &act)
-	a.InlineActions = append(a.InlineActions, act)
-
-}
-func (a *ApplyContext) ExecuteContextFreeInline(action []byte) {
-	// auto* code = control.db().find<account_object, by_name>(a.account);
-	// EOS_ASSERT( code != nullptr, action_validate_exception,
-	//             "inline action's code account ${account} does not exist", ("account", a.account) );
-
-	// EOS_ASSERT( a.authorization.size() == 0, action_validate_exception,
-	//             "context-free actions cannot have authorizations" );
-
-	act := types.Action{}
-	rlp.DecodeBytes(action, &act)
-	a.CfaInlineActions = append(a.CfaInlineActions, act)
-
-}
-func (a *ApplyContext) ScheduleDeferredTransaction(sendId *arithmetic.Uint128, payer common.AccountName, trx []byte, replaceExisting bool) {
-}
-func (a *ApplyContext) CancelDeferredTransaction2(sendId *arithmetic.Uint128, sender common.AccountName) bool {
-	return false
-}
-
-func (a *ApplyContext) CancelDeferredTransaction(sendId *arithmetic.Uint128) bool {
-	return a.CancelDeferredTransaction2(sendId, a.Receiver)
-}
-
-func (a *ApplyContext) GetPackedTransaction() []byte {
-	bytes, err := rlp.EncodeToBytes(a.TrxContext.Trx)
-	if err != nil {
-		return []byte{}
-	}
-	return bytes
-}
-func (a *ApplyContext) Expiration() int       { return int(a.TrxContext.Trx.Expiration) }
-func (a *ApplyContext) TaposBlockNum() int    { return int(a.TrxContext.Trx.RefBlockNum) }
-func (a *ApplyContext) TaposBlockPrefix() int { return int(a.TrxContext.Trx.RefBlockPrefix) }
-func (a *ApplyContext) GetAction(typ uint32, index int, bufferSize int) (int, []byte) {
-	trx := a.TrxContext.Trx
-	var a_ptr *types.Action
-	if typ == 0 {
-		if index >= len(trx.ContextFreeActions) {
-			return -1, nil
-		}
-		a_ptr = trx.ContextFreeActions[index]
-	} else if typ == 1 {
-		if index >= len(trx.ContextFreeActions) {
-			return -1, nil
-		}
-		a_ptr = trx.Actions[index]
-	}
-	if a_ptr == nil {
-		return -1, nil
-	}
-
-	s, _ := rlp.EncodeSize(*a_ptr)
-	if s <= bufferSize {
-		bytes, _ := rlp.EncodeToBytes(*a_ptr)
-		return s, bytes
-	}
-	return s, nil
-
-}
-func (a *ApplyContext) GetContextFreeData(index int, bufferSize int) (int, []byte) {
-
-	trx := a.TrxContext.Trx
-	if index >= len(trx.ContextFreeData) {
-		return -1, nil
-	}
-	s := len(trx.ContextFreeData[index])
-	if bufferSize == 0 {
-		return s, nil
-	}
-	copySize := common.Min(uint64(bufferSize), uint64(s))
-	return int(copySize), trx.ContextFreeData[index][0:copySize]
-
-}
-
-func (a *ApplyContext) nextGlobalSequence() uint64 {
-	return 0
-	//p := a.Control.GetDynamicGlobalProperties()
-	//a.DB.Modify(p, func(dgp *types.DynamicGlobalPropertyObject) {
-	//	dgp.GlobalActionSequence++
-	//})
-	//return p.GlobalActionSequence
-}
-
-func (a *ApplyContext) nextRecvSequence(receiver common.AccountName) uint64 {
-	return 0
-	//rs := &types.AccountSequenceObject{Name: receiver}
-	//a.DB.Get("byName", rs)
-	//a.DB.Modify(rs, func(mrs *types.AccountSequenceObject) {
-	//	mrs.RecvSequence++
-	//})
-	//return rs.RecvSequence
-}
-
-func (a *ApplyContext) nextAuthSequence(receiver common.AccountName) uint64 {
-	return 0
-	//rs := &types.AccountSequenceObject{Name: receiver}
-	//a.DB.Get("byName", rs)
-	//a.DB.Modify(rs, func(mrs *types.AccountSequenceObject) {
-	//	mrs.AuthSequence++
-	//})
-	//return rs.AuthSequence
-}
-
-// void apply_context::add_ram_usage( account_name account, int64_t ram_delta ) {
-//    trx_context.add_ram_usage( account, ram_delta );
-
-//    auto p = _account_ram_deltas.emplace( account, ram_delta );
-//    if( !p.second ) {
-//       p.first->delta += ram_delta;
-//    }
-// }
-
-func (a *ApplyContext) AddRamUsage(account common.AccountName, ramDelta int64) {
-	return
-	//a.TrxContext.AddRamUsage(account, ramDelta)
-
-	//    trx_context.add_ram_usage( account, ram_delta );
-
-	//    auto p = _account_ram_deltas.emplace( account, ram_delta );
-	//    if( !p.second ) {
-	//       p.first->delta += ram_delta;
-	//    }
-
 }

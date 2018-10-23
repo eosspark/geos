@@ -100,7 +100,6 @@ func readTransaction(w *WasmGo, buffer int, bufferSize int) int {
 	}
 
 	copySize := min(bufferSize, s)
-	//copy(w.vm.memory[data:data+copySize], trx[0:copySize])
 	setMemory(w, buffer, trx, 0, copySize)
 	return copySize
 }
@@ -148,10 +147,9 @@ func getAction(w *WasmGo, typ int, index int, buffer int, bufferSize int) int {
 	fmt.Println("get_action")
 
 	s, action := w.context.GetAction(uint32(typ), index, bufferSize)
-	if bufferSize == 0 || s == -1 {
+	if bufferSize == 0 || action == nil {
 		return s
 	}
-	//copy(w.vm.memory[buffer:buffer+s], bytes[0:s])
 	setMemory(w, buffer, action, 0, s)
 	return s
 
@@ -168,7 +166,6 @@ func getContextFreeData(w *WasmGo, index int, buffer int, bufferSize int) int {
 	if bufferSize == 0 || s == -1 {
 		return s
 	}
-	//copy(w.vm.memory[buffer:buffer+s], bytes[0:s])
 	setMemory(w, buffer, data, 0, s)
 	return s
 
