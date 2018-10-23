@@ -179,8 +179,6 @@ func Test_find(t *testing.T) {
 
 	getGreaterObjs(objs_, houses_, db)
 
-	getLessObjs(objs_, houses_, db)
-	//
 	findObjs(objs_, houses_, db)
 
 	findInLineFieldObjs(objs_, houses_, db)
@@ -188,6 +186,8 @@ func Test_find(t *testing.T) {
 	findAllNonUniqueFieldObjs(objs_, houses_, db);
 
 	getErrStruct(db)
+
+	getLessObjs(objs_, houses_, db)
 }
 
 func getErrStruct(db DataBase) {
@@ -257,7 +257,7 @@ func getGreaterObjs(objs []TableIdObject, houses []House, db DataBase) {
 
 func getLessObjs(objs []TableIdObject, houses []House, db DataBase) {
 	obj := TableIdObject{Code: 13}
-	idx, err := db.GetIndex("Code", obj)
+	idx, err := db.GetIndex("Code", TableIdObject{})
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -267,15 +267,52 @@ func getLessObjs(objs []TableIdObject, houses []House, db DataBase) {
 		log.Fatalln(err)
 	}
 	i := 3
-	defer it.Release()
 	for it.Next(){
 		tmp := TableIdObject{}
 		it.Data(&tmp)
+
 		if tmp != objs[i]{
 			logObj(objs[i])
 			logObj(tmp)
 		}
 		i++
+	}
+	it.Release()
+}
+
+func Test_empty(t *testing.T) {
+	db, clo := openDb()
+	if db == nil {
+		log.Fatalln("db open failed")
+	}
+	defer clo()
+
+	objs, houses := Objects()
+	saveObjs(objs, houses, db)
+
+	obj := TableIdObject{Code: 11}
+	idx, err := db.GetIndex("Code", TableIdObject{})
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	it ,err := idx.LowerBound(obj)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	for it.Next(){
+		tmp := TableIdObject{}
+		it.Data(&tmp)
+		err = db.Remove(tmp)
+		if err != nil{
+			log.Fatalln(err)
+		}
+
+	}
+	it.Release()
+
+	if !idx.Empty(){
+		log.Fatalln("empty error")
 	}
 }
 

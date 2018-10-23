@@ -188,6 +188,8 @@ func (index *multiIndex) IteratorTo  (in interface{}) Iterator {
 }
 
 func (index *multiIndex)Empty() bool {
+	//fmt.Println(index.begin," : ",index.end)
+	//fmt.Println(string(index.begin),": : :",string(index.end))
 	return index.db.Empty(index.begin,index.end,index.fieldName)
 }
 

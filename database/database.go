@@ -694,10 +694,10 @@ func (ldb *LDataBase) Empty(begin, end, fieldName []byte) (bool) {
 
 	it := ldb.db.NewIterator(&util.Range{Start: begin, Limit: end}, nil)
 	if it.Next(){
-		return true
+		return false
 	}
 
-	return false
+	return true
 }
 
 func (ldb *LDataBase) upperBound(begin, end, fieldName []byte, data interface{}, greater bool) (*DbIterator, error) {
