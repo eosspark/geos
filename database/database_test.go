@@ -463,6 +463,68 @@ func removeUnique(db DataBase) {
 	}
 }
 
+func Test_modifyUndo(t *testing.T) {
+
+	db, clo := openDb()
+	if db == nil {
+		log.Fatalln("db open failed")
+	}
+	defer clo()
+
+
+	objs, houses := Objects()
+	objs_,_:=saveObjs(objs, houses, db)
+
+	//session := db.StartSession()
+	//session.Commit()
+
+	idx, err := db.GetIndex("Code", TableIdObject{})
+	if err != nil{
+		log.Println(err)
+	}
+	it,err := idx.LowerBound(TableIdObject{Code:11})
+	if err != nil{
+		log.Fatalln(err)
+	}
+	i := 0
+	for it.Next(){
+		tmp := TableIdObject{}
+		it.Data(&tmp)
+		logObj(tmp)
+		if objs_[i] != tmp{
+			logObj(tmp)
+			log.Fatalln("error lower bound")
+		}
+		i++
+	}
+	it.Release()
+
+	session := db.StartSession()
+	defer session.Undo()
+	obj := TableIdObject{ID: 4, Code: 21, Scope: 22, Table: 26, Payer: 27, Count: 25}
+	newobj := TableIdObject{ID: 4, Code: 200, Scope: 22, Table: 26, Payer: 27, Count: 25}
+
+	err = db.Modify(&obj, func(object *TableIdObject) {
+		object.Code = 200
+	})
+	if err != nil {
+		log.Fatalln(err)
+	}
+	session.Undo()
+	obj = TableIdObject{}
+	tmp := TableIdObject{}
+	obj.ID = 4
+	err = db.Find("id", obj, &tmp)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	logObj(tmp)
+	if tmp != newobj {
+		logObj(tmp)
+		log.Fatalln("modify test error")
+	}
+}
+
 func Test_undo(t *testing.T) {
 	db, clo := openDb()
 	if db == nil {
@@ -470,6 +532,7 @@ func Test_undo(t *testing.T) {
 	}
 	defer clo()
 
+	//////////////////////////////////////////////		Insert UNDO		///////////////////////////////////
 	session := db.StartSession()
 	objs, _ := Objects()
 	for i:= 0;i < 3;i++{
@@ -485,16 +548,42 @@ func Test_undo(t *testing.T) {
 		log.Println(err)
 	}
 	it,err := idx.LowerBound(TableIdObject{Code:11})
+	if err != ErrNotFound{
+		log.Fatalln(err)
+	}
+
+
+	//////////////////////////////////////////////		COMMIT		///////////////////////////////////
+
+	session = db.StartSession()
+	for i:= 0;i < 3;i++{
+		err := db.Insert(&objs[i])
+		if err != nil{
+			log.Println(err)
+		}
+	}
+
+	session.Commit()
+	idx, err = db.GetIndex("Code", TableIdObject{})
 	if err != nil{
 		log.Println(err)
 	}
-
+	it,err = idx.LowerBound(TableIdObject{Code:11})
+	if err != nil{
+		log.Fatalln(err)
+	}
+	i := 0
 	for it.Next(){
 		tmp := TableIdObject{}
 		it.Data(&tmp)
-		logObj(tmp)
+		if objs[i] != tmp{
+			logObj(tmp)
+			log.Fatalln("error lower bound")
+		}
+		i++
 	}
 	it.Release()
+
 }
 
 
