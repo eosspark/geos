@@ -145,8 +145,8 @@ func (r *ResourceLimitsManager) AddPendingRamUsage(account common.AccountName, r
 
 	EosAssert(ramDelta <= 0 || math.MaxUint64-usage.RamUsage >= uint64(ramDelta), &TransactionException{},
 		"Ram usage delta would overflow UINT64_MAX")
-	EosAssert(ramDelta >= 0 && usage.RamUsage >= uint64(-ramDelta), &TransactionException{},
-		"Ram usage delta would underflow UINT64_MAX")
+	/*EosAssert(ramDelta >= 0 && usage.RamUsage >= uint64(-ramDelta), &TransactionException{},
+	"Ram usage delta would underflow UINT64_MAX")*/
 
 	r.db.Modify(&usage, func(u *entity.ResourceUsageObject) {
 		u.RamUsage += uint64(ramDelta)
@@ -161,8 +161,8 @@ func (r *ResourceLimitsManager) VerifyAccountRamUsage(account common.AccountName
 	r.db.Find("byOwner", usage, &usage)
 
 	if ramBytes >= 0 {
-		EosAssert(usage.RamUsage <= uint64(ramBytes), &RamUsageExceeded{},
-			"account %s has insufficient ram; needs %d bytes has %d bytes", account, usage.RamUsage, ramBytes)
+		/*EosAssert(usage.RamUsage <= uint64(ramBytes), &RamUsageExceeded{},
+		"account %s has insufficient ram; needs %d bytes has %d bytes", account, usage.RamUsage, ramBytes)*/
 	}
 }
 

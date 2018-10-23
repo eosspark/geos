@@ -22,7 +22,7 @@ type NodeIdType crypto.Sha256
 type BlockIdType crypto.Sha256
 type TransactionIdType crypto.Sha256
 type CheckSum256Type crypto.Sha256
-type IdType uint64
+type IdType int64
 type KeyType uint64
 type DigestType crypto.Sha256
 
