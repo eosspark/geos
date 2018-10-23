@@ -463,8 +463,39 @@ func removeUnique(db DataBase) {
 	}
 }
 
+func Test_undo(t *testing.T) {
+	db, clo := openDb()
+	if db == nil {
+		log.Fatalln("db open failed")
+	}
+	defer clo()
 
+	session := db.StartSession()
+	objs, _ := Objects()
+	for i:= 0;i < 3;i++{
+		err := db.Insert(&objs[i])
+		if err != nil{
+			log.Println(err)
+		}
+	}
 
+	session.Undo()
+	idx, err := db.GetIndex("Code", TableIdObject{})
+	if err != nil{
+		log.Println(err)
+	}
+	it,err := idx.LowerBound(TableIdObject{Code:11})
+	if err != nil{
+		log.Println(err)
+	}
+
+	for it.Next(){
+		tmp := TableIdObject{}
+		it.Data(&tmp)
+		logObj(tmp)
+	}
+	it.Release()
+}
 
 
 
@@ -495,7 +526,6 @@ func Test_ResourceLimitsObject(t *testing.T) {
 	limits := MakeResourceLimitsObjects()
 	for _,v := range limits{
 		err := db.Insert(&v)
-		//fmt.Println("=====================================================")
 		if err != nil{
 			log.Fatalln(err)
 		}
