@@ -19,11 +19,11 @@ import (
 //  EOS_ASSERT( producers.size() == unique_producers.size(), wasm_execution_error, "duplicate producer name in producer schedule" );
 //  return context.control.set_proposed_producers( std::move(producers) );
 // }
-func setProposedProducers(w *WasmGo, packedProducerSchedule int, datalen int) {
+func setProposedProducers(w *WasmGo, packedProducerSchedule int, datalen int) int64 {
 	fmt.Println("set_proposed_producers")
 
 	p := getBytes(w, packedProducerSchedule, datalen)
-	w.context.SetProposedProducers(p)
+	return w.context.SetProposedProducers(p)
 
 }
 
