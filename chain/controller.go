@@ -176,6 +176,7 @@ func newController() *Controller {
 	//IrreversibleBlock.connect()
 	//readycontroller = make(chan bool)
 	//go initResource(con, readycontroller)
+	con.Pending = &types.PendingState{}
 	con.ResourceLimists = newResourceLimitsManager(con)
 	con.Authorization = newAuthorizationManager(con)
 	con.initialize()
@@ -269,7 +270,8 @@ func (c *Controller) StartBlock(when common.BlockTimeStamp, confirmBlockCount ui
 	//c.VValidateDbAvailableSize()
 }
 func (c *Controller) startBlock1(when common.BlockTimeStamp, confirmBlockCount uint16, s types.BlockStatus, producerBlockId *common.BlockIdType) {
-	EosAssert(common.Empty(c.Pending), &BlockValidateException{}, "pending block already exists")
+	//fmt.Println(c.Config)
+	EosAssert(nil != c.Pending, &BlockValidateException{}, "pending block already exists")
 	defer func() {
 		if c.Pending.Valid {
 			c.Pending.Reset()
@@ -294,9 +296,9 @@ func (c *Controller) startBlock1(when common.BlockTimeStamp, confirmBlockCount u
 	if c.ReadMode == DBReadMode(SPECULATIVE) || c.Pending.BlockStatus != types.BlockStatus(types.Incomplete) {
 		gpo := types.GlobalPropertyObject{}
 		gpo.ID = common.IdType(1)
-		err := c.DB.Find("ID", gpo, &gpo)
+		err := c.DB.Find("id", gpo, &gpo)
 		if err != nil {
-			log.Error("GetGlobalProperties is error detail:", err)
+			fmt.Println("GetGlobalProperties is error detail:", err)
 		}
 		fmt.Println("test:", gpo)
 		if (!common.Empty(gpo.ProposedScheduleBlockNum) && gpo.ProposedScheduleBlockNum <= c.Pending.PendingBlockState.DposIrreversibleBlocknum) &&
@@ -451,7 +453,6 @@ func (c *Controller) GetGlobalProperties() *types.GlobalPropertyObject {
 		//log.Error("GetGlobalProperties is error detail:", err)
 		fmt.Println("GetGlobalProperties data not found:", err)
 	}
-
 	return &gpo
 }
 
@@ -523,9 +524,12 @@ func (c *Controller) IsResourceGreylisted(name *common.AccountName) bool {
 	return false
 }
 
-func Close(db *database.LDataBase, session *database.Session) {
+func (c *Controller) Close() {
 	//session.close()
-	db.Close()
+	c.ForkDB.DB.Close()
+	c.DB.Close()
+	c.ReversibleBlocks.Close()
+	fmt.Println("Controller destory!")
 }
 
 func (c *Controller) GetUnAppliedTransactions() *[]types.TransactionMetadata {
@@ -562,6 +566,7 @@ func (c *Controller) GetScheduledTransactions() *[]common.TransactionIdType {
 		result.emplace_back(itr->trx_id);
 		++itr;
 	}*/
+
 	return nil
 }
 
@@ -866,10 +871,10 @@ func (c *Controller) ForkDataBase() *types.ForkDatabase {
 	return c.ForkDB
 }
 
-func (c *Controller) GetAccount(name common.AccountName) *types.AccountObject {
-	accountObj := types.AccountObject{}
-	//accountObj.Name = name
-	err := c.DB.Find("Name", name, accountObj)
+func (c *Controller) GetAccount(name common.AccountName) *entity.AccountObject {
+	accountObj := entity.AccountObject{}
+	accountObj.Name = name
+	err := c.DB.Find("byName", accountObj, &accountObj)
 	if err != nil {
 		fmt.Println("GetAccount is error :", err)
 	}
@@ -1212,7 +1217,7 @@ func (c *Controller) GetAbiSerializer(name common.AccountName,
 func (c *Controller) ToVariantWithAbi(obj interface{}, maxSerializationTime common.Microseconds) {}
 
 func (c *Controller) CreateNativeAccount(name common.AccountName, owner types.Authority, active types.Authority, isPrivileged bool) {
-	account := types.AccountObject{}
+	account := entity.AccountObject{}
 	account.Name = name
 	account.CreationDate = common.BlockTimeStamp(c.Config.genesis.InitialTimestamp)
 	account.Privileged = isPrivileged
@@ -1220,7 +1225,10 @@ func (c *Controller) CreateNativeAccount(name common.AccountName, owner types.Au
 		abiDef := types.AbiDef{}
 		account.SetAbi(EosioContractAbi(abiDef))
 	}
-	c.DB.Insert(account)
+	err := c.DB.Insert(&account)
+	if err != nil {
+		fmt.Println("CreateNativeAccount Insert Is Error:", err)
+	}
 
 	aso := types.AccountSequenceObject{}
 	aso.Name = name
@@ -1279,13 +1287,15 @@ func (c *Controller) initializeDatabase() {
 	if err != nil {
 		fmt.Errorf("-----------------", err)
 	}
-	fmt.Println("initializeDatabase gi:", gi)
-	fmt.Println("initializeDatabase insert gpo:", gpo)
+	/*fmt.Println("initializeDatabase gi:", gi)
+	fmt.Println("initializeDatabase insert gpo:", gpo)*/
+	//c.Authorization.InitializeDatabase()				//TODO
+	c.ResourceLimists.InitializeDatabase()
 	systemAuth := types.Authority{}
 	kw := types.KeyWeight{}
 	kw.Key = c.Config.genesis.InitialKey
 	systemAuth.Keys = []types.KeyWeight{kw}
-	fmt.Println("initializeDatabase systemAuth:", systemAuth)
+	//fmt.Println("initializeDatabase systemAuth:", systemAuth)
 	c.CreateNativeAccount(common.DefaultConfig.SystemAccountName, systemAuth, systemAuth, true)
 	emptyAuthority := types.Authority{}
 	emptyAuthority.Threshold = 1

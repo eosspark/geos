@@ -108,10 +108,16 @@ func TestController_GetGlobalProperties(t *testing.T) {
 	}
 	assert.Equal(t, false, common.Empty(result)) //GlobalProperties not initialized
 	assert.Equal(t, false, result == &gp)
+	c.Close()
 }
 func TestController_StartBlock(t *testing.T) {
 	c := GetControllerInstance()
 	w := common.NewBlockTimeStamp(common.Now())
 	s := types.Irreversible
 	c.StartBlock(w, uint16(s))
+	c.Close()
+}
+
+func Test(t *testing.T) {
+	fmt.Println(common.AccountName(6138663577826885632))
 }
