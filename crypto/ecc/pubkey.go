@@ -153,6 +153,24 @@ func (p *PublicKey) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+func (p PublicKey) Valid() bool {
+	switch p.Curve {
+	case CurveK1:
+		_, err := btcec.ParsePubKey(p.Content[:], btcec.S256())
+		if err != nil {
+			return false
+		}
+	case CurveR1:
+		_, err := btcec.ParsePubKey(p.Content[:], btcec.S256R1())
+		if err != nil {
+			return false
+		}
+	default:
+		return false
+	}
+	return true
+}
+
 func (p PublicKey) Compare(pub PublicKey) bool {
 	if p.Curve != pub.Curve {
 		return false
