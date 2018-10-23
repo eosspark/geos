@@ -6,18 +6,18 @@ import (
 
 type ResourceLimitsObject struct {
 	ID        common.IdType      `multiIndex:"id,increment"`
-	Owner     common.AccountName `multiIndex:"byOwner,orderedNonUnique"`
 	Pending   bool               `multiIndex:"byOwner,orderedNonUnique"`
+	Owner     common.AccountName `multiIndex:"byOwner,orderedNonUnique"`
 	NetWeight int64
 	CpuWeight int64
 	RamBytes  int64
 }
 
-func NewResourceLimitsObject() *ResourceLimitsObject{
+func NewResourceLimitsObject() ResourceLimitsObject{
 	rlo := ResourceLimitsObject{}
 	rlo.Pending = false
 	rlo.NetWeight = -1
 	rlo.CpuWeight = -1
 	rlo.RamBytes = -1
-	return &rlo
+	return rlo
 }

@@ -34,3 +34,7 @@ func TestResourceLimitsManager_SetAccountLimits(t *testing.T) {
 	rlm.GetAccountLimits(a, &r, &n, &c)
 	fmt.Println(r, n, c)
 }
+
+func TestResourceLimitsManager_ProcessBlockUsage(t *testing.T) {
+
+}
