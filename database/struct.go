@@ -21,7 +21,7 @@ type House struct {
 	Carnivore Carnivore `multiIndex:"inline"`
 }
 
-type IdType int16
+type IdType int64
 type Name uint64
 type AccountName uint64
 type PermissionName uint64
@@ -37,6 +37,15 @@ type TableIdObject struct{
 	Table 	TableName		`multiIndex:"byTable,orderedNonUnique,greater"`
 	Payer 	AccountName		`multiIndex:"byScope,orderedNonUnique"`
 	Count 	uint32
+}
+
+type ResourceLimitsObject struct{
+	ID 			IdType 			`multiIndex:"id,increment"`
+	Pending 	bool 			`multiIndex:"byOwner,orderedNonUnique"`
+	Owner 		AccountName  	`multiIndex:"byOwner,orderedNonUnique"`
+	NetWeight 	int64
+	CpuWeight 	int64
+	RamBytes 	int64
 }
 
 func logObj(data interface{}){

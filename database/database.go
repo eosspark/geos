@@ -308,10 +308,13 @@ func save(data interface{}, tx *leveldb.DB) error {
 
 func saveKey(key, value []byte, tx *leveldb.DB) error {
 
+	//.Println("save   key is : ",key," : ",string(value))
 	if ok, _ := tx.Has(key, nil); ok {
+		//log.Println("--save   key is : ",key," : ",string(key))
+		//fmt.Println("save   key is : ",string(key)," : ",value)
 		return ErrAlreadyExists
 	}
-	//fmt.Println(key)
+	//fmt.Println("save   key is : ",string(key)," : ",value)
 	err := tx.Put(key, value, nil)
 	if err != nil {
 		return err
@@ -349,6 +352,7 @@ func remove(data interface{}, db *leveldb.DB) error {
 	//fmt.Println(typeName)
 
 	removeField := func(key, value []byte) error {
+		//fmt.Println("remove key is : ",key)
 		exist, err := db.Has(key, nil)
 		if err != nil {
 			return nil
@@ -434,6 +438,7 @@ func modifyKey(old, new *reflect.Value, db *leveldb.DB) error {
 			return err
 		}
 		if !find {
+			//fmt.Println("remove key : ",oldKey)
 			return ErrNotFound
 		}
 		value, err := db.Get(oldKey, nil)
@@ -576,6 +581,7 @@ value 		--> id
 
 func incrementField(cfg *structInfo, tx *leveldb.DB) error {
 
+	//fmt.Println("incrementField ----------")
 	typeName := []byte(cfg.Name)
 	tagName := []byte(tagID)
 	// typeName__tagName
@@ -587,34 +593,42 @@ func incrementField(cfg *structInfo, tx *leveldb.DB) error {
 	if err != nil {
 		return err
 	}
-	return setIncrementId(counter, key, cfg, tx)
+	err = setIncrementId(counter, key, cfg, tx)
+	if err != nil {
+		//fmt.Println("incrementField ----------")
+		return err
+	}
+	//fmt.Println("incrementField ----------")
+	return nil
 }
 
-func setIncrementId(counter int16, key []byte, cfg *structInfo, tx *leveldb.DB) error {
+func setIncrementId(counter int64, key []byte, cfg *structInfo, tx *leveldb.DB) error {
 	cfg.Id.Set(reflect.ValueOf(counter).Convert(cfg.Id.Type()))
 	value, err := rlp.EncodeToBytes(cfg.Id.Interface())
 	if value == nil && err == nil {
 		return err
 	}
+	//fmt.Println("delete is : ",key)
 	err = tx.Delete(key, nil)
 	if err != nil {
-		return ErrIdTagIncrement
+		return err
 	}
+	//fmt.Println("save   is : ",key)
 	return saveKey(key, value, tx)
 }
 
-func getIncrementId(key []byte, cfg *structInfo, tx *leveldb.DB) (int16, error) {
+func getIncrementId(key []byte, cfg *structInfo, tx *leveldb.DB) (int64, error) {
 
 	valByte, err := tx.Get(key, nil)
 	if err != nil && err != leveldb.ErrNotFound {
-		return 0, ErrIdTagIncrement
+		return 0, err
 	}
 
 	counter := cfg.IncrementStart
 	if valByte != nil {
 		err := rlp.DecodeBytes(valByte, &counter)
 		if err != nil {
-			return 0, ErrIdTagIncrement
+			return 0, err
 		}
 		//fmt.Println(key ,"  ","found id : ",counter)
 		counter++
@@ -693,6 +707,7 @@ func (ldb *LDataBase) lowerBound(begin, end, fieldName []byte, data interface{},
 func (ldb *LDataBase) Empty(begin, end, fieldName []byte) (bool) {
 
 	it := ldb.db.NewIterator(&util.Range{Start: begin, Limit: end}, nil)
+	defer it.Release()
 	if it.Next(){
 		return false
 	}

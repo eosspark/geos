@@ -10,15 +10,15 @@ type Object struct {
 
 type TableIdObject struct {
 	ID    common.IdType      `multiIndex:"id,increment"`
-	Code  common.AccountName `multiIndex:"byCodeScopeTable,orderedUnique"`
-	Scope common.ScopeName   `multiIndex:"byCodeScopeTable,orderedUnique"`
-	Table common.TableName   `multiIndex:"byCodeScopeTable,orderedUnique"`
+	Code  common.AccountName `multiIndex:"id,orderedUnique,byCodeScopeTable"`
+	Scope common.ScopeName   `multiIndex:"id,orderedUnique,byCodeScopeTable"`
+	Table common.TableName   `multiIndex:"id,orderedUnique,byCodeScopeTable"`
 	Payer common.AccountName
 	Count uint32
 }
 
 type KeyValueObject struct {
-	ID         common.IdType `storm:"id,increment"`
+	ID         common.IdType `multiIndex:"id,increment"`
 	TId        common.IdType
 	PrimaryKey uint64
 	Payer      common.AccountName
