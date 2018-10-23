@@ -238,7 +238,7 @@ func (r *ResourceLimitsManager) ProcessAccountLimitUpdates() {
 	//	*value = pendingValue
 	//}
 
-	state := entity.ResourceLimitsStateObject{}
+	state := entity.DefaultResourceLimitsStateObject
 	r.db.Find("id", state, &state)
 	r.db.Modify(&state, func(rso entity.ResourceLimitsStateObject) {
 		//for _, itr := range pendingRlo {
@@ -256,7 +256,7 @@ func (r *ResourceLimitsManager) ProcessAccountLimitUpdates() {
 func (r *ResourceLimitsManager) ProcessBlockUsage(blockNum uint32) {
 	s := entity.ResourceLimitsStateObject{}
 	r.db.Find("id", s, &s)
-	config := entity.ResourceLimitsConfigObject{}
+	config := entity.DefaultResourceLimitsConfigObject
 	r.db.Find("id", config, &config)
 	r.db.Modify(&s, func(state *entity.ResourceLimitsStateObject) {
 
@@ -271,29 +271,29 @@ func (r *ResourceLimitsManager) ProcessBlockUsage(blockNum uint32) {
 }
 
 func (r *ResourceLimitsManager) GetVirtualBlockCpuLimit() uint64 {
-	state := entity.ResourceLimitsStateObject{}
+	state := entity.DefaultResourceLimitsStateObject
 	r.db.Find("id", state, &state)
 	return state.VirtualCpuLimit
 }
 
 func (r *ResourceLimitsManager) GetVirtualBlockNetLimit() uint64 {
-	state := entity.ResourceLimitsStateObject{}
+	state := entity.DefaultResourceLimitsStateObject
 	r.db.Find("id", state, &state)
 	return state.VirtualNetLimit
 }
 
 func (r *ResourceLimitsManager) GetBlockCpuLimit() uint64 {
-	state := entity.ResourceLimitsStateObject{}
+	state := entity.DefaultResourceLimitsStateObject
 	r.db.Find("id", state, &state)
-	config := entity.ResourceLimitsConfigObject{}
+	config := entity.DefaultResourceLimitsConfigObject
 	r.db.Find("id", config, &config)
 	return config.CpuLimitParameters.Max - state.PendingCpuUsage
 }
 
 func (r *ResourceLimitsManager) GetBlockNetLimit() uint64 {
-	state := entity.ResourceLimitsStateObject{}
+	state := entity.DefaultResourceLimitsStateObject
 	r.db.Find("id", state, &state)
-	config := entity.ResourceLimitsConfigObject{}
+	config := entity.DefaultResourceLimitsConfigObject
 	r.db.Find("id", config, &config)
 	return config.NetLimitParameters.Max - state.PendingNetUsage
 }
@@ -304,9 +304,9 @@ func (r *ResourceLimitsManager) GetAccountCpuLimit(name common.AccountName, elas
 }
 
 func (r *ResourceLimitsManager) GetAccountCpuLimitEx(name common.AccountName, elastic bool) AccountResourceLimit {
-	state := entity.ResourceLimitsStateObject{}
+	state := entity.DefaultResourceLimitsStateObject
 	r.db.Find("id", state, &state)
-	config := entity.ResourceLimitsConfigObject{}
+	config := entity.DefaultResourceLimitsConfigObject
 	r.db.Find("id", config, &config)
 
 	usage := entity.ResourceUsageObject{}
@@ -356,9 +356,9 @@ func (r *ResourceLimitsManager) GetAccountNetLimit(name common.AccountName, elas
 }
 
 func (r *ResourceLimitsManager) GetAccountNetLimitEx(name common.AccountName, elastic bool) AccountResourceLimit {
-	state := entity.ResourceLimitsStateObject{}
+	state := entity.DefaultResourceLimitsStateObject
 	r.db.Find("id", state, &state)
-	config := entity.ResourceLimitsConfigObject{}
+	config := entity.DefaultResourceLimitsConfigObject
 	r.db.Find("id", config, &config)
 
 	usage := entity.ResourceUsageObject{}
