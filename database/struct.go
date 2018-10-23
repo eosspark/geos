@@ -39,6 +39,15 @@ type TableIdObject struct{
 	Count 	uint32
 }
 
+type ResourceLimitsObject struct{
+	ID 			IdType 			`multiIndex:"id,increment"`
+	Pending 	bool 			`multiIndex:"byOwner,orderedNonUnique"`
+	Owner 		AccountName  	`multiIndex:"byOwner,orderedNonUnique"`
+	NetWeight 	int64
+	CpuWeight 	int64
+	RamBytes 	int64
+}
+
 func logObj(data interface{}){
 	space := "	"
 	ref := reflect.ValueOf(data)

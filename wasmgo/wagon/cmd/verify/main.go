@@ -3,6 +3,7 @@ package main
 import (
 	"crypto/sha256"
 	"fmt"
+	"github.com/eosspark/eos-go/chain/types"
 
 	//"github.com/eosspark/eos-go/rlp"
 	//"github.com/stretchr/testify/assert"
@@ -69,11 +70,26 @@ func main() {
 	//fmt.Println(err,pubKey.String())
 	////assert.Equal(t, "PUB_K1_5DguRMaGh72NvbVX5LKHTb5cvbRmAxgrm9i2NNPKv5TC7FadXs", pubKey.String())
 
-	b := make([]bool, 10)
-	if !b[0] {
-		fmt.Println("b0 is false")
-	}
+	// b := make([]bool, 10)
+	// if !b[0] {
+	// 	fmt.Println("b0 is false")
+	// }
 
+	actionTrace := types.ActionTrace{}
+	var actionTraces []*types.ActionTrace
+
+	actionTraces = append(actionTraces, &actionTrace)
+	updateTrace(&actionTrace)
+	updateTrace(actionTraces[len(actionTraces)-1])
+
+	fmt.Println(actionTrace.BlockNum)
+	fmt.Println(actionTraces[len(actionTraces)-1].BlockNum)
+
+}
+
+func updateTrace(actionTrace *types.ActionTrace) {
+	actionTrace.BlockNum = 100
+	return
 }
 
 func sigDigest(chainID, payload []byte) []byte {

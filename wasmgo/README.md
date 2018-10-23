@@ -1,4 +1,4 @@
-cvm
+wasmgo
 =====
 
 fork from https://github.com/go-interpreter/wagon

@@ -14,6 +14,8 @@ import (
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/ecc"
+	"github.com/eosspark/eos-go/exception"
+	"github.com/eosspark/eos-go/exception/try"
 	"io/ioutil"
 	"path/filepath"
 	"strconv"
@@ -227,8 +229,10 @@ func TestContextMemory(t *testing.T) {
 		callTestFunction(code, "test_memory", "test_memory_hunks", []byte{})
 		//callTestFunction(code, "test_memory", "test_memory_hunks_disjoint", []byte{})
 		callTestFunction(code, "test_memory", "test_memset_memcpy", []byte{})
-		callTestFunction(code, "test_memory", "test_memcpy_overlap_start", []byte{})
-		callTestFunction(code, "test_memory", "test_memcpy_overlap_end", []byte{})
+
+		callTestFunctionCheckException(code, "test_memory", "test_memcpy_overlap_start", []byte{}, exception.OverlappingMemoryError{}.Code(), exception.OverlappingMemoryError{}.What())
+		callTestFunctionCheckException(code, "test_memory", "test_memcpy_overlap_end", []byte{}, exception.OverlappingMemoryError{}.Code(), exception.OverlappingMemoryError{}.What())
+
 		callTestFunction(code, "test_memory", "test_memcmp", []byte{})
 
 		//callTestFunction(code, "test_memory", "test_outofbound_0", []byte{})
@@ -334,10 +338,10 @@ func TestContextCrypto(t *testing.T) {
 		callTestFunction(code, "test_crypto", "assert_sha512_true", []byte{})
 		callTestFunction(code, "test_crypto", "assert_ripemd160_true", []byte{})
 
-		callTestFunctionCheckException(code, "test_crypto", "assert_sha256_false", []byte{}, crypto_api_exception, "hash mismatch")
-		callTestFunctionCheckException(code, "test_crypto", "assert_sha1_false", []byte{}, crypto_api_exception, "hash mismatch")
-		callTestFunctionCheckException(code, "test_crypto", "assert_sha512_false", []byte{}, crypto_api_exception, "hash mismatch")
-		callTestFunctionCheckException(code, "test_crypto", "assert_ripemd160_false", []byte{}, crypto_api_exception, "hash mismatch")
+		callTestFunctionCheckException(code, "test_crypto", "assert_sha256_false", []byte{}, exception.CryptoApiException{}.Code(), exception.CryptoApiException{}.What())
+		callTestFunctionCheckException(code, "test_crypto", "assert_sha1_false", []byte{}, exception.CryptoApiException{}.Code(), exception.CryptoApiException{}.What())
+		callTestFunctionCheckException(code, "test_crypto", "assert_sha512_false", []byte{}, exception.CryptoApiException{}.Code(), exception.CryptoApiException{}.What())
+		callTestFunctionCheckException(code, "test_crypto", "assert_ripemd160_false", []byte{}, exception.CryptoApiException{}.Code(), exception.CryptoApiException{}.What())
 
 	})
 }
@@ -413,7 +417,7 @@ func callTestFunction(code []byte, cls string, method string, payload []byte) *c
 
 	wasm := wasmgo.NewWasmGo()
 	action := wasmTestAction(cls, method)
-	applyContext := &chain.ApplyContext{
+	applyContext := chain.ApplyContext{
 		Receiver: common.AccountName(common.N("testapi")),
 		Act: &types.Action{
 			Account: common.AccountName(common.N("testapi")),
@@ -424,13 +428,13 @@ func callTestFunction(code []byte, cls string, method string, payload []byte) *c
 
 	fmt.Println(cls, method, action)
 	codeVersion := crypto.NewSha256Byte([]byte(code))
-	wasm.Apply(codeVersion, code, applyContext)
+	wasm.Apply(codeVersion, code, &applyContext)
 
-	return applyContext
+	return &applyContext
 
 }
 
-func callTestFunctionCheckException(code []byte, cls string, method string, payload []byte, errCode int, errMsg string) *chain.ApplyContext {
+func callTestFunctionCheckException(code []byte, cls string, method string, payload []byte, errCode exception.ExcTypes, errMsg string) (ret bool) {
 
 	wasm := wasmgo.NewWasmGo()
 	action := wasmTestAction(cls, method)
@@ -443,12 +447,22 @@ func callTestFunctionCheckException(code []byte, cls string, method string, payl
 		},
 	}
 
-	fmt.Println(action)
 	codeVersion := crypto.NewSha256Byte([]byte(code))
-	wasm.Apply(codeVersion, code, applyContext)
 
-	//getException
-	return applyContext
+	//ret := false
+	defer try.HandleReturn()
+	try.Try(func() {
+		wasm.Apply(codeVersion, code, applyContext)
+	}).Catch(func(e exception.Exception) {
+		if e.Code() == errCode {
+			fmt.Println(errMsg)
+			ret = true
+			try.Return()
+		}
+	}).End()
+
+	ret = false
+	return
 
 }
 

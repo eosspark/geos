@@ -6,6 +6,7 @@ import (
 	"github.com/eosspark/eos-go/database"
 	"github.com/eosspark/eos-go/entity"
 	"github.com/eosspark/eos-go/exception"
+	"github.com/eosspark/eos-go/exception/try"
 	"math"
 	//"github.com/eosspark/eos-go/log"
 )
@@ -243,20 +244,15 @@ func (t *TransactionContext) Exec() {
 
 	if t.ApplyContextFree {
 		for _, act := range t.Trx.ContextFreeActions {
-
-			//actionTrace := types.ActionTrace{}
 			t.Trace.ActionTraces = append(t.Trace.ActionTraces, types.ActionTrace{})
 			t.DispathAction(&t.Trace.ActionTraces[len(t.Trace.ActionTraces)-1], act, act.Account, true, 0)
-			//t.DispathAction(&actionTrace, act, act.Account, true, 0)
 		}
 	}
 
 	if t.Delay == common.Microseconds(0) {
 		for _, act := range t.Trx.Actions {
-			//actionTrace := types.ActionTrace{}
 			t.Trace.ActionTraces = append(t.Trace.ActionTraces, types.ActionTrace{})
 			t.DispathAction(&t.Trace.ActionTraces[len(t.Trace.ActionTraces)-1], act, act.Account, false, 0)
-			//t.DispathAction(&actionTrace, act, act.Account, false, 0)
 		}
 	} else {
 		t.scheduleTransaction()
@@ -507,12 +503,14 @@ func (t *TransactionContext) DispathAction(trace *types.ActionTrace, action *typ
 	applyContext.ContextFree = contextFree
 	applyContext.Receiver = receiver
 
-	// try {
-	applyContext.Exec()
-	// } catch( ... ) {
-	//    *trace = applyContext.Trace
-	//    throw
-	// }
+	try.Try(func() {
+		applyContext.Exec()
+	}).Catch(func(e exception.Exception) {
+		*trace = applyContext.Trace
+		//throw
+		try.Throw(e)
+	}).End()
+
 	*trace = applyContext.Trace
 }
 
