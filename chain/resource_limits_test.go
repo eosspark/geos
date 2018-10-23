@@ -25,7 +25,7 @@ func TestResourceLimitsManager_UpdateAccountUsage(t *testing.T) {
 
 func TestResourceLimitsManager_SetAccountLimits(t *testing.T) {
 	control := GetControllerInstance()
-	rlm := newResourceLimitsManager(control)
+	rlm := control.ResourceLimists
 	rlm.InitializeDatabase()
 	a := common.AccountName(common.N("yuanchao"))
 	rlm.InitializeAccount(a)
