@@ -8,7 +8,7 @@ import (
 
 func TestResourceLimitsManager_UpdateAccountUsage(t *testing.T) {
 	control := GetControllerInstance()
-	rlm := newResourceLimitsManager(control)
+	rlm := control.ResourceLimists
 	rlm.InitializeDatabase()
 	a := common.AccountName(common.N("yuanchao"))
 	account := []common.AccountName{a}

@@ -34,7 +34,7 @@ func (a *AuthorizationManager) CreatePermission(account common.AccountName,
 	initialCreationTime common.TimePoint,
 ) *entity.PermissionObject {
 	creationTime := initialCreationTime
-	if creationTime == 0 {
+	if creationTime == 1 {
 		creationTime = a.control.PendingBlockTime()
 	}
 
@@ -91,8 +91,8 @@ func (am *AuthorizationManager) FindPermission(level *types.PermissionLevel) *ty
 	return &types.PermissionObject{}
 }
 
-func (am *AuthorizationManager) GetPermission(level *types.PermissionLevel) *types.PermissionObject {
-	po := types.PermissionObject{}
+func (am *AuthorizationManager) GetPermission(level *types.PermissionLevel) *entity.PermissionObject {
+	po := entity.PermissionObject{}
 	//am.db.Find("ByOwner", common.Tuple{level.Actor, level.Permission}, &po)
 	return &po
 }

@@ -29,6 +29,7 @@ func newResourceLimitsManager(control *Controller) *ResourceLimitsManager {
 func (r *ResourceLimitsManager) InitializeDatabase() {
 	config := entity.NewResourceLimitsConfigObject()
 	r.db.Insert(&config)
+
 	state := entity.DefaultResourceLimitsStateObject
 	state.VirtualCpuLimit = config.CpuLimitParameters.Max
 	state.VirtualNetLimit = config.NetLimitParameters.Max
@@ -38,13 +39,7 @@ func (r *ResourceLimitsManager) InitializeDatabase() {
 func (r *ResourceLimitsManager) InitializeAccount(account common.AccountName) {
 	bl := entity.NewResourceLimitsObject()
 	bl.Owner = account
-	fmt.Println(bl)
-	err := r.db.Insert(&bl)
-	blu:= entity.ResourceLimitsObject{}
-	blu.Owner = common.DefaultConfig.SystemAccountName
-	blu.Pending = false
-	r.db.Find("byOwner",blu,&blu)
-	fmt.Println(blu)
+	r.db.Insert(&bl)
 
 	bu := entity.ResourceUsageObject{}
 	bu.Owner = account
@@ -74,8 +69,6 @@ func (r *ResourceLimitsManager) UpdateAccountUsage(account []common.AccountName,
 			bu.CpuUsage.Add(0, timeSlot, config.AccountCpuUsageAverageWindow)
 		})
 	}
-	r.db.Find("byOwner", usage, &usage)
-	fmt.Println(usage)
 }
 
 func (r *ResourceLimitsManager) AddTransactionUsage(account []common.AccountName, cpuUsage uint64, netUsage uint64, timeSlot uint32) {
@@ -223,7 +216,6 @@ func (r *ResourceLimitsManager) GetAccountLimits(account common.AccountName, ram
 		buo.Owner = account
 		buo.Pending = false
 		r.db.Find("byOwner", buo, &buo)
-		fmt.Println(buo)
 		*ramBytes = buo.RamBytes
 		*netWeight = buo.NetWeight
 		*cpuWeight = buo.CpuWeight
