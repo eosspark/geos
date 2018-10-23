@@ -18,11 +18,11 @@ type TableIdObject struct {
 }
 
 type KeyValueObject struct {
-	ID                common.IdType `storm:"id,increment"`
-	TId               common.IdType
-	PrimaryKey        uint64
-	Payer             common.AccountName
-	Value             common.HexBytes // c++ SharedString
+	ID         common.IdType `multiIndex:"id,increment"`
+	TId        common.IdType
+	PrimaryKey uint64
+	Payer      common.AccountName
+	Value      common.HexBytes // c++ SharedString
 }
 
 // func (u *KeyValueObject) GetValue() IdType {
@@ -89,22 +89,20 @@ type Float64_t struct {
 // }
 
 type SecondaryObjectI64 struct {
-	ID           common.IdType      `multiIndex:"id,increment"`
-	TId          common.IdType      `multiIndex:"byPrimary,orderedUnique,less:bySecondary,orderedUnique,less"`
-	PrimaryKey   uint64             `multiIndex:"byName,orderedUnique,less:bySecondary,orderedUnique,less"`
+	ID           common.IdType `multiIndex:"id,increment"`
+	TId          common.IdType `multiIndex:"byPrimary,orderedUnique,less:bySecondary,orderedUnique,less"`
+	PrimaryKey   uint64        `multiIndex:"byName,orderedUnique,less:bySecondary,orderedUnique,less"`
 	Payer        common.AccountName
-	SecondaryKey Uint64_t           `multiIndex:"bySecondary,orderedUnique"`
+	SecondaryKey Uint64_t `multiIndex:"bySecondary,orderedUnique"`
 }
-
 
 type SecondaryObjectDouble struct {
-	ID           common.IdType      `multiIndex:"id,increment"`
-	TId          common.IdType      `multiIndex:"byPrimary,orderedUnique,less:bySecondary,orderedUnique,less"`
-	PrimaryKey   uint64             `multiIndex:"byName,orderedUnique,less:bySecondary,orderedUnique,less"`
+	ID           common.IdType `multiIndex:"id,increment"`
+	TId          common.IdType `multiIndex:"byPrimary,orderedUnique,less:bySecondary,orderedUnique,less"`
+	PrimaryKey   uint64        `multiIndex:"byName,orderedUnique,less:bySecondary,orderedUnique,less"`
 	Payer        common.AccountName
-	SecondaryKey Float64_t          `multiIndex:"bySecondary,orderedUnique"`
+	SecondaryKey Float64_t `multiIndex:"bySecondary,orderedUnique"`
 }
-
 
 // type SecondaryObjectI128 struct {
 // 	ID           IdType `storm:"id,increment"`
