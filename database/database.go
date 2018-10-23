@@ -602,7 +602,7 @@ func incrementField(cfg *structInfo, tx *leveldb.DB) error {
 	return nil
 }
 
-func setIncrementId(counter int16, key []byte, cfg *structInfo, tx *leveldb.DB) error {
+func setIncrementId(counter int64, key []byte, cfg *structInfo, tx *leveldb.DB) error {
 	cfg.Id.Set(reflect.ValueOf(counter).Convert(cfg.Id.Type()))
 	value, err := rlp.EncodeToBytes(cfg.Id.Interface())
 	if value == nil && err == nil {
@@ -611,24 +611,24 @@ func setIncrementId(counter int16, key []byte, cfg *structInfo, tx *leveldb.DB) 
 	//fmt.Println("delete is : ",key)
 	err = tx.Delete(key, nil)
 	if err != nil {
-		return ErrIdTagIncrement
+		return err
 	}
 	//fmt.Println("save   is : ",key)
 	return saveKey(key, value, tx)
 }
 
-func getIncrementId(key []byte, cfg *structInfo, tx *leveldb.DB) (int16, error) {
+func getIncrementId(key []byte, cfg *structInfo, tx *leveldb.DB) (int64, error) {
 
 	valByte, err := tx.Get(key, nil)
 	if err != nil && err != leveldb.ErrNotFound {
-		return 0, ErrIdTagIncrement
+		return 0, err
 	}
 
 	counter := cfg.IncrementStart
 	if valByte != nil {
 		err := rlp.DecodeBytes(valByte, &counter)
 		if err != nil {
-			return 0, ErrIdTagIncrement
+			return 0, err
 		}
 		//fmt.Println(key ,"  ","found id : ",counter)
 		counter++
