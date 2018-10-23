@@ -308,9 +308,9 @@ func save(data interface{}, tx *leveldb.DB) error {
 
 func saveKey(key, value []byte, tx *leveldb.DB) error {
 
-	//fmt.Println("save   key is : ",key," : ",string(value))
+	//.Println("save   key is : ",key," : ",string(value))
 	if ok, _ := tx.Has(key, nil); ok {
-		log.Println("--save   key is : ",key," : ",string(key))
+		//log.Println("--save   key is : ",key," : ",string(key))
 		//fmt.Println("save   key is : ",string(key)," : ",value)
 		return ErrAlreadyExists
 	}

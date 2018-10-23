@@ -76,18 +76,18 @@ func (f *ForkDatabase) AddBlockState(blockState *BlockState) *BlockState {
 	result := BlockState{}
 	err := f.DB.Insert(blockState)
 	//TODO try catch
-	exception.EosAssert(err == nil, &exception.ForkDatabaseException{}, "ForkDB AddBlockState Is Error:", err)
+	//exception.EosAssert(err == nil, &exception.ForkDatabaseException{}, "ForkDB AddBlockState Is Error:", err)
 
-	multiIndex, err := f.DB.GetIndex("byLibBlockNum", result)
-	exception.EosAssert(err == nil, &exception.ForkDatabaseException{}, "ForkDB AddBlockState Is Error:", err)
+	multiIndex, err := f.DB.GetIndex("byLibBlockNum", &result)
+	//exception.EosAssert(err == nil, &exception.ForkDatabaseException{}, "ForkDB AddBlockState Is Error:", err)
 
-	err = multiIndex.Begin(result)
-	exception.EosAssert(err == nil, &exception.ForkDatabaseException{}, "ForkDB AddBlockState Is Error:", err)
+	err = multiIndex.Begin(&result)
+	//exception.EosAssert(err == nil, &exception.ForkDatabaseException{}, "ForkDB AddBlockState Is Error:", err)
 
 	lib := f.Head.DposIrreversibleBlocknum
-	oldest, err := f.DB.GetIndex("byBlockNum", result)
-	exception.EosAssert(err == nil, &exception.ForkDatabaseException{}, "ForkDB AddBlockState Is Error:", err)
-	err = oldest.Begin(result)
+	oldest, err := f.DB.GetIndex("byBlockNum", &result)
+	//exception.EosAssert(err == nil, &exception.ForkDatabaseException{}, "ForkDB AddBlockState Is Error:", err)
+	err = oldest.Begin(&result)
 	exception.EosAssert(err == nil, &exception.ForkDatabaseException{}, "ForkDB AddBlockState Is Error:", err)
 
 	if result.BlockNum < lib {
@@ -247,12 +247,14 @@ func (f *ForkDatabase) Prune(h *BlockState) {
 
 	num := h.BlockNum
 	param := BlockState{}
-	mIndex, err := f.DB.GetIndex("byBlockNum", param)
+	mIndex, err := f.DB.GetIndex("byBlockNum", &param)
 	err = mIndex.Begin(&param)
-	bItr := mIndex.IteratorTo(param)
+	bItr := mIndex.IteratorTo(&param)
 	for !mIndex.CompareEnd(bItr) && param.BlockNum < num {
 		f.Prune(&param)
 		err = mIndex.Begin(&param)
+		bItr = mIndex.IteratorTo(&param)
+		f.DB.Remove(bItr)
 	}
 	p := BlockState{}
 	p.ID = h.ID
@@ -262,9 +264,11 @@ func (f *ForkDatabase) Prune(h *BlockState) {
 	if !common.Empty(result) {
 		//irreversible(*itr) TODO channel
 		//my->index.erase(itr)
+		//f.DB.Remove(result)
 	}
 
 	in := BlockState{}
+	in.BlockNum = num
 	numIdx, err := f.DB.GetIndex("byBlockNun", &in)
 	nitr, err := numIdx.LowerBound(&in)
 
@@ -277,7 +281,6 @@ func (f *ForkDatabase) Prune(h *BlockState) {
 		id := in.ID
 		f.Remove(&id)
 	}
-	//fmt.Println(num,err,numIdx,nitr)
 }
 
 func (f *ForkDatabase) GetBlock(id *common.BlockIdType) *BlockState {

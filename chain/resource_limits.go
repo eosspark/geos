@@ -230,7 +230,7 @@ func (r *ResourceLimitsManager) ProcessAccountLimitUpdates() {
 	//		*total -= uint64(*value)
 	//	}
 	//
-	//	if pendingValue > 0
+	//	if pendingValue > 0 {
 	//		EosAssert(math.MaxUint16 - *total >= uint64(pendingValue), &RateLimitingStateInconsistent{}, "overflow when applying new value to %s", debugWhich )
 	//		*total += uint64(pendingValue)
 	//	}

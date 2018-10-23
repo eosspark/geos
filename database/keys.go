@@ -38,8 +38,8 @@ func getFieldInfo(fieldName string,value interface{})(*fieldInfo,error){
 
 // non unique fields --> find function
 func nonUniqueValue(info *fieldInfo)[]byte{
-	for _, v := range info.fieldValue {
-		if isZero(v) {
+	for _, v := range info.fieldValue  {
+		if isZero(v) && v.Kind() != reflect.Bool {
 			return nil
 		}
 	}
