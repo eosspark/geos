@@ -2,6 +2,8 @@ package wasmgo
 
 import (
 	"fmt"
+	"github.com/eosspark/eos-go/exception"
+	"github.com/eosspark/eos-go/exception/try"
 )
 
 func checkTime(w *WasmGo) {
@@ -36,6 +38,7 @@ func publicationTime(w *WasmGo) int64 {
 // }
 func abort(w *WasmGo) {
 	fmt.Println("abort")
+	exception.EosAssert(false, &exception.AbortCalled{}, exception.AbortCalled{}.What())
 }
 
 // void eosio_assert( bool condition, null_terminated_ptr msg ) {
@@ -50,7 +53,10 @@ func eosioAssert(w *WasmGo, condition int, val int) {
 
 	if condition != 1 {
 		message := getMemory(w, val, getStringLength(w, val))
-		fmt.Println(string(message))
+
+		exception.EosAssert(condition != 1, &exception.EosioAssertMessageException{}, string(message))
+		try.Throw(&exception.EosioAssertMessageException{})
+		//fmt.Println(string(message))
 		// edump(message)
 		// E_THROW()
 	}
