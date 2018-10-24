@@ -79,6 +79,10 @@ func NewPermissionLevel(in string) (out PermissionLevel, err error) {
 	return
 }
 
+func (level PermissionLevel) String() string {
+	return level.Actor.String() + "@" + level.Permission.String()
+}
+
 func (auth Authority) Equals(author Authority) bool {
 	return true
 }
