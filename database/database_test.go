@@ -70,6 +70,379 @@ func Test_rawDb(t *testing.T) {
 	}
 }
 
+func Test_open(t *testing.T) {
+	db, clo := openDb()
+	if db == nil {
+		log.Fatalln("db open failed")
+	}
+	defer clo()
+}
+
+func Test_insert(t *testing.T) {
+
+	db, clo := openDb()
+	if db == nil {
+		log.Fatalln("db open failed")
+	}
+	defer clo()
+
+	objs, houses := Objects()
+	if len(objs) != len(houses){
+		log.Fatalln("ERROR")
+	}
+
+	saveObjs(objs, houses, db)
+}
+
+func Test_find(t *testing.T) {
+	db, clo := openDb()
+	if db == nil {
+		log.Fatalln("db open failed")
+	}
+	defer clo()
+
+	objs, houses := Objects()
+	objs_, houses_ := saveObjs(objs, houses, db)
+
+	getGreaterObjs(objs_, houses_, db)
+
+	findObjs(objs_, houses_, db)
+
+	findInLineFieldObjs(objs_, houses_, db)
+
+	findAllNonUniqueFieldObjs(objs_, houses_, db);
+
+	getErrStruct(db)
+	//
+	getLessObjs(objs_, houses_, db)
+}
+
+func Test_modifyUndo(t *testing.T) {
+
+	db, clo := openDb()
+	if db == nil {
+		log.Fatalln("db open failed")
+	}
+	defer clo()
+
+
+	objs, houses := Objects()
+	objs_,_:=saveObjs(objs, houses, db)
+
+	//session := db.StartSession()
+	//session.Commit()
+
+	idx, err := db.GetIndex("Code", TableIdObject{})
+	if err != nil{
+		log.Println(err)
+	}
+	it,err := idx.LowerBound(TableIdObject{Code:11})
+	if err != nil{
+		log.Fatalln(err)
+	}
+	i := 0
+	for it.Next(){
+		tmp := TableIdObject{}
+		it.Data(&tmp)
+		//logObj(tmp)
+		if objs_[i] != tmp{
+			logObj(tmp)
+			log.Fatalln("error lower bound")
+		}
+		i++
+	}
+	it.Release()
+
+	session := db.StartSession()
+	defer session.Undo()
+	obj := TableIdObject{ID: 4, Code: 21, Scope: 22, Table: 26, Payer: 27, Count: 25}
+	newobj := TableIdObject{ID: 4, Code: 200, Scope: 22, Table: 26, Payer: 27, Count: 25}
+
+	err = db.Modify(&obj, func(object *TableIdObject) {
+		object.Code = 200
+	})
+	if err != nil {
+		log.Fatalln(err)
+	}
+	session.Undo()
+	obj = TableIdObject{}
+	tmp := TableIdObject{}
+	obj.ID = 4
+	err = db.Find("id", obj, &tmp)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	if tmp == newobj {
+		logObj(newobj)
+		log.Fatalln("modify test error")
+	}
+}
+
+func Test_undoInsert(t *testing.T) {
+	db, clo := openDb()
+	if db == nil {
+		log.Fatalln("db open failed")
+	}
+	defer clo()
+
+	//////////////////////////////////////////////		Insert UNDO		///////////////////////////////////
+	db.SetRevision(10)
+	session := db.StartSession()
+	objs, _ := Objects()
+	for i:= 0;i < 3;i++{
+		err := db.Insert(&objs[i])
+		if err != nil{
+			log.Println(err)
+		}
+	}
+
+	session.Undo()
+	idx, err := db.GetIndex("Code", TableIdObject{})
+	if err != nil{
+		log.Println(err)
+	}
+
+	_,err = idx.LowerBound(TableIdObject{Code:11})
+	if err != ErrNotFound{
+		log.Fatalln(err)
+	}
+
+
+	//////////////////////////////////////////////		COMMIT		///////////////////////////////////
+
+	session = db.StartSession()
+	for i:= 0;i < 3;i++{
+		err := db.Insert(&objs[i])
+		if err != nil{
+			log.Println(err)
+		}
+	}
+
+	db.Commit(11)
+	session.Undo()
+	idx, err = db.GetIndex("Code", TableIdObject{})
+	if err != nil{
+		log.Println(err)
+	}
+	it,err := idx.LowerBound(TableIdObject{Code:11})
+	if err != nil{
+		log.Fatalln(err)
+	}
+	i := 0
+	for it.Next(){
+		tmp := TableIdObject{}
+		it.Data(&tmp)
+		//logObj(tmp)
+		if objs[i] != tmp{
+			logObj(tmp)
+			log.Fatalln("error lower bound")
+		}
+		i++
+	}
+	it.Release()
+
+}
+
+func Test_undoRemove(t *testing.T) {
+	db, clo := openDb()
+	if db == nil {
+		log.Fatalln("db open failed")
+	}
+	defer clo()
+
+	//////////////////////////////////////////////	ready
+	objs, _ := Objects()
+	for i:= 0;i < 3;i++{
+		err := db.Insert(&objs[i])
+		if err != nil{
+			log.Println(err)
+		}
+	}
+	idx, err := db.GetIndex("Code", TableIdObject{})
+	if err != nil{
+		log.Println(err)
+	}
+	it,err := idx.LowerBound(TableIdObject{Code:11})
+	if err != nil{
+		log.Fatalln(err)
+	}
+
+	table := TableIdObject{}
+	i := 0
+	for it.Next(){
+		it.Data(&table)
+		if objs[i] != table{
+			logObj(objs[i])
+			logObj(table)
+			log.Fatalln("undo failed")
+		}
+		i++
+	}
+	session := db.StartSession()
+
+	err = db.Remove(table)
+	if err != nil{
+		log.Fatalln(err)
+	}
+	////////////////////////////////////////// begin
+	beginUndo, err := db.GetIndex("Code", TableIdObject{})
+	if err != nil{
+		log.Println(err)
+	}
+	beginIt,err := beginUndo.LowerBound(TableIdObject{Code:11})
+	if err != nil{
+		log.Fatalln(err)
+	}
+	i = 0
+	for beginIt.Next(){
+		table := TableIdObject{}
+		beginIt.Data(&table)
+		if objs[i] != table{
+			logObj(objs[i])
+			logObj(table)
+			log.Fatalln("undo failed")
+		}
+		i++
+	}
+	if i != 2{
+		log.Println(i)
+		log.Fatalln("undo failed")
+	}
+	session.Undo()// undo
+	/////////////////////////////////////////// end
+	endUndo, err := db.GetIndex("Code", TableIdObject{})
+	if err != nil{
+		log.Println(err)
+	}
+	endIt,err := endUndo.LowerBound(TableIdObject{Code:11})
+	if err != nil{
+		log.Fatalln(err)
+	}
+	i = 0
+	for endIt.Next(){
+		table := TableIdObject{}
+		endIt.Data(&table)
+		if objs[i] != table{
+			logObj(objs[i])
+			logObj(table)
+			log.Fatalln("undo failed")
+		}
+		i++
+	}
+}
+
+func Test_empty(t *testing.T) {
+	db, clo := openDb()
+	if db == nil {
+		log.Fatalln("db open failed")
+	}
+	defer clo()
+
+	objs, houses := Objects()
+	saveObjs(objs, houses, db)
+
+	idx, err := db.GetIndex("Code", TableIdObject{})
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	obj := TableIdObject{Code: 11}
+	it ,err := idx.LowerBound(obj)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	for it.Next(){
+		tmp := TableIdObject{}
+		it.Data(&tmp)
+		err = db.Remove(tmp)
+		if err != nil{
+			log.Fatalln(err)
+		}
+
+	}
+	it.Release()
+
+	if !idx.Empty(){
+		log.Fatalln("empty error")
+	}
+}
+
+func Test_modify(t *testing.T) {
+	db, clo := openDb()
+	if db == nil {
+		log.Fatalln("db open failed")
+	}
+	defer clo()
+
+	objs, houses := Objects()
+	saveObjs(objs, houses, db)
+	modifyObjs(db)
+}
+
+func Test_remove(t *testing.T) {
+	db, clo := openDb()
+	if db == nil {
+		log.Fatalln("db open failed")
+	}
+	defer clo()
+
+	objs, houses := Objects()
+	saveObjs(objs, houses, db)
+
+	removeUnique(db)
+}
+
+func Test_resourceLimitsObject(t *testing.T) {
+
+	db, clo := openDb()
+	if db == nil {
+		log.Fatalln("db open failed")
+	}
+
+	defer clo()
+
+	limits := MakeResourceLimitsObjects()
+	for _,v := range limits{
+		err := db.Insert(&v)
+		if err != nil{
+			log.Fatalln(err)
+		}
+	}
+
+	idx, err := db.GetIndex("byOwner", ResourceLimitsObject{})
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+
+	for !idx.Empty() {
+		tmp := ResourceLimitsObject{}
+		obj := ResourceLimitsObject{Pending: false}
+		it ,err := idx.LowerBound(obj)
+		if err != nil {
+			log.Fatalln(err)
+		}
+		idx.Begin(&tmp)
+		//logObj(tmp)
+		if idx.CompareEnd(it) || tmp.Pending == true{
+			fmt.Println("db is empty")
+		}
+
+		err = db.Remove(tmp)
+		if err != nil{
+			log.Fatalln(err)
+		}
+		it.Release()
+	}
+
+	if !idx.Empty(){
+		log.Fatalln("empty error")
+	}
+	if idx.Empty(){
+		//fmt.Println("empty successful !")
+	}
+}
+
 func openDb() (DataBase, func()) {
 
 	fileName := "./hello"
@@ -142,53 +515,6 @@ func saveObjs(objs []TableIdObject, houses []House, db DataBase) ([]TableIdObjec
 		objs_ = append(objs_, v)
 	}
 	return objs_, houses_
-}
-
-func Test_open(t *testing.T) {
-	db, clo := openDb()
-	if db == nil {
-		log.Fatalln("db open failed")
-	}
-	defer clo()
-}
-
-func Test_insert(t *testing.T) {
-
-	db, clo := openDb()
-	if db == nil {
-		log.Fatalln("db open failed")
-	}
-	defer clo()
-
-	objs, houses := Objects()
-	if len(objs) != len(houses){
-		log.Fatalln("ERROR")
-	}
-
-	saveObjs(objs, houses, db)
-}
-
-func Test_find(t *testing.T) {
-	db, clo := openDb()
-	if db == nil {
-		log.Fatalln("db open failed")
-	}
-	defer clo()
-
-	objs, houses := Objects()
-	objs_, houses_ := saveObjs(objs, houses, db)
-
-	getGreaterObjs(objs_, houses_, db)
-
-	findObjs(objs_, houses_, db)
-
-	findInLineFieldObjs(objs_, houses_, db)
-
-	findAllNonUniqueFieldObjs(objs_, houses_, db);
-
-	getErrStruct(db)
-	//
-	getLessObjs(objs_, houses_, db)
 }
 
 func getErrStruct(db DataBase) {
@@ -283,39 +609,28 @@ func getLessObjs(objs []TableIdObject, houses []House, db DataBase) {
 	it.Release()
 }
 
-func Test_empty(t *testing.T) {
-	db, clo := openDb()
-	if db == nil {
-		log.Fatalln("db open failed")
-	}
-	defer clo()
+func modifyObjs(db DataBase) {
 
-	objs, houses := Objects()
-	saveObjs(objs, houses, db)
+	obj := TableIdObject{ID: 4, Code: 21, Scope: 22, Table: 26, Payer: 27, Count: 25}
+	newobj := TableIdObject{ID: 4, Code: 200, Scope: 22, Table: 26, Payer: 27, Count: 25}
 
-	idx, err := db.GetIndex("Code", TableIdObject{})
+	err := db.Modify(&obj, func(object *TableIdObject) {
+		object.Code = 200
+	})
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	obj := TableIdObject{Code: 11}
-	it ,err := idx.LowerBound(obj)
+	obj = TableIdObject{}
+	tmp := TableIdObject{}
+	obj.ID = 4
+	err = db.Find("id", obj, &tmp)
 	if err != nil {
 		log.Fatalln(err)
 	}
-	for it.Next(){
-		tmp := TableIdObject{}
-		it.Data(&tmp)
-		err = db.Remove(tmp)
-		if err != nil{
-			log.Fatalln(err)
-		}
-
-	}
-	it.Release()
-
-	if !idx.Empty(){
-		log.Fatalln("empty error")
+	if tmp != newobj {
+		logObj(tmp)
+		log.Fatalln("modify test error")
 	}
 }
 
@@ -378,56 +693,6 @@ func findAllNonUniqueFieldObjs(objs []TableIdObject, houses []House, db DataBase
 	//logObj(obj)
 }
 
-func Test_modify(t *testing.T) {
-	db, clo := openDb()
-	if db == nil {
-		log.Fatalln("db open failed")
-	}
-	defer clo()
-
-	objs, houses := Objects()
-	saveObjs(objs, houses, db)
-	modifyObjs(db)
-}
-
-func modifyObjs(db DataBase) {
-
-	obj := TableIdObject{ID: 4, Code: 21, Scope: 22, Table: 26, Payer: 27, Count: 25}
-	newobj := TableIdObject{ID: 4, Code: 200, Scope: 22, Table: 26, Payer: 27, Count: 25}
-
-	err := db.Modify(&obj, func(object *TableIdObject) {
-		object.Code = 200
-	})
-	if err != nil {
-		log.Fatalln(err)
-	}
-
-	obj = TableIdObject{}
-	tmp := TableIdObject{}
-	obj.ID = 4
-	err = db.Find("id", obj, &tmp)
-	if err != nil {
-		log.Fatalln(err)
-	}
-	if tmp != newobj {
-		logObj(tmp)
-		log.Fatalln("modify test error")
-	}
-}
-
-func Test_remove(t *testing.T) {
-	db, clo := openDb()
-	if db == nil {
-		log.Fatalln("db open failed")
-	}
-	defer clo()
-
-	objs, houses := Objects()
-	saveObjs(objs, houses, db)
-
-	removeUnique(db)
-}
-
 func removeUnique(db DataBase) {
 	obj := TableIdObject{Code: 21, Scope: 22, Table: 23, Payer: 24, Count: 25}
 	err := db.Remove(obj)
@@ -456,133 +721,6 @@ func removeUnique(db DataBase) {
 	}
 }
 
-func Test_modifyUndo(t *testing.T) {
-
-	db, clo := openDb()
-	if db == nil {
-		log.Fatalln("db open failed")
-	}
-	defer clo()
-
-
-	objs, houses := Objects()
-	objs_,_:=saveObjs(objs, houses, db)
-
-	//session := db.StartSession()
-	//session.Commit()
-
-	idx, err := db.GetIndex("Code", TableIdObject{})
-	if err != nil{
-		log.Println(err)
-	}
-	it,err := idx.LowerBound(TableIdObject{Code:11})
-	if err != nil{
-		log.Fatalln(err)
-	}
-	i := 0
-	for it.Next(){
-		tmp := TableIdObject{}
-		it.Data(&tmp)
-		//logObj(tmp)
-		if objs_[i] != tmp{
-			logObj(tmp)
-			log.Fatalln("error lower bound")
-		}
-		i++
-	}
-	it.Release()
-
-	session := db.StartSession()
-	defer session.Undo()
-	obj := TableIdObject{ID: 4, Code: 21, Scope: 22, Table: 26, Payer: 27, Count: 25}
-	newobj := TableIdObject{ID: 4, Code: 200, Scope: 22, Table: 26, Payer: 27, Count: 25}
-
-	err = db.Modify(&obj, func(object *TableIdObject) {
-		object.Code = 200
-	})
-	if err != nil {
-		log.Fatalln(err)
-	}
-	session.Undo()
-	obj = TableIdObject{}
-	tmp := TableIdObject{}
-	obj.ID = 4
-	err = db.Find("id", obj, &tmp)
-	if err != nil {
-		log.Fatalln(err)
-	}
-	if tmp == newobj {
-		logObj(newobj)
-		log.Fatalln("modify test error")
-	}
-}
-
-func Test_undo(t *testing.T) {
-	db, clo := openDb()
-	if db == nil {
-		log.Fatalln("db open failed")
-	}
-	defer clo()
-
-	//////////////////////////////////////////////		Insert UNDO		///////////////////////////////////
-	session := db.StartSession()
-	objs, _ := Objects()
-	for i:= 0;i < 3;i++{
-		err := db.Insert(&objs[i])
-		if err != nil{
-			log.Println(err)
-		}
-	}
-
-	session.Undo()
-	idx, err := db.GetIndex("Code", TableIdObject{})
-	if err != nil{
-		log.Println(err)
-	}
-	it,err := idx.LowerBound(TableIdObject{Code:11})
-	if err != ErrNotFound{
-		log.Fatalln(err)
-	}
-
-
-	//////////////////////////////////////////////		COMMIT		///////////////////////////////////
-
-	session = db.StartSession()
-	for i:= 0;i < 3;i++{
-		err := db.Insert(&objs[i])
-		if err != nil{
-			log.Println(err)
-		}
-	}
-
-	session.Commit()
-	idx, err = db.GetIndex("Code", TableIdObject{})
-	if err != nil{
-		log.Println(err)
-	}
-	it,err = idx.LowerBound(TableIdObject{Code:11})
-	if err != nil{
-		log.Fatalln(err)
-	}
-	i := 0
-	for it.Next(){
-		tmp := TableIdObject{}
-		it.Data(&tmp)
-		if objs[i] != tmp{
-			logObj(tmp)
-			log.Fatalln("error lower bound")
-		}
-		i++
-	}
-	it.Release()
-
-}
-
-
-
-
-//////////////////////////////////////////////////////// ResourceLimitsObject  test /////////////////////////
-
 func MakeResourceLimitsObjects()([]ResourceLimitsObject){
 	//limits := make([]ResourceLimitsObject,0)
 	limits := []ResourceLimitsObject{}
@@ -593,55 +731,4 @@ func MakeResourceLimitsObjects()([]ResourceLimitsObject){
 		limits = append(limits,obj)
 	}
 	return  limits
-}
-
-func Test_ResourceLimitsObject(t *testing.T) {
-
-	db, clo := openDb()
-	if db == nil {
-		log.Fatalln("db open failed")
-	}
-
-	defer clo()
-
-	limits := MakeResourceLimitsObjects()
-	for _,v := range limits{
-		err := db.Insert(&v)
-		if err != nil{
-			log.Fatalln(err)
-		}
-	}
-
-	idx, err := db.GetIndex("byOwner", ResourceLimitsObject{})
-	if err != nil {
-		log.Fatalln(err)
-	}
-
-
-	for !idx.Empty() {
-		tmp := ResourceLimitsObject{}
-		obj := ResourceLimitsObject{Pending: false}
-		it ,err := idx.LowerBound(obj)
-		if err != nil {
-			log.Fatalln(err)
-		}
-		idx.Begin(&tmp)
-		//logObj(tmp)
-		if idx.CompareEnd(it) || tmp.Pending == true{
-			fmt.Println("db is empty")
-		}
-
-		err = db.Remove(tmp)
-		if err != nil{
-			log.Fatalln(err)
-		}
-		it.Release()
-	}
-
-	if !idx.Empty(){
-		log.Fatalln("empty error")
-	}
-	if idx.Empty(){
-		//fmt.Println("empty successful !")
-	}
 }

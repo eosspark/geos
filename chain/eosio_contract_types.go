@@ -56,8 +56,8 @@ func (s *setAbi) getName() common.AccountName {
 
 type updateAuth struct {
 	Account    common.AccountName
-	Permission types.Permission
-	Parent     types.Permission
+	Permission common.PermissionName
+	Parent     common.PermissionName
 	Auth       types.Authority
 }
 

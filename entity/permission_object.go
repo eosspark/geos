@@ -6,9 +6,9 @@ import (
 )
 
 type PermissionObject struct {
+	Parent      common.IdType         `multiIndex:"byParent,orderedNonUnique"`
 	ID          common.IdType         `multiIndex:"id,increment,byParent,byName"`
 	UsageId     common.IdType
-	Parent      common.IdType         `multiIndex:"byParent,orderedNonUnique"`
 	Owner       common.AccountName    `multiIndex:"byOwner,orderedNonUnique"`
 	Name        common.PermissionName `multiIndex:"byOwner,orderedNonUnique:byName,orderedNonUnique"`
 	LastUpdated common.TimePoint

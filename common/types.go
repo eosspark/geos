@@ -174,6 +174,25 @@ func (n ScopeName) String() string {
 	return S(uint64(n))
 }
 
+func (n Name) Empty() bool {
+	return n == 0
+}
+func (n AccountName) Empty() bool {
+	return n == 0
+}
+func (n PermissionName) Empty() bool {
+	return n == 0
+}
+func (n ActionName) Empty() bool {
+	return n == 0
+}
+func (n TableName) Empty() bool {
+	return n == 0
+}
+func (n ScopeName) Empty() bool {
+	return n == 0
+}
+
 func (n AccountName) MarshalJSON() ([]byte, error) {
 	return json.Marshal(S(uint64(n)))
 }

@@ -19,6 +19,7 @@ type LDataBase struct {
 	stack    *deque
 	path     string
 	revision int64
+	types 	map[string]bool
 }
 
 /*
@@ -69,11 +70,7 @@ func (ldb *LDataBase) Undo() {
 		return
 	}
 	for key, _ := range stack.OldValue {
-	//	log.Fatalln("modify do not work")
-		// db.modify
-		//ldb.Modify(key, nil)
-		//remove(key,ldb.db)
-		//save(key,ldb.db)
+
 		undoModify(key,ldb.db)
 	}
 	for key, _ := range stack.NewValue {
@@ -82,7 +79,7 @@ func (ldb *LDataBase) Undo() {
 	}
 	for key, _ := range stack.RemoveValue {
 		// db.insert
-		save(key,ldb.db)
+		save(key,ldb.db,true)
 	}
 	ldb.stack.Pop()
 	ldb.revision--
@@ -147,32 +144,36 @@ func (ldb *LDataBase) StartSession() *Session {
 func (ldb *LDataBase) Commit(revision int64) {
 
 	for {
+		if ldb.stack.Size() == 0{
+			return
+		}
+
 		stack := ldb.getFirstStack()
 		if stack == nil {
 			break
 		}
-		if stack.reversion <= ldb.revision {
-			ldb.stack.PopFront()
-			ldb.revision--
-		} else {
+		if stack.reversion > revision{
 			break
 		}
+
+		ldb.stack.PopFront()
 	}
 }
 
 func (ldb *LDataBase) SetRevision(revision int64) {
 	if ldb.stack.Size() != 0 {
+		panic("cannot set revision while there is an existing undo stack")
 		// throw
 	}
 	if revision > math.MaxInt64 {
 		//throw
+		panic("revision to set is too high")
 	}
 	ldb.revision = revision
 }
 
-//////////////////////////////////////////////////////	insert object to database //////////////////////////////////////////////////////
 /*
-
+insert object to database
 @param in 			--> 	object(pointer)
 
 @return
@@ -180,9 +181,154 @@ success 			-->		nil
 error 				-->		error
 
 */
+/*
+								all key
+
+id field  			--> typeName__fieldValue
+unique fields 		--> typeName__tagName__fieldValue
+non unique field 	--> typeName__fieldName__idFieldValue__fieldValue
+non unique fields 	--> typeName__tagName__fieldValue[0]__fieldValue[1]...
+
+								all value
+
+id field  			--> objectValue
+unique fields 		--> idFieldValue
+non unique field 	--> idFieldValue
+non unique fields 	--> idFieldValue
+
+*/
+type kv struct {
+	key		[]byte
+	value	[]byte
+}
+
+type dbKeyValue struct{
+	id 			kv
+	index 		[]kv
+	typeName 	[]byte
+	increment 	kv
+}
+
+func (ldb *LDataBase) create(in interface{})error{
+
+	dbKV := dbKeyValue{}
+
+	structKV(in,&dbKV)
+
+	err := ldb.getIncrementId(&dbKV)
+	if err != nil{
+		return err
+	}
+
+	val ,err:= rlp.EncodeToBytes(in)
+	if err != nil{
+		return err
+	}
+	dbKV.id.value = val
+
+	return nil
+}
+
+func (ldb *LDataBase) getIncrementId(dbKV *dbKeyValue) error {
+
+	tagName := []byte(tagID)
+	// typeName__tagName
+	key := append(dbKV.typeName, '_')
+	key = append(key, '_')
+	key = append(key, tagName...)
+
+	var id int64
+	id = 1
+	if ok := ldb.types[string(dbKV.typeName)];ok{
+
+		valByte, err := ldb.db.Get(key, nil)
+		if err != nil {
+			return err
+		}
+		// first
+		if valByte != nil {
+			err := rlp.DecodeBytes(valByte, &id)
+			if err != nil {
+				return  err
+			}
+			id += 1
+		} else{
+			panic("incrementId value failed")
+		}
+	}
+	idv ,err := rlp.EncodeToBytes(id)
+	if err != nil{
+		return err
+	}
+
+	dbKV.id.key = idv
+	return nil
+}
+
+func structKV(in interface{} ,dbKV *dbKeyValue)error{
+	ref := reflect.ValueOf(in)
+	if !ref.IsValid() || ref.Kind() != reflect.Ptr || ref.Elem().Kind() != reflect.Struct {
+		return ErrStructPtrNeeded
+	}
+
+	cfg, err := extractStruct(&ref)
+	if err != nil {
+		return err
+	}
+
+	if _, ok := cfg.Fields[tagID]; !ok {
+		return ErrNoID
+	}
+
+	objValue, err := rlp.EncodeToBytes(in)
+	if err != nil {
+		return err
+	}
+	objId, err := rlp.EncodeToBytes(cfg.Id.Interface())
+	if err != nil {
+		return err
+	}
+
+	kv_ := kv{}
+	kv_.key 	= objId
+	kv_.value 	= objValue
+	dbKV.id 	= kv_
+	dbKV.typeName = []byte(cfg.Name)
+
+	cfgToKV(objId,cfg,dbKV)
+
+	fmt.Println(objValue)
+	fmt.Println(objId)
+	fmt.Println(dbKV)
+
+	return nil
+}
+
+func cfgToKV (objId []byte,cfg *structInfo,dbKV *dbKeyValue) {
+
+	typeName := []byte(cfg.Name)
+
+	for tag, fieldCfg := range cfg.Fields {
+		prefix 	:= append(typeName, '_') 					/* 			typeName__ 				*/
+		prefix 	=  append(prefix, '_')
+		prefix 	=  append(prefix, tag...) 						/* 			typeName__tagName__ 	*/
+		key 	:= getFieldValue(prefix, fieldCfg)
+		if !fieldCfg.unique && len(fieldCfg.fieldValue) == 1{ 	/* 			non unique 				*/
+			 key = append(key, objId...)
+		}
+		if tag == tagID{
+			continue
+		}
+		kv_ := kv{}
+		kv_.key 	= key
+		kv_.value	= objId
+		dbKV.index 	= append(dbKV.index,kv_)
+	}
+}
+
 
 func (ldb *LDataBase) Insert(in interface{}) error {
-	err := save(in, ldb.db)
+	err := save(in, ldb.db,false)
 	if err != nil {
 		// undo
 		return err
@@ -199,9 +345,8 @@ func (ldb *LDataBase) GetMutableIndex(fieldName string, in interface{}) (*multiI
 	return ldb.GetIndex(fieldName, in)
 }
 
-//////////////////////////////////////////////////////	find object from database //////////////////////////////////////////////////////
 /*
-
+find object from database
 @param tagName 		--> 	tag in field tags
 @param in 			--> 	object
 @param out 			-->		output(pointer)
@@ -216,9 +361,8 @@ func (ldb *LDataBase) Find(tagName string, in interface{}, out interface{}) erro
 	return find(tagName, in, out, ldb.db)
 }
 
-//////////////////////////////////////////////////////	get multiIndex from database //////////////////////////////////////////////////////
 /*
-
+get multiIndex from database
 @param tagName 		--> 	tag in field tags
 @param in 			--> 	object
 
@@ -231,9 +375,9 @@ func (ldb *LDataBase) GetIndex(tagName string, in interface{}) (*multiIndex, err
 	return getIndex(tagName, in, ldb)
 }
 
-//////////////////////////////////////////////////////	modify object from database //////////////////////////////////////////////////////
 /*
 
+modify object from database
 @param old 			--> 	object(pointer)
 @param fn 			-->		function
 
@@ -252,9 +396,9 @@ func (ldb *LDataBase) Modify(old interface{}, fn interface{}) error {
 	return nil
 }
 
-//////////////////////////////////////////////////////	remove object from database //////////////////////////////////////////////////////
 /*
 
+remove object from database
 @param in			--> 	object
 
 @return
@@ -271,8 +415,14 @@ func (ldb *LDataBase) Remove(in interface{}) error {
 	return nil
 }
 
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-func save(data interface{}, tx *leveldb.DB) error {
+
+/*
+
+The following are some specific implementations of the features that may change, please do not use
+
+*/
+
+func save(data interface{}, tx *leveldb.DB,undo bool) error {
 
 	ref := reflect.ValueOf(data)
 	if !ref.IsValid() || ref.Kind() != reflect.Ptr || ref.Elem().Kind() != reflect.Struct {
@@ -288,10 +438,13 @@ func save(data interface{}, tx *leveldb.DB) error {
 		return ErrNoID
 	}
 
-	err = incrementField(cfg, tx)
-	if err != nil {
-		return err
+	if !undo{
+		err = incrementField(cfg, tx)
+		if err != nil {
+			return err
+		}
 	}
+
 	id, err := rlp.EncodeToBytes(cfg.Id.Interface())
 	if err != nil {
 		return err
@@ -396,6 +549,12 @@ func removeKey(key []byte, db *leveldb.DB) error {
 	return nil
 }
 
+/*
+
+There is no modify fn in undo
+so special processing is required when undo
+
+*/
 func undoModify(old interface{},db *leveldb.DB)error{
 
 	oldRef := reflect.ValueOf(old)
@@ -625,10 +784,14 @@ func getIndex(tagName string, value interface{}, db DataBase) (*multiIndex, erro
 }
 
 /*
-key 	 	--> typeName__tagName
-value 		--> id
-*/
 
+The id value of each type of object is saved in db
+When inserting a new object
+you need to read the id value of the corresponding type first
+and then add it to db after incrementing
+For next time use
+
+*/
 func incrementField(cfg *structInfo, tx *leveldb.DB) error {
 
 	//fmt.Println("incrementField ----------")
@@ -686,6 +849,13 @@ func getIncrementId(key []byte, cfg *structInfo, tx *leveldb.DB) (int64, error) 
 	return counter, nil
 }
 
+/*
+
+The value corresponding to the given key is retrieved
+from the db and returned to the caller
+which may not exist
+
+*/
 func getDbKey(key []byte, db *leveldb.DB) ([]byte, error) {
 	exits, err := db.Has(key, nil)
 	if err != nil {
@@ -700,28 +870,6 @@ func getDbKey(key []byte, db *leveldb.DB) ([]byte, error) {
 		return nil, err
 	}
 	return val, err
-}
-
-func cloneInterface(data interface{}) interface{} {
-
-	src := reflect.ValueOf(data)
-	dst := reflect.New(reflect.Indirect(src).Type())
-
-	srcElem := src.Elem()
-	dstElem := dst.Elem()
-	NumField := srcElem.NumField()
-	for i := 0; i < NumField; i++ {
-		sf := srcElem.Field(i)
-		df := dstElem.Field(i)
-		df.Set(sf)
-	}
-	return dst.Interface()
-}
-
-func cloneByte(src []byte) []byte {
-	dst := make([]byte, len(src))
-	copy(dst, src)
-	return dst
 }
 
 func (ldb *LDataBase) lowerBound(begin, end, fieldName []byte, data interface{}, greater bool) (*DbIterator, error) {
@@ -753,7 +901,6 @@ func (ldb *LDataBase) lowerBound(begin, end, fieldName []byte, data interface{},
 
 	return nil, ErrNotFound
 }
-
 
 func (ldb *LDataBase) Empty(begin, end, fieldName []byte) (bool) {
 
@@ -790,45 +937,6 @@ func (ldb *LDataBase) upperBound(begin, end, fieldName []byte, data interface{},
 		return nil, err
 	}
 	return idx, nil
-}
-
-func (ldb *LDataBase) getFirstStack() *undoState {
-	stack := ldb.stack.First()
-	switch typ := stack.(type) {
-	case *undoState:
-		return typ
-	default:
-		return nil
-		//panic(TYPE_NOT_FOUND)
-	}
-	return nil
-}
-
-func (ldb *LDataBase) getSecond() *undoState {
-	stack := ldb.stack.LastSecond()
-	switch typ := stack.(type) {
-	case *undoState:
-		return typ
-	default:
-		return nil
-		//panic(TYPE_NOT_FOUND)
-	}
-	return nil
-}
-
-func (ldb *LDataBase) getStack() *undoState {
-	stack := ldb.stack.Last()
-	if stack == nil {
-		return nil
-	}
-	switch typ := stack.(type) {
-	case *undoState:
-		return typ
-	default:
-		return nil
-		//panic(TYPE_NOT_FOUND)
-	}
-	return nil
 }
 
 ///////////////
@@ -877,4 +985,44 @@ func (ldb *LDataBase) undoRemove(in interface{}) {
 	}
 	copy_ := cloneInterface(in)
 	stack.undoRemove(copy_)
+}
+
+
+func (ldb *LDataBase) getFirstStack() *undoState {
+	stack := ldb.stack.First()
+	switch typ := stack.(type) {
+	case *undoState:
+		return typ
+	default:
+		return nil
+		//panic(TYPE_NOT_FOUND)
+	}
+	return nil
+}
+
+func (ldb *LDataBase) getSecond() *undoState {
+	stack := ldb.stack.LastSecond()
+	switch typ := stack.(type) {
+	case *undoState:
+		return typ
+	default:
+		return nil
+		//panic(TYPE_NOT_FOUND)
+	}
+	return nil
+}
+
+func (ldb *LDataBase) getStack() *undoState {
+	stack := ldb.stack.Last()
+	if stack == nil {
+		return nil
+	}
+	switch typ := stack.(type) {
+	case *undoState:
+		return typ
+	default:
+		return nil
+		//panic(TYPE_NOT_FOUND)
+	}
+	return nil
 }

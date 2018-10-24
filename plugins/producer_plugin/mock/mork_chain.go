@@ -50,7 +50,7 @@ type forkDatabase struct {
 
 func (db *forkDatabase) find(id common.BlockIdType) *types.BlockState {
 	for _, n := range db.index {
-		if n.ID == id {
+		if n.BlockId == id {
 			return n
 		}
 	}
@@ -92,7 +92,7 @@ func Initialize() {
 	genHeader.ActiveSchedule = initSchedule
 	genHeader.PendingSchedule = initSchedule
 	genHeader.Header.Timestamp = common.NewBlockTimeStamp(common.Now())
-	genHeader.ID = genHeader.Header.BlockID()
+	genHeader.BlockId = genHeader.Header.BlockID()
 	genHeader.BlockNum = genHeader.Header.BlockNumber()
 
 	genHeader.ProducerToLastProduced = make(map[common.AccountName]uint32)
@@ -154,7 +154,7 @@ func (c *Controller) StartBlock(when common.BlockTimeStamp, confirmBlockCount ui
 }
 func (c *Controller) FinalizeBlock() {
 	fmt.Println("finalize block...")
-	c.pending.ID = c.pending.Header.BlockID()
+	c.pending.BlockId = c.pending.Header.BlockID()
 }
 
 func (c *Controller) SignBlock(callback func(sha256 crypto.Sha256) ecc.Signature) *types.SignedBlock {
@@ -203,7 +203,7 @@ func (c *Controller) PushBlock(b *types.SignedBlock, status types.BlockStatus) {
 func (c *Controller) MaybeSwitchForks() {
 	newHead := c.forkDb.head
 
-	if newHead.Header.Previous == c.head.ID {
+	if newHead.Header.Previous == c.head.BlockId {
 		c.ApplyBlock(newHead.SignedBlock)
 		c.head = newHead
 
