@@ -120,9 +120,9 @@ type TransactionReceipt struct {
 }
 
 type SignedBlock struct {
-	SignedBlockHeader
-	Transactions    []TransactionReceipt `json:"transactions"`
-	BlockExtensions []*Extension         `json:"block_extensions"`
+	SignedBlockHeader `multiIndex:"inline"`
+	Transactions      []TransactionReceipt `multiIndex:"inline",json:"transactions"`
+	BlockExtensions   []*Extension         `multiIndex:"inline",json:"block_extensions"`
 }
 
 func (m *SignedBlock) String() string {
