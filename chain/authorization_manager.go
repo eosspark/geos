@@ -81,14 +81,14 @@ func (a *AuthorizationManager) GetPermissionLastUsed(permission *entity.Permissi
 	return 0
 }
 
-func (am *AuthorizationManager) FindPermission(level *types.PermissionLevel) *types.PermissionObject {
+func (am *AuthorizationManager) FindPermission(level *types.PermissionLevel) *entity.PermissionObject {
 	//po := types.PermissionObject{}
 	//am.db.Find("ByOwner", common.Tuple{level.Actor, level.Permission}, &po)
 	//poo := []types.PermissionObject{}
 	//am.db.All(&poo)
 	//fmt.Println(poo)
 	//return &po
-	return &types.PermissionObject{}
+	return &entity.PermissionObject{}
 }
 
 func (am *AuthorizationManager) GetPermission(level *types.PermissionLevel) *entity.PermissionObject {
