@@ -42,6 +42,14 @@ func (n CheckSum256Type) String() string {
 	return crypto.Sha256(n).String()
 }
 
+func BlockIdNil() BlockIdType {
+	return BlockIdType(*crypto.NewSha256Nil())
+}
+
+func TransactionIdNil() TransactionIdType {
+	return TransactionIdType(*crypto.NewSha256Nil())
+}
+
 func DecodeIdTypeString(str string) (id [4]uint64, err error) {
 	b, err := hex.DecodeString(str)
 	if err != nil {
