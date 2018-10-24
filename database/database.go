@@ -69,11 +69,7 @@ func (ldb *LDataBase) Undo() {
 		return
 	}
 	for key, _ := range stack.OldValue {
-	//	log.Fatalln("modify do not work")
-		// db.modify
-		//ldb.Modify(key, nil)
-		//remove(key,ldb.db)
-		//save(key,ldb.db)
+
 		undoModify(key,ldb.db)
 	}
 	for key, _ := range stack.NewValue {
@@ -82,7 +78,7 @@ func (ldb *LDataBase) Undo() {
 	}
 	for key, _ := range stack.RemoveValue {
 		// db.insert
-		save(key,ldb.db)
+		save(key,ldb.db,true)
 	}
 	ldb.stack.Pop()
 	ldb.revision--
@@ -147,6 +143,10 @@ func (ldb *LDataBase) StartSession() *Session {
 func (ldb *LDataBase) Commit(revision int64) {
 
 	for {
+		if ldb.stack.Size() == 0{
+			return
+		}
+
 		stack := ldb.getFirstStack()
 		if stack == nil {
 			break
@@ -182,7 +182,7 @@ error 				-->		error
 */
 
 func (ldb *LDataBase) Insert(in interface{}) error {
-	err := save(in, ldb.db)
+	err := save(in, ldb.db,false)
 	if err != nil {
 		// undo
 		return err
@@ -272,7 +272,7 @@ func (ldb *LDataBase) Remove(in interface{}) error {
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-func save(data interface{}, tx *leveldb.DB) error {
+func save(data interface{}, tx *leveldb.DB,undo bool) error {
 
 	ref := reflect.ValueOf(data)
 	if !ref.IsValid() || ref.Kind() != reflect.Ptr || ref.Elem().Kind() != reflect.Struct {
@@ -288,10 +288,13 @@ func save(data interface{}, tx *leveldb.DB) error {
 		return ErrNoID
 	}
 
-	err = incrementField(cfg, tx)
-	if err != nil {
-		return err
+	if !undo{
+		err = incrementField(cfg, tx)
+		if err != nil {
+			return err
+		}
 	}
+
 	id, err := rlp.EncodeToBytes(cfg.Id.Interface())
 	if err != nil {
 		return err
@@ -706,12 +709,13 @@ func cloneInterface(data interface{}) interface{} {
 
 	src := reflect.ValueOf(data)
 	dst := reflect.New(reflect.Indirect(src).Type())
-
-	srcElem := src.Elem()
+	if src.Kind() == reflect.Ptr{
+		src = src.Elem()
+	}
 	dstElem := dst.Elem()
-	NumField := srcElem.NumField()
+	NumField := src.NumField()
 	for i := 0; i < NumField; i++ {
-		sf := srcElem.Field(i)
+		sf := src.Field(i)
 		df := dstElem.Field(i)
 		df.Set(sf)
 	}

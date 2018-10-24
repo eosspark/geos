@@ -8,12 +8,11 @@ type Session struct {
 	revision 	int64
 }
 
-func (session *Session) Commit() {
+func (session *Session) Commit(revision int64) {
 	if !session.apply {
 		// log ?
 		return
 	}
-	revision := session.revision
 	session.db.Commit(revision)
 	session.apply = false
 }
