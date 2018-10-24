@@ -151,21 +151,22 @@ func (ldb *LDataBase) Commit(revision int64) {
 		if stack == nil {
 			break
 		}
-		if stack.reversion <= ldb.revision {
-			ldb.stack.PopFront()
-			ldb.revision--
-		} else {
+		if stack.reversion > revision{
 			break
 		}
+
+		ldb.stack.PopFront()
 	}
 }
 
 func (ldb *LDataBase) SetRevision(revision int64) {
 	if ldb.stack.Size() != 0 {
+		panic("cannot set revision while there is an existing undo stack")
 		// throw
 	}
 	if revision > math.MaxInt64 {
 		//throw
+		panic("revision to set is too high")
 	}
 	ldb.revision = revision
 }

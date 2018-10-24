@@ -186,6 +186,7 @@ func Test_undoInsert(t *testing.T) {
 	defer clo()
 
 	//////////////////////////////////////////////		Insert UNDO		///////////////////////////////////
+	db.SetRevision(10)
 	session := db.StartSession()
 	objs, _ := Objects()
 	for i:= 0;i < 3;i++{
@@ -200,7 +201,8 @@ func Test_undoInsert(t *testing.T) {
 	if err != nil{
 		log.Println(err)
 	}
-	it,err := idx.LowerBound(TableIdObject{Code:11})
+
+	_,err = idx.LowerBound(TableIdObject{Code:11})
 	if err != ErrNotFound{
 		log.Fatalln(err)
 	}
@@ -216,12 +218,13 @@ func Test_undoInsert(t *testing.T) {
 		}
 	}
 
-	session.Commit(1)
+	db.Commit(11)
+	session.Undo()
 	idx, err = db.GetIndex("Code", TableIdObject{})
 	if err != nil{
 		log.Println(err)
 	}
-	it,err = idx.LowerBound(TableIdObject{Code:11})
+	it,err := idx.LowerBound(TableIdObject{Code:11})
 	if err != nil{
 		log.Fatalln(err)
 	}
@@ -229,6 +232,7 @@ func Test_undoInsert(t *testing.T) {
 	for it.Next(){
 		tmp := TableIdObject{}
 		it.Data(&tmp)
+		//logObj(tmp)
 		if objs[i] != tmp{
 			logObj(tmp)
 			log.Fatalln("error lower bound")
