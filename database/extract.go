@@ -76,6 +76,29 @@ func (s*structInfo)showStructInfo(){
 	}
 }
 
+func cloneInterface(data interface{}) interface{} {
+
+	src := reflect.ValueOf(data)
+	dst := reflect.New(reflect.Indirect(src).Type())
+	if src.Kind() == reflect.Ptr{
+		src = src.Elem()
+	}
+	dstElem := dst.Elem()
+	NumField := src.NumField()
+	for i := 0; i < NumField; i++ {
+		sf := src.Field(i)
+		df := dstElem.Field(i)
+		df.Set(sf)
+	}
+	return dst.Interface()
+}
+
+func cloneByte(src []byte) []byte {
+	dst := make([]byte, len(src))
+	copy(dst, src)
+	return dst
+}
+
 func extractStruct(s *reflect.Value,mi ...*structInfo) (*structInfo,error) {
 
 	if s.Kind() == reflect.Ptr {
