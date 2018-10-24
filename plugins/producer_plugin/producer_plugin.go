@@ -13,6 +13,7 @@ import (
 	"time"
 	"encoding/json"
 	"strings"
+	"github.com/eosspark/eos-go/asio"
 )
 
 type ProducerPlugin struct {
@@ -46,11 +47,11 @@ func init() {
 	fmt.Println("app register plugin")
 }
 
-func NewProducerPlugin() ProducerPlugin {
+func NewProducerPlugin(io *asio.IoContext) ProducerPlugin {
 	p := new(ProducerPlugin)
 	my := new(ProducerPluginImpl)
 
-	my.Timer = new(common.Timer)
+	my.Timer = common.NewTimer(io)
 	my.Producers = make(map[common.AccountName]struct{})
 	my.SignatureProviders = make(map[ecc.PublicKey]signatureProviderType)
 	my.ProducerWatermarks = make(map[common.AccountName]uint32)

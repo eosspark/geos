@@ -6,6 +6,9 @@ import (
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/database"
 	"github.com/eosspark/eos-go/entity"
+	. "github.com/eosspark/eos-go/exception"
+	"log"
+	. "github.com/eosspark/eos-go/exception/try"
 )
 
 var IsActiveAz bool
@@ -62,7 +65,16 @@ func (a *AuthorizationManager) ModifyPermission(permission *entity.PermissionObj
 }
 
 func (a *AuthorizationManager) RemovePermission(permission *entity.PermissionObject) {
-
+	index, err := a.db.GetIndex("byParent", entity.PermissionObject{})
+	if err != nil {
+		log.Fatalln(err)
+	}
+	_, err = index.LowerBound(entity.PermissionObject{Parent:permission.ID})
+	EosAssert(err == nil, &ActionValidateException{},"Cannot remove a permission which has children. Remove the children first.")
+	usage := entity.PermissionUsageObject{ID: permission.UsageId}
+	a.db.Find("id", usage, &usage)
+	a.db.Remove(usage)
+	a.db.Remove(*permission)
 }
 
 func (a *AuthorizationManager) UpdatePermissionUsage(permission *entity.PermissionObject) {
@@ -75,85 +87,112 @@ func (a *AuthorizationManager) UpdatePermissionUsage(permission *entity.Permissi
 }
 
 func (a *AuthorizationManager) GetPermissionLastUsed(permission *entity.PermissionObject) common.TimePoint {
-	//puo := entity.PermissionUsageObject{}
-	//am.db.Find("ID", permission.UsageId, &puo)
-	//return puo.LastUsed
-	return 0
+	puo := entity.PermissionUsageObject{}
+	puo.ID = permission.UsageId
+	a.db.Find("id", puo, &puo)
+	return puo.LastUsed
 }
 
-func (am *AuthorizationManager) FindPermission(level *types.PermissionLevel) *entity.PermissionObject {
-	//po := types.PermissionObject{}
-	//am.db.Find("ByOwner", common.Tuple{level.Actor, level.Permission}, &po)
-	//poo := []types.PermissionObject{}
-	//am.db.All(&poo)
-	//fmt.Println(poo)
-	//return &po
-	return &entity.PermissionObject{}
+func (a *AuthorizationManager) FindPermission(level *types.PermissionLevel) (p *entity.PermissionObject) { //TODO
+	Try(func(){
+		defer Return()
+		EosAssert(!level.Actor.Empty() && !level.Permission.Empty(), &InvalidPermission{}, "Invalid permission")
+		po := entity.PermissionObject{}
+		po.Owner = level.Actor
+		po.Name = level.Permission
+		a.db.Find("byOwner", po, &po)
+		p = &po
+		Return()
+	}).Catch(func (e PermissionQueryException){
+
+	}).End()
+	return
 }
 
-func (am *AuthorizationManager) GetPermission(level *types.PermissionLevel) *entity.PermissionObject {
-	po := entity.PermissionObject{}
-	//am.db.Find("ByOwner", common.Tuple{level.Actor, level.Permission}, &po)
-	return &po
+func (a *AuthorizationManager) GetPermission(level *types.PermissionLevel) (p *entity.PermissionObject) {
+	defer HandleReturn()
+	Try(func(){
+		defer Return()
+		EosAssert(!level.Actor.Empty() && !level.Permission.Empty(), &InvalidPermission{}, "Invalid permission")
+		po := entity.PermissionObject{}
+		po.Owner = level.Actor
+		po.Name = level.Permission
+		a.db.Find("byOwner", po, &po)
+		p = &po
+		Return()
+	}).Catch(func (e PermissionQueryException){
+
+	}).End()
+	return
 }
 
-//
-//func (am *AuthorizationManager) LookupLinkedPermission(authorizerAccount common.AccountName,
-//	scope common.AccountName,
-//	actName common.ActionName,
-//) common.PermissionName {
-//
-//	key := common.MakeTuple(authorizerAccount, scope, actName)
-//	link := types.PermissionLinkObject{}
-//	err := am.db.Find("ByActionName", key, &link)
-//	if err != nil {
-//		key = common.MakeTuple(authorizerAccount, scope, common.AccountName(common.N("")))
-//		err = am.db.Find("ByActionName", key, &link)
-//	}
-//	if err == nil {
-//		return link.RequiredPermission
-//	}
-//	var pn common.PermissionName
-//	return pn
-//}
-//
-//func (am *AuthorizationManager) LookupMinimumPermission(authorizerAccount common.AccountName,
-//	scope common.AccountName,
-//	actName common.ActionName,
-//) common.PermissionName {
-//	if scope == common.DefaultConfig.SystemAccountName {
-//		//EOS_ASSERT
-//	}
-//	// if !linkPermission
-//	linkedPermission := am.LookupLinkedPermission(authorizerAccount, scope, actName)
-//	if linkedPermission == common.PermissionName(common.DefaultConfig.EosioAnyName) {
-//		var pn common.PermissionName
-//		return pn
-//	}
-//	return linkedPermission
-//}
-//
-//func (am *AuthorizationManager) CheckUpdateauthAuthorization(update system.UpdateAuth, auths []types.PermissionLevel) {
-//	if len(auths) != 1 {
-//		fmt.Println("error")
-//		return
-//	}
-//	auth := auths[0]
-//	if auth.Actor != update.Account {
-//		fmt.Println("error")
-//		return
-//	}
-//	minPermission := am.FindPermission(&types.PermissionLevel{update.Account, update.Permission})
-//	if minPermission == nil {
-//		permission := am.GetPermission(&types.PermissionLevel{update.Account, update.Permission})
-//		minPermission = &permission
-//	}
-//	if am.GetPermission(&auth).Satisfies(*minPermission) == false {
-//		fmt.Println("error")
-//		return
-//	}
-//}
-//
+
+func (a *AuthorizationManager) LookupLinkedPermission(authorizerAccount common.AccountName,
+	scope common.AccountName,
+	actName common.ActionName,
+) (p common.PermissionName) {
+	defer HandleReturn()
+	Try(func() {         //TODO
+		defer Return()
+		link := entity.PermissionLinkObject{}
+		link.Account = authorizerAccount
+		link.Code = scope
+		link.MessageType = actName
+		err := a.db.Find("byActionName", link, &link)
+		if err != nil {
+			link.Code = common.AccountName(common.N(""))
+			err = a.db.Find("byActionName", link, &link)
+		}
+		if err == nil {
+			p = link.RequiredPermission
+			Return()
+		}
+		p = common.PermissionName(common.N(""))
+		Return()
+	}).End()
+
+	return
+}
+
+func (a *AuthorizationManager) LookupMinimumPermission(authorizerAccount common.AccountName,
+	scope common.AccountName,
+	actName common.ActionName,
+) (pn common.PermissionName) {
+	if scope == common.DefaultConfig.SystemAccountName {
+		//TODO
+	}
+	defer HandleReturn()
+	Try(func() {
+		defer Return()
+		linkedPermission := a.LookupLinkedPermission(authorizerAccount, scope, actName)
+		if linkedPermission == common.PermissionName(common.N("")) {
+			pn = common.DefaultConfig.ActiveName
+			Return()
+		}
+
+		if linkedPermission == common.PermissionName(common.DefaultConfig.EosioAnyName) {
+			pn = common.PermissionName(common.N(""))
+			Return()
+		}
+
+		pn = linkedPermission
+		Return()
+	}).End()
+	return
+}
+
+func (a *AuthorizationManager) CheckUpdateauthAuthorization(update types.UpdateAuth, auths []types.PermissionLevel) {
+	EosAssert(len(auths) == 1, &IrrelevantAuthException{}, "updateauth action should only have one declared authorization")
+	auth := auths[0]
+	EosAssert(auth.Actor == update.Account, &IrrelevantAuthException{}, "the owner of the affected permission needs to be the actor of the declared authorization")
+	minPermission := a.FindPermission(&types.PermissionLevel{update.Account, update.Permission})
+	if minPermission == nil {
+		permission := a.GetPermission(&types.PermissionLevel{update.Account, update.Permission})
+		minPermission = permission
+	}
+	EosAssert(a.GetPermission(&auth).Satisfies(*minPermission), &IrrelevantAuthException{}, "") //TODO
+}
+
 //func (am *AuthorizationManager) CheckDeleteauthAuthorization(del system.DeleteAuth, auths []types.PermissionLevel) {
 //	if len(auths) != 1 {
 //		fmt.Println("error")
