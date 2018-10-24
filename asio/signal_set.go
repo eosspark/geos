@@ -28,6 +28,8 @@ func (s *SignalSet) AsyncWait(op func(ec ErrorCode)) {
 		for {
 			select {
 			case <-s.notify:
+				// push into io_service
+				// operation will be executed in the correct time
 				s.ctx.GetService().push(op, ErrorCode{})
 				break
 			case <-s.cancel:
