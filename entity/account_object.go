@@ -26,7 +26,7 @@ type AccountSequenceObject struct {
 	ID           common.IdType      `multiIndex:"id,increment"`
 	Name         common.AccountName `multiIndex:"byName,orderedUnique"`
 	RecvSequence uint64             //default value 0
-	authSequence uint64
+	AuthSequence uint64
 	CodeSequence uint64
 	AbiSequence  uint64
 }
