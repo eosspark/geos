@@ -1,7 +1,6 @@
 package database
 
 import (
-	"fmt"
 	"github.com/eosspark/eos-go/crypto/rlp"
 	"reflect"
 )
@@ -158,9 +157,6 @@ func modifyField(cfg, oldCfg *structInfo, callBack func(newKey, oldKey []byte) e
 			newKey = append(newKey, id...)
 		}
 
-		fmt.Println(tag)
-		fmt.Println("newKey : ",newKey)
-		fmt.Println("oldKye : ",oldKey)
 		err := callBack(newKey, oldKey)
 		if err != nil {
 			return err

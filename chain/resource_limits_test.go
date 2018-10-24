@@ -28,14 +28,27 @@ func TestResourceLimitsManager_SetAccountLimits(t *testing.T) {
 	rlm := control.ResourceLimists
 	rlm.InitializeDatabase()
 	fmt.Println(rlm.GetBlockCpuLimit())
-	//a := common.AccountName(common.N("yuanchao"))
-	//rlm.InitializeAccount(a)
-	//rlm.SetAccountLimits(a, 100, 100, 100)
-	//var r, n, c int64
-	//rlm.GetAccountLimits(a, &r, &n, &c)
-	//fmt.Println(r, n, c)
+	a := common.AccountName(common.N("yuanchao"))
+	rlm.InitializeAccount(a)
+	rlm.SetAccountLimits(a, 100, 100, 100)
+	var r, n, c int64
+	rlm.GetAccountLimits(a, &r, &n, &c)
+	fmt.Println(r, n, c)
 }
 
 func TestResourceLimitsManager_ProcessBlockUsage(t *testing.T) {
+	control := GetControllerInstance()
+	rlm := control.ResourceLimists
+	rlm.InitializeDatabase()
+	a := common.AccountName(common.N("yuanchao"))
+ 	b := common.AccountName(common.N("shengfeng"))
+	c := common.AccountName(common.N("haonan"))
+	account := []common.AccountName{a,b,c}
+	for _,acc := range account {
+		rlm.InitializeAccount(acc)
+	}
+	rlm.SetAccountLimits(a, 100,100,100)
+	rlm.SetAccountLimits(b, 200,300,100)
 
+	rlm.ProcessAccountLimitUpdates()
 }

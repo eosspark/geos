@@ -1,7 +1,6 @@
 package chain
 
 import (
-	"fmt"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/common/arithmetic_types"
@@ -9,6 +8,7 @@ import (
 	"github.com/eosspark/eos-go/entity"
 	. "github.com/eosspark/eos-go/exception"
 	"math"
+	"log"
 )
 
 var IsActiveRc bool
@@ -188,7 +188,6 @@ func (r *ResourceLimitsManager) SetAccountLimits(account common.AccountName, ram
 	}
 
 	limits := findOrCreatePendingLimits()
-	fmt.Println(limits)
 	decreasedLimit := false
 	if ramBytes >= 0 {
 		decreasedLimit = limits.RamBytes < 0 || ramBytes < limits.RamBytes
@@ -224,32 +223,57 @@ func (r *ResourceLimitsManager) GetAccountLimits(account common.AccountName, ram
 
 func (r *ResourceLimitsManager) ProcessAccountLimitUpdates() {
 
-	//updateStateAndValue := func(total *uint64, value *int64, pendingValue int64, debugWhich string) {
-	//	if *value > 0 {
-	//		EosAssert(*total >= uint64(*value), &RateLimitingStateInconsistent{}, "underflow when reverting old value to %s", debugWhich)
-	//		*total -= uint64(*value)
-	//	}
-	//
-	//	if pendingValue > 0 {
-	//		EosAssert(math.MaxUint16 - *total >= uint64(pendingValue), &RateLimitingStateInconsistent{}, "overflow when applying new value to %s", debugWhich )
-	//		*total += uint64(pendingValue)
-	//	}
-	//
-	//	*value = pendingValue
-	//}
+	byOwnerIndex, err := r.db.GetIndex("byOwner", entity.ResourceLimitsObject{})
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	updateStateAndValue := func(total *uint64, value *int64, pendingValue int64, debugWhich string) {
+		if *value > 0 {
+			EosAssert(*total >= uint64(*value), &RateLimitingStateInconsistent{}, "underflow when reverting old value to %s", debugWhich)
+			*total -= uint64(*value)
+		}
+
+		if pendingValue > 0 {
+			EosAssert(math.MaxUint16 - *total >= uint64(pendingValue), &RateLimitingStateInconsistent{}, "overflow when applying new value to %s", debugWhich )
+			*total += uint64(pendingValue)
+		}
+
+		*value = pendingValue
+	}
 
 	state := entity.DefaultResourceLimitsStateObject
 	r.db.Find("id", state, &state)
-	r.db.Modify(&state, func(rso entity.ResourceLimitsStateObject) {
-		//for _, itr := range pendingRlo {
-		//	rlo := ResourceLimitsObject{}
-		//	r.db.Find("Rlo", RloIndex{ResourceLimits, itr.Owner, false}, &rlo)
-		//	r.db.Modify(&rlo, func(rlo entity.ResourceLimitsObject) {
-		//		updateStateAndValue(&rso.TotalRamBytes, &rlo.RamBytes, itr.RamBytes, "ram_bytes")
-		//		updateStateAndValue(&rso.TotalCpuWeight, &rlo.CpuWeight, itr.CpuWeight, "cpu_weight")
-		//		updateStateAndValue(&rso.TotalNetWeight, &rlo.NetWeight, itr.NetWeight, "net_weight")
-		//	})
-		//}
+	//TODO:delete, for test.
+	//state.TotalNetWeight = 10000
+	//state.TotalCpuWeight = 10000
+	//state.TotalRamBytes = 10000
+	r.db.Modify(&state, func(rso *entity.ResourceLimitsStateObject) {
+		limit := entity.ResourceLimitsObject{}
+		for !byOwnerIndex.Empty(){
+			itr, err := byOwnerIndex.LowerBound(entity.ResourceLimitsObject{Pending:true})
+			if err != nil {
+				break
+			}
+			byOwnerIndex.Begin(&limit)
+			if byOwnerIndex.CompareEnd(itr) || limit.Pending != true {
+				break
+			}
+
+			actualEntry := entity.ResourceLimitsObject{}
+			actualEntry.Pending = false
+			actualEntry.Owner = limit.Owner
+			r.db.Modify(&actualEntry, func(rlo *entity.ResourceLimitsObject){
+				updateStateAndValue(&rso.TotalRamBytes, &rlo.RamBytes, limit.RamBytes, "ram_bytes")
+				updateStateAndValue(&rso.TotalCpuWeight, &rlo.CpuWeight, limit.CpuWeight, "cpu_weight")
+				updateStateAndValue(&rso.TotalNetWeight, &rlo.NetWeight, limit.NetWeight, "net_weight")
+			})
+			err = r.db.Remove(limit)
+			if err != nil{
+				log.Fatalln(err)
+			}
+			itr.Release()
+		}
 	})
 }
 
