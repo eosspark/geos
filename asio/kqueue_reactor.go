@@ -1,13 +1,13 @@
 //+build darwin
 
-package gosio
+package asio
 
 import (
 	"syscall"
 	"fmt"
 	"strings"
 	"errors"
-	"github.com/gosio/utils"
+	"github.com/eosspark/eos-go/asio/utils"
 	)
 
 type KqueueReactor struct {

@@ -1,4 +1,4 @@
-package gosio
+package asio
 
 import "time"
 
@@ -18,9 +18,9 @@ func (d *DeadlineTimer) Expires(t time.Time) {
 	d.duration = t.Sub(time.Now())
 }
 
-func (d *DeadlineTimer) AsyncWait(callback func(ec ErrorCode)) {
+func (d *DeadlineTimer) AsyncWait(op func(ec ErrorCode)) {
 	d.internal = time.AfterFunc(d.duration, func() {
-		d.ctx.GetService().push(callback, NewErrorCode(nil))
+		d.ctx.GetService().push(op, NewErrorCode(nil))
 	})
 }
 

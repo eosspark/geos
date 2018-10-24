@@ -1,8 +1,12 @@
-package gosio
+package asio
+
+import "os"
 
 type Reactor interface {
 	run()
+	stop()
 	push(op interface{}, args ...interface{})
+	notify(sig ...os.Signal)
 }
 
 func (i *IoContext) GetService () Reactor {

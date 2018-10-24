@@ -1,39 +1,49 @@
-package gosio
+package asio
 
 import (
 	"reflect"
 	"fmt"
-)
+	"os"
+	)
 
 type GoroutineReactor struct {
-	opQueue events
+	opq 	 chan operation
+	//notifies chan os.Signal
+	shutdown bool
 }
 
-type event struct {
-	op   interface{}
-	args []interface{}
+type operation struct {
+	function interface{}
+	args 	 []interface{}
 }
-
-type events chan event
 
 func NewGouroutineReactor() *GoroutineReactor {
 	r := new(GoroutineReactor)
-	r.opQueue = make(events, 128)
+	r.opq = make(chan operation, 128)
+	//r.notifies = make(chan os.Signal, 1)
 	return r
 }
 
 func (g *GoroutineReactor) run() {
-	for {
+	for ; !g.shutdown ;{
 		select {
-		case op := <-g.opQueue:
-			g.doReactor(op.op, op.args)
+		case op := <-g.opq:
+			g.doReactor(op.function, op.args)
 			break
 		}
 	}
 }
 
+func (g *GoroutineReactor) stop() {
+	g.shutdown = true
+}
+
 func (g *GoroutineReactor) push(op interface{}, args ...interface{}) {
-	g.opQueue <- event{op, args}
+	g.opq <- operation{op, args}
+}
+
+func (g *GoroutineReactor) notify(sig ...os.Signal) {
+	//signal.Notify(g.notifies, sig...)
 }
 
 func (g *GoroutineReactor) doReactor(op interface{}, args []interface{}) {

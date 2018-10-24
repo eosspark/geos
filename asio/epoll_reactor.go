@@ -1,6 +1,6 @@
 //+build linux
 
-package gosio
+package asio
 
 type epollReactor struct {
 

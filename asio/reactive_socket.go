@@ -1,4 +1,4 @@
-package gosio
+package asio
 
 import (
 	"net"

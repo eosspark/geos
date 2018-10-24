@@ -1,4 +1,4 @@
-package gosio
+package asio
 
 type IoContext struct {
 	reactor Reactor
@@ -6,11 +6,14 @@ type IoContext struct {
 
 func NewIoContext() *IoContext {
 	i := new(IoContext)
-
 	return i
 }
 
 func (i *IoContext) Run() {
 	i.GetService().run()
+}
+
+func (i *IoContext) Stop() {
+	i.GetService().stop()
 }
 
