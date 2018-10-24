@@ -375,7 +375,6 @@ func remove(data interface{}, db *leveldb.DB) error {
 
 		return removeKey(key, db)
 	}
-
 	err = doCallBack(id, typeName, cfg, removeField) // FIXME --> id --> obj --> cfg
 	if err != nil {
 		return err
@@ -461,9 +460,6 @@ func modify(data interface{}, fn interface{}, db *leveldb.DB) error {
 	fnRef.Call([]reflect.Value{dataRef})
 	// modify
 	newRef := reflect.ValueOf(oldInter)
-	fmt.Println("modify ")
-	fmt.Println(newRef)
-	fmt.Println(dataRef)
 	err := modifyKey(&newRef, &dataRef, db)
 	if err != nil {
 		return err
@@ -472,7 +468,7 @@ func modify(data interface{}, fn interface{}, db *leveldb.DB) error {
 	return nil
 }
 
-func modifyKey(new, old *reflect.Value, db *leveldb.DB) error {
+func modifyKey(old, new *reflect.Value, db *leveldb.DB) error {
 	newCfg, err := extractStruct(new)
 	if err != nil {
 		return err
@@ -485,7 +481,7 @@ func modifyKey(new, old *reflect.Value, db *leveldb.DB) error {
 		return ErrNoID
 	}
 
-	callBack := func(oldKey, newKey []byte) error {
+	callBack := func(newKey, oldKey []byte) error {
 		find, err := db.Has(oldKey, nil)
 		if err != nil {
 			return err
@@ -516,11 +512,8 @@ func modifyKey(new, old *reflect.Value, db *leveldb.DB) error {
 	if err != nil {
 		return err
 	}
-	//fmt.Println(new.Interface())
-	//fmt.Println(old.Interface())
-	//newCfg.showStructInfo()
-	//fmt.Println("-------------")
-	//oldCfg.showStructInfo()
+
+	// FIXME newcfg or oldcfg
 	err = modifyField(newCfg, oldCfg, callBack)
 	if err != nil {
 		return err

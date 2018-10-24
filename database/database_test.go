@@ -424,11 +424,11 @@ func Test_remove(t *testing.T) {
 
 	objs, houses := Objects()
 	saveObjs(objs, houses, db)
+
 	removeUnique(db)
 }
 
 func removeUnique(db DataBase) {
-
 	obj := TableIdObject{Code: 21, Scope: 22, Table: 23, Payer: 24, Count: 25}
 	err := db.Remove(obj)
 	if err != ErrIncompleteStructure {
@@ -441,13 +441,6 @@ func removeUnique(db DataBase) {
 	tmp := TableIdObject{}
 	err = db.Find("id", obj, &tmp)
 	if err != nil {
-		log.Fatalln(err)
-	}
-
-	// logObj(tmp)
-
-	err = db.Remove(&obj)
-	if err != ErrStructNeeded {
 		log.Fatalln(err)
 	}
 
@@ -490,7 +483,7 @@ func Test_modifyUndo(t *testing.T) {
 	for it.Next(){
 		tmp := TableIdObject{}
 		it.Data(&tmp)
-		logObj(tmp)
+		//logObj(tmp)
 		if objs_[i] != tmp{
 			logObj(tmp)
 			log.Fatalln("error lower bound")
@@ -518,9 +511,8 @@ func Test_modifyUndo(t *testing.T) {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	logObj(tmp)
-	if tmp != newobj {
-		logObj(tmp)
+	if tmp == newobj {
+		logObj(newobj)
 		log.Fatalln("modify test error")
 	}
 }
