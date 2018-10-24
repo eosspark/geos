@@ -5,6 +5,7 @@ import (
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"strings"
+	"strconv"
 )
 
 type WeightType uint16
@@ -79,8 +80,44 @@ func NewPermissionLevel(in string) (out PermissionLevel, err error) {
 	return
 }
 
+func (weight WeightType) String() string {
+	return strconv.FormatInt(int64(weight),10)
+}
+
 func (level PermissionLevel) String() string {
-	return level.Actor.String() + "@" + level.Permission.String()
+	return "{ actor: " + level.Actor.String() + ", " + "permission: " + level.Permission.String() + "}"
+}
+
+func (key KeyWeight) String() string {
+	return "{ key: " + key.Key.String() + ", " + " weight: " + key.Weight.String() + "} "
+}
+
+func (permLevel PermissionLevelWeight) String() string {
+	return "{ permission: " + permLevel.Permission.String() + ", " + "weight: " + permLevel.Weight.String() + "}"
+}
+
+func (wait WaitWeight) String() string{
+	return "{ weightSec: " + strconv.FormatInt(int64(wait.WaitSec), 10) + "weight" + wait.Weight.String() + "}"
+}
+
+func (auth Authority) String() string { //TODO: redundancy ","
+	ThresholdStr := "threshold: " + strconv.FormatInt(int64(auth.Threshold),10)
+	KeysStr := "keys: ["
+	for _, key := range auth.Keys {
+		KeysStr += "key: " + key.String() + ", "
+	}
+	KeysStr += "]"
+	AccountsStr := "accounts: ["
+	for _, account := range auth.Accounts {
+		AccountsStr += "account: " + account.String() + ", "
+	}
+	AccountsStr += "]"
+	WaitsStr := "waits: ["
+	for _, wait := range auth.Waits {
+		WaitsStr += "account: " + wait.String() + ", "
+	}
+	WaitsStr += "]"
+	return "{ "+ ThresholdStr + ", " + KeysStr + ", " + AccountsStr + ", " + WaitsStr + "}"
 }
 
 func (auth Authority) Equals(author Authority) bool {
