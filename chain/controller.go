@@ -176,6 +176,7 @@ func newController() *Controller {
 	//IrreversibleBlock.connect()
 	//readycontroller = make(chan bool)
 	//go initResource(con, readycontroller)
+	con.Pending = &types.PendingState{}
 	con.ResourceLimists = newResourceLimitsManager(con)
 	con.Authorization = newAuthorizationManager(con)
 	con.initialize()
@@ -269,7 +270,8 @@ func (c *Controller) StartBlock(when common.BlockTimeStamp, confirmBlockCount ui
 	//c.VValidateDbAvailableSize()
 }
 func (c *Controller) startBlock1(when common.BlockTimeStamp, confirmBlockCount uint16, s types.BlockStatus, producerBlockId *common.BlockIdType) {
-	EosAssert(common.Empty(c.Pending), &BlockValidateException{}, "pending block already exists")
+	//fmt.Println(c.Config)
+	EosAssert(nil != c.Pending, &BlockValidateException{}, "pending block already exists")
 	defer func() {
 		if c.Pending.Valid {
 			c.Pending.Reset()
@@ -294,9 +296,9 @@ func (c *Controller) startBlock1(when common.BlockTimeStamp, confirmBlockCount u
 	if c.ReadMode == DBReadMode(SPECULATIVE) || c.Pending.BlockStatus != types.BlockStatus(types.Incomplete) {
 		gpo := types.GlobalPropertyObject{}
 		gpo.ID = common.IdType(1)
-		err := c.DB.Find("ID", gpo, &gpo)
+		err := c.DB.Find("id", gpo, &gpo)
 		if err != nil {
-			log.Error("GetGlobalProperties is error detail:", err)
+			fmt.Println("GetGlobalProperties is error detail:", err)
 		}
 		fmt.Println("test:", gpo)
 		if (!common.Empty(gpo.ProposedScheduleBlockNum) && gpo.ProposedScheduleBlockNum <= c.Pending.PendingBlockState.DposIrreversibleBlocknum) &&
@@ -451,7 +453,6 @@ func (c *Controller) GetGlobalProperties() *types.GlobalPropertyObject {
 		//log.Error("GetGlobalProperties is error detail:", err)
 		fmt.Println("GetGlobalProperties data not found:", err)
 	}
-
 	return &gpo
 }
 
@@ -482,7 +483,7 @@ func (c *Controller) GetOnBlockTransaction() types.SignedTransaction {
 	}
 	trx := types.SignedTransaction{}
 	trx.Actions = append(trx.Actions, &onBlockAction)
-	trx.SetReferenceBlock(c.Head.ID)
+	trx.SetReferenceBlock(c.Head.BlockId)
 	in := c.Pending.PendingBlockState.Header.Timestamp + 999999
 	trx.Expiration = common.TimePointSec(in)
 	log.Error("getOnBlockTransaction trx.Expiration:", trx)
@@ -523,9 +524,12 @@ func (c *Controller) IsResourceGreylisted(name *common.AccountName) bool {
 	return false
 }
 
-func Close(db *database.LDataBase, session *database.Session) {
+func (c *Controller) Close() {
 	//session.close()
-	db.Close()
+	c.ForkDB.DB.Close()
+	c.DB.Close()
+	c.ReversibleBlocks.Close()
+	fmt.Println("Controller destory!")
 }
 
 func (c *Controller) GetUnAppliedTransactions() *[]types.TransactionMetadata {
@@ -562,12 +566,13 @@ func (c *Controller) GetScheduledTransactions() *[]common.TransactionIdType {
 		result.emplace_back(itr->trx_id);
 		++itr;
 	}*/
+
 	return nil
 }
 
 func (c *Controller) PushScheduledTransactionById(sheduled common.TransactionIdType,
 	deadLine common.TimePoint,
-	billedCpuTimeUs uint32) *types.TransactionTrace {
+	billedCpuTimeUs uint32, explicitBilledCpuTime bool) *types.TransactionTrace {
 
 	gto := types.GetGTOByTrxId(c.DB, sheduled)
 
@@ -575,7 +580,7 @@ func (c *Controller) PushScheduledTransactionById(sheduled common.TransactionIdT
 		fmt.Println("unknown_transaction_exception", "unknown transaction")
 	}
 
-	return c.PushScheduledTransactionByObject(*gto, deadLine, billedCpuTimeUs, false)
+	return c.PushScheduledTransactionByObject(*gto, deadLine, billedCpuTimeUs, explicitBilledCpuTime)
 }
 
 func (c *Controller) PushScheduledTransactionByObject(gto types.GeneratedTransactionObject,
@@ -718,9 +723,9 @@ func (c *Controller) FinalizeBlock() {
 	c.setTrxMerkle()
 
 	p := c.Pending.PendingBlockState
-	p.ID = p.Header.BlockID()
+	p.BlockId = p.Header.BlockID()
 
-	c.createBlockSummary(&p.ID)
+	c.createBlockSummary(&p.BlockId)
 }
 
 func (c *Controller) SignBlock(signerCallback func(sha256 crypto.Sha256) ecc.Signature) {
@@ -731,6 +736,41 @@ func (c *Controller) SignBlock(signerCallback func(sha256 crypto.Sha256) ecc.Sig
 }
 
 func (c *Controller) applyBlock(b *types.SignedBlock, s types.BlockStatus) {
+	EosAssert(len(b.BlockExtensions) == 0, &BlockValidateException{}, "no supported extensions")
+	producerBlockId := b.BlockID()
+	c.startBlock1(b.Timestamp, b.Confirmed, s, &producerBlockId)
+
+	trace := &types.TransactionTrace{}
+	for _, receipt := range b.Transactions {
+		numPendingReceipts := len(c.Pending.PendingBlockState.SignedBlock.Transactions)
+		if common.Empty(receipt.Trx.PackedTransaction) {
+			pt := receipt.Trx.PackedTransaction
+			mtrx := types.TransactionMetadata{}
+			mtrx.PackedTrx = pt
+			trace = c.PushTransaction(mtrx, common.TimePoint(common.MaxMicroseconds()), receipt.CpuUsageUs, true)
+		} else if common.Empty(receipt.Trx.TransactionID) {
+			trace = c.PushScheduledTransactionById(receipt.Trx.TransactionID, common.TimePoint(common.MaxMicroseconds()), receipt.CpuUsageUs, true)
+		} else {
+			EosAssert(false, &BlockValidateException{}, "encountered unexpected receipt type")
+		}
+		transactionFailed := common.Empty(trace) && common.Empty(trace.Except)
+		transactionCanFail := receipt.Status == types.TransactionStatusHardFail && common.Empty(receipt.Trx.TransactionID)
+		if transactionFailed && !transactionCanFail {
+			/*edump((*trace));
+			throw *trace->except;*/
+		}
+		EosAssert(len(c.Pending.PendingBlockState.SignedBlock.Transactions) > 0,
+			&BlockValidateException{}, "expected a receipt:", *b, "expected_receipt:", receipt)
+
+		EosAssert(len(c.Pending.PendingBlockState.SignedBlock.Transactions) == numPendingReceipts+1,
+			&BlockValidateException{}, "expected receipt was not added:", *b, "expected_receipt:", receipt)
+
+		//TODO
+		//r := c.Pending.PendingBlockState.SignedBlock.Transactions
+		/*EosAssert(r == static_cast<const transaction_receipt_header&>(receipt),
+		block_validate_exception, "receipt does not match",
+		("producer_receipt", receipt)("validator_receipt", pending->_pending_block_state->block->transactions.back()) );*/
+	}
 
 }
 
@@ -800,7 +840,7 @@ func (c *Controller) PushConfirmation(hc types.HeaderConfirmation) {
 func (c *Controller) maybeSwitchForks(s types.BlockStatus) {
 	//TODO
 	newHead := c.ForkDB.Head
-	if newHead.Header.Previous == c.Head.ID {
+	if newHead.Header.Previous == c.Head.BlockId {
 		//try{
 
 		c.applyBlock(newHead.SignedBlock, s)
@@ -866,10 +906,10 @@ func (c *Controller) ForkDataBase() *types.ForkDatabase {
 	return c.ForkDB
 }
 
-func (c *Controller) GetAccount(name common.AccountName) *types.AccountObject {
-	accountObj := types.AccountObject{}
-	//accountObj.Name = name
-	err := c.DB.Find("Name", name, accountObj)
+func (c *Controller) GetAccount(name common.AccountName) *entity.AccountObject {
+	accountObj := entity.AccountObject{}
+	accountObj.Name = name
+	err := c.DB.Find("byName", accountObj, &accountObj)
 	if err != nil {
 		fmt.Println("GetAccount is error :", err)
 	}
@@ -1036,7 +1076,7 @@ func (c *Controller) FetchBlockStateById(id common.BlockIdType) *types.BlockStat
 func (c *Controller) GetBlockIdForNum(blockNum uint32) common.BlockIdType {
 	blkState := c.ForkDB.GetBlockInCurrentChainByNum(blockNum)
 	if blkState != nil {
-		return blkState.ID
+		return blkState.BlockId
 	}
 
 	signedBlk := c.Blog.ReadBlockByNum(blockNum)
@@ -1212,7 +1252,7 @@ func (c *Controller) GetAbiSerializer(name common.AccountName,
 func (c *Controller) ToVariantWithAbi(obj interface{}, maxSerializationTime common.Microseconds) {}
 
 func (c *Controller) CreateNativeAccount(name common.AccountName, owner types.Authority, active types.Authority, isPrivileged bool) {
-	account := types.AccountObject{}
+	account := entity.AccountObject{}
 	account.Name = name
 	account.CreationDate = common.BlockTimeStamp(c.Config.genesis.InitialTimestamp)
 	account.Privileged = isPrivileged
@@ -1220,7 +1260,10 @@ func (c *Controller) CreateNativeAccount(name common.AccountName, owner types.Au
 		abiDef := types.AbiDef{}
 		account.SetAbi(EosioContractAbi(abiDef))
 	}
-	c.DB.Insert(account)
+	err := c.DB.Insert(&account)
+	if err != nil {
+		fmt.Println("CreateNativeAccount Insert Is Error:", err)
+	}
 
 	aso := types.AccountSequenceObject{}
 	aso.Name = name
@@ -1250,7 +1293,7 @@ func (c *Controller) initializeForkDB() {
 	genHeader.PendingScheduleHash = crypto.Hash256(pst)
 	genHeader.Header.Timestamp = common.NewBlockTimeStamp(gs.InitialTimestamp)
 	genHeader.Header.ActionMRoot = common.CheckSum256Type(gs.ComputeChainID())
-	genHeader.ID = genHeader.Header.BlockID()
+	genHeader.BlockId = genHeader.Header.BlockID()
 	genHeader.BlockNum = genHeader.Header.BlockNumber()
 	c.Head = types.NewBlockState(genHeader)
 	signedBlock := types.SignedBlock{}
@@ -1279,13 +1322,15 @@ func (c *Controller) initializeDatabase() {
 	if err != nil {
 		fmt.Errorf("-----------------", err)
 	}
-	fmt.Println("initializeDatabase gi:", gi)
-	fmt.Println("initializeDatabase insert gpo:", gpo)
+	/*fmt.Println("initializeDatabase gi:", gi)
+	fmt.Println("initializeDatabase insert gpo:", gpo)*/
+	//c.Authorization.InitializeDatabase()				//TODO
+	c.ResourceLimists.InitializeDatabase()
 	systemAuth := types.Authority{}
 	kw := types.KeyWeight{}
 	kw.Key = c.Config.genesis.InitialKey
 	systemAuth.Keys = []types.KeyWeight{kw}
-	fmt.Println("initializeDatabase systemAuth:", systemAuth)
+	//fmt.Println("initializeDatabase systemAuth:", systemAuth)
 	c.CreateNativeAccount(common.DefaultConfig.SystemAccountName, systemAuth, systemAuth, true)
 	emptyAuthority := types.Authority{}
 	emptyAuthority.Threshold = 1

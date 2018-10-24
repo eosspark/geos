@@ -1,6 +1,7 @@
 package database
 
 import (
+	"fmt"
 	"log"
 	"math"
 	"reflect"
@@ -68,17 +69,16 @@ func (ldb *LDataBase) Undo() {
 		return
 	}
 	for key, _ := range stack.OldValue {
-		log.Fatalln("modify do not work")
-		// db.modify
-		ldb.Modify(key, nil)
+
+		undoModify(key,ldb.db)
 	}
 	for key, _ := range stack.NewValue {
 		// db.remove
-		ldb.Remove(key)
+		remove(key,ldb.db)
 	}
 	for key, _ := range stack.RemoveValue {
 		// db.insert
-		ldb.Insert(key)
+		save(key,ldb.db,true)
 	}
 	ldb.stack.Pop()
 	ldb.revision--
@@ -143,25 +143,30 @@ func (ldb *LDataBase) StartSession() *Session {
 func (ldb *LDataBase) Commit(revision int64) {
 
 	for {
+		if ldb.stack.Size() == 0{
+			return
+		}
+
 		stack := ldb.getFirstStack()
 		if stack == nil {
 			break
 		}
-		if stack.reversion <= ldb.revision {
-			ldb.stack.PopFront()
-			ldb.revision--
-		} else {
+		if stack.reversion > revision{
 			break
 		}
+
+		ldb.stack.PopFront()
 	}
 }
 
 func (ldb *LDataBase) SetRevision(revision int64) {
 	if ldb.stack.Size() != 0 {
+		panic("cannot set revision while there is an existing undo stack")
 		// throw
 	}
 	if revision > math.MaxInt64 {
 		//throw
+		panic("revision to set is too high")
 	}
 	ldb.revision = revision
 }
@@ -178,11 +183,15 @@ error 				-->		error
 */
 
 func (ldb *LDataBase) Insert(in interface{}) error {
-	err := save(in, ldb.db)
+	err := save(in, ldb.db,false)
 	if err != nil {
 		// undo
 		return err
 	}
+	// 	keyByte[][]byte
+	//	valByte[][]byte
+	//	save(in,keyByte,valByte)
+	//
 	ldb.undoInsert(in) // undo
 	return nil
 }
@@ -264,7 +273,7 @@ func (ldb *LDataBase) Remove(in interface{}) error {
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-func save(data interface{}, tx *leveldb.DB) error {
+func save(data interface{}, tx *leveldb.DB,undo bool) error {
 
 	ref := reflect.ValueOf(data)
 	if !ref.IsValid() || ref.Kind() != reflect.Ptr || ref.Elem().Kind() != reflect.Struct {
@@ -280,10 +289,13 @@ func save(data interface{}, tx *leveldb.DB) error {
 		return ErrNoID
 	}
 
-	err = incrementField(cfg, tx)
-	if err != nil {
-		return err
+	if !undo{
+		err = incrementField(cfg, tx)
+		if err != nil {
+			return err
+		}
 	}
+
 	id, err := rlp.EncodeToBytes(cfg.Id.Interface())
 	if err != nil {
 		return err
@@ -328,7 +340,11 @@ func remove(data interface{}, db *leveldb.DB) error {
 	if !ref.IsValid() || reflect.Indirect(ref).Kind() != reflect.Struct {
 		return ErrBadType
 	}
-
+	if ref.Kind() == reflect.Ptr{
+		// XXX There may be problems
+		ref = ref.Elem()
+	}
+	//fmt.Println(ref.Kind().String())
 	if ref.Kind() == reflect.Ptr {
 		return ErrStructNeeded
 	}
@@ -363,7 +379,6 @@ func remove(data interface{}, db *leveldb.DB) error {
 
 		return removeKey(key, db)
 	}
-
 	err = doCallBack(id, typeName, cfg, removeField) // FIXME --> id --> obj --> cfg
 	if err != nil {
 		return err
@@ -382,6 +397,44 @@ func removeKey(key []byte, db *leveldb.DB) error {
 	if err != nil {
 		return err
 	}
+	return nil
+}
+
+func undoModify(old interface{},db *leveldb.DB)error{
+
+	oldRef := reflect.ValueOf(old)
+	if oldRef.Kind() != reflect.Ptr {
+		return ErrPtrNeeded
+	}
+
+	oldCfg, err := extractStruct(&oldRef)
+	if err != nil{
+		return err
+	}
+	id, err := rlp.EncodeToBytes(oldCfg.Id.Interface())
+	if err != nil {
+		return err
+	}
+	typeName := []byte(oldCfg.Name)
+	key := idKey(id, typeName)
+	val,err := getDbKey(key,db)
+	if err != nil {
+		return err
+	}
+
+	dst := reflect.New(reflect.Indirect(oldRef).Type())
+	err = rlp.DecodeBytes(val,dst.Interface())
+	if err != nil {
+		return err
+	}
+
+	err = modifyKey(&dst,&oldRef,db)
+	if err != nil {
+		fmt.Println(dst)
+		fmt.Println(oldRef)
+		return err
+	}
+
 	return nil
 }
 
@@ -410,8 +463,8 @@ func modify(data interface{}, fn interface{}, db *leveldb.DB) error {
 
 	fnRef.Call([]reflect.Value{dataRef})
 	// modify
-	oldRef := reflect.ValueOf(oldInter)
-	err := modifyKey(&oldRef, &dataRef, db)
+	newRef := reflect.ValueOf(oldInter)
+	err := modifyKey(&newRef, &dataRef, db)
 	if err != nil {
 		return err
 	}
@@ -464,6 +517,7 @@ func modifyKey(old, new *reflect.Value, db *leveldb.DB) error {
 		return err
 	}
 
+	// FIXME newcfg or oldcfg
 	err = modifyField(newCfg, oldCfg, callBack)
 	if err != nil {
 		return err
@@ -656,21 +710,23 @@ func cloneInterface(data interface{}) interface{} {
 
 	src := reflect.ValueOf(data)
 	dst := reflect.New(reflect.Indirect(src).Type())
-
-	srcElem := src.Elem()
+	if src.Kind() == reflect.Ptr{
+		src = src.Elem()
+	}
 	dstElem := dst.Elem()
-	NumField := srcElem.NumField()
+	NumField := src.NumField()
 	for i := 0; i < NumField; i++ {
-		sf := srcElem.Field(i)
+		sf := src.Field(i)
 		df := dstElem.Field(i)
 		df.Set(sf)
 	}
 	return dst.Interface()
 }
 
-func cloneByte(dst, src []byte) int {
-	dst = make([]byte, len(src))
-	return copy(dst, src)
+func cloneByte(src []byte) []byte {
+	dst := make([]byte, len(src))
+	copy(dst, src)
+	return dst
 }
 
 func (ldb *LDataBase) lowerBound(begin, end, fieldName []byte, data interface{}, greater bool) (*DbIterator, error) {
