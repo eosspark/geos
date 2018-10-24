@@ -132,7 +132,7 @@ func (impl *ProducerPluginImpl) OnBlock(bsp *types.BlockState) {
 	hbn := bsp.BlockNum
 	newBlockHeader := bsp.Header
 	newBlockHeader.Timestamp = newBlockHeader.Timestamp.Next()
-	newBlockHeader.Previous = bsp.ID
+	newBlockHeader.Previous = bsp.BlockId
 	newBs := bsp.GenerateNext(newBlockHeader.Timestamp)
 
 	// for newly installed producers we can set their watermarks to the block they became active
