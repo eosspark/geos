@@ -93,6 +93,7 @@ func newDbIterator (typeName []byte,it iterator,db *leveldb.DB,rege string,great
 		idx.first = true
 		return idx,nil
 	}
+
 	return nil, ErrNotFound
 }
 

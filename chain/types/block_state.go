@@ -3,11 +3,11 @@ package types
 import "github.com/eosspark/eos-go/common"
 
 type BlockState struct {
-	BlockHeaderState
-	SignedBlock    *SignedBlock
-	Validated      bool `json:"validated"`
-	InCurrentChain bool `json:"in_current_chain"`
-	Trxs           []*TransactionMetadata
+	BlockHeaderState `multiIndex:"inline"`
+	SignedBlock      *SignedBlock           `multiIndex:"inline"`
+	Validated        bool                   `json:"validated"`
+	InCurrentChain   bool                   `json:"in_current_chain"`
+	Trxs             []*TransactionMetadata `multiIndex:"inline"`
 }
 
 func NewBlockState(cur BlockHeaderState) *BlockState {

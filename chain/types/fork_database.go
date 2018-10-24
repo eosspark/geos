@@ -54,7 +54,7 @@ func newForkDatabase(path string, fileName string, rw bool) (*ForkDatabase, erro
 
 func (f *ForkDatabase) SetHead(s *BlockState) {
 
-	exception.EosAssert(s.ID == s.Header.BlockID(), &exception.ForkDatabaseException{},
+	exception.EosAssert(s.BlockId == s.Header.BlockID(), &exception.ForkDatabaseException{},
 		"block state id:d%, is different from block state header id:d%", s.ID, s.Header.BlockID())
 
 	exception.EosAssert(s.BlockNum == s.Header.BlockNumber(), &exception.ForkDatabaseException{}, "unable to insert block state, duplicate state detected")
@@ -106,14 +106,14 @@ func (f *ForkDatabase) AddSignedBlockState(signedBlcok *SignedBlock, trust bool)
 	if err != nil {
 		log.Error("AddSignedBlockState is error,detail:", err)
 	}
-	blockState.ID = blockId
+	blockState.BlockId = blockId
 	bs := BlockState{}
 	index.Find(blockState, &bs)
 	exception.EosAssert(&bs == nil, &exception.ForkDatabaseException{}, "we already know about this block")
 
 	previous := BlockState{}
 	b := BlockState{}
-	b.ID = signedBlcok.Previous
+	b.BlockId = signedBlcok.Previous
 	erro := index.Find(b, &previous)
 	if erro != nil {
 		log.Error("AddSignedBlockState is error,detail:", err)
@@ -192,14 +192,14 @@ func (f *ForkDatabase) Remove(id *common.BlockIdType) {
 		f.DB.Remove(&p)
 		previdx, err := f.DB.GetIndex("byPrev", &BlockState{})
 		param := &BlockState{}
-		param.ID = removeQueue[i]
+		param.BlockId = removeQueue[i]
 		previtr, err := previdx.LowerBound(param)
 		exception.EosAssert(err == nil, &exception.ForkDbBlockNotFound{}, "ForkDB Remove LowerBound Is Error:", err)
 		pre := BlockState{}
 		err = previtr.Data(pre)
 		exception.EosAssert(err == nil, &exception.ForkDbBlockNotFound{}, "ForkDB Remove previtr.Data Is Error:", err)
 		for previtr != previdx.End() && pre.Header.Previous == removeQueue[i] {
-			removeQueue = append(removeQueue, pre.ID)
+			removeQueue = append(removeQueue, pre.BlockId)
 		}
 	}
 	mi, err := f.DB.GetIndex("byLibBlockNum", &BlockState{})
@@ -222,7 +222,7 @@ func (f *ForkDatabase) GetBlockInCurrentChainByNum(n uint32) *BlockState {
 
 func (f *ForkDatabase) SetValidity(h *BlockState, valid bool) {
 	if !valid {
-		f.Remove(&h.ID)
+		f.Remove(&h.BlockId)
 	} else {
 		h.Validated = true
 	}
@@ -278,7 +278,7 @@ func (f *ForkDatabase) Prune(h *BlockState) {
 		itrToRemove := nitr
 		nitr.Next()
 		err = itrToRemove.Data(&in)
-		id := in.ID
+		id := in.BlockId
 		f.Remove(&id)
 	}
 }
@@ -286,7 +286,7 @@ func (f *ForkDatabase) Prune(h *BlockState) {
 func (f *ForkDatabase) GetBlock(id *common.BlockIdType) *BlockState {
 
 	blockState := BlockState{}
-	blockState.ID = *id
+	blockState.BlockId = *id
 	multiIndex, err := f.DB.GetIndex("ID", &blockState)
 	if err != nil {
 		fmt.Println("ForkDb GetBlock Is Error:", err)
@@ -301,7 +301,7 @@ func (f *ForkDatabase) GetBlock(id *common.BlockIdType) *BlockState {
 
 func (f *ForkDatabase) SetBftIrreversible(id common.BlockIdType) {
 	param := BlockState{}
-	param.ID = id
+	param.BlockId = id
 	result := BlockState{}
 	idx, err := f.DB.GetIndex("byID", param)
 	exception.EosAssert(err == nil, &exception.ForkDbBlockNotFound{}, "could not find block in fork database")
@@ -317,7 +317,7 @@ func (f *ForkDatabase) SetBftIrreversible(id common.BlockIdType) {
 			pidx, err := f.DB.GetIndex("byPrev", BlockState{})
 			//exception.EosAssert(err==nil,&exception.ForkDbBlockNotFound{},"SetBftIrreversible could not find idx in fork database")
 			in := BlockState{}
-			in.ID = i
+			in.BlockId = i
 			pitr, err := pidx.LowerBound(in)
 			epitr, err := pidx.UpperBound(in)
 			exception.EosAssert(err == nil, &exception.ForkDbBlockNotFound{}, "SetBftIrreversible could not find idx in fork database")
@@ -325,7 +325,7 @@ func (f *ForkDatabase) SetBftIrreversible(id common.BlockIdType) {
 				f.DB.Modify(pitr, func(bsp *BlockState) {
 					if bsp.BftIrreversibleBlocknum < blockNum {
 						bsp.BftIrreversibleBlocknum = blockNum
-						updated = append(updated, bsp.ID)
+						updated = append(updated, bsp.BlockId)
 					}
 
 				})

@@ -9,12 +9,13 @@ import (
 )
 
 type BlockHeaderState struct {
-	ID                               common.BlockIdType `multiIndex:"id,increment"`
-	BlockNum                         uint32             `multiIndex:"block_num,orderedUnique,byLibBlockNum,"`
+	ID                               common.IdType      `multiIndex:"id,increment"`
+	BlockId                          common.BlockIdType `multiIndex:"byId,orderedUnique"`
+	BlockNum                         uint32             `multiIndex:"block_num,orderedUnique:byLibBlockNum,orderedNonUnique"`
 	Header                           SignedBlockHeader  `multiIndex:"inline"`
 	DposProposedIrreversibleBlocknum uint32             `json:"dpos_proposed_irreversible_blocknum"`
-	DposIrreversibleBlocknum         uint32             `multiIndex:"byLibBlockNum" json:"dpos_irreversible_blocknum"`
-	BftIrreversibleBlocknum          uint32             `multiIndex:"byLibBlockNum" json:"bft_irreversible_blocknum"`
+	DposIrreversibleBlocknum         uint32             `multiIndex:"byLibBlockNum,orderedNonUnique" json:"dpos_irreversible_blocknum"`
+	BftIrreversibleBlocknum          uint32             `multiIndex:"byLibBlockNum,orderedNonUnique" json:"bft_irreversible_blocknum"`
 	PendingScheduleLibNum            uint32             `json:"pending_schedule_lib_num"`
 	PendingScheduleHash              crypto.Sha256      `json:"pending_schedule_hash"`
 	PendingSchedule                  ProducerScheduleType
@@ -59,7 +60,7 @@ func (bs *BlockHeaderState) GenerateNext(when common.BlockTimeStamp) *BlockHeade
 	}
 
 	result.Header.Timestamp = when
-	result.Header.Previous = bs.ID
+	result.Header.Previous = bs.BlockId
 	result.Header.ScheduleVersion = bs.ActiveSchedule.Version
 
 	proKey := bs.GetScheduledProducer(when)
@@ -82,7 +83,7 @@ func (bs *BlockHeaderState) GenerateNext(when common.BlockTimeStamp) *BlockHeade
 
 	result.ProducerToLastProduced[proKey.AccountName] = result.BlockNum
 	result.BlockrootMerkle = bs.BlockrootMerkle
-	result.BlockrootMerkle.Append(crypto.Sha256(bs.ID))
+	result.BlockrootMerkle.Append(crypto.Sha256(bs.BlockId))
 
 	result.ActiveSchedule = bs.ActiveSchedule
 	result.PendingSchedule = bs.PendingSchedule
@@ -168,7 +169,7 @@ func (bs *BlockHeaderState) Next(h SignedBlockHeader, trust bool) *BlockHeaderSt
 	EosAssert(len(h.HeaderExtensions) == 0, &BlockValidateException{}, "no supported extensions")
 
 	EosAssert(h.Timestamp > bs.Header.Timestamp, &BlockValidateException{}, "block must be later in time")
-	EosAssert(h.Previous == bs.ID, &UnlinkableBlockException{}, "block must link to current state")
+	EosAssert(h.Previous == bs.BlockId, &UnlinkableBlockException{}, "block must link to current state")
 
 	result := bs.GenerateNext(h.Timestamp)
 
@@ -195,7 +196,7 @@ func (bs *BlockHeaderState) Next(h SignedBlockHeader, trust bool) *BlockHeaderSt
 	result.Header.ActionMRoot = h.ActionMRoot
 	result.Header.TransactionMRoot = h.TransactionMRoot
 	result.Header.ProducerSignature = h.ProducerSignature
-	result.ID = result.Header.BlockID()
+	result.BlockId = result.Header.BlockID()
 
 	if !trust {
 		EosAssert(result.BlockSigningKey == result.Signee(), &WrongSigningKey{}, "block not signed by expected key, "+

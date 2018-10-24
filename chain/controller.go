@@ -483,7 +483,7 @@ func (c *Controller) GetOnBlockTransaction() types.SignedTransaction {
 	}
 	trx := types.SignedTransaction{}
 	trx.Actions = append(trx.Actions, &onBlockAction)
-	trx.SetReferenceBlock(c.Head.ID)
+	trx.SetReferenceBlock(c.Head.BlockId)
 	in := c.Pending.PendingBlockState.Header.Timestamp + 999999
 	trx.Expiration = common.TimePointSec(in)
 	log.Error("getOnBlockTransaction trx.Expiration:", trx)
@@ -572,7 +572,7 @@ func (c *Controller) GetScheduledTransactions() *[]common.TransactionIdType {
 
 func (c *Controller) PushScheduledTransactionById(sheduled common.TransactionIdType,
 	deadLine common.TimePoint,
-	billedCpuTimeUs uint32) *types.TransactionTrace {
+	billedCpuTimeUs uint32, explicitBilledCpuTime bool) *types.TransactionTrace {
 
 	gto := types.GetGTOByTrxId(c.DB, sheduled)
 
@@ -580,7 +580,7 @@ func (c *Controller) PushScheduledTransactionById(sheduled common.TransactionIdT
 		fmt.Println("unknown_transaction_exception", "unknown transaction")
 	}
 
-	return c.PushScheduledTransactionByObject(*gto, deadLine, billedCpuTimeUs, false)
+	return c.PushScheduledTransactionByObject(*gto, deadLine, billedCpuTimeUs, explicitBilledCpuTime)
 }
 
 func (c *Controller) PushScheduledTransactionByObject(gto types.GeneratedTransactionObject,
@@ -723,9 +723,9 @@ func (c *Controller) FinalizeBlock() {
 	c.setTrxMerkle()
 
 	p := c.Pending.PendingBlockState
-	p.ID = p.Header.BlockID()
+	p.BlockId = p.Header.BlockID()
 
-	c.createBlockSummary(&p.ID)
+	c.createBlockSummary(&p.BlockId)
 }
 
 func (c *Controller) SignBlock(signerCallback func(sha256 crypto.Sha256) ecc.Signature) {
@@ -736,6 +736,41 @@ func (c *Controller) SignBlock(signerCallback func(sha256 crypto.Sha256) ecc.Sig
 }
 
 func (c *Controller) applyBlock(b *types.SignedBlock, s types.BlockStatus) {
+	EosAssert(len(b.BlockExtensions) == 0, &BlockValidateException{}, "no supported extensions")
+	producerBlockId := b.BlockID()
+	c.startBlock1(b.Timestamp, b.Confirmed, s, &producerBlockId)
+
+	trace := &types.TransactionTrace{}
+	for _, receipt := range b.Transactions {
+		numPendingReceipts := len(c.Pending.PendingBlockState.SignedBlock.Transactions)
+		if common.Empty(receipt.Trx.PackedTransaction) {
+			pt := receipt.Trx.PackedTransaction
+			mtrx := types.TransactionMetadata{}
+			mtrx.PackedTrx = pt
+			trace = c.PushTransaction(mtrx, common.TimePoint(common.MaxMicroseconds()), receipt.CpuUsageUs, true)
+		} else if common.Empty(receipt.Trx.TransactionID) {
+			trace = c.PushScheduledTransactionById(receipt.Trx.TransactionID, common.TimePoint(common.MaxMicroseconds()), receipt.CpuUsageUs, true)
+		} else {
+			EosAssert(false, &BlockValidateException{}, "encountered unexpected receipt type")
+		}
+		transactionFailed := common.Empty(trace) && common.Empty(trace.Except)
+		transactionCanFail := receipt.Status == types.TransactionStatusHardFail && common.Empty(receipt.Trx.TransactionID)
+		if transactionFailed && !transactionCanFail {
+			/*edump((*trace));
+			throw *trace->except;*/
+		}
+		EosAssert(len(c.Pending.PendingBlockState.SignedBlock.Transactions) > 0,
+			&BlockValidateException{}, "expected a receipt:", *b, "expected_receipt:", receipt)
+
+		EosAssert(len(c.Pending.PendingBlockState.SignedBlock.Transactions) == numPendingReceipts+1,
+			&BlockValidateException{}, "expected receipt was not added:", *b, "expected_receipt:", receipt)
+
+		//TODO
+		//r := c.Pending.PendingBlockState.SignedBlock.Transactions
+		/*EosAssert(r == static_cast<const transaction_receipt_header&>(receipt),
+		block_validate_exception, "receipt does not match",
+		("producer_receipt", receipt)("validator_receipt", pending->_pending_block_state->block->transactions.back()) );*/
+	}
 
 }
 
@@ -805,7 +840,7 @@ func (c *Controller) PushConfirmation(hc types.HeaderConfirmation) {
 func (c *Controller) maybeSwitchForks(s types.BlockStatus) {
 	//TODO
 	newHead := c.ForkDB.Head
-	if newHead.Header.Previous == c.Head.ID {
+	if newHead.Header.Previous == c.Head.BlockId {
 		//try{
 
 		c.applyBlock(newHead.SignedBlock, s)
@@ -1041,7 +1076,7 @@ func (c *Controller) FetchBlockStateById(id common.BlockIdType) *types.BlockStat
 func (c *Controller) GetBlockIdForNum(blockNum uint32) common.BlockIdType {
 	blkState := c.ForkDB.GetBlockInCurrentChainByNum(blockNum)
 	if blkState != nil {
-		return blkState.ID
+		return blkState.BlockId
 	}
 
 	signedBlk := c.Blog.ReadBlockByNum(blockNum)
@@ -1258,7 +1293,7 @@ func (c *Controller) initializeForkDB() {
 	genHeader.PendingScheduleHash = crypto.Hash256(pst)
 	genHeader.Header.Timestamp = common.NewBlockTimeStamp(gs.InitialTimestamp)
 	genHeader.Header.ActionMRoot = common.CheckSum256Type(gs.ComputeChainID())
-	genHeader.ID = genHeader.Header.BlockID()
+	genHeader.BlockId = genHeader.Header.BlockID()
 	genHeader.BlockNum = genHeader.Header.BlockNumber()
 	c.Head = types.NewBlockState(genHeader)
 	signedBlock := types.SignedBlock{}

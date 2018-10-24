@@ -10,7 +10,7 @@ type BlockHeader struct {
 	Timestamp        common.BlockTimeStamp       `json:"timestamp"`
 	Producer         common.AccountName          `json:"producer"`
 	Confirmed        uint16                      `json:"confirmed"`
-	Previous         common.BlockIdType          `json:"previous"`
+	Previous         common.BlockIdType          `multiIndex:"byPrevious,orderedNonUnique",json:"previous"`
 	TransactionMRoot common.CheckSum256Type      `json:"transaction_mroot"`
 	ActionMRoot      common.CheckSum256Type      `json:"action_mroot"`
 	ScheduleVersion  uint32                      `json:"schedule_version"`
@@ -39,8 +39,8 @@ func (b *BlockHeader) BlockID() common.BlockIdType {
 }
 
 type SignedBlockHeader struct {
-	BlockHeader
-	ProducerSignature ecc.Signature `json:"producer_signature"`
+	BlockHeader       `multiIndex:"inline"`
+	ProducerSignature ecc.Signature `multiIndex:"inline",json:"producer_signature"`
 }
 
 type HeaderConfirmation struct {
