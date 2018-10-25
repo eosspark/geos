@@ -72,7 +72,7 @@ func applyEosioNewaccount(context *ApplyContext) {
 
 	context.RequireAuthorization(int64(create.Creator))
 	//try.Try()
-	context.RequireAuthorization(int64(create.Createor))
+	context.RequireAuthorization(int64(create.Creator))
 
 	EosAssert(types.Validate(create.Owner), &ActionValidateException{}, "Invalid owner authority")
 	EosAssert(types.Validate(create.Active), &ActionValidateException{}, "Invalid owner authority")
@@ -84,7 +84,7 @@ func applyEosioNewaccount(context *ApplyContext) {
 	EosAssert(len(nameStr) <= 12, &ActionValidateException{}, "account names can only be 12 chars long")
 
 	// Check if the creator is privileged
-	creator := &entity.AccountObject{Name: create.Createor}
+	creator := &entity.AccountObject{Name: create.Creator}
 	err := context.DB.Find("byName", creator, &creator)
 	if err != nil && !creator.Privileged {
 
