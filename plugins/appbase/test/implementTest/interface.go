@@ -1,6 +1,10 @@
 package implementTest
 
-type human interface {
+type Human interface {
 	SetName(name string)
 	SetAge(age int)
+	SetLocal()
+
+
+	SetSex(sex int) int
 }

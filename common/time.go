@@ -4,7 +4,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
-	"github.com/eosspark/eos-go/asio"
+	"github.com/eosspark/eos-go/plugins/appbase/asio"
 )
 
 const format = "2006-01-02T15:04:05"

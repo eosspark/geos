@@ -1,8 +1,8 @@
 package http_plugin
 
 import (
-	. "github.com/eosspark/eos-go/appbase/app/include"
-	"github.com/eosspark/eos-go/appbase/app"
+	. "github.com/eosspark/eos-go/plugins/appbase/app/include"
+	"github.com/eosspark/eos-go/plugins/appbase/app"
 )
 
 
@@ -12,6 +12,7 @@ type HttpPlugin struct {
 
 func init () {
 	var httpPlugin HttpPlugin
+	//httpPlugin.Plugin = httpPlugin
 	httpPlugin.State = Registered
 	httpPlugin.Name = "HttpPlugin"
 	app.App.RegisterPlugin(&httpPlugin)

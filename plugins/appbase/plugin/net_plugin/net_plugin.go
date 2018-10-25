@@ -1,9 +1,9 @@
 package net_plugin
 
 import (
-	"github.com/eosspark/eos-go/appbase/app"
-	. "github.com/eosspark/eos-go/appbase/app/include"
+	"github.com/eosspark/eos-go/plugins/appbase/app"
 	"fmt"
+	. "github.com/eosspark/eos-go/plugins/appbase/app/include"
 )
 
 type NetPlugin struct {
@@ -14,18 +14,12 @@ var netPlugin *NetPlugin
 
 func init() {
 	netPlugin = new(NetPlugin)
+	netPlugin.Plugin = netPlugin
 	netPlugin.Name = "NetPlugin"
 	netPlugin.State = Registered
 	app.App.RegisterPlugin(netPlugin)
 }
 
-func (netPlugin *NetPlugin) GetName() string {
-	return netPlugin.Name
-}
-
-func (netPlugin *NetPlugin) GetState() State {
-	return netPlugin.State
-}
 
 func (netPlugin *NetPlugin) Exec() bool {
 	fmt.Println("执行net_plugin的exec内容")
