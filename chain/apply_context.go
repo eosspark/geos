@@ -215,7 +215,7 @@ func (a *ApplyContext) execOne() (trace types.ActionTrace) {
 	r.GlobalSequence = a.nextGlobalSequence()
 	r.RecvSequence = a.nextRecvSequence(a.Receiver)
 	r.AuthSequence = make(map[common.AccountName]uint64)
-	accountSequence := &types.AccountSequenceObject{Name: a.Act.Account}
+	accountSequence := &entity.AccountSequenceObject{Name: a.Act.Account}
 	//a.DB.Get("byName", accountSequence)
 	r.CodeSequence = uint32(accountSequence.CodeSequence)
 	r.AbiSequence = uint32(accountSequence.AbiSequence)
@@ -579,7 +579,7 @@ func (a *ApplyContext) DbUpdateI64(iterator int, payer int64, buffer []byte) {
 		a.UpdateDbUsage(obj.Payer, newSize-oldSize)
 	}
 
-	a.DB.Modify(obj, func(obj *types.KeyValueObject) {
+	a.DB.Modify(obj, func(obj *entity.KeyValueObject) {
 		obj.Value = buffer
 		obj.Payer = payerAccount
 	})
@@ -605,7 +605,7 @@ func (a *ApplyContext) DbRemoveI64(iterator int) {
 }
 func (a *ApplyContext) DbGetI64(iterator int, buffer []byte, bufferSize int) int {
 
-	obj := (a.KeyvalCache.get(iterator)).(*types.KeyValueObject)
+	obj := (a.KeyvalCache.get(iterator)).(*entity.KeyValueObject)
 	s := len(obj.Value)
 
 	if bufferSize == 0 {
@@ -687,7 +687,7 @@ func (a *ApplyContext) DbFindI64(code int64, scope int64, table int64, id int64)
 
 	tableEndItr := a.KeyvalCache.cacheTable(tab)
 
-	obj := types.KeyValueObject{}
+	obj := entity.KeyValueObject{}
 	err := a.DB.Find("byScopePrimary", obj, &obj)
 
 	if err == nil {
@@ -925,7 +925,7 @@ func (a *ApplyContext) SetBlockchainParametersPacked(parameters []byte) {
 	cfg := common.Config{}
 	rlp.DecodeBytes(parameters, &cfg)
 
-	a.DB.Modify(a.Control.GetGlobalProperties(), func(gpo *types.GlobalPropertyObject) {
+	a.DB.Modify(a.Control.GetGlobalProperties(), func(gpo *entity.GlobalPropertyObject) {
 		gpo.Configuration = cfg
 	})
 

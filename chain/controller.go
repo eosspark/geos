@@ -225,7 +225,7 @@ func (c *Controller) OnIrreversible(b *types.BlockState) {
 
 func (c *Controller) PopBlock() {
 	prev := c.ForkDB.GetBlock(&c.Head.Header.Previous)
-	r := types.ReversibleBlockObject{}
+	r := entity.ReversibleBlockObject{}
 	//r.BlockNum = c.Head.BlockNum
 	errs := c.ReversibleBlocks.Find("NUM", c.Head.BlockNum, r)
 
@@ -295,13 +295,13 @@ func (c *Controller) startBlock1(when common.BlockTimeStamp, confirmBlockCount u
 	wasPendingPromoted := c.Pending.PendingBlockState.MaybePromotePending()
 	log.Info("wasPendingPromoted", wasPendingPromoted)
 	if c.ReadMode == DBReadMode(SPECULATIVE) || c.Pending.BlockStatus != types.BlockStatus(types.Incomplete) {
-		gpo := types.GlobalPropertyObject{}
+		gpo := entity.GlobalPropertyObject{}
 		gpo.ID = common.IdType(1)
 		err := c.DB.Find("id", gpo, &gpo)
 		if err != nil {
 			fmt.Println("GetGlobalProperties is error detail:", err)
 		}
-		fmt.Println("test:", gpo)
+		//fmt.Println("test:", gpo)
 		if (!common.Empty(gpo.ProposedScheduleBlockNum) && gpo.ProposedScheduleBlockNum <= c.Pending.PendingBlockState.DposIrreversibleBlocknum) &&
 			(len(c.Pending.PendingBlockState.PendingSchedule.Producers) == 0) &&
 			(!wasPendingPromoted) {
@@ -313,7 +313,7 @@ func (c *Controller) startBlock1(when common.BlockTimeStamp, confirmBlockCount u
 				c.Pending.PendingBlockState.SetNewProducers(ps)
 			}
 
-			c.DB.Modify(&gpo, func(i *types.GlobalPropertyObject) {
+			c.DB.Modify(&gpo, func(i *entity.GlobalPropertyObject) {
 				i.ProposedScheduleBlockNum = 1
 				i.ProposedSchedule.Clear()
 			})
@@ -446,8 +446,8 @@ func (c *Controller) PushTransaction(trx types.TransactionMetadata, deadLine com
 	return trace
 }
 
-func (c *Controller) GetGlobalProperties() *types.GlobalPropertyObject {
-	gpo := types.GlobalPropertyObject{}
+func (c *Controller) GetGlobalProperties() *entity.GlobalPropertyObject {
+	gpo := entity.GlobalPropertyObject{}
 	gpo.ID = common.IdType(1)
 	err := c.DB.Find("id", gpo, &gpo)
 	if err != nil {
@@ -457,10 +457,10 @@ func (c *Controller) GetGlobalProperties() *types.GlobalPropertyObject {
 	return &gpo
 }
 
-func (c *Controller) GetDynamicGlobalProperties() (r *types.DynamicGlobalPropertyObject) {
-	dgpo := types.DynamicGlobalPropertyObject{}
+func (c *Controller) GetDynamicGlobalProperties() (r *entity.DynamicGlobalPropertyObject) {
+	dgpo := entity.DynamicGlobalPropertyObject{}
 	dgpo.ID = 0
-	err := c.DB.Find("ID", dgpo, &dgpo)
+	err := c.DB.Find("id", dgpo, &dgpo)
 	if err != nil {
 		log.Error("GetDynamicGlobalProperties is error detail:", err)
 	}
@@ -557,39 +557,40 @@ func (c *Controller) DropUnAppliedTransaction(metadata *types.TransactionMetadat
 func (c *Controller) DropAllUnAppliedTransactions() {
 	c.UnAppliedTransactions = nil
 }
-func (c *Controller) GetScheduledTransactions() *[]common.TransactionIdType {
-	//TODO add generated_transaction_object
-	//c.Db.Find("",)
-	/*const auto& idx = db().get_index<generated_transaction_multi_index,by_delay>();
+func (c *Controller) GetScheduledTransactions() []common.TransactionIdType {
 
-	vector<transaction_id_type> result;
-
-	static const size_t max_reserve = 64;
-	result.reserve(std::min(idx.size(), max_reserve));
-
-	auto itr = idx.begin();
-	while( itr != idx.end() && itr->delay_until <= pending_block_time() ) {
-		result.emplace_back(itr->trx_id);
-		++itr;
-	}*/
-
-	return nil
+	result := []common.TransactionIdType{}
+	gto := entity.GeneratedTransactionObject{}
+	idx, err := c.DB.GetIndex("byDelay", &gto)
+	itr := idx.BeginIterator()
+	err = itr.Data(&gto)
+	for itr != idx.End() && gto.DelayUntil <= c.PendingBlockTime() {
+		result = append(result, gto.TrxId)
+		itr.Next()
+		err = itr.Data(&gto)
+	}
+	if err != nil {
+		fmt.Println(err)
+	}
+	return result
 }
 
 func (c *Controller) PushScheduledTransactionById(sheduled common.TransactionIdType,
 	deadLine common.TimePoint,
 	billedCpuTimeUs uint32, explicitBilledCpuTime bool) *types.TransactionTrace {
 
-	gto := types.GetGTOByTrxId(c.DB, sheduled)
-
-	if gto == nil {
+	in := entity.GeneratedTransactionObject{}
+	in.TrxId = sheduled
+	out := entity.GeneratedTransactionObject{}
+	c.DB.Find("byTrxId", in, &out)
+	/*if err == nil {
 		fmt.Println("unknown_transaction_exception", "unknown transaction")
-	}
-
-	return c.PushScheduledTransactionByObject(*gto, deadLine, billedCpuTimeUs, explicitBilledCpuTime)
+	}*/
+	EosAssert(&out != nil, &UnknownTransactionException{}, "unknown transaction")
+	return c.PushScheduledTransactionByObject(&out, deadLine, billedCpuTimeUs, explicitBilledCpuTime)
 }
 
-func (c *Controller) PushScheduledTransactionByObject(gto types.GeneratedTransactionObject,
+func (c *Controller) PushScheduledTransactionByObject(gto *entity.GeneratedTransactionObject,
 	deadLine common.TimePoint,
 	billedCpuTimeUs uint32,
 	explicitBilledCpuTime bool) *types.TransactionTrace {
@@ -603,9 +604,9 @@ func (c *Controller) PushScheduledTransactionByObject(gto types.GeneratedTransac
 	}*/
 
 	//undo_session := c.DB.StartSession()
-	gtrx := types.GeneratedTransactions(&gto)
+	gtrx := entity.GeneratedTransactions(gto)
 
-	c.RemoveScheduledTransaction(&gto)
+	c.RemoveScheduledTransaction(gto)
 
 	if gtrx.DelayUntil <= c.PendingBlockTime() {
 		fmt.Println("this transaction isn't ready")
@@ -659,7 +660,7 @@ func (c *Controller) PushScheduledTransactionByObject(gto types.GeneratedTransac
 	return nil
 }
 
-func (c *Controller) RemoveScheduledTransaction(gto *types.GeneratedTransactionObject) {
+func (c *Controller) RemoveScheduledTransaction(gto *entity.GeneratedTransactionObject) {
 	c.ResourceLimists.AddPendingRamUsage(gto.Payer, int64(9)+int64(len(gto.PackedTrx))) //TODO billable_size_v
 	c.DB.Remove(gto)
 }
@@ -1251,7 +1252,7 @@ func (c *Controller) SetProposedProducers(producers []types.ProducerKey) int64 {
 
 	sch.Producers = producers
 	version := sch.Version
-	c.DB.Modify(&gpo, func(p *types.GlobalPropertyObject) {
+	c.DB.Modify(&gpo, func(p *entity.GlobalPropertyObject) {
 		p.ProposedScheduleBlockNum = curBlockNum
 		tmp := p.ProposedSchedule.SharedProducerScheduleType(sch)
 		p.ProposedSchedule = *tmp
@@ -1328,7 +1329,7 @@ func (c *Controller) CreateNativeAccount(name common.AccountName, owner types.Au
 		fmt.Println("CreateNativeAccount Insert Is Error:", err)
 	}
 
-	aso := types.AccountSequenceObject{}
+	aso := entity.AccountSequenceObject{}
 	aso.Name = name
 	c.DB.Insert(aso)
 
@@ -1341,7 +1342,7 @@ func (c *Controller) CreateNativeAccount(name common.AccountName, owner types.Au
 	ramDelta += 2 * common.BillableSizeV("permission_object")           //::billable_size_v<permission_object>
 	ramDelta += ownerPermission.Auth.GetBillableSize()
 	ramDelta += activePermission.Auth.GetBillableSize()
-	fmt.Println("====================ramDelta:", ramDelta)
+	//fmt.Println("====================ramDelta:", ramDelta)
 	c.ResourceLimists.AddPendingRamUsage(name, int64(ramDelta))
 	c.ResourceLimists.VerifyAccountRamUsage(name)
 }
@@ -1379,9 +1380,15 @@ func (c *Controller) initializeDatabase() {
 	})*/
 	gi := c.Config.genesis.Initial()
 	//gi.Validate()	//check config
-	gpo := types.GlobalPropertyObject{}
+	gpo := entity.GlobalPropertyObject{}
 	gpo.Configuration = gi
 	err := c.DB.Insert(&gpo)
+	if err != nil {
+		fmt.Errorf("-----------------", err)
+	}
+	dgpo := entity.DynamicGlobalPropertyObject{}
+	dgpo.ID = 0
+	err = c.DB.Insert(&dgpo)
 	if err != nil {
 		fmt.Errorf("-----------------", err)
 	}
@@ -1488,7 +1495,7 @@ func NewHandlerKey(scopeName common.ScopeName, actionName common.ActionName) Han
 
 func (c *Controller) clearExpiredInputTransactions() {
 
-	transactionIdx, err := c.DB.GetIndex("byExpiration", &entity.TransactionObject{})
+	/*transactionIdx, err := c.DB.GetIndex("byExpiration", &entity.TransactionObject{})
 	if err != nil {
 		fmt.Println("ClearExpiredInputTransactions GetIndex Is Error", err)
 	}
@@ -1501,7 +1508,7 @@ func (c *Controller) clearExpiredInputTransactions() {
 	for !common.Empty(transactionIdx) && now > common.TimePoint(t.Expiration) {
 		//c.DB.Remove(t)		//TODO index.remove(t)
 		fmt.Println("delete transactionIdx.begin()")
-	}
+	}*/
 }
 
 func (c *Controller) CheckActorList(actors []common.AccountName) {
