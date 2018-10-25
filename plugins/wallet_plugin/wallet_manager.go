@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
+	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/ecc"
+	"github.com/eosspark/eos-go/exception"
 	"net/http"
 	"os"
 	"time"
@@ -418,7 +420,7 @@ func SignTransaction() http.Handler {
 		var tx *types.SignedTransaction
 		var requiredKeys []ecc.PublicKey
 		var chainID common.ChainIdType
-		fmt.Println(string(inputs[0]), string(inputs[1]), string(inputs[2]))
+
 		if len(inputs) != 3 {
 			http.Error(w, "invalid length of message, should be 3 parameters", 500)
 			return
@@ -442,33 +444,77 @@ func SignTransaction() http.Handler {
 			return
 		}
 
-		// for
-		// 		//TODO
-		// 		signed, err := keyBag.Sign(tx, chainID, requiredKeys...)
-		// 		if err != nil {
-		// 			http.Error(w, fmt.Sprintf("error signing: %s", err), 500)
-		// 			return
-		// 		}
+		for _, key := range requiredKeys {
+			found := false
 
-		// 		w.WriteHeader(201)
-		// 		_ = json.NewEncoder(w).Encode(signed)
+			for _, wallet := range wallets {
+				if !wallet.isLocked() {
+					sig := wallet.trySignDigest(tx.SigDigest(chainID, tx.ContextFreeData), key)
+					if !common.Empty(sig) {
+						tx.Signatures = append(tx.Signatures, *sig)
+						found = true
+						break
+					}
+				}
+			}
+			if !found {
+				exception.EosThrow(&exception.WalletMissingPubKeyException{}, "public key not found in unlocked wallets %s", key)
+			}
+		}
+		w.WriteHeader(201)
+		json.NewEncoder(w).Encode(tx)
 
 	}
 	return http.HandlerFunc(fn)
 }
+
 func SignDigest() http.Handler {
-	fn := func(w http.ResponseWriter, r *http.Request) {
+	fn := func(w http.ResponseWriter, r *http.Request) { //TODO
 		fmt.Println("sign digest")
-		var inputs []string
-		_ = json.NewDecoder(r.Body).Decode(&inputs)
-
-		for i := 0; i < len(inputs); i++ {
-			fmt.Println(inputs[i])
+		var inputs []json.RawMessage
+		if err := json.NewDecoder(r.Body).Decode(&inputs); err != nil {
+			fmt.Println("sign_transaction: error:", err)
+			http.Error(w, "couldn't decode input", 500)
+			return
 		}
-		w.WriteHeader(201)
-		w.Write([]byte("{}"))
-		fmt.Println(10)
+		if len(inputs) != 2 {
+			http.Error(w, "invalid length of message, should be 2 parameters", 500)
+			return
+		}
 
+		var digest common.DigestType
+		var key ecc.PublicKey
+
+		err := json.Unmarshal(inputs[0], &digest)
+		if err != nil {
+			http.Error(w, "decoding digest", 500)
+			return
+		}
+
+		err = json.Unmarshal(inputs[1], &key)
+		if err != nil {
+			http.Error(w, "decoding key", 500)
+			return
+		}
+
+		sig := ecc.Signature{}
+		//try.Try(func() {
+		for _, wallet := range wallets {
+			if !wallet.isLocked() {
+				sig = *wallet.trySignDigest(crypto.Sha256(digest).Bytes(), key)
+				if !common.Empty(sig) {
+					break
+				}
+			}
+		}
+		//})
+
+		if common.Empty(sig) {
+			exception.EosThrow(&exception.WalletMissingPubKeyException{}, "public key not found in unlocked wallets %s", key)
+		}
+
+		w.WriteHeader(201)
+		json.NewEncoder(w).Encode(sig)
 	}
 	return http.HandlerFunc(fn)
 }
