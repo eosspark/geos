@@ -5,7 +5,8 @@ import "time"
 type DeadlineTimer struct {
 	ctx *IoContext
 	internal *time.Timer
-	duration time.Duration
+
+	Duration time.Duration
 }
 
 func NewDeadlineTimer(ctx *IoContext) *DeadlineTimer {
@@ -15,11 +16,12 @@ func NewDeadlineTimer(ctx *IoContext) *DeadlineTimer {
 }
 
 func (d *DeadlineTimer) Expires(t time.Time) {
-	d.duration = t.Sub(time.Now())
+	d.Duration = t.Sub(time.Now())
 }
 
 func (d *DeadlineTimer) AsyncWait(op func(ec ErrorCode)) {
-	d.internal = time.AfterFunc(d.duration, func() {
+	// use go-timers to receive time event in new goroutine
+	d.internal = time.AfterFunc(d.Duration, func() {
 		d.ctx.GetService().push(op, NewErrorCode(nil))
 	})
 }

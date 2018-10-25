@@ -9,33 +9,36 @@ import (
 type GoroutineReactor struct {
 	opq 	 chan operation
 	//notifies chan os.Signal
-	shutdown bool
+	down chan struct{}
 }
 
 type operation struct {
-	function interface{}
-	args 	 []interface{}
+	function  interface{}
+	argument  []interface{}
 }
 
 func NewGouroutineReactor() *GoroutineReactor {
 	r := new(GoroutineReactor)
 	r.opq = make(chan operation, 128)
+	r.down = make(chan struct{}, 1)
 	//r.notifies = make(chan os.Signal, 1)
 	return r
 }
 
 func (g *GoroutineReactor) run() {
-	for ; !g.shutdown ;{
+	for ;; {
 		select {
+		case <-g.down:
+			return
 		case op := <-g.opq:
-			g.doReactor(op.function, op.args)
+			g.doReactor(op.function, op.argument)
 			break
 		}
 	}
 }
 
 func (g *GoroutineReactor) stop() {
-	g.shutdown = true
+	g.down <- struct{}{}
 }
 
 func (g *GoroutineReactor) push(op interface{}, args ...interface{}) {
@@ -51,7 +54,7 @@ func (g *GoroutineReactor) doReactor(op interface{}, args []interface{}) {
 	opt := reflect.TypeOf(op)
 
 	if opt.Kind() != reflect.Func {
-		fmt.Println("opt is not a function")
+		fmt.Println("opt must be a callback function")
 		return
 	}
 
@@ -61,11 +64,11 @@ func (g *GoroutineReactor) doReactor(op interface{}, args []interface{}) {
 		return
 	}
 
-	opArgs := make([]reflect.Value, 0, opNum)
+	opArgs := make([]reflect.Value, opNum)
 
 	for i:=0; i<opt.NumIn(); i++ {
 		if args[i] != nil {
-			opArgs = append(opArgs, reflect.ValueOf(args[i]))
+			opArgs[i] = reflect.ValueOf(args[i])
 		}
 	}
 

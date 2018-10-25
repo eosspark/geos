@@ -10,7 +10,7 @@ import (
 	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/eosspark/eos-go/database"
 	"github.com/eosspark/eos-go/entity"
-	"github.com/eosspark/eos-go/exception"
+	. "github.com/eosspark/eos-go/exception"
 	"github.com/eosspark/eos-go/log"
 )
 
@@ -35,11 +35,12 @@ type ApplyContext struct {
 	// IDXLongDouble GenericIndex
 
 	//GenericIndex
-	KeyvalCache          iteratorCache
+	KeyvalCache          *iteratorCache
 	Notified             []common.AccountName
 	InlineActions        []types.Action
 	CfaInlineActions     []types.Action
 	PendingConsoleOutput string
+	accountRamDeltas     []types.AccountDelta
 }
 
 func NewApplyContext(control *Controller, trxContext *TransactionContext, act *types.Action, recurseDepth uint32) *ApplyContext {
@@ -56,6 +57,8 @@ func NewApplyContext(control *Controller, trxContext *TransactionContext, act *t
 		Privileged:         false,
 		ContextFree:        false,
 		UsedContestFreeApi: false,
+
+		KeyvalCache: NewIteratorCache(),
 	}
 
 	applyContext.idx64 = NewIdx64(applyContext)
@@ -113,18 +116,18 @@ func (i *iteratorCache) getTable(id common.IdType) *entity.TableIdObject {
 		return itr.tableIDObject
 	}
 
-	exception.EosAssert(false, &exception.TableNotInCache{}, "an invariant was broken, table should be in cache")
+	EosAssert(false, &TableNotInCache{}, "an invariant was broken, table should be in cache")
 	return &entity.TableIdObject{}
 }
 func (i *iteratorCache) getEndIteratorByTableID(id common.IdType) int {
 	if itr, ok := i.tableCache[id]; ok {
 		return itr.iterator
 	}
-	exception.EosAssert(false, &exception.TableNotInCache{}, "an invariant was broken, table should be in cache")
+	EosAssert(false, &TableNotInCache{}, "an invariant was broken, table should be in cache")
 	return -1
 }
 func (i *iteratorCache) findTablebyEndIterator(ei int) *entity.TableIdObject {
-	exception.EosAssert(ei < -1, &exception.InvalidTableTterator{}, "not an end iterator")
+	EosAssert(ei < -1, &InvalidTableTterator{}, "not an end iterator")
 	index := i.endIteratorToIndex(ei)
 	if index >= len(i.endIteratorToTable) {
 		return nil
@@ -132,17 +135,17 @@ func (i *iteratorCache) findTablebyEndIterator(ei int) *entity.TableIdObject {
 	return i.endIteratorToTable[index]
 }
 func (i *iteratorCache) get(iterator int) interface{} {
-	exception.EosAssert(iterator != -1, &exception.InvalidTableTterator{}, "invalid iterator")
-	exception.EosAssert(iterator >= 0, &exception.TableOperationNotPermitted{}, "dereference of end iterator")
-	exception.EosAssert(iterator < len(i.iteratorToObject), &exception.InvalidTableTterator{}, "iterator out of range")
+	EosAssert(iterator != -1, &InvalidTableTterator{}, "invalid iterator")
+	EosAssert(iterator >= 0, &TableOperationNotPermitted{}, "dereference of end iterator")
+	EosAssert(iterator < len(i.iteratorToObject), &InvalidTableTterator{}, "iterator out of range")
 	obj := i.iteratorToObject[iterator]
-	exception.EosAssert(obj != nil, &exception.TableOperationNotPermitted{}, "dereference of deleted object")
+	EosAssert(obj != nil, &TableOperationNotPermitted{}, "dereference of deleted object")
 	return obj
 }
 func (i *iteratorCache) remove(iterator int) {
-	exception.EosAssert(iterator != -1, &exception.InvalidTableTterator{}, "invalid iterator")
-	exception.EosAssert(iterator >= 0, &exception.TableOperationNotPermitted{}, "dereference of end iterator")
-	exception.EosAssert(iterator < len(i.iteratorToObject), &exception.InvalidTableTterator{}, "iterator out of range")
+	EosAssert(iterator != -1, &InvalidTableTterator{}, "invalid iterator")
+	EosAssert(iterator >= 0, &TableOperationNotPermitted{}, "dereference of end iterator")
+	EosAssert(iterator < len(i.iteratorToObject), &InvalidTableTterator{}, "iterator out of range")
 	obj := i.iteratorToObject[iterator]
 	if obj == nil {
 		return
@@ -225,6 +228,11 @@ func (a *ApplyContext) execOne() (trace types.ActionTrace) {
 	t := &types.ActionTrace{}
 	t.BaseActionTrace = b
 	t.TrxId = a.TrxContext.ID
+	t.BlockNum = a.Control.PendingBlockState().BlockNum
+	t.BlockTime = common.NewBlockTimeStamp(a.Control.PendingBlockTime())
+	t.ProducerBlockId = a.Control.PendingProducerBlockId()
+	t.AccountRamDeltas = a.accountRamDeltas
+	//a.accountRamDeltas.clear()
 	t.Act = *a.Act
 	t.Console = a.PendingConsoleOutput
 
@@ -251,8 +259,8 @@ func (a *ApplyContext) Exec() {
 	}
 
 	if len(a.CfaInlineActions) > 0 || len(a.InlineActions) > 0 {
-		exception.EosAssert(a.RecurseDepth < uint32(a.Control.GetGlobalProperties().Configuration.MaxInlineActionDepth),
-			&exception.TransactionException{},
+		EosAssert(a.RecurseDepth < uint32(a.Control.GetGlobalProperties().Configuration.MaxInlineActionDepth),
+			&TransactionException{},
 			"inline action recursion depth reached")
 	}
 
@@ -289,7 +297,7 @@ func (a *ApplyContext) RequireAuthorization(account int64) {
 	// 		return
 	// 	}
 	// }
-	// exception.EosAssert(false, &exception.MissingAuthException{}, "missing authority of %s", common.S(uint64(account)))
+	// EosAssert(false, &MissingAuthException{}, "missing authority of %s", common.S(uint64(account)))
 }
 func (a *ApplyContext) HasAuthorization(account int64) bool {
 	for _, v := range a.Act.Authorization {
@@ -306,7 +314,7 @@ func (a *ApplyContext) RequireAuthorization2(account int64, permission int64) {
 			return
 		}
 	}
-	exception.EosAssert(false, &exception.MissingAuthException{}, "missing authority of %s/%s", common.S(uint64(account)), common.S(uint64(permission)))
+	EosAssert(false, &MissingAuthException{}, "missing authority of %s/%s", common.S(uint64(account)), common.S(uint64(permission)))
 }
 
 func (a *ApplyContext) HasReciptient(code int64) bool {
@@ -331,14 +339,14 @@ func (a *ApplyContext) ExecuteInline(action []byte) {
 
 	code := entity.AccountObject{Name: act.Account}
 	err := a.DB.Find("byName", code, &code)
-	exception.EosAssert(err != nil, &exception.ActionValidateException{},
+	EosAssert(err != nil, &ActionValidateException{},
 		"inline action's code account %s does not exist", common.S(uint64(act.Account)))
 
 	for _, auth := range act.Authorization {
 		actor := entity.AccountObject{Name: auth.Actor}
 		err := a.DB.Find("byName", actor, &actor)
-		exception.EosAssert(err != nil, &exception.ActionValidateException{}, "inline action's authorizing actor %s does not exist", common.S(uint64(auth.Actor)))
-		exception.EosAssert(a.Control.GetAuthorizationManager().FindPermission(&auth) != nil, &exception.ActionValidateException{},
+		EosAssert(err != nil, &ActionValidateException{}, "inline action's authorizing actor %s does not exist", common.S(uint64(auth.Actor)))
+		EosAssert(a.Control.GetAuthorizationManager().FindPermission(&auth) != nil, &ActionValidateException{},
 			"inline action's authorizations include a non-existent permission:%s",
 			auth) //todo permissionLevel print
 	}
@@ -364,10 +372,10 @@ func (a *ApplyContext) ExecuteContextFreeInline(action []byte) {
 	rlp.DecodeBytes(action, &act)
 	code := entity.AccountObject{Name: act.Account}
 	err := a.DB.Find("byName", code, &code)
-	exception.EosAssert(err != nil, &exception.ActionValidateException{},
+	EosAssert(err != nil, &ActionValidateException{},
 		"inline action's code account %s does not exist", common.S(uint64(act.Account)))
 
-	exception.EosAssert(len(act.Authorization) == 0, &exception.ActionValidateException{},
+	EosAssert(len(act.Authorization) == 0, &ActionValidateException{},
 		"context-free actions cannot have authorizations")
 
 	a.CfaInlineActions = append(a.CfaInlineActions, act)
@@ -423,20 +431,20 @@ func (a *ApplyContext) SetProposedProducers(data []byte) int64 {
 	producers := []types.ProducerKey{}
 	rlp.DecodeBytes(data, &producers)
 
-	exception.EosAssert(len(producers) <= common.DefaultConfig.MaxProducers,
-		&exception.WasmExecutionError{},
+	EosAssert(len(producers) <= common.DefaultConfig.MaxProducers,
+		&WasmExecutionError{},
 		"Producer schedule exceeds the maximum producer count for this chain")
 
 	uniqueProducers := make(map[types.ProducerKey]bool)
 	for _, p := range producers {
-		exception.EosAssert(a.IsAccount(int64(p.AccountName)), &exception.WasmExecutionError{}, "producer schedule includes a nonexisting account")
-		//exception.EosAssert(p.BlockSigningKey.Valid(), &exception.WasmExecutionError{},  "producer schedule includes an invalid key" )
+		EosAssert(a.IsAccount(int64(p.AccountName)), &WasmExecutionError{}, "producer schedule includes a nonexisting account")
+		EosAssert(p.BlockSigningKey.Valid(), &WasmExecutionError{}, "producer schedule includes an invalid key")
 		if _, ok := uniqueProducers[p]; !ok {
 			uniqueProducers[p] = true
 		}
 	}
 
-	exception.EosAssert(len(producers) == len(uniqueProducers), &exception.WasmExecutionError{}, "duplicate producer name in producer schedule")
+	EosAssert(len(producers) == len(uniqueProducers), &WasmExecutionError{}, "duplicate producer name in producer schedule")
 	return a.Control.SetProposedProducers(producers)
 
 }
@@ -456,7 +464,6 @@ func (a *ApplyContext) GetActiveProducersInBytes() []byte {
 
 //context console api
 func (a *ApplyContext) resetConsole() {
-	//str := ""
 	a.PendingConsoleOutput = ""
 }
 func (a *ApplyContext) ContextAppend(str string) { a.PendingConsoleOutput += str }
@@ -474,8 +481,8 @@ func (a *ApplyContext) UpdateDbUsage(payer common.AccountName, delta int64) {
 	if delta > 0 {
 		if !a.Privileged || payer == a.Receiver {
 
-			exception.EosAssert(a.Control.IsRamBillingInNotifyAllowed() || a.Receiver == a.Act.Account,
-				&exception.SubjectiveBlockProductionException{},
+			EosAssert(a.Control.IsRamBillingInNotifyAllowed() || a.Receiver == a.Act.Account,
+				&SubjectiveBlockProductionException{},
 				"Cannot charge RAM to other accounts during notify.")
 			a.RequireAuthorization(int64(payer))
 		}
@@ -499,7 +506,7 @@ func (a *ApplyContext) GetAction(typ uint32, index int, bufferSize int) (int, []
 		a_ptr = trx.Actions[index]
 	}
 
-	exception.EosAssert(a_ptr != nil, &exception.ActionNotFoundException{}, "action is not found")
+	EosAssert(a_ptr != nil, &ActionNotFoundException{}, "action is not found")
 
 	s, _ := rlp.EncodeSize(a_ptr)
 	if s <= bufferSize {
@@ -529,202 +536,227 @@ func (a *ApplyContext) DbStoreI64(scope int64, table int64, payer int64, id int6
 	return a.dbStoreI64(int64(a.Receiver), scope, table, payer, id, buffer)
 }
 func (a *ApplyContext) dbStoreI64(code int64, scope int64, table int64, payer int64, id int64, buffer []byte) int {
-	return 0
+	tab := a.FindOrCreateTable(code, scope, table, payer)
+	tid := tab.ID
 
-	//tab := a.FindOrCreateTable(code, scope, table, payer)
-	//tid := tab.ID
-	//
-	//obj := &types.KeyValueObject{
-	//	TId:        tid,
-	//	PrimaryKey: id,
-	//	Value:      buffer,
-	//	Payer:      common.AccountName(payer),
-	//}
-	//
-	//a.DB.Insert(obj)
-	//a.DB.Modify(tab, func(t *types.TableIDObject) {
-	//	t.Count++
-	//})
-	//
-	//// int64_t billable_size = (int64_t)(buffer_size + config::billable_size_v<key_value_object>);
-	//billableSize := len(buffer) + types.BillableSizeV(obj.GetBillableSize())
-	//UpdateDbUsage(payer, billableSize)
-	//a.KeyvalCache.cacheTable(tab)
-	//return a.KeyvalCache.add(obj)
+	obj := entity.KeyValueObject{
+		TId:        tid,
+		PrimaryKey: uint64(id),
+		Value:      buffer,
+		Payer:      common.AccountName(payer),
+	}
+
+	a.DB.Insert(&obj)
+	a.DB.Modify(&tab, func(t *entity.TableIdObject) {
+		t.Count++
+	})
+
+	// int64_t billable_size = (int64_t)(buffer_size + config::billable_size_v<key_value_object>);
+	billableSize := int64(len(buffer)) + int64(common.BillableSizeV("key_valueObject"))
+	a.UpdateDbUsage(common.AccountName(payer), billableSize)
+	a.KeyvalCache.cacheTable(tab)
+	return a.KeyvalCache.add(obj)
 }
 func (a *ApplyContext) DbUpdateI64(iterator int, payer int64, buffer []byte) {
 
-	// obj := (*types.KeyValueObject)(a.KeyvalCache.get(iterator))
-	// objTable := a.KeyvalCache.getTable(obj.GetTableId())
+	obj := (a.KeyvalCache.get(iterator)).(*entity.KeyValueObject)
+	objTable := a.KeyvalCache.getTable(obj.TId)
+	EosAssert(objTable.Code == a.Receiver, &TableAccessViolation{}, "db access violation")
 
-	// //EOS_ASSERT( objTable.Code == a.Receiver, table_access_violation, "db access violation" );
+	overhead := common.BillableSizeV("key_value_object")
+	oldSize := int64(len(obj.Value)) + int64(overhead)
+	newSize := int64(len(buffer)) + int64(overhead)
 
-	// // const int64_t overhead = config::billable_size_v<key_value_object>;
-	// overhead = types.BillableSizeV(obj.GetBillableSize())
-	// oldSize := len(obj.Value) + overhead
-	// newSize := len(buffer) + overhead
+	payerAccount := common.AccountName(payer)
+	if payerAccount == common.AccountName(0) {
+		payerAccount = obj.Payer
+	}
 
-	// payerAccount := common.AccountName(payer)
-	// if payerAccount == common.AccountName{} { payerAccount = obj.Payer}
+	if obj.Payer == payerAccount {
+		a.UpdateDbUsage(obj.Payer, -(oldSize))
+		a.UpdateDbUsage(payerAccount, newSize)
+	} else if oldSize != newSize {
+		a.UpdateDbUsage(obj.Payer, newSize-oldSize)
+	}
 
-	// if obj.Payer == payerAccount {
-	// 	a.UpdateDbUsage(obj.Payer, -(oldSize))
-	// 	a.UpdateDbUsage(payerAccount, newSize)
-	// } else if oldSize != newSize{
-	// 	a.UpdateDbUsage(obj.Payer, newSize - oldSize)
-	// }
-
-	// a.DB.Modify(obj, func(obj *types.KeyValueObject) {
-	// 	obj.Value = buffer
-	// 	obj.Payer = payerAccount
-	// })
+	a.DB.Modify(obj, func(obj *types.KeyValueObject) {
+		obj.Value = buffer
+		obj.Payer = payerAccount
+	})
 }
 func (a *ApplyContext) DbRemoveI64(iterator int) {
-	// obj := (*types.KeyValueObject)(a.KeyvalCache.get(iterator))
-	// tab := a.KeyvalCache.getTable(obj.ID)
-	// // 	EOS_ASSERT( table_obj.code == receiver, table_access_violation, "db access violation" );
-	// // //   require_write_lock( table_obj.scope );
-	// billableSize := len(buffer) + types.BillableSizeV(obj.GetBillableSize())
-	// UpdateDBUsage( obj.Payer,  - billableSize )
-	// a.DB.Modify(tab, func(t *types.TableIdObject) {
-	// 	t.Count --
-	// })
+	obj := (a.KeyvalCache.get(iterator)).(*entity.KeyValueObject)
+	objTable := a.KeyvalCache.getTable(obj.TId)
 
-	// a.DB.Remove(obj)
-	// if tab.Count == 0 {
-	// 	a.DB.Remove(tab)
-	// }
-	// a.KeyvalCache.remove(iterator)
+	EosAssert(objTable.Code == a.Receiver, &TableAccessViolation{}, "db access violation")
+
+	// //   require_write_lock( table_obj.scope );
+	billableSize := int64(len(obj.Value)) + int64(common.BillableSizeV("key_value_object"))
+	a.UpdateDbUsage(obj.Payer, -billableSize)
+	a.DB.Modify(objTable, func(t *types.TableIdObject) {
+		t.Count--
+	})
+
+	a.DB.Remove(obj)
+	if objTable.Count == 0 {
+		a.DB.Remove(objTable)
+	}
+	a.KeyvalCache.remove(iterator)
 }
 func (a *ApplyContext) DbGetI64(iterator int, buffer []byte, bufferSize int) int {
-	return 0
-	// obj := (*types.KeyValueObject)(a.KeyvalCache.get(iterator))
-	// s := len(obj.value)
 
-	// if bufferSize == 0 {
-	// 	return s
-	// }
+	obj := (a.KeyvalCache.get(iterator)).(*types.KeyValueObject)
+	s := len(obj.Value)
 
-	// copySize = min(bufferSize, s)
-	// copy(buffer[0:copySize], obj.value[0:copySize])
-	// return copySize
+	if bufferSize == 0 {
+		return s
+	}
+
+	copySize := int(common.Min(uint64(bufferSize), uint64(s)))
+	copy(buffer[0:copySize], obj.Value[0:copySize])
+	return copySize
 }
 func (a *ApplyContext) DbNextI64(iterator int, primary *uint64) int {
 
-	return 0
-	// if iterator < -1 {
-	// 	return -1
-	// }
-	// obj := (*types.KeyValueObject)(a.KeyvalCache.get(iterator))
-	// idx := a.DB.GetIndex("byScopePrimary", obj)
+	if iterator < -1 {
+		return -1
+	}
+	obj := (a.KeyvalCache.get(iterator)).(*entity.KeyValueObject)
+	idx, _ := a.DB.GetIndex("byScopePrimary", obj)
 
-	// itr := idx.IteratorTo(obj)
-	// itrNext := itr.Next()
-	// objNext := ( *types.KeyValueObject )(itr.GetObject())
-	// if itr == idx.End() || objNext.TId  != obj.TId  {
-	// 	return a.KeyvalCache.getEndIteratorByTableID(obj.TId
-	// }
+	itr := idx.IteratorTo(obj)
+	ok := itr.Next()
 
-	// *primary = objNext.primaryKey
-	// return a.KeyvalCache.add(objNext)
+	objKeyval := entity.KeyValueObject{}
+	if ok {
+		itr.Data(&objKeyval)
+	}
+
+	if itr == idx.End() || objKeyval.TId != obj.TId {
+		return a.KeyvalCache.getEndIteratorByTableID(obj.TId)
+	}
+
+	*primary = objKeyval.PrimaryKey
+	return a.KeyvalCache.add(&objKeyval)
 }
 
 func (a *ApplyContext) DbPreviousI64(iterator int, primary *uint64) int {
-	return 0
 
-	// idx := a.DB.GetIndex("byScopePrimary", &types.KeyValueObject{})
+	idx, _ := a.DB.GetIndex("byScopePrimary", &entity.KeyValueObject{})
 
-	// if iterator < -1 {
-	//    tab = a.KeyvalCache.findTableByEndIterator(iterator)
-	//    //EOS_ASSERT( tab, invalid_table_iterator, "not a valid end iterator" );
+	if iterator < -1 {
+		tab := a.KeyvalCache.findTablebyEndIterator(iterator)
+		EosAssert(tab != nil, &InvalidTableTterator{}, "not a valid end iterator")
 
-	//    itr := idx.Upperbound(tab.ID)
-	//    if( idx.Begin() == idx.End() || itr == idx.Begin() ) return -1;
+		itr, _ := idx.UpperBound(tab.ID)
+		if idx.BeginIterator() == idx.End() || itr == idx.BeginIterator() {
+			return -1
+		}
 
-	//    itrPrev := itr.Prev()
-	//    objPrev := (*types.KeyValueObject)(itr.GetObject())
-	//    if( objPrev.TId != tab.ID ) return -1;
+		itr.Prev()
+		objPrev := entity.KeyValueObject{}
+		itr.Data(&objPrev)
 
-	//    *primary =  objPrev.PrimaryKey
-	//    return a.KeyvalCache.add(objPrev)
-	// }
+		if objPrev.TId != tab.ID {
+			return -1
+		}
 
-	// obj := (*types.KeyValueObject)(a.KeyvalCache.get(iterator))
-	// itr := idx.IteratorTo(obj)
-	// itrPrev := itr.Prev()
+		*primary = objPrev.PrimaryKey
+		return a.KeyvalCache.add(&objPrev)
+	}
 
-	// objPrev := (*types.KeyValueObject)(itr.GetObject()) //return -1 for nil
-	// if objPrev.TId != obj.TId  {return -1}
+	obj := (a.KeyvalCache.get(iterator)).(*entity.KeyValueObject)
+	itr := idx.IteratorTo(obj)
+	itr.Prev()
+	objPrev := entity.KeyValueObject{}
+	itr.Data(&objPrev)
 
-	// *primary = objPrev.primaryKey
-	// return a.KeyvalCache.add(objPrev)
+	if objPrev.TId != obj.TId {
+		return -1
+	}
+
+	*primary = objPrev.PrimaryKey
+	return a.KeyvalCache.add(&objPrev)
 }
 func (a *ApplyContext) DbFindI64(code int64, scope int64, table int64, id int64) int {
-	return 0
 
-	// tab := a.FindTable(code, scope, table)
-	// if tab == nil {
-	// 	return -1
-	// }
+	tab := a.FindTable(code, scope, table)
+	if tab == nil {
+		return -1
+	}
 
-	// tableEndItr := a.KeyvalCache.cacheTable(tab)
+	tableEndItr := a.KeyvalCache.cacheTable(tab)
 
-	// obj := &types.KeyValueObject{}
-	// err := a.DB.Get("byScopePrimary", obj, obj.MakeTuple(tab.ID, id) )
+	obj := types.KeyValueObject{}
+	err := a.DB.Find("byScopePrimary", obj, &obj)
 
-	// if err == nil {return tableEndItr}
-	// return a.KeyvalCache.add(obj)
+	if err == nil {
+		return tableEndItr
+	}
+	return a.KeyvalCache.add(&obj)
 
 }
 func (a *ApplyContext) DbLowerboundI64(code int64, scope int64, table int64, id int64) int {
-	return 0
 
-	// tab := a.FindTable(code, scope, table)
-	// if tab == nil {return -1}
+	tab := a.FindTable(code, scope, table)
+	if tab == nil {
+		return -1
+	}
 
-	// tableEndItr := a.KeyvalCache.cacheTable(tab)
+	tableEndItr := a.KeyvalCache.cacheTable(tab)
 
-	// obj := &types.KeyValueObject{}
-	// idx := a.DB.GetIndex("byScopePrimary", obj)
+	obj := entity.KeyValueObject{TId: tab.ID, PrimaryKey: uint64(id)}
+	idx, _ := a.DB.GetIndex("byScopePrimary", &obj)
 
-	// itr := idx.Lowerbound(obj.MakeTuple(tab.ID,id))
-	// if itr == idx.End()  {return tableEndItr}
+	itr, _ := idx.LowerBound(&obj)
+	if itr == idx.End() {
+		return tableEndItr
+	}
 
-	// objLowerbound = (*types.KeyValueObject)(*itr.GetObject())
-	// if objLowerbound.TId != tab.ID {return tableEndItr}
+	objLowerbound := entity.KeyValueObject{}
+	itr.Data(&objLowerbound)
+	if objLowerbound.TId != tab.ID {
+		return tableEndItr
+	}
 
-	// return keyval_cache.add(objLowerbound)
+	return a.KeyvalCache.add(&objLowerbound)
 
 }
 func (a *ApplyContext) DbUpperboundI64(code int64, scope int64, table int64, id int64) int {
-	return 0
 
-	// tab := a.FindTable(code, scope, table)
-	// if tab == nil {return -1}
+	tab := a.FindTable(code, scope, table)
+	if tab == nil {
+		return -1
+	}
 
-	// tableEndItr := a.KeyvalCache.cacheTable(tab)
+	tableEndItr := a.KeyvalCache.cacheTable(tab)
 
-	// obj := &types.KeyValueObject{}
-	// idx := a.DB.GetIndex("byScopePrimary", &obj)
+	obj := entity.KeyValueObject{TId: tab.ID, PrimaryKey: uint64(id)}
+	idx, _ := a.DB.GetIndex("byScopePrimary", &obj)
 
-	// itr := idx.Upperbound(obj.MakeTuple(tab.ID,id))
-	// if itr == idx.End()  {return tableEndItr}
+	itr, _ := idx.UpperBound(&obj)
+	if itr == idx.End() {
+		return tableEndItr
+	}
 
-	// objUpperbound = (*types.KeyValueObject)(*itr.GetObject())
-	//    if objUpperbound.TId != tab.ID {return tableEndItr}
+	objUpperbound := entity.KeyValueObject{}
+	itr.Data(&objUpperbound)
 
-	// return keyval_cache.add(objUpperbound)
+	if objUpperbound.TId != tab.ID {
+		return tableEndItr
+	}
+
+	return a.KeyvalCache.add(objUpperbound)
 
 }
 func (a *ApplyContext) DbEndI64(code int64, scope int64, table int64) int {
-	return 0
 
-	// tab := a.FindTable(code, scope, table)
-	// if tab == nil {
-	// 	return -1
-	// }
+	tab := a.FindTable(code, scope, table)
+	if tab == nil {
+		return -1
+	}
 
-	// return a.KeyvalCache.cacheTable(tab)
+	return a.KeyvalCache.cacheTable(tab)
 }
 
 //index for sceondarykey
@@ -794,32 +826,32 @@ func (a *ApplyContext) IdxDoubleFindPrimary(code int64, scope int64, table int64
 }
 
 func (a *ApplyContext) nextGlobalSequence() uint64 {
-	return 0
-	//p := a.Control.GetDynamicGlobalProperties()
-	//a.DB.Modify(p, func(dgp *types.DynamicGlobalPropertyObject) {
-	//	dgp.GlobalActionSequence++
-	//})
-	//return p.GlobalActionSequence
+
+	p := a.Control.GetDynamicGlobalProperties()
+	a.DB.Modify(p, func(dgp *entity.DynamicGlobalPropertyObject) {
+		dgp.GlobalActionSequence++
+	})
+	return p.GlobalActionSequence
 }
 
 func (a *ApplyContext) nextRecvSequence(receiver common.AccountName) uint64 {
-	return 0
-	//rs := &types.AccountSequenceObject{Name: receiver}
-	//a.DB.Get("byName", rs)
-	//a.DB.Modify(rs, func(mrs *types.AccountSequenceObject) {
-	//	mrs.RecvSequence++
-	//})
-	//return rs.RecvSequence
+
+	rs := entity.AccountSequenceObject{Name: receiver}
+	a.DB.Find("byName", rs, &rs)
+	a.DB.Modify(&rs, func(mrs *entity.AccountSequenceObject) {
+		mrs.RecvSequence++
+	})
+	return rs.RecvSequence
 }
 
 func (a *ApplyContext) nextAuthSequence(receiver common.AccountName) uint64 {
-	return 0
-	//rs := &types.AccountSequenceObject{Name: receiver}
-	//a.DB.Get("byName", rs)
-	//a.DB.Modify(rs, func(mrs *types.AccountSequenceObject) {
-	//	mrs.AuthSequence++
-	//})
-	//return rs.AuthSequence
+
+	rs := entity.AccountSequenceObject{Name: receiver}
+	a.DB.Find("byName", rs, &rs)
+	a.DB.Modify(&rs, func(mrs *entity.AccountSequenceObject) {
+		mrs.AuthSequence++
+	})
+	return rs.AuthSequence
 }
 
 // void apply_context::add_ram_usage( account_name account, int64_t ram_delta ) {
@@ -832,15 +864,15 @@ func (a *ApplyContext) nextAuthSequence(receiver common.AccountName) uint64 {
 // }
 
 func (a *ApplyContext) AddRamUsage(account common.AccountName, ramDelta int64) {
-	return
-	//a.TrxContext.AddRamUsage(account, ramDelta)
 
-	//    trx_context.add_ram_usage( account, ram_delta );
+	a.TrxContext.AddRamUsage(account, ramDelta)
 
-	//    auto p = _account_ram_deltas.emplace( account, ram_delta );
-	//    if( !p.second ) {
-	//       p.first->delta += ram_delta;
-	//    }
+	// auto p = _account_ram_deltas.emplace( account, ram_delta );
+	// if( !p.second ) {
+	// 	p.first->delta += ram_delta;
+	// }
+
+	a.accountRamDeltas = append(a.accountRamDeltas, types.AccountDelta{Account: account, Delta: ramDelta})
 
 }
 
@@ -861,11 +893,18 @@ func (a *ApplyContext) PublicationTime() int64 {
 
 //context permission api
 func (a *ApplyContext) GetPermissionLastUsed(account common.AccountName, permission common.PermissionName) int64 {
-	//return 0
-	//am := a.Controller.G
-	return 0
+
+	am := a.Control.GetAuthorizationManager()
+	return am.GetPermissionLastUsed(am.GetPermission(&types.PermissionLevel{Actor: account, Permission: permission})).TimeSinceEpoch().Count()
 }
-func (a *ApplyContext) GetAccountCreateTime(account common.AccountName) int64 { return 0 }
+func (a *ApplyContext) GetAccountCreateTime(account common.AccountName) int64 {
+
+	obj := entity.AccountObject{Name: account}
+	err := a.DB.Find("byName", obj, &obj)
+	EosAssert(err != nil, &ActionValidateException{}, "account '%s' does not exist", common.S(uint64(account)))
+
+	return obj.CreationDate.ToTimePoint().TimeSinceEpoch().Count()
+}
 
 //context privileged api
 func (a *ApplyContext) SetResourceLimits(
@@ -886,9 +925,9 @@ func (a *ApplyContext) SetBlockchainParametersPacked(parameters []byte) {
 	cfg := common.Config{}
 	rlp.DecodeBytes(parameters, &cfg)
 
-	// a.DB.modify(a.Control.GetGlobalProperties(), func(gpo *types.GlobalPropertyObject){
-	//       gpo.Configuration = cfg
-	// })
+	a.DB.Modify(a.Control.GetGlobalProperties(), func(gpo *types.GlobalPropertyObject) {
+		gpo.Configuration = cfg
+	})
 
 }
 
@@ -902,26 +941,19 @@ func (a *ApplyContext) GetBlockchainParametersPacked() []byte {
 	return bytes
 }
 func (a *ApplyContext) IsPrivileged(n common.AccountName) bool {
-	//return false
-	account := types.AccountObject{Name: n}
 
-	//err := a.DB.ByIndex("byName", &account)
-	//if err != nil {
-	//	log.Error("getaAccount is error detail:", err)
-	//	return false
-	//}
+	account := entity.AccountObject{Name: n}
+	err := a.DB.Find("byName", account, &account)
+	if err != nil {
+		log.Error("IsPrivileged is error detail:", err)
+		return false
+	}
 	return account.Privileged
 
 }
 func (a *ApplyContext) SetPrivileged(n common.AccountName, isPriv bool) {
-	//oldAccount := types.AccountObject{Name: n}
-	//err := a.DB.ByIndex("byName", &oldAccount)
-	//if err != nil {
-	//	log.Error("getaAccount is error detail:", err)
-	//	return
-	//}
-	//
-	//newAccount := oldAccount
-	//newAccount.Privileged = isPriv
-	//a.DB.UpdateObject(&oldAccount, &newAccount)
+	account := entity.AccountObject{Name: n}
+	a.DB.Modify(&account, func(ao *entity.AccountObject) {
+		ao.Privileged = isPriv
+	})
 }

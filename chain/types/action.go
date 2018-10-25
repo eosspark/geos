@@ -7,55 +7,6 @@ import (
 // See: libraries/chain/include/eosio/chain/contracts/types.hpp:203
 // See: build/contracts/eosio.system/eosio.system.abi
 
-// NewAccount represents the newaccount
-type NewAccount struct {
-	Creator common.AccountName `json:"creator"`
-	Name    common.AccountName `json:"name"`
-	Owner   Authority          `json:"owner"`
-	Active  Authority          `json:"active"`
-}
-
-func (n *NewAccount) GetAccount() common.AccountName {
-	return common.AccountName(common.DefaultConfig.SystemAccountName)
-}
-
-func (n *NewAccount) GetName() common.ActionName {
-	name := common.N("newaccount")
-	return common.ActionName(name)
-}
-
-// SetCode represents the hard-coded `setcode` action.
-type SetCode struct {
-	Account   common.AccountName `json:"account"`
-	VMType    byte               `json:"vmtype"`
-	VMVersion byte               `json:"vmversion"`
-	Code      common.HexBytes    `json:"bytes"`
-}
-
-func (n *SetCode) GetAccount() common.AccountName {
-	return common.AccountName(common.DefaultConfig.SystemAccountName)
-}
-
-func (n *SetCode) GetName() common.ActionName {
-	name := common.N("setcode")
-	return common.ActionName(name)
-}
-
-// SetABI represents the hard-coded `setabi` action.
-type SetABI struct {
-	Account common.AccountName `json:"account"`
-	ABI     AbiDef             `json:"abi"`
-}
-
-func (n *SetABI) GetAccount() common.AccountName {
-	return common.AccountName(common.DefaultConfig.SystemAccountName)
-}
-
-func (n *SetABI) GetName() common.ActionName {
-	name := common.N("setabi")
-	return common.ActionName(name)
-}
-
 // Action
 type Action struct {
 	Account       common.AccountName `json:"account"`
