@@ -11,6 +11,7 @@ import (
 	//Chain "github.com/eosspark/eos-go/chain" /*real chain*/
 	. "github.com/eosspark/eos-go/exception"
 	"github.com/eosspark/eos-go/exception/try"
+	"github.com/eosspark/eos-go/asio"
 )
 
 
@@ -363,7 +364,7 @@ func (impl *ProducerPluginImpl) ScheduleProductionLoop() {
 		// we failed to start a block, so try again later?
 		impl.timerCorelationId++
 		cid := impl.timerCorelationId
-		impl.Timer.AsyncWait(func() {
+		impl.Timer.AsyncWait(func(ec asio.ErrorCode) {
 			if impl != nil && cid == impl.timerCorelationId {
 				impl.ScheduleProductionLoop()
 			}
@@ -406,7 +407,7 @@ func (impl *ProducerPluginImpl) ScheduleProductionLoop() {
 
 		impl.timerCorelationId++
 		cid := impl.timerCorelationId
-		impl.Timer.AsyncWait(func() {
+		impl.Timer.AsyncWait(func(ec asio.ErrorCode) {
 			if impl != nil && cid == impl.timerCorelationId {
 				impl.MaybeProduceBlock()
 				//TODO: fc_dlog(_log, "Producing Block #${num} returned: ${res}", ("num", chain.pending_block_state()->block_num)("res", res) );
@@ -448,7 +449,7 @@ func (impl *ProducerPluginImpl) ScheduleDelayedProductionLoop(currentBlockTime c
 
 		impl.timerCorelationId++
 		cid := impl.timerCorelationId
-		impl.Timer.AsyncWait(func() {
+		impl.Timer.AsyncWait(func(ec asio.ErrorCode) {
 			if impl != nil && cid == impl.timerCorelationId {
 				impl.ScheduleProductionLoop()
 			}
@@ -500,6 +501,6 @@ func (impl *ProducerPluginImpl) ProduceBlock() {
 	impl.ProducerWatermarks[newBs.Header.Producer] = chain.HeadBlockNum()
 
 	fmt.Printf("Produced block %s...#%d @ %s signed by %s [trxs: %d, lib: %d, confirmed: %d]\n",
-		newBs.ID.String()[0:16], newBs.BlockNum, newBs.Header.Timestamp, common.S(uint64(newBs.Header.Producer)),
+		newBs.BlockId.String()[0:16], newBs.BlockNum, newBs.Header.Timestamp, common.S(uint64(newBs.Header.Producer)),
 		len(newBs.SignedBlock.Transactions), chain.LastIrreversibleBlockNum(), newBs.Header.Confirmed)
 }

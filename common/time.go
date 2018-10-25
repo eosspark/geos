@@ -4,6 +4,7 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"github.com/eosspark/eos-go/asio"
 )
 
 const format = "2006-01-02T15:04:05"
@@ -89,21 +90,19 @@ func (tp TimePointSec) SubUs(m Microseconds) TimePoint    { return tp.ToTimePoin
 func (tp TimePointSec) Sub(t TimePointSec) Microseconds   { return tp.ToTimePoint().Sub(t.ToTimePoint()) }
 
 /**
- * deadline timer
+ * inherit from asio.DeadlineTimer
  */
-type Timer struct {
-	internal *time.Timer
-	duration time.Duration
+type Timer asio.DeadlineTimer
+
+func NewTimer(ctx *asio.IoContext) *Timer {
+	return (*Timer)(asio.NewDeadlineTimer(ctx))
 }
 
-func (my *Timer) ExpiresFromNow(m Microseconds) { my.duration = time.Microsecond * time.Duration(m) }
-func (my *Timer) ExpiresUntil(t TimePoint)      { my.ExpiresFromNow(t.Sub(Now())) }
-func (my *Timer) ExpiresAt(epoch Microseconds)  { my.ExpiresUntil(TimePoint(epoch)) }
-func (my *Timer) AsyncWait(call func())         { my.internal = time.AfterFunc(my.duration, call) }
-
-func (my *Timer) Cancel() {
-	if my.internal != nil {
-		my.internal.Stop()
-		my.internal = nil
-	}
+func (t *Timer) ExpiresUntil(time TimePoint)      { t.ExpiresFromNow(time.Sub(Now())) }
+func (t *Timer) ExpiresAt(epoch Microseconds)  { t.ExpiresUntil(TimePoint(epoch)) }
+func (t *Timer) ExpiresFromNow(m Microseconds) {
+	(*asio.DeadlineTimer)(t).ExpiresFromNow(time.Microsecond * time.Duration(m))
 }
+
+func (t *Timer) Cancel() { (*asio.DeadlineTimer)(t).Cancel() }
+func (t *Timer) AsyncWait(op func(ec asio.ErrorCode)) { (*asio.DeadlineTimer)(t).AsyncWait(op) }

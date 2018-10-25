@@ -6,16 +6,15 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"github.com/eosspark/eos-go/chain/types"
+	"github.com/eosspark/eos-go/chainp2p"
 	"github.com/eosspark/eos-go/common"
+	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/crypto/rlp"
 	"math"
 	"net"
 	"runtime"
-
-	"github.com/eosspark/eos-go/chain/types"
-	// "github.com/eosspark/eos-go/chainp2p"
-	"github.com/eosspark/eos-go/crypto"
 	"time"
 )
 
@@ -59,12 +58,14 @@ func (c *Client) connect(headBlock uint32, lib uint32) (err error) {
 	errChannel := make(chan error)
 
 	signedBlock := make(chan types.SignedBlock)
-	go c.handleConnection(ready, errChannel, signedBlock)
+	packedTransaction := make(chan types.PackedTransaction)
+	go c.handleConnection(ready, errChannel, signedBlock, packedTransaction)
 
-	// go chainp2p.GetSignedBlock(signedBlock)
+	go chainp2p.GetSignedBlock(signedBlock)
+	go chainp2p.GetPackedTrx(packedTransaction)
 	<-ready
 
-	fmt.Println(c.p2pAddress, " Connected")
+	//fmt.Println(c.p2pAddress, " Connected")
 
 	err = c.SendHandshake(&HandshakeInfo{
 		HeadBlockNum:             headBlock,
@@ -164,7 +165,7 @@ var (
 	headBlock      = uint32(0)
 )
 
-func (c *Client) handleConnection(ready chan bool, errChannel chan error, signedBlock chan types.SignedBlock) {
+func (c *Client) handleConnection(ready chan bool, errChannel chan error, signedBlock chan types.SignedBlock, packedTransaction chan types.PackedTransaction) {
 	r := bufio.NewReader(c.Conn)
 	ready <- true
 	for {
@@ -181,6 +182,9 @@ func (c *Client) handleConnection(ready chan bool, errChannel chan error, signed
 			fmt.Println(err)
 		}
 		fmt.Println("Receive P2PMessag ", string(data))
+
+		//encResult, err := rlp.EncodeToBytes(p2pMessage)
+		//fmt.Printf("encode result: %#v\n", encResult)
 
 		switch msg := p2pMessage.(type) {
 		case *HandshakeMessage:
@@ -232,13 +236,11 @@ func (c *Client) handleConnection(ready chan bool, errChannel chan error, signed
 		case *SyncRequestMessage:
 
 		case *SignedBlockMessage:
-			signedBlockBytes, err := rlp.EncodeToBytes(p2pMessage)
-			fmt.Printf("encode result: %v\n", signedBlockBytes)
+
 			syncHeadBlock = msg.BlockNumber()
-			fmt.Println(msg.Previous.Hash[0])
 			fmt.Printf("signed Block Num: %d\n", syncHeadBlock)
 
-			// signedBlock <- msg.SignedBlock
+			signedBlock <- msg.SignedBlock
 
 			if syncHeadBlock == RequestedBlock {
 
@@ -274,7 +276,7 @@ func (c *Client) handleConnection(ready chan bool, errChannel chan error, signed
 				c.SendSyncRequest(syncHeadBlock, RequestedBlock)
 			}
 		case *PackedTransactionMessage:
-
+			packedTransaction <- msg.PackedTransaction
 		default:
 			fmt.Println("unsupport p2pmessage type")
 		}

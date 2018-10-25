@@ -8,9 +8,12 @@ import (
 	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/crypto/rlp"
+	"github.com/eosspark/eos-go/exception"
+	"github.com/eosspark/eos-go/exception/try"
 	"io"
 	"net"
 	"reflect"
+	"runtime"
 	"time"
 )
 
@@ -32,8 +35,8 @@ type Peer struct {
 
 	nodeID             common.NodeIdType
 	lastHandshakeRecv  *HandshakeMessage
-	lastHandshajeSent  *HandshakeMessage
-	sentHandshakeCount int16
+	lastHandshakeSent  *HandshakeMessage
+	sentHandshakeCount uint16 //int16
 	connecting         bool
 	syncing            bool
 	protocolVersion    uint16
@@ -45,6 +48,7 @@ type Peer struct {
 	forkHead    common.BlockIdType
 	forkHeadNum uint32
 	//lastReq optional<request_message>
+	lastReq *RequestMessage
 
 	// Members set from network data
 	org common.TimePoint //originate timestamp
@@ -66,16 +70,15 @@ type PeerStatus struct {
 	LastHandshake HandshakeMessage
 }
 
-//func NewPeer() *Peer {
-//	return &Peer{}
-//}
 func NewPeer(conn net.Conn, reader io.Reader) *Peer {
 	return &Peer{
-		connection: conn,
-		reader:     reader,
-		peerAddr:   conn.RemoteAddr().String(),
+		connection:         conn,
+		reader:             reader,
+		peerAddr:           conn.RemoteAddr().String(),
+		lastHandshakeSent:  &HandshakeMessage{},
+		lastHandshakeRecv:  &HandshakeMessage{},
+		sentHandshakeCount: 0,
 	}
-
 }
 
 func (p *Peer) getStatus() *PeerStatus {
@@ -104,13 +107,106 @@ func (p *Peer) reset() {
 func (p *Peer) close() {
 
 }
-func (p *Peer) sendHandshake() {
+
+func (p *Peer) sendHandshake(impl *netPluginIMpl) {
+	handshakePopulate(impl, p.lastHandshakeSent)
+	p.sentHandshakeCount += 1
+	p.lastHandshakeSent.Generation = p.sentHandshakeCount
+	//fc_dlog(logger, "Sending handshake generation ${g} to ${ep}",
+	//	("g",last_handshake_sent.generation)("ep", peer_name()));
+
+	fmt.Printf("Sending handshake generation %d to %s\n", p.lastHandshakeSent.Generation, p.peerAddr)
+	p.write(p.lastHandshakeSent)
+}
+
+func handshakePopulate(impl *netPluginIMpl, hello *HandshakeMessage) {
+	hello.NetworkVersion = netVersionBase + netVersion
+	hello.ChainID = impl.chainID
+	hello.NodeID = impl.nodeID
+	hello.Key = *impl.getAuthenticationKey()
+	hello.Time = common.Now()
+	hello.Token = crypto.Hash256(hello.Time)
+	hello.Signature = *impl.signCompact(&hello.Key, &hello.Token)
+
+	// If we couldn't sign, don't send a token.
+	if common.Empty(hello.Signature) {
+		hello.Token = *crypto.NewSha256Nil()
+	}
+
+	hello.P2PAddress = impl.p2PAddress + "-" + hello.NodeID.String()[:7]
+
+	switch runtime.GOOS {
+	case "darwin":
+		hello.OS = "osx"
+	case "linux":
+		hello.OS = "linux"
+	case "windows":
+		hello.OS = "win32"
+	default:
+		hello.OS = "other"
+	}
+	hello.Agent = impl.userAgentName
+
+	//controller& cc = my_impl->chain_plug->chain();
+	hello.HeadID = common.BlockIdNil()
+	//hello.head_num = cc.fork_db_head_block_num();
+	//hello.last_irreversible_block_num = cc.last_irreversible_block_num();
+
+	//hello.HeadNum =  cc.fork_db_head_block_num();
+	//hello.LastIrreversibleBlockID = hello.LastIrreversibleBlockID
+
+	if hello.LastIrreversibleBlockNum > 0 {
+		try.Try(func() {
+			//hello.LastIrreversibleBlockID = cc.get_block_id_for_num(hello.last_irreversible_block_num)
+			//hello.LastIrreversibleBlockID =
+		}).Catch(func(ex exception.UnknownBlockException) {
+			//ilog("caught unkown_block");
+			fmt.Println("caught unkown_block")
+			//hello.LastIrreversibleBlockNum =0
+		}).End()
+	}
+	if hello.HeadNum > 0 {
+		try.Try(func() {
+			//hello.id = cc.get_block_id_for_num( hello.head_num )
+			//hello.id =
+		}).Catch(func(ex exception.UnknownBlockException) {
+			hello.HeadNum = 0
+		}).End()
+	}
 
 }
 
 func (p *Peer) PeerName() string {
+	return p.peerAddr
+}
 
-	return ""
+//void connection::sync_wait( ) {
+//response_expected->expires_from_now( my_impl->resp_expected_period);
+//connection_wptr c(shared_from_this());
+//response_expected->async_wait( [c]( boost::system::error_code ec){
+//connection_ptr conn = c.lock();
+//if (!conn) {
+//// connection was destroyed before this lambda was delivered
+//return;
+//}
+//
+//conn->sync_timeout(ec);
+//} );
+//}
+func (p *Peer) syncWait() {
+
+}
+
+func (p *Peer) cancelWait() {
+
+}
+
+func (p *Peer) fetchWait() {
+
+}
+
+func (p *Peer) cancelSync(reason GoAwayReason) {
+
 }
 
 //void txn_send_pending(const vector<transaction_id_type> &ids);
@@ -125,7 +221,16 @@ func (p *Peer) PeerName() string {
 //void flush_queues();
 //bool enqueue_sync_block();
 //void request_sync_blocks (uint32_t start, uint32_t end);
-//
+
+func (p *Peer) requestSyncBlocks(start, end uint32) {
+	syncRequest := SyncRequestMessage{
+		StartBlock: start,
+		EndBlock:   end,
+	}
+	p.write(&syncRequest)
+	p.syncWait()
+}
+
 //void cancel_wait();
 //void sync_wait();
 //void fetch_wait();
@@ -177,177 +282,6 @@ func isValid(msg *HandshakeMessage) bool {
 	return valid
 }
 
-func (p *Peer) handleHandshakeMsg(np *netPluginIMpl, msg *HandshakeMessage) {
-	fmt.Println("receive a handshake message")
-	if !isValid(msg) {
-		fmt.Println("bad handshake message")
-		goAwayMsg := &GoAwayMessage{
-			Reason: fatalOther,
-			NodeID: *crypto.NewSha256Nil(),
-		}
-		p.write(goAwayMsg)
-		return
-	}
-
-	//controller& cc = chain_plug->chain();
-	//uint32_t lib_num = cc.last_irreversible_block_num( );
-	//uint32_t peer_lib = msg.last_irreversible_block_num;
-
-	//libNum := uint32(100) //TODO
-	//peerLib := msg.LastIrreversibleBlockNum
-
-	if msg.Generation == 1 {
-		if crypto.Sha256(msg.NodeID).Compare(crypto.Sha256(p.nodeID)) {
-			//elog( "Self connection detected. Closing connection")
-			fmt.Println("Self connection detected. Closing connection")
-			goAwayMsg := &GoAwayMessage{
-				Reason: fatalOther,
-				NodeID: *crypto.NewSha256Nil(),
-			}
-			p.write(goAwayMsg)
-		}
-
-		//TODO check for duplicate!!
-		//if( c->peer_addr.empty() || c->last_handshake_recv.node_id == fc::sha256()) {
-		//fc_dlog(logger, "checking for duplicate" )
-		//}
-
-		if msg.ChainID.String() != p2pChainIDString {
-			//elog( "Peer on a different chain. Closing connection")
-			fmt.Println("Peer on different chain. Closing connection")
-			goAwayMsg := &GoAwayMessage{
-				Reason: wrongChain,
-				NodeID: *crypto.NewSha256Nil(),
-			}
-			p.write(goAwayMsg)
-			return
-		}
-
-		p.protocolVersion = toProtocolVersion(msg.NetworkVersion)
-		if p.protocolVersion != netVersion {
-			if np.networkVersionMatch {
-				//elog("Peer network version does not match expected ${nv} but got ${mnv}",
-				//	("nv", net_version)("mnv", c->protocol_version))
-				fmt.Printf("Peer network version does not match expected %d but got %d", netVersion, p.protocolVersion)
-				goAwayMsg := &GoAwayMessage{
-					Reason: wrongVersion,
-					NodeID: *crypto.NewSha256Nil(),
-				}
-				p.write(goAwayMsg)
-				return
-			} else {
-				//ilog("Local network version: ${nv} Remote version: ${mnv}",
-				//	("nv", net_version)("mnv", c->protocol_version))
-				fmt.Printf("local network version: %d Remote version: %d", netVersion, p.protocolVersion)
-			}
-		}
-
-		if p.nodeID.String() != msg.NodeID.String() {
-			p.nodeID = msg.NodeID
-		}
-
-		//fmt.Println("authrnticatePeer")//TODO check for authenticatePeer!!!
-		//if !np.authenticatePeer(msg){
-		//	//elog("Peer not authenticated.  Closing connection.")
-		//	fmt.Println("Peer not authenticated. Closing connection")
-		//	goAwayMsg := &GoAwayMessage{
-		//		Reason: authentication,
-		//		NodeID: *crypto.NewSha256Nil(),
-		//	}
-		//	p.write(goAwayMsg)
-		//	return
-		//}
-
-		//onFork := false//TODO check for onFork!!!
-		////fc_dlog(logger, "lib_num = ${ln} peer_lib = ${pl}",("ln",lib_num)("pl",peer_lib));
-		//if peerLib <= libNum && peerLib > 0 {
-		//	//peerLibID := cc.getBlockIdForNum(peerLib)
-		//	//onFork = msg.LastIrreversibleBlockID != peerLibID
-		//	onFork = true
-		//
-		//	if onFork {
-		//		//elog( "Peer chain is forked");
-		//		fmt.Println("Peer chain is forked")
-		//		goAwayMsg := &GoAwayMessage{
-		//			Reason: forked,
-		//			NodeID: *crypto.NewSha256Nil(),
-		//		}
-		//		p.write(goAwayMsg)
-		//		return
-		//	}
-		//}
-
-		if p.sentHandshakeCount == 0 {
-			p.sendHandshake()
-		}
-	}
-
-	p.lastHandshakeRecv = msg
-	//c->_logger_variant.reset();
-
-	//sync_master->recv_handshake(p,msg)
-
-}
-
-func (p *Peer) handleChainSizeMsg(msg *ChainSizeMessage) {
-	//peer_ilog(c, "received chain_size_message")
-	fmt.Println("receives chain_size_message")
-}
-
-func (p *Peer) handleGoawayMsg(msg *GoAwayMessage) {
-	rsn := ReasonToString[msg.Reason]
-	fmt.Printf("receive go_away_message reason = %s\n", rsn)
-	p.noRetry = msg.Reason
-	//if msg.Reason == duplicate {
-	//	p.nodeID = msg.NodeID
-	//}
-	//c.flushQueues()
-	//close(c)
-
-}
-
-// handleTimeMsg process time_message
-// Calculate offset, delay and dispersion.  Note carefully the
-// implied processing.  The first-order difference is done
-// directly in 64-bit arithmetic, then the result is converted
-// to floating double.  All further processing is in
-// floating-double arithmetic with rounding done by the hardware.
-// This is necessary in order to avoid overflow and preserve precision.
-func (p *Peer) handleTimeMsg(msg *TimeMessage) {
-	fmt.Println("receive time_message")
-	/* We've already lost however many microseconds it took to dispatch
-	 * the message, but it can't be helped.
-	 */
-	msg.Dst = common.Now()
-
-	// If the transmit timestamp is zero, the peer is horribly broken.
-	if msg.Xmt == 0 {
-		return /* invalid timestamp */
-	}
-	if msg.Xmt == p.xmt {
-		return /* duplicate packet */
-	}
-
-	p.xmt = msg.Xmt
-	p.rec = msg.Rec
-	p.dst = msg.Dst
-	if msg.Org == 0 {
-		p.sendTime(msg)
-		return // We don't have enough data to perform the calculation yet.
-	}
-
-	//p.offset = float64((p.rec-p.org)+(msg.Xmt-p.dst)) / 2
-	//fmt.Println(p.offset)
-
-	//NsecPerUsec := float64(1000)
-	//fmt.Printf("Clock offset is %v ns  %v us\n", p.offset, p.offset/NsecPerUsec)
-	//if(logger.is_enabled(fc::log_level::all))
-	//logger.log(FC_LOG_MESSAGE(all, "Clock offset is ${o}ns (${us}us)", ("o", c->offset)("us", c->offset/NsecPerUsec)));
-	p.org = 0
-	p.rec = 0
-
-}
-
 //sendTime populate and queue time_message immediately using incoming time_message
 func (p *Peer) sendTime(msg *TimeMessage) {
 	xpkt := &TimeMessage{
@@ -356,117 +290,6 @@ func (p *Peer) sendTime(msg *TimeMessage) {
 		Xmt: common.Now(),
 	}
 	p.write(xpkt)
-}
-
-func (p *Peer) handleNoticeMsg(msg *NoticeMessage) {
-	// peer tells us about one or more blocks or txns. When done syncing, forward on
-	// notices of previously unknown blocks or txns,
-	//
-	fmt.Println("received notice_message")
-	p.connecting = false
-	req := RequestMessage{}
-	sendReq := false
-	if msg.KnownTrx.Mode != none {
-		fmt.Printf("this is a %s notice with %d blocks \n",
-			modeTostring[msg.KnownTrx.Mode], msg.KnownTrx.Pending)
-	}
-	switch msg.KnownTrx.Mode {
-	case none:
-	case lastIrrCatchUp:
-		//c.lastHandshakeRecv.HeadNum = &msg.KnownTrx.Pending
-		req.ReqTrx.Mode = none
-	case catchUp:
-		if msg.KnownTrx.Pending > 0 {
-			//plan to get all except what we already know about
-			req.ReqTrx.Mode = catchUp
-			sendReq = true
-			//knownSum := local_txns.size()
-			//if( known_sum ) {
-			//	for( const auto& t : local_txns.get<by_id>( ) ) {
-			//	req.req_trx.ids.push_back( t.id )
-			//	}
-			//}
-		}
-	case normal:
-		//dispatcher.recvNotice(c,msg,false)
-	}
-
-	if msg.KnownBlocks.Mode != none {
-		fmt.Printf("this is a %s notice with  %d blocks\n",
-			modeTostring[msg.KnownBlocks.Mode], msg.KnownBlocks.Pending)
-	}
-	switch msg.KnownBlocks.Mode {
-	case none:
-		if msg.KnownTrx.Mode != normal {
-			return
-		}
-	case lastIrrCatchUp:
-	case catchUp:
-		//syncMaster.recvNotice(c,msg)
-	case normal:
-		//dispatcher.recvNotice(c,msg,false)
-	default:
-		fmt.Printf("bad notice_message : invalid knwon_blocks.mode %d\n", msg.KnownBlocks.Mode)
-	}
-	//fc_dlog(logger, "send req = ${sr}", ("sr",send_req));
-
-	if sendReq {
-		//c.enqueue(req)
-	}
-
-}
-
-func (p *Peer) handleRequestMsg(msg *RequestMessage) {
-	switch msg.ReqBlocks.Mode {
-	case catchUp:
-		fmt.Println("received request_message:catch_up")
-		//c.blkSendBranch()
-	case normal:
-		fmt.Println("receive request_message:normal")
-		//c.blkSend(msg.ReqBlocks.IDs)
-	default:
-
-	}
-
-	switch msg.ReqTrx.Mode {
-	case catchUp:
-		//c.txnSendPending(msg.ReqTrx.IDs)
-	case normal:
-		//c.txnSend(msg.ReqTrx.IDs)
-	case none:
-		if msg.ReqBlocks.Mode == none {
-			//c.stopSend()
-		}
-	default:
-
-	}
-}
-
-func (p *Peer) handleSyncRequestMsg(msg *SyncRequestMessage) {
-	if msg.EndBlock == 0 {
-		//c.peerRequested.reset()
-		//c.flushQueues()
-	} else {
-		//c.peerRequested = syncState(msg.StartBlock,msg.EndBlock,msg.StartBlock-1)
-		//c.enqueueSyncBlock()
-	}
-
-}
-
-func (p *Peer) handleSignedBlock(msg *SignedBlockMessage) {
-	fmt.Println("receive signed_block message")
-	//cc := chain_plug->chain();
-	// blkID := msg.ID();
-	//blkNum := msg.BlockNum();
-	//fmt.Printf("canceling wait on %s\n",c.perrName())
-	//c.cancel_wait();
-	fmt.Printf("signed Block : %v\n", msg)
-}
-
-func (p *Peer) handlePackTransaction(msg *PackedTransactionMessage) {
-	fmt.Println("receive packed transaction")
-	tid := msg.ID()
-	fmt.Println(tid)
 }
 
 func (p *Peer) sendTimeTicker() {
@@ -479,7 +302,32 @@ func (p *Peer) sendTimeTicker() {
 	p.write(xpkt)
 }
 
-func (p *Peer) read(np *netPluginIMpl) {
+func (p *Peer) addPeerBlock(entry *peerBlockState) bool { //TODO
+	//auto bptr = blk_state.get<by_id>().find(entry.id);
+	//bool added = (bptr == blk_state.end());
+	//if (added){
+	//	blk_state.insert(entry);
+	//}
+	//else {
+	//blk_state.modify(bptr,set_is_known);
+	//if (entry.block_num == 0) {
+	//blk_state.modify(bptr,update_block_num(entry.block_num));
+	//}
+	//else {
+	//blk_state.modify(bptr,set_request_time);
+	//}
+	//}
+	//return added;
+	return false
+}
+
+func (p *Peer) read(impl *netPluginIMpl) {
+	defer func() {
+		p.connection.Close()
+		impl.loopWG.Done()
+	}()
+
+	impl.loopWG.Add(1)
 	fmt.Println("start read message!")
 
 	for {
@@ -488,33 +336,33 @@ func (p *Peer) read(np *netPluginIMpl) {
 			fmt.Println("Error reading from p2p client:", err)
 			continue
 		}
-
-		data, err := json.Marshal(p2pMessage)
-		if err != nil {
-			fmt.Println(err)
-		}
-		fmt.Println(p.peerAddr, ": Receive P2PMessag ", string(data))
+		time.Sleep(100 * time.Millisecond) //TODO for testing
+		//data, err := json.Marshal(p2pMessage)
+		//if err != nil {
+		//	fmt.Println(err)
+		//}
+		//fmt.Println(p.peerAddr, ": Receive P2PMessag ", string(data))
 
 		switch msg := p2pMessage.(type) {
 		case *HandshakeMessage:
-			p.handleHandshakeMsg(np, msg)
+			impl.handleHandshakeMsg(p, msg)
 		case *ChainSizeMessage:
-			p.handleChainSizeMsg(msg)
+			impl.handleChainSizeMsg(p, msg)
 		case *GoAwayMessage:
-			p.handleGoawayMsg(msg)
+			impl.handleGoawayMsg(p, msg)
 			fmt.Printf("GO AWAY Reason[%d] \n", msg.Reason)
 		case *TimeMessage:
-			p.handleTimeMsg(msg)
+			impl.handleTimeMsg(p, msg)
 		case *NoticeMessage:
-			p.handleNoticeMsg(msg)
+			impl.handleNoticeMsg(p, msg)
 		case *RequestMessage:
-			p.handleRequestMsg(msg)
+			impl.handleRequestMsg(p, msg)
 		case *SyncRequestMessage:
-			p.handleSyncRequestMsg(msg)
+			impl.handleSyncRequestMsg(p, msg)
 		case *SignedBlockMessage:
-			p.handleSignedBlock(msg)
+			impl.handleSignedBlock(p, msg)
 		case *PackedTransactionMessage:
-			p.handlePackTransaction(msg)
+			impl.handlePackTransaction(p, msg)
 		default:
 			fmt.Println("unsupport p2pmessage type")
 		}
@@ -522,21 +370,14 @@ func (p *Peer) read(np *netPluginIMpl) {
 	}
 }
 
-//data := make([]byte, 100)
-//n, err := p.connection.Read(data)
-//if err!=nil{
-//	fmt.Println(err)
-//}
-////fmt.Println(string(data[:n]))
-//fmt.Println(data[:n])
 func ReadP2PMessageData(r io.Reader) (p2pMessage P2PMessage, err error) {
-	data := make([]byte, 0)
+	//data := make([]byte, 0)
 	lengthBytes := make([]byte, 4, 4)
 	_, err = io.ReadFull(r, lengthBytes)
 	if err != nil {
 		return
 	}
-	data = append(data, lengthBytes...)
+	//data = append(data, lengthBytes...)
 	size := binary.LittleEndian.Uint32(lengthBytes)
 	payloadBytes := make([]byte, size, size)
 	count, err := io.ReadFull(r, payloadBytes)
@@ -548,8 +389,8 @@ func ReadP2PMessageData(r io.Reader) (p2pMessage P2PMessage, err error) {
 		fmt.Println("readfull ,error:", err)
 		return
 	}
-	data = append(data, payloadBytes...)
-	fmt.Println("receive data:  ", data)
+	//data = append(data, payloadBytes...)
+	//fmt.Printf("receive data:  %#v\n", data)
 
 	messagetype := P2PMessageType(payloadBytes[0])
 	attr, ok := messagetype.reflectTypes()
@@ -594,7 +435,7 @@ func (p *Peer) write(message P2PMessage) {
 }
 
 func toProtocolVersion(v uint16) uint16 {
-	if v > netVersionBase {
+	if v >= netVersionBase {
 		v -= netVersionBase
 		if v <= netVersionRange {
 			return v

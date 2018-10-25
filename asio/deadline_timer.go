@@ -14,13 +14,18 @@ func NewDeadlineTimer(ctx *IoContext) *DeadlineTimer {
 	return d
 }
 
-func (d *DeadlineTimer) Expires(t time.Time) {
-	d.duration = t.Sub(time.Now())
+func (d *DeadlineTimer) ExpiresFromNow(duration time.Duration) {
+	d.duration = duration
+}
+
+func (d *DeadlineTimer) ExpiresAt(t time.Time) {
+	d.ExpiresFromNow(t.Sub(time.Now()))
 }
 
 func (d *DeadlineTimer) AsyncWait(op func(ec ErrorCode)) {
+	// use go-timers to receive time event in new goroutine
 	d.internal = time.AfterFunc(d.duration, func() {
-		d.ctx.GetService().push(op, NewErrorCode(nil))
+		d.ctx.GetService().post(op, NewErrorCode(nil))
 	})
 }
 

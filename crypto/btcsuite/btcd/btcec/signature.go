@@ -397,8 +397,7 @@ func makeCompact(curve *KoblitzCurve, sig *Signature, key *PrivateKey, hash []by
 // Koblitz curve in "curve". If the signature matches then the recovered public
 // key will be returned as well as a boolen if the original key was compressed
 // or not, else an error will be returned.
-func RecoverCompact(curve *KoblitzCurve, signature [65]byte,
-	hash []byte) (*PublicKey, bool, error) {
+func RecoverCompact(curve *KoblitzCurve, signature, hash []byte) (*PublicKey, bool, error) {
 	bitlen := (curve.BitSize + 7) / 8
 	if len(signature) != 1+bitlen*2 {
 		return nil, false, errors.New("invalid compact signature size")

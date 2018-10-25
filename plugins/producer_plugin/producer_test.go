@@ -14,9 +14,12 @@ import (
 	Chain "github.com/eosspark/eos-go/plugins/producer_plugin/mock"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/chain/types"
-	)
+	"github.com/eosspark/eos-go/asio"
+	"syscall"
+)
 
 var plugin *ProducerPlugin
+var io     *asio.IoContext
 
 func makeArguments(values ...string) {
 	options := append([]string(values), "--") // use "--" to divide arguments
@@ -36,11 +39,10 @@ func initialize(t *testing.T) {
 		)
 
 	app := cli.NewApp()
-	app.Name = "nodeos"
-	app.Version = "0.1.0beta"
+	io = asio.NewIoContext()
 
 	Chain.Initialize()
-	producerPlugin := NewProducerPlugin()
+	producerPlugin := NewProducerPlugin(io)
 	producerPlugin.PluginInitialize(app)
 
 	err := app.Run(os.Args)
@@ -107,7 +109,7 @@ func produceone(when common.BlockTimeStamp) (b *types.SignedBlock) {
 	nextProducer := hbs.GetScheduledProducer(when)
 	b.Timestamp = when
 	b.Producer = nextProducer.AccountName
-	b.Previous = hbs.ID
+	b.Previous = hbs.BlockId
 
 	//currentWatermark := plugin.my.ProducerWatermarks[nextProducer.AccountName]
 
@@ -137,19 +139,35 @@ func produceone(when common.BlockTimeStamp) (b *types.SignedBlock) {
 	return
 }
 
+func exec() {
+	sigint := asio.NewSignalSet(io, syscall.SIGINT)
+	sigint.AsyncWait(func(ec asio.ErrorCode) {
+		io.Stop()
+		sigint.Cancel()
+		plugin.PluginShutdown()
+	})
+
+	io.Run()
+}
+
 func TestProducerPlugin_PluginStartup(t *testing.T) {
 	initialize(t)
 
 	plugin.PluginStartup()
 
 	chain := Chain.GetControllerInstance()
-	for {
-		time.Sleep(time.Second)
-		if chain.LastIrreversibleBlockNum() > 0 && chain.HeadBlockNum() > 10 {
-			plugin.PluginShutdown()
-			break
+	go func() {
+		for {
+			time.Sleep(time.Second)
+			if chain.LastIrreversibleBlockNum() > 0 && chain.HeadBlockNum() > 10 {
+				io.Stop()
+				plugin.PluginShutdown()
+				return
+			}
 		}
-	}
+	}()
+
+	exec()
 }
 
 func TestProducerPlugin_Pause(t *testing.T) {
@@ -242,11 +260,10 @@ func TestProducerPluginImpl_OnIncomingBlock(t *testing.T) {
 		)
 
 	app := cli.NewApp()
-	app.Name = "nodeos"
-	app.Version = "0.1.0beta"
+	io = asio.NewIoContext()
 
 	Chain.Initialize()
-	producerPlugin := NewProducerPlugin()
+	producerPlugin := NewProducerPlugin(io)
 	producerPlugin.PluginInitialize(app)
 
 	err := app.Run(os.Args)

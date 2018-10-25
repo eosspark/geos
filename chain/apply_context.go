@@ -231,7 +231,7 @@ func (a *ApplyContext) execOne() (trace types.ActionTrace) {
 	t.BlockNum = a.Control.PendingBlockState().BlockNum
 	t.BlockTime = common.NewBlockTimeStamp(a.Control.PendingBlockTime())
 	t.ProducerBlockId = a.Control.PendingProducerBlockId()
-	t.AccountRamDeltas = a.accountRamDeltas
+	//t.AccountRamDeltas = a.AccountRamDeltas
 	//a.accountRamDeltas.clear()
 	t.Act = *a.Act
 	t.Console = a.PendingConsoleOutput
@@ -438,7 +438,7 @@ func (a *ApplyContext) SetProposedProducers(data []byte) int64 {
 	uniqueProducers := make(map[types.ProducerKey]bool)
 	for _, p := range producers {
 		EosAssert(a.IsAccount(int64(p.AccountName)), &WasmExecutionError{}, "producer schedule includes a nonexisting account")
-		//EosAssert(p.BlockSigningKey.Valid(), &WasmExecutionError{},  "producer schedule includes an invalid key" )
+		EosAssert(p.BlockSigningKey.Valid(), &WasmExecutionError{}, "producer schedule includes an invalid key")
 		if _, ok := uniqueProducers[p]; !ok {
 			uniqueProducers[p] = true
 		}

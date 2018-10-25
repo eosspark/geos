@@ -71,7 +71,7 @@ func startAcceptLoop(socket *asio.ReactiveSocket, listen net.Listener) {
 
 func scheduleLoop1(timer *asio.DeadlineTimer) {
 	timer.Cancel()
-	timer.Expires(time.Now().Add(time.Second))
+	timer.ExpiresAt(time.Now().Add(time.Second))
 	timer.AsyncWait(func(ec asio.ErrorCode) {
 		if !ec.Valid {
 			fmt.Println("loop 1", time.Now())
@@ -87,7 +87,7 @@ func scheduleLoop1(timer *asio.DeadlineTimer) {
 
 func scheduleLoop2(timer *asio.DeadlineTimer) {
 	timer.Cancel()
-	timer.Expires(time.Now().Add(time.Millisecond * 500))
+	timer.ExpiresAt(time.Now().Add(time.Millisecond * 500))
 	timer.AsyncWait(func(ec asio.ErrorCode) {
 		if !ec.Valid {
 			fmt.Println("loop 2", time.Now())
