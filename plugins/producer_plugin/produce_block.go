@@ -11,7 +11,7 @@ import (
 	//Chain "github.com/eosspark/eos-go/chain" /*real chain*/
 	. "github.com/eosspark/eos-go/exception"
 	"github.com/eosspark/eos-go/exception/try"
-	"github.com/eosspark/eos-go/asio"
+	"github.com/eosspark/eos-go/plugins/appbase/asio"
 )
 
 

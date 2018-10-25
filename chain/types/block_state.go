@@ -4,10 +4,10 @@ import "github.com/eosspark/eos-go/common"
 
 type BlockState struct {
 	BlockHeaderState `multiIndex:"inline"`
-	SignedBlock      *SignedBlock           `multiIndex:"inline"`
-	Validated        bool                   `json:"validated"`
-	InCurrentChain   bool                   `json:"in_current_chain"`
-	Trxs             []*TransactionMetadata `multiIndex:"inline"`
+	SignedBlock      *SignedBlock `multiIndex:"inline"`
+	Validated        bool         `json:"validated"`
+	InCurrentChain   bool         `json:"in_current_chain"`
+	Trxs             []*TransactionMetadata
 }
 
 func NewBlockState(cur BlockHeaderState) *BlockState {

@@ -13,7 +13,7 @@ import (
 	"time"
 	"encoding/json"
 	"strings"
-	"github.com/eosspark/eos-go/asio"
+	"github.com/eosspark/eos-go/plugins/appbase/asio"
 )
 
 type ProducerPlugin struct {

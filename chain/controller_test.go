@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
+	"github.com/eosspark/eos-go/entity"
 	"github.com/stretchr/testify/assert"
 	"reflect"
 	"strings"
@@ -55,7 +56,7 @@ func TestController_CreateNativeAccount(t *testing.T) {
 	active.Threshold = 1
 	control.CreateNativeAccount(name, owner, active, false)
 	fmt.Println(name)
-	result := types.AccountObject{}
+	result := entity.AccountObject{}
 	result.Name = name
 	//control.DB.Find("name", result)
 
@@ -100,7 +101,7 @@ func TestController_SetApplayHandler(t *testing.T) {
 func TestController_GetGlobalProperties(t *testing.T) {
 	c := GetControllerInstance()
 	result := c.GetGlobalProperties()
-	gp := types.GlobalPropertyObject{}
+	gp := entity.GlobalPropertyObject{}
 	gp.ID = common.IdType(1)
 	err := c.DB.Find("ID", gp, &gp)
 	if err != nil {
@@ -116,6 +117,11 @@ func TestController_StartBlock(t *testing.T) {
 	s := types.Irreversible
 	c.StartBlock(w, uint16(s))
 	c.Close()
+}
+
+func TestController_Clean(t *testing.T) {
+	c := GetControllerInstance()
+	c.Clean()
 }
 
 func Test(t *testing.T) {

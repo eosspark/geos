@@ -9,7 +9,10 @@ import (
 	. "github.com/eosspark/eos-go/exception"
 	"log"
 	. "github.com/eosspark/eos-go/exception/try"
+	"github.com/eosspark/eos-go/crypto/rlp"
 )
+
+var noopCheckTime *func()
 
 var IsActiveAz bool
 
@@ -181,7 +184,7 @@ func (a *AuthorizationManager) LookupMinimumPermission(authorizerAccount common.
 	return
 }
 
-func (a *AuthorizationManager) CheckUpdateauthAuthorization(update types.UpdateAuth, auths []types.PermissionLevel) {
+func (a *AuthorizationManager) CheckUpdateauthAuthorization(update updateAuth, auths []types.PermissionLevel) {
 	EosAssert(len(auths) == 1, &IrrelevantAuthException{}, "updateauth action should only have one declared authorization")
 	auth := auths[0]
 	EosAssert(auth.Actor == update.Account, &IrrelevantAuthException{}, "the owner of the affected permission needs to be the actor of the declared authorization")
@@ -193,131 +196,173 @@ func (a *AuthorizationManager) CheckUpdateauthAuthorization(update types.UpdateA
 	EosAssert(a.GetPermission(&auth).Satisfies(*minPermission), &IrrelevantAuthException{}, "") //TODO
 }
 
-//func (am *AuthorizationManager) CheckDeleteauthAuthorization(del system.DeleteAuth, auths []types.PermissionLevel) {
-//	if len(auths) != 1 {
-//		fmt.Println("error")
-//		return
-//	}
-//	auth := auths[0]
-//	if auth.Actor != del.Account {
-//		fmt.Println("error")
-//		return
-//	}
-//	minPermission := am.GetPermission(&types.PermissionLevel{del.Account, del.Permission})
-//	if am.GetPermission(&auth).Satisfies(minPermission) == false {
-//		fmt.Println("error")
-//		return
-//	}
-//}
-//
-//func (am *AuthorizationManager) CheckLinkauthAuthorization(link system.LinkAuth, auths []types.PermissionLevel) {
-//	if len(auths) != 1 {
-//		fmt.Println("error")
-//		return
-//	}
-//	auth := auths[0]
-//	if auth.Actor != link.Account {
-//		fmt.Println("error")
-//		return
-//	}
-//	//TODO
-//	linkPermissionName := am.LookupMinimumPermission(link.Account, link.Code, link.Type)
-//	if &linkPermissionName == nil {
-//		return
-//	}
-//	//TODO
-//}
-//
-//func (am *AuthorizationManager) CheckUnlinkauthAuthorization(unlink system.UnlinkAuth, auths []types.PermissionLevel) {
-//	if len(auths) != 1 {
-//		fmt.Println("error")
-//		return
-//	}
-//	auth := auths[0]
-//	if auth.Actor != unlink.Account {
-//		fmt.Println("error")
-//		return
-//	}
-//	//TODO
-//}
-//
-//func (am *AuthorizationManager) CheckCanceldelayAuthorization(canceldelay system.CancelDelay, auths []types.PermissionLevel) {
-//	if len(auths) != 1 {
-//		fmt.Println("error")
-//		return
-//	}
-//	auth := auths[0]
-//	if am.GetPermission(&auth).Satisfies(am.GetPermission(&canceldelay.CancelingAuth)) == false {
-//		fmt.Println("error")
-//		return
-//	}
-//	//TODO
-//}
-//
-func (am *AuthorizationManager) CheckAuthorization(actions []*types.Action,
+func (a *AuthorizationManager) CheckDeleteauthAuthorization(del deleteAuth, auths []types.PermissionLevel) {
+	EosAssert(len(auths) == 1, &IrrelevantAuthException{}, "deleteauth action should only have one declared authorization")
+	auth := auths[0]
+	EosAssert(auth.Actor == del.Account, &IrrelevantAuthException{}, "the owner of the affected permission needs to be the actor of the declared authorization")
+	minPermission := a.GetPermission(&types.PermissionLevel{del.Account, del.Permission})
+	EosAssert(a.GetPermission(&auth).Satisfies(*minPermission), &IrrelevantAuthException{}, "") //TODO
+}
+
+func (a *AuthorizationManager) CheckLinkauthAuthorization(link linkAuth, auths []types.PermissionLevel) {
+	EosAssert(len(auths) == 1, &IrrelevantAuthException{}, "link action should only have one declared authorization")
+	auth := auths[0]
+	EosAssert(auth.Actor == link.Account, &IrrelevantAuthException{}, "the owner of the affected permission needs to be the actor of the declared authorization")
+
+	EosAssert(link.Type != updateAuth{}.getName(), &ActionValidateException{}, "Cannot link eosio::updateauth to a minimum permission")
+	EosAssert(link.Type != deleteAuth{}.getName(), &ActionValidateException{}, "Cannot link eosio::deleteauth to a minimum permission")
+	EosAssert(link.Type != linkAuth{}.getName(), &ActionValidateException{}, "Cannot link eosio::linkauth to a minimum permission")
+	EosAssert(link.Type != unlinkAuth{}.getName(), &ActionValidateException{}, "Cannot link eosio::unlinkauth to a minimum permission")
+	EosAssert(link.Type != cancelDelay{}.getName(), &ActionValidateException{}, "Cannot link eosio::canceldelay to a minimum permission")
+
+	linkedPermissionName := a.LookupMinimumPermission(link.Account, link.Code, link.Type)
+	if &linkedPermissionName == nil {
+		return
+	}
+	EosAssert(a.GetPermission(&auth).Satisfies(*a.GetPermission(&types.PermissionLevel{link.Account, linkedPermissionName})), &IrrelevantAuthException{}, "") //TODO
+}
+
+func (a *AuthorizationManager) CheckUnlinkauthAuthorization(unlink unlinkAuth, auths []types.PermissionLevel) {
+	EosAssert(len(auths) == 1, &IrrelevantAuthException{}, "unlink action should only have one declared authorization")
+	auth := auths[0]
+	EosAssert(auth.Actor == unlink.Account, &IrrelevantAuthException{},
+	"the owner of the affected permission needs to be the actor of the declared authorization")
+
+	unlinkedPermissionName := a.LookupLinkedPermission(unlink.Account, unlink.Code, unlink.Type)
+	EosAssert(&unlinkedPermissionName != nil, &TransactionException{},
+	"cannot unlink non-existent permission link of account '${account}' for actions matching '${code}::${action}'")//TODO
+
+	if unlinkedPermissionName == common.DefaultConfig.EosioAnyName {
+		return
+	}
+	EosAssert(a.GetPermission(&auth).Satisfies(*a.GetPermission(&types.PermissionLevel{unlink.Account, unlinkedPermissionName})), &IrrelevantAuthException{}, "") //TODO
+}
+
+func (a *AuthorizationManager) CheckCanceldelayAuthorization(cancel cancelDelay, auths []types.PermissionLevel) common.Microseconds {
+	EosAssert(len(auths) == 1, &IrrelevantAuthException{}, "canceldelay action should only have one declared authorization")
+	auth := auths[0]
+	EosAssert(a.GetPermission(&auth).Satisfies(*a.GetPermission(&cancel.CancelingAuth)), &IrrelevantAuthException{}, "") //TODO
+
+	generatedTrx := entity.GeneratedTransactionObject{}
+	trxId := cancel.TrxId
+	generatedIndex, err := a.control.DB.GetIndex("byTrxId", entity.GeneratedTransactionObject{})
+	if err != nil {
+		log.Fatalln(err)
+	}
+	itr, err := generatedIndex.LowerBound(entity.GeneratedTransactionObject{TrxId:trxId})
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	generatedIndex.Begin(&generatedTrx)
+	EosAssert(!generatedIndex.CompareEnd(itr)&&generatedTrx.TrxId == trxId, &TxNotFound{},
+	"cannot cancel trx_id=${tid}, there is no deferred transaction with that transaction id")//TODO
+
+	trx := types.Transaction{}
+	rlp.DecodeBytes(generatedTrx.PackedTrx, &trx)
+	found := false
+	for _, act := range trx.Actions{
+		for _, auth := range act.Authorization {
+			if auth == cancel.CancelingAuth{
+				found = true
+				break
+			}
+		}
+		if found {
+			break
+		}
+	}
+
+	EosAssert(found, &ActionValidateException{}, "canceling_auth in canceldelay action was not found as authorization in the original delayed transaction")
+	return common.Milliseconds(int64(generatedTrx.DelayUntil) - int64(generatedTrx.Published))
+}
+
+func (a *AuthorizationManager) CheckAuthorization(actions []*types.Action,
 	providedKeys []*ecc.PublicKey,
 	providedPermission []*types.PermissionLevel,
 	providedDelay common.Microseconds,
 	checkTime *func(),
 	allowUnusedKeys bool,
 ) {
-	//delayMaxLimit := common.Seconds(int64(am.control.GetGlobalProperties().Configuration.MaxTrxDelay))
-	//var effectiveProvidedDelay common.Microseconds
-	//if providedDelay >= delayMaxLimit {
-	//	effectiveProvidedDelay = common.MaxMicroseconds()
-	//} else {
-	//	effectiveProvidedDelay = providedDelay
-	//}
-	//checker := types.MakeAuthChecker(func(p *types.PermissionLevel) types.SharedAuthority { return am.GetPermission(p).Auth },
-	//	am.control.GetGlobalProperties().Configuration.MaxAuthorityDepth,
-	//	providedKeys,
-	//	providedPermission,
-	//	effectiveProvidedDelay,
-	//	checkTime)
-	//permissionToSatisfy := make(map[types.PermissionLevel]common.Microseconds)
-	//for _, act := range actions {
-	//	specialCase := false
-	//	delay := effectiveProvidedDelay
-	//
-	//	if act.Account == common.DefaultConfig.SystemAccountName {
-	//		specialCase = true
-	//
-	//		//TODO
-	//	}
-	//
-	//	for _, declaredAuth := range act.Authorization {
-	//		checkTime()
-	//		if !specialCase {
-	//			minPermissionName := am.LookupMinimumPermission(declaredAuth.Actor, act.Account, act.Name)
-	//			if minPermissionName != common.PermissionName(0) {
-	//				minPermission := am.GetPermission(&types.PermissionLevel{declaredAuth.Actor, minPermissionName})
-	//				//EOS_ASSERT
-	//				if !am.GetPermission(&declaredAuth).Satisfies(minPermission) {
-	//					fmt.Println("error")
-	//					return
-	//				}
-	//			}
-	//		}
-	//		permissionToSatisfy[declaredAuth] = delay
-	//		//TODO
-	//	}
-	//}
-	//for p, q := range permissionToSatisfy {
-	//	checkTime()
-	//	if !checker.SatisfiedLoc(&p, q, nil) {
-	//		fmt.Println("error")
-	//		return
-	//	}
-	//}
-	//if !allowUnusedKeys {
-	//	if !checker.AllKeysUsed() {
-	//		fmt.Println("error")
-	//		return
-	//	}
-	//}
+	delayMaxLimit := common.Seconds(int64(a.control.GetGlobalProperties().Configuration.MaxTrxDelay))
+	var effectiveProvidedDelay common.Microseconds
+	if providedDelay >= delayMaxLimit {
+		effectiveProvidedDelay = common.MaxMicroseconds()
+	} else {
+		effectiveProvidedDelay = providedDelay
+	}
+	checker := types.MakeAuthChecker(func(p *types.PermissionLevel) types.SharedAuthority { return a.GetPermission(p).Auth },
+		a.control.GetGlobalProperties().Configuration.MaxAuthorityDepth,
+		providedKeys,
+		providedPermission,
+		effectiveProvidedDelay,
+		checkTime)
+	permissionToSatisfy := make(map[types.PermissionLevel]common.Microseconds)
+
+	for _, act := range actions {
+		specialCase := false
+		delay := effectiveProvidedDelay
+
+		if act.Account == common.DefaultConfig.SystemAccountName {
+			specialCase = true
+			switch act.Name{
+			case updateAuth{}.getName():
+				updateAuth := updateAuth{}
+				rlp.DecodeBytes(act.Data, &updateAuth)
+				a.CheckUpdateauthAuthorization(updateAuth, act.Authorization)
+
+			case deleteAuth{}.getName():
+				deleteAuth := deleteAuth{}
+				rlp.DecodeBytes(act.Data, &deleteAuth)
+				a.CheckDeleteauthAuthorization(deleteAuth, act.Authorization)
+
+			case linkAuth{}.getName():
+				linkAuth := linkAuth{}
+				rlp.DecodeBytes(act.Data, &linkAuth)
+				a.CheckLinkauthAuthorization(linkAuth, act.Authorization)
+
+			case unlinkAuth{}.getName():
+				unlinkAuth := unlinkAuth{}
+				rlp.DecodeBytes(act.Data, &unlinkAuth)
+				a.CheckUnlinkauthAuthorization(unlinkAuth, act.Authorization)
+
+			case cancelDelay{}.getName():
+				cancelDelay := cancelDelay{}
+				rlp.DecodeBytes(act.Data, &cancelDelay)
+				a.CheckCanceldelayAuthorization(cancelDelay, act.Authorization)
+
+			default:
+				specialCase = false
+			}
+		}
+
+		for _, declaredAuth := range act.Authorization {
+			(*checkTime)()
+			if !specialCase {
+				minPermissionName := a.LookupMinimumPermission(declaredAuth.Actor, act.Account, act.Name)
+				if minPermissionName != common.PermissionName(0) {
+					minPermission := a.GetPermission(&types.PermissionLevel{declaredAuth.Actor, minPermissionName}) //TODO
+					EosAssert(a.GetPermission(&declaredAuth).Satisfies(*minPermission), &IrrelevantAuthException{} ,
+					"action declares irrelevant authority '${auth}'; minimum authority is ${min}" ) //TODO
+				}
+			}
+			permissionToSatisfy[declaredAuth] = delay
+			//TODO
+		}
+	}
+	for p, q := range permissionToSatisfy {
+		(*checkTime)()
+		EosAssert(checker.SatisfiedLoc(&p, q, nil),  &UnsatisfiedAuthorization{},
+		"transaction declares authority '${auth}', " +
+		"but does not have signatures for it under a provided delay of ${provided_delay} ms, " +
+		"provided permissions ${provided_permissions}, and provided keys ${provided_keys}") //TODO
+	}
+	if !allowUnusedKeys {
+		EosAssert(checker.AllKeysUsed(), &TxIrrelevantSig{}, "transaction bears irrelevant signatures from these keys: ${keys}")
+	}
 }
 
-func (am *AuthorizationManager) CheckAuthorization2(account common.AccountName,
+func (a *AuthorizationManager) CheckAuthorization2(account common.AccountName,
 	permission common.PermissionName,
 	providedKeys []*ecc.PublicKey,
 	providedPermission []*types.PermissionLevel,
@@ -325,41 +370,40 @@ func (am *AuthorizationManager) CheckAuthorization2(account common.AccountName,
 	checkTime *func(),
 	allowUnusedKeys bool,
 ) {
-	//delayMaxLimit := common.Seconds(int64(am.control.GetGlobalProperties().Configuration.MaxTrxDelay))
-	//var effectiveProvidedDelay common.Microseconds
-	//if providedDelay >= delayMaxLimit {
-	//	effectiveProvidedDelay = common.MaxMicroseconds()
-	//} else {
-	//	effectiveProvidedDelay = providedDelay
-	//}
-	//checker := types.MakeAuthChecker(func(p *types.PermissionLevel) types.SharedAuthority { return am.GetPermission(p).Auth },
-	//	am.control.GetGlobalProperties().Configuration.MaxAuthorityDepth,
-	//	providedKeys,
-	//	providedPermission,
-	//	effectiveProvidedDelay,
-	//	checkTime)
-	////TODO
-	//if !allowUnusedKeys {
-	//	if !checker.AllKeysUsed() {
-	//		fmt.Println("error")
-	//		return
-	//	}
-	//}
+	delayMaxLimit := common.Seconds(int64(a.control.GetGlobalProperties().Configuration.MaxTrxDelay))
+	var effectiveProvidedDelay common.Microseconds
+	if providedDelay >= delayMaxLimit {
+		effectiveProvidedDelay = common.MaxMicroseconds()
+	} else {
+		effectiveProvidedDelay = providedDelay
+	}
+	checker := types.MakeAuthChecker(func(p *types.PermissionLevel) types.SharedAuthority { return a.GetPermission(p).Auth },
+		a.control.GetGlobalProperties().Configuration.MaxAuthorityDepth,
+		providedKeys,
+		providedPermission,
+		effectiveProvidedDelay,
+		checkTime)
+	EosAssert(checker.SatisfiedLc(&types.PermissionLevel{account, permission}, nil), &UnsatisfiedAuthorization{},
+	"permission '${auth}' was not satisfied under a provided delay of ${provided_delay} ms, " +
+	"provided permissions ${provided_permissions}, and provided keys ${provided_keys}") //TODO
+
+	if !allowUnusedKeys {
+		EosAssert(checker.AllKeysUsed(), &TxIrrelevantSig{}, "irrelevant keys provided: ${keys}") //TODO
+	}
 }
 
-func (am *AuthorizationManager) GetRequiredKeys(trx *types.Transaction,
+func (a *AuthorizationManager) GetRequiredKeys(trx *types.Transaction,
 	candidateKeys []*ecc.PublicKey,
 	providedDelay common.Microseconds) []ecc.PublicKey {
-	checker := types.AuthorityChecker{}
-	//checker := types.MakeAuthChecker(func(p *types.PermissionLevel) types.SharedAuthority { return am.GetPermission(p).Auth },
-	//	am.control.GetGlobalProperties().Configuration.MaxAuthorityDepth,
-	//	candidateKeys,
-	//	nil,
-	//	providedDelay,
-	//	func() {})
+	checker := types.MakeAuthChecker(func(p *types.PermissionLevel) types.SharedAuthority { return a.GetPermission(p).Auth },
+		a.control.GetGlobalProperties().Configuration.MaxAuthorityDepth,
+		candidateKeys,
+		nil,
+		providedDelay,
+		noopCheckTime)
 	return checker.GetUsedKeys()
 }
 
-func (am *AuthorizationManager) AuthToShared(auth types.Authority) types.SharedAuthority {
+func (a *AuthorizationManager) AuthToShared(auth types.Authority) types.SharedAuthority {
 	return types.SharedAuthority{auth.Threshold, auth.Keys, auth.Accounts, auth.Waits}
 }

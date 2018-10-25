@@ -8,16 +8,3 @@ func Empty(i interface{}) bool {
 
 	return reflect.DeepEqual(current, empty)
 }
-
-func CompareSlice(first interface{}, secend interface{}) bool {
-
-	/*if len(first) != len(secend){
-		return false
-	}
-	for i:=0; i<len(first);i++{
-		if first[i]!=secend[i]{
-			return false
-		}
-	}*/
-	return true
-}

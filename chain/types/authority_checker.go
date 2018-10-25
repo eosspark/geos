@@ -8,7 +8,7 @@ import (
 type PermissionToAuthorityFunc func(*PermissionLevel) SharedAuthority
 type AuthorityChecker struct {
 	permissionToAuthority PermissionToAuthorityFunc
-	CheckTime             func()
+	CheckTime             *func()
 	ProvidedKeys          []ecc.PublicKey
 	ProvidedPermissions   []PermissionLevel
 	UsedKeys              []bool
@@ -162,13 +162,21 @@ func (wtv *WeightTallyVisitor) VisitPermissionLevelWeight(permission PermissionL
 
 func MakeAuthChecker(pta PermissionToAuthorityFunc,
 	recursionDepthLimit uint16,
-	providedKeys []ecc.PublicKey,
-	providedPermission []PermissionLevel,
+	providedKeys []*ecc.PublicKey,
+	providedPermission []*PermissionLevel,
 	providedDelay common.Microseconds,
-	checkTime func()) AuthorityChecker {
+	checkTime *func()) AuthorityChecker {
 	//noopChecktime := func() {}
+	providedKeysArray := make([]ecc.PublicKey, len(providedKeys))
+	for i, key := range providedKeys {
+		providedKeysArray[i] = *key
+	}
+	providedPermissionArray := make([]PermissionLevel, len(providedKeys))
+	for i, permission := range providedPermission {
+		providedPermissionArray[i] = *permission
+	}
 	return AuthorityChecker{permissionToAuthority: pta, RecursionDepthLimit: recursionDepthLimit,
-		ProvidedKeys: providedKeys, ProvidedPermissions: providedPermission,
+		ProvidedKeys: providedKeysArray, ProvidedPermissions: providedPermissionArray,
 		ProvidedDelay: providedDelay, CheckTime: checkTime,
 	}
 }

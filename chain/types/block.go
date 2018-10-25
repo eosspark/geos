@@ -96,18 +96,6 @@ func (s TransactionStatus) String() string {
 // 	CyclesSummary []Cycles `json:"cycles_summary"`
 // }
 
-type ReversibleBlockObject struct {
-	ID          uint64
-	BlockNum    uint32
-	PackedBlock string
-}
-
-type ReversibleBlockIndex struct {
-	rbObject ReversibleBlockObject
-	byId     uint64
-	byNum    uint32
-}
-
 type TransactionReceiptHeader struct {
 	Status        TransactionStatus `json:"status"`
 	CpuUsageUs    uint32            `json:"cpu_usage_us"`
@@ -121,8 +109,8 @@ type TransactionReceipt struct {
 
 type SignedBlock struct {
 	SignedBlockHeader `multiIndex:"inline"`
-	Transactions      []TransactionReceipt `multiIndex:"inline",json:"transactions"`
-	BlockExtensions   []*Extension         `multiIndex:"inline",json:"block_extensions"`
+	Transactions      []TransactionReceipt `json:"transactions"`
+	BlockExtensions   []*Extension         `json:"block_extensions"`
 }
 
 func (m *SignedBlock) String() string {
