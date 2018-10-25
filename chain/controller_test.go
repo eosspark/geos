@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
+	"github.com/eosspark/eos-go/entity"
 	"github.com/stretchr/testify/assert"
 	"reflect"
 	"strings"
@@ -100,7 +101,7 @@ func TestController_SetApplayHandler(t *testing.T) {
 func TestController_GetGlobalProperties(t *testing.T) {
 	c := GetControllerInstance()
 	result := c.GetGlobalProperties()
-	gp := types.GlobalPropertyObject{}
+	gp := entity.GlobalPropertyObject{}
 	gp.ID = common.IdType(1)
 	err := c.DB.Find("ID", gp, &gp)
 	if err != nil {

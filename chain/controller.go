@@ -295,13 +295,13 @@ func (c *Controller) startBlock1(when common.BlockTimeStamp, confirmBlockCount u
 	wasPendingPromoted := c.Pending.PendingBlockState.MaybePromotePending()
 	log.Info("wasPendingPromoted", wasPendingPromoted)
 	if c.ReadMode == DBReadMode(SPECULATIVE) || c.Pending.BlockStatus != types.BlockStatus(types.Incomplete) {
-		gpo := types.GlobalPropertyObject{}
+		gpo := entity.GlobalPropertyObject{}
 		gpo.ID = common.IdType(1)
 		err := c.DB.Find("id", gpo, &gpo)
 		if err != nil {
 			fmt.Println("GetGlobalProperties is error detail:", err)
 		}
-		fmt.Println("test:", gpo)
+		//fmt.Println("test:", gpo)
 		if (!common.Empty(gpo.ProposedScheduleBlockNum) && gpo.ProposedScheduleBlockNum <= c.Pending.PendingBlockState.DposIrreversibleBlocknum) &&
 			(len(c.Pending.PendingBlockState.PendingSchedule.Producers) == 0) &&
 			(!wasPendingPromoted) {
@@ -313,7 +313,7 @@ func (c *Controller) startBlock1(when common.BlockTimeStamp, confirmBlockCount u
 				c.Pending.PendingBlockState.SetNewProducers(ps)
 			}
 
-			c.DB.Modify(&gpo, func(i *types.GlobalPropertyObject) {
+			c.DB.Modify(&gpo, func(i *entity.GlobalPropertyObject) {
 				i.ProposedScheduleBlockNum = 1
 				i.ProposedSchedule.Clear()
 			})
@@ -446,8 +446,8 @@ func (c *Controller) PushTransaction(trx types.TransactionMetadata, deadLine com
 	return trace
 }
 
-func (c *Controller) GetGlobalProperties() *types.GlobalPropertyObject {
-	gpo := types.GlobalPropertyObject{}
+func (c *Controller) GetGlobalProperties() *entity.GlobalPropertyObject {
+	gpo := entity.GlobalPropertyObject{}
 	gpo.ID = common.IdType(1)
 	err := c.DB.Find("id", gpo, &gpo)
 	if err != nil {
@@ -457,10 +457,10 @@ func (c *Controller) GetGlobalProperties() *types.GlobalPropertyObject {
 	return &gpo
 }
 
-func (c *Controller) GetDynamicGlobalProperties() (r *types.DynamicGlobalPropertyObject) {
-	dgpo := types.DynamicGlobalPropertyObject{}
+func (c *Controller) GetDynamicGlobalProperties() (r *entity.DynamicGlobalPropertyObject) {
+	dgpo := entity.DynamicGlobalPropertyObject{}
 	dgpo.ID = 0
-	err := c.DB.Find("ID", dgpo, &dgpo)
+	err := c.DB.Find("id", dgpo, &dgpo)
 	if err != nil {
 		log.Error("GetDynamicGlobalProperties is error detail:", err)
 	}
@@ -1251,7 +1251,7 @@ func (c *Controller) SetProposedProducers(producers []types.ProducerKey) int64 {
 
 	sch.Producers = producers
 	version := sch.Version
-	c.DB.Modify(&gpo, func(p *types.GlobalPropertyObject) {
+	c.DB.Modify(&gpo, func(p *entity.GlobalPropertyObject) {
 		p.ProposedScheduleBlockNum = curBlockNum
 		tmp := p.ProposedSchedule.SharedProducerScheduleType(sch)
 		p.ProposedSchedule = *tmp
@@ -1341,7 +1341,7 @@ func (c *Controller) CreateNativeAccount(name common.AccountName, owner types.Au
 	ramDelta += 2 * common.BillableSizeV("permission_object")           //::billable_size_v<permission_object>
 	ramDelta += ownerPermission.Auth.GetBillableSize()
 	ramDelta += activePermission.Auth.GetBillableSize()
-	fmt.Println("====================ramDelta:", ramDelta)
+	//fmt.Println("====================ramDelta:", ramDelta)
 	c.ResourceLimists.AddPendingRamUsage(name, int64(ramDelta))
 	c.ResourceLimists.VerifyAccountRamUsage(name)
 }
@@ -1379,9 +1379,15 @@ func (c *Controller) initializeDatabase() {
 	})*/
 	gi := c.Config.genesis.Initial()
 	//gi.Validate()	//check config
-	gpo := types.GlobalPropertyObject{}
+	gpo := entity.GlobalPropertyObject{}
 	gpo.Configuration = gi
 	err := c.DB.Insert(&gpo)
+	if err != nil {
+		fmt.Errorf("-----------------", err)
+	}
+	dgpo := entity.DynamicGlobalPropertyObject{}
+	dgpo.ID = 0
+	err = c.DB.Insert(&dgpo)
 	if err != nil {
 		fmt.Errorf("-----------------", err)
 	}
@@ -1488,7 +1494,7 @@ func NewHandlerKey(scopeName common.ScopeName, actionName common.ActionName) Han
 
 func (c *Controller) clearExpiredInputTransactions() {
 
-	transactionIdx, err := c.DB.GetIndex("byExpiration", &entity.TransactionObject{})
+	/*transactionIdx, err := c.DB.GetIndex("byExpiration", &entity.TransactionObject{})
 	if err != nil {
 		fmt.Println("ClearExpiredInputTransactions GetIndex Is Error", err)
 	}
@@ -1501,7 +1507,7 @@ func (c *Controller) clearExpiredInputTransactions() {
 	for !common.Empty(transactionIdx) && now > common.TimePoint(t.Expiration) {
 		//c.DB.Remove(t)		//TODO index.remove(t)
 		fmt.Println("delete transactionIdx.begin()")
-	}
+	}*/
 }
 
 func (c *Controller) CheckActorList(actors []common.AccountName) {
