@@ -26,7 +26,7 @@ func (s Signature) Verify(hash []byte, pubKey PublicKey) bool {
 	}
 
 	// TODO: choose the S256 curve, based on s.Curve
-	recoveredKey, _, err := btcec.RecoverCompact(btcec.S256(), s.Content, hash)
+	recoveredKey, _, err := btcec.RecoverCompact(btcec.S256(), s.Content[:], hash)
 	if err != nil {
 		return false
 	}
@@ -48,7 +48,7 @@ func (s Signature) PublicKey(hash []byte) (out PublicKey, err error) {
 		return out, fmt.Errorf("WARN: github.com/eosspark/eos-go/ecc library does not support the R1 curve yet")
 	}
 
-	recoveredKey, _, err := btcec.RecoverCompact(btcec.S256(), s.Content, hash)
+	recoveredKey, _, err := btcec.RecoverCompact(btcec.S256(), s.Content[:], hash)
 	if err != nil {
 		return out, err
 	}
@@ -105,6 +105,7 @@ func NewSignature(fromText string) (Signature, error) {
 	checksum := sigbytes[len(sigbytes)-4:]
 	verifyChecksum := Ripemd160checksumHashCurve(content, curveID)
 	if !bytes.Equal(verifyChecksum, checksum) {
+		fmt.Printf("signature checksum failed, found %x expected %x", verifyChecksum, checksum)
 		return Signature{}, fmt.Errorf("signature checksum failed, found %x expected %x", verifyChecksum, checksum)
 	}
 	var temp [65]byte

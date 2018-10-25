@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"testing"
 
+	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/btcsuite/btcutil/base58"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -18,7 +19,7 @@ func TestSignatureSerialization(t *testing.T) {
 	payload := []byte("payload")
 	sig, err := privkey.Sign(sigDigest(make([]byte, 32, 32), payload))
 	require.NoError(t, err)
-	assert.Equal(t, `SIG_K1_K2JjfxmYpoVwCKkohDiQPcepeyetSWMgQPjx3zqagzao5NeQhnW4JQ2qwxd4txU7dR5TdS6PnP75vmMs5qSXzjphqUZz6N`, sig.String()) // not checked after..
+	assert.Equal(t, `SIG_K1_K2JjfxmYpoVwCKkohDiQPcepeyetSWMgQPjx3zqagzao5NeQhnW4JQ2qwxd4txU7dR5TdS6PnP75vmMs5qSXzjphpfGnqM`, sig.String()) // not checked after..
 	assert.True(t, isCanonical([]byte(sig.Content[:])))
 }
 
@@ -46,8 +47,9 @@ func TestSignatureCanonical(t *testing.T) {
 }
 
 func TestSignatureMarshalUnmarshal(t *testing.T) {
-	fromEOSIOC := "SIG_K1_K5yY5ehsnDMc6xcRhsLYzFuZGUaKwb4hc8oLmP5HA1EhU42NRo3ygx3zvLRJ1nkw1NA5nCSegwcYkSfkZBQBzqMDsCGnNK"
+	fromEOSIOC := "SIG_K1_KYvoFKUyv1xjQYwrAanrRockv9MGJFB55o9SRdobTTi2kMY6PZpEpSz4HxAXNxBTDvbvCcRLY4yA4xBYf542ReXqNvajRi"
 	sig, err := NewSignature(fromEOSIOC)
+	fmt.Println(err)
 	require.NoError(t, err)
 	assert.Equal(t, fromEOSIOC, sig.String())
 	assert.True(t, isCanonical([]byte(sig.Content[:])))
@@ -75,43 +77,19 @@ func isCanonical(compactSig []byte) bool {
 }
 
 func TestSignaturePublicKeyExtraction(t *testing.T) {
-	// was signed with EOS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV
-	fromEOSIOC := "SIG_K1_K5yY5ehsnDMc6xcRhsLYzFuZGUaKwb4hc8oLmP5HA1EhU42NRo3ygx3zvLRJ1nkw1NA5nCSegwcYkSfkZBQBzqMDsCGnNK"
+	//5KX2S6rH1qe4LF14LmRgf5D5C8Kx7QqKynF5cLddC5spe2gtV18
+	//EOS5fxEptrpsG2QTjRgi8Gf9EConFDH3jeUc24YFSemcW3bBDhuoW
+	fromEOSIOC := "SIG_K1_KfN4vL1cdm51LwGL9jwih6GiMGSe3qTE6EqopdwwyxxJcRJkfoPWpUKjTGrRzspsWhL8qvXQqLjCsBqopN4Z7SPqJJ8UrN"
 	sig, err := NewSignature(fromEOSIOC)
 	require.NoError(t, err)
 
 	payload, err := hex.DecodeString("20d8af5a0000b32bcc0e37eb0000000000010000000000ea305500409e9a2264b89a010000000000ea305500000000a8ed32327c0000000000ea305500001059b1abe93101000000010002c0ded2bc1f1305fb0faac5e6c03ee3a1924234985427b6167ca569d13df435cf01000001000000010002c0ded2bc1f1305fb0faac5e6c03ee3a1924234985427b6167ca569d13df435cf0100000100000000010000000000ea305500000000a8ed32320100")
 	require.NoError(t, err)
-
-	pubKey, err := sig.PublicKey(sigDigest(make([]byte, 32, 32), payload))
+	hashed := crypto.Hash256(payload).Bytes()
+	pubKey, err := sig.PublicKey(hashed)
 	require.NoError(t, err)
+	assert.Equal(t, "EOS5fxEptrpsG2QTjRgi8Gf9EConFDH3jeUc24YFSemcW3bBDhuoW", pubKey.String())
 
-	// Ok, we'd need to find values where we know the signature is valid, and comes from the given key.
-	assert.Equal(t, "PUB_K1_6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV", pubKey.String())
-}
-
-// OKAY I THINK THERE's a problem with the internal representation of
-// a signature.. it works in an of itself, but it is not compatible
-// with the main `nodeos` software.
-//
-// FIXME: We need to fix that for this library to be able to sign
-// transactions and push them to the network without relying on an
-// external wallet, or eosjs-ecc or something..
-func TestSignaturePublicKeyExtractionSecond(t *testing.T) {
-	// this was transaction be72ed8f391277c7792caec781b70f3e97766920c1f3844fdbb82b7db5f0381e
-	// was signed with EOS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV
-	fromEOSIOC := "SIG_K1_KkwLhwDoRF8gpGFbcUKiaPdeeKo6U7eDuXQw9szMiNE4K4cFe17sffk6hmy3mWf1ogtzd5J5kvnvFD3Lq5cF6VyYb3KsGy"
-	sig, err := NewSignature(fromEOSIOC)
-	require.NoError(t, err)
-
-	payload, err := hex.DecodeString("30d3b35a0000be0194c22fe70000000000010000000000ea305500409e9a2264b89a010000000000ea305500000000a8ed32327c0000000000ea305500000059b1abe93101000000010002c0ded2bc1f1305fb0faac5e6c03ee3a1924234985427b6167ca569d13df435cf01000001000000010002c0ded2bc1f1305fb0faac5e6c03ee3a1924234985427b6167ca569d13df435cf0100000100000000010000000000ea305500000000a8ed32320100")
-	require.NoError(t, err)
-
-	pubKey, err := sig.PublicKey(sigDigest(make([]byte, 32, 32), payload))
-	require.NoError(t, err)
-
-	// Ok, we'd need to find values where we know the signature is valid, and comes from the given key.
-	assert.Equal(t, "PUB_K1_5DguRMaGh72NvbVX5LKHTb5cvbRmAxgrm9i2NNPKv5TC7FadXs", pubKey.String())
 }
 
 func TestEOSIOCSigningComparison(t *testing.T) {
@@ -131,7 +109,7 @@ func TestEOSIOCSigningComparison(t *testing.T) {
 	sig, err := privKey.Sign(digest)
 	require.NoError(t, err)
 
-	fromEOSIOC := "SIG_K1_K2WBNtiTY8o4mqFSz7HPnjkiT9JhUYGFa81RrzaXr3aWRF1F8qwVfutJXroqiL35ZiHTcvn8gPWGYJDwnKZTCcbAGJy4i9"
+	fromEOSIOC := "SIG_K1_K2WBNtiTY8o4mqFSz7HPnjkiT9JhUYGFa81RrzaXr3aWRF1F8qwVfutJXroqiL35ZiHTcvn8gPWGYJDwnKZTCcbAL56Fxu"
 	assert.Equal(t, fromEOSIOC, sig.String())
 }
 
@@ -150,7 +128,7 @@ func TestNodeosSignatureComparison(t *testing.T) {
 	require.NoError(t, err)
 
 	// from that tx:
-	fromEOSIOCTx := "SIG_K1_K9JDNpqcgUin9i2PtsV6QbLG8QGzYPN8kqVicJ63CgHBiwq9q27qykaerbNh8kD6baLFWcuKyTmVUwFRF6myjqFQcHvRXf"
+	fromEOSIOCTx := "SIG_K1_K9JDNpqcgUin9i2PtsV6QbLG8QGzYPN8kqVicJ63CgHBiwq9q27qykaerbNh8kD6baLFWcuKyTmVUwFRF6myjqFQbVsqht"
 	assert.Equal(t, fromEOSIOCTx, sig.String())
 
 	// decode
@@ -159,9 +137,9 @@ func TestNodeosSignatureComparison(t *testing.T) {
 }
 
 func TestSignatureUnmarshalChecksum(t *testing.T) {
-	fromEOSIOC := "SIG_K1_K5yY5ehsnDMc6xcRhsLYzFuZGUaKwb4hc8oLmP5HA1EhU42NRo3ygx3zvLRJ1nkw1NA5nCSegwcYkSfkZBQBzqMDsCGnZZ" // simply checked the last 2 bytes
+	fromEOSIOC := "SIG_K1_JvnbzEVvC6aZZkuHB75huR9TX8sq6thtLqDTGLg8pmGqRzhAXrMtMJYQqsodtuQ9niBSwS4dEZHdkvWfDsYT9yFQcHvRXf"
 	_, err := NewSignature(fromEOSIOC)
-	require.Equal(t, "signature checksum failed, found 02c9bc70 expected 02c9befc", err.Error())
+	require.Equal(t, "signature checksum failed, found 490cc16d expected 141e1d3a", err.Error())
 }
 
 func sigDigest(chainID, payload []byte) []byte {
@@ -169,4 +147,14 @@ func sigDigest(chainID, payload []byte) []byte {
 	_, _ = h.Write(chainID)
 	_, _ = h.Write(payload)
 	return h.Sum(nil)
+}
+
+func TestSignatureMarshal(t *testing.T) {
+	fromEOSIOC := "SIG_K1_JvnbzEVvC6aZZkuHB75huR9TX8sq6thtLqDTGLg8pmGqRzhAXrMtMJYQqsodtuQ9niBSwS4dEZHdkvWfDsYT9yvuwgM4Bi"
+	sig, err := NewSignature(fromEOSIOC)
+	fmt.Println(sig, err)
+	require.NoError(t, err)
+	assert.Equal(t, fromEOSIOC, sig.String())
+	assert.True(t, isCanonical([]byte(sig.Content[:])))
+
 }

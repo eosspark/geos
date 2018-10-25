@@ -22,7 +22,6 @@ func NewSha256Nil() *Sha256 {
 	return &Sha256{
 		Hash: data,
 	}
-
 }
 
 func NewSha256String(s string) *Sha256 {

@@ -371,7 +371,7 @@ func (p *PackedTransaction) Expiration() common.TimePointSec {
 	return p.UnpackedTrx.Expiration
 }
 
-func (p *PackedTransaction) ID() (id common.TransactionIdType) {
+func (p *PackedTransaction) ID() common.TransactionIdType {
 	p.localUnpack()
 	return p.GetTransaction().ID()
 }

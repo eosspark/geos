@@ -4,9 +4,7 @@ import (
 	"fmt"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
-
 	"github.com/eosspark/eos-go/crypto"
-	"net"
 	"time"
 )
 
@@ -89,6 +87,10 @@ uint32_t,
 > transaction_state_index;
 */
 
+var transactionStateIndexByID map[common.TransactionIdType]transactionState
+var transactionStateIndexByExpiry map[common.TimePointSec]transactionState
+var transactionStateIndexByBlockNum map[uint32]transactionState
+
 type peerBlockState struct {
 	id          common.BlockIdType
 	blockNum    uint32
@@ -130,6 +132,9 @@ ordered_unique< tag<by_block_num>, member<eosio::peer_block_state, uint32_t, &eo
 > peer_block_state_index;
 */
 
+var peerBlockStateIndexbyID map[common.BlockIdType]peerBlockState
+var peerBlockStateIndexbyBlockNum map[uint32]peerBlockState
+
 type updateKnownByPeer struct {
 }
 
@@ -157,8 +162,9 @@ type updateBlockNum struct {
 	newBnum uint32
 }
 
-func (u *updateBlockNum) updateBlockNum(bnum uint32) {
-	u.newBnum = bnum
+func NewupdateBlockNum(bnum uint32) *updateBlockNum {
+	return &updateBlockNum{bnum}
+
 }
 
 func (u *updateBlockNum) operator1(nts *nodeTransactionState) { //TODO operator1
@@ -297,10 +303,6 @@ uint32_t,
 node_transaction_index;
 */
 
-//func (N *NetPluginIMpl)findConnection(host string) *connection_ptr{
-//
-//}
-
 type stages byte
 
 const (
@@ -314,14 +316,13 @@ type syncManager struct {
 	syncLastRequestedNum uint32
 	syncNextExpectedNum  uint32
 	syncReqSpan          uint32
-	//source ConnectionPtr
-	state   stages
-	_blocks common.BlockIdType //<deque<block_id_type>>
+	source               *Peer
+	state                stages
+	_blocks              common.BlockIdType //<deque<block_id_type>>
 	//chainPlugin *chainPlugin
-
 }
 
-func NewsyncManager(span uint32) *syncManager {
+func NewSyncManager(span uint32) *syncManager {
 	//chainPlugin :=
 	return &syncManager{
 		syncKnownLibNum:      0,
@@ -355,72 +356,150 @@ func (s *syncManager) setStage(newstate stages) {
 }
 
 func (s *syncManager) syncRequired() bool {
-	fmt.Printf("last req = %d,last recv = %d known = %d our head %d\n", s.syncLastRequestedNum, s.syncNextExpectedNum, s.syncKnownLibNum, 100) //chain_plug->chain( ).head_block_num( )
-	return s.syncLastRequestedNum < s.syncKnownLibNum || 0 < s.syncLastRequestedNum                                                            //100  ---->  chain_plug->chain( ).head_block_num( )
+	fmt.Printf("last req = %d,last recv = %d known = %d our head %d\n", +s.syncLastRequestedNum, s.syncNextExpectedNum, s.syncKnownLibNum, 100) //chain_plug->chain( ).head_block_num( )
+	return s.syncLastRequestedNum < s.syncKnownLibNum || 0 < s.syncLastRequestedNum                                                             //100  ---->  chain_plug->chain( ).head_block_num( )
 }
 
-func (s *syncManager) isActive(c net.Conn) bool {
-	//if s.state == headCatchup && c {
-	//	fhset := c.forkHead != common.BlockIdType()
-	//	// return c.forkHead != common.BlockIdType() && c.forkHeadNum < chainPlugin
-	//}
-	//return s.state != inSync
-	return true
+func (s *syncManager) isActive(p *Peer) bool {
+	if s.state == headCatchup && p != nil { //TODO
+		fhset := p.forkHead != common.BlockIdType(*crypto.NewSha256Nil())
+		//      fc_dlog(logger, "fork_head_num = ${fn} fork_head set = ${s}",
+		//              ("fn", c->fork_head_num)("s", fhset));
+
+		fmt.Printf("fork_head_num = %d fork_head set = %s\n", p.forkHeadNum, fhset)
+		return p.forkHead != common.BlockIdNil()
+		//&& p.forkHeadNum < chain_plug->chain().head_block_num()
+
+		//         return c->fork_head != block_id_type() && c->fork_head_num < chain_plug->chain().head_block_num();
+	}
+	return s.state != inSync
 }
 
-//bool sync_manager::is_active(connection_ptr c) {
-//   if (state == head_catchup && c) {
-//      bool fhset = c->fork_head != block_id_type();
-//      fc_dlog(logger, "fork_head_num = ${fn} fork_head set = ${s}",
-//              ("fn", c->fork_head_num)("s", fhset));
-//         return c->fork_head != block_id_type() && c->fork_head_num < chain_plug->chain().head_block_num();
-//   }
-//   return state != in_sync;
-//}
+func (s *syncManager) resetLibNum(myImpl *netPluginIMpl, p *Peer) {
+	if s.state == inSync {
+		s.source.reset()
+	}
+	if p.current() {
+		if p.lastHandshakeRecv.LastIrreversibleBlockNum > s.syncKnownLibNum {
+			s.syncKnownLibNum = p.lastHandshakeRecv.LastIrreversibleBlockNum
+		}
+	} else if p == s.source {
+		s.syncLastRequestedNum = 0
+		s.requestNextChunk(myImpl, p)
+	}
+}
 
-func (s *syncManager) resetLibNum(p *Peer) {
-	//if s.state == inSync {
-	//	s.source.reset()
+func (s *syncManager) requestNextChunk(myImpl *netPluginIMpl, p *Peer) {
+	//syncRequest := SyncRequestMessage{
+	//	StartBlock: s.syncLastRequestedNum,
+	//	EndBlock:   s.syncNextExpectedNum,
 	//}
-	//if c.Current() {
+	//p.write(&syncRequest)
 	//
+	////uint32_t head_block = chain_plug->chain().fork_db_head_block_num();
+	//headBlock := uint32(100)
+	//if headBlock < s.syncLastRequestedNum && s.source != nil && s.source.current() {
+	//	//fc_ilog (logger, "ignoring request, head is ${h} last req = ${r} source is ${p}",
+	//	// ("h",head_block)("r",sync_last_requested_num)("p",source->peer_name()));
+	//	fmt.Printf("ignoring request,head is %d last req = %d source is %s\n", +headBlock, s.syncLastRequestedNum, p.peerAddr)
+	//	return
+	//}
+	///* ----------
+	// * next chunk provider selection criteria
+	// * a provider is supplied and able to be used, use it.
+	// * otherwise select the next available from the list, round-robin style.
+	// */
+	//
+	//if p != nil && p.current() {
+	//	s.source = p
+	//} else {
+	//	if len(myImpl.peers) == 1 {
+	//		if s.source == nil {
+	//			for _, p := range myImpl.peers {
+	//				s.source = p
+	//			}
+	//		}
+	//	} else {
+	//		//// init to a linear array search
+	//		//auto cptr = my_impl->connections.begin();
+	//		//auto cend = my_impl->connections.end();
+	//		//// do we remember the previous source?
+	//		//if (source) {
+	//		// //try to find it in the list
+	//		// cptr = my_impl->connections.find(source);
+	//		// cend = cptr;
+	//		// if (cptr == my_impl->connections.end()) {
+	//		//	 //not there - must have been closed! cend is now connections.end, so just flatten the ring.
+	//		//	 source.reset();
+	//		//	 cptr = my_impl->connections.begin();
+	//		// } else {
+	//		//	 //was found - advance the start to the next. cend is the old source.
+	//		//	 if (++cptr == my_impl->connections.end() && cend != my_impl->connections.end() ) {
+	//		//	 cptr = my_impl->connections.begin();
+	//		//	 }
+	//		// }
+	//		//}
+	//		//scan the list of peers looking for another able to provide sync blocks.
+	//		// auto cstart_it = cptr;
+	//		// do {
+	//		//	 //select the first one which is current and break out.
+	//		//	 if((*cptr)->current()) {
+	//		//	 source = *cptr;
+	//		//	 break;
+	//		// }
+	//		//	 if(++cptr == my_impl->connections.end())
+	//		//	 cptr = my_impl->connections.begin();
+	//		// } while(cptr != cstart_it);
+	//		// // no need to check the result, either source advanced or the whole list was checked and the old source is reused.
+	//		//}
+	//
+	//	}
+	//
+	//	// verify there is an available source
+	//	if s.source != nil || !s.source.current() {
+	//		//elog("Unable to continue syncing at this time")
+	//		fmt.Println("Unable to continue syncing at this time")
+	//		//sync_known_lib_num = chain_plug->chain().last_irreversible_block_num()
+	//		s.syncLastRequestedNum = 0
+	//		s.setStage(inSync) // probably not, but we can't do anything else
+	//		return
+	//	}
+
+	if s.syncLastRequestedNum != s.syncKnownLibNum {
+		start := s.syncNextExpectedNum
+		end := start + s.syncReqSpan - 1
+		if end > s.syncKnownLibNum {
+			end = s.syncKnownLibNum
+		}
+		if end > 0 && end >= start {
+			//fc_ilog(logger, "requesting range ${s} to ${e}, from ${n}",
+			//	("n",source->peer_name())("s",start)("e",end));
+			//fmt.Printf("requesting range %s to %d, from %d\n", s.source.peerAddr, start, end)
+			//s.source.requestSyncBlocks(start, end)
+			p.requestSyncBlocks(start, end)
+			s.syncLastRequestedNum = end
+
+		}
+	}
+
 	//}
 }
 
-//void sync_manager::reset_lib_num(connection_ptr c) {
-//   if(state == in_sync) {
-//      source.reset();
-//   }
-//   if( c->current() ) {
-//      if( c->last_handshake_recv.last_irreversible_block_num > sync_known_lib_num) {
-//         sync_known_lib_num =c->last_handshake_recv.last_irreversible_block_num;
-//      }
-//   } else if( c == source ) {
-//      sync_last_requested_num = 0;
-//      request_next_chunk();
-//   }
-//}
-func (s *syncManager) requestNextChunk(peer *Peer) {
-
+func (s *syncManager) sendHandshakes(impl *netPluginIMpl) {
+	for _, p := range impl.peers {
+		if p.current() {
+			p.sendHandshake(impl)
+		}
+	}
 }
 
-func (s *syncManager) sendHandshakes() {
-
-	// for _,ci := range
-
-	// for( auto &ci : my_impl->connections) {
-	//    if( ci->current()) {
-	//       ci->send_handshake();
-	//    }
-	// }
-}
-
-func (s *syncManager) recvHandshake(p *Peer, msg *HandshakeMessage) {
+func (s *syncManager) recvHandshake(myImpl *netPluginIMpl, p *Peer, msg *HandshakeMessage) {
 	//controller& cc = chain_plug->chain();
 	//libNum := cc.last_irreversible_block_num()
-	libNum := uint32(100) //TODO
+	//libNum := uint32(100) //TODO
+	libNum := uint32(0) //TODO
 	peerLib := msg.LastIrreversibleBlockNum
-	s.resetLibNum(p)
+	s.resetLibNum(myImpl, p)
 	p.syncing = false
 
 	//--------------------------------
@@ -441,7 +520,7 @@ func (s *syncManager) recvHandshake(p *Peer, msg *HandshakeMessage) {
 	head := uint32(100) //TODO
 	headID := common.BlockIdType(*crypto.NewSha256Nil())
 
-	if headID.String() == msg.HeadID.String() {
+	if headID == msg.HeadID {
 		//fc_dlog(logger, "sync check state 0")
 
 		fmt.Println("sync check statue 0")
@@ -457,13 +536,13 @@ func (s *syncManager) recvHandshake(p *Peer, msg *HandshakeMessage) {
 
 	}
 
-	if libNum > msg.HeadNum {
+	if head < peerLib {
 		//fc_dlog(logger, "sync check state 1");
 		fmt.Println("sync check state 1")
 		//wait for receipt of a notice message before initiating sync
-		if p.protocolVersion < protoExplicitSync {
-			s.startSync(p, peerLib)
-		}
+		//if p.protocolVersion < protoExplicitSync {
+		s.startSync(myImpl, p, peerLib)
+		//}
 		return
 	}
 
@@ -485,7 +564,7 @@ func (s *syncManager) recvHandshake(p *Peer, msg *HandshakeMessage) {
 	if head <= msg.HeadNum {
 		//fc_dlog(logger, "sync check state 3")
 		fmt.Println("sync check state 3")
-		s.verifyCatchup(p, msg.HeadNum, msg.HeadID)
+		s.verifyCatchup(myImpl, p, msg.HeadNum, msg.HeadID)
 		return
 	} else {
 		//fc_dlog(logger, "sync check state 4");
@@ -505,178 +584,137 @@ func (s *syncManager) recvHandshake(p *Peer, msg *HandshakeMessage) {
 	fmt.Println("sync check failed to resolve status")
 }
 
-func (s *syncManager) startSync(p *Peer, target uint32) {
+func (s *syncManager) startSync(myImpl *netPluginIMpl, p *Peer, target uint32) {
 	if target > s.syncKnownLibNum {
 		s.syncKnownLibNum = target
 	}
-	if !s.syncRequired() {
-		bnum := 100 //chain_plug->chain().last_irreversible_block_num()
-		hnum := 100 //chain_plug->chain().head_block_num()
-		fmt.Printf("we are already caught up, my irr = %d,head =%d,target = %d\n", bnum, hnum, target)
-		return
-	}
+	//if !s.syncRequired() {
+	//	bnum := 100 //chain_plug->chain().last_irreversible_block_num()
+	//	hnum := 100 //chain_plug->chain().head_block_num()
+	//	fmt.Printf("we are already caught up, my irr = %d,head =%d,target = %d\n", bnum, hnum, target)
+	//	return
+	//}
 	if s.state == inSync {
 		s.setStage(libCatchup)
-		s.syncNextExpectedNum = 99 + 1 //chain_plug->chain().last_irreversible_block_num() + 1
+		//s.syncNextExpectedNum = 99 + 1 //TODO  chain_plug->chain().last_irreversible_block_num() + 1
+		s.syncNextExpectedNum = p.lastHandshakeSent.HeadNum + 1
 	}
-	fmt.Printf("Catching up with chain, our last req is %d, theirs is %d peer %s\n", s.syncLastRequestedNum, target, "walker") //walker  c->peer_name()
-	// s.requestNextChunk(c)
+	//   wlog("Catching up with chain, our last req is ${cc}, theirs is ${t} peer ${p}",
+	//           ( "cc",sync_last_requested_num)("t",target)("p",c->peer_name()));
+	fmt.Printf("Catching up with chain, our last req is %d, theirs is %d peer %s\n", +s.syncLastRequestedNum, target, p.peerAddr)
+
+	s.requestNextChunk(myImpl, p)
+}
+func (s *syncManager) reassignFetch(myImpl *netPluginIMpl, p *Peer, reason GoAwayReason) {
+	fmt.Printf("reassign_fetch, our last req is %d, next expected is %d peer %s\n", +s.syncLastRequestedNum, s.syncNextExpectedNum, p.peerAddr)
+	if p == s.source {
+		p.cancelSync(reason)
+		s.syncLastRequestedNum = 0
+		s.requestNextChunk(myImpl, p)
+	}
 }
 
-//void sync_manager::start_sync( connection_ptr c, uint32_t target) {
-//
-//   if (!sync_required()) {
-//      uint32_t bnum = chain_plug->chain().last_irreversible_block_num();
-//      uint32_t hnum = chain_plug->chain().head_block_num();
-//      fc_dlog( logger, "We are already caught up, my irr = ${b}, head = ${h}, target = ${t}",
-//               ("b",bnum)("h",hnum)("t",target));
-//      return;
-//   }
-//
-//   if (state == in_sync) {
-//      set_state(lib_catchup);
-//      sync_next_expected_num = chain_plug->chain().last_irreversible_block_num() + 1;
-//   }
-//
-//   fc_ilog(logger, "Catching up with chain, our last req is ${cc}, theirs is ${t} peer ${p}",
-//           ( "cc",sync_last_requested_num)("t",target)("p",c->peer_name()));
-//
-//   wlog("Catching up with chain, our last req is ${cc}, theirs is ${t} peer ${p}",
-//           ( "cc",sync_last_requested_num)("t",target)("p",c->peer_name()));
-//   request_next_chunk(c);
-//}
+func (s *syncManager) verifyCatchup(myImpl *netPluginIMpl, p *Peer, num uint32, id common.BlockIdType) {
+	req := RequestMessage{}
+	req.ReqBlocks.Mode = catchUp
 
-func (s *syncManager) reassignFetch(c net.Conn, reason GoAwayReason) {
-	fmt.Printf("reassign_fetch, our last req is %d, next expected is %d peer %s\n", s.syncLastRequestedNum, s.syncNextExpectedNum, "walker") //walker c->peer_name()
-	//if c == source {
-	//	c.cancelSync(reason)
-	//	s.syncLastRequestedNum = 0
-	//	s.requestNextChunk()
-	//}
+	for _, peer := range myImpl.peers {
+		if peer.forkHead == id || peer.forkHeadNum > num {
+			req.ReqBlocks.Mode = none
+		}
+		break
+	}
 
+	if req.ReqBlocks.Mode == catchUp {
+		p.forkHead = id
+		p.forkHeadNum = num
+		//ilog ("got a catch_up notice while in ${s}, fork head num = ${fhn} target LIB = ${lib} next_expected = ${ne}", ("s",stage_str(state))("fhn",num)("lib",sync_known_lib_num)("ne", sync_next_expected_num));
+		if s.state == libCatchup {
+			return
+		}
+		s.setStage(headCatchup)
+
+	} else {
+		p.forkHead = common.BlockIdNil()
+		p.forkHeadNum = 0
+	}
+
+	req.ReqTrx.Mode = none
+	p.write(&req)
 }
 
-func (s *syncManager) verifyCatchup(p *Peer, num uint32, id common.BlockIdType) {
-
+func (s *syncManager) recvNotice(myImpl *netPluginIMpl, p *Peer, msg *NoticeMessage) {
+	//   fc_ilog (logger, "sync_manager got ${m} block notice",("m",modes_str(msg.known_blocks.mode)));
+	fmt.Printf("sync_manager got %s block notice\n", modeTostring[msg.KnownBlocks.Mode])
+	if msg.KnownBlocks.Mode == catchUp {
+		IDsCount := len(msg.KnownBlocks.IDs)
+		if IDsCount == 0 {
+			//elog ("got a catch up with ids size = 0");
+			fmt.Println("got a catch up with ids size = 0")
+		} else {
+			s.verifyCatchup(myImpl, p, msg.KnownBlocks.Pending, *msg.KnownBlocks.IDs[IDsCount-1])
+		}
+	} else {
+		p.lastHandshakeRecv.LastIrreversibleBlockNum = msg.KnownTrx.Pending
+		s.resetLibNum(myImpl, p)
+		s.startSync(myImpl, p, msg.KnownBlocks.Pending)
+	}
 }
 
-//void sync_manager::verify_catchup(connection_ptr c, uint32_t num, block_id_type id) {
-//   request_message req;
-//   req.req_blocks.mode = catch_up;
-//   for (auto cc : my_impl->connections) {
-//      if (cc->fork_head == id ||
-//          cc->fork_head_num > num)
-//         req.req_blocks.mode = none;
-//      break;
-//   }
-//   if( req.req_blocks.mode == catch_up ) {//所有conn中最长的链
-//      c->fork_head = id;
-//      c->fork_head_num = num;
-//      ilog ("got a catch_up notice while in ${s}, fork head num = ${fhn} target LIB = ${lib} next_expected = ${ne}", ("s",stage_str(state))("fhn",num)("lib",sync_known_lib_num)("ne", sync_next_expected_num));
-//      if (state == lib_catchup)
-//         return;
-//      set_state(head_catchup);
-//   }
-//   else {
-//      c->fork_head = block_id_type();
-//      c->fork_head_num = 0;
-//   }
-//   req.req_trx.mode = none;
-//   c->enqueue( req );
-//}
-
-func (s *syncManager) recvNotice(c net.Conn, msg *NoticeMessage) {
-
+func (s *syncManager) rejectedBlock(myImpl *netPluginIMpl, p *Peer, blkNum uint32) {
+	if s.state != inSync {
+		fmt.Printf("block %d not accepted from %s", blkNum, "walker") //walker c->peer_name()
+		s.syncLastRequestedNum = 0
+		s.source.reset()
+		myImpl.close(p)
+		s.setStage(inSync)
+		s.sendHandshakes(myImpl)
+	}
 }
 
-//void sync_manager::recv_notice (connection_ptr c, const notice_message &msg) {
-//   fc_ilog (logger, "sync_manager got ${m} block notice",("m",modes_str(msg.known_blocks.mode)));
-//   if (msg.known_blocks.mode == catch_up) {
-//      if (msg.known_blocks.ids.size() == 0) {
-//         elog ("got a catch up with ids size = 0");
-//      }
-//      else {
-//         verify_catchup(c,  msg.known_blocks.pending, msg.known_blocks.ids.back());
-//      }
-//   }
-//   else {
-//      c->last_handshake_recv.last_irreversible_block_num = msg.known_trx.pending;
-//      reset_lib_num (c);
-//      start_sync(c, msg.known_blocks.pending);
-//   }
-//}
+func (s *syncManager) recvBlock(myImpl *netPluginIMpl, p *Peer, blkID common.BlockIdType, blkNum uint32) { //TODO impl
 
-func (s *syncManager) rejectedBlock(p *Peer, blkNum uint32) {
-	//if s.state != inSync {
-	//	fmt.Printf("block %d not accepted from %s", blkNum, "walker") //walker c->peer_name()
-	//	s.syncLastRequestedNum = 0
-	//	s.source.reset()
-	//	my_impl.close(c)
-	//	s.setStage(inSync)
-	//	s.snedHandshakes()
-	//}
+	fmt.Printf("got block %d from %s \n", blkNum, p.peerAddr)
+	if s.state == libCatchup {
+		if blkNum != s.syncNextExpectedNum { //TODO ??
+			//fc_ilog (logger, "expected block ${ne} but got ${bn}",("ne",sync_next_expected_num)("bn",blk_num));
+			fmt.Printf("expected block %d but got %d \n", s.syncNextExpectedNum, blkNum)
+			//myImpl.close(p)
+			return
+		}
+		s.syncNextExpectedNum = blkNum + 1
+	}
+
+	if s.state == headCatchup {
+		//fc_dlog (logger, "sync_manager in head_catchup state")
+		fmt.Println("sync_manager in head_catchup state")
+		s.setStage(inSync)
+		s.source.reset()
+
+		nullID := common.BlockIdType(*crypto.NewSha256Nil())
+		for _, p := range myImpl.peers {
+			if p.forkHead == nullID {
+				continue
+			}
+			if p.forkHead == blkID || p.forkHeadNum < blkNum {
+				p.forkHead = nullID
+				p.forkHeadNum = 0
+			} else {
+				s.setStage(headCatchup)
+			}
+		}
+	} else if s.state == libCatchup {
+		if blkNum == s.syncKnownLibNum {
+			//fc_dlog( logger, "All caught up with last known last irreversible block resending handshake")
+			fmt.Println("All caught up with last known last irreversible block resending handshake")
+			s.setStage(inSync)
+			s.sendHandshakes(myImpl)
+		} else if blkNum == s.syncLastRequestedNum {
+			s.requestNextChunk(myImpl, p) //TODO        request_next_chunk();
+		} else {
+			//fc_dlog(logger,"calling sync_wait on connection ${p}",("p",c->peer_name()));
+			fmt.Printf("calling sync_wait on connecting %s \n", p.peerAddr)
+			p.syncWait()
+		}
+	}
 }
-
-//void sync_manager::rejected_block (connection_ptr c, uint32_t blk_num) {
-//  if (state != in_sync ) {
-//     fc_ilog (logger, "block ${bn} not accepted from ${p}",("bn",blk_num)("p",c->peer_name()));
-//     sync_last_requested_num = 0;
-//     source.reset();
-//     my_impl->close(c);
-//     set_state(in_sync);
-//     send_handshakes();
-//  }
-//}
-func (s *syncManager) recvBlock(p *Peer, blkID *common.BlockIdType, blkNum uint32) {
-
-}
-
-//
-//void sync_manager::recv_block (connection_ptr c, const block_id_type &blk_id, uint32_t blk_num) {
-//   fc_dlog(logger," got block ${bn} from ${p}",("bn",blk_num)("p",c->peer_name()));
-//   if (state == lib_catchup) {
-//      if (blk_num != sync_next_expected_num) {
-//         fc_ilog (logger, "expected block ${ne} but got ${bn}",("ne",sync_next_expected_num)("bn",blk_num));
-//         my_impl->close(c);
-//         return;
-//      }
-//      sync_next_expected_num = blk_num + 1;
-//   }
-//   if (state == head_catchup) {
-//      fc_dlog (logger, "sync_manager in head_catchup state");
-//      set_state(in_sync);
-//      source.reset();
-//
-//      block_id_type null_id;
-//      for (auto cp : my_impl->connections) {
-//         if (cp->fork_head == null_id) {
-//            continue;
-//         }
-//         if (cp->fork_head == blk_id || cp->fork_head_num < blk_num) {
-//            c->fork_head = null_id;
-//            c->fork_head_num = 0;
-//         }
-//         else {
-//            set_state(head_catchup);
-//         }
-//      }
-//   }
-//   else if (state == lib_catchup) {
-//      if( blk_num == sync_known_lib_num ) {
-//         fc_dlog( logger, "All caught up with last known last irreversible block resending handshake");
-//
-//         wlog("All caught up with last known last irreversible block resending handshake");
-//         set_state(in_sync);
-//         send_handshakes();
-//      }
-//      else if (blk_num == sync_last_requested_num) {
-//         // source->request_sync_blocks(start, end);
-//         // sync_last_requested_num = end;
-//         request_next_chunk();
-//      }
-//      else {
-//         fc_dlog(logger,"calling sync_wait on connection ${p}",("p",c->peer_name()));
-//         c->sync_wait();
-//      }
-//   }
-//}
