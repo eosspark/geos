@@ -3,6 +3,7 @@ package database
 
 import (
 	"fmt"
+	"github.com/eosspark/eos-go/crypto/rlp"
 	"reflect"
 	"strings"
 )
@@ -97,6 +98,23 @@ func cloneByte(src []byte) []byte {
 	dst := make([]byte, len(src))
 	copy(dst, src)
 	return dst
+}
+
+func parseObjectToCfg(in interface{})( *structInfo,error){
+	ref := reflect.ValueOf(in)
+	if !ref.IsValid() || ref.Kind() != reflect.Ptr || ref.Elem().Kind() != reflect.Struct {
+		return nil,ErrStructPtrNeeded
+	}
+
+	cfg, err := extractStruct(&ref)
+	if err != nil {
+		return nil,err
+	}
+
+	if _, ok := cfg.Fields[tagID]; !ok {
+		return nil,ErrNoID
+	}
+	return cfg,nil
 }
 
 func extractStruct(s *reflect.Value,mi ...*structInfo) (*structInfo,error) {
@@ -263,3 +281,110 @@ func addFieldInfo(tag ,fieldName string,fieldValue *reflect.Value,f *fieldInfo,m
 	}
 
 }
+
+
+
+/*
+								all key
+increment			-->	typeName
+id field  			--> typeName__tagName__fieldValue
+unique fields 		--> typeName__tagName__fieldValue
+non unique field 	--> typeName__fieldName__idFieldValue__fieldValue
+non unique fields 	--> typeName__tagName__fieldValue[0]__fieldValue[1]...
+
+								all value
+
+increment			-->	val
+id field  			--> objectValue
+unique fields 		--> idFieldValue
+non unique field 	--> idFieldValue
+non unique fields 	--> idFieldValue
+
+*/
+
+type kv struct {
+	key		[]byte
+	value	[]byte
+}
+
+type incrementKV struct {
+	key			[]byte
+	oldValue	[]byte
+	newValue	[]byte
+	delete 		bool
+
+}
+
+type dbKeyValue struct{
+	id 			kv
+	index 		[]kv
+	typeName 	[]byte
+	increment 	incrementKV
+	first 		bool
+}
+
+func (kv *kv)showKV(){
+	space := " : "
+	fmt.Println(kv.key,space,kv.value)
+}
+
+func (increment *incrementKV)showIncrement(){
+	space := " : "
+	fmt.Println(increment.key,space,increment.oldValue,space,increment.newValue)
+}
+
+func (dbKV *dbKeyValue)showDbKV(){
+	fmt.Println("--------------------- show db kv begin ---------------------")
+	dbKV.id.showKV()
+	for _,v := range dbKV.index{
+		v.showKV()
+	}
+	fmt.Println(dbKV.typeName)
+	dbKV.increment.showIncrement()
+	fmt.Println("--------------------- show db kv end  ---------------------")
+}
+
+func structKV(in interface{} ,dbKV *dbKeyValue,cfg *structInfo)error{
+
+	objValue, err := rlp.EncodeToBytes(in)
+	if err != nil {
+		return err
+	}
+	objId, err := rlp.EncodeToBytes(cfg.Id.Interface())
+	if err != nil {
+		return err
+	}
+
+	idk := idKey(objId,[]byte(cfg.Name))
+	kv_ := kv{}
+	kv_.key 	= idk
+	kv_.value 	= objValue
+	dbKV.id 	= kv_
+	dbKV.typeName = []byte(cfg.Name)
+
+	cfgToKV(objId,cfg,dbKV)
+
+	return nil
+}
+
+func cfgToKV (objId []byte,cfg *structInfo,dbKV *dbKeyValue) {
+
+	typeName := []byte(cfg.Name)
+
+	for tag, fieldCfg := range cfg.Fields {
+		prefix 	:= append(typeName, '_') 					/* 			typeName__ 				*/
+		prefix 	=  append(prefix, '_')
+		prefix 	=  append(prefix, tag...) 						/* 			typeName__tagName__ 	*/
+		key 	:= getFieldValue(prefix, fieldCfg)
+		if !fieldCfg.unique && len(fieldCfg.fieldValue) == 1{ 	/* 			non unique 				*/
+			 key = append(key, objId...)
+		}
+
+		kv_ := kv{}
+		kv_.key 	= key
+		kv_.value	= objId
+		dbKV.index 	= append(dbKV.index,kv_)
+	}
+}
+
+
