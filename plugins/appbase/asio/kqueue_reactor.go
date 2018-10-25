@@ -8,7 +8,7 @@ import (
 	"fmt"
 	"strings"
 	"errors"
-	"github.com/eosspark/eos-go/asio/utils"
+	"github.com/eosspark/eos-go/plugins/appbase/asio/utils"
 	)
 
 type KqueueReactor struct {
