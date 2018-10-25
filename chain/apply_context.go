@@ -40,7 +40,7 @@ type ApplyContext struct {
 	InlineActions        []types.Action
 	CfaInlineActions     []types.Action
 	PendingConsoleOutput string
-	accountRamDeltas     []types.AccountDelta
+	AccountRamDeltas     types.FlatSet
 }
 
 func NewApplyContext(control *Controller, trxContext *TransactionContext, act *types.Action, recurseDepth uint32) *ApplyContext {
@@ -231,7 +231,7 @@ func (a *ApplyContext) execOne() (trace types.ActionTrace) {
 	t.BlockNum = a.Control.PendingBlockState().BlockNum
 	t.BlockTime = common.NewBlockTimeStamp(a.Control.PendingBlockTime())
 	t.ProducerBlockId = a.Control.PendingProducerBlockId()
-	t.AccountRamDeltas = a.accountRamDeltas
+	t.AccountRamDeltas = a.AccountRamDeltas
 	//a.accountRamDeltas.clear()
 	t.Act = *a.Act
 	t.Console = a.PendingConsoleOutput
@@ -290,14 +290,14 @@ func (a *ApplyContext) IsAccount(n int64) bool {
 
 //context authorization api
 func (a *ApplyContext) RequireAuthorization(account int64) {
-	return
-	// for k, v := range a.Act.Authorization {
-	// 	if v.Actor == common.AccountName(account) {
-	// 		a.UsedAuthorizations[k] = true
-	// 		return
-	// 	}
-	// }
-	// EosAssert(false, &MissingAuthException{}, "missing authority of %s", common.S(uint64(account)))
+	//return
+	for k, v := range a.Act.Authorization {
+		if v.Actor == common.AccountName(account) {
+			a.UsedAuthorizations[k] = true
+			return
+		}
+	}
+	EosAssert(false, &MissingAuthException{}, "missing authority of %s", common.S(uint64(account)))
 }
 func (a *ApplyContext) HasAuthorization(account int64) bool {
 	for _, v := range a.Act.Authorization {
@@ -547,7 +547,7 @@ func (a *ApplyContext) dbStoreI64(code int64, scope int64, table int64, payer in
 	}
 
 	a.DB.Insert(&obj)
-	a.DB.Modify(&tab, func(t *entity.TableIdObject) {
+	a.DB.Modify(tab, func(t *entity.TableIdObject) {
 		t.Count++
 	})
 
@@ -555,7 +555,7 @@ func (a *ApplyContext) dbStoreI64(code int64, scope int64, table int64, payer in
 	billableSize := int64(len(buffer)) + int64(common.BillableSizeV("key_valueObject"))
 	a.UpdateDbUsage(common.AccountName(payer), billableSize)
 	a.KeyvalCache.cacheTable(tab)
-	return a.KeyvalCache.add(obj)
+	return a.KeyvalCache.add(&obj)
 }
 func (a *ApplyContext) DbUpdateI64(iterator int, payer int64, buffer []byte) {
 
@@ -872,7 +872,7 @@ func (a *ApplyContext) AddRamUsage(account common.AccountName, ramDelta int64) {
 	// 	p.first->delta += ram_delta;
 	// }
 
-	a.accountRamDeltas = append(a.accountRamDeltas, types.AccountDelta{Account: account, Delta: ramDelta})
+	a.AccountRamDeltas.Append(account, ramDelta)
 
 }
 

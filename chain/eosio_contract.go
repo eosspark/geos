@@ -46,7 +46,7 @@ func validateAuthorityPrecondition(context *ApplyContext, auth *types.Authority)
 			//             "permission '${perm}' does not exist",
 			//             ("perm", a.Permission))
 			// }
-			//EosThrow(&ActionValidateException{},"permission '%s' does not exist",common.S(a.Permission))
+			EosThrow(&ActionValidateException{}, "permission '%s' does not exist", a.Permission.String())
 		}).End()
 	}
 
