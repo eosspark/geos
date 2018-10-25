@@ -26,38 +26,56 @@ type ExtFloat80M struct {
 
 type ExtFloat80M_t ExtFloat80M
 
-// static bool is_nan( const float128_t& f ) {
-// return (((~(f.v[1]) & uint64_t( 0x7FFF000000000000 )) == 0) && (f.v[0] || ((f.v[1]) & uint64_t( 0x0000FFFFFFFFFFFF ))));
-// }
-
-// func IsNan(f Float128)bool{
-
-// }
 func (a Float128) Add(b Float128) Float128 {
-	//var uA ui128_f128
-	//var uiA64,uiA0 uint64
-	//var signA bool
-	//
-	//var uB ui128_f128
-	//var uiB64,uiB0 uint64
-	//var signB bool
-	//
-	//uA.f = a
-	//uiA64 = uA.ui.High
-	//uiA0 = uA.ui.Low
-	//signA = signF128UI64(uiA64)
-	//
-	//uB.f=b
-	//uiB64 = uB.ui.High
-	//uiB0 = uB.ui.Low
-	//signB = signF128UI64(uiB64)
-	//if signA ==signB{
-	//	return softFloatAddMagsF128(uiA64,uiA0,uiB64,uiB0,signA)
-	//}else{
-	//	return softFloatSubMagsF128(uiA64,uiA0,uiB64,uiB0,signA)
-	//}
-	return a
+	return Float128{}
 }
+func (a Float128) Sub(b Float128) Float128 {
+	return Float128{}
+}
+
+func (a Float128) Mul(b Float128) Float128 {
+	return Float128{}
+}
+
+func (a Float128) Div(b Float128) Float128 {
+	return Float128{}
+}
+func (f Float128) String() string {
+	return ""
+}
+func (f Float128) Bytes() []byte {
+	return []byte{}
+}
+
+func (f *Float128) IsNan() bool {
+	return (^f.High&uint64(0x7FFF000000000000)) == 0 && (f.Low != 0 || ((f.High & uint64(0x0000FFFFFFFFFFFF)) != 0))
+}
+
+//func (a Float128) Add(b Float128) Float128 {
+//var uA ui128_f128
+//var uiA64,uiA0 uint64
+//var signA bool
+//
+//var uB ui128_f128
+//var uiB64,uiB0 uint64
+//var signB bool
+//
+//uA.f = a
+//uiA64 = uA.ui.High
+//uiA0 = uA.ui.Low
+//signA = signF128UI64(uiA64)
+//
+//uB.f=b
+//uiB64 = uB.ui.High
+//uiB0 = uB.ui.Low
+//signB = signF128UI64(uiB64)
+//if signA ==signB{
+//	return softFloatAddMagsF128(uiA64,uiA0,uiB64,uiB0,signA)
+//}else{
+//	return softFloatSubMagsF128(uiA64,uiA0,uiB64,uiB0,signA)
+//}
+//	return a
+//}
 
 //
 //

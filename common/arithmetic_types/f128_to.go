@@ -67,6 +67,10 @@ func fracF128Ui64(a64 uint64) uint64 {
 	return a64 & uint64(0x0000FFFFFFFFFFFF)
 }
 
+func isNaNF128UI(a64, a0 uint64) bool {
+	return (^a64&uint64(0x7FFF000000000000)) == 0 && (a0 != 0 || (a64&uint64(0x0000FFFFFFFFFFFF)) != 0)
+}
+
 func F128ToI32(a Float128, roundingMode uint8, exact bool) int32 {
 	var uA Float128
 	var uiA64, uiA0 uint64
