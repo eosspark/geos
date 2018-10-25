@@ -29,16 +29,6 @@ type ActionName uint64
 type TableName uint64
 type ScopeName uint64
 
-
-type TableIdObject struct{
-	ID 		IdType			`multiIndex:"id,increment,byScope"`
-	Code 	AccountName		`multiIndex:"orderedNonUnique,less"`
-	Scope 	ScopeName		`multiIndex:"byTable,orderedNonUnique,greater:byScope,orderedNonUnique,less"`
-	Table 	TableName		`multiIndex:"byTable,orderedNonUnique,greater"`
-	Payer 	AccountName		`multiIndex:"byScope,orderedNonUnique"`
-	Count 	uint32
-}
-
 type ResourceLimitsObject struct{
 	ID 			IdType 			`multiIndex:"id,increment"`
 	Pending 	bool 			`multiIndex:"byOwner,orderedNonUnique"`
