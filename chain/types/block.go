@@ -96,18 +96,6 @@ func (s TransactionStatus) String() string {
 // 	CyclesSummary []Cycles `json:"cycles_summary"`
 // }
 
-type ReversibleBlockObject struct {
-	ID          uint64
-	BlockNum    uint32
-	PackedBlock string
-}
-
-type ReversibleBlockIndex struct {
-	rbObject ReversibleBlockObject
-	byId     uint64
-	byNum    uint32
-}
-
 type TransactionReceiptHeader struct {
 	Status        TransactionStatus `json:"status"`
 	CpuUsageUs    uint32            `json:"cpu_usage_us"`

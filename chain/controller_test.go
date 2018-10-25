@@ -56,7 +56,7 @@ func TestController_CreateNativeAccount(t *testing.T) {
 	active.Threshold = 1
 	control.CreateNativeAccount(name, owner, active, false)
 	fmt.Println(name)
-	result := types.AccountObject{}
+	result := entity.AccountObject{}
 	result.Name = name
 	//control.DB.Find("name", result)
 
