@@ -1,12 +1,12 @@
 package types
 
 import (
+	"fmt"
 	"github.com/eosspark/eos-go/common"
+	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/stretchr/testify/assert"
 	"testing"
-		"github.com/eosspark/eos-go/crypto"
-	"fmt"
 )
 
 func NewBlockHeaderState(t *testing.T) *BlockHeaderState {
@@ -26,7 +26,7 @@ func NewBlockHeaderState(t *testing.T) *BlockHeaderState {
 	genHeader.ActiveSchedule = initSchedule
 	genHeader.PendingSchedule = initSchedule
 	genHeader.Header.Timestamp = common.BlockTimeStamp(1162425600) //slot of 2018-6-2 00:00:00:000
-	genHeader.ID = genHeader.Header.BlockID()
+	genHeader.BlockId = genHeader.Header.BlockID()
 	genHeader.BlockNum = genHeader.Header.BlockNumber()
 
 	genHeader.ProducerToLastProduced = make(map[common.AccountName]uint32)

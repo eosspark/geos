@@ -45,29 +45,30 @@ const (
 )
 
 type Config struct {
-	ActorWhitelist      map[common.AccountName]struct{}
-	ActorBlacklist      map[common.AccountName]struct{}
-	ContractWhitelist   map[common.AccountName]struct{}
-	ContractBlacklist   map[common.AccountName]struct{}
-	ActionBlacklist     map[common.Pair]struct{} //see actionBlacklist
-	KeyBlacklist        map[ecc.PublicKey]struct{}
-	blocksDir           string
-	stateDir            string
-	stateSize           uint64
-	stateGuardSize      uint64
-	reversibleCacheSize uint64
-	reversibleGuardSize uint64
-	readOnly            bool
-	forceAllChecks      bool
-	disableReplayOpts   bool
-	disableReplay       bool
-	contractsConsole    bool
-	genesis             types.GenesisState
-	vmType              wasmgo.WasmGo
-	readMode            DBReadMode
-	blockValidationMode ValidationMode
-	resourceGreylist    []common.AccountName
-	trustedProducers    map[common.AccountName]struct{}
+	ActorWhitelist          map[common.AccountName]struct{}
+	ActorBlacklist          map[common.AccountName]struct{}
+	ContractWhitelist       map[common.AccountName]struct{}
+	ContractBlacklist       map[common.AccountName]struct{}
+	ActionBlacklist         map[common.Pair]struct{} //see actionBlacklist
+	KeyBlacklist            map[ecc.PublicKey]struct{}
+	blocksDir               string
+	stateDir                string
+	stateSize               uint64
+	stateGuardSize          uint64
+	reversibleCacheSize     uint64
+	reversibleGuardSize     uint64
+	readOnly                bool
+	forceAllChecks          bool
+	disableReplayOpts       bool
+	disableReplay           bool
+	contractsConsole        bool
+	allowRamBillingInNotify bool
+	genesis                 types.GenesisState
+	vmType                  wasmgo.WasmGo
+	readMode                DBReadMode
+	blockValidationMode     ValidationMode
+	resourceGreylist        map[common.AccountName]struct{}
+	trustedProducers        map[common.AccountName]struct{}
 }
 
 var isActiveController bool //default value false ;Does the process include control ;
@@ -247,10 +248,10 @@ func (c *Controller) PopBlock() {
 func (c *Controller) SetApplayHandler(receiver common.AccountName, contract common.AccountName, action common.ActionName, handler func(a *ApplyContext)) {
 	hk := NewHandlerKey(common.ScopeName(contract), action)
 	first := make(map[common.AccountName]map[HandlerKey]v)
-	secend := make(map[HandlerKey]v)
-	secend[hk] = handler
-	first[receiver] = secend
-	c.ApplyHandlers[receiver] = secend
+	second := make(map[HandlerKey]v)
+	second[hk] = handler
+	first[receiver] = second
+	c.ApplyHandlers[receiver] = second
 }
 
 func (c *Controller) AbortBlock() {
@@ -515,14 +516,13 @@ func (c *Controller) IsProducingBlock() bool {
 	return c.Pending.BlockStatus == types.Incomplete
 }
 
-func (c *Controller) IsResourceGreylisted(name *common.AccountName) bool {
-	for _, account := range c.Config.resourceGreylist {
-		if &account == name {
-			return true
-		}
+/*func (c *Controller) IsResourceGreylisted(name *common.AccountName) bool {
+	_,ok:=c.Config.resourceGreylist[*name]
+	if ok {
+		return true
 	}
 	return false
-}
+}*/
 
 func (c *Controller) Close() {
 	//session.close()
@@ -532,6 +532,12 @@ func (c *Controller) Close() {
 	fmt.Println("Controller destory!")
 }
 
+func (c *Controller) Clean() {
+	err := os.RemoveAll("/tmp/data/")
+	if err != nil {
+		fmt.Println("Node data has been emptied is error:", err)
+	}
+}
 func (c *Controller) GetUnAppliedTransactions() *[]types.TransactionMetadata {
 	result := []types.TransactionMetadata{}
 	if c.ReadMode == SPECULATIVE {
@@ -1122,41 +1128,96 @@ func (c *Controller) CheckActionList(code common.AccountName, action common.Acti
 
 func (c *Controller) CheckKeyList(key *ecc.PublicKey) {
 	if len(c.Config.KeyBlacklist) > 0 {
-		if _, ok := c.Config.KeyBlacklist[*key]; ok {
+		_, ok := c.Config.KeyBlacklist[*key]
+		if ok {
 			fmt.Println("public key '${key}' is on the key blacklist", key)
 			return
 		}
-		/*EOS_ASSERT( conf.key_blacklist.find( key ) == conf.key_blacklist.end(),
-			key_blacklist_exception,
-			"public key '${key}' is on the key blacklist",
-			("key", key)
-		);*/
+		EosAssert(!ok, &KeyBlacklistException{}, "public key d% is on the key blacklist", key)
 	}
 }
 
-func (c *Controller) IsProducing() bool { return false }
+func (c *Controller) IsProducing() bool {
+	if !common.Empty(c.Pending) {
+		return false
+	}
+	return c.Pending.BlockStatus == types.Incomplete
+}
 
-func (c *Controller) IsRamBillingInNotifyAllowed() bool { return false }
+func (c *Controller) IsRamBillingInNotifyAllowed() bool {
+	return !c.IsProducingBlock() || c.Config.allowRamBillingInNotify
+}
 
-func (c *Controller) AddResourceGreyList(name *common.AccountName) {}
+func (c *Controller) AddResourceGreyList(name *common.AccountName) {
+	c.Config.resourceGreylist[*name] = struct{}{}
+}
 
-func (c *Controller) RemoveResourceGreyList(name *common.AccountName) {}
+func (c *Controller) RemoveResourceGreyList(name *common.AccountName) {
+	delete(c.Config.resourceGreylist, *name)
+}
 
-func (c *Controller) IsResourceGreyListed(name *common.AccountName) bool { return false }
+func (c *Controller) IsResourceGreylisted(name *common.AccountName) bool {
+	_, ok := c.Config.resourceGreylist[*name]
+	if ok {
+		return true
+	}
+	return false
+}
+func (c *Controller) GetResourceGreyList() map[common.AccountName]struct{} {
+	return c.Config.resourceGreylist
+}
 
-func (c *Controller) GetResourceGreyList() *map[common.AccountName]interface{} { return nil }
+//TODO
+func (c *Controller) ValidateReferencedAccounts(t *types.Transaction) {
+	/*for _,a := range t.ContextFreeActions{
+		c.DB.f
+	}*/
+}
 
-func (c *Controller) ValidateReferencedAccounts(t *types.Transaction) {}
+func (c *Controller) ValidateExpiration(t *types.Transaction) {
+	chainConfiguration := c.GetGlobalProperties().Configuration
+	EosAssert(common.TimePoint(t.Expiration) >= c.PendingBlockTime(),
+		&ExpiredTxException{}, "transaction has expired, expiration is s% and pending block time is s%",
+		t.Expiration, c.PendingBlockTime())
+	EosAssert(common.TimePoint(t.Expiration) <= c.PendingBlockTime()+common.TimePoint(common.Seconds(int64(chainConfiguration.MaxTrxLifetime))),
+		&TxExpTooFarException{}, "Transaction expiration is too far in the future relative to the reference time of ${reference_time}, expiration is ${trx.expiration} and the maximum transaction lifetime is ${max_til_exp} seconds",
+		t.Expiration, c.PendingBlockTime(), chainConfiguration.MaxTrxLifetime)
+}
 
-func (c *Controller) ValidateExpiration(t *types.Transaction) {}
+func (c *Controller) ValidateTapos(t *types.Transaction) {
+	in := entity.BlockSummaryObject{}
+	in.Id = common.IdType(t.RefBlockNum)
+	taposBlockSummary := entity.BlockSummaryObject{}
+	err := c.DB.Find("", in, &taposBlockSummary)
+	if err != nil {
+		fmt.Println("ValidateTapos Is Error:", err)
+	}
+	EosAssert(t.VerifyReferenceBlock(taposBlockSummary.BlockId), &InvalidRefBlockException{},
+		"Transaction's reference block did not match. Is this transaction from a different fork?", taposBlockSummary)
+}
 
-func (c *Controller) ValidateTapos(t *types.Transaction) {}
+func (c *Controller) ValidateDbAvailableSize() {
+	/*const auto free = db().get_segment_manager()->get_free_memory();
+	const auto guard = my->conf.state_guard_size;
+	EOS_ASSERT(free >= guard, database_guard_exception, "database free: ${f}, guard size: ${g}", ("f", free)("g",guard));*/
+}
 
-func (c *Controller) ValidateDbAvailableSize() {}
+func (c *Controller) ValidateReversibleAvailableSize() {
+	/*const auto free = my->reversible_blocks.get_segment_manager()->get_free_memory();
+	const auto guard = my->conf.reversible_guard_size;
+	EOS_ASSERT(free >= guard, reversible_guard_exception, "reversible free: ${f}, guard size: ${g}", ("f", free)("g",guard));*/
+}
 
-func (c *Controller) ValidateReversibleAvailableSize() {}
-
-func (c *Controller) IsKnownUnexpiredTransaction(id *common.TransactionIdType) bool { return false }
+func (c *Controller) IsKnownUnexpiredTransaction(id *common.TransactionIdType) bool {
+	result := entity.TransactionObject{}
+	in := entity.TransactionObject{}
+	in.TrxID = *id
+	err := c.DB.Find("byTrxId", in, &result)
+	if err != nil {
+		fmt.Println("IsKnownUnexpiredTransaction Is Error:", err)
+	}
+	return common.Empty(result)
+}
 
 func (c *Controller) SetProposedProducers(producers []types.ProducerKey) int64 {
 
@@ -1199,12 +1260,12 @@ func (c *Controller) SetProposedProducers(producers []types.ProducerKey) int64 {
 }
 
 //for SetProposedProducers
-func compare(first []types.ProducerKey, secend []types.ProducerKey) bool {
-	if len(first) != len(secend) {
+func compare(first []types.ProducerKey, second []types.ProducerKey) bool {
+	if len(first) != len(second) {
 		return false
 	}
 	for i := 0; i < len(first); i++ {
-		if first[i] != secend[i] {
+		if first[i] != second[i] {
 			return false
 		}
 	}
@@ -1215,23 +1276,25 @@ func (c *Controller) SkipAuthCheck() bool { return c.LightValidationAllowed(c.Co
 
 func (c *Controller) ContractsConsole() bool { return c.Config.contractsConsole }
 
-func (c *Controller) GetChainId() common.ChainIdType { return common.ChainIdType{} }
+func (c *Controller) GetChainId() common.ChainIdType { return c.ChainID }
 
-func (c *Controller) GetReadMode() DBReadMode { return 0 }
+func (c *Controller) GetReadMode() DBReadMode { return c.ReadMode }
 
-func (c *Controller) GetValidationMode() ValidationMode { return 0 }
+func (c *Controller) GetValidationMode() ValidationMode { return c.Config.blockValidationMode }
 
-func (c *Controller) SetSubjectiveCpuLeeway(leeway common.Microseconds) {}
+func (c *Controller) SetSubjectiveCpuLeeway(leeway common.Microseconds) {
+	c.SubjectiveCupLeeway = leeway
+}
 
 func (c *Controller) FindApplyHandler(receiver common.AccountName,
 	scope common.AccountName,
 	act common.ActionName) func(*ApplyContext) {
 
 	handlerKey := NewHandlerKey(common.ScopeName(scope), act)
-	secend, ok := c.ApplyHandlers[receiver]
+	second, ok := c.ApplyHandlers[receiver]
 	if ok {
-		handler, success := secend[handlerKey]
-		fmt.Println("find secend:", success)
+		handler, success := second[handlerKey]
+		fmt.Println("find second:", success)
 		if success {
 			fmt.Println("-=-=-=-=-=-=-=-==-=-=-=-=-=-=", handler)
 			return handler
@@ -1244,12 +1307,12 @@ func (c *Controller) GetWasmInterface() *wasmgo.WasmGo {
 	return c.WasmIf
 }
 
-func (c *Controller) GetAbiSerializer(name common.AccountName,
+/*func (c *Controller) GetAbiSerializer(name common.AccountName,
 	maxSerializationTime common.Microseconds) types.AbiSerializer {
 	return types.AbiSerializer{}
-}
+}*/
 
-func (c *Controller) ToVariantWithAbi(obj interface{}, maxSerializationTime common.Microseconds) {}
+/*func (c *Controller) ToVariantWithAbi(obj interface{}, maxSerializationTime common.Microseconds) {}*/
 
 func (c *Controller) CreateNativeAccount(name common.AccountName, owner types.Authority, active types.Authority, isPrivileged bool) {
 	account := entity.AccountObject{}
@@ -1425,15 +1488,20 @@ func NewHandlerKey(scopeName common.ScopeName, actionName common.ActionName) Han
 
 func (c *Controller) clearExpiredInputTransactions() {
 
-	/*
-		auto& transaction_idx = db.get_mutable_index<transaction_multi_index>();
-		const auto& dedupe_index = transaction_idx.indices().get<by_expiration>();
-		auto now = c.pending_block_time();
-		while( (!dedupe_index.empty()) && ( now > fc::time_point(dedupe_index.begin()->expiration) ) ) {
-		transaction_idx.remove(*dedupe_index.begin());
-		}
-	*/
-	//transactionIdx = c.DB.GetIndex("transaction_multi_index")
+	transactionIdx, err := c.DB.GetIndex("byExpiration", &entity.TransactionObject{})
+	if err != nil {
+		fmt.Println("ClearExpiredInputTransactions GetIndex Is Error", err)
+	}
+	now := c.PendingBlockTime()
+	t := &entity.TransactionObject{}
+	err = transactionIdx.Begin(t)
+	if err != nil {
+		fmt.Println("TransactionIdx.Begin Is Error:", err)
+	}
+	for !common.Empty(transactionIdx) && now > common.TimePoint(t.Expiration) {
+		//c.DB.Remove(t)		//TODO index.remove(t)
+		fmt.Println("delete transactionIdx.begin()")
+	}
 }
 
 func (c *Controller) CheckActorList(actors []common.AccountName) {
@@ -1483,16 +1551,17 @@ func (c *Controller) createBlockSummary(id *common.BlockIdType) {
 
 func (c *Controller) initConfig() *Controller {
 	c.Config = Config{
-		blocksDir:           common.DefaultConfig.DefaultBlocksDirName,
-		stateDir:            common.DefaultConfig.DefaultStateDirName,
-		stateSize:           common.DefaultConfig.DefaultStateSize,
-		stateGuardSize:      common.DefaultConfig.DefaultStateGuardSize,
-		reversibleCacheSize: common.DefaultConfig.DefaultReversibleCacheSize,
-		reversibleGuardSize: common.DefaultConfig.DefaultReversibleGuardSize,
-		readOnly:            false,
-		forceAllChecks:      false,
-		disableReplayOpts:   false,
-		contractsConsole:    false,
+		blocksDir:               common.DefaultConfig.DefaultBlocksDirName,
+		stateDir:                common.DefaultConfig.DefaultStateDirName,
+		stateSize:               common.DefaultConfig.DefaultStateSize,
+		stateGuardSize:          common.DefaultConfig.DefaultStateGuardSize,
+		reversibleCacheSize:     common.DefaultConfig.DefaultReversibleCacheSize,
+		reversibleGuardSize:     common.DefaultConfig.DefaultReversibleGuardSize,
+		readOnly:                false,
+		forceAllChecks:          false,
+		disableReplayOpts:       false,
+		contractsConsole:        false,
+		allowRamBillingInNotify: false,
 		//vmType:              common.DefaultConfig.DefaultWasmRuntime, //TODO
 		readMode:            SPECULATIVE,
 		blockValidationMode: FULL,
