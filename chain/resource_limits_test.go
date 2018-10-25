@@ -4,7 +4,6 @@ import (
 	"github.com/eosspark/eos-go/common"
 	"testing"
 	"fmt"
-	"github.com/eosspark/eos-go/chain/types"
 )
 
 func TestResourceLimitsManager_UpdateAccountUsage(t *testing.T) {
@@ -22,8 +21,6 @@ func TestResourceLimitsManager_UpdateAccountUsage(t *testing.T) {
 	rlm.UpdateAccountUsage(account, 1)
 	rlm.UpdateAccountUsage(account, 172801)
 	//结果value_ex为0
-	auth := types.Authority{Threshold: 2, Keys: []types.KeyWeight{}, Accounts: []types.PermissionLevelWeight{}, Waits: []types.WaitWeight{}}
-	fmt.Println(auth)
 }
 
 func TestResourceLimitsManager_SetAccountLimits(t *testing.T) {

@@ -100,21 +100,32 @@ func (wait WaitWeight) String() string{
 	return "{ weightSec: " + strconv.FormatInt(int64(wait.WaitSec), 10) + "weight" + wait.Weight.String() + "}"
 }
 
-func (auth Authority) String() string { //TODO: redundancy ","
+func (auth Authority) String() string {
 	ThresholdStr := "threshold: " + strconv.FormatInt(int64(auth.Threshold),10)
 	KeysStr := "keys: ["
 	for _, key := range auth.Keys {
-		KeysStr += "key: " + key.String() + ", "
+		KeysStr += "key: " + key.String()
+		if key != auth.Keys[len(auth.Keys)-1]{
+			KeysStr += ", "
+		}
 	}
 	KeysStr += "]"
 	AccountsStr := "accounts: ["
 	for _, account := range auth.Accounts {
-		AccountsStr += "account: " + account.String() + ", "
+		fmt.Println(account)
+		fmt.Println(auth.Accounts[len(auth.Accounts)-1])
+		AccountsStr += "account: " + account.String()
+		if account != auth.Accounts[len(auth.Accounts)-1]{
+			AccountsStr += ", "
+		}
 	}
 	AccountsStr += "]"
 	WaitsStr := "waits: ["
 	for _, wait := range auth.Waits {
-		WaitsStr += "account: " + wait.String() + ", "
+		WaitsStr += "account: " + wait.String()
+		if wait != auth.Waits[len(auth.Waits)-1]{
+			WaitsStr += ", "
+		}
 	}
 	WaitsStr += "]"
 	return "{ "+ ThresholdStr + ", " + KeysStr + ", " + AccountsStr + ", " + WaitsStr + "}"

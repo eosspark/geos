@@ -12,17 +12,17 @@ type contractTypesInterface interface {
 }
 
 type newAccount struct {
-	Createor common.AccountName
+	Creator common.AccountName
 	Name     common.AccountName
 	Owner    types.Authority
 	Active   types.Authority
 }
 
-func (n *newAccount) getAccount() common.AccountName {
+func (n newAccount) getAccount() common.AccountName {
 	return common.DefaultConfig.SystemAccountName
 }
 
-func (n *newAccount) getName() common.AccountName {
+func (n newAccount) getName() common.AccountName {
 	return common.AccountName(common.N("newaccount"))
 }
 
@@ -33,12 +33,12 @@ type setCode struct {
 	Code      []byte
 }
 
-func (s *setCode) getAccount() common.AccountName {
+func (s setCode) getAccount() common.AccountName {
 	return common.DefaultConfig.SystemAccountName
 }
 
-func (s *setCode) getName() common.AccountName {
-	return common.AccountName(common.N("setcode"))
+func (s setCode) getName() common.ActionName {
+	return common.ActionName(common.N("setcode"))
 }
 
 type setAbi struct {
@@ -46,27 +46,27 @@ type setAbi struct {
 	Abi     []byte
 }
 
-func (s *setAbi) getAccount() common.AccountName {
+func (s setAbi) getAccount() common.AccountName {
 	return common.DefaultConfig.SystemAccountName
 }
 
-func (s *setAbi) getName() common.AccountName {
-	return common.AccountName(common.N("setabi"))
+func (s setAbi) getName() common.ActionName {
+	return common.ActionName(common.N("setabi"))
 }
 
 type updateAuth struct {
 	Account    common.AccountName
-	Permission types.Permission
+	Permission common.PermissionName
 	Parent     types.Permission
 	Auth       types.Authority
 }
 
-func (s *updateAuth) getAccount() common.AccountName {
+func (u updateAuth) getAccount() common.AccountName {
 	return common.DefaultConfig.SystemAccountName
 }
 
-func (s *updateAuth) getName() common.AccountName {
-	return common.AccountName(common.N("updateauth"))
+func (u updateAuth) getName() common.ActionName {
+	return common.ActionName(common.N("updateauth"))
 }
 
 type deleteAuth struct {
@@ -74,12 +74,12 @@ type deleteAuth struct {
 	Permission common.PermissionName
 }
 
-func (s *deleteAuth) getAccount() common.AccountName {
+func (d deleteAuth) getAccount() common.AccountName {
 	return common.DefaultConfig.SystemAccountName
 }
 
-func (s *deleteAuth) getName() common.AccountName {
-	return common.AccountName(common.N("deleteauth"))
+func (d deleteAuth) getName() common.ActionName {
+	return common.ActionName(common.N("deleteauth"))
 }
 
 type linkAuth struct {
@@ -89,12 +89,12 @@ type linkAuth struct {
 	Requirement common.PermissionName
 }
 
-func (s *linkAuth) getAccount() common.AccountName {
+func (l linkAuth) getAccount() common.AccountName {
 	return common.DefaultConfig.SystemAccountName
 }
 
-func (s *linkAuth) getName() common.AccountName {
-	return common.AccountName(common.N("linkauth"))
+func (l linkAuth) getName() common.ActionName {
+	return common.ActionName(common.N("linkauth"))
 }
 
 type unlinkAuth struct {
@@ -103,25 +103,25 @@ type unlinkAuth struct {
 	Type    common.ActionName
 }
 
-func (s *unlinkAuth) getAccount() common.AccountName {
+func (u unlinkAuth) getAccount() common.AccountName {
 	return common.DefaultConfig.SystemAccountName
 }
 
-func (s *unlinkAuth) getName() common.AccountName {
-	return common.AccountName(common.N("unlinkauth"))
+func (u unlinkAuth) getName() common.ActionName {
+	return common.ActionName(common.N("unlinkauth"))
 }
 
 type cancelDelay struct {
-	cancelingAuth types.PermissionLevel
+	CancelingAuth types.PermissionLevel
 	TrxId         common.TransactionIdType
 }
 
-func (s *cancelDelay) getAccount() common.AccountName {
+func (c cancelDelay) getAccount() common.AccountName {
 	return common.DefaultConfig.SystemAccountName
 }
 
-func (s *cancelDelay) getName() common.AccountName {
-	return common.AccountName(common.N("canceldelay"))
+func (c cancelDelay) getName() common.ActionName {
+	return common.ActionName(common.N("canceldelay"))
 }
 
 type onError struct {
@@ -129,10 +129,10 @@ type onError struct {
 	SentTrx  []byte
 }
 
-func (s *onError) getAccount() common.AccountName {
+func (o onError) getAccount() common.AccountName {
 	return common.DefaultConfig.SystemAccountName
 }
 
-func (s *onError) getName() common.AccountName {
-	return common.AccountName(common.N("onerror"))
+func (o onError) getName() common.ActionName {
+	return common.ActionName(common.N("onerror"))
 }

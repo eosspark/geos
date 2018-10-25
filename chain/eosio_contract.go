@@ -69,7 +69,7 @@ func applyEosioNewaccount(context *ApplyContext) {
 	//try{
 	rlp.DecodeBytes(context.Act.Data, create)
 
-	context.RequireAuthorization(int64(create.Createor))
+	context.RequireAuthorization(int64(create.Creator))
 
 	//assert(types.Validate(create.Owner), action_validate_exception, "Invalid owner authority")
 	//assert(types.Validate(create.Active), action_validate_exception, "Invalid owner authority")
@@ -351,7 +351,7 @@ func applyEosioCanceldalay(context *ApplyContext) {
 	cancel := &cancelDelay{}
 	rlp.DecodeBytes(context.Act.Data, cancel)
 
-	context.RequireAuthorization(int64(cancel.cancelingAuth.Actor))
+	context.RequireAuthorization(int64(cancel.CancelingAuth.Actor))
 	trxId := cancel.TrxId
 
 	context.CancelDeferredTransaction2(transactionIdToSenderId(trxId), common.AccountName(0))
