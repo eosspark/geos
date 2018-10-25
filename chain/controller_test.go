@@ -118,6 +118,11 @@ func TestController_StartBlock(t *testing.T) {
 	c.Close()
 }
 
+func TestController_Clean(t *testing.T) {
+	c := GetControllerInstance()
+	c.Clean()
+}
+
 func Test(t *testing.T) {
 	fmt.Println(common.AccountName(6138663577826885632))
 }

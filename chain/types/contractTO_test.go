@@ -10,6 +10,7 @@ package types
 import (
 	"fmt"
 	"github.com/eosspark/eos-go/common"
+
 	"github.com/eosspark/eos-go/database"
 	"github.com/eosspark/eos-go/log"
 	"testing"
@@ -27,7 +28,7 @@ func Test_Add_TableIdObject(t *testing.T) {
 	tid.Table = table
 	tid.Count = 2
 
-	db, err := eosiodb.NewDataBase("./", "shared_memory.bin", true)
+	db, err := database.NewDataBase("shared_memory.bin")
 	defer db.Close()
 	if err != nil {
 		log.Error("Test_Add_TableIdObject is error detail:", err)
@@ -56,7 +57,7 @@ func Test_Add_TableIdMeltiIndex(t *testing.T) {
 	ti.Bst.Code = tid.Code
 	ti.Bst.Scope = tid.Scope
 	ti.Bst.Table = tid.Table
-	db, err := eosiodb.NewDataBase("./", "shared_memory.bin", true)
+	db, err := database.NewDataBase("shared_memory.bin")
 	defer db.Close()
 	if err != nil {
 		log.Error("Test_Add_TableIdMeltiIndex is error detail:", err)
@@ -67,7 +68,7 @@ func Test_Add_TableIdMeltiIndex(t *testing.T) {
 }
 
 func Test_Get_TableIdMultiIndex(t *testing.T) {
-	db, err := eosiodb.NewDataBase("./", "shared_memory.bin", true)
+	db, err := database.NewDataBase("shared_memory.bin")
 	if err != nil {
 		log.Error("Test_Add_TableIdMeltiIndex is error detail:", err)
 	}
@@ -87,12 +88,12 @@ func Test_Get_TableIdMultiIndex(t *testing.T) {
 	fmt.Println(&tmp)
 	log.Info("find table id multi index,info:", tmp)
 	var tis []TableIdMultiIndex
-	db.All(&tis)
+	//db.All(&tis)
 	fmt.Println(tis)
 }
 
 func Test_GetById(t *testing.T) {
-	db, err := eosiodb.NewDataBase("./", "shared_memory.bin", true)
+	db, err := database.NewDataBase("shared_memory.bin")
 	if err != nil {
 		log.Error("Test_Add_TableIdMeltiIndex is error detail:", err)
 	}
@@ -104,12 +105,12 @@ func Test_GetById(t *testing.T) {
 	db.Find("ID", tt.ID, &tt)
 	fmt.Println(tt)
 	var tmp []TableIdObject
-	db.All(&tmp)
+	//db.All(&tmp)
 	fmt.Println(tmp)
 }
 
 func Test_GetByIndexId(t *testing.T) {
-	db, err := eosiodb.NewDataBase("./", "shared_memory.bin", true)
+	db, err := database.NewDataBase("shared_memory.bin")
 	if err != nil {
 		log.Error("Test_Add_TableIdMeltiIndex is error detail:", err)
 	}
@@ -128,7 +129,7 @@ func Test_GetByIndexId(t *testing.T) {
 }
 
 func Test_GetByCodeScopeTable(t *testing.T) {
-	db, err := eosiodb.NewDataBase("./", "shared_memory.bin", true)
+	db, err := database.NewDataBase("shared_memory.bin")
 	if err != nil {
 		log.Error("Test_Add_TableIdMeltiIndex is error detail:", err)
 	}

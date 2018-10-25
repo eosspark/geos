@@ -231,7 +231,7 @@ func (a *ApplyContext) execOne() (trace types.ActionTrace) {
 	t.BlockNum = a.Control.PendingBlockState().BlockNum
 	t.BlockTime = common.NewBlockTimeStamp(a.Control.PendingBlockTime())
 	t.ProducerBlockId = a.Control.PendingProducerBlockId()
-	//t.AccountRamDeltas = a.AccountRamDeltas
+	//t.AccountRamDeltas = a.accountRamDeltas
 	//a.accountRamDeltas.clear()
 	t.Act = *a.Act
 	t.Console = a.PendingConsoleOutput
