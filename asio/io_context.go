@@ -17,3 +17,7 @@ func (i *IoContext) Stop() {
 	i.GetService().stop()
 }
 
+func (i *IoContext) Post(op func()) {
+	i.GetService().post(op)
+}
+

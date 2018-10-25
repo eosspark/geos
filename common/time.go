@@ -90,7 +90,7 @@ func (tp TimePointSec) SubUs(m Microseconds) TimePoint    { return tp.ToTimePoin
 func (tp TimePointSec) Sub(t TimePointSec) Microseconds   { return tp.ToTimePoint().Sub(t.ToTimePoint()) }
 
 /**
- * deadline timer
+ * inherit from asio.DeadlineTimer
  */
 type Timer asio.DeadlineTimer
 
@@ -101,7 +101,7 @@ func NewTimer(ctx *asio.IoContext) *Timer {
 func (t *Timer) ExpiresUntil(time TimePoint)      { t.ExpiresFromNow(time.Sub(Now())) }
 func (t *Timer) ExpiresAt(epoch Microseconds)  { t.ExpiresUntil(TimePoint(epoch)) }
 func (t *Timer) ExpiresFromNow(m Microseconds) {
-	(*asio.DeadlineTimer)(t).Duration = time.Microsecond * time.Duration(m)
+	(*asio.DeadlineTimer)(t).ExpiresFromNow(time.Microsecond * time.Duration(m))
 }
 
 func (t *Timer) Cancel() { (*asio.DeadlineTimer)(t).Cancel() }

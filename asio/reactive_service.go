@@ -5,13 +5,14 @@ import "os"
 type Reactor interface {
 	run()
 	stop()
-	push(op interface{}, args ...interface{})
+	post(op interface{}, args ...interface{})
 	notify(sig ...os.Signal)
 }
 
+// use GoroutineReactor for each operating system
 func (i *IoContext) GetService () Reactor {
 	if i.reactor == nil {
-		i.reactor = NewGouroutineReactor()
+		i.reactor = NewGoroutineReactor()
 	}
 	return i.reactor
 }

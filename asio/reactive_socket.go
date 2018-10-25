@@ -24,7 +24,7 @@ func (r *ReactiveSocket) AsyncAccept(listen net.Listener, op func(conn net.Conn,
 
 func (r *ReactiveSocket) accept(listen net.Listener, op func(conn net.Conn, ec ErrorCode)) {
 	connect, err := listen.Accept()
-	r.ctx.GetService().push(op, connect, NewErrorCode(err))
+	r.ctx.GetService().post(op, connect, NewErrorCode(err))
 }
 
 func (r *ReactiveSocket) AsyncRead(reader io.Reader, b []byte, op func(n int, ec ErrorCode)) {
@@ -36,7 +36,7 @@ func (r *ReactiveSocket) AsyncRead(reader io.Reader, b []byte, op func(n int, ec
 
 func (r *ReactiveSocket) read(reader io.Reader, b []byte, op func(n int, ec ErrorCode)) {
 	n, err := reader.Read(b)
-	r.ctx.GetService().push(op, n, NewErrorCode(err))
+	r.ctx.GetService().post(op, n, NewErrorCode(err))
 }
 
 
@@ -49,7 +49,7 @@ func (r *ReactiveSocket) AsyncWrite(writer io.Writer, b []byte, op func(n int, e
 
 func (r *ReactiveSocket) write(writer io.Writer, b []byte, op func(n int, ec ErrorCode)) {
 	n, err := writer.Write(b)
-	r.ctx.GetService().push(op, n, NewErrorCode(err))
+	r.ctx.GetService().post(op, n, NewErrorCode(err))
 }
 
 

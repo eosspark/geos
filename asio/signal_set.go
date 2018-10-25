@@ -30,7 +30,7 @@ func (s *SignalSet) AsyncWait(op func(ec ErrorCode)) {
 			case <-s.notify:
 				// push into io_service
 				// operation will be executed in the correct time
-				s.ctx.GetService().push(op, ErrorCode{})
+				s.ctx.GetService().post(op, ErrorCode{})
 				break
 			case <-s.cancel:
 				return

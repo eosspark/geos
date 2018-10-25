@@ -17,7 +17,7 @@ type operation struct {
 	argument  []interface{}
 }
 
-func NewGouroutineReactor() *GoroutineReactor {
+func NewGoroutineReactor() *GoroutineReactor {
 	r := new(GoroutineReactor)
 	r.opq = make(chan operation, 128)
 	r.down = make(chan struct{}, 1)
@@ -41,7 +41,7 @@ func (g *GoroutineReactor) stop() {
 	g.down <- struct{}{}
 }
 
-func (g *GoroutineReactor) push(op interface{}, args ...interface{}) {
+func (g *GoroutineReactor) post(op interface{}, args ...interface{}) {
 	g.opq <- operation{op, args}
 }
 
