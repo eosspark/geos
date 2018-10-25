@@ -2,9 +2,8 @@ package asio
 
 import (
 	"reflect"
-	"fmt"
 	"os"
-	)
+)
 
 type GoroutineReactor struct {
 	opq 	 chan operation
@@ -54,22 +53,28 @@ func (g *GoroutineReactor) doReactor(op interface{}, args []interface{}) {
 	opt := reflect.TypeOf(op)
 
 	if opt.Kind() != reflect.Func {
-		fmt.Println("opt must be a callback function")
+		println("op must be a callback function")
 		return
 	}
 
 	opNum := opt.NumIn()
 	if opNum != len(args) {
-		fmt.Println("invalid arguments", "opNum:", opNum)
+		println("invalid arguments", "arguments needs:", opNum)
 		return
 	}
 
 	opArgs := make([]reflect.Value, opNum)
 
 	for i:=0; i<opt.NumIn(); i++ {
-		if args[i] != nil {
-			opArgs[i] = reflect.ValueOf(args[i])
+		argt := reflect.TypeOf(args[i])
+		int := opt.In(i)
+
+		if !argt.AssignableTo(int) {
+			println("invalid arguments", "wrong args#", i)
+			return
 		}
+
+		opArgs[i] = reflect.ValueOf(args[i])
 	}
 
 	opv.Call(opArgs)

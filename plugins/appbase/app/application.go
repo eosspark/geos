@@ -1,23 +1,22 @@
 package app
 
 import (
-	. "github.com/eosspark/eos-go/appbase/app/include"
+	. "github.com/eosspark/eos-go/plugins/appbase/app/include"
 	"gopkg.in/urfave/cli.v1"
-
-	"fmt"
 	. "github.com/eosspark/eos-go/exception"
+	"fmt"
 	"github.com/eosspark/eos-go/exception/try"
+	"os"
 	"path/filepath"
 	"runtime"
-	"os"
 )
 
 // 完成初步架构设计
 type applicationImpl struct {
-	Version uint64
-	Options *cli.App
+	Version   uint64
+	Options   *cli.App
 	ConfigDir string
-	DateDir string
+	DateDir   string
 }
 
 //var App_global *app
@@ -42,11 +41,9 @@ type application struct {
 //	return App_global
 //}
 
-var appImpl = &applicationImpl{Version, cli.NewApp(),"",""}
+var appImpl = &applicationImpl{Version, cli.NewApp(), "", ""}
 
 var App *application = &application{appImpl, make(map[string]Plugin), make([]Plugin, 0), make([]Plugin, 0)}
-
-
 
 func (app *application) RegisterPlugin(plugin Plugin) Plugin {
 	if p, existing := app.Plugins[plugin.GetName()]; existing {
@@ -96,32 +93,52 @@ func setProgramOptions() {
 
 }
 
-func (app *application) Initialize() bool {
+func (app *application) Initialize(basicPlugin []string) bool {
+	var AbstractPlugins []Plugin
+	for i := 0; i < len(basicPlugin); i++ {
+		if p := FindPlugin(basicPlugin[i]); p != nil {
+			AbstractPlugins = append(AbstractPlugins, p)
+		}
+	}
+
+	return App.InitializeImpl(AbstractPlugins)
+}
+
+func (app *application) InitializeImpl(a []Plugin) (r bool) {
 	setProgramOptions()
 
+	app.My.Options.Action = func(c *cli.Context) error {
+		if c.String("data-dir") != "" {
+			app.My.DateDir = homeDir() + c.String("data-dir")
+		}
+		if c.String("config-dir") != "" {
+			app.My.ConfigDir = homeDir() + c.String("config-dir")
+		}
+
+		return nil
+	}
+
+	defer try.HandleReturn()
 	try.Try(func() {
-		for _, v := range app.Plugins {
-			if v.GetState() == Registered {
-				v.PluginInitialize()
-				//if isInit {
-				//  append(app.initializedPlugins,v)
-				//}
+		for i := 0; i < len(a); i++ {
+			if a[i].GetState() == Registered {
+				a[i].Initialize(app.My.Options)
 			}
 		}
 	}).Catch(func(e Exception) {
 		fmt.Println(e)
-	})
+		r = false
+		try.Return()
+	}).End()
+	//need to add function--promise the plugins relative should be initialized
 
 	return true
-
 }
 
 func (app *application) StartUp() {
-
 	for _, v := range app.Plugins {
 		v.PluginStartUp()
 	}
-
 }
 
 func (app *application) ShutDown() {
@@ -138,11 +155,9 @@ func (app *application) ShutDown() {
 
 }
 
-func FindPlugin(name string) (plugin Plugin) {
-	for _, v := range App.Plugins {
-		if _, ok := App.Plugins[name]; ok {
-			return v
-		}
+func FindPlugin(name string) (plugin *Plugin) {
+	if v, ok := App.Plugins[name]; ok {
+		return &v
 	}
 	return nil
 }
@@ -151,10 +166,9 @@ func (app *application) SetVersion(Version uint64) {
 	App.My.Version = Version
 }
 
-func GetVersion() uint64{
+func GetVersion() uint64 {
 	return App.My.Version
 }
-
 
 func (app *application) SetDefaultConfigDir() {
 	App.My.ConfigDir = DefaultConfigDir()
@@ -164,16 +178,14 @@ func (app *application) SetDefaultDataDir() {
 	App.My.DateDir = DefaultDataDir()
 }
 
-
-
 func DefaultConfigDir() string {
 	// Try to place the data folder in the user's home dir
 	home := homeDir()
 	if home != "" {
 		if runtime.GOOS == "darwin" {
-			return filepath.Join(home, "Library", "Application Support","eosgo","nodes","config")
+			return filepath.Join(home, "Library", "Application Support", "eosgo", "nodes", "config")
 		} else if runtime.GOOS == "windows" {
-			return filepath.Join(home, "AppData", "Roaming", "eosgo","nodes","config")
+			return filepath.Join(home, "AppData", "Roaming", "eosgo", "nodes", "config")
 		} else {
 			return filepath.Join(home, ".clef")
 		}
@@ -187,9 +199,9 @@ func DefaultDataDir() string {
 	home := homeDir()
 	if home != "" {
 		if runtime.GOOS == "darwin" {
-			return filepath.Join(home, "Library", "Application Support","eosgo","nodes","data")
+			return filepath.Join(home, "Library", "Application Support", "eosgo", "nodes", "data")
 		} else if runtime.GOOS == "windows" {
-			return filepath.Join(home, "AppData", "Roaming", "eosgo","nodes","data")
+			return filepath.Join(home, "AppData", "Roaming", "eosgo", "nodes", "data")
 		} else {
 			return filepath.Join(home, ".clef")
 		}

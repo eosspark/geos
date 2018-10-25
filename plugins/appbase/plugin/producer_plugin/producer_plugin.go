@@ -1,10 +1,9 @@
 package producer_plugin
 
 import (
-	. "github.com/eosspark/eos-go/appbase/app/include"
 	"fmt"
-
-	"github.com/eosspark/eos-go/appbase/app"
+	. "github.com/eosspark/eos-go/plugins/appbase/app/include"
+	"github.com/eosspark/eos-go/plugins/appbase/app"
 )
 
 //var Producer app.Plugin = app.Instance.RegisterPlugin(app.Plugin{1,"producer_plugin"}) //使用后便会被加载
@@ -17,6 +16,7 @@ var producerPlugin *ProducerPlugin
 
 func init() {
 	producerPlugin = new(ProducerPlugin)
+	producerPlugin.Plugin = producerPlugin
 	producerPlugin.Name = "ProducerPlugin"
 	producerPlugin.State = Registered
 	app.App.RegisterPlugin(producerPlugin)

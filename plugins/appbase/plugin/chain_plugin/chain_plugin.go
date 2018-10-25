@@ -1,8 +1,8 @@
 package chain_plugin
 
 import  (
-	. "github.com/eosspark/eos-go/appbase/app/include"
-	"github.com/eosspark/eos-go/appbase/app"
+	. "github.com/eosspark/eos-go/plugins/appbase/app/include"
+	"github.com/eosspark/eos-go/plugins/appbase/app"
 )
 
 type ChainPlugin struct {
@@ -11,6 +11,7 @@ type ChainPlugin struct {
 
 func init() {
 	var chainPlugin = new(ChainPlugin)
+	//chainPlugin.Plugin = chainPlugin
 	chainPlugin.Name = "ChainPlugin"
 	chainPlugin.State = Registered
 	app.App.RegisterPlugin(chainPlugin)

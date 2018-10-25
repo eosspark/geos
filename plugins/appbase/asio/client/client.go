@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 	"time"
-	"github.com/eosspark/eos-go/asio"
+	"github.com/eosspark/eos-go/plugins/appbase/asioins/appbase/asio"
 	"syscall"
 	"net"
 )
@@ -52,6 +52,7 @@ func startAcceptLoop(socket *asio.ReactiveSocket, listen net.Listener) {
 		//defer conn.Close()
 
 		if ec.Valid {
+			conn.Close()
 			fmt.Println("Error connect", ec.Error)
 		}
 
@@ -76,7 +77,7 @@ func scheduleLoop1(timer *asio.DeadlineTimer) {
 		if !ec.Valid {
 			fmt.Println("loop 1", time.Now())
 			// do something ...
-			for i:=0; i<5; i++ {
+			for i:=0; i<3; i++ {
 				fmt.Println("do operation", i)
 				time.Sleep(time.Second)
 			}
@@ -101,7 +102,8 @@ func startRead(socket *asio.ReactiveSocket, conn net.Conn) {
 	buf := make([]byte, 64)
 	socket.AsyncRead(conn, buf, func(n int, ec asio.ErrorCode) {
 		if ec.Valid {
-			fmt.Println("Error read", ec.Error)
+			// fmt.Println("Error read", ec.Error)
+			conn.Close()
 			return
 		}
 		if n > 0 {

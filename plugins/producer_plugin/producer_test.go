@@ -14,7 +14,7 @@ import (
 	Chain "github.com/eosspark/eos-go/plugins/producer_plugin/mock"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/chain/types"
-	"github.com/eosspark/eos-go/asio"
+	"github.com/eosspark/eos-go/plugins/appbase/asio"
 	"syscall"
 )
 
