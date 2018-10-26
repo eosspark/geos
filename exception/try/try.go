@@ -4,6 +4,7 @@ import (
 	"reflect"
 		"fmt"
 	"runtime"
+	. "github.com/eosspark/eos-go/exception"
 )
 
 //StackInfo store code informations when catched exception.
@@ -119,6 +120,35 @@ func (c *CatchOrFinally) End() {
 
 func (c *CatchOrFinally) printStackInfo() {
 	fmt.Println(string(c.stackInfo))
+}
+
+func (c *CatchOrFinally) LogAndRethrow() {
+	c.Catch(func(er Exception) {
+		//TODO: log
+	}).Catch(func(interface{}) {
+		e := UnHandledException{}
+		println(e.Message()) //TODO: log
+	})
+}
+
+func (c *CatchOrFinally) CaptureLogAndRethrow() {
+	//TODO FC_CAPTURE_LOG_AND_RETHROW
+}
+
+func (c *CatchOrFinally) CaptureAndLog() {
+	//TODO FC_CAPTURE_AND_LOG
+}
+
+func (c *CatchOrFinally) LogAndDrop() {
+	//TODO FC_LOG_AND_DROP
+}
+
+func (c *CatchOrFinally) RethrowExceptions(logLevel string, format string, arg ...interface{}) {
+	//TODO FC_RETHROW_EXCEPTIONS
+}
+
+func (c *CatchOrFinally) CaptureAndRethrow() {
+	//TODO FC_CAPTURE_AND_RETHROW
 }
 
 type returnTypes struct{}
