@@ -47,7 +47,7 @@ type AccountDelta struct {
 	Delta   int64
 }
 
-func (a *AccountDelta) Compare(first common.FlatSet, second common.FlatSet) bool {
+func (a AccountDelta) Compare(first common.FlatSet, second common.FlatSet) bool {
 	return first.(AccountDelta).Account <= second.(AccountDelta).Account
 }
 
