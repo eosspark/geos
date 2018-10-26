@@ -40,7 +40,7 @@ type ApplyContext struct {
 	InlineActions        []types.Action
 	CfaInlineActions     []types.Action
 	PendingConsoleOutput string
-	accountRamDeltas     []types.AccountDelta
+	AccountRamDeltas     types.FlatSet
 }
 
 func NewApplyContext(control *Controller, trxContext *TransactionContext, act *types.Action, recurseDepth uint32) *ApplyContext {
@@ -231,7 +231,7 @@ func (a *ApplyContext) execOne() (trace types.ActionTrace) {
 	t.BlockNum = a.Control.PendingBlockState().BlockNum
 	t.BlockTime = common.NewBlockTimeStamp(a.Control.PendingBlockTime())
 	t.ProducerBlockId = a.Control.PendingProducerBlockId()
-	//t.AccountRamDeltas = a.accountRamDeltas
+	t.AccountRamDeltas = a.AccountRamDeltas
 	//a.accountRamDeltas.clear()
 	t.Act = *a.Act
 	t.Console = a.PendingConsoleOutput
@@ -290,14 +290,14 @@ func (a *ApplyContext) IsAccount(n int64) bool {
 
 //context authorization api
 func (a *ApplyContext) RequireAuthorization(account int64) {
-	return
-	// for k, v := range a.Act.Authorization {
-	// 	if v.Actor == common.AccountName(account) {
-	// 		a.UsedAuthorizations[k] = true
-	// 		return
-	// 	}
-	// }
-	// EosAssert(false, &MissingAuthException{}, "missing authority of %s", common.S(uint64(account)))
+	//return
+	for k, v := range a.Act.Authorization {
+		if v.Actor == common.AccountName(account) {
+			a.UsedAuthorizations[k] = true
+			return
+		}
+	}
+	EosAssert(false, &MissingAuthException{}, "missing authority of %s", common.S(uint64(account)))
 }
 func (a *ApplyContext) HasAuthorization(account int64) bool {
 	for _, v := range a.Act.Authorization {
@@ -398,7 +398,7 @@ func (a *ApplyContext) FindTable(code int64, scope int64, table int64) *entity.T
 	}
 
 	err := a.DB.Find("byCodeScopeTable", tab, &tab)
-	if err != nil {
+	if err == nil {
 		return &tab
 	}
 	return nil
@@ -547,15 +547,15 @@ func (a *ApplyContext) dbStoreI64(code int64, scope int64, table int64, payer in
 	}
 
 	a.DB.Insert(&obj)
-	a.DB.Modify(&tab, func(t *entity.TableIdObject) {
+	a.DB.Modify(tab, func(t *entity.TableIdObject) {
 		t.Count++
 	})
 
 	// int64_t billable_size = (int64_t)(buffer_size + config::billable_size_v<key_value_object>);
-	billableSize := int64(len(buffer)) + int64(common.BillableSizeV("key_valueObject"))
+	billableSize := int64(len(buffer)) + int64(common.BillableSizeV("key_value_object"))
 	a.UpdateDbUsage(common.AccountName(payer), billableSize)
 	a.KeyvalCache.cacheTable(tab)
-	return a.KeyvalCache.add(obj)
+	return a.KeyvalCache.add(&obj)
 }
 func (a *ApplyContext) DbUpdateI64(iterator int, payer int64, buffer []byte) {
 
@@ -572,7 +572,7 @@ func (a *ApplyContext) DbUpdateI64(iterator int, payer int64, buffer []byte) {
 		payerAccount = obj.Payer
 	}
 
-	if obj.Payer == payerAccount {
+	if obj.Payer != payerAccount {
 		a.UpdateDbUsage(obj.Payer, -(oldSize))
 		a.UpdateDbUsage(payerAccount, newSize)
 	} else if oldSize != newSize {
@@ -593,7 +593,7 @@ func (a *ApplyContext) DbRemoveI64(iterator int) {
 	// //   require_write_lock( table_obj.scope );
 	billableSize := int64(len(obj.Value)) + int64(common.BillableSizeV("key_value_object"))
 	a.UpdateDbUsage(obj.Payer, -billableSize)
-	a.DB.Modify(objTable, func(t *types.TableIdObject) {
+	a.DB.Modify(objTable, func(t *entity.TableIdObject) {
 		t.Count--
 	})
 
@@ -642,7 +642,9 @@ func (a *ApplyContext) DbNextI64(iterator int, primary *uint64) int {
 
 func (a *ApplyContext) DbPreviousI64(iterator int, primary *uint64) int {
 
-	idx, _ := a.DB.GetIndex("byScopePrimary", &entity.KeyValueObject{})
+	idx, err := a.DB.GetIndex("byScopePrimary", entity.KeyValueObject{})
+
+	fmt.Println(err)
 
 	if iterator < -1 {
 		tab := a.KeyvalCache.findTablebyEndIterator(iterator)
@@ -687,10 +689,13 @@ func (a *ApplyContext) DbFindI64(code int64, scope int64, table int64, id int64)
 
 	tableEndItr := a.KeyvalCache.cacheTable(tab)
 
-	obj := entity.KeyValueObject{}
+	obj := entity.KeyValueObject{
+		TId:        tab.ID,
+		PrimaryKey: uint64(id),
+	}
 	err := a.DB.Find("byScopePrimary", obj, &obj)
 
-	if err == nil {
+	if err != nil {
 		return tableEndItr
 	}
 	return a.KeyvalCache.add(&obj)
@@ -872,7 +877,7 @@ func (a *ApplyContext) AddRamUsage(account common.AccountName, ramDelta int64) {
 	// 	p.first->delta += ram_delta;
 	// }
 
-	a.accountRamDeltas = append(a.accountRamDeltas, types.AccountDelta{Account: account, Delta: ramDelta})
+	//a.AccountRamDeltas.Append(account, ramDelta)
 
 }
 

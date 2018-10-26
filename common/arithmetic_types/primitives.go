@@ -71,3 +71,7 @@ func softfloatShortShiftLeft128(a64, a0 uint64, dist uint8) Uint128 {
 	z.Low = a0 << dist
 	return z
 }
+
+func softfloat_lt128(a64, a0, b64, b0 uint64) bool {
+	return a64 < b64 || (a64 == b64 && a0 < b0)
+}

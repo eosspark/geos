@@ -1,16 +1,17 @@
-package exception
+package exception_test
 
 import (
 	"fmt"
 	"github.com/eosspark/eos-go/exception/try"
+	. "github.com/eosspark/eos-go/exception"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
 func TestExceptionCode(t *testing.T) {
-	assert.Equal(t, ExcTypes(21), divideByZeroCode)
-	assert.Equal(t, ExcTypes(10), assertExceptionCode)
-	assert.Equal(t, ExcTypes(15), unknownHostExceptionCode)
+	assert.Equal(t, ExcTypes(21), DivideByZeroCode)
+	assert.Equal(t, ExcTypes(10), AssertExceptionCode)
+	assert.Equal(t, ExcTypes(15), UnknownHostExceptionCode)
 }
 
 func TestEosAssert(t *testing.T) {

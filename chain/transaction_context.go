@@ -3,9 +3,10 @@ package chain
 import (
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
+	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/database"
 	"github.com/eosspark/eos-go/entity"
-	"github.com/eosspark/eos-go/exception"
+	. "github.com/eosspark/eos-go/exception"
 	"github.com/eosspark/eos-go/exception/try"
 	"math"
 	//"github.com/eosspark/eos-go/log"
@@ -52,19 +53,10 @@ type TransactionContext struct {
 func NewTransactionContext(c *Controller, t *types.SignedTransaction, trxId common.TransactionIdType, s common.TimePoint) *TransactionContext {
 
 	tc := TransactionContext{
-		Control:     c,
-		Trx:         t,
-		Start:       s,
-		pseudoStart: s,
-		Trace: &types.TransactionTrace{
-			ID:              trxId,
-			BlockNum:        c.PendingBlockState().BlockNum,
-			BlockTime:       common.BlockTimeStamp(c.PendingBlockTime()),
-			ProducerBlockId: c.PendingProducerBlockId(),
-			Except:          &exception.TransactionException{},
-		},
-		//Trace.I:trxId,
-
+		Control:               c,
+		Trx:                   t,
+		Start:                 s,
+		pseudoStart:           s,
 		InitialMaxBillableCpu: 0,
 		IsInput:               false,
 		ApplyContextFree:      true,
@@ -82,24 +74,37 @@ func NewTransactionContext(c *Controller, t *types.SignedTransaction, trxId comm
 		eagerNetLimit:         0,
 
 		deadline:                  common.MaxTimePoint(),
-		deadlineExceptionCode:     int64((exception.BlockCpuUsageExceeded{}).Code()),
-		billingTimerExceptionCode: int64((exception.BlockCpuUsageExceeded{}).Code()),
+		deadlineExceptionCode:     int64((BlockCpuUsageExceeded{}).Code()),
+		billingTimerExceptionCode: int64((BlockCpuUsageExceeded{}).Code()),
 	}
 
+	//for testing
+	tc.ValidateRamUsage = make([]common.AccountName, 10)
+
+	// if !c.SkipDbSessions() {
+	// 	tc.UndoSession = c.DB.StartSession()
+	// }
+	tc.Trace = &types.TransactionTrace{
+		ID: trxId,
+		//		BlockNum:        c.PendingBlockState().BlockNum,
+		//		BlockTime:       common.BlockTimeStamp(c.PendingBlockTime()),
+		//		ProducerBlockId: c.PendingProducerBlockId(),
+		BlockNum:        4,
+		BlockTime:       common.BlockTimeStamp(common.Now()),
+		ProducerBlockId: common.BlockIdType(*crypto.NewSha256String("cf057bbfb72640471fd910bcb67639c22df9f92470936cddc1ade0e2f2e7dc4f")),
+		Except:          &TransactionException{},
+	}
 	tc.netUsage = &tc.Trace.NetUsage
+	tc.Executed = make([]types.ActionReceipt, tc.Trx.TotalActions())
 
-	if !c.SkipDbSessions() {
-		//tc.UndoSession = c.DB.StartSession()
-	}
-	//t.Deadline = common.MaxTimePoint()
-	//assert(len(t.Trx.Extensions) == 0), unsupported_feature, "we don't support any extensions yet")
+	EosAssert(len(tc.Trx.TransactionExtensions) == 0, &UnsupportedFeature{}, "we don't support any extensions yet")
 
 	return &tc
 }
 
 func (t *TransactionContext) init(initialNetUsage uint64) {
 
-	exception.EosAssert(!t.isInitialized, &exception.TransactionException{}, "cannot initialize twice")
+	EosAssert(!t.isInitialized, &TransactionException{}, "cannot initialize twice")
 	//const static int64_t large_number_no_overflow = std::numeric_limits<int64_t>::max()/2;
 
 	cfg := t.Control.GetGlobalProperties().Configuration
@@ -119,7 +124,7 @@ func (t *TransactionContext) init(initialNetUsage uint64) {
 	mtcu := uint64(cfg.MaxTransactionCpuUsage)
 	if mtcu <= uint64(t.objectiveDurationLimit.Count()) {
 		t.objectiveDurationLimit = common.Milliseconds(int64(cfg.MaxTransactionCpuUsage))
-		t.billingTimerExceptionCode = int64(exception.TxCpuUsageExceed{}.Code()) //TODO
+		t.billingTimerExceptionCode = int64(TxCpuUsageExceed{}.Code()) //TODO
 		t.deadline = t.Start + common.TimePoint(t.objectiveDurationLimit)
 	}
 
@@ -135,7 +140,7 @@ func (t *TransactionContext) init(initialNetUsage uint64) {
 		trxSpecifiedCpuUsageLimit := common.Milliseconds(int64(t.Trx.MaxCpuUsageMS))
 		if trxSpecifiedCpuUsageLimit <= t.objectiveDurationLimit {
 			t.objectiveDurationLimit = trxSpecifiedCpuUsageLimit
-			t.billingTimerExceptionCode = int64(exception.TxCpuUsageExceed{}.Code()) //TODO
+			t.billingTimerExceptionCode = int64(TxCpuUsageExceed{}.Code()) //TODO
 			t.deadline = t.Start + common.TimePoint(t.objectiveDurationLimit)
 		}
 	}
@@ -152,6 +157,8 @@ func (t *TransactionContext) init(initialNetUsage uint64) {
 			t.BillToAccounts = append(t.BillToAccounts, auth.Actor)
 		}
 	}
+
+	t.ValidateRamUsage = make([]common.AccountName, len(t.BillToAccounts))
 
 	// Update usage values of accounts to reflect new time
 	rl.UpdateAccountUsage(t.BillToAccounts, uint32(common.BlockTimeStamp(t.Control.PendingBlockTime())))
@@ -173,7 +180,7 @@ func (t *TransactionContext) init(initialNetUsage uint64) {
 	// Possibly limit deadline if the duration accounts can be billed for (+ a subjective leeway) does not exceed current delta
 	if common.Milliseconds(int64(accountCpuLimit))+t.Leeway <= common.Microseconds(t.deadline-t.Start) {
 		t.deadline = t.Start + common.TimePoint(accountCpuLimit) + common.TimePoint(t.Leeway)
-		t.billingTimerExceptionCode = int64(exception.LeewayDeadlineException{}.Code())
+		t.billingTimerExceptionCode = int64(LeewayDeadlineException{}.Code())
 	}
 
 	t.billingTimerDurationLimit = common.Microseconds(t.deadline - t.Start)
@@ -181,7 +188,7 @@ func (t *TransactionContext) init(initialNetUsage uint64) {
 	// Check if deadline is limited by caller-set deadline (only change deadline if billed_cpu_time_us is not set)
 	if t.ExplicitBilledCpuTime || t.Deadline < t.deadline {
 		t.deadline = t.Deadline
-		t.deadlineExceptionCode = int64(exception.DeadlineException{}.Code())
+		t.deadlineExceptionCode = int64(DeadlineException{}.Code())
 	} else {
 		t.deadlineExceptionCode = t.billingTimerExceptionCode
 	}
@@ -240,7 +247,7 @@ func (t *TransactionContext) InitForDeferredTrx(p common.TimePoint) {
 
 func (t *TransactionContext) Exec() {
 
-	exception.EosAssert(t.isInitialized, &exception.TransactionException{}, "must first initialize")
+	EosAssert(t.isInitialized, &TransactionException{}, "must first initialize")
 
 	if t.ApplyContextFree {
 		for _, act := range t.Trx.ContextFreeActions {
@@ -260,7 +267,7 @@ func (t *TransactionContext) Exec() {
 }
 
 func (t *TransactionContext) Finalize() {
-	exception.EosAssert(t.isInitialized, &exception.TransactionException{}, "must first initialize")
+	EosAssert(t.isInitialized, &TransactionException{}, "must first initialize")
 
 	if t.IsInput {
 		am := t.Control.GetMutableAuthorizationManager()
@@ -288,7 +295,7 @@ func (t *TransactionContext) Finalize() {
 
 	if accountCpuLimit <= uint64(t.objectiveDurationLimit.Count()) {
 		t.objectiveDurationLimit = common.Microseconds(accountCpuLimit)
-		t.billingTimerExceptionCode = int64((exception.TxCpuUsageExceed{}).Code())
+		t.billingTimerExceptionCode = int64((TxCpuUsageExceed{}).Code())
 	}
 
 	*t.netUsage = ((*t.netUsage + 7) / 8) * 8
@@ -322,16 +329,16 @@ func (t *TransactionContext) CheckNetUsage() {
 		if *t.netUsage > t.eagerNetLimit {
 			//TODO Throw Exception
 			if t.netLimitDueToBlock {
-				exception.EosAssert(true,
-					&exception.BlockNetUsageExceeded{},
+				EosAssert(true,
+					&BlockNetUsageExceeded{},
 					"not enough space left in block: %d > %d", *t.netUsage, t.eagerNetLimit)
 			} else if t.netLimitDueToGreylist {
-				exception.EosAssert(true,
-					&exception.GreylistNetUsageExceeded{},
+				EosAssert(true,
+					&GreylistNetUsageExceeded{},
 					"greylisted transaction net usage is too high: %d > %d", *t.netUsage, t.eagerNetLimit)
 			} else {
-				exception.EosAssert(true,
-					&exception.TxNetUsageExceeded{},
+				EosAssert(true,
+					&TxNetUsageExceeded{},
 					"greylisted transaction net usage is too high: %d > %d", *t.netUsage, t.eagerNetLimit)
 			}
 		}
@@ -343,41 +350,41 @@ func (t *TransactionContext) CheckTime() {
 	if !t.Control.SkipTrxChecks() {
 		now := common.Now()
 		if now > t.deadline {
-			if t.ExplicitBilledCpuTime || t.deadlineExceptionCode == int64(exception.DeadlineException{}.Code()) { //|| deadline_exception_code TODO
-				exception.EosAssert(false,
-					&exception.DeadlineException{},
+			if t.ExplicitBilledCpuTime || t.deadlineExceptionCode == int64(DeadlineException{}.Code()) { //|| deadline_exception_code TODO
+				EosAssert(false,
+					&DeadlineException{},
 					"deadline exceeded, now %d deadline %d start %d",
 					now, t.deadline, t.Start)
 
-			} else if t.deadlineExceptionCode == int64(exception.BlockCpuUsageExceeded{}.Code()) {
-				exception.EosAssert(false,
-					&exception.BlockCpuUsageExceeded{},
+			} else if t.deadlineExceptionCode == int64(BlockCpuUsageExceeded{}.Code()) {
+				EosAssert(false,
+					&BlockCpuUsageExceeded{},
 					"not enough time left in block to complete executing transaction, now %d deadline %d start %d billing_timer %d",
 					now, t.deadline, t.Start, now-t.pseudoStart)
-			} else if t.deadlineExceptionCode == int64(exception.TxCpuUsageExceed{}.Code()) {
+			} else if t.deadlineExceptionCode == int64(TxCpuUsageExceed{}.Code()) {
 				if t.cpuLimitDueToGreylist {
-					exception.EosAssert(false,
-						&exception.GreylistCpuUsageExceeded{},
+					EosAssert(false,
+						&GreylistCpuUsageExceeded{},
 						"greylisted transaction was executing for too long, now %d deadline %d start %d billing_timer %d",
 						now, t.deadline, t.Start, now-t.pseudoStart)
 
 				} else {
-					exception.EosAssert(false,
-						&exception.TxCpuUsageExceed{},
+					EosAssert(false,
+						&TxCpuUsageExceed{},
 						"transaction was executing for too long, now %d deadline %d start %d billing_timer %d",
 						now, t.deadline, t.Start, now-t.pseudoStart)
 				}
 
-			} else if t.deadlineExceptionCode == int64(exception.LeewayDeadlineException{}.Code()) {
-				exception.EosAssert(false,
-					&exception.LeewayDeadlineException{},
+			} else if t.deadlineExceptionCode == int64(LeewayDeadlineException{}.Code()) {
+				EosAssert(false,
+					&LeewayDeadlineException{},
 					"the transaction was unable to complete by deadline, ",
 					"but it is possible it could have succeeded if it were allowed to run to completion, now %d deadline %d start %d billing_timer %d",
 					now, t.deadline, t.Start, now-t.pseudoStart)
 
 			}
-			exception.EosAssert(false,
-				&exception.TransactionException{},
+			EosAssert(false,
+				&TransactionException{},
 				"unexpected deadline exception code")
 
 		}
@@ -393,7 +400,7 @@ func (t *TransactionContext) PauseBillingTimer() {
 
 	now := common.Now()
 	t.billedTime = common.Microseconds(now - t.pseudoStart)
-	t.deadlineExceptionCode = int64((exception.DeadlineException{}).Code()) // Other timeout exceptions cannot be thrown while billable timer is paused.
+	t.deadlineExceptionCode = int64((DeadlineException{}).Code()) // Other timeout exceptions cannot be thrown while billable timer is paused.
 	t.pseudoStart = common.TimePoint(0)
 }
 
@@ -410,7 +417,7 @@ func (t *TransactionContext) ResumeBillingTimer() {
 
 	} else {
 		t.deadline = t.Deadline
-		t.deadlineExceptionCode = int64(exception.DeadlineException{}.Code())
+		t.deadlineExceptionCode = int64(DeadlineException{}.Code())
 	}
 }
 
@@ -418,24 +425,24 @@ func (t *TransactionContext) validateCpuUsageToBill(billedUs int64, checkMinimum
 	if !t.Control.SkipTrxChecks() {
 		if checkMinimum {
 			cfg := t.Control.GetGlobalProperties().Configuration
-			exception.EosAssert(billedUs >= int64(cfg.MinTransactionCpuUsage),
-				&exception.TransactionException{},
+			EosAssert(billedUs >= int64(cfg.MinTransactionCpuUsage),
+				&TransactionException{},
 				"cannot bill CPU time less than the minimum of %d us, billed_cpu_time_us %", cfg.MinTransactionCpuUsage, billedUs)
 		}
-		if t.billingTimerExceptionCode == int64(exception.BlockCpuUsageExceeded{}.Code()) { //TODO
-			exception.EosAssert(billedUs <= t.objectiveDurationLimit.Count(),
-				&exception.BlockCpuUsageExceeded{},
+		if t.billingTimerExceptionCode == int64(BlockCpuUsageExceeded{}.Code()) { //TODO
+			EosAssert(billedUs <= t.objectiveDurationLimit.Count(),
+				&BlockCpuUsageExceeded{},
 				"billed CPU time (${billed} us) is greater than the billable CPU time left in the block (${billable} us)",
 				billedUs, t.objectiveDurationLimit.Count())
 		} else {
 			if t.cpuLimitDueToGreylist {
-				exception.EosAssert(billedUs <= t.objectiveDurationLimit.Count(),
-					&exception.GreylistCpuUsageExceeded{},
+				EosAssert(billedUs <= t.objectiveDurationLimit.Count(),
+					&GreylistCpuUsageExceeded{},
 					"billed CPU time (${billed} us) is greater than the maximum greylisted billable CPU time for the transaction (${billable} us)",
 					billedUs, t.objectiveDurationLimit.Count())
 			} else {
-				exception.EosAssert(billedUs <= t.objectiveDurationLimit.Count(),
-					&exception.TxCpuUsageExceed{},
+				EosAssert(billedUs <= t.objectiveDurationLimit.Count(),
+					&TxCpuUsageExceed{},
 					"billed CPU time (${billed} us) is greater than the maximum billable CPU time for the transaction (${billable} us)",
 					billedUs, t.objectiveDurationLimit.Count())
 			}
@@ -505,7 +512,7 @@ func (t *TransactionContext) DispathAction(trace *types.ActionTrace, action *typ
 
 	try.Try(func() {
 		applyContext.Exec()
-	}).Catch(func(e exception.Exception) {
+	}).Catch(func(e Exception) {
 		*trace = applyContext.Trace
 		//throw
 		try.Throw(e)

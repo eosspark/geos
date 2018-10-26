@@ -2,8 +2,7 @@ package asio
 
 import (
 	"reflect"
-	"os"
-)
+	)
 
 type GoroutineReactor struct {
 	opq 	 chan operation
@@ -44,9 +43,9 @@ func (g *GoroutineReactor) post(op interface{}, args ...interface{}) {
 	g.opq <- operation{op, args}
 }
 
-func (g *GoroutineReactor) notify(sig ...os.Signal) {
+//func (g *GoroutineReactor) notify(sig ...os.Signal) {
 	//signal.Notify(g.notifies, sig...)
-}
+//}
 
 func (g *GoroutineReactor) doReactor(op interface{}, args []interface{}) {
 	opv := reflect.ValueOf(op)

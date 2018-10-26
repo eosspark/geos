@@ -3,7 +3,7 @@ package main
 import (
 	"fmt"
 	"time"
-	"github.com/eosspark/eos-go/plugins/appbase/asioins/appbase/asio"
+	"github.com/eosspark/eos-go/plugins/appbase/asio"
 	"syscall"
 	"net"
 )
@@ -109,6 +109,11 @@ func startRead(socket *asio.ReactiveSocket, conn net.Conn) {
 		if n > 0 {
 			msg := string(buf[:n])
 			fmt.Println(msg)
+			socket.AsyncWrite(conn, []byte("hi"), func(n int, ec asio.ErrorCode) {
+				if ec.Valid {
+					conn.Close()
+				}
+			})
 		}
 		startRead(socket, conn)
 	})

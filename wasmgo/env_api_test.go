@@ -417,20 +417,26 @@ func callTestFunction(code []byte, cls string, method string, payload []byte) *c
 
 	wasm := wasmgo.NewWasmGo()
 	action := wasmTestAction(cls, method)
-	applyContext := chain.ApplyContext{
-		Receiver: common.AccountName(common.N("testapi")),
-		Act: &types.Action{
-			Account: common.AccountName(common.N("testapi")),
-			Name:    common.ActionName(action),
-			Data:    payload,
-		},
+
+	control := chain.GetControllerInstance()
+
+	act := types.Action{
+		Account:       common.AccountName(common.N("testapi")),
+		Name:          common.ActionName(action),
+		Data:          payload,
+		Authorization: []types.PermissionLevel{types.PermissionLevel{Actor: common.AccountName(common.N("testapi")), Permission: common.PermissionName(common.N("active"))}},
 	}
+
+	applyContext := chain.NewApplyContext(control, nil, &act, 0)
 
 	fmt.Println(cls, method, action)
 	codeVersion := crypto.NewSha256Byte([]byte(code))
-	wasm.Apply(codeVersion, code, &applyContext)
+	wasm.Apply(codeVersion, code, applyContext)
 
-	return &applyContext
+	control.Close()
+	control.Clean()
+
+	return applyContext
 
 }
 
@@ -438,14 +444,26 @@ func callTestFunctionCheckException(code []byte, cls string, method string, payl
 
 	wasm := wasmgo.NewWasmGo()
 	action := wasmTestAction(cls, method)
-	applyContext := &chain.ApplyContext{
-		Receiver: common.AccountName(common.N("test.api")),
-		Act: &types.Action{
-			Account: common.AccountName(common.N("test.api")),
-			Name:    common.ActionName(action),
-			Data:    payload,
-		},
+
+	control := chain.GetControllerInstance()
+
+	act := types.Action{
+		Account:       common.AccountName(common.N("testapi")),
+		Name:          common.ActionName(action),
+		Data:          payload,
+		Authorization: []types.PermissionLevel{types.PermissionLevel{Actor: common.AccountName(common.N("testapi")), Permission: common.PermissionName(common.N("active"))}},
 	}
+
+	applyContext := chain.NewApplyContext(control, nil, &act, 0)
+
+	//applyContext := &chain.ApplyContext{
+	//	Receiver: common.AccountName(common.N("test.api")),
+	//	Act: &types.Action{
+	//		Account: common.AccountName(common.N("test.api")),
+	//		Name:    common.ActionName(action),
+	//		Data:    payload,
+	//	},
+	//}
 
 	codeVersion := crypto.NewSha256Byte([]byte(code))
 
@@ -457,10 +475,14 @@ func callTestFunctionCheckException(code []byte, cls string, method string, payl
 		if e.Code() == errCode {
 			fmt.Println(errMsg)
 			ret = true
+			control.Close()
+			control.Clean()
 			try.Return()
 		}
 	}).End()
 
+	control.Close()
+	control.Clean()
 	ret = false
 	return
 

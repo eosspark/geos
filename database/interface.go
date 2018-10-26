@@ -1,14 +1,13 @@
 package database
 
 type DataBase interface {
-
 	Close()
 
 	Insert(in interface{}) error
 
 	Find(tagName string, in interface{}, out interface{}) error
 
-	Empty(begin, end, fieldName []byte) (bool)
+	Empty(begin, end, fieldName []byte) bool
 
 	GetIndex(tagName string, in interface{}) (*multiIndex, error)
 
@@ -30,9 +29,9 @@ type DataBase interface {
 
 	Revision() int64
 
-	lowerBound(key,value,typeName []byte,in interface{},greater bool) (*DbIterator,error)
+	lowerBound(key, value, typeName []byte, in interface{}, greater bool) (*DbIterator, error)
 
-	upperBound(key,value,typeName []byte,in interface{},greater bool) (*DbIterator,error)
+	upperBound(key, value, typeName []byte, in interface{}, greater bool) (*DbIterator, error)
 
 	squash()
 }

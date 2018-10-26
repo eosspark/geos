@@ -72,6 +72,9 @@ func (k *KqueueReactor) run() {
 	}
 }
 
+func (k *KqueueReactor) stop() {}
+func (k *KqueueReactor) post(op interface{}, args ...interface{}) {}
+
 
 func CreateListenSocket(ipport string) (int, error) {
 	socket, _ := syscall.Socket(syscall.AF_INET, syscall.SOCK_STREAM, syscall.IPPROTO_TCP)

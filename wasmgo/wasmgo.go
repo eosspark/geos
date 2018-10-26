@@ -106,6 +106,7 @@ func NewWasmGo() *WasmGo {
 	w.Register("memmove", memmove)
 	w.Register("memcmp", memcmp)
 	w.Register("memset", memset)
+	w.Register("free", free)
 
 	w.Register("check_transaction_authorization", checkTransactionAuthorization)
 	w.Register("check_permission_authorization", checkPermissionAuthorization)
