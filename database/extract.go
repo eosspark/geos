@@ -307,19 +307,11 @@ type kv struct {
 	value	[]byte
 }
 
-type incrementKV struct {
-	key			[]byte
-	oldValue	[]byte
-	newValue	[]byte
-	delete 		bool
-
-}
 
 type dbKeyValue struct{
 	id 			kv
 	index 		[]kv
 	typeName 	[]byte
-	increment 	incrementKV
 	first 		bool
 }
 
@@ -327,12 +319,6 @@ func (kv *kv)showKV(){
 	space := " : "
 	fmt.Println(kv.key,space,kv.value)
 }
-
-func (increment *incrementKV)showIncrement(){
-	space := " : "
-	fmt.Println(increment.key,space,increment.oldValue,space,increment.newValue)
-}
-
 func (dbKV *dbKeyValue)showDbKV(){
 	fmt.Println("--------------------- show db kv begin ---------------------")
 	dbKV.id.showKV()
@@ -340,7 +326,6 @@ func (dbKV *dbKeyValue)showDbKV(){
 		v.showKV()
 	}
 	fmt.Println(dbKV.typeName)
-	dbKV.increment.showIncrement()
 	fmt.Println("--------------------- show db kv end  ---------------------")
 }
 

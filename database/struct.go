@@ -14,7 +14,7 @@ type Carnivore struct {
 	Tiger int `multiIndex:"orderedNonUnique,greater"`
 }
 
-type House struct {
+type DbHouse struct {
 	Id       uint64 `multiIndex:"id,increment"`
 	Area     uint64 `multiIndex:"orderedUnique,greater"`
 	Name     string
@@ -29,7 +29,16 @@ type ActionName uint64
 type TableName uint64
 type ScopeName uint64
 
-type ResourceLimitsObject struct{
+type DbTableIdObject struct{
+	ID 		IdType			`multiIndex:"id,increment,byScope"`
+	Code 	AccountName		`multiIndex:"orderedNonUnique,less"`
+	Scope 	ScopeName		`multiIndex:"byTable,orderedNonUnique,greater:byScope,orderedNonUnique,less"`
+	Table 	TableName		`multiIndex:"byTable,orderedNonUnique,greater"`
+	Payer 	AccountName		`multiIndex:"byScope,orderedNonUnique"`
+	Count 	uint32
+}
+
+type DbResourceLimitsObject struct{
 	ID 			IdType 			`multiIndex:"id,increment"`
 	Pending 	bool 			`multiIndex:"byOwner,orderedNonUnique"`
 	Owner 		AccountName  	`multiIndex:"byOwner,orderedNonUnique"`

@@ -15,11 +15,12 @@ import (
 )
 
 type LDataBase struct {
-	db       *leveldb.DB
-	stack    *deque
-	path     string
-	revision int64
-	types 	map[string]bool
+	db       	*leveldb.DB
+	stack    	*deque
+	path     	string
+	revision 	int64
+	nextId 		map[string]int64
+	logFlag 	bool
 }
 
 /*
@@ -32,7 +33,7 @@ success 			-->		database handle error is nil
 error 				-->		database is nil ,error
 
 */
-func NewDataBase(path string) (DataBase, error) {
+func NewDataBase(path string,flag...bool) (DataBase, error) {
 
 	db, err := leveldb.OpenFile(path, &opt.Options{
 		OpenFilesCacheCapacity: 16,
@@ -46,17 +47,62 @@ func NewDataBase(path string) (DataBase, error) {
 	if err != nil {
 		return nil, err
 	}
+	/*	read every type increment	*/
+	nextId ,err:= typeIncrement(db)
+	if err != nil{
+		panic("database init failed : " + err.Error())
+	}
 
-	return &LDataBase{db: db, stack: newDeque(), path: path,types:make(map[string]bool)}, nil
+	logFlag := false
+	if len(flag) > 0{
+		logFlag = flag[0]
+	}
+	return &LDataBase{db: db, stack: newDeque(), path: path,nextId:nextId,logFlag:logFlag}, nil
 }
 
+func typeIncrement(db *leveldb.DB)(map[string]int64,error){
+	nextId := make(map[string]int64)
+	dbIncrement := "db__increment"
+	key := []byte(dbIncrement)
+	val ,err := db.Get(key,nil)
+	if err != leveldb.ErrNotFound{
+		return nil,err
+	}
+	if err == nil && len(val) != 0{
+		err = rlp.DecodeBytes(val,nextId)
+		if err != nil{
+			panic("database init failed : " + err.Error())
+		}
+	}
+	return nextId,nil
+}
 func (ldb *LDataBase) Close() {
-	err := ldb.db.Close()
+	err := ldb.WriteIncrement()
+	if err != nil{
+		ldb.PanicDb("database close failed : " + err.Error())
+	}
+	err = ldb.db.Close()
 	if err != nil {
+		ldb.PanicDb("database close failed : " + err.Error())
 		// log
 	} else {
+		ldb.InfoDb("----------------- database close -----------------")
 		// log
 	}
+}
+
+func (ldb *LDataBase)WriteIncrement()error{
+	val,err := rlp.EncodeToBytes(ldb.nextId)
+	if err != nil{
+		return err
+	}
+	dbIncrement := "db__increment"
+	key := []byte(dbIncrement)
+	err = saveKey(key,val,ldb.db)
+	if err != nil{
+		return err
+	}
+	return nil
 }
 
 func (ldb *LDataBase) Revision() int64 {
@@ -69,6 +115,9 @@ func (ldb *LDataBase) Undo() {
 	if stack == nil {
 		return
 	}
+
+	ldb.nextId = stack.oldIds
+
 	for key, _ := range stack.OldValue {
 
 		ldb.undoModifyKv(key)
@@ -80,7 +129,7 @@ func (ldb *LDataBase) Undo() {
 	}
 	for key, _ := range stack.RemoveValue {
 		// db.insert
-		ldb.insert(key)
+		ldb.insert(key,true)
 		//save(key,ldb.db,true)
 	}
 	ldb.stack.Pop()
@@ -89,7 +138,7 @@ func (ldb *LDataBase) Undo() {
 
 func (ldb *LDataBase) UndoAll() {
 	// TODO wait Undo
-	log.Fatalln("UndoAll do not work,Please call linx")
+	log.Fatalln("UndoAll do not work,Please wait")
 }
 
 func (ldb *LDataBase) squash() {
@@ -138,7 +187,7 @@ func (ldb *LDataBase) squash() {
 
 func (ldb *LDataBase) StartSession() *Session {
 	ldb.revision++
-	state := newUndoState(ldb.revision)
+	state := newUndoState(ldb.revision,ldb.nextId)
 	ldb.stack.Append(state)
 	return &Session{db: ldb, apply: true, revision: ldb.revision}
 }
@@ -184,8 +233,6 @@ error 				-->		error
 
 */
 
-
-
 func (ldb *LDataBase) Insert(in interface{}) error {
 	err := ldb.insert(in)
 	if err != nil {
@@ -196,17 +243,27 @@ func (ldb *LDataBase) Insert(in interface{}) error {
 	return nil
 }
 
-func (ldb *LDataBase) insert(in interface{})error{ 				/* struct cfg --> KV struct --> kv to db --> undo db */
+func (ldb *LDataBase) insert(in interface{},flag...bool)error{ 				/* struct cfg --> KV struct --> kv to db --> undo db */
 
 	cfg,err := parseObjectToCfg(in)								/* (struct cfg) parse object tag */
 	if err != nil{
 		return err
 	}
-	dbKV := &dbKeyValue{}
-	err = ldb.setKVIncrement(dbKV,cfg)  						/* (kv.id) set increment id */
-	if err != nil{
-		return err
+
+	undoFlag := false
+	if len(flag) > 0{
+		undoFlag = flag[0]
 	}
+
+	if !undoFlag{
+		err = ldb.setIncrement(cfg)  						/* (kv.id) set increment id */
+		if err != nil{
+			return err
+		}
+	}
+
+
+	dbKV := &dbKeyValue{}
 	structKV(in,dbKV,cfg) 										/* (kv.index) all key and value*/
 
 	//dbKV.showDbKV()
@@ -222,7 +279,6 @@ func (ldb *LDataBase) insertKvToDb(dbKV *dbKeyValue)error{
 	undoKeyValue := dbKeyValue{} 		/* 	Record all operations before a db operation is completed		*/
 										/* 	If you need to roll back before the operation is complete 		*/
 										/* 	execute the undoKV function										*/
-	undoKeyValue.first = dbKV.first
 	undoKeyValue.typeName = dbKV.typeName
 	undo := false
 	defer func() {						/*	undo  */
@@ -231,16 +287,6 @@ func (ldb *LDataBase) insertKvToDb(dbKV *dbKeyValue)error{
 		}
 		ldb.undoInsertKV(&undoKeyValue)
 	}()
-
-	err := ldb.insertIncrementToDb(&dbKV.increment,dbKV.first) /*	save the increment id of each type of object	*/
-	if err != nil{
-		if dbKV.increment.delete{
-			undoKeyValue.increment = dbKV.increment
-		}
-		undo = true
-		return err
-	}
-
 	for _,v := range dbKV.index{
 		err := saveKey(v.key,v.value,ldb.db)
 		if err != nil{
@@ -250,70 +296,26 @@ func (ldb *LDataBase) insertKvToDb(dbKV *dbKeyValue)error{
 		undoKeyValue.index = append(undoKeyValue.index,v)
 	}
 
-	err = saveKey(dbKV.id.key,dbKV.id.value,ldb.db)
-	if err != nil{
-		undo = true
-		return err
-	}
-	undoKeyValue.id= dbKV.id
-	ldb.types[string(dbKV.typeName)] = true
-	return nil
-}
-
-func (ldb *LDataBase) insertIncrementToDb(increment *incrementKV,first bool)error{
-	if !first{
-		err := ldb.db.Delete(increment.key,nil)
-			if err != nil{
-			return err
-		}
-		increment.delete = true
-	}
-	err := saveKey(increment.key,increment.newValue,ldb.db)
+	err := saveKey(dbKV.id.key,dbKV.id.value,ldb.db)
 	if err != nil{
 		return err
 	}
+
 	return nil
 }
 
-func (ldb *LDataBase) setKVIncrement(dbKV *dbKeyValue,cfg *structInfo) error {
-
-	tagName := []byte(tagID)
-	// typeName__tagName
-	key := append([]byte(cfg.Name), '_')
-	key = append(key, '_')
-	key = append(key, tagName...)
+func (ldb *LDataBase) setIncrement(cfg *structInfo) error {
 
 	var id int64
-	increment :=	incrementKV{}
 	id = 1
-	dbKV.first = true
-	if ok := ldb.types[cfg.Name];ok{ // First insertion
 
-		valByte, err := ldb.db.Get(key, nil)
-		if err != nil {
-			return err
-		}
-		if valByte != nil {
-			err := rlp.DecodeBytes(valByte, &id)
-			if err != nil {
-				return  err
-			}
-			id += 1
-		} else{
-			panic("incrementId value failed")
-		}
-		dbKV.first = false
-		increment.oldValue = valByte
+	if _, ok := ldb.nextId[cfg.Name];ok{ // First insertion
+		id = ldb.nextId[cfg.Name]
 	}
+
 	cfg.Id.Set(reflect.ValueOf(id).Convert(cfg.Id.Type()))
-	incrementValue ,err := rlp.EncodeToBytes(id)
-	if err != nil{
-		return err
-	}
 
-	increment.key = key
-	increment.newValue = incrementValue
-	dbKV.increment = increment
+	ldb.nextId[cfg.Name]	 = id + 1
 	return nil
 }
 
@@ -327,8 +329,8 @@ success 			-->		nil
 error 				-->		error
 
 */
+
 func (ldb *LDataBase) Remove(in interface{}) error {
-	//err := remove(in, ldb.db)
 	err := ldb.remove(in)
 	if err != nil {
 		return err
@@ -346,8 +348,8 @@ func (ldb *LDataBase) remove(in interface{})error{
 	if isZero(cfg.Id){
 		return ErrIncompleteStructure
 	}
-	dbKV := &dbKeyValue{}
 
+	dbKV := &dbKeyValue{}
 	structKV(in,dbKV,cfg) 										/* (kv.index) all key and value*/
 
 	//dbKV.showDbKV()
@@ -368,7 +370,6 @@ func (ldb *LDataBase) removeKvToDb(dbKV *dbKeyValue)error{
 		if !undo{
 			return
 		}
-
 		/* 		assert(undo == true) */
 		/* 		remove undo 			*/
 		ldb.undoRemoveKV(undoKeyValue)
@@ -407,7 +408,6 @@ error 				-->		error
 
 func (ldb *LDataBase) Modify(old interface{}, fn interface{}) error {
 	copy_ := cloneInterface(old)
-	//err := modify(old, fn, ldb.db)
 	err := ldb.modify(old,fn)
 	if err != nil {
 		return err
@@ -474,6 +474,13 @@ func (ldb *LDataBase) modifyKvToDb(oldRef,newRef *reflect.Value)error{
 	return nil
 }
 
+/*
+
+There is no modify fn in undo
+so special processing is required when undo
+
+*/
+
 func(ldb *LDataBase) undoModifyKv(old interface{})error{
 
 	oldRef := reflect.ValueOf(old)
@@ -502,17 +509,7 @@ func(ldb *LDataBase) undoModifyKv(old interface{})error{
 		return err
 	}
 
-	fmt.Println(dst)
-	fmt.Println(oldRef)
-
 	return ldb.modifyKvToDb(&dst,&oldRef)
-	//
-	//err = modifyKey(&dst,&oldRef,db)
-	//if err != nil {
-	//	fmt.Println(dst)
-	//	fmt.Println(oldRef)
-	//	return err
-	//}
 }
 
 /*
@@ -520,7 +517,6 @@ func(ldb *LDataBase) undoModifyKv(old interface{})error{
 The following are some specific implementations of the features that may change, please do not use
 
 */
-
 
 func saveKey(key, value []byte, tx *leveldb.DB) error {
 	if ok, _ := tx.Has(key, nil); ok {
@@ -544,12 +540,7 @@ func removeKey(key []byte, db *leveldb.DB) error {
 	return nil
 }
 
-/*
 
-There is no modify fn in undo
-so special processing is required when undo
-
-*/
 
 /*
 find object from database
@@ -568,7 +559,7 @@ func (ldb *LDataBase) Find(tagName string, in interface{}, out interface{}) erro
 }
 
 func find(tagName string, value interface{}, to interface{}, db *leveldb.DB) error {
-	// fieldName == tagName --> Just different types
+	// fieldName == tagName --> Just different nextId
 	fieldName := []byte(tagName)
 	fields, err := getFieldInfo(tagName, value)
 	if err != nil {
@@ -652,7 +643,7 @@ func (ldb *LDataBase) GetIndex(tagName string, in interface{}) (*multiIndex, err
 
 func getIndex(tagName string, value interface{}, db DataBase) (*multiIndex, error) {
 
-	// fieldName == tagName --> Just different types
+	// fieldName == tagName --> Just different nextId
 	fieldName := []byte(tagName)
 	fields, err := getFieldInfo(tagName, value)
 	if err != nil {
@@ -677,15 +668,6 @@ func getIndex(tagName string, value interface{}, db DataBase) (*multiIndex, erro
 	return it, nil
 }
 
-/*
-
-The id value of each type of object is saved in db
-When inserting a new object
-you need to read the id value of the corresponding type first
-and then add it to db after incrementing
-For next time use
-
-*/
 
 /*
 
@@ -751,7 +733,6 @@ func (ldb *LDataBase) Empty(begin, end, fieldName []byte) (bool) {
 	if it.Next(){
 		return false
 	}
-
 	return true
 }
 
@@ -781,11 +762,11 @@ func (ldb *LDataBase) upperBound(begin, end, fieldName []byte, data interface{},
 	return idx, nil
 }
 
-///////////////
-
-func (ldb *LDataBase) enable() bool {
+func (ldb *LDataBase) enable() bool { 		/* Whether the database enables the undo function*/
 	return ldb.stack.Size() != 0
 }
+
+/* The following three functions are the undo functions provided by the database.*/
 
 func (ldb *LDataBase) undoInsert(in interface{}) {
 	if !ldb.enable() {
@@ -829,6 +810,13 @@ func (ldb *LDataBase) undoRemove(in interface{}) {
 	stack.undoRemove(copy_)
 }
 
+/*
+
+The three functions here are the implementation of
+the database in order to operate the double-ended queue
+and the subsequent queues will provide corresponding operations
+
+*/
 
 func (ldb *LDataBase) getFirstStack() *undoState {
 	stack := ldb.stack.First()
@@ -864,44 +852,43 @@ func (ldb *LDataBase) getStack() *undoState {
 		return typ
 	default:
 		return nil
-		//panic(TYPE_NOT_FOUND)
 	}
 	return nil
 }
 
-func (ldb *LDataBase) undoInsertKV(undoKeyValue *dbKeyValue){ 	/*	kv to db error --> undo kv */
-	//undoKeyValue.showDbKV()
-	fmt.Println("--------- undo insert ---------------")
-	if undoKeyValue.increment.delete{ 						/* undo increment*/
-		err := saveKey(undoKeyValue.increment.key,undoKeyValue.increment.oldValue,ldb.db)
-		if err != nil{
-			panic(err)
-		}
-	}
+/*
 
-	for _,v := range undoKeyValue.index{					/* undo index*/
+When deleting or inserting an object
+if an error occurs before completion
+the following two functions are called to restore the database state
+The internal undo operation of the database is not used externally
+
+*/
+
+func (ldb *LDataBase) undoInsertKV(undoKeyValue *dbKeyValue){ 	/*	insert kv to db error --> undo kv */
+
+	for _,v := range undoKeyValue.index{						/* 	undo index*/
 		err := removeKey(v.key,ldb.db)
 		if err != nil{
 			panic(err)
 		}
 	}
-
-	err := removeKey(undoKeyValue.id.key,ldb.db) 			/* undo id*/
+	err := removeKey(undoKeyValue.id.key,ldb.db) 				/* 	undo id*/
 	if err != nil {
 		panic(err)
 	}
 }
 
-func (ldb *LDataBase) undoRemoveKV(undoKeyValue *dbKeyValue) { /*	remove kv from db error --> undo kv */
+func (ldb *LDataBase) undoRemoveKV(undoKeyValue *dbKeyValue) { 	/*	remove kv from db error --> undo kv */
 
 	undoKeyValue.showDbKV()
 	if len(undoKeyValue.index) == 0{
 		return
 	}
-	for _,v := range undoKeyValue.index{					/* undo index*/
+	for _,v := range undoKeyValue.index{						/* 	undo index*/
 		err := saveKey(v.key,v.value,ldb.db)
 		if err != nil{
-			panic(err)
+			ldb.PanicDb(err.Error())
 		}
 	}
 	if len(undoKeyValue.id.key) == 0{
@@ -914,62 +901,17 @@ func (ldb *LDataBase) undoRemoveKV(undoKeyValue *dbKeyValue) { /*	remove kv from
 	}
 }
 
-//
-//func modifyKey(old, new *reflect.Value, db *leveldb.DB) error {
-//	newCfg, err := extractStruct(new)
-//	if err != nil {
-//		return err
-//	}
-//	oldCfg, err := extractStruct(old)
-//	if err != nil {
-//		return err
-//	}
-//	if !reflect.DeepEqual(oldCfg.Id.Interface(), newCfg.Id.Interface()) {
-//		return ErrNoID
-//	}
-//
-//	callBack := func(newKey, oldKey []byte) error {
-//		find, err := db.Has(oldKey, nil)
-//		if err != nil {
-//			return err
-//		}
-//		if !find {
-//			//fmt.Println("remove key : ",oldKey)
-//			return ErrNotFound
-//		}
-//		value, err := db.Get(oldKey, nil)
-//		if err != nil {
-//			return err
-//		}
-//		err = db.Delete(oldKey, nil)
-//		if err != nil {
-//			return err
-//		}
-//		//fmt.Println(value)
-//		return saveKey(newKey, value, db)
-//	}
-//
-//	id, err := rlp.EncodeToBytes(newCfg.Id.Interface())
-//	if err != nil {
-//		return err
-//	}
-//	typeName := []byte(newCfg.Name)
-//	key := idKey(id, typeName)
-//	val, err := rlp.EncodeToBytes(new.Interface())
-//	if err != nil {
-//		return err
-//	}
-//
-//	// FIXME newcfg or oldcfg
-//	err = modifyField(newCfg, oldCfg, callBack)
-//	if err != nil {
-//		return err
-//	}
-//
-//	err = db.Delete(key, nil)
-//	if err != nil {
-//		return err
-//	}
-//
-//	return saveKey(key, val, db)
-//}
+/*		database log	 */
+
+func (ldb *LDataBase) PanicDb(message string) {
+	if ldb.logFlag {
+		panic (message)
+	}
+}
+
+func (ldb *LDataBase) InfoDb(message string) {
+	if ldb.logFlag {
+		log.Println (message)
+	}
+}
+
