@@ -215,7 +215,7 @@ func (a *ApplyContext) execOne() (trace types.ActionTrace) {
 	r.GlobalSequence = a.nextGlobalSequence()
 	r.RecvSequence = a.nextRecvSequence(a.Receiver)
 	r.AuthSequence = make(map[common.AccountName]uint64)
-	accountSequence := &types.AccountSequenceObject{Name: a.Act.Account}
+	accountSequence := &entity.AccountSequenceObject{Name: a.Act.Account}
 	//a.DB.Get("byName", accountSequence)
 	r.CodeSequence = uint32(accountSequence.CodeSequence)
 	r.AbiSequence = uint32(accountSequence.AbiSequence)
@@ -398,7 +398,7 @@ func (a *ApplyContext) FindTable(code int64, scope int64, table int64) *entity.T
 	}
 
 	err := a.DB.Find("byCodeScopeTable", tab, &tab)
-	if err != nil {
+	if err == nil {
 		return &tab
 	}
 	return nil
@@ -552,7 +552,7 @@ func (a *ApplyContext) dbStoreI64(code int64, scope int64, table int64, payer in
 	})
 
 	// int64_t billable_size = (int64_t)(buffer_size + config::billable_size_v<key_value_object>);
-	billableSize := int64(len(buffer)) + int64(common.BillableSizeV("key_valueObject"))
+	billableSize := int64(len(buffer)) + int64(common.BillableSizeV("key_value_object"))
 	a.UpdateDbUsage(common.AccountName(payer), billableSize)
 	a.KeyvalCache.cacheTable(tab)
 	return a.KeyvalCache.add(&obj)
@@ -572,14 +572,14 @@ func (a *ApplyContext) DbUpdateI64(iterator int, payer int64, buffer []byte) {
 		payerAccount = obj.Payer
 	}
 
-	if obj.Payer == payerAccount {
+	if obj.Payer != payerAccount {
 		a.UpdateDbUsage(obj.Payer, -(oldSize))
 		a.UpdateDbUsage(payerAccount, newSize)
 	} else if oldSize != newSize {
 		a.UpdateDbUsage(obj.Payer, newSize-oldSize)
 	}
 
-	a.DB.Modify(obj, func(obj *types.KeyValueObject) {
+	a.DB.Modify(obj, func(obj *entity.KeyValueObject) {
 		obj.Value = buffer
 		obj.Payer = payerAccount
 	})
@@ -593,7 +593,7 @@ func (a *ApplyContext) DbRemoveI64(iterator int) {
 	// //   require_write_lock( table_obj.scope );
 	billableSize := int64(len(obj.Value)) + int64(common.BillableSizeV("key_value_object"))
 	a.UpdateDbUsage(obj.Payer, -billableSize)
-	a.DB.Modify(objTable, func(t *types.TableIdObject) {
+	a.DB.Modify(objTable, func(t *entity.TableIdObject) {
 		t.Count--
 	})
 
@@ -605,7 +605,7 @@ func (a *ApplyContext) DbRemoveI64(iterator int) {
 }
 func (a *ApplyContext) DbGetI64(iterator int, buffer []byte, bufferSize int) int {
 
-	obj := (a.KeyvalCache.get(iterator)).(*types.KeyValueObject)
+	obj := (a.KeyvalCache.get(iterator)).(*entity.KeyValueObject)
 	s := len(obj.Value)
 
 	if bufferSize == 0 {
@@ -642,7 +642,9 @@ func (a *ApplyContext) DbNextI64(iterator int, primary *uint64) int {
 
 func (a *ApplyContext) DbPreviousI64(iterator int, primary *uint64) int {
 
-	idx, _ := a.DB.GetIndex("byScopePrimary", &entity.KeyValueObject{})
+	idx, err := a.DB.GetIndex("byScopePrimary", entity.KeyValueObject{})
+
+	fmt.Println(err)
 
 	if iterator < -1 {
 		tab := a.KeyvalCache.findTablebyEndIterator(iterator)
@@ -687,10 +689,13 @@ func (a *ApplyContext) DbFindI64(code int64, scope int64, table int64, id int64)
 
 	tableEndItr := a.KeyvalCache.cacheTable(tab)
 
-	obj := types.KeyValueObject{}
+	obj := entity.KeyValueObject{
+		TId:        tab.ID,
+		PrimaryKey: uint64(id),
+	}
 	err := a.DB.Find("byScopePrimary", obj, &obj)
 
-	if err == nil {
+	if err != nil {
 		return tableEndItr
 	}
 	return a.KeyvalCache.add(&obj)
@@ -872,7 +877,7 @@ func (a *ApplyContext) AddRamUsage(account common.AccountName, ramDelta int64) {
 	// 	p.first->delta += ram_delta;
 	// }
 
-	a.AccountRamDeltas.Append(account, ramDelta)
+	//a.AccountRamDeltas.Append(account, ramDelta)
 
 }
 
@@ -925,7 +930,7 @@ func (a *ApplyContext) SetBlockchainParametersPacked(parameters []byte) {
 	cfg := common.Config{}
 	rlp.DecodeBytes(parameters, &cfg)
 
-	a.DB.Modify(a.Control.GetGlobalProperties(), func(gpo *types.GlobalPropertyObject) {
+	a.DB.Modify(a.Control.GetGlobalProperties(), func(gpo *entity.GlobalPropertyObject) {
 		gpo.Configuration = cfg
 	})
 

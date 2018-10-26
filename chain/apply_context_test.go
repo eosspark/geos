@@ -1,6 +1,7 @@
 package chain
 
 import (
+	"fmt"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto"
@@ -94,12 +95,15 @@ func TestDbPrimaryKey(t *testing.T) {
 
 		control := GetControllerInstance()
 
-		buffer, _ := rlp.EncodeToBytes(common.N("walker"))
+		buffer, _ := rlp.EncodeToBytes("0123456")
 		act := types.Action{
-			Account:       common.AccountName(common.N("eosio.token")),
-			Name:          common.ActionName(common.N("hello")),
-			Data:          buffer,
-			Authorization: []types.PermissionLevel{types.PermissionLevel{Actor: common.AccountName(common.N("eosio.token")), Permission: common.PermissionName(common.N("active"))}},
+			Account: common.AccountName(common.N("eosio")),
+			Name:    common.ActionName(common.N("hello")),
+			Data:    buffer,
+			Authorization: []types.PermissionLevel{
+				//types.PermissionLevel{Actor: common.AccountName(common.N("eosio.token")), Permission: common.PermissionName(common.N("active"))},
+				types.PermissionLevel{Actor: common.AccountName(common.N("eosio")), Permission: common.PermissionName(common.N("active"))},
+			},
 		}
 
 		trxHeader := types.TransactionHeader{
@@ -118,16 +122,57 @@ func TestDbPrimaryKey(t *testing.T) {
 			TransactionExtensions: []*types.Extension{},
 		}
 		signedTrx := types.NewSignedTransaction(&trx, []ecc.Signature{}, []common.HexBytes{})
-
 		privateKey, _ := ecc.NewRandomPrivateKey()
-		signedTrx.Sign(*privateKey, common.ChainIdType(*crypto.NewSha256String("cf057bbfb72640471fd910bcb67639c22df9f92470936cddc1ade0e2f2e7dc4f")))
-
+		chainIdType := common.ChainIdType(*crypto.NewSha256String("cf057bbfb72640471fd910bcb67639c22df9f92470936cddc1ade0e2f2e7dc4f"))
+		signedTrx.Sign(privateKey, &chainIdType)
 		trxContext := NewTransactionContext(control, signedTrx, trx.ID(), common.Now())
 
 		a := NewApplyContext(control, trxContext, &act, 0)
-		itr := a.DbStoreI64(int64(common.N("xiaoyu")), int64(common.N("accounts")), int64(common.N("eosio.token")), int64(common.N("100")), buffer)
+
+		//DbStoreI64
+		itr := a.DbStoreI64(int64(common.N("xiaoyu")), int64(common.N("accounts")), int64(common.N("eosio")), 1, buffer)
+
+		tab := a.FindTable(int64(common.N("eosio")), int64(common.N("xiaoyu")), int64(common.N("accounts")))
+		fmt.Println(common.S(uint64(tab.Code)))
+
 		obj := (a.KeyvalCache.get(itr)).(*entity.KeyValueObject)
 		assert.Equal(t, []byte(obj.Value), buffer)
+
+		//DbUpdateI64
+		buffer, _ = rlp.EncodeToBytes("0123456789")
+		a.DbUpdateI64(itr, int64(common.N("eosio")), buffer)
+
+		//DbGetI64
+		buf := make([]byte, 11)
+		bufferSize := a.DbGetI64(itr, buf, 11)
+
+		var ret string
+		rlp.DecodeBytes(buf, &ret)
+		assert.Equal(t, ret, "0123456789")
+		assert.Equal(t, bufferSize, 11)
+
+		//DbRemoveI64
+		a.DbRemoveI64(itr)
+
+		var itrStore int
+		for i := 0; i < 10; i++ {
+			itrStore = a.DbStoreI64(int64(common.N("xiaoyu")), int64(common.N("accounts")), int64(common.N("eosio")), int64(i), []byte{byte(i)})
+			if i == 1 {
+				itr = itrStore
+			}
+
+		}
+
+		itrFind := a.DbFindI64(int64(common.N("eosio")), int64(common.N("xiaoyu")), int64(common.N("accounts")), 5)
+		var primary uint64
+
+		itr = a.DbPreviousI64(itrFind, &primary)
+		itr = a.DbNextI64(itrFind, &primary)
+
+		//assert.Equal(t, itrFind, itr)
+
+		control.Close()
+		control.Clean()
 
 	})
 

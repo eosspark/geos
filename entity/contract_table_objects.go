@@ -19,8 +19,8 @@ type TableIdObject struct {
 
 type KeyValueObject struct {
 	ID         common.IdType `multiIndex:"id,increment"`
-	TId        common.IdType `multiIndex:"byScopePrimay,orderedUnique,less"`
-	PrimaryKey uint64        `multiIndex:"byScopePrimay,orderedUnique,less"`
+	TId        common.IdType `multiIndex:"byScopePrimary,orderedUnique,less"`
+	PrimaryKey uint64        `multiIndex:"byScopePrimary,orderedUnique,less"`
 	Payer      common.AccountName
 	Value      common.HexBytes // c++ SharedString
 }
