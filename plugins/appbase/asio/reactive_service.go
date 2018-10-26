@@ -1,12 +1,10 @@
 package asio
 
-import "os"
-
 type Reactor interface {
 	run()
 	stop()
 	post(op interface{}, args ...interface{})
-	notify(sig ...os.Signal)
+	//notify(sig ...os.Signal)
 }
 
 // use GoroutineReactor for each operating system

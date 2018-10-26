@@ -6,20 +6,19 @@ import (
 )
 
 type multiIndex struct {
-	begin 		[]byte
-	end 		[]byte
-	itBegin     []byte
-	itEnd       []byte
-	typeName 	[]byte
-	fieldName 	[]byte
-	db 			DataBase
-	it 			DbIterator
-	rege 		string
-	greater		bool
+	begin     []byte
+	end       []byte
+	itBegin   []byte
+	itEnd     []byte
+	typeName  []byte
+	fieldName []byte
+	db        DataBase
+	it        DbIterator
+	greater   bool
 }
 
-func newMultiIndex(typeName,fieldName,begin,end []byte, greater bool,db DataBase) *multiIndex {
-	return &multiIndex{typeName: typeName,fieldName:fieldName,begin:begin,end:end, greater: greater,db:db}
+func newMultiIndex(typeName, fieldName, begin, end []byte, greater bool, db DataBase) *multiIndex {
+	return &multiIndex{typeName: typeName, fieldName: fieldName, begin: begin, end: end, greater: greater, db: db}
 }
 
 /*
@@ -31,16 +30,17 @@ success 			-->		nil 	(Iterator valid)
 error 				-->		error 	(Iterator invalid)
 
 */
-func (index *multiIndex)LowerBound(in interface{}) (Iterator,error) {
-	it,err := index.db.lowerBound(index.begin,index.end,index.fieldName,in,index.greater)
-	if err != nil{
-		return nil,err
+func (index *multiIndex) LowerBound(in interface{}) (Iterator, error) {
+	it, err := index.db.lowerBound(index.begin, index.end, index.fieldName, in, index.greater)
+	if err != nil {
+		return nil, err
 	}
-	index.itBegin = make([]byte,len(it.Begin()))
-	copy(index.itBegin,it.Begin())
+	index.itBegin = make([]byte, len(it.Begin()))
+	copy(index.itBegin, it.Begin())
 	index.itEnd = nil
-	return it,nil
+	return it, nil
 }
+
 /*
 
 @param in 			--> 	object
@@ -52,17 +52,18 @@ error 				-->		error 	(Iterator invalid)
 
 */
 
-func (index *multiIndex) UpperBound(in interface{}) (Iterator,error) {
-	it,err := index.db.upperBound(index.begin,index.end,index.fieldName,in,index.greater)
-	if err != nil{
-		return nil,err
+func (index *multiIndex) UpperBound(in interface{}) (Iterator, error) {
+	it, err := index.db.upperBound(index.begin, index.end, index.fieldName, in, index.greater)
+	if err != nil {
+		return nil, err
 	}
 	//fmt.Println(it.Begin())
-	index.itBegin = make([]byte,len(it.Begin()))
-	copy(index.itBegin,it.Begin())
+	index.itBegin = make([]byte, len(it.Begin()))
+	copy(index.itBegin, it.Begin())
 	index.itEnd = nil
-	return it,nil
+	return it, nil
 }
+
 /*
 
 @param in 			--> 	object
@@ -74,8 +75,8 @@ error 				-->		error
 
 */
 
-func (index *multiIndex) Find( in interface{}, out interface{}) error {
-	return index.db.Find(string(index.fieldName),in,out)
+func (index *multiIndex) Find(in interface{}, out interface{}) error {
+	return index.db.Find(string(index.fieldName), in, out)
 }
 
 /*
@@ -88,10 +89,10 @@ error 				-->		error
 
 */
 
-func (index *multiIndex)Begin(out interface{}) error {
+func (index *multiIndex) Begin(out interface{}) error {
 	// TODO
-	err := rlp.DecodeBytes(index.itBegin,out)
-	if err != nil{
+	err := rlp.DecodeBytes(index.itBegin, out)
+	if err != nil {
 		return err
 	}
 	return nil
@@ -109,10 +110,8 @@ error 				-->		false
 
 */
 
-func (index *multiIndex)CompareBegin(in Iterator)bool{
-	//fmt.Println(in.Begin())
-	//fmt.Println(index.itBegin)
-	return bytes.Compare(in.Begin(),index.itBegin) == 0
+func (index *multiIndex) CompareBegin(in Iterator) bool {
+	return bytes.Compare(in.Begin(), index.itBegin) == 0
 }
 
 /*
@@ -126,15 +125,18 @@ success 			-->		true
 error 				-->		false
 
 */
-func (index *multiIndex)CompareEnd(in Iterator)bool{
+
+func (index *multiIndex) CompareEnd(in Iterator) bool {
 	return in.Value() == nil
 }
+
 /*
 
 @return 			-->		Iterator
 
 */
-func (index *multiIndex)End() Iterator {
+
+func (index *multiIndex) End() Iterator {
 	// TODO
 	return nil
 }
@@ -151,7 +153,7 @@ error 				-->		nil
 
 func (index *multiIndex) BeginIterator() Iterator {
 	// TODO
-	if len(index.typeName) == 0{
+	if len(index.typeName) == 0 {
 		return nil
 	}
 
@@ -160,15 +162,15 @@ func (index *multiIndex) BeginIterator() Iterator {
 	// typeName__tag__
 	key = append(key, index.fieldName...)
 
-	if index.it.Seek(key){
+	if index.it.Seek(key) {
 		return nil
 	}
 	return &index.it
 }
 
-func (index *multiIndex) IteratorTo  (in interface{}) Iterator {
+func (index *multiIndex) IteratorTo(in interface{}) Iterator {
 	// TODO
-	if len(index.typeName) == 0{
+	if len(index.typeName) == 0 {
 		return nil
 	}
 	fields, err := getFieldInfo(string(index.fieldName), in)
@@ -179,17 +181,14 @@ func (index *multiIndex) IteratorTo  (in interface{}) Iterator {
 	key = append(key, '_')
 	// typeName__tag__
 	key = append(key, index.fieldName...)
-	key =getFieldValue(key, fields)
+	key = fieldValueToByte(key, fields)
 
-	if index.it.Seek(key){
+	if index.it.Seek(key) {
 		return nil
 	}
 	return &index.it
 }
 
-func (index *multiIndex)Empty() bool {
-	//fmt.Println(index.begin," : ",index.end)
-	//fmt.Println(string(index.begin),": : :",string(index.end))
-	return index.db.Empty(index.begin,index.end,index.fieldName)
+func (index *multiIndex) Empty() bool {
+	return index.db.Empty(index.begin, index.end, index.fieldName)
 }
-

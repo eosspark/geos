@@ -7,28 +7,28 @@ import (
 type ExcTypes int
 
 const (
-	unspecifiedExceptionCode = ExcTypes(iota)
-	unhandledExceptionCode    ///< for unhandled 3rd party exceptions
-	timeoutExceptionCode      ///< timeout exceptions
-	fileNotFoundExceptionCode
-	parseErrorExceptionCode
-	invalidArgExceptionCode
-	keyNotFoundExceptionCode
-	badCastExceptionCode
-	outOfRangeExceptionCode
-	canceledExceptionCode
-	assertExceptionCode
+	UnspecifiedExceptionCode = ExcTypes(iota)
+	UnhandledExceptionCode    ///< for unhandled 3rd party exceptions
+	TimeoutExceptionCode      ///< timeout exceptions
+	FileNotFoundExceptionCode
+	ParseErrorExceptionCode
+	InvalidArgExceptionCode
+	KeyNotFoundExceptionCode
+	BadCastExceptionCode
+	OutOfRangeExceptionCode
+	CanceledExceptionCode
+	AssertExceptionCode
 	_
-	eofExceptionCode
-	stdExceptionCode
-	invalidOperationExceptionCode
-	unknownHostExceptionCode
-	nullOptionalCode
-	udtErrorCode
-	aesErrorCode
-	overflowCode
-	underflowCode
-	divideByZeroCode
+	EofExceptionCode
+	StdExceptionCode
+	InvalidOperationExceptionCode
+	UnknownHostExceptionCode
+	NullOptionalCode
+	UdtErrorCode
+	AesErrorCode
+	OverflowCode
+	UnderflowCode
+	DivideByZeroCode
 )
 
 // base eos Exception interface, every Exception need to implements
@@ -80,17 +80,17 @@ func makeLog(exception Exception) {
 
 type UnHandledException struct{ logMessage }
 
-func (UnHandledException) Code() ExcTypes { return unhandledExceptionCode }
+func (UnHandledException) Code() ExcTypes { return UnhandledExceptionCode }
 func (UnHandledException) What() string   { return "" }
 
 type TimeoutException struct{ logMessage }
 
-func (TimeoutException) Code() ExcTypes { return timeoutExceptionCode }
+func (TimeoutException) Code() ExcTypes { return TimeoutExceptionCode }
 func (TimeoutException) What() string   { return "Timeout" }
 
 type FileNotFoundException struct{ logMessage }
 
-func (FileNotFoundException) Code() ExcTypes { return fileNotFoundExceptionCode }
+func (FileNotFoundException) Code() ExcTypes { return FileNotFoundExceptionCode }
 func (FileNotFoundException) What() string   { return "File Not Found" }
 
 /**
@@ -99,12 +99,12 @@ func (FileNotFoundException) What() string   { return "File Not Found" }
 
 type ParseErrorException struct{ logMessage }
 
-func (ParseErrorException) Code() ExcTypes { return parseErrorExceptionCode }
+func (ParseErrorException) Code() ExcTypes { return ParseErrorExceptionCode }
 func (ParseErrorException) What() string   { return "Parse Error" }
 
 type InvalidArgException struct{ logMessage }
 
-func (InvalidArgException) Code() ExcTypes { return invalidArgExceptionCode }
+func (InvalidArgException) Code() ExcTypes { return InvalidArgExceptionCode }
 func (InvalidArgException) What() string   { return "Key Not Found" }
 
 /**
@@ -113,29 +113,29 @@ func (InvalidArgException) What() string   { return "Key Not Found" }
 
 type KeyNotFoundException struct{ logMessage }
 
-func (KeyNotFoundException) Code() ExcTypes { return keyNotFoundExceptionCode }
+func (KeyNotFoundException) Code() ExcTypes { return KeyNotFoundExceptionCode }
 func (KeyNotFoundException) What() string   { return "Key Not Found" }
 
 type BadCastException struct{ logMessage }
 
-func (BadCastException) Code() ExcTypes { return badCastExceptionCode }
+func (BadCastException) Code() ExcTypes { return BadCastExceptionCode }
 func (BadCastException) What() string   { return "Bad Cast" }
 
 type OutOfRangeException struct{ logMessage }
 
-func (OutOfRangeException) Code() ExcTypes { return outOfRangeExceptionCode }
+func (OutOfRangeException) Code() ExcTypes { return OutOfRangeExceptionCode }
 func (OutOfRangeException) What() string   { return "Out of Range" }
 
 /** @brief if an operation is unsupported or not valid this may be thrown */
 type InvalidOperationException struct{ logMessage }
 
-func (InvalidOperationException) Code() ExcTypes { return invalidOperationExceptionCode }
+func (InvalidOperationException) Code() ExcTypes { return InvalidOperationExceptionCode }
 func (InvalidOperationException) What() string   { return "Invalid Operation" }
 
 /** @brief if an host name can not be resolved this may be thrown */
 type UnknownHostException struct{ logMessage }
 
-func (UnknownHostException) Code() ExcTypes { return unknownHostExceptionCode }
+func (UnknownHostException) Code() ExcTypes { return UnknownHostExceptionCode }
 func (UnknownHostException) What() string   { return "Unknown Host" }
 
 /**
@@ -143,7 +143,7 @@ func (UnknownHostException) What() string   { return "Unknown Host" }
  */
 type CanceledException struct{ logMessage }
 
-func (CanceledException) Code() ExcTypes { return canceledExceptionCode }
+func (CanceledException) Code() ExcTypes { return CanceledExceptionCode }
 func (CanceledException) What() string   { return "Canceled" }
 
 /**
@@ -151,40 +151,40 @@ func (CanceledException) What() string   { return "Canceled" }
  */
 type AssertException struct{ logMessage }
 
-func (AssertException) Code() ExcTypes { return assertExceptionCode }
+func (AssertException) Code() ExcTypes { return AssertExceptionCode }
 func (AssertException) What() string   { return "Assert Exception" }
 
 type EofException struct{ logMessage }
 
-func (EofException) Code() ExcTypes { return eofExceptionCode }
+func (EofException) Code() ExcTypes { return EofExceptionCode }
 func (EofException) What() string   { return "End Of File" }
 
 type NullOptional struct{ logMessage }
 
-func (NullOptional) Code() ExcTypes { return nullOptionalCode }
+func (NullOptional) Code() ExcTypes { return NullOptionalCode }
 func (NullOptional) What() string   { return "null optional" }
 
 type UdtException struct{ logMessage }
 
-func (UdtException) Code() ExcTypes { return udtErrorCode }
+func (UdtException) Code() ExcTypes { return UdtErrorCode }
 func (UdtException) What() string   { return "UDT error" }
 
 type AesException struct{ logMessage }
 
-func (AesException) Code() ExcTypes { return aesErrorCode }
+func (AesException) Code() ExcTypes { return AesErrorCode }
 func (AesException) What() string   { return "AES error" }
 
 type OverflowException struct{ logMessage }
 
-func (OverflowException) Code() ExcTypes { return overflowCode }
+func (OverflowException) Code() ExcTypes { return OverflowCode }
 func (OverflowException) What() string   { return "Integer Overflow" }
 
 type UnderflowException struct{ logMessage }
 
-func (UnderflowException) Code() ExcTypes { return underflowCode }
+func (UnderflowException) Code() ExcTypes { return UnderflowCode }
 func (UnderflowException) What() string   { return "Integer Underflow" }
 
 type DivideByZeroException struct{ logMessage }
 
-func (DivideByZeroException) Code() ExcTypes { return divideByZeroCode }
+func (DivideByZeroException) Code() ExcTypes { return DivideByZeroCode }
 func (DivideByZeroException) What() string   { return "Integer Divide By Zero" }

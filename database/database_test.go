@@ -12,11 +12,11 @@ import (
 
 func Test_rawDb(t *testing.T) {
 	//f, err := os.Create("./cpu.txt")
-   //if err != nil {
-   //    log.Fatal(err)
-   //}
-   //pprof.StartCPUProfile(f)
-   //defer pprof.StopCPUProfile()
+	//if err != nil {
+	//    log.Fatal(err)
+	//}
+	//pprof.StartCPUProfile(f)
+	//defer pprof.StopCPUProfile()
 
 	fileName := "./eosspark"
 	reFn := func() {
@@ -29,8 +29,8 @@ func Test_rawDb(t *testing.T) {
 	if exits == nil {
 		reFn()
 	}
-	db,err := leveldb.OpenFile(fileName,nil)
-	if err != nil{
+	db, err := leveldb.OpenFile(fileName, nil)
+	if err != nil {
 		log.Fatalln(err)
 	}
 	defer func() {
@@ -38,32 +38,31 @@ func Test_rawDb(t *testing.T) {
 		reFn()
 	}()
 
-
 	objs, houses := Objects()
-	if len(objs) != len(houses){
+	if len(objs) != len(houses) {
 		log.Fatalln("ERROR")
 	}
 	for i := 1; i <= 10; i++ {
-		db.Put([]byte(string(i)),[]byte(string(i)),nil)
+		db.Put([]byte(string(i)), []byte(string(i)), nil)
 	}
-	it := db.NewIterator(nil,nil)
-	for it.Next(){
+	it := db.NewIterator(nil, nil)
+	for it.Next() {
 		//fmt.Println(it.Key())
 	}
 
-	it = db.NewIterator(&util.Range{Start:[]byte(string(3)),Limit:[]byte(string(11))},nil)
+	it = db.NewIterator(&util.Range{Start: []byte(string(3)), Limit: []byte(string(11))}, nil)
 
-	for it.Next(){
+	for it.Next() {
 		//fmt.Println(it.Key())
 	}
 	i := 0
-	for index,v := range houses{
-		b,err := rlp.EncodeToBytes(v)
-		if err != nil{
+	for index, v := range houses {
+		b, err := rlp.EncodeToBytes(v)
+		if err != nil {
 			log.Fatalln(err)
 		}
-		db.Put([]byte(string(index + 10)),b,nil)
-		if err != nil{
+		db.Put([]byte(string(index+10)), b, nil)
+		if err != nil {
 			log.Fatalln(err)
 		}
 		i++
@@ -87,7 +86,7 @@ func Test_insert(t *testing.T) {
 	defer clo()
 
 	objs, houses := Objects()
-	if len(objs) != len(houses){
+	if len(objs) != len(houses) {
 		log.Fatalln("ERROR")
 	}
 
@@ -110,10 +109,10 @@ func Test_find(t *testing.T) {
 
 	findInLineFieldObjs(objs_, houses_, db)
 
-	findAllNonUniqueFieldObjs(objs_, houses_, db);
+	findAllNonUniqueFieldObjs(objs_, houses_, db)
 
 	getErrStruct(db)
-	//
+
 	getLessObjs(objs_, houses_, db)
 }
 
@@ -125,27 +124,22 @@ func Test_modifyUndo(t *testing.T) {
 	}
 	defer clo()
 
-
 	objs, houses := Objects()
-	objs_,_:=saveObjs(objs, houses, db)
+	objs_, _ := saveObjs(objs, houses, db)
 
-	//session := db.StartSession()
-	//session.Commit()
-
-	idx, err := db.GetIndex("Code", TableIdObject{})
-	if err != nil{
+	idx, err := db.GetIndex("Code", DbTableIdObject{})
+	if err != nil {
 		log.Println(err)
 	}
-	it,err := idx.LowerBound(TableIdObject{Code:11})
-	if err != nil{
+	it, err := idx.LowerBound(DbTableIdObject{Code: 11})
+	if err != nil {
 		log.Fatalln(err)
 	}
 	i := 0
-	for it.Next(){
-		tmp := TableIdObject{}
+	for it.Next() {
+		tmp := DbTableIdObject{}
 		it.Data(&tmp)
-		//logObj(tmp)
-		if objs_[i] != tmp{
+		if objs_[i] != tmp {
 			logObj(tmp)
 			log.Fatalln("error lower bound")
 		}
@@ -155,18 +149,18 @@ func Test_modifyUndo(t *testing.T) {
 
 	session := db.StartSession()
 	defer session.Undo()
-	obj := TableIdObject{ID: 4, Code: 21, Scope: 22, Table: 26, Payer: 27, Count: 25}
-	newobj := TableIdObject{ID: 4, Code: 200, Scope: 22, Table: 26, Payer: 27, Count: 25}
+	obj := DbTableIdObject{ID: 4, Code: 21, Scope: 22, Table: 26, Payer: 27, Count: 25}
+	newobj := DbTableIdObject{ID: 4, Code: 200, Scope: 22, Table: 26, Payer: 27, Count: 25}
 
-	err = db.Modify(&obj, func(object *TableIdObject) {
+	err = db.Modify(&obj, func(object *DbTableIdObject) {
 		object.Code = 200
 	})
 	if err != nil {
 		log.Fatalln(err)
 	}
 	session.Undo()
-	obj = TableIdObject{}
-	tmp := TableIdObject{}
+	obj = DbTableIdObject{}
+	tmp := DbTableIdObject{}
 	obj.ID = 4
 	err = db.Find("id", obj, &tmp)
 	if err != nil {
@@ -189,51 +183,50 @@ func Test_undoInsert(t *testing.T) {
 	db.SetRevision(10)
 	session := db.StartSession()
 	objs, _ := Objects()
-	for i:= 0;i < 3;i++{
+	for i := 0; i < 3; i++ {
 		err := db.Insert(&objs[i])
-		if err != nil{
+		if err != nil {
 			log.Println(err)
 		}
 	}
 
 	session.Undo()
-	idx, err := db.GetIndex("Code", TableIdObject{})
-	if err != nil{
+	idx, err := db.GetIndex("Code", DbTableIdObject{})
+	if err != nil {
 		log.Println(err)
 	}
 
-	_,err = idx.LowerBound(TableIdObject{Code:11})
-	if err != ErrNotFound{
+	_, err = idx.LowerBound(DbTableIdObject{Code: 11})
+	if err != ErrNotFound {
 		log.Fatalln(err)
 	}
-
 
 	//////////////////////////////////////////////		COMMIT		///////////////////////////////////
 
 	session = db.StartSession()
-	for i:= 0;i < 3;i++{
+	for i := 0; i < 3; i++ {
 		err := db.Insert(&objs[i])
-		if err != nil{
+		if err != nil {
 			log.Println(err)
 		}
 	}
 
 	db.Commit(11)
 	session.Undo()
-	idx, err = db.GetIndex("Code", TableIdObject{})
-	if err != nil{
+	idx, err = db.GetIndex("Code", DbTableIdObject{})
+	if err != nil {
 		log.Println(err)
 	}
-	it,err := idx.LowerBound(TableIdObject{Code:11})
-	if err != nil{
+	it, err := idx.LowerBound(DbTableIdObject{Code: 11})
+	if err != nil {
 		log.Fatalln(err)
 	}
 	i := 0
-	for it.Next(){
-		tmp := TableIdObject{}
+	for it.Next() {
+		tmp := DbTableIdObject{}
 		it.Data(&tmp)
 		//logObj(tmp)
-		if objs[i] != tmp{
+		if objs[i] != tmp {
 			logObj(tmp)
 			log.Fatalln("error lower bound")
 		}
@@ -252,26 +245,26 @@ func Test_undoRemove(t *testing.T) {
 
 	//////////////////////////////////////////////	ready
 	objs, _ := Objects()
-	for i:= 0;i < 3;i++{
+	for i := 0; i < 3; i++ {
 		err := db.Insert(&objs[i])
-		if err != nil{
+		if err != nil {
 			log.Println(err)
 		}
 	}
-	idx, err := db.GetIndex("Code", TableIdObject{})
-	if err != nil{
+	idx, err := db.GetIndex("Code", DbTableIdObject{})
+	if err != nil {
 		log.Println(err)
 	}
-	it,err := idx.LowerBound(TableIdObject{Code:11})
-	if err != nil{
+	it, err := idx.LowerBound(DbTableIdObject{Code: 11})
+	if err != nil {
 		log.Fatalln(err)
 	}
 
-	table := TableIdObject{}
+	table := DbTableIdObject{}
 	i := 0
-	for it.Next(){
+	for it.Next() {
 		it.Data(&table)
-		if objs[i] != table{
+		if objs[i] != table {
 			logObj(objs[i])
 			logObj(table)
 			log.Fatalln("undo failed")
@@ -280,49 +273,50 @@ func Test_undoRemove(t *testing.T) {
 	}
 	session := db.StartSession()
 
-	err = db.Remove(table)
-	if err != nil{
+	err = db.Remove(&table)
+	if err != nil {
 		log.Fatalln(err)
 	}
 	////////////////////////////////////////// begin
-	beginUndo, err := db.GetIndex("Code", TableIdObject{})
-	if err != nil{
+	beginUndo, err := db.GetIndex("Code", DbTableIdObject{})
+	if err != nil {
 		log.Println(err)
 	}
-	beginIt,err := beginUndo.LowerBound(TableIdObject{Code:11})
-	if err != nil{
+	beginIt, err := beginUndo.LowerBound(DbTableIdObject{Code: 11})
+	if err != nil {
 		log.Fatalln(err)
 	}
 	i = 0
-	for beginIt.Next(){
-		table := TableIdObject{}
+	for beginIt.Next() {
+		table := DbTableIdObject{}
 		beginIt.Data(&table)
-		if objs[i] != table{
+		//logObj(table)
+		if objs[i] != table {
 			logObj(objs[i])
 			logObj(table)
 			log.Fatalln("undo failed")
 		}
 		i++
 	}
-	if i != 2{
+	if i != 2 {
 		log.Println(i)
 		log.Fatalln("undo failed")
 	}
-	session.Undo()// undo
+	session.Undo() // undo
 	/////////////////////////////////////////// end
-	endUndo, err := db.GetIndex("Code", TableIdObject{})
-	if err != nil{
+	endUndo, err := db.GetIndex("Code", DbTableIdObject{})
+	if err != nil {
 		log.Println(err)
 	}
-	endIt,err := endUndo.LowerBound(TableIdObject{Code:11})
-	if err != nil{
+	endIt, err := endUndo.LowerBound(DbTableIdObject{Code: 11})
+	if err != nil {
 		log.Fatalln(err)
 	}
 	i = 0
-	for endIt.Next(){
-		table := TableIdObject{}
+	for endIt.Next() {
+		table := DbTableIdObject{}
 		endIt.Data(&table)
-		if objs[i] != table{
+		if objs[i] != table {
 			logObj(objs[i])
 			logObj(table)
 			log.Fatalln("undo failed")
@@ -341,28 +335,28 @@ func Test_empty(t *testing.T) {
 	objs, houses := Objects()
 	saveObjs(objs, houses, db)
 
-	idx, err := db.GetIndex("Code", TableIdObject{})
+	idx, err := db.GetIndex("Code", DbTableIdObject{})
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	obj := TableIdObject{Code: 11}
-	it ,err := idx.LowerBound(obj)
+	obj := DbTableIdObject{Code: 11}
+	it, err := idx.LowerBound(obj)
 	if err != nil {
 		log.Fatalln(err)
 	}
-	for it.Next(){
-		tmp := TableIdObject{}
+	for it.Next() {
+		tmp := DbTableIdObject{}
 		it.Data(&tmp)
-		err = db.Remove(tmp)
-		if err != nil{
+		err = db.Remove(&tmp)
+		if err != nil {
 			log.Fatalln(err)
 		}
 
 	}
 	it.Release()
 
-	if !idx.Empty(){
+	if !idx.Empty() {
 		log.Fatalln("empty error")
 	}
 }
@@ -402,44 +396,93 @@ func Test_resourceLimitsObject(t *testing.T) {
 	defer clo()
 
 	limits := MakeResourceLimitsObjects()
-	for _,v := range limits{
+	for _, v := range limits {
 		err := db.Insert(&v)
-		if err != nil{
+		if err != nil {
 			log.Fatalln(err)
 		}
 	}
 
-	idx, err := db.GetIndex("byOwner", ResourceLimitsObject{})
+	idx, err := db.GetIndex("byOwner", DbResourceLimitsObject{})
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-
 	for !idx.Empty() {
-		tmp := ResourceLimitsObject{}
-		obj := ResourceLimitsObject{Pending: false}
-		it ,err := idx.LowerBound(obj)
+		tmp := DbResourceLimitsObject{}
+		obj := DbResourceLimitsObject{Pending: false}
+		it, err := idx.LowerBound(obj)
 		if err != nil {
 			log.Fatalln(err)
 		}
 		idx.Begin(&tmp)
 		//logObj(tmp)
-		if idx.CompareEnd(it) || tmp.Pending == true{
+		if idx.CompareEnd(it) || tmp.Pending == true {
 			fmt.Println("db is empty")
 		}
 
-		err = db.Remove(tmp)
-		if err != nil{
+		err = db.Remove(&tmp)
+		if err != nil {
 			log.Fatalln(err)
 		}
 		it.Release()
 	}
 
-	if !idx.Empty(){
+	if !idx.Empty() {
 		log.Fatalln("empty error")
 	}
-	if idx.Empty(){
+	if idx.Empty() {
 		//fmt.Println("empty successful !")
+	}
+}
+
+func Test_Increment(t *testing.T) {
+
+	fileName := "./increment"
+
+	reFn := func() {
+		errs := os.RemoveAll(fileName)
+		if errs != nil {
+			log.Fatalln(errs)
+		}
+	}
+	defer reFn()
+	_, exits := os.Stat(fileName)
+	if exits == nil {
+		reFn()
+	}
+
+	db, err := NewDataBase(fileName, false)
+	if err != nil {
+		fmt.Println("new database failed")
+	}
+	defer db.Close()
+
+	//obj := DbTableIdObject{Code:100,Scope:200,Table:300,Payer:400,Count:500}
+	//err = db.Insert(&obj)
+	//if err != nil{
+	//	log.Panicln(err)
+	//}
+	objs, houses := Objects()
+	saveObjs(objs, houses, db)
+
+	obj := DbTableIdObject{Scope: 22}
+	idx, err := db.GetIndex("byTable", obj)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	it, err := idx.LowerBound(obj)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	defer it.Release()
+
+
+	for it.Next() {
+		tmp := DbTableIdObject{}
+		it.Data(&tmp)
+		logObj(tmp)
 	}
 }
 
@@ -457,7 +500,7 @@ func openDb() (DataBase, func()) {
 		reFn()
 	}
 
-	db, err := NewDataBase(fileName)
+	db, err := NewDataBase(fileName, false)
 	if err != nil {
 		fmt.Println("new database failed")
 		return nil, reFn
@@ -469,31 +512,31 @@ func openDb() (DataBase, func()) {
 	}
 }
 
-func Objects() ([]TableIdObject, []House) {
-	objs := []TableIdObject{}
-	Houses := []House{}
+func Objects() ([]DbTableIdObject, []DbHouse) {
+	objs := []DbTableIdObject{}
+	DbHouses := []DbHouse{}
 	for i := 1; i <= 3; i++ {
 		number := i * 10
-		obj := TableIdObject{Code: AccountName(number + 1), Scope: ScopeName(number + 2), Table: TableName(number + 3+ i + 1), Payer: AccountName(number + 4 + i + 1), Count: uint32(number + 5)}
+		obj := DbTableIdObject{Code: AccountName(number + 1), Scope: ScopeName(number + 2), Table: TableName(number + 3 + i + 1), Payer: AccountName(number + 4 + i + 1), Count: uint32(number + 5)}
 		objs = append(objs, obj)
-		house := House{Area: uint64(number + 7), Carnivore: Carnivore{number + 8, number + 8}}
-		Houses = append(Houses, house)
-		obj = TableIdObject{Code: AccountName(number + 1), Scope: ScopeName(number + 2), Table: TableName(number + 3 + i + 2), Payer: AccountName(number + 4 + i + 2), Count: uint32(number + 5)}
+		house := DbHouse{Area: uint64(number + 7), Carnivore: Carnivore{number + 8, number + 8}}
+		DbHouses = append(DbHouses, house)
+		obj = DbTableIdObject{Code: AccountName(number + 1), Scope: ScopeName(number + 2), Table: TableName(number + 3 + i + 2), Payer: AccountName(number + 4 + i + 2), Count: uint32(number + 5)}
 		objs = append(objs, obj)
-		house = House{Area: uint64(number + 8), Carnivore: Carnivore{number + 8, number + 8}}
-		Houses = append(Houses, house)
+		house = DbHouse{Area: uint64(number + 8), Carnivore: Carnivore{number + 8, number + 8}}
+		DbHouses = append(DbHouses, house)
 
-		obj = TableIdObject{Code: AccountName(number + 1), Scope: ScopeName(number + 2), Table: TableName(number + 3+ i + 3), Payer: AccountName(number + 4 +i + 3), Count: uint32(number + 5)}
+		obj = DbTableIdObject{Code: AccountName(number + 1), Scope: ScopeName(number + 2), Table: TableName(number + 3 + i + 3), Payer: AccountName(number + 4 + i + 3), Count: uint32(number + 5)}
 		objs = append(objs, obj)
-		house = House{Area: uint64(number + 9), Carnivore: Carnivore{number + 8, number + 8}}
-		Houses = append(Houses, house)
+		house = DbHouse{Area: uint64(number + 9), Carnivore: Carnivore{number + 8, number + 8}}
+		DbHouses = append(DbHouses, house)
 	}
-	return objs, Houses
+	return objs, DbHouses
 }
 
-func saveObjs(objs []TableIdObject, houses []House, db DataBase) ([]TableIdObject, []House) {
-	objs_ := []TableIdObject{}
-	houses_ := []House{}
+func saveObjs(objs []DbTableIdObject, houses []DbHouse, db DataBase) ([]DbTableIdObject, []DbHouse) {
+	objs_ := []DbTableIdObject{}
+	houses_ := []DbHouse{}
 
 	for _, v := range houses {
 		err := db.Insert(&v)
@@ -519,24 +562,23 @@ func saveObjs(objs []TableIdObject, houses []House, db DataBase) ([]TableIdObjec
 
 func getErrStruct(db DataBase) {
 
-	obj := TableIdObject{Scope: 12,Table:13}
+	obj := DbTableIdObject{Scope: 12, Table: 13}
 	_, err := db.GetIndex("byTable", &obj)
 	if err != ErrStructNeeded {
 		log.Fatalln(err)
 	}
 }
 
-func getGreaterObjs(objs []TableIdObject, houses []House, db DataBase) {
+func getGreaterObjs(objs []DbTableIdObject, houses []DbHouse, db DataBase) {
 
-	obj := TableIdObject{Scope:22}
+	obj := DbTableIdObject{Scope: 22}
 	idx, err := db.GetIndex("byTable", obj)
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-
-	it,err := idx.LowerBound(obj)
-	if err != nil{
+	it, err := idx.LowerBound(obj)
+	if err != nil {
 		log.Fatalln(err)
 	}
 	defer it.Release()
@@ -544,17 +586,17 @@ func getGreaterObjs(objs []TableIdObject, houses []House, db DataBase) {
 	//for _,v := range objs{
 	//	logObj(v)
 	//}
-	if idx.CompareBegin(it){
-		tmp := TableIdObject{}
+	if idx.CompareBegin(it) {
+		tmp := DbTableIdObject{}
 		idx.Begin(&tmp)
-		if tmp != objs[8]{
+		if tmp != objs[8] {
 			logObj(objs[8])
 			logObj(tmp)
 		}
 	}
 	i := 8
-	for it.Next(){
-		tmp := TableIdObject{}
+	for it.Next() {
+		tmp := DbTableIdObject{}
 		it.Data(&tmp)
 		if tmp != objs[i] {
 			logObj(tmp)
@@ -562,18 +604,18 @@ func getGreaterObjs(objs []TableIdObject, houses []House, db DataBase) {
 		}
 		i--
 	}
-	if !idx.CompareEnd(it){
+	if !idx.CompareEnd(it) {
 		log.Fatalln("CompareEnd")
 	}
 	it.Release()
 
-	it ,err = idx.UpperBound(obj)
-	if err != nil{
+	it, err = idx.UpperBound(obj)
+	if err != nil {
 		log.Fatalln(err)
 	}
 	i = 8
-	for it.Next(){
-		tmp := TableIdObject{}
+	for it.Next() {
+		tmp := DbTableIdObject{}
 		it.Data(&tmp)
 		if tmp != objs[i] {
 			logObj(tmp)
@@ -585,22 +627,22 @@ func getGreaterObjs(objs []TableIdObject, houses []House, db DataBase) {
 	it.Release()
 }
 
-func getLessObjs(objs []TableIdObject, houses []House, db DataBase) {
-	obj := TableIdObject{Code: 13}
-	idx, err := db.GetIndex("Code", TableIdObject{})
+func getLessObjs(objs []DbTableIdObject, houses []DbHouse, db DataBase) {
+	obj := DbTableIdObject{Code: 13}
+	idx, err := db.GetIndex("Code", DbTableIdObject{})
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	it ,err := idx.LowerBound(obj)
+	it, err := idx.LowerBound(obj)
 	if err != nil {
 		log.Fatalln(err)
 	}
 	i := 3
-	for it.Next(){
-		tmp := TableIdObject{}
+	for it.Next() {
+		tmp := DbTableIdObject{}
 		it.Data(&tmp)
-		if tmp != objs[i]{
+		if tmp != objs[i] {
 			logObj(objs[i])
 			logObj(tmp)
 		}
@@ -611,18 +653,18 @@ func getLessObjs(objs []TableIdObject, houses []House, db DataBase) {
 
 func modifyObjs(db DataBase) {
 
-	obj := TableIdObject{ID: 4, Code: 21, Scope: 22, Table: 26, Payer: 27, Count: 25}
-	newobj := TableIdObject{ID: 4, Code: 200, Scope: 22, Table: 26, Payer: 27, Count: 25}
+	obj := DbTableIdObject{ID: 4, Code: 21, Scope: 22, Table: 26, Payer: 27, Count: 25}
+	newobj := DbTableIdObject{ID: 4, Code: 200, Scope: 22, Table: 26, Payer: 27, Count: 25}
 
-	err := db.Modify(&obj, func(object *TableIdObject) {
+	err := db.Modify(&obj, func(object *DbTableIdObject) {
 		object.Code = 200
 	})
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	obj = TableIdObject{}
-	tmp := TableIdObject{}
+	obj = DbTableIdObject{}
+	tmp := DbTableIdObject{}
 	obj.ID = 4
 	err = db.Find("id", obj, &tmp)
 	if err != nil {
@@ -634,22 +676,22 @@ func modifyObjs(db DataBase) {
 	}
 }
 
-func findObjs(objs []TableIdObject, houses []House, db DataBase) {
-	obj := TableIdObject{ID: 4}
-	tmp := TableIdObject{}
+func findObjs(objs []DbTableIdObject, houses []DbHouse, db DataBase) {
+	obj := DbTableIdObject{ID: 4}
+	tmp := DbTableIdObject{}
 	err := db.Find("id", obj, &tmp)
 	if err != nil {
 		log.Fatalln(err)
 	}
 	//logObj(tmp)
 	{
-		hou := House{Area: 18}
-		tmp := House{}
+		hou := DbHouse{Area: 18}
+		tmp := DbHouse{}
 		err := db.Find("Area", hou, &tmp)
 		if err != nil {
 			log.Fatalln(err)
 		}
-		if houses[1] != tmp{
+		if houses[1] != tmp {
 			logObj(tmp)
 			logObj(houses[1])
 			log.Fatalln("Find Object")
@@ -657,24 +699,24 @@ func findObjs(objs []TableIdObject, houses []House, db DataBase) {
 	}
 }
 
-func findInLineFieldObjs(objs []TableIdObject, houses []House, db DataBase) {
-	hou := House{Carnivore:Carnivore{28,38}}
+func findInLineFieldObjs(objs []DbTableIdObject, houses []DbHouse, db DataBase) {
+	hou := DbHouse{Carnivore: Carnivore{28, 38}}
 	//idx,err := db.GetIndex("Tiger", hou)
-	idx,err := db.GetIndex("Lion", hou)
+	idx, err := db.GetIndex("Lion", hou)
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	it ,err := idx.LowerBound(hou)
+	it, err := idx.LowerBound(hou)
 	if err != nil {
 		log.Fatalln(err)
 	}
 	i := 8
 	defer it.Release()
-	for it.Next(){
-		tmp := House{}
+	for it.Next() {
+		tmp := DbHouse{}
 		it.Data(&tmp)
-		if tmp != houses[i]{
+		if tmp != houses[i] {
 			logObj(houses[i])
 			logObj(tmp)
 		}
@@ -682,53 +724,53 @@ func findInLineFieldObjs(objs []TableIdObject, houses []House, db DataBase) {
 	}
 }
 
-func findAllNonUniqueFieldObjs(objs []TableIdObject, houses []House, db DataBase) {
+func findAllNonUniqueFieldObjs(objs []DbTableIdObject, houses []DbHouse, db DataBase) {
 
-	obj := TableIdObject{Scope:12,Table:15}
+	obj := DbTableIdObject{Scope: 12, Table: 15}
 
-	err := db.Find("byTable",obj,&obj)
-	if err != nil{
+	err := db.Find("byTable", obj, &obj)
+	if err != nil {
 		log.Fatalln(err)
 	}
 	//logObj(obj)
 }
 
 func removeUnique(db DataBase) {
-	obj := TableIdObject{Code: 21, Scope: 22, Table: 23, Payer: 24, Count: 25}
-	err := db.Remove(obj)
+	obj := DbTableIdObject{Code: 21, Scope: 22, Table: 23, Payer: 24, Count: 25}
+	err := db.Remove(&obj)
 	if err != ErrIncompleteStructure {
 		log.Fatalln(err)
 	}
 
-	obj = TableIdObject{}
+	obj = DbTableIdObject{}
 	obj.ID = 4
 
-	tmp := TableIdObject{}
+	tmp := DbTableIdObject{}
 	err = db.Find("id", obj, &tmp)
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	err = db.Remove(tmp)
+	err = db.Remove(&tmp)
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	tmp = TableIdObject{}
+	tmp = DbTableIdObject{}
 	err = db.Find("id", obj, &tmp)
 	if err != ErrNotFound {
 		log.Fatalln(err)
 	}
 }
 
-func MakeResourceLimitsObjects()([]ResourceLimitsObject){
-	//limits := make([]ResourceLimitsObject,0)
-	limits := []ResourceLimitsObject{}
+func MakeResourceLimitsObjects() []DbResourceLimitsObject {
+	//limits := make([]DbResourceLimitsObject,0)
+	limits := []DbResourceLimitsObject{}
 
 	for i := 1; i <= 13; i++ {
 		number := 100
-		obj := ResourceLimitsObject{Owner:AccountName(number + i)}
-		limits = append(limits,obj)
+		obj := DbResourceLimitsObject{Owner: AccountName(number + i)}
+		limits = append(limits, obj)
 	}
-	return  limits
+	return limits
 }
