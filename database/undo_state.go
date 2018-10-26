@@ -10,22 +10,22 @@ type undoState struct {
 	NewValue    map[interface{}]int64 // hash or md5 ?
 	RemoveValue map[interface{}]int64
 	OldValue    map[interface{}]int64
-	oldIds		map[string]int64
-	reversion     int64
+	oldIds      map[string]int64
+	reversion   int64
 }
 
-func newUndoState(reversion int64,oldIds map[string]int64) *undoState {
+func newUndoState(reversion int64, oldIds map[string]int64) *undoState {
 
-	oldIds_  := make(map[string]int64)
-	for k,v := range oldIds{
+	oldIds_ := make(map[string]int64)
+	for k, v := range oldIds {
 		oldIds_[k] = v
 	}
 	return &undoState{
-		NewValue:    	make(map[interface{}]int64),
-		RemoveValue: 	make(map[interface{}]int64),
-		OldValue:    	make(map[interface{}]int64),
-		oldIds:			oldIds_,
-		reversion:     	reversion,
+		NewValue:    make(map[interface{}]int64),
+		RemoveValue: make(map[interface{}]int64),
+		OldValue:    make(map[interface{}]int64),
+		oldIds:      oldIds_,
+		reversion:   reversion,
 	}
 }
 
@@ -65,7 +65,6 @@ func (stack *undoState) undoModify(data interface{}) {
 	stack.reversion++
 	stack.OldValue[data] = stack.reversion
 }
-
 
 func undoEqual(m map[interface{}]int64, data interface{}) interface{} {
 	for key, value := range m {

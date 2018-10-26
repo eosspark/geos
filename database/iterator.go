@@ -1,16 +1,13 @@
-
 package database
 
 import (
 	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/syndtr/goleveldb/leveldb"
 	"reflect"
-	"regexp"
 )
 
 //Do not use the functions in this file
 type iterator interface {
-
 	First() bool
 
 	Last() bool
@@ -26,108 +23,102 @@ type iterator interface {
 	Seek(key []byte) bool
 
 	Release()
-
 }
 
 //Do not use the functions in this file
 type Iterator interface {
-
 	iterator
 
-
-	Data(data interface{})error
+	Data(data interface{}) error
 
 	Begin() []byte
 }
 
 //Do not use the functions in this file
-type DbIterator struct{
-	key 		[]byte
-	value 		[]byte
-	begin 		[]byte
-	typeName 	[]byte
-	db 			*leveldb.DB // TODO interface
-	it 			iterator
-	rege 		string // FIXME unused
-	greater		bool
-	first		bool
+type DbIterator struct {
+	key      []byte
+	value    []byte
+	begin    []byte
+	typeName []byte
+	db       *leveldb.DB // TODO interface
+	it       iterator
+	greater  bool
+	first    bool
 }
 
 //Do not use the functions in this file
-func newDbIterator (typeName []byte,it iterator,db *leveldb.DB,rege string,greater bool) (*DbIterator,error){
+func newDbIterator(typeName []byte, it iterator, db *leveldb.DB, greater bool) (*DbIterator, error) {
 	if greater {
-		if it.Last(){
-			idx := &DbIterator{typeName:typeName,it:it,db:db,rege:rege,greater:greater}
-			key := idKey(it.Value(),typeName)
-			key, err := getDbKey(key,db)
-			if err != nil{
-				return nil,err
+		if it.Last() {
+			idx := &DbIterator{typeName: typeName, it: it, db: db, greater: greater}
+			key := idKey(it.Value(), typeName)
+			key, err := getDbKey(key, db)
+			if err != nil {
+				return nil, err
 			}
-			idx.begin = make([]byte,len(key))
-			copy(idx.begin,key)
-			idx.value = make([]byte,len(key))
-			copy(idx.value,key)
-			idx.first = true
-			return idx,nil
+
+			idx.copyBeginValue(key)
+
+			return idx, nil
 		}
 
 		return nil, ErrNotFound
 	}
-	for it.Next(){
-		idx := &DbIterator{typeName:typeName,it:it,db:db,rege:rege,greater:greater}
-		//idx.begin = make([]byte,len(it.Value()))
-		//copy(idx.begin,it.Value())
-		//
-		//idx.value = make([]byte,len(it.Value()))
-		//copy(idx.value,it.Value())
+	for it.Next() {
+		idx := &DbIterator{typeName: typeName, it: it, db: db,greater: greater}
 
-		key := idKey(it.Value(),typeName)
-		key, err := getDbKey(key,db)
-		if err != nil{
-			return nil,err
+		key := idKey(it.Value(), typeName)
+		key, err := getDbKey(key, db)
+		if err != nil {
+			return nil, err
 		}
-		idx.begin = make([]byte,len(key))
-		copy(idx.begin,key)
-		idx.value = make([]byte,len(key))
-		copy(idx.value,key)
-		idx.first = true
-		return idx,nil
+
+		idx.copyBeginValue(key)
+		return idx, nil
 	}
 
 	return nil, ErrNotFound
 }
 
 /* Do not use the functions in this file */
-/////////////////////////////////////////////// iterator //////////////////////////////////
+
+
+func (index *DbIterator)copyBeginValue(key []byte)error{
+	index.begin = make([]byte, len(key)) /* compare begin 	*/
+	copy(index.begin, key)
+	index.value = make([]byte, len(key)) /* begin data  	*/
+	copy(index.value, key)
+	index.first = true
+	return nil
+}
+
+func (index *DbIterator)keyValue(key []byte)error{
+	k := idKey(key, index.typeName)
+
+	v, err := index.db.Get(k, nil)
+	if err != nil {
+		index.key = nil
+		index.value = nil
+		return err
+	}
+	index.key = k
+	index.value = v
+	return nil
+}
+
 func (index *DbIterator) Next() bool {
 	if index.greater {
 		if index.first == true {
 			index.first = false
-			value := index.it.Value()
-			k := idKey(value, index.typeName)
 
-			v, err := index.db.Get(k, nil)
-			if err != nil {
-				return false
-			}
-			index.key = k
-			index.value = v
-			return true
+			return  index.keyValue(index.it.Value())  == nil
 		}
 		return index.prev()
 	}
 	if index.first == true {
 		index.first = false
-		value := index.it.Value()
-		k := idKey(value, index.typeName)
 
-		v, err := index.db.Get(k, nil)
-		if err != nil {
-			return false
-		}
-		index.key = k
-		index.value = v
-		return true
+		return  index.keyValue(index.it.Value())  == nil
 	}
 	return index.next()
 }
@@ -135,64 +126,31 @@ func (index *DbIterator) Next() bool {
 func (index *DbIterator) Prev() bool {
 	if index.greater {
 		if index.first == true {
-			index.first = false
-			value := index.it.Value()
-			k := idKey(value, index.typeName)
 
-			v, err := index.db.Get(k, nil)
-			if err != nil {
-				return false
-			}
-			index.key = k
-			index.value = v
-			return true
+			index.first = false
+
+			return  index.keyValue(index.it.Value())  == nil
 		}
 		return index.next()
 	}
-	if index.first == true {
-		index.first = false
-		value := index.it.Value()
-		k := idKey(value, index.typeName)
 
-		v, err := index.db.Get(k, nil)
-		if err != nil {
-			return false
-		}
-		index.key = k
-		index.value = v
-		return true
+	if index.first == true {
+
+		index.first = false
+
+		return  index.keyValue(index.it.Value())  == nil
 	}
 	return index.prev()
 }
 
-func (index *DbIterator) Begin()[]byte{
+func (index *DbIterator) Begin() []byte {
 	return index.begin
-}
-
-func (index *DbIterator) prefix()[]byte{
-	for index.it.Next() {
-		reg := regexp.MustCompile(index.rege)
-		find := reg.Match(index.it.Key())
-		if !find {
-			continue
-		}
-		return index.it.Key()
-	}
-	return nil
 }
 
 func (index *DbIterator) next() bool {
 	for index.it.Next() {
-		value := index.it.Value()
-		k := idKey(value, index.typeName)
-		v, err := index.db.Get(k, nil)
-		if err != nil {
-			index.value = nil
-			return false
-		}
-		index.key = k
-		index.value = v
-		return true
+
+		return index.keyValue(index.it.Value()) == nil
 	}
 	index.value = nil
 	return false
@@ -200,16 +158,8 @@ func (index *DbIterator) next() bool {
 
 func (index *DbIterator) prev() bool {
 	for index.it.Prev() {
-		value := index.it.Value()
-		k := idKey(value, index.typeName)
-		v, err := index.db.Get(k, nil)
-		if err != nil {
-			index.value = nil
-			return false
-		}
-		index.key = k
-		index.value = v
-		return true
+
+		return index.keyValue(index.it.Value()) == nil
 	}
 	index.value = nil
 	return false
@@ -249,6 +199,6 @@ func (index *DbIterator) First() bool { // TODO
 	return index.it.First()
 }
 
-func (index *DbIterator)Seek(key []byte) bool{// TODO
+func (index *DbIterator) Seek(key []byte) bool { // TODO
 	return index.it.Seek(key)
 }

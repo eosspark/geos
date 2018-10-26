@@ -5,9 +5,6 @@ import (
 	"reflect"
 )
 
-
-
-
 /////////////////////////////////////////////////////// test struct ///////////////////////////////////////////
 type Carnivore struct {
 	Lion  int `multiIndex:"orderedNonUnique,greater"`
@@ -15,9 +12,9 @@ type Carnivore struct {
 }
 
 type DbHouse struct {
-	Id       uint64 `multiIndex:"id,increment"`
-	Area     uint64 `multiIndex:"orderedUnique,greater"`
-	Name     string
+	Id        uint64 `multiIndex:"id,increment"`
+	Area      uint64 `multiIndex:"orderedUnique,greater"`
+	Name      string
 	Carnivore Carnivore `multiIndex:"inline"`
 }
 
@@ -29,28 +26,28 @@ type ActionName uint64
 type TableName uint64
 type ScopeName uint64
 
-type DbTableIdObject struct{
-	ID 		IdType			`multiIndex:"id,increment,byScope"`
-	Code 	AccountName		`multiIndex:"orderedNonUnique,less"`
-	Scope 	ScopeName		`multiIndex:"byTable,orderedNonUnique,greater:byScope,orderedNonUnique,less"`
-	Table 	TableName		`multiIndex:"byTable,orderedNonUnique,greater"`
-	Payer 	AccountName		`multiIndex:"byScope,orderedNonUnique"`
-	Count 	uint32
+type DbTableIdObject struct {
+	ID    IdType      `multiIndex:"id,increment,byScope"`
+	Code  AccountName `multiIndex:"orderedNonUnique,less"`
+	Scope ScopeName   `multiIndex:"byTable,orderedNonUnique,greater:byScope,orderedNonUnique,less"`
+	Table TableName   `multiIndex:"byTable,orderedNonUnique,greater"`
+	Payer AccountName `multiIndex:"byScope,orderedNonUnique"`
+	Count uint32
 }
 
-type DbResourceLimitsObject struct{
-	ID 			IdType 			`multiIndex:"id,increment"`
-	Pending 	bool 			`multiIndex:"byOwner,orderedNonUnique"`
-	Owner 		AccountName  	`multiIndex:"byOwner,orderedNonUnique"`
-	NetWeight 	int64
-	CpuWeight 	int64
-	RamBytes 	int64
+type DbResourceLimitsObject struct {
+	ID        IdType      `multiIndex:"id,increment"`
+	Pending   bool        `multiIndex:"byOwner,orderedNonUnique"`
+	Owner     AccountName `multiIndex:"byOwner,orderedNonUnique"`
+	NetWeight int64
+	CpuWeight int64
+	RamBytes  int64
 }
 
-func logObj(data interface{}){
+func logObj(data interface{}) {
 	space := "	"
 	ref := reflect.ValueOf(data)
-	if !ref.IsValid() ||  reflect.Indirect(ref).Kind() != reflect.Struct {
+	if !ref.IsValid() || reflect.Indirect(ref).Kind() != reflect.Struct {
 		fmt.Println("log obj valid")
 		return
 	}
@@ -66,12 +63,11 @@ func logObj(data interface{}){
 	}
 	typ := s.Type()
 
-
 	num := s.NumField()
-	for i := 0; i  < num; i++{
+	for i := 0; i < num; i++ {
 		v := s.Field(i)
 		t := typ.Field(i)
-		fmt.Print(t.Name,space,v,space)
+		fmt.Print(t.Name, space, v, space)
 	}
 	fmt.Println("")
 }
