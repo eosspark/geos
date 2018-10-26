@@ -65,11 +65,11 @@ func typeIncrement(db *leveldb.DB) (map[string]int64, error) {
 	dbIncrement := dbIncrement
 	key := []byte(dbIncrement)
 	val, err := db.Get(key, nil)
-	if err != leveldb.ErrNotFound {
+	if err != nil && err != leveldb.ErrNotFound {
 		return nil, err
 	}
 	if err == nil && len(val) != 0 {
-		err = rlp.DecodeBytes(val, nextId)
+		err = rlp.DecodeBytes(val, &nextId)
 		if err != nil {
 			panic("database init failed : " + err.Error())
 		}
@@ -856,11 +856,18 @@ The internal undo operation of the database is not used externally
 
 func (ldb *LDataBase) undoInsertKV(undoKeyValue *dbKeyValue) { /*	insert kv to db error --> undo kv */
 
+	if len(undoKeyValue.index) == 0{
+		return
+	}
+
 	for _, v := range undoKeyValue.index { /* 	undo index*/
 		err := removeKey(v.key, ldb.db)
 		if err != nil {
 			panic(err)
 		}
+	}
+	if len(undoKeyValue.id.key) == 0{
+		return
 	}
 	err := removeKey(undoKeyValue.id.key, ldb.db) /* 	undo id*/
 	if err != nil {

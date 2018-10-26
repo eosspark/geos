@@ -436,6 +436,56 @@ func Test_resourceLimitsObject(t *testing.T) {
 	}
 }
 
+func Test_Increment(t *testing.T) {
+
+	fileName := "./increment"
+
+	reFn := func() {
+		errs := os.RemoveAll(fileName)
+		if errs != nil {
+			log.Fatalln(errs)
+		}
+	}
+	defer reFn()
+	_, exits := os.Stat(fileName)
+	if exits == nil {
+		reFn()
+	}
+
+	db, err := NewDataBase(fileName, false)
+	if err != nil {
+		fmt.Println("new database failed")
+	}
+	defer db.Close()
+
+	//obj := DbTableIdObject{Code:100,Scope:200,Table:300,Payer:400,Count:500}
+	//err = db.Insert(&obj)
+	//if err != nil{
+	//	log.Panicln(err)
+	//}
+	objs, houses := Objects()
+	saveObjs(objs, houses, db)
+
+	obj := DbTableIdObject{Scope: 22}
+	idx, err := db.GetIndex("byTable", obj)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	it, err := idx.LowerBound(obj)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	defer it.Release()
+
+
+	for it.Next() {
+		tmp := DbTableIdObject{}
+		it.Data(&tmp)
+		logObj(tmp)
+	}
+}
+
 func openDb() (DataBase, func()) {
 
 	fileName := "./hello"
