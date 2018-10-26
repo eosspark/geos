@@ -40,7 +40,7 @@ type ApplyContext struct {
 	InlineActions        []types.Action
 	CfaInlineActions     []types.Action
 	PendingConsoleOutput string
-	accountRamDeltas     []types.AccountDelta
+	AccountRamDeltas     types.FlatSet
 }
 
 func NewApplyContext(control *Controller, trxContext *TransactionContext, act *types.Action, recurseDepth uint32) *ApplyContext {
@@ -215,7 +215,7 @@ func (a *ApplyContext) execOne() (trace types.ActionTrace) {
 	r.GlobalSequence = a.nextGlobalSequence()
 	r.RecvSequence = a.nextRecvSequence(a.Receiver)
 	r.AuthSequence = make(map[common.AccountName]uint64)
-	accountSequence := &entity.AccountSequenceObject{Name: a.Act.Account}
+	accountSequence := &types.AccountSequenceObject{Name: a.Act.Account}
 	//a.DB.Get("byName", accountSequence)
 	r.CodeSequence = uint32(accountSequence.CodeSequence)
 	r.AbiSequence = uint32(accountSequence.AbiSequence)
@@ -231,7 +231,7 @@ func (a *ApplyContext) execOne() (trace types.ActionTrace) {
 	t.BlockNum = a.Control.PendingBlockState().BlockNum
 	t.BlockTime = common.NewBlockTimeStamp(a.Control.PendingBlockTime())
 	t.ProducerBlockId = a.Control.PendingProducerBlockId()
-	//t.AccountRamDeltas = a.accountRamDeltas
+	t.AccountRamDeltas = a.AccountRamDeltas
 	//a.accountRamDeltas.clear()
 	t.Act = *a.Act
 	t.Console = a.PendingConsoleOutput
@@ -290,14 +290,14 @@ func (a *ApplyContext) IsAccount(n int64) bool {
 
 //context authorization api
 func (a *ApplyContext) RequireAuthorization(account int64) {
-	return
-	// for k, v := range a.Act.Authorization {
-	// 	if v.Actor == common.AccountName(account) {
-	// 		a.UsedAuthorizations[k] = true
-	// 		return
-	// 	}
-	// }
-	// EosAssert(false, &MissingAuthException{}, "missing authority of %s", common.S(uint64(account)))
+	//return
+	for k, v := range a.Act.Authorization {
+		if v.Actor == common.AccountName(account) {
+			a.UsedAuthorizations[k] = true
+			return
+		}
+	}
+	EosAssert(false, &MissingAuthException{}, "missing authority of %s", common.S(uint64(account)))
 }
 func (a *ApplyContext) HasAuthorization(account int64) bool {
 	for _, v := range a.Act.Authorization {
@@ -547,7 +547,7 @@ func (a *ApplyContext) dbStoreI64(code int64, scope int64, table int64, payer in
 	}
 
 	a.DB.Insert(&obj)
-	a.DB.Modify(&tab, func(t *entity.TableIdObject) {
+	a.DB.Modify(tab, func(t *entity.TableIdObject) {
 		t.Count++
 	})
 
@@ -555,7 +555,7 @@ func (a *ApplyContext) dbStoreI64(code int64, scope int64, table int64, payer in
 	billableSize := int64(len(buffer)) + int64(common.BillableSizeV("key_valueObject"))
 	a.UpdateDbUsage(common.AccountName(payer), billableSize)
 	a.KeyvalCache.cacheTable(tab)
-	return a.KeyvalCache.add(obj)
+	return a.KeyvalCache.add(&obj)
 }
 func (a *ApplyContext) DbUpdateI64(iterator int, payer int64, buffer []byte) {
 
@@ -579,7 +579,7 @@ func (a *ApplyContext) DbUpdateI64(iterator int, payer int64, buffer []byte) {
 		a.UpdateDbUsage(obj.Payer, newSize-oldSize)
 	}
 
-	a.DB.Modify(obj, func(obj *entity.KeyValueObject) {
+	a.DB.Modify(obj, func(obj *types.KeyValueObject) {
 		obj.Value = buffer
 		obj.Payer = payerAccount
 	})
@@ -605,7 +605,7 @@ func (a *ApplyContext) DbRemoveI64(iterator int) {
 }
 func (a *ApplyContext) DbGetI64(iterator int, buffer []byte, bufferSize int) int {
 
-	obj := (a.KeyvalCache.get(iterator)).(*entity.KeyValueObject)
+	obj := (a.KeyvalCache.get(iterator)).(*types.KeyValueObject)
 	s := len(obj.Value)
 
 	if bufferSize == 0 {
@@ -687,7 +687,7 @@ func (a *ApplyContext) DbFindI64(code int64, scope int64, table int64, id int64)
 
 	tableEndItr := a.KeyvalCache.cacheTable(tab)
 
-	obj := entity.KeyValueObject{}
+	obj := types.KeyValueObject{}
 	err := a.DB.Find("byScopePrimary", obj, &obj)
 
 	if err == nil {
@@ -872,7 +872,7 @@ func (a *ApplyContext) AddRamUsage(account common.AccountName, ramDelta int64) {
 	// 	p.first->delta += ram_delta;
 	// }
 
-	a.accountRamDeltas = append(a.accountRamDeltas, types.AccountDelta{Account: account, Delta: ramDelta})
+	a.AccountRamDeltas.Append(account, ramDelta)
 
 }
 
@@ -925,7 +925,7 @@ func (a *ApplyContext) SetBlockchainParametersPacked(parameters []byte) {
 	cfg := common.Config{}
 	rlp.DecodeBytes(parameters, &cfg)
 
-	a.DB.Modify(a.Control.GetGlobalProperties(), func(gpo *entity.GlobalPropertyObject) {
+	a.DB.Modify(a.Control.GetGlobalProperties(), func(gpo *types.GlobalPropertyObject) {
 		gpo.Configuration = cfg
 	})
 

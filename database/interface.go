@@ -35,4 +35,5 @@ type DataBase interface {
 	upperBound(key,value,typeName []byte,in interface{},greater bool) (*DbIterator,error)
 
 	squash()
+
 }

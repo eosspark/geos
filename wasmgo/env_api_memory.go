@@ -76,3 +76,8 @@ func memset(w *WasmGo, dest int, value int, length int) int {
 
 	return dest
 }
+
+func free(w *WasmGo, index int) {
+	fmt.Println("free")
+
+}

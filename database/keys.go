@@ -5,16 +5,13 @@ import (
 	"reflect"
 )
 
-// key --> typeName__id
-func idKey(id ,typeName []byte) []byte {// FIXME
+func idKey(id ,typeName []byte) []byte {	/* key --> typeName__id */
 	key := 	append(typeName,'_')
 	key = 	append(key,'_')
 	key = 	append(key,id...)
 
 	return key
 }
-
-
 
 func getFieldInfo(fieldName string,value interface{})(*fieldInfo,error){
 	ref := reflect.ValueOf(value)
@@ -36,8 +33,7 @@ func getFieldInfo(fieldName string,value interface{})(*fieldInfo,error){
 	return fields,nil
 }
 
-// non unique fields --> find function
-func nonUniqueValue(info *fieldInfo)[]byte{
+func nonUniqueValue(info *fieldInfo)[]byte{ 					/* non unique fields --> find function */
 	for _, v := range info.fieldValue  {
 		if isZero(v) && v.Kind() != reflect.Bool {
 			return nil
@@ -47,9 +43,8 @@ func nonUniqueValue(info *fieldInfo)[]byte{
 	return reg
 }
 
-// non unique fields --> get function
 // TODO The function is unchanged, need to modify the implementation
-func getNonUniqueFieldValue(info *fieldInfo)([]byte,[]byte){
+func getNonUniqueFieldValue(info *fieldInfo)([]byte,[]byte){ 	/* non unique fields --> get function */
 	values := []byte{}
 	prefix := []byte{}
 	//regexp := []byte{40,46,42,41}
@@ -82,8 +77,7 @@ func getNonUniqueFieldValue(info *fieldInfo)([]byte,[]byte){
 	return values,nil
 }
 
-// typeName__fieldName
-func typeNameFieldName(typeName,tagName []byte)[]byte{
+func typeNameFieldName(typeName,tagName []byte)[]byte{ 		/* typeName__fieldName*/
 	key := []byte(typeName)// TODO copy ?
 	key = append(key, '_')
 	key = append(key, '_')
@@ -91,38 +85,16 @@ func typeNameFieldName(typeName,tagName []byte)[]byte{
 	return key
 }
 
-// non unique fields --> regexp
-func getNonUniqueEnd(key []byte)[]byte{
+func getNonUniqueEnd(key []byte)[]byte{ 					/* non unique fields --> regexp*/
 	end := make([]byte, len(key))
 	copy(end, key)
 	end[len(end)-1] = end[len(end)-1] + 1
 	return end
 }
 
-// callBack --> remove and insert function
-func doCallBack(id, typeName []byte, cfg *structInfo, callBack func(key, value []byte) error) error {
-	for tag, fieldCfg := range cfg.Fields {
-		// typeName__
-		key := append(typeName, '_')
-		key = append(key, '_')
-		// typeName__tagName__
-		key = append(key, tag...)
-		key =getFieldValue(key, fieldCfg)
-		if !fieldCfg.unique && len(fieldCfg.fieldValue) == 1{
-			key = append(key, id...)
-		}
-		err := callBack(key, id)
-		if err != nil {
-			return err
-		}
-	}
-	return nil
-}
-// 	fieldValue[0]__fieldValue[1]...
-func getFieldValue(key []byte, info *fieldInfo) []byte {
+func getFieldValue(key []byte, info *fieldInfo) []byte { 		/* fieldValue[0]__fieldValue[1]... */
 	cloneKey :=  cloneByte(key)
-	for _, v := range info.fieldValue {
-		// typeName__tag__fieldValue...
+	for _, v := range info.fieldValue { 						// typeName__tag__fieldValue...
 		cloneKey = append(cloneKey, '_')
 		cloneKey = append(cloneKey, '_')
 		value, err := rlp.EncodeToBytes(v.Interface())
@@ -133,9 +105,8 @@ func getFieldValue(key []byte, info *fieldInfo) []byte {
 	}
 	return cloneKey
 }
-// modify function
-func modifyField(cfg, oldCfg *structInfo, callBack func(newKey, oldKey []byte) error) error {
 
+func modifyField(cfg, oldCfg *structInfo, callBack func(newKey, oldKey []byte) error) error { 	/* modify function*/
 	id,err := rlp.EncodeToBytes(cfg.Id.Interface())
 	if err != nil{
 		return err
@@ -144,11 +115,9 @@ func modifyField(cfg, oldCfg *structInfo, callBack func(newKey, oldKey []byte) e
 	typeName := []byte(cfg.Name)
 
 	for tag, fieldCfg := range cfg.Fields {
-		// typeName__
-		key := append(typeName, '_')
+		key := append(typeName, '_') 	// typeName__
 		key = append(key, '_')
-		// typeName__tag__
-		key = append(key, tag...)
+		key = append(key, tag...) 			// typeName__tag__
 
 		newKey := getFieldValue(key, fieldCfg)
 		oldKey := getFieldValue(key, oldCfg.Fields[tag])

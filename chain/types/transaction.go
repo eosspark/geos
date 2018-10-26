@@ -52,7 +52,7 @@ func (t TransactionHeader) GetRefBlocknum(headBlocknum uint32) uint32 {
 	return headBlocknum/0xffff*0xffff + headBlocknum%0xffff
 }
 
-func (t TransactionHeader) VerifyReferenceBlock(referenceBlock common.BlockIdType) bool {
+func (t TransactionHeader) VerifyReferenceBlock(referenceBlock *common.BlockIdType) bool {
 	return t.RefBlockNum == uint16(common.EndianReverseU32(uint32(referenceBlock.Hash[0]))) &&
 		t.RefBlockPrefix == uint32(referenceBlock.Hash[1])
 }
@@ -63,7 +63,7 @@ func (t TransactionHeader) Validate() {
 	}
 }
 
-func (t *TransactionHeader) SetReferenceBlock(referenceBlock common.BlockIdType) {
+func (t *TransactionHeader) SetReferenceBlock(referenceBlock *common.BlockIdType) {
 	first := common.EndianReverseU32(uint32(referenceBlock.Hash[0]))
 	t.RefBlockNum = uint16(first)
 	t.RefBlockPrefix = uint32(referenceBlock.Hash[1])
@@ -96,7 +96,7 @@ func (t *Transaction) ID() common.TransactionIdType {
 	return common.TransactionIdType(crypto.Hash256(b))
 }
 
-func (t *Transaction) SigDigest(chainID common.ChainIdType, cfd []common.HexBytes) []byte { //common.DigestType {
+func (t *Transaction) SigDigest(chainID *common.ChainIdType, cfd []common.HexBytes) []byte { //common.DigestType {
 	enc := crypto.NewSha256()
 	chainIDByte, err := rlp.EncodeToBytes(chainID)
 	if err != nil {
@@ -124,7 +124,7 @@ func (t *Transaction) SigDigest(chainID common.ChainIdType, cfd []common.HexByte
 
 //allowDuplicateKeys = false
 //useCache= true
-func (t *Transaction) GetSignatureKeys(signatures []ecc.Signature, chainID common.ChainIdType, cfd []common.HexBytes,
+func (t *Transaction) GetSignatureKeys(signatures []ecc.Signature, chainID *common.ChainIdType, cfd []common.HexBytes,
 	allowDuplicateKeys bool, useCache bool) (recoveredPubKeys []*ecc.PublicKey) {
 	const recoveryCacheSize common.SizeT = 1000
 
@@ -206,7 +206,7 @@ func NewSignedTransactionNil() *SignedTransaction {
 	}
 }
 
-func (s *SignedTransaction) sign(key ecc.PrivateKey, chainID common.ChainIdType) ecc.Signature {
+func (s *SignedTransaction) Sign(key *ecc.PrivateKey, chainID *common.ChainIdType) ecc.Signature {
 	signature, err := key.Sign(s.Transaction.SigDigest(chainID, s.ContextFreeData))
 	if err != nil {
 		fmt.Println(err) //TODO
@@ -214,7 +214,7 @@ func (s *SignedTransaction) sign(key ecc.PrivateKey, chainID common.ChainIdType)
 	s.Signatures = append(s.Signatures, signature)
 	return signature
 }
-func (s *SignedTransaction) signWithoutAppend(key ecc.PrivateKey, chainID common.ChainIdType) ecc.Signature {
+func (s *SignedTransaction) SignWithoutAppend(key ecc.PrivateKey, chainID *common.ChainIdType) ecc.Signature {
 	signature, err := key.Sign(s.Transaction.SigDigest(chainID, s.ContextFreeData))
 	if err != nil {
 		fmt.Println(err) //TODO
@@ -223,7 +223,7 @@ func (s *SignedTransaction) signWithoutAppend(key ecc.PrivateKey, chainID common
 }
 
 //allowDeplicateKeys =false,useCache=true
-func (st *SignedTransaction) GetSignatureKeys(chainID common.ChainIdType, allowDeplicateKeys bool, useCache bool) []*ecc.PublicKey {
+func (st *SignedTransaction) GetSignatureKeys(chainID *common.ChainIdType, allowDeplicateKeys bool, useCache bool) []*ecc.PublicKey {
 	return st.Transaction.GetSignatureKeys(st.Signatures, chainID, st.ContextFreeData, allowDeplicateKeys, useCache)
 }
 

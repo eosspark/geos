@@ -1,7 +1,10 @@
 package chain
 
 import (
+	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
+	"github.com/eosspark/eos-go/crypto"
+	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/eosspark/eos-go/entity"
 	"github.com/stretchr/testify/assert"
@@ -80,6 +83,51 @@ func TestIteratorCache(t *testing.T) {
 		itrKeyvalue = i.add(&keyvalue)
 		obj = (i.get(itrKeyvalue)).(*entity.KeyValueObject)
 		assert.Equal(t, keyvalue.ID, obj.ID)
+
+	})
+
+}
+
+func TestDbPrimaryKey(t *testing.T) {
+
+	t.Run("", func(t *testing.T) {
+
+		control := GetControllerInstance()
+
+		buffer, _ := rlp.EncodeToBytes(common.N("walker"))
+		act := types.Action{
+			Account:       common.AccountName(common.N("eosio.token")),
+			Name:          common.ActionName(common.N("hello")),
+			Data:          buffer,
+			Authorization: []types.PermissionLevel{types.PermissionLevel{Actor: common.AccountName(common.N("eosio.token")), Permission: common.PermissionName(common.N("active"))}},
+		}
+
+		trxHeader := types.TransactionHeader{
+			Expiration:       common.MaxTimePointSec(),
+			RefBlockNum:      4,
+			RefBlockPrefix:   3832731038,
+			MaxNetUsageWords: 0,
+			MaxCpuUsageMS:    0,
+			DelaySec:         0,
+		}
+
+		trx := types.Transaction{
+			TransactionHeader:     trxHeader,
+			ContextFreeActions:    []*types.Action{},
+			Actions:               []*types.Action{&act},
+			TransactionExtensions: []*types.Extension{},
+		}
+		signedTrx := types.NewSignedTransaction(&trx, []ecc.Signature{}, []common.HexBytes{})
+
+		privateKey, _ := ecc.NewRandomPrivateKey()
+		signedTrx.Sign(*privateKey, common.ChainIdType(*crypto.NewSha256String("cf057bbfb72640471fd910bcb67639c22df9f92470936cddc1ade0e2f2e7dc4f")))
+
+		trxContext := NewTransactionContext(control, signedTrx, trx.ID(), common.Now())
+
+		a := NewApplyContext(control, trxContext, &act, 0)
+		itr := a.DbStoreI64(int64(common.N("xiaoyu")), int64(common.N("accounts")), int64(common.N("eosio.token")), int64(common.N("100")), buffer)
+		obj := (a.KeyvalCache.get(itr)).(*entity.KeyValueObject)
+		assert.Equal(t, []byte(obj.Value), buffer)
 
 	})
 
