@@ -39,6 +39,18 @@ func (r *ReactiveSocket) read(reader io.Reader, b []byte, op func(n int, ec Erro
 	r.ctx.GetService().post(op, n, NewErrorCode(err))
 }
 
+func (r *ReactiveSocket) AsyncReadFull(reader io.Reader, b []byte, op func(n int, ec ErrorCode)) {
+	// call io.ReadFull(io.Reader, []byte) to block goroutine, new routine will exit after reading event
+	// callback operation will be executed in io_service in the correct time
+	// use ec.Error to get error from reading event when ec.Valid is true
+	go r.readFull(reader, b, op)
+}
+
+func (r *ReactiveSocket) readFull(reader io.Reader, b []byte, op func(n int, ec ErrorCode)) {
+	n, err := io.ReadFull(reader, b)
+	r.ctx.GetService().post(op, n, NewErrorCode(err))
+}
+
 
 func (r *ReactiveSocket) AsyncWrite(writer io.Writer, b []byte, op func(n int, ec ErrorCode)) {
 	// call io.Writer.Write to block goroutine, new routine will exit after writing event
