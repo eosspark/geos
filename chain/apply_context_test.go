@@ -94,6 +94,8 @@ func TestDbPrimaryKey(t *testing.T) {
 	t.Run("", func(t *testing.T) {
 
 		control := GetControllerInstance()
+		blockTimeStamp := common.NewBlockTimeStamp(common.Now())
+		control.StartBlock(blockTimeStamp, 0)
 
 		buffer, _ := rlp.EncodeToBytes("0123456")
 		act := types.Action{
@@ -163,11 +165,12 @@ func TestDbPrimaryKey(t *testing.T) {
 
 		}
 
-		itrFind := a.DbFindI64(int64(common.N("eosio")), int64(common.N("xiaoyu")), int64(common.N("accounts")), 5)
-		var primary uint64
+		a.DbFindI64(int64(common.N("eosio")), int64(common.N("xiaoyu")), int64(common.N("accounts")), 5)
 
-		itr = a.DbPreviousI64(itrFind, &primary)
-		itr = a.DbNextI64(itrFind, &primary)
+		//itrFind := a.DbFindI64(int64(common.N("eosio")), int64(common.N("xiaoyu")), int64(common.N("accounts")), 5)
+		//var primary uint64
+		//itr = a.DbPreviousI64(itrFind, &primary)
+		//itr = a.DbNextI64(itrFind, &primary)
 
 		//assert.Equal(t, itrFind, itr)
 
