@@ -70,7 +70,6 @@ func applyEosioNewaccount(context *ApplyContext) {
 	create := &newAccount{}
 	rlp.DecodeBytes(context.Act.Data, create)
 
-	context.RequireAuthorization(int64(create.Creator))
 	//try.Try()
 	context.RequireAuthorization(int64(create.Creator))
 
@@ -80,11 +79,11 @@ func applyEosioNewaccount(context *ApplyContext) {
 	db := context.DB
 	nameStr := common.S(uint64(create.Name))
 
-	EosAssert(empty(uint64(create.Name)), &ActionValidateException{}, "account name cannot be empty")
+	EosAssert(!empty(uint64(create.Name)), &ActionValidateException{}, "account name cannot be empty")
 	EosAssert(len(nameStr) <= 12, &ActionValidateException{}, "account names can only be 12 chars long")
 
 	// Check if the creator is privileged
-	creator := &entity.AccountObject{Name: create.Creator}
+	creator := entity.AccountObject{Name: create.Creator}
 	err := context.DB.Find("byName", creator, &creator)
 	if err != nil && !creator.Privileged {
 
@@ -93,7 +92,7 @@ func applyEosioNewaccount(context *ApplyContext) {
 
 	}
 
-	existingAccount := &entity.AccountObject{Name: create.Name}
+	existingAccount := entity.AccountObject{Name: create.Name}
 	err = db.Find("byName", existingAccount, &existingAccount)
 	EosAssert(err != nil, &AccountNameExistsException{}, "Cannot create account named ${name}, as that name is already taken", common.S(uint64(create.Name)))
 
@@ -140,7 +139,7 @@ func applyEosioSetcode(context *ApplyContext) {
 		//exec.validate(context.Control, act.Code)
 	}
 
-	accountObject := &entity.AccountObject{Name: act.Account}
+	accountObject := entity.AccountObject{Name: act.Account}
 	db.Find("byName", accountObject, &accountObject)
 
 	codeSize := len(act.Code)
@@ -244,7 +243,7 @@ func applyEosioUpdateauth(context *ApplyContext) {
 	validateAuthorityPrecondition(context, &update.Auth)
 
 	authorization := context.Control.GetMutableAuthorizationManager()
-	permission := authorization.FindPermission(&types.PermissionLevel{update.Account, update.Parent})
+	permission := authorization.FindPermission(&types.PermissionLevel{update.Account, update.Permission})
 
 	parentId := common.IdType(0)
 	if update.Permission != common.PermissionName(common.DefaultConfig.OwnerName) {
@@ -309,21 +308,23 @@ func applyEosioLinkauth(context *ApplyContext) {
 
 	accountObject := entity.AccountObject{Name: requirement.Account}
 	err := db.Find("byName", accountObject, &accountObject)
-	EosAssert(err != nil, &AccountQueryException{},
+	EosAssert(err == nil, &AccountQueryException{},
 		"Failed to retrieve account: %s",
 		common.S(uint64(requirement.Account)))
 
 	codeObject := entity.AccountObject{Name: requirement.Code}
 	err = db.Find("byName", codeObject, &codeObject)
-	EosAssert(err != nil, &AccountQueryException{},
+	EosAssert(err == nil, &AccountQueryException{},
 		"Failed to retrieve account: %s",
 		common.S(uint64(requirement.Code)))
 
 	if requirement.Requirement != common.PermissionName(common.DefaultConfig.EosioAnyName) {
 
-		permissionObject := entity.PermissionObject{Name: requirement.Requirement}
-		err = db.Find("byName", permissionObject, &permissionObject)
-		EosAssert(err != nil, &PermissionQueryException{},
+		// permissionObject := entity.PermissionObject{Name: requirement.Requirement}
+		// err = db.Find("byName", permissionObject, &permissionObject)
+		permissionObject := entity.PermissionObject{Owner: requirement.Account, Name: requirement.Requirement}
+		err = db.Find("byOwner", permissionObject, &permissionObject)
+		EosAssert(err == nil, &PermissionQueryException{},
 			"Failed to retrieve permission: %s",
 			common.S(uint64(requirement.Requirement)))
 	}
@@ -334,7 +335,7 @@ func applyEosioLinkauth(context *ApplyContext) {
 		MessageType: requirement.Type}
 	err = db.Find("byActionName", permissionLinkObject, &permissionLinkObject)
 
-	if err != nil {
+	if err == nil {
 		EosAssert(permissionLinkObject.RequiredPermission != requirement.Requirement, &ActionValidateException{},
 			"Attempting to update required authority, but new requirement is same as old")
 
@@ -347,7 +348,7 @@ func applyEosioLinkauth(context *ApplyContext) {
 
 	} else {
 		permissionLinkObject.RequiredPermission = requirement.Requirement
-		db.Insert(permissionLinkObject)
+		db.Insert(&permissionLinkObject)
 
 		context.AddRamUsage(permissionLinkObject.Account, int64(common.BillableSizeV("PermissionLinkObject")))
 	}
@@ -365,7 +366,7 @@ func applyEosioUnlinkauth(context *ApplyContext) {
 
 	link := entity.PermissionLinkObject{Account: unlink.Account, Code: unlink.Code, MessageType: unlink.Type}
 	err := db.Find("byActionName", link, &link)
-	EosAssert(err != nil, &ActionValidateException{}, "Attempting to unlink authority, but no link found")
+	EosAssert(err == nil, &ActionValidateException{}, "Attempting to unlink authority, but no link found")
 
 	context.AddRamUsage(link.Account, -int64(common.BillableSizeV("permission_link_object")))
 	db.Remove(&link)
