@@ -17,7 +17,7 @@ type BaseActionTrace struct {
 	BlockNum         uint32
 	BlockTime        common.BlockTimeStamp
 	ProducerBlockId  common.BlockIdType
-	AccountRamDeltas FlatSet
+	AccountRamDeltas common.FlatSet
 }
 
 type ActionTrace struct {
@@ -47,12 +47,11 @@ type AccountDelta struct {
 	Delta   int64
 }
 
-type FlatSet struct {
-	data []AccountDelta
-	less func(first, second *AccountDelta) bool
+func (a AccountDelta) Compare(first common.FlatSet, second common.FlatSet) bool {
+	return first.(AccountDelta).Account <= second.(AccountDelta).Account
 }
 
-func search(n int, f func(int) bool) int {
+/*func search(n int, f func(int) bool) int {
 	result, i, j := 0, 0, n
 	for i < j {
 		h := int(uint(i+j) >> 1)
@@ -64,9 +63,9 @@ func search(n int, f func(int) bool) int {
 		result = h
 	}
 	return result
-}
+}*/
 
-func (f *FlatSet) Append(account common.AccountName, delta int64) {
+/*func (f *FlatSet) Append(account common.AccountName, delta int64) {
 	ap := AccountDelta{}
 	ap.Account = account
 	ap.Delta = delta
@@ -85,7 +84,7 @@ func (f *FlatSet) Append(account common.AccountName, delta int64) {
 		first = append(first, second...)
 		f.data = first
 	}
-}
+}*/
 
 func NewBaseActionTrace(ar *ActionReceipt) *BaseActionTrace {
 	bat := BaseActionTrace{}
