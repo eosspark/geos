@@ -327,7 +327,7 @@ func (r *ResourceLimitsManager) GetAccountCpuLimit(name common.AccountName, elas
 	return arl.Available
 }
 
-func (r *ResourceLimitsManager) GetAccountCpuLimitEx(name common.AccountName, elastic bool) AccountResourceLimit {
+func (r *ResourceLimitsManager) GetAccountCpuLimitEx(name common.AccountName, elastic bool) types.AccountResourceLimit {
 	state := entity.DefaultResourceLimitsStateObject
 	r.db.Find("id", state, &state)
 	config := entity.DefaultResourceLimitsConfigObject
@@ -341,10 +341,10 @@ func (r *ResourceLimitsManager) GetAccountCpuLimitEx(name common.AccountName, el
 	r.GetAccountLimits(name, &x, &y, &cpuWeight)
 
 	if cpuWeight < 0 || state.TotalCpuWeight == 0 {
-		return AccountResourceLimit{-1, -1, -1}
+		return types.AccountResourceLimit{-1, -1, -1}
 	}
 
-	arl := AccountResourceLimit{}
+	arl := types.AccountResourceLimit{}
 	windowSize := uint64(config.AccountCpuUsageAverageWindow)
 	virtualCpuCapacityInWindow := arithmeticTypes.Uint128{}
 	if elastic {
@@ -366,11 +366,11 @@ func (r *ResourceLimitsManager) GetAccountCpuLimitEx(name common.AccountName, el
 	if maxUserUseInWindow.Compare(cpuUsedInWindow) != 1 {
 		arl.Available = 0
 	} else {
-		arl.Available = DowngradeCast(maxUserUseInWindow.Sub(cpuUsedInWindow))
+		arl.Available = types.DowngradeCast(maxUserUseInWindow.Sub(cpuUsedInWindow))
 	}
 
-	arl.Used = DowngradeCast(cpuUsedInWindow)
-	arl.Max = DowngradeCast(maxUserUseInWindow)
+	arl.Used = types.DowngradeCast(cpuUsedInWindow)
+	arl.Max = types.DowngradeCast(maxUserUseInWindow)
 	return arl
 }
 
@@ -379,7 +379,7 @@ func (r *ResourceLimitsManager) GetAccountNetLimit(name common.AccountName, elas
 	return arl.Available
 }
 
-func (r *ResourceLimitsManager) GetAccountNetLimitEx(name common.AccountName, elastic bool) AccountResourceLimit {
+func (r *ResourceLimitsManager) GetAccountNetLimitEx(name common.AccountName, elastic bool) types.AccountResourceLimit {
 	state := entity.DefaultResourceLimitsStateObject
 	r.db.Find("id", state, &state)
 	config := entity.DefaultResourceLimitsConfigObject
@@ -393,10 +393,10 @@ func (r *ResourceLimitsManager) GetAccountNetLimitEx(name common.AccountName, el
 	r.GetAccountLimits(name, &x, &netWeight, &y)
 
 	if netWeight < 0 || state.TotalNetWeight == 0 {
-		return AccountResourceLimit{-1, -1, -1}
+		return types.AccountResourceLimit{-1, -1, -1}
 	}
 
-	arl := AccountResourceLimit{}
+	arl := types.AccountResourceLimit{}
 	windowSize := uint64(config.AccountCpuUsageAverageWindow)
 	virtualNetworkCapacityInWindow := arithmeticTypes.Uint128{}
 	if elastic {
@@ -418,10 +418,10 @@ func (r *ResourceLimitsManager) GetAccountNetLimitEx(name common.AccountName, el
 	if maxUserUseInWindow.Compare(netUsedInWindow) != 1 {
 		arl.Available = 0
 	} else {
-		arl.Available = DowngradeCast(maxUserUseInWindow.Sub(netUsedInWindow))
+		arl.Available = types.DowngradeCast(maxUserUseInWindow.Sub(netUsedInWindow))
 	}
 
-	arl.Used = DowngradeCast(netUsedInWindow)
-	arl.Max = DowngradeCast(maxUserUseInWindow)
+	arl.Used = types.DowngradeCast(netUsedInWindow)
+	arl.Max = types.DowngradeCast(maxUserUseInWindow)
 	return arl
 }

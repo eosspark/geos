@@ -8,6 +8,7 @@ import (
 	"runtime"
 	"testing"
 	"time"
+	"github.com/eosspark/eos-go/plugins/appbase/asio"
 )
 
 var KEEPTESTSEC time.Duration = 10
@@ -37,7 +38,7 @@ func Test_Timer(t *testing.T) {
 
 		timerCorelationId++
 		cid := timerCorelationId
-		timer.AsyncWait(func() {
+		timer.AsyncWait(func(ec asio.ErrorCode) {
 			if cid == timerCorelationId {
 				fmt.Println("exec async1...", time.Now())
 				blockNum++
@@ -94,7 +95,7 @@ func Test_Timer_Memory(t *testing.T) {
 	loop = func() {
 		timer.Cancel()
 		timer.ExpiresFromNow(1)
-		timer.AsyncWait(func() {
+		timer.AsyncWait(func(ec asio.ErrorCode) {
 			after := memConsumed()
 			fmt.Printf("%.3f KB\n", float64(after-before)/1e3)
 			loop()

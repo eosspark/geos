@@ -1,12 +1,12 @@
 package arithmeticTypes
 
-func (a Float128) F128Lt(b Float128) bool {
+func (f Float128) F128Lt(b Float128) bool {
 	var uiA64, uiA0 uint64
 	var uiB64, uiB0 uint64
 	var signA, signB bool
 
-	uiA64 = a.High
-	uiA0 = a.Low
+	uiA64 = f.High
+	uiA0 = f.Low
 
 	uiB64 = b.High
 	uiB0 = b.Low
@@ -29,12 +29,12 @@ func (a Float128) F128Lt(b Float128) bool {
 	}
 }
 
-func (a Float128) F128EQ(b Float128) bool {
+func (f Float128) F128EQ(b Float128) bool {
 	var uiA64, uiA0 uint64
 	var uiB64, uiB0 uint64
 
-	uiA64 = a.High
-	uiA0 = a.Low
+	uiA64 = f.High
+	uiA0 = f.Low
 
 	uiB64 = b.High
 	uiB0 = b.Low

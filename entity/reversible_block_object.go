@@ -9,7 +9,7 @@ import (
 
 type ReversibleBlockObject struct {
 	ID          common.IdType   `multiIndex:"id,increment"`
-	BlockNum    uint32          `multiIndex:"byNum,orderedNonUnique"`
+	BlockNum    uint32          `multiIndex:"byNum,orderedUnique"`
 	PackedBlock common.HexBytes //TODO c++ shared_string
 }
 

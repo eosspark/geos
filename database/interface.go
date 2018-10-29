@@ -9,9 +9,9 @@ type DataBase interface {
 
 	Empty(begin, end, fieldName []byte) bool
 
-	GetIndex(tagName string, in interface{}) (*multiIndex, error)
+	GetIndex(tagName string, in interface{}) (*MultiIndex, error)
 
-	GetMutableIndex(tagName string, in interface{}) (*multiIndex, error)
+	GetMutableIndex(tagName string, in interface{}) (*MultiIndex, error)
 
 	Modify(data interface{}, fn interface{}) error
 
@@ -33,5 +33,6 @@ type DataBase interface {
 
 	upperBound(key, value, typeName []byte, in interface{}, greater bool) (*DbIterator, error)
 
+	IteratorTo(begin, end, fieldName []byte, in interface{}, greater bool) (*DbIterator, error)
 	squash()
 }

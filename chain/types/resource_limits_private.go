@@ -3,8 +3,8 @@ package types
 import (
 	"github.com/eosspark/eos-go/common"
 	"math"
-	"math/big"
 	"github.com/eosspark/eos-go/log"
+	"github.com/eosspark/eos-go/common/arithmetic_types"
 	. "github.com/eosspark/eos-go/exception"
 )
 
@@ -28,6 +28,12 @@ type AccountResourceLimit struct {
 	Max       int64 `json:"max"`
 }
 
+func (e ElasticLimitParameters) Validate() {
+	EosAssert(e.Periods > 0, &ResourceLimitException{}, "elastic limit parameter 'periods' cannot be zero")
+	EosAssert(e.ContractRate.Denominator > 0, &ResourceLimitException{}, "elastic limit parameter 'contract_rate' is not a well-defined ratio")
+	EosAssert(e.ExpandRate.Denominator > 0, &ResourceLimitException{}, "elastic limit parameter 'expand_rate' is not a well-defined ratio")
+}
+
 func UpdateElasticLimit(currentLimit uint64, averageUsage uint64, params ElasticLimitParameters) uint64 {
 	result := currentLimit
 	if averageUsage > params.Target {
@@ -38,22 +44,7 @@ func UpdateElasticLimit(currentLimit uint64, averageUsage uint64, params Elastic
 	return common.Min(common.Min(result, params.Max), uint64(params.Max*uint64(params.MaxMultiplier)))
 }
 
-func (elp ElasticLimitParameters) Validate() {
-	EosAssert(elp.Periods > 0, &ResourceLimitException{}, "elastic limit parameter 'periods' cannot be zero")
-	EosAssert(elp.ContractRate.Denominator > 0, &ResourceLimitException{}, "elastic limit parameter 'contract_rate' is not a well-defined ratio")
-	EosAssert(elp.ExpandRate.Denominator > 0, &ResourceLimitException{}, "elastic limit parameter 'expand_rate' is not a well-defined ratio")
-}
-
-func IntegerDivideCeil(num *big.Int, den *big.Int) *big.Int {
-	result := new(big.Int).Div(num, den)
-
-	if new(big.Int).Mod(num, den).Int64() > 0 {
-		result = new(big.Int).Add(result, big.NewInt(1))
-	}
-	return result
-}
-
-func IntegerDivideCeilUint64(num uint64, den uint64) uint64 {
+func IntegerDivideCeil(num uint64, den uint64) uint64 {
 	if num%den > 0 {
 		return num/den + 1
 	} else {
@@ -76,22 +67,20 @@ func MultiWithRatio(value uint64, ratio Ratio) uint64 {
 	return value * ratio.Numerator / ratio.Denominator
 }
 
-func DowngradeCast(val *big.Int) int64 {
-	max := big.NewInt(math.MaxInt64)
-	min := big.NewInt(math.MinInt64)
-
-	if val.Cmp(max) == 1 || val.Cmp(min) == -1 {
+func DowngradeCast(val arithmeticTypes.Uint128) int64 {
+	max := uint64(math.MaxInt64)
+	if val.High != 0 && val.Low > max {
 		log.Error("Usage exceeds maximum value representable after extending for precision")
 	}
-	return val.Int64()
+	return int64(val.Low)
 }
 
 func (ema *ExponentialMovingAverageAccumulator) Average() uint64 {
-	return IntegerDivideCeilUint64(ema.ValueEx, uint64(common.DefaultConfig.RateLimitingPrecision))
+	return IntegerDivideCeil(ema.ValueEx, uint64(common.DefaultConfig.RateLimitingPrecision))
 }
 
 func (ema *ExponentialMovingAverageAccumulator) Add(units uint64, ordinal uint32, windowSize uint32) {
-	valueExContrib := IntegerDivideCeilUint64(units*uint64(common.DefaultConfig.RateLimitingPrecision), uint64(windowSize))
+	valueExContrib := IntegerDivideCeil(units*uint64(common.DefaultConfig.RateLimitingPrecision), uint64(windowSize))
 	if ema.LastOrdinal != ordinal {
 		if ema.LastOrdinal+windowSize > ordinal {
 			delta := ordinal - ema.LastOrdinal
