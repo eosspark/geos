@@ -6,9 +6,9 @@ import (
 
 type AccountHistoryObject struct {
 	ID                 common.IdType 		`multiIndex:"id,increment"`
-	Account            common.AccountName	`multiIndex:"byAccountActionSeq,orderedNonUnique"`
+	Account            common.AccountName	`multiIndex:"byAccountActionSeq,orderedUnique"`
 	ActionSequenceNum  uint64
-	AccountSequenceNum int32				`multiIndex:"byAccountActionSeq,orderedNonUnique"`
+	AccountSequenceNum int32				`multiIndex:"byAccountActionSeq,orderedUnique"`
 }
 
 type ActionHistoryObject struct {

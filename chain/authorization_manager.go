@@ -97,8 +97,8 @@ func (a *AuthorizationManager) GetPermissionLastUsed(permission *entity.Permissi
 }
 
 func (a *AuthorizationManager) FindPermission(level *types.PermissionLevel) (p *entity.PermissionObject) { //TODO
+	defer HandleReturn()
 	Try(func(){
-		defer Return()
 		EosAssert(!level.Actor.Empty() && !level.Permission.Empty(), &InvalidPermission{}, "Invalid permission")
 		po := entity.PermissionObject{}
 		po.Owner = level.Actor
@@ -115,7 +115,6 @@ func (a *AuthorizationManager) FindPermission(level *types.PermissionLevel) (p *
 func (a *AuthorizationManager) GetPermission(level *types.PermissionLevel) (p *entity.PermissionObject) {
 	defer HandleReturn()
 	Try(func(){
-		defer Return()
 		EosAssert(!level.Actor.Empty() && !level.Permission.Empty(), &InvalidPermission{}, "Invalid permission")
 		po := entity.PermissionObject{}
 		po.Owner = level.Actor
@@ -136,7 +135,6 @@ func (a *AuthorizationManager) LookupLinkedPermission(authorizerAccount common.A
 ) (p common.PermissionName) {
 	defer HandleReturn()
 	Try(func() {         //TODO
-		defer Return()
 		link := entity.PermissionLinkObject{}
 		link.Account = authorizerAccount
 		link.Code = scope
@@ -166,7 +164,6 @@ func (a *AuthorizationManager) LookupMinimumPermission(authorizerAccount common.
 	}
 	defer HandleReturn()
 	Try(func() {
-		defer Return()
 		linkedPermission := a.LookupLinkedPermission(authorizerAccount, scope, actName)
 		if linkedPermission == common.PermissionName(common.N("")) {
 			pn = common.DefaultConfig.ActiveName
