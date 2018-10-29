@@ -3,7 +3,6 @@ package chain
 import (
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
-	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/database"
 	"github.com/eosspark/eos-go/entity"
 	. "github.com/eosspark/eos-go/exception"
@@ -85,14 +84,14 @@ func NewTransactionContext(c *Controller, t *types.SignedTransaction, trxId comm
 	// 	tc.UndoSession = c.DB.StartSession()
 	// }
 	tc.Trace = &types.TransactionTrace{
-		ID: trxId,
-		//		BlockNum:        c.PendingBlockState().BlockNum,
-		//		BlockTime:       common.BlockTimeStamp(c.PendingBlockTime()),
-		//		ProducerBlockId: c.PendingProducerBlockId(),
-		BlockNum:        4,
-		BlockTime:       common.BlockTimeStamp(common.Now()),
-		ProducerBlockId: common.BlockIdType(*crypto.NewSha256String("cf057bbfb72640471fd910bcb67639c22df9f92470936cddc1ade0e2f2e7dc4f")),
-		Except:          &TransactionException{},
+		ID:              trxId,
+		BlockNum:        c.PendingBlockState().BlockNum,
+		BlockTime:       common.BlockTimeStamp(c.PendingBlockTime()),
+		ProducerBlockId: c.PendingProducerBlockId(),
+		//BlockNum:        4,
+		//BlockTime:       common.BlockTimeStamp(common.Now()),
+		//ProducerBlockId: common.BlockIdType(*crypto.NewSha256String("cf057bbfb72640471fd910bcb67639c22df9f92470936cddc1ade0e2f2e7dc4f")),
+		Except: &TransactionException{},
 	}
 	tc.netUsage = &tc.Trace.NetUsage
 	tc.Executed = make([]types.ActionReceipt, tc.Trx.TotalActions())
@@ -458,12 +457,12 @@ func (t *TransactionContext) AddRamUsage(account common.AccountName, ramDelta in
 	rl := t.Control.GetMutableResourceLimitsManager()
 	rl.AddPendingRamUsage(account, ramDelta)
 	if ramDelta > 0 {
-		if len(t.ValidateRamUsage) == 0 {
-			t.ValidateRamUsage = []common.AccountName{5}
-			t.ValidateRamUsage = append(t.ValidateRamUsage, account)
-		} else {
-			t.ValidateRamUsage = append(t.ValidateRamUsage, account)
-		}
+		// if len(t.ValidateRamUsage) == 0 {
+		// 	t.ValidateRamUsage = []common.AccountName{5}
+		// 	t.ValidateRamUsage = append(t.ValidateRamUsage, account)
+		// } else {
+		t.ValidateRamUsage = append(t.ValidateRamUsage, account)
+		//}
 	}
 }
 

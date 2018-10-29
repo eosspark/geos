@@ -1,74 +1,68 @@
 package types
 
 import (
-	"fmt"
 	"github.com/eosspark/eos-go/common"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
 func TestFlatSet_Append(t *testing.T) {
-	f := FlatSet{}
-	for i := 0; i < 10000; i++ {
-		if i != 8000 {
-			ad := AccountDelta{}
-			ad.Account = common.AccountName(i)
-			ad.Delta = int64(i)
-			f.data = append(f.data, ad)
+
+	before, end, midle := 0, 19, 8
+	if before == 0 {
+		f := []common.FlatSet{}
+		for i := 0; i < 20; i++ {
+			if i != 0 {
+				ad := AccountDelta{}
+				ad.Account = common.AccountName(i)
+				ad.Delta = int64(i)
+				f = append(f, ad)
+			}
+
 		}
+		param := AccountDelta{}
+		param.Account = common.AccountName(0)
+		param.Delta = int64(0)
+		result, _ := common.Append(f, param)
+		assert.Equal(t, param, (*result)[0].(AccountDelta))
 	}
-	param := AccountDelta{}
-	param.Account = common.AccountName(8000)
-	param.Delta = int64(8000)
-	f.Append(common.AccountName(8000), int64(8000))
-	assert.Equal(t, param, f.data[8000])
+	if end == 19 {
+		f := []common.FlatSet{}
+		for i := 0; i < 20; i++ {
+			if i != 19 {
+				ad := AccountDelta{}
+				ad.Account = common.AccountName(i)
+				ad.Delta = int64(i)
+				f = append(f, ad)
+			}
+		}
+		param := AccountDelta{}
+		param.Account = common.AccountName(19)
+		param.Delta = int64(19)
+
+		result, _ := common.Append(f, param)
+		assert.Equal(t, param, (*result)[19].(AccountDelta))
+	}
+	if midle == 8 {
+		f := []common.FlatSet{}
+		for i := 0; i < 20; i++ {
+			if i != 8 {
+				ad := AccountDelta{}
+				ad.Account = common.AccountName(i)
+				ad.Delta = int64(i)
+				f = append(f, ad)
+			}
+		}
+		param := AccountDelta{}
+		param.Account = common.AccountName(8)
+		param.Delta = int64(8)
+
+		result, _ := common.Append(f, param)
+		assert.Equal(t, param, (*result)[8].(AccountDelta))
+	}
 }
 
-func TestFlatSet_Append2(t *testing.T) {
-	f := FlatSet{}
-	for i := 0; i < 10; i++ {
-		if i != 8 {
-			ad := AccountDelta{}
-			ad.Account = common.AccountName(i)
-			ad.Delta = int64(i)
-			f.data = append(f.data, ad)
-		}
-	}
-
-	param := AccountDelta{}
-	param.Account = common.AccountName(8)
-	param.Delta = int64(8)
-	f.Append(common.AccountName(8), int64(8))
-
-	assert.Equal(t, param, f.data[8])
-}
-
-func Test_Sear(t *testing.T) {
-	f := FlatSet{}
-	for i := 0; i < 10; i++ {
-		if i != 8 {
-			ad := AccountDelta{}
-			ad.Account = common.AccountName(i)
-			ad.Delta = int64(i)
-			f.data = append(f.data, ad)
-		}
-	}
-
-	param := AccountDelta{}
-	param.Account = common.AccountName(8)
-	param.Delta = int64(8)
-
-	sear(len(f.data), func(i int) bool {
-		r := false
-		if f.data[i].Account < param.Account && f.data[i+1].Account > param.Account {
-			fmt.Println(i)
-			fmt.Println(f.data[i])
-			fmt.Println(f.data[i+1])
-			r = true
-		}
-		return r
-	})
-}
+//assert.Equal(t, param, f.data[8000])
 
 func sear(n int, f func(int) bool) int {
 	i, j := 0, n
