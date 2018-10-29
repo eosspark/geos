@@ -7,9 +7,9 @@ import (
 
 type ProducerObject struct {
 	ID                    common.IdType      `multiIndex:"id,increment,byKey"`
-	Owner                 common.AccountName `multiIndex:"byOwner,orderedNonUnique"`
+	Owner                 common.AccountName `multiIndex:"byOwner,orderedUnique"`
 	LastAslot             uint64             //c++ default value 0
-	SigningKey            ecc.PublicKey      `multiIndex:"byKey,orderedNonUnique"`
+	SigningKey            ecc.PublicKey      `multiIndex:"byKey,orderedUnique"`
 	TotalMissed           int64              //c++ default value 0
 	LastConfirmedBlockNum uint32
 

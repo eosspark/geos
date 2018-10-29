@@ -265,7 +265,7 @@ func (ldb *LDataBase) insert(in interface{}, flag ...bool) error { /* struct cfg
 	dbKV := &dbKeyValue{}
 	structKV(in, dbKV, cfg) /* (kv.index) all key and value*/
 
-	//dbKV.showDbKV()
+	// dbKV.showDbKV()
 	err = ldb.insertKvToDb(dbKV) /* (kv to db) kv insert database (atomic) */
 	if err != nil {
 		return err
@@ -645,15 +645,15 @@ func getIndex(tagName string, value interface{}, db DataBase) (*multiIndex, erro
 		return nil, err
 	}
 
-	if fields.unique {
-		return nil, ErrNotFound
-	}
+// 	if fields.unique {
+// 		return nil, ErrNotFound
+// 	}
 
 	typeName := []byte(fields.typeName)
 	begin := typeNameFieldName(typeName, fieldName)
 	begin = append(begin, '_')
 	begin = append(begin, '_')
-
+	// fmt.Println("----------------------------",begin)
 	/*
 		non unique --> typename__fieldName__
 	*/
@@ -702,7 +702,9 @@ func (ldb *LDataBase) lowerBound(begin, end, fieldName []byte, data interface{},
 	if reg == nil {
 		return nil, ErrNoID
 	}
+	// fmt.Println("---> ",prefix)	
 	if len(prefix) != 0 {
+		// fmt.Println("---> ",begin)	
 		begin = append(begin, prefix...)
 		it := ldb.db.NewIterator(&util.Range{Start: begin, Limit: end}, nil)
 

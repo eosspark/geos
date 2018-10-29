@@ -21,23 +21,24 @@ type Float128 struct {
 
 type ExtFloat80M struct {
 	signExp uint16
-	signif  uint64
+	signIf  uint64
 }
 
 type ExtFloat80M_t ExtFloat80M
 
-func (a Float128) Add(b Float128) Float128 {
+func (f Float128) Add(b Float128) Float128 {
+
 	return Float128{}
 }
-func (a Float128) Sub(b Float128) Float128 {
+func (f Float128) Sub(b Float128) Float128 {
 	return Float128{}
 }
 
-func (a Float128) Mul(b Float128) Float128 {
+func (f Float128) Mul(b Float128) Float128 {
 	return Float128{}
 }
 
-func (a Float128) Div(b Float128) Float128 {
+func (f Float128) Div(b Float128) Float128 {
 	return Float128{}
 }
 func (f Float128) String() string {

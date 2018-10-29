@@ -438,6 +438,7 @@ func Test_resourceLimitsObject(t *testing.T) {
 
 func Test_Increment(t *testing.T) {
 
+	
 	fileName := "./increment"
 
 	reFn := func() {
@@ -482,7 +483,7 @@ func Test_Increment(t *testing.T) {
 	for it.Next() {
 		tmp := DbTableIdObject{}
 		it.Data(&tmp)
-		logObj(tmp)
+		//logObj(tmp)
 	}
 }
 
@@ -649,7 +650,26 @@ func getLessObjs(objs []DbTableIdObject, houses []DbHouse, db DataBase) {
 		i++
 	}
 	it.Release()
+
+
+	idx, err = db.GetIndex("id", DbTableIdObject{})
+	if err != nil {
+		log.Fatalln(err)	
+	}
+	obj = DbTableIdObject{ID:1}
+	it, err = idx.LowerBound(obj)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	for it.Next() {
+		tmp := DbTableIdObject{}
+		it.Data(&tmp)
+		// logObj(tmp)
+	}
+	it.Release()
 }
+
 
 func modifyObjs(db DataBase) {
 
@@ -696,6 +716,26 @@ func findObjs(objs []DbTableIdObject, houses []DbHouse, db DataBase) {
 			logObj(houses[1])
 			log.Fatalln("Find Object")
 		}
+	}
+
+	{
+		idx, err := db.GetIndex("Area", DbHouse{})
+		if err != nil {
+			log.Fatalln(err)
+		}
+
+		hou := DbHouse{Area: 18}
+		it, err := idx.LowerBound(hou)
+		if err != nil {
+			log.Fatalln(err)
+		}
+
+		for it.Next() {
+			tmp := DbHouse{}
+			it.Data(&tmp)
+			// logObj(tmp)
+		}
+		it.Release()
 	}
 }
 

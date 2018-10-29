@@ -13,9 +13,9 @@ type contractTypesInterface interface {
 
 type newAccount struct {
 	Creator common.AccountName
-	Name     common.AccountName
-	Owner    types.Authority
-	Active   types.Authority
+	Name    common.AccountName
+	Owner   types.Authority
+	Active  types.Authority
 }
 
 func (n newAccount) getAccount() common.AccountName {
