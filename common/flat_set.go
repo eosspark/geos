@@ -2,11 +2,14 @@ package common
 
 type FlatSet interface {
 	Compare(first FlatSet, second FlatSet) bool
+
+	Equal(first FlatSet, second FlatSet) bool
 }
 
 func Append(target []FlatSet, param FlatSet) (*[]FlatSet, *FlatSet) {
 	length := len(target)
 	result := []FlatSet{}
+
 	if length == 0 {
 		target = append(target, param)
 		return &target, &param
@@ -33,11 +36,16 @@ func Append(target []FlatSet, param FlatSet) (*[]FlatSet, *FlatSet) {
 				}
 			} else {
 				//Insert middle
-				first := target[:r]
-				second := target[r:length]
-				result = append(result, first...)
-				result = append(result, param)
-				result = append(result, second...)
+				if param.Equal(target[r], param) {
+					param = target[r]
+					result = target
+				} else {
+					first := target[:r]
+					second := target[r:length]
+					result = append(result, first...)
+					result = append(result, param)
+					result = append(result, second...)
+				}
 			}
 		}
 	}

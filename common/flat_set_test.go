@@ -12,20 +12,14 @@ type AccountDeltaDemo struct {
 
 func (f AccountDeltaDemo) Compare(first FlatSet, second FlatSet) bool {
 	return first.(AccountDeltaDemo).A <= second.(AccountDeltaDemo).A
-
 }
 
-/*
-func (f AccountDeltaDemo) GetData() []Flat{
-	return f.Data
+func (f AccountDeltaDemo) Equal(first FlatSet, second FlatSet) bool {
+	return first.(AccountDeltaDemo).A == second.(AccountDeltaDemo).A
 }
-
-func (f AccountDeltaDemo) SetData(param []Flat){
-	f.Data = param
-}*/
 
 func TestFlat(t *testing.T) {
-	before, end, midle := 0, 19, 8
+	before, end, midle, eq := 0, 19, 8, 10
 	if before == 0 {
 		f := []FlatSet{}
 		for i := 0; i < 20; i++ {
@@ -39,7 +33,8 @@ func TestFlat(t *testing.T) {
 		param := AccountDeltaDemo{}
 		param.A = AccountName(0)
 		param.B = int64(0)
-		result, _ := Append(f, param)
+		result, p := Append(f, param)
+		assert.Equal(t, param, *p)
 		assert.Equal(t, param, (*result)[0].(AccountDeltaDemo))
 	}
 	if end == 19 {
@@ -52,11 +47,11 @@ func TestFlat(t *testing.T) {
 				f = append(f, ad)
 			}
 		}
-		param := AccountDeltaDemo{}
-		param.A = AccountName(19)
-		param.B = int64(19)
+		param := AccountDeltaDemo{19, 19}
 
-		result, _ := Append(f, param)
+		result, p := Append(f, param)
+		//fmt.Println(result)
+		assert.Equal(t, param, *p)
 		assert.Equal(t, param, (*result)[19].(AccountDeltaDemo))
 	}
 	if midle == 8 {
@@ -69,11 +64,26 @@ func TestFlat(t *testing.T) {
 				f = append(f, ad)
 			}
 		}
-		param := AccountDeltaDemo{}
-		param.A = AccountName(8)
-		param.B = int64(8)
+		param := AccountDeltaDemo{8, 8}
 
-		result, _ := Append(f, param)
+		result, p := Append(f, param)
+		//fmt.Println(result,p)
+		assert.Equal(t, param, *p)
+		assert.Equal(t, param, (*result)[8].(AccountDeltaDemo))
+	}
+	if eq == 10 {
+		f := []FlatSet{}
+		for i := 0; i < 20; i++ {
+			ad := AccountDeltaDemo{}
+			ad.A = AccountName(i)
+			ad.B = int64(i)
+			f = append(f, ad)
+		}
+		param := AccountDeltaDemo{8, 8}
+
+		result, p := Append(f, param)
+		//fmt.Println(result,p)
+		assert.Equal(t, param, *p)
 		assert.Equal(t, param, (*result)[8].(AccountDeltaDemo))
 	}
 }
