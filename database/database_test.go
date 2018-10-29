@@ -108,11 +108,11 @@ func Test_find(t *testing.T) {
 	findObjs(objs_, houses_, db)
 
 	findInLineFieldObjs(objs_, houses_, db)
-
+	//
 	findAllNonUniqueFieldObjs(objs_, houses_, db)
-
-	getErrStruct(db)
-
+	//
+	//getErrStruct(db)
+	//
 	getLessObjs(objs_, houses_, db)
 }
 
@@ -325,6 +325,50 @@ func Test_undoRemove(t *testing.T) {
 	}
 }
 
+func Test_iteratorTo(t *testing.T) {
+	db, clo := openDb()
+	if db == nil {
+		log.Fatalln("db open failed")
+	}
+	defer clo()
+
+	objs, houses := Objects()
+	//objs_, houses_ :=
+	saveObjs(objs, houses, db)
+
+	idx, err := db.GetIndex("id", DbTableIdObject{})
+	if err != nil {
+		log.Fatalln(err)
+	}
+	obj := DbTableIdObject{ID: 1}
+	it, err := idx.LowerBound(obj)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	tmp := DbTableIdObject{}
+	for it.Next() {
+		it.Data(&tmp)
+		//logObj(tmp)
+	}
+	it.Release()
+
+	it = idx.IteratorTo(&tmp)
+	if it == nil {
+		log.Panicln("iterator to failed")
+	}
+
+
+	tmp = DbTableIdObject{}
+	it.Data(&tmp)
+	//logObj(tmp)
+	for it.Prev() {
+		it.Data(&tmp)
+		//logObj(tmp)
+	}
+	it.Release()
+}
+
 func Test_empty(t *testing.T) {
 	db, clo := openDb()
 	if db == nil {
@@ -438,7 +482,6 @@ func Test_resourceLimitsObject(t *testing.T) {
 
 func Test_Increment(t *testing.T) {
 
-	
 	fileName := "./increment"
 
 	reFn := func() {
@@ -478,7 +521,6 @@ func Test_Increment(t *testing.T) {
 		log.Fatalln(err)
 	}
 	defer it.Release()
-
 
 	for it.Next() {
 		tmp := DbTableIdObject{}
@@ -560,16 +602,6 @@ func saveObjs(objs []DbTableIdObject, houses []DbHouse, db DataBase) ([]DbTableI
 	}
 	return objs_, houses_
 }
-
-func getErrStruct(db DataBase) {
-
-	obj := DbTableIdObject{Scope: 12, Table: 13}
-	_, err := db.GetIndex("byTable", &obj)
-	if err != ErrStructNeeded {
-		log.Fatalln(err)
-	}
-}
-
 func getGreaterObjs(objs []DbTableIdObject, houses []DbHouse, db DataBase) {
 
 	obj := DbTableIdObject{Scope: 22}
@@ -651,12 +683,11 @@ func getLessObjs(objs []DbTableIdObject, houses []DbHouse, db DataBase) {
 	}
 	it.Release()
 
-
 	idx, err = db.GetIndex("id", DbTableIdObject{})
 	if err != nil {
-		log.Fatalln(err)	
+		log.Fatalln(err)
 	}
-	obj = DbTableIdObject{ID:1}
+	obj = DbTableIdObject{ID: 1}
 	it, err = idx.LowerBound(obj)
 	if err != nil {
 		log.Fatalln(err)
@@ -669,7 +700,6 @@ func getLessObjs(objs []DbTableIdObject, houses []DbHouse, db DataBase) {
 	}
 	it.Release()
 }
-
 
 func modifyObjs(db DataBase) {
 

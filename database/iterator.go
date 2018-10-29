@@ -65,7 +65,7 @@ func newDbIterator(typeName []byte, it iterator, db *leveldb.DB, greater bool) (
 		return nil, ErrNotFound
 	}
 	for it.Next() {
-		idx := &DbIterator{typeName: typeName, it: it, db: db,greater: greater}
+		idx := &DbIterator{typeName: typeName, it: it, db: db, greater: greater}
 
 		key := idKey(it.Value(), typeName)
 		key, err := getDbKey(key, db)
@@ -82,8 +82,7 @@ func newDbIterator(typeName []byte, it iterator, db *leveldb.DB, greater bool) (
 
 /* Do not use the functions in this file */
 
-
-func (index *DbIterator)copyBeginValue(key []byte)error{
+func (index *DbIterator) copyBeginValue(key []byte) error {
 	index.begin = make([]byte, len(key)) /* compare begin 	*/
 	copy(index.begin, key)
 	index.value = make([]byte, len(key)) /* begin data  	*/
@@ -92,9 +91,8 @@ func (index *DbIterator)copyBeginValue(key []byte)error{
 	return nil
 }
 
-func (index *DbIterator)keyValue(key []byte)error{
+func (index *DbIterator) keyValue(key []byte) error {
 	k := idKey(key, index.typeName)
-
 	v, err := index.db.Get(k, nil)
 	if err != nil {
 		index.key = nil
@@ -111,14 +109,14 @@ func (index *DbIterator) Next() bool {
 		if index.first == true {
 			index.first = false
 
-			return  index.keyValue(index.it.Value())  == nil
+			return index.keyValue(index.it.Value()) == nil
 		}
 		return index.prev()
 	}
 	if index.first == true {
 		index.first = false
 
-		return  index.keyValue(index.it.Value())  == nil
+		return index.keyValue(index.it.Value()) == nil
 	}
 	return index.next()
 }
@@ -129,7 +127,7 @@ func (index *DbIterator) Prev() bool {
 
 			index.first = false
 
-			return  index.keyValue(index.it.Value())  == nil
+			return index.keyValue(index.it.Value()) == nil
 		}
 		return index.next()
 	}
@@ -138,7 +136,7 @@ func (index *DbIterator) Prev() bool {
 
 		index.first = false
 
-		return  index.keyValue(index.it.Value())  == nil
+		return index.keyValue(index.it.Value()) == nil
 	}
 	return index.prev()
 }

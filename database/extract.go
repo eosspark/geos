@@ -46,9 +46,9 @@ tag
 */
 //// TODO A separate module for external use in the future
 type structInfo struct {
-	Name           string
-	Id             *reflect.Value
-	Fields         map[string]*fieldInfo
+	Name   string
+	Id     *reflect.Value
+	Fields map[string]*fieldInfo
 }
 
 func isZero(v *reflect.Value) bool {
@@ -300,7 +300,6 @@ type dbKeyValue struct {
 	id       kv
 	index    []kv
 	typeName []byte
-	first    bool
 }
 
 func (kv *kv) showKV() {

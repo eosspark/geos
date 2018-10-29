@@ -5,7 +5,7 @@ import (
 	"github.com/eosspark/eos-go/crypto/rlp"
 )
 
-type multiIndex struct {
+type MultiIndex struct {
 	begin     []byte
 	end       []byte
 	itBegin   []byte
@@ -17,8 +17,8 @@ type multiIndex struct {
 	greater   bool
 }
 
-func newMultiIndex(typeName, fieldName, begin, end []byte, greater bool, db DataBase) *multiIndex {
-	return &multiIndex{typeName: typeName, fieldName: fieldName, begin: begin, end: end, greater: greater, db: db}
+func newMultiIndex(typeName, fieldName, begin, end []byte, greater bool, db DataBase) *MultiIndex {
+	return &MultiIndex{typeName: typeName, fieldName: fieldName, begin: begin, end: end, greater: greater, db: db}
 }
 
 /*
@@ -30,7 +30,7 @@ success 			-->		nil 	(Iterator valid)
 error 				-->		error 	(Iterator invalid)
 
 */
-func (index *multiIndex) LowerBound(in interface{}) (Iterator, error) {
+func (index *MultiIndex) LowerBound(in interface{}) (Iterator, error) {
 	it, err := index.db.lowerBound(index.begin, index.end, index.fieldName, in, index.greater)
 	if err != nil {
 		return nil, err
@@ -52,7 +52,7 @@ error 				-->		error 	(Iterator invalid)
 
 */
 
-func (index *multiIndex) UpperBound(in interface{}) (Iterator, error) {
+func (index *MultiIndex) UpperBound(in interface{}) (Iterator, error) {
 	it, err := index.db.upperBound(index.begin, index.end, index.fieldName, in, index.greater)
 	if err != nil {
 		return nil, err
@@ -75,7 +75,7 @@ error 				-->		error
 
 */
 
-func (index *multiIndex) Find(in interface{}, out interface{}) error {
+func (index *MultiIndex) Find(in interface{}, out interface{}) error {
 	return index.db.Find(string(index.fieldName), in, out)
 }
 
@@ -89,7 +89,7 @@ error 				-->		error
 
 */
 
-func (index *multiIndex) Begin(out interface{}) error {
+func (index *MultiIndex) Begin(out interface{}) error {
 	// TODO
 	err := rlp.DecodeBytes(index.itBegin, out)
 	if err != nil {
@@ -110,7 +110,7 @@ error 				-->		false
 
 */
 
-func (index *multiIndex) CompareBegin(in Iterator) bool {
+func (index *MultiIndex) CompareBegin(in Iterator) bool {
 	return bytes.Compare(in.Begin(), index.itBegin) == 0
 }
 
@@ -125,8 +125,7 @@ success 			-->		true
 error 				-->		false
 
 */
-
-func (index *multiIndex) CompareEnd(in Iterator) bool {
+func (index *MultiIndex) CompareEnd(in Iterator) bool {
 	return in.Value() == nil
 }
 
@@ -136,7 +135,7 @@ func (index *multiIndex) CompareEnd(in Iterator) bool {
 
 */
 
-func (index *multiIndex) End() Iterator {
+func (index *MultiIndex) End() Iterator {
 	// TODO
 	return nil
 }
@@ -151,7 +150,7 @@ error 				-->		nil
 
 */
 
-func (index *multiIndex) BeginIterator() Iterator {
+func (index *MultiIndex) BeginIterator() Iterator {
 	// TODO
 	if len(index.typeName) == 0 {
 		return nil
@@ -168,27 +167,18 @@ func (index *multiIndex) BeginIterator() Iterator {
 	return &index.it
 }
 
-func (index *multiIndex) IteratorTo(in interface{}) Iterator {
-	// TODO
-	if len(index.typeName) == 0 {
-		return nil
-	}
-	fields, err := getFieldInfo(string(index.fieldName), in)
+func (index *MultiIndex) IteratorTo(in interface{}) Iterator {
+
+	it, err := index.db.IteratorTo(index.begin, index.end, index.fieldName, in, index.greater)
 	if err != nil {
+		panic(err)
+		//log ?
 		return nil
 	}
-	key := append(index.typeName, '_')
-	key = append(key, '_')
-	// typeName__tag__
-	key = append(key, index.fieldName...)
-	key = fieldValueToByte(key, fields)
 
-	if index.it.Seek(key) {
-		return nil
-	}
-	return &index.it
+	return it
 }
 
-func (index *multiIndex) Empty() bool {
+func (index *MultiIndex) Empty() bool {
 	return index.db.Empty(index.begin, index.end, index.fieldName)
 }

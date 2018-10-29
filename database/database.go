@@ -623,7 +623,7 @@ func findDbObject(key, typeName []byte, to interface{}, db *leveldb.DB) error {
 }
 
 /*
-get multiIndex from database
+get MultiIndex from database
 @param tagName 		--> 	tag in field tags
 @param in 			--> 	object
 
@@ -632,11 +632,11 @@ success 			-->		iterator
 error 				-->		error
 
 */
-func (ldb *LDataBase) GetIndex(tagName string, in interface{}) (*multiIndex, error) {
+func (ldb *LDataBase) GetIndex(tagName string, in interface{}) (*MultiIndex, error) {
 	return getIndex(tagName, in, ldb)
 }
 
-func getIndex(tagName string, value interface{}, db DataBase) (*multiIndex, error) {
+func getIndex(tagName string, value interface{}, db DataBase) (*MultiIndex, error) {
 
 	// fieldName == tagName --> Just different nextId
 	fieldName := []byte(tagName)
@@ -645,9 +645,9 @@ func getIndex(tagName string, value interface{}, db DataBase) (*multiIndex, erro
 		return nil, err
 	}
 
-// 	if fields.unique {
-// 		return nil, ErrNotFound
-// 	}
+	// 	if fields.unique {
+	// 		return nil, ErrNotFound
+	// 	}
 
 	typeName := []byte(fields.typeName)
 	begin := typeNameFieldName(typeName, fieldName)
@@ -686,7 +686,7 @@ func getDbKey(key []byte, db *leveldb.DB) ([]byte, error) {
 	return val, err
 }
 
-func (ldb *LDataBase) GetMutableIndex(fieldName string, in interface{}) (*multiIndex, error) {
+func (ldb *LDataBase) GetMutableIndex(fieldName string, in interface{}) (*MultiIndex, error) {
 	return ldb.GetIndex(fieldName, in)
 }
 
@@ -698,17 +698,13 @@ func (ldb *LDataBase) lowerBound(begin, end, fieldName []byte, data interface{},
 		return nil, err
 	}
 
-	reg, prefix := getNonUniqueFieldValue(fields)
-	if reg == nil {
-		return nil, ErrNoID
-	}
-	// fmt.Println("---> ",prefix)	
+	_, prefix := getNonUniqueFieldValue(fields)
+
 	if len(prefix) != 0 {
-		// fmt.Println("---> ",begin)	
 		begin = append(begin, prefix...)
 		it := ldb.db.NewIterator(&util.Range{Start: begin, Limit: end}, nil)
 
-		idx, err := newDbIterator([]byte(fields.typeName), it, ldb.db,  greater)
+		idx, err := newDbIterator([]byte(fields.typeName), it, ldb.db, greater)
 		if err != nil {
 			return nil, err
 		}
@@ -728,6 +724,35 @@ func (ldb *LDataBase) Empty(begin, end, fieldName []byte) bool {
 	return true
 }
 
+func (ldb *LDataBase) IteratorTo(begin, end, fieldName []byte, in interface{}, greater bool) (*DbIterator, error) {
+	fields, err := getFieldInfo(string(fieldName), in)
+	if err != nil {
+		return nil, err
+	}
+	_, prefix := getNonUniqueFieldValue(fields)
+
+	if len(prefix) == 0 {
+		return nil, errors.New("Get Field Value Failed")
+	}
+
+	key := []byte{}
+	key = append(begin, prefix...)
+
+	it := ldb.db.NewIterator(&util.Range{Start: begin, Limit: end}, nil)
+	if !it.Seek(key) {
+		return nil, errors.New("Iterator To Not Found")
+	}
+	k := idKey(it.Value(),[]byte(fields.typeName))
+	val ,err:= getDbKey(k,ldb.db)
+	if err != nil{
+		return nil,err
+	}
+
+	//
+	itr := &DbIterator{it:it,greater:fields.greater,db:ldb.db,first:false,value:val,typeName:[]byte(fields.typeName)}
+	return itr,nil
+}
+
 func (ldb *LDataBase) upperBound(begin, end, fieldName []byte, data interface{}, greater bool) (*DbIterator, error) {
 	//TODO
 	fields, err := getFieldInfo(string(fieldName), data)
@@ -735,10 +760,8 @@ func (ldb *LDataBase) upperBound(begin, end, fieldName []byte, data interface{},
 		return nil, err
 	}
 
-	reg, prefix := getNonUniqueFieldValue(fields)
-	if reg == nil {
-		return nil, ErrNoID
-	}
+	_, prefix := getNonUniqueFieldValue(fields)
+
 	if len(prefix) != 0 {
 		begin = append(begin, prefix...)
 	}
@@ -746,7 +769,7 @@ func (ldb *LDataBase) upperBound(begin, end, fieldName []byte, data interface{},
 	begin[len(begin)-1] = begin[len(begin)-1] + 1
 	it := ldb.db.NewIterator(&util.Range{Start: begin, Limit: end}, nil)
 
-	idx, err := newDbIterator([]byte(fields.typeName), it, ldb.db,  greater)
+	idx, err := newDbIterator([]byte(fields.typeName), it, ldb.db, greater)
 	if err != nil {
 		return nil, err
 	}
@@ -858,7 +881,7 @@ The internal undo operation of the database is not used externally
 
 func (ldb *LDataBase) undoInsertKV(undoKeyValue *dbKeyValue) { /*	insert kv to db error --> undo kv */
 
-	if len(undoKeyValue.index) == 0{
+	if len(undoKeyValue.index) == 0 {
 		return
 	}
 
@@ -868,7 +891,7 @@ func (ldb *LDataBase) undoInsertKV(undoKeyValue *dbKeyValue) { /*	insert kv to d
 			panic(err)
 		}
 	}
-	if len(undoKeyValue.id.key) == 0{
+	if len(undoKeyValue.id.key) == 0 {
 		return
 	}
 	err := removeKey(undoKeyValue.id.key, ldb.db) /* 	undo id*/

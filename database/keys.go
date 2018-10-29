@@ -19,7 +19,8 @@ func getFieldInfo(fieldName string, value interface{}) (*fieldInfo, error) {
 		return nil, ErrBadType
 	}
 	if ref.Kind() == reflect.Ptr {
-		return nil, ErrStructNeeded
+		ref = ref.Elem()
+		//return nil, ErrStructNeeded
 	}
 	cfg, err := extractObjectTagInfo(&ref)
 	if err != nil {
@@ -39,8 +40,8 @@ func nonUniqueValue(info *fieldInfo) []byte { /* non unique fields --> find func
 			return nil
 		}
 	}
-	reg, _ := getNonUniqueFieldValue(info)
-	return reg
+	val, _ := getNonUniqueFieldValue(info)
+	return val
 }
 
 // TODO The function is unchanged, need to modify the implementation
@@ -48,33 +49,23 @@ func getNonUniqueFieldValue(info *fieldInfo) ([]byte, []byte) { /* non unique fi
 	values := []byte{}
 	prefix := []byte{}
 	//regexp := []byte{40,46,42,41}
-	count := 0
 	for _, v := range info.fieldValue {
 		values = append(values, '_')
 		values = append(values, '_')
 		if v.Kind() != reflect.Bool && isZero(v) {
 			//values = append(values,regexp...)
-			count++
 			return prefix, prefix
-			continue
 		}
 		re, err := rlp.EncodeToBytes(v.Interface())
 		if err != nil {
 			return nil, nil
 		}
 
-		if count == 0 {
-			prefix = append(prefix, re...)
-		}
+		prefix = append(prefix, re...)
 		values = append(values, re...)
 	}
-	if count == len(info.fieldValue) {
-		return nil, nil
-	}
-	if len(info.fieldValue)-count == 1 {
-		return values, prefix
-	}
-	return values, nil
+
+	return values, prefix /*  NON unique values , unique use prefix*/
 }
 
 func typeNameFieldName(typeName, tagName []byte) []byte { /* typeName__fieldName*/
