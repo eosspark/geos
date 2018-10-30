@@ -251,7 +251,8 @@ func (r *ResourceLimitsManager) ProcessAccountLimitUpdates() {
 			if err != nil {
 				break
 			}
-			byOwnerIndex.Begin(&limit)
+			byOwnerIndex.BeginData(&limit)
+
 			if byOwnerIndex.CompareEnd(itr) || limit.Pending != true {
 				break
 			}
