@@ -11,8 +11,7 @@ import (
 	//Chain "github.com/eosspark/eos-go/chain" /*real chain*/
 	. "github.com/eosspark/eos-go/exception"
 	"github.com/eosspark/eos-go/exception/try"
-	"github.com/eosspark/eos-go/plugins/appbase/asio"
-)
+	)
 
 
 
@@ -364,8 +363,8 @@ func (impl *ProducerPluginImpl) ScheduleProductionLoop() {
 		// we failed to start a block, so try again later?
 		impl.timerCorelationId++
 		cid := impl.timerCorelationId
-		impl.Timer.AsyncWait(func(ec asio.ErrorCode) {
-			if impl != nil && cid == impl.timerCorelationId {
+		impl.Timer.AsyncWait(func(err error) {
+			if impl != nil && err == nil && cid == impl.timerCorelationId {
 				impl.ScheduleProductionLoop()
 			}
 		})
@@ -407,8 +406,8 @@ func (impl *ProducerPluginImpl) ScheduleProductionLoop() {
 
 		impl.timerCorelationId++
 		cid := impl.timerCorelationId
-		impl.Timer.AsyncWait(func(ec asio.ErrorCode) {
-			if impl != nil && cid == impl.timerCorelationId {
+		impl.Timer.AsyncWait(func(err error) {
+			if impl != nil && err == nil && cid == impl.timerCorelationId {
 				impl.MaybeProduceBlock()
 				//TODO: fc_dlog(_log, "Producing Block #${num} returned: ${res}", ("num", chain.pending_block_state()->block_num)("res", res) );
 			}
@@ -449,8 +448,8 @@ func (impl *ProducerPluginImpl) ScheduleDelayedProductionLoop(currentBlockTime c
 
 		impl.timerCorelationId++
 		cid := impl.timerCorelationId
-		impl.Timer.AsyncWait(func(ec asio.ErrorCode) {
-			if impl != nil && cid == impl.timerCorelationId {
+		impl.Timer.AsyncWait(func(err error) {
+			if impl != nil && err == nil && cid == impl.timerCorelationId {
 				impl.ScheduleProductionLoop()
 			}
 		})

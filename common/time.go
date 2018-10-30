@@ -1,9 +1,9 @@
 package common
 
 import (
-	"strconv"
-	"strings"
 	"time"
+		"strings"
+	"strconv"
 	"github.com/eosspark/eos-go/plugins/appbase/asio"
 )
 
@@ -14,13 +14,15 @@ type Microseconds int64
 func MaxMicroseconds() Microseconds { return Microseconds(0x7fffffffffffffff) }
 func MinMicroseconds() Microseconds { return Microseconds(0) }
 
-func (ms Microseconds) ToSeconds() int64 { return int64(ms / 1e6) }
-func (ms Microseconds) Count() int64     { return int64(ms) }
-func Seconds(s int64) Microseconds       { return Microseconds(s * 1e6) }
-func Milliseconds(s int64) Microseconds  { return Microseconds(s * 1e3) }
-func Minutes(m int64) Microseconds       { return Seconds(60 * m) }
-func Hours(h int64) Microseconds         { return Minutes(60 * h) }
-func Days(d int64) Microseconds          { return Hours(24 * d) }
+func (ms Microseconds) ToSeconds() int64        { return int64(ms / 1e6) }
+func (ms Microseconds) Count() int64            { return int64(ms) }
+func (ms Microseconds) String() string          { return TimePoint(ms).String() }
+
+func Seconds(s int64) Microseconds      { return Microseconds(s * 1e6) }
+func Milliseconds(s int64) Microseconds { return Microseconds(s * 1e3) }
+func Minutes(m int64) Microseconds      { return Seconds(60 * m) }
+func Hours(h int64) Microseconds        { return Minutes(60 * h) }
+func Days(d int64) Microseconds         { return Hours(24 * d) }
 
 type TimePoint Microseconds
 
@@ -28,6 +30,8 @@ func Now() TimePoint          { return TimePoint(time.Now().UTC().UnixNano() / 1
 func MaxTimePoint() TimePoint { return TimePoint(MaxMicroseconds()) }
 func MinTimePoint() TimePoint { return TimePoint(MinMicroseconds()) }
 
+func (tp TimePoint) TimeSinceEpoch() Microseconds { return Microseconds(tp) }
+func (tp TimePoint) SecSinceEpoch() uint32        { return uint32(tp) / 1e6 }
 func (tp TimePoint) String() string {
 	return time.Unix(int64(tp)/1e6, int64(tp)%1e6*1000).String()
 }
@@ -56,9 +60,6 @@ func FromIsoString(s string) (TimePoint, error) {
 	}
 }
 
-func (tp TimePoint) TimeSinceEpoch() Microseconds { return Microseconds(tp) }
-func (tp TimePoint) SecSinceEpoch() uint32        { return uint32(tp) / 1e6 }
-
 func (tp TimePoint) AddUs(m Microseconds) TimePoint     { return TimePoint(Microseconds(tp) + m) }
 func (tp TimePoint) SubUs(m Microseconds) TimePoint     { return TimePoint(Microseconds(tp) - m) }
 func (tp TimePoint) Sub(t TimePoint) Microseconds       { return Microseconds(tp - t) }
@@ -74,9 +75,9 @@ func NewTimePointSecTp(t TimePoint) TimePointSec { return TimePointSec(t.TimeSin
 func MaxTimePointSec() TimePointSec { return TimePointSec(0xffffffff) }
 func MinTimePointSec() TimePointSec { return TimePointSec(0) }
 
-func (tp TimePointSec) ToTimePoint() TimePoint { return TimePoint(Seconds(int64(tp))) }
-func (tp TimePointSec) SecSinceEpoch() uint32  { return uint32(tp) }
-func (tp TimePointSec) String() string         { return tp.ToTimePoint().String() }
+func (tp TimePointSec) ToTimePoint() TimePoint  { return TimePoint(Seconds(int64(tp))) }
+func (tp TimePointSec) SecSinceEpoch() uint32   { return uint32(tp) }
+func (tp TimePointSec) String() string          { return tp.ToTimePoint().String() }
 
 func FromIsoStringSec(s string) (TimePointSec, error) {
 	pt, err := time.Parse(format, s)
@@ -90,7 +91,7 @@ func (tp TimePointSec) SubUs(m Microseconds) TimePoint    { return tp.ToTimePoin
 func (tp TimePointSec) Sub(t TimePointSec) Microseconds   { return tp.ToTimePoint().Sub(t.ToTimePoint()) }
 
 /**
- * inherit from asio.DeadlineTimer
+ * using asio.DeadlineTimer
  */
 type Timer asio.DeadlineTimer
 
@@ -98,11 +99,11 @@ func NewTimer(ctx *asio.IoContext) *Timer {
 	return (*Timer)(asio.NewDeadlineTimer(ctx))
 }
 
-func (t *Timer) ExpiresUntil(time TimePoint)      { t.ExpiresFromNow(time.Sub(Now())) }
-func (t *Timer) ExpiresAt(epoch Microseconds)  { t.ExpiresUntil(TimePoint(epoch)) }
+func (t *Timer) ExpiresUntil(time TimePoint)  { t.ExpiresFromNow(time.Sub(Now())) }
+func (t *Timer) ExpiresAt(epoch Microseconds) { t.ExpiresUntil(TimePoint(epoch)) }
 func (t *Timer) ExpiresFromNow(m Microseconds) {
 	(*asio.DeadlineTimer)(t).ExpiresFromNow(time.Microsecond * time.Duration(m))
 }
 
-func (t *Timer) Cancel() { (*asio.DeadlineTimer)(t).Cancel() }
-func (t *Timer) AsyncWait(op func(ec asio.ErrorCode)) { (*asio.DeadlineTimer)(t).AsyncWait(op) }
+func (t *Timer) Cancel()                      { (*asio.DeadlineTimer)(t).Cancel() }
+func (t *Timer) AsyncWait(op func(err error)) { (*asio.DeadlineTimer)(t).AsyncWait(op) }
