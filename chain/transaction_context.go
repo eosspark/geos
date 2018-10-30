@@ -11,6 +11,12 @@ import (
 	//"github.com/eosspark/eos-go/log"
 )
 
+type AccountForSet common.AccountName
+
+func (f *AccountForSet) GetKey() uint64 {
+	return uint64(*f)
+}
+
 type TransactionContext struct {
 	Control               *Controller
 	Trx                   *types.SignedTransaction
@@ -20,8 +26,8 @@ type TransactionContext struct {
 	Start                 common.TimePoint
 	Published             common.TimePoint
 	Executed              []types.ActionReceipt
-	BillToAccounts        []common.AccountName
-	ValidateRamUsage      []common.AccountName
+	BillToAccounts        common.FlatSet
+	ValidateRamUsage      common.FlatSet
 	InitialMaxBillableCpu uint64
 	Delay                 common.Microseconds
 	IsInput               bool
@@ -78,7 +84,7 @@ func NewTransactionContext(c *Controller, t *types.SignedTransaction, trxId comm
 	}
 
 	//for testing
-	tc.ValidateRamUsage = make([]common.AccountName, 10)
+	//tc.ValidateRamUsage = make([]common.AccountName, 10)
 
 	// if !c.SkipDbSessions() {
 	// 	tc.UndoSession = c.DB.StartSession()
@@ -91,7 +97,7 @@ func NewTransactionContext(c *Controller, t *types.SignedTransaction, trxId comm
 		//BlockNum:        4,
 		//BlockTime:       common.BlockTimeStamp(common.Now()),
 		//ProducerBlockId: common.BlockIdType(*crypto.NewSha256String("cf057bbfb72640471fd910bcb67639c22df9f92470936cddc1ade0e2f2e7dc4f")),
-		Except: &TransactionException{},
+		//Except: &TransactionException{},
 	}
 	tc.netUsage = &tc.Trace.NetUsage
 	tc.Executed = make([]types.ActionReceipt, tc.Trx.TotalActions())
@@ -153,14 +159,16 @@ func (t *TransactionContext) init(initialNetUsage uint64) {
 	// Record accounts to be billed for network and CPU usage
 	for _, act := range t.Trx.Actions {
 		for _, auth := range act.Authorization {
-			t.BillToAccounts = append(t.BillToAccounts, auth.Actor)
+			//t.BillToAccounts = append(t.BillToAccounts, auth.Actor)
+			account := AccountForSet(auth.Actor)
+			t.BillToAccounts.Insert(&account)
 		}
 	}
 
-	t.ValidateRamUsage = make([]common.AccountName, len(t.BillToAccounts))
+	//t.ValidateRamUsage = make([]common.AccountName, t.BillToAccounts.Len())
 
 	// Update usage values of accounts to reflect new time
-	rl.UpdateAccountUsage(t.BillToAccounts, uint32(common.BlockTimeStamp(t.Control.PendingBlockTime())))
+	rl.UpdateAccountUsage(&t.BillToAccounts, uint32(common.BlockTimeStamp(t.Control.PendingBlockTime())))
 
 	// Calculate the highest network usage and CPU time that all of the billed accounts can afford to be billed
 	//accountNetLimit, accountCpuLimit, greylistedNet, greylistedCpu := t.MaxBandwidthBilledAccountsCanPay(false)
@@ -278,8 +286,10 @@ func (t *TransactionContext) Finalize() {
 	}
 
 	rl := t.Control.GetMutableResourceLimitsManager()
-	for a := range t.ValidateRamUsage {
-		rl.VerifyAccountRamUsage(common.AccountName(a))
+	for _, a := range t.ValidateRamUsage.Data {
+
+		account := a.(*AccountForSet)
+		rl.VerifyAccountRamUsage(common.AccountName(*account))
 	}
 
 	// Calculate the highest network usage and CPU time that all of the billed accounts can afford to be billed
@@ -307,7 +317,7 @@ func (t *TransactionContext) Finalize() {
 	t.UpdateBilledCpuTime(now)
 	t.validateCpuUsageToBill(t.BilledCpuTimeUs, true)
 
-	rl.AddTransactionUsage(t.BillToAccounts, uint64(t.BilledCpuTimeUs), *t.netUsage, uint32(common.BlockTimeStamp(t.Control.PendingBlockTime())))
+	rl.AddTransactionUsage(&t.BillToAccounts, uint64(t.BilledCpuTimeUs), *t.netUsage, uint32(common.BlockTimeStamp(t.Control.PendingBlockTime())))
 
 }
 
@@ -457,12 +467,8 @@ func (t *TransactionContext) AddRamUsage(account common.AccountName, ramDelta in
 	rl := t.Control.GetMutableResourceLimitsManager()
 	rl.AddPendingRamUsage(account, ramDelta)
 	if ramDelta > 0 {
-		// if len(t.ValidateRamUsage) == 0 {
-		// 	t.ValidateRamUsage = []common.AccountName{5}
-		// 	t.ValidateRamUsage = append(t.ValidateRamUsage, account)
-		// } else {
-		t.ValidateRamUsage = append(t.ValidateRamUsage, account)
-		//}
+		a := AccountForSet(account)
+		t.ValidateRamUsage.Insert(&a)
 	}
 }
 
@@ -483,16 +489,20 @@ func (t *TransactionContext) MaxBandwidthBilledAccountsCanPay(forceElasticLimits
 	accountCpuLimit := largeNumberNoOverflow
 	greylistedNet := false
 	greylistedCpu := false
-	for _, a := range t.BillToAccounts {
-		elastic := forceElasticLimits || !(t.Control.IsProducingBlock()) && t.Control.IsResourceGreylisted(&a)
-		netLimit := uint64(rl.GetAccountNetLimit(a, elastic))
+	for _, a := range t.BillToAccounts.Data {
+
+		accountName := a.(*AccountForSet)
+		account := common.AccountName(*accountName)
+
+		elastic := forceElasticLimits || !(t.Control.IsProducingBlock()) && t.Control.IsResourceGreylisted(&account)
+		netLimit := uint64(rl.GetAccountNetLimit(account, elastic))
 		if netLimit >= 0 {
 			accountNetLimit = common.Min(accountNetLimit, netLimit)
 			if !elastic {
 				greylistedNet = true
 			}
 		}
-		cpuLimit := uint64(rl.GetAccountCpuLimit(a, elastic))
+		cpuLimit := uint64(rl.GetAccountCpuLimit(account, elastic))
 		if cpuLimit >= 0 {
 			accountCpuLimit = common.Min(accountCpuLimit, cpuLimit)
 			if !elastic {
