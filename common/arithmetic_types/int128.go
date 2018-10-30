@@ -181,10 +181,10 @@ func (u Int128) Div(v Int128) (Int128, Int128) {
 	uTrueForm.Set(127, 0)
 	vTrueForm.Set(127, 0)
 	uQuotient, uRemainder := uTrueForm.Div(vTrueForm)
-	if signBit {
+	if signBit && !uQuotient.IsZero(){
 		uQuotient.Set(127, 1)
 	}
-	if u.GetAt(127) {
+	if u.GetAt(127) && !uRemainder.IsZero() {
 		uRemainder.Set(127, 1)
 	}
 	Quotient := uQuotient.ToComplement()

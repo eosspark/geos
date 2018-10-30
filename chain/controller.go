@@ -388,7 +388,7 @@ func (c *Controller) PushTransaction(trx types.TransactionMetadata, deadLine com
 	trxContext.Delay = common.Microseconds(trx.Trx.DelaySec)
 	if !c.SkipAuthCheck() && !trx.Implicit {
 		c.Authorization.CheckAuthorization(trx.Trx.Actions,
-			trx.RecoverKeys(c.ChainID),
+			trx.RecoverKeys(&c.ChainID),
 			nil,
 			trxContext.Delay,
 			nil,
@@ -484,7 +484,7 @@ func (c *Controller) GetOnBlockTransaction() types.SignedTransaction {
 	}
 	trx := types.SignedTransaction{}
 	trx.Actions = append(trx.Actions, &onBlockAction)
-	trx.SetReferenceBlock(c.Head.BlockId)
+	trx.SetReferenceBlock(&c.Head.BlockId)
 	in := c.Pending.PendingBlockState.Header.Timestamp + 999999
 	trx.Expiration = common.TimePointSec(in)
 	log.Error("getOnBlockTransaction trx.Expiration:", trx)
@@ -1193,7 +1193,7 @@ func (c *Controller) ValidateTapos(t *types.Transaction) {
 	if err != nil {
 		fmt.Println("ValidateTapos Is Error:", err)
 	}
-	EosAssert(t.VerifyReferenceBlock(taposBlockSummary.BlockId), &InvalidRefBlockException{},
+	EosAssert(t.VerifyReferenceBlock(&taposBlockSummary.BlockId), &InvalidRefBlockException{},
 		"Transaction's reference block did not match. Is this transaction from a different fork?", taposBlockSummary)
 }
 
