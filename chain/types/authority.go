@@ -90,6 +90,14 @@ func NewAuthority(k ecc.PublicKey, delaySec uint32) (a Authority) {
 	return a
 }
 
+func (auth *Authority) ToSharedAuthority() SharedAuthority {
+	return SharedAuthority{auth.Threshold, auth.Keys, auth.Accounts, auth.Waits}
+}
+
+func (sharedAuth *SharedAuthority) ToAuthority() Authority {
+	return Authority{sharedAuth.Threshold,sharedAuth.Keys,sharedAuth.Accounts,sharedAuth.Waits}
+}
+
 func (weight WeightType) String() string {
 	return strconv.FormatInt(int64(weight),10)
 }
