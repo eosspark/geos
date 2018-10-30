@@ -163,7 +163,7 @@ func (r *ResourceLimitsManager) GetAccountRamUsage(account common.AccountName) i
 	return int64(usage.RamUsage)
 }
 
-func (r *ResourceLimitsManager) SetAccountLimits(account common.AccountName, ramBytes int64, netWeight int64, cpuWeight int64) bool { //for test
+func (r *ResourceLimitsManager) SetAccountLimits(account common.AccountName, ramBytes int64, netWeight int64, cpuWeight int64) bool {
 
 	findOrCreatePendingLimits := func() entity.ResourceLimitsObject {
 		pendingLimits := entity.ResourceLimitsObject{}
@@ -244,10 +244,6 @@ func (r *ResourceLimitsManager) ProcessAccountLimitUpdates() {
 
 	state := entity.DefaultResourceLimitsStateObject
 	r.db.Find("id", state, &state)
-	//TODO:delete, for test.
-	//state.TotalNetWeight = 10000
-	//state.TotalCpuWeight = 10000
-	//state.TotalRamBytes = 10000
 	r.db.Modify(&state, func(rso *entity.ResourceLimitsStateObject) {
 		limit := entity.ResourceLimitsObject{}
 		for !byOwnerIndex.Empty(){

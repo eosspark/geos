@@ -23,11 +23,10 @@ type PermissionLevel struct {
 
 type PermissionLevelWeight struct {
 	Permission PermissionLevel `json:"permission"`
-	Weight     WeightType      `json:"weight"` // weight_type
+	Weight     WeightType      `json:"weight"`
 }
 
 type KeyWeight struct {
-	// Key    ecc.PublicKey `json:"key"`
 	Key    ecc.PublicKey `json:"key"`
 	Weight WeightType    `json:"weight"`
 }
@@ -139,18 +138,18 @@ func (sharedAuth SharedAuthority) Equals(sharedAuthor SharedAuthority) bool {
 	return true
 }
 
-func (sharedAuth SharedAuthority) GetBillableSize() uint64 { //返回值类型不确定
+func (sharedAuth SharedAuthority) GetBillableSize() uint64 { //TODO
 	accountSize := uint64(len(sharedAuth.Accounts)) * common.BillableSizeV("permission_level_weight")
 	waitsSize := uint64(len(sharedAuth.Waits)) * common.BillableSizeV("wait_weight")
 	keysSize := uint64(0)
 	for _, key := range sharedAuth.Keys {
 		keysSize += common.BillableSizeV("key_weight")
-		keysSize += uint64(key.Weight) * 0 //待修改
+		keysSize += uint64(key.Weight) * 0 //TODO
 	}
 	return accountSize + waitsSize + keysSize
 }
 
-func Validate(auth Authority) bool {
+func Validate(auth Authority) bool {      //TODO: sort.
 	var totalWeight uint32 = 0
 	if len(auth.Accounts)+len(auth.Keys)+len(auth.Waits) > 1<<16 {
 		return false

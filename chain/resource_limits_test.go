@@ -6,6 +6,63 @@ import (
 	"fmt"
 )
 
+func initialize() *ResourceLimitsManager{
+	control := GetControllerInstance()
+	rlm := control.ResourceLimists
+	rlm.InitializeDatabase()
+	return rlm
+}
+
+func expectedElasticIterations(from uint64, to uint64, rateNum uint64, rateDen uint64) uint64 {
+	result := uint64(0)
+	cur := from
+	for (from < to && cur < to) || (from > to && cur > to){
+		cur = cur * rateNum / rateDen
+		result ++
+	}
+	return result
+}
+
+func expectedExponentialAverageIterations(from uint64, to uint64, value uint64, windowSize uint64) uint64 {
+	result := uint64(0)
+	cur := from
+	for (from < to && cur < to) || (from > to && cur > to){
+		cur = cur * (windowSize - 1) / windowSize
+		cur += value / windowSize
+		result ++
+	}
+	return result
+}
+
+func TestElasticCpuRelaxContract(t *testing.T){
+	rlm := initialize()
+	desiredVirtualLimit := uint64(common.DefaultConfig.DefaultMaxBlockCpuUsage) * 1000
+	expectedRelaxIteration := expectedElasticIterations(uint64(common.DefaultConfig.DefaultMaxBlockCpuUsage), desiredVirtualLimit, 1000, 999)
+
+	expectedContractIteration := expectedExponentialAverageIterations(0, common.EosPercent(uint64(common.DefaultConfig.DefaultMaxBlockCpuUsage), common.DefaultConfig.DefaultTargetBlockCpuUsagePct),
+		uint64(common.DefaultConfig.DefaultMaxBlockCpuUsage), uint64(common.DefaultConfig.BlockCpuUsageAverageWindowMs)/uint64(common.DefaultConfig.BlockIntervalMs)) +
+		expectedElasticIterations(desiredVirtualLimit, uint64(common.DefaultConfig.DefaultMaxBlockCpuUsage), 99 ,100) - 1
+
+	account := common.AccountName(common.N("1"))
+	rlm.InitializeAccount(account)
+	rlm.SetAccountLimits(account, -1, -1, -1)
+	rlm.ProcessAccountLimitUpdates()
+
+	iterations := uint32(0)
+	for rlm.GetVirtualBlockCpuLimit() < desiredVirtualLimit && uint64(iterations) <= expectedRelaxIteration {
+		rlm.AddTransactionUsage([]common.AccountName{account},0,0,iterations)
+		rlm.ProcessBlockUsage(iterations)
+		iterations++
+	}
+
+	for rlm.GetVirtualBlockCpuLimit() > uint64(common.DefaultConfig.DefaultMaxBlockCpuUsage) && uint64(iterations) <= expectedRelaxIteration + expectedContractIteration{
+		rlm.AddTransactionUsage([]common.AccountName{account},uint64(common.DefaultConfig.DefaultMaxBlockCpuUsage),0,iterations)
+		rlm.ProcessBlockUsage(iterations)
+		iterations++
+	}
+
+}
+
 func TestResourceLimitsManager_UpdateAccountUsage(t *testing.T) {
 	control := GetControllerInstance()
 	rlm := control.ResourceLimists
