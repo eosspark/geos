@@ -30,12 +30,15 @@ func TestAbortBlock(t *testing.T) {
 	fmt.Println(con)
 }
 
-/*func TestSetApplayHandler(t *testing.T) {
+func CallBackApplayHandler(p *ApplyContext) {
+	fmt.Println("SetApplyHandler CallBack")
+}
+func TestSetApplyHandler(t *testing.T) {
 	con := GetControllerInstance()
 	fmt.Println(con)
-	applyCon := ApplyContext{}
-	con.SetApplayHandler(111, 111, 111, applyCon)
-}*/
+	//applyCon := ApplyContext{}
+	con.SetApplayHandler(111, 111, 111, CallBackApplayHandler)
+}
 
 func Test_ControllerDB(t *testing.T) {
 	control := GetControllerInstance() //chain.GetControllerInstance()
@@ -61,11 +64,13 @@ func TestController_CreateNativeAccount(t *testing.T) {
 	//control.DB.Find("name", result)
 
 	fmt.Println("check account name:", strings.Compare(name.String(), "eos"))
+	assert.Equal(t, "eos", name.String())
 }
 
 func TestController_GetWasmInterface(t *testing.T) {
 	control := GetControllerInstance()
 	fmt.Println(control.WasmIf)
+	assert.Equal(t, nil, control.WasmIf)
 }
 
 func test(atx *ApplyContext) {
@@ -124,6 +129,7 @@ func TestController_Clean(t *testing.T) {
 	c.Clean()
 }
 
-func Test(t *testing.T) {
-	fmt.Println(common.AccountName(6138663577826885632))
+func TestController_UpdateProducersAuthority(t *testing.T) {
+	c := GetControllerInstance()
+	c.updateProducersAuthority()
 }

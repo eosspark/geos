@@ -22,10 +22,10 @@ func (d *DeadlineTimer) ExpiresAt(t time.Time) {
 	d.ExpiresFromNow(t.Sub(time.Now()))
 }
 
-func (d *DeadlineTimer) AsyncWait(op func(ec ErrorCode)) {
+func (d *DeadlineTimer) AsyncWait(op func(err error)) {
 	// use go-timers to receive time event in new goroutine
 	d.internal = time.AfterFunc(d.duration, func() {
-		d.ctx.GetService().post(op, NewErrorCode(nil))
+		d.ctx.GetService().post(op, nil)
 	})
 }
 

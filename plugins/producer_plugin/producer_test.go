@@ -141,7 +141,7 @@ func produceone(when common.BlockTimeStamp) (b *types.SignedBlock) {
 
 func exec() {
 	sigint := asio.NewSignalSet(io, syscall.SIGINT)
-	sigint.AsyncWait(func(ec asio.ErrorCode) {
+	sigint.AsyncWait(func(err error) {
 		io.Stop()
 		sigint.Cancel()
 		plugin.PluginShutdown()

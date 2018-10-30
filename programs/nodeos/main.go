@@ -38,7 +38,7 @@ func main() {
 	producerPlugin.PluginStartup()
 
 	sigint := asio.NewSignalSet(iosv, syscall.SIGINT, syscall.SIGTERM, syscall.SIGPIPE)
-	sigint.AsyncWait(func(ec asio.ErrorCode) {
+	sigint.AsyncWait(func(err error) {
 		iosv.Stop()
 		sigint.Cancel()
 	})

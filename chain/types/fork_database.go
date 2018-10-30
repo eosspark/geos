@@ -81,13 +81,13 @@ func (f *ForkDatabase) AddBlockState(blockState *BlockState) *BlockState {
 	multiIndex, err := f.DB.GetIndex("byLibBlockNum", &result)
 	//exception.EosAssert(err == nil, &exception.ForkDatabaseException{}, "ForkDB AddBlockState Is Error:", err)
 
-	err = multiIndex.Begin(&result)
+	err = multiIndex.BeginData(&result)
 	//exception.EosAssert(err == nil, &exception.ForkDatabaseException{}, "ForkDB AddBlockState Is Error:", err)
 
 	lib := f.Head.DposIrreversibleBlocknum
 	oldest, err := f.DB.GetIndex("byBlockNum", &result)
 	//exception.EosAssert(err == nil, &exception.ForkDatabaseException{}, "ForkDB AddBlockState Is Error:", err)
-	err = oldest.Begin(&result)
+	err = oldest.BeginData(&result)
 	exception.EosAssert(err == nil, &exception.ForkDatabaseException{}, "ForkDB AddBlockState Is Error:", err)
 
 	if result.BlockNum < lib {
@@ -204,7 +204,7 @@ func (f *ForkDatabase) Remove(id *common.BlockIdType) {
 	}
 	mi, err := f.DB.GetIndex("byLibBlockNum", &BlockState{})
 	exception.EosAssert(err == nil, &exception.ForkDbBlockNotFound{}, "ForkDB Remove f.DB.GetIndex Is Error:", err)
-	err = mi.Begin(f.Head)
+	err = mi.BeginData(f.Head)
 	exception.EosAssert(err == nil, &exception.ForkDbBlockNotFound{}, "ForkDB Remove mi.Begin(f.Head) Is Error:", err)
 }
 
@@ -248,11 +248,11 @@ func (f *ForkDatabase) Prune(h *BlockState) {
 	num := h.BlockNum
 	param := BlockState{}
 	mIndex, err := f.DB.GetIndex("byBlockNum", &param)
-	err = mIndex.Begin(&param)
+	err = mIndex.BeginData(&param)
 	bItr := mIndex.IteratorTo(&param)
 	for !mIndex.CompareEnd(bItr) && param.BlockNum < num {
 		f.Prune(&param)
-		err = mIndex.Begin(&param)
+		err = mIndex.BeginData(&param)
 		bItr = mIndex.IteratorTo(&param)
 		f.DB.Remove(bItr)
 	}
@@ -292,7 +292,7 @@ func (f *ForkDatabase) GetBlock(id *common.BlockIdType) *BlockState {
 		fmt.Println("ForkDb GetBlock Is Error:", err)
 		return &BlockState{}
 	}
-	err = multiIndex.Begin(&blockState)
+	err = multiIndex.BeginData(&blockState)
 	if err != nil {
 		fmt.Println("ForkDB GetBlock MultiIndex.Begin Is Error :", err)
 	}
