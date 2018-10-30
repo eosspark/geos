@@ -167,12 +167,12 @@ func TestDbPrimaryKey(t *testing.T) {
 
 		a.DbFindI64(int64(common.N("eosio")), int64(common.N("xiaoyu")), int64(common.N("accounts")), 5)
 
-		//itrFind := a.DbFindI64(int64(common.N("eosio")), int64(common.N("xiaoyu")), int64(common.N("accounts")), 5)
-		//var primary uint64
-		//itr = a.DbPreviousI64(itrFind, &primary)
-		//itr = a.DbNextI64(itrFind, &primary)
+		itrFind := a.DbFindI64(int64(common.N("eosio")), int64(common.N("xiaoyu")), int64(common.N("accounts")), 5)
+		var primary uint64
+		itr = a.DbPreviousI64(itrFind, &primary)
+		itr = a.DbNextI64(itrFind, &primary)
 
-		//assert.Equal(t, itrFind, itr)
+		assert.Equal(t, itrFind, itr)
 
 		control.Close()
 		control.Clean()

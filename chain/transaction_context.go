@@ -163,24 +163,24 @@ func (t *TransactionContext) init(initialNetUsage uint64) {
 	rl.UpdateAccountUsage(t.BillToAccounts, uint32(common.BlockTimeStamp(t.Control.PendingBlockTime())))
 
 	// Calculate the highest network usage and CPU time that all of the billed accounts can afford to be billed
-	accountNetLimit, accountCpuLimit, greylistedNet, greylistedCpu := t.MaxBandwidthBilledAccountsCanPay(false)
-	t.netLimitDueToGreylist = t.netLimitDueToGreylist || greylistedNet
-	t.cpuLimitDueToGreylist = t.cpuLimitDueToGreylist || greylistedCpu
-
-	t.eagerNetLimit = t.netLimit
-
-	// Possible lower eager_net_limit to what the billed accounts can pay plus some (objective) leeway
-	newEagerNetLimit := common.Min(t.eagerNetLimit, uint64(accountNetLimit+uint64(cfg.NetUsageLeeway)))
-	if newEagerNetLimit < t.eagerNetLimit {
-		t.eagerNetLimit = newEagerNetLimit
-		t.netLimitDueToBlock = false
-	}
+	//accountNetLimit, accountCpuLimit, greylistedNet, greylistedCpu := t.MaxBandwidthBilledAccountsCanPay(false)
+	//t.netLimitDueToGreylist = t.netLimitDueToGreylist || greylistedNet
+	//t.cpuLimitDueToGreylist = t.cpuLimitDueToGreylist || greylistedCpu
+	//
+	//t.eagerNetLimit = t.netLimit
+	//
+	//// Possible lower eager_net_limit to what the billed accounts can pay plus some (objective) leeway
+	//newEagerNetLimit := common.Min(t.eagerNetLimit, uint64(accountNetLimit+uint64(cfg.NetUsageLeeway)))
+	//if newEagerNetLimit < t.eagerNetLimit {
+	//	t.eagerNetLimit = newEagerNetLimit
+	//	t.netLimitDueToBlock = false
+	//}
 
 	// Possibly limit deadline if the duration accounts can be billed for (+ a subjective leeway) does not exceed current delta
-	if common.Milliseconds(int64(accountCpuLimit))+t.Leeway <= common.Microseconds(t.deadline-t.Start) {
-		t.deadline = t.Start + common.TimePoint(accountCpuLimit) + common.TimePoint(t.Leeway)
-		t.billingTimerExceptionCode = int64(LeewayDeadlineException{}.Code())
-	}
+	//if common.Milliseconds(int64(accountCpuLimit))+t.Leeway <= common.Microseconds(t.deadline-t.Start) {
+	//	t.deadline = t.Start + common.TimePoint(accountCpuLimit) + common.TimePoint(t.Leeway)
+	//	t.billingTimerExceptionCode = int64(LeewayDeadlineException{}.Code())
+	//}
 
 	t.billingTimerDurationLimit = common.Microseconds(t.deadline - t.Start)
 
@@ -510,10 +510,9 @@ func (t *TransactionContext) DispathAction(trace *types.ActionTrace, action *typ
 	applyContext.Receiver = receiver
 
 	try.Try(func() {
-		applyContext.Exec()
+		applyContext.Exec(trace)
 	}).Catch(func(e Exception) {
 		*trace = applyContext.Trace
-		//throw
 		try.Throw(e)
 	}).End()
 

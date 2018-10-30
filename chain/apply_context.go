@@ -11,6 +11,7 @@ import (
 	"github.com/eosspark/eos-go/database"
 	"github.com/eosspark/eos-go/entity"
 	. "github.com/eosspark/eos-go/exception"
+	"github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/log"
 )
 
@@ -40,7 +41,7 @@ type ApplyContext struct {
 	InlineActions        []types.Action
 	CfaInlineActions     []types.Action
 	PendingConsoleOutput string
-	AccountRamDeltas     types.FlatSet
+	AccountRamDeltas     common.FlatSet
 }
 
 func NewApplyContext(control *Controller, trxContext *TransactionContext, act *types.Action, recurseDepth uint32) *ApplyContext {
@@ -179,83 +180,101 @@ func (a *ApplyContext) printDebug(receiver common.AccountName, at *types.ActionT
 
 }
 
-func (a *ApplyContext) execOne() (trace types.ActionTrace) {
+func (a *ApplyContext) execOne(trace *types.ActionTrace) {
 
 	start := common.Now() //common.TimePoint.now()
 
-	//cfg := a.Control.GetGlobalProperties().Configuration
-	action := a.Control.GetAccount(a.Receiver)
-	a.Privileged = action.Privileged
-	native := a.Control.FindApplyHandler(a.Receiver, a.Act.Account, a.Act.Name)
-
-	if native != nil {
-		if a.TrxContext.CanSubjectivelyFail && a.Control.IsProducingBlock() {
-			a.Control.CheckContractList(a.Receiver)
-			a.Control.CheckActionList(a.Act.Account, a.Act.Name)
-		}
-		native(a)
-	}
-
-	if len(action.Code) > 0 &&
-		!(a.Act.Account == common.DefaultConfig.SystemAccountName && a.Act.Name == common.ActionName(common.N("setcode"))) &&
-		a.Receiver == common.DefaultConfig.SystemAccountName {
-
-		if a.TrxContext.CanSubjectivelyFail && a.Control.IsProducingBlock() {
-			a.Control.CheckContractList(a.Receiver)
-			a.Control.CheckActionList(a.Act.Account, a.Act.Name)
-		}
-		//try
-		a.Control.GetWasmInterface().Apply(&action.CodeVersion, action.Code, a)
-		//}catch(const wasm_exit&){}
-	}
-
-	r := &types.ActionReceipt{}
+	r := types.ActionReceipt{}
 	r.Receiver = a.Receiver
 	r.ActDigest = crypto.Hash256(a.Act)
+
+	trace.TrxId = a.TrxContext.ID
+	trace.BlockNum = a.Control.PendingBlockState().BlockNum
+	trace.BlockTime = common.NewBlockTimeStamp(a.Control.PendingBlockTime())
+	trace.ProducerBlockId = a.Control.PendingProducerBlockId()
+	trace.Act = *a.Act
+	trace.ContextFree = a.ContextFree
+
+	try.Try(func() {
+		//cfg := a.Control.GetGlobalProperties().Configuration
+		action := a.Control.GetAccount(a.Receiver)
+		a.Privileged = action.Privileged
+		native := a.Control.FindApplyHandler(a.Receiver, a.Act.Account, a.Act.Name)
+
+		if native != nil {
+			if a.TrxContext.CanSubjectivelyFail && a.Control.IsProducingBlock() {
+				a.Control.CheckContractList(a.Receiver)
+				a.Control.CheckActionList(a.Act.Account, a.Act.Name)
+			}
+			native(a)
+		}
+
+		if len(action.Code) > 0 &&
+			!(a.Act.Account == common.DefaultConfig.SystemAccountName && a.Act.Name == common.ActionName(common.N("setcode")) &&
+				a.Receiver == common.DefaultConfig.SystemAccountName) {
+
+			if a.TrxContext.CanSubjectivelyFail && a.Control.IsProducingBlock() {
+				a.Control.CheckContractList(a.Receiver)
+				a.Control.CheckActionList(a.Act.Account, a.Act.Name)
+			}
+			//try
+			a.Control.GetWasmInterface().Apply(&action.CodeVersion, action.Code, a)
+			//}catch(const wasm_exit&){}
+		}
+	}).Catch(func(e Exception) {
+		trace.Receipt = r
+		//trace.Except = e
+		a.FinalizeTrace(trace, &start)
+		try.Throw(e)
+	}).End()
+
 	r.GlobalSequence = a.nextGlobalSequence()
 	r.RecvSequence = a.nextRecvSequence(a.Receiver)
-	r.AuthSequence = make(map[common.AccountName]uint64)
-	accountSequence := &entity.AccountSequenceObject{Name: a.Act.Account}
-	//a.DB.Get("byName", accountSequence)
+
+	accountSequence := entity.AccountSequenceObject{Name: a.Act.Account}
+	a.DB.Find("byName", accountSequence, &accountSequence)
 	r.CodeSequence = uint32(accountSequence.CodeSequence)
 	r.AbiSequence = uint32(accountSequence.AbiSequence)
 
+	r.AuthSequence = make(map[common.AccountName]uint64)
 	for _, auth := range a.Act.Authorization {
 		r.AuthSequence[auth.Actor] = a.nextAuthSequence(auth.Actor)
 	}
 
-	b := types.BaseActionTrace{Receipt: *r}
-	t := &types.ActionTrace{}
-	t.BaseActionTrace = b
-	t.TrxId = a.TrxContext.ID
-	t.BlockNum = a.Control.PendingBlockState().BlockNum
-	t.BlockTime = common.NewBlockTimeStamp(a.Control.PendingBlockTime())
-	t.ProducerBlockId = a.Control.PendingProducerBlockId()
-	t.AccountRamDeltas = a.AccountRamDeltas
-	//a.accountRamDeltas.clear()
-	t.Act = *a.Act
-	t.Console = a.PendingConsoleOutput
-
+	trace.Receipt = r
 	a.TrxContext.Executed = append(a.TrxContext.Executed, *r)
 
+	a.FinalizeTrace(trace, &start)
+
 	if a.Control.ContractsConsole() {
-		a.printDebug(a.Receiver, t)
+		a.printDebug(a.Receiver, trace)
 	}
 
+}
+
+func (a *ApplyContext) FinalizeTrace(trace *types.ActionTrace, start *common.TimePoint) {
+
+	trace.AccountRamDeltas = a.AccountRamDeltas
+	//a.AccountRamDeltas.clear()
+	trace.Console = a.PendingConsoleOutput
 	a.resetConsole()
-
-	t.Elapsed = common.Now().Sub(start)
-
-	return *t
+	trace.Elapsed = common.Now().Sub(*start)
 
 }
-func (a *ApplyContext) Exec() {
+
+func (a *ApplyContext) Exec(trace *types.ActionTrace) {
 
 	a.Notified = append(a.Notified, a.Receiver)
-	trace := a.execOne()
-	for _, r := range a.Notified {
+	a.execOne(trace)
+	for k, r := range a.Notified {
+		if k == 0 {
+			continue
+		}
 		a.Receiver = r
-		trace.InlineTraces = append(trace.InlineTraces, a.execOne())
+
+		t := types.ActionTrace{}
+		trace.InlineTraces = append(trace.InlineTraces, &t)
+		a.execOne(&trace.InlineTraces[len(trace.InlineTraces)-1])
 	}
 
 	if len(a.CfaInlineActions) > 0 || len(a.InlineActions) > 0 {
