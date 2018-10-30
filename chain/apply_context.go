@@ -242,7 +242,7 @@ func (a *ApplyContext) execOne(trace *types.ActionTrace) {
 	}
 
 	trace.Receipt = r
-	a.TrxContext.Executed = append(a.TrxContext.Executed, *r)
+	a.TrxContext.Executed = append(a.TrxContext.Executed, r)
 
 	a.FinalizeTrace(trace, &start)
 
@@ -273,7 +273,7 @@ func (a *ApplyContext) Exec(trace *types.ActionTrace) {
 		a.Receiver = r
 
 		t := types.ActionTrace{}
-		trace.InlineTraces = append(trace.InlineTraces, &t)
+		trace.InlineTraces = append(trace.InlineTraces, t)
 		a.execOne(&trace.InlineTraces[len(trace.InlineTraces)-1])
 	}
 
@@ -670,7 +670,7 @@ func (a *ApplyContext) DbPreviousI64(iterator int, primary *uint64) int {
 		EosAssert(tab != nil, &InvalidTableTterator{}, "not a valid end iterator")
 
 		itr, _ := idx.UpperBound(tab.ID)
-		if idx.BeginIterator() == idx.End() || itr == idx.BeginIterator() {
+		if idx.Begin() == idx.End() || itr == idx.Begin() {
 			return -1
 		}
 
