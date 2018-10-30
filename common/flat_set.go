@@ -20,6 +20,12 @@ func (f *FlatSet) GetData(i int) *Element {
 	return nil
 }
 
+func (f *FlatSet) Clear() {
+	if len(f.Data) > 0 {
+		f.Data = nil
+	}
+}
+
 func (f *FlatSet) Insert(param Element) (*Element, bool) {
 	length := f.Len()
 	result := []Element{}

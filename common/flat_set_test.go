@@ -109,3 +109,20 @@ func TestFlatSet_GetData(t *testing.T) {
 	assert.Equal(t, param, *result)
 
 }
+
+func TestFlatSet_Clear(t *testing.T) {
+	f := FlatSet{}
+	for i := 0; i < 20; i++ {
+		ad := AccountDeltaDemo{}
+		ad.A = AccountName(i)
+		ad.B = int64(i)
+		f.Data = append(f.Data, ad)
+	}
+	f.Clear()
+
+	ad := AccountDeltaDemo{0, 0}
+
+	result, b := f.Insert(ad)
+	assert.Equal(t, false, b)
+	assert.Equal(t, ad, *result)
+}
