@@ -90,3 +90,22 @@ func TestFlat(t *testing.T) {
 		assert.Equal(t, true, p)
 	}
 }
+
+func TestFlatSet_GetData(t *testing.T) {
+	f := FlatSet{}
+	for i := 0; i < 20; i++ {
+
+		ad := AccountDeltaDemo{}
+		ad.A = AccountName(i)
+		ad.B = int64(i)
+		f.Data = append(f.Data, ad)
+
+	}
+	param := AccountDeltaDemo{8, 8}
+
+	result := f.GetData(8)
+	r := f.GetData(20)
+	assert.Equal(t, true, Empty(r))
+	assert.Equal(t, param, *result)
+
+}
