@@ -55,6 +55,7 @@ type SharedAuthority struct {
 // validates that there is a single optional @ (where permission
 // defaults to 'active'), and validates length of account and
 // permission names.
+
 func NewPermissionLevel(in string) (out PermissionLevel, err error) {
 	parts := strings.Split(in, "@")
 	if len(parts) > 2 {
@@ -77,6 +78,16 @@ func NewPermissionLevel(in string) (out PermissionLevel, err error) {
 	}
 
 	return
+}
+
+func NewAuthority(k ecc.PublicKey, delaySec uint32) (a Authority) {
+	a.Threshold = 1
+	a.Keys[0] = KeyWeight{k,1}
+	if delaySec > 0 {
+		a.Threshold = 2
+		a.Waits[0] = WaitWeight{delaySec, 1}
+	}
+	return a
 }
 
 func (weight WeightType) String() string {
