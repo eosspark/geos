@@ -1,7 +1,7 @@
 package asio
 
 type IoContext struct {
-	reactor Reactor
+	service ReactorService
 }
 
 func NewIoContext() *IoContext {
@@ -18,6 +18,14 @@ func (i *IoContext) Stop() {
 }
 
 func (i *IoContext) Post(op func()) {
-	i.GetService().post(op)
+	//use new goroutine for channel-blocking
+	go i.GetService().post(op)
+}
+
+type ReactorService interface {
+	run()
+	stop()
+	post(op interface{}, args ...interface{})
+	notify(op interface{}, args ...interface{})
 }
 

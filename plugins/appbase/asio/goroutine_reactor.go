@@ -5,9 +5,9 @@ import (
 	)
 
 type GoroutineReactor struct {
-	opq 	 chan operation
-	//notifies chan os.Signal
-	down chan struct{}
+	opQueue  chan operation
+	sigQueue chan operation
+	down 	 chan struct{}
 }
 
 type operation struct {
@@ -17,10 +17,19 @@ type operation struct {
 
 func NewGoroutineReactor() *GoroutineReactor {
 	r := new(GoroutineReactor)
-	r.opq = make(chan operation, 128)
+	r.opQueue = make(chan operation, 128)
+	r.sigQueue = make(chan operation, 1)
 	r.down = make(chan struct{}, 1)
 	//r.notifies = make(chan os.Signal, 1)
 	return r
+}
+
+// use GoroutineReactor for each operating system
+func (i *IoContext) GetService () ReactorService {
+	if i.service == nil {
+		i.service = NewGoroutineReactor()
+	}
+	return i.service
 }
 
 func (g *GoroutineReactor) run() {
@@ -28,9 +37,12 @@ func (g *GoroutineReactor) run() {
 		select {
 		case <-g.down:
 			return
-		case op := <-g.opq:
+
+		case sig := <-g.sigQueue:
+			g.doReactor(sig.function, sig.argument)
+
+		case op := <-g.opQueue:
 			g.doReactor(op.function, op.argument)
-			break
 		}
 	}
 }
@@ -40,16 +52,20 @@ func (g *GoroutineReactor) stop() {
 }
 
 func (g *GoroutineReactor) post(op interface{}, args ...interface{}) {
-	g.opq <- operation{op, args}
+	g.opQueue <- operation{op, args}
 }
 
-//func (g *GoroutineReactor) notify(sig ...os.Signal) {
-	//signal.Notify(g.notifies, sig...)
-//}
+func (g *GoroutineReactor) notify(op interface{}, args ...interface{}) {
+	g.sigQueue <- operation{op, args}
+}
 
 func (g *GoroutineReactor) doReactor(op interface{}, args []interface{}) {
 	opv := reflect.ValueOf(op)
 	opt := reflect.TypeOf(op)
+
+	if opt == nil {
+		println("invalid operation <nil>")
+	}
 
 	if opt.Kind() != reflect.Func {
 		println("op must be a callback function")
@@ -65,16 +81,20 @@ func (g *GoroutineReactor) doReactor(op interface{}, args []interface{}) {
 	opArgs := make([]reflect.Value, opNum)
 
 	for i:=0; i<opt.NumIn(); i++ {
-		argt := reflect.TypeOf(args[i])
-		int := opt.In(i)
+		if args[i] == nil {
+			opArgs[i] = reflect.Zero(opt.In(i))
+			continue
+		}
 
-		if !argt.AssignableTo(int) {
+		if !reflect.TypeOf(args[i]).AssignableTo(opt.In(i)) {
 			println("invalid arguments", "wrong args#", i)
 			return
 		}
 
 		opArgs[i] = reflect.ValueOf(args[i])
 	}
+
+	//fmt.Println("args", opArgs)
 
 	opv.Call(opArgs)
 }

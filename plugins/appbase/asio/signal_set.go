@@ -23,14 +23,14 @@ func NewSignalSet(ctx *IoContext, sig ...os.Signal) *SignalSet {
 	return s
 }
 
-func (s *SignalSet) AsyncWait(op func(ec ErrorCode)) {
+func (s *SignalSet) AsyncWait(op func(err error)) {
 	go func() {
 		for {
 			select {
 			case <-s.notify:
-				// push into io_service
+				// notify io_service
 				// operation will be executed in the correct time
-				s.ctx.GetService().post(op, ErrorCode{})
+				s.ctx.GetService().notify(op, nil)
 				break
 			case <-s.cancel:
 				return
