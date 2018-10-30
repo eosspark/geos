@@ -14,7 +14,7 @@ func (f *FlatSet) Len() int {
 }
 
 func (f *FlatSet) GetData(i int) *Element {
-	if len(f.Data)-1 <= i {
+	if len(f.Data)-1 >= i {
 		return &f.Data[i]
 	}
 	return nil
