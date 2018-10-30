@@ -13,6 +13,7 @@ import (
 	"github.com/eosspark/eos-go/database"
 	"github.com/eosspark/eos-go/entity"
 	. "github.com/eosspark/eos-go/exception"
+	"github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/log"
 	"github.com/eosspark/eos-go/wasmgo"
 )
@@ -77,13 +78,12 @@ var instance *Controller
 
 type v func(ctx *ApplyContext)
 
-//type HandlerKey common.Tuple
 type Controller struct {
 	DB                             database.DataBase
-	DbSession                      database.Session
+	UndoSession                    database.Session
 	ReversibleBlocks               database.DataBase
 	Blog                           *BlockLog
-	Pending                        *types.PendingState
+	Pending                        *PendingState
 	Head                           *types.BlockState
 	ForkDB                         *types.ForkDatabase
 	WasmIf                         *wasmgo.WasmGo
@@ -105,8 +105,6 @@ func GetControllerInstance() *Controller {
 	if !isActiveController {
 		validPath()
 		instance = newController()
-		/*readycontroller <- true
-		time.Sleep(2 * time.Second) //TODO for test case*/
 	}
 	return instance
 }
@@ -177,7 +175,7 @@ func newController() *Controller {
 	//IrreversibleBlock.connect()
 	//readycontroller = make(chan bool)
 	//go initResource(con, readycontroller)
-	con.Pending = &types.PendingState{}
+	con.Pending = &PendingState{}
 	con.ResourceLimists = newResourceLimitsManager(con)
 	con.Authorization = newAuthorizationManager(con)
 	con.initialize()
@@ -242,7 +240,7 @@ func (c *Controller) PopBlock() {
 		}
 	}
 	c.Head = prev
-	c.DbSession.Undo() //TODO
+	c.UndoSession.Undo()
 }
 
 func (c *Controller) SetApplayHandler(receiver common.AccountName, contract common.AccountName, action common.ActionName, handler func(a *ApplyContext)) {
@@ -267,23 +265,23 @@ func (c *Controller) AbortBlock() {
 }
 func (c *Controller) StartBlock(when common.BlockTimeStamp, confirmBlockCount uint16) {
 	pbi := common.BlockIdType(*crypto.NewSha256Nil())
-	c.startBlock1(when, confirmBlockCount, types.Incomplete, &pbi)
-	//c.VValidateDbAvailableSize()
+	c.startBlock(when, confirmBlockCount, types.Incomplete, &pbi)
+	c.ValidateDbAvailableSize()
 }
-func (c *Controller) startBlock1(when common.BlockTimeStamp, confirmBlockCount uint16, s types.BlockStatus, producerBlockId *common.BlockIdType) {
+func (c *Controller) startBlock(when common.BlockTimeStamp, confirmBlockCount uint16, s types.BlockStatus, producerBlockId *common.BlockIdType) {
 	//fmt.Println(c.Config)
 	EosAssert(nil != c.Pending, &BlockValidateException{}, "pending block already exists")
 	defer func() {
-		if c.Pending.Valid {
+		if PendingValid {
 			c.Pending.Reset()
 		}
 	}()
 	if c.SkipDbSession(s) {
 		/*EosAssert( c.DB.revision() == head->block_num, database_exception, "db revision is not on par with head block",
 		("db.revision()", db.revision())("controller_head_block", head->block_num)("fork_db_head_block", fork_db.head()->block_num) )*/
-		c.Pending = types.NewPendingState(c.DB)
+		c.Pending = NewPendingState(c.DB)
 	} else {
-		c.Pending = types.GetInstance()
+		//c.Pending = types.GetInstance()
 	}
 
 	c.Pending.BlockStatus = s
@@ -334,13 +332,13 @@ func (c *Controller) startBlock1(when common.BlockTimeStamp, confirmBlockCount u
 		})*/
 
 		c.clearExpiredInputTransactions()
-		c.UpdateProducersAuthority()
+		c.updateProducersAuthority()
 	}
-	c.Pending.Valid = true
+	PendingValid = true
 
 }
 
-func (c *Controller) PushReceipt(trx interface{}, status types.BlockStatus, cpuUsageUs uint64, netUsage uint64) *types.TransactionReceipt {
+func (c *Controller) pushReceipt(trx interface{}, status types.TransactionStatus, cpuUsageUs uint64, netUsage uint64) *types.TransactionReceipt {
 	trxReceipt := types.TransactionReceipt{}
 	tr := types.TransactionWithID{}
 	switch trx.(type) {
@@ -351,7 +349,7 @@ func (c *Controller) PushReceipt(trx interface{}, status types.BlockStatus, cpuU
 	}
 	trxReceipt.Trx = tr
 	netUsageWords := netUsage / 8
-	//EOS_ASSERT( net_usage_words*8 == net_usage, transaction_exception, "net_usage is not divisible by 8" )
+	EosAssert(netUsageWords*8 == netUsage, &TransactionException{}, "net_usage is not divisible by 8")
 	c.Pending.PendingBlockState.SignedBlock.Transactions = append(c.Pending.PendingBlockState.SignedBlock.Transactions, trxReceipt)
 	trxReceipt.CpuUsageUs = uint32(cpuUsageUs)
 	trxReceipt.NetUsageWords = uint32(netUsageWords)
@@ -396,8 +394,11 @@ func (c *Controller) PushTransaction(trx types.TransactionMetadata, deadLine com
 	}
 	trxContext.Exec()
 	trxContext.Finalize()
+	//TODO
+	defer func(b bool) {
+		c.InTrxRequiringChecks = b
+	}(c.InTrxRequiringChecks)
 
-	//restore := c.MakeBlockRestorePoint()
 	if !trx.Implicit {
 		var s types.TransactionStatus
 		if trxContext.Delay == common.Microseconds(0) {
@@ -405,8 +406,7 @@ func (c *Controller) PushTransaction(trx types.TransactionMetadata, deadLine com
 		} else {
 			s = types.TransactionStatusDelayed
 		}
-		//fmt.Println(trace, s)
-		tr := c.PushReceipt(trx.PackedTrx.PackedTrx, types.BlockStatus(s), uint64(trxContext.BilledCpuTimeUs), trace.NetUsage)
+		tr := c.pushReceipt(trx.PackedTrx.PackedTrx, s, uint64(trxContext.BilledCpuTimeUs), trace.NetUsage)
 		trace.Receipt = tr.TransactionReceiptHeader
 		c.Pending.PendingBlockState.Trxs = append(c.Pending.PendingBlockState.Trxs, &trx)
 	} else {
@@ -416,6 +416,7 @@ func (c *Controller) PushTransaction(trx types.TransactionMetadata, deadLine com
 		trace.Receipt = r
 	}
 	//fc::move_append(pending->_actions, move(trx_context.executed))
+	c.Pending.Actions = append(c.Pending.Actions, trxContext.Executed...)
 	if !trx.Accepted {
 		trx.Accepted = true
 		//emit( c.accepted_transaction, trx)
@@ -562,8 +563,7 @@ func (c *Controller) GetScheduledTransactions() []common.TransactionIdType {
 	result := []common.TransactionIdType{}
 	gto := entity.GeneratedTransactionObject{}
 	idx, err := c.DB.GetIndex("byDelay", &gto)
-	itr := idx.BeginIterator()
-	err = itr.Data(&gto)
+	itr := idx.Begin()
 	for itr != idx.End() && gto.DelayUntil <= c.PendingBlockTime() {
 		result = append(result, gto.TrxId)
 		itr.Next()
@@ -574,23 +574,27 @@ func (c *Controller) GetScheduledTransactions() []common.TransactionIdType {
 	}
 	return result
 }
+func (c *Controller) PushScheduledTransaction(trxId *common.TransactionIdType, deadLine common.TimePoint, billedCpuTimeUs uint32) *types.TransactionTrace {
+	c.ValidateDbAvailableSize()
+	return c.pushScheduledTransactionById(trxId, deadLine, billedCpuTimeUs, billedCpuTimeUs > 0)
 
-func (c *Controller) PushScheduledTransactionById(sheduled common.TransactionIdType,
+}
+func (c *Controller) pushScheduledTransactionById(sheduled *common.TransactionIdType,
 	deadLine common.TimePoint,
 	billedCpuTimeUs uint32, explicitBilledCpuTime bool) *types.TransactionTrace {
 
 	in := entity.GeneratedTransactionObject{}
-	in.TrxId = sheduled
+	in.TrxId = *sheduled
 	out := entity.GeneratedTransactionObject{}
 	c.DB.Find("byTrxId", in, &out)
 	/*if err == nil {
 		fmt.Println("unknown_transaction_exception", "unknown transaction")
 	}*/
 	EosAssert(&out != nil, &UnknownTransactionException{}, "unknown transaction")
-	return c.PushScheduledTransactionByObject(&out, deadLine, billedCpuTimeUs, explicitBilledCpuTime)
+	return c.pushScheduledTransactionByObject(&out, deadLine, billedCpuTimeUs, explicitBilledCpuTime)
 }
 
-func (c *Controller) PushScheduledTransactionByObject(gto *entity.GeneratedTransactionObject,
+func (c *Controller) pushScheduledTransactionByObject(gto *entity.GeneratedTransactionObject,
 	deadLine common.TimePoint,
 	billedCpuTimeUs uint32,
 	explicitBilledCpuTime bool) *types.TransactionTrace {
@@ -607,11 +611,8 @@ func (c *Controller) PushScheduledTransactionByObject(gto *entity.GeneratedTrans
 	gtrx := entity.GeneratedTransactions(gto)
 
 	c.RemoveScheduledTransaction(gto)
+	EosAssert(gtrx.DelayUntil <= c.PendingBlockTime(), &TransactionException{}, "this transaction isn't ready", gtrx.DelayUntil, c.PendingBlockTime())
 
-	if gtrx.DelayUntil <= c.PendingBlockTime() {
-		fmt.Println("this transaction isn't ready")
-		return nil
-	}
 	dtrx := types.SignedTransaction{}
 
 	err := rlp.DecodeBytes(gtrx.PackedTrx, &dtrx)
@@ -625,39 +626,69 @@ func (c *Controller) PushScheduledTransactionByObject(gto *entity.GeneratedTrans
 	trx.Scheduled = true
 
 	trace := &types.TransactionTrace{}
-	fmt.Println("test print:", trace)
-	/*if( gtrx.expiration < c.pending_block_time() ) {
-		trace = std::make_shared<transaction_trace>();
-		trace->id = gtrx.trx_id;
-		trace->block_num = c.pending_block_state()->block_num;
-		trace->block_time = c.pending_block_time();
-		trace->producer_block_id = c.pending_producer_block_id();
-		trace->scheduled = true;
-		trace->receipt = push_receipt( gtrx.trx_id, transaction_receipt::expired, billed_cpu_time_us, 0 ); // expire the transaction
-		emit( c.accepted_transaction, trx );
-		emit( c.applied_transaction, trace );
-		undo_session.squash();
-		return trace;
-	}*/
-	defer func() {
+	//fmt.Println("test print:", trace)
+	if gtrx.Expiration < c.PendingBlockTime() {
+		trace.ID = gtrx.TrxId
+		trace.BlockNum = c.PendingBlockState().BlockNum
+		trace.BlockTime = common.BlockTimeStamp(c.PendingBlockTime())
+		trace.ProducerBlockId = c.PendingProducerBlockId()
+		trace.Scheduled = true
+		trace.Receipt = (*c.pushReceipt(&gtrx.TrxId, types.TransactionStatusExecuted, uint64(billedCpuTimeUs), 0)).TransactionReceiptHeader
 		//TODO
-	}()
+		/*emit( self.accepted_transaction, trx );
+		emit( self.applied_transaction, trace );*/
+		c.UndoSession.Squash()
+		return trace
+	}
+
+	defer func(b bool) {
+		c.InTrxRequiringChecks = b
+	}(c.InTrxRequiringChecks)
+
 	c.InTrxRequiringChecks = true
-	//cpuTimeToBillUs := billedCpuTimeUs
+	//cpuTimeToBillUs = billedCpuTimeUs
 	trxContext := NewTransactionContext(c, &dtrx, gtrx.TrxId, common.Now())
 	trxContext.Leeway = common.Milliseconds(0)
 	trxContext.Deadline = deadLine
 	trxContext.ExplicitBilledCpuTime = explicitBilledCpuTime
-	//trxContext.BilledCpuTimeUs = billedCpuTimeUs
+	trxContext.BilledCpuTimeUs = int64(billedCpuTimeUs)
 	trace = trxContext.Trace
+	try.Try(func() {
+		trxContext.InitForDeferredTrx(gtrx.Published)
+		trxContext.Exec()
+		trxContext.Finalize()
+		v := false
+		defer func() {
+			if v {
+				fmt.Println("defer func exec")
+			}
+		}() //TODO
+		trace.Receipt = (*c.pushReceipt(gtrx.TrxId, types.TransactionStatusExecuted, uint64(trxContext.BilledCpuTimeUs), trace.NetUsage)).TransactionReceiptHeader
+		c.Pending.Actions = append(c.Pending.Actions, trxContext.Executed...)
+		/*emit( self.accepted_transaction, trx );
+		emit( self.applied_transaction, trace );*/
+		trxContext.Squash()
+		c.UndoSession.Squash()
+		v = true
+		//return trace
+	}).End()
+	/*catch( const fc::exception& e ) {
+	cpu_time_to_bill_us = trx_context.update_billed_cpu_time( fc::time_point::now() );
+	trace->except = e;
+	trace->except_ptr = std::current_exception();
+	trace->elapsed = fc::time_point::now() - trx_context.start;
+	}*/
+	trxContext.Undo()
+	if !failureIsSubjective(trace.Except) { /*gtrx.Sender != account_name()*/
 
-	//try.CatchOrFinally{
+	}
+
 	trxContext.InitForDeferredTrx(gtrx.Published)
 	//}
-	//TODO 2018-10-13
+	//TODO
 
 	fmt.Println("test print:", dtrx, trx) //TODO
-	return nil
+	return trace
 }
 
 func (c *Controller) RemoveScheduledTransaction(gto *entity.GeneratedTransactionObject) {
@@ -667,6 +698,7 @@ func (c *Controller) RemoveScheduledTransaction(gto *entity.GeneratedTransaction
 
 func failureIsSubjective(e Exception) bool {
 	code := e.Code()
+	//fmt.Println(code == SubjectiveBlockProductionException{}.Code())
 	return code == SubjectiveBlockProductionException{}.Code() ||
 		code == BlockNetUsageExceeded{}.Code() ||
 		code == GreylistNetUsageExceeded{}.Code() ||
@@ -680,6 +712,7 @@ func failureIsSubjective(e Exception) bool {
 		code == ContractBlacklistException{}.Code() ||
 		code == ActionBlacklistException{}.Code() ||
 		code == KeyBlacklistException{}.Code()
+
 }
 
 func (c *Controller) setActionMaerkle() {
@@ -745,7 +778,7 @@ func (c *Controller) SignBlock(signerCallback func(sha256 crypto.Sha256) ecc.Sig
 func (c *Controller) applyBlock(b *types.SignedBlock, s types.BlockStatus) {
 	EosAssert(len(b.BlockExtensions) == 0, &BlockValidateException{}, "no supported extensions")
 	producerBlockId := b.BlockID()
-	c.startBlock1(b.Timestamp, b.Confirmed, s, &producerBlockId)
+	c.startBlock(b.Timestamp, b.Confirmed, s, &producerBlockId)
 
 	trace := &types.TransactionTrace{}
 	for _, receipt := range b.Transactions {
@@ -756,7 +789,7 @@ func (c *Controller) applyBlock(b *types.SignedBlock, s types.BlockStatus) {
 			mtrx.PackedTrx = pt
 			trace = c.PushTransaction(mtrx, common.TimePoint(common.MaxMicroseconds()), receipt.CpuUsageUs, true)
 		} else if common.Empty(receipt.Trx.TransactionID) {
-			trace = c.PushScheduledTransactionById(receipt.Trx.TransactionID, common.TimePoint(common.MaxMicroseconds()), receipt.CpuUsageUs, true)
+			trace = c.PushScheduledTransaction(&receipt.Trx.TransactionID, common.TimePoint(common.MaxMicroseconds()), receipt.CpuUsageUs)
 		} else {
 			EosAssert(false, &BlockValidateException{}, "encountered unexpected receipt type")
 		}
@@ -783,7 +816,7 @@ func (c *Controller) applyBlock(b *types.SignedBlock, s types.BlockStatus) {
 
 func (c *Controller) CommitBlock(addToForkDb bool) {
 	defer func() {
-		if c.Pending.Valid {
+		if PendingValid {
 			c.Pending.Reset()
 		}
 	}()
@@ -805,6 +838,7 @@ func (c *Controller) CommitBlock(addToForkDb bool) {
 	//emit( self.accepted_block, pending->_pending_block_state )
 	//catch(){
 	// reset_pending_on_exit.cancel();
+	PendingValid = true //TODO
 	//         abort_block();
 	//throw;
 	// }
@@ -1495,25 +1529,23 @@ func NewHandlerKey(scopeName common.ScopeName, actionName common.ActionName) Han
 
 func (c *Controller) clearExpiredInputTransactions() {
 
-	/*transactionIdx, err := c.DB.GetIndex("byExpiration", &entity.TransactionObject{})
-	if err != nil {
-		fmt.Println("ClearExpiredInputTransactions GetIndex Is Error", err)
-	}
+	transactionIdx, err := c.DB.GetIndex("byExpiration", &entity.TransactionObject{})
+
 	now := c.PendingBlockTime()
 	t := &entity.TransactionObject{}
-	err = transactionIdx.Begin(t)
+	err = transactionIdx.Begin().Data(t)
 	if err != nil {
 		fmt.Println("TransactionIdx.Begin Is Error:", err)
 	}
 	for !common.Empty(transactionIdx) && now > common.TimePoint(t.Expiration) {
-		//c.DB.Remove(t)		//TODO index.remove(t)
-		fmt.Println("delete transactionIdx.begin()")
-	}*/
+		c.DB.Remove(transactionIdx.Begin())
+	}
 }
 
 func (c *Controller) CheckActorList(actors []common.AccountName) {
 	if len(c.Config.ActorWhitelist) > 0 {
 		//excluded :=make(map[common.AccountName]struct{})
+
 		//set
 		for _, an := range actors {
 			if _, ok := c.Config.ActorWhitelist[an]; !ok {
@@ -1540,9 +1572,30 @@ func (c *Controller) CheckActorList(actors []common.AccountName) {
 		)*/
 	}
 }
-func (c *Controller) UpdateProducersAuthority() {
-	/*producers := c.Pending.PendingBlockState.ActiveSchedule.Producers
-	updatePermission :=*/
+func (c *Controller) updateProducersAuthority() {
+	producers := c.Pending.PendingBlockState.ActiveSchedule.Producers
+	updatePermission := func(permission *entity.PermissionObject, threshold uint32) {
+		auth := types.Authority{threshold, []types.KeyWeight{}, []types.PermissionLevelWeight{}, []types.WaitWeight{}}
+		for _, p := range producers {
+			auth.Accounts = append(auth.Accounts, types.PermissionLevelWeight{types.PermissionLevel{p.AccountName, common.DefaultConfig.ActiveName}, 1})
+		}
+		if !permission.Auth.Equals(auth.ToSharedAuthority()) {
+			c.DB.Modify(permission, func(param *types.Permission) {
+				param.RequiredAuth = auth
+			})
+		}
+	}
+
+	numProducers := len(producers)
+	calculateThreshold := func(numerator uint32, denominator uint32) uint32 {
+		return ((uint32(numProducers) * numerator) / denominator) + 1
+	}
+	updatePermission(c.Authorization.GetPermission(&types.PermissionLevel{common.DefaultConfig.ProducersAccountName, common.DefaultConfig.ActiveName}), calculateThreshold(2, 3))
+
+	updatePermission(c.Authorization.GetPermission(&types.PermissionLevel{common.DefaultConfig.ProducersAccountName, common.DefaultConfig.MajorityProducersPermissionName}), calculateThreshold(1, 2))
+
+	updatePermission(c.Authorization.GetPermission(&types.PermissionLevel{common.DefaultConfig.ProducersAccountName, common.DefaultConfig.MinorityProducersPermissionName}), calculateThreshold(1, 3))
+
 }
 
 func (c *Controller) createBlockSummary(id *common.BlockIdType) {
@@ -1550,7 +1603,7 @@ func (c *Controller) createBlockSummary(id *common.BlockIdType) {
 	sid := blockNum & 0xffff
 	bso := entity.BlockSummaryObject{}
 	bso.Id = common.IdType(sid)
-	c.DB.Find("ID", bso, bso)
+	c.DB.Find("id", bso, bso)
 	c.DB.Modify(bso, func(b *entity.BlockSummaryObject) {
 		b.BlockId = *id
 	})

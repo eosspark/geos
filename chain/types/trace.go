@@ -47,44 +47,13 @@ type AccountDelta struct {
 	Delta   int64
 }
 
-func (a AccountDelta) Compare(first common.FlatSet, second common.FlatSet) bool {
+func (a AccountDelta) Compare(first common.Element, second common.Element) bool {
 	return first.(AccountDelta).Account <= second.(AccountDelta).Account
 }
 
-/*func search(n int, f func(int) bool) int {
-	result, i, j := 0, 0, n
-	for i < j {
-		h := int(uint(i+j) >> 1)
-		if !f(h) {
-			i = h + 1
-		} else {
-			j = h
-		}
-		result = h
-	}
-	return result
-}*/
-
-/*func (f *FlatSet) Append(account common.AccountName, delta int64) {
-	ap := AccountDelta{}
-	ap.Account = account
-	ap.Delta = delta
-	param := AccountDelta{}
-	param.Account = account
-	param.Delta = delta
-	if len(f.data) == 0 {
-		f.data = append(f.data, ap)
-	} else {
-		target := search(len(f.data), func(i int) bool { return f.data[i].Account < param.Account && f.data[i+1].Account > param.Account }) + 1
-
-		first := f.data[:target+1]
-		second := make([]AccountDelta, len(f.data[target+1:len(f.data)]))
-		copy(second, f.data[target+1:len(f.data)])
-		first = append(first, ap)
-		first = append(first, second...)
-		f.data = first
-	}
-}*/
+func (a AccountDelta) Equal(first common.Element, second common.Element) bool {
+	return first.(AccountDelta).Account == second.(AccountDelta).Account
+}
 
 func NewBaseActionTrace(ar *ActionReceipt) *BaseActionTrace {
 	bat := BaseActionTrace{}
