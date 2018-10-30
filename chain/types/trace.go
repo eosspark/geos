@@ -47,12 +47,8 @@ type AccountDelta struct {
 	Delta   int64
 }
 
-func (a AccountDelta) Compare(first common.Element, second common.Element) bool {
-	return first.(AccountDelta).Account <= second.(AccountDelta).Account
-}
-
-func (a AccountDelta) Equal(first common.Element, second common.Element) bool {
-	return first.(AccountDelta).Account == second.(AccountDelta).Account
+func (a *AccountDelta) GetKey() uint64 {
+	return uint64(a.Account)
 }
 
 func NewBaseActionTrace(ar *ActionReceipt) *BaseActionTrace {

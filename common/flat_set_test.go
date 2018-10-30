@@ -10,12 +10,8 @@ type AccountDeltaDemo struct {
 	B int64
 }
 
-func (f AccountDeltaDemo) Compare(first Element, second Element) bool {
-	return first.(AccountDeltaDemo).A <= second.(AccountDeltaDemo).A
-}
-
-func (f AccountDeltaDemo) Equal(first Element, second Element) bool {
-	return first.(AccountDeltaDemo).A == second.(AccountDeltaDemo).A
+func (a *AccountDeltaDemo) GetKey() uint64 {
+	return uint64(a.A)
 }
 
 func TestFlat(t *testing.T) {
@@ -27,16 +23,17 @@ func TestFlat(t *testing.T) {
 				ad := AccountDeltaDemo{}
 				ad.A = AccountName(i)
 				ad.B = int64(i)
-				f.Data = append(f.Data, ad)
+
+				f.Data = append(f.Data, &ad)
 				//f.SetData(f.Data)
 			}
 		}
 		param := AccountDeltaDemo{}
 		param.A = AccountName(0)
 		param.B = int64(0)
-		result, p := f.Insert(param)
+		result, p := f.Insert(&param)
 
-		assert.Equal(t, param, *result)
+		assert.Equal(t, param, result)
 		assert.Equal(t, false, p)
 	}
 	if end == 19 {
@@ -47,14 +44,14 @@ func TestFlat(t *testing.T) {
 				ad.A = AccountName(i)
 				ad.B = int64(i)
 
-				f.Data = append(f.Data, ad)
+				f.Data = append(f.Data, &ad)
 			}
 		}
 		param := AccountDeltaDemo{19, 19}
 
-		result, p := f.Insert(param)
+		result, p := f.Insert(&param)
 		//fmt.Println(result)
-		assert.Equal(t, param, *result)
+		assert.Equal(t, param, result)
 		assert.Equal(t, false, p)
 	}
 	if midle == 8 {
@@ -64,14 +61,14 @@ func TestFlat(t *testing.T) {
 				ad := AccountDeltaDemo{}
 				ad.A = AccountName(i)
 				ad.B = int64(i)
-				f.Data = append(f.Data, ad)
+				f.Data = append(f.Data, &ad)
 			}
 		}
 		param := AccountDeltaDemo{8, 8}
 
-		result, p := f.Insert(param)
+		result, p := f.Insert(&param)
 		//fmt.Println(result,p)
-		assert.Equal(t, param, *result)
+		assert.Equal(t, param, result)
 		assert.Equal(t, false, p)
 	}
 	if eq == 10 {
@@ -80,13 +77,13 @@ func TestFlat(t *testing.T) {
 			ad := AccountDeltaDemo{}
 			ad.A = AccountName(i)
 			ad.B = int64(i)
-			f.Data = append(f.Data, ad)
+			f.Data = append(f.Data, &ad)
 		}
 		param := AccountDeltaDemo{8, 8}
 
-		result, p := f.Insert(param)
+		result, p := f.Insert(&param)
 		//fmt.Println(result,p)
-		assert.Equal(t, param, *result)
+		assert.Equal(t, param, result)
 		assert.Equal(t, true, p)
 	}
 }
@@ -98,7 +95,7 @@ func TestFlatSet_GetData(t *testing.T) {
 		ad := AccountDeltaDemo{}
 		ad.A = AccountName(i)
 		ad.B = int64(i)
-		f.Data = append(f.Data, ad)
+		f.Data = append(f.Data, &ad)
 
 	}
 	param := AccountDeltaDemo{8, 8}
@@ -116,13 +113,13 @@ func TestFlatSet_Clear(t *testing.T) {
 		ad := AccountDeltaDemo{}
 		ad.A = AccountName(i)
 		ad.B = int64(i)
-		f.Data = append(f.Data, ad)
+		f.Data = append(f.Data, &ad)
 	}
 	f.Clear()
 
 	ad := AccountDeltaDemo{0, 0}
 
-	result, b := f.Insert(ad)
+	result, b := f.Insert(&ad)
 	assert.Equal(t, false, b)
-	assert.Equal(t, ad, *result)
+	assert.Equal(t, ad, result)
 }

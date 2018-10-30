@@ -1,8 +1,7 @@
 package common
 
 type Element interface {
-	Compare(first Element, second Element) bool
-	Equal(first Element, second Element) bool
+	GetKey() uint64
 }
 
 type FlatSet struct {
@@ -26,19 +25,20 @@ func (f *FlatSet) Clear() {
 	}
 }
 
-func (f *FlatSet) Insert(param Element) (*Element, bool) {
+func (f *FlatSet) Insert(element Element) (Element, bool) {
 	length := f.Len()
 	result := []Element{}
 	target := f.Data
 	exist := false
+	r := 0
 	if length == 0 {
-		f.Data = append(f.Data, param)
-		return &param, exist
+		f.Data = append(f.Data, element)
+		return f.Data[0], exist
 	} else {
-		r, i, j := 0, 0, length-1
+		i, j := 0, length-1
 		for i < j {
 			h := int(uint(i+j) >> 1)
-			if param.Compare(target[h], param) {
+			if element.GetKey() <= target[h].GetKey() {
 				i = h + 1
 			} else {
 				j = h
@@ -48,28 +48,28 @@ func (f *FlatSet) Insert(param Element) (*Element, bool) {
 		if i <= j {
 			if i == 0 || i == length-1 {
 				//insert target before
-				if param.Compare(param, target[0]) {
-					target = append(target, param)
+				if element.GetKey() <= target[0].GetKey() {
+					target = append(target, element)
 					target = append(target, target...)
-				} else if param.Compare(target[length-1], param) { //target append
+				} else if element.GetKey() >= target[length-1].GetKey() { //target append
 					target = append(target, target...)
-					target = append(target, param)
+					target = append(target, element)
 				}
 			} else {
 				//Insert middle
-				if param.Equal(target[r], param) {
-					param = target[r]
+				if element.GetKey() == target[r].GetKey() {
+					element = target[r]
 					result = target
 					exist = true
 				} else {
 					first := target[:r]
 					second := target[r:length]
 					result = append(result, first...)
-					result = append(result, param)
+					result = append(result, element)
 					result = append(result, second...)
 				}
 			}
 		}
 	}
-	return &param, exist
+	return result[r], exist
 }
