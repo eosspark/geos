@@ -1,7 +1,6 @@
 package database
 
 import (
-	"fmt"
 	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/util"
@@ -351,13 +350,15 @@ func Test_iteratorTo(t *testing.T) {
 		it.Data(&tmp)
 		//logObj(tmp)
 	}
+	if !idx.CompareEnd(it){
+		log.Fatalln("CompareEnd failed")
+	}
 	it.Release()
 
 	it = idx.IteratorTo(&tmp)
 	if it == nil {
 		log.Panicln("iterator to failed")
 	}
-
 
 	tmp = DbTableIdObject{}
 	it.Data(&tmp)
@@ -367,6 +368,50 @@ func Test_iteratorTo(t *testing.T) {
 		//logObj(tmp)
 	}
 	it.Release()
+}
+
+func Test_begin(t *testing.T) {
+	db, clo := openDb()
+	if db == nil {
+		log.Fatalln("db open failed")
+	}
+	defer clo()
+
+	objs, houses := Objects()
+	//objs_, houses_ :=
+	saveObjs(objs, houses, db)
+
+	idx, err := db.GetIndex("id", DbTableIdObject{})
+	if err != nil {
+		log.Fatalln(err)
+	}
+	obj := DbTableIdObject{ID: 1}
+	it, err := idx.LowerBound(obj)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	if !idx.CompareBegin(it) {
+		log.Fatalln("begin failed")
+	}
+
+	it.Release()
+
+	it = idx.Begin()
+	if it == nil {
+		log.Panicln("iterator to failed")
+	}
+
+	it1 := idx.Begin()
+	if !idx.CompareBegin(it1) {
+		log.Fatalln("begin failed")
+	}
+	if !idx.CompareIterator(it1,it) {
+		log.Fatalln("begin failed")
+	}
+
+	it.Release()
+	it1.Release()
 }
 
 func Test_empty(t *testing.T) {
@@ -459,10 +504,10 @@ func Test_resourceLimitsObject(t *testing.T) {
 		if err != nil {
 			log.Fatalln(err)
 		}
-		idx.Begin(&tmp)
+		idx.BeginData(&tmp)
 		//logObj(tmp)
 		if idx.CompareEnd(it) || tmp.Pending == true {
-			fmt.Println("db is empty")
+			log.Fatalln("db is empty")
 		}
 
 		err = db.Remove(&tmp)
@@ -498,17 +543,12 @@ func Test_Increment(t *testing.T) {
 
 	db, err := NewDataBase(fileName, false)
 	if err != nil {
-		fmt.Println("new database failed")
+		log.Panicln("new database failed : ",err)
 	}
 	defer db.Close()
 
-	//obj := DbTableIdObject{Code:100,Scope:200,Table:300,Payer:400,Count:500}
-	//err = db.Insert(&obj)
-	//if err != nil{
-	//	log.Panicln(err)
-	//}
-	objs, houses := Objects()
-	saveObjs(objs, houses, db)
+	objS, houses := Objects()
+	saveObjs(objS, houses, db)
 
 	obj := DbTableIdObject{Scope: 22}
 	idx, err := db.GetIndex("byTable", obj)
@@ -525,7 +565,6 @@ func Test_Increment(t *testing.T) {
 	for it.Next() {
 		tmp := DbTableIdObject{}
 		it.Data(&tmp)
-		//logObj(tmp)
 	}
 }
 
@@ -545,7 +584,8 @@ func openDb() (DataBase, func()) {
 
 	db, err := NewDataBase(fileName, false)
 	if err != nil {
-		fmt.Println("new database failed")
+
+		log.Fatalln("new database failed : " ,err)
 		return nil, reFn
 	}
 
@@ -602,6 +642,7 @@ func saveObjs(objs []DbTableIdObject, houses []DbHouse, db DataBase) ([]DbTableI
 	}
 	return objs_, houses_
 }
+
 func getGreaterObjs(objs []DbTableIdObject, houses []DbHouse, db DataBase) {
 
 	obj := DbTableIdObject{Scope: 22}
@@ -621,7 +662,7 @@ func getGreaterObjs(objs []DbTableIdObject, houses []DbHouse, db DataBase) {
 	//}
 	if idx.CompareBegin(it) {
 		tmp := DbTableIdObject{}
-		idx.Begin(&tmp)
+		idx.BeginData(&tmp)
 		if tmp != objs[8] {
 			logObj(objs[8])
 			logObj(tmp)

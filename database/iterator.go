@@ -165,6 +165,11 @@ func (index *DbIterator) prev() bool {
 
 func (index *DbIterator) Release() {
 	index.it.Release()
+	index.value = nil
+	index.key = nil
+	index.greater = false
+	index.typeName = nil
+	index.first = false
 }
 
 func (index *DbIterator) Data(data interface{}) error {

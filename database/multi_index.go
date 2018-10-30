@@ -2,6 +2,7 @@ package database
 
 import (
 	"bytes"
+	"errors"
 	"github.com/eosspark/eos-go/crypto/rlp"
 )
 
@@ -89,11 +90,15 @@ error 				-->		error
 
 */
 
-func (index *MultiIndex) Begin(out interface{}) error {
+func (index *MultiIndex) BeginData(out interface{}) error {
 	// TODO
-	err := rlp.DecodeBytes(index.itBegin, out)
+	it := index.Begin()
+	if it == nil{
+		panic("MultiIndex BeginData : iterator is nil")
+	}
+	err := rlp.DecodeBytes(it.Value(), out)
 	if err != nil {
-		return err
+		return errors.New("MultiIndex BeginData : " + err.Error())
 	}
 	return nil
 }
@@ -111,9 +116,31 @@ error 				-->		false
 */
 
 func (index *MultiIndex) CompareBegin(in Iterator) bool {
-	return bytes.Compare(in.Begin(), index.itBegin) == 0
+	it := index.Begin()
+	//fmt.Println(it.Value())
+	//fmt.Println(in.Value())
+	return bytes.Compare(it.Value(), in.Value()) == 0
 }
 
+/*
+
+--> it1 == it2 <--
+
+@param in 			--> 	Iterator
+
+@return
+success 			-->		true
+error 				-->		false
+
+*/
+func (index *MultiIndex) CompareIterator(it1 Iterator,it2 Iterator) bool {
+	if it1  == nil || it2 == nil{
+		return false
+	}
+	//fmt.Println(it1.Value())
+	//fmt.Println(it2.Value())
+	return bytes.Compare(it1.Value(), it2.Value()) == 0
+}
 /*
 
 --> it == idx.end() <--
@@ -150,32 +177,25 @@ error 				-->		nil
 
 */
 
-func (index *MultiIndex) BeginIterator() Iterator {
-	// TODO
-	if len(index.typeName) == 0 {
+func (index *MultiIndex) Begin() Iterator {
+	it, err := index.db.BeginIterator(index.begin, index.end, index.fieldName, index.typeName, index.greater)
+	if err != nil {
+		panic(err)
 		return nil
 	}
-
-	key := append(index.typeName, '_')
-	key = append(key, '_')
-	// typeName__tag__
-	key = append(key, index.fieldName...)
-
-	if index.it.Seek(key) {
-		return nil
+	if it == nil {
+		panic("begin iterator failed")
 	}
-	return &index.it
+	return it
 }
 
 func (index *MultiIndex) IteratorTo(in interface{}) Iterator {
-
 	it, err := index.db.IteratorTo(index.begin, index.end, index.fieldName, in, index.greater)
 	if err != nil {
 		panic(err)
 		//log ?
 		return nil
 	}
-
 	return it
 }
 
