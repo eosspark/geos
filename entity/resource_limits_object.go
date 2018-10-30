@@ -6,8 +6,8 @@ import (
 
 type ResourceLimitsObject struct {
 	ID        common.IdType      `multiIndex:"id,increment"`
-	Pending   bool               `multiIndex:"byOwner,orderedNonUnique"`
-	Owner     common.AccountName `multiIndex:"byOwner,orderedNonUnique"`
+	Pending   bool               `multiIndex:"byOwner,orderedUnique"`
+	Owner     common.AccountName `multiIndex:"byOwner,orderedUnique"`
 	NetWeight int64
 	CpuWeight int64
 	RamBytes  int64

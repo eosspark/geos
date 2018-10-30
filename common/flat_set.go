@@ -1,15 +1,39 @@
 package common
 
-type FlatSet interface {
-	Compare(first FlatSet, second FlatSet) bool
+type Element interface {
+	Compare(first Element, second Element) bool
+	Equal(first Element, second Element) bool
 }
 
-func Append(target []FlatSet, param FlatSet) (*[]FlatSet, *FlatSet) {
-	length := len(target)
-	result := []FlatSet{}
+type FlatSet struct {
+	Data []Element
+}
+
+func (f *FlatSet) Len() int {
+	return len(f.Data)
+}
+
+func (f *FlatSet) GetData(i int) *Element {
+	if len(f.Data)-1 >= i {
+		return &f.Data[i]
+	}
+	return nil
+}
+
+func (f *FlatSet) Clear() {
+	if len(f.Data) > 0 {
+		f.Data = nil
+	}
+}
+
+func (f *FlatSet) Insert(param Element) (*Element, bool) {
+	length := f.Len()
+	result := []Element{}
+	target := f.Data
+	exist := false
 	if length == 0 {
-		target = append(target, param)
-		return &target, &param
+		f.Data = append(f.Data, param)
+		return &param, exist
 	} else {
 		r, i, j := 0, 0, length-1
 		for i < j {
@@ -25,21 +49,27 @@ func Append(target []FlatSet, param FlatSet) (*[]FlatSet, *FlatSet) {
 			if i == 0 || i == length-1 {
 				//insert target before
 				if param.Compare(param, target[0]) {
-					result = append(result, param)
-					result = append(result, target...)
+					target = append(target, param)
+					target = append(target, target...)
 				} else if param.Compare(target[length-1], param) { //target append
-					result = append(result, target...)
-					result = append(result, param)
+					target = append(target, target...)
+					target = append(target, param)
 				}
 			} else {
 				//Insert middle
-				first := target[:r]
-				second := target[r:length]
-				result = append(result, first...)
-				result = append(result, param)
-				result = append(result, second...)
+				if param.Equal(target[r], param) {
+					param = target[r]
+					result = target
+					exist = true
+				} else {
+					first := target[:r]
+					second := target[r:length]
+					result = append(result, first...)
+					result = append(result, param)
+					result = append(result, second...)
+				}
 			}
 		}
 	}
-	return &result, &param
+	return &param, exist
 }

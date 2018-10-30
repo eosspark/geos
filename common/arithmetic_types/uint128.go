@@ -8,21 +8,21 @@ import (
 )
 
 type Uint128 struct {
+	Low uint64
 	High uint64
-	Low  uint64
 }
 
 type Uint128Bytes struct {
-	HighBytes []byte
 	LowBytes  []byte
+	HighBytes []byte
 }
 
 func (u Uint128) ToUint128Bytes() Uint128Bytes {
-	highBytes := make([]byte, 8)
-	binary.BigEndian.PutUint64(highBytes, u.High)
 	lowBytes := make([]byte, 8)
 	binary.BigEndian.PutUint64(lowBytes, u.Low)
-	return Uint128Bytes{highBytes, lowBytes}
+	highBytes := make([]byte, 8)
+	binary.BigEndian.PutUint64(highBytes, u.High)
+	return Uint128Bytes{lowBytes, highBytes}
 }
 
 func (u Uint128) IsZero() bool {
@@ -30,6 +30,15 @@ func (u Uint128) IsZero() bool {
 		return true
 	}
 	return false
+}
+
+func CreateUint128(i int) Uint128{
+	if i >= 0 {
+		return Uint128{0, uint64(i)}
+	} else {
+		fmt.Println("error")
+		return Uint128{}
+	}
 }
 
 func (u Uint128) GetAt(i uint) bool {
@@ -70,6 +79,7 @@ func MinUint128() Uint128{
 func (u *Uint128) LeftShift() {
 	if u.GetAt(63) {
 		u.Low = u.Low << 1
+		u.High = u.High << 1
 		u.Set(64, 1)
 	} else {
 		u.Low = u.Low << 1
@@ -143,7 +153,7 @@ func (u Uint128) Mul(v Uint128) Uint128 {
 	Product := MulUint64(u.Low, v.Low)
 	tmp1 := MulUint64(u.High, v.Low).Low
 	tmp2 := MulUint64(u.Low, v.High).Low
-	tmp := Uint128{tmp1,0}.Add(Uint128{tmp2,0})
+	tmp := Uint128{0,tmp1}.Add(Uint128{0,tmp2})
 	Product = Product.Add(tmp)
 	return Product
 }
@@ -152,7 +162,6 @@ func (u Uint128) Div(divisor Uint128) (Uint128,Uint128) {
 	if divisor.IsZero() {
 		fmt.Println("divisor cannot be zero")
 	}
-
 	Quotient := Uint128{}
 	Remainder := Uint128{}
 	for i := 0; i < 128; i++ {
@@ -236,7 +245,7 @@ func MulUint64(u, v uint64) Uint128 {
 	specialH = specialH >> 62 << 32
 
 	if mulL+mixL < mulL {
-		return Uint128{mulH + mixH + 1 + specialH, mulL + mixL}
+		return Uint128{mulL + mixL,mulH + mixH + 1 + specialH}
 	}
-	return Uint128{mulH + mixH + specialH, mulL + mixL}
+	return Uint128{mulL + mixL, mulH + mixH + specialH}
 }

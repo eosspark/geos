@@ -54,7 +54,7 @@ func (a *AuthorizationManager) CreatePermission(account common.AccountName,
 		Owner:       account,
 		Name:        name,
 		LastUpdated: creationTime,
-		Auth:        a.AuthToShared(auth),
+		Auth:        auth.ToSharedAuthority(),
 	}
 	a.db.Insert(&perm)
 	return &perm
@@ -62,7 +62,7 @@ func (a *AuthorizationManager) CreatePermission(account common.AccountName,
 
 func (a *AuthorizationManager) ModifyPermission(permission *entity.PermissionObject, auth *types.Authority) {
 	a.db.Modify(&permission, func(po *entity.PermissionObject) {
-		po.Auth = a.AuthToShared(*auth)
+		po.Auth = (*auth).ToSharedAuthority()
 		po.LastUpdated = a.control.PendingBlockTime()
 	})
 }
@@ -97,8 +97,8 @@ func (a *AuthorizationManager) GetPermissionLastUsed(permission *entity.Permissi
 }
 
 func (a *AuthorizationManager) FindPermission(level *types.PermissionLevel) (p *entity.PermissionObject) { //TODO
+	defer HandleReturn()
 	Try(func(){
-		defer Return()
 		EosAssert(!level.Actor.Empty() && !level.Permission.Empty(), &InvalidPermission{}, "Invalid permission")
 		po := entity.PermissionObject{}
 		po.Owner = level.Actor
@@ -115,7 +115,6 @@ func (a *AuthorizationManager) FindPermission(level *types.PermissionLevel) (p *
 func (a *AuthorizationManager) GetPermission(level *types.PermissionLevel) (p *entity.PermissionObject) {
 	defer HandleReturn()
 	Try(func(){
-		defer Return()
 		EosAssert(!level.Actor.Empty() && !level.Permission.Empty(), &InvalidPermission{}, "Invalid permission")
 		po := entity.PermissionObject{}
 		po.Owner = level.Actor
@@ -136,7 +135,6 @@ func (a *AuthorizationManager) LookupLinkedPermission(authorizerAccount common.A
 ) (p common.PermissionName) {
 	defer HandleReturn()
 	Try(func() {         //TODO
-		defer Return()
 		link := entity.PermissionLinkObject{}
 		link.Account = authorizerAccount
 		link.Code = scope
@@ -166,7 +164,6 @@ func (a *AuthorizationManager) LookupMinimumPermission(authorizerAccount common.
 	}
 	defer HandleReturn()
 	Try(func() {
-		defer Return()
 		linkedPermission := a.LookupLinkedPermission(authorizerAccount, scope, actName)
 		if linkedPermission == common.PermissionName(common.N("")) {
 			pn = common.DefaultConfig.ActiveName
@@ -193,7 +190,11 @@ func (a *AuthorizationManager) CheckUpdateauthAuthorization(update updateAuth, a
 		permission := a.GetPermission(&types.PermissionLevel{update.Account, update.Permission})
 		minPermission = permission
 	}
-	EosAssert(a.GetPermission(&auth).Satisfies(*minPermission), &IrrelevantAuthException{}, "") //TODO
+	//permissionIndex, err := a.db.GetIndex("id", entity.PermissionObject{})
+	//if err != nil {
+	//	log.Fatalln(err)
+	//}
+	EosAssert(a.GetPermission(&auth).Satisfies(*minPermission/*, permissionIndex*/), &IrrelevantAuthException{}, "") //TODO
 }
 
 func (a *AuthorizationManager) CheckDeleteauthAuthorization(del deleteAuth, auths []types.PermissionLevel) {
@@ -201,7 +202,11 @@ func (a *AuthorizationManager) CheckDeleteauthAuthorization(del deleteAuth, auth
 	auth := auths[0]
 	EosAssert(auth.Actor == del.Account, &IrrelevantAuthException{}, "the owner of the affected permission needs to be the actor of the declared authorization")
 	minPermission := a.GetPermission(&types.PermissionLevel{del.Account, del.Permission})
-	EosAssert(a.GetPermission(&auth).Satisfies(*minPermission), &IrrelevantAuthException{}, "") //TODO
+	//permissionIndex, err := a.db.GetIndex("id", entity.PermissionObject{})
+	//if err != nil {
+	//	log.Fatalln(err)
+	//}
+	EosAssert(a.GetPermission(&auth).Satisfies(*minPermission/*, permissionIndex*/), &IrrelevantAuthException{}, "") //TODO
 }
 
 func (a *AuthorizationManager) CheckLinkauthAuthorization(link linkAuth, auths []types.PermissionLevel) {
@@ -219,7 +224,11 @@ func (a *AuthorizationManager) CheckLinkauthAuthorization(link linkAuth, auths [
 	if &linkedPermissionName == nil {
 		return
 	}
-	EosAssert(a.GetPermission(&auth).Satisfies(*a.GetPermission(&types.PermissionLevel{link.Account, linkedPermissionName})), &IrrelevantAuthException{}, "") //TODO
+	//permissionIndex, err := a.db.GetIndex("id", entity.PermissionObject{})
+	//if err != nil {
+	//	log.Fatalln(err)
+	//}
+	EosAssert(a.GetPermission(&auth).Satisfies(*a.GetPermission(&types.PermissionLevel{link.Account, linkedPermissionName})/*, permissionIndex*/), &IrrelevantAuthException{}, "") //TODO
 }
 
 func (a *AuthorizationManager) CheckUnlinkauthAuthorization(unlink unlinkAuth, auths []types.PermissionLevel) {
@@ -235,7 +244,11 @@ func (a *AuthorizationManager) CheckUnlinkauthAuthorization(unlink unlinkAuth, a
 	if unlinkedPermissionName == common.DefaultConfig.EosioAnyName {
 		return
 	}
-	EosAssert(a.GetPermission(&auth).Satisfies(*a.GetPermission(&types.PermissionLevel{unlink.Account, unlinkedPermissionName})), &IrrelevantAuthException{}, "") //TODO
+	//permissionIndex, err := a.db.GetIndex("id", entity.PermissionObject{})
+	//if err != nil {
+	//	log.Fatalln(err)
+	//}
+	EosAssert(a.GetPermission(&auth).Satisfies(*a.GetPermission(&types.PermissionLevel{unlink.Account, unlinkedPermissionName})/*, permissionIndex*/), &IrrelevantAuthException{}, "") //TODO
 }
 
 func (a *AuthorizationManager) CheckCanceldelayAuthorization(cancel cancelDelay, auths []types.PermissionLevel) common.Microseconds {
@@ -342,7 +355,11 @@ func (a *AuthorizationManager) CheckAuthorization(actions []*types.Action,
 				minPermissionName := a.LookupMinimumPermission(declaredAuth.Actor, act.Account, act.Name)
 				if minPermissionName != common.PermissionName(0) {
 					minPermission := a.GetPermission(&types.PermissionLevel{declaredAuth.Actor, minPermissionName}) //TODO
-					EosAssert(a.GetPermission(&declaredAuth).Satisfies(*minPermission), &IrrelevantAuthException{} ,
+					//permissionIndex, err := a.db.GetIndex("id", entity.PermissionObject{})
+					//if err != nil {
+					//	log.Fatalln(err)
+					//}
+					EosAssert(a.GetPermission(&declaredAuth).Satisfies(*minPermission/*, permissionIndex*/), &IrrelevantAuthException{} ,
 					"action declares irrelevant authority '${auth}'; minimum authority is ${min}" ) //TODO
 				}
 			}
@@ -402,8 +419,4 @@ func (a *AuthorizationManager) GetRequiredKeys(trx *types.Transaction,
 		providedDelay,
 		noopCheckTime)
 	return checker.GetUsedKeys()
-}
-
-func (a *AuthorizationManager) AuthToShared(auth types.Authority) types.SharedAuthority {
-	return types.SharedAuthority{auth.Threshold, auth.Keys, auth.Accounts, auth.Waits}
 }

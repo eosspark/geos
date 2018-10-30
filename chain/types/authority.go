@@ -23,11 +23,10 @@ type PermissionLevel struct {
 
 type PermissionLevelWeight struct {
 	Permission PermissionLevel `json:"permission"`
-	Weight     WeightType      `json:"weight"` // weight_type
+	Weight     WeightType      `json:"weight"`
 }
 
 type KeyWeight struct {
-	// Key    ecc.PublicKey `json:"key"`
 	Key    ecc.PublicKey `json:"key"`
 	Weight WeightType    `json:"weight"`
 }
@@ -56,6 +55,7 @@ type SharedAuthority struct {
 // validates that there is a single optional @ (where permission
 // defaults to 'active'), and validates length of account and
 // permission names.
+
 func NewPermissionLevel(in string) (out PermissionLevel, err error) {
 	parts := strings.Split(in, "@")
 	if len(parts) > 2 {
@@ -78,6 +78,24 @@ func NewPermissionLevel(in string) (out PermissionLevel, err error) {
 	}
 
 	return
+}
+
+func NewAuthority(k ecc.PublicKey, delaySec uint32) (a Authority) {
+	a.Threshold = 1
+	a.Keys[0] = KeyWeight{k,1}
+	if delaySec > 0 {
+		a.Threshold = 2
+		a.Waits[0] = WaitWeight{delaySec, 1}
+	}
+	return a
+}
+
+func (auth *Authority) ToSharedAuthority() SharedAuthority {
+	return SharedAuthority{auth.Threshold, auth.Keys, auth.Accounts, auth.Waits}
+}
+
+func (sharedAuth *SharedAuthority) ToAuthority() Authority {
+	return Authority{sharedAuth.Threshold,sharedAuth.Keys,sharedAuth.Accounts,sharedAuth.Waits}
 }
 
 func (weight WeightType) String() string {
@@ -139,18 +157,18 @@ func (sharedAuth SharedAuthority) Equals(sharedAuthor SharedAuthority) bool {
 	return true
 }
 
-func (sharedAuth SharedAuthority) GetBillableSize() uint64 { //返回值类型不确定
+func (sharedAuth SharedAuthority) GetBillableSize() uint64 { //TODO
 	accountSize := uint64(len(sharedAuth.Accounts)) * common.BillableSizeV("permission_level_weight")
 	waitsSize := uint64(len(sharedAuth.Waits)) * common.BillableSizeV("wait_weight")
 	keysSize := uint64(0)
 	for _, key := range sharedAuth.Keys {
 		keysSize += common.BillableSizeV("key_weight")
-		keysSize += uint64(key.Weight) * 0 //待修改
+		keysSize += uint64(key.Weight) * 0 //TODO
 	}
 	return accountSize + waitsSize + keysSize
 }
 
-func Validate(auth Authority) bool {
+func Validate(auth Authority) bool {      //TODO: sort.
 	var totalWeight uint32 = 0
 	if len(auth.Accounts)+len(auth.Keys)+len(auth.Waits) > 1<<16 {
 		return false
