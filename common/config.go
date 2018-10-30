@@ -10,25 +10,23 @@ type billableSize struct {
 }
 
 func init() {
-	DefaultConfig = Config{
-		SystemAccountName:    AccountName(N("eosio")),
-		NullAccountName:      AccountName(N("eosio.null")),
-		ProducersAccountName: AccountName(N("eosio.prods")),
+	DefaultConfig.SystemAccountName = AccountName(N("eosio"))
+	DefaultConfig.NullAccountName = AccountName(N("eosio.null"))
+	DefaultConfig.ProducersAccountName = AccountName(N("eosio.prods"))
+	DefaultConfig.MajorityProducersPermissionName = PermissionName(N("prod.major"))
+	DefaultConfig.MinorityProducersPermissionName = PermissionName(N("prod.minor"))
 
-		MajorityProducersPermissionName: PermissionName(N("prod.major")),
-		MinorityProducersPermissionName: PermissionName(N("prod.minor")),
+	DefaultConfig.EosioAuthScope = AccountName(N("eosio.auth"))
+	DefaultConfig.EosioAllScope = AccountName(N("eosio.all"))
+	DefaultConfig.ActiveName = PermissionName(N("active"))
+	DefaultConfig.OwnerName = PermissionName(N("owner"))
+	DefaultConfig.EosioAnyName = PermissionName(N("eosio.any"))
+	DefaultConfig.EosioCodeName = PermissionName(N("eosio.code"))
 
-		EosioAuthScope: AccountName(N("eosio.auth")),
-		EosioAllScope:  AccountName(N("eosio.all")),
-		ActiveName:     PermissionName(N("active")),
-		OwnerName:      PermissionName(N("owner")),
-		EosioAnyName:   PermissionName(N("eosio.any")),
-		EosioCodeName:  PermissionName(N("eosio.code")),
+	DefaultConfig.RateLimitingPrecision = 1000 * 1000
 
-		RateLimitingPrecision: 1000 * 1000,
-
-		BillableAlignment: 16,
-		BillableSize: map[string]billableSize{
+	DefaultConfig.BillableAlignment = 16
+	DefaultConfig.BillableSize = map[string]billableSize{
 			"permission_level_weight":      {value: 24},
 			"key_weight":                   {value: 8},
 			"wait_weight":                  {value: 16},
@@ -43,9 +41,12 @@ func init() {
 			"index_double_object":          {overhead: 32 * 3, value: 24 + 8 + 32*3},
 			"index_long_double_object":     {overhead: 32 * 3, value: 24 + 16 + 32*3},
 			"generated_transaction_object": {overhead: 32 * 5, value: 96 + 4 + 32*5},
-		},
-		FixedNetOverheadOfPackedTrx: 16,
-	}
+		}
+
+	DefaultConfig.FixedNetOverheadOfPackedTrx = 16
+
+	DefaultConfig.DefaultMaxBlockCpuUsage = 200000
+	DefaultConfig.DefaultTargetBlockCpuUsagePct = 10 * uint32(DefaultConfig.Percent_1)
 
 	DefaultConfig.BlockIntervalMs = 500
 	DefaultConfig.BlockIntervalUs = 1000 * DefaultConfig.BlockIntervalMs
@@ -121,6 +122,9 @@ type Config struct {
 	EosioCodeName  PermissionName
 
 	RateLimitingPrecision uint32
+
+	DefaultMaxBlockCpuUsage uint32
+	DefaultTargetBlockCpuUsagePct uint32
 
 	BlockIntervalMs          int64
 	BlockIntervalUs          int64

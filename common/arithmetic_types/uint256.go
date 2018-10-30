@@ -6,24 +6,15 @@ import (
 )
 
 type Uint256 struct {
-	High Uint128
-	Low  Uint128
+	Low Uint128
+	High  Uint128
 }
 
 func (u Uint256) IsZero() bool {
-	if u.High.IsZero() && u.Low.IsZero() {
+	if u.Low.IsZero() && u.High.IsZero() {
 		return true
 	}
 	return false
-}
-
-func CreateUint128(i int) Uint128{
-	if i >= 0 {
-		return Uint128{0, uint64(i)}
-	} else {
-		fmt.Println("error")
-		return Uint128{}
-	}
 }
 
 func (u Uint256) GetAt(i uint) bool {
@@ -45,15 +36,15 @@ func (u *Uint256) Set(i uint, b uint) {
 	}
 	if i >= 128 {
 		if b == 1 {
-			u.High.Set(i, 1)
+			u.High.Set(i - 128, 1)
 		}
 		if b == 0 {
-			u.High.Set(i, 0)
+			u.High.Set(i - 128, 0)
 		}
 	}
 }
 
-func (u Uint256) LeftShift() Uint256 {
+func (u *Uint256) LeftShift() {
 	if u.GetAt(127) {
 		u.Low.LeftShift()
 		u.High.LeftShift()
@@ -62,7 +53,6 @@ func (u Uint256) LeftShift() Uint256 {
 		u.Low.LeftShift()
 		u.High.LeftShift()
 	}
-	return u
 }
 
 func (u *Uint256) LeftShifts(shift int) {
@@ -71,13 +61,12 @@ func (u *Uint256) LeftShifts(shift int) {
 	}
 }
 
-func (u Uint256) RightShift() Uint256 {
+func (u *Uint256) RightShift() {
 	if u.GetAt(128) {
 		u.High.RightShift()
 		u.Low.RightShift()
 		u.Set(127, 1)
 	}
-	return u
 }
 
 func (u *Uint256) RightShifts(shift int) {
@@ -102,7 +91,7 @@ func (u Uint256) Compare(v Uint256) int {
 
 func (u Uint256) Add(v Uint256) Uint256 {
 	if u.Low.Add(v.Low).Compare(u.Low) < 0 {
-		u.High = u.High.Add(v.High).Add(Uint128{0, 1})
+		u.High = u.High.Add(v.High).Add(Uint128{1, 0})
 	} else {
 		u.High = u.High.Add(v.High)
 	}
@@ -111,12 +100,13 @@ func (u Uint256) Add(v Uint256) Uint256 {
 }
 
 func (u Uint256) Sub(v Uint256) Uint256 {
+	One := Uint128{1, 0}
 	if u.Low.Compare(v.Low) >= 0 {
 		u.Low = u.Low.Sub(v.Low)
 		u.High = u.High.Sub(v.High)
 	} else {
-		u.Low = u.Low.Add(Uint128{math.MaxUint64, math.MaxUint64}.Sub(v.Low).Add(Uint128{0, 1}))
-		u.High = u.High.Sub(v.High.Add(Uint128{0, 1}))
+		u.Low = u.Low.Add(Uint128{math.MaxUint64, math.MaxUint64}.Sub(v.Low).Add(One))
+		u.High = u.High.Sub(v.High.Add(One))
 	}
 	return u
 }
@@ -138,12 +128,12 @@ func (u Uint256) Div(divisor Uint256) (Uint256, Uint256) {
 	}
 	Quotient := Uint256{}
 	Remainder := Uint256{}
-	One := Uint128{0, 1}
+	One := Uint128{1, 0}
 	for i := 0; i < 256; i++ {
 		Remainder.LeftShift()
 		Quotient.LeftShift()
 		if u.GetAt(255 - uint(i)) {
-			Remainder.Low = Remainder.Low.Sub(One)
+			Remainder.Low = Remainder.Low.Add(One)
 		}
 		if Remainder.Compare(divisor) >= 0 {
 			Quotient.Low = Quotient.Low.Add(One)

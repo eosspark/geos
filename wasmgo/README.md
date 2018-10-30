@@ -3,7 +3,7 @@ wasmgo
 
 fork from https://github.com/go-interpreter/wagon
 
-**NOTE:** `cvm` requires `Go >= 1.9.x`.
+**NOTE:** `wasmgo` requires `Go >= 1.9.x`.
 
 ## examples
 
@@ -24,7 +24,7 @@ import (
 
 func main() {
 
-	name := "hello.wasm"
+	name := "hello.wasm" //eos contract sample
 	code, err := ioutil.ReadFile(name)
 	if err != nil {
 		log.Fatal(err)
@@ -49,6 +49,3 @@ func main() {
 
 }
 ```
-
-## go run hello.wasm
-// hello.wasm from eosio hello contract

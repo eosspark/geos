@@ -54,7 +54,7 @@ func (a *AuthorizationManager) CreatePermission(account common.AccountName,
 		Owner:       account,
 		Name:        name,
 		LastUpdated: creationTime,
-		Auth:        a.AuthToShared(auth),
+		Auth:        auth.ToSharedAuthority(),
 	}
 	a.db.Insert(&perm)
 	return &perm
@@ -62,7 +62,7 @@ func (a *AuthorizationManager) CreatePermission(account common.AccountName,
 
 func (a *AuthorizationManager) ModifyPermission(permission *entity.PermissionObject, auth *types.Authority) {
 	a.db.Modify(&permission, func(po *entity.PermissionObject) {
-		po.Auth = a.AuthToShared(*auth)
+		po.Auth = (*auth).ToSharedAuthority()
 		po.LastUpdated = a.control.PendingBlockTime()
 	})
 }
@@ -267,7 +267,7 @@ func (a *AuthorizationManager) CheckCanceldelayAuthorization(cancel cancelDelay,
 		log.Fatalln(err)
 	}
 
-	generatedIndex.Begin(&generatedTrx)
+	generatedIndex.BeginData(&generatedTrx)
 	EosAssert(!generatedIndex.CompareEnd(itr)&&generatedTrx.TrxId == trxId, &TxNotFound{},
 	"cannot cancel trx_id=${tid}, there is no deferred transaction with that transaction id")//TODO
 
@@ -419,8 +419,4 @@ func (a *AuthorizationManager) GetRequiredKeys(trx *types.Transaction,
 		providedDelay,
 		noopCheckTime)
 	return checker.GetUsedKeys()
-}
-
-func (a *AuthorizationManager) AuthToShared(auth types.Authority) types.SharedAuthority {
-	return types.SharedAuthority{auth.Threshold, auth.Keys, auth.Accounts, auth.Waits}
 }

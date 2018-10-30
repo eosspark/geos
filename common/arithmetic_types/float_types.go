@@ -15,8 +15,8 @@ type Float16 uint16
 type Float32 uint32
 type Float64 uint64
 type Float128 struct {
+	Low uint64
 	High uint64
-	Low  uint64
 }
 
 type ExtFloat80M struct {

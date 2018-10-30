@@ -1,10 +1,12 @@
 package arithmeticTypes
 
-import "math"
+import (
+	"math"
+)
 
 type Int128 struct {
-	High uint64
-	Low  uint64
+	Low uint64
+	High  uint64
 }
 
 func (u Int128) IsZero() bool {
@@ -16,9 +18,9 @@ func (u Int128) IsZero() bool {
 
 func CreateInt128(i int) Int128{
 	if i >= 0  {
-		return Int128{0, uint64(i)}
+		return Int128{uint64(i), 0}
 	} else {
-		result := MaxInt128().Sub(Int128{0,uint64(-i) - 1})
+		result := MaxInt128().Sub(Int128{uint64(-i) - 1,0})
 		result.Set(127,1)
 		return result
 	}
@@ -52,16 +54,17 @@ func (u *Int128) Set(i uint, b uint) {
 }
 
 func MaxInt128() Int128{
-	return Int128{0x7FFFFFFFFFFFFFFF,0xFFFFFFFFFFFFFFFF}
+	return Int128{0xFFFFFFFFFFFFFFFF,0x7FFFFFFFFFFFFFFF}
 }
 
 func MinInt128() Int128{
-	return Int128{0x8000000000000000,0}
+	return Int128{0,0x8000000000000000}
 }
 
 func (u *Int128) LeftShift() {
 	if u.GetAt(63) {
 		u.Low = u.Low << 1
+		u.High = u.High << 1
 		u.Set(64, 1)
 	} else {
 		u.Low = u.Low << 1
@@ -105,11 +108,11 @@ func (u Int128) ToTrueForm() Uint128 {
 				u.Set(i, 1)
 			}
 		}
-		One := Int128{0, 1}
+		One := Int128{1, 0}
 		u = u.Add(One)
 		u.Set(127, 1)
 	}
-	return Uint128{u.High, u.Low}
+	return Uint128{u.Low, u.High}
 }
 
 func (u Uint128) ToComplement() Int128 {
@@ -121,11 +124,11 @@ func (u Uint128) ToComplement() Int128 {
 				u.Set(i, 1)
 			}
 		}
-		One := Uint128{0, 1}
+		One := Uint128{1, 0}
 		u = u.Add(One)
 		u.Set(127, 1)
 	}
-	return Int128{u.High, u.Low}
+	return Int128{u.Low, u.High}
 }
 
 func (u Int128) Add(v Int128) Int128 {
@@ -178,10 +181,10 @@ func (u Int128) Div(v Int128) (Int128, Int128) {
 	uTrueForm.Set(127, 0)
 	vTrueForm.Set(127, 0)
 	uQuotient, uRemainder := uTrueForm.Div(vTrueForm)
-	if signBit {
+	if signBit && !uQuotient.IsZero(){
 		uQuotient.Set(127, 1)
 	}
-	if u.GetAt(127) {
+	if u.GetAt(127) && !uRemainder.IsZero() {
 		uRemainder.Set(127, 1)
 	}
 	Quotient := uQuotient.ToComplement()
