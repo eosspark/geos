@@ -1,7 +1,6 @@
 package database
 
 import (
-	"fmt"
 	"log"
 	"math"
 	"reflect"
@@ -376,7 +375,7 @@ func (ldb *LDataBase) removeKvToDb(dbKV *dbKeyValue) error {
 	for _, v := range dbKV.index {
 		err := removeKey(v.key, ldb.db)
 		if err != nil {
-			fmt.Println("delete key error ", v.key)
+			log.Println("delete key error ", v.key)
 			undo = true
 			return err
 		}
@@ -385,7 +384,7 @@ func (ldb *LDataBase) removeKvToDb(dbKV *dbKeyValue) error {
 
 	err := removeKey(dbKV.id.key, ldb.db)
 	if err != nil {
-		fmt.Println("delete key error ", dbKV.id.key)
+		log.Println("delete key error : " , dbKV.id.key)
 		undo = true
 		return err
 	}
@@ -742,15 +741,39 @@ func (ldb *LDataBase) IteratorTo(begin, end, fieldName []byte, in interface{}, g
 	if !it.Seek(key) {
 		return nil, errors.New("Iterator To Not Found")
 	}
-	k := idKey(it.Value(),[]byte(fields.typeName))
-	val ,err:= getDbKey(k,ldb.db)
-	if err != nil{
-		return nil,err
+	k := idKey(it.Value(), []byte(fields.typeName))
+	val, err := getDbKey(k, ldb.db)
+	if err != nil {
+		return nil, err
 	}
 
 	//
-	itr := &DbIterator{it:it,greater:fields.greater,db:ldb.db,first:false,value:val,typeName:[]byte(fields.typeName)}
-	return itr,nil
+	itr := &DbIterator{it: it, greater: fields.greater, db: ldb.db, first: false, value: val, typeName: []byte(fields.typeName)}
+	return itr, nil
+}
+
+func (ldb *LDataBase) BeginIterator(begin, end, fieldName, typeName []byte, greater bool) (*DbIterator, error) {
+
+	it := ldb.db.NewIterator(&util.Range{Start: begin, Limit: end}, nil)
+	if greater {
+		if !it.Last() {
+			return nil, errors.New("DataBase BeginIterator : Next Failed")
+		}
+	} else {
+		if !it.Next() {
+			return nil, errors.New("DataBase BeginIterator : Prev Failed")
+		}
+	}
+
+	k := idKey(it.Value(), []byte(typeName))
+	val, err := getDbKey(k, ldb.db)
+	if err != nil {
+		return nil, errors.New("DataBase BeginIterator : " + err.Error())
+	}
+
+	itr := &DbIterator{it: it, greater: greater, db: ldb.db, first: false, typeName: typeName, value: val}
+
+	return itr, nil
 }
 
 func (ldb *LDataBase) upperBound(begin, end, fieldName []byte, data interface{}, greater bool) (*DbIterator, error) {
