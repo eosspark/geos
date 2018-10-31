@@ -11,11 +11,11 @@ import (
 type BlockHeaderState struct {
 	ID                               common.IdType      `multiIndex:"id,increment"`
 	BlockId                          common.BlockIdType `multiIndex:"byId,orderedUnique"`
-	BlockNum                         uint32             `multiIndex:"block_num,orderedUnique:byLibBlockNum,orderedNonUnique"`
+	BlockNum                         uint32             `multiIndex:"block_num,orderedUnique:byLibBlockNum,orderedUnique"`
 	Header                           SignedBlockHeader  `multiIndex:"inline"`
 	DposProposedIrreversibleBlocknum uint32             `json:"dpos_proposed_irreversible_blocknum"`
-	DposIrreversibleBlocknum         uint32             `multiIndex:"byLibBlockNum,orderedNonUnique" json:"dpos_irreversible_blocknum"`
-	BftIrreversibleBlocknum          uint32             `multiIndex:"byLibBlockNum,orderedNonUnique" json:"bft_irreversible_blocknum"`
+	DposIrreversibleBlocknum         uint32             `multiIndex:"byLibBlockNum,orderedUnique" json:"dpos_irreversible_blocknum"`
+	BftIrreversibleBlocknum          uint32             `multiIndex:"byLibBlockNum,orderedUnique" json:"bft_irreversible_blocknum"`
 	PendingScheduleLibNum            uint32             `json:"pending_schedule_lib_num"`
 	PendingScheduleHash              crypto.Sha256      `json:"pending_schedule_hash"`
 	PendingSchedule                  ProducerScheduleType

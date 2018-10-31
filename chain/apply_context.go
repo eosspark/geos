@@ -6,7 +6,6 @@ import (
 	"github.com/eosspark/eos-go/common"
 	arithmetic "github.com/eosspark/eos-go/common/arithmetic_types"
 	"github.com/eosspark/eos-go/crypto"
-	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/eosspark/eos-go/database"
 	"github.com/eosspark/eos-go/entity"
@@ -373,9 +372,12 @@ func (a *ApplyContext) ExecuteInline(action []byte) {
 	if !a.Control.SkipAuthCheck() && !a.Privileged && act.Account != a.Receiver {
 
 		f := a.TrxContext.CheckTime
+		permissionLevel := types.PermissionLevel{a.Receiver, common.DefaultConfig.EosioCodeName}
+		fs := common.FlatSet{}
+		fs.Insert(&permissionLevel)
 		a.Control.GetAuthorizationManager().CheckAuthorization([]*types.Action{&act},
-			[]*ecc.PublicKey{},
-			[]*types.PermissionLevel{&types.PermissionLevel{a.Receiver, common.DefaultConfig.EosioCodeName}},
+			&common.FlatSet{},
+			&fs,
 			common.Microseconds(a.Control.PendingBlockTime()-a.TrxContext.Published),
 			&f,
 			false)
