@@ -697,10 +697,10 @@ error 				-->		error
 
 */
 func (ldb *LDataBase) GetIndex(tagName string, in interface{}) (*MultiIndex, error) {
-	return getIndex(tagName, in, ldb)
+	return ldb.getIndex(tagName, in)
 }
 
-func getIndex(tagName string, value interface{}, db DataBase) (*MultiIndex, error) {
+func (ldb *LDataBase) getIndex(tagName string, value interface{}) (*MultiIndex, error) {
 
 	// fieldName == tagName --> Just different nextId
 	fieldName := []byte(tagName)
@@ -709,21 +709,15 @@ func getIndex(tagName string, value interface{}, db DataBase) (*MultiIndex, erro
 		return nil, err
 	}
 
-	// 	if fields.unique {
-	// 		return nil, ErrNotFound
-	// 	}
-
 	typeName := []byte(fields.typeName)
 	begin := typeNameFieldName(typeName, fieldName)
 	begin = append(begin, '_')
 	begin = append(begin, '_')
-	// fmt.Println("----------------------------",begin)
-	/*
-		non unique --> typename__fieldName__
-	*/
 
 	end := getNonUniqueEnd(begin)
-	it := newMultiIndex(typeName, fieldName, begin, end, fields.greater, db)
+	space := "  "
+	ldb.dbLog.Println("getIndex typeName : ",typeName,space,"fieldName : ",fieldName,space,"begin : ",begin,space,"end : ",end,space,"greater : ",fields.greater)
+	it := newMultiIndex(typeName, fieldName, begin, end, fields.greater, ldb)
 	return it, nil
 }
 
@@ -835,6 +829,7 @@ func (ldb *LDataBase) BeginIterator(begin, end, fieldName, typeName []byte, grea
 	k := idKey(it.Value(), []byte(typeName))
 	val, err := getDbKey(k, ldb.db)
 	if err != nil {
+		ldb.dbLog.Println("error DataBase BeginIterator : " ,err)
 		return nil, errors.New("DataBase BeginIterator : " + err.Error())
 	}
 
