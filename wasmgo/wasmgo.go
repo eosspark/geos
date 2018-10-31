@@ -17,6 +17,7 @@ import (
 var (
 	wasmGo *WasmGo
 	ignore bool = false
+	debug  bool = false
 )
 
 type size_t int
@@ -370,12 +371,16 @@ func b2i(b bool) int {
 }
 
 func setMemory(w *WasmGo, mIndex int, data []byte, dIndex int, bufferSize int) {
-	fmt.Println("setMemory")
+	if debug {
+		fmt.Println("setMemory")
+	}
 	copy(w.vm.Memory()[mIndex:mIndex+bufferSize], data[dIndex:dIndex+bufferSize])
 }
 
 func getMemory(w *WasmGo, mIndex int, bufferSize int) []byte {
-	fmt.Println("getMemory")
+	if debug {
+		fmt.Println("getMemory")
+	}
 
 	cap := cap(w.vm.Memory())
 	if cap < mIndex || cap < mIndex+bufferSize {

@@ -36,10 +36,9 @@ type TransactionTrace struct {
 	Scheduled       bool //false
 	ActionTraces    []ActionTrace
 	FailedDtrxTrace *TransactionTrace
-	//TODO exception
-	Except Exception
-	/*fc::optional<fc::exception>                except;
-	std::exception_ptr                         except_ptr;*/
+
+	Except    Exception
+	ExceptPtr *Exception
 }
 
 type AccountDelta struct {

@@ -17,7 +17,9 @@ import (
 //  }
 // }
 func prints(w *WasmGo, str int) {
-	fmt.Println("prints")
+	if debug {
+		fmt.Println("prints")
+	}
 
 	if !ignore {
 		w.context.ContextAppend(string(getMemory(w, str, getStringLength(w, str))))
@@ -31,7 +33,9 @@ func prints(w *WasmGo, str int) {
 //  }
 // }
 func printsl(w *WasmGo, str int, strLen int) {
-	fmt.Println("prints_l")
+	if debug {
+		fmt.Println("prints_l")
+	}
 
 	if !ignore {
 		w.context.ContextAppend(string(getMemory(w, str, strLen)))
@@ -45,7 +49,9 @@ func printsl(w *WasmGo, str int, strLen int) {
 //  }
 // }
 func printi(w *WasmGo, val int64) {
-	fmt.Println("printi")
+	if debug {
+		fmt.Println("printi")
+	}
 
 	if !ignore {
 		s := strconv.FormatInt(val, 10)
@@ -59,6 +65,7 @@ func printi(w *WasmGo, val int64) {
 //  }
 // }
 func printui(w *WasmGo, val uint64) {
+
 	fmt.Println("printui")
 
 	if !ignore {
@@ -200,7 +207,9 @@ func printqf(w *WasmGo, val int) {
 //  }
 // }
 func printn(w *WasmGo, value int64) {
-	fmt.Println("printn")
+	if debug {
+		fmt.Println("printn")
+	}
 	if !ignore {
 		w.context.ContextAppend(common.S(uint64(value)))
 	}

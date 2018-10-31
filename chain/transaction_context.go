@@ -1,7 +1,6 @@
 package chain
 
 import (
-	"fmt"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/database"
@@ -12,11 +11,11 @@ import (
 	//"github.com/eosspark/eos-go/log"
 )
 
-type AccountForSet common.AccountName
+/*type AccountForSet common.AccountName
 
 func (f *AccountForSet) GetKey() uint64 {
 	return uint64(*f)
-}
+}*/
 
 type TransactionContext struct {
 	Control               *Controller
@@ -39,21 +38,21 @@ type TransactionContext struct {
 	BilledCpuTimeUs       int64
 	ExplicitBilledCpuTime bool
 
-	isInitialized                 bool
-	netLimit                      uint64
-	netLimitDueToBlock            bool
-	netLimitDueToGreylist         bool
-	cpuLimitDueToGreylist         bool
-	eagerNetLimit                 uint64
-	netUsage                      *uint64
-	initialObjectiveDurationLimit common.Microseconds //microseconds
-	objectiveDurationLimit        common.Microseconds
-	deadline                      common.TimePoint //maximum
-	deadlineExceptionCode         int64
-	billingTimerExceptionCode     int64
-	pseudoStart                   common.TimePoint
-	billedTime                    common.Microseconds
-	billingTimerDurationLimit     common.Microseconds
+	isInitialized         bool
+	netLimit              uint64
+	netLimitDueToBlock    bool
+	netLimitDueToGreylist bool
+	cpuLimitDueToGreylist bool
+	eagerNetLimit         uint64
+	netUsage              *uint64
+	//initialObjectiveDurationLimit common.Microseconds //microseconds
+	objectiveDurationLimit    common.Microseconds
+	deadline                  common.TimePoint //maximum
+	deadlineExceptionCode     int64
+	billingTimerExceptionCode int64
+	pseudoStart               common.TimePoint
+	billedTime                common.Microseconds
+	billingTimerDurationLimit common.Microseconds
 }
 
 func NewTransactionContext(c *Controller, t *types.SignedTransaction, trxId common.TransactionIdType, s common.TimePoint) *TransactionContext {
@@ -151,7 +150,7 @@ func (t *TransactionContext) init(initialNetUsage uint64) {
 		}
 	}
 
-	t.initialObjectiveDurationLimit = t.objectiveDurationLimit
+	//t.initialObjectiveDurationLimit = t.objectiveDurationLimit
 
 	if t.BilledCpuTimeUs > 0 { // could also call on explicit_billed_cpu_time but it would be redundant
 		t.validateCpuUsageToBill(t.BilledCpuTimeUs, false) // Fail early if the amount to be billed is too high
@@ -161,11 +160,12 @@ func (t *TransactionContext) init(initialNetUsage uint64) {
 	for _, act := range t.Trx.Actions {
 		for _, auth := range act.Authorization {
 			//t.BillToAccounts = append(t.BillToAccounts, auth.Actor)
-			a := common.S(uint64(auth.Actor))
+			/*a := common.S(uint64(auth.Actor))
 			fmt.Println(a)
 
 			account := AccountForSet(auth.Actor)
-			t.BillToAccounts.Insert(&account)
+			t.BillToAccounts.Insert(&account)*/
+			t.BillToAccounts.Insert(&auth.Actor)
 		}
 	}
 
@@ -230,7 +230,7 @@ func (t *TransactionContext) InitForInputTrx(packeTrxUnprunableSize uint64, pack
 	initialNetUsage := uint64(cfg.BasePerTransactionNetUsage) + packeTrxUnprunableSize + discountedSizeForPrunedData
 	if t.Trx.DelaySec > 0 {
 		initialNetUsage += uint64(cfg.BasePerTransactionNetUsage)
-		initialNetUsage += uint64(cfg.TransactionIdNetUsage)
+		initialNetUsage += uint64(common.DefaultConfig.TransactionIdNetUsage)
 	}
 
 	t.Published = t.Control.PendingBlockTime()
@@ -292,7 +292,7 @@ func (t *TransactionContext) Finalize() {
 	rl := t.Control.GetMutableResourceLimitsManager()
 	for _, a := range t.ValidateRamUsage.Data {
 
-		account := a.(*AccountForSet)
+		account := a.(*common.AccountName)
 		rl.VerifyAccountRamUsage(common.AccountName(*account))
 	}
 
@@ -359,9 +359,7 @@ func (t *TransactionContext) CheckNetUsage() {
 }
 
 func (t *TransactionContext) CheckTime() {
-
-	return
-
+	//return
 	if !t.Control.SkipTrxChecks() {
 		now := common.Now()
 		if now > t.deadline {
@@ -437,7 +435,7 @@ func (t *TransactionContext) ResumeBillingTimer() {
 }
 
 func (t *TransactionContext) validateCpuUsageToBill(billedUs int64, checkMinimum bool) {
-	return
+	//return
 	if !t.Control.SkipTrxChecks() {
 		if checkMinimum {
 			cfg := t.Control.GetGlobalProperties().Configuration
@@ -448,18 +446,18 @@ func (t *TransactionContext) validateCpuUsageToBill(billedUs int64, checkMinimum
 		if t.billingTimerExceptionCode == int64(BlockCpuUsageExceeded{}.Code()) { //TODO
 			EosAssert(billedUs <= t.objectiveDurationLimit.Count(),
 				&BlockCpuUsageExceeded{},
-				"billed CPU time (${billed} us) is greater than the billable CPU time left in the block (${billable} us)",
+				"billed CPU time (%d us) is greater than the billable CPU time left in the block (%d us)",
 				billedUs, t.objectiveDurationLimit.Count())
 		} else {
 			if t.cpuLimitDueToGreylist {
 				EosAssert(billedUs <= t.objectiveDurationLimit.Count(),
 					&GreylistCpuUsageExceeded{},
-					"billed CPU time (${billed} us) is greater than the maximum greylisted billable CPU time for the transaction (${billable} us)",
+					"billed CPU time (%d us) is greater than the maximum greylisted billable CPU time for the transaction (%d us)",
 					billedUs, t.objectiveDurationLimit.Count())
 			} else {
 				EosAssert(billedUs <= t.objectiveDurationLimit.Count(),
 					&TxCpuUsageExceed{},
-					"billed CPU time (${billed} us) is greater than the maximum billable CPU time for the transaction (${billable} us)",
+					"billed CPU time (%d us) is greater than the maximum billable CPU time for the transaction (%d us)",
 					billedUs, t.objectiveDurationLimit.Count())
 			}
 		}
@@ -474,8 +472,8 @@ func (t *TransactionContext) AddRamUsage(account common.AccountName, ramDelta in
 	rl := t.Control.GetMutableResourceLimitsManager()
 	rl.AddPendingRamUsage(account, ramDelta)
 	if ramDelta > 0 {
-		a := AccountForSet(account)
-		t.ValidateRamUsage.Insert(&a)
+		//a := AccountForSet(account)
+		t.ValidateRamUsage.Insert(&account)
 	}
 }
 
@@ -506,7 +504,7 @@ func (t *TransactionContext) MaxBandwidthBilledAccountsCanPay(forceElasticLimits
 	greylistedCpu := false
 	for _, a := range t.BillToAccounts.Data {
 
-		accountName := a.(*AccountForSet)
+		accountName := a.(*common.AccountName)
 		account := common.AccountName(*accountName)
 
 		elastic := forceElasticLimits || !(t.Control.IsProducingBlock()) && t.Control.IsResourceGreylisted(&account)
