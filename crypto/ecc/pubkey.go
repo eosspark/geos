@@ -185,9 +185,6 @@ func (p PublicKey) Compare(pub PublicKey) bool {
 func (p PublicKey) GetKey() uint64 {
 	sl, _ := p.MarshalJSON()
 	param := make([]byte, 64-len(sl))
-	fmt.Println(len(sl), sl)
 	param = append(sl, param...)
-	fmt.Println(param)
-
 	return binary.LittleEndian.Uint64(param)
 }
