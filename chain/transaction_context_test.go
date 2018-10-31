@@ -83,11 +83,11 @@ func TestTransactionContextTest(t *testing.T) {
 		metaTrx := types.NewTransactionMetadataBySignedTrx(signedTrx, common.CompressionNone)
 
 		//var trace *types.TransactionTrace
-		for i := 0; i < 10; i++ {
+		for i := 0; i < 100; i++ {
 			trxContext := NewTransactionContext(control, signedTrx, trx.ID(), common.Now())
 			trxContext.Deadline = common.Now() + common.TimePoint(100000)
-			trxContext.ExplicitBilledCpuTime = true
-			trxContext.BilledCpuTimeUs = 150000
+			trxContext.ExplicitBilledCpuTime = false
+			trxContext.BilledCpuTimeUs = 0
 			//trace = trxContext.Trace
 
 			trxContext.InitForInputTrx(uint64(metaTrx.PackedTrx.GetUnprunableSize()),
