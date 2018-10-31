@@ -3,6 +3,7 @@ package asio
 import (
 	"testing"
 	"syscall"
+	"time"
 )
 
 func TestNewSignalSet(t *testing.T) {
@@ -11,6 +12,19 @@ func TestNewSignalSet(t *testing.T) {
 	sigint.AsyncWait(func(err error) {
 		ioc.Stop()
 		sigint.Cancel()
+	})
+
+	sigterm := NewSignalSet(ioc, syscall.SIGTERM)
+	sigterm.AsyncWait(func(err error) {
+		ioc.Stop()
+		sigterm.Cancel()
+	})
+
+	delay := NewDeadlineTimer(ioc)
+	delay.ExpiresFromNow(time.Millisecond)
+	delay.AsyncWait(func(err error) {
+		sigint.notify <- syscall.SIGINT
+		sigterm.notify <- syscall.SIGTERM
 	})
 
 	ioc.Run()
