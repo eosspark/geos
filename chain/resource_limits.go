@@ -275,7 +275,7 @@ func (r *ResourceLimitsManager) ProcessAccountLimitUpdates() {
 }
 
 func (r *ResourceLimitsManager) ProcessBlockUsage(blockNum uint32) {
-	s := entity.ResourceLimitsStateObject{}
+	s := entity.DefaultResourceLimitsStateObject
 	r.db.Find("id", s, &s)
 	config := entity.DefaultResourceLimitsConfigObject
 	r.db.Find("id", config, &config)

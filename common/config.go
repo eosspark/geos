@@ -45,9 +45,6 @@ func init() {
 
 	DefaultConfig.FixedNetOverheadOfPackedTrx = 16
 
-	DefaultConfig.DefaultMaxBlockCpuUsage = 200000
-	DefaultConfig.DefaultTargetBlockCpuUsagePct = 10 * uint32(DefaultConfig.Percent_1)
-
 	DefaultConfig.BlockIntervalMs = 500
 	DefaultConfig.BlockIntervalUs = 1000 * DefaultConfig.BlockIntervalMs
 	DefaultConfig.BlockTimestampEpochMs = 946684800000
@@ -122,9 +119,6 @@ type Config struct {
 	EosioCodeName  PermissionName
 
 	RateLimitingPrecision uint32
-
-	DefaultMaxBlockCpuUsage uint32
-	DefaultTargetBlockCpuUsagePct uint32
 
 	BlockIntervalMs          int64
 	BlockIntervalUs          int64

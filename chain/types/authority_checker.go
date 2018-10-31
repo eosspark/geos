@@ -10,7 +10,7 @@ type AuthorityChecker struct {
 	permissionToAuthority PermissionToAuthorityFunc
 	CheckTime             *func()
 	ProvidedKeys          []ecc.PublicKey
-	ProvidedPermissions   []PermissionLevel
+	ProvidedPermissions   common.FlatSet
 	UsedKeys              []bool
 	ProvidedDelay         common.Microseconds
 	RecursionDepthLimit   uint16
@@ -85,8 +85,8 @@ func (ac *AuthorityChecker) PermissionStatusInCache(permissions PermissionCacheT
 }
 
 func (ac *AuthorityChecker) initializePermissionCache(cachedPermission *PermissionCacheType) *PermissionCacheType {
-	for _, p := range ac.ProvidedPermissions {
-		map[PermissionLevel]PermissionCacheStatus(*cachedPermission)[p] = PermissionSatisfied
+	for i := 0; i < ac.ProvidedPermissions.Len(); i++{
+		map[PermissionLevel]PermissionCacheStatus(*cachedPermission)[*(ac.ProvidedPermissions.Data[i].(*PermissionLevel))] = PermissionSatisfied
 	}
 	return cachedPermission
 }
@@ -167,16 +167,12 @@ func MakeAuthChecker(pta PermissionToAuthorityFunc,
 	providedDelay common.Microseconds,
 	checkTime *func()) AuthorityChecker {
 	//noopChecktime := func() {}
-	//providedKeysArray := make([]ecc.PublicKey, len(providedKeys))
-	/*for i, key := range providedKeys {
-		providedKeysArray[i] = *key
+	providedKeysArray := make([]ecc.PublicKey, providedKeys.Len())
+	for i := 0; i < providedKeys.Len(); i++{
+		providedKeysArray[i] = providedKeys.Data[i].(ecc.PublicKey)
 	}
-	providedPermissionArray := make([]PermissionLevel, len(providedKeys))
-	for i, permission := range providedPermission {
-		providedPermissionArray[i] = *permission
-	}*/
 	return AuthorityChecker{permissionToAuthority: pta, RecursionDepthLimit: recursionDepthLimit,
-		ProvidedKeys: providedKeysArray, ProvidedPermissions: providedPermissionArray,
+		ProvidedKeys: providedKeysArray, ProvidedPermissions: *providedPermission,
 		ProvidedDelay: providedDelay, CheckTime: checkTime,
 	}
 }

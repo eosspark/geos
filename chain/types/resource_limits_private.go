@@ -41,7 +41,7 @@ func UpdateElasticLimit(currentLimit uint64, averageUsage uint64, params Elastic
 	} else {
 		result = result * params.ExpandRate.Numerator / params.ExpandRate.Denominator
 	}
-	return common.Min(common.Min(result, params.Max), uint64(params.Max*uint64(params.MaxMultiplier)))
+	return common.Min(common.Max(result, params.Max), uint64(params.Max*uint64(params.MaxMultiplier)))
 }
 
 func IntegerDivideCeil(num uint64, den uint64) uint64 {

@@ -290,8 +290,8 @@ func (a *AuthorizationManager) CheckCanceldelayAuthorization(cancel cancelDelay,
 }
 
 func (a *AuthorizationManager) CheckAuthorization(actions []*types.Action,
-	providedKeys []*ecc.PublicKey,
-	providedPermission []*types.PermissionLevel,
+	providedKeys *common.FlatSet,
+	providedPermission *common.FlatSet,
 	providedDelay common.Microseconds,
 	checkTime *func(),
 	allowUnusedKeys bool,
@@ -409,7 +409,7 @@ func (a *AuthorizationManager) CheckAuthorization2(account common.AccountName,
 }
 
 func (a *AuthorizationManager) GetRequiredKeys(trx *types.Transaction,
-	candidateKeys []*ecc.PublicKey,
+	candidateKeys *common.FlatSet,
 	providedDelay common.Microseconds) []ecc.PublicKey {
 	checker := types.MakeAuthChecker(func(p *types.PermissionLevel) types.SharedAuthority { return a.GetPermission(p).Auth },
 		a.control.GetGlobalProperties().Configuration.MaxAuthorityDepth,
