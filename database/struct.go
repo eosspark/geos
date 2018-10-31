@@ -7,8 +7,8 @@ import (
 
 /////////////////////////////////////////////////////// test struct ///////////////////////////////////////////
 type Carnivore struct {
-	Lion  int `multiIndex:"orderedNonUnique,greater"`
-	Tiger int `multiIndex:"orderedNonUnique,greater"`
+	Lion  int `multiIndex:"orderedUnique,greater"`
+	Tiger int `multiIndex:"orderedUnique,greater"`
 }
 
 type DbHouse struct {
@@ -28,17 +28,17 @@ type ScopeName uint64
 
 type DbTableIdObject struct {
 	ID    IdType      `multiIndex:"id,increment,byScope"`
-	Code  AccountName `multiIndex:"orderedNonUnique,less"`
-	Scope ScopeName   `multiIndex:"byTable,orderedNonUnique,greater:byScope,orderedNonUnique,less"`
-	Table TableName   `multiIndex:"byTable,orderedNonUnique,greater"`
-	Payer AccountName `multiIndex:"byScope,orderedNonUnique"`
+	Code  AccountName `multiIndex:"orderedUnique,less"`
+	Scope ScopeName   `multiIndex:"byTable,orderedUnique,greater:byScope,orderedUnique,less"`
+	Table TableName   `multiIndex:"byTable,orderedUnique,greater"`
+	Payer AccountName `multiIndex:"byScope,orderedUnique"`
 	Count uint32
 }
 
 type DbResourceLimitsObject struct {
 	ID        IdType      `multiIndex:"id,increment"`
-	Pending   bool        `multiIndex:"byOwner,orderedNonUnique"`
-	Owner     AccountName `multiIndex:"byOwner,orderedNonUnique"`
+	Pending   bool        `multiIndex:"byOwner,orderedUnique"`
+	Owner     AccountName `multiIndex:"byOwner,orderedUnique"`
 	NetWeight int64
 	CpuWeight int64
 	RamBytes  int64

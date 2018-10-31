@@ -10,7 +10,6 @@ import (
 const (
 	tagPrefix      = "multiIndex"
 	tagID          = "id"
-	tagNoUniqueIdx = "orderedNonUnique"
 	tagUniqueIdx   = "orderedUnique"
 	tagIncrement   = "increment"
 	tagLess        = "less"
@@ -146,6 +145,12 @@ func extractObjectTagInfo(s *reflect.Value, mi ...*structInfo) (*structInfo, err
 			return nil, err
 		}
 	}
+
+	for tag,_ := range m.Fields{
+		if len(m.Fields[tag].fieldValue) == 1{
+			m.Fields[tag].unique = true
+		}
+	}
 	return m, nil
 }
 
@@ -175,9 +180,9 @@ func splitSubTag(fieldName string, fieldValue *reflect.Value, tag string, m *str
 
 		return extractIdTag(tags, fieldValue, m)
 
-	} else if tagPre == tagUniqueIdx || tagPre == tagNoUniqueIdx {
+	} else if tagPre == tagUniqueIdx {
 
-		return extractUniqueOrNoUniqueTag(tagPre, fieldName, tags, fieldValue, m)
+		return extractUniqueTag( fieldName, tags, fieldValue, m)
 
 	} else if tagPre == tagInline {
 
@@ -200,7 +205,6 @@ func extractIdTag(tags []string, fieldValue *reflect.Value, m *structInfo) error
 			continue
 		}
 		f := fieldInfo{}
-		f.unique = true
 		m.Id = fieldValue
 		addFieldInfo(subTag, tagID, fieldValue, &f, m)
 
@@ -208,12 +212,10 @@ func extractIdTag(tags []string, fieldValue *reflect.Value, m *structInfo) error
 	return nil
 }
 
-func extractUniqueOrNoUniqueTag(tagPre, fieldName string, tags []string, fieldValue *reflect.Value, m *structInfo) error {
+func extractUniqueTag(fieldName string, tags []string, fieldValue *reflect.Value, m *structInfo) error {
 
 	f := fieldInfo{}
-	if tagPre == tagUniqueIdx {
-		f.unique = true
-	}
+
 	tagLen := len(tags)
 	subTag := fieldName
 	if tagLen > 1 {
@@ -249,12 +251,8 @@ func extractOtherTag(tagPre, fieldName string, tags []string, fieldValue *reflec
 		}
 	}
 	tagIdx := tags[1]
-	if tagIdx != tagUniqueIdx && tagIdx != tagNoUniqueIdx {
+	if tagIdx != tagUniqueIdx {
 		return ErrTagInvalid
-	}
-
-	if tagIdx == tagUniqueIdx {
-		f.unique = true
 	}
 	addFieldInfo(tagPre, fieldName, fieldValue, &f, m)
 	return nil
@@ -278,7 +276,6 @@ func addFieldInfo(tag, fieldName string, fieldValue *reflect.Value, f *fieldInfo
 increment			-->	typeName
 id field  			--> typeName__tagName__fieldValue
 unique fields 		--> typeName__tagName__fieldValue
-non unique field 	--> typeName__fieldName__idFieldValue__fieldValue
 non unique fields 	--> typeName__tagName__fieldValue[0]__fieldValue[1]...
 
 								all value
@@ -286,7 +283,6 @@ non unique fields 	--> typeName__tagName__fieldValue[0]__fieldValue[1]...
 increment			-->	val
 id field  			--> objectValue
 unique fields 		--> idFieldValue
-non unique field 	--> idFieldValue
 non unique fields 	--> idFieldValue
 
 */
