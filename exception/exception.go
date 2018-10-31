@@ -39,6 +39,11 @@ type Exception interface {
 	setMessage(s string)
 }
 
+type FcException struct { logMessage }
+func (FcException) Code() ExcTypes { return UnspecifiedExceptionCode }
+func (FcException) What() string   { return "unspecified" }
+
+
 // Exception log manager
 type logMessage struct {
 	message string
@@ -77,6 +82,7 @@ func formatMessage(exception Exception, format string, args ...interface{}) {
 func makeLog(exception Exception) {
 	println(exception.Message())
 }
+
 
 type UnHandledException struct{ logMessage }
 
