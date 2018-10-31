@@ -1,15 +1,22 @@
 package chain
 
 import (
+	"fmt"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/database"
 	"github.com/eosspark/eos-go/entity"
 	. "github.com/eosspark/eos-go/exception"
-	"github.com/eosspark/eos-go/exception/try"
+	//"github.com/eosspark/eos-go/exception/try"
 	"math"
 	//"github.com/eosspark/eos-go/log"
 )
+
+type AccountForSet common.AccountName
+
+func (f *AccountForSet) GetKey() uint64 {
+	return uint64(*f)
+}
 
 type TransactionContext struct {
 	Control               *Controller
@@ -20,8 +27,8 @@ type TransactionContext struct {
 	Start                 common.TimePoint
 	Published             common.TimePoint
 	Executed              []types.ActionReceipt
-	BillToAccounts        []common.AccountName
-	ValidateRamUsage      []common.AccountName
+	BillToAccounts        common.FlatSet
+	ValidateRamUsage      common.FlatSet
 	InitialMaxBillableCpu uint64
 	Delay                 common.Microseconds
 	IsInput               bool
@@ -78,7 +85,7 @@ func NewTransactionContext(c *Controller, t *types.SignedTransaction, trxId comm
 	}
 
 	//for testing
-	tc.ValidateRamUsage = make([]common.AccountName, 10)
+	//tc.ValidateRamUsage = make([]common.AccountName, 10)
 
 	// if !c.SkipDbSessions() {
 	// 	tc.UndoSession = c.DB.StartSession()
@@ -122,8 +129,8 @@ func (t *TransactionContext) init(initialNetUsage uint64) {
 	// Possibly lower objective_duration_limit to the maximum cpu usage a transaction is allowed to be billed
 	mtcu := uint64(cfg.MaxTransactionCpuUsage)
 	if mtcu <= uint64(t.objectiveDurationLimit.Count()) {
-		t.objectiveDurationLimit = common.Milliseconds(int64(cfg.MaxTransactionCpuUsage))
-		t.billingTimerExceptionCode = int64(TxCpuUsageExceed{}.Code()) //TODO
+		t.objectiveDurationLimit = common.Microseconds(int64(cfg.MaxTransactionCpuUsage))
+		t.billingTimerExceptionCode = int64(TxCpuUsageExceed{}.Code())
 		t.deadline = t.Start + common.TimePoint(t.objectiveDurationLimit)
 	}
 
@@ -153,34 +160,39 @@ func (t *TransactionContext) init(initialNetUsage uint64) {
 	// Record accounts to be billed for network and CPU usage
 	for _, act := range t.Trx.Actions {
 		for _, auth := range act.Authorization {
-			t.BillToAccounts = append(t.BillToAccounts, auth.Actor)
+			//t.BillToAccounts = append(t.BillToAccounts, auth.Actor)
+			a := common.S(uint64(auth.Actor))
+			fmt.Println(a)
+
+			account := AccountForSet(auth.Actor)
+			t.BillToAccounts.Insert(&account)
 		}
 	}
 
-	t.ValidateRamUsage = make([]common.AccountName, len(t.BillToAccounts))
+	//t.ValidateRamUsage = make([]common.AccountName, t.BillToAccounts.Len())
 
 	// Update usage values of accounts to reflect new time
-	rl.UpdateAccountUsage(t.BillToAccounts, uint32(common.BlockTimeStamp(t.Control.PendingBlockTime())))
+	rl.UpdateAccountUsage(&t.BillToAccounts, uint32(common.BlockTimeStamp(t.Control.PendingBlockTime())))
 
 	// Calculate the highest network usage and CPU time that all of the billed accounts can afford to be billed
-	//accountNetLimit, accountCpuLimit, greylistedNet, greylistedCpu := t.MaxBandwidthBilledAccountsCanPay(false)
-	//t.netLimitDueToGreylist = t.netLimitDueToGreylist || greylistedNet
-	//t.cpuLimitDueToGreylist = t.cpuLimitDueToGreylist || greylistedCpu
-	//
-	//t.eagerNetLimit = t.netLimit
-	//
-	//// Possible lower eager_net_limit to what the billed accounts can pay plus some (objective) leeway
-	//newEagerNetLimit := common.Min(t.eagerNetLimit, uint64(accountNetLimit+uint64(cfg.NetUsageLeeway)))
-	//if newEagerNetLimit < t.eagerNetLimit {
-	//	t.eagerNetLimit = newEagerNetLimit
-	//	t.netLimitDueToBlock = false
-	//}
+	accountNetLimit, accountCpuLimit, greylistedNet, greylistedCpu := t.MaxBandwidthBilledAccountsCanPay(false)
+	t.netLimitDueToGreylist = t.netLimitDueToGreylist || greylistedNet
+	t.cpuLimitDueToGreylist = t.cpuLimitDueToGreylist || greylistedCpu
+
+	t.eagerNetLimit = t.netLimit
+
+	// Possible lower eager_net_limit to what the billed accounts can pay plus some (objective) leeway
+	newEagerNetLimit := common.Min(t.eagerNetLimit, uint64(accountNetLimit+int64(cfg.NetUsageLeeway)))
+	if newEagerNetLimit < t.eagerNetLimit {
+		t.eagerNetLimit = newEagerNetLimit
+		t.netLimitDueToBlock = false
+	}
 
 	// Possibly limit deadline if the duration accounts can be billed for (+ a subjective leeway) does not exceed current delta
-	//if common.Milliseconds(int64(accountCpuLimit))+t.Leeway <= common.Microseconds(t.deadline-t.Start) {
-	//	t.deadline = t.Start + common.TimePoint(accountCpuLimit) + common.TimePoint(t.Leeway)
-	//	t.billingTimerExceptionCode = int64(LeewayDeadlineException{}.Code())
-	//}
+	if common.Microseconds(int64(accountCpuLimit))+t.Leeway <= common.Microseconds(t.deadline-t.Start) {
+		t.deadline = t.Start + common.TimePoint(accountCpuLimit) + common.TimePoint(t.Leeway)
+		t.billingTimerExceptionCode = int64(LeewayDeadlineException{}.Code())
+	}
 
 	t.billingTimerDurationLimit = common.Microseconds(t.deadline - t.Start)
 
@@ -278,8 +290,10 @@ func (t *TransactionContext) Finalize() {
 	}
 
 	rl := t.Control.GetMutableResourceLimitsManager()
-	for a := range t.ValidateRamUsage {
-		rl.VerifyAccountRamUsage(common.AccountName(a))
+	for _, a := range t.ValidateRamUsage.Data {
+
+		account := a.(*AccountForSet)
+		rl.VerifyAccountRamUsage(common.AccountName(*account))
 	}
 
 	// Calculate the highest network usage and CPU time that all of the billed accounts can afford to be billed
@@ -287,12 +301,12 @@ func (t *TransactionContext) Finalize() {
 	t.netLimitDueToGreylist = t.netLimitDueToGreylist || greylistedNet
 	t.cpuLimitDueToGreylist = t.cpuLimitDueToGreylist || greylistedCpu
 
-	if accountNetLimit <= t.netLimit {
+	if accountNetLimit <= int64(t.netLimit) {
 		t.netLimit = uint64(accountNetLimit)
 		t.netLimitDueToBlock = false
 	}
 
-	if accountCpuLimit <= uint64(t.objectiveDurationLimit.Count()) {
+	if accountCpuLimit <= int64(t.objectiveDurationLimit.Count()) {
 		t.objectiveDurationLimit = common.Microseconds(accountCpuLimit)
 		t.billingTimerExceptionCode = int64((TxCpuUsageExceed{}).Code())
 	}
@@ -307,7 +321,7 @@ func (t *TransactionContext) Finalize() {
 	t.UpdateBilledCpuTime(now)
 	t.validateCpuUsageToBill(t.BilledCpuTimeUs, true)
 
-	rl.AddTransactionUsage(t.BillToAccounts, uint64(t.BilledCpuTimeUs), *t.netUsage, uint32(common.BlockTimeStamp(t.Control.PendingBlockTime())))
+	rl.AddTransactionUsage(&t.BillToAccounts, uint64(t.BilledCpuTimeUs), *t.netUsage, uint32(common.BlockTimeStamp(t.Control.PendingBlockTime())))
 
 }
 
@@ -345,6 +359,8 @@ func (t *TransactionContext) CheckNetUsage() {
 }
 
 func (t *TransactionContext) CheckTime() {
+
+	return
 
 	if !t.Control.SkipTrxChecks() {
 		now := common.Now()
@@ -421,6 +437,7 @@ func (t *TransactionContext) ResumeBillingTimer() {
 }
 
 func (t *TransactionContext) validateCpuUsageToBill(billedUs int64, checkMinimum bool) {
+	return
 	if !t.Control.SkipTrxChecks() {
 		if checkMinimum {
 			cfg := t.Control.GetGlobalProperties().Configuration
@@ -457,12 +474,8 @@ func (t *TransactionContext) AddRamUsage(account common.AccountName, ramDelta in
 	rl := t.Control.GetMutableResourceLimitsManager()
 	rl.AddPendingRamUsage(account, ramDelta)
 	if ramDelta > 0 {
-		// if len(t.ValidateRamUsage) == 0 {
-		// 	t.ValidateRamUsage = []common.AccountName{5}
-		// 	t.ValidateRamUsage = append(t.ValidateRamUsage, account)
-		// } else {
-		t.ValidateRamUsage = append(t.ValidateRamUsage, account)
-		//}
+		a := AccountForSet(account)
+		t.ValidateRamUsage.Insert(&a)
 	}
 }
 
@@ -476,25 +489,37 @@ func (t *TransactionContext) UpdateBilledCpuTime(now common.TimePoint) uint32 {
 	return uint32(t.BilledCpuTimeUs)
 }
 
-func (t *TransactionContext) MaxBandwidthBilledAccountsCanPay(forceElasticLimits bool) (uint64, uint64, bool, bool) {
+//func Min(x, y int64) int64 {
+//	if x < y {
+//		return x
+//	} else {
+//		return y
+//	}
+//}
+
+func (t *TransactionContext) MaxBandwidthBilledAccountsCanPay(forceElasticLimits bool) (int64, int64, bool, bool) {
 	rl := t.Control.GetMutableResourceLimitsManager()
-	largeNumberNoOverflow := uint64(math.MaxUint64 / 2)
+	largeNumberNoOverflow := int64(math.MaxInt64 / 2)
 	accountNetLimit := largeNumberNoOverflow
 	accountCpuLimit := largeNumberNoOverflow
 	greylistedNet := false
 	greylistedCpu := false
-	for _, a := range t.BillToAccounts {
-		elastic := forceElasticLimits || !(t.Control.IsProducingBlock()) && t.Control.IsResourceGreylisted(&a)
-		netLimit := uint64(rl.GetAccountNetLimit(a, elastic))
+	for _, a := range t.BillToAccounts.Data {
+
+		accountName := a.(*AccountForSet)
+		account := common.AccountName(*accountName)
+
+		elastic := forceElasticLimits || !(t.Control.IsProducingBlock()) && t.Control.IsResourceGreylisted(&account)
+		netLimit := uint64(rl.GetAccountNetLimit(account, elastic))
 		if netLimit >= 0 {
-			accountNetLimit = common.Min(accountNetLimit, netLimit)
+			accountNetLimit = int64(common.Min(uint64(accountNetLimit), uint64(netLimit)))
 			if !elastic {
 				greylistedNet = true
 			}
 		}
-		cpuLimit := uint64(rl.GetAccountCpuLimit(a, elastic))
+		cpuLimit := uint64(rl.GetAccountCpuLimit(account, elastic))
 		if cpuLimit >= 0 {
-			accountCpuLimit = common.Min(accountCpuLimit, cpuLimit)
+			accountCpuLimit = int64(common.Min(uint64(accountCpuLimit), uint64(cpuLimit)))
 			if !elastic {
 				greylistedCpu = true
 			}
@@ -509,12 +534,12 @@ func (t *TransactionContext) DispathAction(trace *types.ActionTrace, action *typ
 	applyContext.ContextFree = contextFree
 	applyContext.Receiver = receiver
 
-	try.Try(func() {
-		applyContext.Exec(trace)
-	}).Catch(func(e Exception) {
-		*trace = applyContext.Trace
-		try.Throw(e)
-	}).End()
+	//try.Try(func() {
+	applyContext.Exec(trace)
+	//}).Catch(func(e Exception) {
+	//	*trace = applyContext.Trace
+	//	try.Throw(e)
+	//}).End()
 
 	*trace = applyContext.Trace
 }

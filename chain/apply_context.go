@@ -223,7 +223,7 @@ func (a *ApplyContext) execOne(trace *types.ActionTrace) {
 		}
 	}).Catch(func(e Exception) {
 		trace.Receipt = r
-		//trace.Except = e
+		trace.Except = e
 		a.FinalizeTrace(trace, &start)
 		try.Throw(e)
 	}).End()
@@ -891,12 +891,11 @@ func (a *ApplyContext) AddRamUsage(account common.AccountName, ramDelta int64) {
 
 	a.TrxContext.AddRamUsage(account, ramDelta)
 
-	// auto p = _account_ram_deltas.emplace( account, ram_delta );
-	// if( !p.second ) {
-	// 	p.first->delta += ram_delta;
-	// }
-
-	//a.AccountRamDeltas.Append(account, ramDelta)
+	accountDelta := types.AccountDelta{account, ramDelta}
+	p, ok := a.AccountRamDeltas.Insert(&accountDelta)
+	if !ok {
+		p.(*types.AccountDelta).Delta += ramDelta
+	}
 
 }
 
