@@ -1,26 +1,20 @@
 package asio
 
-import (
-	"reflect"
-	)
+import "github.com/eapache/channels"
 
 type GoroutineReactor struct {
-	opQueue  chan operation
+	//opQueue  chan operation
+	opQueue  *channels.InfiniteChannel
 	sigQueue chan operation
 	down 	 chan struct{}
 }
 
-type operation struct {
-	function  interface{}
-	argument  []interface{}
-}
-
 func NewGoroutineReactor() *GoroutineReactor {
 	r := new(GoroutineReactor)
-	r.opQueue = make(chan operation, 128)
+	//r.opQueue = make(chan operation, 128)
+	r.opQueue = channels.NewInfiniteChannel()
 	r.sigQueue = make(chan operation, 1)
 	r.down = make(chan struct{}, 1)
-	//r.notifies = make(chan os.Signal, 1)
 	return r
 }
 
@@ -33,18 +27,21 @@ func (i *IoContext) GetService () ReactorService {
 }
 
 func (g *GoroutineReactor) run() {
-	for ;; {
+LP:	for ;; {
 		select {
 		case <-g.down:
-			return
+			break LP
 
 		case sig := <-g.sigQueue:
-			g.doReactor(sig.function, sig.argument)
+			doReactor(sig)
 
-		case op := <-g.opQueue:
-			g.doReactor(op.function, op.argument)
+		//case op := <-g.opQueue:
+		//	doReactor(op)
+		case op := <-g.opQueue.Out():
+			doReactor(op.(operation))
 		}
 	}
+
 }
 
 func (g *GoroutineReactor) stop() {
@@ -52,50 +49,13 @@ func (g *GoroutineReactor) stop() {
 }
 
 func (g *GoroutineReactor) post(op interface{}, args ...interface{}) {
-	g.opQueue <- operation{op, args}
+	//g.opQueue <- operation{op, args}
+	g.opQueue.In() <- operation{op, args}
 }
 
 func (g *GoroutineReactor) notify(op interface{}, args ...interface{}) {
 	g.sigQueue <- operation{op, args}
 }
 
-func (g *GoroutineReactor) doReactor(op interface{}, args []interface{}) {
-	opv := reflect.ValueOf(op)
-	opt := reflect.TypeOf(op)
 
-	if opt == nil {
-		println("invalid operation <nil>")
-	}
-
-	if opt.Kind() != reflect.Func {
-		println("op must be a callback function")
-		return
-	}
-
-	opNum := opt.NumIn()
-	if opNum != len(args) {
-		println("invalid arguments", "arguments needs:", opNum)
-		return
-	}
-
-	opArgs := make([]reflect.Value, opNum)
-
-	for i:=0; i<opt.NumIn(); i++ {
-		if args[i] == nil {
-			opArgs[i] = reflect.Zero(opt.In(i))
-			continue
-		}
-
-		if !reflect.TypeOf(args[i]).AssignableTo(opt.In(i)) {
-			println("invalid arguments", "wrong args#", i)
-			return
-		}
-
-		opArgs[i] = reflect.ValueOf(args[i])
-	}
-
-	//fmt.Println("args", opArgs)
-
-	opv.Call(opArgs)
-}
 

@@ -2,198 +2,102 @@ package wasmgo
 
 import (
 	arithmetic "github.com/eosspark/eos-go/common/arithmetic_types"
+	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/eosspark/eos-go/exception"
 	"math"
 	"unsafe"
 )
 
+var count = 0
+
 const SHIFT_WIDTH = uint32(unsafe.Sizeof(uint64(0)*8) - 1) //63
 
-// void __ashlti3(__int128& ret, uint64_t low, uint64_t high, uint32_t shift) {
-//    fc::uint128_t i(high, low);
-//    i <<= shift;
-//    ret = (unsigned __int128)i;
-// }
 func ashlti3(w *WasmGo, ret int, low, high int64, shift int) {
-	i := arithmetic.Uint128{uint64(high), uint64(low)}
+	i := arithmetic.Int128{Low: uint64(low), High: uint64(high)}
 	i.LeftShifts(shift)
 
-	re := []byte(i.String())
+	re, _ := rlp.EncodeToBytes(i)
 	setMemory(w, ret, re, 0, len(re))
 }
 
-// void __ashrti3(__int128& ret, uint64_t low, uint64_t high, uint32_t shift) {
-//    // retain the signedness
-//    ret = high;
-//    ret <<= 64;
-//    ret |= low;
-//    ret >>= shift;
-// }
 func ashrti3(w *WasmGo, ret int, low, high int64, shift int) {
-	// retain the signedness
-	i := arithmetic.Int128{uint64(high), uint64(low)}
+	i := arithmetic.Int128{Low: uint64(low), High: uint64(high)}
 	i.RightShifts(shift)
 
-	re := []byte(i.String())
+	re, _ := rlp.EncodeToBytes(i)
 	setMemory(w, ret, re, 0, len(re))
-
 }
-
-// void __lshlti3(__int128& ret, uint64_t low, uint64_t high, uint32_t shift) {
-//    fc::uint128_t i(high, low);
-//    i <<= shift;
-//    ret = (unsigned __int128)i;
-// }
 
 func lshlti3(w *WasmGo, ret int, low, high int64, shift int) {
-	i := arithmetic.Uint128{uint64(high), uint64(low)}
+	i := arithmetic.Int128{Low: uint64(low), High: uint64(high)}
 	i.LeftShifts(shift)
 
-	re := []byte(i.String())
+	re, _ := rlp.EncodeToBytes(i)
 	setMemory(w, ret, re, 0, len(re))
 }
 
-// void __lshrti3(__int128& ret, uint64_t low, uint64_t high, uint32_t shift) {
-//    fc::uint128_t i(high, low);
-//    i >>= shift;
-//    ret = (unsigned __int128)i;
-// }
 func lshrti3(w *WasmGo, ret int, low, high int64, shift int) {
-	i := arithmetic.Uint128{uint64(high), uint64(low)}
+	i := arithmetic.Uint128{Low: uint64(low), High: uint64(high)}
 	i.RightShifts(shift)
 
-	re := []byte(i.String())
+	re, _ := rlp.EncodeToBytes(i)
 	setMemory(w, ret, re, 0, len(re))
 }
 
-// void __divti3(__int128& ret, uint64_t la, uint64_t ha, uint64_t lb, uint64_t hb) {
-//    __int128 lhs = ha;
-//    __int128 rhs = hb;
-
-//    lhs <<= 64;
-//    lhs |=  la;
-
-//    rhs <<= 64;
-//    rhs |=  lb;
-
-//    EOS_ASSERT(rhs != 0, arithmetic_exception, "divide by zero");
-
-//    lhs /= rhs;
-
-//    ret = lhs;
-// }
 func divti3(w *WasmGo, ret int, la, ha, lb, hb int64) {
-	lhs := arithmetic.Int128{uint64(ha), uint64(la)}
-	rhs := arithmetic.Int128{uint64(hb), uint64(lb)}
+	lhs := arithmetic.Int128{Low: uint64(la), High: uint64(ha)}
+	rhs := arithmetic.Int128{Low: uint64(lb), High: uint64(hb)}
 
 	exception.EosAssert(!rhs.IsZero(), &exception.ArithmeticException{}, "divide by zero")
-	quotient, _ := lhs.Div(rhs)
 
-	re := []byte(quotient.String())
+	quotient, _ := lhs.Div(rhs)
+	re, _ := rlp.EncodeToBytes(quotient)
 	setMemory(w, ret, re, 0, len(re))
 }
 
-// void __udivti3(unsigned __int128& ret, uint64_t la, uint64_t ha, uint64_t lb, uint64_t hb) {
-//    unsigned __int128 lhs = ha;
-//    unsigned __int128 rhs = hb;
-
-//    lhs <<= 64;
-//    lhs |=  la;
-
-//    rhs <<= 64;
-//    rhs |=  lb;
-
-//    EOS_ASSERT(rhs != 0, arithmetic_exception, "divide by zero");
-
-//    lhs /= rhs;
-//    ret = lhs;
-// }
 func udivti3(w *WasmGo, ret int, la, ha, lb, hb int64) {
-	lhs := arithmetic.Uint128{uint64(ha), uint64(la)}
-	rhs := arithmetic.Uint128{uint64(hb), uint64(lb)}
+	lhs := arithmetic.Uint128{Low: uint64(la), High: uint64(ha)}
+	rhs := arithmetic.Uint128{Low: uint64(lb), High: uint64(hb)}
 
 	exception.EosAssert(!rhs.IsZero(), &exception.ArithmeticException{}, "divide by zero")
 	quotient, _ := lhs.Div(rhs)
 
-	re := []byte(quotient.String())
+	re, _ := rlp.EncodeToBytes(quotient)
 	setMemory(w, ret, re, 0, len(re))
 }
 
-// void __multi3(__int128& ret, uint64_t la, uint64_t ha, uint64_t lb, uint64_t hb) {
-//    __int128 lhs = ha;
-//    __int128 rhs = hb;
-
-//    lhs <<= 64;
-//    lhs |=  la;
-
-//    rhs <<= 64;
-//    rhs |=  lb;
-
-//    lhs *= rhs;
-//    ret = lhs;
-// }
 func multi3(w *WasmGo, ret int, la, ha, lb, hb int64) {
-	lhs := arithmetic.Int128{uint64(ha), uint64(la)}
-	rhs := arithmetic.Int128{uint64(hb), uint64(lb)}
+	lhs := arithmetic.Int128{Low: uint64(la), High: uint64(ha)}
+	rhs := arithmetic.Int128{Low: uint64(lb), High: uint64(hb)}
 
-	re := []byte(lhs.Mul(rhs).String())
+	re, _ := rlp.EncodeToBytes(lhs.Mul(rhs))
 	setMemory(w, ret, re, 0, len(re))
 
 }
 
-// void __modti3(__int128& ret, uint64_t la, uint64_t ha, uint64_t lb, uint64_t hb) {
-//    __int128 lhs = ha;
-//    __int128 rhs = hb;
-
-//    lhs <<= 64;
-//    lhs |=  la;
-
-//    rhs <<= 64;
-//    rhs |=  lb;
-
-//    EOS_ASSERT(rhs != 0, arithmetic_exception, "divide by zero");
-
-//    lhs %= rhs;
-//    ret = lhs;
-// }
 func modti3(w *WasmGo, ret int, la, ha, lb, hb int64) {
-	lhs := arithmetic.Int128{uint64(ha), uint64(la)}
-	rhs := arithmetic.Int128{uint64(hb), uint64(lb)}
-
+	lhs := arithmetic.Int128{High: uint64(ha), Low: uint64(la)}
+	rhs := arithmetic.Int128{High: uint64(hb), Low: uint64(lb)}
 	exception.EosAssert(!rhs.IsZero(), &exception.ArithmeticException{}, "divide by zero")
 
 	_, remainder := lhs.Div(rhs)
-	re := []byte(remainder.String())
+	re, _ := rlp.EncodeToBytes(remainder)
 	setMemory(w, ret, re, 0, len(re))
 }
 
-// void __umodti3(unsigned __int128& ret, uint64_t la, uint64_t ha, uint64_t lb, uint64_t hb) {
-//    unsigned __int128 lhs = ha;
-//    unsigned __int128 rhs = hb;
-
-//    lhs <<= 64;
-//    lhs |=  la;
-
-//    rhs <<= 64;
-//    rhs |=  lb;
-
-//    EOS_ASSERT(rhs != 0, arithmetic_exception, "divide by zero");
-
-//    lhs %= rhs;
-//    ret = lhs;
-// }
 func umodti3(w *WasmGo, ret int, la, ha, lb, hb int64) {
-	lhs := arithmetic.Uint128{High: uint64(ha), Low: uint64(la)}
-	rhs := arithmetic.Uint128{High: uint64(hb), Low: uint64(lb)}
+	lhs := arithmetic.Uint128{Low: uint64(la), High: uint64(ha)}
+	rhs := arithmetic.Uint128{Low: uint64(lb), High: uint64(hb)}
 
 	exception.EosAssert(!rhs.IsZero(), &exception.ArithmeticException{}, "divide by zero")
 	_, remainder := lhs.Div(rhs)
-
-	re := []byte(remainder.String())
+	re, _ := rlp.EncodeToBytes(remainder)
 	setMemory(w, ret, re, 0, len(re))
 }
 
-// // arithmetic long double
+//
+
+// arithmetic long double
 // void __addtf3( float128_t& ret, uint64_t la, uint64_t ha, uint64_t lb, uint64_t hb ) {
 //    float128_t a = {{ la, ha }};
 //    float128_t b = {{ lb, hb }};
@@ -204,7 +108,7 @@ func addtf3(w *WasmGo, ret int, la, ha, lb, hb int64) {
 	a := arithmetic.Float128{High: uint64(ha), Low: uint64(la)}
 	b := arithmetic.Float128{High: uint64(hb), Low: uint64(lb)}
 
-	re := a.Add(b).Bytes()
+	re, _ := rlp.EncodeToBytes(a.Add(b))
 	setMemory(w, ret, re, 0, len(re))
 }
 

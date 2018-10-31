@@ -146,6 +146,16 @@ func NewWasmGo() *WasmGo {
 	w.Register("get_action", getAction)
 	w.Register("get_context_free_data", getContextFreeData)
 
+	w.Register("__ashlti3", ashlti3)
+	w.Register("__ashrti3", ashrti3)
+	w.Register("__divti3", divti3)
+	w.Register("__lshlti3", lshlti3)
+	w.Register("__lshrti3", lshrti3)
+	w.Register("__modti3", modti3)
+	w.Register("__multi3", multi3)
+	w.Register("__udivti3", udivti3)
+	w.Register("__umodti3", umodti3)
+
 	wasmGo = &w
 
 	return wasmGo

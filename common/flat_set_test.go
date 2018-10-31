@@ -1,6 +1,7 @@
 package common
 
 import (
+	"fmt"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
@@ -23,17 +24,15 @@ func TestFlat(t *testing.T) {
 				ad := AccountDeltaDemo{}
 				ad.A = AccountName(i)
 				ad.B = int64(i)
-
 				f.Data = append(f.Data, &ad)
-				//f.SetData(f.Data)
 			}
 		}
 		param := AccountDeltaDemo{}
 		param.A = AccountName(0)
 		param.B = int64(0)
 		result, p := f.Insert(&param)
-
-		assert.Equal(t, param, result)
+		fmt.Println(result, p)
+		assert.Equal(t, &param, result)
 		assert.Equal(t, false, p)
 	}
 	if end == 19 {
@@ -43,15 +42,14 @@ func TestFlat(t *testing.T) {
 				ad := AccountDeltaDemo{}
 				ad.A = AccountName(i)
 				ad.B = int64(i)
-
 				f.Data = append(f.Data, &ad)
 			}
 		}
 		param := AccountDeltaDemo{19, 19}
 
 		result, p := f.Insert(&param)
-		//fmt.Println(result)
-		assert.Equal(t, param, result)
+		fmt.Println(result, p)
+		assert.Equal(t, &param, result)
 		assert.Equal(t, false, p)
 	}
 	if midle == 8 {
@@ -67,8 +65,8 @@ func TestFlat(t *testing.T) {
 		param := AccountDeltaDemo{8, 8}
 
 		result, p := f.Insert(&param)
-		//fmt.Println(result,p)
-		assert.Equal(t, param, result)
+		fmt.Println(result, p)
+		assert.Equal(t, &param, result)
 		assert.Equal(t, false, p)
 	}
 	if eq == 10 {
@@ -82,8 +80,8 @@ func TestFlat(t *testing.T) {
 		param := AccountDeltaDemo{8, 8}
 
 		result, p := f.Insert(&param)
-		//fmt.Println(result,p)
-		assert.Equal(t, param, result)
+		fmt.Println(result, p)
+		assert.Equal(t, &param, result)
 		assert.Equal(t, true, p)
 	}
 }
@@ -102,8 +100,8 @@ func TestFlatSet_GetData(t *testing.T) {
 
 	result := f.GetData(8)
 	r := f.GetData(20)
+	assert.Equal(t, &param, result)
 	assert.Equal(t, true, Empty(r))
-	assert.Equal(t, param, *result)
 
 }
 
@@ -117,9 +115,35 @@ func TestFlatSet_Clear(t *testing.T) {
 	}
 	f.Clear()
 
-	ad := AccountDeltaDemo{0, 0}
+	param := AccountDeltaDemo{0, 0}
 
-	result, b := f.Insert(&ad)
+	result, b := f.Insert(&param)
+	assert.Equal(t, &param, result)
 	assert.Equal(t, false, b)
-	assert.Equal(t, ad, result)
+}
+
+func Test(t *testing.T) {
+	f := FlatSet{}
+	for i := 0; i < 20; i++ {
+		if i != 18 {
+			ad := AccountDeltaDemo{}
+			ad.A = AccountName(i)
+			ad.B = int64(i)
+			f.Data = append(f.Data, &ad)
+		}
+	}
+	element := AccountDeltaDemo{8, 8}
+
+	length := len(f.Data)
+	r, i, j := 0, 0, length-1
+	for i < j {
+		h := int(uint(i+j) >> 1)
+		if f.Data[h].GetKey() <= element.GetKey() {
+			i = h + 1
+		} else {
+			j = h
+		}
+		r = h
+	}
+	fmt.Println(r)
 }

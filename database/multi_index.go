@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"github.com/eosspark/eos-go/crypto/rlp"
+	"log"
 )
 
 type MultiIndex struct {
@@ -94,7 +95,7 @@ func (index *MultiIndex) BeginData(out interface{}) error {
 	// TODO
 	it := index.Begin()
 	if it == nil{
-		panic("MultiIndex BeginData : iterator is nil")
+		return errors.New("MultiIndex BeginData : iterator is nil")
 	}
 	err := rlp.DecodeBytes(it.Value(), out)
 	if err != nil {
@@ -180,11 +181,12 @@ error 				-->		nil
 func (index *MultiIndex) Begin() Iterator {
 	it, err := index.db.BeginIterator(index.begin, index.end, index.fieldName, index.typeName, index.greater)
 	if err != nil {
-		panic(err)
+		log.Println("MultiIndex Begin Error : ",err)
 		return nil
 	}
 	if it == nil {
-		panic("begin iterator failed")
+		log.Println("MultiIndex Begin Iterator Is Empty ")
+		return nil
 	}
 	return it
 }
