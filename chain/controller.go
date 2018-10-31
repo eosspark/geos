@@ -46,12 +46,12 @@ const (
 )
 
 type Config struct {
-	ActorWhitelist          map[common.AccountName]struct{}
-	ActorBlacklist          map[common.AccountName]struct{}
-	ContractWhitelist       map[common.AccountName]struct{}
-	ContractBlacklist       map[common.AccountName]struct{}
-	ActionBlacklist         map[common.Pair]struct{} //see actionBlacklist
-	KeyBlacklist            map[ecc.PublicKey]struct{}
+	ActorWhitelist          common.FlatSet //common.AccountName
+	ActorBlacklist          common.FlatSet //common.AccountName
+	ContractWhitelist       common.FlatSet //common.AccountName
+	ContractBlacklist       common.FlatSet //common.AccountName]struct{}
+	ActionBlacklist         common.FlatSet //common.Pair //see actionBlacklist
+	KeyBlacklist            common.FlatSet
 	blocksDir               string
 	stateDir                string
 	stateSize               uint64
@@ -87,7 +87,7 @@ type Controller struct {
 	Head                           *types.BlockState
 	ForkDB                         *types.ForkDatabase
 	WasmIf                         *wasmgo.WasmGo
-	ResourceLimists                *ResourceLimitsManager
+	ResourceLimits                 *ResourceLimitsManager
 	Authorization                  *AuthorizationManager
 	Config                         Config //local	Config
 	ChainID                        common.ChainIdType
@@ -176,7 +176,7 @@ func newController() *Controller {
 	//readycontroller = make(chan bool)
 	//go initResource(con, readycontroller)
 	con.Pending = &PendingState{}
-	con.ResourceLimists = newResourceLimitsManager(con)
+	con.ResourceLimits = newResourceLimitsManager(con)
 	con.Authorization = newAuthorizationManager(con)
 	con.initialize()
 	return con
@@ -381,7 +381,7 @@ func (c *Controller) PushTransaction(trx types.TransactionMetadata, deadLine com
 			uint32(len(trx.Trx.Signatures)), skipRecording)
 	}
 	if trxContext.CanSubjectivelyFail && c.Pending.BlockStatus == types.Incomplete {
-		c.CheckActorList(trxContext.BillToAccounts)
+		c.CheckActorList(&trxContext.BillToAccounts)
 	}
 	trxContext.Delay = common.Microseconds(trx.Trx.DelaySec)
 	if !c.SkipAuthCheck() && !trx.Implicit {
@@ -470,7 +470,7 @@ func (c *Controller) GetDynamicGlobalProperties() (r *entity.DynamicGlobalProper
 }
 
 func (c *Controller) GetMutableResourceLimitsManager() *ResourceLimitsManager {
-	return c.ResourceLimists
+	return c.ResourceLimits
 }
 
 func (c *Controller) GetOnBlockTransaction() types.SignedTransaction {
@@ -572,6 +572,7 @@ func (c *Controller) GetScheduledTransactions() []common.TransactionIdType {
 	if err != nil {
 		fmt.Println(err)
 	}
+	itr.Release()
 	return result
 }
 func (c *Controller) PushScheduledTransaction(trxId *common.TransactionIdType, deadLine common.TimePoint, billedCpuTimeUs uint32) *types.TransactionTrace {
@@ -646,7 +647,7 @@ func (c *Controller) pushScheduledTransactionByObject(gto *entity.GeneratedTrans
 	}(c.InTrxRequiringChecks)
 
 	c.InTrxRequiringChecks = true
-	//cpuTimeToBillUs = billedCpuTimeUs
+	cpuTimeToBillUs := billedCpuTimeUs
 	trxContext := NewTransactionContext(c, &dtrx, gtrx.TrxId, common.Now())
 	trxContext.Leeway = common.Milliseconds(0)
 	trxContext.Deadline = deadLine
@@ -679,11 +680,55 @@ func (c *Controller) pushScheduledTransactionByObject(gto *entity.GeneratedTrans
 	trace->elapsed = fc::time_point::now() - trx_context.start;
 	}*/
 	trxContext.Undo()
-	if !failureIsSubjective(trace.Except) { /*gtrx.Sender != account_name()*/
-
+	if !failureIsSubjective(trace.Except) && gtrx.Sender != 0 { /*gtrx.Sender != account_name()*/
+		log.Info("", trace.Except.Message())
+		errorTrace := applyOnerror(gtrx, deadLine, trxContext.pseudoStart, &cpuTimeToBillUs, billedCpuTimeUs, explicitBilledCpuTime)
+		errorTrace.FailedDtrxTrace = trace
+		trace = errorTrace
+		if common.Empty(trace.ExceptPtr) {
+			/*emit( self.accepted_transaction, trx );
+			emit( self.applied_transaction, trace );*/
+			c.UndoSession.Squash()
+			return trace
+		}
+		trace.Elapsed = common.Now().TimeSinceEpoch() - trxContext.Start.TimeSinceEpoch()
 	}
 
-	trxContext.InitForDeferredTrx(gtrx.Published)
+	subjective := false
+	if explicitBilledCpuTime {
+		subjective = failureIsSubjective(trace.Except)
+	} else {
+		subjective = scheduledFailureIsSubjective(trace.Except)
+	}
+
+	if !subjective {
+		// hard failure logic
+
+		if !explicitBilledCpuTime {
+			//rl := c.GetMutableResourceLimitsManager()
+			//rl.UpdateAccountUsage( trxContext.BillToAccounts, common.BlockTimeStamp(c.PendingBlockTime()).slot );
+			//accountCpuLimit := 0
+			//accountNetLimit, accountCpuLimit, greylistedNet, greylistedCpu := trxContext.MaxBandwidthBilledAccountsCanPay( true );
+
+			//cpuTimeToBillUs = cpuTimeToBillUs
+			//	accountCpuLimit
+			//	trxContext.initialObjectiveDurationLimit.Count()
+		}
+
+		/*c.ResourceLimits.AddTransactionUsage(trxContext.BillToAccounts, uint64(cpuTimeToBillUs), 0,
+			common.BlockTimeStamp(c.PendingBlockTime()).slot ) // Should never fail
+
+		trace.Receipt := c.pushReceipt(gtrx.TrxId, types.TransactionStatusHardFail, uint64(cpuTimeToBillUs), 0);
+		*/
+		/*emit( self.accepted_transaction, trx );
+		emit( self.applied_transaction, trace );*/
+
+		c.UndoSession.Squash()
+	} else {
+		/*emit( self.accepted_transaction, trx );
+		emit( self.applied_transaction, trace );*/
+	}
+	//trxContext.InitForDeferredTrx(gtrx.Published)
 	//}
 	//TODO
 
@@ -691,8 +736,16 @@ func (c *Controller) pushScheduledTransactionByObject(gto *entity.GeneratedTrans
 	return trace
 }
 
+func applyOnerror(gtrx *entity.GeneratedTransaction, deadline common.TimePoint, start common.TimePoint,
+	cpuTimeToBillUs *uint32, billedCpuTimeUs uint32, explicitBilledCpuTime bool) *types.TransactionTrace {
+	/*etrx :=types.SignedTransaction{}
+	pl := types.PermissionLevel{gtrx.Sender, common.DefaultConfig.ActiveName}
+	etrx.Actions = append(etrx.Actions, {})*/
+
+	return nil
+}
 func (c *Controller) RemoveScheduledTransaction(gto *entity.GeneratedTransactionObject) {
-	c.ResourceLimists.AddPendingRamUsage(gto.Payer, int64(9)+int64(len(gto.PackedTrx))) //TODO billable_size_v
+	c.ResourceLimits.AddPendingRamUsage(gto.Payer, int64(9)+int64(len(gto.PackedTrx))) //TODO billable_size_v
 	c.DB.Remove(gto)
 }
 
@@ -715,6 +768,10 @@ func failureIsSubjective(e Exception) bool {
 
 }
 
+func scheduledFailureIsSubjective(e Exception) bool {
+	code := e.Code()
+	return (code == TxCpuUsageExceed{}.Code()) || failureIsSubjective(e)
+}
 func (c *Controller) setActionMaerkle() {
 	actionDigests := make([]crypto.Sha256, len(c.Pending.Actions))
 	for _, b := range c.Pending.Actions {
@@ -734,7 +791,7 @@ func (c *Controller) FinalizeBlock() {
 
 	EosAssert(!common.Empty(c.Pending), &BlockValidateException{}, "it is not valid to finalize when there is no pending block")
 
-	c.ResourceLimists.ProcessAccountLimitUpdates()
+	c.ResourceLimits.ProcessAccountLimitUpdates()
 	chainConfig := c.GetGlobalProperties().Configuration
 	cpuTarget := common.EosPercent(uint64(chainConfig.MaxBlockCpuUsage), chainConfig.TargetBlockCpuUsagePct)
 	m := uint32(1000)
@@ -756,7 +813,7 @@ func (c *Controller) FinalizeBlock() {
 
 	net.ContractRate.Numerator = 99
 	net.ExpandRate.Denominator = 100
-	c.ResourceLimists.SetBlockParameters(cpu, net)
+	c.ResourceLimits.SetBlockParameters(cpu, net)
 
 	c.setActionMaerkle()
 
@@ -962,47 +1019,47 @@ func (c *Controller) GetAuthorizationManager() *AuthorizationManager { return c.
 func (c *Controller) GetMutableAuthorizationManager() *AuthorizationManager { return c.Authorization }
 
 //c++ flat_set<account_name> map[common.AccountName]interface{}
-func (c *Controller) GetActorWhiteList() *map[common.AccountName]struct{} {
+func (c *Controller) getActorWhiteList() *common.FlatSet {
 	return &c.Config.ActorWhitelist
 }
 
-func (c *Controller) GetActorBlackList() *map[common.AccountName]struct{} {
+func (c *Controller) getActorBlackList() *common.FlatSet {
 	return &c.Config.ActorBlacklist
 }
 
-func (c *Controller) GetContractWhiteList() *map[common.AccountName]struct{} {
+func (c *Controller) getContractWhiteList() *common.FlatSet {
 	return &c.Config.ContractWhitelist
 }
 
-func (c *Controller) GetContractBlackList() *map[common.AccountName]struct{} {
+func (c *Controller) getContractBlackList() *common.FlatSet {
 	return &c.Config.ContractBlacklist
 }
 
-func (c *Controller) GetActionBlockList() *map[common.Pair]struct{} { return &c.Config.ActionBlacklist }
+func (c *Controller) getActionBlockList() *common.FlatSet { return &c.Config.ActionBlacklist }
 
-func (c *Controller) GetKeyBlackList() *map[ecc.PublicKey]struct{} { return &c.Config.KeyBlacklist }
+func (c *Controller) getKeyBlackList() *common.FlatSet { return &c.Config.KeyBlacklist }
 
-func (c *Controller) SetActorWhiteList(params *map[common.AccountName]struct{}) {
+func (c *Controller) setActorWhiteList(params *common.FlatSet) {
 	c.Config.ActorWhitelist = *params
 }
 
-func (c *Controller) SetActorBlackList(params *map[common.AccountName]struct{}) {
+func (c *Controller) setActorBlackList(params *common.FlatSet) {
 	c.Config.ActorBlacklist = *params
 }
 
-func (c *Controller) SetContractWhiteList(params *map[common.AccountName]struct{}) {
+func (c *Controller) setContractWhiteList(params *common.FlatSet) {
 	c.Config.ContractWhitelist = *params
 }
 
-func (c *Controller) SetContractBlackList(params *map[common.AccountName]struct{}) {
+func (c *Controller) setContractBlackList(params *common.FlatSet) {
 	c.Config.ContractBlacklist = *params
 }
 
-func (c *Controller) SetActionBlackList(params *map[common.Pair]struct{}) {
+func (c *Controller) setActionBlackList(params *common.FlatSet) {
 	c.Config.ActionBlacklist = *params
 }
 
-func (c *Controller) SetKeyBlackList(params *map[ecc.PublicKey]struct{}) {
+func (c *Controller) setKeyBlackList(params *common.FlatSet) {
 	c.Config.KeyBlacklist = *params
 }
 
@@ -1126,18 +1183,10 @@ func (c *Controller) GetBlockIdForNum(blockNum uint32) common.BlockIdType {
 }
 
 func (c *Controller) CheckContractList(code common.AccountName) {
-	if len(c.Config.ContractWhitelist) > 0 {
-		if _, ok := c.Config.ContractWhitelist[code]; !ok {
-			fmt.Println("account is not on the contract whitelist", code)
-			return
-		}
-
-		EosAssert(!common.Empty(c.Config.ContractWhitelist[code]), &ContractWhitelistException{}, "account d% is not on the contract whitelist", code)
-	} else if len(c.Config.ContractBlacklist) > 0 {
-		if _, ok := c.Config.ContractBlacklist[code]; ok {
-			fmt.Println("account is on the contract blacklist", code)
-			return
-		}
+	if len(c.Config.ContractWhitelist.Data) > 0 {
+		EosAssert(!c.Config.ContractWhitelist.Find(&code), &ContractWhitelistException{}, "account d% is not on the contract whitelist", code)
+	} else if len(c.Config.ContractBlacklist.Data) > 0 {
+		EosAssert(c.Config.ContractBlacklist.Find(&code), &ContractBlacklistException{}, "account d% is on the contract blacklist", code)
 		/*EOS_ASSERT( conf.contract_blacklist.find( code ) == conf.contract_blacklist.end(),
 			contract_blacklist_exception,
 			"account '${code}' is on the contract blacklist", ("code", code)
@@ -1146,13 +1195,13 @@ func (c *Controller) CheckContractList(code common.AccountName) {
 }
 
 func (c *Controller) CheckActionList(code common.AccountName, action common.ActionName) {
-	if len(c.Config.ActionBlacklist) > 0 {
-		abl := common.MakePair(code, action)
+	if len(c.Config.ActionBlacklist.Data) > 0 {
+		//abl := common.MakePair(code, action)
 		//key := Hash(abl)
-		if _, ok := c.Config.ActionBlacklist[abl]; ok {
+		/*if _, ok := c.Config.ActionBlacklist[abl]; ok {
 			fmt.Println("action '${code}::${action}' is on the action blacklist")
 			return
-		}
+		}*/
 		/*EOS_ASSERT( conf.action_blacklist.find( std::make_pair(code, action) ) == conf.action_blacklist.end(),
 			action_blacklist_exception,
 			"action '${code}::${action}' is on the action blacklist",
@@ -1162,13 +1211,8 @@ func (c *Controller) CheckActionList(code common.AccountName, action common.Acti
 }
 
 func (c *Controller) CheckKeyList(key *ecc.PublicKey) {
-	if len(c.Config.KeyBlacklist) > 0 {
-		_, ok := c.Config.KeyBlacklist[*key]
-		if ok {
-			fmt.Println("public key '${key}' is on the key blacklist", key)
-			return
-		}
-		EosAssert(!ok, &KeyBlacklistException{}, "public key d% is on the key blacklist", key)
+	if len(c.Config.KeyBlacklist.Data) > 0 {
+		EosAssert(c.Config.KeyBlacklist.Find(key), &KeyBlacklistException{}, "public key s% is on the key blacklist", key)
 	}
 }
 
@@ -1371,20 +1415,21 @@ func (c *Controller) CreateNativeAccount(name common.AccountName, owner types.Au
 
 	activePermission := c.Authorization.CreatePermission(name, common.PermissionName(common.DefaultConfig.ActiveName), PermissionIdType(ownerPermission.ID), active, c.Config.genesis.InitialTimestamp)
 
-	c.ResourceLimists.InitializeAccount(name)
+	c.ResourceLimits.InitializeAccount(name)
 	ramDelta := uint64(common.DefaultConfig.OverheadPerAccountRamBytes) //TODO c++ reference int64 but statement uint32
 	ramDelta += 2 * common.BillableSizeV("permission_object")           //::billable_size_v<permission_object>
 	ramDelta += ownerPermission.Auth.GetBillableSize()
 	ramDelta += activePermission.Auth.GetBillableSize()
 	//fmt.Println("====================ramDelta:", ramDelta)
-	c.ResourceLimists.AddPendingRamUsage(name, int64(ramDelta))
-	c.ResourceLimists.VerifyAccountRamUsage(name)
+	c.ResourceLimits.AddPendingRamUsage(name, int64(ramDelta))
+	c.ResourceLimits.VerifyAccountRamUsage(name)
 }
 
 func (c *Controller) initializeForkDB() {
 
 	gs := types.GetGenesisStateInstance()
-	pst := types.ProducerScheduleType{0, []types.ProducerKey{{common.DefaultConfig.SystemAccountName, gs.InitialKey}}}
+	pst := types.ProducerScheduleType{0, []types.ProducerKey{
+		{common.DefaultConfig.SystemAccountName, gs.InitialKey}}}
 	genHeader := types.BlockHeaderState{}
 	genHeader.ActiveSchedule = pst
 	genHeader.PendingSchedule = pst
@@ -1429,7 +1474,7 @@ func (c *Controller) initializeDatabase() {
 	/*fmt.Println("initializeDatabase gi:", gi)
 	fmt.Println("initializeDatabase insert gpo:", gpo)*/
 	//c.Authorization.InitializeDatabase()				//TODO
-	c.ResourceLimists.InitializeDatabase()
+	c.ResourceLimits.InitializeDatabase()
 	systemAuth := types.Authority{}
 	kw := types.KeyWeight{}
 	kw.Key = c.Config.genesis.InitialKey
@@ -1528,44 +1573,51 @@ func NewHandlerKey(scopeName common.ScopeName, actionName common.ActionName) Han
 }
 
 func (c *Controller) clearExpiredInputTransactions() {
-
+	//aa :=&entity.TransactionObject{}
+	//aa.Expiration = common.TimePointSec(common.Now())
+	//err := c.DB.Insert(aa)
+	//if err != nil{
+	//	fmt.Println("insert success")
+	//}
 	transactionIdx, err := c.DB.GetIndex("byExpiration", &entity.TransactionObject{})
 
 	now := c.PendingBlockTime()
 	t := &entity.TransactionObject{}
-	err = transactionIdx.Begin().Data(t)
-	if err != nil {
-		fmt.Println("TransactionIdx.Begin Is Error:", err)
+	itr := transactionIdx.Begin()
+	if itr != nil {
+		err = itr.Data(t)
+		if err != nil {
+			fmt.Println("TransactionIdx.Begin Is Error:", err)
+		}
 	}
-	for !common.Empty(transactionIdx) && now > common.TimePoint(t.Expiration) {
+	for !transactionIdx.Empty() && now > common.TimePoint(t.Expiration) {
 		c.DB.Remove(transactionIdx.Begin())
 	}
 }
 
-func (c *Controller) CheckActorList(actors []common.AccountName) {
-	if len(c.Config.ActorWhitelist) > 0 {
+func (c *Controller) CheckActorList(actors *common.FlatSet) {
+	if len(c.Config.ActorWhitelist.Data) > 0 {
 		//excluded :=make(map[common.AccountName]struct{})
 
 		//set
-		for _, an := range actors {
-			if _, ok := c.Config.ActorWhitelist[an]; !ok {
-				fmt.Println("authorizing actor(s) in transaction are not on the actor whitelist:", an)
-				return
+		/*for an := range actors.Data {
+			if c.Config.ActorWhitelist.Find(an.(*common.AccountName)){
+
 			}
-		}
+		}*/
 		/*EOS_ASSERT( excluded.size() == 0, actor_whitelist_exception,
 			"authorizing actor(s) in transaction are not on the actor whitelist: ${actors}",
 			("actors", excluded)
 		)*/
-	} else if len(c.Config.ActorBlacklist) > 0 {
+		/*} else if len(c.Config.ActorBlacklist) > 0 {
 		//black :=make(map[common.AccountName]struct{})
 		//set
-		for _, an := range actors {
-			if _, ok := c.Config.ActorBlacklist[an]; ok {
+		for _, an := range actors.Data {
+			if _, ok := c.Config.ActorBlacklist[*an.(*common.AccountName)]; ok {
 				fmt.Println("authorizing actor(s) in transaction are not on the actor blacklist:", an)
 				return
 			}
-		}
+		}*/
 		/*EOS_ASSERT( blacklisted.size() == 0, actor_blacklist_exception,
 			"authorizing actor(s) in transaction are on the actor blacklist: ${actors}",
 			("actors", blacklisted)

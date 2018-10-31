@@ -1,7 +1,9 @@
 package common
 
 import (
+	"encoding/binary"
 	"fmt"
+	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
@@ -146,4 +148,19 @@ func Test(t *testing.T) {
 		r = h
 	}
 	fmt.Println(r)
+}
+
+func Test_test(t *testing.T) {
+	array := []byte{0x00, 0x01, 0x08, 0x00, 0x08, 0x01, 0xab, 0x01}
+	num := binary.LittleEndian.Uint64(array)
+	fmt.Printf("%v, %x", array, num)
+}
+
+func TestFlatSet_Find(t *testing.T) {
+	key, _ := ecc.NewPublicKey("EOS5fxEptrpsG2QTjRgi8Gf9EConFDH3jeUc24YFSemcW3bBDhuoW")
+	fs := FlatSet{}
+	k, b := fs.Insert(&key)
+	fmt.Println("insert key:", k, "exist:", b)
+	boo := fs.Find(&key)
+	assert.Equal(t, true, boo)
 }

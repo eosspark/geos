@@ -223,7 +223,7 @@ func (a *ApplyContext) execOne(trace *types.ActionTrace) {
 		}
 	}).Catch(func(e Exception) {
 		trace.Receipt = r
-		trace.Except = e
+		//trace.Except = e
 		a.FinalizeTrace(trace, &start)
 		try.Throw(e)
 	}).End()

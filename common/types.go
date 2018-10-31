@@ -158,6 +158,10 @@ type ScopeName uint64
 func (n Name) String() string {
 	return S(uint64(n))
 }
+
+func (n *AccountName) GetKey() uint64 {
+	return uint64(*n)
+}
 func (n AccountName) String() string {
 	return S(uint64(n))
 }
