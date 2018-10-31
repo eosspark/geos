@@ -10,7 +10,7 @@ import (
 	Chain "github.com/eosspark/eos-go/plugins/producer_plugin/mock" /*test mode*/
 	//Chain "github.com/eosspark/eos-go/chain" /*real chain*/
 	. "github.com/eosspark/eos-go/exception"
-	"github.com/eosspark/eos-go/exception/try"
+	. "github.com/eosspark/eos-go/exception/try"
 	)
 
 
@@ -162,28 +162,31 @@ func (impl *ProducerPluginImpl) StartBlock() (EnumStartBlockRusult, bool) {
 		}
 	}
 
-	var blocksToConfirm uint16 = 0
+	Try(func() {
+		blocksToConfirm := uint16(0)
 
-	if impl.PendingBlockMode == EnumPendingBlockMode(producing) {
-		// determine how many blocks this producer can confirm
-		// 1) if it is not a producer from this node, assume no confirmations (we will discard this block anyway)
-		// 2) if it is a producer on this node that has never produced, the conservative approach is to assume no
-		//    confirmations to make sure we don't double sign after a crash TODO: make these watermarks durable?
-		// 3) if it is a producer on this node where this node knows the last block it produced, safely set it -UNLESS-
-		// 4) the producer on this node's last watermark is higher (meaning on a different fork)
-		if hasCurrentWatermark {
-			if currentWatermark < hbs.BlockNum {
-				if hbs.BlockNum-currentWatermark >= 0xffff {
-					blocksToConfirm = 0xffff
-				} else {
-					blocksToConfirm = uint16(hbs.BlockNum - currentWatermark)
+		if impl.PendingBlockMode == EnumPendingBlockMode(producing) {
+			// determine how many blocks this producer can confirm
+			// 1) if it is not a producer from this node, assume no confirmations (we will discard this block anyway)
+			// 2) if it is a producer on this node that has never produced, the conservative approach is to assume no
+			//    confirmations to make sure we don't double sign after a crash TODO: make these watermarks durable?
+			// 3) if it is a producer on this node where this node knows the last block it produced, safely set it -UNLESS-
+			// 4) the producer on this node's last watermark is higher (meaning on a different fork)
+			if hasCurrentWatermark {
+				if currentWatermark < hbs.BlockNum {
+					if hbs.BlockNum-currentWatermark >= 0xffff {
+						blocksToConfirm = 0xffff
+					} else {
+						blocksToConfirm = uint16(hbs.BlockNum - currentWatermark)
+					}
 				}
 			}
 		}
-	}
 
-	chain.AbortBlock()
-	chain.StartBlock(common.NewBlockTimeStamp(blockTime), blocksToConfirm)
+		chain.AbortBlock()
+		chain.StartBlock(common.NewBlockTimeStamp(blockTime), blocksToConfirm)
+
+	}).FcLogAndDrop().End()
 
 	pbs := chain.PendingBlockState()
 
@@ -215,7 +218,7 @@ func (impl *ProducerPluginImpl) StartBlock() (EnumStartBlockRusult, bool) {
 						// this is a persisted transaction, push it into the block (even if we are speculating) with
 						// no deadline as it has already passed the subjective deadlines once and we want to represent
 						// the state of the chain including this transaction
-						err := chain.PushTransaction(trx, common.MaxTimePoint())
+						err := chain.PushTransaction(trx, common.MaxTimePoint(), 0)
 						if err != nil {
 							return EnumStartBlockRusult(failed), lastBlock
 						}
@@ -253,7 +256,7 @@ func (impl *ProducerPluginImpl) StartBlock() (EnumStartBlockRusult, bool) {
 						deadline = blockTime
 					}
 
-					trace := chain.PushTransaction(trx, deadline)
+					trace := chain.PushTransaction(trx, deadline, 0)
 					if trace.Except != nil {
 						if failureIsSubjective(trace.Except, deadlineIsSubjective) {
 							isExhausted = true
@@ -310,7 +313,7 @@ func (impl *ProducerPluginImpl) StartBlock() (EnumStartBlockRusult, bool) {
 					deadline = blockTime
 				}
 
-				trace := chain.PushScheduledTransaction(trx, deadline)
+				trace := chain.PushScheduledTransaction(trx, deadline, 0)
 				if trace.Except != nil {
 					if failureIsSubjective(trace.Except, deadlineIsSubjective) {
 						isExhausted = true
@@ -464,17 +467,13 @@ func (impl *ProducerPluginImpl) MaybeProduceBlock() (res bool) {
 		impl.ScheduleProductionLoop()
 	}()
 
-	try.Try(func() {
+	Try(func() {
 		impl.ProduceBlock()
 		res = true
 	}).Catch(func(e GuardExceptions) {
+		//TODO: app().get_plugin<chain_plugin>().handle_guard_exception(e);
 		res = false
-	}).Catch(func(e Exception) {
-		//TODO: fc_dlog(_log, "Aborting block due to produce_block error");
-		chain := Chain.GetControllerInstance()
-		chain.AbortBlock()
-		res = false
-	}).End()
+	}).FcLogAndDrop().End()
 
 	return
 }

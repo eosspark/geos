@@ -33,7 +33,7 @@ func MinTimePoint() TimePoint { return TimePoint(MinMicroseconds()) }
 func (tp TimePoint) TimeSinceEpoch() Microseconds { return Microseconds(tp) }
 func (tp TimePoint) SecSinceEpoch() uint32        { return uint32(tp) / 1e6 }
 func (tp TimePoint) String() string {
-	return time.Unix(int64(tp)/1e6, int64(tp)%1e6*1000).String()
+	return time.Unix(int64(tp)/1e6, int64(tp)%1e6*1000).UTC().String()
 }
 
 func FromIsoString(s string) (TimePoint, error) {

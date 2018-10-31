@@ -178,12 +178,12 @@ func (c *Controller) CommitBlock(addToForkDb bool) {
 	//c.pending = nil
 }
 
-func (c *Controller) PushTransaction(trx *types.TransactionMetadata, deadline common.TimePoint) *types.TransactionTrace {
+func (c *Controller) PushTransaction(trx *types.TransactionMetadata, deadline common.TimePoint, billedCpuTimeUs uint32) *types.TransactionTrace {
 	//c.pending.SignedBlock.Transactions = append(c.pending.SignedBlock.Transactions, )
 	c.pending.Trxs = append(c.pending.Trxs, trx)
 	return nil
 }
-func (c *Controller) PushScheduledTransaction(trx common.TransactionIdType, deadline common.TimePoint) *types.TransactionTrace {
+func (c *Controller) PushScheduledTransaction(trx common.TransactionIdType, deadline common.TimePoint, billedCpuTimeUs uint32) *types.TransactionTrace {
 	return nil
 }
 
@@ -259,7 +259,7 @@ func (c *Controller) SetSubjectiveCpuLeeway(leeway common.Microseconds) {}
 func (c *Controller) AddResourceGreyList(name *common.AccountName)    {}
 func (c *Controller) RemoveResourceGreyList(name *common.AccountName) {}
 
-func (c *Controller) GetResourceGreyList() *map[common.AccountName]struct{} { return nil }
+func (c *Controller) GetResourceGreyList() map[common.AccountName]struct{} { return nil }
 
 func (c *Controller) GetActorWhiteList() *map[common.AccountName]struct{} { return nil }
 

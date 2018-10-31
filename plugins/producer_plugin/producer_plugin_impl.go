@@ -250,7 +250,7 @@ func (impl *ProducerPluginImpl) OnIncomingTransactionAsync(trx *types.PackedTran
 		deadline = blockTime
 	}
 
-	trace := chain.PushTransaction(types.NewTransactionMetadata(trx), deadline)
+	trace := chain.PushTransaction(types.NewTransactionMetadata(trx), deadline, 0)
 	if trace.Except != nil {
 		if failureIsSubjective(trace.Except, deadlineIsSubjective) {
 			impl.PendingIncomingTransactions = append(impl.PendingIncomingTransactions, pendingIncomingTransaction{trx, persistUntilExpired, next})
