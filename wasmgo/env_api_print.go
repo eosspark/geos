@@ -17,9 +17,9 @@ import (
 //  }
 // }
 func prints(w *WasmGo, str int) {
-	if debug {
-		fmt.Println("prints")
-	}
+	// if debug {
+	// 	fmt.Println("prints")
+	// }
 
 	if !ignore {
 		w.context.ContextAppend(string(getMemory(w, str, getStringLength(w, str))))

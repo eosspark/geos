@@ -97,4 +97,7 @@ type EnvContext interface {
 	TaposBlockPrefix() int
 	GetAction(typ uint32, index int, bufferSize int) (int, []byte)
 	GetContextFreeData(intdex int, bufferSize int) (int, []byte)
+
+	PauseBillingTimer()
+	ResumeBillingTimer()
 }

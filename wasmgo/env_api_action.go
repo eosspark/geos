@@ -14,9 +14,9 @@ import (
 //    return copy_size;
 // }
 func readActionData(w *WasmGo, memory int, bufferSize int) int {
-	if debug {
-		fmt.Println("read_action_data")
-	}
+	// if debug {
+	// 	fmt.Println("read_action_data")
+	// }
 
 	if bufferSize > (1<<16) || memory+bufferSize > (1<<16) {
 		//assert
@@ -40,9 +40,9 @@ func readActionData(w *WasmGo, memory int, bufferSize int) int {
 //    return context.act.data.size();
 // }
 func actionDataSize(w *WasmGo) int {
-	if debug {
-		fmt.Println("action_data_size")
-	}
+	// if debug {
+	// 	fmt.Println("action_data_size")
+	// }
 	return len(w.context.GetActionData())
 }
 
@@ -50,9 +50,9 @@ func actionDataSize(w *WasmGo) int {
 //    return context.receiver;
 // }
 func currentReceiver(w *WasmGo) int64 {
-	if debug {
-		fmt.Println("current_receiver")
-	}
+	// if debug {
+	// 	fmt.Println("current_receiver")
+	// }
 
 	return int64(w.context.GetReceiver())
 }

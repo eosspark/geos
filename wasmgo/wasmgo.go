@@ -165,6 +165,8 @@ func NewWasmGo() *WasmGo {
 func (w *WasmGo) Apply(code_id *crypto.Sha256, code []byte, context EnvContext) {
 	w.context = context
 
+	context.PauseBillingTimer()
+
 	bf := bytes.NewReader(code)
 
 	m, err := wasm.ReadModule(bf, w.importer)
@@ -192,6 +194,8 @@ func (w *WasmGo) Apply(code_id *crypto.Sha256, code []byte, context EnvContext) 
 	i := int64(e.Index)
 	//fidx := m.Function.Types[int(i)]
 	//ftype := m.Types.Entries[int(fidx)]
+
+	context.ResumeBillingTimer()
 
 	w.vm = vm
 
@@ -371,16 +375,16 @@ func b2i(b bool) int {
 }
 
 func setMemory(w *WasmGo, mIndex int, data []byte, dIndex int, bufferSize int) {
-	if debug {
-		fmt.Println("setMemory")
-	}
+	// if debug {
+	// 	fmt.Println("setMemory")
+	// }
 	copy(w.vm.Memory()[mIndex:mIndex+bufferSize], data[dIndex:dIndex+bufferSize])
 }
 
 func getMemory(w *WasmGo, mIndex int, bufferSize int) []byte {
-	if debug {
-		fmt.Println("getMemory")
-	}
+	// if debug {
+	// 	fmt.Println("getMemory")
+	// }
 
 	cap := cap(w.vm.Memory())
 	if cap < mIndex || cap < mIndex+bufferSize {

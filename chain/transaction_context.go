@@ -1,6 +1,7 @@
 package chain
 
 import (
+	"fmt"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/database"
@@ -483,6 +484,8 @@ func (t *TransactionContext) UpdateBilledCpuTime(now common.TimePoint) uint32 {
 	}
 	cfg := t.Control.GetGlobalProperties().Configuration
 	t.BilledCpuTimeUs = int64(common.Max(uint64(now-t.pseudoStart), uint64(cfg.MinTransactionCpuUsage)))
+
+	fmt.Println(t.BilledCpuTimeUs)
 
 	return uint32(t.BilledCpuTimeUs)
 }
