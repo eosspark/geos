@@ -175,10 +175,17 @@ func TestContextPrint(t *testing.T) {
 		result = trace.PendingConsoleOutput
 
 		s := strings.Split(result, "\n")
-		//assert.Equal(t, s[0], figure.Int128(0).String)
-		//assert.Equal(t, s[1], figure.Int128(1).String)
-		//assert.Equal(t, s[3], figure.Int128(-87654323456).String)
-		fmt.Println(s)
+		assert.Equal(t, s[0], "1")
+		assert.Equal(t, s[1], "0")
+		assert.Equal(t, s[2], "-170141183460469231731687303715884105728")
+		assert.Equal(t, s[3], "-87654323456")
+
+		trace = callTestFunction(code, "test_print", "test_printui128", []byte{})
+		result = trace.PendingConsoleOutput
+		s = strings.Split(result, "\n")
+		assert.Equal(t, s[0], "340282366920938463463374607431768211455")
+		assert.Equal(t, s[1], "0")
+		assert.Equal(t, s[2], "87654323456")
 
 		trace = callTestFunction(code, "test_print", "test_printsf", []byte{})
 		result = trace.PendingConsoleOutput
@@ -396,6 +403,40 @@ func TestContextDatastream(t *testing.T) {
 		}
 		callTestFunction(code, "test_datastream", "test_basic", []byte{})
 
+	})
+}
+
+func TestContextCompilerBuiltin(t *testing.T) {
+
+	name := "testdata_context/compiler_builtin.wasm"
+	t.Run(filepath.Base(name), func(t *testing.T) {
+		code, err := ioutil.ReadFile(name)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		callTestFunction(code, "test_compiler_builtins", "test_ashrti3", []byte{})
+		callTestFunction(code, "test_compiler_builtins", "test_ashlti3", []byte{})
+		callTestFunction(code, "test_compiler_builtins", "test_lshrti3", []byte{})
+		callTestFunction(code, "test_compiler_builtins", "test_lshlti3", []byte{})
+
+		callTestFunction(code, "test_compiler_builtins", "test_umodti3", []byte{})
+		callTestFunctionCheckException(code, "test_compiler_builtins", "test_umodti3_by_0", []byte{},
+			exception.ArithmeticException{}.Code(), exception.ArithmeticException{}.What())
+
+		callTestFunction(code, "test_compiler_builtins", "test_modti3", []byte{})
+		callTestFunctionCheckException(code, "test_compiler_builtins", "test_modti3_by_0", []byte{},
+			exception.ArithmeticException{}.Code(), exception.ArithmeticException{}.What())
+
+		callTestFunction(code, "test_compiler_builtins", "test_udivti3", []byte{})
+		callTestFunctionCheckException(code, "test_compiler_builtins", "test_udivti3_by_0", []byte{},
+			exception.ArithmeticException{}.Code(), exception.ArithmeticException{}.What())
+
+		callTestFunction(code, "test_compiler_builtins", "test_divti3", []byte{})
+		callTestFunctionCheckException(code, "test_compiler_builtins", "test_divti3_by_0", []byte{},
+			exception.ArithmeticException{}.Code(), exception.ArithmeticException{}.What())
+
+		callTestFunction(code, "test_compiler_builtins", "test_multi3", []byte{})
 	})
 }
 
