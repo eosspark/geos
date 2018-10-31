@@ -20,19 +20,6 @@ type PublicKey struct {
 	Content [33]byte `eos:"array"`
 }
 
-func (p PublicKey) GetKey() uint64 {
-	sl, err := p.MarshalJSON()
-	param := make([]byte, 64)
-	param = append(param, sl...)
-	for i := len(sl); i < 64; i++ {
-		param = append(param, 0)
-	}
-	if err != nil {
-		fmt.Println("ecc PublicKey GetKey is error :", err)
-	}
-	return binary.LittleEndian.Uint64(param)
-}
-
 func NewPublicKey(pubKey string) (out PublicKey, err error) {
 	if len(pubKey) < 8 {
 		return out, fmt.Errorf("invalid format")
@@ -193,4 +180,11 @@ func (p PublicKey) Compare(pub PublicKey) bool {
 	}
 	return true
 
+}
+
+func (p PublicKey) GetKey() uint64 {
+	sl, _ := p.MarshalJSON()
+	param := make([]byte, 64-len(sl))
+	param = append(sl, param...)
+	return binary.LittleEndian.Uint64(param)
 }
