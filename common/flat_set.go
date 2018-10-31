@@ -25,6 +25,28 @@ func (f *FlatSet) Clear() {
 	}
 }
 
+func (f *FlatSet) Find(element Element) bool {
+	length := len(f.Data)
+	if length == 0 {
+		return false
+	} else {
+		r, i, j := 0, 0, length-1
+		for i < j {
+			h := int(uint(i+j) >> 1)
+			if f.Data[h].GetKey() <= element.GetKey() {
+				i = h + 1
+			} else {
+				j = h
+			}
+			r = h
+		}
+		if element.GetKey() == f.Data[r].GetKey() {
+			return true
+		}
+	}
+	return false
+}
+
 func (f *FlatSet) Insert(element Element) (Element, bool) {
 	var result Element
 	length := f.Len()

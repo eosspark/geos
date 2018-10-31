@@ -4,8 +4,8 @@ import (
 	"fmt"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto/ecc"
-	"strings"
 	"strconv"
+	"strings"
 )
 
 type WeightType uint16
@@ -19,6 +19,10 @@ type Permission struct {
 type PermissionLevel struct {
 	Actor      common.AccountName    `json:"actor"`
 	Permission common.PermissionName `json:"permission"`
+}
+
+func (p *PermissionLevel) GetKey() uint64 {
+	return uint64(p.Actor)
 }
 
 type PermissionLevelWeight struct {
@@ -82,7 +86,7 @@ func NewPermissionLevel(in string) (out PermissionLevel, err error) {
 
 func NewAuthority(k ecc.PublicKey, delaySec uint32) (a Authority) {
 	a.Threshold = 1
-	a.Keys[0] = KeyWeight{k,1}
+	a.Keys[0] = KeyWeight{k, 1}
 	if delaySec > 0 {
 		a.Threshold = 2
 		a.Waits[0] = WaitWeight{delaySec, 1}
@@ -95,11 +99,11 @@ func (auth *Authority) ToSharedAuthority() SharedAuthority {
 }
 
 func (sharedAuth *SharedAuthority) ToAuthority() Authority {
-	return Authority{sharedAuth.Threshold,sharedAuth.Keys,sharedAuth.Accounts,sharedAuth.Waits}
+	return Authority{sharedAuth.Threshold, sharedAuth.Keys, sharedAuth.Accounts, sharedAuth.Waits}
 }
 
 func (weight WeightType) String() string {
-	return strconv.FormatInt(int64(weight),10)
+	return strconv.FormatInt(int64(weight), 10)
 }
 
 func (level PermissionLevel) String() string {
@@ -114,16 +118,16 @@ func (permLevel PermissionLevelWeight) String() string {
 	return "{ permission: " + permLevel.Permission.String() + ", " + "weight: " + permLevel.Weight.String() + "}"
 }
 
-func (wait WaitWeight) String() string{
+func (wait WaitWeight) String() string {
 	return "{ weightSec: " + strconv.FormatInt(int64(wait.WaitSec), 10) + "weight" + wait.Weight.String() + "}"
 }
 
 func (auth Authority) String() string {
-	ThresholdStr := "threshold: " + strconv.FormatInt(int64(auth.Threshold),10)
+	ThresholdStr := "threshold: " + strconv.FormatInt(int64(auth.Threshold), 10)
 	KeysStr := "keys: ["
 	for _, key := range auth.Keys {
 		KeysStr += "key: " + key.String()
-		if key != auth.Keys[len(auth.Keys)-1]{
+		if key != auth.Keys[len(auth.Keys)-1] {
 			KeysStr += ", "
 		}
 	}
@@ -133,7 +137,7 @@ func (auth Authority) String() string {
 		fmt.Println(account)
 		fmt.Println(auth.Accounts[len(auth.Accounts)-1])
 		AccountsStr += "account: " + account.String()
-		if account != auth.Accounts[len(auth.Accounts)-1]{
+		if account != auth.Accounts[len(auth.Accounts)-1] {
 			AccountsStr += ", "
 		}
 	}
@@ -141,12 +145,12 @@ func (auth Authority) String() string {
 	WaitsStr := "waits: ["
 	for _, wait := range auth.Waits {
 		WaitsStr += "account: " + wait.String()
-		if wait != auth.Waits[len(auth.Waits)-1]{
+		if wait != auth.Waits[len(auth.Waits)-1] {
 			WaitsStr += ", "
 		}
 	}
 	WaitsStr += "]"
-	return "{ "+ ThresholdStr + ", " + KeysStr + ", " + AccountsStr + ", " + WaitsStr + "}"
+	return "{ " + ThresholdStr + ", " + KeysStr + ", " + AccountsStr + ", " + WaitsStr + "}"
 }
 
 func (auth Authority) Equals(author Authority) bool {
@@ -168,7 +172,7 @@ func (sharedAuth SharedAuthority) GetBillableSize() uint64 { //TODO
 	return accountSize + waitsSize + keysSize
 }
 
-func Validate(auth Authority) bool {      //TODO: sort.
+func Validate(auth Authority) bool { //TODO: sort.
 	var totalWeight uint32 = 0
 	if len(auth.Accounts)+len(auth.Keys)+len(auth.Waits) > 1<<16 {
 		return false

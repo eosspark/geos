@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"strings"
 
+	"encoding/binary"
 	"github.com/eosspark/eos-go/crypto/btcsuite/btcd/btcec"
 	"github.com/eosspark/eos-go/crypto/btcsuite/btcutil/base58"
 	"golang.org/x/crypto/ripemd160"
@@ -17,6 +18,19 @@ const PublicKeyPrefixCompat = "EOS"
 type PublicKey struct {
 	Curve   CurveID
 	Content [33]byte `eos:"array"`
+}
+
+func (p PublicKey) GetKey() uint64 {
+	sl, err := p.MarshalJSON()
+	param := make([]byte, 64)
+	param = append(param, sl...)
+	for i := len(sl); i < 64; i++ {
+		param = append(param, 0)
+	}
+	if err != nil {
+		fmt.Println("ecc PublicKey GetKey is error :", err)
+	}
+	return binary.LittleEndian.Uint64(param)
 }
 
 func NewPublicKey(pubKey string) (out PublicKey, err error) {

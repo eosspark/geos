@@ -29,7 +29,7 @@ func (m *MaybeSession) Squash() {
 
 func (m *MaybeSession) Push() {
 	if !common.Empty(m.MSession) {
-		//m.MSession.Push()
+		m.MSession.Push()
 	}
 }
 

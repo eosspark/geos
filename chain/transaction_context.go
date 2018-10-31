@@ -1,7 +1,6 @@
 package chain
 
 import (
-	"fmt"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/database"
@@ -12,11 +11,11 @@ import (
 	//"github.com/eosspark/eos-go/log"
 )
 
-type AccountForSet common.AccountName
+/*type AccountForSet common.AccountName
 
 func (f *AccountForSet) GetKey() uint64 {
 	return uint64(*f)
-}
+}*/
 
 type TransactionContext struct {
 	Control               *Controller
@@ -161,11 +160,12 @@ func (t *TransactionContext) init(initialNetUsage uint64) {
 	for _, act := range t.Trx.Actions {
 		for _, auth := range act.Authorization {
 			//t.BillToAccounts = append(t.BillToAccounts, auth.Actor)
-			a := common.S(uint64(auth.Actor))
+			/*a := common.S(uint64(auth.Actor))
 			fmt.Println(a)
 
 			account := AccountForSet(auth.Actor)
-			t.BillToAccounts.Insert(&account)
+			t.BillToAccounts.Insert(&account)*/
+			t.BillToAccounts.Insert(&auth.Actor)
 		}
 	}
 
@@ -292,7 +292,7 @@ func (t *TransactionContext) Finalize() {
 	rl := t.Control.GetMutableResourceLimitsManager()
 	for _, a := range t.ValidateRamUsage.Data {
 
-		account := a.(*AccountForSet)
+		account := a.(*common.AccountName)
 		rl.VerifyAccountRamUsage(common.AccountName(*account))
 	}
 
@@ -474,8 +474,8 @@ func (t *TransactionContext) AddRamUsage(account common.AccountName, ramDelta in
 	rl := t.Control.GetMutableResourceLimitsManager()
 	rl.AddPendingRamUsage(account, ramDelta)
 	if ramDelta > 0 {
-		a := AccountForSet(account)
-		t.ValidateRamUsage.Insert(&a)
+		//a := AccountForSet(account)
+		t.ValidateRamUsage.Insert(&account)
 	}
 }
 
@@ -506,7 +506,7 @@ func (t *TransactionContext) MaxBandwidthBilledAccountsCanPay(forceElasticLimits
 	greylistedCpu := false
 	for _, a := range t.BillToAccounts.Data {
 
-		accountName := a.(*AccountForSet)
+		accountName := a.(*common.AccountName)
 		account := common.AccountName(*accountName)
 
 		elastic := forceElasticLimits || !(t.Control.IsProducingBlock()) && t.Control.IsResourceGreylisted(&account)
