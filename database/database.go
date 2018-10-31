@@ -822,11 +822,13 @@ func (ldb *LDataBase) BeginIterator(begin, end, fieldName, typeName []byte, grea
 	it := ldb.db.NewIterator(&util.Range{Start: begin, Limit: end}, nil)
 	if greater {
 		if !it.Last() {
-			return nil, errors.New("DataBase BeginIterator : Greater True : Last Failed")
+			ldb.dbLog.Println("error DataBase BeginIterator : Greater True : Last Failed")
+			return nil,ErrNotFound
 		}
 	} else {
 		if !it.Next() {
-			return nil, errors.New("DataBase BeginIterator : Greater False : Next Failed")
+			ldb.dbLog.Println("error DataBase BeginIterator : Greater False : Next Failed")
+			return nil,ErrNotFound
 		}
 	}
 
