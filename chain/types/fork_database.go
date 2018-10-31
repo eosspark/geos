@@ -327,18 +327,12 @@ func (f *ForkDatabase) SetBftIrreversible(id common.BlockIdType) {
 						bsp.BftIrreversibleBlocknum = blockNum
 						updated = append(updated, bsp.BlockId)
 					}
-
 				})
 				pitr.Next()
 			}
 		}
-
-		fmt.Println(updated)
 		return updated
 	}
-
-	fmt.Println(blockNum)
-
 	queue := []common.BlockIdType{id}
 	update(queue)
 }

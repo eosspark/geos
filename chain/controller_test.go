@@ -8,7 +8,6 @@
 package chain
 
 import (
-	"crypto/md5"
 	"fmt"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
@@ -136,11 +135,9 @@ func TestController_UpdateProducersAuthority(t *testing.T) {
 }
 
 func Test(t *testing.T) {
-	str := "abc123asdfasdfasdfasdfasdfasdf"
+	c := GetControllerInstance()
+	cfg := c.GetGlobalProperties().Configuration
 
-	//方法一
-	data := []byte(str)
-	has := md5.Sum(data)
-	md5str1 := fmt.Sprintf("%x", has)
-	fmt.Println(md5str1)
+	fmt.Println(cfg)
+
 }

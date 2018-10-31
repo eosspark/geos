@@ -103,16 +103,16 @@ func Test_find(t *testing.T) {
 	objs_, houses_ := saveObjs(objs, houses, db)
 
 	getGreaterObjs(objs_, houses_, db)
-	//
-	//findObjs(objs_, houses_, db)
-	//
-	//findInLineFieldObjs(objs_, houses_, db)
+
+	findObjs(objs_, houses_, db)
+
+	findInLineFieldObjs(objs_, houses_, db)
 	////
-	//findAllNonUniqueFieldObjs(objs_, houses_, db)
+	findAllNonUniqueFieldObjs(objs_, houses_, db)
 	////
 	////getErrStruct(db)
 	////
-	//getLessObjs(objs_, houses_, db)
+	getLessObjs(objs_, houses_, db)
 }
 
 func Test_modifyUndo(t *testing.T) {
@@ -713,7 +713,7 @@ func getLessObjs(objs []DbTableIdObject, houses []DbHouse, db DataBase) {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	i := 3
+	i := 2
 	for it.Next() {
 		tmp := DbTableIdObject{}
 		it.Data(&tmp)

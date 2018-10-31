@@ -705,8 +705,8 @@ func (c *Controller) pushScheduledTransactionByObject(gto *entity.GeneratedTrans
 		// hard failure logic
 
 		if !explicitBilledCpuTime {
-			//rl := c.GetMutableResourceLimitsManager()
-			//rl.UpdateAccountUsage( trxContext.BillToAccounts, common.BlockTimeStamp(c.PendingBlockTime()).slot );
+			/*rl := c.GetMutableResourceLimitsManager()
+			rl.UpdateAccountUsage( &trxContext.BillToAccounts, common.BlockTimeStamp(c.PendingBlockTime()).slot )*/
 			//accountCpuLimit := 0
 			//accountNetLimit, accountCpuLimit, greylistedNet, greylistedCpu := trxContext.MaxBandwidthBilledAccountsCanPay( true );
 
@@ -1039,27 +1039,27 @@ func (c *Controller) getActionBlockList() *common.FlatSet { return &c.Config.Act
 
 func (c *Controller) getKeyBlackList() *common.FlatSet { return &c.Config.KeyBlacklist }
 
-func (c *Controller) setActorWhiteList(params *common.FlatSet) {
+func (c *Controller) SetActorWhiteList(params *common.FlatSet) {
 	c.Config.ActorWhitelist = *params
 }
 
-func (c *Controller) setActorBlackList(params *common.FlatSet) {
+func (c *Controller) SetActorBlackList(params *common.FlatSet) {
 	c.Config.ActorBlacklist = *params
 }
 
-func (c *Controller) setContractWhiteList(params *common.FlatSet) {
+func (c *Controller) SetContractWhiteList(params *common.FlatSet) {
 	c.Config.ContractWhitelist = *params
 }
 
-func (c *Controller) setContractBlackList(params *common.FlatSet) {
+func (c *Controller) SetContractBlackList(params *common.FlatSet) {
 	c.Config.ContractBlacklist = *params
 }
 
-func (c *Controller) setActionBlackList(params *common.FlatSet) {
+func (c *Controller) SetActionBlackList(params *common.FlatSet) {
 	c.Config.ActionBlacklist = *params
 }
 
-func (c *Controller) setKeyBlackList(params *common.FlatSet) {
+func (c *Controller) SetKeyBlackList(params *common.FlatSet) {
 	c.Config.KeyBlacklist = *params
 }
 
@@ -1119,11 +1119,11 @@ func (c *Controller) PendingProducers() *types.ProducerScheduleType {
 }
 
 func (c *Controller) ProposedProducers() types.ProducerScheduleType {
-	/*gpo := c.GetGlobalProperties()
-	if( !gpo.proposed_schedule_block_num.valid() )
-		return optional<producer_schedule_type>()*/
-	//if gpo.ProposedScheduleBlockNum {}
-	return types.ProducerScheduleType{}
+	gpo := c.GetGlobalProperties()
+	if common.Empty(gpo.ProposedScheduleBlockNum) {
+		return types.ProducerScheduleType{}
+	}
+	return *gpo.ProposedSchedule.ProducerScheduleType()
 }
 
 func (c *Controller) LightValidationAllowed(dro bool) (b bool) {
@@ -1573,30 +1573,32 @@ func NewHandlerKey(scopeName common.ScopeName, actionName common.ActionName) Han
 }
 
 func (c *Controller) clearExpiredInputTransactions() {
-	//aa :=&entity.TransactionObject{}
-	//aa.Expiration = common.TimePointSec(common.Now())
-	//err := c.DB.Insert(aa)
-	//if err != nil{
-	//	fmt.Println("insert success")
-	//}
+	/*aa :=&entity.TransactionObject{}
+	aa.Expiration = common.TimePointSec(common.Now())
+	err := c.DB.Insert(aa)
+	if err != nil{
+		fmt.Println("insert success")
+	}*/
 	transactionIdx, err := c.DB.GetIndex("byExpiration", &entity.TransactionObject{})
 
 	now := c.PendingBlockTime()
 	t := &entity.TransactionObject{}
-	itr := transactionIdx.Begin()
-	if itr != nil {
-		err = itr.Data(t)
-		if err != nil {
-			fmt.Println("TransactionIdx.Begin Is Error:", err)
-		}
-	}
+
 	for !transactionIdx.Empty() && now > common.TimePoint(t.Expiration) {
-		c.DB.Remove(transactionIdx.Begin())
+		tmp := &entity.TransactionObject{}
+		itr := transactionIdx.Begin()
+		if itr != nil {
+			err = itr.Data(tmp)
+			if err != nil {
+				fmt.Println("TransactionIdx.Begin Is Error:", err)
+			}
+		}
+		c.DB.Remove(tmp)
 	}
 }
 
 func (c *Controller) CheckActorList(actors *common.FlatSet) {
-	if len(c.Config.ActorWhitelist.Data) > 0 {
+	if c.Config.ActorWhitelist.Len() > 0 {
 		//excluded :=make(map[common.AccountName]struct{})
 
 		//set

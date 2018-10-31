@@ -125,13 +125,12 @@ func (t *Transaction) SigDigest(chainID *common.ChainIdType, cfd []common.HexByt
 //allowDuplicateKeys = false
 //useCache= true
 func (t *Transaction) GetSignatureKeys(signatures []ecc.Signature, chainID *common.ChainIdType, cfd []common.HexBytes,
-	allowDuplicateKeys bool, useCache bool) (recoveredPubKeys []*ecc.PublicKey) {
+	allowDuplicateKeys bool, useCache bool) common.FlatSet /*(recoveredPubKeys []*ecc.PublicKey)*/ {
 	const recoveryCacheSize common.SizeT = 1000
-
+	recoveredPubKeys := common.FlatSet{}
 	recov := ecc.PublicKey{}
 	digest := t.SigDigest(chainID, cfd)
 	for _, sig := range signatures {
-
 		if useCache {
 			it, ok := t.RecoveryCache[sig]
 			if !ok || it.TrxID != t.ID() {
@@ -143,31 +142,16 @@ func (t *Transaction) GetSignatureKeys(signatures []ecc.Signature, chainID *comm
 		} else {
 			recov, _ = sig.PublicKey(digest)
 		}
-
-		successfulInsertion := false
-		samePubKey := false
-		for _, pubKey := range recoveredPubKeys {
-			if pubKey == &recov {
-				samePubKey = true
-			}
-		}
-		if !samePubKey {
-			recoveredPubKeys = append(recoveredPubKeys, &recov)
-			successfulInsertion = true
-		}
-		if !(allowDuplicateKeys || successfulInsertion) {
-			err := fmt.Sprintf("transaction includes more than one signature signed using the same key associated with public key: %s\n", recov)
-			panic(err)
-		}
-		exception.EosAssert(allowDuplicateKeys || successfulInsertion, &exception.TxDuplicateSig{},
+		fmt.Println("*_*_*_*_*_*_", recov)
+		_, exist := recoveredPubKeys.Insert(&recov)
+		exception.EosAssert(allowDuplicateKeys || !exist, &exception.TxDuplicateSig{},
 			"transaction includes more than one signature signed using the same key associated with public key: %s}", recov)
-
 	}
-	if useCache {
-		//for recovery_cache.size() > recoveryCacheSize {
-		//	recovery_cache.erase( recovery_cache.begin() )
-		//}
-	}
+	/*if useCache {
+		for len(t.RecoveryCache) > int(recoveryCacheSize) {
+			recovery_cache.erase( recovery_cache.begin() )
+		}
+	}*/
 	return recoveredPubKeys
 }
 
@@ -223,7 +207,7 @@ func (s *SignedTransaction) SignWithoutAppend(key ecc.PrivateKey, chainID *commo
 }
 
 //allowDeplicateKeys =false,useCache=true
-func (st *SignedTransaction) GetSignatureKeys(chainID *common.ChainIdType, allowDeplicateKeys bool, useCache bool) []*ecc.PublicKey {
+func (st *SignedTransaction) GetSignatureKeys(chainID *common.ChainIdType, allowDeplicateKeys bool, useCache bool) common.FlatSet {
 	return st.Transaction.GetSignatureKeys(st.Signatures, chainID, st.ContextFreeData, allowDeplicateKeys, useCache)
 }
 
