@@ -100,6 +100,10 @@ func typeIncrement(db *leveldb.DB) (map[string]int64, error) {
 			panic("database init failed : " + err.Error())
 		}
 	}
+	err = db.Delete(key,nil)
+	if err != nil{
+		panic("database init failed : " + err.Error())
+	}
 	return nextId, nil
 }
 
