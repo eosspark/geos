@@ -264,7 +264,7 @@ func (ldb *LDataBase) insert(in interface{}, flag ...bool) error { /* struct cfg
 	dbKV := &dbKeyValue{}
 	structKV(in, dbKV, cfg) /* (kv.index) all key and value*/
 
-	// dbKV.showDbKV()
+	//dbKV.showDbKV()
 	err = ldb.insertKvToDb(dbKV) /* (kv to db) kv insert database (atomic) */
 	if err != nil {
 		return err
@@ -757,11 +757,13 @@ func (ldb *LDataBase) BeginIterator(begin, end, fieldName, typeName []byte, grea
 	it := ldb.db.NewIterator(&util.Range{Start: begin, Limit: end}, nil)
 	if greater {
 		if !it.Last() {
-			return nil, errors.New("DataBase BeginIterator : Next Failed")
+			ldb.InfoDb("DataBase BeginIterator : Greater True : Last Failed")
+			return nil, errors.New("DataBase BeginIterator : Greater True : Last Failed")
 		}
 	} else {
 		if !it.Next() {
-			return nil, errors.New("DataBase BeginIterator : Prev Failed")
+			ldb.InfoDb("DataBase BeginIterator : Next Failed")
+			return nil, errors.New("DataBase BeginIterator : Greater False : Next Failed")
 		}
 	}
 

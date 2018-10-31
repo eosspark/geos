@@ -103,16 +103,16 @@ func Test_find(t *testing.T) {
 	objs_, houses_ := saveObjs(objs, houses, db)
 
 	getGreaterObjs(objs_, houses_, db)
-
-	findObjs(objs_, houses_, db)
-
-	findInLineFieldObjs(objs_, houses_, db)
 	//
-	findAllNonUniqueFieldObjs(objs_, houses_, db)
+	//findObjs(objs_, houses_, db)
 	//
-	//getErrStruct(db)
-	//
-	getLessObjs(objs_, houses_, db)
+	//findInLineFieldObjs(objs_, houses_, db)
+	////
+	//findAllNonUniqueFieldObjs(objs_, houses_, db)
+	////
+	////getErrStruct(db)
+	////
+	//getLessObjs(objs_, houses_, db)
 }
 
 func Test_modifyUndo(t *testing.T) {
@@ -602,16 +602,16 @@ func Objects() ([]DbTableIdObject, []DbHouse) {
 		number := i * 10
 		obj := DbTableIdObject{Code: AccountName(number + 1), Scope: ScopeName(number + 2), Table: TableName(number + 3 + i + 1), Payer: AccountName(number + 4 + i + 1), Count: uint32(number + 5)}
 		objs = append(objs, obj)
-		house := DbHouse{Area: uint64(number + 7), Carnivore: Carnivore{number + 8, number + 8}}
+		house := DbHouse{Area: uint64(number + 7), Carnivore: Carnivore{number + 7, number + 7}}
 		DbHouses = append(DbHouses, house)
-		obj = DbTableIdObject{Code: AccountName(number + 1), Scope: ScopeName(number + 2), Table: TableName(number + 3 + i + 2), Payer: AccountName(number + 4 + i + 2), Count: uint32(number + 5)}
+		obj = DbTableIdObject{Code: AccountName(number + 2), Scope: ScopeName(number + 2), Table: TableName(number + 3 + i + 2), Payer: AccountName(number + 4 + i + 2), Count: uint32(number + 5)}
 		objs = append(objs, obj)
 		house = DbHouse{Area: uint64(number + 8), Carnivore: Carnivore{number + 8, number + 8}}
 		DbHouses = append(DbHouses, house)
 
-		obj = DbTableIdObject{Code: AccountName(number + 1), Scope: ScopeName(number + 2), Table: TableName(number + 3 + i + 3), Payer: AccountName(number + 4 + i + 3), Count: uint32(number + 5)}
+		obj = DbTableIdObject{Code: AccountName(number + 3), Scope: ScopeName(number + 2), Table: TableName(number + 3 + i + 3), Payer: AccountName(number + 4 + i + 3), Count: uint32(number + 5)}
 		objs = append(objs, obj)
-		house = DbHouse{Area: uint64(number + 9), Carnivore: Carnivore{number + 8, number + 8}}
+		house = DbHouse{Area: uint64(number + 9), Carnivore: Carnivore{number + 9, number + 9}}
 		DbHouses = append(DbHouses, house)
 	}
 	return objs, DbHouses
@@ -622,6 +622,7 @@ func saveObjs(objs []DbTableIdObject, houses []DbHouse, db DataBase) ([]DbTableI
 	houses_ := []DbHouse{}
 
 	for _, v := range houses {
+		//logObj(v)
 		err := db.Insert(&v)
 		if err != nil {
 			log.Fatalln(err)
