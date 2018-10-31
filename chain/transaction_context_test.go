@@ -1,11 +1,13 @@
 package chain
 
 import (
+	"fmt"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/crypto/rlp"
+	"github.com/eosspark/eos-go/entity"
 	"io/ioutil"
 	"testing"
 )
@@ -62,8 +64,8 @@ func TestTransactionContextTest(t *testing.T) {
 			Expiration:       common.MaxTimePointSec(),
 			RefBlockNum:      4,
 			RefBlockPrefix:   3832731038,
-			MaxNetUsageWords: 0,
-			MaxCpuUsageMS:    0,
+			MaxNetUsageWords: 100000,
+			MaxCpuUsageMS:    200,
 			DelaySec:         0,
 		}
 
@@ -77,24 +79,31 @@ func TestTransactionContextTest(t *testing.T) {
 		privateKey, _ := ecc.NewRandomPrivateKey()
 		chainIdType := common.ChainIdType(*crypto.NewSha256String("cf057bbfb72640471fd910bcb67639c22df9f92470936cddc1ade0e2f2e7dc4f"))
 		signedTrx.Sign(privateKey, &chainIdType)
-		trxContext := NewTransactionContext(control, signedTrx, trx.ID(), common.Now())
 
 		metaTrx := types.NewTransactionMetadataBySignedTrx(signedTrx, common.CompressionNone)
 
 		//var trace *types.TransactionTrace
-		trxContext.Deadline = common.Now() + common.TimePoint(200000)
-		trxContext.ExplicitBilledCpuTime = false
-		trxContext.BilledCpuTimeUs = 3000
-		//trace = trxContext.Trace
+		for i := 0; i < 10; i++ {
+			trxContext := NewTransactionContext(control, signedTrx, trx.ID(), common.Now())
+			trxContext.Deadline = common.Now() + common.TimePoint(100000)
+			trxContext.ExplicitBilledCpuTime = true
+			trxContext.BilledCpuTimeUs = 150000
+			//trace = trxContext.Trace
 
-		trxContext.InitForInputTrx(uint64(metaTrx.PackedTrx.GetUnprunableSize()),
-			uint64(metaTrx.PackedTrx.GetPrunableSize()),
-			uint32(len(signedTrx.Signatures)),
-			true)
+			trxContext.InitForInputTrx(uint64(metaTrx.PackedTrx.GetUnprunableSize()),
+				uint64(metaTrx.PackedTrx.GetPrunableSize()),
+				uint32(len(signedTrx.Signatures)),
+				true)
 
-		trxContext.Delay = common.Seconds(int64(metaTrx.Trx.DelaySec)) // seconds
-		trxContext.Exec()
-		trxContext.Finalize()
+			trxContext.Delay = common.Seconds(int64(metaTrx.Trx.DelaySec)) // seconds
+			trxContext.Exec()
+			trxContext.Finalize()
+
+			usage := entity.ResourceUsageObject{Owner: common.AccountName(common.N(account))}
+			control.DB.Find("byOwner", usage, &usage)
+			fmt.Println(i, ":", usage)
+
+		}
 
 		// accountObject := entity.AccountObject{Name: action.Account}
 		// control.DB.Find("byName", accountObject, &accountObject)

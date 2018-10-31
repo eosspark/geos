@@ -20,7 +20,7 @@ func TestReactiveSocket_AsyncAccept(t *testing.T) {
 
 	startAcceptLoop(t, socket, listen, &connects)
 
-	const COUNT = 1000
+	const COUNT = 100
 	var doWrite func()
 	var (
 		stop 	= false
@@ -52,7 +52,7 @@ func TestReactiveSocket_AsyncAccept(t *testing.T) {
 	}()
 
 	shutdown := NewDeadlineTimer(ioc)
-	shutdown.ExpiresFromNow(time.Second * 10)
+	shutdown.ExpiresFromNow(time.Second)
 	shutdown.AsyncWait(func(err error) {
 		if err != nil {
 			t.Fatal(err)

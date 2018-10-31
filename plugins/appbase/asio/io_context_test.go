@@ -27,19 +27,22 @@ func TestIoContext_Post(t *testing.T) {
 }
 
 func TestIoContext_pRun(t *testing.T) {
-	const COUNT = 100000
+	const COUNT = 1000000
 	ioc := NewIoContext()
 	j := 0
 
-	delay := NewDeadlineTimer(ioc)
-	delay.ExpiresFromNow(time.Second)
-	delay.AsyncWait(func(err error) {
-		ioc.Stop()
-	})
+	//delay := NewDeadlineTimer(ioc)
+	//delay.ExpiresFromNow(time.Second)
+	//delay.AsyncWait(func(err error) {
+	//	ioc.Stop()
+	//})
 
 	for i:=0; i<COUNT; i++ {
 		ioc.Post(func() {
 			j++
+			if j == COUNT {
+				ioc.Stop()
+			}
 		})
 	}
 
