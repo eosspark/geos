@@ -25,9 +25,9 @@ type KeyValueObject struct {
 	Value      common.HexBytes // c++ SharedString
 }
 
-type Uint64_t struct {
-	Value uint64
-}
+// type Uint64_t struct {
+// 	Value uint64
+// }
 
 type Float64_t struct {
 	Value float64
@@ -36,15 +36,15 @@ type Float64_t struct {
 type SecondaryObjectI64 struct {
 	ID           common.IdType `multiIndex:"id,increment"`
 	TId          common.IdType `multiIndex:"byPrimary,orderedUnique,less:bySecondary,orderedUnique,less"`
-	PrimaryKey   uint64        `multiIndex:"byName,orderedUnique,less:bySecondary,orderedUnique,less"`
+	PrimaryKey   uint64        `multiIndex:"byPrimary,orderedUnique,less:bySecondary,orderedUnique,less"`
 	Payer        common.AccountName
-	SecondaryKey Uint64_t `multiIndex:"bySecondary,orderedUnique"`
+	SecondaryKey uint64 `multiIndex:"bySecondary,orderedUnique"`
 }
 
 type SecondaryObjectDouble struct {
 	ID           common.IdType `multiIndex:"id,increment"`
 	TId          common.IdType `multiIndex:"byPrimary,orderedUnique,less:bySecondary,orderedUnique,less"`
-	PrimaryKey   uint64        `multiIndex:"byName,orderedUnique,less:bySecondary,orderedUnique,less"`
+	PrimaryKey   uint64        `multiIndex:"byPrimary,orderedUnique,less:bySecondary,orderedUnique,less"`
 	Payer        common.AccountName
 	SecondaryKey Float64_t `multiIndex:"bySecondary,orderedUnique"`
 }

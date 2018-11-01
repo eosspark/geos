@@ -559,6 +559,8 @@ func (a *ApplyContext) dbStoreI64(code int64, scope int64, table int64, payer in
 	tab := a.FindOrCreateTable(code, scope, table, payer)
 	tid := tab.ID
 
+	EOS_ASSERT(payer != account_name(), invalid_table_payer, "must specify a valid account to pay for new record")
+
 	obj := entity.KeyValueObject{
 		TId:        tid,
 		PrimaryKey: uint64(id),
@@ -652,7 +654,7 @@ func (a *ApplyContext) DbNextI64(iterator int, primary *uint64) int {
 		itr.Data(&objKeyval)
 	}
 
-	if itr == idx.End() || objKeyval.TId != obj.TId {
+	if idx.CompareEnd(itr) || objKeyval.TId != obj.TId {
 		return a.KeyvalCache.getEndIteratorByTableID(obj.TId)
 	}
 
@@ -671,7 +673,7 @@ func (a *ApplyContext) DbPreviousI64(iterator int, primary *uint64) int {
 		EosAssert(tab != nil, &InvalidTableTterator{}, "not a valid end iterator")
 
 		itr, _ := idx.UpperBound(tab.ID)
-		if idx.Begin() == idx.End() || itr == idx.Begin() {
+		if idx.CompareIterator(idx.Begin(), idx.End()) || idx.CompareBegin(itr) {
 			return -1
 		}
 
@@ -734,7 +736,7 @@ func (a *ApplyContext) DbLowerboundI64(code int64, scope int64, table int64, id 
 	idx, _ := a.DB.GetIndex("byScopePrimary", &obj)
 
 	itr, _ := idx.LowerBound(&obj)
-	if itr == idx.End() {
+	if idx.CompareEnd(itr) {
 		return tableEndItr
 	}
 
@@ -760,7 +762,7 @@ func (a *ApplyContext) DbUpperboundI64(code int64, scope int64, table int64, id 
 	idx, _ := a.DB.GetIndex("byScopePrimary", &obj)
 
 	itr, _ := idx.UpperBound(&obj)
-	if itr == idx.End() {
+	if idx.CompareEnd(itr) {
 		return tableEndItr
 	}
 
@@ -771,7 +773,7 @@ func (a *ApplyContext) DbUpperboundI64(code int64, scope int64, table int64, id 
 		return tableEndItr
 	}
 
-	return a.KeyvalCache.add(objUpperbound)
+	return a.KeyvalCache.add(&objUpperbound)
 
 }
 func (a *ApplyContext) DbEndI64(code int64, scope int64, table int64) int {
