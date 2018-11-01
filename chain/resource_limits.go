@@ -9,7 +9,6 @@ import (
 	. "github.com/eosspark/eos-go/exception"
 	"log"
 	"math"
-	"fmt"
 )
 
 var IsActiveRc bool
@@ -165,8 +164,6 @@ func (r *ResourceLimitsManager) AddTransactionUsage(account *common.FlatSet, cpu
 	if err != nil {
 		log.Fatalln(err)
 	}
-
-	fmt.Println(state.PendingCpuUsage, " ", config.CpuLimitParameters.Max)
 
 	EosAssert( state.PendingCpuUsage <= config.CpuLimitParameters.Max, &BlockResourceExhausted{}, "Block has insufficient cpu resources" )
 	EosAssert( state.PendingNetUsage <= config.NetLimitParameters.Max, &BlockResourceExhausted{}, "Block has insufficient net resources" )
