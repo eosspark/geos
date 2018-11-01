@@ -76,29 +76,23 @@ type TerminalStringer interface {
 // TerminalFormat formats log records optimized for human readability on
 // a terminal with color-coded level output and terser human friendly timestamp.
 // This format should only be used for interactive programs or while developing.
-//
-//     [LEVEL] [TIME] MESAGE key=value key=value ...
-//
-// Example:
-//
-//     [DBUG] [May 16 20:58:45] remove route ns=haproxy addr=127.0.0.1:50002
-//
+
 func TerminalFormat(usecolor bool) Format {
 	return FormatFunc(func(r *Record) []byte {
 		var color = 0
 		if usecolor {
 			switch r.Lvl {
-			case LvlCrit:
+			case LvlAll:
 				color = 35
 			case LvlError:
 				color = 31
 			case LvlWarn:
 				color = 33
 			case LvlInfo:
-				color = 32
+				color = 0
 			case LvlDebug:
 				color = 36
-			case LvlTrace:
+			case LvlOff:
 				color = 34
 			}
 		}
@@ -121,18 +115,15 @@ func TerminalFormat(usecolor bool) Format {
 
 			// Assemble and print the log heading
 			if color > 0 {
-				fmt.Fprintf(b, "\x1b[%dm%s\x1b[0m[%s|%s]%s %s ", color, lvl, r.Time.Format(termTimeFormat), location, padding, r.Msg)
-
-				//fmt.Fprintf(b, "\x1b[%dm%s\x1b[0m[%s|%s]%s %s ", color, lvl, r.Time.Format(termTimeFormat), location, padding, r.Msg)
-
+				fmt.Fprintf(b, "\x1b[%dm%s[%s|%s]%s %+v%s \x1b[0m", color, lvl, r.Time.Format(termTimeFormat), location, padding, r.Call, r.Msg)
 			} else {
-				fmt.Fprintf(b, "%s[%s|%s]%s %s ", lvl, r.Time.Format(termTimeFormat), location, padding, r.Msg)
+				fmt.Fprintf(b, "%s[%s|%s]%s %v %s ", lvl, r.Time.Format(termTimeFormat), location, padding, r.Call, r.Msg)
 			}
 		} else {
 			if color > 0 {
-				fmt.Fprintf(b, "\x1b[%dm%s\x1b[0m[%s] %s ", color, lvl, r.Time.Format(termTimeFormat), r.Msg)
+				fmt.Fprintf(b, "\x1b[%dm%s[%s] %v %s \x1b[0m", color, lvl, r.Time.Format(termTimeFormat), r.Call, r.Msg)
 			} else {
-				fmt.Fprintf(b, "%s[%s] %s ", lvl, r.Time.Format(termTimeFormat), r.Msg)
+				fmt.Fprintf(b, "%s[%s] %v %s ", lvl, r.Time.Format(termTimeFormat), r.Call, r.Msg)
 			}
 		}
 		// try to justify the log output for short messages
@@ -140,7 +131,7 @@ func TerminalFormat(usecolor bool) Format {
 		if len(r.Ctx) > 0 && length < termMsgJust {
 			b.Write(bytes.Repeat([]byte{' '}, termMsgJust-length))
 		}
-		// print the keys logfmt style
+		//print the keys logfmt style
 		logfmt(b, r.Ctx, color, true)
 		return b.Bytes()
 	})
@@ -153,7 +144,7 @@ func TerminalFormat(usecolor bool) Format {
 //
 func LogfmtFormat() Format {
 	return FormatFunc(func(r *Record) []byte {
-		common := []interface{}{r.KeyNames.Time, r.Time, r.KeyNames.Lvl, r.Lvl, r.KeyNames.Msg, r.Msg}
+		common := []interface{}{r.KeyNames.Time, r.Time, "call", r.Call, r.KeyNames.Lvl, r.Lvl, r.KeyNames.Msg, r.Msg}
 		buf := &bytes.Buffer{}
 		logfmt(buf, append(common, r.Ctx...), 0, false)
 		return buf.Bytes()

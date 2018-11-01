@@ -5,23 +5,20 @@ import (
 )
 
 func TestLog(t *testing.T) {
-	Trace("Sanitizing cache to Go's GC limits", "provided", 100, "updated", true)
-	Debug("Sanitizing cache to Go's GC limits", "provided", 100, "updated", true)
-	Info("Sanitizing cache to Go's GC limits", "provided", 100, "updated", true)
-	Error("Sanitizing cache to Go's GC limits", "provided", 100, "updated", true)
-	Warn("Sanitizing cache to Go's GC limits", "provided", 100, "updated", true)
-	Crit("Sanitizing cache to Go's GC limits", "provided", 100, "updated", true)
-
+	Info("found block for id at num %d %s", 100, "walker")
+	Debug("found block for id at num %d %s", 100, "walker")
+	Warn("found block for id at num %d %s", 100, "walker")
+	Error("found block for id at num %d %s", 100, "walker")
 }
 
 func TestLog2(t *testing.T) {
 	h, _ := FileHandler("./log.log", TerminalFormat(true))
 	Root().SetHandler(h)
-	Warn("Sanitizing cache to Go's GC limits", "provided", 100, "updated", true)
+	Info("found block for id at num %d %s", 100, "walker")
 
 }
 
 func TestLog3(t *testing.T) {
-	srvlog := New("module", "app/server")
-	srvlog.Warn("net Plugin", "rate", 100, "low", 9, "high", 3.4)
+	srvlog := New()
+	srvlog.Error("found block for id at num %d %s", 100, "walker")
 }

@@ -2,6 +2,8 @@ package log
 
 import (
 	"os"
+
+	"fmt"
 )
 
 var (
@@ -34,47 +36,33 @@ func Root() Logger {
 // runtime.Caller(2) always refers to the call site in client code.
 
 // Trace is a convenient alias for Root().Trace
-func Trace(msg string, ctx ...interface{}) {
-	//root.write(msg, LvlTrace, ctx, skipLevel)
-	root.write(msg, LvlTrace, ctx, 3)
-}
+//func Trace(format string, v ...interface{}) {
+//	//root.write(msg, LvlTrace, ctx, skipLevel)
+//	root.write(LvlAll, fmt.Sprintf(format,v...), skipLevel)
+//}
 
 // Debug is a convenient alias for Root().Debug
-func Debug(msg string, ctx ...interface{}) {
-	root.write(msg, LvlDebug, ctx, skipLevel)
+func Debug(format string, v ...interface{}) {
+	root.write(LvlDebug, fmt.Sprintf(format, v...), skipLevel)
 }
 
 // Info is a convenient alias for Root().Info
-func Info(msg string, ctx ...interface{}) {
-	root.write(msg, LvlInfo, ctx, 3)
+func Info(format string, v ...interface{}) {
+	root.write(LvlInfo, fmt.Sprintf(format, v...), skipLevel)
 }
 
-//func InfoF(msg string, format string, ctx ...interface{}) {
-//	re := fmt.Sprintf(format,ctx...)
-//	root.write(msg,LvlInfo,[]interface{}{re},skipLevel)
-//}
-
 // Warn is a convenient alias for Root().Warn
-func Warn(msg string, ctx ...interface{}) {
-	root.write(msg, LvlWarn, ctx, skipLevel)
+func Warn(format string, v ...interface{}) {
+	root.write(LvlWarn, fmt.Sprintf(format, v...), skipLevel)
 }
 
 // Error is a convenient alias for Root().Error
-func Error(msg string, ctx ...interface{}) {
-	root.write(msg, LvlError, ctx, skipLevel)
+func Error(format string, v ...interface{}) {
+	root.write(LvlError, fmt.Sprintf(format, v...), skipLevel)
 }
 
-// Crit is a convenient alias for Root().Crit
-func Crit(msg string, ctx ...interface{}) {
-	root.write(msg, LvlCrit, ctx, skipLevel)
-	os.Exit(1)
-}
-
-// Output is a convenient alias for write, allowing for the modification of
-// the calldepth (number of stack frames to skip).
-// calldepth influences the reported line number of the log message.
-// A calldepth of zero reports the immediate caller of Output.
-// Non-zero calldepth skips as many stack frames.
-func Output(msg string, lvl Lvl, calldepth int, ctx ...interface{}) {
-	root.write(msg, lvl, ctx, calldepth+skipLevel)
-}
+//// Crit is a convenient alias for Root().Crit
+//func Crit(format string, v ...interface{}) {
+//	root.write(LvlOff, fmt.Sprintf(format,v...), skipLevel)
+//	os.Exit(1)
+//}
