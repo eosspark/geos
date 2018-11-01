@@ -28,7 +28,7 @@ func NewResourceLimitsConfigObject() ResourceLimitsConfigObject{
 	}
 
 	config.NetLimitParameters = types.ElasticLimitParameters{Target:common.EosPercent(uint64(common.DefaultConfig.MaxBlockNetUsage), common.DefaultConfig.TargetBlockNetUsagePct),
-		Max:uint64(common.DefaultConfig.MaxBlockCpuUsage),
+		Max:uint64(common.DefaultConfig.MaxBlockNetUsage),
 		Periods:uint32(common.DefaultConfig.BlockSizeAverageWindowMs) / uint32(common.DefaultConfig.BlockIntervalMs),
 		MaxMultiplier:1000, ContractRate:types.Ratio{Numerator:99, Denominator:100}, ExpandRate:types.Ratio{Numerator:1000, Denominator:999},
 	}
