@@ -120,7 +120,7 @@ func (index *MultiIndex) CompareBegin(in Iterator) bool {
 	it := index.Begin()
 	//fmt.Println(it.Value())
 	//fmt.Println(in.Value())
-	return bytes.Compare(it.Value(), in.Value()) == 0
+	return index.CompareIterator(it,in)
 }
 
 /*
@@ -135,7 +135,10 @@ error 				-->		false
 
 */
 func (index *MultiIndex) CompareIterator(it1 Iterator,it2 Iterator) bool {
-	if it1  == nil || it2 == nil{
+	if it1  == nil &&  it2 == nil{
+		return true
+	}
+	if it1  == nil ||  it2 == nil{
 		return false
 	}
 	//fmt.Println(it1.Value())

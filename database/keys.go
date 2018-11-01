@@ -6,7 +6,8 @@ import (
 )
 
 func idKey(id, typeName []byte) []byte { /* key --> typeName__id */
-	key := append(typeName, '_')
+	key := cloneByte(typeName)
+	key = append(key, '_')
 	key = append(key, '_')
 	key = append(key, id...)
 
@@ -34,42 +35,39 @@ func getFieldInfo(fieldName string, value interface{}) (*fieldInfo, error) {
 	return fields, nil
 }
 
-func nonUniqueValue(info *fieldInfo) []byte { /* non unique fields --> find function */
-	for _, v := range info.fieldValue {
-		if isZero(v) && v.Kind() != reflect.Bool {
-			return nil
-		}
-	}
-	val, _ := getNonUniqueFieldValue(info)
-	return val
-}
+//func nonUniqueValue(info *fieldInfo) []byte { /* non unique fields --> find function */
+//	for _, v := range info.fieldValue {
+//		if isZero(v) && v.Kind() != reflect.Bool {
+//			return nil
+//		}
+//	}
+//	val, _ := getNonUniqueFieldValue(info)
+//	return val
+//}
 
 // TODO The function is unchanged, need to modify the implementation
-func getNonUniqueFieldValue(info *fieldInfo) ([]byte, []byte) { /* non unique fields --> get function */
+func getFieldValue(info *fieldInfo) ([]byte) { /* non unique fields --> get function */
 	values := []byte{}
-	prefix := []byte{}
-	//regexp := []byte{40,46,42,41}
 	for _, v := range info.fieldValue {
-		values = append(values, '_')
-		values = append(values, '_')
+
 		if v.Kind() != reflect.Bool && isZero(v) {
-			//values = append(values,regexp...)
-			return prefix, prefix
+			return values
 		}
+		values = append(values, '_')
+		values = append(values, '_')
 		re, err := rlp.EncodeToBytes(v.Interface())
 		if err != nil {
-			return nil, nil
+			return nil
 		}
 
-		prefix = append(prefix, re...)
 		values = append(values, re...)
 	}
 
-	return values, prefix /*  NON unique values , unique use prefix*/
+	return values
 }
 
 func typeNameFieldName(typeName, tagName []byte) []byte { /* typeName__fieldName*/
-	key := []byte(typeName) // TODO copy ?
+	key := cloneByte(typeName)
 	key = append(key, '_')
 	key = append(key, '_')
 	key = append(key, tagName...)
