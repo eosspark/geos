@@ -32,12 +32,12 @@ func (BlockNetUsageExceeded) What() string {
 	return "Transaction network usage is too much for the remaining allowable usage of the current block"
 }
 
-type TxCpuUsageExceed struct{ logMessage }
+type TxCpuUsageExceeded struct{ logMessage }
 
-func (TxCpuUsageExceed) ChainExceptions()             {}
-func (TxCpuUsageExceed) ResourceExhaustedExceptions() {}
-func (TxCpuUsageExceed) Code() ExcTypes               { return 3080004 }
-func (TxCpuUsageExceed) What() string {
+func (TxCpuUsageExceeded) ChainExceptions()             {}
+func (TxCpuUsageExceeded) ResourceExhaustedExceptions() {}
+func (TxCpuUsageExceeded) Code() ExcTypes               { return 3080004 }
+func (TxCpuUsageExceeded) What() string {
 	return "Transaction exceeded the current CPU usage limit imposed on the transaction"
 }
 

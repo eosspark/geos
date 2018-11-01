@@ -172,3 +172,15 @@ func TestReturnFunction(t *testing.T) {
 	assert.Equal(t, 2, returnFunction(2))
 	assert.Equal(t, 0, returnFunction(3))
 }
+
+func TestCatchExceptionsRethrow(t *testing.T) {
+	try.Try(func() {
+		EosAssert(false, &ChainTypeException{}, "")
+	}).Catch(func(e Exception) {
+		try.Try(func() {
+			try.Throw(e)
+		}).Catch(func(e ChainTypeException) {
+			//shouldn't throw
+		}).End()
+	}).End()
+}
