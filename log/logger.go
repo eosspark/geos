@@ -2,7 +2,6 @@ package log
 
 import (
 	"fmt"
-	"os"
 	"time"
 
 	"github.com/go-stack/stack"
@@ -18,19 +17,19 @@ const skipLevel = 2
 type Lvl int
 
 const (
-	LvlCrit Lvl = iota
-	LvlError
-	LvlWarn
-	LvlInfo
+	LvlAll Lvl = iota
 	LvlDebug
-	LvlTrace
+	LvlInfo
+	LvlWarn
+	LvlError
+	LvlOff
 )
 
 // AlignedString returns a 5-character string containing the name of a Lvl.
 func (l Lvl) AlignedString() string {
 	switch l {
-	case LvlTrace:
-		return "TRACE"
+	case LvlAll:
+		return "ALL"
 	case LvlDebug:
 		return "DEBUG"
 	case LvlInfo:
@@ -39,18 +38,18 @@ func (l Lvl) AlignedString() string {
 		return "WARN "
 	case LvlError:
 		return "ERROR"
-	case LvlCrit:
-		return "CRIT "
+	case LvlOff:
+		return "OFF "
 	default:
-		panic("bad level")
+		panic("Unknown level")
 	}
 }
 
 // Strings returns the name of a Lvl.
 func (l Lvl) String() string {
 	switch l {
-	case LvlTrace:
-		return "trce"
+	case LvlAll:
+		return "all"
 	case LvlDebug:
 		return "dbug"
 	case LvlInfo:
@@ -59,10 +58,10 @@ func (l Lvl) String() string {
 		return "warn"
 	case LvlError:
 		return "eror"
-	case LvlCrit:
-		return "crit"
+	case LvlOff:
+		return "off"
 	default:
-		panic("bad level")
+		panic("Unknown level")
 	}
 }
 
@@ -70,8 +69,8 @@ func (l Lvl) String() string {
 // Useful for parsing command line args and configuration files.
 func LvlFromString(lvlString string) (Lvl, error) {
 	switch lvlString {
-	case "trace", "trce":
-		return LvlTrace, nil
+	case "all":
+		return LvlAll, nil
 	case "debug", "dbug":
 		return LvlDebug, nil
 	case "info":
@@ -80,8 +79,8 @@ func LvlFromString(lvlString string) (Lvl, error) {
 		return LvlWarn, nil
 	case "error", "eror":
 		return LvlError, nil
-	case "crit":
-		return LvlCrit, nil
+	case "off":
+		return LvlOff, nil
 	default:
 		return LvlDebug, fmt.Errorf("Unknown level: %v", lvlString)
 	}
@@ -117,12 +116,13 @@ type Logger interface {
 	SetHandler(h Handler)
 
 	// Log a message at the given level with context key/value pairs
-	Trace(msg string, ctx ...interface{})
-	Debug(msg string, ctx ...interface{})
-	Info(msg string, ctx ...interface{})
-	Warn(msg string, ctx ...interface{})
-	Error(msg string, ctx ...interface{})
-	Crit(msg string, ctx ...interface{})
+	//Trace(format string, ctx ...interface{})
+	Debug(format string, ctx ...interface{})
+	Info(format string, ctx ...interface{})
+	Warn(format string, ctx ...interface{})
+	Error(format string, ctx ...interface{})
+	//Crit(format string, ctx ...interface{})
+
 }
 
 type logger struct {
@@ -130,12 +130,11 @@ type logger struct {
 	h   *swapHandler
 }
 
-func (l *logger) write(msg string, lvl Lvl, ctx []interface{}, skip int) {
+func (l *logger) write(lvl Lvl, msg string, skip int) {
 	l.h.Log(&Record{
 		Time: time.Now(),
 		Lvl:  lvl,
 		Msg:  msg,
-		Ctx:  newContext(l.ctx, ctx),
 		Call: stack.Caller(skip),
 		KeyNames: RecordKeyNames{
 			Time: timeKey,
@@ -160,31 +159,26 @@ func newContext(prefix []interface{}, suffix []interface{}) []interface{} {
 	return newCtx
 }
 
-func (l *logger) Trace(msg string, ctx ...interface{}) {
-	l.write(msg, LvlTrace, ctx, skipLevel)
+func (l *logger) Debug(format string, v ...interface{}) {
+	l.write(LvlDebug, fmt.Sprintf(format, v...), skipLevel)
 }
 
-func (l *logger) Debug(msg string, ctx ...interface{}) {
-	l.write(msg, LvlDebug, ctx, skipLevel)
+func (l *logger) Info(format string, v ...interface{}) {
+	l.write(LvlInfo, fmt.Sprintf(format, v...), skipLevel)
 }
 
-func (l *logger) Info(msg string, ctx ...interface{}) {
-	l.write(msg, LvlInfo, ctx, skipLevel)
+func (l *logger) Warn(format string, v ...interface{}) {
+	l.write(LvlWarn, fmt.Sprintf(format, v...), skipLevel)
 }
 
-func (l *logger) Warn(msg string, ctx ...interface{}) {
-	l.write(msg, LvlWarn, ctx, skipLevel)
+func (l *logger) Error(format string, v ...interface{}) {
+	root.write(LvlError, fmt.Sprintf(format, v...), skipLevel)
 }
 
-func (l *logger) Error(msg string, ctx ...interface{}) {
-	l.write(msg, LvlError, ctx, skipLevel)
-}
-
-func (l *logger) Crit(msg string, ctx ...interface{}) {
-	l.write(msg, LvlCrit, ctx, skipLevel)
-	os.Exit(1)
-}
-
+//func (l *logger) Crit(format string, v ...interface{}) {
+//	root.write(LvlOff,fmt.Sprintf(format,v...),skipLevel)
+//	os.Exit(1)
+//}
 func (l *logger) GetHandler() Handler {
 	return l.h.Get()
 }
@@ -207,7 +201,8 @@ func normalize(ctx []interface{}) []interface{} {
 	// that things are the right length and users can fix bugs
 	// when they see the output looks wrong
 	if len(ctx)%2 != 0 {
-		ctx = append(ctx, nil, errorKey, "Normalized odd number of arguments by adding nil")
+		//ctx = append(ctx, nil, errorKey, "Normalized odd number of arguments by adding nil")
+		ctx = append(ctx, "")
 	}
 
 	return ctx
