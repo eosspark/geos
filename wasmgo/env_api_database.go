@@ -110,8 +110,9 @@ func dbEndI64(w *WasmGo, code int64, scope int64, table int64) int {
 func dbIdx64Store(w *WasmGo, scope int64, table int64, payer int64, id int64, pValue int) int {
 	fmt.Println("db_idx64_store")
 
-	secondaryKey := &types.Uint64_t{Value: getUint64(w, pValue)}
+	//secondaryKey := &types.Uint64_t{Value: getUint64(w, pValue)}
 	//secondaryKey.SetValue(getUint64(w, pValue))
+	secondaryKey := getUint64(w, pValue)
 	return w.context.Idx64Store(scope, table, payer, id, secondaryKey)
 }
 
@@ -123,8 +124,9 @@ func dbIdx64Remove(w *WasmGo, itr int) {
 func dbIdx64Update(w *WasmGo, itr int, payer int64, pValue int) {
 	fmt.Println("db_idx64_update")
 
-	secondaryKey := &types.Uint64_t{Value: getUint64(w, pValue)}
+	//secondaryKey := &types.Uint64_t{Value: getUint64(w, pValue)}
 	//secondaryKey.SetValue(getUint64(w, pValue))
+	secondaryKey := getUint64(w, pValue)
 	w.context.Idx64Update(itr, payer, secondaryKey)
 }
 
@@ -133,7 +135,8 @@ func dbIdx64findSecondary(w *WasmGo, code int64, scope int64, table int64, payer
 	fmt.Println("db_idx64_find_secondary")
 
 	var primaryKey uint64 //:= getUint64(w, pPrimary)
-	secondaryKey := &types.Uint64_t{Value: getUint64(w, pSecondary)}
+	//secondaryKey := &types.Uint64_t{Value: getUint64(w, pSecondary)}
+	secondaryKey := getUint64(w, pSecondary)
 	itr := w.context.Idx64FindSecondary(code, scope, table, secondaryKey, &primaryKey)
 	setUint64(w, pPrimary, primaryKey)
 
@@ -144,11 +147,11 @@ func dbIdx64Lowerbound(w *WasmGo, code int64, scope int64, table int64, pSeconda
 
 	fmt.Println("db_idx64_lowerbound")
 
-	var primaryKey uint64 //:= getUint64(w, pPrimary)
-	secondaryKey := types.Uint64_t{}
+	var primaryKey, secondaryKey uint64 //:= getUint64(w, pPrimary)
+	//secondaryKey := types.Uint64_t{}
 	itr := w.context.Idx64Lowerbound(code, scope, table, &secondaryKey, &primaryKey)
 	setUint64(w, pPrimary, primaryKey)
-	setUint64(w, pSecondary, secondaryKey.Value)
+	setUint64(w, pSecondary, secondaryKey)
 
 	return itr
 }
@@ -157,11 +160,11 @@ func dbIdx64Upperbound(w *WasmGo, code int64, scope int64, table int64, pSeconda
 
 	fmt.Println("db_idx64_upperbound")
 
-	var primaryKey uint64 //:= getUint64(w, pPrimary)
-	secondaryKey := types.Uint64_t{}
+	var primaryKey, secondaryKey uint64 //:= getUint64(w, pPrimary)
+	//secondaryKey := types.Uint64_t{}
 	itr := w.context.Idx64Lowerbound(code, scope, table, &secondaryKey, &primaryKey)
 	setUint64(w, pPrimary, primaryKey)
-	setUint64(w, pSecondary, secondaryKey.Value)
+	setUint64(w, pSecondary, secondaryKey)
 
 	return itr
 }
@@ -202,9 +205,10 @@ func dbIdx64FindPrimary(w *WasmGo, code int64, scope int64, table int64, payer i
 	//var primaryKey uint64 //:= getUint64(w, pPrimary)
 
 	primaryKey := getUint64(w, pPrimary)
-	secondaryKey := types.Uint64_t{}
+	//secondaryKey := types.Uint64_t{}
+	var secondaryKey uint64
 	itr := w.context.Idx64FindPrimary(code, scope, table, &secondaryKey, &primaryKey)
-	setUint64(w, pSecondary, secondaryKey.Value)
+	setUint64(w, pSecondary, secondaryKey)
 
 	return itr
 }
