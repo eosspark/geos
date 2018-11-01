@@ -9,6 +9,7 @@ import (
 	. "github.com/eosspark/eos-go/exception"
 	"log"
 	"math"
+	"fmt"
 )
 
 var IsActiveRc bool
@@ -83,21 +84,21 @@ func (r *ResourceLimitsManager) AddTransactionUsage(account *common.FlatSet, cpu
 		var unUsed, netWeight, cpuWeight int64
 		r.GetAccountLimits(*a.(*common.AccountName), &unUsed, &netWeight, &cpuWeight)
 		r.db.Modify(&usage, func(bu *entity.ResourceUsageObject) {
-			bu.CpuUsage.Add(netUsage, timeSlot, config.AccountNetUsageAverageWindow)
-			bu.NetUsage.Add(cpuUsage, timeSlot, config.AccountCpuUsageAverageWindow)
+			bu.CpuUsage.Add(cpuUsage, timeSlot, config.AccountCpuUsageAverageWindow)
+			bu.NetUsage.Add(netUsage, timeSlot, config.AccountNetUsageAverageWindow)
 		})
 
 		if cpuWeight >= 0 && state.TotalCpuWeight > 0 {
 			windowSize := uint64(config.AccountCpuUsageAverageWindow)
 			virtualNetworkCapacityInWindow := arithmeticTypes.MulUint64(state.VirtualCpuLimit, windowSize)
 			cpuUsedInWindow := arithmeticTypes.MulUint64(usage.CpuUsage.ValueEx, windowSize)
-			cpuUsedInWindow, _ = cpuUsedInWindow.Div(arithmeticTypes.Uint128{0, uint64(common.DefaultConfig.RateLimitingPrecision)})
-			userWeight := arithmeticTypes.Uint128{0, uint64(cpuWeight)}
-			allUserWeight := arithmeticTypes.Uint128{0, state.TotalCpuWeight}
+			cpuUsedInWindow, _ = cpuUsedInWindow.Div(arithmeticTypes.Uint128{Low:uint64(common.DefaultConfig.RateLimitingPrecision)})
+			userWeight := arithmeticTypes.Uint128{Low:uint64(cpuWeight)}
+			allUserWeight := arithmeticTypes.Uint128{Low:state.TotalCpuWeight}
 
 			maxUserUseInWindow := virtualNetworkCapacityInWindow.Mul(userWeight)
 			maxUserUseInWindow, _ = maxUserUseInWindow.Div(allUserWeight)
-			EosAssert(cpuUsedInWindow.Compare(maxUserUseInWindow) < 1, &TxCpuUsageExceed{},
+			EosAssert(cpuUsedInWindow.Compare(maxUserUseInWindow) < 1, &TxCpuUsageExceeded{},
 				"authorizing account %s has insufficient cpu resources for this transaction,\n cpu_used_in_window: %s,\n max_user_use_in_window: %s",
 				a, cpuUsedInWindow, maxUserUseInWindow)
 		}
@@ -106,13 +107,14 @@ func (r *ResourceLimitsManager) AddTransactionUsage(account *common.FlatSet, cpu
 			windowSize := uint64(config.AccountNetUsageAverageWindow)
 			virtualNetworkCapacityInWindow := arithmeticTypes.MulUint64(state.VirtualNetLimit, windowSize)
 			netUsedInWindow := arithmeticTypes.MulUint64(usage.NetUsage.ValueEx, windowSize)
-			netUsedInWindow, _ = netUsedInWindow.Div(arithmeticTypes.Uint128{0, uint64(common.DefaultConfig.RateLimitingPrecision)})
-			userWeight := arithmeticTypes.Uint128{0, uint64(cpuWeight)}
-			allUserWeight := arithmeticTypes.Uint128{0, state.TotalCpuWeight}
+			netUsedInWindow, _ = netUsedInWindow.Div(arithmeticTypes.Uint128{Low:uint64(common.DefaultConfig.RateLimitingPrecision)})
+			userWeight := arithmeticTypes.Uint128{Low:uint64(cpuWeight)}
+			allUserWeight := arithmeticTypes.Uint128{Low:state.TotalCpuWeight}
 
 			maxUserUseInWindow := virtualNetworkCapacityInWindow.Mul(userWeight)
 			maxUserUseInWindow, _ = maxUserUseInWindow.Div(allUserWeight)
-			EosAssert(netUsedInWindow.Compare(maxUserUseInWindow) < 1, &TxCpuUsageExceed{},
+			fmt.Println(netUsedInWindow," ",maxUserUseInWindow)
+			EosAssert(netUsedInWindow.Compare(maxUserUseInWindow) < 1, &TxNetUsageExceeded{},
 				"authorizing account %s has insufficient cpu resources for this transaction,\n net_used_in_window: %s,\n max_user_use_in_window: %s",
 				a, netUsedInWindow, maxUserUseInWindow)
 		}
@@ -241,7 +243,6 @@ func (r *ResourceLimitsManager) ProcessAccountLimitUpdates() {
 
 		*value = pendingValue
 	}
-
 	state := entity.DefaultResourceLimitsStateObject
 	r.db.Find("id", state, &state)
 	r.db.Modify(&state, func(rso *entity.ResourceLimitsStateObject) {
@@ -251,8 +252,7 @@ func (r *ResourceLimitsManager) ProcessAccountLimitUpdates() {
 			if err != nil {
 				break
 			}
-			byOwnerIndex.BeginData(&limit)
-
+			itr.Data(&limit)
 			if byOwnerIndex.CompareEnd(itr) || limit.Pending != true {
 				break
 			}
@@ -260,12 +260,13 @@ func (r *ResourceLimitsManager) ProcessAccountLimitUpdates() {
 			actualEntry := entity.ResourceLimitsObject{}
 			actualEntry.Pending = false
 			actualEntry.Owner = limit.Owner
+			r.db.Find("byOwner",actualEntry,&actualEntry)
 			r.db.Modify(&actualEntry, func(rlo *entity.ResourceLimitsObject) {
 				updateStateAndValue(&rso.TotalRamBytes, &rlo.RamBytes, limit.RamBytes, "ram_bytes")
 				updateStateAndValue(&rso.TotalCpuWeight, &rlo.CpuWeight, limit.CpuWeight, "cpu_weight")
 				updateStateAndValue(&rso.TotalNetWeight, &rlo.NetWeight, limit.NetWeight, "net_weight")
 			})
-			err = r.db.Remove(limit)
+			err = r.db.Remove(&limit)
 			if err != nil {
 				log.Fatalln(err)
 			}
@@ -333,7 +334,6 @@ func (r *ResourceLimitsManager) GetAccountCpuLimitEx(name common.AccountName, el
 	usage := entity.ResourceUsageObject{}
 	usage.Owner = name
 	r.db.Find("byOwner", usage, &usage)
-
 	var cpuWeight, x, y int64
 	r.GetAccountLimits(name, &x, &y, &cpuWeight)
 
@@ -349,16 +349,17 @@ func (r *ResourceLimitsManager) GetAccountCpuLimitEx(name common.AccountName, el
 	} else {
 		virtualCpuCapacityInWindow = arithmeticTypes.MulUint64(config.CpuLimitParameters.Max, windowSize)
 	}
-	userWeight := arithmeticTypes.Uint128{0, uint64(cpuWeight)}
-	allUserWeight := arithmeticTypes.Uint128{0, state.TotalCpuWeight}
+	userWeight := arithmeticTypes.Uint128{Low:uint64(cpuWeight)}
+	allUserWeight := arithmeticTypes.Uint128{Low:state.TotalCpuWeight}
 
-	maxUserUseInWindow, _ := virtualCpuCapacityInWindow.Div(allUserWeight)
-	maxUserUseInWindow = maxUserUseInWindow.Mul(userWeight)
+	maxUserUseInWindow := virtualCpuCapacityInWindow.Mul(userWeight)
+	maxUserUseInWindow, _ = maxUserUseInWindow.Div(allUserWeight)
+
 	//cpuUsedInWindow := IntegerDivideCeilUint64(              //TODO: ValueEx * windowSize may > MaxUnit64
 	//	usage.CpuUsage.ValueEx * windowSize,
 	//	uint64(common.DefaultConfig.RateLimitingPrecision))
 	cpuUsedInWindow := arithmeticTypes.MulUint64(usage.CpuUsage.ValueEx, windowSize)
-	cpuUsedInWindow, _ = cpuUsedInWindow.Div(arithmeticTypes.Uint128{0, uint64(common.DefaultConfig.RateLimitingPrecision)})
+	cpuUsedInWindow, _ = cpuUsedInWindow.Div(arithmeticTypes.Uint128{Low:uint64(common.DefaultConfig.RateLimitingPrecision)})
 
 	if maxUserUseInWindow.Compare(cpuUsedInWindow) != 1 {
 		arl.Available = 0
@@ -401,8 +402,8 @@ func (r *ResourceLimitsManager) GetAccountNetLimitEx(name common.AccountName, el
 	} else {
 		virtualNetworkCapacityInWindow = arithmeticTypes.MulUint64(config.CpuLimitParameters.Max, windowSize)
 	}
-	userWeight := arithmeticTypes.Uint128{0, uint64(netWeight)}
-	allUserWeight := arithmeticTypes.Uint128{0, state.TotalNetWeight}
+	userWeight := arithmeticTypes.Uint128{Low:uint64(netWeight)}
+	allUserWeight := arithmeticTypes.Uint128{Low:state.TotalNetWeight}
 
 	maxUserUseInWindow, _ := virtualNetworkCapacityInWindow.Div(allUserWeight)
 	maxUserUseInWindow = maxUserUseInWindow.Mul(userWeight)
@@ -410,7 +411,7 @@ func (r *ResourceLimitsManager) GetAccountNetLimitEx(name common.AccountName, el
 	//	usage.CpuUsage.ValueEx * windowSize,
 	//	uint64(common.DefaultConfig.RateLimitingPrecision))
 	netUsedInWindow := arithmeticTypes.MulUint64(usage.NetUsage.ValueEx, windowSize)
-	netUsedInWindow, _ = netUsedInWindow.Div(arithmeticTypes.Uint128{0, uint64(common.DefaultConfig.RateLimitingPrecision)})
+	netUsedInWindow, _ = netUsedInWindow.Div(arithmeticTypes.Uint128{Low:uint64(common.DefaultConfig.RateLimitingPrecision)})
 
 	if maxUserUseInWindow.Compare(netUsedInWindow) != 1 {
 		arl.Available = 0

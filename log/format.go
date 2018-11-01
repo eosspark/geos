@@ -15,14 +15,14 @@ import (
 
 const (
 	timeFormat     = "2006-01-02T15:04:05-0700"
-	termTimeFormat = "01-02|15:04:05.000"
+	termTimeFormat = "2006-01-02T15:04:05.000"
 	floatFormat    = 'f'
 	termMsgJust    = 40
 )
 
 // locationTrims are trimmed for display to avoid unwieldy log lines.
 var locationTrims = []string{
-	"github.com/ethereum/go-ethereum/",
+	"github.com/eosspark/eos-go/",
 }
 
 // PrintOrigins sets or unsets log location (file:line) printing for terminal
@@ -122,6 +122,9 @@ func TerminalFormat(usecolor bool) Format {
 			// Assemble and print the log heading
 			if color > 0 {
 				fmt.Fprintf(b, "\x1b[%dm%s\x1b[0m[%s|%s]%s %s ", color, lvl, r.Time.Format(termTimeFormat), location, padding, r.Msg)
+
+				//fmt.Fprintf(b, "\x1b[%dm%s\x1b[0m[%s|%s]%s %s ", color, lvl, r.Time.Format(termTimeFormat), location, padding, r.Msg)
+
 			} else {
 				fmt.Fprintf(b, "%s[%s|%s]%s %s ", lvl, r.Time.Format(termTimeFormat), location, padding, r.Msg)
 			}
@@ -184,11 +187,13 @@ func logfmt(buf *bytes.Buffer, ctx []interface{}, color int, term bool) {
 		}
 		if color > 0 {
 			fmt.Fprintf(buf, "\x1b[%dm%s\x1b[0m=", color, k)
+			fmt.Fprintf(buf, "\x1b[%dm%s\x1b[0m", color, v)
 		} else {
 			buf.WriteString(k)
 			buf.WriteByte('=')
+			buf.WriteString(v)
 		}
-		buf.WriteString(v)
+		//buf.WriteString(v)
 		if i < len(ctx)-2 {
 			buf.Write(bytes.Repeat([]byte{' '}, padding-length))
 		}

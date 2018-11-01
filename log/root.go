@@ -11,7 +11,11 @@ var (
 )
 
 func init() {
-	root.SetHandler(DiscardHandler())
+	//root.SetHandler(DiscardHandler())
+	//root.SetHandler(StdoutHandler)
+	//root.SetHandler(LvlFilterHandler(LvlError, StdoutHandler))
+	root.SetHandler(StreamHandler(os.Stdout, TerminalFormat(true)))
+
 }
 
 // New returns a new logger with the given context.
@@ -31,7 +35,8 @@ func Root() Logger {
 
 // Trace is a convenient alias for Root().Trace
 func Trace(msg string, ctx ...interface{}) {
-	root.write(msg, LvlTrace, ctx, skipLevel)
+	//root.write(msg, LvlTrace, ctx, skipLevel)
+	root.write(msg, LvlTrace, ctx, 3)
 }
 
 // Debug is a convenient alias for Root().Debug
@@ -41,8 +46,13 @@ func Debug(msg string, ctx ...interface{}) {
 
 // Info is a convenient alias for Root().Info
 func Info(msg string, ctx ...interface{}) {
-	root.write(msg, LvlInfo, ctx, skipLevel)
+	root.write(msg, LvlInfo, ctx, 3)
 }
+
+//func InfoF(msg string, format string, ctx ...interface{}) {
+//	re := fmt.Sprintf(format,ctx...)
+//	root.write(msg,LvlInfo,[]interface{}{re},skipLevel)
+//}
 
 // Warn is a convenient alias for Root().Warn
 func Warn(msg string, ctx ...interface{}) {

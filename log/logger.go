@@ -207,7 +207,8 @@ func normalize(ctx []interface{}) []interface{} {
 	// that things are the right length and users can fix bugs
 	// when they see the output looks wrong
 	if len(ctx)%2 != 0 {
-		ctx = append(ctx, nil, errorKey, "Normalized odd number of arguments by adding nil")
+		//ctx = append(ctx, nil, errorKey, "Normalized odd number of arguments by adding nil")
+		ctx = append(ctx, "")
 	}
 
 	return ctx
