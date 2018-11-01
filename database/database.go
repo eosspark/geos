@@ -1,7 +1,7 @@
 package database
 
 import (
-	"log"
+	"github.com/eosspark/eos-go/log"
 	"math"
 	"os"
 	"reflect"
@@ -15,14 +15,12 @@ import (
 )
 
 type LDataBase struct {
-	db       *leveldb.DB
-	stack    *deque
-	path     string
+	db        *leveldb.DB
+	stack     *deque
+	path      string
 	reversion int64
-	nextId   map[string]int64
-	logFlag  bool
-	dbLog 	*log.Logger
-	logFile *os.File
+	nextId    map[string]int64
+	logFlag   bool
 }
 
 /*
@@ -36,7 +34,6 @@ error 				-->		database is nil ,error
 
 */
 func NewDataBase(path string, flag ...bool) (DataBase, error) {
-
 
 	db, err := leveldb.OpenFile(path, &opt.Options{
 		OpenFilesCacheCapacity: 16,
@@ -55,7 +52,7 @@ func NewDataBase(path string, flag ...bool) (DataBase, error) {
 	/*	read every type increment	*/
 	nextId, err := typeIncrement(db)
 	if err != nil {
-		log.Panicln("database init failed : " + err.Error())
+		log.Error("database init failed : %s", err.Error())
 	}
 
 	logFlag := false
@@ -68,7 +65,7 @@ func NewDataBase(path string, flag ...bool) (DataBase, error) {
 	reFn := func() {
 		errs := os.RemoveAll(fileName)
 		if errs != nil {
-			log.Fatalln(errs)
+			log.Error(errs.Error())
 		}
 	}
 	_, exits := os.Stat(fileName)
@@ -76,14 +73,11 @@ func NewDataBase(path string, flag ...bool) (DataBase, error) {
 		reFn()
 	}
 
-	logFile, err := os.Create(fileName)
 	if err != nil {
-		log.Fatalln("open database log file failed : ",err)
+		log.Error("open database log file failed :%s ", err.Error())
 	}
 
-	// create log object
-	dbLog := log.New(logFile, "[Debug]", log.LstdFlags|log.Lshortfile)
-	return &LDataBase{db: db, stack: newDeque(), path: path, nextId: nextId, logFlag: logFlag,dbLog:dbLog,logFile:logFile}, nil
+	return &LDataBase{db: db, stack: newDeque(), path: path, nextId: nextId, logFlag: logFlag}, nil
 }
 
 func typeIncrement(db *leveldb.DB) (map[string]int64, error) {
@@ -100,8 +94,8 @@ func typeIncrement(db *leveldb.DB) (map[string]int64, error) {
 			panic("database init failed : " + err.Error())
 		}
 	}
-	err = db.Delete(key,nil)
-	if err != nil{
+	err = db.Delete(key, nil)
+	if err != nil {
 		panic("database init failed : " + err.Error())
 	}
 	return nextId, nil
@@ -110,38 +104,34 @@ func typeIncrement(db *leveldb.DB) (map[string]int64, error) {
 func (ldb *LDataBase) Close() {
 	err := ldb.WriteIncrement()
 	if err != nil {
-		ldb.dbLog.Panicln("database close failed : " + err.Error())
+		log.Error("database close failed : %s", err.Error())
 	}
 	err = ldb.db.Close()
 	if err != nil {
-		ldb.dbLog.Panicln("database close failed : " + err.Error())
-		// log
+		log.Error("database close failed : %s", err.Error())
 	} else {
-		ldb.dbLog.Println("----------------- database close -----------------")
-		// log
+		log.Info("----------------- database close -----------------")
 	}
-
-	ldb.logFile.Close()
 }
 
 func (ldb *LDataBase) WriteIncrement() error {
 	val, err := rlp.EncodeToBytes(ldb.nextId)
 	if err != nil {
-		ldb.dbLog.Println("WriteIncrement rlp EncodeToBytes failed is : ",err)
+		log.Error("WriteIncrement rlp EncodeToBytes failed is : %s", err.Error())
 		return err
 	}
 	dbIncrement := dbIncrement
 	key := []byte(dbIncrement)
 	err = saveKey(key, val, ldb.db)
 	if err != nil {
-		ldb.dbLog.Println("WriteIncrement saveKey failed is : ",err)
+		log.Error("WriteIncrement saveKey failed is : %s", err.Error())
 		return err
 	}
 	return nil
 }
 
 func (ldb *LDataBase) Revision() int64 {
-	ldb.dbLog.Println("ldb reversion is : ",ldb.reversion)
+	log.Info("ldb reversion is : %d", ldb.reversion)
 	return ldb.reversion
 }
 
@@ -174,7 +164,7 @@ func (ldb *LDataBase) Undo() {
 
 func (ldb *LDataBase) UndoAll() {
 	// TODO wait Undo
-	log.Fatalln("UndoAll do not work,Please wait")
+	log.Error("UndoAll do not work,Please wait")
 }
 
 func (ldb *LDataBase) squash() {
@@ -226,7 +216,7 @@ func (ldb *LDataBase) StartSession() *Session {
 	state := newUndoState(ldb.reversion, ldb.nextId)
 	ldb.stack.Append(state)
 	space := " "
-	ldb.dbLog.Println("database StartSession reversion is : ",ldb.reversion,space,"next id is : ",ldb.nextId)
+	log.Info("database StartSession reversion is : %d,%s,  next id is : %v", ldb.reversion, space, ldb.nextId)
 	return &Session{db: ldb, apply: true, reversion: ldb.reversion}
 }
 
@@ -234,16 +224,16 @@ func (ldb *LDataBase) Commit(reversion int64) {
 
 	for {
 		if ldb.stack.Size() == 0 {
-			ldb.dbLog.Println("database Commit stack is empty")
+			log.Info("database Commit stack is empty")
 			return
 		}
 
 		stack := ldb.getFirstStack()
 		if stack == nil {
-			ldb.dbLog.Println("database Commit stack is nil")
+			log.Info("database Commit stack is nil")
 			break
 		}
-		ldb.dbLog.Println("database Commit stack reversion is : ",stack.reversion)
+		log.Info("database Commit stack reversion is : %d", stack.reversion)
 		if stack.reversion > reversion {
 			break
 		}
@@ -261,7 +251,7 @@ func (ldb *LDataBase) SetRevision(reversion int64) {
 		//throw
 		panic("reversion to set is too high")
 	}
-	ldb.dbLog.Println("database  SetRevision  reversion is : ",reversion)
+	log.Info("database  SetRevision  reversion is : ", reversion)
 	ldb.reversion = reversion
 }
 
@@ -278,7 +268,7 @@ error 				-->		error
 func (ldb *LDataBase) Insert(in interface{}) error {
 	err := ldb.insert(in)
 	if err != nil {
-		ldb.dbLog.Println("error database insert failed : ",err)
+		log.Error("error database insert failed : %s", err.Error())
 		return err
 	}
 
@@ -290,10 +280,10 @@ func (ldb *LDataBase) insert(in interface{}, flag ...bool) error { /* struct cfg
 
 	cfg, err := parseObjectToCfg(in) /* (struct cfg) parse object tag */
 	if err != nil {
-		ldb.dbLog.Println("error database insert  parseObjectToCfg failed : ",err)
+		log.Error("error database insert  parseObjectToCfg failed : %s", err.Error())
 		return err
 	}
-	ldb.dbLog.Println("Info ",cfg.showCfg())
+	log.Info("Info: %s", cfg.showCfg())
 	undoFlag := false
 	if len(flag) > 0 {
 		undoFlag = flag[0]
@@ -302,7 +292,7 @@ func (ldb *LDataBase) insert(in interface{}, flag ...bool) error { /* struct cfg
 	if !undoFlag {
 		err = ldb.setIncrement(cfg) /* (kv.id) set increment id */
 		if err != nil {
-			ldb.dbLog.Println("error database insert cfg setIncrement failed : ",err,"  ","cfg is : ",cfg)
+			log.Error("error database insert cfg setIncrement failed : %s,  cfg is : %v", err.Error(), cfg)
 			return err
 		}
 	}
@@ -313,7 +303,7 @@ func (ldb *LDataBase) insert(in interface{}, flag ...bool) error { /* struct cfg
 	//dbKV.showDbKV()
 	err = ldb.insertKvToDb(dbKV) /* (kv to db) kv insert database (atomic) */
 	if err != nil {
-		ldb.dbLog.Println("error database insert insertKvToDb failed : ",err)
+		log.Error("error database insert insertKvToDb failed : %s", err)
 		return err
 	}
 	return nil
@@ -321,14 +311,13 @@ func (ldb *LDataBase) insert(in interface{}, flag ...bool) error { /* struct cfg
 
 func (ldb *LDataBase) insertKvToDb(dbKV *dbKeyValue) error {
 
-	ldb.dbLog.Println("Info kv database insertKvToDb dbKV is : ",dbKV)
+	log.Info("Info kv database insertKvToDb dbKV is : %v", dbKV)
 
 	undoKeyValue := dbKeyValue{} /* 	Record all operations before a db operation is completed		*/
 	/* 	If you need to roll back before the operation is complete 		*/
 	/* 	execute the undoKV function										*/
 	undoKeyValue.typeName = dbKV.typeName
 	undo := false
-	space := " "
 	defer func() { /*	undo  */
 		if !undo {
 			return
@@ -338,7 +327,7 @@ func (ldb *LDataBase) insertKvToDb(dbKV *dbKeyValue) error {
 	for _, v := range dbKV.index {
 		err := saveKey(v.key, v.value, ldb.db)
 		if err != nil {
-			ldb.dbLog.Println("error database insertKvToDb saveKey failed : ",err,space,"key is : ",v.key,space,"value is : ",v.value)
+			log.Error("error database insertKvToDb saveKey failed : %s,  key is : %v, value is : %v", err.Error(), v.key, v.value)
 			undo = true
 			return err
 		}
@@ -347,7 +336,7 @@ func (ldb *LDataBase) insertKvToDb(dbKV *dbKeyValue) error {
 
 	err := saveKey(dbKV.id.key, dbKV.id.value, ldb.db)
 	if err != nil {
-		ldb.dbLog.Println("error database insertKvToDb saveKey failed : ",err,space,"key is : ",dbKV.id.key,space,"value is : ",dbKV.id.value)
+		log.Error("error database insertKvToDb saveKey failed : %s,  key is : %v,  value is : %s  ", err.Error(), dbKV.id.key, dbKV.id.value)
 		return err
 	}
 
@@ -365,7 +354,7 @@ func (ldb *LDataBase) setIncrement(cfg *structInfo) error {
 
 	cfg.Id.Set(reflect.ValueOf(id).Convert(cfg.Id.Type()))
 	ldb.nextId[cfg.Name] = id + 1
-	ldb.dbLog.Println("Info database setIncrement cfg id set is : ",id,"  ","next id is : ",ldb.nextId)
+	log.Info("Info database setIncrement cfg id set is : %d,  next id is : %v", id, ldb.nextId)
 	return nil
 }
 
@@ -383,7 +372,7 @@ error 				-->		error
 func (ldb *LDataBase) Remove(in interface{}) error {
 	err := ldb.remove(in)
 	if err != nil {
-		ldb.dbLog.Println("error database Remove failed : ",err)
+		log.Error("error database Remove failed : %s", err.Error())
 		return err
 	}
 	ldb.undoRemove(in)
@@ -394,12 +383,12 @@ func (ldb *LDataBase) remove(in interface{}) error {
 
 	cfg, err := parseObjectToCfg(in)
 	if err != nil {
-		ldb.dbLog.Println("error database remove parseObjectToCfg failed : ",err)
+		log.Error("error database remove parseObjectToCfg failed : %s", err.Error())
 		return err
 	}
-	ldb.dbLog.Println("Info ",cfg.showCfg())
+	log.Info(cfg.showCfg())
 	if isZero(cfg.Id) {
-		ldb.dbLog.Println("error database remove parseObjectToCfg cfg id isZero  : ",cfg.Id)
+		log.Info("error database remove parseObjectToCfg cfg id isZero  : %v", cfg.Id)
 		return ErrIncompleteStructure
 	}
 
@@ -410,7 +399,7 @@ func (ldb *LDataBase) remove(in interface{}) error {
 
 	err = ldb.removeKvToDb(dbKV)
 	if err != nil {
-		ldb.dbLog.Println("error database remove removeKvToDb failed  : ",err,"  ","dbKV is : ",dbKV)
+		log.Error("error database remove removeKvToDb failed  : %s, dbKV is : %v", err, dbKV)
 		return err
 	}
 
@@ -432,7 +421,7 @@ func (ldb *LDataBase) removeKvToDb(dbKV *dbKeyValue) error {
 	for _, v := range dbKV.index {
 		err := removeKey(v.key, ldb.db)
 		if err != nil {
-			ldb.dbLog.Println("error database  removeKvToDb removeKey failed  : ",err,"  ","key is : ",v.key)
+			log.Error("error database  removeKvToDb removeKey failed  : %s, key is : %v", err.Error(), v.key)
 			undo = true
 			return err
 		}
@@ -441,7 +430,7 @@ func (ldb *LDataBase) removeKvToDb(dbKV *dbKeyValue) error {
 
 	err := removeKey(dbKV.id.key, ldb.db)
 	if err != nil {
-		ldb.dbLog.Println("error database  removeKvToDb removeKey failed  : ",err,"  ","key is : ",dbKV.id.key)
+		log.Error("error database  removeKvToDb removeKey failed  : %s, key is : %v", err, dbKV.id.key)
 		undo = true
 		return err
 	}
@@ -465,7 +454,7 @@ func (ldb *LDataBase) Modify(old interface{}, fn interface{}) error {
 	copy_ := cloneInterface(old)
 	err := ldb.modify(old, fn)
 	if err != nil {
-		ldb.dbLog.Println("error database  Modify failed  : ",err)
+		log.Error("error database  Modify failed  : %s", err.Error())
 		return err
 	}
 	ldb.undoModify(copy_)
@@ -485,14 +474,14 @@ func (ldb *LDataBase) modify(data interface{}, fn interface{}) error {
 	fnRef := reflect.ValueOf(fn)
 	fnType := fnRef.Type()
 	if fnType.NumIn() != 1 {
-		ldb.dbLog.Println("error database  modify failed  : func Too many parameters : ",fnType.NumIn())
-		return errors.New("func Too many parameters : "+ string(fnType.NumIn()))
+		log.Info("error database  modify failed  : func Too many parameters : %d", fnType.NumIn())
+		return errors.New("func Too many parameters : " + string(fnType.NumIn()))
 	}
 
 	pType := fnType.In(0)
 
 	if pType.Kind() != dataType.Kind() {
-		ldb.dbLog.Println("error database  modify failed  : Parameter type does not match: ",pType.Kind().String()," : ",dataType.Kind().String())
+		log.Info("error database  modify failed %s  : Parameter type does not match: %s", pType.Kind().String(), dataType.Kind().String())
 		return errors.New("Parameter type does not match : " + pType.Kind().String() + " : " + dataType.Kind().String())
 	}
 	fnRef.Call([]reflect.Value{dataRef}) /*	call fn */
@@ -503,25 +492,25 @@ func (ldb *LDataBase) modify(data interface{}, fn interface{}) error {
 
 func (ldb *LDataBase) modifyKvToDb(oldRef, newRef *reflect.Value) error {
 
-	ldb.dbLog.Println("Info database modifyKvToDb oldRef is : ",oldRef)
-	ldb.dbLog.Println("Info database modifyKvToDb newRef is : ",newRef)
+	log.Info("Info database modifyKvToDb oldRef is : %v", oldRef)
+	log.Info("Info database modifyKvToDb newRef is : %v", newRef)
 
 	oldCfg, err := extractObjectTagInfo(oldRef)
 	if err != nil {
-		ldb.dbLog.Println("error database modifyKvToDb extractObjectTagInfo oldRef failed : ",err)
+		log.Error("error database modifyKvToDb extractObjectTagInfo oldRef failed : %s", err.Error())
 		return err
 	}
 	newCfg, err := extractObjectTagInfo(newRef)
 	if err != nil {
-		ldb.dbLog.Println("error database modifyKvToDb extractObjectTagInfo newRef failed : ",err)
+		log.Error("error database modifyKvToDb extractObjectTagInfo newRef failed : ", err.Error())
 		return err
 	}
 
-	ldb.dbLog.Println("Info database modifyKvToDb oldCfg is : ",oldCfg.showCfg())
-	ldb.dbLog.Println("Info database modifyKvToDb newCfg is : ",newCfg.showCfg())
+	log.Info("Info database modifyKvToDb oldCfg is : %s", oldCfg.showCfg())
+	log.Info("Info database modifyKvToDb newCfg is : %s", newCfg.showCfg())
 
 	if !reflect.DeepEqual(oldCfg.Id.Interface(), newCfg.Id.Interface()) {
-		ldb.dbLog.Println("error database modifyKvToDb newCfg and oldCfg id failed : ","newCfg id is : ",newCfg.Id,"  "," oldCfg id is : ",oldCfg.Id)
+		log.Info("error database modifyKvToDb newCfg and oldCfg id failed,  newCfg id is :  %v,  oldCfg id is : %v", newCfg.Id, oldCfg.Id)
 		return ErrNoID
 	}
 
@@ -530,18 +519,18 @@ func (ldb *LDataBase) modifyKvToDb(oldRef, newRef *reflect.Value) error {
 	structKV(oldRef.Interface(), oldKV, oldCfg)
 	structKV(newRef.Interface(), newKV, newCfg)
 
-	ldb.dbLog.Println("Info database modifyKvToDb structKV oldKV is : ",oldKV)
-	ldb.dbLog.Println("Info database modifyKvToDb structKV newKV is : ",newKV)
+	log.Info("Info database modifyKvToDb structKV oldKV is : %v", oldKV)
+	log.Info("Info database modifyKvToDb structKV newKV is : %v", newKV)
 
 	err = ldb.removeKvToDb(oldKV)
 	if err != nil {
-		ldb.dbLog.Println("error database modifyKvToDb removeKvToDb oldKV is : ",oldKV)
+		log.Error("error database modifyKvToDb removeKvToDb oldKV is : %v", oldKV)
 		return err
 	}
 
 	err = ldb.insertKvToDb(newKV)
 	if err != nil {
-		ldb.dbLog.Println("error database modifyKvToDb insertKvToDb newKV is : ",newKV)
+		log.Error("error database modifyKvToDb insertKvToDb newKV is : %v", newKV)
 		return err
 	}
 	return nil
@@ -561,29 +550,29 @@ func (ldb *LDataBase) undoModifyKv(old interface{}) error {
 		return ErrPtrNeeded
 	}
 
-	ldb.dbLog.Println("Info database undoModifyKv extractObjectTagInfo oldCfg is : ",oldRef)
+	log.Info("Info database undoModifyKv extractObjectTagInfo oldCfg is : %v", oldRef)
 	oldCfg, err := extractObjectTagInfo(&oldRef)
 	if err != nil {
-		ldb.dbLog.Println("error database undoModifyKv extractObjectTagInfo oldCfg failed : ",err)
+		log.Error("error database undoModifyKv extractObjectTagInfo oldCfg failed : %s", err.Error())
 		return err
 	}
 	id, err := rlp.EncodeToBytes(oldCfg.Id.Interface())
 	if err != nil {
-		ldb.dbLog.Println("error database undoModifyKv rlp EncodeToBytes id failed : ",err," : ",oldCfg.Id)
+		log.Error("error database undoModifyKv rlp EncodeToBytes id failed : %s, : %v", err.Error(), oldCfg.Id)
 		return err
 	}
 	typeName := []byte(oldCfg.Name)
 	key := idKey(id, typeName)
 	val, err := getDbKey(key, ldb.db)
 	if err != nil {
-		ldb.dbLog.Println("error database undoModifyKv getDbKey  failed : ",err,"  ","key is : ",key)
+		log.Error("error database undoModifyKv getDbKey  failed : %s, key is : %v", err.Error(), key)
 		return err
 	}
 
 	dst := reflect.New(reflect.Indirect(oldRef).Type())
 	err = rlp.DecodeBytes(val, dst.Interface())
 	if err != nil {
-		ldb.dbLog.Println("error database undoModifyKv rlp DecodeBytes failed : ",err,"  ","dst interface is : ",dst.Interface())
+		log.Error("error database undoModifyKv rlp DecodeBytes failed : %s, dst interface is %v", err, dst.Interface())
 		return err
 	}
 
@@ -635,21 +624,21 @@ func (ldb *LDataBase) Find(tagName string, in interface{}, out interface{}) erro
 }
 
 func (ldb *LDataBase) find(tagName string, value interface{}, to interface{}) error {
-	ldb.dbLog.Println("Info database find : ","tagName is : ",tagName)
+	log.Info("Info database find : tagName is: %s", tagName)
 	fieldName := []byte(tagName)
 	fields, err := getFieldInfo(tagName, value)
 	if err != nil {
-		ldb.dbLog.Println("error database find  getFieldInfo failed : ",err)
+		log.Error("error database find  getFieldInfo failed : %s", err.Error())
 		return err
 	}
 
-	ldb.dbLog.Println("Info database find fields is : ",fields)
+	log.Info("Info database find fields is : %v", fields)
 
 	typeName := []byte(fields.typeName)
 
 	suffix := getFieldValue(fields)
 	if len(suffix) == 0 {
-		ldb.dbLog.Println("error database find nonUniqueValue failed : ",err)
+		log.Error("error database find nonUniqueValue failed : %s", err.Error())
 		return ErrNotFound
 	}
 
@@ -661,7 +650,7 @@ func (ldb *LDataBase) find(tagName string, value interface{}, to interface{}) er
 func (ldb *LDataBase) findFields(key, typeName []byte, to interface{}) error {
 	v, err := getDbKey(key, ldb.db)
 	if err != nil {
-		ldb.dbLog.Println("error database findFields key is : ",key)
+		log.Error("error database findFields key is : %v", key)
 		return err
 	}
 	return ldb.findDbObject(v, typeName, to)
@@ -671,16 +660,16 @@ func (ldb *LDataBase) findFields(key, typeName []byte, to interface{}) error {
 func (ldb *LDataBase) findDbObject(key, typeName []byte, to interface{}) error {
 
 	id := idKey(key, typeName)
-	ldb.dbLog.Println("Info database findDbObject id is : ",id)
+	log.Info("Info database findDbObject id is : %v", id)
 	val, err := getDbKey(id, ldb.db)
 	if err != nil {
-		ldb.dbLog.Println("error database findDbObject getDbKey failed : ",err)
+		log.Error("error database findDbObject getDbKey failed : %s", err.Error())
 		return err
 	}
-	ldb.dbLog.Println("Info database findDbObject val is : ",val)
+	log.Info("Info database findDbObject val is : %v", val)
 	err = rlp.DecodeBytes(val, to)
 	if err != nil {
-		ldb.dbLog.Println("error database findDbObject rlp DecodeBytes failed : ",err)
+		log.Error("error database findDbObject rlp DecodeBytes failed : %s", err.Error())
 		return err
 	}
 	return nil
@@ -712,10 +701,9 @@ func (ldb *LDataBase) getIndex(tagName string, value interface{}) (*MultiIndex, 
 	typeName := []byte(fields.typeName)
 	begin := typeNameFieldName(typeName, fieldName)
 
-
 	end := getNonUniqueEnd(begin)
-	space := "  "
-	ldb.dbLog.Println("getIndex typeName : ",typeName,space,"fieldName : ",fieldName,space,"begin : ",begin,space,"end : ",end,space,"greater : ",fields.greater)
+
+	log.Info("getIndex typeName : %v, fieldName : %v, begin: %v , end: %v, greater: %t", typeName, fieldName, begin, end, fields.greater)
 	it := newMultiIndex(typeName, fieldName, begin, end, fields.greater, ldb)
 	return it, nil
 }
@@ -814,20 +802,20 @@ func (ldb *LDataBase) BeginIterator(begin, end, fieldName, typeName []byte, grea
 	it := ldb.db.NewIterator(&util.Range{Start: begin, Limit: end}, nil)
 	if greater {
 		if !it.Last() {
-			ldb.dbLog.Println("error DataBase BeginIterator : Greater True : Last Failed")
-			return nil,ErrNotFound
+			log.Error("error DataBase BeginIterator : Greater True : Last Failed")
+			return nil, ErrNotFound
 		}
 	} else {
 		if !it.Next() {
-			ldb.dbLog.Println("error DataBase BeginIterator : Greater False : Next Failed")
-			return nil,ErrNotFound
+			log.Error("error DataBase BeginIterator : Greater False : Next Failed")
+			return nil, ErrNotFound
 		}
 	}
 
 	k := idKey(it.Value(), []byte(typeName))
 	val, err := getDbKey(k, ldb.db)
 	if err != nil {
-		ldb.dbLog.Println("error DataBase BeginIterator : " ,err)
+		log.Error("error DataBase BeginIterator : %s", err.Error())
 		return nil, errors.New("DataBase BeginIterator : " + err.Error())
 	}
 
@@ -872,7 +860,7 @@ func (ldb *LDataBase) undoInsert(in interface{}) {
 
 	stack := ldb.getStack()
 	if stack == nil {
-		log.Println("undo session empty")
+		log.Warn("undo session empty")
 		return
 	}
 	copy_ := cloneInterface(in)
@@ -886,7 +874,7 @@ func (ldb *LDataBase) undoModify(in interface{}) {
 
 	stack := ldb.getStack()
 	if stack == nil {
-		log.Println("undo session empty")
+		log.Warn("undo session empty")
 		return
 	}
 	copy_ := cloneInterface(in)
@@ -900,7 +888,7 @@ func (ldb *LDataBase) undoRemove(in interface{}) {
 
 	stack := ldb.getStack()
 	if stack == nil {
-		log.Println("undo session empty")
+		log.Warn("undo session empty")
 		return
 	}
 	copy_ := cloneInterface(in)
@@ -964,15 +952,14 @@ The internal undo operation of the database is not used externally
 
 func (ldb *LDataBase) undoInsertKV(undoKeyValue *dbKeyValue) { /*	insert kv to db error --> undo kv */
 
-	ldb.dbLog.Println("info database undoInsertKV is : ",undoKeyValue)
+	log.Info("info database undoInsertKV is : %v", undoKeyValue)
 	if len(undoKeyValue.index) == 0 {
 		return
 	}
-	space := " "
 	for _, v := range undoKeyValue.index { /* 	undo index*/
 		err := removeKey(v.key, ldb.db)
 		if err != nil {
-			ldb.dbLog.Println("error database undoInsertKV removeKey failed : ",err,space,"key is : ",v.key)
+			log.Error("error database undoInsertKV removeKey failed : %s, key is : %v", err.Error(), v.key)
 			return
 		}
 	}
@@ -981,14 +968,14 @@ func (ldb *LDataBase) undoInsertKV(undoKeyValue *dbKeyValue) { /*	insert kv to d
 	}
 	err := removeKey(undoKeyValue.id.key, ldb.db) /* 	undo id*/
 	if err != nil {
-		ldb.dbLog.Println("error database undoInsertKV removeKey failed : ",err,space,"key is : ",undoKeyValue.id.key)
+		log.Error("error database undoInsertKV removeKey failed : %s, key is : %v", err.Error(), undoKeyValue.id.key)
 		return
 	}
 }
 
 func (ldb *LDataBase) undoRemoveKV(undoKeyValue *dbKeyValue) { /*	remove kv from db error --> undo kv */
 
-	ldb.dbLog.Println("info database undoRemoveKV  undoKeyValue is ",undoKeyValue)
+	log.Info("info database undoRemoveKV  undoKeyValue is %v", undoKeyValue)
 
 	if len(undoKeyValue.index) == 0 {
 		return
@@ -996,7 +983,7 @@ func (ldb *LDataBase) undoRemoveKV(undoKeyValue *dbKeyValue) { /*	remove kv from
 	for _, v := range undoKeyValue.index { /* 	undo index*/
 		err := saveKey(v.key, v.value, ldb.db)
 		if err != nil {
-			ldb.dbLog.Println("error database undoRemoveKV saveKey failed : ",err,"  ","key is : ",v.key,"  ","value is : ",v.value)
+			log.Error("error database undoRemoveKV saveKey failed : %s, key is %v, value is: %v ", err.Error(), v.key, v.value)
 			return
 		}
 	}
@@ -1006,7 +993,7 @@ func (ldb *LDataBase) undoRemoveKV(undoKeyValue *dbKeyValue) { /*	remove kv from
 
 	err := saveKey(undoKeyValue.id.key, undoKeyValue.id.value, ldb.db) /* undo id*/
 	if err != nil {
-		ldb.dbLog.Println("error database undoRemoveKV saveKey failed : ",err,"  ","key is : ",undoKeyValue.id.key,"  ","value is : ",undoKeyValue.id.value)
+		log.Error("error database undoRemoveKV saveKey failed : %s, key is: %v, value is %v", err.Error(), undoKeyValue.id.key, undoKeyValue.id.value)
 		return
 	}
 }

@@ -116,7 +116,6 @@ type Logger interface {
 	SetHandler(h Handler)
 
 	// Log a message at the given level with context key/value pairs
-	//Trace(format string, ctx ...interface{})
 	Debug(format string, ctx ...interface{})
 	Info(format string, ctx ...interface{})
 	Warn(format string, ctx ...interface{})

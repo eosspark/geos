@@ -35,12 +35,6 @@ func Root() Logger {
 // etc.) to keep the call depth the same for all paths to logger.write so
 // runtime.Caller(2) always refers to the call site in client code.
 
-// Trace is a convenient alias for Root().Trace
-//func Trace(format string, v ...interface{}) {
-//	//root.write(msg, LvlTrace, ctx, skipLevel)
-//	root.write(LvlAll, fmt.Sprintf(format,v...), skipLevel)
-//}
-
 // Debug is a convenient alias for Root().Debug
 func Debug(format string, v ...interface{}) {
 	root.write(LvlDebug, fmt.Sprintf(format, v...), skipLevel)
