@@ -2,10 +2,8 @@ package try
 
 import (
 	"reflect"
-		"fmt"
-	"runtime"
-	. "github.com/eosspark/eos-go/exception"
-)
+			"runtime"
+	)
 
 //StackInfo store code informations when catched exception.
 type StackInfo struct {
@@ -23,12 +21,6 @@ type RuntimeError struct {
 
 func (rte RuntimeError) String() string {
 	return rte.Message
-}
-
-type CatchOrFinally struct {
-	e 		  interface{}
-	stackInfo []byte
-	//StackTrace []StackInfo
 }
 
 type OrThrowable struct {
@@ -68,88 +60,11 @@ func Try(f func()) (r *CatchOrFinally) {
 	return nil
 }
 
-//Catch call the exception handler. And return interface CatchOrFinally that
-//can call Catch or Finally.
-func (c *CatchOrFinally) Catch(f interface{}) (r *CatchOrFinally) {
-	if c == nil || c.e == nil {
-		return nil
-	}
-
-	rf := reflect.ValueOf(f)
-	ft := rf.Type()
-	if ft.NumIn() > 0 {
-		it := ft.In(0)
-		ct := reflect.TypeOf(c.e)
-
-		its, cts := it.String(), ct.String()
-
-		if its == cts || (it.Kind() == reflect.Interface && ct.Implements(it)) {
-			reflect.ValueOf(f).Call([]reflect.Value{reflect.ValueOf(c.e)})
-			return nil
-
-		} else if ct.Kind() == reflect.Ptr && cts[1:] == its { // make pointer can be caught by its value type
-			reflect.ValueOf(f).Call([]reflect.Value{reflect.ValueOf(reflect.ValueOf(c.e).Elem().Interface())})
-			return nil
-
-		} else if cts == "runtime.errorString" && its == "try.RuntimeError" {
-			var rte RuntimeError
-			rte.Message = c.e.(error).Error()
-			rte.stackInfo = c.stackInfo
-			ev := reflect.ValueOf(rte)
-			reflect.ValueOf(f).Call([]reflect.Value{ev})
-			return nil
-		}
-
-		//println(it.String(), ct.String())
-
-	}
-	return c
-}
 
 func Throw(e interface{}) {
 	panic(e)
 }
 
-//Necessary to call at the end of try-catch block, to ensure panic uncaught exceptions
-func (c *CatchOrFinally) End() {
-	if c != nil && c.e != nil {
-		c.printStackInfo()
-		Throw(c.e)
-	}
-}
-
-func (c *CatchOrFinally) printStackInfo() {
-	fmt.Println(string(c.stackInfo))
-}
-
-func (c *CatchOrFinally) LogAndRethrow() {
-	c.Catch(func(er Exception) {
-		//TODO: log
-	}).Catch(func(interface{}) {
-		e := UnHandledException{}
-		println(e.Message()) //TODO: log
-	})
-}
-
-func (c *CatchOrFinally) CaptureLogAndRethrow() {
-	//TODO FC_CAPTURE_LOG_AND_RETHROW
-}
-
-func (c *CatchOrFinally) CaptureAndLog() {
-	//TODO FC_CAPTURE_AND_LOG
-}
-
-func (c *CatchOrFinally) LogAndDrop() {
-	//TODO FC_LOG_AND_DROP
-}
-
-func (c *CatchOrFinally) RethrowExceptions(logLevel string, format string, arg ...interface{}) {
-	//TODO FC_RETHROW_EXCEPTIONS
-}
-
-func (c *CatchOrFinally) CaptureAndRethrow() {
-	//TODO FC_CAPTURE_AND_RETHROW
-}
 
 type returnTypes struct{}
 
@@ -167,24 +82,5 @@ func HandleReturn() {
 	}
 }
 
-//Finally always be called if defined.
-//func (c *CatchOrFinally) Finally(f interface{}) (r *OrThrowable) {
-//	reflect.ValueOf(f).Call([]reflect.Value{})
-//	if c == nil || c.e == nil {
-//		return nil
-//	}
-//	return &OrThrowable{c.e}
-//}
 
-//OrThrow throw error then never catch block entered.
-
-
-//OrThrow throw error then never catch block entered.
-//func (c *OrThrowable) End() {
-//	if c != nil && c.e != nil {
-//		Throw(c.e)
-//	}
-//}
-
-//Throw is wrapper of panic().
 

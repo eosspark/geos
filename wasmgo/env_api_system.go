@@ -49,7 +49,9 @@ func abort(w *WasmGo) {
 //    }
 // }
 func eosioAssert(w *WasmGo, condition int, val int) {
-	fmt.Println("eosio_assert")
+	// if debug {
+	// 	fmt.Println("eosio_assert")
+	// }
 
 	if condition != 1 {
 		message := getMemory(w, val, getStringLength(w, val))

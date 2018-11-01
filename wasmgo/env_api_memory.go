@@ -19,7 +19,9 @@ func abs(n int) int {
 //    return (char *)::memcpy(dest, src, length);
 // }
 func memcpy(w *WasmGo, dest int, src int, length int) int {
-	fmt.Println("memcpy")
+	// if debug {
+	// 	fmt.Println("memcpy")
+	// }
 
 	// if abs(dest-src) < length {
 	// 	fmt.Println("memcpy can only accept non-aliasing pointers")

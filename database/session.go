@@ -4,15 +4,15 @@ package database
 type Session struct {
 	db       DataBase
 	apply    bool
-	revision int64
+	reversion int64
 }
 
-//func (session *Session) Commit(revision int64) {
+//func (session *Session) Commit(reversion int64) {
 //	if !session.apply {
 //		// log ?
 //		return
 //	}
-//	session.db.Commit(revision)
+//	session.db.Commit(reversion)
 //	session.apply = false
 //}
 
@@ -44,5 +44,5 @@ func (session *Session) Undo() {
 }
 
 func (session *Session) Revision() int64 {
-	return session.revision
+	return session.reversion
 }

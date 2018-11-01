@@ -1,6 +1,7 @@
 package chain
 
 import (
+	"fmt"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/database"
@@ -38,21 +39,21 @@ type TransactionContext struct {
 	BilledCpuTimeUs       int64
 	ExplicitBilledCpuTime bool
 
-	isInitialized                 bool
-	netLimit                      uint64
-	netLimitDueToBlock            bool
-	netLimitDueToGreylist         bool
-	cpuLimitDueToGreylist         bool
-	eagerNetLimit                 uint64
-	netUsage                      *uint64
-	initialObjectiveDurationLimit common.Microseconds //microseconds
-	objectiveDurationLimit        common.Microseconds
-	deadline                      common.TimePoint //maximum
-	deadlineExceptionCode         int64
-	billingTimerExceptionCode     int64
-	pseudoStart                   common.TimePoint
-	billedTime                    common.Microseconds
-	billingTimerDurationLimit     common.Microseconds
+	isInitialized         bool
+	netLimit              uint64
+	netLimitDueToBlock    bool
+	netLimitDueToGreylist bool
+	cpuLimitDueToGreylist bool
+	eagerNetLimit         uint64
+	netUsage              *uint64
+	//initialObjectiveDurationLimit common.Microseconds //microseconds
+	objectiveDurationLimit    common.Microseconds
+	deadline                  common.TimePoint //maximum
+	deadlineExceptionCode     int64
+	billingTimerExceptionCode int64
+	pseudoStart               common.TimePoint
+	billedTime                common.Microseconds
+	billingTimerDurationLimit common.Microseconds
 }
 
 func NewTransactionContext(c *Controller, t *types.SignedTransaction, trxId common.TransactionIdType, s common.TimePoint) *TransactionContext {
@@ -150,7 +151,7 @@ func (t *TransactionContext) init(initialNetUsage uint64) {
 		}
 	}
 
-	t.initialObjectiveDurationLimit = t.objectiveDurationLimit
+	//t.initialObjectiveDurationLimit = t.objectiveDurationLimit
 
 	if t.BilledCpuTimeUs > 0 { // could also call on explicit_billed_cpu_time but it would be redundant
 		t.validateCpuUsageToBill(t.BilledCpuTimeUs, false) // Fail early if the amount to be billed is too high
@@ -230,7 +231,7 @@ func (t *TransactionContext) InitForInputTrx(packeTrxUnprunableSize uint64, pack
 	initialNetUsage := uint64(cfg.BasePerTransactionNetUsage) + packeTrxUnprunableSize + discountedSizeForPrunedData
 	if t.Trx.DelaySec > 0 {
 		initialNetUsage += uint64(cfg.BasePerTransactionNetUsage)
-		initialNetUsage += uint64(cfg.TransactionIdNetUsage)
+		initialNetUsage += uint64(common.DefaultConfig.TransactionIdNetUsage)
 	}
 
 	t.Published = t.Control.PendingBlockTime()
@@ -359,9 +360,7 @@ func (t *TransactionContext) CheckNetUsage() {
 }
 
 func (t *TransactionContext) CheckTime() {
-
-	return
-
+	//return
 	if !t.Control.SkipTrxChecks() {
 		now := common.Now()
 		if now > t.deadline {
@@ -437,7 +436,7 @@ func (t *TransactionContext) ResumeBillingTimer() {
 }
 
 func (t *TransactionContext) validateCpuUsageToBill(billedUs int64, checkMinimum bool) {
-	return
+	//return
 	if !t.Control.SkipTrxChecks() {
 		if checkMinimum {
 			cfg := t.Control.GetGlobalProperties().Configuration
@@ -448,18 +447,18 @@ func (t *TransactionContext) validateCpuUsageToBill(billedUs int64, checkMinimum
 		if t.billingTimerExceptionCode == int64(BlockCpuUsageExceeded{}.Code()) { //TODO
 			EosAssert(billedUs <= t.objectiveDurationLimit.Count(),
 				&BlockCpuUsageExceeded{},
-				"billed CPU time (${billed} us) is greater than the billable CPU time left in the block (${billable} us)",
+				"billed CPU time (%d us) is greater than the billable CPU time left in the block (%d us)",
 				billedUs, t.objectiveDurationLimit.Count())
 		} else {
 			if t.cpuLimitDueToGreylist {
 				EosAssert(billedUs <= t.objectiveDurationLimit.Count(),
 					&GreylistCpuUsageExceeded{},
-					"billed CPU time (${billed} us) is greater than the maximum greylisted billable CPU time for the transaction (${billable} us)",
+					"billed CPU time (%d us) is greater than the maximum greylisted billable CPU time for the transaction (%d us)",
 					billedUs, t.objectiveDurationLimit.Count())
 			} else {
 				EosAssert(billedUs <= t.objectiveDurationLimit.Count(),
 					&TxCpuUsageExceed{},
-					"billed CPU time (${billed} us) is greater than the maximum billable CPU time for the transaction (${billable} us)",
+					"billed CPU time (%d us) is greater than the maximum billable CPU time for the transaction (%d us)",
 					billedUs, t.objectiveDurationLimit.Count())
 			}
 		}
@@ -485,6 +484,8 @@ func (t *TransactionContext) UpdateBilledCpuTime(now common.TimePoint) uint32 {
 	}
 	cfg := t.Control.GetGlobalProperties().Configuration
 	t.BilledCpuTimeUs = int64(common.Max(uint64(now-t.pseudoStart), uint64(cfg.MinTransactionCpuUsage)))
+
+	fmt.Println(t.BilledCpuTimeUs)
 
 	return uint32(t.BilledCpuTimeUs)
 }

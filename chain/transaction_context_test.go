@@ -7,7 +7,6 @@ import (
 	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/crypto/rlp"
-	"github.com/eosspark/eos-go/entity"
 	"io/ioutil"
 	"testing"
 )
@@ -83,11 +82,11 @@ func TestTransactionContextTest(t *testing.T) {
 		metaTrx := types.NewTransactionMetadataBySignedTrx(signedTrx, common.CompressionNone)
 
 		//var trace *types.TransactionTrace
-		for i := 0; i < 10; i++ {
+		for i := 0; i < 100; i++ {
 			trxContext := NewTransactionContext(control, signedTrx, trx.ID(), common.Now())
-			trxContext.Deadline = common.Now() + common.TimePoint(100000)
-			trxContext.ExplicitBilledCpuTime = true
-			trxContext.BilledCpuTimeUs = 150000
+			trxContext.Deadline = common.Now() + common.TimePoint(200000)
+			trxContext.ExplicitBilledCpuTime = false
+			trxContext.BilledCpuTimeUs = 0
 			//trace = trxContext.Trace
 
 			trxContext.InitForInputTrx(uint64(metaTrx.PackedTrx.GetUnprunableSize()),
@@ -99,9 +98,10 @@ func TestTransactionContextTest(t *testing.T) {
 			trxContext.Exec()
 			trxContext.Finalize()
 
-			usage := entity.ResourceUsageObject{Owner: common.AccountName(common.N(account))}
-			control.DB.Find("byOwner", usage, &usage)
-			fmt.Println(i, ":", usage)
+			//usage := entity.ResourceUsageObject{Owner: common.AccountName(common.N(account))}
+			//control.DB.Find("byOwner", usage, &usage)
+			//fmt.Println(i, ":", usage)
+			fmt.Println("No.", i)
 
 		}
 

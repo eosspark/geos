@@ -56,16 +56,38 @@ func isZero(v *reflect.Value) bool {
 	return reflect.DeepEqual(current, zero)
 }
 
-func (s *structInfo) showCfg() {
-	fmt.Println("name : ", s.Name)
-
+func (s *structInfo) showCfg() string {
+	msg := s.Name
+	space := " "
 	for k, v := range s.Fields {
-		fmt.Println("fields key is 				: ", k)
-		fmt.Println("unique			 			: ", v.unique)
-		fmt.Println("greater			 			: ", v.greater)
-		fmt.Println("fields fieldName 	is 		: ", v.fieldName)
-		fmt.Println("fields fieldValue 	is 		: ", v.fieldValue)
+		msg += space
+		msg += k
+		msg += space
+		msg += "unique"
+		msg += space
+		if v.unique{
+			msg += " : true"
+		}else{
+			msg += " : false"
+		}
+		msg += space
+		msg += "  greater"
+		msg += space
+		if v.unique{
+			msg += " : true"
+		}else{
+			msg += " : false"
+		}
+
+		for i := 0; i  < len(v.fieldValue);i++{
+			msg += space
+			msg += v.fieldName[i]
+			msg += space
+		}
+		msg += " | "
 	}
+
+	return msg
 }
 
 func cloneInterface(data interface{}) interface{} {

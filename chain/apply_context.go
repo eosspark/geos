@@ -6,7 +6,6 @@ import (
 	"github.com/eosspark/eos-go/common"
 	arithmetic "github.com/eosspark/eos-go/common/arithmetic_types"
 	"github.com/eosspark/eos-go/crypto"
-	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/eosspark/eos-go/database"
 	"github.com/eosspark/eos-go/entity"
@@ -173,7 +172,7 @@ func (a *ApplyContext) printDebug(receiver common.AccountName, at *types.ActionT
 
 	if len(at.Console) != 0 {
 		prefix := fmt.Sprintf("\n[(%s,%s)->%s]", common.S(uint64(at.Act.Account)), common.S(uint64(at.Act.Name)), common.S(uint64(receiver)))
-		fmt.Println(prefix, ": CONSOLE OUTPUT BEGIN =====================\n")
+		fmt.Println(prefix, ": CONSOLE OUTPUT BEGIN =====================")
 		fmt.Println(at.Console)
 		fmt.Println(prefix, ": CONSOLE OUTPUT END   =====================")
 	}
@@ -373,9 +372,11 @@ func (a *ApplyContext) ExecuteInline(action []byte) {
 	if !a.Control.SkipAuthCheck() && !a.Privileged && act.Account != a.Receiver {
 
 		f := a.TrxContext.CheckTime
+		fs := common.FlatSet{}
+		fs.Insert(&types.PermissionLevel{a.Receiver, common.DefaultConfig.EosioCodeName})
 		a.Control.GetAuthorizationManager().CheckAuthorization([]*types.Action{&act},
-			[]*ecc.PublicKey{},
-			[]*types.PermissionLevel{&types.PermissionLevel{a.Receiver, common.DefaultConfig.EosioCodeName}},
+			&common.FlatSet{},
+			&fs,
 			common.Microseconds(a.Control.PendingBlockTime()-a.TrxContext.Published),
 			&f,
 			false)
@@ -979,4 +980,14 @@ func (a *ApplyContext) SetPrivileged(n common.AccountName, isPriv bool) {
 	a.DB.Modify(&account, func(ao *entity.AccountObject) {
 		ao.Privileged = isPriv
 	})
+}
+
+func (a *ApplyContext) PauseBillingTimer() {
+	a.TrxContext.PauseBillingTimer()
+}
+
+func (a *ApplyContext) ResumeBillingTimer() {
+
+	a.TrxContext.ResumeBillingTimer()
+
 }
