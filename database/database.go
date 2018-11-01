@@ -1,7 +1,6 @@
 package database
 
 import (
-	"fmt"
 	"log"
 	"math"
 	"os"
@@ -795,7 +794,6 @@ func (ldb *LDataBase) IteratorTo(begin, end, fieldName []byte, in interface{}, g
 
 	key := []byte{}
 	key = append(begin, prefix...)
-	fmt.Println(key)
 	it := ldb.db.NewIterator(&util.Range{Start: begin, Limit: end}, nil)
 	if !it.Seek(key) {
 		return nil, errors.New("Iterator To Not Found")
