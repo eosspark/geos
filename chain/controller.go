@@ -120,7 +120,7 @@ func validPath() {
 			if err != nil {
 				fmt.Printf("controller validPath mkdir failed![%v]\n", err)
 			} else {
-				fmt.Printf("controller validPath mkdir success!\n", d)
+				fmt.Printf("controller validPath mkdir success![%v]\n", d)
 			}
 		}
 	}
@@ -890,7 +890,7 @@ func (c *Controller) CommitBlock(addToForkDb bool) {
 		ubo := entity.ReversibleBlockObject{}
 		ubo.BlockNum = c.Pending.PendingBlockState.BlockNum
 		ubo.SetBlock(c.Pending.PendingBlockState.SignedBlock)
-		c.DB.Insert(ubo)
+		c.DB.Insert(&ubo)
 	}
 	//emit( self.accepted_block, pending->_pending_block_state )
 	//catch(){
@@ -1178,15 +1178,15 @@ func (c *Controller) GetBlockIdForNum(blockNum uint32) common.BlockIdType {
 	}
 
 	signedBlk := c.Blog.ReadBlockByNum(blockNum)
-	EosAssert(common.Empty(signedBlk), &UnknownBlockException{}, "Could not find block: d%", blockNum)
+	EosAssert(common.Empty(signedBlk), &UnknownBlockException{}, "Could not find block: %d", blockNum)
 	return signedBlk.BlockID()
 }
 
 func (c *Controller) CheckContractList(code common.AccountName) {
 	if len(c.Config.ContractWhitelist.Data) > 0 {
-		EosAssert(!c.Config.ContractWhitelist.Find(&code), &ContractWhitelistException{}, "account d% is not on the contract whitelist", code)
+		EosAssert(!c.Config.ContractWhitelist.Find(&code), &ContractWhitelistException{}, "account %d is not on the contract whitelist", code)
 	} else if len(c.Config.ContractBlacklist.Data) > 0 {
-		EosAssert(c.Config.ContractBlacklist.Find(&code), &ContractBlacklistException{}, "account d% is on the contract blacklist", code)
+		EosAssert(c.Config.ContractBlacklist.Find(&code), &ContractBlacklistException{}, "account %d is on the contract blacklist", code)
 		/*EOS_ASSERT( conf.contract_blacklist.find( code ) == conf.contract_blacklist.end(),
 			contract_blacklist_exception,
 			"account '${code}' is on the contract blacklist", ("code", code)
@@ -1212,7 +1212,7 @@ func (c *Controller) CheckActionList(code common.AccountName, action common.Acti
 
 func (c *Controller) CheckKeyList(key *ecc.PublicKey) {
 	if len(c.Config.KeyBlacklist.Data) > 0 {
-		EosAssert(c.Config.KeyBlacklist.Find(key), &KeyBlacklistException{}, "public key s% is on the key blacklist", key)
+		EosAssert(c.Config.KeyBlacklist.Find(key), &KeyBlacklistException{}, "public key %s is on the key blacklist", key)
 	}
 }
 
@@ -1256,7 +1256,7 @@ func (c *Controller) ValidateReferencedAccounts(t *types.Transaction) {
 func (c *Controller) ValidateExpiration(t *types.Transaction) {
 	chainConfiguration := c.GetGlobalProperties().Configuration
 	EosAssert(common.TimePoint(t.Expiration) >= c.PendingBlockTime(),
-		&ExpiredTxException{}, "transaction has expired, expiration is s% and pending block time is s%",
+		&ExpiredTxException{}, "transaction has expired, expiration is %s and pending block time is %s",
 		t.Expiration, c.PendingBlockTime())
 	EosAssert(common.TimePoint(t.Expiration) <= c.PendingBlockTime()+common.TimePoint(common.Seconds(int64(chainConfiguration.MaxTrxLifetime))),
 		&TxExpTooFarException{}, "Transaction expiration is too far in the future relative to the reference time of ${reference_time}, expiration is ${trx.expiration} and the maximum transaction lifetime is ${max_til_exp} seconds",
@@ -1409,7 +1409,7 @@ func (c *Controller) CreateNativeAccount(name common.AccountName, owner types.Au
 
 	aso := entity.AccountSequenceObject{}
 	aso.Name = name
-	c.DB.Insert(aso)
+	c.DB.Insert(&aso)
 
 	ownerPermission := c.Authorization.CreatePermission(name, common.PermissionName(common.DefaultConfig.OwnerName), 0, owner, c.Config.genesis.InitialTimestamp)
 
@@ -1463,13 +1463,13 @@ func (c *Controller) initializeDatabase() {
 	gpo.Configuration = gi
 	err := c.DB.Insert(&gpo)
 	if err != nil {
-		fmt.Errorf("-----------------", err)
+		fmt.Println("-----------------", err)
 	}
 	dgpo := entity.DynamicGlobalPropertyObject{}
 	dgpo.ID = 0
 	err = c.DB.Insert(&dgpo)
 	if err != nil {
-		fmt.Errorf("-----------------", err)
+		fmt.Println("-----------------", err)
 	}
 	/*fmt.Println("initializeDatabase gi:", gi)
 	fmt.Println("initializeDatabase insert gpo:", gpo)*/

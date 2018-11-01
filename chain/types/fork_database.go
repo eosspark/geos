@@ -55,7 +55,7 @@ func newForkDatabase(path string, fileName string, rw bool) (*ForkDatabase, erro
 func (f *ForkDatabase) SetHead(s *BlockState) {
 
 	exception.EosAssert(s.BlockId == s.Header.BlockID(), &exception.ForkDatabaseException{},
-		"block state id:d%, is different from block state header id:d%", s.ID, s.Header.BlockID())
+		"block state id:%d, is different from block state header id:%d", s.ID, s.Header.BlockID())
 
 	exception.EosAssert(s.BlockNum == s.Header.BlockNumber(), &exception.ForkDatabaseException{}, "unable to insert block state, duplicate state detected")
 	if f.Head == nil {
@@ -155,13 +155,13 @@ func (f *ForkDatabase) FetchBranchFrom(first *common.BlockIdType, second *common
 	for firstBranch.BlockNum > secondBranch.BlockNum {
 		result.first = append(result.first, *firstBranch)
 		firstBranch = f.GetBlock(&firstBranch.Header.Previous)
-		exception.EosAssert(firstBranch != nil, &exception.ForkDbBlockNotFound{}, "block d% does not exist", firstBranch.Header.Previous)
+		exception.EosAssert(firstBranch != nil, &exception.ForkDbBlockNotFound{}, "block %d does not exist", firstBranch.Header.Previous)
 	}
 
 	for firstBranch.BlockNum < secondBranch.BlockNum {
 		result.second = append(result.second, *secondBranch)
 		secondBranch = f.GetBlock(&firstBranch.Header.Previous)
-		exception.EosAssert(secondBranch != nil, &exception.ForkDbBlockNotFound{}, "block d% does not exist", secondBranch.Header.Previous)
+		exception.EosAssert(secondBranch != nil, &exception.ForkDbBlockNotFound{}, "block %d does not exist", secondBranch.Header.Previous)
 	}
 
 	for firstBranch.Header.Previous != secondBranch.Header.Previous {
@@ -170,7 +170,7 @@ func (f *ForkDatabase) FetchBranchFrom(first *common.BlockIdType, second *common
 		firstBranch = f.GetBlock(&firstBranch.Header.Previous)
 		secondBranch = f.GetBlock(&secondBranch.Header.Previous)
 		exception.EosAssert(firstBranch != nil && secondBranch != nil, &exception.ForkDbBlockNotFound{},
-			"either block d% or d% does not exist",
+			"either block %d or %d does not exist",
 			firstBranch.Header.Previous, secondBranch.Header.Previous)
 	}
 
