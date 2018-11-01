@@ -88,7 +88,7 @@ func (f *ForkDatabase) AddBlockState(blockState *BlockState) *BlockState {
 	oldest, err := f.DB.GetIndex("byBlockNum", &result)
 	//exception.EosAssert(err == nil, &exception.ForkDatabaseException{}, "ForkDB AddBlockState Is Error:", err)
 	err = oldest.BeginData(&result)
-	exception.EosAssert(err == nil, &exception.ForkDatabaseException{}, "ForkDB AddBlockState Is Error:", err)
+	exception.EosAssert(err == nil, &exception.ForkDatabaseException{}, "ForkDB AddBlockState Is Error:%s", err)
 
 	if result.BlockNum < lib {
 		f.Prune(&result)
@@ -118,7 +118,7 @@ func (f *ForkDatabase) AddSignedBlockState(signedBlcok *SignedBlock, trust bool)
 	if erro != nil {
 		log.Error("AddSignedBlockState is error,detail:", err)
 	}
-	exception.EosAssert(&previous != nil, &exception.UnlinkableBlockException{}, "unlinkable block", signedBlcok.BlockID(), signedBlcok.Previous)
+	exception.EosAssert(&previous != nil, &exception.UnlinkableBlockException{}, "unlinkable block:%d,%d", signedBlcok.BlockID(), signedBlcok.Previous)
 
 	result := NewBlockState3(&previous.BlockHeaderState, signedBlcok, trust)
 
@@ -128,7 +128,7 @@ func (f *ForkDatabase) AddSignedBlockState(signedBlcok *SignedBlock, trust bool)
 func (f *ForkDatabase) Add(c *HeaderConfirmation) {
 	header := f.GetBlock(&c.BlockId)
 
-	exception.EosAssert(header != nil, &exception.ForkDbBlockNotFound{}, "unable to find block id ", c.BlockId)
+	exception.EosAssert(header != nil, &exception.ForkDbBlockNotFound{}, "unable to find block id:%d ", c.BlockId)
 	header.AddConfirmation(c)
 
 	if header.BftIrreversibleBlocknum < header.BlockNum && len(header.Confirmations) >= ((len(header.ActiveSchedule.Producers)*2)/3+1) {
@@ -188,33 +188,33 @@ func (f *ForkDatabase) Remove(id *common.BlockIdType) {
 	for i := 0; i < len(removeQueue); i++ {
 		p := BlockState{}
 		err := f.DB.Find("ID", p, &p)
-		exception.EosAssert(err == nil, &exception.ForkDbBlockNotFound{}, "ForkDB Remove Find Block Is Error:", err)
+		exception.EosAssert(err == nil, &exception.ForkDbBlockNotFound{}, "ForkDB Remove Find Block Is Error:%s", err)
 		f.DB.Remove(&p)
 		previdx, err := f.DB.GetIndex("byPrev", &BlockState{})
 		param := &BlockState{}
 		param.BlockId = removeQueue[i]
 		previtr, err := previdx.LowerBound(param)
-		exception.EosAssert(err == nil, &exception.ForkDbBlockNotFound{}, "ForkDB Remove LowerBound Is Error:", err)
+		exception.EosAssert(err == nil, &exception.ForkDbBlockNotFound{}, "ForkDB Remove LowerBound Is Error:%s", err)
 		pre := BlockState{}
 		err = previtr.Data(pre)
-		exception.EosAssert(err == nil, &exception.ForkDbBlockNotFound{}, "ForkDB Remove previtr.Data Is Error:", err)
+		exception.EosAssert(err == nil, &exception.ForkDbBlockNotFound{}, "ForkDB Remove previtr.Data Is Error:%s", err)
 		for previtr != previdx.End() && pre.Header.Previous == removeQueue[i] {
 			removeQueue = append(removeQueue, pre.BlockId)
 		}
 	}
 	mi, err := f.DB.GetIndex("byLibBlockNum", &BlockState{})
-	exception.EosAssert(err == nil, &exception.ForkDbBlockNotFound{}, "ForkDB Remove f.DB.GetIndex Is Error:", err)
+	exception.EosAssert(err == nil, &exception.ForkDbBlockNotFound{}, "ForkDbBlockNotFound byLibBlockNum Is Error:%s", err)
 	err = mi.BeginData(f.Head)
-	exception.EosAssert(err == nil, &exception.ForkDbBlockNotFound{}, "ForkDB Remove mi.Begin(f.Head) Is Error:", err)
+	exception.EosAssert(err == nil, &exception.ForkDbBlockNotFound{}, "ForkDbBlockNotFound BeginData Is Error:%s", err)
 }
 
 func (f *ForkDatabase) GetBlockInCurrentChainByNum(n uint32) *BlockState {
-	numidx, err := f.DB.GetIndex("byBlockNum", &BlockState{})
-	exception.EosAssert(err == nil, &exception.ForkDbBlockNotFound{}, "ForkDB Remove mi.Begin(f.Head) Is Error:", err)
+	numidx, err := f.DB.GetIndex("byBlockNum", &BlockState{SignedBlock: &SignedBlock{}})
+	exception.EosAssert(err == nil, &exception.ForkDbBlockNotFound{}, "ForkDbBlockNotFound byBlockNum Is Error:%s", err)
 	param := BlockState{}
 	param.BlockNum = n
 	nitr, err := numidx.LowerBound(param)
-	exception.EosAssert(err == nil, &exception.ForkDbBlockNotFound{}, "ForkDB Remove LowerBound Is Error:", err)
+	exception.EosAssert(err == nil, &exception.ForkDbBlockNotFound{}, "ForkDbBlockNotFound LowerBound Is Error:%s", err)
 	result := BlockState{}
 	nitr.Data(result)
 	return &result

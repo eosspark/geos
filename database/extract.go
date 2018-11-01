@@ -8,14 +8,14 @@ import (
 )
 
 const (
-	tagPrefix      = "multiIndex"
-	tagID          = "id"
-	tagUniqueIdx   = "orderedUnique"
-	tagIncrement   = "increment"
-	tagLess        = "less"
-	tagGreater     = "greater"
-	tagInline      = "inline"
-	dbIncrement    = "db_increment"
+	tagPrefix    = "multiIndex"
+	tagID        = "id"
+	tagUniqueIdx = "orderedUnique"
+	tagIncrement = "increment"
+	tagLess      = "less"
+	tagGreater   = "greater"
+	tagInline    = "inline"
+	dbIncrement  = "db_increment"
 )
 
 /*
@@ -65,21 +65,21 @@ func (s *structInfo) showCfg() string {
 		msg += space
 		msg += "unique"
 		msg += space
-		if v.unique{
+		if v.unique {
 			msg += " : true"
-		}else{
+		} else {
 			msg += " : false"
 		}
 		msg += space
 		msg += "  greater"
 		msg += space
-		if v.unique{
+		if v.unique {
 			msg += " : true"
-		}else{
+		} else {
 			msg += " : false"
 		}
 
-		for i := 0; i  < len(v.fieldValue);i++{
+		for i := 0; i < len(v.fieldValue); i++ {
 			msg += space
 			msg += v.fieldName[i]
 			msg += space
@@ -136,6 +136,10 @@ func extractObjectTagInfo(s *reflect.Value, mi ...*structInfo) (*structInfo, err
 		e := s.Elem()
 		s = &e
 	}
+	/*fmt.Println("******************1:",s.Kind().String())
+	fmt.Println("******************2:",s)*/
+	//fmt.Println("******************3:",s.Type().String())
+
 	if s.Kind() != reflect.Struct {
 		return nil, ErrBadType
 	}
@@ -168,8 +172,8 @@ func extractObjectTagInfo(s *reflect.Value, mi ...*structInfo) (*structInfo, err
 		}
 	}
 
-	for tag,_ := range m.Fields{
-		if len(m.Fields[tag].fieldValue) == 1{
+	for tag, _ := range m.Fields {
+		if len(m.Fields[tag].fieldValue) == 1 {
 			m.Fields[tag].unique = true
 		}
 	}
@@ -204,7 +208,7 @@ func splitSubTag(fieldName string, fieldValue *reflect.Value, tag string, m *str
 
 	} else if tagPre == tagUniqueIdx {
 
-		return extractUniqueTag( fieldName, tags, fieldValue, m)
+		return extractUniqueTag(fieldName, tags, fieldValue, m)
 
 	} else if tagPre == tagInline {
 
