@@ -1,7 +1,8 @@
 package chain
 
 import (
-	"github.com/eosspark/eos-go/chain/types"
+	//"github.com/eosspark/eos-go/chain/types"
+	"github.com/eosspark/eos-go/entity"
 )
 
 type IdxDouble struct {
@@ -16,7 +17,7 @@ func NewIdxDouble(c *ApplyContext) *IdxDouble {
 	}
 }
 
-func (i *IdxDouble) store(scope int64, table int64, payer int64, id int64, secondary *types.Float64_t) int {
+func (i *IdxDouble) store(scope int64, table int64, payer int64, id int64, secondary *entity.Float64_t) int {
 	return 0
 	// //EOS_ASSERT( common.AccountName(payer) != common.AccountName{}, invalid_table_payer, "must specify a valid account to pay for new record" );
 	// tab := i.context.FindOrCreateTable(int64(i.context.Receiver), scope, table, payer)
@@ -57,7 +58,7 @@ func (i *IdxDouble) remove(iterator int) int {
 	// i.itrCache.remove(iterator)
 }
 
-func (i *IdxDouble) update(iterator int, payer int64, secondary *types.Float64_t) {
+func (i *IdxDouble) update(iterator int, payer int64, secondary *entity.Float64_t) {
 
 	// obj := (*types.SecondaryObjectDouble)(i.itrCache.get(iterator))
 	// objTable := i.itrCache.getTable(obj.TId)
@@ -77,7 +78,7 @@ func (i *IdxDouble) update(iterator int, payer int64, secondary *types.Float64_t
 	// })
 }
 
-func (i *IdxDouble) findSecondary(code int64, scope int64, table int64, secondary *types.Float64_t, primary *uint64) int {
+func (i *IdxDouble) findSecondary(code int64, scope int64, table int64, secondary *entity.Float64_t, primary *uint64) int {
 	return 0
 	// tab := i.context.FindTable(code, scope, table)
 	// if tab == nil {return -1}
@@ -93,7 +94,7 @@ func (i *IdxDouble) findSecondary(code int64, scope int64, table int64, secondar
 	// return i.itrCache.add(obj)
 }
 
-func (i *IdxDouble) lowerbound(code int64, scope int64, table int64, secondary *types.Float64_t, primary *uint64) int {
+func (i *IdxDouble) lowerbound(code int64, scope int64, table int64, secondary *entity.Float64_t, primary *uint64) int {
 	return 0
 	// tab := i.context.FindTable(code, scope, table)
 	// if tab == nil {
@@ -117,7 +118,7 @@ func (i *IdxDouble) lowerbound(code int64, scope int64, table int64, secondary *
 	// return i.itrCache.add(objLowerbound)
 }
 
-func (i *IdxDouble) upperbound(code int64, scope int64, table int64, secondary *types.Float64_t, primary *uint64) int {
+func (i *IdxDouble) upperbound(code int64, scope int64, table int64, secondary *entity.Float64_t, primary *uint64) int {
 	return 0
 	// tab := i.context.FindTable(code, scope, table)
 	// if tab == nil {
@@ -214,7 +215,7 @@ func (i *IdxDouble) previous(iterator int, primary *uint64) int {
 	// return i.itrCache.add(objNext)
 }
 
-func (i *IdxDouble) findPrimary(code int64, scope int64, table int64, secondary *types.Float64_t, primary *uint64) int {
+func (i *IdxDouble) findPrimary(code int64, scope int64, table int64, secondary *entity.Float64_t, primary *uint64) int {
 	return 0
 
 	// tab := i.context.FindTable(code, scope, table)
@@ -341,7 +342,7 @@ func (i *IdxDouble) previousPrimary(iterator int, primary *uint64) int {
 	// return i.itrCache.add(objNext)
 }
 
-func (i *IdxDouble) get(iterator int, secondary *types.Float64_t, primary *uint64) {
+func (i *IdxDouble) get(iterator int, secondary *entity.Float64_t, primary *uint64) {
 	//  obj := (*types.SecondaryObjectDouble)(i.itrCache.get(iterator))
 
 	// *secondary = obj.SecondaryKey

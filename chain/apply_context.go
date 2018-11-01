@@ -559,7 +559,7 @@ func (a *ApplyContext) dbStoreI64(code int64, scope int64, table int64, payer in
 	tab := a.FindOrCreateTable(code, scope, table, payer)
 	tid := tab.ID
 
-	EOS_ASSERT(payer != account_name(), invalid_table_payer, "must specify a valid account to pay for new record")
+	EosAssert(payer != 0, &InvalidTablePayer{}, "must specify a valid account to pay for new record")
 
 	obj := entity.KeyValueObject{
 		TId:        tid,
@@ -787,24 +787,24 @@ func (a *ApplyContext) DbEndI64(code int64, scope int64, table int64) int {
 }
 
 //index for sceondarykey
-func (a *ApplyContext) Idx64Store(scope int64, table int64, payer int64, id int64, value *types.Uint64_t) int {
+func (a *ApplyContext) Idx64Store(scope int64, table int64, payer int64, id int64, value *uint64) int {
 	return a.idx64.store(scope, table, payer, id, value)
 }
 func (a *ApplyContext) Idx64Remove(iterator int) {
 	a.idx64.remove(iterator)
 }
-func (a *ApplyContext) Idx64Update(iterator int, payer int64, value *types.Uint64_t) {
+func (a *ApplyContext) Idx64Update(iterator int, payer int64, value *uint64) {
 	a.idx64.update(iterator, payer, value)
 }
-func (a *ApplyContext) Idx64FindSecondary(code int64, scope int64, table int64, secondary *types.Uint64_t, primary *uint64) int {
+func (a *ApplyContext) Idx64FindSecondary(code int64, scope int64, table int64, secondary *uint64, primary *uint64) int {
 	//a.idx64.update(iterator, payer, value)
 	return a.idx64.findSecondary(code, scope, table, secondary, primary)
 }
-func (a *ApplyContext) Idx64Lowerbound(code int64, scope int64, table int64, secondary *types.Uint64_t, primary *uint64) int {
+func (a *ApplyContext) Idx64Lowerbound(code int64, scope int64, table int64, secondary *uint64, primary *uint64) int {
 	//a.idx64.update(iterator, payer, value)
 	return a.idx64.lowerbound(code, scope, table, secondary, primary)
 }
-func (a *ApplyContext) Idx64Upperbound(code int64, scope int64, table int64, secondary *types.Uint64_t, primary *uint64) int {
+func (a *ApplyContext) Idx64Upperbound(code int64, scope int64, table int64, secondary *uint64, primary *uint64) int {
 	return a.idx64.upperbound(code, scope, table, secondary, primary)
 }
 func (a *ApplyContext) Idx64End(code int64, scope int64, table int64) int {
@@ -816,27 +816,27 @@ func (a *ApplyContext) Idx64Next(iterator int, primary *uint64) int {
 func (a *ApplyContext) Idx64Previous(iterator int, primary *uint64) int {
 	return a.idx64.previous(iterator, primary)
 }
-func (a *ApplyContext) Idx64FindPrimary(code int64, scope int64, table int64, secondary *types.Uint64_t, primary *uint64) int {
+func (a *ApplyContext) Idx64FindPrimary(code int64, scope int64, table int64, secondary *uint64, primary *uint64) int {
 	//a.idx64.update(iterator, payer, value)
 	return a.idx64.findPrimary(code, scope, table, secondary, primary)
 }
 
-func (a *ApplyContext) IdxDoubleStore(scope int64, table int64, payer int64, id int64, value *types.Float64_t) int {
+func (a *ApplyContext) IdxDoubleStore(scope int64, table int64, payer int64, id int64, value *entity.Float64_t) int {
 	return a.idxDouble.store(scope, table, payer, id, value)
 }
 func (a *ApplyContext) IdxDoubleRemove(iterator int) {
 	a.idxDouble.remove(iterator)
 }
-func (a *ApplyContext) IdxDoubleUpdate(iterator int, payer int64, value *types.Float64_t) {
+func (a *ApplyContext) IdxDoubleUpdate(iterator int, payer int64, value *entity.Float64_t) {
 	a.idxDouble.update(iterator, payer, value)
 }
-func (a *ApplyContext) IdxDoubleFindSecondary(code int64, scope int64, table int64, secondary *types.Float64_t, primary *uint64) int {
+func (a *ApplyContext) IdxDoubleFindSecondary(code int64, scope int64, table int64, secondary *entity.Float64_t, primary *uint64) int {
 	return a.idxDouble.findSecondary(code, scope, table, secondary, primary)
 }
-func (a *ApplyContext) IdxDoubleLowerbound(code int64, scope int64, table int64, secondary *types.Float64_t, primary *uint64) int {
+func (a *ApplyContext) IdxDoubleLowerbound(code int64, scope int64, table int64, secondary *entity.Float64_t, primary *uint64) int {
 	return a.idxDouble.lowerbound(code, scope, table, secondary, primary)
 }
-func (a *ApplyContext) IdxDoubleUpperbound(code int64, scope int64, table int64, secondary *types.Float64_t, primary *uint64) int {
+func (a *ApplyContext) IdxDoubleUpperbound(code int64, scope int64, table int64, secondary *entity.Float64_t, primary *uint64) int {
 	return a.idxDouble.upperbound(code, scope, table, secondary, primary)
 }
 func (a *ApplyContext) IdxDoubleEnd(code int64, scope int64, table int64) int {
@@ -848,7 +848,7 @@ func (a *ApplyContext) IdxDoubleNext(iterator int, primary *uint64) int {
 func (a *ApplyContext) IdxDoublePrevious(iterator int, primary *uint64) int {
 	return a.idxDouble.previous(iterator, primary)
 }
-func (a *ApplyContext) IdxDoubleFindPrimary(code int64, scope int64, table int64, secondary *types.Float64_t, primary *uint64) int {
+func (a *ApplyContext) IdxDoubleFindPrimary(code int64, scope int64, table int64, secondary *entity.Float64_t, primary *uint64) int {
 	return a.idxDouble.findPrimary(code, scope, table, secondary, primary)
 }
 

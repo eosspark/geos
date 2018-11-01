@@ -27,7 +27,7 @@ func TestDbPrimaryKey(t *testing.T) {
 			Data:    buffer,
 			Authorization: []types.PermissionLevel{
 				//types.PermissionLevel{Actor: common.AccountName(common.N("eosio.token")), Permission: common.PermissionName(common.N("active"))},
-				types.PermissionLevel{Actor: common.AccountName(common.N("eosio")), Permission: common.PermissionName(common.N("active"))},
+				{Actor: common.AccountName(common.N("eosio")), Permission: common.PermissionName(common.N("active"))},
 			},
 		}
 

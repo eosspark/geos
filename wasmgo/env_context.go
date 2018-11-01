@@ -1,9 +1,10 @@
 package wasmgo
 
 import (
-	"github.com/eosspark/eos-go/chain/types"
+	//"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	arithmetic "github.com/eosspark/eos-go/common/arithmetic_types"
+	"github.com/eosspark/eos-go/entity"
 )
 
 type EnvContext interface {
@@ -41,28 +42,28 @@ type EnvContext interface {
 	DbEndI64(code int64, scope int64, table int64) int
 
 	//secondaryKey 64
-	Idx64Store(scope int64, table int64, payer int64, id int64, value *types.Uint64_t) int
+	Idx64Store(scope int64, table int64, payer int64, id int64, value *uint64) int
 	Idx64Remove(iterator int)
-	Idx64Update(iterator int, payer int64, value *types.Uint64_t)
-	Idx64FindSecondary(code int64, scope int64, table int64, secondary *types.Uint64_t, primary *uint64) int
-	Idx64Lowerbound(code int64, scope int64, table int64, secondary *types.Uint64_t, primary *uint64) int
-	Idx64Upperbound(code int64, scope int64, table int64, secondary *types.Uint64_t, primary *uint64) int
+	Idx64Update(iterator int, payer int64, value *uint64)
+	Idx64FindSecondary(code int64, scope int64, table int64, secondary *uint64, primary *uint64) int
+	Idx64Lowerbound(code int64, scope int64, table int64, secondary *uint64, primary *uint64) int
+	Idx64Upperbound(code int64, scope int64, table int64, secondary *uint64, primary *uint64) int
 	Idx64End(code int64, scope int64, table int64) int
 	Idx64Next(iterator int, primary *uint64) int
 	Idx64Previous(iterator int, primary *uint64) int
-	Idx64FindPrimary(code int64, scope int64, table int64, secondary *types.Uint64_t, primary *uint64) int
+	Idx64FindPrimary(code int64, scope int64, table int64, secondary *uint64, primary *uint64) int
 
 	//secondaryKey Double
-	IdxDoubleStore(scope int64, table int64, payer int64, id int64, value *types.Float64_t) int
+	IdxDoubleStore(scope int64, table int64, payer int64, id int64, value *entity.Float64_t) int
 	IdxDoubleRemove(iterator int)
-	IdxDoubleUpdate(iterator int, payer int64, value *types.Float64_t)
-	IdxDoubleFindSecondary(code int64, scope int64, table int64, secondary *types.Float64_t, primary *uint64) int
-	IdxDoubleLowerbound(code int64, scope int64, table int64, secondary *types.Float64_t, primary *uint64) int
-	IdxDoubleUpperbound(code int64, scope int64, table int64, secondary *types.Float64_t, primary *uint64) int
+	IdxDoubleUpdate(iterator int, payer int64, value *entity.Float64_t)
+	IdxDoubleFindSecondary(code int64, scope int64, table int64, secondary *entity.Float64_t, primary *uint64) int
+	IdxDoubleLowerbound(code int64, scope int64, table int64, secondary *entity.Float64_t, primary *uint64) int
+	IdxDoubleUpperbound(code int64, scope int64, table int64, secondary *entity.Float64_t, primary *uint64) int
 	IdxDoubleEnd(code int64, scope int64, table int64) int
 	IdxDoubleNext(iterator int, primary *uint64) int
 	IdxDoublePrevious(iterator int, primary *uint64) int
-	IdxDoubleFindPrimary(code int64, scope int64, table int64, secondary *types.Float64_t, primary *uint64) int
+	IdxDoubleFindPrimary(code int64, scope int64, table int64, secondary *entity.Float64_t, primary *uint64) int
 
 	//permission
 	GetPermissionLastUsed(account common.AccountName, permission common.PermissionName) int64

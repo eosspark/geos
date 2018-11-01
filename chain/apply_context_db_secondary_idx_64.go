@@ -1,7 +1,7 @@
 package chain
 
 import (
-	"github.com/eosspark/bak/eos-go/chain/types"
+	//"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/entity"
 	. "github.com/eosspark/eos-go/exception"
@@ -43,7 +43,7 @@ func (i *Idx64) store(scope int64, table int64, payer int64, id int64, secondary
 	return i.itrCache.add(obj)
 }
 
-func (i *Idx64) remove(iterator int) int {
+func (i *Idx64) remove(iterator int) {
 
 	obj := (i.itrCache.get(iterator)).(*entity.SecondaryObjectI64)
 	//i.context.UpdateDbUsage(obj.payer, - types.BillableSizeV(obj.GetBillableSize()))
@@ -61,6 +61,7 @@ func (i *Idx64) remove(iterator int) int {
 		i.context.DB.Remove(tab)
 	}
 	i.itrCache.remove(iterator)
+
 }
 
 func (i *Idx64) update(iterator int, payer int64, secondary *uint64) {
@@ -340,7 +341,7 @@ func (i *Idx64) nextPrimary(iterator int, primary *uint64) int {
 
 func (i *Idx64) previousPrimary(iterator int, primary *uint64) int {
 
-	idx, _ := i.context.DB.GetIndex("byPrimary", &types.SecondaryObjectI64{})
+	idx, _ := i.context.DB.GetIndex("byPrimary", &entity.SecondaryObjectI64{})
 
 	if iterator < -1 {
 		tab := i.itrCache.findTablebyEndIterator(iterator)
