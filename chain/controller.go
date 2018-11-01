@@ -612,7 +612,7 @@ func (c *Controller) pushScheduledTransactionByObject(gto *entity.GeneratedTrans
 	gtrx := entity.GeneratedTransactions(gto)
 
 	c.RemoveScheduledTransaction(gto)
-	EosAssert(gtrx.DelayUntil <= c.PendingBlockTime(), &TransactionException{}, "this transaction isn't ready", gtrx.DelayUntil, c.PendingBlockTime())
+	EosAssert(gtrx.DelayUntil <= c.PendingBlockTime(), &TransactionException{}, "this transaction isn't ready,gtrx.DelayUntil:%s,PendingBlockTime:%s", gtrx.DelayUntil, c.PendingBlockTime())
 
 	dtrx := types.SignedTransaction{}
 
@@ -672,13 +672,14 @@ func (c *Controller) pushScheduledTransactionByObject(gto *entity.GeneratedTrans
 		c.UndoSession.Squash()
 		v = true
 		//return trace
+	}).Catch(func(ex Exception) {
+		fmt.Println("PushScheduledTransaction is error:", ex)
+		cpuTimeToBillUs = trxContext.UpdateBilledCpuTime(common.Now())
+		trace.Except = ex
+		trace.ExceptPtr = &ex
+		trace.Elapsed = (common.Now() - trxContext.Start).TimeSinceEpoch()
 	}).End()
-	/*catch( const fc::exception& e ) {
-	cpu_time_to_bill_us = trx_context.update_billed_cpu_time( fc::time_point::now() );
-	trace->except = e;
-	trace->except_ptr = std::current_exception();
-	trace->elapsed = fc::time_point::now() - trx_context.start;
-	}*/
+
 	trxContext.Undo()
 	if !failureIsSubjective(trace.Except) && gtrx.Sender != 0 { /*gtrx.Sender != account_name()*/
 		log.Info("", trace.Except.Message())
@@ -772,7 +773,7 @@ func scheduledFailureIsSubjective(e Exception) bool {
 	code := e.Code()
 	return (code == TxCpuUsageExceed{}.Code()) || failureIsSubjective(e)
 }
-func (c *Controller) setActionMaerkle() {
+func (c *Controller) setActionMerkle() {
 	actionDigests := make([]crypto.Sha256, len(c.Pending.Actions))
 	for _, b := range c.Pending.Actions {
 		actionDigests = append(actionDigests, crypto.Hash256(b.ActDigest))
@@ -815,7 +816,7 @@ func (c *Controller) FinalizeBlock() {
 	net.ExpandRate.Denominator = 100
 	c.ResourceLimits.SetBlockParameters(cpu, net)
 
-	c.setActionMaerkle()
+	c.setActionMerkle()
 
 	c.setTrxMerkle()
 
@@ -857,10 +858,10 @@ func (c *Controller) applyBlock(b *types.SignedBlock, s types.BlockStatus) {
 			throw *trace->except;*/
 		}
 		EosAssert(len(c.Pending.PendingBlockState.SignedBlock.Transactions) > 0,
-			&BlockValidateException{}, "expected a receipt:", *b, "expected_receipt:", receipt)
+			&BlockValidateException{}, "expected a block:%v,expected_receipt:%v", *b, receipt)
 
 		EosAssert(len(c.Pending.PendingBlockState.SignedBlock.Transactions) == numPendingReceipts+1,
-			&BlockValidateException{}, "expected receipt was not added:", *b, "expected_receipt:", receipt)
+			&BlockValidateException{}, "expected receipt was not added:%v,expected_receipt:%v", *b, receipt)
 
 		//TODO
 		//r := c.Pending.PendingBlockState.SignedBlock.Transactions
@@ -1212,7 +1213,7 @@ func (c *Controller) CheckActionList(code common.AccountName, action common.Acti
 
 func (c *Controller) CheckKeyList(key *ecc.PublicKey) {
 	if len(c.Config.KeyBlacklist.Data) > 0 {
-		EosAssert(c.Config.KeyBlacklist.Find(key), &KeyBlacklistException{}, "public key %s is on the key blacklist", key)
+		EosAssert(c.Config.KeyBlacklist.Find(key), &KeyBlacklistException{}, "public key %v is on the key blacklist", key)
 	}
 }
 
@@ -1256,10 +1257,10 @@ func (c *Controller) ValidateReferencedAccounts(t *types.Transaction) {
 func (c *Controller) ValidateExpiration(t *types.Transaction) {
 	chainConfiguration := c.GetGlobalProperties().Configuration
 	EosAssert(common.TimePoint(t.Expiration) >= c.PendingBlockTime(),
-		&ExpiredTxException{}, "transaction has expired, expiration is %s and pending block time is %s",
+		&ExpiredTxException{}, "transaction has expired, expiration is %v and pending block time is %v",
 		t.Expiration, c.PendingBlockTime())
 	EosAssert(common.TimePoint(t.Expiration) <= c.PendingBlockTime()+common.TimePoint(common.Seconds(int64(chainConfiguration.MaxTrxLifetime))),
-		&TxExpTooFarException{}, "Transaction expiration is too far in the future relative to the reference time of ${reference_time}, expiration is ${trx.expiration} and the maximum transaction lifetime is ${max_til_exp} seconds",
+		&TxExpTooFarException{}, "Transaction expiration is too far in the future relative to the reference time of %v, expiration is %v and the maximum transaction lifetime is %v seconds",
 		t.Expiration, c.PendingBlockTime(), chainConfiguration.MaxTrxLifetime)
 }
 
@@ -1272,9 +1273,19 @@ func (c *Controller) ValidateTapos(t *types.Transaction) {
 		fmt.Println("ValidateTapos Is Error:", err)
 	}
 	EosAssert(t.VerifyReferenceBlock(&taposBlockSummary.BlockId), &InvalidRefBlockException{},
-		"Transaction's reference block did not match. Is this transaction from a different fork?", taposBlockSummary)
+		"Transaction's reference block did not match. Is this transaction from a different fork? taposBlockSummary:%v", taposBlockSummary)
 }
 
+/* c++ 1.4.1
+void controller::validate_tapos( const transaction& trx )const { try {
+const auto& tapos_block_summary = db().get<block_summary_object>((uint16_t)trx.ref_block_num);
+
+//Verify TaPoS block summary has correct ID prefix, and that this block's time is not past the expiration
+EOS_ASSERT(trx.verify_reference_block(tapos_block_summary.block_id), invalid_ref_block_exception,
+"Transaction's reference block did not match. Is this transaction from a different fork?",
+("tapos_summary", tapos_block_summary));
+} FC_CAPTURE_AND_RETHROW() }
+*/
 func (c *Controller) ValidateDbAvailableSize() {
 	/*const auto free = db().get_segment_manager()->get_free_memory();
 	const auto guard = my->conf.state_guard_size;

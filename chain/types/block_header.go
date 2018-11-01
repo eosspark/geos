@@ -40,7 +40,7 @@ func (b *BlockHeader) BlockID() common.BlockIdType {
 
 type SignedBlockHeader struct {
 	BlockHeader       `multiIndex:"inline"`
-	ProducerSignature ecc.Signature `multiIndex:"inline",json:"producer_signature"`
+	ProducerSignature ecc.Signature `json:"producer_signature"`
 }
 
 type HeaderConfirmation struct {

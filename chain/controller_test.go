@@ -12,6 +12,8 @@ import (
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/entity"
+	"github.com/eosspark/eos-go/exception"
+	"github.com/eosspark/eos-go/exception/try"
 	"github.com/stretchr/testify/assert"
 	"reflect"
 	"strings"
@@ -116,6 +118,18 @@ func TestController_GetGlobalProperties(t *testing.T) {
 	assert.Equal(t, false, result == &gp)
 	c.Close()
 }
+
+func TestController_GetBlockIdForNum(t *testing.T) {
+	c := GetControllerInstance()
+	try.Try(func() {
+		c.GetBlockIdForNum(10)
+	}).Catch(func(ex exception.ForkDbBlockNotFound) { //TODO catch exception code
+		//fmt.Println("______",ex)
+		assert.Equal(t, 3020001, int(ex.Code()))
+	}).End()
+
+}
+
 func TestController_StartBlock(t *testing.T) {
 	c := GetControllerInstance()
 	w := common.NewBlockTimeStamp(common.Now())
