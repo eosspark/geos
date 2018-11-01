@@ -120,7 +120,7 @@ func validPath() {
 			if err != nil {
 				fmt.Printf("controller validPath mkdir failed![%v]\n", err)
 			} else {
-				fmt.Printf("controller validPath mkdir success!\n", d)
+				fmt.Printf("controller validPath mkdir success![%v]\n", d)
 			}
 		}
 	}
@@ -705,8 +705,8 @@ func (c *Controller) pushScheduledTransactionByObject(gto *entity.GeneratedTrans
 		// hard failure logic
 
 		if !explicitBilledCpuTime {
-			//rl := c.GetMutableResourceLimitsManager()
-			//rl.UpdateAccountUsage( trxContext.BillToAccounts, common.BlockTimeStamp(c.PendingBlockTime()).slot );
+			/*rl := c.GetMutableResourceLimitsManager()
+			rl.UpdateAccountUsage( &trxContext.BillToAccounts, common.BlockTimeStamp(c.PendingBlockTime()).slot )*/
 			//accountCpuLimit := 0
 			//accountNetLimit, accountCpuLimit, greylistedNet, greylistedCpu := trxContext.MaxBandwidthBilledAccountsCanPay( true );
 
@@ -890,7 +890,7 @@ func (c *Controller) CommitBlock(addToForkDb bool) {
 		ubo := entity.ReversibleBlockObject{}
 		ubo.BlockNum = c.Pending.PendingBlockState.BlockNum
 		ubo.SetBlock(c.Pending.PendingBlockState.SignedBlock)
-		c.DB.Insert(ubo)
+		c.DB.Insert(&ubo)
 	}
 	//emit( self.accepted_block, pending->_pending_block_state )
 	//catch(){
@@ -1039,27 +1039,27 @@ func (c *Controller) getActionBlockList() *common.FlatSet { return &c.Config.Act
 
 func (c *Controller) getKeyBlackList() *common.FlatSet { return &c.Config.KeyBlacklist }
 
-func (c *Controller) setActorWhiteList(params *common.FlatSet) {
+func (c *Controller) SetActorWhiteList(params *common.FlatSet) {
 	c.Config.ActorWhitelist = *params
 }
 
-func (c *Controller) setActorBlackList(params *common.FlatSet) {
+func (c *Controller) SetActorBlackList(params *common.FlatSet) {
 	c.Config.ActorBlacklist = *params
 }
 
-func (c *Controller) setContractWhiteList(params *common.FlatSet) {
+func (c *Controller) SetContractWhiteList(params *common.FlatSet) {
 	c.Config.ContractWhitelist = *params
 }
 
-func (c *Controller) setContractBlackList(params *common.FlatSet) {
+func (c *Controller) SetContractBlackList(params *common.FlatSet) {
 	c.Config.ContractBlacklist = *params
 }
 
-func (c *Controller) setActionBlackList(params *common.FlatSet) {
+func (c *Controller) SetActionBlackList(params *common.FlatSet) {
 	c.Config.ActionBlacklist = *params
 }
 
-func (c *Controller) setKeyBlackList(params *common.FlatSet) {
+func (c *Controller) SetKeyBlackList(params *common.FlatSet) {
 	c.Config.KeyBlacklist = *params
 }
 
@@ -1119,11 +1119,11 @@ func (c *Controller) PendingProducers() *types.ProducerScheduleType {
 }
 
 func (c *Controller) ProposedProducers() types.ProducerScheduleType {
-	/*gpo := c.GetGlobalProperties()
-	if( !gpo.proposed_schedule_block_num.valid() )
-		return optional<producer_schedule_type>()*/
-	//if gpo.ProposedScheduleBlockNum {}
-	return types.ProducerScheduleType{}
+	gpo := c.GetGlobalProperties()
+	if common.Empty(gpo.ProposedScheduleBlockNum) {
+		return types.ProducerScheduleType{}
+	}
+	return *gpo.ProposedSchedule.ProducerScheduleType()
 }
 
 func (c *Controller) LightValidationAllowed(dro bool) (b bool) {
@@ -1178,15 +1178,15 @@ func (c *Controller) GetBlockIdForNum(blockNum uint32) common.BlockIdType {
 	}
 
 	signedBlk := c.Blog.ReadBlockByNum(blockNum)
-	EosAssert(common.Empty(signedBlk), &UnknownBlockException{}, "Could not find block: d%", blockNum)
+	EosAssert(common.Empty(signedBlk), &UnknownBlockException{}, "Could not find block: %d", blockNum)
 	return signedBlk.BlockID()
 }
 
 func (c *Controller) CheckContractList(code common.AccountName) {
 	if len(c.Config.ContractWhitelist.Data) > 0 {
-		EosAssert(!c.Config.ContractWhitelist.Find(&code), &ContractWhitelistException{}, "account d% is not on the contract whitelist", code)
+		EosAssert(!c.Config.ContractWhitelist.Find(&code), &ContractWhitelistException{}, "account %d is not on the contract whitelist", code)
 	} else if len(c.Config.ContractBlacklist.Data) > 0 {
-		EosAssert(c.Config.ContractBlacklist.Find(&code), &ContractBlacklistException{}, "account d% is on the contract blacklist", code)
+		EosAssert(c.Config.ContractBlacklist.Find(&code), &ContractBlacklistException{}, "account %d is on the contract blacklist", code)
 		/*EOS_ASSERT( conf.contract_blacklist.find( code ) == conf.contract_blacklist.end(),
 			contract_blacklist_exception,
 			"account '${code}' is on the contract blacklist", ("code", code)
@@ -1212,7 +1212,7 @@ func (c *Controller) CheckActionList(code common.AccountName, action common.Acti
 
 func (c *Controller) CheckKeyList(key *ecc.PublicKey) {
 	if len(c.Config.KeyBlacklist.Data) > 0 {
-		EosAssert(c.Config.KeyBlacklist.Find(key), &KeyBlacklistException{}, "public key s% is on the key blacklist", key)
+		EosAssert(c.Config.KeyBlacklist.Find(key), &KeyBlacklistException{}, "public key %s is on the key blacklist", key)
 	}
 }
 
@@ -1256,7 +1256,7 @@ func (c *Controller) ValidateReferencedAccounts(t *types.Transaction) {
 func (c *Controller) ValidateExpiration(t *types.Transaction) {
 	chainConfiguration := c.GetGlobalProperties().Configuration
 	EosAssert(common.TimePoint(t.Expiration) >= c.PendingBlockTime(),
-		&ExpiredTxException{}, "transaction has expired, expiration is s% and pending block time is s%",
+		&ExpiredTxException{}, "transaction has expired, expiration is %s and pending block time is %s",
 		t.Expiration, c.PendingBlockTime())
 	EosAssert(common.TimePoint(t.Expiration) <= c.PendingBlockTime()+common.TimePoint(common.Seconds(int64(chainConfiguration.MaxTrxLifetime))),
 		&TxExpTooFarException{}, "Transaction expiration is too far in the future relative to the reference time of ${reference_time}, expiration is ${trx.expiration} and the maximum transaction lifetime is ${max_til_exp} seconds",
@@ -1409,7 +1409,7 @@ func (c *Controller) CreateNativeAccount(name common.AccountName, owner types.Au
 
 	aso := entity.AccountSequenceObject{}
 	aso.Name = name
-	c.DB.Insert(aso)
+	c.DB.Insert(&aso)
 
 	ownerPermission := c.Authorization.CreatePermission(name, common.PermissionName(common.DefaultConfig.OwnerName), 0, owner, c.Config.genesis.InitialTimestamp)
 
@@ -1463,13 +1463,13 @@ func (c *Controller) initializeDatabase() {
 	gpo.Configuration = gi
 	err := c.DB.Insert(&gpo)
 	if err != nil {
-		fmt.Errorf("-----------------", err)
+		fmt.Println("-----------------", err)
 	}
 	dgpo := entity.DynamicGlobalPropertyObject{}
 	dgpo.ID = 0
 	err = c.DB.Insert(&dgpo)
 	if err != nil {
-		fmt.Errorf("-----------------", err)
+		fmt.Println("-----------------", err)
 	}
 	/*fmt.Println("initializeDatabase gi:", gi)
 	fmt.Println("initializeDatabase insert gpo:", gpo)*/
@@ -1573,30 +1573,32 @@ func NewHandlerKey(scopeName common.ScopeName, actionName common.ActionName) Han
 }
 
 func (c *Controller) clearExpiredInputTransactions() {
-	//aa :=&entity.TransactionObject{}
-	//aa.Expiration = common.TimePointSec(common.Now())
-	//err := c.DB.Insert(aa)
-	//if err != nil{
-	//	fmt.Println("insert success")
-	//}
+	/*aa :=&entity.TransactionObject{}
+	aa.Expiration = common.TimePointSec(common.Now())
+	err := c.DB.Insert(aa)
+	if err != nil{
+		fmt.Println("insert success")
+	}*/
 	transactionIdx, err := c.DB.GetIndex("byExpiration", &entity.TransactionObject{})
 
 	now := c.PendingBlockTime()
 	t := &entity.TransactionObject{}
-	itr := transactionIdx.Begin()
-	if itr != nil {
-		err = itr.Data(t)
-		if err != nil {
-			fmt.Println("TransactionIdx.Begin Is Error:", err)
-		}
-	}
+
 	for !transactionIdx.Empty() && now > common.TimePoint(t.Expiration) {
-		c.DB.Remove(transactionIdx.Begin())
+		tmp := &entity.TransactionObject{}
+		itr := transactionIdx.Begin()
+		if itr != nil {
+			err = itr.Data(tmp)
+			if err != nil {
+				fmt.Println("TransactionIdx.Begin Is Error:", err)
+			}
+		}
+		c.DB.Remove(tmp)
 	}
 }
 
 func (c *Controller) CheckActorList(actors *common.FlatSet) {
-	if len(c.Config.ActorWhitelist.Data) > 0 {
+	if c.Config.ActorWhitelist.Len() > 0 {
 		//excluded :=make(map[common.AccountName]struct{})
 
 		//set

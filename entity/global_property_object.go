@@ -6,13 +6,41 @@ import (
 )
 
 type GlobalPropertyObject struct {
-	ID                       common.IdType              `multiIndex:"id,increment"`
+	ID                       common.IdType `multiIndex:"id,increment"`
 	ProposedScheduleBlockNum uint32
 	ProposedSchedule         types.SharedProducerScheduleType
-	Configuration            common.Config                    //TODO
+	Configuration            common.Config //TODO
 }
 
 type DynamicGlobalPropertyObject struct {
-	ID                   common.IdType  `multiIndex:"id,increment"` //c++ chainbase.hpp id_type
+	ID                   common.IdType `multiIndex:"id,increment"` //c++ chainbase.hpp id_type
 	GlobalActionSequence uint64
 }
+
+/*
+type Config struct {
+	ActorWhitelist          common.FlatSet //common.AccountName
+	ActorBlacklist          common.FlatSet //common.AccountName
+	ContractWhitelist       common.FlatSet //common.AccountName
+	ContractBlacklist       common.FlatSet //common.AccountName]struct{}
+	ActionBlacklist         common.FlatSet //common.Pair //see actionBlacklist
+	KeyBlacklist            common.FlatSet
+	blocksDir               string
+	stateDir                string
+	stateSize               uint64
+	stateGuardSize          uint64
+	reversibleCacheSize     uint64
+	reversibleGuardSize     uint64
+	readOnly                bool
+	forceAllChecks          bool
+	disableReplayOpts       bool
+	disableReplay           bool
+	contractsConsole        bool
+	allowRamBillingInNotify bool
+	genesis                 types.GenesisState
+	vmType                  wasmgo.WasmGo
+	readMode                DBReadMode
+	blockValidationMode     ValidationMode
+	resourceGreylist        map[common.AccountName]struct{}
+	trustedProducers        map[common.AccountName]struct{}
+}*/
