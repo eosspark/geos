@@ -103,15 +103,15 @@ func Test_find(t *testing.T) {
 	objs_, houses_ := saveObjs(objs, houses, db)
 
 	getGreaterObjs(objs_, houses_, db)
-
+	//
 	findObjs(objs_, houses_, db)
-
+	//
 	findInLineFieldObjs(objs_, houses_, db)
-	////
+	//////
 	findAllNonUniqueFieldObjs(objs_, houses_, db)
-	////
-	////getErrStruct(db)
-	////
+	//////
+	//////getErrStruct(db)
+	//////
 	getLessObjs(objs_, houses_, db)
 }
 

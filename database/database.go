@@ -1,6 +1,7 @@
 package database
 
 import (
+	"fmt"
 	"log"
 	"math"
 	"os"
@@ -647,7 +648,7 @@ func (ldb *LDataBase) find(tagName string, value interface{}, to interface{}) er
 
 	typeName := []byte(fields.typeName)
 
-	suffix := nonUniqueValue(fields)
+	suffix := getFieldValue(fields)
 	if len(suffix) == 0 {
 		ldb.dbLog.Println("error database find nonUniqueValue failed : ",err)
 		return ErrNotFound
@@ -711,8 +712,7 @@ func (ldb *LDataBase) getIndex(tagName string, value interface{}) (*MultiIndex, 
 
 	typeName := []byte(fields.typeName)
 	begin := typeNameFieldName(typeName, fieldName)
-	begin = append(begin, '_')
-	begin = append(begin, '_')
+
 
 	end := getNonUniqueEnd(begin)
 	space := "  "
@@ -756,7 +756,7 @@ func (ldb *LDataBase) lowerBound(begin, end, fieldName []byte, data interface{},
 		return nil, err
 	}
 
-	_, prefix := getNonUniqueFieldValue(fields)
+	prefix := getFieldValue(fields)
 
 	if len(prefix) != 0 {
 		begin = append(begin, prefix...)
@@ -787,7 +787,7 @@ func (ldb *LDataBase) IteratorTo(begin, end, fieldName []byte, in interface{}, g
 	if err != nil {
 		return nil, err
 	}
-	_, prefix := getNonUniqueFieldValue(fields)
+	prefix := getFieldValue(fields)
 
 	if len(prefix) == 0 {
 		return nil, errors.New("Get Field Value Failed")
@@ -795,7 +795,7 @@ func (ldb *LDataBase) IteratorTo(begin, end, fieldName []byte, in interface{}, g
 
 	key := []byte{}
 	key = append(begin, prefix...)
-
+	fmt.Println(key)
 	it := ldb.db.NewIterator(&util.Range{Start: begin, Limit: end}, nil)
 	if !it.Seek(key) {
 		return nil, errors.New("Iterator To Not Found")
@@ -845,7 +845,7 @@ func (ldb *LDataBase) upperBound(begin, end, fieldName []byte, data interface{},
 		return nil, err
 	}
 
-	_, prefix := getNonUniqueFieldValue(fields)
+	prefix := getFieldValue(fields)
 
 	if len(prefix) != 0 {
 		begin = append(begin, prefix...)
