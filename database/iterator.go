@@ -39,6 +39,7 @@ type DbIterator struct {
 	key      []byte
 	value    []byte
 	begin    []byte
+	beginVal    []byte
 	typeName []byte
 	db       *leveldb.DB // TODO interface
 	it       iterator
@@ -83,8 +84,8 @@ func newDbIterator(typeName []byte, it iterator, db *leveldb.DB, greater bool) (
 /* Do not use the functions in this file */
 
 func (index *DbIterator) copyBeginValue(key []byte) error {
-	index.begin = make([]byte, len(key)) /* compare begin 	*/
-	copy(index.begin, key)
+	index.beginVal = make([]byte, len(key)) /* compare begin 	*/
+	copy(index.beginVal, key)
 	index.value = make([]byte, len(key)) /* begin data  	*/
 	copy(index.value, key)
 	index.first = true
@@ -142,7 +143,7 @@ func (index *DbIterator) Prev() bool {
 }
 
 func (index *DbIterator) Begin() []byte {
-	return index.begin
+	return index.beginVal
 }
 
 func (index *DbIterator) next() bool {
