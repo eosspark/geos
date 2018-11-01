@@ -1,15 +1,11 @@
 package history_plugin
 
 import (
-	"fmt"
 	"testing"
-
-	"github.com/eosspark/eos-go/common"
-	"github.com/eosspark/eos-go/database"
 )
 
 func Test_AddAccountHistoryObject(t *testing.T) {
-	db, err := eosiodb.NewDataBase("./", "shared_memory.bin", true)
+	/*db, err := eosiodb.NewDataBase("./", "shared_memory.bin", true)
 	if err != nil {
 		fmt.Println("Test_AddAccountHistoryObject is error detail:", err.Error())
 	}
@@ -36,7 +32,7 @@ func Test_AddAccountHistoryObject(t *testing.T) {
 	fmt.Println("*******************************************")
 	result := []AccountHistoryObject{}
 	db.All(&result)
-	fmt.Print("all context:", result)
+	fmt.Print("all context:", result)*/
 }
 
 /*func Test_AddAccountHistorys(t *testing.T) {
@@ -80,7 +76,7 @@ func Test_AddAccountHistoryObject(t *testing.T) {
 }*/
 
 func Test_GetAccountHistoryObject(t *testing.T) {
-	db, err := eosiodb.NewDataBase("./", "shared_memory.bin", true)
+	/*db, err := eosiodb.NewDataBase("./", "shared_memory.bin", true)
 	if err != nil {
 		fmt.Println("Test_GetAccountHistoryObject is error detail:", err.Error())
 	}
@@ -102,11 +98,11 @@ func Test_GetAccountHistoryObject(t *testing.T) {
 	if err != nil {
 		fmt.Println(err.Error())
 	}
-	fmt.Println("query all data:", results)
+	fmt.Println("query all data:", results)*/
 }
 
 func Test_UpdateAccountHistoryObject(t *testing.T) {
-	db, err := eosiodb.NewDataBase("./", "shared_memory.bin", true)
+	/*db, err := eosiodb.NewDataBase("./", "shared_memory.bin", true)
 	if err != nil {
 		fmt.Println("Test_UpdateAccountHistoryObject is error detail:", err.Error())
 	}
@@ -132,11 +128,11 @@ func Test_UpdateAccountHistoryObject(t *testing.T) {
 	if err != nil {
 		fmt.Println("modify object is error:", err.Error())
 		return
-	}
+	}*/
 }
 
 func Test_GetAccountHistoryObjectsByAccount(t *testing.T) {
-	db, err := eosiodb.NewDataBase("./", "shared_memory.bin", true)
+	/*db, err := eosiodb.NewDataBase("./", "shared_memory.bin", true)
 	if err != nil {
 		fmt.Println("Test_GetAccountHistoryObjectByAccount is error detail:", err.Error())
 		return
@@ -145,15 +141,15 @@ func Test_GetAccountHistoryObjectsByAccount(t *testing.T) {
 
 	result := GetAccountHistoryObjectByAccount(db, common.AccountName(common.N("tuanhuo2")))
 	fmt.Print("Query many data :")
-	fmt.Println(result)
+	fmt.Println(result)*/
 }
 
 func Test_GetActions(t *testing.T) {
-	param := GetActionParam{}
+	/*param := GetActionParam{}
 	param.Pos = 0
 	param.Offset = 3
 	param.AccountName = common.AccountName(common.N("tuanhuo"))
 
 	result := GetActions(&param)
-	fmt.Println("Test_GetActions result :", result)
+	fmt.Println("Test_GetActions result :", result)*/
 }

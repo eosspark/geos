@@ -27,21 +27,21 @@ func init() {
 
 	DefaultConfig.BillableAlignment = 16
 	DefaultConfig.BillableSize = map[string]billableSize{
-			"permission_level_weight":      {value: 24},
-			"key_weight":                   {value: 8},
-			"wait_weight":                  {value: 16},
-			"shared_authority":             {value: 3*1 + 4},
-			"permission_link_object":       {overhead: 32 * 3, value: 40 + 32},
-			"permission_object":            {overhead: 5 * 32, value: 3*1 + 4 + 64 + 5*32},
-			"table_id_object":              {overhead: 32 * 2, value: 44 + 32*2},
-			"key_value_object":             {overhead: 32 * 2, value: 32 + 8 + 4 + 32*2},
-			"index64_object":               {overhead: 32 * 3, value: 24 + 8 + 32*3},
-			"index128_object":              {overhead: 32 * 3, value: 24 + 16 + 32*3},
-			"index256_object":              {overhead: 32 * 3, value: 24 + 32 + 32*3},
-			"index_double_object":          {overhead: 32 * 3, value: 24 + 8 + 32*3},
-			"index_long_double_object":     {overhead: 32 * 3, value: 24 + 16 + 32*3},
-			"generated_transaction_object": {overhead: 32 * 5, value: 96 + 4 + 32*5},
-		}
+		"permission_level_weight":      {value: 24},
+		"key_weight":                   {value: 8},
+		"wait_weight":                  {value: 16},
+		"shared_authority":             {value: 3*1 + 4},
+		"permission_link_object":       {overhead: 32 * 3, value: 40 + 32},
+		"permission_object":            {overhead: 5 * 32, value: 3*1 + 4 + 64 + 5*32},
+		"table_id_object":              {overhead: 32 * 2, value: 44 + 32*2},
+		"key_value_object":             {overhead: 32 * 2, value: 32 + 8 + 4 + 32*2},
+		"index64_object":               {overhead: 32 * 3, value: 24 + 8 + 32*3},
+		"index128_object":              {overhead: 32 * 3, value: 24 + 16 + 32*3},
+		"index256_object":              {overhead: 32 * 3, value: 24 + 32 + 32*3},
+		"index_double_object":          {overhead: 32 * 3, value: 24 + 8 + 32*3},
+		"index_long_double_object":     {overhead: 32 * 3, value: 24 + 16 + 32*3},
+		"generated_transaction_object": {overhead: 32 * 5, value: 96 + 4 + 32*5},
+	}
 
 	DefaultConfig.FixedNetOverheadOfPackedTrx = 16
 
@@ -95,11 +95,11 @@ func init() {
 	DefaultConfig.DefaultBlocksDirName = "/tmp/data/blocks"
 	DefaultConfig.DefaultReversibleBlocksDirName = "/tmp/data/reversible"
 	DefaultConfig.DefaultStateDirName = "/tmp/data/state"
-	DefaultConfig.DefaultStateSize = 1*1024*1024*1024
-	DefaultConfig.DefaultStateGuardSize = 128*1024*1024
-	DefaultConfig.DefaultReversibleCacheSize = 340*1024*1024
-	DefaultConfig.DefaultReversibleGuardSize = 2*1024*1024
-	DefaultConfig.MinNetUsageDeltaBetweenBaseAndMaxForTrx = 10*1024
+	DefaultConfig.DefaultStateSize = 1 * 1024 * 1024 * 1024
+	DefaultConfig.DefaultStateGuardSize = 128 * 1024 * 1024
+	DefaultConfig.DefaultReversibleCacheSize = 340 * 1024 * 1024
+	DefaultConfig.DefaultReversibleGuardSize = 2 * 1024 * 1024
+	DefaultConfig.MinNetUsageDeltaBetweenBaseAndMaxForTrx = 10 * 1024
 }
 
 type Config struct {
@@ -169,12 +169,12 @@ type Config struct {
 
 	MaxTrxLifetime uint32
 	//MaxTransactionLifetime      uint32 ///< the maximum number of seconds that an input transaction's expiration can be ahead of the time of the block in which it is first included
-	DeferredTrxExpirationWindow uint32 ///< the number of seconds after the time a deferred transaction can first execute until it expires
-	MaxTrxDelay                 uint32 ///< the maximum number of seconds that can be imposed as a delay requirement by authorization checks
-	MaxInlineActionSize         uint32 ///< maximum allowed size (in bytes) of an inline action
-	MaxInlineActionDepth        uint16 ///< recursion depth limit on sending inline actions
-	MaxAuthorityDepth           uint16 ///< recursion depth limit for checking if an authority is satisfied
-	MinNetUsageDeltaBetweenBaseAndMaxForTrx  uint32
+	DeferredTrxExpirationWindow             uint32 ///< the number of seconds after the time a deferred transaction can first execute until it expires
+	MaxTrxDelay                             uint32 ///< the maximum number of seconds that can be imposed as a delay requirement by authorization checks
+	MaxInlineActionSize                     uint32 ///< maximum allowed size (in bytes) of an inline action
+	MaxInlineActionDepth                    uint16 ///< recursion depth limit on sending inline actions
+	MaxAuthorityDepth                       uint16 ///< recursion depth limit for checking if an authority is satisfied
+	MinNetUsageDeltaBetweenBaseAndMaxForTrx uint32
 	/**************************chain_config end****************************/
 
 	ForkDBName                     string
@@ -192,38 +192,38 @@ type Config struct {
 }
 
 func (c *Config) Validate() {
-	exception.EosAssert( c.TargetBlockNetUsagePct <= uint32(c.Percent_100), &exception.ActionValidateException{},
-		"target block net usage percentage cannot exceed 100%" );
-	exception.EosAssert( c.TargetBlockNetUsagePct >= uint32(c.Percent_1/10), &exception.ActionValidateException{},
-		"target block net usage percentage must be at least 0.1%" );
-	exception.EosAssert( c.TargetBlockCpuUsagePct <= uint32(c.Percent_100), &exception.ActionValidateException{},
-		"target block cpu usage percentage cannot exceed 100%" );
-	exception.EosAssert( c.TargetBlockCpuUsagePct >= uint32(c.Percent_1/10), &exception.ActionValidateException{},
-		"target block cpu usage percentage must be at least 0.1%" );
+	exception.EosAssert(c.TargetBlockNetUsagePct <= uint32(c.Percent_100), &exception.ActionValidateException{},
+		"target block net usage percentage cannot exceed 100%")
+	exception.EosAssert(c.TargetBlockNetUsagePct >= uint32(c.Percent_1/10), &exception.ActionValidateException{},
+		"target block net usage percentage must be at least 0.1%")
+	exception.EosAssert(c.TargetBlockCpuUsagePct <= uint32(c.Percent_100), &exception.ActionValidateException{},
+		"target block cpu usage percentage cannot exceed 100%")
+	exception.EosAssert(c.TargetBlockCpuUsagePct >= uint32(c.Percent_1/10), &exception.ActionValidateException{},
+		"target block cpu usage percentage must be at least 0.1%")
 
-	exception.EosAssert( uint64(c.MaxTransactionNetUsage) < c.MaxBlockNetUsage, &exception.ActionValidateException{},
-		"max transaction net usage must be less than max block net usage" );
-	exception.EosAssert( c.MaxTransactionCpuUsage < c.MaxBlockCpuUsage, &exception.ActionValidateException{},
-		"max transaction cpu usage must be less than max block cpu usage" );
+	exception.EosAssert(uint64(c.MaxTransactionNetUsage) < c.MaxBlockNetUsage, &exception.ActionValidateException{},
+		"max transaction net usage must be less than max block net usage")
+	exception.EosAssert(c.MaxTransactionCpuUsage < c.MaxBlockCpuUsage, &exception.ActionValidateException{},
+		"max transaction cpu usage must be less than max block cpu usage")
 
-	exception.EosAssert( c.BasePerTransactionNetUsage < c.MaxTransactionNetUsage, &exception.ActionValidateException{},
-		"base net usage per transaction must be less than the max transaction net usage" );
-	exception.EosAssert( (c.MaxTransactionNetUsage - c.BasePerTransactionNetUsage) >= c.MinNetUsageDeltaBetweenBaseAndMaxForTrx,
+	exception.EosAssert(c.BasePerTransactionNetUsage < c.MaxTransactionNetUsage, &exception.ActionValidateException{},
+		"base net usage per transaction must be less than the max transaction net usage")
+	exception.EosAssert((c.MaxTransactionNetUsage-c.BasePerTransactionNetUsage) >= c.MinNetUsageDeltaBetweenBaseAndMaxForTrx,
 		&exception.ActionValidateException{},
-		"max transaction net usage must be at least: s% bytes larger than base net usage per transaction",
-		c.MinNetUsageDeltaBetweenBaseAndMaxForTrx );
-	exception.EosAssert( c.ContextFreeDiscountNetUsageDen > 0, &exception.ActionValidateException{},
-		"net usage discount ratio for context free data cannot have a 0 denominator" );
-	exception.EosAssert( c.ContextFreeDiscountNetUsageNum <= c.ContextFreeDiscountNetUsageDen, &exception.ActionValidateException{},
-		"net usage discount ratio for context free data cannot exceed 1" );
+		"max transaction net usage must be at least: %s bytes larger than base net usage per transaction",
+		c.MinNetUsageDeltaBetweenBaseAndMaxForTrx)
+	exception.EosAssert(c.ContextFreeDiscountNetUsageDen > 0, &exception.ActionValidateException{},
+		"net usage discount ratio for context free data cannot have a 0 denominator")
+	exception.EosAssert(c.ContextFreeDiscountNetUsageNum <= c.ContextFreeDiscountNetUsageDen, &exception.ActionValidateException{},
+		"net usage discount ratio for context free data cannot exceed 1")
 
-	exception.EosAssert( c.MinTransactionCpuUsage <= c.MaxTransactionCpuUsage, &exception.ActionValidateException{},
-		"min transaction cpu usage cannot exceed max transaction cpu usage" );
-	exception.EosAssert( c.MaxTransactionCpuUsage < (c.MaxBlockCpuUsage - c.MinTransactionCpuUsage), &exception.ActionValidateException{},
-		"max transaction cpu usage must be at less than the difference between the max block cpu usage and the min transaction cpu usage" );
+	exception.EosAssert(c.MinTransactionCpuUsage <= c.MaxTransactionCpuUsage, &exception.ActionValidateException{},
+		"min transaction cpu usage cannot exceed max transaction cpu usage")
+	exception.EosAssert(c.MaxTransactionCpuUsage < (c.MaxBlockCpuUsage-c.MinTransactionCpuUsage), &exception.ActionValidateException{},
+		"max transaction cpu usage must be at less than the difference between the max block cpu usage and the min transaction cpu usage")
 
-	exception.EosAssert( 1 <= c.MaxAuthorityDepth, &exception.ActionValidateException{},
-		"max authority depth should be at least 1" );
+	exception.EosAssert(1 <= c.MaxAuthorityDepth, &exception.ActionValidateException{},
+		"max authority depth should be at least 1")
 }
 
 func BillableSizeV(kind string) uint64 {
