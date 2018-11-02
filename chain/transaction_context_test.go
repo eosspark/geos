@@ -1,7 +1,6 @@
 package chain
 
 import (
-	"fmt"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto"
@@ -101,7 +100,7 @@ func TestTransactionContextTest(t *testing.T) {
 			//usage := entity.ResourceUsageObject{Owner: common.AccountName(common.N(account))}
 			//control.DB.Find("byOwner", usage, &usage)
 			//fmt.Println(i, ":", usage)
-			fmt.Println("No.", i)
+			//fmt.Println("No.", i)
 
 		}
 

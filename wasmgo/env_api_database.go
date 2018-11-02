@@ -3,7 +3,7 @@ package wasmgo
 import (
 	"fmt"
 	//"github.com/eosspark/eos-go/chain/types"
-	"github.com/eosspark/eos-go/entity"
+	//"github.com/eosspark/eos-go/entity"
 	//"github.com/eosspark/eos-go/common"
 )
 
@@ -217,9 +217,10 @@ func dbIdx64FindPrimary(w *WasmGo, code int64, scope int64, table int64, payer i
 func dbIdxDoubleStore(w *WasmGo, scope int64, table int64, payer int64, id int64, pValue int) int {
 	fmt.Println("db_idx64_store")
 
-	secondaryKey := &entity.Float64_t{Value: getFloat64(w, pValue)}
+	//secondaryKey := &entity.Float64_t{Value: getFloat64(w, pValue)}
 	//secondaryKey.SetValue(getFloat64(w, pValue))
-	return w.context.IdxDoubleStore(scope, table, payer, id, secondaryKey)
+	secondaryKey := getFloat64(w, pValue)
+	return w.context.IdxDoubleStore(scope, table, payer, id, &secondaryKey)
 }
 
 func dbIdxDoubleRemove(w *WasmGo, itr int) {
@@ -230,9 +231,10 @@ func dbIdxDoubleRemove(w *WasmGo, itr int) {
 func dbIdxDoubleUpdate(w *WasmGo, itr int, payer int64, pValue int) {
 	fmt.Println("db_idx64_update")
 
-	secondaryKey := &entity.Float64_t{Value: getFloat64(w, pValue)}
+	//secondaryKey := &entity.Float64_t{Value: getFloat64(w, pValue)}
 	//secondaryKey.SetValue(getFloat64(w, pValue))
-	w.context.IdxDoubleUpdate(itr, payer, secondaryKey)
+	secondaryKey := getFloat64(w, pValue)
+	w.context.IdxDoubleUpdate(itr, payer, &secondaryKey)
 }
 
 func dbIdxDoublefindSecondary(w *WasmGo, code int64, scope int64, table int64, payer int64, pSecondary int, pPrimary int) int {
@@ -240,8 +242,9 @@ func dbIdxDoublefindSecondary(w *WasmGo, code int64, scope int64, table int64, p
 	fmt.Println("db_idx64_find_secondary")
 
 	var primaryKey uint64 //:= getFloat64(w, pPrimary)
-	secondaryKey := &entity.Float64_t{Value: getFloat64(w, pSecondary)}
-	itr := w.context.IdxDoubleFindSecondary(code, scope, table, secondaryKey, &primaryKey)
+	//secondaryKey := &entity.Float64_t{Value: getFloat64(w, pSecondary)}
+	secondaryKey := getFloat64(w, pSecondary)
+	itr := w.context.IdxDoubleFindSecondary(code, scope, table, &secondaryKey, &primaryKey)
 	setUint64(w, pPrimary, primaryKey)
 
 	return itr
@@ -252,10 +255,11 @@ func dbIdxDoubleLowerbound(w *WasmGo, code int64, scope int64, table int64, pSec
 	fmt.Println("db_idx64_lowerbound")
 
 	var primaryKey uint64 //:= getFloat64(w, pPrimary)
-	secondaryKey := entity.Float64_t{}
+	//secondaryKey := entity.Float64_t{}
+	var secondaryKey float64
 	itr := w.context.IdxDoubleLowerbound(code, scope, table, &secondaryKey, &primaryKey)
 	setUint64(w, pPrimary, primaryKey)
-	setFloat64(w, pSecondary, secondaryKey.Value)
+	setFloat64(w, pSecondary, secondaryKey)
 
 	return itr
 }
@@ -265,10 +269,11 @@ func dbIdxDoubleUpperbound(w *WasmGo, code int64, scope int64, table int64, pSec
 	fmt.Println("db_idx64_upperbound")
 
 	var primaryKey uint64 //:= getFloat64(w, pPrimary)
-	secondaryKey := entity.Float64_t{}
+	//secondaryKey := entity.Float64_t{}
+	var secondaryKey float64
 	itr := w.context.IdxDoubleLowerbound(code, scope, table, &secondaryKey, &primaryKey)
 	setUint64(w, pPrimary, primaryKey)
-	setFloat64(w, pSecondary, secondaryKey.Value)
+	setFloat64(w, pSecondary, secondaryKey)
 
 	return itr
 }
@@ -307,11 +312,11 @@ func dbIdxDoubleFindPrimary(w *WasmGo, code int64, scope int64, table int64, pay
 	fmt.Println("db_idx64_find_primary")
 
 	//var primaryKey uint64 //:= getFloat64(w, pPrimary)
-
 	primaryKey := getUint64(w, pPrimary)
-	secondaryKey := entity.Float64_t{}
+	//secondaryKey := entity.Float64_t{}
+	var secondaryKey float64
 	itr := w.context.IdxDoubleFindPrimary(code, scope, table, &secondaryKey, &primaryKey)
-	setFloat64(w, pSecondary, secondaryKey.Value)
+	setFloat64(w, pSecondary, secondaryKey)
 
 	return itr
 }
