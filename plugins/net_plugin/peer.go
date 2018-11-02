@@ -43,6 +43,7 @@ type Peer struct {
 	peerAddr           string
 	responseExpected   time.Timer
 	//pendingFetch optional<request_message>
+	pendingFetch *RequestMessage
 
 	noRetry     GoAwayReason
 	forkHead    common.BlockIdType
@@ -206,6 +207,22 @@ func (p *Peer) fetchWait() {
 }
 
 func (p *Peer) cancelSync(reason GoAwayReason) {
+	//fc_dlog(logger,"cancel sync reason = ${m}, write queue size ${o} peer ${p}",
+	//	("m",reason_str(reason)) ("o", write_queue.size())("p", peer_name()));
+
+	fmt.Println("cancel sync reason = %s, write queue size %d peer %s\n", ReasonToString[reason], p.write)
+
+	p.cancelWait()
+	//p.flushQueues()
+	switch reason {
+	case validation, fatalOther:
+		p.noRetry = reason
+		p.write(&GoAwayMessage{Reason: reason})
+	default:
+		//fc_dlog(logger, "sending empty request but not calling sync wait on ${p}", ("p",peer_name()))
+		fmt.Println("sending empty request but not calling sync wait on %s\n", p.peerAddr)
+		p.write(&SyncRequestMessage{0, 0})
+	}
 
 }
 
@@ -220,7 +237,6 @@ func (p *Peer) cancelSync(reason GoAwayReason) {
 //void cancel_sync(go_away_reason);
 //void flush_queues();
 //bool enqueue_sync_block();
-//void request_sync_blocks (uint32_t start, uint32_t end);
 
 func (p *Peer) requestSyncBlocks(start, end uint32) {
 	syncRequest := SyncRequestMessage{
@@ -231,9 +247,6 @@ func (p *Peer) requestSyncBlocks(start, end uint32) {
 	p.syncWait()
 }
 
-//void cancel_wait();
-//void sync_wait();
-//void fetch_wait();
 //void sync_timeout(boost::system::error_code ec);
 //void fetch_timeout(boost::system::error_code ec);
 //
@@ -241,19 +254,6 @@ func (p *Peer) requestSyncBlocks(start, end uint32) {
 //bool trigger_send,
 //std::function<void(boost::system::error_code, std::size_t)> callback);
 //void do_queue_write();
-//
-///** \brief Process the next message from the pending message buffer
-// *
-// * Process the next message from the pending_message_buffer.
-// * message_length is the already determined length of the data
-// * part of the message and impl in the net plugin implementation
-// * that will handle the message.
-// * Returns true is successful. Returns false if an error was
-// * encountered unpacking or processing the message.
-// */
-//bool process_next_message(net_plugin_impl& impl, uint32_t message_length);
-//
-//bool add_peer_block(const peer_block_state &pbs);
 
 func isValid(msg *HandshakeMessage) bool {
 	// Do some basic validation of an incoming handshake_message, so things
@@ -407,7 +407,6 @@ func ReadP2PMessageData(r io.Reader) (p2pMessage P2PMessage, err error) {
 	p2pMessage = msg.Interface().(P2PMessage)
 
 	return
-
 }
 
 func (p *Peer) write(message P2PMessage) {
@@ -424,12 +423,12 @@ func (p *Peer) write(message P2PMessage) {
 
 	p.connection.Write(sendBuf)
 
-	//fmt.Println(p.peerAddr, ": 已发送Message", sendBuf)
+	//fmt.Println(p.peerAddr, ": Message bytes", sendBuf)
 	data, err := json.Marshal(message)
 	if err != nil {
 		fmt.Println(err)
 	}
-	fmt.Println(p.peerAddr, ": 已发送Message", string(data))
+	fmt.Println(p.peerAddr, ": send Message json:", string(data))
 
 	return
 }

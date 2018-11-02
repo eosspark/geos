@@ -12,6 +12,7 @@ import (
 	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/crypto/rlp"
+	"github.com/eosspark/eos-go/log"
 	"math"
 	"net"
 	"runtime"
@@ -147,7 +148,8 @@ func (c *Client) sendMessage(message P2PMessage) (err error) {
 
 	c.Conn.Write(sendBuf)
 
-	fmt.Println("已发送Message", sendBuf)
+	//fmt.Println("已发送Message", sendBuf)
+	log.Info("sended Message: %v", sendBuf)
 	data, err := json.Marshal(message)
 	if err != nil {
 		fmt.Println(err)
@@ -181,7 +183,8 @@ func (c *Client) handleConnection(ready chan bool, errChannel chan error, signed
 		if err != nil {
 			fmt.Println(err)
 		}
-		fmt.Println("Receive P2PMessag ", string(data))
+		//fmt.Println("Receive P2PMessag ", string(data))
+		log.Warn("receive p2pMessage: %s", string(data))
 
 		//encResult, err := rlp.EncodeToBytes(p2pMessage)
 		//fmt.Printf("encode result: %#v\n", encResult)

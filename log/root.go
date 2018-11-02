@@ -23,8 +23,8 @@ func init() {
 
 }
 
-func New(name ...string) Logger {
-	return root.New(name...)
+func New(name string) Logger {
+	return root.New(name)
 }
 
 func Root() Logger {
@@ -36,21 +36,21 @@ func Root() Logger {
 // runtime.Caller(2) always refers to the call site in client code.
 
 // Debug is a convenient alias for Root().Debug
-func Debug(format string, v ...interface{}) {
-	root.write(LvlDebug, fmt.Sprintf(format, v...), skipLevel)
+func Debug(format string, arg ...interface{}) {
+	root.write(LvlDebug, fmt.Sprintf(format, arg...), skipLevel)
 }
 
 // Info is a convenient alias for Root().Info
-func Info(format string, v ...interface{}) {
-	root.write(LvlInfo, fmt.Sprintf(format, v...), skipLevel)
+func Info(format string, arg ...interface{}) {
+	root.write(LvlInfo, fmt.Sprintf(format, arg...), skipLevel)
 }
 
 // Warn is a convenient alias for Root().Warn
-func Warn(format string, v ...interface{}) {
-	root.write(LvlWarn, fmt.Sprintf(format, v...), skipLevel)
+func Warn(format string, arg ...interface{}) {
+	root.write(LvlWarn, fmt.Sprintf(format, arg...), skipLevel)
 }
 
 // Error is a convenient alias for Root().Error
-func Error(format string, v ...interface{}) {
-	root.write(LvlError, fmt.Sprintf(format, v...), skipLevel)
+func Error(format string, arg ...interface{}) {
+	root.write(LvlError, fmt.Sprintf(format, arg...), skipLevel)
 }

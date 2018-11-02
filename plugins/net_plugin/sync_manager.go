@@ -1,7 +1,6 @@
 package net_plugin
 
 import (
-	"fmt"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto"
@@ -351,22 +350,20 @@ func (s *syncManager) setStage(newstate stages) {
 	if s.state == newstate {
 		return
 	}
-	fmt.Printf("old state %s becoming %s \n", stageStr(s.state), stageStr(newstate))
+	netlog.Info("old state %s becoming %s", stageStr(s.state), stageStr(newstate))
 	s.state = newstate
 }
 
 func (s *syncManager) syncRequired() bool {
-	fmt.Printf("last req = %d,last recv = %d known = %d our head %d\n", +s.syncLastRequestedNum, s.syncNextExpectedNum, s.syncKnownLibNum, 100) //chain_plug->chain( ).head_block_num( )
-	return s.syncLastRequestedNum < s.syncKnownLibNum || 0 < s.syncLastRequestedNum                                                             //100  ---->  chain_plug->chain( ).head_block_num( )
+	netlog.Info("last req = %d,last recv = %d known = %d our head %d\n", +s.syncLastRequestedNum, s.syncNextExpectedNum, s.syncKnownLibNum, 100) //chain_plug->chain( ).head_block_num( )
+	return s.syncLastRequestedNum < s.syncKnownLibNum || 0 < s.syncLastRequestedNum                                                              //100  ---->  chain_plug->chain( ).head_block_num( )
 }
 
 func (s *syncManager) isActive(p *Peer) bool {
 	if s.state == headCatchup && p != nil { //TODO
 		fhset := p.forkHead != common.BlockIdType(*crypto.NewSha256Nil())
-		//      fc_dlog(logger, "fork_head_num = ${fn} fork_head set = ${s}",
-		//              ("fn", c->fork_head_num)("s", fhset));
+		netlog.Info("fork_head_num = %d fork_head set = %s\n", p.forkHeadNum, fhset)
 
-		fmt.Printf("fork_head_num = %d fork_head set = %s\n", p.forkHeadNum, fhset)
 		return p.forkHead != common.BlockIdNil()
 		//&& p.forkHeadNum < chain_plug->chain().head_block_num()
 
@@ -401,7 +398,7 @@ func (s *syncManager) requestNextChunk(myImpl *netPluginIMpl, p *Peer) {
 	//if headBlock < s.syncLastRequestedNum && s.source != nil && s.source.current() {
 	//	//fc_ilog (logger, "ignoring request, head is ${h} last req = ${r} source is ${p}",
 	//	// ("h",head_block)("r",sync_last_requested_num)("p",source->peer_name()));
-	//	fmt.Printf("ignoring request,head is %d last req = %d source is %s\n", +headBlock, s.syncLastRequestedNum, p.peerAddr)
+	//	netlog.Info("ignoring request,head is %d last req = %d source is %s\n", +headBlock, s.syncLastRequestedNum, p.peerAddr)
 	//	return
 	//}
 	///* ----------
@@ -458,7 +455,7 @@ func (s *syncManager) requestNextChunk(myImpl *netPluginIMpl, p *Peer) {
 	//	// verify there is an available source
 	//	if s.source != nil || !s.source.current() {
 	//		//elog("Unable to continue syncing at this time")
-	//		fmt.Println("Unable to continue syncing at this time")
+	//		netlog.Error("Unable to continue syncing at this time")
 	//		//sync_known_lib_num = chain_plug->chain().last_irreversible_block_num()
 	//		s.syncLastRequestedNum = 0
 	//		s.setStage(inSync) // probably not, but we can't do anything else
@@ -474,7 +471,7 @@ func (s *syncManager) requestNextChunk(myImpl *netPluginIMpl, p *Peer) {
 		if end > 0 && end >= start {
 			//fc_ilog(logger, "requesting range ${s} to ${e}, from ${n}",
 			//	("n",source->peer_name())("s",start)("e",end));
-			//fmt.Printf("requesting range %s to %d, from %d\n", s.source.peerAddr, start, end)
+			//netlog.Info("requesting range %s to %d, from %d\n", s.source.peerAddr, start, end)
 			//s.source.requestSyncBlocks(start, end)
 			p.requestSyncBlocks(start, end)
 			s.syncLastRequestedNum = end
@@ -521,9 +518,7 @@ func (s *syncManager) recvHandshake(myImpl *netPluginIMpl, p *Peer, msg *Handsha
 	headID := common.BlockIdType(*crypto.NewSha256Nil())
 
 	if headID == msg.HeadID {
-		//fc_dlog(logger, "sync check state 0")
-
-		fmt.Println("sync check statue 0")
+		netlog.Info("sync check statue 0")
 		// notify peer of our pending transactions
 
 		note := NoticeMessage{}
@@ -537,8 +532,7 @@ func (s *syncManager) recvHandshake(myImpl *netPluginIMpl, p *Peer, msg *Handsha
 	}
 
 	if head < peerLib {
-		//fc_dlog(logger, "sync check state 1");
-		fmt.Println("sync check state 1")
+		netlog.Info("sync check state 1")
 		//wait for receipt of a notice message before initiating sync
 		//if p.protocolVersion < protoExplicitSync {
 		s.startSync(myImpl, p, peerLib)
@@ -547,8 +541,7 @@ func (s *syncManager) recvHandshake(myImpl *netPluginIMpl, p *Peer, msg *Handsha
 	}
 
 	if libNum > msg.HeadNum {
-		//fc_dlog(logger, "sync check state 2");
-		fmt.Println("sync check state 2")
+		netlog.Info("sync check state 2")
 		if msg.Generation > 1 || p.protocolVersion > protoBase {
 			note := NoticeMessage{}
 			note.KnownBlocks.Mode = lastIrrCatchUp
@@ -562,13 +555,11 @@ func (s *syncManager) recvHandshake(myImpl *netPluginIMpl, p *Peer, msg *Handsha
 	}
 
 	if head <= msg.HeadNum {
-		//fc_dlog(logger, "sync check state 3")
-		fmt.Println("sync check state 3")
+		netlog.Info("sync check state 3")
 		s.verifyCatchup(myImpl, p, msg.HeadNum, msg.HeadID)
 		return
 	} else {
-		//fc_dlog(logger, "sync check state 4");
-		fmt.Println("sync check state 4")
+		netlog.Info("sync check state 4")
 		if msg.Generation > 1 || p.protocolVersion > protoBase {
 			note := NoticeMessage{}
 			note.KnownBlocks.Mode = catchUp
@@ -581,7 +572,7 @@ func (s *syncManager) recvHandshake(myImpl *netPluginIMpl, p *Peer, msg *Handsha
 		return
 	}
 
-	fmt.Println("sync check failed to resolve status")
+	netlog.Error("sync check failed to resolve status")
 }
 
 func (s *syncManager) startSync(myImpl *netPluginIMpl, p *Peer, target uint32) {
@@ -591,7 +582,7 @@ func (s *syncManager) startSync(myImpl *netPluginIMpl, p *Peer, target uint32) {
 	//if !s.syncRequired() {
 	//	bnum := 100 //chain_plug->chain().last_irreversible_block_num()
 	//	hnum := 100 //chain_plug->chain().head_block_num()
-	//	fmt.Printf("we are already caught up, my irr = %d,head =%d,target = %d\n", bnum, hnum, target)
+	//	netlog.Info("we are already caught up, my irr = %d,head =%d,target = %d\n", bnum, hnum, target)
 	//	return
 	//}
 	if s.state == inSync {
@@ -601,12 +592,12 @@ func (s *syncManager) startSync(myImpl *netPluginIMpl, p *Peer, target uint32) {
 	}
 	//   wlog("Catching up with chain, our last req is ${cc}, theirs is ${t} peer ${p}",
 	//           ( "cc",sync_last_requested_num)("t",target)("p",c->peer_name()));
-	fmt.Printf("Catching up with chain, our last req is %d, theirs is %d peer %s\n", +s.syncLastRequestedNum, target, p.peerAddr)
+	netlog.Info("Catching up with chain, our last req is %d, theirs is %d peer %s", +s.syncLastRequestedNum, target, p.peerAddr)
 
 	s.requestNextChunk(myImpl, p)
 }
 func (s *syncManager) reassignFetch(myImpl *netPluginIMpl, p *Peer, reason GoAwayReason) {
-	fmt.Printf("reassign_fetch, our last req is %d, next expected is %d peer %s\n", +s.syncLastRequestedNum, s.syncNextExpectedNum, p.peerAddr)
+	netlog.Info("reassign_fetch, our last req is %d, next expected is %d peer %s\n", +s.syncLastRequestedNum, s.syncNextExpectedNum, p.peerAddr)
 	if p == s.source {
 		p.cancelSync(reason)
 		s.syncLastRequestedNum = 0
@@ -628,7 +619,8 @@ func (s *syncManager) verifyCatchup(myImpl *netPluginIMpl, p *Peer, num uint32, 
 	if req.ReqBlocks.Mode == catchUp {
 		p.forkHead = id
 		p.forkHeadNum = num
-		//ilog ("got a catch_up notice while in ${s}, fork head num = ${fhn} target LIB = ${lib} next_expected = ${ne}", ("s",stage_str(state))("fhn",num)("lib",sync_known_lib_num)("ne", sync_next_expected_num));
+		netlog.Info("got a catch_up notice while in %s, fork head num = %d target LIB = %d next_expected = %d",
+			stageStr(s.state), num, s.syncKnownLibNum, s.syncNextExpectedNum)
 		if s.state == libCatchup {
 			return
 		}
@@ -644,13 +636,11 @@ func (s *syncManager) verifyCatchup(myImpl *netPluginIMpl, p *Peer, num uint32, 
 }
 
 func (s *syncManager) recvNotice(myImpl *netPluginIMpl, p *Peer, msg *NoticeMessage) {
-	//   fc_ilog (logger, "sync_manager got ${m} block notice",("m",modes_str(msg.known_blocks.mode)));
-	fmt.Printf("sync_manager got %s block notice\n", modeTostring[msg.KnownBlocks.Mode])
+	netlog.Info("sync_manager got %s block notice", modeTostring[msg.KnownBlocks.Mode])
 	if msg.KnownBlocks.Mode == catchUp {
 		IDsCount := len(msg.KnownBlocks.IDs)
 		if IDsCount == 0 {
-			//elog ("got a catch up with ids size = 0");
-			fmt.Println("got a catch up with ids size = 0")
+			netlog.Error("got a catch up with ids size = 0")
 		} else {
 			s.verifyCatchup(myImpl, p, msg.KnownBlocks.Pending, *msg.KnownBlocks.IDs[IDsCount-1])
 		}
@@ -663,7 +653,7 @@ func (s *syncManager) recvNotice(myImpl *netPluginIMpl, p *Peer, msg *NoticeMess
 
 func (s *syncManager) rejectedBlock(myImpl *netPluginIMpl, p *Peer, blkNum uint32) {
 	if s.state != inSync {
-		fmt.Printf("block %d not accepted from %s", blkNum, "walker") //walker c->peer_name()
+		netlog.Info("block %d not accepted from %s", blkNum, p.peerAddr)
 		s.syncLastRequestedNum = 0
 		s.source.reset()
 		myImpl.close(p)
@@ -674,11 +664,10 @@ func (s *syncManager) rejectedBlock(myImpl *netPluginIMpl, p *Peer, blkNum uint3
 
 func (s *syncManager) recvBlock(myImpl *netPluginIMpl, p *Peer, blkID common.BlockIdType, blkNum uint32) { //TODO impl
 
-	fmt.Printf("got block %d from %s \n", blkNum, p.peerAddr)
+	netlog.Info("got block %d from %s", blkNum, p.peerAddr)
 	if s.state == libCatchup {
 		if blkNum != s.syncNextExpectedNum { //TODO ??
-			//fc_ilog (logger, "expected block ${ne} but got ${bn}",("ne",sync_next_expected_num)("bn",blk_num));
-			fmt.Printf("expected block %d but got %d \n", s.syncNextExpectedNum, blkNum)
+			netlog.Info("expected block %d but got %d", s.syncNextExpectedNum, blkNum)
 			//myImpl.close(p)
 			return
 		}
@@ -686,8 +675,7 @@ func (s *syncManager) recvBlock(myImpl *netPluginIMpl, p *Peer, blkID common.Blo
 	}
 
 	if s.state == headCatchup {
-		//fc_dlog (logger, "sync_manager in head_catchup state")
-		fmt.Println("sync_manager in head_catchup state")
+		netlog.Info("sync_manager in head_catchup state")
 		s.setStage(inSync)
 		s.source.reset()
 
@@ -705,15 +693,13 @@ func (s *syncManager) recvBlock(myImpl *netPluginIMpl, p *Peer, blkID common.Blo
 		}
 	} else if s.state == libCatchup {
 		if blkNum == s.syncKnownLibNum {
-			//fc_dlog( logger, "All caught up with last known last irreversible block resending handshake")
-			fmt.Println("All caught up with last known last irreversible block resending handshake")
+			netlog.Info("All caught up with last known last irreversible block resending handshake")
 			s.setStage(inSync)
 			s.sendHandshakes(myImpl)
 		} else if blkNum == s.syncLastRequestedNum {
 			s.requestNextChunk(myImpl, p) //TODO        request_next_chunk();
 		} else {
-			//fc_dlog(logger,"calling sync_wait on connection ${p}",("p",c->peer_name()));
-			fmt.Printf("calling sync_wait on connecting %s \n", p.peerAddr)
+			netlog.Info("calling sync_wait on connecting %s", p.peerAddr)
 			p.syncWait()
 		}
 	}

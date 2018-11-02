@@ -14,6 +14,7 @@ import (
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/ecc"
+	"github.com/eosspark/eos-go/log"
 	"gopkg.in/urfave/cli.v1"
 )
 
@@ -23,6 +24,13 @@ const (
 
 type NetPlugin struct {
 	my *netPluginIMpl
+}
+
+var netlog log.Logger
+
+func init() {
+	netlog = log.New("net_plugin")
+	netlog.SetHandler(log.TerminalHandler)
 }
 
 func SetProgramOptions() {
@@ -321,7 +329,6 @@ func (np *NetPlugin) status(host string) PeerStatus {
 		return *con.getStatus()
 	}
 	return PeerStatus{}
-
 }
 
 func (np *NetPlugin) connections() []PeerStatus {
