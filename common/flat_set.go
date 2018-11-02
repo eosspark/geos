@@ -106,13 +106,13 @@ func (f *FlatSet) Insert(element Element) (Element, bool) {
 			}
 		} else {
 			//insert target before
-			if element.GetKey() <= target[0].GetKey() {
+			if element.GetKey() < target[0].GetKey() {
 				elemnts := []Element{}
 				elemnts = append(elemnts, element)
 				elemnts = append(elemnts, target...)
 				f.Data = elemnts
 				result = elemnts[0]
-			} else if element.GetKey() >= target[length-1].GetKey() { //target append
+			} else if element.GetKey() > target[length-1].GetKey() { //target append
 				target = append(target, element)
 				result = target[length]
 				f.Data = target
