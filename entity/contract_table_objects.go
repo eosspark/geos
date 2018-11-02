@@ -2,6 +2,7 @@ package entity
 
 import (
 	"github.com/eosspark/eos-go/common"
+	arithmetic "github.com/eosspark/eos-go/common/arithmetic_types"
 )
 
 type Object struct {
@@ -61,7 +62,7 @@ type SecondaryObjectDouble struct {
 	TId          common.IdType `multiIndex:"byPrimary,orderedUnique,less:bySecondary,orderedUnique,less"`
 	PrimaryKey   uint64        `multiIndex:"byPrimary,orderedUnique"`
 	Payer        common.AccountName
-	SecondaryKey float64 `multiIndex:"bySecondary,orderedUnique"`
+	SecondaryKey arithmetic.Float64 `multiIndex:"bySecondary,orderedUnique"`
 }
 
 // type SecondaryObjectI128 struct {

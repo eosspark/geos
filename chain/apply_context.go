@@ -821,22 +821,22 @@ func (a *ApplyContext) Idx64FindPrimary(code int64, scope int64, table int64, se
 	return a.idx64.findPrimary(code, scope, table, secondary, primary)
 }
 
-func (a *ApplyContext) IdxDoubleStore(scope int64, table int64, payer int64, id int64, value *float64) int {
+func (a *ApplyContext) IdxDoubleStore(scope int64, table int64, payer int64, id int64, value *arithmetic.Float64) int {
 	return a.idxDouble.store(scope, table, payer, id, value)
 }
 func (a *ApplyContext) IdxDoubleRemove(iterator int) {
 	a.idxDouble.remove(iterator)
 }
-func (a *ApplyContext) IdxDoubleUpdate(iterator int, payer int64, value *float64) {
+func (a *ApplyContext) IdxDoubleUpdate(iterator int, payer int64, value *arithmetic.Float64) {
 	a.idxDouble.update(iterator, payer, value)
 }
-func (a *ApplyContext) IdxDoubleFindSecondary(code int64, scope int64, table int64, secondary *float64, primary *uint64) int {
+func (a *ApplyContext) IdxDoubleFindSecondary(code int64, scope int64, table int64, secondary *arithmetic.Float64, primary *uint64) int {
 	return a.idxDouble.findSecondary(code, scope, table, secondary, primary)
 }
-func (a *ApplyContext) IdxDoubleLowerbound(code int64, scope int64, table int64, secondary *float64, primary *uint64) int {
+func (a *ApplyContext) IdxDoubleLowerbound(code int64, scope int64, table int64, secondary *arithmetic.Float64, primary *uint64) int {
 	return a.idxDouble.lowerbound(code, scope, table, secondary, primary)
 }
-func (a *ApplyContext) IdxDoubleUpperbound(code int64, scope int64, table int64, secondary *float64, primary *uint64) int {
+func (a *ApplyContext) IdxDoubleUpperbound(code int64, scope int64, table int64, secondary *arithmetic.Float64, primary *uint64) int {
 	return a.idxDouble.upperbound(code, scope, table, secondary, primary)
 }
 func (a *ApplyContext) IdxDoubleEnd(code int64, scope int64, table int64) int {
@@ -848,7 +848,7 @@ func (a *ApplyContext) IdxDoubleNext(iterator int, primary *uint64) int {
 func (a *ApplyContext) IdxDoublePrevious(iterator int, primary *uint64) int {
 	return a.idxDouble.previous(iterator, primary)
 }
-func (a *ApplyContext) IdxDoubleFindPrimary(code int64, scope int64, table int64, secondary *float64, primary *uint64) int {
+func (a *ApplyContext) IdxDoubleFindPrimary(code int64, scope int64, table int64, secondary *arithmetic.Float64, primary *uint64) int {
 	return a.idxDouble.findPrimary(code, scope, table, secondary, primary)
 }
 
@@ -895,10 +895,11 @@ func (a *ApplyContext) AddRamUsage(account common.AccountName, ramDelta int64) {
 	a.TrxContext.AddRamUsage(account, ramDelta)
 
 	accountDelta := types.AccountDelta{account, ramDelta}
-	p, ok := a.AccountRamDeltas.Insert(&accountDelta)
-	if !ok {
-		p.(*types.AccountDelta).Delta += ramDelta
-	}
+	a.AccountRamDeltas.Insert(&accountDelta)
+	//p, ok := a.AccountRamDeltas.Insert(&accountDelta)
+	//if !ok {
+	//	p.(*types.AccountDelta).Delta += ramDelta
+	//}
 
 }
 

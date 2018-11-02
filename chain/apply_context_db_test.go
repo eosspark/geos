@@ -4,9 +4,11 @@ import (
 	"fmt"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
+	arithmetic "github.com/eosspark/eos-go/common/arithmetic_types"
 	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/eosspark/eos-go/entity"
 	"github.com/stretchr/testify/assert"
+	"math"
 	"testing"
 )
 
@@ -275,16 +277,16 @@ func TestDbSecondaryKeyDouble(t *testing.T) {
 
 		for i := 0; i < 10; i++ {
 			primaryKey := int64(i + 1)
-			secondaryKey := float64(i+1) * 1.5
+			secondaryKey := arithmetic.Float64(math.Float64bits(float64(i+1) + 1.5))
 
 			a.DbStoreI64(int64(common.N("xiaoyu")), int64(common.N("accounts")), int64(common.N("eosio")), primaryKey, []byte{byte(i)})
 			a.IdxDoubleStore(int64(common.N("xiaoyu")), int64(common.N("accounts")), int64(common.N("eosio")), primaryKey, &secondaryKey)
 		}
 
-		var secondaryKey float64
+		var secondaryKey arithmetic.Float64
 		primaryKey := uint64(5)
 		itrFind := a.IdxDoubleFindPrimary(int64(common.N(account1)), int64(common.N("xiaoyu")), int64(common.N("accounts")), &secondaryKey, &primaryKey)
-		assert.Equal(t, secondaryKey, float64(5))
+		assert.Equal(t, secondaryKey, arithmetic.Float64(math.Float64bits(float64(5)+1.5)))
 
 		primaryKey = uint64(1)
 		itrFind = a.IdxDoubleFindPrimary(int64(common.N(account1)), int64(common.N("xiaoyu")), int64(common.N("accounts")), &secondaryKey, &primaryKey)

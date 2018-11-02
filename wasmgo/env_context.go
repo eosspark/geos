@@ -54,16 +54,16 @@ type EnvContext interface {
 	Idx64FindPrimary(code int64, scope int64, table int64, secondary *uint64, primary *uint64) int
 
 	//secondaryKey Double
-	IdxDoubleStore(scope int64, table int64, payer int64, id int64, value *float64) int
+	IdxDoubleStore(scope int64, table int64, payer int64, id int64, value *arithmetic.Float64) int
 	IdxDoubleRemove(iterator int)
-	IdxDoubleUpdate(iterator int, payer int64, value *float64)
-	IdxDoubleFindSecondary(code int64, scope int64, table int64, secondary *float64, primary *uint64) int
-	IdxDoubleLowerbound(code int64, scope int64, table int64, secondary *float64, primary *uint64) int
-	IdxDoubleUpperbound(code int64, scope int64, table int64, secondary *float64, primary *uint64) int
+	IdxDoubleUpdate(iterator int, payer int64, value *arithmetic.Float64)
+	IdxDoubleFindSecondary(code int64, scope int64, table int64, secondary *arithmetic.Float64, primary *uint64) int
+	IdxDoubleLowerbound(code int64, scope int64, table int64, secondary *arithmetic.Float64, primary *uint64) int
+	IdxDoubleUpperbound(code int64, scope int64, table int64, secondary *arithmetic.Float64, primary *uint64) int
 	IdxDoubleEnd(code int64, scope int64, table int64) int
 	IdxDoubleNext(iterator int, primary *uint64) int
 	IdxDoublePrevious(iterator int, primary *uint64) int
-	IdxDoubleFindPrimary(code int64, scope int64, table int64, secondary *float64, primary *uint64) int
+	IdxDoubleFindPrimary(code int64, scope int64, table int64, secondary *arithmetic.Float64, primary *uint64) int
 
 	//permission
 	GetPermissionLastUsed(account common.AccountName, permission common.PermissionName) int64

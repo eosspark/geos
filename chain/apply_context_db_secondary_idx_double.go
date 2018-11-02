@@ -3,6 +3,7 @@ package chain
 import (
 	//"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
+	arithmetic "github.com/eosspark/eos-go/common/arithmetic_types"
 	"github.com/eosspark/eos-go/entity"
 	. "github.com/eosspark/eos-go/exception"
 )
@@ -19,7 +20,7 @@ func NewIdxDouble(c *ApplyContext) *IdxDouble {
 	}
 }
 
-func (i *IdxDouble) store(scope int64, table int64, payer int64, id int64, secondary *float64) int {
+func (i *IdxDouble) store(scope int64, table int64, payer int64, id int64, secondary *arithmetic.Float64) int {
 	EosAssert(common.AccountName(payer) != common.AccountName(0), &InvalidTablePayer{}, "must specify a valid account to pay for new record")
 	tab := i.context.FindOrCreateTable(int64(i.context.Receiver), scope, table, payer)
 
@@ -63,7 +64,7 @@ func (i *IdxDouble) remove(iterator int) {
 	i.itrCache.remove(iterator)
 }
 
-func (i *IdxDouble) update(iterator int, payer int64, secondary *float64) {
+func (i *IdxDouble) update(iterator int, payer int64, secondary *arithmetic.Float64) {
 	obj := (i.itrCache.get(iterator)).(*entity.SecondaryObjectDouble)
 	objTable := i.itrCache.getTable(obj.TId)
 	EosAssert(objTable.Code == i.context.Receiver, &TableAccessViolation{}, "db access violation")
@@ -85,7 +86,7 @@ func (i *IdxDouble) update(iterator int, payer int64, secondary *float64) {
 	})
 }
 
-func (i *IdxDouble) findSecondary(code int64, scope int64, table int64, secondary *float64, primary *uint64) int {
+func (i *IdxDouble) findSecondary(code int64, scope int64, table int64, secondary *arithmetic.Float64, primary *uint64) int {
 	tab := i.context.FindTable(code, scope, table)
 	if tab == nil {
 		return -1
@@ -104,7 +105,7 @@ func (i *IdxDouble) findSecondary(code int64, scope int64, table int64, secondar
 	return i.itrCache.add(&obj)
 }
 
-func (i *IdxDouble) lowerbound(code int64, scope int64, table int64, secondary *float64, primary *uint64) int {
+func (i *IdxDouble) lowerbound(code int64, scope int64, table int64, secondary *arithmetic.Float64, primary *uint64) int {
 	tab := i.context.FindTable(code, scope, table)
 	if tab == nil {
 		return -1
@@ -132,7 +133,7 @@ func (i *IdxDouble) lowerbound(code int64, scope int64, table int64, secondary *
 	return i.itrCache.add(&objLowerbound)
 }
 
-func (i *IdxDouble) upperbound(code int64, scope int64, table int64, secondary *float64, primary *uint64) int {
+func (i *IdxDouble) upperbound(code int64, scope int64, table int64, secondary *arithmetic.Float64, primary *uint64) int {
 	tab := i.context.FindTable(code, scope, table)
 	if tab == nil {
 		return -1
@@ -236,7 +237,7 @@ func (i *IdxDouble) previous(iterator int, primary *uint64) int {
 	return i.itrCache.add(&objPrev)
 }
 
-func (i *IdxDouble) findPrimary(code int64, scope int64, table int64, secondary *float64, primary *uint64) int {
+func (i *IdxDouble) findPrimary(code int64, scope int64, table int64, secondary *arithmetic.Float64, primary *uint64) int {
 	tab := i.context.FindTable(code, scope, table)
 	if tab == nil {
 		return -1
@@ -374,7 +375,7 @@ func (i *IdxDouble) previousPrimary(iterator int, primary *uint64) int {
 	return i.itrCache.add(&objNext)
 }
 
-func (i *IdxDouble) get(iterator int, secondary *float64, primary *uint64) {
+func (i *IdxDouble) get(iterator int, secondary *arithmetic.Float64, primary *uint64) {
 	obj := (i.itrCache.get(iterator)).(*entity.SecondaryObjectDouble)
 
 	*primary = obj.PrimaryKey

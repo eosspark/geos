@@ -2,6 +2,7 @@ package wasmgo
 
 import (
 	"fmt"
+	arithmetic "github.com/eosspark/eos-go/common/arithmetic_types"
 	//"github.com/eosspark/eos-go/chain/types"
 	//"github.com/eosspark/eos-go/entity"
 	//"github.com/eosspark/eos-go/common"
@@ -219,7 +220,8 @@ func dbIdxDoubleStore(w *WasmGo, scope int64, table int64, payer int64, id int64
 
 	//secondaryKey := &entity.Float64_t{Value: getFloat64(w, pValue)}
 	//secondaryKey.SetValue(getFloat64(w, pValue))
-	secondaryKey := getFloat64(w, pValue)
+	//secondaryKey := getFloat64(w, pValue)
+	secondaryKey := arithmetic.Float64(getUint64(w, pValue))
 	return w.context.IdxDoubleStore(scope, table, payer, id, &secondaryKey)
 }
 
@@ -233,7 +235,8 @@ func dbIdxDoubleUpdate(w *WasmGo, itr int, payer int64, pValue int) {
 
 	//secondaryKey := &entity.Float64_t{Value: getFloat64(w, pValue)}
 	//secondaryKey.SetValue(getFloat64(w, pValue))
-	secondaryKey := getFloat64(w, pValue)
+	//secondaryKey := getFloat64(w, pValue)
+	secondaryKey := arithmetic.Float64(getUint64(w, pValue))
 	w.context.IdxDoubleUpdate(itr, payer, &secondaryKey)
 }
 
@@ -243,7 +246,8 @@ func dbIdxDoublefindSecondary(w *WasmGo, code int64, scope int64, table int64, p
 
 	var primaryKey uint64 //:= getFloat64(w, pPrimary)
 	//secondaryKey := &entity.Float64_t{Value: getFloat64(w, pSecondary)}
-	secondaryKey := getFloat64(w, pSecondary)
+	//secondaryKey := getFloat64(w, pSecondary)
+	secondaryKey := arithmetic.Float64(getUint64(w, pSecondary))
 	itr := w.context.IdxDoubleFindSecondary(code, scope, table, &secondaryKey, &primaryKey)
 	setUint64(w, pPrimary, primaryKey)
 
@@ -256,10 +260,10 @@ func dbIdxDoubleLowerbound(w *WasmGo, code int64, scope int64, table int64, pSec
 
 	var primaryKey uint64 //:= getFloat64(w, pPrimary)
 	//secondaryKey := entity.Float64_t{}
-	var secondaryKey float64
+	var secondaryKey arithmetic.Float64
 	itr := w.context.IdxDoubleLowerbound(code, scope, table, &secondaryKey, &primaryKey)
 	setUint64(w, pPrimary, primaryKey)
-	setFloat64(w, pSecondary, secondaryKey)
+	setUint64(w, pSecondary, uint64(secondaryKey))
 
 	return itr
 }
@@ -270,10 +274,10 @@ func dbIdxDoubleUpperbound(w *WasmGo, code int64, scope int64, table int64, pSec
 
 	var primaryKey uint64 //:= getFloat64(w, pPrimary)
 	//secondaryKey := entity.Float64_t{}
-	var secondaryKey float64
+	var secondaryKey arithmetic.Float64
 	itr := w.context.IdxDoubleLowerbound(code, scope, table, &secondaryKey, &primaryKey)
 	setUint64(w, pPrimary, primaryKey)
-	setFloat64(w, pSecondary, secondaryKey)
+	setUint64(w, pSecondary, uint64(secondaryKey))
 
 	return itr
 }
@@ -314,9 +318,10 @@ func dbIdxDoubleFindPrimary(w *WasmGo, code int64, scope int64, table int64, pay
 	//var primaryKey uint64 //:= getFloat64(w, pPrimary)
 	primaryKey := getUint64(w, pPrimary)
 	//secondaryKey := entity.Float64_t{}
-	var secondaryKey float64
+	var secondaryKey arithmetic.Float64
 	itr := w.context.IdxDoubleFindPrimary(code, scope, table, &secondaryKey, &primaryKey)
-	setFloat64(w, pSecondary, secondaryKey)
+	//setFloat64(w, pSecondary, secondaryKey)
+	setUint64(w, pSecondary, uint64(secondaryKey))
 
 	return itr
 }
