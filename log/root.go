@@ -1,32 +1,32 @@
 package log
 
 import (
-	"os"
-
 	"fmt"
+	"os"
 )
 
 var (
-	root          = &logger{[]interface{}{}, new(swapHandler)}
-	StdoutHandler = StreamHandler(os.Stdout, LogfmtFormat())
-	StderrHandler = StreamHandler(os.Stderr, LogfmtFormat())
+	root            = &logger{"", new(swapHandler)}
+	StdoutHandler   = StreamHandler(os.Stdout, LogfmtFormat())
+	TerminalHandler = StreamHandler(os.Stdout, TerminalFormat(true))
 )
 
 func init() {
-	//root.SetHandler(DiscardHandler())
-	//root.SetHandler(StdoutHandler)
-	//root.SetHandler(LvlFilterHandler(LvlError, StdoutHandler))
-	root.SetHandler(StreamHandler(os.Stdout, TerminalFormat(true)))
+	root.SetHandler(DiscardHandler())
+
+	//root.SetHandler(TerminalHandler)
+
+	//root.SetHandler(LvlFilterHandler(LvlError,TerminalHandler))
+
+	//h,_ := FileHandler("./log.log",LogfmtFormat())
+	//root.SetHandler(h)
 
 }
 
-// New returns a new logger with the given context.
-// New is a convenient alias for Root().New
-func New(ctx ...interface{}) Logger {
-	return root.New(ctx...)
+func New(name ...string) Logger {
+	return root.New(name...)
 }
 
-// Root returns the root logger
 func Root() Logger {
 	return root
 }
@@ -54,9 +54,3 @@ func Warn(format string, v ...interface{}) {
 func Error(format string, v ...interface{}) {
 	root.write(LvlError, fmt.Sprintf(format, v...), skipLevel)
 }
-
-//// Crit is a convenient alias for Root().Crit
-//func Crit(format string, v ...interface{}) {
-//	root.write(LvlOff, fmt.Sprintf(format,v...), skipLevel)
-//	os.Exit(1)
-//}
