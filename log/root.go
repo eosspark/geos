@@ -1,32 +1,32 @@
 package log
 
 import (
-	"os"
-
 	"fmt"
+	"os"
 )
 
 var (
-	root          = &logger{[]interface{}{}, new(swapHandler)}
-	StdoutHandler = StreamHandler(os.Stdout, LogfmtFormat())
-	StderrHandler = StreamHandler(os.Stderr, LogfmtFormat())
+	root            = &logger{"", new(swapHandler)}
+	StdoutHandler   = StreamHandler(os.Stdout, LogfmtFormat())
+	TerminalHandler = StreamHandler(os.Stdout, TerminalFormat(true))
 )
 
 func init() {
-	//root.SetHandler(DiscardHandler())
-	//root.SetHandler(StdoutHandler)
-	//root.SetHandler(LvlFilterHandler(LvlError, StdoutHandler))
-	root.SetHandler(StreamHandler(os.Stdout, TerminalFormat(true)))
+	root.SetHandler(DiscardHandler())
+
+	//root.SetHandler(TerminalHandler)
+
+	//root.SetHandler(LvlFilterHandler(LvlError,TerminalHandler))
+
+	//h,_ := FileHandler("./log.log",LogfmtFormat())
+	//root.SetHandler(h)
 
 }
 
-// New returns a new logger with the given context.
-// New is a convenient alias for Root().New
-func New(ctx ...interface{}) Logger {
-	return root.New(ctx...)
+func New(name string) Logger {
+	return root.New(name)
 }
 
-// Root returns the root logger
 func Root() Logger {
 	return root
 }
@@ -36,27 +36,21 @@ func Root() Logger {
 // runtime.Caller(2) always refers to the call site in client code.
 
 // Debug is a convenient alias for Root().Debug
-func Debug(format string, v ...interface{}) {
-	root.write(LvlDebug, fmt.Sprintf(format, v...), skipLevel)
+func Debug(format string, arg ...interface{}) {
+	root.write(LvlDebug, fmt.Sprintf(format, arg...), skipLevel)
 }
 
 // Info is a convenient alias for Root().Info
-func Info(format string, v ...interface{}) {
-	root.write(LvlInfo, fmt.Sprintf(format, v...), skipLevel)
+func Info(format string, arg ...interface{}) {
+	root.write(LvlInfo, fmt.Sprintf(format, arg...), skipLevel)
 }
 
 // Warn is a convenient alias for Root().Warn
-func Warn(format string, v ...interface{}) {
-	root.write(LvlWarn, fmt.Sprintf(format, v...), skipLevel)
+func Warn(format string, arg ...interface{}) {
+	root.write(LvlWarn, fmt.Sprintf(format, arg...), skipLevel)
 }
 
 // Error is a convenient alias for Root().Error
-func Error(format string, v ...interface{}) {
-	root.write(LvlError, fmt.Sprintf(format, v...), skipLevel)
+func Error(format string, arg ...interface{}) {
+	root.write(LvlError, fmt.Sprintf(format, arg...), skipLevel)
 }
-
-//// Crit is a convenient alias for Root().Crit
-//func Crit(format string, v ...interface{}) {
-//	root.write(LvlOff, fmt.Sprintf(format,v...), skipLevel)
-//	os.Exit(1)
-//}

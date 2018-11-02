@@ -142,7 +142,6 @@ func (t *Transaction) GetSignatureKeys(signatures []ecc.Signature, chainID *comm
 		} else {
 			recov, _ = sig.PublicKey(digest)
 		}
-		fmt.Println("*_*_*_*_*_*_", recov)
 		_, exist := recoveredPubKeys.Insert(&recov)
 		exception.EosAssert(allowDuplicateKeys || !exist, &exception.TxDuplicateSig{},
 			"transaction includes more than one signature signed using the same key associated with public key: %s}", recov)

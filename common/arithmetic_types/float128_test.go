@@ -140,7 +140,7 @@ func TestF64ToF128(t *testing.T) {
 	assert.Equal(t, Float128{High: 4629393042053316608, Low: 4611686018427387904}, f128d)
 }
 func TestFloat128_IsNan(t *testing.T) {
-	f128 := Float128{0x7FFF000000000000, 1}
+	f128 := Float128{High: 0x7FFF000000000000, Low: 1}
 	assert.Equal(t, true, f128.IsNan())
 
 	f128 = Float128{0x7FFF000000000000, 0}

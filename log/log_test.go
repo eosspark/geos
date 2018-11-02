@@ -4,21 +4,40 @@ import (
 	"testing"
 )
 
-func TestLog(t *testing.T) {
-	Info("found block for id at num %d %s", 100, "walker")
-	Debug("found block for id at num %d %s", 100, "walker")
-	Warn("found block for id at num %d %s", 100, "walker")
-	Error("found block for id at num %d %s", 100, "walker")
+func TestLogGlobal(t *testing.T) {
+	Debug("log terminalHandler test %s", "walker")
+	Info("log terminalHandler test %s", "walker")
+	Warn("log terminalHandler test %s", "walker")
+	Error("log terminalHandler test %s", "walker")
 }
 
-func TestLog2(t *testing.T) {
-	h, _ := FileHandler("./log.log", TerminalFormat(true))
-	Root().SetHandler(h)
-	Info("found block for id at num %d %s", 100, "walker")
+func Test_log(t *testing.T) {
+	newlog := New("test")
+	newlog.SetHandler(TerminalHandler)
 
+	newlog.Debug("log terminalHandler test %s", "walker")
+	newlog.Info("log terminalHandler test %s", "walker")
+	newlog.Warn("log terminalHandler test %s", "walker")
+	newlog.Error("log terminalHandler test %s", "walker")
 }
 
-func TestLog3(t *testing.T) {
-	srvlog := New()
-	srvlog.Error("found block for id at num %d %s", 100, "walker")
+func TestFile(t *testing.T) {
+	newlog := New("test")
+	h, _ := FileHandler("./test.log", LogfmtFormat())
+	root.SetHandler(h)
+
+	newlog.Debug("log terminalHandler test %s", "walker")
+	newlog.Info("log terminalHandler test %s", "walker")
+	newlog.Warn("log terminalHandler test %s", "walker")
+	newlog.Error("log terminalHandler test %s", "walker")
+}
+
+func TestFilterLog(t *testing.T) {
+	newlog := New("test")
+	root.SetHandler(LvlFilterHandler(LvlWarn, TerminalHandler))
+
+	newlog.Debug("log terminalHandler test %s", "walker")
+	newlog.Info("log terminalHandler test %s", "walker")
+	newlog.Warn("log terminalHandler test %s", "walker")
+	newlog.Error("log terminalHandler test %s", "walker")
 }
