@@ -111,7 +111,7 @@ type Record struct {
 // A Logger writes key/value pairs to a Handler
 type Logger interface {
 	// New returns a new Logger that has this logger's context plus the given context
-	New(name ...string) Logger
+	New(name string) Logger
 
 	// GetHandler gets the handler associated with the logger.
 	GetHandler() Handler
@@ -120,11 +120,11 @@ type Logger interface {
 	SetHandler(h Handler)
 
 	// Log a message at the given level with context key/value pairs
-	Debug(format string, ctx ...interface{})
-	Info(format string, ctx ...interface{})
-	Warn(format string, ctx ...interface{})
-	Error(format string, ctx ...interface{})
-	//Crit(format string, ctx ...interface{})
+	Debug(format string, arg ...interface{})
+	Info(format string, arg ...interface{})
+	Warn(format string, arg ...interface{})
+	Error(format string, arg ...interface{})
+	//Crit(format string, arg ...interface{})
 
 }
 
@@ -133,23 +133,23 @@ type logger struct {
 	h    *swapHandler
 }
 
-func (l *logger) New(name ...string) Logger {
-	child := &logger{name[0], new(swapHandler)}
+func (l *logger) New(name string) Logger {
+	child := &logger{name, new(swapHandler)}
 	child.SetHandler(l.h)
 	return child
 }
-func (l *logger) Debug(format string, v ...interface{}) {
-	l.write(LvlDebug, fmt.Sprintf(format, v...), skipLevel)
+func (l *logger) Debug(format string, arg ...interface{}) {
+	l.write(LvlDebug, fmt.Sprintf(format, arg...), skipLevel)
 }
-func (l *logger) Info(format string, v ...interface{}) {
-	l.write(LvlInfo, fmt.Sprintf(format, v...), skipLevel)
+func (l *logger) Info(format string, arg ...interface{}) {
+	l.write(LvlInfo, fmt.Sprintf(format, arg...), skipLevel)
 }
 
-func (l *logger) Warn(format string, v ...interface{}) {
-	l.write(LvlWarn, fmt.Sprintf(format, v...), skipLevel)
+func (l *logger) Warn(format string, arg ...interface{}) {
+	l.write(LvlWarn, fmt.Sprintf(format, arg...), skipLevel)
 }
-func (l *logger) Error(format string, v ...interface{}) {
-	l.write(LvlError, fmt.Sprintf(format, v...), skipLevel)
+func (l *logger) Error(format string, arg ...interface{}) {
+	l.write(LvlError, fmt.Sprintf(format, arg...), skipLevel)
 }
 func (l *logger) GetHandler() Handler {
 	return l.h.Get()

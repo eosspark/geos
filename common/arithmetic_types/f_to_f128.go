@@ -59,7 +59,7 @@ func F32ToF128(a Float32) Float128 {
 	uiZ.Low = 0
 uiZ:
 	//return Float128(uiZ)
-	return Float128{uiZ.High, uiZ.Low}
+	return Float128{Low: uiZ.Low, High: uiZ.High}
 }
 
 /*----------------------------------------------------------------------------
@@ -184,9 +184,7 @@ func F64ToF128(a Float64) Float128 {
 	uiZ.Low = frac128.Low
 
 uiZ:
-	//return Float128(uiZ)
-
-	return Float128{uiZ.High, uiZ.Low}
+	return Float128{Low: uiZ.Low, High: uiZ.High}
 
 }
 

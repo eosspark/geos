@@ -10,7 +10,7 @@ const (
 	timeFormat     = "2006-01-02T15:04:05-0700"
 	termTimeFormat = "2006-01-02T15:04:05.000"
 	floatFormat    = 'f'
-	termMsgJust    = 30
+	termMsgJust    = 40
 )
 
 type Format interface {

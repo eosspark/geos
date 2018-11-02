@@ -50,7 +50,7 @@ func TestNetPluginInitialize(t *testing.T) {
 func TestNetPlugin(t *testing.T) {
 	makeArguments("--p2p-listen-endpoint", "127.0.0.1:8100",
 		"--p2p-server-address", "127.0.0.1:8100",
-		"--p2p-peer-address", "127.0.0.1:9876",
+		//"--p2p-peer-address", "127.0.0.1:9876",
 	)
 
 	app := cli.NewApp()
