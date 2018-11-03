@@ -290,45 +290,94 @@ func TestDbSecondaryKeyDouble(t *testing.T) {
 
 		primaryKey = uint64(1)
 		itrFind = a.IdxDoubleFindPrimary(int64(common.N(account1)), int64(common.N("xiaoyu")), int64(common.N("accounts")), &secondaryKey, &primaryKey)
+		fmt.Println(math.Float64frombits(uint64(secondaryKey)))
 
-		fmt.Println(itrFind)
+		secondaryKey = arithmetic.Float64(math.Float64bits(float64(5+1) + 1.5))
+		itrFind = a.IdxDoubleLowerbound(int64(common.N(account1)), int64(common.N("xiaoyu")), int64(common.N("accounts")), &secondaryKey, &primaryKey)
 
-		// secondaryKey = uint64(5)
-		// itrFind = a.Idx64Lowerbound(int64(common.N(account1)), int64(common.N("xiaoyu")), int64(common.N("accounts")), &secondaryKey, &primaryKey)
-		// a.Idx64Remove(itrFind)
+		a.IdxDoubleRemove(itrFind)
 
-		// secondaryKey = uint64(5)
-		// itrFind = a.Idx64Lowerbound(int64(common.N(account1)), int64(common.N("xiaoyu")), int64(co mmon.N("accounts")), &secondaryKey, &primaryKey)
-		// assert.Equal(t, secondaryKey, uint64(6))
+		secondaryKey = arithmetic.Float64(math.Float64bits(float64(5+1) + 1.5))
+		itrFind = a.IdxDoubleUpperbound(int64(common.N(account1)), int64(common.N("xiaoyu")), int64(common.N("accounts")), &secondaryKey, &primaryKey)
+		secondaryKey = arithmetic.Float64(math.Float64bits(float64(700+1) + 1.5))
+		a.IdxDoubleUpdate(itrFind, int64(common.N("eosio")), &secondaryKey)
+		secondaryKey = arithmetic.Float64(math.Float64bits(float64(5+1) + 1.5))
+		primaryKey = uint64(7)
+		itrFind = a.IdxDoubleFindPrimary(int64(common.N(account1)), int64(common.N("xiaoyu")), int64(common.N("accounts")), &secondaryKey, &primaryKey)
+		fmt.Println(math.Float64frombits(uint64(secondaryKey)))
+		assert.Equal(t, secondaryKey, arithmetic.Float64(math.Float64bits(float64(700+1)+1.5)))
 
-		// itrFind = a.Idx64Upperbound(int64(common.N(account1)), int64(common.N("xiaoyu")), int64(common.N("accounts")), &secondaryKey, &primaryKey)
-		// secondaryKey = uint64(700)
-		// a.Idx64Update(itrFind, int64(common.N("eosio")), &secondaryKey)
-		// secondaryKey = uint64(7)
-		// primaryKey = uint64(7)
-		// itrFind = a.Idx64FindPrimary(int64(common.N(account1)), int64(common.N("xiaoyu")), int64(common.N("accounts")), &secondaryKey, &primaryKey)
-		// assert.Equal(t, secondaryKey, uint64(700))
+		secondaryKey = arithmetic.Float64(math.Float64bits(float64(4+1) + 1.5))
+		itrFind = a.IdxDoubleFindSecondary(int64(common.N(account1)), int64(common.N("xiaoyu")), int64(common.N("accounts")), &secondaryKey, &primaryKey)
+		assert.Equal(t, primaryKey, uint64(5))
 
-		// secondaryKey = uint64(6)
-		// itrFind = a.Idx64FindSecondary(int64(common.N(account1)), int64(common.N("xiaoyu")), int64(common.N("accounts")), &secondaryKey, &primaryKey)
-		// assert.Equal(t, primaryKey, uint64(6))
+		for i := 0; i < 4; i++ {
+			itrFind = a.IdxDoublePrevious(itrFind, &primaryKey)
+		}
+		assert.Equal(t, primaryKey, uint64(1))
 
-		// itrFind = a.Idx64Next(itrFind, &primaryKey)
-		// assert.Equal(t, primaryKey, uint64(8))
-		// secondaryKey = uint64(9)
-		// itrFind = a.Idx64FindSecondary(int64(common.N(account1)), int64(common.N("xiaoyu")), int64(common.N("accounts")), &secondaryKey, &primaryKey)
-		// itrFind = a.Idx64Next(itrFind, &primaryKey)
-		// itrFind = a.Idx64Next(itrFind, &primaryKey)
-		// assert.Equal(t, primaryKey, uint64(7))
+		for i := 0; i < 9; i++ {
+			itrFind = a.IdxDoubleNext(itrFind, &primaryKey)
+		}
+		assert.Equal(t, primaryKey, uint64(7))
+		control.Close()
+		control.Clean()
 
-		// for i := 0; i < 5; i++ {
-		// 	itrFind = a.Idx64Previous(itrFind, &primaryKey)
-		// }
-		// assert.Equal(t, primaryKey, uint64(4))
-		// for i := 0; i < 4; i++ {
-		// 	itrFind = a.Idx64Previous(itrFind, &primaryKey)
-		// }
-		// assert.Equal(t, primaryKey, uint64(1))
+	})
+}
+
+func TestDbSecondaryKeyIdxDouble_2(t *testing.T) {
+
+	t.Run("", func(t *testing.T) {
+
+		control := GetControllerInstance()
+		blockTimeStamp := common.NewBlockTimeStamp(common.Now())
+		control.StartBlock(blockTimeStamp, 0)
+
+		account1 := "hello"
+		createNewAccount(control, account1)
+
+		buffer, _ := rlp.EncodeToBytes("0123456")
+		act := types.Action{
+			Account: common.AccountName(common.N(account1)),
+			Name:    common.ActionName(common.N("hi")),
+			Data:    buffer,
+			Authorization: []types.PermissionLevel{
+				//types.PermissionLevel{Actor: common.AccountName(common.N("eosio.token")), Permission: common.PermissionName(common.N("active"))},
+				{Actor: common.AccountName(common.N("eosio")), Permission: common.PermissionName(common.N("active"))},
+			},
+		}
+
+		a := newApplyContext(control, &act)
+
+		for i := 0; i < 10; i++ {
+			primaryKey := int64(i + 1)
+			secondaryKey := arithmetic.Float64(math.Float64bits(float64(i+1) + 1.5))
+
+			a.DbStoreI64(int64(common.N("xiaoyu")), int64(common.N("accounts")), int64(common.N("eosio")), primaryKey, []byte{byte(i)})
+			a.IdxDoubleStore(int64(common.N("xiaoyu")), int64(common.N("accounts")), int64(common.N("eosio")), primaryKey, &secondaryKey)
+		}
+
+		var secondaryKey arithmetic.Float64
+		primaryKey := uint64(5)
+		itrFind := a.idxDouble.lowerboundPrimary(int64(common.N(account1)), int64(common.N("xiaoyu")), int64(common.N("accounts")), &primaryKey)
+		a.idxDouble.get(itrFind, &secondaryKey, &primaryKey)
+		assert.Equal(t, secondaryKey, arithmetic.Float64(math.Float64bits(float64(4+1)+1.5)))
+
+		primaryKey = uint64(5)
+		itrFind = a.idxDouble.upperboundPrimary(int64(common.N(account1)), int64(common.N("xiaoyu")), int64(common.N("accounts")), &primaryKey)
+		a.idxDouble.get(itrFind, &secondaryKey, &primaryKey)
+		assert.Equal(t, secondaryKey, arithmetic.Float64(math.Float64bits(float64(5+1)+1.5)))
+
+		for i := 0; i < 4; i++ {
+			itrFind = a.idxDouble.nextPrimary(itrFind, &primaryKey)
+		}
+		assert.Equal(t, primaryKey, uint64(10))
+
+		for i := 0; i < 10; i++ {
+			itrFind = a.idxDouble.previousPrimary(itrFind, &primaryKey)
+		}
+		assert.Equal(t, primaryKey, uint64(1))
 
 		control.Close()
 		control.Clean()

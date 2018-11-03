@@ -111,7 +111,7 @@ func NewTransactionContext(c *Controller, t *types.SignedTransaction, trxId comm
 
 	EosAssert(len(tc.Trx.TransactionExtensions) == 0, &UnsupportedFeature{}, "we don't support any extensions yet")
 
-	tc.ilog = log.New()
+	tc.ilog = log.New("transaction_context")
 
 	return &tc
 }
