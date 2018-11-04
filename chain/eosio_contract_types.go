@@ -11,6 +11,21 @@ type contractTypesInterface interface {
 	getName() common.AccountName
 }
 
+type NewAccount struct {
+	Creator common.AccountName
+	Name    common.AccountName
+	Owner   types.Authority
+	Active  types.Authority
+}
+
+func (n NewAccount) getAccount() common.AccountName {
+	return common.DefaultConfig.SystemAccountName
+}
+
+func (n NewAccount) getName() common.AccountName {
+	return common.AccountName(common.N("newaccount"))
+}
+
 type newAccount struct {
 	Creator common.AccountName
 	Name    common.AccountName

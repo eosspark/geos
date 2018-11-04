@@ -174,12 +174,13 @@ func (w *WasmGo) Apply(code_id *crypto.Sha256, code []byte, context EnvContext) 
 		log.Fatalf("could not read module: %v", err)
 	}
 
-	// if *verify {
-	// 	err = validate.VerifyModule(m)
-	// 	if err != nil {
-	// 		log.Fatalf("could not verify module: %v", err)
-	// 	}
-	// }
+	//if *verify {
+	//if true {
+	//	err = validate.VerifyModule(m)
+	//	if err != nil {
+	//		log.Fatalf("could not verify module: %v", err)
+	//	}
+	//}
 
 	if m.Export == nil {
 		log.Fatalf("module has no export section")
@@ -285,7 +286,7 @@ func (w *WasmGo) importer(name string) (*wasm.Module, error) {
 				Sig:  &m.Types.Entries[i],
 				Host: reflect.ValueOf(v),
 				Body: &wasm.FunctionBody{},
-				Name: k,
+				//Name: k,
 			}
 
 			m.Export.Entries[k] = wasm.ExportEntry{

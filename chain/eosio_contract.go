@@ -65,6 +65,61 @@ func empty(a uint64) bool {
 	return false
 }
 
+func ApplyEosioNewaccount(context *ApplyContext) {
+
+	create := &NewAccount{}
+	rlp.DecodeBytes(context.Act.Data, create)
+
+	//try.Try()
+	context.RequireAuthorization(int64(create.Creator))
+
+	EosAssert(types.Validate(create.Owner), &ActionValidateException{}, "Invalid owner authority")
+	EosAssert(types.Validate(create.Active), &ActionValidateException{}, "Invalid owner authority")
+
+	db := context.DB
+	nameStr := common.S(uint64(create.Name))
+
+	EosAssert(!empty(uint64(create.Name)), &ActionValidateException{}, "account name cannot be empty")
+	EosAssert(len(nameStr) <= 12, &ActionValidateException{}, "account names can only be 12 chars long")
+
+	// Check if the creator is privileged
+	creator := entity.AccountObject{Name: create.Creator}
+	err := context.DB.Find("byName", creator, &creator)
+	if err != nil && !creator.Privileged {
+
+		EosAssert(strings.Index(nameStr, "eosio.") != 0, &ActionValidateException{},
+			"only privileged accounts can have names that start with 'eosio.'")
+
+	}
+
+	existingAccount := entity.AccountObject{Name: create.Name}
+	err = db.Find("byName", existingAccount, &existingAccount)
+	EosAssert(err != nil, &AccountNameExistsException{}, "Cannot create account named ${name}, as that name is already taken", common.S(uint64(create.Name)))
+
+	newAccountObject := entity.AccountObject{Name: create.Name, CreationDate: common.BlockTimeStamp(context.Control.PendingBlockTime())}
+	db.Insert(&newAccountObject)
+
+	newAccountSequenceObj := entity.AccountSequenceObject{Name: create.Name}
+	db.Insert(&newAccountSequenceObj)
+
+	validateAuthorityPrecondition(context, &create.Owner)
+	validateAuthorityPrecondition(context, &create.Active)
+
+	authorization := context.Control.GetMutableAuthorizationManager()
+	ownerPemission := authorization.CreatePermission(create.Name, common.DefaultConfig.OwnerName, 0, create.Owner, common.TimePoint(0))
+	activePemission := authorization.CreatePermission(create.Name, common.DefaultConfig.ActiveName, PermissionIdType(ownerPemission.ID), create.Owner, common.TimePoint(0))
+
+	context.Control.GetMutableResourceLimitsManager().InitializeAccount(create.Name)
+	ramDelta := uint64(common.DefaultConfig.OverheadPerAccountRamBytes)
+	ramDelta += 2 * common.BillableSizeV("permission_object")
+	ramDelta += ownerPemission.Auth.GetBillableSize()
+	ramDelta += activePemission.Auth.GetBillableSize()
+
+	context.AddRamUsage(create.Name, int64(ramDelta))
+	//}capture_and_rethrow(create)
+
+}
+
 func applyEosioNewaccount(context *ApplyContext) {
 
 	create := &newAccount{}
