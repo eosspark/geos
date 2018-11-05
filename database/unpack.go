@@ -1,4 +1,4 @@
-package rlp
+package database
 
 import (
 	"encoding/binary"
@@ -64,7 +64,7 @@ type decoder struct {
 }
 
 func init() {
-	rlplog = log.New("rlp")
+	rlplog = log.New("rlp_db")
 	rlplog.SetHandler(log.TerminalHandler)
 }
 
@@ -103,14 +103,6 @@ func (d *decoder) decode(v interface{}) (err error) {
 		newRV := reflect.New(t)
 		rv.Set(newRV)
 		rv = reflect.Indirect(newRV)
-	}
-
-	if vuint32 {
-		vuint32 = false
-		var r uint64
-		r, _ = d.readUvarint()
-		rv.SetUint(r)
-		return
 	}
 
 	switch t.Kind() {
@@ -210,76 +202,8 @@ func (d *decoder) decode(v interface{}) (err error) {
 			}
 		}
 
-	case reflect.Map:
-		var l uint64
-		if l, err = d.readUvarint(); err != nil {
-			return
-		}
-		kt := t.Key()
-		vt := t.Elem()
-		rv.Set(reflect.MakeMap(t))
-		for i := 0; i < int(l); i++ {
-			kv := reflect.Indirect(reflect.New(kt))
-			if err = d.decode(kv.Addr().Interface()); err != nil {
-				return
-			}
-			vv := reflect.Indirect(reflect.New(vt))
-			if err = d.decode(vv.Addr().Interface()); err != nil {
-				return
-			}
-			rv.SetMapIndex(kv, vv)
-		}
-
-	case reflect.Struct:
-		err = d.decodeStruct(v, t, rv)
-		if err != nil {
-			return
-		}
-
 	default:
 		return errors.New("decode, unsupported type " + t.String())
-	}
-
-	return
-}
-
-func (d *decoder) decodeStruct(v interface{}, t reflect.Type, rv reflect.Value) (err error) {
-	l := rv.NumField()
-
-	for i := 0; i < l; i++ {
-		switch t.Field(i).Tag.Get("eos") {
-		case "-", "SVTag":
-			continue
-		case "optional":
-			isPresent, _ := d.readByte()
-			if isPresent == 0 {
-				//rlplog.Warn("Skipping optional OptionalProducerSchedule")
-				v = nil
-				continue
-			}
-		case "vuint32":
-			vuint32 = true
-		case "array":
-			eosArray = true
-		//	//for types.TransactionWithID !!
-		case "trxID":
-			destaticVariantTag, _ = d.readByte()
-		case "tag0":
-			if destaticVariantTag != 1 {
-				continue
-			}
-		case "tag1":
-			if destaticVariantTag != 0 {
-				continue
-			}
-		}
-
-		if v := rv.Field(i); v.CanSet() && t.Field(i).Name != "_" {
-			iface := v.Addr().Interface()
-			if err = d.decode(iface); err != nil {
-				return
-			}
-		}
 	}
 
 	return
@@ -356,7 +280,7 @@ func (d *decoder) readUint16() (out uint16, err error) {
 		return
 	}
 
-	out = binary.LittleEndian.Uint16(d.data[d.pos:])
+	out = binary.BigEndian.Uint16(d.data[d.pos:])
 	d.pos += TypeSize.UInt16
 	return
 }
@@ -366,7 +290,7 @@ func (d *decoder) readUint32() (out uint32, err error) {
 		return
 	}
 
-	out = binary.LittleEndian.Uint32(d.data[d.pos:])
+	out = binary.BigEndian.Uint32(d.data[d.pos:])
 	d.pos += TypeSize.UInt32
 	return
 }
@@ -376,7 +300,7 @@ func (d *decoder) readUint() (out uint, err error) {
 		return
 	}
 
-	out = uint(binary.LittleEndian.Uint32(d.data[d.pos:]))
+	out = uint(binary.BigEndian.Uint32(d.data[d.pos:]))
 	d.pos += TypeSize.UInt
 	return
 }
@@ -387,7 +311,7 @@ func (d *decoder) readUint64() (out uint64, err error) {
 	}
 
 	data := d.data[d.pos : d.pos+TypeSize.UInt64]
-	out = binary.LittleEndian.Uint64(data)
+	out = binary.BigEndian.Uint64(data)
 	d.pos += TypeSize.UInt64
 	return
 }
