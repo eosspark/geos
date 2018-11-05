@@ -19,10 +19,10 @@ func NewIdx64(c *ApplyContext) *Idx64 {
 	}
 }
 
-func (i *Idx64) store(scope int64, table int64, payer int64, id int64, secondary *uint64) int {
+func (i *Idx64) store(scope uint64, table uint64, payer uint64, id uint64, secondary *uint64) int {
 
 	EosAssert(common.AccountName(payer) != common.AccountName(0), &InvalidTablePayer{}, "must specify a valid account to pay for new record")
-	tab := i.context.FindOrCreateTable(int64(i.context.Receiver), scope, table, payer)
+	tab := i.context.FindOrCreateTable(uint64(i.context.Receiver), scope, table, payer)
 
 	obj := entity.SecondaryObjectI64{
 		TId:          tab.ID,
@@ -63,7 +63,7 @@ func (i *Idx64) remove(iterator int) {
 
 }
 
-func (i *Idx64) update(iterator int, payer int64, secondary *uint64) {
+func (i *Idx64) update(iterator int, payer uint64, secondary *uint64) {
 
 	obj := (i.itrCache.get(iterator)).(*entity.SecondaryObjectI64)
 	objTable := i.itrCache.getTable(obj.TId)
@@ -86,7 +86,7 @@ func (i *Idx64) update(iterator int, payer int64, secondary *uint64) {
 	})
 }
 
-func (i *Idx64) findSecondary(code int64, scope int64, table int64, secondary *uint64, primary *uint64) int {
+func (i *Idx64) findSecondary(code uint64, scope uint64, table uint64, secondary *uint64, primary *uint64) int {
 
 	tab := i.context.FindTable(code, scope, table)
 	if tab == nil {
@@ -106,7 +106,7 @@ func (i *Idx64) findSecondary(code int64, scope int64, table int64, secondary *u
 	return i.itrCache.add(&obj)
 }
 
-func (i *Idx64) lowerbound(code int64, scope int64, table int64, secondary *uint64, primary *uint64) int {
+func (i *Idx64) lowerbound(code uint64, scope uint64, table uint64, secondary *uint64, primary *uint64) int {
 
 	tab := i.context.FindTable(code, scope, table)
 	if tab == nil {
@@ -135,7 +135,7 @@ func (i *Idx64) lowerbound(code int64, scope int64, table int64, secondary *uint
 	return i.itrCache.add(&objLowerbound)
 }
 
-func (i *Idx64) upperbound(code int64, scope int64, table int64, secondary *uint64, primary *uint64) int {
+func (i *Idx64) upperbound(code uint64, scope uint64, table uint64, secondary *uint64, primary *uint64) int {
 
 	tab := i.context.FindTable(code, scope, table)
 	if tab == nil {
@@ -164,7 +164,7 @@ func (i *Idx64) upperbound(code int64, scope int64, table int64, secondary *uint
 	return i.itrCache.add(&objUpperbound)
 }
 
-func (i *Idx64) end(code int64, scope int64, table int64) int {
+func (i *Idx64) end(code uint64, scope uint64, table uint64) int {
 
 	tab := i.context.FindTable(code, scope, table)
 	if tab == nil {
@@ -241,7 +241,7 @@ func (i *Idx64) previous(iterator int, primary *uint64) int {
 	return i.itrCache.add(&objPrev)
 }
 
-func (i *Idx64) findPrimary(code int64, scope int64, table int64, secondary *uint64, primary *uint64) int {
+func (i *Idx64) findPrimary(code uint64, scope uint64, table uint64, secondary *uint64, primary *uint64) int {
 
 	tab := i.context.FindTable(code, scope, table)
 	if tab == nil {
@@ -261,7 +261,7 @@ func (i *Idx64) findPrimary(code int64, scope int64, table int64, secondary *uin
 	return i.itrCache.add(&obj)
 }
 
-func (i *Idx64) lowerboundPrimary(code int64, scope int64, table int64, primary *uint64) int {
+func (i *Idx64) lowerboundPrimary(code uint64, scope uint64, table uint64, primary *uint64) int {
 
 	tab := i.context.FindTable(code, scope, table)
 	if tab == nil {
@@ -289,7 +289,7 @@ func (i *Idx64) lowerboundPrimary(code int64, scope int64, table int64, primary 
 	return i.itrCache.add(&objLowerbound)
 }
 
-func (i *Idx64) upperboundPrimary(code int64, scope int64, table int64, primary *uint64) int {
+func (i *Idx64) upperboundPrimary(code uint64, scope uint64, table uint64, primary *uint64) int {
 
 	tab := i.context.FindTable(code, scope, table)
 	if tab == nil {
