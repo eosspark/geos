@@ -7,9 +7,13 @@ import (
 	"github.com/eosspark/eos-go/database"
 	"github.com/eosspark/eos-go/entity"
 	. "github.com/eosspark/eos-go/exception"
+	"os"
+
+	//"log"
+
 	//"github.com/eosspark/eos-go/exception/try"
+	"github.com/eosspark/eos-go/log"
 	"math"
-	//"github.com/eosspark/eos-go/log"
 )
 
 /*type AccountForSet common.AccountName
@@ -54,6 +58,8 @@ type TransactionContext struct {
 	pseudoStart               common.TimePoint
 	billedTime                common.Microseconds
 	billingTimerDurationLimit common.Microseconds
+
+	ilog log.Logger
 }
 
 func NewTransactionContext(c *Controller, t *types.SignedTransaction, trxId common.TransactionIdType, s common.TimePoint) *TransactionContext {
@@ -104,6 +110,8 @@ func NewTransactionContext(c *Controller, t *types.SignedTransaction, trxId comm
 	tc.Executed = make([]types.ActionReceipt, tc.Trx.TotalActions())
 
 	EosAssert(len(tc.Trx.TransactionExtensions) == 0, &UnsupportedFeature{}, "we don't support any extensions yet")
+
+	tc.ilog = log.New("transaction_context")
 
 	return &tc
 }
@@ -258,6 +266,9 @@ func (t *TransactionContext) InitForDeferredTrx(p common.TimePoint) {
 }
 
 func (t *TransactionContext) Exec() {
+
+	t.ilog.SetHandler(log.StreamHandler(os.Stdout, log.TerminalFormat(true)))
+	t.ilog.Info("Exec receiver:%s action:%s", t.Trx.Actions[0].Account, t.Trx.Actions[0].Name)
 
 	EosAssert(t.isInitialized, &TransactionException{}, "must first initialize")
 

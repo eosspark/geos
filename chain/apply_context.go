@@ -41,6 +41,7 @@ type ApplyContext struct {
 	CfaInlineActions     []types.Action
 	PendingConsoleOutput string
 	AccountRamDeltas     common.FlatSet
+	ilog                 log.Logger
 }
 
 func NewApplyContext(control *Controller, trxContext *TransactionContext, act *types.Action, recurseDepth uint32) *ApplyContext {
@@ -63,6 +64,8 @@ func NewApplyContext(control *Controller, trxContext *TransactionContext, act *t
 
 	applyContext.idx64 = NewIdx64(applyContext)
 	applyContext.idxDouble = NewIdxDouble(applyContext)
+
+	applyContext.ilog = log.New("Apply_Context")
 
 	return applyContext
 
@@ -505,6 +508,7 @@ func (a *ApplyContext) UpdateDbUsage(payer common.AccountName, delta int64) {
 				&SubjectiveBlockProductionException{},
 				"Cannot charge RAM to other accounts during notify.")
 			a.RequireAuthorization(int64(payer))
+			fmt.Println(payer)
 		}
 	}
 
@@ -567,6 +571,8 @@ func (a *ApplyContext) dbStoreI64(code int64, scope int64, table int64, payer in
 		Value:      buffer,
 		Payer:      common.AccountName(payer),
 	}
+
+	a.ilog.Info("obj:%v", &obj)
 
 	a.DB.Insert(&obj)
 	a.DB.Modify(tab, func(t *entity.TableIdObject) {
@@ -821,22 +827,22 @@ func (a *ApplyContext) Idx64FindPrimary(code int64, scope int64, table int64, se
 	return a.idx64.findPrimary(code, scope, table, secondary, primary)
 }
 
-func (a *ApplyContext) IdxDoubleStore(scope int64, table int64, payer int64, id int64, value *entity.Float64_t) int {
+func (a *ApplyContext) IdxDoubleStore(scope int64, table int64, payer int64, id int64, value *arithmetic.Float64) int {
 	return a.idxDouble.store(scope, table, payer, id, value)
 }
 func (a *ApplyContext) IdxDoubleRemove(iterator int) {
 	a.idxDouble.remove(iterator)
 }
-func (a *ApplyContext) IdxDoubleUpdate(iterator int, payer int64, value *entity.Float64_t) {
+func (a *ApplyContext) IdxDoubleUpdate(iterator int, payer int64, value *arithmetic.Float64) {
 	a.idxDouble.update(iterator, payer, value)
 }
-func (a *ApplyContext) IdxDoubleFindSecondary(code int64, scope int64, table int64, secondary *entity.Float64_t, primary *uint64) int {
+func (a *ApplyContext) IdxDoubleFindSecondary(code int64, scope int64, table int64, secondary *arithmetic.Float64, primary *uint64) int {
 	return a.idxDouble.findSecondary(code, scope, table, secondary, primary)
 }
-func (a *ApplyContext) IdxDoubleLowerbound(code int64, scope int64, table int64, secondary *entity.Float64_t, primary *uint64) int {
+func (a *ApplyContext) IdxDoubleLowerbound(code int64, scope int64, table int64, secondary *arithmetic.Float64, primary *uint64) int {
 	return a.idxDouble.lowerbound(code, scope, table, secondary, primary)
 }
-func (a *ApplyContext) IdxDoubleUpperbound(code int64, scope int64, table int64, secondary *entity.Float64_t, primary *uint64) int {
+func (a *ApplyContext) IdxDoubleUpperbound(code int64, scope int64, table int64, secondary *arithmetic.Float64, primary *uint64) int {
 	return a.idxDouble.upperbound(code, scope, table, secondary, primary)
 }
 func (a *ApplyContext) IdxDoubleEnd(code int64, scope int64, table int64) int {
@@ -848,7 +854,7 @@ func (a *ApplyContext) IdxDoubleNext(iterator int, primary *uint64) int {
 func (a *ApplyContext) IdxDoublePrevious(iterator int, primary *uint64) int {
 	return a.idxDouble.previous(iterator, primary)
 }
-func (a *ApplyContext) IdxDoubleFindPrimary(code int64, scope int64, table int64, secondary *entity.Float64_t, primary *uint64) int {
+func (a *ApplyContext) IdxDoubleFindPrimary(code int64, scope int64, table int64, secondary *arithmetic.Float64, primary *uint64) int {
 	return a.idxDouble.findPrimary(code, scope, table, secondary, primary)
 }
 
@@ -895,10 +901,11 @@ func (a *ApplyContext) AddRamUsage(account common.AccountName, ramDelta int64) {
 	a.TrxContext.AddRamUsage(account, ramDelta)
 
 	accountDelta := types.AccountDelta{account, ramDelta}
-	p, ok := a.AccountRamDeltas.Insert(&accountDelta)
-	if !ok {
-		p.(*types.AccountDelta).Delta += ramDelta
-	}
+	a.AccountRamDeltas.Insert(&accountDelta)
+	//p, ok := a.AccountRamDeltas.Insert(&accountDelta)
+	//if !ok {
+	//	p.(*types.AccountDelta).Delta += ramDelta
+	//}
 
 }
 

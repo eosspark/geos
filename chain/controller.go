@@ -454,7 +454,7 @@ func (c *Controller) GetGlobalProperties() *entity.GlobalPropertyObject {
 
 func (c *Controller) GetDynamicGlobalProperties() (r *entity.DynamicGlobalPropertyObject) {
 	dgpo := entity.DynamicGlobalPropertyObject{}
-	dgpo.ID = 0
+	dgpo.ID = 1
 	err := c.DB.Find("id", dgpo, &dgpo)
 	if err != nil {
 		log.Error("GetDynamicGlobalProperties is error detail:", err)
@@ -1473,7 +1473,7 @@ func (c *Controller) initializeDatabase() {
 		fmt.Println("-----------------", err)
 	}
 	dgpo := entity.DynamicGlobalPropertyObject{}
-	dgpo.ID = 0
+	dgpo.ID = 1
 	//dgpo.GlobalActionSequence = 10000
 	err = c.DB.Insert(&dgpo)
 	if err != nil {

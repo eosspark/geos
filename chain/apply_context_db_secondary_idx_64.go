@@ -36,7 +36,6 @@ func (i *Idx64) store(scope int64, table int64, payer int64, id int64, secondary
 		t.Count++
 	})
 
-	//i.context.UpdateDbUsage(payer, types.BillableSizeV(obj.GetBillableSizeValue()))
 	i.context.UpdateDbUsage(common.AccountName(payer), int64(common.BillableSizeV("index64_object")))
 
 	i.itrCache.cacheTable(tab)
@@ -101,7 +100,7 @@ func (i *Idx64) findSecondary(code int64, scope int64, table int64, secondary *u
 
 	*primary = obj.PrimaryKey
 
-	if err == nil {
+	if err != nil {
 		return tableEndItr
 	}
 	return i.itrCache.add(&obj)
@@ -239,7 +238,7 @@ func (i *Idx64) previous(iterator int, primary *uint64) int {
 		return -1
 	}
 	*primary = objPrev.PrimaryKey
-	return i.itrCache.add(objPrev)
+	return i.itrCache.add(&objPrev)
 }
 
 func (i *Idx64) findPrimary(code int64, scope int64, table int64, secondary *uint64, primary *uint64) int {
@@ -256,7 +255,7 @@ func (i *Idx64) findPrimary(code int64, scope int64, table int64, secondary *uin
 
 	*secondary = obj.SecondaryKey
 
-	if err == nil {
+	if err != nil {
 		return tableEndItr
 	}
 	return i.itrCache.add(&obj)
