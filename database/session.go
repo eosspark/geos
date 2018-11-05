@@ -2,8 +2,8 @@ package database
 
 /////////////////////////////////////////////////////// Session  //////////////////////////////////////////////////////////
 type Session struct {
-	db       DataBase
-	apply    bool
+	db        DataBase
+	apply     bool
 	reversion int64
 }
 
