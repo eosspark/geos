@@ -55,7 +55,6 @@ func dbNextI64(w *WasmGo, itr int, primary int) int {
 	fmt.Println("db_next_i64")
 
 	var p uint64
-
 	iterator := w.context.DbNextI64(itr, &p)
 	setUint64(w, primary, p)
 
@@ -69,7 +68,6 @@ func dbPreviousI64(w *WasmGo, itr int, primary int) int {
 	fmt.Println("db_previous_i64")
 
 	var p uint64
-
 	iterator := w.context.DbPreviousI64(itr, &p)
 	setUint64(w, primary, p)
 	return iterator
@@ -112,8 +110,6 @@ func dbEndI64(w *WasmGo, code int64, scope int64, table int64) int {
 func dbIdx64Store(w *WasmGo, scope int64, table int64, payer int64, id int64, pValue int) int {
 	fmt.Println("db_idx64_store")
 
-	//secondaryKey := &types.Uint64_t{Value: getUint64(w, pValue)}
-	//secondaryKey.SetValue(getUint64(w, pValue))
 	secondaryKey := getUint64(w, pValue)
 	return w.context.Idx64Store(scope, table, payer, id, &secondaryKey)
 }
@@ -126,18 +122,15 @@ func dbIdx64Remove(w *WasmGo, itr int) {
 func dbIdx64Update(w *WasmGo, itr int, payer int64, pValue int) {
 	fmt.Println("db_idx64_update")
 
-	//secondaryKey := &types.Uint64_t{Value: getUint64(w, pValue)}
-	//secondaryKey.SetValue(getUint64(w, pValue))
 	secondaryKey := getUint64(w, pValue)
 	w.context.Idx64Update(itr, payer, &secondaryKey)
 }
 
-func dbIdx64findSecondary(w *WasmGo, code int64, scope int64, table int64, payer int64, pSecondary int, pPrimary int) int {
+func dbIdx64findSecondary(w *WasmGo, code int64, scope int64, table int64, pSecondary int, pPrimary int) int {
 
 	fmt.Println("db_idx64_find_secondary")
 
-	var primaryKey uint64 //:= getUint64(w, pPrimary)
-	//secondaryKey := &types.Uint64_t{Value: getUint64(w, pSecondary)}
+	var primaryKey uint64
 	secondaryKey := getUint64(w, pSecondary)
 	itr := w.context.Idx64FindSecondary(code, scope, table, &secondaryKey, &primaryKey)
 	setUint64(w, pPrimary, primaryKey)
@@ -149,8 +142,7 @@ func dbIdx64Lowerbound(w *WasmGo, code int64, scope int64, table int64, pSeconda
 
 	fmt.Println("db_idx64_lowerbound")
 
-	var primaryKey, secondaryKey uint64 //:= getUint64(w, pPrimary)
-	//secondaryKey := types.Uint64_t{}
+	var primaryKey, secondaryKey uint64
 	itr := w.context.Idx64Lowerbound(code, scope, table, &secondaryKey, &primaryKey)
 	setUint64(w, pPrimary, primaryKey)
 	setUint64(w, pSecondary, secondaryKey)
@@ -162,8 +154,7 @@ func dbIdx64Upperbound(w *WasmGo, code int64, scope int64, table int64, pSeconda
 
 	fmt.Println("db_idx64_upperbound")
 
-	var primaryKey, secondaryKey uint64 //:= getUint64(w, pPrimary)
-	//secondaryKey := types.Uint64_t{}
+	var primaryKey, secondaryKey uint64
 	itr := w.context.Idx64Lowerbound(code, scope, table, &secondaryKey, &primaryKey)
 	setUint64(w, pPrimary, primaryKey)
 	setUint64(w, pSecondary, secondaryKey)
@@ -200,14 +191,11 @@ func dbIdx64Previous(w *WasmGo, itr int, primary int) int {
 	return iterator
 }
 
-func dbIdx64FindPrimary(w *WasmGo, code int64, scope int64, table int64, payer int64, pSecondary int, pPrimary int) int {
+func dbIdx64FindPrimary(w *WasmGo, code int64, scope int64, table int64, pSecondary int, pPrimary int) int {
 
 	fmt.Println("db_idx64_find_primary")
 
-	//var primaryKey uint64 //:= getUint64(w, pPrimary)
-
 	primaryKey := getUint64(w, pPrimary)
-	//secondaryKey := types.Uint64_t{}
 	var secondaryKey uint64
 	itr := w.context.Idx64FindPrimary(code, scope, table, &secondaryKey, &primaryKey)
 	setUint64(w, pSecondary, secondaryKey)
@@ -218,9 +206,6 @@ func dbIdx64FindPrimary(w *WasmGo, code int64, scope int64, table int64, payer i
 func dbIdxDoubleStore(w *WasmGo, scope int64, table int64, payer int64, id int64, pValue int) int {
 	fmt.Println("db_idx64_store")
 
-	//secondaryKey := &entity.Float64_t{Value: getFloat64(w, pValue)}
-	//secondaryKey.SetValue(getFloat64(w, pValue))
-	//secondaryKey := getFloat64(w, pValue)
 	secondaryKey := arithmetic.Float64(getUint64(w, pValue))
 	return w.context.IdxDoubleStore(scope, table, payer, id, &secondaryKey)
 }
@@ -233,20 +218,15 @@ func dbIdxDoubleRemove(w *WasmGo, itr int) {
 func dbIdxDoubleUpdate(w *WasmGo, itr int, payer int64, pValue int) {
 	fmt.Println("db_idx64_update")
 
-	//secondaryKey := &entity.Float64_t{Value: getFloat64(w, pValue)}
-	//secondaryKey.SetValue(getFloat64(w, pValue))
-	//secondaryKey := getFloat64(w, pValue)
 	secondaryKey := arithmetic.Float64(getUint64(w, pValue))
 	w.context.IdxDoubleUpdate(itr, payer, &secondaryKey)
 }
 
-func dbIdxDoublefindSecondary(w *WasmGo, code int64, scope int64, table int64, payer int64, pSecondary int, pPrimary int) int {
+func dbIdxDoublefindSecondary(w *WasmGo, code int64, scope int64, table int64, pSecondary int, pPrimary int) int {
 
 	fmt.Println("db_idx64_find_secondary")
 
-	var primaryKey uint64 //:= getFloat64(w, pPrimary)
-	//secondaryKey := &entity.Float64_t{Value: getFloat64(w, pSecondary)}
-	//secondaryKey := getFloat64(w, pSecondary)
+	var primaryKey uint64
 	secondaryKey := arithmetic.Float64(getUint64(w, pSecondary))
 	itr := w.context.IdxDoubleFindSecondary(code, scope, table, &secondaryKey, &primaryKey)
 	setUint64(w, pPrimary, primaryKey)
@@ -258,8 +238,7 @@ func dbIdxDoubleLowerbound(w *WasmGo, code int64, scope int64, table int64, pSec
 
 	fmt.Println("db_idx64_lowerbound")
 
-	var primaryKey uint64 //:= getFloat64(w, pPrimary)
-	//secondaryKey := entity.Float64_t{}
+	var primaryKey uint64
 	var secondaryKey arithmetic.Float64
 	itr := w.context.IdxDoubleLowerbound(code, scope, table, &secondaryKey, &primaryKey)
 	setUint64(w, pPrimary, primaryKey)
@@ -272,8 +251,7 @@ func dbIdxDoubleUpperbound(w *WasmGo, code int64, scope int64, table int64, pSec
 
 	fmt.Println("db_idx64_upperbound")
 
-	var primaryKey uint64 //:= getFloat64(w, pPrimary)
-	//secondaryKey := entity.Float64_t{}
+	var primaryKey uint64
 	var secondaryKey arithmetic.Float64
 	itr := w.context.IdxDoubleLowerbound(code, scope, table, &secondaryKey, &primaryKey)
 	setUint64(w, pPrimary, primaryKey)
@@ -311,16 +289,13 @@ func dbIdxDoublePrevious(w *WasmGo, itr int, primary int) int {
 	return iterator
 }
 
-func dbIdxDoubleFindPrimary(w *WasmGo, code int64, scope int64, table int64, payer int64, pSecondary int, pPrimary int) int {
+func dbIdxDoubleFindPrimary(w *WasmGo, code int64, scope int64, table int64, pSecondary int, pPrimary int) int {
 
 	fmt.Println("db_idx64_find_primary")
 
-	//var primaryKey uint64 //:= getFloat64(w, pPrimary)
 	primaryKey := getUint64(w, pPrimary)
-	//secondaryKey := entity.Float64_t{}
 	var secondaryKey arithmetic.Float64
 	itr := w.context.IdxDoubleFindPrimary(code, scope, table, &secondaryKey, &primaryKey)
-	//setFloat64(w, pSecondary, secondaryKey)
 	setUint64(w, pSecondary, uint64(secondaryKey))
 
 	return itr

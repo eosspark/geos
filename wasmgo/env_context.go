@@ -19,7 +19,6 @@ type EnvContext interface {
 	RequireAuthorization(account int64)
 	HasAuthorization(account int64) bool
 	RequireAuthorization2(account int64, permission int64)
-	//RequireAuthorizations(account common.AccountName)
 	RequireRecipient(recipient int64)
 	IsAccount(n int64) bool
 	HasReciptient(code int64) bool

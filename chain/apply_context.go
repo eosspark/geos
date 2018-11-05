@@ -41,6 +41,7 @@ type ApplyContext struct {
 	CfaInlineActions     []types.Action
 	PendingConsoleOutput string
 	AccountRamDeltas     common.FlatSet
+	ilog                 log.Logger
 }
 
 func NewApplyContext(control *Controller, trxContext *TransactionContext, act *types.Action, recurseDepth uint32) *ApplyContext {
@@ -63,6 +64,8 @@ func NewApplyContext(control *Controller, trxContext *TransactionContext, act *t
 
 	applyContext.idx64 = NewIdx64(applyContext)
 	applyContext.idxDouble = NewIdxDouble(applyContext)
+
+	applyContext.ilog = log.New("Apply_Context")
 
 	return applyContext
 
@@ -505,6 +508,7 @@ func (a *ApplyContext) UpdateDbUsage(payer common.AccountName, delta int64) {
 				&SubjectiveBlockProductionException{},
 				"Cannot charge RAM to other accounts during notify.")
 			a.RequireAuthorization(int64(payer))
+			fmt.Println(payer)
 		}
 	}
 
@@ -567,6 +571,8 @@ func (a *ApplyContext) dbStoreI64(code int64, scope int64, table int64, payer in
 		Value:      buffer,
 		Payer:      common.AccountName(payer),
 	}
+
+	a.ilog.Info("obj:%v", &obj)
 
 	a.DB.Insert(&obj)
 	a.DB.Modify(tab, func(t *entity.TableIdObject) {
