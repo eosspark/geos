@@ -5,7 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"io"
-
+	// "math/big"
 	"github.com/eosspark/eos-go/exception"
 	"reflect"
 )
@@ -78,6 +78,12 @@ func (e *encoder) encode(v interface{}) (err error) {
 	rv := reflect.Indirect(reflect.ValueOf(v))
 	t := rv.Type()
 
+	if e.vuint32 {
+		e.vuint32 = false
+		e.writeUVarInt(int(rv.Uint()))
+		return
+	}
+
 	switch t.Kind() {
 	case reflect.String:
 		return e.writeString(rv.String())
@@ -129,6 +135,62 @@ func (e *encoder) encode(v interface{}) (err error) {
 		for i := 0; i < l; i++ {
 			if err = e.encode(rv.Index(i).Interface()); err != nil {
 				return
+			}
+		}
+	case reflect.Struct:
+		l := rv.NumField()
+		for i := 0; i < l; i++ {
+			field := t.Field(i)
+			tag := field.Tag.Get("eos")
+
+			switch tag {
+			case "-":
+				continue
+			case "array":
+				e.eosArray = true
+			case "tag0":
+				if rv.Field(i).IsNil() {
+					e.writeUint8(0)
+					trxIsID = true
+					continue
+				}
+				e.writeUint8(1)
+			case "tag1":
+				if !trxIsID {
+					continue
+				}
+			case "vuint32":
+				e.vuint32 = true
+			case "optional":
+				if rv.Field(i).IsNil() {
+					e.writeBool(false)
+					continue
+				}
+				e.writeBool(true)
+			}
+
+			if v := rv.Field(i); t.Field(i).Name != "_" {
+				if v.CanInterface() {
+					if err = e.encode(v.Interface()); err != nil {
+						return
+					}
+				}
+			}
+
+		}
+
+	case reflect.Map:
+		l := rv.Len()
+		if err = e.writeUVarInt(l); err != nil {
+			return
+		}
+		for _, key := range rv.MapKeys() {
+			value := rv.MapIndex(key)
+			if err = e.encode(key.Interface()); err != nil {
+				return err
+			}
+			if err = e.encode(value.Interface()); err != nil {
+				return err
 			}
 		}
 
