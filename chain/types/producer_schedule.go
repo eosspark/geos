@@ -6,7 +6,7 @@ import (
 )
 
 type ProducerKey struct {
-	AccountName     common.AccountName `json:"account_name"`
+	ProducerName     common.AccountName `json:"producer_name"`
 	BlockSigningKey ecc.PublicKey      `json:"block_signing_key"`
 }
 
@@ -17,7 +17,7 @@ type ProducerScheduleType struct {
 
 func (ps *ProducerScheduleType) GetProducerKey(p common.AccountName) (ecc.PublicKey, bool) {
 	for _, i := range ps.Producers {
-		if i.AccountName == p {
+		if i.ProducerName == p {
 			return i.BlockSigningKey, true
 		}
 	}

@@ -2,24 +2,30 @@ package asio
 
 import "github.com/eapache/channels"
 
+const Infinity = true
+
 type GoroutineReactor struct {
-	//opQueue  chan operation
+	opq      chan operation
 	opQueue  *channels.InfiniteChannel
 	sigQueue chan operation
-	down 	 chan struct{}
+	down     chan struct{}
 }
 
 func NewGoroutineReactor() *GoroutineReactor {
 	r := new(GoroutineReactor)
-	//r.opQueue = make(chan operation, 128)
-	r.opQueue = channels.NewInfiniteChannel()
+
+	if Infinity {
+		r.opQueue = channels.NewInfiniteChannel()
+	} else {
+		r.opq = make(chan operation, 128)
+	}
 	r.sigQueue = make(chan operation, 1)
 	r.down = make(chan struct{}, 1)
 	return r
 }
 
 // use GoroutineReactor for each operating system
-func (i *IoContext) GetService () ReactorService {
+func (i *IoContext) GetService() ReactorService {
 	if i.service == nil {
 		i.service = NewGoroutineReactor()
 	}
@@ -27,18 +33,33 @@ func (i *IoContext) GetService () ReactorService {
 }
 
 func (g *GoroutineReactor) run() {
-LP:	for ;; {
-		select {
-		case <-g.down:
-			break LP
+	if Infinity {
+	LP1:
+		for ; ; {
+			select {
+			case <-g.down:
+				break LP1
 
-		case sig := <-g.sigQueue:
-			doReactor(sig)
+			case op := <-g.sigQueue:
+				op.call()
 
-		//case op := <-g.opQueue:
-		//	doReactor(op)
-		case op := <-g.opQueue.Out():
-			doReactor(op.(operation))
+			case op := <-g.opQueue.Out():
+				op.(operation).call()
+			}
+		}
+	} else {
+	LP2:
+		for ; ; {
+			select {
+			case <-g.down:
+				break LP2
+
+			case op := <-g.sigQueue:
+				op.call()
+
+			case op := <-g.opq:
+				op.call()
+			}
 		}
 	}
 
@@ -48,14 +69,15 @@ func (g *GoroutineReactor) stop() {
 	g.down <- struct{}{}
 }
 
-func (g *GoroutineReactor) post(op interface{}, args ...interface{}) {
+func (g *GoroutineReactor) post(op operation) {
 	//g.opQueue <- operation{op, args}
-	g.opQueue.In() <- operation{op, args}
+	if Infinity {
+		g.opQueue.In() <- op
+	} else {
+		g.opq <- op
+	}
 }
 
-func (g *GoroutineReactor) notify(op interface{}, args ...interface{}) {
-	g.sigQueue <- operation{op, args}
+func (g *GoroutineReactor) notify(op operation) {
+	g.sigQueue <- op
 }
-
-
-

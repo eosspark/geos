@@ -71,6 +71,23 @@ func (h Sha256) MarshalJSON() ([]byte, error) {
 	return json.Marshal(hex.EncodeToString(h.Bytes()))
 }
 
+func (h Sha256) UnmarshalJSON(data []byte) error {
+	var s string
+	err := json.Unmarshal(data, &s)
+	if err != nil {
+		return err
+	}
+
+	b, err := hex.DecodeString(s)
+	if err != nil {
+		return err
+	}
+	for i := range h.Hash {
+		h.Hash[i] = binary.LittleEndian.Uint64(b[i*8 : (i+1)*8])
+	}
+	return nil
+}
+
 func (h Sha256) String() string {
 	return hex.EncodeToString(h.Bytes())
 }
