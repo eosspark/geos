@@ -233,3 +233,20 @@ func TestFlatSet_Update(t *testing.T) {
 	fmt.Println(f)
 	assert.Equal(t, true, p)
 }
+
+func Test_Find(t *testing.T) {
+	f := FlatSet{}
+	a := AccountName(6138663577826885632)
+	b := AccountName(17765913279651119101)
+
+	ele1, b1 := f.Insert(&a)
+	ele2, b2 := f.Insert(&b)
+
+	fmt.Println(f.Find(&a))
+	fmt.Println(f.Find(&b))
+	assert.Equal(t, &a, ele1)
+	assert.Equal(t, &b, ele2)
+
+	assert.Equal(t, false, b1)
+	assert.Equal(t, false, b2)
+}
