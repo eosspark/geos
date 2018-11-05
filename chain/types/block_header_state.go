@@ -80,7 +80,7 @@ func (b *BlockHeaderState) GenerateNext(when common.BlockTimeStamp) *BlockHeader
 	result.BlockNum 				= b.BlockNum + 1
 	result.ProducerToLastProduced   = b.ProducerToLastProduced
 	result.ProducerToLastImpliedIrb = b.ProducerToLastImpliedIrb
-	result.ProducerToLastProduced.Update(proKey.ProducerName.GetKey(), AccountNameBlockNum{proKey.ProducerName, result.BlockNum})
+	result.ProducerToLastProduced.Update(AccountNameBlockNum{proKey.ProducerName, result.BlockNum})
 	result.BlockrootMerkle = b.BlockrootMerkle
 	result.BlockrootMerkle.Append(crypto.Sha256(b.BlockId))
 
@@ -89,7 +89,7 @@ func (b *BlockHeaderState) GenerateNext(when common.BlockTimeStamp) *BlockHeader
 	result.DposProposedIrreversibleBlocknum = b.DposProposedIrreversibleBlocknum
 	result.BftIrreversibleBlocknum = b.BftIrreversibleBlocknum
 
-	result.ProducerToLastImpliedIrb.Update(proKey.ProducerName.GetKey(), AccountNameBlockNum{proKey.ProducerName, result.DposProposedIrreversibleBlocknum})
+	result.ProducerToLastImpliedIrb.Update(AccountNameBlockNum{proKey.ProducerName, result.DposProposedIrreversibleBlocknum})
 	result.DposIrreversibleBlocknum = result.CalcDposLastIrreversible()
 
 	println("irb", result.DposIrreversibleBlocknum)
@@ -144,7 +144,7 @@ func (b *BlockHeaderState) MaybePromotePending() bool {
 
 		b.ProducerToLastProduced = newProducerToLastProduced
 		b.ProducerToLastImpliedIrb = newProducerToLastImpliedIrb
-		b.ProducerToLastProduced.Update(b.Header.Producer.GetKey(), AccountNameBlockNum{b.Header.Producer, b.BlockNum})
+		b.ProducerToLastProduced.Update(AccountNameBlockNum{b.Header.Producer, b.BlockNum})
 
 		return true
 	}
