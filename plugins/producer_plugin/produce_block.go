@@ -11,11 +11,9 @@ import (
 	//Chain "github.com/eosspark/eos-go/chain" /*real chain*/
 	. "github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
-	)
+)
 
-
-
-func (impl *ProducerPluginImpl) CalculateNextBlockTime(producerName common.AccountName, currentBlockTime common.BlockTimeStamp) *common.TimePoint {
+func (impl *ProducerPluginImpl) CalculateNextBlockTime(producerName *common.AccountName, currentBlockTime common.BlockTimeStamp) *common.TimePoint {
 	var result common.TimePoint
 
 	chain := Chain.GetControllerInstance()
@@ -27,7 +25,7 @@ func (impl *ProducerPluginImpl) CalculateNextBlockTime(producerName common.Accou
 	var itr *types.ProducerKey
 	var producerIndex uint32
 	for index, asp := range activeSchedule {
-		if asp.AccountName == producerName {
+		if asp.ProducerName == *producerName {
 			itr = &asp
 			producerIndex = uint32(index)
 			break
@@ -120,14 +118,14 @@ func (impl *ProducerPluginImpl) StartBlock() (EnumStartBlockRusult, bool) {
 	// Not our turn
 	lastBlock := uint32(common.NewBlockTimeStamp(blockTime))%uint32(common.DefaultConfig.ProducerRepetitions) == uint32(common.DefaultConfig.ProducerRepetitions)-1
 	scheduleProducer := hbs.GetScheduledProducer(common.NewBlockTimeStamp(blockTime))
-	currentWatermark, hasCurrentWatermark := impl.ProducerWatermarks[scheduleProducer.AccountName]
-	_, hasSignatureProvider := impl.SignatureProviders[scheduleProducer.BlockSigningKey]
+	currentWatermark, hasCurrentWatermark := impl.ProducerWatermarks[&scheduleProducer.ProducerName]
+	_, hasSignatureProvider := impl.SignatureProviders[&scheduleProducer.BlockSigningKey]
 	irreversibleBlockAge := impl.GetIrreversibleBlockAge()
 
 	// If the next block production opportunity is in the present or future, we're synced.
 	if !impl.ProductionEnabled {
 		impl.PendingBlockMode = EnumPendingBlockMode(speculating)
-	} else if _, has := impl.Producers[scheduleProducer.AccountName]; !has {
+	} else if has, _ := impl.Producers.Find(&scheduleProducer.ProducerName); !has {
 		impl.PendingBlockMode = EnumPendingBlockMode(speculating)
 	} else if !hasSignatureProvider {
 		impl.PendingBlockMode = EnumPendingBlockMode(speculating)
@@ -158,6 +156,7 @@ func (impl *ProducerPluginImpl) StartBlock() (EnumStartBlockRusult, bool) {
 	if impl.PendingBlockMode == EnumPendingBlockMode(speculating) {
 		headBlockAge := now.Sub(chain.HeadBlockTime())
 		if headBlockAge > common.Seconds(5) {
+			fmt.Println("start block speculating")
 			return EnumStartBlockRusult(waiting), lastBlock
 		}
 	}
@@ -334,6 +333,7 @@ func (impl *ProducerPluginImpl) StartBlock() (EnumStartBlockRusult, bool) {
 		} ///scheduled transactions
 
 		if isExhausted || blockTime <= common.Now() {
+			fmt.Println("start block exhausted")
 			return EnumStartBlockRusult(exhausted), lastBlock
 		} else {
 			// attempt to apply any pending incoming transactions
@@ -344,12 +344,14 @@ func (impl *ProducerPluginImpl) StartBlock() (EnumStartBlockRusult, bool) {
 				origPendingTxnSize--
 				impl.OnIncomingTransactionAsync(e.packedTransaction, e.persistUntilExpired, e.next)
 				if blockTime <= common.Now() {
+					fmt.Println("start block exhausted")
 					return EnumStartBlockRusult(exhausted), lastBlock
 				}
 			}
 			return EnumStartBlockRusult(succeeded), lastBlock
 		}
 	}
+	fmt.Println("start block failed")
 	return EnumStartBlockRusult(failed), lastBlock
 }
 
@@ -373,7 +375,7 @@ func (impl *ProducerPluginImpl) ScheduleProductionLoop() {
 		})
 
 	} else if result == EnumStartBlockRusult(waiting) {
-		if len(impl.Producers) > 0 && !impl.ProductionDisabledByPolicy() {
+		if impl.Producers.Len() > 0 && !impl.ProductionDisabledByPolicy() {
 			log.Debug("Waiting till another block is received and scheduling Speculative/Production Change")
 			impl.ScheduleDelayedProductionLoop(common.NewBlockTimeStamp(impl.CalculatePendingBlockTime()))
 		} else {
@@ -416,9 +418,9 @@ func (impl *ProducerPluginImpl) ScheduleProductionLoop() {
 			}
 		})
 
-	} else if impl.PendingBlockMode == EnumPendingBlockMode(speculating) && len(impl.Producers) > 0 && !impl.ProductionDisabledByPolicy() {
+	} else if impl.PendingBlockMode == EnumPendingBlockMode(speculating) && impl.Producers.Len() > 0 && !impl.ProductionDisabledByPolicy() {
 		//TODO: fc_dlog(_log, "Specualtive Block Created; Scheduling Speculative/Production Change");
-		EosAssert( chain.PendingBlockState() != nil, &MissingPendingBlockState{}, "speculating without pending_block_state")
+		EosAssert(chain.PendingBlockState() != nil, &MissingPendingBlockState{}, "speculating without pending_block_state")
 		pbs := chain.PendingBlockState()
 		impl.ScheduleDelayedProductionLoop(pbs.Header.Timestamp)
 
@@ -430,8 +432,8 @@ func (impl *ProducerPluginImpl) ScheduleProductionLoop() {
 func (impl *ProducerPluginImpl) ScheduleDelayedProductionLoop(currentBlockTime common.BlockTimeStamp) {
 	// if we have any producers then we should at least set a timer for our next available slot
 	var wakeUpTime *common.TimePoint
-	for p := range impl.Producers {
-		nextProducerBlockTime := impl.CalculateNextBlockTime(p, currentBlockTime)
+	for _, p := range impl.Producers.Data {
+		nextProducerBlockTime := impl.CalculateNextBlockTime(p.(*common.AccountName), currentBlockTime)
 		if nextProducerBlockTime != nil {
 			producerWakeupTime := nextProducerBlockTime.SubUs(common.Microseconds(common.DefaultConfig.BlockIntervalUs))
 			if wakeUpTime != nil {
@@ -484,7 +486,7 @@ func (impl *ProducerPluginImpl) ProduceBlock() {
 	pbs := chain.PendingBlockState()
 	EosAssert(pbs != nil, &MissingPendingBlockState{}, "pending_block_state does not exist but it should, another plugin may have corrupted it")
 
-	signatureProvider := impl.SignatureProviders[pbs.BlockSigningKey]
+	signatureProvider := impl.SignatureProviders[&pbs.BlockSigningKey]
 	EosAssert(signatureProvider != nil, &ProducerPrivKeyNotFound{}, "Attempting to produce a block for which we don't have the private key")
 
 	chain.FinalizeBlock()
@@ -496,7 +498,7 @@ func (impl *ProducerPluginImpl) ProduceBlock() {
 	chain.CommitBlock(true)
 
 	newBs := chain.HeadBlockState()
-	impl.ProducerWatermarks[newBs.Header.Producer] = chain.HeadBlockNum()
+	impl.ProducerWatermarks[&newBs.Header.Producer] = chain.HeadBlockNum()
 
 	fmt.Printf("Produced block %s...#%d @ %s signed by %s [trxs: %d, lib: %d, confirmed: %d]\n",
 		newBs.BlockId.String()[0:16], newBs.BlockNum, newBs.Header.Timestamp, common.S(uint64(newBs.Header.Producer)),

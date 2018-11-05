@@ -870,8 +870,8 @@ func removeUnique(db DataBase) {
 
 	tmp = DbTableIdObject{}
 	err = db.Find("id", obj, &tmp)
-	if err != ErrNotFound {
-		log.Fatalln(err)
+	if err == nil {
+		log.Fatalln("test remove failed")
 	}
 }
 
