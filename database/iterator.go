@@ -1,7 +1,6 @@
 package database
 
 import (
-	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/syndtr/goleveldb/leveldb"
 	"reflect"
 )
@@ -39,7 +38,7 @@ type DbIterator struct {
 	key      []byte
 	value    []byte
 	begin    []byte
-	beginVal    []byte
+	beginVal []byte
 	typeName []byte
 	db       *leveldb.DB // TODO interface
 	it       iterator
@@ -184,7 +183,7 @@ func (index *DbIterator) Data(data interface{}) error {
 		return ErrPtrNeeded
 	}
 
-	return rlp.DecodeBytes(index.Value(), data)
+	return DecodeBytes(index.Value(), data)
 }
 
 func (index *DbIterator) Key() []byte {
