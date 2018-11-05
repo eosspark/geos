@@ -25,30 +25,16 @@ func (f *FlatSet) Clear() {
 	}
 }
 
-func (f *FlatSet) searchLessSub(key uint64) int {
+func (f *FlatSet) searchSub(key uint64) int {
 	length := len(f.Data)
 	i, j := 0, length-1
 	for i < j {
 		h := int(uint(i+j) >> 1)
 		if i <= h && h < j {
-			if f.Data[h].GetKey() <= key {
+			if f.Data[h].GetKey() < key {
 				i = h + 1
-			} else {
-				j = h
-			}
-		}
-	}
-	return i
-}
-
-func (f *FlatSet) searchEqualSub(key uint64) int {
-	length := len(f.Data)
-	i, j := 0, length-1
-	for i < j {
-		h := int(uint(i+j) >> 1)
-		if i <= h && h < j {
-			if f.Data[h].GetKey() == key {
-				i = h + 1
+			} else if f.Data[h].GetKey() == key {
+				return h
 			} else {
 				j = h
 			}
@@ -57,7 +43,7 @@ func (f *FlatSet) searchEqualSub(key uint64) int {
 	return i
 }
 func (f *FlatSet) FindData(key uint64) (Element, int) {
-	r := f.searchEqualSub(key)
+	r := f.searchSub(key)
 
 	if r >= 0 && key == f.Data[r].GetKey() {
 		return f.Data[r], r
@@ -67,7 +53,7 @@ func (f *FlatSet) FindData(key uint64) (Element, int) {
 }
 
 func (f *FlatSet) Find(element Element) (bool, int) {
-	r := f.searchEqualSub(element.GetKey())
+	r := f.searchSub(element.GetKey())
 	if r >= 0 && element.GetKey() == f.Data[r].GetKey() {
 		return true, r
 	}
@@ -83,7 +69,7 @@ func (f *FlatSet) Insert(element Element) (Element, bool) {
 		f.Data = append(f.Data, element)
 		result = f.Data[0]
 	} else {
-		r := f.searchLessSub(element.GetKey())
+		r := f.searchSub(element.GetKey())
 		if target[0].GetKey() < element.GetKey() && element.GetKey() < target[length-1].GetKey() {
 			//Insert middle
 			if element.GetKey() == target[r-1].GetKey() {

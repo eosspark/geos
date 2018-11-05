@@ -30,7 +30,7 @@ type BlockHeaderState struct {
 
 type AccountNameBlockNum struct {
 	AccountName common.AccountName
-	BlockNum 	uint32
+	BlockNum    uint32
 }
 
 func (a AccountNameBlockNum) GetKey() uint64 {
@@ -67,18 +67,18 @@ func (b *BlockHeaderState) GenerateNext(when common.BlockTimeStamp) *BlockHeader
 		when = b.Header.Timestamp + 1
 	}
 
-	result.Header.Timestamp 		= when
-	result.Header.Previous  		= b.BlockId
-	result.Header.ScheduleVersion   = b.ActiveSchedule.Version
+	result.Header.Timestamp = when
+	result.Header.Previous = b.BlockId
+	result.Header.ScheduleVersion = b.ActiveSchedule.Version
 
-	proKey 				  		   := b.GetScheduledProducer(when)
-	result.BlockSigningKey		    = proKey.BlockSigningKey
-	result.Header.Producer		    = proKey.ProducerName
+	proKey := b.GetScheduledProducer(when)
+	result.BlockSigningKey = proKey.BlockSigningKey
+	result.Header.Producer = proKey.ProducerName
 
-	result.PendingScheduleLibNum 	= b.PendingScheduleLibNum
-	result.PendingScheduleHash 		= b.PendingScheduleHash
-	result.BlockNum 				= b.BlockNum + 1
-	result.ProducerToLastProduced   = b.ProducerToLastProduced
+	result.PendingScheduleLibNum = b.PendingScheduleLibNum
+	result.PendingScheduleHash = b.PendingScheduleHash
+	result.BlockNum = b.BlockNum + 1
+	result.ProducerToLastProduced = b.ProducerToLastProduced
 	result.ProducerToLastImpliedIrb = b.ProducerToLastImpliedIrb
 	result.ProducerToLastProduced.Update(AccountNameBlockNum{proKey.ProducerName, result.BlockNum})
 	result.BlockrootMerkle = b.BlockrootMerkle
