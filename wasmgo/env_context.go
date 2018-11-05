@@ -4,7 +4,7 @@ import (
 	//"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	arithmetic "github.com/eosspark/eos-go/common/arithmetic_types"
-	//"github.com/eosspark/eos-go/entity"
+	//"github.com/eosspark/eos-go/log"
 )
 
 type EnvContext interface {
@@ -100,4 +100,6 @@ type EnvContext interface {
 
 	PauseBillingTimer()
 	ResumeBillingTimer()
+
+	//GetLogger() *log.Logger
 }

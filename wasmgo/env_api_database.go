@@ -23,7 +23,7 @@ func dbStoreI64(w *WasmGo, scope uint64, table uint64, payer uint64, id uint64, 
 //    context.db_update_i64( itr, payer, buffer, buffer_size );
 // }
 func dbUpdateI64(w *WasmGo, itr int, payer uint64, buffer int, bufferSize int) {
-	fmt.Println("db_update_i64")
+	//fmt.Println("db_update_i64")
 
 	bytes := getMemory(w, buffer, bufferSize)
 	w.context.DbUpdateI64(itr, payer, bytes)
@@ -42,22 +42,31 @@ func dbRemoveI64(w *WasmGo, itr int) {
 //    return context.db_get_i64( itr, buffer, buffer_size );
 // }
 func dbGetI64(w *WasmGo, itr int, buffer int, bufferSize int) int {
-	fmt.Println("db_get_i64")
+	//fmt.Println("db_get_i64")
 
 	bytes := make([]byte, bufferSize)
-	return w.context.DbGetI64(itr, bytes, bufferSize)
+	size := w.context.DbGetI64(itr, bytes, bufferSize)
+	if bufferSize == 0 {
+		return size
+	}
+	setMemory(w, buffer, bytes, 0, size)
+	return size
 }
 
 // int db_next_i64( int itr, uint64_t& primary ) {
 //    return context.db_next_i64(itr, primary);
 // }
 func dbNextI64(w *WasmGo, itr int, primary int) int {
-	fmt.Println("db_next_i64")
+	//fmt.Println("db_next_i64")
 
 	var p uint64
 	iterator := w.context.DbNextI64(itr, &p)
-	setUint64(w, primary, p)
+	w.ilog.Info("dbNextI64 iterator:%d", iterator)
 
+	if iterator == -1 {
+		return iterator
+	}
+	setUint64(w, primary, p)
 	return iterator
 }
 
@@ -65,10 +74,14 @@ func dbNextI64(w *WasmGo, itr int, primary int) int {
 //    return context.db_previous_i64(itr, primary);
 // }
 func dbPreviousI64(w *WasmGo, itr int, primary int) int {
-	fmt.Println("db_previous_i64")
+	//fmt.Println("db_previous_i64")
 
 	var p uint64
 	iterator := w.context.DbPreviousI64(itr, &p)
+	w.ilog.Info("dbNextI64 iterator:%d", iterator)
+	if iterator == -1 {
+		return iterator
+	}
 	setUint64(w, primary, p)
 	return iterator
 }
@@ -77,7 +90,7 @@ func dbPreviousI64(w *WasmGo, itr int, primary int) int {
 //    return context.db_find_i64( code, scope, table, id );
 // }
 func dbFindI64(w *WasmGo, code uint64, scope uint64, table uint64, id uint64) int {
-	fmt.Println("db_find_i64")
+	//fmt.Println("db_find_i64")
 	return w.context.DbFindI64(code, scope, table, id)
 }
 
@@ -115,7 +128,7 @@ func dbIdx64Store(w *WasmGo, scope uint64, table uint64, payer uint64, id uint64
 }
 
 func dbIdx64Remove(w *WasmGo, itr int) {
-	fmt.Println("db_idx64_remove")
+	//fmt.Println("db_idx64_remove")
 	w.context.Idx64Remove(itr)
 }
 
@@ -173,8 +186,10 @@ func dbIdx64Next(w *WasmGo, itr int, primary int) int {
 	fmt.Println("db_idx64_next")
 
 	var p uint64
-
 	iterator := w.context.Idx64Next(itr, &p)
+	if iterator == -1 {
+		return iterator
+	}
 	setUint64(w, primary, p)
 
 	return iterator
@@ -184,8 +199,10 @@ func dbIdx64Previous(w *WasmGo, itr int, primary int) int {
 	fmt.Println("db_idx64_previous")
 
 	var p uint64
-
 	iterator := w.context.Idx64Previous(itr, &p)
+	if iterator == -1 {
+		return iterator
+	}
 	setUint64(w, primary, p)
 
 	return iterator

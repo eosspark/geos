@@ -67,8 +67,6 @@ func NewApplyContext(control *Controller, trxContext *TransactionContext, act *t
 	applyContext.idxDouble = NewIdxDouble(applyContext)
 
 	applyContext.ilog = log.New("Apply_Context")
-	//applyContext.ilog.SetHandler(log.)
-
 	applyContext.ilog.SetHandler(log.StreamHandler(os.Stdout, log.TerminalFormat(true)))
 
 	return applyContext
@@ -101,6 +99,8 @@ func (i *iteratorCache) endIteratorToIndex(ei int) int    { return (-ei - 2) }
 func (i *iteratorCache) IndexToEndIterator(index int) int { return -(index + 2) }
 func (i *iteratorCache) cacheTable(tobj *entity.TableIdObject) int {
 	if itr, ok := i.tableCache[tobj.ID]; ok {
+
+		itr.tableIDObject = tobj
 		return itr.iterator
 	}
 
@@ -582,7 +582,7 @@ func (a *ApplyContext) dbStoreI64(code uint64, scope uint64, table uint64, payer
 		Payer:      common.AccountName(payer),
 	}
 
-	a.ilog.Info("obj:%v", obj)
+	a.ilog.Info("DbStoreI64 obj:%v", obj)
 
 	a.DB.Insert(&obj)
 	a.DB.Modify(tab, func(t *entity.TableIdObject) {
@@ -662,8 +662,6 @@ func (a *ApplyContext) DbNextI64(iterator int, primary *uint64) int {
 	obj := (a.KeyvalCache.get(iterator)).(*entity.KeyValueObject)
 	idx, _ := a.DB.GetIndex("byScopePrimary", obj)
 
-	key := common.S(obj.PrimaryKey)
-
 	itr := idx.IteratorTo(obj)
 	ok := itr.Next()
 
@@ -672,23 +670,20 @@ func (a *ApplyContext) DbNextI64(iterator int, primary *uint64) int {
 		itr.Data(&objKeyval)
 	}
 
+	a.ilog.Info("DbNextI64 obj:%v", objKeyval)
+
 	if idx.CompareEnd(itr) || objKeyval.TId != obj.TId {
 		return a.KeyvalCache.getEndIteratorByTableID(obj.TId)
 	}
 
 	*primary = objKeyval.PrimaryKey
 
-	key = common.S(objKeyval.PrimaryKey)
-	fmt.Println(key)
-
 	return a.KeyvalCache.add(&objKeyval)
 }
 
 func (a *ApplyContext) DbPreviousI64(iterator int, primary *uint64) int {
 
-	idx, err := a.DB.GetIndex("byScopePrimary", entity.KeyValueObject{})
-
-	fmt.Println(err)
+	idx, _ := a.DB.GetIndex("byScopePrimary", entity.KeyValueObject{})
 
 	if iterator < -1 {
 		tab := a.KeyvalCache.findTablebyEndIterator(iterator)
@@ -716,6 +711,7 @@ func (a *ApplyContext) DbPreviousI64(iterator int, primary *uint64) int {
 	itr.Prev()
 	objPrev := entity.KeyValueObject{}
 	itr.Data(&objPrev)
+	a.ilog.Info("DbPreviousI64 obj:%v", objPrev)
 
 	if objPrev.TId != obj.TId {
 		return -1
@@ -1016,3 +1012,8 @@ func (a *ApplyContext) ResumeBillingTimer() {
 	a.TrxContext.ResumeBillingTimer()
 
 }
+
+//func (a *ApplyContext) GetLogger() *log.Logger {
+//
+//	return a.ilog
+//}
