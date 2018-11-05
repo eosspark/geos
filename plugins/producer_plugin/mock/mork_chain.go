@@ -95,9 +95,6 @@ func Initialize() {
 	genHeader.BlockId = genHeader.Header.BlockID()
 	genHeader.BlockNum = genHeader.Header.BlockNumber()
 
-	genHeader.ProducerToLastProduced = make(map[common.AccountName]uint32)
-	genHeader.ProducerToLastImpliedIrb = make(map[common.AccountName]uint32)
-
 	chain.head = types.NewBlockState(genHeader)
 	chain.head.SignedBlock = new(types.SignedBlock)
 	chain.head.SignedBlock.SignedBlockHeader = genHeader.Header
@@ -140,34 +137,34 @@ func (c Controller) GetScheduledTransactions() []common.TransactionIdType {
 }
 
 func (c *Controller) AbortBlock() {
-	fmt.Println("abort block...")
+	//fmt.Println("abort block...")
 	if c.pending != nil {
 		c.pending = nil
 	}
 }
 
 func (c *Controller) StartBlock(when common.BlockTimeStamp, confirmBlockCount uint16) {
-	fmt.Println("start block...")
+	//fmt.Println("start block...")
 	chain.pending = types.NewBlockState2(&c.head.BlockHeaderState, when)
 	chain.pending.SetConfirmed(confirmBlockCount)
 
 }
 func (c *Controller) FinalizeBlock() {
-	fmt.Println("finalize block...")
+	//fmt.Println("finalize block...")
 	c.pending.BlockId = c.pending.Header.BlockID()
 }
 
 func (c *Controller) SignBlock(callback func(sha256 crypto.Sha256) ecc.Signature) *types.SignedBlock {
-	fmt.Println("sign block...")
+	//fmt.Println("sign block...")
 	p := c.pending
 	p.Sign(callback)
-	println("after signer")
+	//println("after signer")
 	p.SignedBlock.SignedBlockHeader = p.Header
 	return p.SignedBlock
 }
 
 func (c *Controller) CommitBlock(addToForkDb bool) {
-	fmt.Println("commit block...")
+	//fmt.Println("commit block...")
 
 	if addToForkDb {
 		c.pending.Validated = true

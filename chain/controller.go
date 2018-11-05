@@ -1642,7 +1642,7 @@ func (c *Controller) updateProducersAuthority() {
 	updatePermission := func(permission *entity.PermissionObject, threshold uint32) {
 		auth := types.Authority{threshold, []types.KeyWeight{}, []types.PermissionLevelWeight{}, []types.WaitWeight{}}
 		for _, p := range producers {
-			auth.Accounts = append(auth.Accounts, types.PermissionLevelWeight{types.PermissionLevel{p.AccountName, common.DefaultConfig.ActiveName}, 1})
+			auth.Accounts = append(auth.Accounts, types.PermissionLevelWeight{types.PermissionLevel{p.ProducerName, common.DefaultConfig.ActiveName}, 1})
 		}
 		if !permission.Auth.Equals(auth.ToSharedAuthority()) {
 			c.DB.Modify(permission, func(param *types.Permission) {
