@@ -55,8 +55,8 @@ func NewProducerPlugin(io *asio.IoContext) ProducerPlugin {
 	my := new(ProducerPluginImpl)
 
 	my.Timer = common.NewTimer(io)
-	my.SignatureProviders = make(map[*ecc.PublicKey]signatureProviderType)
-	my.ProducerWatermarks = make(map[*common.AccountName]uint32)
+	my.SignatureProviders = make(map[ecc.PublicKey]signatureProviderType)
+	my.ProducerWatermarks = make(map[common.AccountName]uint32)
 
 	my.PersistentTransactions = make(transactionIdWithExpireIndex)
 	my.BlacklistedTransactions = make(transactionIdWithExpireIndex)
@@ -71,7 +71,7 @@ func NewProducerPlugin(io *asio.IoContext) ProducerPlugin {
 }
 
 func (p *ProducerPlugin) IsProducerKey(key ecc.PublicKey) bool {
-	privateKey := p.my.SignatureProviders[&key]
+	privateKey := p.my.SignatureProviders[key]
 	if privateKey != nil {
 		return true
 	}
@@ -80,7 +80,7 @@ func (p *ProducerPlugin) IsProducerKey(key ecc.PublicKey) bool {
 
 func (p *ProducerPlugin) SignCompact(key *ecc.PublicKey, digest crypto.Sha256) ecc.Signature {
 	if key != nil {
-		privateKeyFunc := p.my.SignatureProviders[key]
+		privateKeyFunc := p.my.SignatureProviders[*key]
 		EosAssert(privateKeyFunc != nil, &ProducerPrivKeyNotFound{}, "Local producer has no private key in config.ini corresponding to public key %s", key)
 
 		return privateKeyFunc(digest)
@@ -170,7 +170,7 @@ func (p *ProducerPlugin) PluginInitialize(app *cli.App) {
 				if err2 != nil {
 					panic(err2)
 				}
-				p.my.SignatureProviders[&pubKey] = makeKeySignatureProvider(priKey)
+				p.my.SignatureProviders[pubKey] = makeKeySignatureProvider(priKey)
 			}
 
 			for _, keySpecPair := range c.StringSlice("signature-provider") {
@@ -191,9 +191,9 @@ func (p *ProducerPlugin) PluginInitialize(app *cli.App) {
 					if specTypeStr == "KEY" {
 						priKey, e := ecc.NewPrivateKey(specData)
 						if e != nil { panic(nil) }
-						p.my.SignatureProviders[&pubKey] = makeKeySignatureProvider(priKey)
+						p.my.SignatureProviders[pubKey] = makeKeySignatureProvider(priKey)
 					} else if specTypeStr == "KEOSD" {
-						p.my.SignatureProviders[&pubKey] = makeKeosdSignatureProvider(p.my, specData, pubKey)
+						p.my.SignatureProviders[pubKey] = makeKeosdSignatureProvider(p.my, specData, pubKey)
 					}
 
 				}).Catch(func(interface{}) {

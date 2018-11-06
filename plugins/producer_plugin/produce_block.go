@@ -44,7 +44,7 @@ func (impl *ProducerPluginImpl) CalculateNextBlockTime(producerName *common.Acco
 	// disqualify this producer for longer but it is assumed they will wake up, determine that they
 	// are disqualified for longer due to skipped blocks and re-caculate their next block with better
 	// information then
-	currentWatermark, hasCurrentWatermark := impl.ProducerWatermarks[producerName]
+	currentWatermark, hasCurrentWatermark := impl.ProducerWatermarks[*producerName]
 	if hasCurrentWatermark {
 		blockNum := chain.PendingBlockState().BlockNum
 		if chain.PendingBlockState() != nil {
@@ -118,21 +118,25 @@ func (impl *ProducerPluginImpl) StartBlock() (EnumStartBlockRusult, bool) {
 	// Not our turn
 	lastBlock := uint32(common.NewBlockTimeStamp(blockTime))%uint32(common.DefaultConfig.ProducerRepetitions) == uint32(common.DefaultConfig.ProducerRepetitions)-1
 	scheduleProducer := hbs.GetScheduledProducer(common.NewBlockTimeStamp(blockTime))
-	currentWatermark, hasCurrentWatermark := impl.ProducerWatermarks[&scheduleProducer.ProducerName]
-	_, hasSignatureProvider := impl.SignatureProviders[&scheduleProducer.BlockSigningKey]
+	currentWatermark, hasCurrentWatermark := impl.ProducerWatermarks[scheduleProducer.ProducerName]
+	_, hasSignatureProvider := impl.SignatureProviders[scheduleProducer.BlockSigningKey]
 	irreversibleBlockAge := impl.GetIrreversibleBlockAge()
 
 	// If the next block production opportunity is in the present or future, we're synced.
 	if !impl.ProductionEnabled {
 		impl.PendingBlockMode = EnumPendingBlockMode(speculating)
+
 	} else if has, _ := impl.Producers.Find(&scheduleProducer.ProducerName); !has {
 		impl.PendingBlockMode = EnumPendingBlockMode(speculating)
+
 	} else if !hasSignatureProvider {
 		impl.PendingBlockMode = EnumPendingBlockMode(speculating)
 		//elog("Not producing block because I don't have the private key for ${scheduled_key}", ("scheduled_key", scheduled_producer.block_signing_key));
+
 	} else if impl.ProductionPaused {
 		//elog("Not producing block because production is explicitly paused");
 		impl.PendingBlockMode = EnumPendingBlockMode(speculating)
+
 	} else if impl.MaxIrreversibleBlockAgeUs >= 0 && irreversibleBlockAge >= impl.MaxIrreversibleBlockAgeUs {
 		//elog("Not producing block because the irreversible block is too old [age:${age}s, max:${max}s]", ("age", irreversible_block_age.count() / 1'000'000)( "max", _max_irreversible_block_age_us.count() / 1'000'000 ));
 		impl.PendingBlockMode = EnumPendingBlockMode(speculating)
@@ -486,7 +490,7 @@ func (impl *ProducerPluginImpl) ProduceBlock() {
 	pbs := chain.PendingBlockState()
 	EosAssert(pbs != nil, &MissingPendingBlockState{}, "pending_block_state does not exist but it should, another plugin may have corrupted it")
 
-	signatureProvider := impl.SignatureProviders[&pbs.BlockSigningKey]
+	signatureProvider := impl.SignatureProviders[pbs.BlockSigningKey]
 	EosAssert(signatureProvider != nil, &ProducerPrivKeyNotFound{}, "Attempting to produce a block for which we don't have the private key")
 
 	chain.FinalizeBlock()
@@ -498,7 +502,7 @@ func (impl *ProducerPluginImpl) ProduceBlock() {
 	chain.CommitBlock(true)
 
 	newBs := chain.HeadBlockState()
-	impl.ProducerWatermarks[&newBs.Header.Producer] = chain.HeadBlockNum()
+	impl.ProducerWatermarks[newBs.Header.Producer] = chain.HeadBlockNum()
 
 	fmt.Printf("Produced block %s...#%d @ %s signed by %s [trxs: %d, lib: %d, confirmed: %d]\n",
 		newBs.BlockId.String()[0:16], newBs.BlockNum, newBs.Header.Timestamp, common.S(uint64(newBs.Header.Producer)),

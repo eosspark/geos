@@ -1,9 +1,8 @@
 package try
 
 import (
-	"reflect"
-			"runtime"
-	)
+							"runtime"
+)
 
 //StackInfo store code informations when catched exception.
 type StackInfo struct {
@@ -19,6 +18,8 @@ type RuntimeError struct {
 	//StackTrace []StackInfo
 }
 
+const DEBUG = false
+
 func (rte RuntimeError) String() string {
 	return rte.Message
 }
@@ -29,6 +30,7 @@ type OrThrowable struct {
 
 //Try call the function. And return interface that can call Catch or Finally.
 func Try(f func()) (r *CatchOrFinally) {
+///*debug*/s := time.Now().Nanosecond()
 	defer func() {
 		if e := recover(); e != nil {
 
@@ -39,24 +41,19 @@ func Try(f func()) (r *CatchOrFinally) {
 			r = &CatchOrFinally{}
 			r.e = e
 
-			const size = 64 << 10
-			buf := make([]byte, size)
-			buf = buf[:runtime.Stack(buf, false)]
+			if DEBUG {
+				const size= 64 << 10
+				buf := make([]byte, size)
+				buf = buf[:runtime.Stack(buf, false)]
 
-			r.stackInfo = buf
+				r.stackInfo = buf
+			}
 
-			//i := 1
-			//for {
-			//	if p, f, l, o := runtime.Caller(i); o {
-			//		r.StackTrace = append(r.StackTrace, StackInfo{p, f, l})
-			//		i++
-			//	} else {
-			//		break
-			//	}
-			//}
 		}
+///*debug*/fmt.Println("try", time.Now().Nanosecond() - s, "ns")
 	}()
-	reflect.ValueOf(f).Call([]reflect.Value{})
+
+	f()
 	return nil
 }
 
@@ -65,15 +62,16 @@ func Throw(e interface{}) {
 	panic(e)
 }
 
-
 type returnTypes struct{}
 
 //Just use in try-catch block, you should update return-value before call it
+//Deprecated: use returning flag instead
 func Return() {
 	panic(returnTypes{})
 }
 
 //Use defer HandleReturn() before try-catch block when the block includes Return function
+//Deprecated: use returning flag instead
 func HandleReturn() {
 	if rv := recover(); rv != nil {
 		if _, ok := rv.(returnTypes); !ok {

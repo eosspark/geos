@@ -2,11 +2,10 @@ package common
 
 type Tuple []interface{}
 
-func MakeTuple(in ...interface{}) (out Tuple) {
-	for _, content := range in {
-		out = append(out, content)
-	}
-	return
+func MakeTuple(in ...interface{}) Tuple {
+	out := make([]interface{}, 0, len(in)) //alloc capacity
+	out = append(out, in...)
+	return out
 }
 
 // used for pair encode

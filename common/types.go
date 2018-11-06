@@ -13,7 +13,7 @@ import (
 	"time"
 )
 
-type SizeT int
+type SizeT = int
 
 // For reference:
 // https://github.com/mithrilcoin-io/EosCommander/blob/master/app/src/main/java/io/mithrilcoin/eoscommander/data/remote/model/types/EosByteWriter.java
@@ -56,38 +56,12 @@ func DecodeIdTypeByte(b []byte) (id [4]uint64, err error) {
 	return id, nil
 }
 
-type Name uint64
+
 type AccountName 	= Name
 type PermissionName = Name
 type ActionName 	= Name
 type TableName 		= Name
 type ScopeName 		= Name
-
-func (n Name) String() string {
-	return S(uint64(n))
-}
-func (n *Name) GetKey() uint64 {
-	return uint64(*n)
-}
-
-func (n Name) Empty() bool {
-	return n == 0
-}
-
-func (n Name) MarshalJSON() ([]byte, error) {
-	return json.Marshal(S(uint64(n)))
-}
-
-func (n *Name) UnmarshalJSON(data []byte) error {
-	var s string
-	err := json.Unmarshal(data, &s)
-	if err != nil {
-		return err
-	}
-	*n = Name(N(s))
-	return nil
-}
-
 
 // type AccountResourceLimit struct {
 // 	Used      JSONInt64 `json:"used"`

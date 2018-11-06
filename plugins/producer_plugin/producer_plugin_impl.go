@@ -18,10 +18,10 @@ type ProducerPluginImpl struct {
 	ProductionPaused    bool
 	ProductionSkipFlags uint32
 
-	SignatureProviders map[*ecc.PublicKey]signatureProviderType
+	SignatureProviders map[ecc.PublicKey]signatureProviderType
 	Producers          common.FlatSet //<AccountName>
 	Timer              *common.Timer
-	ProducerWatermarks map[*common.AccountName]uint32
+	ProducerWatermarks map[common.AccountName]uint32
 	PendingBlockMode   EnumPendingBlockMode
 
 	PersistentTransactions  transactionIdWithExpireIndex
@@ -111,7 +111,7 @@ func (impl *ProducerPluginImpl) OnBlock(bsp *types.BlockState) {
 			}()
 
 			if itr != nil {
-				privateKeyItr := impl.SignatureProviders[&itr.BlockSigningKey]
+				privateKeyItr := impl.SignatureProviders[itr.BlockSigningKey]
 				if privateKeyItr != nil {
 					//TODO signal ConfirmedBlock
 					//d := bsp.SigDigest()
@@ -176,8 +176,8 @@ func (impl *ProducerPluginImpl) OnBlock(bsp *types.BlockState) {
 			newProducers.Erase(&p.ProducerName) //TODO check FlatSet::Erase
 		}
 
-		for _,newProducer := range newProducers.Data {
-			impl.ProducerWatermarks[newProducer.(*common.AccountName)] = hbn
+		for _, newProducer := range newProducers.Data {
+			impl.ProducerWatermarks[*newProducer.(*common.AccountName)] = hbn
 		}
 	}
 }
@@ -209,17 +209,21 @@ func (impl *ProducerPluginImpl) OnIncomingBlock(block *types.SignedBlock) {
 	// push the new block
 	except := false
 
-	defer HandleReturn()
+	returning := false
 	Try(func() {
 		chain.PushBlock(block, types.BlockStatus(types.Complete))
 	}).Catch(func(e GuardExceptions) {
 		fmt.Println(e.Message())
 		//TODO: handle_guard_exception
-		Return()
+		returning = true
 	}).Catch(func(e Exception) {
 		fmt.Println(e.Message())
 		except = true
 	}).End()
+
+	if returning {
+		return
+	}
 
 	if except {
 		//TODO:C++ app().get_channel<channels::rejected_block>().publish( block );

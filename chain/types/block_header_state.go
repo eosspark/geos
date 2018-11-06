@@ -92,7 +92,6 @@ func (b *BlockHeaderState) GenerateNext(when common.BlockTimeStamp) *BlockHeader
 	result.ProducerToLastImpliedIrb.Update(AccountNameBlockNum{proKey.ProducerName, result.DposProposedIrreversibleBlocknum})
 	result.DposIrreversibleBlocknum = result.CalcDposLastIrreversible()
 
-	println("irb", result.DposIrreversibleBlocknum)
 	/// grow the confirmed count
 	if common.DefaultConfig.MaxProducers*2/3+1 > 0xff {
 		panic("8bit confirmations may not be able to hold all of the needed confirmations")
