@@ -1,39 +1,36 @@
 package chain_plugin
 
 import  (
-	. "github.com/eosspark/eos-go/plugins/appbase/app/include"
-	"github.com/eosspark/eos-go/plugins/appbase/app"
+	. "github.com/eosspark/eos-go/plugins/appbase/app"
+	"github.com/urfave/cli"
+	"fmt"
 )
 
 type ChainPlugin struct {
 	AbstractPlugin
 }
 
+var chainPlugin *ChainPlugin
+
 func init() {
-	var chainPlugin = new(ChainPlugin)
-	//chainPlugin.Plugin = chainPlugin
+	chainPlugin = new(ChainPlugin)
+	chainPlugin.Plugin = chainPlugin
 	chainPlugin.Name = "ChainPlugin"
 	chainPlugin.State = Registered
-	app.App.RegisterPlugin(chainPlugin)
+	App.RegisterPlugin(chainPlugin)
 }
 
-func (chainPlugin *ChainPlugin)SetProgramOptions() {
 
+func (chainPlugin *ChainPlugin) SetProgramOptions(options *cli.App) {
+	fmt.Println("ChainPlugin SetProgramOptions")
+	fmt.Println(options.Name)
 }
 func (chainPlugin *ChainPlugin) PluginInitialize() {
-
+	fmt.Println("chainPlugin PluginInitialize")
 }
 func (chainPlugin *ChainPlugin) PluginStartUp() {
-
+	fmt.Println("chainPlugin PluginStartUp")
 }
 func (chainPlugin *ChainPlugin)PluginShutDown() {
-
-}
-
-func (chainPlugin *ChainPlugin) GetName() string {
-	return chainPlugin.Name
-}
-func (chainPlugin *ChainPlugin) GetState() State {
-	return chainPlugin.State
 
 }
