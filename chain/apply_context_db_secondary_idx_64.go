@@ -31,6 +31,8 @@ func (i *Idx64) store(scope uint64, table uint64, payer uint64, id uint64, secon
 		Payer:        common.AccountName(payer),
 	}
 
+	i.context.ilog.Info("Idx64 store:%v", obj)
+
 	i.context.DB.Insert(&obj)
 	i.context.DB.Modify(tab, func(t *entity.TableIdObject) {
 		t.Count++
@@ -39,7 +41,7 @@ func (i *Idx64) store(scope uint64, table uint64, payer uint64, id uint64, secon
 	i.context.UpdateDbUsage(common.AccountName(payer), int64(common.BillableSizeV("index64_object")))
 
 	i.itrCache.cacheTable(tab)
-	return i.itrCache.add(obj)
+	return i.itrCache.add(&obj)
 }
 
 func (i *Idx64) remove(iterator int) {
@@ -187,6 +189,8 @@ func (i *Idx64) next(iterator int, primary *uint64) int {
 	objNext := entity.SecondaryObjectI64{}
 	itr.Data(&objNext)
 
+	i.context.ilog.Info("Idx64 objNext:%v", objNext)
+
 	if idx.CompareEnd(itr) || objNext.TId != obj.TId {
 		return i.itrCache.getEndIteratorByTableID(obj.TId)
 	}
@@ -233,7 +237,7 @@ func (i *Idx64) previous(iterator int, primary *uint64) int {
 	itr.Prev()
 	objPrev := entity.SecondaryObjectI64{}
 	itr.Data(&objPrev)
-
+	i.context.ilog.Info("Idx64 objPrev:%v", objPrev)
 	if objPrev.TId != obj.TId {
 		return -1
 	}
@@ -241,7 +245,7 @@ func (i *Idx64) previous(iterator int, primary *uint64) int {
 	return i.itrCache.add(&objPrev)
 }
 
-func (i *Idx64) findPrimary(code uint64, scope uint64, table uint64, secondary *uint64, primary *uint64) int {
+func (i *Idx64) findPrimary(code uint64, scope uint64, table uint64, secondary *uint64, primary uint64) int {
 
 	tab := i.context.FindTable(code, scope, table)
 	if tab == nil {
@@ -250,14 +254,13 @@ func (i *Idx64) findPrimary(code uint64, scope uint64, table uint64, secondary *
 
 	tableEndItr := i.itrCache.cacheTable(tab)
 
-	obj := entity.SecondaryObjectI64{TId: tab.ID, PrimaryKey: *primary}
+	obj := entity.SecondaryObjectI64{TId: tab.ID, PrimaryKey: primary}
 	err := i.context.DB.Find("byPrimary", obj, &obj)
-
-	*secondary = obj.SecondaryKey
-
 	if err != nil {
 		return tableEndItr
 	}
+
+	*secondary = obj.SecondaryKey
 	return i.itrCache.add(&obj)
 }
 

@@ -760,6 +760,7 @@ func (a *ApplyContext) DbLowerboundI64(code uint64, scope uint64, table uint64, 
 
 	objLowerbound := entity.KeyValueObject{}
 	itr.Data(&objLowerbound)
+	a.ilog.Info("DbLowerboundI64 obj:%v", objLowerbound)
 	if objLowerbound.TId != tab.ID {
 		return tableEndItr
 	}
@@ -786,6 +787,7 @@ func (a *ApplyContext) DbUpperboundI64(code uint64, scope uint64, table uint64, 
 
 	objUpperbound := entity.KeyValueObject{}
 	itr.Data(&objUpperbound)
+	a.ilog.Info("DbUpperboundI64 obj:%v", objUpperbound)
 
 	if objUpperbound.TId != tab.ID {
 		return tableEndItr
@@ -834,7 +836,7 @@ func (a *ApplyContext) Idx64Next(iterator int, primary *uint64) int {
 func (a *ApplyContext) Idx64Previous(iterator int, primary *uint64) int {
 	return a.idx64.previous(iterator, primary)
 }
-func (a *ApplyContext) Idx64FindPrimary(code uint64, scope uint64, table uint64, secondary *uint64, primary *uint64) int {
+func (a *ApplyContext) Idx64FindPrimary(code uint64, scope uint64, table uint64, secondary *uint64, primary uint64) int {
 	//a.idx64.update(iterator, payer, value)
 	return a.idx64.findPrimary(code, scope, table, secondary, primary)
 }

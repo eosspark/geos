@@ -43,7 +43,7 @@ func (i *IdxDouble) store(scope uint64, table uint64, payer uint64, id uint64, s
 	i.context.UpdateDbUsage(common.AccountName(payer), int64(common.BillableSizeV("index_double_object")))
 
 	i.itrCache.cacheTable(tab)
-	return i.itrCache.add(obj)
+	return i.itrCache.add(&obj)
 }
 
 func (i *IdxDouble) remove(iterator int) {
@@ -247,12 +247,12 @@ func (i *IdxDouble) findPrimary(code uint64, scope uint64, table uint64, seconda
 
 	obj := entity.SecondaryObjectDouble{TId: tab.ID, PrimaryKey: *primary}
 	err := i.context.DB.Find("byPrimary", obj, &obj)
-
-	*secondary = obj.SecondaryKey
-
 	if err != nil {
 		return tableEndItr
 	}
+
+	*secondary = obj.SecondaryKey
+
 	return i.itrCache.add(&obj)
 }
 
