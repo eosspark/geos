@@ -524,15 +524,20 @@ func (c *Controller) Close() {
 	c.ForkDB.DB.Close()
 	c.DB.Close()
 	c.ReversibleBlocks.Close()
-	fmt.Println("Controller destory!")
+
+	log.Info("Controller destory!")
+	c.testClean()
+	isActiveController = false
+	c = nil
 }
 
-func (c *Controller) Clean() {
+func (c *Controller) testClean() {
 	err := os.RemoveAll("/tmp/data/")
 	if err != nil {
-		fmt.Println("Node data has been emptied is error:", err)
+		log.Error("Node data has been emptied is error:", err)
 	}
 }
+
 func (c *Controller) GetUnAppliedTransactions() *[]types.TransactionMetadata {
 	result := []types.TransactionMetadata{}
 	if c.ReadMode == SPECULATIVE {
@@ -540,7 +545,7 @@ func (c *Controller) GetUnAppliedTransactions() *[]types.TransactionMetadata {
 			result = append(result, v)
 		}
 	} else {
-		fmt.Println("not empty unapplied_transactions in non-speculative mode")
+		log.Info("not empty unapplied_transactions in non-speculative mode")
 	}
 	return &result
 }
@@ -564,7 +569,7 @@ func (c *Controller) GetScheduledTransactions() []common.TransactionIdType {
 		err = itr.Data(&gto)
 	}
 	if err != nil {
-		fmt.Println(err)
+		log.Error("Controller GetScheduledTransactions is error", err)
 	}
 	itr.Release()
 	return result
@@ -612,7 +617,7 @@ func (c *Controller) pushScheduledTransactionByObject(gto *entity.GeneratedTrans
 
 	err := rlp.DecodeBytes(gtrx.PackedTrx, &dtrx)
 	if err != nil {
-		fmt.Println("PushScheduleTransaction1 DecodeBytes is error :", err.Error())
+		log.Error("PushScheduleTransaction1 DecodeBytes is error :", err.Error())
 	}
 
 	trx := &types.TransactionMetadata{}
@@ -655,7 +660,7 @@ func (c *Controller) pushScheduledTransactionByObject(gto *entity.GeneratedTrans
 		v := false
 		defer func() {
 			if v {
-				fmt.Println("defer func exec")
+				log.Info("defer func exec")
 			}
 		}() //TODO
 		trace.Receipt = (*c.pushReceipt(gtrx.TrxId, types.TransactionStatusExecuted, uint64(trxContext.BilledCpuTimeUs), trace.NetUsage)).TransactionReceiptHeader
@@ -667,7 +672,7 @@ func (c *Controller) pushScheduledTransactionByObject(gto *entity.GeneratedTrans
 		v = true
 		//return trace
 	}).Catch(func(ex Exception) {
-		fmt.Println("PushScheduledTransaction is error:", ex)
+		log.Error("PushScheduledTransaction is error:", ex)
 		cpuTimeToBillUs = trxContext.UpdateBilledCpuTime(common.Now())
 		trace.Except = ex
 		trace.ExceptPtr = &ex
@@ -727,7 +732,7 @@ func (c *Controller) pushScheduledTransactionByObject(gto *entity.GeneratedTrans
 	//}
 	//TODO
 
-	fmt.Println("test print:", dtrx, trx) //TODO
+	log.Info("test print:", dtrx, trx) //TODO
 	return trace
 }
 
@@ -740,7 +745,7 @@ func applyOnerror(gtrx *entity.GeneratedTransaction, deadline common.TimePoint, 
 	return nil
 }
 func (c *Controller) RemoveScheduledTransaction(gto *entity.GeneratedTransactionObject) {
-	c.ResourceLimits.AddPendingRamUsage(gto.Payer, int64(9)+int64(len(gto.PackedTrx))) //TODO billable_size_v
+	c.ResourceLimits.AddPendingRamUsage(gto.Payer, int64(9)+int64(len(gto.PackedTrx)))
 	c.DB.Remove(gto)
 }
 
@@ -1004,7 +1009,7 @@ func (c *Controller) GetAccount(name common.AccountName) *entity.AccountObject {
 	accountObj.Name = name
 	err := c.DB.Find("byName", accountObj, &accountObj)
 	if err != nil {
-		fmt.Println("GetAccount is error :", err)
+		log.Error("GetAccount is error :", err)
 	}
 	return &accountObj
 }
@@ -1266,7 +1271,7 @@ func (c *Controller) ValidateTapos(t *types.Transaction) {
 	taposBlockSummary := entity.BlockSummaryObject{}
 	err := c.DB.Find("", in, &taposBlockSummary)
 	if err != nil {
-		fmt.Println("ValidateTapos Is Error:", err)
+		log.Error("ValidateTapos Is Error:", err)
 	}
 	EosAssert(t.VerifyReferenceBlock(&taposBlockSummary.BlockId), &InvalidRefBlockException{},
 		"Transaction's reference block did not match. Is this transaction from a different fork? taposBlockSummary:%v", taposBlockSummary)
@@ -1300,7 +1305,7 @@ func (c *Controller) IsKnownUnexpiredTransaction(id *common.TransactionIdType) b
 	in.TrxID = *id
 	err := c.DB.Find("byTrxId", in, &result)
 	if err != nil {
-		fmt.Println("IsKnownUnexpiredTransaction Is Error:", err)
+		log.Error("IsKnownUnexpiredTransaction Is Error:", err)
 	}
 	return common.Empty(result)
 }
@@ -1380,9 +1385,7 @@ func (c *Controller) FindApplyHandler(receiver common.AccountName,
 	second, ok := c.ApplyHandlers[receiver]
 	if ok {
 		handler, success := second[handlerKey]
-		fmt.Println("find second:", success)
 		if success {
-			fmt.Println("-=-=-=-=-=-=-=-==-=-=-=-=-=-=", handler)
 			return handler
 		}
 	}
@@ -1411,7 +1414,7 @@ func (c *Controller) CreateNativeAccount(name common.AccountName, owner types.Au
 	}
 	err := c.DB.Insert(&account)
 	if err != nil {
-		fmt.Println("CreateNativeAccount Insert Is Error:", err)
+		log.Error("CreateNativeAccount Insert Is Error:", err)
 	}
 
 	aso := entity.AccountSequenceObject{}
@@ -1423,11 +1426,10 @@ func (c *Controller) CreateNativeAccount(name common.AccountName, owner types.Au
 	activePermission := c.Authorization.CreatePermission(name, common.PermissionName(common.DefaultConfig.ActiveName), PermissionIdType(ownerPermission.ID), active, c.Config.genesis.InitialTimestamp)
 
 	c.ResourceLimits.InitializeAccount(name)
-	ramDelta := uint64(common.DefaultConfig.OverheadPerAccountRamBytes) //TODO c++ reference int64 but statement uint32
-	ramDelta += 2 * common.BillableSizeV("permission_object")           //::billable_size_v<permission_object>
+	ramDelta := uint64(common.DefaultConfig.OverheadPerAccountRamBytes)
+	ramDelta += 2 * common.BillableSizeV("permission_object") //::billable_size_v<permission_object>
 	ramDelta += ownerPermission.Auth.GetBillableSize()
 	ramDelta += activePermission.Auth.GetBillableSize()
-	//fmt.Println("====================ramDelta:", ramDelta)
 	c.ResourceLimits.AddPendingRamUsage(name, int64(ramDelta))
 	c.ResourceLimits.VerifyAccountRamUsage(name)
 }
@@ -1449,7 +1451,7 @@ func (c *Controller) initializeForkDB() {
 	signedBlock := types.SignedBlock{}
 	signedBlock.SignedBlockHeader = genHeader.Header
 	c.Head.SignedBlock = &signedBlock
-	fmt.Println("initializeForkDB:", c.ForkDB.DB)
+	log.Info("Controller initializeForkDB:", c.ForkDB.DB)
 	c.ForkDB.SetHead(c.Head)
 	c.DB.SetRevision(int64(c.Head.BlockNum))
 	c.initializeDatabase()
@@ -1470,27 +1472,21 @@ func (c *Controller) initializeDatabase() {
 	gpo.Configuration = gi
 	err := c.DB.Insert(&gpo)
 	if err != nil {
-		fmt.Println("-----------------", err)
+		log.Error("Controller initializeDatabase insert GlobalPropertyObject is error:", err)
 	}
 	dgpo := entity.DynamicGlobalPropertyObject{}
 	dgpo.ID = 1
 	//dgpo.GlobalActionSequence = 10000
 	err = c.DB.Insert(&dgpo)
 	if err != nil {
-		fmt.Println("dgpo insert error:-----------------", err)
+		log.Error("Controller initializeDatabase insert DynamicGlobalPropertyObject is error:", err)
 	}
-	/*tmp := entity.DynamicGlobalPropertyObject{}
-	err=c.DB.Find("id",dgpo,&tmp)
-	fmt.Println("==========================",tmp,err)*/
-	/*fmt.Println("initializeDatabase gi:", gi)
-	fmt.Println("initializeDatabase insert gpo:", gpo)*/
-	//c.Authorization.InitializeDatabase()				//TODO
+
 	c.ResourceLimits.InitializeDatabase()
 	systemAuth := types.Authority{}
 	kw := types.KeyWeight{}
 	kw.Key = c.Config.genesis.InitialKey
 	systemAuth.Keys = []types.KeyWeight{kw}
-	//fmt.Println("initializeDatabase systemAuth:", systemAuth)
 	c.CreateNativeAccount(common.DefaultConfig.SystemAccountName, systemAuth, systemAuth, true)
 	emptyAuthority := types.Authority{}
 	emptyAuthority.Threshold = 1
@@ -1515,7 +1511,7 @@ func (c *Controller) initializeDatabase() {
 		activeProducersAuthority,
 		c.Config.genesis.InitialTimestamp)
 
-	fmt.Println("initializeDatabase print:", majorityPermission, minorityPermission)
+	log.Info("initializeDatabase print:", majorityPermission, minorityPermission)
 }
 
 func (c *Controller) initialize() {
@@ -1556,7 +1552,7 @@ func (c *Controller) initialize() {
 			c.RePlaying = false
 			//c.ReplayHeadTime = nil
 
-			fmt.Println("test print:", replaying, replayHeadTime, start, next, rev, end)
+			log.Info("test print:", replaying, replayHeadTime, start, next, rev, end)
 		} else if !common.Empty(end) {
 			c.Blog.ResetToGenesis(&c.Config.genesis, c.Head.SignedBlock)
 		}
@@ -1573,7 +1569,6 @@ func (c *Controller) initialize() {
 
 //c++ pair<scope_name,action_name>
 type HandlerKey struct {
-	//handMap map[common.AccountName]common.ActionName
 	scope  common.ScopeName
 	action common.ActionName
 }
@@ -1601,7 +1596,7 @@ func (c *Controller) clearExpiredInputTransactions() {
 		if itr != nil {
 			err = itr.Data(tmp)
 			if err != nil {
-				fmt.Println("TransactionIdx.Begin Is Error:", err)
+				log.Error("TransactionIdx.Begin Is Error:", err)
 			}
 		}
 		c.DB.Remove(tmp)
