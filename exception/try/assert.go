@@ -83,6 +83,7 @@ func (c *CatchOrFinally) FcCaptureAndLog(args ...interface{}) *CatchOrFinally {
 func (c *CatchOrFinally) FcLogAndDrop(args ...interface{}) *CatchOrFinally {
 	return c.Catch(func(er Exception) {
 		//TODO wlog
+		fmt.Println(er.Message())
 	}).Catch(func(e error) {
 		//TODO log message
 		fce := &FcException{}

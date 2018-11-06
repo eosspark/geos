@@ -5,15 +5,14 @@ import (
 	"github.com/stretchr/testify/assert"
 	"testing"
 	"errors"
-	"fmt"
-)
+		)
 
 func TestTry_int(t *testing.T) {
 	Try(func() {
 		panic(1)
 
 	}).Catch(func(n int) {
-		assert.Equal(t, 1, n)
+		//assert.Equal(t, 1, n)
 
 	}).End()
 }
@@ -113,29 +112,6 @@ func returnFunc() (r int, flag bool) {
 	return 0, true
 }
 
-func TestReturn(t *testing.T) {
-	fmt.Println(returnFunc())
-}
-
-//func TestFinally(t *testing.T) {
-//	dofinal := false
-//
-//	defer func() {
-//		recover()
-//		assert.Equal(t, true, dofinal)
-//	}()
-//
-//	Try(func() {
-//		panic(1)
-//
-//	}).Catch(func(e string) {
-//		// not caught
-//
-//	}).Finally(func() {
-//		dofinal = true
-//
-//	}).End()
-//}
 
 func TestStackInfo(t *testing.T) {
 	Try(func() {
@@ -146,3 +122,5 @@ func TestStackInfo(t *testing.T) {
 
 	}).End()
 }
+
+
