@@ -83,9 +83,7 @@ func NewDataBase(path string, flag ...bool) (DataBase, error) {
 	if logFlag {
 		dbLog.SetHandler(log.TerminalHandler)
 	}
-
-	batch := new(leveldb.Batch)
-	return &LDataBase{db: db, stack: newDeque(), path: path, nextId: nextId, logFlag: logFlag, log: dbLog, batch: batch}, nil
+	return &LDataBase{db: db, stack: newDeque(), path: path, nextId: nextId, logFlag: logFlag, log: dbLog, batch: new(leveldb.Batch)}, nil
 }
 
 func typeIncrement(db *leveldb.DB) (map[string]int64, error) {

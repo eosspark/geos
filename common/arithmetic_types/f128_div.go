@@ -100,7 +100,7 @@ func (a Float128) Div(b Float128) Float128 {
 	recip32 = softfloat_approxRecip32_1(sigB.High >> 17)
 	ix = 3
 	for {
-		q64 = uint64(uint32(rem.High>>19) * recip32)
+		q64 = rem.High >> 19 * uint64(recip32)
 		q = uint32((q64 + 0x80000000) >> 32)
 		ix -= 1
 		if ix < 0 {
@@ -206,7 +206,7 @@ func softfloat_mul128By32(a64, a0 uint64, b uint32) Uint128 {
 	var carry uint32
 
 	z.Low = a0 * uint64(b)
-	mid = uint64(uint32(a0>>32) * b)
+	mid = (a0 >> 32) * uint64(b)
 	carry = uint32(z.Low>>32) - uint32(mid)
 	z.High = a64*uint64(b) + uint64((mid+uint64(carry))>>32)
 	return z
