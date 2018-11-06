@@ -14,8 +14,6 @@ import (
 
 var noopCheckTime *func()
 
-var IsActiveAz bool
-
 type AuthorizationManager struct {
 	control *Controller
 	db      database.DataBase
@@ -23,11 +21,8 @@ type AuthorizationManager struct {
 
 func newAuthorizationManager(control *Controller) *AuthorizationManager {
 	azInstance := &AuthorizationManager{}
-	if !IsActiveAz {
-		azInstance.control = control
-		azInstance.db = control.DB
-		IsActiveAz = true
-	}
+	azInstance.control = control
+	azInstance.db = control.DB
 	return azInstance
 }
 
