@@ -117,8 +117,6 @@ error 				-->		false
 
 func (index *MultiIndex) CompareBegin(in Iterator) bool {
 	it := index.Begin()
-	//fmt.Println(it.Value())
-	//fmt.Println(in.Value())
 	return index.CompareIterator(it, in)
 }
 
@@ -140,8 +138,7 @@ func (index *MultiIndex) CompareIterator(it1 Iterator, it2 Iterator) bool {
 	if it1 == nil || it2 == nil {
 		return false
 	}
-	//fmt.Println(it1.Value())
-	//fmt.Println(it2.Value())
+
 	return bytes.Compare(it1.Value(), it2.Value()) == 0
 }
 
@@ -157,6 +154,9 @@ error 				-->		false
 
 */
 func (index *MultiIndex) CompareEnd(in Iterator) bool {
+	if in == nil{
+		return true
+	}
 	return in.Value() == nil
 }
 

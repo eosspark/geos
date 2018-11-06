@@ -135,9 +135,7 @@ func extractObjectTagInfo(s *reflect.Value, mi ...*structInfo) (*structInfo, err
 		e := s.Elem()
 		s = &e
 	}
-	/*fmt.Println("******************1:",s.Kind().String())
-	fmt.Println("******************2:",s)*/
-	//fmt.Println("******************3:",s.Type().String())
+
 
 	if s.Kind() != reflect.Struct {
 		return nil, ErrBadType
