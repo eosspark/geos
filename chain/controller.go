@@ -293,13 +293,7 @@ func (c *Controller) startBlock(when common.BlockTimeStamp, confirmBlockCount ui
 	wasPendingPromoted := c.Pending.PendingBlockState.MaybePromotePending()
 	log.Info("wasPendingPromoted", wasPendingPromoted)
 	if c.ReadMode == DBReadMode(SPECULATIVE) || c.Pending.BlockStatus != types.BlockStatus(types.Incomplete) {
-		gpo := entity.GlobalPropertyObject{}
-		gpo.ID = common.IdType(1)
-		err := c.DB.Find("id", gpo, &gpo)
-		if err != nil {
-			fmt.Println("GetGlobalProperties is error detail:", err)
-		}
-		//fmt.Println("test:", gpo)
+		gpo := c.GetGlobalProperties()
 		if (!common.Empty(gpo.ProposedScheduleBlockNum) && gpo.ProposedScheduleBlockNum <= c.Pending.PendingBlockState.DposIrreversibleBlocknum) &&
 			(len(c.Pending.PendingBlockState.PendingSchedule.Producers) == 0) &&
 			(!wasPendingPromoted) {
@@ -325,7 +319,7 @@ func (c *Controller) startBlock(when common.BlockTimeStamp, confirmBlockCount ui
 			c.InTrxRequiringChecks = b
 		}(c.InTrxRequiringChecks)
 		c.InTrxRequiringChecks = true
-		c.PushTransaction(onbtrx, common.MaxTimePoint(), c.GetGlobalProperties().Configuration.MinTransactionCpuUsage, true)
+		c.PushTransaction(onbtrx, common.MaxTimePoint(), gpo.Configuration.MinTransactionCpuUsage, true)
 		/*}).Catch(func(e Exception) {
 			//TODO
 			fmt.Println("Controller StartBlock exception:",e.Message())
@@ -449,7 +443,7 @@ func (c *Controller) PushTransaction(trx types.TransactionMetadata, deadLine com
 
 func (c *Controller) GetGlobalProperties() *entity.GlobalPropertyObject {
 	gpo := entity.GlobalPropertyObject{}
-	gpo.ID = common.IdType(1)
+	gpo.ID = 1
 	err := c.DB.Find("id", gpo, &gpo)
 	if err != nil {
 		//log.Error("GetGlobalProperties is error detail:", err)
@@ -460,7 +454,7 @@ func (c *Controller) GetGlobalProperties() *entity.GlobalPropertyObject {
 
 func (c *Controller) GetDynamicGlobalProperties() (r *entity.DynamicGlobalPropertyObject) {
 	dgpo := entity.DynamicGlobalPropertyObject{}
-	dgpo.ID = 0
+	dgpo.ID = 1
 	err := c.DB.Find("id", dgpo, &dgpo)
 	if err != nil {
 		log.Error("GetDynamicGlobalProperties is error detail:", err)
@@ -771,7 +765,7 @@ func failureIsSubjective(e Exception) bool {
 
 func scheduledFailureIsSubjective(e Exception) bool {
 	code := e.Code()
-	return (code == TxCpuUsageExceed{}.Code()) || failureIsSubjective(e)
+	return (code == TxCpuUsageExceeded{}.Code()) || failureIsSubjective(e)
 }
 func (c *Controller) setActionMerkle() {
 	actionDigests := make([]crypto.Sha256, len(c.Pending.Actions))
@@ -1185,9 +1179,10 @@ func (c *Controller) GetBlockIdForNum(blockNum uint32) common.BlockIdType {
 
 func (c *Controller) CheckContractList(code common.AccountName) {
 	if len(c.Config.ContractWhitelist.Data) > 0 {
-		EosAssert(!c.Config.ContractWhitelist.Find(&code), &ContractWhitelistException{}, "account %d is not on the contract whitelist", code)
+		exist, _ := c.Config.ContractWhitelist.Find(&code)
+		EosAssert(!exist, &ContractWhitelistException{}, "account %d is not on the contract whitelist", code)
 	} else if len(c.Config.ContractBlacklist.Data) > 0 {
-		EosAssert(c.Config.ContractBlacklist.Find(&code), &ContractBlacklistException{}, "account %d is on the contract blacklist", code)
+		//EosAssert(exist, &ContractBlacklistException{}, "account %d is on the contract blacklist", code)
 		/*EOS_ASSERT( conf.contract_blacklist.find( code ) == conf.contract_blacklist.end(),
 			contract_blacklist_exception,
 			"account '${code}' is on the contract blacklist", ("code", code)
@@ -1213,7 +1208,8 @@ func (c *Controller) CheckActionList(code common.AccountName, action common.Acti
 
 func (c *Controller) CheckKeyList(key *ecc.PublicKey) {
 	if len(c.Config.KeyBlacklist.Data) > 0 {
-		EosAssert(c.Config.KeyBlacklist.Find(key), &KeyBlacklistException{}, "public key %v is on the key blacklist", key)
+		exist, _ := c.Config.KeyBlacklist.Find(key)
+		EosAssert(exist, &KeyBlacklistException{}, "public key %v is on the key blacklist", key)
 	}
 }
 
@@ -1477,11 +1473,15 @@ func (c *Controller) initializeDatabase() {
 		fmt.Println("-----------------", err)
 	}
 	dgpo := entity.DynamicGlobalPropertyObject{}
-	dgpo.ID = 0
+	dgpo.ID = 1
+	//dgpo.GlobalActionSequence = 10000
 	err = c.DB.Insert(&dgpo)
 	if err != nil {
-		fmt.Println("-----------------", err)
+		fmt.Println("dgpo insert error:-----------------", err)
 	}
+	/*tmp := entity.DynamicGlobalPropertyObject{}
+	err=c.DB.Find("id",dgpo,&tmp)
+	fmt.Println("==========================",tmp,err)*/
 	/*fmt.Println("initializeDatabase gi:", gi)
 	fmt.Println("initializeDatabase insert gpo:", gpo)*/
 	//c.Authorization.InitializeDatabase()				//TODO
@@ -1642,7 +1642,7 @@ func (c *Controller) updateProducersAuthority() {
 	updatePermission := func(permission *entity.PermissionObject, threshold uint32) {
 		auth := types.Authority{threshold, []types.KeyWeight{}, []types.PermissionLevelWeight{}, []types.WaitWeight{}}
 		for _, p := range producers {
-			auth.Accounts = append(auth.Accounts, types.PermissionLevelWeight{types.PermissionLevel{p.AccountName, common.DefaultConfig.ActiveName}, 1})
+			auth.Accounts = append(auth.Accounts, types.PermissionLevelWeight{types.PermissionLevel{p.ProducerName, common.DefaultConfig.ActiveName}, 1})
 		}
 		if !permission.Auth.Equals(auth.ToSharedAuthority()) {
 			c.DB.Modify(permission, func(param *types.Permission) {
@@ -1668,7 +1668,10 @@ func (c *Controller) createBlockSummary(id *common.BlockIdType) {
 	sid := blockNum & 0xffff
 	bso := entity.BlockSummaryObject{}
 	bso.Id = common.IdType(sid)
-	c.DB.Find("id", bso, bso)
+	err := c.DB.Find("id", bso, bso)
+	if err != nil {
+		fmt.Println("Controller createBlockSummary is error:", err)
+	}
 	c.DB.Modify(bso, func(b *entity.BlockSummaryObject) {
 		b.BlockId = *id
 	})

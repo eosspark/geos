@@ -7,16 +7,7 @@
 
 package types
 
-import (
-	"fmt"
-	"github.com/eosspark/eos-go/common"
-
-	"github.com/eosspark/eos-go/database"
-	"github.com/eosspark/eos-go/log"
-	"testing"
-)
-
-func Test_Add_TableIdObject(t *testing.T) {
+/*func Test_Add_TableIdObject(t *testing.T) {
 
 	code := common.AccountName(common.N("eostest"))
 	scope := common.ScopeName(common.N("eostest"))
@@ -140,9 +131,9 @@ func Test_GetByCodeScopeTable(t *testing.T) {
 	cst.Scope = common.ScopeName(common.N("xiaoyu"))
 	cst.Table = common.TableName(common.N("accounts"))
 
-	/*fmt.Println(cst)
-	tmp:=GetByCodeScopeTable(db,cst)
-	fmt.Println(tmp)*/
+	//fmt.Println(cst)
+	//tmp:=GetByCodeScopeTable(db,cst)
+	//fmt.Println(tmp)
 
 	tmi := TableIdMultiIndex{}
 	err = db.Find("Bst", cst, &tmi)
@@ -150,4 +141,4 @@ func Test_GetByCodeScopeTable(t *testing.T) {
 		fmt.Println(err.Error())
 	}
 	fmt.Println(tmi)
-}
+}*/

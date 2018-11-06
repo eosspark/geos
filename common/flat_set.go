@@ -25,26 +25,39 @@ func (f *FlatSet) Clear() {
 	}
 }
 
-func (f *FlatSet) Find(element Element) bool {
+func (f *FlatSet) searchSub(key uint64) int {
 	length := len(f.Data)
-	if length == 0 {
-		return false
-	} else {
-		r, i, j := 0, 0, length-1
-		for i < j {
-			h := int(uint(i+j) >> 1)
-			if f.Data[h].GetKey() <= element.GetKey() {
+	i, j := 0, length-1
+	for i < j {
+		h := int(uint(i+j) >> 1)
+		if i <= h && h < j {
+			if f.Data[h].GetKey() < key {
 				i = h + 1
+			} else if f.Data[h].GetKey() == key {
+				return h
 			} else {
 				j = h
 			}
-			r = h
-		}
-		if element.GetKey() == f.Data[r].GetKey() {
-			return true
 		}
 	}
-	return false
+	return i
+}
+func (f *FlatSet) FindData(key uint64) (Element, int) {
+	r := f.searchSub(key)
+
+	if r >= 0 && key == f.Data[r].GetKey() {
+		return f.Data[r], r
+	}
+
+	return nil, -1
+}
+
+func (f *FlatSet) Find(element Element) (bool, int) {
+	r := f.searchSub(element.GetKey())
+	if r >= 0 && element.GetKey() == f.Data[r].GetKey() {
+		return true, r
+	}
+	return false, -1
 }
 
 func (f *FlatSet) Insert(element Element) (Element, bool) {
@@ -52,53 +65,60 @@ func (f *FlatSet) Insert(element Element) (Element, bool) {
 	length := f.Len()
 	target := f.Data
 	exist := false
-	r := 0
 	if length == 0 {
 		f.Data = append(f.Data, element)
 		result = f.Data[0]
 	} else {
-		i, j := 0, length-1
-		for i < j {
-			h := int(uint(i+j) >> 1)
-			if target[h].GetKey() <= element.GetKey() {
-				i = h + 1
+		r := f.searchSub(element.GetKey())
+		if target[0].GetKey() < element.GetKey() && element.GetKey() < target[length-1].GetKey() {
+			//Insert middle
+			if element.GetKey() == target[r-1].GetKey() {
+				element = target[r-1]
+				result = target[r-1]
+				exist = true
 			} else {
-				j = h
+				elemnts := []Element{}
+				first := target[:r]
+				second := target[r:length]
+				elemnts = append(elemnts, first...)
+				elemnts = append(elemnts, element)
+				elemnts = append(elemnts, second...)
+				f.Data = elemnts
+				result = elemnts[r]
 			}
-			r = h
-		}
-		if i <= j {
-			if i == 0 || i == length-1 {
-				//insert target before
-				if element.GetKey() <= target[0].GetKey() {
-					elemnts := []Element{}
-					elemnts = append(elemnts, element)
-					elemnts = append(elemnts, target...)
-					f.Data = elemnts
-					result = elemnts[0]
-				} else if element.GetKey() >= target[length-1].GetKey() { //target append
-					target = append(target, element)
-					result = target[length]
-					f.Data = target
-				}
-			} else {
-				//Insert middle
-				if element.GetKey() == target[r].GetKey() {
-					element = target[r]
-					result = target[r]
-					exist = true
-				} else {
-					elemnts := []Element{}
-					first := target[:r]
-					second := target[r:length]
-					elemnts = append(elemnts, first...)
-					elemnts = append(elemnts, element)
-					elemnts = append(elemnts, second...)
-					f.Data = elemnts
-					result = elemnts[r]
-				}
+		} else {
+			//insert target before
+			if element.GetKey() < target[0].GetKey() {
+				elemnts := []Element{}
+				elemnts = append(elemnts, element)
+				elemnts = append(elemnts, target...)
+				f.Data = elemnts
+				result = elemnts[0]
+			} else if element.GetKey() > target[length-1].GetKey() { //target append
+				target = append(target, element)
+				result = target[length]
+				f.Data = target
 			}
 		}
 	}
 	return result, exist
+}
+
+func (f *FlatSet) Update(element Element) bool {
+	result := false
+	if f.Len() == 0 {
+		_, result = f.Insert(element)
+		return true
+	}
+	if f.Len() > 0 {
+		_, sub := f.Find(element)
+		if sub == -1 {
+			f.Insert(element)
+			result = true
+		} else {
+			f.Data[sub] = element
+			result = true
+		}
+	}
+	return result
 }

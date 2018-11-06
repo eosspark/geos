@@ -440,6 +440,32 @@ func TestContextCompilerBuiltin(t *testing.T) {
 	})
 }
 
+func TestContextDB(t *testing.T) {
+
+	name := "testdata_context/test_api_db.wasm"
+	t.Run(filepath.Base(name), func(t *testing.T) {
+		code, err := ioutil.ReadFile(name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		callTestFunction(code, "test_db", "primary_i64_general", []byte{})
+
+	})
+}
+
+func TestContextMultiIndex(t *testing.T) {
+
+	name := "testdata_context/test_api_multi_index.wasm"
+	t.Run(filepath.Base(name), func(t *testing.T) {
+		code, err := ioutil.ReadFile(name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		callTestFunction(code, "test_multi_index", "idx64_general", []byte{})
+
+	})
+}
+
 func DJBH(str string) uint32 {
 	var hash uint32 = 5381
 	bytes := []byte(str)
@@ -454,12 +480,88 @@ func wasmTestAction(cls string, method string) uint64 {
 	return uint64(DJBH(cls))<<32 | uint64(DJBH(method))
 }
 
+func newApplyContext(control *chain.Controller, action *types.Action) *chain.ApplyContext {
+
+	//pack a singedTrx
+	trxHeader := types.TransactionHeader{
+		Expiration:       common.MaxTimePointSec(),
+		RefBlockNum:      4,
+		RefBlockPrefix:   3832731038,
+		MaxNetUsageWords: 0,
+		MaxCpuUsageMS:    0,
+		DelaySec:         0,
+	}
+
+	trx := types.Transaction{
+		TransactionHeader:     trxHeader,
+		ContextFreeActions:    []*types.Action{},
+		Actions:               []*types.Action{action},
+		TransactionExtensions: []*types.Extension{},
+	}
+	signedTrx := types.NewSignedTransaction(&trx, []ecc.Signature{}, []common.HexBytes{})
+	privateKey, _ := ecc.NewRandomPrivateKey()
+	chainIdType := common.ChainIdType(*crypto.NewSha256String("cf057bbfb72640471fd910bcb67639c22df9f92470936cddc1ade0e2f2e7dc4f"))
+	signedTrx.Sign(privateKey, &chainIdType)
+	trxContext := chain.NewTransactionContext(control, signedTrx, trx.ID(), common.Now())
+
+	//pack a applycontext from control, trxContext and act
+	a := chain.NewApplyContext(control, trxContext, action, 0)
+	return a
+}
+
+func createNewAccount(control *chain.Controller, name string) {
+
+	//action for create a new account
+	wif := "5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3"
+	privKey, _ := ecc.NewPrivateKey(wif)
+	pubKey := privKey.PublicKey()
+
+	creator := chain.NewAccount{
+		Creator: common.AccountName(common.N("eosio")),
+		Name:    common.AccountName(common.N(name)),
+		Owner: types.Authority{
+			Threshold: 1,
+			Keys:      []types.KeyWeight{{Key: pubKey, Weight: 1}},
+		},
+		Active: types.Authority{
+			Threshold: 1,
+			Keys:      []types.KeyWeight{{Key: pubKey, Weight: 1}},
+		},
+	}
+
+	buffer, _ := rlp.EncodeToBytes(&creator)
+
+	act := types.Action{
+		Account: common.AccountName(common.N("eosio")),
+		Name:    common.ActionName(common.N("newaccount")),
+		Data:    buffer,
+		Authorization: []types.PermissionLevel{
+			//types.PermissionLevel{Actor: common.AccountName(common.N("eosio.token")), Permission: common.PermissionName(common.N("active"))},
+			{Actor: common.AccountName(common.N("eosio")), Permission: common.PermissionName(common.N("active"))},
+		},
+	}
+
+	a := newApplyContext(control, &act)
+
+	//create new account
+	chain.ApplyEosioNewaccount(a)
+}
+
 func callTestFunction(code []byte, cls string, method string, payload []byte) *chain.ApplyContext {
 
 	wasm := wasmgo.NewWasmGo()
 	action := wasmTestAction(cls, method)
 
 	control := chain.GetControllerInstance()
+	blockTimeStamp := common.NewBlockTimeStamp(common.Now())
+	control.StartBlock(blockTimeStamp, 0)
+
+	createNewAccount(control, "testapi")
+
+	//createNewAccount(control, "alice")
+	//createNewAccount(control, "bob")
+	//createNewAccount(control, "charlie")
+	//createNewAccount(control, "allyson")
 
 	act := types.Action{
 		Account:       common.AccountName(common.N("testapi")),
@@ -468,7 +570,8 @@ func callTestFunction(code []byte, cls string, method string, payload []byte) *c
 		Authorization: []types.PermissionLevel{types.PermissionLevel{Actor: common.AccountName(common.N("testapi")), Permission: common.PermissionName(common.N("active"))}},
 	}
 
-	applyContext := chain.NewApplyContext(control, nil, &act, 0)
+	//applyContext := chain.NewApplyContext(control, nil, &act, 0)
+	applyContext := newApplyContext(control, &act)
 
 	fmt.Println(cls, method, action)
 	codeVersion := crypto.NewSha256Byte([]byte(code))
@@ -487,6 +590,8 @@ func callTestFunctionCheckException(code []byte, cls string, method string, payl
 	action := wasmTestAction(cls, method)
 
 	control := chain.GetControllerInstance()
+	blockTimeStamp := common.NewBlockTimeStamp(common.Now())
+	control.StartBlock(blockTimeStamp, 0)
 
 	act := types.Action{
 		Account:       common.AccountName(common.N("testapi")),
@@ -495,16 +600,8 @@ func callTestFunctionCheckException(code []byte, cls string, method string, payl
 		Authorization: []types.PermissionLevel{types.PermissionLevel{Actor: common.AccountName(common.N("testapi")), Permission: common.PermissionName(common.N("active"))}},
 	}
 
-	applyContext := chain.NewApplyContext(control, nil, &act, 0)
-
-	//applyContext := &chain.ApplyContext{
-	//	Receiver: common.AccountName(common.N("test.api")),
-	//	Act: &types.Action{
-	//		Account: common.AccountName(common.N("test.api")),
-	//		Name:    common.ActionName(action),
-	//		Data:    payload,
-	//	},
-	//}
+	//applyContext := chain.NewApplyContext(control, nil, &act, 0)
+	applyContext := newApplyContext(control, &act)
 
 	codeVersion := crypto.NewSha256Byte([]byte(code))
 

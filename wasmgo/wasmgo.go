@@ -7,9 +7,13 @@ import (
 	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/eosspark/eos-go/exception"
-	"log"
+	"github.com/eosspark/eos-go/log"
+	"os"
+
+	//"os"
 	"reflect"
 
+	//"github.com/eosspark/eos-go/log"
 	"github.com/eosspark/eos-go/wasmgo/wagon/exec"
 	"github.com/eosspark/eos-go/wasmgo/wagon/wasm"
 )
@@ -26,6 +30,7 @@ type WasmGo struct {
 	context EnvContext
 	handles map[string]interface{}
 	vm      *exec.VM
+	ilog    log.Logger
 }
 
 func NewWasmGo() *WasmGo {
@@ -159,6 +164,9 @@ func NewWasmGo() *WasmGo {
 
 	wasmGo = &w
 
+	wasmGo.ilog = log.New("wasmgo")
+	wasmGo.ilog.SetHandler(log.StreamHandler(os.Stdout, log.TerminalFormat(true)))
+
 	return wasmGo
 }
 
@@ -171,23 +179,24 @@ func (w *WasmGo) Apply(code_id *crypto.Sha256, code []byte, context EnvContext) 
 
 	m, err := wasm.ReadModule(bf, w.importer)
 	if err != nil {
-		log.Fatalf("could not read module: %v", err)
+		w.ilog.Error("could not read module: %v", err)
 	}
 
-	// if *verify {
-	// 	err = validate.VerifyModule(m)
-	// 	if err != nil {
-	// 		log.Fatalf("could not verify module: %v", err)
-	// 	}
-	// }
+	//if *verify {
+	//if true {
+	//	err = validate.VerifyModule(m)
+	//	if err != nil {
+	//		log.Fatalf("could not verify module: %v", err)
+	//	}
+	//}
 
 	if m.Export == nil {
-		log.Fatalf("module has no export section")
+		w.ilog.Error("module has no export section")
 	}
 
 	vm, err := exec.NewVM(m, w)
 	if err != nil {
-		log.Fatalf("could not create VM: %v", err)
+		w.ilog.Error("could not create VM: %v", err)
 	}
 
 	e, _ := m.Export.Entries["apply"]
@@ -207,7 +216,7 @@ func (w *WasmGo) Apply(code_id *crypto.Sha256, code []byte, context EnvContext) 
 	o, err := vm.ExecCode(i, args[0], args[1], args[2])
 	if err != nil {
 		fmt.Printf("\n")
-		log.Printf("err=%v", err)
+		w.ilog.Error("err=%v", err)
 	}
 	//if len(ftype.ReturnTypes) == 0 {
 	//	fmt.Printf("\n")
@@ -285,7 +294,7 @@ func (w *WasmGo) importer(name string) (*wasm.Module, error) {
 				Sig:  &m.Types.Entries[i],
 				Host: reflect.ValueOf(v),
 				Body: &wasm.FunctionBody{},
-				Name: k,
+				//Name: k,
 			}
 
 			m.Export.Entries[k] = wasm.ExportEntry{
@@ -400,14 +409,14 @@ func getMemory(w *WasmGo, mIndex int, bufferSize int) []byte {
 
 func setUint64(w *WasmGo, index int, val uint64) {
 
-	fmt.Println("setUint64")
+	//fmt.Println("setUint64")
 	c, _ := rlp.EncodeToBytes(val)
 	setMemory(w, index, c, 0, len(c))
 }
 
 func getUint64(w *WasmGo, index int) uint64 {
 
-	fmt.Println("getUint64")
+	//fmt.Println("getUint64")
 	var ret uint64
 	c := getMemory(w, index, 8)
 	rlp.DecodeBytes(c, &ret)

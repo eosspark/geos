@@ -1,4 +1,4 @@
-package rlp
+package database
 
 import (
 	"bytes"
@@ -36,7 +36,7 @@ var trxIsID bool
 func newEncoder(w io.Writer) *encoder {
 	return &encoder{
 		output: w,
-		Order:  binary.LittleEndian,
+		Order:  binary.BigEndian,
 		count:  0,
 	}
 }
@@ -233,19 +233,19 @@ func (e *encoder) writeUint8(i uint8) (err error) {
 
 func (e *encoder) writeUint16(i uint16) (err error) {
 	buf := make([]byte, TypeSize.UInt16)
-	binary.LittleEndian.PutUint16(buf, i)
+	binary.BigEndian.PutUint16(buf, i)
 	return e.toWriter(buf)
 }
 
 func (e *encoder) writeUint32(i uint32) (err error) {
 	buf := make([]byte, TypeSize.UInt32)
-	binary.LittleEndian.PutUint32(buf, i)
+	binary.BigEndian.PutUint32(buf, i)
 	return e.toWriter(buf)
 }
 
 func (e *encoder) writeUint64(i uint64) (err error) {
 	buf := make([]byte, TypeSize.UInt64)
-	binary.LittleEndian.PutUint64(buf, i)
+	binary.BigEndian.PutUint64(buf, i)
 	return e.toWriter(buf)
 }
 

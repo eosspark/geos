@@ -1,7 +1,6 @@
 package arithmeticTypes
 
 import (
-	"fmt"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
@@ -88,7 +87,6 @@ func TestF128ToF64(t *testing.T) {
 
 	test := Float128{High: 4629393042053316608, Low: 4629393042053316608}
 	d := F128ToF64(test)
-	fmt.Println(d)
 	assert.Equal(t, Float64(4894998396442247172), d)
 
 }
@@ -136,13 +134,109 @@ func TestF64ToF128(t *testing.T) {
 	d := F128ToF64(test)
 	assert.Equal(t, Float64(4894998396442247172), d)
 	f128d := F64ToF128(d)
-	fmt.Println(f128d)
 	assert.Equal(t, Float128{High: 4629393042053316608, Low: 4611686018427387904}, f128d)
 }
 func TestFloat128_IsNan(t *testing.T) {
-	f128 := Float128{0x7FFF000000000000, 1}
+	f128 := Float128{High: 0x7FFF000000000000, Low: 1}
 	assert.Equal(t, true, f128.IsNan())
 
 	f128 = Float128{0x7FFF000000000000, 0}
 	assert.Equal(t, false, f128.IsNan())
+}
+
+func TestFloat128_Add(t *testing.T) {
+	a := Float128{High: 4613251722985340928, Low: 0} //100
+	b := Float128{High: 4613251722985340928, Low: 0} //100
+	c := a.Add(b)
+	assert.Equal(t, Float128{Low: 0x0, High: 0x4006900000000000}, c)
+
+	a = Float128{High: 4613251722985340928, Low: 0}  //100
+	b = Float128{High: 13836623759840116736, Low: 0} //-100
+	c = a.Add(b)
+	assert.Equal(t, Float128{Low: 0x0, High: 0x0}, c)
+
+	a = Float128{High: 13836623759840116736, Low: 0} //-100
+	b = Float128{High: 13836623759840116736, Low: 0} //-100
+	c = a.Add(b)
+	assert.Equal(t, Float128{Low: 0x0, High: 0xc006900000000000}, c)
+
+	//fmt.Printf("%#v\n",c)
+
+}
+
+func TestFloat128_Sub(t *testing.T) {
+	a := Float128{High: 4613251722985340928, Low: 0} //100
+	b := Float128{High: 4613251722985340928, Low: 0} //100
+	c := a.Sub(b)
+	assert.Equal(t, Float128{Low: 0x0, High: 0x0}, c)
+
+	a = Float128{High: 4613251722985340928, Low: 0}  //100
+	b = Float128{High: 13836623759840116736, Low: 0} //-100
+	c = a.Sub(b)
+	assert.Equal(t, Float128{Low: 0x0, High: 0x4006900000000000}, c)
+
+	a = Float128{High: 13836623759840116736, Low: 0} //-100
+	b = Float128{High: 13836623759840116736, Low: 0} //-100
+	c = a.Sub(b)
+	assert.Equal(t, Float128{Low: 0x0, High: 0x0}, c)
+}
+
+func Test_mul128To256M(t *testing.T) {
+	a := [4]uint64{1, 2, 3, 4}
+	a = softfloat_mul128To256M(1, 2, 3, 4, a)
+}
+
+func TestFloat128_Mul(t *testing.T) {
+	a := Float128{High: 4613251722985340928, Low: 0} //100
+	b := Float128{High: 4613251722985340928, Low: 0} //100
+	c := a.Mul(b)
+	assert.Equal(t, Float128{Low: 0x0, High: 0x400b900000000000}, c)
+
+	a = Float128{High: 4613251722985340928, Low: 0}  //100
+	b = Float128{High: 13836623759840116736, Low: 0} //-100
+	c = a.Mul(b)
+	assert.Equal(t, Float128{Low: 0x0, High: 0xc00b900000000000}, c)
+
+	a = Float128{High: 13836623759840116736, Low: 0} //-100
+	b = Float128{High: 13836623759840116736, Low: 0} //-100
+	c = a.Mul(b)
+	assert.Equal(t, Float128{Low: 0x0, High: 0x400b900000000000}, c)
+}
+
+func TestFloat128_Div(t *testing.T) {
+	//a := Float128{High: 4613251722985340928, Low: 0} //100
+	//b := Float128{High: 4613251722985340928, Low: 0} //100
+	//c := a.Div(b)
+	//assert.Equal(t, Float128{Low:0x0, High:0x400b900000000000}, c)
+	//
+	//a = Float128{High: 4613251722985340928, Low: 0} //100
+	//b = Float128{High: 13836623759840116736, Low: 0} //-100
+	//c = a.Div(b)
+	//assert.Equal(t, Float128{Low:0x0, High:0xc00b900000000000}, c)
+	//
+	//a = Float128{High: 13836623759840116736, Low: 0} //-100
+	//b = Float128{High: 13836623759840116736, Low: 0} //-100
+	//c = a.Div(b)
+	//assert.Equal(t, Float128{Low:0x0, High:0x400b900000000000}, c)
+
+	//a := Float128{High: 0x4008f40000000000, Low: 0} //1000
+	//b := Float128{High: 0x4002400000000000, Low: 0} //10
+	//c := a.Div(b)
+	//assert.Equal(t, Float128{Low:0x0, High:4613251722985340928}, c)//100
+}
+
+func Test_toFloat(t *testing.T) {
+
+	//f128 := Float128{Low: 0x0, High: 0x8000000000000000}
+	//result := F128ToUi64(f128, 0, false)
+	//fmt.Println(result)
+	//
+	//ui64 := uint64(1000)
+	//f128 = Ui64ToF128(ui64)
+	//fmt.Printf("%#v", f128) //Float128{Low:0x0, High:0x4008f40000000000}
+	//
+	//ui64 = uint64(10)
+	//f128 = Ui64ToF128(ui64)
+	//fmt.Printf("%#v", f128) //Float128{Low:0x0, High:0x4002400000000000}
+
 }

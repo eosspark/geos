@@ -1,4 +1,4 @@
-package rlp
+package database
 
 import (
 	"encoding/binary"
@@ -261,7 +261,7 @@ func (d *decoder) decodeStruct(v interface{}, t reflect.Type, rv reflect.Value) 
 			vuint32 = true
 		case "array":
 			eosArray = true
-		//	//for types.TransactionWithID !!
+			//	//for types.TransactionWithID !!
 		case "trxID":
 			destaticVariantTag, _ = d.readByte()
 		case "tag0":
@@ -356,7 +356,7 @@ func (d *decoder) readUint16() (out uint16, err error) {
 		return
 	}
 
-	out = binary.LittleEndian.Uint16(d.data[d.pos:])
+	out = binary.BigEndian.Uint16(d.data[d.pos:])
 	d.pos += TypeSize.UInt16
 	return
 }
@@ -366,7 +366,7 @@ func (d *decoder) readUint32() (out uint32, err error) {
 		return
 	}
 
-	out = binary.LittleEndian.Uint32(d.data[d.pos:])
+	out = binary.BigEndian.Uint32(d.data[d.pos:])
 	d.pos += TypeSize.UInt32
 	return
 }
@@ -376,7 +376,7 @@ func (d *decoder) readUint() (out uint, err error) {
 		return
 	}
 
-	out = uint(binary.LittleEndian.Uint32(d.data[d.pos:]))
+	out = uint(binary.BigEndian.Uint32(d.data[d.pos:]))
 	d.pos += TypeSize.UInt
 	return
 }
@@ -387,7 +387,7 @@ func (d *decoder) readUint64() (out uint64, err error) {
 	}
 
 	data := d.data[d.pos : d.pos+TypeSize.UInt64]
-	out = binary.LittleEndian.Uint64(data)
+	out = binary.BigEndian.Uint64(data)
 	d.pos += TypeSize.UInt64
 	return
 }

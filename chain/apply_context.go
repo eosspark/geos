@@ -12,6 +12,7 @@ import (
 	. "github.com/eosspark/eos-go/exception"
 	"github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/log"
+	"os"
 )
 
 type ApplyContext struct {
@@ -41,6 +42,7 @@ type ApplyContext struct {
 	CfaInlineActions     []types.Action
 	PendingConsoleOutput string
 	AccountRamDeltas     common.FlatSet
+	ilog                 log.Logger
 }
 
 func NewApplyContext(control *Controller, trxContext *TransactionContext, act *types.Action, recurseDepth uint32) *ApplyContext {
@@ -64,6 +66,9 @@ func NewApplyContext(control *Controller, trxContext *TransactionContext, act *t
 	applyContext.idx64 = NewIdx64(applyContext)
 	applyContext.idxDouble = NewIdxDouble(applyContext)
 
+	applyContext.ilog = log.New("Apply_Context")
+	applyContext.ilog.SetHandler(log.StreamHandler(os.Stdout, log.TerminalFormat(true)))
+
 	return applyContext
 
 }
@@ -77,7 +82,7 @@ type iteratorCache struct {
 	tableCache         map[common.IdType]*pairTableIterator
 	endIteratorToTable []*entity.TableIdObject
 	iteratorToObject   []interface{}
-	objectToIterator   map[interface{}]int
+	objectToIterator   map[crypto.Sha256]int
 }
 
 func NewIteratorCache() *iteratorCache {
@@ -85,7 +90,7 @@ func NewIteratorCache() *iteratorCache {
 		tableCache: make(map[common.IdType]*pairTableIterator),
 		// endIteratorToTable: make([]*entity.TableIdObject, 8),
 		// iteratorToObject:   make([]interface{}, 32),
-		objectToIterator: make(map[interface{}]int),
+		objectToIterator: make(map[crypto.Sha256]int),
 	}
 	return &i
 }
@@ -94,6 +99,8 @@ func (i *iteratorCache) endIteratorToIndex(ei int) int    { return (-ei - 2) }
 func (i *iteratorCache) IndexToEndIterator(index int) int { return -(index + 2) }
 func (i *iteratorCache) cacheTable(tobj *entity.TableIdObject) int {
 	if itr, ok := i.tableCache[tobj.ID]; ok {
+
+		itr.tableIDObject = tobj
 		return itr.iterator
 	}
 
@@ -151,11 +158,17 @@ func (i *iteratorCache) remove(iterator int) {
 		return
 	}
 	i.iteratorToObject[iterator] = nil
-	delete(i.objectToIterator, obj)
+	bytes, _ := rlp.EncodeToBytes(obj)
+	key := *crypto.NewSha256Byte(bytes)
+	delete(i.objectToIterator, key)
 }
 
 func (i *iteratorCache) add(obj interface{}) int {
-	if itr, ok := i.objectToIterator[obj]; ok {
+
+	bytes, _ := rlp.EncodeToBytes(obj)
+	key := *crypto.NewSha256Byte(bytes)
+
+	if itr, ok := i.objectToIterator[key]; ok {
 		return itr
 	}
 
@@ -164,7 +177,7 @@ func (i *iteratorCache) add(obj interface{}) int {
 	}
 
 	i.iteratorToObject = append(i.iteratorToObject, obj)
-	i.objectToIterator[obj] = len(i.iteratorToObject) - 1
+	i.objectToIterator[key] = len(i.iteratorToObject) - 1
 	return len(i.iteratorToObject) - 1
 }
 
@@ -411,7 +424,7 @@ func (a *ApplyContext) CancelDeferredTransaction(sendId *arithmetic.Uint128) boo
 	return a.CancelDeferredTransaction2(sendId, a.Receiver)
 }
 
-func (a *ApplyContext) FindTable(code int64, scope int64, table int64) *entity.TableIdObject {
+func (a *ApplyContext) FindTable(code uint64, scope uint64, table uint64) *entity.TableIdObject {
 	tab := entity.TableIdObject{Code: common.AccountName(code),
 		Scope: common.ScopeName(scope),
 		Table: common.TableName(table),
@@ -423,7 +436,7 @@ func (a *ApplyContext) FindTable(code int64, scope int64, table int64) *entity.T
 	}
 	return nil
 }
-func (a *ApplyContext) FindOrCreateTable(code int64, scope int64, table int64, payer int64) *entity.TableIdObject {
+func (a *ApplyContext) FindOrCreateTable(code uint64, scope uint64, table uint64, payer uint64) *entity.TableIdObject {
 
 	tab := entity.TableIdObject{Code: common.AccountName(code),
 		Scope: common.ScopeName(scope),
@@ -457,7 +470,7 @@ func (a *ApplyContext) SetProposedProducers(data []byte) int64 {
 
 	uniqueProducers := make(map[types.ProducerKey]bool)
 	for _, p := range producers {
-		EosAssert(a.IsAccount(int64(p.AccountName)), &WasmExecutionError{}, "producer schedule includes a nonexisting account")
+		EosAssert(a.IsAccount(int64(p.ProducerName)), &WasmExecutionError{}, "producer schedule includes a nonexisting account")
 		EosAssert(p.BlockSigningKey.Valid(), &WasmExecutionError{}, "producer schedule includes an invalid key")
 		if _, ok := uniqueProducers[p]; !ok {
 			uniqueProducers[p] = true
@@ -505,6 +518,7 @@ func (a *ApplyContext) UpdateDbUsage(payer common.AccountName, delta int64) {
 				&SubjectiveBlockProductionException{},
 				"Cannot charge RAM to other accounts during notify.")
 			a.RequireAuthorization(int64(payer))
+			//fmt.Println(payer)
 		}
 	}
 
@@ -552,12 +566,14 @@ func (a *ApplyContext) GetContextFreeData(index int, bufferSize int) (int, []byt
 }
 
 //context database api
-func (a *ApplyContext) DbStoreI64(scope int64, table int64, payer int64, id int64, buffer []byte) int {
-	return a.dbStoreI64(int64(a.Receiver), scope, table, payer, id, buffer)
+func (a *ApplyContext) DbStoreI64(scope uint64, table uint64, payer uint64, id uint64, buffer []byte) int {
+	return a.dbStoreI64(uint64(a.Receiver), scope, table, payer, id, buffer)
 }
-func (a *ApplyContext) dbStoreI64(code int64, scope int64, table int64, payer int64, id int64, buffer []byte) int {
+func (a *ApplyContext) dbStoreI64(code uint64, scope uint64, table uint64, payer uint64, id uint64, buffer []byte) int {
 	tab := a.FindOrCreateTable(code, scope, table, payer)
 	tid := tab.ID
+
+	EosAssert(payer != 0, &InvalidTablePayer{}, "must specify a valid account to pay for new record")
 
 	obj := entity.KeyValueObject{
 		TId:        tid,
@@ -565,6 +581,8 @@ func (a *ApplyContext) dbStoreI64(code int64, scope int64, table int64, payer in
 		Value:      buffer,
 		Payer:      common.AccountName(payer),
 	}
+
+	a.ilog.Info("DbStoreI64 obj:%v", obj)
 
 	a.DB.Insert(&obj)
 	a.DB.Modify(tab, func(t *entity.TableIdObject) {
@@ -577,7 +595,7 @@ func (a *ApplyContext) dbStoreI64(code int64, scope int64, table int64, payer in
 	a.KeyvalCache.cacheTable(tab)
 	return a.KeyvalCache.add(&obj)
 }
-func (a *ApplyContext) DbUpdateI64(iterator int, payer int64, buffer []byte) {
+func (a *ApplyContext) DbUpdateI64(iterator int, payer uint64, buffer []byte) {
 
 	obj := (a.KeyvalCache.get(iterator)).(*entity.KeyValueObject)
 	objTable := a.KeyvalCache.getTable(obj.TId)
@@ -652,26 +670,27 @@ func (a *ApplyContext) DbNextI64(iterator int, primary *uint64) int {
 		itr.Data(&objKeyval)
 	}
 
-	if itr == idx.End() || objKeyval.TId != obj.TId {
+	a.ilog.Info("DbNextI64 obj:%v", objKeyval)
+
+	if idx.CompareEnd(itr) || objKeyval.TId != obj.TId {
 		return a.KeyvalCache.getEndIteratorByTableID(obj.TId)
 	}
 
 	*primary = objKeyval.PrimaryKey
+
 	return a.KeyvalCache.add(&objKeyval)
 }
 
 func (a *ApplyContext) DbPreviousI64(iterator int, primary *uint64) int {
 
-	idx, err := a.DB.GetIndex("byScopePrimary", entity.KeyValueObject{})
-
-	fmt.Println(err)
+	idx, _ := a.DB.GetIndex("byScopePrimary", entity.KeyValueObject{})
 
 	if iterator < -1 {
 		tab := a.KeyvalCache.findTablebyEndIterator(iterator)
 		EosAssert(tab != nil, &InvalidTableTterator{}, "not a valid end iterator")
 
 		itr, _ := idx.UpperBound(tab.ID)
-		if idx.Begin() == idx.End() || itr == idx.Begin() {
+		if idx.CompareIterator(idx.Begin(), idx.End()) || idx.CompareBegin(itr) {
 			return -1
 		}
 
@@ -692,6 +711,7 @@ func (a *ApplyContext) DbPreviousI64(iterator int, primary *uint64) int {
 	itr.Prev()
 	objPrev := entity.KeyValueObject{}
 	itr.Data(&objPrev)
+	a.ilog.Info("DbPreviousI64 obj:%v", objPrev)
 
 	if objPrev.TId != obj.TId {
 		return -1
@@ -700,7 +720,7 @@ func (a *ApplyContext) DbPreviousI64(iterator int, primary *uint64) int {
 	*primary = objPrev.PrimaryKey
 	return a.KeyvalCache.add(&objPrev)
 }
-func (a *ApplyContext) DbFindI64(code int64, scope int64, table int64, id int64) int {
+func (a *ApplyContext) DbFindI64(code uint64, scope uint64, table uint64, id uint64) int {
 
 	tab := a.FindTable(code, scope, table)
 	if tab == nil {
@@ -721,7 +741,7 @@ func (a *ApplyContext) DbFindI64(code int64, scope int64, table int64, id int64)
 	return a.KeyvalCache.add(&obj)
 
 }
-func (a *ApplyContext) DbLowerboundI64(code int64, scope int64, table int64, id int64) int {
+func (a *ApplyContext) DbLowerboundI64(code uint64, scope uint64, table uint64, id uint64) int {
 
 	tab := a.FindTable(code, scope, table)
 	if tab == nil {
@@ -734,7 +754,7 @@ func (a *ApplyContext) DbLowerboundI64(code int64, scope int64, table int64, id 
 	idx, _ := a.DB.GetIndex("byScopePrimary", &obj)
 
 	itr, _ := idx.LowerBound(&obj)
-	if itr == idx.End() {
+	if idx.CompareEnd(itr) {
 		return tableEndItr
 	}
 
@@ -747,7 +767,7 @@ func (a *ApplyContext) DbLowerboundI64(code int64, scope int64, table int64, id 
 	return a.KeyvalCache.add(&objLowerbound)
 
 }
-func (a *ApplyContext) DbUpperboundI64(code int64, scope int64, table int64, id int64) int {
+func (a *ApplyContext) DbUpperboundI64(code uint64, scope uint64, table uint64, id uint64) int {
 
 	tab := a.FindTable(code, scope, table)
 	if tab == nil {
@@ -760,7 +780,7 @@ func (a *ApplyContext) DbUpperboundI64(code int64, scope int64, table int64, id 
 	idx, _ := a.DB.GetIndex("byScopePrimary", &obj)
 
 	itr, _ := idx.UpperBound(&obj)
-	if itr == idx.End() {
+	if idx.CompareEnd(itr) {
 		return tableEndItr
 	}
 
@@ -771,10 +791,10 @@ func (a *ApplyContext) DbUpperboundI64(code int64, scope int64, table int64, id 
 		return tableEndItr
 	}
 
-	return a.KeyvalCache.add(objUpperbound)
+	return a.KeyvalCache.add(&objUpperbound)
 
 }
-func (a *ApplyContext) DbEndI64(code int64, scope int64, table int64) int {
+func (a *ApplyContext) DbEndI64(code uint64, scope uint64, table uint64) int {
 
 	tab := a.FindTable(code, scope, table)
 	if tab == nil {
@@ -785,27 +805,27 @@ func (a *ApplyContext) DbEndI64(code int64, scope int64, table int64) int {
 }
 
 //index for sceondarykey
-func (a *ApplyContext) Idx64Store(scope int64, table int64, payer int64, id int64, value *types.Uint64_t) int {
+func (a *ApplyContext) Idx64Store(scope uint64, table uint64, payer uint64, id uint64, value *uint64) int {
 	return a.idx64.store(scope, table, payer, id, value)
 }
 func (a *ApplyContext) Idx64Remove(iterator int) {
 	a.idx64.remove(iterator)
 }
-func (a *ApplyContext) Idx64Update(iterator int, payer int64, value *types.Uint64_t) {
+func (a *ApplyContext) Idx64Update(iterator int, payer uint64, value *uint64) {
 	a.idx64.update(iterator, payer, value)
 }
-func (a *ApplyContext) Idx64FindSecondary(code int64, scope int64, table int64, secondary *types.Uint64_t, primary *uint64) int {
+func (a *ApplyContext) Idx64FindSecondary(code uint64, scope uint64, table uint64, secondary *uint64, primary *uint64) int {
 	//a.idx64.update(iterator, payer, value)
 	return a.idx64.findSecondary(code, scope, table, secondary, primary)
 }
-func (a *ApplyContext) Idx64Lowerbound(code int64, scope int64, table int64, secondary *types.Uint64_t, primary *uint64) int {
+func (a *ApplyContext) Idx64Lowerbound(code uint64, scope uint64, table uint64, secondary *uint64, primary *uint64) int {
 	//a.idx64.update(iterator, payer, value)
 	return a.idx64.lowerbound(code, scope, table, secondary, primary)
 }
-func (a *ApplyContext) Idx64Upperbound(code int64, scope int64, table int64, secondary *types.Uint64_t, primary *uint64) int {
+func (a *ApplyContext) Idx64Upperbound(code uint64, scope uint64, table uint64, secondary *uint64, primary *uint64) int {
 	return a.idx64.upperbound(code, scope, table, secondary, primary)
 }
-func (a *ApplyContext) Idx64End(code int64, scope int64, table int64) int {
+func (a *ApplyContext) Idx64End(code uint64, scope uint64, table uint64) int {
 	return a.idx64.end(code, scope, table)
 }
 func (a *ApplyContext) Idx64Next(iterator int, primary *uint64) int {
@@ -814,30 +834,30 @@ func (a *ApplyContext) Idx64Next(iterator int, primary *uint64) int {
 func (a *ApplyContext) Idx64Previous(iterator int, primary *uint64) int {
 	return a.idx64.previous(iterator, primary)
 }
-func (a *ApplyContext) Idx64FindPrimary(code int64, scope int64, table int64, secondary *types.Uint64_t, primary *uint64) int {
+func (a *ApplyContext) Idx64FindPrimary(code uint64, scope uint64, table uint64, secondary *uint64, primary *uint64) int {
 	//a.idx64.update(iterator, payer, value)
 	return a.idx64.findPrimary(code, scope, table, secondary, primary)
 }
 
-func (a *ApplyContext) IdxDoubleStore(scope int64, table int64, payer int64, id int64, value *types.Float64_t) int {
+func (a *ApplyContext) IdxDoubleStore(scope uint64, table uint64, payer uint64, id uint64, value *arithmetic.Float64) int {
 	return a.idxDouble.store(scope, table, payer, id, value)
 }
 func (a *ApplyContext) IdxDoubleRemove(iterator int) {
 	a.idxDouble.remove(iterator)
 }
-func (a *ApplyContext) IdxDoubleUpdate(iterator int, payer int64, value *types.Float64_t) {
+func (a *ApplyContext) IdxDoubleUpdate(iterator int, payer uint64, value *arithmetic.Float64) {
 	a.idxDouble.update(iterator, payer, value)
 }
-func (a *ApplyContext) IdxDoubleFindSecondary(code int64, scope int64, table int64, secondary *types.Float64_t, primary *uint64) int {
+func (a *ApplyContext) IdxDoubleFindSecondary(code uint64, scope uint64, table uint64, secondary *arithmetic.Float64, primary *uint64) int {
 	return a.idxDouble.findSecondary(code, scope, table, secondary, primary)
 }
-func (a *ApplyContext) IdxDoubleLowerbound(code int64, scope int64, table int64, secondary *types.Float64_t, primary *uint64) int {
+func (a *ApplyContext) IdxDoubleLowerbound(code uint64, scope uint64, table uint64, secondary *arithmetic.Float64, primary *uint64) int {
 	return a.idxDouble.lowerbound(code, scope, table, secondary, primary)
 }
-func (a *ApplyContext) IdxDoubleUpperbound(code int64, scope int64, table int64, secondary *types.Float64_t, primary *uint64) int {
+func (a *ApplyContext) IdxDoubleUpperbound(code uint64, scope uint64, table uint64, secondary *arithmetic.Float64, primary *uint64) int {
 	return a.idxDouble.upperbound(code, scope, table, secondary, primary)
 }
-func (a *ApplyContext) IdxDoubleEnd(code int64, scope int64, table int64) int {
+func (a *ApplyContext) IdxDoubleEnd(code uint64, scope uint64, table uint64) int {
 	return a.idxDouble.end(code, scope, table)
 }
 func (a *ApplyContext) IdxDoubleNext(iterator int, primary *uint64) int {
@@ -846,7 +866,7 @@ func (a *ApplyContext) IdxDoubleNext(iterator int, primary *uint64) int {
 func (a *ApplyContext) IdxDoublePrevious(iterator int, primary *uint64) int {
 	return a.idxDouble.previous(iterator, primary)
 }
-func (a *ApplyContext) IdxDoubleFindPrimary(code int64, scope int64, table int64, secondary *types.Float64_t, primary *uint64) int {
+func (a *ApplyContext) IdxDoubleFindPrimary(code uint64, scope uint64, table uint64, secondary *arithmetic.Float64, primary *uint64) int {
 	return a.idxDouble.findPrimary(code, scope, table, secondary, primary)
 }
 
@@ -893,10 +913,11 @@ func (a *ApplyContext) AddRamUsage(account common.AccountName, ramDelta int64) {
 	a.TrxContext.AddRamUsage(account, ramDelta)
 
 	accountDelta := types.AccountDelta{account, ramDelta}
-	p, ok := a.AccountRamDeltas.Insert(&accountDelta)
-	if !ok {
-		p.(*types.AccountDelta).Delta += ramDelta
-	}
+	a.AccountRamDeltas.Insert(&accountDelta)
+	//p, ok := a.AccountRamDeltas.Insert(&accountDelta)
+	//if !ok {
+	//	p.(*types.AccountDelta).Delta += ramDelta
+	//}
 
 }
 
@@ -991,3 +1012,8 @@ func (a *ApplyContext) ResumeBillingTimer() {
 	a.TrxContext.ResumeBillingTimer()
 
 }
+
+//func (a *ApplyContext) GetLogger() *log.Logger {
+//
+//	return a.ilog
+//}

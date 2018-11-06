@@ -4,24 +4,40 @@ import (
 	"testing"
 )
 
-func TestLog(t *testing.T) {
-	Trace("Sanitizing cache to Go's GC limits", "provided", 100, "updated", true)
-	Debug("Sanitizing cache to Go's GC limits", "provided", 100, "updated", true)
-	Info("Sanitizing cache to Go's GC limits", "provided", 100, "updated", true)
-	Error("Sanitizing cache to Go's GC limits", "provided", 100, "updated", true)
-	Warn("Sanitizing cache to Go's GC limits", "provided", 100, "updated", true)
-	Crit("Sanitizing cache to Go's GC limits", "provided", 100, "updated", true)
-
+func TestLogGlobal(t *testing.T) {
+	Debug("log terminalHandler test %s", "walker")
+	Info("log terminalHandler test %s", "walker")
+	Warn("log terminalHandler test %s", "walker")
+	Error("log terminalHandler test %s", "walker")
 }
 
-func TestLog2(t *testing.T) {
-	h, _ := FileHandler("./log.log", TerminalFormat(true))
-	Root().SetHandler(h)
-	Warn("Sanitizing cache to Go's GC limits", "provided", 100, "updated", true)
+func Test_log(t *testing.T) {
+	newlog := New("test")
+	newlog.SetHandler(TerminalHandler)
 
+	newlog.Debug("log terminalHandler test %s", "walker")
+	newlog.Info("log terminalHandler test %s", "walker")
+	newlog.Warn("log terminalHandler test %s", "walker")
+	newlog.Error("log terminalHandler test %s", "walker")
 }
 
-func TestLog3(t *testing.T) {
-	srvlog := New("module", "app/server")
-	srvlog.Warn("net Plugin", "rate", 100, "low", 9, "high", 3.4)
+func TestFile(t *testing.T) {
+	newlog := New("test")
+	h, _ := FileHandler("./test.log", LogfmtFormat())
+	root.SetHandler(h)
+
+	newlog.Debug("log terminalHandler test %s", "walker")
+	newlog.Info("log terminalHandler test %s", "walker")
+	newlog.Warn("log terminalHandler test %s", "walker")
+	newlog.Error("log terminalHandler test %s", "walker")
+}
+
+func TestFilterLog(t *testing.T) {
+	newlog := New("test")
+	root.SetHandler(LvlFilterHandler(LvlWarn, TerminalHandler))
+
+	newlog.Debug("log terminalHandler test %s", "walker")
+	newlog.Info("log terminalHandler test %s", "walker")
+	newlog.Warn("log terminalHandler test %s", "walker")
+	newlog.Error("log terminalHandler test %s", "walker")
 }

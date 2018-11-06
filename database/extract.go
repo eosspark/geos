@@ -2,7 +2,6 @@ package database
 
 import (
 	"fmt"
-	"github.com/eosspark/eos-go/crypto/rlp"
 	"reflect"
 	"strings"
 )
@@ -341,11 +340,11 @@ func (dbKV *dbKeyValue) showDbKV() {
 
 func structKV(in interface{}, dbKV *dbKeyValue, cfg *structInfo) error {
 
-	objValue, err := rlp.EncodeToBytes(in)
+	objValue, err := EncodeToBytes(in)
 	if err != nil {
 		return err
 	}
-	objId, err := rlp.EncodeToBytes(cfg.Id.Interface())
+	objId, err := EncodeToBytes(cfg.Id.Interface())
 	if err != nil {
 		return err
 	}
