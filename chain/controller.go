@@ -1,7 +1,6 @@
 package chain
 
 import (
-	"fmt"
 	"os"
 	"time"
 
@@ -85,7 +84,7 @@ type Controller struct {
 	Blog                           *BlockLog
 	Pending                        *PendingState
 	Head                           *types.BlockState
-	ForkDB                         *types.ForkDatabase
+	ForkDB                         *ForkDatabase
 	WasmIf                         *wasmgo.WasmGo
 	ResourceLimits                 *ResourceLimitsManager
 	Authorization                  *AuthorizationManager
@@ -118,9 +117,9 @@ func validPath() {
 		if os.IsNotExist(err) {
 			err := os.MkdirAll(d, os.ModePerm)
 			if err != nil {
-				fmt.Printf("controller validPath mkdir failed![%v]\n", err)
+				log.Error("controller validPath mkdir failed![%v]\n", err)
 			} else {
-				fmt.Printf("controller validPath mkdir success![%v]\n", d)
+				log.Error("controller validPath mkdir success![%v]\n", d)
 			}
 		}
 	}
@@ -130,7 +129,7 @@ func newController() *Controller {
 	//init db
 	db, err := database.NewDataBase(common.DefaultConfig.DefaultStateDirName)
 	if err != nil {
-		fmt.Println("newController is error detail:", err)
+		log.Error("newController is error :", err)
 		return nil
 	}
 	//defer db.Close()
@@ -139,7 +138,7 @@ func newController() *Controller {
 	//reversibleDir := common.DefaultConfig.DefaultBlocksDirName + "/" + common.DefaultConfig.DefaultReversibleBlocksDirName
 	reversibleDB, err := database.NewDataBase(common.DefaultConfig.DefaultReversibleBlocksDirName)
 	if err != nil {
-		fmt.Println("newController init reversibleDB is error", err)
+		log.Error("newController init reversibleDB is error", err)
 	}
 	con := &Controller{InTrxRequiringChecks: false, RePlaying: false, TrustedProducerLightValidation: false}
 	con.DB = db
@@ -147,7 +146,7 @@ func newController() *Controller {
 
 	con.Blog = NewBlockLog(common.DefaultConfig.DefaultBlocksDirName)
 
-	con.ForkDB = types.GetForkDbInstance(common.DefaultConfig.DefaultBlocksDirName)
+	con.ForkDB, _ = newForkDatabase(common.DefaultConfig.DefaultBlocksDirName, common.DefaultConfig.ForkDBName, true)
 	con.ChainID = types.GetGenesisStateInstance().ComputeChainID()
 
 	con.initConfig()
@@ -206,7 +205,7 @@ func capitalize(str string) string {
 				vv[i] -= 32
 				upperStr += string(vv[i])
 			} else {
-				fmt.Println("Not begins with lowercase letter,")
+				log.Info("Not begins with lowercase letter,")
 				return str
 			}
 		} else {
@@ -216,9 +215,39 @@ func capitalize(str string) string {
 	return upperStr
 }
 
-//TODO wait append block_log
-func (c *Controller) OnIrreversible(b *types.BlockState) {
-
+func (c *Controller) OnIrreversible(s *types.BlockState) {
+	if !common.Empty(c.Blog.head) {
+		c.Blog.ReadHead()
+	}
+	logHead := c.Blog.head
+	EosAssert(common.Empty(logHead), &BlockLogException{}, "block log head can not be found")
+	lhBlockNum := logHead.BlockNumber()
+	c.DB.Commit(int64(s.BlockNum))
+	if s.BlockNum <= lhBlockNum {
+		return
+	}
+	EosAssert(s.BlockNum-1 == lhBlockNum, &UnlinkableBlockException{}, "unlinkable block", s.BlockNum, lhBlockNum)
+	EosAssert(s.Header.Previous == logHead.BlockID(), &UnlinkableBlockException{}, "irreversible doesn't link to block log head")
+	c.Blog.Append(s.SignedBlock)
+	bs := types.BlockState{}
+	ubi, err := c.ReversibleBlocks.GetIndex("byNum", &bs)
+	if err != nil {
+		log.Error("Controller OnIrreversible ReversibleBlocks.GetIndex is error:", err)
+	}
+	itr := ubi.Begin()
+	tbs := types.BlockState{}
+	err = itr.Data(&tbs)
+	for itr != ubi.End() && tbs.BlockNum <= s.BlockNum {
+		c.ReversibleBlocks.Remove(itr)
+		itr = ubi.Begin()
+	}
+	if c.ReadMode == IRREVERSIBLE {
+		c.applyBlock(s.SignedBlock, types.Complete)
+		c.ForkDB.MarkInCurrentChain(s, true)
+		c.ForkDB.SetValidity(s, true)
+		c.Head = s
+	}
+	//emit( self.irreversible_block, s ) 	//TODO
 }
 
 func (c *Controller) PopBlock() {
@@ -291,7 +320,7 @@ func (c *Controller) startBlock(when common.BlockTimeStamp, confirmBlockCount ui
 	c.Pending.PendingBlockState.InCurrentChain = true
 	c.Pending.PendingBlockState.SetConfirmed(confirmBlockCount)
 	wasPendingPromoted := c.Pending.PendingBlockState.MaybePromotePending()
-	log.Info("wasPendingPromoted", wasPendingPromoted)
+	log.Info("wasPendingPromoted:%t", wasPendingPromoted)
 	if c.ReadMode == DBReadMode(SPECULATIVE) || c.Pending.BlockStatus != types.BlockStatus(types.Incomplete) {
 		gpo := c.GetGlobalProperties()
 		if (!common.Empty(gpo.ProposedScheduleBlockNum) && gpo.ProposedScheduleBlockNum <= c.Pending.PendingBlockState.DposIrreversibleBlocknum) &&
@@ -446,8 +475,7 @@ func (c *Controller) GetGlobalProperties() *entity.GlobalPropertyObject {
 	gpo.ID = 1
 	err := c.DB.Find("id", gpo, &gpo)
 	if err != nil {
-		//log.Error("GetGlobalProperties is error detail:", err)
-		fmt.Println("GetGlobalProperties data not found:", err)
+		log.Error("GetGlobalProperties is error detail:%s", err.Error())
 	}
 	return &gpo
 }
@@ -457,7 +485,7 @@ func (c *Controller) GetDynamicGlobalProperties() (r *entity.DynamicGlobalProper
 	dgpo.ID = 1
 	err := c.DB.Find("id", dgpo, &dgpo)
 	if err != nil {
-		log.Error("GetDynamicGlobalProperties is error detail:", err)
+		log.Error("GetDynamicGlobalProperties is error detail:%s", err.Error())
 	}
 
 	return &dgpo
@@ -482,7 +510,7 @@ func (c *Controller) GetOnBlockTransaction() types.SignedTransaction {
 	trx.SetReferenceBlock(&c.Head.BlockId)
 	in := c.Pending.PendingBlockState.Header.Timestamp + 999999
 	trx.Expiration = common.TimePointSec(in)
-	log.Error("getOnBlockTransaction trx.Expiration:", trx)
+	log.Info("getOnBlockTransaction trx.Expiration:%#v", trx)
 	return trx
 }
 func (c *Controller) SkipDbSession(bs types.BlockStatus) bool {
@@ -521,20 +549,21 @@ func (c *Controller) IsProducingBlock() bool {
 
 func (c *Controller) Close() {
 	//session.close()
-	c.ForkDB.DB.Close()
+	c.ForkDB.Close()
 	c.DB.Close()
 	c.ReversibleBlocks.Close()
 
-	log.Info("Controller destory!")
+	//log.Info("Controller destory!")
 	c.testClean()
 	isActiveController = false
+
 	c = nil
 }
 
 func (c *Controller) testClean() {
 	err := os.RemoveAll("/tmp/data/")
 	if err != nil {
-		log.Error("Node data has been emptied is error:", err)
+		log.Error("Node data has been emptied is error:%s", err.Error())
 	}
 }
 
@@ -569,7 +598,7 @@ func (c *Controller) GetScheduledTransactions() []common.TransactionIdType {
 		err = itr.Data(&gto)
 	}
 	if err != nil {
-		log.Error("Controller GetScheduledTransactions is error", err)
+		log.Error("Controller GetScheduledTransactions is error:%s", err.Error())
 	}
 	itr.Release()
 	return result
@@ -617,7 +646,7 @@ func (c *Controller) pushScheduledTransactionByObject(gto *entity.GeneratedTrans
 
 	err := rlp.DecodeBytes(gtrx.PackedTrx, &dtrx)
 	if err != nil {
-		log.Error("PushScheduleTransaction1 DecodeBytes is error :", err.Error())
+		log.Error("PushScheduleTransaction1 DecodeBytes is error :%s", err.Error())
 	}
 
 	trx := &types.TransactionMetadata{}
@@ -672,7 +701,7 @@ func (c *Controller) pushScheduledTransactionByObject(gto *entity.GeneratedTrans
 		v = true
 		//return trace
 	}).Catch(func(ex Exception) {
-		log.Error("PushScheduledTransaction is error:", ex)
+		log.Error("PushScheduledTransaction is error:%s", ex.Message())
 		cpuTimeToBillUs = trxContext.UpdateBilledCpuTime(common.Now())
 		trace.Except = ex
 		trace.ExceptPtr = &ex
@@ -1000,7 +1029,7 @@ func (c *Controller) DataBase() database.DataBase {
 	return c.DB
 }
 
-func (c *Controller) ForkDataBase() *types.ForkDatabase {
+func (c *Controller) ForkDataBase() *ForkDatabase {
 	return c.ForkDB
 }
 
@@ -1009,7 +1038,7 @@ func (c *Controller) GetAccount(name common.AccountName) *entity.AccountObject {
 	accountObj.Name = name
 	err := c.DB.Find("byName", accountObj, &accountObj)
 	if err != nil {
-		log.Error("GetAccount is error :", err)
+		log.Error("GetAccount is error :%s", err.Error())
 	}
 	return &accountObj
 }
@@ -1271,7 +1300,7 @@ func (c *Controller) ValidateTapos(t *types.Transaction) {
 	taposBlockSummary := entity.BlockSummaryObject{}
 	err := c.DB.Find("", in, &taposBlockSummary)
 	if err != nil {
-		log.Error("ValidateTapos Is Error:", err)
+		log.Error("ValidateTapos Is Error:%s", err.Error())
 	}
 	EosAssert(t.VerifyReferenceBlock(&taposBlockSummary.BlockId), &InvalidRefBlockException{},
 		"Transaction's reference block did not match. Is this transaction from a different fork? taposBlockSummary:%v", taposBlockSummary)
@@ -1305,7 +1334,7 @@ func (c *Controller) IsKnownUnexpiredTransaction(id *common.TransactionIdType) b
 	in.TrxID = *id
 	err := c.DB.Find("byTrxId", in, &result)
 	if err != nil {
-		log.Error("IsKnownUnexpiredTransaction Is Error:", err)
+		log.Error("IsKnownUnexpiredTransaction Is Error:%s", err.Error())
 	}
 	return common.Empty(result)
 }
@@ -1414,7 +1443,7 @@ func (c *Controller) CreateNativeAccount(name common.AccountName, owner types.Au
 	}
 	err := c.DB.Insert(&account)
 	if err != nil {
-		log.Error("CreateNativeAccount Insert Is Error:", err)
+		log.Error("CreateNativeAccount Insert Is Error:%s", err.Error())
 	}
 
 	aso := entity.AccountSequenceObject{}
@@ -1451,7 +1480,7 @@ func (c *Controller) initializeForkDB() {
 	signedBlock := types.SignedBlock{}
 	signedBlock.SignedBlockHeader = genHeader.Header
 	c.Head.SignedBlock = &signedBlock
-	log.Info("Controller initializeForkDB:", c.ForkDB.DB)
+	//log.Info("Controller initializeForkDB:%v", c.ForkDB.DB)
 	c.ForkDB.SetHead(c.Head)
 	c.DB.SetRevision(int64(c.Head.BlockNum))
 	c.initializeDatabase()
@@ -1472,14 +1501,14 @@ func (c *Controller) initializeDatabase() {
 	gpo.Configuration = gi
 	err := c.DB.Insert(&gpo)
 	if err != nil {
-		log.Error("Controller initializeDatabase insert GlobalPropertyObject is error:", err)
+		log.Error("Controller initializeDatabase insert GlobalPropertyObject is error:%s", err)
 	}
 	dgpo := entity.DynamicGlobalPropertyObject{}
 	dgpo.ID = 1
 	//dgpo.GlobalActionSequence = 10000
 	err = c.DB.Insert(&dgpo)
 	if err != nil {
-		log.Error("Controller initializeDatabase insert DynamicGlobalPropertyObject is error:", err)
+		log.Error("Controller initializeDatabase insert DynamicGlobalPropertyObject is error:%s", err)
 	}
 
 	c.ResourceLimits.InitializeDatabase()
@@ -1511,7 +1540,7 @@ func (c *Controller) initializeDatabase() {
 		activeProducersAuthority,
 		c.Config.genesis.InitialTimestamp)
 
-	log.Info("initializeDatabase print:", majorityPermission, minorityPermission)
+	log.Info("initializeDatabase print:%v,%v", majorityPermission, minorityPermission)
 }
 
 func (c *Controller) initialize() {
@@ -1596,7 +1625,7 @@ func (c *Controller) clearExpiredInputTransactions() {
 		if itr != nil {
 			err = itr.Data(tmp)
 			if err != nil {
-				log.Error("TransactionIdx.Begin Is Error:", err)
+				log.Error("TransactionIdx.Begin Is Error:%s", err.Error())
 			}
 		}
 		c.DB.Remove(tmp)
@@ -1665,7 +1694,7 @@ func (c *Controller) createBlockSummary(id *common.BlockIdType) {
 	bso.Id = common.IdType(sid)
 	err := c.DB.Find("id", bso, bso)
 	if err != nil {
-		fmt.Println("Controller createBlockSummary is error:", err)
+		log.Error("Controller createBlockSummary is error:%s", err.Error())
 	}
 	c.DB.Modify(bso, func(b *entity.BlockSummaryObject) {
 		b.BlockId = *id

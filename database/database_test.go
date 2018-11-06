@@ -579,7 +579,7 @@ func openDb() (DataBase, func()) {
 		reFn()
 	}
 
-	db, err := NewDataBase(fileName, true)
+	db, err := NewDataBase(fileName, false)
 	if err != nil {
 
 		log.Fatalln("new database failed : ", err)
