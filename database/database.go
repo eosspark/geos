@@ -82,6 +82,8 @@ func NewDataBase(path string, flag ...bool) (DataBase, error) {
 	dbLog := log.New("db")
 	if logFlag {
 		dbLog.SetHandler(log.TerminalHandler)
+	}else{
+		dbLog.SetHandler(log.DiscardHandler())
 	}
 	return &LDataBase{db: db, stack: newDeque(), path: path, nextId: nextId, logFlag: logFlag, log: dbLog, batch: new(leveldb.Batch)}, nil
 }
@@ -619,28 +621,24 @@ func (ldb *LDataBase) find(tagName string, value interface{}, to interface{}) er
 
 	key := typeNameFieldName(typeName, fieldName)
 	key = append(key, suffix...)
-	return ldb.findFields(key, typeName, to)
+
+
+	end := getNonUniqueEnd(key)
+	it := ldb.db.NewIterator(&util.Range{Start:key,Limit:end},nil)
+
+	if !it.Next(){
+		return leveldb.ErrNotFound
+	}
+	//val := idKey(it.Value(),typeName)
+	return ldb.findFields(it.Value(), typeName, to)
 }
 
 func (ldb *LDataBase) findFields(key, typeName []byte, to interface{}) error {
-	v, err := getDbKey(key, ldb.db)
-	if err != nil {
-		return errors.New(fmt.Sprintf("error database findFields key is : %v", key))
-	}
-	return ldb.findDbObject(v, typeName, to)
-}
-
-// only key is id can be called
-func (ldb *LDataBase) findDbObject(key, typeName []byte, to interface{}) error {
-
-	id := idKey(key, typeName)
-	ldb.log.Info("Info database findDbObject id is : %v", id)
-	val, err := getDbKey(id, ldb.db)
-	if err != nil {
-		return errors.New(fmt.Sprintf("error database findDbObject getDbKey failed : %s", err.Error()))
-	}
-	ldb.log.Info("Info database findDbObject val is : %v", val)
-	err = DecodeBytes(val, to)
+	ldb.log.Info("Info database findFields key is : %v", key)
+	val := idKey(key,typeName)
+	fmt.Println(val)
+	v, err := getDbKey(val, ldb.db)
+	err = DecodeBytes(v, to)
 	if err != nil {
 		return errors.New(fmt.Sprintf("error database findDbObject rlp DecodeBytes failed : %s", err.Error()))
 	}
