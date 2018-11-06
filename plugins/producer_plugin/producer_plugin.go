@@ -19,6 +19,7 @@ import (
 )
 
 type ProducerPlugin struct {
+	//ConfirmedBlock Signal //TODO signal ConfirmedBlock
 	my *ProducerPluginImpl
 }
 
@@ -54,7 +55,6 @@ func NewProducerPlugin(io *asio.IoContext) ProducerPlugin {
 	my := new(ProducerPluginImpl)
 
 	my.Timer = common.NewTimer(io)
-	my.Producers = make(map[common.AccountName]struct{})
 	my.SignatureProviders = make(map[ecc.PublicKey]signatureProviderType)
 	my.ProducerWatermarks = make(map[common.AccountName]uint32)
 
@@ -155,7 +155,8 @@ func (p *ProducerPlugin) PluginInitialize(app *cli.App) {
 
 		app.Action = func(c *cli.Context) {
 			for _, n := range c.StringSlice("producer-name") {
-				p.my.Producers[common.AccountName(common.N(n))] = struct{}{}
+				name := common.AccountName(common.N(n))
+				p.my.Producers.Insert(&name)
 			}
 
 			for _, keyIdToWifPairString := range c.StringSlice("private-key") {
@@ -230,10 +231,10 @@ func (p *ProducerPlugin) PluginInitialize(app *cli.App) {
 func (p *ProducerPlugin) PluginStartup() {
 	Try(func() {
 		chain := Chain.GetControllerInstance()
-		EosAssert(len(p.my.Producers) == 0 || chain.GetReadMode() == Chain.DBReadMode(Chain.SPECULATIVE), &PluginConfigException{},
+		EosAssert(p.my.Producers.Len() == 0 || chain.GetReadMode() == Chain.DBReadMode(Chain.SPECULATIVE), &PluginConfigException{},
 			"node cannot have any producer-name configured because block production is impossible when read_mode is not \"speculative\"" )
 
-		EosAssert(len(p.my.Producers) == 0 || chain.GetValidationMode() == Chain.ValidationMode(Chain.FULL), &PluginConfigException{},
+		EosAssert(p.my.Producers.Len() == 0 || chain.GetValidationMode() == Chain.ValidationMode(Chain.FULL), &PluginConfigException{},
 			"node cannot have any producer-name configured because block production is not safe when validation_mode is not \"full\"" )
 
 		//TODO if
@@ -248,8 +249,8 @@ func (p *ProducerPlugin) PluginStartup() {
 			p.my.IrreversibleBlockTime = common.MaxTimePoint()
 		}
 
-		if len(p.my.Producers) > 0 {
-			log.Info(fmt.Sprintf("Launching block production for %d producers at %s.", len(p.my.Producers), common.Now()))
+		if p.my.Producers.Len() > 0 {
+			log.Info(fmt.Sprintf("Launching block production for %d producers at %s.", p.my.Producers.Len(), common.Now()))
 
 			if p.my.ProductionEnabled {
 				if chain.HeadBlockNum() == 0 {

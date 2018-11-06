@@ -1,7 +1,6 @@
 package database
 
 import (
-	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/util"
 	"log"
@@ -56,7 +55,7 @@ func Test_rawDb(t *testing.T) {
 	}
 	i := 0
 	for index, v := range houses {
-		b, err := rlp.EncodeToBytes(v)
+		b, err := EncodeToBytes(v)
 		if err != nil {
 			log.Fatalln(err)
 		}
@@ -103,15 +102,13 @@ func Test_find(t *testing.T) {
 	objs_, houses_ := saveObjs(objs, houses, db)
 
 	getGreaterObjs(objs_, houses_, db)
-	//
+
 	findObjs(objs_, houses_, db)
 	//
 	findInLineFieldObjs(objs_, houses_, db)
 	//////
 	findAllNonUniqueFieldObjs(objs_, houses_, db)
-	//////
-	//////getErrStruct(db)
-	//////
+
 	getLessObjs(objs_, houses_, db)
 }
 
@@ -350,7 +347,7 @@ func Test_iteratorTo(t *testing.T) {
 		it.Data(&tmp)
 		//logObj(tmp)
 	}
-	if !idx.CompareEnd(it){
+	if !idx.CompareEnd(it) {
 		log.Fatalln("CompareEnd failed")
 	}
 	it.Release()
@@ -406,7 +403,7 @@ func Test_begin(t *testing.T) {
 	if !idx.CompareBegin(it1) {
 		log.Fatalln("begin failed")
 	}
-	if !idx.CompareIterator(it1,it) {
+	if !idx.CompareIterator(it1, it) {
 		log.Fatalln("begin failed")
 	}
 
@@ -543,7 +540,7 @@ func Test_Increment(t *testing.T) {
 
 	db, err := NewDataBase(fileName, false)
 	if err != nil {
-		log.Panicln("new database failed : ",err)
+		log.Panicln("new database failed : ", err)
 	}
 	defer db.Close()
 
@@ -585,7 +582,7 @@ func openDb() (DataBase, func()) {
 	db, err := NewDataBase(fileName, false)
 	if err != nil {
 
-		log.Fatalln("new database failed : " ,err)
+		log.Fatalln("new database failed : ", err)
 		return nil, reFn
 	}
 
@@ -870,8 +867,8 @@ func removeUnique(db DataBase) {
 
 	tmp = DbTableIdObject{}
 	err = db.Find("id", obj, &tmp)
-	if err != ErrNotFound {
-		log.Fatalln(err)
+	if err == nil {
+		log.Fatalln("test remove failed")
 	}
 }
 

@@ -3,9 +3,37 @@ package common
 import (
 	"fmt"
 	"strings"
+	"encoding/json"
 )
 
 // ported from libraries/chain/name.cpp in eosio
+type Name uint64
+
+func (n Name) String() string {
+	return S(uint64(n))
+}
+func (n *Name) GetKey() uint64 {
+	return uint64(*n)
+}
+
+func (n Name) Empty() bool {
+	return n == 0
+}
+
+func (n Name) MarshalJSON() ([]byte, error) {
+	return json.Marshal(S(uint64(n)))
+}
+
+func (n *Name) UnmarshalJSON(data []byte) error {
+	var s string
+	err := json.Unmarshal(data, &s)
+	if err != nil {
+		return err
+	}
+	*n = Name(N(s))
+	return nil
+}
+
 
 //N converts a base32 string to a uint64. 64-bit unsigned integer representation of the name.
 func N(s string) (val uint64) {

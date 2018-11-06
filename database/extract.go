@@ -2,7 +2,6 @@ package database
 
 import (
 	"fmt"
-	"github.com/eosspark/eos-go/crypto/rlp"
 	"reflect"
 	"strings"
 )
@@ -136,9 +135,7 @@ func extractObjectTagInfo(s *reflect.Value, mi ...*structInfo) (*structInfo, err
 		e := s.Elem()
 		s = &e
 	}
-	/*fmt.Println("******************1:",s.Kind().String())
-	fmt.Println("******************2:",s)*/
-	//fmt.Println("******************3:",s.Type().String())
+
 
 	if s.Kind() != reflect.Struct {
 		return nil, ErrBadType
@@ -341,11 +338,11 @@ func (dbKV *dbKeyValue) showDbKV() {
 
 func structKV(in interface{}, dbKV *dbKeyValue, cfg *structInfo) error {
 
-	objValue, err := rlp.EncodeToBytes(in)
+	objValue, err := EncodeToBytes(in)
 	if err != nil {
 		return err
 	}
-	objId, err := rlp.EncodeToBytes(cfg.Id.Interface())
+	objId, err := EncodeToBytes(cfg.Id.Interface())
 	if err != nil {
 		return err
 	}

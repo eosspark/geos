@@ -10,7 +10,7 @@ const (
 	timeFormat     = "2006-01-02T15:04:05-0700"
 	termTimeFormat = "2006-01-02T15:04:05.000"
 	floatFormat    = 'f'
-	termMsgJust    = 40
+	termMsgJust    = 70
 )
 
 type Format interface {
@@ -49,16 +49,17 @@ func TerminalFormat(useColor bool) Format {
 
 		b := &bytes.Buffer{}
 		if color > 0 {
-			fmt.Fprintf(b, "\x1b[%dm[%s] %v %s \x1b[0m", color, r.Time.Format(termTimeFormat), r.Call, r.Name)
+			fmt.Fprintf(b, "\x1b[%dm%s %v %n\x1b[0m", color, r.Time.Format(termTimeFormat), r.Call, r.Call)
+
 		} else {
-			fmt.Fprintf(b, "[%s] %v %s ", r.Time.Format(termTimeFormat), r.Call, r.Name)
+			fmt.Fprintf(b, "%s %v %n", r.Time.Format(termTimeFormat), r.Call, r.Call)
 		}
 
-		length := utf8.RuneCountInString(r.Call.String() + r.Name)
+		length := utf8.RuneCountInString(r.Call.String()) + utf8.RuneCountInString(fmt.Sprintf("%n", r.Call))
 		if len(r.Msg) > 0 && length < termMsgJust {
 			b.Write(bytes.Repeat([]byte{' '}, termMsgJust-length))
 		}
-
+		fmt.Fprintf(b, "\x1b[%dm%s\x1b[0m", color, "] ")
 		if color > 0 {
 			fmt.Fprintf(b, "\x1b[%dm%s\x1b[0m", color, r.Msg)
 		} else {
@@ -75,7 +76,8 @@ func LogfmtFormat() Format {
 	return FormatFunc(func(r *Record) []byte {
 		b := &bytes.Buffer{}
 		lvl := r.Lvl.AlignedString()
-		fmt.Fprintf(b, "%s[%s] %v %s %s", lvl, r.Time.Format(termTimeFormat), r.Call, r.Name, r.Msg)
+		fmt.Fprintf(b, "%s %s %v %n %s", lvl, r.Time.Format(termTimeFormat), r.Call, r.Call, r.Msg)
+
 		b.WriteByte('\n')
 		return b.Bytes()
 	})

@@ -8,7 +8,7 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-func initialize() *ResourceLimitsManager{
+func initializeResource() *ResourceLimitsManager{
 	control := GetControllerInstance()
 	rlm := control.ResourceLimits
 	rlm.InitializeDatabase()
@@ -37,7 +37,7 @@ func expectedExponentialAverageIterations(from uint64, to uint64, value uint64, 
 }
 
 func TestElasticCpuRelaxContract(t *testing.T){
-	rlm := initialize()
+	rlm := initializeResource()
 	desiredVirtualLimit := uint64(common.DefaultConfig.MaxBlockCpuUsage) * 1000
 	expectedRelaxIteration := expectedElasticIterations(uint64(common.DefaultConfig.MaxBlockCpuUsage), desiredVirtualLimit, 1000, 999)
 
@@ -73,7 +73,7 @@ func TestElasticCpuRelaxContract(t *testing.T){
 }
 
 func TestElasticNetRelaxContract(t *testing.T){
-	rlm := initialize()
+	rlm := initializeResource()
 	desiredVirtualLimit := uint64(common.DefaultConfig.MaxBlockNetUsage) * 1000
 	expectedRelaxIteration := expectedElasticIterations(uint64(common.DefaultConfig.MaxBlockNetUsage), desiredVirtualLimit, 1000, 999)
 
@@ -110,7 +110,7 @@ func TestElasticNetRelaxContract(t *testing.T){
 }
 
 func TestWeightedCapacityCpu(t *testing.T){
-	rlm := initialize()
+	rlm := initializeResource()
 	weights := []int64{234, 511, 672, 800, 1213}
 	total := int64(0)
 	for _, w := range weights {
@@ -145,7 +145,7 @@ func TestWeightedCapacityCpu(t *testing.T){
 }
 
 func TestWeightedCapacityNet(t *testing.T){
-	rlm := initialize()
+	rlm := initializeResource()
 	weights := []int64{234, 511, 672, 800, 1213}
 	total := int64(0)
 	for _, w := range weights {
@@ -179,7 +179,7 @@ func TestWeightedCapacityNet(t *testing.T){
 }
 
 func TestEnforceBlockLimitsCpu(t *testing.T){
-	rlm := initialize()
+	rlm := initializeResource()
 	account := common.AccountName(1)
 	rlm.InitializeAccount(account)
 	rlm.SetAccountLimits(account, -1, -1, -1)
@@ -199,7 +199,7 @@ func TestEnforceBlockLimitsCpu(t *testing.T){
 }
 
 func TestEnforceBlockLimitsNet(t *testing.T){
-	rlm := initialize()
+	rlm := initializeResource()
 	account := common.AccountName(1)
 	rlm.InitializeAccount(account)
 	rlm.SetAccountLimits(account, -1, -1, -1)
@@ -219,7 +219,7 @@ func TestEnforceBlockLimitsNet(t *testing.T){
 }
 
 func TestEnforceAccountRamLimit(t *testing.T){
-	rlm := initialize()
+	rlm := initializeResource()
 	limit := uint64(1000)
 	increment := uint64(77)
 	expectedIterations := (limit + increment - 1) / increment
@@ -239,7 +239,7 @@ func TestEnforceAccountRamLimit(t *testing.T){
 }
 
 func TestEnforceAccountRamLimitUnderflow(t *testing.T){
-	rlm := initialize()
+	rlm := initializeResource()
 	account := common.AccountName(1)
 	rlm.InitializeAccount(account)
 	rlm.SetAccountLimits(account, 100, -1, -1)
@@ -250,7 +250,7 @@ func TestEnforceAccountRamLimitUnderflow(t *testing.T){
 }
 
 func TestEnforceAccountRamLimitOverflow(t *testing.T){
-	rlm := initialize()
+	rlm := initializeResource()
 	account := common.AccountName(1)
 	rlm.InitializeAccount(account)
 	//rlm.SetAccountLimits(account, math.MaxUint64, -1, -1)
@@ -264,7 +264,7 @@ func TestEnforceAccountRamLimitOverflow(t *testing.T){
 }
 
 func TestEnforceAccountRamCommitment(t *testing.T){
-	rlm := initialize()
+	rlm := initializeResource()
 	limit := uint64(1000)
 	commit := uint64(600)
 	increment := uint64(77)
@@ -289,7 +289,7 @@ func TestEnforceAccountRamCommitment(t *testing.T){
 }
 
 func TestSanityCheck(t *testing.T){
-	rlm := initialize()
+	rlm := initializeResource()
 	totalStakedTokens := uint64(10000000000000)
 	userStake := uint64(10000)
 	maxBlockCpu := uint64(100000)

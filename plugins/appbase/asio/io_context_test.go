@@ -20,14 +20,14 @@ func TestIoContext_Run(t *testing.T) {
 
 func TestIoContext_Post(t *testing.T) {
 	ioc := NewIoContext()
-	ioc.Post(func() {
+	ioc.Post(func(err error) {
 		ioc.Stop()
 	})
 	ioc.Run()
 }
 
 func TestIoContext_pRun(t *testing.T) {
-	const COUNT = 1000000
+	const COUNT = 10000
 	ioc := NewIoContext()
 	j := 0
 
@@ -38,7 +38,7 @@ func TestIoContext_pRun(t *testing.T) {
 	//})
 
 	for i:=0; i<COUNT; i++ {
-		ioc.Post(func() {
+		ioc.Post(func(err error) {
 			j++
 			if j == COUNT {
 				ioc.Stop()

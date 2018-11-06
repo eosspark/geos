@@ -29,9 +29,6 @@ func NewBlockHeaderState(t *testing.T) *BlockHeaderState {
 	genHeader.BlockId = genHeader.Header.BlockID()
 	genHeader.BlockNum = genHeader.Header.BlockNumber()
 
-	genHeader.ProducerToLastProduced = make(map[common.AccountName]uint32)
-	genHeader.ProducerToLastImpliedIrb = make(map[common.AccountName]uint32)
-
 	genHeader.BlockSigningKey = initPubKey
 
 	assert.Equal(t, uint32(1), genHeader.BlockNum)
@@ -41,9 +38,9 @@ func NewBlockHeaderState(t *testing.T) *BlockHeaderState {
 
 func Test_BlockHeaderState_GetScheduledProducer(t *testing.T) {
 	bs := NewBlockHeaderState(t)
-	assert.Equal(t, "tester", common.S(uint64(bs.GetScheduledProducer(100).AccountName)))
-	assert.Equal(t, "eosio", common.S(uint64(bs.GetScheduledProducer(110).AccountName)))
-	assert.Equal(t, "yuanc", common.S(uint64(bs.GetScheduledProducer(120).AccountName)))
+	assert.Equal(t, "tester", common.S(uint64(bs.GetScheduledProducer(100).ProducerName)))
+	assert.Equal(t, "eosio", common.S(uint64(bs.GetScheduledProducer(110).ProducerName)))
+	assert.Equal(t, "yuanc", common.S(uint64(bs.GetScheduledProducer(120).ProducerName)))
 }
 
 func Test_BlockHeaderState_GenerateNext(t *testing.T) {

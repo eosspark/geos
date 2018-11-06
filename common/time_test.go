@@ -11,8 +11,8 @@ func Test_TimePoint(t *testing.T) {
 	assert.Equal(t, "294247-01-10 04:00:54.775807 +0000 UTC", MaxTimePoint().String(), "error max time")
 	assert.Equal(t, "1970-01-01 00:00:00 +0000 UTC", MinTimePoint().String(), "error min time")
 
-	assert.Equal(t, "2106-02-07 06:28:15 +0000 UTC", MaxTimePointSec(), "error max sec")
-	assert.Equal(t, "1970-01-01 00:00:00 +0000 UTC", MinTimePointSec(), "error min sec")
+	assert.Equal(t, "2106-02-07 06:28:15 +0000 UTC", MaxTimePointSec().String(), "error max sec")
+	assert.Equal(t, "1970-01-01 00:00:00 +0000 UTC", MinTimePointSec().String(), "error min sec")
 }
 
 func Test_FromIsoString(t *testing.T) {

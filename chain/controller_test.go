@@ -119,6 +119,15 @@ func TestController_GetGlobalProperties(t *testing.T) {
 	c.Close()
 }
 
+func TestController_GetDynamicGlobalProperties(t *testing.T) {
+	c := GetControllerInstance()
+	result := c.GetDynamicGlobalProperties()
+	dgpo := entity.DynamicGlobalPropertyObject{}
+	dgpo.ID = 0
+	assert.Equal(t, &dgpo, result)
+	fmt.Println("*******", result)
+}
+
 func TestController_GetBlockIdForNum(t *testing.T) {
 	c := GetControllerInstance()
 	try.Try(func() {

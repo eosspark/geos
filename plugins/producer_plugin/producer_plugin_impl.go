@@ -19,7 +19,7 @@ type ProducerPluginImpl struct {
 	ProductionSkipFlags uint32
 
 	SignatureProviders map[ecc.PublicKey]signatureProviderType
-	Producers          map[common.AccountName]struct{}
+	Producers          common.FlatSet //<AccountName>
 	Timer              *common.Timer
 	ProducerWatermarks map[common.AccountName]uint32
 	PendingBlockMode   EnumPendingBlockMode
@@ -39,8 +39,6 @@ type ProducerPluginImpl struct {
 	LastSignedBlockNum  uint32
 
 	Self *ProducerPlugin
-
-	ConfirmedBlock func(signature ecc.Signature) //TODO
 
 	PendingIncomingTransactions []pendingIncomingTransaction
 
@@ -93,39 +91,68 @@ func (impl *ProducerPluginImpl) OnBlock(bsp *types.BlockState) {
 
 	activeProducerToSigningKey := bsp.ActiveSchedule.Producers
 
-	activeProducers := make(map[common.AccountName]struct{}, len(bsp.ActiveSchedule.Producers))
+	activeProducers := common.FlatSet{} //<AccountName>
+	activeProducers.Reserve(len(bsp.ActiveSchedule.Producers))
 	for _, p := range bsp.ActiveSchedule.Producers {
-		activeProducers[p.AccountName] = struct{}{}
+		activeProducers.Insert(&p.ProducerName)
 	}
 
-	for producer := range impl.Producers {
-		_, has := activeProducers[producer]
-		if !has {
-			continue
-		}
-
-		if producer != bsp.Header.Producer {
-			var itr *types.ProducerKey
-			for _, k := range activeProducerToSigningKey {
-				if k.AccountName == producer {
-					itr = &k
-					break
+	common.SetIntersection(impl.Producers, activeProducers, func(e common.Element, i int, j int) {
+		producer := e.(*common.AccountName)
+		if *producer != bsp.Header.Producer {
+			itr := func() *types.ProducerKey {
+				for _, k := range activeProducerToSigningKey {
+					if k.ProducerName == *producer {
+						return &k
+					}
 				}
-			}
+
+				return nil
+			}()
 
 			if itr != nil {
 				privateKeyItr := impl.SignatureProviders[itr.BlockSigningKey]
 				if privateKeyItr != nil {
-					d := bsp.SigDigest()
-					sig := privateKeyItr(d)
+					//TODO signal ConfirmedBlock
+					//d := bsp.SigDigest()
+					//sig := privateKeyItr(d)
 					impl.LastSignedBlockTime = bsp.Header.Timestamp.ToTimePoint()
 					impl.LastSignedBlockNum = bsp.BlockNum
 
-					impl.ConfirmedBlock(sig)
+					//impl.Self.ConfirmedBlock
 				}
 			}
 		}
-	} //set_intersection
+	})
+
+	//for producer := range impl.Producers {
+	//	_, has := activeProducers[producer]
+	//	if !has {
+	//		continue
+	//	}
+	//
+	//	if producer != bsp.Header.Producer {
+	//		var itr *types.ProducerKey
+	//		for _, k := range activeProducerToSigningKey {
+	//			if k.ProducerName == producer {
+	//				itr = &k
+	//				break
+	//			}
+	//		}
+	//
+	//		if itr != nil {
+	//			privateKeyItr := impl.SignatureProviders[itr.BlockSigningKey]
+	//			if privateKeyItr != nil {
+	//				d := bsp.SigDigest()
+	//				sig := privateKeyItr(d)
+	//				impl.LastSignedBlockTime = bsp.Header.Timestamp.ToTimePoint()
+	//				impl.LastSignedBlockNum = bsp.BlockNum
+	//
+	//				impl.ConfirmedBlock(sig)
+	//			}
+	//		}
+	//	}
+	//} //set_intersection
 
 	// since the watermark has to be set before a block is created, we are looking into the future to
 	// determine the new schedule to identify producers that have become active
@@ -137,19 +164,20 @@ func (impl *ProducerPluginImpl) OnBlock(bsp *types.BlockState) {
 
 	// for newly installed producers we can set their watermarks to the block they became active
 	if newBs.MaybePromotePending() && bsp.ActiveSchedule.Version != newBs.ActiveSchedule.Version {
-		newProducers := make(map[common.AccountName]struct{}, len(newBs.ActiveSchedule.Producers))
+		newProducers := common.FlatSet{} //<AccountName>
+		newProducers.Reserve(len(newBs.ActiveSchedule.Producers))
 		for _, p := range newBs.ActiveSchedule.Producers {
-			if _, has := impl.Producers[p.AccountName]; has {
-				newProducers[p.AccountName] = struct{}{}
+			if exist, _ := impl.Producers.Find(&p.ProducerName); exist {
+				newProducers.Insert(&p.ProducerName)
 			}
 		}
 
 		for _, p := range bsp.ActiveSchedule.Producers {
-			delete(newProducers, p.AccountName)
+			newProducers.Erase(&p.ProducerName) //TODO check FlatSet::Erase
 		}
 
-		for newProducer := range newProducers {
-			impl.ProducerWatermarks[newProducer] = hbn
+		for _, newProducer := range newProducers.Data {
+			impl.ProducerWatermarks[*newProducer.(*common.AccountName)] = hbn
 		}
 	}
 }
@@ -161,7 +189,7 @@ func (impl *ProducerPluginImpl) OnIrreversibleBlock(lib *types.SignedBlock) {
 func (impl *ProducerPluginImpl) OnIncomingBlock(block *types.SignedBlock) {
 	//TODO: fc_dlog(_log, "received incoming block ${id}", ("id", block->id()));
 
-	EosAssert( block.Timestamp.ToTimePoint() < common.Now().AddUs(common.Seconds(7)), &BlockFromTheFuture{}, "received a block from the future, ignoring it")
+	EosAssert(block.Timestamp.ToTimePoint() < common.Now().AddUs(common.Seconds(7)), &BlockFromTheFuture{}, "received a block from the future, ignoring it")
 
 	chain := Chain.GetControllerInstance()
 
@@ -181,15 +209,21 @@ func (impl *ProducerPluginImpl) OnIncomingBlock(block *types.SignedBlock) {
 	// push the new block
 	except := false
 
-	defer HandleReturn()
+	returning := false
 	Try(func() {
 		chain.PushBlock(block, types.BlockStatus(types.Complete))
 	}).Catch(func(e GuardExceptions) {
+		fmt.Println(e.Message())
 		//TODO: handle_guard_exception
-		Return()
+		returning = true
 	}).Catch(func(e Exception) {
+		fmt.Println(e.Message())
 		except = true
 	}).End()
+
+	if returning {
+		return
+	}
 
 	if except {
 		//TODO:C++ app().get_channel<channels::rejected_block>().publish( block );

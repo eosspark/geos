@@ -19,10 +19,10 @@ func NewIdx64(c *ApplyContext) *Idx64 {
 	}
 }
 
-func (i *Idx64) store(scope int64, table int64, payer int64, id int64, secondary *uint64) int {
+func (i *Idx64) store(scope uint64, table uint64, payer uint64, id uint64, secondary *uint64) int {
 
 	EosAssert(common.AccountName(payer) != common.AccountName(0), &InvalidTablePayer{}, "must specify a valid account to pay for new record")
-	tab := i.context.FindOrCreateTable(int64(i.context.Receiver), scope, table, payer)
+	tab := i.context.FindOrCreateTable(uint64(i.context.Receiver), scope, table, payer)
 
 	obj := entity.SecondaryObjectI64{
 		TId:          tab.ID,
@@ -30,6 +30,8 @@ func (i *Idx64) store(scope int64, table int64, payer int64, id int64, secondary
 		SecondaryKey: *secondary,
 		Payer:        common.AccountName(payer),
 	}
+
+	i.context.ilog.Info("Idx64 store:%v", obj)
 
 	i.context.DB.Insert(&obj)
 	i.context.DB.Modify(tab, func(t *entity.TableIdObject) {
@@ -39,7 +41,7 @@ func (i *Idx64) store(scope int64, table int64, payer int64, id int64, secondary
 	i.context.UpdateDbUsage(common.AccountName(payer), int64(common.BillableSizeV("index64_object")))
 
 	i.itrCache.cacheTable(tab)
-	return i.itrCache.add(obj)
+	return i.itrCache.add(&obj)
 }
 
 func (i *Idx64) remove(iterator int) {
@@ -63,7 +65,7 @@ func (i *Idx64) remove(iterator int) {
 
 }
 
-func (i *Idx64) update(iterator int, payer int64, secondary *uint64) {
+func (i *Idx64) update(iterator int, payer uint64, secondary *uint64) {
 
 	obj := (i.itrCache.get(iterator)).(*entity.SecondaryObjectI64)
 	objTable := i.itrCache.getTable(obj.TId)
@@ -84,9 +86,10 @@ func (i *Idx64) update(iterator int, payer int64, secondary *uint64) {
 		o.SecondaryKey = *secondary
 		o.Payer = accountPayer
 	})
+
 }
 
-func (i *Idx64) findSecondary(code int64, scope int64, table int64, secondary *uint64, primary *uint64) int {
+func (i *Idx64) findSecondary(code uint64, scope uint64, table uint64, secondary *uint64, primary *uint64) int {
 
 	tab := i.context.FindTable(code, scope, table)
 	if tab == nil {
@@ -98,15 +101,15 @@ func (i *Idx64) findSecondary(code int64, scope int64, table int64, secondary *u
 	obj := entity.SecondaryObjectI64{TId: tab.ID, SecondaryKey: *secondary}
 	err := i.context.DB.Find("bySecondary", obj, &obj)
 
-	*primary = obj.PrimaryKey
-
 	if err != nil {
 		return tableEndItr
 	}
+
+	*primary = obj.PrimaryKey
 	return i.itrCache.add(&obj)
 }
 
-func (i *Idx64) lowerbound(code int64, scope int64, table int64, secondary *uint64, primary *uint64) int {
+func (i *Idx64) lowerbound(code uint64, scope uint64, table uint64, secondary *uint64, primary *uint64) int {
 
 	tab := i.context.FindTable(code, scope, table)
 	if tab == nil {
@@ -135,7 +138,7 @@ func (i *Idx64) lowerbound(code int64, scope int64, table int64, secondary *uint
 	return i.itrCache.add(&objLowerbound)
 }
 
-func (i *Idx64) upperbound(code int64, scope int64, table int64, secondary *uint64, primary *uint64) int {
+func (i *Idx64) upperbound(code uint64, scope uint64, table uint64, secondary *uint64, primary *uint64) int {
 
 	tab := i.context.FindTable(code, scope, table)
 	if tab == nil {
@@ -164,7 +167,7 @@ func (i *Idx64) upperbound(code int64, scope int64, table int64, secondary *uint
 	return i.itrCache.add(&objUpperbound)
 }
 
-func (i *Idx64) end(code int64, scope int64, table int64) int {
+func (i *Idx64) end(code uint64, scope uint64, table uint64) int {
 
 	tab := i.context.FindTable(code, scope, table)
 	if tab == nil {
@@ -186,6 +189,8 @@ func (i *Idx64) next(iterator int, primary *uint64) int {
 	itr.Next()
 	objNext := entity.SecondaryObjectI64{}
 	itr.Data(&objNext)
+
+	i.context.ilog.Info("Idx64 objNext:%v", objNext)
 
 	if idx.CompareEnd(itr) || objNext.TId != obj.TId {
 		return i.itrCache.getEndIteratorByTableID(obj.TId)
@@ -233,7 +238,7 @@ func (i *Idx64) previous(iterator int, primary *uint64) int {
 	itr.Prev()
 	objPrev := entity.SecondaryObjectI64{}
 	itr.Data(&objPrev)
-
+	i.context.ilog.Info("Idx64 objPrev:%v", objPrev)
 	if objPrev.TId != obj.TId {
 		return -1
 	}
@@ -241,7 +246,7 @@ func (i *Idx64) previous(iterator int, primary *uint64) int {
 	return i.itrCache.add(&objPrev)
 }
 
-func (i *Idx64) findPrimary(code int64, scope int64, table int64, secondary *uint64, primary *uint64) int {
+func (i *Idx64) findPrimary(code uint64, scope uint64, table uint64, secondary *uint64, primary uint64) int {
 
 	tab := i.context.FindTable(code, scope, table)
 	if tab == nil {
@@ -250,18 +255,17 @@ func (i *Idx64) findPrimary(code int64, scope int64, table int64, secondary *uin
 
 	tableEndItr := i.itrCache.cacheTable(tab)
 
-	obj := entity.SecondaryObjectI64{TId: tab.ID, PrimaryKey: *primary}
+	obj := entity.SecondaryObjectI64{TId: tab.ID, PrimaryKey: primary}
 	err := i.context.DB.Find("byPrimary", obj, &obj)
-
-	*secondary = obj.SecondaryKey
-
 	if err != nil {
 		return tableEndItr
 	}
+
+	*secondary = obj.SecondaryKey
 	return i.itrCache.add(&obj)
 }
 
-func (i *Idx64) lowerboundPrimary(code int64, scope int64, table int64, primary *uint64) int {
+func (i *Idx64) lowerboundPrimary(code uint64, scope uint64, table uint64, primary *uint64) int {
 
 	tab := i.context.FindTable(code, scope, table)
 	if tab == nil {
@@ -289,7 +293,7 @@ func (i *Idx64) lowerboundPrimary(code int64, scope int64, table int64, primary 
 	return i.itrCache.add(&objLowerbound)
 }
 
-func (i *Idx64) upperboundPrimary(code int64, scope int64, table int64, primary *uint64) int {
+func (i *Idx64) upperboundPrimary(code uint64, scope uint64, table uint64, primary *uint64) int {
 
 	tab := i.context.FindTable(code, scope, table)
 	if tab == nil {

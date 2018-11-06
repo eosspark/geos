@@ -13,41 +13,25 @@ import (
 	"time"
 )
 
-type SizeT int
+type SizeT = int
 
 // For reference:
 // https://github.com/mithrilcoin-io/EosCommander/blob/master/app/src/main/java/io/mithrilcoin/eoscommander/data/remote/model/types/EosByteWriter.java
-type ChainIdType crypto.Sha256
-type NodeIdType crypto.Sha256
-type BlockIdType crypto.Sha256
-type TransactionIdType crypto.Sha256
-type CheckSum256Type crypto.Sha256
-type IdType int64
-type KeyType uint64
-type DigestType crypto.Sha256
-
-func (n ChainIdType) String() string {
-	return crypto.Sha256(n).String()
-}
-func (n NodeIdType) String() string {
-	return crypto.Sha256(n).String()
-}
-func (n BlockIdType) String() string {
-	return crypto.Sha256(n).String()
-}
-func (n TransactionIdType) String() string {
-	return crypto.Sha256(n).String()
-}
-func (n CheckSum256Type) String() string {
-	return crypto.Sha256(n).String()
-}
+type ChainIdType 	   = crypto.Sha256
+type NodeIdType  	   = crypto.Sha256
+type BlockIdType 	   = crypto.Sha256
+type TransactionIdType = crypto.Sha256
+type CheckSum256Type   = crypto.Sha256
+type DigestType 	   = crypto.Sha256
+type IdType  = int64
+type KeyType = uint64
 
 func BlockIdNil() BlockIdType {
-	return BlockIdType(*crypto.NewSha256Nil())
+	return *crypto.NewSha256Nil()
 }
 
 func TransactionIdNil() TransactionIdType {
-	return TransactionIdType(*crypto.NewSha256Nil())
+	return *crypto.NewSha256Nil()
 }
 
 func DecodeIdTypeString(str string) (id [4]uint64, err error) {
@@ -63,6 +47,7 @@ func DecodeIdTypeString(str string) (id [4]uint64, err error) {
 
 	return
 }
+
 func DecodeIdTypeByte(b []byte) (id [4]uint64, err error) {
 	for i := range id {
 		id[i] = binary.LittleEndian.Uint64(b[i*8 : (i+1)*8])
@@ -70,209 +55,13 @@ func DecodeIdTypeByte(b []byte) (id [4]uint64, err error) {
 
 	return id, nil
 }
-func (n ChainIdType) MarshalJSON() ([]byte, error) {
-	b := make([]byte, 32)
-	for i := range n.Hash {
-		binary.LittleEndian.PutUint64(b[i*8:(i+1)*8], n.Hash[i])
-	}
-	return json.Marshal(hex.EncodeToString(b))
-}
 
-func (n *ChainIdType) UnmarshalJSON(data []byte) error {
-	var s string
-	err := json.Unmarshal(data, &s)
-	if err != nil {
-		fmt.Println(err)
-		return err
-	}
 
-	b, err := hex.DecodeString(s)
-	if err != nil {
-		return err
-	}
-
-	for i := range n.Hash {
-		n.Hash[i] = binary.LittleEndian.Uint64(b[i*8 : (i+1)*8])
-	}
-
-	return nil
-}
-
-func (n NodeIdType) MarshalJSON() ([]byte, error) {
-	return crypto.Sha256(n).MarshalJSON()
-}
-
-func (n BlockIdType) MarshalJSON() ([]byte, error) {
-	return crypto.Sha256(n).MarshalJSON()
-}
-
-func (n *BlockIdType) UnmarshalJSON(data []byte) error {
-	var s string
-	err := json.Unmarshal(data, &s)
-	if err != nil {
-		return err
-	}
-
-	b, err := hex.DecodeString(s)
-	if err != nil {
-		return err
-	}
-	for i := range n.Hash {
-		n.Hash[i] = binary.LittleEndian.Uint64(b[i*8 : (i+1)*8])
-	}
-	return nil
-}
-
-func (n TransactionIdType) MarshalJSON() ([]byte, error) {
-	return crypto.Sha256(n).MarshalJSON()
-}
-
-func (n CheckSum256Type) MarshalJSON() ([]byte, error) {
-	return crypto.Sha256(n).MarshalJSON()
-}
-
-func (n *CheckSum256Type) UnmarshalJSON(data []byte) error {
-	var s string
-	err := json.Unmarshal(data, &s)
-	if err != nil {
-		return err
-	}
-
-	b, err := hex.DecodeString(s)
-	if err != nil {
-		return err
-	}
-	for i := range n.Hash {
-		n.Hash[i] = binary.LittleEndian.Uint64(b[i*8 : (i+1)*8])
-	}
-	return nil
-}
-
-type Name uint64
-type AccountName uint64
-type PermissionName uint64
-type ActionName uint64
-type TableName uint64
-type ScopeName uint64
-
-func (n Name) String() string {
-	return S(uint64(n))
-}
-
-func (n *AccountName) GetKey() uint64 {
-	return uint64(*n)
-}
-func (n AccountName) String() string {
-	return S(uint64(n))
-}
-func (n PermissionName) String() string {
-	return S(uint64(n))
-}
-func (n ActionName) String() string {
-	return S(uint64(n))
-}
-func (n TableName) String() string {
-	return S(uint64(n))
-}
-func (n ScopeName) String() string {
-	return S(uint64(n))
-}
-
-func (n Name) Empty() bool {
-	return n == 0
-}
-func (n AccountName) Empty() bool {
-	return n == 0
-}
-func (n PermissionName) Empty() bool {
-	return n == 0
-}
-func (n ActionName) Empty() bool {
-	return n == 0
-}
-func (n TableName) Empty() bool {
-	return n == 0
-}
-func (n ScopeName) Empty() bool {
-	return n == 0
-}
-
-func (n AccountName) MarshalJSON() ([]byte, error) {
-	return json.Marshal(S(uint64(n)))
-}
-
-func (n *AccountName) UnmarshalJSON(data []byte) error {
-	var s string
-	err := json.Unmarshal(data, &s)
-	if err != nil {
-		return err
-	}
-	*n = AccountName(N(s))
-	return nil
-}
-
-func (n Name) MarshalJSON() ([]byte, error) {
-	return json.Marshal(S(uint64(n)))
-}
-
-func (n *Name) UnmarshalJSON(data []byte) error {
-	var s string
-	err := json.Unmarshal(data, &s)
-	if err != nil {
-		return err
-	}
-	*n = Name(N(s))
-	return nil
-}
-
-func (n PermissionName) MarshalJSON() ([]byte, error) {
-	return json.Marshal(S(uint64(n)))
-}
-func (n *PermissionName) UnmarshalJSON(data []byte) error {
-	var s string
-	err := json.Unmarshal(data, &s)
-	if err != nil {
-		return err
-	}
-	*n = PermissionName(N(s))
-	return nil
-}
-func (n ActionName) MarshalJSON() ([]byte, error) {
-	return json.Marshal(S(uint64(n)))
-}
-func (n *ActionName) UnmarshalJSON(data []byte) error {
-	var s string
-	err := json.Unmarshal(data, &s)
-	if err != nil {
-		return err
-	}
-	*n = ActionName(N(s))
-	return nil
-}
-func (n TableName) MarshalJSON() ([]byte, error) {
-	return json.Marshal(S(uint64(n)))
-}
-func (n *TableName) UnmarshalJSON(data []byte) error {
-	var s string
-	err := json.Unmarshal(data, &s)
-	if err != nil {
-		return err
-	}
-	*n = TableName(N(s))
-	return nil
-}
-func (n ScopeName) MarshalJSON() ([]byte, error) {
-	return json.Marshal(S(uint64(n)))
-}
-func (n *ScopeName) UnmarshalJSON(data []byte) error {
-	var s string
-	err := json.Unmarshal(data, &s)
-	if err != nil {
-		return err
-	}
-	*n = ScopeName(N(s))
-	return nil
-}
+type AccountName 	= Name
+type PermissionName = Name
+type ActionName 	= Name
+type TableName 		= Name
+type ScopeName 		= Name
 
 // type AccountResourceLimit struct {
 // 	Used      JSONInt64 `json:"used"`

@@ -11,11 +11,9 @@ import (
 	//Chain "github.com/eosspark/eos-go/chain" /*real chain*/
 	. "github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
-	)
+)
 
-
-
-func (impl *ProducerPluginImpl) CalculateNextBlockTime(producerName common.AccountName, currentBlockTime common.BlockTimeStamp) *common.TimePoint {
+func (impl *ProducerPluginImpl) CalculateNextBlockTime(producerName *common.AccountName, currentBlockTime common.BlockTimeStamp) *common.TimePoint {
 	var result common.TimePoint
 
 	chain := Chain.GetControllerInstance()
@@ -27,7 +25,7 @@ func (impl *ProducerPluginImpl) CalculateNextBlockTime(producerName common.Accou
 	var itr *types.ProducerKey
 	var producerIndex uint32
 	for index, asp := range activeSchedule {
-		if asp.AccountName == producerName {
+		if asp.ProducerName == *producerName {
 			itr = &asp
 			producerIndex = uint32(index)
 			break
@@ -46,7 +44,7 @@ func (impl *ProducerPluginImpl) CalculateNextBlockTime(producerName common.Accou
 	// disqualify this producer for longer but it is assumed they will wake up, determine that they
 	// are disqualified for longer due to skipped blocks and re-caculate their next block with better
 	// information then
-	currentWatermark, hasCurrentWatermark := impl.ProducerWatermarks[producerName]
+	currentWatermark, hasCurrentWatermark := impl.ProducerWatermarks[*producerName]
 	if hasCurrentWatermark {
 		blockNum := chain.PendingBlockState().BlockNum
 		if chain.PendingBlockState() != nil {
@@ -120,21 +118,25 @@ func (impl *ProducerPluginImpl) StartBlock() (EnumStartBlockRusult, bool) {
 	// Not our turn
 	lastBlock := uint32(common.NewBlockTimeStamp(blockTime))%uint32(common.DefaultConfig.ProducerRepetitions) == uint32(common.DefaultConfig.ProducerRepetitions)-1
 	scheduleProducer := hbs.GetScheduledProducer(common.NewBlockTimeStamp(blockTime))
-	currentWatermark, hasCurrentWatermark := impl.ProducerWatermarks[scheduleProducer.AccountName]
+	currentWatermark, hasCurrentWatermark := impl.ProducerWatermarks[scheduleProducer.ProducerName]
 	_, hasSignatureProvider := impl.SignatureProviders[scheduleProducer.BlockSigningKey]
 	irreversibleBlockAge := impl.GetIrreversibleBlockAge()
 
 	// If the next block production opportunity is in the present or future, we're synced.
 	if !impl.ProductionEnabled {
 		impl.PendingBlockMode = EnumPendingBlockMode(speculating)
-	} else if _, has := impl.Producers[scheduleProducer.AccountName]; !has {
+
+	} else if has, _ := impl.Producers.Find(&scheduleProducer.ProducerName); !has {
 		impl.PendingBlockMode = EnumPendingBlockMode(speculating)
+
 	} else if !hasSignatureProvider {
 		impl.PendingBlockMode = EnumPendingBlockMode(speculating)
 		//elog("Not producing block because I don't have the private key for ${scheduled_key}", ("scheduled_key", scheduled_producer.block_signing_key));
+
 	} else if impl.ProductionPaused {
 		//elog("Not producing block because production is explicitly paused");
 		impl.PendingBlockMode = EnumPendingBlockMode(speculating)
+
 	} else if impl.MaxIrreversibleBlockAgeUs >= 0 && irreversibleBlockAge >= impl.MaxIrreversibleBlockAgeUs {
 		//elog("Not producing block because the irreversible block is too old [age:${age}s, max:${max}s]", ("age", irreversible_block_age.count() / 1'000'000)( "max", _max_irreversible_block_age_us.count() / 1'000'000 ));
 		impl.PendingBlockMode = EnumPendingBlockMode(speculating)
@@ -158,6 +160,7 @@ func (impl *ProducerPluginImpl) StartBlock() (EnumStartBlockRusult, bool) {
 	if impl.PendingBlockMode == EnumPendingBlockMode(speculating) {
 		headBlockAge := now.Sub(chain.HeadBlockTime())
 		if headBlockAge > common.Seconds(5) {
+			fmt.Println("start block speculating")
 			return EnumStartBlockRusult(waiting), lastBlock
 		}
 	}
@@ -334,6 +337,7 @@ func (impl *ProducerPluginImpl) StartBlock() (EnumStartBlockRusult, bool) {
 		} ///scheduled transactions
 
 		if isExhausted || blockTime <= common.Now() {
+			fmt.Println("start block exhausted")
 			return EnumStartBlockRusult(exhausted), lastBlock
 		} else {
 			// attempt to apply any pending incoming transactions
@@ -344,12 +348,14 @@ func (impl *ProducerPluginImpl) StartBlock() (EnumStartBlockRusult, bool) {
 				origPendingTxnSize--
 				impl.OnIncomingTransactionAsync(e.packedTransaction, e.persistUntilExpired, e.next)
 				if blockTime <= common.Now() {
+					fmt.Println("start block exhausted")
 					return EnumStartBlockRusult(exhausted), lastBlock
 				}
 			}
 			return EnumStartBlockRusult(succeeded), lastBlock
 		}
 	}
+	fmt.Println("start block failed")
 	return EnumStartBlockRusult(failed), lastBlock
 }
 
@@ -373,7 +379,7 @@ func (impl *ProducerPluginImpl) ScheduleProductionLoop() {
 		})
 
 	} else if result == EnumStartBlockRusult(waiting) {
-		if len(impl.Producers) > 0 && !impl.ProductionDisabledByPolicy() {
+		if impl.Producers.Len() > 0 && !impl.ProductionDisabledByPolicy() {
 			log.Debug("Waiting till another block is received and scheduling Speculative/Production Change")
 			impl.ScheduleDelayedProductionLoop(common.NewBlockTimeStamp(impl.CalculatePendingBlockTime()))
 		} else {
@@ -416,9 +422,9 @@ func (impl *ProducerPluginImpl) ScheduleProductionLoop() {
 			}
 		})
 
-	} else if impl.PendingBlockMode == EnumPendingBlockMode(speculating) && len(impl.Producers) > 0 && !impl.ProductionDisabledByPolicy() {
+	} else if impl.PendingBlockMode == EnumPendingBlockMode(speculating) && impl.Producers.Len() > 0 && !impl.ProductionDisabledByPolicy() {
 		//TODO: fc_dlog(_log, "Specualtive Block Created; Scheduling Speculative/Production Change");
-		EosAssert( chain.PendingBlockState() != nil, &MissingPendingBlockState{}, "speculating without pending_block_state")
+		EosAssert(chain.PendingBlockState() != nil, &MissingPendingBlockState{}, "speculating without pending_block_state")
 		pbs := chain.PendingBlockState()
 		impl.ScheduleDelayedProductionLoop(pbs.Header.Timestamp)
 
@@ -430,8 +436,8 @@ func (impl *ProducerPluginImpl) ScheduleProductionLoop() {
 func (impl *ProducerPluginImpl) ScheduleDelayedProductionLoop(currentBlockTime common.BlockTimeStamp) {
 	// if we have any producers then we should at least set a timer for our next available slot
 	var wakeUpTime *common.TimePoint
-	for p := range impl.Producers {
-		nextProducerBlockTime := impl.CalculateNextBlockTime(p, currentBlockTime)
+	for _, p := range impl.Producers.Data {
+		nextProducerBlockTime := impl.CalculateNextBlockTime(p.(*common.AccountName), currentBlockTime)
 		if nextProducerBlockTime != nil {
 			producerWakeupTime := nextProducerBlockTime.SubUs(common.Microseconds(common.DefaultConfig.BlockIntervalUs))
 			if wakeUpTime != nil {

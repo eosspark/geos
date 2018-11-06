@@ -1,7 +1,6 @@
 package database
 
 import (
-	"github.com/eosspark/eos-go/crypto/rlp"
 	"reflect"
 )
 
@@ -46,7 +45,7 @@ func getFieldInfo(fieldName string, value interface{}) (*fieldInfo, error) {
 //}
 
 // TODO The function is unchanged, need to modify the implementation
-func getFieldValue(info *fieldInfo) ([]byte) { /* non unique fields --> get function */
+func getFieldValue(info *fieldInfo) []byte { /* non unique fields --> get function */
 	values := []byte{}
 	for _, v := range info.fieldValue {
 
@@ -55,7 +54,7 @@ func getFieldValue(info *fieldInfo) ([]byte) { /* non unique fields --> get func
 		}
 		values = append(values, '_')
 		values = append(values, '_')
-		re, err := rlp.EncodeToBytes(v.Interface())
+		re, err :=    EncodeToBytes(v.Interface())
 		if err != nil {
 			return nil
 		}
@@ -86,11 +85,14 @@ func fieldValueToByte(key []byte, info *fieldInfo) []byte { /* fieldValue[0]__fi
 	for _, v := range info.fieldValue { // typeName__tag__fieldValue...
 		cloneKey = append(cloneKey, '_')
 		cloneKey = append(cloneKey, '_')
-		value, err := rlp.EncodeToBytes(v.Interface())
+		//fmt.Println(v.Interface())
+		value, err := EncodeToBytes(v.Interface())
 		if err != nil {
 			return nil
 		}
+		//fmt.Println(value)
 		cloneKey = append(cloneKey, value...)
+		//fmt.Println(cloneKey)
 	}
 	return cloneKey
 }
