@@ -221,10 +221,10 @@ func softfloat_mul64To128(a, b uint64) Uint128 {
 	a0 = uint32(a)
 	b32 = uint32(b >> 32)
 	b0 = uint32(b)
-	z.Low = uint64(a0 * b0)
-	mid1 = uint64(a32 * b0)
-	mid = mid1 + uint64(a0*b32)
-	z.High = uint64(a32 * b32)
+	z.Low = uint64(a0) * uint64(b0)
+	mid1 = uint64(a32) * uint64(b0)
+	mid = mid1 + uint64(a0)*uint64(b32)
+	z.High = uint64(a32) * uint64(b32)
 
 	if mid < mid1 {
 		z.High += uint64(1)<<32 | mid>>32

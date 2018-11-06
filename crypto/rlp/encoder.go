@@ -24,19 +24,19 @@ type Pack interface {
 // --------------------------------------------------------------
 type encoder struct {
 	output   io.Writer
-	Order    binary.ByteOrder
 	count    int
 	eosArray bool
 	vuint32  bool
 }
 
-var staticVariantTag uint8
-var trxIsID bool
+var (
+	staticVariantTag uint8
+	trxIsID          bool
+)
 
 func newEncoder(w io.Writer) *encoder {
 	return &encoder{
 		output: w,
-		Order:  binary.LittleEndian,
 		count:  0,
 	}
 }

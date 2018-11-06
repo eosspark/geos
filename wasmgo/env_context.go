@@ -50,7 +50,7 @@ type EnvContext interface {
 	Idx64End(code uint64, scope uint64, table uint64) int
 	Idx64Next(iterator int, primary *uint64) int
 	Idx64Previous(iterator int, primary *uint64) int
-	Idx64FindPrimary(code uint64, scope uint64, table uint64, secondary *uint64, primary *uint64) int
+	Idx64FindPrimary(code uint64, scope uint64, table uint64, secondary *uint64, primary uint64) int
 
 	//secondaryKey Double
 	IdxDoubleStore(scope uint64, table uint64, payer uint64, id uint64, value *arithmetic.Float64) int

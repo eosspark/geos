@@ -45,9 +45,9 @@ type KeyValueObject struct {
 type SecondaryObjectI64 struct {
 	ID           common.IdType `multiIndex:"id,increment"`
 	TId          common.IdType `multiIndex:"byPrimary,orderedUnique,less:bySecondary,orderedUnique,less"`
-	PrimaryKey   uint64        `multiIndex:"byPrimary,orderedUnique"`
+	SecondaryKey uint64        `multiIndex:"bySecondary,orderedUnique,less"`
+	PrimaryKey   uint64        `multiIndex:"byPrimary,orderedUnique,less:bySecondary,orderedUnique,less"`
 	Payer        common.AccountName
-	SecondaryKey uint64 `multiIndex:"bySecondary,orderedUnique"`
 }
 
 // type SecondaryObjectDouble struct {
