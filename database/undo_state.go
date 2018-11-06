@@ -1,7 +1,6 @@
 package database
 
 import (
-	"fmt"
 	"reflect"
 )
 
@@ -67,9 +66,8 @@ func (stack *undoState) undoModify(data interface{}) {
 }
 
 func undoEqual(m map[interface{}]int64, data interface{}) interface{} {
-	for key, value := range m {
+	for key, _ := range m {
 		if reflect.DeepEqual(key, data) {
-			fmt.Println(value)
 			return key
 		}
 	}
