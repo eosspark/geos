@@ -6,7 +6,7 @@ import (
 	. "github.com/eosspark/eos-go/exception"
 	"github.com/stretchr/testify/assert"
 	"testing"
-)
+	)
 
 func TestExceptionCode(t *testing.T) {
 	assert.Equal(t, ExcTypes(21), DivideByZeroCode)
@@ -18,6 +18,49 @@ func TestEosAssert(t *testing.T) {
 	EosAssert(true, &BlockValidateException{}, "block #%s error :%s", "00000006367c1f4...", "msg")
 }
 
+func catches() {
+	fmt.Println("\ncaught Exception------------------------")
+	try.Try(func() {
+		EosAssert(false, &ChainException{}, "test")
+	}).Catch(func(e Exception) {
+	}).End()
+
+	fmt.Println("\ncaught none-----------------------------")
+	try.Try(func() {
+	}).Catch(func(e Exception) {
+	}).End()
+
+	defer func() {
+		recover()
+	}()
+	fmt.Println("\ncaught failed---------------------------")
+	try.Try(func() {
+		try.Throw(1)
+	}).Catch(func(e string) {
+	}).Catch(func(e Exception) {
+	}).End()
+}
+
+func catchExc() {
+	fmt.Println("\ncaughtExc success-----------------------")
+	try.Try(func() {
+		EosAssert(false, &ChainException{}, "test")
+	}).CatchException(func(e Exception) {
+	}).End()
+
+	defer func() { recover() }()
+	fmt.Println("\ncaughtExc failed------------------------")
+	try.Try(func() {
+		try.Throw(1)
+	}).CatchException(func(e Exception) {
+	}).End()
+}
+
+func Test_performance(t *testing.T) {
+	catches()
+	//catchExc()
+}
+
 func TestEosAssert_catch(t *testing.T) {
 	var scopeExit int
 	defer func() {
@@ -26,7 +69,7 @@ func TestEosAssert_catch(t *testing.T) {
 
 	try.Try(func() {
 		EosAssert(false, &ChainException{}, "test")
-	}).Catch(func(e ChainExceptions) {
+	}).Catch(func(e Exception) {
 		fmt.Println(e.What())
 	}).End()
 

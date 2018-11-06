@@ -2,8 +2,8 @@ package try
 
 import (
 	"reflect"
-	"fmt"
-)
+	. "github.com/eosspark/eos-go/exception"
+		)
 
 type CatchOrFinally struct {
 	e 		  interface{}
@@ -11,10 +11,52 @@ type CatchOrFinally struct {
 	//StackTrace []StackInfo
 }
 
+//special
+func (c *CatchOrFinally) CatchException(f func(e Exception)) (r *CatchOrFinally) {
+///*debug*/s := time.Now().Nanosecond()
+	if c == nil || c.e == nil {
+///*debug*/fmt.Println("catchExc-none", time.Now().Nanosecond() - s, "ns")
+		return nil
+	}
+
+	if et, ok := c.e.(Exception); ok {
+		f(et)
+///*debug*/fmt.Println("catchExc-success", time.Now().Nanosecond() - s, "ns")
+		return nil
+	}
+
+///*debug*/fmt.Println("catchExc-fail", time.Now().Nanosecond() - s, "ns")
+	return c
+}
+
 //Catch call the exception handler. And return interface CatchOrFinally that
 //can call Catch or Finally.
 func (c *CatchOrFinally) Catch(f interface{}) (r *CatchOrFinally) {
+///*debug*/s := time.Now().Nanosecond()
 	if c == nil || c.e == nil {
+///*debug*/fmt.Println("catch-none", time.Now().Nanosecond() - s, "ns")
+		return nil
+	}
+
+	switch ft := f.(type) {
+	case func(Exception):
+		if et,ok := c.e.(Exception); ok {
+			ft(et)
+///*debug*/fmt.Println("catch-special", time.Now().Nanosecond() - s, "ns")
+			return nil
+		}
+///*debug*/fmt.Println("catch-special-fail", time.Now().Nanosecond() - s, "ns")
+		return c
+
+	case func(error):
+		if et,ok := c.e.(error); ok {
+			ft(et)
+			return nil
+		}
+		return c
+
+	case func(interface{}):
+		ft(c.e)
 		return nil
 	}
 
@@ -28,6 +70,7 @@ func (c *CatchOrFinally) Catch(f interface{}) (r *CatchOrFinally) {
 
 		if its == cts || (it.Kind() == reflect.Interface && ct.Implements(it)) {
 			reflect.ValueOf(f).Call([]reflect.Value{reflect.ValueOf(c.e)})
+///*debug*/fmt.Println("catch-reflect", time.Now().Nanosecond() - s, "ns")
 			return nil
 
 		} else if ct.Kind() == reflect.Ptr && cts[1:] == its { // make pointer can be caught by its value type
@@ -46,21 +89,22 @@ func (c *CatchOrFinally) Catch(f interface{}) (r *CatchOrFinally) {
 		//println(it.String(), ct.String())
 
 	}
+
+///*debug*/fmt.Println("catch-fail", time.Now().Nanosecond() - s, "ns")
 	return c
 }
 
 //Necessary to call at the end of try-catch block, to ensure panic uncaught exceptions
 func (c *CatchOrFinally) End() {
 	if c != nil && c.e != nil {
-		c.printStackInfo()
+		//c.printStackInfo()
 		Throw(c.e)
 	}
 }
 
 func (c *CatchOrFinally) printStackInfo() {
-	fmt.Println(string(c.stackInfo))
+	//fmt.Println(string(c.stackInfo))
 }
-
 
 //Finally always be called if defined.
 //func (c *CatchOrFinally) Finally(f interface{}) (r *OrThrowable) {
