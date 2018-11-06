@@ -448,7 +448,10 @@ func TestContextDB(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		callTestFunction(code, "test_db", "primary_i64_general", []byte{})
+		//callTestFunction(code, "test_db", "primary_i64_general", []byte{})
+		//callTestFunction(code, "test_db", "primary_i64_lowerbound", []byte{})
+		//callTestFunction(code, "test_db", "primary_i64_upperbound", []byte{})
+		callTestFunction(code, "test_db", "idx64_general", []byte{})
 
 	})
 }
@@ -462,6 +465,7 @@ func TestContextMultiIndex(t *testing.T) {
 			t.Fatal(err)
 		}
 		callTestFunction(code, "test_multi_index", "idx64_general", []byte{})
+		//callTestFunction(code, "test_multi_index", "primary_i64_lowerbound", []byte{})
 
 	})
 }
@@ -578,7 +582,7 @@ func callTestFunction(code []byte, cls string, method string, payload []byte) *c
 	wasm.Apply(codeVersion, code, applyContext)
 
 	control.Close()
-	control.Clean()
+	//control.Clean()
 
 	return applyContext
 
@@ -614,13 +618,13 @@ func callTestFunctionCheckException(code []byte, cls string, method string, payl
 			fmt.Println(errMsg)
 			ret = true
 			control.Close()
-			control.Clean()
+			//control.Clean()
 			try.Return()
 		}
 	}).End()
 
 	control.Close()
-	control.Clean()
+	//control.Clean()
 	ret = false
 	return
 

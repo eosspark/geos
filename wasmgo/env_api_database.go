@@ -19,6 +19,13 @@ func dbStoreI64(w *WasmGo, scope uint64, table uint64, payer uint64, id uint64, 
 
 }
 
+// func dbStoreI64(w *WasmGo, scope uint64, table uint64, payer uint64, id uint64, buffer int) int {
+// 	fmt.Println("db_store_i64")
+
+// 	bytes := getUint64(w, buffer)
+// 	return w.context.DbStoreI64(scope, table, payer, id, bytes)
+// }
+
 // void db_update_i64( int itr, uint64_t payer, array_ptr<const char> buffer, size_t buffer_size ) {
 //    context.db_update_i64( itr, payer, buffer, buffer_size );
 // }
@@ -33,7 +40,7 @@ func dbUpdateI64(w *WasmGo, itr int, payer uint64, buffer int, bufferSize int) {
 //    context.db_remove_i64( itr );
 // }
 func dbRemoveI64(w *WasmGo, itr int) {
-	fmt.Println("db_remove_i64")
+	//fmt.Println("db_remove_i64")
 
 	w.context.DbRemoveI64(itr)
 }
@@ -63,7 +70,7 @@ func dbNextI64(w *WasmGo, itr int, primary int) int {
 	iterator := w.context.DbNextI64(itr, &p)
 	w.ilog.Info("dbNextI64 iterator:%d", iterator)
 
-	if iterator == -1 {
+	if iterator <= -1 {
 		return iterator
 	}
 	setUint64(w, primary, p)
@@ -79,7 +86,7 @@ func dbPreviousI64(w *WasmGo, itr int, primary int) int {
 	var p uint64
 	iterator := w.context.DbPreviousI64(itr, &p)
 	w.ilog.Info("dbNextI64 iterator:%d", iterator)
-	if iterator == -1 {
+	if iterator <= -1 {
 		return iterator
 	}
 	setUint64(w, primary, p)
@@ -98,8 +105,7 @@ func dbFindI64(w *WasmGo, code uint64, scope uint64, table uint64, id uint64) in
 //    return context.db_lowerbound_i64( code, scope, table, id );
 // }
 func dbLowerboundI64(w *WasmGo, code uint64, scope uint64, table uint64, id uint64) int {
-	fmt.Println("db_lowerbound_i64")
-
+	//fmt.Println("db_lowerbound_i64")
 	return w.context.DbLowerboundI64(code, scope, table, id)
 }
 
@@ -107,7 +113,7 @@ func dbLowerboundI64(w *WasmGo, code uint64, scope uint64, table uint64, id uint
 //    return context.db_upperbound_i64( code, scope, table, id );
 // }
 func dbUpperboundI64(w *WasmGo, code uint64, scope uint64, table uint64, id uint64) int {
-	fmt.Println("db_upperbound_i64")
+	//fmt.Println("db_upperbound_i64")
 	return w.context.DbUpperboundI64(code, scope, table, id)
 }
 
@@ -121,7 +127,7 @@ func dbEndI64(w *WasmGo, code uint64, scope uint64, table uint64) int {
 
 //secondaryKey Index
 func dbIdx64Store(w *WasmGo, scope uint64, table uint64, payer uint64, id uint64, pValue int) int {
-	fmt.Println("db_idx64_store")
+	//fmt.Println("db_idx64_store")
 
 	secondaryKey := getUint64(w, pValue)
 	return w.context.Idx64Store(scope, table, payer, id, &secondaryKey)
@@ -183,11 +189,12 @@ func dbIdx64End(w *WasmGo, code uint64, scope uint64, table uint64) int {
 }
 
 func dbIdx64Next(w *WasmGo, itr int, primary int) int {
-	fmt.Println("db_idx64_next")
+	//fmt.Println("db_idx64_next")
 
 	var p uint64
 	iterator := w.context.Idx64Next(itr, &p)
-	if iterator == -1 {
+	w.ilog.Info("dbIdx64Next iterator:%d", iterator)
+	if iterator <= -1 {
 		return iterator
 	}
 	setUint64(w, primary, p)
@@ -196,11 +203,12 @@ func dbIdx64Next(w *WasmGo, itr int, primary int) int {
 }
 
 func dbIdx64Previous(w *WasmGo, itr int, primary int) int {
-	fmt.Println("db_idx64_previous")
+	//fmt.Println("db_idx64_previous")
 
 	var p uint64
 	iterator := w.context.Idx64Previous(itr, &p)
-	if iterator == -1 {
+	w.ilog.Info("dbIdx64Previous iterator:%d", iterator)
+	if iterator <= -1 {
 		return iterator
 	}
 	setUint64(w, primary, p)
@@ -208,13 +216,13 @@ func dbIdx64Previous(w *WasmGo, itr int, primary int) int {
 	return iterator
 }
 
-func dbIdx64FindPrimary(w *WasmGo, code uint64, scope uint64, table uint64, pSecondary int, pPrimary int) int {
+func dbIdx64FindPrimary(w *WasmGo, code uint64, scope uint64, table uint64, pSecondary int, primary uint64) int {
 
-	fmt.Println("db_idx64_find_primary")
+	//fmt.Println("db_idx64_find_primary")
 
-	primaryKey := getUint64(w, pPrimary)
+	//primaryKey := getUint64(w, pPrimary)
 	var secondaryKey uint64
-	itr := w.context.Idx64FindPrimary(code, scope, table, &secondaryKey, &primaryKey)
+	itr := w.context.Idx64FindPrimary(code, scope, table, &secondaryKey, primary)
 	setUint64(w, pSecondary, secondaryKey)
 
 	return itr
@@ -288,8 +296,12 @@ func dbIdxDoubleNext(w *WasmGo, itr int, primary int) int {
 	fmt.Println("db_idx64_next")
 
 	var p uint64
-
 	iterator := w.context.IdxDoubleNext(itr, &p)
+	w.ilog.Info("dbIdxDoubleNext iterator:%d", iterator)
+	if iterator <= -1 {
+		return iterator
+	}
+
 	setUint64(w, primary, p)
 
 	return iterator
@@ -299,8 +311,11 @@ func dbIdxDoublePrevious(w *WasmGo, itr int, primary int) int {
 	fmt.Println("db_idx64_previous")
 
 	var p uint64
-
 	iterator := w.context.IdxDoublePrevious(itr, &p)
+	w.ilog.Info("dbIdxDoublePrevious iterator:%d", iterator)
+	if iterator <= -1 {
+		return iterator
+	}
 	setUint64(w, primary, p)
 
 	return iterator
