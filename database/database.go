@@ -636,7 +636,7 @@ func (ldb *LDataBase) find(tagName string, value interface{}, to interface{}) er
 func (ldb *LDataBase) findFields(key, typeName []byte, to interface{}) error {
 	ldb.log.Info("Info database findFields key is : %v", key)
 	val := idKey(key,typeName)
-	fmt.Println(val)
+	//fmt.Println(val)
 	v, err := getDbKey(val, ldb.db)
 	err = DecodeBytes(v, to)
 	if err != nil {
