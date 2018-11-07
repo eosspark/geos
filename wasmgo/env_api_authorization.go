@@ -2,14 +2,14 @@ package wasmgo
 
 import (
 	"fmt"
-	//"github.com/eosspark/eos-go/common"
+	"github.com/eosspark/eos-go/common"
 )
 
 // void require_authorization( const account_name& account ) {
 //   context.require_authorization( account );
 // }
 func requireAuthorization(w *WasmGo, account int64) {
-	fmt.Println("require_authorization")
+	w.ilog.Info("requireAuthorization account:%v", common.AccountName(account))
 	w.context.RequireAuthorization(account)
 }
 

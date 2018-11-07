@@ -440,6 +440,13 @@ func TestContextCompilerBuiltin(t *testing.T) {
 	})
 }
 
+type invalidAccessAction struct {
+	Code  uint64
+	Val   uint64
+	Index uint32
+	Store bool
+}
+
 func TestContextDB(t *testing.T) {
 
 	name := "testdata_context/test_api_db.wasm"
@@ -448,10 +455,73 @@ func TestContextDB(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		//callTestFunction(code, "test_db", "primary_i64_general", []byte{})
-		//callTestFunction(code, "test_db", "primary_i64_lowerbound", []byte{})
-		//callTestFunction(code, "test_db", "primary_i64_upperbound", []byte{})
-		callTestFunction(code, "test_db", "idx64_general", []byte{})
+
+		control := startBlock()
+		createNewAccount(control, "testapi")
+		createNewAccount(control, "testapi2")
+
+		//callTestFunction2(control, code, "test_db", "primary_i64_general", []byte{}, "testapi")
+		//callTestFunction2(control, code, "test_db", "primary_i64_lowerbound", []byte{}, "testapi")
+		//callTestFunction2(control, code, "test_db", "primary_i64_upperbound", []byte{}, "testapi")
+		//callTestFunction2(control, code, "test_db", "idx64_general", []byte{}, "testapi")
+		//callTestFunction2(control, code, "test_db", "idx64_lowerbound", []byte{}, "testapi")
+		//callTestFunction2(control, code, "test_db", "idx64_upperbound", []byte{}, "testapi")
+		//
+		//action1 := invalidAccessAction{common.N("testapi"), 10, 0, true}
+		//actionData1, _ := rlp.EncodeToBytes(&action1)
+		//ret := pushAction(control, code, "test_db", "test_invalid_access", actionData1, "testapi")
+		//assert.Equal(t, ret, "")
+		//
+		//action2 := invalidAccessAction{action1.Code, 20, 0, true}
+		//actionData2, _ := rlp.EncodeToBytes(&action2)
+		//ret = pushAction(control, code, "test_db", "test_invalid_access", actionData2, "testapi2")
+		//assert.Equal(t, ret, "db access violation")
+		//
+		//action1.Store = false
+		//actionData3, _ := rlp.EncodeToBytes(&action1)
+		//ret = pushAction(control, code, "test_db", "test_invalid_access", actionData3, "testapi")
+		//assert.Equal(t, ret, "")
+		//
+		//action1.Store = true
+		//action1.Index = 1
+		//actionData1, _ = rlp.EncodeToBytes(&action1)
+		//ret = pushAction(control, code, "test_db", "test_invalid_access", actionData1, "testapi")
+		//assert.Equal(t, ret, "")
+		//
+		//action2.Index = 1
+		//actionData2, _ = rlp.EncodeToBytes(&action2)
+		//ret = pushAction(control, code, "test_db", "test_invalid_access", actionData2, "testapi2")
+		//assert.Equal(t, ret, "db access violation")
+		//
+		//action1.Store = false
+		//actionData3, _ = rlp.EncodeToBytes(&action1)
+		//ret = pushAction(control, code, "test_db", "test_invalid_access", actionData3, "testapi")
+		//assert.Equal(t, ret, "")
+
+		callTestFunctionCheckException2(control, code, "test_db", "idx_double_nan_create_fail", []byte{}, "testapi",
+			exception.TransactionException{}.Code(), exception.TransactionException{}.What())
+
+		//callTestFunctionCheckException2(control, code, "test_db", "idx_double_nan_modify_fail", []byte{}, "testapi",
+		//	exception.TransactionException{}.Code(), exception.TransactionException{}.What())
+		//
+		//var loopupType uint32 = 0
+		//l,_ := rlp.EncodeToBytes(&loopupType)
+		//callTestFunctionCheckException2(control, code, "test_db", "idx_double_nan_lookup_fail", l, "testapi",
+		//	exception.TransactionException{}.Code(), exception.TransactionException{}.What())
+		//
+		//loopupType = 1
+		//l,_ = rlp.EncodeToBytes(&loopupType)
+		//callTestFunctionCheckException2(control, code, "test_db", "idx_double_nan_lookup_fail", l,"testapi",
+		//	exception.TransactionException{}.Code(), exception.TransactionException{}.What())
+		//
+		//loopupType = 2
+		//l,_ = rlp.EncodeToBytes(&loopupType)
+		//callTestFunctionCheckException2(control, code, "test_db", "idx_double_nan_lookup_fail", l,"testapi",
+		//	exception.TransactionException{}.Code(), exception.TransactionException{}.What())
+
+		//fmt.Println(ret)
+
+		stopBlock(control)
 
 	})
 }
@@ -551,6 +621,110 @@ func createNewAccount(control *chain.Controller, name string) {
 	chain.ApplyEosioNewaccount(a)
 }
 
+func pushAction(control *chain.Controller, code []byte, cls string, method string, payload []byte, authorizer string) (ret string) {
+
+	wasm := wasmgo.NewWasmGo()
+	action := wasmTestAction(cls, method)
+
+	//fmt.Println(cls, method, action)
+	//createNewAccount(control, authorizer)
+	act := types.Action{
+		Account:       common.AccountName(common.N(authorizer)),
+		Name:          common.ActionName(action),
+		Data:          payload,
+		Authorization: []types.PermissionLevel{types.PermissionLevel{Actor: common.AccountName(common.N(authorizer)), Permission: common.PermissionName(common.N("active"))}},
+	}
+
+	applyContext := newApplyContext(control, &act)
+	codeVersion := crypto.NewSha256Byte([]byte(code))
+
+	defer try.HandleReturn()
+	try.Try(func() {
+		wasm.Apply(codeVersion, code, applyContext)
+	}).Catch(func(e exception.Exception) {
+		ret = e.Message()
+		try.Return()
+	}).End()
+
+	return ""
+}
+
+func startBlock() *chain.Controller {
+	control := chain.GetControllerInstance()
+	blockTimeStamp := common.NewBlockTimeStamp(common.Now())
+	control.StartBlock(blockTimeStamp, 0)
+	return control
+}
+
+func stopBlock(c *chain.Controller) {
+	c.Close()
+}
+
+func callTestFunction2(control *chain.Controller, code []byte, cls string, method string, payload []byte, authorizer string) (ret string) {
+
+	wasm := wasmgo.NewWasmGo()
+	action := wasmTestAction(cls, method)
+
+	act := types.Action{
+		Account:       common.AccountName(common.N(authorizer)),
+		Name:          common.ActionName(action),
+		Data:          payload,
+		Authorization: []types.PermissionLevel{types.PermissionLevel{Actor: common.AccountName(common.N(authorizer)), Permission: common.PermissionName(common.N("active"))}},
+	}
+
+	applyContext := newApplyContext(control, &act)
+
+	//fmt.Println(cls, method, action)
+	codeVersion := crypto.NewSha256Byte([]byte(code))
+
+	defer try.HandleReturn()
+	try.Try(func() {
+		wasm.Apply(codeVersion, code, applyContext)
+	}).Catch(func(e exception.Exception) {
+		ret = e.Message()
+		try.Return()
+	}).End()
+
+	return applyContext.PendingConsoleOutput
+
+}
+
+func callTestFunctionCheckException2(control *chain.Controller, code []byte, cls string, method string, payload []byte, authorizer string, errCode exception.ExcTypes, errMsg string) (ret bool) {
+
+	wasm := wasmgo.NewWasmGo()
+	action := wasmTestAction(cls, method)
+
+	// control := chain.GetControllerInstance()
+	// blockTimeStamp := common.NewBlockTimeStamp(common.Now())
+	// control.StartBlock(blockTimeStamp, 0)
+
+	act := types.Action{
+		Account:       common.AccountName(common.N(authorizer)),
+		Name:          common.ActionName(action),
+		Data:          payload,
+		Authorization: []types.PermissionLevel{types.PermissionLevel{Actor: common.AccountName(common.N(authorizer)), Permission: common.PermissionName(common.N("active"))}},
+	}
+
+	applyContext := newApplyContext(control, &act)
+	codeVersion := crypto.NewSha256Byte([]byte(code))
+
+	//ret := false
+	defer try.HandleReturn()
+	try.Try(func() {
+		wasm.Apply(codeVersion, code, applyContext)
+	}).Catch(func(e exception.Exception) {
+		if e.Code() == errCode {
+			fmt.Println(errMsg)
+			ret = true
+			try.Return()
+		}
+	}).End()
+
+	ret = false
+	return
+
+}
+
 func callTestFunction(code []byte, cls string, method string, payload []byte) *chain.ApplyContext {
 
 	wasm := wasmgo.NewWasmGo()
@@ -562,11 +736,6 @@ func callTestFunction(code []byte, cls string, method string, payload []byte) *c
 
 	createNewAccount(control, "testapi")
 
-	//createNewAccount(control, "alice")
-	//createNewAccount(control, "bob")
-	//createNewAccount(control, "charlie")
-	//createNewAccount(control, "allyson")
-
 	act := types.Action{
 		Account:       common.AccountName(common.N("testapi")),
 		Name:          common.ActionName(action),
@@ -574,7 +743,6 @@ func callTestFunction(code []byte, cls string, method string, payload []byte) *c
 		Authorization: []types.PermissionLevel{types.PermissionLevel{Actor: common.AccountName(common.N("testapi")), Permission: common.PermissionName(common.N("active"))}},
 	}
 
-	//applyContext := chain.NewApplyContext(control, nil, &act, 0)
 	applyContext := newApplyContext(control, &act)
 
 	fmt.Println(cls, method, action)
@@ -582,7 +750,6 @@ func callTestFunction(code []byte, cls string, method string, payload []byte) *c
 	wasm.Apply(codeVersion, code, applyContext)
 
 	control.Close()
-	//control.Clean()
 
 	return applyContext
 
@@ -604,9 +771,7 @@ func callTestFunctionCheckException(code []byte, cls string, method string, payl
 		Authorization: []types.PermissionLevel{types.PermissionLevel{Actor: common.AccountName(common.N("testapi")), Permission: common.PermissionName(common.N("active"))}},
 	}
 
-	//applyContext := chain.NewApplyContext(control, nil, &act, 0)
 	applyContext := newApplyContext(control, &act)
-
 	codeVersion := crypto.NewSha256Byte([]byte(code))
 
 	//ret := false
@@ -618,13 +783,11 @@ func callTestFunctionCheckException(code []byte, cls string, method string, payl
 			fmt.Println(errMsg)
 			ret = true
 			control.Close()
-			//control.Clean()
 			try.Return()
 		}
 	}).End()
 
 	control.Close()
-	//control.Clean()
 	ret = false
 	return
 

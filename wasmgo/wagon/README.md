@@ -1,50 +1,28 @@
-cvm
+wagon
 =====
 
-fork from https://github.com/go-interpreter/wagon
+[![Build Status](https://travis-ci.org/eosspark/eos-go/wasmgo/wagon.svg?branch=master)](https://travis-ci.org/eosspark/eos-go/wasmgo/wagon)
+[![codecov](https://codecov.io/gh/eosspark/eos-go/wasmgo/wagon/branch/master/graph/badge.svg)](https://codecov.io/gh/eosspark/eos-go/wasmgo/wagon)
+[![GoDoc](https://godoc.org/github.com/eosspark/eos-go/wasmgo/wagon?status.svg)](https://godoc.org/github.com/eosspark/eos-go/wasmgo/wagon)
 
-**NOTE:** `cvm` requires `Go >= 1.9.x`.
+`wagon` is a [WebAssembly](http://webassembly.org)-based interpreter in [Go](https://golang.org), for [Go](https://golang.org).
 
-## examples
+**NOTE:** `wagon` requires `Go >= 1.9.x`.
 
-```
-package main
+## Purpose
 
-import (
-	"fmt"
-	"github.com/eosspark/eos-go/chain"
-	"github.com/eosspark/eos-go/chain/types"
-	"github.com/eosspark/eos-go/common"
-	"github.com/eosspark/eos-go/wasmgo/wagon/exec"
-	"github.com/eosspark/eos-go/crypto/rlp"
-	"io/ioutil"
-	"log"
-)
+`wagon` aims to provide tools (executables+libraries) to:
 
-func main() {
+- decode `wasm` binary files
+- load and execute `wasm` modules' bytecode.
 
-	name := "hello.wasm"
-	code, err := ioutil.ReadFile(name)
-	if err != nil {
-		log.Fatal(err)
-	}
+`wagon` doesn't concern itself with the production of the `wasm` binary files;
+these files should be produced with another tool (such as [wabt](https://github.com/WebAssembly/wabt) or [binaryen](https://github.com/WebAssembly/binaryen).)
+`wagon` *may* provide a utility to produce `wasm` files from `wast` or `wat` files (and vice versa.)
 
-	wasm := exec.NewWasmInterface()
-	param, _ := rlp.EncodeToBytes(exec.N("walker"))//[]byte{0x00, 0x00, 0x00, 0x00, 0x5c, 0x05, 0xa3, 0xe1}
-	applyContext := &chain.ApplyContext{
-		Receiver: common.AccountName(exec.N("hello")),
-		Act: types.Action{
-			Account: common.AccountName(exec.N("hello")),
-			Name:    common.ActionName(exec.N("hi")),
-			Data: param,
-		},
-	}
+The primary goal of `wagon` is to provide the building blocks to be able to build an interpreter for Go code, that could be embedded in Jupyter or any Go program.
 
-	codeVersion := rlp.NewSha256Byte([]byte(code)).String()
-	wasm.Apply(codeVersion, code, applyContext)
 
-	//print "hello, walker"
-	fmt.Println(applyContext.PendingConsoleOutput)
+## Contributing
 
-}
-```
+See the [CONTRIBUTING](https://github.com/eosspark/eos-go/wasmgo/license/blob/master/CONTRIBUTE.md) guide for pointers on how to contribute to `go-interpreter` and `wagon`.

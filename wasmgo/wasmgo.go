@@ -8,12 +8,10 @@ import (
 	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/eosspark/eos-go/exception"
 	"github.com/eosspark/eos-go/log"
-	"os"
-
 	//"os"
+
 	"reflect"
 
-	//"github.com/eosspark/eos-go/log"
 	"github.com/eosspark/eos-go/wasmgo/wagon/exec"
 	"github.com/eosspark/eos-go/wasmgo/wagon/wasm"
 )
@@ -165,7 +163,7 @@ func NewWasmGo() *WasmGo {
 	wasmGo = &w
 
 	wasmGo.ilog = log.New("wasmgo")
-	wasmGo.ilog.SetHandler(log.StreamHandler(os.Stdout, log.TerminalFormat(true)))
+	//wasmGo.ilog.SetHandler(log.StreamHandler(os.Stdout, log.TerminalFormat(true)))
 
 	return wasmGo
 }
@@ -222,7 +220,8 @@ func (w *WasmGo) Apply(code_id *crypto.Sha256, code []byte, context EnvContext) 
 	//	fmt.Printf("\n")
 	//}
 	if o != nil {
-		fmt.Printf("%[1]v (%[1]T)\n", o)
+		//fmt.Printf("%[1]v (%[1]T)\n", o)
+		w.ilog.Error("%[1]v (%[1]T)\n", o)
 	}
 }
 

@@ -9,7 +9,6 @@ import (
 	"io"
 	"reflect"
 
-	//"github.com/eosgo/control"
 	"github.com/eosspark/eos-go/wasmgo/wagon/wasm/internal/readpos"
 )
 
@@ -22,7 +21,6 @@ const (
 
 // Function represents an entry in the function index space of a module.
 type Function struct {
-	Name string
 	Sig  *FunctionSig
 	Body *FunctionBody
 	Host reflect.Value
@@ -37,7 +35,8 @@ func (fct *Function) IsHost() bool {
 // Module represents a parsed WebAssembly module:
 // http://webassembly.org/docs/modules/
 type Module struct {
-	Version uint32
+	Version  uint32
+	Sections []Section
 
 	Types    *SectionTypes
 	Import   *SectionImports
@@ -50,6 +49,7 @@ type Module struct {
 	Elements *SectionElements
 	Code     *SectionCode
 	Data     *SectionData
+	Customs  []*SectionCustom
 
 	// The function index space of the module
 	FunctionIndexSpace []Function
@@ -60,14 +60,22 @@ type Module struct {
 	TableIndexSpace        [][]uint32
 	LinearMemoryIndexSpace [][]byte
 
-	Other []Section // Other holds the custom sections if any
-
 	imports struct {
 		Funcs    []uint32
 		Globals  int
 		Tables   int
 		Memories int
 	}
+}
+
+// Custom returns a custom section with a specific name, if it exists.
+func (m *Module) Custom(name string) *SectionCustom {
+	for _, s := range m.Customs {
+		if s.Name == name {
+			return s
+		}
+	}
+	return nil
 }
 
 // NewModule creates a new empty module
@@ -89,9 +97,9 @@ func NewModule() *Module {
 // returns a valid resolved module.
 type ResolveFunc func(name string) (*Module, error)
 
-// ReadModule reads a module from the reader r. resolvePath must take a string
-// and a return a reader to the module pointed to by the string.
-func ReadModule(r io.Reader, resolvePath ResolveFunc) (*Module, error) {
+// DecodeModule is the same as ReadModule, but it only decodes the module without
+// initializing the index space or resolving imports.
+func DecodeModule(r io.Reader) (*Module, error) {
 	reader := &readpos.ReadPos{
 		R:      r,
 		CurPos: 0,
@@ -113,8 +121,17 @@ func ReadModule(r io.Reader, resolvePath ResolveFunc) (*Module, error) {
 		if err != nil {
 			return nil, err
 		} else if done {
-			break
+			return m, nil
 		}
+	}
+}
+
+// ReadModule reads a module from the reader r. resolvePath must take a string
+// and a return a reader to the module pointed to by the string.
+func ReadModule(r io.Reader, resolvePath ResolveFunc) (*Module, error) {
+	m, err := DecodeModule(r)
+	if err != nil {
+		return nil, err
 	}
 
 	m.LinearMemoryIndexSpace = make([][]byte, 1)
@@ -123,6 +140,10 @@ func ReadModule(r io.Reader, resolvePath ResolveFunc) (*Module, error) {
 	}
 
 	if m.Import != nil && resolvePath != nil {
+		if m.Code == nil {
+			m.Code = &SectionCode{}
+		}
+
 		err := m.resolveImports(resolvePath)
 		if err != nil {
 			return nil, err
