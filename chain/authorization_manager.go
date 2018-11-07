@@ -7,9 +7,9 @@ import (
 	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/eosspark/eos-go/database"
 	"github.com/eosspark/eos-go/entity"
+	"github.com/eosspark/eos-go/log"
 	. "github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
-	"log"
 )
 
 var noopCheckTime *func()
@@ -41,7 +41,10 @@ func (a *AuthorizationManager) CreatePermission(account common.AccountName,
 
 	permUsage := entity.PermissionUsageObject{}
 	permUsage.LastUsed = creationTime
-	a.db.Insert(&permUsage)
+	err := a.db.Insert(&permUsage)
+	if err != nil {
+		log.Error("CreatePermission is error: %s", err)
+	}
 
 	perm := entity.PermissionObject{
 		UsageId:     permUsage.ID,
@@ -51,83 +54,108 @@ func (a *AuthorizationManager) CreatePermission(account common.AccountName,
 		LastUpdated: creationTime,
 		Auth:        auth.ToSharedAuthority(),
 	}
-	a.db.Insert(&perm)
+	err = a.db.Insert(&perm)
+	if err != nil {
+		log.Error("CreatePermission is error: %s", err)
+	}
 	return &perm
 }
 
 func (a *AuthorizationManager) ModifyPermission(permission *entity.PermissionObject, auth *types.Authority) {
-	a.db.Modify(&permission, func(po *entity.PermissionObject) {
+	err := a.db.Modify(&permission, func(po *entity.PermissionObject) {
 		po.Auth = (*auth).ToSharedAuthority()
 		po.LastUpdated = a.control.PendingBlockTime()
 	})
+	if err != nil {
+		log.Error("ModifyPermission is error: %s", err)
+	}
 }
 
 func (a *AuthorizationManager) RemovePermission(permission *entity.PermissionObject) {
 	index, err := a.db.GetIndex("byParent", entity.PermissionObject{})
 	if err != nil {
-		log.Fatalln(err)
+		log.Error("RemovePermission is error: %s", err)
 	}
 	_, err = index.LowerBound(entity.PermissionObject{Parent: permission.ID})
 	EosAssert(err == nil, &ActionValidateException{}, "Cannot remove a permission which has children. Remove the children first.")
 	usage := entity.PermissionUsageObject{ID: permission.UsageId}
-	a.db.Find("id", usage, &usage)
-	a.db.Remove(usage)
-	a.db.Remove(*permission)
+	err = a.db.Find("id", usage, &usage)
+	if err != nil {
+		log.Error("RemovePermission is error: %s", err)
+	}
+	err = a.db.Remove(usage)
+	if err != nil {
+		log.Error("RemovePermission is error: %s", err)
+	}
+	err = a.db.Remove(*permission)
+	if err != nil {
+		log.Error("RemovePermission is error: %s", err)
+	}
 }
 
 func (a *AuthorizationManager) UpdatePermissionUsage(permission *entity.PermissionObject) {
 	puo := entity.PermissionUsageObject{}
 	puo.ID = permission.UsageId
-	a.db.Find("id", puo, &puo)
-	a.db.Modify(&puo, func(p *entity.PermissionUsageObject) {
+	err := a.db.Find("id", puo, &puo)
+	if err != nil {
+		log.Error("UpdatePermissionUsage is error: %s", err)
+	}
+	err = a.db.Modify(&puo, func(p *entity.PermissionUsageObject) {
 		puo.LastUsed = a.control.PendingBlockTime()
 	})
+	if err != nil {
+		log.Error("UpdatePermissionUsage is error: %s", err)
+	}
 }
 
 func (a *AuthorizationManager) GetPermissionLastUsed(permission *entity.PermissionObject) common.TimePoint {
 	puo := entity.PermissionUsageObject{}
 	puo.ID = permission.UsageId
-	a.db.Find("id", puo, &puo)
+	err := a.db.Find("id", puo, &puo)
+	if err != nil {
+		log.Error("GetPermissionLastUsed is error: %s", err)
+	}
 	return puo.LastUsed
 }
 
 func (a *AuthorizationManager) FindPermission(level *types.PermissionLevel) (p *entity.PermissionObject) { //TODO
-	defer HandleReturn()
 	Try(func() {
 		EosAssert(!level.Actor.Empty() && !level.Permission.Empty(), &InvalidPermission{}, "Invalid permission")
 		po := entity.PermissionObject{}
 		po.Owner = level.Actor
 		po.Name = level.Permission
-		a.db.Find("byOwner", po, &po)
+		err := a.db.Find("byOwner", po, &po)
+		if err != nil {
+			log.Error("FindPermission is error: %s", err)
+		}
 		p = &po
-		Return()
 	}).Catch(func(e PermissionQueryException) {
 
 	}).End()
-	return
+	return p
 }
 
 func (a *AuthorizationManager) GetPermission(level *types.PermissionLevel) (p *entity.PermissionObject) {
-	defer HandleReturn()
 	Try(func() {
 		EosAssert(!level.Actor.Empty() && !level.Permission.Empty(), &InvalidPermission{}, "Invalid permission")
 		po := entity.PermissionObject{}
 		po.Owner = level.Actor
 		po.Name = level.Permission
-		a.db.Find("byOwner", po, &po)
+		err := a.db.Find("byOwner", po, &po)
+		if err != nil {
+			log.Error("GetPermission is error: %s", err)
+		}
 		p = &po
-		Return()
 	}).Catch(func(e PermissionQueryException) {
 
 	}).End()
-	return
+	return p
 }
 
 func (a *AuthorizationManager) LookupLinkedPermission(authorizerAccount common.AccountName,
 	scope common.AccountName,
 	actName common.ActionName,
 ) (p common.PermissionName) {
-	defer HandleReturn()
 	Try(func() { //TODO
 		link := entity.PermissionLinkObject{}
 		link.Account = authorizerAccount
@@ -140,13 +168,11 @@ func (a *AuthorizationManager) LookupLinkedPermission(authorizerAccount common.A
 		}
 		if err == nil {
 			p = link.RequiredPermission
-			Return()
+			return
 		}
-		p = common.PermissionName(common.N(""))
-		Return()
 	}).End()
 
-	return
+	return p
 }
 
 func (a *AuthorizationManager) LookupMinimumPermission(authorizerAccount common.AccountName,
@@ -156,23 +182,22 @@ func (a *AuthorizationManager) LookupMinimumPermission(authorizerAccount common.
 	if scope == common.DefaultConfig.SystemAccountName {
 		//TODO
 	}
-	defer HandleReturn()
 	Try(func() {
 		linkedPermission := a.LookupLinkedPermission(authorizerAccount, scope, actName)
 		if linkedPermission == common.PermissionName(common.N("")) {
 			pn = common.DefaultConfig.ActiveName
-			Return()
+			return
 		}
 
 		if linkedPermission == common.PermissionName(common.DefaultConfig.EosioAnyName) {
 			pn = common.PermissionName(common.N(""))
-			Return()
+			return
 		}
 
 		pn = linkedPermission
-		Return()
+		return
 	}).End()
-	return
+	return pn
 }
 
 func (a *AuthorizationManager) CheckUpdateauthAuthorization(update updateAuth, auths []types.PermissionLevel) {
@@ -184,11 +209,11 @@ func (a *AuthorizationManager) CheckUpdateauthAuthorization(update updateAuth, a
 		permission := a.GetPermission(&types.PermissionLevel{update.Account, update.Permission})
 		minPermission = permission
 	}
-	//permissionIndex, err := a.db.GetIndex("id", entity.PermissionObject{})
-	//if err != nil {
-	//	log.Fatalln(err)
-	//}
-	EosAssert(a.GetPermission(&auth).Satisfies(*minPermission /*, permissionIndex*/), &IrrelevantAuthException{}, "") //TODO
+	permissionIndex, err := a.db.GetIndex("id", entity.PermissionObject{})
+	if err != nil {
+		log.Error("CheckUpdateauthAuthorization is error: %s", err)
+	}
+	EosAssert(a.GetPermission(&auth).Satisfies(*minPermission , permissionIndex), &IrrelevantAuthException{}, "") //TODO
 }
 
 func (a *AuthorizationManager) CheckDeleteauthAuthorization(del deleteAuth, auths []types.PermissionLevel) {
@@ -196,11 +221,11 @@ func (a *AuthorizationManager) CheckDeleteauthAuthorization(del deleteAuth, auth
 	auth := auths[0]
 	EosAssert(auth.Actor == del.Account, &IrrelevantAuthException{}, "the owner of the affected permission needs to be the actor of the declared authorization")
 	minPermission := a.GetPermission(&types.PermissionLevel{del.Account, del.Permission})
-	//permissionIndex, err := a.db.GetIndex("id", entity.PermissionObject{})
-	//if err != nil {
-	//	log.Fatalln(err)
-	//}
-	EosAssert(a.GetPermission(&auth).Satisfies(*minPermission /*, permissionIndex*/), &IrrelevantAuthException{}, "") //TODO
+	permissionIndex, err := a.db.GetIndex("id", entity.PermissionObject{})
+	if err != nil {
+		log.Error("CheckDeleteauthAuthorization is error: %s", err)
+	}
+	EosAssert(a.GetPermission(&auth).Satisfies(*minPermission , permissionIndex), &IrrelevantAuthException{}, "") //TODO
 }
 
 func (a *AuthorizationManager) CheckLinkauthAuthorization(link linkAuth, auths []types.PermissionLevel) {
@@ -218,11 +243,11 @@ func (a *AuthorizationManager) CheckLinkauthAuthorization(link linkAuth, auths [
 	if &linkedPermissionName == nil {
 		return
 	}
-	//permissionIndex, err := a.db.GetIndex("id", entity.PermissionObject{})
-	//if err != nil {
-	//	log.Fatalln(err)
-	//}
-	EosAssert(a.GetPermission(&auth).Satisfies(*a.GetPermission(&types.PermissionLevel{link.Account, linkedPermissionName}) /*, permissionIndex*/), &IrrelevantAuthException{}, "") //TODO
+	permissionIndex, err := a.db.GetIndex("id", entity.PermissionObject{})
+	if err != nil {
+		log.Error("CheckLinkauthAuthorization is error: %s", err)
+	}
+	EosAssert(a.GetPermission(&auth).Satisfies(*a.GetPermission(&types.PermissionLevel{link.Account, linkedPermissionName}) , permissionIndex), &IrrelevantAuthException{}, "") //TODO
 }
 
 func (a *AuthorizationManager) CheckUnlinkauthAuthorization(unlink unlinkAuth, auths []types.PermissionLevel) {
@@ -238,27 +263,31 @@ func (a *AuthorizationManager) CheckUnlinkauthAuthorization(unlink unlinkAuth, a
 	if unlinkedPermissionName == common.DefaultConfig.EosioAnyName {
 		return
 	}
-	//permissionIndex, err := a.db.GetIndex("id", entity.PermissionObject{})
-	//if err != nil {
-	//	log.Fatalln(err)
-	//}
-	EosAssert(a.GetPermission(&auth).Satisfies(*a.GetPermission(&types.PermissionLevel{unlink.Account, unlinkedPermissionName}) /*, permissionIndex*/), &IrrelevantAuthException{}, "") //TODO
+	permissionIndex, err := a.db.GetIndex("id", entity.PermissionObject{})
+	if err != nil {
+		log.Error("CheckUnlinkauthAuthorization is error: %s", err)
+	}
+	EosAssert(a.GetPermission(&auth).Satisfies(*a.GetPermission(&types.PermissionLevel{unlink.Account, unlinkedPermissionName}) , permissionIndex), &IrrelevantAuthException{}, "") //TODO
 }
 
 func (a *AuthorizationManager) CheckCanceldelayAuthorization(cancel cancelDelay, auths []types.PermissionLevel) common.Microseconds {
 	EosAssert(len(auths) == 1, &IrrelevantAuthException{}, "canceldelay action should only have one declared authorization")
 	auth := auths[0]
-	EosAssert(a.GetPermission(&auth).Satisfies(*a.GetPermission(&cancel.CancelingAuth)), &IrrelevantAuthException{}, "") //TODO
+	permissionIndex, err := a.db.GetIndex("id", entity.PermissionObject{})
+	if err != nil {
+		log.Error("CheckCanceldelayAuthorization is error: %s", err)
+	}
+	EosAssert(a.GetPermission(&auth).Satisfies(*a.GetPermission(&cancel.CancelingAuth), permissionIndex), &IrrelevantAuthException{}, "") //TODO
 
 	generatedTrx := entity.GeneratedTransactionObject{}
 	trxId := cancel.TrxId
 	generatedIndex, err := a.control.DB.GetIndex("byTrxId", entity.GeneratedTransactionObject{})
 	if err != nil {
-		log.Fatalln(err)
+		log.Error("CheckCanceldelayAuthorization is error: %s", err)
 	}
 	itr, err := generatedIndex.LowerBound(entity.GeneratedTransactionObject{TrxId: trxId})
 	if err != nil {
-		log.Fatalln(err)
+		log.Error("CheckCanceldelayAuthorization is error: %s", err)
 	}
 
 	generatedIndex.BeginData(&generatedTrx)
@@ -349,11 +378,11 @@ func (a *AuthorizationManager) CheckAuthorization(actions []*types.Action,
 				minPermissionName := a.LookupMinimumPermission(declaredAuth.Actor, act.Account, act.Name)
 				if minPermissionName != common.PermissionName(0) {
 					minPermission := a.GetPermission(&types.PermissionLevel{declaredAuth.Actor, minPermissionName}) //TODO
-					//permissionIndex, err := a.db.GetIndex("id", entity.PermissionObject{})
-					//if err != nil {
-					//	log.Fatalln(err)
-					//}
-					EosAssert(a.GetPermission(&declaredAuth).Satisfies(*minPermission /*, permissionIndex*/), &IrrelevantAuthException{},
+					permissionIndex, err := a.db.GetIndex("id", entity.PermissionObject{})
+					if err != nil {
+						log.Error("CheckAuthorization is error: %s", err)
+					}
+					EosAssert(a.GetPermission(&declaredAuth).Satisfies(*minPermission , permissionIndex), &IrrelevantAuthException{},
 						"action declares irrelevant authority '${auth}'; minimum authority is ${min}") //TODO
 				}
 			}

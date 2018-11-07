@@ -86,6 +86,7 @@ func (i *Idx64) update(iterator int, payer uint64, secondary *uint64) {
 		o.SecondaryKey = *secondary
 		o.Payer = accountPayer
 	})
+
 }
 
 func (i *Idx64) findSecondary(code uint64, scope uint64, table uint64, secondary *uint64, primary *uint64) int {
@@ -100,11 +101,11 @@ func (i *Idx64) findSecondary(code uint64, scope uint64, table uint64, secondary
 	obj := entity.SecondaryObjectI64{TId: tab.ID, SecondaryKey: *secondary}
 	err := i.context.DB.Find("bySecondary", obj, &obj)
 
-	*primary = obj.PrimaryKey
-
 	if err != nil {
 		return tableEndItr
 	}
+
+	*primary = obj.PrimaryKey
 	return i.itrCache.add(&obj)
 }
 

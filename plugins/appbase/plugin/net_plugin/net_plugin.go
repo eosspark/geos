@@ -1,9 +1,9 @@
 package net_plugin
 
 import (
-	"github.com/eosspark/eos-go/plugins/appbase/app"
 	"fmt"
-	. "github.com/eosspark/eos-go/plugins/appbase/app/include"
+	. "github.com/eosspark/eos-go/plugins/appbase/app"
+	"github.com/urfave/cli"
 )
 
 type NetPlugin struct {
@@ -17,7 +17,7 @@ func init() {
 	netPlugin.Plugin = netPlugin
 	netPlugin.Name = "NetPlugin"
 	netPlugin.State = Registered
-	app.App.RegisterPlugin(netPlugin)
+	App.RegisterPlugin(netPlugin)
 }
 
 
@@ -26,45 +26,30 @@ func (netPlugin *NetPlugin) Exec() bool {
 	return true
 }
 
-func (netPlugin *NetPlugin) SetProgramOptions() {
+func (netPlugin *NetPlugin) SetProgramOptions(options *cli.App) {
 	fmt.Println("NetPlugin SetProgramOptions")
-
+	fmt.Println(options.Name)
 }
 
 func (netPlugin *NetPlugin) PluginInitialize() {
-	fmt.Println("NetPlugin完成自己初始化操作")
-	netPlugin.State = Initialized
-
+	fmt.Println("netPlugin PluginInitialize")
 }
 
-var loop = true
+//var loop = true
 
 func (netPlugin *NetPlugin) PluginStartUp() {
 
-	go func() {
-		for loop {
-			fmt.Println("NetPlugin PluginStartUp")
-		}
-	}()
+	fmt.Println("netPlugin PluginStartUp")
+
+	//go func() {
+	//	for loop {
+	//		fmt.Println("NetPlugin PluginStartUp")
+	//	}
+	//}()
 }
 
 func (netPlugin *NetPlugin) PluginShutDown() {
-	loop = false
+	//loop = false
 	fmt.Println("NetPlugin PluginShutDown")
 }
 
-//var Net = NewNet_Plugin()
-
-//func NewNet_Plugin() *NetPlugin {
-//	net := new(NetPlugin)
-//	net.Plugin.Initialize = net.Initialize
-//	net.Plugin.StartUp = net.StartUp
-//	net.Plugin.Exec = net.Exec
-//	return net
-//}
-//
-//func (net_plugin *NetPlugin) Initialize () bool {
-//	fmt.Println("执行net_plugin的Initialize内容")
-//	return true
-//}
-//

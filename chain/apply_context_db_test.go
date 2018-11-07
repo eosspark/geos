@@ -103,7 +103,6 @@ func TestDbPrimaryKey(t *testing.T) {
 		assert.Equal(t, bufferBound, []byte{byte(7)})
 
 		control.Close()
-		control.Clean()
 
 	})
 
@@ -187,7 +186,6 @@ func TestDbSecondaryKeyIdx64(t *testing.T) {
 		assert.Equal(t, primaryKey, uint64(1))
 
 		control.Close()
-		control.Clean()
 
 	})
 }
@@ -246,7 +244,6 @@ func TestDbSecondaryKeyIdx64_2(t *testing.T) {
 		assert.Equal(t, secondaryKey, uint64(1))
 
 		control.Close()
-		control.Clean()
 
 	})
 }
@@ -321,7 +318,6 @@ func TestDbSecondaryKeyDouble(t *testing.T) {
 		}
 		assert.Equal(t, primaryKey, uint64(7))
 		control.Close()
-		control.Clean()
 
 	})
 }
@@ -380,7 +376,6 @@ func TestDbSecondaryKeyIdxDouble_2(t *testing.T) {
 		assert.Equal(t, primaryKey, uint64(1))
 
 		control.Close()
-		control.Clean()
 
 	})
 }

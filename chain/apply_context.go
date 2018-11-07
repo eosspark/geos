@@ -78,11 +78,15 @@ type pairTableIterator struct {
 	iterator      int
 }
 
+// type cacheObject interface {
+// 	getKey() crypto.Sha256
+// }
+
 type iteratorCache struct {
 	tableCache         map[common.IdType]*pairTableIterator
 	endIteratorToTable []*entity.TableIdObject
 	iteratorToObject   []interface{}
-	objectToIterator   map[crypto.Sha256]int
+	objectToIterator   map[interface{}]int
 }
 
 func NewIteratorCache() *iteratorCache {
@@ -90,7 +94,7 @@ func NewIteratorCache() *iteratorCache {
 		tableCache: make(map[common.IdType]*pairTableIterator),
 		// endIteratorToTable: make([]*entity.TableIdObject, 8),
 		// iteratorToObject:   make([]interface{}, 32),
-		objectToIterator: make(map[crypto.Sha256]int),
+		objectToIterator: make(map[interface{}]int),
 	}
 	return &i
 }
@@ -158,9 +162,9 @@ func (i *iteratorCache) remove(iterator int) {
 		return
 	}
 	i.iteratorToObject[iterator] = nil
-	bytes, _ := rlp.EncodeToBytes(obj)
-	key := *crypto.NewSha256Byte(bytes)
-	delete(i.objectToIterator, key)
+	// bytes, _ := rlp.EncodeToBytes(obj)
+	// key := *crypto.NewSha256Byte(bytes)
+	delete(i.objectToIterator, obj)
 }
 
 func (i *iteratorCache) add(obj interface{}) int {
@@ -168,8 +172,18 @@ func (i *iteratorCache) add(obj interface{}) int {
 	bytes, _ := rlp.EncodeToBytes(obj)
 	key := *crypto.NewSha256Byte(bytes)
 
-	if itr, ok := i.objectToIterator[key]; ok {
-		return itr
+	// if itr, ok := i.objectToIterator[key]; ok {
+	// 	return itr
+	// }
+	for object, itr := range i.objectToIterator {
+
+		bytesObject, _ := rlp.EncodeToBytes(object)
+		keyObject := *crypto.NewSha256Byte(bytesObject)
+
+		if keyObject == key {
+			return itr
+		}
+
 	}
 
 	if len(i.iteratorToObject) >= 32 {
@@ -177,7 +191,7 @@ func (i *iteratorCache) add(obj interface{}) int {
 	}
 
 	i.iteratorToObject = append(i.iteratorToObject, obj)
-	i.objectToIterator[key] = len(i.iteratorToObject) - 1
+	i.objectToIterator[obj] = len(i.iteratorToObject) - 1
 	return len(i.iteratorToObject) - 1
 }
 
