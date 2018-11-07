@@ -1,42 +1,37 @@
 package http_plugin
 
 import (
-	. "github.com/eosspark/eos-go/plugins/appbase/app/include"
-	"github.com/eosspark/eos-go/plugins/appbase/app"
+	. "github.com/eosspark/eos-go/plugins/appbase/app"
+	"github.com/urfave/cli"
+	"fmt"
 )
 
 
 type HttpPlugin struct {
 	AbstractPlugin
 }
+var httpPlugin *HttpPlugin
 
 func init () {
-	var httpPlugin HttpPlugin
-	//httpPlugin.Plugin = httpPlugin
+	httpPlugin = new(HttpPlugin)
+	httpPlugin.Plugin = httpPlugin
 	httpPlugin.State = Registered
 	httpPlugin.Name = "HttpPlugin"
-	app.App.RegisterPlugin(&httpPlugin)
-
+	App.RegisterPlugin(httpPlugin)
 }
 
-func (httpPlugin *HttpPlugin) SetProgramOptions() {
-
+func (httpPlugin *HttpPlugin) SetProgramOptions(options *cli.App) {
+	fmt.Println("httpPlugin SetProgramOptions")
+	fmt.Println(options.Name)
 }
 
 func (httpPlugin *HttpPlugin) PluginInitialize() {
-
+	fmt.Println("httpPlugin PluginInitialize")
 }
 func (httpPlugin *HttpPlugin) PluginStartUp() {
-
+	fmt.Println("httpPlugin PluginStartUp")
 }
 func (httpPlugin *HttpPlugin) PluginShutDown() {
 
 }
 
-func (httpPlugin *HttpPlugin) GetName() string {
-	return httpPlugin.Name
-}
-
-func (httpPlugin *HttpPlugin) GetState() State {
-	return httpPlugin.State
-}

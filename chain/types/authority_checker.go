@@ -57,8 +57,24 @@ func (ac *AuthorityChecker) AllKeysUsed() bool {
 	return true
 }
 
-func (ac *AuthorityChecker) GetUsedKeys() []ecc.PublicKey {
-	return nil
+func (ac *AuthorityChecker) GetUsedKeys() common.FlatSet {
+	f := common.FlatSet{}
+	for i, usedKey := range ac.UsedKeys {
+		if usedKey == true {
+			f.Insert(&ac.ProvidedKeys[i])
+		}
+	}
+	return f
+}
+
+func (ac *AuthorityChecker) GetUnusedKeys() common.FlatSet {
+	f := common.FlatSet{}
+	for i, usedKey := range ac.UsedKeys {
+		if usedKey == false {
+			f.Insert(&ac.ProvidedKeys[i])
+		}
+	}
+	return f
 }
 
 type PermissionCacheStatus uint64

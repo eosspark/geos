@@ -1,8 +1,9 @@
-package include
+package app
 
 import (
-	"gopkg.in/urfave/cli.v1"
-	"github.com/eosspark/eos-go/plugins/appbase/app"
+	"github.com/urfave/cli"
+
+	. "github.com/eosspark/eos-go/exception"
 )
 
 /** these notifications get called from the plugin when their state changes so that
@@ -11,15 +12,15 @@ import (
 //Register(abstract_plugin) error
 
 type Plugin interface {
-	SetProgramOptions()
+	SetProgramOptions(options *cli.App)
 	PluginInitialize()
 	PluginStartUp()
 	PluginShutDown()
 
-
 	GetName() string
 	GetState() State
 	Initialize(options *cli.App)
+	StartUp()
 }
 
 type State int
@@ -37,15 +38,34 @@ type AbstractPlugin struct {
 	State State
 }
 
+
+
+func (a *AbstractPlugin) ShutDown() {
+
+}
+
+
+
 func (a *AbstractPlugin) Initialize(options *cli.App) {
-
-
 	if a.State == Registered {
+		a.State = Initialized
 		a.PluginInitialize()
-
-		app.App.PluginInitialized(a.Plugin)
+		App.PluginInitialized(a)
 	}
 }
+
+func (a *AbstractPlugin) StartUp() {
+	if a.State == Initialized {
+		a.State = Started
+		//为了确保每个plugin依赖的其他plugin也保证initialize
+		//static_cast<Impl*>(this)->plugin_requires([&](auto& plug){ plug.initialize(options); });
+		//static_cast<Impl*>(this)->plugin_initialize(options);
+		a.PluginStartUp()
+		EosAssert(false, &ExtractGenesisStateException{}, "error")
+		App.PluginStarted(a)
+	}
+}
+
 
 func (a *AbstractPlugin) GetName() string {
 	return a.Name
@@ -54,5 +74,8 @@ func (a *AbstractPlugin) GetName() string {
 func (a *AbstractPlugin) GetState() State {
 	return a.State
 }
+
+
+
 
 

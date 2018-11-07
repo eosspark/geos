@@ -3,11 +3,14 @@ package main
 import (
 	_ "github.com/eosspark/eos-go/plugins/appbase/plugin/net_plugin"
 	_ "github.com/eosspark/eos-go/plugins/appbase/plugin/producer_plugin"
+	_ "github.com/eosspark/eos-go/plugins/appbase/plugin/http_plugin"
+	_ "github.com/eosspark/eos-go/plugins/appbase/plugin/chain_plugin"
 	. "github.com/eosspark/eos-go/plugins/appbase/app/include"
 	. "github.com/eosspark/eos-go/plugins/appbase/app"
 	"github.com/eosspark/eos-go/exception/try"
 	"os"
 	"os/signal"
+	. "github.com/eosspark/eos-go/exception"
 )
 
 const (
@@ -19,12 +22,6 @@ const (
 	FIXED_REVERSIBLE        = 3
 	EXTRACTED_GENESIS       = 4
 	NODE_MANAGEMENT_SUCCESS = 5
-)
-
-var (
-	PluginFromConfig string
-	//Name string
-	//Age int
 )
 
 
@@ -40,20 +37,21 @@ func main() {
 			App.SetVersion(Version)
 			App.SetDefaultDataDir()
 			App.SetDefaultConfigDir()
-			App.My.Options.Run(os.Args)
-
 			if !App.Initialize(basicPlugin) {
 				try.Return()
 			}
-			App.StartUp()
 
+			App.My.Options.Run(os.Args)
+			App.StartUp()
 			sigChan := make(chan os.Signal, 1)
 			signal.Notify(sigChan, os.Interrupt)
 			select {
 				case <-sigChan:
 					App.ShutDown()
 			}
-		}).Catch(func() {
+		}).Catch(func(e ExtractGenesisStateException) {
+
+		}).Catch(func(e FixedReversibleDbException) {
 
 		}).End()
 }

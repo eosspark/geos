@@ -2,7 +2,7 @@ package app
 
 import (
 	. "github.com/eosspark/eos-go/plugins/appbase/app/include"
-	"gopkg.in/urfave/cli.v1"
+	"github.com/urfave/cli"
 	. "github.com/eosspark/eos-go/exception"
 	"fmt"
 	"github.com/eosspark/eos-go/exception/try"
@@ -24,26 +24,14 @@ type applicationImpl struct {
 type application struct {
 	My                 *applicationImpl
 	Plugins            map[string]Plugin //< all registered plugins
-	initializedPlugins []Plugin          //< stored in the order they were started running
+	initializedPlugins []Plugin         //< stored in the order they were started running
 	runningPlugins     []Plugin          //<  stored in the order they were started running
-
 }
 
-//app public methods
-////application 构造函数 只能由NewApp()
-//func NewApp() *app{
-//	if (App_global != nil) {
-//		return App_global
-//	}
-//	App_global = new(app)
-//	App_global.Plugins = make(map[string]Plugin)
-//	fmt.Println("构造单例application成功！！！")
-//	return App_global
-//}
 
 var appImpl = &applicationImpl{Version, cli.NewApp(), "", ""}
 
-var App *application = &application{appImpl, make(map[string]Plugin), make([]Plugin, 0), make([]Plugin, 0)}
+var App = &application{appImpl, make(map[string]Plugin), make([]Plugin, 0), make([]Plugin, 0)}
 
 func (app *application) RegisterPlugin(plugin Plugin) Plugin {
 	if p, existing := app.Plugins[plugin.GetName()]; existing {
@@ -54,6 +42,10 @@ func (app *application) RegisterPlugin(plugin Plugin) Plugin {
 }
 
 func setProgramOptions() {
+	for _,v := range App.Plugins {
+		v.SetProgramOptions(App.My.Options)
+	}
+
 	App.My.Options.Flags = []cli.Flag{
 		cli.IntFlag{
 			Name:  "port, p",
@@ -94,20 +86,21 @@ func setProgramOptions() {
 }
 
 func (app *application) Initialize(basicPlugin []string) bool {
-	var AbstractPlugins []Plugin
+	var AP []Plugin
 	for i := 0; i < len(basicPlugin); i++ {
 		if p := FindPlugin(basicPlugin[i]); p != nil {
-			AbstractPlugins = append(AbstractPlugins, p)
+			AP = append(AP, p)
 		}
 	}
-
-	return App.InitializeImpl(AbstractPlugins)
+	return App.InitializeImpl(AP)
 }
 
-func (app *application) InitializeImpl(a []Plugin) (r bool) {
+func (app *application) InitializeImpl(p []Plugin) (r bool) {
 	setProgramOptions()
 
 	app.My.Options.Action = func(c *cli.Context) error {
+
+		//help、version  will be deal with urfave.cli
 		if c.String("data-dir") != "" {
 			app.My.DateDir = homeDir() + c.String("data-dir")
 		}
@@ -115,14 +108,15 @@ func (app *application) InitializeImpl(a []Plugin) (r bool) {
 			app.My.ConfigDir = homeDir() + c.String("config-dir")
 		}
 
+
 		return nil
 	}
 
 	defer try.HandleReturn()
 	try.Try(func() {
-		for i := 0; i < len(a); i++ {
-			if a[i].GetState() == Registered {
-				a[i].Initialize(app.My.Options)
+		for i := 0; i < len(p); i++ {
+			if p[i].GetState() == Registered {
+				p[i].Initialize(app.My.Options)
 			}
 		}
 	}).Catch(func(e Exception) {
@@ -135,9 +129,17 @@ func (app *application) InitializeImpl(a []Plugin) (r bool) {
 	return true
 }
 
+func (app *application) PluginInitialized(p Plugin) {
+	app.initializedPlugins = append(app.initializedPlugins, p)
+}
+
+func (app *application) PluginStarted(p Plugin) {
+	app.runningPlugins = append(app.runningPlugins,p)
+}
+
 func (app *application) StartUp() {
-	for _, v := range app.Plugins {
-		v.PluginStartUp()
+	for i,_ := range app.initializedPlugins {
+		app.initializedPlugins[i].StartUp()
 	}
 }
 
@@ -146,7 +148,7 @@ func (app *application) ShutDown() {
 		v.PluginShutDown()
 	}
 	app.runningPlugins = app.runningPlugins[:0]
-	app.runningPlugins = app.initializedPlugins[:0]
+	app.initializedPlugins = app.initializedPlugins[:0]
 
 	for k, v := range app.Plugins {
 		v.PluginShutDown()
@@ -155,15 +157,20 @@ func (app *application) ShutDown() {
 
 }
 
-func FindPlugin(name string) (plugin *Plugin) {
+func FindPlugin(name string) (plugin Plugin) {
 	if v, ok := App.Plugins[name]; ok {
-		return &v
+		return v
 	}
 	return nil
 }
 
 func (app *application) SetVersion(Version uint64) {
 	App.My.Version = Version
+}
+
+func (app *application) FindPlugin(name string) (a *AbstractPlugin) {
+
+	return nil
 }
 
 func GetVersion() uint64 {

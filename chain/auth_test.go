@@ -13,6 +13,8 @@ func initializeAuth() *AuthorizationManager{
 func TestMissingSigs(t *testing.T){
 	am := initializeAuth()
 	createNewAccount(am.control, "Alice")
-	//produceBlock
+	//BaseTester{}.ProduceBlock()
+
+
 
 }
