@@ -460,64 +460,69 @@ func TestContextDB(t *testing.T) {
 		createNewAccount(control, "testapi")
 		createNewAccount(control, "testapi2")
 
-		//callTestFunction2(control, code, "test_db", "primary_i64_general", []byte{}, "testapi")
-		//callTestFunction2(control, code, "test_db", "primary_i64_lowerbound", []byte{}, "testapi")
-		//callTestFunction2(control, code, "test_db", "primary_i64_upperbound", []byte{}, "testapi")
-		//callTestFunction2(control, code, "test_db", "idx64_general", []byte{}, "testapi")
-		//callTestFunction2(control, code, "test_db", "idx64_lowerbound", []byte{}, "testapi")
-		//callTestFunction2(control, code, "test_db", "idx64_upperbound", []byte{}, "testapi")
-		//
-		//action1 := invalidAccessAction{common.N("testapi"), 10, 0, true}
-		//actionData1, _ := rlp.EncodeToBytes(&action1)
-		//ret := pushAction(control, code, "test_db", "test_invalid_access", actionData1, "testapi")
-		//assert.Equal(t, ret, "")
-		//
-		//action2 := invalidAccessAction{action1.Code, 20, 0, true}
-		//actionData2, _ := rlp.EncodeToBytes(&action2)
-		//ret = pushAction(control, code, "test_db", "test_invalid_access", actionData2, "testapi2")
-		//assert.Equal(t, ret, "db access violation")
-		//
-		//action1.Store = false
-		//actionData3, _ := rlp.EncodeToBytes(&action1)
-		//ret = pushAction(control, code, "test_db", "test_invalid_access", actionData3, "testapi")
-		//assert.Equal(t, ret, "")
-		//
-		//action1.Store = true
-		//action1.Index = 1
-		//actionData1, _ = rlp.EncodeToBytes(&action1)
-		//ret = pushAction(control, code, "test_db", "test_invalid_access", actionData1, "testapi")
-		//assert.Equal(t, ret, "")
-		//
-		//action2.Index = 1
-		//actionData2, _ = rlp.EncodeToBytes(&action2)
-		//ret = pushAction(control, code, "test_db", "test_invalid_access", actionData2, "testapi2")
-		//assert.Equal(t, ret, "db access violation")
-		//
-		//action1.Store = false
-		//actionData3, _ = rlp.EncodeToBytes(&action1)
-		//ret = pushAction(control, code, "test_db", "test_invalid_access", actionData3, "testapi")
-		//assert.Equal(t, ret, "")
+		callTestFunction2(control, code, "test_db", "primary_i64_general", []byte{}, "testapi")
+		callTestFunction2(control, code, "test_db", "primary_i64_lowerbound", []byte{}, "testapi")
+		callTestFunction2(control, code, "test_db", "primary_i64_upperbound", []byte{}, "testapi")
+		callTestFunction2(control, code, "test_db", "idx64_general", []byte{}, "testapi")
+		callTestFunction2(control, code, "test_db", "idx64_lowerbound", []byte{}, "testapi")
+		callTestFunction2(control, code, "test_db", "idx64_upperbound", []byte{}, "testapi")
 
-		callTestFunctionCheckException2(control, code, "test_db", "idx_double_nan_create_fail", []byte{}, "testapi",
-			exception.TransactionException{}.Code(), exception.TransactionException{}.What())
+		action1 := invalidAccessAction{common.N("testapi"), 10, 0, true}
+		actionData1, _ := rlp.EncodeToBytes(&action1)
+		ret := pushAction(control, code, "test_db", "test_invalid_access", actionData1, "testapi")
+		assert.Equal(t, ret, "")
 
-		//callTestFunctionCheckException2(control, code, "test_db", "idx_double_nan_modify_fail", []byte{}, "testapi",
-		//	exception.TransactionException{}.Code(), exception.TransactionException{}.What())
-		//
-		//var loopupType uint32 = 0
-		//l,_ := rlp.EncodeToBytes(&loopupType)
-		//callTestFunctionCheckException2(control, code, "test_db", "idx_double_nan_lookup_fail", l, "testapi",
-		//	exception.TransactionException{}.Code(), exception.TransactionException{}.What())
-		//
-		//loopupType = 1
-		//l,_ = rlp.EncodeToBytes(&loopupType)
-		//callTestFunctionCheckException2(control, code, "test_db", "idx_double_nan_lookup_fail", l,"testapi",
-		//	exception.TransactionException{}.Code(), exception.TransactionException{}.What())
-		//
-		//loopupType = 2
-		//l,_ = rlp.EncodeToBytes(&loopupType)
-		//callTestFunctionCheckException2(control, code, "test_db", "idx_double_nan_lookup_fail", l,"testapi",
-		//	exception.TransactionException{}.Code(), exception.TransactionException{}.What())
+		action2 := invalidAccessAction{action1.Code, 20, 0, true}
+		actionData2, _ := rlp.EncodeToBytes(&action2)
+		ret = pushAction(control, code, "test_db", "test_invalid_access", actionData2, "testapi2")
+		assert.Equal(t, ret, "db access violation")
+
+		action1.Store = false
+		actionData3, _ := rlp.EncodeToBytes(&action1)
+		ret = pushAction(control, code, "test_db", "test_invalid_access", actionData3, "testapi")
+		assert.Equal(t, ret, "")
+
+		action1.Store = true
+		action1.Index = 1
+		actionData1, _ = rlp.EncodeToBytes(&action1)
+		ret = pushAction(control, code, "test_db", "test_invalid_access", actionData1, "testapi")
+		assert.Equal(t, ret, "")
+
+		action2.Index = 1
+		actionData2, _ = rlp.EncodeToBytes(&action2)
+		ret = pushAction(control, code, "test_db", "test_invalid_access", actionData2, "testapi2")
+		assert.Equal(t, ret, "db access violation")
+
+		action1.Store = false
+		actionData3, _ = rlp.EncodeToBytes(&action1)
+		ret = pushAction(control, code, "test_db", "test_invalid_access", actionData3, "testapi")
+		assert.Equal(t, ret, "")
+
+		retException := callTestFunctionCheckException2(control, code, "test_db", "idx_double_nan_create_fail", []byte{}, "testapi",
+			exception.TableAccessViolation{}.Code(), exception.TableAccessViolation{}.Message())
+		assert.Equal(t, retException, true)
+
+		retException = callTestFunctionCheckException2(control, code, "test_db", "idx_double_nan_modify_fail", []byte{}, "testapi",
+			exception.TableAccessViolation{}.Code(), exception.TableAccessViolation{}.Message())
+		assert.Equal(t, retException, true)
+
+		var loopupType uint32 = 0
+		l, _ := rlp.EncodeToBytes(&loopupType)
+		retException = callTestFunctionCheckException2(control, code, "test_db", "idx_double_nan_lookup_fail", l, "testapi",
+			exception.TableAccessViolation{}.Code(), exception.TableAccessViolation{}.Message())
+		assert.Equal(t, retException, true)
+
+		loopupType = 1
+		l, _ = rlp.EncodeToBytes(&loopupType)
+		callTestFunctionCheckException2(control, code, "test_db", "idx_double_nan_lookup_fail", l, "testapi",
+			exception.TableAccessViolation{}.Code(), exception.TableAccessViolation{}.Message())
+		assert.Equal(t, retException, true)
+
+		loopupType = 2
+		l, _ = rlp.EncodeToBytes(&loopupType)
+		retException = callTestFunctionCheckException2(control, code, "test_db", "idx_double_nan_lookup_fail", l, "testapi",
+			exception.TableAccessViolation{}.Code(), exception.TableAccessViolation{}.Message())
+		assert.Equal(t, retException, true)
 
 		//fmt.Println(ret)
 
