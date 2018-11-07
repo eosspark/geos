@@ -1,7 +1,6 @@
 package database
 
 import (
-	"fmt"
 	"github.com/syndtr/goleveldb/leveldb"
 	"log"
 	"os"
@@ -47,7 +46,7 @@ func Test_rawDb(t *testing.T) {
 	it := db.NewIterator(nil, nil)
 
 	for it.Next() {
-		fmt.Println(it.Key(),it.Value())
+		//fmt.Println(it.Key(),it.Value())
 	}
 	tx,_ := db.OpenTransaction()
 	for i := 1; i <= 10; i++ {
@@ -59,7 +58,7 @@ func Test_rawDb(t *testing.T) {
 	it = db.NewIterator(nil,nil)
 
 	for it.Next() {
-		fmt.Println(it.Key(),it.Value())
+		//fmt.Println(it.Key(),it.Value())
 	}
 
 	i := 0
