@@ -45,7 +45,7 @@ func (e E) GetKey() uint64 {
 	return uint64(e)
 }
 func TestSetIntersection(t *testing.T) {
-	/*a := FlatSet{}
+	a := FlatSet{}
 	b := FlatSet{}
 
 	a.Insert(E(1))
@@ -66,5 +66,5 @@ func TestSetIntersection(t *testing.T) {
 	})
 
 	assert.Equal(t, []E{3, 5}, arr)
-	assert.Equal(t, [][2]int{{1, 1}, {2, 3}}, idx)*/
+	assert.Equal(t, [][2]int{{1, 1}, {2, 3}}, idx)
 }
