@@ -1,6 +1,7 @@
 package types
 
 import (
+	"encoding/binary"
 	"fmt"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto/ecc"
@@ -21,8 +22,10 @@ type PermissionLevel struct {
 	Permission common.PermissionName `json:"permission"`
 }
 
-func (p *PermissionLevel) GetKey() uint64 {
-	return uint64(p.Actor)
+func (p *PermissionLevel) GetKey() []byte {
+	b := make([]byte, 8)
+	binary.BigEndian.PutUint64(b, uint64(p.Actor))
+	return b
 }
 
 type PermissionLevelWeight struct {

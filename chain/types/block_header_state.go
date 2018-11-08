@@ -1,6 +1,7 @@
 package types
 
 import (
+	"encoding/binary"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/ecc"
@@ -33,8 +34,11 @@ type AccountNameBlockNum struct {
 	BlockNum    uint32
 }
 
-func (a AccountNameBlockNum) GetKey() uint64 {
-	return a.AccountName.GetKey()
+func (a AccountNameBlockNum) GetKey() []byte {
+	//return a.AccountName.GetKey()
+	b := make([]byte, 8)
+	binary.BigEndian.PutUint64(b, uint64(a.AccountName))
+	return b
 }
 
 func (b *BlockHeaderState) GetScheduledProducer(t common.BlockTimeStamp) ProducerKey {

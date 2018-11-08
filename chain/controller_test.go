@@ -147,9 +147,9 @@ func TestController_StartBlock(t *testing.T) {
 	c.Close()
 }
 
-func TestController_Clean(t *testing.T) {
+func TestController_Close(t *testing.T) {
 	c := GetControllerInstance()
-	c.Clean()
+	c.Close()
 }
 
 func TestController_UpdateProducersAuthority(t *testing.T) {
@@ -160,7 +160,11 @@ func TestController_UpdateProducersAuthority(t *testing.T) {
 func Test(t *testing.T) {
 	c := GetControllerInstance()
 	cfg := c.GetGlobalProperties().Configuration
-
 	fmt.Println(cfg)
 
+	c.Close()
+
+	c = GetControllerInstance()
+	fg := c.GetGlobalProperties()
+	fmt.Println(fg)
 }
