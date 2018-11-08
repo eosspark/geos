@@ -10,8 +10,8 @@ type BlockState struct {
 	Trxs             []*TransactionMetadata
 }
 
-func NewBlockState(cur BlockHeaderState) *BlockState {
-	return &BlockState{cur, &SignedBlock{},
+func NewBlockState(cur *BlockHeaderState) *BlockState {
+	return &BlockState{*cur, &SignedBlock{},
 		false, false, make([]*TransactionMetadata, 0)}
 }
 
@@ -28,4 +28,8 @@ func NewBlockState3(prev *BlockHeaderState, b *SignedBlock, trust bool) (bs *Blo
 	bs.BlockHeaderState = *prev.Next(b.SignedBlockHeader, trust)
 	bs.SignedBlock = b
 	return
+}
+
+func (b BlockState) GetKey() []byte {
+	return b.BlockId.Bytes()
 }

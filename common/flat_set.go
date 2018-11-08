@@ -1,7 +1,11 @@
 package common
 
+import (
+	"bytes"
+)
+
 type Element interface {
-	GetKey() uint64
+	GetKey() []byte
 }
 
 type FlatSet struct {
@@ -25,15 +29,18 @@ func (f *FlatSet) Clear() {
 	}
 }
 
-func (f *FlatSet) searchSub(key uint64) int {
-	length := len(f.Data)
+func (f *FlatSet) searchSub(key []byte) int {
+	length := f.Len()
+	if length == 0 {
+		return -1
+	}
 	i, j := 0, length-1
 	for i < j {
 		h := int(uint(i+j) >> 1)
 		if i <= h && h < j {
-			if f.Data[h].GetKey() < key {
+			if bytes.Compare(f.Data[h].GetKey(), key) == -1 {
 				i = h + 1
-			} else if f.Data[h].GetKey() == key {
+			} else if bytes.Compare(f.Data[h].GetKey(), key) == 0 {
 				return h
 			} else {
 				j = h
@@ -42,10 +49,10 @@ func (f *FlatSet) searchSub(key uint64) int {
 	}
 	return i
 }
-func (f *FlatSet) FindData(key uint64) (Element, int) {
+func (f *FlatSet) FindData(key []byte) (Element, int) {
 	r := f.searchSub(key)
 
-	if r >= 0 && key == f.Data[r].GetKey() {
+	if r >= 0 && bytes.Compare(f.Data[r].GetKey(), key) == 0 {
 		return f.Data[r], r
 	}
 
@@ -54,7 +61,7 @@ func (f *FlatSet) FindData(key uint64) (Element, int) {
 
 func (f *FlatSet) Find(element Element) (bool, int) {
 	r := f.searchSub(element.GetKey())
-	if r >= 0 && element.GetKey() == f.Data[r].GetKey() {
+	if r >= 0 && bytes.Compare(element.GetKey(), f.Data[r].GetKey()) == 0 {
 		return true, r
 	}
 	return false, -1
@@ -70,9 +77,10 @@ func (f *FlatSet) Insert(element Element) (Element, bool) {
 		result = f.Data[0]
 	} else {
 		r := f.searchSub(element.GetKey())
-		if target[0].GetKey() < element.GetKey() && element.GetKey() < target[length-1].GetKey() {
+		if bytes.Compare(target[0].GetKey(), element.GetKey()) == -1 &&
+			bytes.Compare(element.GetKey(), target[length-1].GetKey()) == -1 {
 			//Insert middle
-			if element.GetKey() == target[r-1].GetKey() {
+			if bytes.Compare(element.GetKey(), target[r-1].GetKey()) == 0 {
 				element = target[r-1]
 				result = target[r-1]
 				exist = true
@@ -88,13 +96,13 @@ func (f *FlatSet) Insert(element Element) (Element, bool) {
 			}
 		} else {
 			//insert target before
-			if element.GetKey() < target[0].GetKey() {
+			if bytes.Compare(element.GetKey(), target[0].GetKey()) == -1 {
 				elemnts := []Element{}
 				elemnts = append(elemnts, element)
 				elemnts = append(elemnts, target...)
 				f.Data = elemnts
 				result = elemnts[0]
-			} else if element.GetKey() > target[length-1].GetKey() { //target append
+			} else if bytes.Compare(element.GetKey(), target[length-1].GetKey()) == 1 { //target append
 				target = append(target, element)
 				result = target[length]
 				f.Data = target
@@ -121,4 +129,27 @@ func (f *FlatSet) Update(element Element) bool {
 		}
 	}
 	return result
+}
+
+func (f *FlatSet) Remove(key []byte) bool {
+
+	result := false
+	if f.Len() == 0 {
+		return false
+	}
+	_, sub := f.FindData(key)
+	if sub >= 0 /* && f.Len()>=1*/ {
+		f.Data = append(f.Data[:sub], f.Data[sub+1:]...)
+		result = true
+	}
+	return result
+}
+
+func (f *FlatSet) Reserve(size int) {
+	f.Data = make([]Element, 0, size)
+}
+
+func (f *FlatSet) Copy(oldFS FlatSet) {
+	f.Data = make([]Element, oldFS.Len())
+	copy(f.Data, oldFS.Data)
 }

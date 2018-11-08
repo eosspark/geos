@@ -6,7 +6,6 @@ import (
 	"fmt"
 	"strings"
 
-	"encoding/binary"
 	"github.com/eosspark/eos-go/crypto/btcsuite/btcd/btcec"
 	"github.com/eosspark/eos-go/crypto/btcsuite/btcutil/base58"
 	"golang.org/x/crypto/ripemd160"
@@ -182,9 +181,7 @@ func (p PublicKey) Compare(pub PublicKey) bool {
 
 }
 
-func (p PublicKey) GetKey() uint64 {
+func (p PublicKey) GetKey() []byte {
 	sl, _ := p.MarshalJSON()
-	param := make([]byte, 64-len(sl))
-	param = append(sl, param...)
-	return binary.LittleEndian.Uint64(param)
+	return sl
 }

@@ -1,25 +1,7 @@
 package common
 
-/*func Test_Reflect(t *testing.T){
-	o :=ObjectDemo{}
-	o.ID = 234
-	o.Prev = 123
-	o.BlockNum = 1
-
-	//templet := TempleteProperty{}
-	rv:=reflect.ValueOf(o)
-	fmt.Println(rv.Interface().(ObjectDemo).ID.String())
-	fmt.Println(rv.Field(2))
-	fmt.Println("----")
-
-
-	rt:=reflect.TypeOf(o)
-	fmt.Println(rt.Name())
-}*/
-
 import (
-	"fmt"
-	"github.com/eosspark/eos-go/crypto/ecc"
+	"encoding/binary"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
@@ -29,16 +11,10 @@ type AccountDeltaDemo struct {
 	B int64
 }
 
-/*func (a AccountDeltaDemo) GetKey() []byte {
+func (a AccountDeltaDemo) GetKey() []byte {
 	b := make([]byte, 8)
-	binary.BigEndian.PutUint64(b, i)
+	binary.BigEndian.PutUint64(b, uint64(a.A))
 	return b
-}*/
-
-func (a AccountDeltaDemo) GetKey() uint64 {
-	/*b := make([]byte, 8)
-	binary.BigEndian.PutUint64(b, i)*/
-	return uint64(a.A)
 }
 
 func TestFlat(t *testing.T) {
@@ -50,7 +26,6 @@ func TestFlat(t *testing.T) {
 				ad := AccountDeltaDemo{}
 				ad.A = AccountName(i)
 				ad.B = int64(i)
-				//f.Data = append(f.Data, ad)
 				f.Insert(ad)
 			}
 		}
@@ -58,7 +33,6 @@ func TestFlat(t *testing.T) {
 		param.A = AccountName(0)
 		param.B = int64(0)
 		result, p := f.Insert(param)
-		fmt.Println(result, p)
 		assert.Equal(t, param, result)
 		assert.Equal(t, false, p)
 	}
@@ -75,7 +49,6 @@ func TestFlat(t *testing.T) {
 		param := AccountDeltaDemo{19, 19}
 
 		result, p := f.Insert(param)
-		fmt.Println(result, p)
 		assert.Equal(t, param, result)
 		assert.Equal(t, false, p)
 	}
@@ -92,8 +65,6 @@ func TestFlat(t *testing.T) {
 		param := AccountDeltaDemo{8, 8}
 
 		result, p := f.Insert(param)
-		fmt.Println(result, p)
-		//fmt.Println("**********",f)
 		assert.Equal(t, param, result)
 		assert.Equal(t, false, p)
 	}
@@ -108,9 +79,8 @@ func TestFlat(t *testing.T) {
 		param := AccountDeltaDemo{8, 8}
 
 		result, p := f.Insert(param)
-		fmt.Println(result, p)
 		assert.Equal(t, param, result)
-		assert.Equal(t, true, p)
+		assert.Equal(t, false, p)
 	}
 }
 
@@ -150,52 +120,7 @@ func TestFlatSet_Clear(t *testing.T) {
 	assert.Equal(t, false, b)
 }
 
-func Test(t *testing.T) {
-	f := FlatSet{}
-	for i := 0; i < 20; i++ {
-		//if i != 18 {
-		ad := AccountDeltaDemo{}
-		ad.A = AccountName(i)
-		ad.B = int64(i)
-		f.Data = append(f.Data, ad)
-		//}
-	}
-	element := AccountDeltaDemo{20, 19}
-
-	length := len(f.Data)
-	r, i, j := 0, 0, length-1
-	for i < j {
-		h := int(uint(i+j) >> 1)
-		if f.Data[h].GetKey() <= element.GetKey() {
-			i = h + 1
-		} else {
-			j = h
-		}
-		r = h
-	}
-	fmt.Println("r", r)
-	fmt.Println("f:", f)
-	fmt.Println("f:", f.Len())
-}
-
-func Test_test(t *testing.T) {
-	/*array := []byte{0x00, 0x01, 0x08, 0x00, 0x08, 0x01, 0xab, 0x01}
-	num := binary.LittleEndian.Uint64(array)
-	fmt.Printf("%v, %x", array, num)*/
-	fmt.Println(AccountName(N("yuanchao")) == AccountName(N("yuanchao")))
-}
-
-func TestFlatSet_Find(t *testing.T) {
-	key, _ := ecc.NewPublicKey("EOS5fxEptrpsG2QTjRgi8Gf9EConFDH3jeUc24YFSemcW3bBDhuoW")
-	fs := FlatSet{}
-	k, b := fs.Insert(&key)
-	fmt.Println("insert key:", k, "exist:", b)
-	boo, i := fs.Find(&key)
-	fmt.Println("insert key:", boo, "exist:", i)
-	assert.Equal(t, true, boo)
-}
-
-func Test1(t *testing.T) {
+func Test_Insert(t *testing.T) {
 	f := FlatSet{}
 	for i := 0; i < 5; i++ {
 		if i != 2 {
@@ -205,11 +130,8 @@ func Test1(t *testing.T) {
 			f.Insert(ad)
 		}
 	}
-	fmt.Println(f)
 	param := AccountDeltaDemo{2, 2}
-
 	result, p := f.Insert(param)
-	fmt.Println(result, p, f)
 	assert.Equal(t, param, result)
 	assert.Equal(t, false, p)
 }
@@ -230,8 +152,35 @@ func TestFlatSet_Update(t *testing.T) {
 
 	add := AccountDeltaDemo{2, 10}
 	p := f.Update(add)
-	fmt.Println(f)
 	assert.Equal(t, true, p)
+}
+
+func TestFlatSet_RemoveOne(t *testing.T) {
+	f := FlatSet{}
+	ad := AccountDeltaDemo{10, 10}
+
+	result, i := f.Insert(ad)
+	assert.Equal(t, result, ad)
+	assert.Equal(t, false, i)
+	re := f.Remove(ad.GetKey())
+	assert.Equal(t, true, re)
+}
+
+func TestFlatSet_Remove(t *testing.T) {
+	f := FlatSet{}
+	ad := AccountDeltaDemo{2, 2}
+	ad1 := AccountDeltaDemo{1, 1}
+
+	ad2 := AccountDeltaDemo{0, 0}
+
+	ad3 := AccountDeltaDemo{3, 3}
+	f.Insert(ad)
+	f.Insert(ad1)
+	f.Insert(ad2)
+	re := f.Remove(ad1.GetKey())
+	assert.Equal(t, true, re)
+	r := f.Remove(ad3.GetKey())
+	assert.Equal(t, false, r)
 }
 
 func Test_Find(t *testing.T) {
@@ -242,11 +191,16 @@ func Test_Find(t *testing.T) {
 	ele1, b1 := f.Insert(&a)
 	ele2, b2 := f.Insert(&b)
 
-	fmt.Println(f.Find(&a))
-	fmt.Println(f.Find(&b))
 	assert.Equal(t, &a, ele1)
 	assert.Equal(t, &b, ele2)
 
 	assert.Equal(t, false, b1)
 	assert.Equal(t, false, b2)
+}
+
+func Test_Nil(t *testing.T) {
+	f := FlatSet{}
+	ele, i := f.FindData([]byte("1"))
+	assert.Equal(t, nil, ele)
+	assert.Equal(t, -1, i)
 }

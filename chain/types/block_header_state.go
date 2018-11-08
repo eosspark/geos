@@ -1,6 +1,7 @@
 package types
 
 import (
+	"encoding/binary"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/ecc"
@@ -33,8 +34,11 @@ type AccountNameBlockNum struct {
 	BlockNum    uint32
 }
 
-func (a AccountNameBlockNum) GetKey() uint64 {
-	return a.AccountName.GetKey()
+func (a AccountNameBlockNum) GetKey() []byte {
+	//return a.AccountName.GetKey()
+	b := make([]byte, 8)
+	binary.BigEndian.PutUint64(b, uint64(a.AccountName))
+	return b
 }
 
 func (b *BlockHeaderState) GetScheduledProducer(t common.BlockTimeStamp) ProducerKey {
@@ -78,8 +82,7 @@ func (b *BlockHeaderState) GenerateNext(when common.BlockTimeStamp) *BlockHeader
 	result.PendingScheduleLibNum = b.PendingScheduleLibNum
 	result.PendingScheduleHash = b.PendingScheduleHash
 	result.BlockNum = b.BlockNum + 1
-	result.ProducerToLastProduced = b.ProducerToLastProduced
-	result.ProducerToLastImpliedIrb = b.ProducerToLastImpliedIrb
+	result.ProducerToLastProduced.Copy(b.ProducerToLastProduced)
 	result.ProducerToLastProduced.Update(AccountNameBlockNum{proKey.ProducerName, result.BlockNum})
 	result.BlockrootMerkle = b.BlockrootMerkle
 	result.BlockrootMerkle.Append(crypto.Sha256(b.BlockId))
@@ -89,6 +92,7 @@ func (b *BlockHeaderState) GenerateNext(when common.BlockTimeStamp) *BlockHeader
 	result.DposProposedIrreversibleBlocknum = b.DposProposedIrreversibleBlocknum
 	result.BftIrreversibleBlocknum = b.BftIrreversibleBlocknum
 
+	result.ProducerToLastImpliedIrb.Copy(b.ProducerToLastImpliedIrb)
 	result.ProducerToLastImpliedIrb.Update(AccountNameBlockNum{proKey.ProducerName, result.DposProposedIrreversibleBlocknum})
 	result.DposIrreversibleBlocknum = result.CalcDposLastIrreversible()
 

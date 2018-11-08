@@ -1,9 +1,10 @@
 package common
 
 import (
+	"encoding/binary"
+	"encoding/json"
 	"fmt"
 	"strings"
-	"encoding/json"
 )
 
 // ported from libraries/chain/name.cpp in eosio
@@ -12,8 +13,10 @@ type Name uint64
 func (n Name) String() string {
 	return S(uint64(n))
 }
-func (n *Name) GetKey() uint64 {
-	return uint64(*n)
+func (n *Name) GetKey() []byte {
+	b := make([]byte, 8)
+	binary.BigEndian.PutUint64(b, uint64(*n))
+	return b
 }
 
 func (n Name) Empty() bool {
@@ -33,7 +36,6 @@ func (n *Name) UnmarshalJSON(data []byte) error {
 	*n = Name(N(s))
 	return nil
 }
-
 
 //N converts a base32 string to a uint64. 64-bit unsigned integer representation of the name.
 func N(s string) (val uint64) {

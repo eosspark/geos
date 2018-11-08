@@ -59,6 +59,10 @@ type transactionState struct {
 	requestedTime   common.TimePoint
 }
 
+func (trx *transactionState) Getkey() []byte {
+	return trx.id.Bytes()
+}
+
 type updateTxnExpiry struct {
 	newExpiry common.TimePointSec
 }
@@ -96,6 +100,10 @@ type peerBlockState struct {
 	isKnown     bool
 	isNoticed   bool
 	requestTime common.TimePoint
+}
+
+func (p *peerBlockState) Getkey() []byte {
+	return p.id.Bytes()
 }
 
 /*
@@ -228,6 +236,10 @@ type nodeTransactionState struct {
 	blockNum      uint32          // block transaction was included in
 	trueBlock     uint32          // used to reset block_uum when request is 0
 	request       uint16          // the number of "in flight" requests for this txn
+}
+
+func (node *nodeTransactionState) GetKey() []byte {
+	return node.id.Bytes()
 }
 
 type updateInFlight struct {

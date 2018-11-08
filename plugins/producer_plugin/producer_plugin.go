@@ -18,6 +18,8 @@ import (
 
 )
 
+//var log = Log.NewWithHandle("producer", Log.TerminalHandler)
+
 type ProducerPlugin struct {
 	//ConfirmedBlock Signal //TODO signal ConfirmedBlock
 	my *ProducerPluginImpl
@@ -50,7 +52,7 @@ func init() {
 	fmt.Println("app register plugin")
 }
 
-func NewProducerPlugin(io *asio.IoContext) ProducerPlugin {
+func NewProducerPlugin(io *asio.IoContext) *ProducerPlugin {
 	p := new(ProducerPlugin)
 	my := new(ProducerPluginImpl)
 
@@ -67,7 +69,7 @@ func NewProducerPlugin(io *asio.IoContext) ProducerPlugin {
 
 	p.my = my
 
-	return *p
+	return p
 }
 
 func (p *ProducerPlugin) IsProducerKey(key ecc.PublicKey) bool {
@@ -160,17 +162,22 @@ func (p *ProducerPlugin) PluginInitialize(app *cli.App) {
 			}
 
 			for _, keyIdToWifPairString := range c.StringSlice("private-key") {
-				var keyIdToWifPair [2]string
-				json.Unmarshal([]byte(keyIdToWifPairString), &keyIdToWifPair)
-				pubKey, err := ecc.NewPublicKey(keyIdToWifPair[0])
-				if err != nil {
-					panic(err)
-				}
-				priKey, err2 := ecc.NewPrivateKey(keyIdToWifPair[1])
-				if err2 != nil {
-					panic(err2)
-				}
-				p.my.SignatureProviders[pubKey] = makeKeySignatureProvider(priKey)
+				Try(func() {
+					var keyIdToWifPair [2]string
+					json.Unmarshal([]byte(keyIdToWifPairString), &keyIdToWifPair)
+					pubKey, err := ecc.NewPublicKey(keyIdToWifPair[0])
+					if err != nil {
+						Throw(err) //TODO
+					}
+					priKey, err2 := ecc.NewPrivateKey(keyIdToWifPair[1])
+					if err2 != nil {
+						Throw(err2) //TODO
+					}
+					p.my.SignatureProviders[pubKey] = makeKeySignatureProvider(priKey)
+					// wlog("\"private-key\" is DEPRECATED, use \"signature-provider=${pub}=KEY:${priv}\"", ("pub",key_id_to_wif_pair.first)("priv", blanked_privkey));
+				}).Catch(func(e error) {
+					log.Error("Malformed private key pair")
+				}).End()
 			}
 
 			for _, keySpecPair := range c.StringSlice("signature-provider") {
@@ -186,18 +193,22 @@ func (p *ProducerPlugin) PluginInitialize(app *cli.App) {
 					specData := specStr[specDelim+1:]
 
 					pubKey, err := ecc.NewPublicKey(pubKeyStr)
-					if err != nil { panic(err) }
+					if err != nil {
+						Throw(err)
+					}
 
 					if specTypeStr == "KEY" {
 						priKey, e := ecc.NewPrivateKey(specData)
-						if e != nil { panic(nil) }
+						if e != nil {
+							Throw(e)
+						}
 						p.my.SignatureProviders[pubKey] = makeKeySignatureProvider(priKey)
 					} else if specTypeStr == "KEOSD" {
 						p.my.SignatureProviders[pubKey] = makeKeosdSignatureProvider(p.my, specData, pubKey)
 					}
 
 				}).Catch(func(interface{}) {
-					//TODO elog("Malformed signature provider: \"${val}\", ignoring!", ("val", key_spec_pair));
+					log.Error("Malformed signature provider: \"%s\", ignoring!", keySpecPair)
 				}).End()
 			}
 
@@ -230,6 +241,8 @@ func (p *ProducerPlugin) PluginInitialize(app *cli.App) {
 
 func (p *ProducerPlugin) PluginStartup() {
 	Try(func() {
+		log.Info("producer plugin:  plugin_startup() begin")
+
 		chain := Chain.GetControllerInstance()
 		EosAssert(p.my.Producers.Len() == 0 || chain.GetReadMode() == Chain.DBReadMode(Chain.SPECULATIVE), &PluginConfigException{},
 			"node cannot have any producer-name configured because block production is impossible when read_mode is not \"speculative\"" )
@@ -250,7 +263,7 @@ func (p *ProducerPlugin) PluginStartup() {
 		}
 
 		if p.my.Producers.Len() > 0 {
-			log.Info(fmt.Sprintf("Launching block production for %d producers at %s.", p.my.Producers.Len(), common.Now()))
+			log.Info("Launching block production for %d producers at %s.", p.my.Producers.Len(), common.Now())
 
 			if p.my.ProductionEnabled {
 				if chain.HeadBlockNum() == 0 {

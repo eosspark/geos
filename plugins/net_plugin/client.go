@@ -7,7 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/eosspark/eos-go/chain/types"
-	"github.com/eosspark/eos-go/chainp2p"
+	//"github.com/eosspark/eos-go/chainp2p"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/ecc"
@@ -62,9 +62,9 @@ func (c *Client) connect(headBlock uint32, lib uint32) (err error) {
 	packedTransaction := make(chan types.PackedTransaction)
 	go c.handleConnection(ready, errChannel, signedBlock, packedTransaction)
 
-	go chainp2p.GetSignedBlock(signedBlock)
+	/*go chainp2p.GetSignedBlock(signedBlock)
 	go chainp2p.GetPackedTrx(packedTransaction)
-	<-ready
+	<-ready*/
 
 	//fmt.Println(c.p2pAddress, " Connected")
 
