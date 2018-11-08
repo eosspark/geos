@@ -1,6 +1,7 @@
 package types
 
 import (
+	"encoding/binary"
 	"github.com/eosspark/eos-go/common"
 	. "github.com/eosspark/eos-go/exception"
 )
@@ -46,8 +47,10 @@ type AccountDelta struct {
 	Delta   int64
 }
 
-func (a *AccountDelta) GetKey() uint64 {
-	return uint64(a.Account)
+func (a *AccountDelta) GetKey() []byte {
+	b := make([]byte, 8)
+	binary.BigEndian.PutUint64(b, uint64(a.Account))
+	return b
 }
 
 func NewBaseActionTrace(ar *ActionReceipt) *BaseActionTrace {

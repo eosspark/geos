@@ -29,3 +29,7 @@ func NewBlockState3(prev *BlockHeaderState, b *SignedBlock, trust bool) (bs *Blo
 	bs.SignedBlock = b
 	return
 }
+
+func (b BlockState) GetKey() []byte {
+	return b.BlockId.Bytes()
+}
