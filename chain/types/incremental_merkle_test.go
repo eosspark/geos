@@ -65,5 +65,5 @@ func Test_moveNodes(t *testing.T) {
 	src[0] = *crypto.NewSha256String("26b25d457597a7b0463f9620f666dd10aa2c4373a505967c7c8d70922a2d6ece")
 	dst := []crypto.Sha256{{}}
 	moveNodes(&dst, &src)
-	assert.Equal(t, [][4]uint64{{0xb0a79775455db226, 0x10dd66f620963f46, 0x7c9605a573432caa, 0xce6e2d2a92708d7c}}, dst)
+	assert.Equal(t, *crypto.NewSha256String("26b25d457597a7b0463f9620f666dd10aa2c4373a505967c7c8d70922a2d6ece"), dst[0])
 }

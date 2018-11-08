@@ -78,8 +78,7 @@ func (b *BlockHeaderState) GenerateNext(when common.BlockTimeStamp) *BlockHeader
 	result.PendingScheduleLibNum = b.PendingScheduleLibNum
 	result.PendingScheduleHash = b.PendingScheduleHash
 	result.BlockNum = b.BlockNum + 1
-	result.ProducerToLastProduced = b.ProducerToLastProduced
-	result.ProducerToLastImpliedIrb = b.ProducerToLastImpliedIrb
+	result.ProducerToLastProduced.Copy(b.ProducerToLastProduced)
 	result.ProducerToLastProduced.Update(AccountNameBlockNum{proKey.ProducerName, result.BlockNum})
 	result.BlockrootMerkle = b.BlockrootMerkle
 	result.BlockrootMerkle.Append(crypto.Sha256(b.BlockId))
@@ -89,6 +88,7 @@ func (b *BlockHeaderState) GenerateNext(when common.BlockTimeStamp) *BlockHeader
 	result.DposProposedIrreversibleBlocknum = b.DposProposedIrreversibleBlocknum
 	result.BftIrreversibleBlocknum = b.BftIrreversibleBlocknum
 
+	result.ProducerToLastImpliedIrb.Copy(b.ProducerToLastImpliedIrb)
 	result.ProducerToLastImpliedIrb.Update(AccountNameBlockNum{proKey.ProducerName, result.DposProposedIrreversibleBlocknum})
 	result.DposIrreversibleBlocknum = result.CalcDposLastIrreversible()
 
