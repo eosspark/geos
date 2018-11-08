@@ -162,7 +162,7 @@ func TestFlatSet_RemoveOne(t *testing.T) {
 	result, i := f.Insert(ad)
 	assert.Equal(t, result, ad)
 	assert.Equal(t, false, i)
-	re := f.Remove(ad.GetKey())
+	re := f.Remove(ad)
 	assert.Equal(t, true, re)
 }
 
@@ -177,9 +177,9 @@ func TestFlatSet_Remove(t *testing.T) {
 	f.Insert(ad)
 	f.Insert(ad1)
 	f.Insert(ad2)
-	re := f.Remove(ad1.GetKey())
+	re := f.Remove(ad1)
 	assert.Equal(t, true, re)
-	r := f.Remove(ad3.GetKey())
+	r := f.Remove(ad3)
 	assert.Equal(t, false, r)
 }
 

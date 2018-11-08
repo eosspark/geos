@@ -131,13 +131,13 @@ func (f *FlatSet) Update(element Element) bool {
 	return result
 }
 
-func (f *FlatSet) Remove(key []byte) bool {
+func (f *FlatSet) Remove(element Element) bool {
 
 	result := false
 	if f.Len() == 0 {
 		return false
 	}
-	_, sub := f.FindData(key)
+	_, sub := f.FindData(element.GetKey())
 	if sub >= 0 /* && f.Len()>=1*/ {
 		f.Data = append(f.Data[:sub], f.Data[sub+1:]...)
 		result = true

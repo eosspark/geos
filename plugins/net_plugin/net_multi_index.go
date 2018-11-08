@@ -311,7 +311,7 @@ func (m *netMultiIndex) eraseTrxById(id *common.BlockIdType) bool {
 				blockNumKey := computeBlockNumKey(block.BlockNum)
 				keyArray = append(keyArray, blockNumKey)
 				for _, k := range keyArray {
-					boo := idx.keyValue.Remove(k)
+					boo := idx.keyValue.Remove(netIndexElement{key: k})
 					if !boo {
 						log.Error("netMultiIndex eraseTrx is error:%#v", k)
 					}
