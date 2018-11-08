@@ -60,9 +60,10 @@ func NewApplyContext(control *Controller, trxContext *TransactionContext, act *t
 		ContextFree:        false,
 		UsedContestFreeApi: false,
 
-		KeyvalCache: NewIteratorCache(),
+		//KeyvalCache: NewIteratorCache(),
 	}
 
+	applyContext.KeyvalCache = NewIteratorCache()
 	applyContext.idx64 = NewIdx64(applyContext)
 	applyContext.idxDouble = NewIdxDouble(applyContext)
 
@@ -94,7 +95,9 @@ func NewIteratorCache() *iteratorCache {
 		tableCache: make(map[common.IdType]*pairTableIterator),
 		// endIteratorToTable: make([]*entity.TableIdObject, 8),
 		// iteratorToObject:   make([]interface{}, 32),
-		objectToIterator: make(map[interface{}]int),
+		endIteratorToTable: []*entity.TableIdObject{},
+		iteratorToObject:   []interface{}{},
+		objectToIterator:   make(map[interface{}]int),
 	}
 	return &i
 }
@@ -705,13 +708,15 @@ func (a *ApplyContext) DbPreviousI64(iterator int, primary *uint64) int {
 
 	idx, _ := a.DB.GetIndex("byScopePrimary", entity.KeyValueObject{})
 
-	if iterator < -1 {
+	if iterator < -1 { // is end iterator
 		tab := a.KeyvalCache.findTablebyEndIterator(iterator)
 		EosAssert(tab != nil, &InvalidTableTterator{}, "not a valid end iterator")
 
-		itr, _ := idx.UpperBound(tab.ID)
+		obj := entity.KeyValueObject{TId: tab.ID}
+
+		itr, _ := idx.UpperBound(&obj)
 		if idx.CompareIterator(idx.Begin(), idx.End()) || idx.CompareBegin(itr) {
-			a.ilog.Info("iterator is the begin(nil), iteratorIn:%d iteratorOut:%d", iterator, -1)
+			a.ilog.Info("iterator is the begin(nil), iteratorIn:%d iteratorOut:%d", iterator, -1) // Empty table
 			return -1
 		}
 
@@ -720,7 +725,7 @@ func (a *ApplyContext) DbPreviousI64(iterator int, primary *uint64) int {
 		itr.Data(&objPrev)
 
 		if objPrev.TId != tab.ID {
-			a.ilog.Info("previous iterator out of tid, iteratorIn:%d iteratorOut:%d", iterator, -1)
+			a.ilog.Info("previous iterator out of tid, iteratorIn:%d iteratorOut:%d", iterator, -1) // Empty table
 			return -1
 		}
 
@@ -734,13 +739,16 @@ func (a *ApplyContext) DbPreviousI64(iterator int, primary *uint64) int {
 
 	obj := (a.KeyvalCache.get(iterator)).(*entity.KeyValueObject)
 	itr := idx.IteratorTo(obj)
+	if idx.CompareBegin(itr) {
+		return -1 // cannot decrement past beginning iterator of table
+	}
+
 	itr.Prev()
 	objPrev := entity.KeyValueObject{}
 	itr.Data(&objPrev)
-	//a.ilog.Info("object:%v iterator:%d", objPrev, iterator)
 
 	if objPrev.TId != obj.TId {
-		return -1
+		return -1 // cannot decrement past beginning iterator of table
 	}
 
 	*primary = objPrev.PrimaryKey
@@ -834,6 +842,8 @@ func (a *ApplyContext) DbUpperboundI64(code uint64, scope uint64, table uint64, 
 
 }
 func (a *ApplyContext) DbEndI64(code uint64, scope uint64, table uint64) int {
+	a.ilog.Info("code:%v scope:%v table:%v ",
+		common.AccountName(code), common.ScopeName(scope), common.TableName(table))
 
 	tab := a.FindTable(code, scope, table)
 	if tab == nil {
