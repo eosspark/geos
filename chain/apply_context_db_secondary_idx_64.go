@@ -31,8 +31,6 @@ func (i *Idx64) store(scope uint64, table uint64, payer uint64, id uint64, secon
 		Payer:        common.AccountName(payer),
 	}
 
-	i.context.ilog.Info("Idx64 store:%v", obj)
-
 	i.context.DB.Insert(&obj)
 	i.context.DB.Modify(tab, func(t *entity.TableIdObject) {
 		t.Count++
@@ -41,13 +39,16 @@ func (i *Idx64) store(scope uint64, table uint64, payer uint64, id uint64, secon
 	i.context.UpdateDbUsage(common.AccountName(payer), int64(common.BillableSizeV("index64_object")))
 
 	i.itrCache.cacheTable(tab)
-	return i.itrCache.add(&obj)
+	iteratorOut := i.itrCache.add(&obj)
+	i.context.ilog.Info("object:%v iteratorOut:%d code:%v scope:%v table:%v payer:%v id:%d secondary:%v",
+		obj, iteratorOut, i.context.Receiver, common.ScopeName(scope), common.TableName(table), common.AccountName(payer), id, *secondary)
+	return iteratorOut
+
 }
 
 func (i *Idx64) remove(iterator int) {
 
 	obj := (i.itrCache.get(iterator)).(*entity.SecondaryObjectI64)
-	//i.context.UpdateDbUsage(obj.payer, - types.BillableSizeV(obj.GetBillableSize()))
 	i.context.UpdateDbUsage(obj.Payer, -int64(common.BillableSizeV("index64_object")))
 
 	tab := i.itrCache.getTable(obj.TId)
@@ -56,6 +57,8 @@ func (i *Idx64) remove(iterator int) {
 	i.context.DB.Modify(tab, func(t *entity.TableIdObject) {
 		t.Count--
 	})
+
+	i.context.ilog.Info("object:%v iterator:%d ", *obj, iterator)
 
 	i.context.DB.Remove(obj)
 	if tab.Count == 0 {
@@ -69,6 +72,7 @@ func (i *Idx64) update(iterator int, payer uint64, secondary *uint64) {
 
 	obj := (i.itrCache.get(iterator)).(*entity.SecondaryObjectI64)
 	objTable := i.itrCache.getTable(obj.TId)
+	i.context.ilog.Info("object:%v iterator:%d payer:%v secondary:%d", *obj, iterator, common.AccountName(payer), *secondary)
 	EosAssert(objTable.Code == i.context.Receiver, &TableAccessViolation{}, "db access violation")
 
 	accountPayer := common.AccountName(payer)
@@ -106,7 +110,10 @@ func (i *Idx64) findSecondary(code uint64, scope uint64, table uint64, secondary
 	}
 
 	*primary = obj.PrimaryKey
-	return i.itrCache.add(&obj)
+	iteratorOut := i.itrCache.add(&obj)
+	i.context.ilog.Info("object:%v iteratorOut:%d code:%v scope:%v table:%v secondary:%d",
+		obj, iteratorOut, common.AccountName(code), common.ScopeName(scope), common.TableName(table), *secondary)
+	return iteratorOut
 }
 
 func (i *Idx64) lowerbound(code uint64, scope uint64, table uint64, secondary *uint64, primary *uint64) int {
@@ -135,7 +142,10 @@ func (i *Idx64) lowerbound(code uint64, scope uint64, table uint64, secondary *u
 	*primary = objLowerbound.PrimaryKey
 	*secondary = objLowerbound.SecondaryKey
 
-	return i.itrCache.add(&objLowerbound)
+	iteratorOut := i.itrCache.add(&objLowerbound)
+	i.context.ilog.Info("object:%v iteratorOut:%d code:%v scope:%v table:%v secondary:%d",
+		objLowerbound, iteratorOut, common.AccountName(code), common.ScopeName(scope), common.TableName(table), secondary)
+	return iteratorOut
 }
 
 func (i *Idx64) upperbound(code uint64, scope uint64, table uint64, secondary *uint64, primary *uint64) int {
@@ -164,7 +174,10 @@ func (i *Idx64) upperbound(code uint64, scope uint64, table uint64, secondary *u
 	*primary = objUpperbound.PrimaryKey
 	*secondary = objUpperbound.SecondaryKey
 
-	return i.itrCache.add(&objUpperbound)
+	iteratorOut := i.itrCache.add(&objUpperbound)
+	i.context.ilog.Info("object:%v iteratorOut:%d code:%v scope:%v table:%v secondary:%d",
+		objUpperbound, iteratorOut, common.AccountName(code), common.ScopeName(scope), common.TableName(table), secondary)
+	return iteratorOut
 }
 
 func (i *Idx64) end(code uint64, scope uint64, table uint64) int {
@@ -197,7 +210,10 @@ func (i *Idx64) next(iterator int, primary *uint64) int {
 	}
 
 	*primary = objNext.PrimaryKey
-	return i.itrCache.add(&objNext)
+
+	iteratorOut := i.itrCache.add(&objNext)
+	i.context.ilog.Info("object:%v iteratorIn:%d iteratorOut:%d", objNext, iterator, iteratorOut)
+	return iteratorOut
 
 }
 
@@ -213,6 +229,7 @@ func (i *Idx64) previous(iterator int, primary *uint64) int {
 
 		itr, _ := idx.UpperBound(&objTId)
 		if idx.CompareIterator(idx.Begin(), idx.End()) || idx.CompareBegin(itr) {
+			i.context.ilog.Info("iterator is the begin(nil) of index, iteratorIn:%d iteratorOut:%d", iterator, -1)
 			return -1
 		}
 
@@ -221,11 +238,14 @@ func (i *Idx64) previous(iterator int, primary *uint64) int {
 		itr.Data(&objPrev)
 
 		if objPrev.TId != tab.ID {
+			i.context.ilog.Info("previous iterator out of tid, iteratorIn:%d iteratorOut:%d", iterator, -1)
 			return -1
 		}
 
 		*primary = objPrev.PrimaryKey
-		return i.itrCache.add(&objPrev)
+		iteratorOut := i.itrCache.add(&objPrev)
+		i.context.ilog.Info("object:%v iteratorIn:%d iteratorOut:%d", objPrev, iterator, iteratorOut)
+		return iteratorOut
 	}
 
 	obj := (i.itrCache.get(iterator)).(*entity.SecondaryObjectI64)
@@ -243,7 +263,10 @@ func (i *Idx64) previous(iterator int, primary *uint64) int {
 		return -1
 	}
 	*primary = objPrev.PrimaryKey
-	return i.itrCache.add(&objPrev)
+
+	iteratorOut := i.itrCache.add(&objPrev)
+	i.context.ilog.Info("object:%v iteratorIn:%d iteratorOut:%d", objPrev, iterator, iteratorOut)
+	return iteratorOut
 }
 
 func (i *Idx64) findPrimary(code uint64, scope uint64, table uint64, secondary *uint64, primary uint64) int {
@@ -262,7 +285,11 @@ func (i *Idx64) findPrimary(code uint64, scope uint64, table uint64, secondary *
 	}
 
 	*secondary = obj.SecondaryKey
-	return i.itrCache.add(&obj)
+
+	iteratorOut := i.itrCache.add(&obj)
+	i.context.ilog.Info("object:%v iteratorOut:%d code:%v scope:%v table:%v secondary:%d primary:%d ",
+		obj, iteratorOut, common.AccountName(code), common.ScopeName(scope), common.TableName(table), *secondary, primary)
+	return iteratorOut
 }
 
 func (i *Idx64) lowerboundPrimary(code uint64, scope uint64, table uint64, primary *uint64) int {
@@ -282,7 +309,6 @@ func (i *Idx64) lowerboundPrimary(code uint64, scope uint64, table uint64, prima
 		return tableEndItr
 	}
 
-	//objLowerbound := (*types.SecondaryObjectI64)(itr.GetObject())
 	objLowerbound := entity.SecondaryObjectI64{}
 	itr.Data(&objLowerbound)
 

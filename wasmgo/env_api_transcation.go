@@ -144,7 +144,7 @@ func taposBlockPrefix(w *WasmGo) int {
 //    return context.get_action( type, index, buffer, buffer_size );
 // }
 func getAction(w *WasmGo, typ int, index int, buffer int, bufferSize int) int {
-	fmt.Println("get_action")
+	w.ilog.Info("getAction index:%d buffer:%d bufferSize:%d", index, buffer, bufferSize)
 
 	s, action := w.context.GetAction(uint32(typ), index, bufferSize)
 	if bufferSize == 0 || action == nil {

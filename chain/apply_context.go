@@ -548,7 +548,7 @@ func (a *ApplyContext) GetAction(typ uint32, index int, bufferSize int) (int, []
 		}
 		a_ptr = trx.ContextFreeActions[index]
 	} else if typ == 1 {
-		if index >= len(trx.ContextFreeActions) {
+		if index >= len(trx.Actions) {
 			return -1, nil
 		}
 		a_ptr = trx.Actions[index]
@@ -596,8 +596,6 @@ func (a *ApplyContext) dbStoreI64(code uint64, scope uint64, table uint64, payer
 		Payer:      common.AccountName(payer),
 	}
 
-	a.ilog.Info("DbStoreI64 obj:%v", obj)
-
 	a.DB.Insert(&obj)
 	a.DB.Modify(tab, func(t *entity.TableIdObject) {
 		t.Count++
@@ -607,12 +605,17 @@ func (a *ApplyContext) dbStoreI64(code uint64, scope uint64, table uint64, payer
 	billableSize := int64(len(buffer)) + int64(common.BillableSizeV("key_value_object"))
 	a.UpdateDbUsage(common.AccountName(payer), billableSize)
 	a.KeyvalCache.cacheTable(tab)
-	return a.KeyvalCache.add(&obj)
+	iteratorOut := a.KeyvalCache.add(&obj)
+	a.ilog.Info("object:%v iteratorOut:%d code:%v scope:%v table:%v payer:%v id:%d buffer:%v",
+		obj, iteratorOut, common.AccountName(code), common.ScopeName(scope), common.TableName(table), common.AccountName(payer), id, buffer)
+	return iteratorOut
 }
 func (a *ApplyContext) DbUpdateI64(iterator int, payer uint64, buffer []byte) {
 
 	obj := (a.KeyvalCache.get(iterator)).(*entity.KeyValueObject)
 	objTable := a.KeyvalCache.getTable(obj.TId)
+
+	a.ilog.Info("object:%v iterator:%d payer:%v buffer:%v", *obj, iterator, common.AccountName(payer), buffer)
 	EosAssert(objTable.Code == a.Receiver, &TableAccessViolation{}, "db access violation")
 
 	overhead := common.BillableSizeV("key_value_object")
@@ -649,6 +652,8 @@ func (a *ApplyContext) DbRemoveI64(iterator int) {
 		t.Count--
 	})
 
+	a.ilog.Info("object:%v iteratorIn:%d ", *obj, iterator)
+
 	a.DB.Remove(obj)
 	if objTable.Count == 0 {
 		a.DB.Remove(objTable)
@@ -666,6 +671,8 @@ func (a *ApplyContext) DbGetI64(iterator int, buffer []byte, bufferSize int) int
 
 	copySize := int(common.Min(uint64(bufferSize), uint64(s)))
 	copy(buffer[0:copySize], obj.Value[0:copySize])
+
+	a.ilog.Info("object:%v buffer:%v iteratorIn:%d ", *obj, buffer, iterator)
 	return copySize
 }
 func (a *ApplyContext) DbNextI64(iterator int, primary *uint64) int {
@@ -684,15 +691,14 @@ func (a *ApplyContext) DbNextI64(iterator int, primary *uint64) int {
 		itr.Data(&objKeyval)
 	}
 
-	a.ilog.Info("DbNextI64 obj:%v", objKeyval)
-
 	if idx.CompareEnd(itr) || objKeyval.TId != obj.TId {
 		return a.KeyvalCache.getEndIteratorByTableID(obj.TId)
 	}
 
 	*primary = objKeyval.PrimaryKey
-
-	return a.KeyvalCache.add(&objKeyval)
+	iteratorOut := a.KeyvalCache.add(&objKeyval)
+	a.ilog.Info("object:%v iteratorIn:%d iteratorOut:%d", objKeyval, iterator, iteratorOut)
+	return iteratorOut
 }
 
 func (a *ApplyContext) DbPreviousI64(iterator int, primary *uint64) int {
@@ -705,6 +711,7 @@ func (a *ApplyContext) DbPreviousI64(iterator int, primary *uint64) int {
 
 		itr, _ := idx.UpperBound(tab.ID)
 		if idx.CompareIterator(idx.Begin(), idx.End()) || idx.CompareBegin(itr) {
+			a.ilog.Info("iterator is the begin(nil), iteratorIn:%d iteratorOut:%d", iterator, -1)
 			return -1
 		}
 
@@ -713,11 +720,16 @@ func (a *ApplyContext) DbPreviousI64(iterator int, primary *uint64) int {
 		itr.Data(&objPrev)
 
 		if objPrev.TId != tab.ID {
+			a.ilog.Info("previous iterator out of tid, iteratorIn:%d iteratorOut:%d", iterator, -1)
 			return -1
 		}
 
 		*primary = objPrev.PrimaryKey
-		return a.KeyvalCache.add(&objPrev)
+		//return a.KeyvalCache.add(&objPrev)
+
+		iteratorOut := a.KeyvalCache.add(&objPrev)
+		a.ilog.Info("object:%v iteratorIn:%d iteratorOut:%d", objPrev, iterator, iteratorOut)
+		return iteratorOut
 	}
 
 	obj := (a.KeyvalCache.get(iterator)).(*entity.KeyValueObject)
@@ -725,14 +737,16 @@ func (a *ApplyContext) DbPreviousI64(iterator int, primary *uint64) int {
 	itr.Prev()
 	objPrev := entity.KeyValueObject{}
 	itr.Data(&objPrev)
-	a.ilog.Info("DbPreviousI64 obj:%v", objPrev)
+	//a.ilog.Info("object:%v iterator:%d", objPrev, iterator)
 
 	if objPrev.TId != obj.TId {
 		return -1
 	}
 
 	*primary = objPrev.PrimaryKey
-	return a.KeyvalCache.add(&objPrev)
+	iteratorOut := a.KeyvalCache.add(&objPrev)
+	a.ilog.Info("object:%v iteratorIn:%d iteratorOut:%d", objPrev, iterator, iteratorOut)
+	return iteratorOut
 }
 func (a *ApplyContext) DbFindI64(code uint64, scope uint64, table uint64, id uint64) int {
 
@@ -748,11 +762,15 @@ func (a *ApplyContext) DbFindI64(code uint64, scope uint64, table uint64, id uin
 		PrimaryKey: uint64(id),
 	}
 	err := a.DB.Find("byScopePrimary", obj, &obj)
+	//a.ilog.Info("object:%v iteratorOut:%d code:%d scope:%d table:%d id:%d", obj, iteratorOut, code, scope, table, id)
 
 	if err != nil {
 		return tableEndItr
 	}
-	return a.KeyvalCache.add(&obj)
+	iteratorOut := a.KeyvalCache.add(&obj)
+	a.ilog.Info("object:%v iteratorOut:%d code:%v scope:%v table:%v id:%d",
+		obj, iteratorOut, common.AccountName(code), common.ScopeName(scope), common.TableName(table), id)
+	return iteratorOut
 
 }
 func (a *ApplyContext) DbLowerboundI64(code uint64, scope uint64, table uint64, id uint64) int {
@@ -774,12 +792,14 @@ func (a *ApplyContext) DbLowerboundI64(code uint64, scope uint64, table uint64, 
 
 	objLowerbound := entity.KeyValueObject{}
 	itr.Data(&objLowerbound)
-	a.ilog.Info("DbLowerboundI64 obj:%v", objLowerbound)
 	if objLowerbound.TId != tab.ID {
 		return tableEndItr
 	}
 
-	return a.KeyvalCache.add(&objLowerbound)
+	iteratorOut := a.KeyvalCache.add(&objLowerbound)
+	a.ilog.Info("object:%v iteratorOut:%d code:%v scope:%v table:%v id:%d",
+		objLowerbound, iteratorOut, common.AccountName(code), common.ScopeName(scope), common.TableName(table), id)
+	return iteratorOut
 
 }
 func (a *ApplyContext) DbUpperboundI64(code uint64, scope uint64, table uint64, id uint64) int {
@@ -801,13 +821,16 @@ func (a *ApplyContext) DbUpperboundI64(code uint64, scope uint64, table uint64, 
 
 	objUpperbound := entity.KeyValueObject{}
 	itr.Data(&objUpperbound)
-	a.ilog.Info("DbUpperboundI64 obj:%v", objUpperbound)
 
 	if objUpperbound.TId != tab.ID {
 		return tableEndItr
 	}
 
-	return a.KeyvalCache.add(&objUpperbound)
+	//return a.KeyvalCache.add(&objUpperbound)
+	iteratorOut := a.KeyvalCache.add(&objUpperbound)
+	a.ilog.Info("object:%v iteratorOut:%d code:%v scope:%v table:%v id:%d",
+		objUpperbound, iteratorOut, common.AccountName(code), common.ScopeName(scope), common.TableName(table), id)
+	return iteratorOut
 
 }
 func (a *ApplyContext) DbEndI64(code uint64, scope uint64, table uint64) int {
@@ -882,7 +905,7 @@ func (a *ApplyContext) IdxDoubleNext(iterator int, primary *uint64) int {
 func (a *ApplyContext) IdxDoublePrevious(iterator int, primary *uint64) int {
 	return a.idxDouble.previous(iterator, primary)
 }
-func (a *ApplyContext) IdxDoubleFindPrimary(code uint64, scope uint64, table uint64, secondary *arithmetic.Float64, primary *uint64) int {
+func (a *ApplyContext) IdxDoubleFindPrimary(code uint64, scope uint64, table uint64, secondary *arithmetic.Float64, primary uint64) int {
 	return a.idxDouble.findPrimary(code, scope, table, secondary, primary)
 }
 

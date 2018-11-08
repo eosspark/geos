@@ -7,12 +7,15 @@ package wasm
 import (
 	"errors"
 	"fmt"
-	//"reflect"
-	//"github.com/eosgo/control"
+	"io"
+
+	"github.com/eosspark/eos-go/wasmgo/wagon/wasm/leb128"
 )
 
-// Import is an intreface implemented by types that can be imported by a WebAssembly module.
+// Import is an interface implemented by types that can be imported by a WebAssembly module.
 type Import interface {
+	Kind() External
+	Marshaler
 	isImport()
 }
 
@@ -20,7 +23,6 @@ type Import interface {
 type ImportEntry struct {
 	ModuleName string // module name string
 	FieldName  string // field name string
-	Kind       External
 
 	// If Kind is Function, Type is a FuncImport containing the type index of the function signature
 	// If Kind is Table, Type is a TableImport containing the type of the imported table
@@ -34,24 +36,49 @@ type FuncImport struct {
 }
 
 func (FuncImport) isImport() {}
+func (FuncImport) Kind() External {
+	return ExternalFunction
+}
+func (f FuncImport) MarshalWASM(w io.Writer) error {
+	_, err := leb128.WriteVarUint32(w, uint32(f.Type))
+	return err
+}
 
 type TableImport struct {
 	Type Table
 }
 
 func (TableImport) isImport() {}
+func (TableImport) Kind() External {
+	return ExternalTable
+}
+func (t TableImport) MarshalWASM(w io.Writer) error {
+	return t.Type.MarshalWASM(w)
+}
 
 type MemoryImport struct {
 	Type Memory
 }
 
 func (MemoryImport) isImport() {}
+func (MemoryImport) Kind() External {
+	return ExternalMemory
+}
+func (t MemoryImport) MarshalWASM(w io.Writer) error {
+	return t.Type.MarshalWASM(w)
+}
 
 type GlobalVarImport struct {
 	Type GlobalVar
 }
 
 func (GlobalVarImport) isImport() {}
+func (GlobalVarImport) Kind() External {
+	return ExternalGlobal
+}
+func (t GlobalVarImport) MarshalWASM(w io.Writer) error {
+	return t.Type.MarshalWASM(w)
+}
 
 var (
 	ErrImportMutGlobal           = errors.New("wasm: cannot import global mutable variable")
@@ -99,7 +126,6 @@ func (module *Module) resolveImports(resolve ResolveFunc) error {
 
 	var funcs uint32
 	for _, importEntry := range module.Import.Entries {
-
 		importedModule, ok := modules[importEntry.ModuleName]
 		if !ok {
 			var err error
@@ -120,11 +146,11 @@ func (module *Module) resolveImports(resolve ResolveFunc) error {
 			return ExportNotFoundError{importEntry.ModuleName, importEntry.FieldName}
 		}
 
-		if exportEntry.Kind != importEntry.Kind {
+		if exportEntry.Kind != importEntry.Type.Kind() {
 			return KindMismatchError{
 				FieldName:  importEntry.FieldName,
 				ModuleName: importEntry.ModuleName,
-				Import:     importEntry.Kind,
+				Import:     importEntry.Type.Kind(),
 				Export:     exportEntry.Kind,
 			}
 		}
@@ -137,8 +163,6 @@ func (module *Module) resolveImports(resolve ResolveFunc) error {
 			if fn == nil {
 				return InvalidFunctionIndexError(index)
 			}
-			//funcType := module.Types.Entries[importEntry.Type.(FuncImport).Type]
-
 			module.FunctionIndexSpace = append(module.FunctionIndexSpace, *fn)
 			module.Code.Bodies = append(module.Code.Bodies, *fn.Body)
 			module.imports.Funcs = append(module.imports.Funcs, funcs)

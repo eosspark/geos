@@ -10,10 +10,24 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"sort"
 
 	"github.com/eosspark/eos-go/wasmgo/wagon/wasm/internal/readpos"
 	"github.com/eosspark/eos-go/wasmgo/wagon/wasm/leb128"
 )
+
+// Section is a generic WASM section interface.
+type Section interface {
+	// SectionID returns a section ID for WASM encoding. Should be unique across types.
+	SectionID() SectionID
+	// GetRawSection Returns an embedded RawSection pointer to populate generic fields.
+	GetRawSection() *RawSection
+	// ReadPayload reads a section payload, assuming the size was already read, and reader is limited to it.
+	ReadPayload(r io.Reader) error
+	// WritePayload writes a section payload without the size.
+	// Caller should calculate written size and add it before the payload.
+	WritePayload(w io.Writer) error
+}
 
 // SectionID is a 1-byte code that encodes the section code of both known and custom sections.
 type SectionID uint8
@@ -54,17 +68,21 @@ func (s SectionID) String() string {
 	return n
 }
 
-// Section is a declared section in a WASM module.
-type Section struct {
+// RawSection is a declared section in a WASM module.
+type RawSection struct {
 	Start int64
 	End   int64
 
-	ID SectionID
-	// Size of this section in bytes
-	PayloadLen uint32
-	// Section name, empty if id != 0
-	Name  string
+	ID    SectionID
 	Bytes []byte
+}
+
+func (s *RawSection) SectionID() SectionID {
+	return s.ID
+}
+
+func (s *RawSection) GetRawSection() *RawSection {
+	return s
 }
 
 type InvalidSectionIDError SectionID
@@ -94,32 +112,19 @@ func (m *Module) readSection(r *readpos.ReadPos) (bool, error) {
 	var id uint32
 
 	logger.Println("Reading section ID")
-	if id, err = leb128.ReadVarUint32(r); err != nil {
-		if err == io.EOF { // no bytes were read, the reader is empty
-			return true, nil
-		}
+	id, err = leb128.ReadVarUint32(r)
+	if err == io.EOF {
+		return true, nil
+	} else if err != nil {
 		return false, err
 	}
-	s := Section{ID: SectionID(id)}
+	s := RawSection{ID: SectionID(id)}
 
 	logger.Println("Reading payload length")
-	if s.PayloadLen, err = leb128.ReadVarUint32(r); err != nil {
-		return false, nil
-	}
 
-	payloadDataLen := s.PayloadLen
-
-	if s.ID == SectionIDCustom {
-		nameLen, nameLenSize, err := leb128.ReadVarUint32Size(r)
-		if err != nil {
-			return false, err
-		}
-		payloadDataLen -= uint32(nameLenSize)
-		if s.Name, err = readString(r, int(nameLen)); err != nil {
-			return false, err
-		}
-
-		payloadDataLen -= uint32(len(s.Name))
+	payloadDataLen, err := leb128.ReadVarUint32(r)
+	if err != nil {
+		return false, err
 	}
 
 	logger.Printf("Section payload length: %d", payloadDataLen)
@@ -130,182 +135,219 @@ func (m *Module) readSection(r *readpos.ReadPos) (bool, error) {
 	sectionBytes.Grow(int(payloadDataLen))
 	sectionReader := io.LimitReader(io.TeeReader(r, sectionBytes), int64(payloadDataLen))
 
+	var sec Section
 	switch s.ID {
 	case SectionIDCustom:
 		logger.Println("section custom")
-		if err = m.readSectionCustom(sectionReader); err == nil {
-			s.End = r.CurPos
-			s.Bytes = sectionBytes.Bytes()
-			m.Other = append(m.Other, s)
-		}
+		cs := &SectionCustom{}
+		m.Customs = append(m.Customs, cs)
+		sec = cs
 	case SectionIDType:
 		logger.Println("section type")
-		if err = m.readSectionTypes(sectionReader); err == nil {
-			s.End = r.CurPos
-			s.Bytes = sectionBytes.Bytes()
-			m.Types.Section = s
-		}
+		m.Types = &SectionTypes{}
+		sec = m.Types
 	case SectionIDImport:
 		logger.Println("section import")
-		if err = m.readSectionImports(sectionReader); err == nil {
-			s.End = r.CurPos
-			s.Bytes = sectionBytes.Bytes()
-			m.Import.Section = s
-		}
+		m.Import = &SectionImports{}
+		sec = m.Import
 	case SectionIDFunction:
 		logger.Println("section function")
-		if err = m.readSectionFunctions(sectionReader); err == nil {
-			s.End = r.CurPos
-			s.Bytes = sectionBytes.Bytes()
-			m.Function.Section = s
-		}
+		m.Function = &SectionFunctions{}
+		sec = m.Function
 	case SectionIDTable:
 		logger.Println("section table")
-		if err = m.readSectionTables(sectionReader); err == nil {
-			s.End = r.CurPos
-			s.Bytes = sectionBytes.Bytes()
-			m.Table.Section = s
-		}
+		m.Table = &SectionTables{}
+		sec = m.Table
 	case SectionIDMemory:
 		logger.Println("section memory")
-		if err = m.readSectionMemories(sectionReader); err == nil {
-			s.End = r.CurPos
-			s.Bytes = sectionBytes.Bytes()
-			m.Memory.Section = s
-		}
+		m.Memory = &SectionMemories{}
+		sec = m.Memory
 	case SectionIDGlobal:
 		logger.Println("section global")
-		if err = m.readSectionGlobals(sectionReader); err == nil {
-			s.End = r.CurPos
-			s.Bytes = sectionBytes.Bytes()
-			m.Global.Section = s
-		}
+		m.Global = &SectionGlobals{}
+		sec = m.Global
 	case SectionIDExport:
 		logger.Println("section export")
-		if err = m.readSectionExports(sectionReader); err == nil {
-			s.End = r.CurPos
-			s.Bytes = sectionBytes.Bytes()
-			m.Export.Section = s
-		}
+		m.Export = &SectionExports{}
+		sec = m.Export
 	case SectionIDStart:
 		logger.Println("section start")
-		if err = m.readSectionStart(sectionReader); err == nil {
-			s.End = r.CurPos
-			s.Bytes = sectionBytes.Bytes()
-			m.Start.Section = s
-		}
+		m.Start = &SectionStartFunction{}
+		sec = m.Start
 	case SectionIDElement:
 		logger.Println("section element")
-		if err = m.readSectionElements(sectionReader); err == nil {
-			s.End = r.CurPos
-			s.Bytes = sectionBytes.Bytes()
-			m.Elements.Section = s
-		}
+		m.Elements = &SectionElements{}
+		sec = m.Elements
 	case SectionIDCode:
 		logger.Println("section code")
-		if err = m.readSectionCode(sectionReader); err == nil {
-			s.End = r.CurPos
-			s.Bytes = sectionBytes.Bytes()
-			m.Code.Section = s
-		}
+		m.Code = &SectionCode{}
+		sec = m.Code
 	case SectionIDData:
 		logger.Println("section data")
-		if err = m.readSectionData(sectionReader); err == nil {
-			s.End = r.CurPos
-			s.Bytes = sectionBytes.Bytes()
-			m.Data.Section = s
-		}
+		m.Data = &SectionData{}
+		sec = m.Data
 	default:
 		return false, InvalidSectionIDError(s.ID)
 	}
-
-	logger.Println(err)
-	return false, err
+	err = sec.ReadPayload(sectionReader)
+	if err != nil {
+		logger.Println(err)
+		return false, err
+	}
+	s.End = r.CurPos
+	s.Bytes = sectionBytes.Bytes()
+	*sec.GetRawSection() = s
+	switch s.ID {
+	case SectionIDCode:
+		s := m.Code
+		if m.Function == nil || len(m.Function.Types) == 0 {
+			return false, MissingSectionError(SectionIDFunction)
+		}
+		if len(m.Function.Types) != len(s.Bodies) {
+			return false, errors.New("The number of entries in the function and code section are unequal")
+		}
+		if m.Types == nil {
+			return false, MissingSectionError(SectionIDType)
+		}
+		for i := range s.Bodies {
+			s.Bodies[i].Module = m
+		}
+	}
+	m.Sections = append(m.Sections, sec)
+	return false, nil
 }
 
-func (m *Module) readSectionCustom(r io.Reader) error {
-	_, err := io.Copy(ioutil.Discard, r)
+var _ Section = (*SectionCustom)(nil)
+
+type SectionCustom struct {
+	RawSection
+	Name string
+	Data []byte
+}
+
+func (s *SectionCustom) SectionID() SectionID {
+	return SectionIDCustom
+}
+
+func (s *SectionCustom) ReadPayload(r io.Reader) error {
+	var err error
+	s.Name, err = readStringUint(r)
+	if err != nil {
+		return err
+	}
+	data, err := ioutil.ReadAll(r)
+	if err != nil {
+		return err
+	}
+	s.Data = data
+	return nil
+}
+
+func (s *SectionCustom) WritePayload(w io.Writer) error {
+	if err := writeStringUint(w, s.Name); err != nil {
+		return err
+	}
+	_, err := w.Write(s.Data)
 	return err
 }
 
+var _ Section = (*SectionTypes)(nil)
+
 // SectionTypes declares all function signatures that will be used in a module.
 type SectionTypes struct {
-	Section
+	RawSection
 	Entries []FunctionSig
 }
 
-func (m *Module) readSectionTypes(r io.Reader) error {
-	s := &SectionTypes{}
+func (*SectionTypes) SectionID() SectionID {
+	return SectionIDType
+}
+
+func (s *SectionTypes) ReadPayload(r io.Reader) error {
 	count, err := leb128.ReadVarUint32(r)
 	if err != nil {
 		return err
 	}
-
 	s.Entries = make([]FunctionSig, int(count))
-
 	for i := range s.Entries {
-		if s.Entries[i], err = readFunction(r); err != nil {
+		if err = s.Entries[i].UnmarshalWASM(r); err != nil {
 			return err
 		}
-
 	}
-
-	m.Types = s
-
 	return nil
 }
 
+func (s *SectionTypes) WritePayload(w io.Writer) error {
+	_, err := leb128.WriteVarUint32(w, uint32(len(s.Entries)))
+	if err != nil {
+		return err
+	}
+	for _, f := range s.Entries {
+		if err = f.MarshalWASM(w); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+var _ Section = (*SectionImports)(nil)
+
 // SectionImports declares all imports that will be used in the module.
 type SectionImports struct {
-	Section
+	RawSection
 	Entries []ImportEntry
 }
 
-func (m *Module) readSectionImports(r io.Reader) error {
-	s := &SectionImports{}
+func (*SectionImports) SectionID() SectionID {
+	return SectionIDImport
+}
+
+func (s *SectionImports) ReadPayload(r io.Reader) error {
 	count, err := leb128.ReadVarUint32(r)
 	if err != nil {
 		return err
 	}
 	s.Entries = make([]ImportEntry, count)
-
 	for i := range s.Entries {
-		s.Entries[i], err = readImportEntry(r)
+		err = s.Entries[i].UnmarshalWASM(r)
 		if err != nil {
 			return err
 		}
 	}
-
-	m.Import = s
 	return nil
 }
 
-func readImportEntry(r io.Reader) (ImportEntry, error) {
-	i := ImportEntry{}
-
-	modLen, err := leb128.ReadVarUint32(r)
+func (s *SectionImports) WritePayload(w io.Writer) error {
+	_, err := leb128.WriteVarUint32(w, uint32(len(s.Entries)))
 	if err != nil {
-		return i, err
+		return err
 	}
-
-	if i.ModuleName, err = readString(r, int(modLen)); err != nil {
-		return i, err
+	for _, e := range s.Entries {
+		err = writeImportEntry(w, e)
+		if err != nil {
+			return err
+		}
 	}
+	return nil
+}
 
-	fieldLen, err := leb128.ReadVarUint32(r)
+func (i *ImportEntry) UnmarshalWASM(r io.Reader) error {
+	var err error
+	i.ModuleName, err = readStringUint(r)
 	if err != nil {
-		return i, err
+		return err
+	}
+	i.FieldName, err = readStringUint(r)
+	if err != nil {
+		return err
+	}
+	var kind External
+	err = kind.UnmarshalWASM(r)
+	if err != nil {
+		return err
 	}
 
-	if i.FieldName, err = readString(r, int(fieldLen)); err != nil {
-		return i, err
-	}
-
-	if i.Kind, err = readExternal(r); err != nil {
-		return i, err
-	}
-
-	switch i.Kind {
+	switch kind {
 	case ExternalFunction:
 		logger.Println("importing function")
 		var t uint32
@@ -313,51 +355,65 @@ func readImportEntry(r io.Reader) (ImportEntry, error) {
 		i.Type = FuncImport{t}
 	case ExternalTable:
 		logger.Println("importing table")
-		var table *Table
+		var table Table
 
-		table, err = readTable(r)
-		if table != nil {
-			i.Type = TableImport{*table}
+		err = table.UnmarshalWASM(r)
+		if err == nil {
+			i.Type = TableImport{table}
 		}
 	case ExternalMemory:
 		logger.Println("importing memory")
-		var mem *Memory
+		var mem Memory
 
-		mem, err = readMemory(r)
-		if mem != nil {
-			i.Type = MemoryImport{*mem}
+		err = mem.UnmarshalWASM(r)
+		if err == nil {
+			i.Type = MemoryImport{mem}
 		}
 	case ExternalGlobal:
 		logger.Println("importing global var")
-		var gl *GlobalVar
-		gl, err = readGlobalVar(r)
-		if gl != nil {
-			i.Type = GlobalVarImport{*gl}
-		}
+		var gl GlobalVar
 
+		err = gl.UnmarshalWASM(r)
+		if err == nil {
+			i.Type = GlobalVarImport{gl}
+		}
 	default:
-		return i, InvalidExternalError(i.Kind)
+		return InvalidExternalError(kind)
 	}
 
-	return i, err
+	return err
+}
+
+func writeImportEntry(w io.Writer, i ImportEntry) error {
+	if err := writeStringUint(w, i.ModuleName); err != nil {
+		return err
+	}
+	if err := writeStringUint(w, i.FieldName); err != nil {
+		return err
+	}
+	if err := i.Type.Kind().MarshalWASM(w); err != nil {
+		return err
+	}
+	return i.Type.MarshalWASM(w)
 }
 
 // SectionFunction declares the signature of all functions defined in the module (in the code section)
 type SectionFunctions struct {
-	Section
+	RawSection
 	// Sequences of indices into (FunctionSignatues).Entries
 	Types []uint32
 }
 
-func (m *Module) readSectionFunctions(r io.Reader) error {
-	s := &SectionFunctions{}
+func (*SectionFunctions) SectionID() SectionID {
+	return SectionIDFunction
+}
+
+func (s *SectionFunctions) ReadPayload(r io.Reader) error {
 	count, err := leb128.ReadVarUint32(r)
 	if err != nil {
 		return err
 	}
-
 	s.Types = make([]uint32, count)
-
 	for i := range s.Types {
 		t, err := leb128.ReadVarUint32(r)
 		if err != nil {
@@ -365,134 +421,178 @@ func (m *Module) readSectionFunctions(r io.Reader) error {
 		}
 		s.Types[i] = t
 	}
+	return nil
+}
 
-	m.Function = s
+func (s *SectionFunctions) WritePayload(w io.Writer) error {
+	if _, err := leb128.WriteVarUint32(w, uint32(len(s.Types))); err != nil {
+		return err
+	}
+	for _, t := range s.Types {
+		if _, err := leb128.WriteVarUint32(w, uint32(t)); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
 // SectionTables describes all tables declared by a module.
 type SectionTables struct {
-	Section
+	RawSection
 	Entries []Table
 }
 
-func (m *Module) readSectionTables(r io.Reader) error {
-	s := &SectionTables{}
+func (*SectionTables) SectionID() SectionID {
+	return SectionIDTable
+}
+
+func (s *SectionTables) ReadPayload(r io.Reader) error {
 	count, err := leb128.ReadVarUint32(r)
 	if err != nil {
 		return err
 	}
 	s.Entries = make([]Table, count)
-
 	for i := range s.Entries {
-		t, err := readTable(r)
+		err = s.Entries[i].UnmarshalWASM(r)
 		if err != nil {
 			return err
 		}
-		s.Entries[i] = *t
 	}
+	return nil
+}
 
-	m.Table = s
-	return err
+func (s *SectionTables) WritePayload(w io.Writer) error {
+	if _, err := leb128.WriteVarUint32(w, uint32(len(s.Entries))); err != nil {
+		return err
+	}
+	for _, e := range s.Entries {
+		if err := e.MarshalWASM(w); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // SectionMemories describes all linaer memories used by a module.
 type SectionMemories struct {
-	Section
+	RawSection
 	Entries []Memory
 }
 
-func (m *Module) readSectionMemories(r io.Reader) error {
-	s := &SectionMemories{}
+func (*SectionMemories) SectionID() SectionID {
+	return SectionIDMemory
+}
+
+func (s *SectionMemories) ReadPayload(r io.Reader) error {
 	count, err := leb128.ReadVarUint32(r)
 	if err != nil {
 		return err
 	}
-
 	s.Entries = make([]Memory, count)
-
 	for i := range s.Entries {
-		m, err := readMemory(r)
+		err = s.Entries[i].UnmarshalWASM(r)
 		if err != nil {
 			return err
 		}
-		s.Entries[i] = *m
 	}
+	return nil
+}
 
-	m.Memory = s
-	return err
+func (s *SectionMemories) WritePayload(w io.Writer) error {
+	if _, err := leb128.WriteVarUint32(w, uint32(len(s.Entries))); err != nil {
+		return err
+	}
+	for _, e := range s.Entries {
+		if err := e.MarshalWASM(w); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // SectionGlobals defines the value of all global variables declared in a module.
 type SectionGlobals struct {
-	Section
+	RawSection
 	Globals []GlobalEntry
 }
 
-func (m *Module) readSectionGlobals(r io.Reader) error {
-	s := &SectionGlobals{}
+func (*SectionGlobals) SectionID() SectionID {
+	return SectionIDGlobal
+}
 
+func (s *SectionGlobals) ReadPayload(r io.Reader) error {
 	count, err := leb128.ReadVarUint32(r)
 	if err != nil {
 		return err
 	}
 	s.Globals = make([]GlobalEntry, count)
-
 	logger.Printf("%d global entries\n", count)
 	for i := range s.Globals {
-		s.Globals[i], err = readGlobalEntry(r)
+		err = s.Globals[i].UnmarshalWASM(r)
 		if err != nil {
 			return err
 		}
 	}
+	return nil
+}
 
-	m.Global = s
+func (s *SectionGlobals) WritePayload(w io.Writer) error {
+	if _, err := leb128.WriteVarUint32(w, uint32(len(s.Globals))); err != nil {
+		return err
+	}
+	for _, g := range s.Globals {
+		if err := g.MarshalWASM(w); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
 // GlobalEntry declares a global variable.
 type GlobalEntry struct {
-	Type *GlobalVar // Type holds information about the value type and mutability of the variable
-	Init []byte     // Init is an initializer expression that computes the initial value of the variable
+	Type GlobalVar // Type holds information about the value type and mutability of the variable
+	Init []byte    // Init is an initializer expression that computes the initial value of the variable
 }
 
-func readGlobalEntry(r io.Reader) (e GlobalEntry, err error) {
-	logger.Println("reading global_type")
-	e.Type, err = readGlobalVar(r)
+func (g *GlobalEntry) UnmarshalWASM(r io.Reader) error {
+	err := g.Type.UnmarshalWASM(r)
 	if err != nil {
-		logger.Println("Error!")
-		return
+		return err
 	}
-	logger.Println("reading init expr")
 
 	// init_expr is delimited by opcode "end" (0x0b)
-	e.Init, err = readInitExpr(r)
-	logger.Println("Value:", e.Init)
-	return e, err
+	g.Init, err = readInitExpr(r)
+	return err
+}
+
+func (g *GlobalEntry) MarshalWASM(w io.Writer) error {
+	if err := g.Type.MarshalWASM(w); err != nil {
+		return err
+	}
+	_, err := w.Write(g.Init)
+	return err
 }
 
 // SectionExports declares the export section of a module
 type SectionExports struct {
-	Section
+	RawSection
 	Entries map[string]ExportEntry
+	Names   []string
 }
 
-type DuplicateExportError string
-
-func (e DuplicateExportError) Error() string {
-	return fmt.Sprintf("Duplicate export entry: %s", e)
+func (*SectionExports) SectionID() SectionID {
+	return SectionIDExport
 }
 
-func (m *Module) readSectionExports(r io.Reader) error {
-	s := &SectionExports{}
+func (s *SectionExports) ReadPayload(r io.Reader) error {
 	count, err := leb128.ReadVarUint32(r)
 	if err != nil {
 		return err
 	}
 	s.Entries = make(map[string]ExportEntry, count)
-
 	for i := uint32(0); i < count; i++ {
-		entry, err := readExportEntry(r)
+		var entry ExportEntry
+		err = entry.UnmarshalWASM(r)
 		if err != nil {
 			return err
 		}
@@ -501,10 +601,34 @@ func (m *Module) readSectionExports(r io.Reader) error {
 			return DuplicateExportError(entry.FieldStr)
 		}
 		s.Entries[entry.FieldStr] = entry
+		s.Names = append(s.Names, entry.FieldStr)
 	}
-
-	m.Export = s
 	return nil
+}
+
+func (s *SectionExports) WritePayload(w io.Writer) error {
+	if _, err := leb128.WriteVarUint32(w, uint32(len(s.Entries))); err != nil {
+		return err
+	}
+	entries := make([]ExportEntry, 0, len(s.Entries))
+	for _, e := range s.Entries {
+		entries = append(entries, e)
+	}
+	sort.Slice(entries, func(i, j int) bool {
+		return entries[i].Index < entries[j].Index
+	})
+	for _, e := range entries {
+		if err := e.MarshalWASM(w); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+type DuplicateExportError string
+
+func (e DuplicateExportError) Error() string {
+	return fmt.Sprintf("Duplicate export entry: %s", e)
 }
 
 // ExportEntry represents an exported entry by the module
@@ -514,64 +638,90 @@ type ExportEntry struct {
 	Index    uint32
 }
 
-func readExportEntry(r io.Reader) (ExportEntry, error) {
-	e := ExportEntry{}
-	fieldLen, err := leb128.ReadVarUint32(r)
-
-	if e.FieldStr, err = readString(r, int(fieldLen)); err != nil {
-		return e, err
-	}
-
-	if e.Kind, err = readExternal(r); err != nil {
-		return e, err
-	}
-
-	e.Index, err = leb128.ReadVarUint32(r)
-
-	return e, err
-}
-
-// SectionStartFunction represents the start function section.
-type SectionStartFunction struct {
-	Section
-	Index uint32 // The index of the start function into the global index space.
-}
-
-func (m *Module) readSectionStart(r io.Reader) error {
-	s := &SectionStartFunction{}
+func (e *ExportEntry) UnmarshalWASM(r io.Reader) error {
 	var err error
-
-	s.Index, err = leb128.ReadVarUint32(r)
+	e.FieldStr, err = readStringUint(r)
 	if err != nil {
 		return err
 	}
 
-	m.Start = s
+	if err := e.Kind.UnmarshalWASM(r); err != nil {
+		return err
+	}
+
+	e.Index, err = leb128.ReadVarUint32(r)
+
+	return err
+}
+
+func (e *ExportEntry) MarshalWASM(w io.Writer) error {
+	if err := writeStringUint(w, e.FieldStr); err != nil {
+		return err
+	}
+	if err := e.Kind.MarshalWASM(w); err != nil {
+		return err
+	}
+	if _, err := leb128.WriteVarUint32(w, e.Index); err != nil {
+		return err
+	}
 	return nil
+}
+
+// SectionStartFunction represents the start function section.
+type SectionStartFunction struct {
+	RawSection
+	Index uint32 // The index of the start function into the global index space.
+}
+
+func (*SectionStartFunction) SectionID() SectionID {
+	return SectionIDStart
+}
+
+func (s *SectionStartFunction) ReadPayload(r io.Reader) error {
+	var err error
+	s.Index, err = leb128.ReadVarUint32(r)
+	return err
+}
+
+func (s *SectionStartFunction) WritePayload(w io.Writer) error {
+	_, err := leb128.WriteVarUint32(w, s.Index)
+	return err
 }
 
 // SectionElements describes the initial contents of a table's elements.
 type SectionElements struct {
-	Section
+	RawSection
 	Entries []ElementSegment
 }
 
-func (m *Module) readSectionElements(r io.Reader) error {
-	s := &SectionElements{}
+func (*SectionElements) SectionID() SectionID {
+	return SectionIDElement
+}
+
+func (s *SectionElements) ReadPayload(r io.Reader) error {
 	count, err := leb128.ReadVarUint32(r)
 	if err != nil {
 		return err
 	}
 	s.Entries = make([]ElementSegment, count)
-
 	for i := range s.Entries {
-		s.Entries[i], err = readElementSegment(r)
+		err = s.Entries[i].UnmarshalWASM(r)
 		if err != nil {
 			return err
 		}
 	}
+	return nil
+}
 
-	m.Elements = s
+func (s *SectionElements) WritePayload(w io.Writer) error {
+	if _, err := leb128.WriteVarUint32(w, uint32(len(s.Entries))); err != nil {
+		return err
+	}
+	for _, e := range s.Entries {
+		if err := e.MarshalWASM(w); err != nil {
+			return err
+		}
+	}
 	return nil
 }
 
@@ -582,43 +732,63 @@ type ElementSegment struct {
 	Elems  []uint32
 }
 
-func readElementSegment(r io.Reader) (ElementSegment, error) {
-	s := ElementSegment{}
+func (s *ElementSegment) UnmarshalWASM(r io.Reader) error {
 	var err error
 
 	if s.Index, err = leb128.ReadVarUint32(r); err != nil {
-		return s, err
+		return err
 	}
 	if s.Offset, err = readInitExpr(r); err != nil {
-		return s, err
+		return err
 	}
 
 	numElems, err := leb128.ReadVarUint32(r)
 	if err != nil {
-		return s, err
+		return err
 	}
 	s.Elems = make([]uint32, numElems)
 
 	for i := range s.Elems {
 		e, err := leb128.ReadVarUint32(r)
 		if err != nil {
-			return s, err
+			return err
 		}
 		s.Elems[i] = e
 	}
 
-	return s, nil
+	return nil
+}
+
+func (s *ElementSegment) MarshalWASM(w io.Writer) error {
+	if _, err := leb128.WriteVarUint32(w, s.Index); err != nil {
+		return err
+	}
+	if _, err := w.Write(s.Offset); err != nil {
+		return err
+	}
+
+	if _, err := leb128.WriteVarUint32(w, uint32(len(s.Elems))); err != nil {
+		return err
+	}
+	for _, e := range s.Elems {
+		if _, err := leb128.WriteVarUint32(w, e); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // SectionCode describes the body for every function declared inside a module.
 type SectionCode struct {
-	Section
+	RawSection
 	Bodies []FunctionBody
 }
 
-func (m *Module) readSectionCode(r io.Reader) error {
-	s := &SectionCode{}
+func (*SectionCode) SectionID() SectionID {
+	return SectionIDCode
+}
 
+func (s *SectionCode) ReadPayload(r io.Reader) error {
 	count, err := leb128.ReadVarUint32(r)
 	if err != nil {
 		return err
@@ -628,24 +798,22 @@ func (m *Module) readSectionCode(r io.Reader) error {
 
 	for i := range s.Bodies {
 		logger.Printf("Reading function %d\n", i)
-		if s.Bodies[i], err = readFunctionBody(r); err != nil {
+		if err = s.Bodies[i].UnmarshalWASM(r); err != nil {
 			return err
 		}
-		s.Bodies[i].Module = m
 	}
+	return nil
+}
 
-	m.Code = s
-	if m.Function == nil || len(m.Function.Types) == 0 {
-		return MissingSectionError(SectionIDFunction)
+func (s *SectionCode) WritePayload(w io.Writer) error {
+	if _, err := leb128.WriteVarUint32(w, uint32(len(s.Bodies))); err != nil {
+		return err
 	}
-	if len(m.Function.Types) != len(s.Bodies) {
-		return errors.New("The number of entries in the function and code section are unequal")
+	for _, b := range s.Bodies {
+		if err := b.MarshalWASM(w); err != nil {
+			return err
+		}
 	}
-
-	if m.Types == nil {
-		return MissingSectionError(SectionIDType)
-	}
-
 	return nil
 }
 
@@ -657,31 +825,30 @@ type FunctionBody struct {
 	Code   []byte
 }
 
-func readFunctionBody(r io.Reader) (FunctionBody, error) {
-	f := FunctionBody{}
+func (f *FunctionBody) UnmarshalWASM(r io.Reader) error {
 
 	bodySize, err := leb128.ReadVarUint32(r)
 	if err != nil {
-		return f, err
+		return err
 	}
 
 	body := make([]byte, bodySize)
 
 	if _, err = io.ReadFull(r, body); err != nil {
-		return f, err
+		return err
 	}
 
 	bytesReader := bytes.NewBuffer(body)
 
 	localCount, err := leb128.ReadVarUint32(bytesReader)
 	if err != nil {
-		return f, err
+		return err
 	}
 	f.Locals = make([]LocalEntry, localCount)
 
 	for i := range f.Locals {
-		if f.Locals[i], err = readLocalEntry(bytesReader); err != nil {
-			return f, err
+		if err = f.Locals[i].UnmarshalWASM(bytesReader); err != nil {
+			return err
 		}
 	}
 
@@ -691,12 +858,29 @@ func readFunctionBody(r io.Reader) (FunctionBody, error) {
 	logger.Printf("Read %d bytes for function body", len(code))
 
 	if code[len(code)-1] != end {
-		return f, ErrFunctionNoEnd
+		return ErrFunctionNoEnd
 	}
 
 	f.Code = code[:len(code)-1]
 
-	return f, nil
+	return nil
+}
+
+func (f *FunctionBody) MarshalWASM(w io.Writer) error {
+	body := new(bytes.Buffer)
+	if _, err := leb128.WriteVarUint32(body, uint32(len(f.Locals))); err != nil {
+		return err
+	}
+	for _, l := range f.Locals {
+		if err := l.MarshalWASM(body); err != nil {
+			return err
+		}
+	}
+	if _, err := body.Write(f.Code); err != nil {
+		return err
+	}
+	body.WriteByte(end)
+	return writeBytesUint(w, body.Bytes())
 }
 
 type LocalEntry struct {
@@ -704,46 +888,66 @@ type LocalEntry struct {
 	Type  ValueType // The type of value stored by the variable
 }
 
-func readLocalEntry(r io.Reader) (LocalEntry, error) {
-	l := LocalEntry{}
+func (l *LocalEntry) UnmarshalWASM(r io.Reader) error {
 	var err error
 
 	l.Count, err = leb128.ReadVarUint32(r)
 	if err != nil {
-		return l, err
+		return err
 	}
 
-	l.Type, err = readValueType(r)
-	if err != nil {
-		return l, err
-	}
-
-	return l, nil
-}
-
-// SectionData describes the intial values of a module's linear memory
-type SectionData struct {
-	Section
-	Entries []DataSegment
-}
-
-func (m *Module) readSectionData(r io.Reader) error {
-	s := &SectionData{}
-	count, err := leb128.ReadVarUint32(r)
+	err = l.Type.UnmarshalWASM(r)
 	if err != nil {
 		return err
 	}
 
-	s.Entries = make([]DataSegment, count)
+	return nil
+}
 
+func (l *LocalEntry) MarshalWASM(w io.Writer) error {
+	if _, err := leb128.WriteVarUint32(w, l.Count); err != nil {
+		return err
+	}
+	if err := l.Type.MarshalWASM(w); err != nil {
+		return err
+	}
+	return nil
+}
+
+// SectionData describes the intial values of a module's linear memory
+type SectionData struct {
+	RawSection
+	Entries []DataSegment
+}
+
+func (*SectionData) SectionID() SectionID {
+	return SectionIDData
+}
+
+func (s *SectionData) ReadPayload(r io.Reader) error {
+	count, err := leb128.ReadVarUint32(r)
+	if err != nil {
+		return err
+	}
+	s.Entries = make([]DataSegment, count)
 	for i := range s.Entries {
-		if s.Entries[i], err = readDataSegment(r); err != nil {
+		if err = s.Entries[i].UnmarshalWASM(r); err != nil {
 			return err
 		}
 	}
+	return nil
+}
 
-	m.Data = s
-	return err
+func (s *SectionData) WritePayload(w io.Writer) error {
+	if _, err := leb128.WriteVarUint32(w, uint32(len(s.Entries))); err != nil {
+		return err
+	}
+	for _, e := range s.Entries {
+		if err := e.MarshalWASM(w); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 // DataSegment describes a group of repeated elements that begin at a specified offset in the linear memory
@@ -753,22 +957,249 @@ type DataSegment struct {
 	Data   []byte
 }
 
-func readDataSegment(r io.Reader) (DataSegment, error) {
-	s := DataSegment{}
+func (s *DataSegment) UnmarshalWASM(r io.Reader) error {
 	var err error
 
 	if s.Index, err = leb128.ReadVarUint32(r); err != nil {
-		return s, err
+		return err
 	}
 	if s.Offset, err = readInitExpr(r); err != nil {
-		return s, err
+		return err
 	}
+	s.Data, err = readBytesUint(r)
+	return err
+}
 
+func (s *DataSegment) MarshalWASM(w io.Writer) error {
+	if _, err := leb128.WriteVarUint32(w, s.Index); err != nil {
+		return err
+	}
+	if _, err := w.Write(s.Offset); err != nil {
+		return err
+	}
+	return writeBytesUint(w, s.Data)
+}
+
+// A list of well-known custom sections
+const (
+	CustomSectionName = "name"
+)
+
+var (
+	_ Marshaler   = (*NameSection)(nil)
+	_ Unmarshaler = (*NameSection)(nil)
+)
+
+// NameType is the type of name subsection.
+type NameType byte
+
+const (
+	NameModule   = NameType(0)
+	NameFunction = NameType(1)
+	NameLocal    = NameType(2)
+)
+
+// NameSection is a custom section that stores names of modules, functions and locals for debugging purposes.
+// See https://github.com/WebAssembly/design/blob/master/BinaryEncoding.md#name-section for more details.
+type NameSection struct {
+	Types map[NameType][]byte
+}
+
+func (s *NameSection) UnmarshalWASM(r io.Reader) error {
+	s.Types = make(map[NameType][]byte)
+	for {
+		typ, err := leb128.ReadVarUint32(r)
+		if err == io.EOF {
+			return nil
+		} else if err != nil {
+			return err
+		}
+		data, err := readBytesUint(r)
+		if err != nil {
+			return err
+		}
+		s.Types[NameType(typ)] = data
+	}
+}
+
+func (s *NameSection) MarshalWASM(w io.Writer) error {
+	keys := make([]NameType, 0, len(s.Types))
+	for k := range s.Types {
+		keys = append(keys, k)
+	}
+	sort.Slice(keys, func(i, j int) bool {
+		return keys[i] < keys[j]
+	})
+	for _, k := range keys {
+		data := s.Types[k]
+		if _, err := leb128.WriteVarUint32(w, uint32(k)); err != nil {
+			return err
+		}
+		if err := writeBytesUint(w, data); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// Decode finds a specific subsection type and decodes it.
+func (s *NameSection) Decode(typ NameType) (NameSubsection, error) {
+	var sub NameSubsection
+	switch typ {
+	case NameModule:
+		sub = &ModuleName{}
+	case NameFunction:
+		sub = &FunctionNames{}
+	case NameLocal:
+		sub = &LocalNames{}
+	default:
+		return nil, fmt.Errorf("unsupported name subsection: %x", typ)
+	}
+	data, ok := s.Types[typ]
+	if !ok {
+		return nil, nil
+	}
+	if err := sub.UnmarshalWASM(bytes.NewReader(data)); err != nil {
+		return nil, err
+	}
+	return sub, nil
+}
+
+// NameSubsection is an interface for subsections of NameSection.
+//
+// Valid types:
+//	* ModuleName
+//	* FunctionNames
+//	* LocalNames
+type NameSubsection interface {
+	Marshaler
+	Unmarshaler
+	isNameSubsection()
+}
+
+// ModuleName is the name of a module.
+type ModuleName struct {
+	Name string
+}
+
+func (*ModuleName) isNameSubsection() {}
+
+func (s *ModuleName) UnmarshalWASM(r io.Reader) error {
+	var err error
+	s.Name, err = readStringUint(r)
+	return err
+}
+
+func (s *ModuleName) MarshalWASM(w io.Writer) error {
+	return writeStringUint(w, s.Name)
+}
+
+// FunctionNames is a set of names for functions.
+type FunctionNames struct {
+	Names NameMap
+}
+
+func (*FunctionNames) isNameSubsection() {}
+
+func (s *FunctionNames) UnmarshalWASM(r io.Reader) error {
+	s.Names = make(NameMap)
+	return s.Names.UnmarshalWASM(r)
+}
+
+func (s *FunctionNames) MarshalWASM(w io.Writer) error {
+	return s.Names.MarshalWASM(w)
+}
+
+// LocalNames is a set of local variable names for functions.
+type LocalNames struct {
+	// Funcs maps a function index to a set of variable names.
+	Funcs map[uint32]NameMap
+}
+
+func (*LocalNames) isNameSubsection() {}
+
+func (s *LocalNames) UnmarshalWASM(r io.Reader) error {
+	s.Funcs = make(map[uint32]NameMap)
 	size, err := leb128.ReadVarUint32(r)
 	if err != nil {
-		return s, err
+		return err
 	}
-	s.Data, err = readBytes(r, int(size))
+	for i := 0; i < int(size); i++ {
+		ind, err := leb128.ReadVarUint32(r)
+		if err != nil {
+			return err
+		}
+		m := make(NameMap)
+		if err := m.UnmarshalWASM(r); err != nil {
+			return err
+		}
+		s.Funcs[ind] = m
+	}
+	return nil
+}
 
-	return s, err
+func (s *LocalNames) MarshalWASM(w io.Writer) error {
+	keys := make([]uint32, 0, len(s.Funcs))
+	for k := range s.Funcs {
+		keys = append(keys, k)
+	}
+	sort.Slice(keys, func(i, j int) bool {
+		return keys[i] < keys[j]
+	})
+	for _, k := range keys {
+		m := s.Funcs[k]
+		if _, err := leb128.WriteVarUint32(w, k); err != nil {
+			return err
+		}
+		if err := m.MarshalWASM(w); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+var (
+	_ Marshaler   = (NameMap)(nil)
+	_ Unmarshaler = (NameMap)(nil)
+)
+
+// NameMap maps an index of the entry to a name.
+type NameMap map[uint32]string
+
+func (m NameMap) UnmarshalWASM(r io.Reader) error {
+	size, err := leb128.ReadVarUint32(r)
+	if err != nil {
+		return err
+	}
+	for i := 0; i < int(size); i++ {
+		ind, err := leb128.ReadVarUint32(r)
+		if err != nil {
+			return err
+		}
+		name, err := readStringUint(r)
+		if err != nil {
+			return err
+		}
+		m[ind] = name
+	}
+	return nil
+}
+func (m NameMap) MarshalWASM(w io.Writer) error {
+	keys := make([]uint32, 0, len(m))
+	for k := range m {
+		keys = append(keys, k)
+	}
+	sort.Slice(keys, func(i, j int) bool {
+		return keys[i] < keys[j]
+	})
+	for _, k := range keys {
+		name := m[k]
+		if _, err := leb128.WriteVarUint32(w, k); err != nil {
+			return err
+		}
+		if err := writeStringUint(w, name); err != nil {
+			return err
+		}
+	}
+	return nil
 }

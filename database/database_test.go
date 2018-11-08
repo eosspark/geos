@@ -2,7 +2,6 @@ package database
 
 import (
 	"github.com/syndtr/goleveldb/leveldb"
-	"github.com/syndtr/goleveldb/leveldb/util"
 	"log"
 	"os"
 	"testing"
@@ -43,16 +42,25 @@ func Test_rawDb(t *testing.T) {
 	for i := 1; i <= 10; i++ {
 		db.Put([]byte(string(i)), []byte(string(i)), nil)
 	}
+
 	it := db.NewIterator(nil, nil)
-	for it.Next() {
-		//fmt.Println(it.Key())
-	}
-
-	it = db.NewIterator(&util.Range{Start: []byte(string(3)), Limit: []byte(string(11))}, nil)
 
 	for it.Next() {
-		//fmt.Println(it.Key())
+		//fmt.Println(it.Key(),it.Value())
 	}
+	tx,_ := db.OpenTransaction()
+	for i := 1; i <= 10; i++ {
+		//tx.Put([]byte(string(i)), []byte(string(i + 10)), nil)
+		tx.Delete([]byte(string(i)),nil)
+	}
+	tx.Discard()
+	//tx.Commit()
+	it = db.NewIterator(nil,nil)
+
+	for it.Next() {
+		//fmt.Println(it.Key(),it.Value())
+	}
+
 	i := 0
 	for index, v := range houses {
 		b, err := EncodeToBytes(v)
@@ -89,6 +97,31 @@ func Test_insert(t *testing.T) {
 	}
 
 	saveObjs(objs, houses, db)
+}
+
+
+
+func insert_te() {
+
+	db, clo := openDb()
+	if db == nil {
+		log.Fatalln("db open failed")
+	}
+	defer clo()
+
+	objs, houses := Objects()
+	if len(objs) != len(houses) {
+		log.Fatalln("ERROR")
+	}
+
+	saveObjs(objs, houses, db)
+}
+
+func Benchmark_insert(b *testing.B) {
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		insert_te()
+	}
 }
 
 func Test_find(t *testing.T) {
@@ -367,7 +400,7 @@ func Test_iteratorTo(t *testing.T) {
 	it.Release()
 }
 
-func Test_begin(t *testing.T) {
+func Test_beginAndEnd(t *testing.T) {
 	db, clo := openDb()
 	if db == nil {
 		log.Fatalln("db open failed")
@@ -390,6 +423,9 @@ func Test_begin(t *testing.T) {
 
 	if !idx.CompareBegin(it) {
 		log.Fatalln("begin failed")
+	}
+	if !idx.CompareEnd(nil){
+		log.Fatalln("end failed")
 	}
 
 	it.Release()
@@ -743,19 +779,21 @@ func getLessObjs(objs []DbTableIdObject, houses []DbHouse, db DataBase) {
 func modifyObjs(db DataBase) {
 
 	obj := DbTableIdObject{ID: 4, Code: 21, Scope: 22, Table: 26, Payer: 27, Count: 25}
-	newobj := DbTableIdObject{ID: 4, Code: 200, Scope: 22, Table: 26, Payer: 27, Count: 25}
-
-	err := db.Modify(&obj, func(object *DbTableIdObject) {
-		object.Code = 200
-	})
-	if err != nil {
-		log.Fatalln(err)
+	newobj := DbTableIdObject{ID: 4, Code: 10199, Scope: 22, Table: 26, Payer: 27, Count: 25}
+	for i := 0 ; i < 10000 ; i++{
+		err := db.Modify(&obj, func(object *DbTableIdObject) {
+			object.Code = AccountName(200 + i)
+		})
+		if err != nil {
+			log.Fatalln(err)
+		}
 	}
+
 
 	obj = DbTableIdObject{}
 	tmp := DbTableIdObject{}
 	obj.ID = 4
-	err = db.Find("id", obj, &tmp)
+	err := db.Find("id", obj, &tmp)
 	if err != nil {
 		log.Fatalln(err)
 	}

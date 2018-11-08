@@ -62,7 +62,7 @@ type EnvContext interface {
 	IdxDoubleEnd(code uint64, scope uint64, table uint64) int
 	IdxDoubleNext(iterator int, primary *uint64) int
 	IdxDoublePrevious(iterator int, primary *uint64) int
-	IdxDoubleFindPrimary(code uint64, scope uint64, table uint64, secondary *arithmetic.Float64, primary *uint64) int
+	IdxDoubleFindPrimary(code uint64, scope uint64, table uint64, secondary *arithmetic.Float64, primary uint64) int
 
 	//permission
 	GetPermissionLastUsed(account common.AccountName, permission common.PermissionName) int64

@@ -507,15 +507,59 @@ func (ldb *LDataBase) modifyKvToDb(oldRef, newRef *reflect.Value) error {
 	ldb.log.Info("Info database modifyKvToDb structKV oldKV is : %v", oldKV)
 	ldb.log.Info("Info database modifyKvToDb structKV newKV is : %v", newKV)
 
-	err = ldb.removeKvToDb(oldKV)
-	if err != nil {
-		return errors.New(fmt.Sprintf("error database modifyKvToDb removeKvToDb oldKV is : %v", oldKV))
+	return ldb.modifyDb(oldKV,newKV) //
+	// TODO atomic
+	//err = ldb.removeKvToDb(oldKV)
+	//if err != nil {
+	//	return errors.New(fmt.Sprintf("error database modifyKvToDb removeKvToDb oldKV is : %v", oldKV))
+	//}
+	//err = ldb.insertKvToBatch(newKV)
+	//if err != nil {
+	//	return errors.New(fmt.Sprintf("error database modifyKvToDb insertKvToDb newKV is : %v", newKV))
+	//}
+	//return nil
+}
+
+func (ldb *LDataBase) modifyDb(oldKV,newKV *dbKeyValue)error{
+	tx,err := ldb.db.OpenTransaction()
+	if err != nil{
+		return err
+	}
+	defer tx.Discard()
+
+	for idx,_ := range oldKV.index{
+		err = tx.Delete(oldKV.index[idx].key,nil)
+		if err != nil{
+			return err
+		}
 	}
 
-	err = ldb.insertKvToBatch(newKV)
-	if err != nil {
-		return errors.New(fmt.Sprintf("error database modifyKvToDb insertKvToDb newKV is : %v", newKV))
+	err = tx.Delete(oldKV.id.key,nil)
+	if err != nil{
+		return err
 	}
+
+	for idx,_ := range newKV.index{
+		err = tx.Put(newKV.index[idx].key,newKV.index[idx].value,nil)
+		if err != nil{
+			return err
+		}
+	}
+
+	err = tx.Put(newKV.id.key,newKV.id.value,nil)
+	if err != nil{
+		return err
+	}
+
+	//err = ldb.removeKvToDb(oldKV)
+	//if err != nil {
+	//	return errors.New(fmt.Sprintf("error database modifyKvToDb removeKvToDb oldKV is : %v", oldKV))
+	//}
+	//err = ldb.insertKvToBatch(newKV)
+	//if err != nil {
+	//	return errors.New(fmt.Sprintf("error database modifyKvToDb insertKvToDb newKV is : %v", newKV))
+	//}
+	tx.Commit()
 	return nil
 }
 

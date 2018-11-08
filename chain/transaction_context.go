@@ -7,9 +7,7 @@ import (
 	"github.com/eosspark/eos-go/database"
 	"github.com/eosspark/eos-go/entity"
 	. "github.com/eosspark/eos-go/exception"
-	"os"
-
-	//"log"
+	//"os"
 
 	//"github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/log"
@@ -112,7 +110,7 @@ func NewTransactionContext(c *Controller, t *types.SignedTransaction, trxId comm
 	EosAssert(len(tc.Trx.TransactionExtensions) == 0, &UnsupportedFeature{}, "we don't support any extensions yet")
 
 	tc.ilog = log.New("transaction_context")
-	tc.ilog.SetHandler(log.StreamHandler(os.Stdout, log.TerminalFormat(true)))
+	//tc.ilog.SetHandler(log.StreamHandler(os.Stdout, log.TerminalFormat(true)))
 
 	return &tc
 }

@@ -58,11 +58,11 @@ type SecondaryObjectI64 struct {
 // 	SecondaryKey float64 `multiIndex:"bySecondary,orderedUnique"`
 // }
 type SecondaryObjectDouble struct {
-	ID           common.IdType `multiIndex:"id,increment"`
-	TId          common.IdType `multiIndex:"byPrimary,orderedUnique,less:bySecondary,orderedUnique,less"`
-	PrimaryKey   uint64        `multiIndex:"byPrimary,orderedUnique"`
-	Payer        common.AccountName
+	ID           common.IdType      `multiIndex:"id,increment"`
+	TId          common.IdType      `multiIndex:"byPrimary,orderedUnique,less:bySecondary,orderedUnique,less"`
 	SecondaryKey arithmetic.Float64 `multiIndex:"bySecondary,orderedUnique"`
+	PrimaryKey   uint64             `multiIndex:"byPrimary,orderedUnique"`
+	Payer        common.AccountName
 }
 
 // type SecondaryObjectI128 struct {
