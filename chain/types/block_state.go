@@ -10,8 +10,8 @@ type BlockState struct {
 	Trxs             []*TransactionMetadata
 }
 
-func NewBlockState(cur BlockHeaderState) *BlockState {
-	return &BlockState{cur, &SignedBlock{},
+func NewBlockState(cur *BlockHeaderState) *BlockState {
+	return &BlockState{*cur, &SignedBlock{},
 		false, false, make([]*TransactionMetadata, 0)}
 }
 

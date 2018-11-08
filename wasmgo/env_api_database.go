@@ -121,7 +121,7 @@ func dbUpperboundI64(w *WasmGo, code uint64, scope uint64, table uint64, id uint
 //    return context.db_end_i64( code, scope, table );
 // }
 func dbEndI64(w *WasmGo, code uint64, scope uint64, table uint64) int {
-	fmt.Println("db_end_i64")
+	//fmt.Println("db_end_i64")
 	return w.context.DbEndI64(code, scope, table)
 }
 

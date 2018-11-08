@@ -475,10 +475,10 @@ func (ldb *LDataBase) modify(data interface{}, fn interface{}) error {
 	fnRef.Call([]reflect.Value{dataRef}) /*	call fn */
 	// modify
 	oldRef := reflect.ValueOf(oldInter)
-	return ldb.modifyKvToDb(&oldRef, &dataRef)
+	return ldb.modifyToDb(&oldRef, &dataRef)
 }
 
-func (ldb *LDataBase) modifyKvToDb(oldRef, newRef *reflect.Value) error {
+func (ldb *LDataBase) modifyToDb(oldRef, newRef *reflect.Value) error {
 
 	ldb.log.Info("Info database modifyKvToDb oldRef is : %v", oldRef)
 	ldb.log.Info("Info database modifyKvToDb newRef is : %v", newRef)
@@ -507,59 +507,40 @@ func (ldb *LDataBase) modifyKvToDb(oldRef, newRef *reflect.Value) error {
 	ldb.log.Info("Info database modifyKvToDb structKV oldKV is : %v", oldKV)
 	ldb.log.Info("Info database modifyKvToDb structKV newKV is : %v", newKV)
 
-	return ldb.modifyDb(oldKV,newKV) //
-	// TODO atomic
-	//err = ldb.removeKvToDb(oldKV)
-	//if err != nil {
-	//	return errors.New(fmt.Sprintf("error database modifyKvToDb removeKvToDb oldKV is : %v", oldKV))
-	//}
-	//err = ldb.insertKvToBatch(newKV)
-	//if err != nil {
-	//	return errors.New(fmt.Sprintf("error database modifyKvToDb insertKvToDb newKV is : %v", newKV))
-	//}
-	//return nil
+	return ldb.modifyKvToDb(oldKV,newKV)
 }
 
-func (ldb *LDataBase) modifyDb(oldKV,newKV *dbKeyValue)error{
-	tx,err := ldb.db.OpenTransaction()
-	if err != nil{
-		return err
-	}
-	defer tx.Discard()
+func (ldb *LDataBase) modifyKvToDb(oldKV,newKV *dbKeyValue)error{
+
+	undoOldKV := &dbKeyValue{}
+	undo := false
+	defer func() {
+		if !undo {
+			return
+		}
+		ldb.undoRemoveKV(undoOldKV)
+	}()
 
 	for idx,_ := range oldKV.index{
-		err = tx.Delete(oldKV.index[idx].key,nil)
+		err := ldb.db.Delete(oldKV.index[idx].key,nil)
 		if err != nil{
+			undo = true
 			return err
 		}
 	}
 
-	err = tx.Delete(oldKV.id.key,nil)
+	err := ldb.db.Delete(oldKV.id.key,nil)
 	if err != nil{
+		undo = true
 		return err
 	}
 
-	for idx,_ := range newKV.index{
-		err = tx.Put(newKV.index[idx].key,newKV.index[idx].value,nil)
-		if err != nil{
-			return err
-		}
+	err = ldb.insertKvToBatch(newKV)// atomic
+	if err != nil {
+		undo = true
+		return errors.New(fmt.Sprintf("error database modifyKvToDb insertKvToDb newKV is : %v", newKV))
 	}
 
-	err = tx.Put(newKV.id.key,newKV.id.value,nil)
-	if err != nil{
-		return err
-	}
-
-	//err = ldb.removeKvToDb(oldKV)
-	//if err != nil {
-	//	return errors.New(fmt.Sprintf("error database modifyKvToDb removeKvToDb oldKV is : %v", oldKV))
-	//}
-	//err = ldb.insertKvToBatch(newKV)
-	//if err != nil {
-	//	return errors.New(fmt.Sprintf("error database modifyKvToDb insertKvToDb newKV is : %v", newKV))
-	//}
-	tx.Commit()
 	return nil
 }
 
@@ -599,35 +580,7 @@ func (ldb *LDataBase) undoModifyKv(old interface{}) error {
 		return errors.New(fmt.Sprintf("error database undoModifyKv rlp DecodeBytes failed : %s, dst interface is %v", err, dst.Interface()))
 	}
 
-	return ldb.modifyKvToDb(&dst, &oldRef)
-}
-
-/*
-
-The following are some specific implementations of the features that may change, please do not use
-
-*/
-
-func saveKey(key, value []byte, tx *leveldb.DB) error {
-	if ok, _ := tx.Has(key, nil); ok {
-		return ErrAlreadyExists
-	}
-	err := tx.Put(key, value, nil)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
-func removeKey(key []byte, db *leveldb.DB) error {
-	if ok, _ := db.Has(key, nil); !ok {
-		return ErrNotFound
-	}
-	err := db.Delete(key, nil)
-	if err != nil {
-		return err
-	}
-	return nil
+	return ldb.modifyToDb(&dst, &oldRef)
 }
 
 /*
@@ -722,54 +675,44 @@ func (ldb *LDataBase) getIndex(tagName string, value interface{}) (*MultiIndex, 
 	return it, nil
 }
 
-/*
-
-The value corresponding to the given key is retrieved
-from the db and returned to the caller
-which may not exist
-
-*/
-func getDbKey(key []byte, db *leveldb.DB) ([]byte, error) {
-	exits, err := db.Has(key, nil)
-	if err != nil {
-		return nil, err
-	}
-	if !exits {
-		return nil, ErrNotFound
-	}
-
-	val, err := db.Get(key, nil)
-	if err != nil {
-		return nil, err
-	}
-	return val, err
-}
-
 func (ldb *LDataBase) GetMutableIndex(fieldName string, in interface{}) (*MultiIndex, error) {
 	return ldb.GetIndex(fieldName, in)
 }
 
 func (ldb *LDataBase) lowerBound(begin, end, fieldName []byte, data interface{}, greater bool) (*DbIterator, error) {
 
+	begin ,typeName := ldb.dbPrefix(begin,end,fieldName,data,greater)
+	return ldb.dbIterator(begin,end,typeName,greater)
+}
+
+func (ldb *LDataBase) dbIterator(begin, end,typeName []byte,greater bool) (*DbIterator,error) {
+	it := ldb.db.NewIterator(&util.Range{Start: begin, Limit: end}, nil)
+	idx, err := newDbIterator(typeName, it, ldb.db, greater)
+	if err != nil {
+		return nil, err
+	}
+	return idx, nil
+}
+
+func (ldb *LDataBase) dbPrefix(begin, end, fieldName []byte, data interface{}, greater bool) ([]byte,[]byte) {
+
 	ldb.log.Info("begin : %v, end : %v, fieldName: %v , greater: %t", begin, end, fieldName, greater)
 	fields, err := getFieldInfo(string(fieldName), data)
 	if err != nil {
-		return nil, err
+		ldb.log.Error("db prefix getFieldInfo error %s",err.Error())
+		return nil, nil
 	}
 
 	prefix := getFieldValue(fields)
 	ldb.log.Info("prefix is : %v", prefix)
-	if len(prefix) != 0 {
-		begin = append(begin, prefix...)
-		it := ldb.db.NewIterator(&util.Range{Start: begin, Limit: end}, nil)
-		idx, err := newDbIterator([]byte(fields.typeName), it, ldb.db, greater)
-		if err != nil {
-			return nil, err
-		}
-		return idx, nil
+	if len(prefix) == 0 {
+		ldb.log.Error("db prefix getFieldValue error prefix failed")
+		return nil,nil
 	}
 
-	return nil, ErrNotFound
+	prefix = append(begin, prefix...)
+
+	return prefix,[]byte(fields.typeName)
 }
 
 func (ldb *LDataBase) Empty(begin, end, fieldName []byte) bool {
@@ -783,10 +726,10 @@ func (ldb *LDataBase) Empty(begin, end, fieldName []byte) bool {
 	return true
 }
 
-func (ldb *LDataBase) IteratorTo(begin, end, fieldName []byte, in interface{}, greater bool) (*DbIterator, error) {
+func (ldb *LDataBase) IteratorTo(begin, end, fieldName []byte, data interface{}, greater bool) (*DbIterator, error) {
 
 	ldb.log.Info("begin : %v, end : %v, fieldName: %v , greater: %t", begin, end, fieldName, greater)
-	fields, err := getFieldInfo(string(fieldName), in)
+	fields, err := getFieldInfo(string(fieldName), data)
 	if err != nil {
 		return nil, err
 	}
@@ -798,6 +741,7 @@ func (ldb *LDataBase) IteratorTo(begin, end, fieldName []byte, in interface{}, g
 
 	key := []byte{}
 	key = append(begin, prefix...)
+
 	it := ldb.db.NewIterator(&util.Range{Start: begin, Limit: end}, nil)
 	if !it.Seek(key) {
 		return nil, errors.New("Iterator To Not Found")
@@ -839,27 +783,12 @@ func (ldb *LDataBase) BeginIterator(begin, end, fieldName, typeName []byte, grea
 }
 
 func (ldb *LDataBase) upperBound(begin, end, fieldName []byte, data interface{}, greater bool) (*DbIterator, error) {
-	//TODO
-	ldb.log.Info("begin : %v, end : %v, fieldName: %v , greater: %t", begin, end, fieldName, greater)
-	fields, err := getFieldInfo(string(fieldName), data)
-	if err != nil {
-		return nil, err
-	}
 
-	prefix := getFieldValue(fields)
-
-	if len(prefix) != 0 {
-		begin = append(begin, prefix...)
-	}
+	begin ,typeName := ldb.dbPrefix(begin,end,fieldName,data,greater)
 
 	begin[len(begin)-1] = begin[len(begin)-1] + 1
-	it := ldb.db.NewIterator(&util.Range{Start: begin, Limit: end}, nil)
 
-	idx, err := newDbIterator([]byte(fields.typeName), it, ldb.db, greater)
-	if err != nil {
-		return nil, err
-	}
-	return idx, nil
+	return ldb.dbIterator(begin,end,typeName,greater)
 }
 
 func (ldb *LDataBase) enable() bool { /* Whether the database enables the undo function*/
@@ -975,6 +904,7 @@ func (ldb *LDataBase) undoRemoveKV(undoKeyValue *dbKeyValue) { /*	remove kv from
 	for _, v := range undoKeyValue.index { /* 	undo index*/
 		err := saveKey(v.key, v.value, ldb.db)
 		if err != nil {
+			//TODO assert
 			ldb.log.Error("error database undoRemoveKV saveKey failed : %s, key is %v, value is: %v ", err.Error(), v.key, v.value)
 			return
 		}
@@ -985,7 +915,54 @@ func (ldb *LDataBase) undoRemoveKV(undoKeyValue *dbKeyValue) { /*	remove kv from
 
 	err := saveKey(undoKeyValue.id.key, undoKeyValue.id.value, ldb.db) /* undo id*/
 	if err != nil {
+		//TODO assert
 		ldb.log.Error("error database undoRemoveKV saveKey failed : %s, key is: %v, value is %v", err.Error(), undoKeyValue.id.key, undoKeyValue.id.value)
 		return
 	}
+}
+
+/*
+
+The value corresponding to the given key is retrieved
+from the db and returned to the caller
+which may not exist
+
+*/
+
+func saveKey(key, value []byte, tx *leveldb.DB) error {
+	if ok, _ := tx.Has(key, nil); ok {
+		return ErrAlreadyExists
+	}
+	err := tx.Put(key, value, nil)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func removeKey(key []byte, db *leveldb.DB) error {
+	if ok, _ := db.Has(key, nil); !ok {
+		return ErrNotFound
+	}
+	err := db.Delete(key, nil)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func getDbKey(key []byte, db *leveldb.DB) ([]byte, error) {
+	exits, err := db.Has(key, nil)
+	if err != nil {
+		return nil, err
+	}
+	if !exits {
+		return nil, ErrNotFound
+	}
+
+	val, err := db.Get(key, nil)
+	if err != nil {
+		return nil, err
+	}
+	return val, err
 }

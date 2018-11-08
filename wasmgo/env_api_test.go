@@ -539,8 +539,73 @@ func TestContextMultiIndex(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		callTestFunction(code, "test_multi_index", "idx64_general", []byte{})
-		//callTestFunction(code, "test_multi_index", "primary_i64_lowerbound", []byte{})
+
+		control := startBlock()
+		createNewAccount(control, "testapi")
+		createNewAccount(control, "testapi2")
+
+		callTestFunction2(control, code, "test_multi_index", "idx64_general", []byte{}, "testapi")
+		callTestFunction2(control, code, "test_multi_index", "idx64_store_only", []byte{}, "testapi")
+		callTestFunction2(control, code, "test_multi_index", "idx64_check_without_storing", []byte{}, "testapi")
+
+		retException := callTestFunctionCheckException2(control, code, "test_multi_index", "idx64_pk_iterator_exceed_end", []byte{}, "testapi",
+			exception.EosioAssertMessageException{}.Code(), exception.EosioAssertMessageException{}.Message())
+		assert.Equal(t, retException, true)
+		//
+		//retException = callTestFunctionCheckException2(control, code, "test_multi_index", "idx64_sk_iterator_exceed_end", []byte{}, "testapi",
+		//	exception.EosioAssertMessageException{}.Code(), exception.EosioAssertMessageException{}.Message())
+		//assert.Equal(t, retException, true)
+		//
+		//retException = callTestFunctionCheckException2(control, code, "test_multi_index", "idx64_pk_iterator_exceed_begin", []byte{}, "testapi",
+		//	exception.EosioAssertMessageException{}.Code(), exception.EosioAssertMessageException{}.Message())
+		//assert.Equal(t, retException, true)
+		//
+		//retException = callTestFunctionCheckException2(control, code, "test_multi_index", "idx64_sk_iterator_exceed_begin", []byte{}, "testapi",
+		//	exception.EosioAssertMessageException{}.Code(), exception.EosioAssertMessageException{}.Message())
+		//assert.Equal(t, retException, true)
+		//
+		//retException = callTestFunctionCheckException2(control, code, "test_multi_index", "idx64_pass_pk_ref_to_other_table", []byte{}, "testapi",
+		//	exception.EosioAssertMessageException{}.Code(), exception.EosioAssertMessageException{}.Message())
+		//assert.Equal(t, retException, true)
+		//
+		//retException = callTestFunctionCheckException2(control, code, "test_multi_index", "idx64_pass_sk_ref_to_other_table", []byte{}, "testapi",
+		//	exception.EosioAssertMessageException{}.Code(), exception.EosioAssertMessageException{}.Message())
+		//assert.Equal(t, retException, true)
+		//
+		//retException = callTestFunctionCheckException2(control, code, "test_multi_index", "idx64_pass_pk_end_itr_to_iterator_to", []byte{}, "testapi",
+		//	exception.EosioAssertMessageException{}.Code(), exception.EosioAssertMessageException{}.Message())
+		//assert.Equal(t, retException, true)
+		//
+		//retException = callTestFunctionCheckException2(control, code, "test_multi_index", "idx64_pass_pk_end_itr_to_modify", []byte{}, "testapi",
+		//	exception.EosioAssertMessageException{}.Code(), exception.EosioAssertMessageException{}.Message())
+		//assert.Equal(t, retException, true)
+		//
+		//
+		//retException = callTestFunctionCheckException2(control, code, "test_multi_index", "idx64_pass_pk_end_itr_to_erase", []byte{}, "testapi",
+		//	exception.EosioAssertMessageException{}.Code(), exception.EosioAssertMessageException{}.Message())
+		//assert.Equal(t, retException, true)
+		//
+		//retException = callTestFunctionCheckException2(control, code, "test_multi_index", "idx64_pass_sk_end_itr_to_iterator_to", []byte{}, "testapi",
+		//	exception.EosioAssertMessageException{}.Code(), exception.EosioAssertMessageException{}.Message())
+		//assert.Equal(t, retException, true)
+		//
+		//retException = callTestFunctionCheckException2(control, code, "test_multi_index", "idx64_pass_sk_end_itr_to_modify", []byte{}, "testapi",
+		//	exception.EosioAssertMessageException{}.Code(), exception.EosioAssertMessageException{}.Message())
+		//assert.Equal(t, retException, true)
+		//
+		//retException = callTestFunctionCheckException2(control, code, "test_multi_index", "idx64_pass_sk_end_itr_to_erase", []byte{}, "testapi",
+		//	exception.EosioAssertMessageException{}.Code(), exception.EosioAssertMessageException{}.Message())
+		assert.Equal(t, retException, true)
+
+		retException = callTestFunctionCheckException2(control, code, "test_multi_index", "idx64_modify_primary_key", []byte{}, "testapi",
+			exception.EosioAssertMessageException{}.Code(), exception.EosioAssertMessageException{}.Message())
+		assert.Equal(t, retException, true)
+
+		retException = callTestFunctionCheckException2(control, code, "test_multi_index", "idx64_run_out_of_avl_pk", []byte{}, "testapi",
+			exception.EosioAssertMessageException{}.Code(), exception.EosioAssertMessageException{}.Message())
+		assert.Equal(t, retException, true)
+
+		stopBlock(control)
 
 	})
 }
