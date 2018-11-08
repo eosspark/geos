@@ -36,7 +36,7 @@ var yuanc = common.AccountName(common.N("yuanc"))
 type Controller struct {
 	head    *types.BlockState
 	pending *types.BlockState
-	forkDb  forkDatabase
+	forkDb  *forkDatabase
 }
 
 func GetControllerInstance() *Controller {
@@ -78,30 +78,87 @@ func (db *forkDatabase) add2(b *types.SignedBlock, trust bool) *types.BlockState
 	return db.add(result)
 }
 
-func Initialize() {
-	fmt.Println(initPubKey, initPriKey)
-	fmt.Println(initPubKey2, initPriKey2)
-	chain = new(Controller)
+func Initialize(when common.BlockTimeStamp, names ...common.AccountName) {
+	//fmt.Println(initPubKey, initPriKey)
+	//fmt.Println(initPubKey2, initPriKey2)
 
-	initSchedule := types.ProducerScheduleType{0, []types.ProducerKey{
-		{eosio, initPubKey},
-		{yuanc, initPubKey2},
-	}}
+	chain = NewMockChain(when, names...)
 
-	genHeader := types.BlockHeaderState{}
-	genHeader.ActiveSchedule = initSchedule
-	genHeader.PendingSchedule = initSchedule
-	genHeader.Header.Timestamp = common.NewBlockTimeStamp(common.Now())
+	//fmt.Println("now", common.Now())
+	//fmt.Println("init", genHeader.Header.Timestamp.ToTimePoint())
+}
+
+func NewMockChain(when common.BlockTimeStamp, names ...common.AccountName) *Controller {
+	c := new(Controller)
+
+	genHeader := genHeaderState(when)
+	genSigned := genSignedBlock(genHeader)
+
+	c.head = types.NewBlockState(genHeader)
+	c.head.SignedBlock = genSigned
+
+	sch := genSchedule(names...)
+	c.head.ActiveSchedule = sch
+	c.head.PendingSchedule = sch
+
+	c.forkDb = new(forkDatabase)
+	c.forkDb.index = make([]*types.BlockState, 0)
+	c.forkDb.add(c.head)
+
+	return c
+}
+
+func genSchedule(names ...common.AccountName) types.ProducerScheduleType {
+	if len(names) == 0 {
+		names = append(names, eosio)
+	}
+
+	initSchedule := types.ProducerScheduleType{Version: 0, Producers: []types.ProducerKey{}}
+
+	for _, n := range names {
+		pk := types.ProducerKey{ProducerName: n, BlockSigningKey: initPubKey}
+		initSchedule.Producers = append(initSchedule.Producers, pk)
+	}
+
+	return initSchedule
+}
+
+func genSignedBlock(bhs *types.BlockHeaderState) *types.SignedBlock {
+	genSigned := new(types.SignedBlock)
+	genSigned.SignedBlockHeader = bhs.Header
+	return genSigned
+}
+
+func genHeaderState(when common.BlockTimeStamp) *types.BlockHeaderState {
+	if when == 0 {
+		when = common.NewBlockTimeStamp(common.Now())
+	}
+	genHeader := new(types.BlockHeaderState)
+	genHeader.Header.Timestamp = when
+	genHeader.Header.Confirmed = 1
 	genHeader.BlockId = genHeader.Header.BlockID()
 	genHeader.BlockNum = genHeader.Header.BlockNumber()
 
-	chain.head = types.NewBlockState(genHeader)
-	chain.head.SignedBlock = new(types.SignedBlock)
-	chain.head.SignedBlock.SignedBlockHeader = genHeader.Header
-	chain.forkDb.add(chain.head)
+	return genHeader
+}
 
-	fmt.Println("now", common.Now())
-	fmt.Println("init", genHeader.Header.Timestamp.ToTimePoint())
+
+func (c *Controller) ProduceOne(when common.BlockTimeStamp) *types.SignedBlock {
+
+	c.AbortBlock()
+	c.StartBlock(when, 0)
+	c.FinalizeBlock()
+	s := c.SignBlock(func(digest crypto.Sha256) ecc.Signature {
+		sign, err := initPriKey.Sign(digest.Bytes())
+		if err != nil {
+			panic(err)
+		}
+		return sign
+	})
+
+	c.CommitBlock(true)
+
+	return s
 }
 
 func (c Controller) LastIrreversibleBlockNum() uint32 {
@@ -145,8 +202,8 @@ func (c *Controller) AbortBlock() {
 
 func (c *Controller) StartBlock(when common.BlockTimeStamp, confirmBlockCount uint16) {
 	//fmt.Println("start block...")
-	chain.pending = types.NewBlockState2(&c.head.BlockHeaderState, when)
-	chain.pending.SetConfirmed(confirmBlockCount)
+	c.pending = types.NewBlockState2(&c.head.BlockHeaderState, when)
+	c.pending.SetConfirmed(confirmBlockCount)
 
 }
 func (c *Controller) FinalizeBlock() {

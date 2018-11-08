@@ -7,19 +7,25 @@ import (
 	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/urfave/cli.v1"
-	"log"
 	"os"
 	"testing"
-	"time"
 	Chain "github.com/eosspark/eos-go/plugins/producer_plugin/mock"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/plugins/appbase/asio"
 	"syscall"
+	"fmt"
 )
 
 var plugin *ProducerPlugin
-var io     *asio.IoContext
+var io *asio.IoContext
+
+func BatchTest(f func(*testing.T), t *testing.T) {
+	const Batch = 0
+	for i:=0; i<Batch; i++ {
+		f(t)
+	}
+}
 
 func makeArguments(values ...string) {
 	options := append([]string(values), "--") // use "--" to divide arguments
@@ -36,28 +42,29 @@ func initialize(t *testing.T) {
 	makeArguments("--enable-stale-production", "-p", "eosio", "-p", "yuanc",
 		"--private-key", "[\"EOS859gxfnXyUriMgUeThh1fWv3oqcpLFyHa3TfFYC4PK2HqhToVM\", \"5KYZdUEo39z3FPrtuX2QbbwGnNP5zTd7yyr2SC1j299sBCnWjss\"]",
 		"--private-key", "[\"EOS5jeUuKEZ8s8LLoxz4rNysYdHWboup8KtkyJzZYQzcVKFGek9Zu\", \"5Ja3h2wJNUnNcoj39jDMHGigsazvbGHAeLYEHM5uTwtfUoRDoYP\"]",
-		)
+	)
 
 	app := cli.NewApp()
 	io = asio.NewIoContext()
 
-	Chain.Initialize()
-	producerPlugin := NewProducerPlugin(io)
-	producerPlugin.PluginInitialize(app)
+	Chain.Initialize(
+		0,
+		common.AccountName(common.N("eosio")),
+		common.AccountName(common.N("yuanc")),
+
+
+		)
+	plugin = NewProducerPlugin(io)
+	plugin.PluginInitialize(app)
 
 	err := app.Run(os.Args)
-	if err != nil {
-		log.Fatal(err)
-	}
+	assert.NoError(t, err)
 
-	assert.Equal(t, true, producerPlugin.my.ProductionEnabled)
-	assert.Equal(t, int32(30), producerPlugin.my.MaxTransactionTimeMs)
-	assert.Equal(t, common.Seconds(-1), producerPlugin.my.MaxIrreversibleBlockAgeUs)
+	assert.Equal(t, true, plugin.my.ProductionEnabled)
+	assert.Equal(t, int32(30), plugin.my.MaxTransactionTimeMs)
+	assert.Equal(t, common.Seconds(-1), plugin.my.MaxIrreversibleBlockAgeUs)
 	//assert.Equal(t, struct{}{}, producerPlugin.my.Producers[common.AccountName(common.N("eosio"))])
 	//assert.Equal(t, struct{}{}, producerPlugin.my.Producers[common.AccountName(common.N("yuanc"))])
-
-
-	plugin = &producerPlugin
 }
 
 func Test_commend(t *testing.T) {
@@ -67,23 +74,22 @@ func Test_commend(t *testing.T) {
 	app := cli.NewApp()
 	app.Flags = []cli.Flag{
 		cli.BoolFlag{
-			Name:        "enable, e",
-			Usage:       "Enable block production, even if the chain is stale.",
+			Name:  "enable, e",
+			Usage: "Enable block production, even if the chain is stale.",
 		},
 		cli.StringFlag{
-			Name:        "name, n",
-			Usage:       "Enable block production, even if the chain is stale.",
+			Name:  "name, n",
+			Usage: "Enable block production, even if the chain is stale.",
 		},
 		cli.IntFlag{
-			Name:        "count, c",
-			Usage:       "Enable block production, even if the chain is stale.",
-			Value: 		 -1,
+			Name:  "count, c",
+			Usage: "Enable block production, even if the chain is stale.",
+			Value: -1,
 		},
 		cli.StringSliceFlag{
-			Name:        "producers, p",
-			Usage:       "Enable block production, even if the chain is stale.",
+			Name:  "producers, p",
+			Usage: "Enable block production, even if the chain is stale.",
 		},
-
 	}
 
 	app.Action = func(c *cli.Context) {
@@ -152,50 +158,93 @@ func exec() {
 
 func TestProducerPlugin_PluginStartup(t *testing.T) {
 	initialize(t)
-
-	plugin.PluginStartup()
-
 	chain := Chain.GetControllerInstance()
-	go func() {
-		for {
-			time.Sleep(time.Second)
-			if chain.LastIrreversibleBlockNum() > 0 && chain.HeadBlockNum() > 10 {
+
+	timer := common.NewTimer(io)
+	var delayStop func()
+	delayStop = func() {
+		timer.ExpiresFromNow(common.Seconds(1))
+		timer.AsyncWait(func(error) {
+			if chain.LastIrreversibleBlockNum() > 0 && chain.HeadBlockNum() > 20 {
 				io.Stop()
 				plugin.PluginShutdown()
 				return
 			}
-		}
-	}()
+			delayStop()
+		})
+	}
+
+	plugin.PluginStartup()
+
+	delayStop()
 
 	exec()
+}
+
+func TestBatch_PluginStartup(t *testing.T) {
+	BatchTest(TestProducerPlugin_PluginStartup, t)
 }
 
 func TestProducerPlugin_Pause(t *testing.T) {
 	initialize(t)
 	plugin.PluginStartup()
-	once := false
 
 	chain := Chain.GetControllerInstance()
-	for {
-		time.Sleep(time.Second)
-		if chain.HeadBlockNum() == 10 && !once {
-			println("pause")
-			once = true
-			plugin.Pause()
-		}
 
-		if plugin.Paused() {
-			time.Sleep(3 * time.Second)
-			println("rusume")
-			plugin.Resume()
-		}
+	pause := common.NewTimer(io)
+	var pauses func()
+	pauses = func() {
+		pause.ExpiresFromNow(common.Microseconds(300))
+		pause.AsyncWait(func(error) {
+			//fmt.Println("pauses")
+			if chain.HeadBlockNum() == 5 {
+				fmt.Println("pause")
+				plugin.Pause()
+				return
+			}
+			pauses()
+		})
+	}
+	pauses()
 
-		if chain.HeadBlockNum() > 20 {
-			plugin.PluginShutdown()
-			break
-		}
+	resume := common.NewTimer(io)
+	var resumes func()
+	resumes = func() {
+		resume.ExpiresFromNow(common.Microseconds(300))
+		resume.AsyncWait(func(error) {
+			if plugin.Paused() {
+				fmt.Println("resume")
+				assert.Equal(t, uint32(5), chain.HeadBlockNum())
+				plugin.Resume()
+				return
+			}
+			resumes()
+		})
 	}
 
+	resumes()
+
+	stop := common.NewTimer(io)
+	var stops func()
+	stops = func() {
+		stop.ExpiresFromNow(common.Microseconds(300))
+		stop.AsyncWait(func(error) {
+			if chain.HeadBlockNum() >= 10 {
+				io.Stop()
+				plugin.PluginShutdown()
+				return
+			}
+			stops()
+		})
+	}
+	stops()
+
+	exec()
+
+}
+
+func TestBatch_Pause(t *testing.T) {
+	BatchTest(TestProducerPlugin_Pause, t)
 }
 
 func TestProducerPlugin_SignCompact(t *testing.T) {
@@ -254,42 +303,90 @@ func TestProducerPluginImpl_ScheduleDelayedProductionLoop(t *testing.T) {
 
 }
 
+
 func TestProducerPluginImpl_OnIncomingBlock(t *testing.T) {
-	makeArguments("--enable-stale-production", "-p", "eosio", "-p", "yuanc",
-		"--private-key", "[\"EOS859gxfnXyUriMgUeThh1fWv3oqcpLFyHa3TfFYC4PK2HqhToVM\", \"5KYZdUEo39z3FPrtuX2QbbwGnNP5zTd7yyr2SC1j299sBCnWjss\"]",
-		)
+	makeArguments("--enable-stale-production")
 
 	app := cli.NewApp()
 	io = asio.NewIoContext()
 
-	Chain.Initialize()
-	producerPlugin := NewProducerPlugin(io)
-	producerPlugin.PluginInitialize(app)
+	plugin = NewProducerPlugin(io)
+	plugin.PluginInitialize(app)
 
 	err := app.Run(os.Args)
-	if err != nil {
-		log.Fatal(err)
-	}
+	assert.NoError(t, err)
 
-	plugin = &producerPlugin
-	plugin.PluginStartup()
+	//receive blocks 1 minutes before
+	now := common.NewBlockTimeStamp(common.Now().SubUs(common.Minutes(1)))
+
+	Chain.Initialize(now)
+	mock := Chain.NewMockChain(now)
 
 	chain := Chain.GetControllerInstance()
 
-	for {
-		time.Sleep(30 * time.Microsecond)
+	for i:=1; i<100; i++ {
+		oldBs := chain.HeadBlockState()
+		now ++
+		block := mock.ProduceOne(now)
+		plugin.my.OnIncomingBlock(block)
 
-		if plugin.my.PendingBlockMode == EnumPendingBlockMode(speculating) {
-			time.Sleep(500 * time.Millisecond)
-			block := produceone(common.NewBlockTimeStamp(common.Now()))
-			plugin.my.OnIncomingBlock(block)
-		}
+		newBs := chain.HeadBlockState()
 
-		if chain.HeadBlockNum() >= 24 {
-			plugin.PluginShutdown()
-			break
-		}
+		assert.Equal(t, oldBs.BlockNum+1, newBs.BlockNum)
+		assert.Equal(t, oldBs.BlockId, newBs.Header.Previous)
 	}
+
+}
+
+func TestProducerPlugin_ReceiveBlockInSchedule(t *testing.T) {
+	makeArguments("--enable-stale-production")
+
+	app := cli.NewApp()
+	io = asio.NewIoContext()
+
+	plugin := NewProducerPlugin(io)
+	plugin.PluginInitialize(app)
+
+	err := app.Run(os.Args)
+	assert.NoError(t, err)
+
+	//receive blocks 1 minutes before
+	now := common.NewBlockTimeStamp(common.Now().SubUs(common.Minutes(1)))
+
+	Chain.Initialize(now)
+	chain := Chain.GetControllerInstance()
+	mock := Chain.NewMockChain(now)
+
+	plugin.PluginStartup()
+
+	timer := common.NewTimer(io)
+
+	var asyncApply func()
+	asyncApply = func() {
+		timer.ExpiresFromNow(common.Milliseconds(1))
+		timer.AsyncWait(func(err error) {
+			now ++
+			block := mock.ProduceOne(now)
+
+			oldBs := chain.HeadBlockState()
+			plugin.my.OnIncomingBlock(block)
+			newBs := chain.HeadBlockState()
+
+			assert.Equal(t, oldBs.BlockNum+1, newBs.BlockNum)
+			assert.Equal(t, oldBs.BlockId, newBs.Header.Previous)
+
+			if chain.HeadBlockNum() >= 100 {
+				io.Stop()
+				plugin.PluginShutdown()
+				return
+			}
+
+			asyncApply()
+		})
+	}
+
+	asyncApply()
+	exec()
 }
 
 func TestProducerPluginImpl_OnIncomingTransactionAsync(t *testing.T) {
@@ -302,9 +399,10 @@ func TestProducerPluginImpl_OnBlock(t *testing.T) {
 
 func TestProducerPluginImpl_CalculateNextBlockTime(t *testing.T) {
 	initialize(t)
-	//chain := Chain.GetControllerInstance()
-	//pt := *plugin.my.CalculateNextBlockTime(common.AccountName(common.N("yuanc")), chain.HeadBlockState().Header.Timestamp)
-	//assert.Equal(t, pt/1e3, (pt/1e3/500)*500) // make sure pt can be divisible by 500ms
+	chain := Chain.GetControllerInstance()
+	account := common.Name(common.N("yuanc"))
+	pt := *plugin.my.CalculateNextBlockTime(&account, chain.HeadBlockState().Header.Timestamp)
+	assert.Equal(t, pt/1e3, (pt/1e3/500)*500) // make sure pt can be divisible by 500ms
 }
 
 func TestProducerPluginImpl_CalculatePendingBlockTime(t *testing.T) {
@@ -312,66 +410,3 @@ func TestProducerPluginImpl_CalculatePendingBlockTime(t *testing.T) {
 	pt := plugin.my.CalculatePendingBlockTime()
 	assert.Equal(t, pt/1e3, (pt/1e3/500)*500) // make sure pt can be divisible by 500ms
 }
-
-//func Test_Timer(t *testing.T) {
-//	start := time.Now()
-//	var apply = false
-//	var timer = new(scheduleTimer)
-//	var blockNum = 1
-//
-//	//sigs := make(chan os.Signal, 1)
-//	//signal.Notify(sigs, syscall.SIGINT)
-//
-//	var scheduleProductionLoop func()
-//
-//	scheduleProductionLoop = func() {
-//		timer.cancel()
-//		base := time.Now()
-//		minTimeToNextBlock := int64(common.DefaultConfig.BlockIntervalUs) - base.UnixNano()/1e3%int64(common.DefaultConfig.BlockIntervalUs)
-//		wakeTime := base.Add(time.Microsecond * time.Duration(minTimeToNextBlock))
-//
-//		timer.expiresUntil(wakeTime)
-//
-//		// test after 12 block need to apply new block to continue
-//		if blockNum%10 == 0 || (blockNum-1)%10 == 0 || (blockNum-2)%10 == 0 {
-//			apply = true
-//			return
-//		}
-//
-//		timerCorelationId++
-//		cid := timerCorelationId
-//		timer.asyncWait(func() bool { return cid == timerCorelationId }, func() {
-//			fmt.Println("exec async1...", time.Now())
-//			blockNum++
-//			fmt.Println("add.blockNum", blockNum)
-//			scheduleProductionLoop()
-//		})
-//	}
-//
-//	applyBlock := func() {
-//		for time.Now().Sub(start) <= KEEPTESTSEC*time.Second {
-//			if apply {
-//				apply = false
-//				blockNum++
-//				fmt.Println("exec apply...", time.Now(), "\n-----------apply block #.", blockNum)
-//				scheduleProductionLoop()
-//			}
-//		}
-//	}
-//
-//	naughty := func() {
-//		for time.Now().Sub(start) <= KEEPTESTSEC*time.Second {
-//			time.Sleep(666 * time.Millisecond)
-//			scheduleProductionLoop()
-//		}
-//	}
-//
-//	//go func() {
-//	//	sig := <-sigs
-//	//	fmt.Println("sig: ", sig)
-//	//}()
-//
-//	scheduleProductionLoop()
-//	applyBlock()
-//	naughty() //try to break the schedule timer
-//}
