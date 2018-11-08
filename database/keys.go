@@ -20,7 +20,6 @@ func getFieldInfo(fieldName string, value interface{}) (*fieldInfo, error) {
 	}
 	if ref.Kind() == reflect.Ptr {
 		ref = ref.Elem()
-		//return nil, ErrStructNeeded
 	}
 	cfg, err := extractObjectTagInfo(&ref)
 	if err != nil {
@@ -33,16 +32,6 @@ func getFieldInfo(fieldName string, value interface{}) (*fieldInfo, error) {
 	}
 	return fields, nil
 }
-
-//func nonUniqueValue(info *fieldInfo) []byte { /* non unique fields --> find function */
-//	for _, v := range info.fieldValue {
-//		if isZero(v) && v.Kind() != reflect.Bool {
-//			return nil
-//		}
-//	}
-//	val, _ := getNonUniqueFieldValue(info)
-//	return val
-//}
 
 // TODO The function is unchanged, need to modify the implementation
 func getFieldValue(info *fieldInfo) []byte { /* non unique fields --> get function */
