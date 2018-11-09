@@ -5,7 +5,6 @@ import (
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/crypto"
-	"github.com/eosspark/eos-go/exception"
 	"math"
 	"github.com/eosspark/eos-go/exception/try"
 )
@@ -115,8 +114,8 @@ func (t BaseTester) createAccount(name common.AccountName, creator common.Accoun
 
 	}
 	if includeCode {//TODO
-		exception.EosAssert(ownerAuth.Threshold <= math.MaxUint16, nil,"threshold is too high")
-		exception.EosAssert(uint64(activeAuth.Threshold) <= uint64(math.MaxUint64), nil,"threshold is too high")
+		try.EosAssert(ownerAuth.Threshold <= math.MaxUint16, nil,"threshold is too high")
+		try.EosAssert(uint64(activeAuth.Threshold) <= uint64(math.MaxUint64), nil,"threshold is too high")
 		//ownerAuth.Accounts
 		sortPermissions(&ownerAuth, )
 		//ownerAuth.Accounts
