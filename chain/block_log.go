@@ -7,6 +7,7 @@ import (
 	"github.com/eosspark/eos-go/exception"
 	"math"
 	"os"
+	"github.com/eosspark/eos-go/exception/try"
 )
 
 type BlockLog struct {
@@ -103,8 +104,8 @@ func NewBlockLog(dataDir string) *BlockLog {
 		blockLog.blockStream.Read(bytes)
 		rlp.DecodeBytes(bytes, &version)
 
-		exception.EosAssert(version > 0, &exception.BlockLogAppendFail{}, "Block log was not setup properly with genesis information.")
-		exception.EosAssert(version == blockLog.supportedVersion,
+		try.EosAssert(version > 0, &exception.BlockLogAppendFail{}, "Block log was not setup properly with genesis information.")
+		try.EosAssert(version == blockLog.supportedVersion,
 			&exception.BlockLogUnsupportedVersion{},
 			"Unsupported version of block log. Block log version is %d while code supports version %d",
 			version, blockLog.supportedVersion)
@@ -148,12 +149,12 @@ func NewBlockLog(dataDir string) *BlockLog {
 }
 func (b *BlockLog) Append(block *types.SignedBlock) uint64 {
 
-	exception.EosAssert(b.genesisWriteToBlockLog, &exception.BlockLogAppendFail{}, "Cannot append to block log until the genesis is first written")
+	try.EosAssert(b.genesisWriteToBlockLog, &exception.BlockLogAppendFail{}, "Cannot append to block log until the genesis is first written")
 
 	pos, _ := b.blockStream.Seek(0, 2)
 	indexPos, _ := b.indexStream.Seek(0, 2)
 
-	exception.EosAssert(indexPos == int64(8*(block.BlockNumber()-1)),
+	try.EosAssert(indexPos == int64(8*(block.BlockNumber()-1)),
 		&exception.BlockLogAppendFail{},
 		"Append to index file occuring at wrong position. position %d expected %d", indexPos, 8*(block.BlockNumber()-1))
 
@@ -340,8 +341,8 @@ func (b *BlockLog) ExtractGenesisState(dataDir string) types.GenesisState {
 	blockStream.Read(bytes)
 	rlp.DecodeBytes(bytes, &version)
 
-	exception.EosAssert(version > 0, &exception.BlockLogAppendFail{}, "Block log was not setup properly with genesis information.")
-	exception.EosAssert(version == b.supportedVersion,
+	try.EosAssert(version > 0, &exception.BlockLogAppendFail{}, "Block log was not setup properly with genesis information.")
+	try.EosAssert(version == b.supportedVersion,
 		&exception.BlockLogUnsupportedVersion{},
 		"Unsupported version of block log. Block log version is %d while code supports version %d",
 		version, b.supportedVersion)

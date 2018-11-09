@@ -9,7 +9,7 @@ import (
 	. "github.com/eosspark/eos-go/exception"
 	//"os"
 
-	//"github.com/eosspark/eos-go/exception/try"
+	. "github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/log"
 	"math"
 )

@@ -1,13 +1,15 @@
 package exception
 
-type MiscException struct{ logMessage }
+import . "github.com/eosspark/eos-go/log"
+
+type MiscException struct{ LogMessage }
 
 func (MiscException) ChainExceptions() {}
 func (MiscException) MiscExceptions()  {}
 func (MiscException) Code() ExcTypes   { return 3100000 }
 func (MiscException) What() string     { return "Miscellaneous exception" }
 
-type RateLimitingStateInconsistent struct{ logMessage }
+type RateLimitingStateInconsistent struct{ LogMessage }
 
 func (RateLimitingStateInconsistent) ChainExceptions() {}
 func (RateLimitingStateInconsistent) MiscExceptions()  {}
@@ -16,21 +18,21 @@ func (RateLimitingStateInconsistent) What() string {
 	return "Internal state is no longer consistent"
 }
 
-type UnknownBlockException struct{ logMessage }
+type UnknownBlockException struct{ LogMessage }
 
 func (UnknownBlockException) ChainExceptions() {}
 func (UnknownBlockException) MiscExceptions()  {}
 func (UnknownBlockException) Code() ExcTypes   { return 3100002 }
 func (UnknownBlockException) What() string     { return "Unknown block" }
 
-type UnknownTransactionException struct{ logMessage }
+type UnknownTransactionException struct{ LogMessage }
 
 func (UnknownTransactionException) ChainExceptions() {}
 func (UnknownTransactionException) MiscExceptions()  {}
 func (UnknownTransactionException) Code() ExcTypes   { return 3100003 }
 func (UnknownTransactionException) What() string     { return "Unknown transaction" }
 
-type FixedReversibleDbException struct{ logMessage }
+type FixedReversibleDbException struct{ LogMessage }
 
 func (FixedReversibleDbException) ChainExceptions() {}
 func (FixedReversibleDbException) MiscExceptions()  {}
@@ -39,7 +41,7 @@ func (FixedReversibleDbException) What() string {
 	return "Corrupted reversible block database was fixed"
 }
 
-type ExtractGenesisStateException struct{ logMessage }
+type ExtractGenesisStateException struct{ LogMessage }
 
 func (ExtractGenesisStateException) ChainExceptions() {}
 func (ExtractGenesisStateException) MiscExceptions()  {}
@@ -48,7 +50,7 @@ func (ExtractGenesisStateException) What() string {
 	return "Extracted genesis state from blocks.log"
 }
 
-type SubjectiveBlockProductionException struct{ logMessage }
+type SubjectiveBlockProductionException struct{ LogMessage }
 
 func (SubjectiveBlockProductionException) ChainExceptions() {}
 func (SubjectiveBlockProductionException) MiscExceptions()  {}
@@ -57,7 +59,7 @@ func (SubjectiveBlockProductionException) What() string {
 	return "Subjective exception thrown during block production"
 }
 
-type MultipleVoterInfo struct{ logMessage }
+type MultipleVoterInfo struct{ LogMessage }
 
 func (MultipleVoterInfo) ChainExceptions() {}
 func (MultipleVoterInfo) MiscExceptions()  {}
@@ -66,7 +68,7 @@ func (MultipleVoterInfo) What() string {
 	return "Multiple voter info detected"
 }
 
-type UnsupportedFeature struct{ logMessage }
+type UnsupportedFeature struct{ LogMessage }
 
 func (UnsupportedFeature) ChainExceptions() {}
 func (UnsupportedFeature) MiscExceptions()  {}
@@ -75,7 +77,7 @@ func (UnsupportedFeature) What() string {
 	return "Feature is currently unsupported"
 }
 
-type NodeManagementSuccess struct{ logMessage }
+type NodeManagementSuccess struct{ LogMessage }
 
 func (NodeManagementSuccess) ChainExceptions() {}
 func (NodeManagementSuccess) MiscExceptions()  {}

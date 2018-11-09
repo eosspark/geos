@@ -6,7 +6,9 @@ import (
 	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/ecc"
 	. "github.com/eosspark/eos-go/exception"
+	. "github.com/eosspark/eos-go/exception/try"
 	"sort"
+	"errors"
 )
 
 type BlockHeaderState struct {
@@ -98,7 +100,7 @@ func (b *BlockHeaderState) GenerateNext(when common.BlockTimeStamp) *BlockHeader
 
 	/// grow the confirmed count
 	if common.DefaultConfig.MaxProducers*2/3+1 > 0xff {
-		panic("8bit confirmations may not be able to hold all of the needed confirmations")
+		panic(errors.New("8bit confirmations may not be able to hold all of the needed confirmations") )
 	}
 
 	// This uses the previous block active_schedule because thats the "schedule" that signs and therefore confirms _this_ block
@@ -252,10 +254,8 @@ func (b *BlockHeaderState) Sign(signer func(sha256 crypto.Sha256) ecc.Signature)
 	if err != nil {
 		panic(err)
 	}
+
 	EosAssert(b.BlockSigningKey == signKey, &WrongSigningKey{}, "block is signed with unexpected key")
-	if b.BlockSigningKey != signKey {
-		panic("block is signed with unexpected key")
-	}
 }
 
 func (b *BlockHeaderState) Signee() ecc.PublicKey {

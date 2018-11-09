@@ -10,7 +10,7 @@ import (
 	"github.com/eosspark/eos-go/database"
 	"github.com/eosspark/eos-go/entity"
 	. "github.com/eosspark/eos-go/exception"
-	"github.com/eosspark/eos-go/exception/try"
+	. "github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/log"
 	"os"
 )
@@ -224,7 +224,7 @@ func (a *ApplyContext) execOne(trace *types.ActionTrace) {
 	trace.Act = *a.Act
 	trace.ContextFree = a.ContextFree
 
-	try.Try(func() {
+	Try(func() {
 		//cfg := a.Control.GetGlobalProperties().Configuration
 		action := a.Control.GetAccount(a.Receiver)
 		a.Privileged = action.Privileged
@@ -254,7 +254,7 @@ func (a *ApplyContext) execOne(trace *types.ActionTrace) {
 		trace.Receipt = r
 		//trace.Except = e
 		a.FinalizeTrace(trace, &start)
-		try.Throw(e)
+		Throw(e)
 	}).End()
 
 	r.GlobalSequence = a.nextGlobalSequence()

@@ -1,20 +1,22 @@
 package exception
 
-type ResourceExhaustedException struct{ logMessage }
+import . "github.com/eosspark/eos-go/log"
+
+type ResourceExhaustedException struct{ LogMessage }
 
 func (ResourceExhaustedException) ChainExceptions()             {}
 func (ResourceExhaustedException) ResourceExhaustedExceptions() {}
 func (ResourceExhaustedException) Code() ExcTypes               { return 3080000 }
 func (ResourceExhaustedException) What() string                 { return "Resource exhausted exception" }
 
-type RamUsageExceeded struct{ logMessage }
+type RamUsageExceeded struct{ LogMessage }
 
 func (RamUsageExceeded) ChainExceptions()             {}
 func (RamUsageExceeded) ResourceExhaustedExceptions() {}
 func (RamUsageExceeded) Code() ExcTypes               { return 3080001 }
 func (RamUsageExceeded) What() string                 { return "Account using more than allotted RAM usage" }
 
-type TxNetUsageExceeded struct{ logMessage }
+type TxNetUsageExceeded struct{ LogMessage }
 
 func (TxNetUsageExceeded) ChainExceptions()             {}
 func (TxNetUsageExceeded) ResourceExhaustedExceptions() {}
@@ -23,7 +25,7 @@ func (TxNetUsageExceeded) What() string {
 	return "Transaction exceeded the current network usage limit imposed on the transaction"
 }
 
-type BlockNetUsageExceeded struct{ logMessage }
+type BlockNetUsageExceeded struct{ LogMessage }
 
 func (BlockNetUsageExceeded) ChainExceptions()             {}
 func (BlockNetUsageExceeded) ResourceExhaustedExceptions() {}
@@ -32,7 +34,7 @@ func (BlockNetUsageExceeded) What() string {
 	return "Transaction network usage is too much for the remaining allowable usage of the current block"
 }
 
-type TxCpuUsageExceeded struct{ logMessage }
+type TxCpuUsageExceeded struct{ LogMessage }
 
 func (TxCpuUsageExceeded) ChainExceptions()             {}
 func (TxCpuUsageExceeded) ResourceExhaustedExceptions() {}
@@ -41,7 +43,7 @@ func (TxCpuUsageExceeded) What() string {
 	return "Transaction exceeded the current CPU usage limit imposed on the transaction"
 }
 
-type BlockCpuUsageExceeded struct{ logMessage }
+type BlockCpuUsageExceeded struct{ LogMessage }
 
 func (BlockCpuUsageExceeded) ChainExceptions()             {}
 func (BlockCpuUsageExceeded) ResourceExhaustedExceptions() {}
@@ -50,7 +52,7 @@ func (BlockCpuUsageExceeded) What() string {
 	return "Transaction CPU usage is too much for the remaining allowable usage of the current block"
 }
 
-type DeadlineException struct{ logMessage }
+type DeadlineException struct{ LogMessage }
 
 func (DeadlineException) ChainExceptions()             {}
 func (DeadlineException) ResourceExhaustedExceptions() {}
@@ -59,7 +61,7 @@ func (DeadlineException) What() string {
 	return "Transaction took too long"
 }
 
-type GreylistNetUsageExceeded struct{ logMessage }
+type GreylistNetUsageExceeded struct{ LogMessage }
 
 func (GreylistNetUsageExceeded) ChainExceptions()             {}
 func (GreylistNetUsageExceeded) ResourceExhaustedExceptions() {}
@@ -68,7 +70,7 @@ func (GreylistNetUsageExceeded) What() string {
 	return "Transaction exceeded the current greylisted account network usage limit"
 }
 
-type GreylistCpuUsageExceeded struct{ logMessage }
+type GreylistCpuUsageExceeded struct{ LogMessage }
 
 func (GreylistCpuUsageExceeded) ChainExceptions()             {}
 func (GreylistCpuUsageExceeded) ResourceExhaustedExceptions() {}
@@ -78,7 +80,7 @@ func (GreylistCpuUsageExceeded) What() string {
 }
 
 // implements DeadlineExceptions
-type LeewayDeadlineException struct{ logMessage }
+type LeewayDeadlineException struct{ LogMessage }
 
 func (LeewayDeadlineException) ChainExceptions()             {}
 func (LeewayDeadlineException) ResourceExhaustedExceptions() {}
