@@ -4,7 +4,6 @@ import (
 	. "github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/log"
 	"fmt"
-	"github.com/ethereum/go-ethereum/log"
 )
 
 func EosAssert(expr bool, exception Exception, format string, args ...interface{}) {
@@ -16,6 +15,23 @@ func EosAssert(expr bool, exception Exception, format string, args ...interface{
 func EosThrow(exception Exception, format string, args ...interface{}) {
 	exception.FcLogMessage(LvlError, format, args...)
 	Throw(exception)
+}
+
+func (c *CatchOrFinally) EosRethrowExceptions(exception Exception, format string, args ...interface{}) *CatchOrFinally {
+	return c.Catch(func(e ChainExceptions) {
+		FcRethrowException(e, LvlWarn, format, args...)
+
+	}).Catch(func(e Exception) {
+		exception.FcLogMessage(LvlWarn, fmt.Sprintf("%s, %s", format, e.Message()), args...)
+		Throw(exception)
+
+	}).Catch(func(e error) {
+		exception.FcLogMessage(LvlWarn, fmt.Sprintf("%s (%s)", format, e.Error()))
+		Throw(exception)
+
+	}).Catch(func(interface{}) {
+		Throw(&UnHandledException{LogMessage{LvlWarn, format, args}})
+	})
 }
 
 
