@@ -4,6 +4,7 @@ import (
 	"github.com/urfave/cli"
 
 	. "github.com/eosspark/eos-go/exception"
+	. "github.com/eosspark/eos-go/exception/try"
 )
 
 /** these notifications get called from the plugin when their state changes so that

@@ -12,7 +12,7 @@ import (
 	"github.com/eosspark/eos-go/database"
 	"github.com/eosspark/eos-go/entity"
 	. "github.com/eosspark/eos-go/exception"
-	"github.com/eosspark/eos-go/exception/try"
+	. "github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/log"
 	"github.com/eosspark/eos-go/wasmgo"
 )
@@ -682,7 +682,7 @@ func (c *Controller) pushScheduledTransactionByObject(gto *entity.GeneratedTrans
 	trxContext.ExplicitBilledCpuTime = explicitBilledCpuTime
 	trxContext.BilledCpuTimeUs = int64(billedCpuTimeUs)
 	trace = trxContext.Trace
-	try.Try(func() {
+	Try(func() {
 		trxContext.InitForDeferredTrx(gtrx.Published)
 		trxContext.Exec()
 		trxContext.Finalize()
@@ -1476,7 +1476,7 @@ func (c *Controller) initializeForkDB() {
 	genHeader.Header.ActionMRoot = common.CheckSum256Type(gs.ComputeChainID())
 	genHeader.BlockId = genHeader.Header.BlockID()
 	genHeader.BlockNum = genHeader.Header.BlockNumber()
-	c.Head = types.NewBlockState(genHeader)
+	c.Head = types.NewBlockState(&genHeader)
 	signedBlock := types.SignedBlock{}
 	signedBlock.SignedBlockHeader = genHeader.Header
 	c.Head.SignedBlock = &signedBlock

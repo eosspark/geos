@@ -16,6 +16,7 @@ import (
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/log"
 	"gopkg.in/urfave/cli.v1"
+	"github.com/eosspark/eos-go/exception/try"
 )
 
 const (
@@ -166,7 +167,7 @@ func (n *NetPlugin) NetPluginInitialize(app *cli.App) {
 		}
 
 		if n.my.allowedConnections&specifiedPossible != 0 {
-			exception.EosAssert(c.IsSet("peer-key"), &exception.PluginConfigException{}, "At least one peer-key must accompany 'allowed-connection=specified'")
+			try.EosAssert(c.IsSet("peer-key"), &exception.PluginConfigException{}, "At least one peer-key must accompany 'allowed-connection=specified'")
 		}
 
 		if c.IsSet("peer_key") {

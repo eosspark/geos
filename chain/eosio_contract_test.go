@@ -80,7 +80,6 @@ func TestApplyEosioNewAccount(t *testing.T) {
 		assert.Equal(t, isAccount, true)
 
 		control.Close()
-		control.Clean()
 
 	})
 
@@ -128,7 +127,6 @@ func TestApplyEosioSetcode(t *testing.T) {
 		assert.Equal(t, accountObject.Code, common.HexBytes(code))
 
 		control.Close()
-		control.Clean()
 
 	})
 
@@ -185,7 +183,6 @@ func TestApplyEosioUpdateauth(t *testing.T) {
 		// assert.Equal(t, accountObject.Abi, common.HexBytes(abi))
 
 		control.Close()
-		control.Clean()
 
 	})
 
@@ -283,7 +280,6 @@ func TestApplyEosioLinkauthAndUnlinkauth(t *testing.T) {
 		assert.Equal(t, permissionLinkObject.RequiredPermission, common.PermissionName(0))
 
 		control.Close()
-		control.Clean()
 
 	})
 

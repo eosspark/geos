@@ -1,6 +1,8 @@
 package exception
 
-type ProducerException struct{ logMessage }
+import . "github.com/eosspark/eos-go/log"
+
+type ProducerException struct{ LogMessage }
 
 func (ProducerException) ChainExceptions()    {}
 func (ProducerException) ProducerExceptions() {}
@@ -9,7 +11,7 @@ func (ProducerException) What() string {
 	return "Producer exception"
 }
 
-type ProducerPrivKeyNotFound struct{ logMessage }
+type ProducerPrivKeyNotFound struct{ LogMessage }
 
 func (ProducerPrivKeyNotFound) ChainExceptions()    {}
 func (ProducerPrivKeyNotFound) ProducerExceptions() {}
@@ -18,7 +20,7 @@ func (ProducerPrivKeyNotFound) What() string {
 	return "Producer private key is not available"
 }
 
-type MissingPendingBlockState struct{ logMessage }
+type MissingPendingBlockState struct{ LogMessage }
 
 func (MissingPendingBlockState) ChainExceptions()    {}
 func (MissingPendingBlockState) ProducerExceptions() {}
@@ -27,7 +29,7 @@ func (MissingPendingBlockState) What() string {
 	return "Pending block state is missing"
 }
 
-type ProducerDoubleConfirm struct{ logMessage }
+type ProducerDoubleConfirm struct{ LogMessage }
 
 func (ProducerDoubleConfirm) ChainExceptions()    {}
 func (ProducerDoubleConfirm) ProducerExceptions() {}
@@ -36,7 +38,7 @@ func (ProducerDoubleConfirm) What() string {
 	return "Producer is double confirming known range"
 }
 
-type ProducerScheduleException struct{ logMessage }
+type ProducerScheduleException struct{ LogMessage }
 
 func (ProducerScheduleException) ChainExceptions()    {}
 func (ProducerScheduleException) ProducerExceptions() {}
@@ -45,7 +47,7 @@ func (ProducerScheduleException) What() string {
 	return "Producer schedule exception"
 }
 
-type ProducerNotInSchedule struct{ logMessage }
+type ProducerNotInSchedule struct{ LogMessage }
 
 func (ProducerNotInSchedule) ChainExceptions()    {}
 func (ProducerNotInSchedule) ProducerExceptions() {}

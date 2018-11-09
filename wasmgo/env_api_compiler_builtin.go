@@ -6,6 +6,7 @@ import (
 	"github.com/eosspark/eos-go/exception"
 	"math"
 	"unsafe"
+	"github.com/eosspark/eos-go/exception/try"
 )
 
 var count = 0
@@ -48,7 +49,7 @@ func divti3(w *WasmGo, ret int, la, ha, lb, hb int64) {
 	lhs := arithmetic.Int128{Low: uint64(la), High: uint64(ha)}
 	rhs := arithmetic.Int128{Low: uint64(lb), High: uint64(hb)}
 
-	exception.EosAssert(!rhs.IsZero(), &exception.ArithmeticException{}, "divide by zero")
+	try.EosAssert(!rhs.IsZero(), &exception.ArithmeticException{}, "divide by zero")
 
 	quotient, _ := lhs.Div(rhs)
 	re, _ := rlp.EncodeToBytes(quotient)
@@ -59,7 +60,7 @@ func udivti3(w *WasmGo, ret int, la, ha, lb, hb int64) {
 	lhs := arithmetic.Uint128{Low: uint64(la), High: uint64(ha)}
 	rhs := arithmetic.Uint128{Low: uint64(lb), High: uint64(hb)}
 
-	exception.EosAssert(!rhs.IsZero(), &exception.ArithmeticException{}, "divide by zero")
+	try.EosAssert(!rhs.IsZero(), &exception.ArithmeticException{}, "divide by zero")
 	quotient, _ := lhs.Div(rhs)
 
 	re, _ := rlp.EncodeToBytes(quotient)
@@ -78,7 +79,7 @@ func multi3(w *WasmGo, ret int, la, ha, lb, hb int64) {
 func modti3(w *WasmGo, ret int, la, ha, lb, hb int64) {
 	lhs := arithmetic.Int128{High: uint64(ha), Low: uint64(la)}
 	rhs := arithmetic.Int128{High: uint64(hb), Low: uint64(lb)}
-	exception.EosAssert(!rhs.IsZero(), &exception.ArithmeticException{}, "divide by zero")
+	try.EosAssert(!rhs.IsZero(), &exception.ArithmeticException{}, "divide by zero")
 
 	_, remainder := lhs.Div(rhs)
 	re, _ := rlp.EncodeToBytes(remainder)
@@ -89,7 +90,7 @@ func umodti3(w *WasmGo, ret int, la, ha, lb, hb int64) {
 	lhs := arithmetic.Uint128{Low: uint64(la), High: uint64(ha)}
 	rhs := arithmetic.Uint128{Low: uint64(lb), High: uint64(hb)}
 
-	exception.EosAssert(!rhs.IsZero(), &exception.ArithmeticException{}, "divide by zero")
+	try.EosAssert(!rhs.IsZero(), &exception.ArithmeticException{}, "divide by zero")
 	_, remainder := lhs.Div(rhs)
 	re, _ := rlp.EncodeToBytes(remainder)
 	setMemory(w, ret, re, 0, len(re))

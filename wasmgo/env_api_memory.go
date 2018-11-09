@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"github.com/eosspark/eos-go/exception"
+	"github.com/eosspark/eos-go/exception/try"
 )
 
 func abs(n int) int {
@@ -28,7 +29,7 @@ func memcpy(w *WasmGo, dest int, src int, length int) int {
 	// 	//ASSERT(math.Abs(dest-src) >= length, "memcpy can only accept non-aliasing pointers")
 	// 	return -1
 	// }
-	exception.EosAssert(abs(dest-src) >= length, &exception.OverlappingMemoryError{}, "memcpy with overlapping memeory")
+	try.EosAssert(abs(dest-src) >= length, &exception.OverlappingMemoryError{}, "memcpy with overlapping memeory")
 
 	copy(w.vm.Memory()[dest:dest+length], w.vm.Memory()[src:src+length])
 
@@ -48,7 +49,7 @@ func memmove(w *WasmGo, dest int, src int, length int) int {
 	// 	//ASSERT(math.Abs(dest-src) >= length, "memcpy can only accept non-aliasing pointers")
 	// 	return -1
 	// }
-	exception.EosAssert(abs(dest-src) >= length, &exception.OverlappingMemoryError{}, "memove with overlapping memeory")
+	try.EosAssert(abs(dest-src) >= length, &exception.OverlappingMemoryError{}, "memove with overlapping memeory")
 
 	copy(w.vm.Memory()[dest:dest+length], w.vm.Memory()[src:src+length])
 
@@ -70,7 +71,7 @@ func memset(w *WasmGo, dest int, value int, length int) int {
 
 	cap := cap(w.vm.Memory())
 	if cap < dest || cap < dest+length {
-		exception.EosAssert(false, &exception.OverlappingMemoryError{}, "memset with heap memory out of bound")
+		try.EosAssert(false, &exception.OverlappingMemoryError{}, "memset with heap memory out of bound")
 	}
 
 	b := bytes.Repeat([]byte{byte(value)}, length)

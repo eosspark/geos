@@ -14,6 +14,7 @@ import (
 
 	"github.com/eosspark/eos-go/wasmgo/wagon/exec"
 	"github.com/eosspark/eos-go/wasmgo/wagon/wasm"
+	"github.com/eosspark/eos-go/exception/try"
 )
 
 var (
@@ -396,7 +397,7 @@ func getMemory(w *WasmGo, mIndex int, bufferSize int) []byte {
 
 	cap := cap(w.vm.Memory())
 	if cap < mIndex || cap < mIndex+bufferSize {
-		exception.EosAssert(false, &exception.OverlappingMemoryError{}, "memcpy can only accept non-aliasing pointers")
+		try.EosAssert(false, &exception.OverlappingMemoryError{}, "memcpy can only accept non-aliasing pointers")
 		//fmt.Println("getMemory heap Memory out of bound")
 		return nil
 	}
