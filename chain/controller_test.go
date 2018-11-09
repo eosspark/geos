@@ -43,15 +43,18 @@ func TestSetApplyHandler(t *testing.T) {
 	con := GetControllerInstance()
 	fmt.Println(con)
 	//applyCon := ApplyContext{}
-	con.SetApplayHandler(111, 111, 111, CallBackApplayHandler)
-	con.SetApplayHandler(111, 111, 222, CallBackApplayHandler2)
+	con.SetApplayHandler(common.AccountName(common.N("eosio")), common.ScopeName(common.N("eosio")), common.ActionName(common.N("newaccount")), CallBackApplayHandler)
+	con.SetApplayHandler(common.AccountName(common.N("eosio")), common.ScopeName(common.N("eosio")), common.ActionName(common.N("setcode")), CallBackApplayHandler2)
 
-	handler1 := con.FindApplyHandler(111, 111, 111)
+	handler1 := con.FindApplyHandler(common.AccountName(common.N("eosio")), common.ScopeName(common.N("eosio")), common.ActionName(common.N("newaccount")))
 	handler1(nil)
 	fmt.Println(handler1)
 
-	handler2 := con.FindApplyHandler(111, 111, 222)
+	handler2 := con.FindApplyHandler(common.AccountName(common.N("eosio")), common.ScopeName(common.N("eosio")), common.ActionName(common.N("setcode")))
 	handler2(nil)
+
+	fmt.Println(len(con.ApplyHandlers))
+
 }
 
 func Test_ControllerDB(t *testing.T) {

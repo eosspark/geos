@@ -185,7 +185,8 @@ func MakeAuthChecker(pta PermissionToAuthorityFunc,
 	//noopChecktime := func() {}
 	providedKeysArray := make([]ecc.PublicKey, providedKeys.Len())
 	for i := 0; i < providedKeys.Len(); i++{
-		providedKeysArray[i] = providedKeys.Data[i].(ecc.PublicKey)
+		element := providedKeys.Data[i].(*ecc.PublicKey)
+		providedKeysArray[i] = *element
 	}
 	return AuthorityChecker{permissionToAuthority: pta, RecursionDepthLimit: recursionDepthLimit,
 		ProvidedKeys: providedKeysArray, ProvidedPermissions: *providedPermission,
