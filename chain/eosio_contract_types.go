@@ -18,11 +18,11 @@ type NewAccount struct {
 	Active  types.Authority
 }
 
-func (n NewAccount) getAccount() common.AccountName {
+func (n *NewAccount) getAccount() common.AccountName {
 	return common.DefaultConfig.SystemAccountName
 }
 
-func (n NewAccount) getName() common.AccountName {
+func (n *NewAccount) getName() common.AccountName {
 	return common.AccountName(common.N("newaccount"))
 }
 
@@ -33,11 +33,11 @@ type newAccount struct {
 	Active  types.Authority
 }
 
-func (n newAccount) getAccount() common.AccountName {
+func (n *newAccount) getAccount() common.AccountName {
 	return common.DefaultConfig.SystemAccountName
 }
 
-func (n newAccount) getName() common.AccountName {
+func (n *newAccount) getName() common.AccountName {
 	return common.AccountName(common.N("newaccount"))
 }
 
@@ -48,11 +48,11 @@ type setCode struct {
 	Code      []byte
 }
 
-func (s setCode) getAccount() common.AccountName {
+func (s *setCode) getAccount() common.AccountName {
 	return common.DefaultConfig.SystemAccountName
 }
 
-func (s setCode) getName() common.ActionName {
+func (s *setCode) getName() common.ActionName {
 	return common.ActionName(common.N("setcode"))
 }
 
