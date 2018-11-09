@@ -20,6 +20,10 @@ type Extension struct {
 	Data common.HexBytes `json:"data"`
 }
 
+func init() {
+
+}
+
 /**
  *  TransactionHeader contains the fixed-sized data
  *  associated with each transaction. It is separated from
@@ -69,6 +73,8 @@ func (t *TransactionHeader) SetReferenceBlock(referenceBlock *common.BlockIdType
 	t.RefBlockPrefix = uint32(referenceBlock.Hash[1])
 }
 
+var recoveryCache = make(map[ecc.Signature]CachedPubKey)
+
 type CachedPubKey struct {
 	TrxID  common.TransactionIdType `json:"trx_id"`
 	PubKey ecc.PublicKey            `json:"pub_key"`
@@ -84,8 +90,6 @@ type Transaction struct { // WARN: is a `variant` in C++, can be a SignedTransac
 	ContextFreeActions    []*Action    `json:"context_free_actions"`
 	Actions               []*Action    `json:"actions"`
 	TransactionExtensions []*Extension `json:"transaction_extensions"`
-
-	RecoveryCache map[ecc.Signature]CachedPubKey `json:"-" eos:"-"` //C++ static
 }
 
 func (t *Transaction) ID() common.TransactionIdType {
@@ -132,10 +136,10 @@ func (t *Transaction) GetSignatureKeys(signatures []ecc.Signature, chainID *comm
 	digest := t.SigDigest(chainID, cfd)
 	for _, sig := range signatures {
 		if useCache {
-			it, ok := t.RecoveryCache[sig]
+			it, ok := recoveryCache[sig]
 			if !ok || it.TrxID != t.ID() {
 				recov, _ = sig.PublicKey(digest)
-				t.RecoveryCache[sig] = CachedPubKey{t.ID(), recov, sig} //could fail on dup signatures; not a problem
+				recoveryCache[sig] = CachedPubKey{t.ID(), recov, sig} //could fail on dup signatures; not a problem
 			} else {
 				recov = it.PubKey
 			}
