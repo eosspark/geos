@@ -417,12 +417,13 @@ func (c *Controller) PushTransaction(trx types.TransactionMetadata, deadLine com
 		c.CheckActorList(&trxContext.BillToAccounts)
 	}
 	trxContext.Delay = common.Microseconds(trx.Trx.DelaySec)
+	checkTime := func() {}
 	if !c.SkipAuthCheck() && !trx.Implicit {
 		c.Authorization.CheckAuthorization(trx.Trx.Actions,
 			trx.RecoverKeys(&c.ChainID),
-			nil,
+			&common.FlatSet{},
 			trxContext.Delay,
-			nil,
+			&checkTime,
 			false)
 	}
 	trxContext.Exec()
@@ -899,8 +900,8 @@ func (c *Controller) applyBlock(b *types.SignedBlock, s types.BlockStatus) {
 			&BlockValidateException{}, "expected receipt was not added:%v,expected_receipt:%v", *b, receipt)
 
 		//TODO
-		//r := c.Pending.PendingBlockState.SignedBlock.Transactions
-		/*EosAssert(r == static_cast<const transaction_receipt_header&>(receipt),
+		/*r := c.Pending.PendingBlockState.SignedBlock.Transactions
+		EosAssert(r == static_cast<const transaction_receipt_header&>(receipt),
 		block_validate_exception, "receipt does not match",
 		("producer_receipt", receipt)("validator_receipt", pending->_pending_block_state->block->transactions.back()) );*/
 	}
