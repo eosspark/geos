@@ -7,8 +7,8 @@ import (
 	"io"
 	// "math/big"
 	"github.com/eosspark/eos-go/exception"
-	"reflect"
 	"github.com/eosspark/eos-go/exception/try"
+	"reflect"
 )
 
 const (
@@ -33,6 +33,7 @@ type encoder struct {
 var (
 	staticVariantTag uint8
 	trxIsID          bool
+	asset            bool
 )
 
 func newEncoder(w io.Writer) *encoder {
@@ -168,6 +169,9 @@ func (e *encoder) encode(v interface{}) (err error) {
 					continue
 				}
 				e.writeBool(true)
+
+			case "asset":
+				asset = true
 			}
 
 			if v := rv.Field(i); t.Field(i).Name != "_" {
@@ -267,6 +271,12 @@ func (e *encoder) writeInt64(i int64) (err error) {
 }
 
 func (e *encoder) writeString(s string) (err error) {
+	if asset {
+		asset = false
+		symbol := make([]byte, 7, 7)
+		copy(symbol[:], []byte(s))
+		return e.toWriter([]byte(s))
+	}
 	return e.writeByteArray([]byte(s))
 }
 

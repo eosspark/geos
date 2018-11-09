@@ -17,13 +17,13 @@ type SizeT = int
 
 // For reference:
 // https://github.com/mithrilcoin-io/EosCommander/blob/master/app/src/main/java/io/mithrilcoin/eoscommander/data/remote/model/types/EosByteWriter.java
-type ChainIdType 	   = crypto.Sha256
-type NodeIdType  	   = crypto.Sha256
-type BlockIdType 	   = crypto.Sha256
+type ChainIdType = crypto.Sha256
+type NodeIdType = crypto.Sha256
+type BlockIdType = crypto.Sha256
 type TransactionIdType = crypto.Sha256
-type CheckSum256Type   = crypto.Sha256
-type DigestType 	   = crypto.Sha256
-type IdType  = int64
+type CheckSum256Type = crypto.Sha256
+type DigestType = crypto.Sha256
+type IdType = int64
 type KeyType = uint64
 
 func BlockIdNil() BlockIdType {
@@ -56,12 +56,11 @@ func DecodeIdTypeByte(b []byte) (id [4]uint64, err error) {
 	return id, nil
 }
 
-
-type AccountName 	= Name
+type AccountName = Name
 type PermissionName = Name
-type ActionName 	= Name
-type TableName 		= Name
-type ScopeName 		= Name
+type ActionName = Name
+type TableName = Name
+type ScopeName = Name
 
 // type AccountResourceLimit struct {
 // 	Used      JSONInt64 `json:"used"`
@@ -203,7 +202,7 @@ func (a Asset) String() string {
 // NOTE: there's also a new ExtendedSymbol (which includes the contract (as AccountName) on which it is)
 type Symbol struct {
 	Precision uint8
-	Symbol    string
+	Symbol    string `eos:"asset"`
 }
 
 // EOSSymbol represents the standard EOS symbol on the chain.  It's
