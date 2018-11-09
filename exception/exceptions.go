@@ -1,11 +1,13 @@
 package exception
 
+import . "github.com/eosspark/eos-go/log"
+
 type ChainExceptions interface {
 	Exception
 	ChainExceptions()
 }
 
-type ChainException struct{ logMessage }
+type ChainException struct{ LogMessage }
 
 func (ChainException) ChainExceptions() {}
 func (ChainException) Code() ExcTypes   { return 3000000 }

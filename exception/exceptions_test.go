@@ -196,14 +196,11 @@ func returnFunction(a int) (r int) {
 		}
 
 		EosAssert(a != 1, &ChainTypeException{}, "error")
-		EosAssert(a != 2, &ForkDatabaseException{}, "error")
 
 	}).Catch(func(e ChainTypeExceptions) {
 		r = 1        // return 1
 		try.Return() //
-	}).Catch(func(e ForkDatabaseExceptions) {
-		r = 2        // return 2
-		try.Return() //
+
 	}).End()
 
 	return 0

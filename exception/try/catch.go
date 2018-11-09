@@ -3,7 +3,8 @@ package try
 import (
 	"reflect"
 	. "github.com/eosspark/eos-go/exception"
-		)
+	"github.com/eosspark/eos-go/log"
+)
 
 type CatchOrFinally struct {
 	e 		  interface{}
@@ -97,13 +98,13 @@ func (c *CatchOrFinally) Catch(f interface{}) (r *CatchOrFinally) {
 //Necessary to call at the end of try-catch block, to ensure panic uncaught exceptions
 func (c *CatchOrFinally) End() {
 	if c != nil && c.e != nil {
-		//c.printStackInfo()
+		c.printStackInfo()
 		Throw(c.e)
 	}
 }
 
 func (c *CatchOrFinally) printStackInfo() {
-	//fmt.Println(string(c.stackInfo))
+	log.Debug(string(c.stackInfo))
 }
 
 //Finally always be called if defined.

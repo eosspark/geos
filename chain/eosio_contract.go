@@ -8,7 +8,7 @@ import (
 	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/eosspark/eos-go/entity"
 	. "github.com/eosspark/eos-go/exception"
-	"github.com/eosspark/eos-go/exception/try"
+	. "github.com/eosspark/eos-go/exception/try"
 	"strings"
 )
 
@@ -39,7 +39,7 @@ func validateAuthorityPrecondition(context *ApplyContext, auth *types.Authority)
 			continue
 		}
 
-		try.Try(func() {
+		Try(func() {
 			context.Control.GetAuthorizationManager().GetPermission(&types.PermissionLevel{a.Permission.Actor, a.Permission.Permission})
 		}).Catch(func(e *PermissionQueryException) {
 			//   EOS_THROW( action_validate_exception,
