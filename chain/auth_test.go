@@ -41,8 +41,8 @@ func TestMakeAuthChecker(t *testing.T){
 	providedPermissions := common.FlatSet{}
 	pub1, _ := ecc.NewPublicKey("EOS859gxfnXyUriMgUeThh1fWv3oqcpLFyHa3TfFYC4PK2HqhToVM")
 	pub2, _ := ecc.NewPublicKey("EOS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV")
-	providedKeys.Insert(pub1)
-	providedKeys.Insert(pub2)
+	providedKeys.Insert(&pub1)
+	providedKeys.Insert(&pub2)
 	checker := types.MakeAuthChecker(func(p *types.PermissionLevel) types.SharedAuthority { return a.GetPermission(p).Auth },
 		a.control.GetGlobalProperties().Configuration.MaxAuthorityDepth,
 		&providedKeys,
