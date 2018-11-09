@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"github.com/eosspark/eos-go/common/arithmetic_types"
-	"github.com/eosspark/eos-go/log"
 	"io"
 	"io/ioutil"
 	"reflect"
@@ -55,18 +54,12 @@ var (
 	eosArray           bool
 	trxID              bool
 	destaticVariantTag uint8
-	rlplog             log.Logger
 )
 
 // Decoder implements the EOS unpacking, similar to FC_BUFFER
 type decoder struct {
 	data []byte
 	pos  int
-}
-
-func init() {
-	rlplog = log.New("rlp")
-	rlplog.SetHandler(log.TerminalHandler)
 }
 
 func Decode(r io.Reader, val interface{}) error {
@@ -162,6 +155,13 @@ func (d *decoder) decode(v interface{}) (err error) {
 		}
 		rv.Set(reflect.ValueOf(f128))
 		return err
+
+	case *arithmeticTypes.Uint128:
+		var u128 arithmeticTypes.Uint128
+		u128.High, err = d.readUint64()
+		u128.Low, err = d.readUint64()
+		rv.Set(reflect.ValueOf(u128))
+		return err
 	}
 
 	switch t.Kind() {
@@ -237,7 +237,7 @@ func (d *decoder) decode(v interface{}) (err error) {
 				return
 			}
 			if int(l) != len {
-				rlplog.Warn("the l is not equal to len of array")
+				plog.Warn("the l is not equal to len of array")
 			}
 		}
 		eosArray = false
@@ -304,7 +304,7 @@ func (d *decoder) decodeStruct(v interface{}, t reflect.Type, rv reflect.Value) 
 		case "optional":
 			isPresent, _ := d.readByte()
 			if isPresent == 0 {
-				//rlplog.Warn("Skipping optional OptionalProducerSchedule")
+				//plog.Warn("Skipping optional OptionalProducerSchedule")
 				v = nil
 				continue
 			}

@@ -99,6 +99,7 @@ func (e *encoder) encode(v interface{}) (err error) {
 		val, ok := v.(arithmeticTypes.Float64)
 		if !ok {
 			plog.Info("pack wrong: v is not Float64")
+			err = errors.New("pack wrong: v is not Float64")
 		}
 		f64 := uint64(val)
 		if f64>>63 != 0 { //minus
@@ -115,12 +116,13 @@ func (e *encoder) encode(v interface{}) (err error) {
 			ss := f64&uint64(0x0000FFFFFFFFFFFF) | uint64(0x0001000000000000)
 			e.writeUint64(ss)
 		}
-		return nil
+		return err
 
 	case arithmeticTypes.Float128:
 		f128, ok := v.(arithmeticTypes.Float128)
 		if !ok {
-			plog.Info("pack wrong: v is not Float64")
+			plog.Info("pack wrong: v is not Float128")
+			err = errors.New("pack wrong: v is not Float128")
 		}
 
 		if f128.High>>63 != 0 {
@@ -143,7 +145,17 @@ func (e *encoder) encode(v interface{}) (err error) {
 			e.writeUint64(high)
 			e.writeUint64(f128.Low)
 		}
-		return nil
+		return err
+	case arithmeticTypes.Uint128:
+		u128, ok := v.(arithmeticTypes.Uint128)
+		if !ok {
+			plog.Info("pack wrong: v is not Uint128")
+			err = errors.New("pack wrong: v is not Uint128")
+		}
+		e.writeUint64(u128.High)
+		e.writeUint64(u128.Low)
+
+		return err
 	}
 
 	switch t.Kind() {
