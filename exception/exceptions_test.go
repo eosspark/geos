@@ -2,7 +2,7 @@ package exception_test
 
 import (
 	"fmt"
-	"github.com/eosspark/eos-go/exception/try"
+	. "github.com/eosspark/eos-go/exception/try"
 	. "github.com/eosspark/eos-go/exception"
 	"github.com/stretchr/testify/assert"
 	"testing"
@@ -20,13 +20,13 @@ func TestEosAssert(t *testing.T) {
 
 func catches() {
 	fmt.Println("\ncaught Exception------------------------")
-	try.Try(func() {
+	Try(func() {
 		EosAssert(false, &ChainException{}, "test")
 	}).Catch(func(e Exception) {
 	}).End()
 
 	fmt.Println("\ncaught none-----------------------------")
-	try.Try(func() {
+	Try(func() {
 	}).Catch(func(e Exception) {
 	}).End()
 
@@ -34,27 +34,27 @@ func catches() {
 		recover()
 	}()
 	fmt.Println("\ncaught failed---------------------------")
-	try.Try(func() {
-		try.Throw(1)
+	Try(func() {
+		Throw(1)
 	}).Catch(func(e string) {
 	}).Catch(func(e Exception) {
 	}).End()
 }
 
-func catchExc() {
-	fmt.Println("\ncaughtExc success-----------------------")
-	try.Try(func() {
-		EosAssert(false, &ChainException{}, "test")
-	}).CatchException(func(e Exception) {
-	}).End()
-
-	defer func() { recover() }()
-	fmt.Println("\ncaughtExc failed------------------------")
-	try.Try(func() {
-		try.Throw(1)
-	}).CatchException(func(e Exception) {
-	}).End()
-}
+//func catchExc() {
+//	fmt.Println("\ncaughtExc success-----------------------")
+//	Try(func() {
+//		EosAssert(false, &ChainException{}, "test")
+//	}).CatchException(func(e Exception) {
+//	}).End()
+//
+//	defer func() { recover() }()
+//	fmt.Println("\ncaughtExc failed------------------------")
+//	Try(func() {
+//		Throw(1)
+//	}).CatchException(func(e Exception) {
+//	}).End()
+//}
 
 func Test_performance(t *testing.T) {
 	catches()
@@ -67,7 +67,7 @@ func TestEosAssert_catch(t *testing.T) {
 		assert.Equal(t, 1, scopeExit)
 	}()
 
-	try.Try(func() {
+	Try(func() {
 		EosAssert(false, &ChainException{}, "test")
 	}).Catch(func(e Exception) {
 		fmt.Println(e.What())
@@ -78,7 +78,7 @@ func TestEosAssert_catch(t *testing.T) {
 }
 
 func TestException_catch_same(t *testing.T) {
-	try.Try(func() {
+	Try(func() {
 		EosAssert(false, &NameTypeException{}, "name error")
 
 	}).Catch(func(e NameTypeException) {
@@ -88,7 +88,7 @@ func TestException_catch_same(t *testing.T) {
 }
 
 func TestException_catch_same_pointer(t *testing.T) {
-	try.Try(func() {
+	Try(func() {
 		EosAssert(false, &NameTypeException{}, "name error")
 
 	}).Catch(func(e NameTypeException) {
@@ -99,8 +99,8 @@ func TestException_catch_same_pointer(t *testing.T) {
 }
 
 func TestException_catch_diff(t *testing.T) {
-	try.Try(func() {
-		try.Try(func() {
+	Try(func() {
+		Try(func() {
 			EosAssert(false, &NameTypeException{}, "name error")
 
 		}).Catch(func(e BlockValidateException) {
@@ -116,8 +116,8 @@ func TestException_catch_diff(t *testing.T) {
 }
 
 func TestException_catch_diff_pointer(t *testing.T) {
-	try.Try(func() {
-		try.Try(func() {
+	Try(func() {
+		Try(func() {
 			EosAssert(false, &NameTypeException{}, "name error")
 
 		}).Catch(func(e BlockValidateException) {
@@ -133,7 +133,7 @@ func TestException_catch_diff_pointer(t *testing.T) {
 }
 
 func TestException_catch_interface(t *testing.T) {
-	try.Try(func() {
+	Try(func() {
 		EosAssert(false, &NameTypeException{}, "name error")
 
 	}).Catch(func(e ChainTypeExceptions) {
@@ -144,25 +144,25 @@ func TestException_catch_interface(t *testing.T) {
 }
 
 func TestExceptions(t *testing.T) {
-	try.Try(func() {
+	Try(func() {
 		EosAssert(false, &ChainTypeException{}, "wrong chain type of type:%s", "abc")
 	}).Catch(func(e ChainExceptions) {
 		assert.Equal(t, "wrong chain type of type:abc", e.Message())
 	}).End()
 
-	try.Try(func() {
+	Try(func() {
 		EosAssert(false, &ChainException{}, "wrong chain id:%d", 12345)
 	}).Catch(func(e Exception) {
 		assert.Equal(t, "wrong chain id:12345", e.Message())
 	}).End()
 
-	try.Try(func() {
+	Try(func() {
 		EosAssert(false, &BlockValidateException{}, "test")
 	}).Catch(func(e BlockValidateExceptions) {
 		assert.Equal(t, "test", e.Message())
 	}).End()
 
-	try.Try(func() {
+	Try(func() {
 		EosAssert(false, &ChainTypeException{}, "test")
 	}).Catch(func(e ChainTypeException) {
 		fmt.Println(e.Message())
@@ -172,11 +172,11 @@ func TestExceptions(t *testing.T) {
 }
 
 func TestReThrow(t *testing.T) {
-	try.Try(func() {
-		try.Try(func() {
+	Try(func() {
+		Try(func() {
 			EosAssert(false, &ChainTypeException{}, "wrong chain type of type:%s", "abc")
 		}).Catch(func(e Exception) {
-			try.Throw(e) // always == panic(e)
+			Throw(e) // always == panic(e)
 		}).End()
 
 	}).Catch(func(e ChainTypeExceptions) {
@@ -188,22 +188,19 @@ func TestReThrow(t *testing.T) {
 
 func returnFunction(a int) (r int) {
 
-	defer try.HandleReturn()
-	try.Try(func() {
+	defer HandleReturn()
+	Try(func() {
 		if a == 0 {
 			r = -1       // return -1
-			try.Return() //
+			Return() //
 		}
 
 		EosAssert(a != 1, &ChainTypeException{}, "error")
-		EosAssert(a != 2, &ForkDatabaseException{}, "error")
 
 	}).Catch(func(e ChainTypeExceptions) {
 		r = 1        // return 1
-		try.Return() //
-	}).Catch(func(e ForkDatabaseExceptions) {
-		r = 2        // return 2
-		try.Return() //
+		Return() //
+
 	}).End()
 
 	return 0
@@ -217,11 +214,11 @@ func TestReturnFunction(t *testing.T) {
 }
 
 func TestCatchExceptionsRethrow(t *testing.T) {
-	try.Try(func() {
+	Try(func() {
 		EosAssert(false, &ChainTypeException{}, "")
 	}).Catch(func(e Exception) {
-		try.Try(func() {
-			try.Throw(e)
+		Try(func() {
+			Throw(e)
 		}).Catch(func(e ChainTypeException) {
 			//shouldn't throw
 		}).End()

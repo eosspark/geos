@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"github.com/eosspark/eos-go/common/arithmetic_types"
 	"github.com/eosspark/eos-go/log"
 	"io"
 	"io/ioutil"
@@ -111,6 +112,56 @@ func (d *decoder) decode(v interface{}) (err error) {
 		r, _ = d.readUvarint()
 		rv.SetUint(r)
 		return
+	}
+
+	switch v.(type) {
+	case *arithmeticTypes.Float64:
+		var uZ uint64
+		var plus bool
+		plus, err = d.readBool()
+		var exp uint16
+		exp, err = d.readUint16()
+		var frac uint64
+		frac, err = d.readUint64()
+
+		if plus {
+			exp &= 0x7FFF
+			uZ = uint64(exp) << 48
+			frac &= uint64(0xFFFEFFFFFFFFFFFF)
+			uZ |= frac
+		} else {
+			uZ = uint64((uint16(0x8000)-exp)|0x8000) << 48
+			uZ |= uint64(0x0001000000000000) - frac
+
+		}
+		rv.SetUint(uZ)
+		return err
+
+	case *arithmeticTypes.Float128:
+		var f128 arithmeticTypes.Float128
+
+		var plus bool
+		plus, err = d.readBool()
+		var exp uint16
+		exp, err = d.readUint16()
+		var sig64 uint64
+		sig64, err = d.readUint64()
+		var sig0 uint64
+		sig0, err = d.readUint64()
+
+		if plus {
+			exp &= 0x7FFF
+			f128.High = uint64(exp) << 48
+			sig64 &= uint64(0xFFFEFFFFFFFFFFFF)
+			f128.High |= sig64
+			f128.Low = sig0
+		} else {
+			f128.High = uint64((uint16(0x8000)-exp)|0x8000) << 48
+			f128.High |= uint64(0x00010000000000FE) - sig64
+			f128.Low = uint64(0xFFFFFFFFFFFFFFFF) - sig0
+		}
+		rv.Set(reflect.ValueOf(f128))
+		return err
 	}
 
 	switch t.Kind() {

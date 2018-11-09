@@ -8,6 +8,7 @@ import (
 	// "math/big"
 	"github.com/eosspark/eos-go/exception"
 	"reflect"
+	"github.com/eosspark/eos-go/exception/try"
 )
 
 const (
@@ -112,7 +113,7 @@ func (e *encoder) encode(v interface{}) (err error) {
 
 	case reflect.Array:
 		l := t.Len()
-		exception.EosAssert(l <= MAX_NUM_ARRAY_ELEMENT, &exception.AssertException{}, "the length of array is too big")
+		try.EosAssert(l <= MAX_NUM_ARRAY_ELEMENT, &exception.AssertException{}, "the length of array is too big")
 		if !e.eosArray {
 			if err = e.writeUVarInt(l); err != nil {
 				return
@@ -127,7 +128,7 @@ func (e *encoder) encode(v interface{}) (err error) {
 		}
 	case reflect.Slice:
 		l := rv.Len()
-		exception.EosAssert(l <= MAX_NUM_ARRAY_ELEMENT, &exception.AssertException{}, "the length of slice is too big")
+		try.EosAssert(l <= MAX_NUM_ARRAY_ELEMENT, &exception.AssertException{}, "the length of slice is too big")
 		if err = e.writeUVarInt(l); err != nil {
 			return
 		}
@@ -202,7 +203,7 @@ func (e *encoder) encode(v interface{}) (err error) {
 }
 
 func (e *encoder) writeByteArray(b []byte) error {
-	exception.EosAssert(len(b) <= MAX_SIZE_OF_BYTE_ARRAYS, &exception.AssertException{}, "rlp encode ByteArray")
+	try.EosAssert(len(b) <= MAX_SIZE_OF_BYTE_ARRAYS, &exception.AssertException{}, "rlp encode ByteArray")
 	if err := e.writeUVarInt(len(b)); err != nil {
 		return err
 	}

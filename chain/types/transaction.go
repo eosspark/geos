@@ -13,6 +13,7 @@ import (
 	"github.com/eosspark/eos-go/exception"
 	"io/ioutil"
 	"math"
+	"github.com/eosspark/eos-go/exception/try"
 )
 
 type Extension struct {
@@ -143,7 +144,7 @@ func (t *Transaction) GetSignatureKeys(signatures []ecc.Signature, chainID *comm
 			recov, _ = sig.PublicKey(digest)
 		}
 		_, exist := recoveredPubKeys.Insert(&recov)
-		exception.EosAssert(allowDuplicateKeys || !exist, &exception.TxDuplicateSig{},
+		try.EosAssert(allowDuplicateKeys || !exist, &exception.TxDuplicateSig{},
 			"transaction includes more than one signature signed using the same key associated with public key: %s}", recov)
 	}
 	/*if useCache {

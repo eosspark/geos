@@ -5,9 +5,12 @@ import (
 	"encoding/binary"
 	"errors"
 	"io"
-	// "math/big"
+
+	"github.com/eosspark/eos-go/common/arithmetic_types"
 	"github.com/eosspark/eos-go/exception"
+	"github.com/eosspark/eos-go/log"
 	"reflect"
+	"github.com/eosspark/eos-go/exception/try"
 )
 
 const (
@@ -32,6 +35,13 @@ type encoder struct {
 
 var staticVariantTag uint8
 var trxIsID bool
+
+var plog log.Logger
+
+func init() {
+	plog = log.New("database pack")
+	plog.SetHandler(log.TerminalHandler)
+}
 
 func newEncoder(w io.Writer) *encoder {
 	return &encoder{
@@ -84,6 +94,58 @@ func (e *encoder) encode(v interface{}) (err error) {
 		return
 	}
 
+	switch v.(type) {
+	case arithmeticTypes.Float64:
+		val, ok := v.(arithmeticTypes.Float64)
+		if !ok {
+			plog.Info("pack wrong: v is not Float64")
+		}
+		f64 := uint64(val)
+		if f64>>63 != 0 { //minus
+			e.writeBool(false)
+			exp := uint16(0x8000) - (uint16(f64>>48) & 0x7FFF)
+			e.writeUint16(exp)
+
+			ss := uint64(0x0001000000000000) - (f64 & uint64(0x0000FFFFFFFFFFFF))
+			e.writeUint64(ss)
+		} else { //plus
+			e.writeBool(true)
+			exp := (uint16(f64 >> 48)) | 0x8000
+			e.writeUint16(exp)
+			ss := f64&uint64(0x0000FFFFFFFFFFFF) | uint64(0x0001000000000000)
+			e.writeUint64(ss)
+		}
+		return nil
+
+	case arithmeticTypes.Float128:
+		f128, ok := v.(arithmeticTypes.Float128)
+		if !ok {
+			plog.Info("pack wrong: v is not Float64")
+		}
+
+		if f128.High>>63 != 0 {
+			e.writeBool(false)
+			exp := uint16(0x8000) - (uint16(f128.High>>48) & 0x7FFF)
+			e.writeUint16(exp)
+
+			low := uint64(0xFFFFFFFFFFFFFFFF) - f128.Low
+			//high := uint64(0x0001000000000000) - (f128.High & uint64(0x0000FFFFFFFFFFFF)) -1
+			high := uint64(0x00010000000000FE) - (f128.High & uint64(0x0000FFFFFFFFFFFF))
+			e.writeUint64(high)
+			e.writeUint64(low)
+
+		} else {
+			e.writeBool(true)
+			exp := (uint16(f128.High >> 48)) | 0x8000
+			e.writeUint16(exp)
+
+			high := f128.High&uint64(0x0000FFFFFFFFFFFF) | uint64(0x0001000000000000)
+			e.writeUint64(high)
+			e.writeUint64(f128.Low)
+		}
+		return nil
+	}
+
 	switch t.Kind() {
 	case reflect.String:
 		return e.writeString(rv.String())
@@ -112,7 +174,7 @@ func (e *encoder) encode(v interface{}) (err error) {
 
 	case reflect.Array:
 		l := t.Len()
-		exception.EosAssert(l <= MAX_NUM_ARRAY_ELEMENT, &exception.AssertException{}, "the length of array is too big")
+		try.EosAssert(l <= MAX_NUM_ARRAY_ELEMENT, &exception.AssertException{}, "the length of array is too big")
 		if !e.eosArray {
 			if err = e.writeUVarInt(l); err != nil {
 				return
@@ -127,7 +189,7 @@ func (e *encoder) encode(v interface{}) (err error) {
 		}
 	case reflect.Slice:
 		l := rv.Len()
-		exception.EosAssert(l <= MAX_NUM_ARRAY_ELEMENT, &exception.AssertException{}, "the length of slice is too big")
+		try.EosAssert(l <= MAX_NUM_ARRAY_ELEMENT, &exception.AssertException{}, "the length of slice is too big")
 		if err = e.writeUVarInt(l); err != nil {
 			return
 		}
@@ -202,7 +264,7 @@ func (e *encoder) encode(v interface{}) (err error) {
 }
 
 func (e *encoder) writeByteArray(b []byte) error {
-	exception.EosAssert(len(b) <= MAX_SIZE_OF_BYTE_ARRAYS, &exception.AssertException{}, "rlp encode ByteArray")
+	try.EosAssert(len(b) <= MAX_SIZE_OF_BYTE_ARRAYS, &exception.AssertException{}, "rlp encode ByteArray")
 	if err := e.writeUVarInt(len(b)); err != nil {
 		return err
 	}

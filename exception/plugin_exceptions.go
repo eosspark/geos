@@ -1,6 +1,8 @@
 package exception
 
-type PluginException struct{ logMessage }
+import . "github.com/eosspark/eos-go/log"
+
+type PluginException struct{ LogMessage }
 
 func (PluginException) ChainExceptions()  {}
 func (PluginException) PluginExceptions() {}
@@ -9,7 +11,7 @@ func (PluginException) What() string {
 	return "Plugin exception"
 }
 
-type MissingChainApiPluginException struct{ logMessage }
+type MissingChainApiPluginException struct{ LogMessage }
 
 func (MissingChainApiPluginException) ChainExceptions()  {}
 func (MissingChainApiPluginException) PluginExceptions() {}
@@ -18,7 +20,7 @@ func (MissingChainApiPluginException) What() string {
 	return "Missing Chain API Plugin"
 }
 
-type MissingWalletApiPluginException struct{ logMessage }
+type MissingWalletApiPluginException struct{ LogMessage }
 
 func (MissingWalletApiPluginException) ChainExceptions()  {}
 func (MissingWalletApiPluginException) PluginExceptions() {}
@@ -27,7 +29,7 @@ func (MissingWalletApiPluginException) What() string {
 	return "Missing Wallet API Plugin"
 }
 
-type MissingHistoryApiPluginException struct{ logMessage }
+type MissingHistoryApiPluginException struct{ LogMessage }
 
 func (MissingHistoryApiPluginException) ChainExceptions()  {}
 func (MissingHistoryApiPluginException) PluginExceptions() {}
@@ -36,7 +38,7 @@ func (MissingHistoryApiPluginException) What() string {
 	return "Missing History API Plugin"
 }
 
-type MissingNetApiPluginException struct{ logMessage }
+type MissingNetApiPluginException struct{ LogMessage }
 
 func (MissingNetApiPluginException) ChainExceptions()  {}
 func (MissingNetApiPluginException) PluginExceptions() {}
@@ -45,7 +47,7 @@ func (MissingNetApiPluginException) What() string {
 	return "Missing Net API Plugin"
 }
 
-type MissingChainPluginException struct{ logMessage }
+type MissingChainPluginException struct{ LogMessage }
 
 func (MissingChainPluginException) ChainExceptions()  {}
 func (MissingChainPluginException) PluginExceptions() {}
@@ -54,7 +56,7 @@ func (MissingChainPluginException) What() string {
 	return "Missing Chain Plugin"
 }
 
-type PluginConfigException struct{ logMessage }
+type PluginConfigException struct{ LogMessage }
 
 func (PluginConfigException) ChainExceptions()  {}
 func (PluginConfigException) PluginExceptions() {}

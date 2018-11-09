@@ -177,7 +177,6 @@ func (impl *ProducerPluginImpl) OnIncomingBlock(block *types.SignedBlock) {
 
 	// exceptions throw out, make sure we restart our loop
 	defer func() {
-		fmt.Println("===incoming loop")
 		impl.ScheduleProductionLoop()
 	}()
 
