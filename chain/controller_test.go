@@ -35,11 +35,23 @@ func TestAbortBlock(t *testing.T) {
 func CallBackApplayHandler(p *ApplyContext) {
 	fmt.Println("SetApplyHandler CallBack")
 }
+
+func CallBackApplayHandler2(p *ApplyContext) {
+	fmt.Println("SetApplyHandler CallBack2")
+}
 func TestSetApplyHandler(t *testing.T) {
 	con := GetControllerInstance()
 	fmt.Println(con)
 	//applyCon := ApplyContext{}
 	con.SetApplayHandler(111, 111, 111, CallBackApplayHandler)
+	con.SetApplayHandler(111, 111, 222, CallBackApplayHandler2)
+
+	handler1 := con.FindApplyHandler(111, 111, 111)
+	handler1(nil)
+	fmt.Println(handler1)
+
+	handler2 := con.FindApplyHandler(111, 111, 222)
+	handler2(nil)
 }
 
 func Test_ControllerDB(t *testing.T) {
