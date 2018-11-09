@@ -62,26 +62,26 @@ func FcRethrowException(er Exception, logLevel LogLevel, format string, args ...
 
 func (c *CatchOrFinally) FcLogAndRethrow() *CatchOrFinally {
 	return c.Catch(func(er Exception) {
-		log.Warn(er.Message())
+		Warn(er.Message())
 
 		FcRethrowException(er, LvlWarn, "rethrow")
 	}).Catch(func(e error) {
 		fce := &FcException{}
 		fce.FcLogMessage(LvlWarn, "rethrow %s: ", e.Error())
-		log.Warn(fce.Message())
+		Warn(fce.Message())
 		Throw(fce)
 
 	}).Catch(func(a interface{}) {
 		e := UnHandledException{}
 		e.FcLogMessage(LvlWarn, "rethrow", a)
-		log.Warn(e.Message())
+		Warn(e.Message())
 		Throw(e)
 	})
 }
 
 func (c *CatchOrFinally) FcCaptureLogAndRethrow(args ...interface{}) *CatchOrFinally {
 	return c.Catch(func(er Exception) {
-		log.Warn(er.Message())
+		Warn(er.Message())
 		FcRethrowException(er, LvlWarn, "rethrow", args...)
 
 	}).Catch(func(e error) {
@@ -93,40 +93,40 @@ func (c *CatchOrFinally) FcCaptureLogAndRethrow(args ...interface{}) *CatchOrFin
 	}).Catch(func(a interface{}) {
 		e := &UnHandledException{}
 		e.FcLogMessage(LvlWarn, "rethrow", a)
-		log.Warn(e.Message())
+		Warn(e.Message())
 		Throw(e)
 	})
 }
 
 func (c *CatchOrFinally) FcCaptureAndLog(args ...interface{}) *CatchOrFinally {
 	return c.Catch(func(er Exception) {
-		log.Warn(er.Message())
+		Warn(er.Message())
 
 	}).Catch(func(e error) {
 		fce := &FcException{}
 		fce.FcLogMessage(LvlWarn, "rethrow %s: ", e.Error())
-		log.Warn(fce.Message())
+		Warn(fce.Message())
 
 	}).Catch(func(a interface{}) {
 		e := &UnHandledException{}
 		e.FcLogMessage(LvlWarn, "rethrow", a)
-		log.Warn(e.Message())
+		Warn(e.Message())
 	})
 }
 
 func (c *CatchOrFinally) FcLogAndDrop(args ...interface{}) *CatchOrFinally {
 	return c.Catch(func(er Exception) {
-		log.Warn(er.Message())
+		Warn(er.Message())
 
 	}).Catch(func(e error) {
 		fce := &FcException{}
 		fce.FcLogMessage(LvlWarn, "rethrow %s: ", e.Error())
-		log.Warn(fce.Message())
+		Warn(fce.Message())
 
 	}).Catch(func(a interface{}) {
 		e := &UnHandledException{}
 		e.FcLogMessage(LvlWarn, "rethrow", a)
-		log.Warn(e.Message())
+		Warn(e.Message())
 	})
 }
 
