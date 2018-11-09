@@ -6,11 +6,11 @@ import (
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/ecc"
-	"github.com/eosspark/eos-go/log"
 	Chain "github.com/eosspark/eos-go/plugins/producer_plugin/mock" /*test mode*/
 	//Chain "github.com/eosspark/eos-go/chain" /*real chain*/
 	. "github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
+	"github.com/eosspark/eos-go/log"
 )
 
 func (impl *ProducerPluginImpl) CalculateNextBlockTime(producerName *common.AccountName, currentBlockTime common.BlockTimeStamp) *common.TimePoint {
@@ -130,27 +130,25 @@ func (impl *ProducerPluginImpl) StartBlock() (EnumStartBlockRusult, bool) {
 		impl.PendingBlockMode = EnumPendingBlockMode(speculating)
 
 	} else if !hasSignatureProvider {
+		log.Error("Not producing block because I don't have the private key for %s", scheduleProducer.BlockSigningKey)
 		impl.PendingBlockMode = EnumPendingBlockMode(speculating)
-		//elog("Not producing block because I don't have the private key for ${scheduled_key}", ("scheduled_key", scheduled_producer.block_signing_key));
 
 	} else if impl.ProductionPaused {
-		//elog("Not producing block because production is explicitly paused");
+		log.Error("Not producing block because production is explicitly paused")
 		impl.PendingBlockMode = EnumPendingBlockMode(speculating)
 
 	} else if impl.MaxIrreversibleBlockAgeUs >= 0 && irreversibleBlockAge >= impl.MaxIrreversibleBlockAgeUs {
-		//elog("Not producing block because the irreversible block is too old [age:${age}s, max:${max}s]", ("age", irreversible_block_age.count() / 1'000'000)( "max", _max_irreversible_block_age_us.count() / 1'000'000 ));
+		log.Error("Not producing block because the irreversible block is too old [age:%ds, max:%ds]", irreversibleBlockAge.Count() / 1e6, impl.MaxIrreversibleBlockAgeUs.Count() / 1e6 )
 		impl.PendingBlockMode = EnumPendingBlockMode(speculating)
 	}
 
 	if impl.PendingBlockMode == EnumPendingBlockMode(producing) {
 		if hasCurrentWatermark {
 			if currentWatermark >= hbs.BlockNum+1 {
-				/*
-									elog("Not producing block because \"${producer}\" signed a BFT confirmation OR block at a higher block number (${watermark}) than the current fork's head (${head_block_num})",
-					                ("producer", scheduled_producer.producer_name)
-					                ("watermark", currrent_watermark_itr->second)
-					                ("head_block_num", hbs->block_num));
-				*/
+				log.Error("Not producing block because \"%s\" signed a BFT confirmation OR block at a higher block number (%d) than the current fork's head (%d)",
+					scheduleProducer.ProducerName,
+					currentWatermark,
+					hbs.BlockNum)
 				impl.PendingBlockMode = EnumPendingBlockMode(speculating)
 			}
 
@@ -160,7 +158,7 @@ func (impl *ProducerPluginImpl) StartBlock() (EnumStartBlockRusult, bool) {
 	if impl.PendingBlockMode == EnumPendingBlockMode(speculating) {
 		headBlockAge := now.Sub(chain.HeadBlockTime())
 		if headBlockAge > common.Seconds(5) {
-			fmt.Println("start block speculating")
+			fmt.Println("===start block speculating")
 			return EnumStartBlockRusult(waiting), lastBlock
 		}
 	}
@@ -196,7 +194,7 @@ func (impl *ProducerPluginImpl) StartBlock() (EnumStartBlockRusult, bool) {
 	if pbs != nil {
 
 		if impl.PendingBlockMode == EnumPendingBlockMode(producing) && pbs.BlockSigningKey != scheduleProducer.BlockSigningKey {
-			//C++ elog("Block Signing Key is not expected value, reverting to speculative mode! [expected: \"${expected}\", actual: \"${actual\"", ("expected", scheduled_producer.block_signing_key)("actual", pbs->block_signing_key));
+			log.Error("Block Signing Key is not expected value, reverting to speculative mode! [expected: \"%s\", actual: \"%s\"", scheduleProducer.BlockSigningKey, pbs.BlockSigningKey)
 			impl.PendingBlockMode = EnumPendingBlockMode(speculating)
 		}
 
@@ -366,7 +364,7 @@ func (impl *ProducerPluginImpl) ScheduleProductionLoop() {
 	result, lastBlock := impl.StartBlock()
 
 	if result == EnumStartBlockRusult(failed) {
-		//elog("Failed to start a pending block, will try again later");
+		log.Error("Failed to start a pending block, will try again later")
 		impl.Timer.ExpiresFromNow(common.Microseconds(common.DefaultConfig.BlockIntervalUs / 10))
 
 		// we failed to start a block, so try again later?
@@ -399,17 +397,17 @@ func (impl *ProducerPluginImpl) ScheduleProductionLoop() {
 				deadline += common.Microseconds(impl.ProduceTimeOffsetUs)
 			}
 			impl.Timer.ExpiresAt(deadline)
-			//TODO: fc_dlog
+			log.Debug("Scheduling Block Production on Normal Block #%d for %s", chain.PendingBlockState().BlockNum, deadline)
 		} else {
 			EosAssert(chain.PendingBlockState() != nil, &MissingPendingBlockState{}, "producing without pending_block_state")
 			expectTime := chain.PendingBlockTime().SubUs(common.Microseconds(common.DefaultConfig.BlockIntervalUs))
 			// ship this block off up to 1 block time earlier or immediately
 			if common.Now() >= expectTime {
 				impl.Timer.ExpiresFromNow(0)
-				//TODO: fc_dlog
+				log.Debug("Scheduling Block Production on Exhausted Block #%d immediately", chain.PendingBlockState().BlockNum)
 			} else {
 				impl.Timer.ExpiresAt(expectTime.TimeSinceEpoch())
-				//TODO: fc_dlog
+				log.Debug("Scheduling Block Production on Exhausted Block #%d at %s", chain.PendingBlockState().BlockNum, expectTime)
 			}
 		}
 
@@ -417,19 +415,19 @@ func (impl *ProducerPluginImpl) ScheduleProductionLoop() {
 		cid := impl.timerCorelationId
 		impl.Timer.AsyncWait(func(err error) {
 			if impl != nil && err == nil && cid == impl.timerCorelationId {
-				impl.MaybeProduceBlock()
-				//TODO: fc_dlog(_log, "Producing Block #${num} returned: ${res}", ("num", chain.pending_block_state()->block_num)("res", res) );
+				res := impl.MaybeProduceBlock()
+				log.Debug("Producing Block #%d returned: %v", chain.PendingBlockState().BlockNum, res)
 			}
 		})
 
 	} else if impl.PendingBlockMode == EnumPendingBlockMode(speculating) && impl.Producers.Len() > 0 && !impl.ProductionDisabledByPolicy() {
-		//TODO: fc_dlog(_log, "Specualtive Block Created; Scheduling Speculative/Production Change");
+		log.Debug("Speculative Block Created; Scheduling Speculative/Production Change")
 		EosAssert(chain.PendingBlockState() != nil, &MissingPendingBlockState{}, "speculating without pending_block_state")
 		pbs := chain.PendingBlockState()
 		impl.ScheduleDelayedProductionLoop(pbs.Header.Timestamp)
 
 	} else {
-		//TODO: fc_dlog(_log, "Speculative Block Created");
+		log.Debug( "Speculative Block Created")
 	}
 }
 
@@ -452,36 +450,45 @@ func (impl *ProducerPluginImpl) ScheduleDelayedProductionLoop(currentBlockTime c
 	}
 
 	if wakeUpTime != nil {
-		//TODO: fc_dlog(_log, "Scheduling Speculative/Production Change at ${time}", ("time", wake_up_time));
+		log.Debug("Scheduling Speculative/Production Change at %s", wakeUpTime)
 		impl.Timer.ExpiresAt(wakeUpTime.TimeSinceEpoch())
 
 		impl.timerCorelationId++
 		cid := impl.timerCorelationId
 		impl.Timer.AsyncWait(func(err error) {
 			if impl != nil && err == nil && cid == impl.timerCorelationId {
+				fmt.Println("===re loop")
 				impl.ScheduleProductionLoop()
 			}
 		})
 	} else {
-		//TODO: fc_dlog(_log, "Speculative Block Created; Not Scheduling Speculative/Production, no local producers had valid wake up times");
+		log.Debug("Speculative Block Created; Not Scheduling Speculative/Production, no local producers had valid wake up times")
 	}
 
 }
 
-func (impl *ProducerPluginImpl) MaybeProduceBlock() (res bool) {
+func (impl *ProducerPluginImpl) MaybeProduceBlock() bool {
 	defer func() {
 		impl.ScheduleProductionLoop()
 	}()
 
+	returning, r := false, false
 	Try(func() {
 		impl.ProduceBlock()
-		res = true
+		returning, r = true, true
 	}).Catch(func(e GuardExceptions) {
 		//TODO: app().get_plugin<chain_plugin>().handle_guard_exception(e);
-		res = false
+		returning, r = true, false
 	}).FcLogAndDrop().End()
 
-	return
+	if returning {
+		return r
+	}
+
+	log.Debug("Aborting block due to produce_block error")
+	chain := Chain.GetControllerInstance()
+	chain.AbortBlock()
+	return false
 }
 
 func (impl *ProducerPluginImpl) ProduceBlock() {
@@ -504,7 +511,7 @@ func (impl *ProducerPluginImpl) ProduceBlock() {
 	newBs := chain.HeadBlockState()
 	impl.ProducerWatermarks[newBs.Header.Producer] = chain.HeadBlockNum()
 
-	fmt.Printf("Produced block %s...#%d @ %s signed by %s [trxs: %d, lib: %d, confirmed: %d]\n",
+	log.Info("Produced block %s...#%d @ %s signed by %s [trxs: %d, lib: %d, confirmed: %d]\n",
 		newBs.BlockId.String()[0:16], newBs.BlockNum, newBs.Header.Timestamp, common.S(uint64(newBs.Header.Producer)),
 		len(newBs.SignedBlock.Transactions), chain.LastIrreversibleBlockNum(), newBs.Header.Confirmed)
 }

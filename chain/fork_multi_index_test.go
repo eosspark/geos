@@ -11,7 +11,7 @@ import (
 	"testing"
 )
 
-func initMulti() (*ForkMultiIndex, *types.BlockState) {
+func initMulti() (*forkMultiIndex, *types.BlockState) {
 	initPriKey, _ := ecc.NewPrivateKey("5KYZdUEo39z3FPrtuX2QbbwGnNP5zTd7yyr2SC1j299sBCnWjss")
 	initPubKey := initPriKey.PublicKey()
 	eosio := common.AccountName(common.N("eosio"))
@@ -43,7 +43,7 @@ func initMulti() (*ForkMultiIndex, *types.BlockState) {
 	return mi, blockState
 }
 
-func GenerateNext() (*ForkMultiIndex, *types.BlockState) {
+func GenerateNext() (*forkMultiIndex, *types.BlockState) {
 	mi, bs := initMulti()
 
 	//t100 := common.BlockTimeStamp(1162425600 + 100)
@@ -53,7 +53,7 @@ func GenerateNext() (*ForkMultiIndex, *types.BlockState) {
 	bhs.BlockId = bhs.Header.BlockID()
 	blockState := types.NewBlockState(*bhs)
 	mi.Insert(blockState)
-	log.Info("%v", mi.Indexs["byBlockId"].KeyValue.Len())
+	log.Info("%v", mi.Indexs["byBlockId"].keyValue.Len())
 	return mi, bs
 }
 
@@ -62,7 +62,7 @@ func TestNewForkContainer_Insert(t *testing.T) {
 	idx := mi.GetIndex("byBlockId")
 	b := idx.Begin()
 	idxEle, _ := b.KeySet.FindData(b.Key)
-	val := idxEle.(*IndexElement).value
+	val := idxEle.(*indexElement).value
 
 	assert.Equal(t, bs, val.(*types.BlockState))
 
@@ -72,13 +72,15 @@ func TestNewForkContainer_Begin(t *testing.T) {
 	mi, bs := initMulti()
 	idx := mi.GetIndex("byBlockId")
 	b := idx.Begin()
-	assert.Equal(t, bs, b.KeySet.Data[0].(*IndexElement).value)
+	assert.Equal(t, bs, b.KeySet.Data[0].(*indexElement).value)
+	log.Info("key:%v", b.KeySet.Data[0].(*indexElement).value)
 	prevIdx := mi.GetIndex("byPrev")
 	pit := prevIdx.Begin()
 	idxEle, _ := pit.KeySet.FindData(pit.Key)
-	uniqueKey := idxEle.(*IndexElement).value
-	idxEle, _ = idx.KeyValue.FindData(uniqueKey.([]byte))
-	obj := idxEle.(*IndexElement).value.(*types.BlockState)
+	log.Info("key:%v", idxEle.(*indexElement).value)
+	uniqueKey := idxEle.(*indexElement).value.(*[]byte)
+	idxEle, _ = idx.keyValue.FindData(*uniqueKey)
+	obj := idxEle.(*indexElement).value.(*types.BlockState)
 	log.Info("begin obj:%#v", obj)
 	assert.Equal(t, bs, obj)
 }
@@ -92,8 +94,8 @@ func TestForkContainer_LowerBound(t *testing.T) {
 	s = append(s, bn...)
 	itr := idx.LowerBound(s)
 	idxEle := itr.KeySet.Data[0]
-	assert.Equal(t, append([]byte("byBlockId_"), bs.BlockId.Bytes()...), idxEle.(*IndexElement).value.([]byte))
-	log.Info("second key:%#v", idxEle.(*IndexElement).value.([]byte))
+	assert.Equal(t, append([]byte("byBlockId_"), bs.BlockId.Bytes()...), *idxEle.(*indexElement).value.(*[]byte))
+	log.Info("second key:%#v", idxEle.(*indexElement).value.(*[]byte))
 
 }
 
@@ -107,6 +109,6 @@ func TestForkContainer_UpperBound(t *testing.T) {
 	s = append(s, bn...)
 	itr := idx.UpperBound(s)
 	idxEle := itr.KeySet.Data[0]
-	fmt.Println(idxEle.(*IndexElement).value)
-	assert.Equal(t, append([]byte("byBlockId_"), bs.BlockId.Bytes()...), idxEle.(*IndexElement).value.([]byte))
+	fmt.Println(idxEle.(*indexElement).value)
+	assert.Equal(t, append([]byte("byBlockId_"), bs.BlockId.Bytes()...), *idxEle.(*indexElement).value.(*[]byte))
 }

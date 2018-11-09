@@ -28,47 +28,6 @@ import (
 )
 
 const crypto_api_exception int = 0
-
-func TestContextApis(t *testing.T) {
-	fnames, err := filepath.Glob(filepath.Join("testdata_context", "*.wasm"))
-	if err != nil {
-		t.Fatal(err)
-	}
-	for _, fname := range fnames {
-		name := fname
-		t.Run(filepath.Base(name), func(t *testing.T) {
-			code, err := ioutil.ReadFile(name)
-			if err != nil {
-				t.Fatal(err)
-			}
-
-			_, fileName := filepath.Split(name)
-			if strings.Compare(fileName, "hello.wasm") == 0 {
-				fmt.Println(fileName)
-				wasm := wasmgo.NewWasmGo()
-				applyContext := &chain.ApplyContext{
-					Receiver: common.AccountName(common.N("hello")),
-					Act: &types.Action{
-						Account: common.AccountName(common.N("hello")),
-						Name:    common.ActionName(common.N("hi")),
-						Data:    []byte{0x00, 0x00, 0x00, 0x00, 0x5c, 0x05, 0xa3, 0xe1}, //'{"walker"}'
-					},
-				}
-
-				codeVersion := crypto.NewSha256Byte([]byte(code))
-				wasm.Apply(codeVersion, code, applyContext)
-
-				//print "hello,walker"
-				//fmt.Println(applyContext.PendingConsoleOutput)
-				if strings.Compare(applyContext.PendingConsoleOutput, "Hello, walker") != 0 {
-					t.Fatalf("error excute hello.wasm")
-				}
-			}
-
-		})
-	}
-}
-
 const DUMMY_ACTION_DEFAULT_A = 0x45
 const DUMMY_ACTION_DEFAULT_B = 0xab11cd1244556677
 const DUMMY_ACTION_DEFAULT_C = 0x7451ae12
@@ -96,34 +55,39 @@ func TestContextAction(t *testing.T) {
 			t.Fatal(err)
 		}
 
+		control := startBlock()
+		createNewAccount(control, "testapi")
+
 		dummy13 := dummy_action{DUMMY_ACTION_DEFAULT_A, DUMMY_ACTION_DEFAULT_B, DUMMY_ACTION_DEFAULT_C}
 
-		callTestFunction(code, "test_action", "assert_true", []byte{})
-		callTestFunction(code, "test_action", "assert_false", []byte{})
+		callTestFunction(control, code, "test_action", "assert_true", []byte{}, "testapi")
+		callTestFunction(control, code, "test_action", "assert_false", []byte{}, "testapi")
 
 		b, _ := rlp.EncodeToBytes(&dummy13)
-		callTestFunction(code, "test_action", "read_action_normal", b)
+		callTestFunction(control, code, "test_action", "read_action_normal", b, "testapi")
 
 		//rawBytes := []byte{(1 << 16)}
 		b = bytes.Repeat([]byte{byte(0x01)}, 1<<16)
-		callTestFunction(code, "test_action", "read_action_to_0", b)
+		callTestFunction(control, code, "test_action", "read_action_to_0", b, "testapi")
 		b = bytes.Repeat([]byte{byte(0x01)}, 1<<16+1)
-		callTestFunction(code, "test_action", "read_action_to_0", b)
+		callTestFunction(control, code, "test_action", "read_action_to_0", b, "testapi")
 
 		b = bytes.Repeat([]byte{byte(0x01)}, 1)
-		callTestFunction(code, "test_action", "read_action_to_64k", b)
+		callTestFunction(control, code, "test_action", "read_action_to_64k", b, "testapi")
 		b = bytes.Repeat([]byte{byte(0x01)}, 3)
-		callTestFunction(code, "test_action", "read_action_to_64k", b)
+		callTestFunction(control, code, "test_action", "read_action_to_64k", b, "testapi")
 
-		callTestFunction(code, "test_action", "require_auth", []byte{})
+		callTestFunction(control, code, "test_action", "require_auth", []byte{}, "testapi")
 
 		a3only := []types.PermissionLevel{{common.AccountName(common.N("acc3")), common.PermissionName(common.N("active"))}}
 		b, _ = rlp.EncodeToBytes(a3only)
-		callTestFunction(code, "test_action", "require_auth", b)
+		callTestFunction(control, code, "test_action", "require_auth", b, "testapi")
 
 		a4only := []types.PermissionLevel{{common.AccountName(common.N("acc4")), common.PermissionName(common.N("active"))}}
 		b, _ = rlp.EncodeToBytes(a4only)
-		callTestFunction(code, "test_action", "require_auth", b)
+		callTestFunction(control, code, "test_action", "require_auth", b, "testapi")
+
+		stopBlock(control)
 
 	})
 
@@ -138,30 +102,33 @@ func TestContextPrint(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		trace := callTestFunction(code, "test_print", "test_prints", []byte{})
-		result := trace.PendingConsoleOutput
+		control := startBlock()
+		createNewAccount(control, "testapi")
+
+		trace := callTestFunction(control, code, "test_print", "test_prints", []byte{}, "testapi")
+		result := trace
 		assert.Equal(t, result, "abcefg")
 
-		trace = callTestFunction(code, "test_print", "test_prints_l", []byte{})
-		result = trace.PendingConsoleOutput
+		trace = callTestFunction(control, code, "test_print", "test_prints_l", []byte{}, "testapi")
+		result = trace
 		assert.Equal(t, result, "abatest")
 
-		trace = callTestFunction(code, "test_print", "test_printi", []byte{})
-		result = trace.PendingConsoleOutput
+		trace = callTestFunction(control, code, "test_print", "test_printi", []byte{}, "testapi")
+		result = trace
 		assert.Equal(t, result[0:1], string(strconv.FormatInt(0, 10)))
 		assert.Equal(t, result[1:7], string(strconv.FormatInt(556644, 10)))
 		assert.Equal(t, result[7:9], string(strconv.FormatInt(-1, 10)))
 
-		trace = callTestFunction(code, "test_print", "test_printui", []byte{})
-		result = trace.PendingConsoleOutput
+		trace = callTestFunction(control, code, "test_print", "test_printui", []byte{}, "testapi")
+		result = trace
 		assert.Equal(t, result[0:1], string(strconv.FormatInt(0, 10)))
 		assert.Equal(t, result[1:7], string(strconv.FormatInt(556644, 10)))
 
 		v := -1
 		assert.Equal(t, result[7:len(result)], string(strconv.FormatUint(uint64(v), 10))) //-1 / 1844674407370955161
 
-		trace = callTestFunction(code, "test_print", "test_printn", []byte{})
-		result = trace.PendingConsoleOutput
+		trace = callTestFunction(control, code, "test_print", "test_printn", []byte{}, "testapi")
+		result = trace
 		assert.Equal(t, result[0:5], "abcde")
 		assert.Equal(t, result[5:10], "ab.de")
 		assert.Equal(t, result[10:16], "1q1q1q")
@@ -171,8 +138,8 @@ func TestContextPrint(t *testing.T) {
 		assert.Equal(t, result[52:65], "abcdefghijkl1")
 		assert.Equal(t, result[65:78], "abcdefghijkl1")
 
-		trace = callTestFunction(code, "test_print", "test_printi128", []byte{})
-		result = trace.PendingConsoleOutput
+		trace = callTestFunction(control, code, "test_print", "test_printi128", []byte{}, "testapi")
+		result = trace
 
 		s := strings.Split(result, "\n")
 		assert.Equal(t, s[0], "1")
@@ -180,26 +147,28 @@ func TestContextPrint(t *testing.T) {
 		assert.Equal(t, s[2], "-170141183460469231731687303715884105728")
 		assert.Equal(t, s[3], "-87654323456")
 
-		trace = callTestFunction(code, "test_print", "test_printui128", []byte{})
-		result = trace.PendingConsoleOutput
+		trace = callTestFunction(control, code, "test_print", "test_printui128", []byte{}, "testapi")
+		result = trace
 		s = strings.Split(result, "\n")
 		assert.Equal(t, s[0], "340282366920938463463374607431768211455")
 		assert.Equal(t, s[1], "0")
 		assert.Equal(t, s[2], "87654323456")
 
-		trace = callTestFunction(code, "test_print", "test_printsf", []byte{})
-		result = trace.PendingConsoleOutput
+		trace = callTestFunction(control, code, "test_print", "test_printsf", []byte{}, "testapi")
+		result = trace
 		r := strings.Split(result, "\n")
 		assert.Equal(t, r[0], "5.000000e-01")
 		assert.Equal(t, r[1], "-3.750000e+00")
 		assert.Equal(t, r[2], "6.666667e-07")
 
-		trace = callTestFunction(code, "test_print", "test_printdf", []byte{})
-		result = trace.PendingConsoleOutput
+		trace = callTestFunction(control, code, "test_print", "test_printdf", []byte{}, "testapi")
+		result = trace
 		r = strings.Split(result, "\n")
 		assert.Equal(t, r[0], "5.000000000000000e-01")
 		assert.Equal(t, r[1], "-3.750000000000000e+00")
 		assert.Equal(t, r[2], "6.666666666666666e-07")
+
+		stopBlock(control)
 
 	})
 
@@ -214,10 +183,15 @@ func TestContextTypes(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		callTestFunction(code, "test_types", "types_size", []byte{})
-		callTestFunction(code, "test_types", "char_to_symbol", []byte{})
-		callTestFunction(code, "test_types", "string_to_name", []byte{})
-		callTestFunction(code, "test_types", "name_class", []byte{})
+		control := startBlock()
+		createNewAccount(control, "testapi")
+
+		callTestFunction(control, code, "test_types", "types_size", []byte{}, "testapi")
+		callTestFunction(control, code, "test_types", "char_to_symbol", []byte{}, "testapi")
+		callTestFunction(control, code, "test_types", "string_to_name", []byte{}, "testapi")
+		callTestFunction(control, code, "test_types", "name_class", []byte{}, "testapi")
+
+		stopBlock(control)
 
 	})
 
@@ -231,36 +205,42 @@ func TestContextMemory(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		callTestFunction(code, "test_memory", "test_memory_allocs", []byte{})
-		callTestFunction(code, "test_memory", "test_memory_hunk", []byte{})
-		callTestFunction(code, "test_memory", "test_memory_hunks", []byte{})
-		//callTestFunction(code, "test_memory", "test_memory_hunks_disjoint", []byte{})
-		callTestFunction(code, "test_memory", "test_memset_memcpy", []byte{})
 
-		callTestFunctionCheckException(code, "test_memory", "test_memcpy_overlap_start", []byte{}, exception.OverlappingMemoryError{}.Code(), exception.OverlappingMemoryError{}.What())
-		callTestFunctionCheckException(code, "test_memory", "test_memcpy_overlap_end", []byte{}, exception.OverlappingMemoryError{}.Code(), exception.OverlappingMemoryError{}.What())
+		control := startBlock()
+		createNewAccount(control, "testapi")
 
-		callTestFunction(code, "test_memory", "test_memcmp", []byte{})
+		callTestFunction(control, code, "test_memory", "test_memory_allocs", []byte{}, "testapi")
+		callTestFunction(control, code, "test_memory", "test_memory_hunk", []byte{}, "testapi")
+		callTestFunction(control, code, "test_memory", "test_memory_hunks", []byte{}, "testapi")
+		//callTestFunction(control, code, "test_memory", "test_memory_hunks_disjoint", []byte{}, "testapi")
+		callTestFunction(control, code, "test_memory", "test_memset_memcpy", []byte{}, "testapi")
 
-		//callTestFunction(code, "test_memory", "test_outofbound_0", []byte{})
-		// callTestFunction(code, "test_memory", "test_outofbound_1", []byte{})
-		// callTestFunction(code, "test_memory", "test_outofbound_2", []byte{})
-		// callTestFunction(code, "test_memory", "test_outofbound_3", []byte{})
-		// callTestFunction(code, "test_memory", "test_outofbound_4", []byte{})
-		// callTestFunction(code, "test_memory", "test_outofbound_5", []byte{})
-		// callTestFunction(code, "test_memory", "test_outofbound_6", []byte{})
-		// callTestFunction(code, "test_memory", "test_outofbound_7", []byte{})
-		// callTestFunction(code, "test_memory", "test_outofbound_8", []byte{})
-		// callTestFunction(code, "test_memory", "test_outofbound_9", []byte{})
-		// callTestFunction(code, "test_memory", "test_outofbound_10", []byte{})
-		// callTestFunction(code, "test_memory", "test_outofbound_11", []byte{})
-		// callTestFunction(code, "test_memory", "test_outofbound_12", []byte{})
-		// callTestFunction(code, "test_memory", "test_outofbound_13", []byte{})
+		callTestFunctionCheckException(control, code, "test_memory", "test_memcpy_overlap_start", []byte{}, "testapi", exception.OverlappingMemoryError{}.Code(), exception.OverlappingMemoryError{}.Message())
+		callTestFunctionCheckException(control, code, "test_memory", "test_memcpy_overlap_end", []byte{}, "testapi", exception.OverlappingMemoryError{}.Code(), exception.OverlappingMemoryError{}.Message())
 
-		callTestFunction(code, "test_extended_memory", "test_initial_buffer", []byte{})
-		callTestFunction(code, "test_extended_memory", "test_page_memory", []byte{})
-		callTestFunction(code, "test_extended_memory", "test_page_memory_exceeded", []byte{})
-		callTestFunction(code, "test_extended_memory", "test_page_memory_negative_bytes", []byte{})
+		callTestFunction(control, code, "test_memory", "test_memcmp", []byte{}, "testapi")
+
+		//callTestFunction(control, code, "test_memory", "test_outofbound_0", []byte{}, "testapi")
+		// callTestFunction(control, code, "test_memory", "test_outofbound_1", []byte{}, "testapi")
+		// callTestFunction(control, code, "test_memory", "test_outofbound_2", []byte{}, "testapi")
+		// callTestFunction(control, code, "test_memory", "test_outofbound_3", []byte{}, "testapi")
+		// callTestFunction(control, code, "test_memory", "test_outofbound_4", []byte{}, "testapi")
+		// callTestFunction(control, code, "test_memory", "test_outofbound_5", []byte{}, "testapi")
+		// callTestFunction(control, code, "test_memory", "test_outofbound_6", []byte{}, "testapi")
+		// callTestFunction(control, code, "test_memory", "test_outofbound_7", []byte{}, "testapi")
+		// callTestFunction(control, code, "test_memory", "test_outofbound_8", []byte{}, "testapi")
+		// callTestFunction(control, code, "test_memory", "test_outofbound_9", []byte{}, "testapi")
+		// callTestFunction(control, code, "test_memory", "test_outofbound_10", []byte{}, "testapi")
+		// callTestFunction(control, code, "test_memory", "test_outofbound_11", []byte{}, "testapi")
+		// callTestFunction(control, code, "test_memory", "test_outofbound_12", []byte{}, "testapi")
+		// callTestFunction(control, code, "test_memory", "test_outofbound_13", []byte{}, "testapi")
+
+		callTestFunction(control, code, "test_extended_memory", "test_initial_buffer", []byte{}, "testapi")
+		callTestFunction(control, code, "test_extended_memory", "test_page_memory", []byte{}, "testapi")
+		callTestFunction(control, code, "test_extended_memory", "test_page_memory_exceeded", []byte{}, "testapi")
+		callTestFunction(control, code, "test_extended_memory", "test_page_memory_negative_bytes", []byte{}, "testapi")
+
+		stopBlock(control)
 	})
 
 }
@@ -330,25 +310,30 @@ func TestContextCrypto(t *testing.T) {
 
 		fmt.Println("load:", hex.EncodeToString(load))
 
-		callTestFunction(code, "test_crypto", "test_recover_key", load)
-		callTestFunction(code, "test_crypto", "test_recover_key_assert_true", load)
-		callTestFunction(code, "test_crypto", "test_sha1", []byte{})
-		callTestFunction(code, "test_crypto", "test_sha256", []byte{})
-		callTestFunction(code, "test_crypto", "test_sha512", []byte{})
-		callTestFunction(code, "test_crypto", "test_ripemd160", []byte{})
-		callTestFunction(code, "test_crypto", "sha1_no_data", []byte{})
-		callTestFunction(code, "test_crypto", "sha256_no_data", []byte{})
-		callTestFunction(code, "test_crypto", "sha512_no_data", []byte{})
-		callTestFunction(code, "test_crypto", "ripemd160_no_data", []byte{})
-		callTestFunction(code, "test_crypto", "assert_sha256_true", []byte{})
-		callTestFunction(code, "test_crypto", "assert_sha1_true", []byte{})
-		callTestFunction(code, "test_crypto", "assert_sha512_true", []byte{})
-		callTestFunction(code, "test_crypto", "assert_ripemd160_true", []byte{})
+		control := startBlock()
+		createNewAccount(control, "testapi")
 
-		callTestFunctionCheckException(code, "test_crypto", "assert_sha256_false", []byte{}, exception.CryptoApiException{}.Code(), exception.CryptoApiException{}.What())
-		callTestFunctionCheckException(code, "test_crypto", "assert_sha1_false", []byte{}, exception.CryptoApiException{}.Code(), exception.CryptoApiException{}.What())
-		callTestFunctionCheckException(code, "test_crypto", "assert_sha512_false", []byte{}, exception.CryptoApiException{}.Code(), exception.CryptoApiException{}.What())
-		callTestFunctionCheckException(code, "test_crypto", "assert_ripemd160_false", []byte{}, exception.CryptoApiException{}.Code(), exception.CryptoApiException{}.What())
+		callTestFunction(control, code, "test_crypto", "test_recover_key", load, "testapi")
+		callTestFunction(control, code, "test_crypto", "test_recover_key_assert_true", load, "testapi")
+		callTestFunction(control, code, "test_crypto", "test_sha1", []byte{}, "testapi")
+		callTestFunction(control, code, "test_crypto", "test_sha256", []byte{}, "testapi")
+		callTestFunction(control, code, "test_crypto", "test_sha512", []byte{}, "testapi")
+		callTestFunction(control, code, "test_crypto", "test_ripemd160", []byte{}, "testapi")
+		callTestFunction(control, code, "test_crypto", "sha1_no_data", []byte{}, "testapi")
+		callTestFunction(control, code, "test_crypto", "sha256_no_data", []byte{}, "testapi")
+		callTestFunction(control, code, "test_crypto", "sha512_no_data", []byte{}, "testapi")
+		callTestFunction(control, code, "test_crypto", "ripemd160_no_data", []byte{}, "testapi")
+		callTestFunction(control, code, "test_crypto", "assert_sha256_true", []byte{}, "testapi")
+		callTestFunction(control, code, "test_crypto", "assert_sha1_true", []byte{}, "testapi")
+		callTestFunction(control, code, "test_crypto", "assert_sha512_true", []byte{}, "testapi")
+		callTestFunction(control, code, "test_crypto", "assert_ripemd160_true", []byte{}, "testapi")
+
+		callTestFunctionCheckException(control, code, "test_crypto", "assert_sha256_false", []byte{}, "testapi", exception.CryptoApiException{}.Code(), exception.CryptoApiException{}.Message())
+		callTestFunctionCheckException(control, code, "test_crypto", "assert_sha1_false", []byte{}, "testapi", exception.CryptoApiException{}.Code(), exception.CryptoApiException{}.Message())
+		callTestFunctionCheckException(control, code, "test_crypto", "assert_sha512_false", []byte{}, "testapi", exception.CryptoApiException{}.Code(), exception.CryptoApiException{}.Message())
+		callTestFunctionCheckException(control, code, "test_crypto", "assert_ripemd160_false", []byte{}, "testapi", exception.CryptoApiException{}.Code(), exception.CryptoApiException{}.Message())
+
+		stopBlock(control)
 
 	})
 }
@@ -361,12 +346,18 @@ func TestContextFixedPoint(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		callTestFunction(code, "test_fixedpoint", "create_instances", []byte{})
-		callTestFunction(code, "test_fixedpoint", "test_addition", []byte{})
-		callTestFunction(code, "test_fixedpoint", "test_subtraction", []byte{})
-		callTestFunction(code, "test_fixedpoint", "test_multiplication", []byte{})
-		callTestFunction(code, "test_fixedpoint", "test_division", []byte{})
-		callTestFunction(code, "test_fixedpoint", "test_division_by_0", []byte{})
+		control := startBlock()
+		createNewAccount(control, "testapi")
+
+		callTestFunction(control, code, "test_fixedpoint", "create_instances", []byte{}, "testapi")
+		callTestFunction(control, code, "test_fixedpoint", "test_addition", []byte{}, "testapi")
+		callTestFunction(control, code, "test_fixedpoint", "test_subtraction", []byte{}, "testapi")
+		callTestFunction(control, code, "test_fixedpoint", "test_multiplication", []byte{}, "testapi")
+		callTestFunction(control, code, "test_fixedpoint", "test_division", []byte{}, "testapi")
+		callTestFunctionCheckException(control, code, "test_fixedpoint", "test_division_by_0", []byte{}, "testapi",
+			exception.EosioAssertMessageException{}.Code(), exception.EosioAssertMessageException{}.Message())
+
+		stopBlock(control)
 
 	})
 }
@@ -379,16 +370,21 @@ func TestContextChecktime(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		callTestFunction(code, "test_checktime", "checktime_pass", []byte{})
-		//callTestFunction(code, "test_checktime", "checktime_failure", []byte{})
-		callTestFunction(code, "test_checktime", "checktime_sha1_failure", []byte{})
-		callTestFunction(code, "test_checktime", "checktime_assert_sha1_failure", []byte{})
-		callTestFunction(code, "test_checktime", "checktime_sha256_failure", []byte{})
-		callTestFunction(code, "test_checktime", "checktime_assert_sha256_failure", []byte{})
-		callTestFunction(code, "test_checktime", "checktime_sha512_failure", []byte{})
-		callTestFunction(code, "test_checktime", "checktime_assert_sha512_failure", []byte{})
-		callTestFunction(code, "test_checktime", "checktime_ripemd160_failure", []byte{})
-		callTestFunction(code, "test_checktime", "checktime_assert_ripemd160_failure", []byte{})
+		control := startBlock()
+		createNewAccount(control, "testapi")
+
+		callTestFunction(control, code, "test_checktime", "checktime_pass", []byte{}, "testapi")
+		//callTestFunction(control, code, "test_checktime", "checktime_failure", []byte{}, "testapi")
+		callTestFunction(control, code, "test_checktime", "checktime_sha1_failure", []byte{}, "testapi")
+		callTestFunction(control, code, "test_checktime", "checktime_assert_sha1_failure", []byte{}, "testapi")
+		callTestFunction(control, code, "test_checktime", "checktime_sha256_failure", []byte{}, "testapi")
+		callTestFunction(control, code, "test_checktime", "checktime_assert_sha256_failure", []byte{}, "testapi")
+		callTestFunction(control, code, "test_checktime", "checktime_sha512_failure", []byte{}, "testapi")
+		callTestFunction(control, code, "test_checktime", "checktime_assert_sha512_failure", []byte{}, "testapi")
+		callTestFunction(control, code, "test_checktime", "checktime_ripemd160_failure", []byte{}, "testapi")
+		callTestFunction(control, code, "test_checktime", "checktime_assert_ripemd160_failure", []byte{}, "testapi")
+
+		stopBlock(control)
 
 	})
 }
@@ -401,7 +397,11 @@ func TestContextDatastream(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		callTestFunction(code, "test_datastream", "test_basic", []byte{})
+		control := startBlock()
+		createNewAccount(control, "testapi")
+
+		callTestFunction(control, code, "test_datastream", "test_basic", []byte{}, "testapi")
+		stopBlock(control)
 
 	})
 }
@@ -415,28 +415,33 @@ func TestContextCompilerBuiltin(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		callTestFunction(code, "test_compiler_builtins", "test_ashrti3", []byte{})
-		callTestFunction(code, "test_compiler_builtins", "test_ashlti3", []byte{})
-		callTestFunction(code, "test_compiler_builtins", "test_lshrti3", []byte{})
-		callTestFunction(code, "test_compiler_builtins", "test_lshlti3", []byte{})
+		control := startBlock()
+		createNewAccount(control, "testapi")
 
-		callTestFunction(code, "test_compiler_builtins", "test_umodti3", []byte{})
-		callTestFunctionCheckException(code, "test_compiler_builtins", "test_umodti3_by_0", []byte{},
-			exception.ArithmeticException{}.Code(), exception.ArithmeticException{}.What())
+		callTestFunction(control, code, "test_compiler_builtins", "test_ashrti3", []byte{}, "testapi")
+		callTestFunction(control, code, "test_compiler_builtins", "test_ashlti3", []byte{}, "testapi")
+		callTestFunction(control, code, "test_compiler_builtins", "test_lshrti3", []byte{}, "testapi")
+		callTestFunction(control, code, "test_compiler_builtins", "test_lshlti3", []byte{}, "testapi")
 
-		callTestFunction(code, "test_compiler_builtins", "test_modti3", []byte{})
-		callTestFunctionCheckException(code, "test_compiler_builtins", "test_modti3_by_0", []byte{},
-			exception.ArithmeticException{}.Code(), exception.ArithmeticException{}.What())
+		callTestFunction(control, code, "test_compiler_builtins", "test_umodti3", []byte{}, "testapi")
+		callTestFunctionCheckException(control, code, "test_compiler_builtins", "test_umodti3_by_0", []byte{}, "testapi",
+			exception.ArithmeticException{}.Code(), exception.ArithmeticException{}.Message())
 
-		callTestFunction(code, "test_compiler_builtins", "test_udivti3", []byte{})
-		callTestFunctionCheckException(code, "test_compiler_builtins", "test_udivti3_by_0", []byte{},
-			exception.ArithmeticException{}.Code(), exception.ArithmeticException{}.What())
+		callTestFunction(control, code, "test_compiler_builtins", "test_modti3", []byte{}, "testapi")
+		callTestFunctionCheckException(control, code, "test_compiler_builtins", "test_modti3_by_0", []byte{}, "testapi",
+			exception.ArithmeticException{}.Code(), exception.ArithmeticException{}.Message())
 
-		callTestFunction(code, "test_compiler_builtins", "test_divti3", []byte{})
-		callTestFunctionCheckException(code, "test_compiler_builtins", "test_divti3_by_0", []byte{},
-			exception.ArithmeticException{}.Code(), exception.ArithmeticException{}.What())
+		callTestFunction(control, code, "test_compiler_builtins", "test_udivti3", []byte{}, "testapi")
+		callTestFunctionCheckException(control, code, "test_compiler_builtins", "test_udivti3_by_0", []byte{}, "testapi",
+			exception.ArithmeticException{}.Code(), exception.ArithmeticException{}.Message())
 
-		callTestFunction(code, "test_compiler_builtins", "test_multi3", []byte{})
+		callTestFunction(control, code, "test_compiler_builtins", "test_divti3", []byte{}, "testapi")
+		callTestFunctionCheckException(control, code, "test_compiler_builtins", "test_divti3_by_0", []byte{}, "testapi",
+			exception.ArithmeticException{}.Code(), exception.ArithmeticException{}.Message())
+
+		callTestFunction(control, code, "test_compiler_builtins", "test_multi3", []byte{}, "testapi")
+
+		stopBlock(control)
 	})
 }
 
@@ -460,12 +465,12 @@ func TestContextDB(t *testing.T) {
 		createNewAccount(control, "testapi")
 		createNewAccount(control, "testapi2")
 
-		callTestFunction2(control, code, "test_db", "primary_i64_general", []byte{}, "testapi")
-		callTestFunction2(control, code, "test_db", "primary_i64_lowerbound", []byte{}, "testapi")
-		callTestFunction2(control, code, "test_db", "primary_i64_upperbound", []byte{}, "testapi")
-		callTestFunction2(control, code, "test_db", "idx64_general", []byte{}, "testapi")
-		callTestFunction2(control, code, "test_db", "idx64_lowerbound", []byte{}, "testapi")
-		callTestFunction2(control, code, "test_db", "idx64_upperbound", []byte{}, "testapi")
+		callTestFunction(control, code, "test_db", "primary_i64_general", []byte{}, "testapi")
+		callTestFunction(control, code, "test_db", "primary_i64_lowerbound", []byte{}, "testapi")
+		callTestFunction(control, code, "test_db", "primary_i64_upperbound", []byte{}, "testapi")
+		callTestFunction(control, code, "test_db", "idx64_general", []byte{}, "testapi")
+		callTestFunction(control, code, "test_db", "idx64_lowerbound", []byte{}, "testapi")
+		callTestFunction(control, code, "test_db", "idx64_upperbound", []byte{}, "testapi")
 
 		action1 := invalidAccessAction{common.N("testapi"), 10, 0, true}
 		actionData1, _ := rlp.EncodeToBytes(&action1)
@@ -498,29 +503,29 @@ func TestContextDB(t *testing.T) {
 		ret = pushAction(control, code, "test_db", "test_invalid_access", actionData3, "testapi")
 		assert.Equal(t, ret, "")
 
-		retException := callTestFunctionCheckException2(control, code, "test_db", "idx_double_nan_create_fail", []byte{}, "testapi",
+		retException := callTestFunctionCheckException(control, code, "test_db", "idx_double_nan_create_fail", []byte{}, "testapi",
 			exception.TableAccessViolation{}.Code(), exception.TableAccessViolation{}.Message())
 		assert.Equal(t, retException, true)
 
-		retException = callTestFunctionCheckException2(control, code, "test_db", "idx_double_nan_modify_fail", []byte{}, "testapi",
+		retException = callTestFunctionCheckException(control, code, "test_db", "idx_double_nan_modify_fail", []byte{}, "testapi",
 			exception.TableAccessViolation{}.Code(), exception.TableAccessViolation{}.Message())
 		assert.Equal(t, retException, true)
 
 		var loopupType uint32 = 0
 		l, _ := rlp.EncodeToBytes(&loopupType)
-		retException = callTestFunctionCheckException2(control, code, "test_db", "idx_double_nan_lookup_fail", l, "testapi",
+		retException = callTestFunctionCheckException(control, code, "test_db", "idx_double_nan_lookup_fail", l, "testapi",
 			exception.TableAccessViolation{}.Code(), exception.TableAccessViolation{}.Message())
 		assert.Equal(t, retException, true)
 
 		loopupType = 1
 		l, _ = rlp.EncodeToBytes(&loopupType)
-		callTestFunctionCheckException2(control, code, "test_db", "idx_double_nan_lookup_fail", l, "testapi",
+		callTestFunctionCheckException(control, code, "test_db", "idx_double_nan_lookup_fail", l, "testapi",
 			exception.TableAccessViolation{}.Code(), exception.TableAccessViolation{}.Message())
 		assert.Equal(t, retException, true)
 
 		loopupType = 2
 		l, _ = rlp.EncodeToBytes(&loopupType)
-		retException = callTestFunctionCheckException2(control, code, "test_db", "idx_double_nan_lookup_fail", l, "testapi",
+		retException = callTestFunctionCheckException(control, code, "test_db", "idx_double_nan_lookup_fail", l, "testapi",
 			exception.TableAccessViolation{}.Code(), exception.TableAccessViolation{}.Message())
 		assert.Equal(t, retException, true)
 
@@ -539,8 +544,92 @@ func TestContextMultiIndex(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		callTestFunction(code, "test_multi_index", "idx64_general", []byte{})
-		//callTestFunction(code, "test_multi_index", "primary_i64_lowerbound", []byte{})
+
+		control := startBlock()
+		createNewAccount(control, "testapi")
+		createNewAccount(control, "testapi2")
+
+		callTestFunction(control, code, "test_multi_index", "idx64_general", []byte{}, "testapi")
+		callTestFunction(control, code, "test_multi_index", "idx64_store_only", []byte{}, "testapi")
+		callTestFunction(control, code, "test_multi_index", "idx64_check_without_storing", []byte{}, "testapi")
+
+		retException := callTestFunctionCheckException(control, code, "test_multi_index", "idx64_pk_iterator_exceed_end", []byte{}, "testapi",
+			exception.EosioAssertMessageException{}.Code(), exception.EosioAssertMessageException{}.Message())
+		assert.Equal(t, retException, true)
+		//
+		//retException = callTestFunctionCheckException(control, code, "test_multi_index", "idx64_sk_iterator_exceed_end", []byte{}, "testapi",
+		//	exception.EosioAssertMessageException{}.Code(), exception.EosioAssertMessageException{}.Message())
+		//assert.Equal(t, retException, true)
+		//
+		//retException = callTestFunctionCheckException(control, code, "test_multi_index", "idx64_pk_iterator_exceed_begin", []byte{}, "testapi",
+		//	exception.EosioAssertMessageException{}.Code(), exception.EosioAssertMessageException{}.Message())
+		//assert.Equal(t, retException, true)
+		//
+		//retException = callTestFunctionCheckException(control, code, "test_multi_index", "idx64_sk_iterator_exceed_begin", []byte{}, "testapi",
+		//	exception.EosioAssertMessageException{}.Code(), exception.EosioAssertMessageException{}.Message())
+		//assert.Equal(t, retException, true)
+		//
+		//retException = callTestFunctionCheckException(control, code, "test_multi_index", "idx64_pass_pk_ref_to_other_table", []byte{}, "testapi",
+		//	exception.EosioAssertMessageException{}.Code(), exception.EosioAssertMessageException{}.Message())
+		//assert.Equal(t, retException, true)
+		//
+		//retException = callTestFunctionCheckException(control, code, "test_multi_index", "idx64_pass_sk_ref_to_other_table", []byte{}, "testapi",
+		//	exception.EosioAssertMessageException{}.Code(), exception.EosioAssertMessageException{}.Message())
+		//assert.Equal(t, retException, true)
+		//
+		//retException = callTestFunctionCheckException(control, code, "test_multi_index", "idx64_pass_pk_end_itr_to_iterator_to", []byte{}, "testapi",
+		//	exception.EosioAssertMessageException{}.Code(), exception.EosioAssertMessageException{}.Message())
+		//assert.Equal(t, retException, true)
+		//
+		//retException = callTestFunctionCheckException(control, code, "test_multi_index", "idx64_pass_pk_end_itr_to_modify", []byte{}, "testapi",
+		//	exception.EosioAssertMessageException{}.Code(), exception.EosioAssertMessageException{}.Message())
+		//assert.Equal(t, retException, true)
+		//
+		//
+		//retException = callTestFunctionCheckException(control, code, "test_multi_index", "idx64_pass_pk_end_itr_to_erase", []byte{}, "testapi",
+		//	exception.EosioAssertMessageException{}.Code(), exception.EosioAssertMessageException{}.Message())
+		//assert.Equal(t, retException, true)
+		//
+		//retException = callTestFunctionCheckException(control, code, "test_multi_index", "idx64_pass_sk_end_itr_to_iterator_to", []byte{}, "testapi",
+		//	exception.EosioAssertMessageException{}.Code(), exception.EosioAssertMessageException{}.Message())
+		//assert.Equal(t, retException, true)
+		//
+		//retException = callTestFunctionCheckException(control, code, "test_multi_index", "idx64_pass_sk_end_itr_to_modify", []byte{}, "testapi",
+		//	exception.EosioAssertMessageException{}.Code(), exception.EosioAssertMessageException{}.Message())
+		//assert.Equal(t, retException, true)
+		//
+		//retException = callTestFunctionCheckException(control, code, "test_multi_index", "idx64_pass_sk_end_itr_to_erase", []byte{}, "testapi",
+		//	exception.EosioAssertMessageException{}.Code(), exception.EosioAssertMessageException{}.Message())
+		//assert.Equal(t, retException, true)
+
+		//retException = callTestFunctionCheckException(control, code, "test_multi_index", "idx64_modify_primary_key", []byte{}, "testapi",
+		//	exception.EosioAssertMessageException{}.Code(), exception.EosioAssertMessageException{}.Message())
+		//assert.Equal(t, retException, true)
+
+		retException = callTestFunctionCheckException(control, code, "test_multi_index", "idx64_run_out_of_avl_pk", []byte{}, "testapi",
+			exception.EosioAssertMessageException{}.Code(), exception.EosioAssertMessageException{}.Message())
+		assert.Equal(t, retException, true)
+
+		//retException = callTestFunctionCheckException(control, code, "test_multi_index", "idx64_require_find_fail", []byte{}, "testapi",
+		//	exception.EosioAssertMessageException{}.Code(), exception.EosioAssertMessageException{}.Message())
+		//assert.Equal(t, retException, true)
+		//
+		//retException = callTestFunctionCheckException(control, code, "test_multi_index", "idx64_require_find_fail_with_msg", []byte{}, "testapi",
+		//	exception.EosioAssertMessageException{}.Code(), exception.EosioAssertMessageException{}.Message())
+		//assert.Equal(t, retException, true)
+		//
+		//retException = callTestFunctionCheckException(control, code, "test_multi_index", "idx64_require_find_sk_fail", []byte{}, "testapi",
+		//	exception.EosioAssertMessageException{}.Code(), exception.EosioAssertMessageException{}.Message())
+		//assert.Equal(t, retException, true)
+		//
+		//retException = callTestFunctionCheckException(control, code, "test_multi_index", "idx64_require_find_sk_fail_with_msg", []byte{}, "testapi",
+		//	exception.EosioAssertMessageException{}.Code(), exception.EosioAssertMessageException{}.Message())
+		//assert.Equal(t, retException, true)
+
+		//callTestFunction(control, code, "test_multi_index", "idx64_sk_cache_pk_lookup", []byte{}, "testapi")
+		//callTestFunction(control, code, "test_multi_index", "idx64_pk_cache_sk_lookup", []byte{}, "testapi")
+
+		stopBlock(control)
 
 	})
 }
@@ -665,7 +754,7 @@ func stopBlock(c *chain.Controller) {
 	c.Close()
 }
 
-func callTestFunction2(control *chain.Controller, code []byte, cls string, method string, payload []byte, authorizer string) (ret string) {
+func callTestFunction(control *chain.Controller, code []byte, cls string, method string, payload []byte, authorizer string) (ret string) {
 
 	wasm := wasmgo.NewWasmGo()
 	action := wasmTestAction(cls, method)
@@ -694,7 +783,7 @@ func callTestFunction2(control *chain.Controller, code []byte, cls string, metho
 
 }
 
-func callTestFunctionCheckException2(control *chain.Controller, code []byte, cls string, method string, payload []byte, authorizer string, errCode exception.ExcTypes, errMsg string) (ret bool) {
+func callTestFunctionCheckException(control *chain.Controller, code []byte, cls string, method string, payload []byte, authorizer string, errCode exception.ExcTypes, errMsg string) (ret bool) {
 
 	wasm := wasmgo.NewWasmGo()
 	action := wasmTestAction(cls, method)
@@ -725,74 +814,6 @@ func callTestFunctionCheckException2(control *chain.Controller, code []byte, cls
 		}
 	}).End()
 
-	ret = false
-	return
-
-}
-
-func callTestFunction(code []byte, cls string, method string, payload []byte) *chain.ApplyContext {
-
-	wasm := wasmgo.NewWasmGo()
-	action := wasmTestAction(cls, method)
-
-	control := chain.GetControllerInstance()
-	blockTimeStamp := common.NewBlockTimeStamp(common.Now())
-	control.StartBlock(blockTimeStamp, 0)
-
-	createNewAccount(control, "testapi")
-
-	act := types.Action{
-		Account:       common.AccountName(common.N("testapi")),
-		Name:          common.ActionName(action),
-		Data:          payload,
-		Authorization: []types.PermissionLevel{types.PermissionLevel{Actor: common.AccountName(common.N("testapi")), Permission: common.PermissionName(common.N("active"))}},
-	}
-
-	applyContext := newApplyContext(control, &act)
-
-	fmt.Println(cls, method, action)
-	codeVersion := crypto.NewSha256Byte([]byte(code))
-	wasm.Apply(codeVersion, code, applyContext)
-
-	control.Close()
-
-	return applyContext
-
-}
-
-func callTestFunctionCheckException(code []byte, cls string, method string, payload []byte, errCode exception.ExcTypes, errMsg string) (ret bool) {
-
-	wasm := wasmgo.NewWasmGo()
-	action := wasmTestAction(cls, method)
-
-	control := chain.GetControllerInstance()
-	blockTimeStamp := common.NewBlockTimeStamp(common.Now())
-	control.StartBlock(blockTimeStamp, 0)
-
-	act := types.Action{
-		Account:       common.AccountName(common.N("testapi")),
-		Name:          common.ActionName(action),
-		Data:          payload,
-		Authorization: []types.PermissionLevel{types.PermissionLevel{Actor: common.AccountName(common.N("testapi")), Permission: common.PermissionName(common.N("active"))}},
-	}
-
-	applyContext := newApplyContext(control, &act)
-	codeVersion := crypto.NewSha256Byte([]byte(code))
-
-	//ret := false
-	defer try.HandleReturn()
-	try.Try(func() {
-		wasm.Apply(codeVersion, code, applyContext)
-	}).Catch(func(e exception.Exception) {
-		if e.Code() == errCode {
-			fmt.Println(errMsg)
-			ret = true
-			control.Close()
-			try.Return()
-		}
-	}).End()
-
-	control.Close()
 	ret = false
 	return
 

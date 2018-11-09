@@ -7,6 +7,7 @@ import (
 	"github.com/eosspark/eos-go/crypto/ecc"
 	. "github.com/eosspark/eos-go/exception"
 	"sort"
+	"errors"
 )
 
 type BlockHeaderState struct {
@@ -82,8 +83,7 @@ func (b *BlockHeaderState) GenerateNext(when common.BlockTimeStamp) *BlockHeader
 	result.PendingScheduleLibNum = b.PendingScheduleLibNum
 	result.PendingScheduleHash = b.PendingScheduleHash
 	result.BlockNum = b.BlockNum + 1
-	result.ProducerToLastProduced = b.ProducerToLastProduced
-	result.ProducerToLastImpliedIrb = b.ProducerToLastImpliedIrb
+	result.ProducerToLastProduced.Copy(b.ProducerToLastProduced)
 	result.ProducerToLastProduced.Update(AccountNameBlockNum{proKey.ProducerName, result.BlockNum})
 	result.BlockrootMerkle = b.BlockrootMerkle
 	result.BlockrootMerkle.Append(crypto.Sha256(b.BlockId))
@@ -93,12 +93,13 @@ func (b *BlockHeaderState) GenerateNext(when common.BlockTimeStamp) *BlockHeader
 	result.DposProposedIrreversibleBlocknum = b.DposProposedIrreversibleBlocknum
 	result.BftIrreversibleBlocknum = b.BftIrreversibleBlocknum
 
+	result.ProducerToLastImpliedIrb.Copy(b.ProducerToLastImpliedIrb)
 	result.ProducerToLastImpliedIrb.Update(AccountNameBlockNum{proKey.ProducerName, result.DposProposedIrreversibleBlocknum})
 	result.DposIrreversibleBlocknum = result.CalcDposLastIrreversible()
 
 	/// grow the confirmed count
 	if common.DefaultConfig.MaxProducers*2/3+1 > 0xff {
-		panic("8bit confirmations may not be able to hold all of the needed confirmations")
+		panic(errors.New("8bit confirmations may not be able to hold all of the needed confirmations") )
 	}
 
 	// This uses the previous block active_schedule because thats the "schedule" that signs and therefore confirms _this_ block
@@ -252,10 +253,8 @@ func (b *BlockHeaderState) Sign(signer func(sha256 crypto.Sha256) ecc.Signature)
 	if err != nil {
 		panic(err)
 	}
+
 	EosAssert(b.BlockSigningKey == signKey, &WrongSigningKey{}, "block is signed with unexpected key")
-	if b.BlockSigningKey != signKey {
-		panic("block is signed with unexpected key")
-	}
 }
 
 func (b *BlockHeaderState) Signee() ecc.PublicKey {

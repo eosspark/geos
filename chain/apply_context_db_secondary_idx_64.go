@@ -182,6 +182,9 @@ func (i *Idx64) upperbound(code uint64, scope uint64, table uint64, secondary *u
 
 func (i *Idx64) end(code uint64, scope uint64, table uint64) int {
 
+	i.context.ilog.Info("code:%v scope:%v table:%v ",
+		common.AccountName(code), common.ScopeName(scope), common.TableName(table))
+
 	tab := i.context.FindTable(code, scope, table)
 	if tab == nil {
 		return -1

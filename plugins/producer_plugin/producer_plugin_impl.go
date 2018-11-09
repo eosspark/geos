@@ -11,6 +11,7 @@ import (
 	"github.com/eosspark/eos-go/crypto"
 	. "github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
+	"github.com/eosspark/eos-go/log"
 )
 
 type ProducerPluginImpl struct {
@@ -125,35 +126,6 @@ func (impl *ProducerPluginImpl) OnBlock(bsp *types.BlockState) {
 		}
 	})
 
-	//for producer := range impl.Producers {
-	//	_, has := activeProducers[producer]
-	//	if !has {
-	//		continue
-	//	}
-	//
-	//	if producer != bsp.Header.Producer {
-	//		var itr *types.ProducerKey
-	//		for _, k := range activeProducerToSigningKey {
-	//			if k.ProducerName == producer {
-	//				itr = &k
-	//				break
-	//			}
-	//		}
-	//
-	//		if itr != nil {
-	//			privateKeyItr := impl.SignatureProviders[itr.BlockSigningKey]
-	//			if privateKeyItr != nil {
-	//				d := bsp.SigDigest()
-	//				sig := privateKeyItr(d)
-	//				impl.LastSignedBlockTime = bsp.Header.Timestamp.ToTimePoint()
-	//				impl.LastSignedBlockNum = bsp.BlockNum
-	//
-	//				impl.ConfirmedBlock(sig)
-	//			}
-	//		}
-	//	}
-	//} //set_intersection
-
 	// since the watermark has to be set before a block is created, we are looking into the future to
 	// determine the new schedule to identify producers that have become active
 	hbn := bsp.BlockNum
@@ -173,7 +145,7 @@ func (impl *ProducerPluginImpl) OnBlock(bsp *types.BlockState) {
 		}
 
 		for _, p := range bsp.ActiveSchedule.Producers {
-			newProducers.Erase(&p.ProducerName) //TODO check FlatSet::Erase
+			newProducers.Remove(&p.ProducerName) //TODO check FlatSet::Erase
 		}
 
 		for _, newProducer := range newProducers.Data {
@@ -187,7 +159,7 @@ func (impl *ProducerPluginImpl) OnIrreversibleBlock(lib *types.SignedBlock) {
 }
 
 func (impl *ProducerPluginImpl) OnIncomingBlock(block *types.SignedBlock) {
-	//TODO: fc_dlog(_log, "received incoming block ${id}", ("id", block->id()));
+	log.Debug("received incoming block %s", block.BlockID())
 
 	EosAssert(block.Timestamp.ToTimePoint() < common.Now().AddUs(common.Seconds(7)), &BlockFromTheFuture{}, "received a block from the future, ignoring it")
 
@@ -204,7 +176,10 @@ func (impl *ProducerPluginImpl) OnIncomingBlock(block *types.SignedBlock) {
 	chain.AbortBlock()
 
 	// exceptions throw out, make sure we restart our loop
-	defer impl.ScheduleProductionLoop()
+	defer func() {
+		fmt.Println("===incoming loop")
+		impl.ScheduleProductionLoop()
+	}()
 
 	// push the new block
 	except := false
@@ -213,11 +188,11 @@ func (impl *ProducerPluginImpl) OnIncomingBlock(block *types.SignedBlock) {
 	Try(func() {
 		chain.PushBlock(block, types.BlockStatus(types.Complete))
 	}).Catch(func(e GuardExceptions) {
-		fmt.Println(e.Message())
 		//TODO: handle_guard_exception
 		returning = true
+		return
 	}).Catch(func(e Exception) {
-		fmt.Println(e.Message())
+		log.Error(e.Message())
 		except = true
 	}).End()
 
@@ -235,7 +210,7 @@ func (impl *ProducerPluginImpl) OnIncomingBlock(block *types.SignedBlock) {
 	}
 
 	if common.Now().Sub(block.Timestamp.ToTimePoint()) < common.Minutes(5) || block.BlockNumber()%1000 == 0 {
-		fmt.Printf("Received block %s... #%d @ %s signed by %s [trxs: %d, lib: %d, conf: %d, lantency: %d ms]\n",
+		log.Info("Received block %s... #%d @ %s signed by %s [trxs: %d, lib: %d, conf: %d, lantency: %d ms]\n",
 			block.BlockID().String()[8:16], block.BlockNumber(), block.Timestamp, block.Producer,
 			len(block.Transactions), chain.LastIrreversibleBlockNum(), block.Confirmed, (common.Now().Sub(block.Timestamp.ToTimePoint())).Count()/1000)
 	}
@@ -284,21 +259,25 @@ func (impl *ProducerPluginImpl) OnIncomingTransactionAsync(trx *types.PackedTran
 		deadline = blockTime
 	}
 
-	trace := chain.PushTransaction(types.NewTransactionMetadata(trx), deadline, 0)
-	if trace.Except != nil {
-		if failureIsSubjective(trace.Except, deadlineIsSubjective) {
-			impl.PendingIncomingTransactions = append(impl.PendingIncomingTransactions, pendingIncomingTransaction{trx, persistUntilExpired, next})
+	Try(func() {
+		trace := chain.PushTransaction(types.NewTransactionMetadata(trx), deadline, 0)
+		if trace.Except != nil {
+			if failureIsSubjective(trace.Except, deadlineIsSubjective) {
+				impl.PendingIncomingTransactions = append(impl.PendingIncomingTransactions, pendingIncomingTransaction{trx, persistUntilExpired, next})
+			} else {
+				sendResponse(trace.Except)
+			}
 		} else {
-			sendResponse(trace.Except)
+			if persistUntilExpired {
+				// if this trx didnt fail/soft-fail and the persist flag is set, store its ID so that we can
+				// ensure its applied to all future speculative blocks as well.
+				impl.PersistentTransactions[trx.ID()] = trx.Expiration().ToTimePoint()
+			}
+			sendResponse(trace)
 		}
-	} else {
-		if persistUntilExpired {
-			// if this trx didnt fail/soft-fail and the persist flag is set, store its ID so that we can
-			// ensure its applied to all future speculative blocks as well.
-			impl.PersistentTransactions[trx.ID()] = trx.Expiration().ToTimePoint()
-		}
-		sendResponse(trace)
-	}
+	}).Catch(func(e GuardExceptions) {
+		//TODO: app().get_plugin<chain_plugin>().handle_guard_exception(e);
+	}).End()
 }
 
 func (impl *ProducerPluginImpl) GetIrreversibleBlockAge() common.Microseconds {

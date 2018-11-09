@@ -11,24 +11,24 @@ import (
 	"strings"
 )
 
-type IndexElement struct {
-	Key   []byte
+type indexElement struct {
+	key   []byte
 	value interface{}
 }
 
-func (idx IndexElement) GetKey() []byte {
-	return idx.Key
+func (idx indexElement) GetKey() []byte {
+	return idx.key
 }
 
-type ForkMultiIndex struct {
-	Indexs map[string]*Index
+type forkMultiIndex struct {
+	Indexs map[string]*fkIndex
 }
 
-type Index struct {
-	Target     string
-	Uniqueness bool
-	Less       bool
-	KeyValue   common.FlatSet
+type fkIndex struct {
+	target     string
+	uniqueness bool
+	less       bool
+	keyValue   common.FlatSet
 }
 
 type FkIterator struct {
@@ -36,13 +36,13 @@ type FkIterator struct {
 	KeySet common.FlatSet
 }
 
-func NewForkMultiIndex() *ForkMultiIndex {
-	mi := ForkMultiIndex{}
-	mi.Indexs = make(map[string]*Index)
-	index := &Index{Target: "byBlockId", Uniqueness: true}
-	index2 := &Index{Target: "byPrev", Uniqueness: false}
-	index3 := &Index{Target: "byBlockNum", Uniqueness: false}
-	index4 := &Index{Target: "byLibBlockNum", Uniqueness: false}
+func NewForkMultiIndex() *forkMultiIndex {
+	mi := forkMultiIndex{}
+	mi.Indexs = make(map[string]*fkIndex)
+	index := &fkIndex{target: "byBlockId", uniqueness: true}
+	index2 := &fkIndex{target: "byPrev", uniqueness: false}
+	index3 := &fkIndex{target: "byBlockNum", uniqueness: false}
+	index4 := &fkIndex{target: "byLibBlockNum", uniqueness: false}
 	mi.Indexs["byBlockId"] = index
 	mi.Indexs["byPrev"] = index2
 	mi.Indexs["byBlockNum"] = index3
@@ -51,90 +51,90 @@ func NewForkMultiIndex() *ForkMultiIndex {
 	return &mi
 }
 
-func (m *ForkMultiIndex) Insert(b *types.BlockState) bool {
+func (m *forkMultiIndex) Insert(b *types.BlockState) bool {
 
-	index := &Index{}
-	index.Target = "byBlockId"
-	index.Uniqueness = true
+	index := &fkIndex{}
+	index.target = "byBlockId"
+	index.uniqueness = true
 	mainKey := computeMainKey(b.BlockId.Bytes())
-	indexElement := IndexElement{mainKey, &b}
+	idxEle := indexElement{mainKey, b}
 	prevKey := computePrevKey(b.BlockHeaderState.Header.Previous.Bytes())
 	uniqueKey2 := append(prevKey, '_')
 	uniqueKey2 = append(uniqueKey2, mainKey...)
-	indexElement2 := IndexElement{[]byte(uniqueKey2), &mainKey}
+	indexElement2 := indexElement{[]byte(uniqueKey2), &mainKey}
 
 	blockNumKey := computeBlockNumKey(b.BlockNum, b.InCurrentChain)
 	uniqueKey3 := append(blockNumKey, '_')
 	uniqueKey3 = append(uniqueKey3, mainKey...)
-	indexElement3 := IndexElement{[]byte(uniqueKey3), &mainKey}
+	indexElement3 := indexElement{[]byte(uniqueKey3), &mainKey}
 	libBlockNumKey := computeLibNumKey(b.BlockHeaderState.DposIrreversibleBlocknum, b.BlockHeaderState.BftIrreversibleBlocknum, b.BlockNum)
 	uniqueKey4 := append(libBlockNumKey, '_')
 	uniqueKey4 = append(uniqueKey3, mainKey...)
-	indexElement4 := IndexElement{[]byte(uniqueKey4), &mainKey}
-	if m.Indexs[index.Target].KeyValue.Len() > 0 {
-		m.Indexs[index.Target].KeyValue.Insert(&indexElement)
+	indexElement4 := indexElement{[]byte(uniqueKey4), &mainKey}
+	if m.Indexs[index.target].keyValue.Len() > 0 {
+		m.Indexs[index.target].keyValue.Insert(&idxEle)
 	} else {
 		fs := common.FlatSet{}
-		fs.Insert(&indexElement)
-		index.KeyValue = fs
+		fs.Insert(&idxEle)
+		index.keyValue = fs
 		m.Indexs["byBlockId"] = index
 	}
-	index2 := &Index{}
-	index2.Target = "byPrev"
-	index2.Uniqueness = false
-	index2.Less = true
+	index2 := &fkIndex{}
+	index2.target = "byPrev"
+	index2.uniqueness = false
+	index2.less = true
 
-	if m.Indexs[index2.Target].KeyValue.Len() > 0 {
-		m.Indexs[index2.Target].KeyValue.Insert(&indexElement2)
+	if m.Indexs[index2.target].keyValue.Len() > 0 {
+		m.Indexs[index2.target].keyValue.Insert(&indexElement2)
 	} else {
 		fs2 := common.FlatSet{}
 		fs2.Insert(&indexElement2)
-		index2.KeyValue = fs2
-		m.Indexs[index2.Target] = index2
+		index2.keyValue = fs2
+		m.Indexs[index2.target] = index2
 	}
 
-	index3 := &Index{}
-	index3.Target = "byBlockNum"
-	index3.Uniqueness = false
-	index3.Less = true
-	if m.Indexs[index3.Target].KeyValue.Len() > 0 {
-		m.Indexs[index3.Target].KeyValue.Insert(&indexElement3)
+	index3 := &fkIndex{}
+	index3.target = "byBlockNum"
+	index3.uniqueness = false
+	index3.less = true
+	if m.Indexs[index3.target].keyValue.Len() > 0 {
+		m.Indexs[index3.target].keyValue.Insert(&indexElement3)
 	} else {
 		fs3 := common.FlatSet{}
 		fs3.Insert(&indexElement3)
-		index3.KeyValue = fs3
-		m.Indexs[index3.Target] = index3
+		index3.keyValue = fs3
+		m.Indexs[index3.target] = index3
 	}
 
-	index4 := &Index{}
-	index4.Target = "byLibBlockNum"
-	index4.Uniqueness = false
-	index4.Less = false
-	if m.Indexs[index4.Target].KeyValue.Len() > 0 {
-		m.Indexs[index4.Target].KeyValue.Insert(&indexElement4)
+	index4 := &fkIndex{}
+	index4.target = "byLibBlockNum"
+	index4.uniqueness = false
+	index4.less = false
+	if m.Indexs[index4.target].keyValue.Len() > 0 {
+		m.Indexs[index4.target].keyValue.Insert(&indexElement4)
 	} else {
 		fs4 := common.FlatSet{}
 		fs4.Insert(&indexElement4)
-		index4.KeyValue = fs4
-		m.Indexs[index4.Target] = index4
+		index4.keyValue = fs4
+		m.Indexs[index4.target] = index4
 	}
 
 	return true
 }
 
-func (m *ForkMultiIndex) GetIndex(tag string) *Index {
+func (m *forkMultiIndex) GetIndex(tag string) *fkIndex {
 	if index, ok := m.Indexs[tag]; ok {
 		return index
 	}
 	return nil
 }
 
-func (idx *Index) Begin() *FkIterator { //syscall.Mmap()
+func (idx *fkIndex) Begin() *FkIterator { //syscall.Mmap()
 	itr := FkIterator{}
-	if idx.KeyValue.Len() > 0 {
-		idxEle := idx.KeyValue.Data[0]
+	if idx.keyValue.Len() > 0 {
+		idxEle := idx.keyValue.Data[0]
 		itr.Key = idxEle.GetKey()
-		itr.KeySet = idx.KeyValue
+		itr.KeySet = idx.keyValue
 	}
 	return &itr
 }
@@ -143,11 +143,11 @@ func (idx *Index) Begin() *FkIterator { //syscall.Mmap()
 
 }*/
 
-func (idx *Index) UpperBound(b []byte) *FkIterator {
+func (idx *fkIndex) UpperBound(b []byte) *FkIterator {
 	itr := FkIterator{}
-	if idx.KeyValue.Len() > 0 {
-		for _, idxEle := range idx.KeyValue.Data {
-			tagKey := idxEle.(*IndexElement).GetKey()
+	if idx.keyValue.Len() > 0 {
+		for _, idxEle := range idx.keyValue.Data {
+			tagKey := idxEle.(*indexElement).GetKey()
 			if bytes.Compare(tagKey, b) == 1 {
 				itr.Key = tagKey
 				break
@@ -158,21 +158,21 @@ func (idx *Index) UpperBound(b []byte) *FkIterator {
 	return nil
 }
 
-func (idx *Index) searchSub(key []byte) int {
-	length := idx.KeyValue.Len()
+func (idx *fkIndex) searchSub(key []byte) int {
+	length := idx.keyValue.Len()
 	i, j := 0, length-1
 	for i < j {
 		h := int(uint(i+j) >> 1)
 		if i <= h && h < j {
-			ext := strings.Index(string(idx.KeyValue.Data[h].GetKey()), string(key))
+			ext := strings.Index(string(idx.keyValue.Data[h].GetKey()), string(key))
 			if ext >= 0 {
 				return h
 			} else {
 				i = h + 1
 			}
-			/*if bytes.Compare(idx.KeyValue.Data[h].GetKey(), key) == -1 {
+			/*if bytes.Compare(idx.keyValue.Data[h].GetKey(), key) == -1 {
 				i = h + 1
-			} else if bytes.Compare(idx.KeyValue.Data[h].GetKey(), key) == 0 {
+			} else if bytes.Compare(idx.keyValue.Data[h].GetKey(), key) == 0 {
 				return h
 			} else {
 				j = h
@@ -182,17 +182,17 @@ func (idx *Index) searchSub(key []byte) int {
 	return i
 }
 
-func (idx *Index) LowerBound(b []byte) *FkIterator {
+func (idx *fkIndex) LowerBound(b []byte) *FkIterator {
 	itr := FkIterator{}
 	first := 0
-	if idx.KeyValue.Len() > 0 {
+	if idx.keyValue.Len() > 0 {
 		//start
 		ext := idx.searchSub(b)
-		idxEle := idx.KeyValue.Data[ext]
-		itr.Key = idxEle.(*IndexElement).GetKey()
+		idxEle := idx.keyValue.Data[ext]
+		itr.Key = idxEle.(*indexElement).GetKey()
 		first = ext
-		/*for s,idxEle := range idx.KeyValue.Data{
-			tagKey:=idxEle.(*IndexElement).GetKey()
+		/*for s,idxEle := range idx.keyValue.Data{
+			tagKey:=idxEle.(*indexElement).GetKey()
 			ext:=strings.Index(string(tagKey),string(b))
 			if ext>=0{
 				itr.Key = tagKey
@@ -201,21 +201,21 @@ func (idx *Index) LowerBound(b []byte) *FkIterator {
 			}
 		}*/
 		//end
-		/*for s,idxEle := range idx.KeyValue.Data[first:]{
-			tagKey:=idxEle.(*IndexElement).GetKey()
+		/*for s,idxEle := range idx.keyValue.Data[first:]{
+			tagKey:=idxEle.(*indexElement).GetKey()
 			ext:=strings.Index(string(tagKey),string(b))
 			if ext<0{
-				itr.KeySet.Data = idx.KeyValue.Data[first:s]
+				itr.KeySet.Data = idx.keyValue.Data[first:s]
 				break
 			}
 		}*/
-		i, j := 0, idx.KeyValue.Len()-1
+		i, j := 0, idx.keyValue.Len()-1
 		for i < j {
 			h := int(i + j>>1)
 			if i <= h && h < j {
-				et := strings.Index(string(idx.KeyValue.Data[h].GetKey()), string(b))
+				et := strings.Index(string(idx.keyValue.Data[h].GetKey()), string(b))
 				if et < 0 {
-					itr.KeySet.Data = idx.KeyValue.Data[first:h]
+					itr.KeySet.Data = idx.keyValue.Data[first:h]
 					break
 				} else {
 					i = h + 1
@@ -223,59 +223,59 @@ func (idx *Index) LowerBound(b []byte) *FkIterator {
 			}
 		}
 		if len(itr.Key) > 0 && itr.KeySet.Len() == 0 {
-			itr.KeySet.Data = idx.KeyValue.Data[first:]
+			itr.KeySet.Data = idx.keyValue.Data[first:]
 		}
 		return &itr
 	}
 	return nil
 }
 
-func (m *ForkMultiIndex) FindById(id common.BlockIdType) *types.BlockState {
+func (m *forkMultiIndex) FindById(id common.BlockIdType) *types.BlockState {
 	mk := computeMainKey(id.Bytes())
 	idx := m.Indexs["byBlockId"]
-	fs := idx.KeyValue
+	fs := idx.keyValue
 	idxElements, _ := fs.FindData(mk)
-	return idxElements.(*IndexElement).value.(*types.BlockState)
+	return idxElements.(*indexElement).value.(*types.BlockState)
 }
 
-func (m *ForkMultiIndex) FindByPrev(prev common.BlockIdType) *types.BlockState {
+func (m *forkMultiIndex) FindByPrev(prev common.BlockIdType) *types.BlockState {
 	key := computePrevKey(prev.Bytes())
 	idx := m.Indexs["byPrev"]
-	idxEle, _ := idx.KeyValue.FindData(key)
-	mainKey := idxEle.(*IndexElement).value
+	idxEle, _ := idx.keyValue.FindData(key)
+	mainKey := idxEle.(*indexElement).value
 	idxe := m.GetIndex("byBlockId")
-	objEle, _ := idxe.KeyValue.FindData(mainKey.([]byte))
-	bs := objEle.(*IndexElement).value.(*types.BlockState)
+	objEle, _ := idxe.keyValue.FindData(mainKey.([]byte))
+	bs := objEle.(*indexElement).value.(*types.BlockState)
 	return bs
 }
 
-/*func (m *ForkMultiIndex) FindByBlockNum(prev uint32,inCurrentChain bool) *types.BlockState {
+/*func (m *forkMultiIndex) FindByBlockNum(prev uint32,inCurrentChain bool) *types.BlockState {
 	key := computePrevKey(prev.Bytes())
 	idx := m.Indexs["byLibBlockNum"]
-	idxEle, _ := idx.KeyValue.FindData(key)
-	mainKey := idxEle.(*IndexElement).value
+	idxEle, _ := idx.keyValue.FindData(key)
+	mainKey := idxEle.(*indexElement).value
 	idxe := m.GetIndex("byBlockId")
-	objEle, _ := idxe.KeyValue.FindData(mainKey.([]byte))
-	bs := objEle.(*IndexElement).value.(*types.BlockState)
+	objEle, _ := idxe.keyValue.FindData(mainKey.([]byte))
+	bs := objEle.(*indexElement).value.(*types.BlockState)
 	return bs
 }*/
 
-/*func (m *ForkMultiIndex) FindByLibBlockNum(prev uint32,inCurrentChain bool) *types.BlockState {
+/*func (m *forkMultiIndex) FindByLibBlockNum(prev uint32,inCurrentChain bool) *types.BlockState {
 	key := computePrevKey(prev.Bytes())
 	idx := m.Indexs["byLibBlockNum"]
-	idxEle, _ := idx.KeyValue.FindData(key)
-	mainKey := idxEle.(*IndexElement).value
+	idxEle, _ := idx.keyValue.FindData(key)
+	mainKey := idxEle.(*indexElement).value
 	idxe := m.GetIndex("byBlockId")
-	objEle, _ := idxe.KeyValue.FindData(mainKey.([]byte))
-	bs := objEle.(*IndexElement).value.(*types.BlockState)
+	objEle, _ := idxe.keyValue.FindData(mainKey.([]byte))
+	bs := objEle.(*indexElement).value.(*types.BlockState)
 	return bs
 }*/
 
-func (idx *Index) eraseMainKey(id *common.BlockIdType) bool {
+func (idx *fkIndex) eraseMainKey(id *common.BlockIdType) bool {
 	keyArray := make([][]byte, 4)
 	key := computeMainKey(id.Bytes())
 	keyArray = append(keyArray, key)
-	ele, sub := idx.KeyValue.FindData(key)
+	ele, sub := idx.keyValue.FindData(key)
 	if sub >= 0 {
 		block := ele.(*types.BlockState)
 		prevKey := computePrevKey(block.SignedBlock.Previous.Bytes())
@@ -285,7 +285,7 @@ func (idx *Index) eraseMainKey(id *common.BlockIdType) bool {
 		libNumKey := computeLibNumKey(block.DposIrreversibleBlocknum, block.BftIrreversibleBlocknum, block.BlockNum)
 		keyArray = append(keyArray, libNumKey)
 		for _, k := range keyArray {
-			boo := idx.KeyValue.Remove(k)
+			boo := idx.keyValue.Remove(indexElement{key: key})
 			if !boo {
 				log.Error("fork_contanier eraseMainKey is error:%#v", k)
 			}
@@ -295,9 +295,9 @@ func (idx *Index) eraseMainKey(id *common.BlockIdType) bool {
 	return false
 }
 
-func (idx *Index) EraseKey(key []byte) bool {
-	idPtr, _ := idx.KeyValue.FindData(key)
-	m := idPtr.(*IndexElement).value
+func (idx *fkIndex) EraseKey(key []byte) bool {
+	idPtr, _ := idx.keyValue.FindData(key)
+	m := idPtr.(*indexElement).value
 	id := crypto.NewSha256Byte(m.([]byte))
 	return idx.eraseMainKey(id)
 }
@@ -306,7 +306,7 @@ func computeMainKey(val []byte) []byte {
 	return append([]byte("byBlockId_"), val...)
 }
 
-func (m *ForkMultiIndex) modify() {
+func (m *forkMultiIndex) modify() {
 
 }
 
@@ -336,7 +336,7 @@ func computeLibNumKey(dposIrreversibleBlocknum uint32, bftIrreversibleBlocknum u
 		idx.ManyKeyMap = make(map[string]common.FlatSet)
 	}
 	keySet := idx.ManyKeyMap[string(first)]
-	idxEle := IndexElement{[]byte(uniqueKey), []byte(uniqueKey)}
+	idxEle := indexElement{[]byte(uniqueKey), []byte(uniqueKey)}
 	keySet.Insert(idxEle)
 	idx.ManyKeyMap[string(first)] = keySet
 }*/
