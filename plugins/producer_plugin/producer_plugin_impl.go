@@ -144,9 +144,9 @@ func (impl *ProducerPluginImpl) OnBlock(bsp *types.BlockState) {
 			}
 		}
 
-		//for _, p := range bsp.ActiveSchedule.Producers {
-		//	newProducers.Remove(&p.ProducerName) //TODO check FlatSet::Erase
-		//}
+		for _, p := range bsp.ActiveSchedule.Producers {
+			newProducers.Remove(&p.ProducerName) //TODO check FlatSet::Erase
+		}
 
 		for _, newProducer := range newProducers.Data {
 			impl.ProducerWatermarks[*newProducer.(*common.AccountName)] = hbn
