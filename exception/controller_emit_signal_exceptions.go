@@ -1,6 +1,8 @@
 package exception
 
-type ControllerEmitSignalException struct{ logMessage }
+import . "github.com/eosspark/eos-go/log"
+
+type ControllerEmitSignalException struct{ LogMessage }
 
 func (ControllerEmitSignalException) ChainExceptions()                {}
 func (ControllerEmitSignalException) ControllerEmitSignalExceptions() {}
@@ -9,7 +11,7 @@ func (ControllerEmitSignalException) What() string {
 	return "Exceptions that are allowed to bubble out of emit calls in controller"
 }
 
-type CheckpointException struct{ logMessage }
+type CheckpointException struct{ LogMessage }
 
 func (CheckpointException) ChainExceptions()                {}
 func (CheckpointException) ControllerEmitSignalExceptions() {}

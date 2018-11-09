@@ -1,6 +1,8 @@
 package exception
 
-type ActionValidateException struct{ logMessage }
+import . "github.com/eosspark/eos-go/log"
+
+type ActionValidateException struct{ LogMessage }
 
 func (ActionValidateException) ChainExceptions()          {}
 func (ActionValidateException) ActionValidateExceptions() {}
@@ -9,7 +11,7 @@ func (ActionValidateException) What() string {
 	return "Transaction exceeded the current CPU usage limit imposed on the transaction"
 }
 
-type AccountNameExistsException struct{ logMessage }
+type AccountNameExistsException struct{ LogMessage }
 
 func (AccountNameExistsException) ChainExceptions()          {}
 func (AccountNameExistsException) ActionValidateExceptions() {}
@@ -18,14 +20,14 @@ func (AccountNameExistsException) What() string {
 	return "Account name already exists"
 }
 
-type InvalidActionArgsException struct{ logMessage }
+type InvalidActionArgsException struct{ LogMessage }
 
 func (InvalidActionArgsException) ChainExceptions()          {}
 func (InvalidActionArgsException) ActionValidateExceptions() {}
 func (InvalidActionArgsException) Code() ExcTypes            { return 3050002 }
 func (InvalidActionArgsException) What() string              { return "Invalid Action Arguments" }
 
-type EosioAssertMessageException struct{ logMessage }
+type EosioAssertMessageException struct{ LogMessage }
 
 func (EosioAssertMessageException) ChainExceptions()          {}
 func (EosioAssertMessageException) ActionValidateExceptions() {}
@@ -34,7 +36,7 @@ func (EosioAssertMessageException) What() string {
 	return "eosio_assert_message assertion failure"
 }
 
-type EosioAssertCodeException struct{ logMessage }
+type EosioAssertCodeException struct{ LogMessage }
 
 func (EosioAssertCodeException) ChainExceptions()          {}
 func (EosioAssertCodeException) ActionValidateExceptions() {}
@@ -43,7 +45,7 @@ func (EosioAssertCodeException) What() string {
 	return "eosio_assert_code assertion failure"
 }
 
-type ActionNotFoundException struct{ logMessage }
+type ActionNotFoundException struct{ LogMessage }
 
 func (ActionNotFoundException) ChainExceptions()          {}
 func (ActionNotFoundException) ActionValidateExceptions() {}
@@ -52,7 +54,7 @@ func (ActionNotFoundException) What() string {
 	return "Action can not be found"
 }
 
-type ActionDataAndStructMismatch struct{ logMessage }
+type ActionDataAndStructMismatch struct{ LogMessage }
 
 func (ActionDataAndStructMismatch) ChainExceptions()          {}
 func (ActionDataAndStructMismatch) ActionValidateExceptions() {}
@@ -61,7 +63,7 @@ func (ActionDataAndStructMismatch) What() string {
 	return "Mismatch between action data and its struct"
 }
 
-type UnaccessibleApi struct{ logMessage }
+type UnaccessibleApi struct{ LogMessage }
 
 func (UnaccessibleApi) ChainExceptions()          {}
 func (UnaccessibleApi) ActionValidateExceptions() {}
@@ -70,14 +72,14 @@ func (UnaccessibleApi) What() string {
 	return "Attempt to use unaccessible API"
 }
 
-type AbortCalled struct{ logMessage }
+type AbortCalled struct{ LogMessage }
 
 func (AbortCalled) ChainExceptions()          {}
 func (AbortCalled) ActionValidateExceptions() {}
 func (AbortCalled) Code() ExcTypes            { return 3050008 }
 func (AbortCalled) What() string              { return "Abort Called" }
 
-type InlineActionTooBig struct{ logMessage }
+type InlineActionTooBig struct{ LogMessage }
 
 func (InlineActionTooBig) ChainExceptions()          {}
 func (InlineActionTooBig) ActionValidateExceptions() {}

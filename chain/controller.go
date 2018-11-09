@@ -4,6 +4,7 @@ import (
 	"os"
 	"time"
 
+	"fmt"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto"
@@ -12,7 +13,7 @@ import (
 	"github.com/eosspark/eos-go/database"
 	"github.com/eosspark/eos-go/entity"
 	. "github.com/eosspark/eos-go/exception"
-	"github.com/eosspark/eos-go/exception/try"
+	. "github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/log"
 	"github.com/eosspark/eos-go/wasmgo"
 )
@@ -96,7 +97,7 @@ type Controller struct {
 	InTrxRequiringChecks           bool                //if true, checks that are normally skipped on replay (e.g. auth checks) cannot be skipped
 	SubjectiveCupLeeway            common.Microseconds //optional<common.Tstamp>
 	TrustedProducerLightValidation bool                //default value false
-	ApplyHandlers                  map[common.AccountName]map[HandlerKey]v
+	ApplyHandlers                  map[string]v
 	UnAppliedTransactions          map[crypto.Sha256]types.TransactionMetadata
 }
 
@@ -151,25 +152,25 @@ func newController() *Controller {
 
 	con.initConfig()
 	con.ReadMode = con.Config.readMode
-	con.ApplyHandlers = make(map[common.AccountName]map[HandlerKey]v)
+	con.ApplyHandlers = make(map[string]v)
 	con.WasmIf = wasmgo.NewWasmGo()
 
 	con.SetApplayHandler(common.AccountName(common.N("eosio")), common.AccountName(common.N("eosio")),
-		common.ActionName(common.N("eosio")), applyEosioNewaccount)
+		common.ActionName(common.N("newaccount")), applyEosioNewaccount)
 	con.SetApplayHandler(common.AccountName(common.N("eosio")), common.AccountName(common.N("eosio")),
-		common.ActionName(common.N("eosio")), applyEosioSetcode)
+		common.ActionName(common.N("setcode")), applyEosioSetcode)
 	con.SetApplayHandler(common.AccountName(common.N("eosio")), common.AccountName(common.N("eosio")),
-		common.ActionName(common.N("eosio")), applyEosioSetabi)
+		common.ActionName(common.N("setabi")), applyEosioSetabi)
 	con.SetApplayHandler(common.AccountName(common.N("eosio")), common.AccountName(common.N("eosio")),
-		common.ActionName(common.N("eosio")), applyEosioUpdateauth)
+		common.ActionName(common.N("updateauth")), applyEosioUpdateauth)
 	con.SetApplayHandler(common.AccountName(common.N("eosio")), common.AccountName(common.N("eosio")),
-		common.ActionName(common.N("eosio")), applyEosioDeleteauth)
+		common.ActionName(common.N("deleteauth")), applyEosioDeleteauth)
 	con.SetApplayHandler(common.AccountName(common.N("eosio")), common.AccountName(common.N("eosio")),
-		common.ActionName(common.N("eosio")), applyEosioUnlinkauth)
+		common.ActionName(common.N("linkauth")), applyEosioUnlinkauth)
 	con.SetApplayHandler(common.AccountName(common.N("eosio")), common.AccountName(common.N("eosio")),
-		common.ActionName(common.N("eosio")), applyEosioLinkauth)
+		common.ActionName(common.N("unlinkauth")), applyEosioLinkauth)
 	con.SetApplayHandler(common.AccountName(common.N("eosio")), common.AccountName(common.N("eosio")),
-		common.ActionName(common.N("eosio")), applyEosioCanceldalay)
+		common.ActionName(common.N("canceldelay")), applyEosioCanceldalay)
 
 	//IrreversibleBlock.connect()
 	//readycontroller = make(chan bool)
@@ -273,12 +274,21 @@ func (c *Controller) PopBlock() {
 }
 
 func (c *Controller) SetApplayHandler(receiver common.AccountName, contract common.AccountName, action common.ActionName, handler func(a *ApplyContext)) {
-	hk := NewHandlerKey(common.ScopeName(contract), action)
-	first := make(map[common.AccountName]map[HandlerKey]v)
-	second := make(map[HandlerKey]v)
-	second[hk] = handler
-	first[receiver] = second
-	c.ApplyHandlers[receiver] = second
+	handlerKey := receiver + contract + action
+	//fmt.Println("handlerKey----:",handlerKey.String())
+	c.ApplyHandlers[handlerKey.String()] = handler
+}
+
+func (c *Controller) FindApplyHandler(receiver common.AccountName,
+	scope common.AccountName,
+	act common.ActionName) func(*ApplyContext) {
+	handlerKey := receiver + scope + act
+
+	handler, ok := c.ApplyHandlers[handlerKey.String()]
+	if ok {
+		return handler
+	}
+	return nil
 }
 
 func (c *Controller) AbortBlock() {
@@ -627,18 +637,10 @@ func (c *Controller) pushScheduledTransactionByObject(gto *entity.GeneratedTrans
 	deadLine common.TimePoint,
 	billedCpuTimeUs uint32,
 	explicitBilledCpuTime bool) *types.TransactionTrace {
-	/*var undoSession database.Session
-	if !c.SkipDbSessions(){
-		undoSession = c.DB.StartSession()
+	if !c.SkipDbSessions() {
+		c.UndoSession = *c.DB.StartSession()
 	}
-	err := c.DB.Find("ByExpiration", ,&gto)
-	if err != nil {
-		fmt.Println("GetGeneratedTransactionObjectByExpiration is error :", err.Error())
-	}*/
-
-	//undo_session := c.DB.StartSession()
 	gtrx := entity.GeneratedTransactions(gto)
-
 	c.RemoveScheduledTransaction(gto)
 	EosAssert(gtrx.DelayUntil <= c.PendingBlockTime(), &TransactionException{}, "this transaction isn't ready,gtrx.DelayUntil:%s,PendingBlockTime:%s", gtrx.DelayUntil, c.PendingBlockTime())
 
@@ -655,7 +657,6 @@ func (c *Controller) pushScheduledTransactionByObject(gto *entity.GeneratedTrans
 	trx.Scheduled = true
 
 	trace := &types.TransactionTrace{}
-	//fmt.Println("test print:", trace)
 	if gtrx.Expiration < c.PendingBlockTime() {
 		trace.ID = gtrx.TrxId
 		trace.BlockNum = c.PendingBlockState().BlockNum
@@ -682,7 +683,7 @@ func (c *Controller) pushScheduledTransactionByObject(gto *entity.GeneratedTrans
 	trxContext.ExplicitBilledCpuTime = explicitBilledCpuTime
 	trxContext.BilledCpuTimeUs = int64(billedCpuTimeUs)
 	trace = trxContext.Trace
-	try.Try(func() {
+	Try(func() {
 		trxContext.InitForDeferredTrx(gtrx.Published)
 		trxContext.Exec()
 		trxContext.Finalize()
@@ -710,7 +711,7 @@ func (c *Controller) pushScheduledTransactionByObject(gto *entity.GeneratedTrans
 
 	trxContext.Undo()
 	if !failureIsSubjective(trace.Except) && gtrx.Sender != 0 { /*gtrx.Sender != account_name()*/
-		log.Info("", trace.Except.Message())
+		log.Info("%v", trace.Except.Message())
 		errorTrace := applyOnerror(gtrx, deadLine, trxContext.pseudoStart, &cpuTimeToBillUs, billedCpuTimeUs, explicitBilledCpuTime)
 		errorTrace.FailedDtrxTrace = trace
 		trace = errorTrace
@@ -734,21 +735,30 @@ func (c *Controller) pushScheduledTransactionByObject(gto *entity.GeneratedTrans
 		// hard failure logic
 
 		if !explicitBilledCpuTime {
-			/*rl := c.GetMutableResourceLimitsManager()
-			rl.UpdateAccountUsage( &trxContext.BillToAccounts, common.BlockTimeStamp(c.PendingBlockTime()).slot )*/
+			rl := c.GetMutableResourceLimitsManager()
+			rl.UpdateAccountUsage(&trxContext.BillToAccounts, uint32(common.BlockTimeStamp(c.PendingBlockTime())) /*.slot*/)
 			//accountCpuLimit := 0
-			//accountNetLimit, accountCpuLimit, greylistedNet, greylistedCpu := trxContext.MaxBandwidthBilledAccountsCanPay( true );
+			accountNetLimit, accountCpuLimit, greylistedNet, greylistedCpu := trxContext.MaxBandwidthBilledAccountsCanPay(true)
 
-			//cpuTimeToBillUs = cpuTimeToBillUs
-			//	accountCpuLimit
-			//	trxContext.initialObjectiveDurationLimit.Count()
+			fmt.Println("test print: %v,%v,%v,%v", accountNetLimit, accountCpuLimit, greylistedNet, greylistedCpu) //TODO
+
+			//cpuTimeToBillUs = cpuTimeToBillUs<accountCpuLimit:?trxContext.initialObjectiveDurationLimit.Count()
+			tmp := uint32(0)
+			if cpuTimeToBillUs < uint32(accountCpuLimit) {
+				tmp = cpuTimeToBillUs
+			} else {
+				tmp = uint32(accountCpuLimit)
+			}
+			if tmp < uint32(trxContext.objectiveDurationLimit) {
+				cpuTimeToBillUs = tmp
+			}
 		}
 
-		/*c.ResourceLimits.AddTransactionUsage(trxContext.BillToAccounts, uint64(cpuTimeToBillUs), 0,
-			common.BlockTimeStamp(c.PendingBlockTime()).slot ) // Should never fail
+		c.ResourceLimits.AddTransactionUsage(&trxContext.BillToAccounts, uint64(cpuTimeToBillUs), 0,
+			uint32(common.BlockTimeStamp(c.PendingBlockTime()))) // Should never fail
 
-		trace.Receipt := c.pushReceipt(gtrx.TrxId, types.TransactionStatusHardFail, uint64(cpuTimeToBillUs), 0);
-		*/
+		receipt := *c.pushReceipt(gtrx.TrxId, types.TransactionStatusHardFail, uint64(cpuTimeToBillUs), 0)
+		trace.Receipt = receipt.TransactionReceiptHeader
 		/*emit( self.accepted_transaction, trx );
 		emit( self.applied_transaction, trace );*/
 
@@ -757,11 +767,8 @@ func (c *Controller) pushScheduledTransactionByObject(gto *entity.GeneratedTrans
 		/*emit( self.accepted_transaction, trx );
 		emit( self.applied_transaction, trace );*/
 	}
-	//trxContext.InitForDeferredTrx(gtrx.Published)
+	trxContext.InitForDeferredTrx(gtrx.Published)
 	//}
-	//TODO
-
-	log.Info("test print:", dtrx, trx) //TODO
 	return trace
 }
 
@@ -1406,21 +1413,6 @@ func (c *Controller) SetSubjectiveCpuLeeway(leeway common.Microseconds) {
 	c.SubjectiveCupLeeway = leeway
 }
 
-func (c *Controller) FindApplyHandler(receiver common.AccountName,
-	scope common.AccountName,
-	act common.ActionName) func(*ApplyContext) {
-
-	handlerKey := NewHandlerKey(common.ScopeName(scope), act)
-	second, ok := c.ApplyHandlers[receiver]
-	if ok {
-		handler, success := second[handlerKey]
-		if success {
-			return handler
-		}
-	}
-	return nil
-}
-
 func (c *Controller) GetWasmInterface() *wasmgo.WasmGo {
 	return c.WasmIf
 }
@@ -1476,7 +1468,7 @@ func (c *Controller) initializeForkDB() {
 	genHeader.Header.ActionMRoot = common.CheckSum256Type(gs.ComputeChainID())
 	genHeader.BlockId = genHeader.Header.BlockID()
 	genHeader.BlockNum = genHeader.Header.BlockNumber()
-	c.Head = types.NewBlockState(genHeader)
+	c.Head = types.NewBlockState(&genHeader)
 	signedBlock := types.SignedBlock{}
 	signedBlock.SignedBlockHeader = genHeader.Header
 	c.Head.SignedBlock = &signedBlock

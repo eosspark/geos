@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"os"
 	"time"
+	"github.com/eosspark/eos-go/exception/try"
 )
 
 // For reference:
@@ -449,7 +450,7 @@ func SignTransaction() http.Handler {
 
 			for _, wallet := range wallets {
 				if !wallet.isLocked() {
-					sig := wallet.trySignDigest(tx.SigDigest(chainID, tx.ContextFreeData), key)
+					sig := wallet.trySignDigest(tx.SigDigest(&chainID, tx.ContextFreeData), key)
 					if !common.Empty(sig) {
 						tx.Signatures = append(tx.Signatures, *sig)
 						found = true
@@ -458,7 +459,7 @@ func SignTransaction() http.Handler {
 				}
 			}
 			if !found {
-				exception.EosThrow(&exception.WalletMissingPubKeyException{}, "public key not found in unlocked wallets %s", key)
+				try.EosThrow(&exception.WalletMissingPubKeyException{}, "public key not found in unlocked wallets %s", key)
 			}
 		}
 		w.WriteHeader(201)
@@ -510,7 +511,7 @@ func SignDigest() http.Handler {
 		//})
 
 		if common.Empty(sig) {
-			exception.EosThrow(&exception.WalletMissingPubKeyException{}, "public key not found in unlocked wallets %s", key)
+			try.EosThrow(&exception.WalletMissingPubKeyException{}, "public key not found in unlocked wallets %s", key)
 		}
 
 		w.WriteHeader(201)

@@ -7,6 +7,7 @@ import (
 	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/eosspark/eos-go/exception"
+	"github.com/eosspark/eos-go/exception/try"
 )
 
 type AccountObject struct {
@@ -39,7 +40,7 @@ func (a *AccountObject) SetAbi(ad types.AbiDef) {
 func (a *AccountObject) GetAbi() types.AbiDef {
 	abiDef := types.AbiDef{}
 	if len(a.Abi) != 0 {
-		exception.EosAssert(len(a.Abi) != 0, &exception.AbiNotFoundException{}, "No ABI set on account :", a.Name)
+		try.EosAssert(len(a.Abi) != 0, &exception.AbiNotFoundException{}, "No ABI set on account :", a.Name)
 	}
 	err := rlp.DecodeBytes(a.Abi, abiDef)
 	if err != nil {
