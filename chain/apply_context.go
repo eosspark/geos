@@ -64,6 +64,11 @@ func NewApplyContext(control *Controller, trxContext *TransactionContext, act *t
 	}
 
 	applyContext.KeyvalCache = NewIteratorCache()
+
+	applyContext.Notified = []common.AccountName{}
+	applyContext.InlineActions = []types.Action{}
+	applyContext.CfaInlineActions = []types.Action{}
+
 	applyContext.idx64 = NewIdx64(applyContext)
 	applyContext.idxDouble = NewIdxDouble(applyContext)
 
@@ -78,10 +83,6 @@ type pairTableIterator struct {
 	tableIDObject *entity.TableIdObject
 	iterator      int
 }
-
-// type cacheObject interface {
-// 	getKey() crypto.Sha256
-// }
 
 type iteratorCache struct {
 	tableCache         map[common.IdType]*pairTableIterator
@@ -230,7 +231,7 @@ func (a *ApplyContext) execOne(trace *types.ActionTrace) {
 		a.Privileged = action.Privileged
 		native := a.Control.FindApplyHandler(a.Receiver, a.Act.Account, a.Act.Name)
 
-		a.ilog.Info("receiver:%v action:%v account:%v", a.Receiver, a.Act.Account, a.Act.Name)
+		a.ilog.Info("receiver:%v account:%v action:%v data:%v", a.Receiver, a.Act.Account, a.Act.Name, a.Act.Data)
 
 		if native != nil {
 			if a.TrxContext.CanSubjectivelyFail && a.Control.IsProducingBlock() {
@@ -376,9 +377,11 @@ func (a *ApplyContext) HasReciptient(code int64) bool {
 	return false
 }
 func (a *ApplyContext) RequireRecipient(recipient int64) {
-	if a.HasReciptient(recipient) {
+	if !a.HasReciptient(recipient) {
 		a.Notified = append(a.Notified, common.AccountName(recipient))
 	}
+
+	a.ilog.Info("Notified:%v", a.Notified)
 }
 
 //context transaction api
@@ -387,15 +390,17 @@ func (a *ApplyContext) ExecuteInline(action []byte) {
 	act := types.Action{}
 	rlp.DecodeBytes(action, &act)
 
+	a.ilog.Info("action:%v", act)
+
 	code := entity.AccountObject{Name: act.Account}
 	err := a.DB.Find("byName", code, &code)
-	EosAssert(err != nil, &ActionValidateException{},
+	EosAssert(err == nil, &ActionValidateException{},
 		"inline action's code account %s does not exist", common.S(uint64(act.Account)))
 
 	for _, auth := range act.Authorization {
 		actor := entity.AccountObject{Name: auth.Actor}
 		err := a.DB.Find("byName", actor, &actor)
-		EosAssert(err != nil, &ActionValidateException{}, "inline action's authorizing actor %s does not exist", common.S(uint64(auth.Actor)))
+		EosAssert(err == nil, &ActionValidateException{}, "inline action's authorizing actor %s does not exist", common.S(uint64(auth.Actor)))
 		EosAssert(a.Control.GetAuthorizationManager().FindPermission(&auth) != nil, &ActionValidateException{},
 			"inline action's authorizations include a non-existent permission:%s",
 			auth) //todo permissionLevel print
@@ -453,6 +458,9 @@ func (a *ApplyContext) FindTable(code uint64, scope uint64, table uint64) *entit
 	if err == nil {
 		return &tab
 	}
+
+	//scopeBytes, _ := rlp.EncodeToBytes(tab.Scope)
+	//a.ilog.Info("id:%d code:%v scope:%v table:%v payer:%v count:%d", tab.ID, tab.Code, scopeBytes, tab.Table, tab.Payer, tab.Count)
 	return nil
 }
 func (a *ApplyContext) FindOrCreateTable(code uint64, scope uint64, table uint64, payer uint64) *entity.TableIdObject {
@@ -468,6 +476,10 @@ func (a *ApplyContext) FindOrCreateTable(code uint64, scope uint64, table uint64
 
 	a.UpdateDbUsage(common.AccountName(payer), int64(common.BillableSizeV("table_id_object")))
 	a.DB.Insert(&tab)
+
+	//scopeBytes, _ := rlp.EncodeToBytes(tab.Scope)
+	//a.ilog.Info("id:%d code:%v scope:%v table:%v payer:%v count:%d", tab.ID, tab.Code, scopeBytes, tab.Table, tab.Payer, tab.Count)
+
 	return &tab
 }
 func (a *ApplyContext) RemoveTable(tid entity.TableIdObject) {
@@ -611,8 +623,8 @@ func (a *ApplyContext) dbStoreI64(code uint64, scope uint64, table uint64, payer
 	a.UpdateDbUsage(common.AccountName(payer), billableSize)
 	a.KeyvalCache.cacheTable(tab)
 	iteratorOut := a.KeyvalCache.add(&obj)
-	a.ilog.Info("object:%v iteratorOut:%d code:%v scope:%v table:%v payer:%v id:%d buffer:%v",
-		obj, iteratorOut, common.AccountName(code), common.ScopeName(scope), common.TableName(table), common.AccountName(payer), id, buffer)
+	//a.ilog.Info("object:%v iteratorOut:%d code:%v scope:%v table:%v payer:%v id:%d buffer:%v",
+	//	obj, iteratorOut, common.AccountName(code), common.ScopeName(scope), common.TableName(table), common.AccountName(payer), id, buffer)
 	return iteratorOut
 }
 func (a *ApplyContext) DbUpdateI64(iterator int, payer uint64, buffer []byte) {
@@ -620,7 +632,7 @@ func (a *ApplyContext) DbUpdateI64(iterator int, payer uint64, buffer []byte) {
 	obj := (a.KeyvalCache.get(iterator)).(*entity.KeyValueObject)
 	objTable := a.KeyvalCache.getTable(obj.TId)
 
-	a.ilog.Info("object:%v iterator:%d payer:%v buffer:%v", *obj, iterator, common.AccountName(payer), buffer)
+	//a.ilog.Info("object:%v iterator:%d payer:%v buffer:%v", *obj, iterator, common.AccountName(payer), buffer)
 	EosAssert(objTable.Code == a.Receiver, &TableAccessViolation{}, "db access violation")
 
 	overhead := common.BillableSizeV("key_value_object")
@@ -657,7 +669,7 @@ func (a *ApplyContext) DbRemoveI64(iterator int) {
 		t.Count--
 	})
 
-	a.ilog.Info("object:%v iteratorIn:%d ", *obj, iterator)
+	//a.ilog.Info("object:%v iteratorIn:%d ", *obj, iterator)
 
 	a.DB.Remove(obj)
 	if objTable.Count == 0 {
@@ -677,7 +689,7 @@ func (a *ApplyContext) DbGetI64(iterator int, buffer []byte, bufferSize int) int
 	copySize := int(common.Min(uint64(bufferSize), uint64(s)))
 	copy(buffer[0:copySize], obj.Value[0:copySize])
 
-	a.ilog.Info("object:%v buffer:%v iteratorIn:%d ", *obj, buffer, iterator)
+	//a.ilog.Info("object:%v buffer:%v iteratorIn:%d ", *obj, buffer, iterator)
 	return copySize
 }
 func (a *ApplyContext) DbNextI64(iterator int, primary *uint64) int {
@@ -702,7 +714,7 @@ func (a *ApplyContext) DbNextI64(iterator int, primary *uint64) int {
 
 	*primary = objKeyval.PrimaryKey
 	iteratorOut := a.KeyvalCache.add(&objKeyval)
-	a.ilog.Info("object:%v iteratorIn:%d iteratorOut:%d", objKeyval, iterator, iteratorOut)
+	//a.ilog.Info("object:%v iteratorIn:%d iteratorOut:%d", objKeyval, iterator, iteratorOut)
 	return iteratorOut
 }
 
@@ -755,7 +767,7 @@ func (a *ApplyContext) DbPreviousI64(iterator int, primary *uint64) int {
 
 	*primary = objPrev.PrimaryKey
 	iteratorOut := a.KeyvalCache.add(&objPrev)
-	a.ilog.Info("object:%v iteratorIn:%d iteratorOut:%d", objPrev, iterator, iteratorOut)
+	//a.ilog.Info("object:%v iteratorIn:%d iteratorOut:%d", objPrev, iterator, iteratorOut)
 	return iteratorOut
 }
 func (a *ApplyContext) DbFindI64(code uint64, scope uint64, table uint64, id uint64) int {
@@ -778,8 +790,8 @@ func (a *ApplyContext) DbFindI64(code uint64, scope uint64, table uint64, id uin
 		return tableEndItr
 	}
 	iteratorOut := a.KeyvalCache.add(&obj)
-	a.ilog.Info("object:%v iteratorOut:%d code:%v scope:%v table:%v id:%d",
-		obj, iteratorOut, common.AccountName(code), common.ScopeName(scope), common.TableName(table), id)
+	//a.ilog.Info("object:%v iteratorOut:%d code:%v scope:%v table:%v id:%d",
+	//	obj, iteratorOut, common.AccountName(code), common.ScopeName(scope), common.TableName(table), id)
 	return iteratorOut
 
 }
@@ -807,8 +819,8 @@ func (a *ApplyContext) DbLowerboundI64(code uint64, scope uint64, table uint64, 
 	}
 
 	iteratorOut := a.KeyvalCache.add(&objLowerbound)
-	a.ilog.Info("object:%v iteratorOut:%d code:%v scope:%v table:%v id:%d",
-		objLowerbound, iteratorOut, common.AccountName(code), common.ScopeName(scope), common.TableName(table), id)
+	//a.ilog.Info("object:%v iteratorOut:%d code:%v scope:%v table:%v id:%d",
+	//	objLowerbound, iteratorOut, common.AccountName(code), common.ScopeName(scope), common.TableName(table), id)
 	return iteratorOut
 
 }
@@ -838,14 +850,14 @@ func (a *ApplyContext) DbUpperboundI64(code uint64, scope uint64, table uint64, 
 
 	//return a.KeyvalCache.add(&objUpperbound)
 	iteratorOut := a.KeyvalCache.add(&objUpperbound)
-	a.ilog.Info("object:%v iteratorOut:%d code:%v scope:%v table:%v id:%d",
-		objUpperbound, iteratorOut, common.AccountName(code), common.ScopeName(scope), common.TableName(table), id)
+	//a.ilog.Info("object:%v iteratorOut:%d code:%v scope:%v table:%v id:%d",
+	//	objUpperbound, iteratorOut, common.AccountName(code), common.ScopeName(scope), common.TableName(table), id)
 	return iteratorOut
 
 }
 func (a *ApplyContext) DbEndI64(code uint64, scope uint64, table uint64) int {
-	a.ilog.Info("code:%v scope:%v table:%v ",
-		common.AccountName(code), common.ScopeName(scope), common.TableName(table))
+	//a.ilog.Info("code:%v scope:%v table:%v ",
+	//	common.AccountName(code), common.ScopeName(scope), common.TableName(table))
 
 	tab := a.FindTable(code, scope, table)
 	if tab == nil {

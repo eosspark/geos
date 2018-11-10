@@ -34,7 +34,7 @@ func requireAuth2(w *WasmGo, account int64, permission int64) {
 //   context.require_recipient( recipient );
 // }
 func requireRecipient(w *WasmGo, recipient int64) {
-	fmt.Println("require_recipient")
+	//fmt.Println("require_recipient")
 	w.context.RequireRecipient(recipient)
 
 }
@@ -43,6 +43,6 @@ func requireRecipient(w *WasmGo, recipient int64) {
 //   return context.is_account( account );
 // }
 func isAccount(w *WasmGo, account int64) int {
-	fmt.Println("is_account")
+	//fmt.Println("is_account")
 	return b2i(w.context.IsAccount(account))
 }

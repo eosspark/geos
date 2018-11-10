@@ -17,7 +17,7 @@ import (
 //    context.execute_inline(std::move(act));
 // }
 func sendInline(w *WasmGo, data int, dataLen int) {
-	fmt.Println("send_inline")
+	//fmt.Println("send_inline")
 
 	action := getBytes(w, data, dataLen)
 	w.context.ExecuteInline(action)

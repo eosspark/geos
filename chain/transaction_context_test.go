@@ -39,11 +39,25 @@ func TestContract(t *testing.T) {
 
 		SetCode(control, eosioToken, code)
 
-		createToken(control, account1, 1000000000, "BTCBTCC")
+		createToken(control, account1, 1000000000, "BTC")
+		//issueToken(control, account1, account1, 10000, "BTC", "issue")
+		//issueToken(control, account1, account1, 20000, "BTC", "issue")
+		issueToken(control, account1, account2, 20000, "BTC", "issue")
 
 		control.Close()
-
 	})
+
+}
+
+func issueToken(control *Controller, issuer string, to string, amount int64, symbol string, memo string) {
+
+	action := NewIssue(common.AccountName(common.N(issuer)), common.AccountName(common.N(to)), common.Asset{amount, common.Symbol{4, symbol}}, memo)
+
+	wif := "5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3"
+	privateKey, _ := ecc.NewPrivateKey(wif)
+
+	trx := newTransaction(control, action, privateKey)
+	pushTransaction(control, trx)
 
 }
 
@@ -83,12 +97,12 @@ type Transfer struct {
 	Memo     string             `json:"memo"`
 }
 
-func NewIssue(to common.AccountName, quantity common.Asset, memo string) *types.Action {
+func NewIssue(issuer common.AccountName, to common.AccountName, quantity common.Asset, memo string) *types.Action {
 	return &types.Action{
 		Account: common.AccountName(common.N("eosio.token")),
 		Name:    common.ActionName(common.N("issue")),
 		Authorization: []types.PermissionLevel{
-			{Actor: common.AccountName(common.N("eosio")), Permission: common.PermissionName(common.N("active"))},
+			{Actor: issuer, Permission: common.PermissionName(common.N("active"))},
 		},
 		Data: NewActionData(Issue{
 			To:       to,

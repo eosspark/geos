@@ -53,11 +53,11 @@ func eosioAssert(w *WasmGo, condition int, val int) {
 	// 	fmt.Println("eosio_assert")
 	// }
 
-	message := getMemory(w, val, getStringLength(w, val))
-	w.ilog.Info("message:%v", string(message))
+	//message := getMemory(w, val, getStringLength(w, val))
+	//w.ilog.Info("message:%v", string(message))
 
 	if condition != 1 {
-		//message := getMemory(w, val, getStringLength(w, val))
+		message := getMemory(w, val, getStringLength(w, val))
 
 		try.EosAssert(condition != 1, &exception.EosioAssertMessageException{}, string(message))
 		try.Throw(&exception.EosioAssertMessageException{})
