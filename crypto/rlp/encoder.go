@@ -28,12 +28,12 @@ type encoder struct {
 	count    int
 	eosArray bool
 	vuint32  bool
+	asset    bool
 }
 
 var (
 	staticVariantTag uint8
 	trxIsID          bool
-	asset            bool
 )
 
 func newEncoder(w io.Writer) *encoder {
@@ -171,7 +171,7 @@ func (e *encoder) encode(v interface{}) (err error) {
 				e.writeBool(true)
 
 			case "asset":
-				asset = true
+				e.asset = true
 			}
 
 			if v := rv.Field(i); t.Field(i).Name != "_" {
@@ -271,11 +271,11 @@ func (e *encoder) writeInt64(i int64) (err error) {
 }
 
 func (e *encoder) writeString(s string) (err error) {
-	if asset {
-		asset = false
+	if e.asset {
+		e.asset = false
 		symbol := make([]byte, 7, 7)
 		copy(symbol[:], []byte(s))
-		return e.toWriter([]byte(s))
+		return e.toWriter(symbol)
 	}
 	return e.writeByteArray([]byte(s))
 }
