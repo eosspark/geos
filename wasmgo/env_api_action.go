@@ -32,6 +32,9 @@ func readActionData(w *WasmGo, memory int, bufferSize int) int {
 
 	copySize := min(bufferSize, s)
 	setMemory(w, memory, data, 0, copySize)
+
+	w.ilog.Info("action data:%v", data)
+
 	return copySize
 
 }

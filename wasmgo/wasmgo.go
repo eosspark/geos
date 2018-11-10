@@ -8,13 +8,15 @@ import (
 	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/eosspark/eos-go/exception"
 	"github.com/eosspark/eos-go/log"
+	"os"
+
 	//"os"
 
 	"reflect"
 
+	"github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/wasmgo/wagon/exec"
 	"github.com/eosspark/eos-go/wasmgo/wagon/wasm"
-	"github.com/eosspark/eos-go/exception/try"
 )
 
 var (
@@ -164,7 +166,7 @@ func NewWasmGo() *WasmGo {
 	wasmGo = &w
 
 	wasmGo.ilog = log.New("wasmgo")
-	//wasmGo.ilog.SetHandler(log.StreamHandler(os.Stdout, log.TerminalFormat(true)))
+	wasmGo.ilog.SetHandler(log.StreamHandler(os.Stdout, log.TerminalFormat(true)))
 
 	return wasmGo
 }

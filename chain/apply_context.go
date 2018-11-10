@@ -230,6 +230,8 @@ func (a *ApplyContext) execOne(trace *types.ActionTrace) {
 		a.Privileged = action.Privileged
 		native := a.Control.FindApplyHandler(a.Receiver, a.Act.Account, a.Act.Name)
 
+		a.ilog.Info("receiver:%v action:%v account:%v", a.Receiver, a.Act.Account, a.Act.Name)
+
 		if native != nil {
 			if a.TrxContext.CanSubjectivelyFail && a.Control.IsProducingBlock() {
 				a.Control.CheckContractList(a.Receiver)

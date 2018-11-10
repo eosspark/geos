@@ -11,6 +11,11 @@ import (
 	"testing"
 )
 
+func NewActionData(action interface{}) []byte {
+	bytes, _ := rlp.EncodeToBytes(action)
+	return bytes
+}
+
 func TestContract(t *testing.T) {
 
 	name := "../wasmgo/testdata_context/eosio.token.wasm"
@@ -34,15 +39,93 @@ func TestContract(t *testing.T) {
 
 		SetCode(control, eosioToken, code)
 
+		createToken(control, account1, 1000000000, "BTCBTCC")
+
 		control.Close()
 
 	})
 
 }
 
-func SetCode(control *Controller, account string, code []byte) {
+func createToken(control *Controller, issuer string, amount int64, symbol string) {
 
-	createNewAccount(control, account)
+	action := NewCreate(common.AccountName(common.N(issuer)), common.Asset{amount, common.Symbol{4, symbol}})
+
+	wif := "5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3"
+	privateKey, _ := ecc.NewPrivateKey(wif)
+
+	trx := newTransaction(control, action, privateKey)
+	pushTransaction(control, trx)
+
+}
+
+func NewTransfer(from, to common.AccountName, quantity common.Asset, memo string) *types.Action {
+	return &types.Action{
+		Account: common.AccountName(common.N("eosio.token")),
+		Name:    common.ActionName(common.N("transfer")),
+		Authorization: []types.PermissionLevel{
+			{Actor: from, Permission: common.PermissionName(common.N("active"))},
+		},
+		Data: NewActionData(Transfer{
+			From:     from,
+			To:       to,
+			Quantity: quantity,
+			Memo:     memo,
+		}),
+	}
+}
+
+// Transfer represents the `transfer` struct on `eosio.token` contract.
+type Transfer struct {
+	From     common.AccountName `json:"from"`
+	To       common.AccountName `json:"to"`
+	Quantity common.Asset       `json:"quantity"`
+	Memo     string             `json:"memo"`
+}
+
+func NewIssue(to common.AccountName, quantity common.Asset, memo string) *types.Action {
+	return &types.Action{
+		Account: common.AccountName(common.N("eosio.token")),
+		Name:    common.ActionName(common.N("issue")),
+		Authorization: []types.PermissionLevel{
+			{Actor: common.AccountName(common.N("eosio")), Permission: common.PermissionName(common.N("active"))},
+		},
+		Data: NewActionData(Issue{
+			To:       to,
+			Quantity: quantity,
+			Memo:     memo,
+		}),
+	}
+}
+
+// Issue represents the `issue` struct on the `eosio.token` contract.
+type Issue struct {
+	To       common.AccountName `json:"to"`
+	Quantity common.Asset       `json:"quantity"`
+	Memo     string             `json:"memo"`
+}
+
+func NewCreate(issuer common.AccountName, maxSupply common.Asset) *types.Action {
+	return &types.Action{
+		Account: common.AccountName(common.N("eosio.token")),
+		Name:    common.ActionName(common.N("create")),
+		Authorization: []types.PermissionLevel{
+			{Actor: common.AccountName(common.N("eosio.token")), Permission: common.PermissionName(common.N("active"))},
+		},
+		Data: NewActionData(Create{
+			Issuer:        issuer,
+			MaximumSupply: maxSupply,
+		}),
+	}
+}
+
+// Create represents the `create` struct on the `eosio.token` contract.
+type Create struct {
+	Issuer        common.AccountName `json:"issuer"`
+	MaximumSupply common.Asset       `json:"maximum_supply"`
+}
+
+func SetCode(control *Controller, account string, code []byte) {
 
 	setCode := setCode{
 		Account:   common.AccountName(common.N(account)),
@@ -52,7 +135,7 @@ func SetCode(control *Controller, account string, code []byte) {
 	}
 	buffer, _ := rlp.EncodeToBytes(&setCode)
 	action := types.Action{
-		Account: common.AccountName(common.N(account)),
+		Account: common.AccountName(common.N("eosio")),
 		Name:    common.ActionName(common.N("setcode")),
 		Data:    buffer,
 		Authorization: []types.PermissionLevel{
@@ -125,7 +208,7 @@ func newTransaction(control *Controller, action *types.Action, privateKey *ecc.P
 		ContextFreeActions:    []*types.Action{},
 		Actions:               []*types.Action{action},
 		TransactionExtensions: []*types.Extension{},
-		RecoveryCache:         make(map[ecc.Signature]types.CachedPubKey),
+		//RecoveryCache:         make(map[ecc.Signature]types.CachedPubKey),
 	}
 	signedTrx := types.NewSignedTransaction(&trx, []ecc.Signature{}, []common.HexBytes{})
 	//privateKey, _ := ecc.NewRandomPrivateKey()
