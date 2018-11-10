@@ -8,6 +8,7 @@ import (
 	"io"
 	"io/ioutil"
 	"reflect"
+	"strings"
 )
 
 var (
@@ -59,8 +60,9 @@ var (
 
 // Decoder implements the EOS unpacking, similar to FC_BUFFER
 type decoder struct {
-	data []byte
-	pos  int
+	data  []byte
+	pos   int
+	asset bool
 }
 
 func init() {
@@ -272,6 +274,9 @@ func (d *decoder) decodeStruct(v interface{}, t reflect.Type, rv reflect.Value) 
 			if destaticVariantTag != 0 {
 				continue
 			}
+
+		case "asset":
+			d.asset = true
 		}
 
 		if v := rv.Field(i); v.CanSet() && t.Field(i).Name != "_" {
@@ -311,6 +316,17 @@ func (d *decoder) readByteArray() (out []byte, err error) {
 }
 
 func (d *decoder) readString() (out string, err error) {
+	if d.asset {
+		d.asset = false
+		if len(d.data) < 7 {
+			err = fmt.Errorf("asset symbol required [%d] bytes, remaining [%d]", 7, d.remaining())
+			return "", ErrValueTooLarge
+		}
+		data := d.data[d.pos : d.pos+7]
+		d.pos += 7
+		out = strings.TrimRight(string(data), "\x00")
+		return
+	}
 	data, err := d.readByteArray()
 	out = string(data)
 	return
