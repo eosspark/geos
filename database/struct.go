@@ -7,13 +7,13 @@ import (
 
 /////////////////////////////////////////////////////// test struct ///////////////////////////////////////////
 type Carnivore struct {
-	Lion  int `multiIndex:"orderedUnique,greater"`
-	Tiger int `multiIndex:"orderedUnique,greater"`
+	Lion  int `multiIndex:"orderedUnique,less"`
+	Tiger int `multiIndex:"orderedUnique,less"`
 }
 
 type DbHouse struct {
 	Id        uint64 `multiIndex:"id,increment"`
-	Area      uint64 `multiIndex:"orderedUnique,greater"`
+	Area      uint64 `multiIndex:"orderedUnique,less"`
 	Name      string
 	Carnivore Carnivore `multiIndex:"inline"`
 }
@@ -29,8 +29,8 @@ type ScopeName uint64
 type DbTableIdObject struct {
 	ID    IdType      `multiIndex:"id,increment,byScope"`
 	Code  AccountName `multiIndex:"orderedUnique,less"`
-	Scope ScopeName   `multiIndex:"byTable,orderedUnique,greater:byScope,orderedUnique,less"`
-	Table TableName   `multiIndex:"byTable,orderedUnique,greater"`
+	Scope ScopeName   `multiIndex:"byTable,orderedUnique,less:byScope,orderedUnique,less"`
+	Table TableName   `multiIndex:"byTable,orderedUnique,less"`
 	Payer AccountName `multiIndex:"byScope,orderedUnique"`
 	Count uint32
 }

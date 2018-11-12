@@ -30,14 +30,22 @@ type Iterator interface {
 
 	Data(data interface{}) error
 
-	Begin() []byte
+	//Begin() []byte
+	End()	bool
+	Begin()	bool
 }
+const (
+	itBEGIN  = "iterator begin"
+	itCURRENT = "iterator current"
+	itEND    = "iterator end"
+)
 
 //Do not use the functions in this file
 type DbIterator struct {
 	key      []byte
 	value    []byte
 	begin    []byte
+	currentStatus	 string
 	beginVal []byte
 	typeName []byte
 	db       *leveldb.DB // TODO interface
@@ -47,9 +55,9 @@ type DbIterator struct {
 }
 
 //Do not use the functions in this file
-func newDbIterator(typeName []byte, it iterator, db *leveldb.DB, greater bool) (*DbIterator, error) {
+func newDbIterator(typeName []byte, it iterator, db *leveldb.DB,greater bool) (*DbIterator, error) {
 	if greater {
-		if it.Last() {
+		{
 			idx := &DbIterator{typeName: typeName, it: it, db: db, greater: greater}
 			key := idKey(it.Value(), typeName)
 			key, err := getDbKey(key, db)
@@ -62,22 +70,20 @@ func newDbIterator(typeName []byte, it iterator, db *leveldb.DB, greater bool) (
 			return idx, nil
 		}
 
-		return nil, ErrNotFound
-	}
-	for it.Next() {
-		idx := &DbIterator{typeName: typeName, it: it, db: db, greater: greater}
-
-		key := idKey(it.Value(), typeName)
-		key, err := getDbKey(key, db)
-		if err != nil {
-			return nil, err
-		}
-
-		idx.copyBeginValue(key)
-		return idx, nil
+		idx := &DbIterator{typeName: typeName, it: it, db: db, greater: greater,currentStatus:itEND}
+		return idx,nil
 	}
 
-	return nil, ErrNotFound
+	idx := &DbIterator{typeName: typeName, it: it, db: db, greater: greater}
+
+	key := idKey(it.Value(), typeName)
+	key, err := getDbKey(key, db)
+	if err != nil {
+			  return nil, err
+			  }
+
+	idx.copyBeginValue(key)
+	return idx, nil
 }
 
 /* Do not use the functions in this file */
@@ -106,14 +112,14 @@ func (index *DbIterator) keyValue(key []byte) error {
 
 func (index *DbIterator) Next() bool {
 	if index.greater {
-		if index.first == true {
+		if index.first {
 			index.first = false
 
 			return index.keyValue(index.it.Value()) == nil
 		}
 		return index.prev()
 	}
-	if index.first == true {
+	if index.first {
 		index.first = false
 
 		return index.keyValue(index.it.Value()) == nil
@@ -123,7 +129,7 @@ func (index *DbIterator) Next() bool {
 
 func (index *DbIterator) Prev() bool {
 	if index.greater {
-		if index.first == true {
+		if index.first {
 
 			index.first = false
 
@@ -132,35 +138,59 @@ func (index *DbIterator) Prev() bool {
 		return index.next()
 	}
 
-	if index.first == true {
-
+	if index.first {
 		index.first = false
-
 		return index.keyValue(index.it.Value()) == nil
 	}
 	return index.prev()
 }
 
-func (index *DbIterator) Begin() []byte {
-	return index.beginVal
-}
 
 func (index *DbIterator) next() bool {
 	for index.it.Next() {
-
+		index.currentStatus = itCURRENT
 		return index.keyValue(index.it.Value()) == nil
 	}
-	index.value = nil
+
+	if index.greater{
+		index.currentStatus = itBEGIN
+	}else{
+		index.currentStatus = itEND
+	}
 	return false
 }
 
 func (index *DbIterator) prev() bool {
 	for index.it.Prev() {
-
+		index.currentStatus = itCURRENT
 		return index.keyValue(index.it.Value()) == nil
 	}
-	index.value = nil
+	if index.greater{
+		index.currentStatus = itEND
+	}else{
+		index.currentStatus = itBEGIN
+	}
 	return false
+}
+
+func (index *DbIterator) End() bool{
+	if index.it == nil{
+		return false
+	}
+	if index.db == nil{
+		return false
+	}
+	return index.currentStatus == itEND
+}
+
+func (index *DbIterator) Begin() bool{
+	if index.it == nil{
+		return false
+	}
+	if index.db == nil{
+		return false
+	}
+	return index.currentStatus == itBEGIN
 }
 
 func (index *DbIterator) Release() {
@@ -182,7 +212,9 @@ func (index *DbIterator) Data(data interface{}) error {
 	if !rv.CanAddr() {
 		return ErrPtrNeeded
 	}
-
+	if index.first{
+		index.first = false
+	}
 	return DecodeBytes(index.Value(), data)
 }
 

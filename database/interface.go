@@ -35,7 +35,8 @@ type DataBase interface {
 
 	IteratorTo(begin, end, fieldName []byte, in interface{}, greater bool) (*DbIterator, error)
 
-	BeginIterator(begin, end, fieldName, typeName []byte, greater bool) (*DbIterator, error)
+	BeginIterator(begin, end,  typeName []byte, greater bool) (*DbIterator, error)
+	EndIterator(begin, end,  typeName []byte, greater bool) (*DbIterator, error)
 
 	squash()
 }
