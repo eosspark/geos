@@ -51,7 +51,7 @@ error 				-->		error 	(Iterator invalid)
 func (index *MultiIndex) UpperBound(in interface{}) (Iterator, error) {
 	it, err := index.db.upperBound(index.begin, index.end, index.fieldName, in, index.greater)
 	if err != nil {
-		return nil, err
+		return index.db.EndIterator(index.begin, index.end,index.typeName,index.greater)
 	}
 	return it, nil
 }
