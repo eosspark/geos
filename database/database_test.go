@@ -1,7 +1,9 @@
 package database
 
 import (
+	"bytes"
 	"github.com/syndtr/goleveldb/leveldb"
+	"github.com/syndtr/goleveldb/leveldb/util"
 	"log"
 	"os"
 	"testing"
@@ -39,40 +41,29 @@ func Test_rawDb(t *testing.T) {
 	if len(objs) != len(houses) {
 		log.Fatalln("ERROR")
 	}
+	keys := [][]byte{}
 	for i := 1; i <= 10; i++ {
-		db.Put([]byte(string(i)), []byte(string(i)), nil)
+		key := []byte(string(i))
+		key = append(key,key...)
+		keys = append(keys,key)
+	}
+	for _,v :=  range keys{
+		db.Put(v,v, nil)
+	}
+	if bytes.HasPrefix(keys[0],[]byte(string(1))){
+		//fmt.Println(keys[0],[]byte(string(1)))
 	}
 
-	it := db.NewIterator(nil, nil)
+	it := db.NewIterator(&util.Range{Start:[]byte(string(5)),Limit:nil}, nil)
+	if it.Seek([]byte(string(2))){
+		//fmt.Println("---------")
+	}
+	//fmt.Println(it.Value(),it.Key())
+	for it.Next(){
 
-	for it.Next() {
-		//fmt.Println(it.Key(),it.Value())
+		//fmt.Println(it.Value(),it.Key())
 	}
-	tx,_ := db.OpenTransaction()
-	for i := 1; i <= 10; i++ {
-		//tx.Put([]byte(string(i)), []byte(string(i + 10)), nil)
-		tx.Delete([]byte(string(i)),nil)
-	}
-	tx.Discard()
-	//tx.Commit()
-	it = db.NewIterator(nil,nil)
-
-	for it.Next() {
-		//fmt.Println(it.Key(),it.Value())
-	}
-
-	i := 0
-	for index, v := range houses {
-		b, err := EncodeToBytes(v)
-		if err != nil {
-			log.Fatalln(err)
-		}
-		db.Put([]byte(string(index+10)), b, nil)
-		if err != nil {
-			log.Fatalln(err)
-		}
-		i++
-	}
+	it.Release()
 }
 
 func Test_open(t *testing.T) {
@@ -98,8 +89,6 @@ func Test_insert(t *testing.T) {
 
 	saveObjs(objs, houses, db)
 }
-
-
 
 func insert_te() {
 
@@ -134,13 +123,12 @@ func Test_find(t *testing.T) {
 	objs, houses := Objects()
 	objs_, houses_ := saveObjs(objs, houses, db)
 
-	getGreaterObjs(objs_, houses_, db)
 
 	findObjs(objs_, houses_, db)
+
+	lowerAndUpper(objs_, houses_, db)
 	//
 	findInLineFieldObjs(objs_, houses_, db)
-	//////
-	findAllNonUniqueFieldObjs(objs_, houses_, db)
 
 	getLessObjs(objs_, houses_, db)
 }
@@ -170,6 +158,7 @@ func Test_modifyUndo(t *testing.T) {
 		it.Data(&tmp)
 		if objs_[i] != tmp {
 			logObj(tmp)
+			logObj(objs_[i])
 			log.Fatalln("error lower bound")
 		}
 		i++
@@ -400,7 +389,7 @@ func Test_iteratorTo(t *testing.T) {
 	it.Release()
 }
 
-func Test_beginAndEnd(t *testing.T) {
+func Test_begin(t *testing.T) {
 	db, clo := openDb()
 	if db == nil {
 		log.Fatalln("db open failed")
@@ -424,9 +413,9 @@ func Test_beginAndEnd(t *testing.T) {
 	if !idx.CompareBegin(it) {
 		log.Fatalln("begin failed")
 	}
-	if !idx.CompareEnd(nil){
-		log.Fatalln("end failed")
-	}
+	//if !idx.CompareEnd(nil){
+	//	log.Fatalln("end failed")
+	//}
 
 	it.Release()
 
@@ -445,6 +434,86 @@ func Test_beginAndEnd(t *testing.T) {
 
 	it.Release()
 	it1.Release()
+}
+
+func Test_end(t *testing.T) {
+	db, clo := openDb()
+	if db == nil {
+		log.Fatalln("db open failed")
+	}
+	defer clo()
+
+	objs, houses := Objects()
+	//objs_, houses_ :=
+	saveObjs(objs, houses, db)
+
+	idx, err := db.GetIndex("id", DbTableIdObject{})
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	/*less end*/
+	obj := DbTableIdObject{ID: 100}
+	itLess, err := idx.LowerBound(obj)
+	for itLess.Prev(){
+		tmp := DbTableIdObject{}
+		itLess.Data(&tmp)
+		//logObj(tmp)
+	}
+	itLess.Release()
+
+	/*greater end*/
+
+	idxGreater, err := db.GetIndex("byTable", obj)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	obj = DbTableIdObject{Scope: 20}
+	itGreater, err := idxGreater.LowerBound(obj)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	for itGreater.Prev(){
+		tmp := DbTableIdObject{}
+		itGreater.Data(&tmp)
+		//logObj(tmp)
+	}
+
+	if !idxGreater.CompareBegin(itGreater){
+		t.Fatal("Greater compareBegin failed")
+	}
+
+	it := idxGreater.Begin()
+	if !idxGreater.CompareIterator(it,itGreater){
+		t.Fatal("Greater compareBegin failed")
+	}
+	it.Release()
+
+	for itGreater.Next(){
+		tmp := DbTableIdObject{}
+		itGreater.Data(&tmp)
+		//logObj(tmp)
+	}
+
+	if !idxGreater.CompareEnd(itGreater){
+		t.Fatal("Greater compareEnd failed")
+	}
+	it = idxGreater.End()
+	if !idxGreater.CompareIterator(it,itGreater){
+		t.Fatal("Greater compareEnd failed")
+	}
+	it.Release()
+	itGreater.Release()
+
+	itT := idxGreater.End()
+	for itT.Prev(){
+		tmp := DbTableIdObject{}
+		itT.Data(&tmp)
+		//logObj(tmp)
+	}
+
+	itT.Release()
 }
 
 func Test_empty(t *testing.T) {
@@ -493,6 +562,73 @@ func Test_modify(t *testing.T) {
 	objs, houses := Objects()
 	saveObjs(objs, houses, db)
 	modifyObjs(db)
+}
+
+func Test_compare(t *testing.T) {
+
+	db, clo := openDb()
+	if db == nil {
+		log.Fatalln("db open failed")
+	}
+	defer clo()
+
+	objs, houses := Objects()
+	objs_, _ := saveObjs(objs, houses, db)
+
+	idx, err := db.GetIndex("id", DbTableIdObject{})
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	i := 2
+	{
+		obj := DbTableIdObject{ID: 3}
+		itLess, _ := idx.LowerBound(obj) // note  return err
+		if !idx.CompareEnd(itLess){
+			for itLess.Next(){
+				tmp := DbTableIdObject{}
+				itLess.Data(&tmp)
+				if tmp != objs_[i]{
+					logObj(objs_[i])
+					logObj(tmp)
+					t.Fatal("compare error")
+				}
+				i++
+			}
+		}
+		i--
+		if idx.CompareEnd(itLess){
+			for itLess.Prev(){
+				tmp := DbTableIdObject{}
+				itLess.Data(&tmp)
+				if tmp != objs_[i]{
+					logObj(objs_[i])
+					logObj(tmp)
+					t.Fatal("compare error")
+				}
+
+				i--
+			}
+		}
+		itLess.Release()
+	}
+	i = 8
+	/*compare less end*/
+	obj := DbTableIdObject{ID: 100}
+	itLess, _ := idx.LowerBound(obj)
+	if idx.CompareEnd(itLess){
+		for itLess.Prev(){
+			tmp := DbTableIdObject{}
+			itLess.Data(&tmp)
+			if tmp != objs_[i]{
+				logObj(tmp)
+				logObj(objs_[i])
+				t.Fatal("compare error")
+			}
+			i--
+		}
+	}
+	itLess.Release()
 }
 
 func Test_remove(t *testing.T) {
@@ -677,7 +813,7 @@ func saveObjs(objs []DbTableIdObject, houses []DbHouse, db DataBase) ([]DbTableI
 	return objs_, houses_
 }
 
-func getGreaterObjs(objs []DbTableIdObject, houses []DbHouse, db DataBase) {
+func lowerAndUpper(objs []DbTableIdObject, houses []DbHouse, db DataBase) {
 
 	obj := DbTableIdObject{Scope: 22}
 	idx, err := db.GetIndex("byTable", obj)
@@ -691,26 +827,17 @@ func getGreaterObjs(objs []DbTableIdObject, houses []DbHouse, db DataBase) {
 	}
 	defer it.Release()
 
-	//for _,v := range objs{
-	//	logObj(v)
-	//}
-	if idx.CompareBegin(it) {
-		tmp := DbTableIdObject{}
-		idx.BeginData(&tmp)
-		if tmp != objs[8] {
-			logObj(objs[8])
-			logObj(tmp)
-		}
-	}
-	i := 8
+
+	i := 3
 	for it.Next() {
 		tmp := DbTableIdObject{}
 		it.Data(&tmp)
 		if tmp != objs[i] {
 			logObj(tmp)
 			logObj(objs[i])
+			log.Fatalln("getGreaterObjs ")
 		}
-		i--
+		i++
 	}
 	if !idx.CompareEnd(it) {
 		log.Fatalln("CompareEnd")
@@ -721,18 +848,48 @@ func getGreaterObjs(objs []DbTableIdObject, houses []DbHouse, db DataBase) {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	i = 8
+	i = 6
 	for it.Next() {
 		tmp := DbTableIdObject{}
 		it.Data(&tmp)
 		if tmp != objs[i] {
 			logObj(tmp)
 			logObj(objs[i])
+			log.Fatalln("getGreaterObjs ")
 		}
-		i--
+		i++
 	}
 
 	it.Release()
+
+
+	obj = DbTableIdObject{Scope: 202}
+	it1, err := idx.LowerBound(obj)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	if !idx.CompareEnd(it1){
+		log.Fatalln("getGreaterObjs ")
+	}
+	i = 8
+	for it1.Prev(){
+		tmp := DbTableIdObject{}
+		it1.Data(&tmp)
+		if tmp != objs[i] {
+			logObj(tmp)
+			logObj(objs[i])
+			log.Fatalln("getGreaterObjs ")
+		}
+		i--
+		//logObj(tmp)
+	}
+
+	if !idx.CompareBegin(it1){
+		log.Fatalln("getGreaterObjs ")
+	}
+
+	it1.Release()
 }
 
 func getLessObjs(objs []DbTableIdObject, houses []DbHouse, db DataBase) {
@@ -767,11 +924,16 @@ func getLessObjs(objs []DbTableIdObject, houses []DbHouse, db DataBase) {
 	if err != nil {
 		log.Fatalln(err)
 	}
-
+	i = 0
 	for it.Next() {
 		tmp := DbTableIdObject{}
 		it.Data(&tmp)
-		// logObj(tmp)
+		//logObj(tmp)
+		if tmp != objs[i] {
+			logObj(objs[i])
+			logObj(tmp)
+		}
+		i++
 	}
 	it.Release()
 }
@@ -810,6 +972,9 @@ func findObjs(objs []DbTableIdObject, houses []DbHouse, db DataBase) {
 	if err != nil {
 		log.Fatalln(err)
 	}
+	if tmp != objs[3]{
+		log.Fatalln("Find Object")
+	}
 	//logObj(tmp)
 	{
 		hou := DbHouse{Area: 18}
@@ -836,11 +1001,16 @@ func findObjs(objs []DbTableIdObject, houses []DbHouse, db DataBase) {
 		if err != nil {
 			log.Fatalln(err)
 		}
-
+		i := 1
 		for it.Next() {
 			tmp := DbHouse{}
 			it.Data(&tmp)
-			// logObj(tmp)
+			if houses[i] != tmp{
+				logObj(tmp)
+				logObj(houses[i])
+				log.Fatalln("Find Object")
+			}
+			i++
 		}
 		it.Release()
 	}
@@ -858,7 +1028,7 @@ func findInLineFieldObjs(objs []DbTableIdObject, houses []DbHouse, db DataBase) 
 	if err != nil {
 		log.Fatalln(err)
 	}
-	i := 8
+	i := 4
 	defer it.Release()
 	for it.Next() {
 		tmp := DbHouse{}
@@ -866,21 +1036,13 @@ func findInLineFieldObjs(objs []DbTableIdObject, houses []DbHouse, db DataBase) 
 		if tmp != houses[i] {
 			logObj(houses[i])
 			logObj(tmp)
+			log.Fatalln("findInLineFieldObjs")
 		}
-		i--
+		i++
 	}
 }
 
-func findAllNonUniqueFieldObjs(objs []DbTableIdObject, houses []DbHouse, db DataBase) {
 
-	obj := DbTableIdObject{Scope: 12, Table: 15}
-
-	err := db.Find("byTable", obj, &obj)
-	if err != nil {
-		log.Fatalln(err)
-	}
-	//logObj(obj)
-}
 
 func removeUnique(db DataBase) {
 	obj := DbTableIdObject{Code: 21, Scope: 22, Table: 23, Payer: 24, Count: 25}

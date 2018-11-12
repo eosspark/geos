@@ -9,8 +9,6 @@ import (
 type MultiIndex struct {
 	begin     []byte
 	end       []byte
-	itBegin   []byte
-	itEnd     []byte
 	typeName  []byte
 	fieldName []byte
 	db        DataBase
@@ -34,11 +32,8 @@ error 				-->		error 	(Iterator invalid)
 func (index *MultiIndex) LowerBound(in interface{}) (Iterator, error) {
 	it, err := index.db.lowerBound(index.begin, index.end, index.fieldName, in, index.greater)
 	if err != nil {
-		return nil, err
+		return index.db.EndIterator(index.begin, index.end,index.typeName,index.greater)
 	}
-	index.itBegin = make([]byte, len(it.Begin()))
-	copy(index.itBegin, it.Begin())
-	index.itEnd = nil
 	return it, nil
 }
 
@@ -56,12 +51,8 @@ error 				-->		error 	(Iterator invalid)
 func (index *MultiIndex) UpperBound(in interface{}) (Iterator, error) {
 	it, err := index.db.upperBound(index.begin, index.end, index.fieldName, in, index.greater)
 	if err != nil {
-		return nil, err
+		return index.db.EndIterator(index.begin, index.end,index.typeName,index.greater)
 	}
-	//fmt.Println(it.Begin())
-	index.itBegin = make([]byte, len(it.Begin()))
-	copy(index.itBegin, it.Begin())
-	index.itEnd = nil
 	return it, nil
 }
 
@@ -116,8 +107,12 @@ error 				-->		false
 */
 
 func (index *MultiIndex) CompareBegin(in Iterator) bool {
+	if in == nil{
+		return false
+	}
 	it := index.Begin()
-	return index.CompareIterator(it, in)
+	return bytes.Compare(in.Value(),it.Value()) == 0
+	//return it.Begin() == in.Begin()
 }
 
 /*
@@ -138,6 +133,12 @@ func (index *MultiIndex) CompareIterator(it1 Iterator, it2 Iterator) bool {
 	if it1 == nil || it2 == nil {
 		return false
 	}
+	if it1.Begin() && it2.Begin(){
+		return true
+	}
+	if it1.End() && it2.End(){
+		return true
+	}
 
 	return bytes.Compare(it1.Value(), it2.Value()) == 0
 }
@@ -155,9 +156,12 @@ error 				-->		false
 */
 func (index *MultiIndex) CompareEnd(in Iterator) bool {
 	if in == nil{
-		return true
+		return false
 	}
-	return in.Value() == nil
+
+	end := index.End()
+
+	return end.End() && in.End() // FIXME only end
 }
 
 /*
@@ -168,7 +172,16 @@ func (index *MultiIndex) CompareEnd(in Iterator) bool {
 
 func (index *MultiIndex) End() Iterator {
 	// TODO
-	return nil
+	it ,err := index.db.EndIterator(index.begin, index.end, index.typeName, index.greater)
+	if err != nil {
+		log.Println("MultiIndex End Error : ", err)
+		return nil
+	}
+	if it == nil {
+		log.Println("MultiIndex End Iterator Is Empty ")
+		return nil
+	}
+	return it
 }
 
 /*
@@ -182,7 +195,7 @@ error 				-->		nil
 */
 
 func (index *MultiIndex) Begin() Iterator {
-	it, err := index.db.BeginIterator(index.begin, index.end, index.fieldName, index.typeName, index.greater)
+	it, err := index.db.BeginIterator(index.begin, index.end, index.typeName, index.greater)
 	if err != nil {
 		log.Println("MultiIndex Begin Error : ", err)
 		return nil

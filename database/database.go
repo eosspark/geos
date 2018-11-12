@@ -1,6 +1,7 @@
 package database
 
 import (
+	"bytes"
 	"fmt"
 	"github.com/eosspark/eos-go/log"
 	"math"
@@ -681,12 +682,36 @@ func (ldb *LDataBase) GetMutableIndex(fieldName string, in interface{}) (*MultiI
 
 func (ldb *LDataBase) lowerBound(begin, end, fieldName []byte, data interface{}, greater bool) (*DbIterator, error) {
 
-	begin ,typeName := ldb.dbPrefix(begin,end,fieldName,data,greater)
-	return ldb.dbIterator(begin,end,typeName,greater)
+	key ,typeName := ldb.dbPrefix(begin,end,fieldName,data,greater)
+	if !bytes.HasPrefix(key,begin){
+		return nil,ErrNotFound
+	}
+
+	it := ldb.db.NewIterator(&util.Range{Start: begin, Limit: end}, nil)
+	if !it.Next(){
+		return nil,ErrNotFound
+	}
+
+	if !it.Seek(key){
+		return nil,ErrNotFound
+	}
+
+	idx, err := newDbIterator(typeName, it, ldb.db, greater)
+	if err != nil {
+		return nil, err
+	}
+	return idx, nil
+	//begin ,typeName := ldb.dbPrefix(begin,end,fieldName,data,greater)
+	//return ldb.dbIterator(begin,end,typeName,greater)
 }
 
 func (ldb *LDataBase) dbIterator(begin, end,typeName []byte,greater bool) (*DbIterator,error) {
 	it := ldb.db.NewIterator(&util.Range{Start: begin, Limit: end}, nil)
+	if !it.Next(){
+		fmt.Println(begin)
+		return nil,ErrNotFound
+	}
+
 	idx, err := newDbIterator(typeName, it, ldb.db, greater)
 	if err != nil {
 		return nil, err
@@ -694,8 +719,34 @@ func (ldb *LDataBase) dbIterator(begin, end,typeName []byte,greater bool) (*DbIt
 	return idx, nil
 }
 
-func (ldb *LDataBase) dbPrefix(begin, end, fieldName []byte, data interface{}, greater bool) ([]byte,[]byte) {
 
+func (ldb *LDataBase) EndIterator(begin, end,  typeName []byte, greater bool) (*DbIterator, error) {
+
+	ldb.log.Info("begin : %v, end : %v, fieldName: %v , greater: %t", begin, end,  greater)
+
+	it := ldb.db.NewIterator(&util.Range{Start: begin, Limit: end}, nil)
+
+	it.Next()
+
+	//fmt.Println(bo)
+	if !greater{
+		if it.Last() {
+			it.Next()
+			itr := &DbIterator{it: it, greater: greater, db: ldb.db, first: false, typeName: typeName,currentStatus:itEND}
+			return itr, nil
+		}
+	}else{
+		if it.First() {
+			it.Prev()
+			itr := &DbIterator{it: it, greater: greater, db: ldb.db, first: false, typeName: typeName,currentStatus:itEND}
+			return itr, nil
+		}
+	}
+
+	return nil,ErrNotFound
+}
+
+func (ldb *LDataBase) dbPrefix(begin, end, fieldName []byte, data interface{}, greater bool) ([]byte,[]byte) {
 	ldb.log.Info("begin : %v, end : %v, fieldName: %v , greater: %t", begin, end, fieldName, greater)
 	fields, err := getFieldInfo(string(fieldName), data)
 	if err != nil {
@@ -757,9 +808,9 @@ func (ldb *LDataBase) IteratorTo(begin, end, fieldName []byte, data interface{},
 	return itr, nil
 }
 
-func (ldb *LDataBase) BeginIterator(begin, end, fieldName, typeName []byte, greater bool) (*DbIterator, error) {
+func (ldb *LDataBase) BeginIterator(begin, end,  typeName []byte, greater bool) (*DbIterator, error) {
 
-	ldb.log.Info("begin : %v, end : %v, fieldName: %v , greater: %t", begin, end, fieldName, greater)
+	ldb.log.Info("begin : %v, end : %v, fieldName: %v , greater: %t", begin, end,  greater)
 	it := ldb.db.NewIterator(&util.Range{Start: begin, Limit: end}, nil)
 	if greater {
 		if !it.Last() {
@@ -777,7 +828,7 @@ func (ldb *LDataBase) BeginIterator(begin, end, fieldName, typeName []byte, grea
 		return nil, errors.New(fmt.Sprintf("error DataBase BeginIterator : %s", err.Error()))
 	}
 
-	itr := &DbIterator{it: it, greater: greater, db: ldb.db, first: false, typeName: typeName, value: val}
+	itr := &DbIterator{it: it, greater: greater, db: ldb.db, first: false, typeName: typeName, value: val,currentStatus:itBEGIN}
 
 	return itr, nil
 }
@@ -785,7 +836,6 @@ func (ldb *LDataBase) BeginIterator(begin, end, fieldName, typeName []byte, grea
 func (ldb *LDataBase) upperBound(begin, end, fieldName []byte, data interface{}, greater bool) (*DbIterator, error) {
 
 	begin ,typeName := ldb.dbPrefix(begin,end,fieldName,data,greater)
-
 	begin[len(begin)-1] = begin[len(begin)-1] + 1
 
 	return ldb.dbIterator(begin,end,typeName,greater)

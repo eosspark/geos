@@ -1,6 +1,7 @@
 package database
 
 import (
+	"log"
 	"reflect"
 )
 
@@ -36,6 +37,10 @@ func getFieldInfo(fieldName string, value interface{}) (*fieldInfo, error) {
 // TODO The function is unchanged, need to modify the implementation
 func getFieldValue(info *fieldInfo) []byte { /* non unique fields --> get function */
 	values := []byte{}
+	if len(info.fieldValue) == 0{
+		log.Println("object is empty")
+		return nil
+	}
 	for _, v := range info.fieldValue {
 
 		if v.Kind() != reflect.Bool && isZero(v) {
