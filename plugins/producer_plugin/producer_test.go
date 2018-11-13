@@ -55,7 +55,11 @@ func initialize(t *testing.T) {
 
 		)
 	plugin = NewProducerPlugin(io)
-	plugin.PluginInitialize(app)
+	plugin.SetProgramOptions(&app.Flags)
+
+	app.Action = func(c *cli.Context) {
+		plugin.PluginInitialize(c)
+	}
 
 	err := app.Run(os.Args)
 	assert.NoError(t, err)
@@ -96,6 +100,10 @@ func Test_commend(t *testing.T) {
 		assert.Equal(t, true, c.Bool("enable"))
 		assert.Equal(t, "eos", c.String("name"))
 		assert.Equal(t, 18, c.Int("count"))
+
+	}
+
+	app.Action = func(c *cli.Context) {
 		assert.Equal(t, "eosio", c.StringSlice("producers")[0])
 		assert.Equal(t, "yc", c.StringSlice("producers")[1])
 	}
@@ -311,7 +319,10 @@ func TestProducerPluginImpl_OnIncomingBlock(t *testing.T) {
 	io = asio.NewIoContext()
 
 	plugin = NewProducerPlugin(io)
-	plugin.PluginInitialize(app)
+	plugin.SetProgramOptions(&app.Flags)
+	app.Action = func(c *cli.Context) {
+		plugin.PluginInitialize(c)
+	}
 
 	err := app.Run(os.Args)
 	assert.NoError(t, err)
@@ -345,7 +356,12 @@ func TestProducerPlugin_ReceiveBlockInSchedule(t *testing.T) {
 	io = asio.NewIoContext()
 
 	plugin := NewProducerPlugin(io)
-	plugin.PluginInitialize(app)
+	plugin.SetProgramOptions(&app.Flags)
+
+	app.Action = func(c *cli.Context) {
+		plugin.PluginInitialize(c)
+	}
+
 
 	err := app.Run(os.Args)
 	assert.NoError(t, err)

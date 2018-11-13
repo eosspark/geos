@@ -20,15 +20,18 @@ func main() {
 	 */
 	fmt.Println(os.Args)
 
-	options := cli.NewApp()
+	app := cli.NewApp()
 	iosv := asio.NewIoContext()
 
 	MockChain.Initialize(0, common.AccountName(common.N("eosio")),common.AccountName(common.N("yuanc")))
 	producerPlugin := producer_plugin.NewProducerPlugin(iosv)
 
-	producerPlugin.PluginInitialize(options)
+	producerPlugin.SetProgramOptions(&app.Flags)
+	app.Action = func(c *cli.Context) {
+		producerPlugin.PluginInitialize(c)
+	}
 
-	err := options.Run(os.Args)
+	err := app.Run(os.Args)
 	if err != nil {
 		log.Fatal(err)
 	}

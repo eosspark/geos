@@ -1,9 +1,7 @@
 package producer_plugin
 
 import (
-	"errors"
-	"fmt"
-	"github.com/eosspark/eos-go/chain/types"
+			"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto/ecc"
 	Chain "github.com/eosspark/eos-go/plugins/producer_plugin/mock" /*test mode*/
@@ -12,6 +10,7 @@ import (
 	. "github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/log"
+	"github.com/eosspark/eos-go/plugins/appbase/asio"
 )
 
 type ProducerPluginImpl struct {
@@ -76,8 +75,24 @@ const (
 	speculating
 )
 
-type signatureProviderType func(sha256 crypto.Sha256) ecc.Signature
-type transactionIdWithExpireIndex map[common.TransactionIdType]common.TimePoint
+type signatureProviderType = func(sha256 crypto.Sha256) ecc.Signature
+type transactionIdWithExpireIndex = map[common.TransactionIdType]common.TimePoint
+
+func NewProducerPluginImpl(io *asio.IoContext) *ProducerPluginImpl {
+	impl := new(ProducerPluginImpl)
+
+	impl.Timer = common.NewTimer(io)
+	impl.SignatureProviders = make(map[ecc.PublicKey]signatureProviderType)
+	impl.ProducerWatermarks = make(map[common.AccountName]uint32)
+
+	impl.PersistentTransactions = make(transactionIdWithExpireIndex)
+	impl.BlacklistedTransactions = make(transactionIdWithExpireIndex)
+
+	impl.IncomingTrxWeight = 0.0
+	impl.IncomingDeferRadio = 1.0 // 1:1
+
+	return impl
+}
 
 func (impl *ProducerPluginImpl) OnBlock(bsp *types.BlockState) {
 	if bsp.Header.Timestamp.ToTimePoint() <= impl.LastSignedBlockTime {
@@ -232,21 +247,40 @@ func (impl *ProducerPluginImpl) OnIncomingTransactionAsync(trx *types.PackedTran
 
 	sendResponse := func(response interface{}) {
 		next(response)
-		if _, ok := response.(Exception); ok {
-			//C++ _transaction_ack_channel.publish(std::pair<fc::exception_ptr, packed_transaction_ptr>(response.get<fc::exception_ptr>(), trx));
+		if re, ok := response.(Exception); ok {
+			//TODO C: _transaction_ack_channel.publish(std::pair<fc::exception_ptr, packed_transaction_ptr>(response.get<fc::exception_ptr>(), trx));
+			if impl.PendingBlockMode == EnumPendingBlockMode(producing) {
+				log.Debug("[TRX_TRACE] Block %d for producer %s is REJECTING tx: %s : %s ",
+					chain.HeadBlockNum()+1, chain.PendingBlockState().Header.Producer, trx.ID(), re.What())
+			} else {
+				log.Debug("[TRX_TRACE] Speculative execution is REJECTING tx: %s : %s ",
+					trx.ID(), re.What())
+			}
+
 		} else {
-			//C++ _transaction_ack_channel.publish(std::pair<fc::exception_ptr, packed_transaction_ptr>(nullptr, trx));
+			//TODO C: _transaction_ack_channel.publish(std::pair<fc::exception_ptr, packed_transaction_ptr>(nullptr, trx));
+			if impl.PendingBlockMode == EnumPendingBlockMode(producing) {
+				log.Debug("[TRX_TRACE] Block %d for producer %s is ACCEPTING tx: %s",
+					chain.HeadBlockNum()+1, chain.PendingBlockState().Header.Producer, trx.ID())
+
+			} else {
+				log.Debug("[TRX_TRACE] Speculative execution is ACCEPTING tx: %s", trx.ID())
+			}
 		}
 	}
 
 	id := trx.ID()
 	if trx.Expiration().ToTimePoint() < blockTime {
-		sendResponse(errors.New(fmt.Sprintf("expired transaction %s", id)))
+		e := &ExpiredTxException{}
+		e.FcLogMessage(log.LvlError, "expired transaction %s", id)
+		sendResponse(e)
 		return
 	}
 
 	if chain.IsKnownUnexpiredTransaction(&id) {
-		sendResponse(errors.New(fmt.Sprintf("duplicate transaction %s", id)))
+		e := &TxDuplicate{}
+		e.FcLogMessage(log.LvlError, "duplicate transaction %s", id)
+		sendResponse(e)
 		return
 	}
 
@@ -263,6 +297,13 @@ func (impl *ProducerPluginImpl) OnIncomingTransactionAsync(trx *types.PackedTran
 		if trace.Except != nil {
 			if failureIsSubjective(trace.Except, deadlineIsSubjective) {
 				impl.PendingIncomingTransactions = append(impl.PendingIncomingTransactions, pendingIncomingTransaction{trx, persistUntilExpired, next})
+				if impl.PendingBlockMode == EnumPendingBlockMode(producing) {
+					log.Debug("[TRX_TRACE] Block %d for producer %s COULD NOT FIT, tx: %s RETRYING ",
+						chain.HeadBlockNum()+1, chain.PendingBlockState().Header.Producer, trx.ID())
+				} else {
+					log.Debug("[TRX_TRACE] Speculative execution COULD NOT FIT tx: %s} RETRYING", trx.ID())
+				}
+
 			} else {
 				sendResponse(trace.Except)
 			}
@@ -274,8 +315,22 @@ func (impl *ProducerPluginImpl) OnIncomingTransactionAsync(trx *types.PackedTran
 			}
 			sendResponse(trace)
 		}
+
 	}).Catch(func(e GuardExceptions) {
 		//TODO: app().get_plugin<chain_plugin>().handle_guard_exception(e);
+
+	}).Catch(func(err Exception) {
+		sendResponse(err)
+
+	}).Catch(func(e error) {
+		fce := &FcException{}
+		fce.FcLogMessage(log.LvlWarn, "rethrow %s: ", e.Error())
+		sendResponse(fce)
+
+	}).Catch(func(a interface{}) {
+		e := &UnHandledException{}
+		e.FcLogMessage(log.LvlWarn, "rethrow", a)
+		sendResponse(e)
 	}).End()
 }
 
