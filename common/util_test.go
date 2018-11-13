@@ -1,6 +1,7 @@
 package common
 
 import (
+	"encoding/binary"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
@@ -41,8 +42,10 @@ func TestEmpty(t *testing.T) {
 
 type E int
 
-func (e E) GetKey() uint64 {
-	return uint64(e)
+func (e E) GetKey() []byte {
+	bn := make([]byte, 8)
+	binary.BigEndian.PutUint64(bn, uint64(e))
+	return bn
 }
 func TestSetIntersection(t *testing.T) {
 	a := FlatSet{}

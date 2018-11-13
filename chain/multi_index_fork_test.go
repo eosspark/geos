@@ -45,7 +45,7 @@ func initMulti() (*multiIndexFork, *types.BlockState) {
 func TestMultiIndexFork_Insert(t *testing.T) {
 	mi, bs := initMulti()
 
-	//fmt.Println("byBlockId", mi.indexs["byBlockId"].Value.Compare == nil )
+	//fmt.Println("byBlockId", mi.indexs["byBlockId"].value.Compare == nil )
 
 	for i := 0; i < 10; i++ {
 		t := 1162425602 + 200
@@ -56,9 +56,9 @@ func TestMultiIndexFork_Insert(t *testing.T) {
 		mi.Insert(blockState)
 	}
 
-	log.Info("%v", mi.indexs["byBlockId"].Value.Len())
+	log.Info("%v", mi.indexs["byBlockId"].value.Len())
 
-	assert.Equal(t, 11, mi.indexs["byBlockId"].Value.Len())
+	assert.Equal(t, 11, mi.indexs["byBlockId"].value.Len())
 	result := mi.Find(bs.BlockId)
 	assert.Equal(t, bs, result)
 
@@ -86,8 +86,8 @@ func TestIndexFork_LowerBound(t *testing.T) {
 	}
 
 	idxFork := mi.indexs["byBlockNum"]
-	for i := 0; i < idxFork.Value.Len(); i++ {
-		fmt.Println(idxFork.Value.Data[i].(*types.BlockState).BlockNum)
+	for i := 0; i < idxFork.value.Len(); i++ {
+		fmt.Println(idxFork.value.Data[i].(*types.BlockState).BlockNum)
 	}
 
 	itr := idxFork.LowerBound(tm)
@@ -111,8 +111,8 @@ func TestIndexFork_UpperBound(t *testing.T) {
 	}
 
 	idxFork := mi.indexs["byBlockNum"]
-	for i := 0; i < idxFork.Value.Len(); i++ {
-		fmt.Println(idxFork.Value.Data[i].(*types.BlockState).BlockNum)
+	for i := 0; i < idxFork.value.Len(); i++ {
+		fmt.Println(idxFork.value.Data[i].(*types.BlockState).BlockNum)
 	}
 
 	itr := idxFork.UpperBound(bs)
