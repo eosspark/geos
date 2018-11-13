@@ -708,6 +708,7 @@ func (ldb *LDataBase) lowerBound(begin, end, fieldName []byte, data interface{},
 func (ldb *LDataBase) dbIterator(begin, end,typeName []byte,greater bool) (*DbIterator,error) {
 	it := ldb.db.NewIterator(&util.Range{Start: begin, Limit: end}, nil)
 	if !it.Next(){
+		fmt.Println(begin)
 		return nil,ErrNotFound
 	}
 
@@ -746,7 +747,6 @@ func (ldb *LDataBase) EndIterator(begin, end,  typeName []byte, greater bool) (*
 }
 
 func (ldb *LDataBase) dbPrefix(begin, end, fieldName []byte, data interface{}, greater bool) ([]byte,[]byte) {
-
 	ldb.log.Info("begin : %v, end : %v, fieldName: %v , greater: %t", begin, end, fieldName, greater)
 	fields, err := getFieldInfo(string(fieldName), data)
 	if err != nil {
@@ -836,7 +836,6 @@ func (ldb *LDataBase) BeginIterator(begin, end,  typeName []byte, greater bool) 
 func (ldb *LDataBase) upperBound(begin, end, fieldName []byte, data interface{}, greater bool) (*DbIterator, error) {
 
 	begin ,typeName := ldb.dbPrefix(begin,end,fieldName,data,greater)
-
 	begin[len(begin)-1] = begin[len(begin)-1] + 1
 
 	return ldb.dbIterator(begin,end,typeName,greater)
