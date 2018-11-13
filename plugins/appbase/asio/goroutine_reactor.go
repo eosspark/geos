@@ -35,7 +35,7 @@ func (i *IoContext) GetService() ReactorService {
 func (g *GoroutineReactor) run() {
 	if Infinity {
 	LP1:
-		for ; ; {
+		for {
 			select {
 			case <-g.down:
 				break LP1
@@ -45,11 +45,14 @@ func (g *GoroutineReactor) run() {
 
 			case op := <-g.opQueue.Out():
 				op.(operation).call()
+
+			default:
+
 			}
 		}
 	} else {
 	LP2:
-		for ; ; {
+		for {
 			select {
 			case <-g.down:
 				break LP2
@@ -59,6 +62,9 @@ func (g *GoroutineReactor) run() {
 
 			case op := <-g.opq:
 				op.call()
+
+			default:
+
 			}
 		}
 	}
