@@ -119,7 +119,8 @@ func (index *MultiIndex) CompareBegin(in Iterator) bool {
 
 --> it1 == it2 <--
 
-@param in 			--> 	Iterator
+@param it1 			--> 	Iterator
+@param it2 			--> 	Iterator
 
 @return
 success 			-->		true
@@ -166,7 +167,9 @@ func (index *MultiIndex) CompareEnd(in Iterator) bool {
 
 /*
 
-@return 			-->		Iterator
+@return
+success 			-->		Iterator
+error 				-->		nil
 
 */
 
@@ -185,8 +188,6 @@ func (index *MultiIndex) End() Iterator {
 }
 
 /*
-
-@param in 			--> 	object
 
 @return
 success 			-->		Iterator

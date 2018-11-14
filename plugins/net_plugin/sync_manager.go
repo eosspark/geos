@@ -1,6 +1,7 @@
 package net_plugin
 
 import (
+	"bytes"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto"
@@ -238,8 +239,78 @@ type nodeTransactionState struct {
 	request       uint16          // the number of "in flight" requests for this txn
 }
 
-func (node *nodeTransactionState) GetKey() []byte {
-	return node.id.Bytes()
+func (n *nodeTransactionState) ElementObject() {}
+
+func (n *transactionState) ElementObject() {}
+
+func (n *peerBlockState) ElementObject() {}
+
+func CompareById(first common.ElementObject, second common.ElementObject) int {
+	result := -2
+	switch first.(type) {
+	case *nodeTransactionState:
+		fir := first.(*nodeTransactionState)
+		sec := second.(*nodeTransactionState)
+		result = bytes.Compare(fir.id.Bytes(), sec.id.Bytes())
+	case *transactionState:
+		fir := first.(*transactionState)
+		sec := second.(*transactionState)
+		result = bytes.Compare(fir.id.Bytes(), sec.id.Bytes())
+	case *peerBlockState:
+		fir := first.(*transactionState)
+		sec := second.(*transactionState)
+		result = bytes.Compare(fir.id.Bytes(), sec.id.Bytes())
+	}
+	return result
+}
+
+func CompareByBlockNum(first common.ElementObject, second common.ElementObject) int {
+	result := -2
+	switch first.(type) {
+	case *nodeTransactionState:
+		fir := first.(*nodeTransactionState)
+		sec := second.(*nodeTransactionState)
+		if fir.blockNum == sec.blockNum {
+			result = 0
+		} else if fir.blockNum < sec.blockNum {
+			result = -1
+		} else {
+			result = 1
+		}
+	case *transactionState:
+		fir := first.(*transactionState)
+		sec := second.(*transactionState)
+		if fir.blockNum == sec.blockNum {
+			result = 0
+		} else if fir.blockNum < sec.blockNum {
+			result = -1
+		} else {
+			result = 1
+		}
+	case *peerBlockState:
+		fir := first.(*transactionState)
+		sec := second.(*transactionState)
+		if fir.blockNum == sec.blockNum {
+			result = 0
+		} else if fir.blockNum < sec.blockNum {
+			result = -1
+		} else {
+			result = 1
+		}
+	}
+	return result
+}
+
+func CompareByExpiry(first common.ElementObject, second common.ElementObject) int {
+	fir := first.(*transactionState)
+	sec := second.(*transactionState)
+	if fir.expires == sec.expires {
+		return 0
+	} else if fir.expires < sec.expires {
+		return -1
+	} else {
+		return 1
+	}
 }
 
 type updateInFlight struct {

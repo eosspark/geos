@@ -4,7 +4,6 @@ import (
 	"os"
 	"time"
 
-	"fmt"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto"
@@ -358,7 +357,7 @@ func (c *Controller) startBlock(when common.BlockTimeStamp, confirmBlockCount ui
 			c.InTrxRequiringChecks = b
 		}(c.InTrxRequiringChecks)
 		c.InTrxRequiringChecks = true
-		c.PushTransaction(onbtrx, common.MaxTimePoint(), gpo.Configuration.MinTransactionCpuUsage, true)
+		c.pushTransaction(&onbtrx, common.MaxTimePoint(), gpo.Configuration.MinTransactionCpuUsage, true)
 		/*}).Catch(func(e Exception) {
 			//TODO
 			fmt.Println("Controller StartBlock exception:",e.Message())
@@ -389,7 +388,15 @@ func (c *Controller) pushReceipt(trx interface{}, status types.TransactionStatus
 	trxReceipt.Status = types.TransactionStatus(status)
 	return &trxReceipt
 }
-func (c *Controller) PushTransaction(trx types.TransactionMetadata, deadLine common.TimePoint, billedCpuTimeUs uint32, explicitBilledCpuTime bool) (trxTrace *types.TransactionTrace) {
+
+func (c *Controller) PushTransaction(trx *types.TransactionMetadata, deadLine common.TimePoint, billedCpuTimeUs uint32) *types.TransactionTrace {
+	c.ValidateDbAvailableSize()
+	EosAssert(c.GetReadMode() != READONLY, &TransactionTypeException{}, "push transaction not allowed in read-only mode")
+	EosAssert(!common.Empty(trx) && !trx.Implicit && !trx.Scheduled, &TransactionTypeException{}, "Implicit/Scheduled transaction not allowed")
+	return c.pushTransaction(trx, deadLine, billedCpuTimeUs, billedCpuTimeUs > 0)
+}
+
+func (c *Controller) pushTransaction(trx *types.TransactionMetadata, deadLine common.TimePoint, billedCpuTimeUs uint32, explicitBilledCpuTime bool) (trxTrace *types.TransactionTrace) {
 	EosAssert(deadLine != common.TimePoint(0), &TransactionException{}, "deadline cannot be uninitialized")
 
 	trxContext := *NewTransactionContext(c, trx.Trx, trx.ID, common.Now())
@@ -442,7 +449,7 @@ func (c *Controller) PushTransaction(trx types.TransactionMetadata, deadLine com
 		}
 		tr := c.pushReceipt(trx.PackedTrx.PackedTrx, s, uint64(trxContext.BilledCpuTimeUs), trace.NetUsage)
 		trace.Receipt = tr.TransactionReceiptHeader
-		c.Pending.PendingBlockState.Trxs = append(c.Pending.PendingBlockState.Trxs, &trx)
+		c.Pending.PendingBlockState.Trxs = append(c.Pending.PendingBlockState.Trxs, trx)
 	} else {
 		r := types.TransactionReceiptHeader{}
 		r.CpuUsageUs = uint32(trxContext.BilledCpuTimeUs)
@@ -741,7 +748,7 @@ func (c *Controller) pushScheduledTransactionByObject(gto *entity.GeneratedTrans
 			//accountCpuLimit := 0
 			accountNetLimit, accountCpuLimit, greylistedNet, greylistedCpu := trxContext.MaxBandwidthBilledAccountsCanPay(true)
 
-			fmt.Println("test print: %v,%v,%v,%v", accountNetLimit, accountCpuLimit, greylistedNet, greylistedCpu) //TODO
+			log.Info("test print: %v,%v,%v,%v", accountNetLimit, accountCpuLimit, greylistedNet, greylistedCpu) //TODO
 
 			//cpuTimeToBillUs = cpuTimeToBillUs<accountCpuLimit:?trxContext.initialObjectiveDurationLimit.Count()
 			tmp := uint32(0)
@@ -870,42 +877,56 @@ func (c *Controller) SignBlock(signerCallback func(sha256 crypto.Sha256) ecc.Sig
 }
 
 func (c *Controller) applyBlock(b *types.SignedBlock, s types.BlockStatus) {
-	EosAssert(len(b.BlockExtensions) == 0, &BlockValidateException{}, "no supported extensions")
-	producerBlockId := b.BlockID()
-	c.startBlock(b.Timestamp, b.Confirmed, s, &producerBlockId)
+	Try(func() {
+		EosAssert(len(b.BlockExtensions) == 0, &BlockValidateException{}, "no supported extensions")
+		producerBlockId := b.BlockID()
+		c.startBlock(b.Timestamp, b.Confirmed, s, &producerBlockId)
 
-	trace := &types.TransactionTrace{}
-	for _, receipt := range b.Transactions {
-		numPendingReceipts := len(c.Pending.PendingBlockState.SignedBlock.Transactions)
-		if common.Empty(receipt.Trx.PackedTransaction) {
-			pt := receipt.Trx.PackedTransaction
-			mtrx := types.TransactionMetadata{}
-			mtrx.PackedTrx = pt
-			trace = c.PushTransaction(mtrx, common.TimePoint(common.MaxMicroseconds()), receipt.CpuUsageUs, true)
-		} else if common.Empty(receipt.Trx.TransactionID) {
-			trace = c.PushScheduledTransaction(&receipt.Trx.TransactionID, common.TimePoint(common.MaxMicroseconds()), receipt.CpuUsageUs)
-		} else {
-			EosAssert(false, &BlockValidateException{}, "encountered unexpected receipt type")
+		trace := &types.TransactionTrace{}
+		for _, receipt := range b.Transactions {
+			numPendingReceipts := len(c.Pending.PendingBlockState.SignedBlock.Transactions)
+			if common.Empty(receipt.Trx.PackedTransaction) {
+				pt := receipt.Trx.PackedTransaction
+				mtrx := types.TransactionMetadata{}
+				mtrx.PackedTrx = pt
+				trace = c.pushTransaction(&mtrx, common.TimePoint(common.MaxMicroseconds()), receipt.CpuUsageUs, true)
+			} else if common.Empty(receipt.Trx.TransactionID) {
+				trace = c.PushScheduledTransaction(&receipt.Trx.TransactionID, common.TimePoint(common.MaxMicroseconds()), receipt.CpuUsageUs)
+			} else {
+				EosAssert(false, &BlockValidateException{}, "encountered unexpected receipt type")
+			}
+			transactionFailed := common.Empty(trace) && common.Empty(trace.Except)
+			transactionCanFail := receipt.Status == types.TransactionStatusHardFail && common.Empty(receipt.Trx.TransactionID)
+			if transactionFailed && !transactionCanFail {
+				/*edump((*trace));
+				throw *trace->except;*/
+			}
+			EosAssert(len(c.Pending.PendingBlockState.SignedBlock.Transactions) > 0,
+				&BlockValidateException{}, "expected a block:%v,expected_receipt:%v", *b, receipt)
+
+			EosAssert(len(c.Pending.PendingBlockState.SignedBlock.Transactions) == numPendingReceipts+1,
+				&BlockValidateException{}, "expected receipt was not added:%v,expected_receipt:%v", *b, receipt)
+
+			var trxReceipt types.TransactionReceipt
+			length := len(c.Pending.PendingBlockState.SignedBlock.Transactions)
+			if length > 0 {
+				trxReceipt = c.Pending.PendingBlockState.SignedBlock.Transactions[length-1]
+			}
+			//r := trxReceipt.TransactionReceiptHeader
+			EosAssert(trxReceipt == receipt, &BlockValidateException{}, "receipt does not match,producer_receipt:%#v", receipt, "validator_receipt:%#v", trxReceipt)
 		}
-		transactionFailed := common.Empty(trace) && common.Empty(trace.Except)
-		transactionCanFail := receipt.Status == types.TransactionStatusHardFail && common.Empty(receipt.Trx.TransactionID)
-		if transactionFailed && !transactionCanFail {
-			/*edump((*trace));
-			throw *trace->except;*/
-		}
-		EosAssert(len(c.Pending.PendingBlockState.SignedBlock.Transactions) > 0,
-			&BlockValidateException{}, "expected a block:%v,expected_receipt:%v", *b, receipt)
+		c.FinalizeBlock()
 
-		EosAssert(len(c.Pending.PendingBlockState.SignedBlock.Transactions) == numPendingReceipts+1,
-			&BlockValidateException{}, "expected receipt was not added:%v,expected_receipt:%v", *b, receipt)
+		EosAssert(producerBlockId == c.Pending.PendingBlockState.Header.BlockID(), &BlockValidateException{},
+			"Block ID does not match,producer_block_id:%#v", producerBlockId, "validator_block_id:%#v", c.Pending.PendingBlockState.Header.BlockID())
 
-		//TODO
-		/*r := c.Pending.PendingBlockState.SignedBlock.Transactions
-		EosAssert(r == static_cast<const transaction_receipt_header&>(receipt),
-		block_validate_exception, "receipt does not match",
-		("producer_receipt", receipt)("validator_receipt", pending->_pending_block_state->block->transactions.back()) );*/
-	}
-
+		c.Pending.PendingBlockState.Header.ProducerSignature = b.ProducerSignature
+		c.CommitBlock(false)
+		return
+	}).Catch(func(ex Exception) {
+		log.Error("controller ApplyBlock is error:%s", ex.Message())
+		c.AbortBlock()
+	})
 }
 
 func (c *Controller) CommitBlock(addToForkDb bool) {
@@ -963,9 +984,9 @@ func (c *Controller) PushBlock(b *types.SignedBlock, s types.BlockStatus) {
 
 } //status default value block_status s = block_status::complete
 
-func (c *Controller) PushConfirmation(hc types.HeaderConfirmation) {
+func (c *Controller) PushConfirmation(hc *types.HeaderConfirmation) {
 	EosAssert(c.Pending != nil, &BlockValidateException{}, "it is not valid to push a confirmation when there is a pending block")
-	//c.ForkDB.Add(hc)
+	c.ForkDB.Add(hc)
 	//emit( c.accepted_confirmation, hc )
 	if c.ReadMode != IRREVERSIBLE {
 		c.maybeSwitchForks(types.Complete)
@@ -1474,6 +1495,7 @@ func (c *Controller) initializeForkDB() {
 	signedBlock.SignedBlockHeader = genHeader.Header
 	c.Head.SignedBlock = &signedBlock
 	//log.Info("Controller initializeForkDB:%v", c.ForkDB.DB)
+
 	c.ForkDB.SetHead(c.Head)
 	c.DB.SetRevision(int64(c.Head.BlockNum))
 	c.initializeDatabase()
@@ -1533,7 +1555,7 @@ func (c *Controller) initializeDatabase() {
 		activeProducersAuthority,
 		c.Config.genesis.InitialTimestamp)
 
-	log.Info("initializeDatabase print:%v,%v", majorityPermission, minorityPermission)
+	log.Info("initializeDatabase print:%#v,%#v", majorityPermission, minorityPermission)
 }
 
 func (c *Controller) initialize() {

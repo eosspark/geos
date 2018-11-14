@@ -100,6 +100,14 @@ func (h Sha256) Bytes() []byte {
 	return result
 }
 
+func (h Sha256) BigEndianBytes() []byte {
+	result := make([]byte, 32)
+	for i := range h.Hash {
+		binary.BigEndian.PutUint64(result[i*8:(i+1)*8], h.Hash[i])
+	}
+	return result
+}
+
 func (h Sha256) Or(h1 Sha256) Sha256 {
 	result := Sha256{}
 	for i := range result.Hash {

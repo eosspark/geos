@@ -1,13 +1,12 @@
 package chain
 
 import (
-	"fmt"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/database"
 	"github.com/eosspark/eos-go/exception"
-	"github.com/eosspark/eos-go/log"
 	"github.com/eosspark/eos-go/exception/try"
+	"github.com/eosspark/eos-go/log"
 )
 
 type ForkDatabase struct {
@@ -59,7 +58,7 @@ func (f *ForkDatabase) SetHead(s *types.BlockState) {
 
 	err := f.DB.Insert(s)
 	if err != nil {
-		fmt.Println("ForkDB SetHead is error:%s", err.Error())
+		log.Error("ForkDB SetHead is error:%s", err.Error())
 	}
 
 }
@@ -282,12 +281,12 @@ func (f *ForkDatabase) GetBlock(id *common.BlockIdType) *types.BlockState {
 	blockState.BlockId = *id
 	multiIndex, err := f.DB.GetIndex("ID", &blockState)
 	if err != nil {
-		fmt.Println("ForkDb GetBlock Is Error:%s", err.Error())
+		log.Error("ForkDb GetBlock Is Error:%s", err.Error())
 		return &types.BlockState{}
 	}
 	err = multiIndex.BeginData(&blockState)
 	if err != nil {
-		fmt.Println("ForkDB GetBlock MultiIndex.Begin Is Error :%s", err)
+		log.Error("ForkDB GetBlock MultiIndex.Begin Is Error :%s", err.Error())
 	}
 	return &blockState
 }

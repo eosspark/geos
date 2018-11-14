@@ -40,6 +40,7 @@ func NewTransactionMetadataBySignedTrx(t *SignedTransaction, c common.Compressio
 		SignedID:  common.TransactionIdType(hashed),
 		Trx:       t,
 		PackedTrx: packedTrx,
+		Implicit:  false,
 	}
 }
 
