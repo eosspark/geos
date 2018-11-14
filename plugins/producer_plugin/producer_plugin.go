@@ -2,7 +2,7 @@ package producer_plugin
 
 import (
 	"fmt"
-	Chain "github.com/eosspark/eos-go/plugins/producer_plugin/mock" /*test model*/
+	Chain "github.com/eosspark/eos-go/plugins/producer_plugin/testing" /*test model*/
 	//Chain "github.com/eosspark/eos-go/chain" /*real chain*/
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto"

@@ -1,4 +1,4 @@
-package mock
+package testing
 
 import (
 	"fmt"
@@ -7,8 +7,6 @@ import (
 	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/ecc"
 )
-
-var chain *Controller
 
 type DBReadMode int8
 
@@ -26,12 +24,6 @@ const (
 	LIGHT
 )
 
-var initPriKey, _ = ecc.NewPrivateKey("5KYZdUEo39z3FPrtuX2QbbwGnNP5zTd7yyr2SC1j299sBCnWjss")
-var initPubKey = initPriKey.PublicKey()
-var initPriKey2, _ = ecc.NewPrivateKey("5Ja3h2wJNUnNcoj39jDMHGigsazvbGHAeLYEHM5uTwtfUoRDoYP")
-var initPubKey2 = initPriKey2.PublicKey()
-var eosio = common.AccountName(common.N("eosio"))
-var yuanc = common.AccountName(common.N("yuanc"))
 
 type Controller struct {
 	head    *types.BlockState
@@ -39,8 +31,20 @@ type Controller struct {
 	forkDb  *forkDatabase
 }
 
+func newController() *Controller {
+	c := new(Controller)
+	c.forkDb = new(forkDatabase)
+	c.forkDb.index = make([]*types.BlockState, 0)
+	return c
+}
+
+var Control *Controller
 func GetControllerInstance() *Controller {
-	return chain
+	if Control == nil {
+		Control = newController()
+
+	}
+	return Control
 }
 
 type forkDatabase struct {
@@ -76,89 +80,6 @@ func (db *forkDatabase) add2(b *types.SignedBlock, trust bool) *types.BlockState
 	prior := db.find(b.Previous)
 	result := types.NewBlockState3(&prior.BlockHeaderState, b, trust)
 	return db.add(result)
-}
-
-func Initialize(when common.BlockTimeStamp, names ...common.AccountName) {
-	//fmt.Println(initPubKey, initPriKey)
-	//fmt.Println(initPubKey2, initPriKey2)
-
-	chain = NewMockChain(when, names...)
-
-	//fmt.Println("now", common.Now())
-	//fmt.Println("init", genHeader.Header.Timestamp.ToTimePoint())
-}
-
-func NewMockChain(when common.BlockTimeStamp, names ...common.AccountName) *Controller {
-	c := new(Controller)
-
-	genHeader := genHeaderState(when)
-	genSigned := genSignedBlock(genHeader)
-
-	c.head = types.NewBlockState(genHeader)
-	c.head.SignedBlock = genSigned
-
-	sch := genSchedule(names...)
-	c.head.ActiveSchedule = sch
-	c.head.PendingSchedule = sch
-
-	c.forkDb = new(forkDatabase)
-	c.forkDb.index = make([]*types.BlockState, 0)
-	c.forkDb.add(c.head)
-
-	return c
-}
-
-func genSchedule(names ...common.AccountName) types.ProducerScheduleType {
-	if len(names) == 0 {
-		names = append(names, eosio)
-	}
-
-	initSchedule := types.ProducerScheduleType{Version: 0, Producers: []types.ProducerKey{}}
-
-	for _, n := range names {
-		pk := types.ProducerKey{ProducerName: n, BlockSigningKey: initPubKey}
-		initSchedule.Producers = append(initSchedule.Producers, pk)
-	}
-
-	return initSchedule
-}
-
-func genSignedBlock(bhs *types.BlockHeaderState) *types.SignedBlock {
-	genSigned := new(types.SignedBlock)
-	genSigned.SignedBlockHeader = bhs.Header
-	return genSigned
-}
-
-func genHeaderState(when common.BlockTimeStamp) *types.BlockHeaderState {
-	if when == 0 {
-		when = common.NewBlockTimeStamp(common.Now())
-	}
-	genHeader := new(types.BlockHeaderState)
-	genHeader.Header.Timestamp = when
-	genHeader.Header.Confirmed = 1
-	genHeader.BlockId = genHeader.Header.BlockID()
-	genHeader.BlockNum = genHeader.Header.BlockNumber()
-
-	return genHeader
-}
-
-
-func (c *Controller) ProduceOne(when common.BlockTimeStamp) *types.SignedBlock {
-
-	c.AbortBlock()
-	c.StartBlock(when, 0)
-	c.FinalizeBlock()
-	s := c.SignBlock(func(digest crypto.Sha256) ecc.Signature {
-		sign, err := initPriKey.Sign(digest.Bytes())
-		if err != nil {
-			panic(err)
-		}
-		return sign
-	})
-
-	c.CommitBlock(true)
-
-	return s
 }
 
 func (c Controller) LastIrreversibleBlockNum() uint32 {

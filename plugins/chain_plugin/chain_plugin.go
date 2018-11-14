@@ -5,7 +5,7 @@ import (
 	"github.com/eosspark/eos-go/chain"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/exception"
-)
+	)
 
 //var IsActive bool = false
 //var chainPlugin *ChainPlugin
@@ -20,19 +20,19 @@ func NewChainPlugin() *ChainPlugin {
 	return c
 }
 
-func (c *ChainPlugin) SetProgramOptions(options *cli.App) {
+func (c *ChainPlugin) SetProgramOptions(options *[]cli.Flag) {
 
 }
 
-func (c *ChainPlugin) PluginInitialize(options *cli.App) {
+func (c *ChainPlugin) PluginInitialize(options *cli.Context) {
 
 }
 
-func (c *ChainPlugin) PluginStartup(options *cli.App) {
+func (c *ChainPlugin) PluginStartup() {
 
 }
 
-func (c *ChainPlugin) PluginShutdown(options *cli.App) {
+func (c *ChainPlugin) PluginShutdown() {
 
 }
 

@@ -4,12 +4,12 @@ import (
 	"fmt"
 	"os"
 	"gopkg.in/urfave/cli.v1"
-	MockChain "github.com/eosspark/eos-go/plugins/producer_plugin/mock"
 	"github.com/eosspark/eos-go/plugins/appbase/asio"
 	"github.com/eosspark/eos-go/plugins/producer_plugin"
 	"log"
 	"syscall"
 	"github.com/eosspark/eos-go/common"
+	"github.com/eosspark/eos-go/plugins/producer_plugin/testing"
 )
 
 
@@ -23,7 +23,9 @@ func main() {
 	app := cli.NewApp()
 	iosv := asio.NewIoContext()
 
-	MockChain.Initialize(0, common.AccountName(common.N("eosio")),common.AccountName(common.N("yuanc")))
+	chainTester :=testing.NewChainTester(0, common.AccountName(common.N("eosio")),common.AccountName(common.N("yuanc")))
+	testing.Control = chainTester.Control
+
 	producerPlugin := producer_plugin.NewProducerPlugin(iosv)
 
 	producerPlugin.SetProgramOptions(&app.Flags)
