@@ -2,8 +2,6 @@ package net_plugin
 
 import (
 	"errors"
-	"fmt"
-	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 )
 
@@ -252,66 +250,23 @@ func (m *multiIndexNet) erase(i common.ElementObject) {
 func (idx *indexNet) upperBound(eo common.ElementObject) *iteratorNet {
 	itr := iteratorNet{}
 	itr.idx = idx
-	if idx.value.Len() > 0 {
-		ext := idx.searchSub(eo)
-		if idx.less {
-			for i := ext; i < idx.value.Len(); i++ {
-				if idx.value.Compare(idx.value.Data[i], eo) > 0 {
-					itr.value = idx.value.Data[i-1].(*types.BlockState)
-					itr.currentSub = i - 1
-					break
-				} else if i == idx.value.Len()-1 && idx.value.Compare(eo, idx.value.Data[i]) == 0 {
-					itr.value = idx.value.Data[i].(*types.BlockState)
-					itr.currentSub = i
-				}
-			}
-		}
-		return &itr
+	obj, sub := idx.value.UpperBound(eo)
+	if sub >= 0 {
+		itr.value = obj
+		itr.currentSub = sub
 	}
-	return nil
-}
-
-func (idx *indexNet) searchSub(eo common.ElementObject) int {
-	length := idx.value.Len()
-	i, j := 0, length-1
-	for i < j {
-		h := int(uint(i+j) >> 1)
-		if i <= h && h < j {
-			ext := idx.value.Compare(idx.value.Data[h], eo)
-			if ext < 0 {
-				i = h + 1
-			} else {
-				j = h
-			}
-		}
-	}
-	return i
+	return &itr
 }
 
 func (idx *indexNet) lowerBound(eo common.ElementObject) *iteratorNet {
 	itr := iteratorNet{}
 	itr.idx = idx
-	first := 0
-	if idx.value.Len() > 0 {
-		ext := idx.searchSub(eo)
-		first = ext
-		if idx.less {
-			fmt.Println("less search")
-			for i := first; i > 0; i-- {
-				if idx.value.Compare(idx.value.Data[i], eo) == -1 {
-					itr.value = idx.value.Data[i+1].(*types.BlockState)
-					itr.currentSub = i + 1
-					break
-				} else if i == 0 && idx.value.Compare(idx.value.Data[i], eo) == 0 {
-					itr.value = idx.value.Data[i].(*types.BlockState)
-					itr.currentSub = i
-					break
-				}
-			}
-		}
-		return &itr
+	obj, sub := idx.value.LowerBound(eo)
+	if sub >= 0 {
+		itr.value = obj
+		itr.currentSub = sub
 	}
-	return nil
+	return &itr
 }
 
 func (m *multiIndexNet) modify(eo common.ElementObject) {

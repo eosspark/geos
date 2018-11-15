@@ -1,7 +1,6 @@
 package chain
 
 import (
-	"fmt"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto/ecc"
@@ -42,10 +41,8 @@ func initMulti() (*multiIndexFork, *types.BlockState) {
 	return mi, blockState
 }
 
-func TestMultiIndexFork_Insert(t *testing.T) {
+func TestMultiIndexFork_Insert_Repeat(t *testing.T) {
 	mi, bs := initMulti()
-
-	//fmt.Println("byBlockId", mi.indexs["byBlockId"].value.Compare == nil )
 
 	for i := 0; i < 10; i++ {
 		t := 1162425602 + 200
@@ -59,18 +56,19 @@ func TestMultiIndexFork_Insert(t *testing.T) {
 	log.Info("%v", mi.indexs["byBlockId"].value.Len())
 
 	assert.Equal(t, 11, mi.indexs["byBlockId"].value.Len())
-	result := mi.Find(bs.BlockId)
+	result := mi.find(bs.BlockId)
+	log.Info("%v", result)
 	assert.Equal(t, bs, result)
 
 }
 
-func TestMultiIndexFork_Find(t *testing.T) {
+func TestMultiIndexFork_FindById(t *testing.T) {
 	mi, bs := initMulti()
-	result := mi.Find(bs.BlockId)
+	result := mi.find(bs.BlockId)
 	assert.Equal(t, bs, result)
 }
 
-func TestIndexFork_LowerBound(t *testing.T) {
+func TestIndexFork_LowerBound_byBlockNum(t *testing.T) {
 	mi, bs := initMulti()
 	var tm *types.BlockState
 	for i := 0; i < 10; i++ {
@@ -80,24 +78,22 @@ func TestIndexFork_LowerBound(t *testing.T) {
 		bhs.BlockId = bhs.Header.BlockID()
 		blockState := types.NewBlockState(bhs)
 		blockState.InCurrentChain = true
-		fmt.Println("insert:", blockState.BlockNum)
 		tm = blockState
 		mi.Insert(blockState)
 	}
 
 	idxFork := mi.indexs["byBlockNum"]
-	for i := 0; i < idxFork.value.Len(); i++ {
-		fmt.Println(idxFork.value.Data[i].(*types.BlockState).BlockNum)
-	}
 
-	itr := idxFork.LowerBound(tm)
-	fmt.Println("result:", itr.KeySet.Len(), bs.BlockNum)
-	assert.Equal(t, 10, itr.KeySet.Len())
+	val, sub := idxFork.value.LowerBound(tm)
+	log.Info("tm:%#v", tm)
+	log.Info("current sub:%#v", sub)
+	assert.Equal(t, 1, sub)
+	assert.Equal(t, tm, val)
 }
 
-func TestIndexFork_UpperBound(t *testing.T) {
+func TestIndexFork_UpperBound_byBlockNum(t *testing.T) {
 	mi, bs := initMulti()
-	//var tm *types.BlockState
+	var tm *types.BlockState
 	for i := 0; i < 10; i++ {
 		t := 1162425602 + 200
 		tmp := common.BlockTimeStamp(t)
@@ -105,31 +101,88 @@ func TestIndexFork_UpperBound(t *testing.T) {
 		bhs.BlockId = bhs.Header.BlockID()
 		blockState := types.NewBlockState(bhs)
 		blockState.InCurrentChain = true
-		fmt.Println("insert:", blockState.BlockNum)
-		//	tm = blockState
+		//fmt.Println("insert:", blockState.BlockNum)
+		if i == 9 {
+			tm = blockState
+		}
+
 		mi.Insert(blockState)
 	}
 
 	idxFork := mi.indexs["byBlockNum"]
-	for i := 0; i < idxFork.value.Len(); i++ {
-		fmt.Println(idxFork.value.Data[i].(*types.BlockState).BlockNum)
-	}
 
-	itr := idxFork.UpperBound(bs)
-	fmt.Println("result:", itr.KeySet.Len(), bs.BlockNum)
-	assert.Equal(t, 10, itr.KeySet.Len())
+	val, sub := idxFork.value.UpperBound(bs)
+	log.Info("result:%#v,%v", sub, tm.BlockNum)
+	assert.Equal(t, uint32(1), val.(*types.BlockState).BlockNum)
 }
 
-func Search(n int, f func(int) bool) int {
-
-	i, j := 0, n
-	for i < j {
-		h := int(uint(i+j) >> 1)
-		if !f(h) {
-			i = h + 1
-		} else {
-			j = h
+func TestMultiIndexFork_LowerBound_lib(t *testing.T) {
+	mi, bs := initMulti()
+	var tm *types.BlockState
+	for i := 0; i < 10; i++ {
+		t := 1162425602 + 200
+		tmp := common.BlockTimeStamp(t)
+		bhs := bs.GenerateNext(tmp)
+		bhs.BlockId = bhs.Header.BlockID()
+		blockState := types.NewBlockState(bhs)
+		blockState.InCurrentChain = true
+		//fmt.Println("insert:", blockState.BlockNum)
+		if i == 9 {
+			tm = blockState
 		}
+
+		mi.Insert(blockState)
 	}
-	return i
+
+	idxFork := mi.indexs["byLibBlockNum"]
+	itr := idxFork.lowerBound(tm)
+	//fmt.Println(itr.idx.value.Data[itr.currentSub])
+	assert.Equal(t, 0, itr.currentSub)
+	assert.Equal(t, uint32(2), itr.value.BlockNum)
+}
+
+func TestMultiIndexFork_UowerBound_lib(t *testing.T) {
+	mi, bs := initMulti()
+	var tm *types.BlockState
+	for i := 0; i < 10; i++ {
+		t := 1162425602 + 200
+		tmp := common.BlockTimeStamp(t)
+		bhs := bs.GenerateNext(tmp)
+		bhs.BlockId = bhs.Header.BlockID()
+		blockState := types.NewBlockState(bhs)
+		blockState.InCurrentChain = true
+		//fmt.Println("insert:", blockState.BlockNum)
+		if i == 9 {
+			tm = blockState
+		}
+
+		mi.Insert(blockState)
+	}
+
+	idxFork := mi.indexs["byLibBlockNum"]
+	itr := idxFork.upperBound(tm)
+	//fmt.Println(itr.idx.value.Data[itr.currentSub])
+	assert.Equal(t, 9, itr.currentSub)
+	assert.Equal(t, uint32(2), itr.value.BlockNum)
+}
+
+func TestIndexFork_Begin(t *testing.T) {
+	mi, bs := initMulti()
+	for i := 0; i < 10; i++ {
+		t := 1162425602 + 200
+		tmp := common.BlockTimeStamp(t)
+		bhs := bs.GenerateNext(tmp)
+		bhs.BlockId = bhs.Header.BlockID()
+		blockState := types.NewBlockState(bhs)
+		blockState.InCurrentChain = true
+		//fmt.Println("insert:", blockState.BlockNum)
+
+		mi.Insert(blockState)
+	}
+
+	idxFork := mi.indexs["byLibBlockNum"]
+
+	obj, _ := idxFork.Begin()
+
+	assert.Equal(t, idxFork.value.Data[0], obj)
 }

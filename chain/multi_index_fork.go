@@ -2,7 +2,6 @@ package chain
 
 import (
 	"errors"
-	"fmt"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 )
@@ -120,106 +119,34 @@ func (idx *indexFork) Begin() (*types.BlockState, error) { //syscall.Mmap()
 func (idx *indexFork) upperBound(b *types.BlockState) *iteratorFork {
 	itr := iteratorFork{}
 	itr.idx = idx
-	if idx.value.Len() > 0 {
-		ext := idx.searchSub(b)
-		if idx.less {
-			for i := ext; i < idx.value.Len(); i++ {
-				if idx.value.Compare(b, idx.value.Data[i]) < 0 {
-					itr.value = idx.value.Data[i-1].(*types.BlockState)
-					itr.currentSub = i - 1
-					break
-				} else if i == idx.value.Len()-1 && idx.value.Compare(b, idx.value.Data[i]) == 0 {
-					itr.value = idx.value.Data[i].(*types.BlockState)
-					itr.currentSub = i
-				}
-			}
-		} else {
-			for i := ext; i > 0; i-- {
-				if idx.value.Compare(b, idx.value.Data[i]) < 0 {
-					itr.value = idx.value.Data[i+1].(*types.BlockState)
-					itr.currentSub = i + 1
-					break
-				} else if i == 0 && idx.value.Compare(b, idx.value.Data[i]) == 0 {
-					itr.value = idx.value.Data[i].(*types.BlockState)
-					itr.currentSub = i
-				}
-			}
-		}
-		return &itr
+	obj, sub := idx.value.UpperBound(b)
+	if sub >= 0 {
+		itr.value = obj.(*types.BlockState)
+		itr.currentSub = sub
 	}
-	return nil
-}
-
-func (idx *indexFork) searchSub(b *types.BlockState) int {
-	length := idx.value.Len()
-	i, j := 0, length-1
-	for i < j {
-		h := int(uint(i+j) >> 1)
-		if i <= h && h < j {
-			ext := idx.value.Compare(idx.value.Data[h], b)
-			if idx.less {
-				if ext < 0 {
-					i = h + 1
-				} else {
-					j = h
-				}
-			} else {
-				if ext > 0 {
-					i = h + 1
-				} else {
-					j = h
-				}
-			}
-		}
-	}
-	return i
+	return &itr
 }
 
 func (idx *indexFork) lowerBound(b *types.BlockState) *iteratorFork {
 	itr := iteratorFork{}
 	itr.idx = idx
-	first := 0
-	if idx.value.Len() > 0 {
-		ext := idx.searchSub(b)
-		first = ext
-		if idx.less {
-			fmt.Println("less search")
-			for i := first; i > 0; i-- {
-				if idx.value.Compare(idx.value.Data[i], b) == -1 {
-					itr.value = idx.value.Data[i+1].(*types.BlockState)
-					itr.currentSub = i + 1
-					break
-				} else if i == 0 && idx.value.Compare(idx.value.Data[i], b) == 0 {
-					itr.value = idx.value.Data[i].(*types.BlockState)
-					itr.currentSub = i
-					break
-				}
-			}
-		} else {
-			fmt.Println("greater search")
-			for i := first; i < idx.value.Len(); i++ {
-				if i >= 1 && idx.value.Compare(idx.value.Data[i], b) == -1 {
-					itr.value = idx.value.Data[i-1].(*types.BlockState)
-					itr.currentSub = i - 1
-					break
-				} else if i == 0 && idx.value.Compare(idx.value.Data[i], b) == 0 {
-					itr.value = idx.value.Data[i].(*types.BlockState)
-					itr.currentSub = i
-					break
-				}
-			}
-		}
-		return &itr
+	obj, sub := idx.value.LowerBound(b)
+	if sub >= 0 {
+		itr.value = obj.(*types.BlockState)
+		itr.currentSub = sub
 	}
-	return nil
+	return &itr
 }
 
 func (itr *iteratorFork) next() {
 	itr.currentSub++
-	itr.value = itr.idx.value.Data[itr.currentSub].(*types.BlockState)
+	if itr.currentSub < itr.idx.value.Len() {
+		itr.value = itr.idx.value.Data[itr.currentSub].(*types.BlockState)
+	}
+
 }
 
-func (m *multiIndexFork) Find(id common.BlockIdType) *types.BlockState {
+func (m *multiIndexFork) find(id common.BlockIdType) *types.BlockState {
 	b := types.BlockState{}
 	b.BlockId = id
 	idx := m.indexs["byBlockId"]

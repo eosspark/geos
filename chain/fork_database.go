@@ -9,10 +9,7 @@ import (
 )
 
 type ForkDatabase struct {
-	//DB database.DataBase
-	//Index   *ForkMultiIndexType `json:"index"`
-	Head *types.BlockState `json:"head"`
-	//DataDir string
+	Head           *types.BlockState `json:"head"`
 	multiIndexFork *multiIndexFork
 }
 
@@ -36,13 +33,6 @@ func GetForkDbInstance(stateDir string) *ForkDatabase {
 
 func newForkDatabase(path string, fileName string, rw bool) (*ForkDatabase, error) {
 	return &ForkDatabase{multiIndexFork: newMultiIndexFork()}, nil
-	/*db, err := database.NewDataBase(path + "/" + fileName)
-	if err != nil {
-		log.Error("newForkDatabase is error:%s", err.Error())
-		return nil, err
-	}
-
-	return &ForkDatabase{DB: db}, err*/
 }
 
 func (f *ForkDatabase) SetHead(s *types.BlockState) {
@@ -57,14 +47,10 @@ func (f *ForkDatabase) SetHead(s *types.BlockState) {
 		f.Head = s
 	}
 
-	//err := f.DB.Insert(s)
 	ok := f.multiIndexFork.Insert(s)
 	if !ok {
 		log.Error("forkDatabase SetHead insert is error:%#v", s)
 	}
-	/*if err != nil {
-		log.Error("ForkDB SetHead is error:%s", err.Error())
-	}*/
 
 }
 
@@ -95,9 +81,9 @@ func (f *ForkDatabase) AddSignedBlockState(signedBlock *types.SignedBlock, trust
 	blockId := signedBlock.BlockID()
 	//blockState := types.BlockState{}
 
-	block := f.multiIndexFork.Find(blockId) //find all data multiIndex
+	block := f.multiIndexFork.find(blockId) //find all data multiIndex
 	try.EosAssert(block == nil, &exception.ForkDatabaseException{}, "we already know about this block")
-	prior := f.multiIndexFork.Find(signedBlock.Previous)
+	prior := f.multiIndexFork.find(signedBlock.Previous)
 	try.EosAssert(prior == nil, &exception.ForkDatabaseException{}, "unlinkable block:%#v,%#v", blockId, signedBlock.Previous)
 
 	//previous := types.BlockState{}
@@ -185,7 +171,7 @@ func (f *ForkDatabase) MarkInCurrentChain(h *types.BlockState, inCurrentChain bo
 	if h.InCurrentChain == inCurrentChain {
 		return
 	}
-	result := f.multiIndexFork.Find(h.BlockId)
+	result := f.multiIndexFork.find(h.BlockId)
 	try.EosAssert(result == nil, &exception.ForkDbBlockNotFound{}, "could not find block in fork database")
 	result.InCurrentChain = inCurrentChain
 	f.multiIndexFork.modify(result)
@@ -203,23 +189,26 @@ func (f *ForkDatabase) Prune(h *types.BlockState) {
 		f.Prune(bni)
 		bni, _ = idx.Begin()
 	}
-	p := f.multiIndexFork.Find(h.BlockId)
+	p := f.multiIndexFork.find(h.BlockId)
 	if p != nil {
 		//irreversible(*itr) TODO channel
 		f.multiIndexFork.erase(p)
 	}
 	numidx := f.multiIndexFork.GetIndex("byBlockNum")
-	itr := numidx.LowerBound(h)
-	for itr != nil && itr.first.BlockNum == num {
-		tmp := itr.first
-		//it:=itr.next()
-		f.Remove(&tmp.BlockId)
+	val, sub := numidx.value.LowerBound(h)
+	if sub >= 0 {
+		obj := val.(*types.BlockState)
+		for obj.BlockNum == num {
+
+			f.Remove(&obj.BlockId)
+		}
 	}
+
 }
 
 func (f *ForkDatabase) GetBlock(id *common.BlockIdType) *types.BlockState {
 
-	b := f.multiIndexFork.Find(*id)
+	b := f.multiIndexFork.find(*id)
 	if b != nil {
 		return b
 	}
@@ -230,17 +219,18 @@ func (f *ForkDatabase) GetBlockInCurrentChainByNum(n uint32) *types.BlockState {
 	b := types.BlockState{}
 	b.BlockNum = n
 	numIdx := f.multiIndexFork.GetIndex("byBlockNum")
-	itr := numIdx.LowerBound(&b)
-	if itr != nil || itr.first.BlockNum != n || itr.first.InCurrentChain != true {
+	val, _ := numIdx.value.LowerBound(&b)
+	obj := val.(*types.BlockState)
+	if val != nil || obj.BlockNum != n || obj.InCurrentChain != true {
 		return &types.BlockState{}
 	}
-	return itr.first
+	return obj
 }
 
 func (f *ForkDatabase) SetBftIrreversible(id common.BlockIdType) {
 	param := types.BlockState{}
 	param.BlockId = id
-	b := f.multiIndexFork.Find(id)
+	b := f.multiIndexFork.find(id)
 	blockNum := b.BlockNum
 	b.BftIrreversibleBlocknum = b.BlockNum
 	f.multiIndexFork.modify(b)
@@ -252,15 +242,15 @@ func (f *ForkDatabase) SetBftIrreversible(id common.BlockIdType) {
 			//try.EosAssert(err==nil,&exception.ForkDbBlockNotFound{},"SetBftIrreversible could not find idx in fork database")
 			b := types.BlockState{}
 			b.BlockId = i
-			pitr := pidx.LowerBound(&b)
-			epitr := pidx.UpperBound(&b)
+			pitr := pidx.lowerBound(&b)
+			epitr := pidx.upperBound(&b)
 			//try.EosAssert(pitr == nil, &exception.ForkDbBlockNotFound{}, "SetBftIrreversible could not find idx in fork database")
 			for pitr != epitr {
-				if pitr.first.BftIrreversibleBlocknum < blockNum {
-					pitr.first.BftIrreversibleBlocknum = blockNum
-					updated = append(updated, pitr.first.BlockId)
+				if pitr.value.BftIrreversibleBlocknum < blockNum {
+					pitr.value.BftIrreversibleBlocknum = blockNum
+					updated = append(updated, pitr.value.BlockId)
 				}
-				f.multiIndexFork.modify(pitr.first)
+				f.multiIndexFork.modify(pitr.value)
 				pitr.next()
 			}
 		}

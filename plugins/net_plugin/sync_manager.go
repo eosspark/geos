@@ -60,9 +60,9 @@ type transactionState struct {
 	requestedTime   common.TimePoint
 }
 
-func (trx *transactionState) Getkey() []byte {
+/*func (trx *transactionState) Getkey() []byte {
 	return trx.id.Bytes()
-}
+}*/
 
 type updateTxnExpiry struct {
 	newExpiry common.TimePointSec
@@ -103,9 +103,9 @@ type peerBlockState struct {
 	requestTime common.TimePoint
 }
 
-func (p *peerBlockState) Getkey() []byte {
+/*func (p *peerBlockState) Getkey() []byte {
 	return p.id.Bytes()
-}
+}*/
 
 /*
 struct update_request_time {
