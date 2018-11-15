@@ -35,7 +35,7 @@ func (m *Bucket) Find(element ElementObject) (bool, int) {
 	return false, -1
 }
 
-func (b *Bucket) Easer(element ElementObject) bool {
+func (b *Bucket) Eraser(element ElementObject) bool {
 	result := false
 	if b.Len() == 0 {
 		return result

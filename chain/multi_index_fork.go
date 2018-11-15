@@ -1,6 +1,7 @@
 package chain
 
 import (
+	"errors"
 	"fmt"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
@@ -18,7 +19,9 @@ type indexFork struct {
 }
 
 type iteratorFork struct {
-	KeySet common.Bucket
+	currentSub int
+	value      *types.BlockState
+	idx        *indexFork
 }
 
 func newMultiIndexFork() *multiIndexFork {
@@ -105,30 +108,44 @@ func (m *multiIndexFork) GetIndex(tag string) *indexFork {
 	return nil
 }
 
-func (idx *indexFork) Begin() *iteratorFork { //syscall.Mmap()
-	itr := iteratorFork{}
+func (idx *indexFork) Begin() (*types.BlockState, error) { //syscall.Mmap()
+
 	if idx.value.Len() > 0 {
-		itr.KeySet.Data[0] = idx.value.Data[0]
+		return idx.value.Data[0].(*types.BlockState), nil
+	} else {
+		return nil, errors.New("MultiIndexFork Begin : iterator is nil")
 	}
-	return &itr
 }
 
-/*func (idx *Index) Next() *iteratorFork{
-
-}*/
-
-func (idx *indexFork) UpperBound(b *types.BlockState) *iteratorFork {
+func (idx *indexFork) upperBound(b *types.BlockState) *iteratorFork {
 	itr := iteratorFork{}
-	var tagObj *types.BlockState
+	itr.idx = idx
 	if idx.value.Len() > 0 {
-		for _, idxEle := range idx.value.Data {
-			tagObj = idxEle.(*types.BlockState)
-			if idx.value.Compare(idxEle.(*types.BlockState), b) == 1 {
-				itr.KeySet.Insert(tagObj)
-				break
+		ext := idx.searchSub(b)
+		if idx.less {
+			for i := ext; i < idx.value.Len(); i++ {
+				if idx.value.Compare(b, idx.value.Data[i]) < 0 {
+					itr.value = idx.value.Data[i-1].(*types.BlockState)
+					itr.currentSub = i - 1
+					break
+				} else if i == idx.value.Len()-1 && idx.value.Compare(b, idx.value.Data[i]) == 0 {
+					itr.value = idx.value.Data[i].(*types.BlockState)
+					itr.currentSub = i
+				}
+			}
+		} else {
+			for i := ext; i > 0; i-- {
+				if idx.value.Compare(b, idx.value.Data[i]) < 0 {
+					itr.value = idx.value.Data[i+1].(*types.BlockState)
+					itr.currentSub = i + 1
+					break
+				} else if i == 0 && idx.value.Compare(b, idx.value.Data[i]) == 0 {
+					itr.value = idx.value.Data[i].(*types.BlockState)
+					itr.currentSub = i
+				}
 			}
 		}
-		return idx.LowerBound(tagObj)
+		return &itr
 	}
 	return nil
 }
@@ -140,36 +157,66 @@ func (idx *indexFork) searchSub(b *types.BlockState) int {
 		h := int(uint(i+j) >> 1)
 		if i <= h && h < j {
 			ext := idx.value.Compare(idx.value.Data[h], b)
-			if ext < 0 {
-				i = h + 1
+			if idx.less {
+				if ext < 0 {
+					i = h + 1
+				} else {
+					j = h
+				}
 			} else {
-				j = h
+				if ext > 0 {
+					i = h + 1
+				} else {
+					j = h
+				}
 			}
 		}
 	}
 	return i
 }
 
-func (idx *indexFork) LowerBound(b *types.BlockState) *iteratorFork {
+func (idx *indexFork) lowerBound(b *types.BlockState) *iteratorFork {
 	itr := iteratorFork{}
+	itr.idx = idx
 	first := 0
 	if idx.value.Len() > 0 {
-		//start
 		ext := idx.searchSub(b)
 		first = ext
-		for i := first; i < idx.value.Len(); i++ {
-			if idx.value.Compare(idx.value.Data[i], b) > 0 || (i == idx.value.Len()-1 && idx.value.Compare(idx.value.Data[i], b) == 0) {
-				if i == idx.value.Len() {
-					itr.KeySet.Data = idx.value.Data[first:idx.value.Len()]
-				} else {
-					itr.KeySet.Data = idx.value.Data[first : i+1]
+		if idx.less {
+			fmt.Println("less search")
+			for i := first; i > 0; i-- {
+				if idx.value.Compare(idx.value.Data[i], b) == -1 {
+					itr.value = idx.value.Data[i+1].(*types.BlockState)
+					itr.currentSub = i + 1
+					break
+				} else if i == 0 && idx.value.Compare(idx.value.Data[i], b) == 0 {
+					itr.value = idx.value.Data[i].(*types.BlockState)
+					itr.currentSub = i
+					break
 				}
-				break
+			}
+		} else {
+			fmt.Println("greater search")
+			for i := first; i < idx.value.Len(); i++ {
+				if i >= 1 && idx.value.Compare(idx.value.Data[i], b) == -1 {
+					itr.value = idx.value.Data[i-1].(*types.BlockState)
+					itr.currentSub = i - 1
+					break
+				} else if i == 0 && idx.value.Compare(idx.value.Data[i], b) == 0 {
+					itr.value = idx.value.Data[i].(*types.BlockState)
+					itr.currentSub = i
+					break
+				}
 			}
 		}
 		return &itr
 	}
 	return nil
+}
+
+func (itr *iteratorFork) next() {
+	itr.currentSub++
+	itr.value = itr.idx.value.Data[itr.currentSub].(*types.BlockState)
 }
 
 func (m *multiIndexFork) Find(id common.BlockIdType) *types.BlockState {
@@ -198,59 +245,13 @@ func (m *multiIndexFork) FindByPrev(prev common.BlockIdType) *types.BlockState {
 	}
 }
 
-/*func (m *multiIndexFork) FindByBlockNum(prev uint32,inCurrentChain bool) *types.BlockState {
-	key := computePrevKey(prev.Bytes())
-	idx := m.indexs["byLibBlockNum"]
-	idxEle, _ := idx.keyValue.FindData(key)
-	mainKey := idxEle.(*indexElement).value
-	idxe := m.GetIndex("byBlockId")
-	objEle, _ := idxe.keyValue.FindData(mainKey.([]byte))
-	bs := objEle.(*indexElement).value.(*types.BlockState)
-	return bs
-}*/
-
-/*func (m *multiIndexFork) FindByLibBlockNum(prev uint32,inCurrentChain bool) *types.BlockState {
-	key := computePrevKey(prev.Bytes())
-	idx := m.indexs["byLibBlockNum"]
-	idxEle, _ := idx.keyValue.FindData(key)
-	mainKey := idxEle.(*indexElement).value
-	idxe := m.GetIndex("byBlockId")
-	objEle, _ := idxe.keyValue.FindData(mainKey.([]byte))
-	bs := objEle.(*indexElement).value.(*types.BlockState)
-	return bs
-}*/
-
-/*func (idx *indexFork) eraseMainKey(id *common.BlockIdType) bool {
-	keyArray := make([][]byte, 4)
-	key := computeMainKey(id.BigEndianBytes())
-	keyArray = append(keyArray, key)
-	ele, sub := idx.keyValue.FindData(key)
-	if sub >= 0 {
-		block := ele.(*types.BlockState)
-		prevKey := computePrevKey(block.SignedBlock.Previous.BigEndianBytes())
-		keyArray = append(keyArray, prevKey)
-		blockNumKey := computeBlockNumKey(block.BlockNum, block.InCurrentChain)
-		keyArray = append(keyArray, blockNumKey)
-		libNumKey := computeLibNumKey(block.DposIrreversibleBlocknum, block.BftIrreversibleBlocknum, block.BlockNum)
-		keyArray = append(keyArray, libNumKey)
-		for _, k := range keyArray {
-			boo := idx.keyValue.Remove(indexElement{key: key})
-			if !boo {
-				log.Error("fork_contanier eraseMainKey is error:%#v", k)
-			}
-		}
-
-	}
-	return false
-}*/
-
 func (m *multiIndexFork) erase(b *types.BlockState) bool {
 	if len(m.indexs) > 0 {
 		for _, v := range m.indexs {
 			bt := v.value
 			ext, _ := bt.Find(b)
 			if ext {
-				v.value.Easer(b)
+				v.value.Eraser(b)
 			}
 		}
 	}
@@ -262,13 +263,8 @@ func (m *multiIndexFork) modify(b *types.BlockState) {
 	m.Insert(b)
 }
 
-func computeLibNumKey(dposIrreversibleBlocknum uint32, bftIrreversibleBlocknum uint32, blockNum uint32) []byte {
-	str := fmt.Sprintf("%d_%d_%d", dposIrreversibleBlocknum, bftIrreversibleBlocknum, blockNum)
-	val := []byte(str)
-	return append([]byte("byLibBlockNum_"), val...)
-}
-
 /*type iteratorFork interface {
+
 	Next() bool
 
 	Prev() bool
