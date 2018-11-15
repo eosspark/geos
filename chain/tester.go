@@ -144,6 +144,13 @@ func (t BaseTester) PushTransaction(trx *types.SignedTransaction, deadline commo
 	return trace
 }
 
+//func (t BaseTester) GetAction(code common.AccountName, actType common.AccountName, auths []types.PermissionLevel) types.Action {
+//	acnt := t.Control.GetAccount(code)
+//	abi := acnt.GetAbi()
+//	abis := types.AbiSerializer{}
+//	actionTypeName := abis.getActionType(actType)
+//}
+
 func (t BaseTester) getPrivateKey(keyName common.Name, role string) ecc.PrivateKey {
 	//TODO: wait for testing
 	priKey, _ := ecc.NewPrivateKey(crypto.Hash256(keyName.String()+role).String())
