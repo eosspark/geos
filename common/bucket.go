@@ -1,8 +1,11 @@
 package common
 
-//The result will be 0 if a==b, -1 if first < second, and +1 if first > second.
+import (
+	"errors"
+)
+
 type ElementObject interface {
-	ElementObject()
+	ElementObject() //default implements interface only taget
 }
 
 type Bucket struct {
@@ -10,26 +13,26 @@ type Bucket struct {
 	Compare func(first ElementObject, second ElementObject) int
 }
 
-func (m *Bucket) Len() int {
-	return len(m.Data)
+func (b *Bucket) Len() int {
+	return len(b.Data)
 }
 
-func (m *Bucket) GetData(i int) ElementObject {
-	if len(m.Data)-1 >= i {
-		return m.Data[i]
+func (b *Bucket) GetData(i int) (ElementObject, error) {
+	if len(b.Data)-1 >= i {
+		return b.Data[i], nil
 	}
-	return nil
+	return nil, errors.New("not found data")
 }
 
-func (m *Bucket) Clear() {
-	if len(m.Data) > 0 {
-		m.Data = nil
+func (b *Bucket) Clear() {
+	if len(b.Data) > 0 {
+		b.Data = nil
 	}
 }
 
-func (m *Bucket) Find(element ElementObject) (bool, int) {
-	r := m.searchSub(element)
-	if r >= 0 && m.Compare(element, m.Data[r]) == 0 {
+func (b *Bucket) Find(element ElementObject) (bool, int) {
+	r := b.searchSub(element)
+	if r >= 0 && b.Compare(element, b.Data[r]) == 0 {
 		return true, r
 	}
 	return false, -1
@@ -40,16 +43,16 @@ func (b *Bucket) Eraser(element ElementObject) bool {
 	if b.Len() == 0 {
 		return result
 	}
-	_, sub := b.Find(element)
-	if sub >= 0 /* && f.Len()>=1*/ {
+	exist, sub := b.Find(element)
+	if exist /* && f.Len()>=1*/ {
 		b.Data = append(b.Data[:sub], b.Data[sub+1:]...)
 		result = true
 	}
 	return result
 }
 
-func (m *Bucket) searchSub(obj ElementObject) int {
-	length := m.Len()
+func (b *Bucket) searchSub(obj ElementObject) int {
+	length := b.Len()
 	if length == 0 {
 		return -1
 	}
@@ -57,9 +60,9 @@ func (m *Bucket) searchSub(obj ElementObject) int {
 	for i < j {
 		h := int(uint(i+j) >> 1)
 		if i <= h && h < j {
-			if m.Compare(m.Data[h], obj) == -1 {
+			if b.Compare(b.Data[h], obj) == -1 {
 				i = h + 1
-			} else if m.Compare(m.Data[h], obj) == 0 {
+			} else if b.Compare(b.Data[h], obj) == 0 {
 				return h
 			} else {
 				j = h
@@ -69,19 +72,20 @@ func (m *Bucket) searchSub(obj ElementObject) int {
 	return i
 }
 
-func (m *Bucket) Insert(obj ElementObject) (*ElementObject, bool) {
-	//fmt.Println("Bucket", m.Compare == nil)
+func (b *Bucket) Insert(obj ElementObject) (*ElementObject, error) {
+	if b.Compare == nil {
+		return nil, errors.New("Bucket Compare is nil")
+	}
 	var result ElementObject
-	length := m.Len()
-	target := m.Data
-	exist := false
+	length := b.Len()
+	target := b.Data
 	if length == 0 {
-		m.Data = append(m.Data, obj)
-		result = m.Data[0]
+		b.Data = append(b.Data, obj)
+		result = b.Data[0]
 	} else {
-		r := m.searchSub(obj)
-		start := m.Compare(target[0], obj)
-		end := m.Compare(obj, target[length-1])
+		r := b.searchSub(obj)
+		start := b.Compare(target[0], obj)
+		end := b.Compare(obj, target[length-1])
 		if (start == -1 || start == 0) && (end == -1 || end == 0) {
 			//Insert middle
 			elemnts := []ElementObject{}
@@ -90,22 +94,60 @@ func (m *Bucket) Insert(obj ElementObject) (*ElementObject, bool) {
 			elemnts = append(elemnts, first...)
 			elemnts = append(elemnts, obj)
 			elemnts = append(elemnts, second...)
-			m.Data = elemnts
+			b.Data = elemnts
 			result = elemnts[r]
 		} else {
 			//insert target before
-			if m.Compare(obj, target[0]) == -1 {
+			if b.Compare(obj, target[0]) == -1 {
 				elemnts := []ElementObject{}
 				elemnts = append(elemnts, obj)
 				elemnts = append(elemnts, target...)
-				m.Data = elemnts
+				b.Data = elemnts
 				result = elemnts[0]
-			} else if m.Compare(obj, target[length-1]) == 1 { //target append
+			} else if b.Compare(obj, target[length-1]) == 1 { //target append
 				target = append(target, obj)
 				result = target[length]
-				m.Data = target
+				b.Data = target
 			}
 		}
 	}
-	return &result, exist
+	return &result, nil
+}
+
+func (b *Bucket) LowerBound(eo ElementObject) (ElementObject, int) {
+	first := 0
+	if b.Len() > 0 {
+		ext := b.searchSub(eo)
+		first = ext
+		for i := first; i >= 0; i-- {
+			if b.Compare(b.Data[i], eo) == -1 {
+				value := b.Data[i+1]
+				currentSub := i + 1
+				return value, currentSub
+			} else if i == 0 && b.Compare(b.Data[i], eo) == 0 {
+				value := b.Data[i]
+				currentSub := i
+				return value, currentSub
+			}
+		}
+	}
+	return nil, -1
+}
+
+func (b *Bucket) UpperBound(eo ElementObject) (ElementObject, int) {
+	if b.Len() > 0 {
+		ext := b.searchSub(eo)
+		for i := ext; i < b.Len(); i++ {
+			if b.Compare(b.Data[i], eo) > 0 {
+				value := b.Data[i-1]
+				currentSub := i - 1
+				return value, currentSub
+			} else if i == b.Len()-1 && b.Compare(eo, b.Data[i]) == 0 {
+				value := b.Data[i]
+				currentSub := i
+				return value, currentSub
+			}
+		}
+	}
+	return nil, -1
 }

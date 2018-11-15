@@ -94,9 +94,9 @@ func CompareLibNum(first common.ElementObject, second common.ElementObject) int 
 		first.(*BlockState).BftIrreversibleBlocknum == second.(*BlockState).BftIrreversibleBlocknum &&
 		first.(*BlockState).BlockNum == second.(*BlockState).BlockNum {
 		return 0
-	} else if first.(*BlockState).DposIrreversibleBlocknum < second.(*BlockState).DposIrreversibleBlocknum ||
-		first.(*BlockState).BftIrreversibleBlocknum < second.(*BlockState).BftIrreversibleBlocknum ||
-		first.(*BlockState).BlockNum < second.(*BlockState).BlockNum {
+	} else if first.(*BlockState).DposIrreversibleBlocknum > second.(*BlockState).DposIrreversibleBlocknum ||
+		first.(*BlockState).BftIrreversibleBlocknum > second.(*BlockState).BftIrreversibleBlocknum ||
+		first.(*BlockState).BlockNum > second.(*BlockState).BlockNum {
 		return -1
 	} else {
 		return 1

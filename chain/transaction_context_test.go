@@ -203,7 +203,7 @@ func CreateNewAccount(control *Controller, name string) {
 }
 
 func pushTransaction(control *Controller, trx *types.TransactionMetadata) {
-	control.PushTransaction(*trx, common.TimePoint(common.MaxMicroseconds()), 1000, true)
+	control.PushTransaction(trx, common.TimePoint(common.MaxMicroseconds()), 1000)
 }
 
 func newTransaction(control *Controller, action *types.Action, privateKey *ecc.PrivateKey) *types.TransactionMetadata {
