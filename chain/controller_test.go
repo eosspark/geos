@@ -142,43 +142,12 @@ func TestController_GetDynamicGlobalProperties(t *testing.T) {
 	fmt.Println("*******", result)
 }
 
-func TestController_GetBlockIdForNum(t *testing.T) {
+func TestController_GetBlockIdForNum_NotFound(t *testing.T) {
 	c := GetControllerInstance()
 	try.Try(func() {
 		c.GetBlockIdForNum(10)
-	}).Catch(func(ex exception.ForkDbBlockNotFound) { //TODO catch exception code
-		//fmt.Println("______",ex)
-		assert.Equal(t, 3020001, int(ex.Code()))
+	}).Catch(func(ex exception.Exception) { //TODO catch exception code
+		assert.Equal(t, 3100002, int(ex.Code()))
 	}).End()
 
-}
-
-func TestController_StartBlock(t *testing.T) {
-	c := GetControllerInstance()
-	w := common.NewBlockTimeStamp(common.Now())
-	s := types.Irreversible
-	c.StartBlock(w, uint16(s))
-	c.Close()
-}
-
-func TestController_Close(t *testing.T) {
-	c := GetControllerInstance()
-	c.Close()
-}
-
-func TestController_UpdateProducersAuthority(t *testing.T) {
-	c := GetControllerInstance()
-	c.updateProducersAuthority()
-}
-
-func Test(t *testing.T) {
-	c := GetControllerInstance()
-	cfg := c.GetGlobalProperties().Configuration
-	fmt.Println(cfg)
-
-	c.Close()
-
-	c = GetControllerInstance()
-	fg := c.GetGlobalProperties()
-	fmt.Println(fg)
 }

@@ -2,17 +2,17 @@ package types
 
 import (
 	"encoding/binary"
+	"errors"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/ecc"
 	. "github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
 	"sort"
-	"errors"
 )
 
 type BlockHeaderState struct {
-	ID                               common.IdType      `multiIndex:"id,increment"`
+	//ID                               common.IdType      `multiIndex:"id,increment"`
 	BlockId                          common.BlockIdType `multiIndex:"byId,orderedUnique"`
 	BlockNum                         uint32             `multiIndex:"block_num,orderedUnique:byLibBlockNum,orderedUnique"`
 	Header                           SignedBlockHeader  `multiIndex:"inline"`
@@ -100,7 +100,7 @@ func (b *BlockHeaderState) GenerateNext(when common.BlockTimeStamp) *BlockHeader
 
 	/// grow the confirmed count
 	if common.DefaultConfig.MaxProducers*2/3+1 > 0xff {
-		panic(errors.New("8bit confirmations may not be able to hold all of the needed confirmations") )
+		panic(errors.New("8bit confirmations may not be able to hold all of the needed confirmations"))
 	}
 
 	// This uses the previous block active_schedule because thats the "schedule" that signs and therefore confirms _this_ block
