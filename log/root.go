@@ -14,7 +14,7 @@ var (
 func init() {
 	root.SetHandler(DiscardHandler())
 
-	//root.SetHandler(TerminalHandler)
+	root.SetHandler(TerminalHandler)
 
 	//root.SetHandler(LvlFilterHandler(LvlError,TerminalHandler))
 
@@ -25,6 +25,12 @@ func init() {
 
 func New(name string) Logger {
 	return root.New(name)
+}
+
+func NewWithHandle(name string, h Handler) Logger {
+	l := root.New(name)
+	l.SetHandler(h)
+	return l
 }
 
 func Root() Logger {

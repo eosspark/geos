@@ -38,7 +38,7 @@ func newForkDatabase(path string, fileName string, rw bool) (*ForkDatabase, erro
 func (f *ForkDatabase) SetHead(s *types.BlockState) {
 
 	try.EosAssert(s.BlockId == s.Header.BlockID(), &exception.ForkDatabaseException{},
-		"block state id:%d, is different from block state header id:%d", s.ID, s.Header.BlockID())
+		"block state id:%d, is different from block state header id:%d", s.BlockId, s.Header.BlockID())
 
 	try.EosAssert(s.BlockNum == s.Header.BlockNumber(), &exception.ForkDatabaseException{}, "unable to insert block state, duplicate state detected")
 	if f.Head == nil {
@@ -220,6 +220,9 @@ func (f *ForkDatabase) GetBlockInCurrentChainByNum(n uint32) *types.BlockState {
 	b.BlockNum = n
 	numIdx := f.multiIndexFork.GetIndex("byBlockNum")
 	val, _ := numIdx.value.LowerBound(&b)
+	if val == nil {
+		return nil
+	}
 	obj := val.(*types.BlockState)
 	if val != nil || obj.BlockNum != n || obj.InCurrentChain != true {
 		return &types.BlockState{}

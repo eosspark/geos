@@ -248,8 +248,22 @@ func (m *multiIndexNet) erase(i common.ElementObject) {
 	}
 }
 
-func (m *multiIndexNet) eraseRegion(begin int, end int) {
-
+func (m *multiIndexNet) eraseRegion(begin int, end int, tag string) {
+	idx := m.getIndex(tag)
+	if idx.value.Len() > 0 {
+		tmp := idx.value.Data[begin:end]
+		if len(tmp) > 0 {
+			for _, t := range tmp {
+				for _, v := range m.indexs {
+					bt := v.value
+					ext, _ := bt.Find(t)
+					if ext {
+						v.value.Eraser(t)
+					}
+				}
+			}
+		}
+	}
 }
 
 func (idx *indexNet) upperBound(eo common.ElementObject) *iteratorNet {
@@ -275,9 +289,20 @@ func (idx *indexNet) lowerBound(eo common.ElementObject) *iteratorNet {
 }
 
 func (m *multiIndexNet) modify(old common.ElementObject, isKey bool, updata func(in common.ElementObject)) {
-	//m.erase(old)
-	//
-	//m.insert(new)
+	if isKey {
+		m.erase(old)
+		updata(old)
+		m.insert(old)
+	} else {
+		for _, v := range m.indexs {
+			bt := v.value
+			ext, sub := bt.Find(old)
+			if ext {
+				updata(old)
+				v.value.Data[sub] = old
+			}
+		}
+	}
 }
 
 func (m *multiIndexNet) insert(eo common.ElementObject) /*(bool,error)*/ {
@@ -307,10 +332,13 @@ func getInstance(objTag string) (*multiIndexNet, error) {
 	return m, nil
 }
 
-func (itr *iteratorNet) next() {
+func (itr *iteratorNet) next() bool {
 	itr.currentSub++
 	if itr.currentSub < itr.idx.value.Len() {
 		itr.value = itr.idx.value.Data[itr.currentSub].(*types.BlockState)
+		return true
+	} else {
+		return false
 	}
 }
 
