@@ -1,5 +1,10 @@
 package arithmeticTypes
 
+import (
+	"fmt"
+	"github.com/eosspark/eos-go/crypto/rlp"
+)
+
 /*----------------------------------------------------------------------------
 | Types used to pass 16-bit, 32-bit, 64-bit, and 128-bit floating-point
 | arguments and results to/from functions.  These types must be exactly
@@ -22,10 +27,12 @@ type ExtFloat80M struct {
 	signIf  uint64
 }
 
-type ExtFloat80M_t ExtFloat80M
+type ExtFloat80_t ExtFloat80M
 
 func (f Float128) String() string {
-	return ""
+	re, _ := rlp.EncodeToBytes(f)
+	fmt.Println(re)
+	return string(re)
 }
 func (f Float128) Bytes() []byte {
 	return []byte{}
@@ -63,7 +70,7 @@ const (
 
 type extF80M_extF80 struct {
 	fM ExtFloat80M
-	f  ExtFloat80M_t
+	f  ExtFloat80_t
 }
 
 type uint128Extra struct {
