@@ -23,7 +23,7 @@ func (d *DeadlineTimer) ExpiresAt(t time.Time) {
 }
 
 func (d *DeadlineTimer) AsyncWait(op func(err error)) {
-	// use go-timers to receive time event in new goroutine
+	// use go-timers to receive time event in a separate goroutine
 	go func() {
 		d.internal = time.NewTimer(d.duration)
 		<-d.internal.C

@@ -155,7 +155,7 @@ func TestController_GetBlockIdForNum(t *testing.T) {
 
 func TestController_StartBlock(t *testing.T) {
 	c := GetControllerInstance()
-	w := common.NewBlockTimeStamp(common.Now())
+	w := types.NewBlockTimeStamp(common.Now())
 	s := types.Irreversible
 	c.StartBlock(w, uint16(s))
 	c.Close()

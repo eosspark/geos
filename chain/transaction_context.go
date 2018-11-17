@@ -97,7 +97,7 @@ func NewTransactionContext(c *Controller, t *types.SignedTransaction, trxId comm
 	tc.Trace = &types.TransactionTrace{
 		ID:              trxId,
 		BlockNum:        c.PendingBlockState().BlockNum,
-		BlockTime:       common.BlockTimeStamp(c.PendingBlockTime()),
+		BlockTime:       types.BlockTimeStamp(c.PendingBlockTime()),
 		ProducerBlockId: c.PendingProducerBlockId(),
 		//BlockNum:        4,
 		//BlockTime:       common.BlockTimeStamp(common.Now()),
@@ -180,7 +180,7 @@ func (t *TransactionContext) init(initialNetUsage uint64) {
 	//t.ValidateRamUsage = make([]common.AccountName, t.BillToAccounts.Len())
 
 	// Update usage values of accounts to reflect new time
-	rl.UpdateAccountUsage(&t.BillToAccounts, uint32(common.BlockTimeStamp(t.Control.PendingBlockTime())))
+	rl.UpdateAccountUsage(&t.BillToAccounts, uint32(types.BlockTimeStamp(t.Control.PendingBlockTime())))
 
 	// Calculate the highest network usage and CPU time that all of the billed accounts can afford to be billed
 	accountNetLimit, accountCpuLimit, greylistedNet, greylistedCpu := t.MaxBandwidthBilledAccountsCanPay(false)
@@ -331,7 +331,7 @@ func (t *TransactionContext) Finalize() {
 	t.UpdateBilledCpuTime(now)
 	t.validateCpuUsageToBill(t.BilledCpuTimeUs, true)
 
-	rl.AddTransactionUsage(&t.BillToAccounts, uint64(t.BilledCpuTimeUs), *t.netUsage, uint32(common.BlockTimeStamp(t.Control.PendingBlockTime())))
+	rl.AddTransactionUsage(&t.BillToAccounts, uint64(t.BilledCpuTimeUs), *t.netUsage, uint32(types.BlockTimeStamp(t.Control.PendingBlockTime())))
 
 }
 

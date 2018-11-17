@@ -13,7 +13,7 @@ import (
 	"github.com/eosspark/eos-go/log"
 )
 
-func (impl *ProducerPluginImpl) CalculateNextBlockTime(producerName *common.AccountName, currentBlockTime common.BlockTimeStamp) *common.TimePoint {
+func (impl *ProducerPluginImpl) CalculateNextBlockTime(producerName *common.AccountName, currentBlockTime types.BlockTimeStamp) *common.TimePoint {
 	var result common.TimePoint
 
 	chain := Chain.GetControllerInstance()
@@ -60,7 +60,7 @@ func (impl *ProducerPluginImpl) CalculateNextBlockTime(producerName *common.Acco
 	minSlotProducerIndex := (minSlot % (uint32(len(activeSchedule)) * uint32(common.DefaultConfig.ProducerRepetitions))) / uint32(common.DefaultConfig.ProducerRepetitions)
 	if producerIndex == minSlotProducerIndex {
 		// this is the producer for the minimum slot, go with that
-		result = common.BlockTimeStamp(minSlot).ToTimePoint()
+		result = types.BlockTimeStamp(minSlot).ToTimePoint()
 	} else {
 		// calculate how many rounds are between the minimum producer and the producer in question
 		producerDistance := producerIndex - minSlotProducerIndex
@@ -74,7 +74,7 @@ func (impl *ProducerPluginImpl) CalculateNextBlockTime(producerName *common.Acco
 
 		// offset the aligned minimum to the *earliest* next set of slots for this producer
 		nextBlockSlot := firstMinProducerSlot + (producerDistance * uint32(common.DefaultConfig.ProducerRepetitions))
-		result = common.BlockTimeStamp(nextBlockSlot).ToTimePoint()
+		result = types.BlockTimeStamp(nextBlockSlot).ToTimePoint()
 
 	}
 	return &result
@@ -116,8 +116,8 @@ func (impl *ProducerPluginImpl) StartBlock() (EnumStartBlockRusult, bool) {
 	impl.PendingBlockMode = EnumPendingBlockMode(producing)
 
 	// Not our turn
-	lastBlock := uint32(common.NewBlockTimeStamp(blockTime))%uint32(common.DefaultConfig.ProducerRepetitions) == uint32(common.DefaultConfig.ProducerRepetitions)-1
-	scheduleProducer := hbs.GetScheduledProducer(common.NewBlockTimeStamp(blockTime))
+	lastBlock := uint32(types.NewBlockTimeStamp(blockTime))%uint32(common.DefaultConfig.ProducerRepetitions) == uint32(common.DefaultConfig.ProducerRepetitions)-1
+	scheduleProducer := hbs.GetScheduledProducer(types.NewBlockTimeStamp(blockTime))
 	currentWatermark, hasCurrentWatermark := impl.ProducerWatermarks[scheduleProducer.ProducerName]
 	_, hasSignatureProvider := impl.SignatureProviders[scheduleProducer.BlockSigningKey]
 	irreversibleBlockAge := impl.GetIrreversibleBlockAge()
@@ -185,7 +185,7 @@ func (impl *ProducerPluginImpl) StartBlock() (EnumStartBlockRusult, bool) {
 		}
 
 		chain.AbortBlock()
-		chain.StartBlock(common.NewBlockTimeStamp(blockTime), blocksToConfirm)
+		chain.StartBlock(types.NewBlockTimeStamp(blockTime), blocksToConfirm)
 
 	}).FcLogAndDrop().End()
 
@@ -314,7 +314,7 @@ func (impl *ProducerPluginImpl) StartBlock() (EnumStartBlockRusult, bool) {
 					deadline = blockTime
 				}
 
-				trace := chain.PushScheduledTransaction(trx, deadline, 0)
+				trace := chain.PushScheduledTransaction(&trx, deadline, 0)
 				if trace.Except != nil {
 					if failureIsSubjective(trace.Except, deadlineIsSubjective) {
 						isExhausted = true
@@ -379,7 +379,7 @@ func (impl *ProducerPluginImpl) ScheduleProductionLoop() {
 	} else if result == EnumStartBlockRusult(waiting) {
 		if impl.Producers.Len() > 0 && !impl.ProductionDisabledByPolicy() {
 			log.Debug("Waiting till another block is received and scheduling Speculative/Production Change")
-			impl.ScheduleDelayedProductionLoop(common.NewBlockTimeStamp(impl.CalculatePendingBlockTime()))
+			impl.ScheduleDelayedProductionLoop(types.NewBlockTimeStamp(impl.CalculatePendingBlockTime()))
 		} else {
 			log.Debug("Waiting till another block is received")
 			// nothing to do until more blocks arrive
@@ -431,7 +431,7 @@ func (impl *ProducerPluginImpl) ScheduleProductionLoop() {
 	}
 }
 
-func (impl *ProducerPluginImpl) ScheduleDelayedProductionLoop(currentBlockTime common.BlockTimeStamp) {
+func (impl *ProducerPluginImpl) ScheduleDelayedProductionLoop(currentBlockTime types.BlockTimeStamp) {
 	// if we have any producers then we should at least set a timer for our next available slot
 	var wakeUpTime *common.TimePoint
 	for _, p := range impl.Producers.Data {

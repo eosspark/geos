@@ -26,7 +26,7 @@ func TestContract(t *testing.T) {
 		}
 
 		control := GetControllerInstance()
-		blockTimeStamp := common.NewBlockTimeStamp(common.Now())
+		blockTimeStamp := types.NewBlockTimeStamp(common.Now())
 		control.StartBlock(blockTimeStamp, 0)
 
 		eosioToken := "eosio.token"
@@ -246,7 +246,7 @@ func TestTransactionContextTest(t *testing.T) {
 
 		//set code
 		control := GetControllerInstance()
-		blockTimeStamp := common.NewBlockTimeStamp(common.Now())
+		blockTimeStamp := types.NewBlockTimeStamp(common.Now())
 		control.StartBlock(blockTimeStamp, 0)
 
 		account := "hello"

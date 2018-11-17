@@ -34,12 +34,12 @@ type RuntimeOptions struct {
 }
 
 type WhitelistAndBlacklist struct {
-	ActorWhitelist    *map[common.AccountName]struct{}
-	ActorBlacklist    *map[common.AccountName]struct{}
-	ContractWhitelist *map[common.AccountName]struct{}
-	ContractBlacklist *map[common.AccountName]struct{}
-	ActionBlacklist   *map[common.Pair]struct{}
-	KeyBlacklist      *map[ecc.PublicKey]struct{}
+	ActorWhitelist    *common.FlatSet //<common.AccountName>
+	ActorBlacklist    *common.FlatSet //<common.AccountName>
+	ContractWhitelist *common.FlatSet //<common.AccountName>
+	ContractBlacklist *common.FlatSet //<common.AccountName>
+	ActionBlacklist   *common.FlatSet //<account_name, action_name>
+	KeyBlacklist      *common.FlatSet //<ecc.PublicKey>
 }
 
 type GreylistParams struct {

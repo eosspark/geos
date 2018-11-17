@@ -301,12 +301,12 @@ func (c *Controller) AbortBlock() {
 		}
 	}
 }
-func (c *Controller) StartBlock(when common.BlockTimeStamp, confirmBlockCount uint16) {
+func (c *Controller) StartBlock(when types.BlockTimeStamp, confirmBlockCount uint16) {
 	pbi := common.BlockIdType(*crypto.NewSha256Nil())
 	c.startBlock(when, confirmBlockCount, types.Incomplete, &pbi)
 	c.ValidateDbAvailableSize()
 }
-func (c *Controller) startBlock(when common.BlockTimeStamp, confirmBlockCount uint16, s types.BlockStatus, producerBlockId *common.BlockIdType) {
+func (c *Controller) startBlock(when types.BlockTimeStamp, confirmBlockCount uint16, s types.BlockStatus, producerBlockId *common.BlockIdType) {
 	//fmt.Println(c.Config)
 	EosAssert(nil != c.Pending, &BlockValidateException{}, "pending block already exists")
 	defer func() {
@@ -668,7 +668,7 @@ func (c *Controller) pushScheduledTransactionByObject(gto *entity.GeneratedTrans
 	if gtrx.Expiration < c.PendingBlockTime() {
 		trace.ID = gtrx.TrxId
 		trace.BlockNum = c.PendingBlockState().BlockNum
-		trace.BlockTime = common.BlockTimeStamp(c.PendingBlockTime())
+		trace.BlockTime = types.BlockTimeStamp(c.PendingBlockTime())
 		trace.ProducerBlockId = c.PendingProducerBlockId()
 		trace.Scheduled = true
 		trace.Receipt = (*c.pushReceipt(&gtrx.TrxId, types.TransactionStatusExecuted, uint64(billedCpuTimeUs), 0)).TransactionReceiptHeader
@@ -744,7 +744,7 @@ func (c *Controller) pushScheduledTransactionByObject(gto *entity.GeneratedTrans
 
 		if !explicitBilledCpuTime {
 			rl := c.GetMutableResourceLimitsManager()
-			rl.UpdateAccountUsage(&trxContext.BillToAccounts, uint32(common.BlockTimeStamp(c.PendingBlockTime())) /*.slot*/)
+			rl.UpdateAccountUsage(&trxContext.BillToAccounts, uint32(types.BlockTimeStamp(c.PendingBlockTime())) /*.slot*/)
 			//accountCpuLimit := 0
 			accountNetLimit, accountCpuLimit, greylistedNet, greylistedCpu := trxContext.MaxBandwidthBilledAccountsCanPay(true)
 
@@ -763,7 +763,7 @@ func (c *Controller) pushScheduledTransactionByObject(gto *entity.GeneratedTrans
 		}
 
 		c.ResourceLimits.AddTransactionUsage(&trxContext.BillToAccounts, uint64(cpuTimeToBillUs), 0,
-			uint32(common.BlockTimeStamp(c.PendingBlockTime()))) // Should never fail
+			uint32(types.BlockTimeStamp(c.PendingBlockTime()))) // Should never fail
 
 		receipt := *c.pushReceipt(gtrx.TrxId, types.TransactionStatusHardFail, uint64(cpuTimeToBillUs), 0)
 		trace.Receipt = receipt.TransactionReceiptHeader
@@ -1449,7 +1449,7 @@ func (c *Controller) GetWasmInterface() *wasmgo.WasmGo {
 func (c *Controller) CreateNativeAccount(name common.AccountName, owner types.Authority, active types.Authority, isPrivileged bool) {
 	account := entity.AccountObject{}
 	account.Name = name
-	account.CreationDate = common.BlockTimeStamp(c.Config.genesis.InitialTimestamp)
+	account.CreationDate = types.BlockTimeStamp(c.Config.genesis.InitialTimestamp)
 	account.Privileged = isPrivileged
 	if name == common.AccountName(common.DefaultConfig.SystemAccountName) {
 		abiDef := types.AbiDef{}
@@ -1486,7 +1486,7 @@ func (c *Controller) initializeForkDB() {
 	genHeader.ActiveSchedule = pst
 	genHeader.PendingSchedule = pst
 	genHeader.PendingScheduleHash = crypto.Hash256(pst)
-	genHeader.Header.Timestamp = common.NewBlockTimeStamp(gs.InitialTimestamp)
+	genHeader.Header.Timestamp = types.NewBlockTimeStamp(gs.InitialTimestamp)
 	genHeader.Header.ActionMRoot = common.CheckSum256Type(gs.ComputeChainID())
 	genHeader.BlockId = genHeader.Header.BlockID()
 	genHeader.BlockNum = genHeader.Header.BlockNumber()

@@ -22,7 +22,7 @@ func NewBlockState(cur *BlockHeaderState) *BlockState {
 		false, false, make([]*TransactionMetadata, 0)}
 }
 
-func NewBlockState2(prev *BlockHeaderState, when common.BlockTimeStamp) (bs *BlockState) {
+func NewBlockState2(prev *BlockHeaderState, when BlockTimeStamp) (bs *BlockState) {
 	bs = new(BlockState)
 	bs.BlockHeaderState = *prev.GenerateNext(when)
 	bs.SignedBlock = new(SignedBlock)
