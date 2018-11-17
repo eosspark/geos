@@ -18,7 +18,7 @@ type AccountObject struct {
 	Privileged     bool               //c++ default value false
 	LastCodeUpdate common.TimePoint
 	CodeVersion    crypto.Sha256
-	CreationDate   common.BlockTimeStamp
+	CreationDate   types.BlockTimeStamp
 	Code           common.HexBytes
 	Abi            common.HexBytes
 }

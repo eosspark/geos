@@ -1,12 +1,13 @@
-package common
+package types
 
 import (
 	"testing"
 	"github.com/stretchr/testify/assert"
+	"github.com/eosspark/eos-go/common"
 )
 
 func TestTimePointToBlockTimeStamp(t *testing.T) {
-	tp := TimePoint(Seconds(978307200))
+	tp := common.TimePoint(common.Seconds(978307200))
 	bt := NewBlockTimeStamp(tp)
 	assert.Equal(t, uint32(978307200 - 946684800)*2, uint32(bt),
 		"Time point constructor gives wrong value" )

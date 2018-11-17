@@ -18,7 +18,7 @@ type RuntimeError struct {
 	//StackTrace []StackInfo
 }
 
-const DEBUG = false
+const DEBUG = true
 
 func (rte RuntimeError) String() string {
 	return rte.Message

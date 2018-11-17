@@ -745,7 +745,7 @@ func pushAction(control *chain.Controller, code []byte, cls string, method strin
 
 func startBlock() *chain.Controller {
 	control := chain.GetControllerInstance()
-	blockTimeStamp := common.NewBlockTimeStamp(common.Now())
+	blockTimeStamp := types.NewBlockTimeStamp(common.Now())
 	control.StartBlock(blockTimeStamp, 0)
 	return control
 }
@@ -789,7 +789,7 @@ func callTestFunctionCheckException(control *chain.Controller, code []byte, cls 
 	action := wasmTestAction(cls, method)
 
 	// control := chain.GetControllerInstance()
-	// blockTimeStamp := common.NewBlockTimeStamp(common.Now())
+	// blockTimeStamp := types.NewBlockTimeStamp(common.Now())
 	// control.StartBlock(blockTimeStamp, 0)
 
 	act := types.Action{

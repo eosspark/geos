@@ -2,6 +2,7 @@ package entity
 
 import (
 	"github.com/eosspark/eos-go/common"
+	"github.com/eosspark/eos-go/chain/types"
 )
 
 type AccountHistoryObject struct {
@@ -16,7 +17,7 @@ type ActionHistoryObject struct {
 	ActionSequenceNum uint64        		   `multiIndex:"byActionSequenceNum,orderedUnique:byTrxId,orderedUnique"`
 	PackedActionTrace common.HexBytes
 	BlockNum          uint32
-	BlockTime         common.BlockTimeStamp
+	BlockTime         types.BlockTimeStamp
 	TrxId             common.TransactionIdType `multiIndex:"byTrxId,orderedUnique"`
 }
 

@@ -220,7 +220,7 @@ func (a *ApplyContext) execOne(trace *types.ActionTrace) {
 
 	trace.TrxId = a.TrxContext.ID
 	trace.BlockNum = a.Control.PendingBlockState().BlockNum
-	trace.BlockTime = common.NewBlockTimeStamp(a.Control.PendingBlockTime())
+	trace.BlockTime = types.NewBlockTimeStamp(a.Control.PendingBlockTime())
 	trace.ProducerBlockId = a.Control.PendingProducerBlockId()
 	trace.Act = *a.Act
 	trace.ContextFree = a.ContextFree

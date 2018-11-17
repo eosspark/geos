@@ -24,7 +24,6 @@ func NewGoroutineReactor() *GoroutineReactor {
 	return r
 }
 
-// use GoroutineReactor for each operating system
 func (i *IoContext) GetService() ReactorService {
 	if i.service == nil {
 		i.service = NewGoroutineReactor()

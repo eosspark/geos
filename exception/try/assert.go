@@ -4,7 +4,15 @@ import (
 	. "github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/log"
 	"fmt"
-)
+	"os"
+	)
+
+func Assert(expr bool, message string) {
+	if !expr {
+		println(message)
+		os.Exit(1)
+	}
+}
 
 func EosAssert(expr bool, exception Exception, format string, args ...interface{}) {
 	if !expr {

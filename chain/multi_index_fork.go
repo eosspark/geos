@@ -138,12 +138,14 @@ func (idx *indexFork) lowerBound(b *types.BlockState) *iteratorFork {
 	return &itr
 }
 
-func (itr *iteratorFork) next() {
+func (itr *iteratorFork) next() bool {
 	itr.currentSub++
 	if itr.currentSub < itr.idx.value.Len() {
 		itr.value = itr.idx.value.Data[itr.currentSub].(*types.BlockState)
+		return true
+	} else {
+		return false
 	}
-
 }
 
 func (m *multiIndexFork) find(id common.BlockIdType) *types.BlockState {

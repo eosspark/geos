@@ -10,10 +10,12 @@ import (
 	"syscall"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/plugins/producer_plugin/testing"
-)
+	)
 
 
 func main() {
+
+	//try.Assert(false, "main-assert")
 
 	/*
 	go run main.go -e -p eosio -p yuanc --private-key '["EOS859gxfnXyUriMgUeThh1fWv3oqcpLFyHa3TfFYC4PK2HqhToVM","5KYZdUEo39z3FPrtuX2QbbwGnNP5zTd7yyr2SC1j299sBCnWjss"]' --private-key '["EOS5jeUuKEZ8s8LLoxz4rNysYdHWboup8KtkyJzZYQzcVKFGek9Zu","5Ja3h2wJNUnNcoj39jDMHGigsazvbGHAeLYEHM5uTwtfUoRDoYP"]'
