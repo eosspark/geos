@@ -599,7 +599,7 @@ func (c *Controller) GetUnappliedTransactions() []*types.TransactionMetadata {
 	return result
 }
 
-func (c *Controller) DropUnAppliedTransaction(metadata *types.TransactionMetadata) {
+func (c *Controller) DropUnappliedTransaction(metadata *types.TransactionMetadata) {
 	delete(c.UnappliedTransactions, crypto.Sha256(metadata.SignedID))
 }
 
