@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/eosspark/eos-go/log"
 	"math"
-	"os"
 	"reflect"
 
 	"github.com/syndtr/goleveldb/leveldb"
@@ -53,9 +52,10 @@ func NewDataBase(path string, flag ...bool) (DataBase, error) {
 		return nil, err
 	}
 	/*	read every type increment	*/
-	nextId, err := typeIncrement(db)
+	nextId, err := readIncrementFromDb(db)
 	if err != nil {
 		log.Error("database init failed : %s", err.Error())
+		panic("open database file failed : " + err.Error())
 	}
 
 	logFlag := false
@@ -63,22 +63,6 @@ func NewDataBase(path string, flag ...bool) (DataBase, error) {
 		logFlag = flag[0]
 	}
 
-	fileName := path + "/database.log"
-
-	reFn := func() {
-		errs := os.RemoveAll(fileName)
-		if errs != nil {
-			log.Error(errs.Error())
-		}
-	}
-	_, exits := os.Stat(fileName)
-	if exits == nil {
-		reFn()
-	}
-
-	if err != nil {
-		log.Error("open database log file failed :%s ", err.Error())
-	}
 
 	dbLog := log.New("db")
 	if logFlag {
@@ -89,9 +73,9 @@ func NewDataBase(path string, flag ...bool) (DataBase, error) {
 	return &LDataBase{db: db, stack: newDeque(), path: path, nextId: nextId, logFlag: logFlag, log: dbLog, batch: new(leveldb.Batch)}, nil
 }
 
-func typeIncrement(db *leveldb.DB) (map[string]int64, error) {
+func readIncrementFromDb(db *leveldb.DB) (map[string]int64, error) {
 	nextId := make(map[string]int64)
-	dbIncrement := dbIncrement
+
 	key := []byte(dbIncrement)
 	val, err := db.Get(key, nil)
 	if err != nil && err != leveldb.ErrNotFound {
@@ -111,7 +95,7 @@ func typeIncrement(db *leveldb.DB) (map[string]int64, error) {
 }
 
 func (ldb *LDataBase) Close() {
-	err := ldb.WriteIncrement()
+	err := ldb.writeIncrementToDb()
 	if err != nil {
 		ldb.log.Error("database close failed : %s", err.Error())
 	}
@@ -123,13 +107,18 @@ func (ldb *LDataBase) Close() {
 	}
 }
 
-func (ldb *LDataBase) WriteIncrement() error {
+func (ldb *LDataBase) writeIncrementToDb() error {
+
+	if len(ldb.nextId) <=0{
+
+		return nil
+	}
+
 	val, err := EncodeToBytes(ldb.nextId)
 	if err != nil {
 		ldb.log.Error("WriteIncrement rlp EncodeToBytes failed is : %s", err.Error())
 		return err
 	}
-	dbIncrement := dbIncrement
 	key := []byte(dbIncrement)
 	err = saveKey(key, val, ldb.db)
 	if err != nil {
@@ -145,27 +134,23 @@ func (ldb *LDataBase) Revision() int64 {
 }
 
 func (ldb *LDataBase) Undo() {
-	//
+
 	stack := ldb.getStack()
 	if stack == nil {
 		return
 	}
 
 	ldb.nextId = stack.oldIds
-
-	for key, _ := range stack.OldValue {
+	for key, _ := range stack.OldValue {  		/* 	Undo edit */
 
 		ldb.undoModifyKv(key)
 	}
-	for key, _ := range stack.NewValue {
-		// db.remove
+	for key, _ := range stack.NewValue {		/*	Undo new */
 		ldb.remove(key)
 
 	}
-	for key, _ := range stack.RemoveValue {
-		// db.insert
+	for key, _ := range stack.RemoveValue {		/*	Undo remove */
 		ldb.insert(key, true)
-		//save(key,ldb.db,true)
 	}
 	ldb.stack.Pop()
 	ldb.reversion--
@@ -173,7 +158,9 @@ func (ldb *LDataBase) Undo() {
 
 func (ldb *LDataBase) UndoAll() {
 	// TODO wait Undo
-	ldb.log.Error("UndoAll do not work,Please wait")
+	for ldb.enable() {
+		ldb.Undo()
+	}
 }
 
 func (ldb *LDataBase) squash() {
@@ -185,6 +172,7 @@ func (ldb *LDataBase) squash() {
 	}
 	stack := ldb.getStack()
 	preStack := ldb.getSecond()
+
 	for key, value := range stack.OldValue {
 		if _, ok := preStack.NewValue[key]; ok {
 			continue
@@ -204,6 +192,7 @@ func (ldb *LDataBase) squash() {
 	}
 
 	for key, value := range stack.RemoveValue {
+
 		//fmt.Println(key, " --> ", value)
 		if _, ok := preStack.NewValue[key]; ok {
 			k := undoEqual(preStack.NewValue, key)
@@ -908,6 +897,8 @@ func (ldb *LDataBase) getFirstStack() *undoState {
 }
 
 func (ldb *LDataBase) getSecond() *undoState {
+
+
 	stack := ldb.stack.LastSecond()
 	switch typ := stack.(type) {
 	case *undoState:
