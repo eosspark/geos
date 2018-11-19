@@ -28,7 +28,7 @@ func NewBlockHeaderState(t *testing.T) *BlockHeaderState {
 	genHeader := new(BlockHeaderState)
 	genHeader.ActiveSchedule = initSchedule
 	genHeader.PendingSchedule = initSchedule
-	genHeader.Header.Timestamp = common.BlockTimeStamp(1162425600) //slot of 2018-6-2 00:00:00:000 UTC
+	genHeader.Header.Timestamp = BlockTimeStamp(1162425600) //slot of 2018-6-2 00:00:00:000 UTC
 	genHeader.Header.Confirmed = 1
 	genHeader.BlockId = genHeader.Header.BlockID()
 	genHeader.BlockNum = genHeader.Header.BlockNumber()
@@ -50,16 +50,16 @@ func Test_BlockHeaderState_GetScheduledProducer(t *testing.T) {
 func Test_BlockHeaderState_GenerateNext(t *testing.T) {
 	bs := NewBlockHeaderState(t)
 
-	t100 := common.BlockTimeStamp(1162425600 + 100)
-	t2 := common.BlockTimeStamp(1162425602)
+	t100 := BlockTimeStamp(1162425600 + 100)
+	t2 := BlockTimeStamp(1162425602)
 
 	bsNil := bs.GenerateNext(0)
 	bs100 := bs.GenerateNext(t100)
 	bs2 := bs.GenerateNext(t2)
 
-	assert.Equal(t, common.BlockTimeStamp(1162425601), bsNil.Header.Timestamp)
-	assert.Equal(t, common.BlockTimeStamp(1162425700), bs100.Header.Timestamp)
-	assert.Equal(t, common.BlockTimeStamp(1162425602), bs2.Header.Timestamp)
+	assert.Equal(t, BlockTimeStamp(1162425601), bsNil.Header.Timestamp)
+	assert.Equal(t, BlockTimeStamp(1162425700), bs100.Header.Timestamp)
+	assert.Equal(t, BlockTimeStamp(1162425602), bs2.Header.Timestamp)
 
 	bsNil.SetConfirmed(10)
 

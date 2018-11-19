@@ -82,35 +82,37 @@ func (db *forkDatabase) add2(b *types.SignedBlock, trust bool) *types.BlockState
 	return db.add(result)
 }
 
-func (c Controller) LastIrreversibleBlockNum() uint32 {
+func (c *Controller) LastIrreversibleBlockNum() uint32 {
 	return c.head.DposIrreversibleBlocknum
 }
 
-func (c Controller) HeadBlockState() *types.BlockState {
+func (c *Controller) HeadBlockState() *types.BlockState {
 	return c.head
 
 }
-func (c Controller) HeadBlockTime() common.TimePoint {
+func (c *Controller) HeadBlockTime() common.TimePoint {
 	return c.head.Header.Timestamp.ToTimePoint()
 }
 
-func (c Controller) PendingBlockTime() common.TimePoint {
+func (c *Controller) PendingBlockTime() common.TimePoint {
 	return c.pending.Header.Timestamp.ToTimePoint()
 }
 
-func (c Controller) HeadBlockNum() uint32 {
+func (c *Controller) HeadBlockNum() uint32 {
 	return c.head.BlockNum
 }
 
-func (c Controller) PendingBlockState() *types.BlockState {
+func (c *Controller) PendingBlockState() *types.BlockState {
 	return c.pending
 }
 
-func (c Controller) GetUnappliedTransactions() []*types.TransactionMetadata {
+func (c *Controller) GetUnappliedTransactions() []*types.TransactionMetadata {
 	return make([]*types.TransactionMetadata, 0)
 }
 
-func (c Controller) GetScheduledTransactions() []common.TransactionIdType {
+func (c *Controller) DropUnappliedTransaction(trx *types.TransactionMetadata) {}
+
+func (c *Controller) GetScheduledTransactions() []common.TransactionIdType {
 	return make([]common.TransactionIdType, 0)
 }
 
@@ -121,7 +123,7 @@ func (c *Controller) AbortBlock() {
 	}
 }
 
-func (c *Controller) StartBlock(when common.BlockTimeStamp, confirmBlockCount uint16) {
+func (c *Controller) StartBlock(when types.BlockTimeStamp, confirmBlockCount uint16) {
 	//fmt.Println("start block...")
 	c.pending = types.NewBlockState2(&c.head.BlockHeaderState, when)
 	c.pending.SetConfirmed(confirmBlockCount)
@@ -158,7 +160,7 @@ func (c *Controller) PushTransaction(trx *types.TransactionMetadata, deadline co
 	c.pending.Trxs = append(c.pending.Trxs, trx)
 	return nil
 }
-func (c *Controller) PushScheduledTransaction(trx common.TransactionIdType, deadline common.TimePoint, billedCpuTimeUs uint32) *types.TransactionTrace {
+func (c *Controller) PushScheduledTransaction(trx *common.TransactionIdType, deadline common.TimePoint, billedCpuTimeUs uint32) *types.TransactionTrace {
 	return nil
 }
 
@@ -221,8 +223,6 @@ func (c *Controller) IsKnownUnexpiredTransaction(id *common.TransactionIdType) b
 	return false
 }
 
-func (c *Controller) DropUnappliedTransaction(trx *types.TransactionMetadata) {}
-
 func (c *Controller) GetReadMode() DBReadMode {
 	return DBReadMode(SPECULATIVE)
 }
@@ -236,24 +236,24 @@ func (c *Controller) RemoveResourceGreyList(name *common.AccountName) {}
 
 func (c *Controller) GetResourceGreyList() map[common.AccountName]struct{} { return nil }
 
-func (c *Controller) GetActorWhiteList() *map[common.AccountName]struct{} { return nil }
+func (c *Controller) GetActorWhiteList() *common.FlatSet { return nil }
 
-func (c *Controller) GetActorBlackList() *map[common.AccountName]struct{} { return nil }
+func (c *Controller) GetActorBlackList() *common.FlatSet { return nil }
 
-func (c *Controller) GetContractWhiteList() *map[common.AccountName]struct{} { return nil }
+func (c *Controller) GetContractWhiteList() *common.FlatSet { return nil }
 
-func (c *Controller) GetContractBlackList() *map[common.AccountName]struct{} { return nil }
+func (c *Controller) GetContractBlackList() *common.FlatSet { return nil }
 
-func (c *Controller) GetActionBlockList() *map[common.Pair]struct{} { return nil }
+func (c *Controller) GetActionBlockList() *common.FlatSet { return nil }
 
-func (c *Controller) GetKeyBlackList() *map[ecc.PublicKey]struct{} { return nil }
+func (c *Controller) GetKeyBlackList() *common.FlatSet { return nil }
 
-func (c *Controller) SetActorWhiteList(params *map[common.AccountName]struct{}) {}
-func (c *Controller) SetActorBlackList(params *map[common.AccountName]struct{}) {}
+func (c *Controller) SetActorWhiteList(params *common.FlatSet) {}
+func (c *Controller) SetActorBlackList(params *common.FlatSet) {}
 
-func (c *Controller) SetContractWhiteList(params *map[common.AccountName]struct{}) {}
-func (c *Controller) SetContractBlackList(params *map[common.AccountName]struct{}) {}
+func (c *Controller) SetContractWhiteList(params *common.FlatSet) {}
+func (c *Controller) SetContractBlackList(params *common.FlatSet) {}
 
-func (c *Controller) SetActionBlackList(params *map[common.Pair]struct{}) {}
+func (c *Controller) SetActionBlackList(params *common.FlatSet) {}
 
-func (c *Controller) SetKeyBlackList(params *map[ecc.PublicKey]struct{}) {}
+func (c *Controller) SetKeyBlackList(params *common.FlatSet) {}

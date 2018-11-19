@@ -2,6 +2,7 @@ package net_plugin
 
 import (
 	"errors"
+	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 )
 
@@ -23,7 +24,7 @@ type iteratorNet struct {
 	value      common.ElementObject
 }
 
-func newNodeMultinetIndex() *multiIndexNet {
+func newNodeTransactionIndex() *multiIndexNet {
 	mi := multiIndexNet{}
 	mi.objectName = "node"
 	mi.indexs = make(map[string]*indexNet)
@@ -36,7 +37,7 @@ func newNodeMultinetIndex() *multiIndexNet {
 	return &mi
 }
 
-func newTrxMultinetIndex() *multiIndexNet {
+func newTransactionStateIndex() *multiIndexNet {
 	mi := multiIndexNet{}
 	mi.objectName = "trx"
 	mi.indexs = make(map[string]*indexNet)
@@ -49,7 +50,7 @@ func newTrxMultinetIndex() *multiIndexNet {
 	return &mi
 }
 
-func newPeerMultinetIndex() *multiIndexNet {
+func newPeerBlockStatueIndex() *multiIndexNet {
 	mi := multiIndexNet{}
 	mi.objectName = "peer"
 	mi.indexs = make(map[string]*indexNet)
@@ -67,7 +68,7 @@ func (m *multiIndexNet) getIndex(tag string) *indexNet {
 	return nil
 }
 
-func (m *multiIndexNet) insertNode(n *nodeTransactionState) {
+func (m *multiIndexNet) insertNodeTrx(n *nodeTransactionState) {
 	idx := &indexNet{}
 	idx.target = "byId"
 	idx.uniqueness = true
@@ -153,7 +154,7 @@ func (m *multiIndexNet) insertTrx(trx *transactionState) {
 	}
 }
 
-func (m *multiIndexNet) insertPeer(pbs *peerBlockState) {
+func (m *multiIndexNet) insertPeerBlock(pbs *peerBlockState) {
 	peerIdx := &indexNet{}
 	peerIdx.target = "byId"
 	peerIdx.uniqueness = true
@@ -205,7 +206,7 @@ func (idx *indexNet) findPeerById(id common.BlockIdType) *peerBlockState {
 	return nil
 }
 
-func (idx *indexNet) findNodeById(id common.BlockIdType) *nodeTransactionState {
+func (idx *indexNet) findLocalTrxById(id common.TransactionIdType) *nodeTransactionState {
 	node := nodeTransactionState{}
 	node.id = id
 	bt := idx.value
@@ -247,6 +248,24 @@ func (m *multiIndexNet) erase(i common.ElementObject) {
 	}
 }
 
+func (m *multiIndexNet) eraseRegion(begin int, end int, tag string) {
+	idx := m.getIndex(tag)
+	if idx.value.Len() > 0 {
+		tmp := idx.value.Data[begin:end]
+		if len(tmp) > 0 {
+			for _, t := range tmp {
+				for _, v := range m.indexs {
+					bt := v.value
+					ext, _ := bt.Find(t)
+					if ext {
+						v.value.Eraser(t)
+					}
+				}
+			}
+		}
+	}
+}
+
 func (idx *indexNet) upperBound(eo common.ElementObject) *iteratorNet {
 	itr := iteratorNet{}
 	itr.idx = idx
@@ -269,20 +288,31 @@ func (idx *indexNet) lowerBound(eo common.ElementObject) *iteratorNet {
 	return &itr
 }
 
-func (m *multiIndexNet) modify(eo common.ElementObject) {
-	m.erase(eo)
-
-	m.insert(eo)
+func (m *multiIndexNet) modify(old common.ElementObject, isKey bool, updata func(in common.ElementObject)) {
+	if isKey {
+		m.erase(old)
+		updata(old)
+		m.insert(old)
+	} else {
+		for _, v := range m.indexs {
+			bt := v.value
+			ext, sub := bt.Find(old)
+			if ext {
+				updata(old)
+				v.value.Data[sub] = old
+			}
+		}
+	}
 }
 
 func (m *multiIndexNet) insert(eo common.ElementObject) /*(bool,error)*/ {
 	switch m.objectName {
 	case "node":
-		m.insertNode(eo.(*nodeTransactionState))
+		m.insertNodeTrx(eo.(*nodeTransactionState))
 	case "trx":
 		m.insertTrx(eo.(*transactionState))
 	case "peer":
-		m.insertPeer(eo.(*peerBlockState))
+		m.insertPeerBlock(eo.(*peerBlockState))
 	}
 }
 
@@ -290,16 +320,26 @@ func getInstance(objTag string) (*multiIndexNet, error) {
 	var m *multiIndexNet
 	switch objTag {
 	case "node":
-		m = newNodeMultinetIndex()
+		m = newNodeTransactionIndex()
 	case "peer":
-		m = newPeerMultinetIndex()
+		m = newPeerBlockStatueIndex()
 	case "trx":
-		m = newTrxMultinetIndex()
+		m = newTransactionStateIndex()
 	}
 	if m == nil {
 		return nil, errors.New("multiIndexNet getInstance is error,objTag must be [node、peer、trx]")
 	}
 	return m, nil
+}
+
+func (itr *iteratorNet) next() bool {
+	itr.currentSub++
+	if itr.currentSub < itr.idx.value.Len() {
+		itr.value = itr.idx.value.Data[itr.currentSub].(*types.BlockState)
+		return true
+	} else {
+		return false
+	}
 }
 
 func (idx *multiIndexNet) clear() bool {

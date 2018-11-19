@@ -163,6 +163,46 @@ func NewWasmGo() *WasmGo {
 	w.Register("__udivti3", udivti3)
 	w.Register("__umodti3", umodti3)
 
+	w.Register("__addtf3", addtf3)
+	w.Register("__subtf3", subtf3)
+	w.Register("__multf3", multf3)
+	w.Register("__divtf3", divtf3)
+
+	w.Register("__negtf2", negtf2)
+	w.Register("__extendsftf2", extendsftf2)
+
+	w.Register("__extenddftf2", extenddftf2)
+
+	w.Register("__trunctfdf2", trunctfdf2)
+	w.Register("__trunctfsf2", trunctfsf2)
+	w.Register("__fixtfsi", fixtfsi)
+	w.Register("__fixtfdi", fixtfdi)
+	w.Register("__fixtfti", fixtfti)
+	w.Register("__fixunstfsi", fixunstfsi)
+	w.Register("__fixunstfdi", fixunstfdi)
+	w.Register("__fixunstfti", fixunstfti)
+	w.Register("__fixsfti", fixsfti)
+	w.Register("__fixdfti", fixdfti)
+	w.Register("__fixunssfti", fixunssfti)
+	w.Register("__fixunsdfti", fixunsdfti)
+	w.Register("__floatsidf", floatsidf)
+	w.Register("__floatsitf", floatsitf)
+	w.Register("__floatditf", floatditf)
+	w.Register("__floatunsitf", floatunsitf)
+	w.Register("__floatunditf", floatunditf)
+	w.Register("__floattidf", floattidf)
+	w.Register("__floatuntidf", floatuntidf)
+
+	w.Register("___cmptf2", _cmptf2)
+	w.Register("__eqtf2", eqtf2)
+	w.Register("__netf2", netf2)
+	w.Register("__getf2", getf2)
+	w.Register("__gttf2", gttf2)
+	w.Register("__letf2", letf2)
+	w.Register("__lttf2", lttf2)
+	w.Register("__cmptf2", cmptf2)
+	w.Register("__unordtf2", unordtf2)
+
 	wasmGo = &w
 
 	wasmGo.ilog = log.New("wasmgo")

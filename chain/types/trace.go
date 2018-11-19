@@ -16,7 +16,7 @@ type BaseActionTrace struct {
 	TotalCpuUsage    uint64                   /// total of inline_traces[x].cpu_usage + cpu_usage
 	TrxId            common.TransactionIdType ///< the transaction that generated this action
 	BlockNum         uint32
-	BlockTime        common.BlockTimeStamp
+	BlockTime        BlockTimeStamp
 	ProducerBlockId  common.BlockIdType
 	AccountRamDeltas common.FlatSet
 }
@@ -29,7 +29,7 @@ type ActionTrace struct {
 type TransactionTrace struct {
 	ID              common.TransactionIdType
 	BlockNum        uint32
-	BlockTime       common.BlockTimeStamp
+	BlockTime       BlockTimeStamp
 	ProducerBlockId common.BlockIdType
 	Receipt         TransactionReceiptHeader
 	Elapsed         common.Microseconds

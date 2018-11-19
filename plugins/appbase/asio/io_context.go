@@ -18,7 +18,7 @@ func (i *IoContext) Stop() {
 }
 
 func (i *IoContext) Post(op func(err error)) {
-	//use new goroutine for channel-blocking
+	//post function in a separate goroutine
 	go i.GetService().post(postOp{op, nil})
 }
 

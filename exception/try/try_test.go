@@ -123,4 +123,8 @@ func TestStackInfo(t *testing.T) {
 	}).End()
 }
 
+func TestStaticAssert(t *testing.T) {
+	Assert(1 != 1, "test assert")
+}
+
 

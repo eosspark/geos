@@ -14,6 +14,7 @@ import (
 	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/crypto/rlp"
+	"github.com/eosspark/eos-go/chain/types"
 )
 
 type ProducerPluginTester struct {
@@ -86,7 +87,7 @@ func NewProducerTester(t *testing.T) *ProducerPluginTester {
 	return ppt
 }
 
-//func produceone(when common.BlockTimeStamp) (b *types.SignedBlock) {
+//func produceone(when types.BlockTimeStamp) (b *types.SignedBlock) {
 //	b = new(types.SignedBlock)
 //	control := main.GetControllerInstance()
 //	hbs := control.HeadBlockState()
@@ -291,7 +292,7 @@ func TestProducerPluginImpl_OnIncomingBlock(t *testing.T) {
 	assert.NoError(t, err)
 
 	//receive blocks 1 minutes before
-	ago := common.NewBlockTimeStamp(common.Now().SubUs(common.Minutes(1)))
+	ago := types.NewBlockTimeStamp(common.Now().SubUs(common.Minutes(1)))
 
 	tester := main.NewChainTester(ago)
 
@@ -327,7 +328,7 @@ func TestProducerPlugin_ReceiveBlockInSchedule(t *testing.T) {
 	assert.NoError(t, err)
 
 	//receive blocks 1 minutes before
-	ago := common.NewBlockTimeStamp(common.Now().SubUs(common.Minutes(1)))
+	ago := types.NewBlockTimeStamp(common.Now().SubUs(common.Minutes(1)))
 
 	tester := main.NewChainTester(ago)
 
@@ -377,9 +378,19 @@ func TestProducerPluginImpl_OnBlock(t *testing.T) {
 func TestProducerPluginImpl_CalculateNextBlockTime(t *testing.T) {
 	tester := NewProducerTester(t)
 	chain := main.GetControllerInstance()
-	account := common.Name(common.N("yuanc"))
-	pt := *tester.CalculateNextBlockTime(&account, chain.HeadBlockState().Header.Timestamp)
+
+	account1 := common.Name(common.N("eosio"))
+	account2 := common.Name(common.N("yuanc"))
+
+	pt := *tester.CalculateNextBlockTime(&account1, chain.HeadBlockState().Header.Timestamp)
 	assert.Equal(t, pt/1e3, (pt/1e3/500)*500) // make sure pt can be divisible by 500ms
+
+	time := tester.CalculateNextBlockTime(&account1, 100)
+	assert.Equal(t, "2000-01-01 00:00:50.5 +0000 UTC", time.String())
+
+	tester.CalculateNextBlockTime(&account2, 100)
+	time = tester.CalculateNextBlockTime(&account2, 100)
+	assert.Equal(t, "2000-01-01 00:00:54 +0000 UTC", time.String())
 }
 
 func TestProducerPluginImpl_CalculatePendingBlockTime(t *testing.T) {

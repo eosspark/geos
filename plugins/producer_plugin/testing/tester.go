@@ -22,7 +22,7 @@ type ChainTester struct {
 //var eosio = common.AccountName(common.N("eosio"))
 //var yuanc = common.AccountName(common.N("yuanc"))
 
-func NewChainTester(when common.BlockTimeStamp, names ...common.AccountName) *ChainTester {
+func NewChainTester(when types.BlockTimeStamp, names ...common.AccountName) *ChainTester {
 	tester := new(ChainTester)
 	priKey, err := ecc.NewPrivateKey("5KYZdUEo39z3FPrtuX2QbbwGnNP5zTd7yyr2SC1j299sBCnWjss")
 	maythrow(err)
@@ -70,9 +70,9 @@ func (t *ChainTester) NewSignedBlockTester(bhs *types.BlockHeaderState) *types.S
 	return genSigned
 }
 
-func (t *ChainTester) NewHeaderStateTester(when common.BlockTimeStamp) *types.BlockHeaderState {
+func (t *ChainTester) NewHeaderStateTester(when types.BlockTimeStamp) *types.BlockHeaderState {
 	if when == 0 {
-		when = common.NewBlockTimeStamp(common.Now())
+		when = types.NewBlockTimeStamp(common.Now())
 	}
 	genHeader := new(types.BlockHeaderState)
 	genHeader.Header.Timestamp = when
@@ -85,7 +85,7 @@ func (t *ChainTester) NewHeaderStateTester(when common.BlockTimeStamp) *types.Bl
 
 
 
-func (t *ChainTester) ProduceBlock(when common.BlockTimeStamp) *types.SignedBlock {
+func (t *ChainTester) ProduceBlock(when types.BlockTimeStamp) *types.SignedBlock {
 
 	t.Control.AbortBlock()
 	t.Control.StartBlock(when, 0)

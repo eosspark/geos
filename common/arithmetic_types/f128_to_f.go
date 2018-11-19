@@ -9,15 +9,21 @@ import "unsafe"
 //THREAD_LOCAL uint_fast8_t extF80_roundingPrecision = 80;
 
 const (
-	softfloat_roundingMode = softfloat_round_near_even
+	softfloat_roundingMode   = softfloat_round_near_even
+	softfloat_detectTininess = softfloat_tininess_beforeRounding //ARM-VFPv2/ARM_VFPv2_defaultNaN
+	//softfloat_detectTininess = softfloat_tininess_afterRounding//8086/RISCV/8086-SSE
+	softfloat_exceptionFlags = 0
+	extF80_roundingPrecision = 80
 )
 
 const (
 	softfloat_tininess_beforeRounding uint8 = 0
 	softfloat_tininess_afterRounding  uint8 = 1
-
-	softfloat_detectTininess = softfloat_tininess_afterRounding
 )
+
+/*----------------------------------------------------------------------------
+| Default value for 'softfloat_detectTininess'.
+*----------------------------------------------------------------------------*/
 
 /*----------------------------------------------------------------------------
 | "Common NaN" structure, used to transfer NaN representations from one format

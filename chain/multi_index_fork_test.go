@@ -1,9 +1,12 @@
 package chain
 
 import (
+	"fmt"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto/ecc"
+	"github.com/eosspark/eos-go/exception"
+	"github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/log"
 	"github.com/stretchr/testify/assert"
 	"testing"
@@ -25,7 +28,7 @@ func initMulti() (*multiIndexFork, *types.BlockState) {
 	genHeader := new(types.BlockHeaderState)
 	genHeader.ActiveSchedule = initSchedule
 	genHeader.PendingSchedule = initSchedule
-	genHeader.Header.Timestamp = common.BlockTimeStamp(1162425600) //slot of 2018-6-2 00:00:00:000
+	genHeader.Header.Timestamp = types.BlockTimeStamp(1162425600) //slot of 2018-6-2 00:00:00:000
 	genHeader.BlockId = genHeader.Header.BlockID()
 	genHeader.BlockNum = genHeader.Header.BlockNumber()
 
@@ -46,7 +49,7 @@ func TestMultiIndexFork_Insert_Repeat(t *testing.T) {
 
 	for i := 0; i < 10; i++ {
 		t := 1162425602 + 200
-		tmp := common.BlockTimeStamp(t)
+		tmp := types.BlockTimeStamp(t)
 		bhs := bs.GenerateNext(tmp)
 		bhs.BlockId = bhs.Header.BlockID()
 		blockState := types.NewBlockState(bhs)
@@ -73,7 +76,7 @@ func TestIndexFork_LowerBound_byBlockNum(t *testing.T) {
 	var tm *types.BlockState
 	for i := 0; i < 10; i++ {
 		t := 1162425602 + 200
-		tmp := common.BlockTimeStamp(t)
+		tmp := types.BlockTimeStamp(t)
 		bhs := bs.GenerateNext(tmp)
 		bhs.BlockId = bhs.Header.BlockID()
 		blockState := types.NewBlockState(bhs)
@@ -96,7 +99,7 @@ func TestIndexFork_UpperBound_byBlockNum(t *testing.T) {
 	var tm *types.BlockState
 	for i := 0; i < 10; i++ {
 		t := 1162425602 + 200
-		tmp := common.BlockTimeStamp(t)
+		tmp := types.BlockTimeStamp(t)
 		bhs := bs.GenerateNext(tmp)
 		bhs.BlockId = bhs.Header.BlockID()
 		blockState := types.NewBlockState(bhs)
@@ -121,7 +124,7 @@ func TestMultiIndexFork_LowerBound_lib(t *testing.T) {
 	var tm *types.BlockState
 	for i := 0; i < 10; i++ {
 		t := 1162425602 + 200
-		tmp := common.BlockTimeStamp(t)
+		tmp := types.BlockTimeStamp(t)
 		bhs := bs.GenerateNext(tmp)
 		bhs.BlockId = bhs.Header.BlockID()
 		blockState := types.NewBlockState(bhs)
@@ -141,12 +144,12 @@ func TestMultiIndexFork_LowerBound_lib(t *testing.T) {
 	assert.Equal(t, uint32(2), itr.value.BlockNum)
 }
 
-func TestMultiIndexFork_UowerBound_lib(t *testing.T) {
+func TestMultiIndexFork_UpperBound_lib(t *testing.T) {
 	mi, bs := initMulti()
 	var tm *types.BlockState
 	for i := 0; i < 10; i++ {
 		t := 1162425602 + 200
-		tmp := common.BlockTimeStamp(t)
+		tmp := types.BlockTimeStamp(t)
 		bhs := bs.GenerateNext(tmp)
 		bhs.BlockId = bhs.Header.BlockID()
 		blockState := types.NewBlockState(bhs)
@@ -170,7 +173,7 @@ func TestIndexFork_Begin(t *testing.T) {
 	mi, bs := initMulti()
 	for i := 0; i < 10; i++ {
 		t := 1162425602 + 200
-		tmp := common.BlockTimeStamp(t)
+		tmp := types.BlockTimeStamp(t)
 		bhs := bs.GenerateNext(tmp)
 		bhs.BlockId = bhs.Header.BlockID()
 		blockState := types.NewBlockState(bhs)
@@ -185,4 +188,22 @@ func TestIndexFork_Begin(t *testing.T) {
 	obj, _ := idxFork.Begin()
 
 	assert.Equal(t, idxFork.value.Data[0], obj)
+}
+
+func Test_LowerBound_NotFound(t *testing.T) {
+	mi, bs := initMulti()
+	b := types.BlockState{}
+	b.BlockNum = bs.BlockNum
+	numIdx := mi.GetIndex("byBlockNum")
+	bs.BlockNum = 100
+	val, _ := numIdx.value.LowerBound(&b)
+	try.Try(func() {
+		obj := val.(*types.BlockState)
+		if val != nil || obj.BlockNum != bs.BlockNum || obj.InCurrentChain != true {
+			//return &types.BlockState{}
+		}
+		fmt.Println(obj)
+	}).Catch(func(ex exception.Exception) { //TODO catch exception code
+		assert.Equal(t, 3100002, int(ex.Code()))
+	}).End()
 }

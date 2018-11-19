@@ -4,9 +4,9 @@ import (
 	arithmetic "github.com/eosspark/eos-go/common/arithmetic_types"
 	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/eosspark/eos-go/exception"
+	"github.com/eosspark/eos-go/exception/try"
 	"math"
 	"unsafe"
-	"github.com/eosspark/eos-go/exception/try"
 )
 
 var count = 0
@@ -96,283 +96,173 @@ func umodti3(w *WasmGo, ret int, la, ha, lb, hb int64) {
 	setMemory(w, ret, re, 0, len(re))
 }
 
-//
-
-// arithmetic long double
-// void __addtf3( float128_t& ret, uint64_t la, uint64_t ha, uint64_t lb, uint64_t hb ) {
-//    float128_t a = {{ la, ha }};
-//    float128_t b = {{ lb, hb }};
-//    ret = f128_add( a, b );
-// }
-
 func addtf3(w *WasmGo, ret int, la, ha, lb, hb int64) {
-	a := arithmetic.Float128{High: uint64(ha), Low: uint64(la)}
-	b := arithmetic.Float128{High: uint64(hb), Low: uint64(lb)}
+	a := arithmetic.Float128{Low: uint64(la), High: uint64(ha)}
+	b := arithmetic.Float128{Low: uint64(lb), High: uint64(hb)}
 
 	re, _ := rlp.EncodeToBytes(a.Add(b))
 	setMemory(w, ret, re, 0, len(re))
 }
 
-// void __subtf3( float128_t& ret, uint64_t la, uint64_t ha, uint64_t lb, uint64_t hb ) {
-//    float128_t a = {{ la, ha }};
-//    float128_t b = {{ lb, hb }};
-//    ret = f128_sub( a, b );
-// }
 func subtf3(w *WasmGo, ret int, la, ha, lb, hb int64) {
-	a := arithmetic.Float128{High: uint64(ha), Low: uint64(la)}
-	b := arithmetic.Float128{High: uint64(hb), Low: uint64(lb)}
+	a := arithmetic.Float128{Low: uint64(la), High: uint64(ha)}
+	b := arithmetic.Float128{Low: uint64(lb), High: uint64(hb)}
 
-	re := a.Sub(b).Bytes()
+	re, _ := rlp.EncodeToBytes(a.Sub(b))
 	setMemory(w, ret, re, 0, len(re))
-
 }
 
-// void __multf3( float128_t& ret, uint64_t la, uint64_t ha, uint64_t lb, uint64_t hb ) {
-//    float128_t a = {{ la, ha }};
-//    float128_t b = {{ lb, hb }};
-//    ret = f128_mul( a, b );
-// }
 func multf3(w *WasmGo, ret int, la, ha, lb, hb int64) {
-	a := arithmetic.Float128{High: uint64(ha), Low: uint64(la)}
-	b := arithmetic.Float128{High: uint64(hb), Low: uint64(lb)}
+	a := arithmetic.Float128{Low: uint64(la), High: uint64(ha)}
+	b := arithmetic.Float128{Low: uint64(lb), High: uint64(hb)}
 
-	re := a.Mul(b).Bytes()
+	re, _ := rlp.EncodeToBytes(a.Mul(b))
 	setMemory(w, ret, re, 0, len(re))
 }
 
-// void __divtf3( float128_t& ret, uint64_t la, uint64_t ha, uint64_t lb, uint64_t hb ) {
-//    float128_t a = {{ la, ha }};
-//    float128_t b = {{ lb, hb }};
-//    ret = f128_div( a, b );
-// }
 func divtf3(w *WasmGo, ret int, la, ha, lb, hb int64) {
-	a := arithmetic.Float128{High: uint64(ha), Low: uint64(la)}
-	b := arithmetic.Float128{High: uint64(hb), Low: uint64(lb)}
+	a := arithmetic.Float128{Low: uint64(la), High: uint64(ha)}
+	b := arithmetic.Float128{Low: uint64(lb), High: uint64(hb)}
 
-	re := a.Div(b).Bytes()
+	re, _ := rlp.EncodeToBytes(a.Div(b))
 	setMemory(w, ret, re, 0, len(re))
 }
 
-// void __negtf2( float128_t& ret, uint64_t la, uint64_t ha ) {
-//    ret = {{ la, (ha ^ (uint64_t)1 << 63) }};
-// }
 func negtf2(w *WasmGo, ret int, la, ha int64) {
 	high := uint64(ha)
 	high ^= uint64(1) << 63
-	re := arithmetic.Float128{High: high, Low: uint64(la)}
+	f128 := arithmetic.Float128{Low: uint64(la), High: high}
 
-	setMemory(w, ret, re.Bytes(), 0, len(re.Bytes()))
+	re, _ := rlp.EncodeToBytes(f128)
+	setMemory(w, ret, re, 0, len(re))
 }
 
-// // conversion long double
-// void __extendsftf2( float128_t& ret, float f ) {
-//    ret = f32_to_f128( softfloat_api::to_softfloat32(f) );
-// }
 func extendsftf2(w *WasmGo, ret int, f float32) { //TODO f float??
 	f32 := arithmetic.Float32(math.Float32bits(f))
-	re := arithmetic.F32ToF128(f32)
-	setMemory(w, ret, re.Bytes(), 0, len(re.Bytes()))
+	f128 := arithmetic.F32ToF128(f32)
 
+	re, _ := rlp.EncodeToBytes(f128)
+	setMemory(w, ret, re, 0, len(re))
 }
 
-//void __extenddftf2( float128_t& ret, double d ) {
-//ret = f64_to_f128( softfloat_api::to_softfloat64(d) );
-//}
 func extenddftf2(w *WasmGo, ret int, d float64) { //TODO d double??
 	f64 := arithmetic.Float64(math.Float64bits(d))
-	re := arithmetic.F64ToF128(f64)
-	setMemory(w, ret, re.Bytes(), 0, len(re.Bytes()))
+	f128 := arithmetic.F64ToF128(f64)
+
+	re, _ := rlp.EncodeToBytes(f128)
+	setMemory(w, ret, re, 0, len(re))
 }
 
-//double __trunctfdf2( uint64_t l, uint64_t h ) {
-//float128_t f = {{ l, h }};
-//return softfloat_api::from_softfloat64(f128_to_f64( f ));
-//}
 func trunctfdf2(w *WasmGo, l, h int64) float64 { //TODO double??
-	f128 := arithmetic.Float128{High: uint64(h), Low: uint64(l)}
+	f128 := arithmetic.Float128{Low: uint64(l), High: uint64(h)}
 	f64 := arithmetic.F128ToF64(f128)
-	re := math.Float64frombits(uint64(f64))
-	return re
-
+	return math.Float64frombits(uint64(f64))
 }
-
-//float __trunctfsf2( uint64_t l, uint64_t h ) {
-//float128_t f = {{ l, h }};
-//return softfloat_api::from_softfloat32(f128_to_f32( f ));
-//}
 
 func trunctfsf2(w *WasmGo, l, h int64) float32 { //TODO float??
-	f128 := arithmetic.Float128{High: uint64(h), Low: uint64(l)}
+	f128 := arithmetic.Float128{Low: uint64(l), High: uint64(h)}
 	f32 := arithmetic.F128ToF32(f128)
-	re := math.Float32frombits(uint32(f32))
-	return re
+	return math.Float32frombits(uint32(f32))
 }
 
-//int32_t __fixtfsi( uint64_t l, uint64_t h ) {
-//float128_t f = {{ l, h }};
-//return f128_to_i32( f, 0, false );
-//}
 func fixtfsi(w *WasmGo, l, h int64) int {
-	f128 := arithmetic.Float128{High: uint64(h), Low: uint64(l)}
+	f128 := arithmetic.Float128{Low: uint64(l), High: uint64(h)}
 	return int(arithmetic.F128ToI32(f128, 0, false))
 }
 
-//int64_t __fixtfdi( uint64_t l, uint64_t h ) {
-//float128_t f = {{ l, h }};
-//return f128_to_i64( f, 0, false );
-//}
 func fixtfdi(w *WasmGo, l, h int64) int64 {
-	f128 := arithmetic.Float128{High: uint64(h), Low: uint64(l)}
+	f128 := arithmetic.Float128{Low: uint64(l), High: uint64(h)}
 	return arithmetic.F128ToI64(f128, 0, false)
 }
 
-//void __fixtfti( __int128& ret, uint64_t l, uint64_t h ) {
-//float128_t f = {{ l, h }};
-//ret = ___fixtfti( f );
-//}
-
-func fixtfti(w *WasmGo, ret int, l, h int64) {
-	//f128 := arithmetic.Float128{High:uint64(h),Low:uint64(l)}
-	//re :=
-
-}
-
-//uint32_t __fixunstfsi( uint64_t l, uint64_t h ) {
-//float128_t f = {{ l, h }};
-//return f128_to_ui32( f, 0, false );
-//}
-
 func fixunstfsi(w *WasmGo, l, h int64) int {
-	f128 := arithmetic.Float128{High: uint64(h), Low: uint64(l)}
+	f128 := arithmetic.Float128{Low: uint64(l), High: uint64(h)}
 	return int(arithmetic.F128ToUi32(f128, 0, false))
 }
 
-//uint64_t __fixunstfdi( uint64_t l, uint64_t h ) {
-//float128_t f = {{ l, h }};
-//return f128_to_ui64( f, 0, false );
-//}
-
 func fixunstfdi(w *WasmGo, l, h int64) int64 {
-	f128 := arithmetic.Float128{High: uint64(h), Low: uint64(l)}
+	f128 := arithmetic.Float128{Low: uint64(l), High: uint64(h)}
 	return int64(arithmetic.F128ToUi64(f128, 0, false))
 }
 
-//void __fixunstfti( unsigned __int128& ret, uint64_t l, uint64_t h ) {
-//float128_t f = {{ l, h }};
-//ret = ___fixunstfti( f );
-//}
+func fixtfti(w *WasmGo, ret int, l, h int64) {
+	f128 := arithmetic.Float128{Low: uint64(l), High: uint64(h)}
+	int128 := arithmetic.Fixtfti(f128)
+
+	re, _ := rlp.EncodeToBytes(int128)
+	setMemory(w, ret, re, 0, len(re))
+}
+
 func fixunstfti(w *WasmGo, ret int, l, h int64) {
+	f := arithmetic.Float128{Low: uint64(l), High: uint64(h)}
+	uint128 := arithmetic.Fixunstfti(f)
 
+	re, _ := rlp.EncodeToBytes(uint128)
+	setMemory(w, ret, re, 0, len(re))
 }
 
-//void __fixsfti( __int128& ret, float a ) {
-//ret = ___fixsfti( softfloat_api::to_softfloat32(a).v );
-//}
 func fixsfti(w *WasmGo, ret int, a float32) { //TODO float??
-
+	int128 := arithmetic.Fixsfti(math.Float32bits(a))
+	re, _ := rlp.EncodeToBytes(int128)
+	setMemory(w, ret, re, 0, len(re))
 }
-
-//void __fixdfti( __int128& ret, double a ) {
-//ret = ___fixdfti( softfloat_api::to_softfloat64(a).v );
-//}
 
 func fixdfti(w *WasmGo, ret int, a float64) { //TODO double??
-
+	int128 := arithmetic.Fixdfti(math.Float64bits(a))
+	re, _ := rlp.EncodeToBytes(int128)
+	setMemory(w, ret, re, 0, len(re))
 }
-
-//void __fixunssfti( unsigned __int128& ret, float a ) {
-//ret = ___fixunssfti( softfloat_api::to_softfloat32(a).v );
-//}
 
 func fixunssfti(w *WasmGo, ret int, a float32) { //TODO float??
-
+	uint128 := arithmetic.Fixunssfti(math.Float32bits(a))
+	re, _ := rlp.EncodeToBytes(uint128)
+	setMemory(w, ret, re, 0, len(re))
 }
-
-//void __fixunsdfti( unsigned __int128& ret, double a ) {
-//ret = ___fixunsdfti( softfloat_api::to_softfloat64(a).v );
-//}
 
 func fixunsdfti(w *WasmGo, ret int, a float64) { //TODO double??
-
+	uint128 := arithmetic.Fixunsdfti(math.Float64bits(a))
+	re, _ := rlp.EncodeToBytes(uint128)
+	setMemory(w, ret, re, 0, len(re))
 }
 
-//double __floatsidf( int32_t i ) {
-//return softfloat_api::from_softfloat64(i32_to_f64(i));
-//}
 func floatsidf(w *WasmGo, i int) float64 { //TODO double??
-	return 0
+	return math.Float64frombits(uint64(arithmetic.I32ToF64(int32(i))))
 }
-
-//void __floatsitf( float128_t& ret, int32_t i ) {
-//ret = i32_to_f128(i);
-//}
 
 func floatsitf(w *WasmGo, ret int, i int) {
 	re := arithmetic.I32ToF128(int32(i))
 	setMemory(w, ret, re.Bytes(), 0, len(re.Bytes()))
 }
 
-//void __floatditf( float128_t& ret, uint64_t a ) {
-//ret = i64_to_f128( a );
-//}
 func floatditf(w *WasmGo, ret int, a int64) {
 	re := arithmetic.I64ToF128(a)
 	setMemory(w, ret, re.Bytes(), 0, len(re.Bytes()))
 }
-
-//void __floatunsitf( float128_t& ret, uint32_t i ) {
-//ret = ui32_to_f128(i);
-//}
 
 func floatunsitf(w *WasmGo, ret int, i int) {
 	re := arithmetic.Ui32ToF128(uint32(i))
 	setMemory(w, ret, re.Bytes(), 0, len(re.Bytes()))
 }
 
-//void __floatunditf( float128_t& ret, uint64_t a ) {
-//ret = ui64_to_f128( a );
-//}
 func floatunditf(w *WasmGo, ret int, a int64) {
 	re := arithmetic.Ui64ToF128(uint64(a))
 	setMemory(w, ret, re.Bytes(), 0, len(re.Bytes()))
 }
 
-//double __floattidf( uint64_t l, uint64_t h ) {
-//fc::uint128_t v(h, l);
-//unsigned __int128 val = (unsigned __int128)v;
-//return ___floattidf( *(__int128*)&val );
-//}
-
 func floattidf(w *WasmGo, l, h int64) float64 { //TODO double
-	//v := arithmetic.Uint128{uint64(h), uint64(l)}
-	return 0
+	v := arithmetic.Int128{Low: uint64(l), High: uint64(h)}
+	return arithmetic.Floattidf(v)
 }
-
-//double __floatuntidf( uint64_t l, uint64_t h ) {
-//fc::uint128_t v(h, l);
-//return ___floatuntidf( (unsigned __int128)v );
-//}
 
 func floatuntidf(w *WasmGo, l, h int64) float64 { //TODO double
-	//v := arithmetic.Uint128{h, l}
-	//return floatuntidf(w,v)
+	v := arithmetic.Uint128{Low: uint64(l), High: uint64(h)}
+	return arithmetic.Floatuntidf(v)
 	return 0
 }
 
-//int ___cmptf2( uint64_t la, uint64_t ha, uint64_t lb, uint64_t hb, int return_value_if_nan ) {
-//float128_t a = {{ la, ha }};
-//float128_t b = {{ lb, hb }};
-//if ( __unordtf2(la, ha, lb, hb) )
-//return return_value_if_nan;
-//if ( f128_lt( a, b ) )
-//return -1;
-//if ( f128_eq( a, b ) )
-//return 0;
-//return 1;
-//}
 func _cmptf2(w *WasmGo, la, ha, lb, hb int64, return_value_if_nan int) int { //TODO unsame with regist
-	a := arithmetic.Float128{High: uint64(ha), Low: uint64(la)}
-	b := arithmetic.Float128{High: uint64(hb), Low: uint64(lb)}
+	a := arithmetic.Float128{Low: uint64(la), High: uint64(ha)}
+	b := arithmetic.Float128{Low: uint64(lb), High: uint64(hb)}
 	if unordtf2(w, la, ha, lb, hb) != 0 {
 		return return_value_if_nan
 	}
@@ -385,70 +275,37 @@ func _cmptf2(w *WasmGo, la, ha, lb, hb int64, return_value_if_nan int) int { //T
 	return 1
 }
 
-//int __eqtf2( uint64_t la, uint64_t ha, uint64_t lb, uint64_t hb ) {
-//return ___cmptf2(la, ha, lb, hb, 1);
-//}
 func eqtf2(w *WasmGo, la, ha, lb, hb int64) int {
 	return _cmptf2(w, la, ha, lb, hb, 1)
 }
-
-//int __netf2( uint64_t la, uint64_t ha, uint64_t lb, uint64_t hb ) {
-//return ___cmptf2(la, ha, lb, hb, 1);
-//}
 
 func netf2(w *WasmGo, la, ha, lb, hb int64) int {
 	return _cmptf2(w, la, ha, lb, hb, 1)
 }
 
-//int __getf2( uint64_t la, uint64_t ha, uint64_t lb, uint64_t hb ) {
-//return ___cmptf2(la, ha, lb, hb, -1);
-//}
-
 func getf2(w *WasmGo, la, ha, lb, hb int64) int {
 	return _cmptf2(w, la, ha, lb, hb, -1)
 }
-
-//int __gttf2( uint64_t la, uint64_t ha, uint64_t lb, uint64_t hb ) {
-//return ___cmptf2(la, ha, lb, hb, 0);
-//}
 
 func gttf2(w *WasmGo, la, ha, lb, hb int64) int {
 	return _cmptf2(w, la, ha, lb, hb, 0)
 }
 
-//int __letf2( uint64_t la, uint64_t ha, uint64_t lb, uint64_t hb ) {
-//return ___cmptf2(la, ha, lb, hb, 1);
-//}
 func letf2(w *WasmGo, la, ha, lb, hb int64) int {
 	return _cmptf2(w, la, ha, lb, hb, 1)
 }
 
-//int __lttf2( uint64_t la, uint64_t ha, uint64_t lb, uint64_t hb ) {
-//return ___cmptf2(la, ha, lb, hb, 0);
-//}
 func lttf2(w *WasmGo, la, ha, lb, hb int64) int {
 	return _cmptf2(w, la, ha, lb, hb, 0)
 }
 
-//int __cmptf2( uint64_t la, uint64_t ha, uint64_t lb, uint64_t hb ) {
-//return ___cmptf2(la, ha, lb, hb, 1);
-//}
 func cmptf2(w *WasmGo, la, ha, lb, hb int64) int {
 	return _cmptf2(w, la, ha, lb, hb, 1)
 }
 
-//int __unordtf2( uint64_t la, uint64_t ha, uint64_t lb, uint64_t hb ) {
-//float128_t a = {{ la, ha }};
-//float128_t b = {{ lb, hb }};
-//if ( softfloat_api::is_nan(a) || softfloat_api::is_nan(b) )
-//return 1;
-//return 0;
-//}
-//
-
 func unordtf2(w *WasmGo, la, ha, lb, hb int64) int {
-	a := arithmetic.Float128{uint64(ha), uint64(la)}
-	b := arithmetic.Float128{uint64(hb), uint64(lb)}
+	a := arithmetic.Float128{Low: uint64(la), High: uint64(ha)}
+	b := arithmetic.Float128{Low: uint64(lb), High: uint64(hb)}
 	if a.IsNan() || b.IsNan() {
 		return 1
 	}

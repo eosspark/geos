@@ -7,7 +7,7 @@ import (
 )
 
 type BlockHeader struct {
-	Timestamp        common.BlockTimeStamp       `json:"timestamp"`
+	Timestamp        BlockTimeStamp       `json:"timestamp"`
 	Producer         common.AccountName          `json:"producer"`
 	Confirmed        uint16 /* default=1 */      `json:"confirmed"`
 	Previous         common.BlockIdType          `multiIndex:"byPrevious,orderedUnique",json:"previous"`
