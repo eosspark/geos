@@ -2,7 +2,7 @@ package asio
 
 import "github.com/eapache/channels"
 
-const Infinity = true
+const Infinity = false
 
 type GoroutineReactor struct {
 	opq      chan operation
