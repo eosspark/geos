@@ -50,8 +50,8 @@ func (s *deque) PopFront() interface{} {
 }
 
 func (s *deque) LastSecond() interface{} {
-	last := s.PopFront()
-	second := s.PopFront()
+	last := s.Pop()
+	second := s.Pop()
 	s.Append(second)
 	s.Append(last)
 	return second
@@ -65,7 +65,6 @@ func (s *deque) Pop() interface{} {
 	var lastContainerItem *list.Element = nil
 
 	lastContainerItem = s.container.Back()
-	//two := s.container[2]
 	if lastContainerItem != nil {
 		item = s.container.Remove(lastContainerItem)
 	}
