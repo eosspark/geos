@@ -350,15 +350,14 @@ func (c *Controller) startBlock(when types.BlockTimeStamp, confirmBlockCount uin
 			})
 		}
 		//try.Try(func() {
-		signedTransaction := c.GetOnBlockTransaction()
-		onbtrx := types.TransactionMetadata{Trx: &signedTransaction}
-		onbtrx.Implicit = true
-		//TODO defer
+		//signedTransaction := c.GetOnBlockTransaction()
+		//onbtrx := types.TransactionMetadata{Trx: &signedTransaction}
+		//onbtrx.Implicit = true
 		defer func(b bool) {
 			c.InTrxRequiringChecks = b
 		}(c.InTrxRequiringChecks)
 		c.InTrxRequiringChecks = true
-		c.pushTransaction(&onbtrx, common.MaxTimePoint(), gpo.Configuration.MinTransactionCpuUsage, true)
+		//c.pushTransaction(&onbtrx, common.MaxTimePoint(), gpo.Configuration.MinTransactionCpuUsage, true)
 		/*}).Catch(func(e Exception) {
 			//TODO
 			fmt.Println("Controller StartBlock exception:",e.Message())
@@ -620,7 +619,11 @@ func (c *Controller) GetScheduledTransactions() []common.TransactionIdType {
 	if err != nil {
 		log.Error("Controller GetScheduledTransactions is error:%s", err.Error())
 	}
-	itr.Release()
+	if itr != nil {
+		itr.Release()
+	} else {
+		log.Info("Controller GetScheduledTransactions byDelay is not found data")
+	}
 	return result
 }
 func (c *Controller) PushScheduledTransaction(trxId *common.TransactionIdType, deadLine common.TimePoint, billedCpuTimeUs uint32) *types.TransactionTrace {
@@ -713,7 +716,7 @@ func (c *Controller) pushScheduledTransactionByObject(gto *entity.GeneratedTrans
 		log.Error("PushScheduledTransaction is error:%s", ex.Message())
 		cpuTimeToBillUs = trxContext.UpdateBilledCpuTime(common.Now())
 		trace.Except = ex
-		trace.ExceptPtr = &ex
+		trace.ExceptPtr = ex
 		trace.Elapsed = (common.Now() - trxContext.Start).TimeSinceEpoch()
 	}).End()
 
@@ -846,7 +849,9 @@ func (c *Controller) FinalizeBlock() {
 	cpu.MaxMultiplier = m
 
 	cpu.ContractRate.Numerator = 99
-	cpu.ExpandRate.Denominator = 100
+	cpu.ContractRate.Denominator = 100
+	cpu.ExpandRate.Numerator = 999
+	cpu.ExpandRate.Denominator = 1000
 
 	net := types.ElasticLimitParameters{}
 	netTarget := common.EosPercent(uint64(chainConfig.MaxBlockNetUsage), chainConfig.TargetBlockNetUsagePct)
@@ -856,7 +861,9 @@ func (c *Controller) FinalizeBlock() {
 	net.MaxMultiplier = m
 
 	net.ContractRate.Numerator = 99
-	net.ExpandRate.Denominator = 100
+	net.ContractRate.Denominator = 100
+	net.ExpandRate.Numerator = 999
+	net.ExpandRate.Denominator = 1000
 	c.ResourceLimits.SetBlockParameters(cpu, net)
 
 	c.setActionMerkle()
@@ -1131,17 +1138,17 @@ func (c *Controller) HeadBlockNum() uint32 { return c.Head.BlockNum }
 
 func (c *Controller) HeadBlockTime() common.TimePoint { return c.Head.Header.Timestamp.ToTimePoint() }
 
-func (c *Controller) HeadBlockId() common.BlockIdType { return common.BlockIdType{} }
+func (c *Controller) HeadBlockId() common.BlockIdType { return c.Head.BlockId }
 
 func (c *Controller) HeadBlockProducer() common.AccountName { return c.Head.Header.Producer }
 
 func (c *Controller) HeadBlockHeader() *types.BlockHeader { return &c.Head.Header.BlockHeader }
 
-func (c *Controller) HeadBlockState() types.BlockState { return types.BlockState{} }
+func (c *Controller) HeadBlockState() *types.BlockState { return c.Head }
 
 func (c *Controller) ForkDbHeadBlockNum() uint32 { return c.ForkDB.Header().BlockNum }
 
-func (c *Controller) ForkDbHeadBlockId() common.BlockIdType { return common.BlockIdType{} }
+func (c *Controller) ForkDbHeadBlockId() common.BlockIdType { return c.ForkDB.Head.BlockId }
 
 func (c *Controller) ForkDbHeadBlockTime() common.TimePoint {
 	return c.ForkDB.Header().Header.Timestamp.ToTimePoint()
@@ -1729,7 +1736,7 @@ func (c *Controller) createBlockSummary(id *common.BlockIdType) {
 	sid := blockNum & 0xffff
 	bso := entity.BlockSummaryObject{}
 	bso.Id = common.IdType(sid)
-	err := c.DB.Find("id", bso, bso)
+	err := c.DB.Find("id", &bso, &bso)
 	if err != nil {
 		log.Error("Controller createBlockSummary is error:%s", err.Error())
 	}

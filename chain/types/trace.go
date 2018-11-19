@@ -39,7 +39,7 @@ type TransactionTrace struct {
 	FailedDtrxTrace *TransactionTrace
 
 	Except    Exception
-	ExceptPtr *Exception
+	ExceptPtr Exception
 }
 
 type AccountDelta struct {
