@@ -4,15 +4,6 @@ import (
 	"reflect"
 )
 
-func idKey(id, typeName []byte) []byte { /* key --> typeName__id */
-	key := cloneByte(typeName)
-	key = append(key, '_')
-	key = append(key, '_')
-	key = append(key, id...)
-
-	return key
-}
-
 func getFieldInfo(fieldName string, value interface{}) (*fieldInfo, error) {
 	ref := reflect.ValueOf(value)
 	if !ref.IsValid() || reflect.Indirect(ref).Kind() != reflect.Struct {
@@ -33,55 +24,43 @@ func getFieldInfo(fieldName string, value interface{}) (*fieldInfo, error) {
 	return fields, nil
 }
 
-// TODO The function is unchanged, need to modify the implementation
-func getFieldValue(info *fieldInfo) []byte { /* non unique fields --> get function */
-	values := []byte{}
-	for _, v := range info.fieldValue {
 
-		if v.Kind() != reflect.Bool && isZero(v) {
-			return values
-		}
-		values = append(values, '_')
-		values = append(values, '_')
-		re, err :=    EncodeToBytes(v.Interface())
-		if err != nil {
-			return nil
-		}
-
-		values = append(values, re...)
-	}
-
-	return values
-}
-
-func typeNameFieldName(typeName, tagName []byte) []byte { /* typeName__fieldName*/
-	key := cloneByte(typeName)
+func splicingString(k,v[]byte) []byte {
+	key := cloneByte(k)
 	key = append(key, '_')
 	key = append(key, '_')
-	key = append(key, tagName...)
+	key = append(key, v...)
 	return key
 }
 
-func getNonUniqueEnd(key []byte) []byte { /* non unique fields --> regexp*/
-	end := make([]byte, len(key))
-	copy(end, key)
+func keyEnd(key []byte) []byte { /* non unique fields --> regexp*/
+	end := cloneByte(key)
 	end[len(end)-1] = end[len(end)-1] + 1
 	return end
 }
 
-func fieldValueToByte(key []byte, info *fieldInfo) []byte { /* fieldValue[0]__fieldValue[1]... */
-	cloneKey := cloneByte(key)
+
+func fieldValueToByte(info *fieldInfo,zero...bool) ([]byte,error) { /* fieldValue[0]__fieldValue[1]... */
+	cloneKey := []byte{}
+
+	skipZero := false
+	if len(zero) > 0{
+		skipZero = zero[0]
+	}
+
 	for _, v := range info.fieldValue { // typeName__tag__fieldValue...
 		cloneKey = append(cloneKey, '_')
 		cloneKey = append(cloneKey, '_')
-		//fmt.Println(v.Interface())
+		if skipZero{
+			if v.Kind() != reflect.Bool && isZero(v) {
+				continue
+			}
+		}
 		value, err := EncodeToBytes(v.Interface())
 		if err != nil {
-			return nil
+			return nil,err
 		}
-		//fmt.Println(value)
 		cloneKey = append(cloneKey, value...)
-		//fmt.Println(cloneKey)
 	}
-	return cloneKey
+	return cloneKey,nil
 }

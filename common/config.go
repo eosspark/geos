@@ -50,7 +50,7 @@ func init() {
 
 	DefaultConfig.BlockIntervalMs = 500
 	DefaultConfig.BlockIntervalUs = 1000 * DefaultConfig.BlockIntervalMs
-	DefaultConfig.BlockTimestampEpochMs = 946684800000
+	DefaultConfig.BlockTimestampEpochMs = 946684800000 // epoch is year 2000.
 	DefaultConfig.BlockTimestamoEpochNanos = 1e6 * DefaultConfig.BlockTimestampEpochMs
 
 	DefaultConfig.ProducerRepetitions = 12

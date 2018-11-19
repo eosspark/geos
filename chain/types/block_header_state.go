@@ -8,8 +8,12 @@ import (
 	. "github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
 	"sort"
-	"errors"
+	"github.com/eosspark/eos-go/common/math"
 )
+
+func init() {
+	Assert(math.MaxUint8 >= common.DefaultConfig.MaxProducers*2/3+1, "8bit confirmations may not be able to hold all of the needed confirmations" )
+}
 
 type BlockHeaderState struct {
 	ID                               common.IdType      `multiIndex:"id,increment"`
@@ -43,7 +47,7 @@ func (a AccountNameBlockNum) GetKey() []byte {
 	return b
 }
 
-func (b *BlockHeaderState) GetScheduledProducer(t common.BlockTimeStamp) ProducerKey {
+func (b *BlockHeaderState) GetScheduledProducer(t BlockTimeStamp) ProducerKey {
 	index := uint32(t) % uint32(len(b.ActiveSchedule.Producers)*12)
 	index /= 12
 	return b.ActiveSchedule.Producers[index]
@@ -64,7 +68,7 @@ func (b *BlockHeaderState) CalcDposLastIrreversible() uint32 {
 	return uint32(blockNums[(len(blockNums)-1)/3])
 }
 
-func (b *BlockHeaderState) GenerateNext(when common.BlockTimeStamp) *BlockHeaderState {
+func (b *BlockHeaderState) GenerateNext(when BlockTimeStamp) *BlockHeaderState {
 	result := new(BlockHeaderState)
 
 	if when > 0 {
@@ -99,9 +103,7 @@ func (b *BlockHeaderState) GenerateNext(when common.BlockTimeStamp) *BlockHeader
 	result.DposIrreversibleBlocknum = result.CalcDposLastIrreversible()
 
 	/// grow the confirmed count
-	if common.DefaultConfig.MaxProducers*2/3+1 > 0xff {
-		panic(errors.New("8bit confirmations may not be able to hold all of the needed confirmations") )
-	}
+	// static assert math.MaxUint8 >= common.DefaultConfig.MaxProducers*2/3+1
 
 	// This uses the previous block active_schedule because thats the "schedule" that signs and therefore confirms _this_ block
 	numActiveProducers := len(b.ActiveSchedule.Producers)
@@ -175,7 +177,7 @@ func (b *BlockHeaderState) SetNewProducers(pending SharedProducerScheduleType) {
  *  If the header specifies new_producers then apply them accordingly.
  */
 func (b *BlockHeaderState) Next(h SignedBlockHeader, trust bool) *BlockHeaderState {
-	EosAssert(h.Timestamp != common.BlockTimeStamp(0), &BlockValidateException{}, "%s", h)
+	EosAssert(h.Timestamp != BlockTimeStamp(0), &BlockValidateException{}, "%s", h)
 	EosAssert(len(h.HeaderExtensions) == 0, &BlockValidateException{}, "no supported extensions")
 
 	EosAssert(h.Timestamp > b.Header.Timestamp, &BlockValidateException{}, "block must be later in time")

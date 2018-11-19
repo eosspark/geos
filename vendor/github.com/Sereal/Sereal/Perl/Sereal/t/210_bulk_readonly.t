@@ -1,1 +1,0 @@
-../../Decoder/t/210_bulk_readonly.t

@@ -4,31 +4,38 @@ import (
 	"fmt"
 	"os"
 	"gopkg.in/urfave/cli.v1"
-	MockChain "github.com/eosspark/eos-go/plugins/producer_plugin/mock"
 	"github.com/eosspark/eos-go/plugins/appbase/asio"
 	"github.com/eosspark/eos-go/plugins/producer_plugin"
 	"log"
 	"syscall"
 	"github.com/eosspark/eos-go/common"
-)
+	"github.com/eosspark/eos-go/plugins/producer_plugin/testing"
+	)
 
 
 func main() {
+
+	//try.Assert(false, "main-assert")
 
 	/*
 	go run main.go -e -p eosio -p yuanc --private-key '["EOS859gxfnXyUriMgUeThh1fWv3oqcpLFyHa3TfFYC4PK2HqhToVM","5KYZdUEo39z3FPrtuX2QbbwGnNP5zTd7yyr2SC1j299sBCnWjss"]' --private-key '["EOS5jeUuKEZ8s8LLoxz4rNysYdHWboup8KtkyJzZYQzcVKFGek9Zu","5Ja3h2wJNUnNcoj39jDMHGigsazvbGHAeLYEHM5uTwtfUoRDoYP"]'
 	 */
 	fmt.Println(os.Args)
 
-	options := cli.NewApp()
+	app := cli.NewApp()
 	iosv := asio.NewIoContext()
 
-	MockChain.Initialize(0, common.AccountName(common.N("eosio")),common.AccountName(common.N("yuanc")))
+	chainTester :=testing.NewChainTester(0, common.AccountName(common.N("eosio")),common.AccountName(common.N("yuanc")))
+	testing.Control = chainTester.Control
+
 	producerPlugin := producer_plugin.NewProducerPlugin(iosv)
 
-	producerPlugin.PluginInitialize(options)
+	producerPlugin.SetProgramOptions(&app.Flags)
+	app.Action = func(c *cli.Context) {
+		producerPlugin.PluginInitialize(c)
+	}
 
-	err := options.Run(os.Args)
+	err := app.Run(os.Args)
 	if err != nil {
 		log.Fatal(err)
 	}

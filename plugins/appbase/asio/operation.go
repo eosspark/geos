@@ -35,7 +35,4 @@ func (op socketReadOp) call() {
 	op.function(op.n, op.err)
 }
 
-type socketReadFullOp = socketReadOp
-type socketWriteOp = socketReadOp
-type signalSetOp = deadlineTimerOp
-type postOp = deadlineTimerOp
+

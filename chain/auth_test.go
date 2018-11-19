@@ -15,9 +15,10 @@ func initializeAuth() *AuthorizationManager{
 }
 
 func TestMissingSigs(t *testing.T){
-	am := initializeAuth()
-	createNewAccount(am.control, "Alice")
-	//BaseTester{}.ProduceBlock()
+	//am := initializeAuth()
+	BaseTester{}.CreateAccounts([]common.AccountName{common.AccountName(common.N("Alice"))},false,false)
+	BaseTester{}.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs), 0)
+
 }
 
 func TestMissingAuths(t *testing.T){

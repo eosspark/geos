@@ -2,8 +2,8 @@ package producer_plugin
 
 import (
 	"fmt"
-	Chain "github.com/eosspark/eos-go/plugins/producer_plugin/mock" /*test model*/
-	//Chain "github.com/eosspark/eos-go/chain" /*real chain*/
+	//Chain "github.com/eosspark/eos-go/plugins/producer_plugin/testing" /*test model*/
+	Chain "github.com/eosspark/eos-go/chain" /*real chain*/
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/ecc"
@@ -15,7 +15,6 @@ import (
 	"encoding/json"
 	"strings"
 	"github.com/eosspark/eos-go/plugins/appbase/asio"
-
 )
 
 //var log = Log.NewWithHandle("producer", Log.TerminalHandler)
@@ -35,16 +34,16 @@ type RuntimeOptions struct {
 }
 
 type WhitelistAndBlacklist struct {
-	ActorWhitelist    *map[common.AccountName]struct{}
-	ActorBlacklist    *map[common.AccountName]struct{}
-	ContractWhitelist *map[common.AccountName]struct{}
-	ContractBlacklist *map[common.AccountName]struct{}
-	ActionBlacklist   *map[common.Pair]struct{}
-	KeyBlacklist      *map[ecc.PublicKey]struct{}
+	ActorWhitelist    *common.FlatSet //<common.AccountName>
+	ActorBlacklist    *common.FlatSet //<common.AccountName>
+	ContractWhitelist *common.FlatSet //<common.AccountName>
+	ContractBlacklist *common.FlatSet //<common.AccountName>
+	ActionBlacklist   *common.FlatSet //<account_name, action_name>
+	KeyBlacklist      *common.FlatSet //<ecc.PublicKey>
 }
 
 type GreylistParams struct {
-	Accounts []common.AccountName
+	Accounts common.FlatSet
 }
 
 func init() {
@@ -52,22 +51,12 @@ func init() {
 	fmt.Println("app register plugin")
 }
 
+//TODO: io from appbase
 func NewProducerPlugin(io *asio.IoContext) *ProducerPlugin {
 	p := new(ProducerPlugin)
-	my := new(ProducerPluginImpl)
 
-	my.Timer = common.NewTimer(io)
-	my.SignatureProviders = make(map[ecc.PublicKey]signatureProviderType)
-	my.ProducerWatermarks = make(map[common.AccountName]uint32)
-
-	my.PersistentTransactions = make(transactionIdWithExpireIndex)
-	my.BlacklistedTransactions = make(transactionIdWithExpireIndex)
-
-	my.IncomingTrxWeight = 0.0
-	my.IncomingDeferRadio = 1.0 // 1:1
-	my.Self = p
-
-	p.my = my
+	p.my = NewProducerPluginImpl(io)
+	p.my.Self = p
 
 	return p
 }
@@ -90,151 +79,154 @@ func (p *ProducerPlugin) SignCompact(key *ecc.PublicKey, digest crypto.Sha256) e
 	return ecc.Signature{}
 }
 
-func (p *ProducerPlugin) PluginInitialize(app *cli.App) {
+func (p *ProducerPlugin) SetProgramOptions(options *[]cli.Flag) {
+	*options = append(*options,
+		cli.BoolFlag{
+			Name:  "enable-stale-production, e",
+			Usage: "Enable block production, even if the chain is stale.",
+		},
+		cli.BoolFlag{
+			Name:  "pause-on-startup, x",
+			Usage: "Start this node in a state where production is paused.",
+		},
+		cli.IntFlag{
+			Name:  "max-transaction-age",
+			Usage: "Limits the maximum time (in milliseconds) that is allowed a pushed transaction's code to execute before being considered invalid",
+			Value: 30,
+		},
+		cli.IntFlag{
+			Name:  "max-irreversible-block-age",
+			Usage: "Limits the maximum age (in seconds) of the DPOS Irreversible Block for a chain this node will produce blocks on (use negative value to indicate unlimited)",
+			Value: -1,
+		},
+		cli.StringSliceFlag{
+			Name:  "producer-name, p",
+			Usage: "ID of producer controlled by this node(e.g. inita; may specify multiple times)",
+		},
+		cli.StringSliceFlag{
+			Name:  "private-key",
+			Usage: "(DEPRECATED - Use signature-provider instead) Tuple of [public key, WIF private key] (may specify multiple times)",
+		},
+		cli.StringSliceFlag{
+			Name: "signature-provider",
+			Usage:
+			"Key=Value pairs in the form <public-key>=<provider-spec>\n" +
+				"Where:\n" +
+				"   <public-key>    \tis a string form of a vaild EOSIO public key\n\n" +
+				"   <provider-spec> \tis a string in the form <provider-type>:<data>\n\n" +
+				"   <provider-type> \tis KEY, or KEOSD\n\n" +
+				"   KEY:<data>      \tis a string form of a valid EOSIO private key which maps to the provided public key\n\n",
+		},
+		cli.IntFlag{
+			Name:  "keosd-provider-timeout",
+			Usage: "Limits the maximum time (in milliseconds) that is allowd for sending blocks to a keosd provider for signing",
+			Value: 5,
+		},
+		cli.StringSliceFlag{
+			Name:  "greylist-account",
+			Usage: "account that can not access to extended CPU/NET virtual resources",
+		},
+		cli.IntFlag{
+			Name:  "produce-time-offset-us",
+			Usage: "offset of non last block producing time in micro second. Negative number results in blocks to go out sooner, and positive number results in blocks to go out later",
+			Value: 0,
+		},
+		cli.IntFlag{
+			Name:  "last-block-time-offset-us",
+			Usage: "offset of last block producing time in micro second. Negative number results in blocks to go out sooner, and positive number results in blocks to go out later",
+			Value: 0,
+		},
+		cli.Float64Flag{
+			Name:  "incoming-defer-ratio",
+			Usage: "ratio between incoming transations and deferred transactions when both are exhausted",
+			Value: 1.0,
+		},
+	)
+}
+
+func (p *ProducerPlugin) PluginInitialize(c *cli.Context) {
 	Try(func() {
-		app.Flags = []cli.Flag{
-			cli.BoolFlag{
-				Name:  "enable-stale-production, e",
-				Usage: "Enable block production, even if the chain is stale.",
-			},
-			cli.BoolFlag{
-				Name:  "pause-on-startup, x",
-				Usage: "Start this node in a state where production is paused.",
-			},
-			cli.IntFlag{
-				Name:  "max-transaction-age",
-				Usage: "Limits the maximum time (in milliseconds) that is allowed a pushed transaction's code to execute before being considered invalid",
-				Value: 30,
-			},
-			cli.IntFlag{
-				Name:  "max-irreversible-block-age",
-				Usage: "Limits the maximum age (in seconds) of the DPOS Irreversible Block for a chain this node will produce blocks on (use negative value to indicate unlimited)",
-				Value: -1,
-			},
-			cli.StringSliceFlag{
-				Name:  "producer-name, p",
-				Usage: "ID of producer controlled by this node(e.g. inita; may specify multiple times)",
-			},
-			cli.StringSliceFlag{
-				Name:  "private-key",
-				Usage: "(DEPRECATED - Use signature-provider instead) Tuple of [public key, WIF private key] (may specify multiple times)",
-			},
-			cli.StringSliceFlag{
-				Name:  "signature-provider",
-				Usage:
-				"Key=Value pairs in the form <public-key>=<provider-spec>\n" 			   +
-					"Where:\n" 																   +
-					"   <public-key>    \tis a string form of a vaild EOSIO public key\n\n"    +
-					"   <provider-spec> \tis a string in the form <provider-type>:<data>\n\n"  +
-					"   <provider-type> \tis KEY, or KEOSD\n\n"                                +
-					"   KEY:<data>      \tis a string form of a valid EOSIO private key which maps to the provided public key\n\n",
-			},
-			cli.IntFlag{
-				Name:  "keosd-provider-timeout",
-				Usage: "Limits the maximum time (in milliseconds) that is allowd for sending blocks to a keosd provider for signing",
-				Value: 5,
-			},
-			cli.StringSliceFlag{
-				Name:  "greylist-account",
-				Usage: "account that can not access to extended CPU/NET virtual resources",
-			},
-			cli.IntFlag{
-				Name:  "produce-time-offset-us",
-				Usage: "offset of non last block producing time in micro second. Negative number results in blocks to go out sooner, and positive number results in blocks to go out later",
-				Value: 0,
-			},
-			cli.IntFlag{
-				Name:  "last-block-time-offset-us",
-				Usage: "offset of last block producing time in micro second. Negative number results in blocks to go out sooner, and positive number results in blocks to go out later",
-				Value: 0,
-			},
-			cli.Float64Flag{
-				Name:  "incoming-defer-ratio",
-				Usage: "ratio between incoming transations and deferred transactions when both are exhausted",
-				Value: 1.0,
-			},
+		//app.Action = func(c *cli.Context) {
+		for _, n := range c.StringSlice("producer-name") {
+			name := common.AccountName(common.N(n))
+			p.my.Producers.Insert(&name)
 		}
 
-		app.Action = func(c *cli.Context) {
-			for _, n := range c.StringSlice("producer-name") {
-				name := common.AccountName(common.N(n))
-				p.my.Producers.Insert(&name)
-			}
+		for _, keyIdToWifPairString := range c.StringSlice("private-key") {
+			Try(func() {
+				var keyIdToWifPair [2]string
+				json.Unmarshal([]byte(keyIdToWifPairString), &keyIdToWifPair)
+				pubKey, err := ecc.NewPublicKey(keyIdToWifPair[0])
+				if err != nil {
+					Throw(err) //TODO
+				}
+				priKey, err2 := ecc.NewPrivateKey(keyIdToWifPair[1])
+				if err2 != nil {
+					Throw(err2) //TODO
+				}
+				p.my.SignatureProviders[pubKey] = makeKeySignatureProvider(priKey)
+				// wlog("\"private-key\" is DEPRECATED, use \"signature-provider=${pub}=KEY:${priv}\"", ("pub",key_id_to_wif_pair.first)("priv", blanked_privkey));
+			}).Catch(func(e error) {
+				log.Error("Malformed private key pair")
+			}).End()
+		}
 
-			for _, keyIdToWifPairString := range c.StringSlice("private-key") {
-				Try(func() {
-					var keyIdToWifPair [2]string
-					json.Unmarshal([]byte(keyIdToWifPairString), &keyIdToWifPair)
-					pubKey, err := ecc.NewPublicKey(keyIdToWifPair[0])
-					if err != nil {
-						Throw(err) //TODO
-					}
-					priKey, err2 := ecc.NewPrivateKey(keyIdToWifPair[1])
-					if err2 != nil {
-						Throw(err2) //TODO
+		for _, keySpecPair := range c.StringSlice("signature-provider") {
+			Try(func() {
+				delim := strings.Index(keySpecPair, "=")
+				EosAssert(delim >= 0, &PluginConfigException{}, "Missing \"=\" in the key spec pair")
+				pubKeyStr := keySpecPair[0:delim]
+				specStr := keySpecPair[delim+1:]
+
+				specDelim := strings.Index(specStr, ":")
+				EosAssert(specDelim >= 0, &PluginConfigException{}, "Missing \":\" in the key spec pair")
+				specTypeStr := specStr[0:specDelim]
+				specData := specStr[specDelim+1:]
+
+				pubKey, err := ecc.NewPublicKey(pubKeyStr)
+				if err != nil {
+					Throw(err)
+				}
+
+				if specTypeStr == "KEY" {
+					priKey, e := ecc.NewPrivateKey(specData)
+					if e != nil {
+						Throw(e)
 					}
 					p.my.SignatureProviders[pubKey] = makeKeySignatureProvider(priKey)
-					// wlog("\"private-key\" is DEPRECATED, use \"signature-provider=${pub}=KEY:${priv}\"", ("pub",key_id_to_wif_pair.first)("priv", blanked_privkey));
-				}).Catch(func(e error) {
-					log.Error("Malformed private key pair")
-				}).End()
-			}
-
-			for _, keySpecPair := range c.StringSlice("signature-provider") {
-				Try(func() {
-					delim := strings.Index(keySpecPair, "=")
-					EosAssert(delim >= 0, &PluginConfigException{}, "Missing \"=\" in the key spec pair")
-					pubKeyStr := keySpecPair[0:delim]
-					specStr := keySpecPair[delim+1:]
-
-					specDelim := strings.Index(specStr, ":")
-					EosAssert(specDelim >= 0, &PluginConfigException{}, "Missing \":\" in the key spec pair")
-					specTypeStr := specStr[0:specDelim]
-					specData := specStr[specDelim+1:]
-
-					pubKey, err := ecc.NewPublicKey(pubKeyStr)
-					if err != nil {
-						Throw(err)
-					}
-
-					if specTypeStr == "KEY" {
-						priKey, e := ecc.NewPrivateKey(specData)
-						if e != nil {
-							Throw(e)
-						}
-						p.my.SignatureProviders[pubKey] = makeKeySignatureProvider(priKey)
-					} else if specTypeStr == "KEOSD" {
-						p.my.SignatureProviders[pubKey] = makeKeosdSignatureProvider(p.my, specData, pubKey)
-					}
-
-				}).Catch(func(interface{}) {
-					log.Error("Malformed signature provider: \"%s\", ignoring!", keySpecPair)
-				}).End()
-			}
-
-			p.my.ProductionEnabled = c.Bool("enable-stale-production")
-
-			p.my.ProductionPaused = c.Bool("pause-on-startup")
-
-			p.my.KeosdProviderTimeoutUs = common.Milliseconds(int64(c.Int("keosd-provider-timeout")))
-
-			p.my.ProduceTimeOffsetUs = int32(c.Int("produce-time-offset-us"))
-
-			p.my.MaxTransactionTimeMs = int32(c.Int("max-transaction-age"))
-
-			p.my.MaxIrreversibleBlockAgeUs = common.Seconds(int64(c.Int("max-irreversible-block-age")))
-
-			p.my.IncomingDeferRadio = c.Float64("incoming-defer-ratio")
-
-			if greylist := c.StringSlice("greylist-account"); len(greylist) > 0 {
-				param := GreylistParams{}
-				for _, a := range greylist {
-					param.Accounts = append(param.Accounts, common.AccountName(common.N(a)))
+				} else if specTypeStr == "KEOSD" {
+					p.my.SignatureProviders[pubKey] = makeKeosdSignatureProvider(p.my, specData, pubKey)
 				}
-				p.AddGreylistAccounts(param)
-			}
 
+			}).Catch(func(interface{}) {
+				log.Error("Malformed signature provider: \"%s\", ignoring!", keySpecPair)
+			}).End()
 		}
+
+		p.my.ProductionEnabled = c.Bool("enable-stale-production")
+
+		p.my.ProductionPaused = c.Bool("pause-on-startup")
+
+		p.my.KeosdProviderTimeoutUs = common.Milliseconds(int64(c.Int("keosd-provider-timeout")))
+
+		p.my.ProduceTimeOffsetUs = int32(c.Int("produce-time-offset-us"))
+
+		p.my.MaxTransactionTimeMs = int32(c.Int("max-transaction-age"))
+
+		p.my.MaxIrreversibleBlockAgeUs = common.Seconds(int64(c.Int("max-irreversible-block-age")))
+
+		p.my.IncomingDeferRadio = c.Float64("incoming-defer-ratio")
+
+		if greylist := c.StringSlice("greylist-account"); len(greylist) > 0 {
+			param := GreylistParams{}
+			for _, a := range greylist {
+				n := common.AccountName(common.N(a))
+				param.Accounts.Insert(&n)
+			}
+			p.AddGreylistAccounts(param)
+		}
+
+		//}
 
 	}).FcLogAndRethrow().End()
 }
@@ -245,10 +237,10 @@ func (p *ProducerPlugin) PluginStartup() {
 
 		chain := Chain.GetControllerInstance()
 		EosAssert(p.my.Producers.Len() == 0 || chain.GetReadMode() == Chain.DBReadMode(Chain.SPECULATIVE), &PluginConfigException{},
-			"node cannot have any producer-name configured because block production is impossible when read_mode is not \"speculative\"" )
+			"node cannot have any producer-name configured because block production is impossible when read_mode is not \"speculative\"")
 
 		EosAssert(p.my.Producers.Len() == 0 || chain.GetValidationMode() == Chain.ValidationMode(Chain.FULL), &PluginConfigException{},
-			"node cannot have any producer-name configured because block production is not safe when validation_mode is not \"full\"" )
+			"node cannot have any producer-name configured because block production is not safe when validation_mode is not \"full\"")
 
 		//TODO if
 		// my->_accepted_block_connection.emplace(chain.accepted_block.connect( [this]( const auto& bsp ){ my->on_block( bsp ); } ));
@@ -275,6 +267,7 @@ func (p *ProducerPlugin) PluginStartup() {
 		p.my.ScheduleProductionLoop()
 
 		log.Info("producer plugin:  plugin_startup() end")
+
 	}).FcCaptureAndRethrow().End()
 }
 
@@ -354,15 +347,15 @@ func (p *ProducerPlugin) GetRuntimeOptions() RuntimeOptions {
 
 func (p *ProducerPlugin) AddGreylistAccounts(params GreylistParams) {
 	chain := Chain.GetControllerInstance()
-	for _, acc := range params.Accounts {
-		chain.AddResourceGreyList(&acc)
+	for _, acc := range params.Accounts.Data {
+		chain.AddResourceGreyList(acc.(*common.AccountName))
 	}
 }
 
 func (p *ProducerPlugin) RemoveGreylistAccounts(params GreylistParams) {
 	chain := Chain.GetControllerInstance()
-	for _, acc := range params.Accounts {
-		chain.RemoveResourceGreyList(&acc)
+	for _, acc := range params.Accounts.Data {
+		chain.RemoveResourceGreyList(acc.(*common.AccountName))
 	}
 }
 
@@ -370,9 +363,9 @@ func (p *ProducerPlugin) GetGreylist() GreylistParams {
 	chain := Chain.GetControllerInstance()
 	result := GreylistParams{}
 	list := chain.GetResourceGreyList()
-	result.Accounts = make([]common.AccountName, 0, len(list))
-	for acc := range list {
-		result.Accounts = append(result.Accounts, acc)
+	result.Accounts.Reserve(list.Len())
+	for _, acc := range list.Data {
+		result.Accounts.Insert(acc.(*common.AccountName))
 	}
 	return result
 }
@@ -414,8 +407,8 @@ func (p *ProducerPlugin) SetWhitelistBlacklist(params WhitelistAndBlacklist) {
 func failureIsSubjective(e Exception, deadlineIsSubjective bool) bool {
 	code := e.Code()
 	return (code == BlockCpuUsageExceeded{}.Code()) ||
-		   (code == BlockCpuUsageExceeded{}.Code()) ||
-		   (code == DeadlineException{}.Code() && deadlineIsSubjective)
+		(code == BlockCpuUsageExceeded{}.Code()) ||
+		(code == DeadlineException{}.Code() && deadlineIsSubjective)
 }
 
 func makeDebugTimeLogger() func() {

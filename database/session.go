@@ -7,15 +7,6 @@ type Session struct {
 	reversion int64
 }
 
-//func (session *Session) Commit(reversion int64) {
-//	if !session.apply {
-//		// log ?
-//		return
-//	}
-//	session.db.Commit(reversion)
-//	session.apply = false
-//}
-
 func (session *Session) Push() {
 	if session.db == nil {
 		return

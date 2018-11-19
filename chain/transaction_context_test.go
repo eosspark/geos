@@ -26,7 +26,7 @@ func TestContract(t *testing.T) {
 		}
 
 		control := GetControllerInstance()
-		blockTimeStamp := common.NewBlockTimeStamp(common.Now())
+		blockTimeStamp := types.NewBlockTimeStamp(common.Now())
 		control.StartBlock(blockTimeStamp, 0)
 
 		eosioToken := "eosio.token"
@@ -203,7 +203,7 @@ func CreateNewAccount(control *Controller, name string) {
 }
 
 func pushTransaction(control *Controller, trx *types.TransactionMetadata) {
-	control.PushTransaction(*trx, common.TimePoint(common.MaxMicroseconds()), 1000, true)
+	control.PushTransaction(trx, common.TimePoint(common.MaxMicroseconds()), 1000)
 }
 
 func newTransaction(control *Controller, action *types.Action, privateKey *ecc.PrivateKey) *types.TransactionMetadata {
@@ -246,7 +246,7 @@ func TestTransactionContextTest(t *testing.T) {
 
 		//set code
 		control := GetControllerInstance()
-		blockTimeStamp := common.NewBlockTimeStamp(common.Now())
+		blockTimeStamp := types.NewBlockTimeStamp(common.Now())
 		control.StartBlock(blockTimeStamp, 0)
 
 		account := "hello"
