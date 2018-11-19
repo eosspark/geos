@@ -13,11 +13,10 @@ type MultiIndex struct {
 	fieldName []byte
 	db        DataBase
 	it        DbIterator
-	greater   bool
 }
 
-func newMultiIndex(typeName, fieldName, begin, end []byte, greater bool, db DataBase) *MultiIndex {
-	return &MultiIndex{typeName: typeName, fieldName: fieldName, begin: begin, end: end, greater: greater, db: db}
+func newMultiIndex(typeName, fieldName, begin, end []byte, db DataBase) *MultiIndex {
+	return &MultiIndex{typeName: typeName, fieldName: fieldName, begin: begin, end: end, db: db}
 }
 
 /*
@@ -29,10 +28,11 @@ success 			-->		nil 	(Iterator valid)
 error 				-->		error 	(Iterator invalid)
 
 */
+
 func (index *MultiIndex) LowerBound(in interface{}) (Iterator, error) {
-	it, err := index.db.lowerBound(index.begin, index.end, index.fieldName, in, index.greater)
+	it, err := index.db.lowerBound(index.begin, index.end, index.fieldName, in)
 	if err != nil {
-		return index.db.EndIterator(index.begin, index.end,index.typeName,index.greater)
+		return index.db.EndIterator(index.begin, index.end, index.typeName)
 	}
 	return it, nil
 }
@@ -49,9 +49,9 @@ error 				-->		error 	(Iterator invalid)
 */
 
 func (index *MultiIndex) UpperBound(in interface{}) (Iterator, error) {
-	it, err := index.db.upperBound(index.begin, index.end, index.fieldName, in, index.greater)
+	it, err := index.db.upperBound(index.begin, index.end, index.fieldName, in)
 	if err != nil {
-		return index.db.EndIterator(index.begin, index.end,index.typeName,index.greater)
+		return index.db.EndIterator(index.begin, index.end, index.typeName)
 	}
 	return it, nil
 }
@@ -73,29 +73,6 @@ func (index *MultiIndex) Find(in interface{}, out interface{}) error {
 
 /*
 
-@param out 			--> 	output object(pointer)
-
-@return
-success 			-->		nil
-error 				-->		error
-
-*/
-
-func (index *MultiIndex) BeginData(out interface{}) error {
-	// TODO
-	it := index.Begin()
-	if it == nil {
-		return errors.New("MultiIndex BeginData : iterator is nil")
-	}
-	err :=     DecodeBytes(it.Value(), out)
-	if err != nil {
-		return errors.New("MultiIndex BeginData : " + err.Error())
-	}
-	return nil
-}
-
-/*
-
 --> it == idx.begin() <--
 
 @param in 			--> 	Iterator
@@ -107,11 +84,11 @@ error 				-->		false
 */
 
 func (index *MultiIndex) CompareBegin(in Iterator) bool {
-	if in == nil{
+	if in == nil {
 		return false
 	}
 	it := index.Begin()
-	return bytes.Compare(in.Value(),it.Value()) == 0
+	return bytes.Compare(in.Value(), it.Value()) == 0
 	//return it.Begin() == in.Begin()
 }
 
@@ -127,6 +104,7 @@ success 			-->		true
 error 				-->		false
 
 */
+
 func (index *MultiIndex) CompareIterator(it1 Iterator, it2 Iterator) bool {
 	if it1 == nil && it2 == nil {
 		return true
@@ -134,10 +112,10 @@ func (index *MultiIndex) CompareIterator(it1 Iterator, it2 Iterator) bool {
 	if it1 == nil || it2 == nil {
 		return false
 	}
-	if it1.Begin() && it2.Begin(){
+	if it1.Begin() && it2.Begin() {
 		return true
 	}
-	if it1.End() && it2.End(){
+	if it1.End() && it2.End() {
 		return true
 	}
 
@@ -155,8 +133,9 @@ success 			-->		true
 error 				-->		false
 
 */
+
 func (index *MultiIndex) CompareEnd(in Iterator) bool {
-	if in == nil{
+	if in == nil {
 		return false
 	}
 
@@ -175,7 +154,7 @@ error 				-->		nil
 
 func (index *MultiIndex) End() Iterator {
 	// TODO
-	it ,err := index.db.EndIterator(index.begin, index.end, index.typeName, index.greater)
+	it, err := index.db.EndIterator(index.begin, index.end, index.typeName)
 	if err != nil {
 		log.Println("MultiIndex End Error : ", err)
 		return nil
@@ -196,7 +175,7 @@ error 				-->		nil
 */
 
 func (index *MultiIndex) Begin() Iterator {
-	it, err := index.db.BeginIterator(index.begin, index.end, index.typeName, index.greater)
+	it, err := index.db.BeginIterator(index.begin, index.end, index.typeName)
 	if err != nil {
 		log.Println("MultiIndex Begin Error : ", err)
 		return nil
@@ -208,8 +187,31 @@ func (index *MultiIndex) Begin() Iterator {
 	return it
 }
 
+/*
+
+@param out 			--> 	output object(pointer)
+
+@return
+success 			-->		nil
+error 				-->		error
+
+*/
+
+func (index *MultiIndex) BeginData(out interface{}) error {
+	// TODO
+	it := index.Begin()
+	if it == nil {
+		return errors.New("MultiIndex BeginData : iterator is nil")
+	}
+	err := it.Data(out)
+	if err != nil {
+		return errors.New("MultiIndex BeginData : " + err.Error())
+	}
+	return nil
+}
+
 func (index *MultiIndex) IteratorTo(in interface{}) Iterator {
-	it, err := index.db.IteratorTo(index.begin, index.end, index.fieldName, in, index.greater)
+	it, err := index.db.IteratorTo(index.begin, index.end, index.fieldName, in)
 	if err != nil {
 		panic(err)
 		//log ?
@@ -221,3 +223,4 @@ func (index *MultiIndex) IteratorTo(in interface{}) Iterator {
 func (index *MultiIndex) Empty() bool {
 	return index.db.Empty(index.begin, index.end, index.fieldName)
 }
+

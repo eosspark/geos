@@ -136,7 +136,6 @@ func extractObjectTagInfo(s *reflect.Value, mi ...*structInfo) (*structInfo, err
 		s = &e
 	}
 
-
 	if s.Kind() != reflect.Struct {
 		return nil, ErrBadType
 	}
@@ -347,28 +346,36 @@ func structKV(in interface{}, dbKV *dbKeyValue, cfg *structInfo) error {
 		return err
 	}
 
-	idk := idKey(objId, []byte(cfg.Name))
+	idk := splicingString([]byte(cfg.Name),objId)
 	kv_ := kv{}
 	kv_.key = idk
 	kv_.value = objValue
 	dbKV.id = kv_
 	dbKV.typeName = []byte(cfg.Name)
 
-	cfgToKV(objId, cfg, dbKV)
+	err = cfgToKV(objId, cfg, dbKV)
+	if err != nil{
+		return err
+	}
 
 	return nil
 }
 
-func cfgToKV(objId []byte, cfg *structInfo, dbKV *dbKeyValue) {
+func cfgToKV(objId []byte, cfg *structInfo, dbKV *dbKeyValue) error{
 
 	typeName := []byte(cfg.Name)
 
 	for tag, fieldCfg := range cfg.Fields {
-		prefix := append(typeName, '_') /* 			typeName__ 				*/
+		prefix := append(typeName, '_') 					/* 			typeName__ 				*/
 		prefix = append(prefix, '_')
-		prefix = append(prefix, tag...) /* 			typeName__tagName__ 	*/
-		key := fieldValueToByte(prefix, fieldCfg)
-		if !fieldCfg.unique && len(fieldCfg.fieldValue) == 1 { /* 			non unique 				*/
+		prefix = append(prefix, tag...) 						/* 			typeName__tagName__ 	*/
+		key,err := fieldValueToByte(fieldCfg)
+		if err != nil{
+			return err
+		}
+		key = append(prefix,key...)
+
+		if !fieldCfg.unique && len(fieldCfg.fieldValue) == 1 { 	/* 			non unique 				*/
 			key = append(key, objId...)
 		}
 
@@ -377,4 +384,5 @@ func cfgToKV(objId []byte, cfg *structInfo, dbKV *dbKeyValue) {
 		kv_.value = objId
 		dbKV.index = append(dbKV.index, kv_)
 	}
+	return nil
 }
