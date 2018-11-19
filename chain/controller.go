@@ -118,7 +118,7 @@ func validPath() {
 		if os.IsNotExist(err) {
 			err := os.MkdirAll(d, os.ModePerm)
 			if err != nil {
-				log.Error("controller validPath mkdir failed![%v]\n", err)
+				log.Error("controller validPath mkdir failed![%v]\n", err.Error())
 			} else {
 				log.Error("controller validPath mkdir success![%v]\n", d)
 			}
@@ -130,7 +130,7 @@ func newController() *Controller {
 	//init db
 	db, err := database.NewDataBase(common.DefaultConfig.DefaultStateDirName)
 	if err != nil {
-		log.Error("newController is error :", err)
+		log.Error("newController is error :%s", err.Error())
 		return nil
 	}
 	//defer db.Close()
@@ -139,7 +139,7 @@ func newController() *Controller {
 	//reversibleDir := common.DefaultConfig.DefaultBlocksDirName + "/" + common.DefaultConfig.DefaultReversibleBlocksDirName
 	reversibleDB, err := database.NewDataBase(common.DefaultConfig.DefaultReversibleBlocksDirName)
 	if err != nil {
-		log.Error("newController init reversibleDB is error", err)
+		log.Error("newController init reversibleDB is error:%s", err.Error())
 	}
 	con := &Controller{InTrxRequiringChecks: false, RePlaying: false, TrustedProducerLightValidation: false}
 	con.DB = db
@@ -233,7 +233,7 @@ func (c *Controller) OnIrreversible(s *types.BlockState) {
 	bs := types.BlockState{}
 	ubi, err := c.ReversibleBlocks.GetIndex("byNum", &bs)
 	if err != nil {
-		log.Error("Controller OnIrreversible ReversibleBlocks.GetIndex is error:", err)
+		log.Error("Controller OnIrreversible ReversibleBlocks.GetIndex is error:%s", err.Error())
 	}
 	itr := ubi.Begin()
 	tbs := types.BlockState{}
@@ -258,7 +258,7 @@ func (c *Controller) PopBlock() {
 	errs := c.ReversibleBlocks.Find("NUM", c.Head.BlockNum, r)
 
 	if errs != nil {
-		log.Error("PopBlock ReversibleBlocks Find is error,detail:", errs)
+		log.Error("PopBlock ReversibleBlocks Find is error,detail:%s", errs.Error())
 	}
 	c.ReversibleBlocks.Remove(&r)
 
@@ -1530,7 +1530,7 @@ func (c *Controller) initializeDatabase() {
 		bso := entity.BlockSummaryObject{}
 		err := c.DB.Insert(&bso)
 		if err != nil {
-			log.Error("Controller initializeDatabase Insert BlockSummaryObject is error:%#v", err.Error())
+			log.Error("Controller initializeDatabase Insert BlockSummaryObject is error:%s", err.Error())
 		}
 	}
 	in := entity.BlockSummaryObject{}
