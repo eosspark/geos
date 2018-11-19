@@ -7,6 +7,7 @@ import (
 	"github.com/eosspark/eos-go/crypto"
 	"math"
 	"github.com/eosspark/eos-go/exception/try"
+	"github.com/eosspark/eos-go/log"
 )
 
 type BaseTester struct {
@@ -60,9 +61,8 @@ func (t BaseTester) close() {
 	t.ChainTransactions = make(map[common.IdType]types.TransactionReceipt)
 }
 
-func (t BaseTester) pushGenesisBlock() {
-	//t.setCode()
-	//t.setAbi()
+func (t BaseTester) IsSameChain(other *BaseTester) bool {
+	return t.Control.HeadBlockId() == other.Control.HeadBlockId()
 }
 
 func (t BaseTester) PushBlock(b *types.SignedBlock) *types.SignedBlock {
@@ -71,14 +71,75 @@ func (t BaseTester) PushBlock(b *types.SignedBlock) *types.SignedBlock {
 	return &types.SignedBlock{}
 }
 
-func (t BaseTester) ProduceBlock(skipTime common.TimePoint, skipPendingTrxs bool, skipFlag uint32) {
+func (t BaseTester) pushGenesisBlock() {
+	//t.setCode()
+	//t.setAbi()
+}
+
+func (t BaseTester) ProduceBlocks(n uint32, empty bool) {
+	if empty {
+		for i := 0; uint32(i) < n; i++ {
+			t.ProduceEmptyBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs), 0)
+		}
+	} else {
+		for i := 0; uint32(i) < n; i++ {
+			t.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs), 0)
+		}
+	}
+}
+
+func (t BaseTester) produceBlock(skipTime common.Microseconds, skipPendingTrxs bool, skipFlag uint32) *types.SignedBlock {
 	//head := t.Control.HeadBlockState()
-	//	//headTime := t.Control.HeadBlockTime()
-	//	//nextTime := headTime + skipTime
-	//	//
-	//	//if !t.Control.PendingBlockState() /*|| t.Control.PendingBlockState().Header.Timestamp != nextTime*/ {
-	//	//
-	//	//}
+	headTime := t.Control.HeadBlockTime()
+	nextTime := headTime + common.TimePoint(skipTime)
+
+	if common.Empty(t.Control.PendingBlockState()) || t.Control.PendingBlockState().Header.Timestamp != common.BlockTimeStamp(nextTime) {
+		t.startBlock(nextTime)
+	}
+	Hbs := t.Control.HeadBlockState()
+	producer := Hbs.GetScheduledProducer(common.BlockTimeStamp(nextTime))
+	privKey := ecc.PrivateKey{}
+	privateKey, ok  := t.BlockSigningPrivateKeys[producer.BlockSigningKey]
+	if !ok {
+		privKey = t.getPrivateKey(producer.ProducerName, "active")
+	} else {
+		privKey = privateKey
+	}
+
+	if !skipPendingTrxs {
+		unappliedTrxs := t.Control.GetUnAppliedTransactions()
+		for _, trx := range *unappliedTrxs {
+			trace := t.Control.pushTransaction(&trx, common.MaxTimePoint(), 0, false)
+			if !common.Empty(trace.Except) {
+				//trace.Except.DynamicRethrowException
+			}
+		}
+
+		//scheduledTrxs := t.Control.GetScheduledTransactions()
+		//for len(scheduledTrxs) > 0 {
+		//	for _, trx := range scheduledTrxs {
+		//		trace := t.Control.pushScheduledTransaction(&trx, common.MaxTimePoint(), 0, false)
+		//		if !common.Empty(trace.Except) {
+		//			//trace.Except.DynamicRethrowException
+		//		}
+		//	}
+		//}
+	}
+
+	t.Control.FinalizeBlock()
+	t.Control.SignBlock(func(d common.DigestType) ecc.Signature {
+		sign, err := privKey.Sign(d.Bytes())
+		if err != nil{
+			log.Error(err.Error())
+		}
+		return sign
+	})
+
+	return t.Control.HeadBlockState().SignedBlock
+}
+
+func (t BaseTester) startBlock(blockTime common.TimePoint) {
+
 }
 
 func (t BaseTester) SetTransactionHeaders(trx *types.Transaction, expiration uint32, delaySec uint32) {
@@ -161,3 +222,13 @@ func (t BaseTester) getPublicKey(keyName common.Name, role string) ecc.PublicKey
 	priKey := t.getPrivateKey(keyName, role)
 	return priKey.PublicKey()
 }
+
+func (t BaseTester) ProduceBlock(skipTime common.Microseconds, skipFlag uint32) *types.SignedBlock {
+	return t.produceBlock(skipTime, false, skipFlag)
+}
+
+func (t BaseTester) ProduceEmptyBlock(skipTime common.Microseconds, skipFlag uint32) *types.SignedBlock {
+	t.Control.AbortBlock()
+	return t.produceBlock(skipTime, true, skipFlag)
+}
+
