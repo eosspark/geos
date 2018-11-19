@@ -1,23 +1,22 @@
 package: github.com/eosspark/eos-go
 import:
-- package: github.com/Azure/azure-storage-go
 - package: github.com/docker/docker
-  version: v17.05.0-ce-rc3
+  version: ^17.5.0-ce-rc3
   subpackages:
   - pkg/reexec
 - package: github.com/eapache/channels
-  version: v1.1.0
+  version: ^1.1.0
 - package: github.com/fatih/color
-  version: v1.7.0
+  version: ^1.7.0
 - package: github.com/go-stack/stack
-  version: v1.8.0
+  version: ^1.8.0
 - package: github.com/mattn/go-colorable
-  version: v0.0.9
+  version: ^0.0.9
 - package: github.com/peterh/liner
-  version: v1.1.0
+  version: ^1.1.0
 - package: github.com/robertkrimen/otto
 - package: github.com/rs/cors
-  version: v1.6.0
+  version: ^1.6.0
 - package: github.com/syndtr/goleveldb
   subpackages:
   - leveldb
@@ -26,28 +25,27 @@ import:
   - leveldb/opt
   - leveldb/util
 - package: github.com/urfave/cli
-  version: v1.20.0
-- package: golang.org/x/crypto/openpgp
-- package: golang.org/x/crypto/ripemd160
-- package: golang.org/x/net/websocket
-- package: golang.org/x/sys/unix
+  version: ^1.20.0
+- package: golang.org/x/crypto
+  subpackages:
+  - ripemd160
+- package: golang.org/x/net
+  subpackages:
+  - websocket
 - package: gopkg.in/fatih/set.v0
-  version: v0.2.1
+  version: ^0.2.1
 - package: gopkg.in/natefinch/npipe.v2
 - package: gopkg.in/urfave/cli.v1
-  version: v1.20.0
+  version: ^1.20.0
+- package: github.com/eosspark/container
+  version: ^1.12.0
 testImport:
 - package: github.com/davecgh/go-spew
-  version: v1.1.1
+  version: ^1.1.1
   subpackages:
-  - spew
-- package: github.com/ethereum/go-ethereum
-  version: "2"
-  subpackages:
-  - common
-  - rpc
+  - spews
 - package: github.com/stretchr/testify
-  version: v1.2.2
+  version: ^1.2.2
   subpackages:
   - assert
   - require

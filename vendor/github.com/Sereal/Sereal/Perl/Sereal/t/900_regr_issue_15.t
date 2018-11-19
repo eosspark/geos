@@ -1,1 +1,0 @@
-../../Decoder/t/900_regr_issue_15.t

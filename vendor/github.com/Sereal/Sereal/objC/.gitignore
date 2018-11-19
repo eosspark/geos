@@ -1,9 +1,0 @@
-xcuserdata
-xcshareddata
-project.xcworkspace
-*.swp
-*.swo
-*~
-.DS_Store
-build/
-
