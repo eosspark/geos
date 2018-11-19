@@ -11,9 +11,9 @@ package treeset
 
 import (
 	"fmt"
-	"github.com/emirpasic/gods/sets"
-	rbt "github.com/emirpasic/gods/trees/redblacktree"
-	"github.com/emirpasic/gods/utils"
+	"github.com/eosspark/container/sets"
+	rbt "github.com/eosspark/container/trees/redblacktree"
+	"github.com/eosspark/container/utils"
 	"strings"
 )
 

@@ -15,8 +15,8 @@ package linkedhashset
 
 import (
 	"fmt"
-	"github.com/emirpasic/gods/lists/doublylinkedlist"
-	"github.com/emirpasic/gods/sets"
+	"github.com/eosspark/container/lists/doublylinkedlist"
+	"github.com/eosspark/container/sets"
 	"strings"
 )
 

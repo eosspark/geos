@@ -4,7 +4,7 @@
 
 package arraylist
 
-import "github.com/emirpasic/gods/containers"
+import "github.com/eosspark/container/containers"
 
 func assertEnumerableImplementation() {
 	var _ containers.EnumerableWithIndex = (*List)(nil)
