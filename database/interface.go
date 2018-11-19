@@ -29,14 +29,14 @@ type DataBase interface {
 
 	Revision() int64
 
-	lowerBound(key, value, typeName []byte, in interface{}, greater bool) (*DbIterator, error)
+	lowerBound(key, value, typeName []byte, in interface{}) (*DbIterator, error)
 
-	upperBound(key, value, typeName []byte, in interface{}, greater bool) (*DbIterator, error)
+	upperBound(key, value, typeName []byte, in interface{}) (*DbIterator, error)
 
-	IteratorTo(begin, end, fieldName []byte, in interface{}, greater bool) (*DbIterator, error)
+	IteratorTo(begin, end, fieldName []byte, in interface{}) (*DbIterator, error)
 
-	BeginIterator(begin, end,  typeName []byte, greater bool) (*DbIterator, error)
-	EndIterator(begin, end,  typeName []byte, greater bool) (*DbIterator, error)
+	BeginIterator(begin, end, typeName []byte) (*DbIterator, error)
+	EndIterator(begin, end, typeName []byte) (*DbIterator, error)
 
 	squash()
 }
