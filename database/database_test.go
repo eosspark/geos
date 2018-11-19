@@ -437,6 +437,103 @@ func Test_Squash(t *testing.T) {
 	}
 }
 
+func Test_undoAll(t *testing.T) {
+	db, clo := openDb()
+	if db == nil {
+		log.Fatalln("db open failed")
+	}
+	defer clo()
+
+	//////////////////////////////////////////////	ready
+	objs, _ := Objects()
+	for i := 0; i < 3; i++ {
+		err := db.Insert(&objs[i])
+		if err != nil {
+			log.Println(err)
+		}
+	}
+	idx, err := db.GetIndex("Code", DbTableIdObject{})
+	if err != nil {
+		log.Println(err)
+	}
+	it, err := idx.LowerBound(DbTableIdObject{Code: 12})
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	table := DbTableIdObject{}
+	tmp :=  objs[1]
+	tmp.ID = 2
+	i := 1
+	for it.Next() {
+		it.Data(&table)
+		if objs[i] != table {
+			logObj(objs[i])
+			logObj(table)
+			log.Fatalln("undo failed")
+		}
+		i++
+	}
+
+
+	session := db.StartSession()
+	err = db.Remove(&table) 	/*	id --> 3 */
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	session_ := db.StartSession()
+	err = db.Remove(&tmp) 		/*	id --> 2*/
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	beginIt, err := idx.LowerBound(DbTableIdObject{Code: 11})
+	if err != nil {
+		log.Fatalln(err)
+	}
+	i = 0
+	for beginIt.Next() {
+		table := DbTableIdObject{}
+		beginIt.Data(&table)
+		if objs[i] != table {
+			logObj(objs[i])
+			logObj(table)
+			log.Fatalln("undo failed")
+		}
+		i++
+	}
+	if i != 1 {
+		log.Println(i)
+		log.Fatalln("undo failed")
+	}
+
+
+	session.Squash()
+
+
+	 defer session.Undo() 	// undo
+
+	 defer session_.Undo() 		/* after squash undo all */
+	 db.UndoAll()
+	/////////////////////////////////////////// end
+	endIt, err := idx.LowerBound(DbTableIdObject{Code: 11})
+	if err != nil {
+		log.Fatalln(err)
+	}
+	i = 0
+	for endIt.Next() {
+		table := DbTableIdObject{}
+		endIt.Data(&table)
+		if objs[i] != table {
+			logObj(objs[i])
+			logObj(table)
+			log.Fatalln("undo failed")
+		}
+		i++
+	}
+}
+
 func Test_iteratorTo(t *testing.T) {
 	db, clo := openDb()
 	if db == nil {
