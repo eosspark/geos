@@ -19,8 +19,8 @@ package btree
 import (
 	"bytes"
 	"fmt"
-	"github.com/emirpasic/gods/trees"
-	"github.com/emirpasic/gods/utils"
+	"github.com/eosspark/container/trees"
+	"github.com/eosspark/container/utils"
 	"strings"
 )
 

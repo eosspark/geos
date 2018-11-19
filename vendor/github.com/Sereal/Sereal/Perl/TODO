@@ -1,8 +1,0 @@
-- PV vs. IV vs. NV choices (defaulting to PV if necessary now)
-- float sizes
-- float dumping endianness
-- checksumming?
-
-- optimize dumpiv?
-- NUMLIST?
-

@@ -5,8 +5,8 @@
 package main
 
 import (
-	sll "github.com/emirpasic/gods/lists/singlylinkedlist"
-	"github.com/emirpasic/gods/utils"
+	sll "github.com/eosspark/container/lists/singlylinkedlist"
+	"github.com/eosspark/container/utils"
 )
 
 // SinglyLinkedListExample to demonstrate basic usage of SinglyLinkedList

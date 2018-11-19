@@ -4,7 +4,7 @@
 
 package linkedliststack
 
-import "github.com/emirpasic/gods/containers"
+import "github.com/eosspark/container/containers"
 
 func assertSerializationImplementation() {
 	var _ containers.JSONSerializer = (*Stack)(nil)
