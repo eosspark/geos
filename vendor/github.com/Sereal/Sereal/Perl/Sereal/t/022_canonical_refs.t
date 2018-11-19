@@ -1,1 +1,0 @@
-../../Encoder/t/022_canonical_refs.t
