@@ -1,13 +1,13 @@
 package database
 
 import (
-	"bytes"
 	"github.com/syndtr/goleveldb/leveldb"
-	"github.com/syndtr/goleveldb/leveldb/util"
 	"log"
 	"os"
 	"testing"
 )
+
+var logFlag = false
 
 func Test_rawDb(t *testing.T) {
 	//f, err := os.Create("./cpu.txt")
@@ -42,7 +42,7 @@ func Test_rawDb(t *testing.T) {
 		log.Fatalln("ERROR")
 	}
 	keys := [][]byte{}
-	for i := 1; i <= 10; i++ {
+	for i := 1; i <= 720000; i++ {
 		key := []byte(string(i))
 		key = append(key, key...)
 		keys = append(keys, key)
@@ -50,20 +50,7 @@ func Test_rawDb(t *testing.T) {
 	for _, v := range keys {
 		db.Put(v, v, nil)
 	}
-	if bytes.HasPrefix(keys[0], []byte(string(1))) {
-		//fmt.Println(keys[0],[]byte(string(1)))
-	}
 
-	it := db.NewIterator(&util.Range{Start: []byte(string(5)), Limit: nil}, nil)
-	if it.Seek([]byte(string(2))) {
-		//fmt.Println("---------")
-	}
-	//fmt.Println(it.Value(),it.Key())
-	for it.Next() {
-
-		//fmt.Println(it.Value(),it.Key())
-	}
-	it.Release()
 }
 
 func Test_open(t *testing.T) {
@@ -82,7 +69,7 @@ func Test_insert(t *testing.T) {
 	}
 	defer clo()
 
-	objs, houses := Objects()
+	objs, houses := multiObjects()
 	if len(objs) != len(houses) {
 		log.Fatalln("ERROR")
 	}
@@ -942,7 +929,7 @@ func openDb() (DataBase, func()) {
 		reFn()
 	}
 
-	db, err := NewDataBase(fileName, false)
+	db, err := NewDataBase(fileName, logFlag)
 	if err != nil {
 
 		log.Fatalln("new database failed : ", err)
@@ -953,6 +940,30 @@ func openDb() (DataBase, func()) {
 		db.Close()
 		reFn()
 	}
+}
+
+
+
+func multiObjects() ([]DbTableIdObject, []DbHouse) {
+	objs := []DbTableIdObject{}
+	DbHouses := []DbHouse{}
+	for i := 1; i <= 30000; i++ {
+		number := i * 10
+		obj := DbTableIdObject{Code: AccountName(number + 1), Scope: ScopeName(number + 2), Table: TableName(number + 3 + i + 1), Payer: AccountName(number + 4 + i + 1), Count: uint32(number + 5)}
+		objs = append(objs, obj)
+		house := DbHouse{Area: uint64(number + 7), Carnivore: Carnivore{number + 7, number + 7}}
+		DbHouses = append(DbHouses, house)
+		obj = DbTableIdObject{Code: AccountName(number + 2), Scope: ScopeName(number + 2), Table: TableName(number + 3 + i + 2), Payer: AccountName(number + 4 + i + 2), Count: uint32(number + 5)}
+		objs = append(objs, obj)
+		house = DbHouse{Area: uint64(number + 8), Carnivore: Carnivore{number + 8, number + 8}}
+		DbHouses = append(DbHouses, house)
+
+		obj = DbTableIdObject{Code: AccountName(number + 3), Scope: ScopeName(number + 2), Table: TableName(number + 3 + i + 3), Payer: AccountName(number + 4 + i + 3), Count: uint32(number + 5)}
+		objs = append(objs, obj)
+		house = DbHouse{Area: uint64(number + 9), Carnivore: Carnivore{number + 9, number + 9}}
+		DbHouses = append(DbHouses, house)
+	}
+	return objs, DbHouses
 }
 
 func Objects() ([]DbTableIdObject, []DbHouse) {

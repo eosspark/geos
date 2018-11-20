@@ -125,6 +125,9 @@ func (ldb *LDataBase) writeIncrementToDb() error {
 		ldb.log.Error("WriteIncrement saveKey failed is : %s", err.Error())
 		return err
 	}
+	if ldb.count > 0{
+		ldb.log.Info("db count is %d",ldb.count)
+	}
 	return nil
 }
 
@@ -311,6 +314,7 @@ func (ldb *LDataBase) insertKvToBatch(dbKV *dbKeyValue) error {
 	ldb.log.Info("Info kv database insertKvToDb dbKV is : %v", dbKV)
 	ldb.batch.Reset()
 	for _, v := range dbKV.index {
+		ldb.count++
 		ldb.batch.Put(v.key, v.value)
 	}
 
