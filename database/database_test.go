@@ -1,13 +1,13 @@
 package database
 
 import (
-	"bytes"
 	"github.com/syndtr/goleveldb/leveldb"
-	"github.com/syndtr/goleveldb/leveldb/util"
 	"log"
 	"os"
 	"testing"
 )
+
+var logFlag = false
 
 func Test_rawDb(t *testing.T) {
 	//f, err := os.Create("./cpu.txt")
@@ -42,7 +42,7 @@ func Test_rawDb(t *testing.T) {
 		log.Fatalln("ERROR")
 	}
 	keys := [][]byte{}
-	for i := 1; i <= 10; i++ {
+	for i := 1; i <= 720000; i++ {
 		key := []byte(string(i))
 		key = append(key, key...)
 		keys = append(keys, key)
@@ -50,20 +50,7 @@ func Test_rawDb(t *testing.T) {
 	for _, v := range keys {
 		db.Put(v, v, nil)
 	}
-	if bytes.HasPrefix(keys[0], []byte(string(1))) {
-		//fmt.Println(keys[0],[]byte(string(1)))
-	}
 
-	it := db.NewIterator(&util.Range{Start: []byte(string(5)), Limit: nil}, nil)
-	if it.Seek([]byte(string(2))) {
-		//fmt.Println("---------")
-	}
-	//fmt.Println(it.Value(),it.Key())
-	for it.Next() {
-
-		//fmt.Println(it.Value(),it.Key())
-	}
-	it.Release()
 }
 
 func Test_open(t *testing.T) {
@@ -82,7 +69,7 @@ func Test_insert(t *testing.T) {
 	}
 	defer clo()
 
-	objs, houses := Objects()
+	objs, houses := multiObjects()
 	if len(objs) != len(houses) {
 		log.Fatalln("ERROR")
 	}
@@ -326,6 +313,198 @@ func Test_undoRemove(t *testing.T) {
 		log.Println(err)
 	}
 	endIt, err := endUndo.LowerBound(DbTableIdObject{Code: 11})
+	if err != nil {
+		log.Fatalln(err)
+	}
+	i = 0
+	for endIt.Next() {
+		table := DbTableIdObject{}
+		endIt.Data(&table)
+		if objs[i] != table {
+			logObj(objs[i])
+			logObj(table)
+			log.Fatalln("undo failed")
+		}
+		i++
+	}
+}
+
+func Test_Squash(t *testing.T) {
+	db, clo := openDb()
+	if db == nil {
+		log.Fatalln("db open failed")
+	}
+	defer clo()
+
+	//////////////////////////////////////////////	ready
+	objs, _ := Objects()
+	for i := 0; i < 3; i++ {
+		err := db.Insert(&objs[i])
+		if err != nil {
+			log.Println(err)
+		}
+	}
+	idx, err := db.GetIndex("Code", DbTableIdObject{})
+	if err != nil {
+		log.Println(err)
+	}
+	it, err := idx.LowerBound(DbTableIdObject{Code: 12})
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	table := DbTableIdObject{}
+	tmp :=  objs[1]
+	tmp.ID = 2
+	i := 1
+	for it.Next() {
+		it.Data(&table)
+		if objs[i] != table {
+			logObj(objs[i])
+			logObj(table)
+			log.Fatalln("undo failed")
+		}
+		i++
+	}
+
+
+	session := db.StartSession()
+	err = db.Remove(&table) 	/*	id --> 3 */
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	session_ := db.StartSession()
+	err = db.Remove(&tmp) 		/*	id --> 2*/
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	beginIt, err := idx.LowerBound(DbTableIdObject{Code: 11})
+	if err != nil {
+		log.Fatalln(err)
+	}
+	i = 0
+	for beginIt.Next() {
+		table := DbTableIdObject{}
+		beginIt.Data(&table)
+		if objs[i] != table {
+			logObj(objs[i])
+			logObj(table)
+			log.Fatalln("undo failed")
+		}
+		i++
+	}
+	if i != 1 {
+		log.Println(i)
+		log.Fatalln("undo failed")
+	}
+
+
+	session.Squash()
+
+
+	 defer session.Undo() 	// undo
+	 session_.Undo() 		/* after squash undo all */
+	/////////////////////////////////////////// end
+	endIt, err := idx.LowerBound(DbTableIdObject{Code: 11})
+	if err != nil {
+		log.Fatalln(err)
+	}
+	i = 0
+	for endIt.Next() {
+		table := DbTableIdObject{}
+		endIt.Data(&table)
+		if objs[i] != table {
+			logObj(objs[i])
+			logObj(table)
+			log.Fatalln("undo failed")
+		}
+		i++
+	}
+}
+
+func Test_undoAll(t *testing.T) {
+	db, clo := openDb()
+	if db == nil {
+		log.Fatalln("db open failed")
+	}
+	defer clo()
+
+	//////////////////////////////////////////////	ready
+	objs, _ := Objects()
+	for i := 0; i < 3; i++ {
+		err := db.Insert(&objs[i])
+		if err != nil {
+			log.Println(err)
+		}
+	}
+	idx, err := db.GetIndex("Code", DbTableIdObject{})
+	if err != nil {
+		log.Println(err)
+	}
+	it, err := idx.LowerBound(DbTableIdObject{Code: 12})
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	table := DbTableIdObject{}
+	tmp :=  objs[1]
+	tmp.ID = 2
+	i := 1
+	for it.Next() {
+		it.Data(&table)
+		if objs[i] != table {
+			logObj(objs[i])
+			logObj(table)
+			log.Fatalln("undo failed")
+		}
+		i++
+	}
+
+
+	session := db.StartSession()
+	err = db.Remove(&table) 	/*	id --> 3 */
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	session_ := db.StartSession()
+	err = db.Remove(&tmp) 		/*	id --> 2*/
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	beginIt, err := idx.LowerBound(DbTableIdObject{Code: 11})
+	if err != nil {
+		log.Fatalln(err)
+	}
+	i = 0
+	for beginIt.Next() {
+		table := DbTableIdObject{}
+		beginIt.Data(&table)
+		if objs[i] != table {
+			logObj(objs[i])
+			logObj(table)
+			log.Fatalln("undo failed")
+		}
+		i++
+	}
+	if i != 1 {
+		log.Println(i)
+		log.Fatalln("undo failed")
+	}
+
+
+	session.Squash()
+
+
+	 defer session.Undo() 	// undo
+
+	 defer session_.Undo() 		/* after squash undo all */
+	 db.UndoAll()
+	/////////////////////////////////////////// end
+	endIt, err := idx.LowerBound(DbTableIdObject{Code: 11})
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -750,7 +929,7 @@ func openDb() (DataBase, func()) {
 		reFn()
 	}
 
-	db, err := NewDataBase(fileName, false)
+	db, err := NewDataBase(fileName, logFlag)
 	if err != nil {
 
 		log.Fatalln("new database failed : ", err)
@@ -761,6 +940,30 @@ func openDb() (DataBase, func()) {
 		db.Close()
 		reFn()
 	}
+}
+
+
+
+func multiObjects() ([]DbTableIdObject, []DbHouse) {
+	objs := []DbTableIdObject{}
+	DbHouses := []DbHouse{}
+	for i := 1; i <= 30000; i++ {
+		number := i * 10
+		obj := DbTableIdObject{Code: AccountName(number + 1), Scope: ScopeName(number + 2), Table: TableName(number + 3 + i + 1), Payer: AccountName(number + 4 + i + 1), Count: uint32(number + 5)}
+		objs = append(objs, obj)
+		house := DbHouse{Area: uint64(number + 7), Carnivore: Carnivore{number + 7, number + 7}}
+		DbHouses = append(DbHouses, house)
+		obj = DbTableIdObject{Code: AccountName(number + 2), Scope: ScopeName(number + 2), Table: TableName(number + 3 + i + 2), Payer: AccountName(number + 4 + i + 2), Count: uint32(number + 5)}
+		objs = append(objs, obj)
+		house = DbHouse{Area: uint64(number + 8), Carnivore: Carnivore{number + 8, number + 8}}
+		DbHouses = append(DbHouses, house)
+
+		obj = DbTableIdObject{Code: AccountName(number + 3), Scope: ScopeName(number + 2), Table: TableName(number + 3 + i + 3), Payer: AccountName(number + 4 + i + 3), Count: uint32(number + 5)}
+		objs = append(objs, obj)
+		house = DbHouse{Area: uint64(number + 9), Carnivore: Carnivore{number + 9, number + 9}}
+		DbHouses = append(DbHouses, house)
+	}
+	return objs, DbHouses
 }
 
 func Objects() ([]DbTableIdObject, []DbHouse) {

@@ -6,7 +6,7 @@ package linkedhashset
 
 import (
 	"encoding/json"
-	"github.com/emirpasic/gods/containers"
+	"github.com/eosspark/container/containers"
 )
 
 func assertSerializationImplementation() {

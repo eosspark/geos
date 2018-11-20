@@ -61,17 +61,22 @@ func (f *ForkDatabase) AddBlockState(b *types.BlockState) *types.BlockState {
 		log.Error("ForkDatabase AddBlockState insert is error:%#v", b)
 	}
 	try.EosAssert(ok, &exception.ForkDatabaseException{}, "ForkDB AddBlockState Is Error:", ok)
+	idx := f.multiIndexFork.GetIndex("byLibBlockNum")
+	if idx != nil {
+		result, err := idx.Begin()
+		if err != nil {
+			log.Error("ForkDatabase AddBlockState multiIndexFork Begin is error:%#v", err.Error())
+		}
+		f.Head = result
+		lib := f.Head.DposIrreversibleBlocknum
+		oldest, err := f.multiIndexFork.GetIndex("byLibBlockNum").Begin()
+		if oldest.BlockNum < lib {
+			f.Prune(oldest)
+		}
+	} else {
+		try.EosAssert(idx != nil, &exception.ForkDatabaseException{}, "ForkDatabase AddBlockState multiIndexFork Begin is not found!")
+	}
 
-	result, err := f.multiIndexFork.GetIndex("byLiBlockNum").Begin()
-	if err != nil {
-		log.Error("ForkDatabase AddBlockState multiIndexFork Begin is error:%#v", err.Error())
-	}
-	f.Head = result
-	lib := f.Head.DposIrreversibleBlocknum
-	oldest, err := f.multiIndexFork.GetIndex("byLibBlockNum").Begin()
-	if oldest.BlockNum < lib {
-		f.Prune(oldest)
-	}
 	return b
 }
 func (f *ForkDatabase) AddSignedBlockState(signedBlock *types.SignedBlock, trust bool) *types.BlockState {

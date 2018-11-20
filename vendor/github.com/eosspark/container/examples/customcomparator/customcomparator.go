@@ -6,7 +6,7 @@ package main
 
 import (
 	"fmt"
-	"github.com/emirpasic/gods/sets/treeset"
+	"github.com/eosspark/container/sets/treeset"
 )
 
 // User model (id and name)

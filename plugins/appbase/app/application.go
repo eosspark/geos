@@ -2,6 +2,7 @@ package app
 
 import (
 	. "github.com/eosspark/eos-go/plugins/appbase/app/include"
+	. "github.com/eosspark/eos-go/plugins/chain_interface/include/eosio/chain"
 	"github.com/urfave/cli"
 	. "github.com/eosspark/eos-go/exception"
 	"fmt"
@@ -26,12 +27,13 @@ type application struct {
 	Plugins            map[string]Plugin //< all registered plugins
 	initializedPlugins []Plugin         //< stored in the order they were started running
 	runningPlugins     []Plugin          //<  stored in the order they were started running
+	channels		   map[ChannelsType]*Signal
 }
 
 
 var appImpl = &applicationImpl{Version, cli.NewApp(), "", ""}
 
-var App = &application{appImpl, make(map[string]Plugin), make([]Plugin, 0), make([]Plugin, 0)}
+var App = &application{appImpl, make(map[string]Plugin), make([]Plugin, 0), make([]Plugin, 0),make(map[ChannelsType]*Signal)}
 
 func (app *application) RegisterPlugin(plugin Plugin) Plugin {
 	if p, existing := app.Plugins[plugin.GetName()]; existing {
@@ -45,7 +47,6 @@ func setProgramOptions() {
 	for _,v := range App.Plugins {
 		v.SetProgramOptions(App.My.Options)
 	}
-
 	App.My.Options.Flags = []cli.Flag{
 		cli.IntFlag{
 			Name:  "port, p",
@@ -129,6 +130,16 @@ func (app *application) InitializeImpl(p []Plugin) (r bool) {
 	return true
 }
 
+func GetChannel (channelType ChannelsType) *Signal{
+	if v,ok := App.channels[channelType];ok {
+		return v
+	}else {
+		channel := new(Signal)
+		App.channels[channelType]=channel
+		return channel
+	}
+}
+
 func (app *application) PluginInitialized(p Plugin) {
 	app.initializedPlugins = append(app.initializedPlugins, p)
 }
@@ -138,7 +149,7 @@ func (app *application) PluginStarted(p Plugin) {
 }
 
 func (app *application) StartUp() {
-	for i,_ := range app.initializedPlugins {
+	for i := range app.initializedPlugins {
 		app.initializedPlugins[i].StartUp()
 	}
 }
@@ -164,17 +175,21 @@ func FindPlugin(name string) (plugin Plugin) {
 	return nil
 }
 
-func (app *application) SetVersion(Version uint64) {
-	App.My.Version = Version
-}
 
-func (app *application) FindPlugin(name string) (a *AbstractPlugin) {
-
-	return nil
+func GetPlugin(name string) (plugin Plugin){
+	p :=FindPlugin(name)
+	if p == nil {
+		fmt.Println("unable to find plugin")//need to fix
+	}
+	return p
 }
 
 func GetVersion() uint64 {
 	return App.My.Version
+}
+
+func (app *application) SetVersion(Version uint64) {
+	App.My.Version = Version
 }
 
 func (app *application) SetDefaultConfigDir() {

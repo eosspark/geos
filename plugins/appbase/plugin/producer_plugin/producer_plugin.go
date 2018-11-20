@@ -8,6 +8,10 @@ import (
 
 //var Producer app.Plugin = app.Instance.RegisterPlugin(app.Plugin{1,"producer_plugin"}) //使用后便会被加载
 
+
+
+
+
 type ProducerPlugin struct {
 	AbstractPlugin
 }
