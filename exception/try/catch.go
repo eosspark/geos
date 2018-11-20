@@ -104,7 +104,7 @@ func (c *CatchOrFinally) End() {
 }
 
 func (c *CatchOrFinally) printStackInfo() {
-	log.Debug(string(c.stackInfo))
+	log.Error(string(c.stackInfo))
 }
 
 //Finally always be called if defined.
