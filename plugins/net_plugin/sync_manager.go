@@ -60,40 +60,19 @@ type transactionState struct {
 	requestedTime   common.TimePoint
 }
 
-/*func (trx *transactionState) Getkey() []byte {
-	return trx.id.Bytes()
-}*/
+// typedef multi_index_container<
+//    transaction_state,
+//    indexed_by<
+//       ordered_unique< tag<by_id>, member<transaction_state, transaction_id_type, &transaction_state::id > >,
+//       ordered_non_unique< tag< by_expiry >, member< transaction_state,fc::time_point_sec,&transaction_state::expires >>,
+//       ordered_non_unique<
+//          tag<by_block_num>,
+//          member< transaction_state,
+//                  uint32_t,
+//                  &transaction_state::block_num > >
+//       >
 
-type updateTxnExpiry struct {
-	newExpiry common.TimePointSec
-}
-
-func (u *updateTxnExpiry) updateTxnExpiry(e common.TimePointSec) {
-	u.newExpiry = e
-}
-
-func (u *updateTxnExpiry) operator(ts *transactionState) { //TODO operator()??
-	ts.expires = u.newExpiry
-}
-
-/*typedef multi_index_container<
-transaction_state,
-indexed_by<
-ordered_unique< tag<by_id>, member<transaction_state, transaction_id_type, &transaction_state::id > >,
-ordered_non_unique< tag< by_expiry >, member< transaction_state,fc::time_point_sec,&transaction_state::expires >>,
-ordered_non_unique<
-tag<by_block_num>,
-member< transaction_state,
-uint32_t,
-&transaction_state::block_num > >
->
-
-> transaction_state_index;
-*/
-
-var transactionStateIndexByID map[common.TransactionIdType]transactionState
-var transactionStateIndexByExpiry map[common.TimePointSec]transactionState
-var transactionStateIndexByBlockNum map[uint32]transactionState
+//    > transaction_state_index;
 
 type peerBlockState struct {
 	id          common.BlockIdType
@@ -103,131 +82,13 @@ type peerBlockState struct {
 	requestTime common.TimePoint
 }
 
-/*func (p *peerBlockState) Getkey() []byte {
-	return p.id.Bytes()
-}*/
-
-/*
-struct update_request_time {
-void operator() (struct transaction_state &ts) {
-ts.requested_time = time_point::now();
-}
-void operator () (struct eosio::peer_block_state &bs) {
-bs.requested_time = time_point::now();
-}
-} set_request_time;
-*/
-type updateRequestTime struct { //TODO func()
-
-}
-
-func (u *updateRequestTime) operator1(ts *transactionState) { //TODO operator1
-	ts.requestedTime = common.Now()
-}
-func (u *updateRequestTime) operator2(bs *peerBlockState) { //TODO operator2
-	bs.requestTime = common.Now()
-}
-
-var setRequestTime updateRequestTime
-
-/*
-typedef multi_index_container<
-eosio::peer_block_state,
-indexed_by<
-ordered_unique< tag<by_id>, member<eosio::peer_block_state, block_id_type, &eosio::peer_block_state::id > >,
-ordered_unique< tag<by_block_num>, member<eosio::peer_block_state, uint32_t, &eosio::peer_block_state::block_num > >
->
-> peer_block_state_index;
-*/
-
-var peerBlockStateIndexbyID map[common.BlockIdType]peerBlockState
-var peerBlockStateIndexbyBlockNum map[uint32]peerBlockState
-
-type updateKnownByPeer struct {
-}
-
-func (u *updateKnownByPeer) operator1(bs *peerBlockState) { //TODO operator1
-	bs.isKnown = true
-}
-func (u *updateKnownByPeer) operator2(ts *transactionState) { //TODO operator2
-	ts.isKnownByPeer = true
-}
-
-/*
-struct update_known_by_peer {
-void operator() (eosio::peer_block_state& bs) {
-bs.is_known = true;
-}
-void operator() (transaction_state& ts) {
-ts.is_known_by_peer = true;
-}
-} set_is_known;
-*/
-
-var setIsKnown updateKnownByPeer
-
-type updateBlockNum struct {
-	newBnum uint32
-}
-
-func NewupdateBlockNum(bnum uint32) *updateBlockNum {
-	return &updateBlockNum{bnum}
-
-}
-
-func (u *updateBlockNum) operator1(nts *nodeTransactionState) { //TODO operator1
-	if nts.request != 0 {
-		nts.trueBlock = u.newBnum
-	} else {
-		nts.blockNum = u.newBnum
-	}
-}
-
-func (u *updateBlockNum) operator2(ts *transactionState) { //TODO operator2
-	ts.blockNum = u.newBnum
-}
-
-func (u *updateBlockNum) operator3(pbs *peerBlockState) { //TODO operator3
-	pbs.blockNum = u.newBnum
-}
-
-/*
-struct update_block_num {
-uint32_t new_bnum;
-update_block_num(uint32_t bnum) : new_bnum(bnum) {}
-void operator() (node_transaction_state& nts) {
-if (nts.requests ) {
-nts.true_block = new_bnum;
-}
-else {
-nts.block_num = new_bnum;
-}
-}
-void operator() (transaction_state& ts) {
-ts.block_num = new_bnum;
-}
-void operator() (peer_block_state& pbs) {
-pbs.block_num = new_bnum;
-}
-};
-*/
-
-//Index by start_block_num
-type syncState struct {
-	startBlock uint32
-	endBlock   uint32
-	last       uint32           //last sent or received
-	startTime  common.TimePoint //time request made or received
-}
-
-func newSyncState(start, end, lastActed uint32) *syncState {
-	return &syncState{
-		startBlock: start,
-		endBlock:   end,
-		last:       lastActed,
-		startTime:  common.Now(),
-	}
-}
+// typedef multi_index_container<
+//    eosio::peer_block_state,
+//    indexed_by<
+//       ordered_unique< tag<by_id>, member<eosio::peer_block_state, block_id_type, &eosio::peer_block_state::id > >,
+//       ordered_unique< tag<by_block_num>, member<eosio::peer_block_state, uint32_t, &eosio::peer_block_state::block_num > >
+//       >
+//    > peer_block_state_index;
 
 type nodeTransactionState struct {
 	id            common.TransactionIdType
@@ -236,8 +97,31 @@ type nodeTransactionState struct {
 	serializedTxn common.HexBytes // the received raw bundle
 	blockNum      uint32          // block transaction was included in
 	trueBlock     uint32          // used to reset block_uum when request is 0
-	request       uint16          // the number of "in flight" requests for this txn
+	requests      uint16          // the number of "in flight" requests for this txn
 }
+
+// typedef multi_index_container<
+//    node_transaction_state,
+//    indexed_by<
+//       ordered_unique<
+//          tag< by_id >,
+//          member < node_transaction_state,
+//                   transaction_id_type,
+//                   &node_transaction_state::id > >,
+//       ordered_non_unique<
+//          tag< by_expiry >,
+//          member< node_transaction_state,
+//                  fc::time_point_sec,
+//                  &node_transaction_state::expires >
+//          >,
+//       ordered_non_unique<
+//          tag<by_block_num>,
+//          member< node_transaction_state,
+//                  uint32_t,
+//                  &node_transaction_state::block_num > >
+//       >
+//    >
+// node_transaction_index;
 
 func (n *nodeTransactionState) ElementObject() {}
 
@@ -313,77 +197,22 @@ func CompareByExpiry(first common.ElementObject, second common.ElementObject) in
 	}
 }
 
-type updateInFlight struct {
-	incr int32
+//Index by start_block_num
+type syncState struct {
+	startBlock uint32
+	endBlock   uint32
+	last       uint32           //last sent or received
+	startTime  common.TimePoint //time request made or received
 }
 
-func newUpdateInFlight(delta int32) *updateInFlight {
-	return &updateInFlight{
-		incr: delta,
+func newSyncState(start, end, lastActed uint32) *syncState {
+	return &syncState{
+		startBlock: start,
+		endBlock:   end,
+		last:       lastActed,
+		startTime:  common.Now(),
 	}
 }
-func (u *updateInFlight) operator(nts *nodeTransactionState) {
-	exp := nts.expires.SecSinceEpoch()
-	nts.expires = common.NewTimePointSecTp(common.TimePoint(exp + uint32(u.incr*60)))
-	if nts.request == 0 {
-		nts.trueBlock = nts.blockNum
-		nts.blockNum = 0
-	}
-	nts.request += uint16(u.incr) //TODO int32 -> uint16
-	if nts.request == 0 {
-		nts.blockNum = nts.trueBlock
-	}
-}
-
-//incrInFlight := newUpdateInFlight(1)
-//decrInFlight := newUpdateInFlight(-1)
-
-/*
-struct update_in_flight {
-int32_t incr;
-update_in_flight (int32_t delta) : incr (delta) {}
-void operator() (node_transaction_state& nts) {
-int32_t exp = nts.expires.sec_since_epoch();
-nts.expires = fc::time_point_sec (exp + incr * 60);
-if( nts.requests == 0 ) {
-nts.true_block = nts.block_num;
-nts.block_num = 0;
-}
-nts.requests += incr;
-if( nts.requests == 0 ) {
-nts.block_num = nts.true_block;
-}
-}
-} incr_in_flight(1), decr_in_flight(-1);
-*/
-
-/*
-struct by_expiry;
-struct by_block_num;
-
-typedef multi_index_container<
-node_transaction_state,
-indexed_by<
-ordered_unique<
-tag< by_id >,
-member < node_transaction_state,
-transaction_id_type,
-&node_transaction_state::id > >,
-ordered_non_unique<
-tag< by_expiry >,
-member< node_transaction_state,
-fc::time_point_sec,
-&node_transaction_state::expires >
->,
-ordered_non_unique<
-tag<by_block_num>,
-member< node_transaction_state,
-uint32_t,
-&node_transaction_state::block_num > >
->
->
-node_transaction_index;
-*/
 
 type stages byte
 
@@ -554,8 +383,8 @@ func (s *syncManager) requestNextChunk(myImpl *netPluginIMpl, p *Peer) {
 		if end > 0 && end >= start {
 			//fc_ilog(logger, "requesting range ${s} to ${e}, from ${n}",
 			//	("n",source->peer_name())("s",start)("e",end));
-			//netlog.Info("requesting range %s to %d, from %d\n", s.source.peerAddr, start, end)
-			//s.source.requestSyncBlocks(start, end)
+			netlog.Info("requesting range %s to %d, from %d\n", s.source.peerAddr, start, end)
+			s.source.requestSyncBlocks(start, end)
 			p.requestSyncBlocks(start, end)
 			s.syncLastRequestedNum = end
 
@@ -608,7 +437,7 @@ func (s *syncManager) recvHandshake(myImpl *netPluginIMpl, p *Peer, msg *Handsha
 		note.KnownBlocks.Mode = none
 		note.KnownTrx.Mode = catchUp
 		//note.KnownTrx.Pending = my_impl->local_txns.size()//TODO
-		note.KnownTrx.Pending = 0
+		note.KnownBlocks.Pending = uint32(len(myImpl.localTxns.indexs)) //TODO
 		p.write(&note)
 		return
 
@@ -673,9 +502,7 @@ func (s *syncManager) startSync(myImpl *netPluginIMpl, p *Peer, target uint32) {
 		//s.syncNextExpectedNum = 99 + 1 //TODO  chain_plug->chain().last_irreversible_block_num() + 1
 		s.syncNextExpectedNum = p.lastHandshakeSent.HeadNum + 1
 	}
-	//   wlog("Catching up with chain, our last req is ${cc}, theirs is ${t} peer ${p}",
-	//           ( "cc",sync_last_requested_num)("t",target)("p",c->peer_name()));
-	netlog.Info("Catching up with chain, our last req is %d, theirs is %d peer %s", +s.syncLastRequestedNum, target, p.peerAddr)
+	netlog.Warn("Catching up with chain, our last req is %d, theirs is %d peer %s", +s.syncLastRequestedNum, target, p.peerAddr)
 
 	s.requestNextChunk(myImpl, p)
 }

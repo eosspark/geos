@@ -114,7 +114,6 @@ func (s *Server) RegisterName(name string, rcvr interface{}) error {
 	if len(svc.callbacks) == 0 && len(svc.subscriptions) == 0 {
 		return fmt.Errorf("Service %T doesn't have any suitable methods/subscriptions to expose", rcvr)
 	}
-	log.Info("svc : %#v", svc)
 	s.services[svc.name] = svc
 	return nil
 }
