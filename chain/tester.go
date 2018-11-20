@@ -9,6 +9,7 @@ import (
 	"github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/log"
 	"github.com/eosspark/eos-go/crypto/rlp"
+	"github.com/eosspark/eos-go/entity"
 )
 
 type BaseTester struct {
@@ -352,4 +353,26 @@ func (t BaseTester) GetTransactionReceipt(txId *common.IdType) *types.Transactio
 	val, _ := t.ChainTransactions[*txId]
 	return &val
 }
+
+func (t BaseTester) GetCurrencyBalance(code *common.AccountName, assetSymbol *common.Symbol, account *common.AccountName) common.Asset{
+	db := t.Control.DB
+	table := entity.TableIdObject{Code:*code, Scope:*account, Table:common.TableName(*account)}
+	err := db.Find("byCodeScopeTable", table, &table)
+	result := int64(0)
+	if err != nil{
+		log.Error("GetCurrencyBalance is error: %s", err)
+	} else {
+		//TODO
+		//obj := entity.KeyValueObject{ID:table.ID,assetSymbol.ToSymbolCode().value}
+		obj := entity.KeyValueObject{}
+		err := db.Find("byScopePrimary", obj, &obj)
+		if err != nil {
+			log.Error("GetCurrencyBalance is error: %s", err)
+		} else {
+			//TODO
+		}
+	}
+	return common.Asset{Amount:result, Symbol:*assetSymbol}
+}
+
 
