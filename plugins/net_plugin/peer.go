@@ -4,12 +4,14 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/eosspark/eos-go/exception"
-	"github.com/eosspark/eos-go/exception/try"
+	. "github.com/eosspark/eos-go/exception/try"
+	"github.com/eosspark/eos-go/log"
 	"io"
 	"net"
 	"reflect"
@@ -22,9 +24,9 @@ const (
 )
 
 type Peer struct {
-	//blkState peerBlockStateIndex
-	//trxState transactionStateIndex
-	//peerRequested optional<syncState>//this peer is requesting info from us
+	blkState      *multiIndexNet
+	trxState      *multiIndexNet
+	peerRequested *syncState //this peer is requesting info from us
 	//socket socketPtr
 
 	connection           net.Conn
@@ -73,6 +75,10 @@ type PeerStatus struct {
 
 func NewPeer(conn net.Conn, reader io.Reader) *Peer {
 	return &Peer{
+		blkState:      newPeerBlockStatueIndex(),
+		trxState:      newTransactionStateIndex(),
+		peerRequested: new(syncState),
+
 		connection:         conn,
 		reader:             reader,
 		peerAddr:           conn.RemoteAddr().String(),
@@ -102,7 +108,9 @@ func (p *Peer) current() bool {
 }
 
 func (p *Peer) reset() {
-
+	p.peerRequested = nil //TODO
+	p.blkState.clear()
+	p.trxState.clear()
 }
 
 func (p *Peer) close() {
@@ -157,7 +165,7 @@ func handshakePopulate(impl *netPluginIMpl, hello *HandshakeMessage) {
 	//hello.LastIrreversibleBlockID = hello.LastIrreversibleBlockID
 
 	if hello.LastIrreversibleBlockNum > 0 {
-		try.Try(func() {
+		Try(func() {
 			//hello.LastIrreversibleBlockID = cc.get_block_id_for_num(hello.last_irreversible_block_num)
 			//hello.LastIrreversibleBlockID =
 		}).Catch(func(ex exception.UnknownBlockException) {
@@ -167,7 +175,7 @@ func handshakePopulate(impl *netPluginIMpl, hello *HandshakeMessage) {
 		}).End()
 	}
 	if hello.HeadNum > 0 {
-		try.Try(func() {
+		Try(func() {
 			//hello.id = cc.get_block_id_for_num( hello.head_num )
 			//hello.id =
 		}).Catch(func(ex exception.UnknownBlockException) {
@@ -210,7 +218,7 @@ func (p *Peer) cancelSync(reason GoAwayReason) {
 	//fc_dlog(logger,"cancel sync reason = ${m}, write queue size ${o} peer ${p}",
 	//	("m",reason_str(reason)) ("o", write_queue.size())("p", peer_name()));
 
-	fmt.Println("cancel sync reason = %s, write queue size %d peer %s\n", ReasonToString[reason], p.write)
+	netlog.Debug("cancel sync reason = %s, write queue size %d peer %s", ReasonToString[reason], p.write)
 
 	p.cancelWait()
 	//p.flushQueues()
@@ -220,19 +228,271 @@ func (p *Peer) cancelSync(reason GoAwayReason) {
 		p.write(&GoAwayMessage{Reason: reason})
 	default:
 		//fc_dlog(logger, "sending empty request but not calling sync wait on ${p}", ("p",peer_name()))
-		fmt.Println("sending empty request but not calling sync wait on %s\n", p.peerAddr)
+		netlog.Debug("sending empty request but not calling sync wait on %s", p.peerAddr)
 		p.write(&SyncRequestMessage{0, 0})
 	}
 
 }
 
-//void txn_send_pending(const vector<transaction_id_type> &ids);
-//void txn_send(const vector<transaction_id_type> &txn_lis);
-//
-//void blk_send_branch();
-//void blk_send(const vector<block_id_type> &txn_lis);
-//void stop_send();
-//
+func (p *Peer) txnSendPending(impl *netPluginIMpl, ids []*common.TransactionIdType) {
+	for tx := impl.localTxns.getIndex("by_id").begin(); tx.next(); {
+		nts := tx.value.(*nodeTransactionState)
+
+		if len(nts.serializedTxn) != 0 && nts.blockNum == 0 {
+			found := false
+			for _, known := range ids {
+				if *known == nts.id {
+					found = true
+					break
+				}
+			}
+			if !found {
+				impl.localTxns.modify(nts, true, func(in common.ElementObject) {
+					re := in.(*nodeTransactionState)
+					exp := re.expires.SecSinceEpoch()
+					re.expires = common.TimePointSec(exp + 1*60)
+					if re.requests == 0 {
+						re.trueBlock = re.blockNum
+						re.blockNum = 0
+					}
+					re.requests += 1
+					if re.requests == 0 {
+						re.blockNum = re.trueBlock
+					}
+				})
+
+				//queue_write(std::make_shared<vector<char>>(tx->serialized_txn),
+				//	true,
+				//	[tx_id=tx->id](boost::system::error_code ec, std::size_t ) {
+				//auto& local_txns = my_impl->local_txns;
+				//auto tx = local_txns.get<by_id>().find(tx_id);
+				//if (tx != local_txns.end()) {
+				//local_txns.modify(tx, decr_in_flight);
+				//} else {
+				//fc_wlog(logger, "Local pending TX erased before queued_write called callback");
+				//}
+				//});
+
+			}
+		}
+	}
+
+}
+
+func (p *Peer) txnSend(impl *netPluginIMpl, ids []common.TransactionIdType) {
+	for _, t := range ids {
+		tx := impl.localTxns.getIndex("by_id").findLocalTrxById(t)
+		if tx != nil && len(tx.serializedTxn) != 0 {
+			//my_impl->local_txns.modify( tx,incr_in_flight);
+			impl.localTxns.modify(tx, true, func(in common.ElementObject) {
+				re := in.(*nodeTransactionState)
+				exp := re.expires.SecSinceEpoch()
+				re.expires = common.TimePointSec(exp + 1*60)
+				if re.requests == 0 {
+					re.trueBlock = re.blockNum
+					re.blockNum = 0
+				}
+				re.requests += 1
+				if re.requests == 0 {
+					re.blockNum = re.trueBlock
+				}
+			})
+			//queue_write(std::make_shared<vector<char>>(tx->serialized_txn),
+			//		 true,
+			//		 [t](boost::system::error_code ec, std::size_t ) {
+			//			auto& local_txns = my_impl->local_txns;
+			//			auto tx = local_txns.get<by_id>().find(t);
+			//			if (tx != local_txns.end()) {
+			//			   local_txns.modify(tx, decr_in_flight);
+			//			} else {
+			//			   fc_wlog(logger, "Local TX erased before queued_write called callback");
+			//			}
+			//		 });
+		}
+	}
+
+}
+
+// void connection::blk_send_branch() {
+//       controller &cc = my_impl->chain_plug->chain();
+//       uint32_t head_num = cc.fork_db_head_block_num ();
+//       notice_message note;
+//       note.known_blocks.mode = normal;
+//       note.known_blocks.pending = 0;
+//       fc_dlog(logger, "head_num = ${h}",("h",head_num));
+//       if(head_num == 0) {
+//          enqueue(note);
+//          return;
+//       }
+//       block_id_type head_id;
+//       block_id_type lib_id;
+//       uint32_t lib_num;
+//       try {
+//          lib_num = cc.last_irreversible_block_num();
+//          lib_id = cc.last_irreversible_block_id();
+//          head_id = cc.fork_db_head_block_id();
+//       }
+//       catch (const assert_exception &ex) {
+//          elog( "unable to retrieve block info: ${n} for ${p}",("n",ex.to_string())("p",peer_name()));
+//          enqueue(note);
+//          return;
+//       }
+//       catch (const fc::exception &ex) {
+//       }
+//       catch (...) {
+//       }
+
+//       vector<signed_block_ptr> bstack;
+//       block_id_type null_id;
+//       for (auto bid = head_id; bid != null_id && bid != lib_id; ) {
+//          try {
+//             signed_block_ptr b = cc.fetch_block_by_id(bid);
+//             if ( b ) {
+//                bid = b->previous;
+//                bstack.push_back(b);
+//             }
+//             else {
+//                break;
+//             }
+//          } catch (...) {
+//             break;
+//          }
+//       }
+//       size_t count = 0;
+//       if (!bstack.empty()) {
+//          if (bstack.back()->previous == lib_id) {
+//             count = bstack.size();
+//             while (bstack.size()) {
+//                enqueue(*bstack.back());
+//                bstack.pop_back();
+//             }
+//          }
+//          fc_ilog(logger, "Sent ${n} blocks on my fork",("n",count));
+//       } else {
+//          fc_ilog(logger, "Nothing to send on fork request");
+//       }
+
+//       syncing = false;
+//    }
+
+func (p *Peer) blk_send_branch() {
+
+	//controller &cc = my_impl->chain_plug->chain();
+	//uint32_t head_num = cc.fork_db_head_block_num ();
+	var headNum uint32
+
+	var note NoticeMessage
+
+	note.KnownBlocks.Mode = normal
+	note.KnownBlocks.Pending = 0
+	log.Debug("head_num = %d", headNum)
+	if headNum == 0 {
+		//enqueue(note)TODO
+		return
+	}
+
+	var headID common.BlockIdType
+	var libID common.BlockIdType
+	//var libNum uint32
+	Try(func() {
+		//libNum = cc.last_irreversible_block_num()
+		//libID = cc.last_irreversible_block_id()
+		//headID = cc.fork_db_head_block_id()
+	}).Catch(func(ex exception.AssertException) {
+		log.Error("unable to retrieve block info: %s for %s", ex.What(), p.peerAddr)
+		p.write(&note)
+		return
+	}).Catch(func(ex exception.Exception) {
+
+	}).Catch(func(interface{}) {}).End()
+
+	var bstack []*types.SignedBlock
+	var nullID common.BlockIdType
+	breaking := false
+	for bid := headID; bid != nullID && bid != libID; {
+		Try(func() {
+			var b *types.SignedBlock
+			//b :=cc.fetch_block_by_id(bid)
+			if b != nil {
+				bid = b.Previous
+				bstack = append(bstack, b)
+			} else {
+				breaking = true
+				return
+			}
+		}).Catch(func(interface{}) {
+			breaking = true
+			return
+		}).End()
+
+		if breaking {
+			break
+		}
+	}
+
+	//if (!bstack.empty()) {
+	//   if (bstack.back()->previous == lib_id) {
+	//      count = bstack.size();
+	//      while (bstack.size()) {
+	//         enqueue(*bstack.back());
+	//         bstack.pop_back();
+	//      }
+	//   }
+	//   fc_ilog(logger, "Sent ${n} blocks on my fork",("n",count));
+	//}
+	count := len(bstack)
+	if count != 0 {
+		if bstack[count-1].Previous == libID {
+			for count != 1 {
+				p.write(&SignedBlockMessage{*bstack[count-1]})
+				count -= 1
+			}
+		}
+		log.Info("Sent %d blocks on my fork", len(bstack))
+	} else {
+		log.Info("Nothing to send on fork request")
+	}
+	p.syncing = false
+
+}
+
+func (p *Peer) blkSend(impl *netPluginIMpl, ids []common.BlockIdType) {
+	//    controller &cc = my_impl->chain_plug->chain();
+	var count int
+	breaking := false
+	for _, blkid := range ids {
+		count += 1
+		Try(func() {
+			var b *types.SignedBlock
+			//signed_block_ptr b = cc.fetch_block_by_id(blkid);
+			if b != nil {
+				netlog.Debug("found block for id ar num %d", b.BlockNumber())
+				//enqueue(net_message(*b))//TODO
+				p.write(&SignedBlockMessage{*b})
+			} else {
+				netlog.Info("fetch block by id returned null, id %s on block %d of %d for %s",
+					blkid, count, len(ids), p.peerAddr)
+				breaking = true
+			}
+		}).Catch(func(ex exception.AssertException) {
+			netlog.Error("caught assert on fetch_block_by_id, %s, id %s on block %d of %d for %s",
+				ex.What(), blkid, count, len(ids), p.peerAddr)
+			breaking = true
+		}).Catch(func(interface{}) {
+			netlog.Error("caught others exception fetching block id %s on block %d of %d for %s",
+				blkid, count, len(ids), p.peerAddr)
+			breaking = true
+		})
+		if breaking {
+			break
+		}
+	}
+}
+
+func (p *Peer) stopSend() {
+	p.syncing = false
+}
+
 //void enqueue( const net_message &msg, bool trigger_send = true );
 //void cancel_sync(go_away_reason);
 //void flush_queues();
@@ -302,23 +562,31 @@ func (p *Peer) sendTimeTicker() {
 	p.write(xpkt)
 }
 
-func (p *Peer) addPeerBlock(entry *peerBlockState) bool { //TODO
-	//auto bptr = blk_state.get<by_id>().find(entry.id);
-	//bool added = (bptr == blk_state.end());
-	//if (added){
-	//	blk_state.insert(entry);
-	//}
-	//else {
-	//blk_state.modify(bptr,set_is_known);
-	//if (entry.block_num == 0) {
-	//blk_state.modify(bptr,update_block_num(entry.block_num));
-	//}
-	//else {
-	//blk_state.modify(bptr,set_request_time);
-	//}
-	//}
-	//return added;
-	return false
+func (p *Peer) addPeerBlock(entry *peerBlockState) bool {
+	bptr := p.blkState.getIndex("by_id").findPeerById(entry.id)
+	added := bptr == nil
+	if added {
+		p.blkState.insertPeerBlock(entry)
+	} else {
+		p.blkState.modify(bptr, false, func(in common.ElementObject) {
+			re := in.(*peerBlockState)
+			re.isKnown = true
+		})
+
+		if entry.blockNum == 0 {
+			p.blkState.modify(bptr, true, func(in common.ElementObject) {
+				re := in.(*peerBlockState)
+				re.blockNum = entry.blockNum
+			})
+		} else {
+			p.blkState.modify(bptr, false, func(in common.ElementObject) {
+				re := in.(*peerBlockState)
+				re.requestTime = common.Now()
+			})
+		}
+	}
+
+	return added
 }
 
 func (p *Peer) read(impl *netPluginIMpl) {
@@ -328,7 +596,7 @@ func (p *Peer) read(impl *netPluginIMpl) {
 	}()
 
 	impl.loopWG.Add(1)
-	fmt.Println("start read message!")
+	netlog.Info("start read message!")
 
 	for {
 		p2pMessage, err := ReadP2PMessageData(p.reader)
@@ -428,7 +696,7 @@ func (p *Peer) write(message P2PMessage) {
 	if err != nil {
 		fmt.Println(err)
 	}
-	fmt.Println(p.peerAddr, ": send Message json:", string(data))
+	netlog.Info("%s: send Message json: %s", p.peerAddr, string(data))
 
 	return
 }

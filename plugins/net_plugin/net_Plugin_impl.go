@@ -52,7 +52,8 @@ type netPluginIMpl struct {
 
 	useSocketReadWatermark bool
 
-	LocalTxns []string //TODO NodeTransactionIndex
+	//LocalTxns []string //TODO NodeTransactionIndex
+	localTxns *multiIndexNet
 
 	peers      map[string]*Peer
 	syncMaster *syncManager
@@ -84,6 +85,8 @@ func NewNetPluginIMpl() *netPluginIMpl {
 		dispatcher:                 NewDispatchManager(),
 		privateKeys:                make(map[ecc.PublicKey]ecc.PrivateKey),
 		quitNetImpl:                make(chan struct{}),
+		localTxns:                  newNodeTransactionIndex(),
+		peers:                      make(map[string]*Peer),
 	}
 }
 
@@ -94,7 +97,7 @@ func (impl *netPluginIMpl) startListenLoop() {
 		fmt.Println(err)
 		//errChan <- fmt.Errorf("peer init: listening %s: %s", p.Address, err)
 	}
-	fmt.Println("Listening on: ", impl.ListenEndpoint)
+	netlog.Info("Listening on: %s", impl.ListenEndpoint)
 
 	defer func() {
 		impl.loopWG.Done()
@@ -241,9 +244,83 @@ func (impl *netPluginIMpl) startTxnTimer() {
 		}
 	}
 }
+
+// void net_plugin_impl::expire_txns() {
+//    start_txn_timer( );
+//    auto &old = local_txns.get<by_expiry>();
+//    auto ex_up = old.upper_bound( time_point::now());
+//    auto ex_lo = old.lower_bound( fc::time_point_sec( 0));
+//    old.erase( ex_lo, ex_up);
+
+//    auto &stale = local_txns.get<by_block_num>();
+//    controller &cc = chain_plug->chain();
+//    uint32_t bn = cc.last_irreversible_block_num();
+//    stale.erase( stale.lower_bound(1), stale.upper_bound(bn) );
+//    for ( auto &c : connections ) {
+//       auto &stale_txn = c->trx_state.get<by_block_num>();
+//       stale_txn.erase( stale_txn.lower_bound(1), stale_txn.upper_bound(bn) );
+//       auto &stale_txn_e = c->trx_state.get<by_expiry>();
+//       stale_txn_e.erase(stale_txn_e.lower_bound(time_point_sec()), stale_txn_e.upper_bound(time_point::now()));
+//       auto &stale_blk = c->blk_state.get<by_block_num>();
+//       stale_blk.erase( stale_blk.lower_bound(1), stale_blk.upper_bound(bn) );
+//    }
+// }
+
 func (impl *netPluginIMpl) expireTxns() {
 	//fmt.Println("startTxnTimer():  ", "cleanup expired txns ", impl.txnExpPeriod)
 
+	//impl.startTxnTimer()
+	old := impl.localTxns.getIndex("by_expiry")
+	a := nodeTransactionState{
+		expires: common.NewTimePointSecTp(common.Now()),
+	}
+	exUp := old.upperBound(&a)
+	a.expires = common.TimePointSec(0)
+	exLo := old.lowerBound(&a)
+	impl.localTxns.eraseRegion(exLo.currentSub, exUp.currentSub, "by_expiry")
+
+	stale := impl.localTxns.getIndex("by_block_num")
+	//    controller &cc = chain_plug->chain();
+	//    uint32_t bn = cc.last_irreversible_block_num();//TODO
+	var bn uint32
+	a.blockNum = bn
+	numUp := stale.upperBound(&a)
+	a.blockNum = 1
+	numLo := stale.lowerBound(&a)
+	impl.localTxns.eraseRegion(numLo.currentSub, numUp.currentSub, "by_block_num")
+
+	for _, p := range impl.peers {
+		//       auto &stale_txn = c->trx_state.get<by_block_num>();
+		//       stale_txn.erase( stale_txn.lower_bound(1), stale_txn.upper_bound(bn) );
+		staleTxn := p.trxState.getIndex("by_block_num")
+		txn := transactionState{
+			blockNum: 1,
+		}
+		txnLo := staleTxn.lowerBound(&txn)
+		txn.blockNum = bn
+		txnUp := staleTxn.upperBound(&txn)
+		p.trxState.eraseRegion(txnLo.currentSub, txnUp.currentSub, "by_block_num")
+
+		//       auto &stale_txn_e = c->trx_state.get<by_expiry>();//TODO "by_expiry"
+		//       stale_txn_e.erase(stale_txn_e.lower_bound(time_point_sec()), stale_txn_e.upper_bound(time_point::now()));
+		txn.expires = common.NewTimePointSecTp(0)
+		txnELo := staleTxn.lowerBound(&txn)
+		txn.expires = common.NewTimePointSecTp(common.Now())
+		txnEUp := staleTxn.upperBound(&txn)
+		p.trxState.eraseRegion(txnELo.currentSub, txnEUp.currentSub, "by_expiry")
+
+		//       auto &stale_blk = c->blk_state.get<by_block_num>();
+		//       stale_blk.erase( stale_blk.lower_bound(1), stale_blk.upper_bound(bn) );
+		staleBlk := p.blkState.getIndex("by_block_num")
+		pbs := peerBlockState{
+			blockNum: 1,
+		}
+		pbsLo := staleBlk.lowerBound(&pbs)
+		pbs.blockNum = bn
+		pbsUp := staleBlk.upperBound(&pbs)
+		p.blkState.eraseRegion(pbsLo.currentSub, pbsUp.currentSub, "by_block_num")
+
+	}
 }
 
 // ticker Peer heartbeat
@@ -570,15 +647,16 @@ func (impl *netPluginIMpl) handleNoticeMsg(p *Peer, msg *NoticeMessage) {
 			//plan to get all except what we already know about
 			req.ReqTrx.Mode = catchUp
 			sendReq = true
-			//knownSum := local_txns.size()
-			//if( known_sum ) {
-			//	for( const auto& t : local_txns.get<by_id>( ) ) {
-			//	req.req_trx.ids.push_back( t.id )
-			//	}
-			//}
+			knownSum := len(impl.localTxns.indexs)
+			if knownSum != 0 {
+				for _, t := range impl.localTxns.getIndex("by_id").value.Data { //TODO
+					trx := t.(*nodeTransactionState)
+					req.ReqTrx.IDs = append(req.ReqTrx.IDs, &trx.id)
+				}
+			}
 		}
 	case normal:
-		//np.Dispatcher.recvNotice(p,msg,false)
+		impl.dispatcher.recvNotice(impl, p, msg, false)
 	}
 
 	if msg.KnownBlocks.Mode != none {
@@ -626,7 +704,7 @@ func (impl *netPluginIMpl) handleRequestMsg(p *Peer, msg *RequestMessage) {
 
 	switch msg.ReqTrx.Mode {
 	case catchUp:
-		//c.txnSendPending(msg.ReqTrx.IDs)
+		p.txnSendPending(impl, msg.ReqTrx.IDs)
 
 	case normal:
 		//c.txnSend(msg.ReqTrx.IDs)
@@ -669,8 +747,8 @@ func (impl *netPluginIMpl) handleSignedBlock(p *Peer, msg *SignedBlockMessage) {
 	//cc := chain_plug->chain()
 	blkID := msg.BlockID()
 	blkNum := msg.BlockNumber()
-	//netlog.Info("canceling wait on %s\n",p.peerAddr)
-	//p.CancalWait()
+	netlog.Info("canceling wait on %s\n", p.peerAddr)
+	p.cancelWait()
 
 	//Try(func() {
 	//	//if cc.FetchBlockByID(blkID) {
@@ -716,24 +794,36 @@ func (impl *netPluginIMpl) handleSignedBlock(p *Peer, msg *SignedBlockMessage) {
 	//chain_plug.accept_block(msg)
 	reason = noReason
 
-	//ubn :=NewupdateBlockNum(blkNum)
 	if reason == noReason {
-		//var id common.TransactionIdType
-		//for _,recp := range msg.Transactions{
-		//	if recp.Trx.TransactionID == common.TransactionIdType(*crypto.NewSha256Nil()){//TODO
-		//		id = recp.Trx.TransactionID
-		//	}else{
-		//       id = recp.Trx.PackedTransaction.ID()
-		//	}
-		//	//auto ltx = local_txns.get<by_id>().find(id);
-		//	//if( ltx != local_txns.end()) {
-		//	//	local_txns.modify( ltx, ubn );
-		//	//}
-		//	//auto ctx = c->trx_state.get<by_id>().find(id);
-		//	//if( ctx != c->trx_state.end()) {
-		//	//	c->trx_state.modify( ctx, ubn );
-		//	//}
-		//}
+		var id common.TransactionIdType
+		for _, recp := range msg.Transactions {
+			if recp.Trx.TransactionID == common.TransactionIdType(*crypto.NewSha256Nil()) { //TODO
+				id = recp.Trx.TransactionID
+			} else {
+				id = recp.Trx.PackedTransaction.ID()
+			}
+
+			ltx := impl.localTxns.getIndex("by_id").findLocalTrxById(id)
+			if ltx != nil {
+				impl.localTxns.modify(ltx, true, func(in common.ElementObject) {
+					nts := in.(*nodeTransactionState)
+					if nts.requests != 0 {
+						nts.trueBlock = blkNum
+					} else {
+						nts.blockNum = blkNum
+					}
+				})
+			}
+
+			ctx := p.trxState.getIndex("by_id").findTrxById(id)
+			if ctx != nil {
+				p.trxState.modify(ctx, true, func(in common.ElementObject) {
+					ts := in.(*transactionState)
+					ts.blockNum = blkNum
+				})
+			}
+		}
+
 		impl.syncMaster.recvBlock(impl, p, blkID, blkNum)
 	} else {
 		impl.syncMaster.rejectedBlock(impl, p, blkNum)
@@ -743,26 +833,25 @@ func (impl *netPluginIMpl) handleSignedBlock(p *Peer, msg *SignedBlockMessage) {
 
 func (impl *netPluginIMpl) handlePackTransaction(p *Peer, msg *PackedTransactionMessage) {
 	netlog.Info(": %s receive packed transaction", p.peerAddr)
-	tid := msg.ID()
-	fmt.Println(tid)
 
-	//peer_ilog(c, "received packed_transaction");
 	//controller& cc = my_impl->chain_plug->chain();
 	//if( cc.get_read_mode() == eosio::db_read_mode::READ_ONLY ) {
 	//fc_dlog(logger, "got a txn in read-only mode - dropping");
 	//return;
 	//}
-	//if( sync_master->is_active(c) ) {
-	//	fc_dlog(logger, "got a txn during sync - dropping");
-	//	return;
-	//}
-	//transaction_id_type tid = msg.id();
-	//c->cancel_wait();
-	//if(local_txns.get<by_id>().find(tid) != local_txns.end()) {
-	//	fc_dlog(logger, "got a duplicate transaction - dropping");
-	//	return;
-	//}
-	//dispatcher->recv_transaction(c, tid);
+
+	if impl.syncMaster.isActive(p) {
+		netlog.Info("got a txn during sync - dropping")
+		return
+	}
+	tid := msg.ID()
+	fmt.Println(tid)
+	p.cancelWait()
+	if impl.localTxns.getIndex("by_id").findLocalTrxById(tid) != nil {
+		netlog.Info("got a duplicate transaction - dropping")
+		return
+	}
+	impl.dispatcher.recvTransaction(p, &tid)
 	//chain_plug->accept_transaction(msg, [=](const static_variant<fc::exception_ptr, transaction_trace_ptr>& result) {
 	//if (result.contains<fc::exception_ptr>()) {
 	//peer_dlog(c, "bad packed_transaction : ${m}", ("m",result.get<fc::exception_ptr>()->what()));
@@ -779,6 +868,7 @@ func (impl *netPluginIMpl) handlePackTransaction(p *Peer, msg *PackedTransaction
 	//
 	//dispatcher->rejected_transaction(tid);
 	//});
+
 }
 
 func (impl *netPluginIMpl) findConnection(host string) *Peer {

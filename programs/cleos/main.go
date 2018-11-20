@@ -8,12 +8,14 @@ import (
 )
 
 func main() {
+	//done := make(chan bool)
 	app := cli.NewApp()
 	app.Commands = []cli.Command{
 		walletCommand,
 		accountCommand,
 		getCommand,
 		SignCommand,
+		consoleCommand,
 	}
 	sort.Sort(cli.CommandsByName(app.Commands))
 	sort.Sort(cli.FlagsByName(app.Flags))
@@ -32,5 +34,7 @@ func main() {
 		fmt.Fprintln(os.Stderr, err)
 		os.Exit(1)
 	}
+
+	//<-done
 
 }

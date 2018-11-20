@@ -7,7 +7,7 @@ import (
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto/ecc"
-	"github.com/eosspark/eos-go/crypto/rlp"
+
 	"github.com/eosspark/eos-go/programs/cleos/utils"
 	"gopkg.in/urfave/cli.v1"
 	"time"
@@ -253,37 +253,38 @@ func createAccount(ctx *cli.Context) (err error) {
 
 // ./accountcmd create account -creator eosio -name walker -ownerkey EOS7vnBoERUwrqeRTfot79xhwFvWsTjhg1YU9KA5hinAYMETREWYT -activekey EOS7vnBoERUwrqeRTfot79xhwFvWsTjhg1YU9KA5hinAYMETREWYT
 func createNewAccount(creatorstr, newaccountstr string, owner, active ecc.PublicKey) *types.Action {
-	creator := common.N(creatorstr)
-	accountName := common.N(newaccountstr)
-	ownerauthority := &types.Authority{
-		Threshold: 1,
-		Keys:      []types.KeyWeight{{Key: owner, Weight: 1}},
-	}
-	activeauthority := &types.Authority{
-		Threshold: 1,
-		Keys:      []types.KeyWeight{{Key: active, Weight: 1}},
-	}
-
-	var auth = []types.PermissionLevel{{common.AccountName(creator), common.PermissionName(common.DefaultConfig.ActiveName)}} //TODO -p
-
-	newaccount := &types.NewAccount{
-		Creator: common.AccountName(creator),
-		Name:    common.AccountName(accountName),
-		Owner:   *ownerauthority,
-		Active:  *activeauthority,
-	}
-
-	data, err := rlp.EncodeToBytes(newaccount)
-	if err != nil {
-		panic("create new account error")
-	}
-
-	return &types.Action{
-		Account:       newaccount.GetAccount(),
-		Name:          newaccount.GetName(),
-		Authorization: auth,
-		Data:          data,
-	}
+	//creator := common.N(creatorstr)
+	//accountName := common.N(newaccountstr)
+	//ownerauthority := &types.Authority{
+	//	Threshold: 1,
+	//	Keys:      []types.KeyWeight{{Key: owner, Weight: 1}},
+	//}
+	//activeauthority := &types.Authority{
+	//	Threshold: 1,
+	//	Keys:      []types.KeyWeight{{Key: active, Weight: 1}},
+	//}
+	//
+	//var auth = []types.PermissionLevel{{common.AccountName(creator), common.PermissionName(common.DefaultConfig.ActiveName)}} //TODO -p
+	//
+	//newaccount := &types.NewAccount{
+	//	Creator: common.AccountName(creator),
+	//	Name:    common.AccountName(accountName),
+	//	Owner:   *ownerauthority,
+	//	Active:  *activeauthority,
+	//}
+	//
+	//data, err := rlp.EncodeToBytes(newaccount)
+	//if err != nil {
+	//	panic("create new account error")
+	//}
+	//
+	//return &types.Action{
+	//	Account:       newaccount.GetAccount(),
+	//	Name:          newaccount.GetName(),
+	//	Authorization: auth,
+	//	Data:          data,
+	//}
+	return nil
 }
 func sendActions(actions []*types.Action, extraKcpu int32, compression common.CompressionType) {
 	fmt.Println("send action")
@@ -306,10 +307,10 @@ func pushActions(actions []*types.Action, extraKcpu int32, compression common.Co
 }
 func pushTransaction(trx *types.SignedTransaction, extraKcpu int32, compression common.CompressionType) interface{} {
 	fmt.Println("push transaction")
-	info, err := getInfo()
-	if err != nil {
-		panic(err)
-	}
+	//info, err := getInfo()
+	//if err != nil {
+	//	panic(err)
+	//}
 	if len(trx.Signatures) == 0 { // #5445 can't change txn content if already signed
 
 		// fmt.Println(info.HeadBlockTime.Totime(), info.HeadBlockTime.Totime().Add(tx_expiration))
@@ -320,20 +321,20 @@ func pushTransaction(trx *types.SignedTransaction, extraKcpu int32, compression 
 		// fmt.Println(trx.Expiration)
 
 		// Set tapos, default to last irreversible block if it's not specified by the user
-		refBlockID := info.LastIrreversibleBlockID
-		if len(*tx_ref_block_num_or_id) > 0 {
-			fmt.Println("tx_ref_block_num_or_id")
-			var resp BlockResp
-			variant, err := DoHttpCall(chainUrl, getBlockHeaderStateFunc, Variants{"block_num_or_id": tx_ref_block_num_or_id})
-			if err != nil {
-				panic(err)
-			}
-			if err := json.Unmarshal(variant, &resp); err != nil {
-				return fmt.Errorf("Unmarshal: %s", err)
-			}
-			refBlockID = resp.ID
-		}
-		trx.SetReferenceBlock(refBlockID)
+		//refBlockID := info.LastIrreversibleBlockID
+		//if len(*tx_ref_block_num_or_id) > 0 {
+		//	fmt.Println("tx_ref_block_num_or_id")
+		//	var resp BlockResp
+		//	variant, err := DoHttpCall(chainUrl, getBlockHeaderStateFunc, Variants{"block_num_or_id": tx_ref_block_num_or_id})
+		//	if err != nil {
+		//		panic(err)
+		//	}
+		//	if err := json.Unmarshal(variant, &resp); err != nil {
+		//		return fmt.Errorf("Unmarshal: %s", err)
+		//	}
+		//	refBlockID = resp.ID
+		//}
+		//trx.SetReferenceBlock(refBlockID)
 
 		if *tx_force_unique {
 			// trx.ContextFreeActions. //TODO
