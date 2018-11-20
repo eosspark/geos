@@ -6,7 +6,7 @@ package treebidimap
 
 import (
 	"fmt"
-	"github.com/emirpasic/gods/utils"
+	"github.com/eosspark/container/utils"
 	"testing"
 )
 
