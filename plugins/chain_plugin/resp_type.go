@@ -1,4 +1,4 @@
-package eosapi
+package chain_plugin
 
 import (
 	"encoding/json"
@@ -6,6 +6,7 @@ import (
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/ecc"
+	"github.com/eosspark/eos-go/plugins/net_plugin"
 )
 
 type InfoResp struct {
@@ -33,19 +34,17 @@ type BlockResp struct { //we don't need all blockresp??only need "id"
 }
 
 type AccountResp struct {
-	AccountName       common.AccountName   `json:"account_name"`
-	HeadBlockNum      uint32               `json:"head_block_num"`
-	HeadBlockTime     types.BlockTimeStamp `json:"head_block_time"`
-	Privileged        bool                 `json:"privileged"`
-	LastCodeUpdate    types.BlockTimeStamp `json:"last_code_update"`
-	Created           types.BlockTimeStamp `json:"created"`
-	CoreLiquidBalance common.Asset         `json:"core_liquid_balance"`
-	RAMQuota          int64                `json:"ram_quota"`
-	RAMUsage          int64                `json:"ram_usage"`
-	NetWeight         int64                `json:"net_weight"`
-	CPUWeight         int64                `json:"cpu_weight"`
-	//NetLimit               chain.AccountResourceLimit `json:"net_limit"`
-	//CPULimit               chain.AccountResourceLimit `json:"cpu_limit"`
+	AccountName            common.AccountName        `json:"account_name"`
+	HeadBlockNum           uint32                    `json:"head_block_num"`
+	HeadBlockTime          types.BlockTimeStamp      `json:"head_block_time"`
+	Privileged             bool                      `json:"privileged"`
+	LastCodeUpdate         types.BlockTimeStamp      `json:"last_code_update"`
+	Created                types.BlockTimeStamp      `json:"created"`
+	CoreLiquidBalance      common.Asset              `json:"core_liquid_balance"`
+	RAMQuota               int64                     `json:"ram_quota"`
+	RAMUsage               int64                     `json:"ram_usage"`
+	NetWeight              int64                     `json:"net_weight"`
+	CPUWeight              int64                     `json:"cpu_weight"`
 	Permissions            []types.Permission        `json:"permissions"`
 	TotalResources         common.TotalResources     `json:"total_resources"`
 	SelfDelegatedBandwidth common.DelegatedBandwidth `json:"self_delegated_bandwidth"`
@@ -66,13 +65,13 @@ type GetABIResp struct {
 	ABI         types.AbiDef       `json:"abi"`
 }
 
-// // Action
-// type Action struct {
-// 	Account       common.AccountName       `json:"account"`
-// 	Name          common.ActionName        `json:"name"`
-// 	Authorization []common.PermissionLevel `json:"authorization,omitempty"`
-// 	ActionData    common.HexBytes
-// }
+//// Action
+//type Action struct {
+//	Account       common.AccountName       `json:"account"`
+//	Name          common.ActionName        `json:"name"`
+//	Authorization []common.PermissionLevel `json:"authorization,omitempty"`
+//	ActionData    common.HexBytes
+//}
 
 // type UnpackedTransaction struct {
 // 	types.TransactionHeader
@@ -129,20 +128,20 @@ type GetABIResp struct {
 // 	} `json:"indices"`
 // }
 
-// type TransactionResp struct {
-// 	ID      SHA256Bytes `json:"id"`
-// 	Receipt struct {
-// 		Status            TransactionStatus `json:"status"`
-// 		CPUUsageMicrosec  int               `json:"cpu_usage_us"`
-// 		NetUsageWords     int               `json:"net_usage_words"`
-// 		PackedTransaction TransactionWithID `json:"trx"`
-// 	} `json:"receipt"`
-// 	Transaction           ProcessedTransaction `json:"trx"`
-// 	BlockTime             JSONTime             `json:"block_time"`
-// 	BlockNum              uint32               `json:"block_num"`
-// 	LastIrreversibleBlock uint32               `json:"last_irreversible_block"`
-// 	Traces                []ActionTrace        `json:"traces"`
-// }
+//type TransactionResp struct {
+//	ID      SHA256Bytes `json:"id"`
+//	Receipt struct {
+//		Status            TransactionStatus `json:"status"`
+//		CPUUsageMicrosec  int               `json:"cpu_usage_us"`
+//		NetUsageWords     int               `json:"net_usage_words"`
+//		PackedTransaction TransactionWithID `json:"trx"`
+//	} `json:"receipt"`
+//	Transaction           ProcessedTransaction `json:"trx"`
+//	BlockTime             JSONTime             `json:"block_time"`
+//	BlockNum              uint32               `json:"block_num"`
+//	LastIrreversibleBlock uint32               `json:"last_irreversible_block"`
+//	Traces                []ActionTrace        `json:"traces"`
+//}
 
 // type ProcessedTransaction struct {
 // 	Transaction SignedTransaction `json:"trx"`
@@ -274,48 +273,48 @@ type GetTableRowsResp struct {
 // 	return nil
 // }
 
-// type Currency struct {
-// 	Precision uint8
-// 	Name      common.CurrencyName
-// }
+type Currency struct {
+	Precision uint8
+	Name      common.CurrencyName
+}
 
-// type GetRequiredKeysResp struct {
-// 	RequiredKeys []ecc.PublicKey `json:"required_keys"`
-// }
+type GetRequiredKeysResp struct {
+	RequiredKeys []ecc.PublicKey `json:"required_keys"`
+}
 
-// // PushTransactionFullResp unwraps the responses from a successful `push_transaction`.
-// // FIXME: REVIEW the actual output, things have moved here.
-// type PushTransactionFullResp struct {
-// 	StatusCode    string
-// 	TransactionID string               `json:"transaction_id"`
-// 	Processed     TransactionProcessed `json:"processed"` // WARN: is an `fc::variant` in server..
-// }
+// PushTransactionFullResp unwraps the responses from a successful `push_transaction`.
+// FIXME: REVIEW the actual output, things have moved here.
+type PushTransactionFullResp struct {
+	StatusCode    string
+	TransactionID string               `json:"transaction_id"`
+	Processed     TransactionProcessed `json:"processed"` // WARN: is an `fc::variant` in server..
+}
 
-// type TransactionProcessed struct {
-// 	Status               string      `json:"status"`
-// 	ID                   SHA256Bytes `json:"id"`
-// 	ActionTraces         []Trace     `json:"action_traces"`
-// 	DeferredTransactions []string    `json:"deferred_transactions"` // that's not right... dig to find what's there..
-// }
+type TransactionProcessed struct {
+	Status               string                   `json:"status"`
+	ID                   common.TransactionIdType `json:"id"`
+	ActionTraces         []Trace                  `json:"action_traces"`
+	DeferredTransactions []string                 `json:"deferred_transactions"` // that's not right... dig to find what's there..
+}
 
-// type Trace struct {
-// 	Receiver common.AccountName `json:"receiver"`
-// 	// Action     Action       `json:"act"` // FIXME: how do we unpack that ? what's on the other side anyway?
-// 	Console    string       `json:"console"`
-// 	DataAccess []DataAccess `json:"data_access"`
-// }
+type Trace struct {
+	Receiver common.AccountName `json:"receiver"`
+	// Action     Action       `json:"act"` // FIXME: how do we unpack that ? what's on the other side anyway?
+	Console    string       `json:"console"`
+	DataAccess []DataAccess `json:"data_access"`
+}
 
-// type DataAccess struct {
-// 	Type     string             `json:"type"` // "write", "read"?
-// 	Code     common.AccountName `json:"code"`
-// 	Scope    common.AccountName `json:"scope"`
-// 	Sequence int                `json:"sequence"`
-// }
+type DataAccess struct {
+	Type     string             `json:"type"` // "write", "read"?
+	Code     common.AccountName `json:"code"`
+	Scope    common.AccountName `json:"scope"`
+	Sequence int                `json:"sequence"`
+}
 
-// type PushTransactionShortResp struct {
-// 	TransactionID string `json:"transaction_id"`
-// 	Processed     bool   `json:"processed"` // WARN: is an `fc::variant` in server..
-// }
+type PushTransactionShortResp struct {
+	TransactionID string `json:"transaction_id"`
+	Processed     bool   `json:"processed"` // WARN: is an `fc::variant` in server..
+}
 
 // //
 
@@ -328,25 +327,25 @@ type WalletSignTransactionResp struct {
 	Signatures []ecc.Signature `json:"signatures"`
 }
 
-// type MyStruct struct {
-// 	Currency
-// 	Balance uint64
-// }
+type MyStruct struct {
+	Currency
+	Balance uint64
+}
 
-// // NetConnectionResp
-// type NetConnectionsResp struct {
-// 	Peer          string               `json:"peer"`
-// 	Connecting    bool                 `json:"connecting"`
-// 	Syncing       bool                 `json:"syncing"`
-// 	LastHandshake p2p.HandshakeMessage `json:"last_handshake"`
-// }
+// NetConnectionResp
+type NetConnectionsResp struct {
+	Peer          string                      `json:"peer"`
+	Connecting    bool                        `json:"connecting"`
+	Syncing       bool                        `json:"syncing"`
+	LastHandshake net_plugin.HandshakeMessage `json:"last_handshake"`
+}
 
-// type NetStatusResp struct {
-// }
+type NetStatusResp struct {
+}
 
-// type NetConnectResp string
+type NetConnectResp string
 
-// type NetDisconnectResp string
+type NetDisconnectResp string
 
 // type Global struct {
 // 	MaxBlockNetUsage               int              `json:"max_block_net_usage"`
@@ -381,16 +380,16 @@ type WalletSignTransactionResp struct {
 // 	LastNameClose                  string           `json:"last_name_close"`
 // }
 
-// type Producer struct {
-// 	Owner         string             `json:"owner"`
-// 	TotalVotes    float64            `json:"total_votes,string"`
-// 	ProducerKey   string             `json:"producer_key"`
-// 	IsActive      int                `json:"is_active"`
-// 	URL           string             `json:"url"`
-// 	UnpaidBlocks  int                `json:"unpaid_blocks"`
-// 	LastClaimTime common.JSONFloat64 `json:"last_claim_time"`
-// 	Location      int                `json:"location"`
-// }
-// type ProducersResp struct {
-// 	Producers []Producer `json:"producers"`
-// }
+type Producer struct {
+	Owner         string             `json:"owner"`
+	TotalVotes    float64            `json:"total_votes,string"`
+	ProducerKey   string             `json:"producer_key"`
+	IsActive      int                `json:"is_active"`
+	URL           string             `json:"url"`
+	UnpaidBlocks  int                `json:"unpaid_blocks"`
+	LastClaimTime common.JSONFloat64 `json:"last_claim_time"`
+	Location      int                `json:"location"`
+}
+type ProducersResp struct {
+	Producers []Producer `json:"producers"`
+}
