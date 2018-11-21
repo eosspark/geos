@@ -1,13 +1,16 @@
 package database
 
 import (
+	"fmt"
 	"github.com/syndtr/goleveldb/leveldb"
+	"github.com/syndtr/goleveldb/leveldb/util"
 	"log"
 	"os"
 	"testing"
 )
 
 var logFlag = false
+//var logFlag = true
 
 func Test_rawDb(t *testing.T) {
 	//f, err := os.Create("./cpu.txt")
@@ -50,7 +53,14 @@ func Test_rawDb(t *testing.T) {
 	for _, v := range keys {
 		db.Put(v, v, nil)
 	}
-
+	h := []byte("hello")
+	w := []byte("world")
+	db.Put(h,h,nil)
+	db.Put(w,w,nil)
+	it := db.NewIterator(util.BytesPrefix([]byte(string("linx"))),nil)
+	if it.Next(){
+		fmt.Println(it.Key() ," : ",it.Value())
+	}
 }
 
 func Test_open(t *testing.T) {
@@ -75,6 +85,32 @@ func Test_insert(t *testing.T) {
 	}
 
 	saveObjs(objs, houses, db)
+
+	obj := DbTableIdObject{Scope: 22}
+	idx, err := db.GetIndex("byTable", obj)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	it, err := idx.LowerBound(obj)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	defer it.Release()
+
+	tmp := DbTableIdObject{}
+	//fmt.Println("---------------------------")
+
+	db.Find("id",DbTableIdObject{ID:254},&tmp)
+	//logObj(tmp)
+
+	db.Find("id",DbTableIdObject{ID:255},&tmp)
+	//logObj(tmp)
+
+	tmp = DbTableIdObject{}
+	db.Find("id",DbTableIdObject{ID:25590000},&tmp)
+	//logObj(tmp)
+
 }
 
 func insert_te() {
@@ -947,7 +983,7 @@ func openDb() (DataBase, func()) {
 func multiObjects() ([]DbTableIdObject, []DbHouse) {
 	objs := []DbTableIdObject{}
 	DbHouses := []DbHouse{}
-	for i := 1; i <= 30000; i++ {
+	for i := 1; i <= 300; i++ {
 		number := i * 10
 		obj := DbTableIdObject{Code: AccountName(number + 1), Scope: ScopeName(number + 2), Table: TableName(number + 3 + i + 1), Payer: AccountName(number + 4 + i + 1), Count: uint32(number + 5)}
 		objs = append(objs, obj)
@@ -1009,6 +1045,9 @@ func saveObjs(objs []DbTableIdObject, houses []DbHouse, db DataBase) ([]DbTableI
 			log.Fatalln(err)
 			log.Fatalln("insert table object failed")
 		}
+		if v.ID == 253 {
+			//fmt.Println("go")
+		}
 
 		objs_ = append(objs_, v)
 	}
@@ -1028,6 +1067,7 @@ func lowerAndUpper(objs []DbTableIdObject, houses []DbHouse, db DataBase) {
 		log.Fatalln(err)
 	}
 	defer it.Release()
+
 
 	i := 3
 	for it.Next() {

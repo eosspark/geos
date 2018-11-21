@@ -618,8 +618,10 @@ func (ldb *LDataBase) find(tagName string, value interface{}, to interface{}) er
 	key := splicingString (typeName, fieldName)
 	key = append(key, suffix...)
 
-	end := keyEnd(key)
-	it := ldb.db.NewIterator(&util.Range{Start: key, Limit: end}, nil)
+	//end := keyEnd(key)
+	//it := ldb.db.NewIterator(&util.Range{Start: key, Limit: end}, nil)
+	it := ldb.db.NewIterator(util.BytesPrefix(key), nil)
+
 
 	if !it.Next() {
 		return leveldb.ErrNotFound
@@ -981,6 +983,7 @@ func saveKey(key, value []byte, tx *leveldb.DB) error {
 		return err
 	}
 	return nil
+
 }
 
 func removeKey(key []byte, db *leveldb.DB) error {

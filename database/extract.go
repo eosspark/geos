@@ -378,6 +378,7 @@ func cfgToKV(objId []byte, cfg *structInfo, dbKV *dbKeyValue) error{
 		if !fieldCfg.unique && len(fieldCfg.fieldValue) == 1 { 	/* 			non unique 				*/
 			key = append(key, objId...)
 		}
+		key = append(key,'_')
 
 		kv_ := kv{}
 		kv_.key = key

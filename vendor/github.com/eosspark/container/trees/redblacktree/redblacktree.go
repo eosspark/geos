@@ -15,7 +15,7 @@ import (
 	"fmt"
 	"github.com/eosspark/container/trees"
 	"github.com/eosspark/container/utils"
-)
+	)
 
 func assertTreeImplementation() {
 	var _ trees.Tree = (*Tree)(nil)
@@ -57,6 +57,40 @@ func NewWithIntComparator() *Tree {
 // NewWithStringComparator instantiates a red-black tree with the StringComparator, i.e. keys are of type string.
 func NewWithStringComparator() *Tree {
 	return &Tree{Comparator: utils.StringComparator}
+}
+
+func CopyFrom(rbt *Tree) *Tree {
+	t := &Tree{Comparator: rbt.Comparator}
+	t.size = rbt.size
+	t.Root = copyNode(rbt.Root)
+	return t
+}
+
+func copyNode(nd *Node) *Node {
+	if nd == nil {
+		return nil
+	}
+
+	n := &Node{Key:nd.Key, Value:nd.Value, color:nd.color}
+
+	if nd.Left != nil {
+		n.Left = copyNode(nd.Left)
+	}
+	if nd.Right != nil {
+		n.Right = copyNode(nd.Right)
+	}
+
+	if n.Left != nil {
+		n.Left.Parent = n
+	}
+	if n.Right != nil {
+		n.Right.Parent = n
+	}
+	if nd.Parent != nil {
+		n.Parent = nd.Parent
+	}
+
+	return n
 }
 
 // Put inserts node into the tree.

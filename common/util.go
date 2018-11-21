@@ -3,7 +3,7 @@ package common
 import (
 	"reflect"
 	"bytes"
-)
+	)
 
 func Empty(i interface{}) bool {
 	if i == nil {
@@ -28,5 +28,18 @@ func SetIntersection(a FlatSet, b FlatSet, callback func(e Element, i int, j int
 		} else if bytes.Compare(a.Data[i].GetKey(), b.Data[j].GetKey()) == -1 {
 			i++
 		}
+	}
+}
+
+var NameComparator = func(a, b interface{}) int {
+	aAsserted := uint64(a.(Name))
+	bAsserted := uint64(b.(Name))
+	switch {
+	case aAsserted > bAsserted:
+		return 1
+	case aAsserted < bAsserted:
+		return -1
+	default:
+		return 0
 	}
 }

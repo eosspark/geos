@@ -367,6 +367,22 @@ func TestSetSerialization(t *testing.T) {
 	assert()
 }
 
+func TestSetIntersection(t *testing.T) {
+	a := NewWithIntComparator(1, 3, 5, 7, 9)
+	b := NewWithIntComparator(2, 3, 7, 10)
+	res := make([]int, 0, 2)
+
+	SetIntersection(a, b, func(elem interface{}) {
+		res = append(res, elem.(int))
+	})
+
+	if len(res) != 2 || res[0] != 3 || res[1] != 7 {
+		t.Errorf("Got %v expected (3,7)", res)
+	}
+
+	fmt.Println(res)
+}
+
 func benchmarkContains(b *testing.B, set *Set, size int) {
 	for i := 0; i < b.N; i++ {
 		for n := 0; n < size; n++ {
