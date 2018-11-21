@@ -17,7 +17,7 @@ import (
 	rbt "github.com/eosspark/container/trees/redblacktree"
 	"github.com/eosspark/container/utils"
 	"strings"
-)
+	)
 
 func assertMapImplementation() {
 	var _ maps.Map = (*Map)(nil)
@@ -41,6 +41,14 @@ func NewWithIntComparator() *Map {
 // NewWithStringComparator instantiates a tree map with the StringComparator, i.e. keys are of type string.
 func NewWithStringComparator() *Map {
 	return &Map{tree: rbt.NewWithStringComparator()}
+}
+
+func CopyFrom(tm *Map) *Map {
+	return &Map{tree: rbt.CopyFrom(tm.tree)}
+}
+
+func (m *Map) GetComparator() utils.Comparator {
+	return m.tree.Comparator
 }
 
 // Put inserts key-value pair into the map.
