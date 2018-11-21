@@ -1,0 +1,6 @@
+=============== Oct 23, 2018 (CST) ===============
+17:07:19.956065 log@legend F·NumFile S·FileSize N·Entry C·BadEntry B·BadBlock Ke·KeyError D·DroppedEntry L·Level Q·SeqNum T·TimeElapsed
+17:07:19.958622 db@open opening
+17:07:19.959716 version@stat F·[] S·0B[] Sc·[]
+17:07:19.960114 db@janitor F·2 G·0
+17:07:19.960160 db@open done T·1.501701ms

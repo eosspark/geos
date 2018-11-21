@@ -1,4 +1,4 @@
-package walletPlugin
+package wallet_plugin
 
 import (
 	"bytes"

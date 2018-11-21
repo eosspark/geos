@@ -99,6 +99,7 @@ type Controller struct {
 	TrustedProducerLightValidation bool                //default value false
 	ApplyHandlers                  map[string]v
 	UnappliedTransactions          map[crypto.Sha256]types.TransactionMetadata
+	GpoCache                       map[common.IdType]*entity.GlobalPropertyObject
 }
 
 func GetControllerInstance() *Controller {
@@ -344,24 +345,28 @@ func (c *Controller) startBlock(when types.BlockTimeStamp, confirmBlockCount uin
 				c.Pending.PendingBlockState.SetNewProducers(ps)
 			}
 
-			c.DB.Modify(&gpo, func(i *entity.GlobalPropertyObject) {
+			c.DB.Modify(gpo, func(i *entity.GlobalPropertyObject) {
 				i.ProposedScheduleBlockNum = 1
 				i.ProposedSchedule.Clear()
 			})
+			c.GpoCache[gpo.ID] = gpo
 		}
-		//try.Try(func() {
-		//signedTransaction := c.GetOnBlockTransaction()
-		//onbtrx := types.TransactionMetadata{Trx: &signedTransaction}
-		//onbtrx.Implicit = true
-		defer func(b bool) {
-			c.InTrxRequiringChecks = b
-		}(c.InTrxRequiringChecks)
-		c.InTrxRequiringChecks = true
-		//c.pushTransaction(&onbtrx, common.MaxTimePoint(), gpo.Configuration.MinTransactionCpuUsage, true)
-		/*}).Catch(func(e Exception) {
-			//TODO
-			fmt.Println("Controller StartBlock exception:",e.Message())
-		})*/
+
+		Try(func() {
+			signedTransaction := c.GetOnBlockTransaction()
+			onbtrx := types.TransactionMetadata{Trx: &signedTransaction}
+			onbtrx.Implicit = true
+			defer func(b bool) {
+				c.InTrxRequiringChecks = b
+			}(c.InTrxRequiringChecks)
+			c.InTrxRequiringChecks = true
+			c.pushTransaction(&onbtrx, common.MaxTimePoint(), gpo.Configuration.MinTransactionCpuUsage, true)
+		}).Catch(func(e Exception) {
+			log.Error("Controller StartBlock exception:%s", e.Message())
+			Throw(e)
+		}).Catch(func(i interface{}) {
+			//c++ nothing
+		}).End()
 
 		c.clearExpiredInputTransactions()
 		c.updateProducersAuthority()
@@ -489,8 +494,12 @@ func (c *Controller) pushTransaction(trx *types.TransactionMetadata, deadLine co
 }
 
 func (c *Controller) GetGlobalProperties() *entity.GlobalPropertyObject {
+
 	gpo := entity.GlobalPropertyObject{}
 	gpo.ID = 1
+	if c.GpoCache[gpo.ID] != nil {
+		return c.GpoCache[gpo.ID]
+	}
 	err := c.DB.Find("id", gpo, &gpo)
 	if err != nil {
 		log.Error("GetGlobalProperties is error detail:%s", err.Error())
@@ -556,14 +565,6 @@ func (c *Controller) IsProducingBlock() bool {
 	}
 	return c.Pending.BlockStatus == types.Incomplete
 }
-
-/*func (c *Controller) IsResourceGreylisted(name *common.AccountName) bool {
-	_,ok:=c.Config.resourceGreylist[*name]
-	if ok {
-		return true
-	}
-	return false
-}*/
 
 func (c *Controller) Close() {
 	//session.close()
@@ -783,6 +784,7 @@ func (c *Controller) pushScheduledTransactionByObject(gto *entity.GeneratedTrans
 	return trace
 }
 
+//TODO
 func applyOnerror(gtrx *entity.GeneratedTransaction, deadline common.TimePoint, start common.TimePoint,
 	cpuTimeToBillUs *uint32, billedCpuTimeUs uint32, explicitBilledCpuTime bool) *types.TransactionTrace {
 	/*etrx :=types.SignedTransaction{}
@@ -1210,16 +1212,45 @@ func (c *Controller) LightValidationAllowed(dro bool) (b bool) {
 	return considerSkippingOnReplay || considerSkippingOnvalidate
 }
 
-func (c *Controller) LastIrreversibleBlockNum() uint32 { return 0 }
+func (c *Controller) LastIrreversibleBlockNum() uint32 {
+	if c.Head.BftIrreversibleBlocknum > c.Head.DposIrreversibleBlocknum {
+		return c.Head.BftIrreversibleBlocknum
+	} else {
+		return c.Head.DposIrreversibleBlocknum
+	}
+}
 
-func (c *Controller) LastIrreversibleBlockId() common.BlockIdType { return common.BlockIdType{} }
+func (c *Controller) LastIrreversibleBlockId() common.BlockIdType {
+	libNum := c.LastIrreversibleBlockNum()
+	bso := entity.BlockSummaryObject{}
+	bso.Id = common.IdType(uint16(libNum))
+	idx, err := c.DataBase().GetIndex("id", &entity.BlockSummaryObject{})
+	out := entity.BlockSummaryObject{}
+	err = idx.Find(&bso, &out)
+	if err != nil {
+		log.Error("controller LastIrreversibleBlockId is error:%s", err.Error())
+	}
+	if types.NumFromID(&out.BlockId) == libNum {
+		return out.BlockId
+	}
+	return c.FetchBlockByNumber(libNum).BlockID()
+}
 
 func (c *Controller) FetchBlockByNumber(blockNum uint32) *types.SignedBlock {
-	blkState := c.ForkDB.GetBlockInCurrentChainByNum(blockNum)
-	if blkState != nil {
-		return blkState.SignedBlock
-	}
-	return c.Blog.ReadBlockByNum(blockNum)
+
+	returning, r := false, (*types.SignedBlock)(nil)
+	Try(func() {
+		blkState := c.ForkDB.GetBlockInCurrentChainByNum(blockNum)
+		if blkState != nil {
+			returning, r = true, blkState.SignedBlock
+			return
+		}
+
+		returning, r = true, c.Blog.ReadBlockByNum(blockNum)
+		return
+
+	}).FcCaptureAndRethrow(blockNum).End()
+	return r
 }
 
 func (c *Controller) FetchBlockById(id common.BlockIdType) *types.SignedBlock {
@@ -1423,11 +1454,13 @@ func (c *Controller) SetProposedProducers(producers []types.ProducerKey) int64 {
 
 	sch.Producers = producers
 	version := sch.Version
-	c.DB.Modify(&gpo, func(p *entity.GlobalPropertyObject) {
+	c.DB.Modify(gpo, func(p *entity.GlobalPropertyObject) {
 		p.ProposedScheduleBlockNum = curBlockNum
 		tmp := p.ProposedSchedule.SharedProducerScheduleType(sch)
 		p.ProposedSchedule = *tmp
 	})
+	c.GpoCache[gpo.ID] = gpo
+
 	return int64(version)
 }
 
@@ -1545,6 +1578,8 @@ func (c *Controller) initializeDatabase() {
 	gpo := entity.GlobalPropertyObject{}
 	gpo.Configuration = gi
 	err = c.DB.Insert(&gpo)
+	c.GpoCache = make(map[common.IdType]*entity.GlobalPropertyObject)
+	c.GpoCache[gpo.ID] = &gpo
 	if err != nil {
 		log.Error("Controller initializeDatabase insert GlobalPropertyObject is error:%s", err)
 	}

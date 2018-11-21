@@ -9,20 +9,20 @@ import (
 )
 
 type InfoResp struct {
-	ServerVersion            string                `json:"server_version"` // "2cc40a4e"
-	ChainID                  common.ChainIdType    `json:"chain_id"`
-	HeadBlockNum             uint32                `json:"head_block_num"`              // 2465669,
-	LastIrreversibleBlockNum uint32                `json:"last_irreversible_block_num"` // 2465655
-	LastIrreversibleBlockID  common.BlockIdType    `json:"last_irreversible_block_id"`  // "00000008f98f0580d7efe7abc60abaaf8a865c9428a4267df30ff7d1937a1084"
-	HeadBlockID              common.BlockIdType    `json:"head_block_id"`               // "00259f856bfa142d1d60aff77e70f0c4f3eab30789e9539d2684f9f8758f1b88",
+	ServerVersion            string               `json:"server_version"` // "2cc40a4e"
+	ChainID                  common.ChainIdType   `json:"chain_id"`
+	HeadBlockNum             uint32               `json:"head_block_num"`              // 2465669,
+	LastIrreversibleBlockNum uint32               `json:"last_irreversible_block_num"` // 2465655
+	LastIrreversibleBlockID  common.BlockIdType   `json:"last_irreversible_block_id"`  // "00000008f98f0580d7efe7abc60abaaf8a865c9428a4267df30ff7d1937a1084"
+	HeadBlockID              common.BlockIdType   `json:"head_block_id"`               // "00259f856bfa142d1d60aff77e70f0c4f3eab30789e9539d2684f9f8758f1b88",
 	HeadBlockTime            types.BlockTimeStamp `json:"head_block_time"`             //  "2018-02-02T04:19:32"
-	HeadBlockProducer        common.AccountName    `json:"head_block_producer"`         // "inita"
+	HeadBlockProducer        common.AccountName   `json:"head_block_producer"`         // "inita"
 
-	VirtualBlockCPULimit common.JSONInt64 `json:"virtual_block_cpu_limit"`
-	VirtualBlockNetLimit common.JSONInt64 `json:"virtual_block_net_limit"`
-	BlockCPULimit        common.JSONInt64 `json:"block_cpu_limit"`
-	BlockNetLimit        common.JSONInt64 `json:"block_net_limit"`
-	ServerVersionString  string           `json:"server_version_string"`
+	VirtualBlockCPULimit uint64 `json:"virtual_block_cpu_limit"`
+	VirtualBlockNetLimit uint64 `json:"virtual_block_net_limit"`
+	BlockCPULimit        uint64 `json:"block_cpu_limit"`
+	BlockNetLimit        uint64 `json:"block_net_limit"`
+	ServerVersionString  string `json:"server_version_string"`
 }
 
 type BlockResp struct { //we don't need all blockresp??only need "id"
@@ -33,17 +33,17 @@ type BlockResp struct { //we don't need all blockresp??only need "id"
 }
 
 type AccountResp struct {
-	AccountName       common.AccountName    `json:"account_name"`
-	HeadBlockNum      uint32                `json:"head_block_num"`
+	AccountName       common.AccountName   `json:"account_name"`
+	HeadBlockNum      uint32               `json:"head_block_num"`
 	HeadBlockTime     types.BlockTimeStamp `json:"head_block_time"`
-	Privileged        bool                  `json:"privileged"`
+	Privileged        bool                 `json:"privileged"`
 	LastCodeUpdate    types.BlockTimeStamp `json:"last_code_update"`
 	Created           types.BlockTimeStamp `json:"created"`
-	CoreLiquidBalance common.Asset          `json:"core_liquid_balance"`
-	RAMQuota          int64                 `json:"ram_quota"`
-	RAMUsage          int64                 `json:"ram_usage"`
-	NetWeight         int64                 `json:"net_weight"`
-	CPUWeight         int64                 `json:"cpu_weight"`
+	CoreLiquidBalance common.Asset         `json:"core_liquid_balance"`
+	RAMQuota          int64                `json:"ram_quota"`
+	RAMUsage          int64                `json:"ram_usage"`
+	NetWeight         int64                `json:"net_weight"`
+	CPUWeight         int64                `json:"cpu_weight"`
 	//NetLimit               chain.AccountResourceLimit `json:"net_limit"`
 	//CPULimit               chain.AccountResourceLimit `json:"cpu_limit"`
 	Permissions            []types.Permission        `json:"permissions"`

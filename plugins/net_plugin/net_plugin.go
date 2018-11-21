@@ -14,13 +14,14 @@ import (
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/ecc"
+	"github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/log"
 	"gopkg.in/urfave/cli.v1"
-	"github.com/eosspark/eos-go/exception/try"
 )
 
 const (
 	p2pChainIDString string = "cf057bbfb72640471fd910bcb67639c22df9f92470936cddc1ade0e2f2e7dc4f"
+	//p2pChainIDString string = "aca376f206b8fc25a6ed44dbdc66547c36c6c33e3a119ffbeaef943642f0e906"
 )
 
 type NetPlugin struct {
@@ -234,8 +235,7 @@ func (n *NetPlugin) NetPluginInitialize(app *cli.App) {
 
 func (np *NetPlugin) PluginStartup() {
 
-	//ilog("starting listener, max clients is ${mc}",("mc",my->max_client_count));
-	fmt.Printf("starting listener, max clients is %d\n", np.my.maxClientCount)
+	netlog.Info("starting listener, max clients is %d", np.my.maxClientCount)
 
 	np.my.loopWG.Add(3)
 	go np.my.startListenLoop()
@@ -258,9 +258,10 @@ func (np *NetPlugin) PluginStartup() {
 	//	}
 
 	for _, seedNode := range np.my.suppliedPeers {
-		re := np.connect(seedNode)
+		re := np.Connect(seedNode)
 		if re != "added connection" {
-			fmt.Println(re)
+			//fmt.Println(re)
+			netlog.Error(re)
 		}
 	}
 	fmt.Println("******************** go *******************")
@@ -292,7 +293,7 @@ func (np *NetPlugin) PluginShutDown() {
 //}
 
 //connect used to trigger a new connetion RPC API
-func (np *NetPlugin) connect(host string) string {
+func (np *NetPlugin) Connect(host string) string {
 	_, ok := np.my.peers[host]
 	if ok {
 		return "already connected"
@@ -305,7 +306,7 @@ func (np *NetPlugin) connect(host string) string {
 
 	np.my.peers[host] = NewPeer(con, bufio.NewReader(con))
 	////fc_dlog(logger,"adding new connection to the list")
-	fmt.Println("connecting to: ", con.RemoteAddr(), "adding new peer to the list")
+	netlog.Info("connecting to: %s , adding new peer to the list", con.RemoteAddr())
 	np.my.loopWG.Add(1)
 	go np.my.peers[host].read(np.my)
 
@@ -313,7 +314,7 @@ func (np *NetPlugin) connect(host string) string {
 
 }
 
-func (np *NetPlugin) disconnect(host string) string {
+func (np *NetPlugin) Disconnect(host string) string {
 	for name, peer := range np.my.peers {
 		if name == host {
 			peer.connection.Close()
@@ -324,7 +325,7 @@ func (np *NetPlugin) disconnect(host string) string {
 	return "no known connection for host"
 }
 
-func (np *NetPlugin) status(host string) PeerStatus {
+func (np *NetPlugin) Status(host string) PeerStatus {
 	con, ok := np.my.peers[host]
 	if ok {
 		return *con.getStatus()
@@ -332,7 +333,7 @@ func (np *NetPlugin) status(host string) PeerStatus {
 	return PeerStatus{}
 }
 
-func (np *NetPlugin) connections() []PeerStatus {
+func (np *NetPlugin) Connections() []PeerStatus {
 	result := make([]PeerStatus, len(np.my.peers))
 	for _, c := range np.my.peers {
 		result = append(result, *c.getStatus())

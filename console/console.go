@@ -164,33 +164,33 @@ func (c *Console) init(preload []string) error {
 	// If the console is in interactive mode, instrument password related methods to query the user
 	if c.prompter != nil {
 		// Retrieve the account management object to instrument
-		personal, err := c.jsre.Get("personal")
-		if err != nil {
-			return err
-		}
-		// Override the openWallet, unlockAccount, newAccount and sign methods since
-		// these require user interaction. Assign these method in the Console the
-		// original web3 callbacks. These will be called by the jeth.* methods after
-		// they got the password from the user and send the original web3 request to
-		// the backend.
-		if obj := personal.Object(); obj != nil { // make sure the personal api is enabled over the interface
-			if _, err = c.jsre.Run(`jeth.openWallet = personal.openWallet;`); err != nil {
-				return fmt.Errorf("personal.openWallet: %v", err)
-			}
-			if _, err = c.jsre.Run(`jeth.unlockAccount = personal.unlockAccount;`); err != nil {
-				return fmt.Errorf("personal.unlockAccount: %v", err)
-			}
-			if _, err = c.jsre.Run(`jeth.newAccount = personal.newAccount;`); err != nil {
-				return fmt.Errorf("personal.newAccount: %v", err)
-			}
-			if _, err = c.jsre.Run(`jeth.sign = personal.sign;`); err != nil {
-				return fmt.Errorf("personal.sign: %v", err)
-			}
-			//obj.Set("openWallet", bridge.OpenWallet)
-			obj.Set("unlockAccount", bridge.UnlockAccount)
-			obj.Set("newAccount", bridge.NewAccount)
-			obj.Set("sign", bridge.Sign)
-		}
+		//personal, err := c.jsre.Get("personal")
+		//if err != nil {
+		//	return err
+		//}
+		//// Override the openWallet, unlockAccount, newAccount and sign methods since
+		//// these require user interaction. Assign these method in the Console the
+		//// original web3 callbacks. These will be called by the jeth.* methods after
+		//// they got the password from the user and send the original web3 request to
+		//// the backend.
+		//if obj := personal.Object(); obj != nil { // make sure the personal api is enabled over the interface
+		//	if _, err = c.jsre.Run(`jeth.openWallet = personal.openWallet;`); err != nil {
+		//		return fmt.Errorf("personal.openWallet: %v", err)
+		//	}
+		//	if _, err = c.jsre.Run(`jeth.unlockAccount = personal.unlockAccount;`); err != nil {
+		//		return fmt.Errorf("personal.unlockAccount: %v", err)
+		//	}
+		//	if _, err = c.jsre.Run(`jeth.newAccount = personal.newAccount;`); err != nil {
+		//		return fmt.Errorf("personal.newAccount: %v", err)
+		//	}
+		//	if _, err = c.jsre.Run(`jeth.sign = personal.sign;`); err != nil {
+		//		return fmt.Errorf("personal.sign: %v", err)
+		//	}
+		//	//obj.Set("openWallet", bridge.OpenWallet)
+		//	obj.Set("unlockAccount", bridge.UnlockAccount)
+		//	obj.Set("newAccount", bridge.NewAccount)
+		//	obj.Set("sign", bridge.Sign)
+		//}
 	}
 	// The admin.sleep and admin.sleepBlocks are offered by the console and not by the RPC layer.
 	admin, err := c.jsre.Get("admin")

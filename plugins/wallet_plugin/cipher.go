@@ -1,4 +1,4 @@
-package walletPlugin
+package wallet_plugin
 
 import (
 	"crypto/aes"
@@ -54,19 +54,3 @@ func Decrypt(keystr string, src []byte) (strDesc []byte, err error) {
 	return decrypted, nil
 
 }
-
-// func Cipher_test() {
-//
-//   arrEncrypt, err := Encrypt("PW5JqYnp8DtqzLYr8wFxZuiJWTfmygPDvKaF1U45hkuL5yo68mZJ6", "5KTiH48Xj1onYwPjRjHNPW6MNwJaVeqDk5f3u3cQ3jUasc3u75f")
-//   if err != nil {
-//     fmt.Println(arrEncrypt)
-//     return
-//   }
-//   fmt.Println(arrEncrypt)
-//   strMsg, err := Decrypt("PW5JqYnp8DtqzLYr8wFxZuiJWTfmygPDvKaF1U45hkuL5yo68mZJ6", arrEncrypt)
-//   if err != nil {
-//     fmt.Println(arrEncrypt)
-//     return
-//   }
-//   fmt.Println(string(strMsg))
-// }
