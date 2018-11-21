@@ -315,11 +315,9 @@ func (ldb *LDataBase) insertKvToBatch(dbKV *dbKeyValue) error {
 	ldb.batch.Reset()
 	for _, v := range dbKV.index {
 		ldb.count++
-		ldb.log.Info("insert index key is : %v",v.key)
 		ldb.batch.Put(v.key, v.value)
 	}
 
-	ldb.log.Info("insert id key is : %v",dbKV.id.key)
 	ldb.batch.Put(dbKV.id.key, dbKV.id.value)
 	err := ldb.db.Write(ldb.batch, nil)
 	if err != nil {
@@ -597,7 +595,7 @@ func (ldb *LDataBase) Find(tagName string, in interface{}, out interface{}) erro
 }
 
 func (ldb *LDataBase) find(tagName string, value interface{}, to interface{}) error {
-	ldb.log.Info("Info database find : tagName is: %v", tagName)
+	ldb.log.Info("Info database find : tagName is: %s", tagName)
 	fieldName := []byte(tagName)
 	fields, err := getFieldInfo(tagName, value)
 	if err != nil {
@@ -618,12 +616,9 @@ func (ldb *LDataBase) find(tagName string, value interface{}, to interface{}) er
 	}
 
 	key := splicingString (typeName, fieldName)
-	key = key[:len(key) - 1]
 	key = append(key, suffix...)
-	key = append(key,'_')
 
 	end := keyEnd(key)
-	ldb.log.Info("Info database find : begin is: %v end is %v", key,end)
 	it := ldb.db.NewIterator(&util.Range{Start: key, Limit: end}, nil)
 
 	if !it.Next() {
@@ -637,12 +632,7 @@ func (ldb *LDataBase) findFields(key, typeName []byte, to interface{}) error {
 
 	val := splicingString(typeName,key)
 
-	ldb.log.Info("Info database findFields val is : %v", val)
 	v, err := getDbKey(val, ldb.db)
-	if err != nil {
-		return errors.New(fmt.Sprintf("error database findDbObject getDbKey ailed : %s", err.Error()))
-	}
-	ldb.log.Info("Info database findFields v is : %v", v)
 	err = DecodeBytes(v, to)
 	if err != nil {
 		return errors.New(fmt.Sprintf("error database findDbObject rlp DecodeBytes failed : %s", err.Error()))
@@ -676,7 +666,6 @@ func (ldb *LDataBase) getIndex(tagName string, value interface{}) (*MultiIndex, 
 	typeName := []byte(fields.typeName)
 	begin := splicingString(typeName, fieldName)
 
-	begin = begin[:len(begin) - 1]
 	end := keyEnd(begin)
 
 	ldb.log.Info("getIndex typeName : %v, fieldName : %v, begin: %v , end: %v, greater: %t", typeName, fieldName, begin, end, fields.greater)
@@ -709,7 +698,8 @@ func (ldb *LDataBase) lowerBound(begin, end, fieldName []byte, data interface{})
 		return nil, err
 	}
 	return idx, nil
-
+	//begin ,typeName := ldb.dbPrefix(begin,end,fieldName,data,greater)
+	//return ldb.dbIterator(begin,end,typeName,greater)
 }
 
 func (ldb *LDataBase) dbIterator(begin, end, typeName []byte) (*DbIterator, error) {
@@ -991,6 +981,7 @@ func saveKey(key, value []byte, tx *leveldb.DB) error {
 		return err
 	}
 	return nil
+
 }
 
 func removeKey(key []byte, db *leveldb.DB) error {

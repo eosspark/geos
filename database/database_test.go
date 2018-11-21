@@ -93,10 +93,10 @@ func Test_insert(t *testing.T) {
 	//fmt.Println("---------------------------")
 
 	db.Find("id",DbTableIdObject{ID:254},&tmp)
-	//logObj(tmp)
+	logObj(tmp)
 
 	db.Find("id",DbTableIdObject{ID:255},&tmp)
-	//logObj(tmp)
+	logObj(tmp)
 
 }
 
