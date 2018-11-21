@@ -2,7 +2,7 @@ package producer_plugin
 
 import (
 					"github.com/stretchr/testify/assert"
-	"gopkg.in/urfave/cli.v1"
+	"github.com/urfave/cli"
 	"os"
 	"testing"
 	main "github.com/eosspark/eos-go/plugins/producer_plugin/testing"

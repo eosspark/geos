@@ -2,7 +2,7 @@ package app
 
 import (
 	. "github.com/eosspark/eos-go/plugins/appbase/app/include"
-	. "github.com/eosspark/eos-go/plugins/chain_interface/include/eosio/chain"
+	. "github.com/eosspark/eos-go/plugins/chain_interface"
 	"github.com/urfave/cli"
 	. "github.com/eosspark/eos-go/exception"
 	"fmt"
