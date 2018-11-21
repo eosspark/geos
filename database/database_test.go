@@ -1,7 +1,9 @@
 package database
 
 import (
+	"fmt"
 	"github.com/syndtr/goleveldb/leveldb"
+	"github.com/syndtr/goleveldb/leveldb/util"
 	"log"
 	"os"
 	"testing"
@@ -51,7 +53,14 @@ func Test_rawDb(t *testing.T) {
 	for _, v := range keys {
 		db.Put(v, v, nil)
 	}
-
+	h := []byte("hello")
+	w := []byte("world")
+	db.Put(h,h,nil)
+	db.Put(w,w,nil)
+	it := db.NewIterator(util.BytesPrefix([]byte(string("linx"))),nil)
+	if it.Next(){
+		fmt.Println(it.Key() ," : ",it.Value())
+	}
 }
 
 func Test_open(t *testing.T) {
@@ -93,10 +102,14 @@ func Test_insert(t *testing.T) {
 	//fmt.Println("---------------------------")
 
 	db.Find("id",DbTableIdObject{ID:254},&tmp)
-	logObj(tmp)
+	//logObj(tmp)
 
 	db.Find("id",DbTableIdObject{ID:255},&tmp)
-	logObj(tmp)
+	//logObj(tmp)
+
+	tmp = DbTableIdObject{}
+	db.Find("id",DbTableIdObject{ID:25590000},&tmp)
+	//logObj(tmp)
 
 }
 
