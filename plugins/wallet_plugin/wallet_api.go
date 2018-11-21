@@ -1,7 +1,6 @@
 package wallet_plugin
 
 import (
-	"encoding/json"
 	"errors"
 	"fmt"
 	"github.com/eosspark/eos-go/chain/types"
@@ -33,22 +32,21 @@ var dir string = "."
 
 const tstampMax = 3600 * time.Second
 
-// const timepointMax =
 func init() {
 	timeOut = tstampMax
 }
 
 type RespKeys map[ecc.PublicKey]ecc.PrivateKey
 
-func (k RespKeys) MarshalJSON() ([]byte, error) {
-	out := map[string]string{}
-	for pub, pri := range k {
-		putstr := pub.String()
-		pristr := pri.String()
-		out[putstr] = pristr
-	}
-	return json.Marshal(out)
-}
+//func (k RespKeys) MarshalJSON() ([]byte, error) {
+//	out := map[string]string{}
+//	for pub, pri := range k {
+//		putstr := pub.String()
+//		pristr := pri.String()
+//		out[putstr] = pristr
+//	}
+//	return json.Marshal(out)
+//}
 
 type WalletPlugin struct {
 	Wallets map[string]SoftWallet
@@ -63,6 +61,10 @@ func NewWalletPlugin() *WalletPlugin {
 func (wp *WalletPlugin) Create(name string) (password string, err error) {
 	log.Debug("wallet creating")
 	checkTimeout()
+
+	if name == "" {
+		name = "default"
+	}
 
 	password, err = genPassword()
 
