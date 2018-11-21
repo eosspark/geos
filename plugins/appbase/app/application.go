@@ -15,7 +15,7 @@ import (
 )
 
 // 完成初步架构设计
-type applicationImpl struct {
+type ApplicationImpl struct {
 	version uint64
 	Options *cli.App
 
@@ -26,8 +26,8 @@ type applicationImpl struct {
 
 //var App_global *app
 
-type application struct {
-	plugins            map[string]Plugin //< all registered plugins
+type Application struct {
+	plugins            map[PluginName]Plugin //< all registered plugins
 	initializedPlugins []Plugin          //< stored in the order they were started running
 	runningPlugins     []Plugin          //<  stored in the order they were started running
 
@@ -35,20 +35,20 @@ type application struct {
 	channels map[ChannelsType]*Channel
 	methods map[MethodsType]*Method
 	iosv *asio.IoContext
-	my   *applicationImpl
+	my   *ApplicationImpl
 }
 
-func NewApplication() *application {
+func newApplication() *Application {
 	iosv := asio.NewIoContext()
-	appImpl := &applicationImpl{
+	appImpl := &ApplicationImpl{
 		Version,
 		cli.NewApp(),
 		"data-dir",
 		"config-dir",
 		"logging.json"}
 
-	app := &application{
-		plugins:            make(map[string]Plugin),
+	app := &Application{
+		plugins:            make(map[PluginName]Plugin),
 		initializedPlugins: make([]Plugin, 0),
 		runningPlugins:     make([]Plugin, 0),
 		channels:           make(map[ChannelsType]*Channel),
@@ -60,9 +60,15 @@ func NewApplication() *application {
 	return app
 }
 
-var App = NewApplication()
+var app *Application
+func App() *Application {
+	if app == nil {
+		app = newApplication()
+	}
+	return app
+}
 
-func (app *application) RegisterPlugin(plugin Plugin) Plugin {
+func (app *Application) RegisterPlugin(plugin Plugin) Plugin {
 	if p, existing := app.plugins[plugin.GetName()]; existing {
 		return p
 	}
@@ -70,17 +76,11 @@ func (app *application) RegisterPlugin(plugin Plugin) Plugin {
 	return plugin
 }
 
-func (app *application) setProgramOptions() {
+func (app *Application) setProgramOptions() {
 	for _, v := range app.plugins {
 		v.SetProgramOptions(&app.my.Options.Flags)
 	}
 	app.my.Options.Flags = append(app.my.Options.Flags,
-		cli.IntFlag{
-			Name:  "port, p",
-			Value: 8000,
-			Usage: "listening port",
-		},
-
 		cli.StringFlag{
 			Name:  "print-default-config",
 			Usage: "Print default configuration template",
@@ -113,7 +113,7 @@ func (app *application) setProgramOptions() {
 
 }
 
-func (app *application) Initialize(basicPlugin []string) bool {
+func (app *Application) Initialize(basicPlugin []PluginName) bool {
 	var AP []Plugin
 	for i := 0; i < len(basicPlugin); i++ {
 		if p := app.FindPlugin(basicPlugin[i]); p != nil {
@@ -123,7 +123,7 @@ func (app *application) Initialize(basicPlugin []string) bool {
 	return app.InitializeImpl(AP)
 }
 
-func (app *application) InitializeImpl(p []Plugin) bool {
+func (app *Application) InitializeImpl(p []Plugin) bool {
 	returning, r := false, false
 	try.Try(func() {
 		app.setProgramOptions()
@@ -160,7 +160,7 @@ func (app *application) InitializeImpl(p []Plugin) bool {
 	return true
 }
 
-func (app *application) GetChannel(channelType ChannelsType) *Channel {
+func (app *Application) GetChannel(channelType ChannelsType) *Channel {
 	if v, ok := app.channels[channelType]; ok {
 		return v
 	} else {
@@ -170,7 +170,7 @@ func (app *application) GetChannel(channelType ChannelsType) *Channel {
 	}
 }
 
-func (app *application) GetMethod(methodsType MethodsType) *Method {
+func (app *Application) GetMethod(methodsType MethodsType) *Method {
 	if v,ok := app.methods[methodsType]; ok {
 		return v
 	} else {
@@ -179,28 +179,28 @@ func (app *application) GetMethod(methodsType MethodsType) *Method {
 	}
 }
 
-func (app *application) GetIoService() *asio.IoContext {
+func (app *Application) GetIoService() *asio.IoContext {
 	return app.iosv
 }
 
-func (app *application) PluginInitialized(p Plugin) {
+func (app *Application) PluginInitialized(p Plugin) {
 	app.initializedPlugins = append(app.initializedPlugins, p)
 }
 
-func (app *application) PluginStarted(p Plugin) {
+func (app *Application) PluginStarted(p Plugin) {
 	app.runningPlugins = append(app.runningPlugins, p)
 }
 
-func (app *application) StartUp() {
+func (app *Application) StartUp() {
 	app.my.Options.Run(os.Args)
 	for i := range app.initializedPlugins {
 		app.initializedPlugins[i].StartUp()
 	}
 }
 
-func (app *application) ShutDown() {
+func (app *Application) ShutDown() {
 	for _, v := range app.plugins {
-		v.PluginShutDown()
+		v.PluginShutdown()
 	}
 	app.runningPlugins = app.runningPlugins[:0]
 	app.initializedPlugins = app.initializedPlugins[:0]
@@ -211,11 +211,11 @@ func (app *application) ShutDown() {
 	app.iosv.Stop()
 }
 
-func (app *application) Quit() {
+func (app *Application) Quit() {
 	app.iosv.Stop()
 }
 
-func (app *application) Exec() {
+func (app *Application) Exec() {
 	sigint := asio.NewSignalSet(app.iosv, syscall.SIGINT)
 	sigint.AsyncWait(func(err error) {
 		app.Quit()
@@ -236,14 +236,14 @@ func (app *application) Exec() {
 	app.ShutDown()
 }
 
-func (app *application) FindPlugin(name string) (plugin Plugin) {
+func (app *Application) FindPlugin(name PluginName) (plugin Plugin) {
 	if v, ok := app.plugins[name]; ok {
 		return v
 	}
 	return nil
 }
 
-func (app *application) GetPlugin(name string) (plugin Plugin) {
+func (app *Application) GetPlugin(name PluginName) (plugin Plugin) {
 	p := app.FindPlugin(name)
 	if p == nil {
 		fmt.Println("unable to find plugin") //need to fix
@@ -251,19 +251,19 @@ func (app *application) GetPlugin(name string) (plugin Plugin) {
 	return p
 }
 
-func (app *application) GetVersion() uint64 {
+func (app *Application) GetVersion() uint64 {
 	return app.my.version
 }
 
-func (app *application) SetVersion(version uint64) {
+func (app *Application) SetVersion(version uint64) {
 	app.my.version = version
 }
 
-func (app *application) SetDefaultConfigDir() {
+func (app *Application) SetDefaultConfigDir() {
 	app.my.ConfigDir = DefaultConfigDir()
 }
 
-func (app *application) SetDefaultDataDir() {
+func (app *Application) SetDefaultDataDir() {
 	app.my.DateDir = DefaultDataDir()
 }
 
