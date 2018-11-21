@@ -13,14 +13,14 @@ import (
 //Register(abstract_plugin) error
 
 type Plugin interface {
-	SetProgramOptions(options *cli.App)
+	SetProgramOptions(options *[]cli.Flag)
 	PluginInitialize()
 	PluginStartUp()
 	PluginShutDown()
 
 	GetName() string
 	GetState() State
-	Initialize(options *cli.App)
+	Initialize(options *cli.Context)
 	StartUp()
 }
 

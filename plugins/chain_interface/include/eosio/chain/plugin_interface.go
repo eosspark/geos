@@ -13,10 +13,10 @@ const (
 	AcceptedConfirmation
 )
 
-type Methods int
+type MethodsType int
 
 const (
-	GetBlockByNumber = Methods(iota + 1)
+	GetBlockByNumber = MethodsType(iota + 1)
 	GetBlockById
 	GetHeadBlockId
 	GetLibBlockId
