@@ -1,13 +1,16 @@
 package database
 
 import (
-	"bytes"
+	"fmt"
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/util"
 	"log"
 	"os"
 	"testing"
 )
+
+var logFlag = false
+//var logFlag = true
 
 func Test_rawDb(t *testing.T) {
 	//f, err := os.Create("./cpu.txt")
@@ -42,7 +45,7 @@ func Test_rawDb(t *testing.T) {
 		log.Fatalln("ERROR")
 	}
 	keys := [][]byte{}
-	for i := 1; i <= 10; i++ {
+	for i := 1; i <= 720000; i++ {
 		key := []byte(string(i))
 		key = append(key, key...)
 		keys = append(keys, key)
@@ -50,20 +53,14 @@ func Test_rawDb(t *testing.T) {
 	for _, v := range keys {
 		db.Put(v, v, nil)
 	}
-	if bytes.HasPrefix(keys[0], []byte(string(1))) {
-		//fmt.Println(keys[0],[]byte(string(1)))
+	h := []byte("hello")
+	w := []byte("world")
+	db.Put(h,h,nil)
+	db.Put(w,w,nil)
+	it := db.NewIterator(util.BytesPrefix([]byte(string("linx"))),nil)
+	if it.Next(){
+		fmt.Println(it.Key() ," : ",it.Value())
 	}
-
-	it := db.NewIterator(&util.Range{Start: []byte(string(5)), Limit: nil}, nil)
-	if it.Seek([]byte(string(2))) {
-		//fmt.Println("---------")
-	}
-	//fmt.Println(it.Value(),it.Key())
-	for it.Next() {
-
-		//fmt.Println(it.Value(),it.Key())
-	}
-	it.Release()
 }
 
 func Test_open(t *testing.T) {
@@ -82,12 +79,38 @@ func Test_insert(t *testing.T) {
 	}
 	defer clo()
 
-	objs, houses := Objects()
+	objs, houses := multiObjects()
 	if len(objs) != len(houses) {
 		log.Fatalln("ERROR")
 	}
 
 	saveObjs(objs, houses, db)
+
+	obj := DbTableIdObject{Scope: 22}
+	idx, err := db.GetIndex("byTable", obj)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
+	it, err := idx.LowerBound(obj)
+	if err != nil {
+		log.Fatalln(err)
+	}
+	defer it.Release()
+
+	tmp := DbTableIdObject{}
+	//fmt.Println("---------------------------")
+
+	db.Find("id",DbTableIdObject{ID:254},&tmp)
+	//logObj(tmp)
+
+	db.Find("id",DbTableIdObject{ID:255},&tmp)
+	//logObj(tmp)
+
+	tmp = DbTableIdObject{}
+	db.Find("id",DbTableIdObject{ID:25590000},&tmp)
+	//logObj(tmp)
+
 }
 
 func insert_te() {
@@ -942,7 +965,7 @@ func openDb() (DataBase, func()) {
 		reFn()
 	}
 
-	db, err := NewDataBase(fileName, false)
+	db, err := NewDataBase(fileName, logFlag)
 	if err != nil {
 
 		log.Fatalln("new database failed : ", err)
@@ -953,6 +976,30 @@ func openDb() (DataBase, func()) {
 		db.Close()
 		reFn()
 	}
+}
+
+
+
+func multiObjects() ([]DbTableIdObject, []DbHouse) {
+	objs := []DbTableIdObject{}
+	DbHouses := []DbHouse{}
+	for i := 1; i <= 300; i++ {
+		number := i * 10
+		obj := DbTableIdObject{Code: AccountName(number + 1), Scope: ScopeName(number + 2), Table: TableName(number + 3 + i + 1), Payer: AccountName(number + 4 + i + 1), Count: uint32(number + 5)}
+		objs = append(objs, obj)
+		house := DbHouse{Area: uint64(number + 7), Carnivore: Carnivore{number + 7, number + 7}}
+		DbHouses = append(DbHouses, house)
+		obj = DbTableIdObject{Code: AccountName(number + 2), Scope: ScopeName(number + 2), Table: TableName(number + 3 + i + 2), Payer: AccountName(number + 4 + i + 2), Count: uint32(number + 5)}
+		objs = append(objs, obj)
+		house = DbHouse{Area: uint64(number + 8), Carnivore: Carnivore{number + 8, number + 8}}
+		DbHouses = append(DbHouses, house)
+
+		obj = DbTableIdObject{Code: AccountName(number + 3), Scope: ScopeName(number + 2), Table: TableName(number + 3 + i + 3), Payer: AccountName(number + 4 + i + 3), Count: uint32(number + 5)}
+		objs = append(objs, obj)
+		house = DbHouse{Area: uint64(number + 9), Carnivore: Carnivore{number + 9, number + 9}}
+		DbHouses = append(DbHouses, house)
+	}
+	return objs, DbHouses
 }
 
 func Objects() ([]DbTableIdObject, []DbHouse) {
@@ -998,6 +1045,9 @@ func saveObjs(objs []DbTableIdObject, houses []DbHouse, db DataBase) ([]DbTableI
 			log.Fatalln(err)
 			log.Fatalln("insert table object failed")
 		}
+		if v.ID == 253 {
+			//fmt.Println("go")
+		}
 
 		objs_ = append(objs_, v)
 	}
@@ -1017,6 +1067,7 @@ func lowerAndUpper(objs []DbTableIdObject, houses []DbHouse, db DataBase) {
 		log.Fatalln(err)
 	}
 	defer it.Release()
+
 
 	i := 3
 	for it.Next() {

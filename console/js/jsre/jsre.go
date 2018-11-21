@@ -28,7 +28,6 @@ import (
 
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/console/js/jsre/deps"
-	"github.com/eosspark/eos-go/log"
 	"github.com/robertkrimen/otto"
 )
 
@@ -253,9 +252,7 @@ func (re *JSRE) Exec(file string) error {
 		if err != nil {
 			return
 		}
-		//_, err = vm.Run(script)
-		a, err := vm.Run(script)
-		log.Warn("exex result :%#v,%s", a, err)
+		_, err = vm.Run(script)
 	})
 	return err
 }

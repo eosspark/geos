@@ -176,13 +176,12 @@ error 				-->		nil
 
 func (index *MultiIndex) Begin() Iterator {
 	it, err := index.db.BeginIterator(index.begin, index.end, index.typeName)
-	if err != nil {
-		log.Println("MultiIndex Begin Error : ", err)
-		return nil
-	}
-	if it == nil {
-		log.Println("MultiIndex Begin Iterator Is Empty ")
-		return nil
+	if err != nil || it ==nil{
+		it ,err = index.db.EndIterator(index.begin,index.end,index.typeName)
+		if err != nil{
+			//panic()
+			return nil
+		}
 	}
 	return it
 }
