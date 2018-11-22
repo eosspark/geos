@@ -1032,11 +1032,12 @@ func (a *ApplyContext) SetBlockchainParametersPacked(parameters []byte) {
 
 	cfg := common.Config{}
 	rlp.DecodeBytes(parameters, &cfg)
-
-	a.DB.Modify(a.Control.GetGlobalProperties(), func(gpo *entity.GlobalPropertyObject) {
+	g := a.Control.GetGlobalProperties()
+	a.DB.Modify(g, func(gpo *entity.GlobalPropertyObject) {
 		gpo.Configuration = cfg
 	})
 
+	a.Control.GpoCache[g.ID] = g
 }
 
 func (a *ApplyContext) GetBlockchainParametersPacked() []byte {
