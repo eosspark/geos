@@ -3,8 +3,9 @@ package common
 import (
 	"encoding/binary"
 	"encoding/json"
-	"fmt"
 	"strings"
+	. "github.com/eosspark/eos-go/exception/try"
+	"github.com/eosspark/eos-go/exception"
 )
 
 // ported from libraries/chain/name.cpp in eosio
@@ -41,10 +42,7 @@ func (n *Name) UnmarshalJSON(data []byte) error {
 func N(s string) (val uint64) {
 	var i uint32
 	sLen := uint32(len(s))
-	if sLen > 13 {
-		//panic(fmt.Sprintf("Name is loger than 13 chacacters %s",s))
-		fmt.Printf("Name is loger than 13 chacacters %s\n", s) //TODO
-	}
+	EosAssert(sLen <= 13, &exception.NameTypeException{}, "Name is longer than 13 characters (%s) ", s)
 	for ; i <= 12; i++ {
 		var c uint64
 		if i < sLen {

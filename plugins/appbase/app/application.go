@@ -175,6 +175,7 @@ func (app *Application) GetMethod(methodsType MethodsType) *Method {
 		return v
 	} else {
 		method := NewMethod()
+		app.methods[methodsType] = method
 		return method
 	}
 }
@@ -224,13 +225,14 @@ func (app *Application) Exec() {
 	sigterm := asio.NewSignalSet(app.iosv, syscall.SIGTERM)
 	sigterm.AsyncWait(func(err error) {
 		app.Quit()
-		sigint.Cancel()
+		sigterm.Cancel()
 	})
 	sigpipe := asio.NewSignalSet(app.iosv, syscall.SIGPIPE)
 	sigpipe.AsyncWait(func(err error) {
 		app.Quit()
 		sigpipe.Cancel()
 	})
+
 	app.iosv.Run()
 
 	app.ShutDown()
