@@ -5,12 +5,13 @@ import (
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/ecc"
-	"github.com/eosspark/eos-go/entity"
 	"github.com/eosspark/eos-go/crypto/rlp"
+	"github.com/eosspark/eos-go/entity"
 	"github.com/eosspark/eos-go/exception"
 	"github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/log"
 	"math"
+	"fmt"
 )
 
 type BaseTester struct {
@@ -26,7 +27,15 @@ type BaseTester struct {
 	LastProducedBlock       map[common.AccountName]common.BlockIdType
 }
 
-func (t BaseTester) init(pushGenesis bool, mode DBReadMode) {
+func newBaseTester(control *Controller) *BaseTester {
+	btInstance := &BaseTester{}
+	btInstance.Control = control
+	btInstance.initBase(false, 0 )
+	return btInstance
+}
+
+
+func (t BaseTester) initBase(pushGenesis bool, mode DBReadMode) {
 	t.DefaultExpirationDelta = 6
 	t.DefaultBilledCpuTimeUs = 2000
 	t.Cfg.blocksDir = common.DefaultConfig.DefaultBlocksDirName
@@ -256,7 +265,7 @@ type VariantsObject []map[string]interface{}
 func (t BaseTester) PushAction2(code *common.AccountName, acttype *common.AccountName,
 	actor common.AccountName, data *VariantsObject, expiration uint32, delaySec uint32) *types.TransactionTrace {
 	auths := make([]types.PermissionLevel, 0)
-	auths = append(auths, types.PermissionLevel{actor, common.DefaultConfig.ActiveName})
+	auths = append(auths, types.PermissionLevel{Actor:actor, Permission:common.DefaultConfig.ActiveName})
 	return t.PushAction4(code, acttype, &auths, data, expiration, delaySec)
 }
 
@@ -291,6 +300,7 @@ func (t BaseTester) GetAction(code common.AccountName, actType common.AccountNam
 func (t BaseTester) getPrivateKey(keyName common.Name, role string) ecc.PrivateKey {
 	//TODO: wait for testing
 	priKey, _ := ecc.NewPrivateKey(crypto.Hash256(keyName.String() + role).String())
+	fmt.Println(crypto.Hash256(keyName.String() + role).String())
 	return *priKey
 }
 
@@ -308,61 +318,61 @@ func (t BaseTester) ProduceEmptyBlock(skipTime common.Microseconds, skipFlag uin
 	return t.produceBlock(skipTime, true, skipFlag)
 }
 
-func (t BaseTester) PushReqAuth(from common.AccountName, auths *[]types.PermissionLevel, keys *[]ecc.PrivateKey) *types.TransactionTrace{
+func (t BaseTester) PushReqAuth(from common.AccountName, auths *[]types.PermissionLevel, keys *[]ecc.PrivateKey) *types.TransactionTrace {
 	//TODO
 	trx := types.SignedTransaction{}
-	t.SetTransactionHeaders(&trx.Transaction, t.DefaultExpirationDelta,0)
+	t.SetTransactionHeaders(&trx.Transaction, t.DefaultExpirationDelta, 0)
 	chainId := t.Control.GetChainId()
-	for _, iter := range *keys{
+	for _, iter := range *keys {
 		trx.Sign(&iter, &chainId)
 	}
-	return t.PushTransaction(&trx,common.MaxTimePoint(),t.DefaultBilledCpuTimeUs)
+	return t.PushTransaction(&trx, common.MaxTimePoint(), t.DefaultBilledCpuTimeUs)
 }
 
-func (t BaseTester) PushReqAuth2(from common.AccountName, role string, multiSig bool) *types.TransactionTrace{
+func (t BaseTester) PushReqAuth2(from common.AccountName, role string, multiSig bool) *types.TransactionTrace {
 	if !multiSig {
-		auths := []types.PermissionLevel{{Actor:from,Permission:common.DefaultConfig.OwnerName}}
-		keys := []ecc.PrivateKey{t.getPrivateKey(from,role)}
+		auths := []types.PermissionLevel{{Actor: from, Permission: common.DefaultConfig.OwnerName}}
+		keys := []ecc.PrivateKey{t.getPrivateKey(from, role)}
 		return t.PushReqAuth(from, &auths, &keys)
 	} else {
-		auths := []types.PermissionLevel{{Actor:from,Permission:common.DefaultConfig.OwnerName}}
-		keys := []ecc.PrivateKey{t.getPrivateKey(from,role),t.getPrivateKey(common.DefaultConfig.SystemAccountName,"active")}
+		auths := []types.PermissionLevel{{Actor: from, Permission: common.DefaultConfig.OwnerName}}
+		keys := []ecc.PrivateKey{t.getPrivateKey(from, role), t.getPrivateKey(common.DefaultConfig.SystemAccountName, "active")}
 		return t.PushReqAuth(from, &auths, &keys)
 	}
 }
 
-func (t BaseTester) PushDummy(from common.AccountName, v *string, billedCpuTimeUs uint32) *types.TransactionTrace{
+func (t BaseTester) PushDummy(from common.AccountName, v *string, billedCpuTimeUs uint32) *types.TransactionTrace {
 	//TODO
 	trx := types.SignedTransaction{}
-	t.SetTransactionHeaders(&trx.Transaction, t.DefaultExpirationDelta,0)
+	t.SetTransactionHeaders(&trx.Transaction, t.DefaultExpirationDelta, 0)
 	privKey := t.getPrivateKey(from, "active")
 	chainId := t.Control.GetChainId()
 	trx.Sign(&privKey, &chainId)
-	return t.PushTransaction(&trx,common.MaxTimePoint(),billedCpuTimeUs)
+	return t.PushTransaction(&trx, common.MaxTimePoint(), billedCpuTimeUs)
 }
 
-func (t BaseTester) Transfer(from common.AccountName, to common.AccountName, amount common.Asset, memo string, currency common.AccountName) *types.TransactionTrace{
+func (t BaseTester) Transfer(from common.AccountName, to common.AccountName, amount common.Asset, memo string, currency common.AccountName) *types.TransactionTrace {
 	//TODO
 	trx := types.SignedTransaction{}
-	t.SetTransactionHeaders(&trx.Transaction, t.DefaultExpirationDelta,0)
+	t.SetTransactionHeaders(&trx.Transaction, t.DefaultExpirationDelta, 0)
 	privKey := t.getPrivateKey(from, "active")
 	chainId := t.Control.GetChainId()
 	trx.Sign(&privKey, &chainId)
-	return t.PushTransaction(&trx,common.MaxTimePoint(),t.DefaultBilledCpuTimeUs)
+	return t.PushTransaction(&trx, common.MaxTimePoint(), t.DefaultBilledCpuTimeUs)
 }
 
-func (t BaseTester) Transfer2(from common.AccountName, to common.AccountName, amount string, memo string, currency common.AccountName) *types.TransactionTrace{
+func (t BaseTester) Transfer2(from common.AccountName, to common.AccountName, amount string, memo string, currency common.AccountName) *types.TransactionTrace {
 	return t.Transfer(from, to, common.Asset{}.FromString(&amount), memo, currency)
 }
 
-func (t BaseTester) Issue(to common.AccountName, amount string, currency common.AccountName) *types.TransactionTrace{
+func (t BaseTester) Issue(to common.AccountName, amount string, currency common.AccountName) *types.TransactionTrace {
 	//TODO
 	trx := types.SignedTransaction{}
-	t.SetTransactionHeaders(&trx.Transaction, t.DefaultExpirationDelta,0)
+	t.SetTransactionHeaders(&trx.Transaction, t.DefaultExpirationDelta, 0)
 	privKey := t.getPrivateKey(currency, "active")
 	chainId := t.Control.GetChainId()
 	trx.Sign(&privKey, &chainId)
-	return t.PushTransaction(&trx,common.MaxTimePoint(),t.DefaultBilledCpuTimeUs)
+	return t.PushTransaction(&trx, common.MaxTimePoint(), t.DefaultBilledCpuTimeUs)
 }
 
 func (t BaseTester) LinkAuthority(account common.AccountName, code common.AccountName, req common.PermissionName, rtype common.ActionName) {
@@ -484,12 +494,12 @@ func (t BaseTester) GetTransactionReceipt(txId *common.BlockIdType) *types.Trans
 	return &val
 }
 
-func (t BaseTester) GetCurrencyBalance(code *common.AccountName, assetSymbol *common.Symbol, account *common.AccountName) common.Asset{
+func (t BaseTester) GetCurrencyBalance(code *common.AccountName, assetSymbol *common.Symbol, account *common.AccountName) common.Asset {
 	db := t.Control.DB
-	table := entity.TableIdObject{Code:*code, Scope:*account, Table:common.TableName(*account)}
+	table := entity.TableIdObject{Code: *code, Scope: *account, Table: common.TableName(*account)}
 	err := db.Find("byCodeScopeTable", table, &table)
 	result := int64(0)
-	if err != nil{
+	if err != nil {
 		log.Error("GetCurrencyBalance is error: %s", err)
 	} else {
 		//TODO
@@ -502,28 +512,28 @@ func (t BaseTester) GetCurrencyBalance(code *common.AccountName, assetSymbol *co
 			//TODO
 		}
 	}
-	return common.Asset{Amount:result, Symbol:*assetSymbol}
+	return common.Asset{Amount: result, Symbol: *assetSymbol}
 }
 
-func (t BaseTester) GetRowByAccount(code uint64, scope uint64, table uint64, act *common.AccountName) []byte{
+func (t BaseTester) GetRowByAccount(code uint64, scope uint64, table uint64, act *common.AccountName) []byte {
 	var data []byte
 	db := t.Control.DB
-	tId := entity.TableIdObject{Code:common.AccountName(code),Scope:common.ScopeName(scope),Table:common.TableName(table)}
+	tId := entity.TableIdObject{Code: common.AccountName(code), Scope: common.ScopeName(scope), Table: common.TableName(table)}
 	err := db.Find("byCodeScopeTable", tId, &tId)
-	if err != nil{
+	if err != nil {
 		return data
 		//log.Error("GetRowByAccount is error: %s", err)
 	}
 	idx, _ := db.GetIndex("byScopePrimary", entity.KeyValueObject{})
 	obj := entity.KeyValueObject{TId: tId.ID, PrimaryKey: uint64(*act)}
 	itr, _ := idx.LowerBound(&obj)
-	if idx.CompareEnd(itr){
+	if idx.CompareEnd(itr) {
 		return data
 	}
 
 	objLowerBound := entity.KeyValueObject{}
 	itr.Data(&objLowerBound)
-	if objLowerBound.TId != tId.ID || objLowerBound.PrimaryKey != uint64(*act){
+	if objLowerBound.TId != tId.ID || objLowerBound.PrimaryKey != uint64(*act) {
 		return data
 	}
 
@@ -532,42 +542,42 @@ func (t BaseTester) GetRowByAccount(code uint64, scope uint64, table uint64, act
 	return data
 }
 
-func (t BaseTester) Uint64ToUint8Vector(x uint64) []uint8{
+func (t BaseTester) Uint64ToUint8Vector(x uint64) []uint8 {
 	//TODO
 	var v []uint8
 	return v
 }
 
-func (t BaseTester) StringToUint8Vector(s *string) []uint8{
+func (t BaseTester) StringToUint8Vector(s *string) []uint8 {
 	//TODO
 	var v []uint8
 	return v
 }
 
-func (t BaseTester) ToUint64(v []uint8) uint64{
+func (t BaseTester) ToUint64(v []uint8) uint64 {
 	//TODO
 	var data uint64
 	return data
 }
 
-func (t BaseTester) ToString(v []uint8) string{
+func (t BaseTester) ToString(v []uint8) string {
 	//TODO
 	var s string
 	return s
 }
 
-func (t BaseTester) SyncWith(other *BaseTester){
-	if t.Control.HeadBlockId() == other.Control.HeadBlockId(){
+func (t BaseTester) SyncWith(other *BaseTester) {
+	if t.Control.HeadBlockId() == other.Control.HeadBlockId() {
 		return
 	}
 
-	if t.Control.HeadBlockNum() == other.Control.HeadBlockNum(){
+	if t.Control.HeadBlockNum() == other.Control.HeadBlockNum() {
 		other.SyncWith(&t)
 		return
 	}
 
-	syncDbs := func(a *BaseTester, b *BaseTester){
-		for i := uint32(1); i <= a.Control.HeadBlockNum(); i++{
+	syncDbs := func(a *BaseTester, b *BaseTester) {
+		for i := uint32(1); i <= a.Control.HeadBlockNum(); i++ {
 			block := a.Control.FetchBlockByNumber(i)
 			if !common.Empty(block) {
 				b.Control.AbortBlock()
@@ -579,31 +589,31 @@ func (t BaseTester) SyncWith(other *BaseTester){
 	syncDbs(other, &t)
 }
 
-func (t BaseTester) PushGenesisBlock(){
+func (t BaseTester) PushGenesisBlock() {
 	//TODO
 	t.SetCode2(common.DefaultConfig.SystemAccountName, nil, nil)
 	t.SetAbi(common.DefaultConfig.SystemAccountName, nil, nil)
 }
 
-func (t BaseTester) GetProducerKeys(producerNames *[]common.AccountName) []types.ProducerKey{
+func (t BaseTester) GetProducerKeys(producerNames *[]common.AccountName) []types.ProducerKey {
 	var schedule []types.ProducerKey
 	for producerName := range *producerNames {
-		pk := types.ProducerKey{ProducerName:common.AccountName(producerName), BlockSigningKey:t.getPublicKey(common.AccountName(producerName), "active")}
+		pk := types.ProducerKey{ProducerName: common.AccountName(producerName), BlockSigningKey: t.getPublicKey(common.AccountName(producerName), "active")}
 		schedule = append(schedule, pk)
 	}
 	return schedule
 }
 
-func (t BaseTester) SetProducerKeys(producerNames *[]common.AccountName) *types.TransactionTrace{
+func (t BaseTester) SetProducerKeys(producerNames *[]common.AccountName) *types.TransactionTrace {
 	//TODO
 	//schedule := t.GetProducerKeys(producerNames)
 	return &types.TransactionTrace{}
 }
 
-func (t BaseTester) FindTable(code common.Name, scope common.Name, table common.Name) *entity.TableIdObject{
-	tId := entity.TableIdObject{Code:code, Scope:scope, Table:table}
+func (t BaseTester) FindTable(code common.Name, scope common.Name, table common.Name) *entity.TableIdObject {
+	tId := entity.TableIdObject{Code: code, Scope: scope, Table: table}
 	err := t.Control.DB.Find("byCodeScopeTable", tId, &tId)
-	if err != nil{
+	if err != nil {
 		log.Error("FindTable is error: %s", err)
 	}
 	return &tId

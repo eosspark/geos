@@ -241,12 +241,9 @@ func (a Asset) FromString(from *string) Asset {
 type Symbol struct {
 	Precision uint8
 	Symbol    string `eos:"asset"`
-	MaxPrecision uint8
 }
 
-func (sym Symbol) init(){
-	sym.MaxPrecision = 18
-}
+var MaxPrecision = uint8(18)
 
 func (sym Symbol) FromString(from *string) Symbol{
 	//TODO: unComplete
@@ -256,7 +253,7 @@ func (sym Symbol) FromString(from *string) Symbol{
 	precPart := string([]byte(*from)[:commaPos])
 	p, _ := strconv.ParseInt(precPart, 10, 64)
 	namePart := string([]byte(*from)[commaPos+1:])
-	try.EosAssert(uint8(p) <= sym.MaxPrecision, &exception.SymbolTypeException{}, "precision %v should be <= 18", p)
+	try.EosAssert(uint8(p) <= MaxPrecision, &exception.SymbolTypeException{}, "precision %v should be <= 18", p)
 	return Symbol{Precision:uint8(p), Symbol:namePart}
 }
 

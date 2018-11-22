@@ -1,43 +1,44 @@
 package chain
 
 import (
-	"testing"
-	"github.com/eosspark/eos-go/common"
-	"github.com/eosspark/eos-go/chain/types"
 	"fmt"
+	"github.com/eosspark/eos-go/chain/types"
+	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto/ecc"
+	"testing"
 )
 
-func initializeAuth() *AuthorizationManager{
+func initializeAuth() (*AuthorizationManager, *BaseTester) {
 	control := GetControllerInstance()
-	am := control.Authorization
-	return am
+	am := newAuthorizationManager(control)
+	bt := newBaseTester(control)
+	return am, bt
 }
 
-func TestMissingSigs(t *testing.T){
+func TestMissingSigs(t *testing.T) {
 	//am := initializeAuth()
-	BaseTester{}.CreateAccounts([]common.AccountName{common.AccountName(common.N("Alice"))},false,false)
-	BaseTester{}.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs), 0)
-
+	_, b := initializeAuth()
+	b.CreateAccounts([]common.AccountName{common.AccountName(common.N("Alice"))}, false, false)
+	b.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs), 0)
 }
 
-func TestMissingAuths(t *testing.T){
+func TestMissingAuths(t *testing.T) {
 	//am := initializeAuth()
 	//produceBlock()
 }
 
-func TestDelegateAuth(t *testing.T){
-	
+func TestDelegateAuth(t *testing.T) {
+
 }
 
-func TestCommonEmpty(t *testing.T){
+func TestCommonEmpty(t *testing.T) {
 	a := types.Permission{}
 	fmt.Println(a)
 	fmt.Println(common.Empty(a))
 }
 
-func TestMakeAuthChecker(t *testing.T){
-	a := initializeAuth()
+func TestMakeAuthChecker(t *testing.T) {
+	a, _ := initializeAuth()
 	providedKeys := common.FlatSet{}
 	providedPermissions := common.FlatSet{}
 	pub1, _ := ecc.NewPublicKey("EOS859gxfnXyUriMgUeThh1fWv3oqcpLFyHa3TfFYC4PK2HqhToVM")
