@@ -43,7 +43,7 @@ testImport:
   subpackages:
   - spew
 - package: github.com/eosspark/container
-  version: eosgo-1.0.0
+  version: master
   subpackages:
   - maps/treemap
   - sets/treeset

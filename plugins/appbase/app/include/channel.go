@@ -13,10 +13,6 @@ func NewChannel (io *asio.IoContext) *Channel {
 	return ch
 }
 
-//func GetChannel3 () *Signal{
-//	channel := new(Signal)
-//	return channel
-//}
 
 /**
 * Publish data to a channel.  This data is *copied* on publish.

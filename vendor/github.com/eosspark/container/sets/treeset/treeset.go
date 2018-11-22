@@ -55,6 +55,39 @@ func NewWithStringComparator(values ...interface{}) *Set {
 	return set
 }
 
+func CopyFrom(ts *Set) *Set {
+	return &Set{tree: rbt.CopyFrom(ts.tree)}
+}
+
+func SetIntersection(a *Set, b *Set, callback func(elem interface{})) {
+	aIterator := a.Iterator()
+	bIterator := b.Iterator()
+
+	if !aIterator.First() || !bIterator.First() {
+		return
+	}
+
+	comparator := a.GetComparator()
+
+	for aIterator.index < a.Size() && bIterator.index < b.Size() {
+		comp := comparator(aIterator.Value(), bIterator.Value())
+		switch  {
+		case comp > 0:
+			bIterator.Next()
+		case comp < 0:
+			aIterator.Next()
+		default:
+			callback(aIterator.Value())
+			aIterator.Next()
+			bIterator.Next()
+		}
+	}
+}
+
+func (set *Set) GetComparator() utils.Comparator {
+	return set.tree.Comparator
+}
+
 // Add adds the items (one or more) to the set.
 func (set *Set) Add(items ...interface{}) {
 	for _, item := range items {

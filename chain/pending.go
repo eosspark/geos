@@ -17,7 +17,6 @@ type PendingState struct {
 	ProducerBlockId   common.BlockIdType
 }
 
-//TODO wait modify Singleton
 func NewPendingState(db database.DataBase) *PendingState {
 	PendingValid = true
 	pending := PendingState{}
@@ -25,6 +24,9 @@ func NewPendingState(db database.DataBase) *PendingState {
 	return &pending
 }
 
+func NewDefaultPendingState() *PendingState {
+	return &PendingState{}
+}
 func (p *PendingState) Reset() {
 	if PendingValid {
 

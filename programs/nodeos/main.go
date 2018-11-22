@@ -1,54 +1,90 @@
 package main
 
 import (
-	"fmt"
+	. "github.com/eosspark/eos-go/exception"
+	"github.com/eosspark/eos-go/exception/try"
+	"github.com/eosspark/eos-go/log"
+	. "github.com/eosspark/eos-go/plugins/appbase/app/include"
+	. "github.com/eosspark/eos-go/plugins/appbase/app"
 	"os"
-	"gopkg.in/urfave/cli.v1"
-	"github.com/eosspark/eos-go/plugins/appbase/asio"
-	"github.com/eosspark/eos-go/plugins/producer_plugin"
-	"log"
-	"syscall"
-	"github.com/eosspark/eos-go/common"
-	"github.com/eosspark/eos-go/plugins/producer_plugin/testing"
-	)
+	"strings"
 
+	//plugins
+	_ "github.com/eosspark/eos-go/plugins/producer_plugin"
+)
+
+const (
+	OTHER_FAIL              = -2
+	INITIALIZE_FAIL          = -1
+	SUCCESS                 = 0
+	BAD_ALLOC               = 1
+	DATABASE_DIRTY          = 2
+	FIXED_REVERSIBLE        = 3
+	EXTRACTED_GENESIS       = 4
+	NODE_MANAGEMENT_SUCCESS = 5
+)
+
+var basicPlugin = []PluginName{ProducerPlug}
+
+//var pro producer_plugin.Producer_plugin
+//var net net_plugin.Net_plugin
 
 func main() {
 
-	//try.Assert(false, "main-assert")
+	try.Try(func() {
+		App().SetVersion(Version)
+		App().SetDefaultDataDir()
+		App().SetDefaultConfigDir()
+		if !App().Initialize(basicPlugin) {
+			os.Exit(INITIALIZE_FAIL)
+		}
+		App().StartUp()
+		App().Exec()
 
-	/*
-	go run main.go -e -p eosio -p yuanc --private-key '["EOS859gxfnXyUriMgUeThh1fWv3oqcpLFyHa3TfFYC4PK2HqhToVM","5KYZdUEo39z3FPrtuX2QbbwGnNP5zTd7yyr2SC1j299sBCnWjss"]' --private-key '["EOS5jeUuKEZ8s8LLoxz4rNysYdHWboup8KtkyJzZYQzcVKFGek9Zu","5Ja3h2wJNUnNcoj39jDMHGigsazvbGHAeLYEHM5uTwtfUoRDoYP"]'
-	 */
-	fmt.Println(os.Args)
+	}).Catch(func(e ExtractGenesisStateException) {
+		os.Exit(EXTRACTED_GENESIS)
 
-	app := cli.NewApp()
-	iosv := asio.NewIoContext()
+	}).Catch(func(e FixedReversibleDbException) {
+		os.Exit(FIXED_REVERSIBLE)
 
-	chainTester :=testing.NewChainTester(0, common.AccountName(common.N("eosio")),common.AccountName(common.N("yuanc")))
-	testing.Control = chainTester.Control
+	}).Catch(func(e NodeManagementSuccess) {
+		os.Exit(NODE_MANAGEMENT_SUCCESS)
 
-	producerPlugin := producer_plugin.NewProducerPlugin(iosv)
+	}).Catch(func(e Exception) {
+		if e.Code() == StdExceptionCode {
+			if strings.Contains(e.Message(), "database dirty flag set") {
+				log.Error("database dirty flag set (likely due to unclean shutdown): replay required")
+				os.Exit(DATABASE_DIRTY)
+			} else if strings.Contains(e.Message(), "database metadata dirty flag set") {
+				log.Error("database metadata dirty flag set (likely due to unclean shutdown): replay required")
+				os.Exit(DATABASE_DIRTY)
+			}
+		}
+		log.Error(e.Message())
+		os.Exit(OTHER_FAIL)
 
-	producerPlugin.SetProgramOptions(&app.Flags)
-	app.Action = func(c *cli.Context) {
-		producerPlugin.PluginInitialize(c)
-	}
+	//}).Catch(func(e try.RuntimeError) {
+	//	if strings.Contains(e.Message, "database dirty flag set") {
+	//		log.Error("database dirty flag set (likely due to unclean shutdown): replay required")
+	//		os.Exit(DATABASE_DIRTY)
+	//
+	//	} else if strings.Contains(e.Message, "database metadata dirty flag set") {
+	//		log.Error("database metadata dirty flag set (likely due to unclean shutdown): replay required")
+	//		os.Exit(DATABASE_DIRTY)
+	//
+	//	} else {
+	//		log.Error("%s", e.Message)
+	//	}
+	//	os.Exit(OTHER_FAIL)
 
-	err := app.Run(os.Args)
-	if err != nil {
-		log.Fatal(err)
-	}
+	}).Catch(func(e error) {
+		log.Error("%s", e.Error())
 
-	producerPlugin.PluginStartup()
+	}).Catch(func(interface{}) {
+		log.Error("unknown exception")
+		os.Exit(OTHER_FAIL)
 
-	sigint := asio.NewSignalSet(iosv, syscall.SIGINT, syscall.SIGTERM, syscall.SIGPIPE)
-	sigint.AsyncWait(func(err error) {
-		iosv.Stop()
-		sigint.Cancel()
-	})
+	}).End()
 
-	iosv.Run()
-
-	producerPlugin.PluginShutdown()
+	os.Exit(SUCCESS)
 }
