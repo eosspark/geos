@@ -1,7 +1,6 @@
 package types
 
 import (
-	"encoding/binary"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/ecc"
@@ -9,6 +8,7 @@ import (
 	. "github.com/eosspark/eos-go/exception/try"
 	"sort"
 	"github.com/eosspark/eos-go/common/math"
+	"github.com/eosspark/container/maps/treemap"
 )
 
 func init() {
@@ -28,24 +28,24 @@ type BlockHeaderState struct {
 	PendingSchedule                  ProducerScheduleType
 	ActiveSchedule                   ProducerScheduleType
 	BlockrootMerkle                  IncrementalMerkle
-	ProducerToLastProduced           common.FlatSet //<AccountNameBlockNum>
-	ProducerToLastImpliedIrb         common.FlatSet //<AccountNameBlockNum>
+	ProducerToLastProduced           treemap.Map //<AccountName, uint32>
+	ProducerToLastImpliedIrb         treemap.Map //<AccountName, uint32>
 	BlockSigningKey                  ecc.PublicKey
 	ConfirmCount                     []uint8              `json:"confirm_count"`
 	Confirmations                    []HeaderConfirmation `json:"confirmations"`
 }
 
-type AccountNameBlockNum struct {
-	AccountName common.AccountName
-	BlockNum    uint32
-}
+//type AccountNameBlockNum struct {
+//	AccountName common.AccountName
+//	BlockNum    uint32
+//}
 
-func (a AccountNameBlockNum) GetKey() []byte {
-	//return a.AccountName.GetKey()
-	b := make([]byte, 8)
-	binary.BigEndian.PutUint64(b, uint64(a.AccountName))
-	return b
-}
+//func (a AccountNameBlockNum) GetKey() []byte {
+//	//return a.AccountName.GetKey()
+//	b := make([]byte, 8)
+//	binary.BigEndian.PutUint64(b, uint64(a.AccountName))
+//	return b
+//}
 
 func (b *BlockHeaderState) GetScheduledProducer(t BlockTimeStamp) ProducerKey {
 	index := uint32(t) % uint32(len(b.ActiveSchedule.Producers)*12)
@@ -54,10 +54,10 @@ func (b *BlockHeaderState) GetScheduledProducer(t BlockTimeStamp) ProducerKey {
 }
 
 func (b *BlockHeaderState) CalcDposLastIrreversible() uint32 {
-	blockNums := make([]int, 0, b.ProducerToLastImpliedIrb.Len())
-	for _, value := range b.ProducerToLastImpliedIrb.Data {
-		blockNums = append(blockNums, int(value.(AccountNameBlockNum).BlockNum))
-	}
+	blockNums := make([]int, 0, b.ProducerToLastImpliedIrb.Size())
+	b.ProducerToLastImpliedIrb.Each(func(first interface{}, second interface{}) {
+		blockNums = append(blockNums, int(second.(uint32)))
+	})
 	/// 2/3 must be greater, so if I go 1/3 into the list sorted from low to high, then 2/3 are greater
 
 	if len(blockNums) == 0 {
@@ -88,8 +88,8 @@ func (b *BlockHeaderState) GenerateNext(when BlockTimeStamp) *BlockHeaderState {
 	result.PendingScheduleLibNum = b.PendingScheduleLibNum
 	result.PendingScheduleHash = b.PendingScheduleHash
 	result.BlockNum = b.BlockNum + 1
-	result.ProducerToLastProduced.Copy(b.ProducerToLastProduced)
-	result.ProducerToLastProduced.Update(AccountNameBlockNum{proKey.ProducerName, result.BlockNum})
+	result.ProducerToLastProduced = *treemap.CopyFrom(&b.ProducerToLastProduced)
+	result.ProducerToLastProduced.Put(proKey.ProducerName, result.BlockNum)
 	result.BlockrootMerkle = b.BlockrootMerkle
 	result.BlockrootMerkle.Append(crypto.Sha256(b.BlockId))
 
@@ -98,8 +98,8 @@ func (b *BlockHeaderState) GenerateNext(when BlockTimeStamp) *BlockHeaderState {
 	result.DposProposedIrreversibleBlocknum = b.DposProposedIrreversibleBlocknum
 	result.BftIrreversibleBlocknum = b.BftIrreversibleBlocknum
 
-	result.ProducerToLastImpliedIrb.Copy(b.ProducerToLastImpliedIrb)
-	result.ProducerToLastImpliedIrb.Update(AccountNameBlockNum{proKey.ProducerName, result.DposProposedIrreversibleBlocknum})
+	result.ProducerToLastImpliedIrb = *treemap.CopyFrom(&b.ProducerToLastImpliedIrb)
+	result.ProducerToLastImpliedIrb.Put(proKey.ProducerName, result.DposProposedIrreversibleBlocknum)
 	result.DposIrreversibleBlocknum = result.CalcDposLastIrreversible()
 
 	/// grow the confirmed count
@@ -129,29 +129,27 @@ func (b *BlockHeaderState) MaybePromotePending() bool {
 		//var newProducerToLastProduced = make(map[common.AccountName]uint32)
 		//var newProducerToLastImpliedIrb = make(map[common.AccountName]uint32)
 
-		newProducerToLastProduced := common.FlatSet{}
+		newProducerToLastProduced := treemap.NewWith(b.ProducerToLastProduced.GetComparator())
 		for _, pro := range b.ActiveSchedule.Producers {
-			existing, _ := b.ProducerToLastProduced.FindData(pro.ProducerName.GetKey())
-			if existing != nil {
-				newProducerToLastProduced.Insert(existing)
+			if blockNum, existing := b.ProducerToLastProduced.Get(pro.ProducerName); existing {
+				newProducerToLastProduced.Put(pro.ProducerName, blockNum)
 			} else {
-				newProducerToLastProduced.Insert(AccountNameBlockNum{pro.ProducerName, b.DposIrreversibleBlocknum})
+				newProducerToLastProduced.Put(pro.ProducerName, b.DposIrreversibleBlocknum)
 			}
 		}
 
-		newProducerToLastImpliedIrb := common.FlatSet{}
+		newProducerToLastImpliedIrb := treemap.NewWith(b.ProducerToLastImpliedIrb.GetComparator())
 		for _, pro := range b.ActiveSchedule.Producers {
-			existing, _ := b.ProducerToLastImpliedIrb.FindData(pro.ProducerName.GetKey())
-			if existing != nil {
-				newProducerToLastImpliedIrb.Insert(existing)
+			if blockNum, existing := b.ProducerToLastImpliedIrb.Get(pro.ProducerName); existing {
+				newProducerToLastImpliedIrb.Put(pro.ProducerName, blockNum)
 			} else {
-				newProducerToLastImpliedIrb.Insert(AccountNameBlockNum{pro.ProducerName, b.DposIrreversibleBlocknum})
+				newProducerToLastImpliedIrb.Put(pro.ProducerName, b.DposIrreversibleBlocknum)
 			}
 		}
 
-		b.ProducerToLastProduced = newProducerToLastProduced
-		b.ProducerToLastImpliedIrb = newProducerToLastImpliedIrb
-		b.ProducerToLastProduced.Update(AccountNameBlockNum{b.Header.Producer, b.BlockNum})
+		b.ProducerToLastProduced = *newProducerToLastProduced
+		b.ProducerToLastImpliedIrb = *newProducerToLastImpliedIrb
+		b.ProducerToLastProduced.Put(b.Header.Producer, b.BlockNum)
 
 		return true
 	}
@@ -188,9 +186,8 @@ func (b *BlockHeaderState) Next(h SignedBlockHeader, trust bool) *BlockHeaderSta
 	EosAssert(result.Header.Producer == h.Producer, &WrongProducer{}, "wrong producer specified")
 	EosAssert(result.Header.ScheduleVersion == h.ScheduleVersion, &ProducerScheduleException{}, "schedule_version in signed block is corrupted")
 
-	itr, _ := b.ProducerToLastProduced.FindData(h.Producer.GetKey())
-	if itr != nil {
-		EosAssert(itr.(AccountNameBlockNum).BlockNum < result.BlockNum-uint32(h.Confirmed), &ProducerDoubleConfirm{}, "producer %s double-confirming known range", h.Producer)
+	if blockNum, found := b.ProducerToLastProduced.Get(h.Producer); found {
+		EosAssert(blockNum.(uint32) < result.BlockNum-uint32(h.Confirmed), &ProducerDoubleConfirm{}, "producer %s double-confirming known range", h.Producer)
 	}
 
 	/// below this point is state changes that cannot be validated with headers alone, but never-the-less,

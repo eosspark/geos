@@ -234,7 +234,7 @@ func (c *Controller) SetSubjectiveCpuLeeway(leeway common.Microseconds) {}
 func (c *Controller) AddResourceGreyList(name *common.AccountName)    {}
 func (c *Controller) RemoveResourceGreyList(name *common.AccountName) {}
 
-func (c *Controller) GetResourceGreyList() map[common.AccountName]struct{} { return nil }
+func (c *Controller) GetResourceGreyList() *common.FlatSet { return nil }
 
 func (c *Controller) GetActorWhiteList() *common.FlatSet { return nil }
 

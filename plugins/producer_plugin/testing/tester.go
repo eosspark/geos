@@ -6,6 +6,7 @@ import (
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/crypto"
 	"os"
+	"github.com/eosspark/container/maps/treemap"
 )
 
 type ChainTester struct {
@@ -79,6 +80,8 @@ func (t *ChainTester) NewHeaderStateTester(when types.BlockTimeStamp) *types.Blo
 	genHeader.Header.Confirmed = 1
 	genHeader.BlockId = genHeader.Header.BlockID()
 	genHeader.BlockNum = genHeader.Header.BlockNumber()
+	genHeader.ProducerToLastProduced = *treemap.NewWith(common.NameComparator)
+	genHeader.ProducerToLastImpliedIrb = *treemap.NewWith(common.NameComparator)
 
 	return genHeader
 }

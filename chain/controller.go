@@ -13,6 +13,7 @@ import (
 	. "github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/log"
 	"github.com/eosspark/eos-go/wasmgo"
+	"github.com/eosspark/container/maps/treemap"
 	"os"
 )
 
@@ -1539,6 +1540,8 @@ func (c *Controller) initializeForkDB() {
 	genHeader.Header.ActionMRoot = common.CheckSum256Type(gs.ComputeChainID())
 	genHeader.BlockId = genHeader.Header.BlockID()
 	genHeader.BlockNum = genHeader.Header.BlockNumber()
+	genHeader.ProducerToLastProduced = *treemap.NewWith(common.NameComparator)
+	genHeader.ProducerToLastImpliedIrb = *treemap.NewWith(common.NameComparator)
 	c.Head = types.NewBlockState(&genHeader)
 	signedBlock := types.SignedBlock{}
 	signedBlock.SignedBlockHeader = genHeader.Header

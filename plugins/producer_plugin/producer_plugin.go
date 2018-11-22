@@ -10,16 +10,18 @@ import (
 	. "github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/log"
-	"gopkg.in/urfave/cli.v1"
+	"github.com/urfave/cli"
 	"time"
 	"encoding/json"
 	"strings"
 	"github.com/eosspark/eos-go/plugins/appbase/asio"
+	. "github.com/eosspark/eos-go/plugins/appbase/app"
 )
 
 //var log = Log.NewWithHandle("producer", Log.TerminalHandler)
 
 type ProducerPlugin struct {
+	AbstractPlugin
 	//ConfirmedBlock Signal //TODO signal ConfirmedBlock
 	my *ProducerPluginImpl
 }
@@ -47,8 +49,11 @@ type GreylistParams struct {
 }
 
 func init() {
-	//TODO: initialize plugin for appbase
-	fmt.Println("app register plugin")
+	plug := NewProducerPlugin(App().GetIoService())
+	plug.Plugin = plug
+	plug.Name = PluginName(ProducerPlug)
+	plug.State = State(Registered)
+	App().RegisterPlugin(plug)
 }
 
 //TODO: io from appbase

@@ -11,6 +11,8 @@ import (
 	"strconv"
 	"strings"
 	"time"
+	"github.com/eosspark/eos-go/exception"
+	"github.com/eosspark/eos-go/exception/try"
 )
 
 type SizeT = int
@@ -199,10 +201,63 @@ func (a Asset) String() string {
 	return fmt.Sprintf("%s %s", result, a.Symbol.Symbol)
 }
 
+func (a Asset) FromString(from *string) Asset {
+	spacePos := strings.Index(*from, " ")
+	try.EosAssert(spacePos != -1, &exception.AssetTypeException{}, "Asset's amount and symbol should be separated with space")
+	symbolStr := string([]byte(*from)[spacePos+1:])
+	amountStr := string([]byte(*from)[:spacePos])
+
+	dotPos := strings.Index(amountStr, ".")
+	if dotPos != -1 {
+		try.EosAssert(dotPos != len(amountStr)-1, &exception.AssetTypeException{}, "Missing decimal fraction after decimal point")
+	}
+
+	var precisionDigitStr string
+	if dotPos != -1 {
+		precisionDigitStr = strconv.Itoa(len(amountStr)-dotPos-1)
+	} else {
+		precisionDigitStr = "0"
+	}
+
+	symbolPart := precisionDigitStr + "," + symbolStr
+	sym := Symbol{}.FromString(&symbolPart)
+
+	var intPart, fractPart int64
+	if dotPos != -1 {
+		intPart, _ = strconv.ParseInt(string([]byte(amountStr)[:dotPos]), 10, 64)
+		fractPart, _ = strconv.ParseInt(string([]byte(amountStr)[dotPos+1:]), 10, 64)
+		if amountStr[0] == '-' {
+			fractPart *= -1
+		}
+	} else {
+		intPart, _ = strconv.ParseInt(amountStr, 10, 64)
+	}
+	amount := intPart
+	amount += fractPart
+	return Asset{Amount:amount, Symbol:sym}
+}
+
 // NOTE: there's also a new ExtendedSymbol (which includes the contract (as AccountName) on which it is)
 type Symbol struct {
 	Precision uint8
 	Symbol    string `eos:"asset"`
+	MaxPrecision uint8
+}
+
+func (sym Symbol) init(){
+	sym.MaxPrecision = 18
+}
+
+func (sym Symbol) FromString(from *string) Symbol{
+	//TODO: unComplete
+	try.EosAssert(!Empty(*from), &exception.SymbolTypeException{}, "creating symbol from empty string")
+	commaPos := strings.Index(*from,",")
+	try.EosAssert(commaPos != -1, &exception.SymbolTypeException{}, "missing comma in symbol")
+	precPart := string([]byte(*from)[:commaPos])
+	p, _ := strconv.ParseInt(precPart, 10, 64)
+	namePart := string([]byte(*from)[commaPos+1:])
+	try.EosAssert(uint8(p) <= sym.MaxPrecision, &exception.SymbolTypeException{}, "precision %v should be <= 18", p)
+	return Symbol{Precision:uint8(p), Symbol:namePart}
 }
 
 // EOSSymbol represents the standard EOS symbol on the chain.  It's

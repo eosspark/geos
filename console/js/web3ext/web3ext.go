@@ -1,19 +1,3 @@
-// Copyright 2015 The go-ethereum Authors
-// This file is part of the go-ethereum library.
-//
-// The go-ethereum library is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Lesser General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// The go-ethereum library is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Lesser General Public License for more details.
-//
-// You should have received a copy of the GNU Lesser General Public License
-// along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
-
 // package web3ext contains geth specific web3.js extensions.
 package web3ext
 
@@ -79,8 +63,6 @@ web3._extend({
      new web3._extend.Method({
          name:'getInfo',
          call:'net_getInfo',
-         params:1,
-         inputFormatter:[null],
      }),
      new web3._extend.Method({
          name:'pushTransaction',
@@ -97,8 +79,9 @@ web3._extend({
      new web3._extend.Method({
          name:'abiJsonToBin',
          call:'net_abiJsonToBin',
+         params:1,
+         inputFormatter:[null],
      }),
-
      new web3._extend.Method({
          name:'getBlock',
          call:'net_getBlock',
@@ -114,42 +97,62 @@ web3._extend({
      new web3._extend.Method({
          name:'getAccount',
          call:'net_getAccount',
+         params:1,
+         inputFormatter:[null],
      }),
      new web3._extend.Method({
          name:'getTableRows',
          call:'net_getTableRows',
+         params:1,
+         inputFormatter:[null],
      }),
      new web3._extend.Method({
          name:'getCode',
          call:'net_getCode',
+         params:1,
+         inputFormatter:[null],
      }),
      new web3._extend.Method({
          name:'getAbi',
          call:'net_getAbi',
+         params:1,
+         inputFormatter:[null],
      }),
      new web3._extend.Method({
          name:'getRawCodeAndAbi',
          call:'net_getRawCodeAndAbi',
+         params:1,
+         inputFormatter:[null],
      }),
      new web3._extend.Method({
          name:'getCurrencyBalance',
          call:'net_getCurrencyBalance',
+         params:1,
+         inputFormatter:[null],
      }),
      new web3._extend.Method({
          name:'getCurrencyStats',
          call:'net_getCurrencyStats',
+         params:1,
+         inputFormatter:[null],
      }),
      new web3._extend.Method({
          name:'getProducers',
          call:'net_getProducers',
+         params:1,
+         inputFormatter:[null],
      }),
      new web3._extend.Method({
          name:'getProducerSchedule',
          call:'net_getProducerSchedule',
+         params:1,
+         inputFormatter:[null],
      }),
      new web3._extend.Method({
          name:'getRequiredKeys',
          call:'net_getRequiredKeys',
+         params:1,
+         inputFormatter:[null],
      }),
 ]
 });

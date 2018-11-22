@@ -219,8 +219,8 @@ func (impl *ProducerPluginImpl) StartBlock() (EnumStartBlockRusult, bool) {
 						// this is a persisted transaction, push it into the block (even if we are speculating) with
 						// no deadline as it has already passed the subjective deadlines once and we want to represent
 						// the state of the chain including this transaction
-						err := chain.PushTransaction(trx, common.MaxTimePoint(), 0)
-						if err != nil {
+						trace := chain.PushTransaction(trx, common.MaxTimePoint(), 0)
+						if trace != nil {
 							return EnumStartBlockRusult(failed), lastBlock
 						}
 					}
@@ -335,7 +335,6 @@ func (impl *ProducerPluginImpl) StartBlock() (EnumStartBlockRusult, bool) {
 		} ///scheduled transactions
 
 		if isExhausted || blockTime <= common.Now() {
-			fmt.Println("start block exhausted")
 			return EnumStartBlockRusult(exhausted), lastBlock
 		} else {
 			// attempt to apply any pending incoming transactions
@@ -346,14 +345,12 @@ func (impl *ProducerPluginImpl) StartBlock() (EnumStartBlockRusult, bool) {
 				origPendingTxnSize--
 				impl.OnIncomingTransactionAsync(e.packedTransaction, e.persistUntilExpired, e.next)
 				if blockTime <= common.Now() {
-					fmt.Println("start block exhausted")
 					return EnumStartBlockRusult(exhausted), lastBlock
 				}
 			}
 			return EnumStartBlockRusult(succeeded), lastBlock
 		}
 	}
-	fmt.Println("start block failed")
 	return EnumStartBlockRusult(failed), lastBlock
 }
 

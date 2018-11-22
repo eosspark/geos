@@ -139,7 +139,7 @@ func (c *Console) init(preload []string) error {
 	if err != nil {
 		return fmt.Errorf("api modules: %v", err)
 	}
-	flatten := "var eth = web3.eth; var personal = web3.personal; "
+	flatten := "var eos = web3.eos; "
 	for api := range apis {
 		if api == "web3" {
 			continue // manually mapped or ignore
@@ -158,42 +158,9 @@ func (c *Console) init(preload []string) error {
 	if _, err = c.jsre.Run(flatten); err != nil {
 		return fmt.Errorf("namespace flattening: %v", err)
 	}
-	// Initialize the global name register (disabled for now)
-	//c.jsre.Run(`var GlobalRegistrar = eth.contract(` + registrar.GlobalRegistrarAbi + `);   registrar = GlobalRegistrar.at("` + registrar.GlobalRegistrarAddr + `");`)
 
-	// If the console is in interactive mode, instrument password related methods to query the user
-	if c.prompter != nil {
-		// Retrieve the account management object to instrument
-		//personal, err := c.jsre.Get("personal")
-		//if err != nil {
-		//	return err
-		//}
-		//// Override the openWallet, unlockAccount, newAccount and sign methods since
-		//// these require user interaction. Assign these method in the Console the
-		//// original web3 callbacks. These will be called by the jeth.* methods after
-		//// they got the password from the user and send the original web3 request to
-		//// the backend.
-		//if obj := personal.Object(); obj != nil { // make sure the personal api is enabled over the interface
-		//	if _, err = c.jsre.Run(`jeth.openWallet = personal.openWallet;`); err != nil {
-		//		return fmt.Errorf("personal.openWallet: %v", err)
-		//	}
-		//	if _, err = c.jsre.Run(`jeth.unlockAccount = personal.unlockAccount;`); err != nil {
-		//		return fmt.Errorf("personal.unlockAccount: %v", err)
-		//	}
-		//	if _, err = c.jsre.Run(`jeth.newAccount = personal.newAccount;`); err != nil {
-		//		return fmt.Errorf("personal.newAccount: %v", err)
-		//	}
-		//	if _, err = c.jsre.Run(`jeth.sign = personal.sign;`); err != nil {
-		//		return fmt.Errorf("personal.sign: %v", err)
-		//	}
-		//	//obj.Set("openWallet", bridge.OpenWallet)
-		//	obj.Set("unlockAccount", bridge.UnlockAccount)
-		//	obj.Set("newAccount", bridge.NewAccount)
-		//	obj.Set("sign", bridge.Sign)
-		//}
-	}
 	// The admin.sleep and admin.sleepBlocks are offered by the console and not by the RPC layer.
-	admin, err := c.jsre.Get("admin")
+	admin, err := c.jsre.Get("rpc")
 	if err != nil {
 		return err
 	}
@@ -278,10 +245,9 @@ func (c *Console) AutoCompleteInput(line string, pos int) (string, []string, str
 func (c *Console) Welcome() {
 	// Print some generic eosgo metadata
 	fmt.Fprintf(c.printer, "Welcome to the EOSGO JavaScript console!\n\n")
-	c.jsre.Run(`
-          console.log("get info: " + eosapi.createKey);
-          console.log("preloaded: " + preloaded);
-	`)
+	//c.jsre.Run(`
+	//     console.log("get info: " + eosapi.createKey);
+	//`)
 
 	// List all the supported modules for the user to call
 	if apis, err := c.client.SupportedModules(); err == nil {
