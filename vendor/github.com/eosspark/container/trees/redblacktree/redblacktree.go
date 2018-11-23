@@ -93,9 +93,17 @@ func copyNode(nd *Node) *Node {
 	return n
 }
 
+func (tree *Tree) Put(key interface{}, value interface{}) {
+	tree.put(key, value, false)
+}
+
+func (tree *Tree) MultiPut(key interface{}, value interface{}) {
+	tree.put(key, value, true)
+}
+
 // Put inserts node into the tree.
 // Key should adhere to the comparator's type assertion, otherwise method panics.
-func (tree *Tree) Put(key interface{}, value interface{}) {
+func (tree *Tree) put(key interface{}, value interface{}, multi bool) {
 	var insertedNode *Node
 	if tree.Root == nil {
 		// Assert key is of comparator's type for initial tree
@@ -108,11 +116,11 @@ func (tree *Tree) Put(key interface{}, value interface{}) {
 		for loop {
 			compare := tree.Comparator(key, node.Key)
 			switch {
-			case compare == 0:
+			case compare == 0 && !multi:
 				node.Key = key
 				node.Value = value
 				return
-			case compare < 0:
+			case compare <= 0:
 				if node.Left == nil {
 					node.Left = &Node{Key: key, Value: value, color: red}
 					insertedNode = node.Left
