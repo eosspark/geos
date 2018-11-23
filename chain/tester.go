@@ -3,6 +3,7 @@ package chain
 import (
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
+	"github.com/eosspark/eos-go/crypto/abi"
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/eosspark/eos-go/entity"
@@ -30,12 +31,12 @@ type BaseTester struct {
 func newBaseTester(control *Controller) *BaseTester {
 	btInstance := &BaseTester{}
 	btInstance.Control = control
-	btInstance.initBase(false, 0 )
+	btInstance.initBase(false, 0)
 	return btInstance
 }
 
 
-func (t *BaseTester) initBase(pushGenesis bool, mode DBReadMode) {
+func (t BaseTester) initBase(pushGenesis bool, mode DBReadMode) {
 	t.DefaultExpirationDelta = 6
 	t.DefaultBilledCpuTimeUs = 2000
 	t.Cfg.blocksDir = common.DefaultConfig.DefaultBlocksDirName
@@ -48,7 +49,7 @@ func (t *BaseTester) initBase(pushGenesis bool, mode DBReadMode) {
 	t.Cfg.readMode = mode
 
 	t.Cfg.genesis.InitialTimestamp, _ = common.FromIsoString("2020-01-01T00:00:00.000")
-	t.Cfg.genesis.InitialKey = t.getPublicKey(common.DefaultConfig.SystemAccountName, "active")
+	//t.Cfg.genesis.InitialKey = t.GetPublicKeys(common.DefaultConfig.SystemAccountName, "active")
 
 	t.open()
 	if pushGenesis {
@@ -56,19 +57,19 @@ func (t *BaseTester) initBase(pushGenesis bool, mode DBReadMode) {
 	}
 }
 
-func (t *BaseTester) initCfg(config Config) {
+func (t BaseTester) initCfg(config Config) {
 	t.Cfg = config
 	t.open()
 }
 
-func (t *BaseTester) open() {
+func (t BaseTester) open() {
 	t.Control.Config = t.Cfg
 	//t.Control.startUp() //TODO
 	t.ChainTransactions = make(map[common.BlockIdType]types.TransactionReceipt)
 	//t.Control.AcceptedBlock.Connect() // TODO: Control.signal
 }
 
-func (t *BaseTester) close() {
+func (t BaseTester) close() {
 	t.Control.Close()
 	t.ChainTransactions = make(map[common.BlockIdType]types.TransactionReceipt)
 }
@@ -84,8 +85,8 @@ func (t BaseTester) PushBlock(b *types.SignedBlock) *types.SignedBlock {
 }
 
 func (t BaseTester) pushGenesisBlock() {
-	//t.SetCode()
-	//t.SetAbi()
+	//t.setCode()
+	//t.setAbi()
 }
 
 func (t BaseTester) ProduceBlocks(n uint32, empty bool) {
@@ -273,7 +274,7 @@ type VariantsObject []map[string]interface{}
 func (t BaseTester) PushAction2(code *common.AccountName, acttype *common.AccountName,
 	actor common.AccountName, data *VariantsObject, expiration uint32, delaySec uint32) *types.TransactionTrace {
 	auths := make([]types.PermissionLevel, 0)
-	auths = append(auths, types.PermissionLevel{Actor:actor, Permission:common.DefaultConfig.ActiveName})
+	auths = append(auths, types.PermissionLevel{Actor: actor, Permission: common.DefaultConfig.ActiveName})
 	return t.PushAction4(code, acttype, &auths, data, expiration, delaySec)
 }
 
@@ -476,7 +477,7 @@ func (t BaseTester) SetCode2(account common.AccountName, wast *byte, signer *ecc
 
 func (t BaseTester) SetAbi(account common.AccountName, abiJson *byte, signer *ecc.PrivateKey) {
 	// abi := fc::json::from_string(abi_json).template as<abi_def>()
-	abi := types.AbiDef{}
+	abi := abi.AbiDef{}
 	trx := types.SignedTransaction{}
 	abiBytes, _ := rlp.EncodeToBytes(abi)
 	setAbi := setAbi{Account: account, Abi: abiBytes}

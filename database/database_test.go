@@ -667,8 +667,8 @@ func Test_end(t *testing.T) {
 	}
 
 	/*less end*/
-	obj := DbTableIdObject{ID: 100}
-	itLess, err := idx.LowerBound(obj)
+	obj := DbTableIdObject{ID: 5}
+	itLess, err := idx.UpperBound(obj)
 	for itLess.Prev() {
 		tmp := DbTableIdObject{}
 		itLess.Data(&tmp)

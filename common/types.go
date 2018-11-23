@@ -7,12 +7,12 @@ import (
 	"errors"
 	"fmt"
 	"github.com/eosspark/eos-go/crypto"
+	"github.com/eosspark/eos-go/exception"
+	"github.com/eosspark/eos-go/exception/try"
 	"math"
 	"strconv"
 	"strings"
 	"time"
-	"github.com/eosspark/eos-go/exception"
-	"github.com/eosspark/eos-go/exception/try"
 )
 
 type SizeT = int
@@ -63,12 +63,6 @@ type PermissionName = Name
 type ActionName = Name
 type TableName = Name
 type ScopeName = Name
-
-// type AccountResourceLimit struct {
-// 	Used      JSONInt64 `json:"used"`
-// 	Available JSONInt64 `json:"available"`
-// 	Max       JSONInt64 `json:"max"`
-// }
 
 type DelegatedBandwidth struct {
 	From      AccountName `json:"from"`
@@ -166,7 +160,7 @@ func (b *Bool) UnmarshalJSON(data []byte) error {
 
 // NOTE: there's also ExtendedAsset which is a quantity with the attached contract (AccountName)
 type Asset struct {
-	Amount int64
+	Amount int64 `eos:"asset"`
 	Symbol
 }
 
@@ -214,7 +208,7 @@ func (a Asset) FromString(from *string) Asset {
 
 	var precisionDigitStr string
 	if dotPos != -1 {
-		precisionDigitStr = strconv.Itoa(len(amountStr)-dotPos-1)
+		precisionDigitStr = strconv.Itoa(len(amountStr) - dotPos - 1)
 	} else {
 		precisionDigitStr = "0"
 	}
@@ -234,27 +228,34 @@ func (a Asset) FromString(from *string) Asset {
 	}
 	amount := intPart
 	amount += fractPart
-	return Asset{Amount:amount, Symbol:sym}
+	return Asset{Amount: amount, Symbol: sym}
 }
+
+type ExtendedAsset struct {
+	Asset    Asset `json:"asset"`
+	Contract AccountName
+}
+
+type SymbolCode uint64
 
 // NOTE: there's also a new ExtendedSymbol (which includes the contract (as AccountName) on which it is)
 type Symbol struct {
 	Precision uint8
-	Symbol    string `eos:"asset"`
+	Symbol    string
 }
 
 var MaxPrecision = uint8(18)
 
-func (sym Symbol) FromString(from *string) Symbol{
+func (sym Symbol) FromString(from *string) Symbol {
 	//TODO: unComplete
 	try.EosAssert(!Empty(*from), &exception.SymbolTypeException{}, "creating symbol from empty string")
-	commaPos := strings.Index(*from,",")
+	commaPos := strings.Index(*from, ",")
 	try.EosAssert(commaPos != -1, &exception.SymbolTypeException{}, "missing comma in symbol")
 	precPart := string([]byte(*from)[:commaPos])
 	p, _ := strconv.ParseInt(precPart, 10, 64)
 	namePart := string([]byte(*from)[commaPos+1:])
 	try.EosAssert(uint8(p) <= MaxPrecision, &exception.SymbolTypeException{}, "precision %v should be <= 18", p)
-	return Symbol{Precision:uint8(p), Symbol:namePart}
+	return Symbol{Precision: uint8(p), Symbol: namePart}
 }
 
 // EOSSymbol represents the standard EOS symbol on the chain.  It's
@@ -475,4 +476,11 @@ func Max(x, y uint64) uint64 {
 	} else {
 		return y
 	}
+}
+
+type Varuint32 struct {
+	V uint32 `eos:"vuint32"`
+}
+type Varint32 struct {
+	V int32 `eos:"vint32"`
 }
