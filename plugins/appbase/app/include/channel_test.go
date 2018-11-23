@@ -2,7 +2,7 @@ package include_test
 
 import (
 	"testing"
-	"github.com/eosspark/eos-go/plugins/chain_interface/include/eosio/chain"
+	."github.com/eosspark/eos-go/plugins/chain_interface"
 	"github.com/eosspark/eos-go/chain/types"
 	"fmt"
 	"github.com/eosspark/eos-go/plugins/appbase/asio"
@@ -42,18 +42,18 @@ func (*blockAcceptor)doRejectedBlockFunc(s *types.SignedBlock){
 func Test_Channel(t *testing.T) {
 
 	//subscribe
-	App().GetChannel(chain.PreAcceptedBlock).Subscribe(&PreAcceptedBlockFunc{doAccept})
-	App().GetChannel(chain.PreAcceptedBlock).Subscribe(&PreAcceptedBlockFunc{new(blockAcceptor).doAccept})
+	App().GetChannel(PreAcceptedBlock).Subscribe(&PreAcceptedBlockFunc{doAccept})
+	App().GetChannel(PreAcceptedBlock).Subscribe(&PreAcceptedBlockFunc{new(blockAcceptor).doAccept})
 	rbf :=&RejectedBlockFunc{Func:new(blockAcceptor).doRejectedBlockFunc}
-	App().GetChannel(chain.RejectedBlock).Subscribe(rbf)
+	App().GetChannel(RejectedBlock).Subscribe(rbf)
 
 	//call
 	sb := &types.SignedBlock{}
 	sb.Timestamp = types.NewBlockTimeStamp(100)
 	//App().GetChannel(chain.PreAcceptedBlock).Publish(sb)
-	App().GetChannel(chain.RejectedBlock).Publish(sb)
-	App().GetChannel(chain.PreAcceptedBlock).Publish(sb)
-	App().GetChannel(chain.AcceptedBlockHeader).Publish(sb)
+	App().GetChannel(RejectedBlock).Publish(sb)
+	App().GetChannel(PreAcceptedBlock).Publish(sb)
+	App().GetChannel(AcceptedBlockHeader).Publish(sb)
 
 
 	timer := asio.NewDeadlineTimer(App().GetIoService())
