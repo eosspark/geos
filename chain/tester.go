@@ -147,6 +147,7 @@ func (t BaseTester) produceBlock(skipTime common.Microseconds, skipPendingTrxs b
 	})
 	t.Control.CommitBlock(true)
 	b := t.Control.HeadBlockState()
+	t.LastProducedBlock = make(map[common.AccountName]common.BlockIdType)
 	t.LastProducedBlock[t.Control.HeadBlockState().Header.Producer] = b.BlockId
 	t.startBlock(nextTime + common.TimePoint(common.Seconds(common.DefaultConfig.BlockIntervalUs)))
 	return t.Control.HeadBlockState().SignedBlock
@@ -299,8 +300,10 @@ func (t BaseTester) GetAction(code common.AccountName, actType common.AccountNam
 
 func (t BaseTester) getPrivateKey(keyName common.Name, role string) ecc.PrivateKey {
 	//TODO: wait for testing
-	priKey, _ := ecc.NewPrivateKey(crypto.Hash256(keyName.String() + role).String())
-	fmt.Println(crypto.Hash256(keyName.String() + role).String())
+	/*rawPrivKey := crypto.Hash256(keyName.String() + role).Bytes()
+	priKey, _ := btcec.PrivKeyFromBytes(btcec.S256(), rawPrivKey)
+	pk := &ecc.PrivateKey{Curve:ecc.CurveK1, PrivKey:priKey}*/
+	priKey, _ := ecc.NewPrivateKey("5KYZdUEo39z3FPrtuX2QbbwGnNP5zTd7yyr2SC1j299sBCnWjss")
 	return *priKey
 }
 

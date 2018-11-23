@@ -31,7 +31,7 @@ type Application struct {
 	initializedPlugins []Plugin          //< stored in the order they were started running
 	runningPlugins     []Plugin          //<  stored in the order they were started running
 
-	//methods			   	
+	//methods
 	channels map[ChannelsType]*Channel
 	methods map[MethodsType]*Method
 	iosv *asio.IoContext
@@ -268,6 +268,7 @@ func (app *Application) SetDefaultConfigDir() {
 func (app *Application) SetDefaultDataDir() {
 	app.my.DateDir = DefaultDataDir()
 }
+
 
 func DefaultConfigDir() string {
 	// Try to place the data folder in the user's home dir
