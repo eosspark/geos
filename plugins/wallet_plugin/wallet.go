@@ -11,6 +11,7 @@ import (
 	"github.com/eosspark/eos-go/crypto/btcsuite/btcd/btcec"
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/crypto/rlp"
+	"github.com/eosspark/eos-go/log"
 	"os"
 )
 
@@ -252,7 +253,7 @@ func (w *SoftWallet) SaveWalletFile() (err error) { //TODO need walletFilename ?
 
 	w.encryptKeys()
 
-	fmt.Printf("Saving wallet to file %s\n", w.walletFilename)
+	log.Debug("Saving wallet to file %s\n", w.walletFilename)
 	data, err := json.Marshal(w.wallet)
 	if err != nil {
 		fmt.Println(w.wallet, err)

@@ -667,8 +667,8 @@ func Test_end(t *testing.T) {
 	}
 
 	/*less end*/
-	obj := DbTableIdObject{ID: 100}
-	itLess, err := idx.LowerBound(obj)
+	obj := DbTableIdObject{ID: 5}
+	itLess, err := idx.UpperBound(obj)
 	for itLess.Prev() {
 		tmp := DbTableIdObject{}
 		itLess.Data(&tmp)
@@ -978,12 +978,10 @@ func openDb() (DataBase, func()) {
 	}
 }
 
-
-
 func multiObjects() ([]DbTableIdObject, []DbHouse) {
 	objs := []DbTableIdObject{}
 	DbHouses := []DbHouse{}
-	for i := 1; i <= 300; i++ {
+	for i := 1; i <= 30000; i++ {
 		number := i * 10
 		obj := DbTableIdObject{Code: AccountName(number + 1), Scope: ScopeName(number + 2), Table: TableName(number + 3 + i + 1), Payer: AccountName(number + 4 + i + 1), Count: uint32(number + 5)}
 		objs = append(objs, obj)

@@ -2,7 +2,6 @@ package eosapi
 
 import (
 	"context"
-	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto/ecc"
 )
@@ -42,7 +41,7 @@ func (api *EOSApi) GetInfo(ctx context.Context) *InfoResp {
 		LastIrreversibleBlockNum: 17672,
 		LastIrreversibleBlockID:  common.BlockIdNil(),
 		HeadBlockID:              common.BlockIdNil(),
-		HeadBlockTime:            types.NewBlockTimeStamp(common.Now()),
+		HeadBlockTime:            common.Now(),
 		HeadBlockProducer:        common.AccountName(common.N("eosio")),
 		VirtualBlockCPULimit:     200000000,
 		VirtualBlockNetLimit:     1048576000,
@@ -60,4 +59,5 @@ type Keys struct {
 func (api *EOSApi) CreateKey() *Keys {
 	prikey, _ := ecc.NewRandomPrivateKey()
 	return &Keys{Pri: *prikey, Pub: prikey.PublicKey()}
+
 }

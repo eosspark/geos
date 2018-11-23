@@ -1,7 +1,7 @@
 package chain_plugin
 
 import (
-	"gopkg.in/urfave/cli.v1"
+	"github.com/urfave/cli"
 	"github.com/eosspark/eos-go/chain"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/exception"

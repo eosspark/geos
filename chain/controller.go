@@ -1,13 +1,12 @@
 package chain
 
 import (
-	"os"
-	"time"
-
 	"fmt"
+	"github.com/eosspark/container/maps/treemap"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto"
+	"github.com/eosspark/eos-go/crypto/abi"
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/eosspark/eos-go/database"
@@ -16,7 +15,7 @@ import (
 	. "github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/log"
 	"github.com/eosspark/eos-go/wasmgo"
-	"github.com/eosspark/container/maps/treemap"
+	"os"
 )
 
 //var readycontroller chan bool //TODO test code
@@ -120,9 +119,9 @@ func validPath() {
 		if os.IsNotExist(err) {
 			err := os.MkdirAll(d, os.ModePerm)
 			if err != nil {
-				log.Error("controller validPath mkdir failed![%v]\n", err.Error())
+				log.Info("controller validPath mkdir failed![%v]\n", err.Error())
 			} else {
-				log.Error("controller validPath mkdir success![%v]\n", d)
+				log.Info("controller validPath mkdir success![%v]\n", d)
 			}
 		}
 	}
@@ -191,15 +190,15 @@ func newController() *Controller {
 
 	c.initialize()
 }*/
-
+/*
 func condition(contract common.AccountName, action common.ActionName) string {
 	c := capitalize(common.S(uint64(contract)))
 	a := capitalize(common.S(uint64(action)))
 
 	return c + a
-}
+}*/
 
-func capitalize(str string) string {
+/*func capitalize(str string) string {
 	var upperStr string
 	vv := []rune(str)
 	for i := 0; i < len(vv); i++ {
@@ -216,6 +215,46 @@ func capitalize(str string) string {
 		}
 	}
 	return upperStr
+}*/
+
+func (c *Controller) PopBlock() {
+	prev := c.ForkDB.GetBlock(&c.Head.Header.Previous)
+	r := entity.ReversibleBlockObject{}
+	//r.BlockNum = c.Head.BlockNum
+	EosAssert(common.Empty(prev), &BlockValidateException{}, "attempt to pop beyond last irreversible block")
+	errs := c.ReversibleBlocks.Find("BlockNum", c.Head.BlockNum, &r)
+	if errs != nil {
+		log.Error("PopBlock ReversibleBlocks Find is error :%s", errs.Error())
+	}
+	if !common.Empty(r) {
+		c.ReversibleBlocks.Remove(&r)
+	}
+
+	if c.ReadMode == SPECULATIVE {
+		//version 1.4
+		//EosAssert(c.Head.SignedBlock!=nil, &BlockValidateException{}, "attempting to pop a block that was sparsely loaded from a snapshot")
+		for _, trx := range c.Head.Trxs {
+			c.UnappliedTransactions[crypto.Sha256(trx.SignedID)] = *trx
+		}
+	}
+	c.Head = prev
+	c.UndoSession.Undo()
+}
+
+func (c *Controller) SetApplayHandler(receiver common.AccountName, contract common.AccountName, action common.ActionName, handler func(a *ApplyContext)) {
+	handlerKey := receiver + contract + action
+	c.ApplyHandlers[handlerKey.String()] = handler
+}
+
+func (c *Controller) FindApplyHandler(receiver common.AccountName,
+	scope common.AccountName,
+	act common.ActionName) func(*ApplyContext) {
+	handlerKey := receiver + scope + act
+	handler, ok := c.ApplyHandlers[handlerKey.String()]
+	if ok {
+		return handler
+	}
+	return nil
 }
 
 func (c *Controller) OnIrreversible(s *types.BlockState) {
@@ -250,58 +289,19 @@ func (c *Controller) OnIrreversible(s *types.BlockState) {
 		c.ForkDB.SetValidity(s, true)
 		c.Head = s
 	}
-	//emit( self.irreversible_block, s ) 	//TODO
-}
-
-func (c *Controller) PopBlock() {
-	prev := c.ForkDB.GetBlock(&c.Head.Header.Previous)
-	r := entity.ReversibleBlockObject{}
-	//r.BlockNum = c.Head.BlockNum
-	errs := c.ReversibleBlocks.Find("NUM", c.Head.BlockNum, r)
-
-	if errs != nil {
-		log.Error("PopBlock ReversibleBlocks Find is error,detail:%s", errs.Error())
-	}
-	c.ReversibleBlocks.Remove(&r)
-
-	if c.ReadMode == SPECULATIVE {
-		trx := c.Head.Trxs
-		step := 0
-		for ; step < len(trx); step++ {
-			c.UnappliedTransactions[crypto.Sha256(trx[step].SignedID)] = *trx[step]
-		}
-	}
-	c.Head = prev
-	c.UndoSession.Undo()
-}
-
-func (c *Controller) SetApplayHandler(receiver common.AccountName, contract common.AccountName, action common.ActionName, handler func(a *ApplyContext)) {
-	handlerKey := receiver + contract + action
-	//fmt.Println("handlerKey----:",handlerKey.String())
-	c.ApplyHandlers[handlerKey.String()] = handler
-}
-
-func (c *Controller) FindApplyHandler(receiver common.AccountName,
-	scope common.AccountName,
-	act common.ActionName) func(*ApplyContext) {
-	handlerKey := receiver + scope + act
-
-	handler, ok := c.ApplyHandlers[handlerKey.String()]
-	if ok {
-		return handler
-	}
-	return nil
+	//emit( self.irreversible_block, s )
 }
 
 func (c *Controller) AbortBlock() {
-	if common.Empty(c.Pending) {
+	if c.Pending != nil {
 		if c.ReadMode == SPECULATIVE {
-			trx := append(c.Pending.PendingBlockState.Trxs)
-			step := 0
-			for ; step < len(trx); step++ {
-				c.UnappliedTransactions[crypto.Sha256(trx[step].SignedID)] = *trx[step]
+			if c.Pending.PendingBlockState != nil {
+				for _, trx := range c.Pending.PendingBlockState.Trxs {
+					c.UnappliedTransactions[crypto.Sha256(trx.SignedID)] = *trx
+				}
 			}
 		}
+		c.Pending.Reset()
 	}
 }
 func (c *Controller) StartBlock(when types.BlockTimeStamp, confirmBlockCount uint16) {
@@ -310,29 +310,27 @@ func (c *Controller) StartBlock(when types.BlockTimeStamp, confirmBlockCount uin
 	c.ValidateDbAvailableSize()
 }
 func (c *Controller) startBlock(when types.BlockTimeStamp, confirmBlockCount uint16, s types.BlockStatus, producerBlockId *common.BlockIdType) {
-	//fmt.Println(c.Config)
-	EosAssert(nil != c.Pending, &BlockValidateException{}, "pending block already exists")
+	EosAssert(c.Pending != nil, &BlockValidateException{}, "pending block already exists")
 	defer func() {
-		if PendingValid {
+		if c.Pending.PendingValid {
 			c.Pending.Reset()
 		}
 	}()
-	if c.SkipDbSession(s) {
-		/*EosAssert( c.DB.revision() == head->block_num, database_exception, "db revision is not on par with head block",
-		("db.revision()", db.revision())("controller_head_block", head->block_num)("fork_db_head_block", fork_db.head()->block_num) )*/
+	if !c.SkipDbSession(s) {
+		EosAssert(uint32(c.DB.Revision()) == c.Head.BlockNum, &DatabaseException{}, "db revision is not on par with head block",
+			c.DB.Revision(), c.Head.BlockNum, c.ForkDB.Header().BlockNum)
 		c.Pending = NewPendingState(c.DB)
 	} else {
-		//c.Pending = types.GetInstance()
+		c.Pending = NewDefaultPendingState()
 	}
 
 	c.Pending.BlockStatus = s
 	c.Pending.ProducerBlockId = *producerBlockId
 	c.Pending.PendingBlockState = types.NewBlockState2(&c.Head.BlockHeaderState, when) //TODO std::make_shared<block_state>( *head, when ); // promotes pending schedule (if any) to active
-	//c.Pending.PendingBlockState.SignedBlock.Timestamp = when
 	c.Pending.PendingBlockState.InCurrentChain = true
 	c.Pending.PendingBlockState.SetConfirmed(confirmBlockCount)
 	wasPendingPromoted := c.Pending.PendingBlockState.MaybePromotePending()
-	log.Info("wasPendingPromoted:%t", wasPendingPromoted)
+	//log.Info("wasPendingPromoted:%t", wasPendingPromoted)
 	if c.ReadMode == DBReadMode(SPECULATIVE) || c.Pending.BlockStatus != types.BlockStatus(types.Incomplete) {
 		gpo := c.GetGlobalProperties()
 		if (!common.Empty(gpo.ProposedScheduleBlockNum) && gpo.ProposedScheduleBlockNum <= c.Pending.PendingBlockState.DposIrreversibleBlocknum) &&
@@ -372,8 +370,7 @@ func (c *Controller) startBlock(when types.BlockTimeStamp, confirmBlockCount uin
 		c.clearExpiredInputTransactions()
 		c.updateProducersAuthority()
 	}
-	PendingValid = true
-
+	c.Pending.PendingValid = true
 }
 
 func (c *Controller) pushReceipt(trx interface{}, status types.TransactionStatus, cpuUsageUs uint64, netUsage uint64) *types.TransactionReceipt {
@@ -404,93 +401,100 @@ func (c *Controller) PushTransaction(trx *types.TransactionMetadata, deadLine co
 
 func (c *Controller) pushTransaction(trx *types.TransactionMetadata, deadLine common.TimePoint, billedCpuTimeUs uint32, explicitBilledCpuTime bool) (trxTrace *types.TransactionTrace) {
 	EosAssert(deadLine != common.TimePoint(0), &TransactionException{}, "deadline cannot be uninitialized")
+	var trace *types.TransactionTrace
+	returning, trace := false, (*types.TransactionTrace)(nil)
 
-	trxContext := *NewTransactionContext(c, trx.Trx, trx.ID, common.Now())
-
-	if c.SubjectiveCupLeeway != 0 {
-		if c.Pending.BlockStatus == types.BlockStatus(types.Incomplete) {
-			trxContext.Leeway = c.SubjectiveCupLeeway
+	Try(func() {
+		trxContext := *NewTransactionContext(c, trx.Trx, trx.ID, common.Now())
+		if c.SubjectiveCupLeeway != 0 {
+			if c.Pending.BlockStatus == types.BlockStatus(types.Incomplete) {
+				trxContext.Leeway = c.SubjectiveCupLeeway
+			}
 		}
-	}
-	trxContext.Deadline = deadLine
-	trxContext.ExplicitBilledCpuTime = explicitBilledCpuTime
-	trxContext.BilledCpuTimeUs = int64(billedCpuTimeUs)
+		trxContext.Deadline = deadLine
+		trxContext.ExplicitBilledCpuTime = explicitBilledCpuTime
+		trxContext.BilledCpuTimeUs = int64(billedCpuTimeUs)
 
-	trace := trxContext.Trace
-	//try{
-	if trx.Implicit {
-		trxContext.InitForImplicitTrx(0) //default value 0
-		trxContext.CanSubjectivelyFail = false
-	} else {
-		skipRecording := (c.ReplayHeadTime != 0) && (common.TimePoint(trx.Trx.Expiration) <= c.ReplayHeadTime)
-		trxContext.InitForInputTrx(uint64(trx.PackedTrx.GetUnprunableSize()), uint64(trx.PackedTrx.GetPrunableSize()),
-			uint32(len(trx.Trx.Signatures)), skipRecording)
-	}
-	if trxContext.CanSubjectivelyFail && c.Pending.BlockStatus == types.Incomplete {
-		c.CheckActorList(&trxContext.BillToAccounts)
-	}
-	trxContext.Delay = common.Microseconds(trx.Trx.DelaySec)
-	checkTime := func() {}
-	if !c.SkipAuthCheck() && !trx.Implicit {
-		c.Authorization.CheckAuthorization(trx.Trx.Actions,
-			trx.RecoverKeys(&c.ChainID),
-			&common.FlatSet{},
-			trxContext.Delay,
-			&checkTime,
-			false)
-	}
-	trxContext.Exec()
-	trxContext.Finalize()
-	//TODO
-	defer func(b bool) {
-		c.InTrxRequiringChecks = b
-	}(c.InTrxRequiringChecks)
+		trace = trxContext.Trace
+		Try(func() {
+			if trx.Implicit {
+				trxContext.InitForImplicitTrx(0) //default value 0
+				trxContext.CanSubjectivelyFail = false
+			} else {
+				skipRecording := (c.ReplayHeadTime != 0) && (common.TimePoint(trx.Trx.Expiration) <= c.ReplayHeadTime)
+				trxContext.InitForInputTrx(uint64(trx.PackedTrx.GetUnprunableSize()), uint64(trx.PackedTrx.GetPrunableSize()),
+					uint32(len(trx.Trx.Signatures)), skipRecording)
+			}
+			if trxContext.CanSubjectivelyFail && c.Pending.BlockStatus == types.Incomplete {
+				c.CheckActorList(&trxContext.BillToAccounts)
+			}
+			trxContext.Delay = common.Microseconds(trx.Trx.DelaySec)
+			checkTime := func() {}
+			if !c.SkipAuthCheck() && !trx.Implicit {
+				c.Authorization.CheckAuthorization(trx.Trx.Actions,
+					trx.RecoverKeys(&c.ChainID),
+					&common.FlatSet{},
+					trxContext.Delay,
+					&checkTime,
+					false)
+			}
+			trxContext.Exec()
+			trxContext.Finalize()
+			//TODO
+			defer func(b bool) {
+				c.InTrxRequiringChecks = b
+			}(c.InTrxRequiringChecks)
 
-	if !trx.Implicit {
-		var s types.TransactionStatus
-		if trxContext.Delay == common.Microseconds(0) {
-			s = types.TransactionStatusExecuted
-		} else {
-			s = types.TransactionStatusDelayed
+			if !trx.Implicit {
+				var s types.TransactionStatus
+				if trxContext.Delay == common.Microseconds(0) {
+					s = types.TransactionStatusExecuted
+				} else {
+					s = types.TransactionStatusDelayed
+				}
+				tr := c.pushReceipt(trx.PackedTrx.PackedTrx, s, uint64(trxContext.BilledCpuTimeUs), trace.NetUsage)
+				trace.Receipt = tr.TransactionReceiptHeader
+				c.Pending.PendingBlockState.Trxs = append(c.Pending.PendingBlockState.Trxs, trx)
+			} else {
+				r := types.TransactionReceiptHeader{}
+				r.CpuUsageUs = uint32(trxContext.BilledCpuTimeUs)
+				r.NetUsageWords = uint32(trace.NetUsage / 8)
+				trace.Receipt = r
+			}
+			//fc::move_append(pending->_actions, move(trx_context.executed))
+			c.Pending.Actions = append(c.Pending.Actions, trxContext.Executed...)
+			if !trx.Accepted {
+				trx.Accepted = true
+				//emit( c.accepted_transaction, trx)
+			}
+
+			//emit(c.applied_transaction, trace)
+			if c.ReadMode != SPECULATIVE && c.Pending.BlockStatus == types.Incomplete {
+				trxContext.Undo()
+			} else {
+				//restore.cancel()
+				trxContext.Squash()
+			}
+
+			if !trx.Implicit {
+				delete(c.UnappliedTransactions, crypto.Hash256(trx.SignedID))
+			}
+
+			returning = true
+		}).Catch(func(ex Exception) {
+			trace.Except = ex
+			trace.ExceptPtr = ex
+		}).End()
+		if returning {
+			return
 		}
-		tr := c.pushReceipt(trx.PackedTrx.PackedTrx, s, uint64(trxContext.BilledCpuTimeUs), trace.NetUsage)
-		trace.Receipt = tr.TransactionReceiptHeader
-		c.Pending.PendingBlockState.Trxs = append(c.Pending.PendingBlockState.Trxs, trx)
-	} else {
-		r := types.TransactionReceiptHeader{}
-		r.CpuUsageUs = uint32(trxContext.BilledCpuTimeUs)
-		r.NetUsageWords = uint32(trace.NetUsage / 8)
-		trace.Receipt = r
-	}
-	//fc::move_append(pending->_actions, move(trx_context.executed))
-	c.Pending.Actions = append(c.Pending.Actions, trxContext.Executed...)
-	if !trx.Accepted {
-		trx.Accepted = true
-		//emit( c.accepted_transaction, trx)
-	}
-
-	//emit(c.applied_transaction, trace)
-	if c.ReadMode != SPECULATIVE && c.Pending.BlockStatus == types.Incomplete {
-		trxContext.Undo()
-	} else {
-		//restore.cancel()
-		trxContext.Squash()
-	}
-
-	if !trx.Implicit {
-		delete(c.UnappliedTransactions, crypto.Hash256(trx.SignedID))
-	}
-
-	//return trace
-	/*}catch(Exception{}){
-
-	}*/
-	if !failureIsSubjective(trace.Except) {
-		delete(c.UnappliedTransactions, crypto.Sha256(trx.SignedID))
-	}
-	/*emit( c.accepted_transa
-	ction, trx )
-	emit( c.applied_transaction, trace )*/
+		if !failureIsSubjective(trace.Except) {
+			delete(c.UnappliedTransactions, crypto.Sha256(trx.SignedID))
+		}
+		/*emit( c.accepted_transaction, trx )
+		emit( c.applied_transaction, trace )*/
+		return
+	}).FcCaptureAndRethrow(trace).End()
 	return trace
 }
 
@@ -538,17 +542,16 @@ func (c *Controller) GetOnBlockTransaction() types.SignedTransaction {
 	trx.SetReferenceBlock(&c.Head.BlockId)
 	in := c.Pending.PendingBlockState.Header.Timestamp + 999999
 	trx.Expiration = common.TimePointSec(in)
-	log.Info("getOnBlockTransaction trx.Expiration:%#v", trx)
+	//log.Info("getOnBlockTransaction trx.Expiration:%#v", trx)
 	return trx
 }
 func (c *Controller) SkipDbSession(bs types.BlockStatus) bool {
 	considerSkipping := (bs == types.BlockStatus(IRREVERSIBLE))
-	//log.Info("considerSkipping:", considerSkipping)
-	return considerSkipping
+	return considerSkipping && !c.Config.disableReplayOpts && !c.InTrxRequiringChecks
 }
 
 func (c *Controller) SkipDbSessions() bool {
-	if !common.Empty(c.Pending) {
+	if c.Pending != nil {
 		return c.SkipDbSession(c.Pending.BlockStatus)
 	} else {
 		return false
@@ -561,7 +564,7 @@ func (c *Controller) SkipTrxChecks() (b bool) {
 }
 
 func (c *Controller) IsProducingBlock() bool {
-	if common.Empty(c.Pending) {
+	if c.Pending != nil {
 		return false
 	}
 	return c.Pending.BlockStatus == types.Incomplete
@@ -941,33 +944,33 @@ func (c *Controller) applyBlock(b *types.SignedBlock, s types.BlockStatus) {
 
 func (c *Controller) CommitBlock(addToForkDb bool) {
 	defer func() {
-		if PendingValid {
+		if c.Pending.PendingValid {
 			c.Pending.Reset()
 		}
 	}()
-	//try{
-	if addToForkDb {
-		c.Pending.PendingBlockState.Validated = true
-		newBsp := c.ForkDB.AddBlockState(c.Pending.PendingBlockState)
-		//emit(self.accepted_block_header, pending->_pending_block_state)
-		c.Head = c.ForkDB.Header()
-		EosAssert(newBsp == c.Head, &ForkDatabaseException{}, "committed block did not become the new head in fork database")
-	}
+	Try(func() {
+		if addToForkDb {
+			c.Pending.PendingBlockState.Validated = true
+			newBsp := c.ForkDB.AddBlockState(c.Pending.PendingBlockState)
+			//emit(self.accepted_block_header, pending->_pending_block_state)
+			c.Head = c.ForkDB.Header()
+			EosAssert(newBsp == c.Head, &ForkDatabaseException{}, "committed block did not become the new head in fork database")
+		}
 
-	if !c.RePlaying {
-		ubo := entity.ReversibleBlockObject{}
-		ubo.BlockNum = c.Pending.PendingBlockState.BlockNum
-		ubo.SetBlock(c.Pending.PendingBlockState.SignedBlock)
-		c.DB.Insert(&ubo)
-	}
-	//emit( self.accepted_block, pending->_pending_block_state )
-	//catch(){
-	// reset_pending_on_exit.cancel();
-	PendingValid = true //TODO
-	//         abort_block();
-	//throw;
-	// }
+		if !c.RePlaying {
+			ubo := entity.ReversibleBlockObject{}
+			ubo.BlockNum = c.Pending.PendingBlockState.BlockNum
+			ubo.SetBlock(c.Pending.PendingBlockState.SignedBlock)
+			c.DB.Insert(&ubo)
+		}
+		//emit( self.accepted_block, pending->_pending_block_state )
+	}).Catch(func(e interface{}) {
+		c.Pending.PendingValid = true
+		c.AbortBlock()
+		Throw(e)
+	}).End()
 	c.Pending.Push()
+	fmt.Println("commitBlock success!")
 }
 
 func (c *Controller) PushBlock(b *types.SignedBlock, s types.BlockStatus) {
@@ -975,12 +978,13 @@ func (c *Controller) PushBlock(b *types.SignedBlock, s types.BlockStatus) {
 	defer func() {
 		c.TrustedProducerLightValidation = false
 	}()
+
 	Try(func() {
 		EosAssert(b == nil, &BlockValidateException{}, "trying to push empty block")
 		EosAssert(s != types.Incomplete, &BlockLogException{}, "invalid block status for a completed block")
 		//emit(self.pre_accepted_block, b )
-		//trust := !c.Config.forceAllChecks && (s== types.Irreversible || s== types.Validated)
-		//newHeader := c.ForkDB.AddSignedBlockState(b,trust)
+		/*trust := !c.Config.forceAllChecks && (s== types.Irreversible || s== types.Validated)
+		newHeaderState := c.ForkDB.AddSignedBlockState(b,trust)*/
 		exist, _ := c.Config.trustedProducers.Find(&b.Producer)
 		if exist {
 			c.TrustedProducerLightValidation = true
@@ -992,9 +996,7 @@ func (c *Controller) PushBlock(b *types.SignedBlock, s types.BlockStatus) {
 		if s == types.Irreversible {
 			//emit( self.irreversible_block, new_header_state )
 		}
-	}).Catch(func(e Exception) {
-		fmt.Println("Controller PushBlock exception:", e.Message())
-	}).End()
+	}).FcLogAndRethrow()
 
 }
 
@@ -1289,34 +1291,25 @@ func (c *Controller) GetBlockIdForNum(blockNum uint32) common.BlockIdType {
 func (c *Controller) CheckContractList(code common.AccountName) {
 	if len(c.Config.ContractWhitelist.Data) > 0 {
 		exist, _ := c.Config.ContractWhitelist.Find(&code)
-		EosAssert(!exist, &ContractWhitelistException{}, "account %d is not on the contract whitelist", code)
-	} else if len(c.Config.ContractBlacklist.Data) > 0 {
-		//EosAssert(exist, &ContractBlacklistException{}, "account %d is on the contract blacklist", code)
-		/*EOS_ASSERT( conf.contract_blacklist.find( code ) == conf.contract_blacklist.end(),
-			contract_blacklist_exception,
-			"account '${code}' is on the contract blacklist", ("code", code)
-		);*/
+		EosAssert(exist, &ContractWhitelistException{}, "account %d is not on the contract whitelist", code)
+	} else if c.Config.ContractBlacklist.Len() > 0 {
+		exist, _ := c.Config.ContractBlacklist.Find(&code)
+		EosAssert(!exist, &ContractBlacklistException{}, "account %d is on the contract blacklist", code)
 	}
 }
 
 func (c *Controller) CheckActionList(code common.AccountName, action common.ActionName) {
-	if len(c.Config.ActionBlacklist.Data) > 0 {
-		//abl := common.MakePair(code, action)
+	if c.Config.ActionBlacklist.Len() > 0 {
+		abl := common.MakePair(code, action)
 		//key := Hash(abl)
-		/*if _, ok := c.Config.ActionBlacklist[abl]; ok {
-			fmt.Println("action '${code}::${action}' is on the action blacklist")
-			return
-		}*/
-		/*EOS_ASSERT( conf.action_blacklist.find( std::make_pair(code, action) ) == conf.action_blacklist.end(),
-			action_blacklist_exception,
-			"action '${code}::${action}' is on the action blacklist",
-			("code", code)("action", action)
-		);*/
+		exist, _ := c.Config.ActionBlacklist.Find(&abl)
+
+		EosAssert(!exist, &ActionBlacklistException{}, "action '%#v::%#v' is on the action blacklist", code, action)
 	}
 }
 
 func (c *Controller) CheckKeyList(key *ecc.PublicKey) {
-	if len(c.Config.KeyBlacklist.Data) > 0 {
+	if c.Config.KeyBlacklist.Len() > 0 {
 		exist, _ := c.Config.KeyBlacklist.Find(key)
 		EosAssert(exist, &KeyBlacklistException{}, "public key %v is on the key blacklist", key)
 	}
@@ -1509,7 +1502,7 @@ func (c *Controller) CreateNativeAccount(name common.AccountName, owner types.Au
 	account.CreationDate = types.BlockTimeStamp(c.Config.genesis.InitialTimestamp)
 	account.Privileged = isPrivileged
 	if name == common.AccountName(common.DefaultConfig.SystemAccountName) {
-		abiDef := types.AbiDef{}
+		abiDef := abi.AbiDef{}
 		account.SetAbi(EosioContractAbi(abiDef))
 	}
 	err := c.DB.Insert(&account)
@@ -1585,6 +1578,7 @@ func (c *Controller) initializeDatabase() {
 	c.GpoCache[gpo.ID] = &gpo
 	if err != nil {
 		log.Error("Controller initializeDatabase insert GlobalPropertyObject is error:%s", err)
+		EosAssert(err == nil, &DatabaseException{}, err.Error())
 	}
 	dgpo := entity.DynamicGlobalPropertyObject{}
 	dgpo.ID = 1
@@ -1622,7 +1616,7 @@ func (c *Controller) initializeDatabase() {
 		activeProducersAuthority,
 		c.Config.genesis.InitialTimestamp)
 
-	log.Info("initializeDatabase print:%#v,%#v", majorityPermission, minorityPermission)
+	log.Info("initializeDatabase print:%#v,%#v", majorityPermission.ID, minorityPermission.ID)
 }
 
 func (c *Controller) initialize() {
@@ -1631,117 +1625,113 @@ func (c *Controller) initialize() {
 		end := c.Blog.ReadHead()
 		if common.Empty(end) && end.BlockNumber() > 1 {
 			endTime := end.Timestamp.ToTimePoint()
-			replaying := true
-			replayHeadTime := endTime
-			//ilog( "existing block log, attempting to replay ${n} blocks", ("n",end->block_num()) )
+			c.RePlaying = true
+			c.ReplayHeadTime = endTime
+			log.Info("existing block log, attempting to replay ${n} blocks", end.BlockNumber())
 			start := common.Now()
-			next := c.Blog.ReadBlockByNum(c.Head.BlockNum + 1)
-			/*while( auto next = blog.read_block_by_num( head->block_num + 1 ) ) {
-				self.push_block( next, controller::block_status::irreversible );
-				if( next->block_num() % 100 == 0 ) {
-					std::cerr << std::setw(10) << next->block_num() << " of " << end->block_num() <<"\r";
+
+			for next := c.Blog.ReadBlockByNum(c.Head.BlockNum + 1); next != nil; {
+				c.PushBlock(next, types.Irreversible)
+				if next.BlockNumber()%100 == 0 {
+					log.Info("%d blocks replayed", next.BlockNumber())
 				}
-			}*/
-			//ilog( "${n} blocks replayed", ("n", head->block_num) )
-			//c.DB.set_revision(head->block_num)
+			}
+			log.Info("${n} blocks replayed", c.Head.BlockNum)
+			c.DB.SetRevision(int64(c.Head.BlockNum))
 			rev := 0
-			//c.ReversibleBlocks.Find("",)
 			r := entity.ReversibleBlockObject{}
 			for {
+				rev++
 				r.BlockNum = c.HeadBlockNum() + 1
-				err := c.ReversibleBlocks.Find("blockNum", r, r)
+				err := c.ReversibleBlocks.Find("blockNum", &r, &r)
 				if err != nil {
 					break
 				}
 				c.PushBlock(r.GetBlock(), types.Validated)
 			}
-			//ilog( "${n} reversible blocks replayed", ("n",rev) )
-			end := time.Now()
-			/*ilog( "replayed ${n} blocks in ${duration} seconds, ${mspb} ms/block",
-				("n", head->block_num)("duration", (end-start).count()/1000000)
-			("mspb", ((end-start).count()/1000.0)/head->block_num)        )*/
+			log.Info("%s reversible blocks replayed", rev)
+			end := common.Now()
+			log.Info("replayed %d blocks in %#v seconds, %#v ms/block", c.Head.BlockNum, (end-start)/1000000, ((end-start).SecSinceEpoch()/1000.0)/c.Head.BlockNum)
 			c.RePlaying = false
-			//c.ReplayHeadTime = nil
+			c.ReplayHeadTime = common.TimePoint(0)
 
-			log.Info("test print:", replaying, replayHeadTime, start, next, rev, end)
 		} else if !common.Empty(end) {
 			c.Blog.ResetToGenesis(&c.Config.genesis, c.Head.SignedBlock)
 		}
-		//TODO	wait append
-		/*rbi := entity.ReversibleBlockObject{}
-		ubi,err := c.ReversibleBlocks.GetIndex("byNum",&rbi)
-		if err!= nil{
-			fmt.Errorf("initialize database is error :",err)
-		}
-		objitr := ubi.Begin()*/
 	}
-
-}
-
-//c++ pair<scope_name,action_name>
-type HandlerKey struct {
-	scope  common.ScopeName
-	action common.ActionName
-}
-
-func NewHandlerKey(scopeName common.ScopeName, actionName common.ActionName) HandlerKey {
-	hk := HandlerKey{scopeName, actionName}
-	return hk
+	rbi := entity.ReversibleBlockObject{}
+	ubi, err := c.ReversibleBlocks.GetIndex("byNum", &rbi)
+	if err != nil {
+		fmt.Errorf("initialize database ReversibleBlocks GetIndex is error :%s", err.Error())
+		EosAssert(err == nil, &DatabaseException{}, err.Error())
+	}
+	//c++ rbegin and rend
+	objitr := ubi.End()
+	if objitr != ubi.Begin() {
+		objitr.Prev()
+		r := entity.ReversibleBlockObject{}
+		objitr.Data(&r)
+		EosAssert(r.BlockNum == c.Head.BlockNum, &ForkDatabaseException{},
+			"reversible block database is inconsistent with fork database, replay blockchain", c.Head.BlockNum, r.BlockNum)
+	} else {
+		end := c.Blog.ReadHead()
+		EosAssert(end != nil && end.BlockNumber() == c.Head.BlockNum, &ForkDatabaseException{},
+			"fork database exists but reversible block database does not, replay blockchain", end.BlockNumber(), c.Head.BlockNum)
+	}
+	EosAssert(uint32(c.DB.Revision()) >= c.Head.BlockNum, &ForkDatabaseException{}, "fork database is inconsistent with shared memory", c.DB.Revision(), c.Head.BlockNum)
+	for uint32(c.DB.Revision()) > c.Head.BlockNum {
+		c.DB.Undo()
+	}
 }
 
 func (c *Controller) clearExpiredInputTransactions() {
-	/*aa :=&entity.TransactionObject{}
-	aa.Expiration = common.TimePointSec(common.Now())
-	err := c.DB.Insert(aa)
-	if err != nil{
-		fmt.Println("insert success")
-	}*/
 	transactionIdx, err := c.DB.GetIndex("byExpiration", &entity.TransactionObject{})
 
 	now := c.PendingBlockTime()
-	t := &entity.TransactionObject{}
-
-	for !transactionIdx.Empty() && now > common.TimePoint(t.Expiration) {
-		tmp := &entity.TransactionObject{}
-		itr := transactionIdx.Begin()
-		if itr != nil {
-			err = itr.Data(tmp)
-			if err != nil {
-				log.Error("TransactionIdx.Begin Is Error:%s", err.Error())
-			}
+	t := entity.TransactionObject{}
+	if !transactionIdx.Empty() {
+		err = transactionIdx.Begin().Data(&t)
+		if err != nil {
+			log.Error("controller clearExpiredInputTransactions transactionIdx.Begin() is error: %s", err.Error())
+			EosAssert(err == nil, &DatabaseException{}, err.Error())
+			return
 		}
-		c.DB.Remove(tmp)
+		for transactionIdx != nil && now > common.TimePoint(t.Expiration) {
+			tmp := &entity.TransactionObject{}
+			itr := transactionIdx.Begin()
+			if itr != nil {
+				err = itr.Data(tmp)
+				if err != nil {
+					log.Error("TransactionIdx.Begin Is Error:%s", err.Error())
+					EosAssert(err == nil, &DatabaseException{}, err.Error())
+					return
+				}
+			}
+			c.DB.Remove(tmp)
+		}
 	}
 }
 
 func (c *Controller) CheckActorList(actors *common.FlatSet) {
 	if c.Config.ActorWhitelist.Len() > 0 {
-		//excluded :=make(map[common.AccountName]struct{})
-
-		//set
-		/*for an := range actors.Data {
-			if c.Config.ActorWhitelist.Find(an.(*common.AccountName)){
-
-			}
-		}*/
-		/*EOS_ASSERT( excluded.size() == 0, actor_whitelist_exception,
-			"authorizing actor(s) in transaction are not on the actor whitelist: ${actors}",
-			("actors", excluded)
-		)*/
-		/*} else if len(c.Config.ActorBlacklist) > 0 {
-		//black :=make(map[common.AccountName]struct{})
-		//set
 		for _, an := range actors.Data {
-			if _, ok := c.Config.ActorBlacklist[*an.(*common.AccountName)]; ok {
-				fmt.Println("authorizing actor(s) in transaction are not on the actor blacklist:", an)
-				return
+			exist, _ := c.Config.ActorWhitelist.Find(an)
+			if !exist {
+				EosAssert(c.Config.ActorWhitelist.Len() == 0, &ActorWhitelistException{},
+					"authorizing actor(s) in transaction are not on the actor whitelist: %#v", actors)
 			}
-		}*/
-		/*EOS_ASSERT( blacklisted.size() == 0, actor_blacklist_exception,
-			"authorizing actor(s) in transaction are on the actor blacklist: ${actors}",
-			("actors", blacklisted)
-		)*/
+		}
+
+	} else if c.Config.ActorBlacklist.Len() > 0 {
+		for _, an := range actors.Data {
+			exist, _ := c.Config.ActorBlacklist.Find(an)
+			if exist {
+				EosAssert(c.Config.ActorBlacklist.Len() == 0, &ActorBlacklistException{},
+					"authorizing actor(s) in transaction are on the actor blacklist: %#v", actors)
+			}
+		}
 	}
+
 }
 func (c *Controller) updateProducersAuthority() {
 	producers := c.Pending.PendingBlockState.ActiveSchedule.Producers
@@ -1777,6 +1767,7 @@ func (c *Controller) createBlockSummary(id *common.BlockIdType) {
 	err := c.DB.Find("id", &bso, &bso)
 	if err != nil {
 		log.Error("Controller createBlockSummary is error:%s", err.Error())
+		EosAssert(err == nil, &DatabaseException{}, err.Error())
 	}
 	c.DB.Modify(bso, func(b *entity.BlockSummaryObject) {
 		b.BlockId = *id

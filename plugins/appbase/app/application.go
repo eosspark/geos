@@ -2,7 +2,7 @@ package app
 
 import (
 	. "github.com/eosspark/eos-go/plugins/appbase/app/include"
-	. "github.com/eosspark/eos-go/plugins/chain_interface/include/eosio/chain"
+	. "github.com/eosspark/eos-go/plugins/chain_interface"
 	"github.com/urfave/cli"
 	. "github.com/eosspark/eos-go/exception"
 	"fmt"
@@ -225,13 +225,14 @@ func (app *Application) Exec() {
 	sigterm := asio.NewSignalSet(app.iosv, syscall.SIGTERM)
 	sigterm.AsyncWait(func(err error) {
 		app.Quit()
-		sigint.Cancel()
+		sigterm.Cancel()
 	})
 	sigpipe := asio.NewSignalSet(app.iosv, syscall.SIGPIPE)
 	sigpipe.AsyncWait(func(err error) {
 		app.Quit()
 		sigpipe.Cancel()
 	})
+
 	app.iosv.Run()
 
 	app.ShutDown()

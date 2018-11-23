@@ -3,7 +3,8 @@ package common
 import (
 	"encoding/binary"
 	"encoding/json"
-	"fmt"
+	"github.com/eosspark/eos-go/exception"
+	. "github.com/eosspark/eos-go/exception/try"
 	"strings"
 )
 
@@ -38,13 +39,11 @@ func (n *Name) UnmarshalJSON(data []byte) error {
 }
 
 //N converts a base32 string to a uint64. 64-bit unsigned integer representation of the name.
-func N(s string) (val uint64) {
+func N(s string) Name {
 	var i uint32
+	var val uint64
 	sLen := uint32(len(s))
-	if sLen > 13 {
-		//panic(fmt.Sprintf("Name is loger than 13 chacacters %s",s))
-		fmt.Printf("Name is loger than 13 chacacters %s\n", s) //TODO
-	}
+	EosAssert(sLen <= 13, &exception.NameTypeException{}, "Name is longer than 13 characters (%s) ", s)
 	for ; i <= 12; i++ {
 		var c uint64
 		if i < sLen {
@@ -61,7 +60,7 @@ func N(s string) (val uint64) {
 		val |= c
 	}
 
-	return
+	return Name(val)
 }
 
 //S converts a uint64 to a base32 string. String representation of the name.

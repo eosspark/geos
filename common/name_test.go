@@ -2,6 +2,8 @@ package common
 
 import (
 	"fmt"
+	"github.com/eosspark/eos-go/exception"
+	"github.com/eosspark/eos-go/exception/try"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
@@ -9,7 +11,7 @@ import (
 func TestNewName(t *testing.T) {
 	name := "eosio.system"
 	val := N(name)
-	assert.Equal(t, val, uint64(6138663591228101920))
+	assert.Equal(t, val, Name(6138663591228101920))
 	//fmt.Printf("%d\n", val)
 	name2 := S(6138663591228101920)
 	//fmt.Println(name2)
@@ -18,15 +20,23 @@ func TestNewName(t *testing.T) {
 
 func TestNameStr(t *testing.T) {
 	name := "eosio.systemabdxs"
-	val := N(name)
-	fmt.Printf("%d\n", val)
+	testflag := false
+	var val Name
+	try.Try(func() {
+		val = N(name)
+	}).Catch(func(exception exception.NameTypeException) {
+		assert.Equal(t, "Invalid name", exception.What(), exception.Message())
+		fmt.Println(exception.Message())
+		testflag = true
+	})
+	assert.Equal(t, true, testflag, "check name is wrong")
 
 }
 
 func TestNameSuffix(t *testing.T) {
 	name := N("eosio.token")
 	check := N("token")
-	test := NameSuffix(name)
-	//fmt.Println(N(test))
-	assert.Equal(t, test, check)
+	suffix := NameSuffix(uint64(name))
+
+	assert.Equal(t, check, Name(suffix))
 }

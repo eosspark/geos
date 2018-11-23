@@ -15,7 +15,7 @@ import (
 
 const (
 	OTHER_FAIL              = -2
-	INITIALIZEFAIL          = -1
+	INITIALIZE_FAIL          = -1
 	SUCCESS                 = 0
 	BAD_ALLOC               = 1
 	DATABASE_DIRTY          = 2
@@ -36,7 +36,7 @@ func main() {
 		App().SetDefaultDataDir()
 		App().SetDefaultConfigDir()
 		if !App().Initialize(basicPlugin) {
-			os.Exit(INITIALIZEFAIL)
+			os.Exit(INITIALIZE_FAIL)
 		}
 		App().StartUp()
 		App().Exec()
@@ -63,24 +63,24 @@ func main() {
 		log.Error(e.Message())
 		os.Exit(OTHER_FAIL)
 
-	}).Catch(func(e try.RuntimeError) {
-		if strings.Contains(e.Message, "database dirty flag set") {
-			log.Error("database dirty flag set (likely due to unclean shutdown): replay required")
-			os.Exit(DATABASE_DIRTY)
+	//}).Catch(func(e try.RuntimeError) {
+	//	if strings.Contains(e.Message, "database dirty flag set") {
+	//		log.Error("database dirty flag set (likely due to unclean shutdown): replay required")
+	//		os.Exit(DATABASE_DIRTY)
+	//
+	//	} else if strings.Contains(e.Message, "database metadata dirty flag set") {
+	//		log.Error("database metadata dirty flag set (likely due to unclean shutdown): replay required")
+	//		os.Exit(DATABASE_DIRTY)
+	//
+	//	} else {
+	//		log.Error("%s", e.Message)
+	//	}
+	//	os.Exit(OTHER_FAIL)
 
-		} else if strings.Contains(e.Message, "database metadata dirty flag set") {
-			log.Error("database metadata dirty flag set (likely due to unclean shutdown): replay required")
-			os.Exit(DATABASE_DIRTY)
+	}).Catch(func(e error) {
+		log.Error("%s", e.Error())
 
-		} else {
-			log.Error("%s", e.Message)
-		}
-		os.Exit(OTHER_FAIL)
-
-	}).Catch(func(e Exception) {
-		log.Error("%s", e.Message())
-
-	}).Catch(func(... interface{}) {
+	}).Catch(func(interface{}) {
 		log.Error("unknown exception")
 		os.Exit(OTHER_FAIL)
 
