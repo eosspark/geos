@@ -1,8 +1,11 @@
 package chain
 
 import (
+	"fmt"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
+	"github.com/eosspark/eos-go/crypto"
+	"github.com/eosspark/eos-go/crypto/abi"
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/eosspark/eos-go/entity"
@@ -466,7 +469,7 @@ func (t BaseTester) SetCode2(account common.AccountName, wast *byte, signer *ecc
 
 func (t BaseTester) SetAbi(account common.AccountName, abiJson *byte, signer *ecc.PrivateKey) {
 	// abi := fc::json::from_string(abi_json).template as<abi_def>()
-	abi := types.AbiDef{}
+	abi := abi.AbiDef{}
 	trx := types.SignedTransaction{}
 	abiBytes, _ := rlp.EncodeToBytes(abi)
 	setAbi := setAbi{Account: account, Abi: abiBytes}

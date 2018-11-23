@@ -1,8 +1,9 @@
 package arithmeticTypes
 
 import (
+	"encoding/binary"
+	"encoding/hex"
 	"fmt"
-	"github.com/eosspark/eos-go/crypto/rlp"
 )
 
 /*----------------------------------------------------------------------------
@@ -30,10 +31,13 @@ type ExtFloat80M struct {
 type ExtFloat80_t ExtFloat80M
 
 func (f Float128) String() string {
-	re, _ := rlp.EncodeToBytes(f)
-	fmt.Println(re)
-	return string(re)
+	// Same for Int128, Float128
+	number := make([]byte, 16)
+	binary.LittleEndian.PutUint64(number[:], f.Low)
+	binary.LittleEndian.PutUint64(number[8:], f.High)
+	return fmt.Sprintf("0x%s%s", hex.EncodeToString(number[:8]), hex.EncodeToString(number[8:]))
 }
+
 func (f Float128) Bytes() []byte {
 	return []byte{}
 }

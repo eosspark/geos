@@ -10,95 +10,95 @@ type Function interface {
 }
 
 type PreAcceptedBlockFunc struct {
-	function  func(s *SignedBlock)
+	Func  func(s *SignedBlock)
 }
 
 func (p *PreAcceptedBlockFunc) call(data interface{}) {
-	p.function(data.(*SignedBlock))
+	p.Func(data.(*SignedBlock))
 }
 
-type RejectedBlockTagFunc struct {
-	function func(s *SignedBlock)
+type RejectedBlockFunc struct {
+	Func func(s *SignedBlock)
 }
 
-func (r *RejectedBlockTagFunc) call(data interface{}) {
-	r.function(data.(*SignedBlock))
+func (r *RejectedBlockFunc) call(data interface{}) {
+	r.Func(data.(*SignedBlock))
 }
 
-type AcceptedBlockHeaderTag struct {
-	function func(b *BlockState)
+type AcceptedBlockHeaderFunc struct {
+	Func func(b *BlockState)
 }
 
-func (a *AcceptedBlockHeaderTag) call(data interface{}) {
-	a.function(data.(*BlockState))
+func (a *AcceptedBlockHeaderFunc) call(data interface{}) {
+	a.Func(data.(*BlockState))
 }
 
-type AcceptedBlockTag struct {
-	function func(b *BlockState)
+type AcceptedBlockFunc struct {
+	Func func(b *BlockState)
 }
 
-func (a *AcceptedBlockTag) call(data interface{}) {
-	a.function(data.(*BlockState))
+func (a *AcceptedBlockFunc) call(data interface{}) {
+	a.Func(data.(*BlockState))
 }
 
-type IrreversibleBlockTag struct {
-	function func(b *BlockState)
+type IrreversibleBlockFunc struct {
+	Func func(b *BlockState)
 }
 
-func (i *IrreversibleBlockTag) call(data interface{}) {
-	i.function(data.(*BlockState))
+func (i *IrreversibleBlockFunc) call(data interface{}) {
+	i.Func(data.(*BlockState))
 }
 
-type AcceptedTransactionTag struct {
-	function func(t *TransactionMetadata)
+type AcceptedTransactionFunc struct {
+	Func func(t *TransactionMetadata)
 }
 
-func (a *AcceptedTransactionTag) call(data interface{}) {
-	a.function(data.(*TransactionMetadata))
+func (a *AcceptedTransactionFunc) call(data interface{}) {
+	a.Func(data.(*TransactionMetadata))
 }
 
-type AppliedTransactionTag struct {
-	function func(t *TransactionTrace)
+type AppliedTransactionFunc struct {
+	Func func(t *TransactionTrace)
 }
 
-func (a *AppliedTransactionTag) call(data interface{}) {
-	a.function(data.(*TransactionTrace))
+func (a *AppliedTransactionFunc) call(data interface{}) {
+	a.Func(data.(*TransactionTrace))
 }
 
-type AcceptedConfirmationTag struct {
-	function func(h *HeaderConfirmation)
+type AcceptedConfirmationFunc struct {
+	Func func(h *HeaderConfirmation)
 }
 
-func (a *AcceptedConfirmationTag) call(data interface{}) {
-	a.function(data.(*HeaderConfirmation))
-}
-
-
-
-type BlockTag struct {
-	function func(s *SignedBlock)
-}
-
-func (b *BlockTag) call(data interface{}) {
-	b.function(data.(*SignedBlock))
-}
-
-type TransactionTag struct {
-	function func(p *PackedTransaction)
-}
-
-func (t *TransactionTag) call(data interface{}) {
-	t.function(data.(*PackedTransaction))
+func (a *AcceptedConfirmationFunc) call(data interface{}) {
+	a.Func(data.(*HeaderConfirmation))
 }
 
 
 
-type AcceptedTransactionTagExec struct {
-	function func(p *common.Pair)
+type BlockFunc struct {
+	Func func(s *SignedBlock)
 }
 
-func (a *AcceptedTransactionTagExec) call(data interface{}) {
-	a.function(data.(*common.Pair))
+func (b *BlockFunc) call(data interface{}) {
+	b.Func(data.(*SignedBlock))
+}
+
+type TransactionFunc struct {
+	Func func(p *PackedTransaction)
+}
+
+func (t *TransactionFunc) call(data interface{}) {
+	t.Func(data.(*PackedTransaction))
+}
+
+
+
+type AcceptedTransactionFuncExec struct {
+	Func func(p *common.Pair)
+}
+
+func (a *AcceptedTransactionFuncExec) call(data interface{}) {
+	a.Func(data.(*common.Pair))
 }
 
 

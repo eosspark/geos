@@ -39,11 +39,11 @@ type dummy_action struct {
 }
 
 func (d *dummy_action) get_name() uint64 {
-	return common.N("dummy_action")
+	return uint64(common.N("dummy_action"))
 }
 
 func (d *dummy_action) get_account() uint64 {
-	return common.N("testapi")
+	return uint64(common.N("testapi"))
 }
 
 func TestContextAction(t *testing.T) {
@@ -215,8 +215,8 @@ func TestContextMemory(t *testing.T) {
 		//callTestFunction(control, code, "test_memory", "test_memory_hunks_disjoint", []byte{}, "testapi")
 		callTestFunction(control, code, "test_memory", "test_memset_memcpy", []byte{}, "testapi")
 
-		callTestFunctionCheckException(control, code, "test_memory", "test_memcpy_overlap_start", []byte{}, "testapi", exception.OverlappingMemoryError{}.Code(), exception.OverlappingMemoryError{}.Message())
-		callTestFunctionCheckException(control, code, "test_memory", "test_memcpy_overlap_end", []byte{}, "testapi", exception.OverlappingMemoryError{}.Code(), exception.OverlappingMemoryError{}.Message())
+		callTestFunctionCheckException(control, code, "test_memory", "test_memcpy_overlap_start", []byte{}, "testapi", exception.OverlappingMemoryError{}.Code(), (&exception.OverlappingMemoryError{}).Message())
+		callTestFunctionCheckException(control, code, "test_memory", "test_memcpy_overlap_end", []byte{}, "testapi", exception.OverlappingMemoryError{}.Code(), (&exception.OverlappingMemoryError{}).Message())
 
 		callTestFunction(control, code, "test_memory", "test_memcmp", []byte{}, "testapi")
 
@@ -328,10 +328,10 @@ func TestContextCrypto(t *testing.T) {
 		callTestFunction(control, code, "test_crypto", "assert_sha512_true", []byte{}, "testapi")
 		callTestFunction(control, code, "test_crypto", "assert_ripemd160_true", []byte{}, "testapi")
 
-		callTestFunctionCheckException(control, code, "test_crypto", "assert_sha256_false", []byte{}, "testapi", exception.CryptoApiException{}.Code(), exception.CryptoApiException{}.Message())
-		callTestFunctionCheckException(control, code, "test_crypto", "assert_sha1_false", []byte{}, "testapi", exception.CryptoApiException{}.Code(), exception.CryptoApiException{}.Message())
-		callTestFunctionCheckException(control, code, "test_crypto", "assert_sha512_false", []byte{}, "testapi", exception.CryptoApiException{}.Code(), exception.CryptoApiException{}.Message())
-		callTestFunctionCheckException(control, code, "test_crypto", "assert_ripemd160_false", []byte{}, "testapi", exception.CryptoApiException{}.Code(), exception.CryptoApiException{}.Message())
+		callTestFunctionCheckException(control, code, "test_crypto", "assert_sha256_false", []byte{}, "testapi", exception.CryptoApiException{}.Code(), (&exception.CryptoApiException{}).Message())
+		callTestFunctionCheckException(control, code, "test_crypto", "assert_sha1_false", []byte{}, "testapi", exception.CryptoApiException{}.Code(), (&exception.CryptoApiException{}).Message())
+		callTestFunctionCheckException(control, code, "test_crypto", "assert_sha512_false", []byte{}, "testapi", exception.CryptoApiException{}.Code(), (&exception.CryptoApiException{}).Message())
+		callTestFunctionCheckException(control, code, "test_crypto", "assert_ripemd160_false", []byte{}, "testapi", exception.CryptoApiException{}.Code(), (&exception.CryptoApiException{}).Message())
 
 		stopBlock(control)
 
@@ -355,7 +355,7 @@ func TestContextFixedPoint(t *testing.T) {
 		callTestFunction(control, code, "test_fixedpoint", "test_multiplication", []byte{}, "testapi")
 		callTestFunction(control, code, "test_fixedpoint", "test_division", []byte{}, "testapi")
 		callTestFunctionCheckException(control, code, "test_fixedpoint", "test_division_by_0", []byte{}, "testapi",
-			exception.EosioAssertMessageException{}.Code(), exception.EosioAssertMessageException{}.Message())
+			exception.EosioAssertMessageException{}.Code(), (&exception.EosioAssertMessageException{}).Message())
 
 		stopBlock(control)
 
@@ -425,19 +425,19 @@ func TestContextCompilerBuiltin(t *testing.T) {
 
 		callTestFunction(control, code, "test_compiler_builtins", "test_umodti3", []byte{}, "testapi")
 		callTestFunctionCheckException(control, code, "test_compiler_builtins", "test_umodti3_by_0", []byte{}, "testapi",
-			exception.ArithmeticException{}.Code(), exception.ArithmeticException{}.Message())
+			exception.ArithmeticException{}.Code(), (&exception.ArithmeticException{}).Message())
 
 		callTestFunction(control, code, "test_compiler_builtins", "test_modti3", []byte{}, "testapi")
 		callTestFunctionCheckException(control, code, "test_compiler_builtins", "test_modti3_by_0", []byte{}, "testapi",
-			exception.ArithmeticException{}.Code(), exception.ArithmeticException{}.Message())
+			exception.ArithmeticException{}.Code(), (&exception.ArithmeticException{}).Message())
 
 		callTestFunction(control, code, "test_compiler_builtins", "test_udivti3", []byte{}, "testapi")
 		callTestFunctionCheckException(control, code, "test_compiler_builtins", "test_udivti3_by_0", []byte{}, "testapi",
-			exception.ArithmeticException{}.Code(), exception.ArithmeticException{}.Message())
+			exception.ArithmeticException{}.Code(), (&exception.ArithmeticException{}).Message())
 
 		callTestFunction(control, code, "test_compiler_builtins", "test_divti3", []byte{}, "testapi")
 		callTestFunctionCheckException(control, code, "test_compiler_builtins", "test_divti3_by_0", []byte{}, "testapi",
-			exception.ArithmeticException{}.Code(), exception.ArithmeticException{}.Message())
+			exception.ArithmeticException{}.Code(), (&exception.ArithmeticException{}).Message())
 
 		callTestFunction(control, code, "test_compiler_builtins", "test_multi3", []byte{}, "testapi")
 
@@ -446,7 +446,7 @@ func TestContextCompilerBuiltin(t *testing.T) {
 }
 
 type invalidAccessAction struct {
-	Code  uint64
+	Code  common.Name
 	Val   uint64
 	Index uint32
 	Store bool
@@ -504,29 +504,29 @@ func TestContextDB(t *testing.T) {
 		assert.Equal(t, ret, "")
 
 		retException := callTestFunctionCheckException(control, code, "test_db", "idx_double_nan_create_fail", []byte{}, "testapi",
-			exception.TableAccessViolation{}.Code(), exception.TableAccessViolation{}.Message())
+			exception.TableAccessViolation{}.Code(), (&exception.TableAccessViolation{}).Message())
 		assert.Equal(t, retException, true)
 
 		retException = callTestFunctionCheckException(control, code, "test_db", "idx_double_nan_modify_fail", []byte{}, "testapi",
-			exception.TableAccessViolation{}.Code(), exception.TableAccessViolation{}.Message())
+			exception.TableAccessViolation{}.Code(), (&exception.TableAccessViolation{}).Message())
 		assert.Equal(t, retException, true)
 
 		var loopupType uint32 = 0
 		l, _ := rlp.EncodeToBytes(&loopupType)
 		retException = callTestFunctionCheckException(control, code, "test_db", "idx_double_nan_lookup_fail", l, "testapi",
-			exception.TableAccessViolation{}.Code(), exception.TableAccessViolation{}.Message())
+			exception.TableAccessViolation{}.Code(), (&exception.TableAccessViolation{}).Message())
 		assert.Equal(t, retException, true)
 
 		loopupType = 1
 		l, _ = rlp.EncodeToBytes(&loopupType)
 		callTestFunctionCheckException(control, code, "test_db", "idx_double_nan_lookup_fail", l, "testapi",
-			exception.TableAccessViolation{}.Code(), exception.TableAccessViolation{}.Message())
+			exception.TableAccessViolation{}.Code(), (&exception.TableAccessViolation{}).Message())
 		assert.Equal(t, retException, true)
 
 		loopupType = 2
 		l, _ = rlp.EncodeToBytes(&loopupType)
 		retException = callTestFunctionCheckException(control, code, "test_db", "idx_double_nan_lookup_fail", l, "testapi",
-			exception.TableAccessViolation{}.Code(), exception.TableAccessViolation{}.Message())
+			exception.TableAccessViolation{}.Code(), (&exception.TableAccessViolation{}).Message())
 		assert.Equal(t, retException, true)
 
 		//fmt.Println(ret)
@@ -554,7 +554,7 @@ func TestContextMultiIndex(t *testing.T) {
 		callTestFunction(control, code, "test_multi_index", "idx64_check_without_storing", []byte{}, "testapi")
 
 		retException := callTestFunctionCheckException(control, code, "test_multi_index", "idx64_pk_iterator_exceed_end", []byte{}, "testapi",
-			exception.EosioAssertMessageException{}.Code(), exception.EosioAssertMessageException{}.Message())
+			exception.EosioAssertMessageException{}.Code(), (&exception.EosioAssertMessageException{}).Message())
 		assert.Equal(t, retException, true)
 		//
 		//retException = callTestFunctionCheckException(control, code, "test_multi_index", "idx64_sk_iterator_exceed_end", []byte{}, "testapi",
@@ -607,7 +607,7 @@ func TestContextMultiIndex(t *testing.T) {
 		//assert.Equal(t, retException, true)
 
 		retException = callTestFunctionCheckException(control, code, "test_multi_index", "idx64_run_out_of_avl_pk", []byte{}, "testapi",
-			exception.EosioAssertMessageException{}.Code(), exception.EosioAssertMessageException{}.Message())
+			exception.EosioAssertMessageException{}.Code(), (&exception.EosioAssertMessageException{}).Message())
 		assert.Equal(t, retException, true)
 
 		//retException = callTestFunctionCheckException(control, code, "test_multi_index", "idx64_require_find_fail", []byte{}, "testapi",

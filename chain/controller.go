@@ -6,6 +6,7 @@ import (
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto"
+	"github.com/eosspark/eos-go/crypto/abi"
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/eosspark/eos-go/database"
@@ -1497,7 +1498,7 @@ func (c *Controller) CreateNativeAccount(name common.AccountName, owner types.Au
 	account.CreationDate = types.BlockTimeStamp(c.Config.genesis.InitialTimestamp)
 	account.Privileged = isPrivileged
 	if name == common.AccountName(common.DefaultConfig.SystemAccountName) {
-		abiDef := types.AbiDef{}
+		abiDef := abi.AbiDef{}
 		account.SetAbi(EosioContractAbi(abiDef))
 	}
 	err := c.DB.Insert(&account)
