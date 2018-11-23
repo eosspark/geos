@@ -1,9 +1,11 @@
 package chain
 
 import (
+	"fmt"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto"
+	"github.com/eosspark/eos-go/crypto/abi"
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/eosspark/eos-go/entity"
@@ -11,7 +13,6 @@ import (
 	"github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/log"
 	"math"
-	"fmt"
 )
 
 type BaseTester struct {
@@ -30,10 +31,9 @@ type BaseTester struct {
 func newBaseTester(control *Controller) *BaseTester {
 	btInstance := &BaseTester{}
 	btInstance.Control = control
-	btInstance.initBase(false, 0 )
+	btInstance.initBase(false, 0)
 	return btInstance
 }
-
 
 func (t BaseTester) initBase(pushGenesis bool, mode DBReadMode) {
 	t.DefaultExpirationDelta = 6
@@ -265,7 +265,7 @@ type VariantsObject []map[string]interface{}
 func (t BaseTester) PushAction2(code *common.AccountName, acttype *common.AccountName,
 	actor common.AccountName, data *VariantsObject, expiration uint32, delaySec uint32) *types.TransactionTrace {
 	auths := make([]types.PermissionLevel, 0)
-	auths = append(auths, types.PermissionLevel{Actor:actor, Permission:common.DefaultConfig.ActiveName})
+	auths = append(auths, types.PermissionLevel{Actor: actor, Permission: common.DefaultConfig.ActiveName})
 	return t.PushAction4(code, acttype, &auths, data, expiration, delaySec)
 }
 
@@ -466,7 +466,7 @@ func (t BaseTester) SetCode2(account common.AccountName, wast *byte, signer *ecc
 
 func (t BaseTester) SetAbi(account common.AccountName, abiJson *byte, signer *ecc.PrivateKey) {
 	// abi := fc::json::from_string(abi_json).template as<abi_def>()
-	abi := types.AbiDef{}
+	abi := abi.AbiDef{}
 	trx := types.SignedTransaction{}
 	abiBytes, _ := rlp.EncodeToBytes(abi)
 	setAbi := setAbi{Account: account, Abi: abiBytes}

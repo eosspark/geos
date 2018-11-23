@@ -3,9 +3,9 @@ package common
 import (
 	"encoding/binary"
 	"encoding/json"
-	"strings"
-	. "github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/exception"
+	. "github.com/eosspark/eos-go/exception/try"
+	"strings"
 )
 
 // ported from libraries/chain/name.cpp in eosio
@@ -39,8 +39,9 @@ func (n *Name) UnmarshalJSON(data []byte) error {
 }
 
 //N converts a base32 string to a uint64. 64-bit unsigned integer representation of the name.
-func N(s string) (val uint64) {
+func N(s string) Name {
 	var i uint32
+	var val uint64
 	sLen := uint32(len(s))
 	EosAssert(sLen <= 13, &exception.NameTypeException{}, "Name is longer than 13 characters (%s) ", s)
 	for ; i <= 12; i++ {
@@ -59,7 +60,7 @@ func N(s string) (val uint64) {
 		val |= c
 	}
 
-	return
+	return Name(val)
 }
 
 //S converts a uint64 to a base32 string. String representation of the name.
