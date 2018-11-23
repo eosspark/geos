@@ -20,7 +20,6 @@ const (
 	GetBlockById
 	GetHeadBlockId
 	GetLibBlockId
-
 	GetLastIrreversibleBlockNumber
 )
 
