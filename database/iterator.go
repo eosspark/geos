@@ -56,8 +56,6 @@ func newDbIterator(typeName []byte, it iterator, db *leveldb.DB) (*DbIterator, e
 
 	idx := &DbIterator{typeName: typeName, it: it, db: db}
 
-	idx.keyValue(it.Value())
-	idx.first = true
 	return idx, nil
 }
 
@@ -88,19 +86,13 @@ func (index *DbIterator) keyValue(key []byte) error {
 
 func (index *DbIterator) Next() bool {
 
-	if index.first {
-		index.first = false
-		return index.keyValue(index.it.Value()) == nil
-	}
+
 	return index.next()
 }
 
 func (index *DbIterator) Prev() bool {
 
-	if index.first {
-		index.first = false
-		return index.keyValue(index.it.Value()) == nil
-	}
+
 	return index.prev()
 }
 
@@ -148,7 +140,6 @@ func (index *DbIterator) Release() {
 	index.it.Release()
 	index.clearKV()
 	index.typeName = nil
-	index.first = false
 }
 
 func (index *DbIterator) Data(data interface{}) error {
@@ -161,9 +152,8 @@ func (index *DbIterator) Data(data interface{}) error {
 	if !rv.CanAddr() {
 		return ErrPtrNeeded
 	}
-	if index.first {
-		index.first = false
-	}
+
+	index.keyValue(index.it.Value())
 	return DecodeBytes(index.Value(), data)
 }
 
@@ -172,6 +162,7 @@ func (index *DbIterator) Key() []byte {
 }
 
 func (index *DbIterator) Value() []byte {
+	index.keyValue(index.it.Value())
 	return index.value
 }
 
