@@ -35,7 +35,6 @@ func newBaseTester(control *Controller) *BaseTester {
 	return btInstance
 }
 
-
 func (t BaseTester) initBase(pushGenesis bool, mode DBReadMode) {
 	t.DefaultExpirationDelta = 6
 	t.DefaultBilledCpuTimeUs = 2000

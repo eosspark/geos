@@ -48,7 +48,10 @@ type AbstractPlugin struct {
 }
 
 func (a *AbstractPlugin) ShutDown() {
-
+	if a.State == Started {
+		a.State = Stopped
+		a.PluginShutdown()
+	}
 }
 
 func (a *AbstractPlugin) Initialize(options *cli.Context) {
