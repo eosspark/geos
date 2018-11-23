@@ -3,7 +3,6 @@ package chain
 import (
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
-	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/eosspark/eos-go/entity"
@@ -11,7 +10,8 @@ import (
 	"github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/log"
 	"math"
-	"fmt"
+	"github.com/eosspark/eos-go/crypto"
+	"github.com/eosspark/eos-go/crypto/btcsuite/btcd/btcec"
 )
 
 type BaseTester struct {
@@ -35,7 +35,7 @@ func newBaseTester(control *Controller) *BaseTester {
 }
 
 
-func (t BaseTester) initBase(pushGenesis bool, mode DBReadMode) {
+func (t *BaseTester) initBase(pushGenesis bool, mode DBReadMode) {
 	t.DefaultExpirationDelta = 6
 	t.DefaultBilledCpuTimeUs = 2000
 	t.Cfg.blocksDir = common.DefaultConfig.DefaultBlocksDirName
@@ -48,7 +48,7 @@ func (t BaseTester) initBase(pushGenesis bool, mode DBReadMode) {
 	t.Cfg.readMode = mode
 
 	t.Cfg.genesis.InitialTimestamp, _ = common.FromIsoString("2020-01-01T00:00:00.000")
-	//t.Cfg.genesis.InitialKey = t.GetPublicKeys(common.DefaultConfig.SystemAccountName, "active")
+	t.Cfg.genesis.InitialKey = t.getPublicKey(common.DefaultConfig.SystemAccountName, "active")
 
 	t.open()
 	if pushGenesis {
@@ -56,19 +56,19 @@ func (t BaseTester) initBase(pushGenesis bool, mode DBReadMode) {
 	}
 }
 
-func (t BaseTester) initCfg(config Config) {
+func (t *BaseTester) initCfg(config Config) {
 	t.Cfg = config
 	t.open()
 }
 
-func (t BaseTester) open() {
+func (t *BaseTester) open() {
 	t.Control.Config = t.Cfg
 	//t.Control.startUp() //TODO
 	t.ChainTransactions = make(map[common.BlockIdType]types.TransactionReceipt)
 	//t.Control.AcceptedBlock.Connect() // TODO: Control.signal
 }
 
-func (t BaseTester) close() {
+func (t *BaseTester) close() {
 	t.Control.Close()
 	t.ChainTransactions = make(map[common.BlockIdType]types.TransactionReceipt)
 }
@@ -84,8 +84,8 @@ func (t BaseTester) PushBlock(b *types.SignedBlock) *types.SignedBlock {
 }
 
 func (t BaseTester) pushGenesisBlock() {
-	//t.setCode()
-	//t.setAbi()
+	//t.SetCode()
+	//t.SetAbi()
 }
 
 func (t BaseTester) ProduceBlocks(n uint32, empty bool) {
@@ -208,7 +208,11 @@ func (t BaseTester) createAccount(name common.AccountName, creator common.Accoun
 		//ownerAuth.Accounts
 		sortPermissions(&ownerAuth)
 	}
-	//trx.Actions
+	new := newAccount{Creator: creator, Name: name, Owner: ownerAuth, Active: activeAuth}
+	data, _ := rlp.EncodeToBytes(new)
+	act := &types.Action{Account: new.getName(), Name: new.getName(), Authorization: []types.PermissionLevel{{creator, common.DefaultConfig.ActiveName}}, Data: data}
+	trx.Actions = append(trx.Actions, act)
+
 	t.SetTransactionHeaders(&trx.Transaction, t.DefaultExpirationDelta, 0)
 	pk := t.getPrivateKey(creator, "active")
 	chainId := t.Control.GetChainId()
@@ -222,13 +226,17 @@ func (t BaseTester) PushTransaction(trx *types.SignedTransaction, deadline commo
 		if t.Control.PendingBlockState() != nil {
 			t.startBlock(t.Control.HeadBlockTime() + common.TimePoint(common.Seconds(common.DefaultConfig.BlockIntervalUs)))
 		}
-		mtrx := types.TransactionMetadata{}
-		mtrx.Trx = trx
-		trace = t.Control.pushTransaction(&mtrx, deadline, billedCpuTimeUs, true)
+		c := common.CompressionNone
+		size, _ := rlp.EncodeSize(trx)
+		if size > 1000 {
+			c = common.CompressionZlib
+		}
+		mtrx := types.NewTransactionMetadataBySignedTrx(trx, c)
+		trace = t.Control.pushTransaction(mtrx, deadline, billedCpuTimeUs, true)
 		if trace.ExceptPtr != nil {
 			try.EosThrow(trace.ExceptPtr, "tester PushTransaction is error :%#v", trace.ExceptPtr)
 		}
-		if trace.Except != nil {
+		if !common.Empty(trace.Except) {
 			try.EosThrow(trace.Except, "tester PushTransaction is error :%#v", trace.Except)
 		}
 		r = trace
@@ -299,9 +307,11 @@ func (t BaseTester) GetAction(code common.AccountName, actType common.AccountNam
 
 func (t BaseTester) getPrivateKey(keyName common.Name, role string) ecc.PrivateKey {
 	//TODO: wait for testing
-	priKey, _ := ecc.NewPrivateKey(crypto.Hash256(keyName.String() + role).String())
-	fmt.Println(crypto.Hash256(keyName.String() + role).String())
-	return *priKey
+	//priKey, _ := ecc.NewPrivateKey(crypto.Hash256(keyName.String() + role).String())
+	rawPrivKey := crypto.Hash256(keyName.String() + role).Bytes()
+	priKey, _ := btcec.PrivKeyFromBytes(btcec.S256(), rawPrivKey)
+	pk := &ecc.PrivateKey{Curve:ecc.CurveK1, PrivKey:priKey}
+	return *pk
 }
 
 func (t BaseTester) getPublicKey(keyName common.Name, role string) ecc.PublicKey {

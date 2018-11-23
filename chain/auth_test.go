@@ -8,17 +8,17 @@ import (
 	"testing"
 )
 
-func initializeAuth() (*AuthorizationManager, *BaseTester) {
+func initializeAuthTest() (*AuthorizationManager, *BaseTester) {
 	control := GetControllerInstance()
 	am := newAuthorizationManager(control)
 	bt := newBaseTester(control)
+	bt.initBase(true,SPECULATIVE)
 	return am, bt
 }
 
 func TestMissingSigs(t *testing.T) {
-	//am := initializeAuth()
-	_, b := initializeAuth()
-	b.CreateAccounts([]common.AccountName{common.AccountName(common.N("Alice"))}, false, false)
+	_, b := initializeAuthTest()
+	//b.CreateAccounts([]common.AccountName{common.AccountName(common.N("Alice"))}, false, false)
 	b.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs), 0)
 }
 
@@ -38,7 +38,7 @@ func TestCommonEmpty(t *testing.T) {
 }
 
 func TestMakeAuthChecker(t *testing.T) {
-	a, _ := initializeAuth()
+	a, _ := initializeAuthTest()
 	providedKeys := common.FlatSet{}
 	providedPermissions := common.FlatSet{}
 	pub1, _ := ecc.NewPublicKey("EOS859gxfnXyUriMgUeThh1fWv3oqcpLFyHa3TfFYC4PK2HqhToVM")
