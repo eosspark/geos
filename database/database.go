@@ -619,7 +619,9 @@ func (ldb *LDataBase) find(tagName string, value interface{}, to interface{}) er
 		return ErrNotFound
 	}
 
+
 	key := splicingString (typeName, fieldName)
+
 	key = append(key, suffix...)
 
 	ldb.log.Info("key is : %v", key)
@@ -686,17 +688,7 @@ func (ldb *LDataBase) GetMutableIndex(fieldName string, in interface{}) (*MultiI
 
 func (ldb *LDataBase) lowerBound(begin, end, fieldName []byte, data interface{}) (*DbIterator, error) {
 	key, typeName := ldb.dbPrefix(begin, fieldName, data)
-	return ldb.dbIterator(key,begin,end,typeName)
-}
-
-func (ldb *LDataBase) upperBound(begin, end, fieldName []byte, data interface{}) (*DbIterator, error) {
-
-	key, typeName := ldb.dbPrefix(begin, fieldName, data)
-	key = keyEnd(key)
-	return ldb.dbIterator(key,begin, end, typeName)
-}
-
-func (ldb *LDataBase) dbIterator(key,begin, end, typeName []byte) (*DbIterator, error) {
+	//return ldb.dbIterator(key,begin,end,typeName,false)
 	it := ldb.db.NewIterator(&util.Range{Start: begin, Limit: end}, nil)
 	if !it.Next() {
 		return nil, ErrNotFound
@@ -704,9 +696,37 @@ func (ldb *LDataBase) dbIterator(key,begin, end, typeName []byte) (*DbIterator, 
 
 	if key != nil{
 		if !it.Seek(key) {
-		ldb.log.Error("key is : %v", key)
+			ldb.log.Error("key is : %v", key)
+			return nil, ErrNotFound
+		}
+	}
+
+	idx, err := newDbIterator(typeName, it, ldb.db)
+	if err != nil {
+		ldb.log.Error("failed is %s ,typeName is : %v", err.Error(),typeName)
+		return nil, err
+	}
+	return idx, nil
+}
+
+func (ldb *LDataBase) upperBound(begin, end, fieldName []byte, data interface{}) (*DbIterator, error) {
+
+	key, typeName := ldb.dbPrefix(begin, fieldName, data)
+	key = keyEnd(key)
+	return ldb.dbIterator(key,begin, end, typeName,true)
+}
+
+func (ldb *LDataBase) dbIterator(key,begin, end, typeName []byte,upper bool) (*DbIterator, error) {
+	it := ldb.db.NewIterator(&util.Range{Start: begin, Limit: end}, nil)
+	if !it.Next() {
 		return nil, ErrNotFound
 	}
+
+	if key != nil{
+		if !it.Seek(key) {
+			ldb.log.Error("key is : %v", key)
+			return nil, ErrNotFound
+		}
 	}
 
 	idx, err := newDbIterator(typeName, it, ldb.db)
