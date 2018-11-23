@@ -4,7 +4,7 @@ import (
 	"testing"
 	. "github.com/eosspark/eos-go/plugins/appbase/app"
 	. "github.com/eosspark/eos-go/plugins/appbase/app/include"
-	"github.com/eosspark/eos-go/plugins/chain_interface/include/eosio/chain"
+	."github.com/eosspark/eos-go/plugins/chain_interface"
 	"fmt"
 	"github.com/eosspark/eos-go/chain/types"
 )
@@ -18,7 +18,7 @@ func (g Gbi)GetBlock (s *types.SignedBlock) {
 }
 
 func Test_Method(t *testing.T) {
-	gbi :=App().GetMethod(chain.GetBlockById)
+	gbi :=App().GetMethod(GetBlockById)
 
 	//register
 	gbi.Register(&RejectedBlockFunc{Gbi{}.GetBlock})
