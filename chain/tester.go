@@ -3,7 +3,6 @@ package chain
 import (
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
-	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/eosspark/eos-go/entity"
@@ -11,7 +10,6 @@ import (
 	"github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/log"
 	"math"
-	"fmt"
 )
 
 type BaseTester struct {
@@ -30,10 +28,9 @@ type BaseTester struct {
 func newBaseTester(control *Controller) *BaseTester {
 	btInstance := &BaseTester{}
 	btInstance.Control = control
-	btInstance.initBase(false, 0 )
+	btInstance.initBase(false, 0)
 	return btInstance
 }
-
 
 func (t BaseTester) initBase(pushGenesis bool, mode DBReadMode) {
 	t.DefaultExpirationDelta = 6
@@ -147,6 +144,7 @@ func (t BaseTester) produceBlock(skipTime common.Microseconds, skipPendingTrxs b
 	})
 	t.Control.CommitBlock(true)
 	b := t.Control.HeadBlockState()
+	t.LastProducedBlock = make(map[common.AccountName]common.BlockIdType)
 	t.LastProducedBlock[t.Control.HeadBlockState().Header.Producer] = b.BlockId
 	t.startBlock(nextTime + common.TimePoint(common.Seconds(common.DefaultConfig.BlockIntervalUs)))
 	return t.Control.HeadBlockState().SignedBlock
@@ -265,7 +263,7 @@ type VariantsObject []map[string]interface{}
 func (t BaseTester) PushAction2(code *common.AccountName, acttype *common.AccountName,
 	actor common.AccountName, data *VariantsObject, expiration uint32, delaySec uint32) *types.TransactionTrace {
 	auths := make([]types.PermissionLevel, 0)
-	auths = append(auths, types.PermissionLevel{Actor:actor, Permission:common.DefaultConfig.ActiveName})
+	auths = append(auths, types.PermissionLevel{Actor: actor, Permission: common.DefaultConfig.ActiveName})
 	return t.PushAction4(code, acttype, &auths, data, expiration, delaySec)
 }
 
@@ -299,8 +297,10 @@ func (t BaseTester) GetAction(code common.AccountName, actType common.AccountNam
 
 func (t BaseTester) getPrivateKey(keyName common.Name, role string) ecc.PrivateKey {
 	//TODO: wait for testing
-	priKey, _ := ecc.NewPrivateKey(crypto.Hash256(keyName.String() + role).String())
-	fmt.Println(crypto.Hash256(keyName.String() + role).String())
+	/*rawPrivKey := crypto.Hash256(keyName.String() + role).Bytes()
+	priKey, _ := btcec.PrivKeyFromBytes(btcec.S256(), rawPrivKey)
+	pk := &ecc.PrivateKey{Curve:ecc.CurveK1, PrivKey:priKey}*/
+	priKey, _ := ecc.NewPrivateKey("5KYZdUEo39z3FPrtuX2QbbwGnNP5zTd7yyr2SC1j299sBCnWjss")
 	return *priKey
 }
 

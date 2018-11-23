@@ -26,10 +26,8 @@ func NewPendingState(db database.DataBase) *PendingState {
 func NewDefaultPendingState() *PendingState {
 	return &PendingState{}
 }
-func (p *PendingState) Reset() {
-	if p.PendingValid {
-		p = nil
-	}
+func (p *PendingState) Reset() *PendingState {
+	return nil
 }
 
 func (p *PendingState) Push() {

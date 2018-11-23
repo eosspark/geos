@@ -102,7 +102,7 @@ func NewTransactionContext(c *Controller, t *types.SignedTransaction, trxId comm
 		//BlockNum:        4,
 		//BlockTime:       common.BlockTimeStamp(common.Now()),
 		//ProducerBlockId: common.BlockIdType(*crypto.NewSha256String("cf057bbfb72640471fd910bcb67639c22df9f92470936cddc1ade0e2f2e7dc4f")),
-		Except: &TransactionException{},
+		//Except: &TransactionException{},
 	}
 	tc.netUsage = &tc.Trace.NetUsage
 	tc.Executed = make([]types.ActionReceipt, tc.Trx.TotalActions())
