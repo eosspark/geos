@@ -16,7 +16,6 @@ import (
 	"github.com/eosspark/eos-go/entity"
 	"github.com/eosspark/eos-go/exception"
 	"github.com/eosspark/eos-go/exception/try"
-	"github.com/eosspark/eos-go/log"
 	"github.com/stretchr/testify/assert"
 	"reflect"
 	"strings"
@@ -25,7 +24,7 @@ import (
 )
 
 func TestController_ProduceProcess(t *testing.T) {
-	timer := time.NewTicker(1 * time.Second)
+	timer := time.NewTicker(5 * time.Second)
 	for {
 		select {
 		case <-timer.C:
@@ -36,8 +35,12 @@ func TestController_ProduceProcess(t *testing.T) {
 }
 
 func produceProcess() {
-	signatureProviders := make(map[ecc.PublicKey]signatureProviderType)
 	con := GetControllerInstance()
+	basetester := newBaseTester(con)
+	basetester.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs), 0)
+
+	/*signatureProviders := make(map[ecc.PublicKey]signatureProviderType)
+	//con := GetControllerInstance()
 	con.AbortBlock()
 	now := common.Now()
 	var base common.TimePoint
@@ -64,6 +67,7 @@ func produceProcess() {
 			}
 		}
 	}
+	con.Pending.PendingBlockState = con.PendingBlockState()
 	con.FinalizeBlock()
 	pubKey, err := ecc.NewPublicKey("EOS859gxfnXyUriMgUeThh1fWv3oqcpLFyHa3TfFYC4PK2HqhToVM")
 	if err != nil {
@@ -81,7 +85,7 @@ func produceProcess() {
 		return a(d)
 	})
 
-	con.CommitBlock(true)
+	con.CommitBlock(true)*/
 }
 
 type signatureProviderType = func(sha256 crypto.Sha256) ecc.Signature
@@ -166,9 +170,6 @@ func TestController_GetWasmInterface(t *testing.T) {
 	//assert.Equal(t, nil, control.WasmIf)
 }
 
-func test(atx *ApplyContext) {
-	fmt.Println("this reflect call func :hello test")
-}
 func TestController_SetApplayHandler(t *testing.T) {
 	control := GetControllerInstance()
 	receiver := common.AccountName(common.N("reveiver"))
@@ -245,16 +246,4 @@ func TestController_Close(t *testing.T) {
 func TestController_UpdateProducersAuthority(t *testing.T) {
 	c := GetControllerInstance()
 	c.updateProducersAuthority()
-}
-
-func Test(t *testing.T) {
-	c := GetControllerInstance()
-	cfg := c.GetGlobalProperties().Configuration
-	fmt.Println(cfg)
-
-	c.Close()
-
-	c = GetControllerInstance()
-	fg := c.GetGlobalProperties()
-	fmt.Println(fg)
 }

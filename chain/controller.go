@@ -176,7 +176,7 @@ func newController() *Controller {
 	//IrreversibleBlock.connect()
 	//readycontroller = make(chan bool)
 	//go initResource(con, readycontroller)
-	con.Pending = &PendingState{}
+	//con.Pending = &PendingState{}
 	con.ResourceLimits = newResourceLimitsManager(con)
 	con.Authorization = newAuthorizationManager(con)
 	con.initialize()
@@ -301,7 +301,7 @@ func (c *Controller) AbortBlock() {
 				}
 			}
 		}
-		c.Pending.Reset()
+		c.Pending = c.Pending.Reset()
 	}
 }
 func (c *Controller) StartBlock(when types.BlockTimeStamp, confirmBlockCount uint16) {
@@ -310,10 +310,10 @@ func (c *Controller) StartBlock(when types.BlockTimeStamp, confirmBlockCount uin
 	c.ValidateDbAvailableSize()
 }
 func (c *Controller) startBlock(when types.BlockTimeStamp, confirmBlockCount uint16, s types.BlockStatus, producerBlockId *common.BlockIdType) {
-	EosAssert(c.Pending != nil, &BlockValidateException{}, "pending block already exists")
+	EosAssert(c.Pending == nil, &BlockValidateException{}, "pending block already exists")
 	defer func() {
 		if c.Pending.PendingValid {
-			c.Pending.Reset()
+			c.Pending = c.Pending.Reset()
 		}
 	}()
 	if !c.SkipDbSession(s) {
@@ -353,13 +353,13 @@ func (c *Controller) startBlock(when types.BlockTimeStamp, confirmBlockCount uin
 
 		Try(func() {
 			signedTransaction := c.GetOnBlockTransaction()
-			onbtrx := types.TransactionMetadata{Trx: &signedTransaction}
+			onbtrx := types.NewTransactionMetadataBySignedTrx(&signedTransaction, 0)
 			onbtrx.Implicit = true
 			defer func(b bool) {
 				c.InTrxRequiringChecks = b
 			}(c.InTrxRequiringChecks)
 			c.InTrxRequiringChecks = true
-			c.pushTransaction(&onbtrx, common.MaxTimePoint(), gpo.Configuration.MinTransactionCpuUsage, true)
+			c.pushTransaction(onbtrx, common.MaxTimePoint(), gpo.Configuration.MinTransactionCpuUsage, true)
 		}).Catch(func(e Exception) {
 			log.Error("Controller StartBlock exception:%s", e.Message())
 			Throw(e)
@@ -370,7 +370,7 @@ func (c *Controller) startBlock(when types.BlockTimeStamp, confirmBlockCount uin
 		c.clearExpiredInputTransactions()
 		c.updateProducersAuthority()
 	}
-	c.Pending.PendingValid = true
+	//c.Pending.PendingValid = false
 }
 
 func (c *Controller) pushReceipt(trx interface{}, status types.TransactionStatus, cpuUsageUs uint64, netUsage uint64) *types.TransactionReceipt {
@@ -667,10 +667,7 @@ func (c *Controller) pushScheduledTransactionByObject(gto *entity.GeneratedTrans
 		log.Error("PushScheduleTransaction1 DecodeBytes is error :%s", err.Error())
 	}
 
-	trx := &types.TransactionMetadata{}
-	trx.Trx = &dtrx
-	trx.Accepted = true
-	trx.Scheduled = true
+	//trx := types.NewTransactionMetadataBySignedTrx(&dtrx,0) //TODO emit
 
 	trace := &types.TransactionTrace{}
 	if gtrx.Expiration < c.PendingBlockTime() {
@@ -842,7 +839,7 @@ func (c *Controller) setTrxMerkle() {
 }
 func (c *Controller) FinalizeBlock() {
 
-	EosAssert(!common.Empty(c.Pending), &BlockValidateException{}, "it is not valid to finalize when there is no pending block")
+	EosAssert(c.Pending != nil, &BlockValidateException{}, "it is not valid to finalize when there is no pending block")
 
 	c.ResourceLimits.ProcessAccountLimitUpdates()
 	chainConfig := c.GetGlobalProperties().Configuration
@@ -900,9 +897,8 @@ func (c *Controller) applyBlock(b *types.SignedBlock, s types.BlockStatus) {
 			numPendingReceipts := len(c.Pending.PendingBlockState.SignedBlock.Transactions)
 			if common.Empty(receipt.Trx.PackedTransaction) {
 				pt := receipt.Trx.PackedTransaction
-				mtrx := types.TransactionMetadata{}
-				mtrx.PackedTrx = pt
-				trace = c.pushTransaction(&mtrx, common.TimePoint(common.MaxMicroseconds()), receipt.CpuUsageUs, true)
+				mtrx := types.NewTransactionMetadata(pt)
+				trace = c.pushTransaction(mtrx, common.TimePoint(common.MaxMicroseconds()), receipt.CpuUsageUs, true)
 			} else if common.Empty(receipt.Trx.TransactionID) {
 				trace = c.PushScheduledTransaction(&receipt.Trx.TransactionID, common.TimePoint(common.MaxMicroseconds()), receipt.CpuUsageUs)
 			} else {
@@ -1532,6 +1528,7 @@ func (c *Controller) initializeForkDB() {
 	gs := types.GetGenesisStateInstance()
 	pst := types.ProducerScheduleType{0, []types.ProducerKey{
 		{common.DefaultConfig.SystemAccountName, gs.InitialKey}}}
+	fmt.Println(gs.InitialKey)
 	genHeader := types.BlockHeaderState{}
 	genHeader.ActiveSchedule = pst
 	genHeader.PendingSchedule = pst
