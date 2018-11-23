@@ -63,6 +63,7 @@ func NewPrivateKey(wif string) (*PrivateKey, error) {
 
 	wifObj, err := btcutil.DecodeWIF(privKeyMaterial)
 	if err != nil {
+		fmt.Println(err)
 		return nil, err
 	}
 

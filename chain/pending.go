@@ -6,8 +6,6 @@ import (
 	"github.com/eosspark/eos-go/database"
 )
 
-var PendingValid bool //singleton
-
 type PendingState struct {
 	//MaybeSession      *database.Session `json:"db_session"`
 	DbSession         *MaybeSession         `json:"db_session"`
@@ -15,23 +13,27 @@ type PendingState struct {
 	Actions           []types.ActionReceipt `json:"actions"`
 	BlockStatus       types.BlockStatus     `json:"block_status"`
 	ProducerBlockId   common.BlockIdType
+	PendingValid      bool
 }
 
-//TODO wait modify Singleton
 func NewPendingState(db database.DataBase) *PendingState {
-	PendingValid = true
 	pending := PendingState{}
 	pending.DbSession = NewMaybeSession(db)
+	pending.PendingValid = false
 	return &pending
 }
 
+func NewDefaultPendingState() *PendingState {
+	return &PendingState{}
+}
 func (p *PendingState) Reset() {
-	if PendingValid {
-
+	if p.PendingValid {
 		p = nil
 	}
 }
 
 func (p *PendingState) Push() {
-	p.DbSession.Push()
+	if p.DbSession != nil {
+		p.DbSession.Push()
+	}
 }

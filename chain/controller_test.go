@@ -11,14 +11,91 @@ import (
 	"fmt"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
+	"github.com/eosspark/eos-go/crypto"
+	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/entity"
 	"github.com/eosspark/eos-go/exception"
 	"github.com/eosspark/eos-go/exception/try"
+	"github.com/eosspark/eos-go/log"
 	"github.com/stretchr/testify/assert"
 	"reflect"
 	"strings"
 	"testing"
+	"time"
 )
+
+func TestController_ProduceProcess(t *testing.T) {
+	timer := time.NewTicker(1 * time.Second)
+	for {
+		select {
+		case <-timer.C:
+			produceProcess()
+		}
+	}
+
+}
+
+func produceProcess() {
+	signatureProviders := make(map[ecc.PublicKey]signatureProviderType)
+	con := GetControllerInstance()
+	con.AbortBlock()
+	now := common.Now()
+	var base common.TimePoint
+	if now > con.HeadBlockTime() {
+		base = now
+	} else {
+		base = con.HeadBlockTime()
+	}
+	minTimeToNextBlock := common.DefaultConfig.BlockIntervalUs - (int64(base.TimeSinceEpoch()) % common.DefaultConfig.BlockIntervalUs)
+	blockTime := base.AddUs(common.Microseconds(minTimeToNextBlock))
+
+	if blockTime.Sub(now) < common.Microseconds(common.DefaultConfig.BlockIntervalUs/10) { // we must sleep for at least 50ms
+		blockTime = blockTime.AddUs(common.Microseconds(common.DefaultConfig.BlockIntervalUs))
+	}
+	con.StartBlock(types.NewBlockTimeStamp(blockTime), 0)
+	unappliedTrxs := con.GetUnappliedTransactions()
+	if len(unappliedTrxs) > 0 {
+		for _, trx := range unappliedTrxs {
+			trace := con.PushTransaction(trx, common.MaxTimePoint(), 0)
+			if trace.Except != nil {
+				log.Error("produce is failed isExhausted=true")
+			} else {
+				con.DropUnappliedTransaction(trx)
+			}
+		}
+	}
+	con.FinalizeBlock()
+	pubKey, err := ecc.NewPublicKey("EOS859gxfnXyUriMgUeThh1fWv3oqcpLFyHa3TfFYC4PK2HqhToVM")
+	if err != nil {
+		log.Error("produceLoop NewPublicKey is error :%s", err.Error())
+	}
+	priKey, err2 := ecc.NewPrivateKey("5KYZdUEo39z3FPrtuX2QbbwGnNP5zTd7yyr2SC1j299sBCnWjss")
+	if err2 != nil {
+		log.Error("produceLoop NewPrivateKey is error :%s", err.Error())
+	}
+	pbs := con.PendingBlockState()
+
+	signatureProviders[pubKey] = makeKeySignatureProvider(priKey)
+	a := signatureProviders[pbs.BlockSigningKey]
+	con.SignBlock(func(d crypto.Sha256) ecc.Signature {
+		return a(d)
+	})
+
+	con.CommitBlock(true)
+}
+
+type signatureProviderType = func(sha256 crypto.Sha256) ecc.Signature
+
+func makeKeySignatureProvider(key *ecc.PrivateKey) signatureProviderType {
+	signFunc := func(digest crypto.Sha256) ecc.Signature {
+		sign, err := key.Sign(digest.Bytes())
+		if err != nil {
+			panic(err)
+		}
+		return sign
+	}
+	return signFunc
+}
 
 func TestPopBlock(t *testing.T) {
 	con := GetControllerInstance()
