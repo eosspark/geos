@@ -25,7 +25,7 @@ import (
 )
 
 func TestController_ProduceProcess(t *testing.T) {
-	timer := time.NewTicker(5 * time.Second)
+	timer := time.NewTicker(1 * time.Second)
 	for {
 		select {
 		case <-timer.C:
