@@ -17,14 +17,13 @@ import (
 	"github.com/eosspark/eos-go/exception"
 	"github.com/eosspark/eos-go/exception/try"
 	"github.com/stretchr/testify/assert"
-	"reflect"
 	"strings"
 	"testing"
 	"time"
 )
 
 func TestController_ProduceProcess(t *testing.T) {
-	timer := time.NewTicker(5 * time.Second)
+	timer := time.NewTicker(1 * time.Second)
 	for {
 		select {
 		case <-timer.C:
@@ -168,33 +167,6 @@ func TestController_GetWasmInterface(t *testing.T) {
 	control := GetControllerInstance()
 	fmt.Println(control.WasmIf)
 	//assert.Equal(t, nil, control.WasmIf)
-}
-
-func TestController_SetApplayHandler(t *testing.T) {
-	control := GetControllerInstance()
-	receiver := common.AccountName(common.N("reveiver"))
-	scope := common.AccountName(common.N("scope"))
-	action := common.ActionName(common.N("action"))
-	control.SetApplayHandler(receiver, scope, action, test)
-
-	fun := control.FindApplyHandler(receiver, scope, action)
-
-	/*o:=reflect.TypeOf(fun)
-	fmt.Println("=========================",o.Kind().String())
-	fmt.Println("============1=============",o.MethodByName)
-	fmt.Println("=============2============",reflect.ValueOf(fun).MethodByName("test").String())
-
-	fmt.Println("=========================",reflect.ValueOf(fun).String())*/
-	ac := ApplyContext{}
-	v := []reflect.Value{
-		reflect.ValueOf(&ac)}
-
-	//fmt.Println("-------address-------", )
-
-	reflect.ValueOf(fun).Call(v)
-	//a :="test"
-
-	//fmt.Println(strings.Compare(a,o.Name()))
 }
 
 func TestController_GetGlobalProperties(t *testing.T) {

@@ -1,10 +1,8 @@
 package chain
 
 import (
-	"fmt"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
-	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/abi"
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/crypto/rlp"
@@ -13,6 +11,8 @@ import (
 	"github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/log"
 	"math"
+	"github.com/eosspark/eos-go/crypto"
+	"github.com/eosspark/eos-go/crypto/btcsuite/btcd/btcec"
 )
 
 type BaseTester struct {
@@ -147,7 +147,6 @@ func (t BaseTester) produceBlock(skipTime common.Microseconds, skipPendingTrxs b
 	})
 	t.Control.CommitBlock(true)
 	b := t.Control.HeadBlockState()
-	t.LastProducedBlock = make(map[common.AccountName]common.BlockIdType)
 	t.LastProducedBlock[t.Control.HeadBlockState().Header.Producer] = b.BlockId
 	t.startBlock(nextTime + common.TimePoint(common.Seconds(common.DefaultConfig.BlockIntervalUs)))
 	return t.Control.HeadBlockState().SignedBlock
@@ -209,7 +208,11 @@ func (t BaseTester) createAccount(name common.AccountName, creator common.Accoun
 		//ownerAuth.Accounts
 		sortPermissions(&ownerAuth)
 	}
-	//trx.Actions
+	new := newAccount{Creator: creator, Name: name, Owner: ownerAuth, Active: activeAuth}
+	data, _ := rlp.EncodeToBytes(new)
+	act := &types.Action{Account: new.getName(), Name: new.getName(), Authorization: []types.PermissionLevel{{creator, common.DefaultConfig.ActiveName}}, Data: data}
+	trx.Actions = append(trx.Actions, act)
+
 	t.SetTransactionHeaders(&trx.Transaction, t.DefaultExpirationDelta, 0)
 	pk := t.getPrivateKey(creator, "active")
 	chainId := t.Control.GetChainId()
@@ -223,13 +226,17 @@ func (t BaseTester) PushTransaction(trx *types.SignedTransaction, deadline commo
 		if t.Control.PendingBlockState() != nil {
 			t.startBlock(t.Control.HeadBlockTime() + common.TimePoint(common.Seconds(common.DefaultConfig.BlockIntervalUs)))
 		}
-		mtrx := types.TransactionMetadata{}
-		mtrx.Trx = trx
-		trace = t.Control.pushTransaction(&mtrx, deadline, billedCpuTimeUs, true)
+		c := common.CompressionNone
+		size, _ := rlp.EncodeSize(trx)
+		if size > 1000 {
+			c = common.CompressionZlib
+		}
+		mtrx := types.NewTransactionMetadataBySignedTrx(trx, c)
+		trace = t.Control.pushTransaction(mtrx, deadline, billedCpuTimeUs, true)
 		if trace.ExceptPtr != nil {
 			try.EosThrow(trace.ExceptPtr, "tester PushTransaction is error :%#v", trace.ExceptPtr)
 		}
-		if trace.Except != nil {
+		if !common.Empty(trace.Except) {
 			try.EosThrow(trace.Except, "tester PushTransaction is error :%#v", trace.Except)
 		}
 		r = trace
@@ -300,11 +307,11 @@ func (t BaseTester) GetAction(code common.AccountName, actType common.AccountNam
 
 func (t BaseTester) getPrivateKey(keyName common.Name, role string) ecc.PrivateKey {
 	//TODO: wait for testing
-	/*rawPrivKey := crypto.Hash256(keyName.String() + role).Bytes()
+	//priKey, _ := ecc.NewPrivateKey(crypto.Hash256(keyName.String() + role).String())
+	rawPrivKey := crypto.Hash256(keyName.String() + role).Bytes()
 	priKey, _ := btcec.PrivKeyFromBytes(btcec.S256(), rawPrivKey)
-	pk := &ecc.PrivateKey{Curve:ecc.CurveK1, PrivKey:priKey}*/
-	priKey, _ := ecc.NewPrivateKey("5KYZdUEo39z3FPrtuX2QbbwGnNP5zTd7yyr2SC1j299sBCnWjss")
-	return *priKey
+	pk := &ecc.PrivateKey{Curve:ecc.CurveK1, PrivKey:priKey}
+	return *pk
 }
 
 func (t BaseTester) getPublicKey(keyName common.Name, role string) ecc.PublicKey {
