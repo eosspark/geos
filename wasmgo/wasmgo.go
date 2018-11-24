@@ -20,12 +20,13 @@ import (
 )
 
 var (
-	wasmGo *WasmGo
-	ignore bool = false
-	debug  bool = false
+	wasmGo    *WasmGo
+	envModule *wasm.Module
+	ignore    bool = false
+	debug     bool = false
 )
 
-type size_t int
+//type size_t int
 
 type WasmGo struct {
 	context EnvContext
@@ -277,18 +278,18 @@ func (w *WasmGo) Register(name string, handler interface{}) bool {
 	return true
 }
 
-func (w *WasmGo) Add(handles map[string]interface{}) bool {
-	for k, v := range handles {
-		if _, ok := w.handles[k]; !ok {
-			w.handles[k] = v
-		}
-	}
-	return true
-}
+// func (w *WasmGo) Add(handles map[string]interface{}) bool {
+// 	for k, v := range handles {
+// 		if _, ok := w.handles[k]; !ok {
+// 			w.handles[k] = v
+// 		}
+// 	}
+// 	return true
+// }
 
-func (w *WasmGo) GetHandles() map[string]interface{} {
-	return w.handles
-}
+// func (w *WasmGo) GetHandles() map[string]interface{} {
+// 	return w.handles
+// }
 
 func (w *WasmGo) GetHandle(name string) interface{} {
 
@@ -302,6 +303,10 @@ func (w *WasmGo) GetHandle(name string) interface{} {
 func (w *WasmGo) importer(name string) (*wasm.Module, error) {
 
 	if name == "env" {
+
+		if envModule != nil {
+			return envModule
+		}
 
 		count := len(w.handles)
 
@@ -348,6 +353,8 @@ func (w *WasmGo) importer(name string) (*wasm.Module, error) {
 			i++
 
 		}
+
+		envModule = m
 
 		return m, nil
 

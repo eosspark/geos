@@ -4,23 +4,10 @@ import (
 	"fmt"
 )
 
-// int read_action_data(array_ptr<char> memory, size_t buffer_size) {
-//    auto s = context.act.data.size();
-//    if( buffer_size == 0 ) return s;
-
-//    auto copy_size = std::min( buffer_size, s );
-//    memcpy( memory, context.act.data.data(), copy_size );
-
-//    return copy_size;
-// }
 func readActionData(w *WasmGo, memory int, bufferSize int) int {
-	// if debug {
-	// 	fmt.Println("read_action_data")
-	// }
 
 	if bufferSize > (1<<16) || memory+bufferSize > (1<<16) {
-		//assert
-		fmt.Println("access violation")
+		w.ilog.Error("access violation")
 		return 0
 	}
 
@@ -33,29 +20,19 @@ func readActionData(w *WasmGo, memory int, bufferSize int) int {
 	copySize := min(bufferSize, s)
 	setMemory(w, memory, data, 0, copySize)
 
-	//w.ilog.Info("action data:%v", data)
-
+	//w.ilog.Info("action data:%v size:%d", data, copySize)
 	return copySize
-
 }
 
-// int action_data_size() {
-//    return context.act.data.size();
-// }
 func actionDataSize(w *WasmGo) int {
-	// if debug {
-	// 	fmt.Println("action_data_size")
-	// }
+	// size := len(w.context.GetActionData())
+	// w.ilog.Info("actionDataSize:%d", size)
 	return len(w.context.GetActionData())
 }
 
-// name current_receiver() {
-//    return context.receiver;
-// }
 func currentReceiver(w *WasmGo) int64 {
-	// if debug {
-	// 	fmt.Println("current_receiver")
-	// }
-
+	//    receiver := w.context.GetReceiver()
+	//    w.ilog.Info("currentReceiver:%v", receiver)
+	//    return int64(receiver)
 	return int64(w.context.GetReceiver())
 }
