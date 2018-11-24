@@ -26,7 +26,7 @@ var (
 	debug     bool = false
 )
 
-//type size_t int
+type size_t int
 
 type WasmGo struct {
 	context EnvContext
@@ -305,7 +305,7 @@ func (w *WasmGo) importer(name string) (*wasm.Module, error) {
 	if name == "env" {
 
 		if envModule != nil {
-			return envModule
+			return envModule, nil
 		}
 
 		count := len(w.handles)

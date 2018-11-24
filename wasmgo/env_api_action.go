@@ -1,7 +1,7 @@
 package wasmgo
 
 import (
-	"fmt"
+//"fmt"
 )
 
 func readActionData(w *WasmGo, memory int, bufferSize int) int {

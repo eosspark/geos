@@ -565,9 +565,9 @@ func TestContextMultiIndex(t *testing.T) {
 			exception.EosioAssertMessageException{}.Code(), exception.EosioAssertMessageException{}.What())
 		assert.Equal(t, retException, true)
 
-		//retException = callTestFunctionCheckException(control, code, "test_multi_index", "idx64_sk_iterator_exceed_begin", []byte{}, "testapi",
-		//	exception.EosioAssertMessageException{}.Code(), exception.EosioAssertMessageException{}.What())
-		//assert.Equal(t, retException, true)
+		retException = callTestFunctionCheckException(control, code, "test_multi_index", "idx64_sk_iterator_exceed_begin", []byte{}, "testapi",
+			exception.EosioAssertMessageException{}.Code(), exception.EosioAssertMessageException{}.What())
+		assert.Equal(t, retException, true)
 
 		retException = callTestFunctionCheckException(control, code, "test_multi_index", "idx64_pass_pk_ref_to_other_table", []byte{}, "testapi",
 			exception.EosioAssertMessageException{}.Code(), exception.EosioAssertMessageException{}.What())
