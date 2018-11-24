@@ -6,6 +6,7 @@ import (
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/stretchr/testify/assert"
 	"testing"
+	"github.com/eosspark/container/maps/treemap"
 )
 
 func NewBlockHeaderState(t *testing.T) *BlockHeaderState {
@@ -32,6 +33,8 @@ func NewBlockHeaderState(t *testing.T) *BlockHeaderState {
 	genHeader.Header.Confirmed = 1
 	genHeader.BlockId = genHeader.Header.BlockID()
 	genHeader.BlockNum = genHeader.Header.BlockNumber()
+	genHeader.ProducerToLastProduced = *treemap.NewWith(common.NameComparator)
+	genHeader.ProducerToLastImpliedIrb = *treemap.NewWith(common.NameComparator)
 
 	genHeader.BlockSigningKey = initPubKey
 
