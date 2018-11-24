@@ -227,11 +227,7 @@ func (a *AbiDef) read(binaryDecoder *rlp.Decoder, fieldName string, fieldType st
 		slot, err = binaryDecoder.ReadUint32()
 		abiLog.Error("block_time_type:if  %d", slot)
 		if err == nil {
-
 			abiLog.Error("block_time_type: %d", slot)
-			//value = types.BlockTimestamp{
-			//	Time: time.Unix(int64(slot)+946684800, 0),
-			//}.Time.UTC().Format("2006-01-02T15:04:05")
 			value = types.BlockTimeStamp(slot).String()
 		}
 	case "name":

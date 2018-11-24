@@ -6,7 +6,7 @@ import (
 )
 
 type ProducerKey struct {
-	ProducerName     common.AccountName `json:"producer_name"`
+	ProducerName    common.AccountName `json:"producer_name"`
 	BlockSigningKey ecc.PublicKey      `json:"block_signing_key"`
 }
 

@@ -35,14 +35,12 @@ func assertRecoverKey(w *WasmGo, digest int,
 
 	fmt.Println("d:", hex.EncodeToString(digBytes), " s:", hex.EncodeToString(sigBytes), " p:", hex.EncodeToString(pubBytes))
 
-	var s ecc.Signature
-	var p ecc.PublicKey
-	//var d []byte
+	s := ecc.NewSigNil()
+	p := ecc.NewPublicKeyNil()
 
-	//rlp.DecodeBytes(digBytes, &d)
 	d := digBytes
-	rlp.DecodeBytes(sigBytes, &s)
-	rlp.DecodeBytes(pubBytes, &p)
+	rlp.DecodeBytes(sigBytes, s)
+	rlp.DecodeBytes(pubBytes, p)
 
 	check, err := s.PublicKey(d)
 	if err != nil {
@@ -76,8 +74,8 @@ func recoverKey(w *WasmGo, digest int,
 	digBytes := getSha256(w, digest)
 	sigBytes := getMemory(w, sig, siglen)
 
-	var s ecc.Signature
-	rlp.DecodeBytes(sigBytes, &s)
+	s := ecc.NewSigNil()
+	rlp.DecodeBytes(sigBytes, s)
 	check, _ := s.PublicKey(digBytes)
 
 	p, err := rlp.EncodeToBytes(check)

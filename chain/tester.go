@@ -1,8 +1,10 @@
 package chain
 
 import (
+	"bytes"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
+	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/abi"
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/crypto/rlp"
@@ -11,8 +13,6 @@ import (
 	"github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/log"
 	"math"
-	"github.com/eosspark/eos-go/crypto"
-	"github.com/eosspark/eos-go/crypto/btcsuite/btcd/btcec"
 )
 
 type BaseTester struct {
@@ -22,7 +22,7 @@ type BaseTester struct {
 	AbiSerializerMaxTime   common.Microseconds
 	//TempDir                tempDirectory
 	Control                 *Controller
-	BlockSigningPrivateKeys map[ecc.PublicKey]ecc.PrivateKey
+	BlockSigningPrivateKeys map[string]ecc.PrivateKey //map[ecc.PublicKey]ecc.PrivateKey
 	Cfg                     Config
 	ChainTransactions       map[common.BlockIdType]types.TransactionReceipt
 	LastProducedBlock       map[common.AccountName]common.BlockIdType
@@ -110,7 +110,7 @@ func (t BaseTester) produceBlock(skipTime common.Microseconds, skipPendingTrxs b
 	Hbs := t.Control.HeadBlockState()
 	producer := Hbs.GetScheduledProducer(types.BlockTimeStamp(nextTime))
 	privKey := ecc.PrivateKey{}
-	privateKey, ok := t.BlockSigningPrivateKeys[producer.BlockSigningKey]
+	privateKey, ok := t.BlockSigningPrivateKeys[producer.BlockSigningKey.String()]
 	if !ok {
 		privKey = t.getPrivateKey(producer.ProducerName, "active")
 	} else {
@@ -307,10 +307,9 @@ func (t BaseTester) GetAction(code common.AccountName, actType common.AccountNam
 
 func (t BaseTester) getPrivateKey(keyName common.Name, role string) ecc.PrivateKey {
 	//TODO: wait for testing
-	//priKey, _ := ecc.NewPrivateKey(crypto.Hash256(keyName.String() + role).String())
 	rawPrivKey := crypto.Hash256(keyName.String() + role).Bytes()
-	priKey, _ := btcec.PrivKeyFromBytes(btcec.S256(), rawPrivKey)
-	pk := &ecc.PrivateKey{Curve:ecc.CurveK1, PrivKey:priKey}
+	g := bytes.NewReader(rawPrivKey)
+	pk, _ := ecc.NewDeterministicPrivateKey(g)
 	return *pk
 }
 

@@ -25,12 +25,13 @@ type Pack interface {
 // Encoder implements the EOS packing, similar to FC_BUFFER
 // --------------------------------------------------------------
 type Encoder struct {
-	output   io.Writer
-	count    int
-	eosArray bool
-	vuint32  bool
-	vint32   bool
-	asset    bool
+	output  io.Writer
+	count   int
+	vuint32 bool
+	vint32  bool
+	asset   bool
+	//eosArray    bool
+	eosSig bool
 }
 
 var (
@@ -129,13 +130,12 @@ func (e *Encoder) Encode(v interface{}) (err error) {
 	case reflect.Array:
 		l := t.Len()
 		try.EosAssert(l <= MAX_NUM_ARRAY_ELEMENT, &exception.AssertException{}, "the length of array is too big")
-		if !e.eosArray {
-			if err = e.WriteUVarInt(l); err != nil {
-				return
-			}
-		}
-		e.eosArray = false //normal array like [4]int need length of array
-
+		//if !e.eosArray {
+		//	if err = e.WriteUVarInt(l); err != nil {
+		//		return
+		//	}
+		//}
+		//e.eosArray = false //normal array like [4]int need length of array
 		for i := 0; i < l; i++ {
 			if err = e.Encode(rv.Index(i).Interface()); err != nil {
 				return
@@ -144,10 +144,13 @@ func (e *Encoder) Encode(v interface{}) (err error) {
 	case reflect.Slice:
 		l := rv.Len()
 		try.EosAssert(l <= MAX_NUM_ARRAY_ELEMENT, &exception.AssertException{}, "the length of slice is too big")
-		if err = e.WriteUVarInt(l); err != nil {
-			return
+		if !e.eosSig {
+			e.eosSig = false
+			if err = e.WriteUVarInt(l); err != nil {
+				return
+			}
 		}
-
+		e.eosSig = false
 		for i := 0; i < l; i++ {
 			if err = e.Encode(rv.Index(i).Interface()); err != nil {
 				return
@@ -162,8 +165,9 @@ func (e *Encoder) Encode(v interface{}) (err error) {
 			switch tag {
 			case "-":
 				continue
-			case "array":
-				e.eosArray = true
+			//case "array":
+			//	e.eosArray = true
+
 			case "tag0":
 				if rv.Field(i).IsNil() {
 					e.writeUint8(0)
@@ -188,6 +192,9 @@ func (e *Encoder) Encode(v interface{}) (err error) {
 
 			case "asset":
 				e.asset = true
+			case "sig":
+				e.eosSig = true
+
 			}
 
 			if v := rv.Field(i); t.Field(i).Name != "_" {

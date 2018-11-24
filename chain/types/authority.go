@@ -38,6 +38,16 @@ type KeyWeight struct {
 	Weight WeightType    `json:"weight"`
 }
 
+func (k KeyWeight) Compare(kw KeyWeight) bool {
+	if !k.Key.Compare(kw.Key) {
+		return false
+	}
+	if k.Weight != kw.Weight {
+		return false
+	}
+	return true
+}
+
 type WaitWeight struct {
 	WaitSec uint32     `json:"wait_sec"`
 	Weight  WeightType `json:"weight"`
@@ -89,10 +99,10 @@ func NewPermissionLevel(in string) (out PermissionLevel, err error) {
 
 func NewAuthority(k ecc.PublicKey, delaySec uint32) (a Authority) {
 	a.Threshold = 1
-	a.Keys = append(a.Keys, KeyWeight{k,1})
+	a.Keys = append(a.Keys, KeyWeight{k, 1})
 	if delaySec > 0 {
 		a.Threshold = 2
-		a.Waits = append(a.Waits, WaitWeight{delaySec,1})
+		a.Waits = append(a.Waits, WaitWeight{delaySec, 1})
 	}
 	return a
 }
@@ -130,7 +140,7 @@ func (auth Authority) String() string {
 	KeysStr := "keys: ["
 	for _, key := range auth.Keys {
 		KeysStr += "key: " + key.String()
-		if key != auth.Keys[len(auth.Keys)-1] {
+		if !key.Compare(auth.Keys[len(auth.Keys)-1]) {
 			KeysStr += ", "
 		}
 	}

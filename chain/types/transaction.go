@@ -11,9 +11,9 @@ import (
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/eosspark/eos-go/exception"
+	"github.com/eosspark/eos-go/exception/try"
 	"io/ioutil"
 	"math"
-	"github.com/eosspark/eos-go/exception/try"
 )
 
 type Extension struct {
@@ -74,7 +74,8 @@ func (t *TransactionHeader) SetReferenceBlock(referenceBlock *common.BlockIdType
 	t.RefBlockPrefix = uint32(referenceBlock.Hash[1])
 }
 
-var recoveryCache = make(map[ecc.Signature]CachedPubKey)
+//var recoveryCache = make(map[ecc.Signature]CachedPubKey)
+var recoveryCache = make(map[string]CachedPubKey)
 
 type CachedPubKey struct {
 	TrxID  common.TransactionIdType `json:"trx_id"`
@@ -137,10 +138,10 @@ func (t *Transaction) GetSignatureKeys(signatures []ecc.Signature, chainID *comm
 	digest := t.SigDigest(chainID, cfd)
 	for _, sig := range signatures {
 		if useCache {
-			it, ok := recoveryCache[sig]
+			it, ok := recoveryCache[sig.String()]
 			if !ok || it.TrxID != t.ID() {
 				recov, _ = sig.PublicKey(digest)
-				recoveryCache[sig] = CachedPubKey{t.ID(), recov, sig} //could fail on dup signatures; not a problem
+				recoveryCache[sig.String()] = CachedPubKey{t.ID(), recov, sig} //could fail on dup signatures; not a problem
 			} else {
 				recov = it.PubKey
 			}

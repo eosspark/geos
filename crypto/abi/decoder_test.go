@@ -334,7 +334,7 @@ func TestABI_decodeFieldsErr(t *testing.T) {
 func TestABI_Read(t *testing.T) {
 	someTime, err := time.Parse("2006-01-02T15:04:05", "2018-09-05T12:48:54")
 	assert.NoError(t, err)
-	bt := types.BlockTimeStamp(uint32(someTime.Unix() - 946684800))
+	bt := types.BlockTimeStamp(uint32((someTime.UnixNano() - common.DefaultConfig.BlockTimestamoEpochNanos) / 1e6 / common.DefaultConfig.BlockIntervalMs))
 
 	optional := struct {
 		B byte
@@ -387,14 +387,14 @@ func TestABI_Read(t *testing.T) {
 		{"caseName": "bool false", "typeName": "bool", "value": "false", "encode": false, "expectedError": nil, "isOptional": false, "isArray": false, "fieldName": "testedField"},
 		{"caseName": "time_point", "typeName": "time_point", "value": "\"2018-11-01T15:13:07.001\"", "encode": common.TimePoint(1541085187001001), "expectedError": nil, "isOptional": false, "isArray": false, "fieldName": "testedField"},
 		{"caseName": "time_point_sec", "typeName": "time_point_sec", "value": "\"2023-04-14T10:55:53\"", "encode": common.TimePointSec(1681469753), "expectedError": nil, "isOptional": false, "isArray": false, "fieldName": "testedField"},
-		{"caseName": "block_timestamp_type", "typeName": "block_timestamp_type", "value": "\"2018-09-05T12:48:54\"", "encode": bt, "expectedError": nil, "isOptional": false, "isArray": false, "fieldName": "testedField"},
+		{"caseName": "block_timestamp_type", "typeName": "block_timestamp_type", "value": "\"2018-09-05 12:48:54 +0000 UTC\"", "encode": bt, "expectedError": nil, "isOptional": false, "isArray": false, "fieldName": "testedField"},
 		{"caseName": "Name", "typeName": "name", "value": "\"eoscanadacom\"", "encode": common.Name(common.N("eoscanadacom")), "expectedError": nil, "isOptional": false, "isArray": false, "fieldName": "testedField"},
 		{"caseName": "bytes", "typeName": "bytes", "value": "\"746869732e69732e612e74657374\"", "encode": []byte("this.is.a.test"), "expectedError": nil, "isOptional": false, "isArray": false, "fieldName": "testedField"},
 		{"caseName": "checksum160", "typeName": "checksum160", "value": "\"0000000000000000000000000000000000000000\"", "encode": crypto.NewRipemd160Nil(), "expectedError": nil, "isOptional": false, "isArray": false, "fieldName": "testedField"},
 		{"caseName": "checksum256", "typeName": "checksum256", "value": "\"0000000000000000000000000000000000000000000000000000000000000000\"", "encode": crypto.NewSha256Nil(), "expectedError": nil, "isOptional": false, "isArray": false, "fieldName": "testedField"},
 		{"caseName": "checksum512", "typeName": "checksum512", "value": "\"00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000\"", "encode": crypto.NewSha512Nil(), "expectedError": nil, "isOptional": false, "isArray": false, "fieldName": "testedField"},
 		{"caseName": "public_key", "typeName": "public_key", "value": "\"EOS1111111111111111111111111111111114T1Anm\"", "encode": ecc.MustNewPublicKey("EOS1111111111111111111111111111111114T1Anm"), "expectedError": nil, "isOptional": false, "isArray": false, "fieldName": "testedField"},
-		//{"caseName": "signature", "typeName": "signature", "value": "\"SIG_K1_111111111111111111111111111111111111111111111111111111111111111116uk5ne\"", "encode": ecc.Signature{Curve: ecc.CurveK1, Content: [65]byte{}}, "expectedError": nil, "isOptional": false, "isArray": false, "fieldName": "testedField"},
+		{"caseName": "signature", "typeName": "signature", "value": "\"SIG_K1_111111111111111111111111111111111111111111111111111111111111111116uk5ne\"", "encode": ecc.Signature{Curve: ecc.CurveK1, Content: bytes.Repeat([]byte{0}, 65)}, "expectedError": nil, "isOptional": false, "isArray": false, "fieldName": "testedField"},
 		{"caseName": "symbol", "typeName": "symbol", "value": "\"4,EOS\"", "encode": common.EOSSymbol, "expectedError": nil, "isOptional": false, "isArray": false, "fieldName": "testedField"},
 		{"caseName": "symbol_code", "typeName": "symbol_code", "value": "18446744073709551615", "encode": common.SymbolCode(18446744073709551615), "expectedError": nil, "isOptional": false, "isArray": false, "fieldName": "testedField"},
 		{"caseName": "asset", "typeName": "asset", "value": "\"10.0000 EOS\"", "encode": common.Asset{Amount: 100000, Symbol: common.EOSSymbol}, "expectedError": nil, "isOptional": false, "isArray": false, "fieldName": "testedField"},
@@ -415,11 +415,11 @@ func TestABI_Read(t *testing.T) {
 
 			encodeRe, err := rlp.EncodeToBytes(c["encode"])
 			assert.NoError(t, err, fmt.Sprintf("encoding value %s, of type %s", c["value"], c["typeName"]), c["caseName"])
-
+			fmt.Println(encodeRe)
 			abi := AbiDef{}
 			json, err := abi.decodeField(rlp.NewDecoder(encodeRe), c["fieldName"].(string), c["typeName"].(string), c["isOptional"].(bool), c["isArray"].(bool), []byte{})
 
-			//fmt.Println("JSON:", string(json))
+			fmt.Println("JSON:", string(json))
 			assert.Equal(t, c["expectedError"], err, c["caseName"])
 
 			if c["expectedError"] == nil {

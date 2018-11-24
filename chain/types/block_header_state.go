@@ -1,18 +1,18 @@
 package types
 
 import (
+	"github.com/eosspark/container/maps/treemap"
 	"github.com/eosspark/eos-go/common"
+	"github.com/eosspark/eos-go/common/math"
 	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/ecc"
 	. "github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
 	"sort"
-	"github.com/eosspark/eos-go/common/math"
-	"github.com/eosspark/container/maps/treemap"
 )
 
 func init() {
-	Assert(math.MaxUint8 >= common.DefaultConfig.MaxProducers*2/3+1, "8bit confirmations may not be able to hold all of the needed confirmations" )
+	Assert(math.MaxUint8 >= common.DefaultConfig.MaxProducers*2/3+1, "8bit confirmations may not be able to hold all of the needed confirmations")
 }
 
 type BlockHeaderState struct {
@@ -208,7 +208,7 @@ func (b *BlockHeaderState) Next(h SignedBlockHeader, trust bool) *BlockHeaderSta
 	result.BlockId = result.Header.BlockID()
 
 	if !trust {
-		EosAssert(result.BlockSigningKey == result.Signee(), &WrongSigningKey{}, "block not signed by expected key, "+
+		EosAssert(result.BlockSigningKey.Compare(result.Signee()), &WrongSigningKey{}, "block not signed by expected key, "+
 			"result.block_signing_key: %s, signee: %s", result.BlockSigningKey, result.Signee())
 	}
 
@@ -253,8 +253,8 @@ func (b *BlockHeaderState) Sign(signer func(sha256 crypto.Sha256) ecc.Signature)
 	if err != nil {
 		panic(err)
 	}
+	EosAssert(b.BlockSigningKey.Compare(signKey), &WrongSigningKey{}, "block is signed with unexpected key")
 
-	EosAssert(b.BlockSigningKey == signKey, &WrongSigningKey{}, "block is signed with unexpected key")
 }
 
 func (b *BlockHeaderState) Signee() ecc.PublicKey {
@@ -276,7 +276,7 @@ func (b *BlockHeaderState) AddConfirmation(conf *HeaderConfirmation) {
 	if err != nil {
 		panic(err)
 	}
-	EosAssert(signer == key, &WrongSigningKey{}, "confirmation not signed by expected key")
+	EosAssert(signer.Compare(key), &WrongSigningKey{}, "confirmation not signed by expected key")
 
 	b.Confirmations = append(b.Confirmations, *conf)
 }

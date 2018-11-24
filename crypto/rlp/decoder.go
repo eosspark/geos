@@ -76,17 +76,18 @@ var (
 	optional           bool
 	vuint32            bool
 	vint32             bool
-	eosArray           bool
 	trxID              bool
 	destaticVariantTag uint8
-	rlplog             log.Logger
+	//eosArray           bool
+	asset  bool
+	eosSig bool
+	rlplog log.Logger
 )
 
 // Decoder implements the EOS unpacking, similar to FC_BUFFER
 type Decoder struct {
-	data  []byte
-	pos   int
-	asset bool
+	data []byte
+	pos  int
 }
 
 func init() {
@@ -212,16 +213,16 @@ func (d *Decoder) Decode(v interface{}) (err error) {
 	case reflect.Array:
 		len := t.Len()
 
-		if !eosArray {
-			var l uint64
-			if l, err = d.ReadUvarint64(); err != nil {
-				return
-			}
-			if int(l) != len {
-				rlplog.Warn("the l is not equal to len of array")
-			}
-		}
-		eosArray = false
+		//if !eosArray {
+		//	var l uint64
+		//	if l, err = d.ReadUvarint64(); err != nil {
+		//		return
+		//	}
+		//	if int(l) != len {
+		//		rlplog.Warn("the l is not equal to len of array")
+		//	}
+		//}
+		//eosArray = false
 
 		for i := 0; i < int(len); i++ {
 			if err = d.Decode(rv.Index(i).Addr().Interface()); err != nil {
@@ -232,9 +233,16 @@ func (d *Decoder) Decode(v interface{}) (err error) {
 
 	case reflect.Slice:
 		var l uint64
-		if l, err = d.ReadUvarint64(); err != nil {
+		if eosSig {
+			eosSig = false
+			l = 66
 			return
+		} else {
+			if l, err = d.ReadUvarint64(); err != nil {
+				return
+			}
 		}
+
 		rv.Set(reflect.MakeSlice(t, int(l), int(l)))
 		for i := 0; i < int(l); i++ {
 			if err = d.Decode(rv.Index(i).Addr().Interface()); err != nil {
@@ -293,8 +301,8 @@ func (d *Decoder) decodeStruct(v interface{}, t reflect.Type, rv reflect.Value) 
 			vuint32 = true
 		case "vint32":
 			vint32 = true
-		case "array":
-			eosArray = true
+		//case "array":
+		//	eosArray = true
 		//	//for types.TransactionWithID !!
 		case "trxID":
 			destaticVariantTag, _ = d.ReadByte()
@@ -308,7 +316,9 @@ func (d *Decoder) decodeStruct(v interface{}, t reflect.Type, rv reflect.Value) 
 			}
 
 		case "asset":
-			d.asset = true
+			asset = true
+		case "sig":
+			eosSig = true
 		}
 
 		if v := rv.Field(i); v.CanSet() && t.Field(i).Name != "_" {
@@ -371,10 +381,10 @@ func (d *Decoder) ReadByteArray() (out []byte, err error) {
 }
 
 func (d *Decoder) ReadString() (out string, err error) {
-	if d.asset {
-		d.asset = false
+	if asset {
+		asset = false
 		if len(d.data) < 7 {
-			err = fmt.Errorf("asset symbol required [%d] bytes, remaining [%d]", 7, d.Remaining())
+			err = fmt.Errorf("asset symbol required [%d] bytes, remaining [%d]", 7, d.remaining())
 			return "", ErrValueTooLarge
 		}
 		data := d.data[d.pos : d.pos+7]
@@ -388,8 +398,8 @@ func (d *Decoder) ReadString() (out string, err error) {
 }
 
 func (d *Decoder) ReadByte() (out byte, err error) {
-	if d.Remaining() < TypeSize.Byte {
-		err = fmt.Errorf("byte required [1] byte, remaining [%d]", d.Remaining())
+	if d.remaining() < TypeSize.Byte {
+		err = fmt.Errorf("byte required [1] byte, remaining [%d]", d.remaining())
 		return
 	}
 
@@ -399,8 +409,8 @@ func (d *Decoder) ReadByte() (out byte, err error) {
 }
 
 func (d *Decoder) ReadBool() (out bool, err error) {
-	if d.Remaining() < TypeSize.Bool {
-		err = fmt.Errorf("rlp: bool required [%d] byte, remaining [%d]", TypeSize.Bool, d.Remaining())
+	if d.remaining() < TypeSize.Bool {
+		err = fmt.Errorf("rlp: bool required [%d] byte, remaining [%d]", TypeSize.Bool, d.remaining())
 		return
 	}
 
@@ -413,8 +423,8 @@ func (d *Decoder) ReadBool() (out bool, err error) {
 
 }
 func (d *Decoder) ReadUint8() (out byte, err error) {
-	if d.Remaining() < TypeSize.UInt8 {
-		err = fmt.Errorf("rlp: byte required [1] byte, remaining [%d]", d.Remaining())
+	if d.remaining() < TypeSize.UInt8 {
+		err = fmt.Errorf("rlp: byte required [1] byte, remaining [%d]", d.remaining())
 		return
 	}
 	out = d.data[d.pos]
@@ -422,8 +432,8 @@ func (d *Decoder) ReadUint8() (out byte, err error) {
 	return
 }
 func (d *Decoder) ReadUint16() (out uint16, err error) {
-	if d.Remaining() < TypeSize.UInt16 {
-		err = fmt.Errorf("rlp: uint16 required [%d] bytes, remaining [%d]", TypeSize.UInt16, d.Remaining())
+	if d.remaining() < TypeSize.UInt16 {
+		err = fmt.Errorf("rlp: uint16 required [%d] bytes, remaining [%d]", TypeSize.UInt16, d.remaining())
 		return
 	}
 
@@ -432,8 +442,8 @@ func (d *Decoder) ReadUint16() (out uint16, err error) {
 	return
 }
 func (d *Decoder) ReadUint32() (out uint32, err error) {
-	if d.Remaining() < TypeSize.UInt32 {
-		err = fmt.Errorf("rlp: uint32 required [%d] bytes, remaining [%d]", TypeSize.UInt32, d.Remaining())
+	if d.remaining() < TypeSize.UInt32 {
+		err = fmt.Errorf("rlp: uint32 required [%d] bytes, remaining [%d]", TypeSize.UInt32, d.remaining())
 		return
 	}
 
@@ -442,8 +452,8 @@ func (d *Decoder) ReadUint32() (out uint32, err error) {
 	return
 }
 func (d *Decoder) ReadUint() (out uint, err error) {
-	if d.Remaining() < TypeSize.UInt {
-		err = fmt.Errorf("rlp: uint required [%d] bytes, remaining [%d]", TypeSize.UInt, d.Remaining())
+	if d.remaining() < TypeSize.UInt {
+		err = fmt.Errorf("rlp: uint required [%d] bytes, remaining [%d]", TypeSize.UInt, d.remaining())
 		return
 	}
 
@@ -452,8 +462,8 @@ func (d *Decoder) ReadUint() (out uint, err error) {
 	return
 }
 func (d *Decoder) ReadUint64() (out uint64, err error) {
-	if d.Remaining() < TypeSize.UInt64 {
-		err = fmt.Errorf("rlp: uint64 required [%d] bytes, remaining [%d]", TypeSize.UInt64, d.Remaining())
+	if d.remaining() < TypeSize.UInt64 {
+		err = fmt.Errorf("rlp: uint64 required [%d] bytes, remaining [%d]", TypeSize.UInt64, d.remaining())
 		return
 	}
 
@@ -491,22 +501,19 @@ func (d *Decoder) ReadInt64() (out int64, err error) {
 }
 
 func (d *Decoder) ReadUint128(typeName string) (out []byte, err error) {
-	if d.Remaining() < TypeSize.UInt128 {
-		err = fmt.Errorf("%s required [%d] bytes, remaining [%d]", typeName, TypeSize.UInt128, d.Remaining())
+	if d.remaining() < TypeSize.UInt128 {
+		err = fmt.Errorf("%s required [%d] bytes, remaining [%d]", typeName, TypeSize.UInt128, d.remaining())
 		return
 	}
 
 	data := d.data[d.pos : d.pos+TypeSize.UInt128]
-	//out.Lo = binary.LittleEndian.Uint64(data)
-	//out.Hi = binary.LittleEndian.Uint64(data[8:])
-
 	d.pos += TypeSize.UInt128
 	return data, nil
 }
 
 func (d *Decoder) ReadFloat32() (out float32, err error) {
-	if d.Remaining() < TypeSize.Float32 {
-		err = fmt.Errorf("float32 required [%d] bytes, remaining [%d]", TypeSize.Float32, d.Remaining())
+	if d.remaining() < TypeSize.Float32 {
+		err = fmt.Errorf("float32 required [%d] bytes, remaining [%d]", TypeSize.Float32, d.remaining())
 		return
 	}
 
@@ -518,8 +525,8 @@ func (d *Decoder) ReadFloat32() (out float32, err error) {
 }
 
 func (d *Decoder) ReadFloat64() (out float64, err error) {
-	if d.Remaining() < TypeSize.Float64 {
-		err = fmt.Errorf("float64 required [%d] bytes, remaining [%d]", TypeSize.Float64, d.Remaining())
+	if d.remaining() < TypeSize.Float64 {
+		err = fmt.Errorf("float64 required [%d] bytes, remaining [%d]", TypeSize.Float64, d.remaining())
 		return
 	}
 
@@ -535,8 +542,8 @@ func (d *Decoder) ReadName() (out uint64, err error) {
 }
 
 func (d *Decoder) ReadChecksum160() (out []byte, err error) {
-	if d.Remaining() < TypeSize.Checksum160 {
-		err = fmt.Errorf("checksum 160 required [%d] bytes, remaining [%d]", TypeSize.Checksum160, d.Remaining())
+	if d.remaining() < TypeSize.Checksum160 {
+		err = fmt.Errorf("checksum 160 required [%d] bytes, remaining [%d]", TypeSize.Checksum160, d.remaining())
 		return
 	}
 	out = make([]byte, TypeSize.Checksum160)
@@ -546,8 +553,8 @@ func (d *Decoder) ReadChecksum160() (out []byte, err error) {
 }
 
 func (d *Decoder) ReadChecksum256() (out []byte, err error) {
-	if d.Remaining() < TypeSize.Checksum256 {
-		err = fmt.Errorf("checksum 256 required [%d] bytes, remaining [%d]", TypeSize.Checksum256, d.Remaining())
+	if d.remaining() < TypeSize.Checksum256 {
+		err = fmt.Errorf("checksum 256 required [%d] bytes, remaining [%d]", TypeSize.Checksum256, d.remaining())
 		return
 	}
 	out = make([]byte, TypeSize.Checksum256)
@@ -557,8 +564,8 @@ func (d *Decoder) ReadChecksum256() (out []byte, err error) {
 }
 
 func (d *Decoder) ReadChecksum512() (out []byte, err error) {
-	if d.Remaining() < TypeSize.Checksum512 {
-		err = fmt.Errorf("checksum 512 required [%d] bytes, remaining [%d]", TypeSize.Checksum512, d.Remaining())
+	if d.remaining() < TypeSize.Checksum512 {
+		err = fmt.Errorf("checksum 512 required [%d] bytes, remaining [%d]", TypeSize.Checksum512, d.remaining())
 		return
 	}
 	out = make([]byte, TypeSize.Checksum512)
@@ -568,8 +575,8 @@ func (d *Decoder) ReadChecksum512() (out []byte, err error) {
 }
 
 func (d *Decoder) ReadPublicKey() (out []byte, err error) {
-	if d.Remaining() < TypeSize.PublicKey {
-		err = fmt.Errorf("publicKey required [%d] bytes, remaining [%d]", TypeSize.PublicKey, d.Remaining())
+	if d.remaining() < TypeSize.PublicKey {
+		err = fmt.Errorf("publicKey required [%d] bytes, remaining [%d]", TypeSize.PublicKey, d.remaining())
 		return
 	}
 	keyContent := make([]byte, 34)
@@ -580,8 +587,8 @@ func (d *Decoder) ReadPublicKey() (out []byte, err error) {
 }
 
 func (d *Decoder) ReadSignature() (out []byte, err error) {
-	if d.Remaining() < TypeSize.Signature {
-		err = fmt.Errorf("signature required [%d] bytes, remaining [%d]", TypeSize.Signature, d.Remaining())
+	if d.remaining() < TypeSize.Signature {
+		err = fmt.Errorf("signature required [%d] bytes, remaining [%d]", TypeSize.Signature, d.remaining())
 		return
 	}
 	sigContent := make([]byte, 66)
@@ -646,8 +653,8 @@ func (d *Decoder) ReadAsset() (out Asset, err error) {
 		return out, fmt.Errorf("readSymbol precision, %s", err)
 	}
 
-	if d.Remaining() < 7 {
-		err = fmt.Errorf("asset symbol required [%d] bytes, remaining [%d]", 7, d.Remaining())
+	if d.remaining() < 7 {
+		err = fmt.Errorf("asset symbol required [%d] bytes, remaining [%d]", 7, d.remaining())
 		return
 	}
 
@@ -685,6 +692,6 @@ func (d *Decoder) ReadExtendedAsset() (out ExtendedAsset, err error) {
 	return extendedAsset, err
 }
 
-func (d *Decoder) Remaining() int {
+func (d *Decoder) remaining() int {
 	return len(d.data) - d.pos
 }
