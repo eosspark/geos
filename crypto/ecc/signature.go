@@ -17,6 +17,34 @@ type Signature struct {
 	Content [65]byte `eos:"array"` // the Compact signature as bytes
 }
 
+func NewSignatureFromData(data []byte) (Signature, error) {
+	if len(data) != 66 {
+		return Signature{}, fmt.Errorf("data length of a signature should be 66, reveived %d", len(data))
+	}
+
+	var content [65]byte //TODO
+	for i := range data {
+		if i <= 64 {
+			content[i] = data[i+1]
+		}
+	}
+
+	signature := Signature{
+		Curve:   CurveID(data[0]), // 1 byte
+		Content: content,          // 65 bytes
+	}
+
+	//switch signature.Curve {
+	//case CurveK1:
+	//	signature.innerSignature = &innerK1Signature{}
+	//case CurveR1:
+	//	signature.innerSignature = &innerR1Signature{}
+	//default:
+	//	return Signature{}, fmt.Errorf("invalid curve  %q", signature.Curve)
+	//}
+	return signature, nil
+}
+
 // Verify checks the signature against the pubKey. `hash` is a sha256
 // hash of the payload to verify.
 func (s Signature) Verify(hash []byte, pubKey PublicKey) bool {

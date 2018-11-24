@@ -1,7 +1,6 @@
 package database
 
 import (
-	"bytes"
 	"fmt"
 	"github.com/eosspark/eos-go/log"
 	"math"
@@ -620,7 +619,9 @@ func (ldb *LDataBase) find(tagName string, value interface{}, to interface{}) er
 		return ErrNotFound
 	}
 
+
 	key := splicingString (typeName, fieldName)
+
 	key = append(key, suffix...)
 
 	ldb.log.Info("key is : %v", key)
@@ -686,22 +687,18 @@ func (ldb *LDataBase) GetMutableIndex(fieldName string, in interface{}) (*MultiI
 }
 
 func (ldb *LDataBase) lowerBound(begin, end, fieldName []byte, data interface{}) (*DbIterator, error) {
-
-	key, typeName := ldb.dbPrefix(begin, end, fieldName, data)
-	if !bytes.HasPrefix(key, begin) {
-		ldb.log.Error("key is : %v begin is %v", key,begin)
-		return nil, ErrNotFound
-	}
-
+	key, typeName := ldb.dbPrefix(begin, fieldName, data)
+	//return ldb.dbIterator(key,begin,end,typeName,false)
 	it := ldb.db.NewIterator(&util.Range{Start: begin, Limit: end}, nil)
 	if !it.Next() {
-		ldb.log.Error("begin is : %v end is ", begin,end)
 		return nil, ErrNotFound
 	}
 
-	if !it.Seek(key) {
-		ldb.log.Error("key is : %v", key)
-		return nil, ErrNotFound
+	if key != nil{
+		if !it.Seek(key) {
+			ldb.log.Error("key is : %v", key)
+			return nil, ErrNotFound
+		}
 	}
 
 	idx, err := newDbIterator(typeName, it, ldb.db)
@@ -712,10 +709,24 @@ func (ldb *LDataBase) lowerBound(begin, end, fieldName []byte, data interface{})
 	return idx, nil
 }
 
-func (ldb *LDataBase) dbIterator(begin, end, typeName []byte) (*DbIterator, error) {
+func (ldb *LDataBase) upperBound(begin, end, fieldName []byte, data interface{}) (*DbIterator, error) {
+
+	key, typeName := ldb.dbPrefix(begin, fieldName, data)
+	key = keyEnd(key)
+	return ldb.dbIterator(key,begin, end, typeName,true)
+}
+
+func (ldb *LDataBase) dbIterator(key,begin, end, typeName []byte,upper bool) (*DbIterator, error) {
 	it := ldb.db.NewIterator(&util.Range{Start: begin, Limit: end}, nil)
 	if !it.Next() {
 		return nil, ErrNotFound
+	}
+
+	if key != nil{
+		if !it.Seek(key) {
+			ldb.log.Error("key is : %v", key)
+			return nil, ErrNotFound
+		}
 	}
 
 	idx, err := newDbIterator(typeName, it, ldb.db)
@@ -743,8 +754,9 @@ func (ldb *LDataBase) EndIterator(begin, end, typeName []byte) (*DbIterator, err
 	return nil, ErrNotFound
 }
 
-func (ldb *LDataBase) dbPrefix(begin, end, fieldName []byte, data interface{}) ([]byte, []byte) {
-	ldb.log.Info("begin : %v, end : %v, fieldName: %v", begin, end, fieldName)
+func (ldb *LDataBase) dbPrefix(begin_, fieldName []byte, data interface{}) ([]byte, []byte) {
+	begin := cloneByte(begin_)
+	ldb.log.Info("begin : %v, end : %v, fieldName: %v", begin, fieldName)
 	fields, err := getFieldInfo(string(fieldName), data)
 	if err != nil {
 		ldb.log.Error("failed %s", err.Error())
@@ -837,13 +849,6 @@ func (ldb *LDataBase) BeginIterator(begin, end, typeName []byte) (*DbIterator, e
 	itr := &DbIterator{it: it, db: ldb.db, first: false, typeName: typeName, value: val, currentStatus: itBEGIN}
 
 	return itr, nil
-}
-
-func (ldb *LDataBase) upperBound(begin, end, fieldName []byte, data interface{}) (*DbIterator, error) {
-
-	begin, typeName := ldb.dbPrefix(begin, end, fieldName, data)
-	begin[len(begin)-1] = begin[len(begin)-1] + 1
-	return ldb.dbIterator(begin, end, typeName)
 }
 
 func (ldb *LDataBase) enable() bool { /* Whether the database enables the undo function*/

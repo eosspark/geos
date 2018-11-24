@@ -3,7 +3,7 @@ package chain
 import (
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
-	"github.com/eosspark/eos-go/crypto"
+	"github.com/eosspark/eos-go/crypto/abi"
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/eosspark/eos-go/entity"
@@ -11,7 +11,8 @@ import (
 	"github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/log"
 	"math"
-	"fmt"
+	"github.com/eosspark/eos-go/crypto"
+	"github.com/eosspark/eos-go/crypto/btcsuite/btcd/btcec"
 )
 
 type BaseTester struct {
@@ -30,10 +31,9 @@ type BaseTester struct {
 func newBaseTester(control *Controller) *BaseTester {
 	btInstance := &BaseTester{}
 	btInstance.Control = control
-	btInstance.initBase(false, 0 )
+	btInstance.initBase(false, 0)
 	return btInstance
 }
-
 
 func (t BaseTester) initBase(pushGenesis bool, mode DBReadMode) {
 	t.DefaultExpirationDelta = 6
@@ -208,7 +208,11 @@ func (t BaseTester) createAccount(name common.AccountName, creator common.Accoun
 		//ownerAuth.Accounts
 		sortPermissions(&ownerAuth)
 	}
-	//trx.Actions
+	new := newAccount{Creator: creator, Name: name, Owner: ownerAuth, Active: activeAuth}
+	data, _ := rlp.EncodeToBytes(new)
+	act := &types.Action{Account: new.getName(), Name: new.getName(), Authorization: []types.PermissionLevel{{creator, common.DefaultConfig.ActiveName}}, Data: data}
+	trx.Actions = append(trx.Actions, act)
+
 	t.SetTransactionHeaders(&trx.Transaction, t.DefaultExpirationDelta, 0)
 	pk := t.getPrivateKey(creator, "active")
 	chainId := t.Control.GetChainId()
@@ -222,13 +226,17 @@ func (t BaseTester) PushTransaction(trx *types.SignedTransaction, deadline commo
 		if t.Control.PendingBlockState() != nil {
 			t.startBlock(t.Control.HeadBlockTime() + common.TimePoint(common.Seconds(common.DefaultConfig.BlockIntervalUs)))
 		}
-		mtrx := types.TransactionMetadata{}
-		mtrx.Trx = trx
-		trace = t.Control.pushTransaction(&mtrx, deadline, billedCpuTimeUs, true)
+		c := common.CompressionNone
+		size, _ := rlp.EncodeSize(trx)
+		if size > 1000 {
+			c = common.CompressionZlib
+		}
+		mtrx := types.NewTransactionMetadataBySignedTrx(trx, c)
+		trace = t.Control.pushTransaction(mtrx, deadline, billedCpuTimeUs, true)
 		if trace.ExceptPtr != nil {
 			try.EosThrow(trace.ExceptPtr, "tester PushTransaction is error :%#v", trace.ExceptPtr)
 		}
-		if trace.Except != nil {
+		if !common.Empty(trace.Except) {
 			try.EosThrow(trace.Except, "tester PushTransaction is error :%#v", trace.Except)
 		}
 		r = trace
@@ -265,7 +273,7 @@ type VariantsObject []map[string]interface{}
 func (t BaseTester) PushAction2(code *common.AccountName, acttype *common.AccountName,
 	actor common.AccountName, data *VariantsObject, expiration uint32, delaySec uint32) *types.TransactionTrace {
 	auths := make([]types.PermissionLevel, 0)
-	auths = append(auths, types.PermissionLevel{Actor:actor, Permission:common.DefaultConfig.ActiveName})
+	auths = append(auths, types.PermissionLevel{Actor: actor, Permission: common.DefaultConfig.ActiveName})
 	return t.PushAction4(code, acttype, &auths, data, expiration, delaySec)
 }
 
@@ -299,9 +307,11 @@ func (t BaseTester) GetAction(code common.AccountName, actType common.AccountNam
 
 func (t BaseTester) getPrivateKey(keyName common.Name, role string) ecc.PrivateKey {
 	//TODO: wait for testing
-	priKey, _ := ecc.NewPrivateKey(crypto.Hash256(keyName.String() + role).String())
-	fmt.Println(crypto.Hash256(keyName.String() + role).String())
-	return *priKey
+	//priKey, _ := ecc.NewPrivateKey(crypto.Hash256(keyName.String() + role).String())
+	rawPrivKey := crypto.Hash256(keyName.String() + role).Bytes()
+	priKey, _ := btcec.PrivKeyFromBytes(btcec.S256(), rawPrivKey)
+	pk := &ecc.PrivateKey{Curve:ecc.CurveK1, PrivKey:priKey}
+	return *pk
 }
 
 func (t BaseTester) getPublicKey(keyName common.Name, role string) ecc.PublicKey {
@@ -466,7 +476,7 @@ func (t BaseTester) SetCode2(account common.AccountName, wast *byte, signer *ecc
 
 func (t BaseTester) SetAbi(account common.AccountName, abiJson *byte, signer *ecc.PrivateKey) {
 	// abi := fc::json::from_string(abi_json).template as<abi_def>()
-	abi := types.AbiDef{}
+	abi := abi.AbiDef{}
 	trx := types.SignedTransaction{}
 	abiBytes, _ := rlp.EncodeToBytes(abi)
 	setAbi := setAbi{Account: account, Abi: abiBytes}

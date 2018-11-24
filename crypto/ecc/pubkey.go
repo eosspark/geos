@@ -19,6 +19,34 @@ type PublicKey struct {
 	Content [33]byte `eos:"array"`
 }
 
+func NewPublicKeyFromData(data []byte) (out PublicKey, err error) {
+	if len(data) != 34 {
+		return out, fmt.Errorf("public key data must have a length of 33 ")
+	}
+
+	var content [33]byte //TODO
+	for i := range data {
+		if i <= 32 {
+			content[i] = data[i+1]
+		}
+	}
+	out = PublicKey{
+		Curve:   CurveID(data[0]), // 1 byte
+		Content: content,          // 33 bytes
+	}
+
+	//switch out.Curve {
+	//case CurveK1:
+	//	out.inner = &innerK1PublicKey{}
+	//case CurveR1:
+	//	out.inner = &innerR1PublicKey{}
+	//default:
+	//	return out, fmt.Errorf("unsupported curve prefix %q", out.Curve)
+	//}
+
+	return out, nil
+}
+
 func NewPublicKey(pubKey string) (out PublicKey, err error) {
 	if len(pubKey) < 8 {
 		return out, fmt.Errorf("invalid format")

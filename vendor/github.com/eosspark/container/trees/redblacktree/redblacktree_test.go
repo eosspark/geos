@@ -740,3 +740,50 @@ func BenchmarkRedBlackTreeRemove100000(b *testing.B) {
 	b.StartTimer()
 	benchmarkRemove(b, tree, size)
 }
+
+func TestMultiRbTree(t *testing.T) {
+
+	tr := NewWithIntComparator()
+	tr.Put(2,21)
+	tr.Put(1,1)
+	tr.Put(2,22)
+	tr.Put(3,3)
+	tr.Put(5,5)
+
+	fmt.Println(tr)
+
+	for itr := tr.Iterator(); itr.Next(); {
+		fmt.Printf("[%d:%d]", itr.Key(), itr.Value())
+	}
+
+
+
+	tree := NewWithIntComparator()
+	tree.MultiPut(1,1)
+	tree.MultiPut(3,3)
+	tree.MultiPut(5,5)
+	tree.MultiPut(2,21)
+	tree.MultiPut(2,22)
+	tree.MultiPut(2,23)
+	tree.MultiPut(2,24)
+	tree.MultiPut(2,25)
+
+	fmt.Println(tree)
+	//v, ok := tree.Get(2)
+	//fmt.Println(v, ok)
+
+
+	//itr := tree.Iterator()
+	//for itr.Next() {
+	//	fmt.Printf("[%d,%d]", itr.Key(), itr.Value())
+	//}
+
+	tree.Remove(2)
+
+	fmt.Println()
+	fmt.Println(tree)
+
+	tree.Remove(2)
+
+	fmt.Println(tree)
+}

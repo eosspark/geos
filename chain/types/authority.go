@@ -89,10 +89,10 @@ func NewPermissionLevel(in string) (out PermissionLevel, err error) {
 
 func NewAuthority(k ecc.PublicKey, delaySec uint32) (a Authority) {
 	a.Threshold = 1
-	a.Keys[0] = KeyWeight{k, 1}
+	a.Keys = append(a.Keys, KeyWeight{k,1})
 	if delaySec > 0 {
 		a.Threshold = 2
-		a.Waits[0] = WaitWeight{delaySec, 1}
+		a.Waits = append(a.Waits, WaitWeight{delaySec,1})
 	}
 	return a
 }

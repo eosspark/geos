@@ -148,8 +148,6 @@ func Test_find(t *testing.T) {
 
 	findObjs(objs_, houses_, db)
 
-	lowerAndUpper(objs_, houses_, db)
-	//
 	findInLineFieldObjs(objs_, houses_, db)
 
 	getLessObjs(objs_, houses_, db)
@@ -170,27 +168,38 @@ func Test_modifyUndo(t *testing.T) {
 	if err != nil {
 		log.Println(err)
 	}
-	it, err := idx.LowerBound(DbTableIdObject{Code: 11})
-	if err != nil {
-		log.Fatalln(err)
-	}
-	i := 0
-	for it.Next() {
+	{
+		// Code 11 12 13  21 22 23  31 32 33
+		it, err := idx.LowerBound(DbTableIdObject{Code: 11})
+		if err != nil {
+			log.Fatalln(err)
+		}
+		i := 0
 		tmp := DbTableIdObject{}
 		it.Data(&tmp)
-		if objs_[i] != tmp {
-			logObj(tmp)
+		if tmp != objs_[i] {
 			logObj(objs_[i])
-			log.Fatalln("error lower bound")
+			logObj(tmp)
+			log.Fatalln("failed")
 		}
-		i++
+		for it.Next() {
+			i++
+			tmp := DbTableIdObject{}
+			it.Data(&tmp)
+			if tmp != objs_[i] {
+				logObj(objs_[i])
+				logObj(tmp)
+				log.Fatalln("failed")
+			}
+		}
+		it.Release()
 	}
-	it.Release()
+
 
 	session := db.StartSession()
 	defer session.Undo()
 	obj := DbTableIdObject{ID: 4, Code: 21, Scope: 22, Table: 26, Payer: 27, Count: 25}
-	newobj := DbTableIdObject{ID: 4, Code: 200, Scope: 22, Table: 26, Payer: 27, Count: 25}
+	newObj := DbTableIdObject{ID: 4, Code: 200, Scope: 22, Table: 26, Payer: 27, Count: 25}
 
 	err = db.Modify(&obj, func(object *DbTableIdObject) {
 		object.Code = 200
@@ -206,8 +215,8 @@ func Test_modifyUndo(t *testing.T) {
 	if err != nil {
 		log.Fatalln(err)
 	}
-	if tmp == newobj {
-		logObj(newobj)
+	if tmp == newObj {
+		logObj(newObj)
 		log.Fatalln("modify test error")
 	}
 }
@@ -223,6 +232,7 @@ func Test_undoInsert(t *testing.T) {
 	db.SetRevision(10)
 	session := db.StartSession()
 	objs, _ := Objects()
+	// Insert three elements
 	for i := 0; i < 3; i++ {
 		err := db.Insert(&objs[i])
 		if err != nil {
@@ -236,6 +246,7 @@ func Test_undoInsert(t *testing.T) {
 		log.Println(err)
 	}
 
+	// Code 11 12 13
 	_, err = idx.LowerBound(DbTableIdObject{Code: 11})
 	if err != ErrNotFound {
 		log.Fatalln(err)
@@ -262,18 +273,24 @@ func Test_undoInsert(t *testing.T) {
 		log.Fatalln(err)
 	}
 	i := 0
+	tmp := DbTableIdObject{}
+	it.Data(&tmp)
+	if tmp != objs[i] {
+		logObj(objs[i])
+		logObj(tmp)
+		log.Fatalln("failed")
+	}
 	for it.Next() {
+		i++
 		tmp := DbTableIdObject{}
 		it.Data(&tmp)
-		//logObj(tmp)
-		if objs[i] != tmp {
+		if tmp != objs[i] {
+			logObj(objs[i])
 			logObj(tmp)
-			log.Fatalln("error lower bound")
+			log.Fatalln("failed")
 		}
-		i++
 	}
 	it.Release()
-
 }
 
 func Test_undoRemove(t *testing.T) {
@@ -283,7 +300,7 @@ func Test_undoRemove(t *testing.T) {
 	}
 	defer clo()
 
-	//////////////////////////////////////////////	ready
+	// Insert three elements
 	objs, _ := Objects()
 	for i := 0; i < 3; i++ {
 		err := db.Insert(&objs[i])
@@ -291,88 +308,121 @@ func Test_undoRemove(t *testing.T) {
 			log.Println(err)
 		}
 	}
-	idx, err := db.GetIndex("Code", DbTableIdObject{})
-	if err != nil {
-		log.Println(err)
-	}
-	it, err := idx.LowerBound(DbTableIdObject{Code: 11})
-	if err != nil {
-		log.Fatalln(err)
-	}
-
 	table := DbTableIdObject{}
-	i := 0
-	for it.Next() {
+	// review
+	{
+		idx, err := db.GetIndex("Code", DbTableIdObject{})
+		if err != nil {
+			log.Println(err)
+		}
+		// Code 11 12 13
+		it, err := idx.LowerBound(DbTableIdObject{Code: 11})
+		if err != nil {
+			log.Fatalln(err)
+		}
+
+		i := 0
 		it.Data(&table)
 		if objs[i] != table {
 			logObj(objs[i])
 			logObj(table)
 			log.Fatalln("undo failed")
 		}
-		i++
+		for it.Next() {
+			i++
+			table := DbTableIdObject{}
+			it.Data(&table)
+			if objs[i] != table {
+				logObj(objs[i])
+				logObj(table)
+				log.Fatalln("undo failed")
+			}
+		}
+		it.Release()
 	}
-	session := db.StartSession()
+	// remove and undo
+	{
+		session := db.StartSession()
 
-	err = db.Remove(&table)
-	if err != nil {
-		log.Fatalln(err)
-	}
-	////////////////////////////////////////// begin
-	beginUndo, err := db.GetIndex("Code", DbTableIdObject{})
-	if err != nil {
-		log.Println(err)
-	}
-	beginIt, err := beginUndo.LowerBound(DbTableIdObject{Code: 11})
-	if err != nil {
-		log.Fatalln(err)
-	}
-	i = 0
-	for beginIt.Next() {
-		table := DbTableIdObject{}
+		err := db.Remove(&table) // code 11 remove
+		if err != nil {
+			log.Fatalln(err)
+		}
+		/*  Code 11 12 13   11 is begin */
+		beginUndo, err := db.GetIndex("Code", DbTableIdObject{})
+		if err != nil {
+			log.Println(err)
+		}
+		beginIt, err := beginUndo.LowerBound(DbTableIdObject{Code: 11})
+		if err != nil {
+			log.Fatalln(err)
+		}
+		i := 1
+		table = DbTableIdObject{}
 		beginIt.Data(&table)
-		//logObj(table)
 		if objs[i] != table {
 			logObj(objs[i])
 			logObj(table)
 			log.Fatalln("undo failed")
 		}
-		i++
+		for beginIt.Next() {
+			i++
+			table := DbTableIdObject{}
+			beginIt.Data(&table)
+			if objs[i] != table {
+				logObj(objs[i])
+				logObj(table)
+				log.Fatalln("undo failed")
+			}
+		}
+		if i != 2 {
+			log.Println(i)
+			log.Fatalln("undo failed")
+		}
+		beginIt.Release()
+		session.Undo() // undo
 	}
-	if i != 2 {
-		log.Println(i)
-		log.Fatalln("undo failed")
-	}
-	session.Undo() // undo
-	/////////////////////////////////////////// end
-	endUndo, err := db.GetIndex("Code", DbTableIdObject{})
-	if err != nil {
-		log.Println(err)
-	}
-	endIt, err := endUndo.LowerBound(DbTableIdObject{Code: 11})
-	if err != nil {
-		log.Fatalln(err)
-	}
-	i = 0
-	for endIt.Next() {
-		table := DbTableIdObject{}
+	// review again
+	{
+		endUndo, err := db.GetIndex("Code", DbTableIdObject{})
+		if err != nil {
+			log.Println(err)
+		}
+		endIt, err := endUndo.LowerBound(DbTableIdObject{Code: 11})
+		if err != nil {
+			log.Fatalln(err)
+		}
+		i := 0
+		table = DbTableIdObject{}
 		endIt.Data(&table)
 		if objs[i] != table {
 			logObj(objs[i])
 			logObj(table)
 			log.Fatalln("undo failed")
 		}
-		i++
+		for endIt.Next() {
+			i++
+			table := DbTableIdObject{}
+			endIt.Data(&table)
+			if objs[i] != table {
+				logObj(objs[i])
+				logObj(table)
+				log.Fatalln("undo failed")
+			}
+		}
+		endIt.Release()
 	}
+
 }
 
-func Test_Squash(t *testing.T) {
+func Test_squash(t *testing.T) {
 	db, clo := openDb()
 	if db == nil {
 		log.Fatalln("db open failed")
 	}
 	defer clo()
 
-	//////////////////////////////////////////////	ready
+	// Insert three elements
 	objs, _ := Objects()
 	for i := 0; i < 3; i++ {
 		err := db.Insert(&objs[i])
@@ -384,23 +434,29 @@ func Test_Squash(t *testing.T) {
 	if err != nil {
 		log.Println(err)
 	}
+	// Code 11 12 13
 	it, err := idx.LowerBound(DbTableIdObject{Code: 12})
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	table := DbTableIdObject{}
-	tmp :=  objs[1]
-	tmp.ID = 2
+
 	i := 1
+	table := DbTableIdObject{}
+	it.Data(&table)
+	if objs[i] != table {
+		logObj(objs[i])
+		logObj(table)
+		log.Fatalln("undo failed")
+	}
 	for it.Next() {
+		i++
 		it.Data(&table)
 		if objs[i] != table {
 			logObj(objs[i])
 			logObj(table)
 			log.Fatalln("undo failed")
 		}
-		i++
 	}
 
 
@@ -411,44 +467,48 @@ func Test_Squash(t *testing.T) {
 	}
 
 	session_ := db.StartSession()
+	tmp :=  objs[1]
 	err = db.Remove(&tmp) 		/*	id --> 2*/
 	if err != nil {
 		log.Fatalln(err)
 	}
-
+	// There is only one element in the database at this time
 	beginIt, err := idx.LowerBound(DbTableIdObject{Code: 11})
 	if err != nil {
 		log.Fatalln(err)
 	}
-	i = 0
-	for beginIt.Next() {
-		table := DbTableIdObject{}
-		beginIt.Data(&table)
-		if objs[i] != table {
-			logObj(objs[i])
-			logObj(table)
-			log.Fatalln("undo failed")
-		}
-		i++
-	}
-	if i != 1 {
-		log.Println(i)
-		log.Fatalln("undo failed")
+
+	if !idx.CompareBegin(beginIt){
+		log.Fatalln("iterator is not begin")
 	}
 
+	if beginIt.Next() {
+		log.Fatalln("iterator next")
+	}
+	if !idx.CompareEnd(beginIt){
+		log.Fatalln("iterator is not end")
+	}
 
 	session.Squash()
 
 
-	 defer session.Undo() 	// undo
-	 session_.Undo() 		/* after squash undo all */
-	/////////////////////////////////////////// end
+	defer session.Undo() 	// undo
+	session_.Undo() 		/* after squash undo all */
+
 	endIt, err := idx.LowerBound(DbTableIdObject{Code: 11})
 	if err != nil {
 		log.Fatalln(err)
 	}
 	i = 0
+	table = DbTableIdObject{}
+	endIt.Data(&table)
+	if objs[i] != table {
+		logObj(objs[i])
+		logObj(table)
+		log.Fatalln("undo failed")
+	}
 	for endIt.Next() {
+		i++
 		table := DbTableIdObject{}
 		endIt.Data(&table)
 		if objs[i] != table {
@@ -456,8 +516,8 @@ func Test_Squash(t *testing.T) {
 			logObj(table)
 			log.Fatalln("undo failed")
 		}
-		i++
 	}
+	endIt.Release()
 }
 
 func Test_undoAll(t *testing.T) {
@@ -467,8 +527,8 @@ func Test_undoAll(t *testing.T) {
 	}
 	defer clo()
 
-	//////////////////////////////////////////////	ready
 	objs, _ := Objects()
+	// Insert three elements
 	for i := 0; i < 3; i++ {
 		err := db.Insert(&objs[i])
 		if err != nil {
@@ -484,68 +544,58 @@ func Test_undoAll(t *testing.T) {
 		log.Fatalln(err)
 	}
 
-	table := DbTableIdObject{}
-	tmp :=  objs[1]
-	tmp.ID = 2
 	i := 1
+	table := DbTableIdObject{}
+	it.Data(&table)
+	if objs[i] != table {
+		logObj(objs[i])
+		logObj(table)
+		log.Fatalln("undo failed")
+	}
 	for it.Next() {
+		i++
 		it.Data(&table)
 		if objs[i] != table {
 			logObj(objs[i])
 			logObj(table)
 			log.Fatalln("undo failed")
 		}
-		i++
 	}
 
-
 	session := db.StartSession()
+	defer session.Undo() 	// undo
 	err = db.Remove(&table) 	/*	id --> 3 */
 	if err != nil {
 		log.Fatalln(err)
 	}
 
 	session_ := db.StartSession()
+	defer session_.Undo() 		/* after squash undo all */
+
+	tmp :=  objs[1]
 	err = db.Remove(&tmp) 		/*	id --> 2*/
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	beginIt, err := idx.LowerBound(DbTableIdObject{Code: 11})
-	if err != nil {
-		log.Fatalln(err)
-	}
-	i = 0
-	for beginIt.Next() {
-		table := DbTableIdObject{}
-		beginIt.Data(&table)
-		if objs[i] != table {
-			logObj(objs[i])
-			logObj(table)
-			log.Fatalln("undo failed")
-		}
-		i++
-	}
-	if i != 1 {
-		log.Println(i)
-		log.Fatalln("undo failed")
-	}
-
 
 	session.Squash()
+	db.UndoAll()
 
-
-	 defer session.Undo() 	// undo
-
-	 defer session_.Undo() 		/* after squash undo all */
-	 db.UndoAll()
-	/////////////////////////////////////////// end
 	endIt, err := idx.LowerBound(DbTableIdObject{Code: 11})
 	if err != nil {
 		log.Fatalln(err)
 	}
 	i = 0
+	table = DbTableIdObject{}
+	endIt.Data(&table)
+	if objs[i] != table {
+		logObj(objs[i])
+		logObj(table)
+		log.Fatalln("undo failed")
+	}
 	for endIt.Next() {
+		i++
 		table := DbTableIdObject{}
 		endIt.Data(&table)
 		if objs[i] != table {
@@ -553,8 +603,8 @@ func Test_undoAll(t *testing.T) {
 			logObj(table)
 			log.Fatalln("undo failed")
 		}
-		i++
 	}
+	endIt.Release()
 }
 
 func Test_iteratorTo(t *testing.T) {
@@ -603,7 +653,8 @@ func Test_iteratorTo(t *testing.T) {
 	it.Release()
 }
 
-func Test_begin(t *testing.T) {
+func Test_uniqueNoIterator(t *testing.T) {
+
 	db, clo := openDb()
 	if db == nil {
 		log.Fatalln("db open failed")
@@ -611,46 +662,458 @@ func Test_begin(t *testing.T) {
 	defer clo()
 
 	objs, houses := Objects()
-	//objs_, houses_ :=
-	saveObjs(objs, houses, db)
-
-	idx, err := db.GetIndex("id", DbTableIdObject{})
-	if err != nil {
-		log.Fatalln(err)
-	}
-	obj := DbTableIdObject{ID: 1}
-	it, err := idx.LowerBound(obj)
+	objs_,_ := saveObjs(objs, houses, db)
+	idx, err := db.GetIndex("byTable", DbTableIdObject{})
 	if err != nil {
 		log.Fatalln(err)
 	}
 
-	if !idx.CompareBegin(it) {
-		log.Fatalln("begin failed")
-	}
-	//if !idx.CompareEnd(nil){
-	//	log.Fatalln("end failed")
-	//}
+	// scope 11 lower prev iterator
+	{
+		obj := DbTableIdObject{Scope: 11}
+		scope11, err := idx.LowerBound(obj)
+		if err != nil {
+			log.Fatalln(err)
+		}
+		if idx.CompareEnd(scope11){
+			log.Fatalln("scope 11 is end iterator")
+		}
 
-	it.Release()
+		if !idx.CompareBegin(scope11)	{
+			log.Fatalln("scope compare end failed")
+		}
 
-	it = idx.Begin()
-	if it == nil {
-		log.Panicln("iterator to failed")
+		i := 0
+		tmp := DbTableIdObject{}
+		scope11.Data(&tmp)
+		if objs_[i] != tmp{
+			logObj(objs_[i])
+			logObj(tmp)
+			log.Fatalln("compare failed")
+		}
+
+		for scope11.Prev() {
+			log.Fatalln("compare failed")
+		}
+	}
+	// scope 11 lower next iterator
+	{
+		obj := DbTableIdObject{Scope: 11}
+		scope11, err := idx.LowerBound(obj)
+		if err != nil {
+			log.Fatalln(err)
+		}
+		if idx.CompareEnd(scope11){
+			log.Fatalln("scope 11 is end iterator")
+		}
+
+		if !idx.CompareBegin(scope11)	{
+			log.Fatalln("scope compare end failed")
+		}
+		i := 0
+		tmp := DbTableIdObject{}
+		scope11.Data(&tmp)
+		if objs_[i] != tmp{
+			logObj(objs_[i])
+			logObj(tmp)
+			log.Fatalln("compare failed")
+		}
+
+		for scope11.Next(){
+			i++
+			tmp := DbTableIdObject{}
+			scope11.Data(&tmp)
+			if objs_[i] != tmp{
+				logObj(objs_[i])
+				logObj(tmp)
+				log.Fatalln("compare failed")
+			}
+		}
+	}
+	// scope 11 upper prev iterator
+	{
+		obj := DbTableIdObject{Scope: 11}
+		scope11, err := idx.UpperBound(obj)
+		if err != nil {
+			log.Fatalln(err)
+		}
+		if idx.CompareEnd(scope11){
+			log.Fatalln("scope 11 is end iterator")
+		}
+
+		if !idx.CompareBegin(scope11) {
+			log.Fatalln("scope compare end failed")
+		}
+		i := 0
+		tmp := DbTableIdObject{}
+		scope11.Data(&tmp)
+		if objs_[i] != tmp{
+			logObj(objs_[i])
+			logObj(tmp)
+			log.Fatalln("compare failed")
+		}
+
+		for scope11.Prev(){
+			log.Fatalln("compare failed")
+		}
+	}
+	// scope 11 upper next iterator
+	{
+		obj := DbTableIdObject{Scope: 11}
+		scope11, err := idx.UpperBound(obj)
+		if err != nil {
+			log.Fatalln(err)
+		}
+		if idx.CompareEnd(scope11){
+			log.Fatalln("scope 11 is end iterator")
+		}
+
+		if !idx.CompareBegin(scope11)	{
+			log.Fatalln("scope compare end failed")
+		}
+		i := 0
+		tmp := DbTableIdObject{}
+		scope11.Data(&tmp)
+		if objs_[i] != tmp{
+			logObj(objs_[i])
+			logObj(tmp)
+			log.Fatalln("compare failed")
+		}
+
+		for scope11.Next(){
+			i++
+			tmp := DbTableIdObject{}
+			scope11.Data(&tmp)
+			if objs_[i] != tmp{
+				logObj(objs_[i])
+				logObj(tmp)
+				log.Fatalln("compare failed")
+			}
+		}
 	}
 
-	it1 := idx.Begin()
-	if !idx.CompareBegin(it1) {
-		log.Fatalln("begin failed")
+
+	/* scope 30 lower prev iterator */
+	{
+		obj := DbTableIdObject{Scope: 30}
+		scope11, err := idx.LowerBound(obj)
+		if err != nil {
+			log.Fatalln(err)
+		}
+		if idx.CompareEnd(scope11){
+			log.Fatalln("scope is end")
+		}
+		if idx.CompareBegin(scope11){
+			log.Fatalln("scope is begin")
+		}
+		i := 6
+		tmp := DbTableIdObject{}
+		scope11.Data(&tmp)
+		if objs_[i] != tmp{
+			logObj(objs_[i])
+			logObj(tmp)
+			log.Fatalln("compare failed")
+		}
+
+		for scope11.Prev() {
+			i--
+			tmp := DbTableIdObject{}
+			scope11.Data(&tmp)
+			if objs_[i] != tmp{
+				logObj(objs_[i])
+				logObj(tmp)
+				log.Fatalln("compare failed")
+			}
+		}
 	}
-	if !idx.CompareIterator(it1, it) {
-		log.Fatalln("begin failed")
+	/* scope 30 lower next iterator */
+	{
+		obj := DbTableIdObject{Scope: 30}
+		scope11, err := idx.LowerBound(obj)
+		if err != nil {
+			log.Fatalln(err)
+		}
+		if idx.CompareEnd(scope11){
+			log.Fatalln("scope is end")
+		}
+		if idx.CompareBegin(scope11){
+			log.Fatalln("scope is begin")
+		}
+		tmp := DbTableIdObject{}
+		scope11.Data(&tmp)
+		i := 6
+		if objs_[i] != tmp{
+			logObj(objs_[i])
+			logObj(tmp)
+			log.Fatalln("compare failed")
+		}
+		for scope11.Next() {
+			i++
+			tmp := DbTableIdObject{}
+			scope11.Data(&tmp)
+			if objs_[i] != tmp{
+				logObj(objs_[i])
+				logObj(tmp)
+				log.Fatalln("compare failed")
+			}
+		}
+	}
+	/* scope 30 upper prev iterator */
+	{
+		obj := DbTableIdObject{Scope: 30}
+		scope11, err := idx.UpperBound(obj)
+		if err != nil {
+			log.Fatalln(err)
+		}
+		if idx.CompareEnd(scope11){
+			log.Fatalln("scope is end")
+		}
+		if idx.CompareBegin(scope11){
+			log.Fatalln("scope is begin")
+		}
+
+		tmp := DbTableIdObject{}
+		scope11.Data(&tmp)
+		i := 6
+		if objs_[i] != tmp{
+			logObj(objs_[i])
+			logObj(tmp)
+			log.Fatalln("compare failed")
+		}
+
+		for scope11.Prev() {
+			i--
+			tmp := DbTableIdObject{}
+			scope11.Data(&tmp)
+			if objs_[i] != tmp{
+				logObj(objs_[i])
+				logObj(tmp)
+				log.Fatalln("compare failed")
+			}
+		}
+	}
+	/* scope 30 upper next iterator */
+	{
+		obj := DbTableIdObject{Scope: 30}
+		scope11, err := idx.UpperBound(obj)
+		if err != nil {
+			log.Fatalln(err)
+		}
+		if idx.CompareEnd(scope11){
+			log.Fatalln("scope is end")
+		}
+		if idx.CompareBegin(scope11){
+			log.Fatalln("scope is begin")
+		}
+
+		tmp := DbTableIdObject{}
+		scope11.Data(&tmp)
+		i := 6
+		if objs_[i] != tmp{
+			logObj(objs_[i])
+			logObj(tmp)
+			log.Fatalln("compare failed")
+		}
+
+		for scope11.Next() {
+			i++
+			tmp := DbTableIdObject{}
+			scope11.Data(&tmp)
+			if objs_[i] != tmp{
+				logObj(objs_[i])
+				logObj(tmp)
+				log.Fatalln("compare failed")
+			}
+		}
 	}
 
-	it.Release()
-	it1.Release()
+	// scope 22 lower prev iterator
+	{
+		obj := DbTableIdObject{Scope: 22}
+		scope11, err := idx.LowerBound(obj)
+		if err != nil {
+			log.Fatalln(err)
+		}
+		if idx.CompareEnd(scope11){
+			log.Fatalln("scope is end")
+		}
+		if idx.CompareBegin(scope11){
+			log.Fatalln("scope is begin")
+		}
+		tmp := DbTableIdObject{}
+		scope11.Data(&tmp)
+		i := 3
+		if objs_[i] != tmp{
+			logObj(objs_[i])
+			logObj(tmp)
+			log.Fatalln("compare failed")
+		}
+		for scope11.Prev() {
+			i--
+			tmp := DbTableIdObject{}
+			scope11.Data(&tmp)
+			if objs_[i] != tmp{
+				logObj(objs_[i])
+				logObj(tmp)
+				log.Fatalln("compare failed")
+			}
+		}
+	}
+	// scope 22 lower next iterator
+	{
+		obj := DbTableIdObject{Scope: 22}
+		scope11, err := idx.LowerBound(obj)
+		if err != nil {
+			log.Fatalln(err)
+		}
+		if idx.CompareEnd(scope11){
+			log.Fatalln("scope is end")
+		}
+		if idx.CompareBegin(scope11){
+			log.Fatalln("scope is begin")
+		}
+		tmp := DbTableIdObject{}
+		scope11.Data(&tmp)
+		i := 3
+		if objs_[i] != tmp{
+			logObj(objs_[i])
+			logObj(tmp)
+			log.Fatalln("compare failed")
+		}
+		for scope11.Next() {
+			i++
+			tmp := DbTableIdObject{}
+			scope11.Data(&tmp)
+			if objs_[i] != tmp{
+				logObj(objs_[i])
+				logObj(tmp)
+				log.Fatalln("compare failed")
+			}
+		}
+	}
+	// scope 22 upper prev iterator
+	{
+		obj := DbTableIdObject{Scope: 22}
+		scope11, err := idx.UpperBound(obj)
+		if err != nil {
+			log.Fatalln(err)
+		}
+		if idx.CompareEnd(scope11){
+			log.Fatalln("scope is end")
+		}
+		if idx.CompareBegin(scope11){
+			log.Fatalln("scope is begin")
+		}
+		tmp := DbTableIdObject{}
+		scope11.Data(&tmp)
+		i := 6
+		if objs_[i] != tmp{
+			logObj(objs_[i])
+			logObj(tmp)
+			log.Fatalln("compare failed")
+		}
+		for scope11.Prev() {
+			i--
+			tmp := DbTableIdObject{}
+			scope11.Data(&tmp)
+			if objs_[i] != tmp{
+				logObj(objs_[i])
+				logObj(tmp)
+				log.Fatalln("compare failed")
+			}
+		}
+	}
+	// scope 22 upper next iterator
+	{
+		obj := DbTableIdObject{Scope: 22}
+		scope11, err := idx.UpperBound(obj)
+		if err != nil {
+			log.Fatalln(err)
+		}
+		if idx.CompareEnd(scope11){
+			log.Fatalln("scope is end")
+		}
+		if idx.CompareBegin(scope11){
+			log.Fatalln("scope is begin")
+		}
+		tmp := DbTableIdObject{}
+		scope11.Data(&tmp)
+		i := 6
+		if objs_[i] != tmp{
+			logObj(objs_[i])
+			logObj(tmp)
+			log.Fatalln("compare failed")
+		}
+		for scope11.Next() {
+			i++
+			tmp := DbTableIdObject{}
+			scope11.Data(&tmp)
+			if objs_[i] != tmp{
+				logObj(objs_[i])
+				logObj(tmp)
+				log.Fatalln("compare failed")
+			}
+		}
+	}
+
+	/* compare iterator test */
+	{
+		obj := DbTableIdObject{Scope: 20}
+		scope20, err := idx.LowerBound(obj)
+		if err != nil {
+			log.Fatalln(err)
+		}
+		if idx.CompareEnd(scope20) {
+			log.Fatalln("iterator is end")
+		}
+
+		for scope20.Prev() {
+			/* go begin */
+		}
+
+		if !idx.CompareBegin(scope20) {
+			log.Fatalln("iterator compare failed")
+		}
+
+		it := idx.Begin()
+		if !idx.CompareIterator(it, scope20) {
+			log.Fatalln("iterator compare failed")
+		}
+		it.Release()
+
+		for scope20.Next() {
+			/* go end */
+		}
+
+		if !idx.CompareEnd(scope20) {
+			log.Fatalln("iterator compare failed")
+		}
+		it = idx.End()
+		if !idx.CompareIterator(it, scope20) {
+			log.Fatalln("iterator compare failed")
+		}
+		it.Release()
+		scope20.Release()
+
+		itT := idx.End()
+		i := 8
+		for itT.Prev() {
+			tmp := DbTableIdObject{}
+			itT.Data(&tmp)
+			if objs_[i] != tmp{
+				logObj(objs_[i])
+				logObj(tmp)
+				log.Fatalln("compare failed")
+			}
+			i--
+		}
+
+		itT.Release()
+	}
+
 }
 
-func Test_end(t *testing.T) {
+func Test_uniqueIterator(t *testing.T) {
 	db, clo := openDb()
 	if db == nil {
 		log.Fatalln("db open failed")
@@ -658,76 +1121,124 @@ func Test_end(t *testing.T) {
 	defer clo()
 
 	objs, houses := Objects()
-	//objs_, houses_ :=
-	saveObjs(objs, houses, db)
+	objs_, _ := saveObjs(objs, houses, db)
 
-	idx, err := db.GetIndex("id", DbTableIdObject{})
-	if err != nil {
-		log.Fatalln(err)
-	}
+	{
+		idx, err := db.GetIndex("id", DbTableIdObject{})
+		if err != nil {
+			log.Fatalln(err)
+		}
+		obj := DbTableIdObject{ID: 5}
+		// id 5 upper bound pre iterator
+		{
+			upIt, err := idx.UpperBound(obj)
+			if err != nil {
+				log.Fatalln(err)
+			}
 
-	/*less end*/
-	obj := DbTableIdObject{ID: 100}
-	itLess, err := idx.LowerBound(obj)
-	for itLess.Prev() {
-		tmp := DbTableIdObject{}
-		itLess.Data(&tmp)
-		//logObj(tmp)
-	}
-	itLess.Release()
+			i := 5
+			tmp := DbTableIdObject{}
+			upIt.Data(&tmp)
+			if objs_[i]	 != tmp{
+				logObj(tmp)
+				logObj(objs_[i])
+				log.Fatalln(err)
+			}
+			for upIt.Prev() {
+				i--
+				tmp := DbTableIdObject{}
+				upIt.Data(&tmp)
+				if objs_[i]	 != tmp{
+					logObj(tmp)
+					logObj(objs_[i])
+					log.Fatalln(err)
+				}
+			}
+			upIt.Release()
+		}
+		// id 5 upper bound next iterator
+		{
+			upIt, err := idx.UpperBound(obj)
+			if err != nil {
+				log.Fatalln(err)
+			}
 
-	/*greater end*/
+			tmp := DbTableIdObject{}
+			upIt.Data(&tmp)
+			i := 5
+			if objs_[i]	 != tmp{
+				logObj(tmp)
+				logObj(objs_[i])
+				log.Fatalln(err)
+			}
 
-	idxGreater, err := db.GetIndex("byTable", obj)
-	if err != nil {
-		log.Fatalln(err)
-	}
-	obj = DbTableIdObject{Scope: 20}
-	itGreater, err := idxGreater.LowerBound(obj)
-	if err != nil {
-		log.Fatalln(err)
-	}
+			for upIt.Next() {
+				i++
+				tmp := DbTableIdObject{}
+				upIt.Data(&tmp)
+				if objs_[i]	 != tmp{
+					logObj(tmp)
+					logObj(objs_[i])
+					log.Fatalln(err)
+				}
+			}
+			upIt.Release()
 
-	for itGreater.Prev() {
-		tmp := DbTableIdObject{}
-		itGreater.Data(&tmp)
-		//logObj(tmp)
-	}
+		}
+		// id 5 lower bound pre iterator
+		{
+			lowIt, err := idx.LowerBound(obj)
+			if err != nil{
+				log.Fatalln(err)
+			}
 
-	if !idxGreater.CompareBegin(itGreater) {
-		t.Fatal("Greater compareBegin failed")
-	}
+			tmp := DbTableIdObject{}
+			lowIt.Data(&tmp)
+			i := 4
+			if objs_[i]	 != tmp{
+				logObj(tmp)
+				logObj(objs_[i])
+				log.Fatalln(err)
+			}
+			for lowIt.Prev() {
+				i--
+				tmp := DbTableIdObject{}
+				lowIt.Data(&tmp)
+				if objs_[i]	 != tmp{
+					logObj(tmp)
+					logObj(objs_[i])
+					log.Fatalln(err)
+				}
+			}
+		}
+		// id 5 lower bound next iterator
+		{
+			lowIt, err := idx.LowerBound(obj)
+			if err != nil{
+				log.Fatalln(err)
+			}
 
-	it := idxGreater.Begin()
-	if !idxGreater.CompareIterator(it, itGreater) {
-		t.Fatal("Greater compareBegin failed")
-	}
-	it.Release()
+			tmp := DbTableIdObject{}
+			lowIt.Data(&tmp)
+			i := 4
+			if objs_[i]	 != tmp{
+				logObj(tmp)
+				logObj(objs_[i])
+				log.Fatalln(err)
+			}
 
-	for itGreater.Next() {
-		tmp := DbTableIdObject{}
-		itGreater.Data(&tmp)
-		//logObj(tmp)
+			for lowIt.Next() {
+				i++
+				tmp := DbTableIdObject{}
+				lowIt.Data(&tmp)
+				if objs_[i]	 != tmp{
+					logObj(tmp)
+					logObj(objs_[i])
+					log.Fatalln(err)
+				}
+			}
+		}
 	}
-
-	if !idxGreater.CompareEnd(itGreater) {
-		t.Fatal("Greater compareEnd failed")
-	}
-	it = idxGreater.End()
-	if !idxGreater.CompareIterator(it, itGreater) {
-		t.Fatal("Greater compareEnd failed")
-	}
-	it.Release()
-	itGreater.Release()
-
-	itT := idxGreater.End()
-	for itT.Prev() {
-		tmp := DbTableIdObject{}
-		itT.Data(&tmp)
-		//logObj(tmp)
-	}
-
-	itT.Release()
 }
 
 func Test_empty(t *testing.T) {
@@ -750,6 +1261,14 @@ func Test_empty(t *testing.T) {
 	if err != nil {
 		log.Fatalln(err)
 	}
+
+	tmp := DbTableIdObject{}
+	it.Data(&tmp)
+	err = db.Remove(&tmp)
+	if err != nil {
+		log.Fatalln(err)
+	}
+
 	for it.Next() {
 		tmp := DbTableIdObject{}
 		it.Data(&tmp)
@@ -776,73 +1295,6 @@ func Test_modify(t *testing.T) {
 	objs, houses := Objects()
 	saveObjs(objs, houses, db)
 	modifyObjs(db)
-}
-
-func Test_compare(t *testing.T) {
-
-	db, clo := openDb()
-	if db == nil {
-		log.Fatalln("db open failed")
-	}
-	defer clo()
-
-	objs, houses := Objects()
-	objs_, _ := saveObjs(objs, houses, db)
-
-	idx, err := db.GetIndex("id", DbTableIdObject{})
-	if err != nil {
-		log.Fatalln(err)
-	}
-
-	i := 2
-	{
-		obj := DbTableIdObject{ID: 3}
-		itLess, _ := idx.LowerBound(obj) // note  return err
-		if !idx.CompareEnd(itLess) {
-			for itLess.Next() {
-				tmp := DbTableIdObject{}
-				itLess.Data(&tmp)
-				if tmp != objs_[i] {
-					logObj(objs_[i])
-					logObj(tmp)
-					t.Fatal("compare error")
-				}
-				i++
-			}
-		}
-		i--
-		if idx.CompareEnd(itLess) {
-			for itLess.Prev() {
-				tmp := DbTableIdObject{}
-				itLess.Data(&tmp)
-				if tmp != objs_[i] {
-					logObj(objs_[i])
-					logObj(tmp)
-					t.Fatal("compare error")
-				}
-
-				i--
-			}
-		}
-		itLess.Release()
-	}
-	i = 8
-	/*compare less end*/
-	obj := DbTableIdObject{ID: 100}
-	itLess, _ := idx.LowerBound(obj)
-	if idx.CompareEnd(itLess) {
-		for itLess.Prev() {
-			tmp := DbTableIdObject{}
-			itLess.Data(&tmp)
-			if tmp != objs_[i] {
-				logObj(tmp)
-				logObj(objs_[i])
-				t.Fatal("compare error")
-			}
-			i--
-		}
-	}
-	itLess.Release()
 }
 
 func Test_remove(t *testing.T) {
@@ -1052,84 +1504,6 @@ func saveObjs(objs []DbTableIdObject, houses []DbHouse, db DataBase) ([]DbTableI
 	return objs_, houses_
 }
 
-func lowerAndUpper(objs []DbTableIdObject, houses []DbHouse, db DataBase) {
-
-	obj := DbTableIdObject{Scope: 22}
-	idx, err := db.GetIndex("byTable", obj)
-	if err != nil {
-		log.Fatalln(err)
-	}
-
-	it, err := idx.LowerBound(obj)
-	if err != nil {
-		log.Fatalln(err)
-	}
-	defer it.Release()
-
-
-	i := 3
-	for it.Next() {
-		tmp := DbTableIdObject{}
-		it.Data(&tmp)
-		if tmp != objs[i] {
-			logObj(tmp)
-			logObj(objs[i])
-			log.Fatalln("getGreaterObjs ")
-		}
-		i++
-	}
-	if !idx.CompareEnd(it) {
-		log.Fatalln("CompareEnd")
-	}
-	it.Release()
-
-	it, err = idx.UpperBound(obj)
-	if err != nil {
-		log.Fatalln(err)
-	}
-	i = 6
-	for it.Next() {
-		tmp := DbTableIdObject{}
-		it.Data(&tmp)
-		if tmp != objs[i] {
-			logObj(tmp)
-			logObj(objs[i])
-			log.Fatalln("getGreaterObjs ")
-		}
-		i++
-	}
-
-	it.Release()
-
-	obj = DbTableIdObject{Scope: 202}
-	it1, err := idx.LowerBound(obj)
-	if err != nil {
-		log.Fatalln(err)
-	}
-
-	if !idx.CompareEnd(it1) {
-		log.Fatalln("getGreaterObjs ")
-	}
-	i = 8
-	for it1.Prev() {
-		tmp := DbTableIdObject{}
-		it1.Data(&tmp)
-		if tmp != objs[i] {
-			logObj(tmp)
-			logObj(objs[i])
-			log.Fatalln("getGreaterObjs ")
-		}
-		i--
-		//logObj(tmp)
-	}
-
-	if !idx.CompareBegin(it1) {
-		log.Fatalln("getGreaterObjs ")
-	}
-
-	it1.Release()
-}
-
 func getLessObjs(objs []DbTableIdObject, houses []DbHouse, db DataBase) {
 	obj := DbTableIdObject{Code: 13}
 	idx, err := db.GetIndex("Code", DbTableIdObject{})
@@ -1141,15 +1515,23 @@ func getLessObjs(objs []DbTableIdObject, houses []DbHouse, db DataBase) {
 	if err != nil {
 		log.Fatalln(err)
 	}
+	tmp := DbTableIdObject{}
+	it.Data(&tmp)
 	i := 2
+	if tmp != objs[i] {
+		logObj(objs[i])
+		logObj(tmp)
+		log.Fatalln("failed")
+	}
 	for it.Next() {
+		i++
 		tmp := DbTableIdObject{}
 		it.Data(&tmp)
 		if tmp != objs[i] {
 			logObj(objs[i])
 			logObj(tmp)
+			log.Fatalln("failed")
 		}
-		i++
 	}
 	it.Release()
 
@@ -1162,16 +1544,23 @@ func getLessObjs(objs []DbTableIdObject, houses []DbHouse, db DataBase) {
 	if err != nil {
 		log.Fatalln(err)
 	}
+	tmp = DbTableIdObject{}
+	it.Data(&tmp)
 	i = 0
+	if tmp != objs[i] {
+		logObj(objs[i])
+		logObj(tmp)
+		log.Fatalln("failed")
+	}
 	for it.Next() {
+		i++
 		tmp := DbTableIdObject{}
 		it.Data(&tmp)
-		//logObj(tmp)
 		if tmp != objs[i] {
 			logObj(objs[i])
 			logObj(tmp)
+			log.Fatalln("failed")
 		}
-		i++
 	}
 	it.Release()
 }
@@ -1205,15 +1594,20 @@ func modifyObjs(db DataBase) {
 func findObjs(objs []DbTableIdObject, houses []DbHouse, db DataBase) {
 	obj := DbTableIdObject{ID: 4}
 	tmp := DbTableIdObject{}
-	err := db.Find("id", obj, &tmp)
-	if err != nil {
-		log.Fatalln(err)
-	}
-	if tmp != objs[3] {
-		log.Fatalln("Find Object")
-	}
-	//logObj(tmp)
+	// find id
 	{
+		/* id  1 2 3 4 5 6 7 8 */
+		err := db.Find("id", obj, &tmp)
+		if err != nil {
+			log.Fatalln(err)
+		}
+		if tmp != objs[3] {
+			log.Fatalln("Find Object")
+		}
+	}
+	// find Area
+	{
+		/* Area 17 18 19  	27 28 29 		37 38 39*/
 		hou := DbHouse{Area: 18}
 		tmp := DbHouse{}
 		err := db.Find("Area", hou, &tmp)
@@ -1227,19 +1621,29 @@ func findObjs(objs []DbTableIdObject, houses []DbHouse, db DataBase) {
 		}
 	}
 
+	// getIndex Area
 	{
+		/* Area 17 18 19  	27 28 29 		37 38 39*/
 		idx, err := db.GetIndex("Area", DbHouse{})
 		if err != nil {
 			log.Fatalln(err)
 		}
-
 		hou := DbHouse{Area: 18}
 		it, err := idx.LowerBound(hou)
 		if err != nil {
 			log.Fatalln(err)
 		}
+		tmp := DbHouse{}
+		it.Data(&tmp)
 		i := 1
+		if houses[i] != tmp {
+			logObj(tmp)
+			logObj(houses[i])
+			log.Fatalln("Find Object")
+		}
+
 		for it.Next() {
+			i++
 			tmp := DbHouse{}
 			it.Data(&tmp)
 			if houses[i] != tmp {
@@ -1247,15 +1651,15 @@ func findObjs(objs []DbTableIdObject, houses []DbHouse, db DataBase) {
 				logObj(houses[i])
 				log.Fatalln("Find Object")
 			}
-			i++
 		}
 		it.Release()
 	}
 }
 
 func findInLineFieldObjs(objs []DbTableIdObject, houses []DbHouse, db DataBase) {
+
+	/* Lion 17 18 19  	27 28 29 		37 38 39*/
 	hou := DbHouse{Carnivore: Carnivore{28, 38}}
-	//idx,err := db.GetIndex("Tiger", hou)
 	idx, err := db.GetIndex("Lion", hou)
 	if err != nil {
 		log.Fatalln(err)
@@ -1266,8 +1670,15 @@ func findInLineFieldObjs(objs []DbTableIdObject, houses []DbHouse, db DataBase) 
 		log.Fatalln(err)
 	}
 	i := 4
-	defer it.Release()
+	tmp := DbHouse{}
+	it.Data(&tmp)
+	if tmp != houses[i] {
+		logObj(houses[i])
+		logObj(tmp)
+		log.Fatalln("findInLineFieldObjs")
+	}
 	for it.Next() {
+		i++
 		tmp := DbHouse{}
 		it.Data(&tmp)
 		if tmp != houses[i] {
@@ -1275,8 +1686,8 @@ func findInLineFieldObjs(objs []DbTableIdObject, houses []DbHouse, db DataBase) 
 			logObj(tmp)
 			log.Fatalln("findInLineFieldObjs")
 		}
-		i++
 	}
+	it.Release()
 }
 
 func removeUnique(db DataBase) {
@@ -1302,7 +1713,7 @@ func removeUnique(db DataBase) {
 
 	tmp = DbTableIdObject{}
 	err = db.Find("id", obj, &tmp)
-	if err == nil {
+	if err != ErrNotFound {
 		log.Fatalln("test remove failed")
 	}
 }

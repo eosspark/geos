@@ -2,9 +2,11 @@ package chain
 
 import (
 	"fmt"
+	"github.com/eosspark/container/maps/treemap"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto"
+	"github.com/eosspark/eos-go/crypto/abi"
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/eosspark/eos-go/database"
@@ -13,7 +15,6 @@ import (
 	. "github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/log"
 	"github.com/eosspark/eos-go/wasmgo"
-	"github.com/eosspark/container/maps/treemap"
 	"os"
 )
 
@@ -118,9 +119,9 @@ func validPath() {
 		if os.IsNotExist(err) {
 			err := os.MkdirAll(d, os.ModePerm)
 			if err != nil {
-				log.Error("controller validPath mkdir failed![%v]\n", err.Error())
+				log.Info("controller validPath mkdir failed![%v]\n", err.Error())
 			} else {
-				log.Error("controller validPath mkdir success![%v]\n", d)
+				log.Info("controller validPath mkdir success![%v]\n", d)
 			}
 		}
 	}
@@ -175,7 +176,7 @@ func newController() *Controller {
 	//IrreversibleBlock.connect()
 	//readycontroller = make(chan bool)
 	//go initResource(con, readycontroller)
-	con.Pending = &PendingState{}
+	//con.Pending = &PendingState{}
 	con.ResourceLimits = newResourceLimitsManager(con)
 	con.Authorization = newAuthorizationManager(con)
 	con.initialize()
@@ -292,14 +293,15 @@ func (c *Controller) OnIrreversible(s *types.BlockState) {
 }
 
 func (c *Controller) AbortBlock() {
-	if common.Empty(c.Pending) {
+	if c.Pending != nil {
 		if c.ReadMode == SPECULATIVE {
-			trx := append(c.Pending.PendingBlockState.Trxs)
-			step := 0
-			for ; step < len(trx); step++ {
-				c.UnappliedTransactions[crypto.Sha256(trx[step].SignedID)] = *trx[step]
+			if c.Pending.PendingBlockState != nil {
+				for _, trx := range c.Pending.PendingBlockState.Trxs {
+					c.UnappliedTransactions[crypto.Sha256(trx.SignedID)] = *trx
+				}
 			}
 		}
+		c.Pending = c.Pending.Reset()
 	}
 }
 func (c *Controller) StartBlock(when types.BlockTimeStamp, confirmBlockCount uint16) {
@@ -308,10 +310,10 @@ func (c *Controller) StartBlock(when types.BlockTimeStamp, confirmBlockCount uin
 	c.ValidateDbAvailableSize()
 }
 func (c *Controller) startBlock(when types.BlockTimeStamp, confirmBlockCount uint16, s types.BlockStatus, producerBlockId *common.BlockIdType) {
-	EosAssert(c.Pending != nil, &BlockValidateException{}, "pending block already exists")
+	EosAssert(c.Pending == nil, &BlockValidateException{}, "pending block already exists")
 	defer func() {
-		if PendingValid {
-			c.Pending.Reset()
+		if c.Pending.PendingValid {
+			c.Pending = c.Pending.Reset()
 		}
 	}()
 	if !c.SkipDbSession(s) {
@@ -351,13 +353,13 @@ func (c *Controller) startBlock(when types.BlockTimeStamp, confirmBlockCount uin
 
 		Try(func() {
 			signedTransaction := c.GetOnBlockTransaction()
-			onbtrx := types.TransactionMetadata{Trx: &signedTransaction}
+			onbtrx := types.NewTransactionMetadataBySignedTrx(&signedTransaction, 0)
 			onbtrx.Implicit = true
 			defer func(b bool) {
 				c.InTrxRequiringChecks = b
 			}(c.InTrxRequiringChecks)
 			c.InTrxRequiringChecks = true
-			c.pushTransaction(&onbtrx, common.MaxTimePoint(), gpo.Configuration.MinTransactionCpuUsage, true)
+			c.pushTransaction(onbtrx, common.MaxTimePoint(), gpo.Configuration.MinTransactionCpuUsage, true)
 		}).Catch(func(e Exception) {
 			log.Error("Controller StartBlock exception:%s", e.Message())
 			Throw(e)
@@ -368,7 +370,7 @@ func (c *Controller) startBlock(when types.BlockTimeStamp, confirmBlockCount uin
 		c.clearExpiredInputTransactions()
 		c.updateProducersAuthority()
 	}
-	PendingValid = true
+	//c.Pending.PendingValid = false
 }
 
 func (c *Controller) pushReceipt(trx interface{}, status types.TransactionStatus, cpuUsageUs uint64, netUsage uint64) *types.TransactionReceipt {
@@ -665,10 +667,7 @@ func (c *Controller) pushScheduledTransactionByObject(gto *entity.GeneratedTrans
 		log.Error("PushScheduleTransaction1 DecodeBytes is error :%s", err.Error())
 	}
 
-	trx := &types.TransactionMetadata{}
-	trx.Trx = &dtrx
-	trx.Accepted = true
-	trx.Scheduled = true
+	//trx := types.NewTransactionMetadataBySignedTrx(&dtrx,0) //TODO emit
 
 	trace := &types.TransactionTrace{}
 	if gtrx.Expiration < c.PendingBlockTime() {
@@ -840,7 +839,7 @@ func (c *Controller) setTrxMerkle() {
 }
 func (c *Controller) FinalizeBlock() {
 
-	EosAssert(!common.Empty(c.Pending), &BlockValidateException{}, "it is not valid to finalize when there is no pending block")
+	EosAssert(c.Pending != nil, &BlockValidateException{}, "it is not valid to finalize when there is no pending block")
 
 	c.ResourceLimits.ProcessAccountLimitUpdates()
 	chainConfig := c.GetGlobalProperties().Configuration
@@ -898,9 +897,8 @@ func (c *Controller) applyBlock(b *types.SignedBlock, s types.BlockStatus) {
 			numPendingReceipts := len(c.Pending.PendingBlockState.SignedBlock.Transactions)
 			if common.Empty(receipt.Trx.PackedTransaction) {
 				pt := receipt.Trx.PackedTransaction
-				mtrx := types.TransactionMetadata{}
-				mtrx.PackedTrx = pt
-				trace = c.pushTransaction(&mtrx, common.TimePoint(common.MaxMicroseconds()), receipt.CpuUsageUs, true)
+				mtrx := types.NewTransactionMetadata(pt)
+				trace = c.pushTransaction(mtrx, common.TimePoint(common.MaxMicroseconds()), receipt.CpuUsageUs, true)
 			} else if common.Empty(receipt.Trx.TransactionID) {
 				trace = c.PushScheduledTransaction(&receipt.Trx.TransactionID, common.TimePoint(common.MaxMicroseconds()), receipt.CpuUsageUs)
 			} else {
@@ -942,32 +940,31 @@ func (c *Controller) applyBlock(b *types.SignedBlock, s types.BlockStatus) {
 
 func (c *Controller) CommitBlock(addToForkDb bool) {
 	defer func() {
-		if PendingValid {
+		if c.Pending.PendingValid {
 			c.Pending.Reset()
 		}
 	}()
-	//try{
-	if addToForkDb {
-		c.Pending.PendingBlockState.Validated = true
-		newBsp := c.ForkDB.AddBlockState(c.Pending.PendingBlockState)
-		//emit(self.accepted_block_header, pending->_pending_block_state)
-		c.Head = c.ForkDB.Header()
-		EosAssert(newBsp == c.Head, &ForkDatabaseException{}, "committed block did not become the new head in fork database")
-	}
+	Try(func() {
+		if addToForkDb {
+			c.Pending.PendingBlockState.Validated = true
+			newBsp := c.ForkDB.AddBlockState(c.Pending.PendingBlockState)
+			//emit(self.accepted_block_header, pending->_pending_block_state)
+			c.Head = c.ForkDB.Header()
+			EosAssert(newBsp == c.Head, &ForkDatabaseException{}, "committed block did not become the new head in fork database")
+		}
 
-	if !c.RePlaying {
-		ubo := entity.ReversibleBlockObject{}
-		ubo.BlockNum = c.Pending.PendingBlockState.BlockNum
-		ubo.SetBlock(c.Pending.PendingBlockState.SignedBlock)
-		c.DB.Insert(&ubo)
-	}
-	//emit( self.accepted_block, pending->_pending_block_state )
-	//catch(){
-	// reset_pending_on_exit.cancel();
-	PendingValid = true //TODO
-	//         abort_block();
-	//throw;
-	// }
+		if !c.RePlaying {
+			ubo := entity.ReversibleBlockObject{}
+			ubo.BlockNum = c.Pending.PendingBlockState.BlockNum
+			ubo.SetBlock(c.Pending.PendingBlockState.SignedBlock)
+			c.DB.Insert(&ubo)
+		}
+		//emit( self.accepted_block, pending->_pending_block_state )
+	}).Catch(func(e interface{}) {
+		c.Pending.PendingValid = true
+		c.AbortBlock()
+		Throw(e)
+	}).End()
 	c.Pending.Push()
 	fmt.Println("commitBlock success!")
 }
@@ -977,12 +974,13 @@ func (c *Controller) PushBlock(b *types.SignedBlock, s types.BlockStatus) {
 	defer func() {
 		c.TrustedProducerLightValidation = false
 	}()
+
 	Try(func() {
 		EosAssert(b == nil, &BlockValidateException{}, "trying to push empty block")
 		EosAssert(s != types.Incomplete, &BlockLogException{}, "invalid block status for a completed block")
 		//emit(self.pre_accepted_block, b )
-		//trust := !c.Config.forceAllChecks && (s== types.Irreversible || s== types.Validated)
-		//newHeader := c.ForkDB.AddSignedBlockState(b,trust)
+		/*trust := !c.Config.forceAllChecks && (s== types.Irreversible || s== types.Validated)
+		newHeaderState := c.ForkDB.AddSignedBlockState(b,trust)*/
 		exist, _ := c.Config.trustedProducers.Find(&b.Producer)
 		if exist {
 			c.TrustedProducerLightValidation = true
@@ -994,9 +992,7 @@ func (c *Controller) PushBlock(b *types.SignedBlock, s types.BlockStatus) {
 		if s == types.Irreversible {
 			//emit( self.irreversible_block, new_header_state )
 		}
-	}).Catch(func(e Exception) {
-		fmt.Println("Controller PushBlock exception:", e.Message())
-	}).End()
+	}).FcLogAndRethrow()
 
 }
 
@@ -1502,7 +1498,7 @@ func (c *Controller) CreateNativeAccount(name common.AccountName, owner types.Au
 	account.CreationDate = types.BlockTimeStamp(c.Config.genesis.InitialTimestamp)
 	account.Privileged = isPrivileged
 	if name == common.AccountName(common.DefaultConfig.SystemAccountName) {
-		abiDef := types.AbiDef{}
+		abiDef := abi.AbiDef{}
 		account.SetAbi(EosioContractAbi(abiDef))
 	}
 	err := c.DB.Insert(&account)
@@ -1532,6 +1528,7 @@ func (c *Controller) initializeForkDB() {
 	gs := types.GetGenesisStateInstance()
 	pst := types.ProducerScheduleType{0, []types.ProducerKey{
 		{common.DefaultConfig.SystemAccountName, gs.InitialKey}}}
+	fmt.Println(gs.InitialKey)
 	genHeader := types.BlockHeaderState{}
 	genHeader.ActiveSchedule = pst
 	genHeader.PendingSchedule = pst
@@ -1578,6 +1575,7 @@ func (c *Controller) initializeDatabase() {
 	c.GpoCache[gpo.ID] = &gpo
 	if err != nil {
 		log.Error("Controller initializeDatabase insert GlobalPropertyObject is error:%s", err)
+		EosAssert(err == nil, &DatabaseException{}, err.Error())
 	}
 	dgpo := entity.DynamicGlobalPropertyObject{}
 	dgpo.ID = 1
@@ -1662,6 +1660,7 @@ func (c *Controller) initialize() {
 	ubi, err := c.ReversibleBlocks.GetIndex("byNum", &rbi)
 	if err != nil {
 		fmt.Errorf("initialize database ReversibleBlocks GetIndex is error :%s", err.Error())
+		EosAssert(err == nil, &DatabaseException{}, err.Error())
 	}
 	//c++ rbegin and rend
 	objitr := ubi.End()
@@ -1686,28 +1685,28 @@ func (c *Controller) clearExpiredInputTransactions() {
 	transactionIdx, err := c.DB.GetIndex("byExpiration", &entity.TransactionObject{})
 
 	now := c.PendingBlockTime()
-	t := &entity.TransactionObject{}
+	t := entity.TransactionObject{}
 	if !transactionIdx.Empty() {
 		err = transactionIdx.Begin().Data(&t)
 		if err != nil {
 			log.Error("controller clearExpiredInputTransactions transactionIdx.Begin() is error: %s", err.Error())
-			//EosAssert(err==nil, "controller clearExpiredInputTransactions transactionIdx.Begin() is error: %s", err.Error())
+			EosAssert(err == nil, &DatabaseException{}, err.Error())
 			return
 		}
-		for now > common.TimePoint(t.Expiration) {
+		for transactionIdx != nil && now > common.TimePoint(t.Expiration) {
 			tmp := &entity.TransactionObject{}
 			itr := transactionIdx.Begin()
 			if itr != nil {
 				err = itr.Data(tmp)
 				if err != nil {
 					log.Error("TransactionIdx.Begin Is Error:%s", err.Error())
+					EosAssert(err == nil, &DatabaseException{}, err.Error())
 					return
 				}
 			}
 			c.DB.Remove(tmp)
 		}
 	}
-
 }
 
 func (c *Controller) CheckActorList(actors *common.FlatSet) {
@@ -1765,6 +1764,7 @@ func (c *Controller) createBlockSummary(id *common.BlockIdType) {
 	err := c.DB.Find("id", &bso, &bso)
 	if err != nil {
 		log.Error("Controller createBlockSummary is error:%s", err.Error())
+		EosAssert(err == nil, &DatabaseException{}, err.Error())
 	}
 	c.DB.Modify(bso, func(b *entity.BlockSummaryObject) {
 		b.BlockId = *id
