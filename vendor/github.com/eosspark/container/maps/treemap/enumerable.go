@@ -81,3 +81,36 @@ func (m *Map) Find(f func(key interface{}, value interface{}) bool) (interface{}
 	}
 	return nil, nil
 }
+
+// Each calls the given function once for each element, passing that element's key and value.
+func (m *MultiMap) Each(f func(key interface{}, value interface{})) {
+	iterator := m.Iterator()
+	for iterator.Next() {
+		f(iterator.Key(), iterator.Value())
+	}
+}
+
+// Map invokes the given function once for each element and returns a container
+// containing the values returned by the given function as key/value pairs.
+func (m *MultiMap) Map(f func(key1 interface{}, value1 interface{}) (interface{}, interface{})) *MultiMap {
+	newMap := &MultiMap{tree: rbt.NewWith(m.tree.Comparator)}
+	iterator := m.Iterator()
+	for iterator.Next() {
+		key2, value2 := f(iterator.Key(), iterator.Value())
+		newMap.Put(key2, value2)
+	}
+	return newMap
+}
+
+// Find passes each element of the container to the given function and returns
+// the first (key,value) for which the function is true or nil,nil otherwise if no element
+// matches the criteria.
+func (m *MultiMap) Find(f func(key interface{}, value interface{}) bool) (interface{}, interface{}) {
+	iterator := m.Iterator()
+	for iterator.Next() {
+		if f(iterator.Key(), iterator.Value()) {
+			return iterator.Key(), iterator.Value()
+		}
+	}
+	return nil, nil
+}
