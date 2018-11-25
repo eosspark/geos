@@ -93,17 +93,10 @@ func copyNode(nd *Node) *Node {
 	return n
 }
 
-func (tree *Tree) Put(key interface{}, value interface{}) {
-	tree.put(key, value, false)
-}
-
-func (tree *Tree) MultiPut(key interface{}, value interface{}) {
-	tree.put(key, value, true)
-}
 
 // Put inserts node into the tree.
 // Key should adhere to the comparator's type assertion, otherwise method panics.
-func (tree *Tree) put(key interface{}, value interface{}, multi bool) {
+func (tree *Tree) Put(key interface{}, value interface{}) {
 	var insertedNode *Node
 	if tree.Root == nil {
 		// Assert key is of comparator's type for initial tree
@@ -116,11 +109,11 @@ func (tree *Tree) put(key interface{}, value interface{}, multi bool) {
 		for loop {
 			compare := tree.Comparator(key, node.Key)
 			switch {
-			case compare == 0 && !multi:
+			case compare == 0:
 				node.Key = key
 				node.Value = value
 				return
-			case compare <= 0:
+			case compare < 0:
 				if node.Left == nil {
 					node.Left = &Node{Key: key, Value: value, color: red}
 					insertedNode = node.Left
@@ -129,6 +122,43 @@ func (tree *Tree) put(key interface{}, value interface{}, multi bool) {
 					node = node.Left
 				}
 			case compare > 0:
+				if node.Right == nil {
+					node.Right = &Node{Key: key, Value: value, color: red}
+					insertedNode = node.Right
+					loop = false
+				} else {
+					node = node.Right
+				}
+			}
+		}
+		insertedNode.Parent = node
+	}
+	tree.insertCase1(insertedNode)
+	tree.size++
+}
+
+func (tree *Tree) MultiPut(key interface{}, value interface{}) {
+	var insertedNode *Node
+	if tree.Root == nil {
+		// Assert key is of comparator's type for initial tree
+		tree.Comparator(key, key)
+		tree.Root = &Node{Key: key, Value: value, color: red}
+		insertedNode = tree.Root
+	} else {
+		node := tree.Root
+		loop := true
+		for loop {
+			compare := tree.Comparator(key, node.Key)
+			switch {
+			case compare < 0:
+				if node.Left == nil {
+					node.Left = &Node{Key: key, Value: value, color: red}
+					insertedNode = node.Left
+					loop = false
+				} else {
+					node = node.Left
+				}
+			case compare >= 0:
 				if node.Right == nil {
 					node.Right = &Node{Key: key, Value: value, color: red}
 					insertedNode = node.Right
@@ -155,11 +185,30 @@ func (tree *Tree) Get(key interface{}) (value interface{}, found bool) {
 	return nil, false
 }
 
+func (tree *Tree) MultiGet(key interface{}) (iterator Iterator, found bool) {
+	return tree.lookupEqual(key)
+}
+
 // Remove remove the node from the tree by key.
 // Key should adhere to the comparator's type assertion, otherwise method panics.
 func (tree *Tree) Remove(key interface{}) {
-	var child *Node
 	node := tree.lookup(key)
+	tree.remove(node)
+}
+
+func (tree *Tree) MultiRemove(key interface{}) {
+	if iterator, found := tree.lookupEqual(key); found {
+		node := iterator.node
+		for iterator.Next() && tree.Comparator(key, iterator.Key()) == 0 {
+			tree.remove(node)
+			node = iterator.node
+		}
+		tree.remove(node)
+	}
+}
+
+func (tree *Tree) remove(node *Node) {
+	var child *Node
 	if node == nil {
 		return
 	}
@@ -313,7 +362,10 @@ func (tree *Tree) String() string {
 }
 
 func (node *Node) String() string {
-	return fmt.Sprintf("%v", node.Key)
+	if !node.color {
+		return fmt.Sprintf("(%v:%v)", node.Key, "red")
+	}
+	return fmt.Sprintf("(%v)", node.Key)
 }
 
 func output(node *Node, prefix string, isTail bool, str *string) {
@@ -358,6 +410,32 @@ func (tree *Tree) lookup(key interface{}) *Node {
 		}
 	}
 	return nil
+}
+
+func (tree *Tree) lookupEqual(key interface{}) (Iterator, bool) {
+	node := tree.Root
+	for node != nil {
+		compare := tree.Comparator(key, node.Key)
+		switch {
+		case compare == 0:
+			iterator := Iterator{tree: tree, node: node, position: between}
+			for iterator.Prev() {
+				if iterator.Key() != node.Key {
+					break
+				}
+			}
+
+			iterator.Next()
+
+			return iterator, true
+
+		case compare < 0:
+			node = node.Left
+		case compare > 0:
+			node = node.Right
+		}
+	}
+	return Iterator{tree: tree, node: nil, position: end}, false
 }
 
 func (node *Node) grandparent() *Node {

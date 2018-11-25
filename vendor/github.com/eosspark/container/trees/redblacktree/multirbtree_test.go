@@ -7,32 +7,32 @@ package redblacktree
 import (
 	"fmt"
 	"testing"
-	"math/rand"
+		"math/rand"
 )
 
-func TestRedBlackTreePut(t *testing.T) {
+func TestRedBlackTreeMultiPut(t *testing.T) {
 	tree := NewWithIntComparator()
-	tree.Put(5, "e")
-	tree.Put(6, "f")
-	tree.Put(7, "g")
-	tree.Put(3, "c")
-	tree.Put(4, "d")
-	tree.Put(1, "x")
-	tree.Put(2, "b")
-	tree.Put(1, "a") //overwrite
+	tree.MultiPut(5, "e")
+	tree.MultiPut(6, "f")
+	tree.MultiPut(7, "g")
+	tree.MultiPut(3, "c")
+	tree.MultiPut(4, "d")
+	tree.MultiPut(1, "x")
+	tree.MultiPut(2, "b")
+	tree.MultiPut(1, "a") //overwrite
 
-	if actualValue := tree.Size(); actualValue != 7 {
-		t.Errorf("Got %v expected %v", actualValue, 7)
+	if actualValue := tree.Size(); actualValue != 8 {
+		t.Errorf("Got %v expected %v", actualValue, 8)
 	}
-	if actualValue, expectedValue := fmt.Sprintf("%d%d%d%d%d%d%d", tree.Keys()...), "1234567"; actualValue != expectedValue {
+	if actualValue, expectedValue := fmt.Sprintf("%d%d%d%d%d%d%d%d", tree.Keys()...), "11234567"; actualValue != expectedValue {
 		t.Errorf("Got %v expected %v", actualValue, expectedValue)
 	}
-	if actualValue, expectedValue := fmt.Sprintf("%s%s%s%s%s%s%s", tree.Values()...), "abcdefg"; actualValue != expectedValue {
+	if actualValue, expectedValue := fmt.Sprintf("%s%s%s%s%s%s%s%s", tree.Values()...), "xabcdefg"; actualValue != expectedValue {
 		t.Errorf("Got %v expected %v", actualValue, expectedValue)
 	}
 
 	tests1 := [][]interface{}{
-		{1, "a", true},
+		{1, "x", true},
 		{2, "b", true},
 		{3, "c", true},
 		{4, "d", true},
@@ -44,45 +44,42 @@ func TestRedBlackTreePut(t *testing.T) {
 
 	for _, test := range tests1 {
 		// retrievals
-		actualValue, actualFound := tree.Get(test[0])
-		if actualValue != test[1] || actualFound != test[2] {
+		actualValue, actualFound := tree.MultiGet(test[0])
+		if actualFound != test[2] || (actualFound && actualValue.Value() != test[1]) {
 			t.Errorf("Got %v expected %v", actualValue, test[1])
 		}
 	}
 }
 
-func TestRedBlackTreeRemove(t *testing.T) {
+func TestRedBlackTreeMultiRemove(t *testing.T) {
 	tree := NewWithIntComparator()
-	tree.Put(5, "e")
-	tree.Put(6, "f")
-	tree.Put(7, "g")
-	tree.Put(3, "c")
-	tree.Put(4, "d")
-	tree.Put(1, "x")
-	tree.Put(2, "b")
-	tree.Put(1, "a") //overwrite
+	tree.MultiPut(5, "e")
+	tree.MultiPut(6, "f")
+	tree.MultiPut(7, "g")
+	tree.MultiPut(3, "c")
+	tree.MultiPut(4, "d")
+	tree.MultiPut(1, "x")
+	tree.MultiPut(2, "b")
+	tree.MultiPut(1, "a") //overwrite
 
-	tree.Remove(5)
-	tree.Remove(6)
-	tree.Remove(7)
-	tree.Remove(8)
-	tree.Remove(5)
+	tree.MultiRemove(5)
+	tree.MultiRemove(6)
+	tree.MultiRemove(7)
+	tree.MultiRemove(8)
+	tree.MultiRemove(5)
 
-	if actualValue, expectedValue := fmt.Sprintf("%d%d%d%d", tree.Keys()...), "1234"; actualValue != expectedValue {
+	if actualValue, expectedValue := fmt.Sprintf("%d%d%d%d%d", tree.Keys()...), "11234"; actualValue != expectedValue {
 		t.Errorf("Got %v expected %v", actualValue, expectedValue)
 	}
-	if actualValue, expectedValue := fmt.Sprintf("%s%s%s%s", tree.Values()...), "abcd"; actualValue != expectedValue {
+	if actualValue, expectedValue := fmt.Sprintf("%s%s%s%s%s", tree.Values()...), "xabcd"; actualValue != expectedValue {
 		t.Errorf("Got %v expected %v", actualValue, expectedValue)
 	}
-	if actualValue, expectedValue := fmt.Sprintf("%s%s%s%s", tree.Values()...), "abcd"; actualValue != expectedValue {
-		t.Errorf("Got %v expected %v", actualValue, expectedValue)
-	}
-	if actualValue := tree.Size(); actualValue != 4 {
-		t.Errorf("Got %v expected %v", actualValue, 7)
+	if actualValue := tree.Size(); actualValue != 5 {
+		t.Errorf("Got %v expected %v", actualValue, 5)
 	}
 
 	tests2 := [][]interface{}{
-		{1, "a", true},
+		{1, "x", true},
 		{2, "b", true},
 		{3, "c", true},
 		{4, "d", true},
@@ -93,18 +90,18 @@ func TestRedBlackTreeRemove(t *testing.T) {
 	}
 
 	for _, test := range tests2 {
-		actualValue, actualFound := tree.Get(test[0])
-		if actualValue != test[1] || actualFound != test[2] {
+		actualValue, actualFound := tree.MultiGet(test[0])
+		if actualFound != test[2] || (actualFound && actualValue.Value() != test[1]) {
 			t.Errorf("Got %v expected %v", actualValue, test[1])
 		}
 	}
 
-	tree.Remove(1)
-	tree.Remove(4)
-	tree.Remove(2)
-	tree.Remove(3)
-	tree.Remove(2)
-	tree.Remove(2)
+	tree.MultiRemove(1)
+	tree.MultiRemove(4)
+	tree.MultiRemove(2)
+	tree.MultiRemove(3)
+	tree.MultiRemove(2)
+	tree.MultiRemove(2)
 
 	if actualValue, expectedValue := fmt.Sprintf("%s", tree.Keys()), "[]"; actualValue != expectedValue {
 		t.Errorf("Got %v expected %v", actualValue, expectedValue)
@@ -118,7 +115,7 @@ func TestRedBlackTreeRemove(t *testing.T) {
 
 }
 
-func TestRedBlackTreeLeftAndRight(t *testing.T) {
+func TestRedBlackMultiTreeLeftAndRight(t *testing.T) {
 	tree := NewWithIntComparator()
 
 	if actualValue := tree.Left(); actualValue != nil {
@@ -128,19 +125,19 @@ func TestRedBlackTreeLeftAndRight(t *testing.T) {
 		t.Errorf("Got %v expected %v", actualValue, nil)
 	}
 
-	tree.Put(1, "a")
-	tree.Put(5, "e")
-	tree.Put(6, "f")
-	tree.Put(7, "g")
-	tree.Put(3, "c")
-	tree.Put(4, "d")
-	tree.Put(1, "x") // overwrite
-	tree.Put(2, "b")
+	tree.MultiPut(1, "a")
+	tree.MultiPut(5, "e")
+	tree.MultiPut(6, "f")
+	tree.MultiPut(7, "g")
+	tree.MultiPut(3, "c")
+	tree.MultiPut(4, "d")
+	tree.MultiPut(1, "x") // overwrite
+	tree.MultiPut(2, "b")
 
 	if actualValue, expectedValue := fmt.Sprintf("%d", tree.Left().Key), "1"; actualValue != expectedValue {
 		t.Errorf("Got %v expected %v", actualValue, expectedValue)
 	}
-	if actualValue, expectedValue := fmt.Sprintf("%s", tree.Left().Value), "x"; actualValue != expectedValue {
+	if actualValue, expectedValue := fmt.Sprintf("%s", tree.Left().Value), "a"; actualValue != expectedValue {
 		t.Errorf("Got %v expected %v", actualValue, expectedValue)
 	}
 
@@ -152,7 +149,7 @@ func TestRedBlackTreeLeftAndRight(t *testing.T) {
 	}
 }
 
-func TestRedBlackTreeCeilingAndFloor(t *testing.T) {
+func TestRedBlackMultiTreeCeilingAndFloor(t *testing.T) {
 	tree := NewWithIntComparator()
 
 	if node, found := tree.Floor(0); node != nil || found {
@@ -162,13 +159,13 @@ func TestRedBlackTreeCeilingAndFloor(t *testing.T) {
 		t.Errorf("Got %v expected %v", node, "<nil>")
 	}
 
-	tree.Put(5, "e")
-	tree.Put(6, "f")
-	tree.Put(7, "g")
-	tree.Put(3, "c")
-	tree.Put(4, "d")
-	tree.Put(1, "x")
-	tree.Put(2, "b")
+	tree.MultiPut(5, "e")
+	tree.MultiPut(6, "f")
+	tree.MultiPut(7, "g")
+	tree.MultiPut(3, "c")
+	tree.MultiPut(4, "d")
+	tree.MultiPut(1, "x")
+	tree.MultiPut(2, "b")
 
 	if node, found := tree.Floor(4); node.Key != 4 || !found {
 		t.Errorf("Got %v expected %v", node.Key, 4)
@@ -185,7 +182,7 @@ func TestRedBlackTreeCeilingAndFloor(t *testing.T) {
 	}
 }
 
-func TestRedBlackTreeIteratorNextOnEmpty(t *testing.T) {
+func TestRedBlackMultiTreeIteratorNextOnEmpty(t *testing.T) {
 	tree := NewWithIntComparator()
 	it := tree.Iterator()
 	for it.Next() {
@@ -193,7 +190,7 @@ func TestRedBlackTreeIteratorNextOnEmpty(t *testing.T) {
 	}
 }
 
-func TestRedBlackTreeIteratorPrevOnEmpty(t *testing.T) {
+func TestRedBlackMultiTreeIteratorPrevOnEmpty(t *testing.T) {
 	tree := NewWithIntComparator()
 	it := tree.Iterator()
 	for it.Prev() {
@@ -201,16 +198,15 @@ func TestRedBlackTreeIteratorPrevOnEmpty(t *testing.T) {
 	}
 }
 
-func TestRedBlackTreeIterator1Next(t *testing.T) {
+func TestRedBlackMultiTreeIterator1Next(t *testing.T) {
 	tree := NewWithIntComparator()
-	tree.Put(5, "e")
-	tree.Put(6, "f")
-	tree.Put(7, "g")
-	tree.Put(3, "c")
-	tree.Put(4, "d")
-	tree.Put(1, "x")
-	tree.Put(2, "b")
-	tree.Put(1, "a") //overwrite
+	tree.MultiPut(5, "e")
+	tree.MultiPut(6, "f")
+	tree.MultiPut(7, "g")
+	tree.MultiPut(3, "c")
+	tree.MultiPut(4, "d")
+	tree.MultiPut(2, "b")
+	tree.MultiPut(1, "a") //overwrite
 	// │   ┌── 7
 	// └── 6
 	//     │   ┌── 5
@@ -239,16 +235,15 @@ func TestRedBlackTreeIterator1Next(t *testing.T) {
 	}
 }
 
-func TestRedBlackTreeIterator1Prev(t *testing.T) {
+func TestRedBlackMultiTreeIterator1Prev(t *testing.T) {
 	tree := NewWithIntComparator()
-	tree.Put(5, "e")
-	tree.Put(6, "f")
-	tree.Put(7, "g")
-	tree.Put(3, "c")
-	tree.Put(4, "d")
-	tree.Put(1, "x")
-	tree.Put(2, "b")
-	tree.Put(1, "a") //overwrite
+	tree.MultiPut(5, "e")
+	tree.MultiPut(6, "f")
+	tree.MultiPut(7, "g")
+	tree.MultiPut(3, "c")
+	tree.MultiPut(4, "d")
+	tree.MultiPut(2, "b")
+	tree.MultiPut(1, "a") //overwrite
 	// │   ┌── 7
 	// └── 6
 	//     │   ┌── 5
@@ -279,11 +274,11 @@ func TestRedBlackTreeIterator1Prev(t *testing.T) {
 	}
 }
 
-func TestRedBlackTreeIterator2Next(t *testing.T) {
+func TestRedBlackMultiTreeIterator2Next(t *testing.T) {
 	tree := NewWithIntComparator()
-	tree.Put(3, "c")
-	tree.Put(1, "a")
-	tree.Put(2, "b")
+	tree.MultiPut(3, "c")
+	tree.MultiPut(1, "a")
+	tree.MultiPut(2, "b")
 	it := tree.Iterator()
 	count := 0
 	for it.Next() {
@@ -305,11 +300,11 @@ func TestRedBlackTreeIterator2Next(t *testing.T) {
 	}
 }
 
-func TestRedBlackTreeIterator2Prev(t *testing.T) {
+func TestRedBlackMultiTreeIterator2Prev(t *testing.T) {
 	tree := NewWithIntComparator()
-	tree.Put(3, "c")
-	tree.Put(1, "a")
-	tree.Put(2, "b")
+	tree.MultiPut(3, "c")
+	tree.MultiPut(1, "a")
+	tree.MultiPut(2, "b")
 	it := tree.Iterator()
 	for it.Next() {
 	}
@@ -333,9 +328,9 @@ func TestRedBlackTreeIterator2Prev(t *testing.T) {
 	}
 }
 
-func TestRedBlackTreeIterator3Next(t *testing.T) {
+func TestRedBlackMultiTreeIterator3Next(t *testing.T) {
 	tree := NewWithIntComparator()
-	tree.Put(1, "a")
+	tree.MultiPut(1, "a")
 	it := tree.Iterator()
 	count := 0
 	for it.Next() {
@@ -357,9 +352,9 @@ func TestRedBlackTreeIterator3Next(t *testing.T) {
 	}
 }
 
-func TestRedBlackTreeIterator3Prev(t *testing.T) {
+func TestRedBlackMultiTreeIterator3Prev(t *testing.T) {
 	tree := NewWithIntComparator()
-	tree.Put(1, "a")
+	tree.MultiPut(1, "a")
 	it := tree.Iterator()
 	for it.Next() {
 	}
@@ -383,18 +378,18 @@ func TestRedBlackTreeIterator3Prev(t *testing.T) {
 	}
 }
 
-func TestRedBlackTreeIterator4Next(t *testing.T) {
+func TestRedBlackMultiTreeIterator4Next(t *testing.T) {
 	tree := NewWithIntComparator()
-	tree.Put(13, 5)
-	tree.Put(8, 3)
-	tree.Put(17, 7)
-	tree.Put(1, 1)
-	tree.Put(11, 4)
-	tree.Put(15, 6)
-	tree.Put(25, 9)
-	tree.Put(6, 2)
-	tree.Put(22, 8)
-	tree.Put(27, 10)
+	tree.MultiPut(13, 5)
+	tree.MultiPut(8, 3)
+	tree.MultiPut(17, 7)
+	tree.MultiPut(1, 1)
+	tree.MultiPut(11, 4)
+	tree.MultiPut(15, 6)
+	tree.MultiPut(25, 9)
+	tree.MultiPut(6, 2)
+	tree.MultiPut(22, 8)
+	tree.MultiPut(27, 10)
 	// │           ┌── 27
 	// │       ┌── 25
 	// │       │   └── 22
@@ -426,18 +421,18 @@ func TestRedBlackTreeIterator4Next(t *testing.T) {
 	}
 }
 
-func TestRedBlackTreeIterator4Prev(t *testing.T) {
+func TestRedBlackMultiTreeIterator4Prev(t *testing.T) {
 	tree := NewWithIntComparator()
-	tree.Put(13, 5)
-	tree.Put(8, 3)
-	tree.Put(17, 7)
-	tree.Put(1, 1)
-	tree.Put(11, 4)
-	tree.Put(15, 6)
-	tree.Put(25, 9)
-	tree.Put(6, 2)
-	tree.Put(22, 8)
-	tree.Put(27, 10)
+	tree.MultiPut(13, 5)
+	tree.MultiPut(8, 3)
+	tree.MultiPut(17, 7)
+	tree.MultiPut(1, 1)
+	tree.MultiPut(11, 4)
+	tree.MultiPut(15, 6)
+	tree.MultiPut(25, 9)
+	tree.MultiPut(6, 2)
+	tree.MultiPut(22, 8)
+	tree.MultiPut(27, 10)
 	// │           ┌── 27
 	// │       ┌── 25
 	// │       │   └── 22
@@ -471,11 +466,11 @@ func TestRedBlackTreeIterator4Prev(t *testing.T) {
 	}
 }
 
-func TestRedBlackTreeIteratorBegin(t *testing.T) {
+func TestRedBlackMultiTreeIteratorBegin(t *testing.T) {
 	tree := NewWithIntComparator()
-	tree.Put(3, "c")
-	tree.Put(1, "a")
-	tree.Put(2, "b")
+	tree.MultiPut(3, "c")
+	tree.MultiPut(1, "a")
+	tree.MultiPut(2, "b")
 	it := tree.Iterator()
 
 	if it.node != nil {
@@ -503,7 +498,7 @@ func TestRedBlackTreeIteratorBegin(t *testing.T) {
 	}
 }
 
-func TestRedBlackTreeIteratorEnd(t *testing.T) {
+func TestRedBlackMultiTreeIteratorEnd(t *testing.T) {
 	tree := NewWithIntComparator()
 	it := tree.Iterator()
 
@@ -516,9 +511,9 @@ func TestRedBlackTreeIteratorEnd(t *testing.T) {
 		t.Errorf("Got %v expected %v", it.node, nil)
 	}
 
-	tree.Put(3, "c")
-	tree.Put(1, "a")
-	tree.Put(2, "b")
+	tree.MultiPut(3, "c")
+	tree.MultiPut(1, "a")
+	tree.MultiPut(2, "b")
 	it.End()
 	if it.node != nil {
 		t.Errorf("Got %v expected %v", it.node, nil)
@@ -530,11 +525,11 @@ func TestRedBlackTreeIteratorEnd(t *testing.T) {
 	}
 }
 
-func TestRedBlackTreeIteratorFirst(t *testing.T) {
+func TestRedBlackMultiTreeIteratorFirst(t *testing.T) {
 	tree := NewWithIntComparator()
-	tree.Put(3, "c")
-	tree.Put(1, "a")
-	tree.Put(2, "b")
+	tree.MultiPut(3, "c")
+	tree.MultiPut(1, "a")
+	tree.MultiPut(2, "b")
 	it := tree.Iterator()
 	if actualValue, expectedValue := it.First(), true; actualValue != expectedValue {
 		t.Errorf("Got %v expected %v", actualValue, expectedValue)
@@ -544,11 +539,11 @@ func TestRedBlackTreeIteratorFirst(t *testing.T) {
 	}
 }
 
-func TestRedBlackTreeIteratorLast(t *testing.T) {
+func TestRedBlackMultiTreeIteratorLast(t *testing.T) {
 	tree := NewWithIntComparator()
-	tree.Put(3, "c")
-	tree.Put(1, "a")
-	tree.Put(2, "b")
+	tree.MultiPut(3, "c")
+	tree.MultiPut(1, "a")
+	tree.MultiPut(2, "b")
 	it := tree.Iterator()
 	if actualValue, expectedValue := it.Last(), true; actualValue != expectedValue {
 		t.Errorf("Got %v expected %v", actualValue, expectedValue)
@@ -558,11 +553,11 @@ func TestRedBlackTreeIteratorLast(t *testing.T) {
 	}
 }
 
-func TestRedBlackTreeSerialization(t *testing.T) {
+func TestRedBlackMultiTreeSerialization(t *testing.T) {
 	tree := NewWithStringComparator()
-	tree.Put("c", "3")
-	tree.Put("b", "2")
-	tree.Put("a", "1")
+	tree.MultiPut("c", "3")
+	tree.MultiPut("b", "2")
+	tree.MultiPut("a", "1")
 
 	var err error
 	assert := func() {
@@ -589,174 +584,174 @@ func TestRedBlackTreeSerialization(t *testing.T) {
 	assert()
 }
 
-func benchmarkGet(b *testing.B, tree *Tree, size int) {
+func benchmarkMultiGet(b *testing.B, tree *Tree, size int) {
 	for i := 0; i < b.N; i++ {
 		for n := 0; n < size; n++ {
-			tree.Get(n)
+			tree.MultiGet(n)
 		}
 	}
 }
 
-func benchmarkPut(b *testing.B, tree *Tree, size int) {
+func benchmarkMultiPut(b *testing.B, tree *Tree, size int) {
 	for i := 0; i < b.N; i++ {
 		b.StopTimer()
 		tree.Clear()
 		b.StartTimer()
 		for n := 0; n < size; n++ {
-			tree.Put(n, struct{}{})
+			tree.MultiPut(n, struct{}{})
 		}
 	}
 }
 
-func benchmarkRemove(b *testing.B, tree *Tree, size int) {
+func benchmarkMultiRemove(b *testing.B, tree *Tree, size int) {
 	for i := 0; i < b.N; i++ {
 		for n := 0; n < size; n++ {
-			tree.Remove(n)
+			tree.MultiRemove(n)
 		}
 	}
 }
 
-func BenchmarkRedBlackTreeGet100(b *testing.B) {
+func BenchmarkRedBlackTreeMultiGet100(b *testing.B) {
 	b.StopTimer()
 	size := 100
 	tree := NewWithIntComparator()
 	for n := 0; n < size; n++ {
-		tree.Put(n, struct{}{})
+		tree.MultiPut(n, struct{}{})
 	}
 	b.StartTimer()
-	benchmarkGet(b, tree, size)
+	benchmarkMultiGet(b, tree, size)
 }
 
-func BenchmarkRedBlackTreeGet1000(b *testing.B) {
+func BenchmarkRedBlackTreeMultiGet1000(b *testing.B) {
 	b.StopTimer()
 	size := 1000
 	tree := NewWithIntComparator()
 	for n := 0; n < size; n++ {
-		tree.Put(n, struct{}{})
+		tree.MultiPut(n, struct{}{})
 	}
 	b.StartTimer()
-	benchmarkGet(b, tree, size)
+	benchmarkMultiGet(b, tree, size)
 }
 
-func BenchmarkRedBlackTreeGet10000(b *testing.B) {
+func BenchmarkRedBlackTreeMultiGet10000(b *testing.B) {
 	b.StopTimer()
 	size := 10000
 	tree := NewWithIntComparator()
 	for n := 0; n < size; n++ {
-		tree.Put(n, struct{}{})
+		tree.MultiPut(n, struct{}{})
 	}
 	b.StartTimer()
-	benchmarkGet(b, tree, size)
+	benchmarkMultiGet(b, tree, size)
 }
 
-func BenchmarkRedBlackTreeGet100000(b *testing.B) {
+func BenchmarkRedBlackTreeMultiGet100000(b *testing.B) {
 	b.StopTimer()
 	size := 100000
 	tree := NewWithIntComparator()
 	for n := 0; n < size; n++ {
-		tree.Put(n, struct{}{})
+		tree.MultiPut(n, struct{}{})
 	}
 	b.StartTimer()
-	benchmarkGet(b, tree, size)
+	benchmarkMultiGet(b, tree, size)
 }
 
-func BenchmarkRedBlackTreePut100(b *testing.B) {
+func BenchmarkRedBlackTreeMultiPut100(b *testing.B) {
 	b.StopTimer()
 	size := 100
 	tree := NewWithIntComparator()
 	b.StartTimer()
-	benchmarkPut(b, tree, size)
+	benchmarkMultiPut(b, tree, size)
 }
 
-func BenchmarkRedBlackTreePut1000(b *testing.B) {
+func BenchmarkRedBlackTreeMultiPut1000(b *testing.B) {
 	b.StopTimer()
 	size := 1000
 	tree := NewWithIntComparator()
 	for n := 0; n < size; n++ {
-		tree.Put(n, struct{}{})
+		tree.MultiPut(n, struct{}{})
 	}
 	b.StartTimer()
-	benchmarkPut(b, tree, size)
+	benchmarkMultiPut(b, tree, size)
 }
 
-func BenchmarkRedBlackTreePut10000(b *testing.B) {
+func BenchmarkRedBlackTreeMultiPut10000(b *testing.B) {
 	b.StopTimer()
 	size := 10000
 	tree := NewWithIntComparator()
 	for n := 0; n < size; n++ {
-		tree.Put(n, struct{}{})
+		tree.MultiPut(n, struct{}{})
 	}
 	b.StartTimer()
-	benchmarkPut(b, tree, size)
+	benchmarkMultiPut(b, tree, size)
 }
 
-func BenchmarkRedBlackTreePut100000(b *testing.B) {
+func BenchmarkRedBlackTreeMultiPut100000(b *testing.B) {
 	b.StopTimer()
 	size := 100000
 	tree := NewWithIntComparator()
 	for n := 0; n < size; n++ {
-		tree.Put(n, struct{}{})
+		tree.MultiPut(n, struct{}{})
 	}
 	b.StartTimer()
-	benchmarkPut(b, tree, size)
+	benchmarkMultiPut(b, tree, size)
 }
 
-func BenchmarkRedBlackTreeRemove100(b *testing.B) {
+func BenchmarkRedBlackTreeMultiRemove100(b *testing.B) {
 	b.StopTimer()
 	size := 100
 	tree := NewWithIntComparator()
 	for n := 0; n < size; n++ {
-		tree.Put(n, struct{}{})
+		tree.MultiPut(n, struct{}{})
 	}
 	b.StartTimer()
-	benchmarkRemove(b, tree, size)
+	benchmarkMultiRemove(b, tree, size)
 }
 
-func BenchmarkRedBlackTreeRemove1000(b *testing.B) {
+func BenchmarkRedBlackTreeMultiRemove1000(b *testing.B) {
 	b.StopTimer()
 	size := 1000
 	tree := NewWithIntComparator()
 	for n := 0; n < size; n++ {
-		tree.Put(n, struct{}{})
+		tree.MultiPut(n, struct{}{})
 	}
 	b.StartTimer()
-	benchmarkRemove(b, tree, size)
+	benchmarkMultiRemove(b, tree, size)
 }
 
-func BenchmarkRedBlackTreeRemove10000(b *testing.B) {
+func BenchmarkRedBlackTreeMultiRemove10000(b *testing.B) {
 	b.StopTimer()
 	size := 10000
 	tree := NewWithIntComparator()
 	for n := 0; n < size; n++ {
-		tree.Put(n, struct{}{})
+		tree.MultiPut(n, struct{}{})
 	}
 	b.StartTimer()
-	benchmarkRemove(b, tree, size)
+	benchmarkMultiRemove(b, tree, size)
 }
 
-func BenchmarkRedBlackTreeRemove100000(b *testing.B) {
+func BenchmarkRedBlackTreeMultiRemove100000(b *testing.B) {
 	b.StopTimer()
 	size := 100000
 	tree := NewWithIntComparator()
 	for n := 0; n < size; n++ {
-		tree.Put(n, struct{}{})
+		tree.MultiPut(n, struct{}{})
 	}
 	b.StartTimer()
-	benchmarkRemove(b, tree, size)
+	benchmarkMultiRemove(b, tree, size)
 }
 
-func BenchmarkIterator_Next(b *testing.B) {
+func BenchmarkMultiIterator_Next(b *testing.B) {
 	b.StopTimer()
 	size := 100000
 	tree := NewWithIntComparator()
 	for n := 0; n < size; n++ {
-		tree.Put(rand.Int(), struct{}{})
+		tree.MultiPut(rand.Int(), struct{}{})
 	}
 
 	itr := tree.Iterator()
 	b.StartTimer()
-		for itr.Next() {
+	for itr.Next() {
 
 	}
-	benchmarkRemove(b, tree, size)
+	benchmarkMultiRemove(b, tree, size)
 }

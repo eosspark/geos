@@ -80,3 +80,37 @@ func (set *Set) Find(f func(index int, value interface{}) bool) (int, interface{
 	}
 	return -1, nil
 }
+
+
+// Each calls the given function once for each element, passing that element's index and value.
+func (set *MultiSet) Each(f func(value interface{})) {
+	iterator := set.Iterator()
+	for iterator.Next() {
+		f(iterator.Value())
+	}
+}
+
+// Find passes each element of the container to the given function and returns
+// the first (index,value) for which the function is true or -1,nil otherwise
+// if no element matches the criteria.
+func (set *MultiSet) Find(f func(value interface{}) bool) (interface{}, bool) {
+	iterator := set.Iterator()
+	for iterator.Next() {
+		if f(iterator.Value()) {
+			return iterator.Value(), true
+		}
+	}
+	return nil, false
+}
+
+// Map invokes the given function once for each element and returns a
+// container containing the values returned by the given function.
+func (set *MultiSet) Map(f func(value interface{}) interface{}) *MultiSet {
+	newSet := &MultiSet{tree: rbt.NewWith(set.tree.Comparator)}
+	iterator := set.Iterator()
+	for iterator.Next() {
+		newSet.Add(f(iterator.Value()))
+	}
+	return newSet
+}
+

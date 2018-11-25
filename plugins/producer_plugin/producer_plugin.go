@@ -18,7 +18,9 @@ import (
 	. "github.com/eosspark/eos-go/plugins/appbase/app"
 )
 
-//var log = Log.NewWithHandle("producer", Log.TerminalHandler)
+const ProducerPlug = PluginTypeName("ProducerPlugin")
+
+var producerPlugin Plugin = App().RegisterPlugin(ProducerPlug, NewProducerPlugin(App().GetIoService()))
 
 type ProducerPlugin struct {
 	AbstractPlugin
@@ -48,40 +50,13 @@ type GreylistParams struct {
 	Accounts common.FlatSet
 }
 
-func init() {
-	plug := NewProducerPlugin(App().GetIoService())
-	plug.Plugin = plug
-	plug.Name = PluginName(ProducerPlug)
-	plug.State = State(Registered)
-	App().RegisterPlugin(plug)
-}
-
-//TODO: io from appbase
 func NewProducerPlugin(io *asio.IoContext) *ProducerPlugin {
-	p := new(ProducerPlugin)
+	plugin := &ProducerPlugin{}
 
-	p.my = NewProducerPluginImpl(io)
-	p.my.Self = p
+	plugin.my = NewProducerPluginImpl(io)
+	plugin.my.Self = plugin
 
-	return p
-}
-
-func (p *ProducerPlugin) IsProducerKey(key ecc.PublicKey) bool {
-	privateKey := p.my.SignatureProviders[key]
-	if privateKey != nil {
-		return true
-	}
-	return false
-}
-
-func (p *ProducerPlugin) SignCompact(key *ecc.PublicKey, digest crypto.Sha256) ecc.Signature {
-	if key != nil {
-		privateKeyFunc := p.my.SignatureProviders[*key]
-		EosAssert(privateKeyFunc != nil, &ProducerPrivKeyNotFound{}, "Local producer has no private key in config.ini corresponding to public key %s", key)
-
-		return privateKeyFunc(digest)
-	}
-	return ecc.Signature{}
+	return plugin
 }
 
 func (p *ProducerPlugin) SetProgramOptions(options *[]cli.Flag) {
@@ -278,6 +253,25 @@ func (p *ProducerPlugin) PluginStartup() {
 
 func (p *ProducerPlugin) PluginShutdown() {
 	p.my.Timer.Cancel()
+	log.Info("producer plugin shutdown")
+}
+
+func (p *ProducerPlugin) IsProducerKey(key ecc.PublicKey) bool {
+	privateKey := p.my.SignatureProviders[key]
+	if privateKey != nil {
+		return true
+	}
+	return false
+}
+
+func (p *ProducerPlugin) SignCompact(key *ecc.PublicKey, digest crypto.Sha256) ecc.Signature {
+	if key != nil {
+		privateKeyFunc := p.my.SignatureProviders[*key]
+		EosAssert(privateKeyFunc != nil, &ProducerPrivKeyNotFound{}, "Local producer has no private key in config.ini corresponding to public key %s", key)
+
+		return privateKeyFunc(digest)
+	}
+	return ecc.Signature{}
 }
 
 func (p *ProducerPlugin) Pause() {

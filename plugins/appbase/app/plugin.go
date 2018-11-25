@@ -17,12 +17,19 @@ type Plugin interface {
 	PluginStartup()
 	PluginShutdown()
 
-	GetName() PluginName
-	GetState() State
 	Initialize(options *cli.Context)
 	StartUp()
+	ShutDown()
+
+	GetName() PluginTypeName
+	setName(name PluginTypeName)
+	GetState() State
+	setState(state State)
+
+	bind(plugin Plugin)
 }
 
+type PluginTypeName string
 type PluginName string
 
 const (
@@ -43,43 +50,54 @@ const (
 )
 
 type AbstractPlugin struct {
-	Plugin
-	Name  PluginName
-	State State
+	self  Plugin //must be pointer
+	name  PluginTypeName
+	state State
 }
 
 func (a *AbstractPlugin) ShutDown() {
-	if a.State == Started {
-		a.State = Stopped
-		a.PluginShutdown()
+	if a.state == Started {
+		a.state = Stopped
+		a.self.PluginShutdown()
 	}
 }
 
 func (a *AbstractPlugin) Initialize(options *cli.Context) {
-	if a.State == Registered {
-		a.State = Initialized
-		a.PluginInitialize(options)
-		App().PluginInitialized(a.Plugin)
+	if a.state == Registered {
+		a.state = Initialized
+		a.self.PluginInitialize(options)
+		App().PluginInitialized(a.self)
 	}
+	Assert(a.state == Initialized, "plugin initialize failed")
 }
 
 func (a *AbstractPlugin) StartUp() {
-	if a.State == Initialized {
-		a.State = Started
-		//为了确保每个plugin依赖的其他plugin也保证initialize
+	if a.state == Initialized {
+		a.state = Started
 		//static_cast<Impl*>(this)->plugin_requires([&](auto& plug){ plug.initialize(options); });
 		//static_cast<Impl*>(this)->plugin_initialize(options);
-		a.PluginStartup()
-		App().PluginStarted(a.Plugin)
+		a.self.PluginStartup()
+		App().PluginStarted(a.self)
 	}
-
-	Assert(a.State == State(Started), "plugin startup failed")
+	Assert(a.state == Started, "plugin startup failed")
 }
 
-func (a *AbstractPlugin) GetName() PluginName {
-	return a.Name
+func (a *AbstractPlugin) GetName() PluginTypeName {
+	return a.name
+}
+
+func (a *AbstractPlugin) setName(name PluginTypeName) {
+	a.name = name
 }
 
 func (a *AbstractPlugin) GetState() State {
-	return a.State
+	return a.state
+}
+
+func (a *AbstractPlugin) setState(state State) {
+	a.state = state
+}
+
+func (a *AbstractPlugin) bind(plugin Plugin) {
+	a.self = plugin
 }

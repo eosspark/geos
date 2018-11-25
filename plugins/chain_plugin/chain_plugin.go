@@ -1,13 +1,16 @@
 package chain_plugin
 
 import (
+	"github.com/urfave/cli"
 	"github.com/eosspark/eos-go/chain"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/plugins/appbase/app"
 	"github.com/eosspark/eos-go/plugins/appbase/asio"
-	"github.com/urfave/cli"
+	"github.com/eosspark/eos-go/log"
 )
+
+const ChainPlug = PluginTypeName("ChainPlugin")
 
 type ChainPlugin struct {
 	AbstractPlugin
@@ -15,32 +18,30 @@ type ChainPlugin struct {
 }
 
 func init() {
-	plug := NewChainPlugin(App().GetIoService())
-	plug.Plugin = plug
-	plug.Name = PluginName(ChainPlug)
-	plug.State = State(Registered)
-	App().RegisterPlugin(plug)
+	App().RegisterPlugin(ChainPlug, NewChainPlugin(App().GetIoService()))
 }
+
 func NewChainPlugin(io *asio.IoContext) *ChainPlugin {
-	c := new(ChainPlugin)
-	c.my = NewChainPluginImpl()
-	return c
+	plugin := new(ChainPlugin)
+
+	plugin.my = NewChainPluginImpl()
+	return plugin
 }
 
 func (c *ChainPlugin) SetProgramOptions(options *[]cli.Flag) {
 
 }
 
-func (c *ChainPlugin) PluginInitialize(*cli.Context) {
+func (c *ChainPlugin) PluginInitialize(options *cli.Context) {
 
 }
 
 func (c *ChainPlugin) PluginStartup() {
-
+	log.Info("chain plugin startup")
 }
 
 func (c *ChainPlugin) PluginShutdown() {
-
+	log.Info("chain plugin shutdown")
 }
 
 func (c *ChainPlugin) GetReadOnlyApi() *ReadOnly {

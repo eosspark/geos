@@ -1,11 +1,13 @@
 package producer_plugin
 
 import (
-					"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/assert"
 	"github.com/urfave/cli"
 	"os"
 	"testing"
 	main "github.com/eosspark/eos-go/plugins/producer_plugin/testing"
+	//Chain "github.com/eosspark/eos-go/plugins/producer_plugin/testing" //test chain
+	Chain "github.com/eosspark/eos-go/chain" //real chain
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/plugins/appbase/asio"
 	"syscall"
@@ -21,12 +23,13 @@ type ProducerPluginTester struct {
 	*ProducerPlugin
 	*ProducerPluginImpl
 
-	io *asio.IoContext
-	app *cli.App
+	io    *asio.IoContext
+	app   *cli.App
 	chain *main.ChainTester
 }
 
 const (
+	debug     = false
 	BatchSize = 0
 )
 
@@ -51,8 +54,6 @@ func (p *ProducerPluginTester) Stop() {
 	p.io.Stop()
 }
 
-
-
 func NewProducerTester(t *testing.T) *ProducerPluginTester {
 	ppt := new(ProducerPluginTester)
 	ppt.io = asio.NewIoContext()
@@ -63,8 +64,6 @@ func NewProducerTester(t *testing.T) *ProducerPluginTester {
 
 	ppt.ProducerPlugin = NewProducerPlugin(ppt.io)
 	ppt.ProducerPluginImpl = ppt.my
-
-
 
 	ppt.SetProgramOptions(&ppt.app.Flags)
 	main.MakeTesterArguments("--enable-stale-production", "-p", "eosio", "-p", "yuanc",
@@ -89,7 +88,7 @@ func NewProducerTester(t *testing.T) *ProducerPluginTester {
 
 //func produceone(when types.BlockTimeStamp) (b *types.SignedBlock) {
 //	b = new(types.SignedBlock)
-//	control := main.GetControllerInstance()
+//	control := Chain.GetControllerInstance()
 //	hbs := control.HeadBlockState()
 //	newBs := hbs.GenerateNext(when)
 //	nextProducer := hbs.GetScheduledProducer(when)
@@ -125,11 +124,10 @@ func NewProducerTester(t *testing.T) *ProducerPluginTester {
 //	return
 //}
 
-
 func TestProducerPlugin_PluginStartup(t *testing.T) {
 	tester := NewProducerTester(t)
 
-	chain := main.GetControllerInstance()
+	chain := Chain.GetControllerInstance()
 
 	timer := common.NewTimer(tester.io)
 	var delayStop func()
@@ -152,7 +150,6 @@ func TestProducerPlugin_PluginStartup(t *testing.T) {
 	tester.Exec()
 }
 
-
 func TestBatch_PluginStartup(t *testing.T) {
 	BatchTest(TestProducerPlugin_PluginStartup, t)
 }
@@ -161,7 +158,7 @@ func TestProducerPlugin_Pause(t *testing.T) {
 	tester := NewProducerTester(t)
 	tester.PluginStartup()
 
-	chain := main.GetControllerInstance()
+	chain := Chain.GetControllerInstance()
 
 	pause := common.NewTimer(tester.io)
 	var pauses func()
@@ -277,7 +274,6 @@ func TestProducerPluginImpl_ScheduleDelayedProductionLoop(t *testing.T) {
 
 func TestProducerPluginImpl_OnIncomingBlock(t *testing.T) {
 
-
 	app := cli.NewApp()
 	io := asio.NewIoContext()
 
@@ -297,7 +293,7 @@ func TestProducerPluginImpl_OnIncomingBlock(t *testing.T) {
 	tester := main.NewChainTester(ago)
 
 	main.Control = main.NewChainTester(ago).Control
-	chain := main.GetControllerInstance()
+	chain := Chain.GetControllerInstance()
 
 	for i := 1; i < 100; i++ {
 		oldBs := chain.HeadBlockState()
@@ -333,7 +329,7 @@ func TestProducerPlugin_ReceiveBlockInSchedule(t *testing.T) {
 	tester := main.NewChainTester(ago)
 
 	main.Control = main.NewChainTester(ago).Control
-	chain := main.GetControllerInstance()
+	chain := Chain.GetControllerInstance()
 
 	plugin.PluginStartup()
 
@@ -377,7 +373,7 @@ func TestProducerPluginImpl_OnBlock(t *testing.T) {
 
 func TestProducerPluginImpl_CalculateNextBlockTime(t *testing.T) {
 	tester := NewProducerTester(t)
-	chain := main.GetControllerInstance()
+	chain := Chain.GetControllerInstance()
 
 	account1 := common.Name(common.N("eosio"))
 	account2 := common.Name(common.N("yuanc"))
@@ -395,7 +391,8 @@ func TestProducerPluginImpl_CalculateNextBlockTime(t *testing.T) {
 
 func TestProducerPluginImpl_CalculatePendingBlockTime(t *testing.T) {
 	tester := NewProducerTester(t)
-	pt :=tester.CalculatePendingBlockTime()
+	pt := tester.CalculatePendingBlockTime()
 	assert.Equal(t, pt/1e3, (pt/1e3/500)*500) // make sure pt can be divisible by 500ms
 }
+
 /**/
