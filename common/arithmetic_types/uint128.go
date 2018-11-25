@@ -1,14 +1,14 @@
 package arithmeticTypes
 
 import (
+	"encoding/binary"
 	"fmt"
 	"math"
 	"math/big"
-	"encoding/binary"
 )
 
 type Uint128 struct {
-	Low uint64
+	Low  uint64
 	High uint64
 }
 
@@ -32,9 +32,9 @@ func (u Uint128) IsZero() bool {
 	return false
 }
 
-func CreateUint128(i int) Uint128{
+func CreateUint128(i int) Uint128 {
 	if i >= 0 {
-		return Uint128{0, uint64(i)}
+		return Uint128{Low: uint64(i), High: 0}
 	} else {
 		fmt.Println("error")
 		return Uint128{}
@@ -68,12 +68,12 @@ func (u *Uint128) Set(i uint, b uint) {
 	}
 }
 
-func MaxUint128() Uint128{
-	return Uint128{math.MaxUint64,math.MaxUint64}
+func MaxUint128() Uint128 {
+	return Uint128{math.MaxUint64, math.MaxUint64}
 }
 
-func MinUint128() Uint128{
-	return Uint128{0,0}
+func MinUint128() Uint128 {
+	return Uint128{0, 0}
 }
 
 func (u *Uint128) LeftShift() {
@@ -153,12 +153,12 @@ func (u Uint128) Mul(v Uint128) Uint128 {
 	Product := MulUint64(u.Low, v.Low)
 	tmp1 := MulUint64(u.High, v.Low).Low
 	tmp2 := MulUint64(u.Low, v.High).Low
-	tmp := Uint128{0,tmp1}.Add(Uint128{0,tmp2})
+	tmp := Uint128{0, tmp1}.Add(Uint128{0, tmp2})
 	Product = Product.Add(tmp)
 	return Product
 }
 
-func (u Uint128) Div(divisor Uint128) (Uint128,Uint128) {
+func (u Uint128) Div(divisor Uint128) (Uint128, Uint128) {
 	if divisor.IsZero() {
 		fmt.Println("divisor cannot be zero")
 	}
@@ -192,7 +192,7 @@ func (u Uint128) Sqrt() uint64 {
 	}
 	max := uint64(math.MaxUint64)
 	min := uint64(1)
-	m := max >> 1 + min
+	m := max>>1 + min
 	highUint128 := Uint128{}
 	lowUint128 := Uint128{}
 	product := Uint128{}
@@ -245,7 +245,7 @@ func MulUint64(u, v uint64) Uint128 {
 	specialH = specialH >> 62 << 32
 
 	if mulL+mixL < mulL {
-		return Uint128{mulL + mixL,mulH + mixH + 1 + specialH}
+		return Uint128{mulL + mixL, mulH + mixH + 1 + specialH}
 	}
 	return Uint128{mulL + mixL, mulH + mixH + specialH}
 }
