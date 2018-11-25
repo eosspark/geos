@@ -1,21 +1,28 @@
 package chain_plugin
 
 import (
-	"github.com/urfave/cli"
 	"github.com/eosspark/eos-go/chain"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/exception"
-	)
-
-//var IsActive bool = false
-//var chainPlugin *ChainPlugin
+	. "github.com/eosspark/eos-go/plugins/appbase/app"
+	"github.com/eosspark/eos-go/plugins/appbase/asio"
+	"github.com/urfave/cli"
+)
 
 type ChainPlugin struct {
+	AbstractPlugin
 	my *ChainPluginImpl
 }
 
-func NewChainPlugin() *ChainPlugin {
-	c := NewChainPlugin()
+func init() {
+	plug := NewChainPlugin(App().GetIoService())
+	plug.Plugin = plug
+	plug.Name = PluginName(ChainPlug)
+	plug.State = State(Registered)
+	App().RegisterPlugin(plug)
+}
+func NewChainPlugin(io *asio.IoContext) *ChainPlugin {
+	c := new(ChainPlugin)
 	c.my = NewChainPluginImpl()
 	return c
 }
@@ -24,7 +31,7 @@ func (c *ChainPlugin) SetProgramOptions(options *[]cli.Flag) {
 
 }
 
-func (c *ChainPlugin) PluginInitialize(options *cli.Context) {
+func (c *ChainPlugin) PluginInitialize(*cli.Context) {
 
 }
 

@@ -3,7 +3,7 @@ package app
 import (
 	"github.com/urfave/cli"
 
-		. "github.com/eosspark/eos-go/exception/try"
+	. "github.com/eosspark/eos-go/exception/try"
 )
 
 /** these notifications get called from the plugin when their state changes so that
@@ -27,6 +27,7 @@ type PluginName string
 
 const (
 	ProducerPlug = PluginName("ProducerPlugin")
+	ConsolePlug  = PluginName("ConsolePlugin")
 	ChainPlug    = PluginName("ChainPlugin")
 	NetPlug      = PluginName("NetPlugin")
 	HttpPlug     = PluginName("HttpPlugin")
