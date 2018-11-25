@@ -10,8 +10,9 @@ import (
 	"strings"
 
 	//plugins
-	_ "github.com/eosspark/eos-go/plugins/producer_plugin"
-)
+	"github.com/eosspark/eos-go/plugins/producer_plugin"
+	"github.com/eosspark/eos-go/plugins/template_plugin"
+	)
 
 const (
 	OTHER_FAIL              = -2
@@ -24,18 +25,16 @@ const (
 	NODE_MANAGEMENT_SUCCESS = 5
 )
 
-var basicPlugin = []PluginName{ProducerPlug}
-
-//var pro producer_plugin.Producer_plugin
-//var net net_plugin.Net_plugin
-
 func main() {
 
 	try.Try(func() {
 		App().SetVersion(Version)
 		App().SetDefaultDataDir()
 		App().SetDefaultConfigDir()
-		if !App().Initialize(basicPlugin) {
+		if !App().Initialize([]PluginTypeName{
+			producer_plugin.ProducerPlug,
+			template_plugin.TemplatePlug,
+		}) {
 			os.Exit(INITIALIZE_FAIL)
 		}
 		App().StartUp()
@@ -63,19 +62,19 @@ func main() {
 		log.Error(e.Message())
 		os.Exit(OTHER_FAIL)
 
-	//}).Catch(func(e try.RuntimeError) {
-	//	if strings.Contains(e.Message, "database dirty flag set") {
-	//		log.Error("database dirty flag set (likely due to unclean shutdown): replay required")
-	//		os.Exit(DATABASE_DIRTY)
-	//
-	//	} else if strings.Contains(e.Message, "database metadata dirty flag set") {
-	//		log.Error("database metadata dirty flag set (likely due to unclean shutdown): replay required")
-	//		os.Exit(DATABASE_DIRTY)
-	//
-	//	} else {
-	//		log.Error("%s", e.Message)
-	//	}
-	//	os.Exit(OTHER_FAIL)
+	}).Catch(func(e try.RuntimeError) {
+		if strings.Contains(e.Message, "database dirty flag set") {
+			log.Error("database dirty flag set (likely due to unclean shutdown): replay required")
+			os.Exit(DATABASE_DIRTY)
+
+		} else if strings.Contains(e.Message, "database metadata dirty flag set") {
+			log.Error("database metadata dirty flag set (likely due to unclean shutdown): replay required")
+			os.Exit(DATABASE_DIRTY)
+
+		} else {
+			log.Error("%s", e.Message)
+		}
+		os.Exit(OTHER_FAIL)
 
 	}).Catch(func(e error) {
 		log.Error("%s", e.Error())

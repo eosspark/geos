@@ -14,7 +14,6 @@ import (
 	"syscall"
 )
 
-// 完成初步架构设计
 type ApplicationImpl struct {
 	version uint64
 	Options *cli.App
@@ -27,15 +26,15 @@ type ApplicationImpl struct {
 //var App_global *app
 
 type Application struct {
-	plugins            map[PluginName]Plugin //< all registered plugins
-	initializedPlugins []Plugin          //< stored in the order they were started running
-	runningPlugins     []Plugin          //<  stored in the order they were started running
+	plugins            map[PluginTypeName]Plugin //< all registered plugins
+	initializedPlugins []Plugin                  //< stored in the order they were started running
+	runningPlugins     []Plugin                  //<  stored in the order they were started running
 
 	//methods
 	channels map[ChannelsType]*Channel
-	methods map[MethodsType]*Method
-	iosv *asio.IoContext
-	my   *ApplicationImpl
+	methods  map[MethodsType]*Method
+	iosv     *asio.IoContext
+	my       *ApplicationImpl
 }
 
 func newApplication() *Application {
@@ -48,11 +47,11 @@ func newApplication() *Application {
 		"logging.json"}
 
 	app := &Application{
-		plugins:            make(map[PluginName]Plugin),
+		plugins:            make(map[PluginTypeName]Plugin),
 		initializedPlugins: make([]Plugin, 0),
 		runningPlugins:     make([]Plugin, 0),
 		channels:           make(map[ChannelsType]*Channel),
-		methods:			make(map[MethodsType]*Method),
+		methods:            make(map[MethodsType]*Method),
 		iosv:               iosv,
 		my:                 appImpl,
 	}
@@ -61,6 +60,7 @@ func newApplication() *Application {
 }
 
 var app *Application
+
 func App() *Application {
 	if app == nil {
 		app = newApplication()
@@ -68,11 +68,17 @@ func App() *Application {
 	return app
 }
 
-func (app *Application) RegisterPlugin(plugin Plugin) Plugin {
-	if p, existing := app.plugins[plugin.GetName()]; existing {
+func (app *Application) RegisterPlugin(typename PluginTypeName, plugin Plugin) Plugin {
+	if p, existing := app.plugins[typename]; existing {
 		return p
 	}
-	app.plugins[plugin.GetName()] = plugin
+
+	plugin.setName(typename)
+	plugin.setState(Registered)
+	plugin.bind(plugin)
+
+	app.plugins[typename] = plugin
+
 	return plugin
 }
 
@@ -113,7 +119,7 @@ func (app *Application) setProgramOptions() {
 
 }
 
-func (app *Application) Initialize(basicPlugin []PluginName) bool {
+func (app *Application) Initialize(basicPlugin []PluginTypeName) bool {
 	var AP []Plugin
 	for i := 0; i < len(basicPlugin); i++ {
 		if p := app.FindPlugin(basicPlugin[i]); p != nil {
@@ -171,7 +177,7 @@ func (app *Application) GetChannel(channelType ChannelsType) *Channel {
 }
 
 func (app *Application) GetMethod(methodsType MethodsType) *Method {
-	if v,ok := app.methods[methodsType]; ok {
+	if v, ok := app.methods[methodsType]; ok {
 		return v
 	} else {
 		method := NewMethod()
@@ -201,7 +207,7 @@ func (app *Application) StartUp() {
 
 func (app *Application) ShutDown() {
 	for _, v := range app.plugins {
-		v.PluginShutdown()
+		v.ShutDown()
 	}
 	app.runningPlugins = app.runningPlugins[:0]
 	app.initializedPlugins = app.initializedPlugins[:0]
@@ -209,7 +215,7 @@ func (app *Application) ShutDown() {
 	for k := range app.plugins {
 		delete(app.plugins, k)
 	}
-	app.iosv.Stop()
+	app.iosv = nil
 }
 
 func (app *Application) Quit() {
@@ -238,14 +244,14 @@ func (app *Application) Exec() {
 	app.ShutDown()
 }
 
-func (app *Application) FindPlugin(name PluginName) (plugin Plugin) {
+func (app *Application) FindPlugin(name PluginTypeName) (plugin Plugin) {
 	if v, ok := app.plugins[name]; ok {
 		return v
 	}
 	return nil
 }
 
-func (app *Application) GetPlugin(name PluginName) (plugin Plugin) {
+func (app *Application) GetPlugin(name PluginTypeName) (plugin Plugin) {
 	p := app.FindPlugin(name)
 	if p == nil {
 		fmt.Println("unable to find plugin") //need to fix
@@ -268,7 +274,6 @@ func (app *Application) SetDefaultConfigDir() {
 func (app *Application) SetDefaultDataDir() {
 	app.my.DateDir = DefaultDataDir()
 }
-
 
 func DefaultConfigDir() string {
 	// Try to place the data folder in the user's home dir

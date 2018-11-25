@@ -5,19 +5,27 @@ import (
 	"github.com/eosspark/eos-go/chain"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/exception"
-	)
+	. "github.com/eosspark/eos-go/plugins/appbase/app"
+	"github.com/eosspark/eos-go/plugins/appbase/asio"
+	"github.com/eosspark/eos-go/log"
+)
 
-//var IsActive bool = false
-//var chainPlugin *ChainPlugin
+const ChainPlug = PluginTypeName("ChainPlugin")
 
 type ChainPlugin struct {
+	AbstractPlugin
 	my *ChainPluginImpl
 }
 
-func NewChainPlugin() *ChainPlugin {
-	c := NewChainPlugin()
-	c.my = NewChainPluginImpl()
-	return c
+func init() {
+	App().RegisterPlugin(ChainPlug, NewChainPlugin(App().GetIoService()))
+}
+
+func NewChainPlugin(io *asio.IoContext) *ChainPlugin {
+	plugin := new(ChainPlugin)
+
+	plugin.my = NewChainPluginImpl()
+	return plugin
 }
 
 func (c *ChainPlugin) SetProgramOptions(options *[]cli.Flag) {
@@ -29,11 +37,11 @@ func (c *ChainPlugin) PluginInitialize(options *cli.Context) {
 }
 
 func (c *ChainPlugin) PluginStartup() {
-
+	log.Info("chain plugin startup")
 }
 
 func (c *ChainPlugin) PluginShutdown() {
-
+	log.Info("chain plugin shutdown")
 }
 
 func (c *ChainPlugin) GetReadOnlyApi() *ReadOnly {
