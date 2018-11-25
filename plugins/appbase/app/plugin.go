@@ -30,15 +30,6 @@ type Plugin interface {
 }
 
 type PluginTypeName string
-type PluginName string
-
-const (
-	ProducerPlug = PluginName("ProducerPlugin")
-	ConsolePlug  = PluginName("ConsolePlugin")
-	ChainPlug    = PluginName("ChainPlugin")
-	NetPlug      = PluginName("NetPlugin")
-	HttpPlug     = PluginName("HttpPlugin")
-)
 
 type State int
 

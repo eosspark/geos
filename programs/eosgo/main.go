@@ -10,9 +10,9 @@ import (
 	"strings"
 
 	//plugins
-	//_ "github.com/eosspark/eos-go/plugins/chain_plugin"
-	_ "github.com/eosspark/eos-go/plugins/console_plugin"
-	_ "github.com/eosspark/eos-go/plugins/producer_plugin"
+	"github.com/eosspark/eos-go/plugins/console_plugin"
+	"github.com/eosspark/eos-go/plugins/producer_plugin"
+	"github.com/eosspark/eos-go/plugins/template_plugin"
 )
 
 const (
@@ -26,15 +26,19 @@ const (
 	NODE_MANAGEMENT_SUCCESS = 5
 )
 
-var basicPlugin = []PluginName{ProducerPlug, ConsolePlug}
-
+//go run main.go -e -p eosio --private-key [\"EOS859gxfnXyUriMgUeThh1fWv3oqcpLFyHa3TfFYC4PK2HqhToVM\",\"5KYZdUEo39z3FPrtuX2QbbwGnNP5zTd7yyr2SC1j299sBCnWjss\"] --console
 func main() {
 
 	try.Try(func() {
+
 		App().SetVersion(Version)
 		App().SetDefaultDataDir()
 		App().SetDefaultConfigDir()
-		if !App().Initialize(basicPlugin) {
+		if !App().Initialize([]PluginTypeName{
+			producer_plugin.ProducerPlug,
+			console_plugin.ConsolePlug,
+			template_plugin.TemplatePlug,
+		}) {
 			os.Exit(INITIALIZE_FAIL)
 		}
 		App().StartUp()
@@ -62,19 +66,19 @@ func main() {
 		log.Error(e.Message())
 		os.Exit(OTHER_FAIL)
 
-		//}).Catch(func(e try.RuntimeError) {
-		//	if strings.Contains(e.Message, "database dirty flag set") {
-		//		log.Error("database dirty flag set (likely due to unclean shutdown): replay required")
-		//		os.Exit(DATABASE_DIRTY)
-		//
-		//	} else if strings.Contains(e.Message, "database metadata dirty flag set") {
-		//		log.Error("database metadata dirty flag set (likely due to unclean shutdown): replay required")
-		//		os.Exit(DATABASE_DIRTY)
-		//
-		//	} else {
-		//		log.Error("%s", e.Message)
-		//	}
-		//	os.Exit(OTHER_FAIL)
+	}).Catch(func(e try.RuntimeError) {
+		if strings.Contains(e.Message, "database dirty flag set") {
+			log.Error("database dirty flag set (likely due to unclean shutdown): replay required")
+			os.Exit(DATABASE_DIRTY)
+
+		} else if strings.Contains(e.Message, "database metadata dirty flag set") {
+			log.Error("database metadata dirty flag set (likely due to unclean shutdown): replay required")
+			os.Exit(DATABASE_DIRTY)
+
+		} else {
+			log.Error("%s", e.Message)
+		}
+		os.Exit(OTHER_FAIL)
 
 	}).Catch(func(e error) {
 		log.Error("%s", e.Error())

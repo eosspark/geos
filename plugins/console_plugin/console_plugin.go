@@ -10,18 +10,14 @@ import (
 	"strings"
 )
 
+const ConsolePlug = PluginTypeName("ConsolePlugin")
+
+var consolePlugin Plugin = App().RegisterPlugin(ConsolePlug, NewConsolePlugin(App().GetIoService()))
+
 type ConsolePlugin struct {
 	AbstractPlugin
 	//ConfirmedBlock Signal //TODO signal ConfirmedBlock
 	my *ConsolePluginImpl
-}
-
-func init() {
-	plug := NewConsolePlugin(App().GetIoService())
-	plug.Plugin = plug
-	plug.Name = PluginName(ConsolePlug)
-	plug.State = State(Registered)
-	App().RegisterPlugin(plug)
 }
 
 //TODO: io from appbase
@@ -61,31 +57,31 @@ func (cp *ConsolePlugin) SetProgramOptions(options *[]cli.Flag) {
 }
 
 func (cp *ConsolePlugin) PluginInitialize(c *cli.Context) {
-	//Try(func() {
-	cp.my.datadir = c.String("console-datadir")
-	cp.my.exec = c.String("exec")
+	Try(func() {
+		cp.my.datadir = c.String("console-datadir")
+		cp.my.exec = c.String("exec")
 
-	cp.my.jsPath = c.String("jspath")
-	preloadJSString := c.String("preload")
-	// MakeConsolePreloads retrieves the absolute paths for the console JavaScript
-	// scripts to preload before starting.
-	if preloadJSString != "" {
-		for _, file := range strings.Split(preloadJSString, ",") {
-			cp.my.preload = append(cp.my.preload, common.AbsolutePath(cp.my.jsPath, strings.TrimSpace(file)))
+		cp.my.jsPath = c.String("jspath")
+		preloadJSString := c.String("preload")
+		// MakeConsolePreloads retrieves the absolute paths for the console JavaScript
+		// scripts to preload before starting.
+		if preloadJSString != "" {
+			for _, file := range strings.Split(preloadJSString, ",") {
+				cp.my.preload = append(cp.my.preload, common.AbsolutePath(cp.my.jsPath, strings.TrimSpace(file)))
+			}
+		} else {
+			cp.my.preload = nil
 		}
-	} else {
-		cp.my.preload = nil
-	}
 
-	cp.my.enable = c.Bool("console")
-	if cp.my.enable {
-		err := cp.my.localConsole()
-		if err != nil {
-			FcThrow("Failed to start the JavaScript console : %s", err)
+		cp.my.enable = c.Bool("console")
+		if cp.my.enable {
+			err := cp.my.localConsole()
+			if err != nil {
+				FcThrow("Failed to start the JavaScript console : %s", err)
+			}
 		}
-	}
 
-	//}).FcLogAndRethrow().End()
+	}).FcLogAndRethrow().End()
 }
 
 func (cp *ConsolePlugin) PluginStartup() {
