@@ -40,12 +40,6 @@ func (impl *ConsolePluginImpl) localConsole() error {
 
 	client := rpc.DialInProc(handler)
 
-	//config := console.Config{
-	//	DataDir: "console_history",//mpl.datadir,
-	//	DocRoot: "test",//impl.jsPath,
-	//	Client:  client,
-	//	Preload: nil,//impl.preload,
-	//}
 	config := console.Config{
 		DataDir: impl.datadir,
 		DocRoot: impl.jsPath,
