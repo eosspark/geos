@@ -1,10 +1,8 @@
 package chain
 
 import (
-	"bytes"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
-	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/abi"
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/crypto/rlp"
@@ -31,11 +29,11 @@ type BaseTester struct {
 func newBaseTester(control *Controller) *BaseTester {
 	btInstance := &BaseTester{}
 	btInstance.Control = control
-	btInstance.initBase(false, 0)
+	btInstance.initBase(true,SPECULATIVE)
 	return btInstance
 }
 
-func (t BaseTester) initBase(pushGenesis bool, mode DBReadMode) {
+func (t *BaseTester) initBase(pushGenesis bool, mode DBReadMode) {
 	t.DefaultExpirationDelta = 6
 	t.DefaultBilledCpuTimeUs = 2000
 	t.Cfg.blocksDir = common.DefaultConfig.DefaultBlocksDirName
@@ -46,6 +44,8 @@ func (t BaseTester) initBase(pushGenesis bool, mode DBReadMode) {
 	t.Cfg.reversibleGuardSize = 0
 	t.Cfg.contractsConsole = true
 	t.Cfg.readMode = mode
+	t.ChainTransactions = make(map[common.BlockIdType]types.TransactionReceipt)
+	t.LastProducedBlock = make(map[common.AccountName]common.BlockIdType)
 
 	t.Cfg.genesis.InitialTimestamp, _ = common.FromIsoString("2020-01-01T00:00:00.000")
 	//t.Cfg.genesis.InitialKey = t.GetPublicKeys(common.DefaultConfig.SystemAccountName, "active")
@@ -307,9 +307,10 @@ func (t BaseTester) GetAction(code common.AccountName, actType common.AccountNam
 
 func (t BaseTester) getPrivateKey(keyName common.Name, role string) ecc.PrivateKey {
 	//TODO: wait for testing
-	rawPrivKey := crypto.Hash256(keyName.String() + role).Bytes()
-	g := bytes.NewReader(rawPrivKey)
-	pk, _ := ecc.NewDeterministicPrivateKey(g)
+	//rawPrivKey := crypto.Hash256(keyName.String() + role).Bytes()
+	//g := bytes.NewReader(rawPrivKey)
+	//pk, _ := ecc.NewDeterministicPrivateKey(g)
+	pk, _ := ecc.NewPrivateKey("5KYZdUEo39z3FPrtuX2QbbwGnNP5zTd7yyr2SC1j299sBCnWjss")
 	return *pk
 }
 
