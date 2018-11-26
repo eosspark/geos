@@ -179,6 +179,7 @@ func newController() *Controller {
 	//con.Pending = &PendingState{}
 	con.ResourceLimits = newResourceLimitsManager(con)
 	con.Authorization = newAuthorizationManager(con)
+	con.UnappliedTransactions = make(map[crypto.Sha256]types.TransactionMetadata)
 	con.initialize()
 	return con
 }
@@ -921,6 +922,7 @@ func (c *Controller) applyBlock(b *types.SignedBlock, s types.BlockStatus) {
 			if length > 0 {
 				trxReceipt = c.Pending.PendingBlockState.SignedBlock.Transactions[length-1]
 			}
+			//fmt.Println(trxReceipt)
 			//r := trxReceipt.TransactionReceiptHeader
 			EosAssert(trxReceipt == receipt, &BlockValidateException{}, "receipt does not match,producer_receipt:%#v", receipt, "validator_receipt:%#v", trxReceipt)
 		}
@@ -941,7 +943,7 @@ func (c *Controller) applyBlock(b *types.SignedBlock, s types.BlockStatus) {
 func (c *Controller) CommitBlock(addToForkDb bool) {
 	defer func() {
 		if c.Pending.PendingValid {
-			c.Pending.Reset()
+			c.Pending = c.Pending.Reset()
 		}
 	}()
 	Try(func() {
@@ -961,7 +963,6 @@ func (c *Controller) CommitBlock(addToForkDb bool) {
 		}
 		//emit( self.accepted_block, pending->_pending_block_state )
 	}).Catch(func(e interface{}) {
-		c.Pending.PendingValid = true
 		c.AbortBlock()
 		Throw(e)
 	}).End()
@@ -1693,18 +1694,18 @@ func (c *Controller) clearExpiredInputTransactions() {
 			EosAssert(err == nil, &DatabaseException{}, err.Error())
 			return
 		}
-		for transactionIdx != nil && now > common.TimePoint(t.Expiration) {
-			tmp := &entity.TransactionObject{}
+		for !transactionIdx.Empty() && now > common.TimePoint(t.Expiration) {
+			tmp := entity.TransactionObject{}
 			itr := transactionIdx.Begin()
 			if itr != nil {
-				err = itr.Data(tmp)
+				err = itr.Data(&tmp)
 				if err != nil {
 					log.Error("TransactionIdx.Begin Is Error:%s", err.Error())
 					EosAssert(err == nil, &DatabaseException{}, err.Error())
 					return
 				}
 			}
-			c.DB.Remove(tmp)
+			c.DB.Remove(&tmp)
 		}
 	}
 }

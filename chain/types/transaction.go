@@ -293,6 +293,9 @@ func (p *PackedTransaction) GetPrunableSize() uint32 {
 
 func (p *PackedTransaction) PackedDigest() common.DigestType {
 	prunable := crypto.NewSha256()
+	if p == nil {
+		p = &PackedTransaction{}
+	}
 	result, err := rlp.EncodeToBytes(p.Signatures)
 	if err != nil {
 		errout := fmt.Sprintf("PackedDigest:Signatures error:%s", err)
