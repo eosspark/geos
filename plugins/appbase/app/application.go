@@ -1,16 +1,16 @@
 package app
 
 import (
+	"fmt"
+	. "github.com/eosspark/eos-go/exception"
+	"github.com/eosspark/eos-go/exception/try"
 	. "github.com/eosspark/eos-go/plugins/appbase/app/include"
+	"github.com/eosspark/eos-go/plugins/appbase/asio"
 	. "github.com/eosspark/eos-go/plugins/chain_interface"
 	"github.com/urfave/cli"
-	. "github.com/eosspark/eos-go/exception"
-	"fmt"
-	"github.com/eosspark/eos-go/exception/try"
 	"os"
 	"path/filepath"
 	"runtime"
-	"github.com/eosspark/eos-go/plugins/appbase/asio"
 	"syscall"
 )
 
@@ -315,4 +315,8 @@ func homeDir() string {
 	//	return usr.HomeDir
 	//}
 	return ""
+}
+
+func (app *Application) DataDir() asio.Path {
+	return app.my.DateDir
 }

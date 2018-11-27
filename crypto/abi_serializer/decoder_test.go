@@ -1,4 +1,4 @@
-package abi
+package abi_serializer
 
 import (
 	"bytes"
@@ -46,7 +46,7 @@ func TestABI_DecodeAction(t *testing.T) {
 	abi, err := NewABI(abiReader)
 	assert.NoError(t, err)
 
-	json, err := abi.DecodeAction(encodeRe, "action_name_1")
+	json, err := abi.DecodeAction("action_name_1", encodeRe)
 	assert.NoError(t, err)
 
 	assert.Equal(t, "eoscanadacom", gjson.GetBytes(json, "struct_1_field_1").String())
@@ -79,7 +79,7 @@ func TestABI_DecodeMissingData(t *testing.T) {
 	abi, err := NewABI(abiReader)
 	assert.NoError(t, err)
 
-	_, err = abi.DecodeAction(buffer.Bytes(), "action_name_1")
+	_, err = abi.DecodeAction("action_name_1", buffer.Bytes())
 	assert.Equal(t, fmt.Errorf("decoding fields: decoding field [struct_1_field_2] of type [struct_name_3]: decoding fields: decoding field [struct_3_field_1] of type [string]: read: rlp: invalid buffer size"), err)
 
 }
@@ -104,7 +104,7 @@ func TestABI_DecodeMissingAction(t *testing.T) {
 	abi, err := NewABI(abiReader)
 	assert.NoError(t, err)
 
-	_, err = abi.DecodeAction(buffer.Bytes(), "badactionname")
+	_, err = abi.DecodeAction("badactionname", buffer.Bytes())
 	assert.Equal(t, fmt.Errorf("action badactionname not found in abi"), err)
 }
 

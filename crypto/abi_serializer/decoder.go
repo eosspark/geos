@@ -1,4 +1,4 @@
-package abi
+package abi_serializer
 
 import (
 	"encoding/binary"
@@ -16,7 +16,7 @@ import (
 	"unsafe"
 )
 
-func (a *AbiDef) DecodeAction(data []byte, actionName string) ([]byte, error) {
+func (a *AbiDef) DecodeAction(actionName string, data []byte) ([]byte, error) {
 	binaryDecoder := rlp.NewDecoder(data)
 	action := a.ActionForName(common.ActionName(common.N(actionName)))
 	if action == nil {
@@ -24,7 +24,6 @@ func (a *AbiDef) DecodeAction(data []byte, actionName string) ([]byte, error) {
 	}
 
 	return a.decode(binaryDecoder, action.Type)
-
 }
 
 func (a *AbiDef) DecodeTableRow(tableName string, data []byte) ([]byte, error) {
@@ -33,9 +32,7 @@ func (a *AbiDef) DecodeTableRow(tableName string, data []byte) ([]byte, error) {
 	if tbl == nil {
 		return []byte{}, fmt.Errorf("table name %s not found in abi", tableName)
 	}
-
 	return a.decode(binaryDecoder, tbl.Type)
-
 }
 
 func (a *AbiDef) DecodeTableRowTyped(tableType string, data []byte) ([]byte, error) {
@@ -43,8 +40,12 @@ func (a *AbiDef) DecodeTableRowTyped(tableType string, data []byte) ([]byte, err
 	return a.decode(binaryDecoder, tableType)
 }
 
-func (a *AbiDef) decode(binaryDecoder *rlp.Decoder, structName string) ([]byte, error) {
+func (a *AbiDef) DecodeStruct(structType string, data []byte) ([]byte, error) {
+	binaryDecoder := rlp.NewDecoder(data)
+	return a.decode(binaryDecoder, structType)
+}
 
+func (a *AbiDef) decode(binaryDecoder *rlp.Decoder, structName string) ([]byte, error) {
 	abiLog.Debug("decode struct name: %s", structName)
 
 	structure := a.StructForName(structName)
@@ -54,7 +55,6 @@ func (a *AbiDef) decode(binaryDecoder *rlp.Decoder, structName string) ([]byte, 
 
 	resultingJson := make([]byte, 0)
 	if structure.Base != "" {
-
 		abiLog.Debug("struct has base struct, name: %s, base: %s", structName, structure.Base)
 		var err error
 		resultingJson, err = a.decode(binaryDecoder, structure.Base)

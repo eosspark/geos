@@ -1,4 +1,4 @@
-package abi
+package abi_serializer
 
 import (
 	"encoding/binary"
@@ -101,8 +101,8 @@ func NewABI(r io.Reader) (*AbiDef, error) {
 	}
 
 	return abi, nil
-
 }
+
 func (a *AbiDef) ActionForName(name common.ActionName) *ActionDef {
 	for _, a := range a.Actions {
 		if a.Name == name {
@@ -241,26 +241,6 @@ type Uint128 struct {
 type Int128 Uint128
 
 type Float128 Uint128
-
-// func (i Int128) BigInt() *big.Int {
-// 	// decode the Lo and Hi to handle the sign
-// 	return nil
-// }
-
-// func (i Uint128) BigInt() *big.Int {
-// 	// no sign to handle, all good..
-// 	return nil
-// }
-
-// func NewInt128(i *big.Int) (Int128, error) {
-// 	// if the big Int overflows the JSONInt128 limits..
-// 	return Int128{}, nil
-// }
-
-// func NewUint128(i *big.Int) (Uint128, error) {
-// 	// if the big Int overflows the JSONInt128 limits..
-// 	return Uint128{}, nil
-// }
 
 func (i Uint128) MarshalJSON() (data []byte, err error) {
 	return json.Marshal(i.String())

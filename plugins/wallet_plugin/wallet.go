@@ -3,12 +3,10 @@ package wallet_plugin
 import (
 	"bytes"
 	"crypto/sha512"
-	// "encoding/binary"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/eosspark/eos-go/crypto/btcsuite/btcd/btcec"
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/eosspark/eos-go/log"
@@ -135,8 +133,11 @@ func (w *SoftWallet) UnLock(password string) (err error) {
 
 	keyMap := make(map[ecc.PublicKey]ecc.PrivateKey, len(pk.Keys))
 	for pub, pri := range pk.Keys {
-		newPriKey, _ := btcec.PrivKeyFromBytes(btcec.S256(), pri.PrivKey)
-		keyMap[pub] = ecc.PrivateKey{Curve: pri.Curve, PrivKey: newPriKey}
+		privateKey, err := ecc.NewDeterministicPrivateKey(bytes.NewReader(pri.PrivKey)) //TODO
+		if err != nil {
+			fmt.Println("NewDeterministicPrivateKey is wrong %s", err.Error())
+		}
+		keyMap[pub] = *privateKey
 	}
 
 	w.Keys = keyMap
@@ -306,7 +307,7 @@ func (w *SoftWallet) encryptKeys() (err error) {
 	if !w.isLocked() {
 		keymap := make(map[ecc.PublicKey]Sprivate, 0)
 		for pub, pri := range w.Keys {
-			keymap[pub] = Sprivate{Curve: pri.Curve, PrivKey: pri.PrivKey.Serialize()}
+			keymap[pub] = Sprivate{Curve: pri.Curve, PrivKey: pri.Serialize()}
 		}
 		plainkeys := SprivateKeys{Keys: keymap, CheckSum: w.checksum}
 		PlainTxt, err := rlp.EncodeToBytes(plainkeys)
