@@ -3,8 +3,6 @@ package database
 import (
 	"bytes"
 	"errors"
-
-	"github.com/eosspark/eos-go/log"
 )
 
 type MultiIndex struct {
@@ -157,11 +155,9 @@ func (index *MultiIndex) End() Iterator {
 	// TODO
 	it, err := index.db.EndIterator(index.begin, index.end, index.typeName)
 	if err != nil {
-		log.Error("MultiIndex End Error : ", err.Error())
 		return nil
 	}
 	if it == nil {
-		log.Error("MultiIndex End Iterator Is Empty ")
 		return nil
 	}
 	return it

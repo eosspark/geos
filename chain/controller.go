@@ -541,7 +541,7 @@ func (c *Controller) GetOnBlockTransaction() types.SignedTransaction {
 	trx := types.SignedTransaction{}
 	trx.Actions = append(trx.Actions, &onBlockAction)
 	trx.SetReferenceBlock(&c.Head.BlockId)
-	in := c.Pending.PendingBlockState.Header.Timestamp + 999999
+	in := c.PendingBlockTime() + 999999
 	trx.Expiration = common.TimePointSec(in)
 	//log.Info("getOnBlockTransaction trx.Expiration:%#v", trx)
 	return trx
@@ -971,13 +971,13 @@ func (c *Controller) CommitBlock(addToForkDb bool) {
 }
 
 func (c *Controller) PushBlock(b *types.SignedBlock, s types.BlockStatus) {
-	EosAssert(c.Pending != nil, &BlockValidateException{}, "it is not valid to push a block when there is a pending block")
+	EosAssert(c.Pending == nil, &BlockValidateException{}, "it is not valid to push a block when there is a pending block")
 	defer func() {
 		c.TrustedProducerLightValidation = false
 	}()
 
 	Try(func() {
-		EosAssert(b == nil, &BlockValidateException{}, "trying to push empty block")
+		EosAssert(b != nil, &BlockValidateException{}, "trying to push empty block")
 		EosAssert(s != types.Incomplete, &BlockLogException{}, "invalid block status for a completed block")
 		//emit(self.pre_accepted_block, b )
 		/*trust := !c.Config.forceAllChecks && (s== types.Irreversible || s== types.Validated)
@@ -1529,7 +1529,6 @@ func (c *Controller) initializeForkDB() {
 	gs := types.GetGenesisStateInstance()
 	pst := types.ProducerScheduleType{0, []types.ProducerKey{
 		{common.DefaultConfig.SystemAccountName, gs.InitialKey}}}
-	fmt.Println(gs.InitialKey)
 	genHeader := types.BlockHeaderState{}
 	genHeader.ActiveSchedule = pst
 	genHeader.PendingSchedule = pst

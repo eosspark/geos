@@ -105,7 +105,7 @@ func (ldb *LDataBase) Close() {
 	} else {
 		ldb.log.Info("----------------- database close -----------------")
 	}
-	ldb.log.Info("%d",ldb.count)
+	//ldb.log.Info("%d",ldb.count)
 }
 
 func (ldb *LDataBase) writeIncrementToDb() error {
@@ -299,9 +299,8 @@ func (ldb *LDataBase) insert(in interface{}, flag ...bool) error { /* struct cfg
 	}
 
 	dbKV := &dbKeyValue{}
-	structKV(in, dbKV, cfg) /* (kv.index) all key and value*/
+	structKV(in, dbKV, cfg)
 
-	//dbKV.showDbKV()
 	err = ldb.insertKvToBatch(dbKV) /* (kv to db) kv insert database (atomic) */
 	if err != nil {
 		ldb.log.Error("error database insert insertKvToDb failed : %s", err)
@@ -311,13 +310,13 @@ func (ldb *LDataBase) insert(in interface{}, flag ...bool) error { /* struct cfg
 }
 
 func (ldb *LDataBase) insertKvToBatch(dbKV *dbKeyValue) error {
-	ldb.log.Info("dbKV is : %v", dbKV)
 	ldb.batch.Reset()
 	for _, v := range dbKV.index {
 		ldb.count++
 		ldb.batch.Put(v.key, v.value)
 	}
 
+	ldb.count++
 	ldb.batch.Put(dbKV.id.key, dbKV.id.value)
 	err := ldb.db.Write(ldb.batch, nil)
 	if err != nil {
@@ -338,7 +337,6 @@ func (ldb *LDataBase) setIncrement(cfg *structInfo) error {
 
 	cfg.Id.Set(reflect.ValueOf(id).Convert(cfg.Id.Type()))
 	ldb.nextId[cfg.Name] = id + 1
-	ldb.log.Info("cfg id set is : %d,  next id is : %v", id, ldb.nextId)
 	return nil
 }
 
@@ -378,8 +376,6 @@ func (ldb *LDataBase) remove(in interface{}) error {
 	dbKV := &dbKeyValue{}
 	structKV(in, dbKV, cfg) /* (kv.index) all key and value*/
 
-	//dbKV.showDbKV()
-
 	err = ldb.removeKvToDb(dbKV)
 	if err != nil {
 		ldb.log.Error("failed  : %s, dbKV is : %v", err, dbKV)
@@ -391,7 +387,6 @@ func (ldb *LDataBase) remove(in interface{}) error {
 
 func (ldb *LDataBase) removeKvToDb(dbKV *dbKeyValue) error {
 	undo := false
-	undoKeyValue := &dbKeyValue{}
 
 	defer func() {
 		if !undo {
@@ -399,7 +394,7 @@ func (ldb *LDataBase) removeKvToDb(dbKV *dbKeyValue) error {
 		}
 		/* 		assert(undo == true) */
 		/* 		insert error --> remove undo 			*/
-		ldb.undoRemoveKV(undoKeyValue)
+		ldb.undoRemoveKV(dbKV)
 	}()
 	for _, v := range dbKV.index {
 		err := removeKey(v.key, ldb.db)
@@ -408,7 +403,6 @@ func (ldb *LDataBase) removeKvToDb(dbKV *dbKeyValue) error {
 			undo = true
 			return err
 		}
-		undoKeyValue.index = append(undoKeyValue.index, v)
 	}
 
 	err := removeKey(dbKV.id.key, ldb.db)
@@ -640,6 +634,10 @@ func (ldb *LDataBase) findFields(key, typeName []byte, to interface{}) error {
 	val := splicingString(typeName,key)
 
 	v, err := getDbKey(val, ldb.db)
+	if err != nil {
+		ldb.log.Error("failed : %s, val is %v", err.Error(),val)
+		return err
+	}
 	err = DecodeBytes(v, to)
 	if err != nil {
 		ldb.log.Error("failed : %s, val is %v", err.Error(),val)
@@ -958,8 +956,6 @@ The internal undo operation of the database is not used externally
 
 func (ldb *LDataBase) undoRemoveKV(undoKeyValue *dbKeyValue) { /*	remove kv from db error --> undo kv */
 
-	ldb.log.Info("undoKeyValue is %v", undoKeyValue)
-
 	if len(undoKeyValue.index) == 0 {
 		return
 	}
@@ -992,9 +988,7 @@ swhich may not exist
 */
 
 func saveKey(key, value []byte, tx *leveldb.DB) error {
-	if ok, _ := tx.Has(key, nil); ok {
-		return ErrAlreadyExists
-	}
+
 	err := tx.Put(key, value, nil)
 	if err != nil {
 		return err
@@ -1004,9 +998,7 @@ func saveKey(key, value []byte, tx *leveldb.DB) error {
 }
 
 func removeKey(key []byte, db *leveldb.DB) error {
-	if ok, _ := db.Has(key, nil); !ok {
-		return ErrNotFound
-	}
+
 	err := db.Delete(key, nil)
 	if err != nil {
 		return err

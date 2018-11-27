@@ -12,7 +12,7 @@ import (
 	"testing"
 )
 
-func initMulti() (*multiIndexFork, *types.BlockState) {
+func initMulti() (*MultiIndexFork, *types.BlockState) {
 	initPriKey, _ := ecc.NewPrivateKey("5KYZdUEo39z3FPrtuX2QbbwGnNP5zTd7yyr2SC1j299sBCnWjss")
 	initPubKey := initPriKey.PublicKey()
 	eosio := common.AccountName(common.N("eosio"))
@@ -56,9 +56,9 @@ func TestMultiIndexFork_Insert_Repeat(t *testing.T) {
 		mi.Insert(blockState)
 	}
 
-	log.Info("%v", mi.indexs["byBlockId"].value.Len())
+	log.Info("%v", mi.Indexs["byBlockId"].Value.Len())
 
-	assert.Equal(t, 11, mi.indexs["byBlockId"].value.Len())
+	assert.Equal(t, 11, mi.Indexs["byBlockId"].Value.Len())
 	result := mi.find(bs.BlockId)
 	log.Info("%v", result)
 	assert.Equal(t, bs, result)
@@ -85,9 +85,9 @@ func TestIndexFork_LowerBound_byBlockNum(t *testing.T) {
 		mi.Insert(blockState)
 	}
 
-	idxFork := mi.indexs["byBlockNum"]
+	idxFork := mi.Indexs["byBlockNum"]
 
-	val, sub := idxFork.value.LowerBound(tm)
+	val, sub := idxFork.Value.LowerBound(tm)
 	log.Info("tm:%#v", tm)
 	log.Info("current sub:%#v", sub)
 	assert.Equal(t, 1, sub)
@@ -112,11 +112,11 @@ func TestIndexFork_UpperBound_byBlockNum(t *testing.T) {
 		mi.Insert(blockState)
 	}
 
-	idxFork := mi.indexs["byBlockNum"]
+	idxFork := mi.Indexs["byBlockNum"]
 
-	val, sub := idxFork.value.UpperBound(bs)
+	val, sub := idxFork.Value.UpperBound(bs)
 	log.Info("result:%#v,%v", sub, tm.BlockNum)
-	assert.Equal(t, uint32(1), val.(*types.BlockState).BlockNum)
+	assert.Equal(t, uint32(1), val.BlockNum)
 }
 
 func TestMultiIndexFork_LowerBound_lib(t *testing.T) {
@@ -137,11 +137,11 @@ func TestMultiIndexFork_LowerBound_lib(t *testing.T) {
 		mi.Insert(blockState)
 	}
 
-	idxFork := mi.indexs["byLibBlockNum"]
+	idxFork := mi.Indexs["byLibBlockNum"]
 	itr := idxFork.lowerBound(tm)
 	//fmt.Println(itr.idx.value.Data[itr.currentSub])
-	assert.Equal(t, 0, itr.currentSub)
-	assert.Equal(t, uint32(2), itr.value.BlockNum)
+	assert.Equal(t, 0, itr.CurrentSub)
+	assert.Equal(t, uint32(2), itr.Value.BlockNum)
 }
 
 func TestMultiIndexFork_UpperBound_lib(t *testing.T) {
@@ -162,11 +162,11 @@ func TestMultiIndexFork_UpperBound_lib(t *testing.T) {
 		mi.Insert(blockState)
 	}
 
-	idxFork := mi.indexs["byLibBlockNum"]
+	idxFork := mi.Indexs["byLibBlockNum"]
 	itr := idxFork.upperBound(tm)
 	//fmt.Println(itr.idx.value.Data[itr.currentSub])
-	assert.Equal(t, 9, itr.currentSub)
-	assert.Equal(t, uint32(2), itr.value.BlockNum)
+	assert.Equal(t, 9, itr.CurrentSub)
+	assert.Equal(t, uint32(2), itr.Value.BlockNum)
 }
 
 func TestIndexFork_Begin(t *testing.T) {
@@ -183,11 +183,11 @@ func TestIndexFork_Begin(t *testing.T) {
 		mi.Insert(blockState)
 	}
 
-	idxFork := mi.indexs["byLibBlockNum"]
+	idxFork := mi.Indexs["byLibBlockNum"]
 
 	obj, _ := idxFork.Begin()
 
-	assert.Equal(t, idxFork.value.Data[0], obj)
+	assert.Equal(t, idxFork.Value.Data[0], obj)
 }
 
 func Test_LowerBound_NotFound(t *testing.T) {
@@ -196,10 +196,10 @@ func Test_LowerBound_NotFound(t *testing.T) {
 	b.BlockNum = bs.BlockNum
 	numIdx := mi.GetIndex("byBlockNum")
 	bs.BlockNum = 100
-	val, _ := numIdx.value.LowerBound(&b)
+	obj, _ := numIdx.Value.LowerBound(&b)
 	try.Try(func() {
-		obj := val.(*types.BlockState)
-		if val != nil || obj.BlockNum != bs.BlockNum || obj.InCurrentChain != true {
+		//obj := val.(*types.BlockState)
+		if obj != nil || obj.BlockNum != bs.BlockNum || obj.InCurrentChain != true {
 			//return &types.BlockState{}
 		}
 		fmt.Println(obj)

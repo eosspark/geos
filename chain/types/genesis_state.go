@@ -26,7 +26,7 @@ func GetGenesisStateInstance() *GenesisState {
 
 func newGenesisState() *GenesisState {
 	g := &GenesisState{}
-	its, err := common.FromIsoString("2018-09-10T12:00:00")
+	its, err := common.FromIsoString("2018-06-01T12:00:00")
 	if err != nil {
 		log.Error("NewGenesisState is error detail:", err)
 	}
@@ -50,7 +50,7 @@ func (g *GenesisState) ComputeChainID() common.ChainIdType {
 	return common.ChainIdType(crypto.Hash256(b))
 }
 
-func (g *GenesisState) Initial() common.Config{
+func (g *GenesisState) Initial() common.Config {
 	InitialConfiguration := common.Config{
 		MaxBlockNetUsage:               common.DefaultConfig.MaxBlockNetUsage,
 		TargetBlockNetUsagePct:         common.DefaultConfig.TargetBlockNetUsagePct,

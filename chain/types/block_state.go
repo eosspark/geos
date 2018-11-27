@@ -2,7 +2,6 @@ package types
 
 import (
 	"bytes"
-	"github.com/eosspark/eos-go/common"
 )
 
 type BlockState struct {
@@ -45,20 +44,20 @@ func (b *BlockState) ElementObject() {
 
 }
 
-func CompareBlockId(first common.ElementObject, second common.ElementObject) int {
-	fir := first.(*BlockState)
-	sec := second.(*BlockState)
-	result := bytes.Compare(fir.BlockId.Bytes(), sec.BlockId.Bytes())
+func CompareBlockId(first *BlockState, second *BlockState) int {
+	/*fir := first.(*BlockState)
+	sec := second.(*BlockState)*/
+	result := bytes.Compare(first.BlockId.Bytes(), second.BlockId.Bytes())
 	return result
 }
 
-func ComparePrev(first common.ElementObject, second common.ElementObject) int {
-	fir := first.(*BlockState)
-	sec := second.(*BlockState)
+func ComparePrev(first *BlockState, second *BlockState) int {
+	/*fir := first.(*BlockState)
+	sec := second.(*BlockState)*/
 
-	if fir.BlockNum == sec.BlockNum {
+	if first.BlockNum == second.BlockNum {
 		return 0
-	} else if fir.BlockNum < sec.BlockNum {
+	} else if first.BlockNum < second.BlockNum {
 		return -1
 	} else {
 		return 1
@@ -66,21 +65,21 @@ func ComparePrev(first common.ElementObject, second common.ElementObject) int {
 
 }
 
-func CompareBlockNum(first common.ElementObject, second common.ElementObject) int {
-	fir := first.(*BlockState)
-	sec := second.(*BlockState)
-	if fir.InCurrentChain /* && sec.InCurrentChain*/ {
-		if fir.BlockNum == sec.BlockNum {
+func CompareBlockNum(first *BlockState, second *BlockState) int {
+	/*fir := first.(*BlockState)
+	sec := second.(*BlockState)*/
+	if first.InCurrentChain /* && sec.InCurrentChain*/ {
+		if first.BlockNum == second.BlockNum {
 			return 0
-		} else if fir.BlockNum < sec.BlockNum {
+		} else if first.BlockNum < second.BlockNum {
 			return -1
 		} else {
 			return 1
 		}
 	} else {
-		if ^fir.BlockNum+1 == sec.BlockNum {
+		if ^first.BlockNum+1 == second.BlockNum {
 			return 0
-		} else if ^fir.BlockNum+1 < sec.BlockNum {
+		} else if ^first.BlockNum+1 < second.BlockNum {
 			return -1
 		} else {
 			return 1
@@ -88,15 +87,15 @@ func CompareBlockNum(first common.ElementObject, second common.ElementObject) in
 	}
 }
 
-func CompareLibNum(first common.ElementObject, second common.ElementObject) int {
+func CompareLibNum(first *BlockState, second *BlockState) int {
 	//by_lib_block_num
-	if first.(*BlockState).DposIrreversibleBlocknum == second.(*BlockState).DposIrreversibleBlocknum &&
-		first.(*BlockState).BftIrreversibleBlocknum == second.(*BlockState).BftIrreversibleBlocknum &&
-		first.(*BlockState).BlockNum == second.(*BlockState).BlockNum {
+	if first.DposIrreversibleBlocknum == second.DposIrreversibleBlocknum &&
+		first.BftIrreversibleBlocknum == second.BftIrreversibleBlocknum &&
+		first.BlockNum == second.BlockNum {
 		return 0
-	} else if first.(*BlockState).DposIrreversibleBlocknum > second.(*BlockState).DposIrreversibleBlocknum ||
-		first.(*BlockState).BftIrreversibleBlocknum > second.(*BlockState).BftIrreversibleBlocknum ||
-		first.(*BlockState).BlockNum > second.(*BlockState).BlockNum {
+	} else if first.DposIrreversibleBlocknum > second.DposIrreversibleBlocknum ||
+		first.BftIrreversibleBlocknum > second.BftIrreversibleBlocknum ||
+		first.BlockNum > second.BlockNum {
 		return -1
 	} else {
 		return 1
