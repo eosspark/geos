@@ -6,9 +6,10 @@ import (
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/ecc"
+	"github.com/eosspark/eos-go/chain"
 )
 
-type DBReadMode int8
+type DBReadMode = chain.DBReadMode
 
 const (
 	SPECULATIVE = DBReadMode(iota)
@@ -17,7 +18,7 @@ const (
 	IRREVERSIBLE
 )
 
-type ValidationMode int8
+type ValidationMode = chain.ValidationMode
 
 const (
 	FULL = ValidationMode(iota)
@@ -41,7 +42,11 @@ func newController() *Controller {
 var Control *Controller
 func GetControllerInstance() *Controller {
 	if Control == nil {
-		Control = newController()
+		tp, err := common.FromIsoString("2018-06-01T12:00:00")
+		if err != nil {
+			panic(err)
+		}
+		Control = NewChainTester(types.NewBlockTimeStamp(tp)).Control
 
 	}
 	return Control

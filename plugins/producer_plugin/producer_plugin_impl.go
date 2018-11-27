@@ -1,16 +1,15 @@
 package producer_plugin
 
 import (
-			"github.com/eosspark/eos-go/chain/types"
+	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto/ecc"
-	//Chain "github.com/eosspark/eos-go/plugins/producer_plugin/testing" /*test mode*/
-	Chain "github.com/eosspark/eos-go/chain" /*real chain*/
 	"github.com/eosspark/eos-go/crypto"
 	. "github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/log"
 	"github.com/eosspark/eos-go/plugins/appbase/asio"
+	"github.com/eosspark/container/sets/treeset"
 )
 
 type ProducerPluginImpl struct {
@@ -19,7 +18,7 @@ type ProducerPluginImpl struct {
 	ProductionSkipFlags uint32
 
 	SignatureProviders map[ecc.PublicKey]signatureProviderType
-	Producers          common.FlatSet //<AccountName>
+	Producers          *treeset.Set //<AccountName>
 	Timer              *common.Timer
 	ProducerWatermarks map[common.AccountName]uint32
 	PendingBlockMode   EnumPendingBlockMode
@@ -83,6 +82,7 @@ func NewProducerPluginImpl(io *asio.IoContext) *ProducerPluginImpl {
 
 	impl.Timer = common.NewTimer(io)
 	impl.SignatureProviders = make(map[ecc.PublicKey]signatureProviderType)
+	impl.Producers = treeset.NewWith(common.NameComparator)
 	impl.ProducerWatermarks = make(map[common.AccountName]uint32)
 
 	impl.PersistentTransactions = make(transactionIdWithExpireIndex)
@@ -107,18 +107,18 @@ func (impl *ProducerPluginImpl) OnBlock(bsp *types.BlockState) {
 
 	activeProducerToSigningKey := bsp.ActiveSchedule.Producers
 
-	activeProducers := common.FlatSet{} //<AccountName>
-	activeProducers.Reserve(len(bsp.ActiveSchedule.Producers))
+	activeProducers := treeset.NewWith(common.NameComparator) //<AccountName>
+
 	for _, p := range bsp.ActiveSchedule.Producers {
-		activeProducers.Insert(&p.ProducerName)
+		activeProducers.Add(&p.ProducerName)
 	}
 
-	common.SetIntersection(impl.Producers, activeProducers, func(e common.Element, i int, j int) {
-		producer := e.(*common.AccountName)
-		if *producer != bsp.Header.Producer {
+	treeset.SetIntersection(impl.Producers, activeProducers, func(e interface{}) {
+		producer := e.(common.AccountName)
+		if producer != bsp.Header.Producer {
 			itr := func() *types.ProducerKey {
 				for _, k := range activeProducerToSigningKey {
-					if k.ProducerName == *producer {
+					if k.ProducerName == producer {
 						return &k
 					}
 				}
@@ -151,21 +151,20 @@ func (impl *ProducerPluginImpl) OnBlock(bsp *types.BlockState) {
 
 	// for newly installed producers we can set their watermarks to the block they became active
 	if newBs.MaybePromotePending() && bsp.ActiveSchedule.Version != newBs.ActiveSchedule.Version {
-		newProducers := common.FlatSet{} //<AccountName>
-		newProducers.Reserve(len(newBs.ActiveSchedule.Producers))
+		newProducers := treeset.NewWith(common.NameComparator)
 		for _, p := range newBs.ActiveSchedule.Producers {
-			if exist, _ := impl.Producers.Find(&p.ProducerName); exist {
-				newProducers.Insert(&p.ProducerName)
+			if impl.Producers.Contains(p.ProducerName) {
+				newProducers.Add(p.ProducerName)
 			}
 		}
 
 		for _, p := range bsp.ActiveSchedule.Producers {
-			newProducers.Remove(&p.ProducerName) //TODO check FlatSet::Erase
+			newProducers.Remove(&p.ProducerName)
 		}
 
-		for _, newProducer := range newProducers.Data {
-			impl.ProducerWatermarks[*newProducer.(*common.AccountName)] = hbn
-		}
+		newProducers.Each(func(index int, value interface{}) {
+			impl.ProducerWatermarks[value.(common.AccountName)] = hbn
+		})
 	}
 }
 
@@ -178,7 +177,7 @@ func (impl *ProducerPluginImpl) OnIncomingBlock(block *types.SignedBlock) {
 
 	EosAssert(block.Timestamp.ToTimePoint() < common.Now().AddUs(common.Seconds(7)), &BlockFromTheFuture{}, "received a block from the future, ignoring it")
 
-	chain := Chain.GetControllerInstance()
+	chain := impl.Self.chain()
 
 	/* de-dupe here... no point in aborting block if we already know the block */
 	id := block.BlockID()
@@ -237,7 +236,7 @@ type pendingIncomingTransaction struct {
 }
 
 func (impl *ProducerPluginImpl) OnIncomingTransactionAsync(trx *types.PackedTransaction, persistUntilExpired bool, next func(interface{})) {
-	chain := Chain.GetControllerInstance()
+	chain := impl.Self.chain()
 	if chain.PendingBlockState() == nil {
 		impl.PendingIncomingTransactions = append(impl.PendingIncomingTransactions, pendingIncomingTransaction{trx, persistUntilExpired, next})
 		return

@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"testing"
 	"github.com/eosspark/container/maps/treemap"
-)
+	)
 
 func NewBlockHeaderState(t *testing.T) *BlockHeaderState {
 	initPriKey, err := ecc.NewPrivateKey("5KYZdUEo39z3FPrtuX2QbbwGnNP5zTd7yyr2SC1j299sBCnWjss")
@@ -29,7 +29,8 @@ func NewBlockHeaderState(t *testing.T) *BlockHeaderState {
 	genHeader := new(BlockHeaderState)
 	genHeader.ActiveSchedule = initSchedule
 	genHeader.PendingSchedule = initSchedule
-	genHeader.Header.Timestamp = BlockTimeStamp(1162425600) //slot of 2018-6-2 00:00:00:000 UTC
+	genHeader.PendingScheduleHash = crypto.Hash256(initSchedule)
+	genHeader.Header.Timestamp = BlockTimeStamp(1162339200) //1162339200 slot of 2018-6-1T12:00:00 UTC
 	genHeader.Header.Confirmed = 1
 	genHeader.BlockId = genHeader.Header.BlockID()
 	genHeader.BlockNum = genHeader.Header.BlockNumber()
@@ -53,16 +54,16 @@ func Test_BlockHeaderState_GetScheduledProducer(t *testing.T) {
 func Test_BlockHeaderState_GenerateNext(t *testing.T) {
 	bs := NewBlockHeaderState(t)
 
-	t100 := BlockTimeStamp(1162425600 + 100)
-	t2 := BlockTimeStamp(1162425602)
+	t100 := BlockTimeStamp(1162339200 + 100)
+	t2 := BlockTimeStamp(1162339200 + 2)
 
 	bsNil := bs.GenerateNext(0)
 	bs100 := bs.GenerateNext(t100)
 	bs2 := bs.GenerateNext(t2)
 
-	assert.Equal(t, BlockTimeStamp(1162425601), bsNil.Header.Timestamp)
-	assert.Equal(t, BlockTimeStamp(1162425700), bs100.Header.Timestamp)
-	assert.Equal(t, BlockTimeStamp(1162425602), bs2.Header.Timestamp)
+	assert.Equal(t, BlockTimeStamp(1162339201), bsNil.Header.Timestamp)
+	assert.Equal(t, BlockTimeStamp(1162339300), bs100.Header.Timestamp)
+	assert.Equal(t, BlockTimeStamp(1162339202), bs2.Header.Timestamp)
 
 	bsNil.SetConfirmed(10)
 
@@ -94,7 +95,7 @@ func TestBlockHeader_BlockID(t *testing.T) {
 func TestBlockHeader_Digest(t *testing.T) {
 	bs := NewBlockHeaderState(t)
 	assert.Equal(t,
-		"be5bfe468786e957b46741d9d7ba012d65c533a589934f6d653402e688ad66a0",
+		"2d9f0747bb8924a240689f363d1527a09238d1d3d0337daa0dc4cbef4a0a6a15", //calculate by eosioc++
 		bs.SigDigest().String())
 }
 

@@ -3,229 +3,106 @@ package producer_plugin
 import (
 	"github.com/stretchr/testify/assert"
 	"github.com/urfave/cli"
-	"os"
 	"testing"
-	main "github.com/eosspark/eos-go/plugins/producer_plugin/testing"
-	//Chain "github.com/eosspark/eos-go/plugins/producer_plugin/testing" //test chain
-	Chain "github.com/eosspark/eos-go/chain" //real chain
+
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/plugins/appbase/asio"
-	"syscall"
-	"fmt"
 	"crypto/sha256"
 	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/eosspark/eos-go/chain/types"
+	"github.com/eosspark/eos-go/exception/try"
+	"github.com/eosspark/eos-go/log"
+	"github.com/eosspark/eos-go/plugins/appbase/app"
 )
 
-type ProducerPluginTester struct {
-	*ProducerPlugin
-	*ProducerPluginImpl
-
-	io    *asio.IoContext
-	app   *cli.App
-	chain *main.ChainTester
+func TestProducerPlugin_FindByApplication(t *testing.T) {
+	plugin := app.App().FindPlugin(ProducerPlug).(*ProducerPlugin)
+	assert.NotNil(t, plugin)
 }
 
-const (
-	debug     = false
-	BatchSize = 0
-)
+var eosio = common.AccountName(common.N("eosio"))
+var yuanc = common.AccountName(common.N("yuanc"))
 
-func BatchTest(f func(*testing.T), t *testing.T) {
-	for i := 0; i < BatchSize; i++ {
-		f(t)
+func producerPluginInitialize(arguments ...string) *ProducerPlugin {
+	app := cli.NewApp()
+	plugin := NewProducerPlugin(asio.NewIoContext())
+	plugin.SetProgramOptions(&app.Flags)
+	app.Action = func(option *cli.Context) {
+		plugin.PluginInitialize(option)
 	}
+	app.Run(append(make([]string, 1, len(arguments)+1), arguments...))
+	return plugin
 }
 
-func (p *ProducerPluginTester) Exec() {
-	sigint := asio.NewSignalSet(p.io, syscall.SIGINT)
-	sigint.AsyncWait(func(err error) {
-		p.io.Stop()
-		sigint.Cancel()
-		p.PluginShutdown()
-	})
-
-	p.io.Run()
-}
-
-func (p *ProducerPluginTester) Stop() {
-	p.io.Stop()
-}
-
-func NewProducerTester(t *testing.T) *ProducerPluginTester {
-	ppt := new(ProducerPluginTester)
-	ppt.io = asio.NewIoContext()
-	ppt.app = cli.NewApp()
-
-	ppt.chain = main.NewChainTester(0, common.AccountName(common.N("eosio")), common.AccountName(common.N("yuanc")))
-	main.Control = ppt.chain.Control // use control instance from ChainTester
-
-	ppt.ProducerPlugin = NewProducerPlugin(ppt.io)
-	ppt.ProducerPluginImpl = ppt.my
-
-	ppt.SetProgramOptions(&ppt.app.Flags)
-	main.MakeTesterArguments("--enable-stale-production", "-p", "eosio", "-p", "yuanc",
+func TestProducerPlugin_PluginInitialize(t *testing.T) {
+	plugin := producerPluginInitialize("-e", "-p", "eosio", "-p", "yuanc",
 		"--private-key", "[\"EOS859gxfnXyUriMgUeThh1fWv3oqcpLFyHa3TfFYC4PK2HqhToVM\", \"5KYZdUEo39z3FPrtuX2QbbwGnNP5zTd7yyr2SC1j299sBCnWjss\"]",
-		"--private-key", "[\"EOS5jeUuKEZ8s8LLoxz4rNysYdHWboup8KtkyJzZYQzcVKFGek9Zu\", \"5Ja3h2wJNUnNcoj39jDMHGigsazvbGHAeLYEHM5uTwtfUoRDoYP\"]",
-	)
-	ppt.app.Action = func(c *cli.Context) {
-		ppt.PluginInitialize(c)
-	}
+		"--private-key", "[\"EOS5jeUuKEZ8s8LLoxz4rNysYdHWboup8KtkyJzZYQzcVKFGek9Zu\", \"5Ja3h2wJNUnNcoj39jDMHGigsazvbGHAeLYEHM5uTwtfUoRDoYP\"]")
 
-	err := ppt.app.Run(os.Args)
+	assert.Equal(t, true, plugin.my.Producers.Contains(common.AccountName(common.N("eosio")), common.AccountName(common.N("yuanc"))))
+	assert.Equal(t, true, plugin.my.ProductionEnabled)
+
+	pub, err := ecc.NewPublicKey("EOS859gxfnXyUriMgUeThh1fWv3oqcpLFyHa3TfFYC4PK2HqhToVM")
 	assert.NoError(t, err)
+	assert.Contains(t, plugin.my.SignatureProviders, pub)
 
-	assert.Equal(t, true, ppt.ProductionEnabled)
-	assert.Equal(t, int32(30), ppt.MaxTransactionTimeMs)
-	assert.Equal(t, common.Seconds(-1), ppt.MaxIrreversibleBlockAgeUs)
-	//assert.Equal(t, struct{}{}, producerPlugin.my.Producers[common.AccountName(common.N("eosio"))])
-	//assert.Equal(t, struct{}{}, producerPlugin.my.Producers[common.AccountName(common.N("yuanc"))])
+	pub, err = ecc.NewPublicKey("EOS5jeUuKEZ8s8LLoxz4rNysYdHWboup8KtkyJzZYQzcVKFGek9Zu")
+	assert.NoError(t, err)
+	assert.Contains(t, plugin.my.SignatureProviders, pub)
 
-	return ppt
 }
-
-//func produceone(when types.BlockTimeStamp) (b *types.SignedBlock) {
-//	b = new(types.SignedBlock)
-//	control := Chain.GetControllerInstance()
-//	hbs := control.HeadBlockState()
-//	newBs := hbs.GenerateNext(when)
-//	nextProducer := hbs.GetScheduledProducer(when)
-//	b.Timestamp = when
-//	b.Producer = nextProducer.ProducerName
-//	b.Previous = hbs.BlockId
-//
-//	//currentWatermark := plugin.my.ProducerWatermarks[nextProducer.AccountName]
-//
-//	if hbs.Header.Producer != newBs.Header.Producer {
-//		b.Confirmed = 12
-//	}
-//
-//	initPriKey, _ := ecc.NewPrivateKey("5KYZdUEo39z3FPrtuX2QbbwGnNP5zTd7yyr2SC1j299sBCnWjss")
-//	initPubKey := initPriKey.PublicKey()
-//	initPriKey2, _ := ecc.NewPrivateKey("5Ja3h2wJNUnNcoj39jDMHGigsazvbGHAeLYEHM5uTwtfUoRDoYP")
-//	initPubKey2 := initPriKey2.PublicKey()
-//	signatureProviders := map[ecc.PublicKey]signatureProviderType{
-//		initPubKey: func(sha256 crypto.Sha256) ecc.Signature {
-//			sk, _ := initPriKey.Sign(sha256.Bytes())
-//			return sk
-//		},
-//		initPubKey2: func(sha256 crypto.Sha256) ecc.Signature {
-//			sk, _ := initPriKey2.Sign(sha256.Bytes())
-//			return sk
-//		},
-//	}
-//
-//	newBs.Header = b.SignedBlockHeader
-//	signatureProvider := signatureProviders[nextProducer.BlockSigningKey]
-//	b.ProducerSignature = signatureProvider(newBs.SigDigest())
-//
-//	return
-//}
 
 func TestProducerPlugin_PluginStartup(t *testing.T) {
-	tester := NewProducerTester(t)
+	// startup by self
+	plugin := producerPluginInitialize("-e", "-p", "eosio", "--private-key",
+		"[\"EOS859gxfnXyUriMgUeThh1fWv3oqcpLFyHa3TfFYC4PK2HqhToVM\", "+
+			"\"5KYZdUEo39z3FPrtuX2QbbwGnNP5zTd7yyr2SC1j299sBCnWjss\"]")
+	try.Try(func() {
+		plugin.PluginStartup()
+	}).Catch(func(e interface{}) {
+		assert.Fail(t, "startup with exception")
+	})
 
-	chain := Chain.GetControllerInstance()
+	assert.Equal(t, producing, plugin.my.PendingBlockMode)
 
-	timer := common.NewTimer(tester.io)
-	var delayStop func()
-	delayStop = func() {
-		timer.ExpiresFromNow(common.Seconds(1))
-		timer.AsyncWait(func(error) {
-			if chain.LastIrreversibleBlockNum() > 0 && chain.HeadBlockNum() > 20 {
-				tester.Stop()
-				tester.PluginShutdown()
-				return
-			}
-			delayStop()
-		})
-	}
-
-	tester.PluginStartup()
-
-	delayStop()
-
-	tester.Exec()
-}
-
-func TestBatch_PluginStartup(t *testing.T) {
-	BatchTest(TestProducerPlugin_PluginStartup, t)
 }
 
 func TestProducerPlugin_Pause(t *testing.T) {
-	tester := NewProducerTester(t)
-	tester.PluginStartup()
+	plugin := producerPluginInitialize("-e", "-p", "eosio", "--private-key",
+		"[\"EOS859gxfnXyUriMgUeThh1fWv3oqcpLFyHa3TfFYC4PK2HqhToVM\", "+
+			"\"5KYZdUEo39z3FPrtuX2QbbwGnNP5zTd7yyr2SC1j299sBCnWjss\"]")
+	plugin.PluginStartup()
+	assert.Equal(t, producing, plugin.my.PendingBlockMode)
+	assert.Equal(t, false, plugin.my.ProductionPaused)
+	assert.Equal(t, false, plugin.Paused())
 
-	chain := Chain.GetControllerInstance()
+	plugin.Pause()
+	assert.Equal(t, true, plugin.my.ProductionPaused)
+	assert.Equal(t, true, plugin.Paused())
 
-	pause := common.NewTimer(tester.io)
-	var pauses func()
-	pauses = func() {
-		pause.ExpiresFromNow(common.Microseconds(300))
-		pause.AsyncWait(func(error) {
-			//fmt.Println("pauses")
-			if chain.HeadBlockNum() == 5 {
-				fmt.Println("pause")
-				tester.Pause()
-				return
-			}
-			pauses()
-		})
-	}
-	pauses()
+	result, _ := plugin.my.StartBlock()
+	assert.Equal(t, speculating, plugin.my.PendingBlockMode)
+	assert.Equal(t, waiting, result)
 
-	resume := common.NewTimer(tester.io)
-	var resumes func()
-	resumes = func() {
-		resume.ExpiresFromNow(common.Microseconds(300))
-		resume.AsyncWait(func(error) {
-			if tester.Paused() {
-				fmt.Println("resume")
-				assert.Equal(t, uint32(5), chain.HeadBlockNum())
-				tester.Resume()
-				return
-			}
-			resumes()
-		})
-	}
+	plugin.Resume()
+	assert.Equal(t, false, plugin.my.ProductionPaused)
+	assert.Equal(t, false, plugin.Paused())
 
-	resumes()
-
-	stop := common.NewTimer(tester.io)
-	var stops func()
-	stops = func() {
-		stop.ExpiresFromNow(common.Microseconds(300))
-		stop.AsyncWait(func(error) {
-			if chain.HeadBlockNum() >= 10 {
-				tester.io.Stop()
-				tester.PluginShutdown()
-				return
-			}
-			stops()
-		})
-	}
-	stops()
-
-	tester.Exec()
-
-}
-
-func TestBatch_Pause(t *testing.T) {
-	BatchTest(TestProducerPlugin_Pause, t)
+	result, _ = plugin.my.StartBlock()
+	assert.Equal(t, producing, plugin.my.PendingBlockMode)
+	assert.Equal(t, succeeded, result)
 }
 
 func TestProducerPlugin_SignCompact(t *testing.T) {
-	tester := NewProducerTester(t)
-	data := "test producer_plugin's is_producer_key "
+	data := "test producer_plugin SignCompact "
 
 	dataByte, _ := rlp.EncodeToBytes(data)
 	h := sha256.New()
 	h.Write(dataByte)
 
 	dataByteHash := h.Sum(nil)
-
 	dataHash := crypto.Hash256(data)
 
 	initPriKey, _ := ecc.NewPrivateKey("5KYZdUEo39z3FPrtuX2QbbwGnNP5zTd7yyr2SC1j299sBCnWjss")
@@ -233,20 +110,28 @@ func TestProducerPlugin_SignCompact(t *testing.T) {
 	initPriKey2, _ := ecc.NewPrivateKey("5Ja3h2wJNUnNcoj39jDMHGigsazvbGHAeLYEHM5uTwtfUoRDoYP")
 	initPubKey2 := initPriKey2.PublicKey()
 
-	sign1, _ := initPriKey.Sign(dataByteHash)
-	sign2 := tester.SignCompact(&initPubKey, dataHash)
-	sign3 := tester.SignCompact(&initPubKey2, dataHash)
+	plugin := producerPluginInitialize("-e", "-p", "eosio", "-p", "yuanc",
+		"--private-key", "[\"EOS859gxfnXyUriMgUeThh1fWv3oqcpLFyHa3TfFYC4PK2HqhToVM\", \"5KYZdUEo39z3FPrtuX2QbbwGnNP5zTd7yyr2SC1j299sBCnWjss\"]",
+		"--private-key", "[\"EOS5jeUuKEZ8s8LLoxz4rNysYdHWboup8KtkyJzZYQzcVKFGek9Zu\", \"5Ja3h2wJNUnNcoj39jDMHGigsazvbGHAeLYEHM5uTwtfUoRDoYP\"]")
 
-	assert.Equal(t, sign1, sign2)
-	assert.NotEqual(t, sign1, sign3)
+	sign1, _ := initPriKey.Sign(dataByteHash)
+	sign2, _ := initPriKey2.Sign(dataByteHash)
+
+	assert.Equal(t, sign1, plugin.SignCompact(&initPubKey, dataHash))
+	assert.Equal(t, sign2, plugin.SignCompact(&initPubKey2, dataHash))
+	assert.NotEqual(t, sign1, sign2)
 }
 
 func TestProducerPlugin_IsProducerKey(t *testing.T) {
-	tester := NewProducerTester(t)
 	pub1, _ := ecc.NewPublicKey("EOS859gxfnXyUriMgUeThh1fWv3oqcpLFyHa3TfFYC4PK2HqhToVM")
 	pub2, _ := ecc.NewPublicKey("EOS5jeUuKEZ8s8LLoxz4rNysYdHWboup8KtkyJzZYQzcVKFGek9Zu")
-	assert.Equal(t, true, tester.IsProducerKey(pub1))
-	assert.Equal(t, true, tester.IsProducerKey(pub2))
+
+	plugin := producerPluginInitialize("-e", "-p", "eosio", "-p", "yuanc",
+		"--private-key", "[\"EOS859gxfnXyUriMgUeThh1fWv3oqcpLFyHa3TfFYC4PK2HqhToVM\", \"5KYZdUEo39z3FPrtuX2QbbwGnNP5zTd7yyr2SC1j299sBCnWjss\"]",
+		"--private-key", "[\"EOS5jeUuKEZ8s8LLoxz4rNysYdHWboup8KtkyJzZYQzcVKFGek9Zu\", \"5Ja3h2wJNUnNcoj39jDMHGigsazvbGHAeLYEHM5uTwtfUoRDoYP\"]")
+
+	assert.Equal(t, true, plugin.IsProducerKey(pub1))
+	assert.Equal(t, true, plugin.IsProducerKey(pub2))
 }
 
 func Test_makeKeySignatureProvider(t *testing.T) {
@@ -261,138 +146,191 @@ func Test_makeKeySignatureProvider(t *testing.T) {
 }
 
 func TestProducerPluginImpl_StartBlock(t *testing.T) {
+	plugin := producerPluginInitialize("-e", "-p", "eosio", "--private-key",
+		"[\"EOS859gxfnXyUriMgUeThh1fWv3oqcpLFyHa3TfFYC4PK2HqhToVM\", "+
+			"\"5KYZdUEo39z3FPrtuX2QbbwGnNP5zTd7yyr2SC1j299sBCnWjss\"]")
+	plugin.PluginStartup()
+	result, last := plugin.my.StartBlock()
+	assert.Equal(t, last, uint32(types.NewBlockTimeStamp(plugin.my.CalculatePendingBlockTime()))%uint32(common.DefaultConfig.ProducerRepetitions) == uint32(common.DefaultConfig.ProducerRepetitions-1))
+	assert.Equal(t, succeeded, result)
+	assert.Equal(t, producing, plugin.my.PendingBlockMode)
 
+	plugin.my.ProducerWatermarks[common.AccountName(common.N("eosio"))] = 100
+	result, _ = plugin.my.StartBlock()
+	assert.Equal(t, waiting, result)
+	assert.Equal(t, speculating, plugin.my.PendingBlockMode)
+
+	plugin = producerPluginInitialize()
+	plugin.PluginStartup()
+	result, _ = plugin.my.StartBlock()
+	assert.Equal(t, waiting, result)
+	assert.Equal(t, speculating, plugin.my.PendingBlockMode)
+
+	plugin = producerPluginInitialize("-e")
+	plugin.PluginStartup()
+	result, _ = plugin.my.StartBlock()
+	assert.Equal(t, waiting, result)
+	assert.Equal(t, speculating, plugin.my.PendingBlockMode)
+
+	plugin = producerPluginInitialize("-e", "-p", "eosio")
+	plugin.PluginStartup()
+	result, _ = plugin.my.StartBlock()
+	assert.Equal(t, waiting, result)
+	assert.Equal(t, speculating, plugin.my.PendingBlockMode)
 }
 
 func TestProducerPluginImpl_ScheduleProductionLoop(t *testing.T) {
-
-}
-
-func TestProducerPluginImpl_ScheduleDelayedProductionLoop(t *testing.T) {
-
-}
-
-func TestProducerPluginImpl_OnIncomingBlock(t *testing.T) {
-
-	app := cli.NewApp()
-	io := asio.NewIoContext()
-
-	plugin := NewProducerPlugin(io)
-	plugin.SetProgramOptions(&app.Flags)
-	main.MakeTesterArguments("--enable-stale-production")
-	app.Action = func(c *cli.Context) {
-		plugin.PluginInitialize(c)
-	}
-
-	err := app.Run(os.Args)
-	assert.NoError(t, err)
-
-	//receive blocks 1 minutes before
-	ago := types.NewBlockTimeStamp(common.Now().SubUs(common.Minutes(1)))
-
-	tester := main.NewChainTester(ago)
-
-	main.Control = main.NewChainTester(ago).Control
-	chain := Chain.GetControllerInstance()
-
-	for i := 1; i < 100; i++ {
-		oldBs := chain.HeadBlockState()
-		ago ++
-		block := tester.ProduceBlock(ago)
-		plugin.my.OnIncomingBlock(block)
-
-		newBs := chain.HeadBlockState()
-
-		assert.Equal(t, oldBs.BlockNum+1, newBs.BlockNum)
-		assert.Equal(t, oldBs.BlockId, newBs.Header.Previous)
-	}
-
-}
-
-func TestProducerPlugin_ReceiveBlockInSchedule(t *testing.T) {
-	app := cli.NewApp()
-	io := asio.NewIoContext()
-
-	plugin := NewProducerPlugin(io)
-	plugin.SetProgramOptions(&app.Flags)
-	main.MakeTesterArguments("--enable-stale-production")
-	app.Action = func(c *cli.Context) {
-		plugin.PluginInitialize(c)
-	}
-
-	err := app.Run(os.Args)
-	assert.NoError(t, err)
-
-	//receive blocks 1 minutes before
-	ago := types.NewBlockTimeStamp(common.Now().SubUs(common.Minutes(1)))
-
-	tester := main.NewChainTester(ago)
-
-	main.Control = main.NewChainTester(ago).Control
-	chain := Chain.GetControllerInstance()
+	plugin := producerPluginInitialize("-e", "-p", "eosio", "--private-key",
+		"[\"EOS859gxfnXyUriMgUeThh1fWv3oqcpLFyHa3TfFYC4PK2HqhToVM\", \"5KYZdUEo39z3FPrtuX2QbbwGnNP5zTd7yyr2SC1j299sBCnWjss\"]")
+	hbn := plugin.chain().HeadBlockNum()
 
 	plugin.PluginStartup()
+	assert.Equal(t, true, plugin.my.MaybeProduceBlock(), "produce failed in startup ")
+	assert.EqualValues(t, hbn+1, plugin.chain().HeadBlockNum())
 
-	timer := common.NewTimer(io)
-
-	var asyncApply func()
-	asyncApply = func() {
-		timer.ExpiresFromNow(common.Milliseconds(1))
-		timer.AsyncWait(func(err error) {
-			ago ++
-			block := tester.ProduceBlock(ago)
-
-			oldBs := chain.HeadBlockState()
-			plugin.my.OnIncomingBlock(block)
-			newBs := chain.HeadBlockState()
-
-			assert.Equal(t, oldBs.BlockNum+1, newBs.BlockNum)
-			assert.Equal(t, oldBs.BlockId, newBs.Header.Previous)
-
-			if chain.HeadBlockNum() >= 100 {
-				io.Stop()
-				plugin.PluginShutdown()
-				return
-			}
-
-			asyncApply()
-		})
-	}
-
-	asyncApply()
-	io.Run()
+	plugin.my.ScheduleProductionLoop()
+	assert.Equal(t, true, plugin.my.MaybeProduceBlock(), "produce failed in schedule loop")
+	assert.EqualValues(t, hbn+2, plugin.chain().HeadBlockNum())
 }
 
-func TestProducerPluginImpl_OnIncomingTransactionAsync(t *testing.T) {
+func TestProducerPluginImpl_MaybeProduceBlock(t *testing.T) {
+	plugin := producerPluginInitialize("-e", "-p", "eosio", "--private-key",
+		"[\"EOS859gxfnXyUriMgUeThh1fWv3oqcpLFyHa3TfFYC4PK2HqhToVM\", "+
+			"\"5KYZdUEo39z3FPrtuX2QbbwGnNP5zTd7yyr2SC1j299sBCnWjss\"]")
+	hbn := plugin.chain().HeadBlockNum()
+	plugin.PluginStartup()
 
-}
-
-func TestProducerPluginImpl_OnBlock(t *testing.T) {
-
+	assert.Equal(t, true, plugin.my.MaybeProduceBlock())
+	assert.EqualValues(t, hbn+1, plugin.chain().HeadBlockNum())
+	assert.Equal(t, true, plugin.my.MaybeProduceBlock())
+	assert.EqualValues(t, hbn+2, plugin.chain().HeadBlockNum())
 }
 
 func TestProducerPluginImpl_CalculateNextBlockTime(t *testing.T) {
-	tester := NewProducerTester(t)
-	chain := Chain.GetControllerInstance()
 
 	account1 := common.Name(common.N("eosio"))
 	account2 := common.Name(common.N("yuanc"))
 
-	pt := *tester.CalculateNextBlockTime(&account1, chain.HeadBlockState().Header.Timestamp)
+	plugin := producerPluginInitialize("-e", "-p", "eosio", "-p", "yuanc",
+		"--private-key", "[\"EOS859gxfnXyUriMgUeThh1fWv3oqcpLFyHa3TfFYC4PK2HqhToVM\", \"5KYZdUEo39z3FPrtuX2QbbwGnNP5zTd7yyr2SC1j299sBCnWjss\"]",
+		"--private-key", "[\"EOS5jeUuKEZ8s8LLoxz4rNysYdHWboup8KtkyJzZYQzcVKFGek9Zu\", \"5Ja3h2wJNUnNcoj39jDMHGigsazvbGHAeLYEHM5uTwtfUoRDoYP\"]")
+
+	pt := *plugin.my.CalculateNextBlockTime(&account1, 0)
 	assert.Equal(t, pt/1e3, (pt/1e3/500)*500) // make sure pt can be divisible by 500ms
 
-	time := tester.CalculateNextBlockTime(&account1, 100)
+	time := plugin.my.CalculateNextBlockTime(&account1, 100)
 	assert.Equal(t, "2000-01-01 00:00:50.5 +0000 UTC", time.String())
 
-	tester.CalculateNextBlockTime(&account2, 100)
-	time = tester.CalculateNextBlockTime(&account2, 100)
-	assert.Equal(t, "2000-01-01 00:00:54 +0000 UTC", time.String())
+	time = plugin.my.CalculateNextBlockTime(&account2, 100)
+	assert.Nil(t, time)
 }
 
 func TestProducerPluginImpl_CalculatePendingBlockTime(t *testing.T) {
-	tester := NewProducerTester(t)
-	pt := tester.CalculatePendingBlockTime()
+	plugin := producerPluginInitialize("-e", "-p", "eosio", "-p", "yuanc",
+		"--private-key", "[\"EOS859gxfnXyUriMgUeThh1fWv3oqcpLFyHa3TfFYC4PK2HqhToVM\", \"5KYZdUEo39z3FPrtuX2QbbwGnNP5zTd7yyr2SC1j299sBCnWjss\"]",
+		"--private-key", "[\"EOS5jeUuKEZ8s8LLoxz4rNysYdHWboup8KtkyJzZYQzcVKFGek9Zu\", \"5Ja3h2wJNUnNcoj39jDMHGigsazvbGHAeLYEHM5uTwtfUoRDoYP\"]")
+
+	pt := plugin.my.CalculatePendingBlockTime()
 	assert.Equal(t, pt/1e3, (pt/1e3/500)*500) // make sure pt can be divisible by 500ms
 }
 
-/**/
+func TestProducerPluginImpl_OnIncomingBlock(t *testing.T) {
+	plugin := producerPluginInitialize("-p", "eosio")
+	//
+	chain := plugin.chain()
+	block := &types.SignedBlock{}
+	block.Timestamp = types.NewBlockTimeStamp(*plugin.my.CalculateNextBlockTime(&eosio, chain.HeadBlockState().SignedBlock.Timestamp))
+	block.Producer = common.AccountName(common.N("eosio"))
+	block.Previous = chain.HeadBlockState().BlockId
+
+	priKey, err := ecc.NewPrivateKey("5KYZdUEo39z3FPrtuX2QbbwGnNP5zTd7yyr2SC1j299sBCnWjss")
+	assert.NoError(t, err)
+
+	blockrootMerkle := chain.HeadBlockState().BlockrootMerkle
+	blockrootMerkle.Append(chain.HeadBlockState().BlockId)
+
+	blockHash := block.Digest()
+	scheduleHash := crypto.Hash256(types.ProducerScheduleType{Version: 0, Producers: []types.ProducerKey{{eosio, priKey.PublicKey()}}})
+	headerBmroot := crypto.Hash256(common.MakePair(blockHash, blockrootMerkle.GetRoot()))
+	digest := crypto.Hash256(common.MakePair(headerBmroot, scheduleHash))
+
+	block.ProducerSignature, err = priKey.Sign(digest.Bytes())
+	assert.NoError(t, err)
+
+	plugin.my.OnIncomingBlock(block)
+
+	assert.Equal(t, block.BlockNumber(), chain.HeadBlockNum())
+}
+
+func BenchmarkProducerPluginImpl_OnIncomingBlock(b *testing.B) {
+	b.StopTimer()
+	log.Root().SetHandler(log.DiscardHandler())
+	plugin := producerPluginInitialize("-p", "eosio")
+	chain := plugin.chain()
+
+	for i := 0; i < b.N; i++ {
+		block := &types.SignedBlock{}
+		block.Timestamp = types.NewBlockTimeStamp(*plugin.my.CalculateNextBlockTime(&eosio, chain.HeadBlockState().SignedBlock.Timestamp))
+		block.Producer = common.AccountName(common.N("eosio"))
+		block.Previous = chain.HeadBlockState().BlockId
+
+		priKey, _ := ecc.NewPrivateKey("5KYZdUEo39z3FPrtuX2QbbwGnNP5zTd7yyr2SC1j299sBCnWjss")
+
+		blockrootMerkle := chain.HeadBlockState().BlockrootMerkle
+		blockrootMerkle.Append(chain.HeadBlockState().BlockId)
+
+		blockHash := block.Digest()
+		scheduleHash := crypto.Hash256(types.ProducerScheduleType{Version: 0, Producers: []types.ProducerKey{{eosio, priKey.PublicKey()}}})
+		headerBmroot := crypto.Hash256(common.MakePair(blockHash, blockrootMerkle.GetRoot()))
+		digest := crypto.Hash256(common.MakePair(headerBmroot, scheduleHash))
+
+		block.ProducerSignature, _ = priKey.Sign(digest.Bytes())
+
+		b.StartTimer()
+		plugin.my.OnIncomingBlock(block)
+		b.StopTimer()
+	}
+}
+
+func BenchmarkProducerPluginImpl_StartBlock(b *testing.B) {
+	b.StopTimer()
+	log.Root().SetHandler(log.DiscardHandler())
+
+	plugin := producerPluginInitialize("-e", "-p", "eosio", "--private-key",
+		"[\"EOS859gxfnXyUriMgUeThh1fWv3oqcpLFyHa3TfFYC4PK2HqhToVM\", "+
+			"\"5KYZdUEo39z3FPrtuX2QbbwGnNP5zTd7yyr2SC1j299sBCnWjss\"]")
+	plugin.PluginStartup()
+
+	b.StartTimer()
+	for i := 0; i < b.N; i++ {
+		plugin.my.StartBlock()
+	}
+}
+
+func BenchmarkProducerPluginImpl_ScheduleProductionLoop(b *testing.B) {
+	b.StopTimer()
+	log.Root().SetHandler(log.DiscardHandler())
+	plugin := producerPluginInitialize("-e", "-p", "eosio", "--private-key",
+		"[\"EOS859gxfnXyUriMgUeThh1fWv3oqcpLFyHa3TfFYC4PK2HqhToVM\", \"5KYZdUEo39z3FPrtuX2QbbwGnNP5zTd7yyr2SC1j299sBCnWjss\"]")
+
+	plugin.PluginStartup()
+	b.StartTimer()
+	for i := 0; i < b.N; i++ {
+		plugin.my.ScheduleProductionLoop()
+		plugin.my.MaybeProduceBlock()
+	}
+}
+
+func BenchmarkProducerPluginImpl_MaybeProduceBlock(b *testing.B) {
+	b.StopTimer()
+	log.Root().SetHandler(log.DiscardHandler())
+	plugin := producerPluginInitialize("-e", "-p", "eosio", "--private-key",
+		"[\"EOS859gxfnXyUriMgUeThh1fWv3oqcpLFyHa3TfFYC4PK2HqhToVM\", "+
+			"\"5KYZdUEo39z3FPrtuX2QbbwGnNP5zTd7yyr2SC1j299sBCnWjss\"]")
+	plugin.PluginStartup()
+
+	b.StartTimer()
+	for i := 0; i < b.N; i++ {
+		plugin.my.MaybeProduceBlock()
+	}
+}
