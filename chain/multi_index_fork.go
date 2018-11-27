@@ -6,193 +6,193 @@ import (
 	"github.com/eosspark/eos-go/common"
 )
 
-type multiIndexFork struct {
-	indexs map[string]*indexFork
+type MultiIndexFork struct {
+	Indexs map[string]*IndexFork
 }
 
-type indexFork struct {
-	target     string
-	uniqueness bool
-	less       bool
-	value      common.Bucket
+type IndexFork struct {
+	Target     string
+	Uniqueness bool
+	Less       bool
+	Value      BucketFork
 }
 
-type iteratorFork struct {
-	currentSub int
-	value      *types.BlockState
-	idx        *indexFork
+type IteratorFork struct {
+	CurrentSub int
+	Value      *types.BlockState
+	Idx        *IndexFork
 }
 
-func newMultiIndexFork() *multiIndexFork {
-	mi := multiIndexFork{}
-	mi.indexs = make(map[string]*indexFork)
-	index := &indexFork{target: "byBlockId", uniqueness: true}
-	index2 := &indexFork{target: "byPrev", uniqueness: false}
-	index3 := &indexFork{target: "byBlockNum", uniqueness: false}
-	index4 := &indexFork{target: "byLibBlockNum", uniqueness: false}
-	mi.indexs["byBlockId"] = index
-	mi.indexs["byPrev"] = index2
-	mi.indexs["byBlockNum"] = index3
-	mi.indexs["byLibBlockNum"] = index4
+func newMultiIndexFork() *MultiIndexFork {
+	mi := MultiIndexFork{}
+	mi.Indexs = make(map[string]*IndexFork)
+	index := &IndexFork{Target: "byBlockId", Uniqueness: true}
+	index2 := &IndexFork{Target: "byPrev", Uniqueness: false}
+	index3 := &IndexFork{Target: "byBlockNum", Uniqueness: false}
+	index4 := &IndexFork{Target: "byLibBlockNum", Uniqueness: false}
+	mi.Indexs["byBlockId"] = index
+	mi.Indexs["byPrev"] = index2
+	mi.Indexs["byBlockNum"] = index3
+	mi.Indexs["byLibBlockNum"] = index4
 
 	return &mi
 }
 
-func (m *multiIndexFork) Insert(b *types.BlockState) bool {
+func (m *MultiIndexFork) Insert(b *types.BlockState) bool {
 
-	index := &indexFork{}
-	index.target = "byBlockId"
-	index.uniqueness = true
-	if m.indexs[index.target].value.Len() > 0 {
-		m.indexs[index.target].value.Insert(b)
+	index := &IndexFork{}
+	index.Target = "byBlockId"
+	index.Uniqueness = true
+	if m.Indexs[index.Target].Value.Len() > 0 {
+		m.Indexs[index.Target].Value.Insert(b)
 	} else {
-		bt := common.Bucket{}
+		bt := BucketFork{}
 		bt.Compare = types.CompareBlockId
 		bt.Insert(b)
-		index.value = bt
-		m.indexs["byBlockId"] = index
+		index.Value = bt
+		m.Indexs["byBlockId"] = index
 	}
 
-	index2 := &indexFork{}
-	index2.target = "byPrev"
-	index2.uniqueness = false
-	index2.less = true
+	index2 := &IndexFork{}
+	index2.Target = "byPrev"
+	index2.Uniqueness = false
+	index2.Less = true
 
-	if m.indexs[index2.target].value.Len() > 0 {
-		m.indexs[index2.target].value.Insert(b)
+	if m.Indexs[index2.Target].Value.Len() > 0 {
+		m.Indexs[index2.Target].Value.Insert(b)
 	} else {
-		bt := common.Bucket{}
+		bt := BucketFork{}
 		bt.Compare = types.ComparePrev
 		bt.Insert(b)
-		index2.value = bt
-		m.indexs[index2.target] = index2
+		index2.Value = bt
+		m.Indexs[index2.Target] = index2
 	}
 
-	index3 := &indexFork{}
-	index3.target = "byBlockNum"
-	index3.uniqueness = false
-	index3.less = true
+	index3 := &IndexFork{}
+	index3.Target = "byBlockNum"
+	index3.Uniqueness = false
+	index3.Less = true
 
-	if m.indexs[index3.target].value.Len() > 0 {
-		m.indexs[index3.target].value.Insert(b)
+	if m.Indexs[index3.Target].Value.Len() > 0 {
+		m.Indexs[index3.Target].Value.Insert(b)
 	} else {
-		bt := common.Bucket{}
+		bt := BucketFork{}
 		bt.Compare = types.CompareBlockNum
 		bt.Insert(b)
-		index3.value = bt
-		m.indexs[index3.target] = index3
+		index3.Value = bt
+		m.Indexs[index3.Target] = index3
 	}
 
-	index4 := &indexFork{}
-	index4.target = "byLibBlockNum"
-	index4.uniqueness = false
-	index4.less = false
-	if m.indexs[index4.target].value.Len() > 0 {
-		m.indexs[index4.target].value.Insert(b)
+	index4 := &IndexFork{}
+	index4.Target = "byLibBlockNum"
+	index4.Uniqueness = false
+	index4.Less = false
+	if m.Indexs[index4.Target].Value.Len() > 0 {
+		m.Indexs[index4.Target].Value.Insert(b)
 	} else {
-		bt := common.Bucket{}
+		bt := BucketFork{}
 		bt.Compare = types.CompareLibNum
 		bt.Insert(b)
-		index4.value = bt
-		m.indexs[index4.target] = index4
+		index4.Value = bt
+		m.Indexs[index4.Target] = index4
 	}
 
 	return true
 }
 
-func (m *multiIndexFork) GetIndex(tag string) *indexFork {
-	if index, ok := m.indexs[tag]; ok {
+func (m *MultiIndexFork) GetIndex(tag string) *IndexFork {
+	if index, ok := m.Indexs[tag]; ok {
 		return index
 	}
 	return nil
 }
 
-func (idx *indexFork) Begin() (*types.BlockState, error) { //syscall.Mmap()
+func (idx *IndexFork) Begin() (*types.BlockState, error) { //syscall.Mmap()
 
-	if idx.value.Len() > 0 {
-		return idx.value.Data[0].(*types.BlockState), nil
+	if idx.Value.Len() > 0 {
+		return idx.Value.Data[0], nil
 	} else {
 		return nil, errors.New("MultiIndexFork Begin : iterator is nil")
 	}
 }
 
-func (idx *indexFork) upperBound(b *types.BlockState) *iteratorFork {
-	itr := iteratorFork{}
-	itr.idx = idx
-	obj, sub := idx.value.UpperBound(b)
+func (idx *IndexFork) upperBound(b *types.BlockState) *IteratorFork {
+	itr := IteratorFork{}
+	itr.Idx = idx
+	obj, sub := idx.Value.UpperBound(b)
 	if sub >= 0 {
-		itr.value = obj.(*types.BlockState)
-		itr.currentSub = sub
+		itr.Value = obj
+		itr.CurrentSub = sub
 	}
 	return &itr
 }
 
-func (idx *indexFork) lowerBound(b *types.BlockState) *iteratorFork {
-	itr := iteratorFork{}
-	itr.idx = idx
-	obj, sub := idx.value.LowerBound(b)
+func (idx *IndexFork) lowerBound(b *types.BlockState) *IteratorFork {
+	itr := IteratorFork{}
+	itr.Idx = idx
+	obj, sub := idx.Value.LowerBound(b)
 	if sub >= 0 {
-		itr.value = obj.(*types.BlockState)
-		itr.currentSub = sub
+		itr.Value = obj
+		itr.CurrentSub = sub
 	}
 	return &itr
 }
 
-func (itr *iteratorFork) next() bool {
-	itr.currentSub++
-	if itr.currentSub < itr.idx.value.Len() {
-		itr.value = itr.idx.value.Data[itr.currentSub].(*types.BlockState)
+func (itr *IteratorFork) next() bool {
+	itr.CurrentSub++
+	if itr.CurrentSub < itr.Idx.Value.Len() {
+		itr.Value = itr.Idx.Value.Data[itr.CurrentSub]
 		return true
 	} else {
 		return false
 	}
 }
 
-func (m *multiIndexFork) find(id common.BlockIdType) *types.BlockState {
+func (m *MultiIndexFork) find(id common.BlockIdType) *types.BlockState {
 	b := types.BlockState{}
 	b.BlockId = id
-	idx := m.indexs["byBlockId"]
-	bucket := idx.value
+	idx := m.Indexs["byBlockId"]
+	bucket := idx.Value
 	exist, sub := bucket.Find(&b)
 	if exist {
-		return idx.value.Data[sub].(*types.BlockState)
+		return idx.Value.Data[sub]
 	} else {
 		return nil
 	}
 }
 
-func (m *multiIndexFork) FindByPrev(prev common.BlockIdType) *types.BlockState {
+func (m *MultiIndexFork) FindByPrev(prev common.BlockIdType) *types.BlockState {
 	b := types.BlockState{}
 	b.Header.Previous = prev
-	idx := m.indexs["byBlockId"]
-	bucket := idx.value
+	idx := m.Indexs["byBlockId"]
+	bucket := idx.Value
 	exist, sub := bucket.Find(&b)
 	if exist {
-		return idx.value.Data[sub].(*types.BlockState)
+		return idx.Value.Data[sub]
 	} else {
 		return nil
 	}
 }
 
-func (m *multiIndexFork) erase(b *types.BlockState) bool {
-	if len(m.indexs) > 0 {
-		for _, v := range m.indexs {
-			bt := v.value
+func (m *MultiIndexFork) erase(b *types.BlockState) bool {
+	if len(m.Indexs) > 0 {
+		for _, v := range m.Indexs {
+			bt := v.Value
 			ext, _ := bt.Find(b)
 			if ext {
-				v.value.Eraser(b)
+				v.Value.Eraser(b)
 			}
 		}
 	}
 	return true
 }
 
-func (m *multiIndexFork) modify(b *types.BlockState) {
+func (m *MultiIndexFork) modify(b *types.BlockState) {
 	m.erase(b)
 	m.Insert(b)
 }
 
-/*type iteratorFork interface {
+/*type IteratorFork interface {
 
 	Next() bool
 
@@ -200,5 +200,5 @@ func (m *multiIndexFork) modify(b *types.BlockState) {
 
 	Key() []byte
 
-	value() []byte
+	Value() []byte
 }*/
