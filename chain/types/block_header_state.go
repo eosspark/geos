@@ -9,7 +9,7 @@ import (
 	. "github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
 	"sort"
-)
+	)
 
 func init() {
 	Assert(math.MaxUint8 >= common.DefaultConfig.MaxProducers*2/3+1, "8bit confirmations may not be able to hold all of the needed confirmations")
@@ -91,7 +91,7 @@ func (b *BlockHeaderState) GenerateNext(when BlockTimeStamp) *BlockHeaderState {
 	result.ProducerToLastProduced = *treemap.CopyFrom(&b.ProducerToLastProduced)
 	result.ProducerToLastProduced.Put(proKey.ProducerName, result.BlockNum)
 	result.BlockrootMerkle = b.BlockrootMerkle
-	result.BlockrootMerkle.Append(crypto.Sha256(b.BlockId))
+	result.BlockrootMerkle.Append(b.BlockId)
 
 	result.ActiveSchedule = b.ActiveSchedule
 	result.PendingSchedule = b.PendingSchedule
