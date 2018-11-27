@@ -29,8 +29,28 @@ type ChainPluginImpl struct {
 	// method provider handles
 
 	// scoped connections for chain controller
+	Self *ChainPlugin
 }
 
 func NewChainPluginImpl() *ChainPluginImpl {
 	return new(ChainPluginImpl)
+}
+
+func (c *ChainPluginImpl) GetInfo() *InfoResp {
+	return &InfoResp{
+		ServerVersion:            "0f6695cb",
+		ChainID:                  common.BlockIdNil(),
+		HeadBlockNum:             17673,
+		LastIrreversibleBlockNum: 17672,
+		LastIrreversibleBlockID:  common.BlockIdNil(),
+		HeadBlockID:              common.BlockIdNil(),
+		HeadBlockTime:            common.Now(),
+		HeadBlockProducer:        common.AccountName(common.N("eosio")),
+		VirtualBlockCPULimit:     200000000,
+		VirtualBlockNetLimit:     1048576000,
+		BlockCPULimit:            199900,
+		BlockNetLimit:            1048576,
+		ServerVersionString:      "TODO walker",
+	}
+
 }

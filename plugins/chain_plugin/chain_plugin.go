@@ -1,30 +1,29 @@
 package chain_plugin
 
 import (
-	"github.com/urfave/cli"
 	"github.com/eosspark/eos-go/chain"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/exception"
+	"github.com/eosspark/eos-go/log"
 	. "github.com/eosspark/eos-go/plugins/appbase/app"
 	"github.com/eosspark/eos-go/plugins/appbase/asio"
-	"github.com/eosspark/eos-go/log"
+	"github.com/urfave/cli"
 )
 
 const ChainPlug = PluginTypeName("ChainPlugin")
 
+var chainPlugin Plugin = App().RegisterPlugin(ChainPlug, NewChainPlugin(App().GetIoService()))
+
 type ChainPlugin struct {
 	AbstractPlugin
-	my *ChainPluginImpl
-}
-
-func init() {
-	App().RegisterPlugin(ChainPlug, NewChainPlugin(App().GetIoService()))
+	My *ChainPluginImpl
 }
 
 func NewChainPlugin(io *asio.IoContext) *ChainPlugin {
-	plugin := new(ChainPlugin)
+	plugin := &ChainPlugin{}
 
-	plugin.my = NewChainPluginImpl()
+	plugin.My = NewChainPluginImpl()
+	plugin.My.Self = plugin
 	return plugin
 }
 
@@ -53,15 +52,15 @@ func (c *ChainPlugin) GetReadWriteApi() *ReadWrite {
 }
 
 func (c *ChainPlugin) Chain() *chain.Controller {
-	return c.my.Chain
+	return c.My.Chain
 }
 
 func (c *ChainPlugin) GetChainId() common.ChainIdType {
-	return *c.my.ChainId
+	return *c.My.ChainId
 }
 
 func (c *ChainPlugin) GetAbiSerializerMaxTime() common.Microseconds {
-	return c.my.AbiSerializerMaxTimeMs
+	return c.My.AbiSerializerMaxTimeMs
 }
 
 func (c *ChainPlugin) HandleGuardException(e exception.GuardExceptions) {

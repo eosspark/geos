@@ -46,7 +46,7 @@ var (
 const HistoryFile = "history"
 
 // DefaultPrompt is the default prompt line prefix to use for user input querying.
-const DefaultPrompt = "> "
+const DefaultPrompt = "eosgo > "
 
 // Config is the collection of configurations to fine tune the behavior of the
 // JavaScript console.

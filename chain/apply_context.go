@@ -12,7 +12,6 @@ import (
 	. "github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/log"
-	"os"
 )
 
 type ApplyContext struct {
@@ -73,7 +72,7 @@ func NewApplyContext(control *Controller, trxContext *TransactionContext, act *t
 	applyContext.idxDouble = NewIdxDouble(applyContext)
 
 	applyContext.ilog = log.New("Apply_Context")
-	applyContext.ilog.SetHandler(log.StreamHandler(os.Stdout, log.TerminalFormat(true)))
+	//applyContext.ilog.SetHandler(log.StreamHandler(os.Stdout, log.TerminalFormat(true)))
 
 	return applyContext
 

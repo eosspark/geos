@@ -39,3 +39,7 @@ func (k *innerK1PrivateKey) string() string {
 	wif, _ := btcutil.NewWIF(k.privKey, '\x80', false) // no error possible
 	return wif.String()
 }
+
+func (k *innerK1PrivateKey) Serialize() []byte {
+	return k.privKey.Serialize()
+}

@@ -78,6 +78,7 @@ type innerPrivateKey interface {
 	publicKey() PublicKey
 	sign(hash []byte) (out Signature, err error)
 	string() string
+	Serialize() []byte
 }
 
 type PrivateKey struct {
@@ -97,6 +98,10 @@ func (p *PrivateKey) Sign(hash []byte) (out Signature, err error) {
 
 func (p *PrivateKey) String() string {
 	return p.inner.string()
+}
+
+func (p *PrivateKey) Serialize() []byte {
+	return p.inner.Serialize()
 }
 
 func (p *PrivateKey) MarshalJSON() ([]byte, error) {

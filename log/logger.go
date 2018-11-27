@@ -119,6 +119,9 @@ type Logger interface {
 	// SetHandler updates the logger to write records to the specified handler.
 	SetHandler(h Handler)
 
+	// SetEnable enable output without handler.
+	SetEnable(e bool)
+
 	// Log a message at the given level with context key/value pairs
 	Debug(format string, arg ...interface{})
 	Info(format string, arg ...interface{})
@@ -129,27 +132,39 @@ type Logger interface {
 }
 
 type logger struct {
-	name string
-	h    *swapHandler
+	name   string
+	h      *swapHandler
+	enable bool
 }
 
 func (l *logger) New(name string) Logger {
-	child := &logger{name, new(swapHandler)}
+	child := &logger{name: name, h: new(swapHandler), enable: true}
 	child.SetHandler(l.h)
 	return child
 }
+func (l *logger) SetEnable(e bool) {
+	l.enable = e
+}
 func (l *logger) Debug(format string, arg ...interface{}) {
-	l.write(LvlDebug, fmt.Sprintf(format, arg...), skipLevel)
+	if l.enable {
+		l.write(LvlDebug, fmt.Sprintf(format, arg...), skipLevel)
+	}
 }
 func (l *logger) Info(format string, arg ...interface{}) {
-	l.write(LvlInfo, fmt.Sprintf(format, arg...), skipLevel)
+	if l.enable {
+		l.write(LvlInfo, fmt.Sprintf(format, arg...), skipLevel)
+	}
 }
 
 func (l *logger) Warn(format string, arg ...interface{}) {
-	l.write(LvlWarn, fmt.Sprintf(format, arg...), skipLevel)
+	if l.enable {
+		l.write(LvlWarn, fmt.Sprintf(format, arg...), skipLevel)
+	}
 }
 func (l *logger) Error(format string, arg ...interface{}) {
-	l.write(LvlError, fmt.Sprintf(format, arg...), skipLevel)
+	if l.enable {
+		l.write(LvlError, fmt.Sprintf(format, arg...), skipLevel)
+	}
 }
 func (l *logger) GetHandler() Handler {
 	return l.h.Get()

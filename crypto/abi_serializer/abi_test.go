@@ -1,4 +1,4 @@
-package abi
+package abi_serializer
 
 import (
 	"encoding/hex"
