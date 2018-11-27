@@ -6,7 +6,9 @@ import (
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"testing"
+	"github.com/eosspark/eos-go/exception/try"
 )
+
 
 func initializeAuthTest() (*AuthorizationManager, *BaseTester) {
 	control := GetControllerInstance()
@@ -16,15 +18,22 @@ func initializeAuthTest() (*AuthorizationManager, *BaseTester) {
 }
 
 func TestMissingSigs(t *testing.T) {
-	_, b := initializeAuthTest()
-	b.CreateAccounts([]common.AccountName{common.AccountName(common.N("Alice"))}, false, false)
+	a, b := initializeAuthTest()
+	b.CreateAccounts([]common.AccountName{common.AccountName(common.N("alice"))}, false, false)
 	b.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs), 0)
-	b.Control.Close()
+	try.Try(func(){
+		b.PushReqAuth(common.N("alice"), &[]types.PermissionLevel{{common.N("alice"),common.DefaultConfig.ActiveName}},&[]ecc.PrivateKey{})
+	})
+	fmt.Println(a.GetPermission(&types.PermissionLevel{common.N("alice"),common.N("active")}))
+	//trace := b.PushReqAuth2(common.N("alice"),"owner", false)
+	//b.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs),0)
+	//assert.Equal(t,true,b.ChainHasTransaction(&trace.ID))
+	//b.Control.Close()
 }
 
 func TestMissingAuths(t *testing.T) {
-	//am := initializeAuth()
-	//produceBlock()
+	fmt.Println(common.S(6138663577826885632))
+	fmt.Println(common.S(3617214756542218240))
 }
 
 func TestDelegateAuth(t *testing.T) {
