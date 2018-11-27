@@ -32,7 +32,7 @@ func newForkDatabase(stateDir string, fileName string, rw bool) (*ForkDatabase, 
 		os.Mkdir(stateDir, os.ModePerm)
 	}
 	fk.ForkDbPath = stateDir + "/" + fileName
-	fStream, _ := os.OpenFile(fk.ForkDbPath, os.O_RDWR, os.ModePerm)
+	fStream, err := os.OpenFile(fk.ForkDbPath, os.O_RDWR, os.ModePerm)
 	if fStream == nil {
 		fStream, err = os.Create(fk.ForkDbPath)
 		try.EosAssert(err == nil, &exception.ForkDatabaseException{}, "%s", err)
@@ -47,8 +47,8 @@ func newForkDatabase(stateDir string, fileName string, rw bool) (*ForkDatabase, 
 	}
 
 	fk.fileStream = fStream
-
-	return fk, nil
+	err = os.Remove(fk.ForkDbPath)
+	return fk, err
 }
 
 func (f *ForkDatabase) SetHead(s *types.BlockState) {
