@@ -1,6 +1,7 @@
 package chain
 
 import (
+	"fmt"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto/abi"
@@ -11,7 +12,6 @@ import (
 	"github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/log"
 	"math"
-	"fmt"
 )
 
 type BaseTester struct {
@@ -30,7 +30,7 @@ type BaseTester struct {
 func newBaseTester(control *Controller) *BaseTester {
 	btInstance := &BaseTester{}
 	btInstance.Control = control
-	btInstance.initBase(true,SPECULATIVE)
+	btInstance.initBase(true, SPECULATIVE)
 	return btInstance
 }
 
@@ -104,8 +104,7 @@ func (t BaseTester) ProduceBlocks(n uint32, empty bool) {
 func (t BaseTester) produceBlock(skipTime common.Microseconds, skipPendingTrxs bool, skipFlag uint32) *types.SignedBlock {
 	headTime := t.Control.HeadBlockTime()
 	nextTime := headTime + common.TimePoint(skipTime)
-
-	if common.Empty(t.Control.PendingBlockState()) || t.Control.PendingBlockState().Header.Timestamp != types.BlockTimeStamp(nextTime) {
+	if common.Empty(t.Control.PendingBlockState()) || t.Control.PendingBlockState().Header.Timestamp != types.NewBlockTimeStamp(nextTime) {
 		t.startBlock(nextTime)
 	}
 	Hbs := t.Control.HeadBlockState()
@@ -206,27 +205,27 @@ func (t BaseTester) createAccount(name common.AccountName, creator common.Accoun
 		try.EosAssert(uint64(activeAuth.Threshold) <= uint64(math.MaxUint64), nil, "threshold is too high")
 		ownerAuth.Accounts = append(ownerAuth.Accounts, types.PermissionLevelWeight{
 			Permission: types.PermissionLevel{Actor: name, Permission: common.DefaultConfig.EosioCodeName},
-			Weight: types.WeightType(ownerAuth.Threshold),
+			Weight:     types.WeightType(ownerAuth.Threshold),
 		})
 		sortPermissions(&ownerAuth)
 		activeAuth.Accounts = append(ownerAuth.Accounts, types.PermissionLevelWeight{
 			Permission: types.PermissionLevel{Actor: name, Permission: common.DefaultConfig.EosioCodeName},
-			Weight: types.WeightType(activeAuth.Threshold),
+			Weight:     types.WeightType(activeAuth.Threshold),
 		})
 		sortPermissions(&activeAuth)
 	}
 	new := newAccount{
 		Creator: creator,
-		Name: name,
-		Owner: ownerAuth,
-		Active: activeAuth,
+		Name:    name,
+		Owner:   ownerAuth,
+		Active:  activeAuth,
 	}
 	data, _ := rlp.EncodeToBytes(new)
 	act := &types.Action{
-		Account: new.getAccount(),
-		Name: new.getName(),
+		Account:       new.getAccount(),
+		Name:          new.getName(),
 		Authorization: []types.PermissionLevel{{creator, common.DefaultConfig.ActiveName}},
-		Data: data,
+		Data:          data,
 	}
 	trx.Actions = append(trx.Actions, act)
 
@@ -241,7 +240,7 @@ func (t BaseTester) PushTransaction(trx *types.SignedTransaction, deadline commo
 	_, r := false, (*types.TransactionTrace)(nil)
 	try.Try(func() {
 		if t.Control.PendingBlockState() != nil {
-			t.startBlock(t.Control.HeadBlockTime() + common.TimePoint(common.Seconds(common.DefaultConfig.BlockIntervalUs)))
+			t.startBlock(t.Control.HeadBlockTime() + common.TimePoint(common.DefaultConfig.BlockIntervalUs))
 		}
 		c := common.CompressionNone
 		size, _ := rlp.EncodeSize(trx)
@@ -249,7 +248,7 @@ func (t BaseTester) PushTransaction(trx *types.SignedTransaction, deadline commo
 			c = common.CompressionZlib
 		}
 		mtrx := types.NewTransactionMetadataBySignedTrx(trx, c)
-		for _, act := range trx.Actions{
+		for _, act := range trx.Actions {
 			fmt.Println(act.Authorization)
 		}
 		trace = t.Control.pushTransaction(mtrx, deadline, billedCpuTimeUs, true)
@@ -356,10 +355,10 @@ func (t BaseTester) PushReqAuth(from common.AccountName, auths *[]types.Permissi
 	ps := params{From: from}
 	data, _ := rlp.EncodeToBytes(ps)
 	act := types.Action{
-		Account: common.DefaultConfig.SystemAccountName,
-		Name: common.ActionName(common.N("reqauth")),
+		Account:       common.DefaultConfig.SystemAccountName,
+		Name:          common.ActionName(common.N("reqauth")),
 		Authorization: *auths,
-		Data: data,
+		Data:          data,
 	}
 	trx.Actions = append(trx.Actions, &act)
 	t.SetTransactionHeaders(&trx.Transaction, t.DefaultExpirationDelta, 0)
@@ -421,10 +420,10 @@ func (t BaseTester) LinkAuthority(account common.AccountName, code common.Accoun
 	link := linkAuth{Account: account, Code: code, Type: rtype, Requirement: req}
 	data, _ := rlp.EncodeToBytes(link)
 	act := types.Action{
-		Account: link.getName(),
-		Name: link.getName(),
+		Account:       link.getName(),
+		Name:          link.getName(),
 		Authorization: []types.PermissionLevel{{account, common.DefaultConfig.ActiveName}},
-		Data: data,
+		Data:          data,
 	}
 	trx.Actions = append(trx.Actions, &act)
 	t.SetTransactionHeaders(&trx.Transaction, t.DefaultExpirationDelta, 0)
@@ -439,10 +438,10 @@ func (t BaseTester) UnlinkAuthority(account common.AccountName, code common.Acco
 	unlink := unlinkAuth{Account: account, Code: code, Type: rtype}
 	data, _ := rlp.EncodeToBytes(unlink)
 	act := types.Action{
-		Account: unlink.getName(),
-		Name: unlink.getName(),
+		Account:       unlink.getName(),
+		Name:          unlink.getName(),
 		Authorization: []types.PermissionLevel{{account, common.DefaultConfig.ActiveName}},
-		Data: data,
+		Data:          data,
 	}
 	trx.Actions = append(trx.Actions, &act)
 	t.SetTransactionHeaders(&trx.Transaction, t.DefaultExpirationDelta, 0)
@@ -458,10 +457,10 @@ func (t BaseTester) SetAuthority(account common.AccountName, perm common.Permiss
 	update := updateAuth{Account: account, Permission: perm, Parent: parent, Auth: auth}
 	data, _ := rlp.EncodeToBytes(update)
 	act := types.Action{
-		Account: update.getName(),
-		Name: update.getName(),
+		Account:       update.getName(),
+		Name:          update.getName(),
 		Authorization: *auths,
-		Data: data,
+		Data:          data,
 	}
 	trx.Actions = append(trx.Actions, &act)
 	t.SetTransactionHeaders(&trx.Transaction, t.DefaultExpirationDelta, 0)
@@ -484,10 +483,10 @@ func (t BaseTester) DeleteAuthority(account common.AccountName, perm common.Perm
 	delete := deleteAuth{Account: account, Permission: perm}
 	data, _ := rlp.EncodeToBytes(delete)
 	act := types.Action{
-		Account: delete.getName(),
-		Name: delete.getName(),
+		Account:       delete.getName(),
+		Name:          delete.getName(),
 		Authorization: *auths,
-		Data: data,
+		Data:          data,
 	}
 	trx.Actions = append(trx.Actions, &act)
 	t.SetTransactionHeaders(&trx.Transaction, t.DefaultExpirationDelta, 0)
@@ -509,10 +508,10 @@ func (t BaseTester) SetCode(account common.AccountName, wasm []uint8, signer *ec
 	setCode := setCode{Account: account, VmType: 0, VmVersion: 0, Code: wasm}
 	data, _ := rlp.EncodeToBytes(setCode)
 	act := types.Action{
-		Account: setCode.getName(),
-		Name: setCode.getName(),
+		Account:       setCode.getName(),
+		Name:          setCode.getName(),
 		Authorization: []types.PermissionLevel{{account, common.DefaultConfig.ActiveName}},
-		Data: data,
+		Data:          data,
 	}
 	trx.Actions = append(trx.Actions, &act)
 	t.SetTransactionHeaders(&trx.Transaction, t.DefaultExpirationDelta, 0)
@@ -538,10 +537,10 @@ func (t BaseTester) SetAbi(account common.AccountName, abiJson *byte, signer *ec
 	setAbi := setAbi{Account: account, Abi: abiBytes}
 	data, _ := rlp.EncodeToBytes(setAbi)
 	act := types.Action{
-		Account: setAbi.getName(),
-		Name: setAbi.getName(),
+		Account:       setAbi.getName(),
+		Name:          setAbi.getName(),
 		Authorization: []types.PermissionLevel{{account, common.DefaultConfig.ActiveName}},
-		Data: data,
+		Data:          data,
 	}
 	trx.Actions = append(trx.Actions, &act)
 	t.SetTransactionHeaders(&trx.Transaction, t.DefaultExpirationDelta, 0)
