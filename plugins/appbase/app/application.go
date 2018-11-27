@@ -152,6 +152,8 @@ func (app *Application) InitializeImpl(p []Plugin) bool {
 			return nil
 		}
 
+		app.my.Options.Run(os.Args)
+
 	}).Catch(func(e Exception) {
 		fmt.Println(e)
 		returning, r = true, false
@@ -199,7 +201,6 @@ func (app *Application) PluginStarted(p Plugin) {
 }
 
 func (app *Application) StartUp() {
-	app.my.Options.Run(os.Args)
 	for i := range app.initializedPlugins {
 		app.initializedPlugins[i].StartUp()
 	}
@@ -216,6 +217,7 @@ func (app *Application) ShutDown() {
 		delete(app.plugins, k)
 	}
 	app.iosv = nil
+	app = nil
 }
 
 func (app *Application) Quit() {
