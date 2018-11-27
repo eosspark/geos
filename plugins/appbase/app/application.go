@@ -1,16 +1,16 @@
 package app
 
 import (
+	"fmt"
+	. "github.com/eosspark/eos-go/exception"
+	"github.com/eosspark/eos-go/exception/try"
 	. "github.com/eosspark/eos-go/plugins/appbase/app/include"
+	"github.com/eosspark/eos-go/plugins/appbase/asio"
 	. "github.com/eosspark/eos-go/plugins/chain_interface"
 	"github.com/urfave/cli"
-	. "github.com/eosspark/eos-go/exception"
-	"fmt"
-	"github.com/eosspark/eos-go/exception/try"
 	"os"
 	"path/filepath"
 	"runtime"
-	"github.com/eosspark/eos-go/plugins/appbase/asio"
 	"syscall"
 )
 
@@ -152,6 +152,8 @@ func (app *Application) InitializeImpl(p []Plugin) bool {
 			return nil
 		}
 
+		app.my.Options.Run(os.Args)
+
 	}).Catch(func(e Exception) {
 		fmt.Println(e)
 		returning, r = true, false
@@ -199,7 +201,6 @@ func (app *Application) PluginStarted(p Plugin) {
 }
 
 func (app *Application) StartUp() {
-	app.my.Options.Run(os.Args)
 	for i := range app.initializedPlugins {
 		app.initializedPlugins[i].StartUp()
 	}
@@ -216,6 +217,7 @@ func (app *Application) ShutDown() {
 		delete(app.plugins, k)
 	}
 	app.iosv = nil
+	app = nil
 }
 
 func (app *Application) Quit() {
@@ -315,4 +317,8 @@ func homeDir() string {
 	//	return usr.HomeDir
 	//}
 	return ""
+}
+
+func (app *Application) DataDir() asio.Path {
+	return app.my.DateDir
 }

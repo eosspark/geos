@@ -5,7 +5,7 @@ import (
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto"
-	"github.com/eosspark/eos-go/crypto/abi"
+	"github.com/eosspark/eos-go/crypto/abi_serializer"
 	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/eosspark/eos-go/exception"
 	"github.com/eosspark/eos-go/exception/try"
@@ -33,13 +33,13 @@ type AccountSequenceObject struct {
 	AbiSequence  uint64
 }
 
-func (a *AccountObject) SetAbi(ad abi.AbiDef) {
+func (a *AccountObject) SetAbi(ad abi_serializer.AbiDef) {
 	d, _ := rlp.EncodeToBytes(ad)
 	a.Abi = d
 }
 
-func (a *AccountObject) GetAbi() abi.AbiDef {
-	abiDef := abi.AbiDef{}
+func (a *AccountObject) GetAbi() abi_serializer.AbiDef {
+	abiDef := abi_serializer.AbiDef{}
 	if len(a.Abi) != 0 {
 		try.EosAssert(len(a.Abi) != 0, &exception.AbiNotFoundException{}, "No ABI set on account :", a.Name)
 	}

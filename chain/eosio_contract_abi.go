@@ -2,7 +2,7 @@ package chain
 
 import (
 	"github.com/eosspark/eos-go/common"
-	"github.com/eosspark/eos-go/crypto/abi"
+	abi "github.com/eosspark/eos-go/crypto/abi_serializer"
 )
 
 func CommonTypeDefs() []abi.TypeDef {

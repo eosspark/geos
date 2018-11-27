@@ -1,27 +1,90 @@
 package wallet_plugin
 
 import (
-	"flag"
+	"github.com/eosspark/eos-go/common"
+	"github.com/eosspark/eos-go/exception"
+	. "github.com/eosspark/eos-go/exception/try"
+	. "github.com/eosspark/eos-go/plugins/appbase/app"
+	"github.com/eosspark/eos-go/plugins/appbase/asio"
+	"github.com/urfave/cli"
 )
 
-var (
-	walletDir = flag.String("wallet-dir", ".", "The path of the wallet files (absolute path or relative to application data dir)")
+const WalletPlug = PluginTypeName("WalletPlugin")
 
-	unlockTimeOut = flag.Int("unlock-timeout", 900, "Timeout for unlocked wallet in seconds (default 900 (15 minutes)).Wallets will automatically lock after specified number of seconds of inactivity.Activity is defined as any wallet command e.g. list-wallets.")
+var walletPlugin Plugin = App().RegisterPlugin(WalletPlug, NewWalletPlugin(App().GetIoService()))
 
-	yubihsmUrl = flag.String("yubihsm-url", "URL", "Override default URL of http://localhost:12345 for connecting to yubihsm-connector")
+type WalletPlugin struct {
+	AbstractPlugin
+	//ConfirmedBlock Signal //TODO signal ConfirmedBlock
+	My *WalletPluginImpl
+}
 
-	yubihsmAuthKey = flag.String("yubihsm-authkey", "key_num", "Enables YubiHSM support using given Authkey")
-)
+func NewWalletPlugin(io *asio.IoContext) *WalletPlugin {
+	plugin := &WalletPlugin{}
 
-type TransactionHandleType uint16
+	plugin.My = NewWalletPluginImpl(io)
+	plugin.My.Self = plugin
+	return plugin
 
-func init() {
-	flag.Parse()
-	SetDir(*walletDir)
-	SetTimeOut(int64(*unlockTimeOut))
+}
 
-	// key := *yubihsmAuthKey
-	// connectorEndpoint := "http://localhost:12345"
+func (w *WalletPlugin) SetProgramOptions(options *[]cli.Flag) {
+	*options = append(*options,
+		cli.StringFlag{
+			Name:  "wallet-dir",
+			Usage: "The path of the wallet files (absolute path or relative to application data dir)",
+			Value: ".",
+		},
+		cli.IntFlag{
+			Name: "unlock-timeout",
+			Usage: "Timeout for unlocked wallet in seconds (default 900 (15 minutes))." +
+				"Wallets will automatically lock after specified number of seconds of inactivity.Activity is defined as any wallet command e.g. list-wallets.",
+			Value: 900},
+		cli.StringFlag{
+			Name:  "yubihsm-url",
+			Usage: "Override default URL of http://localhost:12345 for connecting to yubihsm-connector)",
+			Value: "URL",
+		},
+		cli.UintFlag{
+			Name:  "yubihsm-authkey",
+			Usage: "Enables YubiHSM support using given Authkey",
+			//Value: nil, //"key_num" TODO
+		},
+	)
+
+}
+
+func (w *WalletPlugin) PluginInitialize(c *cli.Context) {
+	Try(func() {
+
+		if c.IsSet("wallet_dir") {
+			walletDir := common.AbsolutePath(App().DataDir(), c.String("wallet-dir"))
+			w.My.SetDir(walletDir)
+		}
+		if c.IsSet("unlock-timeout") {
+			timeout := c.Int64("unlock-timeout")
+			EosAssert(timeout > 0, &exception.InvalidLockTimeoutException{}, "Please specify a positive timeout %d", timeout)
+			w.My.SetTimeOut(timeout)
+		}
+
+		//if c.IsSet("yubihsm-authkey") {
+		//	key := uint16(c.Uint("yubihsm-authkey"))
+		//	connectorEndpoint := "http://localhost:12345"
+		//	if c.IsSet("yubihsm-url") {
+		//		connectorEndpoint = c.String("yubihsm-url")
+		//	}
+		//	Try(func() {
+		//		//w.my.ownAndUseWallet("YubiHSM",)
+		//	}).FcLogAndRethrow().End()
+		//}
+
+	}).FcLogAndRethrow().End()
+}
+
+func (w *WalletPlugin) PluginStartup() {
+
+}
+
+func (w *WalletPlugin) PluginShutdown() {
 
 }

@@ -5,8 +5,7 @@ import (
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/crypto"
-	"os"
-	"github.com/eosspark/container/maps/treemap"
+		"github.com/eosspark/container/maps/treemap"
 )
 
 type ChainTester struct {
@@ -14,19 +13,9 @@ type ChainTester struct {
 	KeyPairs map[common.AccountName]common.Pair //[]<pubKey, priKey>
 }
 
-//var chain *Controller
-
-//var initPriKey, _ = ecc.NewPrivateKey("5KYZdUEo39z3FPrtuX2QbbwGnNP5zTd7yyr2SC1j299sBCnWjss")
-//var initPubKey = initPriKey.PublicKey()
-//var initPriKey2, _ = ecc.NewPrivateKey("5Ja3h2wJNUnNcoj39jDMHGigsazvbGHAeLYEHM5uTwtfUoRDoYP")
-//var initPubKey2 = initPriKey2.PublicKey()
-//var eosio = common.AccountName(common.N("eosio"))
-//var yuanc = common.AccountName(common.N("yuanc"))
-
 func NewChainTester(when types.BlockTimeStamp, names ...common.AccountName) *ChainTester {
 	tester := new(ChainTester)
-	priKey, err := ecc.NewPrivateKey("5KYZdUEo39z3FPrtuX2QbbwGnNP5zTd7yyr2SC1j299sBCnWjss")
-	maythrow(err)
+	priKey, _ := ecc.NewPrivateKey("5KYZdUEo39z3FPrtuX2QbbwGnNP5zTd7yyr2SC1j299sBCnWjss")
 	pubKey := priKey.PublicKey()
 
 	tester.KeyPairs = make(map[common.AccountName]common.Pair)
@@ -43,6 +32,7 @@ func NewChainTester(when types.BlockTimeStamp, names ...common.AccountName) *Cha
 
 	tester.Control.head.ActiveSchedule = sch
 	tester.Control.head.PendingSchedule = sch
+	tester.Control.head.PendingScheduleHash = crypto.Hash256(sch)
 
 	tester.Control.forkDb.add(tester.Control.head)
 
@@ -84,44 +74,4 @@ func (t *ChainTester) NewHeaderStateTester(when types.BlockTimeStamp) *types.Blo
 	genHeader.ProducerToLastImpliedIrb = *treemap.NewWith(common.NameComparator)
 
 	return genHeader
-}
-
-
-
-func (t *ChainTester) ProduceBlock(when types.BlockTimeStamp) *types.SignedBlock {
-
-	t.Control.AbortBlock()
-	t.Control.StartBlock(when, 0)
-	t.Control.FinalizeBlock()
-
-	producer := t.Control.HeadBlockState().GetScheduledProducer(when).ProducerName
-
-	s := t.Control.SignBlock(func(digest crypto.Sha256) ecc.Signature {
-		sign, err := t.KeyPairs[producer].Second.(*ecc.PrivateKey).Sign(digest.Bytes())
-		if err != nil {
-			panic(err)
-		}
-		return sign
-	})
-
-	t.Control.CommitBlock(true)
-
-	return s
-}
-
-func MakeTesterArguments(values ...string) {
-	options := append([]string(values), "--") // use "--" to divide arguments
-
-	osArgs := make([]string, len(os.Args)+len(options))
-	copy(osArgs[:1], os.Args[:1])
-	copy(osArgs[1:len(options)+1], options)
-	copy(osArgs[len(options)+1:], os.Args[1:])
-
-	os.Args = osArgs
-}
-
-func maythrow(err error) {
-	if err != nil {
-		panic(err)
-	}
 }
