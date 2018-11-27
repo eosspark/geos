@@ -29,7 +29,7 @@ func newForkDatabase(stateDir string, fileName string, rw bool) (*ForkDatabase, 
 	fk := &ForkDatabase{MultiIndexFork: newMultiIndexFork()}
 	_, err := os.Stat(stateDir)
 	if err != nil {
-		os.Mkdir(stateDir, os.ModePerm)
+		os.MkdirAll(stateDir, os.ModePerm)
 	}
 	fk.ForkDbPath = stateDir + "/" + fileName
 	fStream, err := os.OpenFile(fk.ForkDbPath, os.O_RDWR, os.ModePerm)
@@ -282,9 +282,15 @@ func (f *ForkDatabase) SetBftIrreversible(id common.BlockIdType) {
 }
 
 func (f *ForkDatabase) Close() {
+
 	bts, err := rlp.EncodeToBytes(f.MultiIndexFork)
+	fout, err := os.Create(f.ForkDbPath)
+	f.fileStream = fout
 	_, err = f.fileStream.Write(bts)
 	err = f.fileStream.Close()
 	try.EosAssert(err == nil, &exception.ForkDatabaseException{}, "%s", err)
-	log.Error("ForkDatabase Close is error:%s", err)
+	if err != nil {
+		log.Error("ForkDatabase Close is error:%s", err)
+
+	}
 }
