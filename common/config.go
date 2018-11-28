@@ -91,7 +91,7 @@ func init() {
 	DefaultConfig.SetcodeRamBytesMultiplier = 10
 	DefaultConfig.HashingChecktimeBlockSize = 10 * 1024
 
-	DefaultConfig.ForkDBName = "forkdb.dat"
+	DefaultConfig.ForkDbName = "forkdb.dat"
 	DefaultConfig.DBFileName = "shared_memory.bin"
 	DefaultConfig.ReversibleFileName = "shared_memory_tmp.bin" //wait db modify
 	DefaultConfig.BlockFileName = "blog.log"
@@ -180,7 +180,7 @@ type Config struct {
 	MinNetUsageDeltaBetweenBaseAndMaxForTrx uint32
 	/**************************chain_config end****************************/
 
-	ForkDBName                     string
+	ForkDbName                     string
 	DBFileName                     string
 	ReversibleFileName             string
 	BlockFileName                  string

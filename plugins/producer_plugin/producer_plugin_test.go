@@ -63,7 +63,7 @@ func TestProducerPlugin_PluginStartup(t *testing.T) {
 		plugin.PluginStartup()
 	}).Catch(func(e interface{}) {
 		assert.Fail(t, "startup with exception")
-	})
+	}).End()
 
 	assert.Equal(t, producing, plugin.my.PendingBlockMode)
 
