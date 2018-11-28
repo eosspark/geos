@@ -9,7 +9,6 @@ import (
 	"time"
 	."github.com/eosspark/eos-go/plugins/appbase/app/include"
 	."github.com/eosspark/eos-go/plugins/appbase/app"
-	. "github.com/eosspark/eos-go/plugins/chain_interface/channel_caller"
 )
 
 

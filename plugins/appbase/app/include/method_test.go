@@ -6,7 +6,6 @@ import (
 	."github.com/eosspark/eos-go/plugins/chain_interface"
 	"fmt"
 	"github.com/eosspark/eos-go/chain/types"
-	. "github.com/eosspark/eos-go/plugins/chain_interface/channel_caller"
 )
 
 type Gbi struct {
