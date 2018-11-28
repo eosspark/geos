@@ -94,6 +94,18 @@ func TestDecoder_PublicKey(t *testing.T) {
 	err = rlp.DecodeBytes(buf, pub)
 	assert.NoError(t, err)
 	assert.Equal(t, pk, *pub)
+
+	pk = ecc.MustNewPublicKey("EOS7AfdKvHbtaQzAiDZ54n8cJ6FBzMAdXU3TFVDXRJGWHU16DPoyp")
+	buf, err = rlp.EncodeToBytes(pk)
+	assert.NoError(t, err)
+	pub = ecc.NewPublicKeyNil()
+	err = rlp.DecodeBytes(buf, pub)
+	assert.NoError(t, err)
+
+	pubre := ecc.MustNewPublicKeyFromData(buf)
+
+	assert.Equal(t, pk.String(), pubre.String())
+	assert.Equal(t, pk, *pub)
 }
 
 func TestDecoder_Signature(t *testing.T) {
@@ -105,6 +117,21 @@ func TestDecoder_Signature(t *testing.T) {
 	err = rlp.DecodeBytes(buf, rsig)
 	assert.NoError(t, err)
 	assert.Equal(t, sig, *rsig)
+
+	sig, err = ecc.NewSignature("SIG_K1_JujD18YwovAZp3nUEsQod8x9HXGqdbU4gptPWqSjgnPjNMGqoP5aNa4aZPjLZKtwBPBkXpBfVwcGopCjGzEGMJxGTLhfQ3")
+	buf, err = rlp.EncodeToBytes(sig)
+	assert.NoError(t, err)
+
+	var re ecc.Signature
+	err = rlp.DecodeBytes(buf, &re)
+	assert.NoError(t, err)
+	assert.Equal(t, sig, re)
+	//fmt.Println(re)
+
+	var signil ecc.Signature
+	buf, err = rlp.EncodeToBytes(signil)
+	assert.NoError(t, err)
+
 }
 
 func TestDecoder_BlockTimestamp(t *testing.T) {

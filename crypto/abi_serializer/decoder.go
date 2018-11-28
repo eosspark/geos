@@ -8,7 +8,6 @@ import (
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/common/arithmetic_types"
 	"github.com/eosspark/eos-go/crypto"
-	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/tidwall/sjson"
 	"strings"
@@ -260,13 +259,9 @@ func (a *AbiDef) read(binaryDecoder *rlp.Decoder, fieldName string, fieldType st
 		}
 		err = e
 	case "public_key":
-		var keyContent []byte
-		keyContent, err = binaryDecoder.ReadPublicKey() //[]byte
-		value, err = ecc.NewPublicKeyFromData(keyContent)
+		value, err = binaryDecoder.ReadPublicKey()
 	case "signature":
-		var sigContent []byte
-		sigContent, err = binaryDecoder.ReadSignature() //[]byte
-		value, err = ecc.NewSignatureFromData(sigContent)
+		value, err = binaryDecoder.ReadSignature()
 	case "symbol":
 		symbol, e := binaryDecoder.ReadSymbol()
 		err = e

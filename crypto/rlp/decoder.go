@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/log"
 	"io"
 	"io/ioutil"
@@ -80,7 +81,6 @@ var (
 	destaticVariantTag uint8
 	//eosArray           bool
 	asset  bool
-	eosSig bool
 	rlplog log.Logger
 )
 
@@ -143,6 +143,19 @@ func (d *Decoder) Decode(v interface{}) (err error) {
 		var r int64
 		r, _ = d.ReadVarint64()
 		rv.SetInt(r)
+		return
+	}
+
+	switch v.(type) {
+	case *ecc.PublicKey:
+		var p ecc.PublicKey
+		p, err = d.ReadPublicKey()
+		rv.Set(reflect.ValueOf(p))
+		return
+	case *ecc.Signature:
+		var s ecc.Signature
+		s, err = d.ReadSignature()
+		rv.Set(reflect.ValueOf(s))
 		return
 	}
 
@@ -233,14 +246,8 @@ func (d *Decoder) Decode(v interface{}) (err error) {
 
 	case reflect.Slice:
 		var l uint64
-		if eosSig {
-			eosSig = false
-			l = 66
+		if l, err = d.ReadUvarint64(); err != nil {
 			return
-		} else {
-			if l, err = d.ReadUvarint64(); err != nil {
-				return
-			}
 		}
 
 		rv.Set(reflect.MakeSlice(t, int(l), int(l)))
@@ -317,8 +324,6 @@ func (d *Decoder) decodeStruct(v interface{}, t reflect.Type, rv reflect.Value) 
 
 		case "asset":
 			asset = true
-		case "sig":
-			eosSig = true
 		}
 
 		if v := rv.Field(i); v.CanSet() && t.Field(i).Name != "_" {
@@ -574,7 +579,33 @@ func (d *Decoder) ReadChecksum512() (out []byte, err error) {
 	return
 }
 
-func (d *Decoder) ReadPublicKey() (out []byte, err error) {
+//func (d *Decoder) ReadPublicKey() (out []byte, err error) {
+//	if d.remaining() < TypeSize.PublicKey {
+//		err = fmt.Errorf("publicKey required [%d] bytes, remaining [%d]", TypeSize.PublicKey, d.remaining())
+//		return
+//	}
+//	keyContent := make([]byte, 34)
+//	copy(keyContent, d.data[d.pos:d.pos+TypeSize.PublicKey])
+//
+//	d.pos += TypeSize.PublicKey
+//	return keyContent, nil
+//}
+//
+//func (d *Decoder) ReadSignature() (out []byte, err error) {
+//	if d.remaining() < TypeSize.Signature {
+//		err = fmt.Errorf("signature required [%d] bytes, remaining [%d]", TypeSize.Signature, d.remaining())
+//		return
+//	}
+//	sigContent := make([]byte, 66)
+//	copy(sigContent, d.data[d.pos:d.pos+TypeSize.Signature])
+//
+//	d.pos += TypeSize.Signature
+//
+//	return sigContent, nil
+//}
+
+func (d *Decoder) ReadPublicKey() (out ecc.PublicKey, err error) {
+
 	if d.remaining() < TypeSize.PublicKey {
 		err = fmt.Errorf("publicKey required [%d] bytes, remaining [%d]", TypeSize.PublicKey, d.remaining())
 		return
@@ -582,21 +613,29 @@ func (d *Decoder) ReadPublicKey() (out []byte, err error) {
 	keyContent := make([]byte, 34)
 	copy(keyContent, d.data[d.pos:d.pos+TypeSize.PublicKey])
 
+	out, err = ecc.NewPublicKeyFromData(keyContent)
+	if err != nil {
+		err = fmt.Errorf("publicKey: key from data: %s", err)
+	}
+
 	d.pos += TypeSize.PublicKey
-	return keyContent, nil
+	return
 }
 
-func (d *Decoder) ReadSignature() (out []byte, err error) {
+func (d *Decoder) ReadSignature() (out ecc.Signature, err error) {
 	if d.remaining() < TypeSize.Signature {
 		err = fmt.Errorf("signature required [%d] bytes, remaining [%d]", TypeSize.Signature, d.remaining())
 		return
 	}
 	sigContent := make([]byte, 66)
 	copy(sigContent, d.data[d.pos:d.pos+TypeSize.Signature])
+	out, err = ecc.NewSignatureFromData(sigContent)
+	if err != nil {
+		return out, fmt.Errorf("new signature: %s", err)
+	}
 
 	d.pos += TypeSize.Signature
-
-	return sigContent, nil
+	return
 }
 
 //func (d *Decoder) ReadSymbol() (out *Symbol, err error) {

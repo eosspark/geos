@@ -693,3 +693,9 @@ func TestStructTag(t *testing.T) {
 	assert.Equal(t, test2, check)
 
 }
+
+//func TestSignature(t *testing.T) {
+//	var sig ecc.Signature
+//	b,err :=EncodeToBytes(sig)
+//	fmt.Println(b,err)
+//}
