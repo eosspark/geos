@@ -19,8 +19,9 @@ func initializeAuthTest() (*AuthorizationManager, *BaseTester) {
 
 func TestMissingSigs(t *testing.T) {
 	_, b := initializeAuthTest()
-	b.CreateAccounts([]common.AccountName{common.AccountName(common.N("alice"))}, false, false)
+	b.CreateAccounts([]common.AccountName{common.AccountName(common.N("alice"))}, false, true)
 	b.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs), 0)
+
 	Try(func() {
 		b.PushReqAuth(common.N("alice"), &[]types.PermissionLevel{{common.N("alice"), common.DefaultConfig.ActiveName}}, &[]ecc.PrivateKey{})
 	}).Catch(func(e UnsatisfiedAuthorization) {
@@ -36,12 +37,23 @@ func TestMissingSigs(t *testing.T) {
 func TestMissingAuths(t *testing.T) {
 	_, b := initializeAuthTest()
 	b.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs), 0)
-	b.createAccount(common.N("alice"),common.DefaultConfig.SystemAccountName,true,false)
+	b.createAccount(common.N("alice"),common.DefaultConfig.SystemAccountName,true,true)
+	b.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs), 0)
+
+	Try(func() {
+		b.PushReqAuth2(common.N("alice"), "owner", false)
+	}).Catch(func(e UnsatisfiedAuthorization) {
+		fmt.Println(e)
+	}).End()
+	/*trace := */b.PushReqAuth2(common.N("alice"),"owner", true)
+	b.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs),0)
+	//TODO: wait for controller::signal
+	//assert.Equal(t,b.ChainHasTransaction(&trace.ID),true)
 	b.Control.Close()
 }
 
 func TestDelegateAuth(t *testing.T) {
-
+	fmt.Println(common.S(6138663582462279680))
 }
 
 func TestCommonEmpty(t *testing.T) {

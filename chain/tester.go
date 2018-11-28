@@ -374,13 +374,13 @@ func (t BaseTester) PushReqAuth(from common.AccountName, auths *[]types.Permissi
 }
 
 func (t BaseTester) PushReqAuth2(from common.AccountName, role string, multiSig bool) *types.TransactionTrace {
-	if !multiSig {
+	if multiSig {
 		auths := []types.PermissionLevel{{Actor: from, Permission: common.DefaultConfig.OwnerName}}
-		keys := []ecc.PrivateKey{t.getPrivateKey(from, role)}
+		keys := []ecc.PrivateKey{t.getPrivateKey(from, role), t.getPrivateKey(common.DefaultConfig.SystemAccountName, "active")}
 		return t.PushReqAuth(from, &auths, &keys)
 	} else {
 		auths := []types.PermissionLevel{{Actor: from, Permission: common.DefaultConfig.OwnerName}}
-		keys := []ecc.PrivateKey{t.getPrivateKey(from, role), t.getPrivateKey(common.DefaultConfig.SystemAccountName, "active")}
+		keys := []ecc.PrivateKey{t.getPrivateKey(from, role)}
 		return t.PushReqAuth(from, &auths, &keys)
 	}
 }
