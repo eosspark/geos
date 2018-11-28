@@ -64,7 +64,7 @@ type Config struct {
 	disableReplay           bool
 	contractsConsole        bool
 	allowRamBillingInNotify bool
-	genesis                 types.GenesisState
+	genesis                 *types.GenesisState
 	vmType                  wasmgo.WasmGo
 	readMode                DBReadMode
 	blockValidationMode     ValidationMode
@@ -196,9 +196,9 @@ func newController() *Controller {
 	con.Blog = NewBlockLog(common.DefaultConfig.DefaultBlocksDirName)
 
 	con.ForkDB, _ = newForkDatabase(common.DefaultConfig.DefaultBlocksDirName, common.DefaultConfig.ForkDbName, true)
-	con.ChainID = types.GetGenesisStateInstance().ComputeChainID()
-
 	con.initConfig()
+	con.ChainID = con.Config.genesis.ComputeChainID()
+
 	con.ReadMode = con.Config.readMode
 	con.ApplyHandlers = make(map[string]v)
 	con.WasmIf = wasmgo.NewWasmGo()
@@ -1541,7 +1541,7 @@ func (c *Controller) CreateNativeAccount(name common.AccountName, owner types.Au
 
 func (c *Controller) initializeForkDB() {
 
-	gs := types.GetGenesisStateInstance()
+	gs := c.Config.genesis
 	pst := types.ProducerScheduleType{0, []types.ProducerKey{
 		{common.DefaultConfig.SystemAccountName, gs.InitialKey}}}
 	genHeader := types.BlockHeaderState{}
@@ -1600,16 +1600,12 @@ func (c *Controller) initializeDatabase() {
 	}
 
 	c.ResourceLimits.InitializeDatabase()
-	systemAuth := types.Authority{}
-	kw := types.KeyWeight{}
-	kw.Key = c.Config.genesis.InitialKey
-	systemAuth.Keys = []types.KeyWeight{kw}
+	systemAuth := types.NewAuthority(c.Config.genesis.InitialKey, 0)
 	c.CreateNativeAccount(common.DefaultConfig.SystemAccountName, systemAuth, systemAuth, true)
 	emptyAuthority := types.Authority{}
 	emptyAuthority.Threshold = 1
 	activeProducersAuthority := types.Authority{}
 	activeProducersAuthority.Threshold = 1
-	//plw:=types.PermissionLevelWeight{}
 	p := types.PermissionLevelWeight{types.PermissionLevel{common.DefaultConfig.SystemAccountName, common.DefaultConfig.ActiveName}, 1}
 	activeProducersAuthority.Accounts = append(activeProducersAuthority.Accounts, p)
 	c.CreateNativeAccount(common.DefaultConfig.NullAccountName, emptyAuthority, emptyAuthority, false)
@@ -1668,7 +1664,7 @@ func (c *Controller) initialize() {
 			c.ReplayHeadTime = common.TimePoint(0)
 
 		} else if !common.Empty(end) {
-			c.Blog.ResetToGenesis(&c.Config.genesis, c.Head.SignedBlock)
+			c.Blog.ResetToGenesis(c.Config.genesis, c.Head.SignedBlock)
 		}
 	}
 	rbi := entity.ReversibleBlockObject{}
@@ -1802,6 +1798,7 @@ func (c *Controller) initConfig() *Controller {
 		//vmType:              common.DefaultConfig.DefaultWasmRuntime, //TODO
 		readMode:            SPECULATIVE,
 		blockValidationMode: FULL,
+		genesis:             types.NewGenesisState(),
 	}
 	return c
 }

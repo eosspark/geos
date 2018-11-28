@@ -8,23 +8,15 @@ import (
 	"github.com/eosspark/eos-go/log"
 )
 
-var isActiveGenesis bool = false
-
+/*var isActiveGenesis bool = false
+var instance = &GenesisState{}*/
 type GenesisState struct {
 	EosioRootKey     string           `json:"eosio_root_key"`
 	InitialTimestamp common.TimePoint `json:"initial_timestamp"`
 	InitialKey       ecc.PublicKey    `json:"initial_key"`
 }
 
-func GetGenesisStateInstance() *GenesisState {
-	instance := &GenesisState{}
-	if !isActiveGenesis {
-		instance = newGenesisState()
-	}
-	return instance
-}
-
-func newGenesisState() *GenesisState {
+func NewGenesisState() *GenesisState {
 	g := &GenesisState{}
 	its, err := common.FromIsoString("2018-06-01T12:00:00")
 	if err != nil {
