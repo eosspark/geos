@@ -1,16 +1,16 @@
-package ecc
+package ecc_test
 
 import (
-	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"testing"
 )
 
 func TestSignatureSerialization(t *testing.T) {
-	privkey, err := NewPrivateKey("5JFhynQnFBYNTPDA9TiKeE7TmujNYaExcbZi9bsRUjhVxwZF4Mt")
+	privkey, err := ecc.NewPrivateKey("5JFhynQnFBYNTPDA9TiKeE7TmujNYaExcbZi9bsRUjhVxwZF4Mt")
 	require.NoError(t, err)
 
 	payload, err := hex.DecodeString("89529cb031c69eccc92f3e8492393a8688bd3d071d7346677b6ff59d314d5121")
@@ -25,7 +25,7 @@ func TestSignatureSerialization(t *testing.T) {
 }
 
 func TestSignatureCanonical(t *testing.T) {
-	privkey, err := NewPrivateKey("5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3")
+	privkey, err := ecc.NewPrivateKey("5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3")
 	require.NoError(t, err)
 
 	//fmt.Println("Start")
@@ -66,7 +66,7 @@ func TestSignatureMarshalUnmarshal(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			sig, err := NewSignature(c.signature)
+			sig, err := ecc.NewSignature(c.signature)
 			require.NoError(t, err)
 			assert.Equal(t, c.signature, sig.String())
 			if c.testCanonical {
@@ -122,7 +122,7 @@ func TestSignaturePublicKeyExtraction(t *testing.T) {
 
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
-			sig, err := NewSignature(c.signature)
+			sig, err := ecc.NewSignature(c.signature)
 			if c.expectedSignatureError != "" {
 				require.Equal(t, fmt.Errorf(c.expectedSignatureError), err)
 				return
@@ -150,7 +150,7 @@ func TestSignaturePublicKeyExtraction(t *testing.T) {
 func TestEOSIOCSigningComparison(t *testing.T) {
 	// try with: ec sign -k 5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3 '{"expiration":"2018-03-21T23:02:32","region":0,"ref_block_num":2156,"ref_block_prefix":1532582828,"packed_bandwidth_words":0,"context_free_cpu_bandwidth":0,"context_free_actions":[],"actions":[],"signatures":[],"context_free_data":[]}'
 	wif := "5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3" // corresponds to: EOS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV
-	privKey, err := NewPrivateKey(wif)
+	privKey, err := ecc.NewPrivateKey(wif)
 	require.NoError(t, err)
 
 	chainID, err := hex.DecodeString("0000000000000000000000000000000000000000000000000000000000000000")
@@ -172,7 +172,7 @@ func TestEOSIOCSigningComparison(t *testing.T) {
 
 func TestNodeosSignatureComparison(t *testing.T) {
 	wif := "5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3" // corresponds to: EOS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV
-	privKey, err := NewPrivateKey(wif)
+	privKey, err := ecc.NewPrivateKey(wif)
 	require.NoError(t, err)
 
 	// produce with `cleos create account eosio abourget EOS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV EOS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV
@@ -191,26 +191,6 @@ func TestNodeosSignatureComparison(t *testing.T) {
 
 func TestSignatureUnmarshalChecksum(t *testing.T) {
 	fromEOSIOC := "SIG_K1_KW4qcHDh6ziqWELRAsFx42sgPuP3VfCpTKX4D5A3uZhFb3fzojTeGohja19g4EJa9Zv7SrGZ47H8apo1sNa2bwPvGwW2bb" // simply checked the last 2 bytes
-	_, err := NewSignature(fromEOSIOC)
+	_, err := ecc.NewSignature(fromEOSIOC)
 	require.Equal(t, "signature checksum failed, found a9c72981 expected a9c72982", err.Error())
-}
-
-//to do this here because of a import cycle when use eos.SigDigest
-func sigDigest(chainID, payload, contextFreeData []byte) []byte {
-	h := sha256.New()
-	if len(chainID) == 0 {
-		_, _ = h.Write(make([]byte, 32, 32))
-	} else {
-		_, _ = h.Write(chainID)
-	}
-	_, _ = h.Write(payload)
-
-	if len(contextFreeData) > 0 {
-		h2 := sha256.New()
-		_, _ = h2.Write(contextFreeData)
-		_, _ = h.Write(h2.Sum(nil)) // add the hash of CFD to the payload
-	} else {
-		_, _ = h.Write(make([]byte, 32, 32))
-	}
-	return h.Sum(nil)
 }

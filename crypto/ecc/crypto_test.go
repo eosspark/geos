@@ -1,10 +1,12 @@
-package ecc
+package ecc_test
 
 import (
 	"bytes"
+	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
 	"github.com/eosspark/eos-go/crypto"
+	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"testing"
@@ -42,7 +44,7 @@ http://127.0.0.1:8900/v1/wallet/sign_digest
 
 func TestK1PrivateToPublic(t *testing.T) {
 	wif := "5KYZdUEo39z3FPrtuX2QbbwGnNP5zTd7yyr2SC1j299sBCnWjss"
-	privKey, err := NewPrivateKey(wif)
+	privKey, err := ecc.NewPrivateKey(wif)
 	require.NoError(t, err)
 
 	pubKey := privKey.PublicKey()
@@ -53,7 +55,7 @@ func TestK1PrivateToPublic(t *testing.T) {
 
 func TestR1PrivateToPublic(t *testing.T) {
 	encoded_privKey := "PVT_R1_2o5WfMRU4dTp23pbcbP2yn5MumQzSMy3ayNQ31qi5nUfa2jdWC"
-	privKey, err := NewPrivateKey(encoded_privKey)
+	privKey, err := ecc.NewPrivateKey(encoded_privKey)
 	require.NoError(t, err)
 
 	pubKey := privKey.PublicKey()
@@ -64,13 +66,13 @@ func TestR1PrivateToPublic(t *testing.T) {
 
 func TestNewPublicKeyAndSerializeCompress(t *testing.T) {
 	// Copied test from eosjs(-.*)?
-	key, err := NewPublicKey("EOS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV")
+	key, err := ecc.NewPublicKey("EOS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV")
 	require.NoError(t, err)
 	assert.Equal(t, "02c0ded2bc1f1305fb0faac5e6c03ee3a1924234985427b6167ca569d13df435cf", hex.EncodeToString(key.Content[:]))
 }
 
 func TestNewRandomPrivateKey(t *testing.T) {
-	key, err := NewRandomPrivateKey()
+	key, err := ecc.NewRandomPrivateKey()
 	require.NoError(t, err)
 	// taken from eosiojs-ecc:common.test.js:12
 	assert.Regexp(t, "^5[HJK].*", key.String())
@@ -86,7 +88,7 @@ func TestPrivateKeyValidity(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		_, err := NewPrivateKey(test.in)
+		_, err := ecc.NewPrivateKey(test.in)
 		if test.valid {
 			assert.NoError(t, err)
 		} else {
@@ -107,7 +109,7 @@ func TestPublicKeyValidity(t *testing.T) {
 	}
 
 	for idx, test := range tests {
-		_, err := NewPublicKey(test.in)
+		_, err := ecc.NewPublicKey(test.in)
 		if test.err == nil {
 			assert.NoError(t, err, fmt.Sprintf("test %d with key %q", idx, test.in))
 		} else {
@@ -119,7 +121,7 @@ func TestPublicKeyValidity(t *testing.T) {
 
 func TestK1Signature(t *testing.T) {
 	wif := "5KYZdUEo39z3FPrtuX2QbbwGnNP5zTd7yyr2SC1j299sBCnWjss"
-	privKey, err := NewPrivateKey(wif)
+	privKey, err := ecc.NewPrivateKey(wif)
 	require.NoError(t, err)
 
 	cnt := []byte("hi")
@@ -132,7 +134,7 @@ func TestK1Signature(t *testing.T) {
 
 func TestR1Signature(t *testing.T) {
 	encodedPrivKey := "PVT_R1_2o5WfMRU4dTp23pbcbP2yn5MumQzSMy3ayNQ31qi5nUfa2jdWC"
-	privKey, err := NewPrivateKey(encodedPrivKey)
+	privKey, err := ecc.NewPrivateKey(encodedPrivKey)
 	require.NoError(t, err)
 
 	cnt := []byte("hi")
@@ -145,7 +147,27 @@ func TestR1Signature(t *testing.T) {
 func TestNewDeterministicPrivateKey(t *testing.T) {
 	a := crypto.Hash256("eosio.token@active")
 	g := bytes.NewReader(a.Bytes())
-	pri, err := NewDeterministicPrivateKey(g)
+	pri, err := ecc.NewDeterministicPrivateKey(g)
 	assert.NoError(t, err)
 	assert.Equal(t, "5KNcvkpaba7YDDA9TthNeYybPysBA1aEZJLboRVaYt95NA15nDZ", pri.String())
+}
+
+//to do this here because of a import cycle when use eos.SigDigest
+func sigDigest(chainID, payload, contextFreeData []byte) []byte {
+	h := sha256.New()
+	if len(chainID) == 0 {
+		_, _ = h.Write(make([]byte, 32, 32))
+	} else {
+		_, _ = h.Write(chainID)
+	}
+	_, _ = h.Write(payload)
+
+	if len(contextFreeData) > 0 {
+		h2 := sha256.New()
+		_, _ = h2.Write(contextFreeData)
+		_, _ = h.Write(h2.Sum(nil)) // add the hash of CFD to the payload
+	} else {
+		_, _ = h.Write(make([]byte, 32, 32))
+	}
+	return h.Sum(nil)
 }
