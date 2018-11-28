@@ -9,6 +9,7 @@ import (
 	"time"
 	."github.com/eosspark/eos-go/plugins/appbase/app/include"
 	."github.com/eosspark/eos-go/plugins/appbase/app"
+	. "github.com/eosspark/eos-go/plugins/chain_interface/channel_caller"
 )
 
 
@@ -42,9 +43,9 @@ func (*blockAcceptor)doRejectedBlockFunc(s *types.SignedBlock){
 func Test_Channel(t *testing.T) {
 
 	//subscribe
-	App().GetChannel(PreAcceptedBlock).Subscribe(&PreAcceptedBlockFunc{doAccept})
-	App().GetChannel(PreAcceptedBlock).Subscribe(&PreAcceptedBlockFunc{new(blockAcceptor).doAccept})
-	rbf :=&RejectedBlockFunc{Func:new(blockAcceptor).doRejectedBlockFunc}
+	App().GetChannel(PreAcceptedBlock).Subscribe(&PreAcceptedBlockCaller{doAccept})
+	App().GetChannel(PreAcceptedBlock).Subscribe(&PreAcceptedBlockCaller{new(blockAcceptor).doAccept})
+	rbf :=&RejectedBlockCaller{new(blockAcceptor).doRejectedBlockFunc}
 	App().GetChannel(RejectedBlock).Subscribe(rbf)
 
 	//call

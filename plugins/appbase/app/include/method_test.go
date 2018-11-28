@@ -3,10 +3,10 @@ package include_test
 import (
 	"testing"
 	. "github.com/eosspark/eos-go/plugins/appbase/app"
-	. "github.com/eosspark/eos-go/plugins/appbase/app/include"
 	."github.com/eosspark/eos-go/plugins/chain_interface"
 	"fmt"
 	"github.com/eosspark/eos-go/chain/types"
+	. "github.com/eosspark/eos-go/plugins/chain_interface/channel_caller"
 )
 
 type Gbi struct {
@@ -21,7 +21,7 @@ func Test_Method(t *testing.T) {
 	gbi :=App().GetMethod(GetBlockById)
 
 	//register
-	gbi.Register(&RejectedBlockFunc{Gbi{}.GetBlock})
+	gbi.Register(&RejectedBlockCaller{Gbi{}.GetBlock})
 
 	sb :=new(types.SignedBlock)
 	sb.Timestamp = types.NewBlockTimeStamp(100)

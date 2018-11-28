@@ -1,18 +1,21 @@
 package include
 
 type Signal struct {
-	functions []Function
+	callers []Caller
 }
 
+type Caller interface {
+	Call(data ...interface{})
+}
 
-func (s *Signal) Connect(f Function) {
-	s.functions = append(s.functions, f)
+func (s *Signal) Connect(f Caller) {
+	s.callers = append(s.callers, f)
 	//fmt.Println(s.channels)
 }
 
 
-func (s *Signal) Emit(data interface{}) {
-	for _, f := range s.functions {
-		f.call(data)
+func (s *Signal) Emit(data ...interface{}) {
+	for _, f := range s.callers {
+		f.Call(data...)
 	}
 }
