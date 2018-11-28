@@ -124,17 +124,17 @@ func (wtv *WeightTallyVisitor) Visit(permission interface{}) uint32 {
 	switch v := permission.(type) {
 	case []WaitWeight:
 		for _, p := range v {
-			wtv.TotalWeight += wtv.VisitWaitWeight(p)
+			wtv.VisitWaitWeight(p)
 		}
 		return wtv.TotalWeight
 	case []KeyWeight:
 		for _, p := range v {
-			wtv.TotalWeight += wtv.VisitKeyWeight(p)
+			wtv.VisitKeyWeight(p)
 		}
 		return wtv.TotalWeight
 	case []PermissionLevelWeight:
 		for _, p := range v {
-			wtv.TotalWeight += wtv.VisitPermissionLevelWeight(p)
+	 		wtv.VisitPermissionLevelWeight(p)
 		}
 		return wtv.TotalWeight
 	default:
