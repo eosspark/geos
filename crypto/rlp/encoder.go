@@ -4,10 +4,11 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
-	"io"
-	// "math/big"
+	"fmt"
+	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/exception"
 	"github.com/eosspark/eos-go/exception/try"
+	"io"
 	"math"
 	"reflect"
 )
@@ -31,7 +32,6 @@ type Encoder struct {
 	vint32  bool
 	asset   bool
 	//eosArray    bool
-	eosSig bool
 }
 
 var (
@@ -82,6 +82,13 @@ func EncodeSize(val interface{}) (int, error) {
 func (e *Encoder) Encode(v interface{}) (err error) {
 	if v == nil {
 		return
+	}
+
+	switch cv := v.(type) {
+	case ecc.PublicKey:
+		return e.WritePublicKey(cv)
+	case ecc.Signature:
+		return e.WriteSignature(cv)
 	}
 
 	rv := reflect.Indirect(reflect.ValueOf(v))
@@ -144,13 +151,9 @@ func (e *Encoder) Encode(v interface{}) (err error) {
 	case reflect.Slice:
 		l := rv.Len()
 		try.EosAssert(l <= MAX_NUM_ARRAY_ELEMENT, &exception.AssertException{}, "the length of slice is too big")
-		if !e.eosSig {
-			e.eosSig = false
-			if err = e.WriteUVarInt(l); err != nil {
-				return
-			}
+		if err = e.WriteUVarInt(l); err != nil {
+			return
 		}
-		e.eosSig = false
 		for i := 0; i < l; i++ {
 			if err = e.Encode(rv.Index(i).Interface()); err != nil {
 				return
@@ -165,8 +168,6 @@ func (e *Encoder) Encode(v interface{}) (err error) {
 			switch tag {
 			case "-":
 				continue
-			//case "array":
-			//	e.eosArray = true
 
 			case "tag0":
 				if rv.Field(i).IsNil() {
@@ -192,8 +193,6 @@ func (e *Encoder) Encode(v interface{}) (err error) {
 
 			case "asset":
 				e.asset = true
-			case "sig":
-				e.eosSig = true
 
 			}
 
@@ -326,4 +325,31 @@ func (e *Encoder) toWriter(bytes []byte) (err error) {
 	e.count += len(bytes)
 	_, err = e.output.Write(bytes)
 	return
+}
+
+func (e *Encoder) WritePublicKey(pk ecc.PublicKey) (err error) {
+	if len(pk.Content) != 33 {
+		return fmt.Errorf("public key %q should be 33 bytes, was %d", pk.Content, len(pk.Content))
+	}
+	if err = e.WriteByte(byte(pk.Curve)); err != nil {
+		return err
+	}
+	return e.toWriter(pk.Content[:])
+}
+
+func (e *Encoder) WriteSignature(s ecc.Signature) (err error) {
+	if len(s.Content) == 0 { //TODO in order to avoid nil signature
+		s.Curve = ecc.CurveK1
+		s.Content = make([]byte, 65)
+	}
+
+	if len(s.Content) != 65 {
+		return fmt.Errorf("signature should be 65 bytes, was %d", len(s.Content))
+	}
+
+	if err = e.WriteByte(byte(s.Curve)); err != nil {
+		return
+	}
+
+	return e.toWriter(s.Content) // should write 65 bytes
 }

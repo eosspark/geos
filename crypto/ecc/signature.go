@@ -18,7 +18,7 @@ type innerSignature interface {
 // Signature represents a signature for some hash
 type Signature struct {
 	Curve   CurveID
-	Content []byte `eos:"sig"` // the Compact signature as bytes
+	Content []byte // the Compact signature as bytes
 
 	innerSignature innerSignature
 }

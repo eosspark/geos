@@ -415,11 +415,11 @@ func TestABI_Read(t *testing.T) {
 
 			encodeRe, err := rlp.EncodeToBytes(c["encode"])
 			assert.NoError(t, err, fmt.Sprintf("encoding value %s, of type %s", c["value"], c["typeName"]), c["caseName"])
-			fmt.Println(encodeRe)
+			//fmt.Println(encodeRe)
 			abi := AbiDef{}
 			json, err := abi.decodeField(rlp.NewDecoder(encodeRe), c["fieldName"].(string), c["typeName"].(string), c["isOptional"].(bool), c["isArray"].(bool), []byte{})
 
-			fmt.Println("JSON:", string(json))
+			//fmt.Println("JSON:", string(json))
 			assert.Equal(t, c["expectedError"], err, c["caseName"])
 
 			if c["expectedError"] == nil {

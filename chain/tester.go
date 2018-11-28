@@ -148,7 +148,7 @@ func (t BaseTester) produceBlock(skipTime common.Microseconds, skipPendingTrxs b
 	t.Control.CommitBlock(true)
 	b := t.Control.HeadBlockState()
 	t.LastProducedBlock[t.Control.HeadBlockState().Header.Producer] = b.BlockId
-	t.startBlock(nextTime + common.TimePoint(common.Seconds(common.DefaultConfig.BlockIntervalUs)))
+	t.startBlock(nextTime + common.TimePoint(common.TimePoint(common.DefaultConfig.BlockIntervalUs)))
 	return t.Control.HeadBlockState().SignedBlock
 }
 
@@ -191,7 +191,11 @@ func (t BaseTester) createAccount(name common.AccountName, creator common.Accoun
 	t.SetTransactionHeaders(&trx.Transaction, t.DefaultExpirationDelta, 0) //TODO: test
 	ownerAuth := types.Authority{}
 	if multiSig {
-		ownerAuth = types.Authority{Threshold: 2, Keys: []types.KeyWeight{{t.getPublicKey(name, "owner"), 1}}}
+		ownerAuth = types.Authority{
+			Threshold: 2,
+			Keys: []types.KeyWeight{{Key:t.getPublicKey(name, "owner"), Weight:1}},
+			Accounts: []types.PermissionLevelWeight{{Permission:types.PermissionLevel{Actor:creator, Permission:common.DefaultConfig.ActiveName},Weight:1}},
+		}
 	} else {
 		ownerAuth = types.NewAuthority(t.getPublicKey(name, "owner"), 0)
 	}

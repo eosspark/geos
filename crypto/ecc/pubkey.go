@@ -23,7 +23,7 @@ type innerPublicKey interface {
 
 type PublicKey struct {
 	Curve   CurveID
-	Content [33]byte `eos:"array"`
+	Content [33]byte
 
 	inner innerPublicKey
 }
