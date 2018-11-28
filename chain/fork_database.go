@@ -20,7 +20,7 @@ type ForkDatabase struct {
 
 func GetForkDbInstance(stateDir string) *ForkDatabase {
 
-	forkDB, err := newForkDatabase(stateDir, common.DefaultConfig.ForkDBName, true)
+	forkDB, err := newForkDatabase(stateDir, common.DefaultConfig.ForkDbName, true)
 	try.EosAssert(err == nil, &exception.ForkDatabaseException{}, "%s", err)
 	return forkDB
 }
