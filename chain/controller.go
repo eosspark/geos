@@ -1035,7 +1035,7 @@ func (c *Controller) maybeSwitchForks(s types.BlockStatus) {
 			EosThrow(e, "maybeSwitchForks is error:%#v", e.Message())
 		}).End()
 	} else if newHead.BlockId != c.Head.BlockId {
-		log.Info("switching forks from: %#v (block number %#V) to %#v (block number %#v)", c.Head.BlockId, c.Head.BlockNum, newHead.BlockId, newHead.BlockNum)
+		log.Info("switching forks from: %#v (block number %#v) to %#v (block number %#v)", c.Head.BlockId, c.Head.BlockNum, newHead.BlockId, newHead.BlockNum)
 		branches := c.ForkDB.FetchBranchFrom(&newHead.BlockId, &c.Head.BlockId)
 
 		for i := 0; i < len(branches.second); i++ {
@@ -1252,19 +1252,19 @@ func (c *Controller) LastIrreversibleBlockId() common.BlockIdType {
 }
 
 func (c *Controller) FetchBlockByNumber(blockNum uint32) *types.SignedBlock {
-
-	returning, r := false, (*types.SignedBlock)(nil)
+	r := (*types.SignedBlock)(nil)
 	Try(func() {
 		blkState := c.ForkDB.GetBlockInCurrentChainByNum(blockNum)
 		if blkState != nil {
-			returning, r = true, blkState.SignedBlock
+			r = blkState.SignedBlock
 			return
 		}
 
-		returning, r = true, c.Blog.ReadBlockByNum(blockNum)
+		r = c.Blog.ReadBlockByNum(blockNum)
 		return
 
 	}).FcCaptureAndRethrow(blockNum).End()
+
 	return r
 }
 

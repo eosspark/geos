@@ -242,7 +242,7 @@ func (f *ForkDatabase) GetBlockInCurrentChainByNum(n uint32) *types.BlockState {
 	numIdx := f.MultiIndexFork.GetIndex("byBlockNum")
 	obj, _ := numIdx.Value.LowerBound(&b)
 
-	if obj != nil || obj.BlockNum != n || obj.InCurrentChain != true {
+	if obj == nil || obj.BlockNum != n || obj.InCurrentChain != true {
 		return &types.BlockState{}
 	}
 	return obj

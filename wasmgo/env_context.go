@@ -1,6 +1,7 @@
 package wasmgo
 
 import (
+	"github.com/eosspark/eos-go/chain/types"
 	//"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	arithmetic "github.com/eosspark/eos-go/common/arithmetic_types"
@@ -65,16 +66,20 @@ type EnvContext interface {
 	IdxDoubleFindPrimary(code uint64, scope uint64, table uint64, secondary *arithmetic.Float64, primary uint64) int
 
 	//permission
-	GetPermissionLastUsed(account common.AccountName, permission common.PermissionName) int64
-	GetAccountCreateTime(account common.AccountName) int64
+	GetPermissionLastUsed(account common.AccountName, permission common.PermissionName) common.TimePoint
+	GetAccountCreateTime(account common.AccountName) common.TimePoint
 
 	//privileged
-	SetResourceLimits(account common.AccountName, ramBytes uint64, netWeight uint64, cpuWeigth uint64)
+	SetResourceLimits(account common.AccountName, ramBytes uint64, netWeight uint64, cpuWeigth uint64) bool
 	GetResourceLimits(account common.AccountName, ramBytes *uint64, netWeight *uint64, cpuWeigth *uint64)
 	SetBlockchainParametersPacked(parameters []byte)
 	GetBlockchainParametersPacked() []byte
+	GetBlockchainParameters() *common.Config
+	SetBlockchainParameters(cfg *common.Config)
+
 	IsPrivileged(n common.AccountName) bool
 	SetPrivileged(n common.AccountName, isPriv bool)
+	ValidateRamUsageInsert(account common.AccountName)
 
 	//producer
 	SetProposedProducers(producers []byte) int64
@@ -83,19 +88,28 @@ type EnvContext interface {
 
 	//system
 	CheckTime()
-	CurrentTime() int64
-	PublicationTime() int64
+	//CurrentTime() int64
+	CurrentTime() common.TimePoint
+	//PublicationTime() int64
+	PublicationTime() common.TimePoint
 
 	//transaction
-	ExecuteInline(action []byte)
-	ExecuteContextFreeInline(action []byte)
-	ScheduleDeferredTransaction(sendId *arithmetic.Uint128, payer common.AccountName, trx []byte, replaceExisting bool)
+	// ExecuteInline(action []byte)
+	// ExecuteContextFreeInline(action []byte)
+	InlineActionTooBig(dataLen int) bool
+	ExecuteInline(act *types.Action)
+	ExecuteContextFreeInline(act *types.Action)
+	//ScheduleDeferredTransaction(sendId *arithmetic.Uint128, payer common.AccountName, trx []byte, replaceExisting bool)
+	ScheduleDeferredTransaction(sendId *arithmetic.Uint128, payer common.AccountName, trx *types.Transaction, replaceExisting bool)
 	CancelDeferredTransaction(sendId *arithmetic.Uint128) bool
-	GetPackedTransaction() []byte
-	Expiration() int
+	//GetPackedTransaction() []byte
+	GetPackedTransaction() *types.SignedTransaction
+	//Expiration() int
+	Expiration() common.TimePointSec
 	TaposBlockNum() int
 	TaposBlockPrefix() int
-	GetAction(typ uint32, index int, bufferSize int) (int, []byte)
+	//GetAction(typ uint32, index int, bufferSize int) (int, []byte)
+	GetAction(typ uint32, index int) *types.Action
 	GetContextFreeData(intdex int, bufferSize int) (int, []byte)
 
 	PauseBillingTimer()

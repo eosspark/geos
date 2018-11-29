@@ -266,7 +266,7 @@ func (t *TransactionContext) InitForDeferredTrx(p common.TimePoint) {
 
 func (t *TransactionContext) Exec() {
 
-	t.ilog.Info("Exec receiver:%s action:%s", t.Trx.Actions[0].Account, t.Trx.Actions[0].Name)
+	//t.ilog.Info("Exec receiver:%s action:%s", t.Trx.Actions[0].Account, t.Trx.Actions[0].Name)
 
 	EosAssert(t.isInitialized, &TransactionException{}, "must first initialize")
 
