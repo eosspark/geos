@@ -40,9 +40,9 @@ func TestContract(t *testing.T) {
 		SetCode(control, eosioToken, code)
 
 		createToken(control, account1, 1000000000, "BTC")
-		//issueToken(control, account1, account1, 10000, "BTC", "issue")
+		issueToken(control, account1, account1, 10000, "BTC", "issue")
 		//issueToken(control, account1, account1, 20000, "BTC", "issue")
-		issueToken(control, account1, account2, 20000, "BTC", "issue")
+		//issueToken(control, account1, account2, 20000, "BTC", "issue")
 
 		control.Close()
 	})

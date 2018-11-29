@@ -8,15 +8,10 @@ import (
 	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/eosspark/eos-go/exception"
 	"github.com/eosspark/eos-go/log"
-	//"os"
-
-	//"os"
-
-	"reflect"
+	"os"
 
 	"github.com/eosspark/eos-go/exception/try"
-	"github.com/eosspark/eos-go/wasmgo/wagon/exec"
-	"github.com/eosspark/eos-go/wasmgo/wagon/wasm"
+	"github.com/eosspark/eos-go/wasmgo/wasm"
 )
 
 var (
@@ -30,9 +25,9 @@ type size_t int
 
 type WasmGo struct {
 	context EnvContext
-	handles map[string]interface{}
-	vm      *exec.VM
-	ilog    log.Logger
+	handles map[string]*func(*VM)
+	//vm      *VM
+	ilog log.Logger
 }
 
 func NewWasmGo() *WasmGo {
@@ -41,7 +36,7 @@ func NewWasmGo() *WasmGo {
 		return wasmGo
 	}
 
-	w := WasmGo{handles: make(map[string]interface{})}
+	w := WasmGo{handles: make(map[string]*func(*VM))}
 
 	w.Register("action_data_size", actionDataSize)
 	w.Register("read_action_data", readActionData)
@@ -114,7 +109,7 @@ func NewWasmGo() *WasmGo {
 	w.Register("memmove", memmove)
 	w.Register("memcmp", memcmp)
 	w.Register("memset", memset)
-	w.Register("free", free)
+	//w.Register("free", free)
 
 	w.Register("check_transaction_authorization", checkTransactionAuthorization)
 	w.Register("check_permission_authorization", checkPermissionAuthorization)
@@ -194,21 +189,22 @@ func NewWasmGo() *WasmGo {
 	w.Register("__floattidf", floattidf)
 	w.Register("__floatuntidf", floatuntidf)
 
-	w.Register("___cmptf2", _cmptf2)
+	w.Register("___cmptf2", cmptf2)
 	w.Register("__eqtf2", eqtf2)
 	w.Register("__netf2", netf2)
 	w.Register("__getf2", getf2)
 	w.Register("__gttf2", gttf2)
 	w.Register("__letf2", letf2)
 	w.Register("__lttf2", lttf2)
-	w.Register("__cmptf2", cmptf2)
+	w.Register("__cmptf2", __cmptf2)
 	w.Register("__unordtf2", unordtf2)
 
 	wasmGo = &w
 
 	wasmGo.ilog = log.New("wasmgo")
-	//wasmGo.ilog.SetHandler(log.StreamHandler(os.Stdout, log.TerminalFormat(true)))
-
+	logHandler := log.StreamHandler(os.Stdout, log.TerminalFormat(true))
+	//wasmGo.ilog.SetHandler(log.LvlFilterHandler(log.LvlDebug, logHandler))
+	wasmGo.ilog.SetHandler(log.LvlFilterHandler(log.LvlInfo, logHandler))
 	return wasmGo
 }
 
@@ -236,7 +232,7 @@ func (w *WasmGo) Apply(code_id *crypto.Sha256, code []byte, context EnvContext) 
 		w.ilog.Error("module has no export section")
 	}
 
-	vm, err := exec.NewVM(m, w)
+	vm, err := NewVM(m, w)
 	if err != nil {
 		w.ilog.Error("could not create VM: %v", err)
 	}
@@ -247,8 +243,6 @@ func (w *WasmGo) Apply(code_id *crypto.Sha256, code []byte, context EnvContext) 
 	//ftype := m.Types.Entries[int(fidx)]
 
 	context.ResumeBillingTimer()
-
-	w.vm = vm
 
 	args := make([]uint64, 3)
 	args[0] = uint64(context.GetReceiver())
@@ -269,29 +263,16 @@ func (w *WasmGo) Apply(code_id *crypto.Sha256, code []byte, context EnvContext) 
 	}
 }
 
-func (w *WasmGo) Register(name string, handler interface{}) bool {
+func (w *WasmGo) Register(name string, handler func(*VM)) bool {
 	if _, ok := w.handles[name]; ok {
 		return false
 	}
 
-	w.handles[name] = handler
+	w.handles[name] = &handler
 	return true
 }
 
-// func (w *WasmGo) Add(handles map[string]interface{}) bool {
-// 	for k, v := range handles {
-// 		if _, ok := w.handles[k]; !ok {
-// 			w.handles[k] = v
-// 		}
-// 	}
-// 	return true
-// }
-
-// func (w *WasmGo) GetHandles() map[string]interface{} {
-// 	return w.handles
-// }
-
-func (w *WasmGo) GetHandle(name string) interface{} {
+func (w *WasmGo) GetHandle(name string) *func(*VM) {
 
 	if _, ok := w.handles[name]; ok {
 		return w.handles[name]
@@ -302,115 +283,8 @@ func (w *WasmGo) GetHandle(name string) interface{} {
 
 func (w *WasmGo) importer(name string) (*wasm.Module, error) {
 
-	if name == "env" {
+	return nil, errors.New("env module will never be imported")
 
-		if envModule != nil {
-			return envModule, nil
-		}
-
-		count := len(w.handles)
-
-		m := wasm.NewModule()
-		m.Types.Entries = make([]wasm.FunctionSig, count)
-		m.FunctionIndexSpace = make([]wasm.Function, count)
-		m.Export.Entries = make(map[string]wasm.ExportEntry, count)
-
-		i := 0
-		for k, v := range w.handles {
-
-			// 1st param is *wasm_interface should be deleted
-			numIn := reflect.TypeOf(v).NumIn() - 1
-			args := make([]wasm.ValueType, numIn)
-			for j := int(0); j < numIn; j++ {
-				args[j] = reflect2wasm(reflect.TypeOf(v).In(j + 1).Kind())
-			}
-
-			numOut := reflect.TypeOf(v).NumOut()
-			rtrns := make([]wasm.ValueType, numOut)
-			for m := int(0); m < numOut; m++ {
-				rtrns[m] = reflect2wasm(reflect.TypeOf(v).Out(m).Kind())
-			}
-
-			m.Types.Entries[i] = wasm.FunctionSig{
-				//Form:        0,
-				ParamTypes:  args,
-				ReturnTypes: rtrns,
-			}
-
-			m.FunctionIndexSpace[i] = wasm.Function{
-				Sig:  &m.Types.Entries[i],
-				Host: reflect.ValueOf(v),
-				Body: &wasm.FunctionBody{},
-				//Name: k,
-			}
-
-			m.Export.Entries[k] = wasm.ExportEntry{
-				FieldStr: k,
-				Kind:     wasm.ExternalFunction,
-				Index:    uint32(i),
-			}
-
-			i++
-
-		}
-
-		envModule = m
-
-		return m, nil
-
-	}
-
-	return nil, errors.New("Only env module availible")
-
-}
-
-// const (
-// 	Invalid Kind = iota
-// 	Bool
-// 	Int
-// 	Int8
-// 	Int16
-// 	Int32
-// 	Int64
-// 	Uint
-// 	Uint8
-// 	Uint16
-// 	Uint32
-// 	Uint64
-// 	Uintptr
-// 	Float32
-// 	Float64
-// 	Complex64
-// 	Complex128
-// 	Array
-// 	Chan
-// 	Func
-// 	Interface
-// 	Map
-// 	Ptr
-// 	Slice
-// 	String
-// 	Struct
-// 	UnsafePointer
-// )
-
-func reflect2wasm(kind reflect.Kind) wasm.ValueType {
-
-	switch kind {
-	case reflect.Float64:
-		return wasm.ValueTypeF64
-	case reflect.Float32:
-		return wasm.ValueTypeF32
-	case reflect.Uint, reflect.Uint32, reflect.Uint64:
-		return wasm.ValueTypeI32
-	case reflect.Int, reflect.Int32, reflect.Int64, reflect.Struct:
-		return wasm.ValueTypeI32
-	case reflect.Ptr:
-		return wasm.ValueTypeI64
-	default:
-		//panic(fmt.Sprintf("exec: return value %d invalid kind=%v", kind))
-		return wasm.ValueTypeI64
-	}
 }
 
 func min(x, y int) int {
@@ -432,19 +306,17 @@ func b2i(b bool) int {
 	return 0
 }
 
-func setMemory(w *WasmGo, mIndex int, data []byte, dIndex int, bufferSize int) {
-	// if debug {
-	// 	fmt.Println("setMemory")
-	// }
-	copy(w.vm.Memory()[mIndex:mIndex+bufferSize], data[dIndex:dIndex+bufferSize])
+func setMemory(vm *VM, mIndex int, data []byte, dIndex int, bufferSize int) {
+	try.EosAssert(!(bufferSize > (1<<16) || mIndex+bufferSize > (1<<16)), &exception.OverlappingMemoryError{}, "access violoation")
+	copy(vm.Memory()[mIndex:mIndex+bufferSize], data[dIndex:dIndex+bufferSize])
 }
 
-func getMemory(w *WasmGo, mIndex int, bufferSize int) []byte {
+func getMemory(vm *VM, mIndex int, bufferSize int) []byte {
 	// if debug {
 	// 	fmt.Println("getMemory")
 	// }
 
-	cap := cap(w.vm.Memory())
+	cap := cap(vm.Memory())
 	if cap < mIndex || cap < mIndex+bufferSize {
 		try.EosAssert(false, &exception.OverlappingMemoryError{}, "memcpy can only accept non-aliasing pointers")
 		//fmt.Println("getMemory heap Memory out of bound")
@@ -452,47 +324,47 @@ func getMemory(w *WasmGo, mIndex int, bufferSize int) []byte {
 	}
 
 	bytes := make([]byte, bufferSize)
-	copy(bytes[:], w.vm.Memory()[mIndex:mIndex+bufferSize])
+	copy(bytes[:], vm.Memory()[mIndex:mIndex+bufferSize])
 	return bytes
 }
 
-func setUint64(w *WasmGo, index int, val uint64) {
+func setUint64(vm *VM, index int, val uint64) {
 
 	//fmt.Println("setUint64")
 	c, _ := rlp.EncodeToBytes(val)
-	setMemory(w, index, c, 0, len(c))
+	setMemory(vm, index, c, 0, len(c))
 }
 
-func getUint64(w *WasmGo, index int) uint64 {
+func getUint64(vm *VM, index int) uint64 {
 
 	//fmt.Println("getUint64")
 	var ret uint64
-	c := getMemory(w, index, 8)
+	c := getMemory(vm, index, 8)
 	rlp.DecodeBytes(c, &ret)
 	return ret
 }
 
-func setFloat64(w *WasmGo, index int, val float64) {
+func setFloat64(vm *VM, index int, val float64) {
 
 	fmt.Println("setUint64")
 	c, _ := rlp.EncodeToBytes(val)
-	setMemory(w, index, c, 0, len(c))
+	setMemory(vm, index, c, 0, len(c))
 }
 
-func getFloat64(w *WasmGo, index int) float64 {
+func getFloat64(vm *VM, index int) float64 {
 
 	fmt.Println("getUint64")
 	var ret float64
-	c := getMemory(w, index, 8)
+	c := getMemory(vm, index, 8)
 	rlp.DecodeBytes(c, &ret)
 	return ret
 }
 
-func getStringLength(w *WasmGo, index int) int {
+func getStringLength(vm *VM, index int) int {
 	var size int
 	var i int
 	for i = 0; i < 512; i++ {
-		if w.vm.Memory()[index+i] == 0 {
+		if vm.Memory()[index+i] == 0 {
 			break
 		}
 		size++
@@ -501,14 +373,14 @@ func getStringLength(w *WasmGo, index int) int {
 	return size
 }
 
-func getBytes(w *WasmGo, index int, datalen int) []byte {
-	return w.vm.Memory()[index : index+datalen]
+func getBytes(vm *VM, index int, datalen int) []byte {
+	return vm.Memory()[index : index+datalen]
 }
-func setSha256(w *WasmGo, index int, s []byte)    { setMemory(w, index, s, 0, 32) }
-func getSha256(w *WasmGo, index int) []byte       { return getMemory(w, index, 32) }
-func setSha512(w *WasmGo, index int, s []byte)    { setMemory(w, index, s, 0, 64) }
-func getSha512(w *WasmGo, index int) []byte       { return getMemory(w, index, 64) }
-func setSha1(w *WasmGo, index int, s []byte)      { setMemory(w, index, s, 0, 20) }
-func getSha1(w *WasmGo, index int) []byte         { return getMemory(w, index, 20) }
-func setRipemd160(w *WasmGo, index int, r []byte) { setMemory(w, index, r, 0, 20) }
-func getRipemd160(w *WasmGo, index int) []byte    { return getMemory(w, index, 20) }
+func setSha256(vm *VM, index int, s []byte)    { setMemory(vm, index, s, 0, 32) }
+func getSha256(vm *VM, index int) []byte       { return getMemory(vm, index, 32) }
+func setSha512(vm *VM, index int, s []byte)    { setMemory(vm, index, s, 0, 64) }
+func getSha512(vm *VM, index int) []byte       { return getMemory(vm, index, 64) }
+func setSha1(vm *VM, index int, s []byte)      { setMemory(vm, index, s, 0, 20) }
+func getSha1(vm *VM, index int) []byte         { return getMemory(vm, index, 20) }
+func setRipemd160(vm *VM, index int, r []byte) { setMemory(vm, index, r, 0, 20) }
+func getRipemd160(vm *VM, index int) []byte    { return getMemory(vm, index, 20) }
