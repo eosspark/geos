@@ -24,7 +24,7 @@ func validateAuthorityPrecondition(context *ApplyContext, auth *types.Authority)
 		Obj := &entity.AccountObject{Name: a.Permission.Actor}
 		err := context.DB.Find("byName", Obj, &Obj)
 
-		EosAssert(err != nil, &ActionValidateException{},
+		EosAssert(err == nil, &ActionValidateException{},
 			"account '${account}' does not exist",
 			common.S(uint64(a.Permission.Actor)))
 

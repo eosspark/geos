@@ -19,7 +19,7 @@ func initializeAuthTest() (*AuthorizationManager, *BaseTester) {
 
 func TestMissingSigs(t *testing.T) {
 	_, b := initializeAuthTest()
-	b.CreateAccounts([]common.AccountName{common.AccountName(common.N("alice"))}, false, true)
+	b.CreateAccounts([]common.AccountName{common.N("alice")}, false, true)
 	b.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs), 0)
 
 	Try(func() {
@@ -34,7 +34,7 @@ func TestMissingSigs(t *testing.T) {
 	b.Control.Close()
 }
 
-func TestMissingAuths(t *testing.T) {
+func TestMissingMultiSigs(t *testing.T) {
 	_, b := initializeAuthTest()
 	b.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs), 0)
 	b.createAccount(common.N("alice"),common.DefaultConfig.SystemAccountName,true,true)
@@ -52,9 +52,24 @@ func TestMissingAuths(t *testing.T) {
 	b.Control.Close()
 }
 
+func TestMissingAuths(t *testing.T) {
+	_, b := initializeAuthTest()
+	b.CreateAccounts([]common.AccountName{common.N("alice"),common.N("bob")},false,true)
+	b.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs), 0)
+	Try(func(){
+		b.PushReqAuth(
+			 common.N("alice"),
+			 &[]types.PermissionLevel{{common.N("bob"), common.DefaultConfig.ActiveName}},
+			 &[]ecc.PrivateKey{b.getPrivateKey(common.N("bob"),"active")},
+			)
+	}).Catch(func(e MissingAuthException) {
+		fmt.Println(e)
+	}).End()
+}
+
 func TestDelegateAuth(t *testing.T) {
-	fmt.Println(common.S(6138663577826885632))
 	fmt.Println(common.S(3773036822876127232))
+	fmt.Println(common.S(12044502819693133824))
 }
 
 func TestCommonEmpty(t *testing.T) {

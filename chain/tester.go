@@ -12,6 +12,8 @@ import (
 	"github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/log"
 	"math"
+	"github.com/eosspark/eos-go/crypto"
+	"bytes"
 )
 
 type BaseTester struct {
@@ -330,11 +332,14 @@ func (t BaseTester) GetAction(code common.AccountName, actType common.AccountNam
 }
 
 func (t BaseTester) getPrivateKey(keyName common.Name, role string) ecc.PrivateKey {
-	//TODO: wait for testing
-	//rawPrivKey := crypto.Hash256(keyName.String() + role).Bytes()
-	//g := bytes.NewReader(rawPrivKey)
-	//pk, _ := ecc.NewDeterministicPrivateKey(g)
-	pk, _ := ecc.NewPrivateKey("5KYZdUEo39z3FPrtuX2QbbwGnNP5zTd7yyr2SC1j299sBCnWjss")
+	pk := &ecc.PrivateKey{}
+	if keyName == common.DefaultConfig.SystemAccountName{
+		pk, _ = ecc.NewPrivateKey("5KYZdUEo39z3FPrtuX2QbbwGnNP5zTd7yyr2SC1j299sBCnWjss")
+	} else {
+		rawPrivKey := crypto.Hash256(keyName.String() + role).Bytes()
+		g := bytes.NewReader(rawPrivKey)
+		pk, _ = ecc.NewDeterministicPrivateKey(g)
+	}
 	return *pk
 }
 
