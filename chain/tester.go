@@ -30,6 +30,7 @@ type BaseTester struct {
 func newBaseTester(control *Controller) *BaseTester {
 	btInstance := &BaseTester{}
 	btInstance.Control = control
+	btInstance.Cfg = control.Config
 	btInstance.initBase(true, SPECULATIVE)
 	return btInstance
 }
@@ -49,7 +50,7 @@ func (t *BaseTester) initBase(pushGenesis bool, mode DBReadMode) {
 	t.LastProducedBlock = make(map[common.AccountName]common.BlockIdType)
 
 	t.Cfg.genesis.InitialTimestamp, _ = common.FromIsoString("2020-01-01T00:00:00.000")
-	//t.Cfg.genesis.InitialKey = t.GetPublicKeys(common.DefaultConfig.SystemAccountName, "active")
+	t.Cfg.genesis.InitialKey = t.getPublicKey(common.DefaultConfig.SystemAccountName, "active")
 
 	t.open()
 	if pushGenesis {

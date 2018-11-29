@@ -53,7 +53,8 @@ func TestMissingAuths(t *testing.T) {
 }
 
 func TestDelegateAuth(t *testing.T) {
-	fmt.Println(common.S(6138663582462279680))
+	fmt.Println(common.S(6138663577826885632))
+	fmt.Println(common.S(3773036822876127232))
 }
 
 func TestCommonEmpty(t *testing.T) {

@@ -3,6 +3,7 @@ package database
 import (
 	"github.com/syndtr/goleveldb/leveldb"
 	"reflect"
+	"fmt"
 )
 
 //Do not use the functions in this file
@@ -154,7 +155,12 @@ func (index *DbIterator) Data(data interface{}) error {
 	}
 
 	index.keyValue(index.it.Value())
-	return DecodeBytes(index.Value(), data)
+	key := index.Value()
+	err := DecodeBytes(key, data)
+	if err != nil{
+		fmt.Println(err)
+	}
+	return nil
 }
 
 func (index *DbIterator) Key() []byte {

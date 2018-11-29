@@ -3,6 +3,8 @@ package types
 import (
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto/ecc"
+	. "github.com/eosspark/eos-go/exception"
+	. "github.com/eosspark/eos-go/exception/try"
 )
 
 type PermissionToAuthorityFunc func(*PermissionLevel) SharedAuthority
@@ -168,17 +170,23 @@ func (wtv *WeightTallyVisitor) VisitPermissionLevelWeight(permission PermissionL
 		if wtv.RecursionDepth < wtv.Checker.RecursionDepthLimit {
 			r := false
 			propagateError := false
-			//try_catch
-			auth := wtv.Checker.permissionToAuthority(&permission.Permission)
-			propagateError = true
-			map[PermissionLevel]PermissionCacheStatus(*wtv.CachedPermissions)[permission.Permission] = BeingEvaluated
-			r = wtv.Checker.SatisfiedAcd(&auth, wtv.CachedPermissions, wtv.RecursionDepth+1)
-			if propagateError {
-
-			} else {
-
+			isNotFound := false
+			Try(func(){
+				auth := wtv.Checker.permissionToAuthority(&permission.Permission)
+				propagateError = true
+				map[PermissionLevel]PermissionCacheStatus(*wtv.CachedPermissions)[permission.Permission] = BeingEvaluated
+				r = wtv.Checker.SatisfiedAcd(&auth, wtv.CachedPermissions, wtv.RecursionDepth+1)
+			}).Catch(func(e PermissionQueryException){
+				isNotFound = true
+				if propagateError {
+					EosThrow(&e,"authority_check::VisitPermissionLevelWeight is error: %v", e.LogMessage)
+				} else {
+					return
+				}
+			}).End()
+			if isNotFound {
+				return wtv.TotalWeight
 			}
-
 			if r {
 				wtv.TotalWeight += uint32(permission.Weight)
 				map[PermissionLevel]PermissionCacheStatus(*wtv.CachedPermissions)[permission.Permission] = PermissionSatisfied
