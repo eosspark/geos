@@ -1253,15 +1253,15 @@ func (c *Controller) LastIrreversibleBlockId() common.BlockIdType {
 
 func (c *Controller) FetchBlockByNumber(blockNum uint32) *types.SignedBlock {
 
-	returning, r := false, (*types.SignedBlock)(nil)
+	_, r := false, (*types.SignedBlock)(nil)
 	Try(func() {
 		blkState := c.ForkDB.GetBlockInCurrentChainByNum(blockNum)
 		if blkState != nil {
-			returning, r = true, blkState.SignedBlock
+			_, r = true, blkState.SignedBlock
 			return
 		}
 
-		returning, r = true, c.Blog.ReadBlockByNum(blockNum)
+		_, r = true, c.Blog.ReadBlockByNum(blockNum)
 		return
 
 	}).FcCaptureAndRethrow(blockNum).End()
