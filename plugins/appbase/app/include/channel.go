@@ -18,9 +18,9 @@ func NewChannel (io *asio.IoContext) *Channel {
 * Publish data to a channel.  This data is *copied* on publish.
 * @param data - the data to publish
 */
-func (s *Channel) Publish(data interface{}) {
+func (s *Channel) Publish(data ...interface{}) {
 	s.iosPtr.Post(func(err error) {
-		s.signal.Emit(data)
+		s.signal.Emit(data...)
 	})
 }
 
@@ -30,6 +30,6 @@ func (s *Channel) Publish(data interface{}) {
 * @param cb the callback
 * @return handle to the subscription
 */
-func (s *Channel) Subscribe(f Function) {
+func (s *Channel) Subscribe(f Caller) {
 	s.signal.Connect(f)
 }

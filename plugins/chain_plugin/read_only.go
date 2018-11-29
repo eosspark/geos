@@ -5,6 +5,7 @@ import (
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto"
+	"github.com/eosspark/eos-go/crypto/abi_serializer"
 	"github.com/eosspark/eos-go/entity"
 	"github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
@@ -91,7 +92,7 @@ func (ro *ReadOnly) GetInfo() *InfoResp {
 func (ro *ReadOnly) GetBlock(params string) *BlockResp {
 	block := &types.SignedBlock{}
 	EosAssert(len(params) != 0 && len(params) <= 64, &exception.BlockIdTypeException{},
-		"Invalid Block number or ID,must be greater than 0 and less than 64 characters")
+		"Invalid Block number or ID,must be greater than 0 and less than 64 characters ")
 
 	Try(func() {
 		blockID := common.BlockIdType(*crypto.NewSha256String(params)) //TODO panic??
@@ -113,20 +114,6 @@ func (ro *ReadOnly) GetBlock(params string) *BlockResp {
 	}
 }
 
-//read_only::get_abi_results read_only::get_abi( const get_abi_params& params )const {
-//   get_abi_results result;
-//   result.account_name = params.account_name;
-//   const auto& d = db.db();
-//   const auto& accnt  = d.get<account_object,by_name>( params.account_name );
-//
-//   abi_def abi;
-//   if( abi_serializer::to_abi(accnt.abi, abi) ) {
-//      result.abi = std::move(abi);
-//   }
-//
-//   return result;
-//}
-
 func (ro *ReadOnly) GetAbi(name common.AccountName) GetABIResp {
 	result := GetABIResp{}
 	result.AccountName = name
@@ -140,10 +127,10 @@ func (ro *ReadOnly) GetAbi(name common.AccountName) GetABIResp {
 		log.Error("not find account_object %s", name)
 	}
 
-	//var abi  types.AbiDef //TODO need serializer::to_abi
-	//   abi_def abi;
-	//   if( abi_serializer::to_abi(accnt.abi, abi) ) {
-	//      result.abi = std::move(abi);
-	//   }
+	var abi abi_serializer.AbiDef
+	if abi_serializer.ToABI(accnt.Abi, &abi) {
+		result.ABI = abi
+	}
+
 	return result
 }

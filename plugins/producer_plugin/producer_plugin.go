@@ -16,9 +16,11 @@ import (
 	"strings"
 	"github.com/eosspark/eos-go/plugins/appbase/asio"
 	. "github.com/eosspark/eos-go/plugins/appbase/app"
-)
+	)
 
-//var log = Log.NewWithHandle("producer", Log.TerminalHandler)
+const ProducerPlug = PluginTypeName("ProducerPlugin")
+
+var producerPlugin Plugin = App().RegisterPlugin(ProducerPlug, NewProducerPlugin(App().GetIoService()))
 
 type ProducerPlugin struct {
 	AbstractPlugin
@@ -48,40 +50,18 @@ type GreylistParams struct {
 	Accounts common.FlatSet
 }
 
-func init() {
-	plug := NewProducerPlugin(App().GetIoService())
-	plug.Plugin = plug
-	plug.Name = PluginName(ProducerPlug)
-	plug.State = State(Registered)
-	App().RegisterPlugin(plug)
-}
-
-//TODO: io from appbase
 func NewProducerPlugin(io *asio.IoContext) *ProducerPlugin {
-	p := new(ProducerPlugin)
+	plugin := &ProducerPlugin{}
 
-	p.my = NewProducerPluginImpl(io)
-	p.my.Self = p
+	plugin.my = NewProducerPluginImpl(io)
+	plugin.my.Self = plugin
 
-	return p
+	return plugin
 }
 
-func (p *ProducerPlugin) IsProducerKey(key ecc.PublicKey) bool {
-	privateKey := p.my.SignatureProviders[key]
-	if privateKey != nil {
-		return true
-	}
-	return false
-}
-
-func (p *ProducerPlugin) SignCompact(key *ecc.PublicKey, digest crypto.Sha256) ecc.Signature {
-	if key != nil {
-		privateKeyFunc := p.my.SignatureProviders[*key]
-		EosAssert(privateKeyFunc != nil, &ProducerPrivKeyNotFound{}, "Local producer has no private key in config.ini corresponding to public key %s", key)
-
-		return privateKeyFunc(digest)
-	}
-	return ecc.Signature{}
+func (p *ProducerPlugin) chain() *Chain.Controller {
+	//return App().FindPlugin(chain_plugin.ChainPlug).(*chain_plugin.ChainPlugin).Chain()
+	return Chain.GetControllerInstance()
 }
 
 func (p *ProducerPlugin) SetProgramOptions(options *[]cli.Flag) {
@@ -154,7 +134,7 @@ func (p *ProducerPlugin) PluginInitialize(c *cli.Context) {
 		//app.Action = func(c *cli.Context) {
 		for _, n := range c.StringSlice("producer-name") {
 			name := common.AccountName(common.N(n))
-			p.my.Producers.Insert(&name)
+			p.my.Producers.Add(name)
 		}
 
 		for _, keyIdToWifPairString := range c.StringSlice("private-key") {
@@ -240,11 +220,11 @@ func (p *ProducerPlugin) PluginStartup() {
 	Try(func() {
 		log.Info("producer plugin:  plugin_startup() begin")
 
-		chain := Chain.GetControllerInstance()
-		EosAssert(p.my.Producers.Len() == 0 || chain.GetReadMode() == Chain.DBReadMode(Chain.SPECULATIVE), &PluginConfigException{},
+		chain := p.chain()
+		EosAssert(p.my.Producers.Size() == 0 || chain.GetReadMode() == Chain.DBReadMode(Chain.SPECULATIVE), &PluginConfigException{},
 			"node cannot have any producer-name configured because block production is impossible when read_mode is not \"speculative\"")
 
-		EosAssert(p.my.Producers.Len() == 0 || chain.GetValidationMode() == Chain.ValidationMode(Chain.FULL), &PluginConfigException{},
+		EosAssert(p.my.Producers.Size() == 0 || chain.GetValidationMode() == Chain.ValidationMode(Chain.FULL), &PluginConfigException{},
 			"node cannot have any producer-name configured because block production is not safe when validation_mode is not \"full\"")
 
 		//TODO if
@@ -259,8 +239,8 @@ func (p *ProducerPlugin) PluginStartup() {
 			p.my.IrreversibleBlockTime = common.MaxTimePoint()
 		}
 
-		if p.my.Producers.Len() > 0 {
-			log.Info("Launching block production for %d producers at %s.", p.my.Producers.Len(), common.Now())
+		if p.my.Producers.Size() > 0 {
+			log.Info("Launching block production for %d producers at %s.", p.my.Producers.Size(), common.Now())
 
 			if p.my.ProductionEnabled {
 				if chain.HeadBlockNum() == 0 {
@@ -278,6 +258,25 @@ func (p *ProducerPlugin) PluginStartup() {
 
 func (p *ProducerPlugin) PluginShutdown() {
 	p.my.Timer.Cancel()
+	log.Info("producer plugin shutdown")
+}
+
+func (p *ProducerPlugin) IsProducerKey(key ecc.PublicKey) bool {
+	privateKey := p.my.SignatureProviders[key]
+	if privateKey != nil {
+		return true
+	}
+	return false
+}
+
+func (p *ProducerPlugin) SignCompact(key *ecc.PublicKey, digest crypto.Sha256) ecc.Signature {
+	if key != nil {
+		privateKeyFunc := p.my.SignatureProviders[*key]
+		EosAssert(privateKeyFunc != nil, &ProducerPrivKeyNotFound{}, "Local producer has no private key in config.ini corresponding to public key %s", key)
+
+		return privateKeyFunc(digest)
+	}
+	return ecc.Signature{}
 }
 
 func (p *ProducerPlugin) Pause() {
@@ -290,7 +289,7 @@ func (p *ProducerPlugin) Resume() {
 	// re-evaluate that now
 	//
 	if p.my.PendingBlockMode == EnumPendingBlockMode(speculating) {
-		chain := Chain.GetControllerInstance()
+		chain := p.chain()
 		chain.AbortBlock()
 		p.my.ScheduleProductionLoop()
 	}
@@ -325,13 +324,13 @@ func (p *ProducerPlugin) UpdateRuntimeOptions(options RuntimeOptions) {
 	}
 
 	if checkSpeculation && p.my.PendingBlockMode == EnumPendingBlockMode(speculating) {
-		chain := Chain.GetControllerInstance()
+		chain := p.chain()
 		chain.AbortBlock()
 		p.my.ScheduleProductionLoop()
 	}
 
 	if options.SubjectiveCpuLeewayUs != nil {
-		chain := Chain.GetControllerInstance()
+		chain := p.chain()
 		chain.SetSubjectiveCpuLeeway(common.Microseconds(*options.SubjectiveCpuLeewayUs))
 	}
 }
@@ -351,21 +350,21 @@ func (p *ProducerPlugin) GetRuntimeOptions() RuntimeOptions {
 }
 
 func (p *ProducerPlugin) AddGreylistAccounts(params GreylistParams) {
-	chain := Chain.GetControllerInstance()
+	chain := p.chain()
 	for _, acc := range params.Accounts.Data {
 		chain.AddResourceGreyList(acc.(*common.AccountName))
 	}
 }
 
 func (p *ProducerPlugin) RemoveGreylistAccounts(params GreylistParams) {
-	chain := Chain.GetControllerInstance()
+	chain := p.chain()
 	for _, acc := range params.Accounts.Data {
 		chain.RemoveResourceGreyList(acc.(*common.AccountName))
 	}
 }
 
 func (p *ProducerPlugin) GetGreylist() GreylistParams {
-	chain := Chain.GetControllerInstance()
+	chain := p.chain()
 	result := GreylistParams{}
 	list := chain.GetResourceGreyList()
 	result.Accounts.Reserve(list.Len())
@@ -376,7 +375,7 @@ func (p *ProducerPlugin) GetGreylist() GreylistParams {
 }
 
 func (p *ProducerPlugin) GetWhitelistBlacklist() WhitelistAndBlacklist {
-	chain := Chain.GetControllerInstance()
+	chain := p.chain()
 	return WhitelistAndBlacklist{
 		chain.GetActorWhiteList(),
 		chain.GetActorBlackList(),
@@ -388,7 +387,7 @@ func (p *ProducerPlugin) GetWhitelistBlacklist() WhitelistAndBlacklist {
 }
 
 func (p *ProducerPlugin) SetWhitelistBlacklist(params WhitelistAndBlacklist) {
-	chain := Chain.GetControllerInstance()
+	chain := p.chain()
 	if params.ActorWhitelist != nil {
 		chain.SetActorWhiteList(params.ActorWhitelist)
 	}

@@ -5,6 +5,7 @@ import (
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto"
+	abi "github.com/eosspark/eos-go/crypto/abi_serializer"
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/plugins/net_plugin"
 )
@@ -62,7 +63,7 @@ type GetCodeResp struct {
 
 type GetABIResp struct {
 	AccountName common.AccountName `json:"account_name"`
-	ABI         types.AbiDef       `json:"abi"`
+	ABI         abi.AbiDef         `json:"abi"`
 }
 
 //// Action

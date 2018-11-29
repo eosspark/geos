@@ -6,16 +6,15 @@ import (
 )
 
 var (
-	root            = &logger{"", new(swapHandler)}
+	root            = &logger{name: "", h: new(swapHandler), enable: true}
 	StdoutHandler   = StreamHandler(os.Stdout, LogfmtFormat())
 	TerminalHandler = StreamHandler(os.Stdout, TerminalFormat(true))
 )
 
 func init() {
-	root.SetHandler(DiscardHandler())
 
 	root.SetHandler(TerminalHandler)
-
+	//root.SetHandler(DiscardHandler())
 	//root.SetHandler(LvlFilterHandler(LvlError,TerminalHandler))
 
 	//h,_ := FileHandler("./log.log",LogfmtFormat())
@@ -43,20 +42,28 @@ func Root() Logger {
 
 // Debug is a convenient alias for Root().Debug
 func Debug(format string, arg ...interface{}) {
-	root.write(LvlDebug, fmt.Sprintf(format, arg...), skipLevel)
+	if root.enable {
+		root.write(LvlDebug, fmt.Sprintf(format, arg...), skipLevel)
+	}
 }
 
 // Info is a convenient alias for Root().Info
 func Info(format string, arg ...interface{}) {
-	root.write(LvlInfo, fmt.Sprintf(format, arg...), skipLevel)
+	if root.enable {
+		root.write(LvlInfo, fmt.Sprintf(format, arg...), skipLevel)
+	}
 }
 
 // Warn is a convenient alias for Root().Warn
 func Warn(format string, arg ...interface{}) {
-	root.write(LvlWarn, fmt.Sprintf(format, arg...), skipLevel)
+	if root.enable {
+		root.write(LvlWarn, fmt.Sprintf(format, arg...), skipLevel)
+	}
 }
 
 // Error is a convenient alias for Root().Error
 func Error(format string, arg ...interface{}) {
-	root.write(LvlError, fmt.Sprintf(format, arg...), skipLevel)
+	if root.enable {
+		root.write(LvlError, fmt.Sprintf(format, arg...), skipLevel)
+	}
 }

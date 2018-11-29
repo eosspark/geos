@@ -1,23 +1,30 @@
 package chain_plugin
 
 import (
-	"github.com/urfave/cli"
 	"github.com/eosspark/eos-go/chain"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/exception"
-	)
+	"github.com/eosspark/eos-go/log"
+	. "github.com/eosspark/eos-go/plugins/appbase/app"
+	"github.com/eosspark/eos-go/plugins/appbase/asio"
+	"github.com/urfave/cli"
+)
 
-//var IsActive bool = false
-//var chainPlugin *ChainPlugin
+const ChainPlug = PluginTypeName("ChainPlugin")
+
+var chainPlugin Plugin = App().RegisterPlugin(ChainPlug, NewChainPlugin(App().GetIoService()))
 
 type ChainPlugin struct {
-	my *ChainPluginImpl
+	AbstractPlugin
+	My *ChainPluginImpl
 }
 
-func NewChainPlugin() *ChainPlugin {
-	c := NewChainPlugin()
-	c.my = NewChainPluginImpl()
-	return c
+func NewChainPlugin(io *asio.IoContext) *ChainPlugin {
+	plugin := &ChainPlugin{}
+
+	plugin.My = NewChainPluginImpl()
+	plugin.My.Self = plugin
+	return plugin
 }
 
 func (c *ChainPlugin) SetProgramOptions(options *[]cli.Flag) {
@@ -29,11 +36,11 @@ func (c *ChainPlugin) PluginInitialize(options *cli.Context) {
 }
 
 func (c *ChainPlugin) PluginStartup() {
-
+	log.Info("chain plugin startup")
 }
 
 func (c *ChainPlugin) PluginShutdown() {
-
+	log.Info("chain plugin shutdown")
 }
 
 func (c *ChainPlugin) GetReadOnlyApi() *ReadOnly {
@@ -45,15 +52,15 @@ func (c *ChainPlugin) GetReadWriteApi() *ReadWrite {
 }
 
 func (c *ChainPlugin) Chain() *chain.Controller {
-	return c.my.Chain
+	return c.My.Chain
 }
 
 func (c *ChainPlugin) GetChainId() common.ChainIdType {
-	return *c.my.ChainId
+	return *c.My.ChainId
 }
 
 func (c *ChainPlugin) GetAbiSerializerMaxTime() common.Microseconds {
-	return c.my.AbiSerializerMaxTimeMs
+	return c.My.AbiSerializerMaxTimeMs
 }
 
 func (c *ChainPlugin) HandleGuardException(e exception.GuardExceptions) {

@@ -134,9 +134,9 @@ func (t *Transaction) GetSignatureKeys(signatures []ecc.Signature, chainID *comm
 	allowDuplicateKeys bool, useCache bool) common.FlatSet /*(recoveredPubKeys []*ecc.PublicKey)*/ {
 	const recoveryCacheSize common.SizeT = 1000
 	recoveredPubKeys := common.FlatSet{}
-	recov := ecc.PublicKey{}
 	digest := t.SigDigest(chainID, cfd)
 	for _, sig := range signatures {
+		recov := ecc.PublicKey{}
 		if useCache {
 			it, ok := recoveryCache[sig.String()]
 			if !ok || it.TrxID != t.ID() {
@@ -293,6 +293,9 @@ func (p *PackedTransaction) GetPrunableSize() uint32 {
 
 func (p *PackedTransaction) PackedDigest() common.DigestType {
 	prunable := crypto.NewSha256()
+	if p == nil {
+		p = &PackedTransaction{}
+	}
 	result, err := rlp.EncodeToBytes(p.Signatures)
 	if err != nil {
 		errout := fmt.Sprintf("PackedDigest:Signatures error:%s", err)

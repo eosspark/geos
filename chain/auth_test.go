@@ -5,6 +5,8 @@ import (
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto/ecc"
+	. "github.com/eosspark/eos-go/exception/try"
+	. "github.com/eosspark/eos-go/exception"
 	"testing"
 )
 
@@ -12,23 +14,62 @@ func initializeAuthTest() (*AuthorizationManager, *BaseTester) {
 	control := GetControllerInstance()
 	am := newAuthorizationManager(control)
 	bt := newBaseTester(control)
-	bt.initBase(true,SPECULATIVE)
 	return am, bt
 }
 
 func TestMissingSigs(t *testing.T) {
 	_, b := initializeAuthTest()
-	//b.CreateAccounts([]common.AccountName{common.AccountName(common.N("Alice"))}, false, false)
+	b.CreateAccounts([]common.AccountName{common.N("alice")}, false, true)
 	b.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs), 0)
+
+	Try(func() {
+		b.PushReqAuth(common.N("alice"), &[]types.PermissionLevel{{common.N("alice"), common.DefaultConfig.ActiveName}}, &[]ecc.PrivateKey{})
+	}).Catch(func(e UnsatisfiedAuthorization) {
+		fmt.Println(e)
+	}).End()
+	/*trace := */b.PushReqAuth2(common.N("alice"),"owner", false)
+	b.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs),0)
+	//TODO: wait for controller::signal
+	//assert.Equal(t,b.ChainHasTransaction(&trace.ID),true)
+	b.Control.Close()
+}
+
+func TestMissingMultiSigs(t *testing.T) {
+	_, b := initializeAuthTest()
+	b.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs), 0)
+	b.createAccount(common.N("alice"),common.DefaultConfig.SystemAccountName,true,true)
+	b.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs), 0)
+
+	Try(func() {
+		b.PushReqAuth2(common.N("alice"), "owner", false)
+	}).Catch(func(e UnsatisfiedAuthorization) {
+		fmt.Println(e)
+	}).End()
+	/*trace := */b.PushReqAuth2(common.N("alice"),"owner", true)
+	b.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs),0)
+	//TODO: wait for controller::signal
+	//assert.Equal(t,b.ChainHasTransaction(&trace.ID),true)
+	b.Control.Close()
 }
 
 func TestMissingAuths(t *testing.T) {
-	//am := initializeAuth()
-	//produceBlock()
+	_, b := initializeAuthTest()
+	b.CreateAccounts([]common.AccountName{common.N("alice"),common.N("bob")},false,true)
+	b.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs), 0)
+	Try(func(){
+		b.PushReqAuth(
+			 common.N("alice"),
+			 &[]types.PermissionLevel{{common.N("bob"), common.DefaultConfig.ActiveName}},
+			 &[]ecc.PrivateKey{b.getPrivateKey(common.N("bob"),"active")},
+			)
+	}).Catch(func(e MissingAuthException) {
+		fmt.Println(e)
+	}).End()
 }
 
 func TestDelegateAuth(t *testing.T) {
-
+	fmt.Println(common.S(3773036822876127232))
+	fmt.Println(common.S(12044502819693133824))
 }
 
 func TestCommonEmpty(t *testing.T) {

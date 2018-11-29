@@ -24,3 +24,6 @@ func (k *innerR1PrivateKey) sign(hash []byte) (out Signature, err error) {
 func (k *innerR1PrivateKey) string() string {
 	return "PVT_R1_PLACE_HOLDER"
 }
+func (k *innerR1PrivateKey) Serialize() []byte {
+	return nil
+}

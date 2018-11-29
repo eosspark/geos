@@ -306,14 +306,15 @@ func (r *ResourceLimitsManager) ProcessAccountLimitUpdates() {
 		limit := entity.ResourceLimitsObject{}
 		for !byOwnerIndex.Empty() {
 			itr, err := byOwnerIndex.LowerBound(entity.ResourceLimitsObject{Pending: true})
-			if err != nil {
-				break
-			}
-			itr.Data(&limit)
-			if byOwnerIndex.CompareEnd(itr) || limit.Pending != true {
+			if err != nil || byOwnerIndex.CompareEnd(itr) {
 				break
 			}
 
+			itr.Data(&limit)
+
+			if limit.Pending != true {
+				break
+			}
 			actualEntry := entity.ResourceLimitsObject{}
 			actualEntry.Pending = false
 			actualEntry.Owner = limit.Owner

@@ -126,10 +126,11 @@ func (a *AuthorizationManager) FindPermission(level *types.PermissionLevel) (p *
 		err := a.db.Find("byOwner", po, &po)
 		if err != nil {
 			log.Error("FindPermission is error: %s", err)
+			EosThrow(&PermissionQueryException{},"FindPermission is error")
 		}
 		p = &po
-	}).Catch(func(e PermissionQueryException) {
-
+	}).Catch(func(e Exception) {
+		FcRethrowException(&PermissionQueryException{},log.LvlWarn,"FindPermission is error")
 	}).End()
 	return p
 }
@@ -143,10 +144,11 @@ func (a *AuthorizationManager) GetPermission(level *types.PermissionLevel) (p *e
 		err := a.db.Find("byOwner", po, &po)
 		if err != nil {
 			log.Error("GetPermission is error: %s", err)
+			EosThrow(&PermissionQueryException{},"GetPermission is error")
 		}
 		p = &po
-	}).Catch(func(e PermissionQueryException) {
-
+	}).Catch(func(e Exception) {
+		FcRethrowException(&PermissionQueryException{},log.LvlWarn,"GetPermission is error")
 	}).End()
 	return p
 }

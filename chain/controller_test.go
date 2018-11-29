@@ -1,10 +1,3 @@
-/*
- *  @Time : 2018/8/29 下午5:47
- *  @Author : xueyahui
- *  @File : controller_test.go
- *  @Software: GoLand
- */
-
 package chain
 
 import (
@@ -16,6 +9,7 @@ import (
 	"github.com/eosspark/eos-go/entity"
 	"github.com/eosspark/eos-go/exception"
 	"github.com/eosspark/eos-go/exception/try"
+	"github.com/eosspark/eos-go/log"
 	"github.com/stretchr/testify/assert"
 	"strings"
 	"testing"
@@ -35,10 +29,10 @@ func TestController_ProduceProcess(t *testing.T) {
 
 func produceProcess() {
 	con := GetControllerInstance()
-	basetester := newBaseTester(con)
-	basetester.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs), 0)
+	/*basetester := newBaseTester(con)
+	basetester.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs), 0)*/
 
-	/*signatureProviders := make(map[ecc.PublicKey]signatureProviderType)
+	signatureProviders := make(map[ecc.PublicKey]signatureProviderType)
 	//con := GetControllerInstance()
 	con.AbortBlock()
 	now := common.Now()
@@ -84,7 +78,7 @@ func produceProcess() {
 		return a(d)
 	})
 
-	con.CommitBlock(true)*/
+	con.CommitBlock(true)
 }
 
 type signatureProviderType = func(sha256 crypto.Sha256) ecc.Signature

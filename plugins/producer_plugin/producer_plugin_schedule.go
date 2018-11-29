@@ -6,8 +6,7 @@ import (
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/ecc"
-	//Chain "github.com/eosspark/eos-go/plugins/producer_plugin/testing" /*test mode*/
-	Chain "github.com/eosspark/eos-go/chain" /*real chain*/
+	Chain "github.com/eosspark/eos-go/chain"
 	. "github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/log"
@@ -16,7 +15,7 @@ import (
 func (impl *ProducerPluginImpl) CalculateNextBlockTime(producerName *common.AccountName, currentBlockTime types.BlockTimeStamp) *common.TimePoint {
 	var result common.TimePoint
 
-	chain := Chain.GetControllerInstance()
+	chain := impl.Self.chain()
 
 	hbs := chain.HeadBlockState()
 	activeSchedule := hbs.ActiveSchedule.Producers
@@ -81,7 +80,7 @@ func (impl *ProducerPluginImpl) CalculateNextBlockTime(producerName *common.Acco
 }
 
 func (impl *ProducerPluginImpl) CalculatePendingBlockTime() common.TimePoint {
-	chain := Chain.GetControllerInstance()
+	chain := impl.Self.chain()
 	now := common.Now()
 	var base common.TimePoint
 	if now > chain.HeadBlockTime() {
@@ -100,7 +99,7 @@ func (impl *ProducerPluginImpl) CalculatePendingBlockTime() common.TimePoint {
 }
 
 func (impl *ProducerPluginImpl) StartBlock() (EnumStartBlockRusult, bool) {
-	chain := Chain.GetControllerInstance()
+	chain := impl.Self.chain()
 
 	if chain.GetReadMode() == Chain.READONLY {
 		return EnumStartBlockRusult(waiting), false
@@ -126,7 +125,7 @@ func (impl *ProducerPluginImpl) StartBlock() (EnumStartBlockRusult, bool) {
 	if !impl.ProductionEnabled {
 		impl.PendingBlockMode = EnumPendingBlockMode(speculating)
 
-	} else if has, _ := impl.Producers.Find(&scheduleProducer.ProducerName); !has {
+	} else if !impl.Producers.Contains(scheduleProducer.ProducerName) {
 		impl.PendingBlockMode = EnumPendingBlockMode(speculating)
 
 	} else if !hasSignatureProvider {
@@ -158,7 +157,6 @@ func (impl *ProducerPluginImpl) StartBlock() (EnumStartBlockRusult, bool) {
 	if impl.PendingBlockMode == EnumPendingBlockMode(speculating) {
 		headBlockAge := now.Sub(chain.HeadBlockTime())
 		if headBlockAge > common.Seconds(5) {
-			fmt.Println("===start block speculating")
 			return EnumStartBlockRusult(waiting), lastBlock
 		}
 	}
@@ -355,7 +353,7 @@ func (impl *ProducerPluginImpl) StartBlock() (EnumStartBlockRusult, bool) {
 }
 
 func (impl *ProducerPluginImpl) ScheduleProductionLoop() {
-	chain := Chain.GetControllerInstance()
+	chain := impl.Self.chain()
 	impl.Timer.Cancel()
 
 	result, lastBlock := impl.StartBlock()
@@ -374,7 +372,7 @@ func (impl *ProducerPluginImpl) ScheduleProductionLoop() {
 		})
 
 	} else if result == EnumStartBlockRusult(waiting) {
-		if impl.Producers.Len() > 0 && !impl.ProductionDisabledByPolicy() {
+		if impl.Producers.Size() > 0 && !impl.ProductionDisabledByPolicy() {
 			log.Debug("Waiting till another block is received and scheduling Speculative/Production Change")
 			impl.ScheduleDelayedProductionLoop(types.NewBlockTimeStamp(impl.CalculatePendingBlockTime()))
 		} else {
@@ -417,7 +415,7 @@ func (impl *ProducerPluginImpl) ScheduleProductionLoop() {
 			}
 		})
 
-	} else if impl.PendingBlockMode == EnumPendingBlockMode(speculating) && impl.Producers.Len() > 0 && !impl.ProductionDisabledByPolicy() {
+	} else if impl.PendingBlockMode == EnumPendingBlockMode(speculating) && impl.Producers.Size() > 0 && !impl.ProductionDisabledByPolicy() {
 		log.Debug("Speculative Block Created; Scheduling Speculative/Production Change")
 		EosAssert(chain.PendingBlockState() != nil, &MissingPendingBlockState{}, "speculating without pending_block_state")
 		pbs := chain.PendingBlockState()
@@ -431,8 +429,9 @@ func (impl *ProducerPluginImpl) ScheduleProductionLoop() {
 func (impl *ProducerPluginImpl) ScheduleDelayedProductionLoop(currentBlockTime types.BlockTimeStamp) {
 	// if we have any producers then we should at least set a timer for our next available slot
 	var wakeUpTime *common.TimePoint
-	for _, p := range impl.Producers.Data {
-		nextProducerBlockTime := impl.CalculateNextBlockTime(p.(*common.AccountName), currentBlockTime)
+	impl.Producers.Each(func(index int, value interface{}) {
+		p := value.(common.AccountName)
+		nextProducerBlockTime := impl.CalculateNextBlockTime(&p, currentBlockTime)
 		if nextProducerBlockTime != nil {
 			producerWakeupTime := nextProducerBlockTime.SubUs(common.Microseconds(common.DefaultConfig.BlockIntervalUs))
 			if wakeUpTime != nil {
@@ -444,7 +443,7 @@ func (impl *ProducerPluginImpl) ScheduleDelayedProductionLoop(currentBlockTime t
 				wakeUpTime = &producerWakeupTime
 			}
 		}
-	}
+	})
 
 	if wakeUpTime != nil {
 		log.Debug("Scheduling Speculative/Production Change at %s", wakeUpTime)
@@ -483,14 +482,14 @@ func (impl *ProducerPluginImpl) MaybeProduceBlock() bool {
 	}
 
 	log.Debug("Aborting block due to produce_block error")
-	chain := Chain.GetControllerInstance()
+	chain := impl.Self.chain()
 	chain.AbortBlock()
 	return false
 }
 
 func (impl *ProducerPluginImpl) ProduceBlock() {
 	EosAssert(impl.PendingBlockMode == EnumPendingBlockMode(producing), &ProducerException{}, "called produce_block while not actually producing")
-	chain := Chain.GetControllerInstance()
+	chain := impl.Self.chain()
 	pbs := chain.PendingBlockState()
 	EosAssert(pbs != nil, &MissingPendingBlockState{}, "pending_block_state does not exist but it should, another plugin may have corrupted it")
 

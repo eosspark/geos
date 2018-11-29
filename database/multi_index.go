@@ -3,7 +3,6 @@ package database
 import (
 	"bytes"
 	"errors"
-	"log"
 )
 
 type MultiIndex struct {
@@ -156,11 +155,9 @@ func (index *MultiIndex) End() Iterator {
 	// TODO
 	it, err := index.db.EndIterator(index.begin, index.end, index.typeName)
 	if err != nil {
-		log.Println("MultiIndex End Error : ", err)
 		return nil
 	}
 	if it == nil {
-		log.Println("MultiIndex End Iterator Is Empty ")
 		return nil
 	}
 	return it
@@ -176,9 +173,9 @@ error 				-->		nil
 
 func (index *MultiIndex) Begin() Iterator {
 	it, err := index.db.BeginIterator(index.begin, index.end, index.typeName)
-	if err != nil || it ==nil{
-		it ,err = index.db.EndIterator(index.begin,index.end,index.typeName)
-		if err != nil{
+	if err != nil || it == nil {
+		it, err = index.db.EndIterator(index.begin, index.end, index.typeName)
+		if err != nil {
 			//panic()
 			return nil
 		}
@@ -222,4 +219,3 @@ func (index *MultiIndex) IteratorTo(in interface{}) Iterator {
 func (index *MultiIndex) Empty() bool {
 	return index.db.Empty(index.begin, index.end, index.fieldName)
 }
-
