@@ -88,8 +88,8 @@ func (t BaseTester) PushBlock(b *types.SignedBlock) *types.SignedBlock {
 }
 
 func (t BaseTester) pushGenesisBlock() {
-	//t.setCode()
-	//t.setAbi()
+	//t.SetCode(common.DefaultConfig.SystemAccountName, )
+	//t.SetAbi(common.DefaultConfig.SystemAccountName,)
 }
 
 func (t BaseTester) ProduceBlocks(n uint32, empty bool) {
@@ -334,7 +334,7 @@ func (t BaseTester) GetAction(code common.AccountName, actType common.AccountNam
 func (t BaseTester) getPrivateKey(keyName common.Name, role string) ecc.PrivateKey {
 	pk := &ecc.PrivateKey{}
 	if keyName == common.DefaultConfig.SystemAccountName{
-		pk, _ = ecc.NewPrivateKey("5KYZdUEo39z3FPrtuX2QbbwGnNP5zTd7yyr2SC1j299sBCnWjss")
+		pk, _ = ecc.NewPrivateKey("5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3")
 	} else {
 		rawPrivKey := crypto.Hash256(keyName.String() + role).Bytes()
 		g := bytes.NewReader(rawPrivKey)

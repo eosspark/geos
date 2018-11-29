@@ -65,11 +65,12 @@ func TestMissingAuths(t *testing.T) {
 	}).Catch(func(e MissingAuthException) {
 		fmt.Println(e)
 	}).End()
+	b.Control.Close()
 }
 
 func TestDelegateAuth(t *testing.T) {
-	fmt.Println(common.S(3773036822876127232))
-	fmt.Println(common.S(12044502819693133824))
+	fmt.Println(common.S(6138663577826885632))
+	fmt.Println(common.S(3617214756542218240))
 }
 
 func TestCommonEmpty(t *testing.T) {

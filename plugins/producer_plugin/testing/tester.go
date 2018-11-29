@@ -15,7 +15,7 @@ type ChainTester struct {
 
 func NewChainTester(when types.BlockTimeStamp, names ...common.AccountName) *ChainTester {
 	tester := new(ChainTester)
-	priKey, _ := ecc.NewPrivateKey("5KYZdUEo39z3FPrtuX2QbbwGnNP5zTd7yyr2SC1j299sBCnWjss")
+	priKey, _ := ecc.NewPrivateKey("5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3")
 	pubKey := priKey.PublicKey()
 
 	tester.KeyPairs = make(map[common.AccountName]common.Pair)

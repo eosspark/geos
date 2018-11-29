@@ -62,11 +62,11 @@ func produceProcess() {
 	}
 	con.Pending.PendingBlockState = con.PendingBlockState()
 	con.FinalizeBlock()
-	pubKey, err := ecc.NewPublicKey("EOS859gxfnXyUriMgUeThh1fWv3oqcpLFyHa3TfFYC4PK2HqhToVM")
+	pubKey, err := ecc.NewPublicKey("EOS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV")
 	if err != nil {
 		log.Error("produceLoop NewPublicKey is error :%s", err.Error())
 	}
-	priKey, err2 := ecc.NewPrivateKey("5KYZdUEo39z3FPrtuX2QbbwGnNP5zTd7yyr2SC1j299sBCnWjss")
+	priKey, err2 := ecc.NewPrivateKey("5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3")
 	if err2 != nil {
 		log.Error("produceLoop NewPrivateKey is error :%s", err.Error())
 	}

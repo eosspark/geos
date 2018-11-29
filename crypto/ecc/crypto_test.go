@@ -43,14 +43,14 @@ http://127.0.0.1:8900/v1/wallet/sign_digest
 */
 
 func TestK1PrivateToPublic(t *testing.T) {
-	wif := "5KYZdUEo39z3FPrtuX2QbbwGnNP5zTd7yyr2SC1j299sBCnWjss"
+	wif := "5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3"
 	privKey, err := ecc.NewPrivateKey(wif)
 	require.NoError(t, err)
 
 	pubKey := privKey.PublicKey()
 
 	pubKeyString := pubKey.String()
-	assert.Equal(t, "EOS859gxfnXyUriMgUeThh1fWv3oqcpLFyHa3TfFYC4PK2HqhToVM", pubKeyString)
+	assert.Equal(t, "EOS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV", pubKeyString)
 }
 
 func TestR1PrivateToPublic(t *testing.T) {
@@ -83,7 +83,7 @@ func TestPrivateKeyValidity(t *testing.T) {
 		in    string
 		valid bool
 	}{
-		{"5KYZdUEo39z3FPrtuX2QbbwGnNP5zTd7yyr2SC1j299sBCnWjss", true},
+		{"5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3", true},
 		{"5KYZdUEo39z3FPrtuX2QbbwGnNP5zTd7yyr2SC1j299sBCnWjsm", false},
 	}
 
@@ -103,7 +103,7 @@ func TestPublicKeyValidity(t *testing.T) {
 		in  string
 		err error
 	}{
-		{"EOS859gxfnXyUriMgUeThh1fWv3oqcpLFyHa3TfFYC4PK2HqhToVM", nil},
+		{"EOS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV", nil},
 		{"MMM859gxfnXyUriMgUeThh1fWv3oqcpLFyHa3TfFYC4PK2HqhToVM", fmt.Errorf("public key should start with [\"PUB_K1_\" | \"PUB_R1_\"] (or the old \"EOS\")")},
 		{"EOS859gxfnXyUriMgUeThh1fWv3oqcpLFyHa3TfFYC4PK2HqhTo", fmt.Errorf("checkDecode: invalid checksum")},
 	}
@@ -120,7 +120,7 @@ func TestPublicKeyValidity(t *testing.T) {
 }
 
 func TestK1Signature(t *testing.T) {
-	wif := "5KYZdUEo39z3FPrtuX2QbbwGnNP5zTd7yyr2SC1j299sBCnWjss"
+	wif := "5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3"
 	privKey, err := ecc.NewPrivateKey(wif)
 	require.NoError(t, err)
 

@@ -13,7 +13,7 @@ import (
 )
 
 func initMulti() (*MultiIndexFork, *types.BlockState) {
-	initPriKey, _ := ecc.NewPrivateKey("5KYZdUEo39z3FPrtuX2QbbwGnNP5zTd7yyr2SC1j299sBCnWjss")
+	initPriKey, _ := ecc.NewPrivateKey("5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3")
 	initPubKey := initPriKey.PublicKey()
 	eosio := common.AccountName(common.N("eosio"))
 	eos := common.AccountName(common.N("eos"))
