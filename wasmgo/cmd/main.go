@@ -14,7 +14,7 @@ import (
 
 func main() {
 
-	name := "hello.wasm"
+	name := "/Users/xiaoyu/go/src/github.com/eosspark/eos-go/wasmgo/cmd/hello.wasm"
 	code, err := ioutil.ReadFile(name)
 	if err != nil {
 		log.Fatal(err)
@@ -34,13 +34,13 @@ func main() {
 	codeVersion := crypto.NewSha256Byte([]byte(code))
 
 	for i := 0; i < 100; i++ {
-		applyContext.PseudoStart = common.Now()
-		applyContext.Deadline = applyContext.PseudoStart + common.TimePoint(200000)
+		//applyContext.PseudoStart = common.Now()
+		//applyContext.Deadline = applyContext.PseudoStart + common.TimePoint(200000)
 		wasmgo.Apply(codeVersion, code, applyContext)
-		fmt.Println("No.", i, uint64(common.Now()-applyContext.PseudoStart))
+		//fmt.Println("No.", i, uint64(common.Now()-applyContext.PseudoStart))
 	}
 
 	//print "hello, walker"
-	//fmt.Println(applyContext.PendingConsoleOutput)
+	fmt.Println(applyContext.PendingConsoleOutput)
 
 }
