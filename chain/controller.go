@@ -1035,7 +1035,7 @@ func (c *Controller) maybeSwitchForks(s types.BlockStatus) {
 			EosThrow(e, "maybeSwitchForks is error:%#v", e.Message())
 		}).End()
 	} else if newHead.BlockId != c.Head.BlockId {
-		log.Info("switching forks from: %#v (block number %#V) to %#v (block number %#v)", c.Head.BlockId, c.Head.BlockNum, newHead.BlockId, newHead.BlockNum)
+		log.Info("switching forks from: %#v (block number %#v) to %#v (block number %#v)", c.Head.BlockId, c.Head.BlockNum, newHead.BlockId, newHead.BlockNum)
 		branches := c.ForkDB.FetchBranchFrom(&newHead.BlockId, &c.Head.BlockId)
 
 		for i := 0; i < len(branches.second); i++ {
