@@ -1618,13 +1618,13 @@ func (c *Controller) initializeDatabase() {
 		activeProducersAuthority,
 		c.Config.genesis.InitialTimestamp)
 
-	minorityPermission := c.Authorization.CreatePermission(common.DefaultConfig.ProducersAccountName,
+	c.Authorization.CreatePermission(common.DefaultConfig.ProducersAccountName,
 		common.DefaultConfig.MinorityProducersPermissionName,
 		PermissionIdType(majorityPermission.ID),
 		activeProducersAuthority,
 		c.Config.genesis.InitialTimestamp)
 
-	log.Info("initializeDatabase print:%#v,%#v", majorityPermission.ID, minorityPermission.ID)
+	//log.Info("initializeDatabase print:%#v,%#v", majorityPermission.ID, minorityPermission.ID)
 }
 
 func (c *Controller) initialize() {
@@ -1635,16 +1635,14 @@ func (c *Controller) initialize() {
 			endTime := end.Timestamp.ToTimePoint()
 			c.RePlaying = true
 			c.ReplayHeadTime = endTime
-			log.Info("existing block log, attempting to replay ${n} blocks", end.BlockNumber())
-			start := common.Now()
-
+			log.Info("existing block log, attempting to replay :%d blocks", end.BlockNumber())
 			for next := c.Blog.ReadBlockByNum(c.Head.BlockNum + 1); next != nil; {
 				c.PushBlock(next, types.Irreversible)
 				if next.BlockNumber()%100 == 0 {
 					log.Info("%d blocks replayed", next.BlockNumber())
 				}
 			}
-			log.Info("${n} blocks replayed", c.Head.BlockNum)
+			log.Info("%d blocks replayed", c.Head.BlockNum)
 			c.DB.SetRevision(int64(c.Head.BlockNum))
 			rev := 0
 			r := entity.ReversibleBlockObject{}
@@ -1657,12 +1655,10 @@ func (c *Controller) initialize() {
 				}
 				c.PushBlock(r.GetBlock(), types.Validated)
 			}
-			log.Info("%s reversible blocks replayed", rev)
-			end := common.Now()
-			log.Info("replayed %d blocks in %#v seconds, %#v ms/block", c.Head.BlockNum, (end-start)/1000000, ((end-start).SecSinceEpoch()/1000.0)/c.Head.BlockNum)
+			log.Info("%d reversible blocks replayed", rev)
+
 			c.RePlaying = false
 			c.ReplayHeadTime = common.TimePoint(0)
-
 		} else if !common.Empty(end) {
 			c.Blog.ResetToGenesis(c.Config.genesis, c.Head.SignedBlock)
 		}
@@ -1690,32 +1686,24 @@ func (c *Controller) initialize() {
 	for uint32(c.DB.Revision()) > c.Head.BlockNum {
 		c.DB.Undo()
 	}
+	log.Info("controller initialize finished")
 }
 
 func (c *Controller) clearExpiredInputTransactions() {
 	transactionIdx, err := c.DB.GetIndex("byExpiration", &entity.TransactionObject{})
-
 	now := c.PendingBlockTime()
 	t := entity.TransactionObject{}
-	if !transactionIdx.Empty() {
+	for !transactionIdx.Empty() {
 		err = transactionIdx.Begin().Data(&t)
 		if err != nil {
 			log.Error("controller clearExpiredInputTransactions transactionIdx.Begin() is error: %s", err)
 			EosAssert(err == nil, &DatabaseException{}, "Controller clearExpiredInputTransactions is error :%s", err)
 			return
 		}
-		for !transactionIdx.Empty() && now > common.TimePoint(t.Expiration) {
-			tmp := entity.TransactionObject{}
-			itr := transactionIdx.Begin()
-			if itr != nil {
-				err = itr.Data(&tmp)
-				if err != nil {
-					log.Error("TransactionIdx.Begin Is Error:%s", err)
-					EosAssert(err == nil, &DatabaseException{}, "Controller clearExpiredInputTransactions is error :%s", err)
-					return
-				}
-			}
-			c.DB.Remove(&tmp)
+		if now > common.TimePoint(t.Expiration) {
+			c.DB.Remove(&t)
+		} else {
+			break
 		}
 	}
 }
