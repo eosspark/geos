@@ -368,9 +368,10 @@ func structKV(in interface{}, dbKV *dbKeyValue, cfg *structInfo) error {
 
 func cfgToKV(objId []byte, cfg *structInfo, dbKV *dbKeyValue) error{
 
-	typeName := []byte(cfg.Name)
+	//typeName := []byte(cfg.Name)
 
 	for tag, fieldCfg := range cfg.Fields {
+		typeName := []byte(cfg.Name)
 		prefix := append(typeName, '_') 					/* 			typeName__ 				*/
 		prefix = append(prefix, '_')
 		prefix = append(prefix, tag...) 						/* 			typeName__tagName__ 	*/

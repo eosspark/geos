@@ -1,10 +1,3 @@
-/*
- *  @Time : 2018/8/29 下午5:47
- *  @Author : xueyahui
- *  @File : controller_test.go
- *  @Software: GoLand
- */
-
 package chain
 
 import (

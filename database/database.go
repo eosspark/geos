@@ -1,7 +1,6 @@
 package database
 
 import (
-	"fmt"
 	"github.com/eosspark/eos-go/log"
 	"math"
 	"reflect"
@@ -62,7 +61,6 @@ func NewDataBase(path string, flag ...bool) (DataBase, error) {
 		logFlag = flag[0]
 	}
 
-
 	dbLog := log.New("db")
 	if logFlag {
 		h,_ := log.FileHandler(path + "/database_log.log",log.LogfmtFormat())
@@ -106,7 +104,7 @@ func (ldb *LDataBase) Close() {
 	} else {
 		ldb.log.Info("----------------- database close -----------------")
 	}
-	fmt.Println(ldb.count)
+	//fmt.Println(ldb.count)
 	//ldb.log.Info("%d",ldb.count)
 }
 
@@ -275,7 +273,6 @@ func (ldb *LDataBase) Insert(in interface{}) error {
 }
 
 func (ldb *LDataBase) insert(in interface{}, flag ...bool) error { /* struct cfg --> KV struct --> kv to db --> undo db */
-
 	cfg, err := parseObjectToCfg(in) /* (struct cfg) parse object tag */
 	if err != nil {
 		ldb.log.Error("error database insert  parseObjectToCfg failed : %s", err.Error())
@@ -355,7 +352,6 @@ func (ldb *LDataBase) Remove(in interface{}) error {
 }
 
 func (ldb *LDataBase) remove(in interface{}) error {
-
 	cfg, err := parseObjectToCfg(in)
 	if err != nil {
 		ldb.log.Error("failed : %s", err.Error())
@@ -766,7 +762,7 @@ func (ldb *LDataBase) BeginIterator(begin, end, typeName []byte) (*DbIterator, e
 	k := splicingString([]byte(typeName),it.Value() )
 	val, err := getDbKey(k, ldb.db)
 	if err != nil {
-		ldb.log.Error("failed %s", err.Error())
+		ldb.log.Error("failed %s %v", err.Error(),k)
 		return nil, ErrNotFound
 	}
 
@@ -784,16 +780,20 @@ func (ldb *LDataBase) enable() bool { /* Whether the database enables the undo f
 func (ldb *LDataBase) putBatch(dbKV *dbKeyValue)  {
 	for _, v := range dbKV.index {
 		ldb.count++
+		ldb.log.Debug("save key %v | %v",v.key,v.value)
 		ldb.batch.Put(v.key, v.value)
 	}
 	ldb.count++
+	ldb.log.Debug("save key %v | %v",dbKV.idk.key,dbKV.idk.value)
 	ldb.batch.Put(dbKV.idk.key, dbKV.idk.value)
 }
 
 func (ldb *LDataBase) deleteBatch(dbKV *dbKeyValue)  {
 	for idx, _ := range dbKV.index {
+		ldb.log.Debug("delete key %v",dbKV.index[idx].key)
 		ldb.batch.Delete(dbKV.index[idx].key)
 	}
+	ldb.log.Debug("delete key %v",dbKV.idk.key)
 	ldb.batch.Delete(dbKV.idk.key)
 }
 
