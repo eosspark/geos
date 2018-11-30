@@ -16,7 +16,7 @@ type ChainPluginImpl struct {
 
 	ChainConfig *chain.Config       `eos:"optional"`
 	Chain       *chain.Controller   `eos:"optional"`
-	ChainId     *common.ChainIdType `eos:"optional"`
+	ChainId     common.ChainIdType `eos:"optional"`
 
 	//fc::optional<vm_type>            wasm_runtime;
 	AbiSerializerMaxTimeMs common.Microseconds
