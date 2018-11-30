@@ -14,6 +14,7 @@ import (
 	"math"
 	"github.com/eosspark/eos-go/crypto"
 	"bytes"
+	"io/ioutil"
 )
 
 type BaseTester struct {
@@ -88,8 +89,18 @@ func (t BaseTester) PushBlock(b *types.SignedBlock) *types.SignedBlock {
 }
 
 func (t BaseTester) pushGenesisBlock() {
-	//t.SetCode(common.DefaultConfig.SystemAccountName, )
-	//t.SetAbi(common.DefaultConfig.SystemAccountName,)
+	wasmName := "../wasmgo/testdata_context/eosio.bios.wasm"
+	code, err := ioutil.ReadFile(wasmName)
+	if err != nil {
+		log.Error("pushGenesisBlock is err : %v", err)
+	}
+	t.SetCode(common.DefaultConfig.SystemAccountName, code, nil)
+	abiName := "../wasmgo/testdata_context/eosio.bios.abi"
+	abi, err := ioutil.ReadFile(abiName)
+	if err != nil {
+		log.Error("pushGenesisBlock is err : %v", err)
+	}
+	t.SetAbi(common.DefaultConfig.SystemAccountName, abi, nil)
 }
 
 func (t BaseTester) ProduceBlocks(n uint32, empty bool) {
@@ -215,7 +226,7 @@ func (t BaseTester) createAccount(name common.AccountName, creator common.Accoun
 			Weight:     types.WeightType(ownerAuth.Threshold),
 		})
 		sortPermissions(&ownerAuth)
-		activeAuth.Accounts = append(ownerAuth.Accounts, types.PermissionLevelWeight{
+		activeAuth.Accounts = append(activeAuth.Accounts, types.PermissionLevelWeight{
 			Permission: types.PermissionLevel{Actor: name, Permission: common.DefaultConfig.EosioCodeName},
 			Weight:     types.WeightType(activeAuth.Threshold),
 		})
@@ -246,7 +257,7 @@ func (t BaseTester) createAccount(name common.AccountName, creator common.Accoun
 func (t BaseTester) PushTransaction(trx *types.SignedTransaction, deadline common.TimePoint, billedCpuTimeUs uint32) (trace *types.TransactionTrace) {
 	_, r := false, (*types.TransactionTrace)(nil)
 	try.Try(func() {
-		if t.Control.PendingBlockState() != nil {
+		if t.Control.PendingBlockState() == nil {
 			t.startBlock(t.Control.HeadBlockTime() + common.TimePoint(common.DefaultConfig.BlockIntervalUs))
 		}
 		c := common.CompressionNone
@@ -430,7 +441,7 @@ func (t BaseTester) LinkAuthority(account common.AccountName, code common.Accoun
 	link := linkAuth{Account: account, Code: code, Type: rtype, Requirement: req}
 	data, _ := rlp.EncodeToBytes(link)
 	act := types.Action{
-		Account:       link.getName(),
+		Account:       link.getAccount(),
 		Name:          link.getName(),
 		Authorization: []types.PermissionLevel{{account, common.DefaultConfig.ActiveName}},
 		Data:          data,
@@ -448,7 +459,7 @@ func (t BaseTester) UnlinkAuthority(account common.AccountName, code common.Acco
 	unlink := unlinkAuth{Account: account, Code: code, Type: rtype}
 	data, _ := rlp.EncodeToBytes(unlink)
 	act := types.Action{
-		Account:       unlink.getName(),
+		Account:       unlink.getAccount(),
 		Name:          unlink.getName(),
 		Authorization: []types.PermissionLevel{{account, common.DefaultConfig.ActiveName}},
 		Data:          data,
@@ -467,7 +478,7 @@ func (t BaseTester) SetAuthority(account common.AccountName, perm common.Permiss
 	update := updateAuth{Account: account, Permission: perm, Parent: parent, Auth: auth}
 	data, _ := rlp.EncodeToBytes(update)
 	act := types.Action{
-		Account:       update.getName(),
+		Account:       update.getAccount(),
 		Name:          update.getName(),
 		Authorization: *auths,
 		Data:          data,
@@ -493,7 +504,7 @@ func (t BaseTester) DeleteAuthority(account common.AccountName, perm common.Perm
 	delete := deleteAuth{Account: account, Permission: perm}
 	data, _ := rlp.EncodeToBytes(delete)
 	act := types.Action{
-		Account:       delete.getName(),
+		Account:       delete.getAccount(),
 		Name:          delete.getName(),
 		Authorization: *auths,
 		Data:          data,
@@ -518,7 +529,7 @@ func (t BaseTester) SetCode(account common.AccountName, wasm []uint8, signer *ec
 	setCode := setCode{Account: account, VmType: 0, VmVersion: 0, Code: wasm}
 	data, _ := rlp.EncodeToBytes(setCode)
 	act := types.Action{
-		Account:       setCode.getName(),
+		Account:       setCode.getAccount(),
 		Name:          setCode.getName(),
 		Authorization: []types.PermissionLevel{{account, common.DefaultConfig.ActiveName}},
 		Data:          data,
@@ -539,15 +550,18 @@ func (t BaseTester) SetCode2(account common.AccountName, wast *byte, signer *ecc
 	//t.SetCode(account, wastToWasm(wast), signer)
 }
 
-func (t BaseTester) SetAbi(account common.AccountName, abiJson *byte, signer *ecc.PrivateKey) {
-	// abi := fc::json::from_string(abi_json).template as<abi_def>()
-	abi := abi.AbiDef{}
+func (t BaseTester) SetAbi(account common.AccountName, abiJson []byte, signer *ecc.PrivateKey) {
+	abiEt := abi.AbiDef{}
+	ok := abi.ToABI(abiJson, &abiEt)
+	if !ok {
+		log.Error("error")
+	}
 	trx := types.SignedTransaction{}
-	abiBytes, _ := rlp.EncodeToBytes(abi)
+	abiBytes, _ := rlp.EncodeToBytes(abiEt)
 	setAbi := setAbi{Account: account, Abi: abiBytes}
 	data, _ := rlp.EncodeToBytes(setAbi)
 	act := types.Action{
-		Account:       setAbi.getName(),
+		Account:       account,
 		Name:          setAbi.getName(),
 		Authorization: []types.PermissionLevel{{account, common.DefaultConfig.ActiveName}},
 		Data:          data,

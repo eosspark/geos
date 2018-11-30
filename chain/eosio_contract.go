@@ -106,7 +106,7 @@ func ApplyEosioNewaccount(context *ApplyContext) {
 
 	authorization := context.Control.GetMutableAuthorizationManager()
 	ownerPemission := authorization.CreatePermission(create.Name, common.DefaultConfig.OwnerName, 0, create.Owner, common.TimePoint(0))
-	activePemission := authorization.CreatePermission(create.Name, common.DefaultConfig.ActiveName, PermissionIdType(ownerPemission.ID), create.Owner, common.TimePoint(0))
+	activePemission := authorization.CreatePermission(create.Name, common.DefaultConfig.ActiveName, PermissionIdType(ownerPemission.ID), create.Active, common.TimePoint(0))
 
 	context.Control.GetMutableResourceLimitsManager().InitializeAccount(create.Name)
 	ramDelta := uint64(common.DefaultConfig.OverheadPerAccountRamBytes)
@@ -161,7 +161,7 @@ func applyEosioNewaccount(context *ApplyContext) {
 
 	authorization := context.Control.GetMutableAuthorizationManager()
 	ownerPemission := authorization.CreatePermission(create.Name, common.DefaultConfig.OwnerName, 0, create.Owner, common.TimePoint(0))
-	activePemission := authorization.CreatePermission(create.Name, common.DefaultConfig.ActiveName, PermissionIdType(ownerPemission.ID), create.Owner, common.TimePoint(0))
+	activePemission := authorization.CreatePermission(create.Name, common.DefaultConfig.ActiveName, PermissionIdType(ownerPemission.ID), create.Active, common.TimePoint(0))
 
 	context.Control.GetMutableResourceLimitsManager().InitializeAccount(create.Name)
 	ramDelta := uint64(common.DefaultConfig.OverheadPerAccountRamBytes)

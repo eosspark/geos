@@ -166,12 +166,38 @@ func (auth Authority) String() string {
 	return "{ " + ThresholdStr + ", " + KeysStr + ", " + AccountsStr + ", " + WaitsStr + "}"
 }
 
+func (keys KeyWeight) Equals(keyss KeyWeight) bool {
+	return true
+}
+
+func (accounts PermissionLevelWeight) Equals(accountss PermissionLevelWeight) bool {
+	return true
+}
+
+func (waits WaitWeight) Equals(waitss WaitWeight) bool {
+	return true
+}
+
+
 func (auth Authority) Equals(author Authority) bool {
 	return true
 }
 
 func (sharedAuth SharedAuthority) Equals(sharedAuthor SharedAuthority) bool {
-	return true
+	if sharedAuth.Threshold == sharedAuthor.Threshold {
+		//if sharedAuth.Keys.Equals(sharedAuthor.Keys) {
+		//	if sharedAuth.Accounts.Equals(sharedAuthor.Accounts) {
+		//		if sharedAuth.Waits.Equals(sharedAuthor.Waits) {
+		//			return true
+		//		}
+		//	}
+		//}
+	}
+	return false
+}
+
+func (sharedAuth SharedAuthority) Compare(other SharedAuthority){
+
 }
 
 func (sharedAuth SharedAuthority) GetBillableSize() uint64 { //TODO

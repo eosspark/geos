@@ -8,6 +8,8 @@ import (
 	. "github.com/eosspark/eos-go/exception/try"
 	. "github.com/eosspark/eos-go/exception"
 	"testing"
+	"github.com/docker/docker/pkg/testutil/assert"
+	"reflect"
 )
 
 func initializeAuthTest() (*AuthorizationManager, *BaseTester) {
@@ -69,14 +71,45 @@ func TestMissingAuths(t *testing.T) {
 }
 
 func TestDelegateAuth(t *testing.T) {
-	fmt.Println(common.S(6138663577826885632))
-	fmt.Println(common.S(3617214756542218240))
+	a, b := initializeAuthTest()
+	b.CreateAccounts([]common.AccountName{common.N("alice"),common.N("bob")},false,true)
+	delegatedAuth := types.SharedAuthority{
+		Threshold: 1,
+		Keys:      []types.KeyWeight{},
+		Accounts:  []types.PermissionLevelWeight{{Permission:types.PermissionLevel{Actor:common.N("bob"),Permission:common.DefaultConfig.ActiveName}, Weight:1} },
+	}
+	pk := b.getPrivateKey(common.N("alice"), "active")
+	realAuth := types.SharedAuthority{
+		Threshold: 1,
+		Keys:      []types.KeyWeight{{pk.PublicKey(), 1}},
+		Accounts:  []types.PermissionLevelWeight{
+			{Permission: types.PermissionLevel{Actor: common.N("alice"), Permission: common.DefaultConfig.EosioCodeName}, Weight: 1},
+		},
+	}
+	originalAuth := a.GetPermission(&types.PermissionLevel{Actor:common.N("alice"),Permission:common.DefaultConfig.ActiveName}).Auth
+	assert.Equal(t,reflect.ValueOf(originalAuth),reflect.ValueOf(realAuth))
+	b.SetAuthority2(common.N("alice"),common.DefaultConfig.ActiveName,delegatedAuth.ToAuthority(),common.DefaultConfig.OwnerName)
+
+	newAuth := a.GetPermission(&types.PermissionLevel{Actor:common.N("alice"),Permission:common.DefaultConfig.ActiveName}).Auth
+	assert.Equal(t,reflect.ValueOf(newAuth),reflect.ValueOf(delegatedAuth))
+
+	b.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs*2), 0)
+	auth := a.GetPermission(&types.PermissionLevel{Actor:common.N("alice"),Permission:common.DefaultConfig.ActiveName}).Auth
+	assert.Equal(t,reflect.ValueOf(newAuth),reflect.ValueOf(auth))
+
+	b.PushReqAuth(
+		common.N("alice"),
+		&[]types.PermissionLevel{{common.N("alice"),common.DefaultConfig.ActiveName}},
+		&[]ecc.PrivateKey{b.getPrivateKey(common.N("bob"),"active")},
+	)
+	b.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs), 0)
+	b.Control.Close()
 }
 
 func TestCommonEmpty(t *testing.T) {
 	a := types.Permission{}
 	fmt.Println(a)
-	fmt.Println(common.Empty(a))
+	fmt.Println(common.S(15371467950649982976))
 }
 
 func TestMakeAuthChecker(t *testing.T) {
