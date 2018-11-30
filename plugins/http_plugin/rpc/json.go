@@ -320,6 +320,7 @@ func parsePositionalArguments(rawArgs json.RawMessage, types []reflect.Type) ([]
 
 // CreateResponse will create a JSON-RPC success response with the given id and reply as result.
 func (c *jsonCodec) CreateResponse(id interface{}, reply interface{}) interface{} {
+	rpclog.Debug("%#v", jsonSuccessResponse{Version: jsonrpcVersion, Id: id, Result: reply})
 	return &jsonSuccessResponse{Version: jsonrpcVersion, Id: id, Result: reply}
 }
 

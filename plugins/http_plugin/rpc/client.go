@@ -92,8 +92,8 @@ var rpclog log.Logger
 
 func init() {
 	rpclog = log.New("rpc")
-	//rpclog.SetHandler(log.TerminalHandler)
-	rpclog.SetHandler(log.DiscardHandler())
+	rpclog.SetHandler(log.TerminalHandler)
+	//rpclog.SetHandler(log.DiscardHandler())
 }
 
 func (msg *jsonrpcMessage) isNotification() bool {
@@ -287,6 +287,7 @@ func (c *Client) Close() {
 // The result must be a pointer so that package json can unmarshal into it. You
 // can also pass nil, in which case the result is ignored.
 func (c *Client) Call(result interface{}, method string, args ...interface{}) error {
+	fmt.Println("call....")
 	ctx := context.Background()
 	return c.CallContext(ctx, result, method, args...)
 }
@@ -302,7 +303,7 @@ func (c *Client) CallContext(ctx context.Context, result interface{}, method str
 		return err
 	}
 	op := &requestOp{ids: []json.RawMessage{msg.ID}, resp: make(chan *jsonrpcMessage, 1)}
-
+	log.Debug("before http send")
 	if c.isHTTP {
 		err = c.sendHTTP(ctx, op, msg)
 	} else {
@@ -312,13 +313,17 @@ func (c *Client) CallContext(ctx context.Context, result interface{}, method str
 		return err
 	}
 
+	fmt.Printf("send: %#v\n", msg)
 	// dispatch has accepted the request and will close the channel when it quits.
 	switch resp, err := op.wait(ctx); {
 	case err != nil:
+		log.Debug("receive: %#v,%s", resp, err)
 		return err
 	case resp.Error != nil:
+		log.Debug("receive: %#v,%s", resp, err)
 		return resp.Error
 	case len(resp.Result) == 0:
+		log.Debug("receive: %#v,%s", resp, err)
 		return ErrNoResult
 	default:
 		return json.Unmarshal(resp.Result, &result)
@@ -333,6 +338,7 @@ func (c *Client) CallContext(ctx context.Context, result interface{}, method str
 //
 // Note that batch calls may not be executed atomically on the server side.
 func (c *Client) BatchCall(b []BatchElem) error {
+	fmt.Println("batchCall...")
 	ctx := context.Background()
 	return c.BatchCallContext(ctx, b)
 }

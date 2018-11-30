@@ -2,21 +2,21 @@ package net_plugin
 
 import (
 	"bufio"
-	"fmt"
-	"net"
-
+	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
-	"github.com/eosspark/eos-go/exception"
-	"time"
-
-	"crypto/rand"
+	"fmt"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/ecc"
-	"github.com/eosspark/eos-go/exception/try"
-	"github.com/eosspark/eos-go/log"
-	"gopkg.in/urfave/cli.v1"
+	"github.com/eosspark/eos-go/exception"
+	. "github.com/eosspark/eos-go/exception/try"
+	. "github.com/eosspark/eos-go/plugins/appbase/app"
+	"github.com/eosspark/eos-go/plugins/appbase/asio"
+	"github.com/savego/eosspark/eos-go/exception/try"
+	"github.com/urfave/cli"
+	"net"
+	"time"
 )
 
 const (
@@ -24,31 +24,27 @@ const (
 	//p2pChainIDString string = "aca376f206b8fc25a6ed44dbdc66547c36c6c33e3a119ffbeaef943642f0e906"
 )
 
+const NetPlug = PluginTypeName("NetPlugin")
+
+var netPlugin Plugin = App().RegisterPlugin(NetPlug, NewNetPlugin(App().GetIoService()))
+
 type NetPlugin struct {
+	AbstractPlugin
+	//ConfirmedBlock Signal //TODO signal ConfirmedBlock
 	my *netPluginIMpl
 }
 
-var netlog log.Logger
+func NewNetPlugin(io *asio.IoContext) *NetPlugin {
+	plugin := &NetPlugin{}
 
-func init() {
-	netlog = log.New("net_plugin")
-	netlog.SetHandler(log.TerminalHandler)
+	plugin.my = NewNetPluginIMpl(io)
+	plugin.my.Self = plugin
+
+	return plugin
 }
 
-func SetProgramOptions() {
-
-}
-
-func NewNetPlugin() *NetPlugin {
-	np := new(NetPlugin)
-	my := NewNetPluginIMpl()
-	np.my = my
-
-	return np
-}
-
-func (n *NetPlugin) NetPluginInitialize(app *cli.App) {
-	app.Flags = []cli.Flag{
+func (n *NetPlugin) SetProgramOptions(options *[]cli.Flag) {
+	*options = append(*options,
 		cli.StringFlag{
 			Name:  "p2p-listen-endpoint",
 			Usage: "The actual host:port used to listen for incoming p2p connections.",
@@ -133,10 +129,11 @@ func (n *NetPlugin) NetPluginInitialize(app *cli.App) {
 				"   _lport \tlocal port number connected to peer\n\n",
 			Value: "[\"${_name}\" ${_ip}:${_port}]",
 		},
-	}
-
-	app.Action = func(c *cli.Context) {
-		fmt.Println("Initialize net plugin")
+	)
+}
+func (n *NetPlugin) PluginInitialize(c *cli.Context) {
+	Try(func() {
+		n.my.log.Info("Initialize net plugin")
 
 		n.my.networkVersionMatch = c.Bool("network-version-match")
 		n.my.connectorPeriod = time.Duration(c.Int("connection-cleanup-period")) * time.Second
@@ -226,21 +223,18 @@ func (n *NetPlugin) NetPluginInitialize(app *cli.App) {
 
 		//np.my.keepAliceTimer.Reset(0)
 
-	}
-
-	n.my.loopWG.Add(1)
-	go n.my.ticker()
-
+		//n.my.loopWG.Add(1)
+		//go n.my.ticker()
+	}).FcLogAndRethrow().End()
 }
 
-func (np *NetPlugin) PluginStartup() {
+func (n *NetPlugin) PluginStartup() {
+	n.my.log.Info("starting listener, max clients is %d", n.my.maxClientCount)
 
-	netlog.Info("starting listener, max clients is %d", np.my.maxClientCount)
-
-	np.my.loopWG.Add(3)
-	go np.my.startListenLoop()
-	go np.my.startConnTimer()
-	go np.my.startTxnTimer()
+	//n.my.loopWG.Add(3)
+	//go n.my.startListenLoop()
+	//go n.my.startConnTimer()
+	//go n.my.startTxnTimer()
 
 	//chain::controller&cc = my->chain_plug->chain();
 	//	{
@@ -257,23 +251,21 @@ func (np *NetPlugin) PluginStartup() {
 	//	ilog( "node in read-only mode setting max_nodes_per_host to 0 to prevent connections" );
 	//	}
 
-	for _, seedNode := range np.my.suppliedPeers {
-		re := np.Connect(seedNode)
+	for _, seedNode := range n.my.suppliedPeers {
+		re := n.Connect(seedNode)
 		if re != "added connection" {
 			//fmt.Println(re)
-			netlog.Error(re)
+			n.my.log.Error(re)
 		}
 	}
-	fmt.Println("******************** go *******************")
 
-	np.my.loopWG.Wait()
-
+	//n.my.loopWG.Wait()
 }
 
-func (np *NetPlugin) PluginShutDown() {
+func (n *NetPlugin) PluginShutdown() {
 	//ilog( "shutdown.." )
-	fmt.Println("shutdown...")
-	np.my.done = true
+	n.my.log.Info("shutdown...")
+	n.my.done = true
 	//if( my->acceptor ) {
 	//	ilog( "close acceptor" );
 	//	my->acceptor->close();
@@ -284,8 +276,7 @@ func (np *NetPlugin) PluginShutDown() {
 	//	my->close( con);
 	//	}
 
-	//ilog( "exit shutdown" )
-	fmt.Println("exit shutdown")
+	n.my.log.Info("net Plugin exit shutdown")
 }
 
 //func (np *NetPlugin) numPeers() int {
@@ -293,8 +284,8 @@ func (np *NetPlugin) PluginShutDown() {
 //}
 
 //connect used to trigger a new connetion RPC API
-func (np *NetPlugin) Connect(host string) string {
-	_, ok := np.my.peers[host]
+func (n *NetPlugin) Connect(host string) string {
+	_, ok := n.my.peers[host]
 	if ok {
 		return "already connected"
 	}
@@ -304,38 +295,38 @@ func (np *NetPlugin) Connect(host string) string {
 		return err.Error()
 	}
 
-	np.my.peers[host] = NewPeer(con, bufio.NewReader(con))
+	n.my.peers[host] = NewPeer(n.my, con, bufio.NewReader(con))
 	////fc_dlog(logger,"adding new connection to the list")
-	netlog.Info("connecting to: %s , adding new peer to the list", con.RemoteAddr())
-	np.my.loopWG.Add(1)
-	go np.my.peers[host].read(np.my)
+	n.my.log.Info("connecting to: %s , adding new peer to the list", con.RemoteAddr())
+	n.my.loopWG.Add(1)
+	go n.my.peers[host].read(n.my)
 
 	return "added connection"
 
 }
 
-func (np *NetPlugin) Disconnect(host string) string {
-	for name, peer := range np.my.peers {
+func (n *NetPlugin) Disconnect(host string) string {
+	for name, peer := range n.my.peers {
 		if name == host {
 			peer.connection.Close()
-			delete(np.my.peers, host)
+			delete(n.my.peers, host)
 			return "connection removed"
 		}
 	}
 	return "no known connection for host"
 }
 
-func (np *NetPlugin) Status(host string) PeerStatus {
-	con, ok := np.my.peers[host]
+func (n *NetPlugin) Status(host string) PeerStatus {
+	con, ok := n.my.peers[host]
 	if ok {
 		return *con.getStatus()
 	}
 	return PeerStatus{}
 }
 
-func (np *NetPlugin) Connections() []PeerStatus {
-	result := make([]PeerStatus, len(np.my.peers))
-	for _, c := range np.my.peers {
+func (n *NetPlugin) Connections() []PeerStatus {
+	result := make([]PeerStatus, len(n.my.peers))
+	for _, c := range n.my.peers {
 		result = append(result, *c.getStatus())
 	}
 	return result

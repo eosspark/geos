@@ -162,7 +162,14 @@ func (p PublicKey) Key() (*btcec.PublicKey, error) {
 }
 
 func (p PublicKey) String() string {
-	return p.inner.string(p.Content[:], p.Curve)
+
+	hash := ripemd160checksum(p.Content[:], p.Curve)
+
+	rawKey := make([]byte, 37)
+	copy(rawKey, p.Content[:])
+	copy(rawKey[33:], hash[:4])
+
+	return PublicKeyPrefixCompat + base58.Encode(rawKey)
 }
 
 func (p PublicKey) MarshalJSON() ([]byte, error) {
