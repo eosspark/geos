@@ -1,12 +1,11 @@
 package producer_plugin
 
 import (
-	"fmt"
+	Chain "github.com/eosspark/eos-go/chain"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/ecc"
-	Chain "github.com/eosspark/eos-go/chain"
 	. "github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/log"
@@ -137,7 +136,7 @@ func (impl *ProducerPluginImpl) StartBlock() (EnumStartBlockRusult, bool) {
 		impl.PendingBlockMode = EnumPendingBlockMode(speculating)
 
 	} else if impl.MaxIrreversibleBlockAgeUs >= 0 && irreversibleBlockAge >= impl.MaxIrreversibleBlockAgeUs {
-		log.Error("Not producing block because the irreversible block is too old [age:%ds, max:%ds]", irreversibleBlockAge.Count() / 1e6, impl.MaxIrreversibleBlockAgeUs.Count() / 1e6 )
+		log.Error("Not producing block because the irreversible block is too old [age:%ds, max:%ds]", irreversibleBlockAge.Count()/1e6, impl.MaxIrreversibleBlockAgeUs.Count()/1e6)
 		impl.PendingBlockMode = EnumPendingBlockMode(speculating)
 	}
 
@@ -422,7 +421,7 @@ func (impl *ProducerPluginImpl) ScheduleProductionLoop() {
 		impl.ScheduleDelayedProductionLoop(pbs.Header.Timestamp)
 
 	} else {
-		log.Debug( "Speculative Block Created")
+		log.Debug("Speculative Block Created")
 	}
 }
 
@@ -451,9 +450,10 @@ func (impl *ProducerPluginImpl) ScheduleDelayedProductionLoop(currentBlockTime t
 
 		impl.timerCorelationId++
 		cid := impl.timerCorelationId
+
 		impl.Timer.AsyncWait(func(err error) {
 			if impl != nil && err == nil && cid == impl.timerCorelationId {
-				fmt.Println("===re loop")
+
 				impl.ScheduleProductionLoop()
 			}
 		})
@@ -499,7 +499,7 @@ func (impl *ProducerPluginImpl) ProduceBlock() {
 	chain.FinalizeBlock()
 	chain.SignBlock(func(d crypto.Sha256) ecc.Signature {
 		defer makeDebugTimeLogger()
-		return signatureProvider(d)
+		return *signatureProvider(d)
 	})
 
 	chain.CommitBlock(true)

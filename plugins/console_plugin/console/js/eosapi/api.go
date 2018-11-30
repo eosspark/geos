@@ -2,6 +2,7 @@ package eosapi
 
 import (
 	"context"
+	"fmt"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto/ecc"
 )
@@ -34,6 +35,7 @@ func NewEosApi() *EOSApi {
 //    };
 // }
 func (api *EOSApi) GetInfo(ctx context.Context) *InfoResp {
+	fmt.Println("client api get Info")
 	return &InfoResp{
 		ServerVersion:            "0f6695cb",
 		ChainID:                  common.BlockIdNil(),
@@ -60,4 +62,43 @@ func (api *EOSApi) CreateKey() *Keys {
 	prikey, _ := ecc.NewRandomPrivateKey()
 	return &Keys{Pri: *prikey, Pub: prikey.PublicKey()}
 
+}
+
+type KKK struct {
+	Name   string
+	In     common.AccountName
+	Number uint64
+}
+
+func (api *EOSApi) PushAction(in *KKK) (out *InfoResp, err error) {
+	fmt.Printf("%#v\n", in)
+	return &InfoResp{
+		ServerVersion:            "0f6695cb",
+		ChainID:                  common.BlockIdNil(),
+		HeadBlockNum:             17673,
+		LastIrreversibleBlockNum: 17672,
+		LastIrreversibleBlockID:  common.BlockIdNil(),
+		HeadBlockID:              common.BlockIdNil(),
+		HeadBlockTime:            common.Now(),
+		HeadBlockProducer:        common.AccountName(common.N("eosio")),
+		VirtualBlockCPULimit:     200000000,
+		VirtualBlockNetLimit:     1048576000,
+		BlockCPULimit:            199900,
+		BlockNetLimit:            1048576,
+		ServerVersionString:      in.Name,
+		Name:                     in.In,
+		Number:                   in.Number,
+	}, nil
+}
+
+var rateFlag uint64 = 1
+
+// Start forking command.
+// Rate is the fork coin's exchange rate.
+func (api *EOSApi) Forking(ctx context.Context, rate uint64) uint64 {
+	// attempt: store the rate info in context.
+	// context.WithValue(ctx, "rate", rate)
+	rateFlag = rate
+	rate = rate + 1
+	return rate
 }

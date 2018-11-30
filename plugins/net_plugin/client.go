@@ -88,25 +88,14 @@ type HandshakeInfo struct {
 }
 
 func (c *Client) SendHandshake(info *HandshakeInfo) (err error) {
-	publickey, err := ecc.NewPublicKey("EOS1111111111111111111111111111111114T1Anm")
-	if err != nil {
-		fmt.Println("publickey:", err)
-		return err
-	}
-
-	signature := ecc.Signature{
-		Curve:   ecc.CurveK1,
-		Content: [65]byte{},
-	}
-
 	handshake := &HandshakeMessage{
 		NetworkVersion:           c.NetWorkVersion,
 		ChainID:                  c.ChainID,
 		NodeID:                   c.NodeID,
-		Key:                      publickey,
+		Key:                      *ecc.NewPublicKeyNil(),
 		Time:                     common.Now(),
 		Token:                    *crypto.NewSha256Nil(),
-		Signature:                signature,
+		Signature:                *ecc.NewSigNil(),
 		P2PAddress:               c.p2pAddress,
 		LastIrreversibleBlockNum: info.LastIrreversibleBlockNum,
 		LastIrreversibleBlockID:  info.LastIrreversibleBlockID,

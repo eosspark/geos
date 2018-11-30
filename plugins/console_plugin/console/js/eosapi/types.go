@@ -18,11 +18,13 @@ type InfoResp struct {
 	HeadBlockTime            common.TimePoint   `json:"head_block_time"`             //  "2018-02-02T04:19:32"
 	HeadBlockProducer        common.AccountName `json:"head_block_producer"`         // "inita"
 
-	VirtualBlockCPULimit uint64 `json:"virtual_block_cpu_limit"`
-	VirtualBlockNetLimit uint64 `json:"virtual_block_net_limit"`
-	BlockCPULimit        uint64 `json:"block_cpu_limit"`
-	BlockNetLimit        uint64 `json:"block_net_limit"`
-	ServerVersionString  string `json:"server_version_string"`
+	VirtualBlockCPULimit uint64             `json:"virtual_block_cpu_limit"`
+	VirtualBlockNetLimit uint64             `json:"virtual_block_net_limit"`
+	BlockCPULimit        uint64             `json:"block_cpu_limit"`
+	BlockNetLimit        uint64             `json:"block_net_limit"`
+	ServerVersionString  string             `json:"server_version_string"`
+	Name                 common.AccountName `json:"name"`
+	Number               uint64             `json:number`
 }
 
 type BlockResp struct { //we don't need all blockresp??only need "id"

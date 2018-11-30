@@ -517,85 +517,17 @@ module.exports=[
 var f = require('./formatters');
 var SolidityType = require('./type');
 
-/**
- * SolidityTypeAddress is a prootype that represents address type
- * It matches:
- * address
- * address[]
- * address[4]
- * address[][]
- * address[3][]
- * address[][6][], ...
- */
-var SolidityTypeAddress = function () {
-    this._inputFormatter = f.formatInputInt;
-    this._outputFormatter = f.formatOutputAddress;
-};
-
-SolidityTypeAddress.prototype = new SolidityType({});
-SolidityTypeAddress.prototype.constructor = SolidityTypeAddress;
-
-SolidityTypeAddress.prototype.isType = function (name) {
-    return !!name.match(/address(\[([0-9]*)\])?/);
-};
-
-module.exports = SolidityTypeAddress;
 
 },{"./formatters":9,"./type":14}],5:[function(require,module,exports){
 var f = require('./formatters');
 var SolidityType = require('./type');
 
-/**
- * SolidityTypeBool is a prootype that represents bool type
- * It matches:
- * bool
- * bool[]
- * bool[4]
- * bool[][]
- * bool[3][]
- * bool[][6][], ...
- */
-var SolidityTypeBool = function () {
-    this._inputFormatter = f.formatInputBool;
-    this._outputFormatter = f.formatOutputBool;
-};
 
-SolidityTypeBool.prototype = new SolidityType({});
-SolidityTypeBool.prototype.constructor = SolidityTypeBool;
-
-SolidityTypeBool.prototype.isType = function (name) {
-    return !!name.match(/^bool(\[([0-9]*)\])*$/);
-};
-
-module.exports = SolidityTypeBool;
 
 },{"./formatters":9,"./type":14}],6:[function(require,module,exports){
 var f = require('./formatters');
 var SolidityType = require('./type');
 
-/**
- * SolidityTypeBytes is a prototype that represents the bytes type.
- * It matches:
- * bytes
- * bytes[]
- * bytes[4]
- * bytes[][]
- * bytes[3][]
- * bytes[][6][], ...
- * bytes32
- * bytes8[4]
- * bytes[3][]
- */
-var SolidityTypeBytes = function () {
-    this._inputFormatter = f.formatInputBytes;
-    this._outputFormatter = f.formatOutputBytes;
-};
-
-SolidityTypeBytes.prototype = new SolidityType({});
-SolidityTypeBytes.prototype.constructor = SolidityTypeBytes;
-
-SolidityTypeBytes.prototype.isType = function (name) {
-    return !!name.match(/^bytes([0-9]{1,})(\[([0-9]*)\])*$/);
 };
 
 module.exports = SolidityTypeBytes;
@@ -635,7 +567,7 @@ var SolidityTypeReal = require('./real');
 var SolidityTypeUReal = require('./ureal');
 var SolidityTypeBytes = require('./bytes');
 
-var isDynamic = function (solidityType, type) {
+var isDynamic = function (solityType, type) {
    return solidityType.isDynamicType(type) ||
           solidityType.isDynamicArray(type);
 };
@@ -2191,6 +2123,19 @@ var toWei = function(number, unit) {
 
     return isBigNumber(number) ? returnValue : returnValue.toString(10);
 };
+
+
+//eosio
+        var toKKK = function(number,uint){
+          return nummber;
+        };
+
+
+var toAsset =function(number,symbol){
+          return number.toString()+symbol;
+};
+
+
 
 /**
  * Takes an input and transforms it into a bignumber
@@ -13604,9 +13549,6 @@ module.exports = transfer;
 	}
 
 }(this));
-
-},{}],86:[function(require,module,exports){
-module.exports = XMLHttpRequest;
 
 },{}],"bignumber.js":[function(require,module,exports){
 'use strict';

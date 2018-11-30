@@ -3,6 +3,7 @@ package producer_plugin
 import (
 	"fmt"
 	//Chain "github.com/eosspark/eos-go/plugins/producer_plugin/testing" /*test model*/
+	"encoding/json"
 	Chain "github.com/eosspark/eos-go/chain" /*real chain*/
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto"
@@ -10,13 +11,12 @@ import (
 	. "github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/log"
-	"github.com/urfave/cli"
-	"time"
-	"encoding/json"
-	"strings"
-	"github.com/eosspark/eos-go/plugins/appbase/asio"
 	. "github.com/eosspark/eos-go/plugins/appbase/app"
-	)
+	"github.com/eosspark/eos-go/plugins/appbase/asio"
+	"github.com/urfave/cli"
+	"strings"
+	"time"
+)
 
 const ProducerPlug = PluginTypeName("ProducerPlugin")
 
@@ -94,8 +94,7 @@ func (p *ProducerPlugin) SetProgramOptions(options *[]cli.Flag) {
 		},
 		cli.StringSliceFlag{
 			Name: "signature-provider",
-			Usage:
-			"Key=Value pairs in the form <public-key>=<provider-spec>\n" +
+			Usage: "Key=Value pairs in the form <public-key>=<provider-spec>\n" +
 				"Where:\n" +
 				"   <public-key>    \tis a string form of a vaild EOSIO public key\n\n" +
 				"   <provider-spec> \tis a string in the form <provider-type>:<data>\n\n" +
@@ -269,14 +268,14 @@ func (p *ProducerPlugin) IsProducerKey(key ecc.PublicKey) bool {
 	return false
 }
 
-func (p *ProducerPlugin) SignCompact(key *ecc.PublicKey, digest crypto.Sha256) ecc.Signature {
+func (p *ProducerPlugin) SignCompact(key *ecc.PublicKey, digest crypto.Sha256) *ecc.Signature {
 	if key != nil {
 		privateKeyFunc := p.my.SignatureProviders[*key]
 		EosAssert(privateKeyFunc != nil, &ProducerPrivKeyNotFound{}, "Local producer has no private key in config.ini corresponding to public key %s", key)
 
 		return privateKeyFunc(digest)
 	}
-	return ecc.Signature{}
+	return ecc.NewSigNil()
 }
 
 func (p *ProducerPlugin) Pause() {
@@ -423,23 +422,23 @@ func makeDebugTimeLogger() func() {
 }
 
 func makeKeySignatureProvider(key *ecc.PrivateKey) signatureProviderType {
-	signFunc := func(digest crypto.Sha256) ecc.Signature {
+	signFunc := func(digest crypto.Sha256) *ecc.Signature {
 		sign, err := key.Sign(digest.Bytes())
 		if err != nil {
 			panic(err)
 		}
-		return sign
+		return &sign
 	}
 	return signFunc
 }
 
 func makeKeosdSignatureProvider(produce *ProducerPluginImpl, url string, publicKey ecc.PublicKey) signatureProviderType {
-	signFunc := func(digest crypto.Sha256) ecc.Signature {
+	signFunc := func(digest crypto.Sha256) *ecc.Signature {
 		if produce != nil {
 			//TODO
-			return ecc.Signature{}
+			return ecc.NewSigNil()
 		} else {
-			return ecc.Signature{}
+			return ecc.NewSigNil()
 		}
 	}
 	return signFunc

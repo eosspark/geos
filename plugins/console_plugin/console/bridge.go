@@ -24,7 +24,7 @@ import (
 	"time"
 
 	"github.com/eosspark/eos-go/log"
-	"github.com/eosspark/eos-go/plugins/console_plugin/console/rpc"
+	"github.com/eosspark/eos-go/plugins/http_plugin/rpc"
 	"github.com/robertkrimen/otto"
 )
 
