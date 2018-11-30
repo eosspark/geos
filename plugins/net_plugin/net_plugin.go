@@ -13,7 +13,6 @@ import (
 	. "github.com/eosspark/eos-go/exception/try"
 	. "github.com/eosspark/eos-go/plugins/appbase/app"
 	"github.com/eosspark/eos-go/plugins/appbase/asio"
-	"github.com/savego/eosspark/eos-go/exception/try"
 	"github.com/urfave/cli"
 	"net"
 	"time"
@@ -165,7 +164,7 @@ func (n *NetPlugin) PluginInitialize(c *cli.Context) {
 		}
 
 		if n.my.allowedConnections&specifiedPossible != 0 {
-			try.EosAssert(c.IsSet("peer-key"), &exception.PluginConfigException{}, "At least one peer-key must accompany 'allowed-connection=specified'")
+			EosAssert(c.IsSet("peer-key"), &exception.PluginConfigException{}, "At least one peer-key must accompany 'allowed-connection=specified'")
 		}
 
 		if c.IsSet("peer_key") {
