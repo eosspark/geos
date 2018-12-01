@@ -3,6 +3,7 @@ package chain
 import (
 	"fmt"
 	"github.com/eosspark/container/maps/treemap"
+	"github.com/eosspark/container/sets/treeset"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto"
@@ -46,30 +47,30 @@ const (
 )
 
 type Config struct {
-	ActorWhitelist          common.FlatSet //common.AccountName
-	ActorBlacklist          common.FlatSet //common.AccountName
-	ContractWhitelist       common.FlatSet //common.AccountName
-	ContractBlacklist       common.FlatSet //common.AccountName]struct{}
-	ActionBlacklist         common.FlatSet //common.Pair //see actionBlacklist
-	KeyBlacklist            common.FlatSet
-	blocksDir               string
-	stateDir                string
-	stateSize               uint64
-	stateGuardSize          uint64
-	reversibleCacheSize     uint64
-	reversibleGuardSize     uint64
-	readOnly                bool
-	forceAllChecks          bool
-	disableReplayOpts       bool
-	disableReplay           bool
-	contractsConsole        bool
-	allowRamBillingInNotify bool
-	genesis                 *types.GenesisState
-	vmType                  wasmgo.WasmGo
-	readMode                DBReadMode
-	blockValidationMode     ValidationMode
-	resourceGreylist        common.FlatSet
-	trustedProducers        common.FlatSet
+	ActorWhitelist          treeset.Set //common.AccountName
+	ActorBlacklist          treeset.Set //common.AccountName
+	ContractWhitelist       treeset.Set //common.AccountName
+	ContractBlacklist       treeset.Set //common.AccountName]struct{}
+	ActionBlacklist         treeset.Set //common.Pair //see actionBlacklist
+	KeyBlacklist            treeset.Set
+	ResourceGreylist        treeset.Set
+	TrustedProducers        treeset.Set
+	BlocksDir               string
+	StateDir                string
+	StateSize               uint64
+	StateGuardSize          uint64
+	ReversibleCacheSize     uint64
+	ReversibleGuardSize     uint64
+	ReadOnly                bool
+	ForceAllChecks          bool
+	DisableReplayOpts       bool
+	DisableReplay           bool
+	ContractsConsole        bool
+	AllowRamBillingInNotify bool
+	Genesis                 *types.GenesisState
+	VmType                  wasmgo.WasmGo
+	ReadMode                DBReadMode
+	BlockValidationMode     ValidationMode
 }
 
 var isActiveController bool //default value false ;Does the process include control ;
@@ -126,8 +127,8 @@ func validPath() {
 }
 func NewController(cfg Config) *Controller {
 	isActiveController = true //controller is active
-	db, err := database.NewDataBase(cfg.stateDir)
-	reversibleDB, err := database.NewDataBase(cfg.blocksDir + "/" + common.DefaultConfig.DefaultReversibleBlocksDirName)
+	db, err := database.NewDataBase(cfg.StateDir)
+	reversibleDB, err := database.NewDataBase(cfg.BlocksDir + "/" + common.DefaultConfig.DefaultReversibleBlocksDirName)
 
 	if err != nil {
 		log.Error("newController create database is error :%s", err)
@@ -141,9 +142,9 @@ func NewController(cfg Config) *Controller {
 
 	con.ForkDB, err = newForkDatabase(common.DefaultConfig.DefaultStateDirName, common.DefaultConfig.ForkDbName, true)
 
-	con.ChainID = cfg.genesis.ComputeChainID()
+	con.ChainID = cfg.Genesis.ComputeChainID()
 
-	con.ReadMode = cfg.readMode
+	con.ReadMode = cfg.ReadMode
 	con.ApplyHandlers = make(map[string]v)
 	con.WasmIf = wasmgo.NewWasmGo()
 	con.ResourceLimits = newResourceLimitsManager(con)
@@ -197,9 +198,9 @@ func newController() *Controller {
 
 	con.ForkDB, _ = newForkDatabase(common.DefaultConfig.DefaultBlocksDirName, common.DefaultConfig.ForkDbName, true)
 	con.initConfig()
-	con.ChainID = con.Config.genesis.ComputeChainID()
+	con.ChainID = con.Config.Genesis.ComputeChainID()
 
-	con.ReadMode = con.Config.readMode
+	con.ReadMode = con.Config.ReadMode
 	con.ApplyHandlers = make(map[string]v)
 	con.WasmIf = wasmgo.NewWasmGo()
 
@@ -444,10 +445,11 @@ func (c *Controller) pushTransaction(trx *types.TransactionMetadata, deadLine co
 			}
 			trxContext.Delay = common.Microseconds(trx.Trx.DelaySec)
 			checkTime := func() {}
+			set := treeset.NewWith(ecc.ComparePubKey)
 			if !c.SkipAuthCheck() && !trx.Implicit {
 				c.Authorization.CheckAuthorization(trx.Trx.Actions,
 					trx.RecoverKeys(&c.ChainID),
-					&common.FlatSet{},
+					set,
 					trxContext.Delay,
 					&checkTime,
 					false)
@@ -561,7 +563,7 @@ func (c *Controller) GetOnBlockTransaction() types.SignedTransaction {
 }
 func (c *Controller) SkipDbSession(bs types.BlockStatus) bool {
 	considerSkipping := (bs == types.BlockStatus(IRREVERSIBLE))
-	return considerSkipping && !c.Config.disableReplayOpts && !c.InTrxRequiringChecks
+	return considerSkipping && !c.Config.DisableReplayOpts && !c.InTrxRequiringChecks
 }
 
 func (c *Controller) SkipDbSessions() bool {
@@ -573,7 +575,7 @@ func (c *Controller) SkipDbSessions() bool {
 }
 
 func (c *Controller) SkipTrxChecks() (b bool) {
-	b = c.LightValidationAllowed(c.Config.disableReplayOpts)
+	b = c.LightValidationAllowed(c.Config.DisableReplayOpts)
 	return
 }
 
@@ -981,7 +983,7 @@ func (c *Controller) CommitBlock(addToForkDb bool) {
 	}).End()
 	c.Pending.Push()
 	c.Pending.PendingValid = true
-	fmt.Println("commitBlock success!")
+	log.Info("commitBlock success!")
 
 }
 
@@ -997,8 +999,11 @@ func (c *Controller) PushBlock(b *types.SignedBlock, s types.BlockStatus) {
 		//emit(self.pre_accepted_block, b )
 		/*trust := !c.Config.forceAllChecks && (s== types.Irreversible || s== types.Validated)
 		newHeaderState := c.ForkDB.AddSignedBlockState(b,trust)*/
-		exist, _ := c.Config.trustedProducers.Find(&b.Producer)
-		if exist {
+		exist, _ := c.Config.TrustedProducers.Find(func(index int, value interface{}) bool {
+			return c.Config.TrustedProducers.GetComparator()(value, b.Producer) == 0
+		})
+		//exist, _ := c.Config.trustedProducers.Find(&b.Producer)
+		if exist != -1 {
 			c.TrustedProducerLightValidation = true
 		}
 		//emit( self.accepted_block_header, new_header_state )
@@ -1107,47 +1112,47 @@ func (c *Controller) GetAuthorizationManager() *AuthorizationManager { return c.
 func (c *Controller) GetMutableAuthorizationManager() *AuthorizationManager { return c.Authorization }
 
 //c++ flat_set<account_name> map[common.AccountName]interface{}
-func (c *Controller) GetActorWhiteList() *common.FlatSet {
+func (c *Controller) GetActorWhiteList() *treeset.Set {
 	return &c.Config.ActorWhitelist
 }
 
-func (c *Controller) GetActorBlackList() *common.FlatSet {
+func (c *Controller) GetActorBlackList() *treeset.Set {
 	return &c.Config.ActorBlacklist
 }
 
-func (c *Controller) GetContractWhiteList() *common.FlatSet {
+func (c *Controller) GetContractWhiteList() *treeset.Set {
 	return &c.Config.ContractWhitelist
 }
 
-func (c *Controller) GetContractBlackList() *common.FlatSet {
+func (c *Controller) GetContractBlackList() *treeset.Set {
 	return &c.Config.ContractBlacklist
 }
 
-func (c *Controller) GetActionBlockList() *common.FlatSet { return &c.Config.ActionBlacklist }
+func (c *Controller) GetActionBlockList() *treeset.Set { return &c.Config.ActionBlacklist }
 
-func (c *Controller) GetKeyBlackList() *common.FlatSet { return &c.Config.KeyBlacklist }
+func (c *Controller) GetKeyBlackList() *treeset.Set { return &c.Config.KeyBlacklist }
 
-func (c *Controller) SetActorWhiteList(params *common.FlatSet) {
+func (c *Controller) SetActorWhiteList(params *treeset.Set) {
 	c.Config.ActorWhitelist = *params
 }
 
-func (c *Controller) SetActorBlackList(params *common.FlatSet) {
+func (c *Controller) SetActorBlackList(params *treeset.Set) {
 	c.Config.ActorBlacklist = *params
 }
 
-func (c *Controller) SetContractWhiteList(params *common.FlatSet) {
+func (c *Controller) SetContractWhiteList(params *treeset.Set) {
 	c.Config.ContractWhitelist = *params
 }
 
-func (c *Controller) SetContractBlackList(params *common.FlatSet) {
+func (c *Controller) SetContractBlackList(params *treeset.Set) {
 	c.Config.ContractBlacklist = *params
 }
 
-func (c *Controller) SetActionBlackList(params *common.FlatSet) {
+func (c *Controller) SetActionBlackList(params *treeset.Set) {
 	c.Config.ActionBlacklist = *params
 }
 
-func (c *Controller) SetKeyBlackList(params *common.FlatSet) {
+func (c *Controller) SetKeyBlackList(params *treeset.Set) {
 	c.Config.KeyBlacklist = *params
 }
 
@@ -1179,7 +1184,7 @@ func (c *Controller) PendingBlockState() *types.BlockState {
 	if c.Pending != nil {
 		return c.Pending.PendingBlockState
 	}
-	return &types.BlockState{}
+	return nil
 }
 
 func (c *Controller) PendingBlockTime() common.TimePoint {
@@ -1222,7 +1227,7 @@ func (c *Controller) LightValidationAllowed(dro bool) (b bool) {
 	pbStatus := c.Pending.BlockStatus
 	considerSkippingOnReplay := (pbStatus == types.Irreversible || pbStatus == types.Validated) && !dro
 
-	considerSkippingOnvalidate := (pbStatus == types.Complete && c.Config.blockValidationMode == LIGHT)
+	considerSkippingOnvalidate := (pbStatus == types.Complete && c.Config.BlockValidationMode == LIGHT)
 
 	return considerSkippingOnReplay || considerSkippingOnvalidate
 }
@@ -1301,29 +1306,37 @@ func (c *Controller) GetBlockIdForNum(blockNum uint32) common.BlockIdType {
 }
 
 func (c *Controller) CheckContractList(code common.AccountName) {
-	if len(c.Config.ContractWhitelist.Data) > 0 {
-		exist, _ := c.Config.ContractWhitelist.Find(&code)
-		EosAssert(exist, &ContractWhitelistException{}, "account %d is not on the contract whitelist", code)
-	} else if c.Config.ContractBlacklist.Len() > 0 {
-		exist, _ := c.Config.ContractBlacklist.Find(&code)
-		EosAssert(!exist, &ContractBlacklistException{}, "account %d is on the contract blacklist", code)
+	if c.Config.ContractWhitelist.Size() > 0 {
+		exist, _ := c.Config.ContractWhitelist.Find(func(index int, value interface{}) bool {
+			return c.Config.ContractWhitelist.GetComparator()(value, &code) == 0
+		})
+		EosAssert(exist != -1, &ContractWhitelistException{}, "account %d is not on the contract whitelist", code)
+	} else if c.Config.ContractBlacklist.Size() > 0 {
+		exist, _ := c.Config.ContractBlacklist.Find(func(index int, value interface{}) bool {
+			return c.Config.ContractBlacklist.GetComparator()(value, &code) == 0
+		})
+		EosAssert(exist == -1, &ContractBlacklistException{}, "account %d is on the contract blacklist", code)
 	}
 }
 
 func (c *Controller) CheckActionList(code common.AccountName, action common.ActionName) {
-	if c.Config.ActionBlacklist.Len() > 0 {
+	if c.Config.ActionBlacklist.Size() > 0 {
 		abl := common.MakePair(code, action)
 		//key := Hash(abl)
-		exist, _ := c.Config.ActionBlacklist.Find(&abl)
+		exist, _ := c.Config.ActionBlacklist.Find(func(index int, value interface{}) bool {
+			return c.Config.ActionBlacklist.GetComparator()(value, &abl) == 0
+		})
 
-		EosAssert(!exist, &ActionBlacklistException{}, "action '%#v::%#v' is on the action blacklist", code, action)
+		EosAssert(exist == -1, &ActionBlacklistException{}, "action '%#v::%#v' is on the action blacklist", code, action)
 	}
 }
 
 func (c *Controller) CheckKeyList(key *ecc.PublicKey) {
-	if c.Config.KeyBlacklist.Len() > 0 {
-		exist, _ := c.Config.KeyBlacklist.Find(key)
-		EosAssert(exist, &KeyBlacklistException{}, "public key %v is on the key blacklist", key)
+	if c.Config.KeyBlacklist.Size() > 0 {
+		exist, _ := c.Config.KeyBlacklist.Find(func(index int, value interface{}) bool {
+			return c.Config.KeyBlacklist.GetComparator()(value, key) == 0
+		})
+		EosAssert(exist == -1, &KeyBlacklistException{}, "public key %v is on the key blacklist", key)
 	}
 }
 
@@ -1335,27 +1348,29 @@ func (c *Controller) IsProducing() bool {
 }
 
 func (c *Controller) IsRamBillingInNotifyAllowed() bool {
-	return !c.IsProducingBlock() || c.Config.allowRamBillingInNotify
+	return !c.IsProducingBlock() || c.Config.AllowRamBillingInNotify
 }
 
 func (c *Controller) AddResourceGreyList(name *common.AccountName) {
-	c.Config.resourceGreylist.Insert(name)
+	c.Config.ResourceGreylist.AddItem(*name)
 }
 
 func (c *Controller) RemoveResourceGreyList(name *common.AccountName) {
-	c.Config.resourceGreylist.Remove(name)
+	c.Config.ResourceGreylist.Remove(*name)
 }
 
 func (c *Controller) IsResourceGreylisted(name *common.AccountName) bool {
-	exist, _ := c.Config.resourceGreylist.Find(name)
-	if exist {
+	exist, _ := c.Config.ResourceGreylist.Find(func(index int, value interface{}) bool {
+		return c.Config.ResourceGreylist.GetComparator()(value, *name) == 0
+	})
+	if exist > -1 {
 		return true
 	} else {
 		return false
 	}
 }
-func (c *Controller) GetResourceGreyList() common.FlatSet {
-	return c.Config.resourceGreylist
+func (c *Controller) GetResourceGreyList() treeset.Set {
+	return c.Config.ResourceGreylist
 }
 
 func (c *Controller) ValidateReferencedAccounts(t *types.Transaction) {
@@ -1483,15 +1498,15 @@ func compare(first []types.ProducerKey, second []types.ProducerKey) bool {
 	return true
 }
 
-func (c *Controller) SkipAuthCheck() bool { return c.LightValidationAllowed(c.Config.forceAllChecks) }
+func (c *Controller) SkipAuthCheck() bool { return c.LightValidationAllowed(c.Config.ForceAllChecks) }
 
-func (c *Controller) ContractsConsole() bool { return c.Config.contractsConsole }
+func (c *Controller) ContractsConsole() bool { return c.Config.ContractsConsole }
 
 func (c *Controller) GetChainId() common.ChainIdType { return c.ChainID }
 
 func (c *Controller) GetReadMode() DBReadMode { return c.ReadMode }
 
-func (c *Controller) GetValidationMode() ValidationMode { return c.Config.blockValidationMode }
+func (c *Controller) GetValidationMode() ValidationMode { return c.Config.BlockValidationMode }
 
 func (c *Controller) SetSubjectiveCpuLeeway(leeway common.Microseconds) {
 	c.SubjectiveCupLeeway = leeway
@@ -1511,7 +1526,7 @@ func (c *Controller) GetWasmInterface() *wasmgo.WasmGo {
 func (c *Controller) CreateNativeAccount(name common.AccountName, owner types.Authority, active types.Authority, isPrivileged bool) {
 	account := entity.AccountObject{}
 	account.Name = name
-	account.CreationDate = types.BlockTimeStamp(c.Config.genesis.InitialTimestamp)
+	account.CreationDate = types.BlockTimeStamp(c.Config.Genesis.InitialTimestamp)
 	account.Privileged = isPrivileged
 	if name == common.AccountName(common.DefaultConfig.SystemAccountName) {
 		abiDef := abi.AbiDef{}
@@ -1526,9 +1541,9 @@ func (c *Controller) CreateNativeAccount(name common.AccountName, owner types.Au
 	aso.Name = name
 	c.DB.Insert(&aso)
 
-	ownerPermission := c.Authorization.CreatePermission(name, common.PermissionName(common.DefaultConfig.OwnerName), 0, owner, c.Config.genesis.InitialTimestamp)
+	ownerPermission := c.Authorization.CreatePermission(name, common.PermissionName(common.DefaultConfig.OwnerName), 0, owner, c.Config.Genesis.InitialTimestamp)
 
-	activePermission := c.Authorization.CreatePermission(name, common.PermissionName(common.DefaultConfig.ActiveName), PermissionIdType(ownerPermission.ID), active, c.Config.genesis.InitialTimestamp)
+	activePermission := c.Authorization.CreatePermission(name, common.PermissionName(common.DefaultConfig.ActiveName), PermissionIdType(ownerPermission.ID), active, c.Config.Genesis.InitialTimestamp)
 
 	c.ResourceLimits.InitializeAccount(name)
 	ramDelta := uint64(common.DefaultConfig.OverheadPerAccountRamBytes)
@@ -1541,7 +1556,7 @@ func (c *Controller) CreateNativeAccount(name common.AccountName, owner types.Au
 
 func (c *Controller) initializeForkDB() {
 
-	gs := c.Config.genesis
+	gs := c.Config.Genesis
 	pst := types.ProducerScheduleType{0, []types.ProducerKey{
 		{common.DefaultConfig.SystemAccountName, gs.InitialKey}}}
 	genHeader := types.BlockHeaderState{}
@@ -1581,7 +1596,7 @@ func (c *Controller) initializeDatabase() {
 	c.DB.Modify(out, func(bs *entity.BlockSummaryObject) {
 		bs.BlockId = c.Head.BlockId
 	})
-	gi := c.Config.genesis.Initial()
+	gi := c.Config.Genesis.Initial()
 	//gi.Validate()	//check config
 	gpo := entity.GlobalPropertyObject{}
 	gpo.Configuration = gi
@@ -1600,7 +1615,7 @@ func (c *Controller) initializeDatabase() {
 	}
 
 	c.ResourceLimits.InitializeDatabase()
-	systemAuth := types.NewAuthority(c.Config.genesis.InitialKey, 0)
+	systemAuth := types.NewAuthority(c.Config.Genesis.InitialKey, 0)
 	c.CreateNativeAccount(common.DefaultConfig.SystemAccountName, systemAuth, systemAuth, true)
 	emptyAuthority := types.Authority{}
 	emptyAuthority.Threshold = 1
@@ -1616,13 +1631,13 @@ func (c *Controller) initializeDatabase() {
 		common.DefaultConfig.MajorityProducersPermissionName,
 		PermissionIdType(activePermission.ID),
 		activeProducersAuthority,
-		c.Config.genesis.InitialTimestamp)
+		c.Config.Genesis.InitialTimestamp)
 
 	c.Authorization.CreatePermission(common.DefaultConfig.ProducersAccountName,
 		common.DefaultConfig.MinorityProducersPermissionName,
 		PermissionIdType(majorityPermission.ID),
 		activeProducersAuthority,
-		c.Config.genesis.InitialTimestamp)
+		c.Config.Genesis.InitialTimestamp)
 
 	//log.Info("initializeDatabase print:%#v,%#v", majorityPermission.ID, minorityPermission.ID)
 }
@@ -1660,7 +1675,7 @@ func (c *Controller) initialize() {
 			c.RePlaying = false
 			c.ReplayHeadTime = common.TimePoint(0)
 		} else if !common.Empty(end) {
-			c.Blog.ResetToGenesis(c.Config.genesis, c.Head.SignedBlock)
+			c.Blog.ResetToGenesis(c.Config.Genesis, c.Head.SignedBlock)
 		}
 	}
 	rbi := entity.ReversibleBlockObject{}
@@ -1708,26 +1723,26 @@ func (c *Controller) clearExpiredInputTransactions() {
 	}
 }
 
-func (c *Controller) CheckActorList(actors *common.FlatSet) {
-	if c.Config.ActorWhitelist.Len() > 0 {
-		for _, an := range actors.Data {
-			exist, _ := c.Config.ActorWhitelist.Find(an)
-			if !exist {
-				EosAssert(c.Config.ActorWhitelist.Len() == 0, &ActorWhitelistException{},
-					"authorizing actor(s) in transaction are not on the actor whitelist: %#v", actors)
-			}
+func (c *Controller) CheckActorList(actors *treeset.Set) {
+	if c.Config.ActorWhitelist.Size() > 0 {
+		itr := actors.Iterator()
+		for itr.Next() {
+			exist, _ := c.Config.ActorWhitelist.Find(func(index int, value interface{}) bool {
+				return c.Config.ActorWhitelist.GetComparator()(value, itr.Value()) == 0
+			})
+			EosAssert(exist != -1, &ActorWhitelistException{},
+				"authorizing actor(s) in transaction are not on the actor whitelist: %#v", actors)
 		}
-
-	} else if c.Config.ActorBlacklist.Len() > 0 {
-		for _, an := range actors.Data {
-			exist, _ := c.Config.ActorBlacklist.Find(an)
-			if exist {
-				EosAssert(c.Config.ActorBlacklist.Len() == 0, &ActorBlacklistException{},
-					"authorizing actor(s) in transaction are on the actor blacklist: %#v", actors)
-			}
+	} else if c.Config.ActorBlacklist.Size() > 0 {
+		itr := actors.Iterator()
+		for itr.Next() {
+			exist, _ := c.Config.ActionBlacklist.Find(func(index int, value interface{}) bool {
+				return c.Config.ActionBlacklist.GetComparator()(value, itr.Value()) == 0
+			})
+			EosAssert(exist == -1, &ActorBlacklistException{},
+				"authorizing actor(s) in transaction are on the actor blacklist: %#v", actors)
 		}
 	}
-
 }
 func (c *Controller) updateProducersAuthority() {
 	producers := c.Pending.PendingBlockState.ActiveSchedule.Producers
@@ -1772,21 +1787,30 @@ func (c *Controller) createBlockSummary(id *common.BlockIdType) {
 
 func (c *Controller) initConfig() *Controller {
 	c.Config = Config{
-		blocksDir:               common.DefaultConfig.DefaultBlocksDirName,
-		stateDir:                common.DefaultConfig.DefaultStateDirName,
-		stateSize:               common.DefaultConfig.DefaultStateSize,
-		stateGuardSize:          common.DefaultConfig.DefaultStateGuardSize,
-		reversibleCacheSize:     common.DefaultConfig.DefaultReversibleCacheSize,
-		reversibleGuardSize:     common.DefaultConfig.DefaultReversibleGuardSize,
-		readOnly:                false,
-		forceAllChecks:          false,
-		disableReplayOpts:       false,
-		contractsConsole:        false,
-		allowRamBillingInNotify: false,
+		BlocksDir:               common.DefaultConfig.DefaultBlocksDirName,
+		StateDir:                common.DefaultConfig.DefaultStateDirName,
+		StateSize:               common.DefaultConfig.DefaultStateSize,
+		StateGuardSize:          common.DefaultConfig.DefaultStateGuardSize,
+		ReversibleCacheSize:     common.DefaultConfig.DefaultReversibleCacheSize,
+		ReversibleGuardSize:     common.DefaultConfig.DefaultReversibleGuardSize,
+		ReadOnly:                false,
+		ForceAllChecks:          false,
+		DisableReplayOpts:       false,
+		ContractsConsole:        false,
+		AllowRamBillingInNotify: false,
 		//vmType:              common.DefaultConfig.DefaultWasmRuntime, //TODO
-		readMode:            SPECULATIVE,
-		blockValidationMode: FULL,
-		genesis:             types.NewGenesisState(),
+		ReadMode:            SPECULATIVE,
+		BlockValidationMode: FULL,
+		Genesis:             types.NewGenesisState(),
+		//TODO tmp code
+		ActorWhitelist:    *treeset.NewWith(common.CompareName),
+		ActorBlacklist:    *treeset.NewWith(common.CompareName),
+		ContractWhitelist: *treeset.NewWith(common.CompareName),
+		ContractBlacklist: *treeset.NewWith(common.CompareName),
+		ActionBlacklist:   *treeset.NewWith(common.ComparePair),
+		KeyBlacklist:      *treeset.NewWith(ecc.ComparePubKey),
+		ResourceGreylist:  *treeset.NewWith(common.CompareName),
+		TrustedProducers:  *treeset.NewWith(common.CompareName),
 	}
 	return c
 }

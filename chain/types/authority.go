@@ -178,7 +178,6 @@ func (waits WaitWeight) Equals(waitss WaitWeight) bool {
 	return true
 }
 
-
 func (auth Authority) Equals(author Authority) bool {
 	return true
 }
@@ -193,10 +192,10 @@ func (sharedAuth SharedAuthority) Equals(sharedAuthor SharedAuthority) bool {
 		//	}
 		//}
 	}
-	return false
+	return true
 }
 
-func (sharedAuth SharedAuthority) Compare(other SharedAuthority){
+func (sharedAuth SharedAuthority) Compare(other SharedAuthority) {
 
 }
 

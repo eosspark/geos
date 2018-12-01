@@ -1,9 +1,11 @@
 package chain
 
 import (
+	"bytes"
 	"fmt"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
+	"github.com/eosspark/eos-go/crypto"
 	abi "github.com/eosspark/eos-go/crypto/abi_serializer"
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/crypto/rlp"
@@ -11,10 +13,8 @@ import (
 	"github.com/eosspark/eos-go/exception"
 	"github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/log"
-	"math"
-	"github.com/eosspark/eos-go/crypto"
-	"bytes"
 	"io/ioutil"
+	"math"
 )
 
 type BaseTester struct {
@@ -41,19 +41,19 @@ func newBaseTester(control *Controller) *BaseTester {
 func (t *BaseTester) initBase(pushGenesis bool, mode DBReadMode) {
 	t.DefaultExpirationDelta = 6
 	t.DefaultBilledCpuTimeUs = 2000
-	t.Cfg.blocksDir = common.DefaultConfig.DefaultBlocksDirName
-	t.Cfg.stateDir = common.DefaultConfig.DefaultStateDirName
-	t.Cfg.stateSize = 1024 * 1024 * 8
-	t.Cfg.stateGuardSize = 0
-	t.Cfg.reversibleCacheSize = 1024 * 1024 * 8
-	t.Cfg.reversibleGuardSize = 0
-	t.Cfg.contractsConsole = true
-	t.Cfg.readMode = mode
+	t.Cfg.BlocksDir = common.DefaultConfig.DefaultBlocksDirName
+	t.Cfg.StateDir = common.DefaultConfig.DefaultStateDirName
+	t.Cfg.StateSize = 1024 * 1024 * 8
+	t.Cfg.StateGuardSize = 0
+	t.Cfg.ReversibleCacheSize = 1024 * 1024 * 8
+	t.Cfg.ReversibleGuardSize = 0
+	t.Cfg.ContractsConsole = true
+	t.Cfg.ReadMode = mode
 	t.ChainTransactions = make(map[common.BlockIdType]types.TransactionReceipt)
 	t.LastProducedBlock = make(map[common.AccountName]common.BlockIdType)
 
-	t.Cfg.genesis.InitialTimestamp, _ = common.FromIsoString("2020-01-01T00:00:00.000")
-	t.Cfg.genesis.InitialKey = t.getPublicKey(common.DefaultConfig.SystemAccountName, "active")
+	t.Cfg.Genesis.InitialTimestamp, _ = common.FromIsoString("2020-01-01T00:00:00.000")
+	t.Cfg.Genesis.InitialKey = t.getPublicKey(common.DefaultConfig.SystemAccountName, "active")
 
 	t.open()
 	if pushGenesis {
@@ -207,8 +207,8 @@ func (t BaseTester) createAccount(name common.AccountName, creator common.Accoun
 	if multiSig {
 		ownerAuth = types.Authority{
 			Threshold: 2,
-			Keys: []types.KeyWeight{{Key:t.getPublicKey(name, "owner"), Weight:1}},
-			Accounts: []types.PermissionLevelWeight{{Permission:types.PermissionLevel{Actor:creator, Permission:common.DefaultConfig.ActiveName},Weight:1}},
+			Keys:      []types.KeyWeight{{Key: t.getPublicKey(name, "owner"), Weight: 1}},
+			Accounts:  []types.PermissionLevelWeight{{Permission: types.PermissionLevel{Actor: creator, Permission: common.DefaultConfig.ActiveName}, Weight: 1}},
 		}
 	} else {
 		ownerAuth = types.NewAuthority(t.getPublicKey(name, "owner"), 0)
@@ -344,7 +344,7 @@ func (t BaseTester) GetAction(code common.AccountName, actType common.AccountNam
 
 func (t BaseTester) getPrivateKey(keyName common.Name, role string) ecc.PrivateKey {
 	pk := &ecc.PrivateKey{}
-	if keyName == common.DefaultConfig.SystemAccountName{
+	if keyName == common.DefaultConfig.SystemAccountName {
 		pk, _ = ecc.NewPrivateKey("5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3")
 	} else {
 		rawPrivKey := crypto.Hash256(keyName.String() + role).Bytes()

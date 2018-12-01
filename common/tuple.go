@@ -1,6 +1,7 @@
 package common
 
 import (
+	"bytes"
 	"github.com/eosspark/eos-go/database"
 	"github.com/eosspark/eos-go/log"
 )
@@ -30,4 +31,8 @@ func (p *Pair) GetKey() []byte {
 		return nil
 	}
 	return byt
+}
+
+func ComparePair(first interface{}, second interface{}) int {
+	return bytes.Compare(first.(*Pair).GetKey(), second.(*Pair).GetKey())
 }
