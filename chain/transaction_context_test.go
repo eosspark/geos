@@ -37,15 +37,27 @@ func TestContract(t *testing.T) {
 		CreateNewAccount(control, account1)
 		CreateNewAccount(control, account2)
 
-		SetCode(control, eosioToken, code)
+		SCode(control, eosioToken, code)
 
 		createToken(control, account1, 1000000000, "BTC")
-		issueToken(control, account1, account1, 10000, "BTC", "issue")
-		//issueToken(control, account1, account1, 20000, "BTC", "issue")
-		//issueToken(control, account1, account2, 20000, "BTC", "issue")
+		issueToken(control, account1, account1, 20000, "BTC", "issue")
+		issueTransfer(control, account1, account2, 10000, "BTC", "transfer")
+		issueToken(control, account1, account2, 20000, "BTC", "issue")
 
 		control.Close()
 	})
+
+}
+
+func issueTransfer(control *Controller, from string, to string, amount int64, symbol string, memo string) {
+
+	action := NewTransfer(common.AccountName(common.N(from)), common.AccountName(common.N(to)), common.Asset{amount, common.Symbol{4, symbol}}, memo)
+
+	wif := "5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3"
+	privateKey, _ := ecc.NewPrivateKey(wif)
+
+	trx := newTransaction(control, action, privateKey)
+	pushTransaction(control, trx)
 
 }
 
@@ -139,15 +151,15 @@ type Create struct {
 	MaximumSupply common.Asset       `json:"maximum_supply"`
 }
 
-func SetCode(control *Controller, account string, code []byte) {
+func SCode(control *Controller, account string, code []byte) {
 
-	setCode := setCode{
+	a := setCode{
 		Account:   common.AccountName(common.N(account)),
 		VmType:    0,
 		VmVersion: 0,
 		Code:      code,
 	}
-	buffer, _ := rlp.EncodeToBytes(&setCode)
+	buffer, _ := rlp.EncodeToBytes(&a)
 	action := types.Action{
 		Account: common.AccountName(common.N("eosio")),
 		Name:    common.ActionName(common.N("setcode")),
@@ -203,7 +215,7 @@ func CreateNewAccount(control *Controller, name string) {
 }
 
 func pushTransaction(control *Controller, trx *types.TransactionMetadata) {
-	control.PushTransaction(trx, common.TimePoint(common.MaxMicroseconds()), 1000)
+	control.PushTransaction(trx, common.TimePoint(common.MaxMicroseconds()), 0)
 }
 
 func newTransaction(control *Controller, action *types.Action, privateKey *ecc.PrivateKey) *types.TransactionMetadata {

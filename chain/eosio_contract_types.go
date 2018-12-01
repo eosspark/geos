@@ -26,6 +26,21 @@ func (n *NewAccount) getName() common.AccountName {
 	return common.AccountName(common.N("newaccount"))
 }
 
+type SetCode struct {
+	Account   common.AccountName
+	VmType    uint8
+	VmVersion uint8
+	Code      []byte
+}
+
+func (s *SetCode) getAccount() common.AccountName {
+	return common.DefaultConfig.SystemAccountName
+}
+
+func (s *SetCode) getName() common.ActionName {
+	return common.ActionName(common.N("setcode"))
+}
+
 type newAccount struct {
 	Creator common.AccountName
 	Name    common.AccountName

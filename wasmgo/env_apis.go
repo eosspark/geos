@@ -2076,6 +2076,7 @@ func currentTime(vm *VM) {
 	ret := w.context.CurrentTime()
 	vm.pushUint64(uint64(ret.TimeSinceEpoch().Count()))
 
+	//w.ilog.Debug("time:%v", uint64(ret.TimeSinceEpoch().Count()))
 	w.ilog.Debug("time:%v", ret)
 
 }

@@ -43,6 +43,9 @@ type ApplyContext struct {
 	PendingConsoleOutput string
 	AccountRamDeltas     common.FlatSet
 	ilog                 log.Logger
+
+	// PseudoStart common.TimePoint
+	// BilledTime  common.TimePoint
 }
 
 func NewApplyContext(control *Controller, trxContext *TransactionContext, act *types.Action, recurseDepth uint32) *ApplyContext {
@@ -75,8 +78,8 @@ func NewApplyContext(control *Controller, trxContext *TransactionContext, act *t
 	applyContext.ilog = log.New("Apply_Context")
 	//applyContext.ilog.SetHandler(log.StreamHandler(os.Stdout, log.TerminalFormat(true)))
 	logHandler := log.StreamHandler(os.Stdout, log.TerminalFormat(true))
-	applyContext.ilog.SetHandler(log.LvlFilterHandler(log.LvlDebug, logHandler))
-	//applyContext.ilog.SetHandler(log.LvlFilterHandler(log.LvlInfo, logHandler))
+	//applyContext.ilog.SetHandler(log.LvlFilterHandler(log.LvlDebug, logHandler))
+	applyContext.ilog.SetHandler(log.LvlFilterHandler(log.LvlInfo, logHandler))
 
 	return applyContext
 
@@ -228,37 +231,42 @@ func (a *ApplyContext) execOne(trace *types.ActionTrace) {
 	trace.Act = *a.Act
 	trace.ContextFree = a.ContextFree
 
+	//cfg := a.Control.GetGlobalProperties().Configuration
 	Try(func() {
-		//cfg := a.Control.GetGlobalProperties().Configuration
-		action := a.Control.GetAccount(a.Receiver)
-		a.Privileged = action.Privileged
-		native := a.Control.FindApplyHandler(a.Receiver, a.Act.Account, a.Act.Name)
 
-		a.ilog.Debug("receiver:%v account:%v action:%v data:%v", a.Receiver, a.Act.Account, a.Act.Name, a.Act.Data)
+		Try(func() {
+			account := a.Control.GetAccount(a.Receiver)
+			a.Privileged = account.Privileged
+			native := a.Control.FindApplyHandler(a.Receiver, a.Act.Account, a.Act.Name)
 
-		if native != nil {
-			if a.TrxContext.CanSubjectivelyFail && a.Control.IsProducingBlock() {
-				a.Control.CheckContractList(a.Receiver)
-				a.Control.CheckActionList(a.Act.Account, a.Act.Name)
+			//a.ilog.Info("receiver:%v account:%v action:%v data:%v", a.Receiver, a.Act.Account, a.Act.Name, a.Act.Data)
+			//a.ilog.Info("receiver:%v account:%v action:%v", a.Receiver, a.Act.Account, a.Act.Name)
+
+			if native != nil {
+				if a.TrxContext.CanSubjectivelyFail && a.Control.IsProducingBlock() {
+					a.Control.CheckContractList(a.Receiver)
+					a.Control.CheckActionList(a.Act.Account, a.Act.Name)
+				}
+				native(a)
 			}
-			native(a)
-		}
 
-		if len(action.Code) > 0 &&
-			!(a.Act.Account == common.DefaultConfig.SystemAccountName && a.Act.Name == common.ActionName(common.N("setcode")) &&
-				a.Receiver == common.DefaultConfig.SystemAccountName) {
+			if len(account.Code) > 0 &&
+				!(a.Act.Account == common.DefaultConfig.SystemAccountName && a.Act.Name == common.ActionName(common.N("setcode")) &&
+					a.Receiver == common.DefaultConfig.SystemAccountName) {
 
-			if a.TrxContext.CanSubjectivelyFail && a.Control.IsProducingBlock() {
-				a.Control.CheckContractList(a.Receiver)
-				a.Control.CheckActionList(a.Act.Account, a.Act.Name)
+				if a.TrxContext.CanSubjectivelyFail && a.Control.IsProducingBlock() {
+					a.Control.CheckContractList(a.Receiver)
+					a.Control.CheckActionList(a.Act.Account, a.Act.Name)
+				}
+				//try
+				a.Control.GetWasmInterface().Apply(&account.CodeVersion, account.Code, a)
+				//}catch(const wasm_exit&){}
 			}
-			//try
-			a.Control.GetWasmInterface().Apply(&action.CodeVersion, action.Code, a)
-			//}catch(const wasm_exit&){}
-		}
+		}).FcCaptureAndRethrow("pending console output: %v", a.PendingConsoleOutput).End()
+
 	}).Catch(func(e Exception) {
 		trace.Receipt = r
-		//trace.Except = e
+		trace.Except = e
 		a.FinalizeTrace(trace, &start)
 		Throw(e)
 	}).End()
@@ -302,7 +310,7 @@ func (a *ApplyContext) Exec(trace *types.ActionTrace) {
 	a.Notified = append(a.Notified, a.Receiver)
 	a.execOne(trace)
 	for k, r := range a.Notified {
-		if k == 0 {
+		if k == 0 { //skip self
 			continue
 		}
 		a.Receiver = r
@@ -564,7 +572,7 @@ func (a *ApplyContext) GetPackedTransaction() *types.SignedTransaction {
 
 func (a *ApplyContext) UpdateDbUsage(payer common.AccountName, delta int64) {
 	if delta > 0 {
-		if !a.Privileged || payer == a.Receiver {
+		if !(a.Privileged || payer == a.Receiver) {
 
 			EosAssert(a.Control.IsRamBillingInNotifyAllowed() || a.Receiver == a.Act.Account,
 				&SubjectiveBlockProductionException{},
@@ -1183,11 +1191,16 @@ func (a *ApplyContext) ValidateRamUsageInsert(account common.AccountName) {
 
 func (a *ApplyContext) PauseBillingTimer() {
 	a.TrxContext.PauseBillingTimer()
+
+	// now := common.Now()
+	// a.BilledTime = now - a.PseudoStart
 }
 
 func (a *ApplyContext) ResumeBillingTimer() {
-
 	a.TrxContext.ResumeBillingTimer()
+
+	// now := common.Now()
+	// a.PseudoStart = now - a.BilledTime
 
 }
 

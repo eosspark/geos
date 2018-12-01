@@ -25,6 +25,8 @@ import (
 	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/eosspark/eos-go/wasmgo"
 	"github.com/stretchr/testify/assert"
+
+	arithmetic "github.com/eosspark/eos-go/common/arithmetic_types"
 )
 
 const crypto_api_exception int = 0
@@ -46,6 +48,100 @@ func (d *dummy_action) get_account() uint64 {
 	return uint64(common.N("testapi"))
 }
 
+func TestAction(t *testing.T) {
+	name := "testdata_context/test_api.wasm"
+	t.Run(filepath.Base(name), func(t *testing.T) {
+		code, err := ioutil.ReadFile(name)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		control := startBlock()
+		createNewAccount2(control, "testapi", "eosio")
+		createNewAccount2(control, "acc1", "eosio")
+		createNewAccount2(control, "acc2", "eosio")
+		createNewAccount2(control, "acc3", "eosio")
+		createNewAccount2(control, "acc4", "eosio")
+
+		SetCode(control, "testapi", code)
+
+		permissions := []types.PermissionLevel{types.PermissionLevel{common.AccountName(common.N("testapi")), common.PermissionName(common.N("active"))}}
+		privateKeys := []*ecc.PrivateKey{getPrivateKey("inita", "active")}
+		RunCheckException(control, "test_action", "require_notice", []byte{}, "testapi", permissions, privateKeys, exception.UnsatisfiedAuthorization{}.Code(), exception.UnsatisfiedAuthorization{}.What())
+
+		permissions = []types.PermissionLevel{
+			types.PermissionLevel{common.AccountName(common.N("testapi")), common.PermissionName(common.N("active"))},
+			types.PermissionLevel{common.AccountName(common.N("acc3")), common.PermissionName(common.N("active"))},
+			types.PermissionLevel{common.AccountName(common.N("acc4")), common.PermissionName(common.N("active"))},
+		}
+		privateKeys = []*ecc.PrivateKey{
+			getPrivateKey("testapi", "active"),
+			getPrivateKey("acc3", "active"),
+			getPrivateKey("acc4", "active"),
+		}
+		ret := pushAction2(control, "test_action", "require_auth", []byte{}, "testapi", permissions, privateKeys)
+		assert.Equal(t, ret.Receipt.Status, types.TransactionStatusExecuted)
+
+		// now := control.HeadBlockTime().AddUs(common.Microseconds(common.DefaultConfig.BlockIntervalUs))
+		// n := now.TimeSinceEpoch().Count()
+		// //fmt.Println(now)
+		// b, _ := rlp.EncodeToBytes(&n)
+		// callTestFunction2(control, "test_action", "test_current_time", b, "testapi")
+
+		account := common.AccountName(common.N("testapi"))
+		b, _ := rlp.EncodeToBytes(&account)
+		callTestFunction2(control, "test_action", "test_current_receiver", b, "testapi")
+		callTestFunction2(control, "test_transaction", "send_action_sender", b, "testapi")
+
+	})
+
+}
+
+func TestRequireRecipient(t *testing.T) {
+	name := "testdata_context/test_api.wasm"
+	t.Run(filepath.Base(name), func(t *testing.T) {
+		code, err := ioutil.ReadFile(name)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		control := startBlock()
+		createNewAccount2(control, "testapi", "eosio")
+		createNewAccount2(control, "testapi2", "eosio")
+		createNewAccount2(control, "acc5", "eosio")
+
+		SetCode(control, "testapi", code)
+		SetCode(control, "acc5", code)
+
+		//permissions := []types.PermissionLevel{
+		//	types.PermissionLevel{common.AccountName(common.N("testapi")), common.PermissionName(common.N("active"))},
+		//}
+		//privateKeys := []*ecc.PrivateKey{
+		//	getPrivateKey("testapi", "active"),
+		//}
+		//ret := pushAction2(control, "test_action", "require_notice_tests", []byte{}, "testapi", permissions, privateKeys)
+		//assert.Equal(t, ret.Receipt.Status, types.TransactionStatusExecuted)
+
+		SetCode(control, "testapi2", code)
+		data := arithmetic.Int128{uint64(common.N("testapi")), uint64(common.N("testapi2"))}
+		b, _ := rlp.EncodeToBytes(&data)
+		ret := callTestFunctionException2(control, "test_action", "test_ram_billing_in_notify", b, "testapi", exception.SubjectiveBlockProductionException{}.Code(), "Cannot charge RAM to other accounts during notify.")
+		assert.Equal(t, true, ret)
+
+		data = arithmetic.Int128{0, uint64(common.N("testapi2"))}
+		b, _ = rlp.EncodeToBytes(&data)
+		callTestFunction2(control, "test_action", "test_ram_billing_in_notify", b, "testapi")
+
+		data = arithmetic.Int128{uint64(common.N("testapi2")), uint64(common.N("testapi2"))}
+		b, _ = rlp.EncodeToBytes(&data)
+		callTestFunction2(control, "test_action", "test_ram_billing_in_notify", b, "testapi")
+
+		stopBlock(control)
+
+	})
+
+}
+
 func TestContextAction(t *testing.T) {
 
 	name := "testdata_context/test_api.wasm"
@@ -57,6 +153,12 @@ func TestContextAction(t *testing.T) {
 
 		control := startBlock()
 		createNewAccount(control, "testapi")
+		createNewAccount(control, "acc1")
+		createNewAccount(control, "acc2")
+		createNewAccount(control, "acc3")
+		createNewAccount(control, "acc4")
+
+		SetCode(control, "testapi", code)
 
 		dummy13 := dummy_action{DUMMY_ACTION_DEFAULT_A, DUMMY_ACTION_DEFAULT_B, DUMMY_ACTION_DEFAULT_C}
 
@@ -82,15 +184,14 @@ func TestContextAction(t *testing.T) {
 		ret := pushAction(control, code, "test_action", "require_notice", b, "testapi")
 		assert.Equal(t, ret, "assertion failure with message: Should've failed")
 
-		callTestFunction(control, code, "test_action", "require_auth", []byte{}, "testapi")
-
+		callTestFunctionCheckException(control, code, "test_action", "require_auth", []byte{}, "testapi", exception.MissingAuthException{}.Code(), exception.MissingAuthException{}.What())
 		a3only := []types.PermissionLevel{{common.AccountName(common.N("acc3")), common.PermissionName(common.N("active"))}}
 		b, _ = rlp.EncodeToBytes(a3only)
-		callTestFunction(control, code, "test_action", "require_auth", b, "testapi")
+		callTestFunctionCheckException(control, code, "test_action", "require_auth", b, "testapi", exception.MissingAuthException{}.Code(), exception.MissingAuthException{}.What())
 
 		a4only := []types.PermissionLevel{{common.AccountName(common.N("acc4")), common.PermissionName(common.N("active"))}}
 		b, _ = rlp.EncodeToBytes(a4only)
-		callTestFunction(control, code, "test_action", "require_auth", b, "testapi")
+		callTestFunctionCheckException(control, code, "test_action", "require_auth", b, "testapi", exception.MissingAuthException{}.Code(), exception.MissingAuthException{}.What())
 
 		stopBlock(control)
 
@@ -645,6 +746,7 @@ func DJBH(str string) uint32 {
 }
 
 func wasmTestAction(cls string, method string) uint64 {
+
 	return uint64(DJBH(cls))<<32 | uint64(DJBH(method))
 }
 
@@ -680,24 +782,26 @@ func newApplyContext(control *chain.Controller, action *types.Action) *chain.App
 func createNewAccount(control *chain.Controller, name string) {
 
 	//action for create a new account
-	wif := "5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3"
-	privKey, _ := ecc.NewPrivateKey(wif)
-	pubKey := privKey.PublicKey()
+	// wif := "5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3"
+	// privKey, _ := ecc.NewPrivateKey(wif)
+	// pubKey := privKey.PublicKey()
 
-	creator := chain.NewAccount{
-		Creator: common.AccountName(common.N("eosio")),
+	creator := "eosio"
+
+	c := chain.NewAccount{
+		Creator: common.AccountName(common.N(creator)),
 		Name:    common.AccountName(common.N(name)),
 		Owner: types.Authority{
 			Threshold: 1,
-			Keys:      []types.KeyWeight{{Key: pubKey, Weight: 1}},
+			Keys:      []types.KeyWeight{{Key: *getPublicKey(name, "owner"), Weight: 1}},
 		},
 		Active: types.Authority{
 			Threshold: 1,
-			Keys:      []types.KeyWeight{{Key: pubKey, Weight: 1}},
+			Keys:      []types.KeyWeight{{Key: *getPublicKey(name, "active"), Weight: 1}},
 		},
 	}
 
-	buffer, _ := rlp.EncodeToBytes(&creator)
+	buffer, _ := rlp.EncodeToBytes(&c)
 
 	act := types.Action{
 		Account: common.AccountName(common.N("eosio")),
@@ -710,15 +814,230 @@ func createNewAccount(control *chain.Controller, name string) {
 	}
 
 	a := newApplyContext(control, &act)
+	//trx := newTransaction(control, &action, []*ecc.PrivateKey{getPrivateKey(creator, "active")})
+	//pushTransaction(control, trx)
 
 	//create new account
 	chain.ApplyEosioNewaccount(a)
+}
+
+func createNewAccount2(control *chain.Controller, name string, creator string) {
+
+	//action for create a new account
+	// wif := "5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3"
+	// privKey, _ := ecc.NewPrivateKey(wif)
+	// pubKey := privKey.PublicKey()
+
+	c := chain.NewAccount{
+		Creator: common.AccountName(common.N(creator)),
+		Name:    common.AccountName(common.N(name)),
+		Owner: types.Authority{
+			Threshold: 1,
+			Keys:      []types.KeyWeight{{Key: *getPublicKey(name, "owner"), Weight: 1}},
+		},
+		Active: types.Authority{
+			Threshold: 1,
+			Keys:      []types.KeyWeight{{Key: *getPublicKey(name, "active"), Weight: 1}},
+		},
+	}
+
+	buffer, _ := rlp.EncodeToBytes(&c)
+
+	action := types.Action{
+		Account: common.AccountName(common.N("eosio")),
+		Name:    common.ActionName(common.N("newaccount")),
+		Data:    buffer,
+		Authorization: []types.PermissionLevel{
+			//types.PermissionLevel{Actor: common.AccountName(common.N("eosio.token")), Permission: common.PermissionName(common.N("active"))},
+			{Actor: common.AccountName(common.N("eosio")), Permission: common.PermissionName(common.N("active"))},
+		},
+	}
+
+	//a := newApplyContext(control, &act)
+	trx := newTransaction(control, &action, []*ecc.PrivateKey{getPrivateKey(creator, "active")})
+	pushTransaction(control, trx)
+
+	//create new account
+	//chain.ApplyEosioNewaccount(a)
+}
+
+func getPrivateKey(account string, permission string) *ecc.PrivateKey {
+
+	var privKey *ecc.PrivateKey
+	if account == "eosio" {
+		wif := "5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3"
+		privKey, _ = ecc.NewPrivateKey(wif)
+	} else {
+		a := crypto.Hash256(account + "@" + permission)
+		g := bytes.NewReader(a.Bytes())
+		privKey, _ = ecc.NewDeterministicPrivateKey(g)
+	}
+
+	return privKey
+}
+
+func getPublicKey(account string, permission string) *ecc.PublicKey {
+	PublicKey := getPrivateKey(account, permission).PublicKey()
+	return &PublicKey
+}
+
+func SetCode(control *chain.Controller, account string, code []byte) {
+
+	setCode := chain.SetCode{
+		Account:   common.AccountName(common.N(account)),
+		VmType:    0,
+		VmVersion: 0,
+		Code:      code,
+	}
+	buffer, _ := rlp.EncodeToBytes(&setCode)
+	action := types.Action{
+		Account: common.AccountName(common.N("eosio")),
+		Name:    common.ActionName(common.N("setcode")),
+		Data:    buffer,
+		Authorization: []types.PermissionLevel{
+			{Actor: common.AccountName(common.N(account)), Permission: common.PermissionName(common.N("active"))},
+		},
+	}
+
+	// wif := "5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3"
+	// privateKey, _ := ecc.NewPrivateKey(wif)
+
+	trx := newTransaction(control, &action, []*ecc.PrivateKey{getPrivateKey(account, "active")})
+	pushTransaction(control, trx)
+}
+
+func pushTransaction(control *chain.Controller, trx *types.TransactionMetadata) *types.TransactionTrace {
+	return control.PushTransaction(trx, common.TimePoint(common.MaxMicroseconds()), 0)
+}
+
+func newTransaction(control *chain.Controller, action *types.Action, privateKeys []*ecc.PrivateKey) *types.TransactionMetadata {
+
+	trxHeader := types.TransactionHeader{
+		Expiration:       common.MaxTimePointSec(),
+		RefBlockNum:      4,
+		RefBlockPrefix:   3832731038,
+		MaxNetUsageWords: 100000,
+		MaxCpuUsageMS:    200,
+		DelaySec:         0,
+	}
+
+	trx := types.Transaction{
+		TransactionHeader:     trxHeader,
+		ContextFreeActions:    []*types.Action{},
+		Actions:               []*types.Action{action},
+		TransactionExtensions: []*types.Extension{},
+		//RecoveryCache:         make(map[ecc.Signature]types.CachedPubKey),
+	}
+	signedTrx := types.NewSignedTransaction(&trx, []ecc.Signature{}, []common.HexBytes{})
+	//privateKey, _ := ecc.NewRandomPrivateKey()
+	//chainIdType := common.ChainIdType(*crypto.NewSha256String("cf057bbfb72640471fd910bcb67639c22df9f92470936cddc1ade0e2f2e7dc4f"))
+	chainIdType := control.GetChainId()
+	for _, privateKey := range privateKeys {
+		signedTrx.Sign(privateKey, &chainIdType)
+	}
+
+	metaTrx := types.NewTransactionMetadataBySignedTrx(signedTrx, common.CompressionNone)
+
+	return metaTrx
+}
+
+func RunCheckException(control *chain.Controller, cls string, method string, payload []byte, authorizer string, permissionLevel []types.PermissionLevel, privateKeys []*ecc.PrivateKey,
+	errCode exception.ExcTypes, errMsg string) (ret bool) {
+
+	defer try.HandleReturn()
+	try.Try(func() {
+		pushAction2(control, cls, method, payload, authorizer, permissionLevel, privateKeys)
+	}).Catch(func(e exception.Exception) {
+		if e.Code() == errCode {
+			fmt.Println(errMsg)
+			ret = true
+			try.Return()
+		}
+	}).End()
+
+	ret = false
+	return
+}
+
+func pushAction2(control *chain.Controller, cls string, method string, payload []byte, authorizer string, permissionLevel []types.PermissionLevel, privateKeys []*ecc.PrivateKey) *types.TransactionTrace {
+
+	//wasm := wasmgo.NewWasmGo()
+	action := wasmTestAction(cls, method)
+	fmt.Println(cls, method, action)
+
+	//fmt.Println(cls, method, action)
+	act := types.Action{
+		Account: common.AccountName(common.N(authorizer)),
+		Name:    common.ActionName(action),
+		Data:    payload,
+		//Authorization: []types.PermissionLevel{types.PermissionLevel{Actor: common.AccountName(common.N(authorizer)), Permission: common.PermissionName(common.N("active"))}},
+		Authorization: permissionLevel,
+	}
+
+	//applyContext := newApplyContext(control, &act)
+	//codeVersion := crypto.NewSha256Byte([]byte(code))
+
+	trx := newTransaction(control, &act, privateKeys)
+	return pushTransaction(control, trx)
+}
+
+func callTestFunction2(control *chain.Controller, cls string, method string, payload []byte, authorizer string) *types.TransactionTrace {
+
+	//wasm := wasmgo.NewWasmGo()
+	action := wasmTestAction(cls, method)
+	fmt.Println(cls, method, action)
+
+	act := types.Action{
+		Account:       common.AccountName(common.N(authorizer)),
+		Name:          common.ActionName(action),
+		Data:          payload,
+		Authorization: []types.PermissionLevel{types.PermissionLevel{Actor: common.AccountName(common.N(authorizer)), Permission: common.PermissionName(common.N("active"))}},
+	}
+
+	privateKeys := []*ecc.PrivateKey{getPrivateKey(authorizer, "active")}
+	trx := newTransaction(control, &act, privateKeys)
+	return pushTransaction(control, trx)
+
+}
+
+func callTestFunctionException2(control *chain.Controller, cls string, method string, payload []byte, authorizer string, errCode exception.ExcTypes, errMsg string) (ret bool) {
+
+	action := wasmTestAction(cls, method)
+	fmt.Println(cls, method, action)
+
+	act := types.Action{
+		Account:       common.AccountName(common.N(authorizer)),
+		Name:          common.ActionName(action),
+		Data:          payload,
+		Authorization: []types.PermissionLevel{types.PermissionLevel{Actor: common.AccountName(common.N(authorizer)), Permission: common.PermissionName(common.N("active"))}},
+	}
+
+	privateKeys := []*ecc.PrivateKey{getPrivateKey(authorizer, "active")}
+	trx := newTransaction(control, &act, privateKeys)
+
+	//pushTransaction(control, trx)
+
+	defer try.HandleReturn()
+	try.Try(func() {
+		pushTransaction(control, trx)
+	}).Catch(func(e exception.Exception) {
+		if e.Code() == errCode {
+			fmt.Println(errMsg)
+			ret = true
+			try.Return()
+		}
+	}).End()
+
+	ret = false
+	return
+
 }
 
 func pushAction(control *chain.Controller, code []byte, cls string, method string, payload []byte, authorizer string) (ret string) {
 
 	wasm := wasmgo.NewWasmGo()
 	action := wasmTestAction(cls, method)
+	fmt.Println(cls, method, action)
 
 	//fmt.Println(cls, method, action)
 	//createNewAccount(control, authorizer)
@@ -768,16 +1087,16 @@ func callTestFunction(control *chain.Controller, code []byte, cls string, method
 
 	applyContext := newApplyContext(control, &act)
 
-	//fmt.Println(cls, method, action)
+	fmt.Println(cls, method, action)
 	codeVersion := crypto.NewSha256Byte([]byte(code))
 
-	defer try.HandleReturn()
-	try.Try(func() {
-		wasm.Apply(codeVersion, code, applyContext)
-	}).Catch(func(e exception.Exception) {
-		ret = e.Message()
-		try.Return()
-	}).End()
+	//defer try.HandleReturn()
+	//try.Try(func() {
+	wasm.Apply(codeVersion, code, applyContext)
+	//}).Catch(func(e exception.Exception) {
+	//	ret = e.Message()
+	//	try.Return()
+	//}).End()
 
 	return applyContext.PendingConsoleOutput
 
@@ -800,6 +1119,7 @@ func callTestFunctionCheckException(control *chain.Controller, code []byte, cls 
 	}
 
 	applyContext := newApplyContext(control, &act)
+	fmt.Println(cls, method, action)
 	codeVersion := crypto.NewSha256Byte([]byte(code))
 
 	//ret := false
