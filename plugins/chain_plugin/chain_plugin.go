@@ -16,14 +16,14 @@ var chainPlugin Plugin = App().RegisterPlugin(ChainPlug, NewChainPlugin(App().Ge
 
 type ChainPlugin struct {
 	AbstractPlugin
-	My *ChainPluginImpl
+	my *ChainPluginImpl
 }
 
 func NewChainPlugin(io *asio.IoContext) *ChainPlugin {
 	plugin := &ChainPlugin{}
 
-	plugin.My = NewChainPluginImpl()
-	plugin.My.Self = plugin
+	plugin.my = NewChainPluginImpl()
+	plugin.my.Self = plugin
 	return plugin
 }
 
@@ -32,7 +32,9 @@ func (c *ChainPlugin) SetProgramOptions(options *[]cli.Flag) {
 }
 
 func (c *ChainPlugin) PluginInitialize(options *cli.Context) {
+	log.Info("initializing chain plugin")
 
+	c.my.ChainConfig = &chain.Config{}
 }
 
 func (c *ChainPlugin) PluginStartup() {
@@ -52,15 +54,15 @@ func (c *ChainPlugin) GetReadWriteApi() *ReadWrite {
 }
 
 func (c *ChainPlugin) Chain() *chain.Controller {
-	return c.My.Chain
+	return c.my.Chain
 }
 
 func (c *ChainPlugin) GetChainId() common.ChainIdType {
-	return *c.My.ChainId
+	return *c.my.ChainId
 }
 
 func (c *ChainPlugin) GetAbiSerializerMaxTime() common.Microseconds {
-	return c.My.AbiSerializerMaxTimeMs
+	return c.my.AbiSerializerMaxTimeMs
 }
 
 func (c *ChainPlugin) HandleGuardException(e exception.GuardExceptions) {

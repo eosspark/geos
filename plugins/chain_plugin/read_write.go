@@ -6,6 +6,8 @@ import (
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
+	"github.com/eosspark/eos-go/plugins/appbase/app"
+	"github.com/eosspark/eos-go/plugins/chain_interface"
 )
 
 type ReadWrite struct {
@@ -20,53 +22,43 @@ func NewReadWrite(db *chain.Controller, abiSerializerMaxTime common.Microseconds
 	return rw
 }
 
-//void read_write::push_transaction(const read_write::push_transaction_params& params, next_function<read_write::push_transaction_results> next) {
-//
-//   try {
-//      auto pretty_input = std::make_shared<packed_transaction>();
-//      auto resolver = make_resolver(this, abi_serializer_max_time);
-//      try {
-//         abi_serializer::from_variant(params, *pretty_input, resolver, abi_serializer_max_time);
-//      } EOS_RETHROW_EXCEPTIONS(chain::packed_transaction_type_exception, "Invalid packed transaction")
-//
-//      app().get_method<incoming::methods::transaction_async>()(pretty_input, true, [this, next](const fc::static_variant<fc::exception_ptr, transaction_trace_ptr>& result) -> void{
-//         if (result.contains<fc::exception_ptr>()) {
-//            next(result.get<fc::exception_ptr>());
-//         } else {
-//            auto trx_trace_ptr = result.get<transaction_trace_ptr>();
-//
-//            try {
-//               chain::transaction_id_type id = trx_trace_ptr->id;
-//               fc::variant output;
-//               try {
-//                  output = db.to_variant_with_abi( *trx_trace_ptr, abi_serializer_max_time );
-//               } catch( chain::abi_exception& ) {
-//                  output = *trx_trace_ptr;
-//               }
-//
-//               next(read_write::push_transaction_results{id, output});
-//            } CATCH_AND_CALL(next);
-//         }
-//      });
-//
-//
-//   } catch ( boost::interprocess::bad_alloc& ) {
-//      raise(SIGUSR1);
-//   } CATCH_AND_CALL(next);
-//}
+func (rw *ReadWrite) Validate() {
+	EosAssert(rw.db.GetReadMode() != chain.READONLY, &exception.MissingChainApiPluginException{}, "Not allowed, node in read-only mode")
+}
 
-func (rw *ReadWrite) PushTransaction(txn types.PackedTransaction) {
+type PushTransactionResult struct {
+	TransactionId common.TransactionIdType
+}
+
+func (rw *ReadWrite) PushTransaction(tx *types.PackedTransaction, next chain_interface.NextFunction) {
 	Try(func() {
+		app.App().GetMethod(chain_interface.TransactionAsync).CallMethods(tx, true, func(result interface{}) {
+			if exception, ok := result.(exception.Exception); ok {
+				next(exception)
+			} else {
+				trxTracePtr := result.(*types.TransactionTrace)
 
-	}).Catch(func(interface{}) { //TODO boost::interprocess::bad_alloc&
-		//raise(SIGUSR1);
-	}).End()
+				Try(func() {
+					id := trxTracePtr.ID
+					//TODO processed output
+					//fc::variant output
+					//try {
+					//	output = db.to_variant_with_abi( *trx_trace_ptr, abi_serializer_max_time );
+					//} catch( chain::abi_exception& ) {
+					//	output = *trx_trace_ptr;
+					//}
+					next(PushTransactionResult{id})
+				}).CatchAndCall(next).End()
+			}
+		})
+
+	}).CatchAndCall(next).End()
 
 }
 
-func next(ex *exception.Exception, re PushTransactionFullResp) {
 
-}
+
+
 
 //
 //{

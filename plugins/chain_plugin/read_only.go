@@ -11,6 +11,7 @@ import (
 	. "github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/log"
 	"strconv"
+	"github.com/eosspark/eos-go/plugins/appbase/app"
 )
 
 type ReadOnly struct {
@@ -26,31 +27,11 @@ func NewReadOnly(db *chain.Controller, abiSerializerMaxTime common.Microseconds)
 	return ro
 }
 
-//read_only::get_info_results read_only::get_info(const read_only::get_info_params&) const {
-//   const auto& rm = db.get_resource_limits_manager();
-//   return {
-//      eosio::utilities::common::itoh(static_cast<uint32_t>(app().version())),
-//      db.get_chain_id(),
-//      db.fork_db_head_block_num(),
-//      db.last_irreversible_block_num(),
-//      db.last_irreversible_block_id(),
-//      db.fork_db_head_block_id(),
-//      db.fork_db_head_block_time(),
-//      db.fork_db_head_block_producer(),
-//      rm.get_virtual_block_cpu_limit(),
-//      rm.get_virtual_block_net_limit(),
-//      rm.get_block_cpu_limit(),
-//      rm.get_block_net_limit(),
-//      //std::bitset<64>(db.get_dynamic_global_properties().recent_slots_filled).to_string(),
-//      //__builtin_popcountll(db.get_dynamic_global_properties().recent_slots_filled) / 64.0,
-//      app().version_string(),
-//   };
-//}
-
 func (ro *ReadOnly) GetInfo() *InfoResp {
 	rm := ro.db.GetMutableResourceLimitsManager()
 	return &InfoResp{
-		ServerVersion:            "0f6695cb", //eosio::utilities::common::itoh(static_cast<uint32_t>(app().version())),
+		//ServerVersion:            "0f6695cb", //eosio::utilities::common::itoh(static_cast<uint32_t>(app().version())),
+		ServerVersion:            strconv.Itoa(int(app.App().GetVersion())), //eosio::utilities::common::itoh(static_cast<uint32_t>(app().version())),
 		ChainID:                  ro.db.GetChainId(),
 		HeadBlockNum:             ro.db.ForkDbHeadBlockNum(),
 		LastIrreversibleBlockNum: ro.db.LastIrreversibleBlockNum(),
@@ -66,29 +47,6 @@ func (ro *ReadOnly) GetInfo() *InfoResp {
 	}
 }
 
-// fc::variant read_only::get_block(const read_only::get_block_params& params) const {
-//    signed_block_ptr block;
-//    EOS_ASSERT(!params.block_num_or_id.empty() && params.block_num_or_id.size() <= 64, chain::block_id_type_exception, "Invalid Block number or ID, must be greater than 0 and less than 64 characters" );
-//    try {
-//       block = db.fetch_block_by_id(fc::variant(params.block_num_or_id).as<block_id_type>());
-//       if (!block) {
-//          block = db.fetch_block_by_number(fc::to_uint64(params.block_num_or_id));
-//       }
-
-//    } EOS_RETHROW_EXCEPTIONS(chain::block_id_type_exception, "Invalid block ID: ${block_num_or_id}", ("block_num_or_id", params.block_num_or_id))
-
-//    EOS_ASSERT( block, unknown_block_exception, "Could not find block: ${block}", ("block", params.block_num_or_id));
-
-//    fc::variant pretty_output;
-//    abi_serializer::to_variant(*block, pretty_output, make_resolver(this, abi_serializer_max_time), abi_serializer_max_time);
-
-//    uint32_t ref_block_prefix = block->id()._hash[1];
-
-//    return fc::mutable_variant_object(pretty_output.get_object())
-//            ("id", block->id())
-//            ("block_num",block->block_num())
-//            ("ref_block_prefix", ref_block_prefix);
-// }
 func (ro *ReadOnly) GetBlock(params string) *BlockResp {
 	block := &types.SignedBlock{}
 	EosAssert(len(params) != 0 && len(params) <= 64, &exception.BlockIdTypeException{},
@@ -101,7 +59,7 @@ func (ro *ReadOnly) GetBlock(params string) *BlockResp {
 			blockNum, _ := strconv.Atoi(params)
 			block = ro.db.FetchBlockByNumber(uint32(blockNum)) // TODO Uint64
 		}
-	}).EosRethrowExceptions(&exception.BlockIdTypeException{}, "Invalid block ID: %s", params)
+	}).EosRethrowExceptions(&exception.BlockIdTypeException{}, "Invalid block ID: %s", params).End()
 
 	EosAssert(!common.Empty(block), &exception.UnknownBlockException{}, "Could not find block: %s", params)
 
