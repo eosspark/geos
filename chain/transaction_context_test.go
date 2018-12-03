@@ -221,9 +221,9 @@ func pushTransaction(control *Controller, trx *types.TransactionMetadata) {
 func newTransaction(control *Controller, action *types.Action, privateKey *ecc.PrivateKey) *types.TransactionMetadata {
 
 	trxHeader := types.TransactionHeader{
-		Expiration:       common.MaxTimePointSec(),
-		RefBlockNum:      4,
-		RefBlockPrefix:   3832731038,
+		Expiration: common.NewTimePointSecTp(control.PendingBlockTime()).AddSec(60),
+		// RefBlockNum:      4,
+		// RefBlockPrefix:   3832731038,
 		MaxNetUsageWords: 100000,
 		MaxCpuUsageMS:    200,
 		DelaySec:         0,
@@ -236,6 +236,8 @@ func newTransaction(control *Controller, action *types.Action, privateKey *ecc.P
 		TransactionExtensions: []*types.Extension{},
 		//RecoveryCache:         make(map[ecc.Signature]types.CachedPubKey),
 	}
+	headBlockId := control.HeadBlockId()
+	trx.SetReferenceBlock(&headBlockId)
 	signedTrx := types.NewSignedTransaction(&trx, []ecc.Signature{}, []common.HexBytes{})
 	//privateKey, _ := ecc.NewRandomPrivateKey()
 	//chainIdType := common.ChainIdType(*crypto.NewSha256String("cf057bbfb72640471fd910bcb67639c22df9f92470936cddc1ade0e2f2e7dc4f"))

@@ -245,7 +245,7 @@ func (t *TransactionContext) InitForInputTrx(packeTrxUnprunableSize uint64, pack
 	t.Published = t.Control.PendingBlockTime()
 	t.IsInput = true
 
-	if t.Control.SkipTrxChecks() {
+	if !t.Control.SkipTrxChecks() {
 		t.Control.ValidateExpiration(&t.Trx.Transaction)
 		t.Control.ValidateTapos(&t.Trx.Transaction)
 		t.Control.ValidateReferencedAccounts(&t.Trx.Transaction)

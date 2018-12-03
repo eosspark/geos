@@ -40,11 +40,11 @@ type dummy_action struct {
 	C int32
 }
 
-func (d *dummy_action) get_name() uint64 {
+func (d *dummy_action) getName() uint64 {
 	return uint64(common.N("dummy_action"))
 }
 
-func (d *dummy_action) get_account() uint64 {
+func (d *dummy_action) getAccount() uint64 {
 	return uint64(common.N("testapi"))
 }
 
@@ -135,6 +135,141 @@ func TestRequireRecipient(t *testing.T) {
 		data = arithmetic.Int128{uint64(common.N("testapi2")), uint64(common.N("testapi2"))}
 		b, _ = rlp.EncodeToBytes(&data)
 		callTestFunction2(control, "test_action", "test_ram_billing_in_notify", b, "testapi")
+
+		stopBlock(control)
+
+	})
+
+}
+
+type cfAction struct {
+	Payload uint32
+	Cfd_idx uint32
+}
+
+func (n *cfAction) getAccount() uint64 {
+	return uint64(common.N("testapi"))
+}
+
+func (n *cfAction) getName() uint64 {
+	return uint64(common.N("cf_action"))
+}
+
+type actionInterface interface {
+	getAccount() uint64
+	getName() uint64
+}
+
+func newAction(permissionLevel []types.PermissionLevel, a actionInterface) *types.Action {
+
+	payload, _ := rlp.EncodeToBytes(a)
+	act := types.Action{
+		Account:       common.AccountName(a.getAccount()),
+		Name:          common.AccountName(a.getName()),
+		Data:          payload,
+		Authorization: permissionLevel,
+	}
+	return &act
+}
+
+func newSignedTransaction(control *chain.Controller) *types.SignedTransaction {
+	trxHeader := types.TransactionHeader{
+		Expiration: common.NewTimePointSecTp(control.PendingBlockTime()).AddSec(60), //common.MaxTimePointSec(),
+		// RefBlockNum:      4,
+		// RefBlockPrefix:   3832731038,
+		MaxNetUsageWords: 100000,
+		MaxCpuUsageMS:    200,
+		DelaySec:         0,
+	}
+
+	trx := types.Transaction{
+		TransactionHeader:     trxHeader,
+		ContextFreeActions:    []*types.Action{},
+		Actions:               []*types.Action{},
+		TransactionExtensions: []*types.Extension{},
+		//RecoveryCache:         make(map[ecc.Signature]types.CachedPubKey),
+	}
+
+	headBlockId := control.HeadBlockId()
+	trx.SetReferenceBlock(&headBlockId)
+	signedTrx := types.NewSignedTransaction(&trx, []ecc.Signature{}, []common.HexBytes{})
+
+	return signedTrx
+}
+
+func pushSignedTransaction(control *chain.Controller, trx *types.SignedTransaction) *types.TransactionTrace {
+	metaTrx := types.NewTransactionMetadataBySignedTrx(trx, common.CompressionNone)
+	return control.PushTransaction(metaTrx, common.TimePoint(common.MaxMicroseconds()), 0)
+}
+
+func TestContextFreeAction(t *testing.T) {
+	name := "testdata_context/test_api.wasm"
+	t.Run(filepath.Base(name), func(t *testing.T) {
+		code, err := ioutil.ReadFile(name)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		control := startBlock()
+		createNewAccount2(control, "testapi", "eosio")
+		createNewAccount2(control, "dummy", "eosio")
+
+		SetCode(control, "testapi", code)
+
+		//permissions := []types.PermissionLevel{
+		//	types.PermissionLevel{common.AccountName(common.N("testapi")), common.PermissionName(common.N("active"))},
+		//}
+		//privateKeys := []*ecc.PrivateKey{
+		//	getPrivateKey("testapi", "active"),
+		//}
+		// ret := pushAction2(control, "test_action", "require_notice_tests", []byte{}, "testapi", permissions, privateKeys)
+		// assert.Equal(t, ret.Receipt.Status, types.TransactionStatusExecuted)
+
+		trx := newSignedTransaction(control)
+		ret := pushSignedTransaction(control, trx)
+		assert.Equal(t, ret.Except.Code(), exception.TxNoAuths{}.Code())
+
+		assert.Equal(t, ret.Receipt.Status, types.TransactionStatusExecuted)
+
+		cfa := cfAction{100, 0}
+		act := newAction([]types.PermissionLevel{}, &cfa)
+		trx.Transaction.ContextFreeActions = append(trx.Transaction.ContextFreeActions, act)
+		var raw uint32 = 100
+		data, _ := rlp.EncodeToBytes(raw)
+		trx.ContextFreeData = append(trx.ContextFreeData, data)
+		raw = 200
+		data, _ = rlp.EncodeToBytes(raw)
+		trx.ContextFreeData = append(trx.ContextFreeData, data)
+		ret = pushSignedTransaction(control, trx)
+		assert.Equal(t, ret.Except.Code(), exception.TxNoAuths{}.Code())
+
+		da := dummy_action{DUMMY_ACTION_DEFAULT_A, DUMMY_ACTION_DEFAULT_B, DUMMY_ACTION_DEFAULT_C}
+		permissions := []types.PermissionLevel{
+			types.PermissionLevel{common.AccountName(common.N("testapi")), common.PermissionName(common.N("active"))},
+		}
+		act = newAction(permissions, &da)
+		trx.Transaction.Actions = append(trx.Transaction.Actions, act)
+
+		privateKeys := []*ecc.PrivateKey{
+			getPrivateKey("testapi", "active"),
+		}
+		chainIdType := control.GetChainId()
+		for _, privateKey := range privateKeys {
+			trx.Sign(privateKey, &chainIdType)
+		}
+		ret = pushSignedTransaction(control, trx)
+
+		da = dummy_action{DUMMY_ACTION_DEFAULT_A, 200, DUMMY_ACTION_DEFAULT_C}
+		act = newAction(permissions, &da)
+		trx.Transaction.Actions = []*types.Action{}
+		trx.Transaction.Actions = append(trx.Transaction.Actions, act)
+
+		trx.Signatures = []ecc.Signature{}
+		for _, privateKey := range privateKeys {
+			trx.Sign(privateKey, &chainIdType)
+		}
+		ret = pushSignedTransaction(control, trx)
+		assert.Equal(t, ret.Except.Code(), exception.UnaccessibleApi{}.Code())
 
 		stopBlock(control)
 
@@ -913,9 +1048,9 @@ func pushTransaction(control *chain.Controller, trx *types.TransactionMetadata) 
 func newTransaction(control *chain.Controller, action *types.Action, privateKeys []*ecc.PrivateKey) *types.TransactionMetadata {
 
 	trxHeader := types.TransactionHeader{
-		Expiration:       common.MaxTimePointSec(),
-		RefBlockNum:      4,
-		RefBlockPrefix:   3832731038,
+		Expiration: common.NewTimePointSecTp(control.PendingBlockTime()).AddSec(60),
+		// RefBlockNum:      4,
+		// RefBlockPrefix:   3832731038,
 		MaxNetUsageWords: 100000,
 		MaxCpuUsageMS:    200,
 		DelaySec:         0,
@@ -928,6 +1063,9 @@ func newTransaction(control *chain.Controller, action *types.Action, privateKeys
 		TransactionExtensions: []*types.Extension{},
 		//RecoveryCache:         make(map[ecc.Signature]types.CachedPubKey),
 	}
+	headBlockId := control.HeadBlockId()
+	trx.SetReferenceBlock(&headBlockId)
+
 	signedTrx := types.NewSignedTransaction(&trx, []ecc.Signature{}, []common.HexBytes{})
 	//privateKey, _ := ecc.NewRandomPrivateKey()
 	//chainIdType := common.ChainIdType(*crypto.NewSha256String("cf057bbfb72640471fd910bcb67639c22df9f92470936cddc1ade0e2f2e7dc4f"))

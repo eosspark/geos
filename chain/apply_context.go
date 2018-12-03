@@ -76,10 +76,9 @@ func NewApplyContext(control *Controller, trxContext *TransactionContext, act *t
 	applyContext.idxDouble = NewIdxDouble(applyContext)
 
 	applyContext.ilog = log.New("Apply_Context")
-	//applyContext.ilog.SetHandler(log.StreamHandler(os.Stdout, log.TerminalFormat(true)))
 	logHandler := log.StreamHandler(os.Stdout, log.TerminalFormat(true))
-	//applyContext.ilog.SetHandler(log.LvlFilterHandler(log.LvlDebug, logHandler))
-	applyContext.ilog.SetHandler(log.LvlFilterHandler(log.LvlInfo, logHandler))
+	applyContext.ilog.SetHandler(log.LvlFilterHandler(log.LvlDebug, logHandler))
+	//applyContext.ilog.SetHandler(log.LvlFilterHandler(log.LvlInfo, logHandler))
 
 	return applyContext
 
@@ -1202,6 +1201,10 @@ func (a *ApplyContext) ResumeBillingTimer() {
 	// now := common.Now()
 	// a.PseudoStart = now - a.BilledTime
 
+}
+
+func (a *ApplyContext) ContextFreeAction() bool {
+	return a.ContextFree
 }
 
 //func (a *ApplyContext) GetLogger() *log.Logger {

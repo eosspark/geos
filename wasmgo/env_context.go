@@ -15,6 +15,7 @@ type EnvContext interface {
 	GetReceiver() common.AccountName
 	GetCode() common.AccountName
 	GetAct() common.ActionName
+	ContextFreeAction() bool
 
 	//authorization
 	RequireAuthorization(account int64)
