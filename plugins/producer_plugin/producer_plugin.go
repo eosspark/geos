@@ -4,6 +4,7 @@ import (
 	"fmt"
 	//Chain "github.com/eosspark/eos-go/plugins/producer_plugin/testing" /*test model*/
 	"encoding/json"
+	"github.com/eosspark/container/sets/treeset"
 	Chain "github.com/eosspark/eos-go/chain" /*real chain*/
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto"
@@ -38,16 +39,16 @@ type RuntimeOptions struct {
 }
 
 type WhitelistAndBlacklist struct {
-	ActorWhitelist    *common.FlatSet //<common.AccountName>
-	ActorBlacklist    *common.FlatSet //<common.AccountName>
-	ContractWhitelist *common.FlatSet //<common.AccountName>
-	ContractBlacklist *common.FlatSet //<common.AccountName>
-	ActionBlacklist   *common.FlatSet //<account_name, action_name>
-	KeyBlacklist      *common.FlatSet //<ecc.PublicKey>
+	ActorWhitelist    *treeset.Set //<common.AccountName>
+	ActorBlacklist    *treeset.Set //<common.AccountName>
+	ContractWhitelist *treeset.Set //<common.AccountName>
+	ContractBlacklist *treeset.Set //<common.AccountName>
+	ActionBlacklist   *treeset.Set //<account_name, action_name>
+	KeyBlacklist      *treeset.Set //<ecc.PublicKey>
 }
 
 type GreylistParams struct {
-	Accounts common.FlatSet
+	Accounts treeset.Set
 }
 
 func NewProducerPlugin(io *asio.IoContext) *ProducerPlugin {
@@ -205,7 +206,7 @@ func (p *ProducerPlugin) PluginInitialize(c *cli.Context) {
 			param := GreylistParams{}
 			for _, a := range greylist {
 				n := common.AccountName(common.N(a))
-				param.Accounts.Insert(&n)
+				param.Accounts.AddItem(n)
 			}
 			p.AddGreylistAccounts(param)
 		}
@@ -350,26 +351,38 @@ func (p *ProducerPlugin) GetRuntimeOptions() RuntimeOptions {
 
 func (p *ProducerPlugin) AddGreylistAccounts(params GreylistParams) {
 	chain := p.chain()
-	for _, acc := range params.Accounts.Data {
-		chain.AddResourceGreyList(acc.(*common.AccountName))
+	itr := params.Accounts.Iterator()
+	for itr.Next() {
+		val := itr.Value().(common.AccountName)
+		chain.AddResourceGreyList(&val)
 	}
+	/*for _, acc := range params.Accounts.Data {
+		chain.AddResourceGreyList(acc.(*common.AccountName))
+	}*/
 }
 
 func (p *ProducerPlugin) RemoveGreylistAccounts(params GreylistParams) {
 	chain := p.chain()
-	for _, acc := range params.Accounts.Data {
-		chain.RemoveResourceGreyList(acc.(*common.AccountName))
+	itr := params.Accounts.Iterator()
+	for itr.Next() {
+		val := itr.Value().(common.AccountName)
+		chain.RemoveResourceGreyList(&val)
 	}
+	/*for _, acc := range params.Accounts.Data {
+		chain.RemoveResourceGreyList(acc.(*common.AccountName))
+	}*/
 }
 
 func (p *ProducerPlugin) GetGreylist() GreylistParams {
 	chain := p.chain()
 	result := GreylistParams{}
 	list := chain.GetResourceGreyList()
-	result.Accounts.Reserve(list.Len())
-	for _, acc := range list.Data {
+	result.Accounts = *treeset.NewWith(common.CompareName)
+	//itr := list.Iterator()
+	result.Accounts.Add(list.Values())
+	/*for _, acc := range list.Data {
 		result.Accounts.Insert(acc.(*common.AccountName))
-	}
+	}*/
 	return result
 }
 

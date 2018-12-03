@@ -1,6 +1,7 @@
 package types
 
 import (
+	"github.com/eosspark/container/sets/treeset"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto"
 )
@@ -18,7 +19,7 @@ type TransactionMetadata struct {
 
 type Pair struct {
 	ID        common.ChainIdType
-	PublicKey common.FlatSet
+	PublicKey treeset.Set
 }
 
 func NewTransactionMetadata(ptrx *PackedTransaction) *TransactionMetadata {
@@ -44,7 +45,7 @@ func NewTransactionMetadataBySignedTrx(t *SignedTransaction, c common.Compressio
 	}
 }
 
-func (t *TransactionMetadata) RecoverKeys(chainID *common.ChainIdType) *common.FlatSet {
+func (t *TransactionMetadata) RecoverKeys(chainID *common.ChainIdType) *treeset.Set {
 	//if( !signing_keys || signing_keys->first != chain_id ) TODO !signing_keys ？？  ->&tm.SigningKeys ==nil
 	if t.SigningKeys.ID != *chainID { // Unlikely for more than one chain_id to be used in one nodeos instance
 		t.SigningKeys = Pair{

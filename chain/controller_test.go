@@ -97,13 +97,11 @@ func makeKeySignatureProvider(key *ecc.PrivateKey) signatureProviderType {
 func TestPopBlock(t *testing.T) {
 	con := GetControllerInstance()
 	con.PopBlock()
-	fmt.Println(con)
 }
 
 func TestAbortBlock(t *testing.T) {
 	con := GetControllerInstance()
 	con.AbortBlock()
-	fmt.Println(con)
 }
 
 func CallBackApplayHandler(p *ApplyContext) {
@@ -115,7 +113,7 @@ func CallBackApplayHandler2(p *ApplyContext) {
 }
 func TestSetApplyHandler(t *testing.T) {
 	con := GetControllerInstance()
-	fmt.Println(con)
+
 	//applyCon := ApplyContext{}
 	con.SetApplayHandler(common.AccountName(common.N("eosio")), common.ScopeName(common.N("eosio")), common.ActionName(common.N("newaccount")), CallBackApplayHandler)
 	con.SetApplayHandler(common.AccountName(common.N("eosio")), common.ScopeName(common.N("eosio")), common.ActionName(common.N("setcode")), CallBackApplayHandler2)
@@ -128,12 +126,6 @@ func TestSetApplyHandler(t *testing.T) {
 
 	fmt.Println(len(con.ApplyHandlers))
 
-}
-
-func Test_ControllerDB(t *testing.T) {
-	control := GetControllerInstance() //chain.GetControllerInstance()
-	db := control.DataBase()
-	fmt.Println(db)
 }
 
 var IrreversibleBlock chan types.BlockState = make(chan types.BlockState)
@@ -155,11 +147,12 @@ func TestController_CreateNativeAccount(t *testing.T) {
 
 	fmt.Println("check account name:", strings.Compare(name.String(), "eos"))
 	assert.Equal(t, "eos", name.String())
+	control.Close()
 }
 
 func TestController_GetWasmInterface(t *testing.T) {
 	control := GetControllerInstance()
-	fmt.Println(control.WasmIf)
+	log.Info("%#v", control.WasmIf)
 	//assert.Equal(t, nil, control.WasmIf)
 }
 
@@ -183,7 +176,7 @@ func TestController_GetDynamicGlobalProperties(t *testing.T) {
 	dgpo := entity.DynamicGlobalPropertyObject{}
 	dgpo.ID = 1
 	assert.Equal(t, &dgpo, result)
-	fmt.Println("*******", result)
+	//fmt.Println("*******", result)
 }
 
 func TestController_GetBlockIdForNum_NotFound(t *testing.T) {
@@ -211,5 +204,21 @@ func TestController_Close(t *testing.T) {
 
 func TestController_UpdateProducersAuthority(t *testing.T) {
 	c := GetControllerInstance()
+	c.AbortBlock()
+	now := common.Now()
+	var base common.TimePoint
+	if now > c.HeadBlockTime() {
+		base = now
+	} else {
+		base = c.HeadBlockTime()
+	}
+	minTimeToNextBlock := common.DefaultConfig.BlockIntervalUs - (int64(base.TimeSinceEpoch()) % common.DefaultConfig.BlockIntervalUs)
+	blockTime := base.AddUs(common.Microseconds(minTimeToNextBlock))
+
+	if blockTime.Sub(now) < common.Microseconds(common.DefaultConfig.BlockIntervalUs/10) { // we must sleep for at least 50ms
+		blockTime = blockTime.AddUs(common.Microseconds(common.DefaultConfig.BlockIntervalUs))
+	}
+	c.StartBlock(types.NewBlockTimeStamp(blockTime), 0)
 	c.updateProducersAuthority()
+	c.Close()
 }

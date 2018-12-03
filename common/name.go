@@ -20,6 +20,17 @@ func (n *Name) GetKey() []byte {
 	return b
 }
 
+//for treeset
+func CompareName(first interface{}, second interface{}) int {
+	if first.(Name) == second.(Name) {
+		return 0
+	}
+	if first.(Name) < second.(Name) {
+		return -1
+	}
+	return 1
+}
+
 func (n Name) Empty() bool {
 	return n == 0
 }

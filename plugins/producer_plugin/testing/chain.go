@@ -2,18 +2,19 @@ package testing
 
 import (
 	"fmt"
+	"github.com/eosspark/container/sets/treeset"
+	"github.com/eosspark/eos-go/chain"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/ecc"
-	"github.com/eosspark/eos-go/chain"
 )
 
 type DBReadMode = chain.DBReadMode
 
 const (
 	SPECULATIVE = DBReadMode(iota)
-	HEADER       //HEAD
+	HEADER      //HEAD
 	READONLY
 	IRREVERSIBLE
 )
@@ -24,7 +25,6 @@ const (
 	FULL = ValidationMode(iota)
 	LIGHT
 )
-
 
 type Controller struct {
 	head    *types.BlockState
@@ -40,6 +40,7 @@ func newController() *Controller {
 }
 
 var Control *Controller
+
 func GetControllerInstance() *Controller {
 	if Control == nil {
 		tp, err := common.FromIsoString("2018-06-01T12:00:00")
@@ -239,26 +240,26 @@ func (c *Controller) SetSubjectiveCpuLeeway(leeway common.Microseconds) {}
 func (c *Controller) AddResourceGreyList(name *common.AccountName)    {}
 func (c *Controller) RemoveResourceGreyList(name *common.AccountName) {}
 
-func (c *Controller) GetResourceGreyList() *common.FlatSet { return nil }
+func (c *Controller) GetResourceGreyList() *treeset.Set { return nil }
 
-func (c *Controller) GetActorWhiteList() *common.FlatSet { return nil }
+func (c *Controller) GetActorWhiteList() *treeset.Set { return nil }
 
-func (c *Controller) GetActorBlackList() *common.FlatSet { return nil }
+func (c *Controller) GetActorBlackList() *treeset.Set { return nil }
 
-func (c *Controller) GetContractWhiteList() *common.FlatSet { return nil }
+func (c *Controller) GetContractWhiteList() *treeset.Set { return nil }
 
-func (c *Controller) GetContractBlackList() *common.FlatSet { return nil }
+func (c *Controller) GetContractBlackList() *treeset.Set { return nil }
 
-func (c *Controller) GetActionBlockList() *common.FlatSet { return nil }
+func (c *Controller) GetActionBlockList() *treeset.Set { return nil }
 
-func (c *Controller) GetKeyBlackList() *common.FlatSet { return nil }
+func (c *Controller) GetKeyBlackList() *treeset.Set { return nil }
 
-func (c *Controller) SetActorWhiteList(params *common.FlatSet) {}
-func (c *Controller) SetActorBlackList(params *common.FlatSet) {}
+func (c *Controller) SetActorWhiteList(params *treeset.Set) {}
+func (c *Controller) SetActorBlackList(params *treeset.Set) {}
 
-func (c *Controller) SetContractWhiteList(params *common.FlatSet) {}
-func (c *Controller) SetContractBlackList(params *common.FlatSet) {}
+func (c *Controller) SetContractWhiteList(params *treeset.Set) {}
+func (c *Controller) SetContractBlackList(params *treeset.Set) {}
 
-func (c *Controller) SetActionBlackList(params *common.FlatSet) {}
+func (c *Controller) SetActionBlackList(params *treeset.Set) {}
 
-func (c *Controller) SetKeyBlackList(params *common.FlatSet) {}
+func (c *Controller) SetKeyBlackList(params *treeset.Set) {}

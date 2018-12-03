@@ -226,3 +226,7 @@ func (p PublicKey) GetKey() []byte {
 	sl, _ := p.MarshalJSON()
 	return sl
 }
+
+func ComparePubKey(first interface{}, second interface{}) int {
+	return bytes.Compare(first.(PublicKey).GetKey(), second.(PublicKey).GetKey())
+}

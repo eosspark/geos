@@ -2,6 +2,7 @@ package chain
 
 import (
 	"fmt"
+	"github.com/eosspark/container/sets/treeset"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	arithmetic "github.com/eosspark/eos-go/common/arithmetic_types"
@@ -41,7 +42,7 @@ type ApplyContext struct {
 	InlineActions        []types.Action
 	CfaInlineActions     []types.Action
 	PendingConsoleOutput string
-	AccountRamDeltas     common.FlatSet
+	AccountRamDeltas     treeset.Set
 	ilog                 log.Logger
 }
 
@@ -71,7 +72,7 @@ func NewApplyContext(control *Controller, trxContext *TransactionContext, act *t
 
 	applyContext.idx64 = NewIdx64(applyContext)
 	applyContext.idxDouble = NewIdxDouble(applyContext)
-
+	applyContext.AccountRamDeltas = *treeset.NewWith(types.CompareAccountDelta)
 	applyContext.ilog = log.New("Apply_Context")
 	//applyContext.ilog.SetHandler(log.StreamHandler(os.Stdout, log.TerminalFormat(true)))
 	logHandler := log.StreamHandler(os.Stdout, log.TerminalFormat(true))
@@ -243,7 +244,6 @@ func (a *ApplyContext) execOne(trace *types.ActionTrace) {
 			}
 			native(a)
 		}
-
 		if len(action.Code) > 0 &&
 			!(a.Act.Account == common.DefaultConfig.SystemAccountName && a.Act.Name == common.ActionName(common.N("setcode")) &&
 				a.Receiver == common.DefaultConfig.SystemAccountName) {
@@ -420,15 +420,15 @@ func (a *ApplyContext) ExecuteInline(act *types.Action) {
 
 	if !a.Control.SkipAuthCheck() && !a.Privileged && act.Account != a.Receiver {
 
-		f := a.TrxContext.CheckTime
-		fs := common.FlatSet{}
+		/*f := a.TrxContext.CheckTime
+		fs := treeset.Set{}
 		fs.Insert(&types.PermissionLevel{a.Receiver, common.DefaultConfig.EosioCodeName})
 		a.Control.GetAuthorizationManager().CheckAuthorization([]*types.Action{act},
-			&common.FlatSet{},
-			&fs,
+			&treeset.Set,
+			&treeset.Set,
 			common.Microseconds(a.Control.PendingBlockTime()-a.TrxContext.Published),
 			&f,
-			false)
+			false)*/
 
 	}
 
@@ -1031,7 +1031,7 @@ func (a *ApplyContext) AddRamUsage(account common.AccountName, ramDelta int64) {
 	a.TrxContext.AddRamUsage(account, ramDelta)
 
 	accountDelta := types.AccountDelta{account, ramDelta}
-	a.AccountRamDeltas.Insert(&accountDelta)
+	a.AccountRamDeltas.AddItem(accountDelta)
 	//p, ok := a.AccountRamDeltas.Insert(&accountDelta)
 	//if !ok {
 	//	p.(*types.AccountDelta).Delta += ramDelta
