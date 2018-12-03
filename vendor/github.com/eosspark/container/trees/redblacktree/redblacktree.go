@@ -137,6 +137,61 @@ func (tree *Tree) Put(key interface{}, value interface{}) {
 	tree.size++
 }
 
+func (tree *Tree) PutItem(key interface{}, value interface{}) (bool , interface{},interface{}){
+	var resultOpt bool
+	var resultKey interface{}
+	var resultValue interface{}
+
+	var insertedNode *Node
+	if tree.Root == nil {
+		// Assert key is of comparator's type for initial tree
+		tree.Comparator(key, key)
+		tree.Root = &Node{Key: key, Value: value, color: red}
+		insertedNode = tree.Root
+		resultOpt = true
+		resultKey = key
+		resultValue = value
+	} else {
+		node := tree.Root
+		loop := true
+		for loop {
+			compare := tree.Comparator(key, node.Key)
+			switch {
+			case compare == 0:
+				resultOpt=false
+				resultKey = key
+				resultValue = value
+			case compare < 0:
+				if node.Left == nil {
+					node.Left = &Node{Key: key, Value: value, color: red}
+					insertedNode = node.Left
+					loop = false
+				} else {
+					node = node.Left
+				}
+				resultOpt=true
+				resultKey = key
+				resultValue = value
+			case compare > 0:
+				if node.Right == nil {
+					node.Right = &Node{Key: key, Value: value, color: red}
+					insertedNode = node.Right
+					loop = false
+				} else {
+					node = node.Right
+				}
+				resultOpt=true
+				resultKey = key
+				resultValue = value
+			}
+		}
+		insertedNode.Parent = node
+	}
+	tree.insertCase1(insertedNode)
+	tree.size++
+	return resultOpt,resultKey,resultValue
+}
+
 func (tree *Tree) MultiPut(key interface{}, value interface{}) {
 	var insertedNode *Node
 	if tree.Root == nil {
