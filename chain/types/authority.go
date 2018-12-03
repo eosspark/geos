@@ -166,38 +166,33 @@ func (auth Authority) String() string {
 	return "{ " + ThresholdStr + ", " + KeysStr + ", " + AccountsStr + ", " + WaitsStr + "}"
 }
 
-func (keys KeyWeight) Equals(keyss KeyWeight) bool {
-	return true
-}
-
-func (accounts PermissionLevelWeight) Equals(accountss PermissionLevelWeight) bool {
-	return true
-}
-
-func (waits WaitWeight) Equals(waitss WaitWeight) bool {
-	return true
-}
-
-
 func (auth Authority) Equals(author Authority) bool {
-	return true
+	return auth.ToSharedAuthority().Equals(author.ToSharedAuthority())
 }
 
 func (sharedAuth SharedAuthority) Equals(sharedAuthor SharedAuthority) bool {
-	if sharedAuth.Threshold == sharedAuthor.Threshold {
-		//if sharedAuth.Keys.Equals(sharedAuthor.Keys) {
-		//	if sharedAuth.Accounts.Equals(sharedAuthor.Accounts) {
-		//		if sharedAuth.Waits.Equals(sharedAuthor.Waits) {
-		//			return true
-		//		}
-		//	}
-		//}
+	if sharedAuth.Threshold != sharedAuthor.Threshold {
+		return false
 	}
-	return false
-}
-
-func (sharedAuth SharedAuthority) Compare(other SharedAuthority){
-
+	if len(sharedAuth.Keys) != len(sharedAuthor.Keys) || len(sharedAuth.Accounts) != len(sharedAuthor.Accounts) || len(sharedAuth.Waits) != len(sharedAuthor.Waits) {
+		return false
+	}
+	for i := range sharedAuth.Keys {
+		if sharedAuth.Keys[i] != sharedAuthor.Keys[i] {
+			return false
+		}
+	}
+	for j := range sharedAuth.Accounts {
+		if sharedAuth.Accounts[j] != sharedAuthor.Accounts[j] {
+			return false
+		}
+	}
+	for k := range sharedAuth.Waits {
+		if sharedAuth.Waits[k] != sharedAuthor.Waits[k] {
+			return false
+		}
+	}
+	return true
 }
 
 func (sharedAuth SharedAuthority) GetBillableSize() uint64 { //TODO
