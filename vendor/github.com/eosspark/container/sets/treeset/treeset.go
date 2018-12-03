@@ -88,6 +88,12 @@ func (set *Set) GetComparator() utils.Comparator {
 	return set.tree.Comparator
 }
 
+// Add adds the item one to the set.Returns false and the interface if it already exists
+func (set *Set) AddItem(item interface{}) (bool,interface{}){
+	opt,k,_:=set.tree.PutItem(item, itemExists)
+	return opt,k
+}
+
 // Add adds the items (one or more) to the set.
 func (set *Set) Add(items ...interface{}) {
 	for _, item := range items {
