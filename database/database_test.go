@@ -1531,8 +1531,8 @@ func getLessObjs(objs []DbTableIdObject, houses []DbHouse, db DataBase) {
 func modifyObjs(db DataBase) {
 
 	obj := DbTableIdObject{ID: 4, Code: 21, Scope: 22, Table: 26, Payer: 27, Count: 25}
-	newobj := DbTableIdObject{ID: 4, Code: 10199, Scope: 22, Table: 26, Payer: 27, Count: 25}
-	for i := 0; i < 10000; i++ {
+	//newobj := DbTableIdObject{ID: 4, Code: 600199, Scope: 22, Table: 26, Payer: 27, Count: 25}
+	for i := 0; i < 360000; i++ {
 		err := db.Modify(&obj, func(object *DbTableIdObject) {
 			object.Code = AccountName(200 + i)
 		})
@@ -1541,17 +1541,17 @@ func modifyObjs(db DataBase) {
 		}
 	}
 
-	obj = DbTableIdObject{}
-	tmp := DbTableIdObject{}
-	obj.ID = 4
-	err := db.Find("id", obj, &tmp)
-	if err != nil {
-		log.Fatalln(err)
-	}
-	if tmp != newobj {
-		logObj(tmp)
-		log.Fatalln("modify test error")
-	}
+	//obj = DbTableIdObject{}
+	//tmp := DbTableIdObject{}
+	//obj.ID = 4
+	//err := db.Find("id", obj, &tmp)
+	//if err != nil {
+	//	log.Fatalln(err)
+	//}
+	//if tmp != newobj {
+	//	logObj(tmp)
+	//	log.Fatalln("modify test error")
+	//}
 }
 
 func findObjs(objs []DbTableIdObject, houses []DbHouse, db DataBase) {

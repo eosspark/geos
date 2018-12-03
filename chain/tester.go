@@ -1,9 +1,11 @@
 package chain
 
 import (
+	"bytes"
 	"fmt"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
+	"github.com/eosspark/eos-go/crypto"
 	abi "github.com/eosspark/eos-go/crypto/abi_serializer"
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/crypto/rlp"
@@ -11,6 +13,7 @@ import (
 	"github.com/eosspark/eos-go/exception"
 	"github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/log"
+	"io/ioutil"
 	"math"
 )
 
@@ -30,6 +33,7 @@ type BaseTester struct {
 func newBaseTester(control *Controller) *BaseTester {
 	btInstance := &BaseTester{}
 	btInstance.Control = control
+	btInstance.Cfg = control.Config
 	btInstance.initBase(true, SPECULATIVE)
 	return btInstance
 }
@@ -37,19 +41,19 @@ func newBaseTester(control *Controller) *BaseTester {
 func (t *BaseTester) initBase(pushGenesis bool, mode DBReadMode) {
 	t.DefaultExpirationDelta = 6
 	t.DefaultBilledCpuTimeUs = 2000
-	t.Cfg.blocksDir = common.DefaultConfig.DefaultBlocksDirName
-	t.Cfg.stateDir = common.DefaultConfig.DefaultStateDirName
-	t.Cfg.stateSize = 1024 * 1024 * 8
-	t.Cfg.stateGuardSize = 0
-	t.Cfg.reversibleCacheSize = 1024 * 1024 * 8
-	t.Cfg.reversibleGuardSize = 0
-	t.Cfg.contractsConsole = true
-	t.Cfg.readMode = mode
+	t.Cfg.BlocksDir = common.DefaultConfig.DefaultBlocksDirName
+	t.Cfg.StateDir = common.DefaultConfig.DefaultStateDirName
+	t.Cfg.StateSize = 1024 * 1024 * 8
+	t.Cfg.StateGuardSize = 0
+	t.Cfg.ReversibleCacheSize = 1024 * 1024 * 8
+	t.Cfg.ReversibleGuardSize = 0
+	t.Cfg.ContractsConsole = true
+	t.Cfg.ReadMode = mode
 	t.ChainTransactions = make(map[common.BlockIdType]types.TransactionReceipt)
 	t.LastProducedBlock = make(map[common.AccountName]common.BlockIdType)
 
-	t.Cfg.genesis.InitialTimestamp, _ = common.FromIsoString("2020-01-01T00:00:00.000")
-	//t.Cfg.genesis.InitialKey = t.GetPublicKeys(common.DefaultConfig.SystemAccountName, "active")
+	t.Cfg.Genesis.InitialTimestamp, _ = common.FromIsoString("2020-01-01T00:00:00.000")
+	t.Cfg.Genesis.InitialKey = t.getPublicKey(common.DefaultConfig.SystemAccountName, "active")
 
 	t.open()
 	if pushGenesis {
@@ -85,8 +89,18 @@ func (t BaseTester) PushBlock(b *types.SignedBlock) *types.SignedBlock {
 }
 
 func (t BaseTester) pushGenesisBlock() {
-	//t.setCode()
-	//t.setAbi()
+	wasmName := "../wasmgo/testdata_context/eosio.bios.wasm"
+	code, err := ioutil.ReadFile(wasmName)
+	if err != nil {
+		log.Error("pushGenesisBlock is err : %v", err)
+	}
+	t.SetCode(common.DefaultConfig.SystemAccountName, code, nil)
+	abiName := "../wasmgo/testdata_context/eosio.bios.abi"
+	abi, err := ioutil.ReadFile(abiName)
+	if err != nil {
+		log.Error("pushGenesisBlock is err : %v", err)
+	}
+	t.SetAbi(common.DefaultConfig.SystemAccountName, abi, nil)
 }
 
 func (t BaseTester) ProduceBlocks(n uint32, empty bool) {
@@ -193,8 +207,8 @@ func (t BaseTester) createAccount(name common.AccountName, creator common.Accoun
 	if multiSig {
 		ownerAuth = types.Authority{
 			Threshold: 2,
-			Keys: []types.KeyWeight{{Key:t.getPublicKey(name, "owner"), Weight:1}},
-			Accounts: []types.PermissionLevelWeight{{Permission:types.PermissionLevel{Actor:creator, Permission:common.DefaultConfig.ActiveName},Weight:1}},
+			Keys:      []types.KeyWeight{{Key: t.getPublicKey(name, "owner"), Weight: 1}},
+			Accounts:  []types.PermissionLevelWeight{{Permission: types.PermissionLevel{Actor: creator, Permission: common.DefaultConfig.ActiveName}, Weight: 1}},
 		}
 	} else {
 		ownerAuth = types.NewAuthority(t.getPublicKey(name, "owner"), 0)
@@ -212,7 +226,7 @@ func (t BaseTester) createAccount(name common.AccountName, creator common.Accoun
 			Weight:     types.WeightType(ownerAuth.Threshold),
 		})
 		sortPermissions(&ownerAuth)
-		activeAuth.Accounts = append(ownerAuth.Accounts, types.PermissionLevelWeight{
+		activeAuth.Accounts = append(activeAuth.Accounts, types.PermissionLevelWeight{
 			Permission: types.PermissionLevel{Actor: name, Permission: common.DefaultConfig.EosioCodeName},
 			Weight:     types.WeightType(activeAuth.Threshold),
 		})
@@ -243,7 +257,7 @@ func (t BaseTester) createAccount(name common.AccountName, creator common.Accoun
 func (t BaseTester) PushTransaction(trx *types.SignedTransaction, deadline common.TimePoint, billedCpuTimeUs uint32) (trace *types.TransactionTrace) {
 	_, r := false, (*types.TransactionTrace)(nil)
 	try.Try(func() {
-		if t.Control.PendingBlockState() != nil {
+		if t.Control.PendingBlockState() == nil {
 			t.startBlock(t.Control.HeadBlockTime() + common.TimePoint(common.DefaultConfig.BlockIntervalUs))
 		}
 		c := common.CompressionNone
@@ -329,11 +343,14 @@ func (t BaseTester) GetAction(code common.AccountName, actType common.AccountNam
 }
 
 func (t BaseTester) getPrivateKey(keyName common.Name, role string) ecc.PrivateKey {
-	//TODO: wait for testing
-	//rawPrivKey := crypto.Hash256(keyName.String() + role).Bytes()
-	//g := bytes.NewReader(rawPrivKey)
-	//pk, _ := ecc.NewDeterministicPrivateKey(g)
-	pk, _ := ecc.NewPrivateKey("5KYZdUEo39z3FPrtuX2QbbwGnNP5zTd7yyr2SC1j299sBCnWjss")
+	pk := &ecc.PrivateKey{}
+	if keyName == common.DefaultConfig.SystemAccountName {
+		pk, _ = ecc.NewPrivateKey("5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3")
+	} else {
+		rawPrivKey := crypto.Hash256(keyName.String() + role).Bytes()
+		g := bytes.NewReader(rawPrivKey)
+		pk, _ = ecc.NewDeterministicPrivateKey(g)
+	}
 	return *pk
 }
 
@@ -374,13 +391,13 @@ func (t BaseTester) PushReqAuth(from common.AccountName, auths *[]types.Permissi
 }
 
 func (t BaseTester) PushReqAuth2(from common.AccountName, role string, multiSig bool) *types.TransactionTrace {
-	if !multiSig {
+	if multiSig {
 		auths := []types.PermissionLevel{{Actor: from, Permission: common.DefaultConfig.OwnerName}}
-		keys := []ecc.PrivateKey{t.getPrivateKey(from, role)}
+		keys := []ecc.PrivateKey{t.getPrivateKey(from, role), t.getPrivateKey(common.DefaultConfig.SystemAccountName, "active")}
 		return t.PushReqAuth(from, &auths, &keys)
 	} else {
 		auths := []types.PermissionLevel{{Actor: from, Permission: common.DefaultConfig.OwnerName}}
-		keys := []ecc.PrivateKey{t.getPrivateKey(from, role), t.getPrivateKey(common.DefaultConfig.SystemAccountName, "active")}
+		keys := []ecc.PrivateKey{t.getPrivateKey(from, role)}
 		return t.PushReqAuth(from, &auths, &keys)
 	}
 }
@@ -424,7 +441,7 @@ func (t BaseTester) LinkAuthority(account common.AccountName, code common.Accoun
 	link := linkAuth{Account: account, Code: code, Type: rtype, Requirement: req}
 	data, _ := rlp.EncodeToBytes(link)
 	act := types.Action{
-		Account:       link.getName(),
+		Account:       link.getAccount(),
 		Name:          link.getName(),
 		Authorization: []types.PermissionLevel{{account, common.DefaultConfig.ActiveName}},
 		Data:          data,
@@ -442,7 +459,7 @@ func (t BaseTester) UnlinkAuthority(account common.AccountName, code common.Acco
 	unlink := unlinkAuth{Account: account, Code: code, Type: rtype}
 	data, _ := rlp.EncodeToBytes(unlink)
 	act := types.Action{
-		Account:       unlink.getName(),
+		Account:       unlink.getAccount(),
 		Name:          unlink.getName(),
 		Authorization: []types.PermissionLevel{{account, common.DefaultConfig.ActiveName}},
 		Data:          data,
@@ -461,7 +478,7 @@ func (t BaseTester) SetAuthority(account common.AccountName, perm common.Permiss
 	update := updateAuth{Account: account, Permission: perm, Parent: parent, Auth: auth}
 	data, _ := rlp.EncodeToBytes(update)
 	act := types.Action{
-		Account:       update.getName(),
+		Account:       update.getAccount(),
 		Name:          update.getName(),
 		Authorization: *auths,
 		Data:          data,
@@ -487,7 +504,7 @@ func (t BaseTester) DeleteAuthority(account common.AccountName, perm common.Perm
 	delete := deleteAuth{Account: account, Permission: perm}
 	data, _ := rlp.EncodeToBytes(delete)
 	act := types.Action{
-		Account:       delete.getName(),
+		Account:       delete.getAccount(),
 		Name:          delete.getName(),
 		Authorization: *auths,
 		Data:          data,
@@ -512,7 +529,7 @@ func (t BaseTester) SetCode(account common.AccountName, wasm []uint8, signer *ec
 	setCode := setCode{Account: account, VmType: 0, VmVersion: 0, Code: wasm}
 	data, _ := rlp.EncodeToBytes(setCode)
 	act := types.Action{
-		Account:       setCode.getName(),
+		Account:       setCode.getAccount(),
 		Name:          setCode.getName(),
 		Authorization: []types.PermissionLevel{{account, common.DefaultConfig.ActiveName}},
 		Data:          data,
@@ -533,15 +550,18 @@ func (t BaseTester) SetCode2(account common.AccountName, wast *byte, signer *ecc
 	//t.SetCode(account, wastToWasm(wast), signer)
 }
 
-func (t BaseTester) SetAbi(account common.AccountName, abiJson *byte, signer *ecc.PrivateKey) {
-	// abi := fc::json::from_string(abi_json).template as<abi_def>()
-	abi := abi.AbiDef{}
+func (t BaseTester) SetAbi(account common.AccountName, abiJson []byte, signer *ecc.PrivateKey) {
+	abiEt := abi.AbiDef{}
+	ok := abi.ToABI(abiJson, &abiEt)
+	if !ok {
+		log.Error("error")
+	}
 	trx := types.SignedTransaction{}
-	abiBytes, _ := rlp.EncodeToBytes(abi)
+	abiBytes, _ := rlp.EncodeToBytes(abiEt)
 	setAbi := setAbi{Account: account, Abi: abiBytes}
 	data, _ := rlp.EncodeToBytes(setAbi)
 	act := types.Action{
-		Account:       setAbi.getName(),
+		Account:       account,
 		Name:          setAbi.getName(),
 		Authorization: []types.PermissionLevel{{account, common.DefaultConfig.ActiveName}},
 		Data:          data,

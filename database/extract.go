@@ -45,8 +45,9 @@ tag
 //// TODO A separate module for external use in the future
 type structInfo struct {
 	Name   string
-	Id     *reflect.Value
+	rId     *reflect.Value //TODO delete
 	Fields map[string]*fieldInfo
+	id_		int64
 }
 
 func isZero(v *reflect.Value) bool {
@@ -168,6 +169,7 @@ func extractObjectTagInfo(s *reflect.Value, mi ...*structInfo) (*structInfo, err
 		}
 	}
 
+	m.id_ = 1
 	for tag, _ := range m.Fields {
 		if len(m.Fields[tag].fieldValue) == 1 {
 			m.Fields[tag].unique = true
@@ -226,8 +228,10 @@ func extractIdTag(tags []string, fieldValue *reflect.Value, m *structInfo) error
 		if subTag == tagIncrement {
 			continue
 		}
+
 		f := fieldInfo{}
-		m.Id = fieldValue
+		m.rId = fieldValue
+
 		addFieldInfo(subTag, tagID, fieldValue, &f, m)
 
 	}
@@ -315,9 +319,10 @@ type kv struct {
 }
 
 type dbKeyValue struct {
-	id       kv
+	idk       kv
 	index    []kv
 	typeName []byte
+	id 		 int64
 }
 
 func (kv *kv) showKV() {
@@ -327,7 +332,7 @@ func (kv *kv) showKV() {
 
 func (dbKV *dbKeyValue) showDbKV() {
 	fmt.Println("--------------------- show db kv begin ---------------------")
-	dbKV.id.showKV()
+	dbKV.idk.showKV()
 	for _, v := range dbKV.index {
 		v.showKV()
 	}
@@ -341,7 +346,7 @@ func structKV(in interface{}, dbKV *dbKeyValue, cfg *structInfo) error {
 	if err != nil {
 		return err
 	}
-	objId, err := EncodeToBytes(cfg.Id.Interface())
+	objId, err := EncodeToBytes(cfg.rId.Interface())
 	if err != nil {
 		return err
 	}
@@ -350,7 +355,7 @@ func structKV(in interface{}, dbKV *dbKeyValue, cfg *structInfo) error {
 	kv_ := kv{}
 	kv_.key = idk
 	kv_.value = objValue
-	dbKV.id = kv_
+	dbKV.idk = kv_
 	dbKV.typeName = []byte(cfg.Name)
 
 	err = cfgToKV(objId, cfg, dbKV)
@@ -363,9 +368,10 @@ func structKV(in interface{}, dbKV *dbKeyValue, cfg *structInfo) error {
 
 func cfgToKV(objId []byte, cfg *structInfo, dbKV *dbKeyValue) error{
 
-	typeName := []byte(cfg.Name)
+	//typeName := []byte(cfg.Name)
 
 	for tag, fieldCfg := range cfg.Fields {
+		typeName := []byte(cfg.Name)
 		prefix := append(typeName, '_') 					/* 			typeName__ 				*/
 		prefix = append(prefix, '_')
 		prefix = append(prefix, tag...) 						/* 			typeName__tagName__ 	*/

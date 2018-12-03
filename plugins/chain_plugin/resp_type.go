@@ -7,7 +7,6 @@ import (
 	"github.com/eosspark/eos-go/crypto"
 	abi "github.com/eosspark/eos-go/crypto/abi_serializer"
 	"github.com/eosspark/eos-go/crypto/ecc"
-	"github.com/eosspark/eos-go/plugins/net_plugin"
 )
 
 type InfoResp struct {
@@ -333,20 +332,20 @@ type MyStruct struct {
 	Balance uint64
 }
 
-// NetConnectionResp
-type NetConnectionsResp struct {
-	Peer          string                      `json:"peer"`
-	Connecting    bool                        `json:"connecting"`
-	Syncing       bool                        `json:"syncing"`
-	LastHandshake net_plugin.HandshakeMessage `json:"last_handshake"`
-}
+//// NetConnectionResp
+//type NetConnectionsResp struct {
+//	Peer          string                      `json:"peer"`
+//	Connecting    bool                        `json:"connecting"`
+//	Syncing       bool                        `json:"syncing"`
+//	LastHandshake net_plugin.HandshakeMessage `json:"last_handshake"`
+//}
 
-type NetStatusResp struct {
-}
-
-type NetConnectResp string
-
-type NetDisconnectResp string
+//type NetStatusResp struct {
+//}
+//
+//type NetConnectResp string
+//
+//type NetDisconnectResp string
 
 // type Global struct {
 // 	MaxBlockNetUsage               int              `json:"max_block_net_usage"`

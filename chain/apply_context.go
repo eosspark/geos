@@ -2,6 +2,7 @@ package chain
 
 import (
 	"fmt"
+	"github.com/eosspark/container/sets/treeset"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	arithmetic "github.com/eosspark/eos-go/common/arithmetic_types"
@@ -12,6 +13,7 @@ import (
 	. "github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/log"
+	"os"
 )
 
 type ApplyContext struct {
@@ -40,7 +42,7 @@ type ApplyContext struct {
 	InlineActions        []types.Action
 	CfaInlineActions     []types.Action
 	PendingConsoleOutput string
-	AccountRamDeltas     common.FlatSet
+	AccountRamDeltas     treeset.Set
 	ilog                 log.Logger
 }
 
@@ -70,9 +72,12 @@ func NewApplyContext(control *Controller, trxContext *TransactionContext, act *t
 
 	applyContext.idx64 = NewIdx64(applyContext)
 	applyContext.idxDouble = NewIdxDouble(applyContext)
-
+	applyContext.AccountRamDeltas = *treeset.NewWith(types.CompareAccountDelta)
 	applyContext.ilog = log.New("Apply_Context")
 	//applyContext.ilog.SetHandler(log.StreamHandler(os.Stdout, log.TerminalFormat(true)))
+	logHandler := log.StreamHandler(os.Stdout, log.TerminalFormat(true))
+	applyContext.ilog.SetHandler(log.LvlFilterHandler(log.LvlDebug, logHandler))
+	//applyContext.ilog.SetHandler(log.LvlFilterHandler(log.LvlInfo, logHandler))
 
 	return applyContext
 
@@ -230,7 +235,7 @@ func (a *ApplyContext) execOne(trace *types.ActionTrace) {
 		a.Privileged = action.Privileged
 		native := a.Control.FindApplyHandler(a.Receiver, a.Act.Account, a.Act.Name)
 
-		a.ilog.Info("receiver:%v account:%v action:%v data:%v", a.Receiver, a.Act.Account, a.Act.Name, a.Act.Data)
+		a.ilog.Debug("receiver:%v account:%v action:%v data:%v", a.Receiver, a.Act.Account, a.Act.Name, a.Act.Data)
 
 		if native != nil {
 			if a.TrxContext.CanSubjectivelyFail && a.Control.IsProducingBlock() {
@@ -239,7 +244,6 @@ func (a *ApplyContext) execOne(trace *types.ActionTrace) {
 			}
 			native(a)
 		}
-
 		if len(action.Code) > 0 &&
 			!(a.Act.Account == common.DefaultConfig.SystemAccountName && a.Act.Name == common.ActionName(common.N("setcode")) &&
 				a.Receiver == common.DefaultConfig.SystemAccountName) {
@@ -380,16 +384,25 @@ func (a *ApplyContext) RequireRecipient(recipient int64) {
 		a.Notified = append(a.Notified, common.AccountName(recipient))
 	}
 
-	a.ilog.Info("Notified:%v", a.Notified)
+	a.ilog.Debug("Notified:%v", a.Notified)
 }
 
 //context transaction api
-func (a *ApplyContext) ExecuteInline(action []byte) {
+func (a *ApplyContext) InlineActionTooBig(dataLen int) bool {
+	if uint32(dataLen) > a.Control.GetGlobalProperties().Configuration.MaxInlineActionSize {
+		return true
+	}
+	return false
 
-	act := types.Action{}
-	rlp.DecodeBytes(action, &act)
+}
 
-	a.ilog.Info("action:%v", act)
+//func (a *ApplyContext) ExecuteInline(action []byte) {
+func (a *ApplyContext) ExecuteInline(act *types.Action) {
+
+	// act := types.Action{}
+	// rlp.DecodeBytes(action, &act)
+
+	a.ilog.Debug("action:%v", act)
 
 	code := entity.AccountObject{Name: act.Account}
 	err := a.DB.Find("byName", code, &code)
@@ -407,25 +420,27 @@ func (a *ApplyContext) ExecuteInline(action []byte) {
 
 	if !a.Control.SkipAuthCheck() && !a.Privileged && act.Account != a.Receiver {
 
-		f := a.TrxContext.CheckTime
-		fs := common.FlatSet{}
+		/*f := a.TrxContext.CheckTime
+		fs := treeset.Set{}
 		fs.Insert(&types.PermissionLevel{a.Receiver, common.DefaultConfig.EosioCodeName})
-		a.Control.GetAuthorizationManager().CheckAuthorization([]*types.Action{&act},
-			&common.FlatSet{},
-			&fs,
+		a.Control.GetAuthorizationManager().CheckAuthorization([]*types.Action{act},
+			&treeset.Set,
+			&treeset.Set,
 			common.Microseconds(a.Control.PendingBlockTime()-a.TrxContext.Published),
 			&f,
-			false)
+			false)*/
 
 	}
 
-	a.InlineActions = append(a.InlineActions, act)
+	a.InlineActions = append(a.InlineActions, *act)
 
 }
-func (a *ApplyContext) ExecuteContextFreeInline(action []byte) {
 
-	act := types.Action{}
-	rlp.DecodeBytes(action, &act)
+//func (a *ApplyContext) ExecuteContextFreeInline(action []byte) {
+func (a *ApplyContext) ExecuteContextFreeInline(act *types.Action) {
+
+	// act := types.Action{}
+	// rlp.DecodeBytes(action, &act)
 	code := entity.AccountObject{Name: act.Account}
 	err := a.DB.Find("byName", code, &code)
 	EosAssert(err != nil, &ActionValidateException{},
@@ -434,10 +449,11 @@ func (a *ApplyContext) ExecuteContextFreeInline(action []byte) {
 	EosAssert(len(act.Authorization) == 0, &ActionValidateException{},
 		"context-free actions cannot have authorizations")
 
-	a.CfaInlineActions = append(a.CfaInlineActions, act)
+	a.CfaInlineActions = append(a.CfaInlineActions, *act)
 }
 
-func (a *ApplyContext) ScheduleDeferredTransaction(sendId *arithmetic.Uint128, payer common.AccountName, trx []byte, replaceExisting bool) {
+//func (a *ApplyContext) ScheduleDeferredTransaction(sendId *arithmetic.Uint128, payer common.AccountName, trx []byte, replaceExisting bool) {
+func (a *ApplyContext) ScheduleDeferredTransaction(sendId *arithmetic.Uint128, payer common.AccountName, trx *types.Transaction, replaceExisting bool) {
 }
 func (a *ApplyContext) CancelDeferredTransaction2(sendId *arithmetic.Uint128, sender common.AccountName) bool {
 	return false
@@ -455,11 +471,12 @@ func (a *ApplyContext) FindTable(code uint64, scope uint64, table uint64) *entit
 
 	err := a.DB.Find("byCodeScopeTable", tab, &tab)
 	if err == nil {
+		a.ilog.Debug("id:%d code:%v scope:%v table:%v payer:%v count:%d", tab.ID, tab.Code, tab.Scope, tab.Table, tab.Payer, tab.Count)
 		return &tab
 	}
 
 	//scopeBytes, _ := rlp.EncodeToBytes(tab.Scope)
-	//a.ilog.Info("id:%d code:%v scope:%v table:%v payer:%v count:%d", tab.ID, tab.Code, scopeBytes, tab.Table, tab.Payer, tab.Count)
+	//a.ilog.Debug(("table:%v"), tab)
 	return nil
 }
 func (a *ApplyContext) FindOrCreateTable(code uint64, scope uint64, table uint64, payer uint64) *entity.TableIdObject {
@@ -477,8 +494,8 @@ func (a *ApplyContext) FindOrCreateTable(code uint64, scope uint64, table uint64
 	a.DB.Insert(&tab)
 
 	//scopeBytes, _ := rlp.EncodeToBytes(tab.Scope)
-	//a.ilog.Info("id:%d code:%v scope:%v table:%v payer:%v count:%d", tab.ID, tab.Code, scopeBytes, tab.Table, tab.Payer, tab.Count)
-
+	a.ilog.Debug("id:%d code:%v scope:%v table:%v payer:%v count:%d", tab.ID, tab.Code, tab.Scope, tab.Table, tab.Payer, tab.Count)
+	//a.ilog.Debug(("table:%v"), tab)
 	return &tab
 }
 func (a *ApplyContext) RemoveTable(tid entity.TableIdObject) {
@@ -533,13 +550,18 @@ func (a *ApplyContext) ContextAppend(str string) { a.PendingConsoleOutput += str
 
 //func (a *ApplyContext) GetActiveProducers() []common.AccountName { return }
 
-func (a *ApplyContext) GetPackedTransaction() []byte {
-	bytes, err := rlp.EncodeToBytes(a.TrxContext.Trx)
-	if err != nil {
-		return []byte{}
-	}
-	return bytes
+// func (a *ApplyContext) GetPackedTransaction() []byte {
+// 	bytes, err := rlp.EncodeToBytes(a.TrxContext.Trx)
+// 	if err != nil {
+// 		return []byte{}
+// 	}
+// 	return bytes
+// }
+
+func (a *ApplyContext) GetPackedTransaction() *types.SignedTransaction {
+	return a.TrxContext.Trx
 }
+
 func (a *ApplyContext) UpdateDbUsage(payer common.AccountName, delta int64) {
 	if delta > 0 {
 		if !a.Privileged || payer == a.Receiver {
@@ -555,31 +577,54 @@ func (a *ApplyContext) UpdateDbUsage(payer common.AccountName, delta int64) {
 	a.AddRamUsage(payer, delta)
 
 }
-func (a *ApplyContext) GetAction(typ uint32, index int, bufferSize int) (int, []byte) {
+
+// func (a *ApplyContext) GetAction(typ uint32, index int, bufferSize int) (int, []byte) {
+// 	trx := a.TrxContext.Trx
+// 	var a_ptr *types.Action
+// 	if typ == 0 {
+// 		if index >= len(trx.ContextFreeActions) {
+// 			return -1, nil
+// 		}
+// 		a_ptr = trx.ContextFreeActions[index]
+// 	} else if typ == 1 {
+// 		if index >= len(trx.Actions) {
+// 			return -1, nil
+// 		}
+// 		a_ptr = trx.Actions[index]
+// 	}
+
+// 	EosAssert(a_ptr != nil, &ActionNotFoundException{}, "action is not found")
+
+// 	s, _ := rlp.EncodeSize(a_ptr)
+// 	if s <= bufferSize {
+// 		bytes, _ := rlp.EncodeToBytes(a_ptr)
+// 		return s, bytes
+// 	}
+// 	return s, nil
+
+// }
+
+func (a *ApplyContext) GetAction(typ uint32, index int) *types.Action {
 	trx := a.TrxContext.Trx
 	var a_ptr *types.Action
 	if typ == 0 {
 		if index >= len(trx.ContextFreeActions) {
-			return -1, nil
+			return nil
 		}
 		a_ptr = trx.ContextFreeActions[index]
 	} else if typ == 1 {
 		if index >= len(trx.Actions) {
-			return -1, nil
+			return nil
 		}
 		a_ptr = trx.Actions[index]
 	}
 
 	EosAssert(a_ptr != nil, &ActionNotFoundException{}, "action is not found")
 
-	s, _ := rlp.EncodeSize(a_ptr)
-	if s <= bufferSize {
-		bytes, _ := rlp.EncodeToBytes(a_ptr)
-		return s, bytes
-	}
-	return s, nil
+	return a_ptr
 
 }
+
 func (a *ApplyContext) GetContextFreeData(index int, bufferSize int) (int, []byte) {
 
 	trx := a.TrxContext.Trx
@@ -600,6 +645,10 @@ func (a *ApplyContext) DbStoreI64(scope uint64, table uint64, payer uint64, id u
 	return a.dbStoreI64(uint64(a.Receiver), scope, table, payer, id, buffer)
 }
 func (a *ApplyContext) dbStoreI64(code uint64, scope uint64, table uint64, payer uint64, id uint64, buffer []byte) int {
+
+	//a.ilog.Debug("code:%v scope:%v table:%v payer:%v id:%d buffer:%v",
+	//	 common.AccountName(code), common.ScopeName(scope), common.TableName(table), common.AccountName(payer), id, buffer)
+
 	tab := a.FindOrCreateTable(code, scope, table, payer)
 	tid := tab.ID
 
@@ -622,8 +671,11 @@ func (a *ApplyContext) dbStoreI64(code uint64, scope uint64, table uint64, payer
 	a.UpdateDbUsage(common.AccountName(payer), billableSize)
 	a.KeyvalCache.cacheTable(tab)
 	iteratorOut := a.KeyvalCache.add(&obj)
-	//a.ilog.Info("object:%v iteratorOut:%d code:%v scope:%v table:%v payer:%v id:%d buffer:%v",
-	//	obj, iteratorOut, common.AccountName(code), common.ScopeName(scope), common.TableName(table), common.AccountName(payer), id, buffer)
+
+	//a.ilog.Debug("object:%v iteratorOut:%d code:%v scope:%v table:%v payer:%v id:%d",
+	//	obj, iteratorOut, common.AccountName(code), common.ScopeName(scope), common.TableName(table), common.AccountName(payer), id)
+
+	a.ilog.Debug("object:%v iteratorOut:%d", obj, iteratorOut)
 	return iteratorOut
 }
 func (a *ApplyContext) DbUpdateI64(iterator int, payer uint64, buffer []byte) {
@@ -631,7 +683,9 @@ func (a *ApplyContext) DbUpdateI64(iterator int, payer uint64, buffer []byte) {
 	obj := (a.KeyvalCache.get(iterator)).(*entity.KeyValueObject)
 	objTable := a.KeyvalCache.getTable(obj.TId)
 
-	//a.ilog.Info("object:%v iterator:%d payer:%v buffer:%v", *obj, iterator, common.AccountName(payer), buffer)
+	a.ilog.Debug("object:%v iteratorIn:%d payer:%v", *obj, iterator, payer)
+	a.ilog.Debug("buffer:%v iterator:%d payer:%v", buffer, iterator, payer)
+
 	EosAssert(objTable.Code == a.Receiver, &TableAccessViolation{}, "db access violation")
 
 	overhead := common.BillableSizeV("key_value_object")
@@ -668,7 +722,7 @@ func (a *ApplyContext) DbRemoveI64(iterator int) {
 		t.Count--
 	})
 
-	//a.ilog.Info("object:%v iteratorIn:%d ", *obj, iterator)
+	a.ilog.Debug("object:%#v iteratorIn:%d ", *obj, iterator)
 
 	a.DB.Remove(obj)
 	if objTable.Count == 0 {
@@ -688,7 +742,7 @@ func (a *ApplyContext) DbGetI64(iterator int, buffer []byte, bufferSize int) int
 	copySize := int(common.Min(uint64(bufferSize), uint64(s)))
 	copy(buffer[0:copySize], obj.Value[0:copySize])
 
-	//a.ilog.Info("object:%v buffer:%v iteratorIn:%d ", *obj, buffer, iterator)
+	a.ilog.Debug("object:%v iteratorIn:%d ", *obj, iterator)
 	return copySize
 }
 func (a *ApplyContext) DbNextI64(iterator int, primary *uint64) int {
@@ -713,7 +767,7 @@ func (a *ApplyContext) DbNextI64(iterator int, primary *uint64) int {
 
 	*primary = objKeyval.PrimaryKey
 	iteratorOut := a.KeyvalCache.add(&objKeyval)
-	//a.ilog.Info("object:%v iteratorIn:%d iteratorOut:%d", objKeyval, iterator, iteratorOut)
+	a.ilog.Debug("object:%#v iteratorIn:%d iteratorOut:%d", objKeyval, iterator, iteratorOut)
 	return iteratorOut
 }
 
@@ -746,7 +800,7 @@ func (a *ApplyContext) DbPreviousI64(iterator int, primary *uint64) int {
 		//return a.KeyvalCache.add(&objPrev)
 
 		iteratorOut := a.KeyvalCache.add(&objPrev)
-		a.ilog.Info("object:%v iteratorIn:%d iteratorOut:%d", objPrev, iterator, iteratorOut)
+		a.ilog.Info("object:%#v iteratorIn:%d iteratorOut:%d", objPrev, iterator, iteratorOut)
 		return iteratorOut
 	}
 
@@ -766,13 +820,14 @@ func (a *ApplyContext) DbPreviousI64(iterator int, primary *uint64) int {
 
 	*primary = objPrev.PrimaryKey
 	iteratorOut := a.KeyvalCache.add(&objPrev)
-	//a.ilog.Info("object:%v iteratorIn:%d iteratorOut:%d", objPrev, iterator, iteratorOut)
+	a.ilog.Debug("object:%#v iteratorIn:%d iteratorOut:%d", objPrev, iterator, iteratorOut)
 	return iteratorOut
 }
 func (a *ApplyContext) DbFindI64(code uint64, scope uint64, table uint64, id uint64) int {
 
 	tab := a.FindTable(code, scope, table)
 	if tab == nil {
+		a.ilog.Debug("iteratorOut: -1 ")
 		return -1
 	}
 
@@ -783,14 +838,15 @@ func (a *ApplyContext) DbFindI64(code uint64, scope uint64, table uint64, id uin
 		PrimaryKey: uint64(id),
 	}
 	err := a.DB.Find("byScopePrimary", obj, &obj)
-	//a.ilog.Info("object:%v iteratorOut:%d code:%d scope:%d table:%d id:%d", obj, iteratorOut, code, scope, table, id)
+	//a.ilog.Debug("object:%#v iteratorOut:%d code:%d scope:%d table:%d id:%d", obj, iteratorOut, code, scope, table, id)
 
 	if err != nil {
 		return tableEndItr
 	}
 	iteratorOut := a.KeyvalCache.add(&obj)
-	//a.ilog.Info("object:%v iteratorOut:%d code:%v scope:%v table:%v id:%d",
+	//a.ilog.Debug("object:%v iteratorOut:%d code:%v scope:%v table:%v id:%d",
 	//	obj, iteratorOut, common.AccountName(code), common.ScopeName(scope), common.TableName(table), id)
+	a.ilog.Debug("object:%v iteratorOut:%d ", obj, iteratorOut)
 	return iteratorOut
 
 }
@@ -818,8 +874,8 @@ func (a *ApplyContext) DbLowerboundI64(code uint64, scope uint64, table uint64, 
 	}
 
 	iteratorOut := a.KeyvalCache.add(&objLowerbound)
-	//a.ilog.Info("object:%v iteratorOut:%d code:%v scope:%v table:%v id:%d",
-	//	objLowerbound, iteratorOut, common.AccountName(code), common.ScopeName(scope), common.TableName(table), id)
+	a.ilog.Debug("object:%#v iteratorOut:%d code:%v scope:%v table:%v id:%d",
+		objLowerbound, iteratorOut, common.AccountName(code), common.ScopeName(scope), common.TableName(table), id)
 	return iteratorOut
 
 }
@@ -849,14 +905,14 @@ func (a *ApplyContext) DbUpperboundI64(code uint64, scope uint64, table uint64, 
 
 	//return a.KeyvalCache.add(&objUpperbound)
 	iteratorOut := a.KeyvalCache.add(&objUpperbound)
-	//a.ilog.Info("object:%v iteratorOut:%d code:%v scope:%v table:%v id:%d",
-	//	objUpperbound, iteratorOut, common.AccountName(code), common.ScopeName(scope), common.TableName(table), id)
+	a.ilog.Debug("object:%#v iteratorOut:%d code:%v scope:%v table:%v id:%d",
+		objUpperbound, iteratorOut, common.AccountName(code), common.ScopeName(scope), common.TableName(table), id)
 	return iteratorOut
 
 }
 func (a *ApplyContext) DbEndI64(code uint64, scope uint64, table uint64) int {
-	//a.ilog.Info("code:%v scope:%v table:%v ",
-	//	common.AccountName(code), common.ScopeName(scope), common.TableName(table))
+	a.ilog.Debug("code:%v scope:%v table:%v ",
+		common.AccountName(code), common.ScopeName(scope), common.TableName(table))
 
 	tab := a.FindTable(code, scope, table)
 	if tab == nil {
@@ -975,7 +1031,7 @@ func (a *ApplyContext) AddRamUsage(account common.AccountName, ramDelta int64) {
 	a.TrxContext.AddRamUsage(account, ramDelta)
 
 	accountDelta := types.AccountDelta{account, ramDelta}
-	a.AccountRamDeltas.Insert(&accountDelta)
+	a.AccountRamDeltas.AddItem(accountDelta)
 	//p, ok := a.AccountRamDeltas.Insert(&accountDelta)
 	//if !ok {
 	//	p.(*types.AccountDelta).Delta += ramDelta
@@ -983,34 +1039,59 @@ func (a *ApplyContext) AddRamUsage(account common.AccountName, ramDelta int64) {
 
 }
 
-func (a *ApplyContext) Expiration() int       { return int(a.TrxContext.Trx.Expiration) }
-func (a *ApplyContext) TaposBlockNum() int    { return int(a.TrxContext.Trx.RefBlockNum) }
-func (a *ApplyContext) TaposBlockPrefix() int { return int(a.TrxContext.Trx.RefBlockPrefix) }
+// func (a *ApplyContext) Expiration() int       { return int(a.TrxContext.Trx.Expiration) }
+func (a *ApplyContext) Expiration() common.TimePointSec { return a.TrxContext.Trx.Expiration }
+func (a *ApplyContext) TaposBlockNum() int              { return int(a.TrxContext.Trx.RefBlockNum) }
+func (a *ApplyContext) TaposBlockPrefix() int           { return int(a.TrxContext.Trx.RefBlockPrefix) }
 
 //context system api
 func (a *ApplyContext) CheckTime() {
 	a.TrxContext.CheckTime()
 }
-func (a *ApplyContext) CurrentTime() int64 {
-	return a.Control.PendingBlockTime().TimeSinceEpoch().Count()
+
+// func (a *ApplyContext) CurrentTime() int64 {
+// 	return a.Control.PendingBlockTime().TimeSinceEpoch().Count()
+// }
+
+func (a *ApplyContext) CurrentTime() common.TimePoint {
+	return a.Control.PendingBlockTime() //.TimeSinceEpoch().Count()
 }
-func (a *ApplyContext) PublicationTime() int64 {
-	return a.TrxContext.Published.TimeSinceEpoch().Count()
+
+// func (a *ApplyContext) PublicationTime() int64 {
+// 	return a.TrxContext.Published.TimeSinceEpoch().Count()
+// }
+
+func (a *ApplyContext) PublicationTime() common.TimePoint {
+	return a.TrxContext.Published //.TimeSinceEpoch().Count()
 }
 
 //context permission api
-func (a *ApplyContext) GetPermissionLastUsed(account common.AccountName, permission common.PermissionName) int64 {
+// func (a *ApplyContext) GetPermissionLastUsed(account common.AccountName, permission common.PermissionName) int64 {
+
+// 	am := a.Control.GetAuthorizationManager()
+// 	return am.GetPermissionLastUsed(am.GetPermission(&types.PermissionLevel{Actor: account, Permission: permission})).TimeSinceEpoch().Count()
+// }
+// func (a *ApplyContext) GetAccountCreateTime(account common.AccountName) int64 {
+
+// 	obj := entity.AccountObject{Name: account}
+// 	err := a.DB.Find("byName", obj, &obj)
+// 	EosAssert(err != nil, &ActionValidateException{}, "account '%s' does not exist", common.S(uint64(account)))
+
+// 	return obj.CreationDate.ToTimePoint().TimeSinceEpoch().Count()
+// }
+
+func (a *ApplyContext) GetPermissionLastUsed(account common.AccountName, permission common.PermissionName) common.TimePoint {
 
 	am := a.Control.GetAuthorizationManager()
-	return am.GetPermissionLastUsed(am.GetPermission(&types.PermissionLevel{Actor: account, Permission: permission})).TimeSinceEpoch().Count()
+	return am.GetPermissionLastUsed(am.GetPermission(&types.PermissionLevel{Actor: account, Permission: permission}))
 }
-func (a *ApplyContext) GetAccountCreateTime(account common.AccountName) int64 {
+func (a *ApplyContext) GetAccountCreateTime(account common.AccountName) common.TimePoint {
 
 	obj := entity.AccountObject{Name: account}
 	err := a.DB.Find("byName", obj, &obj)
 	EosAssert(err != nil, &ActionValidateException{}, "account '%s' does not exist", common.S(uint64(account)))
 
-	return obj.CreationDate.ToTimePoint().TimeSinceEpoch().Count()
+	return obj.CreationDate.ToTimePoint()
 }
 
 //context privileged api
@@ -1018,15 +1099,18 @@ func (a *ApplyContext) SetResourceLimits(
 	account common.AccountName,
 	ramBytes uint64,
 	netWeight uint64,
-	cpuWeigth uint64) {
+	cpuWeight uint64) bool {
+
+	return false
 
 }
 func (a *ApplyContext) GetResourceLimits(
 	account common.AccountName,
 	ramBytes *uint64,
 	netWeight *uint64,
-	cpuWeigth *uint64) {
+	cpuWeight *uint64) {
 }
+
 func (a *ApplyContext) SetBlockchainParametersPacked(parameters []byte) {
 
 	cfg := common.Config{}
@@ -1039,11 +1123,36 @@ func (a *ApplyContext) SetBlockchainParametersPacked(parameters []byte) {
 	a.Control.GpoCache[g.ID] = g
 }
 
+func (a *ApplyContext) SetBlockchainParameters(cfg *common.Config) {
+
+	//cfg := common.Config{}
+	//rlp.DecodeBytes(parameters, &cfg)
+	g := a.Control.GetGlobalProperties()
+	a.DB.Modify(g, func(gpo *entity.GlobalPropertyObject) {
+		gpo.Configuration = *cfg
+	})
+
+	a.Control.GpoCache[g.ID] = g
+}
+
+func (a *ApplyContext) GetBlockchainParameters() *common.Config {
+
+	gpo := a.Control.GetGlobalProperties()
+	return &gpo.Configuration
+	// bytes, err := rlp.EncodeToBytes(gpo.Configuration)
+	// if err != nil {
+	// 	log.Error("EncodeToBytes is error detail:", err)
+	// 	return nil
+	// }
+	// return bytes
+	//return  nil
+}
+
 func (a *ApplyContext) GetBlockchainParametersPacked() []byte {
 	gpo := a.Control.GetGlobalProperties()
 	bytes, err := rlp.EncodeToBytes(gpo.Configuration)
 	if err != nil {
-		log.Error("EncodeToBytes is error detail:", err)
+		a.ilog.Error("EncodeToBytes is error detail:", err)
 		return nil
 	}
 	return bytes
@@ -1053,7 +1162,7 @@ func (a *ApplyContext) IsPrivileged(n common.AccountName) bool {
 	account := entity.AccountObject{Name: n}
 	err := a.DB.Find("byName", account, &account)
 	if err != nil {
-		log.Error("IsPrivileged is error detail:", err)
+		a.ilog.Error("IsPrivileged is error detail:", err)
 		return false
 	}
 	return account.Privileged
@@ -1064,6 +1173,12 @@ func (a *ApplyContext) SetPrivileged(n common.AccountName, isPriv bool) {
 	a.DB.Modify(&account, func(ao *entity.AccountObject) {
 		ao.Privileged = isPriv
 	})
+}
+
+func (a *ApplyContext) ValidateRamUsageInsert(account common.AccountName) {
+
+	//a.TrxContext.ValidateRamUsage.Insert(common.Name(account))
+
 }
 
 func (a *ApplyContext) PauseBillingTimer() {

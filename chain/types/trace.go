@@ -2,6 +2,7 @@ package types
 
 import (
 	"encoding/binary"
+	"github.com/eosspark/container/sets/treeset"
 	"github.com/eosspark/eos-go/common"
 	. "github.com/eosspark/eos-go/exception"
 )
@@ -18,7 +19,7 @@ type BaseActionTrace struct {
 	BlockNum         uint32
 	BlockTime        BlockTimeStamp
 	ProducerBlockId  common.BlockIdType
-	AccountRamDeltas common.FlatSet
+	AccountRamDeltas treeset.Set
 }
 
 type ActionTrace struct {
@@ -51,6 +52,16 @@ func (a *AccountDelta) GetKey() []byte {
 	b := make([]byte, 8)
 	binary.BigEndian.PutUint64(b, uint64(a.Account))
 	return b
+}
+
+func CompareAccountDelta(first interface{}, second interface{}) int {
+	if first.(AccountDelta).Account == second.(AccountDelta).Account {
+		return 0
+	}
+	if first.(AccountDelta).Account < second.(AccountDelta).Account {
+		return -1
+	}
+	return 1
 }
 
 func NewBaseActionTrace(ar *ActionReceipt) *BaseActionTrace {

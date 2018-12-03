@@ -9,6 +9,7 @@ import (
 	. "github.com/eosspark/eos-go/exception"
 	//"os"
 
+	"github.com/eosspark/container/sets/treeset"
 	. "github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/log"
 	"math"
@@ -29,8 +30,8 @@ type TransactionContext struct {
 	Start                 common.TimePoint
 	Published             common.TimePoint
 	Executed              []types.ActionReceipt
-	BillToAccounts        common.FlatSet
-	ValidateRamUsage      common.FlatSet
+	BillToAccounts        treeset.Set
+	ValidateRamUsage      treeset.Set
 	InitialMaxBillableCpu uint64
 	Delay                 common.Microseconds
 	IsInput               bool
@@ -86,6 +87,7 @@ func NewTransactionContext(c *Controller, t *types.SignedTransaction, trxId comm
 		deadline:                  common.MaxTimePoint(),
 		deadlineExceptionCode:     int64((BlockCpuUsageExceeded{}).Code()),
 		billingTimerExceptionCode: int64((BlockCpuUsageExceeded{}).Code()),
+		ValidateRamUsage:          *treeset.NewWith(common.CompareName),
 	}
 
 	//for testing
@@ -163,7 +165,7 @@ func (t *TransactionContext) init(initialNetUsage uint64) {
 	if t.BilledCpuTimeUs > 0 { // could also call on explicit_billed_cpu_time but it would be redundant
 		t.validateCpuUsageToBill(t.BilledCpuTimeUs, false) // Fail early if the amount to be billed is too high
 	}
-
+	t.BillToAccounts = *treeset.NewWith(common.CompareName)
 	// Record accounts to be billed for network and CPU usage
 	for _, act := range t.Trx.Actions {
 		for _, auth := range act.Authorization {
@@ -173,7 +175,7 @@ func (t *TransactionContext) init(initialNetUsage uint64) {
 
 			account := AccountForSet(auth.Actor)
 			t.BillToAccounts.Insert(&account)*/
-			t.BillToAccounts.Insert(&auth.Actor)
+			t.BillToAccounts.AddItem(auth.Actor)
 		}
 	}
 
@@ -266,7 +268,7 @@ func (t *TransactionContext) InitForDeferredTrx(p common.TimePoint) {
 
 func (t *TransactionContext) Exec() {
 
-	t.ilog.Info("Exec receiver:%s action:%s", t.Trx.Actions[0].Account, t.Trx.Actions[0].Name)
+	//t.ilog.Info("Exec receiver:%s action:%s", t.Trx.Actions[0].Account, t.Trx.Actions[0].Name)
 
 	EosAssert(t.isInitialized, &TransactionException{}, "must first initialize")
 
@@ -300,10 +302,11 @@ func (t *TransactionContext) Finalize() {
 	}
 
 	rl := t.Control.GetMutableResourceLimitsManager()
-	for _, a := range t.ValidateRamUsage.Data {
-
-		account := a.(*common.AccountName)
-		rl.VerifyAccountRamUsage(common.AccountName(*account))
+	//for _, a := range t.ValidateRamUsage.Data {
+	itr := t.ValidateRamUsage.Iterator()
+	for itr.Next() {
+		account := itr.Value().(common.AccountName)
+		rl.VerifyAccountRamUsage(common.AccountName(account))
 	}
 
 	// Calculate the highest network usage and CPU time that all of the billed accounts can afford to be billed
@@ -483,7 +486,7 @@ func (t *TransactionContext) AddRamUsage(account common.AccountName, ramDelta in
 	rl.AddPendingRamUsage(account, ramDelta)
 	if ramDelta > 0 {
 		//a := AccountForSet(account)
-		t.ValidateRamUsage.Insert(&account)
+		t.ValidateRamUsage.AddItem(account)
 	}
 }
 
@@ -514,10 +517,11 @@ func (t *TransactionContext) MaxBandwidthBilledAccountsCanPay(forceElasticLimits
 	accountCpuLimit := largeNumberNoOverflow
 	greylistedNet := false
 	greylistedCpu := false
-	for _, a := range t.BillToAccounts.Data {
-
-		accountName := a.(*common.AccountName)
-		account := common.AccountName(*accountName)
+	//for _, a := range t.BillToAccounts.Data {
+	itr := t.BillToAccounts.Iterator()
+	for itr.Next() {
+		accountName := itr.Value().(common.AccountName)
+		account := common.AccountName(accountName)
 
 		elastic := forceElasticLimits || !(t.Control.IsProducingBlock()) && t.Control.IsResourceGreylisted(&account)
 		netLimit := uint64(rl.GetAccountNetLimit(account, elastic))

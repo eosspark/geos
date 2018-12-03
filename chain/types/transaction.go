@@ -5,6 +5,7 @@ import (
 	"compress/zlib"
 	"encoding/json"
 	"fmt"
+	"github.com/eosspark/container/sets/treeset"
 	"github.com/eosspark/eos-go/common"
 	arithmetic "github.com/eosspark/eos-go/common/arithmetic_types"
 	"github.com/eosspark/eos-go/crypto"
@@ -131,12 +132,13 @@ func (t *Transaction) SigDigest(chainID *common.ChainIdType, cfd []common.HexByt
 //allowDuplicateKeys = false
 //useCache= true
 func (t *Transaction) GetSignatureKeys(signatures []ecc.Signature, chainID *common.ChainIdType, cfd []common.HexBytes,
-	allowDuplicateKeys bool, useCache bool) common.FlatSet /*(recoveredPubKeys []*ecc.PublicKey)*/ {
+	allowDuplicateKeys bool, useCache bool) treeset.Set {
 	const recoveryCacheSize common.SizeT = 1000
-	recoveredPubKeys := common.FlatSet{}
-	recov := ecc.PublicKey{}
+	recoveredPubKeys := treeset.NewWith(ecc.ComparePubKey)
+
 	digest := t.SigDigest(chainID, cfd)
 	for _, sig := range signatures {
+		recov := ecc.PublicKey{}
 		if useCache {
 			it, ok := recoveryCache[sig.String()]
 			if !ok || it.TrxID != t.ID() {
@@ -148,8 +150,8 @@ func (t *Transaction) GetSignatureKeys(signatures []ecc.Signature, chainID *comm
 		} else {
 			recov, _ = sig.PublicKey(digest)
 		}
-		_, exist := recoveredPubKeys.Insert(&recov)
-		try.EosAssert(allowDuplicateKeys || !exist, &exception.TxDuplicateSig{},
+		result, _ := recoveredPubKeys.AddItem(recov)
+		try.EosAssert(allowDuplicateKeys || result, &exception.TxDuplicateSig{},
 			"transaction includes more than one signature signed using the same key associated with public key: %s}", recov)
 	}
 	/*if useCache {
@@ -157,7 +159,7 @@ func (t *Transaction) GetSignatureKeys(signatures []ecc.Signature, chainID *comm
 			recovery_cache.erase( recovery_cache.begin() )
 		}
 	}*/
-	return recoveredPubKeys
+	return *recoveredPubKeys
 }
 
 func (t *Transaction) TotalActions() uint32 {
@@ -212,7 +214,7 @@ func (s *SignedTransaction) SignWithoutAppend(key ecc.PrivateKey, chainID *commo
 }
 
 //allowDeplicateKeys =false,useCache=true
-func (st *SignedTransaction) GetSignatureKeys(chainID *common.ChainIdType, allowDeplicateKeys bool, useCache bool) common.FlatSet {
+func (st *SignedTransaction) GetSignatureKeys(chainID *common.ChainIdType, allowDeplicateKeys bool, useCache bool) treeset.Set {
 	return st.Transaction.GetSignatureKeys(st.Signatures, chainID, st.ContextFreeData, allowDeplicateKeys, useCache)
 }
 

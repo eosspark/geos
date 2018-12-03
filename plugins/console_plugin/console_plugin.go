@@ -1,11 +1,10 @@
 package console_plugin
 
 import (
-	. "github.com/eosspark/eos-go/plugins/appbase/app"
-	"github.com/eosspark/eos-go/plugins/appbase/asio"
-
 	"github.com/eosspark/eos-go/common"
 	. "github.com/eosspark/eos-go/exception/try"
+	. "github.com/eosspark/eos-go/plugins/appbase/app"
+	"github.com/eosspark/eos-go/plugins/appbase/asio"
 	"github.com/urfave/cli"
 	"strings"
 )
@@ -53,6 +52,69 @@ func (cp *ConsolePlugin) SetProgramOptions(options *[]cli.Flag) {
 		cli.StringFlag{
 			Name:  "preload",
 			Usage: "Comma separated list of JavaScript files to preload into the console",
+		},
+
+		// RPC settings
+		cli.BoolFlag{
+			Name:  "rpc",
+			Usage: "Enable the HTTP-RPC server",
+		},
+		cli.StringFlag{
+			Name:  "rpcaddr",
+			Usage: "HTTP-RPC server listening interface",
+			//Value: node.DefaultHTTPHost,
+		},
+		cli.IntFlag{
+			Name:  "rpcport",
+			Usage: "HTTP-RPC server listening port",
+			//Value: node.DefaultHTTPPort,
+		},
+		cli.StringFlag{
+			Name:  "rpccorsdomain",
+			Usage: "Comma separated list of domains from which to accept cross origin requests (browser enforced)",
+			Value: "",
+		},
+		cli.StringFlag{
+			Name:  "rpcvhosts",
+			Usage: "Comma separated list of virtual hostnames from which to accept requests (server enforced). Accepts '*' wildcard.",
+			//Value: strings.Join(node.DefaultConfig.HTTPVirtualHosts, ","),
+		},
+		cli.StringFlag{
+			Name:  "rpcapi",
+			Usage: "API's offered over the HTTP-RPC interface",
+			Value: "",
+		},
+		cli.BoolFlag{
+			Name:  "ipcdisable",
+			Usage: "Disable the IPC-RPC server",
+		},
+		//DirectoryFlag{//IPCPathFlag =
+		//	Name:  "ipcpath",
+		//	Usage: "Filename for IPC socket/pipe within the datadir (explicit paths escape it)",
+		//},
+		cli.BoolFlag{
+			Name:  "ws",
+			Usage: "Enable the WS-RPC server",
+		},
+		cli.StringFlag{
+			Name:  "wsaddr",
+			Usage: "WS-RPC server listening interface",
+			//Value: node.DefaultWSHost,
+		},
+		cli.IntFlag{
+			Name:  "wsport",
+			Usage: "WS-RPC server listening port",
+			//Value: node.DefaultWSPort,
+		},
+		cli.StringFlag{
+			Name:  "wsapi",
+			Usage: "API's offered over the WS-RPC interface",
+			Value: "",
+		},
+		cli.StringFlag{
+			Name:  "wsorigins",
+			Usage: "Origins from which to accept websockets requests",
+			Value: "",
 		})
 }
 
@@ -81,6 +143,29 @@ func (cp *ConsolePlugin) PluginInitialize(c *cli.Context) {
 			}
 		}
 
+		//RPCEnabledFlag := c.Bool("rpc")
+		//RPCListenAddrFlag := c.String("RPCListenAddrFlag")
+		//RPCPortFlag := c.String("rpcport")
+		//RPCCORSDomainFlag := c.String("rpccorsdomain")
+		//RPCCORSDomainFlag = c.String("rpccorsdomain")
+		//
+		//RPCVirtualHostsFlag := c.String("rpcvhosts")
+		//RPCApiFlag := c.String("rpcapi")
+		//IPCDisabledFlag := c.Bool("ipcdisable")
+		//WSEnabledFlag := c.Bool("ws")
+		//WSListenAddrFlag := c.String("wsaddr")
+		//WSPortFlag := c.Int("wsport")
+		//WSApiFlag := c.String("wsapi")
+		//WSAllowedOriginsFlag := c.String("wsorigins")
+
+		//RPCEnabledFlag := c.Bool("rpc")
+		//if RPCEnabledFlag{
+		//	err := cp.my.localConsole()
+		//	if err != nil {
+		//		FcThrow("Failed to start the JavaScript console : %s", err)
+		//	}
+		//}
+
 	}).FcLogAndRethrow().End()
 }
 
@@ -91,9 +176,16 @@ func (cp *ConsolePlugin) PluginStartup() {
 
 		cp.my.console.Interactive()
 		cp.my.log.Info("interactive start")
+
+		// Lastly start the configured RPC interfaces
+		if err := cp.my.startRPC(cp.my.rpcAPIs); err != nil {
+			cp.my.log.Error("start RPC wrong: %s", err)
+		}
+
 	}
 }
 
 func (cp *ConsolePlugin) PluginShutdown() {
 	cp.my.console.Stop(false) //TODO
+
 }

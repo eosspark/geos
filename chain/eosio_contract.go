@@ -24,9 +24,8 @@ func validateAuthorityPrecondition(context *ApplyContext, auth *types.Authority)
 		Obj := &entity.AccountObject{Name: a.Permission.Actor}
 		err := context.DB.Find("byName", Obj, &Obj)
 
-		EosAssert(err != nil, &ActionValidateException{},
-			"account '${account}' does not exist",
-			common.S(uint64(a.Permission.Actor)))
+		EosAssert(err == nil, &ActionValidateException{},
+			"account %v does not exist", a.Permission.Actor)
 
 		// account was already checked to exist, so its owner and active permissions should exist
 		if a.Permission.Permission == common.PermissionName(common.DefaultConfig.OwnerName) ||
@@ -107,7 +106,7 @@ func ApplyEosioNewaccount(context *ApplyContext) {
 
 	authorization := context.Control.GetMutableAuthorizationManager()
 	ownerPemission := authorization.CreatePermission(create.Name, common.DefaultConfig.OwnerName, 0, create.Owner, common.TimePoint(0))
-	activePemission := authorization.CreatePermission(create.Name, common.DefaultConfig.ActiveName, PermissionIdType(ownerPemission.ID), create.Owner, common.TimePoint(0))
+	activePemission := authorization.CreatePermission(create.Name, common.DefaultConfig.ActiveName, PermissionIdType(ownerPemission.ID), create.Active, common.TimePoint(0))
 
 	context.Control.GetMutableResourceLimitsManager().InitializeAccount(create.Name)
 	ramDelta := uint64(common.DefaultConfig.OverheadPerAccountRamBytes)
@@ -162,7 +161,7 @@ func applyEosioNewaccount(context *ApplyContext) {
 
 	authorization := context.Control.GetMutableAuthorizationManager()
 	ownerPemission := authorization.CreatePermission(create.Name, common.DefaultConfig.OwnerName, 0, create.Owner, common.TimePoint(0))
-	activePemission := authorization.CreatePermission(create.Name, common.DefaultConfig.ActiveName, PermissionIdType(ownerPemission.ID), create.Owner, common.TimePoint(0))
+	activePemission := authorization.CreatePermission(create.Name, common.DefaultConfig.ActiveName, PermissionIdType(ownerPemission.ID), create.Active, common.TimePoint(0))
 
 	context.Control.GetMutableResourceLimitsManager().InitializeAccount(create.Name)
 	ramDelta := uint64(common.DefaultConfig.OverheadPerAccountRamBytes)

@@ -39,11 +39,11 @@ type dummy_action struct {
 }
 
 func (d *dummy_action) get_name() uint64 {
-	return common.N("dummy_action")
+	return uint64(common.N("dummy_action"))
 }
 
 func (d *dummy_action) get_account() uint64 {
-	return common.N("testapi")
+	return uint64(common.N("testapi"))
 }
 
 func TestContextAction(t *testing.T) {
@@ -61,7 +61,7 @@ func TestContextAction(t *testing.T) {
 		dummy13 := dummy_action{DUMMY_ACTION_DEFAULT_A, DUMMY_ACTION_DEFAULT_B, DUMMY_ACTION_DEFAULT_C}
 
 		callTestFunction(control, code, "test_action", "assert_true", []byte{}, "testapi")
-		callTestFunction(control, code, "test_action", "assert_false", []byte{}, "testapi")
+		callTestFunctionCheckException(control, code, "test_action", "assert_false", []byte{}, "testapi", exception.EosioAssertMessageException{}.Code(), exception.EosioAssertMessageException{}.What())
 
 		b, _ := rlp.EncodeToBytes(&dummy13)
 		callTestFunction(control, code, "test_action", "read_action_normal", b, "testapi")
@@ -69,13 +69,18 @@ func TestContextAction(t *testing.T) {
 		//rawBytes := []byte{(1 << 16)}
 		b = bytes.Repeat([]byte{byte(0x01)}, 1<<16)
 		callTestFunction(control, code, "test_action", "read_action_to_0", b, "testapi")
+
 		b = bytes.Repeat([]byte{byte(0x01)}, 1<<16+1)
-		callTestFunction(control, code, "test_action", "read_action_to_0", b, "testapi")
+		callTestFunctionCheckException(control, code, "test_action", "read_action_to_0", b, "testapi", exception.OverlappingMemoryError{}.Code(), exception.OverlappingMemoryError{}.What())
 
 		b = bytes.Repeat([]byte{byte(0x01)}, 1)
 		callTestFunction(control, code, "test_action", "read_action_to_64k", b, "testapi")
+
 		b = bytes.Repeat([]byte{byte(0x01)}, 3)
-		callTestFunction(control, code, "test_action", "read_action_to_64k", b, "testapi")
+		callTestFunctionCheckException(control, code, "test_action", "read_action_to_64k", b, "testapi", exception.OverlappingMemoryError{}.Code(), exception.OverlappingMemoryError{}.What())
+
+		ret := pushAction(control, code, "test_action", "require_notice", b, "testapi")
+		assert.Equal(t, ret, "assertion failure with message: Should've failed")
 
 		callTestFunction(control, code, "test_action", "require_auth", []byte{}, "testapi")
 
@@ -105,30 +110,25 @@ func TestContextPrint(t *testing.T) {
 		control := startBlock()
 		createNewAccount(control, "testapi")
 
-		trace := callTestFunction(control, code, "test_print", "test_prints", []byte{}, "testapi")
-		result := trace
+		result := callTestFunction(control, code, "test_print", "test_prints", []byte{}, "testapi")
 		assert.Equal(t, result, "abcefg")
 
-		trace = callTestFunction(control, code, "test_print", "test_prints_l", []byte{}, "testapi")
-		result = trace
+		result = callTestFunction(control, code, "test_print", "test_prints_l", []byte{}, "testapi")
 		assert.Equal(t, result, "abatest")
 
-		trace = callTestFunction(control, code, "test_print", "test_printi", []byte{}, "testapi")
-		result = trace
+		result = callTestFunction(control, code, "test_print", "test_printi", []byte{}, "testapi")
 		assert.Equal(t, result[0:1], string(strconv.FormatInt(0, 10)))
 		assert.Equal(t, result[1:7], string(strconv.FormatInt(556644, 10)))
 		assert.Equal(t, result[7:9], string(strconv.FormatInt(-1, 10)))
 
-		trace = callTestFunction(control, code, "test_print", "test_printui", []byte{}, "testapi")
-		result = trace
+		result = callTestFunction(control, code, "test_print", "test_printui", []byte{}, "testapi")
 		assert.Equal(t, result[0:1], string(strconv.FormatInt(0, 10)))
 		assert.Equal(t, result[1:7], string(strconv.FormatInt(556644, 10)))
 
 		v := -1
 		assert.Equal(t, result[7:len(result)], string(strconv.FormatUint(uint64(v), 10))) //-1 / 1844674407370955161
 
-		trace = callTestFunction(control, code, "test_print", "test_printn", []byte{}, "testapi")
-		result = trace
+		result = callTestFunction(control, code, "test_print", "test_printn", []byte{}, "testapi")
 		assert.Equal(t, result[0:5], "abcde")
 		assert.Equal(t, result[5:10], "ab.de")
 		assert.Equal(t, result[10:16], "1q1q1q")
@@ -138,35 +138,36 @@ func TestContextPrint(t *testing.T) {
 		assert.Equal(t, result[52:65], "abcdefghijkl1")
 		assert.Equal(t, result[65:78], "abcdefghijkl1")
 
-		trace = callTestFunction(control, code, "test_print", "test_printi128", []byte{}, "testapi")
-		result = trace
-
+		result = callTestFunction(control, code, "test_print", "test_printi128", []byte{}, "testapi")
 		s := strings.Split(result, "\n")
 		assert.Equal(t, s[0], "1")
 		assert.Equal(t, s[1], "0")
 		assert.Equal(t, s[2], "-170141183460469231731687303715884105728")
 		assert.Equal(t, s[3], "-87654323456")
 
-		trace = callTestFunction(control, code, "test_print", "test_printui128", []byte{}, "testapi")
-		result = trace
+		result = callTestFunction(control, code, "test_print", "test_printui128", []byte{}, "testapi")
 		s = strings.Split(result, "\n")
 		assert.Equal(t, s[0], "340282366920938463463374607431768211455")
 		assert.Equal(t, s[1], "0")
 		assert.Equal(t, s[2], "87654323456")
 
-		trace = callTestFunction(control, code, "test_print", "test_printsf", []byte{}, "testapi")
-		result = trace
+		result = callTestFunction(control, code, "test_print", "test_printsf", []byte{}, "testapi")
 		r := strings.Split(result, "\n")
 		assert.Equal(t, r[0], "5.000000e-01")
 		assert.Equal(t, r[1], "-3.750000e+00")
 		assert.Equal(t, r[2], "6.666667e-07")
 
-		trace = callTestFunction(control, code, "test_print", "test_printdf", []byte{}, "testapi")
-		result = trace
+		result = callTestFunction(control, code, "test_print", "test_printdf", []byte{}, "testapi")
 		r = strings.Split(result, "\n")
 		assert.Equal(t, r[0], "5.000000000000000e-01")
 		assert.Equal(t, r[1], "-3.750000000000000e+00")
 		assert.Equal(t, r[2], "6.666666666666666e-07")
+
+		//result = callTestFunction(control, code, "test_print", "test_printqf", []byte{}, "testapi")
+		//r = strings.Split(result, "\n")
+		//assert.Equal(t, r[0], "5.000000000000000000e-01")
+		//assert.Equal(t, r[1], "-3.750000000000000000e+00")
+		//assert.Equal(t, r[2], "6.666666666666666667e-07")
 
 		stopBlock(control)
 
@@ -472,7 +473,7 @@ func TestContextDB(t *testing.T) {
 		callTestFunction(control, code, "test_db", "idx64_lowerbound", []byte{}, "testapi")
 		callTestFunction(control, code, "test_db", "idx64_upperbound", []byte{}, "testapi")
 
-		action1 := invalidAccessAction{common.N("testapi"), 10, 0, true}
+		action1 := invalidAccessAction{uint64(common.N("testapi")), 10, 0, true}
 		actionData1, _ := rlp.EncodeToBytes(&action1)
 		ret := pushAction(control, code, "test_db", "test_invalid_access", actionData1, "testapi")
 		assert.Equal(t, ret, "")

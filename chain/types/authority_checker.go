@@ -1,8 +1,11 @@
 package types
 
 import (
+	"github.com/eosspark/container/sets/treeset"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto/ecc"
+	. "github.com/eosspark/eos-go/exception"
+	. "github.com/eosspark/eos-go/exception/try"
 )
 
 type PermissionToAuthorityFunc func(*PermissionLevel) SharedAuthority
@@ -10,7 +13,7 @@ type AuthorityChecker struct {
 	permissionToAuthority PermissionToAuthorityFunc
 	CheckTime             *func()
 	ProvidedKeys          []ecc.PublicKey
-	ProvidedPermissions   common.FlatSet
+	ProvidedPermissions   treeset.Set
 	UsedKeys              []bool
 	ProvidedDelay         common.Microseconds
 	RecursionDepthLimit   uint16
@@ -57,24 +60,24 @@ func (ac *AuthorityChecker) AllKeysUsed() bool {
 	return true
 }
 
-func (ac *AuthorityChecker) GetUsedKeys() common.FlatSet {
-	f := common.FlatSet{}
+func (ac *AuthorityChecker) GetUsedKeys() treeset.Set {
+	f := treeset.NewWith(ecc.ComparePubKey)
 	for i, usedKey := range ac.UsedKeys {
 		if usedKey == true {
-			f.Insert(&ac.ProvidedKeys[i])
+			f.AddItem(&ac.ProvidedKeys[i])
 		}
 	}
-	return f
+	return *f
 }
 
-func (ac *AuthorityChecker) GetUnusedKeys() common.FlatSet {
-	f := common.FlatSet{}
+func (ac *AuthorityChecker) GetUnusedKeys() treeset.Set {
+	f := treeset.NewWith(ecc.ComparePubKey)
 	for i, usedKey := range ac.UsedKeys {
 		if usedKey == false {
-			f.Insert(&ac.ProvidedKeys[i])
+			f.AddItem(&ac.ProvidedKeys[i])
 		}
 	}
-	return f
+	return *f
 }
 
 type PermissionCacheStatus uint64
@@ -101,8 +104,11 @@ func (ac *AuthorityChecker) PermissionStatusInCache(permissions PermissionCacheT
 }
 
 func (ac *AuthorityChecker) initializePermissionCache(cachedPermission *PermissionCacheType) *PermissionCacheType {
-	for i := 0; i < ac.ProvidedPermissions.Len(); i++ {
-		map[PermissionLevel]PermissionCacheStatus(*cachedPermission)[*(ac.ProvidedPermissions.Data[i].(*PermissionLevel))] = PermissionSatisfied
+	ac.ProvidedPermissions = *treeset.NewWith(ecc.ComparePubKey)
+	itr := ac.ProvidedPermissions.Iterator()
+	for itr.Next() {
+		val := itr.Value()
+		map[PermissionLevel]PermissionCacheStatus(*cachedPermission)[*(val.(*PermissionLevel))] = PermissionSatisfied
 	}
 	return cachedPermission
 }
@@ -124,17 +130,17 @@ func (wtv *WeightTallyVisitor) Visit(permission interface{}) uint32 {
 	switch v := permission.(type) {
 	case []WaitWeight:
 		for _, p := range v {
-			wtv.TotalWeight += wtv.VisitWaitWeight(p)
+			wtv.VisitWaitWeight(p)
 		}
 		return wtv.TotalWeight
 	case []KeyWeight:
 		for _, p := range v {
-			wtv.TotalWeight += wtv.VisitKeyWeight(p)
+			wtv.VisitKeyWeight(p)
 		}
 		return wtv.TotalWeight
 	case []PermissionLevelWeight:
 		for _, p := range v {
-			wtv.TotalWeight += wtv.VisitPermissionLevelWeight(p)
+			wtv.VisitPermissionLevelWeight(p)
 		}
 		return wtv.TotalWeight
 	default:
@@ -168,17 +174,23 @@ func (wtv *WeightTallyVisitor) VisitPermissionLevelWeight(permission PermissionL
 		if wtv.RecursionDepth < wtv.Checker.RecursionDepthLimit {
 			r := false
 			propagateError := false
-			//try_catch
-			auth := wtv.Checker.permissionToAuthority(&permission.Permission)
-			propagateError = true
-			map[PermissionLevel]PermissionCacheStatus(*wtv.CachedPermissions)[permission.Permission] = BeingEvaluated
-			r = wtv.Checker.SatisfiedAcd(&auth, wtv.CachedPermissions, wtv.RecursionDepth+1)
-			if propagateError {
-
-			} else {
-
+			isNotFound := false
+			Try(func() {
+				auth := wtv.Checker.permissionToAuthority(&permission.Permission)
+				propagateError = true
+				map[PermissionLevel]PermissionCacheStatus(*wtv.CachedPermissions)[permission.Permission] = BeingEvaluated
+				r = wtv.Checker.SatisfiedAcd(&auth, wtv.CachedPermissions, wtv.RecursionDepth+1)
+			}).Catch(func(e PermissionQueryException) {
+				isNotFound = true
+				if propagateError {
+					EosThrow(&e, "authority_check::VisitPermissionLevelWeight is error: %v", e.LogMessage)
+				} else {
+					return
+				}
+			}).End()
+			if isNotFound {
+				return wtv.TotalWeight
 			}
-
 			if r {
 				wtv.TotalWeight += uint32(permission.Weight)
 				map[PermissionLevel]PermissionCacheStatus(*wtv.CachedPermissions)[permission.Permission] = PermissionSatisfied
@@ -194,17 +206,22 @@ func (wtv *WeightTallyVisitor) VisitPermissionLevelWeight(permission PermissionL
 
 func MakeAuthChecker(pta PermissionToAuthorityFunc,
 	recursionDepthLimit uint16,
-	providedKeys *common.FlatSet, //[]*ecc.PublicKey,
-	providedPermission *common.FlatSet, //[]*PermissionLevel,
+	providedKeys *treeset.Set, //[]*ecc.PublicKey,
+	providedPermission *treeset.Set, //[]*PermissionLevel,
 	providedDelay common.Microseconds,
 	checkTime *func()) AuthorityChecker {
 	//noopChecktime := func() {}
-	providedKeysArray := make([]ecc.PublicKey, providedKeys.Len())
-	usedKeysArray := make([]bool, providedKeys.Len())
-	for i := 0; i < providedKeys.Len(); i++ {
-		element := providedKeys.Data[i].(*ecc.PublicKey)
-		providedKeysArray[i] = *element
+	providedKeysArray := make([]ecc.PublicKey, 0)
+	usedKeysArray := make([]bool, providedKeys.Size())
+	itr := providedKeys.Iterator()
+	for itr.Next() {
+		providedKeysArray = append(providedKeysArray, itr.Value().(ecc.PublicKey))
 	}
+	/*for i := 0; i < len(providedKeys.Values()); i++ {
+		data:=providedKeys.Values()
+		element := data[i].(ecc.PublicKey)
+		providedKeysArray[i] = element
+	}*/
 	return AuthorityChecker{permissionToAuthority: pta, RecursionDepthLimit: recursionDepthLimit,
 		ProvidedKeys: providedKeysArray, ProvidedPermissions: *providedPermission,
 		ProvidedDelay: providedDelay, UsedKeys: usedKeysArray, CheckTime: checkTime,

@@ -64,6 +64,7 @@ type Peer struct {
 
 	ts [tsBufferSize]byte //working buffer for making human readable timestamps
 
+	impl *netPluginIMpl
 }
 
 type PeerStatus struct {
@@ -73,7 +74,7 @@ type PeerStatus struct {
 	LastHandshake HandshakeMessage
 }
 
-func NewPeer(conn net.Conn, reader io.Reader) *Peer {
+func NewPeer(impl *netPluginIMpl, conn net.Conn, reader io.Reader) *Peer {
 	return &Peer{
 		blkState:      newPeerBlockStatueIndex(),
 		trxState:      newTransactionStateIndex(),
@@ -85,6 +86,7 @@ func NewPeer(conn net.Conn, reader io.Reader) *Peer {
 		lastHandshakeSent:  &HandshakeMessage{},
 		lastHandshakeRecv:  &HandshakeMessage{},
 		sentHandshakeCount: 0,
+		impl:               impl,
 	}
 }
 
@@ -218,7 +220,7 @@ func (p *Peer) cancelSync(reason GoAwayReason) {
 	//fc_dlog(logger,"cancel sync reason = ${m}, write queue size ${o} peer ${p}",
 	//	("m",reason_str(reason)) ("o", write_queue.size())("p", peer_name()));
 
-	netlog.Debug("cancel sync reason = %s, write queue size %d peer %s", ReasonToString[reason], p.write)
+	p.impl.log.Debug("cancel sync reason = %s, write queue size %d peer %s", ReasonToString[reason], p.write)
 
 	p.cancelWait()
 	//p.flushQueues()
@@ -228,7 +230,7 @@ func (p *Peer) cancelSync(reason GoAwayReason) {
 		p.write(&GoAwayMessage{Reason: reason})
 	default:
 		//fc_dlog(logger, "sending empty request but not calling sync wait on ${p}", ("p",peer_name()))
-		netlog.Debug("sending empty request but not calling sync wait on %s", p.peerAddr)
+		p.impl.log.Debug("sending empty request but not calling sync wait on %s", p.peerAddr)
 		p.write(&SyncRequestMessage{0, 0})
 	}
 
@@ -466,20 +468,20 @@ func (p *Peer) blkSend(impl *netPluginIMpl, ids []common.BlockIdType) {
 			var b *types.SignedBlock
 			//signed_block_ptr b = cc.fetch_block_by_id(blkid);
 			if b != nil {
-				netlog.Debug("found block for id ar num %d", b.BlockNumber())
+				p.impl.log.Debug("found block for id ar num %d", b.BlockNumber())
 				//enqueue(net_message(*b))//TODO
 				p.write(&SignedBlockMessage{*b})
 			} else {
-				netlog.Info("fetch block by id returned null, id %s on block %d of %d for %s",
+				p.impl.log.Info("fetch block by id returned null, id %s on block %d of %d for %s",
 					blkid, count, len(ids), p.peerAddr)
 				breaking = true
 			}
 		}).Catch(func(ex exception.AssertException) {
-			netlog.Error("caught assert on fetch_block_by_id, %s, id %s on block %d of %d for %s",
+			p.impl.log.Error("caught assert on fetch_block_by_id, %s, id %s on block %d of %d for %s",
 				ex.What(), blkid, count, len(ids), p.peerAddr)
 			breaking = true
 		}).Catch(func(interface{}) {
-			netlog.Error("caught others exception fetching block id %s on block %d of %d for %s",
+			p.impl.log.Error("caught others exception fetching block id %s on block %d of %d for %s",
 				blkid, count, len(ids), p.peerAddr)
 			breaking = true
 		})
@@ -596,7 +598,7 @@ func (p *Peer) read(impl *netPluginIMpl) {
 	}()
 
 	impl.loopWG.Add(1)
-	netlog.Info("start read message!")
+	p.impl.log.Info("start read message!")
 
 	for {
 		p2pMessage, err := ReadP2PMessageData(p.reader)
@@ -696,7 +698,7 @@ func (p *Peer) write(message P2PMessage) {
 	if err != nil {
 		fmt.Println(err)
 	}
-	netlog.Info("%s: send Message json: %s", p.peerAddr, string(data))
+	p.impl.log.Info("%s: send Message json: %s", p.peerAddr, string(data))
 
 	return
 }

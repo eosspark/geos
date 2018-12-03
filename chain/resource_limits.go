@@ -1,6 +1,7 @@
 package chain
 
 import (
+	"github.com/eosspark/container/sets/treeset"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/common/arithmetic_types"
@@ -71,15 +72,16 @@ func (r *ResourceLimitsManager) SetBlockParameters(cpuLimitParameters types.Elas
 	}
 }
 
-func (r *ResourceLimitsManager) UpdateAccountUsage(account *common.FlatSet, timeSlot uint32) { //待定
+func (r *ResourceLimitsManager) UpdateAccountUsage(account *treeset.Set, timeSlot uint32) { //待定
 	config := entity.DefaultResourceLimitsConfigObject
 	err := r.db.Find("id", config, &config)
 	if err != nil {
 		log.Error("UpdateAccountUsage is error: %s", err)
 	}
 	usage := entity.ResourceUsageObject{}
-	for _, a := range account.Data {
-		usage.Owner = *a.(*common.AccountName)
+	itr := account.Iterator()
+	for itr.Next() {
+		usage.Owner = itr.Value().(common.AccountName)
 		err := r.db.Find("byOwner", usage, &usage)
 		if err != nil {
 			log.Error("UpdateAccountUsage is error: %s", err)
@@ -92,9 +94,23 @@ func (r *ResourceLimitsManager) UpdateAccountUsage(account *common.FlatSet, time
 			log.Error("UpdateAccountUsage is error: %s", err)
 		}
 	}
+	/*for _, a := range account.Data {
+		usage.Owner = *a.(*common.AccountName)
+		err := r.db.Find("byOwner", usage, &usage)
+		if err != nil {
+			log.Error("UpdateAccountUsage is error: %s", err)
+		}
+		err = r.db.Modify(&usage, func(bu *entity.ResourceUsageObject) {
+			bu.NetUsage.Add(0, timeSlot, config.AccountNetUsageAverageWindow)
+			bu.CpuUsage.Add(0, timeSlot, config.AccountCpuUsageAverageWindow)
+		})
+		if err != nil {
+			log.Error("UpdateAccountUsage is error: %s", err)
+		}
+	}*/
 }
 
-func (r *ResourceLimitsManager) AddTransactionUsage(account *common.FlatSet, cpuUsage uint64, netUsage uint64, timeSlot uint32) {
+func (r *ResourceLimitsManager) AddTransactionUsage(account *treeset.Set, cpuUsage uint64, netUsage uint64, timeSlot uint32) {
 	state := entity.DefaultResourceLimitsStateObject
 	err := r.db.Find("id", state, &state)
 	if err != nil {
@@ -105,15 +121,17 @@ func (r *ResourceLimitsManager) AddTransactionUsage(account *common.FlatSet, cpu
 	if err != nil {
 		log.Error("AddTransactionUsage is error: %s", err)
 	}
-	for _, a := range account.Data {
+	itr := account.Iterator()
+	//for _, a := range account.Data {
+	for itr.Next() {
 		usage := entity.ResourceUsageObject{}
-		usage.Owner = *a.(*common.AccountName)
+		usage.Owner = itr.Value().(common.AccountName)
 		err := r.db.Find("byOwner", usage, &usage)
 		if err != nil {
 			log.Error("AddTransactionUsage is error: %s", err)
 		}
 		var unUsed, netWeight, cpuWeight int64
-		r.GetAccountLimits(*a.(*common.AccountName), &unUsed, &netWeight, &cpuWeight)
+		r.GetAccountLimits(itr.Value().(common.AccountName), &unUsed, &netWeight, &cpuWeight)
 		err = r.db.Modify(&usage, func(bu *entity.ResourceUsageObject) {
 			bu.CpuUsage.Add(cpuUsage, timeSlot, config.AccountCpuUsageAverageWindow)
 			bu.NetUsage.Add(netUsage, timeSlot, config.AccountNetUsageAverageWindow)
@@ -134,7 +152,7 @@ func (r *ResourceLimitsManager) AddTransactionUsage(account *common.FlatSet, cpu
 			maxUserUseInWindow, _ = maxUserUseInWindow.Div(allUserWeight)
 			EosAssert(cpuUsedInWindow.Compare(maxUserUseInWindow) < 1, &TxCpuUsageExceeded{},
 				"authorizing account %s has insufficient cpu resources for this transaction,\n cpu_used_in_window: %s,\n max_user_use_in_window: %s",
-				a, cpuUsedInWindow, maxUserUseInWindow)
+				(itr.Value()), cpuUsedInWindow, maxUserUseInWindow)
 		}
 
 		if netWeight >= 0 && state.TotalNetWeight > 0 {
@@ -149,7 +167,7 @@ func (r *ResourceLimitsManager) AddTransactionUsage(account *common.FlatSet, cpu
 			maxUserUseInWindow, _ = maxUserUseInWindow.Div(allUserWeight)
 			EosAssert(netUsedInWindow.Compare(maxUserUseInWindow) < 1, &TxNetUsageExceeded{},
 				"authorizing account %s has insufficient net resources for this transaction,\n net_used_in_window: %s,\n max_user_use_in_window: %s",
-				a, netUsedInWindow, maxUserUseInWindow)
+				(itr.Value()), netUsedInWindow, maxUserUseInWindow)
 		}
 	}
 
@@ -306,14 +324,15 @@ func (r *ResourceLimitsManager) ProcessAccountLimitUpdates() {
 		limit := entity.ResourceLimitsObject{}
 		for !byOwnerIndex.Empty() {
 			itr, err := byOwnerIndex.LowerBound(entity.ResourceLimitsObject{Pending: true})
-			if err != nil {
-				break
-			}
-			itr.Data(&limit)
-			if byOwnerIndex.CompareEnd(itr) || limit.Pending != true {
+			if err != nil || byOwnerIndex.CompareEnd(itr) {
 				break
 			}
 
+			itr.Data(&limit)
+
+			if limit.Pending != true {
+				break
+			}
 			actualEntry := entity.ResourceLimitsObject{}
 			actualEntry.Pending = false
 			actualEntry.Owner = limit.Owner

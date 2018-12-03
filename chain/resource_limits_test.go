@@ -2,6 +2,7 @@ package chain
 
 import (
 	"fmt"
+	"github.com/eosspark/container/sets/treeset"
 	"github.com/eosspark/eos-go/common"
 	"github.com/stretchr/testify/assert"
 	"math"
@@ -49,12 +50,12 @@ func TestElasticCpuRelaxContract(t *testing.T) {
 	rlm.InitializeAccount(account)
 	rlm.SetAccountLimits(account, -1, -1, -1)
 	rlm.ProcessAccountLimitUpdates()
-	f := common.FlatSet{}
-	f.Insert(&account)
+	f := treeset.NewWith(common.CompareName)
+	f.AddItem(account)
 
 	iterations := uint32(0)
 	for rlm.GetVirtualBlockCpuLimit() < desiredVirtualLimit && uint64(iterations) <= expectedRelaxIteration {
-		rlm.AddTransactionUsage(&f, 0, 0, iterations)
+		rlm.AddTransactionUsage(f, 0, 0, iterations)
 		rlm.ProcessBlockUsage(iterations)
 		iterations++
 	}
@@ -63,7 +64,7 @@ func TestElasticCpuRelaxContract(t *testing.T) {
 	assert.Equal(t, desiredVirtualLimit, rlm.GetVirtualBlockCpuLimit())
 
 	for rlm.GetVirtualBlockCpuLimit() > uint64(common.DefaultConfig.MaxBlockCpuUsage) && uint64(iterations) <= expectedRelaxIteration+expectedContractIteration {
-		rlm.AddTransactionUsage(&f, uint64(common.DefaultConfig.MaxBlockCpuUsage), 0, iterations)
+		rlm.AddTransactionUsage(f, uint64(common.DefaultConfig.MaxBlockCpuUsage), 0, iterations)
 		rlm.ProcessBlockUsage(iterations)
 		iterations++
 	}
@@ -86,25 +87,25 @@ func TestElasticNetRelaxContract(t *testing.T) {
 	rlm.SetAccountLimits(account, -1, -1, -1)
 	rlm.ProcessAccountLimitUpdates()
 
-	f := common.FlatSet{}
-	f.Insert(&account)
+	f := treeset.NewWith(common.CompareName)
+	f.AddItem(account)
 
 	iterations := uint32(0)
 	for rlm.GetVirtualBlockNetLimit() < desiredVirtualLimit && uint64(iterations) <= expectedRelaxIteration {
-		rlm.AddTransactionUsage(&f, 0, 0, iterations)
+		rlm.AddTransactionUsage(f, 0, 0, iterations)
 		rlm.ProcessBlockUsage(iterations)
 		iterations++
 	}
-
+	fmt.Println(expectedRelaxIteration, uint64(iterations))
 	assert.Equal(t, expectedRelaxIteration, uint64(iterations))
 	assert.Equal(t, desiredVirtualLimit, rlm.GetVirtualBlockNetLimit())
 
 	for rlm.GetVirtualBlockNetLimit() > uint64(common.DefaultConfig.MaxBlockNetUsage) && uint64(iterations) <= expectedRelaxIteration+expectedContractIteration {
-		rlm.AddTransactionUsage(&f, 0, uint64(common.DefaultConfig.MaxBlockNetUsage), iterations)
+		rlm.AddTransactionUsage(f, 0, uint64(common.DefaultConfig.MaxBlockNetUsage), iterations)
 		rlm.ProcessBlockUsage(iterations)
 		iterations++
 	}
-
+	fmt.Println(expectedRelaxIteration+expectedContractIteration, uint64(iterations))
 	assert.Equal(t, expectedRelaxIteration+expectedContractIteration, uint64(iterations))
 	assert.Equal(t, uint64(common.DefaultConfig.MaxBlockNetUsage), rlm.GetVirtualBlockNetLimit())
 }
@@ -132,8 +133,8 @@ func TestWeightedCapacityCpu(t *testing.T) {
 	for idx := int(0); idx < len(weights); idx++ {
 		account := common.AccountName(idx + 100)
 		assert.Equal(t, expectedLimits[idx], rlm.GetAccountCpuLimit(account, true))
-		f := common.FlatSet{}
-		f.Insert(&account)
+		f := treeset.NewWith(common.CompareName)
+		f.AddItem(account)
 		//s := rlm.db.StartSession()
 		//rlm.AddTransactionUsage(&f, uint64(expectedLimits[idx]),0,  0)
 		//s.Undo()
@@ -167,8 +168,8 @@ func TestWeightedCapacityNet(t *testing.T) {
 	for idx := int(0); idx < len(weights); idx++ {
 		account := common.AccountName(idx + 100)
 		assert.Equal(t, expectedLimits[idx], rlm.GetAccountNetLimit(account, true))
-		f := common.FlatSet{}
-		f.Insert(&account)
+		f := treeset.NewWith(common.NameComparator)
+		f.AddItem(account)
 		//s := rlm.db.StartSession()
 		//rlm.AddTransactionUsage(&f, 0, uint64(expectedLimits[idx]), 0)
 		//s.Undo()
@@ -184,18 +185,17 @@ func TestEnforceBlockLimitsCpu(t *testing.T) {
 	rlm.InitializeAccount(account)
 	rlm.SetAccountLimits(account, -1, -1, -1)
 	rlm.ProcessAccountLimitUpdates()
-
-	f := common.FlatSet{}
-	f.Insert(&account)
+	f := treeset.NewWith(common.CompareName)
+	f.AddItem(account)
 
 	increment := uint64(1000)
 	expectedIterations := uint64(common.DefaultConfig.MaxBlockCpuUsage) / increment
 
 	for idx := 0; uint64(idx) < expectedIterations; idx++ {
-		rlm.AddTransactionUsage(&f, increment, 0, 0)
+		rlm.AddTransactionUsage(f, increment, 0, 0)
 	}
 	//expect blockResourceExhausted
-	rlm.AddTransactionUsage(&f, increment, 0, 0)
+	rlm.AddTransactionUsage(f, increment, 0, 0)
 }
 
 func TestEnforceBlockLimitsNet(t *testing.T) {
@@ -205,17 +205,17 @@ func TestEnforceBlockLimitsNet(t *testing.T) {
 	rlm.SetAccountLimits(account, -1, -1, -1)
 	rlm.ProcessAccountLimitUpdates()
 
-	f := common.FlatSet{}
-	f.Insert(&account)
+	f := treeset.NewWith(common.CompareName)
+	f.AddItem(account)
 
 	increment := uint64(1000)
 	expectedIterations := uint64(common.DefaultConfig.MaxBlockNetUsage) / increment
 
 	for idx := 0; uint64(idx) < expectedIterations; idx++ {
-		rlm.AddTransactionUsage(&f, 0, increment, 0)
+		rlm.AddTransactionUsage(f, 0, increment, 0)
 	}
 	//expect blockResourceExhausted
-	rlm.AddTransactionUsage(&f, 0, increment, 0)
+	rlm.AddTransactionUsage(f, 0, increment, 0)
 }
 
 func TestEnforceAccountRamLimit(t *testing.T) {
@@ -308,9 +308,9 @@ func TestSanityCheck(t *testing.T) {
 	rlm.SetAccountLimits(dan, 0, 0, 10000)
 	rlm.SetAccountLimits(everyone, 0, 0, 10000000000000-10000)
 	rlm.ProcessAccountLimitUpdates()
-	f := common.FlatSet{}
-	f.Insert(&dan)
-	rlm.AddTransactionUsage(&f, 10, 0, 1)
+	f := treeset.NewWith(common.CompareName)
+	f.AddItem(dan)
+	rlm.AddTransactionUsage(f, 10, 0, 1)
 	fmt.Println(rlm.GetAccountCpuLimit(dan, true))
 }
 
@@ -319,16 +319,16 @@ func TestResourceLimitsManager_UpdateAccountUsage(t *testing.T) {
 	rlm := control.ResourceLimits
 	rlm.InitializeDatabase()
 	a := common.AccountName(common.N("yuanchao"))
-	f := common.FlatSet{}
-	f.Insert(&a)
+	f := treeset.NewWith(common.CompareName)
+	f.AddItem(a)
 	rlm.InitializeAccount(a)
-	rlm.AddTransactionUsage(&f, 100, 100, 1)
-	rlm.UpdateAccountUsage(&f, 1)
-	rlm.UpdateAccountUsage(&f, 86401)
-	rlm.UpdateAccountUsage(&f, 172801)
+	rlm.AddTransactionUsage(f, 100, 100, 1)
+	rlm.UpdateAccountUsage(f, 1)
+	rlm.UpdateAccountUsage(f, 86401)
+	rlm.UpdateAccountUsage(f, 172801)
 	//结果value_ex应该为579/2 579/2/2
-	rlm.UpdateAccountUsage(&f, 1)
-	rlm.UpdateAccountUsage(&f, 172801)
+	rlm.UpdateAccountUsage(f, 1)
+	rlm.UpdateAccountUsage(f, 172801)
 	//结果value_ex为0
 }
 

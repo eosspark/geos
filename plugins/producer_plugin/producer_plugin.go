@@ -3,6 +3,8 @@ package producer_plugin
 import (
 	"fmt"
 	//Chain "github.com/eosspark/eos-go/plugins/producer_plugin/testing" /*test model*/
+	"encoding/json"
+	"github.com/eosspark/container/sets/treeset"
 	Chain "github.com/eosspark/eos-go/chain" /*real chain*/
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto"
@@ -10,13 +12,12 @@ import (
 	. "github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/log"
-	"github.com/urfave/cli"
-	"time"
-	"encoding/json"
-	"strings"
-	"github.com/eosspark/eos-go/plugins/appbase/asio"
 	. "github.com/eosspark/eos-go/plugins/appbase/app"
-	)
+	"github.com/eosspark/eos-go/plugins/appbase/asio"
+	"github.com/urfave/cli"
+	"strings"
+	"time"
+)
 
 const ProducerPlug = PluginTypeName("ProducerPlugin")
 
@@ -38,16 +39,16 @@ type RuntimeOptions struct {
 }
 
 type WhitelistAndBlacklist struct {
-	ActorWhitelist    *common.FlatSet //<common.AccountName>
-	ActorBlacklist    *common.FlatSet //<common.AccountName>
-	ContractWhitelist *common.FlatSet //<common.AccountName>
-	ContractBlacklist *common.FlatSet //<common.AccountName>
-	ActionBlacklist   *common.FlatSet //<account_name, action_name>
-	KeyBlacklist      *common.FlatSet //<ecc.PublicKey>
+	ActorWhitelist    *treeset.Set //<common.AccountName>
+	ActorBlacklist    *treeset.Set //<common.AccountName>
+	ContractWhitelist *treeset.Set //<common.AccountName>
+	ContractBlacklist *treeset.Set //<common.AccountName>
+	ActionBlacklist   *treeset.Set //<account_name, action_name>
+	KeyBlacklist      *treeset.Set //<ecc.PublicKey>
 }
 
 type GreylistParams struct {
-	Accounts common.FlatSet
+	Accounts treeset.Set
 }
 
 func NewProducerPlugin(io *asio.IoContext) *ProducerPlugin {
@@ -94,8 +95,7 @@ func (p *ProducerPlugin) SetProgramOptions(options *[]cli.Flag) {
 		},
 		cli.StringSliceFlag{
 			Name: "signature-provider",
-			Usage:
-			"Key=Value pairs in the form <public-key>=<provider-spec>\n" +
+			Usage: "Key=Value pairs in the form <public-key>=<provider-spec>\n" +
 				"Where:\n" +
 				"   <public-key>    \tis a string form of a vaild EOSIO public key\n\n" +
 				"   <provider-spec> \tis a string in the form <provider-type>:<data>\n\n" +
@@ -206,7 +206,7 @@ func (p *ProducerPlugin) PluginInitialize(c *cli.Context) {
 			param := GreylistParams{}
 			for _, a := range greylist {
 				n := common.AccountName(common.N(a))
-				param.Accounts.Insert(&n)
+				param.Accounts.AddItem(n)
 			}
 			p.AddGreylistAccounts(param)
 		}
@@ -269,14 +269,14 @@ func (p *ProducerPlugin) IsProducerKey(key ecc.PublicKey) bool {
 	return false
 }
 
-func (p *ProducerPlugin) SignCompact(key *ecc.PublicKey, digest crypto.Sha256) ecc.Signature {
+func (p *ProducerPlugin) SignCompact(key *ecc.PublicKey, digest crypto.Sha256) *ecc.Signature {
 	if key != nil {
 		privateKeyFunc := p.my.SignatureProviders[*key]
 		EosAssert(privateKeyFunc != nil, &ProducerPrivKeyNotFound{}, "Local producer has no private key in config.ini corresponding to public key %s", key)
 
 		return privateKeyFunc(digest)
 	}
-	return ecc.Signature{}
+	return ecc.NewSigNil()
 }
 
 func (p *ProducerPlugin) Pause() {
@@ -351,26 +351,38 @@ func (p *ProducerPlugin) GetRuntimeOptions() RuntimeOptions {
 
 func (p *ProducerPlugin) AddGreylistAccounts(params GreylistParams) {
 	chain := p.chain()
-	for _, acc := range params.Accounts.Data {
-		chain.AddResourceGreyList(acc.(*common.AccountName))
+	itr := params.Accounts.Iterator()
+	for itr.Next() {
+		val := itr.Value().(common.AccountName)
+		chain.AddResourceGreyList(&val)
 	}
+	/*for _, acc := range params.Accounts.Data {
+		chain.AddResourceGreyList(acc.(*common.AccountName))
+	}*/
 }
 
 func (p *ProducerPlugin) RemoveGreylistAccounts(params GreylistParams) {
 	chain := p.chain()
-	for _, acc := range params.Accounts.Data {
-		chain.RemoveResourceGreyList(acc.(*common.AccountName))
+	itr := params.Accounts.Iterator()
+	for itr.Next() {
+		val := itr.Value().(common.AccountName)
+		chain.RemoveResourceGreyList(&val)
 	}
+	/*for _, acc := range params.Accounts.Data {
+		chain.RemoveResourceGreyList(acc.(*common.AccountName))
+	}*/
 }
 
 func (p *ProducerPlugin) GetGreylist() GreylistParams {
 	chain := p.chain()
 	result := GreylistParams{}
 	list := chain.GetResourceGreyList()
-	result.Accounts.Reserve(list.Len())
-	for _, acc := range list.Data {
+	result.Accounts = *treeset.NewWith(common.CompareName)
+	//itr := list.Iterator()
+	result.Accounts.Add(list.Values())
+	/*for _, acc := range list.Data {
 		result.Accounts.Insert(acc.(*common.AccountName))
-	}
+	}*/
 	return result
 }
 
@@ -423,23 +435,23 @@ func makeDebugTimeLogger() func() {
 }
 
 func makeKeySignatureProvider(key *ecc.PrivateKey) signatureProviderType {
-	signFunc := func(digest crypto.Sha256) ecc.Signature {
+	signFunc := func(digest crypto.Sha256) *ecc.Signature {
 		sign, err := key.Sign(digest.Bytes())
 		if err != nil {
 			panic(err)
 		}
-		return sign
+		return &sign
 	}
 	return signFunc
 }
 
 func makeKeosdSignatureProvider(produce *ProducerPluginImpl, url string, publicKey ecc.PublicKey) signatureProviderType {
-	signFunc := func(digest crypto.Sha256) ecc.Signature {
+	signFunc := func(digest crypto.Sha256) *ecc.Signature {
 		if produce != nil {
 			//TODO
-			return ecc.Signature{}
+			return ecc.NewSigNil()
 		} else {
-			return ecc.Signature{}
+			return ecc.NewSigNil()
 		}
 	}
 	return signFunc

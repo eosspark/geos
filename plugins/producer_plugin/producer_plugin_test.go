@@ -38,13 +38,13 @@ func producerPluginInitialize(arguments ...string) *ProducerPlugin {
 
 func TestProducerPlugin_PluginInitialize(t *testing.T) {
 	plugin := producerPluginInitialize("-e", "-p", "eosio", "-p", "yuanc",
-		"--private-key", "[\"EOS859gxfnXyUriMgUeThh1fWv3oqcpLFyHa3TfFYC4PK2HqhToVM\", \"5KYZdUEo39z3FPrtuX2QbbwGnNP5zTd7yyr2SC1j299sBCnWjss\"]",
+		"--private-key", "[\"EOS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV\", \"5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3\"]",
 		"--private-key", "[\"EOS5jeUuKEZ8s8LLoxz4rNysYdHWboup8KtkyJzZYQzcVKFGek9Zu\", \"5Ja3h2wJNUnNcoj39jDMHGigsazvbGHAeLYEHM5uTwtfUoRDoYP\"]")
 
 	assert.Equal(t, true, plugin.my.Producers.Contains(common.AccountName(common.N("eosio")), common.AccountName(common.N("yuanc"))))
 	assert.Equal(t, true, plugin.my.ProductionEnabled)
 
-	pub, err := ecc.NewPublicKey("EOS859gxfnXyUriMgUeThh1fWv3oqcpLFyHa3TfFYC4PK2HqhToVM")
+	pub, err := ecc.NewPublicKey("EOS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV")
 	assert.NoError(t, err)
 	assert.Contains(t, plugin.my.SignatureProviders, pub)
 
@@ -57,8 +57,8 @@ func TestProducerPlugin_PluginInitialize(t *testing.T) {
 func TestProducerPlugin_PluginStartup(t *testing.T) {
 	// startup by self
 	plugin := producerPluginInitialize("-e", "-p", "eosio", "--private-key",
-		"[\"EOS859gxfnXyUriMgUeThh1fWv3oqcpLFyHa3TfFYC4PK2HqhToVM\", "+
-			"\"5KYZdUEo39z3FPrtuX2QbbwGnNP5zTd7yyr2SC1j299sBCnWjss\"]")
+		"[\"EOS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV\", "+
+			"\"5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3\"]")
 	try.Try(func() {
 		plugin.PluginStartup()
 	}).Catch(func(e interface{}) {
@@ -71,8 +71,8 @@ func TestProducerPlugin_PluginStartup(t *testing.T) {
 
 func TestProducerPlugin_Pause(t *testing.T) {
 	plugin := producerPluginInitialize("-e", "-p", "eosio", "--private-key",
-		"[\"EOS859gxfnXyUriMgUeThh1fWv3oqcpLFyHa3TfFYC4PK2HqhToVM\", "+
-			"\"5KYZdUEo39z3FPrtuX2QbbwGnNP5zTd7yyr2SC1j299sBCnWjss\"]")
+		"[\"EOS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV\", "+
+			"\"5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3\"]")
 	plugin.PluginStartup()
 	assert.Equal(t, producing, plugin.my.PendingBlockMode)
 	assert.Equal(t, false, plugin.my.ProductionPaused)
@@ -105,13 +105,13 @@ func TestProducerPlugin_SignCompact(t *testing.T) {
 	dataByteHash := h.Sum(nil)
 	dataHash := crypto.Hash256(data)
 
-	initPriKey, _ := ecc.NewPrivateKey("5KYZdUEo39z3FPrtuX2QbbwGnNP5zTd7yyr2SC1j299sBCnWjss")
+	initPriKey, _ := ecc.NewPrivateKey("5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3")
 	initPubKey := initPriKey.PublicKey()
 	initPriKey2, _ := ecc.NewPrivateKey("5Ja3h2wJNUnNcoj39jDMHGigsazvbGHAeLYEHM5uTwtfUoRDoYP")
 	initPubKey2 := initPriKey2.PublicKey()
 
 	plugin := producerPluginInitialize("-e", "-p", "eosio", "-p", "yuanc",
-		"--private-key", "[\"EOS859gxfnXyUriMgUeThh1fWv3oqcpLFyHa3TfFYC4PK2HqhToVM\", \"5KYZdUEo39z3FPrtuX2QbbwGnNP5zTd7yyr2SC1j299sBCnWjss\"]",
+		"--private-key", "[\"EOS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV\", \"5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3\"]",
 		"--private-key", "[\"EOS5jeUuKEZ8s8LLoxz4rNysYdHWboup8KtkyJzZYQzcVKFGek9Zu\", \"5Ja3h2wJNUnNcoj39jDMHGigsazvbGHAeLYEHM5uTwtfUoRDoYP\"]")
 
 	sign1, _ := initPriKey.Sign(dataByteHash)
@@ -123,11 +123,11 @@ func TestProducerPlugin_SignCompact(t *testing.T) {
 }
 
 func TestProducerPlugin_IsProducerKey(t *testing.T) {
-	pub1, _ := ecc.NewPublicKey("EOS859gxfnXyUriMgUeThh1fWv3oqcpLFyHa3TfFYC4PK2HqhToVM")
+	pub1, _ := ecc.NewPublicKey("EOS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV")
 	pub2, _ := ecc.NewPublicKey("EOS5jeUuKEZ8s8LLoxz4rNysYdHWboup8KtkyJzZYQzcVKFGek9Zu")
 
 	plugin := producerPluginInitialize("-e", "-p", "eosio", "-p", "yuanc",
-		"--private-key", "[\"EOS859gxfnXyUriMgUeThh1fWv3oqcpLFyHa3TfFYC4PK2HqhToVM\", \"5KYZdUEo39z3FPrtuX2QbbwGnNP5zTd7yyr2SC1j299sBCnWjss\"]",
+		"--private-key", "[\"EOS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV\", \"5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3\"]",
 		"--private-key", "[\"EOS5jeUuKEZ8s8LLoxz4rNysYdHWboup8KtkyJzZYQzcVKFGek9Zu\", \"5Ja3h2wJNUnNcoj39jDMHGigsazvbGHAeLYEHM5uTwtfUoRDoYP\"]")
 
 	assert.Equal(t, true, plugin.IsProducerKey(pub1))
@@ -135,7 +135,7 @@ func TestProducerPlugin_IsProducerKey(t *testing.T) {
 }
 
 func Test_makeKeySignatureProvider(t *testing.T) {
-	initPriKey, _ := ecc.NewPrivateKey("5KYZdUEo39z3FPrtuX2QbbwGnNP5zTd7yyr2SC1j299sBCnWjss")
+	initPriKey, _ := ecc.NewPrivateKey("5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3")
 	initPubKey := initPriKey.PublicKey()
 
 	sp := makeKeySignatureProvider(initPriKey)
@@ -147,8 +147,8 @@ func Test_makeKeySignatureProvider(t *testing.T) {
 
 func TestProducerPluginImpl_StartBlock(t *testing.T) {
 	plugin := producerPluginInitialize("-e", "-p", "eosio", "--private-key",
-		"[\"EOS859gxfnXyUriMgUeThh1fWv3oqcpLFyHa3TfFYC4PK2HqhToVM\", "+
-			"\"5KYZdUEo39z3FPrtuX2QbbwGnNP5zTd7yyr2SC1j299sBCnWjss\"]")
+		"[\"EOS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV\", "+
+			"\"5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3\"]")
 	plugin.PluginStartup()
 	result, last := plugin.my.StartBlock()
 	assert.Equal(t, last, uint32(types.NewBlockTimeStamp(plugin.my.CalculatePendingBlockTime()))%uint32(common.DefaultConfig.ProducerRepetitions) == uint32(common.DefaultConfig.ProducerRepetitions-1))
@@ -181,7 +181,7 @@ func TestProducerPluginImpl_StartBlock(t *testing.T) {
 
 func TestProducerPluginImpl_ScheduleProductionLoop(t *testing.T) {
 	plugin := producerPluginInitialize("-e", "-p", "eosio", "--private-key",
-		"[\"EOS859gxfnXyUriMgUeThh1fWv3oqcpLFyHa3TfFYC4PK2HqhToVM\", \"5KYZdUEo39z3FPrtuX2QbbwGnNP5zTd7yyr2SC1j299sBCnWjss\"]")
+		"[\"EOS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV\", \"5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3\"]")
 	hbn := plugin.chain().HeadBlockNum()
 
 	plugin.PluginStartup()
@@ -195,8 +195,8 @@ func TestProducerPluginImpl_ScheduleProductionLoop(t *testing.T) {
 
 func TestProducerPluginImpl_MaybeProduceBlock(t *testing.T) {
 	plugin := producerPluginInitialize("-e", "-p", "eosio", "--private-key",
-		"[\"EOS859gxfnXyUriMgUeThh1fWv3oqcpLFyHa3TfFYC4PK2HqhToVM\", "+
-			"\"5KYZdUEo39z3FPrtuX2QbbwGnNP5zTd7yyr2SC1j299sBCnWjss\"]")
+		"[\"EOS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV\", "+
+			"\"5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3\"]")
 	hbn := plugin.chain().HeadBlockNum()
 	plugin.PluginStartup()
 
@@ -212,7 +212,7 @@ func TestProducerPluginImpl_CalculateNextBlockTime(t *testing.T) {
 	account2 := common.Name(common.N("yuanc"))
 
 	plugin := producerPluginInitialize("-e", "-p", "eosio", "-p", "yuanc",
-		"--private-key", "[\"EOS859gxfnXyUriMgUeThh1fWv3oqcpLFyHa3TfFYC4PK2HqhToVM\", \"5KYZdUEo39z3FPrtuX2QbbwGnNP5zTd7yyr2SC1j299sBCnWjss\"]",
+		"--private-key", "[\"EOS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV\", \"5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3\"]",
 		"--private-key", "[\"EOS5jeUuKEZ8s8LLoxz4rNysYdHWboup8KtkyJzZYQzcVKFGek9Zu\", \"5Ja3h2wJNUnNcoj39jDMHGigsazvbGHAeLYEHM5uTwtfUoRDoYP\"]")
 
 	pt := *plugin.my.CalculateNextBlockTime(&account1, 0)
@@ -227,7 +227,7 @@ func TestProducerPluginImpl_CalculateNextBlockTime(t *testing.T) {
 
 func TestProducerPluginImpl_CalculatePendingBlockTime(t *testing.T) {
 	plugin := producerPluginInitialize("-e", "-p", "eosio", "-p", "yuanc",
-		"--private-key", "[\"EOS859gxfnXyUriMgUeThh1fWv3oqcpLFyHa3TfFYC4PK2HqhToVM\", \"5KYZdUEo39z3FPrtuX2QbbwGnNP5zTd7yyr2SC1j299sBCnWjss\"]",
+		"--private-key", "[\"EOS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV\", \"5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3\"]",
 		"--private-key", "[\"EOS5jeUuKEZ8s8LLoxz4rNysYdHWboup8KtkyJzZYQzcVKFGek9Zu\", \"5Ja3h2wJNUnNcoj39jDMHGigsazvbGHAeLYEHM5uTwtfUoRDoYP\"]")
 
 	pt := plugin.my.CalculatePendingBlockTime()
@@ -243,7 +243,7 @@ func TestProducerPluginImpl_OnIncomingBlock(t *testing.T) {
 	block.Producer = common.AccountName(common.N("eosio"))
 	block.Previous = chain.HeadBlockState().BlockId
 
-	priKey, err := ecc.NewPrivateKey("5KYZdUEo39z3FPrtuX2QbbwGnNP5zTd7yyr2SC1j299sBCnWjss")
+	priKey, err := ecc.NewPrivateKey("5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3")
 	assert.NoError(t, err)
 
 	blockrootMerkle := chain.HeadBlockState().BlockrootMerkle
@@ -274,7 +274,7 @@ func BenchmarkProducerPluginImpl_OnIncomingBlock(b *testing.B) {
 		block.Producer = common.AccountName(common.N("eosio"))
 		block.Previous = chain.HeadBlockState().BlockId
 
-		priKey, _ := ecc.NewPrivateKey("5KYZdUEo39z3FPrtuX2QbbwGnNP5zTd7yyr2SC1j299sBCnWjss")
+		priKey, _ := ecc.NewPrivateKey("5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3")
 
 		blockrootMerkle := chain.HeadBlockState().BlockrootMerkle
 		blockrootMerkle.Append(chain.HeadBlockState().BlockId)
@@ -297,8 +297,8 @@ func BenchmarkProducerPluginImpl_StartBlock(b *testing.B) {
 	log.Root().SetHandler(log.DiscardHandler())
 
 	plugin := producerPluginInitialize("-e", "-p", "eosio", "--private-key",
-		"[\"EOS859gxfnXyUriMgUeThh1fWv3oqcpLFyHa3TfFYC4PK2HqhToVM\", "+
-			"\"5KYZdUEo39z3FPrtuX2QbbwGnNP5zTd7yyr2SC1j299sBCnWjss\"]")
+		"[\"EOS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV\", "+
+			"\"5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3\"]")
 	plugin.PluginStartup()
 
 	b.StartTimer()
@@ -311,7 +311,7 @@ func BenchmarkProducerPluginImpl_ScheduleProductionLoop(b *testing.B) {
 	b.StopTimer()
 	log.Root().SetHandler(log.DiscardHandler())
 	plugin := producerPluginInitialize("-e", "-p", "eosio", "--private-key",
-		"[\"EOS859gxfnXyUriMgUeThh1fWv3oqcpLFyHa3TfFYC4PK2HqhToVM\", \"5KYZdUEo39z3FPrtuX2QbbwGnNP5zTd7yyr2SC1j299sBCnWjss\"]")
+		"[\"EOS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV\", \"5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3\"]")
 
 	plugin.PluginStartup()
 	b.StartTimer()
@@ -325,8 +325,8 @@ func BenchmarkProducerPluginImpl_MaybeProduceBlock(b *testing.B) {
 	b.StopTimer()
 	log.Root().SetHandler(log.DiscardHandler())
 	plugin := producerPluginInitialize("-e", "-p", "eosio", "--private-key",
-		"[\"EOS859gxfnXyUriMgUeThh1fWv3oqcpLFyHa3TfFYC4PK2HqhToVM\", "+
-			"\"5KYZdUEo39z3FPrtuX2QbbwGnNP5zTd7yyr2SC1j299sBCnWjss\"]")
+		"[\"EOS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV\", "+
+			"\"5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3\"]")
 	plugin.PluginStartup()
 
 	b.StartTimer()
