@@ -580,7 +580,7 @@ func (c *Controller) SkipTrxChecks() (b bool) {
 }
 
 func (c *Controller) IsProducingBlock() bool {
-	if c.Pending != nil {
+	if c.Pending == nil {
 		return false
 	}
 	return c.Pending.BlockStatus == types.Incomplete
@@ -1220,7 +1220,7 @@ func (c *Controller) ProposedProducers() types.ProducerScheduleType {
 }
 
 func (c *Controller) LightValidationAllowed(dro bool) (b bool) {
-	if c.Pending != nil || c.InTrxRequiringChecks {
+	if c.Pending == nil || c.InTrxRequiringChecks {
 		return false
 	}
 
@@ -1340,13 +1340,6 @@ func (c *Controller) CheckKeyList(key *ecc.PublicKey) {
 	}
 }
 
-func (c *Controller) IsProducing() bool {
-	if !common.Empty(c.Pending) {
-		return false
-	}
-	return c.Pending.BlockStatus == types.Incomplete
-}
-
 func (c *Controller) IsRamBillingInNotifyAllowed() bool {
 	return !c.IsProducingBlock() || c.Config.AllowRamBillingInNotify
 }
@@ -1400,10 +1393,10 @@ func (c *Controller) ValidateReferencedAccounts(t *types.Transaction) {
 
 func (c *Controller) ValidateExpiration(t *types.Transaction) {
 	chainConfiguration := c.GetGlobalProperties().Configuration
-	EosAssert(common.TimePoint(t.Expiration) >= c.PendingBlockTime(),
+	EosAssert(t.Expiration.ToTimePoint() >= c.PendingBlockTime(),
 		&ExpiredTxException{}, "transaction has expired, expiration is %v and pending block time is %v",
 		t.Expiration, c.PendingBlockTime())
-	EosAssert(common.TimePoint(t.Expiration) <= c.PendingBlockTime()+common.TimePoint(common.Seconds(int64(chainConfiguration.MaxTrxLifetime))),
+	EosAssert(t.Expiration.ToTimePoint() <= c.PendingBlockTime()+common.TimePoint(common.Seconds(int64(chainConfiguration.MaxTrxLifetime))),
 		&TxExpTooFarException{}, "Transaction expiration is too far in the future relative to the reference time of %v, expiration is %v and the maximum transaction lifetime is %v seconds",
 		t.Expiration, c.PendingBlockTime(), chainConfiguration.MaxTrxLifetime)
 }
@@ -1715,7 +1708,7 @@ func (c *Controller) clearExpiredInputTransactions() {
 			EosAssert(err == nil, &DatabaseException{}, "Controller clearExpiredInputTransactions is error :%s", err)
 			return
 		}
-		if now > common.TimePoint(t.Expiration) {
+		if now > t.Expiration.ToTimePoint() {
 			c.DB.Remove(&t)
 		} else {
 			break
