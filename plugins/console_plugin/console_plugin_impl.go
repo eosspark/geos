@@ -4,8 +4,8 @@ import (
 	"github.com/eosspark/eos-go/log"
 	"github.com/eosspark/eos-go/plugins/appbase/asio"
 	"github.com/eosspark/eos-go/plugins/console_plugin/console"
-	"github.com/eosspark/eos-go/plugins/console_plugin/console/js/eosapi"
-	"github.com/eosspark/eos-go/plugins/console_plugin/console/rpc"
+	"github.com/eosspark/eos-go/plugins/http_plugin/rpc"
+	"net"
 )
 
 type ConsolePluginImpl struct {
@@ -15,30 +15,51 @@ type ConsolePluginImpl struct {
 	preload []string
 	exec    string
 	console *console.Console
-	Self    *ConsolePlugin
-	log     log.Logger
+
+	rpcAPIs       []rpc.API   // List of APIs currently provided by the node
+	inprocHandler *rpc.Server // In-process RPC request handler to process the API requests
+
+	ipcEndpoint string       // IPC endpoint to listen at (empty = IPC disabled)
+	ipcListener net.Listener // IPC RPC listener socket to serve API requests
+	ipcHandler  *rpc.Server  // IPC RPC request handler to process the API requests
+
+	httpEndpoint  string       // HTTP endpoint (interface + port) to listen at (empty = HTTP disabled)
+	httpWhitelist []string     // HTTP RPC modules to allow through this endpoint
+	httpListener  net.Listener // HTTP RPC listener socket to server API requests
+	httpHandler   *rpc.Server  // HTTP RPC request handler to process the API requests
+
+	config *Config
+
+	wsEndpoint string       // Websocket endpoint (interface + port) to listen at (empty = websocket disabled)
+	wsListener net.Listener // Websocket RPC listener socket to server API requests
+	wsHandler  *rpc.Server  // Websocket RPC request handler to process the API requests
+
+	stop chan struct{} // Channel to wait for termination notifications
+
+	Self *ConsolePlugin
+	log  log.Logger
 }
 
 func NewConsolePluginImpl(io *asio.IoContext) *ConsolePluginImpl {
 	impl := new(ConsolePluginImpl)
 	impl.log = log.New("console")
 	impl.log.SetHandler(log.TerminalHandler)
+
+	impl.config = &DefaultConfig
+
+	//impl.ipcEndpoint=      impl.config.IPCEndpoint()
+	impl.httpEndpoint = impl.config.HTTPEndpoint()
+	//impl.wsEndpoint=   impl.config.WSEndpoint()
+
 	return impl
 }
 
 func (impl *ConsolePluginImpl) localConsole() error {
-	// Register all the APIs exposed by the services
-	handler := rpc.NewServer()
-	apis := apis()
-	for _, api := range apis {
-		if err := handler.RegisterName(api.Namespace, api.Service); err != nil {
-			log.Error(err.Error())
-			panic(err)
-		}
-		log.Debug("InProc registered :  namespace =%s", api.Namespace)
-	}
 
-	client := rpc.DialInProc(handler)
+	client, err := rpc.Dial("http://127.0.0.1:8888")
+	if err != nil {
+		impl.log.Error("dial client is wrong: %s", err)
+	}
 
 	config := console.Config{
 		DataDir: impl.datadir,
@@ -60,31 +81,4 @@ func (impl *ConsolePluginImpl) localConsole() error {
 	impl.console = console
 
 	return nil
-
-}
-
-// apis returns the collection of RPC descriptors this node offers.
-func apis() []rpc.API {
-	return []rpc.API{
-		{
-			Namespace: "api",
-			Version:   "1.0",
-			Service:   eosapi.NewEosApi(),
-		},
-		//{
-		//	Namespace: "produce",
-		//	Version:   "1.0",
-		//	Service:   eosapi.NewEosApi(),
-		//},
-		//{
-		//	Namespace: "net",
-		//	Version:   "1.0",
-		//	Service:   net_plugin.NewNetPlugin(),
-		//},
-		//{
-		//	Namespace: "wallet",
-		//	Version:   "1.0",
-		//	Service:   wallet_plugin.NewWalletPlugin(),
-		//},
-	}
 }

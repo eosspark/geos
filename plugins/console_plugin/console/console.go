@@ -30,7 +30,7 @@ import (
 
 	"github.com/eosspark/eos-go/plugins/console_plugin/console/js/jsre"
 	"github.com/eosspark/eos-go/plugins/console_plugin/console/js/web3ext"
-	"github.com/eosspark/eos-go/plugins/console_plugin/console/rpc"
+	"github.com/eosspark/eos-go/plugins/http_plugin/rpc"
 	"github.com/mattn/go-colorable"
 	"github.com/peterh/liner"
 	"github.com/robertkrimen/otto"
@@ -245,9 +245,9 @@ func (c *Console) AutoCompleteInput(line string, pos int) (string, []string, str
 func (c *Console) Welcome() {
 	// Print some generic eosgo metadata
 	fmt.Fprintf(c.printer, "Welcome to the EOSGO JavaScript console!\n\n")
-	//c.jsre.Run(`
-	//    console.log("get info: " + eosapi.createKey);
-	//`)
+	c.jsre.Run(`
+console.log("get info: " + chain.getInfo());
+	`)
 
 	// List all the supported modules for the user to call
 	if apis, err := c.client.SupportedModules(); err == nil {

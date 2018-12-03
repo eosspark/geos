@@ -25,7 +25,7 @@ import (
 	"sync"
 	"sync/atomic"
 
-	mapset "github.com/deckarep/golang-set"
+	"github.com/deckarep/golang-set"
 	"github.com/eosspark/eos-go/log"
 )
 
@@ -70,6 +70,7 @@ func (s *RPCService) Modules() map[string]string {
 	for name := range s.server.services {
 		modules[name] = "1.0"
 	}
+	fmt.Println("rpc.modules() ")
 	return modules
 }
 
@@ -93,7 +94,7 @@ func (s *Server) RegisterName(name string, rcvr interface{}) error {
 	}
 
 	methods, subscriptions := suitableCallbacks(rcvrVal, svc.typ)
-
+	fmt.Println(methods, subscriptions)
 	// already a previous service register under given sname, merge methods/subscriptions
 	if regsvc, present := s.services[name]; present {
 		if len(methods) == 0 && len(subscriptions) == 0 {
@@ -186,6 +187,7 @@ func (s *Server) serveRequest(ctx context.Context, codec ServerCodec, singleShot
 			}
 			return nil
 		}
+		fmt.Printf("rpc/server exec: %#v,  %t\n", reqs, batch)
 		// If a single shot request is executing, run and return immediately
 		if singleShot {
 			if batch {
@@ -197,6 +199,8 @@ func (s *Server) serveRequest(ctx context.Context, codec ServerCodec, singleShot
 		}
 		// For multi-shot connections, start a goroutine to serve and loop back
 		pend.Add(1)
+
+		fmt.Printf("rpc/server exec: %#v, %t\n", reqs, batch)
 
 		go func(reqs []*serverRequest, batch bool) {
 			defer pend.Done()
@@ -291,6 +295,7 @@ func (s *Server) handle(ctx context.Context, codec ServerCodec, req *serverReque
 		return codec.CreateResponse(req.id, subid), activateSub
 	}
 
+	rpclog.Debug("regular RPC call %#v", req.callb)
 	// regular RPC call, prepare arguments
 	if len(req.args) != len(req.callb.argTypes) {
 		rpcErr := &invalidParamsError{fmt.Sprintf("%s%s%s expects %d parameters, got %d",
@@ -307,8 +312,14 @@ func (s *Server) handle(ctx context.Context, codec ServerCodec, req *serverReque
 		arguments = append(arguments, req.args...)
 	}
 
+	rpclog.Debug("execute RPC method and return result")
+
+	rpclog.Debug("req.callb.method.Func: %#v", req.callb.method.Func)
 	// execute RPC method and return result
 	reply := req.callb.method.Func.Call(arguments)
+
+	rpclog.Error("reply: %#v", reply)
+
 	if len(reply) == 0 {
 		return codec.CreateResponse(req.id, nil), nil
 	}
@@ -326,6 +337,8 @@ func (s *Server) handle(ctx context.Context, codec ServerCodec, req *serverReque
 func (s *Server) exec(ctx context.Context, codec ServerCodec, req *serverRequest) {
 	var response interface{}
 	var callback func()
+
+	rpclog.Debug("exec: %#v", req)
 	if req.err != nil {
 		response = codec.CreateErrorResponse(&req.id, req.err)
 	} else {

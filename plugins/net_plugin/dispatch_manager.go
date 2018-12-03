@@ -32,10 +32,13 @@ type dispatchManager struct {
 
 	receivedBlocks       map[common.BlockIdType][]*Peer
 	receivedTransactions map[common.TransactionIdType][]*Peer
+	myImpl               *netPluginIMpl
 }
 
-func NewDispatchManager() *dispatchManager {
-	return &dispatchManager{}
+func NewDispatchManager(impl *netPluginIMpl) *dispatchManager {
+	return &dispatchManager{
+		myImpl: impl,
+	}
 }
 
 func (d *dispatchManager) bcastBlock(myImpl *netPluginIMpl, bsum *types.SignedBlock) {
@@ -69,7 +72,7 @@ func (d *dispatchManager) bcastBlock(myImpl *netPluginIMpl, bsum *types.SignedBl
 	// skip will be empty if our producer emitted this block so just send it
 	if (largeMsgNotify && msgsiz > d.justSendItMax) && len(skips) > 0 {
 		//fc_ilog(logger, "block size is ${ms}, sending notify",("ms", msgsiz))
-		netlog.Info("block_size is %d ,sending notify", msgsiz)
+		myImpl.log.Info("block_size is %d ,sending notify", msgsiz)
 		myImpl.sendAll(&pendingNotify, func(p *Peer) bool {
 			_, ok := skips[p]
 			if ok || !p.current() {
@@ -78,7 +81,7 @@ func (d *dispatchManager) bcastBlock(myImpl *netPluginIMpl, bsum *types.SignedBl
 			unknown := p.addPeerBlock(&pbstate)
 			if !unknown {
 				//elog("${p} already has knowledge of block ${b}", ("p",c->peer_name())("b",pbstate.block_num))
-				netlog.Error("%s already has knowledge of block %d", p.peerAddr, pbstate.blockNum)
+				myImpl.log.Error("%s already has knowledge of block %d", p.peerAddr, pbstate.blockNum)
 			}
 			return unknown
 		})
@@ -98,7 +101,7 @@ func (d *dispatchManager) bcastBlock(myImpl *netPluginIMpl, bsum *types.SignedBl
 
 func (d *dispatchManager) rejectedBlock(id *common.BlockIdType) {
 	//fc_dlog(logger,"not sending rejected transaction ${tid}",("tid",id));
-	netlog.Debug("not sending rejected block %s", id)
+	d.myImpl.log.Debug("not sending rejected block %s", id)
 	_, ok := d.receivedBlocks[*id]
 	if ok {
 		delete(d.receivedBlocks, *id)
@@ -122,7 +125,7 @@ func (d *dispatchManager) recvBlock(p *Peer, id *common.BlockIdType, bnum uint32
 	p.addPeerBlock(&pbs)
 	//fc_dlog(logger, "canceling wait on ${p}", ("p",c->peer_name()));
 
-	netlog.Debug("canceling wait on %s", p.peerAddr)
+	d.myImpl.log.Debug("canceling wait on %s", p.peerAddr)
 	p.cancelWait()
 }
 
@@ -146,7 +149,7 @@ func (d *dispatchManager) bcastTransaction(myImpl *netPluginIMpl, trx *types.Pac
 	}
 
 	if myImpl.localTxns.getIndex("by_id").findLocalTrxById(id) != nil { //found
-		netlog.Info("found trxid in local_trxs")
+		d.myImpl.log.Info("found trxid in local_trxs")
 		return
 	}
 
@@ -187,7 +190,7 @@ func (d *dispatchManager) bcastTransaction(myImpl *netPluginIMpl, trx *types.Pac
 			if unknown {
 				//fc_dlog(logger, "sending notice to ${n}", ("n",c->peer_name() ) );
 				//c->trx_state.insert(transaction_state({id,false,true,0,trx_expiration,time_point() }))
-				netlog.Debug("sending notice to  %s", p.peerAddr)
+				d.myImpl.log.Debug("sending notice to  %s", p.peerAddr)
 				p.trxState.insertTrx(&transactionState{
 					id, false, true, 0, trxExpiration, common.TimePoint(0),
 				})
@@ -217,7 +220,7 @@ func (d *dispatchManager) bcastTransaction(myImpl *netPluginIMpl, trx *types.Pac
 			if unknown {
 				//fc_dlog(logger, "sending notice to ${n}", ("n",c->peer_name() ) );
 				//c->trx_state.insert(transaction_state({id,false,true,0,trx_expiration,time_point() }))
-				netlog.Debug("sending notice to  %s", p.peerAddr)
+				d.myImpl.log.Debug("sending notice to  %s", p.peerAddr)
 				p.trxState.insertTrx(&transactionState{
 					id, false, true, 0, trxExpiration, common.TimePoint(0),
 				})
@@ -237,7 +240,7 @@ func (d *dispatchManager) bcastTransaction(myImpl *netPluginIMpl, trx *types.Pac
 
 func (d *dispatchManager) rejectedTransaction(id *common.TransactionIdType) {
 	//fc_dlog(logger,"not sending rejected transaction ${tid}",("tid",id));
-	netlog.Debug("not sending rejected transaction %s \n", id)
+	d.myImpl.log.Debug("not sending rejected transaction %s \n", id)
 	_, ok := d.receivedTransactions[*id]
 	if ok {
 		delete(d.receivedTransactions, *id)
@@ -252,7 +255,7 @@ func (d *dispatchManager) recvTransaction(p *Peer, id *common.TransactionIdType)
 		p.lastReq = &RequestMessage{}
 	}
 	//fc_dlog(logger, "canceling wait on ${p}", ("p",c->peer_name()));
-	netlog.Debug("canceling wait on %s \n", p.peerAddr)
+	d.myImpl.log.Debug("canceling wait on %s \n", p.peerAddr)
 	p.cancelWait()
 
 }
@@ -271,7 +274,7 @@ func (d *dispatchManager) recvNotice(myImpl *netPluginIMpl, p *Peer, msg *Notice
 			tx := myImpl.localTxns.getIndex("by_id").findLocalTrxById(*t)
 			if tx == nil {
 				//fc_dlog(logger,"did not find ${id}",("id",t));
-				netlog.Debug("did not find %s", t.String())
+				d.myImpl.log.Debug("did not find %s", t.String())
 
 				//At this point the details of the txn are not known, just its id. This
 				//effectively gives 120 seconds to learn of the details of the txn which
@@ -290,15 +293,15 @@ func (d *dispatchManager) recvNotice(myImpl *netPluginIMpl, p *Peer, msg *Notice
 				d.reqTrx = append(d.reqTrx, *t)
 			} else {
 				//fc_dlog(logger,"big msg manager found txn id in table, ${id}",("id", t));
-				netlog.Debug("big msg manager found txn id in table,%s", t.String())
+				d.myImpl.log.Debug("big msg manager found txn id in table,%s", t.String())
 			}
 		}
 		sendReq = !(len(req.ReqTrx.IDs) == 0)
 		//fc_dlog(logger,"big msg manager send_req ids list has ${ids} entries", ("ids", req.req_trx.ids.size()));
-		netlog.Debug("big msg manager send_req ids list has %d entries\n", len(req.ReqTrx.IDs))
+		d.myImpl.log.Debug("big msg manager send_req ids list has %d entries\n", len(req.ReqTrx.IDs))
 
 	} else if msg.KnownTrx.Mode == none {
-		netlog.Error("passed a notice_message with something other than a normal on none known_trx")
+		d.myImpl.log.Error("passed a notice_message with something other than a normal on none known_trx")
 		return
 	}
 
@@ -313,10 +316,10 @@ func (d *dispatchManager) recvNotice(myImpl *netPluginIMpl, p *Peer, msg *Notice
 					entry.blockNum = b.BlockNumber()
 				}
 			}).Catch(func(ex exception.AssertException) {
-				netlog.Info("caught assert on fetch_block_by_id, %s", ex.What())
+				d.myImpl.log.Info("caught assert on fetch_block_by_id, %s", ex.What())
 				//keep going, client can ask another peer
 			}).Catch(func(interface{}) {
-				netlog.Error("failed to retrieve block for id")
+				d.myImpl.log.Error("failed to retrieve block for id")
 			}).End()
 
 			if common.Empty(b) {
@@ -327,11 +330,11 @@ func (d *dispatchManager) recvNotice(myImpl *netPluginIMpl, p *Peer, msg *Notice
 			p.addPeerBlock(&entry)
 		}
 	} else if msg.KnownBlocks.Mode != none {
-		netlog.Error("passed a notice_message with something other than a normal on none known_blocks")
+		d.myImpl.log.Error("passed a notice_message with something other than a normal on none known_blocks")
 		return
 	}
 
-	netlog.Debug("send req = %s\n", sendReq)
+	d.myImpl.log.Debug("send req = %s\n", sendReq)
 	if sendReq {
 		p.write(&req)
 		p.fetchWait()
@@ -344,7 +347,7 @@ func (d *dispatchManager) retryFetch(p *Peer) {
 		return
 	}
 	//fc_wlog( logger, "failed to fetch from ${p}",("p",c->peer_name()))
-	netlog.Debug("failed to fetch from %s \n", p.peerAddr)
+	d.myImpl.log.Debug("failed to fetch from %s \n", p.peerAddr)
 	var tid common.TransactionIdType
 	var bid common.BlockIdType
 	isTxn := false
@@ -359,7 +362,7 @@ func (d *dispatchManager) retryFetch(p *Peer) {
 	} else {
 		//fc_wlog( logger,"no retry, block mpde = ${b} trx mode = ${t}",
 		//	("b",modes_str(c->last_req->req_blocks.mode))("t",modes_str(c->last_req->req_trx.mode)));
-		netlog.Debug("no retry,block mode = %s trx mode = %s\n", modeTostring[p.lastReq.ReqBlocks.Mode], modeTostring[p.lastReq.ReqTrx.Mode])
+		d.myImpl.log.Debug("no retry,block mode = %s trx mode = %s\n", modeTostring[p.lastReq.ReqBlocks.Mode], modeTostring[p.lastReq.ReqTrx.Mode])
 		return
 	}
 

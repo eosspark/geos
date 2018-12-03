@@ -6,13 +6,13 @@ import (
 	"github.com/eosspark/eos-go/log"
 	. "github.com/eosspark/eos-go/plugins/appbase/app"
 	. "github.com/eosspark/eos-go/plugins/appbase/app/include"
+	"github.com/eosspark/eos-go/plugins/chain_plugin"
+	"github.com/eosspark/eos-go/plugins/http_plugin"
+	"github.com/eosspark/eos-go/plugins/wallet_plugin"
 	"os"
 	"strings"
 
-	//plugins
-	"github.com/eosspark/eos-go/plugins/console_plugin"
 	"github.com/eosspark/eos-go/plugins/producer_plugin"
-	"github.com/eosspark/eos-go/plugins/template_plugin"
 )
 
 const (
@@ -26,7 +26,7 @@ const (
 	NODE_MANAGEMENT_SUCCESS = 5
 )
 
-//go run main.go -e -p eosio --private-key [\"EOS859gxfnXyUriMgUeThh1fWv3oqcpLFyHa3TfFYC4PK2HqhToVM\",\"5KYZdUEo39z3FPrtuX2QbbwGnNP5zTd7yyr2SC1j299sBCnWjss\"] --console
+//go run main.go -e -p eosio --private-key [\"EOS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV\",\"5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3\"] --console
 func main() {
 
 	try.Try(func() {
@@ -36,8 +36,14 @@ func main() {
 		App().SetDefaultConfigDir()
 		if !App().Initialize([]PluginTypeName{
 			producer_plugin.ProducerPlug,
-			console_plugin.ConsolePlug,
-			template_plugin.TemplatePlug,
+			chain_plugin.ChainPlug,
+			http_plugin.HttpPlug,
+			wallet_plugin.WalletPlug,
+
+			//console_plugin.ConsolePlug,
+			//net_plugin.NetPlug,
+			//template_plugin.TemplatePlug,
+
 		}) {
 			os.Exit(INITIALIZE_FAIL)
 		}

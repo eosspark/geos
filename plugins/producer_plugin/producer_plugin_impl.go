@@ -1,15 +1,15 @@
 package producer_plugin
 
 import (
+	"github.com/eosspark/container/sets/treeset"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
-	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/crypto"
+	"github.com/eosspark/eos-go/crypto/ecc"
 	. "github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/log"
 	"github.com/eosspark/eos-go/plugins/appbase/asio"
-	"github.com/eosspark/container/sets/treeset"
 )
 
 type ProducerPluginImpl struct {
@@ -74,7 +74,7 @@ const (
 	speculating
 )
 
-type signatureProviderType = func(sha256 crypto.Sha256) ecc.Signature
+type signatureProviderType = func(sha256 crypto.Sha256) *ecc.Signature
 type transactionIdWithExpireIndex = map[common.TransactionIdType]common.TimePoint
 
 func NewProducerPluginImpl(io *asio.IoContext) *ProducerPluginImpl {
