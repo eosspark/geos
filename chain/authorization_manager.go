@@ -62,7 +62,7 @@ func (a *AuthorizationManager) CreatePermission(account common.AccountName,
 }
 
 func (a *AuthorizationManager) ModifyPermission(permission *entity.PermissionObject, auth *types.Authority) {
-	err := a.db.Modify(&permission, func(po *entity.PermissionObject) {
+	err := a.db.Modify(permission, func(po *entity.PermissionObject) {
 		po.Auth = (*auth).ToSharedAuthority()
 		po.LastUpdated = a.control.PendingBlockTime()
 	})

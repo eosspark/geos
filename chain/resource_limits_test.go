@@ -7,6 +7,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"math"
 	"testing"
+	"github.com/eosspark/eos-go/exception/try"
+	"github.com/eosspark/eos-go/exception"
 )
 
 func initializeResource() *ResourceLimitsManager {
@@ -96,7 +98,6 @@ func TestElasticNetRelaxContract(t *testing.T) {
 		rlm.ProcessBlockUsage(iterations)
 		iterations++
 	}
-	fmt.Println(expectedRelaxIteration, uint64(iterations))
 	assert.Equal(t, expectedRelaxIteration, uint64(iterations))
 	assert.Equal(t, desiredVirtualLimit, rlm.GetVirtualBlockNetLimit())
 
@@ -105,7 +106,6 @@ func TestElasticNetRelaxContract(t *testing.T) {
 		rlm.ProcessBlockUsage(iterations)
 		iterations++
 	}
-	fmt.Println(expectedRelaxIteration+expectedContractIteration, uint64(iterations))
 	assert.Equal(t, expectedRelaxIteration+expectedContractIteration, uint64(iterations))
 	assert.Equal(t, uint64(common.DefaultConfig.MaxBlockNetUsage), rlm.GetVirtualBlockNetLimit())
 }
@@ -136,12 +136,14 @@ func TestWeightedCapacityCpu(t *testing.T) {
 		f := treeset.NewWith(common.CompareName)
 		f.AddItem(account)
 		//s := rlm.db.StartSession()
-		//rlm.AddTransactionUsage(&f, uint64(expectedLimits[idx]),0,  0)
+		//rlm.AddTransactionUsage(f, uint64(expectedLimits[idx]), 0, 0)
 		//s.Undo()
-		//
-		////expect txCpuUsageExceededFailure
-		//rlm.AddTransactionUsage(&f, uint64(expectedLimits[idx]),0,  0)
 
+		try.Try(func() {
+			rlm.AddTransactionUsage(f, uint64(expectedLimits[idx]), 0, 0)
+		}).Catch(func(e exception.TxCpuUsageExceeded) {
+			fmt.Println(e)
+		}).End()
 	}
 }
 
@@ -170,12 +172,15 @@ func TestWeightedCapacityNet(t *testing.T) {
 		assert.Equal(t, expectedLimits[idx], rlm.GetAccountNetLimit(account, true))
 		f := treeset.NewWith(common.NameComparator)
 		f.AddItem(account)
-		//s := rlm.db.StartSession()
-		//rlm.AddTransactionUsage(&f, 0, uint64(expectedLimits[idx]), 0)
-		//s.Undo()
-		//
-		////expect txNetUsageExceededFailure
-		//rlm.AddTransactionUsage(&f,0,uint64(expectedLimits[idx]),0)
+		s := rlm.db.StartSession()
+		rlm.AddTransactionUsage(f, 0, uint64(expectedLimits[idx]), 0)
+		s.Undo()
+
+		try.Try(func() {
+			rlm.AddTransactionUsage(f, 0, uint64(expectedLimits[idx]), 0)
+		}).Catch(func(e exception.TxCpuUsageExceeded) {
+			fmt.Println(e)
+		}).End()
 	}
 }
 
@@ -194,8 +199,12 @@ func TestEnforceBlockLimitsCpu(t *testing.T) {
 	for idx := 0; uint64(idx) < expectedIterations; idx++ {
 		rlm.AddTransactionUsage(f, increment, 0, 0)
 	}
-	//expect blockResourceExhausted
-	rlm.AddTransactionUsage(f, increment, 0, 0)
+
+	try.Try(func() {
+		rlm.AddTransactionUsage(f, increment, 0, 0)
+	}).Catch(func(e exception.BlockResourceExhausted) {
+		fmt.Println(e)
+	}).End()
 }
 
 func TestEnforceBlockLimitsNet(t *testing.T) {
@@ -214,8 +223,12 @@ func TestEnforceBlockLimitsNet(t *testing.T) {
 	for idx := 0; uint64(idx) < expectedIterations; idx++ {
 		rlm.AddTransactionUsage(f, 0, increment, 0)
 	}
-	//expect blockResourceExhausted
-	rlm.AddTransactionUsage(f, 0, increment, 0)
+
+	try.Try(func() {
+		rlm.AddTransactionUsage(f, 0, increment, 0)
+	}).Catch(func(e exception.BlockResourceExhausted) {
+		fmt.Println(e)
+	}).End()
 }
 
 func TestEnforceAccountRamLimit(t *testing.T) {
@@ -234,8 +247,12 @@ func TestEnforceAccountRamLimit(t *testing.T) {
 		rlm.VerifyAccountRamUsage(account)
 	}
 	rlm.AddPendingRamUsage(account, int64(increment))
-	//throw ramUsageExceeded
-	rlm.VerifyAccountRamUsage(account)
+
+	try.Try(func() {
+		rlm.VerifyAccountRamUsage(account)
+	}).Catch(func(e exception.RamUsageExceeded) {
+		fmt.Println(e)
+	}).End()
 }
 
 func TestEnforceAccountRamLimitUnderflow(t *testing.T) {
@@ -245,8 +262,12 @@ func TestEnforceAccountRamLimitUnderflow(t *testing.T) {
 	rlm.SetAccountLimits(account, 100, -1, -1)
 	rlm.VerifyAccountRamUsage(account)
 	rlm.ProcessAccountLimitUpdates()
-	//throw transactionException
-	rlm.AddPendingRamUsage(account, -101)
+
+	try.Try(func() {
+		rlm.AddPendingRamUsage(account, -101)
+	}).Catch(func(e exception.TransactionException) {
+		fmt.Println(e)
+	}).End()
 }
 
 func TestEnforceAccountRamLimitOverflow(t *testing.T) {
@@ -259,8 +280,12 @@ func TestEnforceAccountRamLimitOverflow(t *testing.T) {
 	rlm.VerifyAccountRamUsage(account)
 	rlm.AddPendingRamUsage(account, math.MaxUint64/2)
 	rlm.VerifyAccountRamUsage(account)
-	//throw transactionException
-	rlm.AddPendingRamUsage(account, 2)
+
+	try.Try(func() {
+		rlm.AddPendingRamUsage(account, 2)
+	}).Catch(func(e exception.TransactionException) {
+		fmt.Println(e)
+	}).End()
 }
 
 func TestEnforceAccountRamCommitment(t *testing.T) {
@@ -284,8 +309,12 @@ func TestEnforceAccountRamCommitment(t *testing.T) {
 	}
 
 	rlm.SetAccountLimits(account, int64(limit-increment*expectedIterations), -1, -1)
-	//throw ramUsageExceeded
-	rlm.VerifyAccountRamUsage(account)
+
+	try.Try(func() {
+		rlm.VerifyAccountRamUsage(account)
+	}).Catch(func(e exception.RamUsageExceeded) {
+		fmt.Println(e)
+	}).End()
 }
 
 func TestSanityCheck(t *testing.T) {
@@ -312,52 +341,4 @@ func TestSanityCheck(t *testing.T) {
 	f.AddItem(dan)
 	rlm.AddTransactionUsage(f, 10, 0, 1)
 	fmt.Println(rlm.GetAccountCpuLimit(dan, true))
-}
-
-func TestResourceLimitsManager_UpdateAccountUsage(t *testing.T) {
-	control := GetControllerInstance()
-	rlm := control.ResourceLimits
-	rlm.InitializeDatabase()
-	a := common.AccountName(common.N("yuanchao"))
-	f := treeset.NewWith(common.CompareName)
-	f.AddItem(a)
-	rlm.InitializeAccount(a)
-	rlm.AddTransactionUsage(f, 100, 100, 1)
-	rlm.UpdateAccountUsage(f, 1)
-	rlm.UpdateAccountUsage(f, 86401)
-	rlm.UpdateAccountUsage(f, 172801)
-	//结果value_ex应该为579/2 579/2/2
-	rlm.UpdateAccountUsage(f, 1)
-	rlm.UpdateAccountUsage(f, 172801)
-	//结果value_ex为0
-}
-
-func TestResourceLimitsManager_SetAccountLimits(t *testing.T) {
-	control := GetControllerInstance()
-	rlm := control.ResourceLimits
-	rlm.InitializeDatabase()
-	fmt.Println(rlm.GetBlockCpuLimit())
-	a := common.AccountName(common.N("yuanchao"))
-	rlm.InitializeAccount(a)
-	rlm.SetAccountLimits(a, 100, 100, 100)
-	var r, n, c int64
-	rlm.GetAccountLimits(a, &r, &n, &c)
-	fmt.Println(r, n, c)
-}
-
-func TestResourceLimitsManager_ProcessBlockUsage(t *testing.T) {
-	control := GetControllerInstance()
-	rlm := control.ResourceLimits
-	rlm.InitializeDatabase()
-	a := common.AccountName(common.N("yuanchao"))
-	b := common.AccountName(common.N("shengfeng"))
-	c := common.AccountName(common.N("haonan"))
-	account := []common.AccountName{a, b, c}
-	for _, acc := range account {
-		rlm.InitializeAccount(acc)
-	}
-	rlm.SetAccountLimits(a, 100, 100, 100)
-	rlm.SetAccountLimits(b, 200, 300, 100)
-
-	rlm.ProcessAccountLimitUpdates()
 }
