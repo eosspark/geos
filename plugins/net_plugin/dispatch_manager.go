@@ -315,7 +315,7 @@ func (d *dispatchManager) recvNotice(myImpl *netPluginIMpl, p *Peer, msg *Notice
 				if &b != nil { //TODO
 					entry.blockNum = b.BlockNumber()
 				}
-			}).Catch(func(ex exception.AssertException) {
+			}).Catch(func(ex *exception.AssertException) {
 				d.myImpl.log.Info("caught assert on fetch_block_by_id, %s", ex.What())
 				//keep going, client can ask another peer
 			}).Catch(func(interface{}) {

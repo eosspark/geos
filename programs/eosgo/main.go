@@ -50,13 +50,13 @@ func main() {
 		App().StartUp()
 		App().Exec()
 
-	}).Catch(func(e ExtractGenesisStateException) {
+	}).Catch(func(e *ExtractGenesisStateException) {
 		os.Exit(EXTRACTED_GENESIS)
 
-	}).Catch(func(e FixedReversibleDbException) {
+	}).Catch(func(e *FixedReversibleDbException) {
 		os.Exit(FIXED_REVERSIBLE)
 
-	}).Catch(func(e NodeManagementSuccess) {
+	}).Catch(func(e *NodeManagementSuccess) {
 		os.Exit(NODE_MANAGEMENT_SUCCESS)
 
 	}).Catch(func(e Exception) {

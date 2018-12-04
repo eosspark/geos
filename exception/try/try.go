@@ -42,7 +42,7 @@ func Try(f func()) (r *CatchOrFinally) {
 			r.e = e
 
 			if DEBUG {
-				const size= 64 << 10
+				const size = 65536
 				buf := make([]byte, size)
 				buf = buf[:runtime.Stack(buf, false)]
 

@@ -170,7 +170,7 @@ func handshakePopulate(impl *netPluginIMpl, hello *HandshakeMessage) {
 		Try(func() {
 			//hello.LastIrreversibleBlockID = cc.get_block_id_for_num(hello.last_irreversible_block_num)
 			//hello.LastIrreversibleBlockID =
-		}).Catch(func(ex exception.UnknownBlockException) {
+		}).Catch(func(ex *exception.UnknownBlockException) {
 			//ilog("caught unkown_block");
 			fmt.Println("caught unkown_block")
 			//hello.LastIrreversibleBlockNum =0
@@ -180,7 +180,7 @@ func handshakePopulate(impl *netPluginIMpl, hello *HandshakeMessage) {
 		Try(func() {
 			//hello.id = cc.get_block_id_for_num( hello.head_num )
 			//hello.id =
-		}).Catch(func(ex exception.UnknownBlockException) {
+		}).Catch(func(ex *exception.UnknownBlockException) {
 			hello.HeadNum = 0
 		}).End()
 	}
@@ -400,7 +400,7 @@ func (p *Peer) blk_send_branch() {
 		//libNum = cc.last_irreversible_block_num()
 		//libID = cc.last_irreversible_block_id()
 		//headID = cc.fork_db_head_block_id()
-	}).Catch(func(ex exception.AssertException) {
+	}).Catch(func(ex *exception.AssertException) {
 		log.Error("unable to retrieve block info: %s for %s", ex.What(), p.peerAddr)
 		p.write(&note)
 		return
@@ -476,7 +476,7 @@ func (p *Peer) blkSend(impl *netPluginIMpl, ids []common.BlockIdType) {
 					blkid, count, len(ids), p.peerAddr)
 				breaking = true
 			}
-		}).Catch(func(ex exception.AssertException) {
+		}).Catch(func(ex *exception.AssertException) {
 			p.impl.log.Error("caught assert on fetch_block_by_id, %s, id %s on block %d of %d for %s",
 				ex.What(), blkid, count, len(ids), p.peerAddr)
 			breaking = true

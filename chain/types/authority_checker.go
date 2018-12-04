@@ -180,10 +180,10 @@ func (wtv *WeightTallyVisitor) VisitPermissionLevelWeight(permission PermissionL
 				propagateError = true
 				map[PermissionLevel]PermissionCacheStatus(*wtv.CachedPermissions)[permission.Permission] = BeingEvaluated
 				r = wtv.Checker.SatisfiedAcd(&auth, wtv.CachedPermissions, wtv.RecursionDepth+1)
-			}).Catch(func(e PermissionQueryException) {
+			}).Catch(func(e *PermissionQueryException) {
 				isNotFound = true
 				if propagateError {
-					EosThrow(&e, "authority_check::VisitPermissionLevelWeight is error: %v", e.LogMessage)
+					EosThrow(e, "authority_check::VisitPermissionLevelWeight is error: %v", e.LogMessage)
 				} else {
 					return
 				}
