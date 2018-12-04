@@ -300,6 +300,9 @@ func TestContextFreeAction(t *testing.T) {
 		assert.Equal(t, ret.ActionTraces[0].InlineTraces[0].Act.Name, common.AccountName(common.N("event1")))
 		assert.Equal(t, len(ret.ActionTraces[0].InlineTraces[0].Act.Authorization), 0)
 
+		retException := callTestFunctionException2(control, "test_transaction", "send_cf_action_fail", []byte{}, "testapi", exception.EosioAssertMessageException{}.Code(), "context free actions cannot have authorizations")
+		assert.Equal(t, retException, true)
+
 		stopBlock(control)
 
 	})
@@ -1167,7 +1170,7 @@ func callTestFunction2(control *chain.Controller, cls string, method string, pay
 
 }
 
-func callTestFunctionException2(control *chain.Controller, cls string, method string, payload []byte, authorizer string, errCode exception.ExcTypes, errMsg string) (ret bool) {
+func callTestFunctionException2(control *chain.Controller, cls string, method string, payload []byte, authorizer string, errCode exception.ExcTypes, errMsg string) bool {
 
 	action := wasmTestAction(cls, method)
 	fmt.Println(cls, method, action)
@@ -1185,18 +1188,18 @@ func callTestFunctionException2(control *chain.Controller, cls string, method st
 	//pushTransaction(control, trx)
 
 	defer try.HandleReturn()
-	try.Try(func() {
-		pushTransaction(control, trx)
-	}).Catch(func(e exception.Exception) {
-		if e.Code() == errCode {
-			fmt.Println(errMsg)
-			ret = true
-			try.Return()
-		}
-	}).End()
+	//try.Try(func() {
+	//	pushTransaction(control, trx)
+	//}).Catch(func(e exception.Exception) {
+	//	if e.Code() == errCode {
+	//		fmt.Println(errMsg)
+	//		ret = true
+	//		try.Return()
+	//	}
+	//}).End()
 
-	ret = false
-	return
+	ret := pushTransaction(control, trx)
+	return ret.Except.Code() == errCode
 
 }
 
