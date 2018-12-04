@@ -65,6 +65,8 @@ func currentReceiver(vm *VM) {
 
 func requireAuthorization(vm *VM) {
 	w := vm.WasmGo
+	EosAssert(!w.context.ContextFreeAction(), &UnaccessibleApi{}, "only context free api's can be used in this context")
+
 	account := int64(vm.popUint64())
 
 	w.ilog.Debug("account:%v", common.AccountName(account))
@@ -982,6 +984,7 @@ func ripemd160(vm *VM) {
 
 func dbStoreI64(vm *VM) {
 	w := vm.WasmGo
+	EosAssert(!w.context.ContextFreeAction(), &UnaccessibleApi{}, "only context free api's can be used in this context")
 
 	bufferSize := int(vm.popUint64())
 	buffer := int(vm.popUint64())
@@ -1087,6 +1090,7 @@ func dbPreviousI64(vm *VM) {
 
 func dbFindI64(vm *VM) {
 	w := vm.WasmGo
+	EosAssert(!w.context.ContextFreeAction(), &UnaccessibleApi{}, "only context free api's can be used in this context")
 
 	id := vm.popUint64()
 	table := vm.popUint64()
@@ -1148,6 +1152,7 @@ func dbEndI64(vm *VM) {
 //secondaryKey Index
 func dbIdx64Store(vm *VM) {
 	w := vm.WasmGo
+	EosAssert(!w.context.ContextFreeAction(), &UnaccessibleApi{}, "only context free api's can be used in this context")
 
 	pValue := int(vm.popUint64())
 	id := vm.popUint64()
@@ -1186,7 +1191,6 @@ func dbIdx64Update(vm *VM) {
 }
 
 func dbIdx64findSecondary(vm *VM) {
-
 	w := vm.WasmGo
 
 	pPrimary := int(vm.popUint64())
@@ -1212,7 +1216,6 @@ func dbIdx64findSecondary(vm *VM) {
 }
 
 func dbIdx64Lowerbound(vm *VM) {
-
 	w := vm.WasmGo
 
 	pPrimary := int(vm.popUint64())
@@ -1241,7 +1244,6 @@ func dbIdx64Lowerbound(vm *VM) {
 }
 
 func dbIdx64Upperbound(vm *VM) {
-
 	w := vm.WasmGo
 
 	pPrimary := int(vm.popUint64())
@@ -1269,7 +1271,6 @@ func dbIdx64Upperbound(vm *VM) {
 }
 
 func dbIdx64End(vm *VM) {
-
 	w := vm.WasmGo
 
 	table := vm.popUint64()
@@ -1995,9 +1996,9 @@ func setBlockchainParametersPacked(vm *VM) {
 }
 
 func isPrivileged(vm *VM) {
-	//fmt.Println("is_privileged")
-
 	w := vm.WasmGo
+	EosAssert(!w.context.ContextFreeAction(), &UnaccessibleApi{}, "only context free api's can be used in this context")
+
 	account := common.AccountName(vm.popUint64())
 
 	ret := w.context.IsPrivileged(account)
@@ -2047,6 +2048,8 @@ func setProposedProducers(vm *VM) {
 // }
 func getActiveProducers(vm *VM) {
 	w := vm.WasmGo
+	EosAssert(!w.context.ContextFreeAction(), &UnaccessibleApi{}, "only context free api's can be used in this context")
+
 	bufferSize := int(vm.popUint64())
 	producers := int(vm.popUint64())
 
@@ -2080,6 +2083,7 @@ func checkTime(vm *VM) {
 
 func currentTime(vm *VM) {
 	w := vm.WasmGo
+	EosAssert(!w.context.ContextFreeAction(), &UnaccessibleApi{}, "only context free api's can be used in this context")
 
 	ret := w.context.CurrentTime()
 	vm.pushUint64(uint64(ret.TimeSinceEpoch().Count()))
@@ -2091,6 +2095,7 @@ func currentTime(vm *VM) {
 
 func publicationTime(vm *VM) {
 	w := vm.WasmGo
+	EosAssert(!w.context.ContextFreeAction(), &UnaccessibleApi{}, "only context free api's can be used in this context")
 
 	ret := w.context.PublicationTime()
 	vm.pushUint64(uint64(ret.TimeSinceEpoch().Count()))
@@ -2165,6 +2170,8 @@ func eosioExit(vm *VM) {
 
 func sendInline(vm *VM) {
 	w := vm.WasmGo
+	EosAssert(!w.context.ContextFreeAction(), &UnaccessibleApi{}, "only context free api's can be used in this context")
+
 	dataLen := int(vm.popUint64())
 	data := int(vm.popUint64())
 
@@ -2180,9 +2187,11 @@ func sendInline(vm *VM) {
 }
 
 func sendContextFreeInline(vm *VM) {
+
 	w := vm.WasmGo
 	dataLen := int(vm.popUint64())
 	data := int(vm.popUint64())
+	//w.ilog.Debug("action data:%d size:%d", data, dataLen)
 
 	EosAssert(!w.context.InlineActionTooBig(dataLen), &InlineActionTooBig{}, "inline action too big")
 
@@ -2190,9 +2199,9 @@ func sendContextFreeInline(vm *VM) {
 	act := types.Action{}
 	rlp.DecodeBytes(action, &act)
 
-	w.context.ExecuteContextFreeInline(&act)
-
 	w.ilog.Debug("action:%v", act)
+
+	w.context.ExecuteContextFreeInline(&act)
 
 }
 
@@ -2205,6 +2214,8 @@ func sendContextFreeInline(vm *VM) {
 // }
 func sendDeferred(vm *VM) {
 	w := vm.WasmGo
+	EosAssert(!w.context.ContextFreeAction(), &UnaccessibleApi{}, "only context free api's can be used in this context")
+
 	replaceExisting := int(vm.popUint64())
 	dataLen := int(vm.popUint64())
 	data := int(vm.popUint64())
@@ -2335,13 +2346,12 @@ func getAction(vm *VM) {
 }
 
 func getContextFreeData(vm *VM) {
-
 	w := vm.WasmGo
 	bufferSize := int(vm.popUint64())
 	buffer := int(vm.popUint64())
 	index := int(vm.popUint64())
 
-	EosAssert(!w.context.ContextFreeAction(), &UnaccessibleApi{}, "this API may only be called from context_free apply")
+	EosAssert(w.context.ContextFreeAction(), &UnaccessibleApi{}, "this API may only be called from context_free apply")
 
 	s, data := w.context.GetContextFreeData(index, bufferSize)
 	if bufferSize == 0 || s == -1 {

@@ -100,10 +100,7 @@ func NewTransactionContext(c *Controller, t *types.SignedTransaction, trxId comm
 		BlockNum:        c.PendingBlockState().BlockNum,
 		BlockTime:       types.BlockTimeStamp(c.PendingBlockTime()),
 		ProducerBlockId: c.PendingProducerBlockId(),
-		//BlockNum:        4,
-		//BlockTime:       common.BlockTimeStamp(common.Now()),
-		//ProducerBlockId: common.BlockIdType(*crypto.NewSha256String("cf057bbfb72640471fd910bcb67639c22df9f92470936cddc1ade0e2f2e7dc4f")),
-		//Except: &TransactionException{},
+		//ActionTraces: []types.ActionTrace{},
 	}
 	tc.netUsage = &tc.Trace.NetUsage
 	tc.Executed = make([]types.ActionReceipt, tc.Trx.TotalActions())
@@ -555,7 +552,7 @@ func (t *TransactionContext) DispathAction(trace *types.ActionTrace, action *typ
 	//	try.Throw(e)
 	//}).End()
 
-	*trace = applyContext.Trace
+	//*trace = applyContext.Trace
 }
 
 func (t *TransactionContext) scheduleTransaction() {
