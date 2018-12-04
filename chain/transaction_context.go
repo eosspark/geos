@@ -1,13 +1,12 @@
 package chain
 
 import (
-	"fmt"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/database"
 	"github.com/eosspark/eos-go/entity"
 	. "github.com/eosspark/eos-go/exception"
-	//"os"
+	"os"
 
 	"github.com/eosspark/container/sets/treeset"
 	. "github.com/eosspark/eos-go/exception/try"
@@ -112,7 +111,9 @@ func NewTransactionContext(c *Controller, t *types.SignedTransaction, trxId comm
 	EosAssert(len(tc.Trx.TransactionExtensions) == 0, &UnsupportedFeature{}, "we don't support any extensions yet")
 
 	tc.ilog = log.New("transaction_context")
-	//tc.ilog.SetHandler(log.StreamHandler(os.Stdout, log.TerminalFormat(true)))
+	logHandler := log.StreamHandler(os.Stdout, log.TerminalFormat(true))
+	//tc.ilog.SetHandler(log.LvlFilterHandler(log.LvlDebug, logHandler))
+	tc.ilog.SetHandler(log.LvlFilterHandler(log.LvlInfo, logHandler))
 
 	return &tc
 }
@@ -246,7 +247,7 @@ func (t *TransactionContext) InitForInputTrx(packeTrxUnprunableSize uint64, pack
 	t.Published = t.Control.PendingBlockTime()
 	t.IsInput = true
 
-	if t.Control.SkipTrxChecks() {
+	if !t.Control.SkipTrxChecks() {
 		t.Control.ValidateExpiration(&t.Trx.Transaction)
 		t.Control.ValidateTapos(&t.Trx.Transaction)
 		t.Control.ValidateReferencedAccounts(&t.Trx.Transaction)
@@ -497,8 +498,7 @@ func (t *TransactionContext) UpdateBilledCpuTime(now common.TimePoint) uint32 {
 	cfg := t.Control.GetGlobalProperties().Configuration
 	t.BilledCpuTimeUs = int64(common.Max(uint64(now-t.pseudoStart), uint64(cfg.MinTransactionCpuUsage)))
 
-	fmt.Println(t.BilledCpuTimeUs)
-
+	//t.ilog.Info("BilledCpuTimeUs:%v", t.BilledCpuTimeUs)
 	return uint32(t.BilledCpuTimeUs)
 }
 

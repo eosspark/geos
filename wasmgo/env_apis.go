@@ -827,7 +827,8 @@ func assertSha256(vm *VM) {
 	hashEncode := encode(w, s, dataBytes, dataLen)
 	hash := getSha256(vm, hashVal)
 
-	w.ilog.Debug("encoded:%#v hash:%#v data:%#v", hashEncode, hash, dataBytes)
+	//w.ilog.Debug("encoded:%#v hash:%#v data:%#v", hashEncode, hash, dataBytes)
+	w.ilog.Debug("encoded:%v data:%v", hashEncode, dataBytes)
 	EosAssert(bytes.Compare(hashEncode, hash) == 0, &CryptoApiException{}, "sha256 hash mismatch")
 
 }
@@ -849,7 +850,8 @@ func assertSha1(vm *VM) {
 	hashEncode := encode(w, s, dataBytes, dataLen)
 	hash := getSha1(vm, hashVal)
 
-	w.ilog.Debug("encoded:%#v hash:%#v data:%#v", hashEncode, hash, dataBytes)
+	//w.ilog.Debug("encoded:%#v hash:%#v data:%#v", hashEncode, hash, dataBytes)
+	w.ilog.Debug("encoded:%v data:%v", hashEncode, dataBytes)
 	EosAssert(bytes.Compare(hashEncode, hash) == 0, &CryptoApiException{}, "sha1 hash mismatch")
 }
 
@@ -869,7 +871,8 @@ func assertSha512(vm *VM) {
 	hashEncode := encode(w, s, dataBytes, dataLen)
 	hash := getSha512(vm, hashVal)
 
-	w.ilog.Debug("encoded:%#v hash:%#v data:%#v", hashEncode, hash, dataBytes)
+	//w.ilog.Debug("encoded:%#v hash:%#v data:%#v", hashEncode, hash, dataBytes)
+	w.ilog.Debug("encoded:%v data:%v", hashEncode, dataBytes)
 	EosAssert(bytes.Compare(hashEncode, hash) == 0, &CryptoApiException{}, "sha512 hash mismatch")
 
 }
@@ -890,7 +893,8 @@ func assertRipemd160(vm *VM) {
 	hashEncode := encode(w, s, dataBytes, dataLen)
 	hash := getRipemd160(vm, hashVal)
 
-	w.ilog.Debug("encoded:%#v hash:%#v data:%#v", hashEncode, hash, dataBytes)
+	//w.ilog.Debug("encoded:%#v hash:%#v data:%#v", hashEncode, hash, dataBytes)
+	w.ilog.Debug("encoded:%v data:%v", hashEncode, dataBytes)
 	EosAssert(bytes.Compare(hashEncode, hash) == 0, &CryptoApiException{}, "ripemd160 hash mismatch")
 }
 
@@ -910,7 +914,8 @@ func sha1(vm *VM) {
 	hashEncode := encode(w, s, dataBytes, dataLen)
 	setSha1(vm, hashVal, hashEncode)
 
-	w.ilog.Debug("encoded:%#v data:%#v", hashEncode, dataBytes)
+	//w.ilog.Debug("encoded:%#v data:%#v", hashEncode, dataBytes)
+	w.ilog.Debug("encoded:%v data:%v", hashEncode, dataBytes)
 }
 
 func sha256(vm *VM) {
@@ -930,7 +935,8 @@ func sha256(vm *VM) {
 	hashEncode := encode(w, s, dataBytes, dataLen)
 	setSha256(vm, hashVal, hashEncode)
 
-	w.ilog.Debug("encoded:%#v data:%#v", hashEncode, dataBytes)
+	//w.ilog.Debug("encoded:%#v data:%#v", hashEncode, dataBytes)
+	w.ilog.Debug("encoded:%v data:%v", hashEncode, dataBytes)
 }
 
 func sha512(vm *VM) {
@@ -950,7 +956,8 @@ func sha512(vm *VM) {
 	hashEncode := encode(w, s, dataBytes, dataLen)
 	setSha512(vm, hashVal, hashEncode)
 
-	w.ilog.Debug("encoded:%#v data:%#v", hashEncode, dataBytes)
+	//w.ilog.Debug("encoded:%#v data:%#v", hashEncode, dataBytes)
+	w.ilog.Debug("encoded:%v data:%v", hashEncode, dataBytes)
 }
 
 func ripemd160(vm *VM) {
@@ -969,7 +976,8 @@ func ripemd160(vm *VM) {
 	hashEncode := encode(w, s, dataBytes, dataLen)
 	setRipemd160(vm, hashVal, hashEncode)
 
-	w.ilog.Debug("encoded:%#v data:%#v", hashEncode, dataBytes)
+	//w.ilog.Debug("encoded:%#v data:%#v", hashEncode, dataBytes)
+	w.ilog.Debug("encoded:%v data:%v", hashEncode, dataBytes)
 }
 
 func dbStoreI64(vm *VM) {
@@ -2076,6 +2084,7 @@ func currentTime(vm *VM) {
 	ret := w.context.CurrentTime()
 	vm.pushUint64(uint64(ret.TimeSinceEpoch().Count()))
 
+	//w.ilog.Debug("time:%v", uint64(ret.TimeSinceEpoch().Count()))
 	w.ilog.Debug("time:%v", ret)
 
 }
@@ -2313,7 +2322,7 @@ func getAction(vm *VM) {
 	s, _ := rlp.EncodeSize(action)
 	if bufferSize == 0 || bufferSize < s {
 		vm.pushUint64(uint64(s))
-		w.ilog.Debug("context free data size:%d", s)
+		w.ilog.Debug("action size:%d", s)
 		return
 		//return s
 	}
@@ -2321,15 +2330,18 @@ func getAction(vm *VM) {
 	bytes, _ := rlp.EncodeToBytes(action)
 	setMemory(vm, buffer, bytes, 0, s)
 	vm.pushUint64(uint64(s))
-	w.ilog.Debug("context free data :%v size:%d", *action, s)
+	w.ilog.Debug("action :%v size:%d", *action, s)
 
 }
 
 func getContextFreeData(vm *VM) {
+
 	w := vm.WasmGo
 	bufferSize := int(vm.popUint64())
 	buffer := int(vm.popUint64())
 	index := int(vm.popUint64())
+
+	EosAssert(!w.context.ContextFreeAction(), &UnaccessibleApi{}, "this API may only be called from context_free apply")
 
 	s, data := w.context.GetContextFreeData(index, bufferSize)
 	if bufferSize == 0 || s == -1 {

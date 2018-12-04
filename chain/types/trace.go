@@ -20,6 +20,8 @@ type BaseActionTrace struct {
 	BlockTime        BlockTimeStamp
 	ProducerBlockId  common.BlockIdType
 	AccountRamDeltas treeset.Set
+
+	Except Exception
 }
 
 type ActionTrace struct {

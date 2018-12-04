@@ -7,50 +7,50 @@ import (
 )
 
 type CatchOrFinally struct {
-	e 		  interface{}
+	e         interface{}
 	stackInfo []byte
 	//StackTrace []StackInfo
 }
 
 //special
 func (c *CatchOrFinally) CatchException(f func(e Exception)) (r *CatchOrFinally) {
-///*debug*/s := time.Now().Nanosecond()
+	///*debug*/s := time.Now().Nanosecond()
 	if c == nil || c.e == nil {
-///*debug*/fmt.Println("catchExc-none", time.Now().Nanosecond() - s, "ns")
+		///*debug*/fmt.Println("catchExc-none", time.Now().Nanosecond() - s, "ns")
 		return nil
 	}
 
 	if et, ok := c.e.(Exception); ok {
 		f(et)
-///*debug*/fmt.Println("catchExc-success", time.Now().Nanosecond() - s, "ns")
+		///*debug*/fmt.Println("catchExc-success", time.Now().Nanosecond() - s, "ns")
 		return nil
 	}
 
-///*debug*/fmt.Println("catchExc-fail", time.Now().Nanosecond() - s, "ns")
+	///*debug*/fmt.Println("catchExc-fail", time.Now().Nanosecond() - s, "ns")
 	return c
 }
 
 //Catch call the exception handler. And return interface CatchOrFinally that
 //can call Catch or Finally.
 func (c *CatchOrFinally) Catch(f interface{}) (r *CatchOrFinally) {
-///*debug*/s := time.Now().Nanosecond()
+	///*debug*/s := time.Now().Nanosecond()
 	if c == nil || c.e == nil {
-///*debug*/fmt.Println("catch-none", time.Now().Nanosecond() - s, "ns")
+		///*debug*/fmt.Println("catch-none", time.Now().Nanosecond() - s, "ns")
 		return nil
 	}
 
 	switch ft := f.(type) {
 	case func(Exception):
-		if et,ok := c.e.(Exception); ok {
+		if et, ok := c.e.(Exception); ok {
 			ft(et)
-///*debug*/fmt.Println("catch-special", time.Now().Nanosecond() - s, "ns")
+			///*debug*/fmt.Println("catch-special", time.Now().Nanosecond() - s, "ns")
 			return nil
 		}
-///*debug*/fmt.Println("catch-special-fail", time.Now().Nanosecond() - s, "ns")
+		///*debug*/fmt.Println("catch-special-fail", time.Now().Nanosecond() - s, "ns")
 		return c
 
 	case func(error):
-		if et,ok := c.e.(error); ok {
+		if et, ok := c.e.(error); ok {
 			ft(et)
 			return nil
 		}
@@ -71,7 +71,7 @@ func (c *CatchOrFinally) Catch(f interface{}) (r *CatchOrFinally) {
 
 		if its == cts || (it.Kind() == reflect.Interface && ct.Implements(it)) {
 			reflect.ValueOf(f).Call([]reflect.Value{reflect.ValueOf(c.e)})
-///*debug*/fmt.Println("catch-reflect", time.Now().Nanosecond() - s, "ns")
+			///*debug*/fmt.Println("catch-reflect", time.Now().Nanosecond() - s, "ns")
 			return nil
 
 		} else if ct.Kind() == reflect.Ptr && cts[1:] == its { // make pointer can be caught by its value type
@@ -91,7 +91,7 @@ func (c *CatchOrFinally) Catch(f interface{}) (r *CatchOrFinally) {
 
 	}
 
-///*debug*/fmt.Println("catch-fail", time.Now().Nanosecond() - s, "ns")
+	///*debug*/fmt.Println("catch-fail", time.Now().Nanosecond() - s, "ns")
 	return c
 }
 
@@ -107,6 +107,22 @@ func (c *CatchOrFinally) printStackInfo() {
 	log.Error(string(c.stackInfo))
 }
 
+func (c *CatchOrFinally) CatchAndCall(Next func(interface{})) *CatchOrFinally {
+	return c.Catch(func(err Exception) {
+		Next(err)
+
+	}).Catch(func(e error) {
+		fce := &FcException{}
+		fce.FcLogMessage(log.LvlWarn, "rethrow %s: ", e.Error())
+		Next(fce)
+
+	}).Catch(func(interface{}) {
+		e := &UnHandledException{}
+		e.FcLogMessage(log.LvlWarn, "rethrow")
+		Next(e)
+	})
+}
+
 //Finally always be called if defined.
 //func (c *CatchOrFinally) Finally(f interface{}) (r *OrThrowable) {
 //	reflect.ValueOf(f).Call([]reflect.Value{})
@@ -117,7 +133,6 @@ func (c *CatchOrFinally) printStackInfo() {
 //}
 
 //OrThrow throw error then never catch block entered.
-
 
 //OrThrow throw error then never catch block entered.
 //func (c *OrThrowable) End() {
