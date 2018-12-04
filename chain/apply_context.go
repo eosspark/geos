@@ -240,7 +240,7 @@ func (a *ApplyContext) execOne(trace *types.ActionTrace) {
 			native := a.Control.FindApplyHandler(a.Receiver, a.Act.Account, a.Act.Name)
 
 			//a.ilog.Info("receiver:%v account:%v action:%v data:%v", a.Receiver, a.Act.Account, a.Act.Name, a.Act.Data)
-			//a.ilog.Info("receiver:%v account:%v action:%v", a.Receiver, a.Act.Account, a.Act.Name)
+			a.ilog.Info("receiver:%v account:%v action:%v", a.Receiver, a.Act.Account, a.Act.Name)
 
 			if native != nil {
 				if a.TrxContext.CanSubjectivelyFail && a.Control.IsProducingBlock() {
@@ -451,7 +451,7 @@ func (a *ApplyContext) ExecuteContextFreeInline(act *types.Action) {
 	// rlp.DecodeBytes(action, &act)
 	code := entity.AccountObject{Name: act.Account}
 	err := a.DB.Find("byName", code, &code)
-	EosAssert(err != nil, &ActionValidateException{},
+	EosAssert(err == nil, &ActionValidateException{},
 		"inline action's code account %s does not exist", common.S(uint64(act.Account)))
 
 	EosAssert(len(act.Authorization) == 0, &ActionValidateException{},

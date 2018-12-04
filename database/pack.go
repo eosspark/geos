@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"fmt"
+	"github.com/eosspark/eos-go/crypto/ecc"
 	"io"
 
 	"github.com/eosspark/eos-go/common/arithmetic_types"
@@ -85,6 +87,15 @@ func EncodeSize(val interface{}) (int, error) {
 }
 
 func (e *encoder) encode(v interface{}) (err error) {
+	switch cv := v.(type) {
+	case nil:
+		return
+	case ecc.PublicKey:
+		return e.writePublicKey(cv)
+	case ecc.Signature:
+		return e.writeSignature(cv)
+	}
+
 	rv := reflect.Indirect(reflect.ValueOf(v))
 	t := rv.Type()
 
@@ -347,4 +358,31 @@ func (e *encoder) toWriter(bytes []byte) (err error) {
 	e.count += len(bytes)
 	_, err = e.output.Write(bytes)
 	return
+}
+
+func (e *encoder) writePublicKey(pk ecc.PublicKey) (err error) {
+	if len(pk.Content) != 33 {
+		return fmt.Errorf("public key %q should be 33 bytes, was %d", pk.Content, len(pk.Content))
+	}
+	if err = e.writeByte(byte(pk.Curve)); err != nil {
+		return err
+	}
+	return e.toWriter(pk.Content[:])
+}
+
+func (e *encoder) writeSignature(s ecc.Signature) (err error) {
+	if len(s.Content) == 0 { //TODO in order to avoid nil signature
+		s.Curve = ecc.CurveK1
+		s.Content = make([]byte, 65)
+	}
+
+	if len(s.Content) != 65 {
+		return fmt.Errorf("signature should be 65 bytes, was %d", len(s.Content))
+	}
+
+	if err = e.writeByte(byte(s.Curve)); err != nil {
+		return
+	}
+
+	return e.toWriter(s.Content) // should write 65 bytes
 }
