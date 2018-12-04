@@ -57,6 +57,7 @@ type Config struct {
 	TrustedProducers        treeset.Set
 	BlocksDir               string
 	StateDir                string
+	ReversibleDir           string
 	StateSize               uint64
 	StateGuardSize          uint64
 	ReversibleCacheSize     uint64
@@ -128,7 +129,7 @@ func validPath() {
 func NewController(cfg Config) *Controller {
 	isActiveController = true //controller is active
 	db, err := database.NewDataBase(cfg.StateDir)
-	reversibleDB, err := database.NewDataBase(cfg.BlocksDir + "/" + common.DefaultConfig.DefaultReversibleBlocksDirName)
+	reversibleDB, err := database.NewDataBase(cfg.ReversibleDir)
 
 	if err != nil {
 		log.Error("newController create database is error :%s", err)
@@ -140,7 +141,7 @@ func NewController(cfg Config) *Controller {
 
 	con.Blog = NewBlockLog(common.DefaultConfig.DefaultBlocksDirName)
 
-	con.ForkDB, err = newForkDatabase(common.DefaultConfig.DefaultStateDirName, common.DefaultConfig.ForkDbName, true)
+	con.ForkDB, err = newForkDatabase(cfg.BlocksDir, common.DefaultConfig.ForkDbName, true)
 
 	con.ChainID = cfg.Genesis.ComputeChainID()
 
@@ -981,7 +982,7 @@ func (c *Controller) CommitBlock(addToForkDb bool) {
 	}).End()
 	c.Pending.Push()
 	c.Pending.PendingValid = true
-	log.Info("commitBlock success!")
+	//log.Info("commitBlock success!")
 
 }
 
@@ -1776,6 +1777,7 @@ func (c *Controller) initConfig() *Controller {
 	c.Config = Config{
 		BlocksDir:               common.DefaultConfig.DefaultBlocksDirName,
 		StateDir:                common.DefaultConfig.DefaultStateDirName,
+		ReversibleDir:           common.DefaultConfig.DefaultReversibleBlocksDirName,
 		StateSize:               common.DefaultConfig.DefaultStateSize,
 		StateGuardSize:          common.DefaultConfig.DefaultStateGuardSize,
 		ReversibleCacheSize:     common.DefaultConfig.DefaultReversibleCacheSize,
