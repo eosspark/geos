@@ -18,9 +18,9 @@ func NewActionData(action interface{}) []byte {
 	return bytes
 }
 
-type eosiotokenAccount struct {
-	balance common.Asset
-}
+//type eosiotokenAccount struct {
+//	balance common.Asset
+//}
 
 func TestContract(t *testing.T) {
 
@@ -49,7 +49,7 @@ func TestContract(t *testing.T) {
 		issueToken(control, account1, account1, 20000, "BTC", "issue")
 		issueTransfer(control, account1, account2, 10000, "BTC", "transfer")
 		issueToken(control, account1, account2, 20000, "BTC", "issue")
-
+		//
 		tab := entity.TableIdObject{Code: common.AccountName(common.N(eosioToken)),
 			Scope: common.ScopeName(common.N(account2)),
 			Table: common.TableName(common.N("accounts")),
@@ -60,9 +60,9 @@ func TestContract(t *testing.T) {
 			PrimaryKey: uint64(4412482),
 		}
 		control.DB.Find("byScopePrimary", obj, &obj)
-		account := eosiotokenAccount{}
-		rlp.DecodeBytes(obj.Value, &account)
-		assert.Equal(t, account.balance.Amount, int64(3000))
+		asset := common.Asset{}
+		rlp.DecodeBytes(obj.Value, &asset)
+		assert.Equal(t, asset.Amount, int64(30000))
 
 		control.Close()
 	})

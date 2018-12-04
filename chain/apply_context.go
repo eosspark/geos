@@ -333,7 +333,7 @@ func (a *ApplyContext) Exec(trace *types.ActionTrace) {
 
 	for _, inlineAction := range a.InlineActions {
 		trace.InlineTraces = append(trace.InlineTraces, types.ActionTrace{})
-		a.TrxContext.DispathAction(&trace.InlineTraces[len(trace.InlineTraces)-1], &inlineAction, inlineAction.Account, true, a.RecurseDepth+1)
+		a.TrxContext.DispathAction(&trace.InlineTraces[len(trace.InlineTraces)-1], &inlineAction, inlineAction.Account, false, a.RecurseDepth+1)
 	}
 
 }

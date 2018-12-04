@@ -65,6 +65,8 @@ func currentReceiver(vm *VM) {
 
 func requireAuthorization(vm *VM) {
 	w := vm.WasmGo
+
+	w.ilog.Debug("requireAuthorization:%v", w.context.ContextFreeAction())
 	EosAssert(!w.context.ContextFreeAction(), &UnaccessibleApi{}, "only context free api's can be used in this context")
 
 	account := int64(vm.popUint64())
