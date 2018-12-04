@@ -57,6 +57,7 @@ type Config struct {
 	TrustedProducers        treeset.Set
 	BlocksDir               string
 	StateDir                string
+	ReversibleDir           string
 	StateSize               uint64
 	StateGuardSize          uint64
 	ReversibleCacheSize     uint64
@@ -128,7 +129,7 @@ func validPath() {
 func NewController(cfg Config) *Controller {
 	isActiveController = true //controller is active
 	db, err := database.NewDataBase(cfg.StateDir)
-	reversibleDB, err := database.NewDataBase(cfg.BlocksDir + "/" + common.DefaultConfig.DefaultReversibleBlocksDirName)
+	reversibleDB, err := database.NewDataBase(cfg.ReversibleDir)
 
 	if err != nil {
 		log.Error("newController create database is error :%s", err)
@@ -140,7 +141,7 @@ func NewController(cfg Config) *Controller {
 
 	con.Blog = NewBlockLog(common.DefaultConfig.DefaultBlocksDirName)
 
-	con.ForkDB, err = newForkDatabase(common.DefaultConfig.DefaultStateDirName, common.DefaultConfig.ForkDbName, true)
+	con.ForkDB, err = newForkDatabase(cfg.BlocksDir, common.DefaultConfig.ForkDbName, true)
 
 	con.ChainID = cfg.Genesis.ComputeChainID()
 
@@ -436,7 +437,7 @@ func (c *Controller) pushTransaction(trx *types.TransactionMetadata, deadLine co
 				trxContext.InitForImplicitTrx(0) //default value 0
 				trxContext.CanSubjectivelyFail = false
 			} else {
-				skipRecording := (c.ReplayHeadTime != 0) && (common.TimePoint(trx.Trx.Expiration) <= c.ReplayHeadTime)
+				skipRecording := (c.ReplayHeadTime != 0) && (trx.Trx.Expiration.ToTimePoint() <= c.ReplayHeadTime)
 				trxContext.InitForInputTrx(uint64(trx.PackedTrx.GetUnprunableSize()), uint64(trx.PackedTrx.GetPrunableSize()),
 					uint32(len(trx.Trx.Signatures)), skipRecording)
 			}
@@ -556,9 +557,8 @@ func (c *Controller) GetOnBlockTransaction() types.SignedTransaction {
 	trx := types.SignedTransaction{}
 	trx.Actions = append(trx.Actions, &onBlockAction)
 	trx.SetReferenceBlock(&c.Head.BlockId)
-	in := c.PendingBlockTime() + 999999
-	trx.Expiration = common.TimePointSec(in)
-	//log.Info("getOnBlockTransaction trx.Expiration:%#v", trx)
+	in := c.PendingBlockTime().AddUs(common.Microseconds(999999))
+	trx.Expiration = common.NewTimePointSecTp(in)
 	return trx
 }
 func (c *Controller) SkipDbSession(bs types.BlockStatus) bool {
@@ -580,7 +580,7 @@ func (c *Controller) SkipTrxChecks() (b bool) {
 }
 
 func (c *Controller) IsProducingBlock() bool {
-	if c.Pending != nil {
+	if c.Pending == nil {
 		return false
 	}
 	return c.Pending.BlockStatus == types.Incomplete
@@ -656,13 +656,12 @@ func (c *Controller) pushScheduledTransactionById(sheduled *common.TransactionId
 	deadLine common.TimePoint,
 	billedCpuTimeUs uint32, explicitBilledCpuTime bool) *types.TransactionTrace {
 
-	in := entity.GeneratedTransactionObject{}
-	in.TrxId = *sheduled
-	out := entity.GeneratedTransactionObject{}
-	c.DB.Find("byTrxId", in, &out)
+	gto := entity.GeneratedTransactionObject{}
+	gto.TrxId = *sheduled
+	c.DB.Find("byTrxId", gto, &gto)
 
-	EosAssert(&out != nil, &UnknownTransactionException{}, "unknown transaction")
-	return c.pushScheduledTransactionByObject(&out, deadLine, billedCpuTimeUs, explicitBilledCpuTime)
+	EosAssert(&gto != nil, &UnknownTransactionException{}, "unknown transaction")
+	return c.pushScheduledTransactionByObject(&gto, deadLine, billedCpuTimeUs, explicitBilledCpuTime)
 }
 
 func (c *Controller) pushScheduledTransactionByObject(gto *entity.GeneratedTransactionObject,
@@ -983,7 +982,7 @@ func (c *Controller) CommitBlock(addToForkDb bool) {
 	}).End()
 	c.Pending.Push()
 	c.Pending.PendingValid = true
-	log.Info("commitBlock success!")
+	//log.Info("commitBlock success!")
 
 }
 
@@ -1220,7 +1219,7 @@ func (c *Controller) ProposedProducers() types.ProducerScheduleType {
 }
 
 func (c *Controller) LightValidationAllowed(dro bool) (b bool) {
-	if c.Pending != nil || c.InTrxRequiringChecks {
+	if c.Pending == nil || c.InTrxRequiringChecks {
 		return false
 	}
 
@@ -1245,13 +1244,12 @@ func (c *Controller) LastIrreversibleBlockId() common.BlockIdType {
 	bso := entity.BlockSummaryObject{}
 	bso.Id = common.IdType(uint16(libNum))
 	idx, err := c.DataBase().GetIndex("id", &entity.BlockSummaryObject{})
-	out := entity.BlockSummaryObject{}
-	err = idx.Find(&bso, &out)
+	err = idx.Find(bso, &bso)
 	if err != nil {
 		log.Error("controller LastIrreversibleBlockId is error:%s", err)
 	}
-	if types.NumFromID(&out.BlockId) == libNum {
-		return out.BlockId
+	if types.NumFromID(&bso.BlockId) == libNum {
+		return bso.BlockId
 	}
 	return c.FetchBlockByNumber(libNum).BlockID()
 }
@@ -1340,13 +1338,6 @@ func (c *Controller) CheckKeyList(key *ecc.PublicKey) {
 	}
 }
 
-func (c *Controller) IsProducing() bool {
-	if !common.Empty(c.Pending) {
-		return false
-	}
-	return c.Pending.BlockStatus == types.Incomplete
-}
-
 func (c *Controller) IsRamBillingInNotifyAllowed() bool {
 	return !c.IsProducingBlock() || c.Config.AllowRamBillingInNotify
 }
@@ -1374,23 +1365,22 @@ func (c *Controller) GetResourceGreyList() treeset.Set {
 }
 
 func (c *Controller) ValidateReferencedAccounts(t *types.Transaction) {
-	in := entity.AccountObject{}
-	out := entity.AccountObject{}
+	ac := entity.AccountObject{}
 	for _, a := range t.ContextFreeActions {
-		in.Name = a.Account
-		err := c.DB.Find("byName", &in, &out)
+		ac.Name = a.Account
+		err := c.DB.Find("byName", ac, &ac)
 		EosAssert(err == nil, &TransactionException{}, "action's code account '%#v' does not exist", a.Account)
 		EosAssert(len(a.Authorization) == 0, &TransactionException{}, "context-free actions cannot have authorizations")
 	}
 	oneAuth := false
 	for _, a := range t.Actions {
-		in.Name = a.Account
-		err := c.DB.Find("byName", &in, &out)
+		ac.Name = a.Account
+		err := c.DB.Find("byName", ac, &ac)
 		EosAssert(err == nil, &TransactionException{}, "action's code account '%#v' does not exist", a.Account)
 		for _, auth := range a.Authorization {
 			oneAuth = true
-			in.Name = auth.Actor
-			err := c.DB.Find("byName", &in, &out)
+			ac.Name = auth.Actor
+			err := c.DB.Find("byName", ac, &ac)
 			EosAssert(err == nil, &TransactionException{}, "action's authorizing actor '%#v' does not exist", auth.Actor)
 			EosAssert(c.Authorization.FindPermission(&auth) != nil, &TransactionException{}, "action's authorizations include a non-existent permission: %#v", auth)
 		}
@@ -1400,24 +1390,23 @@ func (c *Controller) ValidateReferencedAccounts(t *types.Transaction) {
 
 func (c *Controller) ValidateExpiration(t *types.Transaction) {
 	chainConfiguration := c.GetGlobalProperties().Configuration
-	EosAssert(common.TimePoint(t.Expiration) >= c.PendingBlockTime(),
+	EosAssert(t.Expiration.ToTimePoint() >= c.PendingBlockTime(),
 		&ExpiredTxException{}, "transaction has expired, expiration is %v and pending block time is %v",
 		t.Expiration, c.PendingBlockTime())
-	EosAssert(common.TimePoint(t.Expiration) <= c.PendingBlockTime()+common.TimePoint(common.Seconds(int64(chainConfiguration.MaxTrxLifetime))),
+	EosAssert(t.Expiration.ToTimePoint() <= c.PendingBlockTime()+common.TimePoint(common.Seconds(int64(chainConfiguration.MaxTrxLifetime))),
 		&TxExpTooFarException{}, "Transaction expiration is too far in the future relative to the reference time of %v, expiration is %v and the maximum transaction lifetime is %v seconds",
 		t.Expiration, c.PendingBlockTime(), chainConfiguration.MaxTrxLifetime)
 }
 
 func (c *Controller) ValidateTapos(t *types.Transaction) {
-	in := entity.BlockSummaryObject{}
-	in.Id = common.IdType(t.RefBlockNum)
-	taposBlockSummary := entity.BlockSummaryObject{}
-	err := c.DB.Find("id", in, &taposBlockSummary)
+	bso := entity.BlockSummaryObject{}
+	bso.Id = common.IdType(t.RefBlockNum)
+	err := c.DB.Find("id", bso, &bso)
 	if err != nil {
 		log.Error("ValidateTapos Is Error:%s", err)
 	}
-	EosAssert(t.VerifyReferenceBlock(&taposBlockSummary.BlockId), &InvalidRefBlockException{},
-		"Transaction's reference block did not match. Is this transaction from a different fork? taposBlockSummary:%v", taposBlockSummary)
+	EosAssert(t.VerifyReferenceBlock(&bso.BlockId), &InvalidRefBlockException{},
+		"Transaction's reference block did not match. Is this transaction from a different fork? taposBlockSummary:%v", bso)
 }
 
 func (c *Controller) ValidateDbAvailableSize() {
@@ -1433,14 +1422,13 @@ func (c *Controller) ValidateReversibleAvailableSize() {
 }
 
 func (c *Controller) IsKnownUnexpiredTransaction(id *common.TransactionIdType) bool {
-	result := entity.TransactionObject{}
-	in := entity.TransactionObject{}
-	in.TrxID = *id
-	err := c.DB.Find("byTrxId", in, &result)
+	t := entity.TransactionObject{}
+	t.TrxID = *id
+	err := c.DB.Find("byTrxId", t, &t)
 	if err != nil {
 		log.Error("IsKnownUnexpiredTransaction Is Error:%s", err)
 	}
-	return common.Empty(result)
+	return common.Empty(t)
 }
 
 func (c *Controller) SetProposedProducers(producers []types.ProducerKey) int64 {
@@ -1589,15 +1577,15 @@ func (c *Controller) initializeDatabase() {
 			log.Error("Controller initializeDatabase Insert BlockSummaryObject is error:%s", err)
 		}
 	}
-	in := entity.BlockSummaryObject{}
-	in.Id = 1
-	out := &entity.BlockSummaryObject{}
-	err := c.DB.Find("id", &in, out)
-	c.DB.Modify(out, func(bs *entity.BlockSummaryObject) {
+	b := entity.BlockSummaryObject{}
+	b.Id = 1
+
+	err := c.DB.Find("id", b, &b)
+	c.DB.Modify(&b, func(bs *entity.BlockSummaryObject) {
 		bs.BlockId = c.Head.BlockId
 	})
 	gi := c.Config.Genesis.Initial()
-	//gi.Validate()	//check config
+	gi.Validate() //check config
 	gpo := entity.GlobalPropertyObject{}
 	gpo.Configuration = gi
 	err = c.DB.Insert(&gpo)
@@ -1664,7 +1652,7 @@ func (c *Controller) initialize() {
 			for {
 				rev++
 				r.BlockNum = c.HeadBlockNum() + 1
-				err := c.ReversibleBlocks.Find("blockNum", &r, &r)
+				err := c.ReversibleBlocks.Find("blockNum", r, &r)
 				if err != nil {
 					break
 				}
@@ -1715,7 +1703,7 @@ func (c *Controller) clearExpiredInputTransactions() {
 			EosAssert(err == nil, &DatabaseException{}, "Controller clearExpiredInputTransactions is error :%s", err)
 			return
 		}
-		if now > common.TimePoint(t.Expiration) {
+		if now > t.Expiration.ToTimePoint() {
 			c.DB.Remove(&t)
 		} else {
 			break
@@ -1775,12 +1763,12 @@ func (c *Controller) createBlockSummary(id *common.BlockIdType) {
 	sid := blockNum & 0xffff
 	bso := entity.BlockSummaryObject{}
 	bso.Id = common.IdType(sid)
-	err := c.DB.Find("id", &bso, &bso)
+	err := c.DB.Find("id", bso, &bso)
 	if err != nil {
 		log.Error("Controller createBlockSummary is error:%s", err)
 		EosAssert(err == nil, &DatabaseException{}, "Controller createBlockSummary is error :%s", err)
 	}
-	c.DB.Modify(bso, func(b *entity.BlockSummaryObject) {
+	c.DB.Modify(&bso, func(b *entity.BlockSummaryObject) {
 		b.BlockId = *id
 	})
 }
@@ -1789,6 +1777,7 @@ func (c *Controller) initConfig() *Controller {
 	c.Config = Config{
 		BlocksDir:               common.DefaultConfig.DefaultBlocksDirName,
 		StateDir:                common.DefaultConfig.DefaultStateDirName,
+		ReversibleDir:           common.DefaultConfig.DefaultReversibleBlocksDirName,
 		StateSize:               common.DefaultConfig.DefaultStateSize,
 		StateGuardSize:          common.DefaultConfig.DefaultStateGuardSize,
 		ReversibleCacheSize:     common.DefaultConfig.DefaultReversibleCacheSize,

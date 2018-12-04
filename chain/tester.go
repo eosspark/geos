@@ -2,7 +2,8 @@ package chain
 
 import (
 	"bytes"
-	"fmt"
+	"encoding/json"
+	"github.com/eosspark/container/sets/treeset"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto"
@@ -30,35 +31,52 @@ type BaseTester struct {
 	LastProducedBlock       map[common.AccountName]common.BlockIdType
 }
 
-func newBaseTester(control *Controller) *BaseTester {
-	btInstance := &BaseTester{}
-	btInstance.Control = control
-	btInstance.Cfg = control.Config
-	btInstance.initBase(true, SPECULATIVE)
-	return btInstance
+func newConfig(readMode DBReadMode) *Config{
+	cfg := &Config{}
+	cfg.BlocksDir = common.DefaultConfig.DefaultBlocksDirName
+	cfg.StateDir = common.DefaultConfig.DefaultStateDirName
+	cfg.StateSize = 1024 * 1024 * 8
+	cfg.StateGuardSize = 0
+	cfg.ReversibleCacheSize = 1024 * 1024 * 8
+	cfg.ReversibleGuardSize = 0
+	cfg.ContractsConsole = true
+	cfg.ReadMode = readMode
+
+	cfg.Genesis = types.NewGenesisState()
+	cfg.Genesis.InitialTimestamp, _ = common.FromIsoString("2020-01-01T00:00:00.000")
+	cfg.Genesis.InitialKey = BaseTester{}.getPublicKey(common.DefaultConfig.SystemAccountName, "active")
+
+	cfg.ActorWhitelist = *treeset.NewWith(common.CompareName)
+	cfg.ActorBlacklist = *treeset.NewWith(common.CompareName)
+	cfg.ContractWhitelist = *treeset.NewWith(common.CompareName)
+	cfg.ContractBlacklist = *treeset.NewWith(common.CompareName)
+	cfg.ActionBlacklist = *treeset.NewWith(common.ComparePair)
+	cfg.KeyBlacklist = *treeset.NewWith(ecc.ComparePubKey)
+	cfg.ResourceGreylist = *treeset.NewWith(common.CompareName)
+	cfg.TrustedProducers = *treeset.NewWith(common.CompareName)
+
+	//cfg.VmType = common.DefaultConfig.DefaultWasmRuntime // TODO
+
+
+	return cfg
 }
 
-func (t *BaseTester) initBase(pushGenesis bool, mode DBReadMode) {
+func newBaseTester(pushGenesis bool) *BaseTester {
+	t := &BaseTester{}
 	t.DefaultExpirationDelta = 6
 	t.DefaultBilledCpuTimeUs = 2000
-	t.Cfg.BlocksDir = common.DefaultConfig.DefaultBlocksDirName
-	t.Cfg.StateDir = common.DefaultConfig.DefaultStateDirName
-	t.Cfg.StateSize = 1024 * 1024 * 8
-	t.Cfg.StateGuardSize = 0
-	t.Cfg.ReversibleCacheSize = 1024 * 1024 * 8
-	t.Cfg.ReversibleGuardSize = 0
-	t.Cfg.ContractsConsole = true
-	t.Cfg.ReadMode = mode
 	t.ChainTransactions = make(map[common.BlockIdType]types.TransactionReceipt)
 	t.LastProducedBlock = make(map[common.AccountName]common.BlockIdType)
+	t.Cfg = *newConfig(SPECULATIVE)
+	t.Control = NewController(t.Cfg)
 
-	t.Cfg.Genesis.InitialTimestamp, _ = common.FromIsoString("2020-01-01T00:00:00.000")
-	t.Cfg.Genesis.InitialKey = t.getPublicKey(common.DefaultConfig.SystemAccountName, "active")
-
+	//Signal
 	t.open()
+
 	if pushGenesis {
 		t.pushGenesisBlock()
 	}
+	return t
 }
 
 func (t BaseTester) initCfg(config Config) {
@@ -195,12 +213,12 @@ func (t BaseTester) SetTransactionHeaders(trx *types.Transaction, expiration uin
 func (t BaseTester) CreateAccounts(names []common.AccountName, multiSig bool, includeCode bool) []*types.TransactionTrace {
 	traces := make([]*types.TransactionTrace, len(names))
 	for i, n := range names {
-		traces[i] = t.createAccount(n, common.DefaultConfig.SystemAccountName, multiSig, includeCode)
+		traces[i] = t.CreateAccount(n, common.DefaultConfig.SystemAccountName, multiSig, includeCode)
 	}
 	return traces
 }
 
-func (t BaseTester) createAccount(name common.AccountName, creator common.AccountName, multiSig bool, includeCode bool) *types.TransactionTrace {
+func (t BaseTester) CreateAccount(name common.AccountName, creator common.AccountName, multiSig bool, includeCode bool) *types.TransactionTrace {
 	trx := types.SignedTransaction{}
 	t.SetTransactionHeaders(&trx.Transaction, t.DefaultExpirationDelta, 0) //TODO: test
 	ownerAuth := types.Authority{}
@@ -258,7 +276,7 @@ func (t BaseTester) PushTransaction(trx *types.SignedTransaction, deadline commo
 	_, r := false, (*types.TransactionTrace)(nil)
 	try.Try(func() {
 		if t.Control.PendingBlockState() == nil {
-			t.startBlock(t.Control.HeadBlockTime() + common.TimePoint(common.DefaultConfig.BlockIntervalUs))
+			t.startBlock(t.Control.HeadBlockTime().AddUs(common.Microseconds(common.DefaultConfig.BlockIntervalUs)))
 		}
 		c := common.CompressionNone
 		size, _ := rlp.EncodeSize(trx)
@@ -266,9 +284,6 @@ func (t BaseTester) PushTransaction(trx *types.SignedTransaction, deadline commo
 			c = common.CompressionZlib
 		}
 		mtrx := types.NewTransactionMetadataBySignedTrx(trx, c)
-		for _, act := range trx.Actions {
-			fmt.Println(act.Authorization)
-		}
 		trace = t.Control.pushTransaction(mtrx, deadline, billedCpuTimeUs, true)
 		if trace.ExceptPtr != nil {
 			try.EosThrow(trace.ExceptPtr, "tester PushTransaction is error :%#v", trace.ExceptPtr)
@@ -550,11 +565,15 @@ func (t BaseTester) SetCode2(account common.AccountName, wast *byte, signer *ecc
 	//t.SetCode(account, wastToWasm(wast), signer)
 }
 
+
+
+
+
 func (t BaseTester) SetAbi(account common.AccountName, abiJson []byte, signer *ecc.PrivateKey) {
 	abiEt := abi.AbiDef{}
-	ok := abi.ToABI(abiJson, &abiEt)
-	if !ok {
-		log.Error("error")
+	err := json.Unmarshal(abiJson, &abiEt)
+	if err !=nil{
+		log.Error("unmarshal abiJson is wrong :%s",err)
 	}
 	trx := types.SignedTransaction{}
 	abiBytes, _ := rlp.EncodeToBytes(abiEt)
@@ -711,4 +730,43 @@ func (t BaseTester) FindTable(code common.Name, scope common.Name, table common.
 		log.Error("FindTable is error: %s", err)
 	}
 	return &tId
+}
+
+type ValidatingTester struct {
+	BaseTester
+	ValidatingController   *Controller
+	VCfg                   Config
+	NumBlocksToProducerBeforeShutdown uint32
+}
+
+func newValidatingTester(pushGenesis bool)  *ValidatingTester{
+	vt := &ValidatingTester{}
+	vt.DefaultExpirationDelta = 6
+	vt.DefaultBilledCpuTimeUs = 2000
+	vt.ChainTransactions = make(map[common.BlockIdType]types.TransactionReceipt)
+	vt.LastProducedBlock = make(map[common.AccountName]common.BlockIdType)
+	vt.Cfg = *newConfig(SPECULATIVE)
+	vt.Control = NewController(vt.Cfg)
+
+	vt.ValidatingController = NewController(vt.VCfg)
+
+	//Signal
+	vt.open()
+
+	if pushGenesis {
+		vt.pushGenesisBlock()
+	}
+	return vt
+}
+
+func (vt ValidatingTester) ProduceBlock(skipTime common.Microseconds, skipFlag uint32) *types.SignedBlock {
+	sb := vt.produceBlock(skipTime, false, skipFlag/2)
+	vt.ValidatingController.PushBlock(sb, types.Complete)
+	return sb
+}
+
+func (vt ValidatingTester) ProduceEmptyBlock(skipTime common.Microseconds, skipFlag uint32) *types.SignedBlock {
+	sb := vt.produceBlock(skipTime, true, skipFlag/2)
+	vt.ValidatingController.PushBlock(sb, types.Complete)
+	return sb
 }

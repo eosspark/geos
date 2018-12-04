@@ -9,19 +9,23 @@ import (
 	"github.com/eosspark/eos-go/crypto/ecc"
 	. "github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
-	"reflect"
 	"testing"
 )
 
-func initializeAuthTest() (*AuthorizationManager, *BaseTester) {
-	control := GetControllerInstance()
-	am := newAuthorizationManager(control)
-	bt := newBaseTester(control)
+func initializeBaseTester() (*AuthorizationManager, *BaseTester) {
+	bt := newBaseTester(true)
+	am := bt.Control.Authorization
 	return am, bt
 }
 
+func initializeValidatingTester() (*AuthorizationManager, *ValidatingTester) {
+	vt := newValidatingTester(true)
+	am := vt.ValidatingController.Authorization
+	return am, vt
+}
+
 func TestMissingSigs(t *testing.T) {
-	_, b := initializeAuthTest()
+	_, b := initializeBaseTester()
 	b.CreateAccounts([]common.AccountName{common.N("alice")}, false, true)
 	b.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs), 0)
 
@@ -38,9 +42,9 @@ func TestMissingSigs(t *testing.T) {
 }
 
 func TestMissingMultiSigs(t *testing.T) {
-	_, b := initializeAuthTest()
+	_, b := initializeBaseTester()
 	b.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs), 0)
-	b.createAccount(common.N("alice"), common.DefaultConfig.SystemAccountName, true, true)
+	b.CreateAccount(common.N("alice"), common.DefaultConfig.SystemAccountName, true, true)
 	b.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs), 0)
 
 	Try(func() {
@@ -56,7 +60,7 @@ func TestMissingMultiSigs(t *testing.T) {
 }
 
 func TestMissingAuths(t *testing.T) {
-	_, b := initializeAuthTest()
+	_, b := initializeBaseTester()
 	b.CreateAccounts([]common.AccountName{common.N("alice"), common.N("bob")}, false, true)
 	b.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs), 0)
 	Try(func() {
@@ -72,7 +76,7 @@ func TestMissingAuths(t *testing.T) {
 }
 
 func TestDelegateAuth(t *testing.T) {
-	a, b := initializeAuthTest()
+	a, b := initializeBaseTester()
 	b.CreateAccounts([]common.AccountName{common.N("alice"), common.N("bob")}, false, true)
 	delegatedAuth := types.SharedAuthority{
 		Threshold: 1,
@@ -88,15 +92,15 @@ func TestDelegateAuth(t *testing.T) {
 		},
 	}
 	originalAuth := a.GetPermission(&types.PermissionLevel{Actor: common.N("alice"), Permission: common.DefaultConfig.ActiveName}).Auth
-	assert.Equal(t, reflect.ValueOf(originalAuth), reflect.ValueOf(realAuth))
+	assert.Equal(t, originalAuth.Equals(realAuth), true)
 	b.SetAuthority2(common.N("alice"), common.DefaultConfig.ActiveName, delegatedAuth.ToAuthority(), common.DefaultConfig.OwnerName)
 
 	newAuth := a.GetPermission(&types.PermissionLevel{Actor: common.N("alice"), Permission: common.DefaultConfig.ActiveName}).Auth
-	assert.Equal(t, reflect.ValueOf(newAuth), reflect.ValueOf(delegatedAuth))
+	assert.Equal(t, newAuth.Equals(delegatedAuth), true)
 
 	b.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs*2), 0)
 	auth := a.GetPermission(&types.PermissionLevel{Actor: common.N("alice"), Permission: common.DefaultConfig.ActiveName}).Auth
-	assert.Equal(t, reflect.ValueOf(newAuth), reflect.ValueOf(auth))
+	assert.Equal(t, newAuth.Equals(auth), true)
 
 	b.PushReqAuth(
 		common.N("alice"),
@@ -107,14 +111,34 @@ func TestDelegateAuth(t *testing.T) {
 	b.Control.Close()
 }
 
-func TestCommonEmpty(t *testing.T) {
-	a := types.Permission{}
-	fmt.Println(a)
-	fmt.Println(common.S(15371467950649982976))
+func TestUpdateAuths(t *testing.T) {
+	_, vt := initializeValidatingTester()
+	vt.CreateAccount(common.N("alice"), common.DefaultConfig.SystemAccountName, false, true)
+	vt.CreateAccount(common.N("bob"), common.DefaultConfig.SystemAccountName, false, true)
+	Try(func() {
+		vt.DeleteAuthority(
+			common.N("alice"),
+			common.N("active"),
+			&[]types.PermissionLevel{{common.N("alice"), common.DefaultConfig.OwnerName}},
+			&[]ecc.PrivateKey{vt.getPrivateKey(common.N("alice"),"owner")},
+		)
+	}).Catch(func(e ActionValidateException){
+
+	})
+
+
+	vt.DeleteAuthority(
+		common.N("bob"),
+		common.N("owner"),
+		&[]types.PermissionLevel{{common.N("bob"), common.DefaultConfig.OwnerName}},
+		&[]ecc.PrivateKey{vt.getPrivateKey(common.N("bob"),"owner")},
+	)
+
+
 }
 
 func TestMakeAuthChecker(t *testing.T) {
-	a, _ := initializeAuthTest()
+	a, _ := initializeBaseTester()
 	providedKeys := treeset.NewWith(ecc.ComparePubKey)
 	providedPermissions := treeset.NewWith(ecc.ComparePubKey)
 	pub1, _ := ecc.NewPublicKey("EOS859gxfnXyUriMgUeThh1fWv3oqcpLFyHa3TfFYC4PK2HqhToVM")

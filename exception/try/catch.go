@@ -40,6 +40,10 @@ func (c *CatchOrFinally) Catch(f interface{}) (r *CatchOrFinally) {
 	}
 
 	switch ft := f.(type) {
+
+	/*
+	 * catch exception interface
+	 */
 	case func(Exception):
 		if et, ok := c.e.(Exception); ok {
 			ft(et)
@@ -48,6 +52,38 @@ func (c *CatchOrFinally) Catch(f interface{}) (r *CatchOrFinally) {
 		}
 		///*debug*/fmt.Println("catch-special-fail", time.Now().Nanosecond() - s, "ns")
 		return c
+
+	case func(GuardExceptions):
+		if et, ok := c.e.(GuardExceptions); ok {
+			ft(et)
+			return nil
+		}
+		return c
+
+	/*
+	 * catch specific exception
+	 */
+	case func(*PermissionQueryException):
+		if et, ok := c.e.(*PermissionQueryException); ok {
+			ft(et)
+			return nil
+		}
+		return c
+
+	case func(*AssertException):
+		if et, ok := c.e.(*AssertException); ok {
+			ft(et)
+			return nil
+		}
+		return c
+
+	case func(*UnknownBlockException):
+		if et, ok := c.e.(*UnknownBlockException); ok {
+			ft(et)
+			return nil
+		}
+		return c
+
 
 	case func(error):
 		if et, ok := c.e.(error); ok {
@@ -61,6 +97,8 @@ func (c *CatchOrFinally) Catch(f interface{}) (r *CatchOrFinally) {
 		return nil
 	}
 
+
+	// make sure all panic can be caught
 	rf := reflect.ValueOf(f)
 	ft := rf.Type()
 	if ft.NumIn() > 0 {
@@ -78,14 +116,15 @@ func (c *CatchOrFinally) Catch(f interface{}) (r *CatchOrFinally) {
 			reflect.ValueOf(f).Call([]reflect.Value{reflect.ValueOf(reflect.ValueOf(c.e).Elem().Interface())})
 			return nil
 
-		} else if cts == "runtime.errorString" && its == "try.RuntimeError" {
-			var rte RuntimeError
-			rte.Message = c.e.(error).Error()
-			rte.stackInfo = c.stackInfo
-			ev := reflect.ValueOf(rte)
-			reflect.ValueOf(f).Call([]reflect.Value{ev})
-			return nil
 		}
+		//else if cts == "runtime.errorString" && its == "try.RuntimeError" {
+		//	var rte RuntimeError
+		//	rte.Message = c.e.(error).Error()
+		//	rte.stackInfo = c.stackInfo
+		//	ev := reflect.ValueOf(rte)
+		//	reflect.ValueOf(f).Call([]reflect.Value{ev})
+		//	return nil
+		//}
 
 		//println(it.String(), ct.String())
 
@@ -98,12 +137,21 @@ func (c *CatchOrFinally) Catch(f interface{}) (r *CatchOrFinally) {
 //Necessary to call at the end of try-catch block, to ensure panic uncaught exceptions
 func (c *CatchOrFinally) End() {
 	if c != nil && c.e != nil {
-		c.printStackInfo()
+		if DEBUG {
+			c.printStackInfo()
+		}
 		Throw(c.e)
 	}
 }
 
 func (c *CatchOrFinally) printStackInfo() {
+	switch e := c.e.(type) {
+	case Exception:
+		log.Error(e.Message())
+	case error:
+		log.Error(e.Error())
+	}
+
 	log.Error(string(c.stackInfo))
 }
 
