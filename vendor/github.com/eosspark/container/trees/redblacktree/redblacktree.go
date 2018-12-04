@@ -159,8 +159,7 @@ func (tree *Tree) PutItem(key interface{}, value interface{}) (bool , interface{
 			switch {
 			case compare == 0:
 				resultOpt=false
-				resultKey = key
-				resultValue = value
+				return resultOpt,key,value
 			case compare < 0:
 				if node.Left == nil {
 					node.Left = &Node{Key: key, Value: value, color: red}
