@@ -98,6 +98,10 @@ func init() {
 	DefaultConfig.DefaultBlocksDirName = "/tmp/data/blocks"
 	DefaultConfig.DefaultReversibleBlocksDirName = "/tmp/data/reversible"
 	DefaultConfig.DefaultStateDirName = "/tmp/data/state"
+	DefaultConfig.ValidatingBlocksDirName = "/tmp/data/vBlocks"
+	DefaultConfig.ValidatingReversibleBlocksDirName = "/tmp/data/vReversible"
+	DefaultConfig.ValidatingStateDirName = "/tmp/data/vState"
+
 	DefaultConfig.DefaultStateSize = 1 * 1024 * 1024 * 1024
 	DefaultConfig.DefaultStateGuardSize = 128 * 1024 * 1024
 	DefaultConfig.DefaultReversibleCacheSize = 340 * 1024 * 1024
@@ -180,17 +184,21 @@ type Config struct {
 	MinNetUsageDeltaBetweenBaseAndMaxForTrx uint32
 	/**************************chain_config end****************************/
 
-	ForkDbName                     string
-	DBFileName                     string
-	ReversibleFileName             string
-	BlockFileName                  string
-	DefaultBlocksDirName           string
-	DefaultReversibleBlocksDirName string
-	DefaultStateDirName            string
-	DefaultStateSize               uint64
-	DefaultStateGuardSize          uint64
-	DefaultReversibleCacheSize     uint64
-	DefaultReversibleGuardSize     uint64
+	ForkDbName                        string
+	DBFileName                        string
+	ReversibleFileName                string
+	BlockFileName                     string
+	DefaultBlocksDirName              string
+	DefaultReversibleBlocksDirName    string
+	DefaultStateDirName               string
+	ValidatingBlocksDirName           string
+	ValidatingReversibleBlocksDirName string
+	ValidatingStateDirName            string
+
+	DefaultStateSize                  uint64
+	DefaultStateGuardSize             uint64
+	DefaultReversibleCacheSize        uint64
+	DefaultReversibleGuardSize        uint64
 	//FixedNetOverheadOfPackedTrx uint32 // TODO: C++ default value 16 and is this reasonable?
 }
 

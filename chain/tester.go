@@ -31,6 +31,28 @@ type BaseTester struct {
 	LastProducedBlock       map[common.AccountName]common.BlockIdType
 }
 
+func newBaseTester(pushGenesis bool, readMode DBReadMode) *BaseTester {
+	t := &BaseTester{}
+	t.DefaultExpirationDelta = 6
+	t.DefaultBilledCpuTimeUs = 2000
+	t.ChainTransactions = make(map[common.BlockIdType]types.TransactionReceipt)
+	t.LastProducedBlock = make(map[common.AccountName]common.BlockIdType)
+
+	t.init(true,readMode)
+	return t
+}
+
+func (t *BaseTester) init(pushGenesis bool, readMode DBReadMode) {
+	t.Cfg = *newConfig(readMode)
+	t.Control = NewController(t.Cfg)
+
+	t.open()
+
+	if pushGenesis {
+		t.pushGenesisBlock()
+	}
+}
+
 func newConfig(readMode DBReadMode) *Config{
 	cfg := &Config{}
 	cfg.BlocksDir = common.DefaultConfig.DefaultBlocksDirName
@@ -61,37 +83,14 @@ func newConfig(readMode DBReadMode) *Config{
 	return cfg
 }
 
-func newBaseTester(pushGenesis bool) *BaseTester {
-	t := &BaseTester{}
-	t.DefaultExpirationDelta = 6
-	t.DefaultBilledCpuTimeUs = 2000
-	t.ChainTransactions = make(map[common.BlockIdType]types.TransactionReceipt)
-	t.LastProducedBlock = make(map[common.AccountName]common.BlockIdType)
-	t.Cfg = *newConfig(SPECULATIVE)
-	t.Control = NewController(t.Cfg)
-
-	//Signal
-	t.open()
-
-	if pushGenesis {
-		t.pushGenesisBlock()
-	}
-	return t
-}
-
-func (t BaseTester) initCfg(config Config) {
-	t.Cfg = config
-	t.open()
-}
-
-func (t BaseTester) open() {
-	t.Control.Config = t.Cfg
+func (t *BaseTester) open() {
+	//t.Control.Config = t.Cfg
 	//t.Control.startUp() //TODO
 	t.ChainTransactions = make(map[common.BlockIdType]types.TransactionReceipt)
 	//t.Control.AcceptedBlock.Connect() // TODO: Control.signal
 }
 
-func (t BaseTester) close() {
+func (t *BaseTester) close() {
 	t.Control.Close()
 	t.ChainTransactions = make(map[common.BlockIdType]types.TransactionReceipt)
 }
@@ -739,23 +738,18 @@ type ValidatingTester struct {
 	NumBlocksToProducerBeforeShutdown uint32
 }
 
-func newValidatingTester(pushGenesis bool)  *ValidatingTester{
+func newValidatingTester(pushGenesis bool, readMode DBReadMode)  *ValidatingTester{
 	vt := &ValidatingTester{}
 	vt.DefaultExpirationDelta = 6
 	vt.DefaultBilledCpuTimeUs = 2000
 	vt.ChainTransactions = make(map[common.BlockIdType]types.TransactionReceipt)
 	vt.LastProducedBlock = make(map[common.AccountName]common.BlockIdType)
-	vt.Cfg = *newConfig(SPECULATIVE)
-	vt.Control = NewController(vt.Cfg)
+	vt.VCfg = *newConfig(readMode)
+	vt.VCfg.BlocksDir = common.DefaultConfig.ValidatingBlocksDirName
+	vt.VCfg.StateDir = common.DefaultConfig.ValidatingStateDirName
 
 	vt.ValidatingController = NewController(vt.VCfg)
-
-	//Signal
-	vt.open()
-
-	if pushGenesis {
-		vt.pushGenesisBlock()
-	}
+	vt.init(true,readMode)
 	return vt
 }
 
@@ -769,4 +763,10 @@ func (vt ValidatingTester) ProduceEmptyBlock(skipTime common.Microseconds, skipF
 	sb := vt.produceBlock(skipTime, true, skipFlag/2)
 	vt.ValidatingController.PushBlock(sb, types.Complete)
 	return sb
+}
+
+func (vt *ValidatingTester) close() {
+	vt.Control.Close()
+	vt.ValidatingController.Close()
+	vt.ChainTransactions = make(map[common.BlockIdType]types.TransactionReceipt)
 }
