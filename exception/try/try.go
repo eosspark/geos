@@ -59,6 +59,9 @@ func Try(f func()) (r *CatchOrFinally) {
 
 
 func Throw(e interface{}) {
+	if e == nil {
+		return
+	}
 	panic(e)
 }
 

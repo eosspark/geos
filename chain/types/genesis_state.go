@@ -11,10 +11,11 @@ import (
 /*var isActiveGenesis bool = false
 var instance = &GenesisState{}*/
 type GenesisState struct {
-	EosioRootKey     string           `json:"eosio_root_key"`
 	InitialTimestamp common.TimePoint `json:"initial_timestamp"`
 	InitialKey       ecc.PublicKey    `json:"initial_key"`
 }
+
+const EosioRootKey = "EOS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV"
 
 func NewGenesisState() *GenesisState {
 	g := &GenesisState{}
@@ -24,7 +25,7 @@ func NewGenesisState() *GenesisState {
 	}
 	//g.EosioRootKey = "EOS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV"
 	g.InitialTimestamp = its
-	key, err := ecc.NewPublicKey("EOS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV")
+	key, err := ecc.NewPublicKey(EosioRootKey)
 	if err != nil {
 		log.Error("", err)
 	}
