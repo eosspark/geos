@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/eosspark/eos-go/common/arithmetic_types"
+	"github.com/eosspark/eos-go/crypto/ecc"
 	"io"
 	"io/ioutil"
 	"reflect"
@@ -32,6 +33,8 @@ var TypeSize = struct {
 	UInt64      int
 	Int64       int
 	SHA256Bytes int
+	PublicKey   int
+	Signature   int
 }{
 	Bool:        1,
 	Byte:        1,
@@ -46,6 +49,8 @@ var TypeSize = struct {
 	UInt64:      8,
 	Int64:       8,
 	SHA256Bytes: 32,
+	PublicKey:   34,
+	Signature:   66,
 }
 
 var (
@@ -107,6 +112,18 @@ func (d *decoder) decode(v interface{}) (err error) {
 		return
 	}
 
+	switch v.(type) {
+	case *ecc.PublicKey:
+		var p ecc.PublicKey
+		p, err = d.ReadPublicKey()
+		rv.Set(reflect.ValueOf(p))
+		return
+	case *ecc.Signature:
+		var s ecc.Signature
+		s, err = d.ReadSignature()
+		rv.Set(reflect.ValueOf(s))
+		return
+	}
 	switch v.(type) {
 	case *arithmeticTypes.Float64:
 		var uZ uint64
@@ -472,4 +489,38 @@ func (d *decoder) readInt64() (out int64, err error) {
 
 func (d *decoder) remaining() int {
 	return len(d.data) - d.pos
+}
+
+func (d *decoder) ReadPublicKey() (out ecc.PublicKey, err error) {
+
+	if d.remaining() < TypeSize.PublicKey {
+		err = fmt.Errorf("publicKey required [%d] bytes, remaining [%d]", TypeSize.PublicKey, d.remaining())
+		return
+	}
+	keyContent := make([]byte, 34)
+	copy(keyContent, d.data[d.pos:d.pos+TypeSize.PublicKey])
+
+	out, err = ecc.NewPublicKeyFromData(keyContent)
+	if err != nil {
+		err = fmt.Errorf("publicKey: key from data: %s", err)
+	}
+
+	d.pos += TypeSize.PublicKey
+	return
+}
+
+func (d *decoder) ReadSignature() (out ecc.Signature, err error) {
+	if d.remaining() < TypeSize.Signature {
+		err = fmt.Errorf("signature required [%d] bytes, remaining [%d]", TypeSize.Signature, d.remaining())
+		return
+	}
+	sigContent := make([]byte, 66)
+	copy(sigContent, d.data[d.pos:d.pos+TypeSize.Signature])
+	out, err = ecc.NewSignatureFromData(sigContent)
+	if err != nil {
+		return out, fmt.Errorf("new signature: %s", err)
+	}
+
+	d.pos += TypeSize.Signature
+	return
 }
