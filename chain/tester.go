@@ -258,7 +258,7 @@ func (t BaseTester) PushTransaction(trx *types.SignedTransaction, deadline commo
 	_, r := false, (*types.TransactionTrace)(nil)
 	try.Try(func() {
 		if t.Control.PendingBlockState() == nil {
-			t.startBlock(t.Control.HeadBlockTime() + common.TimePoint(common.DefaultConfig.BlockIntervalUs))
+			t.startBlock(t.Control.HeadBlockTime().AddUs(common.Microseconds(common.DefaultConfig.BlockIntervalUs)))
 		}
 		c := common.CompressionNone
 		size, _ := rlp.EncodeSize(trx)
