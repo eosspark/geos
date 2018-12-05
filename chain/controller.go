@@ -34,7 +34,7 @@ type DBReadMode int8
 
 const (
 	SPECULATIVE = DBReadMode(iota)
-	HEADER      //HEAD
+	HEADER       //HEAD
 	READONLY
 	IRREVERSIBLE
 )
@@ -72,6 +72,34 @@ type Config struct {
 	VmType                  wasmgo.WasmGo
 	ReadMode                DBReadMode
 	BlockValidationMode     ValidationMode
+}
+
+func NewConfig() *Config {
+	return &Config{
+		BlocksDir:               common.DefaultConfig.DefaultBlocksDirName,
+		StateDir:                common.DefaultConfig.DefaultStateDirName,
+		StateSize:               common.DefaultConfig.DefaultStateSize,
+		StateGuardSize:          common.DefaultConfig.DefaultStateGuardSize,
+		ReversibleCacheSize:     common.DefaultConfig.DefaultReversibleCacheSize,
+		ReversibleGuardSize:     common.DefaultConfig.DefaultReversibleGuardSize,
+		ReadOnly:                false,
+		ForceAllChecks:          false,
+		DisableReplayOpts:       false,
+		ContractsConsole:        false,
+		AllowRamBillingInNotify: false,
+		ReadMode:                SPECULATIVE,
+		BlockValidationMode:     FULL,
+		Genesis:                 types.NewGenesisState(),
+
+		ActorWhitelist:    *treeset.NewWith(common.CompareName),
+		ActorBlacklist:    *treeset.NewWith(common.CompareName),
+		ContractWhitelist: *treeset.NewWith(common.CompareName),
+		ContractBlacklist: *treeset.NewWith(common.CompareName),
+		ActionBlacklist:   *treeset.NewWith(common.ComparePair),
+		KeyBlacklist:      *treeset.NewWith(ecc.ComparePubKey),
+		ResourceGreylist:  *treeset.NewWith(common.CompareName),
+		TrustedProducers:  *treeset.NewWith(common.CompareName),
+	}
 }
 
 var isActiveController bool //default value false ;Does the process include control ;

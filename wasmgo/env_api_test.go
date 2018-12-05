@@ -215,61 +215,93 @@ func TestContextFreeAction(t *testing.T) {
 		createNewAccount2(control, "dummy", "eosio")
 
 		SetCode(control, "testapi", code)
+		// trx := newSignedTransaction(control)
 
-		//permissions := []types.PermissionLevel{
-		//	types.PermissionLevel{common.AccountName(common.N("testapi")), common.PermissionName(common.N("active"))},
-		//}
-		//privateKeys := []*ecc.PrivateKey{
-		//	getPrivateKey("testapi", "active"),
-		//}
-		// ret := pushAction2(control, "test_action", "require_notice_tests", []byte{}, "testapi", permissions, privateKeys)
-		// assert.Equal(t, ret.Receipt.Status, types.TransactionStatusExecuted)
+		// // need at least one normal action
+		// ret := pushSignedTransaction(control, trx)
+		// assert.Equal(t, ret.Except.Code(), exception.TxNoAuths{}.Code())
 
-		trx := newSignedTransaction(control)
-		ret := pushSignedTransaction(control, trx)
-		assert.Equal(t, ret.Except.Code(), exception.TxNoAuths{}.Code())
+		// cfa := cfAction{100, 0}
+		// act := newAction([]types.PermissionLevel{}, &cfa)
+		// trx.Transaction.ContextFreeActions = append(trx.Transaction.ContextFreeActions, act)
+		// var raw uint32 = 100
+		// data, _ := rlp.EncodeToBytes(raw)
+		// trx.ContextFreeData = append(trx.ContextFreeData, data)
+		// raw = 200
+		// data, _ = rlp.EncodeToBytes(raw)
+		// trx.ContextFreeData = append(trx.ContextFreeData, data)
+		// // signing a transaction with only context_free_actions should not be allowed
+		// ret = pushSignedTransaction(control, trx)
+		// assert.Equal(t, ret.Except.Code(), exception.TxNoAuths{}.Code())
 
-		assert.Equal(t, ret.Receipt.Status, types.TransactionStatusExecuted)
+		// da := dummy_action{DUMMY_ACTION_DEFAULT_A, DUMMY_ACTION_DEFAULT_B, DUMMY_ACTION_DEFAULT_C}
+		// permissions := []types.PermissionLevel{
+		// 	types.PermissionLevel{common.AccountName(common.N("testapi")), common.PermissionName(common.N("active"))},
+		// }
+		// act = newAction(permissions, &da)
+		// trx.Transaction.Actions = append(trx.Transaction.Actions, act)
 
-		cfa := cfAction{100, 0}
-		act := newAction([]types.PermissionLevel{}, &cfa)
-		trx.Transaction.ContextFreeActions = append(trx.Transaction.ContextFreeActions, act)
-		var raw uint32 = 100
-		data, _ := rlp.EncodeToBytes(raw)
-		trx.ContextFreeData = append(trx.ContextFreeData, data)
-		raw = 200
-		data, _ = rlp.EncodeToBytes(raw)
-		trx.ContextFreeData = append(trx.ContextFreeData, data)
-		ret = pushSignedTransaction(control, trx)
-		assert.Equal(t, ret.Except.Code(), exception.TxNoAuths{}.Code())
+		// privateKeys := []*ecc.PrivateKey{
+		// 	getPrivateKey("testapi", "active"),
+		// }
+		// chainIdType := control.GetChainId()
+		// for _, privateKey := range privateKeys {
+		// 	trx.Sign(privateKey, &chainIdType)
+		// }
+		// // add a normal action along with cfa
+		// ret = pushSignedTransaction(control, trx)
 
-		da := dummy_action{DUMMY_ACTION_DEFAULT_A, DUMMY_ACTION_DEFAULT_B, DUMMY_ACTION_DEFAULT_C}
-		permissions := []types.PermissionLevel{
-			types.PermissionLevel{common.AccountName(common.N("testapi")), common.PermissionName(common.N("active"))},
-		}
-		act = newAction(permissions, &da)
-		trx.Transaction.Actions = append(trx.Transaction.Actions, act)
+		// da = dummy_action{DUMMY_ACTION_DEFAULT_A, 200, DUMMY_ACTION_DEFAULT_C}
+		// act = newAction(permissions, &da)
+		// trx.Transaction.Actions = []*types.Action{}
+		// trx.Transaction.Actions = append(trx.Transaction.Actions, act)
 
-		privateKeys := []*ecc.PrivateKey{
-			getPrivateKey("testapi", "active"),
-		}
-		chainIdType := control.GetChainId()
-		for _, privateKey := range privateKeys {
-			trx.Sign(privateKey, &chainIdType)
-		}
-		ret = pushSignedTransaction(control, trx)
+		// trx.Signatures = []ecc.Signature{}
+		// for _, privateKey := range privateKeys {
+		// 	trx.Sign(privateKey, &chainIdType)
+		// }
+		// // attempt to access context free api in non context free action
+		// ret = pushSignedTransaction(control, trx)
+		// assert.Equal(t, ret.Except.Code(), exception.UnaccessibleApi{}.Code())
 
-		da = dummy_action{DUMMY_ACTION_DEFAULT_A, 200, DUMMY_ACTION_DEFAULT_C}
-		act = newAction(permissions, &da)
-		trx.Transaction.Actions = []*types.Action{}
-		trx.Transaction.Actions = append(trx.Transaction.Actions, act)
+		// act = newAction(permissions, &da)
+		// trx = newSignedTransaction(control)
+		// trx.Transaction.ContextFreeActions = append(trx.Transaction.ContextFreeActions, act)
+		// raw = 100
+		// data, _ = rlp.EncodeToBytes(raw)
+		// trx.ContextFreeData = append(trx.ContextFreeData, data)
+		// raw = 200
+		// data, _ = rlp.EncodeToBytes(raw)
+		// trx.ContextFreeData = append(trx.ContextFreeData, data)
+		// trx.Transaction.Actions = append(trx.Transaction.Actions, act)
+		// for i := 200; i <= 211; i++ {
+		// 	trx.Transaction.ContextFreeActions = []*types.Action{}
+		// 	trx.ContextFreeData = []common.HexBytes{}
+		// 	cfa.Payload = uint32(i)
+		// 	cfa.Cfd_idx = 1
+		// 	cfa_act := newAction([]types.PermissionLevel{}, &cfa)
 
-		trx.Signatures = []ecc.Signature{}
-		for _, privateKey := range privateKeys {
-			trx.Sign(privateKey, &chainIdType)
-		}
-		ret = pushSignedTransaction(control, trx)
-		assert.Equal(t, ret.Except.Code(), exception.UnaccessibleApi{}.Code())
+		// 	trx.Transaction.ContextFreeActions = append(trx.Transaction.ContextFreeActions, cfa_act)
+		// 	trx.Signatures = []ecc.Signature{}
+		// 	for _, privateKey := range privateKeys {
+		// 		trx.Sign(privateKey, &chainIdType)
+		// 	}
+
+		// 	// attempt to access non context free api
+		// 	ret := pushSignedTransaction(control, trx)
+		// 	assert.Equal(t, ret.Except.Code(), exception.UnaccessibleApi{}.Code())
+		// }
+
+		ret := callTestFunction2(control, "test_transaction", "send_cf_action", []byte{}, "testapi")
+		assert.Equal(t, len(ret.ActionTraces), 1)
+		assert.Equal(t, len(ret.ActionTraces[0].InlineTraces), 1)
+		assert.Equal(t, ret.ActionTraces[0].InlineTraces[0].Receipt.Receiver, common.AccountName(common.N("dummy")))
+		assert.Equal(t, ret.ActionTraces[0].InlineTraces[0].Act.Account, common.AccountName(common.N("dummy")))
+		assert.Equal(t, ret.ActionTraces[0].InlineTraces[0].Act.Name, common.AccountName(common.N("event1")))
+		assert.Equal(t, len(ret.ActionTraces[0].InlineTraces[0].Act.Authorization), 0)
+
+		retException := callTestFunctionException2(control, "test_transaction", "send_cf_action_fail", []byte{}, "testapi", exception.EosioAssertMessageException{}.Code(), "context free actions cannot have authorizations")
+		assert.Equal(t, retException, true)
 
 		stopBlock(control)
 
@@ -1138,7 +1170,7 @@ func callTestFunction2(control *chain.Controller, cls string, method string, pay
 
 }
 
-func callTestFunctionException2(control *chain.Controller, cls string, method string, payload []byte, authorizer string, errCode exception.ExcTypes, errMsg string) (ret bool) {
+func callTestFunctionException2(control *chain.Controller, cls string, method string, payload []byte, authorizer string, errCode exception.ExcTypes, errMsg string) bool {
 
 	action := wasmTestAction(cls, method)
 	fmt.Println(cls, method, action)
@@ -1156,18 +1188,18 @@ func callTestFunctionException2(control *chain.Controller, cls string, method st
 	//pushTransaction(control, trx)
 
 	defer try.HandleReturn()
-	try.Try(func() {
-		pushTransaction(control, trx)
-	}).Catch(func(e exception.Exception) {
-		if e.Code() == errCode {
-			fmt.Println(errMsg)
-			ret = true
-			try.Return()
-		}
-	}).End()
+	//try.Try(func() {
+	//	pushTransaction(control, trx)
+	//}).Catch(func(e exception.Exception) {
+	//	if e.Code() == errCode {
+	//		fmt.Println(errMsg)
+	//		ret = true
+	//		try.Return()
+	//	}
+	//}).End()
 
-	ret = false
-	return
+	ret := pushTransaction(control, trx)
+	return ret.Except.Code() == errCode
 
 }
 

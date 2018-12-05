@@ -261,7 +261,7 @@ func applyEosioUpdateauth(context *ApplyContext) {
 
 	db := context.DB
 
-	EosAssert(!common.Empty(&update.Permission), &ActionValidateException{}, "Cannot create authority with empty name")
+	EosAssert(!common.Empty(update.Permission), &ActionValidateException{}, "Cannot create authority with empty name")
 	EosAssert(strings.Index(common.S(uint64(update.Permission)), "eosio.") != 0,
 		&ActionValidateException{},
 		"Permission names that start with 'eosio.' are reserved")
@@ -327,8 +327,8 @@ func applyEosioDeleteauth(context *ApplyContext) {
 	rlp.DecodeBytes(context.Act.Data, &remove)
 	context.RequireAuthorization(int64(remove.Account))
 
+	EosAssert(remove.Permission != common.PermissionName(common.DefaultConfig.OwnerName), &ActionValidateException{}, "Cannot delete Owner authority")
 	EosAssert(remove.Permission != common.PermissionName(common.DefaultConfig.ActiveName), &ActionValidateException{}, "Cannot delete active authority")
-	EosAssert(remove.Permission != common.PermissionName(common.DefaultConfig.OwnerName), &ActionValidateException{}, "Cannot delete owner authority")
 
 	//db := context.DB
 
