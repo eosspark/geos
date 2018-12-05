@@ -496,7 +496,6 @@ func (t BaseTester) UnlinkAuthority(account common.AccountName, code common.Acco
 }
 
 func (t BaseTester) SetAuthority(account common.AccountName, perm common.PermissionName, auth types.Authority, parent common.PermissionName, auths *[]types.PermissionLevel, keys *[]ecc.PrivateKey) {
-	//TODO: try
 	trx := types.SignedTransaction{}
 	update := updateAuth{Account: account, Permission: perm, Parent: parent, Auth: auth}
 	data, _ := rlp.EncodeToBytes(update)
@@ -522,7 +521,6 @@ func (t BaseTester) SetAuthority2(account common.AccountName, perm common.Permis
 }
 
 func (t BaseTester) DeleteAuthority(account common.AccountName, perm common.PermissionName, auths *[]types.PermissionLevel, keys *[]ecc.PrivateKey) {
-	//TODO: try
 	trx := types.SignedTransaction{}
 	delete := deleteAuth{Account: account, Permission: perm}
 	data, _ := rlp.EncodeToBytes(delete)
@@ -574,9 +572,6 @@ func (t BaseTester) SetCode2(account common.AccountName, wast *byte, signer *ecc
 }
 
 
-
-
-
 func (t BaseTester) SetAbi(account common.AccountName, abiJson []byte, signer *ecc.PrivateKey) {
 	abiEt := abi.AbiDef{}
 	err := json.Unmarshal(abiJson, &abiEt)
@@ -623,14 +618,12 @@ func (t BaseTester) GetCurrencyBalance(code *common.AccountName, assetSymbol *co
 	if err != nil {
 		log.Error("GetCurrencyBalance is error: %s", err)
 	} else {
-		//TODO
-		//obj := entity.KeyValueObject{ID:table.ID,assetSymbol.ToSymbolCode().value}
-		obj := entity.KeyValueObject{}
+		obj := entity.KeyValueObject{ID:table.ID,PrimaryKey:uint64(assetSymbol.ToSymbolCode())}
 		err := db.Find("byScopePrimary", obj, &obj)
 		if err != nil {
 			log.Error("GetCurrencyBalance is error: %s", err)
 		} else {
-			//TODO
+			rlp.DecodeBytes(obj.Value, &result)
 		}
 	}
 	return common.Asset{Amount: result, Symbol: *assetSymbol}
@@ -711,7 +704,6 @@ func (t BaseTester) SyncWith(other *BaseTester) {
 }
 
 func (t BaseTester) PushGenesisBlock() {
-	//TODO
 	t.SetCode2(common.DefaultConfig.SystemAccountName, nil, nil)
 	t.SetAbi(common.DefaultConfig.SystemAccountName, nil, nil)
 }
