@@ -78,8 +78,8 @@ func NewApplyContext(control *Controller, trxContext *TransactionContext, act *t
 	applyContext.AccountRamDeltas = *treeset.NewWith(types.CompareAccountDelta)
 	applyContext.ilog = log.New("Apply_Context")
 	logHandler := log.StreamHandler(os.Stdout, log.TerminalFormat(true))
-	applyContext.ilog.SetHandler(log.LvlFilterHandler(log.LvlDebug, logHandler))
-	//applyContext.ilog.SetHandler(log.LvlFilterHandler(log.LvlInfo, logHandler))
+	//applyContext.ilog.SetHandler(log.LvlFilterHandler(log.LvlDebug, logHandler))
+	applyContext.ilog.SetHandler(log.LvlFilterHandler(log.LvlInfo, logHandler))
 
 	return applyContext
 
