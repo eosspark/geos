@@ -347,14 +347,22 @@ func (t BaseTester) PushAction4(code *common.AccountName, acttype *common.Accoun
 	})
 	return nil
 }
+
 func (t BaseTester) GetAction(code common.AccountName, actType common.AccountName,
 	auths []types.PermissionLevel, data *VariantsObject) *types.Action {
-	/*acnt := t.Control.GetAccount(code)
-	abi := acnt.GetAbi()
-	abis := types.AbiSerializer{}
-	actionTypeName := abis.getActionType(actType)*/
-
-	return nil
+	acnt := t.Control.GetAccount(code)
+	a := acnt.GetAbi()
+	action := types.Action{code,actType,auths,nil}
+	actionTypeName :=a.ActionForName(actType).Type
+	buf,err :=json.Marshal(data)
+	if err != nil{
+		log.Error("tester GetAction Marshal is error:%s",err)
+	}
+	action.Data,err = a.EncodeAction(common.N(actionTypeName),buf)//TODO
+	if err != nil{
+		log.Error("tester GetAction EncodeAction is error:%s",err)
+	}
+	return &action
 }
 
 func (t BaseTester) getPrivateKey(keyName common.Name, role string) ecc.PrivateKey {

@@ -743,24 +743,36 @@ func TestLinkAuthSpecial(t *testing.T) {
 	vt.CreateAccount(common.N("tester2"), common.N("eosio"), false, true)
 	vt.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs), 0)
 
+	data := VariantsObject{
+		{"account":    tester},
+		{"permission": common.N("first")},
+		{"parent":     common.N("active")},
+		{"auth":       types.NewAuthority(vt.getPublicKey(tester,"first"),5)},
+	}
 	actName := updateAuth{}.getName()
 	vt.PushAction2(
 		&common.DefaultConfig.SystemAccountName,
 		&actName,
 		tester,
-		nil,
+		&data,
 		vt.DefaultExpirationDelta,
 		0,
 	)
 
 	validateDisallow := func(rtype string) {
 		actName := linkAuth{}.getName()
+		data := VariantsObject{
+			{"account":     tester},
+			{"code":        common.N("eosio")},
+			{"type":        common.N(rtype)},
+			{"requirement": common.N("first")},
+		}
 		Try(func() {
 			vt.PushAction2(
 				&common.DefaultConfig.SystemAccountName,
 				&actName,
 				tester,
-				nil,
+				&data,
 				vt.DefaultExpirationDelta,
 				0,
 			)
