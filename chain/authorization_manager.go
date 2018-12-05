@@ -76,18 +76,21 @@ func (a *AuthorizationManager) RemovePermission(permission *entity.PermissionObj
 	if err != nil {
 		log.Error("RemovePermission is error: %s", err)
 	}
-	_, err = index.LowerBound(entity.PermissionObject{Parent: permission.ID})
-	EosAssert(err == nil, &ActionValidateException{}, "Cannot remove a permission which has children. Remove the children first.")
+	itr, err := index.LowerBound(entity.PermissionObject{Parent: permission.ID})
+	if err != nil {
+		log.Error("RemovePermission is error: %s", err)
+	}
+	EosAssert(index.CompareEnd(itr), &ActionValidateException{}, "Cannot remove a permission which has children. Remove the children first.")
 	usage := entity.PermissionUsageObject{ID: permission.UsageId}
 	err = a.db.Find("id", usage, &usage)
 	if err != nil {
 		log.Error("RemovePermission is error: %s", err)
 	}
-	err = a.db.Remove(usage)
+	err = a.db.Remove(&usage)
 	if err != nil {
 		log.Error("RemovePermission is error: %s", err)
 	}
-	err = a.db.Remove(*permission)
+	err = a.db.Remove(permission)
 	if err != nil {
 		log.Error("RemovePermission is error: %s", err)
 	}
@@ -126,8 +129,9 @@ func (a *AuthorizationManager) FindPermission(level *types.PermissionLevel) (p *
 		po.Name = level.Permission
 		err := a.db.Find("byOwner", po, &po)
 		if err != nil {
-			log.Error("FindPermission is error: %s", err)
-			EosThrow(&PermissionQueryException{}, "FindPermission is error")
+			log.Warn("%v@%v don't find", po.Owner, po.Name)
+			p = nil
+			return
 		}
 		p = &po
 	}).Catch(func(e Exception) {
@@ -144,8 +148,9 @@ func (a *AuthorizationManager) GetPermission(level *types.PermissionLevel) (p *e
 		po.Name = level.Permission
 		err := a.db.Find("byOwner", po, &po)
 		if err != nil {
-			log.Error("GetPermission is error: %s", err)
-			EosThrow(&PermissionQueryException{}, "GetPermission is error")
+			log.Warn("%v@%v don't find", po.Owner, po.Name)
+			p = nil
+			return
 		}
 		p = &po
 	}).Catch(func(e Exception) {
@@ -212,7 +217,7 @@ func (a *AuthorizationManager) CheckUpdateauthAuthorization(update updateAuth, a
 	EosAssert(auth.Actor == update.Account, &IrrelevantAuthException{}, "the owner of the affected permission needs to be the actor of the declared authorization")
 	minPermission := a.FindPermission(&types.PermissionLevel{Actor: update.Account, Permission: update.Permission})
 	if minPermission == nil {
-		permission := a.GetPermission(&types.PermissionLevel{Actor: update.Account, Permission: update.Permission})
+		permission := a.GetPermission(&types.PermissionLevel{Actor: update.Account, Permission: update.Parent})
 		minPermission = permission
 	}
 	permissionIndex, err := a.db.GetIndex("id", entity.PermissionObject{})

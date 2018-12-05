@@ -20,7 +20,7 @@ func initializeBaseTester() (*AuthorizationManager, *BaseTester) {
 
 func initializeValidatingTester() (*AuthorizationManager, *ValidatingTester) {
 	vt := newValidatingTester(true, SPECULATIVE)
-	am := vt.ValidatingController.Authorization
+	am := vt.ValidatingControl.Authorization
 	return am, vt
 }
 
@@ -112,9 +112,11 @@ func TestDelegateAuth(t *testing.T) {
 }
 
 func TestUpdateAuths(t *testing.T) {
-	_, vt := initializeBaseTester()
+	_, vt := initializeValidatingTester()
 	vt.CreateAccount(common.N("alice"), common.DefaultConfig.SystemAccountName, false, true)
 	vt.CreateAccount(common.N("bob"), common.DefaultConfig.SystemAccountName, false, true)
+
+	// Deleting active or owner should fail
 	Try(func() {
 		vt.DeleteAuthority(
 			common.N("alice"),
@@ -125,45 +127,59 @@ func TestUpdateAuths(t *testing.T) {
 	}).Catch(func(e ActionValidateException){
 		fmt.Println(e)
 	}).End()
-
 	Try(func() {
 		vt.DeleteAuthority(
-			common.N("bob"),
+			common.N("alice"),
 			common.N("owner"),
-			&[]types.PermissionLevel{{common.N("bob"), common.DefaultConfig.OwnerName}},
-			&[]ecc.PrivateKey{vt.getPrivateKey(common.N("bob"),"owner")},
+			&[]types.PermissionLevel{{common.N("alice"), common.DefaultConfig.OwnerName}},
+			&[]ecc.PrivateKey{vt.getPrivateKey(common.N("alice"),"owner")},
 		)
 	}).Catch(func(e ActionValidateException){
 		fmt.Println(e)
 	}).End()
 
+	// Change owner permission
 	newOwnerPrivKey := vt.getPrivateKey(common.N("alice"),"new_owner")
 	newOwnerPubKey := newOwnerPrivKey.PublicKey()
-	vt.SetAuthority2(common.N("alice"),common.N("owner"),types.NewAuthority(newOwnerPubKey,0),common.N(""))
+	vt.SetAuthority2(
+		common.N("alice"),
+		common.N("owner"),
+		types.NewAuthority(newOwnerPubKey,0),
+		common.N(""),
+	)
 	vt.ProduceBlocks(1,false)
 
-	po := entity.PermissionObject{Owner:common.N("alice"), Name:common.N("new_owner")}
+	// Ensure the permission is updated
+	po := entity.PermissionObject{Owner:common.N("alice"), Name:common.N("owner")}
 	err := vt.Control.DB.Find("byOwner", po, &po)
 	if err != nil {
 		fmt.Println(err)
 	}
 	assert.Equal(t, po.Owner, common.AccountName(common.N("alice")))
 	assert.Equal(t, po.Name, common.PermissionName(common.N("owner")))
-	assert.Equal(t, po.Parent, 0)
+	assert.Equal(t, po.Parent, int64(0))
 	ownerId := po.ID
 	auth:= po.Auth.ToAuthority()
-	assert.Equal(t, auth.Threshold, 1)
+	assert.Equal(t, auth.Threshold, uint32(1))
 	assert.Equal(t, len(auth.Keys), 1)
 	assert.Equal(t, len(auth.Accounts), 0)
 	assert.Equal(t, auth.Keys[0].Key, newOwnerPubKey)
-	assert.Equal(t, auth.Keys[0].Weight, 1)
+	assert.Equal(t, auth.Keys[0].Weight, types.WeightType(1))
 
-	newActivePrivKey := vt.getPrivateKey(common.N("alice"),"new_owner")
+	// Change active permission, remember that the owner key has been changed
+	newActivePrivKey := vt.getPrivateKey(common.N("alice"),"new_active")
 	newActivePubKey := newActivePrivKey.PublicKey()
-	vt.SetAuthority2(common.N("alice"),common.N("owner"),types.NewAuthority(newActivePubKey,0),common.N(""))
+	vt.SetAuthority(
+		common.N("alice"),
+		common.N("active"),
+		types.NewAuthority(newActivePubKey,0),
+		common.N("owner"),
+		&[]types.PermissionLevel{{common.N("alice"),common.N("active")}},
+		&[]ecc.PrivateKey{vt.getPrivateKey(common.N("alice"),"active")},
+	)
 	vt.ProduceBlocks(1,false)
 
-	obj := entity.PermissionObject{Owner:common.N("alice"), Name:common.N("new_active")}
+	obj := entity.PermissionObject{Owner:common.N("alice"), Name:common.N("active")}
 	err = vt.Control.DB.Find("byOwner", obj, &obj)
 	if err != nil {
 		fmt.Println(err)
@@ -172,17 +188,18 @@ func TestUpdateAuths(t *testing.T) {
 	assert.Equal(t, obj.Name, common.PermissionName(common.N("active")))
 	assert.Equal(t, obj.Parent, ownerId)
 	auth = obj.Auth.ToAuthority()
-	assert.Equal(t, auth.Threshold, 1)
+	assert.Equal(t, auth.Threshold, uint32(1))
 	assert.Equal(t, len(auth.Keys), 1)
 	assert.Equal(t, len(auth.Accounts), 0)
 	assert.Equal(t, auth.Keys[0].Key, newActivePubKey)
-	assert.Equal(t, auth.Keys[0].Weight, 1)
+	assert.Equal(t, auth.Keys[0].Weight, types.WeightType(1))
 
 	spendingPrivKey := vt.getPrivateKey(common.N("alice"), "spending")
 	spendingPubKey := spendingPrivKey.PublicKey()
 	tradingPrivKey := vt.getPrivateKey(common.N("alice"),"trading")
 	tradingPubKey := tradingPrivKey.PublicKey()
 
+	// Bob attempts to create new spending auth for Alice
 	Try(func() {
 		vt.SetAuthority(
 			common.N("alice"),
@@ -196,6 +213,7 @@ func TestUpdateAuths(t *testing.T) {
 		fmt.Println(e)
 	})
 
+	// Create new spending auth
 	vt.SetAuthority(
 		common.N("alice"),
 		common.N("spending"),
@@ -223,6 +241,7 @@ func TestUpdateAuths(t *testing.T) {
 	assert.Equal(t, parent.Owner, common.N("alice"))
 	assert.Equal(t, parent.Name, common.N("active"))
 
+	// Update spending auth parent to be its own, should fail
 	Try(func() {
 		vt.SetAuthority(
 			common.N("alice"),
@@ -236,6 +255,7 @@ func TestUpdateAuths(t *testing.T) {
 		fmt.Println(e)
 	})
 
+	// Update spending auth parent to be owner, should fail
 	Try(func() {
 		vt.SetAuthority(
 			common.N("alice"),
@@ -249,6 +269,7 @@ func TestUpdateAuths(t *testing.T) {
 		fmt.Println(e)
 	})
 
+	// Remove spending auth
 	vt.DeleteAuthority(
 		common.N("alice"),
 		common.N("spending"),
@@ -257,11 +278,29 @@ func TestUpdateAuths(t *testing.T) {
 	)
 	delete := entity.PermissionObject{Owner:common.N("alice"), Name:common.N("spending")}
 	err = vt.Control.DB.Find("byOwner", delete, &delete)
-	if err != nil {
-		fmt.Println(err)
-	}
+	assert.NotNil(t, err)
 	vt.ProduceBlocks(1,false)
 
+	// Create new trading auth
+	vt.SetAuthority(
+		common.N("alice"),
+		common.N("trading"),
+		types.NewAuthority(tradingPubKey,0),
+		common.N("active"),
+		&[]types.PermissionLevel{{common.N("alice"),common.N("active")}},
+		&[]ecc.PrivateKey{newActivePrivKey},
+	)
+	// Recreate spending auth again, however this time, it's under trading instead of owner
+	vt.SetAuthority(
+		common.N("alice"),
+		common.N("spending"),
+		types.NewAuthority(spendingPubKey,0),
+		common.N("trading"),
+		&[]types.PermissionLevel{{common.N("alice"),common.N("trading")}},
+		&[]ecc.PrivateKey{tradingPrivKey},
+	)
+
+	// Verify correctness of trading and spending
 	trading := entity.PermissionObject{Owner:common.N("alice"), Name:common.N("trading")}
 	spending := entity.PermissionObject{Owner:common.N("alice"), Name:common.N("spending")}
 	err = vt.Control.DB.Find("byOwner", trading, &trading)
@@ -279,13 +318,14 @@ func TestUpdateAuths(t *testing.T) {
 	assert.Equal(t, spending.Parent, trading.ID)
 
 	tradingParent := entity.PermissionObject{ID: trading.Parent}
-	err = vt.Control.DB.Find("byOwner", tradingParent, &tradingParent)
+	err = vt.Control.DB.Find("id", tradingParent, &tradingParent)
 	if err != nil {
 		fmt.Println(err)
 	}
 	assert.Equal(t, tradingParent.Owner, common.AccountName(common.N("alice")))
 	assert.Equal(t, tradingParent.Name, common.AccountName(common.N("active")))
 
+	// Delete trading, should fail since it has children (spending)
 	Try(func() {
 		vt.DeleteAuthority(
 			common.N("alice"),
@@ -297,6 +337,7 @@ func TestUpdateAuths(t *testing.T) {
 		fmt.Println(e)
 	})
 
+	// Update trading parent to be spending, should fail since changing parent authority is not supported
 	Try(func() {
 		vt.SetAuthority(
 			common.N("alice"),
@@ -310,12 +351,15 @@ func TestUpdateAuths(t *testing.T) {
 		fmt.Println(e)
 	})
 
+	// Delete spending auth
 	vt.DeleteAuthority(
 		common.N("alice"),
 		common.N("spending"),
 		&[]types.PermissionLevel{{common.N("alice"),common.N("active")}},
 		&[]ecc.PrivateKey{newActivePrivKey},
 	)
+
+	// Delete trading auth, now it should succeed since it doesn't have any children anymore
 	vt.DeleteAuthority(
 		common.N("alice"),
 		common.N("trading"),
@@ -326,9 +370,13 @@ func TestUpdateAuths(t *testing.T) {
 	trading = entity.PermissionObject{Owner:common.N("alice"), Name:common.N("trading")}
 	spending = entity.PermissionObject{Owner:common.N("alice"), Name:common.N("spending")}
 	err = vt.Control.DB.Find("byOwner", trading, &trading)
-	assert.Equal(t, err != nil, 0)
+	assert.NotNil(t, err)
 	err = vt.Control.DB.Find("byOwner", spending, &spending)
-	assert.Equal(t, err != nil, 0)
+	assert.NotNil(t, err)
 
 	vt.close()
+}
+
+func TestSmall(t *testing.T) {
+	fmt.Println(common.S(14829394032139960320))
 }

@@ -57,6 +57,7 @@ func newConfig(readMode DBReadMode) *Config{
 	cfg := &Config{}
 	cfg.BlocksDir = common.DefaultConfig.DefaultBlocksDirName
 	cfg.StateDir = common.DefaultConfig.DefaultStateDirName
+	cfg.ReversibleDir = common.DefaultConfig.DefaultReversibleBlocksDirName
 	cfg.StateSize = 1024 * 1024 * 8
 	cfg.StateGuardSize = 0
 	cfg.ReversibleCacheSize = 1024 * 1024 * 8
@@ -733,7 +734,7 @@ func (t BaseTester) FindTable(code common.Name, scope common.Name, table common.
 
 type ValidatingTester struct {
 	BaseTester
-	ValidatingController   *Controller
+	ValidatingControl      *Controller
 	VCfg                   Config
 	NumBlocksToProducerBeforeShutdown uint32
 }
@@ -747,26 +748,26 @@ func newValidatingTester(pushGenesis bool, readMode DBReadMode)  *ValidatingTest
 	vt.VCfg = *newConfig(readMode)
 	vt.VCfg.BlocksDir = common.DefaultConfig.ValidatingBlocksDirName
 	vt.VCfg.StateDir = common.DefaultConfig.ValidatingStateDirName
+	vt.VCfg.ReversibleDir = common.DefaultConfig.ValidatingReversibleBlocksDirName
 
-	vt.ValidatingController = NewController(vt.VCfg)
+	vt.ValidatingControl = NewController(vt.VCfg)
 	vt.init(true,readMode)
 	return vt
 }
 
 func (vt ValidatingTester) ProduceBlock(skipTime common.Microseconds, skipFlag uint32) *types.SignedBlock {
 	sb := vt.produceBlock(skipTime, false, skipFlag/2)
-	vt.ValidatingController.PushBlock(sb, types.Complete)
+	vt.ValidatingControl.PushBlock(sb, types.Complete)
 	return sb
 }
 
 func (vt ValidatingTester) ProduceEmptyBlock(skipTime common.Microseconds, skipFlag uint32) *types.SignedBlock {
 	sb := vt.produceBlock(skipTime, true, skipFlag/2)
-	vt.ValidatingController.PushBlock(sb, types.Complete)
+	vt.ValidatingControl.PushBlock(sb, types.Complete)
 	return sb
 }
 
 func (vt *ValidatingTester) close() {
 	vt.Control.Close()
-	vt.ValidatingController.Close()
 	vt.ChainTransactions = make(map[common.BlockIdType]types.TransactionReceipt)
 }
