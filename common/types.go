@@ -258,6 +258,10 @@ func (sym Symbol) FromString(from *string) Symbol {
 	return Symbol{Precision: uint8(p), Symbol: namePart}
 }
 
+func (sym *Symbol) ToSymbolCode() SymbolCode {
+	return SymbolCode(N(sym.Symbol)) >> 8
+}
+
 // EOSSymbol represents the standard EOS symbol on the chain.  It's
 // here just to speed up things.
 var EOSSymbol = Symbol{Precision: 4, Symbol: "EOS"}
