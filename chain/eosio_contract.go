@@ -84,7 +84,7 @@ func ApplyEosioNewaccount(context *ApplyContext) {
 	// Check if the creator is privileged
 	creator := entity.AccountObject{Name: create.Creator}
 	err := context.DB.Find("byName", creator, &creator)
-	if err != nil && !creator.Privileged {
+	if err == nil && !creator.Privileged {
 
 		EosAssert(strings.Index(nameStr, "eosio.") != 0, &ActionValidateException{},
 			"only privileged accounts can have names that start with 'eosio.'")
@@ -139,11 +139,9 @@ func applyEosioNewaccount(context *ApplyContext) {
 	// Check if the creator is privileged
 	creator := entity.AccountObject{Name: create.Creator}
 	err := context.DB.Find("byName", creator, &creator)
-	if err != nil && !creator.Privileged {
-
+	if err == nil && !creator.Privileged {
 		EosAssert(strings.Index(nameStr, "eosio.") != 0, &ActionValidateException{},
 			"only privileged accounts can have names that start with 'eosio.'")
-
 	}
 
 	existingAccount := entity.AccountObject{Name: create.Name}

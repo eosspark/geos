@@ -163,14 +163,14 @@ func (a *AuthorizationManager) LookupLinkedPermission(authorizerAccount common.A
 	scope common.AccountName,
 	actName common.ActionName,
 ) (p *common.PermissionName) {
-	Try(func() { //TODO
+	Try(func() {
 		link := entity.PermissionLinkObject{}
 		link.Account = authorizerAccount
 		link.Code = scope
 		link.MessageType = actName
 		err := a.db.Find("byActionName", link, &link)
 		if err != nil {
-			link.Code = common.AccountName(common.N(""))
+			link.MessageType = common.AccountName(common.N(""))
 			err = a.db.Find("byActionName", link, &link)
 		}
 		if err == nil {
@@ -392,7 +392,7 @@ func (a *AuthorizationManager) CheckAuthorization(actions []*types.Action,
 			(*checkTime)()
 			if !specialCase {
 				minPermissionName := a.LookupMinimumPermission(declaredAuth.Actor, act.Account, act.Name)
-				if *minPermissionName != common.PermissionName(0) {
+				if minPermissionName != nil {
 					minPermission := a.GetPermission(&types.PermissionLevel{Actor: declaredAuth.Actor, Permission: *minPermissionName})
 					permissionIndex, err := a.db.GetIndex("id", entity.PermissionObject{})
 					if err != nil {
