@@ -4,7 +4,7 @@ import (
 	"encoding/binary"
 	"github.com/stretchr/testify/assert"
 	"testing"
-)
+	)
 
 func TestEmpty(t *testing.T) {
 	type Action struct {
@@ -37,8 +37,59 @@ func TestEmpty(t *testing.T) {
 
 	test1 := Transaction{}
 	assert.Equal(t, true, Empty(test1))
-
 }
+
+type Data struct {
+	a string
+	b []string
+	c []interface{}
+	d map[string]interface{}
+	e chan interface{}
+	child ChildData
+}
+
+func (d *Data) IsEmpty() bool {
+	return d.a == "" && len(d.b) == 0 && len(d.c) == 0 &&
+		len(d.d) == 0 && len(d.e) == 0 && d.child.IsEmpty()
+}
+
+type ChildData struct {
+	a string
+	b []string
+	c []interface{}
+	d map[string]interface{}
+	e chan interface{}
+}
+
+func (d *ChildData) IsEmpty() bool {
+	return d.a == "" && len(d.b) == 0 && len(d.c) == 0 &&
+		len(d.d) == 0 && len(d.e) == 0
+}
+
+var d = Data{}
+
+func BenchmarkEmpty(b *testing.B) {
+	for i:=0; i<b.N; i++ {
+		if Empty(d) {}
+	}
+}
+
+func BenchmarkEmpty2(b *testing.B) {
+	for i:=0; i<b.N; i++ {
+		if empty(d) {}
+	}
+}
+
+func Test_empty(t *testing.T) {
+	assert.Equal(t, true, empty(uint8(0)))
+	assert.Equal(t, true, empty(uint32(0)))
+	assert.Equal(t, true, empty(uint64(0)))
+	assert.Equal(t, true, empty(int64(0)))
+	assert.Equal(t, true, empty(int32(0)))
+	assert.Equal(t, true, empty(int(0)))
+	assert.Equal(t, true, empty(false))
+}
+
 
 type E int
 

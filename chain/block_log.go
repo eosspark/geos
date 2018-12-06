@@ -11,10 +11,6 @@ import (
 )
 
 type BlockLog struct {
-	nPos             uint64
-	nSize            uint64
-	supportedVersion uint32
-
 	head   *types.SignedBlock
 	headId common.BlockIdType
 
@@ -28,6 +24,11 @@ type BlockLog struct {
 
 	genesisWriteToBlockLog bool
 }
+
+const (
+	nPos             = math.MaxUint64
+	supportedVersion = uint32(1)
+)
 
 // func (b *BlockLog)checkBlockRead()  {
 // 	if b.blockWrite {
@@ -61,9 +62,6 @@ type BlockLog struct {
 func NewBlockLog(dataDir string) *BlockLog {
 
 	blockLog := &BlockLog{
-		nPos:             math.MaxUint64,
-		supportedVersion: 1,
-
 		//blockWrite:true,
 		//indexWrite:true,
 	}
@@ -81,7 +79,7 @@ func NewBlockLog(dataDir string) *BlockLog {
 
 	if blockLog.blockStream == nil {
 		blockLog.blockStream, _ = os.Create(blockLog.blockFile)
-		bytes, _ := rlp.EncodeToBytes(blockLog.supportedVersion)
+		bytes, _ := rlp.EncodeToBytes(supportedVersion)
 		blockLog.blockStream.Write(bytes)
 		blockLog.blockStream.Close()
 		blockLog.blockStream, _ = os.OpenFile(blockLog.blockFile, os.O_RDWR, os.ModePerm)
@@ -105,10 +103,10 @@ func NewBlockLog(dataDir string) *BlockLog {
 		rlp.DecodeBytes(bytes, &version)
 
 		try.EosAssert(version > 0, &exception.BlockLogAppendFail{}, "Block log was not setup properly with genesis information.")
-		try.EosAssert(version == blockLog.supportedVersion,
+		try.EosAssert(version == supportedVersion,
 			&exception.BlockLogUnsupportedVersion{},
 			"Unsupported version of block log. Block log version is %d while code supports version %d",
-			version, blockLog.supportedVersion)
+			version, supportedVersion)
 
 		blockLog.genesisWriteToBlockLog = true
 		blockLog.head = blockLog.ReadHead()
@@ -194,7 +192,7 @@ func (b *BlockLog) ResetToGenesis(gs *types.GenesisState, benesisBlock *types.Si
 	b.blockStream, _ = os.Create(b.blockFile)
 	b.indexStream, _ = os.Create(b.indexFile)
 
-	bytes, _ := rlp.EncodeToBytes(b.supportedVersion)
+	bytes, _ := rlp.EncodeToBytes(supportedVersion)
 	b.blockStream.Write(bytes)
 
 	bytes, _ = rlp.EncodeToBytes(gs)
@@ -240,7 +238,7 @@ func (b *BlockLog) ReadBlockByNum(blockNum uint32) *types.SignedBlock {
 	var block *types.SignedBlock
 	pos := b.GetBlockPos(blockNum)
 
-	if pos != b.nPos {
+	if pos != nPos {
 		block, _ = b.ReadBlock(pos)
 	}
 
@@ -257,7 +255,7 @@ func (b *BlockLog) ReadBlockById(id *common.BlockIdType) *types.SignedBlock {
 func (b *BlockLog) GetBlockPos(blockNum uint32) uint64 {
 
 	if !(b.head != nil && blockNum <= types.NumFromID(&b.headId) && blockNum > 0) {
-		return b.nPos
+		return nPos
 	}
 
 	var pos uint64
@@ -331,8 +329,9 @@ func (b *BlockLog) ConstructIndex() {
 
 	return
 }
-func (b *BlockLog) repairLog(dataDir string, truncateAtBlock uint32) string { return "" }
-func (b *BlockLog) ExtractGenesisState(dataDir string) types.GenesisState {
+func repairLog(dataDir string, truncateAtBlock uint32) string { return "" }
+
+func ExtractGenesisState(dataDir string) types.GenesisState {
 
 	blockStream, _ := os.OpenFile(dataDir+"/blocks.log", os.O_RDWR, os.ModePerm)
 	blockStream.Seek(0, 0)
@@ -342,10 +341,10 @@ func (b *BlockLog) ExtractGenesisState(dataDir string) types.GenesisState {
 	rlp.DecodeBytes(bytes, &version)
 
 	try.EosAssert(version > 0, &exception.BlockLogAppendFail{}, "Block log was not setup properly with genesis information.")
-	try.EosAssert(version == b.supportedVersion,
+	try.EosAssert(version == supportedVersion,
 		&exception.BlockLogUnsupportedVersion{},
 		"Unsupported version of block log. Block log version is %d while code supports version %d",
-		version, b.supportedVersion)
+		version, supportedVersion)
 
 	var gsSize uint32
 	gsSizeBytes := make([]byte, 4)

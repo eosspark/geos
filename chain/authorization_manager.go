@@ -343,12 +343,20 @@ func (a *AuthorizationManager) CheckAuthorization(actions []*types.Action,
 	} else {
 		effectiveProvidedDelay = providedDelay
 	}
-	checker := types.MakeAuthChecker(func(p *types.PermissionLevel) types.SharedAuthority { return a.GetPermission(p).Auth },
+	checker := types.MakeAuthChecker(func(p *types.PermissionLevel) types.SharedAuthority {
+			perm := a.GetPermission(p)
+			if perm != nil {
+				return perm.Auth
+			} else {
+				return types.SharedAuthority{}
+			}
+		},
 		a.control.GetGlobalProperties().Configuration.MaxAuthorityDepth,
 		providedKeys,
 		providedPermissions,
 		effectiveProvidedDelay,
-		checkTime)
+		checkTime,
+	)
 	permissionToSatisfy := make(map[types.PermissionLevel]common.Microseconds)
 
 	for _, act := range actions {

@@ -1,8 +1,8 @@
 package exception
 
-import . "github.com/eosspark/eos-go/log"
+import _ "github.com/eosspark/eos-go/log"
 
-type MongoDbException struct{ LogMessage }
+type MongoDbException struct{ ELog }
 
 func (MongoDbException) ChainExceptions()   {}
 func (MongoDbException) MongoDbExceptions() {}
@@ -11,7 +11,7 @@ func (MongoDbException) What() string {
 	return "Mongo DB exception"
 }
 
-type MongoDbInsertFail struct{ LogMessage }
+type MongoDbInsertFail struct{ ELog }
 
 func (MongoDbInsertFail) ChainExceptions()   {}
 func (MongoDbInsertFail) MongoDbExceptions() {}
@@ -20,7 +20,7 @@ func (MongoDbInsertFail) What() string {
 	return "Fail to insert new data to Mongo DB"
 }
 
-type MongoDbUpdateFail struct{ LogMessage }
+type MongoDbUpdateFail struct{ ELog }
 
 func (MongoDbUpdateFail) ChainExceptions()   {}
 func (MongoDbUpdateFail) MongoDbExceptions() {}

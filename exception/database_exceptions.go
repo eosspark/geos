@@ -1,36 +1,36 @@
 package exception
 
-import . "github.com/eosspark/eos-go/log"
+import _ "github.com/eosspark/eos-go/log"
 
-type DatabaseException struct{ LogMessage }
+type DatabaseException struct{ ELog }
 
 func (DatabaseException) ChainExceptions()    {}
 func (DatabaseException) DatabaseExceptions() {}
 func (DatabaseException) Code() ExcTypes      { return 3060000 }
 func (DatabaseException) What() string        { return "Database exception" }
 
-type PermissionQueryException struct{ LogMessage }
+type PermissionQueryException struct{ ELog }
 
 func (PermissionQueryException) ChainExceptions()    {}
 func (PermissionQueryException) DatabaseExceptions() {}
 func (PermissionQueryException) Code() ExcTypes      { return 3060001 }
 func (PermissionQueryException) What() string        { return "Permission Query Exception" }
 
-type AccountQueryException struct{ LogMessage }
+type AccountQueryException struct{ ELog }
 
 func (AccountQueryException) ChainExceptions()    {}
 func (AccountQueryException) DatabaseExceptions() {}
 func (AccountQueryException) Code() ExcTypes      { return 3060002 }
 func (AccountQueryException) What() string        { return "Account Query Exception" }
 
-type ContractTableQueryException struct{ LogMessage }
+type ContractTableQueryException struct{ ELog }
 
 func (ContractTableQueryException) ChainExceptions()    {}
 func (ContractTableQueryException) DatabaseExceptions() {}
 func (ContractTableQueryException) Code() ExcTypes      { return 3060003 }
 func (ContractTableQueryException) What() string        { return "Contract Table Query Exception" }
 
-type ContractQueryException struct{ LogMessage }
+type ContractQueryException struct{ ELog }
 
 func (ContractQueryException) ChainExceptions()    {}
 func (ContractQueryException) DatabaseExceptions() {}
@@ -38,7 +38,7 @@ func (ContractQueryException) Code() ExcTypes      { return 3060004 }
 func (ContractQueryException) What() string        { return "Contract Query Exception" }
 
 // implements GuardExceptions
-type GuardException struct{ LogMessage }
+type GuardException struct{ ELog }
 
 func (GuardException) ChainExceptions()    {}
 func (GuardException) GuardExceptions()    {}
@@ -46,7 +46,7 @@ func (GuardException) DatabaseExceptions() {}
 func (GuardException) Code() ExcTypes      { return 3060100 }
 func (GuardException) What() string        { return "Database exception" }
 
-type DatabaseGuardException struct{ LogMessage }
+type DatabaseGuardException struct{ ELog }
 
 func (DatabaseGuardException) ChainExceptions()    {}
 func (DatabaseGuardException) GuardExceptions()    {}
@@ -54,7 +54,7 @@ func (DatabaseGuardException) DatabaseExceptions() {}
 func (DatabaseGuardException) Code() ExcTypes      { return 3060101 }
 func (DatabaseGuardException) What() string        { return "Database usage is at unsafe levels" }
 
-type ReversibleGuardException struct{ LogMessage }
+type ReversibleGuardException struct{ ELog }
 
 func (ReversibleGuardException) ChainExceptions()    {}
 func (ReversibleGuardException) GuardExceptions()    {}

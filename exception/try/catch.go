@@ -3,31 +3,13 @@ package try
 import (
 	"reflect"
 	. "github.com/eosspark/eos-go/exception"
-	"github.com/eosspark/eos-go/log"
+	. "github.com/eosspark/eos-go/log"
 )
 
 type CatchOrFinally struct {
 	e         interface{}
 	stackInfo []byte
 	//StackTrace []StackInfo
-}
-
-//special
-func (c *CatchOrFinally) CatchException(f func(e Exception)) (r *CatchOrFinally) {
-	///*debug*/s := time.Now().Nanosecond()
-	if c == nil || c.e == nil {
-		///*debug*/fmt.Println("catchExc-none", time.Now().Nanosecond() - s, "ns")
-		return nil
-	}
-
-	if et, ok := c.e.(Exception); ok {
-		f(et)
-		///*debug*/fmt.Println("catchExc-success", time.Now().Nanosecond() - s, "ns")
-		return nil
-	}
-
-	///*debug*/fmt.Println("catchExc-fail", time.Now().Nanosecond() - s, "ns")
-	return c
 }
 
 //Catch call the exception handler. And return interface CatchOrFinally that
@@ -147,12 +129,12 @@ func (c *CatchOrFinally) End() {
 func (c *CatchOrFinally) printStackInfo() {
 	switch e := c.e.(type) {
 	case Exception:
-		log.Error(e.Message())
+		Error(GetDetailMessage(e))
 	case error:
-		log.Error(e.Error())
+		Error(e.Error())
 	}
 
-	log.Error(string(c.stackInfo))
+	Error(string(c.stackInfo))
 }
 
 func (c *CatchOrFinally) CatchAndCall(Next func(interface{})) *CatchOrFinally {
@@ -160,13 +142,11 @@ func (c *CatchOrFinally) CatchAndCall(Next func(interface{})) *CatchOrFinally {
 		Next(err)
 
 	}).Catch(func(e error) {
-		fce := &FcException{}
-		fce.FcLogMessage(log.LvlWarn, "rethrow %s: ", e.Error())
+		fce := &FcException{ELog: NewELog(FcLogMessage(LvlWarn, "rethrow %s: ", e.Error()))}
 		Next(fce)
 
 	}).Catch(func(interface{}) {
-		e := &UnHandledException{}
-		e.FcLogMessage(log.LvlWarn, "rethrow")
+		e := &UnHandledException{ELog: NewELog(FcLogMessage(LvlWarn, "rethrow"))}
 		Next(e)
 	})
 }

@@ -34,7 +34,7 @@ type DBReadMode int8
 
 const (
 	SPECULATIVE = DBReadMode(iota)
-	HEADER       //HEAD
+	HEADER      //HEAD
 	READONLY
 	IRREVERSIBLE
 )
@@ -192,12 +192,12 @@ func NewController(cfg Config) *Controller {
 	con.SetApplayHandler(common.AccountName(common.N("eosio")), common.AccountName(common.N("eosio")),
 		common.ActionName(common.N("deleteauth")), applyEosioDeleteauth)
 	con.SetApplayHandler(common.AccountName(common.N("eosio")), common.AccountName(common.N("eosio")),
-		common.ActionName(common.N("linkauth")), applyEosioUnlinkauth)
+		common.ActionName(common.N("linkauth")), applyEosioLinkauth)
 	con.SetApplayHandler(common.AccountName(common.N("eosio")), common.AccountName(common.N("eosio")),
-		common.ActionName(common.N("unlinkauth")), applyEosioLinkauth)
+		common.ActionName(common.N("unlinkauth")), applyEosioUnlinkauth)
 	con.SetApplayHandler(common.AccountName(common.N("eosio")), common.AccountName(common.N("eosio")),
 		common.ActionName(common.N("canceldelay")), applyEosioCanceldalay)
-
+	con.initialize()
 	/*fork_db.irreversible.connect( [&]( auto b ) {
 		on_irreversible(b);
 	})*/
@@ -244,9 +244,9 @@ func newController() *Controller {
 	con.SetApplayHandler(common.AccountName(common.N("eosio")), common.AccountName(common.N("eosio")),
 		common.ActionName(common.N("deleteauth")), applyEosioDeleteauth)
 	con.SetApplayHandler(common.AccountName(common.N("eosio")), common.AccountName(common.N("eosio")),
-		common.ActionName(common.N("linkauth")), applyEosioUnlinkauth)
+		common.ActionName(common.N("linkauth")), applyEosioLinkauth)
 	con.SetApplayHandler(common.AccountName(common.N("eosio")), common.AccountName(common.N("eosio")),
-		common.ActionName(common.N("unlinkauth")), applyEosioLinkauth)
+		common.ActionName(common.N("unlinkauth")), applyEosioUnlinkauth)
 	con.SetApplayHandler(common.AccountName(common.N("eosio")), common.AccountName(common.N("eosio")),
 		common.ActionName(common.N("canceldelay")), applyEosioCanceldalay)
 
@@ -405,7 +405,7 @@ func (c *Controller) startBlock(when types.BlockTimeStamp, confirmBlockCount uin
 			c.InTrxRequiringChecks = true
 			c.pushTransaction(onbtrx, common.MaxTimePoint(), gpo.Configuration.MinTransactionCpuUsage, true)
 		}).Catch(func(e Exception) {
-			log.Error("Controller StartBlock exception:%s", e.Message())
+			log.Error("Controller StartBlock exception:%s", GetDetailMessage(e))
 			Throw(e)
 		}).Catch(func(i interface{}) {
 			//c++ nothing
@@ -539,7 +539,7 @@ func (c *Controller) pushTransaction(trx *types.TransactionMetadata, deadLine co
 		/*emit( c.accepted_transaction, trx )
 		emit( c.applied_transaction, trace )*/
 		return
-	}).FcCaptureAndRethrow(trace).End()
+	}).FcCaptureAndRethrow("trace:%v", trace).End()
 	return trace
 }
 
@@ -758,7 +758,7 @@ func (c *Controller) pushScheduledTransactionByObject(gto *entity.GeneratedTrans
 		v = true
 		//return trace
 	}).Catch(func(ex Exception) {
-		log.Error("PushScheduledTransaction is error:%s", ex.Message())
+		log.Error("PushScheduledTransaction is error:%s", GetDetailMessage(ex))
 		cpuTimeToBillUs = trxContext.UpdateBilledCpuTime(common.Now())
 		trace.Except = ex
 		trace.ExceptPtr = ex
@@ -767,7 +767,7 @@ func (c *Controller) pushScheduledTransactionByObject(gto *entity.GeneratedTrans
 
 	trxContext.Undo()
 	if !failureIsSubjective(trace.Except) && gtrx.Sender != 0 { /*gtrx.Sender != account_name()*/
-		log.Info("%v", trace.Except.Message())
+		log.Info("%v", GetDetailMessage(trace.Except))
 		errorTrace := applyOnerror(gtrx, deadLine, trxContext.pseudoStart, &cpuTimeToBillUs, billedCpuTimeUs, explicitBilledCpuTime)
 		errorTrace.FailedDtrxTrace = trace
 		trace = errorTrace
@@ -977,7 +977,7 @@ func (c *Controller) applyBlock(b *types.SignedBlock, s types.BlockStatus) {
 		c.CommitBlock(false)
 		return
 	}).Catch(func(ex Exception) {
-		log.Error("controller ApplyBlock is error:%s", ex.Message())
+		log.Error("controller ApplyBlock is error:%s", GetDetailMessage(ex))
 		c.AbortBlock()
 	}).End()
 }
@@ -1064,7 +1064,7 @@ func (c *Controller) maybeSwitchForks(s types.BlockStatus) {
 			c.Head = newHead
 		}).Catch(func(e Exception) {
 			c.ForkDB.SetValidity(newHead, false)
-			EosThrow(e, "maybeSwitchForks is error:%#v", e.Message())
+			EosThrow(e, "maybeSwitchForks is error:%#v", GetDetailMessage(e))
 		}).End()
 	} else if newHead.BlockId != c.Head.BlockId {
 		log.Info("switching forks from: %#v (block number %#v) to %#v (block number %#v)", c.Head.BlockId, c.Head.BlockNum, newHead.BlockId, newHead.BlockNum)
@@ -1092,7 +1092,7 @@ func (c *Controller) maybeSwitchForks(s types.BlockStatus) {
 				except = e
 			}).End()
 			if except == nil {
-				log.Error("exception thrown while switching forks :%s", except.Message())
+				log.Error("exception thrown while switching forks :%s", GetDetailMessage(except))
 				c.ForkDB.SetValidity(&itr, false)
 				// pop all blocks from the bad fork
 				// ritr base is a forward itr to the last block successfully applied
@@ -1108,7 +1108,7 @@ func (c *Controller) maybeSwitchForks(s types.BlockStatus) {
 					c.Head = &branches.second[end]
 					c.ForkDB.MarkInCurrentChain(&branches.second[end], true)
 				}
-				EosThrow(except, "maybeSwitchForks is error:%#v", except.Message())
+				EosThrow(except, "maybeSwitchForks is error:%#v", GetDetailMessage(except))
 			}
 			log.Info("successfully switched fork to new head %#v", newHead.BlockId)
 		}
@@ -1294,7 +1294,7 @@ func (c *Controller) FetchBlockByNumber(blockNum uint32) *types.SignedBlock {
 		r = c.Blog.ReadBlockByNum(blockNum)
 		return
 
-	}).FcCaptureAndRethrow(blockNum).End()
+	}).FcCaptureAndRethrow("blockNum:%d", blockNum).End()
 
 	return r
 }
@@ -1324,9 +1324,7 @@ func (c *Controller) GetBlockIdForNum(blockNum uint32) common.BlockIdType {
 	if blkState != nil {
 		return blkState.BlockId
 	}
-
 	signedBlk := c.Blog.ReadBlockByNum(blockNum)
-	fmt.Println(common.Empty(signedBlk))
 	EosAssert(!common.Empty(signedBlk), &UnknownBlockException{}, "Could not find block: %d", blockNum)
 	return signedBlk.BlockID()
 }
@@ -1418,10 +1416,11 @@ func (c *Controller) ValidateReferencedAccounts(t *types.Transaction) {
 
 func (c *Controller) ValidateExpiration(t *types.Transaction) {
 	chainConfiguration := c.GetGlobalProperties().Configuration
+	log.Info("ValidateExpiration t.Expiration.ToTimePoint():%#v,c.PendingBlockTime():%#v", t.Expiration.ToTimePoint(), c.PendingBlockTime())
 	EosAssert(t.Expiration.ToTimePoint() >= c.PendingBlockTime(),
 		&ExpiredTxException{}, "transaction has expired, expiration is %v and pending block time is %v",
 		t.Expiration, c.PendingBlockTime())
-	EosAssert(t.Expiration.ToTimePoint() <= c.PendingBlockTime()+common.TimePoint(common.Seconds(int64(chainConfiguration.MaxTrxLifetime))),
+	EosAssert(t.Expiration.ToTimePoint() <= c.PendingBlockTime().AddUs(common.Seconds(int64(chainConfiguration.MaxTrxLifetime))),
 		&TxExpTooFarException{}, "Transaction expiration is too far in the future relative to the reference time of %v, expiration is %v and the maximum transaction lifetime is %v seconds",
 		t.Expiration, c.PendingBlockTime(), chainConfiguration.MaxTrxLifetime)
 }

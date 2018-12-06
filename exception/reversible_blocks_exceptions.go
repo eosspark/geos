@@ -1,8 +1,8 @@
 package exception
 
-import . "github.com/eosspark/eos-go/log"
+import _ "github.com/eosspark/eos-go/log"
 
-type ReversibleBlocksException struct{ LogMessage }
+type ReversibleBlocksException struct{ ELog }
 
 func (ReversibleBlocksException) ChainExceptions()            {}
 func (ReversibleBlocksException) ReversibleBlocksExceptions() {}
@@ -11,7 +11,7 @@ func (ReversibleBlocksException) What() string {
 	return "Reversible Blocks exception"
 }
 
-type InvalidReversibleBlocksDir struct{ LogMessage }
+type InvalidReversibleBlocksDir struct{ ELog }
 
 func (InvalidReversibleBlocksDir) ChainExceptions()            {}
 func (InvalidReversibleBlocksDir) ReversibleBlocksExceptions() {}
@@ -20,7 +20,7 @@ func (InvalidReversibleBlocksDir) What() string {
 	return "Invalid reversible blocks directory"
 }
 
-type ReversibleBlocksBackupDirExist struct{ LogMessage }
+type ReversibleBlocksBackupDirExist struct{ ELog }
 
 func (ReversibleBlocksBackupDirExist) ChainExceptions()            {}
 func (ReversibleBlocksBackupDirExist) ReversibleBlocksExceptions() {}
@@ -29,7 +29,7 @@ func (ReversibleBlocksBackupDirExist) What() string {
 	return "Backup directory for reversible blocks already exist"
 }
 
-type GapInReversibleBlocksDb struct{ LogMessage }
+type GapInReversibleBlocksDb struct{ ELog }
 
 func (GapInReversibleBlocksDb) ChainExceptions()            {}
 func (GapInReversibleBlocksDb) ReversibleBlocksExceptions() {}

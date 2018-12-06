@@ -20,7 +20,6 @@ func TestBlockTest(t *testing.T) {
 		signedBlock.Confirmed = uint16(1)
 
 		gs := types.GenesisState{
-			//EosioRootKey:     "i'm root key",
 			InitialTimestamp: common.Now(),
 		}
 
@@ -41,7 +40,7 @@ func TestBlockTest(t *testing.T) {
 		assert.Equal(t, block.Confirmed, uint16(100))
 
 		blockLog.flush()
-		blockLog.ExtractGenesisState(dataDir)
+		ExtractGenesisState(dataDir)
 		//gsRead := blockLog.ExtractGenesisState(dataDir)
 		//assert.Equal(t, gs.EosioRootKey, gsRead.EosioRootKey)
 
