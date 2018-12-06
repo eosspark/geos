@@ -205,7 +205,7 @@ func (impl *ProducerPluginImpl) OnIncomingBlock(block *types.SignedBlock) {
 		returning = true
 		return
 	}).Catch(func(e Exception) {
-		log.Error(e.Message())
+		log.Error(GetDetailMessage(e))
 		except = true
 	}).End()
 

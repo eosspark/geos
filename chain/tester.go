@@ -312,7 +312,7 @@ func (t BaseTester) PushAction(act *types.Action, authorizer common.AccountName)
 	try.Try(func() {
 		t.PushTransaction(&trx, 0, 0) //TODO
 	}).Catch(func(ex exception.Exception) {
-		log.Error("tester PushAction is error: %#v", ex.Message())
+		log.Error("tester PushAction is error: %#v", exception.GetDetailMessage(ex))
 	}).End()
 	t.ProduceBlock(common.Microseconds(common.DefaultConfig.BlockIntervalMs), 0)
 	/*BOOST_REQUIRE_EQUAL(true, chain_has_transaction(trx.id()))

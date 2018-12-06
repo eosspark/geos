@@ -1,8 +1,8 @@
 package exception
 
-import . "github.com/eosspark/eos-go/log"
+import _ "github.com/eosspark/eos-go/log"
 
-type ResourceLimitException struct{ LogMessage }
+type ResourceLimitException struct{ ELog }
 
 func (ResourceLimitException) ChainExceptions()         {}
 func (ResourceLimitException) ResourceLimitExceptions() {}
