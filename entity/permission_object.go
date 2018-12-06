@@ -23,7 +23,7 @@ func (po *PermissionObject) Satisfies(other PermissionObject, PermissionIndex *d
 	if po.ID == other.ID || po.ID == other.Parent {
 		return true
 	}
-	itr, err := PermissionIndex.LowerBound(PermissionObject{Parent: other.Parent})
+	itr, err := PermissionIndex.LowerBound(PermissionObject{ID: other.Parent})
 	if err != nil{
 		return false
 	}
@@ -37,7 +37,7 @@ func (po *PermissionObject) Satisfies(other PermissionObject, PermissionIndex *d
 			return false
 		}
 
-		itr, err = PermissionIndex.LowerBound(PermissionObject{Parent: parent.Parent})
+		itr, err = PermissionIndex.LowerBound(PermissionObject{ID: parent.Parent})
 		if err != nil{
 			break
 		}

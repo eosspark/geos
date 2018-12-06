@@ -31,10 +31,33 @@ type BaseTester struct {
 	LastProducedBlock       map[common.AccountName]common.BlockIdType
 }
 
+func newBaseTester(pushGenesis bool, readMode DBReadMode) *BaseTester {
+	t := &BaseTester{}
+	t.DefaultExpirationDelta = 6
+	t.DefaultBilledCpuTimeUs = 2000
+	t.ChainTransactions = make(map[common.BlockIdType]types.TransactionReceipt)
+	t.LastProducedBlock = make(map[common.AccountName]common.BlockIdType)
+
+	t.init(true,readMode)
+	return t
+}
+
+func (t *BaseTester) init(pushGenesis bool, readMode DBReadMode) {
+	t.Cfg = *newConfig(readMode)
+	t.Control = NewController(t.Cfg)
+
+	t.open()
+
+	if pushGenesis {
+		t.pushGenesisBlock()
+	}
+}
+
 func newConfig(readMode DBReadMode) *Config{
 	cfg := &Config{}
 	cfg.BlocksDir = common.DefaultConfig.DefaultBlocksDirName
 	cfg.StateDir = common.DefaultConfig.DefaultStateDirName
+	cfg.ReversibleDir = common.DefaultConfig.DefaultReversibleBlocksDirName
 	cfg.StateSize = 1024 * 1024 * 8
 	cfg.StateGuardSize = 0
 	cfg.ReversibleCacheSize = 1024 * 1024 * 8
@@ -61,37 +84,14 @@ func newConfig(readMode DBReadMode) *Config{
 	return cfg
 }
 
-func newBaseTester(pushGenesis bool) *BaseTester {
-	t := &BaseTester{}
-	t.DefaultExpirationDelta = 6
-	t.DefaultBilledCpuTimeUs = 2000
-	t.ChainTransactions = make(map[common.BlockIdType]types.TransactionReceipt)
-	t.LastProducedBlock = make(map[common.AccountName]common.BlockIdType)
-	t.Cfg = *newConfig(SPECULATIVE)
-	t.Control = NewController(t.Cfg)
-
-	//Signal
-	t.open()
-
-	if pushGenesis {
-		t.pushGenesisBlock()
-	}
-	return t
-}
-
-func (t BaseTester) initCfg(config Config) {
-	t.Cfg = config
-	t.open()
-}
-
-func (t BaseTester) open() {
-	t.Control.Config = t.Cfg
+func (t *BaseTester) open() {
+	//t.Control.Config = t.Cfg
 	//t.Control.startUp() //TODO
 	t.ChainTransactions = make(map[common.BlockIdType]types.TransactionReceipt)
 	//t.Control.AcceptedBlock.Connect() // TODO: Control.signal
 }
 
-func (t BaseTester) close() {
+func (t *BaseTester) close() {
 	t.Control.Close()
 	t.ChainTransactions = make(map[common.BlockIdType]types.TransactionReceipt)
 }
@@ -286,10 +286,10 @@ func (t BaseTester) PushTransaction(trx *types.SignedTransaction, deadline commo
 		mtrx := types.NewTransactionMetadataBySignedTrx(trx, c)
 		trace = t.Control.pushTransaction(mtrx, deadline, billedCpuTimeUs, true)
 		if trace.ExceptPtr != nil {
-			try.EosThrow(trace.ExceptPtr, "tester PushTransaction is error :%#v", trace.ExceptPtr)
+			try.EosThrow(trace.ExceptPtr, "tester PushTransaction is error :%#v", trace.ExceptPtr.Message())
 		}
 		if !common.Empty(trace.Except) {
-			try.EosThrow(trace.Except, "tester PushTransaction is error :%#v", trace.Except)
+			try.EosThrow(trace.Except, "tester PushTransaction is error :%#v", trace.Except.Message())
 		}
 		r = trace
 		return
@@ -347,14 +347,22 @@ func (t BaseTester) PushAction4(code *common.AccountName, acttype *common.Accoun
 	})
 	return nil
 }
+
 func (t BaseTester) GetAction(code common.AccountName, actType common.AccountName,
 	auths []types.PermissionLevel, data *VariantsObject) *types.Action {
-	/*acnt := t.Control.GetAccount(code)
-	abi := acnt.GetAbi()
-	abis := types.AbiSerializer{}
-	actionTypeName := abis.getActionType(actType)*/
-
-	return nil
+	acnt := t.Control.GetAccount(code)
+	a := acnt.GetAbi()
+	action := types.Action{code,actType,auths,nil}
+	actionTypeName :=a.ActionForName(actType).Type
+	buf,err :=json.Marshal(data)
+	if err != nil{
+		log.Error("tester GetAction Marshal is error:%s",err)
+	}
+	action.Data,err = a.EncodeAction(common.N(actionTypeName),buf)//TODO
+	if err != nil{
+		log.Error("tester GetAction EncodeAction is error:%s",err)
+	}
+	return &action
 }
 
 func (t BaseTester) getPrivateKey(keyName common.Name, role string) ecc.PrivateKey {
@@ -488,7 +496,6 @@ func (t BaseTester) UnlinkAuthority(account common.AccountName, code common.Acco
 }
 
 func (t BaseTester) SetAuthority(account common.AccountName, perm common.PermissionName, auth types.Authority, parent common.PermissionName, auths *[]types.PermissionLevel, keys *[]ecc.PrivateKey) {
-	//TODO: try
 	trx := types.SignedTransaction{}
 	update := updateAuth{Account: account, Permission: perm, Parent: parent, Auth: auth}
 	data, _ := rlp.EncodeToBytes(update)
@@ -514,7 +521,6 @@ func (t BaseTester) SetAuthority2(account common.AccountName, perm common.Permis
 }
 
 func (t BaseTester) DeleteAuthority(account common.AccountName, perm common.PermissionName, auths *[]types.PermissionLevel, keys *[]ecc.PrivateKey) {
-	//TODO: try
 	trx := types.SignedTransaction{}
 	delete := deleteAuth{Account: account, Permission: perm}
 	data, _ := rlp.EncodeToBytes(delete)
@@ -566,9 +572,6 @@ func (t BaseTester) SetCode2(account common.AccountName, wast *byte, signer *ecc
 }
 
 
-
-
-
 func (t BaseTester) SetAbi(account common.AccountName, abiJson []byte, signer *ecc.PrivateKey) {
 	abiEt := abi.AbiDef{}
 	err := json.Unmarshal(abiJson, &abiEt)
@@ -615,14 +618,12 @@ func (t BaseTester) GetCurrencyBalance(code *common.AccountName, assetSymbol *co
 	if err != nil {
 		log.Error("GetCurrencyBalance is error: %s", err)
 	} else {
-		//TODO
-		//obj := entity.KeyValueObject{ID:table.ID,assetSymbol.ToSymbolCode().value}
-		obj := entity.KeyValueObject{}
+		obj := entity.KeyValueObject{ID:table.ID,PrimaryKey:uint64(assetSymbol.ToSymbolCode())}
 		err := db.Find("byScopePrimary", obj, &obj)
 		if err != nil {
 			log.Error("GetCurrencyBalance is error: %s", err)
 		} else {
-			//TODO
+			rlp.DecodeBytes(obj.Value, &result)
 		}
 	}
 	return common.Asset{Amount: result, Symbol: *assetSymbol}
@@ -703,7 +704,6 @@ func (t BaseTester) SyncWith(other *BaseTester) {
 }
 
 func (t BaseTester) PushGenesisBlock() {
-	//TODO
 	t.SetCode2(common.DefaultConfig.SystemAccountName, nil, nil)
 	t.SetAbi(common.DefaultConfig.SystemAccountName, nil, nil)
 }
@@ -734,39 +734,40 @@ func (t BaseTester) FindTable(code common.Name, scope common.Name, table common.
 
 type ValidatingTester struct {
 	BaseTester
-	ValidatingController   *Controller
+	ValidatingControl      *Controller
 	VCfg                   Config
 	NumBlocksToProducerBeforeShutdown uint32
 }
 
-func newValidatingTester(pushGenesis bool)  *ValidatingTester{
+func newValidatingTester(pushGenesis bool, readMode DBReadMode)  *ValidatingTester{
 	vt := &ValidatingTester{}
 	vt.DefaultExpirationDelta = 6
 	vt.DefaultBilledCpuTimeUs = 2000
 	vt.ChainTransactions = make(map[common.BlockIdType]types.TransactionReceipt)
 	vt.LastProducedBlock = make(map[common.AccountName]common.BlockIdType)
-	vt.Cfg = *newConfig(SPECULATIVE)
-	vt.Control = NewController(vt.Cfg)
+	vt.VCfg = *newConfig(readMode)
+	vt.VCfg.BlocksDir = common.DefaultConfig.ValidatingBlocksDirName
+	vt.VCfg.StateDir = common.DefaultConfig.ValidatingStateDirName
+	vt.VCfg.ReversibleDir = common.DefaultConfig.ValidatingReversibleBlocksDirName
 
-	vt.ValidatingController = NewController(vt.VCfg)
-
-	//Signal
-	vt.open()
-
-	if pushGenesis {
-		vt.pushGenesisBlock()
-	}
+	vt.ValidatingControl = NewController(vt.VCfg)
+	vt.init(true,readMode)
 	return vt
 }
 
 func (vt ValidatingTester) ProduceBlock(skipTime common.Microseconds, skipFlag uint32) *types.SignedBlock {
 	sb := vt.produceBlock(skipTime, false, skipFlag/2)
-	vt.ValidatingController.PushBlock(sb, types.Complete)
+	vt.ValidatingControl.PushBlock(sb, types.Complete)
 	return sb
 }
 
 func (vt ValidatingTester) ProduceEmptyBlock(skipTime common.Microseconds, skipFlag uint32) *types.SignedBlock {
 	sb := vt.produceBlock(skipTime, true, skipFlag/2)
-	vt.ValidatingController.PushBlock(sb, types.Complete)
+	vt.ValidatingControl.PushBlock(sb, types.Complete)
 	return sb
+}
+
+func (vt *ValidatingTester) close() {
+	vt.Control.Close()
+	vt.ChainTransactions = make(map[common.BlockIdType]types.TransactionReceipt)
 }

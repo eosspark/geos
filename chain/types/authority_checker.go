@@ -177,6 +177,9 @@ func (wtv *WeightTallyVisitor) VisitPermissionLevelWeight(permission PermissionL
 			isNotFound := false
 			Try(func() {
 				auth := wtv.Checker.permissionToAuthority(&permission.Permission)
+				if auth.Threshold == 0 {
+					return
+				}
 				propagateError = true
 				map[PermissionLevel]PermissionCacheStatus(*wtv.CachedPermissions)[permission.Permission] = BeingEvaluated
 				r = wtv.Checker.SatisfiedAcd(&auth, wtv.CachedPermissions, wtv.RecursionDepth+1)

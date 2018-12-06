@@ -84,7 +84,7 @@ func ApplyEosioNewaccount(context *ApplyContext) {
 	// Check if the creator is privileged
 	creator := entity.AccountObject{Name: create.Creator}
 	err := context.DB.Find("byName", creator, &creator)
-	if err != nil && !creator.Privileged {
+	if err == nil && !creator.Privileged {
 
 		EosAssert(strings.Index(nameStr, "eosio.") != 0, &ActionValidateException{},
 			"only privileged accounts can have names that start with 'eosio.'")
@@ -139,11 +139,9 @@ func applyEosioNewaccount(context *ApplyContext) {
 	// Check if the creator is privileged
 	creator := entity.AccountObject{Name: create.Creator}
 	err := context.DB.Find("byName", creator, &creator)
-	if err != nil && !creator.Privileged {
-
+	if err == nil && !creator.Privileged {
 		EosAssert(strings.Index(nameStr, "eosio.") != 0, &ActionValidateException{},
 			"only privileged accounts can have names that start with 'eosio.'")
-
 	}
 
 	existingAccount := entity.AccountObject{Name: create.Name}
@@ -261,7 +259,7 @@ func applyEosioUpdateauth(context *ApplyContext) {
 
 	db := context.DB
 
-	EosAssert(!common.Empty(&update.Permission), &ActionValidateException{}, "Cannot create authority with empty name")
+	EosAssert(!common.Empty(update.Permission), &ActionValidateException{}, "Cannot create authority with empty name")
 	EosAssert(strings.Index(common.S(uint64(update.Permission)), "eosio.") != 0,
 		&ActionValidateException{},
 		"Permission names that start with 'eosio.' are reserved")
@@ -279,11 +277,11 @@ func applyEosioUpdateauth(context *ApplyContext) {
 	}
 
 	if update.Permission == common.DefaultConfig.OwnerName {
-		EosAssert(common.Empty(&update.Parent),
+		EosAssert(common.Empty(update.Parent),
 			&ActionValidateException{},
 			"Cannot change owner authority's parent")
 	} else {
-		EosAssert(!common.Empty(&update.Parent),
+		EosAssert(!common.Empty(update.Parent),
 			&ActionValidateException{},
 			"Only owner permission can have empty parent")
 	}
@@ -306,6 +304,7 @@ func applyEosioUpdateauth(context *ApplyContext) {
 	}
 
 	if permission != nil {
+		EosAssert(parentId == permission.Parent, &ActionValidateException{}, "Changing parent authority is not currently supported")
 		oldSize := common.BillableSizeV("permission_object") + permission.Auth.GetBillableSize()
 		authorization.ModifyPermission(permission, &update.Auth)
 		newSize := common.BillableSizeV("permission_object") + permission.Auth.GetBillableSize()
@@ -326,8 +325,8 @@ func applyEosioDeleteauth(context *ApplyContext) {
 	rlp.DecodeBytes(context.Act.Data, &remove)
 	context.RequireAuthorization(int64(remove.Account))
 
-	EosAssert(remove.Permission != common.PermissionName(common.DefaultConfig.OwnerName), &ActionValidateException{}, "Cannot delete active authority")
-	EosAssert(remove.Permission != common.PermissionName(common.DefaultConfig.OwnerName), &ActionValidateException{}, "Cannot delete active authority")
+	EosAssert(remove.Permission != common.PermissionName(common.DefaultConfig.OwnerName), &ActionValidateException{}, "Cannot delete Owner authority")
+	EosAssert(remove.Permission != common.PermissionName(common.DefaultConfig.ActiveName), &ActionValidateException{}, "Cannot delete active authority")
 
 	//db := context.DB
 

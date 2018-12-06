@@ -40,8 +40,9 @@ func TestBlockTest(t *testing.T) {
 		assert.Equal(t, block.Confirmed, uint16(100))
 
 		blockLog.flush()
-		//gsRead := ExtractGenesisState(dataDir)
-		assert.Equal(t, types.EosioRootKey, types.EosioRootKey)
+		ExtractGenesisState(dataDir)
+		//gsRead := blockLog.ExtractGenesisState(dataDir)
+		//assert.Equal(t, gs.EosioRootKey, gsRead.EosioRootKey)
 
 		os.RemoveAll(dataDir)
 

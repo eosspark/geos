@@ -78,8 +78,8 @@ func NewApplyContext(control *Controller, trxContext *TransactionContext, act *t
 	applyContext.AccountRamDeltas = *treeset.NewWith(types.CompareAccountDelta)
 	applyContext.ilog = log.New("Apply_Context")
 	logHandler := log.StreamHandler(os.Stdout, log.TerminalFormat(true))
-	applyContext.ilog.SetHandler(log.LvlFilterHandler(log.LvlDebug, logHandler))
-	//applyContext.ilog.SetHandler(log.LvlFilterHandler(log.LvlInfo, logHandler))
+	//applyContext.ilog.SetHandler(log.LvlFilterHandler(log.LvlDebug, logHandler))
+	applyContext.ilog.SetHandler(log.LvlFilterHandler(log.LvlInfo, logHandler))
 
 	return applyContext
 
@@ -333,7 +333,7 @@ func (a *ApplyContext) Exec(trace *types.ActionTrace) {
 
 	for _, inlineAction := range a.InlineActions {
 		trace.InlineTraces = append(trace.InlineTraces, types.ActionTrace{})
-		a.TrxContext.DispathAction(&trace.InlineTraces[len(trace.InlineTraces)-1], &inlineAction, inlineAction.Account, true, a.RecurseDepth+1)
+		a.TrxContext.DispathAction(&trace.InlineTraces[len(trace.InlineTraces)-1], &inlineAction, inlineAction.Account, false, a.RecurseDepth+1)
 	}
 
 }
