@@ -12,6 +12,7 @@ import (
 	"github.com/eosspark/eos-go/log"
 	"strconv"
 	"github.com/eosspark/eos-go/plugins/appbase/app"
+	"github.com/eosspark/container/sets/treeset"
 )
 
 type ReadOnly struct {
@@ -91,4 +92,10 @@ func (ro *ReadOnly) GetAbi(name common.AccountName) GetABIResp {
 	}
 
 	return result
+}
+
+func (ro *ReadOnly) GetRequiredKeys(transaction *types.Transaction, availableKeys *treeset.Set) GetRequiredKeysResp {
+	//TODO: abi_serializer
+	requiredKeys := ro.db.GetAuthorizationManager().GetRequiredKeys(transaction, availableKeys, common.Seconds(int64(transaction.DelaySec)))
+	return GetRequiredKeysResp{requiredKeys}
 }

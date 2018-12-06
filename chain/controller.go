@@ -39,12 +39,64 @@ const (
 	IRREVERSIBLE
 )
 
+func (d DBReadMode) String() string {
+	switch d {
+	case SPECULATIVE:
+		return "speculative"
+	case HEADER:
+		return "header"
+	case READONLY:
+		return "readonly"
+	case IRREVERSIBLE:
+		return "irreversible"
+	default:
+		return ""
+	}
+}
+
+func DBReadModeFromString(s string) (DBReadMode, bool) {
+	switch s {
+	case "SPECULATIVE", "speculative":
+		return SPECULATIVE, true
+	case "HEADER", "header":
+		return HEADER, true
+	case "READONLY", "readonly":
+		return READONLY, true
+	case "IRREVERSIBLE", "irreversible":
+		return IRREVERSIBLE, true
+	default:
+		return -1, false
+	}
+}
+
 type ValidationMode int8
 
 const (
 	FULL = ValidationMode(iota)
 	LIGHT
 )
+
+func (v ValidationMode) String() string {
+	switch v {
+	case FULL:
+		return "full"
+	case LIGHT:
+		return "light"
+	default:
+		return ""
+	}
+}
+
+func ValidationModeFromString(s string) (ValidationMode, bool) {
+	switch s {
+	case "FULL", "full":
+		return FULL, true
+	case "LIGHT", "light":
+		return LIGHT, true
+	default:
+		return -1, false
+	}
+}
 
 type Config struct {
 	ActorWhitelist          treeset.Set //common.AccountName
@@ -154,7 +206,7 @@ func validPath() {
 		}
 	}
 }
-func NewController(cfg Config) *Controller {
+func NewController(cfg *Config) *Controller {
 	isActiveController = true //controller is active
 	db, err := database.NewDataBase(cfg.StateDir)
 	reversibleDB, err := database.NewDataBase(cfg.ReversibleDir)
@@ -179,7 +231,7 @@ func NewController(cfg Config) *Controller {
 	con.ResourceLimits = newResourceLimitsManager(con)
 	con.Authorization = newAuthorizationManager(con)
 	con.UnappliedTransactions = make(map[crypto.Sha256]types.TransactionMetadata)
-	con.Config = cfg
+	con.Config = *cfg
 
 	con.SetApplayHandler(common.AccountName(common.N("eosio")), common.AccountName(common.N("eosio")),
 		common.ActionName(common.N("newaccount")), applyEosioNewaccount)
