@@ -100,10 +100,7 @@ func NewTransactionContext(c *Controller, t *types.SignedTransaction, trxId comm
 		BlockNum:        c.PendingBlockState().BlockNum,
 		BlockTime:       types.BlockTimeStamp(c.PendingBlockTime()),
 		ProducerBlockId: c.PendingProducerBlockId(),
-		//BlockNum:        4,
-		//BlockTime:       common.BlockTimeStamp(common.Now()),
-		//ProducerBlockId: common.BlockIdType(*crypto.NewSha256String("cf057bbfb72640471fd910bcb67639c22df9f92470936cddc1ade0e2f2e7dc4f")),
-		//Except: &TransactionException{},
+		//ActionTraces: []types.ActionTrace{},
 	}
 	tc.netUsage = &tc.Trace.NetUsage
 	tc.Executed = make([]types.ActionReceipt, tc.Trx.TotalActions())
@@ -373,49 +370,50 @@ func (t *TransactionContext) CheckNetUsage() {
 }
 
 func (t *TransactionContext) CheckTime() {
+
 	//return
-	if !t.Control.SkipTrxChecks() {
-		now := common.Now()
-		if now > t.deadline {
-			if t.ExplicitBilledCpuTime || t.deadlineExceptionCode == int64(DeadlineException{}.Code()) { //|| deadline_exception_code TODO
-				EosAssert(false,
-					&DeadlineException{},
-					"deadline exceeded, now %d deadline %d start %d",
-					now, t.deadline, t.Start)
-
-			} else if t.deadlineExceptionCode == int64(BlockCpuUsageExceeded{}.Code()) {
-				EosAssert(false,
-					&BlockCpuUsageExceeded{},
-					"not enough time left in block to complete executing transaction, now %d deadline %d start %d billing_timer %d",
-					now, t.deadline, t.Start, now-t.pseudoStart)
-			} else if t.deadlineExceptionCode == int64(TxCpuUsageExceeded{}.Code()) {
-				if t.cpuLimitDueToGreylist {
-					EosAssert(false,
-						&GreylistCpuUsageExceeded{},
-						"greylisted transaction was executing for too long, now %d deadline %d start %d billing_timer %d",
-						now, t.deadline, t.Start, now-t.pseudoStart)
-
-				} else {
-					EosAssert(false,
-						&TxCpuUsageExceeded{},
-						"transaction was executing for too long, now %d deadline %d start %d billing_timer %d",
-						now, t.deadline, t.Start, now-t.pseudoStart)
-				}
-
-			} else if t.deadlineExceptionCode == int64(LeewayDeadlineException{}.Code()) {
-				EosAssert(false,
-					&LeewayDeadlineException{},
-					"the transaction was unable to complete by deadline, ",
-					"but it is possible it could have succeeded if it were allowed to run to completion, now %d deadline %d start %d billing_timer %d",
-					now, t.deadline, t.Start, now-t.pseudoStart)
-
-			}
+	//if !t.Control.SkipTrxChecks() {
+	now := common.Now()
+	if now > t.deadline {
+		if t.ExplicitBilledCpuTime || t.deadlineExceptionCode == int64(DeadlineException{}.Code()) { //|| deadline_exception_code TODO
 			EosAssert(false,
-				&TransactionException{},
-				"unexpected deadline exception code")
+				&DeadlineException{},
+				"deadline exceeded, now %d deadline %d start %d",
+				now, t.deadline, t.Start)
+
+		} else if t.deadlineExceptionCode == int64(BlockCpuUsageExceeded{}.Code()) {
+			EosAssert(false,
+				&BlockCpuUsageExceeded{},
+				"not enough time left in block to complete executing transaction, now %d deadline %d start %d billing_timer %d",
+				now, t.deadline, t.Start, now-t.pseudoStart)
+		} else if t.deadlineExceptionCode == int64(TxCpuUsageExceeded{}.Code()) {
+			if t.cpuLimitDueToGreylist {
+				EosAssert(false,
+					&GreylistCpuUsageExceeded{},
+					"greylisted transaction was executing for too long, now %d deadline %d start %d billing_timer %d",
+					now, t.deadline, t.Start, now-t.pseudoStart)
+
+			} else {
+				EosAssert(false,
+					&TxCpuUsageExceeded{},
+					"transaction was executing for too long, now %d deadline %d start %d billing_timer %d",
+					now, t.deadline, t.Start, now-t.pseudoStart)
+			}
+
+		} else if t.deadlineExceptionCode == int64(LeewayDeadlineException{}.Code()) {
+			EosAssert(false,
+				&LeewayDeadlineException{},
+				"the transaction was unable to complete by deadline, ",
+				"but it is possible it could have succeeded if it were allowed to run to completion, now %d deadline %d start %d billing_timer %d",
+				now, t.deadline, t.Start, now-t.pseudoStart)
 
 		}
+		EosAssert(false,
+			&TransactionException{},
+			"unexpected deadline exception code")
+
 	}
+	//}
 }
 
 //added to deadline means delete time comsume from PauseBillingTimer to ResumeBillingTimer
@@ -555,7 +553,7 @@ func (t *TransactionContext) DispathAction(trace *types.ActionTrace, action *typ
 	//	try.Throw(e)
 	//}).End()
 
-	*trace = applyContext.Trace
+	//*trace = applyContext.Trace
 }
 
 func (t *TransactionContext) scheduleTransaction() {

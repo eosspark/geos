@@ -18,7 +18,7 @@ type RuntimeError struct {
 	//StackTrace []StackInfo
 }
 
-const DEBUG = true
+var DEBUG = true
 
 func (rte RuntimeError) String() string {
 	return rte.Message
@@ -59,6 +59,9 @@ func Try(f func()) (r *CatchOrFinally) {
 
 
 func Throw(e interface{}) {
+	if e == nil {
+		return
+	}
 	panic(e)
 }
 

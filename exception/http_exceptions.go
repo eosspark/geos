@@ -1,8 +1,8 @@
 package exception
 
-import . "github.com/eosspark/eos-go/log"
+import _ "github.com/eosspark/eos-go/log"
 
-type HttpException struct{ LogMessage }
+type HttpException struct{ ELog }
 
 func (HttpException) ChainExceptions() {}
 func (HttpException) HttpExceptions()  {}
@@ -11,7 +11,7 @@ func (HttpException) What() string {
 	return "http exception"
 }
 
-type InvalidHttpClientRootCert struct{ LogMessage }
+type InvalidHttpClientRootCert struct{ ELog }
 
 func (InvalidHttpClientRootCert) ChainExceptions() {}
 func (InvalidHttpClientRootCert) HttpExceptions()  {}
@@ -20,7 +20,7 @@ func (InvalidHttpClientRootCert) What() string {
 	return "invalid http client root certificate"
 }
 
-type InvalidHttpResponse struct{ LogMessage }
+type InvalidHttpResponse struct{ ELog }
 
 func (InvalidHttpResponse) ChainExceptions() {}
 func (InvalidHttpResponse) HttpExceptions()  {}
@@ -29,7 +29,7 @@ func (InvalidHttpResponse) What() string {
 	return "invalid http response"
 }
 
-type ResolvedToMultiplePorts struct{ LogMessage }
+type ResolvedToMultiplePorts struct{ ELog }
 
 func (ResolvedToMultiplePorts) ChainExceptions() {}
 func (ResolvedToMultiplePorts) HttpExceptions()  {}
@@ -38,7 +38,7 @@ func (ResolvedToMultiplePorts) What() string {
 	return "service resolved to multiple ports"
 }
 
-type FailToResolveHost struct{ LogMessage }
+type FailToResolveHost struct{ ELog }
 
 func (FailToResolveHost) ChainExceptions() {}
 func (FailToResolveHost) HttpExceptions()  {}
@@ -47,7 +47,7 @@ func (FailToResolveHost) What() string {
 	return "fail to resolve host"
 }
 
-type HttpRequestFail struct{ LogMessage }
+type HttpRequestFail struct{ ELog }
 
 func (HttpRequestFail) ChainExceptions() {}
 func (HttpRequestFail) HttpExceptions()  {}
@@ -56,7 +56,7 @@ func (HttpRequestFail) What() string {
 	return "http request fail"
 }
 
-type InvalidHttpRequest struct{ LogMessage }
+type InvalidHttpRequest struct{ ELog }
 
 func (InvalidHttpRequest) ChainExceptions() {}
 func (InvalidHttpRequest) HttpExceptions()  {}

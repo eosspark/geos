@@ -98,6 +98,10 @@ func init() {
 	DefaultConfig.DefaultBlocksDirName = "/tmp/data/blocks"
 	DefaultConfig.DefaultReversibleBlocksDirName = "/tmp/data/reversible"
 	DefaultConfig.DefaultStateDirName = "/tmp/data/state"
+	DefaultConfig.ValidatingBlocksDirName = "/tmp/data/vBlocks"
+	DefaultConfig.ValidatingReversibleBlocksDirName = "/tmp/data/vReversible"
+	DefaultConfig.ValidatingStateDirName = "/tmp/data/vState"
+
 	DefaultConfig.DefaultStateSize = 1 * 1024 * 1024 * 1024
 	DefaultConfig.DefaultStateGuardSize = 128 * 1024 * 1024
 	DefaultConfig.DefaultReversibleCacheSize = 340 * 1024 * 1024
@@ -180,49 +184,53 @@ type Config struct {
 	MinNetUsageDeltaBetweenBaseAndMaxForTrx uint32
 	/**************************chain_config end****************************/
 
-	ForkDbName                     string
-	DBFileName                     string
-	ReversibleFileName             string
-	BlockFileName                  string
-	DefaultBlocksDirName           string
-	DefaultReversibleBlocksDirName string
-	DefaultStateDirName            string
-	DefaultStateSize               uint64
-	DefaultStateGuardSize          uint64
-	DefaultReversibleCacheSize     uint64
-	DefaultReversibleGuardSize     uint64
+	ForkDbName                        string
+	DBFileName                        string
+	ReversibleFileName                string
+	BlockFileName                     string
+	DefaultBlocksDirName              string
+	DefaultReversibleBlocksDirName    string
+	DefaultStateDirName               string
+	ValidatingBlocksDirName           string
+	ValidatingReversibleBlocksDirName string
+	ValidatingStateDirName            string
+
+	DefaultStateSize                  uint64
+	DefaultStateGuardSize             uint64
+	DefaultReversibleCacheSize        uint64
+	DefaultReversibleGuardSize        uint64
 	//FixedNetOverheadOfPackedTrx uint32 // TODO: C++ default value 16 and is this reasonable?
 }
 
 func (c *Config) Validate() {
-	try.EosAssert(c.TargetBlockNetUsagePct <= uint32(c.Percent_100), &exception.ActionValidateException{},
+	try.EosAssert(c.TargetBlockNetUsagePct <= uint32(DefaultConfig.Percent_100), &exception.ActionValidateException{},
 		"target block net usage percentage cannot exceed 100%")
-	try.EosAssert(c.TargetBlockNetUsagePct >= uint32(c.Percent_1/10), &exception.ActionValidateException{},
+	try.EosAssert(c.TargetBlockNetUsagePct >= uint32(DefaultConfig.Percent_1/10), &exception.ActionValidateException{},
 		"target block net usage percentage must be at least 0.1%")
-	try.EosAssert(c.TargetBlockCpuUsagePct <= uint32(c.Percent_100), &exception.ActionValidateException{},
+	try.EosAssert(c.TargetBlockCpuUsagePct <= uint32(DefaultConfig.Percent_100), &exception.ActionValidateException{},
 		"target block cpu usage percentage cannot exceed 100%")
-	try.EosAssert(c.TargetBlockCpuUsagePct >= uint32(c.Percent_1/10), &exception.ActionValidateException{},
+	try.EosAssert(c.TargetBlockCpuUsagePct >= uint32(DefaultConfig.Percent_1/10), &exception.ActionValidateException{},
 		"target block cpu usage percentage must be at least 0.1%")
 
-	try.EosAssert(uint64(c.MaxTransactionNetUsage) < c.MaxBlockNetUsage, &exception.ActionValidateException{},
+	try.EosAssert(uint64(c.MaxTransactionNetUsage) < DefaultConfig.MaxBlockNetUsage, &exception.ActionValidateException{},
 		"max transaction net usage must be less than max block net usage")
-	try.EosAssert(c.MaxTransactionCpuUsage < c.MaxBlockCpuUsage, &exception.ActionValidateException{},
+	try.EosAssert(c.MaxTransactionCpuUsage < DefaultConfig.MaxBlockCpuUsage, &exception.ActionValidateException{},
 		"max transaction cpu usage must be less than max block cpu usage")
 
-	try.EosAssert(c.BasePerTransactionNetUsage < c.MaxTransactionNetUsage, &exception.ActionValidateException{},
+	try.EosAssert(c.BasePerTransactionNetUsage < DefaultConfig.MaxTransactionNetUsage, &exception.ActionValidateException{},
 		"base net usage per transaction must be less than the max transaction net usage")
-	try.EosAssert((c.MaxTransactionNetUsage-c.BasePerTransactionNetUsage) >= c.MinNetUsageDeltaBetweenBaseAndMaxForTrx,
+	try.EosAssert((c.MaxTransactionNetUsage-DefaultConfig.BasePerTransactionNetUsage) >= DefaultConfig.MinNetUsageDeltaBetweenBaseAndMaxForTrx,
 		&exception.ActionValidateException{},
 		"max transaction net usage must be at least: %s bytes larger than base net usage per transaction",
 		c.MinNetUsageDeltaBetweenBaseAndMaxForTrx)
 	try.EosAssert(c.ContextFreeDiscountNetUsageDen > 0, &exception.ActionValidateException{},
 		"net usage discount ratio for context free data cannot have a 0 denominator")
-	try.EosAssert(c.ContextFreeDiscountNetUsageNum <= c.ContextFreeDiscountNetUsageDen, &exception.ActionValidateException{},
+	try.EosAssert(c.ContextFreeDiscountNetUsageNum <= DefaultConfig.ContextFreeDiscountNetUsageDen, &exception.ActionValidateException{},
 		"net usage discount ratio for context free data cannot exceed 1")
 
-	try.EosAssert(c.MinTransactionCpuUsage <= c.MaxTransactionCpuUsage, &exception.ActionValidateException{},
+	try.EosAssert(c.MinTransactionCpuUsage <= DefaultConfig.MaxTransactionCpuUsage, &exception.ActionValidateException{},
 		"min transaction cpu usage cannot exceed max transaction cpu usage")
-	try.EosAssert(c.MaxTransactionCpuUsage < (c.MaxBlockCpuUsage-c.MinTransactionCpuUsage), &exception.ActionValidateException{},
+	try.EosAssert(c.MaxTransactionCpuUsage < (DefaultConfig.MaxBlockCpuUsage-DefaultConfig.MinTransactionCpuUsage), &exception.ActionValidateException{},
 		"max transaction cpu usage must be at less than the difference between the max block cpu usage and the min transaction cpu usage")
 
 	try.EosAssert(1 <= c.MaxAuthorityDepth, &exception.ActionValidateException{},
