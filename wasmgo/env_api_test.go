@@ -9,9 +9,11 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
+	"github.com/eosspark/container/sets/treeset"
 	"github.com/eosspark/eos-go/chain"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
+	"github.com/eosspark/eos-go/common/math"
 	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/exception"
@@ -40,12 +42,12 @@ type dummy_action struct {
 	C int32
 }
 
-func (d *dummy_action) getName() uint64 {
-	return uint64(common.N("dummy_action"))
+func (d *dummy_action) getName() common.AccountName {
+	return common.AccountName(common.N("dummy_action"))
 }
 
-func (d *dummy_action) getAccount() uint64 {
-	return uint64(common.N("testapi"))
+func (d *dummy_action) getAccount() common.AccountName {
+	return common.AccountName(common.N("testapi"))
 }
 
 func TestAction(t *testing.T) {
@@ -147,17 +149,17 @@ type cfAction struct {
 	Cfd_idx uint32
 }
 
-func (n *cfAction) getAccount() uint64 {
-	return uint64(common.N("testapi"))
+func (n *cfAction) getAccount() common.AccountName {
+	return common.AccountName(common.N("testapi"))
 }
 
-func (n *cfAction) getName() uint64 {
-	return uint64(common.N("cf_action"))
+func (n *cfAction) getName() common.AccountName {
+	return common.AccountName(common.N("cf_action"))
 }
 
 type actionInterface interface {
-	getAccount() uint64
-	getName() uint64
+	getAccount() common.AccountName
+	getName() common.AccountName
 }
 
 func newAction(permissionLevel []types.PermissionLevel, a actionInterface) *types.Action {
@@ -333,24 +335,24 @@ type newAccount struct {
 	Active  types.Authority
 }
 
-func (n *newAccount) getAccount() uint64 {
-	return uint64(common.DefaultConfig.SystemAccountName)
+func (n *newAccount) getAccount() common.AccountName {
+	return common.AccountName(common.DefaultConfig.SystemAccountName)
 }
 
-func (n *newAccount) getName() uint64 {
-	return uint64(common.N("newaccount"))
+func (n *newAccount) getName() common.AccountName {
+	return common.AccountName(common.N("newaccount"))
 }
 
 type testApiAction struct {
 	actionName uint64
 }
 
-func (a *testApiAction) getAccount() uint64 {
-	return uint64(common.N("testapi"))
+func (a *testApiAction) getAccount() common.AccountName {
+	return common.AccountName(common.N("testapi"))
 }
 
-func (a *testApiAction) getName() uint64 {
-	return a.actionName
+func (a *testApiAction) getName() common.AccountName {
+	return common.AccountName(a.actionName)
 }
 
 func TestStatefulApi(t *testing.T) {
@@ -766,7 +768,7 @@ func pushTransactionForCallTest(control *chain.Controller, trx *types.Transactio
 	return control.PushTransaction(trx, common.Now()+common.TimePoint(common.Milliseconds(max_cpu_usage_ms)), billedCpuTimeUs)
 }
 
-func TestContextChecktime(t *testing.T) {
+func TestChecktimePass(t *testing.T) {
 
 	name := "testdata_context/test_api.wasm"
 	t.Run(filepath.Base(name), func(t *testing.T) {
@@ -774,43 +776,74 @@ func TestContextChecktime(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		control := startBlock()
 
-		//       test := chain.newBaseTester(false)
-		// control :=  chain.GetControllerInstance()
-		// ProduceBlocks(control, 1, true)
+		b := newBaseTester(true, chain.SPECULATIVE)
+		b.ProduceBlocks(2, false)
+		b.CreateAccounts([]common.AccountName{common.N("testapi")}, false, true)
+		b.ProduceBlocks(10, false)
+		b.SetCode(common.AccountName(common.N("testapi")), code, nil)
+		b.ProduceBlocks(1, false)
 
-		createNewAccount(control, "testapi")
-		SetCode(control, "testapi", code)
-		//ProduceBlocks(control, 1, false)
+		callTestF2(t, b, &testApiAction{wasmTestAction("test_checktime", "checktime_pass")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
 
-		ret := callTestFunction2(control, "test_checktime", "checktime_pass", []byte{}, "testapi")
-		assert.Equal(t, ret.Receipt.Status, types.TransactionStatusExecuted)
-		//ProduceBlocks(control, 2, false)
+		b.close()
 
-		var x, cpu, net int64
-		control.GetMutableResourceLimitsManager().GetAccountLimits(common.AccountName(common.N("testapi")), &x, &cpu, &net)
-		fmt.Println("ram:", x, " cpu:", cpu, " net:", net)
+	})
+}
 
-		retException := callTestException(control, "test_checktime", "checktime_failure", []byte{}, "testapi", 5000, 200, exception.DeadlineException{}.Code(), exception.DeadlineException{}.What())
-		assert.Equal(t, retException, true)
+func TestChecktimeFail(t *testing.T) {
 
-		retException = callTestException(control, "test_checktime", "checktime_failure", []byte{}, "testapi", 0, 200, exception.TxCpuUsageExceeded{}.Code(), exception.TxCpuUsageExceeded{}.What())
-		assert.Equal(t, retException, true)
+	name := "testdata_context/test_api.wasm"
+	t.Run(filepath.Base(name), func(t *testing.T) {
+		code, err := ioutil.ReadFile(name)
+		if err != nil {
+			t.Fatal(err)
+		}
 
-		retException = callTestException(control, "test_checktime", "checktime_failure", []byte{}, "testapi", 0, 200, exception.BlockCpuUsageExceeded{}.Code(), exception.BlockCpuUsageExceeded{}.What())
-		assert.Equal(t, retException, true)
+		b := newBaseTester(true, chain.SPECULATIVE)
+		b.ProduceBlocks(2, false)
+		b.CreateAccounts([]common.AccountName{common.N("testapi")}, false, true)
+		b.SetCode(common.AccountName(common.N("testapi")), code, nil)
+		b.ProduceBlocks(1, false)
 
-		// retException = callTestException(control, "test_checktime", "checktime_sha1_failure", []byte{}, "testapi")
-		// retException = callTestException(control, "test_checktime", "checktime_assert_sha1_failure", []byte{}, "testapi")
-		// retException = callTestException(control, "test_checktime", "checktime_sha256_failure", []byte{}, "testapi")
-		// retException = callTestException(control, "test_checktime", "checktime_assert_sha256_failure", []byte{}, "testapi")
-		// retException = callTestException(control, "test_checktime", "checktime_sha512_failure", []byte{}, "testapi")
-		// retException = callTestException(control, "test_checktime", "checktime_assert_sha512_failure", []byte{}, "testapi")
-		// retException = callTestException(control, "test_checktime", "checktime_ripemd160_failure", []byte{}, "testapi")
-		// retException = callTestException(control, "test_checktime", "checktime_assert_ripemd160_failure", []byte{}, "testapi")
+		//var x, cpu, net int64
+		//b.Control.GetMutableResourceLimitsManager().GetAccountLimits(common.AccountName(common.N("testapi")), &x, &cpu, &net)
+		//fmt.Println("ram:", x, " cpu:", cpu, " net:", net)
 
-		stopBlock(control)
+		ret := callTestExceptionF2(t, b, &testApiAction{wasmTestAction("test_checktime", "checktime_failure")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))}, 5000, 10, exception.DeadlineException{}.Code(), exception.DeadlineException{}.What())
+		assert.Equal(t, ret, true)
+
+		ret = callTestExceptionF2(t, b, &testApiAction{wasmTestAction("test_checktime", "checktime_failure")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))}, 0, 200, exception.TxCpuUsageExceeded{}.Code(), exception.TxCpuUsageExceeded{}.What())
+		assert.Equal(t, ret, true)
+
+		ret = callTestExceptionF2(t, b, &testApiAction{wasmTestAction("test_checktime", "checktime_failure")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))}, 0, 200, exception.BlockCpuUsageExceeded{}.Code(), exception.BlockCpuUsageExceeded{}.What())
+		assert.Equal(t, ret, true)
+
+		ret = callTestExceptionF2(t, b, &testApiAction{wasmTestAction("test_checktime", "checktime_sha1_failure")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))}, 5000, 10, exception.DeadlineException{}.Code(), exception.DeadlineException{}.What())
+		assert.Equal(t, ret, true)
+
+		ret = callTestExceptionF2(t, b, &testApiAction{wasmTestAction("test_checktime", "checktime_assert_sha1_failure")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))}, 5000, 10, exception.DeadlineException{}.Code(), exception.DeadlineException{}.What())
+		assert.Equal(t, ret, true)
+
+		ret = callTestExceptionF2(t, b, &testApiAction{wasmTestAction("test_checktime", "checktime_sha256_failure")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))}, 5000, 10, exception.DeadlineException{}.Code(), exception.DeadlineException{}.What())
+		assert.Equal(t, ret, true)
+
+		ret = callTestExceptionF2(t, b, &testApiAction{wasmTestAction("test_checktime", "checktime_assert_sha256_failure")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))}, 5000, 10, exception.DeadlineException{}.Code(), exception.DeadlineException{}.What())
+		assert.Equal(t, ret, true)
+
+		ret = callTestExceptionF2(t, b, &testApiAction{wasmTestAction("test_checktime", "checktime_assert_sha512_failure")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))}, 5000, 10, exception.DeadlineException{}.Code(), exception.DeadlineException{}.What())
+		assert.Equal(t, ret, true)
+
+		ret = callTestExceptionF2(t, b, &testApiAction{wasmTestAction("test_checktime", "checktime_ripemd160_failure")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))}, 5000, 10, exception.DeadlineException{}.Code(), exception.DeadlineException{}.What())
+		assert.Equal(t, ret, true)
+
+		ret = callTestExceptionF2(t, b, &testApiAction{wasmTestAction("test_checktime", "checktime_sha1_failure")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))}, 5000, 10, exception.DeadlineException{}.Code(), exception.DeadlineException{}.What())
+		assert.Equal(t, ret, true)
+
+		ret = callTestExceptionF2(t, b, &testApiAction{wasmTestAction("test_checktime", "checktime_assert_ripemd160_failure")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))}, 5000, 10, exception.DeadlineException{}.Code(), exception.DeadlineException{}.What())
+		assert.Equal(t, ret, true)
+
+		b.close()
 
 	})
 }
@@ -1389,77 +1422,6 @@ func pushAction(control *chain.Controller, code []byte, cls string, method strin
 	return ""
 }
 
-// func ProduceBlocks(control *chain.Controller, n uint32, empty bool) {
-// 	if empty {
-// 		for i := 0; uint32(i) < n; i++ {
-// 			ProduceEmptyBlock(control, common.Milliseconds(common.DefaultConfig.BlockIntervalMs), 0)
-// 		}
-// 	} else {
-// 		for i := 0; uint32(i) < n; i++ {
-// 			ProduceBlock(control, common.Milliseconds(common.DefaultConfig.BlockIntervalMs), 0)
-// 		}
-// 	}
-// }
-// func ProduceEmptyBlock(control *chain.Controller, skipTime common.Microseconds, skipFlag uint32) *types.SignedBlock {
-// 	control.AbortBlock()
-// 	return t.produceBlock(control, skipTime, true, skipFlag)
-// }
-
-// func ProduceBlock(control *chain.Controller, skipTime common.Microseconds, skipFlag uint32) *types.SignedBlock {
-// 	return produceBlock(control, skipTime, false, skipFlag)
-// }
-
-// func produceBlock(control *chain.Controller, skipTime common.Microseconds, skipPendingTrxs bool, skipFlag uint32) *types.SignedBlock {
-// 	headTime := control.HeadBlockTime()
-// 	nextTime := headTime + common.TimePoint(skipTime)
-// 	if common.Empty(control.PendingBlockState()) || control.PendingBlockState().Header.Timestamp != types.NewBlockTimeStamp(nextTime) {
-// 		startBlock(nextTime)
-// 	}
-// 	Hbs := control.HeadBlockState()
-// 	producer := Hbs.GetScheduledProducer(types.BlockTimeStamp(nextTime))
-// 	privKey := ecc.PrivateKey{}
-// 	privateKey, ok := t.BlockSigningPrivateKeys[producer.BlockSigningKey.String()]
-// 	if !ok {
-// 		privKey = t.getPrivateKey(producer.ProducerName, "active")
-// 	} else {
-// 		privKey = privateKey
-// 	}
-
-// 	if !skipPendingTrxs {
-// 		unappliedTrxs := control.GetUnappliedTransactions()
-// 		for _, trx := range unappliedTrxs {
-// 			trace := control.pushTransaction(trx, common.MaxTimePoint(), 0, false)
-// 			if !common.Empty(trace.Except) {
-// 				try.EosThrow(trace.Except, "tester produceBlock is error:%#v", trace.Except)
-// 			}
-// 		}
-
-// 		scheduledTrxs := control.GetScheduledTransactions()
-// 		for len(scheduledTrxs) > 0 {
-// 			for _, trx := range scheduledTrxs {
-// 				trace := control.pushScheduledTransactionById(&trx, common.MaxTimePoint(), 0, false)
-// 				if !common.Empty(trace.Except) {
-// 					try.EosThrow(trace.Except, "tester produceBlock is error:%#v", trace.Except)
-// 				}
-// 			}
-// 		}
-// 	}
-
-// 	control.FinalizeBlock()
-// 	control.SignBlock(func(d common.DigestType) ecc.Signature {
-// 		sign, err := privKey.Sign(d.Bytes())
-// 		if err != nil {
-// 			log.Error(err.Error())
-// 		}
-// 		return sign
-// 	})
-// 	control.CommitBlock(true)
-// 	b := control.HeadBlockState()
-// 	t.LastProducedBlock[control.HeadBlockState().Header.Producer] = b.BlockId
-// 	t.startBlock(nextTime + common.TimePoint(common.TimePoint(common.DefaultConfig.BlockIntervalUs)))
-// 	return control.HeadBlockState().SignedBlock
-// }
-
 func startBlock() *chain.Controller {
 	control := chain.GetControllerInstance()
 	//blockTimeStamp := types.NewBlockTimeStamp(common.Now())
@@ -1545,3 +1507,488 @@ func sigDigest(chainID, payload []byte) []byte {
 	_, _ = h.Write(payload)
 	return h.Sum(nil)
 }
+
+func NewTransaction() *types.SignedTransaction {
+	trx := types.Transaction{
+		TransactionHeader:     types.TransactionHeader{},
+		ContextFreeActions:    []*types.Action{},
+		Actions:               []*types.Action{},
+		TransactionExtensions: []*types.Extension{},
+	}
+	signedTrx := types.NewSignedTransaction(&trx, []ecc.Signature{}, []common.HexBytes{})
+	return signedTrx
+}
+
+func callTestExceptionF2(test *testing.T, t *BaseTester, a actionInterface, data []byte, scope []common.AccountName, billedCpuTimeUs uint32, max_cpu_usage_ms int64, errCode exception.ExcTypes, errMsg string) (ret bool) {
+
+	trx := NewTransaction()
+
+	// action := wasmTestAction(cls, method)
+	// fmt.Println(cls, method, action)
+	pl := []types.PermissionLevel{{scope[0], common.PermissionName(common.N("active"))}}
+	if len(scope) > 1 {
+		for i, account := range scope {
+			if i == 0 {
+				continue
+			}
+			pl = append(pl, types.PermissionLevel{account, common.PermissionName(common.N("active"))})
+		}
+	}
+
+	act := newAction(pl, a)
+	act.Data = data
+	act.Authorization = pl
+	trx.Transaction.Actions = append(trx.Transaction.Actions, act)
+
+	t.SetTransactionHeaders(&trx.Transaction, t.DefaultExpirationDelta, 0)
+
+	privKey := t.getPrivateKey(scope[0], "active")
+	chainId := t.Control.GetChainId()
+	trx.Sign(&privKey, &chainId)
+
+	//trx.get_signature_keys(test.control->get_chain_id() );
+	//ret := t.PushTransaction(trx, common.Now()+common.TimePoint(common.Milliseconds(max_cpu_usage_ms)), billedCpuTimeUs)
+	//assert.Equal(test, ret.Except.Code() == errCode, true)
+
+	//ret := false
+	defer try.HandleReturn()
+	try.Try(func() {
+		t.PushTransaction(trx, common.Now()+common.TimePoint(common.Milliseconds(max_cpu_usage_ms)), billedCpuTimeUs)
+	}).Catch(func(e exception.Exception) {
+		if e.Code() == errCode {
+			fmt.Println(e.Message())
+			ret = true
+			try.Return()
+		}
+	}).End()
+
+	t.ProduceBlocks(1, false)
+
+	ret = false
+	return
+}
+
+func callTestF2(test *testing.T, t *BaseTester, a actionInterface, data []byte, scope []common.AccountName) *types.TransactionTrace {
+
+	trx := NewTransaction()
+
+	// action := wasmTestAction(cls, method)
+	// fmt.Println(cls, method, action)
+	pl := []types.PermissionLevel{{scope[0], common.PermissionName(common.N("active"))}}
+	if len(scope) > 1 {
+		for i, account := range scope {
+			if i == 0 {
+				continue
+			}
+			pl = append(pl, types.PermissionLevel{account, common.PermissionName(common.N("active"))})
+		}
+	}
+
+	act := newAction(pl, a)
+	act.Data = data
+	act.Authorization = pl
+	trx.Transaction.Actions = append(trx.Transaction.Actions, act)
+
+	t.SetTransactionHeaders(&trx.Transaction, t.DefaultExpirationDelta, 0)
+
+	privKey := t.getPrivateKey(scope[0], "active")
+	chainId := t.Control.GetChainId()
+	trx.Sign(&privKey, &chainId)
+
+	//trx.get_signature_keys(test.control->get_chain_id() );
+
+	ret := t.PushTransaction(trx, common.MaxTimePoint(), t.DefaultBilledCpuTimeUs)
+	assert.Equal(test, ret.Receipt.Status, types.TransactionStatusExecuted)
+
+	t.ProduceBlocks(1, false)
+
+	return ret
+}
+
+type BaseTester struct {
+	ActionResult           string
+	DefaultExpirationDelta uint32
+	DefaultBilledCpuTimeUs uint32
+	AbiSerializerMaxTime   common.Microseconds
+	//TempDir                tempDirectory
+	Control                 *chain.Controller
+	BlockSigningPrivateKeys map[string]ecc.PrivateKey //map[ecc.PublicKey]ecc.PrivateKey
+	Cfg                     chain.Config
+	ChainTransactions       map[common.BlockIdType]types.TransactionReceipt
+	LastProducedBlock       map[common.AccountName]common.BlockIdType
+}
+
+func newBaseTester(pushGenesis bool, readMode chain.DBReadMode) *BaseTester {
+	t := &BaseTester{}
+	t.DefaultExpirationDelta = 6
+	t.DefaultBilledCpuTimeUs = 2000
+	t.ChainTransactions = make(map[common.BlockIdType]types.TransactionReceipt)
+	t.LastProducedBlock = make(map[common.AccountName]common.BlockIdType)
+
+	t.init(pushGenesis, readMode)
+	return t
+}
+
+func (t *BaseTester) init(pushGenesis bool, readMode chain.DBReadMode) {
+	t.Cfg = *newConfig(readMode)
+	t.Control = chain.NewController(t.Cfg)
+
+	t.open()
+
+	if pushGenesis {
+		t.pushGenesisBlock()
+	}
+}
+
+func newConfig(readMode chain.DBReadMode) *chain.Config {
+	cfg := &chain.Config{}
+	cfg.BlocksDir = common.DefaultConfig.DefaultBlocksDirName
+	cfg.StateDir = common.DefaultConfig.DefaultStateDirName
+	cfg.ReversibleDir = common.DefaultConfig.DefaultReversibleBlocksDirName
+	cfg.StateSize = 1024 * 1024 * 8
+	cfg.StateGuardSize = 0
+	cfg.ReversibleCacheSize = 1024 * 1024 * 8
+	cfg.ReversibleGuardSize = 0
+	cfg.ContractsConsole = false
+	cfg.ReadMode = readMode
+
+	cfg.Genesis = types.NewGenesisState()
+	cfg.Genesis.InitialTimestamp, _ = common.FromIsoString("2020-01-01T00:00:00.000")
+	cfg.Genesis.InitialKey = BaseTester{}.getPublicKey(common.DefaultConfig.SystemAccountName, "active")
+
+	cfg.ActorWhitelist = *treeset.NewWith(common.CompareName)
+	cfg.ActorBlacklist = *treeset.NewWith(common.CompareName)
+	cfg.ContractWhitelist = *treeset.NewWith(common.CompareName)
+	cfg.ContractBlacklist = *treeset.NewWith(common.CompareName)
+	cfg.ActionBlacklist = *treeset.NewWith(common.ComparePair)
+	cfg.KeyBlacklist = *treeset.NewWith(ecc.ComparePubKey)
+	cfg.ResourceGreylist = *treeset.NewWith(common.CompareName)
+	cfg.TrustedProducers = *treeset.NewWith(common.CompareName)
+
+	//cfg.VmType = common.DefaultConfig.DefaultWasmRuntime // TODO
+
+	return cfg
+}
+
+func (t *BaseTester) open() {
+	//t.Control.Config = t.Cfg
+	//t.Control.startUp() //TODO
+	//t.Control.StartBlock()
+	t.ChainTransactions = make(map[common.BlockIdType]types.TransactionReceipt)
+	//t.Control.AcceptedBlock.Connect() // TODO: Control.signal
+}
+
+func (t *BaseTester) close() {
+	t.Control.Close()
+	t.ChainTransactions = make(map[common.BlockIdType]types.TransactionReceipt)
+}
+
+func (t BaseTester) PushBlock(b *types.SignedBlock) *types.SignedBlock {
+	t.Control.AbortBlock()
+	t.Control.PushBlock(b, types.Complete)
+	return &types.SignedBlock{}
+}
+
+func (t BaseTester) pushGenesisBlock() {
+	wasmName := "testdata_context/eosio.bios.wasm"
+	code, _ := ioutil.ReadFile(wasmName)
+	//if err != nil {
+	//	log.Error("pushGenesisBlock is err : %v", err)
+	//}
+	t.SetCode(common.DefaultConfig.SystemAccountName, code, nil)
+	//abiName := "testdata_context/eosio.bios.abi"
+	//abi, _ := ioutil.ReadFile(abiName)
+	////if err != nil {
+	////	log.Error("pushGenesisBlock is err : %v", err)
+	////}
+	//t.SetAbi(common.DefaultConfig.SystemAccountName, abi, nil)
+}
+
+func (t BaseTester) ProduceBlocks(n uint32, empty bool) {
+	if empty {
+		for i := 0; uint32(i) < n; i++ {
+			t.ProduceEmptyBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs), 0)
+		}
+	} else {
+		for i := 0; uint32(i) < n; i++ {
+			t.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs), 0)
+		}
+	}
+}
+
+func (t BaseTester) produceBlock(skipTime common.Microseconds, skipPendingTrxs bool, skipFlag uint32) *types.SignedBlock {
+	headTime := t.Control.HeadBlockTime()
+	nextTime := headTime + common.TimePoint(skipTime)
+	if common.Empty(t.Control.PendingBlockState()) || t.Control.PendingBlockState().Header.Timestamp != types.NewBlockTimeStamp(nextTime) {
+		t.startBlock(nextTime)
+	}
+	Hbs := t.Control.HeadBlockState()
+	producer := Hbs.GetScheduledProducer(types.BlockTimeStamp(nextTime))
+	privKey := ecc.PrivateKey{}
+	privateKey, ok := t.BlockSigningPrivateKeys[producer.BlockSigningKey.String()]
+	if !ok {
+		privKey = t.getPrivateKey(producer.ProducerName, "active")
+	} else {
+		privKey = privateKey
+	}
+
+	if !skipPendingTrxs {
+		unappliedTrxs := t.Control.GetUnappliedTransactions()
+		for _, trx := range unappliedTrxs {
+			trace := t.Control.PushTransaction(trx, common.MaxTimePoint(), 0)
+			if !common.Empty(trace.Except) {
+				try.EosThrow(trace.Except, "tester produceBlock is error:%#v", trace.Except)
+			}
+		}
+
+		// scheduledTrxs := t.Control.GetScheduledTransactions()
+		// for len(scheduledTrxs) > 0 {
+		// 	for _, trx := range scheduledTrxs {
+		// 		trace := t.Control.PushScheduledTransaction(&trx, common.MaxTimePoint(), 0)
+		// 		if !common.Empty(trace.Except) {
+		// 			try.EosThrow(trace.Except, "tester produceBlock is error:%#v", trace.Except)
+		// 		}
+		// 	}
+		// }
+	}
+
+	t.Control.FinalizeBlock()
+	t.Control.SignBlock(func(d common.DigestType) ecc.Signature {
+		sign, _ := privKey.Sign(d.Bytes())
+		//if err != nil {
+		//	log.Error(err.Error())
+		//}
+		return sign
+	})
+	t.Control.CommitBlock(true)
+	b := t.Control.HeadBlockState()
+	t.LastProducedBlock[t.Control.HeadBlockState().Header.Producer] = b.BlockId
+	t.startBlock(nextTime + common.TimePoint(common.TimePoint(common.DefaultConfig.BlockIntervalUs)))
+	return t.Control.HeadBlockState().SignedBlock
+}
+
+func (t BaseTester) startBlock(blockTime common.TimePoint) {
+	headBlockNumber := t.Control.HeadBlockNum()
+	producer := t.Control.HeadBlockState().GetScheduledProducer(types.NewBlockTimeStamp(blockTime))
+	lastProducedBlockNum := t.Control.LastIrreversibleBlockNum()
+	itr := t.LastProducedBlock[producer.ProducerName]
+	if !common.Empty(itr) {
+		if t.Control.LastIrreversibleBlockNum() > types.NumFromID(&itr) {
+			lastProducedBlockNum = t.Control.LastIrreversibleBlockNum()
+		} else {
+			lastProducedBlockNum = types.NumFromID(&itr)
+		}
+	}
+	t.Control.AbortBlock()
+	t.Control.StartBlock(types.NewBlockTimeStamp(blockTime), uint16(headBlockNumber-lastProducedBlockNum))
+}
+
+func (t BaseTester) SetTransactionHeaders(trx *types.Transaction, expiration uint32, delaySec uint32) {
+	trx.Expiration = common.TimePointSec((common.Microseconds(t.Control.HeadBlockTime()) + common.Seconds(int64(expiration))).ToSeconds())
+	headBlockId := t.Control.HeadBlockId()
+	trx.SetReferenceBlock(&headBlockId)
+
+	trx.MaxNetUsageWords = 0
+	trx.MaxCpuUsageMS = 0
+	trx.DelaySec = delaySec
+}
+
+func (t BaseTester) CreateAccounts(names []common.AccountName, multiSig bool, includeCode bool) []*types.TransactionTrace {
+	traces := make([]*types.TransactionTrace, len(names))
+	for i, n := range names {
+		traces[i] = t.CreateAccount(n, common.DefaultConfig.SystemAccountName, multiSig, includeCode)
+	}
+	return traces
+}
+
+func (t BaseTester) CreateAccount(name common.AccountName, creator common.AccountName, multiSig bool, includeCode bool) *types.TransactionTrace {
+	trx := types.SignedTransaction{}
+	t.SetTransactionHeaders(&trx.Transaction, t.DefaultExpirationDelta, 0) //TODO: test
+	ownerAuth := types.Authority{}
+	if multiSig {
+		ownerAuth = types.Authority{
+			Threshold: 2,
+			Keys:      []types.KeyWeight{{Key: t.getPublicKey(name, "owner"), Weight: 1}},
+			Accounts:  []types.PermissionLevelWeight{{Permission: types.PermissionLevel{Actor: creator, Permission: common.DefaultConfig.ActiveName}, Weight: 1}},
+		}
+	} else {
+		ownerAuth = types.NewAuthority(t.getPublicKey(name, "owner"), 0)
+	}
+	activeAuth := types.NewAuthority(t.getPublicKey(name, "active"), 0)
+
+	sortPermissions := func(auth *types.Authority) {
+
+	}
+	if includeCode {
+		try.EosAssert(ownerAuth.Threshold <= math.MaxUint16, nil, "threshold is too high")
+		try.EosAssert(uint64(activeAuth.Threshold) <= uint64(math.MaxUint64), nil, "threshold is too high")
+		ownerAuth.Accounts = append(ownerAuth.Accounts, types.PermissionLevelWeight{
+			Permission: types.PermissionLevel{Actor: name, Permission: common.DefaultConfig.EosioCodeName},
+			Weight:     types.WeightType(ownerAuth.Threshold),
+		})
+		sortPermissions(&ownerAuth)
+		activeAuth.Accounts = append(activeAuth.Accounts, types.PermissionLevelWeight{
+			Permission: types.PermissionLevel{Actor: name, Permission: common.DefaultConfig.EosioCodeName},
+			Weight:     types.WeightType(activeAuth.Threshold),
+		})
+		sortPermissions(&activeAuth)
+	}
+	new := newAccount{
+		Creator: creator,
+		Name:    name,
+		Owner:   ownerAuth,
+		Active:  activeAuth,
+	}
+	data, _ := rlp.EncodeToBytes(new)
+	act := &types.Action{
+		Account:       new.getAccount(),
+		Name:          new.getName(),
+		Authorization: []types.PermissionLevel{{creator, common.DefaultConfig.ActiveName}},
+		Data:          data,
+	}
+	trx.Actions = append(trx.Actions, act)
+
+	t.SetTransactionHeaders(&trx.Transaction, t.DefaultExpirationDelta, 0)
+	pk := t.getPrivateKey(creator, "active")
+	chainId := t.Control.GetChainId()
+	trx.Sign(&pk, &chainId)
+	return t.PushTransaction(&trx, common.MaxTimePoint(), t.DefaultBilledCpuTimeUs)
+}
+
+func (t BaseTester) PushTransaction(trx *types.SignedTransaction, deadline common.TimePoint, billedCpuTimeUs uint32) (trace *types.TransactionTrace) {
+	_, r := false, (*types.TransactionTrace)(nil)
+	try.Try(func() {
+		if t.Control.PendingBlockState() == nil {
+			t.startBlock(t.Control.HeadBlockTime().AddUs(common.Microseconds(common.DefaultConfig.BlockIntervalUs)))
+		}
+		c := common.CompressionNone
+		size, _ := rlp.EncodeSize(trx)
+		if size > 1000 {
+			c = common.CompressionZlib
+		}
+		mtrx := types.NewTransactionMetadataBySignedTrx(trx, c)
+		trace = t.Control.PushTransaction(mtrx, deadline, billedCpuTimeUs)
+		if trace.ExceptPtr != nil {
+			try.EosThrow(trace.ExceptPtr, "tester PushTransaction is error :%#v", trace.ExceptPtr.Message())
+		}
+		if !common.Empty(trace.Except) {
+			try.EosThrow(trace.Except, "tester PushTransaction is error :%#v", trace.Except.Message())
+		}
+		r = trace
+		return
+	}).FcCaptureAndRethrow().End()
+	return r
+}
+
+func (t BaseTester) PushAction(act *types.Action, authorizer common.AccountName) {
+	trx := types.SignedTransaction{}
+	if !common.Empty(authorizer) {
+		act.Authorization = []types.PermissionLevel{{authorizer, common.DefaultConfig.ActiveName}}
+	}
+	trx.Actions = append(trx.Actions, act)
+	t.SetTransactionHeaders(&trx.Transaction, 0, 0) //TODO
+	if common.Empty(authorizer) {
+		chainId := t.Control.GetChainId()
+		privateKey := t.getPrivateKey(authorizer, "active")
+		trx.Sign(&privateKey, &chainId)
+	}
+	try.Try(func() {
+		t.PushTransaction(&trx, 0, 0) //TODO
+	}).Catch(func(ex exception.Exception) {
+		//log.Error("tester PushAction is error: %#v", ex.Message())
+	}).End()
+	t.ProduceBlock(common.Microseconds(common.DefaultConfig.BlockIntervalMs), 0)
+	/*BOOST_REQUIRE_EQUAL(true, chain_has_transaction(trx.id()))
+	success()*/
+	return
+}
+
+func (t BaseTester) getPrivateKey(keyName common.Name, role string) ecc.PrivateKey {
+	pk := &ecc.PrivateKey{}
+	if keyName == common.DefaultConfig.SystemAccountName {
+		pk, _ = ecc.NewPrivateKey("5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3")
+	} else {
+		rawPrivKey := crypto.Hash256(keyName.String() + role).Bytes()
+		g := bytes.NewReader(rawPrivKey)
+		pk, _ = ecc.NewDeterministicPrivateKey(g)
+	}
+	return *pk
+}
+
+func (t BaseTester) getPublicKey(keyName common.Name, role string) ecc.PublicKey {
+	priKey := t.getPrivateKey(keyName, role)
+	return priKey.PublicKey()
+}
+
+func (t BaseTester) ProduceBlock(skipTime common.Microseconds, skipFlag uint32) *types.SignedBlock {
+	return t.produceBlock(skipTime, false, skipFlag)
+}
+
+func (t BaseTester) ProduceEmptyBlock(skipTime common.Microseconds, skipFlag uint32) *types.SignedBlock {
+	t.Control.AbortBlock()
+	return t.produceBlock(skipTime, true, skipFlag)
+}
+
+func (t BaseTester) PushDummy(from common.AccountName, v *string, billedCpuTimeUs uint32) *types.TransactionTrace {
+	//TODO
+	trx := types.SignedTransaction{}
+	t.SetTransactionHeaders(&trx.Transaction, t.DefaultExpirationDelta, 0)
+	privKey := t.getPrivateKey(from, "active")
+	chainId := t.Control.GetChainId()
+	trx.Sign(&privKey, &chainId)
+	return t.PushTransaction(&trx, common.MaxTimePoint(), billedCpuTimeUs)
+}
+
+func (t BaseTester) SetCode(account common.AccountName, wasm []byte, signer *ecc.PrivateKey) {
+	trx := types.SignedTransaction{}
+	setCode := chain.SetCode{Account: account, VmType: 0, VmVersion: 0, Code: wasm}
+	data, _ := rlp.EncodeToBytes(setCode)
+	act := types.Action{
+		//Account:       setCode.getAccount(),
+		//Name:          setCode.getName(),
+		Account:       common.AccountName(common.N("eosio")),
+		Name:          common.ActionName(common.N("setcode")),
+		Authorization: []types.PermissionLevel{{account, common.DefaultConfig.ActiveName}},
+		Data:          data,
+	}
+	trx.Actions = append(trx.Actions, &act)
+	t.SetTransactionHeaders(&trx.Transaction, t.DefaultExpirationDelta, 0)
+	chainId := t.Control.GetChainId()
+	if signer != nil {
+		trx.Sign(signer, &chainId)
+	} else {
+		privKey := t.getPrivateKey(account, "active")
+		trx.Sign(&privKey, &chainId)
+	}
+	t.PushTransaction(&trx, common.MaxTimePoint(), t.DefaultBilledCpuTimeUs)
+}
+
+// func (t BaseTester) SetAbi(account common.AccountName, abiJson []byte, signer *ecc.PrivateKey) {
+// 	abiEt := abi.AbiDef{}
+// 	err := json.Unmarshal(abiJson, &abiEt)
+// 	if err != nil {
+// 		log.Error("unmarshal abiJson is wrong :%s", err)
+// 	}
+// 	trx := types.SignedTransaction{}
+// 	abiBytes, _ := rlp.EncodeToBytes(abiEt)
+// 	setAbi := setAbi{Account: account, Abi: abiBytes}
+// 	data, _ := rlp.EncodeToBytes(setAbi)
+// 	act := types.Action{
+// 		// Account:       account,
+// 		// Name:          setAbi.getName(),
+// 		Account: common.AccountName(common.N("eosio")),
+// 		Name:    common.ActionName(common.N("setabi")),
+// 		Authorization: []types.PermissionLevel{{account, common.DefaultConfig.ActiveName}},
+// 		Data:          data,
+// 	}
+// 	trx.Actions = append(trx.Actions, &act)
+// 	t.SetTransactionHeaders(&trx.Transaction, t.DefaultExpirationDelta, 0)
+// 	chainId := t.Control.GetChainId()
+// 	if signer != nil {
+// 		trx.Sign(signer, &chainId)
+// 	} else {
+// 		privKey := t.getPrivateKey(account, "active")
+// 		trx.Sign(&privKey, &chainId)
+// 	}
+// 	t.PushTransaction(&trx, common.MaxTimePoint(), t.DefaultBilledCpuTimeUs)
+// }

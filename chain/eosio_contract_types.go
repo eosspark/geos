@@ -8,7 +8,7 @@ import (
 
 type contractTypesInterface interface {
 	getAccount() common.AccountName
-	getName() common.AccountName
+	getName() common.ActionName
 }
 
 type NewAccount struct {
@@ -22,8 +22,8 @@ func (n *NewAccount) getAccount() common.AccountName {
 	return common.DefaultConfig.SystemAccountName
 }
 
-func (n *NewAccount) getName() common.AccountName {
-	return common.AccountName(common.N("newaccount"))
+func (n *NewAccount) getName() common.ActionName {
+	return common.ActionName(common.N("newaccount"))
 }
 
 type SetCode struct {
@@ -52,8 +52,8 @@ func (n *newAccount) getAccount() common.AccountName {
 	return common.DefaultConfig.SystemAccountName
 }
 
-func (n *newAccount) getName() common.AccountName {
-	return common.AccountName(common.N("newaccount"))
+func (n *newAccount) getName() common.ActionName {
+	return common.ActionName(common.N("newaccount"))
 }
 
 type setCode struct {

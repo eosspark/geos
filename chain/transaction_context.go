@@ -374,29 +374,30 @@ func (t *TransactionContext) CheckTime() {
 	//return
 	//if !t.Control.SkipTrxChecks() {
 	now := common.Now()
+
 	if now > t.deadline {
 		if t.ExplicitBilledCpuTime || t.deadlineExceptionCode == int64(DeadlineException{}.Code()) { //|| deadline_exception_code TODO
 			EosAssert(false,
 				&DeadlineException{},
-				"deadline exceeded, now %d deadline %d start %d",
+				"deadline exceeded, now %v deadline %v start %v",
 				now, t.deadline, t.Start)
 
 		} else if t.deadlineExceptionCode == int64(BlockCpuUsageExceeded{}.Code()) {
 			EosAssert(false,
 				&BlockCpuUsageExceeded{},
-				"not enough time left in block to complete executing transaction, now %d deadline %d start %d billing_timer %d",
+				"not enough time left in block to complete executing transaction, now %v deadline %v start %v billing_timer %d",
 				now, t.deadline, t.Start, now-t.pseudoStart)
 		} else if t.deadlineExceptionCode == int64(TxCpuUsageExceeded{}.Code()) {
 			if t.cpuLimitDueToGreylist {
 				EosAssert(false,
 					&GreylistCpuUsageExceeded{},
-					"greylisted transaction was executing for too long, now %d deadline %d start %d billing_timer %d",
+					"greylisted transaction was executing for too long, now %v deadline %v start %v billing_timer %v",
 					now, t.deadline, t.Start, now-t.pseudoStart)
 
 			} else {
 				EosAssert(false,
 					&TxCpuUsageExceeded{},
-					"transaction was executing for too long, now %d deadline %d start %d billing_timer %d",
+					"transaction was executing for too long, now %v deadline %v start %v billing_timer %d",
 					now, t.deadline, t.Start, now-t.pseudoStart)
 			}
 
@@ -404,7 +405,7 @@ func (t *TransactionContext) CheckTime() {
 			EosAssert(false,
 				&LeewayDeadlineException{},
 				"the transaction was unable to complete by deadline, ",
-				"but it is possible it could have succeeded if it were allowed to run to completion, now %d deadline %d start %d billing_timer %d",
+				"but it is possible it could have succeeded if it were allowed to run to completion, now %v deadline %v start %v billing_timer %d",
 				now, t.deadline, t.Start, now-t.pseudoStart)
 
 		}
