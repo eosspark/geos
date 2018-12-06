@@ -123,8 +123,6 @@ func (d *decoder) decode(v interface{}) (err error) {
 		s, err = d.ReadSignature()
 		rv.Set(reflect.ValueOf(s))
 		return
-	}
-	switch v.(type) {
 	case *arithmeticTypes.Float64:
 		var uZ uint64
 		var plus bool

@@ -87,14 +87,6 @@ func EncodeSize(val interface{}) (int, error) {
 }
 
 func (e *encoder) encode(v interface{}) (err error) {
-	switch cv := v.(type) {
-	case nil:
-		return
-	case ecc.PublicKey:
-		return e.writePublicKey(cv)
-	case ecc.Signature:
-		return e.writeSignature(cv)
-	}
 
 	rv := reflect.Indirect(reflect.ValueOf(v))
 	t := rv.Type()
@@ -106,6 +98,20 @@ func (e *encoder) encode(v interface{}) (err error) {
 	}
 
 	switch v.(type) {
+	case ecc.PublicKey:
+		val, ok := v.(ecc.PublicKey)
+		if !ok {
+			plog.Info("pack wrong: v is not publicKey")
+			err = errors.New("pack wrong: v is not publicKey")
+		}
+		return e.writePublicKey(val)
+	case ecc.Signature:
+		val, ok := v.(ecc.Signature)
+		if !ok {
+			plog.Info("pack wrong: v is not Signature")
+			err = errors.New("pack wrong: v is not Signature")
+		}
+		return e.writeSignature(val)
 	case arithmeticTypes.Float64:
 		val, ok := v.(arithmeticTypes.Float64)
 		if !ok {

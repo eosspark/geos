@@ -1,8 +1,8 @@
 package exception
 
-import . "github.com/eosspark/eos-go/log"
+import _ "github.com/eosspark/eos-go/log"
 
-type PluginException struct{ LogMessage }
+type PluginException struct{ ELog }
 
 func (PluginException) ChainExceptions()  {}
 func (PluginException) PluginExceptions() {}
@@ -11,7 +11,7 @@ func (PluginException) What() string {
 	return "Plugin exception"
 }
 
-type MissingChainApiPluginException struct{ LogMessage }
+type MissingChainApiPluginException struct{ ELog }
 
 func (MissingChainApiPluginException) ChainExceptions()  {}
 func (MissingChainApiPluginException) PluginExceptions() {}
@@ -20,7 +20,7 @@ func (MissingChainApiPluginException) What() string {
 	return "Missing Chain API Plugin"
 }
 
-type MissingWalletApiPluginException struct{ LogMessage }
+type MissingWalletApiPluginException struct{ ELog }
 
 func (MissingWalletApiPluginException) ChainExceptions()  {}
 func (MissingWalletApiPluginException) PluginExceptions() {}
@@ -29,7 +29,7 @@ func (MissingWalletApiPluginException) What() string {
 	return "Missing Wallet API Plugin"
 }
 
-type MissingHistoryApiPluginException struct{ LogMessage }
+type MissingHistoryApiPluginException struct{ ELog }
 
 func (MissingHistoryApiPluginException) ChainExceptions()  {}
 func (MissingHistoryApiPluginException) PluginExceptions() {}
@@ -38,7 +38,7 @@ func (MissingHistoryApiPluginException) What() string {
 	return "Missing History API Plugin"
 }
 
-type MissingNetApiPluginException struct{ LogMessage }
+type MissingNetApiPluginException struct{ ELog }
 
 func (MissingNetApiPluginException) ChainExceptions()  {}
 func (MissingNetApiPluginException) PluginExceptions() {}
@@ -47,7 +47,7 @@ func (MissingNetApiPluginException) What() string {
 	return "Missing Net API Plugin"
 }
 
-type MissingChainPluginException struct{ LogMessage }
+type MissingChainPluginException struct{ ELog }
 
 func (MissingChainPluginException) ChainExceptions()  {}
 func (MissingChainPluginException) PluginExceptions() {}
@@ -56,7 +56,7 @@ func (MissingChainPluginException) What() string {
 	return "Missing Chain Plugin"
 }
 
-type PluginConfigException struct{ LogMessage }
+type PluginConfigException struct{ ELog }
 
 func (PluginConfigException) ChainExceptions()  {}
 func (PluginConfigException) PluginExceptions() {}

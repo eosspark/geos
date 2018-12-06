@@ -1382,7 +1382,7 @@ func pushAction(control *chain.Controller, code []byte, cls string, method strin
 	try.Try(func() {
 		wasm.Apply(codeVersion, code, applyContext)
 	}).Catch(func(e exception.Exception) {
-		ret = e.Message()
+		ret = exception.GetDetailMessage(e)
 		try.Return()
 	}).End()
 

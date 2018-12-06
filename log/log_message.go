@@ -10,10 +10,12 @@ type LogMessage struct {
 	Args   []interface{}
 }
 
-func (l *LogMessage) FcLogMessage(level LogLevel, format string, args ...interface{}) {
-	l.Level = level
-	l.Format = format
-	l.Args = args
+func FcLogMessage(level LogLevel, format string, args ...interface{}) LogMessage {
+	return LogMessage{
+		Level:  level,
+		Format: format,
+		Args:   args,
+	}
 }
 
 func (l LogMessage) Message() string {

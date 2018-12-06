@@ -1,15 +1,15 @@
 package exception
 
-import . "github.com/eosspark/eos-go/log"
+import _ "github.com/eosspark/eos-go/log"
 
-type ForkDatabaseException struct{ LogMessage }
+type ForkDatabaseException struct{ ELog }
 
 func (ForkDatabaseException) ChainExceptions()        {}
 func (ForkDatabaseException) ForkDatabaseExceptions() {}
 func (ForkDatabaseException) Code() ExcTypes          { return 3020000 }
 func (ForkDatabaseException) What() string            { return "Fork database exception" }
 
-type ForkDbBlockNotFound struct{ LogMessage }
+type ForkDbBlockNotFound struct{ ELog }
 
 func (ForkDbBlockNotFound) ChainExceptions()        {}
 func (ForkDbBlockNotFound) ForkDatabaseExceptions() {}

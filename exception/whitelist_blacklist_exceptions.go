@@ -1,8 +1,8 @@
 package exception
 
-import . "github.com/eosspark/eos-go/log"
+import _ "github.com/eosspark/eos-go/log"
 
-type WhitelistBlacklistException struct{ LogMessage }
+type WhitelistBlacklistException struct{ ELog }
 
 func (WhitelistBlacklistException) ChainExceptions()              {}
 func (WhitelistBlacklistException) WhitelistBlacklistExceptions() {}
@@ -11,7 +11,7 @@ func (WhitelistBlacklistException) What() string {
 	return "Actor or contract whitelist/blacklist exception"
 }
 
-type ActorWhitelistException struct{ LogMessage }
+type ActorWhitelistException struct{ ELog }
 
 func (ActorWhitelistException) ChainExceptions()              {}
 func (ActorWhitelistException) WhitelistBlacklistExceptions() {}
@@ -20,7 +20,7 @@ func (ActorWhitelistException) What() string {
 	return "Authorizing actor of transaction is not on the whitelist"
 }
 
-type ActorBlacklistException struct{ LogMessage }
+type ActorBlacklistException struct{ ELog }
 
 func (ActorBlacklistException) ChainExceptions()              {}
 func (ActorBlacklistException) WhitelistBlacklistExceptions() {}
@@ -29,7 +29,7 @@ func (ActorBlacklistException) What() string {
 	return "Authorizing actor of transaction is on the blacklist"
 }
 
-type ContractWhitelistException struct{ LogMessage }
+type ContractWhitelistException struct{ ELog }
 
 func (ContractWhitelistException) ChainExceptions()              {}
 func (ContractWhitelistException) WhitelistBlacklistExceptions() {}
@@ -38,7 +38,7 @@ func (ContractWhitelistException) What() string {
 	return "Contract to execute is not on the whitelist"
 }
 
-type ContractBlacklistException struct{ LogMessage }
+type ContractBlacklistException struct{ ELog }
 
 func (ContractBlacklistException) ChainExceptions()              {}
 func (ContractBlacklistException) WhitelistBlacklistExceptions() {}
@@ -47,7 +47,7 @@ func (ContractBlacklistException) What() string {
 	return "Contract to execute is on the blacklist"
 }
 
-type ActionBlacklistException struct{ LogMessage }
+type ActionBlacklistException struct{ ELog }
 
 func (ActionBlacklistException) ChainExceptions()              {}
 func (ActionBlacklistException) WhitelistBlacklistExceptions() {}
@@ -56,7 +56,7 @@ func (ActionBlacklistException) What() string {
 	return "Action to execute is on the blacklist"
 }
 
-type KeyBlacklistException struct{ LogMessage }
+type KeyBlacklistException struct{ ELog }
 
 func (KeyBlacklistException) ChainExceptions()              {}
 func (KeyBlacklistException) WhitelistBlacklistExceptions() {}
