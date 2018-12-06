@@ -112,7 +112,7 @@ func (c *ChainPlugin) SetProgramOptions(options *[]cli.Flag) {
 			Name:  "disable-ram-billing-notify-checks",
 			Usage: "Disable the check which subjectively fails a transaction if a contract bills more RAM to another account within the context of a notification handler (i.e. when the receiver is not the code of the action).",
 		},
-		cli.StringFlag{
+		cli.StringSliceFlag{
 			Name:  "trusted-producer",
 			Usage: "Indicate a producer whose blocks headers signed by it will be fully validated, but transactions in those validated blocks will be trusted.",
 		},
@@ -239,8 +239,9 @@ func (c *ChainPlugin) PluginInitialize(options *cli.Context) {
 		c.my.BlockDir = dir
 	}
 
-	for _ := range options.StringSlice("checkpoint") {
+	for _, cp := range options.StringSlice("checkpoint") {
 		//TODO handle checkpoint
+		log.Debug(cp)
 	}
 
 	//TODO wasm-runtime: just use wasmgo?

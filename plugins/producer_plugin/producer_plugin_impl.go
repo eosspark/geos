@@ -270,16 +270,12 @@ func (impl *ProducerPluginImpl) OnIncomingTransactionAsync(trx *types.PackedTran
 
 	id := trx.ID()
 	if trx.Expiration().ToTimePoint() < blockTime {
-		e := &ExpiredTxException{}
-		e.FcLogMessage(log.LvlError, "expired transaction %s", id)
-		sendResponse(e)
+		sendResponse(&ExpiredTxException{NewELog(log.FcLogMessage(log.LvlError, "expired transaction %s", id))})
 		return
 	}
 
 	if chain.IsKnownUnexpiredTransaction(&id) {
-		e := &TxDuplicate{}
-		e.FcLogMessage(log.LvlError, "duplicate transaction %s", id)
-		sendResponse(e)
+		sendResponse(&TxDuplicate{NewELog(log.FcLogMessage(log.LvlError, "duplicate transaction %s", id))})
 		return
 	}
 
@@ -318,19 +314,7 @@ func (impl *ProducerPluginImpl) OnIncomingTransactionAsync(trx *types.PackedTran
 	}).Catch(func(e GuardExceptions) {
 		//TODO: app().get_plugin<chain_plugin>().handle_guard_exception(e);
 
-	}).Catch(func(err Exception) {
-		sendResponse(err)
-
-	}).Catch(func(e error) {
-		fce := &FcException{}
-		fce.FcLogMessage(log.LvlWarn, "rethrow %s: ", e.Error())
-		sendResponse(fce)
-
-	}).Catch(func(a interface{}) {
-		e := &UnHandledException{}
-		e.FcLogMessage(log.LvlWarn, "rethrow", a)
-		sendResponse(e)
-	}).End()
+	}).CatchAndCall(sendResponse).End()
 }
 
 func (impl *ProducerPluginImpl) GetIrreversibleBlockAge() common.Microseconds {
