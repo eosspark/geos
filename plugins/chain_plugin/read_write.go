@@ -6,7 +6,6 @@ import (
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
-	"github.com/eosspark/eos-go/plugins/appbase/app"
 	"github.com/eosspark/eos-go/plugins/chain_interface"
 )
 
@@ -31,34 +30,30 @@ type PushTransactionResult struct {
 }
 
 func (rw *ReadWrite) PushTransaction(tx *types.PackedTransaction, next chain_interface.NextFunction) {
-	Try(func() {
-		app.App().GetMethod(chain_interface.TransactionAsync).CallMethods(tx, true, func(result interface{}) {
-			if exception, ok := result.(exception.Exception); ok {
-				next(exception)
-			} else {
-				trxTracePtr := result.(*types.TransactionTrace)
-
-				Try(func() {
-					id := trxTracePtr.ID
-					//TODO processed output
-					//fc::variant output
-					//try {
-					//	output = db.to_variant_with_abi( *trx_trace_ptr, abi_serializer_max_time );
-					//} catch( chain::abi_exception& ) {
-					//	output = *trx_trace_ptr;
-					//}
-					next(PushTransactionResult{id})
-				}).CatchAndCall(next).End()
-			}
-		})
-
-	}).CatchAndCall(next).End()
+	//Try(func() {
+	//	app.App().GetMethod(chain_interface.TransactionAsync).CallMethods(tx, true, func(result interface{}) {
+	//		if exception, ok := result.(exception.Exception); ok {
+	//			next(exception)
+	//		} else {
+	//			trxTracePtr := result.(*types.TransactionTrace)
+	//
+	//			Try(func() {
+	//				id := trxTracePtr.ID
+	//				//TODO processed output
+	//				//fc::variant output
+	//				//try {
+	//				//	output = db.to_variant_with_abi( *trx_trace_ptr, abi_serializer_max_time );
+	//				//} catch( chain::abi_exception& ) {
+	//				//	output = *trx_trace_ptr;
+	//				//}
+	//				next(PushTransactionResult{id})
+	//			}).CatchAndCall(next).End()
+	//		}
+	//	})
+	//
+	//}).CatchAndCall(next).End()
 
 }
-
-
-
-
 
 //
 //{
