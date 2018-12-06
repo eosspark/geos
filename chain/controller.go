@@ -34,7 +34,7 @@ type DBReadMode int8
 
 const (
 	SPECULATIVE = DBReadMode(iota)
-	HEADER       //HEAD
+	HEADER      //HEAD
 	READONLY
 	IRREVERSIBLE
 )
@@ -192,12 +192,12 @@ func NewController(cfg Config) *Controller {
 	con.SetApplayHandler(common.AccountName(common.N("eosio")), common.AccountName(common.N("eosio")),
 		common.ActionName(common.N("deleteauth")), applyEosioDeleteauth)
 	con.SetApplayHandler(common.AccountName(common.N("eosio")), common.AccountName(common.N("eosio")),
-		common.ActionName(common.N("linkauth")), applyEosioUnlinkauth)
+		common.ActionName(common.N("linkauth")), applyEosioLinkauth)
 	con.SetApplayHandler(common.AccountName(common.N("eosio")), common.AccountName(common.N("eosio")),
-		common.ActionName(common.N("unlinkauth")), applyEosioLinkauth)
+		common.ActionName(common.N("unlinkauth")), applyEosioUnlinkauth)
 	con.SetApplayHandler(common.AccountName(common.N("eosio")), common.AccountName(common.N("eosio")),
 		common.ActionName(common.N("canceldelay")), applyEosioCanceldalay)
-
+	con.initialize()
 	/*fork_db.irreversible.connect( [&]( auto b ) {
 		on_irreversible(b);
 	})*/
@@ -244,9 +244,9 @@ func newController() *Controller {
 	con.SetApplayHandler(common.AccountName(common.N("eosio")), common.AccountName(common.N("eosio")),
 		common.ActionName(common.N("deleteauth")), applyEosioDeleteauth)
 	con.SetApplayHandler(common.AccountName(common.N("eosio")), common.AccountName(common.N("eosio")),
-		common.ActionName(common.N("linkauth")), applyEosioUnlinkauth)
+		common.ActionName(common.N("linkauth")), applyEosioLinkauth)
 	con.SetApplayHandler(common.AccountName(common.N("eosio")), common.AccountName(common.N("eosio")),
-		common.ActionName(common.N("unlinkauth")), applyEosioLinkauth)
+		common.ActionName(common.N("unlinkauth")), applyEosioUnlinkauth)
 	con.SetApplayHandler(common.AccountName(common.N("eosio")), common.AccountName(common.N("eosio")),
 		common.ActionName(common.N("canceldelay")), applyEosioCanceldalay)
 
@@ -1324,9 +1324,7 @@ func (c *Controller) GetBlockIdForNum(blockNum uint32) common.BlockIdType {
 	if blkState != nil {
 		return blkState.BlockId
 	}
-
 	signedBlk := c.Blog.ReadBlockByNum(blockNum)
-	fmt.Println(common.Empty(signedBlk))
 	EosAssert(!common.Empty(signedBlk), &UnknownBlockException{}, "Could not find block: %d", blockNum)
 	return signedBlk.BlockID()
 }
@@ -1418,10 +1416,11 @@ func (c *Controller) ValidateReferencedAccounts(t *types.Transaction) {
 
 func (c *Controller) ValidateExpiration(t *types.Transaction) {
 	chainConfiguration := c.GetGlobalProperties().Configuration
+	log.Info("ValidateExpiration t.Expiration.ToTimePoint():%#v,c.PendingBlockTime():%#v", t.Expiration.ToTimePoint(), c.PendingBlockTime())
 	EosAssert(t.Expiration.ToTimePoint() >= c.PendingBlockTime(),
 		&ExpiredTxException{}, "transaction has expired, expiration is %v and pending block time is %v",
 		t.Expiration, c.PendingBlockTime())
-	EosAssert(t.Expiration.ToTimePoint() <= c.PendingBlockTime()+common.TimePoint(common.Seconds(int64(chainConfiguration.MaxTrxLifetime))),
+	EosAssert(t.Expiration.ToTimePoint() <= c.PendingBlockTime().AddUs(common.Seconds(int64(chainConfiguration.MaxTrxLifetime))),
 		&TxExpTooFarException{}, "Transaction expiration is too far in the future relative to the reference time of %v, expiration is %v and the maximum transaction lifetime is %v seconds",
 		t.Expiration, c.PendingBlockTime(), chainConfiguration.MaxTrxLifetime)
 }
