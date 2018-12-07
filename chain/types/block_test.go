@@ -11,11 +11,11 @@ import (
 )
 
 func NewBlockHeaderState(t *testing.T) *BlockHeaderState {
-	initPriKey, err := ecc.NewPrivateKey("5KYZdUEo39z3FPrtuX2QbbwGnNP5zTd7yyr2SC1j299sBCnWjss")
+	initPriKey, err := ecc.NewPrivateKey("5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3")
 	assert.NoError(t, err)
 
 	initPubKey := initPriKey.PublicKey()
-	assert.Equal(t, "EOS859gxfnXyUriMgUeThh1fWv3oqcpLFyHa3TfFYC4PK2HqhToVM", initPubKey.String())
+	assert.Equal(t, "EOS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV", initPubKey.String())
 
 	eosio := common.AccountName(common.N("eosio"))
 	yuanc := common.AccountName(common.N("yuanc"))
@@ -96,12 +96,12 @@ func TestBlockHeader_BlockID(t *testing.T) {
 func TestBlockHeader_Digest(t *testing.T) {
 	bs := NewBlockHeaderState(t)
 	assert.Equal(t,
-		"2d9f0747bb8924a240689f363d1527a09238d1d3d0337daa0dc4cbef4a0a6a15", //calculate by eosioc++
+		"29bec0f6df7f0ba248b72e755d723381f8b4f829221a4f29e49fd5396a10ed0f", //calculate by eosioc++
 		bs.SigDigest().String())
 }
 
 func TestBlockHeaderState_Sign(t *testing.T) {
-	initPriKey, _ := ecc.NewPrivateKey("5KYZdUEo39z3FPrtuX2QbbwGnNP5zTd7yyr2SC1j299sBCnWjss")
+	initPriKey, _ := ecc.NewPrivateKey("5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3")
 	bs := NewBlockHeaderState(t)
 
 	//fmt.Println("===>", bs.SigDigest())
