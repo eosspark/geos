@@ -134,7 +134,7 @@ func (t *Transaction) SigDigest(chainID *common.ChainIdType, cfd []common.HexByt
 func (t *Transaction) GetSignatureKeys(signatures []ecc.Signature, chainID *common.ChainIdType, cfd []common.HexBytes,
 	allowDuplicateKeys bool, useCache bool) treeset.Set {
 	const recoveryCacheSize common.SizeT = 1000
-	recoveredPubKeys := treeset.NewWith(ecc.ComparePubKey)
+	recoveredPubKeys := treeset.NewWith(ecc.TypePubKey, ecc.ComparePubKey)
 
 	digest := t.SigDigest(chainID, cfd)
 	for _, sig := range signatures {

@@ -15,6 +15,7 @@ import (
 	rbt "github.com/eosspark/container/trees/redblacktree"
 	"github.com/eosspark/container/utils"
 	"strings"
+	"reflect"
 )
 
 func assertSetImplementation() {
@@ -23,14 +24,15 @@ func assertSetImplementation() {
 
 // Set holds elements in a red-black tree
 type Set struct {
-	tree *rbt.Tree
+	ValueType reflect.Type
+	tree      *rbt.Tree
 }
 
 var itemExists = struct{}{}
 
 // NewWith instantiates a new empty set with the custom comparator.
-func NewWith(comparator utils.Comparator, values ...interface{}) *Set {
-	set := &Set{tree: rbt.NewWith(comparator)}
+func NewWith(valueType reflect.Type, comparator utils.Comparator, values ...interface{}) *Set {
+	set := &Set{ValueType: valueType, tree: rbt.NewWith(comparator)}
 	if len(values) > 0 {
 		set.Add(values...)
 	}
@@ -39,7 +41,7 @@ func NewWith(comparator utils.Comparator, values ...interface{}) *Set {
 
 // NewWithIntComparator instantiates a new empty set with the IntComparator, i.e. keys are of type int.
 func NewWithIntComparator(values ...interface{}) *Set {
-	set := &Set{tree: rbt.NewWithIntComparator()}
+	set := &Set{ValueType: utils.TypeInt, tree: rbt.NewWithIntComparator()}
 	if len(values) > 0 {
 		set.Add(values...)
 	}
@@ -48,7 +50,7 @@ func NewWithIntComparator(values ...interface{}) *Set {
 
 // NewWithStringComparator instantiates a new empty set with the StringComparator, i.e. keys are of type string.
 func NewWithStringComparator(values ...interface{}) *Set {
-	set := &Set{tree: rbt.NewWithStringComparator()}
+	set := &Set{ValueType: utils.TypeString, tree: rbt.NewWithStringComparator()}
 	if len(values) > 0 {
 		set.Add(values...)
 	}
@@ -56,7 +58,7 @@ func NewWithStringComparator(values ...interface{}) *Set {
 }
 
 func CopyFrom(ts *Set) *Set {
-	return &Set{tree: rbt.CopyFrom(ts.tree)}
+	return &Set{ValueType: ts.ValueType, tree: rbt.CopyFrom(ts.tree)}
 }
 
 func SetIntersection(a *Set, b *Set, callback func(elem interface{})) {
@@ -71,7 +73,7 @@ func SetIntersection(a *Set, b *Set, callback func(elem interface{})) {
 
 	for aHasNext, bHasNext := true, true; aHasNext && bHasNext; {
 		comp := comparator(aIterator.Value(), bIterator.Value())
-		switch  {
+		switch {
 		case comp > 0:
 			bHasNext = bIterator.Next()
 		case comp < 0:
@@ -89,9 +91,9 @@ func (set *Set) GetComparator() utils.Comparator {
 }
 
 // Add adds the item one to the set.Returns false and the interface if it already exists
-func (set *Set) AddItem(item interface{}) (bool,interface{}){
-	opt,k,_:=set.tree.PutItem(item, itemExists)
-	return opt,k
+func (set *Set) AddItem(item interface{}) (bool, interface{}) {
+	opt, k, _ := set.tree.PutItem(item, itemExists)
+	return opt, k
 }
 
 // Add adds the items (one or more) to the set.

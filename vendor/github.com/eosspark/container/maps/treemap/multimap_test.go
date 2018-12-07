@@ -7,10 +7,11 @@ package treemap
 import (
 	"fmt"
 	"testing"
+	"github.com/eosspark/container/utils"
 )
 
 func TestMultiMapPut(t *testing.T) {
-	m := NewMultiWithIntComparator()
+	m := NewMultiWithIntComparator(utils.TypeString)
 	m.Put(5, "e")
 	m.Put(6, "f")
 	m.Put(7, "g")
@@ -52,7 +53,7 @@ func TestMultiMapPut(t *testing.T) {
 }
 
 func TestMultiMapRemove(t *testing.T) {
-	m := NewMultiWithIntComparator()
+	m := NewMultiWithIntComparator(utils.TypeString)
 	m.Put(5, "e")
 	m.Put(6, "f")
 	m.Put(7, "g")
@@ -120,7 +121,7 @@ func TestMultiMapRemove(t *testing.T) {
 
 
 func TestMultiMapFloor(t *testing.T) {
-	m := NewMultiWithIntComparator()
+	m := NewMultiWithIntComparator(utils.TypeString)
 	m.Put(7, "g")
 	m.Put(3, "c")
 	m.Put(1, "a")
@@ -148,7 +149,7 @@ func TestMultiMapFloor(t *testing.T) {
 }
 
 func TestMultiMapCeiling(t *testing.T) {
-	m := NewMultiWithIntComparator()
+	m := NewMultiWithIntComparator(utils.TypeString)
 	m.Put(7, "g")
 	m.Put(3, "c")
 	m.Put(1, "a")
@@ -177,7 +178,7 @@ func TestMultiMapCeiling(t *testing.T) {
 
 
 func TestMultiMapEach(t *testing.T) {
-	m := NewMultiWithStringComparator()
+	m := NewMultiWithStringComparator(utils.TypeString)
 	m.Put("c", 3)
 	m.Put("a", 1)
 	m.Put("b", 2)
@@ -207,7 +208,7 @@ func TestMultiMapEach(t *testing.T) {
 }
 
 func TestMultiMapMap(t *testing.T) {
-	m := NewWithStringComparator()
+	m := NewWithStringComparator(utils.TypeString)
 	m.Put("c", 3)
 	m.Put("a", 1)
 	m.Put("b", 2)
@@ -286,7 +287,7 @@ func TestMultiMapMap(t *testing.T) {
 //}
 
 func TestMultiMapFind(t *testing.T) {
-	m := NewMultiWithStringComparator()
+	m := NewMultiWithStringComparator(utils.TypeString)
 	m.Put("c", 3)
 	m.Put("a", 1)
 	m.Put("b", 2)
@@ -305,7 +306,7 @@ func TestMultiMapFind(t *testing.T) {
 }
 
 //func TestMultiMapChaining(t *testing.T) {
-//	m := NewMultiWithStringComparator()
+//	m := NewMultiWithStringComparator(utils.TypeString)
 //	m.Put("c", 3)
 //	m.Put("a", 1)
 //	m.Put("b", 2)
@@ -329,7 +330,7 @@ func TestMultiMapFind(t *testing.T) {
 //}
 
 func TestMultiMapIteratorNextOnEmpty(t *testing.T) {
-	m := NewMultiWithStringComparator()
+	m := NewMultiWithStringComparator(utils.TypeString)
 	it := m.Iterator()
 	it = m.Iterator()
 	for it.Next() {
@@ -338,7 +339,7 @@ func TestMultiMapIteratorNextOnEmpty(t *testing.T) {
 }
 
 func TestMultiMapIteratorPrevOnEmpty(t *testing.T) {
-	m := NewMultiWithStringComparator()
+	m := NewMultiWithStringComparator(utils.TypeString)
 	it := m.Iterator()
 	it = m.Iterator()
 	for it.Prev() {
@@ -347,7 +348,7 @@ func TestMultiMapIteratorPrevOnEmpty(t *testing.T) {
 }
 
 func TestMultiMapIteratorNext(t *testing.T) {
-	m := NewMultiWithStringComparator()
+	m := NewMultiWithStringComparator(utils.TypeString)
 	m.Put("c", 3)
 	m.Put("a", 1)
 	m.Put("b", 2)
@@ -384,7 +385,7 @@ func TestMultiMapIteratorNext(t *testing.T) {
 }
 
 func TestMultiMapIteratorPrev(t *testing.T) {
-	m := NewMultiWithStringComparator()
+	m := NewMultiWithStringComparator(utils.TypeString)
 	m.Put("c", 3)
 	m.Put("a", 1)
 	m.Put("b", 2)
@@ -423,7 +424,7 @@ func TestMultiMapIteratorPrev(t *testing.T) {
 }
 
 func TestMultiMapIteratorBegin(t *testing.T) {
-	m := NewMultiWithIntComparator()
+	m := NewMultiWithIntComparator(utils.TypeString)
 	it := m.Iterator()
 	it.Begin()
 	m.Put(3, "c")
@@ -439,7 +440,7 @@ func TestMultiMapIteratorBegin(t *testing.T) {
 }
 
 func TestMultiMapTreeIteratorEnd(t *testing.T) {
-	m := NewMultiWithIntComparator()
+	m := NewMultiWithIntComparator(utils.TypeString)
 	it := m.Iterator()
 	m.Put(3, "c")
 	m.Put(1, "a")
@@ -452,7 +453,7 @@ func TestMultiMapTreeIteratorEnd(t *testing.T) {
 }
 
 func TestMultiMapIteratorFirst(t *testing.T) {
-	m := NewMultiWithIntComparator()
+	m := NewMultiWithIntComparator(utils.TypeString)
 	m.Put(3, "c")
 	m.Put(1, "a")
 	m.Put(2, "b")
@@ -466,7 +467,7 @@ func TestMultiMapIteratorFirst(t *testing.T) {
 }
 
 func TestMultiMapIteratorLast(t *testing.T) {
-	m := NewMultiWithIntComparator()
+	m := NewMultiWithIntComparator(utils.TypeString)
 	m.Put(3, "c")
 	m.Put(1, "a")
 	m.Put(2, "b")
@@ -481,7 +482,7 @@ func TestMultiMapIteratorLast(t *testing.T) {
 
 func TestMultiMapSerialization(t *testing.T) {
 	for i := 0; i < 10; i++ {
-		original := NewMultiWithStringComparator()
+		original := NewMultiWithStringComparator(utils.TypeString)
 		original.Put("d", "4")
 		original.Put("e", "5")
 		original.Put("c", "3")
@@ -496,7 +497,7 @@ func TestMultiMapSerialization(t *testing.T) {
 		}
 		assertMultiSerialization(original, "B", t)
 
-		deserialized := NewWithStringComparator()
+		deserialized := NewWithStringComparator(utils.TypeString)
 		err = deserialized.FromJSON(serialized)
 		if err != nil {
 			t.Errorf("Got error %v", err)
@@ -555,7 +556,7 @@ func benchmarkMultiRemove(b *testing.B, m *MultiMap, size int) {
 func BenchmarkTreeMultiMapGet100(b *testing.B) {
 	b.StopTimer()
 	size := 100
-	m := NewMultiWithIntComparator()
+	m := NewMultiWithIntComparator(utils.TypeString)
 	for n := 0; n < size; n++ {
 		m.Put(n, struct{}{})
 	}
@@ -566,7 +567,7 @@ func BenchmarkTreeMultiMapGet100(b *testing.B) {
 func BenchmarkTreeMultiMapGet1000(b *testing.B) {
 	b.StopTimer()
 	size := 1000
-	m := NewMultiWithIntComparator()
+	m := NewMultiWithIntComparator(utils.TypeString)
 	for n := 0; n < size; n++ {
 		m.Put(n, struct{}{})
 	}
@@ -577,7 +578,7 @@ func BenchmarkTreeMultiMapGet1000(b *testing.B) {
 func BenchmarkTreeMultiMapGet10000(b *testing.B) {
 	b.StopTimer()
 	size := 10000
-	m := NewMultiWithIntComparator()
+	m := NewMultiWithIntComparator(utils.TypeString)
 	for n := 0; n < size; n++ {
 		m.Put(n, struct{}{})
 	}
@@ -588,7 +589,7 @@ func BenchmarkTreeMultiMapGet10000(b *testing.B) {
 func BenchmarkTreeMultiMapGet100000(b *testing.B) {
 	b.StopTimer()
 	size := 100000
-	m := NewMultiWithIntComparator()
+	m := NewMultiWithIntComparator(utils.TypeString)
 	for n := 0; n < size; n++ {
 		m.Put(n, struct{}{})
 	}
@@ -599,7 +600,7 @@ func BenchmarkTreeMultiMapGet100000(b *testing.B) {
 func BenchmarkTreeMultiMapPut100(b *testing.B) {
 	b.StopTimer()
 	size := 100
-	m := NewMultiWithIntComparator()
+	m := NewMultiWithIntComparator(utils.TypeString)
 	b.StartTimer()
 	benchmarkMultiPut(b, m, size)
 }
@@ -607,7 +608,7 @@ func BenchmarkTreeMultiMapPut100(b *testing.B) {
 func BenchmarkTreeMultiMapPut1000(b *testing.B) {
 	b.StopTimer()
 	size := 1000
-	m := NewMultiWithIntComparator()
+	m := NewMultiWithIntComparator(utils.TypeString)
 	for n := 0; n < size; n++ {
 		m.Put(n, struct{}{})
 	}
@@ -618,7 +619,7 @@ func BenchmarkTreeMultiMapPut1000(b *testing.B) {
 func BenchmarkTreeMultiMapPut10000(b *testing.B) {
 	b.StopTimer()
 	size := 10000
-	m := NewMultiWithIntComparator()
+	m := NewMultiWithIntComparator(utils.TypeString)
 	for n := 0; n < size; n++ {
 		m.Put(n, struct{}{})
 	}
@@ -629,7 +630,7 @@ func BenchmarkTreeMultiMapPut10000(b *testing.B) {
 func BenchmarkTreeMultiMapPut100000(b *testing.B) {
 	b.StopTimer()
 	size := 100000
-	m := NewMultiWithIntComparator()
+	m := NewMultiWithIntComparator(utils.TypeString)
 	for n := 0; n < size; n++ {
 		m.Put(n, struct{}{})
 	}
@@ -640,7 +641,7 @@ func BenchmarkTreeMultiMapPut100000(b *testing.B) {
 func BenchmarkTreeMultiMapRemove100(b *testing.B) {
 	b.StopTimer()
 	size := 100
-	m := NewMultiWithIntComparator()
+	m := NewMultiWithIntComparator(utils.TypeString)
 	for n := 0; n < size; n++ {
 		m.Put(n, struct{}{})
 	}
@@ -651,7 +652,7 @@ func BenchmarkTreeMultiMapRemove100(b *testing.B) {
 func BenchmarkTreeMultiMapRemove1000(b *testing.B) {
 	b.StopTimer()
 	size := 1000
-	m := NewMultiWithIntComparator()
+	m := NewMultiWithIntComparator(utils.TypeString)
 	for n := 0; n < size; n++ {
 		m.Put(n, struct{}{})
 	}
@@ -662,7 +663,7 @@ func BenchmarkTreeMultiMapRemove1000(b *testing.B) {
 func BenchmarkTreeMultiMapRemove10000(b *testing.B) {
 	b.StopTimer()
 	size := 10000
-	m := NewMultiWithIntComparator()
+	m := NewMultiWithIntComparator(utils.TypeString)
 	for n := 0; n < size; n++ {
 		m.Put(n, struct{}{})
 	}
@@ -673,7 +674,7 @@ func BenchmarkTreeMultiMapRemove10000(b *testing.B) {
 func BenchmarkTreeMultiMapRemove100000(b *testing.B) {
 	b.StopTimer()
 	size := 100000
-	m := NewMultiWithIntComparator()
+	m := NewMultiWithIntComparator(utils.TypeString)
 	for n := 0; n < size; n++ {
 		m.Put(n, struct{}{})
 	}

@@ -61,7 +61,7 @@ func (ac *AuthorityChecker) AllKeysUsed() bool {
 }
 
 func (ac *AuthorityChecker) GetUsedKeys() treeset.Set {
-	f := treeset.NewWith(ecc.ComparePubKey)
+	f := treeset.NewWith(ecc.TypePubKey, ecc.ComparePubKey)
 	for i, usedKey := range ac.UsedKeys {
 		if usedKey == true {
 			f.AddItem(&ac.ProvidedKeys[i])
@@ -71,7 +71,7 @@ func (ac *AuthorityChecker) GetUsedKeys() treeset.Set {
 }
 
 func (ac *AuthorityChecker) GetUnusedKeys() treeset.Set {
-	f := treeset.NewWith(ecc.ComparePubKey)
+	f := treeset.NewWith(ecc.TypePubKey, ecc.ComparePubKey)
 	for i, usedKey := range ac.UsedKeys {
 		if usedKey == false {
 			f.AddItem(&ac.ProvidedKeys[i])
@@ -104,7 +104,7 @@ func (ac *AuthorityChecker) PermissionStatusInCache(permissions PermissionCacheT
 }
 
 func (ac *AuthorityChecker) initializePermissionCache(cachedPermission *PermissionCacheType) *PermissionCacheType {
-	ac.ProvidedPermissions = *treeset.NewWith(ecc.ComparePubKey)
+	ac.ProvidedPermissions = *treeset.NewWith(ecc.TypePubKey,ecc.ComparePubKey)
 	itr := ac.ProvidedPermissions.Iterator()
 	for itr.Next() {
 		val := itr.Value()
@@ -209,7 +209,7 @@ func (wtv *WeightTallyVisitor) VisitPermissionLevelWeight(permission PermissionL
 
 func MakeAuthChecker(pta PermissionToAuthorityFunc,
 	recursionDepthLimit uint16,
-	providedKeys *treeset.Set, //[]*ecc.PublicKey,
+	providedKeys *treeset.Set,       //[]*ecc.PublicKey,
 	providedPermission *treeset.Set, //[]*PermissionLevel,
 	providedDelay common.Microseconds,
 	checkTime *func()) AuthorityChecker {

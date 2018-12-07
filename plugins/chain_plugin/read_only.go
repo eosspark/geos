@@ -2,14 +2,13 @@ package chain_plugin
 
 import (
 	"encoding/json"
-	"fmt"
 	"github.com/eosspark/eos-go/chain"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto/abi_serializer"
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/entity"
-	"github.com/eosspark/eos-go/exception"
+	. "github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/log"
 	"github.com/eosspark/eos-go/plugins/appbase/app"
@@ -54,7 +53,7 @@ type GetBlockParams struct {
 
 func (ro *ReadOnly) GetBlock(params GetBlockParams) *BlockResp {
 	block := &types.SignedBlock{}
-	EosAssert(len(params.BlockNumOrID) != 0 && len(params.BlockNumOrID) <= 64, &exception.BlockIdTypeException{},
+	EosAssert(len(params.BlockNumOrID) != 0 && len(params.BlockNumOrID) <= 64, &BlockIdTypeException{},
 		"Invalid Block number or ID,must be greater than 0 and less than 64 characters ")
 
 	Try(func() {
@@ -64,9 +63,9 @@ func (ro *ReadOnly) GetBlock(params GetBlockParams) *BlockResp {
 		blockNum, _ := strconv.Atoi(params.BlockNumOrID)
 		block = ro.db.FetchBlockByNumber(uint32(blockNum)) // TODO Uint64
 		//}
-	}).EosRethrowExceptions(&exception.BlockIdTypeException{}, "Invalid block ID: %s", params).End()
+	}).EosRethrowExceptions(&BlockIdTypeException{}, "Invalid block ID: %s", params).End()
 
-	EosAssert(!common.Empty(block), &exception.UnknownBlockException{}, "Could not find block: %s", params)
+	EosAssert(!common.Empty(block), &UnknownBlockException{}, "Could not find block: %s", params)
 
 	refBlockPrefix := uint32(block.BlockID().Hash[1])
 	return &BlockResp{
@@ -128,11 +127,22 @@ type GetRequiredKeysResult struct {
 }
 
 func (ro *ReadOnly) GetRequiredKeys(params *GetRequiredKeysParams) GetRequiredKeysResult {
-	trx := types.Transaction{}
 	re, err := json.Marshal(params.Transaction)
-	fmt.Println(re, err)
-	err = json.Unmarshal(re, &trx)
-	fmt.Printf("trx:    ************** %#v,%s", trx, err)
+
+	if err != nil {
+		EosThrow(&TransactionTypeException{}, "Invalid transaction")
+	}
+
+	trx := &types.Transaction{}
+	//candidateKeys := treeset.NewWith(ecc.ComparePubKey, params.AvailableKeys...) //TODO
+
+	err = json.Unmarshal(re, trx)
+
+	if err != nil {
+		EosThrow(&TransactionTypeException{}, "Invalid transaction")
+	}
+
+	//ro.db.GetAuthorizationManager().GetRequiredKeys(trx, ) //TODO
 
 	return GetRequiredKeysResult{
 		RequiredKeys: []ecc.PublicKey{ecc.MustNewPublicKey("EOS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV")}}

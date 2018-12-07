@@ -1,8 +1,7 @@
 package common
 
 import (
-	"encoding/binary"
-	"github.com/stretchr/testify/assert"
+		"github.com/stretchr/testify/assert"
 	"testing"
 	)
 
@@ -90,35 +89,3 @@ func Test_empty(t *testing.T) {
 	assert.Equal(t, true, empty(false))
 }
 
-
-type E int
-
-func (e E) GetKey() []byte {
-	bn := make([]byte, 8)
-	binary.BigEndian.PutUint64(bn, uint64(e))
-	return bn
-}
-func TestSetIntersection(t *testing.T) {
-	a := FlatSet{}
-	b := FlatSet{}
-
-	a.Insert(E(1))
-	a.Insert(E(3))
-	a.Insert(E(5))
-
-	b.Insert(E(2))
-	b.Insert(E(3))
-	b.Insert(E(4))
-	b.Insert(E(5))
-
-	arr := make([]E, 0, 2)
-	idx := make([][2]int, 0, 2)
-
-	SetIntersection(a, b, func(e Element, i int, j int) {
-		arr = append(arr, e.(E))
-		idx = append(idx, [2]int{i, j})
-	})
-
-	assert.Equal(t, []E{3, 5}, arr)
-	assert.Equal(t, [][2]int{{1, 1}, {2, 3}}, idx)
-}

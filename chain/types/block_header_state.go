@@ -9,7 +9,7 @@ import (
 	. "github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
 	"sort"
-	)
+)
 
 func init() {
 	Assert(math.MaxUint8 >= common.DefaultConfig.MaxProducers*2/3+1, "8bit confirmations may not be able to hold all of the needed confirmations")
@@ -129,7 +129,9 @@ func (b *BlockHeaderState) MaybePromotePending() bool {
 		//var newProducerToLastProduced = make(map[common.AccountName]uint32)
 		//var newProducerToLastImpliedIrb = make(map[common.AccountName]uint32)
 
-		newProducerToLastProduced := treemap.NewWith(b.ProducerToLastProduced.GetComparator())
+		newProducerToLastProduced := treemap.NewWith(b.ProducerToLastProduced.KeyType,
+			b.ProducerToLastProduced.ValueType, b.ProducerToLastProduced.GetComparator())
+
 		for _, pro := range b.ActiveSchedule.Producers {
 			if blockNum, existing := b.ProducerToLastProduced.Get(pro.ProducerName); existing {
 				newProducerToLastProduced.Put(pro.ProducerName, blockNum)
@@ -138,7 +140,9 @@ func (b *BlockHeaderState) MaybePromotePending() bool {
 			}
 		}
 
-		newProducerToLastImpliedIrb := treemap.NewWith(b.ProducerToLastImpliedIrb.GetComparator())
+		newProducerToLastImpliedIrb := treemap.NewWith(b.ProducerToLastImpliedIrb.KeyType,
+			b.ProducerToLastImpliedIrb.ValueType, b.ProducerToLastImpliedIrb.GetComparator())
+
 		for _, pro := range b.ActiveSchedule.Producers {
 			if blockNum, existing := b.ProducerToLastImpliedIrb.Get(pro.ProducerName); existing {
 				newProducerToLastImpliedIrb.Put(pro.ProducerName, blockNum)

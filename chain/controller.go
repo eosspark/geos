@@ -17,6 +17,7 @@ import (
 	"github.com/eosspark/eos-go/log"
 	"github.com/eosspark/eos-go/wasmgo"
 	"os"
+	"github.com/eosspark/container/utils"
 )
 
 //var readycontroller chan bool //TODO test code
@@ -143,14 +144,14 @@ func NewConfig() *Config {
 		BlockValidationMode:     FULL,
 		Genesis:                 types.NewGenesisState(),
 
-		ActorWhitelist:    *treeset.NewWith(common.CompareName),
-		ActorBlacklist:    *treeset.NewWith(common.CompareName),
-		ContractWhitelist: *treeset.NewWith(common.CompareName),
-		ContractBlacklist: *treeset.NewWith(common.CompareName),
-		ActionBlacklist:   *treeset.NewWith(common.ComparePair),
-		KeyBlacklist:      *treeset.NewWith(ecc.ComparePubKey),
-		ResourceGreylist:  *treeset.NewWith(common.CompareName),
-		TrustedProducers:  *treeset.NewWith(common.CompareName),
+		ActorWhitelist:    *treeset.NewWith(common.TypeName, common.CompareName),
+		ActorBlacklist:    *treeset.NewWith(common.TypeName, common.CompareName),
+		ContractWhitelist: *treeset.NewWith(common.TypeName, common.CompareName),
+		ContractBlacklist: *treeset.NewWith(common.TypeName, common.CompareName),
+		ActionBlacklist:   *treeset.NewWith(common.TypePair, common.ComparePair),
+		KeyBlacklist:      *treeset.NewWith(ecc.TypePubKey, ecc.ComparePubKey),
+		ResourceGreylist:  *treeset.NewWith(common.TypeName, common.CompareName),
+		TrustedProducers:  *treeset.NewWith(common.TypeName, common.CompareName),
 	}
 }
 
@@ -526,7 +527,7 @@ func (c *Controller) pushTransaction(trx *types.TransactionMetadata, deadLine co
 			}
 			trxContext.Delay = common.Microseconds(trx.Trx.DelaySec)
 			checkTime := func() {}
-			set := treeset.NewWith(ecc.ComparePubKey)
+			set := treeset.NewWith(ecc.TypePubKey, ecc.ComparePubKey)
 			if !c.SkipAuthCheck() && !trx.Implicit {
 				c.Authorization.CheckAuthorization(trx.Trx.Actions,
 					trx.RecoverKeys(&c.ChainID),
@@ -1075,6 +1076,7 @@ func (c *Controller) PushBlock(b *types.SignedBlock, s types.BlockStatus) {
 	Try(func() {
 		EosAssert(b != nil, &BlockValidateException{}, "trying to push empty block")
 		EosAssert(s != types.Incomplete, &BlockLogException{}, "invalid block status for a completed block")
+		//TODO: add to forkdb
 		//emit(self.pre_accepted_block, b )
 		/*trust := !c.Config.forceAllChecks && (s== types.Irreversible || s== types.Validated)
 		newHeaderState := c.ForkDB.AddSignedBlockState(b,trust)*/
@@ -1360,7 +1362,7 @@ func (c *Controller) FetchBlockById(id common.BlockIdType) *types.SignedBlock {
 	if bptr != nil && bptr.BlockID() == id {
 		return bptr
 	}
-	return &types.SignedBlock{}
+	return nil
 }
 
 func (c *Controller) FetchBlockStateByNumber(blockNum uint32) *types.BlockState {
@@ -1634,8 +1636,8 @@ func (c *Controller) initializeForkDB() {
 	genHeader.Header.ActionMRoot = common.CheckSum256Type(gs.ComputeChainID())
 	genHeader.BlockId = genHeader.Header.BlockID()
 	genHeader.BlockNum = genHeader.Header.BlockNumber()
-	genHeader.ProducerToLastProduced = *treemap.NewWith(common.NameComparator)
-	genHeader.ProducerToLastImpliedIrb = *treemap.NewWith(common.NameComparator)
+	genHeader.ProducerToLastProduced = *treemap.NewWith(common.TypeName, utils.TypeUInt32, common.CompareName)
+	genHeader.ProducerToLastImpliedIrb = *treemap.NewWith(common.TypeName, utils.TypeUInt32, common.CompareName)
 	c.Head = types.NewBlockState(&genHeader)
 	signedBlock := types.SignedBlock{}
 	signedBlock.SignedBlockHeader = genHeader.Header
@@ -1871,14 +1873,14 @@ func (c *Controller) initConfig() *Controller {
 		BlockValidationMode: FULL,
 		Genesis:             types.NewGenesisState(),
 		//TODO tmp code
-		ActorWhitelist:    *treeset.NewWith(common.CompareName),
-		ActorBlacklist:    *treeset.NewWith(common.CompareName),
-		ContractWhitelist: *treeset.NewWith(common.CompareName),
-		ContractBlacklist: *treeset.NewWith(common.CompareName),
-		ActionBlacklist:   *treeset.NewWith(common.ComparePair),
-		KeyBlacklist:      *treeset.NewWith(ecc.ComparePubKey),
-		ResourceGreylist:  *treeset.NewWith(common.CompareName),
-		TrustedProducers:  *treeset.NewWith(common.CompareName),
+		ActorWhitelist:    *treeset.NewWith(common.TypeName, common.CompareName),
+		ActorBlacklist:    *treeset.NewWith(common.TypeName, common.CompareName),
+		ContractWhitelist: *treeset.NewWith(common.TypeName, common.CompareName),
+		ContractBlacklist: *treeset.NewWith(common.TypeName, common.CompareName),
+		ActionBlacklist:   *treeset.NewWith(common.TypePair, common.ComparePair),
+		KeyBlacklist:      *treeset.NewWith(ecc.TypePubKey, ecc.ComparePubKey),
+		ResourceGreylist:  *treeset.NewWith(common.TypeName, common.CompareName),
+		TrustedProducers:  *treeset.NewWith(common.TypeName, common.CompareName),
 	}
 	return c
 }

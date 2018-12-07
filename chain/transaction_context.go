@@ -86,7 +86,7 @@ func NewTransactionContext(c *Controller, t *types.SignedTransaction, trxId comm
 		deadline:                  common.MaxTimePoint(),
 		deadlineExceptionCode:     int64((BlockCpuUsageExceeded{}).Code()),
 		billingTimerExceptionCode: int64((BlockCpuUsageExceeded{}).Code()),
-		ValidateRamUsage:          *treeset.NewWith(common.CompareName),
+		ValidateRamUsage:          *treeset.NewWith(common.TypeName, common.CompareName),
 	}
 
 	//for testing
@@ -163,7 +163,7 @@ func (t *TransactionContext) init(initialNetUsage uint64) {
 	if t.BilledCpuTimeUs > 0 { // could also call on explicit_billed_cpu_time but it would be redundant
 		t.validateCpuUsageToBill(t.BilledCpuTimeUs, false) // Fail early if the amount to be billed is too high
 	}
-	t.BillToAccounts = *treeset.NewWith(common.CompareName)
+	t.BillToAccounts = *treeset.NewWith(common.TypeName, common.CompareName)
 	// Record accounts to be billed for network and CPU usage
 	for _, act := range t.Trx.Actions {
 		for _, auth := range act.Authorization {

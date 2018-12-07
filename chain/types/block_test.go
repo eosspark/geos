@@ -7,14 +7,15 @@ import (
 	"github.com/stretchr/testify/assert"
 	"testing"
 	"github.com/eosspark/container/maps/treemap"
-	)
+	"github.com/eosspark/container/utils"
+)
 
 func NewBlockHeaderState(t *testing.T) *BlockHeaderState {
-	initPriKey, err := ecc.NewPrivateKey("5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3")
+	initPriKey, err := ecc.NewPrivateKey("5KYZdUEo39z3FPrtuX2QbbwGnNP5zTd7yyr2SC1j299sBCnWjss")
 	assert.NoError(t, err)
 
 	initPubKey := initPriKey.PublicKey()
-	assert.Equal(t, "EOS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV", initPubKey.String())
+	assert.Equal(t, "EOS859gxfnXyUriMgUeThh1fWv3oqcpLFyHa3TfFYC4PK2HqhToVM", initPubKey.String())
 
 	eosio := common.AccountName(common.N("eosio"))
 	yuanc := common.AccountName(common.N("yuanc"))
@@ -34,8 +35,8 @@ func NewBlockHeaderState(t *testing.T) *BlockHeaderState {
 	genHeader.Header.Confirmed = 1
 	genHeader.BlockId = genHeader.Header.BlockID()
 	genHeader.BlockNum = genHeader.Header.BlockNumber()
-	genHeader.ProducerToLastProduced = *treemap.NewWith(common.NameComparator)
-	genHeader.ProducerToLastImpliedIrb = *treemap.NewWith(common.NameComparator)
+	genHeader.ProducerToLastProduced = *treemap.NewWith(common.TypeName, utils.TypeUInt32, common.CompareName)
+	genHeader.ProducerToLastImpliedIrb = *treemap.NewWith(common.TypeName, utils.TypeUInt32, common.CompareName)
 
 	genHeader.BlockSigningKey = initPubKey
 
@@ -100,7 +101,7 @@ func TestBlockHeader_Digest(t *testing.T) {
 }
 
 func TestBlockHeaderState_Sign(t *testing.T) {
-	initPriKey, _ := ecc.NewPrivateKey("5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3")
+	initPriKey, _ := ecc.NewPrivateKey("5KYZdUEo39z3FPrtuX2QbbwGnNP5zTd7yyr2SC1j299sBCnWjss")
 	bs := NewBlockHeaderState(t)
 
 	//fmt.Println("===>", bs.SigDigest())

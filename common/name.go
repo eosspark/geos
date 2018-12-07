@@ -6,6 +6,7 @@ import (
 	"github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
 	"strings"
+	"reflect"
 )
 
 // ported from libraries/chain/name.cpp in eosio
@@ -21,6 +22,7 @@ func (n *Name) GetKey() []byte {
 }
 
 //for treeset
+var TypeName = reflect.TypeOf(Name(0))
 func CompareName(first interface{}, second interface{}) int {
 	if first.(Name) == second.(Name) {
 		return 0
