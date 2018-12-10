@@ -58,8 +58,8 @@ func (c *ChainApiPlugin) PluginStartup() {
 				EosThrow(&EofException{}, "marshal get_info result: %s", err.Error())
 			}
 			cb(200, byte)
-		}).Catch(func(interface{}) {
-			http_plugin.HandleException("chain", "get_info", string(body), cb)
+		}).Catch(func(e interface{}) {
+			http_plugin.HandleException(e, "chain", "get_info", string(body), cb)
 		})
 	})
 
@@ -79,8 +79,8 @@ func (c *ChainApiPlugin) PluginStartup() {
 				EosThrow(&EofException{}, "marshal get_info result: %s", err.Error())
 			}
 			cb(200, byte)
-		}).Catch(func(interface{}) {
-			http_plugin.HandleException("chain", "get_block", string(body), cb)
+		}).Catch(func(e interface{}) {
+			http_plugin.HandleException(e, "chain", "get_block", string(body), cb)
 		})
 	})
 

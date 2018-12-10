@@ -565,44 +565,48 @@ type errorResults struct {
 	error   errorInfo
 }
 
-func HandleException(apiName, callName, body string, cb UrlResponseCallback) {
-	//Try(func() {
-	//	Try(func() {
-	//		//Throw(interface{})
-	//	}).Catch(func(e UnsatisfiedAuthorization) {
-	//		results := errorResults{code: 401, message: "UnAuthorized", error: newErrorInfo(e, verboseHttpErrors),}
-	//		re, _ := json.Marshal(results)
-	//		cb(401, re)
-	//	}).Catch(func(e TxDuplicate) {
-	//		results := errorResults{409, "Conflict", newErrorInfo(e, verboseHttpErrors)}
-	//		re, _ := json.Marshal(results)
-	//		cb(409, re)
-	//	}).Catch(func() {
-	//		results := errorResults{422, "Unprocessable Entity", newErrorInfo(e, verboseHttpErrors)}
-	//		re, _ := json.Marshal(results)
-	//		cb(422, re)
-	//		log.Error("Unable to parse arguments to %s.%s", apiName, callName)
-	//		log.Debug("Bad arguments: %s", body)
-	//	}).Catch(func(e Exception) {
-	//		results := errorResults{500, "Internal Service Error", newErrorInfo(e, verboseHttpErrors)}
-	//		re, _ := json.Marshal(results)
-	//		cb(500, re)
-	//		//if (e.code() != chain::greylist_net_usage_exceeded::code_value && e.code() != chain::greylist_cpu_usage_exceeded::code_value) {
-	//		//   elog( "FC Exception encountered while processing ${api}.${call}",
-	//		//         ("api", api_name)( "call", call_name ));
-	//		//   dlog( "Exception Details: ${e}", ("e", e.to_detail_string()));
-	//		//}
-	//	}).Catch(func(interface{}) {
-	//		//results :=errorResults{500, "Internal Service Error",
-	//		//	newErrorInfo(fc::exception( FC_LOG_MESSAGE( error, "Unknown Exception" )), verbose_http_errors)}
-	//		results := errorResults{500, "Internal Service Error", newErrorInfo(nil, verboseHttpErrors)}
-	//		re, _ := json.Marshal(results)
-	//		cb(500, re)
-	//		log.Error("Unknown Exception encountered while processing %s.%s", apiName, callName)
-	//	})
-	//
-	//}).Catch(func(interface{}) {
-	//	fmt.Printf("Exception attempting to handle exception for %s.%s", apiName, callName)
-	//})
+func HandleException(e interface{}, apiName, callName, body string, cb UrlResponseCallback) {
+	Try(func() {
+		Try(func() {
+			Throw(e)
+		}).Catch(func(e *UnsatisfiedAuthorization) {
+			results := errorResults{code: 401, message: "UnAuthorized", error: newErrorInfo(e, verboseHttpErrors)}
+			re, _ := json.Marshal(results)
+			cb(401, re)
+		}).Catch(func(e *TxDuplicate) {
+			results := errorResults{409, "Conflict", newErrorInfo(e, verboseHttpErrors)}
+			re, _ := json.Marshal(results)
+			cb(409, re)
+		}).Catch(func(e *EofException) {
+			results := errorResults{422, "Unprocessable Entity", newErrorInfo(e, verboseHttpErrors)}
+			re, _ := json.Marshal(results)
+			cb(422, re)
+			log.Error("Unable to parse arguments to %s.%s", apiName, callName)
+			log.Debug("Bad arguments: %s", body)
+		}).Catch(func(e Exception) {
+			results := errorResults{500, "Internal Service Error", newErrorInfo(e, verboseHttpErrors)}
+			re, _ := json.Marshal(results)
+			cb(500, re)
+			if e.Code() != (GreylistNetUsageExceeded{}).Code() && e.Code() != (GreylistCpuUsageExceeded{}).Code() {
+				log.Error("FC Exception encountered while processing %s.%s", apiName, callName)
+				log.Debug("Exception Details: %s", GetDetailMessage(e))
+			}
+		}).Catch(func(e error) {
+			results := errorResults{500, "Internal Service Error",
+				newErrorInfo(&FcException{ELog: NewELog(log.FcLogMessage(log.LvlError, e.Error()))}, verboseHttpErrors)}
+			re, _ := json.Marshal(results)
+			cb(500, re)
+			log.Error("STD Exception encountered while processing %s.%s", apiName, callName)
+			log.Debug("Exception Details: %s", e.Error())
+		}).Catch(func(interface{}) {
+			results := errorResults{500, "Internal Service Error",
+				newErrorInfo(&FcException{ELog: NewELog(log.FcLogMessage(log.LvlError, "Unknown Exception"))}, verboseHttpErrors)}
+			re, _ := json.Marshal(results)
+			cb(500, re)
+			log.Error("Unknown Exception encountered while processing %s.%s", apiName, callName)
+		})
+	}).Catch(func(interface{}) {
+		fmt.Printf("Exception attempting to handle exception for %s.%s", apiName, callName)
+	})
 
 }
