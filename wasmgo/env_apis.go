@@ -1787,6 +1787,7 @@ func printsl(vm *VM) {
 func printi(vm *VM) {
 	if !ignore {
 		w := vm.WasmGo
+		//w.ilog.Debug("printi")
 		val := int64(vm.popUint64())
 		str := strconv.FormatInt(val, 10)
 		w.context.ContextAppend(str)
@@ -1798,6 +1799,7 @@ func printi(vm *VM) {
 func printui(vm *VM) {
 	if !ignore {
 		w := vm.WasmGo
+		//w.ilog.Debug("printui")
 		val := vm.popUint64()
 		str := strconv.FormatUint(val, 10)
 		w.context.ContextAppend(str)

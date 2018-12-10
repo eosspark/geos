@@ -17,7 +17,8 @@ import (
 	rbt "github.com/eosspark/container/trees/redblacktree"
 	"github.com/eosspark/container/utils"
 	"strings"
-	)
+	"reflect"
+)
 
 func assertMultiMapImplementation() {
 	var _ maps.Map = (*MultiMap)(nil)
@@ -25,26 +26,28 @@ func assertMultiMapImplementation() {
 
 // Map holds the elements in a red-black tree
 type MultiMap struct {
-	tree *rbt.Tree
+	KeyType   reflect.Type
+	ValueType reflect.Type
+	tree      *rbt.Tree
 }
 
 // NewWith instantiates a tree map with the custom comparator.
-func NewMultiWith(comparator utils.Comparator) *MultiMap {
-	return &MultiMap{tree: rbt.NewWith(comparator)}
+func NewMultiWith(keyType reflect.Type, valueType reflect.Type, comparator utils.Comparator) *MultiMap {
+	return &MultiMap{KeyType: keyType, ValueType: valueType, tree: rbt.NewWith(comparator)}
 }
 
 // NewWithIntComparator instantiates a tree map with the IntComparator, i.e. keys are of type int.
-func NewMultiWithIntComparator() *MultiMap {
-	return &MultiMap{tree: rbt.NewWithIntComparator()}
+func NewMultiWithIntComparator(valueType reflect.Type) *MultiMap {
+	return &MultiMap{KeyType: utils.TypeInt, ValueType: valueType, tree: rbt.NewWithIntComparator()}
 }
 
 // NewWithStringComparator instantiates a tree map with the StringComparator, i.e. keys are of type string.
-func NewMultiWithStringComparator() *MultiMap {
-	return &MultiMap{tree: rbt.NewWithStringComparator()}
+func NewMultiWithStringComparator(valueType reflect.Type) *MultiMap {
+	return &MultiMap{KeyType: utils.TypeString, ValueType: valueType, tree: rbt.NewWithStringComparator()}
 }
 
 func CopyFromMulti(tm *MultiMap) *MultiMap {
-	return &MultiMap{tree: rbt.CopyFrom(tm.tree)}
+	return &MultiMap{KeyType: tm.KeyType, ValueType: tm.ValueType, tree: rbt.CopyFrom(tm.tree)}
 }
 
 func (m *MultiMap) GetComparator() utils.Comparator {
@@ -69,7 +72,7 @@ func (m *MultiMap) Get(key interface{}) (value interface{}, found bool) {
 // Key should adhere to the comparator's type assertion, otherwise method panics.
 func (m *MultiMap) Gets(key interface{}) (MultiMapIterator, bool) {
 	iterator, found := m.tree.MultiGet(key)
-	return MultiMapIterator{iterator:iterator}, found
+	return MultiMapIterator{iterator: iterator}, found
 }
 
 // Remove removes the element from the map by key.

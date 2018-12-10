@@ -86,7 +86,7 @@ func NewTransactionContext(c *Controller, t *types.SignedTransaction, trxId comm
 		deadline:                  common.MaxTimePoint(),
 		deadlineExceptionCode:     int64((BlockCpuUsageExceeded{}).Code()),
 		billingTimerExceptionCode: int64((BlockCpuUsageExceeded{}).Code()),
-		ValidateRamUsage:          *treeset.NewWith(common.CompareName),
+		ValidateRamUsage:          *treeset.NewWith(common.TypeName, common.CompareName),
 	}
 
 	//for testing
@@ -163,7 +163,7 @@ func (t *TransactionContext) init(initialNetUsage uint64) {
 	if t.BilledCpuTimeUs > 0 { // could also call on explicit_billed_cpu_time but it would be redundant
 		t.validateCpuUsageToBill(t.BilledCpuTimeUs, false) // Fail early if the amount to be billed is too high
 	}
-	t.BillToAccounts = *treeset.NewWith(common.CompareName)
+	t.BillToAccounts = *treeset.NewWith(common.TypeName, common.CompareName)
 	// Record accounts to be billed for network and CPU usage
 	for _, act := range t.Trx.Actions {
 		for _, auth := range act.Authorization {
@@ -374,29 +374,30 @@ func (t *TransactionContext) CheckTime() {
 	//return
 	//if !t.Control.SkipTrxChecks() {
 	now := common.Now()
+
 	if now > t.deadline {
 		if t.ExplicitBilledCpuTime || t.deadlineExceptionCode == int64(DeadlineException{}.Code()) { //|| deadline_exception_code TODO
 			EosAssert(false,
 				&DeadlineException{},
-				"deadline exceeded, now %d deadline %d start %d",
+				"deadline exceeded, now %v deadline %v start %v",
 				now, t.deadline, t.Start)
 
 		} else if t.deadlineExceptionCode == int64(BlockCpuUsageExceeded{}.Code()) {
 			EosAssert(false,
 				&BlockCpuUsageExceeded{},
-				"not enough time left in block to complete executing transaction, now %d deadline %d start %d billing_timer %d",
+				"not enough time left in block to complete executing transaction, now %v deadline %v start %v billing_timer %d",
 				now, t.deadline, t.Start, now-t.pseudoStart)
 		} else if t.deadlineExceptionCode == int64(TxCpuUsageExceeded{}.Code()) {
 			if t.cpuLimitDueToGreylist {
 				EosAssert(false,
 					&GreylistCpuUsageExceeded{},
-					"greylisted transaction was executing for too long, now %d deadline %d start %d billing_timer %d",
+					"greylisted transaction was executing for too long, now %v deadline %v start %v billing_timer %v",
 					now, t.deadline, t.Start, now-t.pseudoStart)
 
 			} else {
 				EosAssert(false,
 					&TxCpuUsageExceeded{},
-					"transaction was executing for too long, now %d deadline %d start %d billing_timer %d",
+					"transaction was executing for too long, now %v deadline %v start %v billing_timer %d",
 					now, t.deadline, t.Start, now-t.pseudoStart)
 			}
 
@@ -404,7 +405,7 @@ func (t *TransactionContext) CheckTime() {
 			EosAssert(false,
 				&LeewayDeadlineException{},
 				"the transaction was unable to complete by deadline, ",
-				"but it is possible it could have succeeded if it were allowed to run to completion, now %d deadline %d start %d billing_timer %d",
+				"but it is possible it could have succeeded if it were allowed to run to completion, now %v deadline %v start %v billing_timer %d",
 				now, t.deadline, t.Start, now-t.pseudoStart)
 
 		}

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"github.com/eosspark/eos-go/database"
 	"github.com/eosspark/eos-go/log"
+	"reflect"
 )
 
 type Tuple []interface{}
@@ -33,6 +34,7 @@ func (p *Pair) GetKey() []byte {
 	return byt
 }
 
+var TypePair = reflect.TypeOf(&Pair{})
 func ComparePair(first interface{}, second interface{}) int {
 	return bytes.Compare(first.(*Pair).GetKey(), second.(*Pair).GetKey())
 }

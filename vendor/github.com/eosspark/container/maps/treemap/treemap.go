@@ -17,7 +17,8 @@ import (
 	rbt "github.com/eosspark/container/trees/redblacktree"
 	"github.com/eosspark/container/utils"
 	"strings"
-	)
+	"reflect"
+)
 
 func assertMapImplementation() {
 	var _ maps.Map = (*Map)(nil)
@@ -25,26 +26,28 @@ func assertMapImplementation() {
 
 // Map holds the elements in a red-black tree
 type Map struct {
-	tree *rbt.Tree
+	KeyType   reflect.Type
+	ValueType reflect.Type
+	tree      *rbt.Tree
 }
 
 // NewWith instantiates a tree map with the custom comparator.
-func NewWith(comparator utils.Comparator) *Map {
-	return &Map{tree: rbt.NewWith(comparator)}
+func NewWith(keyType reflect.Type, valueType reflect.Type, comparator utils.Comparator) *Map {
+	return &Map{KeyType: keyType, ValueType: valueType, tree: rbt.NewWith(comparator)}
 }
 
 // NewWithIntComparator instantiates a tree map with the IntComparator, i.e. keys are of type int.
-func NewWithIntComparator() *Map {
-	return &Map{tree: rbt.NewWithIntComparator()}
+func NewWithIntComparator(valueType reflect.Type) *Map {
+	return &Map{KeyType: utils.TypeInt, ValueType: valueType, tree: rbt.NewWithIntComparator()}
 }
 
 // NewWithStringComparator instantiates a tree map with the StringComparator, i.e. keys are of type string.
-func NewWithStringComparator() *Map {
-	return &Map{tree: rbt.NewWithStringComparator()}
+func NewWithStringComparator(valueType reflect.Type) *Map {
+	return &Map{KeyType: utils.TypeString, ValueType: valueType, tree: rbt.NewWithStringComparator()}
 }
 
 func CopyFrom(tm *Map) *Map {
-	return &Map{tree: rbt.CopyFrom(tm.tree)}
+	return &Map{KeyType: tm.KeyType, ValueType: tm.ValueType, tree: rbt.CopyFrom(tm.tree)}
 }
 
 func (m *Map) GetComparator() utils.Comparator {

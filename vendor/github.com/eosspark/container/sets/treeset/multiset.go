@@ -15,6 +15,7 @@ import (
 	rbt "github.com/eosspark/container/trees/redblacktree"
 	"github.com/eosspark/container/utils"
 	"strings"
+	"reflect"
 )
 
 func assertMultiSetImplementation() {
@@ -23,14 +24,15 @@ func assertMultiSetImplementation() {
 
 // Set holds elements in a red-black tree
 type MultiSet struct {
-	tree *rbt.Tree
+	ValueType reflect.Type
+	tree      *rbt.Tree
 }
 
 //var itemExists = struct{}{}
 
 // NewWith instantiates a new empty set with the custom comparator.
-func NewMultiWith(comparator utils.Comparator, values ...interface{}) *MultiSet {
-	set := &MultiSet{tree: rbt.NewWith(comparator)}
+func NewMultiWith(valueType reflect.Type, comparator utils.Comparator, values ...interface{}) *MultiSet {
+	set := &MultiSet{ValueType: valueType, tree: rbt.NewWith(comparator)}
 	if len(values) > 0 {
 		set.Add(values...)
 	}
@@ -39,7 +41,7 @@ func NewMultiWith(comparator utils.Comparator, values ...interface{}) *MultiSet 
 
 // NewWithIntComparator instantiates a new empty set with the IntComparator, i.e. keys are of type int.
 func NewMultiWithIntComparator(values ...interface{}) *MultiSet {
-	set := &MultiSet{tree: rbt.NewWithIntComparator()}
+	set := &MultiSet{ValueType: utils.TypeInt, tree: rbt.NewWithIntComparator()}
 	if len(values) > 0 {
 		set.Add(values...)
 	}
@@ -48,7 +50,7 @@ func NewMultiWithIntComparator(values ...interface{}) *MultiSet {
 
 // NewWithStringComparator instantiates a new empty set with the StringComparator, i.e. keys are of type string.
 func NewMultiWithStringComparator(values ...interface{}) *MultiSet {
-	set := &MultiSet{tree: rbt.NewWithStringComparator()}
+	set := &MultiSet{ValueType: utils.TypeString, tree: rbt.NewWithStringComparator()}
 	if len(values) > 0 {
 		set.Add(values...)
 	}
@@ -56,7 +58,7 @@ func NewMultiWithStringComparator(values ...interface{}) *MultiSet {
 }
 
 func CopyFromMulti(ts *MultiSet) *MultiSet {
-	return &MultiSet{tree: rbt.CopyFrom(ts.tree)}
+	return &MultiSet{ValueType: ts.ValueType, tree: rbt.CopyFrom(ts.tree)}
 }
 
 func MultiSetIntersection(a *MultiSet, b *MultiSet, callback func(elem interface{})) {
@@ -71,7 +73,7 @@ func MultiSetIntersection(a *MultiSet, b *MultiSet, callback func(elem interface
 
 	for aHasNext, bHasNext := true, true; aHasNext && bHasNext; {
 		comp := comparator(aIterator.Value(), bIterator.Value())
-		switch  {
+		switch {
 		case comp > 0:
 			bHasNext = bIterator.Next()
 		case comp < 0:
@@ -116,7 +118,7 @@ func (set *MultiSet) Contains(items ...interface{}) bool {
 
 func (set *MultiSet) Get(key interface{}) (MultiSetIterator, bool) {
 	iterator, found := set.tree.MultiGet(key)
-	return MultiSetIterator{iterator:iterator, tree:set.tree}, found
+	return MultiSetIterator{iterator: iterator, tree: set.tree}, found
 }
 
 // Empty returns true if set does not contain any elements.

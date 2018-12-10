@@ -377,7 +377,7 @@ func (p *ProducerPlugin) GetGreylist() GreylistParams {
 	chain := p.chain()
 	result := GreylistParams{}
 	list := chain.GetResourceGreyList()
-	result.Accounts = *treeset.NewWith(common.CompareName)
+	result.Accounts = *treeset.NewWith(common.TypeName, common.CompareName)
 	//itr := list.Iterator()
 	result.Accounts.Add(list.Values())
 	/*for _, acc := range list.Data {

@@ -117,8 +117,8 @@ func TestProducerPlugin_SignCompact(t *testing.T) {
 	sign1, _ := initPriKey.Sign(dataByteHash)
 	sign2, _ := initPriKey2.Sign(dataByteHash)
 
-	assert.Equal(t, sign1, plugin.SignCompact(&initPubKey, dataHash))
-	assert.Equal(t, sign2, plugin.SignCompact(&initPubKey2, dataHash))
+	assert.Equal(t, sign1, *plugin.SignCompact(&initPubKey, dataHash))
+	assert.Equal(t, sign2, *plugin.SignCompact(&initPubKey2, dataHash))
 	assert.NotEqual(t, sign1, sign2)
 }
 

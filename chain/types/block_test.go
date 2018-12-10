@@ -7,7 +7,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"testing"
 	"github.com/eosspark/container/maps/treemap"
-	)
+	"github.com/eosspark/container/utils"
+)
 
 func NewBlockHeaderState(t *testing.T) *BlockHeaderState {
 	initPriKey, err := ecc.NewPrivateKey("5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3")
@@ -34,8 +35,8 @@ func NewBlockHeaderState(t *testing.T) *BlockHeaderState {
 	genHeader.Header.Confirmed = 1
 	genHeader.BlockId = genHeader.Header.BlockID()
 	genHeader.BlockNum = genHeader.Header.BlockNumber()
-	genHeader.ProducerToLastProduced = *treemap.NewWith(common.NameComparator)
-	genHeader.ProducerToLastImpliedIrb = *treemap.NewWith(common.NameComparator)
+	genHeader.ProducerToLastProduced = *treemap.NewWith(common.TypeName, utils.TypeUInt32, common.CompareName)
+	genHeader.ProducerToLastImpliedIrb = *treemap.NewWith(common.TypeName, utils.TypeUInt32, common.CompareName)
 
 	genHeader.BlockSigningKey = initPubKey
 
@@ -95,7 +96,7 @@ func TestBlockHeader_BlockID(t *testing.T) {
 func TestBlockHeader_Digest(t *testing.T) {
 	bs := NewBlockHeaderState(t)
 	assert.Equal(t,
-		"2d9f0747bb8924a240689f363d1527a09238d1d3d0337daa0dc4cbef4a0a6a15", //calculate by eosioc++
+		"29bec0f6df7f0ba248b72e755d723381f8b4f829221a4f29e49fd5396a10ed0f", //calculate by eosioc++
 		bs.SigDigest().String())
 }
 

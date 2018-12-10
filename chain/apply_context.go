@@ -75,7 +75,7 @@ func NewApplyContext(control *Controller, trxContext *TransactionContext, act *t
 
 	applyContext.idx64 = NewIdx64(applyContext)
 	applyContext.idxDouble = NewIdxDouble(applyContext)
-	applyContext.AccountRamDeltas = *treeset.NewWith(types.CompareAccountDelta)
+	applyContext.AccountRamDeltas = *treeset.NewWith(types.TypeAccountDelta, types.CompareAccountDelta)
 	applyContext.ilog = log.New("Apply_Context")
 	logHandler := log.StreamHandler(os.Stdout, log.TerminalFormat(true))
 	//applyContext.ilog.SetHandler(log.LvlFilterHandler(log.LvlDebug, logHandler))

@@ -44,7 +44,7 @@ func newBaseTester(pushGenesis bool, readMode DBReadMode) *BaseTester {
 
 func (t *BaseTester) init(pushGenesis bool, readMode DBReadMode) {
 	t.Cfg = *newConfig(readMode)
-	t.Control = NewController(t.Cfg)
+	t.Control = NewController(&t.Cfg)
 
 	t.open()
 
@@ -69,14 +69,14 @@ func newConfig(readMode DBReadMode) *Config{
 	cfg.Genesis.InitialTimestamp, _ = common.FromIsoString("2020-01-01T00:00:00.000")
 	cfg.Genesis.InitialKey = BaseTester{}.getPublicKey(common.DefaultConfig.SystemAccountName, "active")
 
-	cfg.ActorWhitelist = *treeset.NewWith(common.CompareName)
-	cfg.ActorBlacklist = *treeset.NewWith(common.CompareName)
-	cfg.ContractWhitelist = *treeset.NewWith(common.CompareName)
-	cfg.ContractBlacklist = *treeset.NewWith(common.CompareName)
-	cfg.ActionBlacklist = *treeset.NewWith(common.ComparePair)
-	cfg.KeyBlacklist = *treeset.NewWith(ecc.ComparePubKey)
-	cfg.ResourceGreylist = *treeset.NewWith(common.CompareName)
-	cfg.TrustedProducers = *treeset.NewWith(common.CompareName)
+	cfg.ActorWhitelist = *treeset.NewWith(common.TypeName, common.CompareName)
+	cfg.ActorBlacklist = *treeset.NewWith(common.TypeName, common.CompareName)
+	cfg.ContractWhitelist = *treeset.NewWith(common.TypeName, common.CompareName)
+	cfg.ContractBlacklist = *treeset.NewWith(common.TypeName, common.CompareName)
+	cfg.ActionBlacklist = *treeset.NewWith(common.TypePair, common.ComparePair)
+	cfg.KeyBlacklist = *treeset.NewWith(ecc.TypePubKey, ecc.ComparePubKey)
+	cfg.ResourceGreylist = *treeset.NewWith(common.TypeName, common.CompareName)
+	cfg.TrustedProducers = *treeset.NewWith(common.TypeName, common.CompareName)
 
 	//cfg.VmType = common.DefaultConfig.DefaultWasmRuntime // TODO
 
@@ -750,7 +750,7 @@ func newValidatingTester(pushGenesis bool, readMode DBReadMode)  *ValidatingTest
 	vt.VCfg.StateDir = common.DefaultConfig.ValidatingStateDirName
 	vt.VCfg.ReversibleDir = common.DefaultConfig.ValidatingReversibleBlocksDirName
 
-	vt.ValidatingControl = NewController(vt.VCfg)
+	vt.ValidatingControl = NewController(&vt.VCfg)
 	vt.init(true,readMode)
 	return vt
 }

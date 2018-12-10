@@ -82,7 +82,7 @@ func NewProducerPluginImpl(io *asio.IoContext) *ProducerPluginImpl {
 
 	impl.Timer = common.NewTimer(io)
 	impl.SignatureProviders = make(map[ecc.PublicKey]signatureProviderType)
-	impl.Producers = treeset.NewWith(common.NameComparator)
+	impl.Producers = treeset.NewWith(common.TypeName, common.CompareName)
 	impl.ProducerWatermarks = make(map[common.AccountName]uint32)
 
 	impl.PersistentTransactions = make(transactionIdWithExpireIndex)
@@ -107,7 +107,7 @@ func (impl *ProducerPluginImpl) OnBlock(bsp *types.BlockState) {
 
 	activeProducerToSigningKey := bsp.ActiveSchedule.Producers
 
-	activeProducers := treeset.NewWith(common.NameComparator) //<AccountName>
+	activeProducers := treeset.NewWith(common.TypeName, common.CompareName) //<AccountName>
 
 	for _, p := range bsp.ActiveSchedule.Producers {
 		activeProducers.Add(&p.ProducerName)
@@ -151,7 +151,7 @@ func (impl *ProducerPluginImpl) OnBlock(bsp *types.BlockState) {
 
 	// for newly installed producers we can set their watermarks to the block they became active
 	if newBs.MaybePromotePending() && bsp.ActiveSchedule.Version != newBs.ActiveSchedule.Version {
-		newProducers := treeset.NewWith(common.NameComparator)
+		newProducers := treeset.NewWith(common.TypeName, common.CompareName)
 		for _, p := range newBs.ActiveSchedule.Producers {
 			if impl.Producers.Contains(p.ProducerName) {
 				newProducers.Add(p.ProducerName)
