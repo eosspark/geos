@@ -6,13 +6,13 @@ import (
 	"github.com/eosspark/eos-go/log"
 	. "github.com/eosspark/eos-go/plugins/appbase/app"
 	. "github.com/eosspark/eos-go/plugins/appbase/app/include"
+	"github.com/eosspark/eos-go/plugins/chain_api_plugin"
 	"github.com/eosspark/eos-go/plugins/chain_plugin"
 	"github.com/eosspark/eos-go/plugins/http_plugin"
+	"github.com/eosspark/eos-go/plugins/producer_plugin"
 	"github.com/eosspark/eos-go/plugins/wallet_plugin"
 	"os"
 	"strings"
-
-	"github.com/eosspark/eos-go/plugins/producer_plugin"
 )
 
 const (
@@ -38,6 +38,8 @@ func main() {
 			producer_plugin.ProducerPlug,
 			chain_plugin.ChainPlug,
 			http_plugin.HttpPlug,
+			chain_api_plugin.ChainAPiPlug,
+
 			wallet_plugin.WalletPlug,
 
 			//console_plugin.ConsolePlug,

@@ -27,6 +27,11 @@ type InfoResp struct {
 	Number               uint64             `json:number`
 }
 
+func (i *InfoResp) String() string {
+	byte, _ := json.Marshal(i)
+	return string(byte)
+}
+
 type BlockResp struct { //we don't need all blockresp??only need "id"
 	types.SignedBlock
 	ID             common.BlockIdType `json:"id"`

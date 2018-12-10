@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 	"github.com/eosspark/eos-go/plugins/appbase/app"
-	"github.com/eosspark/eos-go/plugins/http_plugin/rpc"
+	"github.com/eosspark/eos-go/plugins/console_plugin/rpc"
 	"os"
 	"path/filepath"
 	"runtime"

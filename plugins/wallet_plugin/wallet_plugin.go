@@ -16,14 +16,12 @@ var walletPlugin Plugin = App().RegisterPlugin(WalletPlug, NewWalletPlugin(App()
 type WalletPlugin struct {
 	AbstractPlugin
 	//ConfirmedBlock Signal //TODO signal ConfirmedBlock
-	My *WalletPluginImpl
+	walletManager *WalletManager
 }
 
 func NewWalletPlugin(io *asio.IoContext) *WalletPlugin {
 	plugin := &WalletPlugin{}
 
-	plugin.My = NewWalletPluginImpl(io)
-	plugin.My.Self = plugin
 	return plugin
 
 }
@@ -56,15 +54,16 @@ func (w *WalletPlugin) SetProgramOptions(options *[]cli.Flag) {
 
 func (w *WalletPlugin) PluginInitialize(c *cli.Context) {
 	Try(func() {
+		w.walletManager = walletManager()
 
 		if c.IsSet("wallet_dir") {
 			walletDir := common.AbsolutePath(App().DataDir(), c.String("wallet-dir"))
-			w.My.SetDir(walletDir)
+			w.walletManager.SetDir(walletDir)
 		}
 		if c.IsSet("unlock-timeout") {
 			timeout := c.Int64("unlock-timeout")
 			EosAssert(timeout > 0, &exception.InvalidLockTimeoutException{}, "Please specify a positive timeout %d", timeout)
-			w.My.SetTimeOut(timeout)
+			w.walletManager.SetTimeOut(timeout)
 		}
 
 		//if c.IsSet("yubihsm-authkey") {
@@ -87,4 +86,8 @@ func (w *WalletPlugin) PluginStartup() {
 
 func (w *WalletPlugin) PluginShutdown() {
 
+}
+
+func (w *WalletPlugin) GetWalletManager() *WalletManager {
+	return w.walletManager
 }

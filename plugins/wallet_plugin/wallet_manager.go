@@ -9,7 +9,6 @@ import (
 	. "github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/log"
-	"github.com/eosspark/eos-go/plugins/appbase/asio"
 	"os"
 	"strings"
 	"time"
@@ -27,7 +26,7 @@ var (
 	ErrWalletNotUnlocked  = errors.New("You don't have any unlocked wallet!")
 )
 
-type WalletPluginImpl struct {
+type WalletManager struct {
 	timeOut     time.Duration //senconds max //how long to wait before calling lock_all()
 	timeOutTime time.Time     // when to call lock_all()
 	dir         string
@@ -41,19 +40,19 @@ type WalletPluginImpl struct {
 
 const tstampMax = 3600 * time.Second
 
-func NewWalletPluginImpl(io *asio.IoContext) *WalletPluginImpl {
+func walletManager() *WalletManager {
 
-	impl := &WalletPluginImpl{
+	manager := &WalletManager{
 		timeOut:  tstampMax,
 		dir:      ".",
 		lockPath: "./wallet.lock",
 		Wallets:  make(map[string]SoftWallet),
 	}
 
-	impl.log = log.New("wallet_plugin")
-	impl.log.SetHandler(log.TerminalHandler)
-	//impl.log.SetHandler(log.DiscardHandler())
-	return impl
+	manager.log = log.New("wallet_plugin")
+	manager.log.SetHandler(log.TerminalHandler)
+	//manager.log.SetHandler(log.DiscardHandler())
+	return manager
 }
 
 func genPassword() (password string, err error) {
@@ -65,9 +64,9 @@ func genPassword() (password string, err error) {
 	return
 }
 
-func (impl *WalletPluginImpl) Create(name string) (password string, err error) {
-	impl.log.Debug("wallet creating")
-	impl.checkTimeout()
+func (wm *WalletManager) Create(name string) (password string, err error) {
+	wm.log.Debug("wallet creating")
+	wm.checkTimeout()
 
 	if name == "" {
 		name = "default"
@@ -75,7 +74,7 @@ func (impl *WalletPluginImpl) Create(name string) (password string, err error) {
 
 	password, err = genPassword()
 
-	file, err := os.Open(impl.dir)
+	file, err := os.Open(wm.dir)
 	defer file.Close()
 	if err != nil {
 		return "", err
@@ -88,7 +87,7 @@ func (impl *WalletPluginImpl) Create(name string) (password string, err error) {
 	walletName := name + fileExt
 	for _, f := range allwallets {
 		if f == walletName {
-			err = fmt.Errorf("Wallet with name: %s already exists at %s", walletName, impl.dir)
+			err = fmt.Errorf("Wallet with name: %s already exists at %s", walletName, wm.dir)
 			return
 		}
 	}
@@ -98,7 +97,7 @@ func (impl *WalletPluginImpl) Create(name string) (password string, err error) {
 	if err != nil {
 		return
 	}
-	walletFileName := fmt.Sprintf("%s/%s%s", impl.dir, name, fileExt)
+	walletFileName := fmt.Sprintf("%s/%s%s", wm.dir, name, fileExt)
 	wallet.SetWalletFilename(walletFileName)
 	err = wallet.UnLock(password)
 	if err != nil {
@@ -108,34 +107,39 @@ func (impl *WalletPluginImpl) Create(name string) (password string, err error) {
 	wallet.UnLock(password)
 	wallet.SaveWalletFile()
 
-	if _, ok := impl.Wallets[name]; ok {
-		delete(impl.Wallets, name)
+	if _, ok := wm.Wallets[name]; ok {
+		delete(wm.Wallets, name)
 	}
-	impl.Wallets[name] = wallet
+	wm.Wallets[name] = wallet
+	wm.log.Info("wallets: ")
+	for name := range wm.Wallets {
+		wm.log.Info(name)
+	}
+
 	return password, nil
 }
 
-func (impl *WalletPluginImpl) Open(name string) error {
-	impl.checkTimeout()
-	impl.log.Debug("Opening wallet :   wallet name: ", name)
+func (wm *WalletManager) Open(name string) error {
+	wm.checkTimeout()
+	wm.log.Debug("Opening wallet :   wallet name: ", name)
 	var wallet SoftWallet
-	walletFileName := fmt.Sprintf("%s/%s%s", impl.dir, name, fileExt)
+	walletFileName := fmt.Sprintf("%s/%s%s", wm.dir, name, fileExt)
 	wallet.SetWalletFilename(walletFileName)
 	if !wallet.LoadWalletFile() {
 		return fmt.Errorf("Unable to open file: %s", walletFileName)
 	}
-	if _, ok := impl.Wallets[name]; ok {
-		delete(impl.Wallets, name)
+	if _, ok := wm.Wallets[name]; ok {
+		delete(wm.Wallets, name)
 	}
-	impl.Wallets[name] = wallet
+	wm.Wallets[name] = wallet
 	// log.Debug(walletname, wallet.wallet.CipherKeys)
 	return nil
 }
 
-func (impl *WalletPluginImpl) ListWallets() []string {
-	impl.log.Debug("list wallets")
+func (wm *WalletManager) ListWallets() []string {
+	wm.log.Debug("list wallets")
 	var result []string
-	for name, wallet := range impl.Wallets {
+	for name, wallet := range wm.Wallets {
 		if wallet.isLocked() {
 			result = append(result, name)
 		} else {
@@ -157,15 +161,15 @@ type RespKeys map[ecc.PublicKey]ecc.PrivateKey
 //	return json.Marshal(out)
 //}
 
-func (impl *WalletPluginImpl) ListKeys(name, password string) (re RespKeys, err error) {
-	impl.checkTimeout()
-	impl.log.Debug("list keys")
+func (wm *WalletManager) ListKeys(name, password string) (re RespKeys, err error) {
+	wm.checkTimeout()
+	wm.log.Debug("list keys")
 
-	if _, ok := impl.Wallets[name]; !ok {
+	if _, ok := wm.Wallets[name]; !ok {
 		err = fmt.Errorf("Wallet not found: %s", name)
 		return nil, err
 	}
-	wallet := impl.Wallets[name]
+	wallet := wm.Wallets[name]
 	if wallet.isLocked() {
 		err = fmt.Errorf("Wallet is locked: %s", name)
 		return nil, err
@@ -182,18 +186,18 @@ func (impl *WalletPluginImpl) ListKeys(name, password string) (re RespKeys, err 
 	return
 }
 
-func (impl *WalletPluginImpl) GetPublicKeys() (re []string, err error) {
-	impl.log.Debug("get public keys")
+func (wm *WalletManager) GetPublicKeys() (re []string, err error) {
+	wm.log.Debug("get public keys")
 
-	if len(impl.Wallets) == 0 {
+	if len(wm.Wallets) == 0 {
 		return nil, ErrWalletNotAvaliable
 	}
 
 	isAllWalletLocked := true
-	for name, wallet := range impl.Wallets {
+	for name, wallet := range wm.Wallets {
 		if !wallet.isLocked() {
 			isAllWalletLocked = false
-			impl.log.Debug("wallet: %s is unlocked\n", name)
+			wm.log.Debug("wallet: %s is unlocked\n", name)
 			for pubkey, _ := range wallet.Keys {
 				re = append(re, pubkey.String())
 			}
@@ -205,50 +209,50 @@ func (impl *WalletPluginImpl) GetPublicKeys() (re []string, err error) {
 	return re, nil
 }
 
-func (impl *WalletPluginImpl) LockAllwallets() {
-	impl.log.Debug("lock all wallets")
-	impl.lockAll()
+func (wm *WalletManager) LockAllwallets() {
+	wm.log.Debug("lock all wallets")
+	wm.lockAll()
 }
 
-func (impl *WalletPluginImpl) lockAll() {
-	for _, wallet := range impl.Wallets {
+func (wm *WalletManager) lockAll() {
+	for _, wallet := range wm.Wallets {
 		if !wallet.isLocked() {
 			wallet.Lock()
 		}
 	}
 }
 
-func (impl *WalletPluginImpl) Lock(name string) error {
-	impl.log.Debug("lock wallet")
-	if _, ok := impl.Wallets[name]; !ok {
+func (wm *WalletManager) Lock(name string) error {
+	wm.log.Debug("lock wallet")
+	if _, ok := wm.Wallets[name]; !ok {
 		return fmt.Errorf("Wallet not found: %s", name)
 	}
-	wallet := impl.Wallets[name]
+	wallet := wm.Wallets[name]
 	wallet.Lock()
 	return nil
 }
 
-func (impl *WalletPluginImpl) Unlock(name, password string) error {
-	impl.checkTimeout()
+func (wm *WalletManager) Unlock(name, password string) error {
+	wm.checkTimeout()
 	var wallet SoftWallet
 
-	impl.log.Debug("unlock wallet", name, password)
+	wm.log.Debug("unlock wallet", name, password)
 
-	if _, ok := impl.Wallets[name]; !ok {
+	if _, ok := wm.Wallets[name]; !ok {
 		// open(){
-		walletFileName := fmt.Sprintf("%s/%s%s", impl.dir, name, fileExt)
+		walletFileName := fmt.Sprintf("%s/%s%s", wm.dir, name, fileExt)
 		wallet.SetWalletFilename(walletFileName)
 		if !wallet.LoadWalletFile() {
 			return fmt.Errorf("Unable to open file: %s", walletFileName)
 		}
-		if _, ok := impl.Wallets[name]; ok {
-			delete(impl.Wallets, name)
+		if _, ok := wm.Wallets[name]; ok {
+			delete(wm.Wallets, name)
 		}
-		impl.Wallets[name] = wallet
+		wm.Wallets[name] = wallet
 		// }
 	}
 
-	wallet = impl.Wallets[name]
+	wallet = wm.Wallets[name]
 	if !wallet.isLocked() {
 		return fmt.Errorf("Wallet is already unlocked: %s", name)
 	}
@@ -257,8 +261,8 @@ func (impl *WalletPluginImpl) Unlock(name, password string) error {
 	if err != nil {
 		return err
 	}
-	delete(impl.Wallets, name)
-	impl.Wallets[name] = wallet
+	delete(wm.Wallets, name)
+	wm.Wallets[name] = wallet
 
 	// for pub, pri := range wallet.Keys {
 	// 	log.Debug(pub, pri, wallet.Keys[pub])
@@ -266,9 +270,9 @@ func (impl *WalletPluginImpl) Unlock(name, password string) error {
 	return nil
 }
 
-func (impl *WalletPluginImpl) ImportKey(name, wifkey string) error {
-	impl.log.Debug("wallet import keys", name, wifkey)
-	wallet, ok := impl.Wallets[name]
+func (wm *WalletManager) ImportKey(name, wifkey string) error {
+	wm.log.Debug("wallet import keys %s,%s", name, wifkey)
+	wallet, ok := wm.Wallets[name]
 	if !ok {
 		return fmt.Errorf("Wallet not found: %s\n", name)
 	}
@@ -287,10 +291,10 @@ func (impl *WalletPluginImpl) ImportKey(name, wifkey string) error {
 	return nil
 }
 
-func (impl *WalletPluginImpl) RemoveKey(name, password, key string) error {
-	impl.log.Debug("remove key")
-	impl.checkTimeout()
-	wallet, ok := impl.Wallets[name]
+func (wm *WalletManager) RemoveKey(name, password, key string) error {
+	wm.log.Debug("remove key")
+	wm.checkTimeout()
+	wallet, ok := wm.Wallets[name]
 	if !ok {
 		//EOS_THROW(chain::wallet_nonexistent_exception, "Wallet not found: ${w}", ("w", name));
 		return fmt.Errorf("Wallet not found: %s", name)
@@ -304,10 +308,10 @@ func (impl *WalletPluginImpl) RemoveKey(name, password, key string) error {
 	return nil
 }
 
-func (impl *WalletPluginImpl) CreateKey(name, keyType string) (string, error) {
-	impl.log.Debug("create key")
-	impl.checkTimeout()
-	wallet, ok := impl.Wallets[name]
+func (wm *WalletManager) CreateKey(name, keyType string) (string, error) {
+	wm.log.Debug("create key")
+	wm.checkTimeout()
+	wallet, ok := wm.Wallets[name]
 	if !ok {
 		//EOS_THROW(chain::wallet_nonexistent_exception, "Wallet not found: ${w}", ("w", name));
 		return "", fmt.Errorf("Wallet not found: %s", name)
@@ -321,15 +325,19 @@ func (impl *WalletPluginImpl) CreateKey(name, keyType string) (string, error) {
 	return re, nil
 }
 
-func (impl *WalletPluginImpl) SignTransaction(txn types.SignedTransaction, keys []ecc.PublicKey, chainID common.ChainIdType) (types.SignedTransaction, error) {
-	impl.checkTimeout()
-	impl.log.Debug("sign transaction")
+func (wm *WalletManager) SignTransaction(txn *types.SignedTransaction, keys []ecc.PublicKey, chainID common.ChainIdType) (*types.SignedTransaction, error) {
+	wm.checkTimeout()
+	wm.log.Debug("sign transaction")
+	wm.log.Debug("%#v", txn)
+	wm.log.Debug("%s,%s", keys, chainID)
+
 	for _, key := range keys {
 		found := false
 
-		for _, wallet := range impl.Wallets {
+		for _, wallet := range wm.Wallets {
 			if !wallet.isLocked() {
 				sig := wallet.trySignDigest(txn.SigDigest(&chainID, txn.ContextFreeData), key)
+				wm.log.Error("sig :   %#v", sig)
 				if !common.Empty(sig) {
 					txn.Signatures = append(txn.Signatures, *sig)
 					found = true
@@ -341,15 +349,17 @@ func (impl *WalletPluginImpl) SignTransaction(txn types.SignedTransaction, keys 
 			EosThrow(&WalletMissingPubKeyException{}, "public key not found in unlocked wallets %s", key)
 		}
 	}
+
+	wm.log.Debug("%#v", txn)
 	return txn, nil
 
 }
 
-func (impl *WalletPluginImpl) SignDigest(digest common.DigestType, key ecc.PublicKey) (sig ecc.Signature) {
-	impl.checkTimeout()
-	impl.log.Debug("sign digest")
+func (wm *WalletManager) SignDigest(digest common.DigestType, key ecc.PublicKey) (sig ecc.Signature) {
+	wm.checkTimeout()
+	wm.log.Debug("sign digest")
 	Try(func() {
-		for _, wallet := range impl.Wallets {
+		for _, wallet := range wm.Wallets {
 			if !wallet.isLocked() {
 				sig = *wallet.trySignDigest(crypto.Sha256(digest).Bytes(), key)
 				if !common.Empty(sig) {
@@ -366,28 +376,28 @@ func (impl *WalletPluginImpl) SignDigest(digest common.DigestType, key ecc.Publi
 
 }
 
-func (impl *WalletPluginImpl) SetDir(path string) {
-	impl.dir = path
-	log.Debug("dir: %s", impl.dir)
+func (wm *WalletManager) SetDir(path string) {
+	wm.dir = path
+	log.Debug("dir: %s", wm.dir)
 }
 
-func (impl *WalletPluginImpl) SetTimeOut(t int64) {
-	impl.timeOut = time.Duration(t) * time.Second
+func (wm *WalletManager) SetTimeOut(t int64) {
+	wm.timeOut = time.Duration(t) * time.Second
 	now := time.Now()
-	impl.timeOutTime = now.Add(impl.timeOut)
-	log.Debug("timeOutTime: %s", impl.timeOut)
+	wm.timeOutTime = now.Add(wm.timeOut)
+	log.Debug("timeOutTime: %s", wm.timeOut)
 }
 
 //checkTimeout verify timeout has not occurred and reset timeout if not, calls lock_all() if timeout has passed
-func (impl *WalletPluginImpl) checkTimeout() {
-	if impl.timeOut != tstampMax {
+func (wm *WalletManager) checkTimeout() {
+	if wm.timeOut != tstampMax {
 		now := time.Now()
-		if exp := now.After(impl.timeOutTime); exp {
+		if exp := now.After(wm.timeOutTime); exp {
 			// lockAll()
 			log.Debug("wallet has been locked,please unlock firstly") //TODO
 		}
-		impl.timeOutTime = now.Add(impl.timeOut)
+		wm.timeOutTime = now.Add(wm.timeOut)
 	}
 }
 
-//func (impl *WalletPluginImpl) ownAndUseWallet(name string)
+//func (wm *WalletManager) ownAndUseWallet(name string)
