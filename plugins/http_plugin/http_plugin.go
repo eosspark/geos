@@ -1,21 +1,15 @@
 package http_plugin
 
 import (
-	"bytes"
+	"encoding/json"
 	"fmt"
-	"github.com/eosspark/eos-go/chain/types"
-	"github.com/eosspark/eos-go/common"
-	"github.com/eosspark/eos-go/crypto/ecc"
 	. "github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/log"
 	. "github.com/eosspark/eos-go/plugins/appbase/app"
 	"github.com/eosspark/eos-go/plugins/appbase/asio"
-	"github.com/eosspark/eos-go/plugins/chain_plugin"
 	"github.com/eosspark/eos-go/plugins/http_plugin/fasthttp"
-	"github.com/eosspark/eos-go/plugins/wallet_plugin"
 	"github.com/urfave/cli"
-	"gopkg.in/gin-gonic/gin.v1/json"
 )
 
 const (
@@ -227,93 +221,81 @@ func (h *HttpPlugin) PluginInitialize(c *cli.Context) {
 	//}).FcLogAndRethrow().End()
 }
 
-//func (h *HttpPlugin) PluginStartup() {
-//
-//	h.my.log.Info("http plugin startup")
-//
-//	handler := urlHandler
-//
-//	fasthttp.ListenAndServe("127.0.0.1:8888", handler)
-
-//if(my->listen_endpoint) {
-//	try {
-//		my->create_server_for_endpoint(*my->listen_endpoint, my->server);
-//
-//		ilog("start listening for http requests");
-//		my->server.listen(*my->listen_endpoint);
-//		my->server.start_accept();
-//	} catch ( const fc::exception& e ){
-//	elog( "http service failed to start: ${e}", ("e",e.to_detail_string()));
-//	throw;
-//	} catch ( const std::exception& e ){
-//	elog( "http service failed to start: ${e}", ("e",e.what()));
-//	throw;
-//	} catch (...) {
-//	elog("error thrown from http io service");
-//	throw;
-//	}
-//}
-
-//if h.my.ListenEndpoint != nil {
-//	Try(func() {
-//
-//	})
-//}
-
-//if(my->unix_endpoint) {
-//	try {
-//		my->unix_server.clear_access_channels(websocketpp::log::alevel::all);
-//		my->unix_server.init_asio(&app().get_io_service());
-//		my->unix_server.set_max_http_body_size(my->max_body_size);
-//		my->unix_server.listen(*my->unix_endpoint);
-//		my->unix_server.set_http_handler([&](connection_hdl hdl) {
-//		my->handle_http_request<detail::asio_local_with_stub_log>( my->unix_server.get_con_from_hdl(hdl));
-//	});
-//		my->unix_server.start_accept();
-//	} catch ( const fc::exception& e ){
-//	elog( "unix socket service failed to start: ${e}", ("e",e.to_detail_string()));
-//	throw;
-//	} catch ( const std::exception& e ){
-//	elog( "unix socket service failed to start: ${e}", ("e",e.what()));
-//	throw;
-//	} catch (...) {
-//	elog("error thrown from unix socket io service");
-//	throw;
-//	}
-//}
-//
-//if(my->https_listen_endpoint) {
-//	try {
-//		my->create_server_for_endpoint(*my->https_listen_endpoint, my->https_server);
-//		my->https_server.set_tls_init_handler([this](websocketpp::connection_hdl hdl) -> ssl_context_ptr{
-//		return my->on_tls_init(hdl);
-//	});
-//
-//		ilog("start listening for https requests");
-//		my->https_server.listen(*my->https_listen_endpoint);
-//		my->https_server.start_accept();
-//	} catch ( const fc::exception& e ){
-//	elog( "https service failed to start: ${e}", ("e",e.to_detail_string()));
-//	throw;
-//	} catch ( const std::exception& e ){
-//	elog( "https service failed to start: ${e}", ("e",e.what()));
-//	throw;
-//	} catch (...) {
-//	elog("error thrown from https io service");
-//	throw;
-//	}
-//}
-//}
-
 func (h *HttpPlugin) PluginStartup() {
-
 	h.my.log.Info("http plugin startup")
 
-	//handler := h.httpHandler
 	handler := h.Handler
 
 	fasthttp.ListenAndServe(App().GetIoService(), h.my.listenStr, handler)
 
+	//if(my->listen_endpoint) {
+	//	try {
+	//		my->create_server_for_endpoint(*my->listen_endpoint, my->server);
+	//
+	//		ilog("start listening for http requests");
+	//		my->server.listen(*my->listen_endpoint);
+	//		my->server.start_accept();
+	//	} catch ( const fc::exception& e ){
+	//	elog( "http service failed to start: ${e}", ("e",e.to_detail_string()));
+	//	throw;
+	//	} catch ( const std::exception& e ){
+	//	elog( "http service failed to start: ${e}", ("e",e.what()));
+	//	throw;
+	//	} catch (...) {
+	//	elog("error thrown from http io service");
+	//	throw;
+	//	}
+	//}
+
+	//if h.my.ListenEndpoint != nil {
+	//	Try(func() {
+	//
+	//	})
+	//}
+
+	//if(my->unix_endpoint) {
+	//	try {
+	//		my->unix_server.clear_access_channels(websocketpp::log::alevel::all);
+	//		my->unix_server.init_asio(&app().get_io_service());
+	//		my->unix_server.set_max_http_body_size(my->max_body_size);
+	//		my->unix_server.listen(*my->unix_endpoint);
+	//		my->unix_server.set_http_handler([&](connection_hdl hdl) {
+	//		my->handle_http_request<detail::asio_local_with_stub_log>( my->unix_server.get_con_from_hdl(hdl));
+	//	});
+	//		my->unix_server.start_accept();
+	//	} catch ( const fc::exception& e ){
+	//	elog( "unix socket service failed to start: ${e}", ("e",e.to_detail_string()));
+	//	throw;
+	//	} catch ( const std::exception& e ){
+	//	elog( "unix socket service failed to start: ${e}", ("e",e.what()));
+	//	throw;
+	//	} catch (...) {
+	//	elog("error thrown from unix socket io service");
+	//	throw;
+	//	}
+	//}
+	//
+	//if(my->https_listen_endpoint) {
+	//	try {
+	//		my->create_server_for_endpoint(*my->https_listen_endpoint, my->https_server);
+	//		my->https_server.set_tls_init_handler([this](websocketpp::connection_hdl hdl) -> ssl_context_ptr{
+	//		return my->on_tls_init(hdl);
+	//	});
+	//
+	//		ilog("start listening for https requests");
+	//		my->https_server.listen(*my->https_listen_endpoint);
+	//		my->https_server.start_accept();
+	//	} catch ( const fc::exception& e ){
+	//	elog( "https service failed to start: ${e}", ("e",e.to_detail_string()));
+	//	throw;
+	//	} catch ( const std::exception& e ){
+	//	elog( "https service failed to start: ${e}", ("e",e.what()));
+	//	throw;
+	//	} catch (...) {
+	//	elog("error thrown from https io service");
+	//	throw;
+	//	}
+	//}
 }
 
 func (h *HttpPlugin) PluginShutdown() {
@@ -323,161 +305,155 @@ func (h *HttpPlugin) VerboseErrors() bool {
 	return verboseHttpErrors
 }
 
-func (h *HttpPlugin) httpHandler(ctx *fasthttp.RequestCtx) {
-	ctx.SetContentType("text/plain; charset=utf8")
-	// Set arbitrary headers
-	ctx.Response.Header.Set("X-My-Header", "my-header-value")
-	// Set cookies
-	var c fasthttp.Cookie
-	c.SetKey("cookie-name")
-	c.SetValue("cookie-value")
-	ctx.Response.Header.SetCookie(&c)
+//func (h *HttpPlugin) httpHandler(ctx *fasthttp.RequestCtx) {
+//	ctx.SetContentType("text/plain; charset=utf8")
+//	// Set arbitrary headers
+//	ctx.Response.Header.Set("X-My-Header", "my-header-value")
+//	// Set cookies
+//	var c fasthttp.Cookie
+//	c.SetKey("cookie-name")
+//	c.SetValue("cookie-value")
+//	ctx.Response.Header.SetCookie(&c)
+//
+//	h.my.log.Info("%s", ctx.Path())
+//	h.my.log.Info("%s", ctx.Request.Body())
+//
+//	var Inputs map[string]string
+//	path := string(ctx.Path())
+//	body := bytes.NewBuffer(ctx.Request.Body())
+//
+//	chainROApi := App().GetPlugin(chain_plugin.ChainPlug).(*chain_plugin.ChainPlugin).GetReadOnlyApi()
+//	chainRWApi := App().GetPlugin(chain_plugin.ChainPlug).(*chain_plugin.ChainPlugin).GetReadWriteApi()
+//	walletMgr := App().GetPlugin(wallet_plugin.WalletPlug).(*wallet_plugin.WalletPlugin).GetWalletManager()
+//
+//	var reJson []byte
+//	var err error
+//
+//	switch path {
+//	case getInfoFunc:
+//		resp := chainROApi.GetInfo()
+//		reJson, err = json.Marshal(resp)
+//
+//	case getBlockFunc:
+//		params := chain_plugin.GetBlockParams{}
+//		if err := json.NewDecoder(body).Decode(&params); err != nil {
+//			fmt.Println("error:", err)
+//		}
+//
+//		resp := chainROApi.GetBlock(params)
+//		reJson, err = json.Marshal(resp)
+//
+//	case getRequiredKeys:
+//
+//		params := &chain_plugin.GetRequiredKeysParams{}
+//		if err := json.NewDecoder(body).Decode(params); err != nil {
+//			fmt.Println(" get balance error:", err)
+//		}
+//		resp := chainROApi.GetRequiredKeys(params)
+//		reJson, err = json.Marshal(resp)
+//	case getCurrencyBalanceFunc:
+//
+//		if err := json.NewDecoder(body).Decode(&Inputs); err != nil {
+//			fmt.Println(" get balance error:", err)
+//			//return nil
+//		}
+//		log.Error("%#v", Inputs)
+//
+//		fmt.Println(Inputs)
+//
+//	case pushTxnFunc:
+//		var packedTrx types.PackedTransaction
+//		if err := json.NewDecoder(body).Decode(&packedTrx); err != nil {
+//			fmt.Println(" decode packedTransaction:", err)
+//		}
+//		log.Error("%#v", Inputs)
+//		chainRWApi.PushTransaction(&packedTrx)
+//		reJson, err = json.Marshal("push transaction test")
+//	case walletCreate:
+//		var name string
+//		var result string
+//		if err := json.NewDecoder(body).Decode(&name); err != nil {
+//			fmt.Println(" decode wallet name:", err)
+//		}
+//		if len(name) == 0 {
+//			name = "default"
+//		}
+//		password, err := walletMgr.Create(name)
+//		if err != nil {
+//			result = err.Error()
+//		} else {
+//			result = password
+//		}
+//		reJson, err = json.Marshal(result)
+//
+//	case walletImportKey:
+//		type Params struct {
+//			Name string
+//			Key  string
+//		}
+//		var params Params
+//		if err := json.NewDecoder(body).Decode(&params); err != nil {
+//			fmt.Println(" get balance error:", err)
+//		}
+//		err := walletMgr.ImportKey(params.Name, params.Key)
+//		if err != nil {
+//			reJson, err = json.Marshal(err.Error())
+//		} else {
+//			walletKey, err := ecc.NewPrivateKey(params.Key)
+//			if err != nil {
+//				fmt.Println("invalid private key %s", params.Key)
+//				//try.EosThrow(&exception.PrivateKeyTypeException{}, "Invalid private key: %s", walletKeyStr)
+//			}
+//
+//			re := fmt.Sprintf("imported private key for: %s", walletKey.PublicKey().String())
+//			reJson, err = json.Marshal(re)
+//		}
+//
+//	case walletCreateKey:
+//		priKey, _ := ecc.NewRandomPrivateKey()
+//		type Keys struct {
+//			Pri ecc.PrivateKey `json:"Private Key"`
+//			Pub ecc.PublicKey  `json:"Public Key"`
+//		}
+//		resp := &Keys{Pri: *priKey, Pub: priKey.PublicKey()}
+//		reJson, err = json.Marshal(resp)
+//
+//	case walletSignTrx:
+//		type WalletSignedTrx struct {
+//			Trx  types.SignedTransaction `json:"signed_transaction"`
+//			Keys []ecc.PublicKey         `json:"keys"`
+//			ID   common.ChainIdType      `id`
+//		}
+//		var params WalletSignedTrx
+//		if err := json.NewDecoder(body).Decode(&params); err != nil {
+//			fmt.Println(" get balance error:", err)
+//
+//		}
+//
+//		h.my.log.Info("%s", err)
+//		h.my.log.Info("%#v", params)
+//		fmt.Println()
+//
+//		trx, err := walletMgr.SignTransaction(&params.Trx, params.Keys, params.ID)
+//		if err != nil {
+//			fmt.Println(err)
+//		}
+//		h.my.log.Debug("%#v", trx)
+//		if err != nil {
+//			reJson, err = json.Marshal(err.Error())
+//		} else {
+//			h.my.log.Debug("%#v", trx)
+//			reJson, err = json.Marshal(trx)
+//		}
+//	default:
+//		//return nil
+//	}
+//
+//	fmt.Println(string(reJson), err)
+//	fmt.Fprintf(ctx, "%s", reJson)
+//
+//}
 
-	h.my.log.Info("%s", ctx.Path())
-	h.my.log.Info("%s", ctx.Request.Body())
-
-	var Inputs map[string]string
-	path := string(ctx.Path())
-	body := bytes.NewBuffer(ctx.Request.Body())
-
-	chainROApi := App().GetPlugin(chain_plugin.ChainPlug).(*chain_plugin.ChainPlugin).GetReadOnlyApi()
-	chainRWApi := App().GetPlugin(chain_plugin.ChainPlug).(*chain_plugin.ChainPlugin).GetReadWriteApi()
-	walletMgr := App().GetPlugin(wallet_plugin.WalletPlug).(*wallet_plugin.WalletPlugin).GetWalletManager()
-
-	var reJson []byte
-	var err error
-
-	switch path {
-	case getInfoFunc:
-		resp := chainROApi.GetInfo()
-		reJson, err = json.Marshal(resp)
-
-	case getBlockFunc:
-		params := chain_plugin.GetBlockParams{}
-		if err := json.NewDecoder(body).Decode(&params); err != nil {
-			fmt.Println("error:", err)
-		}
-
-		resp := chainROApi.GetBlock(params)
-		reJson, err = json.Marshal(resp)
-
-	case getRequiredKeys:
-
-		params := &chain_plugin.GetRequiredKeysParams{}
-		if err := json.NewDecoder(body).Decode(params); err != nil {
-			fmt.Println(" get balance error:", err)
-		}
-		resp := chainROApi.GetRequiredKeys(params)
-		reJson, err = json.Marshal(resp)
-	case getCurrencyBalanceFunc:
-
-		if err := json.NewDecoder(body).Decode(&Inputs); err != nil {
-			fmt.Println(" get balance error:", err)
-			//return nil
-		}
-		log.Error("%#v", Inputs)
-
-		fmt.Println(Inputs)
-
-	case pushTxnFunc:
-		var packedTrx types.PackedTransaction
-		if err := json.NewDecoder(body).Decode(&packedTrx); err != nil {
-			fmt.Println(" decode packedTransaction:", err)
-		}
-		log.Error("%#v", Inputs)
-		chainRWApi.PushTransaction(&packedTrx)
-		reJson, err = json.Marshal("push transaction test")
-	case walletCreate:
-		var name string
-		var result string
-		if err := json.NewDecoder(body).Decode(&name); err != nil {
-			fmt.Println(" decode wallet name:", err)
-		}
-		if len(name) == 0 {
-			name = "default"
-		}
-		password, err := walletMgr.Create(name)
-		if err != nil {
-			result = err.Error()
-		} else {
-			result = password
-		}
-		reJson, err = json.Marshal(result)
-
-	case walletImportKey:
-		type Params struct {
-			Name string
-			Key  string
-		}
-		var params Params
-		if err := json.NewDecoder(body).Decode(&params); err != nil {
-			fmt.Println(" get balance error:", err)
-		}
-		err := walletMgr.ImportKey(params.Name, params.Key)
-		if err != nil {
-			reJson, err = json.Marshal(err.Error())
-		} else {
-			walletKey, err := ecc.NewPrivateKey(params.Key)
-			if err != nil {
-				fmt.Println("invalid private key %s", params.Key)
-				//try.EosThrow(&exception.PrivateKeyTypeException{}, "Invalid private key: %s", walletKeyStr)
-			}
-
-			re := fmt.Sprintf("imported private key for: %s", walletKey.PublicKey().String())
-			reJson, err = json.Marshal(re)
-		}
-
-	case walletCreateKey:
-		priKey, _ := ecc.NewRandomPrivateKey()
-		type Keys struct {
-			Pri ecc.PrivateKey `json:"Private Key"`
-			Pub ecc.PublicKey  `json:"Public Key"`
-		}
-		resp := &Keys{Pri: *priKey, Pub: priKey.PublicKey()}
-		reJson, err = json.Marshal(resp)
-
-	case walletSignTrx:
-		type WalletSignedTrx struct {
-			Trx  types.SignedTransaction `json:"signed_transaction"`
-			Keys []ecc.PublicKey         `json:"keys"`
-			ID   common.ChainIdType      `id`
-		}
-		var params WalletSignedTrx
-		if err := json.NewDecoder(body).Decode(&params); err != nil {
-			fmt.Println(" get balance error:", err)
-
-		}
-
-		h.my.log.Info("%s", err)
-		h.my.log.Info("%#v", params)
-		fmt.Println()
-
-		trx, err := walletMgr.SignTransaction(&params.Trx, params.Keys, params.ID)
-		if err != nil {
-			fmt.Println(err)
-		}
-		h.my.log.Debug("%#v", trx)
-		if err != nil {
-			reJson, err = json.Marshal(err.Error())
-		} else {
-			h.my.log.Debug("%#v", trx)
-			reJson, err = json.Marshal(trx)
-		}
-	default:
-		//return nil
-	}
-
-	fmt.Println(string(reJson), err)
-	fmt.Fprintf(ctx, "%s", reJson)
-
-}
-
-// void http_plugin::add_handler(const string& url, const url_handler& handler) {
-//   ilog( "add api url: ${c}", ("c",url) );
-//   app().get_io_service().post([=](){
-//     my->url_handlers.insert(std::make_pair(url,handler));
-//   });
-// }
 func (h *HttpPlugin) AddHandler(url string, handler UrlHandler) {
 	h.my.log.Info("add api url: %s", url)
 	App().GetIoService().Post(func(err error) {
