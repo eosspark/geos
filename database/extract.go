@@ -1,7 +1,6 @@
 package database
 
 import (
-	"fmt"
 	"reflect"
 	"strings"
 )
@@ -221,7 +220,6 @@ func splitSubTag(fieldName string, fieldValue *reflect.Value, tag string, m *str
 
 func extractIdTag(tags []string, fieldValue *reflect.Value, m *structInfo) error {
 	for _, subTag := range tags {
-		//fmt.Println(subTag)
 		if subTag == tagGreater || subTag == tagLess {
 			return ErrIdNoSort
 		}
@@ -325,21 +323,6 @@ type dbKeyValue struct {
 	id 		 int64
 }
 
-func (kv *kv) showKV() {
-	space := " : "
-	fmt.Println(kv.key, space, kv.value)
-}
-
-func (dbKV *dbKeyValue) showDbKV() {
-	fmt.Println("--------------------- show db kv begin ---------------------")
-	dbKV.idk.showKV()
-	for _, v := range dbKV.index {
-		v.showKV()
-	}
-	fmt.Println(dbKV.typeName)
-	fmt.Println("--------------------- show db kv end  ---------------------")
-}
-
 func structKV(in interface{}, dbKV *dbKeyValue, cfg *structInfo) error {
 
 	objValue, err := EncodeToBytes(in)
@@ -365,10 +348,9 @@ func structKV(in interface{}, dbKV *dbKeyValue, cfg *structInfo) error {
 
 	return nil
 }
-
+//xxx aaaxxxx
+//xxx dddxxxx
 func cfgToKV(objId []byte, cfg *structInfo, dbKV *dbKeyValue) error{
-
-	//typeName := []byte(cfg.Name)
 
 	for tag, fieldCfg := range cfg.Fields {
 		typeName := []byte(cfg.Name)

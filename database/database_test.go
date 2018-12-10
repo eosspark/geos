@@ -1,14 +1,15 @@
 package database
 
 import (
+	"fmt"
 	"github.com/syndtr/goleveldb/leveldb"
 	"log"
 	"os"
 	"testing"
 )
 
-var logFlag = false
-//var logFlag = true
+//var logFlag = false
+var logFlag = true
 
 func Test_rawDb(t *testing.T) {
 
@@ -47,9 +48,9 @@ func Test_rawDb(t *testing.T) {
 		batch.Put(v,v)
 	}
 	db.Write(batch,nil)
-	for _, v := range keys {
-		db.Delete(v, nil)
-	}
+	//for _, v := range keys {
+	//	db.Delete(v, nil)
+	//}
 }
 
 func Test_open(t *testing.T) {
@@ -73,10 +74,13 @@ func Test_insert(t *testing.T) {
 		log.Fatalln("ERROR")
 	}
 
-
+	//session := db.StartSession()
+	//defer session.Undo()
+	//defer session.Push()
 	//saveObjs(objs, houses, db)
 	objs_,houses_:=saveObjs(objs, houses, db)
 	remove_obj(objs_,houses_,db)
+
 }
 
 func remove_obj(objs []DbTableIdObject, houses []DbHouse,db DataBase){
@@ -1692,3 +1696,23 @@ func MakeResourceLimitsObjects() []DbResourceLimitsObject {
 	}
 	return limits
 }
+
+func Test_findIdZero(t *testing.T){
+	number := 10
+	i := 11
+	out := DbTableIdObject{}
+	obj := DbTableIdObject{Code: AccountName(number + 1), Scope: ScopeName(number + 2), Table: TableName(number + 3 + i + 1), Payer: AccountName(number + 4 + i + 1), Count: uint32(number + 5)}
+	tmp := DbTableIdObject{Code: AccountName(number + 1), Scope: ScopeName(number + 2), Table: TableName(number + 3 + i + 1), Payer: AccountName(number + 4 + i + 1), Count: uint32(number + 5)}
+	db, clo := openDb()
+	if db == nil {
+		log.Fatalln("db open failed")
+	}
+	defer clo()
+	db.Insert(&obj)
+	err := db.Find("id",&tmp,&out)
+	if err != nil{
+		fmt.Println(err)
+	}
+	logObj(out)
+}
+
