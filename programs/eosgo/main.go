@@ -30,6 +30,8 @@ const (
 //go run main.go -e -p eosio --private-key [\"EOS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV\",\"5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3\"] --console
 func main() {
 
+	defer try.HandleStackInfo()
+
 	try.Try(func() {
 
 		App().SetVersion(Version)
@@ -75,19 +77,19 @@ func main() {
 		log.Error(GetDetailMessage(e))
 		os.Exit(OTHER_FAIL)
 
-	}).Catch(func(e try.RuntimeError) {
-		if strings.Contains(e.Message, "database dirty flag set") {
-			log.Error("database dirty flag set (likely due to unclean shutdown): replay required")
-			os.Exit(DATABASE_DIRTY)
-
-		} else if strings.Contains(e.Message, "database metadata dirty flag set") {
-			log.Error("database metadata dirty flag set (likely due to unclean shutdown): replay required")
-			os.Exit(DATABASE_DIRTY)
-
-		} else {
-			log.Error("%s", e.Message)
-		}
-		os.Exit(OTHER_FAIL)
+	//}).Catch(func(e try.RuntimeError) {
+	//	if strings.Contains(e.Message, "database dirty flag set") {
+	//		log.Error("database dirty flag set (likely due to unclean shutdown): replay required")
+	//		os.Exit(DATABASE_DIRTY)
+	//
+	//	} else if strings.Contains(e.Message, "database metadata dirty flag set") {
+	//		log.Error("database metadata dirty flag set (likely due to unclean shutdown): replay required")
+	//		os.Exit(DATABASE_DIRTY)
+	//
+	//	} else {
+	//		log.Error("%s", e.Message)
+	//	}
+	//	os.Exit(OTHER_FAIL)
 
 	}).Catch(func(e error) {
 		log.Error("%s", e.Error())

@@ -52,7 +52,7 @@ func TestElasticCpuRelaxContract(t *testing.T) {
 	rlm.InitializeAccount(account)
 	rlm.SetAccountLimits(account, -1, -1, -1)
 	rlm.ProcessAccountLimitUpdates()
-	f := treeset.NewWith(common.CompareName)
+	f := treeset.NewWith(common.TypeName, common.CompareName)
 	f.AddItem(account)
 
 	iterations := uint32(0)
@@ -89,7 +89,7 @@ func TestElasticNetRelaxContract(t *testing.T) {
 	rlm.SetAccountLimits(account, -1, -1, -1)
 	rlm.ProcessAccountLimitUpdates()
 
-	f := treeset.NewWith(common.CompareName)
+	f := treeset.NewWith(common.TypeName, common.CompareName)
 	f.AddItem(account)
 
 	iterations := uint32(0)
@@ -133,7 +133,7 @@ func TestWeightedCapacityCpu(t *testing.T) {
 	for idx := int(0); idx < len(weights); idx++ {
 		account := common.AccountName(idx + 100)
 		assert.Equal(t, expectedLimits[idx], rlm.GetAccountCpuLimit(account, true))
-		f := treeset.NewWith(common.CompareName)
+		f := treeset.NewWith(common.TypeName, common.CompareName)
 		f.AddItem(account)
 		//s := rlm.db.StartSession()
 		//rlm.AddTransactionUsage(f, uint64(expectedLimits[idx]), 0, 0)
@@ -170,7 +170,7 @@ func TestWeightedCapacityNet(t *testing.T) {
 	for idx := int(0); idx < len(weights); idx++ {
 		account := common.AccountName(idx + 100)
 		assert.Equal(t, expectedLimits[idx], rlm.GetAccountNetLimit(account, true))
-		f := treeset.NewWith(common.NameComparator)
+		f := treeset.NewWith(common.TypeName, common.CompareName)
 		f.AddItem(account)
 		s := rlm.db.StartSession()
 		rlm.AddTransactionUsage(f, 0, uint64(expectedLimits[idx]), 0)
@@ -190,7 +190,7 @@ func TestEnforceBlockLimitsCpu(t *testing.T) {
 	rlm.InitializeAccount(account)
 	rlm.SetAccountLimits(account, -1, -1, -1)
 	rlm.ProcessAccountLimitUpdates()
-	f := treeset.NewWith(common.CompareName)
+	f := treeset.NewWith(common.TypeName, common.CompareName)
 	f.AddItem(account)
 
 	increment := uint64(1000)
@@ -214,7 +214,7 @@ func TestEnforceBlockLimitsNet(t *testing.T) {
 	rlm.SetAccountLimits(account, -1, -1, -1)
 	rlm.ProcessAccountLimitUpdates()
 
-	f := treeset.NewWith(common.CompareName)
+	f := treeset.NewWith(common.TypeName, common.CompareName)
 	f.AddItem(account)
 
 	increment := uint64(1000)
@@ -337,7 +337,7 @@ func TestSanityCheck(t *testing.T) {
 	rlm.SetAccountLimits(dan, 0, 0, 10000)
 	rlm.SetAccountLimits(everyone, 0, 0, 10000000000000-10000)
 	rlm.ProcessAccountLimitUpdates()
-	f := treeset.NewWith(common.CompareName)
+	f := treeset.NewWith(common.TypeName, common.CompareName)
 	f.AddItem(dan)
 	rlm.AddTransactionUsage(f, 10, 0, 1)
 	fmt.Println(rlm.GetAccountCpuLimit(dan, true))
