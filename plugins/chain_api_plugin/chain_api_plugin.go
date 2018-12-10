@@ -89,34 +89,6 @@ func (c *ChainApiPlugin) PluginStartup() {
 func (c *ChainApiPlugin) PluginShutdown() {
 }
 
-// {
-// 	std::string("/v1/""chain""/""get_info"), [this, ro_api](string, string body, url_response_callback cb) mutable {
-// 		ro_api.validate();
-// 		try {
-// 			if (body.empty()) body = "{}";
-// 			auto result = ro_api.get_info(fc::json::from_string(body).as < chain_apis::read_only::get_info_params > ());
-// 			cb(200 l, fc::json::to_string(result));
-// 		} catch (...) {
-// 			http_plugin::handle_exception("chain", "get_info", body, cb);
-// 		}
-// 	}
-// }
-
-// {
-// 	std::string("/v1/""chain""/""get_block"),
-// 	  [this, ro_api](string, string body, url_response_callback cb) mutable {
-// 		ro_api.validate();
-// 		try {
-// 			if (body.empty()) body = "{}";
-// 			auto result = ro_api.get_block(fc::json::from_string(body).as < chain_apis::read_only::get_block_params > ());
-// 			cb(200, fc::json::to_string(result));
-// 		} catch (...) {
-// 			http_plugin::handle_exception("chain", "get_block", body, cb);
-// 		}
-// 	}
-// },
-// apis returns the collection of RPC descriptors this node offers.
-
 //fc::static_variant < fc::exception_ptr, chain_apis::read_write::push_transaction_results > & result
 //func next(result  Variants){
 //	err,ok:= result["exception"]
