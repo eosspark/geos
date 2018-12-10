@@ -28,6 +28,10 @@ func NewReadOnly(db *chain.Controller, abiSerializerMaxTime common.Microseconds)
 	return ro
 }
 
+func (ro *ReadOnly) SetShortenAbiErrors(f bool) {
+	ro.shortenAbiErrors = f
+}
+
 func (ro *ReadOnly) GetInfo() *InfoResp {
 	rm := ro.db.GetMutableResourceLimitsManager()
 	return &InfoResp{

@@ -24,7 +24,7 @@ import (
 	"time"
 
 	"github.com/eosspark/eos-go/log"
-	"github.com/eosspark/eos-go/plugins/http_plugin/rpc"
+	"github.com/eosspark/eos-go/plugins/console_plugin/rpc"
 	"github.com/robertkrimen/otto"
 )
 
@@ -49,6 +49,7 @@ func newBridge(client *rpc.Client, prompter UserPrompter, printer io.Writer) *br
 // non-echoing password prompt to acquire the passphrase and executes the original
 // RPC method (saved in jeth.newAccount) with it to actually execute the RPC call.
 func (b *bridge) NewAccount(call otto.FunctionCall) (response otto.Value) {
+
 	var (
 		password string
 		confirm  string
@@ -217,58 +218,6 @@ func (b *bridge) Sleep(call otto.FunctionCall) (response otto.Value) {
 	return throwJSException("usage: sleep(<number of seconds>)")
 }
 
-// SleepBlocks will block the console for a specified number of new blocks optionally
-// until the given timeout is reached.
-func (b *bridge) SleepBlocks(call otto.FunctionCall) (response otto.Value) {
-	var (
-		blocks = int64(0)
-		sleep  = int64(9999999999999999) // indefinitely
-	)
-	// Parse the input parameters for the sleep
-	nArgs := len(call.ArgumentList)
-	if nArgs == 0 {
-		throwJSException("usage: sleepBlocks(<n blocks>[, max sleep in seconds])")
-	}
-	if nArgs >= 1 {
-		if call.Argument(0).IsNumber() {
-			blocks, _ = call.Argument(0).ToInteger()
-		} else {
-			throwJSException("expected number as first argument")
-		}
-	}
-	if nArgs >= 2 {
-		if call.Argument(1).IsNumber() {
-			sleep, _ = call.Argument(1).ToInteger()
-		} else {
-			throwJSException("expected number as second argument")
-		}
-	}
-	// go through the console, this will allow web3 to call the appropriate
-	// callbacks if a delayed response or notification is received.
-	blockNumber := func() int64 {
-		result, err := call.Otto.Run("eth.blockNumber")
-		if err != nil {
-			throwJSException(err.Error())
-		}
-		block, err := result.ToInteger()
-		if err != nil {
-			throwJSException(err.Error())
-		}
-		return block
-	}
-	// Poll the current block number until either it ot a timeout is reached
-	targetBlockNr := blockNumber() + blocks
-	deadline := time.Now().Add(time.Duration(sleep) * time.Second)
-
-	for time.Now().Before(deadline) {
-		if blockNumber() >= targetBlockNr {
-			return otto.TrueValue()
-		}
-		time.Sleep(time.Second)
-	}
-	return otto.FalseValue()
-}
-
 type jsonrpcCall struct {
 	ID     int64
 	Method string
@@ -305,7 +254,9 @@ func (b *bridge) Send(call otto.FunctionCall) (response otto.Value) {
 		resp, _ := call.Otto.Object(`({"jsonrpc":"2.0"})`)
 		resp.Set("id", req.ID)
 		var result json.RawMessage
-		err = b.client.Call(&result, req.Method, req.Params...)
+		err := b.client.Call(&result, req.Method, req.Params...)
+
+		//fmt.Println("bridge:  ",err,result,string(result))
 		switch err := err.(type) {
 		case nil:
 			if result == nil {
@@ -320,6 +271,7 @@ func (b *bridge) Send(call otto.FunctionCall) (response otto.Value) {
 					resp.Set("result", resultVal)
 				}
 			}
+
 		case rpc.Error:
 			setError(resp, err.ErrorCode(), err.Error())
 		default:

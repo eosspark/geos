@@ -109,6 +109,10 @@ func (s Signature) MarshalJSON() ([]byte, error) {
 }
 
 func (s *Signature) UnmarshalJSON(data []byte) (err error) {
+	if len(data) == 0 {
+		s = NewSigNil()
+		return nil
+	}
 	var sig string
 	err = json.Unmarshal(data, &sig)
 	if err != nil {

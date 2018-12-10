@@ -356,13 +356,13 @@ func getdata(walletname, password string) map[ecc.PublicKey]ecc.PrivateKey {
 func (w *SoftWallet) trySignDigest(digest []byte, publicKey ecc.PublicKey) *ecc.Signature {
 	it, ok := w.Keys[publicKey]
 	if !ok {
-		return &ecc.Signature{}
+		return ecc.NewSigNil()
 	}
 
 	sig, err := it.Sign(digest)
 	if err != nil {
 		fmt.Println(err)
-		return &ecc.Signature{}
+		return ecc.NewSigNil()
 	}
 	return &sig
 }

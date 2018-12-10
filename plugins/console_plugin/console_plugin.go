@@ -178,9 +178,14 @@ func (cp *ConsolePlugin) PluginStartup() {
 		cp.my.log.Info("interactive start")
 
 		// Lastly start the configured RPC interfaces
-		if err := cp.my.startRPC(cp.my.rpcAPIs); err != nil {
-			cp.my.log.Error("start RPC wrong: %s", err)
-		}
+		//if err := cp.my.startRPC(cp.my.rpcAPIs); err != nil {
+		//	cp.my.log.Error("start RPC wrong: %s", err)
+		//}
+		//var result map[string]string
+		//ctx, cancel := context.WithTimeout(context.Background(), 5 * time.Second)
+		//defer cancel()
+		//err := cp.my.console..CallContext(ctx, &result, "rpc_modules", nil)
+		//return result, err
 
 	}
 }

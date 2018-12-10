@@ -27,6 +27,7 @@ import (
 	"mime"
 	"net"
 	"net/http"
+	"net/url"
 	"strings"
 	"sync"
 	"time"
@@ -120,13 +121,19 @@ func DialHTTP(endpoint string) (*Client, error) {
 	return DialHTTPWithClient(endpoint, new(http.Client))
 }
 
-func (c *Client) sendHTTP(ctx context.Context, op *requestOp, msg interface{}) error {
+func (c *Client) sendHTTP(ctx context.Context, op *requestOp, msg interface{}, path string) error {
 	hc := c.writeConn.(*httpConn)
+
+	u, err := url.Parse(c.BaseUrl + path)
+	if err != nil {
+		fmt.Println(err)
+	}
+	hc.req.URL = u
+
 	respBody, err := hc.doRequest(ctx, msg)
 	if respBody != nil {
 		defer respBody.Close()
 	}
-	fmt.Println("129:err ", respBody, err)
 	if err != nil {
 		if respBody != nil {
 			buf := new(bytes.Buffer)
@@ -136,41 +143,34 @@ func (c *Client) sendHTTP(ctx context.Context, op *requestOp, msg interface{}) e
 		}
 		return err
 	}
-	var respmsg jsonrpcMessage
-	if err := json.NewDecoder(respBody).Decode(&respmsg); err != nil {
-		fmt.Println("141:err ", err)
-		return err
-	}
-	fmt.Println(respmsg, respBody)
-	op.resp <- &respmsg
+	var cnt bytes.Buffer
+	_, err = io.Copy(&cnt, respBody)
+	rpclog.Info("respBody: %s", string(cnt.Bytes()))
+
+	op.resp <- cnt.Bytes()
 	return nil
 }
 
-func (c *Client) sendBatchHTTP(ctx context.Context, op *requestOp, msgs []*jsonrpcMessage) error {
-	hc := c.writeConn.(*httpConn)
-	respBody, err := hc.doRequest(ctx, msgs)
-	if err != nil {
-		return err
+func enc(v interface{}) ([]byte, error) {
+	if v == nil {
+		return nil, nil
 	}
-	defer respBody.Close()
-	var respmsgs []jsonrpcMessage
-	if err := json.NewDecoder(respBody).Decode(&respmsgs); err != nil {
-		return err
-	}
-	for i := 0; i < len(respmsgs); i++ {
-		op.resp <- &respmsgs[i]
-	}
-	return nil
-}
-
-func (hc *httpConn) doRequest(ctx context.Context, msg interface{}) (io.ReadCloser, error) {
-	body, err := json.Marshal(msg)
+	cnt, err := json.Marshal(v)
 	if err != nil {
 		return nil, err
 	}
+	return cnt, nil
+}
+
+func (hc *httpConn) doRequest(ctx context.Context, msg interface{}) (io.ReadCloser, error) {
+	jsonBody, err := enc(msg)
+	if err != nil {
+		return nil, err
+	}
+	rpclog.Debug("send url:%s, msg: %s", hc.req.URL, jsonBody)
 	req := hc.req.WithContext(ctx)
-	req.Body = ioutil.NopCloser(bytes.NewReader(body))
-	req.ContentLength = int64(len(body))
+	req.Body = ioutil.NopCloser(bytes.NewBuffer(jsonBody))
+	req.ContentLength = int64(len(jsonBody))
 
 	resp, err := hc.client.Do(req)
 	if err != nil {

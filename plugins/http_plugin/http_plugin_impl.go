@@ -4,13 +4,18 @@ import (
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/log"
 	"github.com/eosspark/eos-go/plugins/appbase/asio"
-	"github.com/eosspark/eos-go/plugins/http_plugin/rpc"
+	"github.com/eosspark/eos-go/plugins/console_plugin/rpc"
 	"net"
 	"net/http"
 )
 
+type NextFunction = func(interface{})
+type UrlResponseCallback = func(int, []byte)
+type UrlHandler = func(source string, body []byte, cb UrlResponseCallback)
+
 type HttpPluginImpl struct {
-	UrlHandlers                   map[string]http.Handler
+	UrlHandlers map[string]UrlHandler
+
 	AccessControlAllowOrigin      string
 	AccessControlAllowHeaders     string
 	AccessControlMaxAge           string
@@ -32,7 +37,7 @@ type HttpPluginImpl struct {
 
 func NewHttpPluginImpl(io *asio.IoContext) *HttpPluginImpl {
 	impl := new(HttpPluginImpl)
-	impl.UrlHandlers = make(map[string]http.Handler)
+	impl.UrlHandlers = make(map[string]UrlHandler)
 	impl.AccessControlAllowCredentials = false
 
 	impl.log = log.New("HttpPlugin")
