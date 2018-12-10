@@ -8,6 +8,10 @@ import (
 	"github.com/docker/docker/pkg/testutil/assert"
 )
 
+func TestStaticAssert(t *testing.T) {
+	Assert(1 != 1, "test assert")
+}
+
 func TestEosAssert(t *testing.T) {
 	EosAssert(true, &BlockValidateException{}, "block #%s error :%s", "00000006367c1f4...", "msg")
 
@@ -19,6 +23,7 @@ func TestEosAssert(t *testing.T) {
 }
 
 func TestCatchOrFinally_EosRethrowExceptions(t *testing.T) {
+	defer HandleStackInfo()
 	Try(func() {
 		Try(func() {
 			EosAssert(false, &AssertException{}, "tester exception %s", "AssertException")

@@ -143,16 +143,16 @@ func (p *ProducerPlugin) PluginInitialize(c *cli.Context) {
 				json.Unmarshal([]byte(keyIdToWifPairString), &keyIdToWifPair)
 				pubKey, err := ecc.NewPublicKey(keyIdToWifPair[0])
 				if err != nil {
-					Throw(err) //TODO
+					Throw(err)
 				}
 				priKey, err2 := ecc.NewPrivateKey(keyIdToWifPair[1])
 				if err2 != nil {
-					Throw(err2) //TODO
+					Throw(err2)
 				}
 				p.my.SignatureProviders[pubKey] = makeKeySignatureProvider(priKey)
 				// wlog("\"private-key\" is DEPRECATED, use \"signature-provider=${pub}=KEY:${priv}\"", ("pub",key_id_to_wif_pair.first)("priv", blanked_privkey));
 			}).Catch(func(e error) {
-				log.Error("Malformed private key pair")
+				log.Error("Malformed private key pair: \"%s\", ignoring", keyIdToWifPairString)
 			}).End()
 		}
 
