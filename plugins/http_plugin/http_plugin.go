@@ -312,7 +312,7 @@ func (h *HttpPlugin) PluginStartup() {
 	//handler := h.httpHandler
 	handler := h.Handler
 
-	fasthttp.ListenAndServe(h.my.listenStr, handler)
+	fasthttp.ListenAndServe(App().GetIoService(), h.my.listenStr, handler)
 
 }
 
