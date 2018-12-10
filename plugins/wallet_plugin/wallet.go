@@ -9,6 +9,8 @@ import (
 	"fmt"
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/crypto/rlp"
+	. "github.com/eosspark/eos-go/exception"
+	. "github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/log"
 	"os"
 )
@@ -150,25 +152,19 @@ func (w *SoftWallet) UnLock(password string) (err error) {
 	return nil
 }
 
-func (w *SoftWallet) CheckPassword(password string) (err error) {
-	if len(password) > 0 {
+func (w *SoftWallet) CheckPassword(password string) {
+	Try(func() {
+		FcAssert(len(password) > 0)
 		pw := hash512(password)
 		decrypted, err := Decrypt(string(pw[:]), w.wallet.CipherKeys)
-		if err != nil {
-			return err
-		}
+		FcAssert(err == nil)
 
 		var pk PlainKeys
 		err = rlp.DecodeBytes(decrypted, &pk.CheckSum)
-		if err != nil {
-			return err
-		}
-		if result := bytes.Compare(pw, pk.CheckSum); result == 0 {
-			return nil
-		}
-	}
-	return ErrWallerInvalidPassword
-
+		FcAssert(err == nil)
+		result := bytes.Compare(pw, pk.CheckSum)
+		FcAssert(result == 0)
+	}).EosRethrowExceptions(&WalletInvalidPasswordException{}, "Invalid password for wallet: %s", w.walletFilename).End()
 }
 
 //SetPassword Sets a new password on the wallet

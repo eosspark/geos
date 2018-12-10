@@ -55,6 +55,24 @@ func walletManager() *WalletManager {
 	return manager
 }
 
+func checkNum(r rune) bool {
+	if r >= '0' && r <= '9' {
+		return true
+	}
+	return false
+}
+func validFileName(name string) bool {
+	if len(name) == 0 {
+		return false
+	}
+	if strings.Contains(".", name) || strings.Contains("_", name) || strings.Contains("-", name) {
+		return false
+	}
+	if strings.IndexFunc(name, checkNum) != -1 {
+		return false
+	}
+	return true
+}
 func genPassword() (password string, err error) {
 	prikey, err := ecc.NewRandomPrivateKey()
 	if err != nil {
@@ -68,9 +86,10 @@ func (wm *WalletManager) Create(name string) (password string, err error) {
 	wm.log.Debug("wallet creating")
 	wm.checkTimeout()
 
-	if name == "" {
+	if name == "" { //TODO delete ,it should be added in client
 		name = "default"
 	}
+	EosAssert(validFileName(name), &WalletException{}, "Invalid filename, path not allowed in wallet name %s", name)
 
 	password, err = genPassword()
 
@@ -87,8 +106,7 @@ func (wm *WalletManager) Create(name string) (password string, err error) {
 	walletName := name + fileExt
 	for _, f := range allwallets {
 		if f == walletName {
-			err = fmt.Errorf("Wallet with name: %s already exists at %s", walletName, wm.dir)
-			return
+			EosThrow(&WalletExistException{}, "Wallet with name: %s already exists at %s", name, wm.dir)
 		}
 	}
 
@@ -111,6 +129,7 @@ func (wm *WalletManager) Create(name string) (password string, err error) {
 		delete(wm.Wallets, name)
 	}
 	wm.Wallets[name] = wallet
+
 	wm.log.Info("wallets: ")
 	for name := range wm.Wallets {
 		wm.log.Info(name)
@@ -119,21 +138,22 @@ func (wm *WalletManager) Create(name string) (password string, err error) {
 	return password, nil
 }
 
-func (wm *WalletManager) Open(name string) error {
+func (wm *WalletManager) Open(name string) {
 	wm.checkTimeout()
 	wm.log.Debug("Opening wallet :   wallet name: ", name)
+	EosAssert(validFileName(name), &WalletException{}, "Invalid filename, path not allowed in wallet name %s", name)
+
 	var wallet SoftWallet
 	walletFileName := fmt.Sprintf("%s/%s%s", wm.dir, name, fileExt)
 	wallet.SetWalletFilename(walletFileName)
 	if !wallet.LoadWalletFile() {
-		return fmt.Errorf("Unable to open file: %s", walletFileName)
+		EosThrow(&WalletNonexistentException{}, "Unable to open file: %s", walletFileName)
 	}
 	if _, ok := wm.Wallets[name]; ok {
 		delete(wm.Wallets, name)
 	}
 	wm.Wallets[name] = wallet
 	// log.Debug(walletname, wallet.wallet.CipherKeys)
-	return nil
 }
 
 func (wm *WalletManager) ListWallets() []string {
@@ -161,23 +181,23 @@ type RespKeys map[ecc.PublicKey]ecc.PrivateKey
 //	return json.Marshal(out)
 //}
 
-func (wm *WalletManager) ListKeys(name, password string) (re RespKeys, err error) {
+type ListKeysParams struct {
+	Name     string
+	Password string
+}
+
+func (wm *WalletManager) ListKeys(name, password string) (re RespKeys) {
 	wm.checkTimeout()
 	wm.log.Debug("list keys")
 
 	if _, ok := wm.Wallets[name]; !ok {
-		err = fmt.Errorf("Wallet not found: %s", name)
-		return nil, err
+		EosThrow(&WalletNonexistentException{}, "Wallet not found: %s", name)
 	}
 	wallet := wm.Wallets[name]
 	if wallet.isLocked() {
-		err = fmt.Errorf("Wallet is locked: %s", name)
-		return nil, err
+		EosThrow(&WalletLockedException{}, "Wallet is locked: %s", name)
 	}
-	err = wallet.CheckPassword(password)
-	if err != nil {
-		return nil, err
-	}
+	wallet.CheckPassword(password)
 
 	for pub, pri := range wallet.Keys {
 		re[pub] = pri
@@ -186,13 +206,9 @@ func (wm *WalletManager) ListKeys(name, password string) (re RespKeys, err error
 	return
 }
 
-func (wm *WalletManager) GetPublicKeys() (re []string, err error) {
+func (wm *WalletManager) GetPublicKeys() (re []string) {
 	wm.log.Debug("get public keys")
-
-	if len(wm.Wallets) == 0 {
-		return nil, ErrWalletNotAvaliable
-	}
-
+	EosAssert(len(wm.Wallets) != 0, &WalletNotAvailableException{}, "You don't have any wallet!")
 	isAllWalletLocked := true
 	for name, wallet := range wm.Wallets {
 		if !wallet.isLocked() {
@@ -203,10 +219,9 @@ func (wm *WalletManager) GetPublicKeys() (re []string, err error) {
 			}
 		}
 	}
-	if isAllWalletLocked {
-		return nil, ErrWalletNotUnlocked
-	}
-	return re, nil
+
+	EosAssert(!isAllWalletLocked, &WalletLockedException{}, "You don't have any unlocked wallet!")
+	return re
 }
 
 func (wm *WalletManager) LockAllwallets() {
@@ -222,14 +237,18 @@ func (wm *WalletManager) lockAll() {
 	}
 }
 
-func (wm *WalletManager) Lock(name string) error {
+func (wm *WalletManager) Lock(name string) {
 	wm.log.Debug("lock wallet")
 	if _, ok := wm.Wallets[name]; !ok {
-		return fmt.Errorf("Wallet not found: %s", name)
+		EosThrow(&WalletNonexistentException{}, "Wallet not found:%s", name)
 	}
 	wallet := wm.Wallets[name]
 	wallet.Lock()
-	return nil
+}
+
+type UnlockParams struct {
+	Name     string
+	Password string
 }
 
 func (wm *WalletManager) Unlock(name, password string) error {
@@ -243,6 +262,7 @@ func (wm *WalletManager) Unlock(name, password string) error {
 		walletFileName := fmt.Sprintf("%s/%s%s", wm.dir, name, fileExt)
 		wallet.SetWalletFilename(walletFileName)
 		if !wallet.LoadWalletFile() {
+
 			return fmt.Errorf("Unable to open file: %s", walletFileName)
 		}
 		if _, ok := wm.Wallets[name]; ok {
@@ -254,7 +274,7 @@ func (wm *WalletManager) Unlock(name, password string) error {
 
 	wallet = wm.Wallets[name]
 	if !wallet.isLocked() {
-		return fmt.Errorf("Wallet is already unlocked: %s", name)
+		EosThrow(&WalletUnlockedException{}, "Wallet is already unlocked:%s", name)
 	}
 
 	err := wallet.UnLock(password)
@@ -270,62 +290,78 @@ func (wm *WalletManager) Unlock(name, password string) error {
 	return nil
 }
 
-func (wm *WalletManager) ImportKey(name, wifkey string) error {
+type ImportKeyParams struct {
+	Name string `json:"name"`
+	Key  string `json:"key"`
+}
+
+func (wm *WalletManager) ImportKey(name, wifkey string) {
 	wm.log.Debug("wallet import keys %s,%s", name, wifkey)
 	wallet, ok := wm.Wallets[name]
 	if !ok {
-		return fmt.Errorf("Wallet not found: %s\n", name)
+		EosThrow(&WalletNonexistentException{}, "Wallet nor found: %s", name)
 	}
 
 	if wallet.isLocked() {
-		return fmt.Errorf("Wallet is locked: %s\n", name)
+		EosThrow(&WalletLockedException{}, "Wallet is locked: %s\n", name)
 	}
 
 	ok, err := wallet.ImportKey(wifkey)
 	if err != nil {
-		return fmt.Errorf("Unable to import key")
+		EosThrow(&KeyExistException{}, "Key already in wallet")
 	}
 	if ok {
 		wallet.SaveWalletFile()
 	}
-	return nil
 }
 
-func (wm *WalletManager) RemoveKey(name, password, key string) error {
+type RemoveKeyParams struct {
+	Name     string
+	Password string
+	Key      string
+}
+
+func (wm *WalletManager) RemoveKey(name, password, key string) {
 	wm.log.Debug("remove key")
 	wm.checkTimeout()
 	wallet, ok := wm.Wallets[name]
 	if !ok {
-		//EOS_THROW(chain::wallet_nonexistent_exception, "Wallet not found: ${w}", ("w", name));
-		return fmt.Errorf("Wallet not found: %s", name)
+		EosThrow(&WalletNonexistentException{}, "Wallet not found:%s\n", name)
 	}
 	if wallet.isLocked() {
-		//EOS_THROW(chain::wallet_locked_exception, "Wallet is locked: ${w}", ("w", name));
-		return fmt.Errorf("Wallet is locked:%s", name)
+		EosThrow(&WalletLockedException{}, "Wallet is locked: %s\n", name)
 	}
 	wallet.CheckPassword(password) //throws if bad password
 	wallet.RemoveKey(key)
-	return nil
 }
 
-func (wm *WalletManager) CreateKey(name, keyType string) (string, error) {
+type CreateKeyParams struct {
+	Name    string
+	KeyType string
+}
+
+func (wm *WalletManager) CreateKey(name, keyType string) string {
 	wm.log.Debug("create key")
 	wm.checkTimeout()
 	wallet, ok := wm.Wallets[name]
 	if !ok {
-		//EOS_THROW(chain::wallet_nonexistent_exception, "Wallet not found: ${w}", ("w", name));
-		return "", fmt.Errorf("Wallet not found: %s", name)
+		EosThrow(&WalletNonexistentException{}, "Wallet not found:%s\n", name)
 	}
 	if wallet.isLocked() {
-		//EOS_THROW(chain::wallet_locked_exception, "Wallet is locked: ${w}", ("w", name));
-		return "", fmt.Errorf("Wallet is locked:%s", name)
+		EosThrow(&WalletLockedException{}, "Wallet is locked: %s\n", name)
 	}
 
 	re := wallet.CreateKey(strings.ToUpper(keyType))
-	return re, nil
+	return re
 }
 
-func (wm *WalletManager) SignTransaction(txn *types.SignedTransaction, keys []ecc.PublicKey, chainID common.ChainIdType) (*types.SignedTransaction, error) {
+type SignTrxParams struct {
+	Txn     *types.SignedTransaction
+	Keys    []ecc.PublicKey
+	ChainID common.ChainIdType
+}
+
+func (wm *WalletManager) SignTransaction(txn *types.SignedTransaction, keys []ecc.PublicKey, chainID common.ChainIdType) *types.SignedTransaction {
 	wm.checkTimeout()
 	wm.log.Debug("sign transaction")
 	wm.log.Debug("%#v", txn)
@@ -351,7 +387,7 @@ func (wm *WalletManager) SignTransaction(txn *types.SignedTransaction, keys []ec
 	}
 
 	wm.log.Debug("%#v", txn)
-	return txn, nil
+	return txn
 
 }
 

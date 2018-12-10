@@ -2,7 +2,6 @@ package http_plugin
 
 import (
 	"encoding/json"
-	"fmt"
 	. "github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/log"
@@ -28,11 +27,15 @@ type HttpPlugin struct {
 	my *HttpPluginImpl
 }
 
+var hlog log.Logger
+
 func NewHttpPlugin(io *asio.IoContext) *HttpPlugin {
 	h := &HttpPlugin{}
 	h.my = NewHttpPluginImpl(io)
 	h.my.self = h
 
+	hlog = log.New("http")
+	hlog.SetHandler(log.TerminalHandler)
 	return h
 }
 
@@ -123,7 +126,7 @@ func (h *HttpPlugin) PluginInitialize(c *cli.Context) {
 		//	panic(err)
 		//}
 		//h.my.log.Info("configured http to listen on %s", h.my.listenStr)
-	})
+	}).End()
 	//Try(func() {
 	//	h.my.log.Info("http plugin initialize")
 	//	h.my.AccessControlAllowOrigin = c.String("access-control-allow-origin")
@@ -492,6 +495,16 @@ func (h *HttpPlugin) Handler(ctx *fasthttp.RequestCtx) {
 	}
 }
 
+func (h *HttpPlugin) IsOnLoopBack() bool { //TODO
+	//return (!my->listen_endpoint || my->listen_endpoint->address().is_loopback()) && (!my->https_listen_endpoint || my->https_listen_endpoint->address().is_loopback());
+
+	return false
+}
+func (h *HttpPlugin) IsSecure() bool { //TODO
+	//return (!my->listen_endpoint || my->listen_endpoint->address().is_loopback());
+	return false
+}
+
 /**
  * @brief Structure used to create JSON error responses
  */
@@ -557,32 +570,32 @@ func HandleException(e interface{}, apiName, callName, body string, cb UrlRespon
 			results := errorResults{422, "Unprocessable Entity", newErrorInfo(e, verboseHttpErrors)}
 			re, _ := json.Marshal(results)
 			cb(422, re)
-			log.Error("Unable to parse arguments to %s.%s", apiName, callName)
-			log.Debug("Bad arguments: %s", body)
+			hlog.Error("Unable to parse arguments to %s.%s", apiName, callName)
+			hlog.Debug("Bad arguments: %s", body)
 		}).Catch(func(e Exception) {
 			results := errorResults{500, "Internal Service Error", newErrorInfo(e, verboseHttpErrors)}
 			re, _ := json.Marshal(results)
 			cb(500, re)
 			if e.Code() != (GreylistNetUsageExceeded{}).Code() && e.Code() != (GreylistCpuUsageExceeded{}).Code() {
-				log.Error("FC Exception encountered while processing %s.%s", apiName, callName)
-				log.Debug("Exception Details: %s", GetDetailMessage(e))
+				hlog.Error("FC Exception encountered while processing %s.%s", apiName, callName)
+				hlog.Debug("Exception Details: %s", GetDetailMessage(e))
 			}
 		}).Catch(func(e error) {
 			results := errorResults{500, "Internal Service Error",
 				newErrorInfo(&FcException{ELog: NewELog(log.FcLogMessage(log.LvlError, e.Error()))}, verboseHttpErrors)}
 			re, _ := json.Marshal(results)
 			cb(500, re)
-			log.Error("STD Exception encountered while processing %s.%s", apiName, callName)
-			log.Debug("Exception Details: %s", e.Error())
+			hlog.Error("STD Exception encountered while processing %s.%s", apiName, callName)
+			hlog.Debug("Exception Details: %s", e.Error())
 		}).Catch(func(interface{}) {
 			results := errorResults{500, "Internal Service Error",
 				newErrorInfo(&FcException{ELog: NewELog(log.FcLogMessage(log.LvlError, "Unknown Exception"))}, verboseHttpErrors)}
 			re, _ := json.Marshal(results)
 			cb(500, re)
-			log.Error("Unknown Exception encountered while processing %s.%s", apiName, callName)
+			hlog.Error("Unknown Exception encountered while processing %s.%s", apiName, callName)
 		})
 	}).Catch(func(interface{}) {
-		fmt.Printf("Exception attempting to handle exception for %s.%s", apiName, callName)
-	})
+		hlog.Error("Exception attempting to handle exception for %s.%s", apiName, callName)
+	}).End()
 
 }

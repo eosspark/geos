@@ -10,6 +10,7 @@ import (
 	"github.com/eosspark/eos-go/plugins/chain_plugin"
 	"github.com/eosspark/eos-go/plugins/http_plugin"
 	"github.com/eosspark/eos-go/plugins/producer_plugin"
+	"github.com/eosspark/eos-go/plugins/wallet_api_plugin"
 	"github.com/eosspark/eos-go/plugins/wallet_plugin"
 	"os"
 	"strings"
@@ -39,7 +40,7 @@ func main() {
 			chain_plugin.ChainPlug,
 			http_plugin.HttpPlug,
 			chain_api_plugin.ChainAPiPlug,
-
+			wallet_api_plugin.WalletApiPlug,
 			wallet_plugin.WalletPlug,
 
 			//console_plugin.ConsolePlug,
