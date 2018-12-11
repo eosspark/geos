@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
+	"math"
 )
 
 /*----------------------------------------------------------------------------
@@ -18,6 +19,7 @@ import (
 type Float16 uint16
 type Float32 uint32
 type Float64 uint64
+
 type Float128 struct {
 	Low  uint64
 	High uint64
@@ -29,6 +31,14 @@ type ExtFloat80M struct {
 }
 
 type ExtFloat80_t ExtFloat80M
+
+func (f Float32) String() string {
+	return fmt.Sprintf("%e", math.Float32frombits(uint32(f)))
+}
+
+func (f Float64) String() string {
+	return fmt.Sprintf("%e", math.Float64frombits(uint64(f)))
+}
 
 func (f Float128) String() string {
 	// Same for Int128, Float128

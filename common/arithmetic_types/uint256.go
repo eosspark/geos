@@ -3,11 +3,36 @@ package arithmeticTypes
 import (
 	"fmt"
 	"math"
+	"math/big"
 )
 
 type Uint256 struct {
-	Low Uint128
-	High  Uint128
+	Low  Uint128
+	High Uint128
+}
+
+func (u Uint256) String() string {
+	uHigh := new(big.Int).SetUint64(u.Low.High)
+	uLow := new(big.Int).SetUint64(u.Low.Low)
+
+	uBigInt := new(big.Int).SetUint64(math.MaxUint64)
+	one := new(big.Int).SetUint64(1)
+	uBigInt = new(big.Int).Add(uBigInt, one)
+
+	uBigIntlow := new(big.Int).Mul(uBigInt, uHigh)
+	uBigIntlow = new(big.Int).Add(uBigIntlow, uLow)
+
+	hHigh := new(big.Int).SetUint64(u.High.High)
+	hLow := new(big.Int).SetUint64(u.High.Low)
+
+	uBigIntHigh := new(big.Int).Mul(uBigInt, hHigh)
+	uBigIntHigh = new(big.Int).Add(uBigIntHigh, hLow)
+
+	uBigInt128 := new(big.Int).Mul(uBigInt, uBigInt)
+	re := new(big.Int).Mul(uBigIntHigh, uBigInt128)
+	re = new(big.Int).Add(re, uBigIntlow)
+
+	return re.String()
 }
 
 func (u Uint256) IsZero() bool {
@@ -36,10 +61,10 @@ func (u *Uint256) Set(i uint, b uint) {
 	}
 	if i >= 128 {
 		if b == 1 {
-			u.High.Set(i - 128, 1)
+			u.High.Set(i-128, 1)
 		}
 		if b == 0 {
-			u.High.Set(i - 128, 0)
+			u.High.Set(i-128, 0)
 		}
 	}
 }
