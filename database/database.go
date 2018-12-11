@@ -13,6 +13,14 @@ import (
 	"github.com/syndtr/goleveldb/leveldb/util"
 )
 
+type SkipSuffix int
+
+const (
+	_ SkipSuffix = iota
+	SKIP_ONE
+	SKIP_TWO
+)
+
 type LDataBase struct {
 	db        *leveldb.DB
 	stack     *deque
@@ -485,11 +493,11 @@ error 				-->		error 	(out invalid)
 
 */
 
-func (ldb *LDataBase) Find(tagName string, in interface{}, out interface{}) error {
-	return ldb.find(tagName, in, out)
+func (ldb *LDataBase) Find(tagName string, in interface{}, out interface{},skip... SkipSuffix) error {
+	return ldb.find(tagName, in, out,skip...)
 }
 
-func (ldb *LDataBase) find(tagName string, value interface{}, to interface{}) error {
+func (ldb *LDataBase) find(tagName string, value interface{}, to interface{},skip... SkipSuffix) error {
 	ldb.log.Info("tagName is: %v", tagName)
 	fieldName := []byte(tagName)
 	fields, err := getFieldInfo(tagName, value)
@@ -500,7 +508,7 @@ func (ldb *LDataBase) find(tagName string, value interface{}, to interface{}) er
 
 	typeName := []byte(fields.typeName)
 
-	suffix,err := fieldValueToByte(fields,true)
+	suffix,err := fieldValueToByte(fields,skip...)
 	if err != nil{
 		ldb.log.Error("failed : %s", err.Error())
 		return err
@@ -581,8 +589,8 @@ func (ldb *LDataBase) GetMutableIndex(fieldName string, in interface{}) (*MultiI
 	return ldb.GetIndex(fieldName, in)
 }
 
-func (ldb *LDataBase) lowerBound(begin, end, fieldName []byte, data interface{}) (*DbIterator, error) {
-	key, typeName := ldb.dbPrefix(begin, fieldName, data)
+func (ldb *LDataBase) lowerBound(begin, end, fieldName []byte, data interface{},skip... SkipSuffix) (*DbIterator, error) {
+	key, typeName := ldb.dbPrefix(begin, fieldName, data,skip...)
 	//return ldb.dbIterator(key,begin,end,typeName,false)
 	it := ldb.db.NewIterator(&util.Range{Start: begin, Limit: end}, nil)
 	if !it.Next() {
@@ -604,9 +612,9 @@ func (ldb *LDataBase) lowerBound(begin, end, fieldName []byte, data interface{})
 	return idx, nil
 }
 
-func (ldb *LDataBase) upperBound(begin, end, fieldName []byte, data interface{}) (*DbIterator, error) {
+func (ldb *LDataBase) upperBound(begin, end, fieldName []byte, data interface{},skip... SkipSuffix) (*DbIterator, error) {
 
-	key, typeName := ldb.dbPrefix(begin, fieldName, data)
+	key, typeName := ldb.dbPrefix(begin, fieldName, data,skip...)
 	key = keyEnd(key)
 	return ldb.dbIterator(key,begin, end, typeName,true)
 }
@@ -647,7 +655,7 @@ func (ldb *LDataBase) EndIterator(begin, end, typeName []byte) (*DbIterator, err
 	return nil, ErrNotFound
 }
 
-func (ldb *LDataBase) dbPrefix(begin_, fieldName []byte, data interface{}) ([]byte, []byte) {
+func (ldb *LDataBase) dbPrefix(begin_, fieldName []byte, data interface{},skip... SkipSuffix) ([]byte, []byte) {
 	begin := cloneByte(begin_)
 	ldb.log.Info("begin : %v, end : %v, fieldName: %v", begin, fieldName)
 	fields, err := getFieldInfo(string(fieldName), data)
@@ -657,7 +665,7 @@ func (ldb *LDataBase) dbPrefix(begin_, fieldName []byte, data interface{}) ([]by
 	}
 
 
-	prefix,err := fieldValueToByte(fields,true)
+	prefix,err := fieldValueToByte(fields,skip...)
 	if err != nil{
 		ldb.log.Error("failed %s", err.Error())
 		return nil,nil
@@ -685,7 +693,7 @@ func (ldb *LDataBase) Empty(begin, end, fieldName []byte) bool {
 	return true
 }
 
-func (ldb *LDataBase) IteratorTo(begin, end, fieldName []byte, data interface{}) (*DbIterator, error) {
+func (ldb *LDataBase) IteratorTo(begin, end, fieldName []byte, data interface{},skip... SkipSuffix) (*DbIterator, error) {
 
 	ldb.log.Info("begin : %v, end : %v, fieldName: %v , greater: %t", begin, end, fieldName)
 	fields, err := getFieldInfo(string(fieldName), data)
@@ -693,7 +701,7 @@ func (ldb *LDataBase) IteratorTo(begin, end, fieldName []byte, data interface{})
 		ldb.log.Error("failed %s", err.Error())
 		return nil, err
 	}
-	prefix,err := fieldValueToByte(fields,true)
+	prefix,err := fieldValueToByte(fields,skip...)
 	if err != nil{
 		ldb.log.Error("failed %s", err.Error())
 		return nil,err
