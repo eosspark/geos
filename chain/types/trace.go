@@ -5,6 +5,7 @@ import (
 	"github.com/eosspark/container/sets/treeset"
 	"github.com/eosspark/eos-go/common"
 	. "github.com/eosspark/eos-go/exception"
+	"reflect"
 )
 
 type BaseActionTrace struct {
@@ -55,6 +56,8 @@ func (a *AccountDelta) GetKey() []byte {
 	binary.BigEndian.PutUint64(b, uint64(a.Account))
 	return b
 }
+
+var TypeAccountDelta = reflect.TypeOf(AccountDelta{})
 
 func CompareAccountDelta(first interface{}, second interface{}) int {
 	if first.(AccountDelta).Account == second.(AccountDelta).Account {

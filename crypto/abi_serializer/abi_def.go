@@ -326,3 +326,31 @@ func (i *Uint128) UnmarshalJSON(data []byte) error {
 
 	return nil
 }
+
+//
+//action base_tester::get_action( account_name code, action_name acttype, vector<permission_level> auths,
+//const variant_object& data )const { try {
+//const auto& acnt = control->get_account(code);
+//auto abi = acnt.get_abi();
+//chain::abi_serializer abis(abi, abi_serializer_max_time);
+//
+//
+//
+//string action_type_name = abis.get_action_type(acttype);
+//FC_ASSERT( action_type_name != string(), "unknown action type ${a}", ("a",acttype) );
+//
+//
+//action act;
+//act.account = code;
+//act.name = acttype;
+//act.authorization = auths;
+//act.data = abis.variant_to_binary(action_type_name, data, abi_serializer_max_time);
+//return act;
+//} FC_CAPTURE_AND_RETHROW() }
+//
+//
+//func fff(){
+//	abis :=new(AbiSerializer)
+//	abis.SetAbi(aib,abi_serializer_max_time)
+//	abis.
+//}

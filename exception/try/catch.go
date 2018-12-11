@@ -8,9 +8,10 @@ import (
 
 type CatchOrFinally struct {
 	e         interface{}
-	stackInfo []byte
+	//stackInfo []byte
 	//StackTrace []StackInfo
 }
+
 
 //Catch call the exception handler. And return interface CatchOrFinally that
 //can call Catch or Finally.
@@ -119,11 +120,12 @@ func (c *CatchOrFinally) Catch(f interface{}) (r *CatchOrFinally) {
 //Necessary to call at the end of try-catch block, to ensure panic uncaught exceptions
 func (c *CatchOrFinally) End() {
 	if c != nil && c.e != nil {
-		if DEBUG {
-			c.printStackInfo()
-		}
+		//if DEBUG {
+		//	c.printStackInfo()
+		//}
 		Throw(c.e)
 	}
+	stackInfo = nil
 }
 
 func (c *CatchOrFinally) printStackInfo() {
@@ -134,7 +136,7 @@ func (c *CatchOrFinally) printStackInfo() {
 		Error(e.Error())
 	}
 
-	Error(string(c.stackInfo))
+	//Error(string(c.stackInfo))
 }
 
 func (c *CatchOrFinally) CatchAndCall(Next func(interface{})) *CatchOrFinally {

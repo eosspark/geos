@@ -1,11 +1,11 @@
-package try_test
+package try
 
 import (
-	. "github.com/eosspark/eos-go/exception/try"
 	"github.com/stretchr/testify/assert"
 	"testing"
 	"errors"
-		)
+	"github.com/eosspark/eos-go/exception"
+)
 
 func TestTry_int(t *testing.T) {
 	Try(func() {
@@ -91,40 +91,44 @@ func TestCatch_all(t *testing.T) {
 
 }
 
-func returnFunc() (r int, flag bool) {
+func TestStackInfo(t *testing.T) {
+	defer func() {
+		assert.Equal(t, true, len(stackInfo) == 0)
+	}()
 
-	defer HandleReturn()
 	Try(func() {
-		panic(1)
-		panic("one error")
+		Throw("error")
+	}).Catch(func(n string) {
 
-		r, flag = 1, false
-		Return()
-
-	}).Catch(func(a int) {
-		//r = 2
-		//Return()
-	}).Catch(func(s string) {
-		//r = 3
-		//Return()
 	}).End()
-
-	return 0, true
 }
 
+func TestStackInfo_throw(t *testing.T) {
+	defer func() {
+		recover()
+		assert.Equal(t, true, len(stackInfo) > 0)
+	}()
 
-func TestStackInfo(t *testing.T) {
+	defer HandleStackInfo()
+
 	Try(func() {
-		//a, b := 1, 0
-		//println(a / b)
-		//panic("s")
+		Throw("error")
 	}).Catch(func(n int) {
 
 	}).End()
 }
 
-func TestStaticAssert(t *testing.T) {
-	Assert(1 != 1, "test assert")
+func TestStackInfo_rethrow(t *testing.T) {
+	defer func() {
+		recover()
+		assert.Equal(t, true, len(stackInfo) > 0)
+	}()
+
+	defer HandleStackInfo()
+
+	Try(func() {
+		EosThrow(&exception.TransactionTypeException{}, "error")
+	}).Catch(func(n string) {
+		Throw(n)
+	}).End()
 }
-
-

@@ -17,20 +17,23 @@
 package console
 
 import (
+	"context"
 	"fmt"
+	"github.com/eosspark/eos-go/plugins/chain_plugin"
+
 	"io"
 	"io/ioutil"
 	"os"
 	"os/signal"
 	"path/filepath"
 	"regexp"
-	"sort"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/eosspark/eos-go/plugins/console_plugin/console/js/jsre"
 	"github.com/eosspark/eos-go/plugins/console_plugin/console/js/web3ext"
-	"github.com/eosspark/eos-go/plugins/http_plugin/rpc"
+	"github.com/eosspark/eos-go/plugins/console_plugin/rpc"
 	"github.com/mattn/go-colorable"
 	"github.com/peterh/liner"
 	"github.com/robertkrimen/otto"
@@ -108,7 +111,7 @@ func New(config Config) (*Console, error) {
 
 // init retrieves the available APIs from the remote RPC provider and initializes
 // the console's JavaScript namespaces based on the exposed modules.
-func (c *Console) init(preload []string) error {
+func (c *Console) init(preload []string) (err error) {
 	// Initialize the JavaScript <-> Go RPC bridge
 	bridge := newBridge(c.client, c.prompter, c.printer)
 	c.jsre.Set("jeth", struct{}{})
@@ -117,9 +120,21 @@ func (c *Console) init(preload []string) error {
 	jethObj.Object().Set("send", bridge.Send)
 	jethObj.Object().Set("sendAsync", bridge.Send)
 
+	//eosgo := newEosgo()
+	//jethObj.Object().Set("createKey", eosgo.CreateKey)
+
 	consoleObj, _ := c.jsre.Get("console")
 	consoleObj.Object().Set("log", c.consoleOutput)
 	consoleObj.Object().Set("error", c.consoleOutput)
+
+	eos := newEosgo(c)
+	c.jsre.Bind("eosgo", eos)
+	//c.jsre.Set("eosgo", struct {}{})
+	//eosobj ,err :=c.jsre.Get("eosgo")
+	//if err !=nil{
+	//	fmt.Printf("get eosgo :%s\n",err)
+	//}
+	//eosobj.Object().Set("createNewAccount", bridge.Send)
 
 	// Load all the js utility JavaScript libraries
 	if err := c.jsre.Compile("bignumber.js", jsre.BigNumber_JS); err != nil {
@@ -134,11 +149,15 @@ func (c *Console) init(preload []string) error {
 	if _, err := c.jsre.Run("var web3 = new Web3(jeth);"); err != nil {
 		return fmt.Errorf("web3 provider: %v", err)
 	}
+
 	// Load the supported APIs into the JavaScript runtime environment
-	apis, err := c.client.SupportedModules()
-	if err != nil {
-		return fmt.Errorf("api modules: %v", err)
-	}
+	//apis, err := c.client.SupportedModules()
+	//if err != nil {
+	//	return fmt.Errorf("api modules: %v", err)
+	//}
+	apis := map[string]string{"chain": "1.0", "wallet": "1.0"}
+	fmt.Println(apis)
+
 	flatten := "var eos = web3.eos; "
 	for api := range apis {
 		if api == "web3" {
@@ -165,7 +184,7 @@ func (c *Console) init(preload []string) error {
 		return err
 	}
 	if obj := admin.Object(); obj != nil { // make sure the admin api is enabled over the interface
-		obj.Set("sleepBlocks", bridge.SleepBlocks)
+		//obj.Set("sleepBlocks", bridge.SleepBlocks)
 		obj.Set("sleep", bridge.Sleep)
 		obj.Set("clearHistory", c.clearHistory)
 	}
@@ -246,19 +265,31 @@ func (c *Console) Welcome() {
 	// Print some generic eosgo metadata
 	fmt.Fprintf(c.printer, "Welcome to the EOSGO JavaScript console!\n\n")
 	c.jsre.Run(`
-console.log("get info: " + chain.getInfo());
+              console.log("get info: " + chain.getInfo());
 	`)
 
 	// List all the supported modules for the user to call
-	if apis, err := c.client.SupportedModules(); err == nil {
-		modules := make([]string, 0, len(apis))
-		for api, version := range apis {
-			modules = append(modules, fmt.Sprintf("%s:%s", api, version))
-		}
-		sort.Strings(modules)
-		fmt.Fprintln(c.printer, " modules:", strings.Join(modules, " "))
+	//if apis, err := c.client.SupportedModules(); err == nil {
+	//	modules := make([]string, 0, len(apis))
+	//	for api, version := range apis {
+	//		modules = append(modules, fmt.Sprintf("%s:%s", api, version))
+	//	}
+	//	sort.Strings(modules)
+	//	fmt.Fprintln(c.printer, " modules:", strings.Join(modules, " "))
+	//}
+	//fmt.Fprintln(c.printer)
+
+	fmt.Println("test callContext: ************")
+	var result chain_plugin.InfoResp
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	err := c.client.CallContext(ctx, &result, "/v1/chain/get_info", nil)
+	if err != nil {
+		fmt.Println(err)
 	}
-	fmt.Fprintln(c.printer)
+	fmt.Printf("result %#v\n", result)
+
+	fmt.Println("test callContext: ************")
 }
 
 // Evaluate executes code and pretty prints the result to the specified output
@@ -341,6 +372,7 @@ func (c *Console) Interactive() {
 							}
 						}
 					}
+					//fmt.Println("input:  ", input)
 					c.Evaluate(input)
 					input = ""
 				}

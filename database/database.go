@@ -1,6 +1,7 @@
 package database
 
 import (
+	"fmt"
 	"github.com/eosspark/eos-go/log"
 	"math"
 	"reflect"
@@ -25,15 +26,11 @@ type LDataBase struct {
 }
 
 /*
-
-@param path 		--> 	database file (note:type-->d)
-
-@return
-
-success 			-->		database handle error is nil
-error 				-->		database is nil ,error
-
+*	Create a database based on the provided path
+*	successfully return the database handle
+*	otherwise return error message
 */
+
 func NewDataBase(path string, flag ...bool) (DataBase, error) {
 
 	db, err := leveldb.OpenFile(path, &opt.Options{
@@ -104,7 +101,7 @@ func (ldb *LDataBase) Close() {
 	} else {
 		ldb.log.Info("----------------- database close -----------------")
 	}
-	//fmt.Println(ldb.count)
+	fmt.Println(ldb.count)
 	//ldb.log.Info("%d",ldb.count)
 }
 
@@ -253,14 +250,11 @@ func (ldb *LDataBase) SetRevision(reversion int64) {
 	ldb.reversion = reversion
 }
 
+
 /*
-insert object to database
-@param in 			--> 	object(pointer)
-
-@return
-success 			-->		nil
-error 				-->		error
-
+*	Insert a piece of data into the database
+*	returning null successfully
+*	returns an error message
 */
 
 func (ldb *LDataBase) Insert(in interface{}) error {
@@ -332,14 +326,9 @@ func (ldb *LDataBase) setIncrement(cfg *structInfo) error {
 }
 
 /*
-
-remove object from database
-@param in			--> 	object
-
-@return
-success 			-->		nil
-error 				-->		error
-
+*	Delete a piece of data from the database
+*	returning null successfully
+*	returns an error message
 */
 
 func (ldb *LDataBase) Remove(in interface{}) error {
@@ -357,14 +346,7 @@ func (ldb *LDataBase) remove(in interface{}) error {
 		ldb.log.Error("failed : %s", err.Error())
 		return err
 	}
-	if isZero(cfg.rId){
-		ldb.log.Info("cfg id isZero  : %v", cfg.id_)
-		return ErrIncompleteStructure
-	}
-	if cfg.id_ == 0 {
-		ldb.log.Info("cfg id isZero  : %v", cfg.id_)
-		return ErrIncompleteStructure
-	}
+
 	dbKV := &dbKeyValue{}
 	structKV(in, dbKV, cfg) /* (kv.index) all key and value*/
 
@@ -398,15 +380,9 @@ func (ldb *LDataBase) removeKvToDb(dbKV *dbKeyValue) error {
 }
 
 /*
-
-modify object from database
-@param old 			--> 	object(pointer)
-@param fn 			-->		function
-
-@return
-success 			-->		nil
-error 				-->		error
-
+*	Modify an object
+*	returning null successfully
+*	returns an error message
 */
 
 func (ldb *LDataBase) Modify(old interface{}, fn interface{}) error {
@@ -569,7 +545,6 @@ func (ldb *LDataBase) findFields(key, typeName []byte, to interface{}) error {
 }
 
 /*
-get MultiIndex from database
 @param tagName 		--> 	tag in field tags
 @param in 			--> 	object
 
@@ -663,10 +638,8 @@ func (ldb *LDataBase) EndIterator(begin, end, typeName []byte) (*DbIterator, err
 
 	it := ldb.db.NewIterator(&util.Range{Start: begin, Limit: end}, nil)
 
-	//it.Next() // FIXME do not deleter
-
 	if it.Last() {
-		it.Next() // TODO wait test
+		it.Next()
 		itr := &DbIterator{it: it, db: ldb.db, first: false, typeName: typeName, currentStatus: itEND}
 		return itr, nil
 	}
@@ -790,10 +763,10 @@ func (ldb *LDataBase) putBatch(dbKV *dbKeyValue)  {
 
 func (ldb *LDataBase) deleteBatch(dbKV *dbKeyValue)  {
 	for idx, _ := range dbKV.index {
-		ldb.log.Debug("delete key %v",dbKV.index[idx].key)
+		//ldb.log.Debug("delete key %v",dbKV.index[idx].key)
 		ldb.batch.Delete(dbKV.index[idx].key)
 	}
-	ldb.log.Debug("delete key %v",dbKV.idk.key)
+	//ldb.log.Debug("delete key %v",dbKV.idk.key)
 	ldb.batch.Delete(dbKV.idk.key)
 }
 
@@ -809,15 +782,15 @@ func (ldb *LDataBase) writeBatch()error  {
 
 /* The following three functions are the undo functions provided by the database.*/
 
-type operatorType uint
+type undoOperatorType uint
 
 const (
-	INSERT = operatorType(0)
-	REMOVE = operatorType(1)
-	MODIFY = operatorType(2)
+	INSERT = undoOperatorType(0)
+	REMOVE = undoOperatorType(1)
+	MODIFY = undoOperatorType(2)
 )
 
-func (ldb *LDataBase) insertUndoState(value *modifyValue,oT operatorType) {
+func (ldb *LDataBase) insertUndoState(value *modifyValue,oT undoOperatorType) {
 	if !ldb.enable() {
 		return
 	}

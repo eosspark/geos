@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"github.com/eosspark/eos-go/common"
-	"github.com/eosspark/eos-go/crypto/ecc"
 )
 
 type EOSApi struct {
@@ -53,16 +52,16 @@ func (api *EOSApi) GetInfo(ctx context.Context) *InfoResp {
 	}
 }
 
-type Keys struct {
-	Pri ecc.PrivateKey `json:"Private Key"`
-	Pub ecc.PublicKey  `json:"Public Key"`
-}
-
-func (api *EOSApi) CreateKey() *Keys {
-	prikey, _ := ecc.NewRandomPrivateKey()
-	return &Keys{Pri: *prikey, Pub: prikey.PublicKey()}
-
-}
+//type Keys struct {
+//	Pri ecc.PrivateKey `json:"Private Key"`
+//	Pub ecc.PublicKey  `json:"Public Key"`
+//}
+//
+//func (api *EOSApi) CreateKey() *Keys {
+//	prikey, _ := ecc.NewRandomPrivateKey()
+//	return &Keys{Pri: *prikey, Pub: prikey.PublicKey()}
+//
+//}
 
 type KKK struct {
 	Name   string
@@ -102,3 +101,83 @@ func (api *EOSApi) Forking(ctx context.Context, rate uint64) uint64 {
 	rate = rate + 1
 	return rate
 }
+
+//
+//func createNewAccount(control *Controller, name string) {
+//
+//	//action for create a new account
+//	wif := "5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3"
+//	privKey, _ := ecc.NewPrivateKey(wif)
+//	pubKey := privKey.PublicKey()
+//
+//	creator := newAccount{
+//		Creator: common.AccountName(common.N("eosio")),
+//		Name:    common.AccountName(common.N(name)),
+//		Owner: types.Authority{
+//			Threshold: 1,
+//			Keys:      []types.KeyWeight{{Key: pubKey, Weight: 1}},
+//		},
+//		Active: types.Authority{
+//			Threshold: 1,
+//			Keys:      []types.KeyWeight{{Key: pubKey, Weight: 1}},
+//		},
+//	}
+//
+//	buffer, _ := rlp.EncodeToBytes(&creator)
+//
+//	act := types.Action{
+//		Account: common.AccountName(common.N("eosio")),
+//		Name:    common.ActionName(common.N("newaccount")),
+//		Data:    buffer,
+//		Authorization: []types.PermissionLevel{
+//			//types.PermissionLevel{Actor: common.AccountName(common.N("eosio.token")), Permission: common.PermissionName(common.N("active"))},
+//			{Actor: common.AccountName(common.N("eosio")), Permission: common.PermissionName(common.N("active"))},
+//		},
+//	}
+//
+//	a := newApplyContext(control, &act)
+//
+//	//create new account
+//	applyEosioNewaccount(a)
+//}
+
+//func CreateNewAccount(creator,newAccount common.AccountName,owner,active ecc.PublicKey) types.Action{
+//
+//	account := chain.NewAccount{
+//		Creator: creator,
+//		Name:    newAccount,
+//		Owner: types.Authority{
+//			Threshold: 1,
+//			Keys:      []types.KeyWeight{{Key: owner, Weight: 1}},
+//		},
+//		Active: types.Authority{
+//			Threshold: 1,
+//			Keys:      []types.KeyWeight{{Key: active, Weight: 1}},
+//		},
+//	}
+//	buffer,_ := rlp.EncodeToBytes(account)
+//	action := types.Action{
+//		Account:creator,
+//		Name:common.N("newaccount"),
+//		Data:buffer,
+//		Authorization:[]types.PermissionLevel{
+//			{Actor:creator,Permission:common.N("active")},
+//		},
+//	}
+//
+//
+//return creator
+//
+//}
+
+//chain::action create_newaccount(const name& creator, const name& newaccount, public_key_type owner, public_key_type active) {
+//return action {
+//tx_permission.empty() ? vector<chain::permission_level>{{creator,config::active_name}} : get_account_permissions(tx_permission),
+//eosio::chain::newaccount{
+//.creator      = creator,
+//.name         = newaccount,
+//.owner        = eosio::chain::authority{1, {{owner, 1}}, {}},
+//.active       = eosio::chain::authority{1, {{active, 1}}, {}}
+//}
+//};
+//}

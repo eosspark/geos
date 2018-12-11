@@ -1,18 +1,14 @@
 package http_plugin
 
 import (
-	"github.com/eosspark/eos-go/exception/try"
+	"encoding/json"
+	. "github.com/eosspark/eos-go/exception"
+	. "github.com/eosspark/eos-go/exception/try"
+	"github.com/eosspark/eos-go/log"
 	. "github.com/eosspark/eos-go/plugins/appbase/app"
 	"github.com/eosspark/eos-go/plugins/appbase/asio"
-	"github.com/eosspark/eos-go/plugins/chain_plugin"
-	"github.com/eosspark/eos-go/plugins/console_plugin/console/js/eosapi"
-	"github.com/eosspark/eos-go/plugins/http_plugin/rpc"
-	"github.com/eosspark/eos-go/plugins/net_plugin"
-	"github.com/eosspark/eos-go/plugins/wallet_plugin"
+	"github.com/eosspark/eos-go/plugins/http_plugin/fasthttp"
 	"github.com/urfave/cli"
-	"net"
-	"net/http"
-	"time"
 )
 
 const (
@@ -31,11 +27,15 @@ type HttpPlugin struct {
 	my *HttpPluginImpl
 }
 
+var hlog log.Logger
+
 func NewHttpPlugin(io *asio.IoContext) *HttpPlugin {
 	h := &HttpPlugin{}
 	h.my = NewHttpPluginImpl(io)
 	h.my.self = h
 
+	hlog = log.New("http")
+	hlog.SetHandler(log.TerminalHandler)
 	return h
 }
 
@@ -96,26 +96,29 @@ func (h *HttpPlugin) SetProgramOptions(options *[]cli.Flag) {
 
 func (h *HttpPlugin) PluginInitialize(c *cli.Context) {
 
-	try.Try(func() {
-		listenStr := c.String("http-server-address")
-		handle := rpc.NewServer()
-		apis := plugins()
-		for _, api := range apis {
-			if err := handle.RegisterName(api.Namespace, api.Service); err != nil {
-				h.my.log.Error(err.Error())
-				panic(err)
-			}
-			h.my.log.Debug("InProc registered :  namespace =%s", api.Namespace)
-		}
+	Try(func() {
+		h.my.listenStr = c.String("http-server-address")
 
-		h.my.Handlers = handle
-		// All APIs registered, start the HTTP listener
-		listener, err := net.Listen("tcp", listenStr)
-		if err != nil {
-			h.my.log.Error("%s", err)
-		}
-		h.my.Listener = listener
-		h.my.log.Info("configured http to listen on %s", listenStr)
+		//handle := rpc.NewServer()
+		//apis := plugins()
+		//for _, api := range apis {
+		//	if err := handle.RegisterName(api.Namespace, api.Service); err != nil {
+		//		h.my.log.Error(err.Error())
+		//		panic(err)
+		//	}
+		//	h.my.log.Debug("InProc registered :  namespace =%s", api.Namespace)
+		//}
+		//
+		//h.my.Handlers = handle
+		//// All APIs registered, start the HTTP listener
+		//listener, err := net.Listen("tcp", listenStr)
+		//if err != nil {
+		//	h.my.log.Error("%s", err)
+		//}
+		//listener = netutil.LimitListener(listener,1)
+		//
+		//h.my.Listener = listener
+		//h.my.log.Info("configured http to listen on %s", listenStr)
 
 		//err := http.ListenAndServe(listenStr, h.my.ListenEndpoint)
 		//if err != nil {
@@ -123,7 +126,7 @@ func (h *HttpPlugin) PluginInitialize(c *cli.Context) {
 		//	panic(err)
 		//}
 		//h.my.log.Info("configured http to listen on %s", h.my.listenStr)
-	})
+	}).End()
 	//Try(func() {
 	//	h.my.log.Info("http plugin initialize")
 	//	h.my.AccessControlAllowOrigin = c.String("access-control-allow-origin")
@@ -222,18 +225,11 @@ func (h *HttpPlugin) PluginInitialize(c *cli.Context) {
 }
 
 func (h *HttpPlugin) PluginStartup() {
-
 	h.my.log.Info("http plugin startup")
-	if h.my.Listener != nil {
-		server := http.Server{
-			Handler:      h.my.Handlers,
-			ReadTimeout:  30 * time.Second,
-			WriteTimeout: 30 * time.Second,
-			IdleTimeout:  120 * time.Second,
-		}
 
-		go server.Serve(h.my.Listener)
-	}
+	handler := h.Handler
+
+	fasthttp.ListenAndAsyncServe(App().GetIoService(), h.my.listenStr, handler)
 
 	//if(my->listen_endpoint) {
 	//	try {
@@ -306,89 +302,300 @@ func (h *HttpPlugin) PluginStartup() {
 }
 
 func (h *HttpPlugin) PluginShutdown() {
-
 }
 
-// void http_plugin::add_handler(const string& url, const url_handler& handler) {
-//   ilog( "add api url: ${c}", ("c",url) );
-//   app().get_io_service().post([=](){
-//     my->url_handlers.insert(std::make_pair(url,handler));
-//   });
-// }
+func (h *HttpPlugin) VerboseErrors() bool {
+	return verboseHttpErrors
+}
 
-/*func (h *HttpPlugin) AddHandler(url string, handler *http.Handler) {
+//func (h *HttpPlugin) httpHandler(ctx *fasthttp.RequestCtx) {
+//	ctx.SetContentType("text/plain; charset=utf8")
+//	// Set arbitrary headers
+//	ctx.Response.Header.Set("X-My-Header", "my-header-value")
+//	// Set cookies
+//	var c fasthttp.Cookie
+//	c.SetKey("cookie-name")
+//	c.SetValue("cookie-value")
+//	ctx.Response.Header.SetCookie(&c)
+//
+//	h.my.log.Info("%s", ctx.Path())
+//	h.my.log.Info("%s", ctx.Request.Body())
+//
+//	var Inputs map[string]string
+//	path := string(ctx.Path())
+//	body := bytes.NewBuffer(ctx.Request.Body())
+//
+//	chainROApi := App().GetPlugin(chain_plugin.ChainPlug).(*chain_plugin.ChainPlugin).GetReadOnlyApi()
+//	chainRWApi := App().GetPlugin(chain_plugin.ChainPlug).(*chain_plugin.ChainPlugin).GetReadWriteApi()
+//	walletMgr := App().GetPlugin(wallet_plugin.WalletPlug).(*wallet_plugin.WalletPlugin).GetWalletManager()
+//
+//	var reJson []byte
+//	var err error
+//
+//	switch path {
+//	case getInfoFunc:
+//		resp := chainROApi.GetInfo()
+//		reJson, err = json.Marshal(resp)
+//
+//	case getBlockFunc:
+//		params := chain_plugin.GetBlockParams{}
+//		if err := json.NewDecoder(body).Decode(&params); err != nil {
+//			fmt.Println("error:", err)
+//		}
+//
+//		resp := chainROApi.GetBlock(params)
+//		reJson, err = json.Marshal(resp)
+//
+//	case getRequiredKeys:
+//
+//		params := &chain_plugin.GetRequiredKeysParams{}
+//		if err := json.NewDecoder(body).Decode(params); err != nil {
+//			fmt.Println(" get balance error:", err)
+//		}
+//		resp := chainROApi.GetRequiredKeys(params)
+//		reJson, err = json.Marshal(resp)
+//	case getCurrencyBalanceFunc:
+//
+//		if err := json.NewDecoder(body).Decode(&Inputs); err != nil {
+//			fmt.Println(" get balance error:", err)
+//			//return nil
+//		}
+//		log.Error("%#v", Inputs)
+//
+//		fmt.Println(Inputs)
+//
+//	case pushTxnFunc:
+//		var packedTrx types.PackedTransaction
+//		if err := json.NewDecoder(body).Decode(&packedTrx); err != nil {
+//			fmt.Println(" decode packedTransaction:", err)
+//		}
+//		log.Error("%#v", Inputs)
+//		chainRWApi.PushTransaction(&packedTrx)
+//		reJson, err = json.Marshal("push transaction test")
+//	case walletCreate:
+//		var name string
+//		var result string
+//		if err := json.NewDecoder(body).Decode(&name); err != nil {
+//			fmt.Println(" decode wallet name:", err)
+//		}
+//		if len(name) == 0 {
+//			name = "default"
+//		}
+//		password, err := walletMgr.Create(name)
+//		if err != nil {
+//			result = err.Error()
+//		} else {
+//			result = password
+//		}
+//		reJson, err = json.Marshal(result)
+//
+//	case walletImportKey:
+//		type Params struct {
+//			Name string
+//			Key  string
+//		}
+//		var params Params
+//		if err := json.NewDecoder(body).Decode(&params); err != nil {
+//			fmt.Println(" get balance error:", err)
+//		}
+//		err := walletMgr.ImportKey(params.Name, params.Key)
+//		if err != nil {
+//			reJson, err = json.Marshal(err.Error())
+//		} else {
+//			walletKey, err := ecc.NewPrivateKey(params.Key)
+//			if err != nil {
+//				fmt.Println("invalid private key %s", params.Key)
+//				//try.EosThrow(&exception.PrivateKeyTypeException{}, "Invalid private key: %s", walletKeyStr)
+//			}
+//
+//			re := fmt.Sprintf("imported private key for: %s", walletKey.PublicKey().String())
+//			reJson, err = json.Marshal(re)
+//		}
+//
+//	case walletCreateKey:
+//		priKey, _ := ecc.NewRandomPrivateKey()
+//		type Keys struct {
+//			Pri ecc.PrivateKey `json:"Private Key"`
+//			Pub ecc.PublicKey  `json:"Public Key"`
+//		}
+//		resp := &Keys{Pri: *priKey, Pub: priKey.PublicKey()}
+//		reJson, err = json.Marshal(resp)
+//
+//	case walletSignTrx:
+//		type WalletSignedTrx struct {
+//			Trx  types.SignedTransaction `json:"signed_transaction"`
+//			Keys []ecc.PublicKey         `json:"keys"`
+//			ID   common.ChainIdType      `id`
+//		}
+//		var params WalletSignedTrx
+//		if err := json.NewDecoder(body).Decode(&params); err != nil {
+//			fmt.Println(" get balance error:", err)
+//
+//		}
+//
+//		h.my.log.Info("%s", err)
+//		h.my.log.Info("%#v", params)
+//		fmt.Println()
+//
+//		trx, err := walletMgr.SignTransaction(&params.Trx, params.Keys, params.ID)
+//		if err != nil {
+//			fmt.Println(err)
+//		}
+//		h.my.log.Debug("%#v", trx)
+//		if err != nil {
+//			reJson, err = json.Marshal(err.Error())
+//		} else {
+//			h.my.log.Debug("%#v", trx)
+//			reJson, err = json.Marshal(trx)
+//		}
+//	default:
+//		//return nil
+//	}
+//
+//	fmt.Println(string(reJson), err)
+//	fmt.Fprintf(ctx, "%s", reJson)
+//
+//}
+
+func (h *HttpPlugin) AddHandler(url string, handler UrlHandler) {
 	h.my.log.Info("add api url: %s", url)
+	App().GetIoService().Post(func(err error) {
+		h.my.UrlHandlers[url] = handler
+	})
+}
 
-	h.my.UrlHandlers[url] = handler
-}*/
+func (h *HttpPlugin) Handler(ctx *fasthttp.RequestCtx) {
+	h.my.log.Info("%s", ctx.Path())
+	h.my.log.Info("%s", ctx.Request.Body())
 
-//{
-//std::string("/v1/""net""/""connect"),
-//[ & net_mgr](string, string body, url_response_callback cb) mutable {
-//try {
-//if (body.empty())
-//  body = "{}";
-//auto result = net_mgr.connect(fc::json::from_string(body).as < std::string > ());
-//cb(201, fc::json::to_string(result));
-//} catch (...) {
-//http_plugin::handle_exception("net", "connect", body, cb);
-//}
-//}
-//},
+	//fmt.Fprintf(ctx, "%s", re)
+	ctx.SetContentType("text/plain; charset=utf8")
+	// Set arbitrary headers
+	ctx.Response.Header.Set("X-My-Header", "my-header-value")
+	// Set cookies
+	var c fasthttp.Cookie
+	c.SetKey("cookie-name")
+	c.SetValue("cookie-value")
+	ctx.Response.Header.SetCookie(&c)
 
-// {
-// 	std::string("/v1/""chain""/""get_info"), [this, ro_api](string, string body, url_response_callback cb) mutable {
-// 		ro_api.validate();
-// 		try {
-// 			if (body.empty()) body = "{}";
-// 			auto result = ro_api.get_info(fc::json::from_string(body).as < chain_apis::read_only::get_info_params > ());
-// 			cb(200 l, fc::json::to_string(result));
-// 		} catch (...) {
-// 			http_plugin::handle_exception("chain", "get_info", body, cb);
-// 		}
-// 	}
-// }
+	resource := string(ctx.Path())
+	body := ctx.Request.Body()
 
-// {
-// 	std::string("/v1/""chain""/""get_block"),
-// 	  [this, ro_api](string, string body, url_response_callback cb) mutable {
-// 		ro_api.validate();
-// 		try {
-// 			if (body.empty()) body = "{}";
-// 			auto result = ro_api.get_block(fc::json::from_string(body).as < chain_apis::read_only::get_block_params > ());
-// 			cb(200, fc::json::to_string(result));
-// 		} catch (...) {
-// 			http_plugin::handle_exception("chain", "get_block", body, cb);
-// 		}
-// 	}
-// },
-// apis returns the collection of RPC descriptors this node offers.
-func plugins() []rpc.API {
-	return []rpc.API{
-		{
-			Namespace: "api",
-			Version:   "1.0",
-			Service:   eosapi.NewEosApi(),
-		},
-		{
-			Namespace: "chain",
-			Version:   "1.0",
-			Service:   App().GetPlugin("ChainPlugin").(*chain_plugin.ChainPlugin).GetReadOnlyApi(),
-		},
-		{
-			Namespace: "chain",
-			Version:   "1.0",
-			Service:   App().GetPlugin("ChainPlugin").(*chain_plugin.ChainPlugin).GetReadWriteApi(),
-		},
-		{
-			Namespace: "wallet",
-			Version:   "1.0",
-			Service:   App().GetPlugin("WalletPlugin").(*wallet_plugin.WalletPlugin).My,
-		},
-		{
-			Namespace: "net",
-			Version:   "1.0",
-			Service:   App().GetPlugin("NetPlugin").(*net_plugin.NetPlugin),
-		},
+	handler, ok := h.my.UrlHandlers[resource]
+	if !ok {
+		h.my.log.Debug("404 - not found: %s", resource)
+		ctx.NotFound()
+	} else {
+		//con->defer_http_response();
+		h.my.log.Debug("handle getBlock")
+		handler(resource, body, func(code int, body []byte) {
+			ctx.SetBody([]byte(body))
+			ctx.SetStatusCode(code)
+		})
 	}
+}
+
+func (h *HttpPlugin) IsOnLoopBack() bool { //TODO
+	//return (!my->listen_endpoint || my->listen_endpoint->address().is_loopback()) && (!my->https_listen_endpoint || my->https_listen_endpoint->address().is_loopback());
+
+	return false
+}
+func (h *HttpPlugin) IsSecure() bool { //TODO
+	//return (!my->listen_endpoint || my->listen_endpoint->address().is_loopback());
+	return false
+}
+
+/**
+ * @brief Structure used to create JSON error responses
+ */
+
+const detailsLimit int = 10
+
+type errorDetail struct {
+	message    string
+	file       string
+	lineNumber uint64
+	method     string
+}
+type errorInfo struct {
+	code    int64
+	name    string
+	what    string
+	details []errorDetail
+}
+
+func newErrorInfo(exc Exception, includeLog bool) errorInfo {
+	e := errorInfo{}
+	e.code = int64(exc.Code())
+	e.name = exc.String()
+	e.what = exc.What()
+	if includeLog {
+		for _, itr := range exc.GetLog() {
+			// Prevent sending trace that are too big
+			if len(e.details) >= detailsLimit {
+				break
+			}
+			// Append error
+			detail := errorDetail{
+				message: itr.Message(),
+				//file:,
+				//lineNumber:,
+				//method:,
+			}
+			e.details = append(e.details, detail)
+		}
+	}
+	return e
+}
+
+type errorResults struct {
+	code    uint16
+	message string
+	error   errorInfo
+}
+
+func HandleException(e interface{}, apiName, callName, body string, cb UrlResponseCallback) {
+	Try(func() {
+		Try(func() {
+			Throw(e)
+		}).Catch(func(e *UnsatisfiedAuthorization) {
+			results := errorResults{code: 401, message: "UnAuthorized", error: newErrorInfo(e, verboseHttpErrors)}
+			re, _ := json.Marshal(results)
+			cb(401, re)
+		}).Catch(func(e *TxDuplicate) {
+			results := errorResults{409, "Conflict", newErrorInfo(e, verboseHttpErrors)}
+			re, _ := json.Marshal(results)
+			cb(409, re)
+		}).Catch(func(e *EofException) {
+			results := errorResults{422, "Unprocessable Entity", newErrorInfo(e, verboseHttpErrors)}
+			re, _ := json.Marshal(results)
+			cb(422, re)
+			hlog.Error("Unable to parse arguments to %s.%s", apiName, callName)
+			hlog.Debug("Bad arguments: %s", body)
+		}).Catch(func(e Exception) {
+			results := errorResults{500, "Internal Service Error", newErrorInfo(e, verboseHttpErrors)}
+			re, _ := json.Marshal(results)
+			cb(500, re)
+			if e.Code() != (GreylistNetUsageExceeded{}).Code() && e.Code() != (GreylistCpuUsageExceeded{}).Code() {
+				hlog.Error("FC Exception encountered while processing %s.%s", apiName, callName)
+				hlog.Debug("Exception Details: %s", GetDetailMessage(e))
+			}
+		}).Catch(func(e error) {
+			results := errorResults{500, "Internal Service Error",
+				newErrorInfo(&FcException{ELog: NewELog(log.FcLogMessage(log.LvlError, e.Error()))}, verboseHttpErrors)}
+			re, _ := json.Marshal(results)
+			cb(500, re)
+			hlog.Error("STD Exception encountered while processing %s.%s", apiName, callName)
+			hlog.Debug("Exception Details: %s", e.Error())
+		}).Catch(func(interface{}) {
+			results := errorResults{500, "Internal Service Error",
+				newErrorInfo(&FcException{ELog: NewELog(log.FcLogMessage(log.LvlError, "Unknown Exception"))}, verboseHttpErrors)}
+			re, _ := json.Marshal(results)
+			cb(500, re)
+			hlog.Error("Unknown Exception encountered while processing %s.%s", apiName, callName)
+		})
+	}).Catch(func(interface{}) {
+		hlog.Error("Exception attempting to handle exception for %s.%s", apiName, callName)
+	}).End()
+
 }

@@ -9,6 +9,7 @@ import (
 	"github.com/eosspark/eos-go/crypto/btcsuite/btcd/btcec"
 	"github.com/eosspark/eos-go/crypto/btcsuite/btcutil/base58"
 	"golang.org/x/crypto/ripemd160"
+	"reflect"
 )
 
 const PublicKeyPrefix = "PUB_"
@@ -227,6 +228,7 @@ func (p PublicKey) GetKey() []byte {
 	return sl
 }
 
+var TypePubKey = reflect.TypeOf(PublicKey{})
 func ComparePubKey(first interface{}, second interface{}) int {
 	return bytes.Compare(first.(PublicKey).GetKey(), second.(PublicKey).GetKey())
 }

@@ -7,6 +7,7 @@ import (
 	"github.com/eosspark/eos-go/crypto"
 	abi "github.com/eosspark/eos-go/crypto/abi_serializer"
 	"github.com/eosspark/eos-go/crypto/ecc"
+	"github.com/eosspark/container/sets/treeset"
 )
 
 type InfoResp struct {
@@ -279,7 +280,8 @@ type Currency struct {
 }
 
 type GetRequiredKeysResp struct {
-	RequiredKeys []ecc.PublicKey `json:"required_keys"`
+	RequiredKeys treeset.Set
+	//RequiredKeys []ecc.PublicKey `json:"required_keys"`
 }
 
 // PushTransactionFullResp unwraps the responses from a successful `push_transaction`.

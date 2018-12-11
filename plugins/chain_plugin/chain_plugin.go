@@ -15,6 +15,7 @@ import (
 	"encoding/json"
 	"path/filepath"
 	"github.com/eosspark/eos-go/plugins/chain_interface"
+	"fmt"
 )
 
 const ChainPlug = PluginTypeName("ChainPlugin")
@@ -310,10 +311,12 @@ func (c *ChainPlugin) PluginInitialize(options *cli.Context) {
 		}
 		ClearDirectoryContents(c.my.ChainConfig.StateDir)
 		os.RemoveAll(c.my.BlockDir)
+
 	} else if options.Bool("hard-replay-blockchain") {
 		log.Info("Hard replay requested: deleting state database")
 		ClearDirectoryContents(c.my.ChainConfig.StateDir)
 		//TODO: hard-replay-blockchain
+
 	} else if options.Bool("replay-blockchain") {
 		log.Info("Replay requested: deleting state database")
 		if options.Uint("truncate-at-block") > 0 {
@@ -321,13 +324,77 @@ func (c *ChainPlugin) PluginInitialize(options *cli.Context) {
 		}
 		ClearDirectoryContents(c.my.ChainConfig.StateDir)
 		if options.Bool("fix-reversible-blocks") {
+			if !c.RecoverReversibleBlocks(fmt.Sprintf("%s/%s", c.my.ChainConfig.BlocksDir,
+				common.DefaultConfig.DefaultReversibleBlocksDirName),
+				uint32(c.my.ChainConfig.ReversibleCacheSize), "", 0) {
+				log.Info("Reversible blocks database was not corrupted.")
+			}
+		}
+	} else if options.Bool("fix-reversible-blocks") {
+		if !c.RecoverReversibleBlocks(fmt.Sprintf("%s/%s", c.my.ChainConfig.BlocksDir,
+			common.DefaultConfig.DefaultReversibleBlocksDirName),
+			uint32(c.my.ChainConfig.ReversibleCacheSize), "", uint32(options.Uint("truncate-at-block"))) {
+			log.Info("Reversible blocks database verified to not be corrupted. Now exiting...")
+		} else {
+			log.Info("Exiting after fixing reversible blocks database...")
+		}
+		EosThrow(&FixedReversibleDbException{}, "fixed corrupted reversible blocks database")
 
+	} else if options.Uint("truncate-at-block") > 0 {
+		log.Warn("The --truncate-at-block option can only be used with --fix-reversible-blocks without a replay or with --hard-replay-blockchain.")
+
+	} else if reversibleBlocksFile := options.String("import-reversible-blocks"); reversibleBlocksFile != "" {
+		log.Info("Importing reversible blocks from '%s'", reversibleBlocksFile)
+		path := fmt.Sprintf("%s/%s", c.my.ChainConfig.BlocksDir, common.DefaultConfig.DefaultReversibleBlocksDirName)
+		os.RemoveAll(path)
+
+		c.ImportReversibleBlocks(path, uint32(c.my.ChainConfig.ReversibleCacheSize), reversibleBlocksFile)
+
+		EosThrow(&NodeManagementSuccess{}, "imported reversible blocks")
+	}
+
+	if options.String("import-reversible-blocks") != "" {
+		log.Warn("The --import-reversible-blocks option should be used by itself.")
+	}
+
+	if options.String("snapshot") != "" {
+		//TODO: snapshot
+	} else {
+		if genesisFile := options.String("genesis-json"); genesisFile != "" {
+			//TODO: genesis-json
+
+		} else if genesisTimestamp := options.String("genesis-timestamp"); genesisTimestamp != "" {
+			//TODO: genesis-timestamp
+
+		} else { //TODO: else if( fc::is_regular_file( my->blocks_dir / "blocks.log" )) {}
+			log.Warn("Starting up fresh blockchain with default genesis state.")
 		}
 	}
 
-	//TODO: option initialize
+	if readMode := options.String("read-mode"); readMode != "" {
+		if dbReadMode,ok := chain.DBReadModeFromString(readMode); ok {
+			c.my.ChainConfig.ReadMode = dbReadMode
+		} else {
+			log.Error("The read-mode option %s format failed", readMode)
+		}
+		EosAssert(c.my.ChainConfig.ReadMode != chain.IRREVERSIBLE, &PluginConfigException{}, "irreversible mode not currently supported.")
+	}
+
+	if validationMode := options.String("validation-mode"); validationMode != "" {
+		if blockValidationMode, ok := chain.ValidationModeFromString(validationMode); ok {
+			c.my.ChainConfig.BlockValidationMode = blockValidationMode
+		}
+	}
+
+	//c.my.Chain = chain.NewController(c.my.ChainConfig) //TODO
 	c.my.Chain = chain.GetControllerInstance()
 	c.my.ChainId = c.my.Chain.GetChainId()
+
+	// set up method providers
+	//TODO
+
+	// relay signals to channels
+	//TODO
 }
 
 func (c *ChainPlugin) PluginStartup() {
@@ -386,11 +453,11 @@ func (c *ChainPlugin) GetAbiSerializerMaxTime() common.Microseconds {
 
 func (c *ChainPlugin) logGuardException(e GuardExceptions) {
 	if e.Code() == (DatabaseGuardException{}).Code() {
-		log.Error("Database has reached an unsafe level of usage, shutting down to avoid corrupting the database.  "+
-		"Please increase the value set for \"chain-state-db-size-mb\" and restart the process!")
+		log.Error("Database has reached an unsafe level of usage, shutting down to avoid corrupting the database.  " +
+			"Please increase the value set for \"chain-state-db-size-mb\" and restart the process!")
 	} else if e.Code() == (ReversibleGuardException{}).Code() {
-		log.Error("Reversible block database has reached an unsafe level of usage, shutting down to avoid corrupting the database.  "+
-		"Please increase the value set for \"reversible-blocks-db-size-mb\" and restart the process!")
+		log.Error("Reversible block database has reached an unsafe level of usage, shutting down to avoid corrupting the database.  " +
+			"Please increase the value set for \"reversible-blocks-db-size-mb\" and restart the process!")
 	}
 
 	log.Debug("Details: %s", GetDetailMessage(e))
@@ -407,11 +474,3 @@ func (c *ChainPlugin) HandleDbExhaustion() {
 	log.Info("database memory exhausted: increase chain-state-db-size-mb and/or reversible-blocks-db-size-mb");
 	os.Exit(1)
 }
-
-//func (chain *ChainPlugin) GetAbiSerializerMaxTime() common.Microseconds {
-//	return chain.AbiSerializerMaxTimeMs
-//}
-//
-//func (chain *ChainPlugin) Init() {
-//	chain.AbiSerializerMaxTimeMs = 1000 //TODO tmp value
-//}
