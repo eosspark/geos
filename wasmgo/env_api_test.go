@@ -1302,21 +1302,23 @@ func newTransaction(control *chain.Controller, action *types.Action, privateKeys
 }
 
 func RunCheckException(control *chain.Controller, cls string, method string, payload []byte, authorizer string, permissionLevel []types.PermissionLevel, privateKeys []*ecc.PrivateKey,
-	errCode exception.ExcTypes, errMsg string) (ret bool) {
+	errCode exception.ExcTypes, errMsg string) bool {
 
-	defer try.HandleReturn()
+	returning, ret := false, false
 	try.Try(func() {
 		pushAction2(control, cls, method, payload, authorizer, permissionLevel, privateKeys)
 	}).Catch(func(e exception.Exception) {
 		if e.Code() == errCode {
 			fmt.Println(errMsg)
-			ret = true
-			try.Return()
+			returning, ret = true, true
 		}
 	}).End()
 
-	ret = false
-	return
+	if returning {
+		return ret
+	}
+
+	return false
 }
 
 func pushAction2(control *chain.Controller, cls string, method string, payload []byte, authorizer string, permissionLevel []types.PermissionLevel, privateKeys []*ecc.PrivateKey) *types.TransactionTrace {
@@ -1393,7 +1395,7 @@ func callTestFunctionException2(control *chain.Controller, cls string, method st
 
 }
 
-func pushAction(control *chain.Controller, code []byte, cls string, method string, payload []byte, authorizer string) (ret string) {
+func pushAction(control *chain.Controller, code []byte, cls string, method string, payload []byte, authorizer string) (string) {
 
 	wasm := wasmgo.NewWasmGo()
 	action := wasmTestAction(cls, method)
@@ -1411,13 +1413,16 @@ func pushAction(control *chain.Controller, code []byte, cls string, method strin
 	applyContext := newApplyContext(control, &act)
 	codeVersion := crypto.NewSha256Byte([]byte(code))
 
-	defer try.HandleReturn()
+	returning, ret := false, ""
 	try.Try(func() {
 		wasm.Apply(codeVersion, code, applyContext)
 	}).Catch(func(e exception.Exception) {
-		ret = exception.GetDetailMessage(e)
-		try.Return()
+		returning, ret = true, exception.GetDetailMessage(e)
 	}).End()
+
+	if returning {
+		return ret
+	}
 
 	return ""
 }
@@ -1464,7 +1469,7 @@ func callTestFunction(control *chain.Controller, code []byte, cls string, method
 
 }
 
-func callTestFunctionCheckException(control *chain.Controller, code []byte, cls string, method string, payload []byte, authorizer string, errCode exception.ExcTypes, errMsg string) (ret bool) {
+func callTestFunctionCheckException(control *chain.Controller, code []byte, cls string, method string, payload []byte, authorizer string, errCode exception.ExcTypes, errMsg string) (bool) {
 
 	wasm := wasmgo.NewWasmGo()
 	action := wasmTestAction(cls, method)
@@ -1484,20 +1489,18 @@ func callTestFunctionCheckException(control *chain.Controller, code []byte, cls 
 	fmt.Println(cls, method, action)
 	codeVersion := crypto.NewSha256Byte([]byte(code))
 
-	//ret := false
-	defer try.HandleReturn()
+	ret := false
+
 	try.Try(func() {
 		wasm.Apply(codeVersion, code, applyContext)
 	}).Catch(func(e exception.Exception) {
 		if e.Code() == errCode {
 			fmt.Println(errMsg)
 			ret = true
-			try.Return()
 		}
 	}).End()
 
-	ret = false
-	return
+	return ret
 
 }
 
@@ -1519,7 +1522,7 @@ func NewTransaction() *types.SignedTransaction {
 	return signedTrx
 }
 
-func callTestExceptionF2(test *testing.T, t *BaseTester, a actionInterface, data []byte, scope []common.AccountName, billedCpuTimeUs uint32, max_cpu_usage_ms int64, errCode exception.ExcTypes, errMsg string) (ret bool) {
+func callTestExceptionF2(test *testing.T, t *BaseTester, a actionInterface, data []byte, scope []common.AccountName, billedCpuTimeUs uint32, max_cpu_usage_ms int64, errCode exception.ExcTypes, errMsg string) (bool) {
 
 	trx := NewTransaction()
 
@@ -1551,21 +1554,19 @@ func callTestExceptionF2(test *testing.T, t *BaseTester, a actionInterface, data
 	//assert.Equal(test, ret.Except.Code() == errCode, true)
 
 	//ret := false
-	defer try.HandleReturn()
+	ret := false
 	try.Try(func() {
 		t.PushTransaction(trx, common.Now()+common.TimePoint(common.Milliseconds(max_cpu_usage_ms)), billedCpuTimeUs)
 	}).Catch(func(e exception.Exception) {
 		if e.Code() == errCode {
-			fmt.Println(e.Message())
+			fmt.Println(exception.GetDetailMessage(e))
 			ret = true
-			try.Return()
 		}
 	}).End()
 
 	t.ProduceBlocks(1, false)
 
-	ret = false
-	return
+	return ret
 }
 
 func callTestF2(test *testing.T, t *BaseTester, a actionInterface, data []byte, scope []common.AccountName) *types.TransactionTrace {
@@ -1631,7 +1632,7 @@ func newBaseTester(pushGenesis bool, readMode chain.DBReadMode) *BaseTester {
 
 func (t *BaseTester) init(pushGenesis bool, readMode chain.DBReadMode) {
 	t.Cfg = *newConfig(readMode)
-	t.Control = chain.NewController(t.Cfg)
+	t.Control = chain.NewController(&t.Cfg)
 
 	t.open()
 
@@ -1656,14 +1657,14 @@ func newConfig(readMode chain.DBReadMode) *chain.Config {
 	cfg.Genesis.InitialTimestamp, _ = common.FromIsoString("2020-01-01T00:00:00.000")
 	cfg.Genesis.InitialKey = BaseTester{}.getPublicKey(common.DefaultConfig.SystemAccountName, "active")
 
-	cfg.ActorWhitelist = *treeset.NewWith(common.CompareName)
-	cfg.ActorBlacklist = *treeset.NewWith(common.CompareName)
-	cfg.ContractWhitelist = *treeset.NewWith(common.CompareName)
-	cfg.ContractBlacklist = *treeset.NewWith(common.CompareName)
-	cfg.ActionBlacklist = *treeset.NewWith(common.ComparePair)
-	cfg.KeyBlacklist = *treeset.NewWith(ecc.ComparePubKey)
-	cfg.ResourceGreylist = *treeset.NewWith(common.CompareName)
-	cfg.TrustedProducers = *treeset.NewWith(common.CompareName)
+	cfg.ActorWhitelist = *treeset.NewWith(common.TypeName, common.CompareName)
+	cfg.ActorBlacklist = *treeset.NewWith(common.TypeName, common.CompareName)
+	cfg.ContractWhitelist = *treeset.NewWith(common.TypeName, common.CompareName)
+	cfg.ContractBlacklist = *treeset.NewWith(common.TypeName, common.CompareName)
+	cfg.ActionBlacklist = *treeset.NewWith(common.TypePair, common.ComparePair)
+	cfg.KeyBlacklist = *treeset.NewWith(ecc.TypePubKey, ecc.ComparePubKey)
+	cfg.ResourceGreylist = *treeset.NewWith(common.TypeName, common.CompareName)
+	cfg.TrustedProducers = *treeset.NewWith(common.TypeName, common.CompareName)
 
 	//cfg.VmType = common.DefaultConfig.DefaultWasmRuntime // TODO
 
@@ -1869,10 +1870,10 @@ func (t BaseTester) PushTransaction(trx *types.SignedTransaction, deadline commo
 		mtrx := types.NewTransactionMetadataBySignedTrx(trx, c)
 		trace = t.Control.PushTransaction(mtrx, deadline, billedCpuTimeUs)
 		if trace.ExceptPtr != nil {
-			try.EosThrow(trace.ExceptPtr, "tester PushTransaction is error :%#v", trace.ExceptPtr.Message())
+			try.EosThrow(trace.ExceptPtr, "tester PushTransaction is error :%#v", exception.GetDetailMessage(trace.ExceptPtr))
 		}
 		if !common.Empty(trace.Except) {
-			try.EosThrow(trace.Except, "tester PushTransaction is error :%#v", trace.Except.Message())
+			try.EosThrow(trace.Except, "tester PushTransaction is error :%#v", exception.GetDetailMessage(trace.Except))
 		}
 		r = trace
 		return

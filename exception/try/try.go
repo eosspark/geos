@@ -1,7 +1,9 @@
 package try
 
 import (
-							"runtime"
+	"runtime"
+	"github.com/eosspark/eos-go/log"
+	"github.com/eosspark/eos-go/exception"
 )
 
 //StackInfo store code informations when catched exception.
@@ -13,12 +15,17 @@ type StackInfo struct {
 
 //RuntimeError is wrapper of runtime.errorString and stacktrace.
 type RuntimeError struct {
-	Message    string
-	stackInfo  []byte
+	Message   string
+	stackInfo []byte
 	//StackTrace []StackInfo
 }
 
-var DEBUG = true
+var (
+	errorPtr  interface{} = nil
+	stackInfo []byte      = nil
+	size                  = 65536
+	DEBUG                 = true
+)
 
 func (rte RuntimeError) String() string {
 	return rte.Message
@@ -30,33 +37,26 @@ type OrThrowable struct {
 
 //Try call the function. And return interface that can call Catch or Finally.
 func Try(f func()) (r *CatchOrFinally) {
-///*debug*/s := time.Now().Nanosecond()
+	///*debug*/s := time.Now().Nanosecond()
 	defer func() {
 		if e := recover(); e != nil {
 
-			if rt, ok := e.(returnTypes); ok {
-				panic(rt)
-			}
-
-			r = &CatchOrFinally{}
-			r.e = e
+			r = &CatchOrFinally{e}
 
 			if DEBUG {
-				const size = 65536
-				buf := make([]byte, size)
-				buf = buf[:runtime.Stack(buf, false)]
-
-				r.stackInfo = buf
+				errorPtr = e
+				stackInfo = make([]byte, size)
+				stackInfo = stackInfo[:runtime.Stack(stackInfo, false)]
+				//r.stackInfo = buf
 			}
 
 		}
-///*debug*/fmt.Println("try", time.Now().Nanosecond() - s, "ns")
+		///*debug*/fmt.Println("try", time.Now().Nanosecond() - s, "ns")
 	}()
 
 	f()
 	return nil
 }
-
 
 func Throw(e interface{}) {
 	if e == nil {
@@ -65,23 +65,34 @@ func Throw(e interface{}) {
 	panic(e)
 }
 
-type returnTypes struct{}
-
-//Just use in try-catch block, you should update return-value before call it
-//Deprecated: use returning flag instead
-func Return() {
-	panic(returnTypes{})
-}
-
-//Use defer HandleReturn() before try-catch block when the block includes Return function
-//Deprecated: use returning flag instead
-func HandleReturn() {
-	if rv := recover(); rv != nil {
-		if _, ok := rv.(returnTypes); !ok {
-			panic(rv)
+//Use defer HandleStackInfo() before main func panic
+func HandleStackInfo() {
+	if DEBUG && stackInfo != nil {
+		switch e := errorPtr.(type) {
+		case exception.Exception:
+			log.Error("%s: %s", exception.GetDetailMessage(e), string(stackInfo))
+		case error:
+			log.Error("error %s: %s", e.Error(), string(stackInfo))
+		default:
+			log.Error("panic %#v: %s", e, string(stackInfo))
 		}
 	}
 }
 
+//type returnTypes struct{}
 
+//Just use in try-catch block, you should update return-value before call it
+//Deprecated: use returning flag instead
+//func Return() {
+//	panic(returnTypes{})
+//}
 
+//Use defer HandleReturn() before try-catch block when the block includes Return function
+//Deprecated: use returning flag instead
+//func HandleReturn() {
+//	if rv := recover(); rv != nil {
+//		if _, ok := rv.(returnTypes); !ok {
+//			panic(rv)
+//		}
+//	}
+//}

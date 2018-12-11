@@ -35,7 +35,9 @@ func (f Float128) String() string {
 	number := make([]byte, 16)
 	binary.LittleEndian.PutUint64(number[:], f.Low)
 	binary.LittleEndian.PutUint64(number[8:], f.High)
+	fmt.Println(f128_to_extF80(f))
 	return fmt.Sprintf("0x%s%s", hex.EncodeToString(number[:8]), hex.EncodeToString(number[8:]))
+
 }
 
 func (f Float128) Bytes() []byte {

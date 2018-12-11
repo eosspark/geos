@@ -8,6 +8,7 @@ import (
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"testing"
 	"time"
+	"github.com/eosspark/container/utils"
 )
 
 func initForkDatabase() (*MultiIndexFork, *types.BlockState) {
@@ -29,8 +30,8 @@ func initForkDatabase() (*MultiIndexFork, *types.BlockState) {
 	genHeader.Header.Timestamp = types.BlockTimeStamp(1162425600) //slot of 2018-6-2 00:00:00:000
 	genHeader.BlockId = genHeader.Header.BlockID()
 	genHeader.BlockNum = genHeader.Header.BlockNumber()
-	genHeader.ProducerToLastProduced = *treemap.NewWith(common.NameComparator)
-	genHeader.ProducerToLastImpliedIrb = *treemap.NewWith(common.NameComparator)
+	genHeader.ProducerToLastProduced = *treemap.NewWith(common.TypeName, utils.TypeUInt32, common.CompareName)
+	genHeader.ProducerToLastImpliedIrb = *treemap.NewWith(common.TypeName, utils.TypeUInt32, common.CompareName)
 	genHeader.BlockSigningKey = initPubKey
 	genHeader.Header.ProducerSignature = *ecc.NewSigNil()
 	blockState := types.NewBlockState(genHeader)

@@ -158,6 +158,7 @@ func (index *DbIterator) Data(data interface{}) error {
 	key := index.Value()
 	err := DecodeBytes(key, data)
 	if err != nil{
+		//
 		fmt.Println(err)
 	}
 	return nil

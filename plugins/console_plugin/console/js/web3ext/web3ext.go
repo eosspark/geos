@@ -64,101 +64,109 @@ web3._extend({
      methods:[
      new web3._extend.Method({
          name:'getInfo',
-         call:'chain_getInfo',
+         call:'/v1/chain/get_info',
      }),
      new web3._extend.Method({
          name:'pushTransaction',
-         call:'chain_pushTransaction',
+         call:'/v1/chain/push_transaction',
          params:1,
          inputFormatter:[null],
      }),
      new web3._extend.Method({
          name:'pushTransactions',
-         call:'chain_pushTransactions',
+         call:'/v1/chain/push_transactions',
          params:1,
          inputFormatter:[null],
      }),
      new web3._extend.Method({
          name:'abiJsonToBin',
-         call:'chain_abiJsonToBin',
+         call:'/v1/chain/abi_json_to_bin',
          params:1,
          inputFormatter:[null],
      }),
      new web3._extend.Method({
          name:'getBlock',
-         call:'chain_getBlock',
+         call:'/v1/chain/get_block',
          params:1,
          inputFormatter:[null],
      }),
      new web3._extend.Method({
          name:'getBlockHeaderState',
-         call:'chain_GetBlockHeaderState',
+         call:'/v1/chain/get_block_header_state',
          params:1,
          inputFormatter:[null],
      }),
      new web3._extend.Method({
          name:'getAccount',
-         call:'chain_getAccount',
+         call:'/v1/chain/get_account',
          params:1,
          inputFormatter:[null],
      }),
      new web3._extend.Method({
          name:'getTableRows',
-         call:'chain_getTableRows',
+         call:'/v1/chain/get_table_rows',
          params:1,
          inputFormatter:[null],
      }),
      new web3._extend.Method({
          name:'getCode',
-         call:'chain_getCode',
+         call:'/v1/chain/get_code',
          params:1,
          inputFormatter:[null],
      }),
      new web3._extend.Method({
          name:'getAbi',
-         call:'chain_getAbi',
+         call:'/v1/chain/get_abi',
          params:1,
          inputFormatter:[null],
      }),
      new web3._extend.Method({
          name:'getRawCodeAndAbi',
-         call:'chain_getRawCodeAndAbi',
+         call:'/v1/chain/get_raw_code_and_abi',
          params:1,
          inputFormatter:[null],
      }),
      new web3._extend.Method({
          name:'getCurrencyBalance',
-         call:'chain_getCurrencyBalance',
+         call:'/v1/chain/get_currency_balance',
          params:1,
          inputFormatter:[null],
      }),
      new web3._extend.Method({
          name:'getCurrencyStats',
-         call:'chain_getCurrencyStats',
+         call:'/v1/chain/get_currency_stats',
          params:1,
          inputFormatter:[null],
      }),
      new web3._extend.Method({
          name:'getProducers',
-         call:'chain_getProducers',
+         call:'/v1/chain/get_producers',
          params:1,
          inputFormatter:[null],
      }),
      new web3._extend.Method({
          name:'getProducerSchedule',
-         call:'chain_getProducerSchedule',
+         call:'/v1/chain/get_producer_schedule',
          params:1,
          inputFormatter:[null],
      }),
      new web3._extend.Method({
          name:'getRequiredKeys',
-         call:'chain_getRequiredKeys',
+         call:'/v1/chain/get_required_keys',
          params:1,
          inputFormatter:[null],
      }),
+
 ]
 });
 `
+
+//new web3._extend.Method({
+//name:'createNewAccount',
+//call:'createNewAccount',
+//params:4,
+//inputFormatter:[null,null,null,null],
+//}),
 
 //netFuncBase    string = "/v1/net"
 //netConnect     string = netFuncBase + "/connect"
@@ -191,6 +199,7 @@ web3._extend({
          name:'connections',
          call:'net_connections',
      }),
+
 ]
 });
 `
@@ -214,67 +223,67 @@ web3._extend({
      methods:[
      new web3._extend.Method({
         name:'create',
-        call:'wallet_create',
+        call:'/v1/wallet/create',
         params:1,
         inputFormatter:[null],
      }),
      new web3._extend.Method({
         name:'open',
-        call:'wallet_open',
+        call:'/v1/wallet/open',
         params:1,
         inputFormatter:[null],
      }),
      new web3._extend.Method({
         name:'listWallets',
-        call:'wallet_listWallets',
+        call:'/v1/wallet/list_wallets',
      }),
      new web3._extend.Method({
         name:'listKeys',
-        call:'wallet_listKeys',
+        call:'/v1/wallet/list_keys',
         params:2,
         inputFormatter:[null,null],
      }),
      new web3._extend.Method({
          name:'getPublicKeys',
-         call:'wallet_getPublicKeys',
+         call:'/v1/wallet/get_public_keys',
      }),
      new web3._extend.Method({
          name:'lock',
-         call:'wallet_lock',
+         call:'/v1/wallet/lock',
          params:1,
          inputFormatter:[null],
      }),
      new web3._extend.Method({
          name:'lockAll',
-         call:'wallet_lockAllwallets',
+         call:'/v1/wallet/lock_all',
      }),
      new web3._extend.Method({
          name:'unlock',
-         call:'wallet_unlock',
+         call:'/v1/wallet/unlock',
          params:2,
          inputFormatter:[null,null],
      }),
      new web3._extend.Method({
          name:'importKey',
-         call:'wallet_importKey',
+         call:'/v1/wallet/import_key',
          params:2,
          inputFormatter:[null,null],
      }),
      new web3._extend.Method({
          name:'removeKey',
-         call:'wallet_removeKey',
+         call:'/v1/wallet/remove_key',
          params:3,
          inputFormatter:[null,null,null],
      }),
      new web3._extend.Method({
          name:'createKey',
-         call:'wallet_createKey',
+         call:'/v1/wallet/create_key',
          params:2,
          inputFormatter:[null,null],
      }),
      new web3._extend.Method({
          name:'signTransaction',
-         call:'wallet_signTransaction',
+         call:'/v1/wallet/sign_transaction',
          params:3,
          inputFormatter:[null,null,null],
      }),

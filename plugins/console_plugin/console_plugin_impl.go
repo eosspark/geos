@@ -4,7 +4,7 @@ import (
 	"github.com/eosspark/eos-go/log"
 	"github.com/eosspark/eos-go/plugins/appbase/asio"
 	"github.com/eosspark/eos-go/plugins/console_plugin/console"
-	"github.com/eosspark/eos-go/plugins/http_plugin/rpc"
+	"github.com/eosspark/eos-go/plugins/console_plugin/rpc"
 	"net"
 )
 

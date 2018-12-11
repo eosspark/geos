@@ -6,7 +6,6 @@ import (
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
-	"github.com/eosspark/eos-go/plugins/chain_interface"
 )
 
 type ReadWrite struct {
@@ -29,7 +28,36 @@ type PushTransactionResult struct {
 	TransactionId common.TransactionIdType
 }
 
-func (rw *ReadWrite) PushTransaction(tx *types.PackedTransaction, next chain_interface.NextFunction) {
+//struct push_transaction_results {
+//chain::transaction_id_type  transaction_id;
+//fc::variant                 processed;
+//};
+//func (rw *ReadWrite) PushTransaction(tx *types.PackedTransaction, next chain_interface.NextFunction) {
+//	//Try(func() {
+//	//	app.App().GetMethod(chain_interface.TransactionAsync).CallMethods(tx, true, func(result interface{}) {
+//	//		if exception, ok := result.(exception.Exception); ok {
+//	//			next(exception)
+//	//		} else {
+//	//			trxTracePtr := result.(*types.TransactionTrace)
+//	//
+//	//			Try(func() {
+//	//				id := trxTracePtr.ID
+//	//				//TODO processed output
+//	//				//fc::variant output
+//	//				//try {
+//	//				//	output = db.to_variant_with_abi( *trx_trace_ptr, abi_serializer_max_time );
+//	//				//} catch( chain::abi_exception& ) {
+//	//				//	output = *trx_trace_ptr;
+//	//				//}
+//	//				next(PushTransactionResult{id})
+//	//			}).CatchAndCall(next).End()
+//	//		}
+//	//	})
+//	//
+//	//}).CatchAndCall(next).End()
+//
+//}
+func (rw *ReadWrite) PushTransaction(tx *types.PackedTransaction) {
 	//Try(func() {
 	//	app.App().GetMethod(chain_interface.TransactionAsync).CallMethods(tx, true, func(result interface{}) {
 	//		if exception, ok := result.(exception.Exception); ok {
@@ -74,24 +102,25 @@ func (rw *ReadWrite) PushTransaction(tx *types.PackedTransaction, next chain_int
 //    });
 //  }
 //},
-
+//
 //{
-//  std::string("/v1/""chain""/""push_transaction"),
-//  [this, rw_api](string, string body, url_response_callback cb) mutable {
-//    if (body.empty()) body = "{}";
-//    rw_api.validate();
-//    rw_api.push_transaction(fc::json::from_string(body).as < chain_apis::read_write::push_transaction_params > (), [cb, body](const fc::static_variant < fc::exception_ptr, chain_apis::read_write::push_transaction_results > & result) {
-//      if (result.contains < fc::exception_ptr > ()) {
-//        try {
-//          result.get < fc::exception_ptr > () - > dynamic_rethrow_exception();
-//        } catch (...) {
-//          http_plugin::handle_exception("chain", "push_transaction", body, cb);
-//        }
-//      } else {
-//        cb(202, result.visit(async_result_visitor()));
-//      }
-//    });
-//  }
+// std::string("/v1/""chain""/""push_transaction"),
+// [this, rw_api](string, string body, url_response_callback cb) mutable {
+//   if (body.empty()) body = "{}";
+//   rw_api.validate();
+//   rw_api.push_transaction(fc::json::from_string(body).as < chain_apis::read_write::push_transaction_params > (),
+//   	[cb, body](const fc::static_variant < fc::exception_ptr, chain_apis::read_write::push_transaction_results > & result) {
+//     if (result.contains < fc::exception_ptr > ()) {
+//       try {
+//         result.get < fc::exception_ptr > () - > dynamic_rethrow_exception();
+//       } catch (...) {
+//         http_plugin::handle_exception("chain", "push_transaction", body, cb);
+//       }
+//     } else {
+//       cb(202, result.visit(async_result_visitor()));
+//     }
+//   });
+// }
 //},
 //
 //{

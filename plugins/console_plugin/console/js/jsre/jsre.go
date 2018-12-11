@@ -265,6 +265,7 @@ func (re *JSRE) Bind(name string, v interface{}) error {
 
 // Run runs a piece of JS code.
 func (re *JSRE) Run(code string) (v otto.Value, err error) {
+	fmt.Println("jsre")
 	re.Do(func(vm *otto.Otto) { v, err = vm.Run(code) })
 	return v, err
 }

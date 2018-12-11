@@ -1,6 +1,7 @@
 package log
 
 import (
+	"bytes"
 	"fmt"
 	"testing"
 	"time"
@@ -71,4 +72,11 @@ func TestLogTimeOff(t *testing.T) {
 
 	g := end.Sub(start)
 	fmt.Println(g)
+}
+
+func TestLongdata(t *testing.T) {
+	testlog := New("test")
+	testlog.SetHandler(TerminalHandler)
+	data := bytes.Repeat([]byte{100, 255, 0, '\n'}, 100000)
+	testlog.Debug("%#v", data)
 }
