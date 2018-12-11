@@ -5,7 +5,6 @@ import (
 	"crypto/tls"
 	"errors"
 	"fmt"
-	"github.com/eosspark/eos-go/plugins/appbase/asio"
 	"io"
 	"log"
 	"mime/multipart"
@@ -85,10 +84,9 @@ func ServeTLSEmbed(ln net.Listener, certData, keyData []byte, handler RequestHan
 
 // ListenAndServe serves HTTP requests from the given TCP addr
 // using the given handler.
-func ListenAndServe(ctx *asio.IoContext, addr string, handler RequestHandler) error {
+func ListenAndServe(addr string, handler RequestHandler) error {
 	s := &Server{
 		Handler: handler,
-		Ctx:     ctx,
 	}
 	return s.ListenAndServe(addr)
 }
@@ -149,8 +147,6 @@ type ServeHandler func(c net.Conn) error
 //
 // It is safe to call Server methods from concurrently running goroutines.
 type Server struct {
-	Ctx *asio.IoContext
-
 	noCopy noCopy
 
 	// Handler for processing incoming requests.
@@ -1505,10 +1501,13 @@ func (s *Server) configTLS() {
 const DefaultConcurrency = 256 * 1024
 
 // Serve serves incoming connections from the given listener.
+//
 // Serve blocks until the given listener returns permanent error.
 func (s *Server) Serve(ln net.Listener) error {
 	var lastOverflowErrorTime time.Time
 	var lastPerIPErrorTime time.Time
+	var c net.Conn
+	var err error
 
 	s.mu.Lock()
 	{
@@ -1539,59 +1538,38 @@ func (s *Server) Serve(ln net.Listener) error {
 	atomic.AddInt32(&s.open, 1)
 	defer atomic.AddInt32(&s.open, -1)
 
-	var handleFunc func()
-	handleFunc = func() {
-		s.AsyncAccept(ln, lastPerIPErrorTime, wp, maxWorkersCount, func(c net.Conn) {
-			s.setState(c, StateNew)
-			atomic.AddInt32(&s.open, 1)
-			if !wp.Serve(c) {
-				atomic.AddInt32(&s.open, -1)
-				s.writeFastError(c, StatusServiceUnavailable,
-					"The connection cannot be served because Server.Concurrency limit exceeded")
-				c.Close()
-				s.setState(c, StateClosed)
-				if time.Since(lastOverflowErrorTime) > time.Minute {
-					s.logger().Printf("The incoming connection cannot be served, because %d concurrent connections are served. "+
-						"Try increasing Server.Concurrency", maxWorkersCount)
-					lastOverflowErrorTime = time.Now()
-				}
-
-				// The current server reached concurrency limit,
-				// so give other concurrently running servers a chance
-				// accepting incoming connections on the same address.
-				//
-				// There is a hope other servers didn't reach their
-				// concurrency limits yet :)
-				time.Sleep(100 * time.Millisecond)
+	for {
+		if c, err = acceptConn(s, ln, &lastPerIPErrorTime); err != nil {
+			wp.Stop()
+			if err == io.EOF {
+				return nil
 			}
-			c = nil
-			handleFunc()
-		})
-	}
-
-	handleFunc()
-
-	return nil
-}
-
-func (s *Server) AsyncAccept(ln net.Listener, lastPerIPErrorTime time.Time, wp *workerPool, maxWorkersCount int, f func(c net.Conn)) {
-	go s.accept(ln, lastPerIPErrorTime, wp, maxWorkersCount, f)
-}
-
-func (s *Server) accept(ln net.Listener, lastPerIPErrorTime time.Time, wp *workerPool, maxWorkersCount int, f func(c net.Conn)) {
-	var c net.Conn
-	var err error
-
-	if c, err = acceptConn(s, ln, &lastPerIPErrorTime); err != nil {
-		wp.Stop()
-		if err == io.EOF {
-			fmt.Println("accept err", err.Error())
+			return err
 		}
-		fmt.Println("accept err", err.Error())
+		s.setState(c, StateNew)
+		atomic.AddInt32(&s.open, 1)
+		if !wp.Serve(c) {
+			atomic.AddInt32(&s.open, -1)
+			s.writeFastError(c, StatusServiceUnavailable,
+				"The connection cannot be served because Server.Concurrency limit exceeded")
+			c.Close()
+			s.setState(c, StateClosed)
+			if time.Since(lastOverflowErrorTime) > time.Minute {
+				s.logger().Printf("The incoming connection cannot be served, because %d concurrent connections are served. "+
+					"Try increasing Server.Concurrency", maxWorkersCount)
+				lastOverflowErrorTime = time.Now()
+			}
+
+			// The current server reached concurrency limit,
+			// so give other concurrently running servers a chance
+			// accepting incoming connections on the same address.
+			//
+			// There is a hope other servers didn't reach their
+			// concurrency limits yet :)
+			time.Sleep(100 * time.Millisecond)
+		}
+		c = nil
 	}
-	s.Ctx.Post(func(err error) {
-		f(c)
-	})
 }
 
 // Shutdown gracefully shuts down the server without interrupting any active connections.

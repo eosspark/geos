@@ -10,7 +10,7 @@ import (
 	"math/big"
 	"time"
 
-	"github.com/valyala/fasthttp"
+	"github.com/eosspark/eos-go/plugins/http_plugin/fasthttp"
 )
 
 var domains = make(map[string]fasthttp.RequestHandler)
@@ -93,7 +93,7 @@ func GenerateCert(host string) ([]byte, []byte, error) {
 		SignatureAlgorithm:    x509.SHA256WithRSA,
 		DNSNames:              []string{host},
 		BasicConstraintsValid: true,
-		IsCA: true,
+		IsCA:                  true,
 	}
 
 	certBytes, err := x509.CreateCertificate(

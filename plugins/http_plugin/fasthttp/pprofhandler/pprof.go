@@ -5,8 +5,8 @@ import (
 	rtp "runtime/pprof"
 	"strings"
 
-	"github.com/valyala/fasthttp"
-	"github.com/valyala/fasthttp/fasthttpadaptor"
+	"github.com/eosspark/eos-go/plugins/http_plugin/fasthttp"
+	"github.com/eosspark/eos-go/plugins/http_plugin/fasthttp/fasthttpadaptor"
 )
 
 var (

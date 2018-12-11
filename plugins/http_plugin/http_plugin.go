@@ -229,7 +229,7 @@ func (h *HttpPlugin) PluginStartup() {
 
 	handler := h.Handler
 
-	fasthttp.ListenAndServe(App().GetIoService(), h.my.listenStr, handler)
+	fasthttp.ListenAndAsyncServe(App().GetIoService(), h.my.listenStr, handler)
 
 	//if(my->listen_endpoint) {
 	//	try {

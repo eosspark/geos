@@ -9,7 +9,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/valyala/fasthttp"
+	"github.com/eosspark/eos-go/plugins/http_plugin/fasthttp"
 )
 
 func TestNewFastHTTPHandler(t *testing.T) {

@@ -5,8 +5,8 @@ import (
 	"net"
 	"testing"
 
-	"github.com/valyala/fasthttp"
-	"github.com/valyala/fasthttp/fasthttputil"
+	"github.com/eosspark/eos-go/plugins/http_plugin/fasthttp"
+	"github.com/eosspark/eos-go/plugins/http_plugin/fasthttp/fasthttputil"
 )
 
 // BenchmarkPlainStreaming measures end-to-end plaintext streaming performance
@@ -39,7 +39,7 @@ func BenchmarkTLSStreaming(b *testing.B) {
 // It re-establishes new TLS connection per each http request.
 func BenchmarkTLSHandshakeRSAWithClientSessionCache(b *testing.B) {
 	bc := &benchConfig{
-		IsTLS: true,
+		IsTLS:                     true,
 		DisableClientSessionCache: false,
 	}
 	benchmarkExt(b, handshakeHandler, bc)
@@ -47,7 +47,7 @@ func BenchmarkTLSHandshakeRSAWithClientSessionCache(b *testing.B) {
 
 func BenchmarkTLSHandshakeRSAWithoutClientSessionCache(b *testing.B) {
 	bc := &benchConfig{
-		IsTLS: true,
+		IsTLS:                     true,
 		DisableClientSessionCache: true,
 	}
 	benchmarkExt(b, handshakeHandler, bc)
@@ -55,7 +55,7 @@ func BenchmarkTLSHandshakeRSAWithoutClientSessionCache(b *testing.B) {
 
 func BenchmarkTLSHandshakeECDSAWithClientSessionCache(b *testing.B) {
 	bc := &benchConfig{
-		IsTLS: true,
+		IsTLS:                     true,
 		DisableClientSessionCache: false,
 		UseECDSA:                  true,
 	}
@@ -64,7 +64,7 @@ func BenchmarkTLSHandshakeECDSAWithClientSessionCache(b *testing.B) {
 
 func BenchmarkTLSHandshakeECDSAWithoutClientSessionCache(b *testing.B) {
 	bc := &benchConfig{
-		IsTLS: true,
+		IsTLS:                     true,
 		DisableClientSessionCache: true,
 		UseECDSA:                  true,
 	}
@@ -73,7 +73,7 @@ func BenchmarkTLSHandshakeECDSAWithoutClientSessionCache(b *testing.B) {
 
 func BenchmarkTLSHandshakeECDSAWithCurvesWithClientSessionCache(b *testing.B) {
 	bc := &benchConfig{
-		IsTLS: true,
+		IsTLS:                     true,
 		DisableClientSessionCache: false,
 		UseCurves:                 true,
 		UseECDSA:                  true,
@@ -83,7 +83,7 @@ func BenchmarkTLSHandshakeECDSAWithCurvesWithClientSessionCache(b *testing.B) {
 
 func BenchmarkTLSHandshakeECDSAWithCurvesWithoutClientSessionCache(b *testing.B) {
 	bc := &benchConfig{
-		IsTLS: true,
+		IsTLS:                     true,
 		DisableClientSessionCache: true,
 		UseCurves:                 true,
 		UseECDSA:                  true,

@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"regexp"
 
-	"github.com/valyala/fasthttp"
+	"github.com/eosspark/eos-go/plugins/http_plugin/fasthttp"
 )
 
 var (
