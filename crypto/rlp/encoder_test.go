@@ -4,6 +4,9 @@ import (
 	"bytes"
 	"encoding/hex"
 	"fmt"
+	"github.com/eosspark/container/maps/treemap"
+	"github.com/eosspark/container/sets/treeset"
+	"github.com/eosspark/container/utils"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto"
@@ -222,4 +225,193 @@ func TestDecoder_Encode(t *testing.T) {
 	assert.Equal(t, uint8(4), s.F18.Precision)
 	assert.Equal(t, "EOS", s.F18.Symbol.Symbol)
 
+}
+
+type TreeSetExp struct {
+	ActorWhitelist treeset.Set //common.AccountName
+}
+
+func TestTreeSet(t *testing.T) {
+	vals := []common.AccountName{common.AccountName(common.N("eos")), common.AccountName(common.N("io"))}
+	A := TreeSetExp{}
+
+	A.ActorWhitelist = *treeset.NewWith(common.TypeName, common.CompareName)
+	for _, val := range vals {
+		A.ActorWhitelist.AddItem(val)
+	}
+	bytes, err := rlp.EncodeToBytes(A)
+	fmt.Println(bytes, err)
+
+	B := TreeSetExp{}
+	B.ActorWhitelist = *treeset.NewWith(common.TypeName, common.CompareName)
+	err = rlp.DecodeBytes(bytes, &B)
+
+	fmt.Println(B.ActorWhitelist.Values(), err)
+
+}
+
+type TreeSetPub struct {
+	WhiteList treeset.Set
+}
+
+func TestPub(t *testing.T) {
+
+	vals := []ecc.PublicKey{ecc.MustNewPublicKey("EOS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV"), ecc.MustNewPublicKey("EOS5kpVjpFXiFHwhbrSLndAqCdpLLUctXhq583WjFH5tqy2VLYhLc")}
+	A := TreeSetPub{}
+
+	A.WhiteList = *treeset.NewWith(ecc.TypePubKey, ecc.ComparePubKey)
+	for _, val := range vals {
+		A.WhiteList.AddItem(val)
+	}
+	bytes, err := rlp.EncodeToBytes(A)
+	fmt.Println(bytes, err)
+
+	B := TreeSetPub{}
+	B.WhiteList = *treeset.NewWith(ecc.TypePubKey, ecc.ComparePubKey)
+	err = rlp.DecodeBytes(bytes, &B)
+
+	fmt.Println(B.WhiteList.Values(), err)
+}
+
+func BenchmarkTreeSetInsert(b *testing.B) {
+	b.StopTimer()
+	set := treeset.NewWith(common.TypeName, common.CompareName)
+
+	b.StartTimer()
+	for n := 0; n < b.N; n++ {
+		b.StopTimer()
+		set.Clear()
+		b.StartTimer()
+		for i := 0; i < 100000; i++ {
+			set.AddItem(common.Name(i))
+		}
+	}
+
+}
+
+func BenchmarkTreeSetFromDecode(b *testing.B) {
+	b.StopTimer()
+	set := treeset.NewWith(common.TypeName, common.CompareName)
+	for i := 0; i < 100000; i++ {
+		set.AddItem(common.Name(i))
+	}
+
+	bytes, err := rlp.EncodeToBytes(*set)
+	//fmt.Println(bytes)
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	ss := treeset.NewWith(common.TypeName, common.CompareName)
+	if err = rlp.DecodeBytes(bytes, ss); err != nil {
+		b.Fatal(err)
+	}
+
+	ss.Clear()
+
+	b.StartTimer()
+	for n := 0; n < b.N; n++ {
+		b.StopTimer()
+		ss.Clear()
+		b.StartTimer()
+		rlp.DecodeBytes(bytes, ss)
+	}
+
+}
+
+const bench = 10000
+
+var pks [bench]ecc.PublicKey
+
+func init() {
+	for i := 0; i < bench; i++ {
+		pri, _ := ecc.NewRandomPrivateKey()
+		pks[i] = pri.PublicKey()
+	}
+
+	fmt.Println("init success", pks[bench-1])
+}
+
+func BenchmarkTreeSetInsert2(b *testing.B) {
+	b.StopTimer()
+
+	set := treeset.NewWith(ecc.TypePubKey, ecc.ComparePubKey)
+
+	b.StartTimer()
+	for n := 0; n < b.N; n++ {
+		b.StopTimer()
+		set.Clear()
+		b.StartTimer()
+		for i := 0; i < bench; i++ {
+			set.AddItem(pks[i])
+		}
+	}
+
+}
+
+func BenchmarkTreeSetFromDecode2(b *testing.B) {
+	b.StopTimer()
+	set := treeset.NewWith(ecc.TypePubKey, ecc.ComparePubKey)
+	for i := 0; i < bench; i++ {
+		set.AddItem(pks[i])
+	}
+
+	bytes, err := rlp.EncodeToBytes(*set)
+	//fmt.Println(bytes)
+	if err != nil {
+		b.Fatal(err)
+	}
+
+	ss := treeset.NewWith(ecc.TypePubKey, ecc.ComparePubKey)
+	if err = rlp.DecodeBytes(bytes, ss); err != nil {
+		b.Fatal(err)
+	}
+
+	ss.Clear()
+
+	b.StartTimer()
+	for n := 0; n < b.N; n++ {
+		b.StopTimer()
+		ss.Clear()
+		b.StartTimer()
+		rlp.DecodeBytes(bytes, ss)
+	}
+
+}
+
+type TreeMapExp struct {
+	ProducerToLastProduced treemap.Map
+}
+
+func TestTreeMap(t *testing.T) {
+	keyvalue := map[common.Name]uint32{
+		common.N("eos"):   100,
+		common.N("sys"):   101,
+		common.N("hello"): 90,
+	}
+	tree := TreeMapExp{}
+	tree.ProducerToLastProduced = *treemap.NewWith(common.TypeName, utils.TypeUInt32, common.CompareName)
+	for k, v := range keyvalue {
+		tree.ProducerToLastProduced.Put(k, v)
+	}
+	tree.ProducerToLastProduced.Each(func(key interface{}, value interface{}) {
+		fmt.Println(key, value)
+	})
+	bytes, err := rlp.EncodeToBytes(tree)
+	if err != nil {
+		fmt.Println(err)
+	}
+	fmt.Println(bytes)
+
+	tree2 := TreeMapExp{}
+	tree2.ProducerToLastProduced = *treemap.NewWith(common.TypeName, utils.TypeUInt32, common.CompareName)
+
+	err = rlp.DecodeBytes(bytes, &tree2)
+	assert.NoError(t, err, err)
+	tree2.ProducerToLastProduced.Each(func(key interface{}, value interface{}) {
+		fmt.Println(key, value)
+	})
+	json1, _ := tree.ProducerToLastProduced.ToJSON()
+	json2, _ := tree2.ProducerToLastProduced.ToJSON()
+	assert.Equal(t, json1, json2)
 }

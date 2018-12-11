@@ -229,6 +229,16 @@ func (p PublicKey) GetKey() []byte {
 }
 
 var TypePubKey = reflect.TypeOf(PublicKey{})
+
 func ComparePubKey(first interface{}, second interface{}) int {
-	return bytes.Compare(first.(PublicKey).GetKey(), second.(PublicKey).GetKey())
+	pub1 := first.(PublicKey)
+	pub2 := second.(PublicKey)
+
+	if pub1.Curve > pub2.Curve {
+		return 1
+	} else if pub1.Curve < pub2.Curve {
+		return -1
+	}
+
+	return bytes.Compare(pub1.Content[:], pub2.Content[:])
 }
