@@ -152,5 +152,6 @@ func (compiled compiledFunction) call(vm *VM, index int64) {
 }
 
 func (fn eosFunction) call(vm *VM, index int64) {
+	vm.WasmGo.context.CheckTime()
 	(*fn.function)(vm)
 }
