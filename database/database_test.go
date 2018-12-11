@@ -638,7 +638,7 @@ func Test_uniqueNoIterator(t *testing.T) {
 	// scope 11 lower prev iterator
 	{
 		obj := DbTableIdObject{Scope: 11}
-		scope11, err := idx.LowerBound(obj)
+		scope11, err := idx.LowerBound(obj,SKIP_ONE)
 		if err != nil {
 			log.Fatalln(err)
 		}
@@ -666,7 +666,7 @@ func Test_uniqueNoIterator(t *testing.T) {
 	// scope 11 lower next iterator
 	{
 		obj := DbTableIdObject{Scope: 11}
-		scope11, err := idx.LowerBound(obj)
+		scope11, err := idx.LowerBound(obj,SKIP_ONE)
 		if err != nil {
 			log.Fatalln(err)
 		}
@@ -700,7 +700,7 @@ func Test_uniqueNoIterator(t *testing.T) {
 	// scope 11 upper prev iterator
 	{
 		obj := DbTableIdObject{Scope: 11}
-		scope11, err := idx.UpperBound(obj)
+		scope11, err := idx.UpperBound(obj,SKIP_ONE)
 		if err != nil {
 			log.Fatalln(err)
 		}
@@ -727,7 +727,7 @@ func Test_uniqueNoIterator(t *testing.T) {
 	// scope 11 upper next iterator
 	{
 		obj := DbTableIdObject{Scope: 11}
-		scope11, err := idx.UpperBound(obj)
+		scope11, err := idx.UpperBound(obj,SKIP_ONE)
 		if err != nil {
 			log.Fatalln(err)
 		}
@@ -763,7 +763,7 @@ func Test_uniqueNoIterator(t *testing.T) {
 	/* scope 30 lower prev iterator */
 	{
 		obj := DbTableIdObject{Scope: 30}
-		scope11, err := idx.LowerBound(obj)
+		scope11, err := idx.LowerBound(obj,SKIP_ONE)
 		if err != nil {
 			log.Fatalln(err)
 		}
@@ -796,7 +796,7 @@ func Test_uniqueNoIterator(t *testing.T) {
 	/* scope 30 lower next iterator */
 	{
 		obj := DbTableIdObject{Scope: 30}
-		scope11, err := idx.LowerBound(obj)
+		scope11, err := idx.LowerBound(obj,SKIP_ONE)
 		if err != nil {
 			log.Fatalln(err)
 		}
@@ -828,7 +828,7 @@ func Test_uniqueNoIterator(t *testing.T) {
 	/* scope 30 upper prev iterator */
 	{
 		obj := DbTableIdObject{Scope: 30}
-		scope11, err := idx.UpperBound(obj)
+		scope11, err := idx.UpperBound(obj,SKIP_ONE)
 		if err != nil {
 			log.Fatalln(err)
 		}
@@ -862,7 +862,7 @@ func Test_uniqueNoIterator(t *testing.T) {
 	/* scope 30 upper next iterator */
 	{
 		obj := DbTableIdObject{Scope: 30}
-		scope11, err := idx.UpperBound(obj)
+		scope11, err := idx.UpperBound(obj,SKIP_ONE)
 		if err != nil {
 			log.Fatalln(err)
 		}
@@ -897,7 +897,7 @@ func Test_uniqueNoIterator(t *testing.T) {
 	// scope 22 lower prev iterator
 	{
 		obj := DbTableIdObject{Scope: 22}
-		scope11, err := idx.LowerBound(obj)
+		scope11, err := idx.LowerBound(obj,SKIP_ONE)
 		if err != nil {
 			log.Fatalln(err)
 		}
@@ -929,7 +929,7 @@ func Test_uniqueNoIterator(t *testing.T) {
 	// scope 22 lower next iterator
 	{
 		obj := DbTableIdObject{Scope: 22}
-		scope11, err := idx.LowerBound(obj)
+		scope11, err := idx.LowerBound(obj,SKIP_ONE)
 		if err != nil {
 			log.Fatalln(err)
 		}
@@ -961,7 +961,7 @@ func Test_uniqueNoIterator(t *testing.T) {
 	// scope 22 upper prev iterator
 	{
 		obj := DbTableIdObject{Scope: 22}
-		scope11, err := idx.UpperBound(obj)
+		scope11, err := idx.UpperBound(obj,SKIP_ONE)
 		if err != nil {
 			log.Fatalln(err)
 		}
@@ -993,7 +993,7 @@ func Test_uniqueNoIterator(t *testing.T) {
 	// scope 22 upper next iterator
 	{
 		obj := DbTableIdObject{Scope: 22}
-		scope11, err := idx.UpperBound(obj)
+		scope11, err := idx.UpperBound(obj,SKIP_ONE)
 		if err != nil {
 			log.Fatalln(err)
 		}
@@ -1026,7 +1026,7 @@ func Test_uniqueNoIterator(t *testing.T) {
 	/* compare iterator test */
 	{
 		obj := DbTableIdObject{Scope: 20}
-		scope20, err := idx.LowerBound(obj)
+		scope20, err := idx.LowerBound(obj,SKIP_ONE)
 		if err != nil {
 			log.Fatalln(err)
 		}
