@@ -369,11 +369,14 @@ func (t *TransactionContext) CheckNetUsage() {
 	}
 }
 
+//var checktimes int = 0
 func (t *TransactionContext) CheckTime() {
 
 	//return
 	//if !t.Control.SkipTrxChecks() {
 	now := common.Now()
+	//checktimes ++
+	//t.ilog.Info("time:%d",checktimes)
 
 	if now > t.deadline {
 		if t.ExplicitBilledCpuTime || t.deadlineExceptionCode == int64(DeadlineException{}.Code()) { //|| deadline_exception_code TODO

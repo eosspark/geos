@@ -25,7 +25,7 @@ func NewIdxDouble(c *ApplyContext) *IdxDouble {
 func (i *IdxDouble) store(scope uint64, table uint64, payer uint64, id uint64, secondary *arithmetic.Float64) int {
 
 	f := math.Float64frombits(uint64(*secondary))
-	EosAssert(!math.IsNaN(f), &TableAccessViolation{}, "NaN is not an allowed value for a secondary key")
+	EosAssert(!math.IsNaN(f), &TransactionException{}, "NaN is not an allowed value for a secondary key")
 
 	//w.ilog.Info("float:%v", float)
 
@@ -75,7 +75,7 @@ func (i *IdxDouble) remove(iterator int) {
 
 func (i *IdxDouble) update(iterator int, payer uint64, secondary *arithmetic.Float64) {
 	f := math.Float64frombits(uint64(*secondary))
-	EosAssert(!math.IsNaN(f), &TableAccessViolation{}, "NaN is not an allowed value for a secondary key")
+	EosAssert(!math.IsNaN(f), &TransactionException{}, "NaN is not an allowed value for a secondary key")
 
 	obj := (i.itrCache.get(iterator)).(*entity.SecondaryObjectDouble)
 	objTable := i.itrCache.getTable(obj.TId)
@@ -101,7 +101,7 @@ func (i *IdxDouble) update(iterator int, payer uint64, secondary *arithmetic.Flo
 
 func (i *IdxDouble) findSecondary(code uint64, scope uint64, table uint64, secondary *arithmetic.Float64, primary *uint64) int {
 	f := math.Float64frombits(uint64(*secondary))
-	EosAssert(!math.IsNaN(f), &TableAccessViolation{}, "NaN is not an allowed value for a secondary key")
+	EosAssert(!math.IsNaN(f), &TransactionException{}, "NaN is not an allowed value for a secondary key")
 
 	tab := i.context.FindTable(code, scope, table)
 	if tab == nil {
@@ -126,7 +126,7 @@ func (i *IdxDouble) findSecondary(code uint64, scope uint64, table uint64, secon
 
 func (i *IdxDouble) lowerbound(code uint64, scope uint64, table uint64, secondary *arithmetic.Float64, primary *uint64) int {
 	f := math.Float64frombits(uint64(*secondary))
-	EosAssert(!math.IsNaN(f), &TableAccessViolation{}, "NaN is not an allowed value for a secondary key")
+	EosAssert(!math.IsNaN(f), &TransactionException{}, "NaN is not an allowed value for a secondary key")
 
 	tab := i.context.FindTable(code, scope, table)
 	if tab == nil {
@@ -153,14 +153,14 @@ func (i *IdxDouble) lowerbound(code uint64, scope uint64, table uint64, secondar
 	*secondary = objLowerbound.SecondaryKey
 
 	iteratorOut := i.itrCache.add(&objLowerbound)
-	i.context.ilog.Info("object:%v iteratorOut:%d code:%v scope:%v table:%v secondary:%d",
+	i.context.ilog.Info("object:%v iteratorOut:%d code:%v scope:%v table:%v secondary:%v",
 		objLowerbound, iteratorOut, common.AccountName(code), common.ScopeName(scope), common.TableName(table), secondary)
 	return iteratorOut
 }
 
 func (i *IdxDouble) upperbound(code uint64, scope uint64, table uint64, secondary *arithmetic.Float64, primary *uint64) int {
 	f := math.Float64frombits(uint64(*secondary))
-	EosAssert(!math.IsNaN(f), &TableAccessViolation{}, "NaN is not an allowed value for a secondary key")
+	EosAssert(!math.IsNaN(f), &TransactionException{}, "NaN is not an allowed value for a secondary key")
 
 	tab := i.context.FindTable(code, scope, table)
 	if tab == nil {
@@ -187,7 +187,7 @@ func (i *IdxDouble) upperbound(code uint64, scope uint64, table uint64, secondar
 	*secondary = objUpperbound.SecondaryKey
 
 	iteratorOut := i.itrCache.add(&objUpperbound)
-	i.context.ilog.Info("object:%v iteratorOut:%d code:%v scope:%v table:%v secondary:%d",
+	i.context.ilog.Info("object:%v iteratorOut:%d code:%v scope:%v table:%v secondary:%v",
 		objUpperbound, iteratorOut, common.AccountName(code), common.ScopeName(scope), common.TableName(table), secondary)
 	return iteratorOut
 }
@@ -224,7 +224,7 @@ func (i *IdxDouble) next(iterator int, primary *uint64) int {
 	*primary = objNext.PrimaryKey
 
 	iteratorOut := i.itrCache.add(&objNext)
-	i.context.ilog.Info("object:%v iteratorIn:%d iteratorOut:%d", objNext, iterator, iteratorOut)
+	i.context.ilog.Info("object:%v iteratorIn:%d iteratorOut:%d secondaryKey:%v", objNext, iterator, iteratorOut, objNext.SecondaryKey)
 	return iteratorOut
 
 }
