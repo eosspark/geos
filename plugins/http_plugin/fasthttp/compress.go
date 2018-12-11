@@ -11,7 +11,7 @@ import (
 	"github.com/klauspost/compress/gzip"
 	"github.com/klauspost/compress/zlib"
 	"github.com/valyala/bytebufferpool"
-	"github.com/valyala/fasthttp/stackless"
+	"github.com/eosspark/eos-go/plugins/http_plugin/fasthttp/stackless"
 )
 
 // Supported compression levels.

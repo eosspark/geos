@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/valyala/fasthttp"
+	"github.com/eosspark/eos-go/plugins/http_plugin/fasthttp"
 )
 
 func ExampleLBClient() {
