@@ -38,7 +38,7 @@ func newBaseTester(pushGenesis bool, readMode DBReadMode) *BaseTester {
 	t.ChainTransactions = make(map[common.BlockIdType]types.TransactionReceipt)
 	t.LastProducedBlock = make(map[common.AccountName]common.BlockIdType)
 
-	t.init(true,readMode)
+	t.init(true, readMode)
 	return t
 }
 
@@ -53,7 +53,7 @@ func (t *BaseTester) init(pushGenesis bool, readMode DBReadMode) {
 	}
 }
 
-func newConfig(readMode DBReadMode) *Config{
+func newConfig(readMode DBReadMode) *Config {
 	cfg := &Config{}
 	cfg.BlocksDir = common.DefaultConfig.DefaultBlocksDirName
 	cfg.StateDir = common.DefaultConfig.DefaultStateDirName
@@ -79,7 +79,6 @@ func newConfig(readMode DBReadMode) *Config{
 	cfg.TrustedProducers = *treeset.NewWith(common.TypeName, common.CompareName)
 
 	//cfg.VmType = common.DefaultConfig.DefaultWasmRuntime // TODO
-
 
 	return cfg
 }
@@ -320,7 +319,7 @@ func (t BaseTester) PushAction(act *types.Action, authorizer common.AccountName)
 	return
 }
 
-type VariantsObject []map[string]interface{}
+type VariantsObject map[string]interface{}
 
 func (t BaseTester) PushAction2(code *common.AccountName, acttype *common.AccountName,
 	actor common.AccountName, data *VariantsObject, expiration uint32, delaySec uint32) *types.TransactionTrace {
@@ -352,15 +351,15 @@ func (t BaseTester) GetAction(code common.AccountName, actType common.AccountNam
 	auths []types.PermissionLevel, data *VariantsObject) *types.Action {
 	acnt := t.Control.GetAccount(code)
 	a := acnt.GetAbi()
-	action := types.Action{code,actType,auths,nil}
-	actionTypeName :=a.ActionForName(actType).Type
-	buf,err :=json.Marshal(data)
-	if err != nil{
-		log.Error("tester GetAction Marshal is error:%s",err)
+	action := types.Action{code, actType, auths, nil}
+	actionTypeName := a.ActionForName(actType).Type
+	buf, err := json.Marshal(data)
+	if err != nil {
+		log.Error("tester GetAction Marshal is error:%s", err)
 	}
-	action.Data,err = a.EncodeAction(common.N(actionTypeName),buf)//TODO
-	if err != nil{
-		log.Error("tester GetAction EncodeAction is error:%s",err)
+	action.Data, err = a.EncodeAction(common.N(actionTypeName), buf) //TODO
+	if err != nil {
+		log.Error("tester GetAction EncodeAction is error:%s", err)
 	}
 	return &action
 }
@@ -571,12 +570,11 @@ func (t BaseTester) SetCode2(account common.AccountName, wast *byte, signer *ecc
 	//t.SetCode(account, wastToWasm(wast), signer)
 }
 
-
 func (t BaseTester) SetAbi(account common.AccountName, abiJson []byte, signer *ecc.PrivateKey) {
 	abiEt := abi.AbiDef{}
 	err := json.Unmarshal(abiJson, &abiEt)
-	if err !=nil{
-		log.Error("unmarshal abiJson is wrong :%s",err)
+	if err != nil {
+		log.Error("unmarshal abiJson is wrong :%s", err)
 	}
 	trx := types.SignedTransaction{}
 	abiBytes, _ := rlp.EncodeToBytes(abiEt)
@@ -618,7 +616,7 @@ func (t BaseTester) GetCurrencyBalance(code *common.AccountName, assetSymbol *co
 	if err != nil {
 		log.Error("GetCurrencyBalance is error: %s", err)
 	} else {
-		obj := entity.KeyValueObject{ID:table.ID,PrimaryKey:uint64(assetSymbol.ToSymbolCode())}
+		obj := entity.KeyValueObject{ID: table.ID, PrimaryKey: uint64(assetSymbol.ToSymbolCode())}
 		err := db.Find("byScopePrimary", obj, &obj)
 		if err != nil {
 			log.Error("GetCurrencyBalance is error: %s", err)
@@ -734,12 +732,12 @@ func (t BaseTester) FindTable(code common.Name, scope common.Name, table common.
 
 type ValidatingTester struct {
 	BaseTester
-	ValidatingControl      *Controller
-	VCfg                   Config
+	ValidatingControl                 *Controller
+	VCfg                              Config
 	NumBlocksToProducerBeforeShutdown uint32
 }
 
-func newValidatingTester(pushGenesis bool, readMode DBReadMode)  *ValidatingTester{
+func newValidatingTester(pushGenesis bool, readMode DBReadMode) *ValidatingTester {
 	vt := &ValidatingTester{}
 	vt.DefaultExpirationDelta = 6
 	vt.DefaultBilledCpuTimeUs = 2000
@@ -751,7 +749,7 @@ func newValidatingTester(pushGenesis bool, readMode DBReadMode)  *ValidatingTest
 	vt.VCfg.ReversibleDir = common.DefaultConfig.ValidatingReversibleBlocksDirName
 
 	vt.ValidatingControl = NewController(&vt.VCfg)
-	vt.init(true,readMode)
+	vt.init(true, readMode)
 	return vt
 }
 
