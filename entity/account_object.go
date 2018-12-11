@@ -40,10 +40,8 @@ func (a *AccountObject) SetAbi(ad abi_serializer.AbiDef) {
 
 func (a *AccountObject) GetAbi() abi_serializer.AbiDef {
 	abiDef := abi_serializer.AbiDef{}
-	if len(a.Abi) != 0 {
-		try.EosAssert(len(a.Abi) != 0, &exception.AbiNotFoundException{}, "No ABI set on account :", a.Name)
-	}
-	err := rlp.DecodeBytes(a.Abi, abiDef)
+	try.EosAssert(len(a.Abi) != 0, &exception.AbiNotFoundException{}, "No ABI set on account :", a.Name)
+	err := rlp.DecodeBytes(a.Abi, &abiDef)
 	if err != nil {
 		fmt.Println("account_object GetAbi DecodeBytes is error:", err.Error())
 	}

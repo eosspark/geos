@@ -18,6 +18,9 @@ import (
 	"math"
 )
 
+var CORE_SYMBOL = common.Symbol{Precision:4,Symbol:"SYS"}
+var CORE_SYMBOL_NAME = "SYS"
+
 type BaseTester struct {
 	ActionResult           string
 	DefaultExpirationDelta uint32
@@ -35,10 +38,11 @@ func newBaseTester(pushGenesis bool, readMode DBReadMode) *BaseTester {
 	t := &BaseTester{}
 	t.DefaultExpirationDelta = 6
 	t.DefaultBilledCpuTimeUs = 2000
+	t.AbiSerializerMaxTime = 1000*1000
 	t.ChainTransactions = make(map[common.BlockIdType]types.TransactionReceipt)
 	t.LastProducedBlock = make(map[common.AccountName]common.BlockIdType)
 
-	t.init(true, readMode)
+	t.init(pushGenesis, readMode)
 	return t
 }
 
@@ -581,7 +585,7 @@ func (t BaseTester) SetAbi(account common.AccountName, abiJson []byte, signer *e
 	setAbi := setAbi{Account: account, Abi: abiBytes}
 	data, _ := rlp.EncodeToBytes(setAbi)
 	act := types.Action{
-		Account:       account,
+		Account:       setAbi.getAccount(),
 		Name:          setAbi.getName(),
 		Authorization: []types.PermissionLevel{{account, common.DefaultConfig.ActiveName}},
 		Data:          data,
@@ -741,6 +745,7 @@ func newValidatingTester(pushGenesis bool, readMode DBReadMode) *ValidatingTeste
 	vt := &ValidatingTester{}
 	vt.DefaultExpirationDelta = 6
 	vt.DefaultBilledCpuTimeUs = 2000
+	vt.AbiSerializerMaxTime = 1000*1000
 	vt.ChainTransactions = make(map[common.BlockIdType]types.TransactionReceipt)
 	vt.LastProducedBlock = make(map[common.AccountName]common.BlockIdType)
 	vt.VCfg = *newConfig(readMode)
@@ -768,4 +773,9 @@ func (vt ValidatingTester) ProduceEmptyBlock(skipTime common.Microseconds, skipF
 func (vt *ValidatingTester) close() {
 	vt.Control.Close()
 	vt.ChainTransactions = make(map[common.BlockIdType]types.TransactionReceipt)
+}
+
+func CoreFromString(s string) common.Asset {
+	str := s + " " + CORE_SYMBOL_NAME
+	return common.Asset{}.FromString(&str)
 }
