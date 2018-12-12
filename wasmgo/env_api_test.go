@@ -764,16 +764,16 @@ func TestCrypto(t *testing.T) {
 		callTestF2(t, b, &testApiAction{wasmTestAction("test_crypto", "assert_sha512_true")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
 		callTestF2(t, b, &testApiAction{wasmTestAction("test_crypto", "assert_ripemd160_true")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
 
-		retException = callTestFunctionCheckExceptionF2(t, b, &testApiAction{wasmTestAction("test_crypto", "assert_sha256_false")}, load, []common.AccountName{common.AccountName(common.N("testapi"))},
+		retException = callTestFunctionCheckExceptionF2(t, b, &testApiAction{wasmTestAction("test_crypto", "assert_sha256_false")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))},
 			exception.CryptoApiException{}.Code(), exception.CryptoApiException{}.What())
 		assert.Equal(t, retException, true)
-		retException = callTestFunctionCheckExceptionF2(t, b, &testApiAction{wasmTestAction("test_crypto", "assert_sha1_false")}, load, []common.AccountName{common.AccountName(common.N("testapi"))},
+		retException = callTestFunctionCheckExceptionF2(t, b, &testApiAction{wasmTestAction("test_crypto", "assert_sha1_false")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))},
 			exception.CryptoApiException{}.Code(), exception.CryptoApiException{}.What())
 		assert.Equal(t, retException, true)
-		retException = callTestFunctionCheckExceptionF2(t, b, &testApiAction{wasmTestAction("test_crypto", "assert_sha512_false")}, load, []common.AccountName{common.AccountName(common.N("testapi"))},
+		retException = callTestFunctionCheckExceptionF2(t, b, &testApiAction{wasmTestAction("test_crypto", "assert_sha512_false")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))},
 			exception.CryptoApiException{}.Code(), exception.CryptoApiException{}.What())
 		assert.Equal(t, retException, true)
-		retException = callTestFunctionCheckExceptionF2(t, b, &testApiAction{wasmTestAction("test_crypto", "assert_ripemd160_false")}, load, []common.AccountName{common.AccountName(common.N("testapi"))},
+		retException = callTestFunctionCheckExceptionF2(t, b, &testApiAction{wasmTestAction("test_crypto", "assert_ripemd160_false")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))},
 			exception.CryptoApiException{}.Code(), exception.CryptoApiException{}.What())
 		assert.Equal(t, retException, true)
 
@@ -782,7 +782,7 @@ func TestCrypto(t *testing.T) {
 	})
 }
 
-func TestContextFixedPoint(t *testing.T) {
+func TestFixedPoint(t *testing.T) {
 
 	name := "testdata_context/test_api.wasm"
 	t.Run(filepath.Base(name), func(t *testing.T) {
@@ -790,21 +790,52 @@ func TestContextFixedPoint(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		control := startBlock()
-		createNewAccount(control, "testapi")
 
-		callTestFunction(control, code, "test_fixedpoint", "create_instances", []byte{}, "testapi")
-		callTestFunction(control, code, "test_fixedpoint", "test_addition", []byte{}, "testapi")
-		callTestFunction(control, code, "test_fixedpoint", "test_subtraction", []byte{}, "testapi")
-		callTestFunction(control, code, "test_fixedpoint", "test_multiplication", []byte{}, "testapi")
-		callTestFunction(control, code, "test_fixedpoint", "test_division", []byte{}, "testapi")
-		callTestFunctionCheckException(control, code, "test_fixedpoint", "test_division_by_0", []byte{}, "testapi",
+		b := newBaseTester(true, chain.SPECULATIVE)
+		b.ProduceBlocks(2, false)
+		b.CreateAccounts([]common.AccountName{common.N("testapi")}, false, true)
+		b.ProduceBlocks(10, false)
+		b.SetCode(common.AccountName(common.N("testapi")), code, nil)
+		b.ProduceBlocks(10, false)
+
+		callTestF2(t, b, &testApiAction{wasmTestAction("test_fixedpoint", "create_instances")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
+		callTestF2(t, b, &testApiAction{wasmTestAction("test_fixedpoint", "test_addition")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
+		callTestF2(t, b, &testApiAction{wasmTestAction("test_fixedpoint", "test_subtraction")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
+		callTestF2(t, b, &testApiAction{wasmTestAction("test_fixedpoint", "test_multiplication")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
+		callTestF2(t, b, &testApiAction{wasmTestAction("test_fixedpoint", "test_division")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
+
+		retException := callTestFunctionCheckExceptionF2(t, b, &testApiAction{wasmTestAction("test_fixedpoint", "test_division_by_0")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))},
 			exception.EosioAssertMessageException{}.Code(), exception.EosioAssertMessageException{}.What())
+		assert.Equal(t, retException, true)
 
-		stopBlock(control)
+		b.close()
 
 	})
 }
+
+// func TestContextFixedPoint(t *testing.T) {
+
+// 	name := "testdata_context/test_api.wasm"
+// 	t.Run(filepath.Base(name), func(t *testing.T) {
+// 		code, err := ioutil.ReadFile(name)
+// 		if err != nil {
+// 			t.Fatal(err)
+// 		}
+// 		control := startBlock()
+// 		createNewAccount(control, "testapi")
+
+// 		callTestFunction(control, code, "test_fixedpoint", "create_instances", []byte{}, "testapi")
+// 		callTestFunction(control, code, "test_fixedpoint", "test_addition", []byte{}, "testapi")
+// 		callTestFunction(control, code, "test_fixedpoint", "test_subtraction", []byte{}, "testapi")
+// 		callTestFunction(control, code, "test_fixedpoint", "test_multiplication", []byte{}, "testapi")
+// 		callTestFunction(control, code, "test_fixedpoint", "test_division", []byte{}, "testapi")
+// 		callTestFunctionCheckException(control, code, "test_fixedpoint", "test_division_by_0", []byte{}, "testapi",
+// 			exception.EosioAssertMessageException{}.Code(), exception.EosioAssertMessageException{}.What())
+
+// 		stopBlock(control)
+
+// 	})
+// }
 
 func callTestException(control *chain.Controller, cls string, method string, payload []byte, authorizer string, billedCpuTimeUs uint32, max_cpu_usage_ms int64, errCode exception.ExcTypes, errMsg string) bool {
 
