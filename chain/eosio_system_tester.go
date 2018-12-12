@@ -61,12 +61,12 @@ func initEosioSystemTester() {
 	}
 
 	//eosio.system
-	abiName = "../wasmgo/testdata_context/eosio.system.abi"
-	abi, _ = ioutil.ReadFile(abiName)
-	e.SetAbi(common.N("eosio"), abi, nil)
 	wasmName = "../wasmgo/testdata_context/eosio.system.wasm"
 	code, _ = ioutil.ReadFile(wasmName)
 	e.SetCode(common.N("eosio"), code, nil)
+	abiName = "../wasmgo/testdata_context/eosio.system.abi"
+	abi, _ = ioutil.ReadFile(abiName)
+	e.SetAbi(common.N("eosio"), abi, nil)
 
 	accnt = entity.AccountObject{Name: common.N("eosio")}
 	e.Control.DB.Find("byName", accnt, &accnt)

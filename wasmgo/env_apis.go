@@ -1989,7 +1989,7 @@ func setBlockchainParametersPacked(vm *VM) {
 	// getMemory(vm,packedBlockchainParameters, 0, p, datalen)
 	p := getMemory(vm, packedBlockchainParameters, dataLen)
 
-	cfg := common.Config{}
+	cfg := types.ChainConfig{}
 	rlp.DecodeBytes(p, &cfg)
 
 	//w.context.SetBlockchainParametersPacked(p)
