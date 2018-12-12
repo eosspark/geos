@@ -26,9 +26,9 @@ func (i *IdxDouble) store(scope uint64, table uint64, payer uint64, id uint64, s
 
 	f := math.Float64frombits(uint64(*secondary))
 	EosAssert(!math.IsNaN(f), &TransactionException{}, "NaN is not an allowed value for a secondary key")
+	//EosAssert(!f.IsNan(), &TransactionException{}, "NaN is not an allowed value for a secondary key")
 
 	//w.ilog.Info("float:%v", float)
-
 	EosAssert(common.AccountName(payer) != common.AccountName(0), &InvalidTablePayer{}, "must specify a valid account to pay for new record")
 	tab := i.context.FindOrCreateTable(uint64(i.context.Receiver), scope, table, payer)
 

@@ -1053,6 +1053,65 @@ func TestMultiIndex(t *testing.T) {
 		callTestF2(t, b, &testApiAction{wasmTestAction("test_multi_index", "idx64_check_without_storing")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
 		callTestF2(t, b, &testApiAction{wasmTestAction("test_multi_index", "idx_double_general")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
 
+		retException := callTestFunctionCheckExceptionF2(t, b, &testApiAction{wasmTestAction("test_multi_index", "idx64_pk_iterator_exceed_end")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))},
+			exception.EosioAssertMessageException{}.Code(), exception.EosioAssertMessageException{}.What())
+		assert.Equal(t, retException, true)
+		retException = callTestFunctionCheckExceptionF2(t, b, &testApiAction{wasmTestAction("test_multi_index", "idx64_sk_iterator_exceed_end")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))},
+			exception.EosioAssertMessageException{}.Code(), exception.EosioAssertMessageException{}.What())
+		assert.Equal(t, retException, true)
+
+		retException = callTestFunctionCheckExceptionF2(t, b, &testApiAction{wasmTestAction("test_multi_index", "idx64_pk_iterator_exceed_begin")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))},
+			exception.EosioAssertMessageException{}.Code(), exception.EosioAssertMessageException{}.What())
+		assert.Equal(t, retException, true)
+		retException = callTestFunctionCheckExceptionF2(t, b, &testApiAction{wasmTestAction("test_multi_index", "idx64_sk_iterator_exceed_begin")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))},
+			exception.EosioAssertMessageException{}.Code(), exception.EosioAssertMessageException{}.What())
+		assert.Equal(t, retException, true)
+
+		retException = callTestFunctionCheckExceptionF2(t, b, &testApiAction{wasmTestAction("test_multi_index", "idx64_pass_pk_ref_to_other_table")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))},
+			exception.EosioAssertMessageException{}.Code(), exception.EosioAssertMessageException{}.What())
+		assert.Equal(t, retException, true)
+		retException = callTestFunctionCheckExceptionF2(t, b, &testApiAction{wasmTestAction("test_multi_index", "idx64_pass_sk_ref_to_other_table")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))},
+			exception.EosioAssertMessageException{}.Code(), exception.EosioAssertMessageException{}.What())
+		assert.Equal(t, retException, true)
+
+		retException = callTestFunctionCheckExceptionF2(t, b, &testApiAction{wasmTestAction("test_multi_index", "idx64_pass_pk_end_itr_to_iterator_to")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))},
+			exception.EosioAssertMessageException{}.Code(), exception.EosioAssertMessageException{}.What())
+		assert.Equal(t, retException, true)
+		retException = callTestFunctionCheckExceptionF2(t, b, &testApiAction{wasmTestAction("test_multi_index", "idx64_pass_pk_end_itr_to_modify")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))},
+			exception.EosioAssertMessageException{}.Code(), exception.EosioAssertMessageException{}.What())
+		assert.Equal(t, retException, true)
+
+		retException = callTestFunctionCheckExceptionF2(t, b, &testApiAction{wasmTestAction("test_multi_index", "idx64_pass_pk_end_itr_to_erase")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))},
+			exception.EosioAssertMessageException{}.Code(), exception.EosioAssertMessageException{}.What())
+		assert.Equal(t, retException, true)
+		retException = callTestFunctionCheckExceptionF2(t, b, &testApiAction{wasmTestAction("test_multi_index", "idx64_pass_sk_end_itr_to_iterator_to")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))},
+			exception.EosioAssertMessageException{}.Code(), exception.EosioAssertMessageException{}.What())
+		assert.Equal(t, retException, true)
+
+		retException = callTestFunctionCheckExceptionF2(t, b, &testApiAction{wasmTestAction("test_multi_index", "idx64_pass_sk_end_itr_to_modify")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))},
+			exception.EosioAssertMessageException{}.Code(), exception.EosioAssertMessageException{}.What())
+		assert.Equal(t, retException, true)
+		retException = callTestFunctionCheckExceptionF2(t, b, &testApiAction{wasmTestAction("test_multi_index", "idx64_pass_sk_end_itr_to_erase")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))},
+			exception.EosioAssertMessageException{}.Code(), exception.EosioAssertMessageException{}.What())
+		assert.Equal(t, retException, true)
+
+		retException = callTestFunctionCheckExceptionF2(t, b, &testApiAction{wasmTestAction("test_multi_index", "idx64_modify_primary_key")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))},
+			exception.EosioAssertMessageException{}.Code(), exception.EosioAssertMessageException{}.What())
+		assert.Equal(t, retException, true)
+		retException = callTestFunctionCheckExceptionF2(t, b, &testApiAction{wasmTestAction("test_multi_index", "idx64_require_find_fail_with_msg")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))},
+			exception.EosioAssertMessageException{}.Code(), exception.EosioAssertMessageException{}.What())
+		assert.Equal(t, retException, true)
+
+		retException = callTestFunctionCheckExceptionF2(t, b, &testApiAction{wasmTestAction("test_multi_index", "idx64_require_find_sk_fail")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))},
+			exception.EosioAssertMessageException{}.Code(), exception.EosioAssertMessageException{}.What())
+		assert.Equal(t, retException, true)
+		retException = callTestFunctionCheckExceptionF2(t, b, &testApiAction{wasmTestAction("test_multi_index", "idx64_require_find_sk_fail_with_msg")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))},
+			exception.EosioAssertMessageException{}.Code(), exception.EosioAssertMessageException{}.What())
+		assert.Equal(t, retException, true)
+
+		callTestF2(t, b, &testApiAction{wasmTestAction("test_multi_index", "idx64_sk_cache_pk_lookup")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
+		callTestF2(t, b, &testApiAction{wasmTestAction("test_multi_index", "idx64_pk_cache_sk_lookup")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
+
 		b.close()
 
 	})
