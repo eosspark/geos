@@ -28,7 +28,7 @@ func newEosioSystemTester(pushGenesis bool, readMode DBReadMode) *EosioSystemTes
 	return e
 }
 
-func initEosioSystemTester() {
+func initEosioSystemTester() *EosioSystemTester {
 	e := newEosioSystemTester(true, SPECULATIVE)
 
 	e.ProduceBlocks(2, false)
@@ -104,9 +104,9 @@ func initEosioSystemTester() {
 	)
 	if CoreFromString("10000000000.0000").Amount != e.GetBalance(common.N("eosio")).Amount + e.GetBalance(common.N("eosio.ramfee")).Amount +
 		e.GetBalance(common.N("eosio.stake")).Amount + e.GetBalance(common.N("eosio.ram")).Amount {
-				log.Error("error")
+		log.Error("error")
 	}
-	e.close()
+	return e
 }
 
 func (e EosioSystemTester) CreateAccountWithResources(name common.AccountName, creator common.AccountName,
@@ -174,6 +174,31 @@ func (e EosioSystemTester) CreateAccountWithResources(name common.AccountName, c
 	chainId := e.Control.GetChainId()
 	trx.Sign(&pk, &chainId)
 	return e.PushTransaction(&trx, common.MaxTimePoint(), e.DefaultBilledCpuTimeUs)
+}
+
+func (e EosioSystemTester) BuyRamBytes(payer *common.AccountName, receiver common.AccountName, numBytes uint32) ActionResult {
+	buyRamBytes := VariantsObject{
+		"payer":    payer,
+		"receiver": receiver,
+		"bytes":    numBytes,
+	}
+	act := common.N("buyrambytes")
+	return e.EsPushAction(payer, &act, &buyRamBytes, true)
+}
+
+func (e EosioSystemTester) EsPushAction(signer *common.AccountName, name *common.ActionName, data *VariantsObject, auth bool) ActionResult {
+	var authorizer common.AccountName
+	if auth == true {
+		authorizer = *signer
+	} else {
+		if *signer == common.N("bob111111111") {
+			authorizer = common.N("alice1111111")
+		} else {
+			authorizer = common.N("bob111111111")
+		}
+	}
+	act := e.GetAction(common.N("eosio"), *name, []types.PermissionLevel{}, data)
+	return e.PushAction(act, common.AccountName(authorizer))
 }
 
 func (e EosioSystemTester) GetBalance(act common.AccountName) common.Asset {
