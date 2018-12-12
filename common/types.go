@@ -225,7 +225,7 @@ func (a Asset) FromString(from *string) Asset {
 	} else {
 		intPart, _ = strconv.ParseInt(amountStr, 10, 64)
 	}
-	amount := intPart
+	amount := intPart * int64(sym.Precisions())
 	amount += fractPart
 	return Asset{Amount: amount, Symbol: sym}
 }
@@ -235,12 +235,22 @@ type ExtendedAsset struct {
 	Contract AccountName
 }
 
-type SymbolCode uint64
+type SymbolCode = uint64
 
 // NOTE: there's also a new ExtendedSymbol (which includes the contract (as AccountName) on which it is)
 type Symbol struct {
 	Precision uint8
 	Symbol    string
+}
+
+func (sym Symbol) Precisions() uint64{
+	num := sym.Precision
+	result := 1
+	for num > 0 {
+		result *= 10
+		num --
+	}
+	return uint64(result)
 }
 
 var MaxPrecision = uint8(18)
@@ -255,10 +265,6 @@ func (sym Symbol) FromString(from *string) Symbol {
 	namePart := string([]byte(*from)[commaPos+1:])
 	try.EosAssert(uint8(p) <= MaxPrecision, &exception.SymbolTypeException{}, "precision %v should be <= 18", p)
 	return Symbol{Precision: uint8(p), Symbol: namePart}
-}
-
-func (sym *Symbol) ToSymbolCode() SymbolCode {
-	return SymbolCode(N(sym.Symbol)) >> 8
 }
 
 // EOSSymbol represents the standard EOS symbol on the chain.  It's
