@@ -8,7 +8,7 @@ import (
 var DefaultResourceLimitsConfigObject ResourceLimitsConfigObject
 
 func init() {
-	DefaultResourceLimitsConfigObject.ID = 1
+	DefaultResourceLimitsConfigObject.ID = 0
 }
 
 type ResourceLimitsConfigObject struct {
