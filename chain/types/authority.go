@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto/ecc"
+	"reflect"
 	"strconv"
 	"strings"
 )
@@ -26,6 +27,24 @@ func (p *PermissionLevel) GetKey() []byte {
 	b := make([]byte, 8)
 	binary.BigEndian.PutUint64(b, uint64(p.Actor))
 	return b
+}
+
+//for treeset
+var PermissionLevelType = reflect.TypeOf(PermissionLevel{})
+
+func ComparePermissionLevel(first interface{}, second interface{}) int {
+	if first.(*PermissionLevel).Permission > second.(*PermissionLevel).Permission {
+		return 1
+	} else if first.(*PermissionLevel).Permission < second.(*PermissionLevel).Permission {
+		return -1
+	}
+	if first.(*PermissionLevel).Actor > second.(*PermissionLevel).Actor {
+		return 1
+	} else if first.(*PermissionLevel).Actor < second.(*PermissionLevel).Actor {
+		return -1
+	} else {
+		return 0
+	}
 }
 
 type PermissionLevelWeight struct {
@@ -104,6 +123,7 @@ func NewAuthority(k ecc.PublicKey, delaySec uint32) (a Authority) {
 		a.Threshold = 2
 		a.Waits = append(a.Waits, WaitWeight{delaySec, 1})
 	}
+	a.Accounts = make([]PermissionLevelWeight, 0)
 	return a
 }
 

@@ -234,11 +234,15 @@ func ComparePubKey(first interface{}, second interface{}) int {
 	pub1 := first.(PublicKey)
 	pub2 := second.(PublicKey)
 
+	if comp := bytes.Compare(pub1.Content[:], pub2.Content[:]); comp != 0 {
+		return comp
+	}
+
 	if pub1.Curve > pub2.Curve {
 		return 1
 	} else if pub1.Curve < pub2.Curve {
 		return -1
+	} else {
+		return 0
 	}
-
-	return bytes.Compare(pub1.Content[:], pub2.Content[:])
 }
