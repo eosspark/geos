@@ -222,3 +222,12 @@ func TestController_UpdateProducersAuthority(t *testing.T) {
 	c.updateProducersAuthority()
 	c.Close()
 }
+
+func BenchmarkGetControllerInstance(b *testing.B) {
+	b.StopTimer()
+	b.StartTimer()
+	GetControllerInstance()
+	b.StopTimer()
+	/*i := c.LastIrreversibleBlockId()
+	fmt.Println(i)*/
+}

@@ -2,10 +2,11 @@ package chain
 
 import (
 	"fmt"
+	"github.com/eosspark/container/maps/treemap"
+	"github.com/eosspark/container/utils"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto/ecc"
-	"github.com/eosspark/eos-go/exception"
 	"github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/log"
 	"github.com/stretchr/testify/assert"
@@ -31,12 +32,14 @@ func initMulti() (*MultiIndexFork, *types.BlockState) {
 	genHeader.Header.Timestamp = types.BlockTimeStamp(1162425600) //slot of 2018-6-2 00:00:00:000
 	genHeader.BlockId = genHeader.Header.BlockID()
 	genHeader.BlockNum = genHeader.Header.BlockNumber()
-
+	genHeader.ProducerToLastProduced = *treemap.NewWith(common.TypeName, utils.TypeUInt32, common.CompareName)
+	genHeader.ProducerToLastImpliedIrb = *treemap.NewWith(common.TypeName, utils.TypeUInt32, common.CompareName)
 	genHeader.BlockSigningKey = initPubKey
-
+	genHeader.Header.ProducerSignature = *ecc.NewSigNil()
 	blockState := types.NewBlockState(genHeader)
 	blockState.SignedBlock = new(types.SignedBlock)
 	blockState.SignedBlock.SignedBlockHeader = genHeader.Header
+	blockState.Header.ProducerSignature = *ecc.NewSigNil()
 	blockState.InCurrentChain = true
 	mi := newMultiIndexFork()
 	mi.Insert(blockState)
@@ -56,9 +59,9 @@ func TestMultiIndexFork_Insert_Repeat(t *testing.T) {
 		mi.Insert(blockState)
 	}
 
-	log.Info("%v", mi.Indexs["byBlockId"].Value.Len())
+	log.Info("%v", mi.Indexs["byBlockId"].Value.Size())
 
-	assert.Equal(t, 11, mi.Indexs["byBlockId"].Value.Len())
+	assert.Equal(t, 11, mi.Indexs["byBlockId"].Value.Size())
 	result := mi.find(bs.BlockId)
 	log.Info("%v", result)
 	assert.Equal(t, bs, result)
@@ -87,11 +90,11 @@ func TestIndexFork_LowerBound_byBlockNum(t *testing.T) {
 
 	idxFork := mi.Indexs["byBlockNum"]
 
-	val, sub := idxFork.Value.LowerBound(tm)
+	itr := idxFork.Value.LowerBound(tm)
 	log.Info("tm:%#v", tm)
-	log.Info("current sub:%#v", sub)
-	assert.Equal(t, 1, sub)
-	assert.Equal(t, tm, val)
+	log.Info("current sub:%#v", itr.Value().(*types.BlockState).BlockNum)
+	assert.Equal(t, tm.BlockNum, itr.Value().(*types.BlockState).BlockNum)
+
 }
 
 func TestIndexFork_UpperBound_byBlockNum(t *testing.T) {
@@ -114,9 +117,9 @@ func TestIndexFork_UpperBound_byBlockNum(t *testing.T) {
 
 	idxFork := mi.Indexs["byBlockNum"]
 
-	val, sub := idxFork.Value.UpperBound(bs)
-	log.Info("result:%#v,%v", sub, tm.BlockNum)
-	assert.Equal(t, uint32(1), val.BlockNum)
+	itr := idxFork.Value.UpperBound(bs)
+	log.Info("result:%#v,%v", itr.Value().(*types.BlockState), tm.BlockNum)
+	assert.Equal(t, uint32(2), itr.Value().(*types.BlockState).BlockNum)
 }
 
 func TestMultiIndexFork_LowerBound_lib(t *testing.T) {
@@ -139,9 +142,8 @@ func TestMultiIndexFork_LowerBound_lib(t *testing.T) {
 
 	idxFork := mi.Indexs["byLibBlockNum"]
 	itr := idxFork.lowerBound(tm)
-	//fmt.Println(itr.idx.value.Data[itr.currentSub])
-	assert.Equal(t, 0, itr.CurrentSub)
-	assert.Equal(t, uint32(2), itr.Value.BlockNum)
+
+	assert.Equal(t, uint32(2), itr.Value().(*types.BlockState).BlockNum)
 }
 
 func TestMultiIndexFork_UpperBound_lib(t *testing.T) {
@@ -164,9 +166,7 @@ func TestMultiIndexFork_UpperBound_lib(t *testing.T) {
 
 	idxFork := mi.Indexs["byLibBlockNum"]
 	itr := idxFork.upperBound(tm)
-	//fmt.Println(itr.idx.value.Data[itr.currentSub])
-	assert.Equal(t, 9, itr.CurrentSub)
-	assert.Equal(t, uint32(2), itr.Value.BlockNum)
+	assert.Equal(t, uint32(1), itr.Value().(*types.BlockState).BlockNum)
 }
 
 func TestIndexFork_Begin(t *testing.T) {
@@ -186,24 +186,23 @@ func TestIndexFork_Begin(t *testing.T) {
 	idxFork := mi.Indexs["byLibBlockNum"]
 
 	obj, _ := idxFork.Begin()
-
-	assert.Equal(t, idxFork.Value.Data[0], obj)
+	val := idxFork.Value.Iterator()
+	val.Next()
+	assert.Equal(t, val.Value().(*types.BlockState), obj)
 }
 
 func Test_LowerBound_NotFound(t *testing.T) {
 	mi, bs := initMulti()
 	b := types.BlockState{}
-	b.BlockNum = bs.BlockNum
+	b.BlockNum = 100
 	numIdx := mi.GetIndex("byBlockNum")
-	bs.BlockNum = 100
-	obj, _ := numIdx.Value.LowerBound(&b)
+	itr := numIdx.Value.LowerBound(&b)
 	try.Try(func() {
-		//obj := val.(*types.BlockState)
-		if obj != nil || obj.BlockNum != bs.BlockNum || obj.InCurrentChain != true {
-			//return &types.BlockState{}
+		val := itr.Value()
+		if itr != nil || val.(*types.BlockState).BlockNum != bs.BlockNum || val.(*types.BlockState).InCurrentChain != true {
 		}
-		fmt.Println(obj)
-	}).Catch(func(ex exception.Exception) { //TODO catch exception code
-		assert.Equal(t, 3100002, int(ex.Code()))
-	}).End()
+		fmt.Println("exec there is error")
+	}).Catch(func(e error) {
+		assert.Errorf(t, e, "invalid memory address or nil pointer dereference")
+	})
 }
