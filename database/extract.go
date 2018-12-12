@@ -168,7 +168,7 @@ func extractObjectTagInfo(s *reflect.Value, mi ...*structInfo) (*structInfo, err
 		}
 	}
 
-	m.id_ = 0
+	m.id_ = 1
 	for tag, _ := range m.Fields {
 		if len(m.Fields[tag].fieldValue) == 1 {
 			m.Fields[tag].unique = true
