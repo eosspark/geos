@@ -478,6 +478,96 @@ func TestContextAction(t *testing.T) {
 
 }
 
+func TestPrint(t *testing.T) {
+
+	name := "testdata_context/test_api.wasm"
+	t.Run(filepath.Base(name), func(t *testing.T) {
+		code, err := ioutil.ReadFile(name)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		b := newBaseTester(true, chain.SPECULATIVE)
+		b.ProduceBlocks(2, false)
+		b.CreateAccounts([]common.AccountName{common.N("testapi")}, false, true)
+		b.ProduceBlocks(10, false)
+		b.SetCode(common.AccountName(common.N("testapi")), code, nil)
+		b.ProduceBlocks(10, false)
+
+		ret := callTestF2(t, b, &testApiAction{wasmTestAction("test_print", "test_prints")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
+		retCnsl := ret.ActionTraces[0].Console
+		assert.Equal(t, retCnsl, "abcefg")
+
+		ret = callTestF2(t, b, &testApiAction{wasmTestAction("test_print", "test_prints_l")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
+		retCnsl = ret.ActionTraces[0].Console
+		assert.Equal(t, retCnsl, "abatest")
+
+		ret = callTestF2(t, b, &testApiAction{wasmTestAction("test_print", "test_printi")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
+		retCnsl = ret.ActionTraces[0].Console
+		assert.Equal(t, retCnsl[0:1], string(strconv.FormatInt(0, 10)))
+		assert.Equal(t, retCnsl[1:7], string(strconv.FormatInt(556644, 10)))
+		assert.Equal(t, retCnsl[7:9], string(strconv.FormatInt(-1, 10)))
+
+		ret = callTestF2(t, b, &testApiAction{wasmTestAction("test_print", "test_printui")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
+		retCnsl = ret.ActionTraces[0].Console
+		assert.Equal(t, retCnsl[0:1], string(strconv.FormatInt(0, 10)))
+		assert.Equal(t, retCnsl[1:7], string(strconv.FormatInt(556644, 10)))
+		v := -1
+		assert.Equal(t, retCnsl[7:len(retCnsl)], string(strconv.FormatUint(uint64(v), 10))) //-1 / 1844674407370955161
+
+		ret = callTestF2(t, b, &testApiAction{wasmTestAction("test_print", "test_printn")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
+		retCnsl = ret.ActionTraces[0].Console
+		assert.Equal(t, retCnsl[0:5], "abcde")
+		assert.Equal(t, retCnsl[5:10], "ab.de")
+		assert.Equal(t, retCnsl[10:16], "1q1q1q")
+		assert.Equal(t, retCnsl[16:27], "abcdefghijk")
+		assert.Equal(t, retCnsl[27:39], "abcdefghijkl")
+		assert.Equal(t, retCnsl[39:52], "abcdefghijkl1")
+		assert.Equal(t, retCnsl[52:65], "abcdefghijkl1")
+		assert.Equal(t, retCnsl[65:78], "abcdefghijkl1")
+
+		ret = callTestF2(t, b, &testApiAction{wasmTestAction("test_print", "test_printi128")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
+		retCnsl = ret.ActionTraces[0].Console
+		s := strings.Split(retCnsl, "\n")
+		assert.Equal(t, s[0], "1")
+		assert.Equal(t, s[1], "0")
+		assert.Equal(t, s[2], "-170141183460469231731687303715884105728")
+		assert.Equal(t, s[3], "-87654323456")
+
+		ret = callTestF2(t, b, &testApiAction{wasmTestAction("test_print", "test_printui128")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
+		retCnsl = ret.ActionTraces[0].Console
+		s = strings.Split(retCnsl, "\n")
+		assert.Equal(t, s[0], "340282366920938463463374607431768211455")
+		assert.Equal(t, s[1], "0")
+		assert.Equal(t, s[2], "87654323456")
+
+		ret = callTestF2(t, b, &testApiAction{wasmTestAction("test_print", "test_printsf")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
+		retCnsl = ret.ActionTraces[0].Console
+		s = strings.Split(retCnsl, "\n")
+		assert.Equal(t, s[0], "5.000000e-01")
+		assert.Equal(t, s[1], "-3.750000e+00")
+		assert.Equal(t, s[2], "6.666667e-07")
+
+		ret = callTestF2(t, b, &testApiAction{wasmTestAction("test_print", "test_printdf")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
+		retCnsl = ret.ActionTraces[0].Console
+		s = strings.Split(retCnsl, "\n")
+		assert.Equal(t, s[0], "5.000000000000000e-01")
+		assert.Equal(t, s[1], "-3.750000000000000e+00")
+		assert.Equal(t, s[2], "6.666666666666666e-07")
+
+		//ret = callTestF2(t, b, &testApiAction{wasmTestAction("test_print", "test_printqf")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
+		//retCnsl = ret.ActionTraces[0].Console
+		//s = strings.Split(retCnsl, "\n")
+		//assert.Equal(t, s[0], "5.000000000000000000e-01")
+		//assert.Equal(t, s[1], "-3.750000000000000000e+00")
+		//assert.Equal(t, s[2], "6.666666666666666667e-07")
+
+		b.close()
+
+	})
+
+}
+
 func TestContextPrint(t *testing.T) {
 
 	name := "testdata_context/test_api.wasm"
@@ -543,11 +633,11 @@ func TestContextPrint(t *testing.T) {
 		assert.Equal(t, r[1], "-3.750000000000000e+00")
 		assert.Equal(t, r[2], "6.666666666666666e-07")
 
-		//result = callTestFunction(control, code, "test_print", "test_printqf", []byte{}, "testapi")
-		//r = strings.Split(result, "\n")
-		//assert.Equal(t, r[0], "5.000000000000000000e-01")
-		//assert.Equal(t, r[1], "-3.750000000000000000e+00")
-		//assert.Equal(t, r[2], "6.666666666666666667e-07")
+		result = callTestFunction(control, code, "test_print", "test_printqf", []byte{}, "testapi")
+		r = strings.Split(result, "\n")
+		assert.Equal(t, r[0], "5.000000000000000000e-01")
+		assert.Equal(t, r[1], "-3.750000000000000000e+00")
+		assert.Equal(t, r[2], "6.666666666666666667e-07")
 
 		stopBlock(control)
 
