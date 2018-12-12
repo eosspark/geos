@@ -178,6 +178,14 @@ func (d *Decoder) Decode(v interface{}) (err error) {
 		}
 		rv.Set(reflect.ValueOf(*realV))
 		return
+	case treeset.MultiSet:
+		fmt.Println(181)
+		err = d.ReadTreeMultiSet(&realV)
+		if err != nil {
+			return
+		}
+		rv.Set(reflect.ValueOf(realV))
+		return
 	}
 
 	switch t.Kind() {
@@ -730,6 +738,25 @@ func (d *Decoder) ReadTreeSet(t *treeset.Set) (err error) {
 		}
 		d.pos += newDecoder.pos
 		t.AddItem(reflect.ValueOf(contain).Elem().Interface())
+	}
+	return
+}
+
+func (d *Decoder) ReadTreeMultiSet(t *treeset.MultiSet) (err error) {
+	contain := reflect.New(t.ValueType).Interface()
+	var l uint64
+	if l, err = d.ReadUvarint64(); err != nil {
+		return
+	}
+	for i := 0; i < int(l); i++ {
+		newDecoder := NewDecoder(d.data[d.pos:])
+		err = newDecoder.Decode(contain)
+		if err != nil {
+			return
+		}
+		d.pos += newDecoder.pos
+		//t.AddItem(reflect.ValueOf(contain).Elem().Interface())
+		t.Add(reflect.ValueOf(contain).Elem().Interface())
 	}
 	return
 }
