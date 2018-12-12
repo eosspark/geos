@@ -144,7 +144,7 @@ func (a AbiSerializer) IsType(rtype *string, recursionDepth common.SizeT, deadli
 	if a.IsStruct(&ftype) {
 		return true
 	}
-	return true
+	return false
 }
 
 func (a AbiSerializer) validate() bool {

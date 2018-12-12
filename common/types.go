@@ -236,7 +236,7 @@ type ExtendedAsset struct {
 	Contract AccountName
 }
 
-type SymbolCode uint64
+type SymbolCode = uint64
 
 // NOTE: there's also a new ExtendedSymbol (which includes the contract (as AccountName) on which it is)
 type Symbol struct {
@@ -256,10 +256,6 @@ func (sym Symbol) FromString(from *string) Symbol {
 	namePart := string([]byte(*from)[commaPos+1:])
 	try.EosAssert(uint8(p) <= MaxPrecision, &exception.SymbolTypeException{}, "precision %v should be <= 18", p)
 	return Symbol{Precision: uint8(p), Symbol: namePart}
-}
-
-func (sym *Symbol) ToSymbolCode() SymbolCode {
-	return SymbolCode(N(sym.Symbol)) >> 8
 }
 
 // EOSSymbol represents the standard EOS symbol on the chain.  It's

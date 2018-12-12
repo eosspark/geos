@@ -342,13 +342,20 @@ func (t BaseTester) PushAction3(code *common.AccountName, acttype *common.Accoun
 }
 
 func (t BaseTester) PushAction4(code *common.AccountName, acttype *common.AccountName,
-	actors *[]types.PermissionLevel, data *VariantsObject, expiration uint32, delaySec uint32) *types.TransactionTrace {
+	auths *[]types.PermissionLevel, data *VariantsObject, expiration uint32, delaySec uint32) *types.TransactionTrace {
+	trx := types.SignedTransaction{}
 	try.Try(func() {
-		trx := types.SignedTransaction{}
-		action := t.GetAction(*code, *acttype, *actors, data)
+		action := t.GetAction(*code, *acttype, *auths, data)
 		trx.Actions = append(trx.Actions, action)
 	})
-	return nil
+	t.SetTransactionHeaders(&trx.Transaction, expiration, delaySec)
+	chainId := t.Control.GetChainId()
+	key := ecc.PrivateKey{}
+	for _, auth := range *auths {
+		key = t.getPrivateKey(auth.Actor,auth.Permission.String())
+		trx.Sign(&key, &chainId)
+	}
+	return t.PushTransaction(&trx,common.MaxTimePoint(), t.DefaultBilledCpuTimeUs)
 }
 
 func (t BaseTester) GetAction(code common.AccountName, actType common.AccountName,
@@ -620,7 +627,7 @@ func (t BaseTester) GetCurrencyBalance(code *common.AccountName, assetSymbol *co
 	if err != nil {
 		log.Error("GetCurrencyBalance is error: %s", err)
 	} else {
-		obj := entity.KeyValueObject{ID: table.ID, PrimaryKey: uint64(assetSymbol.ToSymbolCode())}
+		obj := entity.KeyValueObject{ID: table.ID, PrimaryKey: uint64(common.N(assetSymbol.Symbol))}
 		err := db.Find("byScopePrimary", obj, &obj)
 		if err != nil {
 			log.Error("GetCurrencyBalance is error: %s", err)
