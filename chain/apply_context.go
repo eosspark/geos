@@ -1212,3 +1212,20 @@ func (a *ApplyContext) ContextFreeAction() bool {
 //
 //	return a.ilog
 //}
+func (a *ApplyContext) CheckAuthorization(n common.AccountName,
+	permission common.PermissionName,
+	providedKeys *treeset.Set,
+	providedPermissions *treeset.Set,
+	delayUS uint64) {
+
+	function := a.TrxContext.CheckTime
+	am := a.Control.GetAuthorizationManager()
+	am.CheckAuthorization2(n,
+		permission,
+		providedKeys,
+		providedPermissions,
+		common.Microseconds(delayUS),
+		&function,
+		false)
+
+}

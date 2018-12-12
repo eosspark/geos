@@ -103,7 +103,7 @@ func (t *Transaction) ID() common.TransactionIdType {
 	return common.TransactionIdType(crypto.Hash256(b))
 }
 
-func (t *Transaction) SigDigest(chainID *common.ChainIdType, cfd []common.HexBytes) []byte { //common.DigestType {
+func (t *Transaction) SigDigest(chainID *common.ChainIdType, cfd []common.HexBytes) *common.DigestType {
 	enc := crypto.NewSha256()
 	chainIDByte, err := rlp.EncodeToBytes(chainID)
 	if err != nil {
@@ -122,11 +122,8 @@ func (t *Transaction) SigDigest(chainID *common.ChainIdType, cfd []common.HexByt
 		enc.Write(crypto.NewSha256Nil().Bytes())
 	}
 
-	//hashed := enc.Sum(nil)   //TODO []byte or DigestType?????
-	//out :=crypto.NewSha256Byte(hashed)
-	//return common.DigestType(*out)
-
-	return enc.Sum(nil)
+	hashed := enc.Sum(nil)
+	return crypto.NewSha256Byte(hashed)
 }
 
 //allowDuplicateKeys = false
@@ -142,13 +139,13 @@ func (t *Transaction) GetSignatureKeys(signatures []ecc.Signature, chainID *comm
 		if useCache {
 			it, ok := recoveryCache[sig.String()]
 			if !ok || it.TrxID != t.ID() {
-				recov, _ = sig.PublicKey(digest)
+				recov, _ = sig.PublicKey(digest.Bytes())
 				recoveryCache[sig.String()] = CachedPubKey{t.ID(), recov, sig} //could fail on dup signatures; not a problem
 			} else {
 				recov = it.PubKey
 			}
 		} else {
-			recov, _ = sig.PublicKey(digest)
+			recov, _ = sig.PublicKey(digest.Bytes())
 		}
 		result, _ := recoveredPubKeys.AddItem(recov)
 		try.EosAssert(allowDuplicateKeys || result, &exception.TxDuplicateSig{},
@@ -198,7 +195,7 @@ func NewSignedTransactionNil() *SignedTransaction {
 }
 
 func (s *SignedTransaction) Sign(key *ecc.PrivateKey, chainID *common.ChainIdType) ecc.Signature {
-	signature, err := key.Sign(s.Transaction.SigDigest(chainID, s.ContextFreeData))
+	signature, err := key.Sign(s.Transaction.SigDigest(chainID, s.ContextFreeData).Bytes())
 	if err != nil {
 		fmt.Println(err) //TODO
 	}
@@ -206,7 +203,7 @@ func (s *SignedTransaction) Sign(key *ecc.PrivateKey, chainID *common.ChainIdTyp
 	return signature
 }
 func (s *SignedTransaction) SignWithoutAppend(key ecc.PrivateKey, chainID *common.ChainIdType) ecc.Signature {
-	signature, err := key.Sign(s.Transaction.SigDigest(chainID, s.ContextFreeData))
+	signature, err := key.Sign(s.Transaction.SigDigest(chainID, s.ContextFreeData).Bytes())
 	if err != nil {
 		fmt.Println(err) //TODO
 	}

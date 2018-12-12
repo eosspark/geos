@@ -167,8 +167,6 @@ func (auth Authority) String() string {
 	KeysStr += "]"
 	AccountsStr := "accounts: ["
 	for _, account := range auth.Accounts {
-		fmt.Println(account)
-		fmt.Println(auth.Accounts[len(auth.Accounts)-1])
 		AccountsStr += "account: " + account.String()
 		if account != auth.Accounts[len(auth.Accounts)-1] {
 			AccountsStr += ", "

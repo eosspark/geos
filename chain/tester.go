@@ -20,6 +20,7 @@ import (
 
 var CORE_SYMBOL = common.Symbol{Precision:4,Symbol:"SYS"}
 var CORE_SYMBOL_NAME = "SYS"
+type ActionResult = string
 
 type BaseTester struct {
 	ActionResult           string
@@ -300,7 +301,7 @@ func (t BaseTester) PushTransaction(trx *types.SignedTransaction, deadline commo
 	return r
 }
 
-func (t BaseTester) PushAction(act *types.Action, authorizer common.AccountName) {
+func (t BaseTester) PushAction(act *types.Action, authorizer common.AccountName) ActionResult {
 	trx := types.SignedTransaction{}
 	if !common.Empty(authorizer) {
 		act.Authorization = []types.PermissionLevel{{authorizer, common.DefaultConfig.ActiveName}}
@@ -320,7 +321,7 @@ func (t BaseTester) PushAction(act *types.Action, authorizer common.AccountName)
 	t.ProduceBlock(common.Microseconds(common.DefaultConfig.BlockIntervalMs), 0)
 	/*BOOST_REQUIRE_EQUAL(true, chain_has_transaction(trx.id()))
 	success()*/
-	return
+	return ""
 }
 
 type VariantsObject map[string]interface{}
