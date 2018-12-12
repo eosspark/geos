@@ -568,7 +568,33 @@ func TestPrint(t *testing.T) {
 
 }
 
-func TestContextPrint(t *testing.T) {
+//func TestEosioSystem(t *testing.T) {
+//
+//	name := "testdata_context/eosio.system.wasm"
+//	t.Run(filepath.Base(name), func(t *testing.T) {
+//		code, err := ioutil.ReadFile(name)
+//		if err != nil {
+//			t.Fatal(err)
+//		}
+//
+//		b := newBaseTester(true, chain.SPECULATIVE)
+//		b.ProduceBlocks(2, false)
+//		b.CreateAccounts([]common.AccountName{common.N("testapi")}, false, true)
+//		b.ProduceBlocks(10, false)
+//		b.SetCode(common.AccountName(common.N("testapi")), code, nil)
+//		b.ProduceBlocks(10, false)
+//
+//		ret := callTestF2(t, b, &testApiAction{wasmTestAction("", "set_abi")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
+//		retCnsl := ret.ActionTraces[0].Console
+//		assert.Equal(t, retCnsl, "abcefg")
+//
+//		b.close()
+//
+//	})
+//
+//}
+
+func TestTypes(t *testing.T) {
 
 	name := "testdata_context/test_api.wasm"
 	t.Run(filepath.Base(name), func(t *testing.T) {
@@ -577,92 +603,19 @@ func TestContextPrint(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		control := startBlock()
-		createNewAccount(control, "testapi")
+		b := newBaseTester(true, chain.SPECULATIVE)
+		b.ProduceBlocks(10, false)
+		b.CreateAccounts([]common.AccountName{common.N("testapi")}, false, true)
+		b.ProduceBlocks(10, false)
+		b.SetCode(common.AccountName(common.N("testapi")), code, nil)
+		b.ProduceBlocks(10, false)
 
-		result := callTestFunction(control, code, "test_print", "test_prints", []byte{}, "testapi")
-		assert.Equal(t, result, "abcefg")
+		callTestF2(t, b, &testApiAction{wasmTestAction("test_types", "types_size")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
+		callTestF2(t, b, &testApiAction{wasmTestAction("test_types", "char_to_symbol")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
+		callTestF2(t, b, &testApiAction{wasmTestAction("test_types", "string_to_name")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
+		callTestF2(t, b, &testApiAction{wasmTestAction("test_types", "name_class")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
 
-		result = callTestFunction(control, code, "test_print", "test_prints_l", []byte{}, "testapi")
-		assert.Equal(t, result, "abatest")
-
-		result = callTestFunction(control, code, "test_print", "test_printi", []byte{}, "testapi")
-		assert.Equal(t, result[0:1], string(strconv.FormatInt(0, 10)))
-		assert.Equal(t, result[1:7], string(strconv.FormatInt(556644, 10)))
-		assert.Equal(t, result[7:9], string(strconv.FormatInt(-1, 10)))
-
-		result = callTestFunction(control, code, "test_print", "test_printui", []byte{}, "testapi")
-		assert.Equal(t, result[0:1], string(strconv.FormatInt(0, 10)))
-		assert.Equal(t, result[1:7], string(strconv.FormatInt(556644, 10)))
-
-		v := -1
-		assert.Equal(t, result[7:len(result)], string(strconv.FormatUint(uint64(v), 10))) //-1 / 1844674407370955161
-
-		result = callTestFunction(control, code, "test_print", "test_printn", []byte{}, "testapi")
-		assert.Equal(t, result[0:5], "abcde")
-		assert.Equal(t, result[5:10], "ab.de")
-		assert.Equal(t, result[10:16], "1q1q1q")
-		assert.Equal(t, result[16:27], "abcdefghijk")
-		assert.Equal(t, result[27:39], "abcdefghijkl")
-		assert.Equal(t, result[39:52], "abcdefghijkl1")
-		assert.Equal(t, result[52:65], "abcdefghijkl1")
-		assert.Equal(t, result[65:78], "abcdefghijkl1")
-
-		result = callTestFunction(control, code, "test_print", "test_printi128", []byte{}, "testapi")
-		s := strings.Split(result, "\n")
-		assert.Equal(t, s[0], "1")
-		assert.Equal(t, s[1], "0")
-		assert.Equal(t, s[2], "-170141183460469231731687303715884105728")
-		assert.Equal(t, s[3], "-87654323456")
-
-		result = callTestFunction(control, code, "test_print", "test_printui128", []byte{}, "testapi")
-		s = strings.Split(result, "\n")
-		assert.Equal(t, s[0], "340282366920938463463374607431768211455")
-		assert.Equal(t, s[1], "0")
-		assert.Equal(t, s[2], "87654323456")
-
-		result = callTestFunction(control, code, "test_print", "test_printsf", []byte{}, "testapi")
-		r := strings.Split(result, "\n")
-		assert.Equal(t, r[0], "5.000000e-01")
-		assert.Equal(t, r[1], "-3.750000e+00")
-		assert.Equal(t, r[2], "6.666667e-07")
-
-		result = callTestFunction(control, code, "test_print", "test_printdf", []byte{}, "testapi")
-		r = strings.Split(result, "\n")
-		assert.Equal(t, r[0], "5.000000000000000e-01")
-		assert.Equal(t, r[1], "-3.750000000000000e+00")
-		assert.Equal(t, r[2], "6.666666666666666e-07")
-
-		result = callTestFunction(control, code, "test_print", "test_printqf", []byte{}, "testapi")
-		r = strings.Split(result, "\n")
-		assert.Equal(t, r[0], "5.000000000000000000e-01")
-		assert.Equal(t, r[1], "-3.750000000000000000e+00")
-		assert.Equal(t, r[2], "6.666666666666666667e-07")
-
-		stopBlock(control)
-
-	})
-
-}
-
-func TestContextTypes(t *testing.T) {
-
-	name := "testdata_context/test_api.wasm"
-	t.Run(filepath.Base(name), func(t *testing.T) {
-		code, err := ioutil.ReadFile(name)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		control := startBlock()
-		createNewAccount(control, "testapi")
-
-		callTestFunction(control, code, "test_types", "types_size", []byte{}, "testapi")
-		callTestFunction(control, code, "test_types", "char_to_symbol", []byte{}, "testapi")
-		callTestFunction(control, code, "test_types", "string_to_name", []byte{}, "testapi")
-		callTestFunction(control, code, "test_types", "name_class", []byte{}, "testapi")
-
-		stopBlock(control)
+		b.close()
 
 	})
 

@@ -1968,16 +1968,21 @@ func getBlockchainParametersPacked(vm *VM) {
 	p, _ := rlp.EncodeToBytes(configuration)
 	//p := w.context.GetBlockchainParametersPacked()
 	size := len(p)
+	w.ilog.Debug("BlockchainParameters:%v bufferSize:%d size:%d", configuration, bufferSize, size)
+
+	if bufferSize == 0 {
+		vm.pushUint64(uint64(size))
+		return
+	}
 
 	if size <= bufferSize {
 		setMemory(vm, packedBlockchainParameters, p, 0, size)
 		vm.pushUint64(uint64(size))
-		w.ilog.Debug("BlockchainParameters:%v", configuration)
+		//w.ilog.Debug("BlockchainParameters:%v", configuration)
 		return
 	}
-
 	vm.pushUint64(0)
-	w.ilog.Debug("BlockchainParameters:%v bufferSize:%d size:%d", configuration, bufferSize, size)
+
 }
 
 func setBlockchainParametersPacked(vm *VM) {
