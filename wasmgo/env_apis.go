@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/hex"
 	"fmt"
+	"github.com/eosspark/container/sets/treeset"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	arithmetic "github.com/eosspark/eos-go/common/arithmetic_types"
@@ -1723,7 +1724,73 @@ func checkTransactionAuthorization(vm *VM) {
 //}
 func checkPermissionAuthorization(vm *VM) {
 	fmt.Println("check_permission_authorization")
-	//return 0
+
+	w := vm.WasmGo
+
+	delayUS := vm.popUint64()
+	permsSize := int(vm.popUint64())
+	permsData := int(vm.popUint64())
+	pubkeysSize := int(vm.popUint64())
+	pubkeysData := int(vm.popUint64())
+	permission := common.PermissionName(vm.popUint64())
+	account := common.AccountName(vm.popUint64())
+
+	pubkeysDataBytes := getMemory(vm, pubkeysData, pubkeysSize)
+	permsDataBytes := getMemory(vm, permsData, permsSize)
+
+	providedKeys := treeset.NewWith(ecc.TypePubKey, ecc.ComparePubKey)
+	providedPermissions := treeset.NewWith(ecc.TypePubKey, ecc.ComparePubKey)
+
+	unpackProvidedKeys(providedKeys, &pubkeysDataBytes)
+	unpackProvidedPermissions(providedPermissions, &permsDataBytes)
+
+	returning := false
+	Try(func() {
+		w.context.CheckAuthorization(account,
+			permission,
+			providedKeys,
+			providedPermissions,
+			delayUS)
+
+	}).Catch(func(e Exception) {
+
+		returning = true
+		vm.pushUint64(1)
+	}).End()
+
+	if returning {
+		return
+	}
+
+	vm.pushUint64(0)
+}
+
+func unpackProvidedKeys(ps *treeset.Set, pubkeysData *[]byte) {
+	if len(*pubkeysData) == 0 {
+		return
+	}
+
+	providedKey := []ecc.PublicKey{}
+	rlp.DecodeBytes(*pubkeysData, &providedKey)
+
+	for _, pk := range providedKey {
+		ps.AddItem(pk)
+	}
+
+}
+
+func unpackProvidedPermissions(ps *treeset.Set, permsData *[]byte) {
+	if len(*permsData) == 0 {
+		return
+	}
+
+	permissions := []types.PermissionLevel{}
+	rlp.DecodeBytes(*permsData, &permissions)
+
+	for _, permission := range permissions {
+		ps.AddItem(permission)
+	}
+
 }
 
 func getPermissionLastUsed(vm *VM) {

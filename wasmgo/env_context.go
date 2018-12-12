@@ -1,6 +1,7 @@
 package wasmgo
 
 import (
+	"github.com/eosspark/container/sets/treeset"
 	"github.com/eosspark/eos-go/chain/types"
 	//"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
@@ -115,6 +116,8 @@ type EnvContext interface {
 
 	PauseBillingTimer()
 	ResumeBillingTimer()
+
+	CheckAuthorization(n common.AccountName, permission common.PermissionName, providedKeys *treeset.Set, providedPermissions *treeset.Set, delayUS uint64)
 
 	//GetLogger() *log.Logger
 }
