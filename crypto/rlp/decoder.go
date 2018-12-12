@@ -4,6 +4,8 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"github.com/eosspark/container/maps/treemap"
+	"github.com/eosspark/container/sets/treeset"
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/log"
 	"io"
@@ -146,16 +148,43 @@ func (d *Decoder) Decode(v interface{}) (err error) {
 		return
 	}
 
-	switch v.(type) {
+	switch realV := v.(type) {
 	case *ecc.PublicKey:
-		var p ecc.PublicKey
-		p, err = d.ReadPublicKey()
+		p, err := d.ReadPublicKey()
+		if err != nil {
+			return err
+		}
 		rv.Set(reflect.ValueOf(p))
-		return
+		return nil
 	case *ecc.Signature:
-		var s ecc.Signature
-		s, err = d.ReadSignature()
+		s, err := d.ReadSignature()
+		if err != nil {
+			return err
+		}
 		rv.Set(reflect.ValueOf(s))
+		return nil
+	case *treeset.Set:
+		err = d.ReadTreeSet(realV)
+		if err != nil {
+			return
+		}
+		rv.Set(reflect.ValueOf(*realV))
+		return
+
+	case *treemap.Map:
+		err = d.ReadTreeMap(realV)
+		if err != nil {
+			return
+		}
+		rv.Set(reflect.ValueOf(*realV))
+		return
+	case treeset.MultiSet:
+		fmt.Println(181)
+		err = d.ReadTreeMultiSet(&realV)
+		if err != nil {
+			return
+		}
+		rv.Set(reflect.ValueOf(realV))
 		return
 	}
 
@@ -225,17 +254,6 @@ func (d *Decoder) Decode(v interface{}) (err error) {
 
 	case reflect.Array:
 		len := t.Len()
-
-		//if !eosArray {
-		//	var l uint64
-		//	if l, err = d.ReadUvarint64(); err != nil {
-		//		return
-		//	}
-		//	if int(l) != len {
-		//		rlplog.Warn("the l is not equal to len of array")
-		//	}
-		//}
-		//eosArray = false
 
 		for i := 0; i < int(len); i++ {
 			if err = d.Decode(rv.Index(i).Addr().Interface()); err != nil {
@@ -579,31 +597,6 @@ func (d *Decoder) ReadChecksum512() (out []byte, err error) {
 	return
 }
 
-//func (d *Decoder) ReadPublicKey() (out []byte, err error) {
-//	if d.remaining() < TypeSize.PublicKey {
-//		err = fmt.Errorf("publicKey required [%d] bytes, remaining [%d]", TypeSize.PublicKey, d.remaining())
-//		return
-//	}
-//	keyContent := make([]byte, 34)
-//	copy(keyContent, d.data[d.pos:d.pos+TypeSize.PublicKey])
-//
-//	d.pos += TypeSize.PublicKey
-//	return keyContent, nil
-//}
-//
-//func (d *Decoder) ReadSignature() (out []byte, err error) {
-//	if d.remaining() < TypeSize.Signature {
-//		err = fmt.Errorf("signature required [%d] bytes, remaining [%d]", TypeSize.Signature, d.remaining())
-//		return
-//	}
-//	sigContent := make([]byte, 66)
-//	copy(sigContent, d.data[d.pos:d.pos+TypeSize.Signature])
-//
-//	d.pos += TypeSize.Signature
-//
-//	return sigContent, nil
-//}
-
 func (d *Decoder) ReadPublicKey() (out ecc.PublicKey, err error) {
 
 	if d.remaining() < TypeSize.PublicKey {
@@ -729,6 +722,68 @@ func (d *Decoder) ReadExtendedAsset() (out ExtendedAsset, err error) {
 	}
 
 	return extendedAsset, err
+}
+
+func (d *Decoder) ReadTreeSet(t *treeset.Set) (err error) {
+	contain := reflect.New(t.ValueType).Interface()
+	var l uint64
+	if l, err = d.ReadUvarint64(); err != nil {
+		return
+	}
+	for i := 0; i < int(l); i++ {
+		newDecoder := NewDecoder(d.data[d.pos:])
+		err = newDecoder.Decode(contain)
+		if err != nil {
+			return
+		}
+		d.pos += newDecoder.pos
+		t.AddItem(reflect.ValueOf(contain).Elem().Interface())
+	}
+	return
+}
+
+func (d *Decoder) ReadTreeMultiSet(t *treeset.MultiSet) (err error) {
+	contain := reflect.New(t.ValueType).Interface()
+	var l uint64
+	if l, err = d.ReadUvarint64(); err != nil {
+		return
+	}
+	for i := 0; i < int(l); i++ {
+		newDecoder := NewDecoder(d.data[d.pos:])
+		err = newDecoder.Decode(contain)
+		if err != nil {
+			return
+		}
+		d.pos += newDecoder.pos
+		//t.AddItem(reflect.ValueOf(contain).Elem().Interface())
+		t.Add(reflect.ValueOf(contain).Elem().Interface())
+	}
+	return
+}
+
+func (d *Decoder) ReadTreeMap(m *treemap.Map) (err error) {
+	mapKey := reflect.New(m.KeyType).Interface()
+	mapVal := reflect.New(m.ValueType).Interface()
+
+	var l uint64
+	if l, err = d.ReadUvarint64(); err != nil {
+		return
+	}
+
+	for i := 0; i < int(l); i++ {
+		newDecoder := NewDecoder(d.data[d.pos:])
+		if err = newDecoder.Decode(mapKey); err != nil {
+			return
+		}
+		d.pos += newDecoder.pos
+		newDecoder = NewDecoder(d.data[d.pos:])
+		if err = newDecoder.Decode(mapVal); err != nil {
+			return
+		}
+		d.pos += newDecoder.pos
+		m.Put(reflect.ValueOf(mapKey).Elem().Interface(), reflect.ValueOf(mapVal).Elem().Interface())
+	}
+	return
 }
 
 func (d *Decoder) remaining() int {

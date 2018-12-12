@@ -1078,7 +1078,7 @@ func dbPreviousI64(vm *VM) {
 
 	var p uint64
 	iterator := w.context.DbPreviousI64(itr, &p)
-	w.ilog.Info("dbNextI64 iterator:%d", iterator)
+	w.ilog.Debug("dbNextI64 iterator:%d", iterator)
 	if iterator <= -1 {
 		vm.pushUint64(uint64(iterator))
 		w.ilog.Debug("iterator:%d nextIterator:%d", itr, iterator)
@@ -1294,7 +1294,7 @@ func dbIdx64Next(vm *VM) {
 
 	var p uint64
 	iterator := w.context.Idx64Next(itr, &p)
-	w.ilog.Info("dbIdx64Next iterator:%d", iterator)
+	w.ilog.Debug("dbIdx64Next iterator:%d", iterator)
 	if iterator <= -1 {
 		vm.pushUint64(uint64(iterator))
 		w.ilog.Debug("iterator:%d nextIterator:%d", itr, iterator)

@@ -6,6 +6,7 @@ import (
 	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/stretchr/testify/assert"
 	"math"
+	"math/big"
 	"testing"
 	"unsafe"
 )
@@ -424,4 +425,44 @@ func TestCount(t *testing.T) {
 	in.LeftShifts(80)
 	count := clzti2(in)
 	fmt.Println(count)
+}
+
+func TestFloat64String(t *testing.T) {
+	f := float64(1.0023)
+	f64 := math.Float64bits(f)
+	var ff Float64
+	ff = Float64(f64)
+
+	assert.Equal(t, ff.String(), "1.002300e+00")
+
+	f = float64(1.111111e100)
+	f64 = math.Float64bits(f)
+	ff = Float64(f64)
+
+	assert.Equal(t, ff.String(), "1.111111e+100")
+}
+
+func TestFloat32String(t *testing.T) {
+	f := float32(1.0023)
+	f32 := math.Float32bits(f)
+	ff := Float32(f32)
+	assert.Equal(t, ff.String(), "1.002300e+00")
+
+	f = float32(1.111111e33)
+	f32 = math.Float32bits(f)
+	ff = Float32(f32)
+	assert.Equal(t, ff.String(), "1.111111e+33")
+}
+
+func TestUint256String(t *testing.T) {
+	a := new(big.Int).SetUint64(math.MaxUint64)
+	b := new(big.Int).Mul(a, a)
+	c := new(big.Int).Mul(b, b)
+	var d uint64
+	d = math.MaxUint64
+	e := MulUint64(uint64(d), uint64(d))
+
+	f := Uint256{Low: e}
+	g := f.Mul(f)
+	assert.Equal(t, g.String(), c.String())
 }

@@ -42,7 +42,6 @@ func DecodeIdTypeString(str string) (id [4]uint64, err error) {
 		return
 	}
 
-	fmt.Println(b)
 	for i := range id {
 		id[i] = binary.LittleEndian.Uint64(b[i*8 : (i+1)*8])
 	}

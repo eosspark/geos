@@ -51,7 +51,7 @@ func fieldValueToByte(info *fieldInfo,zero...bool) ([]byte,error) { /* fieldValu
 	for _, v := range info.fieldValue { // typeName__tag__fieldValue...
 		cloneKey = append(cloneKey, '_')
 		cloneKey = append(cloneKey, '_')
-		if skipZero{ //FIXME field value is zero ?
+		if skipZero{
 			if v.Kind() != reflect.Bool && isZero(v) {
 				continue
 			}

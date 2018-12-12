@@ -346,6 +346,9 @@ func (ldb *LDataBase) remove(in interface{}) error {
 		ldb.log.Error("failed : %s", err.Error())
 		return err
 	}
+	if isZero(cfg.rId) {
+		return ErrIncompleteStructure
+	}
 
 	dbKV := &dbKeyValue{}
 	structKV(in, dbKV, cfg) /* (kv.index) all key and value*/
