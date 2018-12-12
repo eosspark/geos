@@ -40,27 +40,40 @@ func keyEnd(key []byte) []byte { /* non unique fields --> regexp*/
 }
 
 
-func fieldValueToByte(info *fieldInfo,zero...bool) ([]byte,error) { /* fieldValue[0]__fieldValue[1]... */
+func fieldValueToByte(info *fieldInfo,skip... SkipSuffix) ([]byte,error) { /* fieldValue[0]__fieldValue[1]... */
 	cloneKey := []byte{}
 
-	skipZero := false
-	if len(zero) > 0{
-		skipZero = zero[0]
+	skipNum := 0
+	if len(skip) > 0{
+		skipNum = int(skip[0])
 	}
 
-	for _, v := range info.fieldValue { // typeName__tag__fieldValue...
+	fieldLen := len(info.fieldValue) - skipNum
+
+	for index := 0; index <fieldLen; index++{
+		v := info.fieldValue[index]
 		cloneKey = append(cloneKey, '_')
 		cloneKey = append(cloneKey, '_')
-		if skipZero{
-			if v.Kind() != reflect.Bool && isZero(v) {
-				continue
-			}
-		}
 		value, err := EncodeToBytes(v.Interface())
 		if err != nil {
 			return nil,err
 		}
 		cloneKey = append(cloneKey, value...)
 	}
+
 	return cloneKey,nil
+	//for _, v := range info.fieldValue { // typeName__tag__fieldValue...
+	//	cloneKey = append(cloneKey, '_')
+	//	cloneKey = append(cloneKey, '_')
+	//	if skipZero{ //FIXME field value is zero ?
+	//		if v.Kind() != reflect.Bool && isZero(v) {
+	//			continue
+	//		}
+	//	}
+	//	value, err := EncodeToBytes(v.Interface())
+	//	if err != nil {
+	//		return nil,err
+	//	}
+	//	cloneKey = append(cloneKey, value...)
+	//}
 }
