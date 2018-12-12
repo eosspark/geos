@@ -225,7 +225,7 @@ func (a Asset) FromString(from *string) Asset {
 	} else {
 		intPart, _ = strconv.ParseInt(amountStr, 10, 64)
 	}
-	amount := intPart
+	amount := intPart * int64(sym.Precisions())
 	amount += fractPart
 	return Asset{Amount: amount, Symbol: sym}
 }
@@ -241,6 +241,16 @@ type SymbolCode = uint64
 type Symbol struct {
 	Precision uint8
 	Symbol    string
+}
+
+func (sym Symbol) Precisions() uint64{
+	num := sym.Precision
+	result := 1
+	for num > 0 {
+		result *= 10
+		num --
+	}
+	return uint64(result)
 }
 
 var MaxPrecision = uint8(18)

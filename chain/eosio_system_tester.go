@@ -1,7 +1,6 @@
 package chain
 
 import (
-	"fmt"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto/abi_serializer"
@@ -103,15 +102,10 @@ func initEosioSystemTester() {
 		CoreFromString("10.0000"),
 		CoreFromString("10.0000"),
 	)
-	if CoreFromString("1000000000.0000").Amount != e.GetBalance(common.N("eosio")).Amount + e.GetBalance(common.N("eosio.ramfee")).Amount +
+	if CoreFromString("10000000000.0000").Amount != e.GetBalance(common.N("eosio")).Amount + e.GetBalance(common.N("eosio.ramfee")).Amount +
 		e.GetBalance(common.N("eosio.stake")).Amount + e.GetBalance(common.N("eosio.ram")).Amount {
-		fmt.Println(CoreFromString("1000000000.0000").Amount)
-		fmt.Println(e.GetBalance(common.N("eosio")).Amount)
-		fmt.Println(e.GetBalance(common.N("eosio.ramfee")).Amount)
-		fmt.Println(e.GetBalance(common.N("eosio.stake")).Amount)
-		fmt.Println(e.GetBalance(common.N("eosio.ram")).Amount)
+				log.Error("error")
 	}
-
 	e.close()
 }
 
