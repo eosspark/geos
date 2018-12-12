@@ -39,7 +39,7 @@ func readActionData(vm *VM) {
 	}
 
 	copySize := min(bufferSize, s)
-	w.ilog.Debug("action data:0x%v size:%d", data, copySize)
+	w.ilog.Debug("action data:%v size:%d", data, copySize)
 	//w.ilog.Debug("action data right:%d", data, memory+copySize)
 	setMemory(vm, memory, data, 0, copySize)
 
@@ -744,7 +744,7 @@ func assertRecoverKey(vm *VM) {
 	sigBytes := getMemory(vm, sig, siglen)
 	pubBytes := getMemory(vm, pub, publen)
 
-	w.ilog.Debug("d:%#v s:0x%#v p:0x%#v", digBytes, sigBytes, pubBytes)
+	w.ilog.Debug("digest:%v signature:%v publickey:%v", digBytes, sigBytes, pubBytes)
 
 	s := ecc.NewSigNil()
 	p := ecc.NewPublicKeyNil()
@@ -761,6 +761,7 @@ func assertRecoverKey(vm *VM) {
 
 func recoverKey(vm *VM) {
 	//fmt.Println("recover_key")
+	w := vm.WasmGo
 
 	publen := int(vm.popUint64())
 	pub := int(vm.popUint64())
@@ -781,6 +782,8 @@ func recoverKey(vm *VM) {
 		vm.pushInt64(-1)
 		return
 	}
+
+	w.ilog.Debug("digest:%v signature:%v publickey:%v", digBytes, sigBytes, p)
 
 	l := len(p)
 	if l > publen {
@@ -1968,16 +1971,21 @@ func getBlockchainParametersPacked(vm *VM) {
 	p, _ := rlp.EncodeToBytes(configuration)
 	//p := w.context.GetBlockchainParametersPacked()
 	size := len(p)
+	w.ilog.Debug("BlockchainParameters:%v bufferSize:%d size:%d", configuration, bufferSize, size)
+
+	if bufferSize == 0 {
+		vm.pushUint64(uint64(size))
+		return
+	}
 
 	if size <= bufferSize {
 		setMemory(vm, packedBlockchainParameters, p, 0, size)
 		vm.pushUint64(uint64(size))
-		w.ilog.Debug("BlockchainParameters:%v", configuration)
+		//w.ilog.Debug("BlockchainParameters:%v", configuration)
 		return
 	}
-
 	vm.pushUint64(0)
-	w.ilog.Debug("BlockchainParameters:%v bufferSize:%d size:%d", configuration, bufferSize, size)
+
 }
 
 func setBlockchainParametersPacked(vm *VM) {
@@ -1989,7 +1997,7 @@ func setBlockchainParametersPacked(vm *VM) {
 	// getMemory(vm,packedBlockchainParameters, 0, p, datalen)
 	p := getMemory(vm, packedBlockchainParameters, dataLen)
 
-	cfg := common.Config{}
+	cfg := types.ChainConfig{}
 	rlp.DecodeBytes(p, &cfg)
 
 	//w.context.SetBlockchainParametersPacked(p)

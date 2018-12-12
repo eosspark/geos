@@ -1121,7 +1121,7 @@ func (a *ApplyContext) GetResourceLimits(
 
 func (a *ApplyContext) SetBlockchainParametersPacked(parameters []byte) {
 
-	cfg := common.Config{}
+	cfg := types.ChainConfig{}
 	rlp.DecodeBytes(parameters, &cfg)
 	g := a.Control.GetGlobalProperties()
 	a.DB.Modify(g, func(gpo *entity.GlobalPropertyObject) {
@@ -1131,7 +1131,7 @@ func (a *ApplyContext) SetBlockchainParametersPacked(parameters []byte) {
 	a.Control.GpoCache[g.ID] = g
 }
 
-func (a *ApplyContext) SetBlockchainParameters(cfg *common.Config) {
+func (a *ApplyContext) SetBlockchainParameters(cfg *types.ChainConfig) {
 
 	//cfg := common.Config{}
 	//rlp.DecodeBytes(parameters, &cfg)
@@ -1143,7 +1143,7 @@ func (a *ApplyContext) SetBlockchainParameters(cfg *common.Config) {
 	a.Control.GpoCache[g.ID] = g
 }
 
-func (a *ApplyContext) GetBlockchainParameters() *common.Config {
+func (a *ApplyContext) GetBlockchainParameters() *types.ChainConfig {
 
 	gpo := a.Control.GetGlobalProperties()
 	return &gpo.Configuration

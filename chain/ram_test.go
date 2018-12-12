@@ -15,5 +15,5 @@ func TestRamTests(t *testing.T){
 }
 
 func TestSimple(t *testing.T){
-	fmt.Println(common.S(6138663591592764928))
+	fmt.Println(common.MaxMicroseconds().ToSeconds())
 }
