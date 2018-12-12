@@ -5,7 +5,7 @@ type DataBase interface {
 
 	Insert(in interface{}) error
 
-	Find(tagName string, in interface{}, out interface{},skip... SkipSuffix) error
+	Find(tagName string, in interface{}, out interface{}) error
 
 	Empty(begin, end, fieldName []byte) bool
 
@@ -29,11 +29,11 @@ type DataBase interface {
 
 	Revision() int64
 
-	lowerBound(key, value, typeName []byte, in interface{},skip... SkipSuffix) (*DbIterator, error)
+	lowerBound(key, value, typeName []byte, in interface{}) (*DbIterator, error)
 
-	upperBound(key, value, typeName []byte, in interface{},skip... SkipSuffix) (*DbIterator, error)
+	upperBound(key, value, typeName []byte, in interface{}) (*DbIterator, error)
 
-	IteratorTo(begin, end, fieldName []byte, in interface{},skip...SkipSuffix) (*DbIterator, error)
+	IteratorTo(begin, end, fieldName []byte, in interface{}) (*DbIterator, error)
 
 	BeginIterator(begin, end, typeName []byte) (*DbIterator, error)
 	EndIterator(begin, end, typeName []byte) (*DbIterator, error)

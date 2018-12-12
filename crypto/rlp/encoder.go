@@ -87,14 +87,21 @@ func (e *Encoder) Encode(v interface{}) (err error) {
 		return e.WritePublicKey(cv)
 	case ecc.Signature:
 		return e.WriteSignature(cv)
+
 	case treeset.Set:
 		return e.WriteSet(cv)
 	case *treeset.Set:
-		return e.WriteSet(*cv)
 
+		return e.WriteSet(*cv)
 	case treemap.Map:
 		return e.WriteMap(cv)
+	case *treemap.Map:
 
+		return e.WriteMap(*cv)
+	case treeset.MultiSet:
+		return e.WriteMultiSet(cv)
+	case *treeset.MultiSet:
+		return e.WriteMultiSet(*cv)
 	case nil:
 		return
 	}
@@ -389,5 +396,19 @@ func (e *Encoder) WriteMap(m treemap.Map) (err error) {
 		}
 	})
 
+	return nil
+}
+
+func (e *Encoder) WriteMultiSet(t treeset.MultiSet) (err error) {
+	l := t.Size()
+	if err = e.WriteUVarInt(l); err != nil {
+		return
+	}
+	vals := t.Values()
+	for i := 0; i < int(l); i++ {
+		if err = e.Encode(vals[i]); err != nil {
+			panic(err)
+		}
+	}
 	return nil
 }
