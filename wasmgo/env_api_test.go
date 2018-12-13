@@ -24,11 +24,10 @@ import (
 	"strings"
 	"testing"
 
+	arithmetic "github.com/eosspark/eos-go/common/arithmetic_types"
 	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/eosspark/eos-go/wasmgo"
 	"github.com/stretchr/testify/assert"
-
-	arithmetic "github.com/eosspark/eos-go/common/arithmetic_types"
 )
 
 const crypto_api_exception int = 0
@@ -214,7 +213,7 @@ func checkException(f func(b *BaseTester, data []byte, scope []common.AccountNam
 
 }
 
-func TestRequireRecipient(t *testing.T) {
+func TestRequireNoticeTests(t *testing.T) {
 	name := "testdata_context/test_api.wasm"
 	t.Run(filepath.Base(name), func(t *testing.T) {
 		code, err := ioutil.ReadFile(name)
@@ -222,38 +221,68 @@ func TestRequireRecipient(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		control := startBlock()
-		createNewAccount2(control, "testapi", "eosio")
-		createNewAccount2(control, "testapi2", "eosio")
-		createNewAccount2(control, "acc5", "eosio")
+		b := newBaseTester(true, chain.SPECULATIVE)
+		b.ProduceBlocks(2, false)
+		b.CreateAccounts([]common.AccountName{common.N("testapi")}, false, true)
+		b.CreateAccounts([]common.AccountName{common.N("acc5")}, false, true)
+		b.ProduceBlocks(1, false)
+		b.SetCode(common.AccountName(common.N("testapi")), code, nil)
+		b.SetCode(common.AccountName(common.N("acc5")), code, nil)
+		b.ProduceBlocks(1, false)
 
-		SetCode(control, "testapi", code)
-		SetCode(control, "acc5", code)
+		trx := NewTransaction()
+		a := testApiAction{wasmTestAction("test_action", "require_notice_tests")}
+		pl := []types.PermissionLevel{{common.AccountName(common.N("testapi")), common.PermissionName(common.N("active"))}}
 
-		//permissions := []types.PermissionLevel{
-		//	types.PermissionLevel{common.AccountName(common.N("testapi")), common.PermissionName(common.N("active"))},
-		//}
-		//privateKeys := []*ecc.PrivateKey{
-		//	getPrivateKey("testapi", "active"),
-		//}
-		//ret := pushAction2(control, "test_action", "require_notice_tests", []byte{}, "testapi", permissions, privateKeys)
-		//assert.Equal(t, ret.Receipt.Status, types.TransactionStatusExecuted)
+		act := newAction(pl, &a)
+		trx.Transaction.Actions = append(trx.Transaction.Actions, act)
+		b.SetTransactionHeaders(&trx.Transaction, b.DefaultExpirationDelta, 0)
 
-		SetCode(control, "testapi2", code)
+		privKey := b.getPrivateKey(common.AccountName(common.N("testapi")), "active")
+		chainId := b.Control.GetChainId()
+		trx.Sign(&privKey, &chainId)
+		ret := b.PushTransaction(trx, common.MaxTimePoint(), b.DefaultBilledCpuTimeUs)
+		assert.Equal(t, ret.Receipt.Status, types.TransactionStatusExecuted)
+
+		b.close()
+
+	})
+
+}
+
+func TestRamBillingInNotifyTests(t *testing.T) {
+	name := "testdata_context/test_api.wasm"
+	t.Run(filepath.Base(name), func(t *testing.T) {
+		code, err := ioutil.ReadFile(name)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		b := newBaseTester(true, chain.SPECULATIVE)
+		b.ProduceBlocks(2, false)
+		b.CreateAccounts([]common.AccountName{common.N("testapi")}, false, true)
+		b.CreateAccounts([]common.AccountName{common.N("testapi2")}, false, true)
+		b.ProduceBlocks(10, false)
+		b.SetCode(common.AccountName(common.N("testapi")), code, nil)
+		b.ProduceBlocks(1, false)
+		b.SetCode(common.AccountName(common.N("testapi2")), code, nil)
+		b.ProduceBlocks(1, false)
+
 		data := arithmetic.Int128{uint64(common.N("testapi")), uint64(common.N("testapi2"))}
-		b, _ := rlp.EncodeToBytes(&data)
-		ret := callTestFunctionException2(control, "test_action", "test_ram_billing_in_notify", b, "testapi", exception.SubjectiveBlockProductionException{}.Code(), "Cannot charge RAM to other accounts during notify.")
-		assert.Equal(t, true, ret)
+		load, _ := rlp.EncodeToBytes(&data)
+		retException := callTestFunctionCheckExceptionF2(t, b, &testApiAction{wasmTestAction("test_action", "test_ram_billing_in_notify")}, load, []common.AccountName{common.AccountName(common.N("testapi"))},
+			exception.SubjectiveBlockProductionException{}.Code(), "Cannot charge RAM to other accounts during notify.")
+		assert.Equal(t, retException, true)
 
 		data = arithmetic.Int128{0, uint64(common.N("testapi2"))}
-		b, _ = rlp.EncodeToBytes(&data)
-		callTestFunction2(control, "test_action", "test_ram_billing_in_notify", b, "testapi")
+		load, _ = rlp.EncodeToBytes(&data)
+		callTestF2(t, b, &testApiAction{wasmTestAction("test_action", "test_ram_billing_in_notify")}, load, []common.AccountName{common.AccountName(common.N("testapi"))})
 
 		data = arithmetic.Int128{uint64(common.N("testapi2")), uint64(common.N("testapi2"))}
-		b, _ = rlp.EncodeToBytes(&data)
-		callTestFunction2(control, "test_action", "test_ram_billing_in_notify", b, "testapi")
+		load, _ = rlp.EncodeToBytes(&data)
+		callTestF2(t, b, &testApiAction{wasmTestAction("test_action", "test_ram_billing_in_notify")}, load, []common.AccountName{common.AccountName(common.N("testapi"))})
 
-		stopBlock(control)
+		b.close()
 
 	})
 
