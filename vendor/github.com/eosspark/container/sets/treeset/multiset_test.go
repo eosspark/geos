@@ -7,6 +7,8 @@ package treeset
 import (
 	"fmt"
 	"testing"
+	"github.com/stretchr/testify/assert"
+	"github.com/eosspark/eos-go/log"
 )
 
 func TestMultiSetNew(t *testing.T) {
@@ -536,4 +538,56 @@ func BenchmarkTreeMultiSetRemove100000(b *testing.B) {
 	}
 	b.StartTimer()
 	benchmarkMultiRemove(b, set, size)
+}
+
+func TestMultiSet_UpperBound(t *testing.T) {
+	set := NewMultiWithStringComparator()
+	set.Add("c", "a", "b","c","c","d")
+
+	u := set.UpperBound("a")
+	if u!=nil{
+		log.Info("%v",u.Value())
+	}
+	assert.Equal(t,"b",u.Value())
+}
+
+func TestMultiSet_LowerBound(t *testing.T) {
+	set := NewMultiWithStringComparator()
+	set.Add("c", "a", "b","c","c","b","d")
+	//foundValue, found := set.Find(func(value interface{}) bool {
+	//	return value.(string) == "c"
+	//})
+	//fmt.Println(foundValue,found)
+	u := set.LowerBound("a")
+	//fmt.Println(u.Next())
+	sec := set.UpperBound("a")
+	for u.Next(){
+
+		if u.Equal(*sec){
+			break
+		}
+		fmt.Print(u.Value())
+	}
+
+}
+
+func TestMultiSet_easer(t *testing.T){
+	set := NewMultiWithStringComparator()
+	set.Add("c", "a", "b","c","c","b","d")
+	lb := set.LowerBound("c")
+	up:= set.UpperBound("c")
+
+	for lb.Next(){
+		if lb.iterator.Equal(up.iterator){
+			break
+		}
+		fmt.Println("lower-upper:",lb.Value())
+	}
+	set.tree.MultiRemove("c")
+	itr:=set.Iterator()
+	itr.Begin()
+	for itr.Next(){
+		fmt.Println(itr.Value())
+	}
+	assert.Equal(t,4,set.Size())
 }

@@ -23,7 +23,6 @@ func TestEosAssert(t *testing.T) {
 }
 
 func TestCatchOrFinally_EosRethrowExceptions(t *testing.T) {
-	defer HandleStackInfo()
 	Try(func() {
 		Try(func() {
 			EosAssert(false, &AssertException{}, "tester exception %s", "AssertException")

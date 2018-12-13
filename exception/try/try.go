@@ -1,17 +1,21 @@
 package try
 
 import (
-	"runtime"
-	"github.com/eosspark/eos-go/log"
 	"github.com/eosspark/eos-go/exception"
+	"github.com/eosspark/eos-go/log"
+	"runtime"
 )
 
 //StackInfo store code informations when catched exception.
-type StackInfo struct {
-	PC   uintptr
-	File string
-	Line int
-}
+
+const (
+	DEBUG = false
+)
+
+var (
+	stackInfo []byte = nil
+	stackSize        = 65536
+)
 
 //RuntimeError is wrapper of runtime.errorString and stacktrace.
 type RuntimeError struct {
@@ -19,13 +23,6 @@ type RuntimeError struct {
 	stackInfo []byte
 	//StackTrace []StackInfo
 }
-
-var (
-	errorPtr  interface{} = nil
-	stackInfo []byte      = nil
-	size                  = 65536
-	DEBUG                 = true
-)
 
 func (rte RuntimeError) String() string {
 	return rte.Message
@@ -44,14 +41,12 @@ func Try(f func()) (r *CatchOrFinally) {
 			r = &CatchOrFinally{e}
 
 			if DEBUG {
-				errorPtr = e
-				stackInfo = make([]byte, size)
+				stackInfo = make([]byte, stackSize)
 				stackInfo = stackInfo[:runtime.Stack(stackInfo, false)]
-				//r.stackInfo = buf
+				printStackInfo(e)
 			}
 
 		}
-		///*debug*/fmt.Println("try", time.Now().Nanosecond() - s, "ns")
 	}()
 
 	f()
@@ -66,15 +61,15 @@ func Throw(e interface{}) {
 }
 
 //Use defer HandleStackInfo() before main func panic
-func HandleStackInfo() {
+func printStackInfo(errorPtr interface{}) {
 	if DEBUG && stackInfo != nil {
 		switch e := errorPtr.(type) {
 		case exception.Exception:
-			log.Error("%s: %s", exception.GetDetailMessage(e), string(stackInfo))
+			log.Warn("%s: %s", exception.GetDetailMessage(e), string(stackInfo))
 		case error:
-			log.Error("error %s: %s", e.Error(), string(stackInfo))
+			log.Warn("error %s: %s", e.Error(), string(stackInfo))
 		default:
-			log.Error("panic %#v: %s", e, string(stackInfo))
+			log.Warn("panic %#v: %s", e, string(stackInfo))
 		}
 	}
 }

@@ -109,8 +109,6 @@ func TestStackInfo_throw(t *testing.T) {
 		assert.Equal(t, true, len(stackInfo) > 0)
 	}()
 
-	defer HandleStackInfo()
-
 	Try(func() {
 		Throw("error")
 	}).Catch(func(n int) {
@@ -123,8 +121,6 @@ func TestStackInfo_rethrow(t *testing.T) {
 		recover()
 		assert.Equal(t, true, len(stackInfo) > 0)
 	}()
-
-	defer HandleStackInfo()
 
 	Try(func() {
 		EosThrow(&exception.TransactionTypeException{}, "error")
