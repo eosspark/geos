@@ -1739,10 +1739,12 @@ func checkPermissionAuthorization(vm *VM) {
 	permsDataBytes := getMemory(vm, permsData, permsSize)
 
 	providedKeys := treeset.NewWith(ecc.TypePubKey, ecc.ComparePubKey)
-	providedPermissions := treeset.NewWith(ecc.TypePubKey, ecc.ComparePubKey)
+	providedPermissions := treeset.NewWith(types.PermissionLevelType, types.ComparePermissionLevel)
 
 	unpackProvidedKeys(providedKeys, &pubkeysDataBytes)
 	unpackProvidedPermissions(providedPermissions, &permsDataBytes)
+
+	w.ilog.Debug("account:%v permission:%v providedKeys:%v providedPermissions:%v", account, permission, providedKeys, providedPermissions)
 
 	returning := false
 	Try(func() {
@@ -1751,18 +1753,16 @@ func checkPermissionAuthorization(vm *VM) {
 			providedKeys,
 			providedPermissions,
 			delayUS)
-
 	}).Catch(func(e Exception) {
-
 		returning = true
-		vm.pushUint64(1)
 	}).End()
 
 	if returning {
+		vm.pushUint64(0)
 		return
 	}
 
-	vm.pushUint64(0)
+	vm.pushUint64(1)
 }
 
 func unpackProvidedKeys(ps *treeset.Set, pubkeysData *[]byte) {
