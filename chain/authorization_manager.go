@@ -453,13 +453,19 @@ func (a *AuthorizationManager) CheckAuthorization2(account common.AccountName,
 	} else {
 		effectiveProvidedDelay = providedDelay
 	}
-	checker := types.MakeAuthChecker(func(p *types.PermissionLevel) types.SharedAuthority { return a.GetPermission(p).Auth },
+	checker := types.MakeAuthChecker(func(p *types.PermissionLevel) types.SharedAuthority { perm := a.GetPermission(p)
+			if perm != nil {
+				return perm.Auth
+			} else {
+				return types.SharedAuthority{}
+			}
+		},
 		a.control.GetGlobalProperties().Configuration.MaxAuthorityDepth,
 		providedKeys,
 		providedPermissions,
 		effectiveProvidedDelay,
 		checkTime)
-	EosAssert(checker.SatisfiedLc(&types.PermissionLevel{account, permission}, nil), &UnsatisfiedAuthorization{},
+		EosAssert(checker.SatisfiedLc(&types.PermissionLevel{account, permission}, nil), &UnsatisfiedAuthorization{},
 		"permission '%v' was not satisfied under a provided delay of %v ms, provided permissions %v, and provided keys %v",
 		types.PermissionLevel{account, permission}, providedDelay.Count()/1000, providedPermissions, providedKeys)
 
@@ -471,7 +477,14 @@ func (a *AuthorizationManager) CheckAuthorization2(account common.AccountName,
 func (a *AuthorizationManager) GetRequiredKeys(trx *types.Transaction,
 	candidateKeys *treeset.Set,
 	providedDelay common.Microseconds) treeset.Set {
-	checker := types.MakeAuthChecker(func(p *types.PermissionLevel) types.SharedAuthority { return a.GetPermission(p).Auth },
+	checker := types.MakeAuthChecker(func(p *types.PermissionLevel) types.SharedAuthority {
+			perm := a.GetPermission(p)
+			if perm != nil {
+				return perm.Auth
+			} else {
+				return types.SharedAuthority{}
+			}
+		},
 		a.control.GetGlobalProperties().Configuration.MaxAuthorityDepth,
 		candidateKeys,
 		nil,
