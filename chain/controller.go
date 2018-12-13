@@ -1037,7 +1037,7 @@ func (c *Controller) applyBlock(b *types.SignedBlock, s types.BlockStatus) {
 
 func (c *Controller) CommitBlock(addToForkDb bool) {
 	defer func() {
-		if c.Pending.PendingValid {
+		if c.Pending != nil && c.Pending.PendingValid {
 			c.Pending = c.Pending.Reset()
 		}
 	}()

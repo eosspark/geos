@@ -120,11 +120,12 @@ func (f *ForkDatabase) AddBlockState(b *types.BlockState) *types.BlockState {
 		f.Head = result
 		lib := f.Head.DposIrreversibleBlocknum
 		mItr := f.MultiIndexFork.GetIndex("byLibBlockNum").Value.Iterator()
-
-		itrVal := mItr.Value()
-		oldest := itrVal.(*types.BlockState)
-		if oldest.BlockNum < lib {
-			f.Prune(oldest)
+		if mItr.Next() {
+			itrVal := mItr.Value()
+			oldest := itrVal.(*types.BlockState)
+			if oldest.BlockNum < lib {
+				f.Prune(oldest)
+			}
 		}
 	} else {
 		try.EosAssert(idx != nil, &exception.ForkDatabaseException{}, "ForkDatabase AddBlockState MultiIndexFork Begin is not found!")
@@ -241,7 +242,7 @@ func (f *ForkDatabase) Prune(h *types.BlockState) {
 	//bni, err := idx.Begin()
 	byBn := idx.Value.Iterator()
 
-	for !byBn.Last() && byBn.Value().(*types.BlockState).BlockNum < num {
+	for !byBn.Last() && byBn.Next() && byBn.Value().(*types.BlockState).BlockNum < num {
 		f.Prune(byBn.Value().(*types.BlockState))
 		byBn.Begin()
 	}
