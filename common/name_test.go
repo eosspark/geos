@@ -30,6 +30,7 @@ func TestNameStr(t *testing.T) {
 		testflag = true
 	})
 	assert.Equal(t, true, testflag, "check name is wrong")
+	assert.Equal(t, Name(0x0), val)
 
 }
 

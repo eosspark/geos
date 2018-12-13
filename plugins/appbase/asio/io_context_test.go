@@ -22,7 +22,7 @@ func TestIoContext_Run(t *testing.T) {
 func TestIoContext_Post(t *testing.T) {
 	ioc := NewIoContext()
 	ioc.Post(func(err error) {
-		//ioc.Stop()
+		ioc.Stop()
 	})
 	ioc.Run()
 }

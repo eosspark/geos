@@ -2,7 +2,7 @@ package common
 
 import (
 	"reflect"
-		)
+	)
 
 type CheckEmpty interface {
 	IsEmpty() bool

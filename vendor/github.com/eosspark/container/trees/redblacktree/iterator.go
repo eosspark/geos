@@ -162,3 +162,7 @@ func (iterator *Iterator) Last() bool {
 	iterator.End()
 	return iterator.Prev()
 }
+
+func (itr *Iterator) Equal(value Iterator) bool{
+	return itr.node == value.node
+}

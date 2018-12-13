@@ -104,7 +104,6 @@ func (m *MultiIndexFork) GetIndex(tag string) *IndexFork {
 
 func (idx *IndexFork) Begin() (*types.BlockState, error) {
 	itr := idx.Value.Iterator()
-	itr.Begin()
 	if itr.Next() {
 		return itr.Value().(*types.BlockState), nil
 	}

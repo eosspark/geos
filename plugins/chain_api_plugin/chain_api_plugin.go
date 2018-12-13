@@ -44,20 +44,24 @@ func (c *ChainApiPlugin) PluginInitialize(options *cli.Context) {
 func (c *ChainApiPlugin) PluginStartup() {
 	c.log.Info("starting chain_api_plugin")
 	c.my.db = App().GetPlugin(chain_plugin.ChainPlug).(*chain_plugin.ChainPlugin).Chain()
-	ROApi := App().GetPlugin(chain_plugin.ChainPlug).(*chain_plugin.ChainPlugin).GetReadOnlyApi()
-	//RWApi := App().GetPlugin(chain_plugin.ChainPlug).(*chain_plugin.ChainPlugin).GetReadWriteApi()
 
 	httpPlugin := App().GetPlugin(http_plugin.HttpPlug).(*http_plugin.HttpPlugin)
 
+	ROApi := App().GetPlugin(chain_plugin.ChainPlug).(*chain_plugin.ChainPlugin).GetReadOnlyApi()
+
+	//TODO read_only api
 	ROApi.SetShortenAbiErrors(httpPlugin.VerboseErrors())
 
 	httpPlugin.AddHandler(common.GetInfoFunc, func(source string, body []byte, cb http_plugin.UrlResponseCallback) {
 		Try(func() {
-
 			result := ROApi.GetInfo()
 
-			byte, _ := json.Marshal(result)
-			cb(200, byte)
+			if byte, err := json.Marshal(result); err == nil {
+				cb(200, byte)
+			} else {
+				Throw(err)
+			}
+
 		}).Catch(func(e interface{}) {
 			http_plugin.HandleException(e, "chain", "get_info", string(body), cb)
 		}).End()
@@ -66,21 +70,173 @@ func (c *ChainApiPlugin) PluginStartup() {
 	httpPlugin.AddHandler(common.GetBlockFunc, func(source string, body []byte, cb http_plugin.UrlResponseCallback) {
 		Try(func() {
 			if len(body) == 0 {
-				body = []byte{123, 125} //"{}"
+				body = []byte("{}")
 			}
+
 			var param chain_plugin.GetBlockParams
-			err := json.Unmarshal(body, &param)
-			if err != nil {
+			if err := json.Unmarshal(body, &param); err != nil {
 				EosThrow(&EofException{}, "marshal get_block params: %s", err.Error())
 			}
 
 			result := ROApi.GetBlock(param)
 
-			byte, _ := json.Marshal(result)
-			cb(200, byte)
+			if byte, err := json.Marshal(result); err == nil {
+				cb(200, byte)
+			} else {
+				Throw(err)
+			}
+
 		}).Catch(func(e interface{}) {
 			http_plugin.HandleException(e, "chain", "get_block", string(body), cb)
 		}).End()
+	})
+
+	httpPlugin.AddHandler(common.GetBlockHeaderStateFunc, func(source string, body []byte, cb http_plugin.UrlResponseCallback) {
+		Try(func() {
+			if len(body) == 0 {
+				body = []byte("{}")
+			}
+
+			var param chain_plugin.GetBlockHeaderStateParams
+			if err := json.Unmarshal(body, &param); err != nil {
+				EosThrow(&EofException{}, "marshal get_block_header_state params: %s", err.Error())
+			}
+
+			result := ROApi.GetBlockHeaderState(param)
+
+			if byte, err := json.Marshal(result); err == nil {
+				cb(200, byte)
+			} else {
+				Throw(err)
+			}
+
+		}).Catch(func(e interface{}) {
+			http_plugin.HandleException(e, "chain", "get_block_header_state", string(body), cb)
+		}).End()
+	})
+
+	httpPlugin.AddHandler(common.GetAccountFunc, func(source string, body []byte, cb http_plugin.UrlResponseCallback) {
+		Try(func() {
+			if len(body) == 0 {
+				body = []byte("{}")
+			}
+
+			var param chain_plugin.GetAccountParams
+			if err := json.Unmarshal(body, &param); err != nil {
+				EosThrow(&EofException{}, "marshal get_account params: %s", err.Error())
+			}
+
+			result := ROApi.GetAccount(param)
+
+			if byte, err := json.Marshal(result); err == nil {
+				cb(200, byte)
+			} else {
+				Throw(err)
+			}
+
+		}).Catch(func(e interface{}) {
+			http_plugin.HandleException(e, "chain", "get_account", string(body), cb)
+		}).End()
+	})
+
+	httpPlugin.AddHandler(common.GetAbiFunc, func(source string, body []byte, cb http_plugin.UrlResponseCallback) {
+		Try(func() {
+			if len(body) == 0 {
+				body = []byte("{}")
+			}
+
+			var param chain_plugin.GetAbiParams
+			if err := json.Unmarshal(body, &param); err != nil {
+				EosThrow(&EofException{}, "marshal get_abi params: %s", err.Error())
+			}
+
+			result := ROApi.GetAbi(param)
+
+			if byte, err := json.Marshal(result); err == nil {
+				cb(200, byte)
+			} else {
+				Throw(err)
+			}
+
+		}).Catch(func(e interface{}) {
+			http_plugin.HandleException(e, "chain", "get_abi", string(body), cb)
+		}).End()
+	})
+
+	httpPlugin.AddHandler(common.GetCodeFunc, func(source string, body []byte, cb http_plugin.UrlResponseCallback) {
+		Try(func() {
+			if len(body) == 0 {
+				body = []byte("{}")
+			}
+
+			var param chain_plugin.GetCodeParams
+			if err := json.Unmarshal(body, &param); err != nil {
+				EosThrow(&EofException{}, "marshal get_code params: %s", err.Error())
+			}
+
+			result := ROApi.GetCode(param)
+
+			if byte, err := json.Marshal(result); err == nil {
+				cb(200, byte)
+			} else {
+				Throw(err)
+			}
+
+		}).Catch(func(e interface{}) {
+			http_plugin.HandleException(e, "chain", "get_code", string(body), cb)
+		}).End()
+	})
+
+	httpPlugin.AddHandler(common.GetCurrencyBalanceFunc, func(source string, body []byte, cb http_plugin.UrlResponseCallback) {
+		Try(func() {
+			if len(body) == 0 {
+				body = []byte("{}")
+			}
+
+			var param chain_plugin.GetCurrencyBalanceParams
+			if err := json.Unmarshal(body, &param); err != nil {
+				EosThrow(&EofException{}, "marshal get_currency_balance params: %s", err.Error())
+			}
+
+			result := ROApi.GetCurrencyBalance(param)
+
+			if byte, err := json.Marshal(result); err == nil {
+				cb(200, byte)
+			} else {
+				Throw(err)
+			}
+
+		}).Catch(func(e interface{}) {
+			http_plugin.HandleException(e, "chain", "get_currency_balance", string(body), cb)
+		}).End()
+	})
+
+	//TODO read_write api
+	RWApi := App().GetPlugin(chain_plugin.ChainPlug).(*chain_plugin.ChainPlugin).GetReadWriteApi()
+
+	httpPlugin.AddHandler(common.PushTxnFunc, func(source string, body []byte, cb http_plugin.UrlResponseCallback) {
+		if len(body) == 0 {
+			body = []byte("{}")
+		}
+
+		RWApi.Validate()
+
+		var param chain_plugin.PushTransactionParams
+		if err := json.Unmarshal(body, &param); err != nil {
+			EosThrow(&EofException{}, "marshal push_transaction params: %s", err.Error())
+		}
+
+		RWApi.PushTransaction(param, func(result common.StaticVariant) {
+			if exception, ok := result.(Exception); ok {
+				http_plugin.HandleException(exception, "chain", "push_transaction", string(body), cb)
+			} else {
+				if byte, err := json.Marshal(result); err == nil {
+					cb(200, byte)
+				} else {
+					http_plugin.HandleException(err, "chain", "push_transaction", string(body), cb)
+				}
+			}
+		})
 	})
 
 }
@@ -89,35 +245,6 @@ func (c *ChainApiPlugin) PluginShutdown() {
 }
 
 // {
-// 	std::string("/v1/"
-// 		"chain"
-// 		"/"
-// 		"get_info"), [ro_api](string, string body, url_response_callback cb) mutable {
-// 		ro_api.validate();
-// 		try {
-// 			if (body.empty()) body = "{}";
-// 			auto result = ro_api.get_info(fc::json::from_string(body).as < chain_apis::read_only::get_info_params > ());
-// 			cb(200 l, fc::json::to_string(result));
-// 		} catch (...) {
-// 			http_plugin::handle_exception("chain", "get_info", body, cb);
-// 		}
-// 	}
-// }, {
-// 	std::string("/v1/"
-// 		"chain"
-// 		"/"
-// 		"get_block"),
-// 	[ro_api](string, string body, url_response_callback cb) mutable {
-// 		ro_api.validate();
-// 		try {
-// 			if (body.empty()) body = "{}";
-// 			auto result = ro_api.get_block(fc::json::from_string(body).as < chain_apis::read_only::get_block_params > ());
-// 			cb(200, fc::json::to_string(result));
-// 		} catch (...) {
-// 			http_plugin::handle_exception("chain", "get_block", body, cb);
-// 		}
-// 	}
-// }, {
 // 	std::string("/v1/"
 // 		"chain"
 // 		"/"

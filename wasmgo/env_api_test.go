@@ -15,6 +15,7 @@ import (
 	"github.com/eosspark/eos-go/common/math"
 	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/ecc"
+	"github.com/eosspark/eos-go/entity"
 	"github.com/eosspark/eos-go/exception"
 	"github.com/eosspark/eos-go/exception/try"
 	"io/ioutil"
@@ -656,40 +657,108 @@ func TestContextMemory(t *testing.T) {
 
 }
 
-func TestContextAuth(t *testing.T) {
+type check_auth struct {
+	Account    common.AccountName
+	Permission common.PermissionName
+	Pubkeys    []ecc.PublicKey
+}
 
-	name := "testdata_context/auth.wasm"
+func TestPermission(t *testing.T) {
+
+	name := "testdata_context/test_api.wasm"
 	t.Run(filepath.Base(name), func(t *testing.T) {
 		code, err := ioutil.ReadFile(name)
 		if err != nil {
 			t.Fatal(err)
 		}
 
-		fmt.Println(name)
-		wasm := wasmgo.NewWasmGo()
-		param, _ := rlp.EncodeToBytes(common.N("walker"))
-		applyContext := &chain.ApplyContext{
-			Receiver: common.AccountName(common.N("ctx.auth")),
-			Act: &types.Action{
-				Account: common.AccountName(common.N("ctx.auth")),
-				Name:    common.ActionName(common.N("test")),
-				Data:    param,
-				Authorization: []types.PermissionLevel{{
-					Actor:      common.AccountName(common.N("walker")),
-					Permission: common.PermissionName(common.N("active")),
-				}},
-			},
-			UsedAuthorizations: make([]bool, 1),
+		b := newBaseTester(true, chain.SPECULATIVE)
+		b.ProduceBlocks(1, false)
+		b.CreateAccounts([]common.AccountName{common.N("testapi")}, false, true)
+		b.ProduceBlocks(1, false)
+		b.SetCode(common.AccountName(common.N("testapi")), code, nil)
+		b.ProduceBlocks(1, false)
+
+		getResultInt64 := func() uint64 {
+
+			tab := entity.TableIdObject{
+				Code:  common.AccountName(common.N("testapi")),
+				Scope: common.ScopeName(common.N("testapi")),
+				Table: common.TableName(common.N("testapi")),
+			}
+			err := b.Control.DB.Find("byCodeScopeTable", tab, &tab)
+			try.EosAssert(err == nil, &exception.AssertException{}, "Table id not found")
+
+			obj := entity.KeyValueObject{TId: tab.ID}
+			idx, _ := b.Control.DB.GetIndex("byScopePrimary", &obj)
+			itr, _ := idx.LowerBound(&obj)
+			objLowerbound := entity.KeyValueObject{}
+			itr.Data(&objLowerbound)
+			try.EosAssert(!idx.CompareEnd(itr) && objLowerbound.TId != tab.ID, &exception.AssertException{}, "Table id not found")
+			try.EosAssert(len(objLowerbound.Value) > 0, &exception.AssertException{}, "unexpected result size")
+
+			ret, err := strconv.ParseUint(string(objLowerbound.Value), 10, 64)
+			return ret
 		}
 
-		codeVersion := crypto.NewSha256Byte([]byte(code))
-		wasm.Apply(codeVersion, code, applyContext)
+		checkAuth := check_auth{
+			common.AccountName(common.N("testapi")),
+			common.PermissionName(common.N("active")),
+			[]ecc.PublicKey{b.getPublicKey(common.N("testapi"), "active")},
+		}
+		load, _ := rlp.EncodeToBytes(checkAuth)
+		callTestF2(t, b, &testApiAction{wasmTestAction("test_permission", "check_authorization")}, load, []common.AccountName{common.AccountName(common.N("testapi"))})
+		assert.Equal(t, uint64(1), getResultInt64())
 
-		result := fmt.Sprintf("%v", applyContext.PendingConsoleOutput)
-		assert.Equal(t, result, "walker has authorization,walker is account")
+		publicKey, _ := ecc.NewPublicKey("EOS7GfRtyDWWgxV88a5TRaYY59XmHptyfjsFmHHfioGNJtPjpSmGX")
+		checkAuth = check_auth{
+			common.AccountName(common.N("testapi")),
+			common.PermissionName(common.N("active")),
+			[]ecc.PublicKey{publicKey},
+		}
+		load, _ = rlp.EncodeToBytes(checkAuth)
+		callTestF2(t, b, &testApiAction{wasmTestAction("test_permission", "check_authorization")}, load, []common.AccountName{common.AccountName(common.N("testapi"))})
+		assert.Equal(t, uint64(0), getResultInt64())
+
+		checkAuth = check_auth{
+			common.AccountName(common.N("testapi")),
+			common.PermissionName(common.N("active")),
+			[]ecc.PublicKey{b.getPublicKey(common.N("testapi"), "active"), publicKey},
+		}
+		load, _ = rlp.EncodeToBytes(checkAuth)
+		callTestF2(t, b, &testApiAction{wasmTestAction("test_permission", "check_authorization")}, load, []common.AccountName{common.AccountName(common.N("testapi"))})
+		assert.Equal(t, uint64(0), getResultInt64())
+
+		checkAuth = check_auth{
+			common.AccountName(common.N("noname")),
+			common.PermissionName(common.N("active")),
+			[]ecc.PublicKey{b.getPublicKey(common.N("testapi"), "active")},
+		}
+		load, _ = rlp.EncodeToBytes(checkAuth)
+		callTestF2(t, b, &testApiAction{wasmTestAction("test_permission", "check_authorization")}, load, []common.AccountName{common.AccountName(common.N("testapi"))})
+		assert.Equal(t, uint64(0), getResultInt64())
+
+		checkAuth = check_auth{
+			common.AccountName(common.N("testapi")),
+			common.PermissionName(common.N("active")),
+			[]ecc.PublicKey{},
+		}
+		load, _ = rlp.EncodeToBytes(checkAuth)
+		callTestF2(t, b, &testApiAction{wasmTestAction("test_permission", "check_authorization")}, load, []common.AccountName{common.AccountName(common.N("testapi"))})
+		assert.Equal(t, uint64(0), getResultInt64())
+
+		checkAuth = check_auth{
+			common.AccountName(common.N("testapi")),
+			common.PermissionName(common.N("noname")),
+			[]ecc.PublicKey{b.getPublicKey(common.N("testapi"), "active")},
+		}
+		load, _ = rlp.EncodeToBytes(checkAuth)
+		callTestF2(t, b, &testApiAction{wasmTestAction("test_permission", "check_authorization")}, load, []common.AccountName{common.AccountName(common.N("testapi"))})
+		assert.Equal(t, uint64(0), getResultInt64())
+
+		b.close()
 
 	})
-
 }
 
 func TestCrypto(t *testing.T) {
@@ -724,8 +793,8 @@ func TestCrypto(t *testing.T) {
 		b.ProduceBlocks(1, false)
 
 		digest := trx.Transaction.SigDigest(&chainId, []common.HexBytes{})
-		//load, _ := rlp.EncodeToBytes(digest)
-		load := digest
+		load, _ := rlp.EncodeToBytes(digest)
+		//load := digest
 		//fmt.Println("digest:", hex.EncodeToString(load))
 		//fmt.Println("digest:", load)
 
@@ -812,30 +881,6 @@ func TestFixedPoint(t *testing.T) {
 
 	})
 }
-
-// func TestContextFixedPoint(t *testing.T) {
-
-// 	name := "testdata_context/test_api.wasm"
-// 	t.Run(filepath.Base(name), func(t *testing.T) {
-// 		code, err := ioutil.ReadFile(name)
-// 		if err != nil {
-// 			t.Fatal(err)
-// 		}
-// 		control := startBlock()
-// 		createNewAccount(control, "testapi")
-
-// 		callTestFunction(control, code, "test_fixedpoint", "create_instances", []byte{}, "testapi")
-// 		callTestFunction(control, code, "test_fixedpoint", "test_addition", []byte{}, "testapi")
-// 		callTestFunction(control, code, "test_fixedpoint", "test_subtraction", []byte{}, "testapi")
-// 		callTestFunction(control, code, "test_fixedpoint", "test_multiplication", []byte{}, "testapi")
-// 		callTestFunction(control, code, "test_fixedpoint", "test_division", []byte{}, "testapi")
-// 		callTestFunctionCheckException(control, code, "test_fixedpoint", "test_division_by_0", []byte{}, "testapi",
-// 			exception.EosioAssertMessageException{}.Code(), exception.EosioAssertMessageException{}.What())
-
-// 		stopBlock(control)
-
-// 	})
-// }
 
 func callTestException(control *chain.Controller, cls string, method string, payload []byte, authorizer string, billedCpuTimeUs uint32, max_cpu_usage_ms int64, errCode exception.ExcTypes, errMsg string) bool {
 

@@ -1,9 +1,9 @@
 package common
 
 import (
-		"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/assert"
 	"testing"
-	)
+)
 
 func TestEmpty(t *testing.T) {
 	type Action struct {
@@ -39,11 +39,11 @@ func TestEmpty(t *testing.T) {
 }
 
 type Data struct {
-	a string
-	b []string
-	c []interface{}
-	d map[string]interface{}
-	e chan interface{}
+	a     string
+	b     []string
+	c     []interface{}
+	d     map[string]interface{}
+	e     chan interface{}
 	child ChildData
 }
 
@@ -67,18 +67,6 @@ func (d *ChildData) IsEmpty() bool {
 
 var d = Data{}
 
-func BenchmarkEmpty(b *testing.B) {
-	for i:=0; i<b.N; i++ {
-		if Empty(d) {}
-	}
-}
-
-func BenchmarkEmpty2(b *testing.B) {
-	for i:=0; i<b.N; i++ {
-		if empty(d) {}
-	}
-}
-
 func Test_empty(t *testing.T) {
 	assert.Equal(t, true, empty(uint8(0)))
 	assert.Equal(t, true, empty(uint32(0)))
@@ -88,4 +76,19 @@ func Test_empty(t *testing.T) {
 	assert.Equal(t, true, empty(int(0)))
 	assert.Equal(t, true, empty(false))
 }
+
+func BenchmarkEmpty(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		if Empty(d) {
+		}
+	}
+}
+
+func BenchmarkEmpty2(b *testing.B) {
+	for i := 0; i < b.N; i++ {
+		if empty(d) {
+		}
+	}
+}
+
 
