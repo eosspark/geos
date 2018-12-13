@@ -742,6 +742,10 @@ func (t BaseTester) FindTable(code common.Name, scope common.Name, table common.
 	return &tId
 }
 
+func (t BaseTester) Success() ActionResult {
+	return "success"
+}
+
 type ValidatingTester struct {
 	BaseTester
 	ValidatingControl                 *Controller
