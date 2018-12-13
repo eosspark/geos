@@ -697,7 +697,8 @@ func TestPermission(t *testing.T) {
 			try.EosAssert(!idx.CompareEnd(itr) && objLowerbound.TId == tab.ID, &exception.AssertException{}, "lower_bound failed")
 			try.EosAssert(len(objLowerbound.Value) > 0, &exception.AssertException{}, "unexpected result size")
 
-			ret, err := strconv.ParseUint(string(objLowerbound.Value), 10, 64)
+			var ret uint64
+			rlp.DecodeBytes(objLowerbound.Value, &ret)
 			return ret
 		}
 
