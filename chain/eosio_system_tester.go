@@ -176,14 +176,14 @@ func (e EosioSystemTester) CreateAccountWithResources(name common.AccountName, c
 	return e.PushTransaction(&trx, common.MaxTimePoint(), e.DefaultBilledCpuTimeUs)
 }
 
-func (e EosioSystemTester) BuyRamBytes(payer *common.AccountName, receiver common.AccountName, numBytes uint32) ActionResult {
+func (e EosioSystemTester) BuyRamBytes(payer common.AccountName, receiver common.AccountName, numBytes uint32) ActionResult {
 	buyRamBytes := VariantsObject{
 		"payer":    payer,
 		"receiver": receiver,
 		"bytes":    numBytes,
 	}
 	act := common.N("buyrambytes")
-	return e.EsPushAction(payer, &act, &buyRamBytes, true)
+	return e.EsPushAction(&payer, &act, &buyRamBytes, true)
 }
 
 func (e EosioSystemTester) EsPushAction(signer *common.AccountName, name *common.ActionName, data *VariantsObject, auth bool) ActionResult {
@@ -201,6 +201,18 @@ func (e EosioSystemTester) EsPushAction(signer *common.AccountName, name *common
 	return e.PushAction(act, common.AccountName(authorizer))
 }
 
+func (e EosioSystemTester) Stake(from common.AccountName, to common.AccountName, net common.Asset, cpu common.Asset) ActionResult {
+	stake := VariantsObject{
+		"from":               from,
+		"receiver":           to,
+		"stake_net_quantity": net,
+		"stake_cpu_quantity": cpu,
+		"transfer":           0,
+	}
+	act := common.N("delegatebw")
+	return e.EsPushAction(&from, &act, &stake, true)
+}
+
 func (e EosioSystemTester) GetBalance(act common.AccountName) common.Asset {
 	a := common.AccountName(5462355)
 	data := e.GetRowByAccount(uint64(common.N("eosio.token")), uint64(act), uint64(common.N("accounts")),&a)
@@ -210,6 +222,28 @@ func (e EosioSystemTester) GetBalance(act common.AccountName) common.Asset {
 		asset := common.Asset{}
 		rlp.DecodeBytes(data, &asset)
 		return asset
+	}
+}
+
+func (e EosioSystemTester) GetTotalStake(act common.AccountName) VariantsObject {
+	type userResources struct {
+		owner     common.AccountName
+		netWeight common.Asset
+		cpuWeight common.Asset
+		ramBytes  int64
+	}
+	data := e.GetRowByAccount(uint64(common.N("eosio")), uint64(act), uint64(common.N("userres")), &act)
+	if len(data) == 0 {
+		return VariantsObject{}
+	} else {
+		res := userResources{}
+		rlp.DecodeBytes(data, &res)
+		return VariantsObject{
+			"owner":      res.owner,
+			"net_weight": res.netWeight,
+			"cpu_weight": res.cpuWeight,
+			"ram_bytes":  res.ramBytes,
+		}
 	}
 }
 
