@@ -5,7 +5,7 @@ import (
 	"github.com/eosspark/eos-go/common"
 )
 
-type NextFunction = func(interface{})
+type NextFunction = func(common.StaticVariant)
 
 type ChannelsType int
 

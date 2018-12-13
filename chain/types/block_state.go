@@ -2,6 +2,9 @@ package types
 
 import (
 	"bytes"
+	"github.com/eosspark/eos-go/common"
+	"github.com/eosspark/eos-go/crypto"
+	"reflect"
 )
 
 type BlockState struct {
@@ -44,42 +47,33 @@ func (b *BlockState) ElementObject() {
 
 }
 
-func CompareBlockId(first *BlockState, second *BlockState) int {
-	/*fir := first.(*BlockState)
-	sec := second.(*BlockState)*/
-	result := bytes.Compare(first.BlockId.Bytes(), second.BlockId.Bytes())
-	return result
+//for treeset
+var BlockIdTypes = reflect.TypeOf(common.BlockIdType(*crypto.NewSha256Nil()))
+
+func CompareBlockId(first interface{}, second interface{}) int {
+	return bytes.Compare(first.(*BlockState).BlockId.Bytes(), second.(*BlockState).BlockId.Bytes())
 }
 
-func ComparePrev(first *BlockState, second *BlockState) int {
-	/*fir := first.(*BlockState)
-	sec := second.(*BlockState)*/
-
-	if first.BlockNum == second.BlockNum {
-		return 0
-	} else if first.BlockNum < second.BlockNum {
-		return -1
-	} else {
-		return 1
-	}
-
+func ComparePrev(first interface{}, second interface{}) int {
+	return bytes.Compare(first.(*BlockState).BlockId.Bytes(), second.(*BlockState).BlockId.Bytes())
 }
 
-func CompareBlockNum(first *BlockState, second *BlockState) int {
-	/*fir := first.(*BlockState)
-	sec := second.(*BlockState)*/
-	if first.InCurrentChain /* && sec.InCurrentChain*/ {
-		if first.BlockNum == second.BlockNum {
+//for treeset
+var BlockNumType = reflect.TypeOf(uint32(0))
+
+func CompareBlockNum(first interface{}, second interface{}) int {
+	if first.(*BlockState).InCurrentChain {
+		if first.(*BlockState).BlockNum == second.(*BlockState).BlockNum {
 			return 0
-		} else if first.BlockNum < second.BlockNum {
+		} else if first.(*BlockState).BlockNum < second.(*BlockState).BlockNum {
 			return -1
 		} else {
 			return 1
 		}
 	} else {
-		if ^first.BlockNum+1 == second.BlockNum {
+		if ^first.(*BlockState).BlockNum+1 == second.(*BlockState).BlockNum {
 			return 0
-		} else if ^first.BlockNum+1 < second.BlockNum {
+		} else if ^first.(*BlockState).BlockNum+1 < second.(*BlockState).BlockNum {
 			return -1
 		} else {
 			return 1
@@ -87,15 +81,15 @@ func CompareBlockNum(first *BlockState, second *BlockState) int {
 	}
 }
 
-func CompareLibNum(first *BlockState, second *BlockState) int {
+func CompareLibNum(first interface{}, second interface{}) int {
 	//by_lib_block_num
-	if first.DposIrreversibleBlocknum == second.DposIrreversibleBlocknum &&
-		first.BftIrreversibleBlocknum == second.BftIrreversibleBlocknum &&
-		first.BlockNum == second.BlockNum {
+	if first.(*BlockState).DposIrreversibleBlocknum == second.(*BlockState).DposIrreversibleBlocknum &&
+		first.(*BlockState).BftIrreversibleBlocknum == second.(*BlockState).BftIrreversibleBlocknum &&
+		first.(*BlockState).BlockNum == second.(*BlockState).BlockNum {
 		return 0
-	} else if first.DposIrreversibleBlocknum > second.DposIrreversibleBlocknum ||
-		first.BftIrreversibleBlocknum > second.BftIrreversibleBlocknum ||
-		first.BlockNum > second.BlockNum {
+	} else if first.(*BlockState).DposIrreversibleBlocknum > second.(*BlockState).DposIrreversibleBlocknum ||
+		first.(*BlockState).BftIrreversibleBlocknum > second.(*BlockState).BftIrreversibleBlocknum ||
+		first.(*BlockState).BlockNum > second.(*BlockState).BlockNum {
 		return -1
 	} else {
 		return 1

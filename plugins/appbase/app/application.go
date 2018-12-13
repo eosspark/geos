@@ -40,7 +40,7 @@ type Application struct {
 func newApplication() *Application {
 	iosv := asio.NewIoContext()
 	appImpl := &ApplicationImpl{
-		Version,
+		0x0,
 		cli.NewApp(),
 		"data-dir",
 		"config-dir",
@@ -267,6 +267,10 @@ func (app *Application) GetVersion() uint64 {
 
 func (app *Application) SetVersion(version uint64) {
 	app.my.version = version
+}
+
+func (app *Application) VersionString() string {
+	return AppbaseVersionString
 }
 
 func (app *Application) SetDefaultConfigDir() {

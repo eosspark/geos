@@ -1,6 +1,8 @@
 package chain
 
 import (
+	"fmt"
+	"github.com/eosspark/container/sets/treeset"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto/rlp"
@@ -9,6 +11,7 @@ import (
 	"github.com/eosspark/eos-go/log"
 	"io/ioutil"
 	"os"
+	"reflect"
 )
 
 type ForkDatabase struct {
@@ -19,9 +22,9 @@ type ForkDatabase struct {
 }
 
 func GetForkDbInstance(stateDir string) *ForkDatabase {
-
-	forkDB, err := newForkDatabase(stateDir, common.DefaultConfig.ForkDbName, true)
-	try.EosAssert(err == nil, &exception.ForkDatabaseException{}, "%s", err)
+	forkDB := &ForkDatabase{MultiIndexFork: newMultiIndexFork()}
+	//forkDB, err := newForkDatabase(stateDir, common.DefaultConfig.ForkDbName, true)
+	//try.EosAssert(err == nil, &exception.ForkDatabaseException{}, "%s", err)
 	return forkDB
 }
 
@@ -40,10 +43,41 @@ func newForkDatabase(stateDir string, fileName string, rw bool) (*ForkDatabase, 
 
 	b, err := ioutil.ReadAll(fStream)
 	try.EosAssert(err == nil, &exception.ForkDatabaseException{}, "%s", err)
+
+	fmt.Println("raw data from file :   ", b, string(b))
 	if len(b) > 0 {
 		mif := &MultiIndexFork{}
-		rlp.DecodeBytes(b, mif)
+		mif.Indexs = make(map[string]*IndexFork)
+		index := &IndexFork{Target: "byBlockId", Uniqueness: true}
+		index2 := &IndexFork{Target: "byPrev", Uniqueness: false}
+		index3 := &IndexFork{Target: "byBlockNum", Uniqueness: false}
+		index4 := &IndexFork{Target: "byLibBlockNum", Uniqueness: false}
+		mif.Indexs["byBlockId"] = index
+		mif.Indexs["byPrev"] = index2
+		mif.Indexs["byBlockNum"] = index3
+		mif.Indexs["byLibBlockNum"] = index4
+		bt := treeset.NewMultiWith(types.BlockIdTypes, types.CompareBlockId)
+		index.Value = bt
+		mif.Indexs[index.Target] = index
+		bt2 := treeset.NewMultiWith(types.BlockIdTypes, types.ComparePrev)
+		index2.Value = bt2
+		mif.Indexs[index2.Target] = index2
+		bt3 := treeset.NewMultiWith(types.BlockNumType, types.CompareBlockNum)
+		index3.Value = bt3
+		mif.Indexs[index3.Target] = index3
+		bt4 := treeset.NewMultiWith(types.BlockNumType, types.CompareLibNum)
+		index4.Value = bt4
+		mif.Indexs[index4.Target] = index4
+		fmt.Println("forkDatabase:", len(mif.Indexs), mif.Indexs)
+		fmt.Println("value:  ", reflect.TypeOf(mif.Indexs["byBlockId"].Value).String())
+
+		fmt.Println("78:  ", index.Value.ValueType.String())
+
+		err := rlp.DecodeBytes(b, mif)
+		fmt.Println("forkDatabase error:", err)
+		fmt.Println("forkDatabase2:", len(mif.Indexs), mif.Indexs)
 		fk.MultiIndexFork = mif
+
 	}
 
 	fk.fileStream = fStream
@@ -85,9 +119,13 @@ func (f *ForkDatabase) AddBlockState(b *types.BlockState) *types.BlockState {
 		}
 		f.Head = result
 		lib := f.Head.DposIrreversibleBlocknum
-		oldest, err := f.MultiIndexFork.GetIndex("byLibBlockNum").Begin()
-		if oldest.BlockNum < lib {
-			f.Prune(oldest)
+		mItr := f.MultiIndexFork.GetIndex("byLibBlockNum").Value.Iterator()
+		if mItr.Next() {
+			itrVal := mItr.Value()
+			oldest := itrVal.(*types.BlockState)
+			if oldest.BlockNum < lib {
+				f.Prune(oldest)
+			}
 		}
 	} else {
 		try.EosAssert(idx != nil, &exception.ForkDatabaseException{}, "ForkDatabase AddBlockState MultiIndexFork Begin is not found!")
@@ -199,32 +237,27 @@ func (f *ForkDatabase) MarkInCurrentChain(h *types.BlockState, inCurrentChain bo
 }
 
 func (f *ForkDatabase) Prune(h *types.BlockState) {
-
 	num := h.BlockNum
 	idx := f.MultiIndexFork.GetIndex("byBlockNum")
-	bni, err := idx.Begin()
-	if err != nil {
-		log.Error("ForkDatabase Prune MultiIndexFork Begin is error:%#v", err.Error())
+	//bni, err := idx.Begin()
+	byBn := idx.Value.Iterator()
+
+	for !byBn.Last() && byBn.Next() && byBn.Value().(*types.BlockState).BlockNum < num {
+		f.Prune(byBn.Value().(*types.BlockState))
+		byBn.Begin()
 	}
-	for bni != nil && bni.BlockNum < num {
-		f.Prune(bni)
-		bni, _ = idx.Begin()
-	}
-	p := f.MultiIndexFork.find(h.BlockId)
-	if p != nil {
+	obj := f.MultiIndexFork.find(h.BlockId)
+	if obj != nil {
 		//irreversible(*itr) TODO channel
-		f.MultiIndexFork.erase(p)
+		f.MultiIndexFork.erase(obj)
 	}
 	numidx := f.MultiIndexFork.GetIndex("byBlockNum")
-	obj, sub := numidx.Value.LowerBound(h)
-	if sub >= 0 {
-		//obj := val.(*types.BlockState)
-		for obj.BlockNum == num {
-
-			f.Remove(&obj.BlockId)
-		}
+	mItr := numidx.Value.LowerBound(h)
+	for !mItr.Last() && mItr.Value().(*types.BlockState).BlockNum == num {
+		obj := mItr.Value().(*types.BlockState)
+		mItr.Next()
+		f.Remove(&obj.BlockId)
 	}
-
 }
 
 func (f *ForkDatabase) GetBlock(id *common.BlockIdType) *types.BlockState {
@@ -240,12 +273,12 @@ func (f *ForkDatabase) GetBlockInCurrentChainByNum(n uint32) *types.BlockState {
 	b := types.BlockState{}
 	b.BlockNum = n
 	numIdx := f.MultiIndexFork.GetIndex("byBlockNum")
-	obj, _ := numIdx.Value.LowerBound(&b)
+	mItr := numIdx.Value.LowerBound(&b)
 
-	if obj == nil || obj.BlockNum != n || obj.InCurrentChain != true {
+	if mItr == nil || mItr.Value().(*types.BlockState).BlockNum != n || mItr.Value().(*types.BlockState).InCurrentChain != true {
 		return nil
 	}
-	return obj
+	return mItr.Value().(*types.BlockState)
 }
 
 func (f *ForkDatabase) SetBftIrreversible(id common.BlockIdType) {
@@ -266,13 +299,13 @@ func (f *ForkDatabase) SetBftIrreversible(id common.BlockIdType) {
 			pitr := pidx.lowerBound(&b)
 			epitr := pidx.upperBound(&b)
 			try.EosAssert(pitr == nil, &exception.ForkDbBlockNotFound{}, "SetBftIrreversible could not find idx in fork database")
-			for pitr != epitr {
-				if pitr.Value.BftIrreversibleBlocknum < blockNum {
-					pitr.Value.BftIrreversibleBlocknum = blockNum
-					updated = append(updated, pitr.Value.BlockId)
+			for !pitr.Equal(*epitr) {
+				if pitr.Value().(*types.BlockState).BftIrreversibleBlocknum < blockNum {
+					pitr.Value().(*types.BlockState).BftIrreversibleBlocknum = blockNum
+					updated = append(updated, pitr.Value().(*types.BlockState).BlockId)
 				}
-				f.MultiIndexFork.modify(pitr.Value)
-				pitr.next()
+				f.MultiIndexFork.modify(pitr.Value().(*types.BlockState))
+				pitr.Next()
 			}
 		}
 		return updated
@@ -283,7 +316,9 @@ func (f *ForkDatabase) SetBftIrreversible(id common.BlockIdType) {
 
 func (f *ForkDatabase) Close() {
 
-	bts, err := rlp.EncodeToBytes(f.MultiIndexFork)
+	log.Info("ForkDatabase Close tmp code")
+	/*bts, err := rlp.EncodeToBytes(f.MultiIndexFork)
+	fmt.Println("EncodeToBytes :  ",err)
 	fout, err := os.Create(f.ForkDbPath)
 	f.fileStream = fout
 	_, err = f.fileStream.Write(bts)
@@ -291,6 +326,5 @@ func (f *ForkDatabase) Close() {
 	try.EosAssert(err == nil, &exception.ForkDatabaseException{}, "%s", err)
 	if err != nil {
 		log.Error("ForkDatabase Close is error:%s", err)
-
-	}
+	}*/
 }

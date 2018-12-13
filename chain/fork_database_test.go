@@ -3,12 +3,13 @@ package chain
 import (
 	"fmt"
 	"github.com/eosspark/container/maps/treemap"
+	"github.com/eosspark/container/utils"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto/ecc"
+	"github.com/stretchr/testify/assert"
 	"testing"
 	"time"
-	"github.com/eosspark/container/utils"
 )
 
 func initForkDatabase() (*MultiIndexFork, *types.BlockState) {
@@ -30,8 +31,8 @@ func initForkDatabase() (*MultiIndexFork, *types.BlockState) {
 	genHeader.Header.Timestamp = types.BlockTimeStamp(1162425600) //slot of 2018-6-2 00:00:00:000
 	genHeader.BlockId = genHeader.Header.BlockID()
 	genHeader.BlockNum = genHeader.Header.BlockNumber()
-	genHeader.ProducerToLastProduced = *treemap.NewWith(common.TypeName, utils.TypeUInt32, common.CompareName)
-	genHeader.ProducerToLastImpliedIrb = *treemap.NewWith(common.TypeName, utils.TypeUInt32, common.CompareName)
+	genHeader.ProducerToLastProduced = *treemap.NewWith(common.TypeName, utils.TypeUInt64, common.CompareName)
+	genHeader.ProducerToLastImpliedIrb = *treemap.NewWith(common.TypeName, utils.TypeUInt64, common.CompareName)
 	genHeader.BlockSigningKey = initPubKey
 	genHeader.Header.ProducerSignature = *ecc.NewSigNil()
 	blockState := types.NewBlockState(genHeader)
@@ -43,8 +44,8 @@ func initForkDatabase() (*MultiIndexFork, *types.BlockState) {
 	mi := newMultiIndexFork()
 
 	mi.Insert(blockState)
-	fork := GetForkDbInstance("/tmp/data")
-	fork.AddBlockState(blockState)
+	//fork := GetForkDbInstance("/tmp/data")
+	//fork.AddBlockState(blockState)
 	//fmt.Println("%#v",b.BlockNum)
 	//fork.Close()
 	return mi, blockState
@@ -68,9 +69,11 @@ func TestForkDatabase_Close(t *testing.T) {
 	end := time.Now()
 	fmt.Println(end.Sub(start))
 	fork2 := GetForkDbInstance("/tmp/data")
-	fmt.Printf("%#v\n\n\n", fork.MultiIndexFork.Indexs["byLibBlockNum"].Value.Data[0])
-	fmt.Printf("%#v", fork2.MultiIndexFork.Indexs["byLibBlockNum"].Value.Data[0])
-	//assert.Equal(t, fork.MultiIndexFork, fork2.MultiIndexFork)
+	fmt.Println("A:", fork.MultiIndexFork.Indexs["byLibBlockNum"].Value.Size())
+	fmt.Printf("B:%#v\n\n\n", fork.MultiIndexFork.Indexs["byLibBlockNum"].Value)
+	//fmt.Printf("%#v", fork2.MultiIndexFork.Indexs["byLibBlockNum"].Value)
+	fmt.Printf("C:%#v", fork2.MultiIndexFork)
+	assert.Equal(t, fork.MultiIndexFork, fork2.MultiIndexFork)
 }
 
 func TestGetForkDbInstance(t *testing.T) {

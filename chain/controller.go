@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/eosspark/container/maps/treemap"
 	"github.com/eosspark/container/sets/treeset"
+	"github.com/eosspark/container/utils"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto"
@@ -17,7 +18,6 @@ import (
 	"github.com/eosspark/eos-go/log"
 	"github.com/eosspark/eos-go/wasmgo"
 	"os"
-	"github.com/eosspark/container/utils"
 )
 
 //var readycontroller chan bool //TODO test code
@@ -527,7 +527,7 @@ func (c *Controller) pushTransaction(trx *types.TransactionMetadata, deadLine co
 			}
 			trxContext.Delay = common.Microseconds(trx.Trx.DelaySec)
 			checkTime := func() {}
-			set := treeset.NewWith(ecc.TypePubKey, ecc.ComparePubKey)
+			set := treeset.NewWith(types.PermissionLevelType, types.ComparePermissionLevel)
 			if !c.SkipAuthCheck() && !trx.Implicit {
 				c.Authorization.CheckAuthorization(trx.Trx.Actions,
 					trx.RecoverKeys(&c.ChainID),
@@ -599,7 +599,7 @@ func (c *Controller) pushTransaction(trx *types.TransactionMetadata, deadLine co
 func (c *Controller) GetGlobalProperties() *entity.GlobalPropertyObject {
 
 	gpo := entity.GlobalPropertyObject{}
-	gpo.ID = 1
+	gpo.ID = 0
 	if c.GpoCache[gpo.ID] != nil {
 		return c.GpoCache[gpo.ID]
 	}
@@ -612,7 +612,7 @@ func (c *Controller) GetGlobalProperties() *entity.GlobalPropertyObject {
 
 func (c *Controller) GetDynamicGlobalProperties() (r *entity.DynamicGlobalPropertyObject) {
 	dgpo := entity.DynamicGlobalPropertyObject{}
-	dgpo.ID = 1
+	dgpo.ID = 0
 	err := c.DB.Find("id", dgpo, &dgpo)
 	if err != nil {
 		log.Error("GetDynamicGlobalProperties is error detail:%s", err)
@@ -1037,7 +1037,7 @@ func (c *Controller) applyBlock(b *types.SignedBlock, s types.BlockStatus) {
 
 func (c *Controller) CommitBlock(addToForkDb bool) {
 	defer func() {
-		if c.Pending.PendingValid {
+		if c.Pending != nil && c.Pending.PendingValid {
 			c.Pending = c.Pending.Reset()
 		}
 	}()
@@ -1677,7 +1677,7 @@ func (c *Controller) initializeDatabase() {
 		EosAssert(err == nil, &DatabaseException{}, "Controller initializeDatabase is error :%s", err)
 	}
 	dgpo := entity.DynamicGlobalPropertyObject{}
-	dgpo.ID = 1
+	dgpo.ID = 0
 	err = c.DB.Insert(&dgpo)
 	if err != nil {
 		log.Error("Controller initializeDatabase insert DynamicGlobalPropertyObject is error:%s", err)

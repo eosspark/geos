@@ -2,6 +2,7 @@ package chain
 
 import (
 	"errors"
+	"github.com/eosspark/container/sets/treeset"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 )
@@ -14,13 +15,7 @@ type IndexFork struct {
 	Target     string
 	Uniqueness bool
 	Less       bool
-	Value      BucketFork
-}
-
-type IteratorFork struct {
-	CurrentSub int
-	Value      *types.BlockState
-	Idx        *IndexFork
+	Value      *treeset.MultiSet
 }
 
 func newMultiIndexFork() *MultiIndexFork {
@@ -43,12 +38,12 @@ func (m *MultiIndexFork) Insert(b *types.BlockState) bool {
 	index := &IndexFork{}
 	index.Target = "byBlockId"
 	index.Uniqueness = true
-	if m.Indexs[index.Target].Value.Len() > 0 {
-		m.Indexs[index.Target].Value.Insert(b)
+	val := m.Indexs[index.Target].Value
+	if val != nil && val.Size() >= 0 {
+		val.Add(b)
 	} else {
-		bt := BucketFork{}
-		bt.Compare = types.CompareBlockId
-		bt.Insert(b)
+		bt := treeset.NewMultiWith(types.BlockIdTypes, types.CompareBlockId)
+		bt.Add(b)
 		index.Value = bt
 		m.Indexs["byBlockId"] = index
 	}
@@ -58,12 +53,12 @@ func (m *MultiIndexFork) Insert(b *types.BlockState) bool {
 	index2.Uniqueness = false
 	index2.Less = true
 
-	if m.Indexs[index2.Target].Value.Len() > 0 {
-		m.Indexs[index2.Target].Value.Insert(b)
+	if m.Indexs[index2.Target].Value != nil && m.Indexs[index2.Target].Value.Size() > 0 {
+		m.Indexs[index2.Target].Value.Add(b)
 	} else {
-		bt := BucketFork{}
-		bt.Compare = types.ComparePrev
-		bt.Insert(b)
+		bt := treeset.NewMultiWith(types.BlockIdTypes, types.ComparePrev)
+		//bt.Compare = types.ComparePrev
+		bt.Add(b)
 		index2.Value = bt
 		m.Indexs[index2.Target] = index2
 	}
@@ -73,12 +68,12 @@ func (m *MultiIndexFork) Insert(b *types.BlockState) bool {
 	index3.Uniqueness = false
 	index3.Less = true
 
-	if m.Indexs[index3.Target].Value.Len() > 0 {
-		m.Indexs[index3.Target].Value.Insert(b)
+	if m.Indexs[index3.Target].Value != nil && m.Indexs[index3.Target].Value.Size() > 0 {
+		m.Indexs[index3.Target].Value.Add(b)
 	} else {
-		bt := BucketFork{}
-		bt.Compare = types.CompareBlockNum
-		bt.Insert(b)
+		bt := treeset.NewMultiWith(types.BlockNumType, types.CompareBlockNum)
+		//bt.Compare = types.CompareBlockNum
+		bt.Add(b)
 		index3.Value = bt
 		m.Indexs[index3.Target] = index3
 	}
@@ -87,12 +82,12 @@ func (m *MultiIndexFork) Insert(b *types.BlockState) bool {
 	index4.Target = "byLibBlockNum"
 	index4.Uniqueness = false
 	index4.Less = false
-	if m.Indexs[index4.Target].Value.Len() > 0 {
-		m.Indexs[index4.Target].Value.Insert(b)
+	if m.Indexs[index4.Target].Value != nil && m.Indexs[index4.Target].Value.Size() > 0 {
+		m.Indexs[index4.Target].Value.Add(b)
 	} else {
-		bt := BucketFork{}
-		bt.Compare = types.CompareLibNum
-		bt.Insert(b)
+		bt := treeset.NewMultiWith(types.BlockNumType, types.CompareLibNum)
+		//bt.Compare = types.CompareLibNum
+		bt.Add(b)
 		index4.Value = bt
 		m.Indexs[index4.Target] = index4
 	}
@@ -107,55 +102,36 @@ func (m *MultiIndexFork) GetIndex(tag string) *IndexFork {
 	return nil
 }
 
-func (idx *IndexFork) Begin() (*types.BlockState, error) { //syscall.Mmap()
-
-	if idx.Value.Len() > 0 {
-		return idx.Value.Data[0], nil
-	} else {
-		return nil, errors.New("MultiIndexFork Begin : iterator is nil")
+func (idx *IndexFork) Begin() (*types.BlockState, error) {
+	itr := idx.Value.Iterator()
+	if itr.Next() {
+		return itr.Value().(*types.BlockState), nil
 	}
+	return nil, errors.New("MultiIndexFork Begin : iterator is nil")
 }
 
-func (idx *IndexFork) upperBound(b *types.BlockState) *IteratorFork {
-	itr := IteratorFork{}
-	itr.Idx = idx
-	obj, sub := idx.Value.UpperBound(b)
-	if sub >= 0 {
-		itr.Value = obj
-		itr.CurrentSub = sub
-	}
-	return &itr
+func (idx *IndexFork) Iterator() treeset.MultiSetIterator {
+	return idx.Value.Iterator()
 }
 
-func (idx *IndexFork) lowerBound(b *types.BlockState) *IteratorFork {
-	itr := IteratorFork{}
-	itr.Idx = idx
-	obj, sub := idx.Value.LowerBound(b)
-	if sub >= 0 {
-		itr.Value = obj
-		itr.CurrentSub = sub
-	}
-	return &itr
+func (idx *IndexFork) upperBound(b *types.BlockState) *treeset.MultiSetIterator {
+
+	return idx.Value.UpperBound(b)
 }
 
-func (itr *IteratorFork) next() bool {
-	itr.CurrentSub++
-	if itr.CurrentSub < itr.Idx.Value.Len() {
-		itr.Value = itr.Idx.Value.Data[itr.CurrentSub]
-		return true
-	} else {
-		return false
-	}
+func (idx *IndexFork) lowerBound(b *types.BlockState) *treeset.MultiSetIterator {
+
+	return idx.Value.LowerBound(b)
 }
 
 func (m *MultiIndexFork) find(id common.BlockIdType) *types.BlockState {
 	b := types.BlockState{}
 	b.BlockId = id
 	idx := m.Indexs["byBlockId"]
-	bucket := idx.Value
-	exist, sub := bucket.Find(&b)
+	multiSet := idx.Value
+	mItr, exist := multiSet.Get(&b)
 	if exist {
-		return idx.Value.Data[sub]
+		return mItr.Value().(*types.BlockState)
 	} else {
 		return nil
 	}
@@ -165,40 +141,24 @@ func (m *MultiIndexFork) FindByPrev(prev common.BlockIdType) *types.BlockState {
 	b := types.BlockState{}
 	b.Header.Previous = prev
 	idx := m.Indexs["byBlockId"]
-	bucket := idx.Value
-	exist, sub := bucket.Find(&b)
+	multiSet := idx.Value
+	itr, exist := multiSet.Get(&b)
 	if exist {
-		return idx.Value.Data[sub]
+		return itr.Value().(*types.BlockState)
 	} else {
 		return nil
 	}
 }
 
-func (m *MultiIndexFork) erase(b *types.BlockState) bool {
+func (m *MultiIndexFork) erase(b *types.BlockState) {
 	if len(m.Indexs) > 0 {
 		for _, v := range m.Indexs {
-			bt := v.Value
-			ext, _ := bt.Find(b)
-			if ext {
-				v.Value.Eraser(b)
-			}
+			v.Value.Remove(b)
 		}
 	}
-	return true
 }
 
 func (m *MultiIndexFork) modify(b *types.BlockState) {
 	m.erase(b)
 	m.Insert(b)
 }
-
-/*type IteratorFork interface {
-
-	Next() bool
-
-	Prev() bool
-
-	Key() []byte
-
-	Value() []byte
-}*/

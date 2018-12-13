@@ -151,3 +151,29 @@ func (set *MultiSet) String() string {
 	str += strings.Join(items, ", ")
 	return str
 }
+
+func (set *MultiSet) UpperBound(in interface{}) *MultiSetIterator{
+	if set.Size()>0{
+		mItr:=set.Iterator()
+		for mItr.Next(){
+			comp:=set.GetComparator()(in,mItr.Value())
+			if comp == -1{
+				return &mItr
+			}
+		}
+	}
+	return nil
+}
+
+func (set *MultiSet) LowerBound(in interface{}) *MultiSetIterator{
+	if set.Size()>0{
+		mItr:=set.Iterator()
+		for mItr.Next(){
+			comp:=set.GetComparator()(mItr.Value(),in)
+			if comp==0{
+				return &mItr
+			}
+		}
+	}
+	return nil
+}

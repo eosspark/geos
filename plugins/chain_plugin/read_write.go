@@ -2,10 +2,12 @@ package chain_plugin
 
 import (
 	"github.com/eosspark/eos-go/chain"
-	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
-	"github.com/eosspark/eos-go/exception"
+	. "github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
+	. "github.com/eosspark/eos-go/plugins/chain_interface"
+	"github.com/eosspark/eos-go/chain/types"
+	"github.com/eosspark/eos-go/plugins/appbase/app"
 )
 
 type ReadWrite struct {
@@ -21,11 +23,7 @@ func NewReadWrite(db *chain.Controller, abiSerializerMaxTime common.Microseconds
 }
 
 func (rw *ReadWrite) Validate() {
-	EosAssert(rw.db.GetReadMode() != chain.READONLY, &exception.MissingChainApiPluginException{}, "Not allowed, node in read-only mode")
-}
-
-type PushTransactionResult struct {
-	TransactionId common.TransactionIdType
+	EosAssert(rw.db.GetReadMode() != chain.READONLY, &MissingChainApiPluginException{}, "Not allowed, node in read-only mode")
 }
 
 //struct push_transaction_results {
@@ -57,29 +55,52 @@ type PushTransactionResult struct {
 //	//}).CatchAndCall(next).End()
 //
 //}
-func (rw *ReadWrite) PushTransaction(tx *types.PackedTransaction) {
-	//Try(func() {
-	//	app.App().GetMethod(chain_interface.TransactionAsync).CallMethods(tx, true, func(result interface{}) {
-	//		if exception, ok := result.(exception.Exception); ok {
-	//			next(exception)
-	//		} else {
-	//			trxTracePtr := result.(*types.TransactionTrace)
-	//
-	//			Try(func() {
-	//				id := trxTracePtr.ID
-	//				//TODO processed output
-	//				//fc::variant output
-	//				//try {
-	//				//	output = db.to_variant_with_abi( *trx_trace_ptr, abi_serializer_max_time );
-	//				//} catch( chain::abi_exception& ) {
-	//				//	output = *trx_trace_ptr;
-	//				//}
-	//				next(PushTransactionResult{id})
-	//			}).CatchAndCall(next).End()
-	//		}
-	//	})
-	//
-	//}).CatchAndCall(next).End()
+
+type PushTransactionParams = map[string]interface{}
+
+type PushTransactionResult struct {
+	TransactionId common.TransactionIdType
+	Processed     map[string]interface{}
+}
+
+func (rw *ReadWrite) PushTransaction(params PushTransactionParams, next NextFunction) {
+	Try(func() {
+		prettyInput := &types.PackedTransaction{}
+		EosAssert(common.FromVariant(&params, prettyInput) == nil,
+			&TransactionTypeException{}, "Invalid packed transaction")
+
+		app.App().GetMethod(TransactionAsync).CallMethods(prettyInput, true, func(result interface{}) {
+			if exception, ok := result.(Exception); ok {
+				next(exception)
+			} else {
+				trxTracePtr := result.(*types.TransactionTrace)
+
+				Try(func() {
+					id := trxTracePtr.ID
+					//TODO processed output
+					var output common.Variants
+					if err := common.ToVariant(trxTracePtr, &output); err != nil {
+						EosThrow(&ParseErrorException{}, err.Error())
+					}
+
+					//fc::variant output
+					//try {
+					//	output = db.to_variant_with_abi( *trx_trace_ptr, abi_serializer_max_time );
+					//} catch( chain::abi_exception& ) {
+					//	output = *trx_trace_ptr;
+					//}
+					next(PushTransactionResult{id, output})
+
+				}).CatchAndCall(next).End()
+			}
+		})
+
+	}).CatchAndCall(next).End()
+}
+
+type PushBlockParams = types.SignedBlock
+
+func (rw *ReadWrite) PushBlock(params PushBlockParams, next NextFunction) {
 
 }
 
