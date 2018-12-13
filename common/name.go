@@ -11,6 +11,11 @@ import (
 
 // ported from libraries/chain/name.cpp in eosio
 type Name uint64
+type AccountName = Name
+type PermissionName = Name
+type ActionName = Name
+type TableName = Name
+type ScopeName = Name
 
 func (n Name) String() string {
 	return S(uint64(n))

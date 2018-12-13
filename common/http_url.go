@@ -7,8 +7,6 @@ const (
 	// walletUrl = "http://127.0.0.1:8765"
 )
 
-type Variants map[string]interface{}
-
 const (
 	chainFuncBase           string = "/v1/chain"
 	GetInfoFunc             string = chainFuncBase + "/get_info"

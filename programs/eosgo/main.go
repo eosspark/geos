@@ -5,8 +5,7 @@ import (
 	"github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/log"
 	. "github.com/eosspark/eos-go/plugins/appbase/app"
-	. "github.com/eosspark/eos-go/plugins/appbase/app/include"
-	"github.com/eosspark/eos-go/plugins/chain_api_plugin"
+		"github.com/eosspark/eos-go/plugins/chain_api_plugin"
 	"github.com/eosspark/eos-go/plugins/chain_plugin"
 	"github.com/eosspark/eos-go/plugins/http_plugin"
 	"github.com/eosspark/eos-go/plugins/producer_plugin"
@@ -14,7 +13,7 @@ import (
 	"github.com/eosspark/eos-go/plugins/wallet_plugin"
 	"os"
 	"strings"
-)
+	)
 
 const (
 	OTHER_FAIL              = -2
@@ -27,6 +26,8 @@ const (
 	NODE_MANAGEMENT_SUCCESS = 5
 )
 
+const EOSGO_VERSION = 0x0
+
 //go run main.go -e -p eosio --private-key [\"EOS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV\",\"5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3\"] --console
 func main() {
 
@@ -34,7 +35,7 @@ func main() {
 
 	try.Try(func() {
 
-		App().SetVersion(Version)
+		App().SetVersion(EOSGO_VERSION)
 		App().SetDefaultDataDir()
 		App().SetDefaultConfigDir()
 		if !App().Initialize([]PluginTypeName{

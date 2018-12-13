@@ -280,7 +280,7 @@ func (c *Console) Welcome() {
 	//fmt.Fprintln(c.printer)
 
 	fmt.Println("test callContext: ************")
-	var result chain_plugin.InfoResp
+	var result chain_plugin.GetInfoResult
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 	err := c.client.CallContext(ctx, &result, "/v1/chain/get_info", nil)
