@@ -694,7 +694,7 @@ func TestPermission(t *testing.T) {
 			itr, _ := idx.LowerBound(&obj)
 			objLowerbound := entity.KeyValueObject{}
 			itr.Data(&objLowerbound)
-			try.EosAssert(!idx.CompareEnd(itr) && objLowerbound.TId != tab.ID, &exception.AssertException{}, "Table id not found")
+			try.EosAssert(!idx.CompareEnd(itr) && objLowerbound.TId == tab.ID, &exception.AssertException{}, "lower_bound failed")
 			try.EosAssert(len(objLowerbound.Value) > 0, &exception.AssertException{}, "unexpected result size")
 
 			ret, err := strconv.ParseUint(string(objLowerbound.Value), 10, 64)
@@ -987,7 +987,7 @@ func TestChecktimeFail(t *testing.T) {
 	})
 }
 
-func TestContextDatastream(t *testing.T) {
+func TestDatastream(t *testing.T) {
 
 	name := "testdata_context/test_api.wasm"
 	t.Run(filepath.Base(name), func(t *testing.T) {
@@ -995,52 +995,58 @@ func TestContextDatastream(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		control := startBlock()
-		createNewAccount(control, "testapi")
+		b := newBaseTester(true, chain.SPECULATIVE)
+		b.ProduceBlocks(10, false)
+		b.CreateAccounts([]common.AccountName{common.N("testapi")}, false, true)
+		b.ProduceBlocks(10, false)
+		b.SetCode(common.AccountName(common.N("testapi")), code, nil)
+		b.ProduceBlocks(10, false)
 
-		callTestFunction(control, code, "test_datastream", "test_basic", []byte{}, "testapi")
-		stopBlock(control)
+		callTestF2(t, b, &testApiAction{wasmTestAction("test_datastream", "test_basic")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
+
+		b.close()
 
 	})
+
 }
 
-func TestContextCompilerBuiltin(t *testing.T) {
+func TestCompilerBuiltin(t *testing.T) {
 
-	name := "testdata_context/compiler_builtin.wasm"
+	name := "testdata_context/test_api.wasm"
 	t.Run(filepath.Base(name), func(t *testing.T) {
 		code, err := ioutil.ReadFile(name)
 		if err != nil {
 			t.Fatal(err)
 		}
+		b := newBaseTester(true, chain.SPECULATIVE)
+		b.ProduceBlocks(2, false)
+		b.CreateAccounts([]common.AccountName{common.N("testapi")}, false, true)
+		b.ProduceBlocks(10, false)
+		b.SetCode(common.AccountName(common.N("testapi")), code, nil)
+		b.ProduceBlocks(1, false)
 
-		control := startBlock()
-		createNewAccount(control, "testapi")
+		callTestF2(t, b, &testApiAction{wasmTestAction("test_compiler_builtins", "test_multi3")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
+		callTestF2(t, b, &testApiAction{wasmTestAction("test_compiler_builtins", "test_divti3")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
+		ret := callTestFunctionCheckExceptionF2(t, b, &testApiAction{wasmTestAction("test_compiler_builtins", "test_divti3_by_0")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))}, exception.ArithmeticException{}.Code(), "divide by zero")
+		assert.Equal(t, ret, true)
 
-		callTestFunction(control, code, "test_compiler_builtins", "test_ashrti3", []byte{}, "testapi")
-		callTestFunction(control, code, "test_compiler_builtins", "test_ashlti3", []byte{}, "testapi")
-		callTestFunction(control, code, "test_compiler_builtins", "test_lshrti3", []byte{}, "testapi")
-		callTestFunction(control, code, "test_compiler_builtins", "test_lshlti3", []byte{}, "testapi")
+		callTestF2(t, b, &testApiAction{wasmTestAction("test_compiler_builtins", "test_udivti3")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
+		ret = callTestFunctionCheckExceptionF2(t, b, &testApiAction{wasmTestAction("test_compiler_builtins", "test_udivti3_by_0")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))}, exception.ArithmeticException{}.Code(), "divide by zero")
+		assert.Equal(t, ret, true)
 
-		callTestFunction(control, code, "test_compiler_builtins", "test_umodti3", []byte{}, "testapi")
-		callTestFunctionCheckException(control, code, "test_compiler_builtins", "test_umodti3_by_0", []byte{}, "testapi",
-			exception.ArithmeticException{}.Code(), exception.ArithmeticException{}.What())
+		callTestF2(t, b, &testApiAction{wasmTestAction("test_compiler_builtins", "test_modti3")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
+		ret = callTestFunctionCheckExceptionF2(t, b, &testApiAction{wasmTestAction("test_compiler_builtins", "test_modti3_by_0")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))}, exception.ArithmeticException{}.Code(), "divide by zero")
+		assert.Equal(t, ret, true)
 
-		callTestFunction(control, code, "test_compiler_builtins", "test_modti3", []byte{}, "testapi")
-		callTestFunctionCheckException(control, code, "test_compiler_builtins", "test_modti3_by_0", []byte{}, "testapi",
-			exception.ArithmeticException{}.Code(), exception.ArithmeticException{}.What())
+		callTestF2(t, b, &testApiAction{wasmTestAction("test_compiler_builtins", "test_lshlti3")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
+		callTestF2(t, b, &testApiAction{wasmTestAction("test_compiler_builtins", "test_lshrti3")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
+		callTestF2(t, b, &testApiAction{wasmTestAction("test_compiler_builtins", "test_ashlti3")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
+		callTestF2(t, b, &testApiAction{wasmTestAction("test_compiler_builtins", "test_ashrti3")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
 
-		callTestFunction(control, code, "test_compiler_builtins", "test_udivti3", []byte{}, "testapi")
-		callTestFunctionCheckException(control, code, "test_compiler_builtins", "test_udivti3_by_0", []byte{}, "testapi",
-			exception.ArithmeticException{}.Code(), exception.ArithmeticException{}.What())
+		b.close()
 
-		callTestFunction(control, code, "test_compiler_builtins", "test_divti3", []byte{}, "testapi")
-		callTestFunctionCheckException(control, code, "test_compiler_builtins", "test_divti3_by_0", []byte{}, "testapi",
-			exception.ArithmeticException{}.Code(), exception.ArithmeticException{}.What())
-
-		callTestFunction(control, code, "test_compiler_builtins", "test_multi3", []byte{}, "testapi")
-
-		stopBlock(control)
 	})
+
 }
 
 type invalidAccessAction struct {
@@ -1785,12 +1791,11 @@ func callTestExceptionF2(test *testing.T, t *BaseTester, a actionInterface, data
 	try.Try(func() {
 		t.PushTransaction(trx, common.Now()+common.TimePoint(common.Milliseconds(max_cpu_usage_ms)), billedCpuTimeUs)
 	}).Catch(func(e exception.Exception) {
-		if e.Code() == errCode {
+		if e.Code() == errCode || inString(e.What(), errMsg) {
 			fmt.Println(e.String())
-			//ret = true
-			//try.Return()
 			returning = true
 		}
+
 	}).End()
 
 	if returning {
@@ -1834,7 +1839,7 @@ func callTestFunctionCheckExceptionF2(test *testing.T, t *BaseTester, a actionIn
 		t.PushTransaction(trx, common.MaxTimePoint(), t.DefaultBilledCpuTimeUs)
 	}).Catch(func(e exception.Exception) {
 		//fmt.Println(exception.GetDetailMessage(e))
-		if e.Code() == errCode {
+		if e.Code() == errCode || inString(e.What(), errMsg) {
 			//ret = true
 			//try.Return()
 
