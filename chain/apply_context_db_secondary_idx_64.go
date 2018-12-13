@@ -41,7 +41,7 @@ func (i *Idx64) store(scope uint64, table uint64, payer uint64, id uint64, secon
 
 	i.itrCache.cacheTable(tab)
 	iteratorOut := i.itrCache.add(&obj)
-	i.context.ilog.Info("object:%v iteratorOut:%d code:%v scope:%v table:%v payer:%v id:%d secondary:%v",
+	i.context.ilog.Debug("object:%v iteratorOut:%d code:%v scope:%v table:%v payer:%v id:%d secondary:%v",
 		obj, iteratorOut, i.context.Receiver, common.ScopeName(scope), common.TableName(table), common.AccountName(payer), id, *secondary)
 	return iteratorOut
 
@@ -59,7 +59,7 @@ func (i *Idx64) remove(iterator int) {
 		t.Count--
 	})
 
-	i.context.ilog.Info("object:%v iterator:%d ", *obj, iterator)
+	i.context.ilog.Debug("object:%v iterator:%d ", *obj, iterator)
 
 	i.context.DB.Remove(obj)
 	if tab.Count == 0 {
@@ -73,7 +73,7 @@ func (i *Idx64) update(iterator int, payer uint64, secondary *uint64) {
 
 	obj := (i.itrCache.get(iterator)).(*entity.SecondaryObjectI64)
 	objTable := i.itrCache.getTable(obj.TId)
-	i.context.ilog.Info("object:%v iterator:%d payer:%v secondary:%d", *obj, iterator, common.AccountName(payer), *secondary)
+	i.context.ilog.Debug("object:%v iterator:%d payer:%v secondary:%d", *obj, iterator, common.AccountName(payer), *secondary)
 	EosAssert(objTable.Code == i.context.Receiver, &TableAccessViolation{}, "db access violation")
 
 	accountPayer := common.AccountName(payer)
@@ -112,7 +112,7 @@ func (i *Idx64) findSecondary(code uint64, scope uint64, table uint64, secondary
 
 	*primary = obj.PrimaryKey
 	iteratorOut := i.itrCache.add(&obj)
-	i.context.ilog.Info("object:%v iteratorOut:%d code:%v scope:%v table:%v secondary:%d",
+	i.context.ilog.Debug("object:%v iteratorOut:%d code:%v scope:%v table:%v secondary:%d",
 		obj, iteratorOut, common.AccountName(code), common.ScopeName(scope), common.TableName(table), *secondary)
 	return iteratorOut
 }
@@ -126,6 +126,11 @@ func (i *Idx64) lowerbound(code uint64, scope uint64, table uint64, secondary *u
 
 	tableEndItr := i.itrCache.cacheTable(tab)
 
+	//for test
+	if *secondary == 0 {
+		*secondary = 1
+	}
+
 	obj := entity.SecondaryObjectI64{TId: tab.ID, SecondaryKey: *secondary}
 
 	idx, _ := i.context.DB.GetIndex("bySecondary", &obj)
@@ -133,6 +138,8 @@ func (i *Idx64) lowerbound(code uint64, scope uint64, table uint64, secondary *u
 	if idx.CompareEnd(itr) {
 		return tableEndItr
 	}
+
+	i.context.ilog.Debug("secondary:%v", *secondary)
 
 	objLowerbound := entity.SecondaryObjectI64{}
 	itr.Data(&objLowerbound)
@@ -144,8 +151,8 @@ func (i *Idx64) lowerbound(code uint64, scope uint64, table uint64, secondary *u
 	*secondary = objLowerbound.SecondaryKey
 
 	iteratorOut := i.itrCache.add(&objLowerbound)
-	i.context.ilog.Info("object:%v iteratorOut:%d code:%v scope:%v table:%v secondary:%d",
-		objLowerbound, iteratorOut, common.AccountName(code), common.ScopeName(scope), common.TableName(table), secondary)
+	i.context.ilog.Debug("object:%v iteratorOut:%d code:%v scope:%v table:%v secondary:%v",
+		objLowerbound, iteratorOut, common.AccountName(code), common.ScopeName(scope), common.TableName(table), common.AccountName(*secondary))
 	return iteratorOut
 }
 
@@ -176,7 +183,7 @@ func (i *Idx64) upperbound(code uint64, scope uint64, table uint64, secondary *u
 	*secondary = objUpperbound.SecondaryKey
 
 	iteratorOut := i.itrCache.add(&objUpperbound)
-	i.context.ilog.Info("object:%v iteratorOut:%d code:%v scope:%v table:%v secondary:%d",
+	i.context.ilog.Debug("object:%v iteratorOut:%d code:%v scope:%v table:%v secondary:%d",
 		objUpperbound, iteratorOut, common.AccountName(code), common.ScopeName(scope), common.TableName(table), secondary)
 	return iteratorOut
 }
@@ -207,7 +214,7 @@ func (i *Idx64) next(iterator int, primary *uint64) int {
 	objNext := entity.SecondaryObjectI64{}
 	itr.Data(&objNext)
 
-	i.context.ilog.Info("Idx64 objNext:%v", objNext)
+	i.context.ilog.Debug("Idx64 objNext:%v", objNext)
 
 	if idx.CompareEnd(itr) || objNext.TId != obj.TId {
 		return i.itrCache.getEndIteratorByTableID(obj.TId)
@@ -216,7 +223,7 @@ func (i *Idx64) next(iterator int, primary *uint64) int {
 	*primary = objNext.PrimaryKey
 
 	iteratorOut := i.itrCache.add(&objNext)
-	i.context.ilog.Info("object:%v iteratorIn:%d iteratorOut:%d", objNext, iterator, iteratorOut)
+	i.context.ilog.Debug("object:%v iteratorIn:%d iteratorOut:%d", objNext, iterator, iteratorOut)
 	return iteratorOut
 
 }
@@ -262,14 +269,14 @@ func (i *Idx64) previous(iterator int, primary *uint64) int {
 	itr.Prev()
 	objPrev := entity.SecondaryObjectI64{}
 	itr.Data(&objPrev)
-	i.context.ilog.Info("Idx64 objPrev:%v", objPrev)
+	i.context.ilog.Debug("Idx64 objPrev:%v", objPrev)
 	if objPrev.TId != obj.TId {
 		return -1
 	}
 	*primary = objPrev.PrimaryKey
 
 	iteratorOut := i.itrCache.add(&objPrev)
-	i.context.ilog.Info("object:%v iteratorIn:%d iteratorOut:%d", objPrev, iterator, iteratorOut)
+	i.context.ilog.Debug("object:%v secondaryKey:%v iteratorIn:%d iteratorOut:%d", objPrev, common.AccountName(objPrev.SecondaryKey), iterator, iteratorOut)
 	return iteratorOut
 }
 
@@ -291,7 +298,7 @@ func (i *Idx64) findPrimary(code uint64, scope uint64, table uint64, secondary *
 	*secondary = obj.SecondaryKey
 
 	iteratorOut := i.itrCache.add(&obj)
-	i.context.ilog.Info("object:%v iteratorOut:%d code:%v scope:%v table:%v secondary:%d primary:%d ",
+	i.context.ilog.Debug("object:%v iteratorOut:%d code:%v scope:%v table:%v secondary:%d primary:%d ",
 		obj, iteratorOut, common.AccountName(code), common.ScopeName(scope), common.TableName(table), *secondary, primary)
 	return iteratorOut
 }

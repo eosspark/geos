@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/hex"
 	"fmt"
+	"github.com/eosspark/container/sets/treeset"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	arithmetic "github.com/eosspark/eos-go/common/arithmetic_types"
@@ -39,7 +40,7 @@ func readActionData(vm *VM) {
 	}
 
 	copySize := min(bufferSize, s)
-	w.ilog.Debug("action data:0x%v size:%d", data, copySize)
+	w.ilog.Debug("action data:%v size:%d", data, copySize)
 	//w.ilog.Debug("action data right:%d", data, memory+copySize)
 	setMemory(vm, memory, data, 0, copySize)
 
@@ -744,7 +745,7 @@ func assertRecoverKey(vm *VM) {
 	sigBytes := getMemory(vm, sig, siglen)
 	pubBytes := getMemory(vm, pub, publen)
 
-	w.ilog.Debug("d:%#v s:0x%#v p:0x%#v", digBytes, sigBytes, pubBytes)
+	w.ilog.Debug("digest:%v signature:%v publickey:%v", digBytes, sigBytes, pubBytes)
 
 	s := ecc.NewSigNil()
 	p := ecc.NewPublicKeyNil()
@@ -761,6 +762,7 @@ func assertRecoverKey(vm *VM) {
 
 func recoverKey(vm *VM) {
 	//fmt.Println("recover_key")
+	w := vm.WasmGo
 
 	publen := int(vm.popUint64())
 	pub := int(vm.popUint64())
@@ -781,6 +783,8 @@ func recoverKey(vm *VM) {
 		vm.pushInt64(-1)
 		return
 	}
+
+	w.ilog.Debug("digest:%v signature:%v publickey:%v", digBytes, sigBytes, p)
 
 	l := len(p)
 	if l > publen {
@@ -1078,7 +1082,7 @@ func dbPreviousI64(vm *VM) {
 
 	var p uint64
 	iterator := w.context.DbPreviousI64(itr, &p)
-	w.ilog.Info("dbNextI64 iterator:%d", iterator)
+	w.ilog.Debug("dbNextI64 iterator:%d", iterator)
 	if iterator <= -1 {
 		vm.pushUint64(uint64(iterator))
 		w.ilog.Debug("iterator:%d nextIterator:%d", itr, iterator)
@@ -1294,7 +1298,7 @@ func dbIdx64Next(vm *VM) {
 
 	var p uint64
 	iterator := w.context.Idx64Next(itr, &p)
-	w.ilog.Info("dbIdx64Next iterator:%d", iterator)
+	w.ilog.Debug("dbIdx64Next iterator:%d", iterator)
 	if iterator <= -1 {
 		vm.pushUint64(uint64(iterator))
 		w.ilog.Debug("iterator:%d nextIterator:%d", itr, iterator)
@@ -1720,7 +1724,73 @@ func checkTransactionAuthorization(vm *VM) {
 //}
 func checkPermissionAuthorization(vm *VM) {
 	fmt.Println("check_permission_authorization")
-	//return 0
+
+	w := vm.WasmGo
+
+	delayUS := vm.popUint64()
+	permsSize := int(vm.popUint64())
+	permsData := int(vm.popUint64())
+	pubkeysSize := int(vm.popUint64())
+	pubkeysData := int(vm.popUint64())
+	permission := common.PermissionName(vm.popUint64())
+	account := common.AccountName(vm.popUint64())
+
+	pubkeysDataBytes := getMemory(vm, pubkeysData, pubkeysSize)
+	permsDataBytes := getMemory(vm, permsData, permsSize)
+
+	providedKeys := treeset.NewWith(ecc.TypePubKey, ecc.ComparePubKey)
+	providedPermissions := treeset.NewWith(ecc.TypePubKey, ecc.ComparePubKey)
+
+	unpackProvidedKeys(providedKeys, &pubkeysDataBytes)
+	unpackProvidedPermissions(providedPermissions, &permsDataBytes)
+
+	returning := false
+	Try(func() {
+		w.context.CheckAuthorization(account,
+			permission,
+			providedKeys,
+			providedPermissions,
+			delayUS)
+
+	}).Catch(func(e Exception) {
+
+		returning = true
+		vm.pushUint64(1)
+	}).End()
+
+	if returning {
+		return
+	}
+
+	vm.pushUint64(0)
+}
+
+func unpackProvidedKeys(ps *treeset.Set, pubkeysData *[]byte) {
+	if len(*pubkeysData) == 0 {
+		return
+	}
+
+	providedKey := []ecc.PublicKey{}
+	rlp.DecodeBytes(*pubkeysData, &providedKey)
+
+	for _, pk := range providedKey {
+		ps.AddItem(pk)
+	}
+
+}
+
+func unpackProvidedPermissions(ps *treeset.Set, permsData *[]byte) {
+	if len(*permsData) == 0 {
+		return
+	}
+
+	permissions := []types.PermissionLevel{}
+	rlp.DecodeBytes(*permsData, &permissions)
+
+	for _, permission := range permissions {
+		ps.AddItem(permission)
+	}
+
 }
 
 func getPermissionLastUsed(vm *VM) {
@@ -1968,16 +2038,21 @@ func getBlockchainParametersPacked(vm *VM) {
 	p, _ := rlp.EncodeToBytes(configuration)
 	//p := w.context.GetBlockchainParametersPacked()
 	size := len(p)
+	w.ilog.Debug("BlockchainParameters:%v bufferSize:%d size:%d", configuration, bufferSize, size)
+
+	if bufferSize == 0 {
+		vm.pushUint64(uint64(size))
+		return
+	}
 
 	if size <= bufferSize {
 		setMemory(vm, packedBlockchainParameters, p, 0, size)
 		vm.pushUint64(uint64(size))
-		w.ilog.Debug("BlockchainParameters:%v", configuration)
+		//w.ilog.Debug("BlockchainParameters:%v", configuration)
 		return
 	}
-
 	vm.pushUint64(0)
-	w.ilog.Debug("BlockchainParameters:%v bufferSize:%d size:%d", configuration, bufferSize, size)
+
 }
 
 func setBlockchainParametersPacked(vm *VM) {
@@ -1989,7 +2064,7 @@ func setBlockchainParametersPacked(vm *VM) {
 	// getMemory(vm,packedBlockchainParameters, 0, p, datalen)
 	p := getMemory(vm, packedBlockchainParameters, dataLen)
 
-	cfg := common.Config{}
+	cfg := types.ChainConfig{}
 	rlp.DecodeBytes(p, &cfg)
 
 	//w.context.SetBlockchainParametersPacked(p)

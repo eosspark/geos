@@ -59,9 +59,12 @@ func TestTransaction_GetSignatureKeys(t *testing.T) {
 		fmt.Println(err)
 	}
 	trx := packedTrx.GetTransaction()
+
 	chainID := common.ChainIdType(*crypto.NewSha256String("cf057bbfb72640471fd910bcb67639c22df9f92470936cddc1ade0e2f2e7dc4f"))
 	set := trx.GetSignatureKeys(packedTrx.Signatures, &chainID, []common.HexBytes{}, false, true)
-
+	digist := trx.SigDigest(&chainID, nil)
+	bytes, err := rlp.EncodeToBytes(digist)
+	assert.Equal(t, digist.Bytes(), bytes)
 	pub, _ := ecc.NewPublicKey("EOS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV")
 	_, keys := set.Find(func(i int, value interface{}) bool {
 		return set.GetComparator()(value, pub) == 0

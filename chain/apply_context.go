@@ -240,7 +240,7 @@ func (a *ApplyContext) execOne(trace *types.ActionTrace) {
 			native := a.Control.FindApplyHandler(a.Receiver, a.Act.Account, a.Act.Name)
 
 			//a.ilog.Info("receiver:%v account:%v action:%v data:%v", a.Receiver, a.Act.Account, a.Act.Name, a.Act.Data)
-			a.ilog.Info("receiver:%v account:%v action:%v", a.Receiver, a.Act.Account, a.Act.Name)
+			a.ilog.Debug("receiver:%v account:%v action:%v", a.Receiver, a.Act.Account, a.Act.Name)
 
 			if native != nil {
 				if a.TrxContext.CanSubjectivelyFail && a.Control.IsProducingBlock() {
@@ -1121,7 +1121,7 @@ func (a *ApplyContext) GetResourceLimits(
 
 func (a *ApplyContext) SetBlockchainParametersPacked(parameters []byte) {
 
-	cfg := common.Config{}
+	cfg := types.ChainConfig{}
 	rlp.DecodeBytes(parameters, &cfg)
 	g := a.Control.GetGlobalProperties()
 	a.DB.Modify(g, func(gpo *entity.GlobalPropertyObject) {
@@ -1131,7 +1131,7 @@ func (a *ApplyContext) SetBlockchainParametersPacked(parameters []byte) {
 	a.Control.GpoCache[g.ID] = g
 }
 
-func (a *ApplyContext) SetBlockchainParameters(cfg *common.Config) {
+func (a *ApplyContext) SetBlockchainParameters(cfg *types.ChainConfig) {
 
 	//cfg := common.Config{}
 	//rlp.DecodeBytes(parameters, &cfg)
@@ -1143,7 +1143,7 @@ func (a *ApplyContext) SetBlockchainParameters(cfg *common.Config) {
 	a.Control.GpoCache[g.ID] = g
 }
 
-func (a *ApplyContext) GetBlockchainParameters() *common.Config {
+func (a *ApplyContext) GetBlockchainParameters() *types.ChainConfig {
 
 	gpo := a.Control.GetGlobalProperties()
 	return &gpo.Configuration
@@ -1212,3 +1212,20 @@ func (a *ApplyContext) ContextFreeAction() bool {
 //
 //	return a.ilog
 //}
+func (a *ApplyContext) CheckAuthorization(n common.AccountName,
+	permission common.PermissionName,
+	providedKeys *treeset.Set,
+	providedPermissions *treeset.Set,
+	delayUS uint64) {
+
+	function := a.TrxContext.CheckTime
+	am := a.Control.GetAuthorizationManager()
+	am.CheckAuthorization2(n,
+		permission,
+		providedKeys,
+		providedPermissions,
+		common.Microseconds(delayUS),
+		&function,
+		false)
+
+}

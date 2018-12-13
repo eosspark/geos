@@ -60,8 +60,8 @@ type SecondaryObjectI64 struct {
 type SecondaryObjectDouble struct {
 	ID           common.IdType      `multiIndex:"id,increment"`
 	TId          common.IdType      `multiIndex:"byPrimary,orderedUnique,less:bySecondary,orderedUnique,less"`
-	SecondaryKey arithmetic.Float64 `multiIndex:"bySecondary,orderedUnique"`
-	PrimaryKey   uint64             `multiIndex:"byPrimary,orderedUnique"`
+	SecondaryKey arithmetic.Float64 `multiIndex:"bySecondary,orderedUnique,less"`
+	PrimaryKey   uint64             `multiIndex:"byPrimary,orderedUnique,less:bySecondary,orderedUnique,less"`
 	Payer        common.AccountName
 }
 

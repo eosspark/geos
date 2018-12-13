@@ -1,7 +1,6 @@
 package database
 
 import (
-	"fmt"
 	"github.com/eosspark/eos-go/log"
 	"math"
 	"reflect"
@@ -11,6 +10,14 @@ import (
 	"github.com/syndtr/goleveldb/leveldb/filter"
 	"github.com/syndtr/goleveldb/leveldb/opt"
 	"github.com/syndtr/goleveldb/leveldb/util"
+)
+
+type SkipSuffix int
+
+const (
+	_ SkipSuffix = iota
+	SKIP_ONE
+	SKIP_TWO
 )
 
 type LDataBase struct {
@@ -101,8 +108,6 @@ func (ldb *LDataBase) Close() {
 	} else {
 		ldb.log.Info("----------------- database close -----------------")
 	}
-	fmt.Println(ldb.count)
-	//ldb.log.Info("%d",ldb.count)
 }
 
 func (ldb *LDataBase) writeIncrementToDb() error {
@@ -341,7 +346,16 @@ func (ldb *LDataBase) Remove(in interface{}) error {
 }
 
 func (ldb *LDataBase) remove(in interface{}) error {
-	cfg, err := parseObjectToCfg(in)
+	out := cloneInterface(in)
+	err := ldb.find("id",in,out)
+	if err != nil{
+		return ErrNotFound
+	}
+	if !reflect.DeepEqual(in,out){
+		ldb.log.Error("remove DeepEqual error")
+	}
+
+	cfg, err := parseObjectToCfg(out)
 	if err != nil {
 		ldb.log.Error("failed : %s", err.Error())
 		return err
@@ -354,6 +368,7 @@ func (ldb *LDataBase) remove(in interface{}) error {
 	if err != nil{
 		return err
 	}
+
 	dbKV.id = cfg.id_
 	err = ldb.removeKvToDb(dbKV)
 	if err != nil {
@@ -485,11 +500,11 @@ error 				-->		error 	(out invalid)
 
 */
 
-func (ldb *LDataBase) Find(tagName string, in interface{}, out interface{}) error {
-	return ldb.find(tagName, in, out)
+func (ldb *LDataBase) Find(tagName string, in interface{}, out interface{},skip... SkipSuffix) error {
+	return ldb.find(tagName, in, out,skip...)
 }
 
-func (ldb *LDataBase) find(tagName string, value interface{}, to interface{}) error {
+func (ldb *LDataBase) find(tagName string, value interface{}, to interface{},skip... SkipSuffix) error {
 	ldb.log.Info("tagName is: %v", tagName)
 	fieldName := []byte(tagName)
 	fields, err := getFieldInfo(tagName, value)
@@ -500,7 +515,7 @@ func (ldb *LDataBase) find(tagName string, value interface{}, to interface{}) er
 
 	typeName := []byte(fields.typeName)
 
-	suffix,err := fieldValueToByte(fields,true)
+	suffix,err := fieldValueToByte(fields,skip...)
 	if err != nil{
 		ldb.log.Error("failed : %s", err.Error())
 		return err
@@ -516,14 +531,25 @@ func (ldb *LDataBase) find(tagName string, value interface{}, to interface{}) er
 
 	key = append(key, suffix...)
 
-	ldb.log.Info("key is : %v", key)
+	//ldb.log.Info("key is : %v", key)
 	it := ldb.db.NewIterator(util.BytesPrefix(key), nil)
 
-
+	//fmt.Println("ErrorNotFound key is : %v", key)
+	//fmt.Println(it.Key(),"  ",it.Value())
 	if !it.Next() {
 		return ErrNotFound
 	}
 	return ldb.findFields(it.Value(), typeName, to)
+}
+
+func(ldb *LDataBase)getAllKv(key []byte){
+
+	it := ldb.db.NewIterator(nil,nil)
+	for it.Next(){
+		ldb.log.Info("key %v",it.Key(),"  value %v",it.Value())
+	}
+	it.Release()
+	//os.Exit(65536)
 }
 
 func (ldb *LDataBase) findFields(key, typeName []byte, to interface{}) error {
@@ -581,8 +607,8 @@ func (ldb *LDataBase) GetMutableIndex(fieldName string, in interface{}) (*MultiI
 	return ldb.GetIndex(fieldName, in)
 }
 
-func (ldb *LDataBase) lowerBound(begin, end, fieldName []byte, data interface{}) (*DbIterator, error) {
-	key, typeName := ldb.dbPrefix(begin, fieldName, data)
+func (ldb *LDataBase) lowerBound(begin, end, fieldName []byte, data interface{},skip... SkipSuffix) (*DbIterator, error) {
+	key, typeName := ldb.dbPrefix(begin, fieldName, data,skip...)
 	//return ldb.dbIterator(key,begin,end,typeName,false)
 	it := ldb.db.NewIterator(&util.Range{Start: begin, Limit: end}, nil)
 	if !it.Next() {
@@ -604,9 +630,9 @@ func (ldb *LDataBase) lowerBound(begin, end, fieldName []byte, data interface{})
 	return idx, nil
 }
 
-func (ldb *LDataBase) upperBound(begin, end, fieldName []byte, data interface{}) (*DbIterator, error) {
+func (ldb *LDataBase) upperBound(begin, end, fieldName []byte, data interface{},skip... SkipSuffix) (*DbIterator, error) {
 
-	key, typeName := ldb.dbPrefix(begin, fieldName, data)
+	key, typeName := ldb.dbPrefix(begin, fieldName, data,skip...)
 	key = keyEnd(key)
 	return ldb.dbIterator(key,begin, end, typeName,true)
 }
@@ -647,7 +673,7 @@ func (ldb *LDataBase) EndIterator(begin, end, typeName []byte) (*DbIterator, err
 	return nil, ErrNotFound
 }
 
-func (ldb *LDataBase) dbPrefix(begin_, fieldName []byte, data interface{}) ([]byte, []byte) {
+func (ldb *LDataBase) dbPrefix(begin_, fieldName []byte, data interface{},skip... SkipSuffix) ([]byte, []byte) {
 	begin := cloneByte(begin_)
 	ldb.log.Info("begin : %v, end : %v, fieldName: %v", begin, fieldName)
 	fields, err := getFieldInfo(string(fieldName), data)
@@ -657,7 +683,7 @@ func (ldb *LDataBase) dbPrefix(begin_, fieldName []byte, data interface{}) ([]by
 	}
 
 
-	prefix,err := fieldValueToByte(fields,true)
+	prefix,err := fieldValueToByte(fields,skip...)
 	if err != nil{
 		ldb.log.Error("failed %s", err.Error())
 		return nil,nil
@@ -685,7 +711,7 @@ func (ldb *LDataBase) Empty(begin, end, fieldName []byte) bool {
 	return true
 }
 
-func (ldb *LDataBase) IteratorTo(begin, end, fieldName []byte, data interface{}) (*DbIterator, error) {
+func (ldb *LDataBase) IteratorTo(begin, end, fieldName []byte, data interface{},skip... SkipSuffix) (*DbIterator, error) {
 
 	ldb.log.Info("begin : %v, end : %v, fieldName: %v , greater: %t", begin, end, fieldName)
 	fields, err := getFieldInfo(string(fieldName), data)
@@ -693,7 +719,7 @@ func (ldb *LDataBase) IteratorTo(begin, end, fieldName []byte, data interface{})
 		ldb.log.Error("failed %s", err.Error())
 		return nil, err
 	}
-	prefix,err := fieldValueToByte(fields,true)
+	prefix,err := fieldValueToByte(fields,skip...)
 	if err != nil{
 		ldb.log.Error("failed %s", err.Error())
 		return nil,err

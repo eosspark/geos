@@ -18,6 +18,10 @@ import (
 	"math"
 )
 
+var CORE_SYMBOL = common.Symbol{Precision:4,Symbol:"SYS"}
+var CORE_SYMBOL_NAME = "SYS"
+type ActionResult = string
+
 type BaseTester struct {
 	ActionResult           string
 	DefaultExpirationDelta uint32
@@ -35,10 +39,11 @@ func newBaseTester(pushGenesis bool, readMode DBReadMode) *BaseTester {
 	t := &BaseTester{}
 	t.DefaultExpirationDelta = 6
 	t.DefaultBilledCpuTimeUs = 2000
+	t.AbiSerializerMaxTime = 1000*1000
 	t.ChainTransactions = make(map[common.BlockIdType]types.TransactionReceipt)
 	t.LastProducedBlock = make(map[common.AccountName]common.BlockIdType)
 
-	t.init(true, readMode)
+	t.init(pushGenesis, readMode)
 	return t
 }
 
@@ -296,7 +301,7 @@ func (t BaseTester) PushTransaction(trx *types.SignedTransaction, deadline commo
 	return r
 }
 
-func (t BaseTester) PushAction(act *types.Action, authorizer common.AccountName) {
+func (t BaseTester) PushAction(act *types.Action, authorizer common.AccountName) ActionResult {
 	trx := types.SignedTransaction{}
 	if !common.Empty(authorizer) {
 		act.Authorization = []types.PermissionLevel{{authorizer, common.DefaultConfig.ActiveName}}
@@ -316,7 +321,7 @@ func (t BaseTester) PushAction(act *types.Action, authorizer common.AccountName)
 	t.ProduceBlock(common.Microseconds(common.DefaultConfig.BlockIntervalMs), 0)
 	/*BOOST_REQUIRE_EQUAL(true, chain_has_transaction(trx.id()))
 	success()*/
-	return
+	return ""
 }
 
 type VariantsObject map[string]interface{}
@@ -338,13 +343,20 @@ func (t BaseTester) PushAction3(code *common.AccountName, acttype *common.Accoun
 }
 
 func (t BaseTester) PushAction4(code *common.AccountName, acttype *common.AccountName,
-	actors *[]types.PermissionLevel, data *VariantsObject, expiration uint32, delaySec uint32) *types.TransactionTrace {
+	auths *[]types.PermissionLevel, data *VariantsObject, expiration uint32, delaySec uint32) *types.TransactionTrace {
+	trx := types.SignedTransaction{}
 	try.Try(func() {
-		trx := types.SignedTransaction{}
-		action := t.GetAction(*code, *acttype, *actors, data)
+		action := t.GetAction(*code, *acttype, *auths, data)
 		trx.Actions = append(trx.Actions, action)
 	})
-	return nil
+	t.SetTransactionHeaders(&trx.Transaction, expiration, delaySec)
+	chainId := t.Control.GetChainId()
+	key := ecc.PrivateKey{}
+	for _, auth := range *auths {
+		key = t.getPrivateKey(auth.Actor,auth.Permission.String())
+		trx.Sign(&key, &chainId)
+	}
+	return t.PushTransaction(&trx,common.MaxTimePoint(), t.DefaultBilledCpuTimeUs)
 }
 
 func (t BaseTester) GetAction(code common.AccountName, actType common.AccountName,
@@ -581,7 +593,7 @@ func (t BaseTester) SetAbi(account common.AccountName, abiJson []byte, signer *e
 	setAbi := setAbi{Account: account, Abi: abiBytes}
 	data, _ := rlp.EncodeToBytes(setAbi)
 	act := types.Action{
-		Account:       account,
+		Account:       setAbi.getAccount(),
 		Name:          setAbi.getName(),
 		Authorization: []types.PermissionLevel{{account, common.DefaultConfig.ActiveName}},
 		Data:          data,
@@ -616,7 +628,7 @@ func (t BaseTester) GetCurrencyBalance(code *common.AccountName, assetSymbol *co
 	if err != nil {
 		log.Error("GetCurrencyBalance is error: %s", err)
 	} else {
-		obj := entity.KeyValueObject{ID: table.ID, PrimaryKey: uint64(assetSymbol.ToSymbolCode())}
+		obj := entity.KeyValueObject{ID: table.ID, PrimaryKey: uint64(common.N(assetSymbol.Symbol))}
 		err := db.Find("byScopePrimary", obj, &obj)
 		if err != nil {
 			log.Error("GetCurrencyBalance is error: %s", err)
@@ -741,6 +753,7 @@ func newValidatingTester(pushGenesis bool, readMode DBReadMode) *ValidatingTeste
 	vt := &ValidatingTester{}
 	vt.DefaultExpirationDelta = 6
 	vt.DefaultBilledCpuTimeUs = 2000
+	vt.AbiSerializerMaxTime = 1000*1000
 	vt.ChainTransactions = make(map[common.BlockIdType]types.TransactionReceipt)
 	vt.LastProducedBlock = make(map[common.AccountName]common.BlockIdType)
 	vt.VCfg = *newConfig(readMode)
@@ -768,4 +781,9 @@ func (vt ValidatingTester) ProduceEmptyBlock(skipTime common.Microseconds, skipF
 func (vt *ValidatingTester) close() {
 	vt.Control.Close()
 	vt.ChainTransactions = make(map[common.BlockIdType]types.TransactionReceipt)
+}
+
+func CoreFromString(s string) common.Asset {
+	str := s + " " + CORE_SYMBOL_NAME
+	return common.Asset{}.FromString(&str)
 }

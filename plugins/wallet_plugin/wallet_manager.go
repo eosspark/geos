@@ -372,7 +372,7 @@ func (wm *WalletManager) SignTransaction(txn *types.SignedTransaction, keys []ec
 
 		for _, wallet := range wm.Wallets {
 			if !wallet.isLocked() {
-				sig := wallet.trySignDigest(txn.SigDigest(&chainID, txn.ContextFreeData), key)
+				sig := wallet.trySignDigest(txn.SigDigest(&chainID, txn.ContextFreeData).Bytes(), key)
 				wm.log.Error("sig :   %#v", sig)
 				if !common.Empty(sig) {
 					txn.Signatures = append(txn.Signatures, *sig)

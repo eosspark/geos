@@ -5,6 +5,8 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"github.com/eosspark/container/maps/treemap"
+	"github.com/eosspark/container/sets/treeset"
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/exception"
 	"github.com/eosspark/eos-go/exception/try"
@@ -80,15 +82,28 @@ func EncodeSize(val interface{}) (int, error) {
 }
 
 func (e *Encoder) Encode(v interface{}) (err error) {
-	if v == nil {
-		return
-	}
-
 	switch cv := v.(type) {
 	case ecc.PublicKey:
 		return e.WritePublicKey(cv)
 	case ecc.Signature:
 		return e.WriteSignature(cv)
+
+	case treeset.Set:
+		return e.WriteSet(cv)
+	case *treeset.Set:
+
+		return e.WriteSet(*cv)
+	case treemap.Map:
+		return e.WriteMap(cv)
+	case *treemap.Map:
+
+		return e.WriteMap(*cv)
+	case treeset.MultiSet:
+		return e.WriteMultiSet(cv)
+	case *treeset.MultiSet:
+		return e.WriteMultiSet(*cv)
+	case nil:
+		return
 	}
 
 	rv := reflect.Indirect(reflect.ValueOf(v))
@@ -352,4 +367,48 @@ func (e *Encoder) WriteSignature(s ecc.Signature) (err error) {
 	}
 
 	return e.toWriter(s.Content) // should write 65 bytes
+}
+
+func (e *Encoder) WriteSet(t treeset.Set) (err error) {
+	if err = e.WriteUVarInt(t.Size()); err != nil {
+		return
+	}
+
+	t.Each(func(index int, value interface{}) {
+		if err = e.Encode(value); err != nil {
+			panic(err)
+		}
+	})
+	return nil
+}
+
+func (e *Encoder) WriteMap(m treemap.Map) (err error) {
+	if err = e.WriteUVarInt(m.Size()); err != nil {
+		return
+	}
+
+	m.Each(func(key interface{}, value interface{}) {
+		if err = e.Encode(key); err != nil {
+			panic(err)
+		}
+		if err = e.Encode(value); err != nil {
+			panic(err)
+		}
+	})
+
+	return nil
+}
+
+func (e *Encoder) WriteMultiSet(t treeset.MultiSet) (err error) {
+	l := t.Size()
+	if err = e.WriteUVarInt(l); err != nil {
+		return
+	}
+	vals := t.Values()
+	for i := 0; i < int(l); i++ {
+		if err = e.Encode(vals[i]); err != nil {
+			panic(err)
+		}
+	}
+	return nil
 }

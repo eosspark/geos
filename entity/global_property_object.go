@@ -9,7 +9,7 @@ type GlobalPropertyObject struct {
 	ID                       common.IdType `multiIndex:"id,increment"`
 	ProposedScheduleBlockNum uint32
 	ProposedSchedule         types.SharedProducerScheduleType
-	Configuration            common.Config //TODO
+	Configuration            types.ChainConfig
 }
 
 type DynamicGlobalPropertyObject struct {

@@ -7,7 +7,6 @@ package wasmgo_test
 import (
 	"bytes"
 	"crypto/sha256"
-	"encoding/hex"
 	"fmt"
 	"github.com/eosspark/container/sets/treeset"
 	"github.com/eosspark/eos-go/chain"
@@ -160,18 +159,6 @@ func (n *cfAction) getName() common.AccountName {
 type actionInterface interface {
 	getAccount() common.AccountName
 	getName() common.AccountName
-}
-
-func newAction(permissionLevel []types.PermissionLevel, a actionInterface) *types.Action {
-
-	payload, _ := rlp.EncodeToBytes(a)
-	act := types.Action{
-		Account:       common.AccountName(a.getAccount()),
-		Name:          common.AccountName(a.getName()),
-		Data:          payload,
-		Authorization: permissionLevel,
-	}
-	return &act
 }
 
 func newSignedTransaction(control *chain.Controller) *types.SignedTransaction {
@@ -478,7 +465,7 @@ func TestContextAction(t *testing.T) {
 
 }
 
-func TestContextPrint(t *testing.T) {
+func TestPrint(t *testing.T) {
 
 	name := "testdata_context/test_api.wasm"
 	t.Run(filepath.Base(name), func(t *testing.T) {
@@ -487,75 +474,114 @@ func TestContextPrint(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		control := startBlock()
-		createNewAccount(control, "testapi")
+		b := newBaseTester(true, chain.SPECULATIVE)
+		b.ProduceBlocks(2, false)
+		b.CreateAccounts([]common.AccountName{common.N("testapi")}, false, true)
+		b.ProduceBlocks(10, false)
+		b.SetCode(common.AccountName(common.N("testapi")), code, nil)
+		b.ProduceBlocks(10, false)
 
-		result := callTestFunction(control, code, "test_print", "test_prints", []byte{}, "testapi")
-		assert.Equal(t, result, "abcefg")
+		ret := callTestF2(t, b, &testApiAction{wasmTestAction("test_print", "test_prints")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
+		retCnsl := ret.ActionTraces[0].Console
+		assert.Equal(t, retCnsl, "abcefg")
 
-		result = callTestFunction(control, code, "test_print", "test_prints_l", []byte{}, "testapi")
-		assert.Equal(t, result, "abatest")
+		ret = callTestF2(t, b, &testApiAction{wasmTestAction("test_print", "test_prints_l")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
+		retCnsl = ret.ActionTraces[0].Console
+		assert.Equal(t, retCnsl, "abatest")
 
-		result = callTestFunction(control, code, "test_print", "test_printi", []byte{}, "testapi")
-		assert.Equal(t, result[0:1], string(strconv.FormatInt(0, 10)))
-		assert.Equal(t, result[1:7], string(strconv.FormatInt(556644, 10)))
-		assert.Equal(t, result[7:9], string(strconv.FormatInt(-1, 10)))
+		ret = callTestF2(t, b, &testApiAction{wasmTestAction("test_print", "test_printi")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
+		retCnsl = ret.ActionTraces[0].Console
+		assert.Equal(t, retCnsl[0:1], string(strconv.FormatInt(0, 10)))
+		assert.Equal(t, retCnsl[1:7], string(strconv.FormatInt(556644, 10)))
+		assert.Equal(t, retCnsl[7:9], string(strconv.FormatInt(-1, 10)))
 
-		result = callTestFunction(control, code, "test_print", "test_printui", []byte{}, "testapi")
-		assert.Equal(t, result[0:1], string(strconv.FormatInt(0, 10)))
-		assert.Equal(t, result[1:7], string(strconv.FormatInt(556644, 10)))
-
+		ret = callTestF2(t, b, &testApiAction{wasmTestAction("test_print", "test_printui")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
+		retCnsl = ret.ActionTraces[0].Console
+		assert.Equal(t, retCnsl[0:1], string(strconv.FormatInt(0, 10)))
+		assert.Equal(t, retCnsl[1:7], string(strconv.FormatInt(556644, 10)))
 		v := -1
-		assert.Equal(t, result[7:len(result)], string(strconv.FormatUint(uint64(v), 10))) //-1 / 1844674407370955161
+		assert.Equal(t, retCnsl[7:len(retCnsl)], string(strconv.FormatUint(uint64(v), 10))) //-1 / 1844674407370955161
 
-		result = callTestFunction(control, code, "test_print", "test_printn", []byte{}, "testapi")
-		assert.Equal(t, result[0:5], "abcde")
-		assert.Equal(t, result[5:10], "ab.de")
-		assert.Equal(t, result[10:16], "1q1q1q")
-		assert.Equal(t, result[16:27], "abcdefghijk")
-		assert.Equal(t, result[27:39], "abcdefghijkl")
-		assert.Equal(t, result[39:52], "abcdefghijkl1")
-		assert.Equal(t, result[52:65], "abcdefghijkl1")
-		assert.Equal(t, result[65:78], "abcdefghijkl1")
+		ret = callTestF2(t, b, &testApiAction{wasmTestAction("test_print", "test_printn")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
+		retCnsl = ret.ActionTraces[0].Console
+		assert.Equal(t, retCnsl[0:5], "abcde")
+		assert.Equal(t, retCnsl[5:10], "ab.de")
+		assert.Equal(t, retCnsl[10:16], "1q1q1q")
+		assert.Equal(t, retCnsl[16:27], "abcdefghijk")
+		assert.Equal(t, retCnsl[27:39], "abcdefghijkl")
+		assert.Equal(t, retCnsl[39:52], "abcdefghijkl1")
+		assert.Equal(t, retCnsl[52:65], "abcdefghijkl1")
+		assert.Equal(t, retCnsl[65:78], "abcdefghijkl1")
 
-		result = callTestFunction(control, code, "test_print", "test_printi128", []byte{}, "testapi")
-		s := strings.Split(result, "\n")
+		ret = callTestF2(t, b, &testApiAction{wasmTestAction("test_print", "test_printi128")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
+		retCnsl = ret.ActionTraces[0].Console
+		s := strings.Split(retCnsl, "\n")
 		assert.Equal(t, s[0], "1")
 		assert.Equal(t, s[1], "0")
 		assert.Equal(t, s[2], "-170141183460469231731687303715884105728")
 		assert.Equal(t, s[3], "-87654323456")
 
-		result = callTestFunction(control, code, "test_print", "test_printui128", []byte{}, "testapi")
-		s = strings.Split(result, "\n")
+		ret = callTestF2(t, b, &testApiAction{wasmTestAction("test_print", "test_printui128")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
+		retCnsl = ret.ActionTraces[0].Console
+		s = strings.Split(retCnsl, "\n")
 		assert.Equal(t, s[0], "340282366920938463463374607431768211455")
 		assert.Equal(t, s[1], "0")
 		assert.Equal(t, s[2], "87654323456")
 
-		result = callTestFunction(control, code, "test_print", "test_printsf", []byte{}, "testapi")
-		r := strings.Split(result, "\n")
-		assert.Equal(t, r[0], "5.000000e-01")
-		assert.Equal(t, r[1], "-3.750000e+00")
-		assert.Equal(t, r[2], "6.666667e-07")
+		ret = callTestF2(t, b, &testApiAction{wasmTestAction("test_print", "test_printsf")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
+		retCnsl = ret.ActionTraces[0].Console
+		s = strings.Split(retCnsl, "\n")
+		assert.Equal(t, s[0], "5.000000e-01")
+		assert.Equal(t, s[1], "-3.750000e+00")
+		assert.Equal(t, s[2], "6.666667e-07")
 
-		result = callTestFunction(control, code, "test_print", "test_printdf", []byte{}, "testapi")
-		r = strings.Split(result, "\n")
-		assert.Equal(t, r[0], "5.000000000000000e-01")
-		assert.Equal(t, r[1], "-3.750000000000000e+00")
-		assert.Equal(t, r[2], "6.666666666666666e-07")
+		ret = callTestF2(t, b, &testApiAction{wasmTestAction("test_print", "test_printdf")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
+		retCnsl = ret.ActionTraces[0].Console
+		s = strings.Split(retCnsl, "\n")
+		assert.Equal(t, s[0], "5.000000000000000e-01")
+		assert.Equal(t, s[1], "-3.750000000000000e+00")
+		assert.Equal(t, s[2], "6.666666666666666e-07")
 
-		//result = callTestFunction(control, code, "test_print", "test_printqf", []byte{}, "testapi")
-		//r = strings.Split(result, "\n")
-		//assert.Equal(t, r[0], "5.000000000000000000e-01")
-		//assert.Equal(t, r[1], "-3.750000000000000000e+00")
-		//assert.Equal(t, r[2], "6.666666666666666667e-07")
+		//ret = callTestF2(t, b, &testApiAction{wasmTestAction("test_print", "test_printqf")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
+		//retCnsl = ret.ActionTraces[0].Console
+		//s = strings.Split(retCnsl, "\n")
+		//assert.Equal(t, s[0], "5.000000000000000000e-01")
+		//assert.Equal(t, s[1], "-3.750000000000000000e+00")
+		//assert.Equal(t, s[2], "6.666666666666666667e-07")
 
-		stopBlock(control)
+		b.close()
 
 	})
 
 }
 
-func TestContextTypes(t *testing.T) {
+//func TestEosioSystem(t *testing.T) {
+//
+//	name := "testdata_context/eosio.system.wasm"
+//	t.Run(filepath.Base(name), func(t *testing.T) {
+//		code, err := ioutil.ReadFile(name)
+//		if err != nil {
+//			t.Fatal(err)
+//		}
+//
+//		b := newBaseTester(true, chain.SPECULATIVE)
+//		b.ProduceBlocks(2, false)
+//		b.CreateAccounts([]common.AccountName{common.N("testapi")}, false, true)
+//		b.ProduceBlocks(10, false)
+//		b.SetCode(common.AccountName(common.N("testapi")), code, nil)
+//		b.ProduceBlocks(10, false)
+//
+//		ret := callTestF2(t, b, &testApiAction{wasmTestAction("", "set_abi")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
+//		retCnsl := ret.ActionTraces[0].Console
+//		assert.Equal(t, retCnsl, "abcefg")
+//
+//		b.close()
+//
+//	})
+//
+//}
+
+func TestTypes(t *testing.T) {
 
 	name := "testdata_context/test_api.wasm"
 	t.Run(filepath.Base(name), func(t *testing.T) {
@@ -564,15 +590,19 @@ func TestContextTypes(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		control := startBlock()
-		createNewAccount(control, "testapi")
+		b := newBaseTester(true, chain.SPECULATIVE)
+		b.ProduceBlocks(10, false)
+		b.CreateAccounts([]common.AccountName{common.N("testapi")}, false, true)
+		b.ProduceBlocks(10, false)
+		b.SetCode(common.AccountName(common.N("testapi")), code, nil)
+		b.ProduceBlocks(10, false)
 
-		callTestFunction(control, code, "test_types", "types_size", []byte{}, "testapi")
-		callTestFunction(control, code, "test_types", "char_to_symbol", []byte{}, "testapi")
-		callTestFunction(control, code, "test_types", "string_to_name", []byte{}, "testapi")
-		callTestFunction(control, code, "test_types", "name_class", []byte{}, "testapi")
+		callTestF2(t, b, &testApiAction{wasmTestAction("test_types", "types_size")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
+		callTestF2(t, b, &testApiAction{wasmTestAction("test_types", "char_to_symbol")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
+		callTestF2(t, b, &testApiAction{wasmTestAction("test_types", "string_to_name")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
+		callTestF2(t, b, &testApiAction{wasmTestAction("test_types", "name_class")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
 
-		stopBlock(control)
+		b.close()
 
 	})
 
@@ -662,7 +692,7 @@ func TestContextAuth(t *testing.T) {
 
 }
 
-func TestContextCrypto(t *testing.T) {
+func TestCrypto(t *testing.T) {
 
 	name := "testdata_context/test_api.wasm"
 	t.Run(filepath.Base(name), func(t *testing.T) {
@@ -670,56 +700,89 @@ func TestContextCrypto(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		fmt.Println(name)
 
-		wif := "5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3"
-		privKey, err := ecc.NewPrivateKey(wif)
+		b := newBaseTester(true, chain.SPECULATIVE)
+		b.ProduceBlocks(10, false)
+		b.CreateAccounts([]common.AccountName{common.N("testapi")}, false, true)
+		b.ProduceBlocks(10, false)
+		b.SetCode(common.AccountName(common.N("testapi")), code, nil)
+		b.ProduceBlocks(10, false)
 
-		chainID, err := hex.DecodeString("0000000000000000000000000000000000000000000000000000000000000000")
-		payload, err := hex.DecodeString("88e4b25a00006c08ac5b595b000000000000")
-		digest := sigDigest(chainID, payload)
-		sig, err := privKey.Sign(digest)
-		pubKey, err := sig.PublicKey(digest)
+		trx := NewTransaction()
+		//pl := []types.PermissionLevel{
+		//	types.PermissionLevel{common.AccountName(common.N("testapi")), common.PermissionName(common.N("active"))},
+		//}
+		//act := newAction(pl, &testApiAction{wasmTestAction("test_crypto", "test_recover_key")})
 
+		// payload, err := hex.DecodeString("88e4b25a00006c08ac5b595b000000000000")
+		// trx.ContextFreeData = []common.HexBytes{payload}
+
+		privKey := b.getPrivateKey(common.N("testapi"), "active")
+		chainId := b.Control.GetChainId()
+		signatures := trx.Sign(&privKey, &chainId)
+
+		b.ProduceBlocks(1, false)
+
+		digest := trx.Transaction.SigDigest(&chainId, []common.HexBytes{})
+		//load, _ := rlp.EncodeToBytes(digest)
 		load := digest
+		//fmt.Println("digest:", hex.EncodeToString(load))
+		//fmt.Println("digest:", load)
 
-		p, _ := rlp.EncodeToBytes(pubKey)
+		pk := b.getPublicKey(common.N("testapi"), "active")
+		p, _ := rlp.EncodeToBytes(pk)
 		load = append(load, p...)
 
-		s, _ := rlp.EncodeToBytes(sig)
-		load = append(load, s...)
+		//fmt.Println("publickey:", hex.EncodeToString(p))
+		//fmt.Println("publickey:", p)
 
-		fmt.Println("load:", hex.EncodeToString(load))
+		sig, _ := rlp.EncodeToBytes(signatures)
+		load = append(load, sig...)
+		//fmt.Println("sig:", hex.EncodeToString(sig))
+		//fmt.Println("sig:", sig)
 
-		control := startBlock()
-		createNewAccount(control, "testapi")
+		//fmt.Println("load:", hex.EncodeToString(load))
 
-		callTestFunction(control, code, "test_crypto", "test_recover_key", load, "testapi")
-		callTestFunction(control, code, "test_crypto", "test_recover_key_assert_true", load, "testapi")
-		callTestFunction(control, code, "test_crypto", "test_sha1", []byte{}, "testapi")
-		callTestFunction(control, code, "test_crypto", "test_sha256", []byte{}, "testapi")
-		callTestFunction(control, code, "test_crypto", "test_sha512", []byte{}, "testapi")
-		callTestFunction(control, code, "test_crypto", "test_ripemd160", []byte{}, "testapi")
-		callTestFunction(control, code, "test_crypto", "sha1_no_data", []byte{}, "testapi")
-		callTestFunction(control, code, "test_crypto", "sha256_no_data", []byte{}, "testapi")
-		callTestFunction(control, code, "test_crypto", "sha512_no_data", []byte{}, "testapi")
-		callTestFunction(control, code, "test_crypto", "ripemd160_no_data", []byte{}, "testapi")
-		callTestFunction(control, code, "test_crypto", "assert_sha256_true", []byte{}, "testapi")
-		callTestFunction(control, code, "test_crypto", "assert_sha1_true", []byte{}, "testapi")
-		callTestFunction(control, code, "test_crypto", "assert_sha512_true", []byte{}, "testapi")
-		callTestFunction(control, code, "test_crypto", "assert_ripemd160_true", []byte{}, "testapi")
+		callTestF2(t, b, &testApiAction{wasmTestAction("test_crypto", "test_recover_key")}, load, []common.AccountName{common.AccountName(common.N("testapi"))})
+		callTestF2(t, b, &testApiAction{wasmTestAction("test_crypto", "test_recover_key_assert_true")}, load, []common.AccountName{common.AccountName(common.N("testapi"))})
 
-		callTestFunctionCheckException(control, code, "test_crypto", "assert_sha256_false", []byte{}, "testapi", exception.CryptoApiException{}.Code(), exception.CryptoApiException{}.What())
-		callTestFunctionCheckException(control, code, "test_crypto", "assert_sha1_false", []byte{}, "testapi", exception.CryptoApiException{}.Code(), exception.CryptoApiException{}.What())
-		callTestFunctionCheckException(control, code, "test_crypto", "assert_sha512_false", []byte{}, "testapi", exception.CryptoApiException{}.Code(), exception.CryptoApiException{}.What())
-		callTestFunctionCheckException(control, code, "test_crypto", "assert_ripemd160_false", []byte{}, "testapi", exception.CryptoApiException{}.Code(), exception.CryptoApiException{}.What())
+		load[len(load)-1] = 0
+		retException := callTestFunctionCheckExceptionF2(t, b, &testApiAction{wasmTestAction("test_crypto", "test_recover_key_assert_false")}, load, []common.AccountName{common.AccountName(common.N("testapi"))},
+			exception.CryptoApiException{}.Code(), exception.CryptoApiException{}.What())
+		assert.Equal(t, retException, true)
 
-		stopBlock(control)
+		callTestF2(t, b, &testApiAction{wasmTestAction("test_crypto", "test_sha1")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
+		callTestF2(t, b, &testApiAction{wasmTestAction("test_crypto", "test_sha256")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
+		callTestF2(t, b, &testApiAction{wasmTestAction("test_crypto", "test_sha512")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
+		callTestF2(t, b, &testApiAction{wasmTestAction("test_crypto", "test_ripemd160")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
+		callTestF2(t, b, &testApiAction{wasmTestAction("test_crypto", "sha1_no_data")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
+		callTestF2(t, b, &testApiAction{wasmTestAction("test_crypto", "sha256_no_data")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
+		callTestF2(t, b, &testApiAction{wasmTestAction("test_crypto", "sha512_no_data")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
+		callTestF2(t, b, &testApiAction{wasmTestAction("test_crypto", "ripemd160_no_data")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
+		callTestF2(t, b, &testApiAction{wasmTestAction("test_crypto", "assert_sha256_true")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
+		callTestF2(t, b, &testApiAction{wasmTestAction("test_crypto", "assert_sha1_true")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
+		callTestF2(t, b, &testApiAction{wasmTestAction("test_crypto", "assert_sha512_true")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
+		callTestF2(t, b, &testApiAction{wasmTestAction("test_crypto", "assert_ripemd160_true")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
+
+		retException = callTestFunctionCheckExceptionF2(t, b, &testApiAction{wasmTestAction("test_crypto", "assert_sha256_false")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))},
+			exception.CryptoApiException{}.Code(), exception.CryptoApiException{}.What())
+		assert.Equal(t, retException, true)
+		retException = callTestFunctionCheckExceptionF2(t, b, &testApiAction{wasmTestAction("test_crypto", "assert_sha1_false")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))},
+			exception.CryptoApiException{}.Code(), exception.CryptoApiException{}.What())
+		assert.Equal(t, retException, true)
+		retException = callTestFunctionCheckExceptionF2(t, b, &testApiAction{wasmTestAction("test_crypto", "assert_sha512_false")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))},
+			exception.CryptoApiException{}.Code(), exception.CryptoApiException{}.What())
+		assert.Equal(t, retException, true)
+		retException = callTestFunctionCheckExceptionF2(t, b, &testApiAction{wasmTestAction("test_crypto", "assert_ripemd160_false")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))},
+			exception.CryptoApiException{}.Code(), exception.CryptoApiException{}.What())
+		assert.Equal(t, retException, true)
+
+		b.close()
 
 	})
 }
 
-func TestContextFixedPoint(t *testing.T) {
+func TestFixedPoint(t *testing.T) {
 
 	name := "testdata_context/test_api.wasm"
 	t.Run(filepath.Base(name), func(t *testing.T) {
@@ -727,21 +790,52 @@ func TestContextFixedPoint(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		control := startBlock()
-		createNewAccount(control, "testapi")
 
-		callTestFunction(control, code, "test_fixedpoint", "create_instances", []byte{}, "testapi")
-		callTestFunction(control, code, "test_fixedpoint", "test_addition", []byte{}, "testapi")
-		callTestFunction(control, code, "test_fixedpoint", "test_subtraction", []byte{}, "testapi")
-		callTestFunction(control, code, "test_fixedpoint", "test_multiplication", []byte{}, "testapi")
-		callTestFunction(control, code, "test_fixedpoint", "test_division", []byte{}, "testapi")
-		callTestFunctionCheckException(control, code, "test_fixedpoint", "test_division_by_0", []byte{}, "testapi",
+		b := newBaseTester(true, chain.SPECULATIVE)
+		b.ProduceBlocks(2, false)
+		b.CreateAccounts([]common.AccountName{common.N("testapi")}, false, true)
+		b.ProduceBlocks(10, false)
+		b.SetCode(common.AccountName(common.N("testapi")), code, nil)
+		b.ProduceBlocks(10, false)
+
+		callTestF2(t, b, &testApiAction{wasmTestAction("test_fixedpoint", "create_instances")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
+		callTestF2(t, b, &testApiAction{wasmTestAction("test_fixedpoint", "test_addition")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
+		callTestF2(t, b, &testApiAction{wasmTestAction("test_fixedpoint", "test_subtraction")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
+		callTestF2(t, b, &testApiAction{wasmTestAction("test_fixedpoint", "test_multiplication")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
+		callTestF2(t, b, &testApiAction{wasmTestAction("test_fixedpoint", "test_division")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
+
+		retException := callTestFunctionCheckExceptionF2(t, b, &testApiAction{wasmTestAction("test_fixedpoint", "test_division_by_0")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))},
 			exception.EosioAssertMessageException{}.Code(), exception.EosioAssertMessageException{}.What())
+		assert.Equal(t, retException, true)
 
-		stopBlock(control)
+		b.close()
 
 	})
 }
+
+// func TestContextFixedPoint(t *testing.T) {
+
+// 	name := "testdata_context/test_api.wasm"
+// 	t.Run(filepath.Base(name), func(t *testing.T) {
+// 		code, err := ioutil.ReadFile(name)
+// 		if err != nil {
+// 			t.Fatal(err)
+// 		}
+// 		control := startBlock()
+// 		createNewAccount(control, "testapi")
+
+// 		callTestFunction(control, code, "test_fixedpoint", "create_instances", []byte{}, "testapi")
+// 		callTestFunction(control, code, "test_fixedpoint", "test_addition", []byte{}, "testapi")
+// 		callTestFunction(control, code, "test_fixedpoint", "test_subtraction", []byte{}, "testapi")
+// 		callTestFunction(control, code, "test_fixedpoint", "test_multiplication", []byte{}, "testapi")
+// 		callTestFunction(control, code, "test_fixedpoint", "test_division", []byte{}, "testapi")
+// 		callTestFunctionCheckException(control, code, "test_fixedpoint", "test_division_by_0", []byte{}, "testapi",
+// 			exception.EosioAssertMessageException{}.Code(), exception.EosioAssertMessageException{}.What())
+
+// 		stopBlock(control)
+
+// 	})
+// }
 
 func callTestException(control *chain.Controller, cls string, method string, payload []byte, authorizer string, billedCpuTimeUs uint32, max_cpu_usage_ms int64, errCode exception.ExcTypes, errMsg string) bool {
 
@@ -810,38 +904,38 @@ func TestChecktimeFail(t *testing.T) {
 		//b.Control.GetMutableResourceLimitsManager().GetAccountLimits(common.AccountName(common.N("testapi")), &x, &cpu, &net)
 		//fmt.Println("ram:", x, " cpu:", cpu, " net:", net)
 
-		ret := callTestExceptionF2(t, b, &testApiAction{wasmTestAction("test_checktime", "checktime_failure")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))}, 5000, 10, exception.DeadlineException{}.Code(), exception.DeadlineException{}.What())
+		ret := callTestExceptionF2(t, b, &testApiAction{wasmTestAction("test_checktime", "checktime_failure")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))}, 5000, 200, exception.DeadlineException{}.Code(), exception.DeadlineException{}.What())
 		assert.Equal(t, ret, true)
 
 		ret = callTestExceptionF2(t, b, &testApiAction{wasmTestAction("test_checktime", "checktime_failure")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))}, 0, 200, exception.TxCpuUsageExceeded{}.Code(), exception.TxCpuUsageExceeded{}.What())
 		assert.Equal(t, ret, true)
-
-		ret = callTestExceptionF2(t, b, &testApiAction{wasmTestAction("test_checktime", "checktime_failure")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))}, 0, 200, exception.BlockCpuUsageExceeded{}.Code(), exception.BlockCpuUsageExceeded{}.What())
-		assert.Equal(t, ret, true)
-
-		ret = callTestExceptionF2(t, b, &testApiAction{wasmTestAction("test_checktime", "checktime_sha1_failure")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))}, 5000, 10, exception.DeadlineException{}.Code(), exception.DeadlineException{}.What())
-		assert.Equal(t, ret, true)
-
-		ret = callTestExceptionF2(t, b, &testApiAction{wasmTestAction("test_checktime", "checktime_assert_sha1_failure")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))}, 5000, 10, exception.DeadlineException{}.Code(), exception.DeadlineException{}.What())
-		assert.Equal(t, ret, true)
-
-		ret = callTestExceptionF2(t, b, &testApiAction{wasmTestAction("test_checktime", "checktime_sha256_failure")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))}, 5000, 10, exception.DeadlineException{}.Code(), exception.DeadlineException{}.What())
-		assert.Equal(t, ret, true)
-
-		ret = callTestExceptionF2(t, b, &testApiAction{wasmTestAction("test_checktime", "checktime_assert_sha256_failure")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))}, 5000, 10, exception.DeadlineException{}.Code(), exception.DeadlineException{}.What())
-		assert.Equal(t, ret, true)
-
-		ret = callTestExceptionF2(t, b, &testApiAction{wasmTestAction("test_checktime", "checktime_assert_sha512_failure")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))}, 5000, 10, exception.DeadlineException{}.Code(), exception.DeadlineException{}.What())
-		assert.Equal(t, ret, true)
-
-		ret = callTestExceptionF2(t, b, &testApiAction{wasmTestAction("test_checktime", "checktime_ripemd160_failure")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))}, 5000, 10, exception.DeadlineException{}.Code(), exception.DeadlineException{}.What())
-		assert.Equal(t, ret, true)
-
-		ret = callTestExceptionF2(t, b, &testApiAction{wasmTestAction("test_checktime", "checktime_sha1_failure")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))}, 5000, 10, exception.DeadlineException{}.Code(), exception.DeadlineException{}.What())
-		assert.Equal(t, ret, true)
-
-		ret = callTestExceptionF2(t, b, &testApiAction{wasmTestAction("test_checktime", "checktime_assert_ripemd160_failure")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))}, 5000, 10, exception.DeadlineException{}.Code(), exception.DeadlineException{}.What())
-		assert.Equal(t, ret, true)
+		//
+		//ret = callTestExceptionF2(t, b, &testApiAction{wasmTestAction("test_checktime", "checktime_failure")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))}, 0, 200, exception.BlockCpuUsageExceeded{}.Code(), exception.BlockCpuUsageExceeded{}.What())
+		//assert.Equal(t, ret, true)
+		//
+		//ret = callTestExceptionF2(t, b, &testApiAction{wasmTestAction("test_checktime", "checktime_sha1_failure")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))}, 5000, 10, exception.DeadlineException{}.Code(), exception.DeadlineException{}.What())
+		//assert.Equal(t, ret, true)
+		//
+		//ret = callTestExceptionF2(t, b, &testApiAction{wasmTestAction("test_checktime", "checktime_assert_sha1_failure")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))}, 5000, 10, exception.DeadlineException{}.Code(), exception.DeadlineException{}.What())
+		//assert.Equal(t, ret, true)
+		//
+		//ret = callTestExceptionF2(t, b, &testApiAction{wasmTestAction("test_checktime", "checktime_sha256_failure")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))}, 5000, 10, exception.DeadlineException{}.Code(), exception.DeadlineException{}.What())
+		//assert.Equal(t, ret, true)
+		//
+		//ret = callTestExceptionF2(t, b, &testApiAction{wasmTestAction("test_checktime", "checktime_assert_sha256_failure")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))}, 5000, 10, exception.DeadlineException{}.Code(), exception.DeadlineException{}.What())
+		//assert.Equal(t, ret, true)
+		//
+		//ret = callTestExceptionF2(t, b, &testApiAction{wasmTestAction("test_checktime", "checktime_assert_sha512_failure")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))}, 5000, 10, exception.DeadlineException{}.Code(), exception.DeadlineException{}.What())
+		//assert.Equal(t, ret, true)
+		//
+		//ret = callTestExceptionF2(t, b, &testApiAction{wasmTestAction("test_checktime", "checktime_ripemd160_failure")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))}, 5000, 10, exception.DeadlineException{}.Code(), exception.DeadlineException{}.What())
+		//assert.Equal(t, ret, true)
+		//
+		//ret = callTestExceptionF2(t, b, &testApiAction{wasmTestAction("test_checktime", "checktime_sha1_failure")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))}, 5000, 10, exception.DeadlineException{}.Code(), exception.DeadlineException{}.What())
+		//assert.Equal(t, ret, true)
+		//
+		//ret = callTestExceptionF2(t, b, &testApiAction{wasmTestAction("test_checktime", "checktime_assert_ripemd160_failure")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))}, 5000, 10, exception.DeadlineException{}.Code(), exception.DeadlineException{}.What())
+		//assert.Equal(t, ret, true)
 
 		b.close()
 
@@ -911,7 +1005,7 @@ type invalidAccessAction struct {
 	Store bool
 }
 
-func TestContextDB(t *testing.T) {
+func TestDB(t *testing.T) {
 
 	name := "testdata_context/test_api_db.wasm"
 	t.Run(filepath.Base(name), func(t *testing.T) {
@@ -920,82 +1014,119 @@ func TestContextDB(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		control := startBlock()
-		createNewAccount(control, "testapi")
-		createNewAccount(control, "testapi2")
+		b := newBaseTester(true, chain.SPECULATIVE)
+		b.ProduceBlocks(2, false)
+		b.CreateAccounts([]common.AccountName{common.N("testapi")}, false, true)
+		b.CreateAccounts([]common.AccountName{common.N("testapi2")}, false, true)
+		b.ProduceBlocks(10, false)
+		b.SetCode(common.AccountName(common.N("testapi")), code, nil)
+		b.SetCode(common.AccountName(common.N("testapi2")), code, nil)
+		b.ProduceBlocks(1, false)
 
-		callTestFunction(control, code, "test_db", "primary_i64_general", []byte{}, "testapi")
-		callTestFunction(control, code, "test_db", "primary_i64_lowerbound", []byte{}, "testapi")
-		callTestFunction(control, code, "test_db", "primary_i64_upperbound", []byte{}, "testapi")
-		callTestFunction(control, code, "test_db", "idx64_general", []byte{}, "testapi")
-		callTestFunction(control, code, "test_db", "idx64_lowerbound", []byte{}, "testapi")
-		callTestFunction(control, code, "test_db", "idx64_upperbound", []byte{}, "testapi")
+		callTestF2(t, b, &testApiAction{wasmTestAction("test_db", "primary_i64_general")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
+		callTestF2(t, b, &testApiAction{wasmTestAction("test_db", "primary_i64_lowerbound")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
+		callTestF2(t, b, &testApiAction{wasmTestAction("test_db", "primary_i64_upperbound")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
+		callTestF2(t, b, &testApiAction{wasmTestAction("test_db", "idx64_general")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
+		callTestF2(t, b, &testApiAction{wasmTestAction("test_db", "idx64_lowerbound")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
+		callTestF2(t, b, &testApiAction{wasmTestAction("test_db", "idx64_upperbound")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
 
-		action1 := invalidAccessAction{uint64(common.N("testapi")), 10, 0, true}
-		actionData1, _ := rlp.EncodeToBytes(&action1)
-		ret := pushAction(control, code, "test_db", "test_invalid_access", actionData1, "testapi")
+		actionInvalidAccess1 := invalidAccessAction{uint64(common.N("testapi")), 10, 0, true}
+		payload, _ := rlp.EncodeToBytes(&actionInvalidAccess1)
+		act := types.Action{
+			Account:       common.AccountName(common.N("testapi")),
+			Name:          common.AccountName(wasmTestAction("test_db", "test_invalid_access")),
+			Data:          payload,
+			Authorization: []types.PermissionLevel{{common.AccountName(common.N("testapi")), common.PermissionName(common.N("active"))}},
+		}
+		ret := b.PushAction(t, &act, common.AccountName(common.N("testapi")))
 		assert.Equal(t, ret, "")
 
-		action2 := invalidAccessAction{action1.Code, 20, 0, true}
-		actionData2, _ := rlp.EncodeToBytes(&action2)
-		ret = pushAction(control, code, "test_db", "test_invalid_access", actionData2, "testapi2")
-		assert.Equal(t, ret, "db access violation")
+		actionInvalidAccess2 := invalidAccessAction{actionInvalidAccess1.Code, 20, 0, true}
+		payload, _ = rlp.EncodeToBytes(&actionInvalidAccess2)
+		act = types.Action{
+			Account:       common.AccountName(common.N("testapi2")),
+			Name:          common.AccountName(wasmTestAction("test_db", "test_invalid_access")),
+			Data:          payload,
+			Authorization: []types.PermissionLevel{{common.AccountName(common.N("testapi2")), common.PermissionName(common.N("active"))}},
+		}
+		ret = b.PushAction(t, &act, common.AccountName(common.N("testapi2")))
+		assert.Equal(t, inString(ret, "db access violation"), true)
 
-		action1.Store = false
-		actionData3, _ := rlp.EncodeToBytes(&action1)
-		ret = pushAction(control, code, "test_db", "test_invalid_access", actionData3, "testapi")
+		actionInvalidAccess1.Store = false
+		payload, _ = rlp.EncodeToBytes(&actionInvalidAccess1)
+		act = types.Action{
+			Account:       common.AccountName(common.N("testapi")),
+			Name:          common.AccountName(wasmTestAction("test_db", "test_invalid_access")),
+			Data:          payload,
+			Authorization: []types.PermissionLevel{{common.AccountName(common.N("testapi")), common.PermissionName(common.N("active"))}},
+		}
+		ret = b.PushAction(t, &act, common.AccountName(common.N("testapi")))
 		assert.Equal(t, ret, "")
 
-		action1.Store = true
-		action1.Index = 1
-		actionData1, _ = rlp.EncodeToBytes(&action1)
-		ret = pushAction(control, code, "test_db", "test_invalid_access", actionData1, "testapi")
+		actionInvalidAccess1.Store = true
+		actionInvalidAccess1.Index = 1
+		payload, _ = rlp.EncodeToBytes(&actionInvalidAccess1)
+		act = types.Action{
+			Account:       common.AccountName(common.N("testapi")),
+			Name:          common.AccountName(wasmTestAction("test_db", "test_invalid_access")),
+			Data:          payload,
+			Authorization: []types.PermissionLevel{{common.AccountName(common.N("testapi")), common.PermissionName(common.N("active"))}},
+		}
+		ret = b.PushAction(t, &act, common.AccountName(common.N("testapi")))
 		assert.Equal(t, ret, "")
 
-		action2.Index = 1
-		actionData2, _ = rlp.EncodeToBytes(&action2)
-		ret = pushAction(control, code, "test_db", "test_invalid_access", actionData2, "testapi2")
-		assert.Equal(t, ret, "db access violation")
+		actionInvalidAccess2.Index = 1
+		payload, _ = rlp.EncodeToBytes(&actionInvalidAccess2)
+		act = types.Action{
+			Account:       common.AccountName(common.N("testapi2")),
+			Name:          common.AccountName(wasmTestAction("test_db", "test_invalid_access")),
+			Data:          payload,
+			Authorization: []types.PermissionLevel{{common.AccountName(common.N("testapi2")), common.PermissionName(common.N("active"))}},
+		}
+		ret = b.PushAction(t, &act, common.AccountName(common.N("testapi2")))
+		assert.Equal(t, inString(ret, "db access violation"), true)
 
-		action1.Store = false
-		actionData3, _ = rlp.EncodeToBytes(&action1)
-		ret = pushAction(control, code, "test_db", "test_invalid_access", actionData3, "testapi")
+		actionInvalidAccess1.Store = true
+		payload, _ = rlp.EncodeToBytes(&actionInvalidAccess1)
+		act = types.Action{
+			Account:       common.AccountName(common.N("testapi")),
+			Name:          common.AccountName(wasmTestAction("test_db", "test_invalid_access")),
+			Data:          payload,
+			Authorization: []types.PermissionLevel{{common.AccountName(common.N("testapi")), common.PermissionName(common.N("active"))}},
+		}
+		ret = b.PushAction(t, &act, common.AccountName(common.N("testapi")))
 		assert.Equal(t, ret, "")
 
-		retException := callTestFunctionCheckException(control, code, "test_db", "idx_double_nan_create_fail", []byte{}, "testapi",
-			exception.TableAccessViolation{}.Code(), exception.TableAccessViolation{}.What())
+		retException := callTestFunctionCheckExceptionF2(t, b, &testApiAction{wasmTestAction("test_db", "idx_double_nan_create_fail")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))},
+			exception.TransactionException{}.Code(), exception.TransactionException{}.What())
 		assert.Equal(t, retException, true)
 
-		retException = callTestFunctionCheckException(control, code, "test_db", "idx_double_nan_modify_fail", []byte{}, "testapi",
-			exception.TableAccessViolation{}.Code(), exception.TableAccessViolation{}.What())
+		retException = callTestFunctionCheckExceptionF2(t, b, &testApiAction{wasmTestAction("test_db", "idx_double_nan_modify_fail")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))},
+			exception.TransactionException{}.Code(), exception.TransactionException{}.What())
 		assert.Equal(t, retException, true)
 
 		var loopupType uint32 = 0
 		l, _ := rlp.EncodeToBytes(&loopupType)
-		retException = callTestFunctionCheckException(control, code, "test_db", "idx_double_nan_lookup_fail", l, "testapi",
-			exception.TableAccessViolation{}.Code(), exception.TableAccessViolation{}.What())
+		retException = callTestFunctionCheckExceptionF2(t, b, &testApiAction{wasmTestAction("test_db", "idx_double_nan_lookup_fail")}, l, []common.AccountName{common.AccountName(common.N("testapi"))},
+			exception.TransactionException{}.Code(), exception.TransactionException{}.What())
 		assert.Equal(t, retException, true)
 
 		loopupType = 1
-		l, _ = rlp.EncodeToBytes(&loopupType)
-		callTestFunctionCheckException(control, code, "test_db", "idx_double_nan_lookup_fail", l, "testapi",
-			exception.TableAccessViolation{}.Code(), exception.TableAccessViolation{}.What())
+		retException = callTestFunctionCheckExceptionF2(t, b, &testApiAction{wasmTestAction("test_db", "idx_double_nan_lookup_fail")}, l, []common.AccountName{common.AccountName(common.N("testapi"))},
+			exception.TransactionException{}.Code(), exception.TransactionException{}.What())
 		assert.Equal(t, retException, true)
 
 		loopupType = 2
-		l, _ = rlp.EncodeToBytes(&loopupType)
-		retException = callTestFunctionCheckException(control, code, "test_db", "idx_double_nan_lookup_fail", l, "testapi",
-			exception.TableAccessViolation{}.Code(), exception.TableAccessViolation{}.What())
+		retException = callTestFunctionCheckExceptionF2(t, b, &testApiAction{wasmTestAction("test_db", "idx_double_nan_lookup_fail")}, l, []common.AccountName{common.AccountName(common.N("testapi"))},
+			exception.TransactionException{}.Code(), exception.TransactionException{}.What())
 		assert.Equal(t, retException, true)
 
-		//fmt.Println(ret)
-
-		stopBlock(control)
+		b.close()
 
 	})
 }
 
-func TestContextMultiIndex(t *testing.T) {
+func TestMultiIndex(t *testing.T) {
 
 	name := "testdata_context/test_api_multi_index.wasm"
 	t.Run(filepath.Base(name), func(t *testing.T) {
@@ -1004,92 +1135,123 @@ func TestContextMultiIndex(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		control := startBlock()
-		createNewAccount(control, "testapi")
-		createNewAccount(control, "testapi2")
+		b := newBaseTester(true, chain.SPECULATIVE)
+		b.ProduceBlocks(1, false)
+		b.CreateAccounts([]common.AccountName{common.N("testapi")}, false, true)
+		b.ProduceBlocks(1, false)
+		b.SetCode(common.AccountName(common.N("testapi")), code, nil)
+		b.ProduceBlocks(1, false)
 
-		callTestFunction(control, code, "test_multi_index", "idx64_general", []byte{}, "testapi")
-		callTestFunction(control, code, "test_multi_index", "idx64_store_only", []byte{}, "testapi")
-		callTestFunction(control, code, "test_multi_index", "idx64_check_without_storing", []byte{}, "testapi")
+		callTestF2(t, b, &testApiAction{wasmTestAction("test_multi_index", "idx64_general")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
+		callTestF2(t, b, &testApiAction{wasmTestAction("test_multi_index", "idx64_store_only")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
+		callTestF2(t, b, &testApiAction{wasmTestAction("test_multi_index", "idx64_check_without_storing")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
+		callTestF2(t, b, &testApiAction{wasmTestAction("test_multi_index", "idx_double_general")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
 
-		retException := callTestFunctionCheckException(control, code, "test_multi_index", "idx64_pk_iterator_exceed_end", []byte{}, "testapi",
+		retException := callTestFunctionCheckExceptionF2(t, b, &testApiAction{wasmTestAction("test_multi_index", "idx64_pk_iterator_exceed_end")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))},
+			exception.EosioAssertMessageException{}.Code(), exception.EosioAssertMessageException{}.What())
+		assert.Equal(t, retException, true)
+		retException = callTestFunctionCheckExceptionF2(t, b, &testApiAction{wasmTestAction("test_multi_index", "idx64_sk_iterator_exceed_end")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))},
 			exception.EosioAssertMessageException{}.Code(), exception.EosioAssertMessageException{}.What())
 		assert.Equal(t, retException, true)
 
-		retException = callTestFunctionCheckException(control, code, "test_multi_index", "idx64_sk_iterator_exceed_end", []byte{}, "testapi",
+		retException = callTestFunctionCheckExceptionF2(t, b, &testApiAction{wasmTestAction("test_multi_index", "idx64_pk_iterator_exceed_begin")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))},
+			exception.EosioAssertMessageException{}.Code(), exception.EosioAssertMessageException{}.What())
+		assert.Equal(t, retException, true)
+		retException = callTestFunctionCheckExceptionF2(t, b, &testApiAction{wasmTestAction("test_multi_index", "idx64_sk_iterator_exceed_begin")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))},
 			exception.EosioAssertMessageException{}.Code(), exception.EosioAssertMessageException{}.What())
 		assert.Equal(t, retException, true)
 
-		retException = callTestFunctionCheckException(control, code, "test_multi_index", "idx64_pk_iterator_exceed_begin", []byte{}, "testapi",
+		retException = callTestFunctionCheckExceptionF2(t, b, &testApiAction{wasmTestAction("test_multi_index", "idx64_pass_pk_ref_to_other_table")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))},
+			exception.EosioAssertMessageException{}.Code(), exception.EosioAssertMessageException{}.What())
+		assert.Equal(t, retException, true)
+		retException = callTestFunctionCheckExceptionF2(t, b, &testApiAction{wasmTestAction("test_multi_index", "idx64_pass_sk_ref_to_other_table")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))},
 			exception.EosioAssertMessageException{}.Code(), exception.EosioAssertMessageException{}.What())
 		assert.Equal(t, retException, true)
 
-		retException = callTestFunctionCheckException(control, code, "test_multi_index", "idx64_sk_iterator_exceed_begin", []byte{}, "testapi",
+		retException = callTestFunctionCheckExceptionF2(t, b, &testApiAction{wasmTestAction("test_multi_index", "idx64_pass_pk_end_itr_to_iterator_to")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))},
+			exception.EosioAssertMessageException{}.Code(), exception.EosioAssertMessageException{}.What())
+		assert.Equal(t, retException, true)
+		retException = callTestFunctionCheckExceptionF2(t, b, &testApiAction{wasmTestAction("test_multi_index", "idx64_pass_pk_end_itr_to_modify")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))},
 			exception.EosioAssertMessageException{}.Code(), exception.EosioAssertMessageException{}.What())
 		assert.Equal(t, retException, true)
 
-		retException = callTestFunctionCheckException(control, code, "test_multi_index", "idx64_pass_pk_ref_to_other_table", []byte{}, "testapi",
+		retException = callTestFunctionCheckExceptionF2(t, b, &testApiAction{wasmTestAction("test_multi_index", "idx64_pass_pk_end_itr_to_erase")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))},
+			exception.EosioAssertMessageException{}.Code(), exception.EosioAssertMessageException{}.What())
+		assert.Equal(t, retException, true)
+		retException = callTestFunctionCheckExceptionF2(t, b, &testApiAction{wasmTestAction("test_multi_index", "idx64_pass_sk_end_itr_to_iterator_to")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))},
 			exception.EosioAssertMessageException{}.Code(), exception.EosioAssertMessageException{}.What())
 		assert.Equal(t, retException, true)
 
-		retException = callTestFunctionCheckException(control, code, "test_multi_index", "idx64_pass_sk_ref_to_other_table", []byte{}, "testapi",
+		retException = callTestFunctionCheckExceptionF2(t, b, &testApiAction{wasmTestAction("test_multi_index", "idx64_pass_sk_end_itr_to_modify")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))},
+			exception.EosioAssertMessageException{}.Code(), exception.EosioAssertMessageException{}.What())
+		assert.Equal(t, retException, true)
+		retException = callTestFunctionCheckExceptionF2(t, b, &testApiAction{wasmTestAction("test_multi_index", "idx64_pass_sk_end_itr_to_erase")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))},
 			exception.EosioAssertMessageException{}.Code(), exception.EosioAssertMessageException{}.What())
 		assert.Equal(t, retException, true)
 
-		retException = callTestFunctionCheckException(control, code, "test_multi_index", "idx64_pass_pk_end_itr_to_iterator_to", []byte{}, "testapi",
+		retException = callTestFunctionCheckExceptionF2(t, b, &testApiAction{wasmTestAction("test_multi_index", "idx64_modify_primary_key")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))},
+			exception.EosioAssertMessageException{}.Code(), exception.EosioAssertMessageException{}.What())
+		assert.Equal(t, retException, true)
+		retException = callTestFunctionCheckExceptionF2(t, b, &testApiAction{wasmTestAction("test_multi_index", "idx64_require_find_fail_with_msg")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))},
 			exception.EosioAssertMessageException{}.Code(), exception.EosioAssertMessageException{}.What())
 		assert.Equal(t, retException, true)
 
-		retException = callTestFunctionCheckException(control, code, "test_multi_index", "idx64_pass_pk_end_itr_to_modify", []byte{}, "testapi",
+		retException = callTestFunctionCheckExceptionF2(t, b, &testApiAction{wasmTestAction("test_multi_index", "idx64_require_find_sk_fail")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))},
+			exception.EosioAssertMessageException{}.Code(), exception.EosioAssertMessageException{}.What())
+		assert.Equal(t, retException, true)
+		retException = callTestFunctionCheckExceptionF2(t, b, &testApiAction{wasmTestAction("test_multi_index", "idx64_require_find_sk_fail_with_msg")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))},
 			exception.EosioAssertMessageException{}.Code(), exception.EosioAssertMessageException{}.What())
 		assert.Equal(t, retException, true)
 
-		retException = callTestFunctionCheckException(control, code, "test_multi_index", "idx64_pass_pk_end_itr_to_erase", []byte{}, "testapi",
-			exception.EosioAssertMessageException{}.Code(), exception.EosioAssertMessageException{}.What())
-		assert.Equal(t, retException, true)
+		callTestF2(t, b, &testApiAction{wasmTestAction("test_multi_index", "idx64_sk_cache_pk_lookup")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
+		callTestF2(t, b, &testApiAction{wasmTestAction("test_multi_index", "idx64_pk_cache_sk_lookup")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
 
-		retException = callTestFunctionCheckException(control, code, "test_multi_index", "idx64_pass_sk_end_itr_to_iterator_to", []byte{}, "testapi",
-			exception.EosioAssertMessageException{}.Code(), exception.EosioAssertMessageException{}.What())
-		assert.Equal(t, retException, true)
-
-		retException = callTestFunctionCheckException(control, code, "test_multi_index", "idx64_pass_sk_end_itr_to_modify", []byte{}, "testapi",
-			exception.EosioAssertMessageException{}.Code(), exception.EosioAssertMessageException{}.What())
-		assert.Equal(t, retException, true)
-
-		retException = callTestFunctionCheckException(control, code, "test_multi_index", "idx64_pass_sk_end_itr_to_erase", []byte{}, "testapi",
-			exception.EosioAssertMessageException{}.Code(), exception.EosioAssertMessageException{}.What())
-		assert.Equal(t, retException, true)
-
-		retException = callTestFunctionCheckException(control, code, "test_multi_index", "idx64_modify_primary_key", []byte{}, "testapi",
-			exception.EosioAssertMessageException{}.Code(), exception.EosioAssertMessageException{}.What())
-		//assert.Equal(t, retException, true)
-
-		retException = callTestFunctionCheckException(control, code, "test_multi_index", "idx64_run_out_of_avl_pk", []byte{}, "testapi",
-			exception.EosioAssertMessageException{}.Code(), exception.EosioAssertMessageException{}.What())
-		assert.Equal(t, retException, true)
-
-		retException = callTestFunctionCheckException(control, code, "test_multi_index", "idx64_require_find_fail", []byte{}, "testapi",
-			exception.EosioAssertMessageException{}.Code(), exception.EosioAssertMessageException{}.What())
-		assert.Equal(t, retException, true)
-
-		retException = callTestFunctionCheckException(control, code, "test_multi_index", "idx64_require_find_fail_with_msg", []byte{}, "testapi",
-			exception.EosioAssertMessageException{}.Code(), exception.EosioAssertMessageException{}.What())
-		assert.Equal(t, retException, true)
-
-		retException = callTestFunctionCheckException(control, code, "test_multi_index", "idx64_require_find_sk_fail", []byte{}, "testapi",
-			exception.EosioAssertMessageException{}.Code(), exception.EosioAssertMessageException{}.What())
-		assert.Equal(t, retException, true)
-
-		retException = callTestFunctionCheckException(control, code, "test_multi_index", "idx64_require_find_sk_fail_with_msg", []byte{}, "testapi",
-			exception.EosioAssertMessageException{}.Code(), exception.EosioAssertMessageException{}.What())
-		assert.Equal(t, retException, true)
-
-		callTestFunction(control, code, "test_multi_index", "idx64_sk_cache_pk_lookup", []byte{}, "testapi")
-		callTestFunction(control, code, "test_multi_index", "idx64_pk_cache_sk_lookup", []byte{}, "testapi")
-
-		stopBlock(control)
+		b.close()
 
 	})
+}
+
+func inString(s1, s2 string) bool {
+	if strings.Index(s1, s2) < 0 {
+		return false
+	}
+
+	return true
+}
+
+func (t BaseTester) PushAction(test *testing.T, act *types.Action, authorizer common.AccountName) string {
+
+	trx := NewTransaction()
+
+	if !common.Empty(authorizer) {
+		act.Authorization = append(act.Authorization, types.PermissionLevel{authorizer, common.PermissionName(common.N("active"))})
+	}
+
+	trx.Transaction.Actions = append(trx.Transaction.Actions, act)
+	t.SetTransactionHeaders(&trx.Transaction, t.DefaultExpirationDelta, 0)
+
+	if !common.Empty(authorizer) {
+		privKey := t.getPrivateKey(authorizer, "active")
+		chainId := t.Control.GetChainId()
+		trx.Sign(&privKey, &chainId)
+	}
+
+	//defer try.HandleReturn()
+	returning, ret := false, ""
+	try.Try(func() {
+		t.PushTransaction(trx, common.MaxTimePoint(), t.DefaultBilledCpuTimeUs)
+	}).Catch(func(e exception.Exception) {
+		returning, ret = true, exception.GetDetailMessage(e)
+		return
+		//try.Return()
+	}).End()
+
+	if returning {
+		return ret
+	}
+
+	t.ProduceBlocks(1, false)
+	return ""
 }
 
 func DJBH(str string) uint32 {
@@ -1103,7 +1265,7 @@ func DJBH(str string) uint32 {
 }
 
 func wasmTestAction(cls string, method string) uint64 {
-
+	//fmt.Println(cls,".",method)
 	return uint64(DJBH(cls))<<32 | uint64(DJBH(method))
 }
 
@@ -1304,20 +1466,23 @@ func newTransaction(control *chain.Controller, action *types.Action, privateKeys
 func RunCheckException(control *chain.Controller, cls string, method string, payload []byte, authorizer string, permissionLevel []types.PermissionLevel, privateKeys []*ecc.PrivateKey,
 	errCode exception.ExcTypes, errMsg string) bool {
 
-	returning, ret := false, false
+	//defer try.HandleReturn()
+	returning := false
 	try.Try(func() {
 		pushAction2(control, cls, method, payload, authorizer, permissionLevel, privateKeys)
 	}).Catch(func(e exception.Exception) {
 		if e.Code() == errCode {
 			fmt.Println(errMsg)
-			returning, ret = true, true
+			//ret = true
+			returning = true
+			//try.Return()
 		}
 	}).End()
 
 	if returning {
-		return ret
+		return returning
 	}
-
+	//ret = false
 	return false
 }
 
@@ -1395,7 +1560,7 @@ func callTestFunctionException2(control *chain.Controller, cls string, method st
 
 }
 
-func pushAction(control *chain.Controller, code []byte, cls string, method string, payload []byte, authorizer string) (string) {
+func pushAction(control *chain.Controller, code []byte, cls string, method string, payload []byte, authorizer string) (ret string) {
 
 	wasm := wasmgo.NewWasmGo()
 	action := wasmTestAction(cls, method)
@@ -1413,11 +1578,14 @@ func pushAction(control *chain.Controller, code []byte, cls string, method strin
 	applyContext := newApplyContext(control, &act)
 	codeVersion := crypto.NewSha256Byte([]byte(code))
 
+	//defer try.HandleReturn()
 	returning, ret := false, ""
 	try.Try(func() {
 		wasm.Apply(codeVersion, code, applyContext)
 	}).Catch(func(e exception.Exception) {
-		returning, ret = true, exception.GetDetailMessage(e)
+		ret = exception.GetDetailMessage(e)
+		//try.Return()
+		returning = true
 	}).End()
 
 	if returning {
@@ -1469,7 +1637,7 @@ func callTestFunction(control *chain.Controller, code []byte, cls string, method
 
 }
 
-func callTestFunctionCheckException(control *chain.Controller, code []byte, cls string, method string, payload []byte, authorizer string, errCode exception.ExcTypes, errMsg string) (bool) {
+func callTestFunctionCheckException(control *chain.Controller, code []byte, cls string, method string, payload []byte, authorizer string, errCode exception.ExcTypes, errMsg string) bool {
 
 	wasm := wasmgo.NewWasmGo()
 	action := wasmTestAction(cls, method)
@@ -1489,18 +1657,26 @@ func callTestFunctionCheckException(control *chain.Controller, code []byte, cls 
 	fmt.Println(cls, method, action)
 	codeVersion := crypto.NewSha256Byte([]byte(code))
 
-	ret := false
-
+	//ret := false
+	//defer try.HandleReturn()
+	returning := false
 	try.Try(func() {
 		wasm.Apply(codeVersion, code, applyContext)
 	}).Catch(func(e exception.Exception) {
 		if e.Code() == errCode {
 			fmt.Println(errMsg)
-			ret = true
+			//ret = true
+			//try.Return()
+			returning = true
 		}
 	}).End()
 
-	return ret
+	if returning {
+		return returning
+	}
+
+	//ret = false
+	return false
 
 }
 
@@ -1509,6 +1685,18 @@ func sigDigest(chainID, payload []byte) []byte {
 	_, _ = h.Write(chainID)
 	_, _ = h.Write(payload)
 	return h.Sum(nil)
+}
+
+func newAction(permissionLevel []types.PermissionLevel, a actionInterface) *types.Action {
+
+	payload, _ := rlp.EncodeToBytes(a)
+	act := types.Action{
+		Account:       common.AccountName(a.getAccount()),
+		Name:          common.AccountName(a.getName()),
+		Data:          payload,
+		Authorization: permissionLevel,
+	}
+	return &act
 }
 
 func NewTransaction() *types.SignedTransaction {
@@ -1522,12 +1710,10 @@ func NewTransaction() *types.SignedTransaction {
 	return signedTrx
 }
 
-func callTestExceptionF2(test *testing.T, t *BaseTester, a actionInterface, data []byte, scope []common.AccountName, billedCpuTimeUs uint32, max_cpu_usage_ms int64, errCode exception.ExcTypes, errMsg string) (bool) {
+func callTestExceptionF2(test *testing.T, t *BaseTester, a actionInterface, data []byte, scope []common.AccountName, billedCpuTimeUs uint32, max_cpu_usage_ms int64, errCode exception.ExcTypes, errMsg string) (ret bool) {
 
 	trx := NewTransaction()
 
-	// action := wasmTestAction(cls, method)
-	// fmt.Println(cls, method, action)
 	pl := []types.PermissionLevel{{scope[0], common.PermissionName(common.N("active"))}}
 	if len(scope) > 1 {
 		for i, account := range scope {
@@ -1549,32 +1735,80 @@ func callTestExceptionF2(test *testing.T, t *BaseTester, a actionInterface, data
 	chainId := t.Control.GetChainId()
 	trx.Sign(&privKey, &chainId)
 
-	//trx.get_signature_keys(test.control->get_chain_id() );
-	//ret := t.PushTransaction(trx, common.Now()+common.TimePoint(common.Milliseconds(max_cpu_usage_ms)), billedCpuTimeUs)
-	//assert.Equal(test, ret.Except.Code() == errCode, true)
-
-	//ret := false
-	ret := false
+	//defer try.HandleReturn()
+	returning := false
 	try.Try(func() {
 		t.PushTransaction(trx, common.Now()+common.TimePoint(common.Milliseconds(max_cpu_usage_ms)), billedCpuTimeUs)
 	}).Catch(func(e exception.Exception) {
 		if e.Code() == errCode {
-			fmt.Println(exception.GetDetailMessage(e))
-			ret = true
+			fmt.Println(e.String())
+			//ret = true
+			//try.Return()
+			returning = true
 		}
 	}).End()
 
+	if returning {
+		return returning
+	}
+
 	t.ProduceBlocks(1, false)
 
-	return ret
+	//ret = false
+	return false
+}
+
+func callTestFunctionCheckExceptionF2(test *testing.T, t *BaseTester, a actionInterface, data []byte, scope []common.AccountName, errCode exception.ExcTypes, errMsg string) (ret bool) {
+
+	trx := NewTransaction()
+
+	pl := []types.PermissionLevel{{scope[0], common.PermissionName(common.N("active"))}}
+	if len(scope) > 1 {
+		for i, account := range scope {
+			if i == 0 {
+				continue
+			}
+			pl = append(pl, types.PermissionLevel{account, common.PermissionName(common.N("active"))})
+		}
+	}
+
+	act := newAction(pl, a)
+	act.Data = data
+	act.Authorization = pl
+	trx.Transaction.Actions = append(trx.Transaction.Actions, act)
+
+	t.SetTransactionHeaders(&trx.Transaction, t.DefaultExpirationDelta, 0)
+
+	privKey := t.getPrivateKey(scope[0], "active")
+	chainId := t.Control.GetChainId()
+	trx.Sign(&privKey, &chainId)
+
+	//defer try.HandleReturn()
+	returning := false
+	try.Try(func() {
+		t.PushTransaction(trx, common.MaxTimePoint(), t.DefaultBilledCpuTimeUs)
+	}).Catch(func(e exception.Exception) {
+		//fmt.Println(exception.GetDetailMessage(e))
+		if e.Code() == errCode {
+			//ret = true
+			//try.Return()
+
+			returning = true
+		}
+	}).End()
+
+	if returning {
+		return returning
+	}
+
+	t.ProduceBlocks(1, false)
+	return false
 }
 
 func callTestF2(test *testing.T, t *BaseTester, a actionInterface, data []byte, scope []common.AccountName) *types.TransactionTrace {
 
 	trx := NewTransaction()
 
-	// action := wasmTestAction(cls, method)
-	// fmt.Println(cls, method, action)
 	pl := []types.PermissionLevel{{scope[0], common.PermissionName(common.N("active"))}}
 	if len(scope) > 1 {
 		for i, account := range scope {
@@ -1595,8 +1829,6 @@ func callTestF2(test *testing.T, t *BaseTester, a actionInterface, data []byte, 
 	privKey := t.getPrivateKey(scope[0], "active")
 	chainId := t.Control.GetChainId()
 	trx.Sign(&privKey, &chainId)
-
-	//trx.get_signature_keys(test.control->get_chain_id() );
 
 	ret := t.PushTransaction(trx, common.MaxTimePoint(), t.DefaultBilledCpuTimeUs)
 	assert.Equal(test, ret.Receipt.Status, types.TransactionStatusExecuted)
@@ -1650,7 +1882,7 @@ func newConfig(readMode chain.DBReadMode) *chain.Config {
 	cfg.StateGuardSize = 0
 	cfg.ReversibleCacheSize = 1024 * 1024 * 8
 	cfg.ReversibleGuardSize = 0
-	cfg.ContractsConsole = false
+	//cfg.ContractsConsole = true
 	cfg.ReadMode = readMode
 
 	cfg.Genesis = types.NewGenesisState()
@@ -1870,10 +2102,10 @@ func (t BaseTester) PushTransaction(trx *types.SignedTransaction, deadline commo
 		mtrx := types.NewTransactionMetadataBySignedTrx(trx, c)
 		trace = t.Control.PushTransaction(mtrx, deadline, billedCpuTimeUs)
 		if trace.ExceptPtr != nil {
-			try.EosThrow(trace.ExceptPtr, "tester PushTransaction is error :%#v", exception.GetDetailMessage(trace.ExceptPtr))
+			try.EosThrow(trace.ExceptPtr, "tester PushTransaction is error :%#v", trace.ExceptPtr.String())
 		}
 		if !common.Empty(trace.Except) {
-			try.EosThrow(trace.Except, "tester PushTransaction is error :%#v", exception.GetDetailMessage(trace.Except))
+			try.EosThrow(trace.Except, "tester PushTransaction is error :%#v", trace.Except.String())
 		}
 		r = trace
 		return
@@ -1881,28 +2113,28 @@ func (t BaseTester) PushTransaction(trx *types.SignedTransaction, deadline commo
 	return r
 }
 
-func (t BaseTester) PushAction(act *types.Action, authorizer common.AccountName) {
-	trx := types.SignedTransaction{}
-	if !common.Empty(authorizer) {
-		act.Authorization = []types.PermissionLevel{{authorizer, common.DefaultConfig.ActiveName}}
-	}
-	trx.Actions = append(trx.Actions, act)
-	t.SetTransactionHeaders(&trx.Transaction, 0, 0) //TODO
-	if common.Empty(authorizer) {
-		chainId := t.Control.GetChainId()
-		privateKey := t.getPrivateKey(authorizer, "active")
-		trx.Sign(&privateKey, &chainId)
-	}
-	try.Try(func() {
-		t.PushTransaction(&trx, 0, 0) //TODO
-	}).Catch(func(ex exception.Exception) {
-		//log.Error("tester PushAction is error: %#v", ex.Message())
-	}).End()
-	t.ProduceBlock(common.Microseconds(common.DefaultConfig.BlockIntervalMs), 0)
-	/*BOOST_REQUIRE_EQUAL(true, chain_has_transaction(trx.id()))
-	success()*/
-	return
-}
+// func (t BaseTester) PushAction(act *types.Action, authorizer common.AccountName) {
+// 	trx := types.SignedTransaction{}
+// 	if !common.Empty(authorizer) {
+// 		act.Authorization = []types.PermissionLevel{{authorizer, common.DefaultConfig.ActiveName}}
+// 	}
+// 	trx.Actions = append(trx.Actions, act)
+// 	t.SetTransactionHeaders(&trx.Transaction, 0, 0) //TODO
+// 	if common.Empty(authorizer) {
+// 		chainId := t.Control.GetChainId()
+// 		privateKey := t.getPrivateKey(authorizer, "active")
+// 		trx.Sign(&privateKey, &chainId)
+// 	}
+// 	try.Try(func() {
+// 		t.PushTransaction(&trx, 0, 0) //TODO
+// 	}).Catch(func(ex exception.Exception) {
+// 		//log.Error("tester PushAction is error: %#v", ex.Message())
+// 	}).End()
+// 	t.ProduceBlock(common.Microseconds(common.DefaultConfig.BlockIntervalMs), 0)
+// 	/*BOOST_REQUIRE_EQUAL(true, chain_has_transaction(trx.id()))
+// 	success()*/
+// 	return
+// }
 
 func (t BaseTester) getPrivateKey(keyName common.Name, role string) ecc.PrivateKey {
 	pk := &ecc.PrivateKey{}

@@ -1,6 +1,7 @@
 package wasmgo
 
 import (
+	"github.com/eosspark/container/sets/treeset"
 	"github.com/eosspark/eos-go/chain/types"
 	//"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
@@ -75,8 +76,8 @@ type EnvContext interface {
 	GetResourceLimits(account common.AccountName, ramBytes *uint64, netWeight *uint64, cpuWeigth *uint64)
 	SetBlockchainParametersPacked(parameters []byte)
 	GetBlockchainParametersPacked() []byte
-	GetBlockchainParameters() *common.Config
-	SetBlockchainParameters(cfg *common.Config)
+	GetBlockchainParameters() *types.ChainConfig
+	SetBlockchainParameters(cfg *types.ChainConfig)
 
 	IsPrivileged(n common.AccountName) bool
 	SetPrivileged(n common.AccountName, isPriv bool)
@@ -115,6 +116,8 @@ type EnvContext interface {
 
 	PauseBillingTimer()
 	ResumeBillingTimer()
+
+	CheckAuthorization(n common.AccountName, permission common.PermissionName, providedKeys *treeset.Set, providedPermissions *treeset.Set, delayUS uint64)
 
 	//GetLogger() *log.Logger
 }

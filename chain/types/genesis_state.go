@@ -43,8 +43,8 @@ func (g *GenesisState) ComputeChainID() common.ChainIdType {
 	return common.ChainIdType(crypto.Hash256(b))
 }
 
-func (g *GenesisState) Initial() common.Config {
-	InitialConfiguration := common.Config{
+func (g *GenesisState) Initial() ChainConfig {
+	InitialConfiguration := ChainConfig{
 		MaxBlockNetUsage:               common.DefaultConfig.MaxBlockNetUsage,
 		TargetBlockNetUsagePct:         common.DefaultConfig.TargetBlockNetUsagePct,
 		MaxTransactionNetUsage:         common.DefaultConfig.MaxTransactionNetUsage,

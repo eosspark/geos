@@ -9,6 +9,7 @@ import (
 	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/eosspark/eos-go/exception"
 	"github.com/eosspark/eos-go/exception/try"
+	"reflect"
 )
 
 type AccountObject struct {
@@ -43,9 +44,32 @@ func (a *AccountObject) GetAbi() abi_serializer.AbiDef {
 	if len(a.Abi) != 0 {
 		try.EosAssert(len(a.Abi) != 0, &exception.AbiNotFoundException{}, "No ABI set on account :", a.Name)
 	}
-	err := rlp.DecodeBytes(a.Abi, abiDef)
+	err := rlp.DecodeBytes(a.Abi, &abiDef)
 	if err != nil {
 		fmt.Println("account_object GetAbi DecodeBytes is error:", err.Error())
 	}
 	return abiDef
+}
+
+//for treemap
+var AccountObjectTypes = reflect.TypeOf(AccountObject{})
+
+func CompareAccountId(first interface{}, second interface{}) int {
+	if first.(*AccountObject).ID > second.(*AccountObject).ID {
+		return 1
+	}
+	if first.(*AccountObject).ID == second.(*AccountObject).ID {
+		return 0
+	}
+	return -1
+}
+
+func CompareAccountName(first interface{}, second interface{}) int {
+	if first.(*AccountObject).Name > second.(*AccountObject).Name {
+		return 1
+	}
+	if first.(*AccountObject).Name == second.(*AccountObject).Name {
+		return 0
+	}
+	return -1
 }
