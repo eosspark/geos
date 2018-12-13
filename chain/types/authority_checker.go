@@ -44,7 +44,6 @@ func (ac *AuthorityChecker) SatisfiedAcd(authority *SharedAuthority, cachedPermi
 	visitor := WeightTallyVisitor{ac, cachedPermissions, depth, 0}
 	for _, permission := range metaPermission {
 		if visitor.Visit(permission) >= authority.Threshold {
-			ac.KeyReverterCancel()
 			return true
 		}
 	}
@@ -64,7 +63,7 @@ func (ac *AuthorityChecker) GetUsedKeys() treeset.Set {
 	f := treeset.NewWith(ecc.TypePubKey, ecc.ComparePubKey)
 	for i, usedKey := range ac.UsedKeys {
 		if usedKey == true {
-			f.AddItem(&ac.ProvidedKeys[i])
+			f.AddItem(ac.ProvidedKeys[i])
 		}
 	}
 	return *f
@@ -74,7 +73,7 @@ func (ac *AuthorityChecker) GetUnusedKeys() treeset.Set {
 	f := treeset.NewWith(ecc.TypePubKey, ecc.ComparePubKey)
 	for i, usedKey := range ac.UsedKeys {
 		if usedKey == false {
-			f.AddItem(&ac.ProvidedKeys[i])
+			f.AddItem(ac.ProvidedKeys[i])
 		}
 	}
 	return *f
@@ -111,12 +110,6 @@ func (ac *AuthorityChecker) initializePermissionCache(cachedPermission *Permissi
 		map[PermissionLevel]PermissionCacheStatus(*cachedPermission)[*(val.(*PermissionLevel))] = PermissionSatisfied
 	}
 	return cachedPermission
-}
-
-func (ac *AuthorityChecker) KeyReverterCancel() {
-	for i := range ac.UsedKeys {
-		ac.UsedKeys[i] = true
-	}
 }
 
 type WeightTallyVisitor struct {
