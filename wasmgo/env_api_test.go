@@ -58,44 +58,159 @@ func TestAction(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		control := startBlock()
-		createNewAccount2(control, "testapi", "eosio")
-		createNewAccount2(control, "acc1", "eosio")
-		createNewAccount2(control, "acc2", "eosio")
-		createNewAccount2(control, "acc3", "eosio")
-		createNewAccount2(control, "acc4", "eosio")
+		b := newBaseTester(true, chain.SPECULATIVE)
+		b.ProduceBlocks(2, false)
+		b.CreateAccounts([]common.AccountName{common.N("testapi")}, false, true)
+		b.CreateAccounts([]common.AccountName{common.N("acc1")}, false, true)
+		b.CreateAccounts([]common.AccountName{common.N("acc2")}, false, true)
+		b.CreateAccounts([]common.AccountName{common.N("acc3")}, false, true)
+		b.CreateAccounts([]common.AccountName{common.N("acc4")}, false, true)
+		b.ProduceBlocks(10, false)
+		b.SetCode(common.AccountName(common.N("testapi")), code, nil)
+		b.ProduceBlocks(1, false)
 
-		SetCode(control, "testapi", code)
+		callTestF2(t, b, &testApiAction{wasmTestAction("test_action", "assert_true")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
 
-		permissions := []types.PermissionLevel{types.PermissionLevel{common.AccountName(common.N("testapi")), common.PermissionName(common.N("active"))}}
-		privateKeys := []*ecc.PrivateKey{getPrivateKey("inita", "active")}
-		RunCheckException(control, "test_action", "require_notice", []byte{}, "testapi", permissions, privateKeys, exception.UnsatisfiedAuthorization{}.Code(), exception.UnsatisfiedAuthorization{}.What())
+		retException := callTestFunctionCheckExceptionF2(t, b, &testApiAction{wasmTestAction("test_action", "assert_false")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))},
+			exception.EosioAssertMessageException{}.Code(), exception.EosioAssertMessageException{}.What())
+		assert.Equal(t, retException, true)
 
-		permissions = []types.PermissionLevel{
-			types.PermissionLevel{common.AccountName(common.N("testapi")), common.PermissionName(common.N("active"))},
-			types.PermissionLevel{common.AccountName(common.N("acc3")), common.PermissionName(common.N("active"))},
-			types.PermissionLevel{common.AccountName(common.N("acc4")), common.PermissionName(common.N("active"))},
+		da := dummy_action{DUMMY_ACTION_DEFAULT_A, DUMMY_ACTION_DEFAULT_B, DUMMY_ACTION_DEFAULT_C}
+		load, _ := rlp.EncodeToBytes(&da)
+		callTestF2(t, b, &testApiAction{wasmTestAction("test_action", "read_action_normal")}, load, []common.AccountName{common.AccountName(common.N("testapi"))})
+
+		load = bytes.Repeat([]byte{byte(0x01)}, 1<<16)
+		callTestF2(t, b, &testApiAction{wasmTestAction("test_action", "read_action_to_0")}, load, []common.AccountName{common.AccountName(common.N("testapi"))})
+		load = bytes.Repeat([]byte{byte(0x01)}, 1<<16+1)
+		retException = callTestFunctionCheckExceptionF2(t, b, &testApiAction{wasmTestAction("test_action", "read_action_to_0")}, load, []common.AccountName{common.AccountName(common.N("testapi"))},
+			exception.OverlappingMemoryError{}.Code(), "access violation")
+		assert.Equal(t, retException, true)
+
+		load = bytes.Repeat([]byte{byte(0x01)}, 1)
+		callTestF2(t, b, &testApiAction{wasmTestAction("test_action", "read_action_to_64k")}, load, []common.AccountName{common.AccountName(common.N("testapi"))})
+		load = bytes.Repeat([]byte{byte(0x01)}, 3)
+		retException = callTestFunctionCheckExceptionF2(t, b, &testApiAction{wasmTestAction("test_action", "read_action_to_64k")}, load, []common.AccountName{common.AccountName(common.N("testapi"))},
+			exception.OverlappingMemoryError{}.Code(), "access violation")
+		assert.Equal(t, retException, true)
+
+		b.ProduceBlocks(1, false)
+		// test require_notice
+		testRequireNotice := func(b *BaseTester, data []byte, scope []common.AccountName) {
+			trx := NewTransaction()
+
+			pl := []types.PermissionLevel{{scope[0], common.PermissionName(common.N("active"))}}
+			a := testApiAction{wasmTestAction("test_action", "require_notice")}
+			act := newAction(pl, &a)
+			act.Data = data
+			trx.Transaction.Actions = append(trx.Transaction.Actions, act)
+
+			privKey := b.getPrivateKey(common.AccountName(common.N("inita")), "active")
+			chainId := b.Control.GetChainId()
+			trx.Sign(&privKey, &chainId)
+
+			ret := b.PushTransaction(trx, common.MaxTimePoint(), b.DefaultBilledCpuTimeUs)
+			assert.Equal(t, ret.Receipt.Status, types.TransactionStatusExecuted)
+
 		}
-		privateKeys = []*ecc.PrivateKey{
-			getPrivateKey("testapi", "active"),
-			getPrivateKey("acc3", "active"),
-			getPrivateKey("acc4", "active"),
-		}
-		ret := pushAction2(control, "test_action", "require_auth", []byte{}, "testapi", permissions, privateKeys)
-		assert.Equal(t, ret.Receipt.Status, types.TransactionStatusExecuted)
+		retException = checkException(testRequireNotice, b, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))},
+			exception.UnsatisfiedAuthorization{}.Code(), "transaction declares authority")
+		assert.Equal(t, retException, true)
 
-		// now := control.HeadBlockTime().AddUs(common.Microseconds(common.DefaultConfig.BlockIntervalUs))
-		// n := now.TimeSinceEpoch().Count()
-		// //fmt.Println(now)
-		// b, _ := rlp.EncodeToBytes(&n)
-		// callTestFunction2(control, "test_action", "test_current_time", b, "testapi")
+		// test require_auth
+		retException = callTestFunctionCheckExceptionF2(t, b, &testApiAction{wasmTestAction("test_action", "require_auth")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))},
+			exception.MissingAuthException{}.Code(), "missing authority of")
+		assert.Equal(t, retException, true)
+
+		a3only := []types.PermissionLevel{{common.AccountName(common.N("acc3")), common.PermissionName(common.N("active"))}}
+		load, _ = rlp.EncodeToBytes(&a3only)
+		retException = callTestFunctionCheckExceptionF2(t, b, &testApiAction{wasmTestAction("test_action", "require_auth")}, load, []common.AccountName{common.AccountName(common.N("testapi"))},
+			exception.MissingAuthException{}.Code(), "missing authority of")
+		assert.Equal(t, retException, true)
+
+		a4only := []types.PermissionLevel{{common.AccountName(common.N("acc4")), common.PermissionName(common.N("active"))}}
+		load, _ = rlp.EncodeToBytes(&a4only)
+		retException = callTestFunctionCheckExceptionF2(t, b, &testApiAction{wasmTestAction("test_action", "require_auth")}, load, []common.AccountName{common.AccountName(common.N("testapi"))},
+			exception.MissingAuthException{}.Code(), "missing authority of")
+		assert.Equal(t, retException, true)
+
+		//a3a4 := []types.PermissionLevel{{common.AccountName(common.N("acc3")), common.PermissionName(common.N("active"))}, {common.AccountName(common.N("acc4")), common.PermissionName(common.N("active"))}}
+		////a3a4Scope := []common.AccountName{common.AccountName(common.N("acc3")), common.AccountName(common.N("acc4"))}
+		//{
+		//
+		//	trx := NewTransaction()
+		//	a := testApiAction{wasmTestAction("test_action", "require_notice")}
+		//	act := newAction(a3a4, &a)
+		//
+		//	data, _ := rlp.EncodeToBytes(&a3a4)
+		//	act.Data = data
+		//
+		//	act.Authorization = append(act.Authorization, types.PermissionLevel{common.AccountName(common.N("testapi")), common.PermissionName(common.N("active"))})
+		//	trx.Transaction.Actions = append(trx.Transaction.Actions, act)
+		//
+		//	b.SetTransactionHeaders(&trx.Transaction, b.DefaultExpirationDelta, 0)
+		//
+		//	chainId := b.Control.GetChainId()
+		//	privKey := b.getPrivateKey(common.AccountName(common.N("testapi")), "active")
+		//	trx.Sign(&privKey, &chainId)
+		//	privKey = b.getPrivateKey(common.AccountName(common.N("acc3")), "active")
+		//	trx.Sign(&privKey, &chainId)
+		//	privKey = b.getPrivateKey(common.AccountName(common.N("acc4")), "active")
+		//	trx.Sign(&privKey, &chainId)
+		//
+		//	ret := b.PushTransaction(trx, common.MaxTimePoint(), b.DefaultBilledCpuTimeUs)
+		//	assert.Equal(t, ret.Receipt.Status, types.TransactionStatusExecuted)
+		//}
+
+		now := b.Control.HeadBlockTime().AddUs(common.Microseconds(common.DefaultConfig.BlockIntervalUs))
+		n := now.TimeSinceEpoch().Count()
+		load, _ = rlp.EncodeToBytes(&n)
+		callTestF2(t, b, &testApiAction{wasmTestAction("test_action", "test_current_time")}, load, []common.AccountName{common.AccountName(common.N("testapi"))})
+		b.ProduceBlocks(1, false)
+		retException = callTestFunctionCheckExceptionF2(t, b, &testApiAction{wasmTestAction("test_action", "test_current_time")}, load, []common.AccountName{common.AccountName(common.N("testapi"))},
+			exception.EosioAssertMessageException{}.Code(), "tmp == current_time()")
+		assert.Equal(t, retException, true)
 
 		account := common.AccountName(common.N("testapi"))
-		b, _ := rlp.EncodeToBytes(&account)
-		callTestFunction2(control, "test_action", "test_current_receiver", b, "testapi")
-		callTestFunction2(control, "test_transaction", "send_action_sender", b, "testapi")
+		load, _ = rlp.EncodeToBytes(&account)
+		callTestF2(t, b, &testApiAction{wasmTestAction("test_action", "test_current_receiver")}, load, []common.AccountName{common.AccountName(common.N("testapi"))})
+		callTestF2(t, b, &testApiAction{wasmTestAction("test_transaction", "send_action_sender")}, load, []common.AccountName{common.AccountName(common.N("testapi"))})
+		b.ProduceBlocks(1, false)
+
+		now = b.Control.HeadBlockTime().AddUs(common.Microseconds(common.DefaultConfig.BlockIntervalUs))
+		n = now.TimeSinceEpoch().Count()
+		load, _ = rlp.EncodeToBytes(&n)
+		callTestF2(t, b, &testApiAction{wasmTestAction("test_action", "test_publication_time")}, load, []common.AccountName{common.AccountName(common.N("testapi"))})
+
+		retException = callTestFunctionCheckExceptionF2(t, b, &testApiAction{wasmTestAction("test_action", "test_abort")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))},
+			exception.AbortCalled{}.Code(), "abort() called")
+		assert.Equal(t, retException, true)
+
+		da = dummy_action{DUMMY_ACTION_DEFAULT_A, DUMMY_ACTION_DEFAULT_B, DUMMY_ACTION_DEFAULT_C}
+		load, _ = rlp.EncodeToBytes(&da)
+		callTestF2(t, b, &da, load, []common.AccountName{common.AccountName(common.N("testapi"))})
+
+		b.close()
 
 	})
+
+}
+
+func checkException(f func(b *BaseTester, data []byte, scope []common.AccountName), b *BaseTester, data []byte, scope []common.AccountName, errCode exception.ExcTypes, errMsg string) (ret bool) {
+
+	returning := false
+	try.Try(func() {
+		f(b, data, scope)
+	}).Catch(func(e exception.Exception) {
+		if e.Code() == errCode || inString(e.What(), errMsg) {
+			returning = true
+		}
+	}).End()
+
+	if returning {
+		return returning
+	}
+
+	return false
 
 }
 
@@ -408,63 +523,6 @@ func TestStatefulApi(t *testing.T) {
 // 	})
 
 // }
-
-func TestContextAction(t *testing.T) {
-
-	name := "testdata_context/test_api.wasm"
-	t.Run(filepath.Base(name), func(t *testing.T) {
-		code, err := ioutil.ReadFile(name)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		control := startBlock()
-		createNewAccount(control, "testapi")
-		createNewAccount(control, "acc1")
-		createNewAccount(control, "acc2")
-		createNewAccount(control, "acc3")
-		createNewAccount(control, "acc4")
-
-		SetCode(control, "testapi", code)
-
-		dummy13 := dummy_action{DUMMY_ACTION_DEFAULT_A, DUMMY_ACTION_DEFAULT_B, DUMMY_ACTION_DEFAULT_C}
-
-		callTestFunction(control, code, "test_action", "assert_true", []byte{}, "testapi")
-		callTestFunctionCheckException(control, code, "test_action", "assert_false", []byte{}, "testapi", exception.EosioAssertMessageException{}.Code(), exception.EosioAssertMessageException{}.What())
-
-		b, _ := rlp.EncodeToBytes(&dummy13)
-		callTestFunction(control, code, "test_action", "read_action_normal", b, "testapi")
-
-		//rawBytes := []byte{(1 << 16)}
-		b = bytes.Repeat([]byte{byte(0x01)}, 1<<16)
-		callTestFunction(control, code, "test_action", "read_action_to_0", b, "testapi")
-
-		b = bytes.Repeat([]byte{byte(0x01)}, 1<<16+1)
-		callTestFunctionCheckException(control, code, "test_action", "read_action_to_0", b, "testapi", exception.OverlappingMemoryError{}.Code(), exception.OverlappingMemoryError{}.What())
-
-		b = bytes.Repeat([]byte{byte(0x01)}, 1)
-		callTestFunction(control, code, "test_action", "read_action_to_64k", b, "testapi")
-
-		b = bytes.Repeat([]byte{byte(0x01)}, 3)
-		callTestFunctionCheckException(control, code, "test_action", "read_action_to_64k", b, "testapi", exception.OverlappingMemoryError{}.Code(), exception.OverlappingMemoryError{}.What())
-
-		ret := pushAction(control, code, "test_action", "require_notice", b, "testapi")
-		assert.Equal(t, ret, "assertion failure with message: Should've failed")
-
-		callTestFunctionCheckException(control, code, "test_action", "require_auth", []byte{}, "testapi", exception.MissingAuthException{}.Code(), exception.MissingAuthException{}.What())
-		a3only := []types.PermissionLevel{{common.AccountName(common.N("acc3")), common.PermissionName(common.N("active"))}}
-		b, _ = rlp.EncodeToBytes(a3only)
-		callTestFunctionCheckException(control, code, "test_action", "require_auth", b, "testapi", exception.MissingAuthException{}.Code(), exception.MissingAuthException{}.What())
-
-		a4only := []types.PermissionLevel{{common.AccountName(common.N("acc4")), common.PermissionName(common.N("active"))}}
-		b, _ = rlp.EncodeToBytes(a4only)
-		callTestFunctionCheckException(control, code, "test_action", "require_auth", b, "testapi", exception.MissingAuthException{}.Code(), exception.MissingAuthException{}.What())
-
-		stopBlock(control)
-
-	})
-
-}
 
 func TestPrint(t *testing.T) {
 
@@ -1317,7 +1375,7 @@ func DJBH(str string) uint32 {
 }
 
 func wasmTestAction(cls string, method string) uint64 {
-	//fmt.Println(cls,".",method)
+	fmt.Println(cls, ".", method)
 	return uint64(DJBH(cls))<<32 | uint64(DJBH(method))
 }
 
