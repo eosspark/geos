@@ -1097,7 +1097,9 @@ func (a *ApplyContext) GetAccountCreateTime(account common.AccountName) common.T
 
 	obj := entity.AccountObject{Name: account}
 	err := a.DB.Find("byName", obj, &obj)
-	EosAssert(err != nil, &ActionValidateException{}, "account '%s' does not exist", common.S(uint64(account)))
+	EosAssert(err == nil, &ActionValidateException{}, "account '%s' does not exist", common.S(uint64(account)))
+
+	a.ilog.Info("account:%v", obj)
 
 	return obj.CreationDate.ToTimePoint()
 }

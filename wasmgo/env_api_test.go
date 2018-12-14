@@ -1130,6 +1130,44 @@ func TestFixedPoint(t *testing.T) {
 	})
 }
 
+type testPermissionLastUsedAction struct {
+	Account      common.AccountName
+	Permission   common.PermissionName
+	LastUsedTime common.TimePoint
+}
+
+func TestAccountCreationTime(t *testing.T) {
+
+	name := "testdata_context/test_api.wasm"
+	t.Run(filepath.Base(name), func(t *testing.T) {
+		code, err := ioutil.ReadFile(name)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		b := newBaseTester(true, chain.SPECULATIVE)
+		b.ProduceBlocks(1, false)
+		b.CreateAccounts([]common.AccountName{common.N("testapi")}, false, true)
+		b.ProduceBlocks(1, false)
+		b.SetCode(common.AccountName(common.N("testapi")), code, nil)
+		b.ProduceBlocks(1, false)
+		b.CreateAccounts([]common.AccountName{common.N("alice")}, false, true)
+		aliceCreationTime := b.Control.PendingBlockTime()
+		b.ProduceBlocks(10, false)
+
+		usedAction := testPermissionLastUsedAction{
+			common.N("alice"),
+			common.N("active"),
+			aliceCreationTime,
+		}
+		load, _ := rlp.EncodeToBytes(usedAction)
+		callTestF2(t, b, &testApiAction{wasmTestAction("test_permission", "test_account_creation_time")}, load, []common.AccountName{common.AccountName(common.N("testapi"))})
+
+		b.close()
+
+	})
+}
+
 func callTestException(control *chain.Controller, cls string, method string, payload []byte, authorizer string, billedCpuTimeUs uint32, max_cpu_usage_ms int64, errCode exception.ExcTypes, errMsg string) bool {
 
 	//wasm := wasmgo.NewWasmGo()
