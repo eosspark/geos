@@ -757,7 +757,7 @@ func TestTypes(t *testing.T) {
 
 }
 
-func TestContextMemory(t *testing.T) {
+func TestMemory(t *testing.T) {
 
 	name := "testdata_context/test_api_mem.wasm"
 	t.Run(filepath.Base(name), func(t *testing.T) {
@@ -766,43 +766,142 @@ func TestContextMemory(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		control := startBlock()
-		createNewAccount(control, "testapi")
+		b := newBaseTester(true, chain.SPECULATIVE)
+		b.ProduceBlocks(10, false)
+		b.CreateAccounts([]common.AccountName{common.N("testapi")}, false, true)
+		b.ProduceBlocks(10, false)
+		b.SetCode(common.AccountName(common.N("testapi")), code, nil)
+		b.ProduceBlocks(10, false)
 
-		callTestFunction(control, code, "test_memory", "test_memory_allocs", []byte{}, "testapi")
-		callTestFunction(control, code, "test_memory", "test_memory_hunk", []byte{}, "testapi")
-		callTestFunction(control, code, "test_memory", "test_memory_hunks", []byte{}, "testapi")
-		//callTestFunction(control, code, "test_memory", "test_memory_hunks_disjoint", []byte{}, "testapi")
-		callTestFunction(control, code, "test_memory", "test_memset_memcpy", []byte{}, "testapi")
+		callTestF2(t, b, &testApiAction{wasmTestAction("test_memory", "test_memory_allocs")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
+		b.ProduceBlocks(10, false)
+		callTestF2(t, b, &testApiAction{wasmTestAction("test_memory", "test_memory_hunk")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
+		b.ProduceBlocks(10, false)
+		callTestF2(t, b, &testApiAction{wasmTestAction("test_memory", "test_memory_hunks")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
+		b.ProduceBlocks(10, false)
 
-		callTestFunctionCheckException(control, code, "test_memory", "test_memcpy_overlap_start", []byte{}, "testapi", exception.OverlappingMemoryError{}.Code(), exception.OverlappingMemoryError{}.What())
-		callTestFunctionCheckException(control, code, "test_memory", "test_memcpy_overlap_end", []byte{}, "testapi", exception.OverlappingMemoryError{}.Code(), exception.OverlappingMemoryError{}.What())
+		callTestF2(t, b, &testApiAction{wasmTestAction("test_memory", "test_memset_memcpy")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
+		b.ProduceBlocks(10, false)
+		retException := callTestFunctionCheckExceptionF2(t, b, &testApiAction{wasmTestAction("test_memory", "test_memcpy_overlap_start")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))},
+			exception.OverlappingMemoryError{}.Code(), exception.OverlappingMemoryError{}.What())
+		assert.Equal(t, retException, true)
+		b.ProduceBlocks(10, false)
 
-		callTestFunction(control, code, "test_memory", "test_memcmp", []byte{}, "testapi")
+		retException = callTestFunctionCheckExceptionF2(t, b, &testApiAction{wasmTestAction("test_memory", "test_memcpy_overlap_end")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))},
+			exception.OverlappingMemoryError{}.Code(), exception.OverlappingMemoryError{}.What())
+		assert.Equal(t, retException, true)
+		b.ProduceBlocks(10, false)
 
-		//callTestFunction(control, code, "test_memory", "test_outofbound_0", []byte{}, "testapi")
-		// callTestFunction(control, code, "test_memory", "test_outofbound_1", []byte{}, "testapi")
-		// callTestFunction(control, code, "test_memory", "test_outofbound_2", []byte{}, "testapi")
-		// callTestFunction(control, code, "test_memory", "test_outofbound_3", []byte{}, "testapi")
-		// callTestFunction(control, code, "test_memory", "test_outofbound_4", []byte{}, "testapi")
-		// callTestFunction(control, code, "test_memory", "test_outofbound_5", []byte{}, "testapi")
-		// callTestFunction(control, code, "test_memory", "test_outofbound_6", []byte{}, "testapi")
-		// callTestFunction(control, code, "test_memory", "test_outofbound_7", []byte{}, "testapi")
-		// callTestFunction(control, code, "test_memory", "test_outofbound_8", []byte{}, "testapi")
-		// callTestFunction(control, code, "test_memory", "test_outofbound_9", []byte{}, "testapi")
-		// callTestFunction(control, code, "test_memory", "test_outofbound_10", []byte{}, "testapi")
-		// callTestFunction(control, code, "test_memory", "test_outofbound_11", []byte{}, "testapi")
-		// callTestFunction(control, code, "test_memory", "test_outofbound_12", []byte{}, "testapi")
-		// callTestFunction(control, code, "test_memory", "test_outofbound_13", []byte{}, "testapi")
+		callTestF2(t, b, &testApiAction{wasmTestAction("test_memory", "test_memcmp")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
+		b.ProduceBlocks(10, false)
 
-		callTestFunction(control, code, "test_extended_memory", "test_initial_buffer", []byte{}, "testapi")
-		callTestFunction(control, code, "test_extended_memory", "test_page_memory", []byte{}, "testapi")
-		callTestFunction(control, code, "test_extended_memory", "test_page_memory_exceeded", []byte{}, "testapi")
-		callTestFunction(control, code, "test_extended_memory", "test_page_memory_negative_bytes", []byte{}, "testapi")
+		testMemoryOob := func(t *testing.T, f string) {
+			returning := false
+			try.Try(func() {
+				callTestF2(t, b, &testApiAction{wasmTestAction("test_memory", f)}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
+			}).Catch(func(e exception.Exception) {
+				returning = true
+			}).End()
+			assert.Equal(t, returning, true)
 
-		stopBlock(control)
+		}
+
+		testMemoryOob(t, "test_outofbound_0")
+		testMemoryOob(t, "test_outofbound_1")
+		testMemoryOob(t, "test_outofbound_2")
+		testMemoryOob(t, "test_outofbound_3")
+		testMemoryOob(t, "test_outofbound_4")
+		testMemoryOob(t, "test_outofbound_5")
+		testMemoryOob(t, "test_outofbound_6")
+		testMemoryOob(t, "test_outofbound_7")
+		testMemoryOob(t, "test_outofbound_8")
+		testMemoryOob(t, "test_outofbound_9")
+		testMemoryOob(t, "test_outofbound_10")
+		testMemoryOob(t, "test_outofbound_11")
+		testMemoryOob(t, "test_outofbound_12")
+		testMemoryOob(t, "test_outofbound_13")
+
+		b.close()
 	})
 
+}
+
+//extended_memory_test_initial_memory
+
+func TestExtendedMemoryTestInitial(t *testing.T) {
+
+	name := "testdata_context/test_api_mem.wasm"
+	t.Run(filepath.Base(name), func(t *testing.T) {
+		code, err := ioutil.ReadFile(name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		b := newBaseTester(true, chain.SPECULATIVE)
+		b.ProduceBlocks(10, false)
+		b.CreateAccounts([]common.AccountName{common.N("testapi")}, false, true)
+		b.ProduceBlocks(10, false)
+		b.SetCode(common.AccountName(common.N("testapi")), code, nil)
+		b.ProduceBlocks(10, false)
+		callTestF2(t, b, &testApiAction{wasmTestAction("test_extended_memory", "test_initial_buffer")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
+		b.close()
+	})
+}
+
+func TestExtendedMemoryTestPage(t *testing.T) {
+
+	name := "testdata_context/test_api_mem.wasm"
+	t.Run(filepath.Base(name), func(t *testing.T) {
+		code, err := ioutil.ReadFile(name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		b := newBaseTester(true, chain.SPECULATIVE)
+		b.ProduceBlocks(10, false)
+		b.CreateAccounts([]common.AccountName{common.N("testapi")}, false, true)
+		b.ProduceBlocks(10, false)
+		b.SetCode(common.AccountName(common.N("testapi")), code, nil)
+		b.ProduceBlocks(10, false)
+		callTestF2(t, b, &testApiAction{wasmTestAction("test_extended_memory", "test_page_memory")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
+		b.close()
+	})
+}
+
+func TestExtendedMemoryTestPageExceed(t *testing.T) {
+
+	name := "testdata_context/test_api_mem.wasm"
+	t.Run(filepath.Base(name), func(t *testing.T) {
+		code, err := ioutil.ReadFile(name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		b := newBaseTester(true, chain.SPECULATIVE)
+		b.ProduceBlocks(10, false)
+		b.CreateAccounts([]common.AccountName{common.N("testapi")}, false, true)
+		b.ProduceBlocks(10, false)
+		b.SetCode(common.AccountName(common.N("testapi")), code, nil)
+		b.ProduceBlocks(10, false)
+		callTestF2(t, b, &testApiAction{wasmTestAction("test_extended_memory", "test_page_memory_exceeded")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
+		b.close()
+	})
+}
+
+func TestExtendedMemoryTestPageNegativeBytes(t *testing.T) {
+
+	name := "testdata_context/test_api_mem.wasm"
+	t.Run(filepath.Base(name), func(t *testing.T) {
+		code, err := ioutil.ReadFile(name)
+		if err != nil {
+			t.Fatal(err)
+		}
+		b := newBaseTester(true, chain.SPECULATIVE)
+		b.ProduceBlocks(10, false)
+		b.CreateAccounts([]common.AccountName{common.N("testapi")}, false, true)
+		b.ProduceBlocks(10, false)
+		b.SetCode(common.AccountName(common.N("testapi")), code, nil)
+		b.ProduceBlocks(10, false)
+		callTestF2(t, b, &testApiAction{wasmTestAction("test_extended_memory", "test_page_memory_negative_bytes")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
+		b.close()
+	})
 }
 
 type check_auth struct {
