@@ -7,6 +7,7 @@ package wasmgo_test
 import (
 	"bytes"
 	"crypto/sha256"
+	"encoding/json"
 	"fmt"
 	"github.com/eosspark/container/sets/treeset"
 	"github.com/eosspark/eos-go/chain"
@@ -14,6 +15,7 @@ import (
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/common/math"
 	"github.com/eosspark/eos-go/crypto"
+	abi "github.com/eosspark/eos-go/crypto/abi_serializer"
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/entity"
 	"github.com/eosspark/eos-go/exception"
@@ -103,6 +105,7 @@ func TestAction(t *testing.T) {
 			act.Data = data
 			trx.Transaction.Actions = append(trx.Transaction.Actions, act)
 
+			b.SetTransactionHeaders(&trx.Transaction, b.DefaultExpirationDelta, 0)
 			privKey := b.getPrivateKey(common.AccountName(common.N("inita")), "active")
 			chainId := b.Control.GetChainId()
 			trx.Sign(&privKey, &chainId)
@@ -552,6 +555,64 @@ func TestStatefulApi(t *testing.T) {
 // 	})
 
 // }
+
+func TestChain(t *testing.T) {
+	name := "testdata_context/test_api.wasm"
+	t.Run(filepath.Base(name), func(t *testing.T) {
+		code, err := ioutil.ReadFile(name)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		b := newBaseTester(true, chain.SPECULATIVE)
+		b.ProduceBlocks(2, false)
+		b.CreateAccounts([]common.AccountName{common.N("testapi")}, false, true)
+
+		producters := []common.AccountName{
+			common.N("inita"),
+			common.N("initb"),
+			common.N("initc"),
+			common.N("initd"),
+			common.N("inite"),
+			common.N("initf"),
+			common.N("initg"),
+			common.N("inith"),
+			common.N("initi"),
+			common.N("initj"),
+			common.N("initk"),
+			common.N("initl"),
+			common.N("initm"),
+			common.N("initn"),
+			common.N("inito"),
+			common.N("initp"),
+			common.N("initq"),
+			common.N("initr"),
+			common.N("inits"),
+			common.N("initt"),
+			common.N("initu"),
+		}
+
+		b.CreateAccounts(producters, false, true)
+		b.SetProducers(producters)
+
+		b.SetCode(common.N("testapi"), code, nil)
+		b.ProduceBlocks(10, false)
+
+		producers := b.Control.ActiveProducers().Producers
+		prods := make([]common.AccountName, len(producers))
+
+		for i := 0; i < len(prods); i++ {
+			prods[i] = producers[i].ProducerName
+		}
+
+		load, _ := rlp.EncodeToBytes(&prods)
+		callTestF2(t, b, &testApiAction{wasmTestAction("test_chain", "test_activeprods")}, load, []common.AccountName{common.AccountName(common.N("testapi"))})
+
+		b.close()
+
+	})
+
+}
 
 func TestPrint(t *testing.T) {
 
@@ -2067,12 +2128,12 @@ func (t BaseTester) pushGenesisBlock() {
 	//	log.Error("pushGenesisBlock is err : %v", err)
 	//}
 	t.SetCode(common.DefaultConfig.SystemAccountName, code, nil)
-	//abiName := "testdata_context/eosio.bios.abi"
-	//abi, _ := ioutil.ReadFile(abiName)
+	abiName := "testdata_context/eosio.bios.abi"
+	abi, _ := ioutil.ReadFile(abiName)
 	////if err != nil {
 	////	log.Error("pushGenesisBlock is err : %v", err)
 	////}
-	//t.SetAbi(common.DefaultConfig.SystemAccountName, abi, nil)
+	t.SetAbi(common.DefaultConfig.SystemAccountName, abi, nil)
 }
 
 func (t BaseTester) ProduceBlocks(n uint32, empty bool) {
@@ -2332,6 +2393,113 @@ func (t BaseTester) SetCode(account common.AccountName, wasm []byte, signer *ecc
 		trx.Sign(&privKey, &chainId)
 	}
 	t.PushTransaction(&trx, common.MaxTimePoint(), t.DefaultBilledCpuTimeUs)
+}
+
+type setAbi struct {
+	Account common.AccountName
+	Abi     []byte
+}
+
+func (s setAbi) getAccount() common.AccountName {
+	return common.DefaultConfig.SystemAccountName
+}
+
+func (s setAbi) getName() common.ActionName {
+	return common.ActionName(common.N("setabi"))
+}
+func (t BaseTester) SetAbi(account common.AccountName, abiJson []byte, signer *ecc.PrivateKey) {
+	abiEt := abi.AbiDef{}
+	json.Unmarshal(abiJson, &abiEt)
+	//if err != nil {
+	//	log.Error("unmarshal abiJson is wrong :%s", err)
+	//}
+	trx := types.SignedTransaction{}
+	abiBytes, _ := rlp.EncodeToBytes(abiEt)
+	setAbi := setAbi{Account: account, Abi: abiBytes}
+	data, _ := rlp.EncodeToBytes(setAbi)
+	act := types.Action{
+		Account:       setAbi.getAccount(),
+		Name:          setAbi.getName(),
+		Authorization: []types.PermissionLevel{{account, common.DefaultConfig.ActiveName}},
+		Data:          data,
+	}
+	trx.Actions = append(trx.Actions, &act)
+	t.SetTransactionHeaders(&trx.Transaction, t.DefaultExpirationDelta, 0)
+	chainId := t.Control.GetChainId()
+	if signer != nil {
+		trx.Sign(signer, &chainId)
+	} else {
+		privKey := t.getPrivateKey(account, "active")
+		trx.Sign(&privKey, &chainId)
+	}
+	t.PushTransaction(&trx, common.MaxTimePoint(), t.DefaultBilledCpuTimeUs)
+}
+
+type VariantsObject map[string]interface{}
+
+func (t BaseTester) SetProducers(accounts []common.AccountName) *types.TransactionTrace {
+
+	schedule := t.GetProducerKeys(&accounts)
+
+	return t.PushAction2(common.DefaultConfig.SystemAccountName,
+		common.N("setprods"),
+		common.DefaultConfig.SystemAccountName,
+		&VariantsObject{"schedule": schedule},
+		t.DefaultExpirationDelta,
+		0)
+
+}
+
+func (t BaseTester) GetProducerKeys(producerNames *[]common.AccountName) []types.ProducerKey {
+	var schedule []types.ProducerKey
+	for _, producerName := range *producerNames {
+		pk := types.ProducerKey{ProducerName: common.AccountName(producerName), BlockSigningKey: t.getPublicKey(common.AccountName(producerName), "active")}
+		schedule = append(schedule, pk)
+	}
+	return schedule
+}
+
+func (t BaseTester) PushAction2(code common.AccountName, acttype common.AccountName,
+	actor common.AccountName, data *VariantsObject, expiration uint32, delaySec uint32) *types.TransactionTrace {
+	auths := make([]types.PermissionLevel, 0)
+	auths = append(auths, types.PermissionLevel{Actor: actor, Permission: common.DefaultConfig.ActiveName})
+	return t.PushAction4(code, acttype, &auths, data, expiration, delaySec)
+}
+
+func (t BaseTester) PushAction4(code common.AccountName, acttype common.AccountName,
+	auths *[]types.PermissionLevel, data *VariantsObject, expiration uint32, delaySec uint32) *types.TransactionTrace {
+	trx := types.SignedTransaction{}
+	try.Try(func() {
+		action := t.GetAction(code, acttype, *auths, data)
+		trx.Actions = append(trx.Actions, action)
+	})
+	t.SetTransactionHeaders(&trx.Transaction, expiration, delaySec)
+	chainId := t.Control.GetChainId()
+	key := ecc.PrivateKey{}
+	for _, auth := range *auths {
+		key = t.getPrivateKey(auth.Actor, auth.Permission.String())
+		trx.Sign(&key, &chainId)
+	}
+	return t.PushTransaction(&trx, common.MaxTimePoint(), t.DefaultBilledCpuTimeUs)
+}
+
+func (t BaseTester) GetAction(code common.AccountName, actType common.AccountName,
+	auths []types.PermissionLevel, data *VariantsObject) *types.Action {
+	acnt := t.Control.GetAccount(code)
+	a := acnt.GetAbi()
+	action := types.Action{code, actType, auths, nil}
+	//actionTypeName := a.ActionForName(actType).Type
+	buf, _ := json.Marshal(data)
+	//if err != nil {
+	//	log.Error("tester GetAction Marshal is error:%s", err)
+	//}
+	//action.Data, _ = a.EncodeAction(common.N(actionTypeName), buf) //TODO
+	action.Data, _ = a.EncodeAction(actType, buf)
+	//if err != nil {
+	//	log.Error("tester GetAction EncodeAction is error:%s", err)
+	//}
+	//log.Error("action:%s", action)
+	return &action
 }
 
 // func (t BaseTester) SetAbi(account common.AccountName, abiJson []byte, signer *ecc.PrivateKey) {
