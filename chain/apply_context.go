@@ -80,7 +80,7 @@ func NewApplyContext(control *Controller, trxContext *TransactionContext, act *t
 	logHandler := log.StreamHandler(os.Stdout, log.TerminalFormat(true))
 	//applyContext.ilog.SetHandler(log.LvlFilterHandler(log.LvlDebug, logHandler))
 	applyContext.ilog.SetHandler(log.LvlFilterHandler(log.LvlInfo, logHandler))
-	applyContext.ilog.SetHandler(log.DiscardHandler())
+	//applyContext.ilog.SetHandler(log.DiscardHandler())
 	return applyContext
 
 }
