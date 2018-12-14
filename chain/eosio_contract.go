@@ -1,6 +1,7 @@
 package chain
 
 import (
+	"fmt"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	arithmetic "github.com/eosspark/eos-go/common/arithmetic_types"
@@ -148,7 +149,10 @@ func applyEosioNewaccount(context *ApplyContext) {
 	err = db.Find("byName", existingAccount, &existingAccount)
 	EosAssert(err != nil, &AccountNameExistsException{}, "Cannot create account named ${name}, as that name is already taken", common.S(uint64(create.Name)))
 
-	newAccountObject := entity.AccountObject{Name: create.Name, CreationDate: types.NewBlockTimeStamp(context.Control.PendingBlockTime())}
+	blockTime := context.Control.PendingBlockTime()
+	fmt.Println("blocktime:", blockTime)
+
+	newAccountObject := entity.AccountObject{Name: create.Name, CreationDate: types.NewBlockTimeStamp(blockTime)}
 	db.Insert(&newAccountObject)
 
 	newAccountSequenceObj := entity.AccountSequenceObject{Name: create.Name}

@@ -176,6 +176,64 @@ func (e EosioSystemTester) CreateAccountWithResources(name common.AccountName, c
 	return e.PushTransaction(&trx, common.MaxTimePoint(), e.DefaultBilledCpuTimeUs)
 }
 
+func (e EosioSystemTester) CreateAccountWithResources2(name common.AccountName, creator common.AccountName, ramBytes uint32) *types.TransactionTrace {
+	trx := types.SignedTransaction{}
+	e.SetTransactionHeaders(&trx.Transaction, e.DefaultExpirationDelta, 0)
+
+	ownerAuth := types.NewAuthority(e.getPublicKey(name, "owner"), 0)
+	activeAuth := types.NewAuthority(e.getPublicKey(name, "active"), 0)
+
+	new := newAccount{
+		Creator: creator,
+		Name:    name,
+		Owner:   ownerAuth,
+		Active:  activeAuth,
+	}
+	data, _ := rlp.EncodeToBytes(new)
+	act := &types.Action{
+		Account:       new.getAccount(),
+		Name:          new.getName(),
+		Authorization: []types.PermissionLevel{{creator, common.DefaultConfig.ActiveName}},
+		Data:          data,
+	}
+	trx.Actions = append(trx.Actions, act)
+
+	buyRamBytesData := VariantsObject{
+		"payer":    creator,
+		"receiver": name,
+		"bytes":    ramBytes,
+	}
+	buyRam := e.GetAction(
+		common.N("eosio"),
+		common.N("buyrambytes"),
+		[]types.PermissionLevel{{creator,common.DefaultConfig.ActiveName}},
+		&buyRamBytesData,
+	)
+	trx.Actions = append(trx.Actions, buyRam)
+
+	delegateData := VariantsObject{
+		"from":               creator,
+		"receiver":           name,
+		"stake_net_quantity": CoreFromString("10.0000"),
+		"stake_cpu_quantity": CoreFromString("10.0000"),
+		"transfer":           0,
+	}
+	delegate := e.GetAction(
+		common.N("eosio"),
+		common.N("delegatebw"),
+		[]types.PermissionLevel{{creator,common.DefaultConfig.ActiveName}},
+		&delegateData,
+	)
+	trx.Actions = append(trx.Actions, delegate)
+
+
+	e.SetTransactionHeaders(&trx.Transaction, e.DefaultExpirationDelta, 0)
+	pk := e.getPrivateKey(creator, "active")
+	chainId := e.Control.GetChainId()
+	trx.Sign(&pk, &chainId)
+	return e.PushTransaction(&trx, common.MaxTimePoint(), e.DefaultBilledCpuTimeUs)
+}
+
 func (e EosioSystemTester) BuyRamBytes(payer common.AccountName, receiver common.AccountName, numBytes uint32) ActionResult {
 	buyRamBytes := VariantsObject{
 		"payer":    payer,
@@ -226,23 +284,23 @@ func (e EosioSystemTester) GetBalance(act common.AccountName) common.Asset {
 }
 
 func (e EosioSystemTester) GetTotalStake(act common.AccountName) VariantsObject {
-	type userResources struct {
-		owner     common.AccountName
-		netWeight common.Asset
-		cpuWeight common.Asset
-		ramBytes  int64
+	type UserResources struct {
+		Owner     common.AccountName
+		NetWeight common.Asset
+		CpuWeight common.Asset
+		RamBytes  int64
 	}
 	data := e.GetRowByAccount(uint64(common.N("eosio")), uint64(act), uint64(common.N("userres")), &act)
 	if len(data) == 0 {
 		return VariantsObject{}
 	} else {
-		res := userResources{}
+		res := UserResources{}
 		rlp.DecodeBytes(data, &res)
 		return VariantsObject{
-			"owner":      res.owner,
-			"net_weight": res.netWeight,
-			"cpu_weight": res.cpuWeight,
-			"ram_bytes":  res.ramBytes,
+			"owner":      res.Owner,
+			"net_weight": res.NetWeight,
+			"cpu_weight": res.CpuWeight,
+			"ram_bytes":  res.RamBytes,
 		}
 	}
 }

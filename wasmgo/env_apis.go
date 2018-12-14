@@ -1807,6 +1807,7 @@ func getPermissionLastUsed(vm *VM) {
 func getAccountCreationTime(vm *VM) {
 	w := vm.WasmGo
 	account := common.AccountName(vm.popUint64())
+	//w.ilog.Debug("account:%v ", account)
 
 	ret := w.context.GetAccountCreateTime(account)
 	vm.pushUint64(uint64(ret.TimeSinceEpoch().Count()))

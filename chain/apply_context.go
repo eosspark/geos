@@ -240,7 +240,7 @@ func (a *ApplyContext) execOne(trace *types.ActionTrace) {
 			native := a.Control.FindApplyHandler(a.Receiver, a.Act.Account, a.Act.Name)
 
 			//a.ilog.Info("receiver:%v account:%v action:%v data:%v", a.Receiver, a.Act.Account, a.Act.Name, a.Act.Data)
-			a.ilog.Info("receiver:%v account:%v action:%v", a.Receiver, a.Act.Account, a.Act.Name)
+			//a.ilog.Info("receiver:%v account:%v action:%v", a.Receiver, a.Act.Account, a.Act.Name)
 
 			if native != nil {
 				if a.TrxContext.CanSubjectivelyFail && a.Control.IsProducingBlock() {
@@ -1097,7 +1097,9 @@ func (a *ApplyContext) GetAccountCreateTime(account common.AccountName) common.T
 
 	obj := entity.AccountObject{Name: account}
 	err := a.DB.Find("byName", obj, &obj)
-	EosAssert(err != nil, &ActionValidateException{}, "account '%s' does not exist", common.S(uint64(account)))
+	EosAssert(err == nil, &ActionValidateException{}, "account '%s' does not exist", common.S(uint64(account)))
+
+	a.ilog.Info("account:%v", obj)
 
 	return obj.CreationDate.ToTimePoint()
 }
