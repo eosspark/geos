@@ -307,21 +307,20 @@ func (t BaseTester) PushAction(act *types.Action, authorizer common.AccountName)
 		act.Authorization = []types.PermissionLevel{{authorizer, common.DefaultConfig.ActiveName}}
 	}
 	trx.Actions = append(trx.Actions, act)
-	t.SetTransactionHeaders(&trx.Transaction, 0, 0) //TODO
-	if common.Empty(authorizer) {
+	t.SetTransactionHeaders(&trx.Transaction, t.DefaultExpirationDelta, 0)
+	if !common.Empty(authorizer) {
 		chainId := t.Control.GetChainId()
 		privateKey := t.getPrivateKey(authorizer, "active")
 		trx.Sign(&privateKey, &chainId)
 	}
 	try.Try(func() {
-		t.PushTransaction(&trx, 0, 0) //TODO
+		t.PushTransaction(&trx, common.MaxTimePoint(), t.DefaultBilledCpuTimeUs)
 	}).Catch(func(ex exception.Exception) {
 		log.Error("tester PushAction is error: %#v", exception.GetDetailMessage(ex))
 	}).End()
-	t.ProduceBlock(common.Microseconds(common.DefaultConfig.BlockIntervalMs), 0)
-	/*BOOST_REQUIRE_EQUAL(true, chain_has_transaction(trx.id()))
-	success()*/
-	return ""
+	t.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs), 0)
+	//BOOST_REQUIRE_EQUAL(true, chain_has_transaction(trx.id()))
+	return t.Success()
 }
 
 type VariantsObject map[string]interface{}

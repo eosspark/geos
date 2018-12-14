@@ -79,6 +79,9 @@ func (a Asset) FromString(from *string) Asset {
 		intPart, _ = strconv.ParseInt(amountStr, 10, 64)
 	}
 	amount := intPart
+	for i := uint8(0) ; i < sym.Precision; i++ {
+		amount *= 10
+	}
 	amount += fractPart
 	return Asset{Amount: amount, Symbol: sym}
 }
