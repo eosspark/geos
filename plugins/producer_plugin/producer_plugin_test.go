@@ -22,8 +22,8 @@ func TestProducerPlugin_FindByApplication(t *testing.T) {
 	assert.NotNil(t, plugin)
 }
 
-var eosio = common.AccountName(common.N("eosio"))
-var yuanc = common.AccountName(common.N("yuanc"))
+var eosio = common.N("eosio")
+var yuanc = common.N("yuanc")
 
 func producerPluginInitialize(arguments ...string) *ProducerPlugin {
 	app := cli.NewApp()
@@ -41,7 +41,7 @@ func TestProducerPlugin_PluginInitialize(t *testing.T) {
 		"--private-key", "[\"EOS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV\", \"5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3\"]",
 		"--private-key", "[\"EOS5jeUuKEZ8s8LLoxz4rNysYdHWboup8KtkyJzZYQzcVKFGek9Zu\", \"5Ja3h2wJNUnNcoj39jDMHGigsazvbGHAeLYEHM5uTwtfUoRDoYP\"]")
 
-	assert.Equal(t, true, plugin.my.Producers.Contains(common.AccountName(common.N("eosio")), common.AccountName(common.N("yuanc"))))
+	assert.Equal(t, true, plugin.my.Producers.Contains(common.N("eosio")), common.N("yuanc"))
 	assert.Equal(t, true, plugin.my.ProductionEnabled)
 
 	pub, err := ecc.NewPublicKey("EOS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV")
@@ -155,7 +155,7 @@ func TestProducerPluginImpl_StartBlock(t *testing.T) {
 	assert.Equal(t, succeeded, result)
 	assert.Equal(t, producing, plugin.my.PendingBlockMode)
 
-	plugin.my.ProducerWatermarks[common.AccountName(common.N("eosio"))] = 100
+	plugin.my.ProducerWatermarks[common.N("eosio")] = 100
 	result, _ = plugin.my.StartBlock()
 	assert.Equal(t, waiting, result)
 	assert.Equal(t, speculating, plugin.my.PendingBlockMode)
@@ -240,7 +240,7 @@ func TestProducerPluginImpl_OnIncomingBlock(t *testing.T) {
 	chain := plugin.chain()
 	block := &types.SignedBlock{}
 	block.Timestamp = types.NewBlockTimeStamp(*plugin.my.CalculateNextBlockTime(&eosio, chain.HeadBlockState().SignedBlock.Timestamp))
-	block.Producer = common.AccountName(common.N("eosio"))
+	block.Producer = common.N("eosio")
 	block.Previous = chain.HeadBlockState().BlockId
 
 	priKey, err := ecc.NewPrivateKey("5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3")
@@ -271,7 +271,7 @@ func BenchmarkProducerPluginImpl_OnIncomingBlock(b *testing.B) {
 	for i := 0; i < b.N; i++ {
 		block := &types.SignedBlock{}
 		block.Timestamp = types.NewBlockTimeStamp(*plugin.my.CalculateNextBlockTime(&eosio, chain.HeadBlockState().SignedBlock.Timestamp))
-		block.Producer = common.AccountName(common.N("eosio"))
+		block.Producer = common.N("eosio")
 		block.Previous = chain.HeadBlockState().BlockId
 
 		priKey, _ := ecc.NewPrivateKey("5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3")

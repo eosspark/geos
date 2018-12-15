@@ -20,8 +20,8 @@ func NewChainTester(when types.BlockTimeStamp, names ...common.AccountName) *Cha
 	pubKey := priKey.PublicKey()
 
 	tester.KeyPairs = make(map[common.AccountName]common.Pair)
-	tester.KeyPairs[common.AccountName(common.N("eosio"))] = common.MakePair(pubKey, priKey)
-	tester.KeyPairs[common.AccountName(common.N("yuanc"))] = common.MakePair(pubKey, priKey)
+	tester.KeyPairs[common.N("eosio")] = common.MakePair(pubKey, priKey)
+	tester.KeyPairs[common.N("yuanc")] = common.MakePair(pubKey, priKey)
 
 	hbs := tester.NewHeaderStateTester(when)
 	sbk := tester.NewSignedBlockTester(hbs)
@@ -43,7 +43,7 @@ func NewChainTester(when types.BlockTimeStamp, names ...common.AccountName) *Cha
 
 func (t *ChainTester) NewProducerScheduleTester(names ...common.AccountName) types.ProducerScheduleType {
 	if len(names) == 0 {
-		names = append(names, common.AccountName(common.N("eosio")))
+		names = append(names, common.N("eosio"))
 	}
 
 	initSchedule := types.ProducerScheduleType{Version: 0, Producers: []types.ProducerKey{}}

@@ -204,27 +204,27 @@ func (c *ChainPlugin) PluginInitialize(options *cli.Context) {
 	c.my.ChainConfig = chain.NewConfig()
 
 	for _, actor := range options.StringSlice("actor-whitelist") {
-		c.my.ChainConfig.ActorWhitelist.Add(common.AccountName(common.N(actor)))
+		c.my.ChainConfig.ActorWhitelist.Add(common.N(actor))
 	}
 	for _, actor := range options.StringSlice("actor-blacklist") {
-		c.my.ChainConfig.ActorBlacklist.Add(common.AccountName(common.N(actor)))
+		c.my.ChainConfig.ActorBlacklist.Add(common.N(actor))
 	}
 	for _, constract := range options.StringSlice("contract-whitelist") {
-		c.my.ChainConfig.ContractWhitelist.Add(common.AccountName(common.N(constract)))
+		c.my.ChainConfig.ContractWhitelist.Add(common.N(constract))
 	}
 	for _, constract := range options.StringSlice("contract-blacklist") {
-		c.my.ChainConfig.ContractBlacklist.Add(common.AccountName(common.N(constract)))
+		c.my.ChainConfig.ContractBlacklist.Add(common.N(constract))
 	}
 
 	for _, producer := range options.StringSlice("trusted-producer") {
-		c.my.ChainConfig.TrustedProducers.Add(common.AccountName(common.N(producer)))
+		c.my.ChainConfig.TrustedProducers.Add(common.N(producer))
 	}
 
 	for _, action := range options.StringSlice("action-blacklist") {
 		pos := strings.Index(action, "::")
 		EosAssert(pos != -1, &PluginConfigException{}, "Invalid entry in action-blacklist: '%s'", action)
-		code := common.AccountName(common.N(action[0:pos]))
-		act := common.AccountName(common.N(action[pos+2:]))
+		code := common.N(action[0:pos])
+		act := common.N(action[pos+2:])
 		c.my.ChainConfig.ActionBlacklist.Add(common.MakePair(code, act))
 	}
 

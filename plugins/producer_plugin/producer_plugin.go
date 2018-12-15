@@ -133,7 +133,7 @@ func (p *ProducerPlugin) PluginInitialize(c *cli.Context) {
 	Try(func() {
 		//app.Action = func(c *cli.Context) {
 		for _, n := range c.StringSlice("producer-name") {
-			name := common.AccountName(common.N(n))
+			name := common.N(n)
 			p.my.Producers.Add(name)
 		}
 
@@ -205,7 +205,7 @@ func (p *ProducerPlugin) PluginInitialize(c *cli.Context) {
 		if greylist := c.StringSlice("greylist-account"); len(greylist) > 0 {
 			param := GreylistParams{}
 			for _, a := range greylist {
-				n := common.AccountName(common.N(a))
+				n := common.N(a)
 				param.Accounts.AddItem(n)
 			}
 			p.AddGreylistAccounts(param)
