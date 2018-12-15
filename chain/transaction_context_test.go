@@ -64,7 +64,7 @@ func TestContract(t *testing.T) {
 		rlp.DecodeBytes(obj.Value, &asset)
 		assert.Equal(t, asset.Amount, int64(30000))
 
-		//control.Close()
+		control.Close()
 	})
 
 }

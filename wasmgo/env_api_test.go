@@ -556,6 +556,91 @@ func TestStatefulApi(t *testing.T) {
 
 // }
 
+func TestTransaction(t *testing.T) {
+	name := "testdata_context/test_api.wasm"
+	t.Run(filepath.Base(name), func(t *testing.T) {
+		code, err := ioutil.ReadFile(name)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		b := newBaseTester(true, chain.SPECULATIVE)
+		b.ProduceBlocks(2, false)
+		b.CreateAccounts([]common.AccountName{common.N("testapi")}, false, true)
+		b.ProduceBlocks(100, false)
+		b.SetCode(common.N("testapi"), code, nil)
+		b.ProduceBlocks(1, false)
+
+		{
+			trx := NewTransaction()
+			a := testApiAction{wasmTestAction("test_transaction", "require_auth")}
+			pl := []types.PermissionLevel{}
+			act := newAction(pl, &a)
+			trx.Transaction.Actions = append(trx.Transaction.Actions, act)
+			b.SetTransactionHeaders(&trx.Transaction, b.DefaultExpirationDelta, 0)
+
+			returning := false
+			try.Try(func() {
+				b.PushTransaction(trx, common.MaxTimePoint(), b.DefaultBilledCpuTimeUs)
+			}).Catch(func(e exception.Exception) {
+				if inString(exception.GetDetailMessage(e), "transaction must have at least one authorization") {
+					returning = true
+				}
+			}).End()
+			assert.Equal(t, returning, true)
+		}
+
+		callTestF2(t, b, &testApiAction{wasmTestAction("test_transaction", "send_action")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
+		callTestF2(t, b, &testApiAction{wasmTestAction("test_transaction", "send_action_empty")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
+
+		retException := callTestFunctionCheckExceptionF2(t, b, &testApiAction{wasmTestAction("test_transaction", "send_action_large")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))},
+			exception.InlineActionTooBig{}.Code(), "inline action too big")
+		assert.Equal(t, retException, true)
+
+		retException = callTestFunctionCheckExceptionF2(t, b, &testApiAction{wasmTestAction("test_transaction", "send_action_inline_fail")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))},
+			exception.EosioAssertMessageException{}.Code(), "test_action::assert_false")
+		assert.Equal(t, retException, true)
+
+		callTestF2(t, b, &testApiAction{wasmTestAction("test_transaction", "send_transaction")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
+
+		//retException = callTestFunctionCheckExceptionF2(t, b, &testApiAction{wasmTestAction("test_transaction", "send_transaction_empty")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))},
+		//	exception.TxNoAuths{}.Code(),  "transaction must have at least one authorization")
+		//assert.Equal(t, retException, true)
+
+		// {
+		// 	produce_blocks(10);
+		// 	transaction_trace_ptr trace;
+		// 	auto c = control->applied_transaction.connect([&]( const transaction_trace_ptr& t) { if (t && t->receipt && t->receipt->status != transaction_receipt::executed) { trace = t; } } );
+
+		// 	// test error handling on deferred transaction failure
+		// 	CALL_TEST_FUNCTION(*this, "test_transaction", "send_transaction_trigger_error_handler", {});
+
+		// 	BOOST_REQUIRE(trace);
+		// 	BOOST_CHECK_EQUAL(trace->receipt->status, transaction_receipt::soft_fail);
+		// 	c.disconnect();
+		// }
+		ret := callTestF2(t, b, &testApiAction{wasmTestAction("test_transaction", "test_read_transaction")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
+		//hash, _ := rlp.EncodeToBytes(&ret.ID)
+		assert.Equal(t, ret.ID.String(), ret.ActionTraces[0].Console)
+
+		bn := b.Control.HeadBlockNum()
+		load, _ := rlp.EncodeToBytes(&bn)
+		callTestF2(t, b, &testApiAction{wasmTestAction("test_transaction", "test_tapos_block_num")}, load, []common.AccountName{common.AccountName(common.N("testapi"))})
+
+		hh := b.Control.HeadBlockId().Hash[1]
+		load, _ = rlp.EncodeToBytes(&hh)
+		callTestF2(t, b, &testApiAction{wasmTestAction("test_transaction", "test_tapos_block_prefix")}, load, []common.AccountName{common.AccountName(common.N("testapi"))})
+
+		retException = callTestFunctionCheckExceptionF2(t, b, &testApiAction{wasmTestAction("test_transaction", "send_action_recurse")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))},
+			exception.TransactionException{}.Code(), "max inline action depth per transaction reached")
+		assert.Equal(t, retException, true)
+
+		b.close()
+
+	})
+
+}
+
 func TestChain(t *testing.T) {
 	name := "testdata_context/test_api.wasm"
 	t.Run(filepath.Base(name), func(t *testing.T) {
@@ -568,7 +653,7 @@ func TestChain(t *testing.T) {
 		b.ProduceBlocks(2, false)
 		b.CreateAccounts([]common.AccountName{common.N("testapi")}, false, true)
 
-		producters := []common.AccountName{
+		producers := []common.AccountName{
 			common.N("inita"),
 			common.N("initb"),
 			common.N("initc"),
@@ -592,17 +677,17 @@ func TestChain(t *testing.T) {
 			common.N("initu"),
 		}
 
-		b.CreateAccounts(producters, false, true)
-		b.SetProducers(producters)
+		b.CreateAccounts(producers, false, true)
+		b.SetProducers(producers)
 
 		b.SetCode(common.N("testapi"), code, nil)
 		b.ProduceBlocks(10, false)
 
-		producers := b.Control.ActiveProducers().Producers
-		prods := make([]common.AccountName, len(producers))
+		ps := b.Control.ActiveProducers().Producers
+		prods := make([]common.AccountName, len(ps))
 
 		for i := 0; i < len(prods); i++ {
-			prods[i] = producers[i].ProducerName
+			prods[i] = ps[i].ProducerName
 		}
 
 		load, _ := rlp.EncodeToBytes(&prods)
@@ -1549,7 +1634,7 @@ func TestMultiIndex(t *testing.T) {
 }
 
 func inString(s1, s2 string) bool {
-	if strings.Index(s1, s2) < 0 {
+	if strings.Index(s1, s2) <= 0 {
 		return false
 	}
 
@@ -2125,7 +2210,7 @@ func callTestFunctionCheckExceptionF2(test *testing.T, t *BaseTester, a actionIn
 		t.PushTransaction(trx, common.MaxTimePoint(), t.DefaultBilledCpuTimeUs)
 	}).Catch(func(e exception.Exception) {
 		//fmt.Println(exception.GetDetailMessage(e))
-		if e.Code() == errCode || inString(e.What(), errMsg) {
+		if e.Code() == errCode || inString(exception.GetDetailMessage(e), errMsg) {
 			//ret = true
 			//try.Return()
 
@@ -2292,7 +2377,7 @@ func (t BaseTester) produceBlock(skipTime common.Microseconds, skipPendingTrxs b
 		t.startBlock(nextTime)
 	}
 	Hbs := t.Control.HeadBlockState()
-	producer := Hbs.GetScheduledProducer(types.BlockTimeStamp(nextTime))
+	producer := Hbs.GetScheduledProducer(types.NewBlockTimeStamp(nextTime))
 	privKey := ecc.PrivateKey{}
 	privateKey, ok := t.BlockSigningPrivateKeys[producer.BlockSigningKey.String()]
 	if !ok {
@@ -2639,32 +2724,32 @@ func (t BaseTester) GetAction(code common.AccountName, actType common.AccountNam
 	return &action
 }
 
-// func (t BaseTester) SetAbi(account common.AccountName, abiJson []byte, signer *ecc.PrivateKey) {
-// 	abiEt := abi.AbiDef{}
-// 	err := json.Unmarshal(abiJson, &abiEt)
-// 	if err != nil {
-// 		log.Error("unmarshal abiJson is wrong :%s", err)
-// 	}
-// 	trx := types.SignedTransaction{}
-// 	abiBytes, _ := rlp.EncodeToBytes(abiEt)
-// 	setAbi := setAbi{Account: account, Abi: abiBytes}
-// 	data, _ := rlp.EncodeToBytes(setAbi)
-// 	act := types.Action{
-// 		// Account:       account,
-// 		// Name:          setAbi.getName(),
-// 		Account: common.AccountName(common.N("eosio")),
-// 		Name:    common.ActionName(common.N("setabi")),
-// 		Authorization: []types.PermissionLevel{{account, common.DefaultConfig.ActiveName}},
-// 		Data:          data,
-// 	}
-// 	trx.Actions = append(trx.Actions, &act)
-// 	t.SetTransactionHeaders(&trx.Transaction, t.DefaultExpirationDelta, 0)
-// 	chainId := t.Control.GetChainId()
-// 	if signer != nil {
-// 		trx.Sign(signer, &chainId)
-// 	} else {
-// 		privKey := t.getPrivateKey(account, "active")
-// 		trx.Sign(&privKey, &chainId)
-// 	}
-// 	t.PushTransaction(&trx, common.MaxTimePoint(), t.DefaultBilledCpuTimeUs)
-// }
+//func (t BaseTester) SetAbi(account common.AccountName, abiJson []byte, signer *ecc.PrivateKey) {
+//	abiEt := abi.AbiDef{}
+//	err := json.Unmarshal(abiJson, &abiEt)
+//	//if err != nil {
+//	//	log.Error("unmarshal abiJson is wrong :%s", err)
+//	//}
+//	trx := types.SignedTransaction{}
+//	abiBytes, _ := rlp.EncodeToBytes(abiEt)
+//	setAbi := setAbi{Account: account, Abi: abiBytes}
+//	data, _ := rlp.EncodeToBytes(setAbi)
+//	act := types.Action{
+//		// Account:       account,
+//		// Name:          setAbi.getName(),
+//		Account: common.AccountName(common.N("eosio")),
+//		Name:    common.ActionName(common.N("setabi")),
+//		Authorization: []types.PermissionLevel{{account, common.DefaultConfig.ActiveName}},
+//		Data:          data,
+//	}
+//	trx.Actions = append(trx.Actions, &act)
+//	t.SetTransactionHeaders(&trx.Transaction, t.DefaultExpirationDelta, 0)
+//	chainId := t.Control.GetChainId()
+//	if signer != nil {
+//		trx.Sign(signer, &chainId)
+//	} else {
+//		privKey := t.getPrivateKey(account, "active")
+//		trx.Sign(&privKey, &chainId)
+//	}
+//	t.PushTransaction(&trx, common.MaxTimePoint(), t.DefaultBilledCpuTimeUs)
+//}

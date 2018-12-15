@@ -944,7 +944,7 @@ func sha256(vm *VM) {
 	setSha256(vm, hashVal, hashEncode)
 
 	//w.ilog.Debug("encoded:%#v data:%#v", hashEncode, dataBytes)
-	w.ilog.Debug("encoded:%v data:%v", hashEncode, dataBytes)
+	w.ilog.Debug("encoded:%v data:%v", hex.EncodeToString(hashEncode), dataBytes)
 }
 
 func sha512(vm *VM) {
