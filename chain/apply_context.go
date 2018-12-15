@@ -14,6 +14,8 @@ import (
 	. "github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/log"
 	"os"
+	"reflect"
+	"unsafe"
 )
 
 type ApplyContext struct {
@@ -537,16 +539,25 @@ func (a *ApplyContext) SetProposedProducers(data []byte) int64 {
 
 }
 
-func (a *ApplyContext) GetActiveProducersInBytes() []byte {
+func (a *ApplyContext) GetActiveProducersInBytes() (data []byte) {
 
 	ap := a.Control.ActiveProducers()
-	accounts := make([]types.ProducerKey, len(ap.Producers))
-	for _, producer := range ap.Producers {
-		accounts = append(accounts, producer)
+	accounts := make([]common.AccountName, len(ap.Producers))
+	for i, producer := range ap.Producers {
+		accounts[i] = producer.ProducerName
 	}
 
-	bytes, _ := rlp.EncodeToBytes(accounts)
-	return bytes
+	//bytes, _ := rlp.EncodeToBytes(&accounts)
+	//bytes := (*[]byte)(unsafe.Pointer(&accounts))
+	//return bytes
+
+	sv := reflect.ValueOf(accounts)
+	h := (*reflect.SliceHeader)((unsafe.Pointer(&data)))
+	h.Cap = sv.Cap() * int(sv.Type().Elem().Size())
+	h.Len = sv.Len() * int(sv.Type().Elem().Size())
+	h.Data = sv.Pointer()
+
+	return
 
 }
 

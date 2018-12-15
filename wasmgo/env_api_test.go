@@ -688,10 +688,12 @@ func TestChain(t *testing.T) {
 
 		for i := 0; i < len(prods); i++ {
 			prods[i] = ps[i].ProducerName
+			fmt.Println("prod", i, " ", common.S(uint64(prods[i])))
 		}
 
 		load, _ := rlp.EncodeToBytes(&prods)
-		callTestF2(t, b, &testApiAction{wasmTestAction("test_chain", "test_activeprods")}, load, []common.AccountName{common.AccountName(common.N("testapi"))})
+		ret := callTestF2(t, b, &testApiAction{wasmTestAction("test_chain", "test_activeprods")}, load, []common.AccountName{common.AccountName(common.N("testapi"))})
+		fmt.Println(ret.ActionTraces[0].Console)
 
 		b.close()
 

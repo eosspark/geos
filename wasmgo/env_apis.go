@@ -2147,7 +2147,7 @@ func getActiveProducers(vm *VM) {
 
 	vm.pushUint64(uint64(copySize))
 
-	accounts := []types.ProducerKey{}
+	accounts := []common.AccountName{}
 	rlp.DecodeBytes(p, &accounts)
 	w.ilog.Debug("producers:%v", accounts)
 
