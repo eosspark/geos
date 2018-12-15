@@ -125,7 +125,7 @@ func (b *BlockHeaderState) GenerateNext(when BlockTimeStamp) *BlockHeaderState {
 func (b *BlockHeaderState) MaybePromotePending() bool {
 	if len(b.PendingSchedule.Producers) > 0 && b.DposIrreversibleBlocknum >= b.PendingScheduleLibNum {
 		b.ActiveSchedule = b.PendingSchedule
-
+		b.PendingSchedule = ProducerScheduleType{} //active_schedule = move( pending_schedule )
 		//var newProducerToLastProduced = make(map[common.AccountName]uint32)
 		//var newProducerToLastImpliedIrb = make(map[common.AccountName]uint32)
 

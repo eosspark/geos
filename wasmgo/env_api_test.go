@@ -2378,6 +2378,7 @@ func (t BaseTester) produceBlock(skipTime common.Microseconds, skipPendingTrxs b
 	}
 	Hbs := t.Control.HeadBlockState()
 	producer := Hbs.GetScheduledProducer(types.NewBlockTimeStamp(nextTime))
+	//producer := Hbs.GetScheduledProducer(types.BlockTimeStamp(nextTime))
 	privKey := ecc.PrivateKey{}
 	privateKey, ok := t.BlockSigningPrivateKeys[producer.BlockSigningKey.String()]
 	if !ok {
