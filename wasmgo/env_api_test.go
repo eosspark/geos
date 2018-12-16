@@ -601,11 +601,11 @@ func TestTransaction(t *testing.T) {
 			exception.EosioAssertMessageException{}.Code(), "test_action::assert_false")
 		assert.Equal(t, retException, true)
 
-		callTestF2(t, b, &testApiAction{wasmTestAction("test_transaction", "send_transaction")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
+		//callTestF2(t, b, &testApiAction{wasmTestAction("test_transaction", "send_transaction")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
 
-		retException = callTestFunctionCheckExceptionF2(t, b, &testApiAction{wasmTestAction("test_transaction", "send_transaction_empty")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))},
-			exception.TxNoAuths{}.Code(), "transaction must have at least one authorization")
-		assert.Equal(t, retException, true)
+		//retException = callTestFunctionCheckExceptionF2(t, b, &testApiAction{wasmTestAction("test_transaction", "send_transaction_empty")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))},
+		//	exception.TxNoAuths{}.Code(), "transaction must have at least one authorization")
+		//assert.Equal(t, retException, true)
 
 		// {
 		// 	produce_blocks(10);

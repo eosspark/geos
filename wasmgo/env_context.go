@@ -105,7 +105,8 @@ type EnvContext interface {
 	ScheduleDeferredTransaction(sendId *arithmetic.Uint128, payer common.AccountName, trx *types.Transaction, replaceExisting bool)
 	CancelDeferredTransaction(sendId *arithmetic.Uint128) bool
 	//GetPackedTransaction() []byte
-	GetPackedTransaction() *types.SignedTransaction
+	//GetPackedTransaction() *types.SignedTransaction
+	GetPackedTransaction() *types.Transaction
 	//Expiration() int
 	Expiration() common.TimePointSec
 	TaposBlockNum() int

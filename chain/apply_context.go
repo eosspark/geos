@@ -463,7 +463,6 @@ func (a *ApplyContext) ExecuteContextFreeInline(act *types.Action) {
 	a.CfaInlineActions = append(a.CfaInlineActions, *act)
 }
 
-//func (a *ApplyContext) ScheduleDeferredTransaction(sendId *arithmetic.Uint128, payer common.AccountName, trx []byte, replaceExisting bool) {
 func (a *ApplyContext) ScheduleDeferredTransaction(sendId *arithmetic.Uint128, payer common.AccountName, trx *types.Transaction, replaceExisting bool) {
 	EosAssert(len(trx.ContextFreeActions) == 0, &CfaInsideGeneratedTx{}, "context free actions are not currently allowed in generated transactions")
 
@@ -662,8 +661,12 @@ func (a *ApplyContext) ContextAppend(str string) { a.PendingConsoleOutput += str
 // 	return bytes
 // }
 
-func (a *ApplyContext) GetPackedTransaction() *types.SignedTransaction {
-	return a.TrxContext.Trx
+//func (a *ApplyContext) GetPackedTransaction() *types.SignedTransaction {
+//	return a.TrxContext.Trx
+//}
+
+func (a *ApplyContext) GetPackedTransaction() *types.Transaction {
+	return &a.TrxContext.Trx.Transaction
 }
 
 func (a *ApplyContext) UpdateDbUsage(payer common.AccountName, delta int64) {
