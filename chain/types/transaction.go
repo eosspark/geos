@@ -11,8 +11,8 @@ import (
 	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/crypto/rlp"
-	"github.com/eosspark/eos-go/exception"
-	"github.com/eosspark/eos-go/exception/try"
+	. "github.com/eosspark/eos-go/exception"
+	. "github.com/eosspark/eos-go/exception/try"
 	"io/ioutil"
 	"math"
 )
@@ -20,10 +20,6 @@ import (
 type Extension struct {
 	Type uint16          `json:"type"`
 	Data common.HexBytes `json:"data"`
-}
-
-func init() {
-
 }
 
 /**
@@ -64,9 +60,7 @@ func (t TransactionHeader) VerifyReferenceBlock(referenceBlock *common.BlockIdTy
 }
 
 func (t TransactionHeader) Validate() {
-	if t.MaxNetUsageWords >= uint32(0xffffffff)/8 {
-		panic("declared max_net_usage_words overflows when expanded to max net usage")
-	}
+	EosAssert(t.MaxNetUsageWords < math.MaxUint32/8, &TransactionException{}, "declared max_net_usage_words overflows when expanded to max net usage")
 }
 
 func (t *TransactionHeader) SetReferenceBlock(referenceBlock *common.BlockIdType) {
@@ -100,7 +94,10 @@ func (t *Transaction) ID() common.TransactionIdType {
 	if err != nil {
 		fmt.Println("Transaction ID() is error :", err.Error()) //TODO
 	}
-	return common.TransactionIdType(crypto.Hash256(b))
+	enc := crypto.NewSha256()
+	enc.Write(b)
+	hashed := enc.Sum(nil)
+	return common.TransactionIdType(*crypto.NewSha256Byte(hashed))
 }
 
 func (t *Transaction) SigDigest(chainID *common.ChainIdType, cfd []common.HexBytes) *common.DigestType {
@@ -130,6 +127,36 @@ func (t *Transaction) SigDigest(chainID *common.ChainIdType, cfd []common.HexByt
 //useCache= true
 func (t *Transaction) GetSignatureKeys(signatures []ecc.Signature, chainID *common.ChainIdType, cfd []common.HexBytes,
 	allowDuplicateKeys bool, useCache bool) treeset.Set {
+	//Try(func() {
+	//	const recoveryCacheSize common.SizeT = 1000
+	//	recoveredPubKeys := treeset.NewWith(ecc.TypePubKey, ecc.ComparePubKey)
+	//
+	//	digest := t.SigDigest(chainID, cfd)
+	//	for _, sig := range signatures {
+	//		recov := ecc.PublicKey{}
+	//		if useCache {
+	//			it, ok := recoveryCache[sig.String()]
+	//			if !ok || it.TrxID != t.ID() {
+	//				recov, _ = sig.PublicKey(digest.Bytes())
+	//				recoveryCache[sig.String()] = CachedPubKey{t.ID(), recov, sig} //could fail on dup signatures; not a problem
+	//			} else {
+	//				recov = it.PubKey
+	//			}
+	//		} else {
+	//			recov, _ = sig.PublicKey(digest.Bytes())
+	//		}
+	//		result, _ := recoveredPubKeys.AddItem(recov)
+	//		EosAssert(allowDuplicateKeys || result, &TxDuplicateSig{},
+	//			"transaction includes more than one signature signed using the same key associated with public key: %s}", recov)
+	//	}
+	//	/*if useCache {
+	//		for len(t.RecoveryCache) > int(recoveryCacheSize) {
+	//			recovery_cache.erase( recovery_cache.begin() )
+	//		}
+	//	}*/
+	//	return *recoveredPubKeys
+	//})
+
 	const recoveryCacheSize common.SizeT = 1000
 	recoveredPubKeys := treeset.NewWith(ecc.TypePubKey, ecc.ComparePubKey)
 
@@ -148,7 +175,7 @@ func (t *Transaction) GetSignatureKeys(signatures []ecc.Signature, chainID *comm
 			recov, _ = sig.PublicKey(digest.Bytes())
 		}
 		result, _ := recoveredPubKeys.AddItem(recov)
-		try.EosAssert(allowDuplicateKeys || result, &exception.TxDuplicateSig{},
+		EosAssert(allowDuplicateKeys || result, &TxDuplicateSig{},
 			"transaction includes more than one signature signed using the same key associated with public key: %s}", recov)
 	}
 	/*if useCache {
@@ -250,30 +277,26 @@ func NewPackedTransactionBySignedTrx(t *SignedTransaction, compression common.Co
 	return ptrx
 }
 
-//func (p *PackedTransaction) SetTransactionWithCFD(t *Transaction, cfd *[]common.HexBytes, compression common.CompressionType) {
 func (p *PackedTransaction) SetTransactionWithCFD(t *SignedTransaction, cfd *[]common.HexBytes, compression common.CompressionType) {
-	//try{}
-	switch compression {
-	case common.CompressionNone:
-		p.PackedTrx = packTransaction(&t.Transaction)
-		p.PackedContextFreeData = packContextFreeData(cfd)
-	case common.CompressionZlib:
-		p.PackedTrx = zlibCompressTransaction(&t.Transaction)
-		p.PackedContextFreeData = zlibCompressContextFreeData(cfd)
-	default:
-		//EOS_THROW(unknown_transaction_compression, "Unknown transaction compression algorithm");
-		panic("Unknown transaction compression algorithm")
-	}
+	Try(func() {
+		switch compression {
+		case common.CompressionNone:
+			p.PackedTrx = packTransaction(&t.Transaction)
+			p.PackedContextFreeData = packContextFreeData(cfd)
+		case common.CompressionZlib:
+			p.PackedTrx = zlibCompressTransaction(&t.Transaction)
+			p.PackedContextFreeData = zlibCompressContextFreeData(cfd)
+		default:
+			EosThrow(&UnknownTransactionCompression{}, "Unknown transaction compression algorithm")
+		}
+	}).FcCaptureAndRethrow(compression, t)
 
 	p.Compression = compression
 }
 func (p *PackedTransaction) GetUnprunableSize() (size uint32) {
 	size = common.DefaultConfig.FixedNetOverheadOfPackedTrx
 	size += uint32(len(p.PackedTrx))
-	//EOS_ASSERT( size <= std::numeric_limits<uint32_t>::max(), tx_too_big, "packed_transaction is too big" );
-	if size > math.MaxUint32 {
-		panic("packed_transaction is too big")
-	}
+	EosAssert(size <= math.MaxUint32, &TxTooBig{}, "packed_transaction is too big")
 	return
 }
 
@@ -283,10 +306,7 @@ func (p *PackedTransaction) GetPrunableSize() uint32 {
 		panic(err)
 	}
 	size += len(p.PackedContextFreeData)
-	//EOS_ASSERT( size <= std::numeric_limits<uint32_t>::max(), tx_too_big, "packed_transaction is too big" );
-	if size > math.MaxUint32 {
-		panic("packed_transaction is too big")
-	}
+	EosAssert(size <= math.MaxUint32, &TxTooBig{}, "packed_transaction is too big")
 	return uint32(size)
 }
 
@@ -326,35 +346,58 @@ func (p *PackedTransaction) PackedDigest() common.DigestType {
 	enc.Write(result)
 	enc.Write(prunableResult)
 
-	hashed := enc.Sum(nil) //TODO []byte or DigestType?????
+	hashed := enc.Sum(nil)
 	out := crypto.NewSha256Byte(hashed)
 	return common.DigestType(*out)
 }
 
 func (p *PackedTransaction) GetRawTransaction() common.HexBytes {
-	//try{}
-	switch p.Compression {
-	case common.CompressionNone:
-		return p.PackedTrx
-	case common.CompressionZlib:
-		return zlibDecompress(&p.PackedTrx)
-	default:
-		//EOS_THROW(unknown_transaction_compression, "Unknown transaction compression algorithm");
-		panic("Unknown transaction compression algorithm")
-	}
+	var out common.HexBytes
+	Try(func() {
+		switch p.Compression {
+		case common.CompressionNone:
+			out = p.PackedTrx
+		case common.CompressionZlib:
+			out = zlibDecompress(&p.PackedTrx)
+		default:
+			EosThrow(&UnknownTransactionCompression{}, "Unknown transaction compression algorithm")
+		}
+	}).FcCaptureAndRethrow(p.Compression, p.PackedTrx).End()
+	return out
+	//switch p.Compression {
+	//case common.CompressionNone:
+	//	return p.PackedTrx
+	//case common.CompressionZlib:
+	//	return zlibDecompress(&p.PackedTrx)
+	//default:
+	//	//EOS_THROW(unknown_transaction_compression, "Unknown transaction compression algorithm");
+	//	panic("Unknown transaction compression algorithm")
+	//}
 }
 
 func (p *PackedTransaction) GetContextFreeData() []common.HexBytes {
-	//try{}
-	switch p.Compression {
-	case common.CompressionNone:
-		return unpackContextFreeData(&p.PackedContextFreeData)
-	case common.CompressionZlib:
-		return zlibDecompressContextFreeData(&p.PackedContextFreeData)
-	default:
-		//EOS_THROW(unknown_transaction_compression, "Unknown transaction compression algorithm");
-		panic("Unknown transaction compression algorithm")
-	}
+	var out []common.HexBytes
+	Try(func() {
+		switch p.Compression {
+		case common.CompressionNone:
+			out = unpackContextFreeData(&p.PackedContextFreeData)
+		case common.CompressionZlib:
+			out = zlibDecompressContextFreeData(&p.PackedContextFreeData)
+		default:
+			EosThrow(&UnknownTransactionCompression{}, "Unknown transaction compression algorithm")
+			panic("Unknown transaction compression algorithm")
+		}
+	}).FcCaptureAndRethrow(p.Compression, p.PackedContextFreeData).End()
+	return out
+	//switch p.Compression {
+	//case common.CompressionNone:
+	//	return unpackContextFreeData(&p.PackedContextFreeData)
+	//case common.CompressionZlib:
+	//	return zlibDecompressContextFreeData(&p.PackedContextFreeData)
+	//default:
+	//	//EOS_THROW(unknown_transaction_compression, "Unknown transaction compression algorithm");
+	//	panic("Unknown transaction compression algorithm")
+	//}
 }
 
 func (p *PackedTransaction) Expiration() common.TimePointSec {
@@ -378,17 +421,17 @@ func (p *PackedTransaction) GetUncachedID() common.TransactionIdType {
 }
 
 func (p *PackedTransaction) localUnpack() {
-	//try{}//TODO
 	if p.UnpackedTrx == nil {
-		switch p.Compression {
-		case common.CompressionNone:
-			p.UnpackedTrx = unpackTransaction(p.PackedTrx)
-		case common.CompressionZlib:
-			p.UnpackedTrx = zlibDecompressTransaction(&p.PackedTrx)
-		default:
-			//EOS_THROW(unknown_transaction_compression, "Unknown transaction compression algorithm");
-			panic("Unknown transaction compression algorim")
-		}
+		Try(func() {
+			switch p.Compression {
+			case common.CompressionNone:
+				p.UnpackedTrx = unpackTransaction(p.PackedTrx)
+			case common.CompressionZlib:
+				p.UnpackedTrx = zlibDecompressTransaction(&p.PackedTrx)
+			default:
+				EosThrow(&UnknownTransactionCompression{}, "Unknown transaction compression algorithm")
+			}
+		}).FcCaptureAndRethrow(p.Compression, p.PackedTrx).End()
 	}
 }
 
@@ -398,29 +441,42 @@ func (p *PackedTransaction) GetTransaction() *Transaction {
 }
 
 func (p *PackedTransaction) GetSignedTransaction() *SignedTransaction {
-	//try{}
-	switch p.Compression {
-	case common.CompressionNone:
-		return NewSignedTransaction(p.GetTransaction(), p.Signatures, unpackContextFreeData(&p.PackedContextFreeData))
-	case common.CompressionZlib:
-		return NewSignedTransaction(p.GetTransaction(), p.Signatures, zlibDecompressContextFreeData(&p.PackedContextFreeData))
-	default:
-		//EOS_THROW(unknown_transaction_compression, "Unknown transaction compression algorithm");
-		panic("Unknown transaction compression algorithm")
-	}
+	var SignedTrx *SignedTransaction
+	Try(func() {
+		switch p.Compression {
+		case common.CompressionNone:
+			SignedTrx = NewSignedTransaction(p.GetTransaction(), p.Signatures, unpackContextFreeData(&p.PackedContextFreeData))
+		case common.CompressionZlib:
+			SignedTrx = NewSignedTransaction(p.GetTransaction(), p.Signatures, zlibDecompressContextFreeData(&p.PackedContextFreeData))
+		default:
+			EosThrow(&UnknownTransactionCompression{}, "Unknown transaction compression algorithm")
+		}
+
+		//switch p.Compression {
+		//case common.CompressionNone:
+		//	return NewSignedTransaction(p.GetTransaction(), p.Signatures, unpackContextFreeData(&p.PackedContextFreeData))
+		//case common.CompressionZlib:
+		//	return NewSignedTransaction(p.GetTransaction(), p.Signatures, zlibDecompressContextFreeData(&p.PackedContextFreeData))
+		//default:
+		//	//EOS_THROW(unknown_transaction_compression, "Unknown transaction compression algorithm");
+		//	panic("Unknown transaction compression algorithm")
+		//}
+	}).FcCaptureAndRethrow(p.Compression, p.PackedTrx, p.PackedContextFreeData).End()
+	return SignedTrx
+
 }
 
 func (p *PackedTransaction) SetTransaction(t *Transaction, compression common.CompressionType) {
-	//try{}
-	switch compression {
-	case common.CompressionNone:
-		p.PackedTrx = packTransaction(t)
-	case common.CompressionZlib:
-		p.PackedTrx = zlibCompressTransaction(t)
-	default:
-		//EOS_THROW(unknown_transaction_compression, "Unknown transaction compression algorithm");
-		panic("Unknown transaction compression algorithm")
-	}
+	Try(func() {
+		switch compression {
+		case common.CompressionNone:
+			p.PackedTrx = packTransaction(t)
+		case common.CompressionZlib:
+			p.PackedTrx = zlibCompressTransaction(t)
+		default:
+			EosThrow(&UnknownTransactionCompression{}, "Unknown transaction compression algorithm")
+		}
+	}).FcCaptureAndRethrow(compression, t).End()
 
 	p.PackedContextFreeData = nil //TODO clear()
 	p.Compression = compression

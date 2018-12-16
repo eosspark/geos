@@ -46,8 +46,16 @@ func NewTransactionMetadataBySignedTrx(t *SignedTransaction, c common.Compressio
 }
 
 func (t *TransactionMetadata) RecoverKeys(chainID *common.ChainIdType) *treeset.Set {
-	//if( !signing_keys || signing_keys->first != chain_id ) TODO !signing_keys ？？  ->&tm.SigningKeys ==nil
-	if t.SigningKeys.ID != *chainID { // Unlikely for more than one chain_id to be used in one nodeos instance
+	////if( !signing_keys || signing_keys->first != chain_id ) TODO !signing_keys ？？  ->&tm.SigningKeys ==nil
+	//if t.SigningKeys.ID != *chainID { // Unlikely for more than one chain_id to be used in one nodeos instance
+	//	t.SigningKeys = Pair{
+	//		ID:        *chainID,
+	//		PublicKey: t.Trx.GetSignatureKeys(chainID, false, true),
+	//	}
+	//}
+	//return &t.SigningKeys.PublicKey
+
+	if common.Empty(t.SigningKeys) || t.SigningKeys.ID != *chainID { // Unlikely for more than one chain_id to be used in one nodeos instance
 		t.SigningKeys = Pair{
 			ID:        *chainID,
 			PublicKey: t.Trx.GetSignatureKeys(chainID, false, true),
