@@ -26,7 +26,7 @@ func TestApplyEosioNewAccount(t *testing.T) {
 		privKey, _ := ecc.NewPrivateKey(wif)
 		pubKey := privKey.PublicKey()
 
-		creator := newAccount{
+		creator := NewAccount{
 			Creator: common.AccountName(common.N("eosio")),
 			Name:    common.AccountName(common.N("xiaoyu")),
 			Owner: types.Authority{
@@ -102,7 +102,7 @@ func TestApplyEosioSetcode(t *testing.T) {
 		account := "hello"
 		createNewAccount(control, account)
 
-		setCode := setCode{
+		setCode := SetCode{
 			Account:   common.AccountName(common.N(account)),
 			VmType:    0,
 			VmVersion: 0,
@@ -147,7 +147,7 @@ func TestApplyEosioUpdateauth(t *testing.T) {
 		account2 := "michael"
 		createNewAccount(control, account2)
 
-		updateAuth := updateAuth{
+		updateAuth := UpdateAuth{
 			Account:    common.AccountName(common.N(account1)),
 			Permission: common.PermissionName(common.N("active")),
 			Parent:     common.PermissionName(common.N("owner")),
@@ -208,7 +208,7 @@ func TestApplyEosioLinkauthAndUnlinkauth(t *testing.T) {
 		accountCode := "hello"
 		createNewAccount(control, accountCode)
 
-		setCode := setCode{
+		setCode := SetCode{
 			Account:   common.AccountName(common.N(accountCode)),
 			VmType:    0,
 			VmVersion: 0,
@@ -228,7 +228,7 @@ func TestApplyEosioLinkauthAndUnlinkauth(t *testing.T) {
 		a := newApplyContext(control, &action)
 		applyEosioSetcode(a)
 
-		linkAuth := linkAuth{
+		linkAuth := LinkAuth{
 			common.AccountName(common.N(account)),
 			common.AccountName(common.N(accountCode)),
 			common.ActionName(common.N("hi")),
@@ -255,7 +255,7 @@ func TestApplyEosioLinkauthAndUnlinkauth(t *testing.T) {
 		a.DB.Find("byActionName", permissionLinkObject, &permissionLinkObject)
 		assert.Equal(t, permissionLinkObject.RequiredPermission, linkAuth.Requirement)
 
-		unlikAuth := unlinkAuth{
+		unlikAuth := UnLinkAuth{
 			common.AccountName(common.N(account)),
 			common.AccountName(common.N(accountCode)),
 			common.ActionName(common.N("hi")),
@@ -321,7 +321,7 @@ func createNewAccount(control *Controller, name string) {
 	privKey, _ := ecc.NewPrivateKey(wif)
 	pubKey := privKey.PublicKey()
 
-	creator := newAccount{
+	creator := NewAccount{
 		Creator: common.AccountName(common.N("eosio")),
 		Name:    common.AccountName(common.N(name)),
 		Owner: types.Authority{

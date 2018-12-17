@@ -173,7 +173,7 @@ type Create struct {
 
 func SCode(control *Controller, account string, code []byte) {
 
-	a := setCode{
+	a := SetCode{
 		Account:   common.AccountName(common.N(account)),
 		VmType:    0,
 		VmVersion: 0,
@@ -203,7 +203,7 @@ func CreateNewAccount(control *Controller, name string) {
 	privKey, _ := ecc.NewPrivateKey(wif)
 	pubKey := privKey.PublicKey()
 
-	creator := newAccount{
+	creator := NewAccount{
 		Creator: common.AccountName(common.N("eosio")),
 		Name:    common.AccountName(common.N(name)),
 		Owner: types.Authority{
@@ -286,7 +286,7 @@ func TestTransactionContextTest(t *testing.T) {
 		account := "hello"
 		createNewAccount(control, account)
 
-		setCode := setCode{
+		setCode := SetCode{
 			Account:   common.AccountName(common.N(account)),
 			VmType:    0,
 			VmVersion: 0,
