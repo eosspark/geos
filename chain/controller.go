@@ -407,6 +407,7 @@ func (c *Controller) StartBlock(when types.BlockTimeStamp, confirmBlockCount uin
 	c.ValidateDbAvailableSize()
 }
 func (c *Controller) startBlock(when types.BlockTimeStamp, confirmBlockCount uint16, s types.BlockStatus, producerBlockId *common.BlockIdType) {
+
 	EosAssert(c.Pending == nil, &BlockValidateException{}, "pending block already exists")
 	defer func() {
 		if c.Pending.PendingValid {
@@ -427,22 +428,22 @@ func (c *Controller) startBlock(when types.BlockTimeStamp, confirmBlockCount uin
 	c.Pending.PendingBlockState.InCurrentChain = true
 	c.Pending.PendingBlockState.SetConfirmed(confirmBlockCount)
 	wasPendingPromoted := c.Pending.PendingBlockState.MaybePromotePending()
-	//log.Info("wasPendingPromoted:%t", wasPendingPromoted)
+
 	if c.ReadMode == DBReadMode(SPECULATIVE) || c.Pending.BlockStatus != types.BlockStatus(types.Incomplete) {
 		gpo := c.GetGlobalProperties()
-		if (!common.Empty(gpo.ProposedScheduleBlockNum) && gpo.ProposedScheduleBlockNum <= c.Pending.PendingBlockState.DposIrreversibleBlocknum) &&
-			(len(c.Pending.PendingBlockState.PendingSchedule.Producers) == 0) &&
-			(!wasPendingPromoted) {
+		if (gpo.ProposedScheduleBlockNum != 0 && gpo.ProposedScheduleBlockNum <= c.Pending.PendingBlockState.DposIrreversibleBlocknum) &&
+			(len(c.Pending.PendingBlockState.PendingSchedule.Producers) == 0) && (!wasPendingPromoted) {
 			if !c.RePlaying {
-				tmp := gpo.ProposedSchedule.ProducerScheduleType()
-				ps := types.SharedProducerScheduleType{}
-				ps.Version = tmp.Version
-				ps.Producers = tmp.Producers
-				c.Pending.PendingBlockState.SetNewProducers(ps)
+				log.Info("promoting proposed schedule (set in block %d) to pending; current block: %d lib: %d schedule: %#v ",
+					gpo.ProposedScheduleBlockNum, c.Pending.PendingBlockState.BlockNum, c.Pending.PendingBlockState.DposIrreversibleBlocknum, gpo.ProposedSchedule)
 			}
-
+			tmp := gpo.ProposedSchedule.ProducerScheduleType()
+			ps := types.SharedProducerScheduleType{}
+			ps.Version = tmp.Version
+			ps.Producers = tmp.Producers
+			c.Pending.PendingBlockState.SetNewProducers(ps)
 			c.DB.Modify(gpo, func(i *entity.GlobalPropertyObject) {
-				i.ProposedScheduleBlockNum = 1
+				i.ProposedScheduleBlockNum = 0
 				i.ProposedSchedule.Clear()
 			})
 			c.GpoCache[gpo.ID] = gpo
@@ -769,7 +770,7 @@ func (c *Controller) pushScheduledTransactionByObject(gto *entity.GeneratedTrans
 	if gtrx.Expiration < c.PendingBlockTime() {
 		trace.ID = gtrx.TrxId
 		trace.BlockNum = c.PendingBlockState().BlockNum
-		trace.BlockTime = types.BlockTimeStamp(c.PendingBlockTime())
+		trace.BlockTime = types.NewBlockTimeStamp(c.PendingBlockTime())
 		trace.ProducerBlockId = c.PendingProducerBlockId()
 		trace.Scheduled = true
 		trace.Receipt = (*c.pushReceipt(&gtrx.TrxId, types.TransactionStatusExecuted, uint64(billedCpuTimeUs), 0)).TransactionReceiptHeader
@@ -845,7 +846,7 @@ func (c *Controller) pushScheduledTransactionByObject(gto *entity.GeneratedTrans
 
 		if !explicitBilledCpuTime {
 			rl := c.GetMutableResourceLimitsManager()
-			rl.UpdateAccountUsage(&trxContext.BillToAccounts, uint32(types.BlockTimeStamp(c.PendingBlockTime())) /*.slot*/)
+			rl.UpdateAccountUsage(&trxContext.BillToAccounts, uint32(types.NewBlockTimeStamp(c.PendingBlockTime())) /*.slot*/)
 			//accountCpuLimit := 0
 			accountNetLimit, accountCpuLimit, greylistedNet, greylistedCpu := trxContext.MaxBandwidthBilledAccountsCanPay(true)
 
@@ -897,7 +898,6 @@ func (c *Controller) RemoveScheduledTransaction(gto *entity.GeneratedTransaction
 
 func failureIsSubjective(e Exception) bool {
 	code := e.Code()
-	//fmt.Println(code == SubjectiveBlockProductionException{}.Code())
 	return code == SubjectiveBlockProductionException{}.Code() ||
 		code == BlockNetUsageExceeded{}.Code() ||
 		code == GreylistNetUsageExceeded{}.Code() ||
@@ -979,7 +979,7 @@ func (c *Controller) SignBlock(signerCallback func(sha256 crypto.Sha256) ecc.Sig
 	p := c.Pending.PendingBlockState
 	p.Sign(signerCallback)
 	//p.SignedBlock
-	(*p.SignedBlock).SignedBlockHeader = p.Header
+	p.SignedBlock.SignedBlockHeader = p.Header
 }
 
 func (c *Controller) applyBlock(b *types.SignedBlock, s types.BlockStatus) {
@@ -1017,8 +1017,6 @@ func (c *Controller) applyBlock(b *types.SignedBlock, s types.BlockStatus) {
 			if length > 0 {
 				trxReceipt = c.Pending.PendingBlockState.SignedBlock.Transactions[length-1]
 			}
-			//fmt.Println(trxReceipt)
-			//r := trxReceipt.TransactionReceiptHeader
 			EosAssert(trxReceipt == receipt, &BlockValidateException{}, "receipt does not match,producer_receipt:%#v", receipt, "validator_receipt:%#v", trxReceipt)
 		}
 		c.FinalizeBlock()
@@ -1294,7 +1292,7 @@ func (c *Controller) PendingProducers() *types.ProducerScheduleType {
 
 func (c *Controller) ProposedProducers() types.ProducerScheduleType {
 	gpo := c.GetGlobalProperties()
-	if common.Empty(gpo.ProposedScheduleBlockNum) {
+	if gpo.ProposedScheduleBlockNum == 0 {
 		return types.ProducerScheduleType{}
 	}
 	return *gpo.ProposedSchedule.ProducerScheduleType()
@@ -1516,7 +1514,7 @@ func (c *Controller) SetProposedProducers(producers []types.ProducerKey) int64 {
 
 	gpo := c.GetGlobalProperties()
 	curBlockNum := c.HeadBlockNum() + 1
-	if common.Empty(gpo.ProposedScheduleBlockNum) {
+	if gpo.ProposedScheduleBlockNum != 0 {
 		if gpo.ProposedScheduleBlockNum != curBlockNum {
 			return -1
 		}
@@ -1595,7 +1593,7 @@ func (c *Controller) GetWasmInterface() *wasmgo.WasmGo {
 func (c *Controller) CreateNativeAccount(name common.AccountName, owner types.Authority, active types.Authority, isPrivileged bool) {
 	account := entity.AccountObject{}
 	account.Name = name
-	account.CreationDate = types.BlockTimeStamp(c.Config.Genesis.InitialTimestamp)
+	account.CreationDate = types.NewBlockTimeStamp(c.Config.Genesis.InitialTimestamp)
 	account.Privileged = isPrivileged
 	if name == common.AccountName(common.DefaultConfig.SystemAccountName) {
 		abiDef := abi.AbiDef{}
@@ -1821,8 +1819,8 @@ func (c *Controller) updateProducersAuthority() {
 			auth.Accounts = append(auth.Accounts, types.PermissionLevelWeight{types.PermissionLevel{p.ProducerName, common.DefaultConfig.ActiveName}, 1})
 		}
 		if !permission.Auth.Equals(auth.ToSharedAuthority()) {
-			c.DB.Modify(permission, func(param *types.Permission) {
-				param.RequiredAuth = auth
+			c.DB.Modify(permission, func(param *entity.PermissionObject) {
+				param.Auth = auth.ToSharedAuthority()
 			})
 		}
 	}

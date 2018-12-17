@@ -17,9 +17,9 @@ func NewBlockHeaderState(t *testing.T) *BlockHeaderState {
 	initPubKey := initPriKey.PublicKey()
 	assert.Equal(t, "EOS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV", initPubKey.String())
 
-	eosio := common.AccountName(common.N("eosio"))
-	yuanc := common.AccountName(common.N("yuanc"))
-	tester := common.AccountName(common.N("tester"))
+	eosio := common.N("eosio")
+	yuanc := common.N("yuanc")
+	tester := common.N("tester")
 
 	initSchedule := ProducerScheduleType{0, []ProducerKey{
 		{eosio, initPubKey},

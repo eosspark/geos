@@ -98,7 +98,7 @@ func NewTransactionContext(c *Controller, t *types.SignedTransaction, trxId comm
 	tc.Trace = &types.TransactionTrace{
 		ID:              trxId,
 		BlockNum:        c.PendingBlockState().BlockNum,
-		BlockTime:       types.BlockTimeStamp(c.PendingBlockTime()),
+		BlockTime:       types.NewBlockTimeStamp(c.PendingBlockTime()),
 		ProducerBlockId: c.PendingProducerBlockId(),
 		//ActionTraces: []types.ActionTrace{},
 	}

@@ -21,13 +21,11 @@ func TestTransaction(t *testing.T) {
 	if err != nil {
 		fmt.Println(err)
 	}
-	id := packedTrx.ID() //e97f9f1e4aaafe1b92feded9bdd140247465de773154bcccab86986e1806fa33
-	fmt.Println(id)
+	id := packedTrx.ID()
+	assert.Equal(t, "e97f9f1e4aaafe1b92feded9bdd140247465de773154bcccab86986e1806fa33", id.String())
 	trx := packedTrx.GetTransaction()
 	re, _ := json.Marshal(trx)
 	fmt.Println("Trx:  ", string(re))
-
-	fmt.Println(trx.ID())
 
 	result, err := rlp.EncodeToBytes(packedTrx)
 	assert.NoError(t, nil, err)

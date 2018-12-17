@@ -44,7 +44,6 @@ func newForkDatabase(stateDir string, fileName string, rw bool) (*ForkDatabase, 
 	b, err := ioutil.ReadAll(fStream)
 	try.EosAssert(err == nil, &exception.ForkDatabaseException{}, "%s", err)
 
-	fmt.Println("raw data from file :   ", b, string(b))
 	if len(b) > 0 {
 		mif := &MultiIndexFork{}
 		mif.Indexs = make(map[string]*IndexFork)

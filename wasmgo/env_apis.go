@@ -944,7 +944,7 @@ func sha256(vm *VM) {
 	setSha256(vm, hashVal, hashEncode)
 
 	//w.ilog.Debug("encoded:%#v data:%#v", hashEncode, dataBytes)
-	w.ilog.Debug("encoded:%v data:%v", hashEncode, dataBytes)
+	w.ilog.Debug("encoded:%v data:%v", hex.EncodeToString(hashEncode), dataBytes)
 }
 
 func sha512(vm *VM) {
@@ -1807,6 +1807,7 @@ func getPermissionLastUsed(vm *VM) {
 func getAccountCreationTime(vm *VM) {
 	w := vm.WasmGo
 	account := common.AccountName(vm.popUint64())
+	//w.ilog.Debug("account:%v ", account)
 
 	ret := w.context.GetAccountCreateTime(account)
 	vm.pushUint64(uint64(ret.TimeSinceEpoch().Count()))
@@ -2146,7 +2147,7 @@ func getActiveProducers(vm *VM) {
 
 	vm.pushUint64(uint64(copySize))
 
-	accounts := []types.ProducerKey{}
+	accounts := []common.AccountName{}
 	rlp.DecodeBytes(p, &accounts)
 	w.ilog.Debug("producers:%v", accounts)
 

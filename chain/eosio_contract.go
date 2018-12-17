@@ -1,6 +1,7 @@
 package chain
 
 import (
+	"fmt"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	arithmetic "github.com/eosspark/eos-go/common/arithmetic_types"
@@ -95,11 +96,11 @@ func ApplyEosioNewaccount(context *ApplyContext) {
 	err = db.Find("byName", existingAccount, &existingAccount)
 	EosAssert(err != nil, &AccountNameExistsException{}, "Cannot create account named ${name}, as that name is already taken", common.S(uint64(create.Name)))
 
-	NewAccountObject := entity.AccountObject{Name: create.Name, CreationDate: types.BlockTimeStamp(context.Control.PendingBlockTime())}
-	db.Insert(&NewAccountObject)
+	newAccountObject := entity.AccountObject{Name: create.Name, CreationDate: types.BlockTimeStamp(context.Control.PendingBlockTime())}
+	db.Insert(&newAccountObject)
 
-	NewAccountSequenceObj := entity.AccountSequenceObject{Name: create.Name}
-	db.Insert(&NewAccountSequenceObj)
+	newAccountSequenceObj := entity.AccountSequenceObject{Name: create.Name}
+	db.Insert(&newAccountSequenceObj)
 
 	validateAuthorityPrecondition(context, &create.Owner)
 	validateAuthorityPrecondition(context, &create.Active)
@@ -148,11 +149,14 @@ func applyEosioNewaccount(context *ApplyContext) {
 	err = db.Find("byName", existingAccount, &existingAccount)
 	EosAssert(err != nil, &AccountNameExistsException{}, "Cannot create account named ${name}, as that name is already taken", common.S(uint64(create.Name)))
 
-	NewAccountObject := entity.AccountObject{Name: create.Name, CreationDate: types.BlockTimeStamp(context.Control.PendingBlockTime())}
-	db.Insert(&NewAccountObject)
+	blockTime := context.Control.PendingBlockTime()
+	fmt.Println("blocktime:", blockTime)
 
-	NewAccountSequenceObj := entity.AccountSequenceObject{Name: create.Name}
-	db.Insert(&NewAccountSequenceObj)
+	newAccountObject := entity.AccountObject{Name: create.Name, CreationDate: types.NewBlockTimeStamp(blockTime)}
+	db.Insert(&newAccountObject)
+
+	newAccountSequenceObj := entity.AccountSequenceObject{Name: create.Name}
+	db.Insert(&newAccountSequenceObj)
 
 	validateAuthorityPrecondition(context, &create.Owner)
 	validateAuthorityPrecondition(context, &create.Active)

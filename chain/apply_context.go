@@ -7,6 +7,7 @@ import (
 	"github.com/eosspark/eos-go/common"
 	arithmetic "github.com/eosspark/eos-go/common/arithmetic_types"
 	"github.com/eosspark/eos-go/crypto"
+	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/eosspark/eos-go/database"
 	"github.com/eosspark/eos-go/entity"
@@ -14,6 +15,8 @@ import (
 	. "github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/log"
 	"os"
+	"reflect"
+	"unsafe"
 )
 
 type ApplyContext struct {
@@ -240,7 +243,7 @@ func (a *ApplyContext) execOne(trace *types.ActionTrace) {
 			native := a.Control.FindApplyHandler(a.Receiver, a.Act.Account, a.Act.Name)
 
 			//a.ilog.Info("receiver:%v account:%v action:%v data:%v", a.Receiver, a.Act.Account, a.Act.Name, a.Act.Data)
-			a.ilog.Info("receiver:%v account:%v action:%v", a.Receiver, a.Act.Account, a.Act.Name)
+			//a.ilog.Info("receiver:%v account:%v action:%v", a.Receiver, a.Act.Account, a.Act.Name)
 
 			if native != nil {
 				if a.TrxContext.CanSubjectivelyFail && a.Control.IsProducingBlock() {
@@ -460,10 +463,93 @@ func (a *ApplyContext) ExecuteContextFreeInline(act *types.Action) {
 	a.CfaInlineActions = append(a.CfaInlineActions, *act)
 }
 
-//func (a *ApplyContext) ScheduleDeferredTransaction(sendId *arithmetic.Uint128, payer common.AccountName, trx []byte, replaceExisting bool) {
 func (a *ApplyContext) ScheduleDeferredTransaction(sendId *arithmetic.Uint128, payer common.AccountName, trx *types.Transaction, replaceExisting bool) {
+	EosAssert(len(trx.ContextFreeActions) == 0, &CfaInsideGeneratedTx{}, "context free actions are not currently allowed in generated transactions")
+
+	trx.Expiration = common.NewTimePointSecTp(common.MaxTimePoint()) //control.pending_block_time() + fc::microseconds(999'999)
+	headBlockId := a.Control.HeadBlockId()
+	trx.SetReferenceBlock(&headBlockId)
+	a.Control.ValidateReferencedAccounts(trx)
+
+	cfg := a.Control.GetGlobalProperties().Configuration
+	a.TrxContext.AddNetUsage(uint64(cfg.BasePerTransactionNetUsage + common.DefaultConfig.TransactionIdNetUsage))
+
+	delay := common.Seconds(int64(trx.DelaySec))
+
+	if !a.Control.SkipAuthCheck() && !a.Privileged {
+		if payer != a.Receiver {
+			a.RequireAuthorization(int64(payer))
+		}
+
+		checkAuth := false
+		for _, act := range trx.Actions {
+			if act.Account != a.Receiver {
+				checkAuth = true
+				break
+			}
+		}
+		if checkAuth {
+
+			checkTime := a.TrxContext.CheckTime
+			providedKeys := treeset.NewWith(ecc.TypePubKey, ecc.ComparePubKey)
+			providedPermissions := treeset.NewWith(types.PermissionLevelType, types.ComparePermissionLevel)
+			providedPermissions.AddItem(types.PermissionLevel{a.Receiver, common.DefaultConfig.EosioCodeName})
+
+			a.Control.GetAuthorizationManager().CheckAuthorization(
+				trx.Actions,
+				providedKeys,
+				providedPermissions,
+				delay,
+				&checkTime,
+				false)
+		}
+	}
+
+	var trxSize uint32 = 0
+	gto := entity.GeneratedTransactionObject{Sender: a.Receiver, SenderId: *sendId}
+	err := a.DB.Find("bySenderId", gto, &gto)
+	if err == nil {
+		EosAssert(replaceExisting, &DeferredTxDuplicate{}, "deferred transaction with the same sender_id and payer already exists")
+		EosAssert(!a.Control.IsProducingBlock(), &SubjectiveBlockProductionException{}, "Replacing a deferred transaction is temporarily disabled.")
+
+		a.DB.Modify(gto, func(obj *entity.GeneratedTransactionObject) {
+			obj.Sender = a.Receiver
+			obj.SenderId = *sendId
+			obj.Payer = payer
+			obj.Published = a.Control.PendingBlockTime()
+			obj.DelayUntil = obj.Published + common.TimePoint(delay)
+			obj.Expiration = obj.DelayUntil + common.TimePoint(common.Seconds(int64(a.Control.GetGlobalProperties().Configuration.DeferredTrxExpirationWindow)))
+			trxSize = obj.Set(trx)
+		})
+
+	} else {
+		gto.TrxId = trx.ID()
+		gto.Sender = a.Receiver
+		gto.SenderId = *sendId
+		gto.Payer = payer
+		gto.Published = a.Control.PendingBlockTime()
+		gto.DelayUntil = gto.Published + common.TimePoint(delay)
+		gto.Expiration = gto.DelayUntil + common.TimePoint(common.Seconds(int64(a.Control.GetGlobalProperties().Configuration.DeferredTrxExpirationWindow)))
+		trxSize = gto.Set(trx)
+
+		a.DB.Insert(&gto)
+	}
+
+	EosAssert(replaceExisting, &DeferredTxDuplicate{}, "deferred transaction with the same sender_id and payer already exists")
+	a.AddRamUsage(payer, int64(common.BillableSizeV("generated_transaction_object")+uint64(trxSize)))
+
 }
 func (a *ApplyContext) CancelDeferredTransaction2(sendId *arithmetic.Uint128, sender common.AccountName) bool {
+
+	gto := entity.GeneratedTransactionObject{Sender: sender, SenderId: *sendId}
+	err := a.DB.Find("bySenderId", gto, &gto)
+	if err == nil {
+
+		a.AddRamUsage(gto.Payer, -int64(common.BillableSizeV("generated_transaction_object")+uint64(len(gto.PackedTrx))))
+		a.DB.Remove(&gto)
+		return true
+	}
+
 	return false
 }
 
@@ -537,16 +623,25 @@ func (a *ApplyContext) SetProposedProducers(data []byte) int64 {
 
 }
 
-func (a *ApplyContext) GetActiveProducersInBytes() []byte {
+func (a *ApplyContext) GetActiveProducersInBytes() (data []byte) {
 
 	ap := a.Control.ActiveProducers()
-	accounts := make([]types.ProducerKey, len(ap.Producers))
-	for _, producer := range ap.Producers {
-		accounts = append(accounts, producer)
+	accounts := make([]common.AccountName, len(ap.Producers))
+	for i, producer := range ap.Producers {
+		accounts[i] = producer.ProducerName
 	}
 
-	bytes, _ := rlp.EncodeToBytes(accounts)
-	return bytes
+	//bytes, _ := rlp.EncodeToBytes(&accounts)
+	//bytes := (*[]byte)(unsafe.Pointer(&accounts))
+	//return bytes
+
+	sv := reflect.ValueOf(accounts)
+	h := (*reflect.SliceHeader)((unsafe.Pointer(&data)))
+	h.Cap = sv.Cap() * int(sv.Type().Elem().Size())
+	h.Len = sv.Len() * int(sv.Type().Elem().Size())
+	h.Data = sv.Pointer()
+
+	return
 
 }
 
@@ -566,8 +661,12 @@ func (a *ApplyContext) ContextAppend(str string) { a.PendingConsoleOutput += str
 // 	return bytes
 // }
 
-func (a *ApplyContext) GetPackedTransaction() *types.SignedTransaction {
-	return a.TrxContext.Trx
+//func (a *ApplyContext) GetPackedTransaction() *types.SignedTransaction {
+//	return a.TrxContext.Trx
+//}
+
+func (a *ApplyContext) GetPackedTransaction() *types.Transaction {
+	return &a.TrxContext.Trx.Transaction
 }
 
 func (a *ApplyContext) UpdateDbUsage(payer common.AccountName, delta int64) {
@@ -1097,7 +1196,9 @@ func (a *ApplyContext) GetAccountCreateTime(account common.AccountName) common.T
 
 	obj := entity.AccountObject{Name: account}
 	err := a.DB.Find("byName", obj, &obj)
-	EosAssert(err != nil, &ActionValidateException{}, "account '%s' does not exist", common.S(uint64(account)))
+	EosAssert(err == nil, &ActionValidateException{}, "account '%s' does not exist", common.S(uint64(account)))
+
+	a.ilog.Info("account:%v", obj)
 
 	return obj.CreationDate.ToTimePoint()
 }
