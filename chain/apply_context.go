@@ -1204,20 +1204,40 @@ func (a *ApplyContext) GetAccountCreateTime(account common.AccountName) common.T
 }
 
 //context privileged api
-func (a *ApplyContext) SetResourceLimits(
-	account common.AccountName,
-	ramBytes uint64,
-	netWeight uint64,
-	cpuWeight uint64) bool {
+// func (a *ApplyContext) SetResourceLimits(
+// 	account common.AccountName,
+// 	ramBytes uint64,
+// 	netWeight uint64,
+// 	cpuWeight uint64) bool {
 
-	return false
+// 	return false
+
+// }
+// func (a *ApplyContext) GetResourceLimits(
+// 	account common.AccountName,
+// 	ramBytes *uint64,
+// 	netWeight *uint64,
+// 	cpuWeight *uint64) {
+
+// }
+
+func (a *ApplyContext) SetAccountLimits(
+	account common.AccountName,
+	ramBytes int64,
+	netWeight int64,
+	cpuWeight int64) bool {
+
+	return a.Control.GetMutableResourceLimitsManager().SetAccountLimits(account, ramBytes, netWeight, cpuWeight)
 
 }
-func (a *ApplyContext) GetResourceLimits(
+func (a *ApplyContext) GetAccountLimits(
 	account common.AccountName,
-	ramBytes *uint64,
-	netWeight *uint64,
-	cpuWeight *uint64) {
+	ramBytes *int64,
+	netWeight *int64,
+	cpuWeight *int64) {
+
+	a.Control.GetMutableResourceLimitsManager().GetAccountLimits(account, ramBytes, netWeight, cpuWeight)
+
 }
 
 func (a *ApplyContext) SetBlockchainParametersPacked(parameters []byte) {

@@ -72,8 +72,11 @@ type EnvContext interface {
 	GetAccountCreateTime(account common.AccountName) common.TimePoint
 
 	//privileged
-	SetResourceLimits(account common.AccountName, ramBytes uint64, netWeight uint64, cpuWeigth uint64) bool
-	GetResourceLimits(account common.AccountName, ramBytes *uint64, netWeight *uint64, cpuWeigth *uint64)
+	// SetResourceLimits(account common.AccountName, ramBytes uint64, netWeight uint64, cpuWeigth uint64) bool
+	// GetResourceLimits(account common.AccountName, ramBytes *uint64, netWeight *uint64, cpuWeigth *uint64)
+
+	SetAccountLimits(account common.AccountName, ramBytes int64, netWeight int64, cpuWeigth int64) bool
+	GetAccountLimits(account common.AccountName, ramBytes *int64, netWeight *int64, cpuWeigth *int64)
 	SetBlockchainParametersPacked(parameters []byte)
 	GetBlockchainParametersPacked() []byte
 	GetBlockchainParameters() *types.ChainConfig

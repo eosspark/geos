@@ -2006,7 +2006,7 @@ func setResourceLimits(vm *VM) {
 	EosAssert(int64(netWeight) >= -1, &WasmExecutionError{}, "invalid value for net resource limit expected [-1,INT64_MAX]")
 	EosAssert(int64(cpuWeight) >= -1, &WasmExecutionError{}, "invalid value for cpu resource limit expected [-1,INT64_MAX]")
 
-	if w.context.SetResourceLimits(account, ramBytes, netWeight, cpuWeight) {
+	if w.context.SetAccountLimits(account, int64(ramBytes), int64(netWeight), int64(cpuWeight)) {
 		w.context.ValidateRamUsageInsert(account)
 	}
 	w.ilog.Debug("account:%v ramBytes:%d netWeight:%d cpuWeight:%d", account, ramBytes, netWeight, cpuWeight)
@@ -2019,12 +2019,12 @@ func getResourceLimits(vm *VM) {
 	ramBytes := int(vm.popUint64())
 	account := common.AccountName(vm.popUint64())
 
-	var r, n, c uint64
-	w.context.GetResourceLimits(account, &r, &n, &c)
+	var r, n, c int64
+	w.context.GetAccountLimits(account, &r, &n, &c)
 
-	setUint64(vm, ramBytes, r)
-	setUint64(vm, netWeight, n)
-	setUint64(vm, cpuWeight, c)
+	setUint64(vm, ramBytes, uint64(r))
+	setUint64(vm, netWeight, uint64(n))
+	setUint64(vm, cpuWeight, uint64(c))
 
 	w.ilog.Debug("account:%v ramBytes:%d netWeight:%d cpuWeigth:%d", account, ramBytes, netWeight, cpuWeight)
 
