@@ -86,7 +86,8 @@ func TestRamTests(t *testing.T){
 	e.BuyRamBytes(common.N("eosio"),test1,uint32(moreRam))
 	e.BuyRamBytes(common.N("eosio"),test2,uint32(moreRam))
 
-	actName := common.N("setentry")
+	// allocate just under the allocated bytes
+	actSenName := common.N("setentry")
 	setentry := VariantsObject{
 		"payer": test1,
 		"from":  1,
@@ -96,7 +97,7 @@ func TestRamTests(t *testing.T){
 
 	e.PushAction2(
 		&test1,
-		&actName,
+		&actSenName,
 		test1,
 		&setentry,
 		e.DefaultExpirationDelta,
@@ -108,7 +109,330 @@ func TestRamTests(t *testing.T){
 	ramBytes := uint64(total["ram_bytes"].(int64))
 	log.Warn("ram_bytes: %d, ram_usage: %d, initial_ram_usage: %d, init_bytes: %d, ram_usage - initial_ram_usage: %d, init_bytes - ram_usage: %d.",
 		ramBytes, ramUsage, initialRamUsage, initBytes, ramUsage - initialRamUsage, initBytes - uint64(ramUsage))
-	log.Warn("------ram_tests 1------")
+
+	// allocate just beyond the allocated bytes
+	setentry = VariantsObject{
+		"payer": test1,
+		"from":  1,
+		"to":    10,
+		"size":  1790,
+	}
+	try.Try(func() {
+		e.PushAction2(
+			&test1,
+			&actSenName,
+			test1,
+			&setentry,
+			e.DefaultExpirationDelta,
+			0,
+		)
+	}).Catch(func(e exception.RamUsageExceeded) {
+		fmt.Println("account testram11111 has insufficient ram", e.String())
+	}).End()
+
+	e.ProduceBlocks(1,false)
+	assert.Equal(t, rlm.GetAccountRamUsage(test1), ramUsage)
+
+	// update the entries with smaller allocations so that we can verify space is freed and new allocations can be made
+	setentry = VariantsObject{
+		"payer": test1,
+		"from":  1,
+		"to":    10,
+		"size":  1680,
+	}
+	e.PushAction2(
+		&test1,
+		&actSenName,
+		test1,
+		&setentry,
+		e.DefaultExpirationDelta,
+		0,
+	)
+	e.ProduceBlocks(1,false)
+	assert.Equal(t, rlm.GetAccountRamUsage(test1), ramUsage - 1000)
+
+	// verify the added entry is beyond the allocation bytes limit
+	setentry = VariantsObject{
+		"payer": test1,
+		"from":  1,
+		"to":    11,
+		"size":  1680,
+	}
+	try.Try(func() {
+		e.PushAction2(
+			&test1,
+			&actSenName,
+			test1,
+			&setentry,
+			e.DefaultExpirationDelta,
+			0,
+		)
+	}).Catch(func(e exception.RamUsageExceeded) {
+		fmt.Println("account testram11111 has insufficient ram", e.String())
+	}).End()
+	e.ProduceBlocks(1,false)
+	assert.Equal(t, rlm.GetAccountRamUsage(test1), ramUsage - 1000)
+
+	// verify the new entry's bytes minus the freed up bytes for existing entries still exceeds the allocation bytes limit
+	setentry = VariantsObject{
+		"payer": test1,
+		"from":  1,
+		"to":    11,
+		"size":  1760,
+	}
+	try.Try(func() {
+		e.PushAction2(
+			&test1,
+			&actSenName,
+			test1,
+			&setentry,
+			e.DefaultExpirationDelta,
+			0,
+		)
+	}).Catch(func(e exception.RamUsageExceeded) {
+		fmt.Println("account testram11111 has insufficient ram", e.String())
+	}).End()
+	e.ProduceBlocks(1,false)
+	assert.Equal(t, rlm.GetAccountRamUsage(test1), ramUsage - 1000)
+
+	// verify the new entry's bytes minus the freed up bytes for existing entries are under the allocation bytes limit
+	setentry = VariantsObject{
+		"payer": test1,
+		"from":  1,
+		"to":    11,
+		"size":  1600,
+	}
+	e.PushAction2(
+		&test1,
+		&actSenName,
+		test1,
+		&setentry,
+		e.DefaultExpirationDelta,
+		0,
+	)
+	e.ProduceBlocks(1,false)
+
+	actRmenName := common.N("rmentry")
+	rmentry := VariantsObject{
+		"from": 3,
+		"to":   3,
+	}
+	e.PushAction2(
+		&test1,
+		&actRmenName,
+		test1,
+		&rmentry,
+		e.DefaultExpirationDelta,
+		0,
+	)
+
+	// verify that the new entry will exceed the allocation bytes limit
+	setentry = VariantsObject{
+		"payer": test1,
+		"from":  12,
+		"to":    12,
+		"size":  1780,
+	}
+	try.Try(func() {
+		e.PushAction2(
+			&test1,
+			&actSenName,
+			test1,
+			&setentry,
+			e.DefaultExpirationDelta,
+			0,
+		)
+	}).Catch(func(e exception.RamUsageExceeded) {
+		fmt.Println("account testram11111 has insufficient ram", e.String())
+	}).End()
+	e.ProduceBlocks(1,false)
+
+	// verify that the new entry is under the allocation bytes limit
+	setentry = VariantsObject{
+		"payer": test1,
+		"from":  12,
+		"to":    12,
+		"size":  1620,
+	}
+	try.Try(func() {
+		e.PushAction2(
+			&test1,
+			&actSenName,
+			test1,
+			&setentry,
+			e.DefaultExpirationDelta,
+			0,
+		)
+	}).Catch(func(e exception.RamUsageExceeded) {
+		fmt.Println("account testram11111 has insufficient ram", e.String())
+	}).End()
+	e.ProduceBlocks(1,false)
+
+	// verify that anoth new entry will exceed the allocation bytes limit, to setup testing of new payer
+	setentry = VariantsObject{
+		"payer": test1,
+		"from":  13,
+		"to":    13,
+		"size":  1660,
+	}
+	try.Try(func() {
+		e.PushAction2(
+			&test1,
+			&actSenName,
+			test1,
+			&setentry,
+			e.DefaultExpirationDelta,
+			0,
+		)
+	}).Catch(func(e exception.RamUsageExceeded) {
+		fmt.Println("account testram11111 has insufficient ram", e.String())
+	}).End()
+	e.ProduceBlocks(1,false)
+
+	// verify that the new entry is under the allocation bytes limit
+	setentry = VariantsObject{
+		"payer": test1,
+		"from":  12,
+		"to":    12,
+		"size":  1720,
+	}
+	e.PushAction2(
+		&test1,
+		&actSenName,
+		test1,
+		&setentry,
+		e.DefaultExpirationDelta,
+		0,
+	)
+	e.ProduceBlocks(1,false)
+
+	// verify that another new entry that is too big will exceed the allocation bytes limit, to setup testing of new payer
+	setentry = VariantsObject{
+		"payer": test1,
+		"from":  13,
+		"to":    13,
+		"size":  1900,
+	}
+	try.Try(func() {
+		e.PushAction2(
+			&test1,
+			&actSenName,
+			test1,
+			&setentry,
+			e.DefaultExpirationDelta,
+			0,
+		)
+	}).Catch(func(e exception.RamUsageExceeded) {
+		fmt.Println("account testram11111 has insufficient ram", e.String())
+	}).End()
+	e.ProduceBlocks(1,false)
+
+	// verify that the new entry is under the allocation bytes limit, because entry 12 is now charged to testram22222
+	setentry = VariantsObject{
+		"payer": test1,
+		"from":  13,
+		"to":    13,
+		"size":  1720,
+	}
+	e.PushAction2(
+		&test1,
+		&actSenName,
+		test1,
+		&setentry,
+		e.DefaultExpirationDelta,
+		0,
+	)
+	e.ProduceBlocks(1,false)
+
+	// verify that new entries for testram22222 exceed the allocation bytes limit
+	setentry = VariantsObject{
+		"payer": test1,
+		"from":  12,
+		"to":    21,
+		"size":  1930,
+	}
+	try.Try(func() {
+		e.PushAction2(
+			&test1,
+			&actSenName,
+			test1,
+			&setentry,
+			e.DefaultExpirationDelta,
+			0,
+		)
+	}).Catch(func(e exception.RamUsageExceeded) {
+		fmt.Println("account testram11111 has insufficient ram", e.String())
+	}).End()
+	e.ProduceBlocks(1,false)
+
+	// verify that new entries for testram22222 are under the allocation bytes limit
+	setentry = VariantsObject{
+		"payer": test2,
+		"from":  12,
+		"to":    21,
+		"size":  1910,
+	}
+	e.PushAction2(
+		&test1,
+		&actSenName,
+		test1,
+		&setentry,
+		e.DefaultExpirationDelta,
+		0,
+	)
+	e.ProduceBlocks(1,false)
+
+	// verify that new entry for testram22222 exceed the allocation bytes limit
+	setentry = VariantsObject{
+		"payer": test2,
+		"from":  22,
+		"to":    22,
+		"size":  1910,
+	}
+	try.Try(func() {
+		e.PushAction2(
+			&test1,
+			&actSenName,
+			test1,
+			&setentry,
+			e.DefaultExpirationDelta,
+			0,
+		)
+	}).Catch(func(e exception.RamUsageExceeded) {
+		fmt.Println("account testram22222 has insufficient ram", e.String())
+	}).End()
+	e.ProduceBlocks(1,false)
+	rmentry = VariantsObject{
+		"from": 20,
+		"to":   20,
+	}
+	e.PushAction2(
+		&test1,
+		&actRmenName,
+		test1,
+		&rmentry,
+		e.DefaultExpirationDelta,
+		0,
+	)
+	e.ProduceBlocks(1,false)
+
+	// verify that new entry for testram22222 are under the allocation bytes limit
+	setentry = VariantsObject{
+		"payer": test2,
+		"from":  22,
+		"to":    22,
+		"size":  1910,
+	}
+	e.PushAction2(
+		&test1,
+		&actSenName,
+		test1,
+		&setentry,
+		e.DefaultExpirationDelta,
+		0,
+	)
+	e.ProduceBlocks(1,false)
+
 	e.close()
 }
 
