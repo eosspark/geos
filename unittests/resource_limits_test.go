@@ -1,6 +1,7 @@
-package chain
+package unittests
 
 import (
+	. "github.com/eosspark/eos-go/chain"
 	"fmt"
 	"github.com/eosspark/container/sets/treeset"
 	"github.com/eosspark/eos-go/common"
@@ -166,13 +167,13 @@ func TestWeightedCapacityNet(t *testing.T) {
 	}
 
 	rlm.ProcessAccountLimitUpdates()
-
+	con := GetControllerInstance()
 	for idx := int(0); idx < len(weights); idx++ {
 		account := common.AccountName(idx + 100)
 		assert.Equal(t, expectedLimits[idx], rlm.GetAccountNetLimit(account, true))
 		f := treeset.NewWith(common.TypeName, common.CompareName)
 		f.AddItem(account)
-		s := rlm.db.StartSession()
+		s := con.DB.StartSession()
 		rlm.AddTransactionUsage(f, 0, uint64(expectedLimits[idx]), 0)
 		s.Undo()
 

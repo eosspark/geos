@@ -1,8 +1,9 @@
-package chain
+package unittests
 
 import (
 	"fmt"
 	"github.com/docker/docker/pkg/testutil/assert"
+	. "github.com/eosspark/eos-go/chain"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto/ecc"
@@ -628,7 +629,7 @@ func TestNoDoubleBilling(t *testing.T) {
 			{acc1a, common.N("owner")},
 		}
 
-		new := newAccount{
+		new := NewAccount{
 			Creator: acc1,
 			Name:    a,
 			Owner:   types.NewAuthority(vt.getPublicKey(a, "owner"), 0),
@@ -636,8 +637,8 @@ func TestNoDoubleBilling(t *testing.T) {
 		}
 		data, _ := rlp.EncodeToBytes(new)
 		act := &types.Action{
-			Account:       new.getAccount(),
-			Name:          new.getName(),
+			Account:       new.GetAccount(),
+			Name:          new.GetName(),
 			Authorization: pls,
 			Data:          data,
 		}
@@ -692,7 +693,7 @@ func TestStricterAuth(t *testing.T) {
 
 		pls := []types.PermissionLevel{{creator, common.N("active")}}
 
-		new := newAccount{
+		new := NewAccount{
 			Creator: creator,
 			Name:    a,
 			Owner:   types.NewAuthority(vt.getPublicKey(a, "owner"), 0),
@@ -700,8 +701,8 @@ func TestStricterAuth(t *testing.T) {
 		}
 		data, _ := rlp.EncodeToBytes(new)
 		act := &types.Action{
-			Account:       new.getAccount(),
-			Name:          new.getName(),
+			Account:       new.GetAccount(),
+			Name:          new.GetName(),
 			Authorization: pls,
 			Data:          data,
 		}
@@ -750,7 +751,7 @@ func TestLinkAuthSpecial(t *testing.T) {
 		"auth":       types.NewAuthority(vt.getPublicKey(tester, "first"), 5),
 	}
 
-	actName := updateAuth{}.getName()
+	actName := UpdateAuth{}.GetName()
 	vt.PushAction2(
 		&common.DefaultConfig.SystemAccountName,
 		&actName,
@@ -761,7 +762,7 @@ func TestLinkAuthSpecial(t *testing.T) {
 	)
 
 	validateDisallow := func(rtype string) {
-		actName := linkAuth{}.getName()
+		actName := LinkAuth{}.GetName()
 		data := VariantsObject{
 			"account":     tester,
 			"code":        common.N("eosio"),

@@ -1,9 +1,10 @@
-package chain
+package unittests
 
 import (
 	"bytes"
 	"encoding/json"
 	"github.com/eosspark/container/sets/treeset"
+	. "github.com/eosspark/eos-go/chain"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto"
@@ -18,8 +19,9 @@ import (
 	"math"
 )
 
-var CORE_SYMBOL = common.Symbol{Precision:4,Symbol:"SYS"}
+var CORE_SYMBOL = common.Symbol{Precision: 4, Symbol: "SYS"}
 var CORE_SYMBOL_NAME = "SYS"
+
 type ActionResult = string
 
 type BaseTester struct {
@@ -39,7 +41,7 @@ func newBaseTester(pushGenesis bool, readMode DBReadMode) *BaseTester {
 	t := &BaseTester{}
 	t.DefaultExpirationDelta = 6
 	t.DefaultBilledCpuTimeUs = 2000
-	t.AbiSerializerMaxTime = 1000*1000
+	t.AbiSerializerMaxTime = 1000 * 1000
 	t.ChainTransactions = make(map[common.BlockIdType]types.TransactionReceipt)
 	t.LastProducedBlock = make(map[common.AccountName]common.BlockIdType)
 
@@ -156,7 +158,7 @@ func (t BaseTester) produceBlock(skipTime common.Microseconds, skipPendingTrxs b
 	if !skipPendingTrxs {
 		unappliedTrxs := t.Control.GetUnappliedTransactions()
 		for _, trx := range unappliedTrxs {
-			trace := t.Control.pushTransaction(trx, common.MaxTimePoint(), 0, false)
+			trace := t.Control.PushTransaction(trx, common.MaxTimePoint(), 0)
 			if !common.Empty(trace.Except) {
 				try.EosThrow(trace.Except, "tester produceBlock is error:%#v", trace.Except)
 			}
@@ -165,7 +167,7 @@ func (t BaseTester) produceBlock(skipTime common.Microseconds, skipPendingTrxs b
 		scheduledTrxs := t.Control.GetScheduledTransactions()
 		for len(scheduledTrxs) > 0 {
 			for _, trx := range scheduledTrxs {
-				trace := t.Control.pushScheduledTransactionById(&trx, common.MaxTimePoint(), 0, false)
+				trace := t.Control.PushScheduledTransaction(&trx, common.MaxTimePoint(), 0)
 				if !common.Empty(trace.Except) {
 					try.EosThrow(trace.Except, "tester produceBlock is error:%#v", trace.Except)
 				}
@@ -254,7 +256,7 @@ func (t BaseTester) CreateAccount(name common.AccountName, creator common.Accoun
 		})
 		sortPermissions(&activeAuth)
 	}
-	new := newAccount{
+	new := NewAccount{
 		Creator: creator,
 		Name:    name,
 		Owner:   ownerAuth,
@@ -262,8 +264,8 @@ func (t BaseTester) CreateAccount(name common.AccountName, creator common.Accoun
 	}
 	data, _ := rlp.EncodeToBytes(new)
 	act := &types.Action{
-		Account:       new.getAccount(),
-		Name:          new.getName(),
+		Account:       new.GetAccount(),
+		Name:          new.GetName(),
 		Authorization: []types.PermissionLevel{{creator, common.DefaultConfig.ActiveName}},
 		Data:          data,
 	}
@@ -288,7 +290,7 @@ func (t BaseTester) PushTransaction(trx *types.SignedTransaction, deadline commo
 			c = common.CompressionZlib
 		}
 		mtrx := types.NewTransactionMetadataBySignedTrx(trx, c)
-		trace = t.Control.pushTransaction(mtrx, deadline, billedCpuTimeUs, true)
+		trace = t.Control.PushTransaction(mtrx, deadline, billedCpuTimeUs)
 		if trace.ExceptPtr != nil {
 			try.EosThrow(trace.ExceptPtr, "tester PushTransaction is error :%#v", exception.GetDetailMessage(trace.ExceptPtr))
 		}
@@ -352,10 +354,10 @@ func (t BaseTester) PushAction4(code *common.AccountName, acttype *common.Accoun
 	chainId := t.Control.GetChainId()
 	key := ecc.PrivateKey{}
 	for _, auth := range *auths {
-		key = t.getPrivateKey(auth.Actor,auth.Permission.String())
+		key = t.getPrivateKey(auth.Actor, auth.Permission.String())
 		trx.Sign(&key, &chainId)
 	}
-	return t.PushTransaction(&trx,common.MaxTimePoint(), t.DefaultBilledCpuTimeUs)
+	return t.PushTransaction(&trx, common.MaxTimePoint(), t.DefaultBilledCpuTimeUs)
 }
 
 func (t BaseTester) GetAction(code common.AccountName, actType common.AccountName,
@@ -471,11 +473,11 @@ func (t BaseTester) Issue(to common.AccountName, amount string, currency common.
 
 func (t BaseTester) LinkAuthority(account common.AccountName, code common.AccountName, req common.PermissionName, rtype common.ActionName) {
 	trx := types.SignedTransaction{}
-	link := linkAuth{Account: account, Code: code, Type: rtype, Requirement: req}
+	link := LinkAuth{Account: account, Code: code, Type: rtype, Requirement: req}
 	data, _ := rlp.EncodeToBytes(link)
 	act := types.Action{
-		Account:       link.getAccount(),
-		Name:          link.getName(),
+		Account:       link.GetAccount(),
+		Name:          link.GetName(),
 		Authorization: []types.PermissionLevel{{account, common.DefaultConfig.ActiveName}},
 		Data:          data,
 	}
@@ -489,11 +491,11 @@ func (t BaseTester) LinkAuthority(account common.AccountName, code common.Accoun
 
 func (t BaseTester) UnlinkAuthority(account common.AccountName, code common.AccountName, rtype common.ActionName) {
 	trx := types.SignedTransaction{}
-	unlink := unlinkAuth{Account: account, Code: code, Type: rtype}
+	unlink := UnLinkAuth{Account: account, Code: code, Type: rtype}
 	data, _ := rlp.EncodeToBytes(unlink)
 	act := types.Action{
-		Account:       unlink.getAccount(),
-		Name:          unlink.getName(),
+		Account:       unlink.GetAccount(),
+		Name:          unlink.GetName(),
 		Authorization: []types.PermissionLevel{{account, common.DefaultConfig.ActiveName}},
 		Data:          data,
 	}
@@ -507,11 +509,11 @@ func (t BaseTester) UnlinkAuthority(account common.AccountName, code common.Acco
 
 func (t BaseTester) SetAuthority(account common.AccountName, perm common.PermissionName, auth types.Authority, parent common.PermissionName, auths *[]types.PermissionLevel, keys *[]ecc.PrivateKey) {
 	trx := types.SignedTransaction{}
-	update := updateAuth{Account: account, Permission: perm, Parent: parent, Auth: auth}
+	update := UpdateAuth{Account: account, Permission: perm, Parent: parent, Auth: auth}
 	data, _ := rlp.EncodeToBytes(update)
 	act := types.Action{
-		Account:       update.getAccount(),
-		Name:          update.getName(),
+		Account:       update.GetAccount(),
+		Name:          update.GetName(),
 		Authorization: *auths,
 		Data:          data,
 	}
@@ -532,11 +534,11 @@ func (t BaseTester) SetAuthority2(account common.AccountName, perm common.Permis
 
 func (t BaseTester) DeleteAuthority(account common.AccountName, perm common.PermissionName, auths *[]types.PermissionLevel, keys *[]ecc.PrivateKey) {
 	trx := types.SignedTransaction{}
-	delete := deleteAuth{Account: account, Permission: perm}
+	delete := DeleteAuth{Account: account, Permission: perm}
 	data, _ := rlp.EncodeToBytes(delete)
 	act := types.Action{
-		Account:       delete.getAccount(),
-		Name:          delete.getName(),
+		Account:       delete.GetAccount(),
+		Name:          delete.GetName(),
 		Authorization: *auths,
 		Data:          data,
 	}
@@ -557,11 +559,11 @@ func (t BaseTester) DeleteAuthority2(account common.AccountName, perm common.Per
 
 func (t BaseTester) SetCode(account common.AccountName, wasm []uint8, signer *ecc.PrivateKey) {
 	trx := types.SignedTransaction{}
-	setCode := setCode{Account: account, VmType: 0, VmVersion: 0, Code: wasm}
+	setCode := SetCode{Account: account, VmType: 0, VmVersion: 0, Code: wasm}
 	data, _ := rlp.EncodeToBytes(setCode)
 	act := types.Action{
-		Account:       setCode.getAccount(),
-		Name:          setCode.getName(),
+		Account:       setCode.GetAccount(),
+		Name:          setCode.GetName(),
 		Authorization: []types.PermissionLevel{{account, common.DefaultConfig.ActiveName}},
 		Data:          data,
 	}
@@ -589,11 +591,11 @@ func (t BaseTester) SetAbi(account common.AccountName, abiJson []byte, signer *e
 	}
 	trx := types.SignedTransaction{}
 	abiBytes, _ := rlp.EncodeToBytes(abiEt)
-	setAbi := setAbi{Account: account, Abi: abiBytes}
+	setAbi := SetAbi{Account: account, Abi: abiBytes}
 	data, _ := rlp.EncodeToBytes(setAbi)
 	act := types.Action{
-		Account:       setAbi.getAccount(),
-		Name:          setAbi.getName(),
+		Account:       setAbi.GetAccount(),
+		Name:          setAbi.GetName(),
 		Authorization: []types.PermissionLevel{{account, common.DefaultConfig.ActiveName}},
 		Data:          data,
 	}
@@ -756,7 +758,7 @@ func newValidatingTester(pushGenesis bool, readMode DBReadMode) *ValidatingTeste
 	vt := &ValidatingTester{}
 	vt.DefaultExpirationDelta = 6
 	vt.DefaultBilledCpuTimeUs = 2000
-	vt.AbiSerializerMaxTime = 1000*1000
+	vt.AbiSerializerMaxTime = 1000 * 1000
 	vt.ChainTransactions = make(map[common.BlockIdType]types.TransactionReceipt)
 	vt.LastProducedBlock = make(map[common.AccountName]common.BlockIdType)
 	vt.VCfg = *newConfig(readMode)

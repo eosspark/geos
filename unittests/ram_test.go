@@ -1,4 +1,4 @@
-package chain
+package unittests
 
 import (
 	"fmt"
@@ -18,15 +18,15 @@ func TestRamTests(t *testing.T){
 	//increment_contract_bytes must be less than table_allocation_bytes for this test setup to work
 	incrementContractBytes := 10000
 	tableAllocationBytes := 12000
-	e.BuyRamBytes(common.DefaultConfig.SystemAccountName,common.N("eosio"),7000)
+	e.BuyRamBytes(common.DefaultConfig.SystemAccountName,common.N("eosio"),70000)
 	e.ProduceBlocks(10,false)
 
 	test1 := common.N("testram11111")
 	test2 := common.N("testram22222")
-	e.CreateAccountWithResources(test1,common.N("eosio"),
-		common.Asset{Amount:int64(initRequestBytes + 40)},false, CoreFromString("10.0000"),CoreFromString("10.0000"))
-	e.CreateAccountWithResources(test2,common.N("eosio"),
-		common.Asset{Amount:int64(initRequestBytes + 1190)},false, CoreFromString("10.0000"),CoreFromString("10.0000"))
+	e.CreateAccountWithResources2(test1,common.N("eosio"),
+		uint32(initRequestBytes + 40))
+	e.CreateAccountWithResources2(test2,common.N("eosio"),
+		uint32(initRequestBytes + 1190))
 	e.ProduceBlocks(10,false)
 	assert.Equal(t, e.Stake(common.N("eosio.stake"),common.N("testram11111"),CoreFromString("10.0000"),CoreFromString("10.0000")), e.Success())
 	e.ProduceBlocks(10,false)
@@ -74,7 +74,8 @@ func TestRamTests(t *testing.T){
 	e.ProduceBlocks(10,false)
 
 	total := e.GetTotalStake(test1)
-	initBytes := total["ram_bytes"].(uint64)
+	fmt.Println(total)
+	initBytes := uint64(total["ram_bytes"].(int64))
 
 	rlm := e.Control.GetMutableResourceLimitsManager()
 	initialRamUsage := rlm.GetAccountRamUsage(test1)
@@ -104,13 +105,13 @@ func TestRamTests(t *testing.T){
 	e.ProduceBlocks(1,false)
 	ramUsage := rlm.GetAccountRamUsage(test1)
 	total = e.GetTotalStake(test1)
-	ramBytes := total["ram_bytes"].(uint64)
+	ramBytes := uint64(total["ram_bytes"].(int64))
 	log.Warn("ram_bytes: %d, ram_usage: %d, initial_ram_usage: %d, init_bytes: %d, ram_usage - initial_ram_usage: %d, init_bytes - ram_usage: %d.",
 		ramBytes, ramUsage, initialRamUsage, initBytes, ramUsage - initialRamUsage, initBytes - uint64(ramUsage))
 	log.Warn("------ram_tests 1------")
-
+	e.close()
 }
 
 func TestSimple(t *testing.T){
-	fmt.Println(common.MaxMicroseconds().ToSeconds())
+	fmt.Printf("%d\n",'\'')
 }

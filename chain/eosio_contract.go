@@ -95,11 +95,11 @@ func ApplyEosioNewaccount(context *ApplyContext) {
 	err = db.Find("byName", existingAccount, &existingAccount)
 	EosAssert(err != nil, &AccountNameExistsException{}, "Cannot create account named ${name}, as that name is already taken", common.S(uint64(create.Name)))
 
-	newAccountObject := entity.AccountObject{Name: create.Name, CreationDate: types.BlockTimeStamp(context.Control.PendingBlockTime())}
-	db.Insert(&newAccountObject)
+	NewAccountObject := entity.AccountObject{Name: create.Name, CreationDate: types.BlockTimeStamp(context.Control.PendingBlockTime())}
+	db.Insert(&NewAccountObject)
 
-	newAccountSequenceObj := entity.AccountSequenceObject{Name: create.Name}
-	db.Insert(&newAccountSequenceObj)
+	NewAccountSequenceObj := entity.AccountSequenceObject{Name: create.Name}
+	db.Insert(&NewAccountSequenceObj)
 
 	validateAuthorityPrecondition(context, &create.Owner)
 	validateAuthorityPrecondition(context, &create.Active)
@@ -121,7 +121,7 @@ func ApplyEosioNewaccount(context *ApplyContext) {
 
 func applyEosioNewaccount(context *ApplyContext) {
 
-	create := &newAccount{}
+	create := &NewAccount{}
 	rlp.DecodeBytes(context.Act.Data, create)
 
 	//try.Try()
@@ -148,11 +148,11 @@ func applyEosioNewaccount(context *ApplyContext) {
 	err = db.Find("byName", existingAccount, &existingAccount)
 	EosAssert(err != nil, &AccountNameExistsException{}, "Cannot create account named ${name}, as that name is already taken", common.S(uint64(create.Name)))
 
-	newAccountObject := entity.AccountObject{Name: create.Name, CreationDate: types.BlockTimeStamp(context.Control.PendingBlockTime())}
-	db.Insert(&newAccountObject)
+	NewAccountObject := entity.AccountObject{Name: create.Name, CreationDate: types.BlockTimeStamp(context.Control.PendingBlockTime())}
+	db.Insert(&NewAccountObject)
 
-	newAccountSequenceObj := entity.AccountSequenceObject{Name: create.Name}
-	db.Insert(&newAccountSequenceObj)
+	NewAccountSequenceObj := entity.AccountSequenceObject{Name: create.Name}
+	db.Insert(&NewAccountSequenceObj)
 
 	validateAuthorityPrecondition(context, &create.Owner)
 	validateAuthorityPrecondition(context, &create.Active)
@@ -177,7 +177,7 @@ func applyEosioSetcode(context *ApplyContext) {
 	//cfg := context.Control.GetGlobalProperties()
 
 	db := context.DB
-	act := setCode{}
+	act := SetCode{}
 	rlp.DecodeBytes(context.Act.Data, &act)
 
 	context.RequireAuthorization(int64(act.Account))
@@ -222,7 +222,7 @@ func applyEosioSetcode(context *ApplyContext) {
 func applyEosioSetabi(context *ApplyContext) {
 
 	db := context.DB
-	act := setAbi{}
+	act := SetAbi{}
 	rlp.DecodeBytes(context.Act.Data, &act)
 
 	context.RequireAuthorization(int64(act.Account))
@@ -253,7 +253,7 @@ func applyEosioSetabi(context *ApplyContext) {
 
 func applyEosioUpdateauth(context *ApplyContext) {
 
-	update := updateAuth{}
+	update := UpdateAuth{}
 	rlp.DecodeBytes(context.Act.Data, &update)
 	context.RequireAuthorization(int64(update.Account))
 
@@ -321,7 +321,7 @@ func applyEosioUpdateauth(context *ApplyContext) {
 
 func applyEosioDeleteauth(context *ApplyContext) {
 
-	remove := deleteAuth{}
+	remove := DeleteAuth{}
 	rlp.DecodeBytes(context.Act.Data, &remove)
 	context.RequireAuthorization(int64(remove.Account))
 
@@ -351,7 +351,7 @@ func applyEosioDeleteauth(context *ApplyContext) {
 
 func applyEosioLinkauth(context *ApplyContext) {
 
-	requirement := linkAuth{}
+	requirement := LinkAuth{}
 	rlp.DecodeBytes(context.Act.Data, &requirement)
 
 	EosAssert(!empty(uint64(requirement.Requirement)), &ActionValidateException{}, "Required permission cannot be empty")
@@ -412,7 +412,7 @@ func applyEosioUnlinkauth(context *ApplyContext) {
 
 	db := context.DB
 
-	unlink := unlinkAuth{}
+	unlink := UnLinkAuth{}
 	rlp.DecodeBytes(context.Act.Data, &unlink)
 
 	context.RequireAuthorization(int64(unlink.Account))
@@ -427,7 +427,7 @@ func applyEosioUnlinkauth(context *ApplyContext) {
 
 func applyEosioCanceldalay(context *ApplyContext) {
 
-	cancel := &cancelDelay{}
+	cancel := &CancelDelay{}
 	rlp.DecodeBytes(context.Act.Data, cancel)
 
 	context.RequireAuthorization(int64(cancel.CancelingAuth.Actor))

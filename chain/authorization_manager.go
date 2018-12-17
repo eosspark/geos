@@ -187,11 +187,11 @@ func (a *AuthorizationManager) LookupMinimumPermission(authorizerAccount common.
 	actName common.ActionName,
 ) (p *common.PermissionName) {
 	if scope == common.DefaultConfig.SystemAccountName {
-		EosAssert(actName != updateAuth{}.getName() &&
-			actName != deleteAuth{}.getName() &&
-			actName != linkAuth{}.getName() &&
-			actName != unlinkAuth{}.getName() &&
-			actName != cancelDelay{}.getName(),
+		EosAssert(actName != UpdateAuth{}.GetName() &&
+			actName != DeleteAuth{}.GetName() &&
+			actName != LinkAuth{}.GetName() &&
+			actName != UnLinkAuth{}.GetName() &&
+			actName != CancelDelay{}.GetName(),
 			&UnlinkableMinPermissionAction{}, "cannot call lookup_minimum_permission on native actions that are not allowed to be linked to minimum permissions")
 	}
 	Try(func() {
@@ -211,8 +211,8 @@ func (a *AuthorizationManager) LookupMinimumPermission(authorizerAccount common.
 	return p
 }
 
-func (a *AuthorizationManager) CheckUpdateauthAuthorization(update updateAuth, auths []types.PermissionLevel) {
-	EosAssert(len(auths) == 1, &IrrelevantAuthException{}, "updateauth action should only have one declared authorization")
+func (a *AuthorizationManager) CheckUpdateAuthAuthorization(update UpdateAuth, auths []types.PermissionLevel) {
+	EosAssert(len(auths) == 1, &IrrelevantAuthException{}, "UpdateAuth action should only have one declared authorization")
 	auth := auths[0]
 	EosAssert(auth.Actor == update.Account, &IrrelevantAuthException{}, "the owner of the affected permission needs to be the actor of the declared authorization")
 	minPermission := a.FindPermission(&types.PermissionLevel{Actor: update.Account, Permission: update.Permission})
@@ -222,35 +222,35 @@ func (a *AuthorizationManager) CheckUpdateauthAuthorization(update updateAuth, a
 	}
 	permissionIndex, err := a.db.GetIndex("id", entity.PermissionObject{})
 	if err != nil {
-		log.Error("CheckUpdateauthAuthorization is error: %s", err)
+		log.Error("CheckUpdateAuthAuthorization is error: %s", err)
 	}
 	EosAssert(a.GetPermission(&auth).Satisfies(*minPermission, permissionIndex), &IrrelevantAuthException{},
-		"updateauth action declares irrelevant authority '%v'; minimum authority is %v", auth, types.PermissionLevel{update.Account, minPermission.Name})
+		"UpdateAuth action declares irrelevant authority '%v'; minimum authority is %v", auth, types.PermissionLevel{update.Account, minPermission.Name})
 }
 
-func (a *AuthorizationManager) CheckDeleteauthAuthorization(del deleteAuth, auths []types.PermissionLevel) {
-	EosAssert(len(auths) == 1, &IrrelevantAuthException{}, "deleteauth action should only have one declared authorization")
+func (a *AuthorizationManager) CheckDeleteAuthAuthorization(del DeleteAuth, auths []types.PermissionLevel) {
+	EosAssert(len(auths) == 1, &IrrelevantAuthException{}, "DeleteAuth action should only have one declared authorization")
 	auth := auths[0]
 	EosAssert(auth.Actor == del.Account, &IrrelevantAuthException{}, "the owner of the affected permission needs to be the actor of the declared authorization")
 	minPermission := a.GetPermission(&types.PermissionLevel{Actor: del.Account, Permission: del.Permission})
 	permissionIndex, err := a.db.GetIndex("id", entity.PermissionObject{})
 	if err != nil {
-		log.Error("CheckDeleteauthAuthorization is error: %s", err)
+		log.Error("CheckDeleteAuthAuthorization is error: %s", err)
 	}
 	EosAssert(a.GetPermission(&auth).Satisfies(*minPermission, permissionIndex), &IrrelevantAuthException{},
-		"deleteauth action declares irrelevant authority '%v'; minimum authority is %v", auth, types.PermissionLevel{minPermission.Owner, minPermission.Name})
+		"DeleteAuth action declares irrelevant authority '%v'; minimum authority is %v", auth, types.PermissionLevel{minPermission.Owner, minPermission.Name})
 }
 
-func (a *AuthorizationManager) CheckLinkauthAuthorization(link linkAuth, auths []types.PermissionLevel) {
+func (a *AuthorizationManager) CheckLinkAuthAuthorization(link LinkAuth, auths []types.PermissionLevel) {
 	EosAssert(len(auths) == 1, &IrrelevantAuthException{}, "link action should only have one declared authorization")
 	auth := auths[0]
 	EosAssert(auth.Actor == link.Account, &IrrelevantAuthException{}, "the owner of the affected permission needs to be the actor of the declared authorization")
 
-	EosAssert(link.Type != updateAuth{}.getName(), &ActionValidateException{}, "Cannot link eosio::updateauth to a minimum permission")
-	EosAssert(link.Type != deleteAuth{}.getName(), &ActionValidateException{}, "Cannot link eosio::deleteauth to a minimum permission")
-	EosAssert(link.Type != linkAuth{}.getName(), &ActionValidateException{}, "Cannot link eosio::linkauth to a minimum permission")
-	EosAssert(link.Type != unlinkAuth{}.getName(), &ActionValidateException{}, "Cannot link eosio::unlinkauth to a minimum permission")
-	EosAssert(link.Type != cancelDelay{}.getName(), &ActionValidateException{}, "Cannot link eosio::canceldelay to a minimum permission")
+	EosAssert(link.Type != UpdateAuth{}.GetName(), &ActionValidateException{}, "Cannot link eosio::UpdateAuth to a minimum permission")
+	EosAssert(link.Type != DeleteAuth{}.GetName(), &ActionValidateException{}, "Cannot link eosio::DeleteAuth to a minimum permission")
+	EosAssert(link.Type != LinkAuth{}.GetName(), &ActionValidateException{}, "Cannot link eosio::LinkAuth to a minimum permission")
+	EosAssert(link.Type != UnLinkAuth{}.GetName(), &ActionValidateException{}, "Cannot link eosio::UnLinkAuth to a minimum permission")
+	EosAssert(link.Type != CancelDelay{}.GetName(), &ActionValidateException{}, "Cannot link eosio::CancelDelay to a minimum permission")
 
 	linkedPermissionName := a.LookupMinimumPermission(link.Account, link.Code, link.Type)
 	if common.Empty(&linkedPermissionName) {
@@ -258,13 +258,13 @@ func (a *AuthorizationManager) CheckLinkauthAuthorization(link linkAuth, auths [
 	}
 	permissionIndex, err := a.db.GetIndex("id", entity.PermissionObject{})
 	if err != nil {
-		log.Error("CheckLinkauthAuthorization is error: %s", err)
+		log.Error("CheckLinkAuthAuthorization is error: %s", err)
 	}
 	EosAssert(a.GetPermission(&auth).Satisfies(*a.GetPermission(&types.PermissionLevel{link.Account, *linkedPermissionName}), permissionIndex), &IrrelevantAuthException{},
-		"linkauth action declares irrelevant authority '%v'; minimum authority is %v", auth, types.PermissionLevel{link.Account, *linkedPermissionName})
+		"LinkAuth action declares irrelevant authority '%v'; minimum authority is %v", auth, types.PermissionLevel{link.Account, *linkedPermissionName})
 }
 
-func (a *AuthorizationManager) CheckUnlinkauthAuthorization(unlink unlinkAuth, auths []types.PermissionLevel) {
+func (a *AuthorizationManager) CheckUnLinkAuthAuthorization(unlink UnLinkAuth, auths []types.PermissionLevel) {
 	EosAssert(len(auths) == 1, &IrrelevantAuthException{}, "unlink action should only have one declared authorization")
 	auth := auths[0]
 	EosAssert(auth.Actor == unlink.Account, &IrrelevantAuthException{},
@@ -279,31 +279,31 @@ func (a *AuthorizationManager) CheckUnlinkauthAuthorization(unlink unlinkAuth, a
 	}
 	permissionIndex, err := a.db.GetIndex("id", entity.PermissionObject{})
 	if err != nil {
-		log.Error("CheckUnlinkauthAuthorization is error: %s", err)
+		log.Error("CheckUnLinkAuthAuthorization is error: %s", err)
 	}
 	EosAssert(a.GetPermission(&auth).Satisfies(*a.GetPermission(&types.PermissionLevel{unlink.Account, *unlinkedPermissionName}), permissionIndex), &IrrelevantAuthException{},
 		"unlink action declares irrelevant authority '%v'; minimum authority is %v", auth, types.PermissionLevel{unlink.Account, *unlinkedPermissionName})
 }
 
-func (a *AuthorizationManager) CheckCanceldelayAuthorization(cancel cancelDelay, auths []types.PermissionLevel) common.Microseconds {
-	EosAssert(len(auths) == 1, &IrrelevantAuthException{}, "canceldelay action should only have one declared authorization")
+func (a *AuthorizationManager) CheckCancelDelayAuthorization(cancel CancelDelay, auths []types.PermissionLevel) common.Microseconds {
+	EosAssert(len(auths) == 1, &IrrelevantAuthException{}, "CancelDelay action should only have one declared authorization")
 	auth := auths[0]
 	permissionIndex, err := a.db.GetIndex("id", entity.PermissionObject{})
 	if err != nil {
-		log.Error("CheckCanceldelayAuthorization is error: %s", err)
+		log.Error("CheckCancelDelayAuthorization is error: %s", err)
 	}
 	EosAssert(a.GetPermission(&auth).Satisfies(*a.GetPermission(&cancel.CancelingAuth), permissionIndex), &IrrelevantAuthException{},
-		"canceldelay action declares irrelevant authority '%v'; specified authority to satisfy is %v", auth, cancel.CancelingAuth)
+		"CancelDelay action declares irrelevant authority '%v'; specified authority to satisfy is %v", auth, cancel.CancelingAuth)
 
 	generatedTrx := entity.GeneratedTransactionObject{}
 	trxId := cancel.TrxId
 	generatedIndex, err := a.control.DB.GetIndex("byTrxId", entity.GeneratedTransactionObject{})
 	if err != nil {
-		log.Error("CheckCanceldelayAuthorization is error: %s", err)
+		log.Error("CheckCancelDelayAuthorization is error: %s", err)
 	}
 	itr, err := generatedIndex.LowerBound(entity.GeneratedTransactionObject{TrxId: trxId})
 	if err != nil {
-		log.Error("CheckCanceldelayAuthorization is error: %s", err)
+		log.Error("CheckCancelDelayAuthorization is error: %s", err)
 	}
 
 	generatedIndex.BeginData(&generatedTrx)
@@ -325,7 +325,7 @@ func (a *AuthorizationManager) CheckCanceldelayAuthorization(cancel cancelDelay,
 		}
 	}
 
-	EosAssert(found, &ActionValidateException{}, "canceling_auth in canceldelay action was not found as authorization in the original delayed transaction")
+	EosAssert(found, &ActionValidateException{}, "canceling_auth in CancelDelay action was not found as authorization in the original delayed transaction")
 	return common.Milliseconds(int64(generatedTrx.DelayUntil) - int64(generatedTrx.Published))
 }
 
@@ -366,30 +366,30 @@ func (a *AuthorizationManager) CheckAuthorization(actions []*types.Action,
 		if act.Account == common.DefaultConfig.SystemAccountName {
 			specialCase = true
 			switch act.Name {
-			case updateAuth{}.getName():
-				updateAuth := updateAuth{}
-				rlp.DecodeBytes(act.Data, &updateAuth)
-				a.CheckUpdateauthAuthorization(updateAuth, act.Authorization)
+			case UpdateAuth{}.GetName():
+				UpdateAuth := UpdateAuth{}
+				rlp.DecodeBytes(act.Data, &UpdateAuth)
+				a.CheckUpdateAuthAuthorization(UpdateAuth, act.Authorization)
 
-			case deleteAuth{}.getName():
-				deleteAuth := deleteAuth{}
-				rlp.DecodeBytes(act.Data, &deleteAuth)
-				a.CheckDeleteauthAuthorization(deleteAuth, act.Authorization)
+			case DeleteAuth{}.GetName():
+				DeleteAuth := DeleteAuth{}
+				rlp.DecodeBytes(act.Data, &DeleteAuth)
+				a.CheckDeleteAuthAuthorization(DeleteAuth, act.Authorization)
 
-			case linkAuth{}.getName():
-				linkAuth := linkAuth{}
-				rlp.DecodeBytes(act.Data, &linkAuth)
-				a.CheckLinkauthAuthorization(linkAuth, act.Authorization)
+			case LinkAuth{}.GetName():
+				LinkAuth := LinkAuth{}
+				rlp.DecodeBytes(act.Data, &LinkAuth)
+				a.CheckLinkAuthAuthorization(LinkAuth, act.Authorization)
 
-			case unlinkAuth{}.getName():
-				unlinkAuth := unlinkAuth{}
-				rlp.DecodeBytes(act.Data, &unlinkAuth)
-				a.CheckUnlinkauthAuthorization(unlinkAuth, act.Authorization)
+			case UnLinkAuth{}.GetName():
+				UnLinkAuth := UnLinkAuth{}
+				rlp.DecodeBytes(act.Data, &UnLinkAuth)
+				a.CheckUnLinkAuthAuthorization(UnLinkAuth, act.Authorization)
 
-			case cancelDelay{}.getName():
-				cancelDelay := cancelDelay{}
-				rlp.DecodeBytes(act.Data, &cancelDelay)
-				a.CheckCanceldelayAuthorization(cancelDelay, act.Authorization)
+			case CancelDelay{}.GetName():
+				CancelDelay := CancelDelay{}
+				rlp.DecodeBytes(act.Data, &CancelDelay)
+				a.CheckCancelDelayAuthorization(CancelDelay, act.Authorization)
 
 			default:
 				specialCase = false

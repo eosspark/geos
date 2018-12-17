@@ -1,6 +1,7 @@
-package chain
+package unittests
 
 import (
+	. "github.com/eosspark/eos-go/chain"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto/abi_serializer"
@@ -125,7 +126,7 @@ func (e EosioSystemTester) CreateAccountWithResources(name common.AccountName, c
 	}
 	activeAuth := types.NewAuthority(e.getPublicKey(name, "active"), 0)
 
-	new := newAccount{
+	new := NewAccount{
 		Creator: creator,
 		Name:    name,
 		Owner:   ownerAuth,
@@ -133,8 +134,8 @@ func (e EosioSystemTester) CreateAccountWithResources(name common.AccountName, c
 	}
 	data, _ := rlp.EncodeToBytes(new)
 	act := &types.Action{
-		Account:       new.getAccount(),
-		Name:          new.getName(),
+		Account:       new.GetAccount(),
+		Name:          new.GetName(),
 		Authorization: []types.PermissionLevel{{creator, common.DefaultConfig.ActiveName}},
 		Data:          data,
 	}
@@ -183,7 +184,7 @@ func (e EosioSystemTester) CreateAccountWithResources2(name common.AccountName, 
 	ownerAuth := types.NewAuthority(e.getPublicKey(name, "owner"), 0)
 	activeAuth := types.NewAuthority(e.getPublicKey(name, "active"), 0)
 
-	new := newAccount{
+	new := NewAccount{
 		Creator: creator,
 		Name:    name,
 		Owner:   ownerAuth,
@@ -191,8 +192,8 @@ func (e EosioSystemTester) CreateAccountWithResources2(name common.AccountName, 
 	}
 	data, _ := rlp.EncodeToBytes(new)
 	act := &types.Action{
-		Account:       new.getAccount(),
-		Name:          new.getName(),
+		Account:       new.GetAccount(),
+		Name:          new.GetName(),
 		Authorization: []types.PermissionLevel{{creator, common.DefaultConfig.ActiveName}},
 		Data:          data,
 	}
