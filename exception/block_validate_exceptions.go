@@ -7,7 +7,7 @@ type BlockValidateException struct{ ELog }
 func (BlockValidateException) ChainExceptions()         {}
 func (BlockValidateException) BlockValidateExceptions() {}
 func (BlockValidateException) Code() ExcTypes           { return 3030000 }
-func (BlockValidateException) What() string             { return "Action validate exception" }
+func (BlockValidateException) What() string             { return "Block exception" }
 
 type UnlinkableBlockException struct{ ELog }
 
