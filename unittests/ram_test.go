@@ -32,9 +32,9 @@ func TestRamTests(t *testing.T){
 	e.ProduceBlocks(10,false)
 
 	//test_ram_limit
-	wasmName := "../wasmgo/testdata_context/test_ram_limit.wasm"
+	wasmName := "test_contracts/test_ram_limit.wasm"
 	code, _ := ioutil.ReadFile(wasmName)
-	abiName := "../wasmgo/testdata_context/test_ram_limit.abi"
+	abiName := "test_contracts/test_ram_limit.abi"
 	abi, _ := ioutil.ReadFile(abiName)
 
 	skipLoop := false
