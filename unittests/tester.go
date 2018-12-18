@@ -771,6 +771,14 @@ func newValidatingTester(pushGenesis bool, readMode DBReadMode) *ValidatingTeste
 	return vt
 }
 
+func (vt ValidatingTester) DefaultProduceBlock() *types.SignedBlock {
+	skipTime := common.DefaultConfig.BlockIntervalMs
+	skipFlag := uint32(0)
+	sb := vt.produceBlock(common.Milliseconds(skipTime), false, skipFlag/2)
+	vt.ValidatingControl.PushBlock(sb, types.Complete)
+	return sb
+}
+
 func (vt ValidatingTester) ProduceBlock(skipTime common.Microseconds, skipFlag uint32) *types.SignedBlock {
 	sb := vt.produceBlock(skipTime, false, skipFlag/2)
 	vt.ValidatingControl.PushBlock(sb, types.Complete)
@@ -791,4 +799,51 @@ func (vt *ValidatingTester) close() {
 func CoreFromString(s string) common.Asset {
 	str := s + " " + CORE_SYMBOL_NAME
 	return common.Asset{}.FromString(&str)
+}
+
+func (t *ValidatingTester) CreateDefaultAccount(name common.AccountName) *types.TransactionTrace {
+	includeCode := true
+	creator := common.N("eosio")
+	trx := types.SignedTransaction{}
+	t.SetTransactionHeaders(&trx.Transaction, t.DefaultExpirationDelta, 0) //TODO: test
+
+	ownerAuth := types.NewAuthority(t.getPublicKey(name, "owner"), 0)
+
+	activeAuth := types.NewAuthority(t.getPublicKey(name, "active"), 0)
+
+	sortPermissions := func(auth *types.Authority) {}
+	if includeCode {
+		try.EosAssert(ownerAuth.Threshold <= math.MaxUint16, nil, "threshold is too high")
+		try.EosAssert(uint64(activeAuth.Threshold) <= uint64(math.MaxUint64), nil, "threshold is too high")
+		ownerAuth.Accounts = append(ownerAuth.Accounts, types.PermissionLevelWeight{
+			Permission: types.PermissionLevel{Actor: name, Permission: common.DefaultConfig.EosioCodeName},
+			Weight:     types.WeightType(ownerAuth.Threshold),
+		})
+		sortPermissions(&ownerAuth)
+		activeAuth.Accounts = append(activeAuth.Accounts, types.PermissionLevelWeight{
+			Permission: types.PermissionLevel{Actor: name, Permission: common.DefaultConfig.EosioCodeName},
+			Weight:     types.WeightType(activeAuth.Threshold),
+		})
+		sortPermissions(&activeAuth)
+	}
+	new := NewAccount{
+		Creator: creator,
+		Name:    name,
+		Owner:   ownerAuth,
+		Active:  activeAuth,
+	}
+	data, _ := rlp.EncodeToBytes(new)
+	act := &types.Action{
+		Account:       new.GetAccount(),
+		Name:          new.GetName(),
+		Authorization: []types.PermissionLevel{{creator, common.DefaultConfig.ActiveName}},
+		Data:          data,
+	}
+	trx.Actions = append(trx.Actions, act)
+
+	t.SetTransactionHeaders(&trx.Transaction, t.DefaultExpirationDelta, 0)
+	pk := t.getPrivateKey(creator, "active")
+	chainId := t.Control.GetChainId()
+	trx.Sign(&pk, &chainId)
+	return t.PushTransaction(&trx, common.MaxTimePoint(), t.DefaultBilledCpuTimeUs)
 }
