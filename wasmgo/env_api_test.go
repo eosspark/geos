@@ -619,6 +619,7 @@ func TestTransaction(t *testing.T) {
 		// 	BOOST_CHECK_EQUAL(trace->receipt->status, transaction_receipt::soft_fail);
 		// 	c.disconnect();
 		// }
+
 		ret := callTestF2(t, b, &testApiAction{wasmTestAction("test_transaction", "test_read_transaction")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
 		assert.Equal(t, ret.ID.String(), ret.ActionTraces[0].Console)
 
