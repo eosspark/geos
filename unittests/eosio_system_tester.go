@@ -38,10 +38,10 @@ func initEosioSystemTester() *EosioSystemTester {
 	e.ProduceBlocks(100, false)
 
 	//eosio.token
-	wasmName := "../wasmgo/testdata_context/eosio.token.wasm"
+	wasmName := "test_contracts/eosio.token.wasm"
 	code, _ := ioutil.ReadFile(wasmName)
 	e.SetCode(common.N("eosio.token"), code, nil)
-	abiName := "../wasmgo/testdata_context/eosio.token.abi"
+	abiName := "test_contracts/eosio.token.abi"
 	abi, _ := ioutil.ReadFile(abiName)
 	e.SetAbi(common.N("eosio.token"), abi, nil)
 	accnt := entity.AccountObject{Name: common.N("eosio.token")}
@@ -61,10 +61,10 @@ func initEosioSystemTester() *EosioSystemTester {
 	}
 
 	//eosio.system
-	wasmName = "../wasmgo/testdata_context/eosio.system.wasm"
+	wasmName = "test_contracts/eosio.system.wasm"
 	code, _ = ioutil.ReadFile(wasmName)
 	e.SetCode(common.N("eosio"), code, nil)
-	abiName = "../wasmgo/testdata_context/eosio.system.abi"
+	abiName = "test_contracts/eosio.system.abi"
 	abi, _ = ioutil.ReadFile(abiName)
 	e.SetAbi(common.N("eosio"), abi, nil)
 
