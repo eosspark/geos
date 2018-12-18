@@ -387,7 +387,7 @@ type GetRequiredKeysResult struct {
 	RequiredKeys []ecc.PublicKey `json:"required_keys"`
 }
 
-func (ro *ReadOnly) GetRequiredKeys(params *GetRequiredKeysParams) GetRequiredKeysResult {
+func (ro *ReadOnly) GetRequiredKeys(params GetRequiredKeysParams) GetRequiredKeysResult {
 	trx := &types.Transaction{}
 	EosAssert(common.FromVariant(&params.Transaction, trx) == nil, &TransactionTypeException{}, "Invalid transaction")
 

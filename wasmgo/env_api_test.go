@@ -601,11 +601,11 @@ func TestTransaction(t *testing.T) {
 			exception.EosioAssertMessageException{}.Code(), "test_action::assert_false")
 		assert.Equal(t, retException, true)
 
-		//callTestF2(t, b, &testApiAction{wasmTestAction("test_transaction", "send_transaction")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
+		callTestF2(t, b, &testApiAction{wasmTestAction("test_transaction", "send_transaction")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
 
-		//retException = callTestFunctionCheckExceptionF2(t, b, &testApiAction{wasmTestAction("test_transaction", "send_transaction_empty")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))},
-		//	exception.TxNoAuths{}.Code(), "transaction must have at least one authorization")
-		//assert.Equal(t, retException, true)
+		retException = callTestFunctionCheckExceptionF2(t, b, &testApiAction{wasmTestAction("test_transaction", "send_transaction_empty")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))},
+			exception.TxNoAuths{}.Code(), "transaction must have at least one authorization")
+		assert.Equal(t, retException, true)
 
 		// {
 		// 	produce_blocks(10);
@@ -620,7 +620,6 @@ func TestTransaction(t *testing.T) {
 		// 	c.disconnect();
 		// }
 		ret := callTestF2(t, b, &testApiAction{wasmTestAction("test_transaction", "test_read_transaction")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
-		//hash, _ := rlp.EncodeToBytes(&ret.ID)
 		assert.Equal(t, ret.ID.String(), ret.ActionTraces[0].Console)
 
 		bn := b.Control.HeadBlockNum()
