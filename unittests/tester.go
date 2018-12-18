@@ -641,7 +641,7 @@ func (t BaseTester) GetCurrencyBalance(code *common.AccountName, assetSymbol *co
 	return common.Asset{Amount: result, Symbol: *assetSymbol}
 }
 
-func (t BaseTester) GetRowByAccount(code uint64, scope uint64, table uint64, act *common.AccountName) []byte {
+func (t BaseTester) GetRowByAccount(code uint64, scope uint64, table uint64, act *uint64) []byte {
 	var data []byte
 	db := t.Control.DB
 	tId := entity.TableIdObject{Code: common.AccountName(code), Scope: common.ScopeName(scope), Table: common.TableName(table)}
@@ -651,7 +651,7 @@ func (t BaseTester) GetRowByAccount(code uint64, scope uint64, table uint64, act
 		//log.Error("GetRowByAccount is error: %s", err)
 	}
 	idx, _ := db.GetIndex("byScopePrimary", entity.KeyValueObject{})
-	obj := entity.KeyValueObject{TId: tId.ID, PrimaryKey: uint64(*act)}
+	obj := entity.KeyValueObject{TId: tId.ID, PrimaryKey: *act}
 	itr, _ := idx.LowerBound(&obj)
 	if idx.CompareEnd(itr) {
 		return data
@@ -659,7 +659,7 @@ func (t BaseTester) GetRowByAccount(code uint64, scope uint64, table uint64, act
 
 	objLowerBound := entity.KeyValueObject{}
 	itr.Data(&objLowerBound)
-	if objLowerBound.TId != tId.ID || objLowerBound.PrimaryKey != uint64(*act) {
+	if objLowerBound.TId != tId.ID || objLowerBound.PrimaryKey != *act {
 		return data
 	}
 
@@ -737,15 +737,12 @@ func (t BaseTester) SetProducerKeys(producerNames *[]common.AccountName) *types.
 
 func (t BaseTester) SetProducers(producerNames *[]common.AccountName) *types.TransactionTrace {
 	schedule := t.GetProducerKeys(producerNames)
-	data := VariantsObject{
-		"schedule": schedule,
-	}
 	actName := common.N("setprods")
 	return t.PushAction2(
 		&common.DefaultConfig.SystemAccountName,
 		&actName,
 		common.N("eosio"),
-		&data,
+		&VariantsObject{"schedule": schedule},
 		t.DefaultExpirationDelta,
 		0,
 	)

@@ -73,7 +73,7 @@ func TestRamTests(t *testing.T){
 	e.SetAbi(test2, abi, nil)
 	e.ProduceBlocks(10,false)
 
-	total := e.GetTotalStake(test1)
+	total := e.GetTotalStake(uint64(test1))
 	fmt.Println(total)
 	initBytes := uint64(total["ram_bytes"].(int64))
 
@@ -105,7 +105,7 @@ func TestRamTests(t *testing.T){
 	)
 	e.ProduceBlocks(1,false)
 	ramUsage := rlm.GetAccountRamUsage(test1)
-	total = e.GetTotalStake(test1)
+	total = e.GetTotalStake(uint64(test1))
 	ramBytes := uint64(total["ram_bytes"].(int64))
 	log.Warn("ram_bytes: %d, ram_usage: %d, initial_ram_usage: %d, init_bytes: %d, ram_usage - initial_ram_usage: %d, init_bytes - ram_usage: %d.",
 		ramBytes, ramUsage, initialRamUsage, initBytes, ramUsage - initialRamUsage, initBytes - uint64(ramUsage))

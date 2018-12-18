@@ -273,7 +273,7 @@ func (e EosioSystemTester) Stake(from common.AccountName, to common.AccountName,
 }
 
 func (e EosioSystemTester) GetBalance(act common.AccountName) common.Asset {
-	a := common.AccountName(5462355)
+	a := uint64(5462355)
 	data := e.GetRowByAccount(uint64(common.N("eosio.token")), uint64(act), uint64(common.N("accounts")),&a)
 	if len(data) == 0 {
 		return common.Asset{Amount:0,Symbol:CORE_SYMBOL}
@@ -284,7 +284,7 @@ func (e EosioSystemTester) GetBalance(act common.AccountName) common.Asset {
 	}
 }
 
-func (e EosioSystemTester) GetTotalStake(act common.AccountName) VariantsObject {
+func (e EosioSystemTester) GetTotalStake(act uint64) VariantsObject {
 	type UserResources struct {
 		Owner     common.AccountName
 		NetWeight common.Asset
