@@ -108,6 +108,10 @@ type Record struct {
 	Call stack.Call
 }
 
+func (r Record) String() string {
+	return r.Call.String()
+}
+
 // A Logger writes key/value pairs to a Handler
 type Logger interface {
 	// New returns a new Logger that has this logger's context plus the given context

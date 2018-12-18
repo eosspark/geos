@@ -127,7 +127,7 @@ func TestTransactionID(t *testing.T) {
 			//}
 			//fmt.Println("trx signed  ", string(data))
 			//
-			//newPackedTrx := types.NewPackedTransactionBySignedTrx(signedTrx,common.CompressionNone)
+			//newPackedTrx := types.NewPackedTransactionBySignedTrx(signedTrx,types.CompressionNone)
 			//
 			//fmt.Printf("2            %#v\n",newPackedTrx.PackedTrx)
 			//

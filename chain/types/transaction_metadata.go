@@ -33,7 +33,7 @@ func NewTransactionMetadata(ptrx *PackedTransaction) *TransactionMetadata {
 	}
 }
 
-func NewTransactionMetadataBySignedTrx(t *SignedTransaction, c common.CompressionType) *TransactionMetadata {
+func NewTransactionMetadataBySignedTrx(t *SignedTransaction, c CompressionType) *TransactionMetadata {
 	hashed := crypto.Hash256(t)
 	packedTrx := NewPackedTransactionBySignedTrx(t, c)
 	return &TransactionMetadata{

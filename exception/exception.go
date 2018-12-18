@@ -39,8 +39,8 @@ type Exception interface {
 	Code() ExcTypes
 	What() string
 	String() string
-	AppendLog(l LogMessage)
-	GetLog() []LogMessage
+	AppendLog(l Message)
+	GetLog() []Message
 
 	message(e Exception) string
 }
@@ -49,26 +49,26 @@ func GetDetailMessage(ex Exception) string {
 	return ex.message(ex)
 }
 
-type ELog []LogMessage
+type ELog []Message
 
-func NewELog(l LogMessage) ELog {
+func NewELog(l Message) ELog {
 	e := ELog{}
 	e.AppendLog(l)
 	return e
 }
 
-func (e *ELog) AppendLog(l LogMessage) {
+func (e *ELog) AppendLog(l Message) {
 	*e = append(*e, l)
 }
 
-func (e ELog) GetLog() []LogMessage {
+func (e ELog) GetLog() []Message {
 	return e
 }
 
 func (e ELog) String() string {
 	var buffer bytes.Buffer
 	for i := range e {
-		buffer.WriteString(e[i].Message())
+		buffer.WriteString(e[i].GetMessage())
 		buffer.WriteString("\n")
 	}
 	return buffer.String()
@@ -83,7 +83,11 @@ func (e ELog) message(ex Exception) string {
 	buffer.WriteString(ex.What())
 	buffer.WriteString("\n")
 	for i := range e {
-		buffer.WriteString(e[i].Message())
+		buffer.WriteString("[")
+		buffer.WriteString(e[i].GetMessage())
+		buffer.WriteString("]")
+		buffer.WriteString("\n")
+		buffer.WriteString(e[i].GetContext().String())
 		buffer.WriteString("\n")
 	}
 	return buffer.String()

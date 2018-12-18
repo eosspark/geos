@@ -336,7 +336,7 @@ func newSignedTransaction(control *chain.Controller) *types.SignedTransaction {
 }
 
 func pushSignedTransaction(control *chain.Controller, trx *types.SignedTransaction) *types.TransactionTrace {
-	metaTrx := types.NewTransactionMetadataBySignedTrx(trx, common.CompressionNone)
+	metaTrx := types.NewTransactionMetadataBySignedTrx(trx, types.CompressionNone)
 	return control.PushTransaction(metaTrx, common.TimePoint(common.MaxMicroseconds()), 0)
 }
 
@@ -620,6 +620,7 @@ func TestTransaction(t *testing.T) {
 		// 	BOOST_CHECK_EQUAL(trace->receipt->status, transaction_receipt::soft_fail);
 		// 	c.disconnect();
 		// }
+
 		ret := callTestF2(t, b, &testApiAction{wasmTestAction("test_transaction", "test_read_transaction")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
 		assert.Equal(t, ret.ID.String(), ret.ActionTraces[0].Console)
 
@@ -1882,7 +1883,7 @@ func newTransaction(control *chain.Controller, action *types.Action, privateKeys
 		signedTrx.Sign(privateKey, &chainIdType)
 	}
 
-	metaTrx := types.NewTransactionMetadataBySignedTrx(signedTrx, common.CompressionNone)
+	metaTrx := types.NewTransactionMetadataBySignedTrx(signedTrx, types.CompressionNone)
 
 	return metaTrx
 }
@@ -2518,10 +2519,10 @@ func (t BaseTester) PushTransaction(trx *types.SignedTransaction, deadline commo
 		if t.Control.PendingBlockState() == nil {
 			t.startBlock(t.Control.HeadBlockTime().AddUs(common.Microseconds(common.DefaultConfig.BlockIntervalUs)))
 		}
-		c := common.CompressionNone
+		c := types.CompressionNone
 		size, _ := rlp.EncodeSize(trx)
 		if size > 1000 {
-			c = common.CompressionZlib
+			c = types.CompressionZlib
 		}
 		mtrx := types.NewTransactionMetadataBySignedTrx(trx, c)
 		trace = t.Control.PushTransaction(mtrx, deadline, billedCpuTimeUs)

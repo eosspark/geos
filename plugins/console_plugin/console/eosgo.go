@@ -120,7 +120,7 @@ func (e *eosgo) CreateAccount(call otto.FunctionCall) (resonse otto.Value) {
 	//
 	//} else {
 	e.log.Info("creat account in test net")
-	e.sendActions(createAction, 1000, common.CompressionNone)
+	e.sendActions(createAction, 1000, types.CompressionNone)
 	//}
 
 	v, _ := call.Otto.ToValue(&msg{})
@@ -128,7 +128,7 @@ func (e *eosgo) CreateAccount(call otto.FunctionCall) (resonse otto.Value) {
 	return v
 }
 
-func (e *eosgo) sendActions(actions []*types.Action, extraKcpu int32, compression common.CompressionType) {
+func (e *eosgo) sendActions(actions []*types.Action, extraKcpu int32, compression types.CompressionType) {
 	e.log.Info("send action")
 	result := e.pushActions(actions, extraKcpu, compression)
 
@@ -140,7 +140,7 @@ func (e *eosgo) sendActions(actions []*types.Action, extraKcpu int32, compressio
 	//}
 }
 
-func (e *eosgo) pushActions(actions []*types.Action, extraKcpu int32, compression common.CompressionType) interface{} {
+func (e *eosgo) pushActions(actions []*types.Action, extraKcpu int32, compression types.CompressionType) interface{} {
 	e.log.Info("push actions")
 	trx := &types.SignedTransaction{}
 	trx.Actions = actions
@@ -167,7 +167,7 @@ var delaysec uint32 = 0
 
 type Variants map[string]interface{}
 
-func (e *eosgo) pushTransaction(trx *types.SignedTransaction, extraKcpu int32, compression common.CompressionType) interface{} {
+func (e *eosgo) pushTransaction(trx *types.SignedTransaction, extraKcpu int32, compression types.CompressionType) interface{} {
 	e.log.Info("push transaction")
 
 	var info eosapi.InfoResp
@@ -298,7 +298,7 @@ func (e *eosgo) PushTrx(call otto.FunctionCall) (resonse otto.Value) {
 		//try.FcThrowException(&exception.TransactionTypeException{},"Fail to parse transaction JSON %s",trx_var)
 	}
 
-	re := e.pushTransaction(&signtrx, 1000, common.CompressionNone)
+	re := e.pushTransaction(&signtrx, 1000, types.CompressionNone)
 	printResult(re)
 
 	v, _ := call.Otto.ToValue(nil)
