@@ -113,13 +113,13 @@ func (t BaseTester) PushBlock(b *types.SignedBlock) *types.SignedBlock {
 }
 
 func (t BaseTester) pushGenesisBlock() {
-	wasmName := "../wasmgo/testdata_context/eosio.bios.wasm"
+	wasmName := "test_contracts/eosio.bios.wasm"
 	code, err := ioutil.ReadFile(wasmName)
 	if err != nil {
 		log.Error("pushGenesisBlock is err : %v", err)
 	}
 	t.SetCode(common.DefaultConfig.SystemAccountName, code, nil)
-	abiName := "../wasmgo/testdata_context/eosio.bios.abi"
+	abiName := "test_contracts/eosio.bios.abi"
 	abi, err := ioutil.ReadFile(abiName)
 	if err != nil {
 		log.Error("pushGenesisBlock is err : %v", err)
@@ -365,15 +365,16 @@ func (t BaseTester) GetAction(code common.AccountName, actType common.AccountNam
 	acnt := t.Control.GetAccount(code)
 	a := acnt.GetAbi()
 	action := types.Action{code, actType, auths, nil}
-	actionTypeName := a.ActionForName(actType).Type
-	buf, err := json.Marshal(data)
-	if err != nil {
-		log.Error("tester GetAction Marshal is error:%s", err)
-	}
-	action.Data, err = a.EncodeAction(common.N(actionTypeName), buf) //TODO
-	if err != nil {
-		log.Error("tester GetAction EncodeAction is error:%s", err)
-	}
+	//actionTypeName := a.ActionForName(actType).Type
+	buf, _ := json.Marshal(data)
+	//if err != nil {
+	//	log.Error("tester GetAction Marshal is error:%s", err)
+	//}
+	//action.Data, _ = a.EncodeAction(common.N(actionTypeName), buf) //TODO
+	action.Data, _ = a.EncodeAction(actType, buf)
+	//if err != nil {
+	//	log.Error("tester GetAction EncodeAction is error:%s", err)
+	//}
 	return &action
 }
 
@@ -644,7 +645,7 @@ func (t BaseTester) GetCurrencyBalance(code *common.AccountName, assetSymbol *co
 	return common.Asset{Amount: result, Symbol: *assetSymbol}
 }
 
-func (t BaseTester) GetRowByAccount(code uint64, scope uint64, table uint64, act *common.AccountName) []byte {
+func (t BaseTester) GetRowByAccount(code uint64, scope uint64, table uint64, act uint64) []byte {
 	var data []byte
 	db := t.Control.DB
 	tId := entity.TableIdObject{Code: common.AccountName(code), Scope: common.ScopeName(scope), Table: common.TableName(table)}
@@ -654,7 +655,7 @@ func (t BaseTester) GetRowByAccount(code uint64, scope uint64, table uint64, act
 		//log.Error("GetRowByAccount is error: %s", err)
 	}
 	idx, _ := db.GetIndex("byScopePrimary", entity.KeyValueObject{})
-	obj := entity.KeyValueObject{TId: tId.ID, PrimaryKey: uint64(*act)}
+	obj := entity.KeyValueObject{TId: tId.ID, PrimaryKey: act}
 	itr, _ := idx.LowerBound(&obj)
 	if idx.CompareEnd(itr) {
 		return data
@@ -662,7 +663,7 @@ func (t BaseTester) GetRowByAccount(code uint64, scope uint64, table uint64, act
 
 	objLowerBound := entity.KeyValueObject{}
 	itr.Data(&objLowerBound)
-	if objLowerBound.TId != tId.ID || objLowerBound.PrimaryKey != uint64(*act) {
+	if objLowerBound.TId != tId.ID || objLowerBound.PrimaryKey != act {
 		return data
 	}
 
@@ -736,6 +737,19 @@ func (t BaseTester) SetProducerKeys(producerNames *[]common.AccountName) *types.
 	//TODO
 	//schedule := t.GetProducerKeys(producerNames)
 	return &types.TransactionTrace{}
+}
+
+func (t BaseTester) SetProducers(producerNames *[]common.AccountName) *types.TransactionTrace {
+	schedule := t.GetProducerKeys(producerNames)
+	actName := common.N("setprods")
+	return t.PushAction2(
+		&common.DefaultConfig.SystemAccountName,
+		&actName,
+		common.N("eosio"),
+		&VariantsObject{"schedule": schedule},
+		t.DefaultExpirationDelta,
+		0,
+	)
 }
 
 func (t BaseTester) FindTable(code common.Name, scope common.Name, table common.Name) *entity.TableIdObject {

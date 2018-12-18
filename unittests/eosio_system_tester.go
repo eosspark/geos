@@ -38,10 +38,10 @@ func initEosioSystemTester() *EosioSystemTester {
 	e.ProduceBlocks(100, false)
 
 	//eosio.token
-	wasmName := "../wasmgo/testdata_context/eosio.token.wasm"
+	wasmName := "test_contracts/eosio.token.wasm"
 	code, _ := ioutil.ReadFile(wasmName)
 	e.SetCode(common.N("eosio.token"), code, nil)
-	abiName := "../wasmgo/testdata_context/eosio.token.abi"
+	abiName := "test_contracts/eosio.token.abi"
 	abi, _ := ioutil.ReadFile(abiName)
 	e.SetAbi(common.N("eosio.token"), abi, nil)
 	accnt := entity.AccountObject{Name: common.N("eosio.token")}
@@ -61,10 +61,10 @@ func initEosioSystemTester() *EosioSystemTester {
 	}
 
 	//eosio.system
-	wasmName = "../wasmgo/testdata_context/eosio.system.wasm"
+	wasmName = "test_contracts/eosio.system.wasm"
 	code, _ = ioutil.ReadFile(wasmName)
 	e.SetCode(common.N("eosio"), code, nil)
-	abiName = "../wasmgo/testdata_context/eosio.system.abi"
+	abiName = "test_contracts/eosio.system.abi"
 	abi, _ = ioutil.ReadFile(abiName)
 	e.SetAbi(common.N("eosio"), abi, nil)
 
@@ -273,8 +273,8 @@ func (e EosioSystemTester) Stake(from common.AccountName, to common.AccountName,
 }
 
 func (e EosioSystemTester) GetBalance(act common.AccountName) common.Asset {
-	a := common.AccountName(5462355)
-	data := e.GetRowByAccount(uint64(common.N("eosio.token")), uint64(act), uint64(common.N("accounts")),&a)
+	a := uint64(5462355)
+	data := e.GetRowByAccount(uint64(common.N("eosio.token")), uint64(act), uint64(common.N("accounts")),a)
 	if len(data) == 0 {
 		return common.Asset{Amount:0,Symbol:CORE_SYMBOL}
 	} else {
@@ -284,14 +284,14 @@ func (e EosioSystemTester) GetBalance(act common.AccountName) common.Asset {
 	}
 }
 
-func (e EosioSystemTester) GetTotalStake(act common.AccountName) VariantsObject {
+func (e EosioSystemTester) GetTotalStake(act uint64) VariantsObject {
 	type UserResources struct {
 		Owner     common.AccountName
 		NetWeight common.Asset
 		CpuWeight common.Asset
 		RamBytes  int64
 	}
-	data := e.GetRowByAccount(uint64(common.N("eosio")), uint64(act), uint64(common.N("userres")), &act)
+	data := e.GetRowByAccount(uint64(common.N("eosio")), uint64(act), uint64(common.N("userres")), act)
 	if len(data) == 0 {
 		return VariantsObject{}
 	} else {
