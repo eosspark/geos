@@ -535,7 +535,8 @@ func (a *ApplyContext) ScheduleDeferredTransaction(sendId *arithmetic.Uint128, p
 		a.DB.Insert(&gto)
 	}
 
-	EosAssert(replaceExisting, &DeferredTxDuplicate{}, "deferred transaction with the same sender_id and payer already exists")
+	EosAssert(a.Control.IsRamBillingInNotifyAllowed() || (a.Receiver == payer) || a.Privileged, //||(receiver == act.account)
+		&SubjectiveBlockProductionException{}, "Cannot charge RAM to other accounts during notify.")
 	a.AddRamUsage(payer, int64(common.BillableSizeV("generated_transaction_object")+uint64(trxSize)))
 
 }
