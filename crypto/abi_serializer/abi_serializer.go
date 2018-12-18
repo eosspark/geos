@@ -1,6 +1,8 @@
 package abi_serializer
 
 import (
+	"encoding/json"
+	"fmt"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/eosspark/eos-go/exception"
@@ -10,6 +12,8 @@ import (
 )
 
 var maxRecursionDepth = 32
+
+type typeName = string
 
 func Encode_Decode() common.Pair {
 	decode := func() {
@@ -21,6 +25,7 @@ func Encode_Decode() common.Pair {
 }
 
 type AbiSerializer struct {
+	abi           *AbiDef
 	typeDefs      map[string]string
 	structs       map[string]StructDef
 	actions       map[common.Name]string
@@ -30,12 +35,20 @@ type AbiSerializer struct {
 	builtInTypes  map[string]common.Pair
 }
 
-//func (a AbiSerializer) ConfigureBuiltInTypes() {
-//	a.builtInTypes["bool"]
-//}
+func (a AbiSerializer) ConfigureBuiltInTypes() {
+	//
+}
 
-func (a AbiSerializer) SetAbi(abi *AbiDef, maxSerializationTime *common.Microseconds) {
-	deadline := common.Now() + common.TimePoint(*maxSerializationTime)
+func NewAbiSerializer(abi *AbiDef, maxSerializationTime common.Microseconds) *AbiSerializer {
+	abiSer := AbiSerializer{}
+	abiSer.ConfigureBuiltInTypes()
+	abiSer.SetAbi(abi, maxSerializationTime)
+	abiSer.abi = abi
+	return &abiSer
+}
+
+func (a *AbiSerializer) SetAbi(abi *AbiDef, maxSerializationTime common.Microseconds) {
+	//deadline := common.Now() + common.TimePoint(maxSerializationTime)
 	a.typeDefs = make(map[string]string)
 	a.structs = make(map[string]StructDef)
 	a.actions = make(map[common.Name]string)
@@ -47,8 +60,8 @@ func (a AbiSerializer) SetAbi(abi *AbiDef, maxSerializationTime *common.Microsec
 	}
 
 	for _, td := range abi.Types {
-		try.EosAssert(a.IsType(&td.Type, 0, &deadline, *maxSerializationTime), &exception.InvalidTypeInsideAbi{}, "invalid type : %v", td.Type)
-		try.EosAssert(!a.IsType(&td.NewTypeName, 0, &deadline, *maxSerializationTime), &exception.DuplicateAbiTypeDefException{}, "type already exists : %v", td.Type)
+		//try.EosAssert(a.IsType(&td.Type, 0, &deadline, maxSerializationTime), &exception.InvalidTypeInsideAbi{}, "invalid type : %v", td.Type)
+		//try.EosAssert(!a.IsType(&td.NewTypeName, 0, &deadline, maxSerializationTime), &exception.DuplicateAbiTypeDefException{}, "type already exists : %v", td.Type)
 		a.typeDefs[td.NewTypeName] = td.Type
 	}
 
@@ -118,6 +131,14 @@ func (a AbiSerializer) IsOptional(rtype *string) bool {
 	return strings.HasPrefix(string(*rtype), "?")
 }
 
+//bool abi_serializer::is_type(const type_name& type, const fc::microseconds& max_serialization_time)const {
+//impl::abi_traverse_context ctx(max_serialization_time);
+//return _is_type(type, ctx);
+//}
+//func (a AbiSerializer)IsType(rtype *string,maxSerializationTime common.Microseconds) bool{
+//	return false //TODO
+//}
+
 func (a AbiSerializer) FundamentalType(rtype *string) string {
 	stype := string(*rtype)
 	btype := []byte(stype)
@@ -147,8 +168,103 @@ func (a AbiSerializer) IsType(rtype *string, recursionDepth common.SizeT, deadli
 	return false
 }
 
+func (a AbiSerializer) GetStruct(rtype *typeName) *StructDef {
+
+	itr, ok := a.structs[a.ResolveType(rtype)]
+	try.EosAssert(ok, &exception.InvalidTypeInsideAbi{}, "Unknown struct %s", rtype)
+	return &itr
+}
+
+func (a AbiSerializer) ResolveType(rtype *typeName) typeName {
+	var ok bool
+	var itr, t string
+	itr, ok = a.typeDefs[*rtype]
+	if ok {
+		for i := len(a.typeDefs); i > 0; i-- { // avoid infinite recursion
+			t = itr
+			itr, ok = a.typeDefs[t]
+			if !ok {
+				return t
+			}
+		}
+	}
+	return ""
+}
 func (a AbiSerializer) validate() bool {
-	return true
+	return true //TODO need to check Abi
+}
+
+//void abi_serializer::validate( impl::abi_traverse_context& ctx )const {
+//   for( const auto& t : typedefs ) { try {
+//      vector<type_name> types_seen{t.first, t.second};
+//      auto itr = typedefs.find(t.second);
+//      while( itr != typedefs.end() ) {
+//         ctx.check_deadline();
+//         EOS_ASSERT( find(types_seen.begin(), types_seen.end(), itr->second) == types_seen.end(), abi_circular_def_exception, "Circular reference in type ${type}", ("type",t.first) );
+//         types_seen.emplace_back(itr->second);
+//         itr = typedefs.find(itr->second);
+//      }
+//   } FC_CAPTURE_AND_RETHROW( (t) ) }
+//   for( const auto& t : typedefs ) { try {
+//      EOS_ASSERT(_is_type(t.second, ctx), invalid_type_inside_abi, "${type}", ("type",t.second) );
+//   } FC_CAPTURE_AND_RETHROW( (t) ) }
+//   for( const auto& s : structs ) { try {
+//      if( s.second.base != type_name() ) {
+//         struct_def current = s.second;
+//         vector<type_name> types_seen{current.name};
+//         while( current.base != type_name() ) {
+//            ctx.check_deadline();
+//            const auto& base = get_struct(current.base); //<-- force struct to inherit from another struct
+//            EOS_ASSERT( find(types_seen.begin(), types_seen.end(), base.name) == types_seen.end(), abi_circular_def_exception, "Circular reference in struct ${type}", ("type",s.second.name) );
+//            types_seen.emplace_back(base.name);
+//            current = base;
+//         }
+//      }
+//      for( const auto& field : s.second.fields ) { try {
+//         ctx.check_deadline();
+//         EOS_ASSERT(_is_type(_remove_bin_extension(field.type), ctx), invalid_type_inside_abi, "${type}", ("type",field.type) );
+//      } FC_CAPTURE_AND_RETHROW( (field) ) }
+//   } FC_CAPTURE_AND_RETHROW( (s) ) }
+//   for( const auto& s : variants ) { try {
+//      for( const auto& type : s.second.types ) { try {
+//         ctx.check_deadline();
+//         EOS_ASSERT(_is_type(type, ctx), invalid_type_inside_abi, "${type}", ("type",type) );
+//      } FC_CAPTURE_AND_RETHROW( (type) ) }
+//   } FC_CAPTURE_AND_RETHROW( (s) ) }
+//   for( const auto& a : actions ) { try {
+//     ctx.check_deadline();
+//     EOS_ASSERT(_is_type(a.second, ctx), invalid_type_inside_abi, "${type}", ("type",a.second) );
+//   } FC_CAPTURE_AND_RETHROW( (a)  ) }
+//
+//   for( const auto& t : tables ) { try {
+//     ctx.check_deadline();
+//     EOS_ASSERT(_is_type(t.second, ctx), invalid_type_inside_abi, "${type}", ("type",t.second) );
+//   } FC_CAPTURE_AND_RETHROW( (t)  ) }
+//}
+//
+
+func (a AbiSerializer) GetActionType(action common.Name) typeName {
+	itr, ok := a.actions[action]
+	if !ok {
+		return ""
+	}
+	return itr
+}
+
+func (a AbiSerializer) GetTableType(action common.Name) typeName {
+	itr, ok := a.tables[action]
+	if !ok {
+		return ""
+	}
+	return itr
+}
+
+func (a AbiSerializer) GetErrorMessage(errorCode uint64) string {
+	itr, ok := a.errorMessages[errorCode]
+	if !ok {
+		return ""
+	}
+	return itr
 }
 
 func isEmptyABI(abiVec common.HexBytes) bool {
@@ -164,4 +280,75 @@ func ToABI(abiVec common.HexBytes, abi *AbiDef) bool {
 		return false
 	}
 	return true
+}
+
+//   bool abi_serializer::_is_type(const type_name& rtype, impl::abi_traverse_context& ctx )const {
+//      auto h = ctx.enter_scope();
+//      auto type = fundamental_type(rtype);
+//      if( built_in_types.find(type) != built_in_types.end() ) return true;
+//      if( typedefs.find(type) != typedefs.end() ) return _is_type(typedefs.find(type)->second, ctx);
+//      if( structs.find(type) != structs.end() ) return true;
+//      if( variants.find(type) != variants.end() ) return true;
+//      return false;
+//   }
+//
+//func (a AbiSerializer)isType(rtype typeName,ctx)
+
+func (a *AbiSerializer) VariantToBinary(name typeName, body *common.Variants, maxSerializationTime common.Microseconds) []byte {
+	return a._VariantToBinary(name, body, true, 0, common.Now().AddUs(maxSerializationTime), maxSerializationTime)
+}
+
+//bytes abi_serializer::_variant_to_binary( const type_name& type, const fc::variant& var, bool allow_extensions,
+//                                          size_t recursion_depth, const fc::time_point& deadline, const fc::microseconds& max_serialization_time )const
+//{ try {
+//   EOS_ASSERT( ++recursion_depth < max_recursion_depth, abi_recursion_depth_exception, "recursive definition, max_recursion_depth ${r} ", ("r", max_recursion_depth) );
+//   EOS_ASSERT( fc::time_point::now() < deadline, abi_serialization_deadline_exception, "serialization time limit ${t}us exceeded", ("t", max_serialization_time) );
+//   if( !_is_type(type, recursion_depth, deadline, max_serialization_time) ) {
+//      return var.as<bytes>();
+//   }
+//
+//   bytes temp( 1024*1024 );
+//   fc::datastream<char*> ds(temp.data(), temp.size() );
+//   _variant_to_binary(type, var, ds, allow_extensions, recursion_depth, deadline, max_serialization_time);
+//   temp.resize(ds.tellp());
+//   return temp;
+//} FC_CAPTURE_AND_RETHROW( (type)(var) ) }
+func (a *AbiSerializer) _VariantToBinary(name typeName, data *common.Variants, allowExtensions bool, recursion_depth common.SizeT,
+	deadline common.TimePoint, maxSerializationTime common.Microseconds) (re []byte) {
+	try.Try(func() {
+		buf, err := json.Marshal(data)
+		if err != nil {
+			fmt.Printf("tester GetAction Marshal is error:%s", err)
+			try.Throw(fmt.Errorf("tester GetAction Marshal is error:%s", err))
+		}
+
+		re, err = a.abi.EncodeAction(common.N(name), buf)
+		if err != nil {
+			fmt.Printf("encode actoin is error:%s", err)
+			try.Throw(fmt.Errorf("encode actoin is error:%s", err))
+		}
+	}).FcCaptureAndRethrow(name, data).End()
+	return re
+
+}
+
+//fc::variant abi_serializer::binary_to_variant( const type_name& type, const bytes& binary, const fc::microseconds& max_serialization_time, bool short_path )const {
+//impl::binary_to_variant_context ctx(*this, max_serialization_time, type);
+//ctx.short_path = short_path;
+//return _binary_to_variant(type, binary, ctx);
+//}
+//todo shortPath default is false
+func (a AbiSerializer) BinaryToVariant(rtype typeName, binary []byte, maxSerializationTime common.Microseconds, shortPath bool) common.Variants {
+	var re common.Variants
+	try.Try(func() {
+		bytes, err := a.abi.DecodeAction(rtype, binary)
+		if err != nil {
+			try.Throw(fmt.Sprintf("binary_to_variant is error: %s", err.Error()))
+		}
+		err = json.Unmarshal(bytes, &re)
+		if err != nil {
+			try.Throw(fmt.Sprintf("unmarshal variants is error: %s", err.Error()))
+		}
+	}).EosRethrowExceptions(&exception.UnpackException{}, "Unable to unpack %s from bytes", string(binary)).End()
+	return re
 }
