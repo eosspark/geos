@@ -264,7 +264,7 @@ func newTransaction(control *Controller, action *types.Action, privateKey *ecc.P
 	chainIdType := control.GetChainId()
 	signedTrx.Sign(privateKey, &chainIdType)
 
-	metaTrx := types.NewTransactionMetadataBySignedTrx(signedTrx, common.CompressionNone)
+	metaTrx := types.NewTransactionMetadataBySignedTrx(signedTrx, types.CompressionNone)
 
 	return metaTrx
 }
@@ -337,7 +337,7 @@ func TestTransactionContextTest(t *testing.T) {
 		chainIdType := common.ChainIdType(*crypto.NewSha256String("cf057bbfb72640471fd910bcb67639c22df9f92470936cddc1ade0e2f2e7dc4f"))
 		signedTrx.Sign(privateKey, &chainIdType)
 
-		metaTrx := types.NewTransactionMetadataBySignedTrx(signedTrx, common.CompressionNone)
+		metaTrx := types.NewTransactionMetadataBySignedTrx(signedTrx, types.CompressionNone)
 
 		//var trace *types.TransactionTrace
 		for i := 0; i < 100; i++ {

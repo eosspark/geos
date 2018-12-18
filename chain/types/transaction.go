@@ -256,20 +256,58 @@ func (s *SignedTransaction) String() string {
 // that's how they are stored.
 type PackedTransaction struct {
 	Signatures            []ecc.Signature        `json:"signatures"`
-	Compression           common.CompressionType `json:"compression"` // in C++, it's an enum, not sure how it Binary-marshals..
+	Compression           CompressionType `json:"compression"` // in C++, it's an enum, not sure how it Binary-marshals..
 	PackedContextFreeData common.HexBytes        `json:"packed_context_free_data"`
 	PackedTrx             common.HexBytes        `json:"packed_trx"`
 	UnpackedTrx           *Transaction           `eos:"-"`
 }
 
-func NewPackedTransactionByTrx(t *Transaction, compression common.CompressionType) *PackedTransaction {
+type CompressionType uint8
+
+const (
+	CompressionNone = CompressionType(iota)
+	CompressionZlib
+)
+
+func (c CompressionType) String() string {
+	switch c {
+	case CompressionNone:
+		return "none"
+	case CompressionZlib:
+		return "zlib"
+	default:
+		return ""
+	}
+}
+
+func (c CompressionType) MarshalJSON() ([]byte, error) {
+	return json.Marshal(c.String())
+}
+
+func (c *CompressionType) UnmarshalJSON(data []byte) error {
+	var s string
+	err := json.Unmarshal(data, &s)
+	if err != nil {
+		return err
+	}
+
+	switch s {
+	case "zlib":
+		*c = CompressionZlib
+	default:
+		*c = CompressionNone
+	}
+	return nil
+}
+
+func NewPackedTransactionByTrx(t *Transaction, compression CompressionType) *PackedTransaction {
 	ptrx := &PackedTransaction{}
 	ptrx.SetTransaction(t, compression)
 	return ptrx
 }
 
-//compression := common.CompressionNone
-func NewPackedTransactionBySignedTrx(t *SignedTransaction, compression common.CompressionType) *PackedTransaction {
+//compression := CompressionNone
+func NewPackedTransactionBySignedTrx(t *SignedTransaction, compression CompressionType) *PackedTransaction {
 	ptrx := &PackedTransaction{
 		Signatures: t.Signatures,
 	}
@@ -277,13 +315,13 @@ func NewPackedTransactionBySignedTrx(t *SignedTransaction, compression common.Co
 	return ptrx
 }
 
-func (p *PackedTransaction) SetTransactionWithCFD(t *SignedTransaction, cfd *[]common.HexBytes, compression common.CompressionType) {
+func (p *PackedTransaction) SetTransactionWithCFD(t *SignedTransaction, cfd *[]common.HexBytes, compression CompressionType) {
 	Try(func() {
 		switch compression {
-		case common.CompressionNone:
+		case CompressionNone:
 			p.PackedTrx = packTransaction(&t.Transaction)
 			p.PackedContextFreeData = packContextFreeData(cfd)
-		case common.CompressionZlib:
+		case CompressionZlib:
 			p.PackedTrx = zlibCompressTransaction(&t.Transaction)
 			p.PackedContextFreeData = zlibCompressContextFreeData(cfd)
 		default:
@@ -355,9 +393,9 @@ func (p *PackedTransaction) GetRawTransaction() common.HexBytes {
 	var out common.HexBytes
 	Try(func() {
 		switch p.Compression {
-		case common.CompressionNone:
+		case CompressionNone:
 			out = p.PackedTrx
-		case common.CompressionZlib:
+		case CompressionZlib:
 			out = zlibDecompress(&p.PackedTrx)
 		default:
 			EosThrow(&UnknownTransactionCompression{}, "Unknown transaction compression algorithm")
@@ -365,9 +403,9 @@ func (p *PackedTransaction) GetRawTransaction() common.HexBytes {
 	}).FcCaptureAndRethrow(p.Compression, p.PackedTrx).End()
 	return out
 	//switch p.Compression {
-	//case common.CompressionNone:
+	//case CompressionNone:
 	//	return p.PackedTrx
-	//case common.CompressionZlib:
+	//case CompressionZlib:
 	//	return zlibDecompress(&p.PackedTrx)
 	//default:
 	//	//EOS_THROW(unknown_transaction_compression, "Unknown transaction compression algorithm");
@@ -379,9 +417,9 @@ func (p *PackedTransaction) GetContextFreeData() []common.HexBytes {
 	var out []common.HexBytes
 	Try(func() {
 		switch p.Compression {
-		case common.CompressionNone:
+		case CompressionNone:
 			out = unpackContextFreeData(&p.PackedContextFreeData)
-		case common.CompressionZlib:
+		case CompressionZlib:
 			out = zlibDecompressContextFreeData(&p.PackedContextFreeData)
 		default:
 			EosThrow(&UnknownTransactionCompression{}, "Unknown transaction compression algorithm")
@@ -390,9 +428,9 @@ func (p *PackedTransaction) GetContextFreeData() []common.HexBytes {
 	}).FcCaptureAndRethrow(p.Compression, p.PackedContextFreeData).End()
 	return out
 	//switch p.Compression {
-	//case common.CompressionNone:
+	//case CompressionNone:
 	//	return unpackContextFreeData(&p.PackedContextFreeData)
-	//case common.CompressionZlib:
+	//case CompressionZlib:
 	//	return zlibDecompressContextFreeData(&p.PackedContextFreeData)
 	//default:
 	//	//EOS_THROW(unknown_transaction_compression, "Unknown transaction compression algorithm");
@@ -424,9 +462,9 @@ func (p *PackedTransaction) localUnpack() {
 	if p.UnpackedTrx == nil {
 		Try(func() {
 			switch p.Compression {
-			case common.CompressionNone:
+			case CompressionNone:
 				p.UnpackedTrx = unpackTransaction(p.PackedTrx)
-			case common.CompressionZlib:
+			case CompressionZlib:
 				p.UnpackedTrx = zlibDecompressTransaction(&p.PackedTrx)
 			default:
 				EosThrow(&UnknownTransactionCompression{}, "Unknown transaction compression algorithm")
@@ -444,18 +482,18 @@ func (p *PackedTransaction) GetSignedTransaction() *SignedTransaction {
 	var SignedTrx *SignedTransaction
 	Try(func() {
 		switch p.Compression {
-		case common.CompressionNone:
+		case CompressionNone:
 			SignedTrx = NewSignedTransaction(p.GetTransaction(), p.Signatures, unpackContextFreeData(&p.PackedContextFreeData))
-		case common.CompressionZlib:
+		case CompressionZlib:
 			SignedTrx = NewSignedTransaction(p.GetTransaction(), p.Signatures, zlibDecompressContextFreeData(&p.PackedContextFreeData))
 		default:
 			EosThrow(&UnknownTransactionCompression{}, "Unknown transaction compression algorithm")
 		}
 
 		//switch p.Compression {
-		//case common.CompressionNone:
+		//case CompressionNone:
 		//	return NewSignedTransaction(p.GetTransaction(), p.Signatures, unpackContextFreeData(&p.PackedContextFreeData))
-		//case common.CompressionZlib:
+		//case CompressionZlib:
 		//	return NewSignedTransaction(p.GetTransaction(), p.Signatures, zlibDecompressContextFreeData(&p.PackedContextFreeData))
 		//default:
 		//	//EOS_THROW(unknown_transaction_compression, "Unknown transaction compression algorithm");
@@ -466,12 +504,12 @@ func (p *PackedTransaction) GetSignedTransaction() *SignedTransaction {
 
 }
 
-func (p *PackedTransaction) SetTransaction(t *Transaction, compression common.CompressionType) {
+func (p *PackedTransaction) SetTransaction(t *Transaction, compression CompressionType) {
 	Try(func() {
 		switch compression {
-		case common.CompressionNone:
+		case CompressionNone:
 			p.PackedTrx = packTransaction(t)
-		case common.CompressionZlib:
+		case CompressionZlib:
 			p.PackedTrx = zlibCompressTransaction(t)
 		default:
 			EosThrow(&UnknownTransactionCompression{}, "Unknown transaction compression algorithm")

@@ -2,6 +2,9 @@ package types
 
 import (
 	"github.com/eosspark/eos-go/common"
+	. "github.com/eosspark/eos-go/exception"
+	. "github.com/eosspark/eos-go/exception/try"
+	"github.com/ethereum/go-ethereum/rlp"
 )
 
 // See: libraries/chain/include/eosio/chain/contracts/types.hpp:203
@@ -13,6 +16,13 @@ type Action struct {
 	Name          common.ActionName  `json:"name"`
 	Authorization []PermissionLevel  `json:"authorization,omitempty"`
 	Data          common.HexBytes    `json:"data"`
+}
+
+func (a Action) DataAs(t interface{}) {
+	err := rlp.DecodeBytes(a.Data, t)
+	if err != nil {
+		EosThrow(&ParseErrorException{}, "action data parse error: %s", err.Error())
+	}
 }
 
 // func (a Action) Digest() SHA256Bytes {
@@ -35,7 +45,7 @@ type Action struct {
 type ActionData struct {
 	HexData  common.HexBytes `json:"hex_data,omitempty"`
 	Data     interface{}     `json:"data,omitempty" eos:"-"`
-	abi      []byte          // TBD: we could use the ABI to decode in obj
+	abi      []byte // TBD: we could use the ABI to decode in obj
 	toServer bool
 }
 

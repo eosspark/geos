@@ -7,15 +7,19 @@ import (
 )
 
 type BlockHeader struct {
-	Timestamp        BlockTimeStamp     `json:"timestamp"`
-	Producer         common.AccountName `json:"producer"`
-	Confirmed        uint16/* default=1 */ `json:"confirmed"`
+	Timestamp        BlockTimeStamp              `json:"timestamp"`
+	Producer         common.AccountName          `json:"producer"`
+	Confirmed        uint16 /* default=1 */      `json:"confirmed"`
 	Previous         common.BlockIdType          `multiIndex:"byPrevious,orderedUnique",json:"previous"`
 	TransactionMRoot common.CheckSum256Type      `json:"transaction_mroot"`
 	ActionMRoot      common.CheckSum256Type      `json:"action_mroot"`
 	ScheduleVersion  uint32                      `json:"schedule_version"`
 	NewProducers     *SharedProducerScheduleType `json:"new_producers" eos:"optional"`
 	HeaderExtensions []Extension                 `json:"header_extensions"`
+}
+
+func NewBlockHeader() *BlockHeader {
+	return &BlockHeader{Confirmed: 1}
 }
 
 func (b *BlockHeader) Digest() crypto.Sha256 {
@@ -41,6 +45,10 @@ func (b *BlockHeader) BlockID() common.BlockIdType {
 type SignedBlockHeader struct {
 	BlockHeader       `multiIndex:"inline"`
 	ProducerSignature ecc.Signature `json:"producer_signature"`
+}
+
+func NewSignedBlockHeader() *SignedBlockHeader {
+	return &SignedBlockHeader{BlockHeader: *NewBlockHeader()}
 }
 
 type HeaderConfirmation struct {

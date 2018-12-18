@@ -335,7 +335,7 @@ func newSignedTransaction(control *chain.Controller) *types.SignedTransaction {
 }
 
 func pushSignedTransaction(control *chain.Controller, trx *types.SignedTransaction) *types.TransactionTrace {
-	metaTrx := types.NewTransactionMetadataBySignedTrx(trx, common.CompressionNone)
+	metaTrx := types.NewTransactionMetadataBySignedTrx(trx, types.CompressionNone)
 	return control.PushTransaction(metaTrx, common.TimePoint(common.MaxMicroseconds()), 0)
 }
 
@@ -1882,7 +1882,7 @@ func newTransaction(control *chain.Controller, action *types.Action, privateKeys
 		signedTrx.Sign(privateKey, &chainIdType)
 	}
 
-	metaTrx := types.NewTransactionMetadataBySignedTrx(signedTrx, common.CompressionNone)
+	metaTrx := types.NewTransactionMetadataBySignedTrx(signedTrx, types.CompressionNone)
 
 	return metaTrx
 }
@@ -2518,10 +2518,10 @@ func (t BaseTester) PushTransaction(trx *types.SignedTransaction, deadline commo
 		if t.Control.PendingBlockState() == nil {
 			t.startBlock(t.Control.HeadBlockTime().AddUs(common.Microseconds(common.DefaultConfig.BlockIntervalUs)))
 		}
-		c := common.CompressionNone
+		c := types.CompressionNone
 		size, _ := rlp.EncodeSize(trx)
 		if size > 1000 {
-			c = common.CompressionZlib
+			c = types.CompressionZlib
 		}
 		mtrx := types.NewTransactionMetadataBySignedTrx(trx, c)
 		trace = t.Control.PushTransaction(mtrx, deadline, billedCpuTimeUs)

@@ -284,10 +284,10 @@ func (t BaseTester) PushTransaction(trx *types.SignedTransaction, deadline commo
 		if t.Control.PendingBlockState() == nil {
 			t.startBlock(t.Control.HeadBlockTime().AddUs(common.Microseconds(common.DefaultConfig.BlockIntervalUs)))
 		}
-		c := common.CompressionNone
+		c := types.CompressionNone
 		size, _ := rlp.EncodeSize(trx)
 		if size > 1000 {
-			c = common.CompressionZlib
+			c = types.CompressionZlib
 		}
 		mtrx := types.NewTransactionMetadataBySignedTrx(trx, c)
 		trace = t.Control.PushTransaction(mtrx, deadline, billedCpuTimeUs)
@@ -396,6 +396,10 @@ func (t BaseTester) getPublicKey(keyName common.Name, role string) ecc.PublicKey
 
 func (t BaseTester) ProduceBlock(skipTime common.Microseconds, skipFlag uint32) *types.SignedBlock {
 	return t.produceBlock(skipTime, false, skipFlag)
+}
+
+func (t BaseTester) ProduceBlockNoValidation(skipTime common.Microseconds, skipFlag uint32) *types.SignedBlock {
+	return t.produceBlock(skipTime, false, skipFlag|2)
 }
 
 func (t BaseTester) ProduceEmptyBlock(skipTime common.Microseconds, skipFlag uint32) *types.SignedBlock {
@@ -752,6 +756,7 @@ type ValidatingTester struct {
 	ValidatingControl                 *Controller
 	VCfg                              Config
 	NumBlocksToProducerBeforeShutdown uint32
+	SkipValidate                      bool
 }
 
 func newValidatingTester(pushGenesis bool, readMode DBReadMode) *ValidatingTester {
@@ -771,6 +776,17 @@ func newValidatingTester(pushGenesis bool, readMode DBReadMode) *ValidatingTeste
 	return vt
 }
 
+func NewValidatingTesterTrustedProducers(trustedProducers *treeset.Set) *ValidatingTester {
+	vt := &ValidatingTester{}
+	vcfg := newConfig(SPECULATIVE)
+
+	vcfg.TrustedProducers = *trustedProducers
+	vt.ValidatingControl = NewController(vcfg)
+	vt.init(true, SPECULATIVE)
+
+	return vt
+}
+
 func (vt ValidatingTester) ProduceBlock(skipTime common.Microseconds, skipFlag uint32) *types.SignedBlock {
 	sb := vt.produceBlock(skipTime, false, skipFlag/2)
 	vt.ValidatingControl.PushBlock(sb, types.Complete)
@@ -781,6 +797,10 @@ func (vt ValidatingTester) ProduceEmptyBlock(skipTime common.Microseconds, skipF
 	sb := vt.produceBlock(skipTime, true, skipFlag/2)
 	vt.ValidatingControl.PushBlock(sb, types.Complete)
 	return sb
+}
+
+func (vt ValidatingTester) ValidatePushBlock(sb *types.SignedBlock) {
+	vt.ValidatingControl.PushBlock(sb, types.Complete)
 }
 
 func (vt *ValidatingTester) close() {

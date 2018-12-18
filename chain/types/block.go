@@ -15,7 +15,7 @@ const (
 	TransactionStatusSoftFail                          ///< objectively failed (not executed), error handler executed
 	TransactionStatusHardFail                          ///< objectively failed and error handler objectively failed thus no state change
 	TransactionStatusDelayed                           ///< transaction delayed
-	TransactionStatusUnknown  = TransactionStatus(255)
+	TransactionStatusUnknown = TransactionStatus(255)
 )
 
 type BlockStatus uint8
@@ -111,6 +111,14 @@ type SignedBlock struct {
 	SignedBlockHeader `multiIndex:"inline"`
 	Transactions      []TransactionReceipt `json:"transactions"`
 	BlockExtensions   []Extension          `json:"block_extensions"`
+}
+
+func NewSignedBlock() *SignedBlock {
+	return &SignedBlock{SignedBlockHeader: *NewSignedBlockHeader()}
+}
+
+func NewSignedBlock1(h *SignedBlockHeader) *SignedBlock {
+	return &SignedBlock{SignedBlockHeader: *h}
 }
 
 func (m *SignedBlock) String() string {
