@@ -211,6 +211,32 @@ func (c *ChainApiPlugin) PluginStartup() {
 		}).End()
 	})
 
+	httpPlugin.AddHandler(common.GetRequiredKeys, func(source string, body []byte, cb http_plugin.UrlResponseCallback) {
+		Try(func() {
+			if len(body) == 0 {
+				body = []byte("{}")
+			}
+
+			var param chain_plugin.GetRequiredKeysParams
+			if err := json.Unmarshal(body, &param); err != nil {
+				EosThrow(&EofException{}, "marshal get_required_keys params: %s", err.Error())
+			}
+
+			result := ROApi.GetRequiredKeys(param)
+
+			if byte, err := json.Marshal(result); err == nil {
+				cb(200, byte)
+			} else {
+				Throw(err)
+			}
+
+		}).Catch(func(e interface{}) {
+			http_plugin.HandleException(e, "chain", "get_required_keys", string(body), cb)
+		}).End()
+	})
+
+
+
 	//TODO read_write api
 	RWApi := App().GetPlugin(chain_plugin.ChainPlug).(*chain_plugin.ChainPlugin).GetReadWriteApi()
 
