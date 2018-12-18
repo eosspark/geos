@@ -2,9 +2,9 @@ package types
 
 import (
 	"github.com/eosspark/eos-go/common"
+	"github.com/eosspark/eos-go/crypto/rlp"
 	. "github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
-	"github.com/ethereum/go-ethereum/rlp"
 )
 
 // See: libraries/chain/include/eosio/chain/contracts/types.hpp:203
