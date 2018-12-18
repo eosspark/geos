@@ -44,7 +44,7 @@ func initEosioTokenTester() *EosioSystemTester {
 	e.ProduceBlocks(2, false)
 
 	//eosio.token
-	wasmName := "../wasmgo/testdata_context/eosio.token.wasm"
+	wasmName := "test_contracts/eosio.token.wasm"
 	code, _ := ioutil.ReadFile(wasmName)
 	e.SetCode(common.N("eosio.token"), code, nil)
 	abiName := "../wasmgo/testdata_context/eosio.token.abi"
@@ -193,17 +193,156 @@ func TestCreateMaxSupply(t *testing.T) {
 	assert.Equal(t, ret, true)
 	eosioToken.ProduceBlocks(1, false)
 
-	max := common.Asset{10, common.Symbol{0, "NKT"}}
+	// max := common.Asset{10, common.Symbol{0, "NKT"}}
+	// max.Amount = 4611686018427387904
+	// returning := false
+	// try.Try(func() {
+	// 	eosioToken.create(common.N("alice"), max)
+	// }).Catch(func(e exception.Exception) {
+	// 	if inString(exception.GetDetailMessage(e), "magnitude of asset amount must be less than 2^62") {
+	// 		returning = true
+	// 	}
+	// }).End()
+	// assert.Equal(t, returning, true)
+}
 
-	max.Amount = 4611686018427387904
+func TestCreateMaxDecimals(t *testing.T) {
+	eosioToken := newEosioTokenTester(true, chain.SPECULATIVE)
+	symbol := "1.000000000000000000 TKN"
+	eosioToken.create(common.N("alice"), common.Asset{}.FromString(&symbol))
+	stats := eosioToken.getStats("18,TKN")
+	obj := VariantsObject{
+		"supply":     "0.000000000000000000 TKN",
+		"max_supply": "1.000000000000000000 TKN",
+		"issuer":     "alice"}
+	ret := equal(stats, &obj)
+	assert.Equal(t, ret, true)
+	eosioToken.ProduceBlocks(1, false)
+
+	// max := common.Asset{10, common.Symbol{0, "NKT"}}
+	// max.Amount = 0x8ac7230489e80000L
+	// returning := false
+	// try.Try(func() {
+	// 	eosioToken.create(common.N("alice"), max)
+	// }).Catch(func(e exception.Exception) {
+	// 	if inString(exception.GetDetailMessage(e), "magnitude of asset amount must be less than 2^62") {
+	// 		returning = true
+	// 	}
+	// }).End()
+	// assert.Equal(t, returning, true)
+}
+
+func TestIssue(t *testing.T) {
+	eosioToken := newEosioTokenTester(true, chain.SPECULATIVE)
+	symbol := "1000.000 TKN"
+	eosioToken.create(common.N("alice"), common.Asset{}.FromString(&symbol))
+
+	quantity := "500.000 TKN"
+	eosioToken.issue(common.N("alice"), common.N("alice"), common.Asset{}.FromString(&quantity), "hola")
+
+	stats := eosioToken.getStats("3,TKN")
+	obj := VariantsObject{
+		"supply":     "500.000 TKN",
+		"max_supply": "1000.000 TKN",
+		"issuer":     "alice"}
+	ret := equal(stats, &obj)
+	assert.Equal(t, ret, true)
+
+	aliceBalance := eosioToken.getAccount(common.N("alice"), "3,TKN")
+	obj = VariantsObject{"balance": "500.000 TKN"}
+	ret = equal(aliceBalance, &obj)
+	assert.Equal(t, ret, true)
 
 	returning := false
 	try.Try(func() {
-		eosioToken.create(common.N("alice"), max)
+		quantity = "500.001 TKN"
+		eosioToken.issue(common.N("alice"), common.N("alice"), common.Asset{}.FromString(&quantity), "hola")
 	}).Catch(func(e exception.Exception) {
-		if inString(exception.GetDetailMessage(e), "magnitude of asset amount must be less than 2^62") {
+		if inString(exception.GetDetailMessage(e), "quantity exceeds available supply") {
 			returning = true
 		}
 	}).End()
 	assert.Equal(t, returning, true)
+
+	returning = false
+	try.Try(func() {
+		quantity = "-1.000 TKN"
+		eosioToken.issue(common.N("alice"), common.N("alice"), common.Asset{}.FromString(&quantity), "hola")
+	}).Catch(func(e exception.Exception) {
+		if inString(exception.GetDetailMessage(e), "must issue positive quantity") {
+			returning = true
+		}
+	}).End()
+	assert.Equal(t, returning, true)
+
+	quantity = "1.000 TKN"
+	eosioToken.issue(common.N("alice"), common.N("alice"), common.Asset{}.FromString(&quantity), "hola")
+
+}
+
+func TestTransfer(t *testing.T) {
+	eosioToken := newEosioTokenTester(true, chain.SPECULATIVE)
+	symbol := "1000 CERO"
+	eosioToken.create(common.N("alice"), common.Asset{}.FromString(&symbol))
+	eosioToken.ProduceBlocks(1, false)
+
+	quantity := "1000 CERO"
+	eosioToken.issue(common.N("alice"), common.N("alice"), common.Asset{}.FromString(&quantity), "hola")
+
+	stats := eosioToken.getStats("0,CERO")
+	obj := VariantsObject{
+		"supply":     "1000 CERO",
+		"max_supply": "1000 CERO",
+		"issuer":     "alice"}
+	ret := equal(stats, &obj)
+	assert.Equal(t, ret, true)
+
+	aliceBalance := eosioToken.getAccount(common.N("alice"), "0,CERO")
+	obj = VariantsObject{"balance": "1000 CERO"}
+	ret = equal(aliceBalance, &obj)
+	assert.Equal(t, ret, true)
+
+	quantity = "300 CERO"
+	eosioToken.issue(common.N("alice"), common.N("bob"), common.Asset{}.FromString(&quantity), "hola")
+
+	aliceBalance = eosioToken.getAccount(common.N("alice"), "0,CERO")
+	obj = VariantsObject{
+		"balance":   "700 CERO",
+		"frozen":    0,
+		"whitelist": 1,
+	}
+	ret = equal(aliceBalance, &obj)
+	assert.Equal(t, ret, true)
+
+	bobBalance := eosioToken.getAccount(common.N("bob"), "0,CERO")
+	obj = VariantsObject{
+		"balance":   "300 CERO",
+		"frozen":    0,
+		"whitelist": 1,
+	}
+	ret = equal(bobBalance, &obj)
+	assert.Equal(t, ret, true)
+
+	returning := false
+	try.Try(func() {
+		quantity = "701 CERO"
+		eosioToken.issue(common.N("alice"), common.N("bob"), common.Asset{}.FromString(&quantity), "hola")
+	}).Catch(func(e exception.Exception) {
+		if inString(exception.GetDetailMessage(e), "overdrawn balance") {
+			returning = true
+		}
+	}).End()
+	assert.Equal(t, returning, true)
+
+	returning = false
+	try.Try(func() {
+		quantity = "-1000 CERO"
+		eosioToken.issue(common.N("alice"), common.N("bob"), common.Asset{}.FromString(&quantity), "hola")
+	}).Catch(func(e exception.Exception) {
+		if inString(exception.GetDetailMessage(e), "must transfer positive quantity") {
+			returning = true
+		}
+	}).End()
+	assert.Equal(t, returning, true)
+
 }
