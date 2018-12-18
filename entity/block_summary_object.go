@@ -1,6 +1,7 @@
 package entity
 
-import ("github.com/eosspark/eos-go/common"
+import (
+	"github.com/eosspark/eos-go/common"
 )
 
 type BlockSummaryObject struct {

@@ -744,7 +744,7 @@ func TestLinkAuthSpecial(t *testing.T) {
 	vt.CreateAccount(common.N("tester2"), common.N("eosio"), false, true)
 	vt.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs), 0)
 
-	data := VariantsObject{
+	data := common.Variants{
 		"account":    tester,
 		"permission": common.N("first"),
 		"parent":     common.N("active"),
@@ -763,7 +763,7 @@ func TestLinkAuthSpecial(t *testing.T) {
 
 	validateDisallow := func(rtype string) {
 		actName := LinkAuth{}.GetName()
-		data := VariantsObject{
+		data := common.Variants{
 			"account":     tester,
 			"code":        common.N("eosio"),
 			"type":        common.N(rtype),

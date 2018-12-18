@@ -17,6 +17,7 @@ import (
 	"github.com/eosspark/eos-go/log"
 	"io/ioutil"
 	"math"
+	"reflect"
 )
 
 var CORE_SYMBOL = common.Symbol{Precision: 4, Symbol: "SYS"}
@@ -325,17 +326,15 @@ func (t BaseTester) PushAction(act *types.Action, authorizer common.AccountName)
 	return t.Success()
 }
 
-type VariantsObject map[string]interface{}
-
 func (t BaseTester) PushAction2(code *common.AccountName, acttype *common.AccountName,
-	actor common.AccountName, data *VariantsObject, expiration uint32, delaySec uint32) *types.TransactionTrace {
+	actor common.AccountName, data *common.Variants, expiration uint32, delaySec uint32) *types.TransactionTrace {
 	auths := make([]types.PermissionLevel, 0)
 	auths = append(auths, types.PermissionLevel{Actor: actor, Permission: common.DefaultConfig.ActiveName})
 	return t.PushAction4(code, acttype, &auths, data, expiration, delaySec)
 }
 
 func (t BaseTester) PushAction3(code *common.AccountName, acttype *common.AccountName,
-	actors *[]common.AccountName, data *VariantsObject, expiration uint32, delaySec uint32) *types.TransactionTrace {
+	actors *[]common.AccountName, data *common.Variants, expiration uint32, delaySec uint32) *types.TransactionTrace {
 	auths := make([]types.PermissionLevel, 0)
 	for _, actor := range auths {
 		auths = append(auths, actor)
@@ -344,7 +343,7 @@ func (t BaseTester) PushAction3(code *common.AccountName, acttype *common.Accoun
 }
 
 func (t BaseTester) PushAction4(code *common.AccountName, acttype *common.AccountName,
-	auths *[]types.PermissionLevel, data *VariantsObject, expiration uint32, delaySec uint32) *types.TransactionTrace {
+	auths *[]types.PermissionLevel, data *common.Variants, expiration uint32, delaySec uint32) *types.TransactionTrace {
 	trx := types.SignedTransaction{}
 	try.Try(func() {
 		action := t.GetAction(*code, *acttype, *auths, data)
@@ -361,20 +360,33 @@ func (t BaseTester) PushAction4(code *common.AccountName, acttype *common.Accoun
 }
 
 func (t BaseTester) GetAction(code common.AccountName, actType common.AccountName,
-	auths []types.PermissionLevel, data *VariantsObject) *types.Action {
-	acnt := t.Control.GetAccount(code)
-	a := acnt.GetAbi()
+	auths []types.PermissionLevel, data *common.Variants) *types.Action {
+	//acnt := t.Control.GetAccount(code)
+	//a := acnt.GetAbi()
+	//action := types.Action{code, actType, auths, nil}
+	////actionTypeName := a.ActionForName(actType).Type
+	//buf, _ := json.Marshal(data)
+	////if err != nil {
+	////	log.Error("tester GetAction Marshal is error:%s", err)
+	////}
+	////action.Data, _ = a.EncodeAction(common.N(actionTypeName), buf) //TODO
+	//action.Data, _ = a.EncodeAction(actType, buf)
+	////if err != nil {
+	////	log.Error("tester GetAction EncodeAction is error:%s", err)
+	////}
+	//return &action
+
 	action := types.Action{code, actType, auths, nil}
-	//actionTypeName := a.ActionForName(actType).Type
-	buf, _ := json.Marshal(data)
-	//if err != nil {
-	//	log.Error("tester GetAction Marshal is error:%s", err)
-	//}
-	//action.Data, _ = a.EncodeAction(common.N(actionTypeName), buf) //TODO
-	action.Data, _ = a.EncodeAction(actType, buf)
-	//if err != nil {
-	//	log.Error("tester GetAction EncodeAction is error:%s", err)
-	//}
+	try.Try(func() {
+		acnt := t.Control.GetAccount(code)
+		a := acnt.GetAbi()
+		abis := abi.NewAbiSerializer(a, t.AbiSerializerMaxTime)
+		actionTypeName := abis.GetActionType(actType)
+		try.FcAssert(reflect.TypeOf(actionTypeName).Kind() == reflect.String, "unknown action type %s", actType)
+
+		action.Data = abis.VariantToBinary(actionTypeName, data, t.AbiSerializerMaxTime)
+
+	}).FcCaptureAndRethrow().End()
 	return &action
 }
 
@@ -746,7 +758,7 @@ func (t BaseTester) SetProducers(producerNames *[]common.AccountName) *types.Tra
 		&common.DefaultConfig.SystemAccountName,
 		&actName,
 		common.N("eosio"),
-		&VariantsObject{"schedule": schedule},
+		&common.Variants{"schedule": schedule},
 		t.DefaultExpirationDelta,
 		0,
 	)
