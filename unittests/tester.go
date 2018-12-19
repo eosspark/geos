@@ -17,7 +17,6 @@ import (
 	"github.com/eosspark/eos-go/log"
 	"io/ioutil"
 	"math"
-	"reflect"
 )
 
 var CORE_SYMBOL = common.Symbol{Precision: 4, Symbol: "SYS"}
@@ -147,7 +146,7 @@ func (t BaseTester) produceBlock(skipTime common.Microseconds, skipPendingTrxs b
 		t.startBlock(nextTime)
 	}
 	Hbs := t.Control.HeadBlockState()
-	producer := Hbs.GetScheduledProducer(types.BlockTimeStamp(nextTime))
+	producer := Hbs.GetScheduledProducer(types.NewBlockTimeStamp(nextTime))
 	privKey := ecc.PrivateKey{}
 	privateKey, ok := t.BlockSigningPrivateKeys[producer.BlockSigningKey.String()]
 	if !ok {
@@ -361,33 +360,33 @@ func (t BaseTester) PushAction4(code *common.AccountName, acttype *common.Accoun
 
 func (t BaseTester) GetAction(code common.AccountName, actType common.AccountName,
 	auths []types.PermissionLevel, data *common.Variants) *types.Action {
-	//acnt := t.Control.GetAccount(code)
-	//a := acnt.GetAbi()
-	//action := types.Action{code, actType, auths, nil}
-	////actionTypeName := a.ActionForName(actType).Type
-	//buf, _ := json.Marshal(data)
-	////if err != nil {
-	////	log.Error("tester GetAction Marshal is error:%s", err)
-	////}
-	////action.Data, _ = a.EncodeAction(common.N(actionTypeName), buf) //TODO
-	//action.Data, _ = a.EncodeAction(actType, buf)
-	////if err != nil {
-	////	log.Error("tester GetAction EncodeAction is error:%s", err)
-	////}
-	//return &action
-
+	acnt := t.Control.GetAccount(code)
+	a := acnt.GetAbi()
 	action := types.Action{code, actType, auths, nil}
-	try.Try(func() {
-		acnt := t.Control.GetAccount(code)
-		a := acnt.GetAbi()
-		abis := abi.NewAbiSerializer(a, t.AbiSerializerMaxTime)
-		actionTypeName := abis.GetActionType(actType)
-		try.FcAssert(reflect.TypeOf(actionTypeName).Kind() == reflect.String, "unknown action type %s", actType)
-
-		action.Data = abis.VariantToBinary(actionTypeName, data, t.AbiSerializerMaxTime)
-
-	}).FcCaptureAndRethrow().End()
+	//actionTypeName := a.ActionForName(actType).Type
+	buf, _ := json.Marshal(data)
+	//if err != nil {
+	//	log.Error("tester GetAction Marshal is error:%s", err)
+	//}
+	//action.Data, _ = a.EncodeAction(common.N(actionTypeName), buf) //TODO
+	action.Data, _ = a.EncodeAction(actType, buf)
+	//if err != nil {
+	//	log.Error("tester GetAction EncodeAction is error:%s", err)
+	//}
 	return &action
+
+	//action := types.Action{code, actType, auths, nil}
+	//try.Try(func() {
+	//	acnt := t.Control.GetAccount(code)
+	//	a := acnt.GetAbi()
+	//	abis := abi.NewAbiSerializer(a, t.AbiSerializerMaxTime)
+	//	actionTypeName := abis.GetActionType(actType)
+	//	try.FcAssert(reflect.TypeOf(actionTypeName).Kind() == reflect.String, "unknown action type %s", actType)
+	//
+	//	action.Data = abis.VariantToBinary(actionTypeName, data, t.AbiSerializerMaxTime)
+	//
+	//}).FcCaptureAndRethrow().End()
+	//return &action
 }
 
 func (t BaseTester) getPrivateKey(keyName common.Name, role string) ecc.PrivateKey {
@@ -738,7 +737,7 @@ func (t BaseTester) PushGenesisBlock() {
 
 func (t BaseTester) GetProducerKeys(producerNames *[]common.AccountName) []types.ProducerKey {
 	var schedule []types.ProducerKey
-	for producerName := range *producerNames {
+	for _, producerName := range *producerNames {
 		pk := types.ProducerKey{ProducerName: common.AccountName(producerName), BlockSigningKey: t.getPublicKey(common.AccountName(producerName), "active")}
 		schedule = append(schedule, pk)
 	}
