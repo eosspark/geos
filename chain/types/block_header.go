@@ -7,9 +7,9 @@ import (
 )
 
 type BlockHeader struct {
-	Timestamp        BlockTimeStamp              `json:"timestamp"`
-	Producer         common.AccountName          `json:"producer"`
-	Confirmed        uint16 /* default=1 */      `json:"confirmed"`
+	Timestamp        BlockTimeStamp     `json:"timestamp"`
+	Producer         common.AccountName `json:"producer"`
+	Confirmed        uint16/* default=1 */ `json:"confirmed"`
 	Previous         common.BlockIdType          `multiIndex:"byPrevious,orderedUnique",json:"previous"`
 	TransactionMRoot common.CheckSum256Type      `json:"transaction_mroot"`
 	ActionMRoot      common.CheckSum256Type      `json:"action_mroot"`
