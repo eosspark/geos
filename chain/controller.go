@@ -724,9 +724,9 @@ func (c *Controller) GetScheduledTransactions() []common.TransactionIdType {
 	}
 	if itr != nil {
 		itr.Release()
-	} else {
+	} /*else {
 		log.Info("Controller GetScheduledTransactions byDelay is not found data")
-	}
+	}*/
 	return result
 }
 func (c *Controller) PushScheduledTransaction(trxId *common.TransactionIdType, deadLine common.TimePoint, billedCpuTimeUs uint32) *types.TransactionTrace {
