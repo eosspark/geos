@@ -255,11 +255,11 @@ func (s *SignedTransaction) String() string {
 // signatures, and all. They circulate like that on the P2P net, and
 // that's how they are stored.
 type PackedTransaction struct {
-	Signatures            []ecc.Signature        `json:"signatures"`
+	Signatures            []ecc.Signature `json:"signatures"`
 	Compression           CompressionType `json:"compression"` // in C++, it's an enum, not sure how it Binary-marshals..
-	PackedContextFreeData common.HexBytes        `json:"packed_context_free_data"`
-	PackedTrx             common.HexBytes        `json:"packed_trx"`
-	UnpackedTrx           *Transaction           `eos:"-"`
+	PackedContextFreeData common.HexBytes `json:"packed_context_free_data"`
+	PackedTrx             common.HexBytes `json:"packed_trx"`
+	UnpackedTrx           *Transaction    `eos:"-"`
 }
 
 type CompressionType uint8

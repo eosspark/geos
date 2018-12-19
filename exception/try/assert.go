@@ -1,9 +1,9 @@
 package try
 
 import (
+	"fmt"
 	. "github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/log"
-	"fmt"
 	"os"
 )
 

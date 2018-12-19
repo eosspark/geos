@@ -6,7 +6,7 @@ import (
 )
 
 type Context struct {
-	LogLevel Lvl
+	LogLevel  Lvl
 	StackInfo []byte
 }
 
@@ -19,7 +19,6 @@ type Message struct {
 	Format  string
 	Args    []interface{}
 }
-
 
 func FcLogMessage(level Lvl, format string, args ...interface{}) Message {
 	return Message{

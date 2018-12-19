@@ -344,13 +344,13 @@ func (a *AuthorizationManager) CheckAuthorization(actions []*types.Action,
 		effectiveProvidedDelay = providedDelay
 	}
 	checker := types.MakeAuthChecker(func(p *types.PermissionLevel) types.SharedAuthority {
-			perm := a.GetPermission(p)
-			if perm != nil {
-				return perm.Auth
-			} else {
-				return types.SharedAuthority{}
-			}
-		},
+		perm := a.GetPermission(p)
+		if perm != nil {
+			return perm.Auth
+		} else {
+			return types.SharedAuthority{}
+		}
+	},
 		a.control.GetGlobalProperties().Configuration.MaxAuthorityDepth,
 		providedKeys,
 		providedPermissions,
@@ -453,19 +453,20 @@ func (a *AuthorizationManager) CheckAuthorization2(account common.AccountName,
 	} else {
 		effectiveProvidedDelay = providedDelay
 	}
-	checker := types.MakeAuthChecker(func(p *types.PermissionLevel) types.SharedAuthority { perm := a.GetPermission(p)
-			if perm != nil {
-				return perm.Auth
-			} else {
-				return types.SharedAuthority{}
-			}
-		},
+	checker := types.MakeAuthChecker(func(p *types.PermissionLevel) types.SharedAuthority {
+		perm := a.GetPermission(p)
+		if perm != nil {
+			return perm.Auth
+		} else {
+			return types.SharedAuthority{}
+		}
+	},
 		a.control.GetGlobalProperties().Configuration.MaxAuthorityDepth,
 		providedKeys,
 		providedPermissions,
 		effectiveProvidedDelay,
 		checkTime)
-		EosAssert(checker.SatisfiedLc(&types.PermissionLevel{account, permission}, nil), &UnsatisfiedAuthorization{},
+	EosAssert(checker.SatisfiedLc(&types.PermissionLevel{account, permission}, nil), &UnsatisfiedAuthorization{},
 		"permission '%v' was not satisfied under a provided delay of %v ms, provided permissions %v, and provided keys %v",
 		types.PermissionLevel{account, permission}, providedDelay.Count()/1000, providedPermissions, providedKeys)
 
@@ -494,8 +495,8 @@ func (a *AuthorizationManager) GetRequiredKeys(trx *types.Transaction,
 	)
 	for _, act := range trx.Actions {
 		for _, declaredAuth := range act.Authorization {
-			EosAssert( checker.SatisfiedLc(&declaredAuth, nil), &UnsatisfiedAuthorization{},
-			"transaction declares authority '%v', but does not have signatures for it.", declaredAuth)
+			EosAssert(checker.SatisfiedLc(&declaredAuth, nil), &UnsatisfiedAuthorization{},
+				"transaction declares authority '%v', but does not have signatures for it.", declaredAuth)
 		}
 	}
 	return checker.GetUsedKeys()

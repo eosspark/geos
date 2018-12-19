@@ -1,18 +1,18 @@
 package exception
 
 import (
-	. "github.com/eosspark/eos-go/log"
 	"bytes"
-	"strconv"
+	. "github.com/eosspark/eos-go/log"
 	"reflect"
+	"strconv"
 )
 
 type ExcTypes int
 
 const (
 	UnspecifiedExceptionCode = ExcTypes(iota)
-	UnhandledExceptionCode    ///< for unhandled 3rd party exceptions
-	TimeoutExceptionCode      ///< timeout exceptions
+	UnhandledExceptionCode   ///< for unhandled 3rd party exceptions
+	TimeoutExceptionCode     ///< timeout exceptions
 	FileNotFoundExceptionCode
 	ParseErrorExceptionCode
 	InvalidArgExceptionCode

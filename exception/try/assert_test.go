@@ -1,11 +1,11 @@
 package try
 
 import (
-	"testing"
-	. "github.com/eosspark/eos-go/exception"
-	"github.com/eosspark/eos-go/log"
 	"errors"
 	"github.com/docker/docker/pkg/testutil/assert"
+	. "github.com/eosspark/eos-go/exception"
+	"github.com/eosspark/eos-go/log"
+	"testing"
 )
 
 func TestStaticAssert(t *testing.T) {
