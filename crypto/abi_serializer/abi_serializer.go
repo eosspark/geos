@@ -29,7 +29,7 @@ type AbiSerializer struct {
 	typeDefs      map[string]string
 	structs       map[string]StructDef
 	actions       map[common.Name]string
-	tables        map[common.Name]string
+	tables        map[tableName]string
 	errorMessages map[uint64]string
 	variants      map[string]VariantDef
 	builtInTypes  map[string]common.Pair
@@ -52,7 +52,7 @@ func (a *AbiSerializer) SetAbi(abi *AbiDef, maxSerializationTime common.Microsec
 	a.typeDefs = make(map[string]string)
 	a.structs = make(map[string]StructDef)
 	a.actions = make(map[common.Name]string)
-	a.tables = make(map[common.Name]string)
+	a.tables = make(map[typeName]string)
 	a.errorMessages = make(map[uint64]string)
 
 	for _, st := range abi.Structs {
@@ -84,6 +84,7 @@ func (a *AbiSerializer) SetAbi(abi *AbiDef, maxSerializationTime common.Microsec
 	try.EosAssert(len(a.errorMessages) == len(abi.ErrorMessages), &exception.DuplicateAbiErrMsgDefException{}, "duplicate error message definition detected")
 
 	a.validate() //TODO always return true
+	a.abi = abi
 }
 
 func (a AbiSerializer) IsBuiltinType(rtype *string) bool {
@@ -251,7 +252,7 @@ func (a AbiSerializer) GetActionType(action common.Name) typeName {
 	return itr
 }
 
-func (a AbiSerializer) GetTableType(action common.Name) typeName {
+func (a AbiSerializer) GetTableType(action typeName) typeName {
 	itr, ok := a.tables[action]
 	if !ok {
 		return ""
@@ -341,12 +342,21 @@ func (a *AbiSerializer) _VariantToBinary(name typeName, data *common.Variants, a
 func (a AbiSerializer) BinaryToVariant(rtype typeName, binary []byte, maxSerializationTime common.Microseconds, shortPath bool) common.Variants {
 	var re common.Variants
 	try.Try(func() {
-		bytes, err := a.abi.DecodeAction(rtype, binary)
+		var bytes []byte
+		var err error
+		if a.abi.StructForName(rtype) != nil {
+			bytes, err = a.abi.DecodeStruct(rtype, binary)
+		} else if a.abi.TableForName(rtype) != nil {
+			bytes, err = a.abi.DecodeTableRow(rtype, binary)
+		}
+
 		if err != nil {
+			fmt.Println(err.Error())
 			try.Throw(fmt.Sprintf("binary_to_variant is error: %s", err.Error()))
 		}
 		err = json.Unmarshal(bytes, &re)
 		if err != nil {
+			fmt.Println(err.Error())
 			try.Throw(fmt.Sprintf("unmarshal variants is error: %s", err.Error()))
 		}
 	}).EosRethrowExceptions(&exception.UnpackException{}, "Unable to unpack %s from bytes", string(binary)).End()

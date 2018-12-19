@@ -16,6 +16,8 @@ import (
 
 var abiLog log.Logger
 
+type tableName = string
+
 func init() {
 	abiLog = log.New("abi")
 	abiLog.SetHandler(log.TerminalHandler)
@@ -46,11 +48,11 @@ type ActionDef struct {
 
 // TableDef defines a table. See libraries/chain/include/eosio/chain/contracts/types.hpp:78
 type TableDef struct {
-	Name      common.TableName `json:"name"`
-	IndexType string           `json:"index_type"`
-	KeyNames  []string         `json:"key_names,omitempty"`
-	KeyTypes  []string         `json:"key_types,omitempty"`
-	Type      string           `json:"type"`
+	Name      string   `json:"name"`
+	IndexType string   `json:"index_type"`
+	KeyNames  []string `json:"key_names,omitempty"`
+	KeyTypes  []string `json:"key_types,omitempty"`
+	Type      string   `json:"type"`
 }
 
 // ClausePair represents clauses, related to Ricardian Contracts.
@@ -121,11 +123,15 @@ func (a *AbiDef) StructForName(name string) *StructDef {
 	return nil
 }
 
-func (a *AbiDef) TableForName(name common.TableName) *TableDef {
+func (a *AbiDef) TableForName(name tableName) *TableDef {
 	for _, s := range a.Tables {
-		if s.Name == name {
+		//if s.Name == name {
+		//	return &s
+		//}
+		if strings.Compare(s.Name, name) == 0 {
 			return &s
 		}
+
 	}
 	return nil
 }
