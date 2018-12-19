@@ -7,7 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"github.com/eosspark/eos-go/crypto"
-				"strconv"
+	"strconv"
 	"strings"
 )
 
@@ -99,7 +99,6 @@ func (b *Bool) UnmarshalJSON(data []byte) error {
 	*b = Bool(boolVal)
 	return nil
 }
-
 
 // HexBytes
 

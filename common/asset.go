@@ -1,6 +1,7 @@
 package common
 
 import (
+	"github.com/eosspark/eos-go/log"
 	"strconv"
 	"strings"
 	"encoding/json"
@@ -113,8 +114,21 @@ func (sym Symbol) FromString(from *string) Symbol {
 	return Symbol{Precision: uint8(p), Symbol: namePart}
 }
 
+func (sym *Symbol) SymbolValue() uint64 {
+    result := uint64(0)
+	for i := 0; i < len(sym.Symbol); i++{
+		if sym.Symbol[i] < 'A' || sym.Symbol[i] > 'Z'{
+			log.Error("symbol cannot exceed A~Z")
+		} else {
+			result |= uint64(sym.Symbol[i])
+		}
+		result = result << 8
+    }
+	result |= uint64(sym.Precision)
+	return result
+}
 func (sym *Symbol) ToSymbolCode() SymbolCode {
-	return SymbolCode(N(sym.Symbol)) >> 8
+	return SymbolCode(sym.SymbolValue()) >> 8
 }
 
 // EOSSymbol represents the standard EOS symbol on the chain.  It's
