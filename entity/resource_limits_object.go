@@ -13,7 +13,7 @@ type ResourceLimitsObject struct {
 	RamBytes  int64
 }
 
-func NewResourceLimitsObject() ResourceLimitsObject{
+func NewResourceLimitsObject() ResourceLimitsObject {
 	rlo := ResourceLimitsObject{}
 	rlo.Pending = false
 	rlo.NetWeight = -1

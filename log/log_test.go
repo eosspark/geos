@@ -80,3 +80,15 @@ func TestLongdata(t *testing.T) {
 	data := bytes.Repeat([]byte{100, 255, 0, '\n'}, 100000)
 	testlog.Debug("%#v", data)
 }
+
+
+func TestFcLogMessage(t *testing.T) {
+	makeLog := func(msg string) {
+		message := FcLogMessage(LvlInfo, "test FC_LOG_MESSAGE %s", msg)
+		fmt.Println(message.GetMessage())
+		fmt.Println(message.GetContext().String())
+		//assert.Equal(t, "log_test.go:92", message.GetContext().String())
+		//assert.Equal(t, "test FC_LOG_MESSAGE message", message.GetMessage())
+	}
+	makeLog("message")
+}

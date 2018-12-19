@@ -58,6 +58,17 @@ func TestABI_DecodeAction(t *testing.T) {
 	assert.Equal(t, "value_struct_4_field_1_2", gjson.GetBytes(json, "struct_1_field_5.1.struct_4_field_1").String())
 	assert.Equal(t, "value_struct_4_field_1_3", gjson.GetBytes(json, "struct_1_field_5.2.struct_4_field_1").String())
 
+	abis := NewAbiSerializer(abi, common.Microseconds(1000*1000))
+	re := abis.BinaryToVariant("action_name_1", encodeRe, common.Microseconds(1000*1000), false)
+	fmt.Printf("%#v", re)
+	assert.Equal(t, "eoscanadacom", re["struct_1_field_1"])
+	assert.Equal(t, "value_struct_2_field_1", re["struct_2_field_1"])
+	//assert.Equal(t, "value_struct_3_field_1", re["struct_1_field_2.struct_3_field_1"])
+	//assert.Equal(t, "value_struct_1_field_3",re["struct_1_field_3"])
+	//assert.Equal(t, "", re["struct_1_field_4"])
+	//assert.Equal(t, "value_struct_4_field_1_1", re["struct_1_field_5.0.struct_4_field_1"])
+	//assert.Equal(t, "value_struct_4_field_1_2", re["struct_1_field_5.1.struct_4_field_1"])
+	//assert.Equal(t, "value_struct_4_field_1_3", re["struct_1_field_5.2.struct_4_field_1"])
 }
 
 func TestABI_DecodeMissingData(t *testing.T) {

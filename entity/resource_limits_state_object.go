@@ -1,8 +1,8 @@
 package entity
 
 import (
-	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/chain/types"
+	"github.com/eosspark/eos-go/common"
 )
 
 var DefaultResourceLimitsStateObject ResourceLimitsStateObject

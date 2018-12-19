@@ -1,23 +1,43 @@
 package log
 
-import "fmt"
+import (
+	"fmt"
+	"runtime/debug"
+)
 
-type LogLevel = Lvl
-
-type LogMessage struct {
-	Level  LogLevel
-	Format string
-	Args   []interface{}
+type Context struct {
+	LogLevel Lvl
+	StackInfo []byte
 }
 
-func FcLogMessage(level LogLevel, format string, args ...interface{}) LogMessage {
-	return LogMessage{
-		Level:  level,
+func (c Context) String() string {
+	return string(c.StackInfo)
+}
+
+type Message struct {
+	context Context
+	Format  string
+	Args    []interface{}
+}
+
+
+func FcLogMessage(level Lvl, format string, args ...interface{}) Message {
+	return Message{
+		context: Context{
+			LogLevel:  level,
+			StackInfo: debug.Stack(),
+		},
 		Format: format,
 		Args:   args,
 	}
 }
 
-func (l LogMessage) Message() string {
+func (l Message) GetContext() Context {
+	return l.context
+}
+
+func (l Message) GetMessage() string {
 	return fmt.Sprintf(l.Format, l.Args...)
 }
+
+type Messages = []Message

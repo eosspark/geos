@@ -11,14 +11,14 @@ import (
 // template type Exception(PARENT,CODE,WHAT)
 const CODE = 0
 const WHAT = ""
+
 var ExceptionName = reflect.TypeOf(Exception{}).Name()
 
 type PARENT interface {
-
 }
 type Exception struct {
 	PARENT
-	Elog []log.LogMessage
+	Elog log.Messages
 }
 
 func (e Exception) Code() int64 {
@@ -33,21 +33,21 @@ func (e Exception) What() string {
 	return WHAT
 }
 
-func (e *Exception) AppendLog(l log.LogMessage) {
+func (e *Exception) AppendLog(l log.Message) {
 	e.Elog = append(e.Elog, l)
 }
 
+func (e Exception) GetLog() log.Messages {
+	return e.Elog
+}
+
 func (e Exception) TopMessage() string {
-	for _, log := range e.Elog {
-		if msg := log.Message(); msg != "" {
+	for _, l := range e.Elog {
+		if msg := l.GetMessage(); msg != "" {
 			return msg
 		}
 	}
 	return e.String()
-}
-
-func (e Exception) String() string {
-	return e.DetailMessage()
 }
 
 func (e Exception) DetailMessage() string {
@@ -58,11 +58,19 @@ func (e Exception) DetailMessage() string {
 	buffer.WriteString(": ")
 	buffer.WriteString(e.What())
 	buffer.WriteString("\n")
-	for _, log := range e.Elog {
-		buffer.WriteString(log.Message())
+	for _, l := range e.Elog {
+		buffer.WriteString("[")
+		buffer.WriteString(l.GetMessage())
+		buffer.WriteString("]")
+		buffer.WriteString("\n")
+		buffer.WriteString(l.GetContext().String())
 		buffer.WriteString("\n")
 	}
 	return buffer.String()
+}
+
+func (e Exception) String() string {
+	return e.DetailMessage()
 }
 
 func (e Exception) MarshalJSON() ([]byte, error) {
@@ -79,4 +87,17 @@ func (e Exception) MarshalJSON() ([]byte, error) {
 	}
 
 	return json.Marshal(except)
+}
+
+func (e Exception) Callback(f interface{}) bool {
+	switch callback := f.(type) {
+	case func(*Exception):
+		callback(&e)
+		return true
+	case func(Exception):
+		callback(e)
+		return true
+	default:
+		return false
+	}
 }

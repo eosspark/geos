@@ -22,6 +22,7 @@ import (
 	"github.com/eosspark/eos-go/exception/try"
 	"io/ioutil"
 	"path/filepath"
+	"reflect"
 	"strconv"
 	"strings"
 	"testing"
@@ -335,7 +336,7 @@ func newSignedTransaction(control *chain.Controller) *types.SignedTransaction {
 }
 
 func pushSignedTransaction(control *chain.Controller, trx *types.SignedTransaction) *types.TransactionTrace {
-	metaTrx := types.NewTransactionMetadataBySignedTrx(trx, common.CompressionNone)
+	metaTrx := types.NewTransactionMetadataBySignedTrx(trx, types.CompressionNone)
 	return control.PushTransaction(metaTrx, common.TimePoint(common.MaxMicroseconds()), 0)
 }
 
@@ -619,6 +620,7 @@ func TestTransaction(t *testing.T) {
 		// 	BOOST_CHECK_EQUAL(trace->receipt->status, transaction_receipt::soft_fail);
 		// 	c.disconnect();
 		// }
+
 		ret := callTestF2(t, b, &testApiAction{wasmTestAction("test_transaction", "test_read_transaction")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
 		assert.Equal(t, ret.ID.String(), ret.ActionTraces[0].Console)
 
@@ -1881,7 +1883,7 @@ func newTransaction(control *chain.Controller, action *types.Action, privateKeys
 		signedTrx.Sign(privateKey, &chainIdType)
 	}
 
-	metaTrx := types.NewTransactionMetadataBySignedTrx(signedTrx, common.CompressionNone)
+	metaTrx := types.NewTransactionMetadataBySignedTrx(signedTrx, types.CompressionNone)
 
 	return metaTrx
 }
@@ -2517,10 +2519,10 @@ func (t BaseTester) PushTransaction(trx *types.SignedTransaction, deadline commo
 		if t.Control.PendingBlockState() == nil {
 			t.startBlock(t.Control.HeadBlockTime().AddUs(common.Microseconds(common.DefaultConfig.BlockIntervalUs)))
 		}
-		c := common.CompressionNone
+		c := types.CompressionNone
 		size, _ := rlp.EncodeSize(trx)
 		if size > 1000 {
-			c = common.CompressionZlib
+			c = types.CompressionZlib
 		}
 		mtrx := types.NewTransactionMetadataBySignedTrx(trx, c)
 		trace = t.Control.PushTransaction(mtrx, deadline, billedCpuTimeUs)
@@ -2659,8 +2661,6 @@ func (t BaseTester) SetAbi(account common.AccountName, abiJson []byte, signer *e
 	t.PushTransaction(&trx, common.MaxTimePoint(), t.DefaultBilledCpuTimeUs)
 }
 
-type VariantsObject map[string]interface{}
-
 func (t BaseTester) SetProducers(accounts []common.AccountName) *types.TransactionTrace {
 
 	schedule := t.GetProducerKeys(&accounts)
@@ -2668,7 +2668,7 @@ func (t BaseTester) SetProducers(accounts []common.AccountName) *types.Transacti
 	return t.PushAction2(common.DefaultConfig.SystemAccountName,
 		common.N("setprods"),
 		common.DefaultConfig.SystemAccountName,
-		&VariantsObject{"schedule": schedule},
+		&common.Variants{"schedule": schedule},
 		t.DefaultExpirationDelta,
 		0)
 
@@ -2684,14 +2684,14 @@ func (t BaseTester) GetProducerKeys(producerNames *[]common.AccountName) []types
 }
 
 func (t BaseTester) PushAction2(code common.AccountName, acttype common.AccountName,
-	actor common.AccountName, data *VariantsObject, expiration uint32, delaySec uint32) *types.TransactionTrace {
+	actor common.AccountName, data *common.Variants, expiration uint32, delaySec uint32) *types.TransactionTrace {
 	auths := make([]types.PermissionLevel, 0)
 	auths = append(auths, types.PermissionLevel{Actor: actor, Permission: common.DefaultConfig.ActiveName})
 	return t.PushAction4(code, acttype, &auths, data, expiration, delaySec)
 }
 
 func (t BaseTester) PushAction4(code common.AccountName, acttype common.AccountName,
-	auths *[]types.PermissionLevel, data *VariantsObject, expiration uint32, delaySec uint32) *types.TransactionTrace {
+	auths *[]types.PermissionLevel, data *common.Variants, expiration uint32, delaySec uint32) *types.TransactionTrace {
 	trx := types.SignedTransaction{}
 	try.Try(func() {
 		action := t.GetAction(code, acttype, *auths, data)
@@ -2708,21 +2708,19 @@ func (t BaseTester) PushAction4(code common.AccountName, acttype common.AccountN
 }
 
 func (t BaseTester) GetAction(code common.AccountName, actType common.AccountName,
-	auths []types.PermissionLevel, data *VariantsObject) *types.Action {
-	acnt := t.Control.GetAccount(code)
-	a := acnt.GetAbi()
+	auths []types.PermissionLevel, data *common.Variants) *types.Action {
+
 	action := types.Action{code, actType, auths, nil}
-	//actionTypeName := a.ActionForName(actType).Type
-	buf, _ := json.Marshal(data)
-	//if err != nil {
-	//	log.Error("tester GetAction Marshal is error:%s", err)
-	//}
-	//action.Data, _ = a.EncodeAction(common.N(actionTypeName), buf) //TODO
-	action.Data, _ = a.EncodeAction(actType, buf)
-	//if err != nil {
-	//	log.Error("tester GetAction EncodeAction is error:%s", err)
-	//}
-	//log.Error("action:%s", action)
+	try.Try(func() {
+		acnt := t.Control.GetAccount(code)
+		a := acnt.GetAbi()
+		abis := abi.NewAbiSerializer(a, t.AbiSerializerMaxTime)
+		actionTypeName := abis.GetActionType(actType)
+		try.FcAssert(reflect.TypeOf(actionTypeName).Kind() == reflect.String, "unknown action type %s", actType)
+
+		action.Data = abis.VariantToBinary(actionTypeName, data, t.AbiSerializerMaxTime)
+
+	}).FcCaptureAndRethrow().End()
 	return &action
 }
 

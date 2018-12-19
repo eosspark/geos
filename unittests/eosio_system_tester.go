@@ -21,7 +21,7 @@ func newEosioSystemTester(pushGenesis bool, readMode DBReadMode) *EosioSystemTes
 	e := &EosioSystemTester{}
 	e.DefaultExpirationDelta = 6
 	e.DefaultBilledCpuTimeUs = 2000
-	e.AbiSerializerMaxTime = 1000*1000
+	e.AbiSerializerMaxTime = 1000 * 1000
 	e.ChainTransactions = make(map[common.BlockIdType]types.TransactionReceipt)
 	e.LastProducedBlock = make(map[common.AccountName]common.BlockIdType)
 
@@ -47,13 +47,13 @@ func initEosioSystemTester() *EosioSystemTester {
 	accnt := entity.AccountObject{Name: common.N("eosio.token")}
 	e.Control.DB.Find("byName", accnt, &accnt)
 	abiDef := abi_serializer.AbiDef{}
-	if !abi_serializer.ToABI(accnt.Abi,&abiDef) {
+	if !abi_serializer.ToABI(accnt.Abi, &abiDef) {
 		log.Error("eosio_system_tester::initEosioSystemTester failed with ToAbi")
 	}
 	//TODO
 	//e.tokenAbiSer.SetAbi(&abiDef,&e.AbiSerializerMaxTime)
-	e.CreateCurrency(common.N("eosio.token"),common.DefaultConfig.SystemAccountName,CoreFromString("10000000000.0000"))
-	e.Issue(common.DefaultConfig.SystemAccountName,CoreFromString("10000000000.0000"),common.DefaultConfig.SystemAccountName)
+	e.CreateCurrency(common.N("eosio.token"), common.DefaultConfig.SystemAccountName, CoreFromString("10000000000.0000"))
+	e.Issue(common.DefaultConfig.SystemAccountName, CoreFromString("10000000000.0000"), common.DefaultConfig.SystemAccountName)
 	currencyBalance := e.GetBalance(common.N("eosio"))
 	expectedBalance := CoreFromString("10000000000.0000")
 	if currencyBalance != expectedBalance {
@@ -71,13 +71,13 @@ func initEosioSystemTester() *EosioSystemTester {
 	accnt = entity.AccountObject{Name: common.N("eosio")}
 	e.Control.DB.Find("byName", accnt, &accnt)
 	abiDef = abi_serializer.AbiDef{}
-	if !abi_serializer.ToABI(accnt.Abi,&abiDef) {
+	if !abi_serializer.ToABI(accnt.Abi, &abiDef) {
 		log.Error("eosio_system_tester::initEosioSystemTester failed with ToAbi")
 	}
 	//TODO
 	//e.abiSer.SetAbi(&abiDef,&e.AbiSerializerMaxTime)
 
-	e.ProduceBlocks(1,false)
+	e.ProduceBlocks(1, false)
 
 	e.CreateAccountWithResources(
 		common.N("alice1111111"),
@@ -103,8 +103,8 @@ func initEosioSystemTester() *EosioSystemTester {
 		CoreFromString("10.0000"),
 		CoreFromString("10.0000"),
 	)
-	if CoreFromString("10000000000.0000").Amount != e.GetBalance(common.N("eosio")).Amount + e.GetBalance(common.N("eosio.ramfee")).Amount +
-		e.GetBalance(common.N("eosio.stake")).Amount + e.GetBalance(common.N("eosio.ram")).Amount {
+	if CoreFromString("10000000000.0000").Amount != e.GetBalance(common.N("eosio")).Amount+e.GetBalance(common.N("eosio.ramfee")).Amount+
+		e.GetBalance(common.N("eosio.stake")).Amount+e.GetBalance(common.N("eosio.ram")).Amount {
 		log.Error("error")
 	}
 	return e
@@ -141,7 +141,7 @@ func (e EosioSystemTester) CreateAccountWithResources(name common.AccountName, c
 	}
 	trx.Actions = append(trx.Actions, act)
 
-	buyRamData := VariantsObject{
+	buyRamData := common.Variants{
 		"payer":    creator,
 		"receiver": name,
 		"quant":    ramFunds,
@@ -149,12 +149,12 @@ func (e EosioSystemTester) CreateAccountWithResources(name common.AccountName, c
 	buyRam := e.GetAction(
 		common.N("eosio"),
 		common.N("buyram"),
-		[]types.PermissionLevel{{creator,common.DefaultConfig.ActiveName}},
+		[]types.PermissionLevel{{creator, common.DefaultConfig.ActiveName}},
 		&buyRamData,
 	)
 	trx.Actions = append(trx.Actions, buyRam)
 
-	delegateData := VariantsObject{
+	delegateData := common.Variants{
 		"from":               creator,
 		"receiver":           name,
 		"stake_net_quantity": net,
@@ -164,11 +164,10 @@ func (e EosioSystemTester) CreateAccountWithResources(name common.AccountName, c
 	delegate := e.GetAction(
 		common.N("eosio"),
 		common.N("delegatebw"),
-		[]types.PermissionLevel{{creator,common.DefaultConfig.ActiveName}},
+		[]types.PermissionLevel{{creator, common.DefaultConfig.ActiveName}},
 		&delegateData,
 	)
 	trx.Actions = append(trx.Actions, delegate)
-
 
 	e.SetTransactionHeaders(&trx.Transaction, e.DefaultExpirationDelta, 0)
 	pk := e.getPrivateKey(creator, "active")
@@ -199,7 +198,7 @@ func (e EosioSystemTester) CreateAccountWithResources2(name common.AccountName, 
 	}
 	trx.Actions = append(trx.Actions, act)
 
-	buyRamBytesData := VariantsObject{
+	buyRamBytesData := common.Variants{
 		"payer":    creator,
 		"receiver": name,
 		"bytes":    ramBytes,
@@ -207,12 +206,12 @@ func (e EosioSystemTester) CreateAccountWithResources2(name common.AccountName, 
 	buyRam := e.GetAction(
 		common.N("eosio"),
 		common.N("buyrambytes"),
-		[]types.PermissionLevel{{creator,common.DefaultConfig.ActiveName}},
+		[]types.PermissionLevel{{creator, common.DefaultConfig.ActiveName}},
 		&buyRamBytesData,
 	)
 	trx.Actions = append(trx.Actions, buyRam)
 
-	delegateData := VariantsObject{
+	delegateData := common.Variants{
 		"from":               creator,
 		"receiver":           name,
 		"stake_net_quantity": CoreFromString("10.0000"),
@@ -222,11 +221,10 @@ func (e EosioSystemTester) CreateAccountWithResources2(name common.AccountName, 
 	delegate := e.GetAction(
 		common.N("eosio"),
 		common.N("delegatebw"),
-		[]types.PermissionLevel{{creator,common.DefaultConfig.ActiveName}},
+		[]types.PermissionLevel{{creator, common.DefaultConfig.ActiveName}},
 		&delegateData,
 	)
 	trx.Actions = append(trx.Actions, delegate)
-
 
 	e.SetTransactionHeaders(&trx.Transaction, e.DefaultExpirationDelta, 0)
 	pk := e.getPrivateKey(creator, "active")
@@ -236,7 +234,7 @@ func (e EosioSystemTester) CreateAccountWithResources2(name common.AccountName, 
 }
 
 func (e EosioSystemTester) BuyRamBytes(payer common.AccountName, receiver common.AccountName, numBytes uint32) ActionResult {
-	buyRamBytes := VariantsObject{
+	buyRamBytes := common.Variants{
 		"payer":    payer,
 		"receiver": receiver,
 		"bytes":    numBytes,
@@ -245,7 +243,7 @@ func (e EosioSystemTester) BuyRamBytes(payer common.AccountName, receiver common
 	return e.EsPushAction(&payer, &act, &buyRamBytes, true)
 }
 
-func (e EosioSystemTester) EsPushAction(signer *common.AccountName, name *common.ActionName, data *VariantsObject, auth bool) ActionResult {
+func (e EosioSystemTester) EsPushAction(signer *common.AccountName, name *common.ActionName, data *common.Variants, auth bool) ActionResult {
 	var authorizer common.AccountName
 	if auth == true {
 		authorizer = *signer
@@ -261,7 +259,7 @@ func (e EosioSystemTester) EsPushAction(signer *common.AccountName, name *common
 }
 
 func (e EosioSystemTester) Stake(from common.AccountName, to common.AccountName, net common.Asset, cpu common.Asset) ActionResult {
-	stake := VariantsObject{
+	stake := common.Variants{
 		"from":               from,
 		"receiver":           to,
 		"stake_net_quantity": net,
@@ -274,9 +272,9 @@ func (e EosioSystemTester) Stake(from common.AccountName, to common.AccountName,
 
 func (e EosioSystemTester) GetBalance(act common.AccountName) common.Asset {
 	a := uint64(5462355)
-	data := e.GetRowByAccount(uint64(common.N("eosio.token")), uint64(act), uint64(common.N("accounts")),a)
+	data := e.GetRowByAccount(uint64(common.N("eosio.token")), uint64(act), uint64(common.N("accounts")), a)
 	if len(data) == 0 {
-		return common.Asset{Amount:0,Symbol:CORE_SYMBOL}
+		return common.Asset{Amount: 0, Symbol: CORE_SYMBOL}
 	} else {
 		asset := common.Asset{}
 		rlp.DecodeBytes(data, &asset)
@@ -284,7 +282,7 @@ func (e EosioSystemTester) GetBalance(act common.AccountName) common.Asset {
 	}
 }
 
-func (e EosioSystemTester) GetTotalStake(act uint64) VariantsObject {
+func (e EosioSystemTester) GetTotalStake(act uint64) common.Variants {
 	type UserResources struct {
 		Owner     common.AccountName
 		NetWeight common.Asset
@@ -293,11 +291,11 @@ func (e EosioSystemTester) GetTotalStake(act uint64) VariantsObject {
 	}
 	data := e.GetRowByAccount(uint64(common.N("eosio")), uint64(act), uint64(common.N("userres")), act)
 	if len(data) == 0 {
-		return VariantsObject{}
+		return common.Variants{}
 	} else {
 		res := UserResources{}
 		rlp.DecodeBytes(data, &res)
-		return VariantsObject{
+		return common.Variants{
 			"owner":      res.Owner,
 			"net_weight": res.NetWeight,
 			"cpu_weight": res.CpuWeight,
@@ -307,7 +305,7 @@ func (e EosioSystemTester) GetTotalStake(act uint64) VariantsObject {
 }
 
 func (e EosioSystemTester) CreateCurrency(contract common.Name, manager common.Name, maxSupply common.Asset) {
-	act := VariantsObject{
+	act := common.Variants{
 		"issuer":         manager,
 		"maximum_supply": maxSupply,
 	}
@@ -323,7 +321,7 @@ func (e EosioSystemTester) CreateCurrency(contract common.Name, manager common.N
 }
 
 func (e EosioSystemTester) Issue(to common.Name, amount common.Asset, manager common.Name) {
-	act := VariantsObject{
+	act := common.Variants{
 		"to":       to,
 		"quantity": amount,
 		"memo":     "",

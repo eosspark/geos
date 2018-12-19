@@ -13,8 +13,8 @@ type GeneratedTransactionObject struct {
 	Sender     common.AccountName       `multiIndex:"bySenderId,orderedUnique"`
 	SenderId   arithmetic.Uint128       `multiIndex:"bySenderId,orderedUnique"`
 	Payer      common.AccountName
-	DelayUntil common.TimePoint         `multiIndex:"byDelay,orderedUnique"`
-	Expiration common.TimePoint         `multiIndex:"byExpiration,orderedUnique"`
+	DelayUntil common.TimePoint `multiIndex:"byDelay,orderedUnique"`
+	Expiration common.TimePoint `multiIndex:"byExpiration,orderedUnique"`
 	Published  common.TimePoint
 	PackedTrx  common.HexBytes //c++ shared_string
 }

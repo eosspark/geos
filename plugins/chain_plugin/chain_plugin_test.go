@@ -39,7 +39,7 @@ func TestApiParams(t *testing.T) {
 
 	packed := types.PackedTransaction{
 		Signatures:            []ecc.Signature{sign},
-		Compression:           common.CompressionNone,
+		Compression:           types.CompressionNone,
 		PackedContextFreeData: action,
 		PackedTrx:             action,
 		UnpackedTrx:           nil,
@@ -59,7 +59,7 @@ func TestApiParams(t *testing.T) {
 	err = common.FromVariant(pushTrxParams, &prettyInput)
 	assert.NoError(t, err)
 	assert.Equal(t, sign, prettyInput.Signatures[0])
-	assert.Equal(t, common.CompressionNone, prettyInput.Compression)
+	assert.Equal(t, types.CompressionNone, prettyInput.Compression)
 	assert.Equal(t, common.HexBytes(action), prettyInput.PackedTrx)
 	assert.Equal(t, common.HexBytes(action), prettyInput.PackedContextFreeData)
 	assert.Equal(t, (*types.Transaction)(nil), prettyInput.UnpackedTrx)

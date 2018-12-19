@@ -477,7 +477,8 @@ func (a *AuthorizationManager) CheckAuthorization2(account common.AccountName,
 func (a *AuthorizationManager) GetRequiredKeys(trx *types.Transaction,
 	candidateKeys *treeset.Set,
 	providedDelay common.Microseconds) treeset.Set {
-	checker := types.MakeAuthChecker(func(p *types.PermissionLevel) types.SharedAuthority {
+	checker := types.MakeAuthChecker(
+		func(p *types.PermissionLevel) types.SharedAuthority {
 			perm := a.GetPermission(p)
 			if perm != nil {
 				return perm.Auth
@@ -489,6 +490,13 @@ func (a *AuthorizationManager) GetRequiredKeys(trx *types.Transaction,
 		candidateKeys,
 		nil,
 		providedDelay,
-		noopCheckTime)
+		noopCheckTime,
+	)
+	for _, act := range trx.Actions {
+		for _, declaredAuth := range act.Authorization {
+			EosAssert( checker.SatisfiedLc(&declaredAuth, nil), &UnsatisfiedAuthorization{},
+			"transaction declares authority '%v', but does not have signatures for it.", declaredAuth)
+		}
+	}
 	return checker.GetUsedKeys()
 }
