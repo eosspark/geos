@@ -832,6 +832,10 @@ func (vt ValidatingTester) ProduceEmptyBlock(skipTime common.Microseconds, skipF
 	return sb
 }
 
+func (vt ValidatingTester) Validate() bool {
+	return true
+}
+
 func (vt ValidatingTester) ValidatePushBlock(sb *types.SignedBlock) {
 	vt.ValidatingControl.PushBlock(sb, types.Complete)
 }
@@ -846,15 +850,15 @@ func CoreFromString(s string) common.Asset {
 	return common.Asset{}.FromString(&str)
 }
 
-func (t *ValidatingTester) CreateDefaultAccount(name common.AccountName) *types.TransactionTrace {
+func (vt *ValidatingTester) CreateDefaultAccount(name common.AccountName) *types.TransactionTrace {
 	includeCode := true
 	creator := common.N("eosio")
 	trx := types.SignedTransaction{}
-	t.SetTransactionHeaders(&trx.Transaction, t.DefaultExpirationDelta, 0) //TODO: test
+	vt.SetTransactionHeaders(&trx.Transaction, vt.DefaultExpirationDelta, 0) //TODO: test
 
-	ownerAuth := types.NewAuthority(t.getPublicKey(name, "owner"), 0)
+	ownerAuth := types.NewAuthority(vt.getPublicKey(name, "owner"), 0)
 
-	activeAuth := types.NewAuthority(t.getPublicKey(name, "active"), 0)
+	activeAuth := types.NewAuthority(vt.getPublicKey(name, "active"), 0)
 
 	sortPermissions := func(auth *types.Authority) {}
 	if includeCode {
@@ -886,9 +890,9 @@ func (t *ValidatingTester) CreateDefaultAccount(name common.AccountName) *types.
 	}
 	trx.Actions = append(trx.Actions, act)
 
-	t.SetTransactionHeaders(&trx.Transaction, t.DefaultExpirationDelta, 0)
-	pk := t.getPrivateKey(creator, "active")
-	chainId := t.Control.GetChainId()
+	vt.SetTransactionHeaders(&trx.Transaction, vt.DefaultExpirationDelta, 0)
+	pk := vt.getPrivateKey(creator, "active")
+	chainId := vt.Control.GetChainId()
 	trx.Sign(&pk, &chainId)
-	return t.PushTransaction(&trx, common.MaxTimePoint(), t.DefaultBilledCpuTimeUs)
+	return vt.PushTransaction(&trx, common.MaxTimePoint(), vt.DefaultBilledCpuTimeUs)
 }
