@@ -118,7 +118,7 @@ func (sym *Symbol) SymbolValue() uint64 {
     result := uint64(0)
 	for i := 0; i < len(sym.Symbol); i++{
 		if sym.Symbol[i] < 'A' || sym.Symbol[i] > 'Z'{
-			log.Error("symbol cannot be exceed A to Z")
+			log.Error("symbol cannot exceed A~Z")
 		} else {
 			result |= uint64(sym.Symbol[i])
 		}
