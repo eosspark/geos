@@ -6,7 +6,7 @@ import (
 
 	"github.com/eosspark/eos-go/log"
 	"github.com/eosspark/eos-go/plugins/appbase/asio"
-	"gopkg.in/urfave/cli.v1"
+	"github.com/urfave/cli"
 )
 
 func makeArguments(values ...string) {
@@ -29,7 +29,9 @@ func TestHttpPlugin_PluginInitialize(t *testing.T) {
 	app.Version = "0.1.0beta"
 
 	httpPlugin := NewHttpPlugin(io)
-	httpPlugin.PluginInitialize(app)
+	app.Action = func(c *cli.Context) {
+		httpPlugin.PluginInitialize(c)
+	}
 
 	err := app.Run(os.Args)
 	if err != nil {

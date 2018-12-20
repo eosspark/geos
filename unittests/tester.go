@@ -293,10 +293,10 @@ func (t BaseTester) PushTransaction(trx *types.SignedTransaction, deadline commo
 		mtrx := types.NewTransactionMetadataBySignedTrx(trx, c)
 		trace = t.Control.PushTransaction(mtrx, deadline, billedCpuTimeUs)
 		if trace.ExceptPtr != nil {
-			try.EosThrow(trace.ExceptPtr, "tester PushTransaction is error :%#v", exception.GetDetailMessage(trace.ExceptPtr))
+			try.EosThrow(trace.ExceptPtr, "tester PushTransaction is error :%#v", trace.ExceptPtr.DetailMessage())
 		}
 		if !common.Empty(trace.Except) {
-			try.EosThrow(trace.Except, "tester PushTransaction is error :%#v", exception.GetDetailMessage(trace.Except))
+			try.EosThrow(trace.Except, "tester PushTransaction is error :%#v", trace.Except.DetailMessage())
 		}
 		r = trace
 		return
@@ -319,7 +319,7 @@ func (t BaseTester) PushAction(act *types.Action, authorizer common.AccountName)
 	try.Try(func() {
 		t.PushTransaction(&trx, common.MaxTimePoint(), t.DefaultBilledCpuTimeUs)
 	}).Catch(func(ex exception.Exception) {
-		log.Error("tester PushAction is error: %#v", exception.GetDetailMessage(ex))
+		log.Error("tester PushAction is error: %#v", ex.DetailMessage())
 	}).End()
 	t.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs), 0)
 	//BOOST_REQUIRE_EQUAL(true, chain_has_transaction(trx.id()))

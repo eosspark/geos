@@ -1,13 +1,8 @@
 package exception
 
-import (
-	. "github.com/eosspark/eos-go/log"
-	"bytes"
-	"strconv"
-	"reflect"
-)
+import "github.com/eosspark/eos-go/log"
 
-type ExcTypes int
+type ExcTypes = int64
 
 const (
 	UnspecifiedExceptionCode = ExcTypes(iota)
@@ -34,177 +29,329 @@ const (
 	DivideByZeroCode
 )
 
-// base eos Exception interface, every Exception need to implements
 type Exception interface {
-	Code() ExcTypes
+	Code() int64
+	Name() string
 	What() string
+
+	AppendLog(l log.Message)
+	GetLog() log.Messages
+
+	TopMessage() string
+	DetailMessage() string
 	String() string
-	AppendLog(l Message)
-	GetLog() []Message
+	MarshalJSON() ([]byte, error)
 
-	message(e Exception) string
+	Callback(f interface{}) bool
 }
 
-func GetDetailMessage(ex Exception) string {
-	return ex.message(ex)
+type ChainExceptions interface {
+	Exception
+	ChainExceptions()
 }
 
-type ELog []Message
+//using empty method implements from interface in order to upcasting
+type _ChainException struct{}
 
-func NewELog(l Message) ELog {
-	e := ELog{}
-	e.AppendLog(l)
-	return e
-}
-
-func (e *ELog) AppendLog(l Message) {
-	*e = append(*e, l)
-}
-
-func (e ELog) GetLog() []Message {
-	return e
-}
-
-func (e ELog) String() string {
-	var buffer bytes.Buffer
-	for i := range e {
-		buffer.WriteString(e[i].GetMessage())
-		buffer.WriteString("\n")
-	}
-	return buffer.String()
-}
-
-func (e ELog) message(ex Exception) string {
-	var buffer bytes.Buffer
-	buffer.WriteString(strconv.Itoa(int(ex.Code())))
-	buffer.WriteString(" ")
-	buffer.WriteString(reflect.TypeOf(ex).String())
-	buffer.WriteString(": ")
-	buffer.WriteString(ex.What())
-	buffer.WriteString("\n")
-	for i := range e {
-		buffer.WriteString("[")
-		buffer.WriteString(e[i].GetMessage())
-		buffer.WriteString("]")
-		buffer.WriteString("\n")
-		buffer.WriteString(e[i].GetContext().String())
-		buffer.WriteString("\n")
-	}
-	return buffer.String()
-}
-
-type FcException struct{ ELog }
-
-func (FcException) Code() ExcTypes { return UnspecifiedExceptionCode }
-func (FcException) What() string   { return "unspecified" }
-
-type UnHandledException struct{ ELog }
-
-func (UnHandledException) Code() ExcTypes { return UnhandledExceptionCode }
-func (UnHandledException) What() string   { return "" }
-
-type TimeoutException struct{ ELog }
-
-func (TimeoutException) Code() ExcTypes { return TimeoutExceptionCode }
-func (TimeoutException) What() string   { return "Timeout" }
-
-type FileNotFoundException struct{ ELog }
-
-func (FileNotFoundException) Code() ExcTypes { return FileNotFoundExceptionCode }
-func (FileNotFoundException) What() string   { return "File Not Found" }
+func (_ChainException) ChainExceptions() {}
 
 /**
- * @brief report's parse errors
+ * 	chain_type_exception
  */
+type ChainTypeExceptions interface {
+	ChainExceptions
+	ChainTypeExceptions()
+}
 
-type ParseErrorException struct{ ELog }
+type _ChainTypeException struct{ _ChainException }
 
-func (ParseErrorException) Code() ExcTypes { return ParseErrorExceptionCode }
-func (ParseErrorException) What() string   { return "Parse Error" }
-
-type InvalidArgException struct{ ELog }
-
-func (InvalidArgException) Code() ExcTypes { return InvalidArgExceptionCode }
-func (InvalidArgException) What() string   { return "Key Not Found" }
+func (_ChainTypeException) ChainTypeExceptions() {}
 
 /**
- * @brief reports when a key, guid, or other item is not found.
+ * fork_database_exception
  */
+type ForkDatabaseExceptions interface {
+	ChainExceptions
+	ForkDatabaseExceptions()
+}
 
-type KeyNotFoundException struct{ ELog }
+type _ForkDatabaseException struct{ _ChainException }
 
-func (KeyNotFoundException) Code() ExcTypes { return KeyNotFoundExceptionCode }
-func (KeyNotFoundException) What() string   { return "Key Not Found" }
-
-type BadCastException struct{ ELog }
-
-func (BadCastException) Code() ExcTypes { return BadCastExceptionCode }
-func (BadCastException) What() string   { return "Bad Cast" }
-
-type OutOfRangeException struct{ ELog }
-
-func (OutOfRangeException) Code() ExcTypes { return OutOfRangeExceptionCode }
-func (OutOfRangeException) What() string   { return "Out of Range" }
-
-/** @brief if an operation is unsupported or not valid this may be thrown */
-type InvalidOperationException struct{ ELog }
-
-func (InvalidOperationException) Code() ExcTypes { return InvalidOperationExceptionCode }
-func (InvalidOperationException) What() string   { return "Invalid Operation" }
-
-/** @brief if an host name can not be resolved this may be thrown */
-type UnknownHostException struct{ ELog }
-
-func (UnknownHostException) Code() ExcTypes { return UnknownHostExceptionCode }
-func (UnknownHostException) What() string   { return "Unknown Host" }
+func (_ForkDatabaseException) ForkDatabaseExceptions() {}
 
 /**
- *  @brief used to report a canceled Operation
+ * 	block_validate_exception
  */
-type CanceledException struct{ ELog }
+type BlockValidateExceptions interface {
+	ChainExceptions
+	BlockValidateExceptions()
+}
 
-func (CanceledException) Code() ExcTypes { return CanceledExceptionCode }
-func (CanceledException) What() string   { return "Canceled" }
+type _BlockValidateException struct{ _ChainException }
+
+func (_BlockValidateException) BlockValidateExceptions() {}
 
 /**
- *  @brief used inplace of assert() to report violations of pre conditions.
+ * transaction_exception
  */
-type AssertException struct{ ELog }
+type TransactionExceptions interface {
+	ChainExceptions
+	TransactionExceptions()
+}
 
-func (AssertException) Code() ExcTypes { return AssertExceptionCode }
-func (AssertException) What() string   { return "Assert Exception" }
+type _TransactionException struct{ _ChainException }
 
-type EofException struct{ ELog }
+func (_TransactionException) TransactionExceptions() {}
 
-func (EofException) Code() ExcTypes { return EofExceptionCode }
-func (EofException) What() string   { return "End Of File" }
+/**
+ * action_validate_exception
+ */
+type ActionValidateExceptions interface {
+	ChainExceptions
+	ActionValidateExceptions()
+}
 
-type NullOptional struct{ ELog }
+type _ActionValidateException struct{ _ChainException }
 
-func (NullOptional) Code() ExcTypes { return NullOptionalCode }
-func (NullOptional) What() string   { return "null optional" }
+func (_ActionValidateException) ActionValidateExceptions() {}
 
-type UdtException struct{ ELog }
+/**
+ * database_exception
+ */
+type DatabaseExceptions interface {
+	ChainExceptions
+	DatabaseExceptions()
+}
 
-func (UdtException) Code() ExcTypes { return UdtErrorCode }
-func (UdtException) What() string   { return "UDT error" }
+type _DatabaseException struct{ _ChainException }
 
-type AesException struct{ ELog }
+func (_DatabaseException) DatabaseExceptions() {}
 
-func (AesException) Code() ExcTypes { return AesErrorCode }
-func (AesException) What() string   { return "AES error" }
+type GuardExceptions interface {
+	DatabaseExceptions
+	GuardExceptions()
+}
 
-type OverflowException struct{ ELog }
+type _GuardException struct {
+	_ChainException
+	_DatabaseException
+}
 
-func (OverflowException) Code() ExcTypes { return OverflowCode }
-func (OverflowException) What() string   { return "Integer Overflow" }
+func (_GuardException) GuardExceptions() {}
 
-type UnderflowException struct{ ELog }
+/**
+ * wasm_exception
+ */
+type WasmExceptions interface {
+	ChainExceptions
+	WasmExceptions()
+}
 
-func (UnderflowException) Code() ExcTypes { return UnderflowCode }
-func (UnderflowException) What() string   { return "Integer Underflow" }
+type _WasmException struct{ _ChainException }
 
-type DivideByZeroException struct{ ELog }
+func (_WasmException) WasmExceptions() {}
 
-func (DivideByZeroException) Code() ExcTypes { return DivideByZeroCode }
-func (DivideByZeroException) What() string   { return "Integer Divide By Zero" }
+/**
+ * resource_exhausted_exception
+ */
+type ResourceExhaustedExceptions interface {
+	ChainExceptions
+	ResourceExhaustedExceptions()
+}
+
+type _ResourceExhaustedException struct{ _ChainException }
+
+func (_ResourceExhaustedException) ResourceExhaustedExceptions() {}
+
+type DeadlineExceptions interface {
+	ResourceExhaustedExceptions
+	DeadlineExceptions()
+}
+
+type _DeadlineException struct {
+	_ChainException
+	_ResourceExhaustedException
+}
+
+func (_DeadlineException) DeadlineExceptions() {}
+
+/**
+ * authorization_exception
+ */
+type AuthorizationExceptions interface {
+	ChainExceptions
+	AuthorizationExceptions()
+}
+
+type _AuthorizationException struct{ _ChainException }
+
+func (_AuthorizationException) AuthorizationExceptions() {}
+
+/**
+ * misc_exception
+ */
+type MiscExceptions interface {
+	ChainExceptions
+	MiscExceptions()
+}
+
+type _MiscException struct{ _ChainException }
+
+func (_MiscException) MiscExceptions() {}
+
+/**
+ * plugin_exception
+ */
+type PluginExceptions interface {
+	ChainExceptions
+	PluginExceptions()
+}
+
+type _PluginException struct{ _ChainException }
+
+func (_PluginException) PluginExceptions() {}
+
+/**
+ * wallet_exception
+ */
+type WalletExceptions interface {
+	ChainExceptions
+	WalletExceptions()
+}
+
+type _WalletException struct{ _ChainException }
+
+func (_WalletException) WalletExceptions() {}
+
+/**
+ * whitelist_blacklist_exception
+ */
+
+type WhitelistBlacklistExceptions interface {
+	ChainExceptions
+	WhitelistBlacklistExceptions()
+}
+
+type _WhitelistBlacklistException struct{ _ChainException }
+
+func (_WhitelistBlacklistException) WhitelistBlacklistExceptions() {}
+
+/**
+ * controller_emit_signal_exception
+ */
+type ControllerEmitSignalExceptions interface {
+	ChainExceptions
+	ControllerEmitSignalExceptions()
+}
+
+type _ControllerEmitSignalException struct{ _ChainException }
+
+func (_ControllerEmitSignalException) ControllerEmitSignalExceptions() {}
+
+/**
+ * abi_exception
+ */
+type AbiExceptions interface {
+	ChainExceptions
+	AbiExceptions()
+}
+
+type _AbiException struct{ _ChainException }
+
+func (_AbiException) AbiExceptions() {}
+
+/**
+ * contract_exception
+ */
+type ContractExceptions interface {
+	ChainExceptions
+	ContractExceptions()
+}
+
+type _ContractException struct{ _ChainException }
+
+func (_ContractException) ContractExceptions() {}
+
+/**
+ * producer_exception
+ */
+type ProducerExceptions interface {
+	ChainExceptions
+	ProducerExceptions()
+}
+
+type _ProducerException struct{ _ChainException }
+
+func (_ProducerException) ProducerExceptions() {}
+
+/**
+ * reversible_blocks_exception
+ */
+type ReversibleBlocksExceptions interface {
+	ChainExceptions
+	ReversibleBlocksExceptions()
+}
+
+type _ReversibleBlocksException struct{ _ChainException }
+
+func (_ReversibleBlocksException) ReversibleBlocksExceptions() {}
+
+/**
+ * block_log_exception
+ */
+type BlockLogExceptions interface {
+	ChainExceptions
+	BlockLogExceptions()
+}
+
+type _BlockLogException struct{ _ChainException }
+
+func (_BlockLogException) BlockLogExceptions() {}
+
+/**
+ * http_exception
+ */
+type HttpExceptions interface {
+	ChainExceptions
+	HttpExceptions()
+}
+
+type _HttpException struct{ _ChainException }
+
+func (_HttpException) HttpExceptions() {}
+
+/**
+ * resource_limit_exception
+ */
+type ResourceLimitExceptions interface {
+	ChainExceptions
+	ResourceLimitExceptions()
+}
+
+type _ResourceLimitException struct{ _ChainException }
+
+func (_ResourceLimitException) ResourceLimitExceptions() {}
+
+/**
+ * mongo_db_exception
+ */
+type MongoDbExceptions interface {
+	ChainExceptions
+	MongoDbExceptions()
+}
+
+type _MongoDbException struct{ _ChainException }
+
+func (_MongoDbException) MongoDbExceptions() {}
+
+/**
+ * contract_api_exception
+ */
+type ContractApiExceptions interface {
+	ChainExceptions
+	ContractApiExceptions()
+}
+
+type _ContractApiException struct{ _ChainException }
+
+func (_ContractApiException) ContractApiExceptions() {}

@@ -1,20 +1,15 @@
 package try
 
 import (
-	"github.com/eosspark/eos-go/exception"
-	"github.com/eosspark/eos-go/log"
-	"runtime"
+	//. "github.com/eosspark/eos-go/exceptionx"
+	. "github.com/eosspark/eos-go/exception"
+	. "github.com/eosspark/eos-go/log"
 )
 
 //StackInfo store code informations when catched exception.
 
 const (
 	DEBUG = false
-)
-
-var (
-	stackInfo []byte = nil
-	stackSize        = 65536
 )
 
 //RuntimeError is wrapper of runtime.errorString and stacktrace.
@@ -38,13 +33,18 @@ func Try(f func()) (r *CatchOrFinally) {
 	defer func() {
 		if e := recover(); e != nil {
 
-			r = &CatchOrFinally{e}
-
-			if DEBUG {
-				stackInfo = make([]byte, stackSize)
-				stackInfo = stackInfo[:runtime.Stack(stackInfo, false)]
-				printStackInfo(e)
+			switch et := e.(type) {
+			case error:
+				r = &CatchOrFinally{NewStdException(et, FcLogMessage(LvlError, et.Error()))}
+			default:
+				r = &CatchOrFinally{e}
 			}
+
+			//if DEBUG {
+			//	stackInfo = make([]byte, stackSize)
+			//	stackInfo = stackInfo[:runtime.Stack(stackInfo, false)]
+			//	//printStackInfo(e)
+			//}
 
 		}
 	}()
@@ -61,18 +61,18 @@ func Throw(e interface{}) {
 }
 
 //Use defer HandleStackInfo() before main func panic
-func printStackInfo(errorPtr interface{}) {
-	if DEBUG && stackInfo != nil {
-		switch e := errorPtr.(type) {
-		case exception.Exception:
-			log.Warn("%s: %s", exception.GetDetailMessage(e), string(stackInfo))
-		case error:
-			log.Warn("error %s: %s", e.Error(), string(stackInfo))
-		default:
-			log.Warn("panic %#v: %s", e, string(stackInfo))
-		}
-	}
-}
+//func printStackInfo(errorPtr interface{}) {
+//	if DEBUG && stackInfo != nil {
+//		switch e := errorPtr.(type) {
+//		case exception.Exception:
+//			log.Warn("%s: %s", exception.e.DetailMessage(), string(stackInfo))
+//		case error:
+//			log.Warn("error %s: %s", e.Error(), string(stackInfo))
+//		default:
+//			log.Warn("panic %#v: %s", e, string(stackInfo))
+//		}
+//	}
+//}
 
 //type returnTypes struct{}
 

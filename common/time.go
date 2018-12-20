@@ -36,6 +36,15 @@ func (tp TimePoint) String() string {
 	return time.Unix(int64(tp)/1e6, int64(tp)%1e6*1000).UTC().String()
 }
 
+func (tp TimePoint) MarshalJSON() ([]byte, error) {
+	return []byte(tp.String()), nil
+}
+
+func (tp *TimePoint) UnmarshalJSON(data []byte) (err error) {
+	*tp, err = FromIsoString(string(data))
+	return
+}
+
 func FromIsoString(s string) (TimePoint, error) {
 	if strings.IndexByte(s, '.') < 0 {
 		tps, err := FromIsoStringSec(s)
@@ -78,6 +87,15 @@ func MinTimePointSec() TimePointSec { return TimePointSec(0) }
 func (tp TimePointSec) ToTimePoint() TimePoint  { return TimePoint(Seconds(int64(tp))) }
 func (tp TimePointSec) SecSinceEpoch() uint32   { return uint32(tp) }
 func (tp TimePointSec) String() string          { return tp.ToTimePoint().String() }
+
+func (tp TimePointSec) MarshalJSON() ([]byte, error) {
+	return []byte(tp.String()), nil
+}
+
+func (tp *TimePointSec) UnmarshalJSON(data []byte) (err error) {
+	*tp, err = FromIsoStringSec(string(data))
+	return
+}
 
 func FromIsoStringSec(s string) (TimePointSec, error) {
 	pt, err := time.Parse(format, s)

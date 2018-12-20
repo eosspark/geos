@@ -460,7 +460,7 @@ func (c *ChainPlugin) logGuardException(e GuardExceptions) {
 			"Please increase the value set for \"reversible-blocks-db-size-mb\" and restart the process!")
 	}
 
-	log.Debug("Details: %s", GetDetailMessage(e))
+	log.Debug("Details: %s", e.DetailMessage())
 }
 
 func (c *ChainPlugin) HandleGuardException(e GuardExceptions) {

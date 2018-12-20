@@ -26,7 +26,7 @@ func TestNameStr(t *testing.T) {
 		val = N(name)
 	}).Catch(func(ex *exception.NameTypeException) {
 		//assert.Equal(t, "Invalid name", exception.What(), exception.Message())
-		fmt.Println(exception.GetDetailMessage(ex))
+		fmt.Println(ex.DetailMessage())
 		testflag = true
 	})
 	assert.Equal(t, true, testflag, "check name is wrong")

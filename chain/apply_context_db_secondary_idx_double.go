@@ -234,7 +234,7 @@ func (i *IdxDouble) previous(iterator int, primary *uint64) int {
 
 	if iterator < -1 {
 		tab := i.itrCache.findTablebyEndIterator(iterator)
-		EosAssert(tab != nil, &InvalidTableTterator{}, "not a valid end iterator")
+		EosAssert(tab != nil, &InvalidTableIterator{}, "not a valid end iterator")
 
 		objTId := entity.SecondaryObjectDouble{TId: tab.ID}
 
@@ -381,7 +381,7 @@ func (i *IdxDouble) previousPrimary(iterator int, primary *uint64) int {
 
 	if iterator < -1 {
 		tab := i.itrCache.findTablebyEndIterator(iterator)
-		EosAssert(tab != nil, &InvalidTableTterator{}, "not a valid end iterator")
+		EosAssert(tab != nil, &InvalidTableIterator{}, "not a valid end iterator")
 
 		objTId := entity.SecondaryObjectDouble{TId: tab.ID}
 

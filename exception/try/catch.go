@@ -1,17 +1,16 @@
 package try
 
 import (
-	"reflect"
 	. "github.com/eosspark/eos-go/exception"
-	. "github.com/eosspark/eos-go/log"
+	"github.com/eosspark/eos-go/log"
+	"reflect"
 )
 
 type CatchOrFinally struct {
-	e         interface{}
+	e interface{}
 	//stackInfo []byte
 	//StackTrace []StackInfo
 }
-
 
 //Catch call the exception handler. And return interface CatchOrFinally that
 //can call Catch or Finally.
@@ -36,6 +35,97 @@ func (c *CatchOrFinally) Catch(f interface{}) (r *CatchOrFinally) {
 		///*debug*/fmt.Println("catch-special-fail", time.Now().Nanosecond() - s, "ns")
 		return c
 
+	case func(AbiExceptions):
+		if et, ok := c.e.(AbiExceptions); ok {
+			ft(et)
+			return nil
+		}
+		return c
+
+	case func(ActionValidateExceptions):
+		if et, ok := c.e.(ActionValidateExceptions); ok {
+			ft(et)
+			return nil
+		}
+		return c
+
+	case func(AuthorizationExceptions):
+		if et, ok := c.e.(AuthorizationExceptions); ok {
+			ft(et)
+			return nil
+		}
+		return c
+
+	case func(BlockLogExceptions):
+		if et, ok := c.e.(BlockLogExceptions); ok {
+			ft(et)
+			return nil
+		}
+		return c
+
+	case func(BlockValidateExceptions):
+		if et, ok := c.e.(BlockValidateExceptions); ok {
+			ft(et)
+			return nil
+		}
+		return c
+
+	case func(ChainExceptions):
+		if et, ok := c.e.(ChainExceptions); ok {
+			ft(et)
+			return nil
+		}
+		return c
+
+	case func(ChainTypeExceptions):
+		if et, ok := c.e.(ChainTypeExceptions); ok {
+			ft(et)
+			return nil
+		}
+		return c
+
+	case func(ContractApiExceptions):
+		if et, ok := c.e.(ContractApiExceptions); ok {
+			ft(et)
+			return nil
+		}
+		return c
+
+	case func(ContractExceptions):
+		if et, ok := c.e.(ContractExceptions); ok {
+			ft(et)
+			return nil
+		}
+		return c
+
+	case func(ControllerEmitSignalExceptions):
+		if et, ok := c.e.(ControllerEmitSignalExceptions); ok {
+			ft(et)
+			return nil
+		}
+		return c
+
+	case func(DatabaseExceptions):
+		if et, ok := c.e.(DatabaseExceptions); ok {
+			ft(et)
+			return nil
+		}
+		return c
+
+	case func(DeadlineExceptions):
+		if et, ok := c.e.(DeadlineExceptions); ok {
+			ft(et)
+			return nil
+		}
+		return c
+
+	case func(ForkDatabaseExceptions):
+		if et, ok := c.e.(ForkDatabaseExceptions); ok {
+			ft(et)
+			return nil
+		}
+		return c
+
 	case func(GuardExceptions):
 		if et, ok := c.e.(GuardExceptions); ok {
 			ft(et)
@@ -43,33 +133,85 @@ func (c *CatchOrFinally) Catch(f interface{}) (r *CatchOrFinally) {
 		}
 		return c
 
-	/*
-	 * catch specific exception
-	 */
-	case func(*PermissionQueryException):
-		if et, ok := c.e.(*PermissionQueryException); ok {
+	case func(HttpExceptions):
+		if et, ok := c.e.(HttpExceptions); ok {
 			ft(et)
 			return nil
 		}
 		return c
 
-	case func(*AssertException):
-		if et, ok := c.e.(*AssertException); ok {
+	case func(MiscExceptions):
+		if et, ok := c.e.(MiscExceptions); ok {
 			ft(et)
 			return nil
 		}
 		return c
 
-	case func(*UnknownBlockException):
-		if et, ok := c.e.(*UnknownBlockException); ok {
+	case func(MongoDbExceptions):
+		if et, ok := c.e.(MongoDbExceptions); ok {
 			ft(et)
 			return nil
 		}
 		return c
 
+	case func(PluginExceptions):
+		if et, ok := c.e.(PluginExceptions); ok {
+			ft(et)
+			return nil
+		}
+		return c
 
-	case func(error):
-		if et, ok := c.e.(error); ok {
+	case func(ProducerExceptions):
+		if et, ok := c.e.(ProducerExceptions); ok {
+			ft(et)
+			return nil
+		}
+		return c
+
+	case func(ResourceExhaustedExceptions):
+		if et, ok := c.e.(ResourceExhaustedExceptions); ok {
+			ft(et)
+			return nil
+		}
+		return c
+
+	case func(ResourceLimitExceptions):
+		if et, ok := c.e.(ResourceLimitExceptions); ok {
+			ft(et)
+			return nil
+		}
+		return c
+
+	case func(ReversibleBlocksExceptions):
+		if et, ok := c.e.(ReversibleBlocksExceptions); ok {
+			ft(et)
+			return nil
+		}
+		return c
+
+	case func(TransactionExceptions):
+		if et, ok := c.e.(TransactionExceptions); ok {
+			ft(et)
+			return nil
+		}
+		return c
+
+	case func(WalletExceptions):
+		if et, ok := c.e.(WalletExceptions); ok {
+			ft(et)
+			return nil
+		}
+		return c
+
+	case func(WasmExceptions):
+		if et, ok := c.e.(WasmExceptions); ok {
+			ft(et)
+			return nil
+		}
+		return c
+
+	case func(WhitelistBlacklistExceptions):
+		if et, ok := c.e.(WhitelistBlacklistExceptions); ok {
 			ft(et)
 			return nil
 		}
@@ -78,8 +220,12 @@ func (c *CatchOrFinally) Catch(f interface{}) (r *CatchOrFinally) {
 	case func(interface{}):
 		ft(c.e)
 		return nil
-	}
 
+	default:
+		if et, ok := c.e.(Exception); ok && et.Callback(f) {
+			return nil
+		}
+	}
 
 	// make sure all panic can be caught
 	rf := reflect.ValueOf(f)
@@ -118,37 +264,33 @@ func (c *CatchOrFinally) Catch(f interface{}) (r *CatchOrFinally) {
 }
 
 //Necessary to call at the end of try-catch block, to ensure panic uncaught exceptions
-func (c *CatchOrFinally) End() {
+func (c *CatchOrFinally) End() *CatchOrFinally {
 	if c != nil && c.e != nil {
 		//if DEBUG {
 		//	c.printStackInfo()
 		//}
 		Throw(c.e)
 	}
-	stackInfo = nil
+	return nil
 }
 
-func (c *CatchOrFinally) printStackInfo() {
-	switch e := c.e.(type) {
-	case Exception:
-		Error(GetDetailMessage(e))
-	case error:
-		Error(e.Error())
-	}
-
-	//Error(string(c.stackInfo))
-}
+//func (c *CatchOrFinally) printStackInfo() {
+//	switch e := c.e.(type) {
+//	case Exception:
+//		Error(e.DetailMessage())
+//	case error:
+//		Error(e.Error())
+//	}
+//
+//	//Error(string(c.stackInfo))
+//}
 
 func (c *CatchOrFinally) CatchAndCall(Next func(interface{})) *CatchOrFinally {
 	return c.Catch(func(err Exception) {
 		Next(err)
 
-	}).Catch(func(e error) {
-		fce := &FcException{ELog: NewELog(FcLogMessage(LvlWarn, "rethrow %s: ", e.Error()))}
-		Next(fce)
-
 	}).Catch(func(interface{}) {
-		e := &UnHandledException{ELog: NewELog(FcLogMessage(LvlWarn, "rethrow"))}
+		e := &UnHandledException{Elog: log.Messages{log.FcLogMessage(log.LvlWarn, "rethrow")}}
 		Next(e)
 	})
 }

@@ -537,7 +537,7 @@ func newErrorInfo(exc Exception, includeLog bool) errorInfo {
 			}
 			// Append error
 			detail := errorDetail{
-				message: itr.Message(),
+				message: itr.GetMessage(),
 				//file:,
 				//lineNumber:,
 				//method:,
@@ -578,18 +578,18 @@ func HandleException(e interface{}, apiName, callName, body string, cb UrlRespon
 			cb(500, re)
 			if e.Code() != (GreylistNetUsageExceeded{}).Code() && e.Code() != (GreylistCpuUsageExceeded{}).Code() {
 				hlog.Error("FC Exception encountered while processing %s.%s", apiName, callName)
-				hlog.Debug("Exception Details: %s", GetDetailMessage(e))
+				hlog.Debug("Exception Details: %s", e.DetailMessage())
 			}
 		}).Catch(func(e error) {
 			results := errorResults{500, "Internal Service Error",
-				newErrorInfo(&FcException{ELog: NewELog(log.FcLogMessage(log.LvlError, e.Error()))}, verboseHttpErrors)}
+				newErrorInfo(&FcException{Elog: log.Messages{log.FcLogMessage(log.LvlError, e.Error())}}, verboseHttpErrors)}
 			re, _ := json.Marshal(results)
 			cb(500, re)
 			hlog.Error("STD Exception encountered while processing %s.%s", apiName, callName)
 			hlog.Debug("Exception Details: %s", e.Error())
 		}).Catch(func(interface{}) {
 			results := errorResults{500, "Internal Service Error",
-				newErrorInfo(&FcException{ELog: NewELog(log.FcLogMessage(log.LvlError, "Unknown Exception"))}, verboseHttpErrors)}
+				newErrorInfo(&FcException{Elog: log.Messages{log.FcLogMessage(log.LvlError, "Unknown Exception")}}, verboseHttpErrors)}
 			re, _ := json.Marshal(results)
 			cb(500, re)
 			hlog.Error("Unknown Exception encountered while processing %s.%s", apiName, callName)

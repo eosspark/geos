@@ -1,9 +1,9 @@
 package try
 
 import (
+	//. "github.com/eosspark/eos-go/exceptionx"
 	. "github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/log"
-	"fmt"
 	"os"
 )
 
@@ -32,7 +32,7 @@ func EosThrow(exception Exception, format string, args ...interface{}) {
 }
 
 func FcThrow(format string, args ...interface{}) {
-	Throw(&FcException{ELog: NewELog(FcLogMessage(LvlError, format, args...))})
+	Throw(&FcException{Elog: []Message{FcLogMessage(LvlError, format, args...)}})
 }
 
 func FcCaptureAndThrow(exception Exception, format string, args ...interface{}) {
@@ -62,96 +62,102 @@ func (c *CatchOrFinally) EosRethrowExceptions(exception Exception, format string
 		}
 		Throw(exception)
 
-	}).Catch(func(e error) {
-		exception.AppendLog(FcLogMessage(LvlWarn, fmt.Sprintf("%s (%s)", format, e.Error()), args...))
-		Throw(exception)
+		//replaced by StdException
+		//}).Catch(func(e error) {
+		//	exception.AppendLog(FcLogMessage(LvlWarn, fmt.Sprintf("%s (%s)", format, e.Error()), args...))
+		//	Throw(exception)
 
 	}).Catch(func(interface{}) {
-		Throw(&UnHandledException{NewELog(FcLogMessage(LvlWarn, format, args...))})
-	})
+		Throw(&UnHandledException{Elog: []Message{FcLogMessage(LvlWarn, format, args...)}})
+	}).End()
 }
 
 func (c *CatchOrFinally) FcLogAndRethrow() *CatchOrFinally {
 	return c.Catch(func(er Exception) {
-		Warn(GetDetailMessage(er))
+		Warn(er.DetailMessage())
 		FcRethrowException(er, LvlWarn, "rethrow")
 
-	}).Catch(func(e error) {
-		fce := &FcException{ELog: NewELog(FcLogMessage(LvlWarn, "rethrow: %s", e.Error()))}
-		Warn(GetDetailMessage(fce))
-		Throw(fce)
+		//replaced by StdException
+		//}).Catch(func(e error) {
+		//	fce := &FcException{Elog: []Message{FcLogMessage(LvlWarn, "rethrow: %s", e.Error())}}
+		//	Warn(fce.DetailMessage())
+		//	Throw(fce)
 
 	}).Catch(func(a interface{}) {
-		e := &UnHandledException{ELog: NewELog(FcLogMessage(LvlWarn, "rethrow %v", a))}
-		Warn(GetDetailMessage(e))
+		e := &UnHandledException{Elog: []Message{FcLogMessage(LvlWarn, "rethrow %v", a)}}
+		Warn(e.DetailMessage())
 		Throw(e)
-	})
+	}).End()
 }
 
 func (c *CatchOrFinally) FcCaptureLogAndRethrow(args ...interface{}) *CatchOrFinally {
 	return c.Catch(func(er Exception) {
-		Warn(GetDetailMessage(er))
+		Warn(er.DetailMessage())
 		format, arg := FcFormatArgParams(args)
 		FcRethrowException(er, LvlWarn, "rethrow "+format, arg...)
 
-	}).Catch(func(e error) {
-		format, arg := FcFormatArgParams(args)
-		fce := &FcException{ELog: NewELog(FcLogMessage(LvlWarn, fmt.Sprintf("rethrow %s %s", e.Error(), format), arg...))}
-		Warn(GetDetailMessage(fce))
-		Throw(fce)
+		//replaced by StdException
+		//}).Catch(func(e error) {
+		//	format, arg := FcFormatArgParams(args)
+		//	fce := &FcException{Elog: []Message{FcLogMessage(LvlWarn, fmt.Sprintf("rethrow %s %s", e.Error(), format), arg...)}}
+		//	Warn(fce.DetailMessage())
+		//	Throw(fce)
 
 	}).Catch(func(interface{}) {
 		format, arg := FcFormatArgParams(args)
-		e := &UnHandledException{ELog: NewELog(FcLogMessage(LvlWarn, "rethrow "+format, arg...))}
-		Warn(GetDetailMessage(e))
+		e := &UnHandledException{Elog: []Message{FcLogMessage(LvlWarn, "rethrow "+format, arg...)}}
+		Warn(e.DetailMessage())
 		Throw(e)
-	})
+	}).End()
 }
 
 func (c *CatchOrFinally) FcCaptureAndLog(args ...interface{}) *CatchOrFinally {
 	return c.Catch(func(er Exception) {
-		Warn(GetDetailMessage(er))
+		Warn(er.DetailMessage())
 
-	}).Catch(func(e error) {
-		format, arg := FcFormatArgParams(args)
-		fce := &FcException{ELog: NewELog(FcLogMessage(LvlWarn, fmt.Sprintf("rethrow %s: %s", e.Error(), format), arg...))}
-		Warn(GetDetailMessage(fce))
+		//replaced by StdException
+		//}).Catch(func(e error) {
+		//	format, arg := FcFormatArgParams(args)
+		//	fce := &FcException{Elog: []Message{FcLogMessage(LvlWarn, fmt.Sprintf("rethrow %s: %s", e.Error(), format), arg...)}}
+		//	Warn(fce.DetailMessage())
 
 	}).Catch(func(a interface{}) {
 		format, arg := FcFormatArgParams(args)
-		e := &UnHandledException{ELog: NewELog(FcLogMessage(LvlWarn, "rethrow "+format, arg...))}
-		Warn(GetDetailMessage(e))
-	})
+		e := &UnHandledException{Elog: []Message{FcLogMessage(LvlWarn, "rethrow "+format, arg...)}}
+		Warn(e.DetailMessage())
+	}).End()
 }
 
 func (c *CatchOrFinally) FcLogAndDrop(args ...interface{}) *CatchOrFinally {
 	return c.Catch(func(er Exception) {
-		Warn(GetDetailMessage(er))
+		Warn(er.DetailMessage())
 
-	}).Catch(func(e error) {
-		format, arg := FcFormatArgParams(args)
-		fce := &FcException{ELog: NewELog(FcLogMessage(LvlWarn, fmt.Sprintf("rethrow %s: %s", e.Error(), format), arg...))}
-		Warn(GetDetailMessage(fce))
+		//replaced by StdException
+		//}).Catch(func(e error) {
+		//	format, arg := FcFormatArgParams(args)
+		//	fce := &FcException{Elog: []Message{FcLogMessage(LvlWarn, fmt.Sprintf("rethrow %s: %s", e.Error(), format), arg...)}}
+		//	Warn(fce.DetailMessage())
 
 	}).Catch(func(a interface{}) {
 		format, arg := FcFormatArgParams(args)
-		e := &UnHandledException{ELog: NewELog(FcLogMessage(LvlWarn, "rethrow "+format, arg...))}
-		Warn(GetDetailMessage(e))
-	})
+		e := &UnHandledException{Elog: []Message{FcLogMessage(LvlWarn, "rethrow "+format, arg...)}}
+		Warn(e.DetailMessage())
+	}).End()
 }
 
 func (c *CatchOrFinally) FcRethrowExceptions(logLevel Lvl, format string, args ...interface{}) *CatchOrFinally {
 	return c.Catch(func(er Exception) {
 		FcRethrowException(er, logLevel, format, args...)
 
-	}).Catch(func(e error) {
-		fce := &FcException{ELog: NewELog(FcLogMessage(logLevel, fmt.Sprintf("%s: %s", e.Error(), format), args...))}
-		Throw(fce)
+		//replaced by StdException
+		//}).Catch(func(e error) {
+		//	fce := &FcException{Elog: []Message{FcLogMessage(logLevel, fmt.Sprintf("%s: %s", e.Error(), format), args...)}}
+		//	Throw(fce)
 
 	}).Catch(func(interface{}) {
-		e := &UnHandledException{ELog: NewELog(FcLogMessage(logLevel, format, args...))}
+		e := &UnHandledException{Elog: []Message{FcLogMessage(logLevel, format, args...)}}
 		Throw(e)
-	})
+	}).End()
 }
 
 //noinspection ALL
@@ -160,16 +166,17 @@ func (c *CatchOrFinally) FcCaptureAndRethrow(args ...interface{}) *CatchOrFinall
 		format, arg := FcFormatArgParams(args)
 		FcRethrowException(er, LvlWarn, format, arg...)
 
-	}).Catch(func(e error) {
-		format, arg := FcFormatArgParams(args)
-		fce := &FcException{NewELog(FcLogMessage(LvlWarn, fmt.Sprintf("%s: %s", e.Error(), format), arg...))}
-		Throw(fce)
+		//replaced by StdException
+		//}).Catch(func(e error) {
+		//	format, arg := FcFormatArgParams(args)
+		//	fce := &FcException{Elog: []Message{FcLogMessage(LvlWarn, fmt.Sprintf("%s: %s", e.Error(), format), arg...)}}
+		//	Throw(fce)
 
 	}).Catch(func(interface{}) {
 		format, arg := FcFormatArgParams(args)
-		e := &UnHandledException{NewELog(FcLogMessage(LvlWarn, format, arg...))}
+		e := &UnHandledException{Elog: []Message{FcLogMessage(LvlWarn, format, arg...)}}
 		Throw(e)
-	})
+	}).End()
 }
 
 func FcFormatArgParams(args []interface{}) (string, []interface{}) {
