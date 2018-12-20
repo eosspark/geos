@@ -45,7 +45,7 @@ func (a Action) DataAs(t interface{}) {
 type ActionData struct {
 	HexData  common.HexBytes `json:"hex_data,omitempty"`
 	Data     interface{}     `json:"data,omitempty" eos:"-"`
-	abi      []byte // TBD: we could use the ABI to decode in obj
+	abi      []byte          // TBD: we could use the ABI to decode in obj
 	toServer bool
 }
 

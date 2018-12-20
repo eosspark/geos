@@ -27,7 +27,7 @@ func (a *AbiDef) DecodeAction(actionName string, data []byte) ([]byte, error) {
 
 func (a *AbiDef) DecodeTableRow(tableName string, data []byte) ([]byte, error) {
 	binaryDecoder := rlp.NewDecoder(data)
-	tbl := a.TableForName(common.N(tableName))
+	tbl := a.TableForName(tableName)
 	if tbl == nil {
 		return []byte{}, fmt.Errorf("table name %s not found in abi", tableName)
 	}

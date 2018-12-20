@@ -204,7 +204,7 @@ func NewWasmGo() *WasmGo {
 	wasmGo.ilog = log.New("wasmgo")
 	logHandler := log.StreamHandler(os.Stdout, log.TerminalFormat(true))
 	wasmGo.ilog.SetHandler(log.LvlFilterHandler(log.LvlDebug, logHandler))
-	wasmGo.ilog.SetHandler(log.LvlFilterHandler(log.LvlInfo, logHandler))
+	//wasmGo.ilog.SetHandler(log.LvlFilterHandler(log.LvlInfo, logHandler))
 	return wasmGo
 }
 

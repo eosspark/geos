@@ -81,7 +81,6 @@ func TestLongdata(t *testing.T) {
 	testlog.Debug("%#v", data)
 }
 
-
 func TestFcLogMessage(t *testing.T) {
 	makeLog := func(msg string) {
 		message := FcLogMessage(LvlInfo, "test FC_LOG_MESSAGE %s", msg)

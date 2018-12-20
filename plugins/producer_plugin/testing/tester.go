@@ -1,12 +1,12 @@
 package testing
 
 import (
-	"github.com/eosspark/eos-go/crypto/ecc"
-	"github.com/eosspark/eos-go/common"
-	"github.com/eosspark/eos-go/chain/types"
-	"github.com/eosspark/eos-go/crypto"
-		"github.com/eosspark/container/maps/treemap"
+	"github.com/eosspark/container/maps/treemap"
 	"github.com/eosspark/container/utils"
+	"github.com/eosspark/eos-go/chain/types"
+	"github.com/eosspark/eos-go/common"
+	"github.com/eosspark/eos-go/crypto"
+	"github.com/eosspark/eos-go/crypto/ecc"
 )
 
 type ChainTester struct {
@@ -39,7 +39,6 @@ func NewChainTester(when types.BlockTimeStamp, names ...common.AccountName) *Cha
 
 	return tester
 }
-
 
 func (t *ChainTester) NewProducerScheduleTester(names ...common.AccountName) types.ProducerScheduleType {
 	if len(names) == 0 {

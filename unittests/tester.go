@@ -17,7 +17,6 @@ import (
 	"github.com/eosspark/eos-go/log"
 	"io/ioutil"
 	"math"
-	"reflect"
 )
 
 var CORE_SYMBOL = common.Symbol{Precision: 4, Symbol: "SYS"}
@@ -147,7 +146,7 @@ func (t BaseTester) produceBlock(skipTime common.Microseconds, skipPendingTrxs b
 		t.startBlock(nextTime)
 	}
 	Hbs := t.Control.HeadBlockState()
-	producer := Hbs.GetScheduledProducer(types.BlockTimeStamp(nextTime))
+	producer := Hbs.GetScheduledProducer(types.NewBlockTimeStamp(nextTime))
 	privKey := ecc.PrivateKey{}
 	privateKey, ok := t.BlockSigningPrivateKeys[producer.BlockSigningKey.String()]
 	if !ok {
@@ -361,33 +360,33 @@ func (t BaseTester) PushAction4(code *common.AccountName, acttype *common.Accoun
 
 func (t BaseTester) GetAction(code common.AccountName, actType common.AccountName,
 	auths []types.PermissionLevel, data *common.Variants) *types.Action {
-	//acnt := t.Control.GetAccount(code)
-	//a := acnt.GetAbi()
-	//action := types.Action{code, actType, auths, nil}
-	////actionTypeName := a.ActionForName(actType).Type
-	//buf, _ := json.Marshal(data)
-	////if err != nil {
-	////	log.Error("tester GetAction Marshal is error:%s", err)
-	////}
-	////action.Data, _ = a.EncodeAction(common.N(actionTypeName), buf) //TODO
-	//action.Data, _ = a.EncodeAction(actType, buf)
-	////if err != nil {
-	////	log.Error("tester GetAction EncodeAction is error:%s", err)
-	////}
-	//return &action
-
+	acnt := t.Control.GetAccount(code)
+	a := acnt.GetAbi()
 	action := types.Action{code, actType, auths, nil}
-	try.Try(func() {
-		acnt := t.Control.GetAccount(code)
-		a := acnt.GetAbi()
-		abis := abi.NewAbiSerializer(a, t.AbiSerializerMaxTime)
-		actionTypeName := abis.GetActionType(actType)
-		try.FcAssert(reflect.TypeOf(actionTypeName).Kind() == reflect.String, "unknown action type %s", actType)
-
-		action.Data = abis.VariantToBinary(actionTypeName, data, t.AbiSerializerMaxTime)
-
-	}).FcCaptureAndRethrow().End()
+	//actionTypeName := a.ActionForName(actType).Type
+	buf, _ := json.Marshal(data)
+	//if err != nil {
+	//	log.Error("tester GetAction Marshal is error:%s", err)
+	//}
+	//action.Data, _ = a.EncodeAction(common.N(actionTypeName), buf) //TODO
+	action.Data, _ = a.EncodeAction(actType, buf)
+	//if err != nil {
+	//	log.Error("tester GetAction EncodeAction is error:%s", err)
+	//}
 	return &action
+
+	//action := types.Action{code, actType, auths, nil}
+	//try.Try(func() {
+	//	acnt := t.Control.GetAccount(code)
+	//	a := acnt.GetAbi()
+	//	abis := abi.NewAbiSerializer(a, t.AbiSerializerMaxTime)
+	//	actionTypeName := abis.GetActionType(actType)
+	//	try.FcAssert(reflect.TypeOf(actionTypeName).Kind() == reflect.String, "unknown action type %s", actType)
+	//
+	//	action.Data = abis.VariantToBinary(actionTypeName, data, t.AbiSerializerMaxTime)
+	//
+	//}).FcCaptureAndRethrow().End()
+	//return &action
 }
 
 func (t BaseTester) getPrivateKey(keyName common.Name, role string) ecc.PrivateKey {
@@ -738,7 +737,7 @@ func (t BaseTester) PushGenesisBlock() {
 
 func (t BaseTester) GetProducerKeys(producerNames *[]common.AccountName) []types.ProducerKey {
 	var schedule []types.ProducerKey
-	for producerName := range *producerNames {
+	for _, producerName := range *producerNames {
 		pk := types.ProducerKey{ProducerName: common.AccountName(producerName), BlockSigningKey: t.getPublicKey(common.AccountName(producerName), "active")}
 		schedule = append(schedule, pk)
 	}
@@ -802,6 +801,14 @@ func newValidatingTester(pushGenesis bool, readMode DBReadMode) *ValidatingTeste
 	return vt
 }
 
+func (vt ValidatingTester) DefaultProduceBlock() *types.SignedBlock {
+	skipTime := common.DefaultConfig.BlockIntervalMs
+	skipFlag := uint32(0)
+	sb := vt.produceBlock(common.Milliseconds(skipTime), false, skipFlag/2)
+	vt.ValidatingControl.PushBlock(sb, types.Complete)
+	return sb
+}
+
 func NewValidatingTesterTrustedProducers(trustedProducers *treeset.Set) *ValidatingTester {
 	vt := &ValidatingTester{}
 	vcfg := newConfig(SPECULATIVE)
@@ -825,6 +832,10 @@ func (vt ValidatingTester) ProduceEmptyBlock(skipTime common.Microseconds, skipF
 	return sb
 }
 
+func (vt ValidatingTester) Validate() bool {
+	return true
+}
+
 func (vt ValidatingTester) ValidatePushBlock(sb *types.SignedBlock) {
 	vt.ValidatingControl.PushBlock(sb, types.Complete)
 }
@@ -837,4 +848,51 @@ func (vt *ValidatingTester) close() {
 func CoreFromString(s string) common.Asset {
 	str := s + " " + CORE_SYMBOL_NAME
 	return common.Asset{}.FromString(&str)
+}
+
+func (vt *ValidatingTester) CreateDefaultAccount(name common.AccountName) *types.TransactionTrace {
+	includeCode := true
+	creator := common.N("eosio")
+	trx := types.SignedTransaction{}
+	vt.SetTransactionHeaders(&trx.Transaction, vt.DefaultExpirationDelta, 0) //TODO: test
+
+	ownerAuth := types.NewAuthority(vt.getPublicKey(name, "owner"), 0)
+
+	activeAuth := types.NewAuthority(vt.getPublicKey(name, "active"), 0)
+
+	sortPermissions := func(auth *types.Authority) {}
+	if includeCode {
+		try.EosAssert(ownerAuth.Threshold <= math.MaxUint16, nil, "threshold is too high")
+		try.EosAssert(uint64(activeAuth.Threshold) <= uint64(math.MaxUint64), nil, "threshold is too high")
+		ownerAuth.Accounts = append(ownerAuth.Accounts, types.PermissionLevelWeight{
+			Permission: types.PermissionLevel{Actor: name, Permission: common.DefaultConfig.EosioCodeName},
+			Weight:     types.WeightType(ownerAuth.Threshold),
+		})
+		sortPermissions(&ownerAuth)
+		activeAuth.Accounts = append(activeAuth.Accounts, types.PermissionLevelWeight{
+			Permission: types.PermissionLevel{Actor: name, Permission: common.DefaultConfig.EosioCodeName},
+			Weight:     types.WeightType(activeAuth.Threshold),
+		})
+		sortPermissions(&activeAuth)
+	}
+	new := NewAccount{
+		Creator: creator,
+		Name:    name,
+		Owner:   ownerAuth,
+		Active:  activeAuth,
+	}
+	data, _ := rlp.EncodeToBytes(new)
+	act := &types.Action{
+		Account:       new.GetAccount(),
+		Name:          new.GetName(),
+		Authorization: []types.PermissionLevel{{creator, common.DefaultConfig.ActiveName}},
+		Data:          data,
+	}
+	trx.Actions = append(trx.Actions, act)
+
+	vt.SetTransactionHeaders(&trx.Transaction, vt.DefaultExpirationDelta, 0)
+	pk := vt.getPrivateKey(creator, "active")
+	chainId := vt.Control.GetChainId()
+	trx.Sign(&pk, &chainId)
+	return vt.PushTransaction(&trx, common.MaxTimePoint(), vt.DefaultBilledCpuTimeUs)
 }

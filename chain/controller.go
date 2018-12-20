@@ -724,9 +724,9 @@ func (c *Controller) GetScheduledTransactions() []common.TransactionIdType {
 	}
 	if itr != nil {
 		itr.Release()
-	} else {
+	} /*else {
 		log.Info("Controller GetScheduledTransactions byDelay is not found data")
-	}
+	}*/
 	return result
 }
 func (c *Controller) PushScheduledTransaction(trxId *common.TransactionIdType, deadLine common.TimePoint, billedCpuTimeUs uint32) *types.TransactionTrace {
@@ -1468,7 +1468,7 @@ func (c *Controller) ValidateReferencedAccounts(t *types.Transaction) {
 
 func (c *Controller) ValidateExpiration(t *types.Transaction) {
 	chainConfiguration := c.GetGlobalProperties().Configuration
-	log.Info("ValidateExpiration t.Expiration.ToTimePoint():%#v,c.PendingBlockTime():%#v", t.Expiration.ToTimePoint(), c.PendingBlockTime())
+	//log.Info("ValidateExpiration t.Expiration.ToTimePoint():%#v,c.PendingBlockTime():%#v", t.Expiration.ToTimePoint(), c.PendingBlockTime())
 	EosAssert(t.Expiration.ToTimePoint() >= c.PendingBlockTime(),
 		&ExpiredTxException{}, "transaction has expired, expiration is %v and pending block time is %v",
 		t.Expiration, c.PendingBlockTime())
@@ -1768,7 +1768,7 @@ func (c *Controller) initialize() {
 	for uint32(c.DB.Revision()) > c.Head.BlockNum {
 		c.DB.Undo()
 	}
-	log.Info("controller initialize finished")
+	//log.Info("controller initialize finished")
 }
 
 func (c *Controller) clearExpiredInputTransactions() {
