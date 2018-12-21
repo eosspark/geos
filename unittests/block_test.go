@@ -34,9 +34,9 @@ func TestBlockWithInvalidTx(t *testing.T) {
 	act.Data, err = rlp.EncodeToBytes(actData)
 	assert.NoError(t, err)
 
-//act1 := signedTx.Actions[len(signedTx.Actions)-1]
-//actData1 := chain.NewAccount{}
-//act1.DataAs(&actData1)
+	//act1 := signedTx.Actions[len(signedTx.Actions)-1]
+	//actData1 := chain.NewAccount{}
+	//act1.DataAs(&actData1)
 
 	// Re-sign the transaction
 	signedTx.Signatures = make([]ecc.Signature, 0)
@@ -59,10 +59,10 @@ func TestBlockWithInvalidTx(t *testing.T) {
 	validator := newBaseTester(true, chain.SPECULATIVE)
 	validator.Control.AbortBlock()
 
-//signedTx2 := copyB.Transactions[len(copyB.Transactions)-1].Trx.PackedTransaction.GetSignedTransaction()
-//act2 := signedTx2.Actions[len(signedTx.Actions)-1]
-//actData2 := chain.NewAccount{}
-//act2.DataAs(&actData2)
+	//signedTx2 := copyB.Transactions[len(copyB.Transactions)-1].Trx.PackedTransaction.GetSignedTransaction()
+	//act2 := signedTx2.Actions[len(signedTx.Actions)-1]
+	//actData2 := chain.NewAccount{}
+	//act2.DataAs(&actData2)
 
 	requireException := false
 

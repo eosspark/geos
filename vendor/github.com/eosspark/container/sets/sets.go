@@ -23,3 +23,9 @@ type Set interface {
 	// Clear()
 	// Values() []interface{}
 }
+
+type TSet interface {
+	Empty() bool
+	Size() int
+	Clear()
+}

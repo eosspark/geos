@@ -1,20 +1,46 @@
 package common
 
 import (
-	"github.com/eosspark/eos-go/log"
-	"strconv"
-	"strings"
 	"encoding/json"
 	"fmt"
-	"github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/exception"
+	"github.com/eosspark/eos-go/exception/try"
+	"github.com/eosspark/eos-go/log"
 	"math"
+	"strconv"
+	"strings"
 )
 
-// NOTE: there's also ExtendedAsset which is a quantity with the attached contract (AccountName)
+var maxAmount int64 = int64(1)<<62 - 1
+
 type Asset struct {
 	Amount int64 `eos:"asset"`
 	Symbol
+}
+
+//func (a Asset) Pack(p *fcbuffer.PackStream) error {
+//	p.WriteInt64(a.Amount)
+//	return a.Symbol.Pack(p)
+//
+//}
+//
+//func (a *Asset) Unpack(u *fcbuffer.UnPackStream) error {
+//	a.Amount, _ = u.ReadInt64()
+//	a.Symbol.Unpack(u)
+//	return nil
+//}
+
+func (a *Asset) assert() {
+	try.EosAssert(a.isAmountWithinRange(), &exception.AssetTypeException{}, "magnitude of asset amount must be less than 2^62")
+	try.EosAssert(a.Symbol.valid(), &exception.AssetTypeException{}, "invalid symbol")
+}
+
+func (a *Asset) isAmountWithinRange() bool {
+	return -maxAmount <= a.Amount && a.Amount <= maxAmount
+}
+
+func (a *Asset) isValid() bool {
+	return a.isAmountWithinRange() && a.Symbol.valid()
 }
 
 func (a Asset) Add(other Asset) Asset {
@@ -80,11 +106,13 @@ func (a Asset) FromString(from *string) Asset {
 		intPart, _ = strconv.ParseInt(amountStr, 10, 64)
 	}
 	amount := intPart
-	for i := uint8(0) ; i < sym.Precision; i++ {
+	for i := uint8(0); i < sym.Precision; i++ {
 		amount *= 10
 	}
 	amount += fractPart
-	return Asset{Amount: amount, Symbol: sym}
+	asset := Asset{Amount: amount, Symbol: sym}
+	asset.assert()
+	return asset
 }
 
 type ExtendedAsset struct {
@@ -102,6 +130,27 @@ type Symbol struct {
 
 var MaxPrecision = uint8(18)
 
+//func (s Symbol) Pack(p *fcbuffer.PackStream) error {
+//	p.WriteUint8(s.Precision)
+//	symbol := make([]byte, 7, 7)
+//	copy(symbol[:], []byte(s.Symbol))
+//	p.ToWriter(symbol)
+//	return nil
+//}
+//
+//func (s *Symbol) Unpack(u *fcbuffer.UnPackStream) error {
+//	s.Precision, _ = u.ReadUint8()
+//
+//	if u.Remaining() < 7 {
+//		u.Log.Error("asset symbol required [%d] bytes, remaining [%d]", 7, u.Remaining())
+//		return nil
+//	}
+//	data := u.Data[u.Pos : u.Pos+7]
+//	u.Pos += 7
+//	s.Symbol = strings.TrimRight(string(data), "\x00")
+//	return nil
+//}
+
 func (sym Symbol) FromString(from *string) Symbol {
 	//TODO: unComplete
 	try.EosAssert(!Empty(*from), &exception.SymbolTypeException{}, "creating symbol from empty string")
@@ -115,20 +164,37 @@ func (sym Symbol) FromString(from *string) Symbol {
 }
 
 func (sym *Symbol) SymbolValue() uint64 {
-    result := uint64(0)
-	for i := len(sym.Symbol) - 1; i >= 0; i--{
-		if sym.Symbol[i] < 'A' || sym.Symbol[i] > 'Z'{
+	result := uint64(0)
+	for i := len(sym.Symbol) - 1; i >= 0; i-- {
+		if sym.Symbol[i] < 'A' || sym.Symbol[i] > 'Z' {
 			log.Error("symbol cannot exceed A~Z")
 		} else {
 			result |= uint64(sym.Symbol[i])
 		}
 		result = result << 8
-    }
+	}
 	result |= uint64(sym.Precision)
 	return result
 }
 func (sym *Symbol) ToSymbolCode() SymbolCode {
 	return SymbolCode(sym.SymbolValue()) >> 8
+}
+func (sym *Symbol) decimals() uint8 {
+	return sym.Precision
+}
+
+func (sym *Symbol) name() string {
+	return sym.Symbol
+}
+
+func (sym *Symbol) valid() bool {
+	return sym.decimals() <= MaxPrecision && sym.validName(sym.Symbol)
+}
+
+func (sym *Symbol) validName(name string) bool {
+	return -1 == strings.IndexFunc(name, func(r rune) bool {
+		return !(r >= 'A' && r <= 'Z')
+	})
 }
 
 // EOSSymbol represents the standard EOS symbol on the chain.  It's
@@ -168,7 +234,9 @@ func NewEOSAssetFromString(amount string) (out Asset, err error) {
 }
 
 func NewEOSAsset(amount int64) Asset {
-	return Asset{Amount: amount, Symbol: EOSSymbol}
+	asset := Asset{Amount: amount, Symbol: EOSSymbol}
+	asset.assert()
+	return asset
 }
 
 // NewAsset parses a string like `1000.0000 EOS` into a properly setup Asset
@@ -196,7 +264,7 @@ func NewAsset(in string) (out Asset, err error) {
 	}
 
 	out.Amount = val
-
+	out.assert()
 	return
 }
 
@@ -213,11 +281,9 @@ func (a *Asset) UnmarshalJSON(data []byte) error {
 	}
 
 	*a = asset
-
 	return nil
 }
 
 func (a Asset) MarshalJSON() (data []byte, err error) {
 	return json.Marshal(a.String())
 }
-

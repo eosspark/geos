@@ -2,8 +2,8 @@ package exception_test
 
 import (
 	"fmt"
-	. "github.com/eosspark/eos-go/exceptionx"
-	. "github.com/eosspark/eos-go/exceptionx/try"
+	. "github.com/eosspark/eos-go/exception"
+	. "github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/log"
 	"github.com/go-stack/stack"
 	"testing"

@@ -2,8 +2,6 @@ package chain
 
 import (
 	"fmt"
-	"github.com/eosspark/container/maps/treemap"
-	"github.com/eosspark/container/utils"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto/ecc"
@@ -31,8 +29,8 @@ func initForkDatabase() (*MultiIndexFork, *types.BlockState) {
 	genHeader.Header.Timestamp = types.BlockTimeStamp(1162425600) //slot of 2018-6-2 00:00:00:000
 	genHeader.BlockId = genHeader.Header.BlockID()
 	genHeader.BlockNum = genHeader.Header.BlockNumber()
-	genHeader.ProducerToLastProduced = *treemap.NewWith(common.TypeName, utils.TypeUInt64, common.CompareName)
-	genHeader.ProducerToLastImpliedIrb = *treemap.NewWith(common.TypeName, utils.TypeUInt64, common.CompareName)
+	genHeader.ProducerToLastProduced = *types.NewAccountNameUint32Map()
+	genHeader.ProducerToLastImpliedIrb = *types.NewAccountNameUint32Map()
 	genHeader.BlockSigningKey = initPubKey
 	genHeader.Header.ProducerSignature = *ecc.NewSigNil()
 	blockState := types.NewBlockState(genHeader)

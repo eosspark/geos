@@ -22,8 +22,6 @@ func NewBlockTimeStampSec(ts common.TimePointSec) BlockTimeStamp {
 	return BlockTimeStamp(slot)
 }
 
-const blockTimestampFormat = "2006-01-02T15:04:05.000"
-
 func (t BlockTimeStamp) Next() BlockTimeStamp {
 	EosAssert(math.MaxUint32-t >= 1, &OverflowException{}, "block timestamp overflow")
 	result := NewBlockTimeStamp(t.ToTimePoint())
@@ -50,19 +48,15 @@ func (t BlockTimeStamp) String() string {
 }
 
 func (t BlockTimeStamp) MarshalJSON() ([]byte, error) {
-	return []byte(t.String()), nil
+	return t.ToTimePoint().MarshalJSON()
 }
 
-func (t *BlockTimeStamp) UnmarshalJSON(data []byte) (err error) {
-	tp, err := common.FromIsoString(string(data))
+func (t *BlockTimeStamp) UnmarshalJSON(data []byte) error {
+	tp := common.TimePoint(0)
+	err := tp.UnmarshalJSON(data)
 	if err != nil {
 		return err
 	}
 	*t = BlockTimeStamp((int64(tp.TimeSinceEpoch()/1000) - common.DefaultConfig.BlockTimestampEpochMs) / common.DefaultConfig.BlockIntervalMs)
 	return nil
 }
-
-//func (t BlockTimeStamp) Totime() time.Time {
-//	slot := int64(t)*common.DefaultConfig.BlockIntervalMs*1000000 + common.DefaultConfig.BlockTimestamoEpochNanos //为了显示0.5s
-//	return time.Unix(0, int64(slot)).UTC()
-//}

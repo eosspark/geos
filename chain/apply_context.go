@@ -243,7 +243,7 @@ func (a *ApplyContext) execOne(trace *types.ActionTrace) {
 			native := a.Control.FindApplyHandler(a.Receiver, a.Act.Account, a.Act.Name)
 
 			//a.ilog.Info("receiver:%v account:%v action:%v data:%v", a.Receiver, a.Act.Account, a.Act.Name, a.Act.Data)
-			//a.ilog.Info("receiver:%v account:%v action:%v", a.Receiver, a.Act.Account, a.Act.Name)
+			a.ilog.Info("receiver:%v account:%v action:%v", a.Receiver, a.Act.Account, a.Act.Name)
 
 			if native != nil {
 				if a.TrxContext.CanSubjectivelyFail && a.Control.IsProducingBlock() {
@@ -331,12 +331,12 @@ func (a *ApplyContext) Exec(trace *types.ActionTrace) {
 
 	for _, inlineAction := range a.CfaInlineActions {
 		trace.InlineTraces = append(trace.InlineTraces, types.ActionTrace{})
-		a.TrxContext.DispathAction(&trace.InlineTraces[len(trace.InlineTraces)-1], &inlineAction, inlineAction.Account, true, a.RecurseDepth+1)
+		a.TrxContext.DispatchAction(&trace.InlineTraces[len(trace.InlineTraces)-1], &inlineAction, inlineAction.Account, true, a.RecurseDepth+1)
 	}
 
 	for _, inlineAction := range a.InlineActions {
 		trace.InlineTraces = append(trace.InlineTraces, types.ActionTrace{})
-		a.TrxContext.DispathAction(&trace.InlineTraces[len(trace.InlineTraces)-1], &inlineAction, inlineAction.Account, false, a.RecurseDepth+1)
+		a.TrxContext.DispatchAction(&trace.InlineTraces[len(trace.InlineTraces)-1], &inlineAction, inlineAction.Account, false, a.RecurseDepth+1)
 	}
 
 }
