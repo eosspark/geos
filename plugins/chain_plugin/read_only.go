@@ -1,9 +1,13 @@
 package chain_plugin
 
 import (
+	"fmt"
+	"github.com/eosspark/container/sets/treeset"
 	"github.com/eosspark/eos-go/chain"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
+	"github.com/eosspark/eos-go/common/math"
+	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/abi_serializer"
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/entity"
@@ -11,9 +15,6 @@ import (
 	. "github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/plugins/appbase/app"
 	"strconv"
-	"github.com/eosspark/eos-go/common/math"
-	"github.com/eosspark/eos-go/crypto"
-	"github.com/eosspark/container/sets/treeset"
 )
 
 type ReadOnly struct {
@@ -97,7 +98,7 @@ type GetBlockParams struct {
 
 type GetBlockResult struct {
 	//we don't need all blockresp??only need "id"
-	//types.SignedBlock
+	SignedBlock    *types.SignedBlock `json:"signed_block"`
 	ID             common.BlockIdType `json:"id"`
 	BlockNum       uint32             `json:"block_num"`
 	RefBlockPrefix uint32             `json:"ref_block_prefix"`
@@ -105,17 +106,15 @@ type GetBlockResult struct {
 
 func (ro *ReadOnly) GetBlock(params GetBlockParams) *GetBlockResult {
 	var block *types.SignedBlock
-	var blockNum *uint64
+	var blockNum uint64
 
 	EosAssert(len(params.BlockNumOrID) != 0 && len(params.BlockNumOrID) <= 64, &BlockIdTypeException{},
 		"Invalid Block number or ID,must be greater than 0 and less than 64 characters ")
 
-	if num, ok := math.ParseUint64(params.BlockNumOrID); ok {
-		*blockNum = num
-	}
-
-	if blockNum != nil {
-		block = ro.db.FetchBlockByNumber(uint32(*blockNum))
+	num, ok := math.ParseUint64(params.BlockNumOrID)
+	if ok {
+		blockNum = num
+		block = ro.db.FetchBlockByNumber(uint32(blockNum))
 	} else {
 		Try(func() {
 			block = ro.db.FetchBlockById(*crypto.NewSha256String(params.BlockNumOrID))
@@ -127,7 +126,7 @@ func (ro *ReadOnly) GetBlock(params GetBlockParams) *GetBlockResult {
 	refBlockPrefix := uint32(block.BlockID().Hash[1])
 
 	return &GetBlockResult{
-		//SignedBlock:    *block,
+		SignedBlock:    block,
 		ID:             block.BlockID(),
 		BlockNum:       block.BlockNumber(),
 		RefBlockPrefix: refBlockPrefix,
@@ -135,27 +134,25 @@ func (ro *ReadOnly) GetBlock(params GetBlockParams) *GetBlockResult {
 }
 
 type GetBlockHeaderStateParams struct {
-	BlockNumOrID string
+	BlockNumOrID string `json:"block_num_or_id"`
 }
 
 type GetBlockHeaderStateResult = types.BlockHeaderState
 
 func (ro *ReadOnly) GetBlockHeaderState(params GetBlockHeaderStateParams) GetBlockHeaderStateResult {
-	var blockNum *uint64
+	var blockNum uint64
 	var b *types.BlockState
 
-	if num, ok := math.ParseUint64(params.BlockNumOrID); ok {
-		*blockNum = num
-	}
-
-	if blockNum != nil {
-		b = ro.db.FetchBlockStateByNumber(uint32(*blockNum))
+	num, ok := math.ParseUint64(params.BlockNumOrID)
+	if ok {
+		blockNum = num
+		b = ro.db.FetchBlockStateByNumber(uint32(blockNum))
 	} else {
 		Try(func() {
 			b = ro.db.FetchBlockStateById(*crypto.NewSha256String(params.BlockNumOrID))
 		}).EosRethrowExceptions(&BlockIdTypeException{}, "Invalid block ID: %s", params.BlockNumOrID).End()
 	}
-
+	fmt.Println(blockNum, b)
 	EosAssert(b != nil, &UnknownBlockException{}, "Could not find reversible block: %s", params.BlockNumOrID)
 
 	return b.BlockHeaderState
@@ -218,100 +215,100 @@ func (ro *ReadOnly) GetAccount(params GetAccountParams) GetAccountResult {
 
 	//TODO permissions
 	/*
-	  const auto& permissions = d.get_index<permission_index,by_owner>();
-      auto perm = permissions.lower_bound( boost::make_tuple( params.account_name ) );
-      while( perm != permissions.end() && perm->owner == params.account_name ) {
-         /// T0D0: lookup perm->parent name
-         name parent;
+			  const auto& permissions = d.get_index<permission_index,by_owner>();
+		      auto perm = permissions.lower_bound( boost::make_tuple( params.account_name ) );
+		      while( perm != permissions.end() && perm->owner == params.account_name ) {
+		         /// T0D0: lookup perm->parent name
+		         name parent;
 
-         // Don't lookup parent if null
-         if( perm->parent._id ) {
-            const auto* p = d.find<permission_object,by_id>( perm->parent );
-            if( p ) {
-               EOS_ASSERT(perm->owner == p->owner, invalid_parent_permission, "Invalid parent permission");
-               parent = p->name;
-            }
-         }
+		         // Don't lookup parent if null
+		         if( perm->parent._id ) {
+		            const auto* p = d.find<permission_object,by_id>( perm->parent );
+		            if( p ) {
+		               EOS_ASSERT(perm->owner == p->owner, invalid_parent_permission, "Invalid parent permission");
+		               parent = p->name;
+		            }
+		         }
 
-         result.permissions.push_back( permission{ perm->name, parent, perm->auth.to_authority() } );
-         ++perm;
-      }
+		         result.permissions.push_back( permission{ perm->name, parent, perm->auth.to_authority() } );
+		         ++perm;
+		      }
 	*/
 
 	//TODO token, delegated_bandwidth, refund, vote
 	/*
-	  const auto& code_account = db.db().get<account_object,by_name>( config::system_account_name );
+			  const auto& code_account = db.db().get<account_object,by_name>( config::system_account_name );
 
-   abi_def abi;
-   if( abi_serializer::to_abi(code_account.abi, abi) ) {
-      abi_serializer abis( abi, abi_serializer_max_time );
+		   abi_def abi;
+		   if( abi_serializer::to_abi(code_account.abi, abi) ) {
+		      abi_serializer abis( abi, abi_serializer_max_time );
 
-      const auto token_code = N(eosio.token);
+		      const auto token_code = N(eosio.token);
 
-      auto core_symbol = extract_core_symbol();
+		      auto core_symbol = extract_core_symbol();
 
-      if (params.expected_core_symbol.valid())
-         core_symbol = *(params.expected_core_symbol);
+		      if (params.expected_core_symbol.valid())
+		         core_symbol = *(params.expected_core_symbol);
 
-      const auto* t_id = d.find<chain::table_id_object, chain::by_code_scope_table>(boost::make_tuple( token_code, params.account_name, N(accounts) ));
-      if( t_id != nullptr ) {
-         const auto &idx = d.get_index<key_value_index, by_scope_primary>();
-         auto it = idx.find(boost::make_tuple( t_id->id, core_symbol.to_symbol_code() ));
-         if( it != idx.end() && it->value.size() >= sizeof(asset) ) {
-            asset bal;
-            fc::datastream<const char *> ds(it->value.data(), it->value.size());
-            fc::raw::unpack(ds, bal);
+		      const auto* t_id = d.find<chain::table_id_object, chain::by_code_scope_table>(boost::make_tuple( token_code, params.account_name, N(accounts) ));
+		      if( t_id != nullptr ) {
+		         const auto &idx = d.get_index<key_value_index, by_scope_primary>();
+		         auto it = idx.find(boost::make_tuple( t_id->id, core_symbol.to_symbol_code() ));
+		         if( it != idx.end() && it->value.size() >= sizeof(asset) ) {
+		            asset bal;
+		            fc::datastream<const char *> ds(it->value.data(), it->value.size());
+		            fc::raw::unpack(ds, bal);
 
-            if( bal.get_symbol().valid() && bal.get_symbol() == core_symbol ) {
-               result.core_liquid_balance = bal;
-            }
-         }
-      }
+		            if( bal.get_symbol().valid() && bal.get_symbol() == core_symbol ) {
+		               result.core_liquid_balance = bal;
+		            }
+		         }
+		      }
 
-      t_id = d.find<chain::table_id_object, chain::by_code_scope_table>(boost::make_tuple( config::system_account_name, params.account_name, N(userres) ));
-      if (t_id != nullptr) {
-         const auto &idx = d.get_index<key_value_index, by_scope_primary>();
-         auto it = idx.find(boost::make_tuple( t_id->id, params.account_name ));
-         if ( it != idx.end() ) {
-            vector<char> data;
-            copy_inline_row(*it, data);
-            result.total_resources = abis.binary_to_variant( "user_resources", data, abi_serializer_max_time, shorten_abi_errors );
-         }
-      }
+		      t_id = d.find<chain::table_id_object, chain::by_code_scope_table>(boost::make_tuple( config::system_account_name, params.account_name, N(userres) ));
+		      if (t_id != nullptr) {
+		         const auto &idx = d.get_index<key_value_index, by_scope_primary>();
+		         auto it = idx.find(boost::make_tuple( t_id->id, params.account_name ));
+		         if ( it != idx.end() ) {
+		            vector<char> data;
+		            copy_inline_row(*it, data);
+		            result.total_resources = abis.binary_to_variant( "user_resources", data, abi_serializer_max_time, shorten_abi_errors );
+		         }
+		      }
 
-      t_id = d.find<chain::table_id_object, chain::by_code_scope_table>(boost::make_tuple( config::system_account_name, params.account_name, N(delband) ));
-      if (t_id != nullptr) {
-         const auto &idx = d.get_index<key_value_index, by_scope_primary>();
-         auto it = idx.find(boost::make_tuple( t_id->id, params.account_name ));
-         if ( it != idx.end() ) {
-            vector<char> data;
-            copy_inline_row(*it, data);
-            result.self_delegated_bandwidth = abis.binary_to_variant( "delegated_bandwidth", data, abi_serializer_max_time, shorten_abi_errors );
-         }
-      }
+		      t_id = d.find<chain::table_id_object, chain::by_code_scope_table>(boost::make_tuple( config::system_account_name, params.account_name, N(delband) ));
+		      if (t_id != nullptr) {
+		         const auto &idx = d.get_index<key_value_index, by_scope_primary>();
+		         auto it = idx.find(boost::make_tuple( t_id->id, params.account_name ));
+		         if ( it != idx.end() ) {
+		            vector<char> data;
+		            copy_inline_row(*it, data);
+		            result.self_delegated_bandwidth = abis.binary_to_variant( "delegated_bandwidth", data, abi_serializer_max_time, shorten_abi_errors );
+		         }
+		      }
 
-      t_id = d.find<chain::table_id_object, chain::by_code_scope_table>(boost::make_tuple( config::system_account_name, params.account_name, N(refunds) ));
-      if (t_id != nullptr) {
-         const auto &idx = d.get_index<key_value_index, by_scope_primary>();
-         auto it = idx.find(boost::make_tuple( t_id->id, params.account_name ));
-         if ( it != idx.end() ) {
-            vector<char> data;
-            copy_inline_row(*it, data);
-            result.refund_request = abis.binary_to_variant( "refund_request", data, abi_serializer_max_time, shorten_abi_errors );
-         }
-      }
+		      t_id = d.find<chain::table_id_object, chain::by_code_scope_table>(boost::make_tuple( config::system_account_name, params.account_name, N(refunds) ));
+		      if (t_id != nullptr) {
+		         const auto &idx = d.get_index<key_value_index, by_scope_primary>();
+		         auto it = idx.find(boost::make_tuple( t_id->id, params.account_name ));
+		         if ( it != idx.end() ) {
+		            vector<char> data;
+		            copy_inline_row(*it, data);
+		            result.refund_request = abis.binary_to_variant( "refund_request", data, abi_serializer_max_time, shorten_abi_errors );
+		         }
+		      }
 
-      t_id = d.find<chain::table_id_object, chain::by_code_scope_table>(boost::make_tuple( config::system_account_name, config::system_account_name, N(voters) ));
-      if (t_id != nullptr) {
-         const auto &idx = d.get_index<key_value_index, by_scope_primary>();
-         auto it = idx.find(boost::make_tuple( t_id->id, params.account_name ));
-         if ( it != idx.end() ) {
-            vector<char> data;
-            copy_inline_row(*it, data);
-            result.voter_info = abis.binary_to_variant( "voter_info", data, abi_serializer_max_time, shorten_abi_errors );
-         }
-      }
-   }
+		      t_id = d.find<chain::table_id_object, chain::by_code_scope_table>(boost::make_tuple( config::system_account_name, config::system_account_name, N(voters) ));
+		      if (t_id != nullptr) {
+		         const auto &idx = d.get_index<key_value_index, by_scope_primary>();
+		         auto it = idx.find(boost::make_tuple( t_id->id, params.account_name ));
+		         if ( it != idx.end() ) {
+		            vector<char> data;
+		            copy_inline_row(*it, data);
+		            result.voter_info = abis.binary_to_variant( "voter_info", data, abi_serializer_max_time, shorten_abi_errors );
+		         }
+		      }
+		   }
 	*/
 
 	return result

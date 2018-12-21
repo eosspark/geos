@@ -16,7 +16,8 @@ import (
 
 var abiLog log.Logger
 
-type tableName = string
+type typeName = string
+type fieldName = string
 
 func init() {
 	abiLog = log.New("abi")
@@ -25,34 +26,34 @@ func init() {
 }
 
 type TypeDef struct {
-	NewTypeName string `json:"new_type_name"`
-	Type        string `json:"type"`
+	NewTypeName typeName `json:"new_type_name"`
+	Type        typeName `json:"type"`
 }
 
 type FieldDef struct {
-	Name string `json:"name"`
-	Type string `json:"type"`
+	Name fieldName `json:"name"`
+	Type typeName  `json:"type"`
 }
 
 type StructDef struct {
-	Name   string     `json:"name"`
-	Base   string     `json:"base"`
+	Name   typeName   `json:"name"`
+	Base   typeName   `json:"base"`
 	Fields []FieldDef `json:"fields,omitempty"`
 }
 
 type ActionDef struct {
 	Name              common.ActionName `json:"name"`
-	Type              string            `json:"type"`
+	Type              typeName          `json:"type"`
 	RicardianContract string            `json:"ricardian_contract"`
 }
 
 // TableDef defines a table. See libraries/chain/include/eosio/chain/contracts/types.hpp:78
 type TableDef struct {
-	Name      string   `json:"name"`
-	IndexType string   `json:"index_type"`
-	KeyNames  []string `json:"key_names,omitempty"`
-	KeyTypes  []string `json:"key_types,omitempty"`
-	Type      string   `json:"type"`
+	Name      common.TableName `json:"name"`
+	IndexType typeName         `json:"index_type"`
+	KeyNames  []fieldName      `json:"key_names,omitempty"`
+	KeyTypes  []typeName       `json:"key_types,omitempty"`
+	Type      typeName         `json:"type"`
 }
 
 // ClausePair represents clauses, related to Ricardian Contracts.
@@ -67,8 +68,8 @@ type ErrorMessage struct {
 }
 
 type VariantDef struct {
-	Name  string
-	Types []string
+	Name  typeName   `json:"name"`
+	Types []typeName `json:"types"`
 }
 
 func CommonTypeDefs() []TypeDef {
@@ -92,16 +93,15 @@ type AbiDef struct {
 	RicardianClauses []ClausePair       `json:"ricardian_clauses,omitempty"`
 	ErrorMessages    []ErrorMessage     `json:"error_messages,omitempty"`
 	Extensions       []*types.Extension `json:"abi_extensions,omitempty"`
+	Variants         []VariantDef       `json:"variants,omitempty"` // TODO may not exit
 }
 
 func NewABI(r io.Reader) (*AbiDef, error) {
 	abi := &AbiDef{}
-	abiDecoder := json.NewDecoder(r)
-	err := abiDecoder.Decode(abi)
+	err := json.NewDecoder(r).Decode(abi)
 	if err != nil {
 		return nil, fmt.Errorf("read abi: %s", err)
 	}
-
 	return abi, nil
 }
 
@@ -114,7 +114,7 @@ func (a *AbiDef) ActionForName(name common.ActionName) *ActionDef {
 	return nil
 }
 
-func (a *AbiDef) StructForName(name string) *StructDef {
+func (a *AbiDef) StructForName(name typeName) *StructDef {
 	for _, s := range a.Structs {
 		if s.Name == name {
 			return &s
@@ -123,15 +123,11 @@ func (a *AbiDef) StructForName(name string) *StructDef {
 	return nil
 }
 
-func (a *AbiDef) TableForName(name tableName) *TableDef {
+func (a *AbiDef) TableForName(name common.TableName) *TableDef {
 	for _, s := range a.Tables {
-		//if s.Name == name {
-		//	return &s
-		//}
-		if strings.Compare(s.Name, name) == 0 {
+		if s.Name == name {
 			return &s
 		}
-
 	}
 	return nil
 }
@@ -332,31 +328,3 @@ func (i *Uint128) UnmarshalJSON(data []byte) error {
 
 	return nil
 }
-
-//
-//action base_tester::get_action( account_name code, action_name acttype, vector<permission_level> auths,
-//const variant_object& data )const { try {
-//const auto& acnt = control->get_account(code);
-//auto abi = acnt.get_abi();
-//chain::abi_serializer abis(abi, abi_serializer_max_time);
-//
-//
-//
-//string action_type_name = abis.get_action_type(acttype);
-//FC_ASSERT( action_type_name != string(), "unknown action type ${a}", ("a",acttype) );
-//
-//
-//action act;
-//act.account = code;
-//act.name = acttype;
-//act.authorization = auths;
-//act.data = abis.variant_to_binary(action_type_name, data, abi_serializer_max_time);
-//return act;
-//} FC_CAPTURE_AND_RETHROW() }
-//
-//
-//func fff(){
-//	abis :=new(AbiSerializer)
-//	abis.SetAbi(aib,abi_serializer_max_time)
-//	abis.
-//}

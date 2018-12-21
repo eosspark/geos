@@ -1,10 +1,11 @@
 package common
 
 const (
-	chainUrl = "http://127.0.0.1:8888"
+	ChainUrl = "http://127.0.0.1:8888"
 	// walletUrl = "http://127.0.0.1:8900"
-	walletUrl = "http://127.0.0.1:8000"
+	WalletUrl = "http://127.0.0.1:8888"
 	// walletUrl = "http://127.0.0.1:8765"
+	HttpEndPoint = "http://127.0.0.1:8888"
 )
 
 const (
@@ -17,8 +18,11 @@ const (
 	GetBlockHeaderStateFunc string = chainFuncBase + "/get_block_header_state"
 	GetAccountFunc          string = chainFuncBase + "/get_account"
 	GetTableFunc            string = chainFuncBase + "/get_table_rows"
+	GetTableByScopeFunc     string = chainFuncBase + "/get_table_by_scope"
 	GetCodeFunc             string = chainFuncBase + "/get_code"
+	GetCodeHashFunc         string = chainFuncBase + "/get_code_hash"
 	GetAbiFunc              string = chainFuncBase + "/get_abi"
+	GetRawAbiFunc           string = chainFuncBase + "/get_raw_abi"
 	GetRawCodeAndAbiFunc    string = chainFuncBase + "/get_raw_code_and_abi"
 	GetCurrencyBalanceFunc  string = chainFuncBase + "/get_currency_balance"
 	GetCurrencyStatsFunc    string = chainFuncBase + "/get_currency_stats"
