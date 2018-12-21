@@ -44,8 +44,8 @@ func TestRedBlackTreeMultiPut(t *testing.T) {
 
 	for _, test := range tests1 {
 		// retrievals
-		actualValue, actualFound := tree.MultiGet(test[0])
-		if actualFound != test[2] || (actualFound && actualValue.Value() != test[1]) {
+		actualValue, _ := tree.MultiGet(test[0])
+		if (actualValue.node == nil) != test[2] || (actualValue.node != nil && actualValue.Value() != test[1]) {
 			t.Errorf("Got %v expected %v", actualValue, test[1])
 		}
 	}
@@ -90,8 +90,8 @@ func TestRedBlackTreeMultiRemove(t *testing.T) {
 	}
 
 	for _, test := range tests2 {
-		actualValue, actualFound := tree.MultiGet(test[0])
-		if actualFound != test[2] || (actualFound && actualValue.Value() != test[1]) {
+		actualValue, _ := tree.MultiGet(test[0])
+		if (actualValue.node == nil) != test[2] || (actualValue.node != nil && actualValue.Value() != test[1]) {
 			t.Errorf("Got %v expected %v", actualValue, test[1])
 		}
 	}
