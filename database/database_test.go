@@ -1,7 +1,6 @@
 package database
 
 import (
-	"fmt"
 	"github.com/syndtr/goleveldb/leveldb"
 	"log"
 	"os"
@@ -118,6 +117,94 @@ func Test_find(t *testing.T) {
 	findInLineFieldObjs(objs_, houses_, db)
 
 	getLessObjs(objs_, houses_, db)
+}
+
+func Test_All(t *testing.T) {
+
+	db, clo := openDb()
+	if db == nil {
+		log.Fatalln("db open failed")
+	}
+	defer clo()
+
+
+	objs, houses := Objects()
+	objs_,houses_ := saveObjs(objs, houses, db)
+{
+	tab_obj := DbTableIdObject{}
+	tab_tmp := DbTableIdObject{}
+	err := db.Find("id", tab_obj, &tab_tmp)
+	if err != nil{
+		log.Fatalln(err)
+	}
+
+	hou_obj:= DbHouse{}
+	hou_tmp:= DbHouse{}
+	err = db.Find("id", hou_obj, &hou_tmp)
+	if err != nil{
+		log.Fatalln(err)
+	}
+
+	if tab_tmp != objs_[0] || hou_tmp != houses_[0]{
+		LogObj(tab_tmp)
+		LogObj(hou_tmp)
+
+		LogObj(objs_[0])
+		LogObj(houses_[0])
+		log.Fatalln("undo all error")
+	}
+
+	session := db.StartSession()
+	err = db.Modify(&tab_tmp, func(object *DbTableIdObject) {
+		object.Code = 200
+	})
+	if err != nil{
+		log.Fatalln(err)
+	}
+	err = db.Modify(&hou_tmp, func(object *DbHouse) {
+		object.Name="hello world"
+	})
+
+
+	tab_obj = DbTableIdObject{}
+	tab_tmp = DbTableIdObject{}
+	err = db.Find("id", tab_obj, &tab_tmp)
+	if err != nil{
+		log.Fatalln(err)
+	}
+
+	hou_obj= DbHouse{}
+	hou_tmp= DbHouse{}
+	err = db.Find("id", hou_obj, &hou_tmp)
+	if err != nil{
+		log.Fatalln(err)
+	}
+
+	session.Undo()
+
+}
+// TODO  test --> modify
+	tab_obj := DbTableIdObject{}
+	tab_tmp := DbTableIdObject{}
+	err := db.Find("id", tab_obj, &tab_tmp)
+	if err != nil{
+		log.Fatalln(err)
+	}
+
+	hou_obj:= DbHouse{}
+	hou_tmp:= DbHouse{}
+	err = db.Find("id", hou_obj, &hou_tmp)
+	if err != nil{
+		log.Fatalln(err)
+	}
+	if tab_tmp != objs_[0] || hou_tmp != houses_[0]{
+		LogObj(tab_tmp)
+		LogObj(hou_tmp)
+
+		LogObj(objs_[0])
+		LogObj(houses_[0])
+		log.Fatalln("undo all error")
+	}
 }
 
 func Test_modifyUndo(t *testing.T) {
@@ -1537,7 +1624,7 @@ func modifyObjs(db DataBase) {
 
 	obj := DbTableIdObject{ID: 4, Code: 21, Scope: 22, Table: 26, Payer: 27, Count: 25}
 	newobj := DbTableIdObject{ID: 4, Code: 200, Scope: 22, Table: 26, Payer: 27, Count: 25}
-	for i := 0; i < 1; i++ {
+	for i := 0; i < 1 ; i++ {
 		err := db.Modify(&obj, func(object *DbTableIdObject) {
 			object.Code = AccountName(200 + i)
 		})
@@ -1714,12 +1801,12 @@ func Test_findIdZero(t *testing.T){
 	db.Insert(&obj)
 	err := db.Find("id",&tmp,&out)
 	if err != nil{
-		fmt.Println(err)
+		log.Fatalln(err)
 	}
 	if tmp != out{
 		LogObj(out)
 		LogObj(tmp)
-		fmt.Println("error")
+		log.Fatalln("not equal")
 	}
 }
 

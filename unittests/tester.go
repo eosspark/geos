@@ -51,10 +51,8 @@ func newBaseTester(pushGenesis bool, readMode DBReadMode) *BaseTester {
 
 func (t *BaseTester) init(pushGenesis bool, readMode DBReadMode) {
 	t.Cfg = *newConfig(readMode)
-	t.Control = NewController(&t.Cfg)
 
 	t.open()
-
 	if pushGenesis {
 		t.pushGenesisBlock()
 	}
@@ -91,8 +89,10 @@ func newConfig(readMode DBReadMode) *Config {
 }
 
 func (t *BaseTester) open() {
-	//t.Control.Config = t.Cfg
-	//t.Control.startUp() //TODO
+	t.Control = NewController(&t.Cfg)
+	//TODO
+	//t.Control.AddIndices()
+	//t.Control.startUp()
 	t.ChainTransactions = make(map[common.BlockIdType]types.TransactionReceipt)
 	//t.Control.AcceptedBlock.Connect() // TODO: Control.signal
 }
@@ -159,8 +159,8 @@ func (t BaseTester) produceBlock(skipTime common.Microseconds, skipPendingTrxs b
 		unappliedTrxs := t.Control.GetUnappliedTransactions()
 		for _, trx := range unappliedTrxs {
 			trace := t.Control.PushTransaction(trx, common.MaxTimePoint(), 0)
-			if !common.Empty(trace.Except) {
-				try.EosThrow(trace.Except, "tester produceBlock is error:%#v", trace.Except)
+			if trace.Except != nil {
+				try.Throw(trace.Except)
 			}
 		}
 
@@ -168,8 +168,8 @@ func (t BaseTester) produceBlock(skipTime common.Microseconds, skipPendingTrxs b
 		for len(scheduledTrxs) > 0 {
 			for _, trx := range scheduledTrxs {
 				trace := t.Control.PushScheduledTransaction(&trx, common.MaxTimePoint(), 0)
-				if !common.Empty(trace.Except) {
-					try.EosThrow(trace.Except, "tester produceBlock is error:%#v", trace.Except)
+				if trace.Except != nil {
+					try.Throw(trace.Except)
 				}
 			}
 		}
@@ -226,7 +226,7 @@ func (t BaseTester) CreateAccounts(names []common.AccountName, multiSig bool, in
 
 func (t BaseTester) CreateAccount(name common.AccountName, creator common.AccountName, multiSig bool, includeCode bool) *types.TransactionTrace {
 	trx := types.SignedTransaction{}
-	t.SetTransactionHeaders(&trx.Transaction, t.DefaultExpirationDelta, 0) //TODO: test
+	t.SetTransactionHeaders(&trx.Transaction, t.DefaultExpirationDelta, 0)
 	ownerAuth := types.Authority{}
 	if multiSig {
 		ownerAuth = types.Authority{
@@ -292,14 +292,17 @@ func (t BaseTester) PushTransaction(trx *types.SignedTransaction, deadline commo
 		mtrx := types.NewTransactionMetadataBySignedTrx(trx, c)
 		trace = t.Control.PushTransaction(mtrx, deadline, billedCpuTimeUs)
 		if trace.ExceptPtr != nil {
-			try.EosThrow(trace.ExceptPtr, "tester PushTransaction is error :%#v", trace.ExceptPtr.DetailMessage())
+			try.Throw(trace.ExceptPtr)
+			//try.EosThrow(trace.ExceptPtr, "tester PushTransaction is error :%#v", trace.ExceptPtr.DetailMessage())
 		}
-		if !common.Empty(trace.Except) {
-			try.EosThrow(trace.Except, "tester PushTransaction is error :%#v", trace.Except.DetailMessage())
+		if trace.Except != nil {
+			try.Throw(trace.ExceptPtr)
+			//try.EosThrow(trace.Except, "tester PushTransaction is error :%#v", trace.Except.DetailMessage())
 		}
 		r = trace
 		return
-	}).FcCaptureAndRethrow().End()
+		//}).FcCaptureAndRethrow().End()
+	}).FcRethrowExceptions(log.LvlWarn, "transaction_header: %#v, billed_cpu_time_us: %d", trx.Transaction.TransactionHeader, billedCpuTimeUs)
 	return r
 }
 
@@ -318,7 +321,7 @@ func (t BaseTester) PushAction(act *types.Action, authorizer common.AccountName)
 	try.Try(func() {
 		t.PushTransaction(&trx, common.MaxTimePoint(), t.DefaultBilledCpuTimeUs)
 	}).Catch(func(ex exception.Exception) {
-		log.Error("tester PushAction is error: %#v", ex.DetailMessage())
+		log.Error("tester PushAction is error: %v", ex.DetailMessage())
 	}).End()
 	t.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs), 0)
 	//BOOST_REQUIRE_EQUAL(true, chain_has_transaction(trx.id()))
@@ -464,8 +467,16 @@ func (t BaseTester) PushDummy(from common.AccountName, v *string, billedCpuTimeU
 }
 
 func (t BaseTester) Transfer(from common.AccountName, to common.AccountName, amount common.Asset, memo string, currency common.AccountName) *types.TransactionTrace {
-	//TODO
 	trx := types.SignedTransaction{}
+	data := common.Variants{
+		"from":     from,
+		"to":       to,
+		"quantity": amount,
+		"memo":     memo,
+	}
+	acttype := common.N("transfer")
+	act := t.GetAction(currency, acttype, []types.PermissionLevel{{from, common.N("active")}}, &data)
+	trx.Actions = append(trx.Actions, act)
 	t.SetTransactionHeaders(&trx.Transaction, t.DefaultExpirationDelta, 0)
 	privKey := t.getPrivateKey(from, "active")
 	chainId := t.Control.GetChainId()
@@ -478,8 +489,14 @@ func (t BaseTester) Transfer2(from common.AccountName, to common.AccountName, am
 }
 
 func (t BaseTester) Issue(to common.AccountName, amount string, currency common.AccountName) *types.TransactionTrace {
-	//TODO
 	trx := types.SignedTransaction{}
+	data := common.Variants{
+		"to":       to,
+		"quantity": amount,
+	}
+	acttype := common.N("issue")
+	act := t.GetAction(currency, acttype, []types.PermissionLevel{{currency, common.N("active")}}, &data)
+	trx.Actions = append(trx.Actions, act)
 	t.SetTransactionHeaders(&trx.Transaction, t.DefaultExpirationDelta, 0)
 	privKey := t.getPrivateKey(currency, "active")
 	chainId := t.Control.GetChainId()
@@ -645,7 +662,7 @@ func (t BaseTester) GetCurrencyBalance(code *common.AccountName, assetSymbol *co
 	if err != nil {
 		log.Error("GetCurrencyBalance is error: %s", err)
 	} else {
-		obj := entity.KeyValueObject{ID: table.ID, PrimaryKey: uint64(common.N(assetSymbol.Symbol))}
+		obj := entity.KeyValueObject{TId: table.ID, PrimaryKey: uint64(assetSymbol.ToSymbolCode())}
 		err := db.Find("byScopePrimary", obj, &obj)
 		if err != nil {
 			log.Error("GetCurrencyBalance is error: %s", err)
@@ -854,7 +871,7 @@ func (vt *ValidatingTester) CreateDefaultAccount(name common.AccountName) *types
 	includeCode := true
 	creator := common.N("eosio")
 	trx := types.SignedTransaction{}
-	vt.SetTransactionHeaders(&trx.Transaction, vt.DefaultExpirationDelta, 0) //TODO: test
+	vt.SetTransactionHeaders(&trx.Transaction, vt.DefaultExpirationDelta, 0)
 
 	ownerAuth := types.NewAuthority(vt.getPublicKey(name, "owner"), 0)
 

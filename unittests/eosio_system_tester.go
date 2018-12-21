@@ -271,8 +271,8 @@ func (e EosioSystemTester) Stake(from common.AccountName, to common.AccountName,
 }
 
 func (e EosioSystemTester) GetBalance(act common.AccountName) common.Asset {
-	a := uint64(5462355)
-	data := e.GetRowByAccount(uint64(common.N("eosio.token")), uint64(act), uint64(common.N("accounts")), a)
+	PrimaryKey := uint64(CORE_SYMBOL.ToSymbolCode())
+	data := e.GetRowByAccount(uint64(common.N("eosio.token")), uint64(act), uint64(common.N("accounts")), PrimaryKey)
 	if len(data) == 0 {
 		return common.Asset{Amount: 0, Symbol: CORE_SYMBOL}
 	} else {

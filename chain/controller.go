@@ -1,10 +1,9 @@
 package chain
 
 import (
+	"encoding/json"
 	"fmt"
-	"github.com/eosspark/container/maps/treemap"
 	"github.com/eosspark/container/sets/treeset"
-	"github.com/eosspark/container/utils"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto"
@@ -1563,9 +1562,7 @@ func (c *Controller) ValidateReversibleAvailableSize() {
 func (c *Controller) IsKnownUnexpiredTransaction(id *common.TransactionIdType) bool {
 	t := entity.TransactionObject{}
 	t.TrxID = *id
-	err := c.DB.Find("byTrxId", t, &t)
-	log.Info("controller IsKnownUnexpiredTransaction:%v,%v", t.ID, t)
-	return err == nil
+	return nil == c.DB.Find("byTrxId", t, &t)
 }
 
 func (c *Controller) SetProposedProducers(producers []types.ProducerKey) int64 {
@@ -1688,8 +1685,8 @@ func (c *Controller) initializeForkDB() {
 	genHeader.Header.ActionMRoot = common.CheckSum256Type(gs.ComputeChainID())
 	genHeader.BlockId = genHeader.Header.BlockID()
 	genHeader.BlockNum = genHeader.Header.BlockNumber()
-	genHeader.ProducerToLastProduced = *treemap.NewWith(common.TypeName, utils.TypeUInt32, common.CompareName)
-	genHeader.ProducerToLastImpliedIrb = *treemap.NewWith(common.TypeName, utils.TypeUInt32, common.CompareName)
+	genHeader.ProducerToLastProduced = *types.NewAccountNameUint32Map()
+	genHeader.ProducerToLastImpliedIrb = *types.NewAccountNameUint32Map()
 	c.Head = types.NewBlockState(&genHeader)
 	signedBlock := types.SignedBlock{}
 	signedBlock.SignedBlockHeader = genHeader.Header
@@ -1699,6 +1696,13 @@ func (c *Controller) initializeForkDB() {
 	c.ForkDB.SetHead(c.Head)
 	c.DB.SetRevision(int64(c.Head.BlockNum))
 	c.initializeDatabase()
+
+	json, err := json.Marshal(genHeader)
+	if err != nil {
+		log.Error(err.Error())
+	} else {
+		fmt.Println("block_header_state", string(json))
+	}
 }
 
 func (c *Controller) initializeDatabase() {

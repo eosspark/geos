@@ -71,7 +71,7 @@ func (h Sha256) MarshalJSON() ([]byte, error) {
 	return json.Marshal(hex.EncodeToString(h.Bytes()))
 }
 
-func (h Sha256) UnmarshalJSON(data []byte) error {
+func (h *Sha256) UnmarshalJSON(data []byte) error {
 	var s string
 	err := json.Unmarshal(data, &s)
 	if err != nil {

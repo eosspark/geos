@@ -25,6 +25,17 @@ type ABIEncoder struct {
 	pos        int
 }
 
+func (a *AbiDef) EncodeStruct(structName typeName, json []byte) ([]byte, error) {
+	var buffer bytes.Buffer
+	encoder := rlp.NewEncoder(&buffer)
+
+	err := a.encode(encoder, structName, json)
+	if err != nil {
+		return nil, fmt.Errorf("encode action: %s", err)
+	}
+	return buffer.Bytes(), nil
+}
+
 func (a *AbiDef) EncodeAction(actionName common.ActionName, json []byte) ([]byte, error) {
 
 	action := a.ActionForName(actionName)
@@ -42,19 +53,19 @@ func (a *AbiDef) EncodeAction(actionName common.ActionName, json []byte) ([]byte
 	return buffer.Bytes(), nil
 }
 
-func (a *AbiDef) encode(binaryEncoder *rlp.Encoder, structureName string, json []byte) error {
-	abiLog.Debug("abi encode struct %s", structureName)
+func (a *AbiDef) encode(binaryEncoder *rlp.Encoder, structName string, json []byte) error {
+	abiLog.Debug("abi encode struct %s", structName)
 
-	structure := a.StructForName(structureName)
+	structure := a.StructForName(structName)
 	if structure == nil {
-		return fmt.Errorf("encode struct [%s] not found in abi", structureName)
+		return fmt.Errorf("encode struct [%s] not found in abi", structName)
 	}
 
 	if structure.Base != "" {
-		abiLog.Debug("struct has base struct %s : %s", structureName, structure.Base)
+		abiLog.Debug("struct has base struct %s : %s", structName, structure.Base)
 		err := a.encode(binaryEncoder, structure.Base, json)
 		if err != nil {
-			return fmt.Errorf("encode base [%s]: %s", structureName, err)
+			return fmt.Errorf("encode base [%s]: %s", structName, err)
 		}
 	}
 	err := a.encodeFields(binaryEncoder, structure.Fields, json)
@@ -63,7 +74,6 @@ func (a *AbiDef) encode(binaryEncoder *rlp.Encoder, structureName string, json [
 
 func (a *AbiDef) encodeFields(binaryEncoder *rlp.Encoder, fields []FieldDef, json []byte) error {
 	for _, field := range fields {
-
 		abiLog.Debug("encode field: name: %s, type: %s", field.Name, field.Type)
 
 		fieldType, isOptional, isArray := analyzeFieldType(field.Type)
@@ -82,7 +92,6 @@ func (a *AbiDef) encodeFields(binaryEncoder *rlp.Encoder, fields []FieldDef, jso
 }
 
 func (a *AbiDef) encodeField(binaryEncoder *rlp.Encoder, fieldName string, fieldType string, isOptional bool, isArray bool, json []byte) (err error) {
-
 	abiLog.Debug("encode field json : %#v", json)
 
 	value := gjson.GetBytes(json, fieldName)
@@ -102,7 +111,6 @@ func (a *AbiDef) encodeField(binaryEncoder *rlp.Encoder, fieldName string, field
 	}
 
 	if isArray {
-
 		abiLog.Debug("field is an array, name is %s,type is %s", fieldName, fieldType)
 		if !value.IsArray() {
 			return fmt.Errorf("encode field: expected array for field [%s] got [%s]", fieldName, value.Type.String())
@@ -122,7 +130,6 @@ func (a *AbiDef) encodeField(binaryEncoder *rlp.Encoder, fieldName string, field
 }
 
 func (a *AbiDef) writeField(binaryEncoder *rlp.Encoder, fieldName string, fieldType string, value gjson.Result) error {
-
 	abiLog.Debug("write field, name is %s, type is %s,json is %s", fieldName, fieldType, value.Raw)
 
 	structure := a.StructForName(fieldType)
@@ -248,7 +255,6 @@ func (a *AbiDef) writeField(binaryEncoder *rlp.Encoder, fieldName string, fieldT
 			return fmt.Errorf("writing field: bytes: %s", err)
 		}
 		object = data
-
 	case "string":
 		object = value.String()
 	case "checksum160":
@@ -300,12 +306,12 @@ func (a *AbiDef) writeField(binaryEncoder *rlp.Encoder, fieldName string, fieldT
 		if err != nil {
 			return fmt.Errorf("writing field: symbol: %s", err)
 		}
-		object = common.Symbol{ //TODO
+		object = common.Symbol{
 			Precision: uint8(i),
 			Symbol:    parts[1],
 		}
 	case "symbol_code":
-		//object = SymbolCode(value.Uint())
+		//object = common.SymbolCode(value.Uint())
 		object = uint64(value.Uint())
 	case "asset":
 		asset, err := common.NewAsset(value.String())

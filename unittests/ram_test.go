@@ -18,7 +18,8 @@ func TestRamTests(t *testing.T) {
 	//increment_contract_bytes must be less than table_allocation_bytes for this test setup to work
 	incrementContractBytes := 10000
 	tableAllocationBytes := 12000
-	e.BuyRamBytes(common.DefaultConfig.SystemAccountName, common.N("eosio"), 70000)
+	//TODO: asset, not in C++.
+	//e.BuyRamBytes(common.DefaultConfig.SystemAccountName, common.N("eosio"), 70000)
 	e.ProduceBlocks(10, false)
 
 	test1 := common.N("testram11111")

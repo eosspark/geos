@@ -274,14 +274,14 @@ func (t *TransactionContext) Exec() {
 	if t.ApplyContextFree {
 		for _, act := range t.Trx.ContextFreeActions {
 			t.Trace.ActionTraces = append(t.Trace.ActionTraces, types.ActionTrace{})
-			t.DispathAction(&t.Trace.ActionTraces[len(t.Trace.ActionTraces)-1], act, act.Account, true, 0)
+			t.DispatchAction(&t.Trace.ActionTraces[len(t.Trace.ActionTraces)-1], act, act.Account, true, 0)
 		}
 	}
 
 	if t.Delay == common.Microseconds(0) {
 		for _, act := range t.Trx.Actions {
 			t.Trace.ActionTraces = append(t.Trace.ActionTraces, types.ActionTrace{})
-			t.DispathAction(&t.Trace.ActionTraces[len(t.Trace.ActionTraces)-1], act, act.Account, false, 0)
+			t.DispatchAction(&t.Trace.ActionTraces[len(t.Trace.ActionTraces)-1], act, act.Account, false, 0)
 		}
 	} else {
 		t.scheduleTransaction()
@@ -545,7 +545,7 @@ func (t *TransactionContext) MaxBandwidthBilledAccountsCanPay(forceElasticLimits
 	return accountNetLimit, accountCpuLimit, greylistedNet, greylistedCpu
 }
 
-func (t *TransactionContext) DispathAction(trace *types.ActionTrace, action *types.Action, receiver common.AccountName, contextFree bool, recurseDepth uint32) {
+func (t *TransactionContext) DispatchAction(trace *types.ActionTrace, action *types.Action, receiver common.AccountName, contextFree bool, recurseDepth uint32) {
 
 	applyContext := NewApplyContext(t.Control, t, action, recurseDepth)
 	applyContext.ContextFree = contextFree

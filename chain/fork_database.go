@@ -298,7 +298,8 @@ func (f *ForkDatabase) SetBftIrreversible(id common.BlockIdType) {
 			pitr := pidx.lowerBound(&b)
 			epitr := pidx.upperBound(&b)
 			try.EosAssert(pitr == nil, &exception.ForkDbBlockNotFound{}, "SetBftIrreversible could not find idx in fork database")
-			for !pitr.Equal(*epitr) {
+			//for !pitr.Equal(*epitr) {
+			for *pitr != *epitr {
 				if pitr.Value().(*types.BlockState).BftIrreversibleBlocknum < blockNum {
 					pitr.Value().(*types.BlockState).BftIrreversibleBlocknum = blockNum
 					updated = append(updated, pitr.Value().(*types.BlockState).BlockId)
