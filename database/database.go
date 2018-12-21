@@ -147,15 +147,24 @@ func (ldb *LDataBase) Undo() {
 	for _, undo := range stack.undo {
 
 		for _, value := range undo.OldValue { /* 	Undo edit */
-			ldb.modifyKvToDb(value.newKv, value.oldKv)
+			err := ldb.modifyKvToDb(value.newKv, value.oldKv)
+			if err != nil{
+				//throw
+			}
 		}
 
 		for _, value := range undo.NewValue { /*	Undo new */
-			ldb.removeKvToDb(value.newKv)
+			err := ldb.removeKvToDb(value.newKv)
+			if err != nil{
+				//throw
+			}
 		}
 
 		for _, value := range undo.RemoveValue { /*	Undo remove */
-			ldb.insertKvToDb(value.newKv)
+			err := ldb.insertKvToDb(value.newKv)
+			if err != nil{
+				//throw
+			}
 		}
 	}
 
@@ -181,6 +190,10 @@ func (ldb *LDataBase) squash() {
 	preStack := ldb.getSecond()
 
 	for typeName, undo := range stack.undo {
+
+		if _,ok := preStack.undo[typeName];!ok{
+			preStack.undo[typeName] = newUndoState()
+		}
 		//TODO assert typeName
 		undoStateSquash(undo, preStack.undo[typeName])
 	}
