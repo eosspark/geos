@@ -159,8 +159,8 @@ func (t BaseTester) produceBlock(skipTime common.Microseconds, skipPendingTrxs b
 		unappliedTrxs := t.Control.GetUnappliedTransactions()
 		for _, trx := range unappliedTrxs {
 			trace := t.Control.PushTransaction(trx, common.MaxTimePoint(), 0)
-			if !common.Empty(trace.Except) {
-				try.EosThrow(trace.Except, "tester produceBlock is error:%#v", trace.Except)
+			if trace.Except != nil {
+				try.Throw(trace.Except)
 			}
 		}
 
@@ -168,8 +168,8 @@ func (t BaseTester) produceBlock(skipTime common.Microseconds, skipPendingTrxs b
 		for len(scheduledTrxs) > 0 {
 			for _, trx := range scheduledTrxs {
 				trace := t.Control.PushScheduledTransaction(&trx, common.MaxTimePoint(), 0)
-				if !common.Empty(trace.Except) {
-					try.EosThrow(trace.Except, "tester produceBlock is error:%#v", trace.Except)
+				if trace.Except != nil {
+					try.Throw(trace.Except)
 				}
 			}
 		}
@@ -292,14 +292,17 @@ func (t BaseTester) PushTransaction(trx *types.SignedTransaction, deadline commo
 		mtrx := types.NewTransactionMetadataBySignedTrx(trx, c)
 		trace = t.Control.PushTransaction(mtrx, deadline, billedCpuTimeUs)
 		if trace.ExceptPtr != nil {
-			try.EosThrow(trace.ExceptPtr, "tester PushTransaction is error :%#v", exception.GetDetailMessage(trace.ExceptPtr))
+			try.Throw(trace.ExceptPtr)
+			//try.EosThrow(trace.ExceptPtr, "tester PushTransaction is error :%#v", trace.ExceptPtr.DetailMessage())
 		}
-		if !common.Empty(trace.Except) {
-			try.EosThrow(trace.Except, "tester PushTransaction is error :%#v", exception.GetDetailMessage(trace.Except))
+		if trace.Except != nil {
+			try.Throw(trace.ExceptPtr)
+			//try.EosThrow(trace.Except, "tester PushTransaction is error :%#v", trace.Except.DetailMessage())
 		}
 		r = trace
 		return
-	}).FcCaptureAndRethrow().End()
+		//}).FcCaptureAndRethrow().End()
+	}).FcRethrowExceptions(log.LvlWarn, "transaction_header: %#v, billed_cpu_time_us: %d", trx.Transaction.TransactionHeader, billedCpuTimeUs)
 	return r
 }
 
@@ -318,7 +321,7 @@ func (t BaseTester) PushAction(act *types.Action, authorizer common.AccountName)
 	try.Try(func() {
 		t.PushTransaction(&trx, common.MaxTimePoint(), t.DefaultBilledCpuTimeUs)
 	}).Catch(func(ex exception.Exception) {
-		log.Error("tester PushAction is error: %#v", exception.GetDetailMessage(ex))
+		log.Error("tester PushAction is error: %v", ex.DetailMessage())
 	}).End()
 	t.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs), 0)
 	//BOOST_REQUIRE_EQUAL(true, chain_has_transaction(trx.id()))
@@ -645,7 +648,7 @@ func (t BaseTester) GetCurrencyBalance(code *common.AccountName, assetSymbol *co
 	if err != nil {
 		log.Error("GetCurrencyBalance is error: %s", err)
 	} else {
-		obj := entity.KeyValueObject{ID: table.ID, PrimaryKey: uint64(common.N(assetSymbol.Symbol))}
+		obj := entity.KeyValueObject{TId: table.ID, PrimaryKey: uint64(assetSymbol.ToSymbolCode())}
 		err := db.Find("byScopePrimary", obj, &obj)
 		if err != nil {
 			log.Error("GetCurrencyBalance is error: %s", err)

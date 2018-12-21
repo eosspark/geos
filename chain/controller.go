@@ -459,7 +459,7 @@ func (c *Controller) startBlock(when types.BlockTimeStamp, confirmBlockCount uin
 			c.InTrxRequiringChecks = true
 			c.pushTransaction(onbtrx, common.MaxTimePoint(), gpo.Configuration.MinTransactionCpuUsage, true)
 		}).Catch(func(e Exception) {
-			log.Error("Controller StartBlock exception:%s", GetDetailMessage(e))
+			log.Error("Controller StartBlock exception:%s", e.DetailMessage())
 			Throw(e)
 		}).Catch(func(i interface{}) {
 			//c++ nothing
@@ -477,7 +477,7 @@ func (c *Controller) pushReceipt(trx interface{}, status types.TransactionStatus
 	switch trx.(type) {
 	case common.TransactionIdType:
 		tr.TransactionID = trx.(common.TransactionIdType)
-	case types.PackedTransaction:
+	case *types.PackedTransaction:
 		tr.PackedTransaction = trx.(*types.PackedTransaction)
 	}
 	trxReceipt.Trx = tr
@@ -551,7 +551,7 @@ func (c *Controller) pushTransaction(trx *types.TransactionMetadata, deadLine co
 				} else {
 					s = types.TransactionStatusDelayed
 				}
-				tr := c.pushReceipt(trx.PackedTrx.PackedTrx, s, uint64(trxContext.BilledCpuTimeUs), trace.NetUsage)
+				tr := c.pushReceipt(trx.PackedTrx, s, uint64(trxContext.BilledCpuTimeUs), trace.NetUsage)
 				trace.Receipt = tr.TransactionReceiptHeader
 				c.Pending.PendingBlockState.Trxs = append(c.Pending.PendingBlockState.Trxs, trx)
 			} else {
@@ -812,7 +812,7 @@ func (c *Controller) pushScheduledTransactionByObject(gto *entity.GeneratedTrans
 		v = true
 		//return trace
 	}).Catch(func(ex Exception) {
-		log.Error("PushScheduledTransaction is error:%s", GetDetailMessage(ex))
+		log.Error("PushScheduledTransaction is error:%s", ex.DetailMessage())
 		cpuTimeToBillUs = trxContext.UpdateBilledCpuTime(common.Now())
 		trace.Except = ex
 		trace.ExceptPtr = ex
@@ -821,7 +821,7 @@ func (c *Controller) pushScheduledTransactionByObject(gto *entity.GeneratedTrans
 
 	trxContext.Undo()
 	if !failureIsSubjective(trace.Except) && gtrx.Sender != 0 { /*gtrx.Sender != account_name()*/
-		log.Info("%v", GetDetailMessage(trace.Except))
+		log.Info("%v", trace.Except.DetailMessage())
 		errorTrace := applyOnerror(gtrx, deadLine, trxContext.pseudoStart, &cpuTimeToBillUs, billedCpuTimeUs, explicitBilledCpuTime)
 		errorTrace.FailedDtrxTrace = trace
 		trace = errorTrace
@@ -1028,7 +1028,7 @@ func (c *Controller) applyBlock(b *types.SignedBlock, s types.BlockStatus) {
 		c.CommitBlock(false)
 		return
 	}).Catch(func(ex Exception) {
-		log.Error("controller ApplyBlock is error:%s", GetDetailMessage(ex))
+		log.Error("controller ApplyBlock is error:%s", ex.DetailMessage())
 		c.AbortBlock()
 	}).End()
 }
@@ -1116,7 +1116,7 @@ func (c *Controller) maybeSwitchForks(s types.BlockStatus) {
 			c.Head = newHead
 		}).Catch(func(e Exception) {
 			c.ForkDB.SetValidity(newHead, false)
-			EosThrow(e, "maybeSwitchForks is error:%#v", GetDetailMessage(e))
+			EosThrow(e, "maybeSwitchForks is error:%#v", e.DetailMessage())
 		}).End()
 	} else if newHead.BlockId != c.Head.BlockId {
 		log.Info("switching forks from: %#v (block number %#v) to %#v (block number %#v)", c.Head.BlockId, c.Head.BlockNum, newHead.BlockId, newHead.BlockNum)
@@ -1144,7 +1144,7 @@ func (c *Controller) maybeSwitchForks(s types.BlockStatus) {
 				except = e
 			}).End()
 			if except == nil {
-				log.Error("exception thrown while switching forks :%s", GetDetailMessage(except))
+				log.Error("exception thrown while switching forks :%s", except.DetailMessage())
 				c.ForkDB.SetValidity(&itr, false)
 				// pop all blocks from the bad fork
 				// ritr base is a forward itr to the last block successfully applied
@@ -1160,7 +1160,7 @@ func (c *Controller) maybeSwitchForks(s types.BlockStatus) {
 					c.Head = &branches.second[end]
 					c.ForkDB.MarkInCurrentChain(&branches.second[end], true)
 				}
-				EosThrow(except, "maybeSwitchForks is error:%#v", GetDetailMessage(except))
+				EosThrow(except, "maybeSwitchForks is error:%#v", except.DetailMessage())
 			}
 			log.Info("successfully switched fork to new head %#v", newHead.BlockId)
 		}
@@ -1503,11 +1503,7 @@ func (c *Controller) ValidateReversibleAvailableSize() {
 func (c *Controller) IsKnownUnexpiredTransaction(id *common.TransactionIdType) bool {
 	t := entity.TransactionObject{}
 	t.TrxID = *id
-	err := c.DB.Find("byTrxId", t, &t)
-	if err != nil {
-		log.Error("IsKnownUnexpiredTransaction Is Error:%s", err)
-	}
-	return common.Empty(t)
+	return nil == c.DB.Find("byTrxId", t, &t)
 }
 
 func (c *Controller) SetProposedProducers(producers []types.ProducerKey) int64 {

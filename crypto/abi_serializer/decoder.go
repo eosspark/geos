@@ -25,14 +25,14 @@ func (a *AbiDef) DecodeAction(actionName string, data []byte) ([]byte, error) {
 	return a.decode(binaryDecoder, action.Type)
 }
 
-func (a *AbiDef) DecodeTableRow(tableName string, data []byte) ([]byte, error) {
-	binaryDecoder := rlp.NewDecoder(data)
-	tbl := a.TableForName(tableName)
-	if tbl == nil {
-		return []byte{}, fmt.Errorf("table name %s not found in abi", tableName)
-	}
-	return a.decode(binaryDecoder, tbl.Type)
-}
+//func (a *AbiDef) DecodeTableRow(tableName string, data []byte) ([]byte, error) {
+//	binaryDecoder := rlp.NewDecoder(data)
+//	tbl := a.TableForName(tableName)
+//	if tbl == nil {
+//		return []byte{}, fmt.Errorf("table name %s not found in abi", tableName)
+//	}
+//	return a.decode(binaryDecoder, tbl.Type)
+//}
 
 func (a *AbiDef) DecodeTableRowTyped(tableType string, data []byte) ([]byte, error) {
 	binaryDecoder := rlp.NewDecoder(data)

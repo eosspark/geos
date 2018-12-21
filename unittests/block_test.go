@@ -1,6 +1,7 @@
 package unittests
 
 import (
+	"fmt"
 	"github.com/eosspark/container/sets/treeset"
 	"github.com/eosspark/eos-go/chain"
 	"github.com/eosspark/eos-go/chain/types"
@@ -23,15 +24,20 @@ func TestBlockWithInvalidTx(t *testing.T) {
 	b := main.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs), 0)
 
 	// Make a copy of the valid block and corrupt the transaction
-	copyB := types.NewSignedBlock1(&b.SignedBlockHeader)
+	copyB := b
 	signedTx := copyB.Transactions[len(copyB.Transactions)-1].Trx.PackedTransaction.GetSignedTransaction()
 	act := signedTx.Actions[len(signedTx.Actions)-1]
 	actData := chain.NewAccount{}
-	act.DataAs(actData)
+	act.DataAs(&actData)
 	// Make the transaction invalid by having the new account name the same as the creator name
 	actData.Name = actData.Creator
 	act.Data, err = rlp.EncodeToBytes(actData)
 	assert.NoError(t, err)
+
+	//act1 := signedTx.Actions[len(signedTx.Actions)-1]
+	//actData1 := chain.NewAccount{}
+	//act1.DataAs(&actData1)
+
 	// Re-sign the transaction
 	signedTx.Signatures = make([]ecc.Signature, 0)
 	priKey, chainId := main.getPrivateKey(common.DefaultConfig.SystemAccountName, "active"), main.Control.GetChainId()
@@ -47,8 +53,16 @@ func TestBlockWithInvalidTx(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Push block with invalid transaction to other chain
+	common.DefaultConfig.DefaultBlocksDirName = common.DefaultConfig.DefaultBlocksDirName + "tmp"
+	common.DefaultConfig.DefaultStateDirName = common.DefaultConfig.DefaultStateDirName + "tmp"
+	common.DefaultConfig.DefaultReversibleBlocksDirName = common.DefaultConfig.DefaultReversibleBlocksDirName + "tmp"
 	validator := newBaseTester(true, chain.SPECULATIVE)
 	validator.Control.AbortBlock()
+
+	//signedTx2 := copyB.Transactions[len(copyB.Transactions)-1].Trx.PackedTransaction.GetSignedTransaction()
+	//act2 := signedTx2.Actions[len(signedTx.Actions)-1]
+	//actData2 := chain.NewAccount{}
+	//act2.DataAs(&actData2)
 
 	requireException := false
 
@@ -56,6 +70,7 @@ func TestBlockWithInvalidTx(t *testing.T) {
 		validator.Control.PushBlock(copyB, types.Complete)
 	}).Catch(func(e Exception) {
 		requireException = true
+		fmt.Println(e.DetailMessage())
 		assert.Equal(t, AccountNameExistsException{}.Code(), e.Code())
 	}).End()
 

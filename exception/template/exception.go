@@ -14,11 +14,15 @@ const WHAT = ""
 
 var ExceptionName = reflect.TypeOf(Exception{}).Name()
 
-type PARENT interface {
-}
+type PARENT interface{}
+
 type Exception struct {
 	PARENT
 	Elog log.Messages
+}
+
+func New(parent PARENT, message log.Message) *Exception {
+	return &Exception{parent, log.Messages{message}}
 }
 
 func (e Exception) Code() int64 {

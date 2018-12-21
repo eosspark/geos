@@ -179,7 +179,7 @@ func (wtv *WeightTallyVisitor) VisitPermissionLevelWeight(permission PermissionL
 			}).Catch(func(e *PermissionQueryException) {
 				isNotFound = true
 				if propagateError {
-					EosThrow(e, "authority_check::VisitPermissionLevelWeight is error: %v", GetDetailMessage(e))
+					EosThrow(e, "authority_check::VisitPermissionLevelWeight is error: %v", e.DetailMessage())
 				} else {
 					return
 				}

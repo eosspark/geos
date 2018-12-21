@@ -58,15 +58,15 @@ func main() {
 
 	}).Catch(func(e Exception) {
 		if e.Code() == StdExceptionCode {
-			if strings.Contains(GetDetailMessage(e), "database dirty flag set") {
+			if strings.Contains(e.DetailMessage(), "database dirty flag set") {
 				log.Error("database dirty flag set (likely due to unclean shutdown): replay required")
 				os.Exit(DATABASE_DIRTY)
-			} else if strings.Contains(GetDetailMessage(e), "database metadata dirty flag set") {
+			} else if strings.Contains(e.DetailMessage(), "database metadata dirty flag set") {
 				log.Error("database metadata dirty flag set (likely due to unclean shutdown): replay required")
 				os.Exit(DATABASE_DIRTY)
 			}
 		}
-		log.Error(GetDetailMessage(e))
+		log.Error(e.DetailMessage())
 		os.Exit(OTHER_FAIL)
 
 		//}).Catch(func(e try.RuntimeError) {
@@ -82,9 +82,6 @@ func main() {
 		//		log.Error("%s", e.Message)
 		//	}
 		//	os.Exit(OTHER_FAIL)
-
-	}).Catch(func(e error) {
-		log.Error("%s", e.Error())
 
 	}).Catch(func(interface{}) {
 		log.Error("unknown exception")

@@ -164,7 +164,7 @@ func TestCreateNegativeMaxSupply(t *testing.T) {
 		symbol := "-1000.000 TKN"
 		eosioToken.create(common.N("alice"), common.Asset{}.FromString(&symbol))
 	}).Catch(func(e exception.Exception) {
-		if inString(exception.GetDetailMessage(e), "max-supply must be positive") {
+		if inString(e.DetailMessage(), "max-supply must be positive") {
 			returning = true
 		}
 	}).End()
@@ -191,7 +191,7 @@ func TestSymbolAlreadyExists(t *testing.T) {
 		symbol = "100 TKN"
 		eosioToken.create(common.N("alice"), common.Asset{}.FromString(&symbol))
 	}).Catch(func(e exception.Exception) {
-		if inString(exception.GetDetailMessage(e), "token with symbol already exists") {
+		if inString(e.DetailMessage(), "token with symbol already exists") {
 			returning = true
 		}
 	}).End()
@@ -282,7 +282,7 @@ func TestIssue(t *testing.T) {
 		quantity = "500.001 TKN"
 		eosioToken.issue(common.N("alice"), common.N("alice"), common.Asset{}.FromString(&quantity), "hola")
 	}).Catch(func(e exception.Exception) {
-		if inString(exception.GetDetailMessage(e), "quantity exceeds available supply") {
+		if inString(e.DetailMessage(), "quantity exceeds available supply") {
 			returning = true
 		}
 	}).End()
@@ -293,7 +293,7 @@ func TestIssue(t *testing.T) {
 		quantity = "-1.000 TKN"
 		eosioToken.issue(common.N("alice"), common.N("alice"), common.Asset{}.FromString(&quantity), "hola")
 	}).Catch(func(e exception.Exception) {
-		if inString(exception.GetDetailMessage(e), "must issue positive quantity") {
+		if inString(e.DetailMessage(), "must issue positive quantity") {
 			returning = true
 		}
 	}).End()
@@ -353,7 +353,7 @@ func TestTransfer(t *testing.T) {
 		quantity = "701 CERO"
 		eosioToken.transfer(common.N("alice"), common.N("bob"), common.Asset{}.FromString(&quantity), "hola")
 	}).Catch(func(e exception.Exception) {
-		if inString(exception.GetDetailMessage(e), "overdrawn balance") {
+		if inString(e.DetailMessage(), "overdrawn balance") {
 			returning = true
 		}
 	}).End()
@@ -364,7 +364,7 @@ func TestTransfer(t *testing.T) {
 		quantity = "-1000 CERO"
 		eosioToken.transfer(common.N("alice"), common.N("bob"), common.Asset{}.FromString(&quantity), "hola")
 	}).Catch(func(e exception.Exception) {
-		if inString(exception.GetDetailMessage(e), "must transfer positive quantity") {
+		if inString(e.DetailMessage(), "must transfer positive quantity") {
 			returning = true
 		}
 	}).End()

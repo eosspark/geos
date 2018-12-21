@@ -6,14 +6,12 @@ import (
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/eosspark/eos-go/exception"
-	"github.com/eosspark/eos-go/exception/try"
+	. "github.com/eosspark/eos-go/exception/try"
 	"strconv"
 	"strings"
 )
 
 var maxRecursionDepth = 32
-
-type typeName = string
 
 func Encode_Decode() common.Pair {
 	decode := func() {
@@ -26,12 +24,12 @@ func Encode_Decode() common.Pair {
 
 type AbiSerializer struct {
 	abi           *AbiDef
-	typeDefs      map[string]string
-	structs       map[string]StructDef
-	actions       map[common.Name]string
-	tables        map[tableName]string
+	typeDefs      map[typeName]typeName
+	structs       map[typeName]StructDef
+	actions       map[common.Name]typeName
+	tables        map[common.Name]typeName
 	errorMessages map[uint64]string
-	variants      map[string]VariantDef
+	variants      map[typeName]VariantDef
 	builtInTypes  map[string]common.Pair
 }
 
@@ -52,14 +50,14 @@ func (a *AbiSerializer) SetAbi(abi *AbiDef, maxSerializationTime common.Microsec
 	a.typeDefs = make(map[string]string)
 	a.structs = make(map[string]StructDef)
 	a.actions = make(map[common.Name]string)
-	a.tables = make(map[typeName]string)
+	a.tables = make(map[common.Name]string)
 	a.errorMessages = make(map[uint64]string)
 
 	for _, st := range abi.Structs {
 		a.structs[st.Name] = st
 	}
 
-	for _, td := range abi.Types {
+	for _, td := range abi.Types { //TODO valide types
 		//try.EosAssert(a.IsType(&td.Type, 0, &deadline, maxSerializationTime), &exception.InvalidTypeInsideAbi{}, "invalid type : %v", td.Type)
 		//try.EosAssert(!a.IsType(&td.NewTypeName, 0, &deadline, maxSerializationTime), &exception.DuplicateAbiTypeDefException{}, "type already exists : %v", td.Type)
 		a.typeDefs[td.NewTypeName] = td.Type
@@ -76,34 +74,35 @@ func (a *AbiSerializer) SetAbi(abi *AbiDef, maxSerializationTime common.Microsec
 	for _, e := range abi.ErrorMessages {
 		a.errorMessages[e.Code] = e.Message
 	}
+	for _, v := range abi.Variants { //may not exit
+		a.variants[v.Name] = v
+	}
 
-	try.EosAssert(len(a.typeDefs) == len(abi.Types), &exception.DuplicateAbiTypeDefException{}, "duplicate type definition detected")
-	try.EosAssert(len(a.structs) == len(abi.Structs), &exception.DuplicateAbiStructDefException{}, "duplicate struct definition detected")
-	try.EosAssert(len(a.actions) == len(abi.Actions), &exception.DuplicateAbiActionDefException{}, "duplicate action definition detected")
-	try.EosAssert(len(a.tables) == len(abi.Tables), &exception.DuplicateAbiTableDefException{}, "duplicate table definition detected")
-	try.EosAssert(len(a.errorMessages) == len(abi.ErrorMessages), &exception.DuplicateAbiErrMsgDefException{}, "duplicate error message definition detected")
-
+	EosAssert(len(a.typeDefs) == len(abi.Types), &exception.DuplicateAbiTypeDefException{}, "duplicate type definition detected")
+	EosAssert(len(a.structs) == len(abi.Structs), &exception.DuplicateAbiStructDefException{}, "duplicate struct definition detected")
+	EosAssert(len(a.actions) == len(abi.Actions), &exception.DuplicateAbiActionDefException{}, "duplicate action definition detected")
+	EosAssert(len(a.tables) == len(abi.Tables), &exception.DuplicateAbiTableDefException{}, "duplicate table definition detected")
+	EosAssert(len(a.errorMessages) == len(abi.ErrorMessages), &exception.DuplicateAbiErrMsgDefException{}, "duplicate error message definition detected")
+	EosAssert(len(a.variants) == len(abi.Variants), &exception.DuplicateAbiVariantDefException{}, "duplicate variant definition detected")
 	a.validate() //TODO always return true
 	a.abi = abi
 }
 
-func (a AbiSerializer) IsBuiltinType(rtype *string) bool {
+func (a AbiSerializer) IsBuiltinType(stype typeName) bool { //TODO
 	for p := range a.builtInTypes {
-		if p == *rtype {
+		if p == stype {
 			return true
 		}
 	}
 	return false
 }
 
-func (a AbiSerializer) IsInteger(rtype *string) bool {
-	stype := string(*rtype)
+func (a AbiSerializer) IsInteger(stype typeName) bool {
 	return strings.HasPrefix(stype, "int") || strings.HasPrefix(stype, "uint")
 }
 
-func (a AbiSerializer) GetIntegerSize(rtype *string) int {
-	stype := string(*rtype)
-	try.EosAssert(a.IsInteger(rtype), &exception.InvalidTypeInsideAbi{}, "%v is not an integer type", stype)
+func (a AbiSerializer) GetIntegerSize(stype typeName) int {
+	EosAssert(a.IsInteger(stype), &exception.InvalidTypeInsideAbi{}, "%v is not an integer type", stype)
 	var num int
 	if strings.HasPrefix(stype, "uint") {
 		num, _ = strconv.Atoi(string([]byte(stype)[4:]))
@@ -114,22 +113,22 @@ func (a AbiSerializer) GetIntegerSize(rtype *string) int {
 	}
 }
 
-func (a AbiSerializer) IsStruct(rtype *string) bool {
-	for p := range a.structs {
-		if p == *rtype {
+func (a AbiSerializer) IsStruct(stype typeName) bool {
+	name := a.ResolveType(stype)
+	for _, p := range a.structs {
+		if p.Name == name {
 			return true
 		}
 	}
 	return false
 }
 
-func (a AbiSerializer) IsArray(rtype *string) bool {
-	//TODO: [] in go is prefix.
-	return strings.HasSuffix(string(*rtype), "[]")
+func (a AbiSerializer) IsArray(stype typeName) bool {
+	return strings.HasSuffix(stype, "[]")
 }
 
-func (a AbiSerializer) IsOptional(rtype *string) bool {
-	return strings.HasPrefix(string(*rtype), "?")
+func (a AbiSerializer) IsOptional(stype typeName) bool {
+	return strings.HasSuffix(stype, "?")
 }
 
 //bool abi_serializer::is_type(const type_name& type, const fc::microseconds& max_serialization_time)const {
@@ -140,46 +139,44 @@ func (a AbiSerializer) IsOptional(rtype *string) bool {
 //	return false //TODO
 //}
 
-func (a AbiSerializer) FundamentalType(rtype *string) string {
-	stype := string(*rtype)
+func (a AbiSerializer) FundamentalType(stype typeName) string {
 	btype := []byte(stype)
-	if a.IsArray(rtype) {
+	if a.IsArray(stype) {
 		return string(string(btype[0 : len(btype)-2]))
-	} else if a.IsOptional(rtype) {
+	} else if a.IsOptional(stype) {
 		return string(string(btype[0 : len(btype)-1]))
 	} else {
-		return *rtype
+		return stype
 	}
 }
 
-func (a AbiSerializer) IsType(rtype *string, recursionDepth common.SizeT, deadline *common.TimePoint, maxSerializationTime common.Microseconds) bool {
-	try.EosAssert(common.Now() < *deadline, &exception.AbiSerializationDeadlineException{}, "serialization time limit %vus exceeded", maxSerializationTime)
+func (a AbiSerializer) IsType(rtype typeName, recursionDepth common.SizeT, deadline *common.TimePoint, maxSerializationTime common.Microseconds) bool {
+	EosAssert(common.Now() < *deadline, &exception.AbiSerializationDeadlineException{}, "serialization time limit %vus exceeded", maxSerializationTime)
 	recursionDepth++
 	if recursionDepth > maxRecursionDepth {
 		return false
 	}
 	ftype := a.FundamentalType(rtype)
-	if a.IsBuiltinType(&ftype) {
+	if a.IsBuiltinType(ftype) {
 		return true
 	}
 
-	if a.IsStruct(&ftype) {
+	if a.IsStruct(ftype) {
 		return true
 	}
 	return false
 }
 
-func (a AbiSerializer) GetStruct(rtype *typeName) *StructDef {
-
-	itr, ok := a.structs[a.ResolveType(rtype)]
-	try.EosAssert(ok, &exception.InvalidTypeInsideAbi{}, "Unknown struct %s", rtype)
+func (a AbiSerializer) GetStruct(stype typeName) *StructDef {
+	itr, ok := a.structs[a.ResolveType(stype)]
+	EosAssert(ok, &exception.InvalidTypeInsideAbi{}, "Unknown struct %s", stype)
 	return &itr
 }
 
-func (a AbiSerializer) ResolveType(rtype *typeName) typeName {
+func (a AbiSerializer) ResolveType(stype typeName) typeName {
 	var ok bool
 	var itr, t string
-	itr, ok = a.typeDefs[*rtype]
+	itr, ok = a.typeDefs[stype]
 	if ok {
 		for i := len(a.typeDefs); i > 0; i-- { // avoid infinite recursion
 			t = itr
@@ -245,27 +242,24 @@ func (a AbiSerializer) validate() bool {
 //
 
 func (a AbiSerializer) GetActionType(action common.Name) typeName {
-	itr, ok := a.actions[action]
-	if !ok {
-		return ""
+	if itr, ok := a.actions[action]; ok {
+		return itr
 	}
-	return itr
+	return ""
 }
 
-func (a AbiSerializer) GetTableType(action typeName) typeName {
-	itr, ok := a.tables[action]
-	if !ok {
-		return ""
+func (a AbiSerializer) GetTableType(action common.Name) typeName {
+	if itr, ok := a.tables[action]; ok {
+		return itr
 	}
-	return itr
+	return ""
 }
 
 func (a AbiSerializer) GetErrorMessage(errorCode uint64) string {
-	itr, ok := a.errorMessages[errorCode]
-	if !ok {
-		return ""
+	if itr, ok := a.errorMessages[errorCode]; ok {
+		return itr
 	}
-	return itr
+	return ""
 }
 
 func isEmptyABI(abiVec common.HexBytes) bool {
@@ -296,7 +290,7 @@ func ToABI(abiVec common.HexBytes, abi *AbiDef) bool {
 //func (a AbiSerializer)isType(rtype typeName,ctx)
 
 func (a *AbiSerializer) VariantToBinary(name typeName, body *common.Variants, maxSerializationTime common.Microseconds) []byte {
-	return a._VariantToBinary(name, body, true, 0, common.Now().AddUs(maxSerializationTime), maxSerializationTime)
+	return a.variantToBinary(name, body, true, 0, common.Now().AddUs(maxSerializationTime), maxSerializationTime)
 }
 
 //bytes abi_serializer::_variant_to_binary( const type_name& type, const fc::variant& var, bool allow_extensions,
@@ -314,20 +308,21 @@ func (a *AbiSerializer) VariantToBinary(name typeName, body *common.Variants, ma
 //   temp.resize(ds.tellp());
 //   return temp;
 //} FC_CAPTURE_AND_RETHROW( (type)(var) ) }
-func (a *AbiSerializer) _VariantToBinary(name typeName, data *common.Variants, allowExtensions bool, recursion_depth common.SizeT,
+func (a *AbiSerializer) variantToBinary(name typeName, data *common.Variants, allowExtensions bool, recursion_depth common.SizeT,
 	deadline common.TimePoint, maxSerializationTime common.Microseconds) (re []byte) {
-	try.Try(func() {
+	Try(func() {
 		buf, err := json.Marshal(data)
 		if err != nil {
-			fmt.Printf("tester GetAction Marshal is error:%s", err)
-			try.Throw(fmt.Errorf("tester GetAction Marshal is error:%s", err))
+			abiLog.Error("Marshal action is error: %s", err.Error())
+			Throw(fmt.Sprintf("Marshal action is error: %s", err.Error()))
 		}
 
-		re, err = a.abi.EncodeAction(common.N(name), buf)
+		re, err = a.abi.EncodeStruct(name, buf)
 		if err != nil {
-			fmt.Printf("encode actoin is error:%s", err)
-			try.Throw(fmt.Errorf("encode actoin is error:%s", err))
+			abiLog.Error("encode actoin is error:%s", err)
+			Throw(fmt.Errorf("encode actoin is error:%s", err))
 		}
+
 	}).FcCaptureAndRethrow(name, data).End()
 	return re
 
@@ -341,23 +336,24 @@ func (a *AbiSerializer) _VariantToBinary(name typeName, data *common.Variants, a
 //todo shortPath default is false
 func (a AbiSerializer) BinaryToVariant(rtype typeName, binary []byte, maxSerializationTime common.Microseconds, shortPath bool) common.Variants {
 	var re common.Variants
-	try.Try(func() {
+	Try(func() {
 		var bytes []byte
 		var err error
 		if a.abi.StructForName(rtype) != nil {
 			bytes, err = a.abi.DecodeStruct(rtype, binary)
-		} else if a.abi.TableForName(rtype) != nil {
-			bytes, err = a.abi.DecodeTableRow(rtype, binary)
 		}
+		//else if a.abi.TableForName(rtype) != nil {
+		//	bytes, err = a.abi.DecodeTableRow(rtype, binary)
+		//}
 
 		if err != nil {
 			fmt.Println(err.Error())
-			try.Throw(fmt.Sprintf("binary_to_variant is error: %s", err.Error()))
+			Throw(fmt.Sprintf("binary_to_variant is error: %s", err.Error()))
 		}
 		err = json.Unmarshal(bytes, &re)
 		if err != nil {
 			fmt.Println(err.Error())
-			try.Throw(fmt.Sprintf("unmarshal variants is error: %s", err.Error()))
+			Throw(fmt.Sprintf("unmarshal variants is error: %s", err.Error()))
 		}
 	}).EosRethrowExceptions(&exception.UnpackException{}, "Unable to unpack %s from bytes", string(binary)).End()
 	return re

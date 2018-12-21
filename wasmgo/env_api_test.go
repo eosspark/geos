@@ -584,7 +584,7 @@ func TestTransaction(t *testing.T) {
 			try.Try(func() {
 				b.PushTransaction(trx, common.MaxTimePoint(), b.DefaultBilledCpuTimeUs)
 			}).Catch(func(e exception.Exception) {
-				if inString(exception.GetDetailMessage(e), "transaction must have at least one authorization") {
+				if inString(e.DetailMessage(), "transaction must have at least one authorization") {
 					returning = true
 				}
 			}).End()
@@ -1666,7 +1666,7 @@ func (t BaseTester) PushAction(test *testing.T, act *types.Action, authorizer co
 	try.Try(func() {
 		t.PushTransaction(trx, common.MaxTimePoint(), t.DefaultBilledCpuTimeUs)
 	}).Catch(func(e exception.Exception) {
-		returning, ret = true, exception.GetDetailMessage(e)
+		returning, ret = true, e.DetailMessage()
 		return
 		//try.Return()
 	}).End()
@@ -2008,7 +2008,7 @@ func pushAction(control *chain.Controller, code []byte, cls string, method strin
 	try.Try(func() {
 		wasm.Apply(codeVersion, code, applyContext)
 	}).Catch(func(e exception.Exception) {
-		ret = exception.GetDetailMessage(e)
+		ret = e.DetailMessage()
 		//try.Return()
 		returning = true
 	}).End()
@@ -2212,8 +2212,8 @@ func callTestFunctionCheckExceptionF2(test *testing.T, t *BaseTester, a actionIn
 	try.Try(func() {
 		t.PushTransaction(trx, common.MaxTimePoint(), t.DefaultBilledCpuTimeUs)
 	}).Catch(func(e exception.Exception) {
-		//fmt.Println(exception.GetDetailMessage(e))
-		if e.Code() == errCode || inString(exception.GetDetailMessage(e), errMsg) {
+		//fmt.Println(exception.e.DetailMessage())
+		if e.Code() == errCode || inString(e.DetailMessage(), errMsg) {
 			//ret = true
 			//try.Return()
 

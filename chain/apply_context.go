@@ -151,7 +151,7 @@ func (i *iteratorCache) getEndIteratorByTableID(id common.IdType) int {
 	return -1
 }
 func (i *iteratorCache) findTablebyEndIterator(ei int) *entity.TableIdObject {
-	EosAssert(ei < -1, &InvalidTableTterator{}, "not an end iterator")
+	EosAssert(ei < -1, &InvalidTableIterator{}, "not an end iterator")
 	index := i.endIteratorToIndex(ei)
 	if index >= len(i.endIteratorToTable) {
 		return nil
@@ -159,17 +159,17 @@ func (i *iteratorCache) findTablebyEndIterator(ei int) *entity.TableIdObject {
 	return i.endIteratorToTable[index]
 }
 func (i *iteratorCache) get(iterator int) interface{} {
-	EosAssert(iterator != -1, &InvalidTableTterator{}, "invalid iterator")
+	EosAssert(iterator != -1, &InvalidTableIterator{}, "invalid iterator")
 	EosAssert(iterator >= 0, &TableOperationNotPermitted{}, "dereference of end iterator")
-	EosAssert(iterator < len(i.iteratorToObject), &InvalidTableTterator{}, "iterator out of range")
+	EosAssert(iterator < len(i.iteratorToObject), &InvalidTableIterator{}, "iterator out of range")
 	obj := i.iteratorToObject[iterator]
 	EosAssert(obj != nil, &TableOperationNotPermitted{}, "dereference of deleted object")
 	return obj
 }
 func (i *iteratorCache) remove(iterator int) {
-	EosAssert(iterator != -1, &InvalidTableTterator{}, "invalid iterator")
+	EosAssert(iterator != -1, &InvalidTableIterator{}, "invalid iterator")
 	EosAssert(iterator >= 0, &TableOperationNotPermitted{}, "dereference of end iterator")
-	EosAssert(iterator < len(i.iteratorToObject), &InvalidTableTterator{}, "iterator out of range")
+	EosAssert(iterator < len(i.iteratorToObject), &InvalidTableIterator{}, "iterator out of range")
 	obj := i.iteratorToObject[iterator]
 	if obj == nil {
 		return
@@ -265,7 +265,7 @@ func (a *ApplyContext) execOne(trace *types.ActionTrace) {
 				a.Control.GetWasmInterface().Apply(&account.CodeVersion, account.Code, a)
 				//}catch(const wasm_exit&){}
 			}
-		}).FcCaptureAndRethrow("pending console output: %v", a.PendingConsoleOutput).End()
+		}).FcCaptureAndRethrow("pending console output: %s", a.PendingConsoleOutput).End()
 
 	}).Catch(func(e Exception) {
 		trace.Receipt = r
@@ -885,7 +885,7 @@ func (a *ApplyContext) DbPreviousI64(iterator int, primary *uint64) int {
 
 	if iterator < -1 { // is end iterator
 		tab := a.KeyvalCache.findTablebyEndIterator(iterator)
-		EosAssert(tab != nil, &InvalidTableTterator{}, "not a valid end iterator")
+		EosAssert(tab != nil, &InvalidTableIterator{}, "not a valid end iterator")
 
 		obj := entity.KeyValueObject{TId: tab.ID}
 

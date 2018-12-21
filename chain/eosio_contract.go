@@ -93,7 +93,7 @@ func ApplyEosioNewaccount(context *ApplyContext) {
 
 	existingAccount := entity.AccountObject{Name: create.Name}
 	err = db.Find("byName", existingAccount, &existingAccount)
-	EosAssert(err != nil, &AccountNameExistsException{}, "Cannot create account named ${name}, as that name is already taken", common.S(uint64(create.Name)))
+	EosAssert(err != nil, &AccountNameExistsException{}, "Cannot create account named %s, as that name is already taken", common.S(uint64(create.Name)))
 
 	newAccountObject := entity.AccountObject{Name: create.Name, CreationDate: types.BlockTimeStamp(context.Control.PendingBlockTime())}
 	db.Insert(&newAccountObject)
@@ -146,7 +146,7 @@ func applyEosioNewaccount(context *ApplyContext) {
 
 	existingAccount := entity.AccountObject{Name: create.Name}
 	err = db.Find("byName", existingAccount, &existingAccount)
-	EosAssert(err != nil, &AccountNameExistsException{}, "Cannot create account named ${name}, as that name is already taken", common.S(uint64(create.Name)))
+	EosAssert(err != nil, &AccountNameExistsException{}, "Cannot create account named %s, as that name is already taken", common.S(uint64(create.Name)))
 
 	blockTime := context.Control.PendingBlockTime()
 
