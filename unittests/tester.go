@@ -159,8 +159,8 @@ func (t BaseTester) produceBlock(skipTime common.Microseconds, skipPendingTrxs b
 		unappliedTrxs := t.Control.GetUnappliedTransactions()
 		for _, trx := range unappliedTrxs {
 			trace := t.Control.PushTransaction(trx, common.MaxTimePoint(), 0)
-			if !common.Empty(trace.Except) {
-				try.EosThrow(trace.Except, "tester produceBlock is error:%#v", trace.Except)
+			if trace.Except != nil {
+				try.Throw(trace.Except)
 			}
 		}
 
@@ -168,8 +168,8 @@ func (t BaseTester) produceBlock(skipTime common.Microseconds, skipPendingTrxs b
 		for len(scheduledTrxs) > 0 {
 			for _, trx := range scheduledTrxs {
 				trace := t.Control.PushScheduledTransaction(&trx, common.MaxTimePoint(), 0)
-				if !common.Empty(trace.Except) {
-					try.EosThrow(trace.Except, "tester produceBlock is error:%#v", trace.Except)
+				if trace.Except != nil {
+					try.Throw(trace.Except)
 				}
 			}
 		}
@@ -292,14 +292,17 @@ func (t BaseTester) PushTransaction(trx *types.SignedTransaction, deadline commo
 		mtrx := types.NewTransactionMetadataBySignedTrx(trx, c)
 		trace = t.Control.PushTransaction(mtrx, deadline, billedCpuTimeUs)
 		if trace.ExceptPtr != nil {
-			try.EosThrow(trace.ExceptPtr, "tester PushTransaction is error :%#v", trace.ExceptPtr.DetailMessage())
+			try.Throw(trace.ExceptPtr)
+			//try.EosThrow(trace.ExceptPtr, "tester PushTransaction is error :%#v", trace.ExceptPtr.DetailMessage())
 		}
-		if !common.Empty(trace.Except) {
-			try.EosThrow(trace.Except, "tester PushTransaction is error :%#v", trace.Except.DetailMessage())
+		if trace.Except != nil {
+			try.Throw(trace.ExceptPtr)
+			//try.EosThrow(trace.Except, "tester PushTransaction is error :%#v", trace.Except.DetailMessage())
 		}
 		r = trace
 		return
-	}).FcCaptureAndRethrow().End()
+		//}).FcCaptureAndRethrow().End()
+	}).FcRethrowExceptions(log.LvlWarn, "transaction_header: %#v, billed_cpu_time_us: %d", trx.Transaction.TransactionHeader, billedCpuTimeUs)
 	return r
 }
 
