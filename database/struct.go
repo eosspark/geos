@@ -44,7 +44,7 @@ type DbResourceLimitsObject struct {
 	RamBytes  int64
 }
 
-func logObj(data interface{}) {
+func LogObj(data interface{}) {
 	space := "	"
 	ref := reflect.ValueOf(data)
 	if !ref.IsValid() || reflect.Indirect(ref).Kind() != reflect.Struct {
