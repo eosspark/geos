@@ -16,6 +16,7 @@ import (
 	. "github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/log"
+	"github.com/eosspark/eos-go/plugins/appbase/app/include"
 	"github.com/eosspark/eos-go/wasmgo"
 	"os"
 )
@@ -183,6 +184,14 @@ type Controller struct {
 	ApplyHandlers                  map[string]v
 	UnappliedTransactions          map[crypto.Sha256]types.TransactionMetadata
 	GpoCache                       map[common.IdType]*entity.GlobalPropertyObject
+	PreAcceptedBlock               include.Signal
+	AcceptedBlockHeader            include.Signal
+	AcceptedBlock                  include.Signal
+	IrreversibleBlock              include.Signal
+	AcceptedTransaction            include.Signal
+	AppliedTransaction             include.Signal
+	AcceptedConfirmation           include.Signal
+	BadAlloc                       include.Signal
 }
 
 func GetControllerInstance() *Controller {
@@ -434,7 +443,7 @@ func (c *Controller) startBlock(when types.BlockTimeStamp, confirmBlockCount uin
 		if (gpo.ProposedScheduleBlockNum != 0 && gpo.ProposedScheduleBlockNum <= c.Pending.PendingBlockState.DposIrreversibleBlocknum) &&
 			(len(c.Pending.PendingBlockState.PendingSchedule.Producers) == 0) && (!wasPendingPromoted) {
 			if !c.RePlaying {
-				log.Info("promoting proposed schedule (set in block %d) to pending; current block: %d lib: %d schedule: %#v ",
+				log.Info("promoting proposed schedule (set in block %d) to pending; current block: %d lib: %d schedule: %v ",
 					gpo.ProposedScheduleBlockNum, c.Pending.PendingBlockState.BlockNum, c.Pending.PendingBlockState.DposIrreversibleBlocknum, gpo.ProposedSchedule)
 			}
 			tmp := gpo.ProposedSchedule.ProducerScheduleType()
@@ -477,7 +486,7 @@ func (c *Controller) pushReceipt(trx interface{}, status types.TransactionStatus
 	switch trx.(type) {
 	case common.TransactionIdType:
 		tr.TransactionID = trx.(common.TransactionIdType)
-	case *types.PackedTransaction:
+	case types.PackedTransaction:
 		tr.PackedTransaction = trx.(*types.PackedTransaction)
 	}
 	trxReceipt.Trx = tr
@@ -551,7 +560,7 @@ func (c *Controller) pushTransaction(trx *types.TransactionMetadata, deadLine co
 				} else {
 					s = types.TransactionStatusDelayed
 				}
-				tr := c.pushReceipt(trx.PackedTrx, s, uint64(trxContext.BilledCpuTimeUs), trace.NetUsage)
+				tr := c.pushReceipt(trx.PackedTrx.PackedTrx, s, uint64(trxContext.BilledCpuTimeUs), trace.NetUsage)
 				trace.Receipt = tr.TransactionReceiptHeader
 				c.Pending.PendingBlockState.Trxs = append(c.Pending.PendingBlockState.Trxs, trx)
 			} else {
@@ -592,6 +601,7 @@ func (c *Controller) pushTransaction(trx *types.TransactionMetadata, deadLine co
 		}
 		/*emit( c.accepted_transaction, trx )
 		emit( c.applied_transaction, trace )*/
+		trxContext.Undo()
 		return
 	}).FcCaptureAndRethrow("trace:%v", trace).End()
 	return trace
@@ -644,7 +654,7 @@ func (c *Controller) GetOnBlockTransaction() types.SignedTransaction {
 	return trx
 }
 func (c *Controller) SkipDbSession(bs types.BlockStatus) bool {
-	considerSkipping := (bs == types.BlockStatus(IRREVERSIBLE))
+	considerSkipping := (bs == types.Irreversible)
 	return considerSkipping && !c.Config.DisableReplayOpts && !c.InTrxRequiringChecks
 }
 
@@ -793,6 +803,7 @@ func (c *Controller) pushScheduledTransactionByObject(gto *entity.GeneratedTrans
 	trxContext.ExplicitBilledCpuTime = explicitBilledCpuTime
 	trxContext.BilledCpuTimeUs = int64(billedCpuTimeUs)
 	trace = trxContext.Trace
+	returning := false
 	Try(func() {
 		trxContext.InitForDeferredTrx(gtrx.Published)
 		trxContext.Exec()
@@ -810,6 +821,7 @@ func (c *Controller) pushScheduledTransactionByObject(gto *entity.GeneratedTrans
 		trxContext.Squash()
 		c.UndoSession.Squash()
 		v = true
+		returning = true
 		//return trace
 	}).Catch(func(ex Exception) {
 		log.Error("PushScheduledTransaction is error:%s", ex.DetailMessage())
@@ -818,11 +830,13 @@ func (c *Controller) pushScheduledTransactionByObject(gto *entity.GeneratedTrans
 		trace.ExceptPtr = ex
 		trace.Elapsed = (common.Now() - trxContext.Start).TimeSinceEpoch()
 	}).End()
-
+	if returning {
+		return trace
+	}
 	trxContext.Undo()
 	if !failureIsSubjective(trace.Except) && gtrx.Sender != 0 { /*gtrx.Sender != account_name()*/
 		log.Info("%v", trace.Except.DetailMessage())
-		errorTrace := applyOnerror(gtrx, deadLine, trxContext.pseudoStart, &cpuTimeToBillUs, billedCpuTimeUs, explicitBilledCpuTime)
+		errorTrace := c.applyOnerror(gtrx, deadLine, trxContext.pseudoStart, &cpuTimeToBillUs, billedCpuTimeUs, explicitBilledCpuTime)
 		errorTrace.FailedDtrxTrace = trace
 		trace = errorTrace
 		if common.Empty(trace.ExceptPtr) {
@@ -882,14 +896,56 @@ func (c *Controller) pushScheduledTransactionByObject(gto *entity.GeneratedTrans
 	return trace
 }
 
-//TODO
-func applyOnerror(gtrx *entity.GeneratedTransaction, deadline common.TimePoint, start common.TimePoint,
+func (c *Controller) applyOnerror(gtrx *entity.GeneratedTransaction, deadline common.TimePoint, start common.TimePoint,
 	cpuTimeToBillUs *uint32, billedCpuTimeUs uint32, explicitBilledCpuTime bool) *types.TransactionTrace {
-	/*etrx :=types.SignedTransaction{}
-	pl := types.PermissionLevel{gtrx.Sender, common.DefaultConfig.ActiveName}
-	etrx.Actions = append(etrx.Actions, {})*/
+	etrx := types.SignedTransaction{}
+	action := types.Action{}
+	action.Authorization = []types.PermissionLevel{{gtrx.Sender, common.DefaultConfig.ActiveName}}
+	action.Data = gtrx.PackedTrx
+	onError := NewOnError(gtrx.SenderId, gtrx.PackedTrx)
+	action.Account = onError.GetAccount()
+	action.Name = onError.GetName()
+	etrx.Actions = append(etrx.Actions, &action)
+	in := c.PendingBlockTime().AddUs(common.Microseconds(999999))
+	etrx.Expiration = common.NewTimePointSecTp(in)
+	blockId := c.HeadBlockId()
+	etrx.SetReferenceBlock(&blockId)
+	trxContext := NewTransactionContext(c, &etrx, etrx.ID(), start)
+	trxContext.deadline = deadline
+	trxContext.ExplicitBilledCpuTime = explicitBilledCpuTime
+	trxContext.BilledCpuTimeUs = int64(billedCpuTimeUs)
+	trace := trxContext.Trace
+	returning := false
+	Try(func() {
+		trxContext.InitForImplicitTrx(0) //default
+		trxContext.Published = gtrx.Published
+		//trxContext.Trace.ActionTraces
+		at := types.ActionTrace{}
+		trxContext.Trace.ActionTraces = append(trxContext.Trace.ActionTraces, at)
+		tr := trxContext.Trace.ActionTraces[len(trxContext.Trace.ActionTraces)-1]
+		last := etrx.Actions[len(etrx.Actions)-1]
+		trxContext.DispathAction(&tr, last, gtrx.Sender, false, 0) //default false 0
+		trxContext.Finalize()
+		defer func() {}() //TODO
+		//pushReceipt(trx interface{}, status types.TransactionStatus, cpuUsageUs uint64, netUsage uint64) *types.TransactionReceipt
+		t := c.pushReceipt(gtrx.TrxId, types.TransactionStatusSoftFail, uint64(trxContext.BilledCpuTimeUs), trace.NetUsage)
+		trace.Receipt = t.TransactionReceiptHeader
+		trxContext.Squash()
+		//restore.cancel()
 
-	return nil
+		returning = true
+	}).Catch(func(e Exception) {
+		t := trxContext.UpdateBilledCpuTime(common.Now())
+		cpuTimeToBillUs = &t
+		trace.Except = e
+		trace.ExceptPtr = e
+	}).End()
+
+	if returning {
+		return trace
+	}
+
+	return trace
 }
 func (c *Controller) RemoveScheduledTransaction(gto *entity.GeneratedTransactionObject) {
 	c.ResourceLimits.AddPendingRamUsage(gto.Payer, int64(9)+int64(len(gto.PackedTrx)))
@@ -1017,12 +1073,12 @@ func (c *Controller) applyBlock(b *types.SignedBlock, s types.BlockStatus) {
 			if length > 0 {
 				trxReceipt = c.Pending.PendingBlockState.SignedBlock.Transactions[length-1]
 			}
-			EosAssert(trxReceipt == receipt, &BlockValidateException{}, "receipt does not match,producer_receipt:%#v", receipt, "validator_receipt:%#v", trxReceipt)
+			EosAssert(trxReceipt == receipt, &BlockValidateException{}, "receipt does not match,producer_receipt:%v", receipt, "validator_receipt:%v", trxReceipt)
 		}
 		c.FinalizeBlock()
 
 		EosAssert(producerBlockId == c.Pending.PendingBlockState.Header.BlockID(), &BlockValidateException{},
-			"Block ID does not match,producer_block_id:%#v", producerBlockId, "validator_block_id:%#v", c.Pending.PendingBlockState.Header.BlockID())
+			"Block ID does not match,producer_block_id:%v", producerBlockId, "validator_block_id:%v", c.Pending.PendingBlockState.Header.BlockID())
 
 		c.Pending.PendingBlockState.Header.ProducerSignature = b.ProducerSignature
 		c.CommitBlock(false)
@@ -1075,9 +1131,10 @@ func (c *Controller) PushBlock(b *types.SignedBlock, s types.BlockStatus) {
 		EosAssert(b != nil, &BlockValidateException{}, "trying to push empty block")
 		EosAssert(s != types.Incomplete, &BlockLogException{}, "invalid block status for a completed block")
 		//TODO: add to forkdb
+		c.PreAcceptedBlock.Emit(b)
 		//emit(self.pre_accepted_block, b )
-		/*trust := !c.Config.forceAllChecks && (s== types.Irreversible || s== types.Validated)
-		newHeaderState := c.ForkDB.AddSignedBlockState(b,trust)*/
+		trust := !c.Config.ForceAllChecks && (s == types.Irreversible || s == types.Validated)
+		newHeaderState := c.ForkDB.AddSignedBlockState(b, trust)
 		exist, _ := c.Config.TrustedProducers.Find(func(index int, value interface{}) bool {
 			return c.Config.TrustedProducers.GetComparator()(value, b.Producer) == 0
 		})
@@ -1085,11 +1142,13 @@ func (c *Controller) PushBlock(b *types.SignedBlock, s types.BlockStatus) {
 		if exist != -1 {
 			c.TrustedProducerLightValidation = true
 		}
+		c.AcceptedBlockHeader.Emit(newHeaderState)
 		//emit( self.accepted_block_header, new_header_state )
 		if c.ReadMode != IRREVERSIBLE {
 			c.maybeSwitchForks(s)
 		}
 		if s == types.Irreversible {
+			c.IrreversibleBlock.Emit(newHeaderState)
 			//emit( self.irreversible_block, new_header_state )
 		}
 	}).FcLogAndRethrow().End()
@@ -1097,8 +1156,9 @@ func (c *Controller) PushBlock(b *types.SignedBlock, s types.BlockStatus) {
 }
 
 func (c *Controller) PushConfirmation(hc *types.HeaderConfirmation) {
-	EosAssert(c.Pending != nil, &BlockValidateException{}, "it is not valid to push a confirmation when there is a pending block")
+	EosAssert(c.Pending == nil, &BlockValidateException{}, "it is not valid to push a confirmation when there is a pending block")
 	c.ForkDB.Add(hc)
+	//c.AcceptedConfirmation.Emit(hc)
 	//emit( c.accepted_confirmation, hc )
 	if c.ReadMode != IRREVERSIBLE {
 		c.maybeSwitchForks(types.Complete)
@@ -1116,10 +1176,10 @@ func (c *Controller) maybeSwitchForks(s types.BlockStatus) {
 			c.Head = newHead
 		}).Catch(func(e Exception) {
 			c.ForkDB.SetValidity(newHead, false)
-			EosThrow(e, "maybeSwitchForks is error:%#v", e.DetailMessage())
+			EosThrow(e, "maybeSwitchForks is error:%v", e.DetailMessage())
 		}).End()
 	} else if newHead.BlockId != c.Head.BlockId {
-		log.Info("switching forks from: %#v (block number %#v) to %#v (block number %#v)", c.Head.BlockId, c.Head.BlockNum, newHead.BlockId, newHead.BlockNum)
+		log.Info("switching forks from: %v (block number %v) to %v (block number %v)", c.Head.BlockId, c.Head.BlockNum, newHead.BlockId, newHead.BlockNum)
 		branches := c.ForkDB.FetchBranchFrom(&newHead.BlockId, &c.Head.BlockId)
 
 		for i := 0; i < len(branches.second); i++ {
@@ -1160,9 +1220,9 @@ func (c *Controller) maybeSwitchForks(s types.BlockStatus) {
 					c.Head = &branches.second[end]
 					c.ForkDB.MarkInCurrentChain(&branches.second[end], true)
 				}
-				EosThrow(except, "maybeSwitchForks is error:%#v", except.DetailMessage())
+				EosThrow(except, "maybeSwitchForks is error:%v", except.DetailMessage())
 			}
-			log.Info("successfully switched fork to new head %#v", newHead.BlockId)
+			log.Info("successfully switched fork to new head %v", newHead.BlockId)
 		}
 	}
 
@@ -1267,7 +1327,7 @@ func (c *Controller) PendingBlockState() *types.BlockState {
 }
 
 func (c *Controller) PendingBlockTime() common.TimePoint {
-	EosAssert(!common.Empty(c.Pending), &BlockValidateException{}, "no pending block")
+	EosAssert(c.Pending != nil, &BlockValidateException{}, "no pending block")
 	return c.Pending.PendingBlockState.Header.Timestamp.ToTimePoint()
 }
 
@@ -1277,17 +1337,17 @@ func (c *Controller) PendingProducerBlockId() common.BlockIdType {
 }
 
 func (c *Controller) ActiveProducers() *types.ProducerScheduleType {
-	if c.Pending != nil {
+	if c.Pending == nil {
 		return &c.Head.ActiveSchedule
 	}
 	return &c.Pending.PendingBlockState.ActiveSchedule
 }
 
 func (c *Controller) PendingProducers() *types.ProducerScheduleType {
-	if c.Pending != nil {
+	if c.Pending == nil {
 		return &c.Head.PendingSchedule
 	}
-	return &c.Pending.PendingBlockState.ActiveSchedule
+	return &c.Pending.PendingBlockState.PendingSchedule
 }
 
 func (c *Controller) ProposedProducers() types.ProducerScheduleType {
@@ -1403,7 +1463,7 @@ func (c *Controller) CheckActionList(code common.AccountName, action common.Acti
 			return c.Config.ActionBlacklist.GetComparator()(value, &abl) == 0
 		})
 
-		EosAssert(exist == -1, &ActionBlacklistException{}, "action '%#v::%#v' is on the action blacklist", code, action)
+		EosAssert(exist == -1, &ActionBlacklistException{}, "action '%v::%v' is on the action blacklist", code, action)
 	}
 }
 
@@ -1447,20 +1507,20 @@ func (c *Controller) ValidateReferencedAccounts(t *types.Transaction) {
 	for _, a := range t.ContextFreeActions {
 		ac.Name = a.Account
 		err := c.DB.Find("byName", ac, &ac)
-		EosAssert(err == nil, &TransactionException{}, "action's code account '%#v' does not exist", a.Account)
+		EosAssert(err == nil, &TransactionException{}, "action's code account '%v' does not exist", a.Account)
 		EosAssert(len(a.Authorization) == 0, &TransactionException{}, "context-free actions cannot have authorizations")
 	}
 	oneAuth := false
 	for _, a := range t.Actions {
 		ac.Name = a.Account
 		err := c.DB.Find("byName", ac, &ac)
-		EosAssert(err == nil, &TransactionException{}, "action's code account '%#v' does not exist", a.Account)
+		EosAssert(err == nil, &TransactionException{}, "action's code account '%v' does not exist", a.Account)
 		for _, auth := range a.Authorization {
 			oneAuth = true
 			ac.Name = auth.Actor
 			err := c.DB.Find("byName", ac, &ac)
-			EosAssert(err == nil, &TransactionException{}, "action's authorizing actor '%#v' does not exist", auth.Actor)
-			EosAssert(c.Authorization.FindPermission(&auth) != nil, &TransactionException{}, "action's authorizations include a non-existent permission: %#v", auth)
+			EosAssert(err == nil, &TransactionException{}, "action's authorizing actor '%v' does not exist", auth.Actor)
+			EosAssert(c.Authorization.FindPermission(&auth) != nil, &TransactionException{}, "action's authorizations include a non-existent permission: %v", auth)
 		}
 	}
 	EosAssert(oneAuth, &TxNoAuths{}, "transaction must have at least one authorization")
@@ -1468,7 +1528,7 @@ func (c *Controller) ValidateReferencedAccounts(t *types.Transaction) {
 
 func (c *Controller) ValidateExpiration(t *types.Transaction) {
 	chainConfiguration := c.GetGlobalProperties().Configuration
-	//log.Info("ValidateExpiration t.Expiration.ToTimePoint():%#v,c.PendingBlockTime():%#v", t.Expiration.ToTimePoint(), c.PendingBlockTime())
+	//log.Info("ValidateExpiration t.Expiration.ToTimePoint():%v,c.PendingBlockTime():%v", t.Expiration.ToTimePoint(), c.PendingBlockTime())
 	EosAssert(t.Expiration.ToTimePoint() >= c.PendingBlockTime(),
 		&ExpiredTxException{}, "transaction has expired, expiration is %v and pending block time is %v",
 		t.Expiration, c.PendingBlockTime())
@@ -1504,28 +1564,22 @@ func (c *Controller) IsKnownUnexpiredTransaction(id *common.TransactionIdType) b
 	t := entity.TransactionObject{}
 	t.TrxID = *id
 	err := c.DB.Find("byTrxId", t, &t)
-	if err != nil {
-		log.Error("IsKnownUnexpiredTransaction Is Error:%s", err)
-	}
-	return common.Empty(t)
+	log.Info("controller IsKnownUnexpiredTransaction:%v,%v", t.ID, t)
+	return err == nil
 }
 
 func (c *Controller) SetProposedProducers(producers []types.ProducerKey) int64 {
-
 	gpo := c.GetGlobalProperties()
 	curBlockNum := c.HeadBlockNum() + 1
 	if gpo.ProposedScheduleBlockNum != 0 {
 		if gpo.ProposedScheduleBlockNum != curBlockNum {
 			return -1
 		}
-
 		if compare(producers, gpo.ProposedSchedule.Producers) {
 			return -1
 		}
 	}
 	sch := types.ProducerScheduleType{}
-	/*begin :=types.ProducerKey{}
-	end :=types.ProducerKey{}*/
 	if len(c.Pending.PendingBlockState.PendingSchedule.Producers) == 0 {
 		activeSch := c.Pending.PendingBlockState.ActiveSchedule
 		if compare(producers, activeSch.Producers) {
@@ -1706,7 +1760,7 @@ func (c *Controller) initializeDatabase() {
 		activeProducersAuthority,
 		c.Config.Genesis.InitialTimestamp)
 
-	//log.Info("initializeDatabase print:%#v,%#v", majorityPermission.ID, minorityPermission.ID)
+	//log.Info("initializeDatabase print:%v,%v", majorityPermission.ID, minorityPermission.ID)
 }
 
 func (c *Controller) initialize() {
@@ -1798,7 +1852,7 @@ func (c *Controller) CheckActorList(actors *treeset.Set) {
 				return c.Config.ActorWhitelist.GetComparator()(value, itr.Value()) == 0
 			})
 			EosAssert(exist != -1, &ActorWhitelistException{},
-				"authorizing actor(s) in transaction are not on the actor whitelist: %#v", actors)
+				"authorizing actor(s) in transaction are not on the actor whitelist: %v", actors)
 		}
 	} else if c.Config.ActorBlacklist.Size() > 0 {
 		itr := actors.Iterator()
@@ -1807,7 +1861,7 @@ func (c *Controller) CheckActorList(actors *treeset.Set) {
 				return c.Config.ActionBlacklist.GetComparator()(value, itr.Value()) == 0
 			})
 			EosAssert(exist == -1, &ActorBlacklistException{},
-				"authorizing actor(s) in transaction are on the actor blacklist: %#v", actors)
+				"authorizing actor(s) in transaction are on the actor blacklist: %v", actors)
 		}
 	}
 }

@@ -66,6 +66,7 @@ func NewTransactionContext(c *Controller, t *types.SignedTransaction, trxId comm
 		Control:               c,
 		Trx:                   t,
 		Start:                 s,
+		ID:                    trxId,
 		pseudoStart:           s,
 		InitialMaxBillableCpu: 0,
 		IsInput:               false,
@@ -92,9 +93,9 @@ func NewTransactionContext(c *Controller, t *types.SignedTransaction, trxId comm
 	//for testing
 	//tc.ValidateRamUsage = make([]common.AccountName, 10)
 
-	// if !c.SkipDbSessions() {
-	// 	tc.UndoSession = c.DB.StartSession()
-	// }
+	if !c.SkipDbSessions() {
+		tc.UndoSession = c.DB.StartSession()
+	}
 	tc.Trace = &types.TransactionTrace{
 		ID:              trxId,
 		BlockNum:        c.PendingBlockState().BlockNum,
@@ -589,5 +590,13 @@ func (t *TransactionContext) scheduleTransaction() {
 func (t *TransactionContext) recordTransaction(id *common.TransactionIdType, expire common.TimePointSec) {
 
 	obj := entity.TransactionObject{Expiration: expire, TrxID: *id}
-	t.Control.DB.Insert(&obj)
+	result := entity.TransactionObject{}
+	err := t.Control.DB.Find("byTrxId", obj, &result)
+
+	if err != nil {
+		t.Control.DB.Insert(&obj)
+	} else {
+		EosThrow(&TxDuplicate{}, "duplicate transaction %v", id)
+	}
+
 }
