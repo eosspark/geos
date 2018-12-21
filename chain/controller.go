@@ -1503,11 +1503,7 @@ func (c *Controller) ValidateReversibleAvailableSize() {
 func (c *Controller) IsKnownUnexpiredTransaction(id *common.TransactionIdType) bool {
 	t := entity.TransactionObject{}
 	t.TrxID = *id
-	err := c.DB.Find("byTrxId", t, &t)
-	if err != nil {
-		log.Error("IsKnownUnexpiredTransaction Is Error:%s", err)
-	}
-	return common.Empty(t)
+	return nil == c.DB.Find("byTrxId", t, &t)
 }
 
 func (c *Controller) SetProposedProducers(producers []types.ProducerKey) int64 {
