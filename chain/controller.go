@@ -423,7 +423,7 @@ func (c *Controller) startBlock(when types.BlockTimeStamp, confirmBlockCount uin
 		}
 	}()
 	if !c.SkipDbSession(s) {
-		EosAssert(uint32(c.DB.Revision()) == c.Head.BlockNum, &DatabaseException{}, "db revision is not on par with head block",
+		EosAssert(uint32(c.DB.Revision()) == c.Head.BlockNum, &DatabaseException{}, "db revision is not on par with head block,Revision %v,BlockNum %v,ForkDB.Header().BlockNum %v",
 			c.DB.Revision(), c.Head.BlockNum, c.ForkDB.Header().BlockNum)
 		c.Pending = NewPendingState(c.DB)
 	} else {
@@ -923,7 +923,7 @@ func (c *Controller) applyOnerror(gtrx *entity.GeneratedTransaction, deadline co
 		trxContext.Trace.ActionTraces = append(trxContext.Trace.ActionTraces, at)
 		tr := trxContext.Trace.ActionTraces[len(trxContext.Trace.ActionTraces)-1]
 		last := etrx.Actions[len(etrx.Actions)-1]
-		trxContext.DispathAction(&tr, last, gtrx.Sender, false, 0) //default false 0
+		trxContext.DispatchAction(&tr, last, gtrx.Sender, false, 0) //default false 0
 		trxContext.Finalize()
 		defer func() {}() //TODO
 		//pushReceipt(trx interface{}, status types.TransactionStatus, cpuUsageUs uint64, netUsage uint64) *types.TransactionReceipt
