@@ -464,8 +464,16 @@ func (t BaseTester) PushDummy(from common.AccountName, v *string, billedCpuTimeU
 }
 
 func (t BaseTester) Transfer(from common.AccountName, to common.AccountName, amount common.Asset, memo string, currency common.AccountName) *types.TransactionTrace {
-	//TODO
 	trx := types.SignedTransaction{}
+	data := common.Variants{
+		"from":     from,
+		"to":       to,
+		"quantity": amount,
+		"memo":     memo,
+	}
+	acttype := common.N("transfer")
+	act := t.GetAction(currency, acttype, []types.PermissionLevel{{from, common.N("active")}}, &data)
+	trx.Actions = append(trx.Actions, act)
 	t.SetTransactionHeaders(&trx.Transaction, t.DefaultExpirationDelta, 0)
 	privKey := t.getPrivateKey(from, "active")
 	chainId := t.Control.GetChainId()
