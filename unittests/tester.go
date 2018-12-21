@@ -321,7 +321,7 @@ func (t BaseTester) PushAction(act *types.Action, authorizer common.AccountName)
 	try.Try(func() {
 		t.PushTransaction(&trx, common.MaxTimePoint(), t.DefaultBilledCpuTimeUs)
 	}).Catch(func(ex exception.Exception) {
-		log.Error("tester PushAction is error: %#v", ex.DetailMessage())
+		log.Error("tester PushAction is error: %v", ex.DetailMessage())
 	}).End()
 	t.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs), 0)
 	//BOOST_REQUIRE_EQUAL(true, chain_has_transaction(trx.id()))
@@ -648,7 +648,7 @@ func (t BaseTester) GetCurrencyBalance(code *common.AccountName, assetSymbol *co
 	if err != nil {
 		log.Error("GetCurrencyBalance is error: %s", err)
 	} else {
-		obj := entity.KeyValueObject{ID: table.ID, PrimaryKey: uint64(common.N(assetSymbol.Symbol))}
+		obj := entity.KeyValueObject{TId: table.ID, PrimaryKey: uint64(assetSymbol.ToSymbolCode())}
 		err := db.Find("byScopePrimary", obj, &obj)
 		if err != nil {
 			log.Error("GetCurrencyBalance is error: %s", err)

@@ -489,7 +489,7 @@ func (a *AuthorizationManager) GetRequiredKeys(trx *types.Transaction,
 		},
 		a.control.GetGlobalProperties().Configuration.MaxAuthorityDepth,
 		candidateKeys,
-		nil,
+		treeset.NewWith(types.PermissionLevelType, types.ComparePermissionLevel),
 		providedDelay,
 		noopCheckTime,
 	)
