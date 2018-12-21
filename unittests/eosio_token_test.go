@@ -1,13 +1,14 @@
 package unittests
 
 import (
-	"bytes"
+	//"bytes"
+	//"encoding/hex"
 	"github.com/docker/docker/pkg/testutil/assert"
 	"github.com/eosspark/eos-go/chain"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto/abi_serializer"
-	"github.com/eosspark/eos-go/crypto/rlp"
+	//"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/eosspark/eos-go/entity"
 	"github.com/eosspark/eos-go/exception"
 	"github.com/eosspark/eos-go/exception/try"
@@ -15,6 +16,7 @@ import (
 	"io/ioutil"
 	"strings"
 	"testing"
+	//"unsafe"
 )
 
 type EosioTokenTester struct {
@@ -119,14 +121,15 @@ func (e *EosioTokenTester) transfer(from common.AccountName, to common.AccountNa
 }
 
 func equal(v1 *common.Variants, v2 *common.Variants) bool {
-	b1, _ := rlp.EncodeToBytes(v1)
-	b2, _ := rlp.EncodeToBytes(v2)
 
-	if bytes.Compare(b1, b2) == 0 {
-		return true
+	for k, v := range *v1 {
+
+		if value, ok := (*v2)[k]; !ok || value != v {
+			return false
+		}
 	}
 
-	return false
+	return true
 
 }
 
@@ -150,6 +153,7 @@ func TestCreate(t *testing.T) {
 	ret := equal(stats, &obj)
 	assert.Equal(t, ret, true)
 	eosioToken.ProduceBlocks(1, false)
+	eosioToken.close()
 }
 
 func TestCreateNegativeMaxSupply(t *testing.T) {
@@ -165,6 +169,7 @@ func TestCreateNegativeMaxSupply(t *testing.T) {
 		}
 	}).End()
 	assert.Equal(t, returning, true)
+	eosioToken.close()
 }
 
 func TestSymbolAlreadyExists(t *testing.T) {
@@ -191,6 +196,7 @@ func TestSymbolAlreadyExists(t *testing.T) {
 		}
 	}).End()
 	assert.Equal(t, returning, true)
+	eosioToken.close()
 }
 
 func TestCreateMaxSupply(t *testing.T) {
@@ -206,17 +212,18 @@ func TestCreateMaxSupply(t *testing.T) {
 	assert.Equal(t, ret, true)
 	eosioToken.ProduceBlocks(1, false)
 
-	// max := common.Asset{10, common.Symbol{0, "NKT"}}
-	// max.Amount = 4611686018427387904
-	// returning := false
-	// try.Try(func() {
-	// 	eosioToken.create(common.N("alice"), max)
-	// }).Catch(func(e exception.Exception) {
-	// 	if inString(exception.GetDetailMessage(e), "magnitude of asset amount must be less than 2^62") {
-	// 		returning = true
-	// 	}
-	// }).End()
-	// assert.Equal(t, returning, true)
+	max := common.Asset{10, common.Symbol{0, "NKT"}}
+	max.Amount = 4611686018427387904
+	returning := false
+	try.Try(func() {
+		eosioToken.create(common.N("alice"), max)
+	}).Catch(func(e exception.Exception) {
+		if inString(exception.GetDetailMessage(e), "magnitude of asset amount must be less than 2^62") {
+			returning = true
+		}
+	}).End()
+	assert.Equal(t, returning, true)
+	eosioToken.close()
 }
 
 func TestCreateMaxDecimals(t *testing.T) {
@@ -232,17 +239,21 @@ func TestCreateMaxDecimals(t *testing.T) {
 	assert.Equal(t, ret, true)
 	eosioToken.ProduceBlocks(1, false)
 
-	// max := common.Asset{10, common.Symbol{0, "NKT"}}
-	// max.Amount = 0x8ac7230489e80000L
-	// returning := false
-	// try.Try(func() {
-	// 	eosioToken.create(common.N("alice"), max)
-	// }).Catch(func(e exception.Exception) {
-	// 	if inString(exception.GetDetailMessage(e), "magnitude of asset amount must be less than 2^62") {
-	// 		returning = true
-	// 	}
-	// }).End()
-	// assert.Equal(t, returning, true)
+	//max := common.Asset{10, common.Symbol{0, "NKT"}}
+
+	//bytesDest := (*byte)(unsafe.Pointer((&max.Amount))
+	//bytesSource := hex.DecodeString("8ac7230489e80000")
+	//
+	//returning := false
+	//try.Try(func() {
+	//	eosioToken.create(common.N("alice"), max)
+	//}).Catch(func(e exception.Exception) {
+	//	if inString(exception.GetDetailMessage(e), "magnitude of asset amount must be less than 2^62") {
+	//		returning = true
+	//	}
+	//}).End()
+	//assert.Equal(t, returning, true)
+	eosioToken.close()
 }
 
 func TestIssue(t *testing.T) {
@@ -290,6 +301,7 @@ func TestIssue(t *testing.T) {
 
 	quantity = "1.000 TKN"
 	eosioToken.issue(common.N("alice"), common.N("alice"), common.Asset{}.FromString(&quantity), "hola")
+	eosioToken.close()
 
 }
 
@@ -316,7 +328,7 @@ func TestTransfer(t *testing.T) {
 	assert.Equal(t, ret, true)
 
 	quantity = "300 CERO"
-	eosioToken.issue(common.N("alice"), common.N("bob"), common.Asset{}.FromString(&quantity), "hola")
+	eosioToken.transfer(common.N("alice"), common.N("bob"), common.Asset{}.FromString(&quantity), "hola")
 
 	aliceBalance = eosioToken.getAccount(common.N("alice"), "0,CERO")
 	obj = common.Variants{
@@ -339,7 +351,7 @@ func TestTransfer(t *testing.T) {
 	returning := false
 	try.Try(func() {
 		quantity = "701 CERO"
-		eosioToken.issue(common.N("alice"), common.N("bob"), common.Asset{}.FromString(&quantity), "hola")
+		eosioToken.transfer(common.N("alice"), common.N("bob"), common.Asset{}.FromString(&quantity), "hola")
 	}).Catch(func(e exception.Exception) {
 		if inString(exception.GetDetailMessage(e), "overdrawn balance") {
 			returning = true
@@ -350,12 +362,12 @@ func TestTransfer(t *testing.T) {
 	returning = false
 	try.Try(func() {
 		quantity = "-1000 CERO"
-		eosioToken.issue(common.N("alice"), common.N("bob"), common.Asset{}.FromString(&quantity), "hola")
+		eosioToken.transfer(common.N("alice"), common.N("bob"), common.Asset{}.FromString(&quantity), "hola")
 	}).Catch(func(e exception.Exception) {
 		if inString(exception.GetDetailMessage(e), "must transfer positive quantity") {
 			returning = true
 		}
 	}).End()
 	assert.Equal(t, returning, true)
-
+	eosioToken.close()
 }
