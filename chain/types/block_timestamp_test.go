@@ -1,9 +1,9 @@
 package types
 
 import (
-	"testing"
-	"github.com/stretchr/testify/assert"
 	"github.com/eosspark/eos-go/common"
+	"github.com/stretchr/testify/assert"
+	"testing"
 )
 
 func TestTimePointToBlockTimeStamp(t *testing.T) {
@@ -22,4 +22,18 @@ func TestBlockTimeStamp_ToTimePoint(t *testing.T) {
 	tp = bt1.ToTimePoint()
 	assert.Equal(t, int64(946684900), tp.TimeSinceEpoch().ToSeconds(), "Time point conversion failed")
 
+}
+
+func TestBlockTimeStamp_MarshalJSON(t *testing.T) {
+	tp := common.TimePoint(common.Seconds(978307200))
+	bt := NewBlockTimeStamp(tp)
+
+	json, err := bt.MarshalJSON()
+	assert.NoError(t, err, "BlockTimeStamp MarshalJSON failed")
+
+	valid := NewBlockTimeStamp(0)
+	err = valid.UnmarshalJSON(json)
+	assert.NoError(t, err, "BlockTimeStamp UnmarshalJSON failed")
+
+	assert.Equal(t, valid, bt)
 }

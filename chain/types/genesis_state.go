@@ -5,6 +5,8 @@ import (
 	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/crypto/rlp"
+	"github.com/eosspark/eos-go/exception"
+	"github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/log"
 )
 
@@ -21,13 +23,13 @@ func NewGenesisState() *GenesisState {
 	g := &GenesisState{}
 	its, err := common.FromIsoString("2018-06-01T12:00:00")
 	if err != nil {
-		log.Error("NewGenesisState is error detail:", err)
+		log.Error("NewGenesisState is error detail:%s", err.Error())
 	}
 	//g.EosioRootKey = "EOS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV"
 	g.InitialTimestamp = its
 	key, err := ecc.NewPublicKey(EosioRootKey)
 	if err != nil {
-		log.Error("", err)
+		try.EosThrow(&exception.PublicKeyTypeException{}, err.Error())
 	}
 	g.InitialKey = key
 	g.Initial()
@@ -38,7 +40,7 @@ func (g *GenesisState) ComputeChainID() common.ChainIdType {
 
 	b, err := rlp.EncodeToBytes(g)
 	if err != nil {
-		log.Error("ComputeChainID EncodeToBytes is error:", err)
+		log.Error("ComputeChainID EncodeToBytes is error:%s", err.Error())
 	}
 	return common.ChainIdType(crypto.Hash256(b))
 }
