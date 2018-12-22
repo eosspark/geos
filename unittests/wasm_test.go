@@ -259,3 +259,41 @@ func TestSoftfloat32(t *testing.T) {
 		b.close()
 	})
 }
+
+func TestErrorfloat32(t *testing.T) {
+	wasm := "test_contracts/f32_error.wasm"
+	t.Run(filepath.Base(wasm), func(t *testing.T) {
+		code, err := ioutil.ReadFile(wasm)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		f32_tests := common.N("f32_tests")
+
+		b := newBaseTester(true, chain.SPECULATIVE)
+		b.ProduceBlocks(2, false)
+		b.CreateAccounts([]common.AccountName{f32_tests}, false, true)
+		b.ProduceBlocks(1, false)
+		b.SetCode(f32_tests, code, nil)
+		b.ProduceBlocks(10, false)
+
+		trx := types.SignedTransaction{}
+		act := types.Action{
+			Account:       f32_tests,
+			Name:          common.N(""),
+			Authorization: []types.PermissionLevel{{f32_tests, common.DefaultConfig.ActiveName}}}
+		trx.Actions = append(trx.Actions, &act)
+		b.SetTransactionHeaders(&trx.Transaction, b.DefaultExpirationDelta, 0)
+
+		privKey := b.getPrivateKey(f32_tests, "active")
+		chainId := b.Control.GetChainId()
+		trx.Sign(&privKey, &chainId)
+		b.PushTransaction(&trx, common.MaxTimePoint(), b.DefaultBilledCpuTimeUs)
+		b.ProduceBlocks(1, false)
+
+		//trxId := trx.ID()
+		//assert.Equal(t, b.ChainHasTransaction(&trxId), true)
+
+		b.close()
+	})
+}

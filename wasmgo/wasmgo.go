@@ -363,8 +363,9 @@ func getFloat64(vm *VM, index int) float64 {
 func getStringLength(vm *VM, index int) int {
 	var size int
 	var i int
+	memory := vm.Memory()
 	for i = 0; i < 512; i++ {
-		if vm.Memory()[index+i] == 0 {
+		if memory[index+i] == 0 {
 			break
 		}
 		size++

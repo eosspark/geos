@@ -2197,6 +2197,14 @@ func eosioAssert(vm *VM) {
 	condition := int(vm.popUint64())
 
 	message := string(getMemory(vm, val, getStringLength(vm, val)))
+
+	b, err := strconv.Atoi(message)
+	if err == nil {
+		if b == 999 {
+			getStringLength(vm, val)
+		}
+	}
+
 	w.ilog.Debug("message:%v", string(message))
 
 	if condition != 1 {
