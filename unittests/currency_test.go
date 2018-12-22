@@ -58,7 +58,7 @@ func NewCurrencyTester() *CurrencyTester {
 	}
 	cn := common.ActionName(common.N("create"))
 	result := ct.PushAction(&accountName, &cn, &createData)
-	log.Info("NewCurrencyTester push action issue:%#v", result)
+	log.Info("NewCurrencyTester push action issue:%#v", result.BlockNum)
 	data := common.Variants{
 		"to":       eosioToken,
 		"quantity": "1000000.0000 EOS",

@@ -142,7 +142,7 @@ func (f *ForkDatabase) AddSignedBlockState(signedBlock *types.SignedBlock, trust
 	block := f.MultiIndexFork.find(blockId) //find all data multiIndex
 	try.EosAssert(block == nil, &exception.ForkDatabaseException{}, "we already know about this block")
 	prior := f.MultiIndexFork.find(signedBlock.Previous)
-	try.EosAssert(prior == nil, &exception.ForkDatabaseException{}, "unlinkable block:%#v,%#v", blockId, signedBlock.Previous)
+	try.EosAssert(prior != nil, &exception.ForkDatabaseException{}, "unlinkable block:%#v,%#v", blockId, signedBlock.Previous)
 
 	//previous := types.BlockState{}
 	b := types.BlockState{}
@@ -230,7 +230,7 @@ func (f *ForkDatabase) MarkInCurrentChain(h *types.BlockState, inCurrentChain bo
 		return
 	}
 	result := f.MultiIndexFork.find(h.BlockId)
-	try.EosAssert(result == nil, &exception.ForkDbBlockNotFound{}, "could not find block in fork database")
+	try.EosAssert(result != nil, &exception.ForkDbBlockNotFound{}, "could not find block in fork database")
 	result.InCurrentChain = inCurrentChain
 	f.MultiIndexFork.modify(result)
 }

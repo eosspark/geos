@@ -455,10 +455,10 @@ func (t *TransactionContext) validateCpuUsageToBill(billedUs int64, checkMinimum
 	//return
 	if !t.Control.SkipTrxChecks() {
 		if checkMinimum {
-			cfg := t.Control.GetGlobalProperties().Configuration
+			/*cfg := t.Control.GetGlobalProperties().Configuration
 			EosAssert(billedUs >= int64(cfg.MinTransactionCpuUsage),
 				&TransactionException{},
-				"cannot bill CPU time less than the minimum of %d us, billed_cpu_time_us %", cfg.MinTransactionCpuUsage, billedUs)
+				"cannot bill CPU time less than the minimum of %d us, billed_cpu_time_us %", cfg.MinTransactionCpuUsage, billedUs)*/
 		}
 		if t.billingTimerExceptionCode == int64(BlockCpuUsageExceeded{}.Code()) { //TODO
 			EosAssert(billedUs <= t.objectiveDurationLimit.Count(),
