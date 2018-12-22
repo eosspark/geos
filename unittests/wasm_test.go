@@ -230,24 +230,24 @@ func TestSoftfloat32(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		f32_tests := common.N("f32_tests")
+		tester := common.N("f32.tests")
 
 		b := newBaseTester(true, chain.SPECULATIVE)
 		b.ProduceBlocks(2, false)
-		b.CreateAccounts([]common.AccountName{f32_tests}, false, true)
+		b.CreateAccounts([]common.AccountName{tester}, false, true)
 		b.ProduceBlocks(1, false)
-		b.SetCode(f32_tests, code, nil)
+		b.SetCode(tester, code, nil)
 		b.ProduceBlocks(10, false)
 
 		trx := types.SignedTransaction{}
 		act := types.Action{
-			Account:       f32_tests,
+			Account:       tester,
 			Name:          common.N(""),
-			Authorization: []types.PermissionLevel{{f32_tests, common.DefaultConfig.ActiveName}}}
+			Authorization: []types.PermissionLevel{{tester, common.DefaultConfig.ActiveName}}}
 		trx.Actions = append(trx.Actions, &act)
 		b.SetTransactionHeaders(&trx.Transaction, b.DefaultExpirationDelta, 0)
 
-		privKey := b.getPrivateKey(f32_tests, "active")
+		privKey := b.getPrivateKey(tester, "active")
 		chainId := b.Control.GetChainId()
 		trx.Sign(&privKey, &chainId)
 		b.PushTransaction(&trx, common.MaxTimePoint(), b.DefaultBilledCpuTimeUs)
@@ -268,7 +268,7 @@ func TestErrorfloat32(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		f32_tests := common.N("f32_tests")
+		f32_tests := common.N("f32.tests")
 
 		b := newBaseTester(true, chain.SPECULATIVE)
 		b.ProduceBlocks(2, false)
@@ -293,7 +293,80 @@ func TestErrorfloat32(t *testing.T) {
 
 		//trxId := trx.ID()
 		//assert.Equal(t, b.ChainHasTransaction(&trxId), true)
+		b.close()
+	})
+}
 
+func TestFloat64(t *testing.T) {
+	wasm := "test_contracts/f64_test.wasm"
+	t.Run(filepath.Base(wasm), func(t *testing.T) {
+		code, err := ioutil.ReadFile(wasm)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		f64_tests := common.N("f_tests")
+
+		b := newBaseTester(true, chain.SPECULATIVE)
+		b.ProduceBlocks(2, false)
+		b.CreateAccounts([]common.AccountName{f64_tests}, false, true)
+		b.ProduceBlocks(1, false)
+		b.SetCode(f64_tests, code, nil)
+		b.ProduceBlocks(10, false)
+
+		trx := types.SignedTransaction{}
+		act := types.Action{
+			Account:       f64_tests,
+			Name:          common.N(""),
+			Authorization: []types.PermissionLevel{{f64_tests, common.DefaultConfig.ActiveName}}}
+		trx.Actions = append(trx.Actions, &act)
+		b.SetTransactionHeaders(&trx.Transaction, b.DefaultExpirationDelta, 0)
+
+		privKey := b.getPrivateKey(f64_tests, "active")
+		chainId := b.Control.GetChainId()
+		trx.Sign(&privKey, &chainId)
+		b.PushTransaction(&trx, common.MaxTimePoint(), b.DefaultBilledCpuTimeUs)
+		b.ProduceBlocks(1, false)
+
+		//trxId := trx.ID()
+		//assert.Equal(t, b.ChainHasTransaction(&trxId), true)
+		b.close()
+	})
+}
+
+func TestFloat64Bitwise(t *testing.T) {
+	wasm := "test_contracts/f64_test_bitwise.wasm"
+	t.Run(filepath.Base(wasm), func(t *testing.T) {
+		code, err := ioutil.ReadFile(wasm)
+		if err != nil {
+			t.Fatal(err)
+		}
+
+		f64_tests := common.N("f_tests")
+
+		b := newBaseTester(true, chain.SPECULATIVE)
+		b.ProduceBlocks(2, false)
+		b.CreateAccounts([]common.AccountName{f64_tests}, false, true)
+		b.ProduceBlocks(1, false)
+		b.SetCode(f64_tests, code, nil)
+		b.ProduceBlocks(10, false)
+
+		trx := types.SignedTransaction{}
+		act := types.Action{
+			Account:       f64_tests,
+			Name:          common.N(""),
+			Authorization: []types.PermissionLevel{{f64_tests, common.DefaultConfig.ActiveName}}}
+		trx.Actions = append(trx.Actions, &act)
+		b.SetTransactionHeaders(&trx.Transaction, b.DefaultExpirationDelta, 0)
+
+		privKey := b.getPrivateKey(f64_tests, "active")
+		chainId := b.Control.GetChainId()
+		trx.Sign(&privKey, &chainId)
+		b.PushTransaction(&trx, common.MaxTimePoint(), b.DefaultBilledCpuTimeUs)
+		b.ProduceBlocks(1, false)
+
+		//trxId := trx.ID()
+		//assert.Equal(t, b.ChainHasTransaction(&trxId), true)
 		b.close()
 	})
 }
