@@ -218,7 +218,7 @@ func TestCreateMaxSupply(t *testing.T) {
 	try.Try(func() {
 		eosioToken.create(common.N("alice"), max)
 	}).Catch(func(e exception.Exception) {
-		if inString(exception.GetDetailMessage(e), "magnitude of asset amount must be less than 2^62") {
+		if inString(e.DetailMessage(), "magnitude of asset amount must be less than 2^62") {
 			returning = true
 		}
 	}).End()
