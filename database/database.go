@@ -1,9 +1,10 @@
 package database
 
 import (
-	"github.com/eosspark/eos-go/log"
 	"math"
 	"reflect"
+
+	"github.com/eosspark/eos-go/log"
 
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/errors"
@@ -36,7 +37,7 @@ type LDataBase struct {
 *	Create a database based on the provided path
 *	successfully return the database handle
 *	otherwise return error message
-*/
+ */
 
 func NewDataBase(path string, flag ...bool) (DataBase, error) {
 
@@ -67,7 +68,7 @@ func NewDataBase(path string, flag ...bool) (DataBase, error) {
 
 	dbLog := log.New("db")
 	if logFlag {
-		h,_ := log.FileHandler(path + "/database_log.log",log.LogfmtFormat())
+		h, _ := log.FileHandler(path+"/database_log.log", log.LogfmtFormat())
 		dbLog.SetHandler(h)
 	} else {
 		dbLog.SetHandler(log.DiscardHandler())
@@ -112,7 +113,7 @@ func (ldb *LDataBase) Close() {
 
 func (ldb *LDataBase) writeIncrementToDb() error {
 
-	if len(ldb.nextId) == 0{
+	if len(ldb.nextId) == 0 {
 		return nil
 	}
 
@@ -121,7 +122,7 @@ func (ldb *LDataBase) writeIncrementToDb() error {
 		ldb.log.Error("WriteIncrement rlp EncodeToBytes failed is : %s", err.Error())
 		return err
 	}
-	err = ldb.db.Put([]byte(dbIncrement),val,nil)
+	err = ldb.db.Put([]byte(dbIncrement), val, nil)
 	if err != nil {
 		ldb.log.Error("WriteIncrement saveKey failed is : %s", err.Error())
 		return err
@@ -142,17 +143,31 @@ func (ldb *LDataBase) Undo() {
 	}
 
 	ldb.nextId = stack.oldIds
-	for _, value := range stack.OldValue {  		/* 	Undo edit */
-		ldb.modifyKvToDb(value.newKv,value.oldKv)
+
+	for _, undo := range stack.undo {
+
+		for _, value := range undo.OldValue { /* 	Undo edit */
+			err := ldb.modifyKvToDb(value.newKv, value.oldKv)
+			if err != nil{
+				//throw
+			}
+		}
+
+		for _, value := range undo.NewValue { /*	Undo new */
+			err := ldb.removeKvToDb(value.newKv)
+			if err != nil{
+				//throw
+			}
+		}
+
+		for _, value := range undo.RemoveValue { /*	Undo remove */
+			err := ldb.insertKvToDb(value.newKv)
+			if err != nil{
+				//throw
+			}
+		}
 	}
 
-	for _, value := range stack.NewValue {		/*	Undo new */
-		ldb.removeKvToDb(value.newKv)
-	}
-
-	for _, value := range stack.RemoveValue {		/*	Undo remove */
-		ldb.insertKvToDb(value.newKv)
-	}
 	ldb.stack.Pop()
 	ldb.reversion--
 }
@@ -174,48 +189,22 @@ func (ldb *LDataBase) squash() {
 	stack := ldb.getStack()
 	preStack := ldb.getSecond()
 
-	for key, value := range stack.OldValue {
-		if _, ok := preStack.NewValue[key]; ok {
-			continue
+	for typeName, undo := range stack.undo {
+
+		if _,ok := preStack.undo[typeName];!ok{
+			preStack.undo[typeName] = newUndoState()
 		}
-		if _, ok := preStack.OldValue[key]; ok {
-			continue
-		}
-		if _, ok := preStack.RemoveValue[key]; ok {
-			// panic ?
-		}
-		preStack.OldValue[key] = value
+		//TODO assert typeName
+		undoStateSquash(undo, preStack.undo[typeName])
 	}
 
-	for key, value := range stack.NewValue {
-		preStack.NewValue[key] = value
-	}
-
-	for key, value := range stack.RemoveValue {
-
-		if _, ok := preStack.NewValue[key]; ok {
-			if _,ok := preStack.NewValue[key];ok{
-				delete(preStack.NewValue, key)
-			}
-			continue
-		}
-		if _, ok := preStack.OldValue[key]; ok {
-
-			preStack.RemoveValue[key] = value
-			if _, ok := preStack.OldValue[key]; ok {
-				delete(preStack.OldValue,key)
-			}
-			continue
-		}
-		preStack.RemoveValue[key] = value
-	}
 	ldb.stack.Pop()
 	ldb.reversion--
 }
 
 func (ldb *LDataBase) StartSession() *Session {
 	ldb.reversion++
-	state := newUndoState(ldb.reversion, ldb.nextId)
+	state := newUndoContainer(ldb.reversion, ldb.nextId)
 	ldb.stack.Append(state)
 	return &Session{db: ldb, apply: true, reversion: ldb.reversion}
 }
@@ -255,12 +244,11 @@ func (ldb *LDataBase) SetRevision(reversion int64) {
 	ldb.reversion = reversion
 }
 
-
 /*
 *	Insert a piece of data into the database
 *	returning null successfully
 *	returns an error message
-*/
+ */
 
 func (ldb *LDataBase) Insert(in interface{}) error {
 	err := ldb.insert(in)
@@ -303,7 +291,7 @@ func (ldb *LDataBase) insert(in interface{}, flag ...bool) error { /* struct cfg
 	m := new(modifyValue)
 	m.newKv = dbKV
 	m.id = dbKV.id
-	ldb.insertUndoState(m,INSERT)
+	ldb.insertUndoState(cfg.Name,m, INSERT)
 	return nil
 }
 
@@ -334,7 +322,7 @@ func (ldb *LDataBase) setIncrement(cfg *structInfo) error {
 *	Delete a piece of data from the database
 *	returning null successfully
 *	returns an error message
-*/
+ */
 
 func (ldb *LDataBase) Remove(in interface{}) error {
 	err := ldb.remove(in)
@@ -347,11 +335,11 @@ func (ldb *LDataBase) Remove(in interface{}) error {
 
 func (ldb *LDataBase) remove(in interface{}) error {
 	out := cloneInterface(in)
-	err := ldb.find("id",in,out)
-	if err != nil{
+	err := ldb.find("id", in, out)
+	if err != nil {
 		return ErrNotFound
 	}
-	if !reflect.DeepEqual(in,out){
+	if !reflect.DeepEqual(in, out) {
 		ldb.log.Error("remove DeepEqual error")
 	}
 
@@ -364,8 +352,8 @@ func (ldb *LDataBase) remove(in interface{}) error {
 	dbKV := &dbKeyValue{}
 	structKV(in, dbKV, cfg) /* (kv.index) all key and value*/
 
-	err = DecodeBytes(dbKV.idk.key,&cfg.id_)
-	if err != nil{
+	err = DecodeBytes(dbKV.idk.key, &cfg.id_)
+	if err != nil {
 		return err
 	}
 
@@ -379,7 +367,7 @@ func (ldb *LDataBase) remove(in interface{}) error {
 	m := new(modifyValue)
 	m.newKv = dbKV
 	m.id = dbKV.id
-	ldb.insertUndoState(m,REMOVE)
+	ldb.insertUndoState(cfg.Name,m, REMOVE)
 	return nil
 }
 
@@ -388,7 +376,7 @@ func (ldb *LDataBase) removeKvToDb(dbKV *dbKeyValue) error {
 	defer ldb.batch.Reset()
 	ldb.deleteBatch(dbKV)
 	err := ldb.writeBatch()
-	if err != nil{
+	if err != nil {
 		return err
 	}
 	return nil
@@ -398,7 +386,7 @@ func (ldb *LDataBase) removeKvToDb(dbKV *dbKeyValue) error {
 *	Modify an object
 *	returning null successfully
 *	returns an error message
-*/
+ */
 
 func (ldb *LDataBase) Modify(old interface{}, fn interface{}) error {
 	err := ldb.modifyCallFn(old, fn)
@@ -451,11 +439,13 @@ func (ldb *LDataBase) modifyRefToKv(oldRef, newRef *reflect.Value) error {
 		ldb.log.Error("extractObjectTagInfo newRef failed : " + err.Error())
 		return err
 	}
-	if oldCfg.id_ != newCfg.id_{
+	if oldCfg.id_ != newCfg.id_ {
 		ldb.log.Error("newCfg and oldCfg id failed,  newCfg id is :  %v,  oldCfg id is : %v", newCfg.id_, oldCfg.id_)
 		return errors.New("newCfg and oldCfg id failed")
 	}
-
+	if oldCfg.Name != newCfg.Name{
+		return errors.New("newCfg and oldCfg typeName failed")
+	}
 	newKV := &dbKeyValue{}
 	oldKV := &dbKeyValue{}
 
@@ -463,14 +453,14 @@ func (ldb *LDataBase) modifyRefToKv(oldRef, newRef *reflect.Value) error {
 	structKV(newRef.Interface(), newKV, newCfg)
 
 	err = ldb.modifyKvToDb(oldKV, newKV)
-	if err != nil{
+	if err != nil {
 		return err
 	}
 	m := new(modifyValue)
 	m.id = newKV.id
 	m.newKv = newKV
 	m.oldKv = oldKV
-	ldb.insertUndoState(m,MODIFY)
+	ldb.insertUndoState(oldCfg.Name,m, MODIFY)
 	return nil
 }
 
@@ -500,11 +490,11 @@ error 				-->		error 	(out invalid)
 
 */
 
-func (ldb *LDataBase) Find(tagName string, in interface{}, out interface{},skip... SkipSuffix) error {
-	return ldb.find(tagName, in, out,skip...)
+func (ldb *LDataBase) Find(tagName string, in interface{}, out interface{}, skip ...SkipSuffix) error {
+	return ldb.find(tagName, in, out, skip...)
 }
 
-func (ldb *LDataBase) find(tagName string, value interface{}, to interface{},skip... SkipSuffix) error {
+func (ldb *LDataBase) find(tagName string, value interface{}, to interface{}, skip ...SkipSuffix) error {
 	ldb.log.Info("tagName is: %v", tagName)
 	fieldName := []byte(tagName)
 	fields, err := getFieldInfo(tagName, value)
@@ -515,8 +505,8 @@ func (ldb *LDataBase) find(tagName string, value interface{}, to interface{},ski
 
 	typeName := []byte(fields.typeName)
 
-	suffix,err := fieldValueToByte(fields,skip...)
-	if err != nil{
+	suffix, err := fieldValueToByte(fields, skip...)
+	if err != nil {
 		ldb.log.Error("failed : %s", err.Error())
 		return err
 	}
@@ -526,8 +516,7 @@ func (ldb *LDataBase) find(tagName string, value interface{}, to interface{},ski
 		return ErrNotFound
 	}
 
-
-	key := splicingString (typeName, fieldName)
+	key := splicingString(typeName, fieldName)
 
 	key = append(key, suffix...)
 
@@ -542,11 +531,11 @@ func (ldb *LDataBase) find(tagName string, value interface{}, to interface{},ski
 	return ldb.findFields(it.Value(), typeName, to)
 }
 
-func(ldb *LDataBase)getAllKv(key []byte){
+func (ldb *LDataBase) getAllKv(key []byte) {
 
-	it := ldb.db.NewIterator(nil,nil)
-	for it.Next(){
-		ldb.log.Info("key %v",it.Key(),"  value %v",it.Value())
+	it := ldb.db.NewIterator(nil, nil)
+	for it.Next() {
+		ldb.log.Info("key %v", it.Key(), "  value %v", it.Value())
 	}
 	it.Release()
 	//os.Exit(65536)
@@ -555,16 +544,16 @@ func(ldb *LDataBase)getAllKv(key []byte){
 func (ldb *LDataBase) findFields(key, typeName []byte, to interface{}) error {
 	ldb.log.Info("key is : %v", key)
 
-	val := splicingString(typeName,key)
+	val := splicingString(typeName, key)
 
 	v, err := getDbKey(val, ldb.db)
 	if err != nil {
-		ldb.log.Error("failed : %s, val is %v", err.Error(),val)
+		ldb.log.Error("failed : %s, val is %v", err.Error(), val)
 		return err
 	}
 	err = DecodeBytes(v, to)
 	if err != nil {
-		ldb.log.Error("failed : %s, val is %v", err.Error(),val)
+		ldb.log.Error("failed : %s, val is %v", err.Error(), val)
 		return err
 	}
 	return nil
@@ -589,7 +578,7 @@ func (ldb *LDataBase) getIndex(tagName string, value interface{}) (*MultiIndex, 
 	fieldName := []byte(tagName)
 	fields, err := getFieldInfo(tagName, value)
 	if err != nil {
-		ldb.log.Error("failed : %s, val is %v", err.Error(),fieldName)
+		ldb.log.Error("failed : %s, val is %v", err.Error(), fieldName)
 		return nil, err
 	}
 
@@ -598,7 +587,7 @@ func (ldb *LDataBase) getIndex(tagName string, value interface{}) (*MultiIndex, 
 
 	end := keyEnd(begin)
 
-	ldb.log.Info("begin is : %v end is ", begin,end)
+	ldb.log.Info("begin is : %v end is ", begin, end)
 	it := newMultiIndex(typeName, fieldName, begin, end, ldb)
 	return it, nil
 }
@@ -607,15 +596,15 @@ func (ldb *LDataBase) GetMutableIndex(fieldName string, in interface{}) (*MultiI
 	return ldb.GetIndex(fieldName, in)
 }
 
-func (ldb *LDataBase) lowerBound(begin, end, fieldName []byte, data interface{},skip... SkipSuffix) (*DbIterator, error) {
-	key, typeName := ldb.dbPrefix(begin, fieldName, data,skip...)
+func (ldb *LDataBase) lowerBound(begin, end, fieldName []byte, data interface{}, skip ...SkipSuffix) (*DbIterator, error) {
+	key, typeName := ldb.dbPrefix(begin, fieldName, data, skip...)
 	//return ldb.dbIterator(key,begin,end,typeName,false)
 	it := ldb.db.NewIterator(&util.Range{Start: begin, Limit: end}, nil)
 	if !it.Next() {
 		return nil, ErrNotFound
 	}
 
-	if key != nil{
+	if key != nil {
 		if !it.Seek(key) {
 			ldb.log.Error("key is : %v", key)
 			return nil, ErrNotFound
@@ -624,26 +613,26 @@ func (ldb *LDataBase) lowerBound(begin, end, fieldName []byte, data interface{},
 
 	idx, err := newDbIterator(typeName, it, ldb.db)
 	if err != nil {
-		ldb.log.Error("failed is %s ,typeName is : %v", err.Error(),typeName)
+		ldb.log.Error("failed is %s ,typeName is : %v", err.Error(), typeName)
 		return nil, err
 	}
 	return idx, nil
 }
 
-func (ldb *LDataBase) upperBound(begin, end, fieldName []byte, data interface{},skip... SkipSuffix) (*DbIterator, error) {
+func (ldb *LDataBase) upperBound(begin, end, fieldName []byte, data interface{}, skip ...SkipSuffix) (*DbIterator, error) {
 
-	key, typeName := ldb.dbPrefix(begin, fieldName, data,skip...)
+	key, typeName := ldb.dbPrefix(begin, fieldName, data, skip...)
 	key = keyEnd(key)
-	return ldb.dbIterator(key,begin, end, typeName,true)
+	return ldb.dbIterator(key, begin, end, typeName, true)
 }
 
-func (ldb *LDataBase) dbIterator(key,begin, end, typeName []byte,upper bool) (*DbIterator, error) {
+func (ldb *LDataBase) dbIterator(key, begin, end, typeName []byte, upper bool) (*DbIterator, error) {
 	it := ldb.db.NewIterator(&util.Range{Start: begin, Limit: end}, nil)
 	if !it.Next() {
 		return nil, ErrNotFound
 	}
 
-	if key != nil{
+	if key != nil {
 		if !it.Seek(key) {
 			ldb.log.Error("key is : %v", key)
 			return nil, ErrNotFound
@@ -652,7 +641,7 @@ func (ldb *LDataBase) dbIterator(key,begin, end, typeName []byte,upper bool) (*D
 
 	idx, err := newDbIterator(typeName, it, ldb.db)
 	if err != nil {
-		ldb.log.Error("failed is %s ,typeName is : %v", err.Error(),typeName)
+		ldb.log.Error("failed is %s ,typeName is : %v", err.Error(), typeName)
 		return nil, err
 	}
 	return idx, nil
@@ -660,7 +649,7 @@ func (ldb *LDataBase) dbIterator(key,begin, end, typeName []byte,upper bool) (*D
 
 func (ldb *LDataBase) EndIterator(begin, end, typeName []byte) (*DbIterator, error) {
 
-	ldb.log.Info("begin : %v, end : %v, typeName: %v", begin, end,typeName)
+	ldb.log.Info("begin : %v, end : %v, typeName: %v", begin, end, typeName)
 
 	it := ldb.db.NewIterator(&util.Range{Start: begin, Limit: end}, nil)
 
@@ -673,7 +662,7 @@ func (ldb *LDataBase) EndIterator(begin, end, typeName []byte) (*DbIterator, err
 	return nil, ErrNotFound
 }
 
-func (ldb *LDataBase) dbPrefix(begin_, fieldName []byte, data interface{},skip... SkipSuffix) ([]byte, []byte) {
+func (ldb *LDataBase) dbPrefix(begin_, fieldName []byte, data interface{}, skip ...SkipSuffix) ([]byte, []byte) {
 	begin := cloneByte(begin_)
 	ldb.log.Info("begin : %v, end : %v, fieldName: %v", begin, fieldName)
 	fields, err := getFieldInfo(string(fieldName), data)
@@ -682,11 +671,10 @@ func (ldb *LDataBase) dbPrefix(begin_, fieldName []byte, data interface{},skip..
 		return nil, nil
 	}
 
-
-	prefix,err := fieldValueToByte(fields,skip...)
-	if err != nil{
+	prefix, err := fieldValueToByte(fields, skip...)
+	if err != nil {
 		ldb.log.Error("failed %s", err.Error())
-		return nil,nil
+		return nil, nil
 	}
 
 	if len(prefix) == 0 {
@@ -711,7 +699,7 @@ func (ldb *LDataBase) Empty(begin, end, fieldName []byte) bool {
 	return true
 }
 
-func (ldb *LDataBase) IteratorTo(begin, end, fieldName []byte, data interface{},skip... SkipSuffix) (*DbIterator, error) {
+func (ldb *LDataBase) IteratorTo(begin, end, fieldName []byte, data interface{}, skip ...SkipSuffix) (*DbIterator, error) {
 
 	ldb.log.Info("begin : %v, end : %v, fieldName: %v , greater: %t", begin, end, fieldName)
 	fields, err := getFieldInfo(string(fieldName), data)
@@ -719,10 +707,10 @@ func (ldb *LDataBase) IteratorTo(begin, end, fieldName []byte, data interface{},
 		ldb.log.Error("failed %s", err.Error())
 		return nil, err
 	}
-	prefix,err := fieldValueToByte(fields,skip...)
-	if err != nil{
+	prefix, err := fieldValueToByte(fields, skip...)
+	if err != nil {
 		ldb.log.Error("failed %s", err.Error())
-		return nil,err
+		return nil, err
 	}
 	if len(prefix) == 0 {
 		return nil, errors.New("Get Field Value Failed")
@@ -734,10 +722,10 @@ func (ldb *LDataBase) IteratorTo(begin, end, fieldName []byte, data interface{},
 	it := ldb.db.NewIterator(&util.Range{Start: begin, Limit: end}, nil)
 	if !it.Seek(key) {
 		ldb.log.Error("seek failed key is %v", key)
-		return nil,ErrNotFound
+		return nil, ErrNotFound
 	}
 
-	idk := splicingString([]byte(fields.typeName),it.Value() )
+	idk := splicingString([]byte(fields.typeName), it.Value())
 	idv, err := getDbKey(idk, ldb.db)
 	if err != nil {
 		ldb.log.Error("failed %s", err.Error())
@@ -750,7 +738,7 @@ func (ldb *LDataBase) IteratorTo(begin, end, fieldName []byte, data interface{},
 
 func (ldb *LDataBase) BeginIterator(begin, end, typeName []byte) (*DbIterator, error) {
 
-	ldb.log.Info("begin : %v, end : %v, typeName: %v ", begin, end,typeName)
+	ldb.log.Info("begin : %v, end : %v, typeName: %v ", begin, end, typeName)
 
 	it := ldb.db.NewIterator(&util.Range{Start: begin, Limit: end}, nil)
 	if !it.Next() {
@@ -758,10 +746,10 @@ func (ldb *LDataBase) BeginIterator(begin, end, typeName []byte) (*DbIterator, e
 		return nil, ErrNotFound
 	}
 
-	k := splicingString([]byte(typeName),it.Value() )
+	k := splicingString([]byte(typeName), it.Value())
 	val, err := getDbKey(k, ldb.db)
 	if err != nil {
-		ldb.log.Error("failed %s %v", err.Error(),k)
+		ldb.log.Error("failed %s %v", err.Error(), k)
 		return nil, ErrNotFound
 	}
 
@@ -776,18 +764,18 @@ func (ldb *LDataBase) enable() bool { /* Whether the database enables the undo f
 
 /*Batch operation*/
 
-func (ldb *LDataBase) putBatch(dbKV *dbKeyValue)  {
+func (ldb *LDataBase) putBatch(dbKV *dbKeyValue) {
 	for _, v := range dbKV.index {
 		ldb.count++
-		ldb.log.Debug("save key %v | %v",v.key,v.value)
+		ldb.log.Debug("save key %v | %v", v.key, v.value)
 		ldb.batch.Put(v.key, v.value)
 	}
 	ldb.count++
-	ldb.log.Debug("save key %v | %v",dbKV.idk.key,dbKV.idk.value)
+	ldb.log.Debug("save key %v | %v", dbKV.idk.key, dbKV.idk.value)
 	ldb.batch.Put(dbKV.idk.key, dbKV.idk.value)
 }
 
-func (ldb *LDataBase) deleteBatch(dbKV *dbKeyValue)  {
+func (ldb *LDataBase) deleteBatch(dbKV *dbKeyValue) {
 	for idx, _ := range dbKV.index {
 		//ldb.log.Debug("delete key %v",dbKV.index[idx].key)
 		ldb.batch.Delete(dbKV.index[idx].key)
@@ -796,10 +784,10 @@ func (ldb *LDataBase) deleteBatch(dbKV *dbKeyValue)  {
 	ldb.batch.Delete(dbKV.idk.key)
 }
 
-func (ldb *LDataBase) writeBatch()error  {
-	if ldb.batch.Len() > 0{
-		err := ldb.db.Write(ldb.batch,nil)
-		if err != nil{
+func (ldb *LDataBase) writeBatch() error {
+	if ldb.batch.Len() > 0 {
+		err := ldb.db.Write(ldb.batch, nil)
+		if err != nil {
 			return err
 		}
 	}
@@ -816,7 +804,7 @@ const (
 	MODIFY = undoOperatorType(2)
 )
 
-func (ldb *LDataBase) insertUndoState(value *modifyValue,oT undoOperatorType) {
+func (ldb *LDataBase) insertUndoState(typeName string,value *modifyValue, oT undoOperatorType) {
 	if !ldb.enable() {
 		return
 	}
@@ -828,11 +816,11 @@ func (ldb *LDataBase) insertUndoState(value *modifyValue,oT undoOperatorType) {
 	}
 	switch oT {
 	case INSERT:
-		stack.undoInsert(value)
+		stack.undoContainerInsert(typeName,value)
 	case REMOVE:
-		stack.undoRemove(value)
+		stack.undoContainerRemove(typeName,value)
 	case MODIFY:
-		stack.undoModify(value)
+		stack.undoContainerModify(typeName,value)
 	default:
 		/* panic*/
 	}
@@ -846,10 +834,10 @@ and the subsequent queues will provide corresponding operations
 
 */
 
-func (ldb *LDataBase) getFirstStack() *undoState {
+func (ldb *LDataBase) getFirstStack() *undoContainer {
 	stack := ldb.stack.First()
 	switch typ := stack.(type) {
-	case *undoState:
+	case *undoContainer:
 		return typ
 	default:
 		return nil
@@ -858,12 +846,10 @@ func (ldb *LDataBase) getFirstStack() *undoState {
 	return nil
 }
 
-func (ldb *LDataBase) getSecond() *undoState {
-
-
+func (ldb *LDataBase) getSecond() *undoContainer {
 	stack := ldb.stack.LastSecond()
 	switch typ := stack.(type) {
-	case *undoState:
+	case *undoContainer:
 		return typ
 	default:
 		return nil
@@ -872,20 +858,19 @@ func (ldb *LDataBase) getSecond() *undoState {
 	return nil
 }
 
-func (ldb *LDataBase) getStack() *undoState {
+func (ldb *LDataBase) getStack() *undoContainer {
 	stack := ldb.stack.Last()
 	if stack == nil {
 		return nil
 	}
 	switch typ := stack.(type) {
-	case *undoState:
+	case *undoContainer:
 		return typ
 	default:
 		return nil
 	}
 	return nil
 }
-
 
 func getDbKey(key []byte, db *leveldb.DB) ([]byte, error) {
 	val, err := db.Get(key, nil)
@@ -893,4 +878,42 @@ func getDbKey(key []byte, db *leveldb.DB) ([]byte, error) {
 		return nil, err
 	}
 	return val, err
+}
+
+func undoStateSquash(stack *undoState, preStack *undoState) {
+	for key, value := range stack.OldValue {
+		if _, ok := preStack.NewValue[key]; ok {
+			continue
+		}
+		if _, ok := preStack.OldValue[key]; ok {
+			continue
+		}
+		if _, ok := preStack.RemoveValue[key]; ok {
+			// panic ?
+		}
+		preStack.OldValue[key] = value
+	}
+
+	for key, value := range stack.NewValue {
+		preStack.NewValue[key] = value
+	}
+
+	for key, value := range stack.RemoveValue {
+
+		if _, ok := preStack.NewValue[key]; ok {
+			if _, ok := preStack.NewValue[key]; ok {
+				delete(preStack.NewValue, key)
+			}
+			continue
+		}
+		if _, ok := preStack.OldValue[key]; ok {
+
+			preStack.RemoveValue[key] = value
+			if _, ok := preStack.OldValue[key]; ok {
+				delete(preStack.OldValue, key)
+			}
+			continue
+		}
+		preStack.RemoveValue[key] = value
+	}
 }

@@ -129,9 +129,9 @@ func (m *MultiIndexFork) find(id common.BlockIdType) *types.BlockState {
 	b.BlockId = id
 	idx := m.Indexs["byBlockId"]
 	multiSet := idx.Value
-	mItr, exist := multiSet.Get(&b)
-	if exist {
-		return mItr.Value().(*types.BlockState)
+	lower := multiSet.LowerBound(&b)
+	if lower != nil {
+		return lower.Value().(*types.BlockState)
 	} else {
 		return nil
 	}
@@ -142,9 +142,9 @@ func (m *MultiIndexFork) FindByPrev(prev common.BlockIdType) *types.BlockState {
 	b.Header.Previous = prev
 	idx := m.Indexs["byBlockId"]
 	multiSet := idx.Value
-	itr, exist := multiSet.Get(&b)
-	if exist {
-		return itr.Value().(*types.BlockState)
+	lower := multiSet.LowerBound(&b)
+	if lower != nil {
+		return lower.Value().(*types.BlockState)
 	} else {
 		return nil
 	}

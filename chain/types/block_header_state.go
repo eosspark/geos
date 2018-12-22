@@ -1,7 +1,6 @@
 package types
 
 import (
-	"github.com/eosspark/container/maps/treemap"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/common/math"
 	"github.com/eosspark/eos-go/crypto"
@@ -15,37 +14,27 @@ func init() {
 	Assert(math.MaxUint8 >= common.DefaultConfig.MaxProducers*2/3+1, "8bit confirmations may not be able to hold all of the needed confirmations")
 }
 
+//go:generate go install github.com/eosspark/eos-go/vendor/github.com/eosspark/container/...
+//go:generate gotemplate -outfmt "gen_%v" "github.com/eosspark/container/templates/treemap" AccountNameUint32Map(common.AccountName,uint32,common.CompareName)
 type BlockHeaderState struct {
-	ID                               common.IdType      `multiIndex:"id,increment"`
-	BlockId                          common.BlockIdType `multiIndex:"byId,orderedUnique"`
-	BlockNum                         uint32             `multiIndex:"block_num,orderedUnique:byLibBlockNum,orderedUnique"`
-	Header                           SignedBlockHeader  `multiIndex:"inline"`
-	DposProposedIrreversibleBlocknum uint32             `json:"dpos_proposed_irreversible_blocknum"`
-	DposIrreversibleBlocknum         uint32             `multiIndex:"byLibBlockNum,orderedUnique" json:"dpos_irreversible_blocknum"`
-	BftIrreversibleBlocknum          uint32             `multiIndex:"byLibBlockNum,orderedUnique" json:"bft_irreversible_blocknum"`
-	PendingScheduleLibNum            uint32             `json:"pending_schedule_lib_num"`
-	PendingScheduleHash              crypto.Sha256      `json:"pending_schedule_hash"`
-	PendingSchedule                  ProducerScheduleType
-	ActiveSchedule                   ProducerScheduleType
-	BlockrootMerkle                  IncrementalMerkle
-	ProducerToLastProduced           treemap.Map //<AccountName, uint32>
-	ProducerToLastImpliedIrb         treemap.Map //<AccountName, uint32>
-	BlockSigningKey                  ecc.PublicKey
+	ID                               common.IdType        `multiIndex:"id,increment" json:"id"`
+	BlockId                          common.BlockIdType   `multiIndex:"byId,orderedUnique" json:"block_id"`
+	BlockNum                         uint32               `multiIndex:"block_num,orderedUnique:byLibBlockNum,orderedUnique"`
+	Header                           SignedBlockHeader    `multiIndex:"inline" json:"header"`
+	DposProposedIrreversibleBlocknum uint32               `json:"dpos_proposed_irreversible_blocknum"`
+	DposIrreversibleBlocknum         uint32               `multiIndex:"byLibBlockNum,orderedUnique" json:"dpos_irreversible_blocknum"`
+	BftIrreversibleBlocknum          uint32               `multiIndex:"byLibBlockNum,orderedUnique" json:"bft_irreversible_blocknum"`
+	PendingScheduleLibNum            uint32               `json:"pending_schedule_lib_num"`
+	PendingScheduleHash              crypto.Sha256        `json:"pending_schedule_hash"`
+	PendingSchedule                  ProducerScheduleType `json:"pending_schedule"`
+	ActiveSchedule                   ProducerScheduleType `json:"active_schedule"`
+	BlockrootMerkle                  IncrementalMerkle    `json:"blockroot_merkle"`
+	ProducerToLastProduced           AccountNameUint32Map `json:"producer_to_last_produced"`
+	ProducerToLastImpliedIrb         AccountNameUint32Map `json:"producer_to_last_implied_irb"`
+	BlockSigningKey                  ecc.PublicKey        `json:"block_signing_key"`
 	ConfirmCount                     []uint8              `json:"confirm_count"`
 	Confirmations                    []HeaderConfirmation `json:"confirmations"`
 }
-
-//type AccountNameBlockNum struct {
-//	AccountName common.AccountName
-//	BlockNum    uint32
-//}
-
-//func (a AccountNameBlockNum) GetKey() []byte {
-//	//return a.AccountName.GetKey()
-//	b := make([]byte, 8)
-//	binary.BigEndian.PutUint64(b, uint64(a.AccountName))
-//	return b
-//}
 
 func (b *BlockHeaderState) GetScheduledProducer(t BlockTimeStamp) ProducerKey {
 	index := uint32(t) % uint32(len(b.ActiveSchedule.Producers)*12)
@@ -55,8 +44,8 @@ func (b *BlockHeaderState) GetScheduledProducer(t BlockTimeStamp) ProducerKey {
 
 func (b *BlockHeaderState) CalcDposLastIrreversible() uint32 {
 	blockNums := make([]int, 0, b.ProducerToLastImpliedIrb.Size())
-	b.ProducerToLastImpliedIrb.Each(func(first interface{}, second interface{}) {
-		blockNums = append(blockNums, int(second.(uint32)))
+	b.ProducerToLastImpliedIrb.Each(func(first common.AccountName, second uint32) {
+		blockNums = append(blockNums, int(second))
 	})
 	/// 2/3 must be greater, so if I go 1/3 into the list sorted from low to high, then 2/3 are greater
 
@@ -88,7 +77,7 @@ func (b *BlockHeaderState) GenerateNext(when BlockTimeStamp) *BlockHeaderState {
 	result.PendingScheduleLibNum = b.PendingScheduleLibNum
 	result.PendingScheduleHash = b.PendingScheduleHash
 	result.BlockNum = b.BlockNum + 1
-	result.ProducerToLastProduced = *treemap.CopyFrom(&b.ProducerToLastProduced)
+	result.ProducerToLastProduced = *CopyFromAccountNameUint32Map(&b.ProducerToLastProduced)
 	result.ProducerToLastProduced.Put(proKey.ProducerName, result.BlockNum)
 	result.BlockrootMerkle = b.BlockrootMerkle
 	result.BlockrootMerkle.Append(b.BlockId)
@@ -98,7 +87,7 @@ func (b *BlockHeaderState) GenerateNext(when BlockTimeStamp) *BlockHeaderState {
 	result.DposProposedIrreversibleBlocknum = b.DposProposedIrreversibleBlocknum
 	result.BftIrreversibleBlocknum = b.BftIrreversibleBlocknum
 
-	result.ProducerToLastImpliedIrb = *treemap.CopyFrom(&b.ProducerToLastImpliedIrb)
+	result.ProducerToLastImpliedIrb = *CopyFromAccountNameUint32Map(&b.ProducerToLastImpliedIrb)
 	result.ProducerToLastImpliedIrb.Put(proKey.ProducerName, result.DposProposedIrreversibleBlocknum)
 	result.DposIrreversibleBlocknum = result.CalcDposLastIrreversible()
 
@@ -129,8 +118,7 @@ func (b *BlockHeaderState) MaybePromotePending() bool {
 		//var newProducerToLastProduced = make(map[common.AccountName]uint32)
 		//var newProducerToLastImpliedIrb = make(map[common.AccountName]uint32)
 
-		newProducerToLastProduced := treemap.NewWith(b.ProducerToLastProduced.KeyType,
-			b.ProducerToLastProduced.ValueType, b.ProducerToLastProduced.GetComparator())
+		newProducerToLastProduced := NewAccountNameUint32Map()
 
 		for _, pro := range b.ActiveSchedule.Producers {
 			if blockNum, existing := b.ProducerToLastProduced.Get(pro.ProducerName); existing {
@@ -140,8 +128,7 @@ func (b *BlockHeaderState) MaybePromotePending() bool {
 			}
 		}
 
-		newProducerToLastImpliedIrb := treemap.NewWith(b.ProducerToLastImpliedIrb.KeyType,
-			b.ProducerToLastImpliedIrb.ValueType, b.ProducerToLastImpliedIrb.GetComparator())
+		newProducerToLastImpliedIrb := NewAccountNameUint32Map()
 
 		for _, pro := range b.ActiveSchedule.Producers {
 			if blockNum, existing := b.ProducerToLastImpliedIrb.Get(pro.ProducerName); existing {
@@ -191,7 +178,7 @@ func (b *BlockHeaderState) Next(h SignedBlockHeader, trust bool) *BlockHeaderSta
 	EosAssert(result.Header.ScheduleVersion == h.ScheduleVersion, &ProducerScheduleException{}, "schedule_version in signed block is corrupted")
 
 	if blockNum, found := b.ProducerToLastProduced.Get(h.Producer); found {
-		EosAssert(blockNum.(uint32) < result.BlockNum-uint32(h.Confirmed), &ProducerDoubleConfirm{}, "producer %s double-confirming known range", h.Producer)
+		EosAssert(blockNum < result.BlockNum-uint32(h.Confirmed), &ProducerDoubleConfirm{}, "producer %s double-confirming known range", h.Producer)
 	}
 
 	/// below this point is state changes that cannot be validated with headers alone, but never-the-less,

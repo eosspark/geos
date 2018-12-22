@@ -19,6 +19,7 @@ type PendingState struct {
 func NewPendingState(db database.DataBase) *PendingState {
 	pending := PendingState{}
 	pending.DbSession = NewMaybeSession(db)
+	pending.BlockStatus = types.Incomplete
 	pending.PendingValid = false
 	return &pending
 }

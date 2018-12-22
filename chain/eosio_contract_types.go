@@ -129,6 +129,10 @@ type OnError struct {
 	SentTrx  []byte
 }
 
+func NewOnError(sid arithmetic.Uint128, data []byte) *OnError {
+	oe := OnError{SenderId: sid, SentTrx: data}
+	return &oe
+}
 func (o OnError) GetAccount() common.AccountName {
 	return common.DefaultConfig.SystemAccountName
 }

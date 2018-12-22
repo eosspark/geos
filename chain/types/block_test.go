@@ -1,13 +1,11 @@
 package types
 
 import (
-		"github.com/eosspark/eos-go/common"
+	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/stretchr/testify/assert"
 	"testing"
-	"github.com/eosspark/container/maps/treemap"
-	"github.com/eosspark/container/utils"
 )
 
 func NewBlockHeaderState(t *testing.T) *BlockHeaderState {
@@ -35,8 +33,8 @@ func NewBlockHeaderState(t *testing.T) *BlockHeaderState {
 	genHeader.Header.Confirmed = 1
 	genHeader.BlockId = genHeader.Header.BlockID()
 	genHeader.BlockNum = genHeader.Header.BlockNumber()
-	genHeader.ProducerToLastProduced = *treemap.NewWith(common.TypeName, utils.TypeUInt32, common.CompareName)
-	genHeader.ProducerToLastImpliedIrb = *treemap.NewWith(common.TypeName, utils.TypeUInt32, common.CompareName)
+	genHeader.ProducerToLastProduced = *NewAccountNameUint32Map()
+	genHeader.ProducerToLastImpliedIrb = *NewAccountNameUint32Map()
 
 	genHeader.BlockSigningKey = initPubKey
 
@@ -79,7 +77,7 @@ func Test_BlockHeaderState_GenerateNext(t *testing.T) {
 }
 
 func TestBlockHeader_BlockID(t *testing.T) {
-	bs  := NewBlockHeaderState(t)
+	bs := NewBlockHeaderState(t)
 	bid := bs.Header.BlockID()
 
 	assert.EqualValues(t, 1, NumFromID(&bid))
@@ -104,21 +102,10 @@ func TestBlockHeaderState_Sign(t *testing.T) {
 	initPriKey, _ := ecc.NewPrivateKey("5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3")
 	bs := NewBlockHeaderState(t)
 
-	//fmt.Println("===>", bs.SigDigest())
 	bs.Sign(func(sha256 crypto.Sha256) ecc.Signature {
 		sk, _ := initPriKey.Sign(sha256.Bytes())
 		return sk
 	})
-	//fmt.Println("===>", bs.SigDigest())
 
 	assert.Equal(t, initPriKey.PublicKey(), bs.Signee())
-
-	//data := ""
-	//sk,_ := initPriKey.Sign(crypto.Hash256(data).Bytes())
-	//pk,_ := sk.PublicKey(crypto.Hash256(data).Bytes())
-	//
-	//fmt.Println("pk", pk)
-	//
-	//assert.Equal(t, initPriKey.PublicKey(), pk)
-
 }

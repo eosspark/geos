@@ -51,10 +51,8 @@ func newBaseTester(pushGenesis bool, readMode DBReadMode) *BaseTester {
 
 func (t *BaseTester) init(pushGenesis bool, readMode DBReadMode) {
 	t.Cfg = *newConfig(readMode)
-	t.Control = NewController(&t.Cfg)
 
 	t.open()
-
 	if pushGenesis {
 		t.pushGenesisBlock()
 	}
@@ -91,8 +89,10 @@ func newConfig(readMode DBReadMode) *Config {
 }
 
 func (t *BaseTester) open() {
-	//t.Control.Config = t.Cfg
-	//t.Control.startUp() //TODO
+	t.Control = NewController(&t.Cfg)
+	//TODO
+	//t.Control.AddIndices()
+	//t.Control.startUp()
 	t.ChainTransactions = make(map[common.BlockIdType]types.TransactionReceipt)
 	//t.Control.AcceptedBlock.Connect() // TODO: Control.signal
 }
@@ -226,7 +226,7 @@ func (t BaseTester) CreateAccounts(names []common.AccountName, multiSig bool, in
 
 func (t BaseTester) CreateAccount(name common.AccountName, creator common.AccountName, multiSig bool, includeCode bool) *types.TransactionTrace {
 	trx := types.SignedTransaction{}
-	t.SetTransactionHeaders(&trx.Transaction, t.DefaultExpirationDelta, 0) //TODO: test
+	t.SetTransactionHeaders(&trx.Transaction, t.DefaultExpirationDelta, 0)
 	ownerAuth := types.Authority{}
 	if multiSig {
 		ownerAuth = types.Authority{
@@ -467,8 +467,16 @@ func (t BaseTester) PushDummy(from common.AccountName, v *string, billedCpuTimeU
 }
 
 func (t BaseTester) Transfer(from common.AccountName, to common.AccountName, amount common.Asset, memo string, currency common.AccountName) *types.TransactionTrace {
-	//TODO
 	trx := types.SignedTransaction{}
+	data := common.Variants{
+		"from":     from,
+		"to":       to,
+		"quantity": amount,
+		"memo":     memo,
+	}
+	acttype := common.N("transfer")
+	act := t.GetAction(currency, acttype, []types.PermissionLevel{{from, common.N("active")}}, &data)
+	trx.Actions = append(trx.Actions, act)
 	t.SetTransactionHeaders(&trx.Transaction, t.DefaultExpirationDelta, 0)
 	privKey := t.getPrivateKey(from, "active")
 	chainId := t.Control.GetChainId()
@@ -481,8 +489,14 @@ func (t BaseTester) Transfer2(from common.AccountName, to common.AccountName, am
 }
 
 func (t BaseTester) Issue(to common.AccountName, amount string, currency common.AccountName) *types.TransactionTrace {
-	//TODO
 	trx := types.SignedTransaction{}
+	data := common.Variants{
+		"to":       to,
+		"quantity": amount,
+	}
+	acttype := common.N("issue")
+	act := t.GetAction(currency, acttype, []types.PermissionLevel{{currency, common.N("active")}}, &data)
+	trx.Actions = append(trx.Actions, act)
 	t.SetTransactionHeaders(&trx.Transaction, t.DefaultExpirationDelta, 0)
 	privKey := t.getPrivateKey(currency, "active")
 	chainId := t.Control.GetChainId()
@@ -857,7 +871,7 @@ func (vt *ValidatingTester) CreateDefaultAccount(name common.AccountName) *types
 	includeCode := true
 	creator := common.N("eosio")
 	trx := types.SignedTransaction{}
-	vt.SetTransactionHeaders(&trx.Transaction, vt.DefaultExpirationDelta, 0) //TODO: test
+	vt.SetTransactionHeaders(&trx.Transaction, vt.DefaultExpirationDelta, 0)
 
 	ownerAuth := types.NewAuthority(vt.getPublicKey(name, "owner"), 0)
 
