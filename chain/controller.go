@@ -1,7 +1,6 @@
 package chain
 
 import (
-	"encoding/json"
 	"fmt"
 	"github.com/eosspark/container/sets/treeset"
 	"github.com/eosspark/eos-go/chain/types"
@@ -486,7 +485,8 @@ func (c *Controller) pushReceipt(trx interface{}, status types.TransactionStatus
 	case common.TransactionIdType:
 		tr.TransactionID = trx.(common.TransactionIdType)
 	case types.PackedTransaction:
-		tr.PackedTransaction = trx.(*types.PackedTransaction)
+		pt := trx.(types.PackedTransaction)
+		tr.PackedTransaction = &pt
 	}
 	trxReceipt.Trx = tr
 	netUsageWords := netUsage / 8
@@ -559,7 +559,7 @@ func (c *Controller) pushTransaction(trx *types.TransactionMetadata, deadLine co
 				} else {
 					s = types.TransactionStatusDelayed
 				}
-				tr := c.pushReceipt(trx.PackedTrx.PackedTrx, s, uint64(trxContext.BilledCpuTimeUs), trace.NetUsage)
+				tr := c.pushReceipt(*trx.PackedTrx, s, uint64(trxContext.BilledCpuTimeUs), trace.NetUsage)
 				trace.Receipt = tr.TransactionReceiptHeader
 				c.Pending.PendingBlockState.Trxs = append(c.Pending.PendingBlockState.Trxs, trx)
 			} else {
@@ -1046,11 +1046,11 @@ func (c *Controller) applyBlock(b *types.SignedBlock, s types.BlockStatus) {
 		trace := &types.TransactionTrace{}
 		for _, receipt := range b.Transactions {
 			numPendingReceipts := len(c.Pending.PendingBlockState.SignedBlock.Transactions)
-			if common.Empty(receipt.Trx.PackedTransaction) {
+			if !common.Empty(receipt.Trx.PackedTransaction) {
 				pt := receipt.Trx.PackedTransaction
 				mtrx := types.NewTransactionMetadata(pt)
 				trace = c.pushTransaction(mtrx, common.TimePoint(common.MaxMicroseconds()), receipt.CpuUsageUs, true)
-			} else if common.Empty(receipt.Trx.TransactionID) {
+			} else if !common.Empty(receipt.Trx.TransactionID) {
 				trace = c.PushScheduledTransaction(&receipt.Trx.TransactionID, common.TimePoint(common.MaxMicroseconds()), receipt.CpuUsageUs)
 			} else {
 				EosAssert(false, &BlockValidateException{}, "encountered unexpected receipt type")
@@ -1072,7 +1072,7 @@ func (c *Controller) applyBlock(b *types.SignedBlock, s types.BlockStatus) {
 			if length > 0 {
 				trxReceipt = c.Pending.PendingBlockState.SignedBlock.Transactions[length-1]
 			}
-			EosAssert(trxReceipt == receipt, &BlockValidateException{}, "receipt does not match,producer_receipt:%v", receipt, "validator_receipt:%v", trxReceipt)
+			EosAssert(trxReceipt.TransactionReceiptHeader == receipt.TransactionReceiptHeader, &BlockValidateException{}, "receipt does not match,producer_receipt:%v", receipt, "validator_receipt:%v", trxReceipt)
 		}
 		c.FinalizeBlock()
 
@@ -1165,7 +1165,6 @@ func (c *Controller) PushConfirmation(hc *types.HeaderConfirmation) {
 }
 
 func (c *Controller) maybeSwitchForks(s types.BlockStatus) {
-	//TODO
 	newHead := c.ForkDB.Head
 	if newHead.Header.Previous == c.Head.BlockId {
 		Try(func() {
@@ -1696,13 +1695,6 @@ func (c *Controller) initializeForkDB() {
 	c.ForkDB.SetHead(c.Head)
 	c.DB.SetRevision(int64(c.Head.BlockNum))
 	c.initializeDatabase()
-
-	json, err := json.Marshal(genHeader)
-	if err != nil {
-		log.Error(err.Error())
-	} else {
-		fmt.Println("block_header_state", string(json))
-	}
 }
 
 func (c *Controller) initializeDatabase() {
