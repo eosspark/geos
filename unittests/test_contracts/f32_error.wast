@@ -1,6 +1,3 @@
-#pragma once
-
-static const char f32_error_wast[] = R"=====(
 (module
   (import "env" "require_auth" (func $require_auth (param i64)))
   (import "env" "eosio_assert" (func $eosio_assert (param i32 i32)))
@@ -141,4 +138,3 @@ static const char f32_error_wast[] = R"=====(
    (call $assert_return_nan (call $nearest (f32.const nan)) (i32.const 196))
    (call $assert_return_nan (call $nearest (f32.const nan:0x200000)) (i32.const 200)) 
 ))
-)=====";
