@@ -1,7 +1,6 @@
 package unittests
 
 import (
-	"fmt"
 	"github.com/eosspark/container/sets/treeset"
 	"github.com/eosspark/eos-go/chain"
 	"github.com/eosspark/eos-go/chain/types"
@@ -14,6 +13,15 @@ import (
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
+
+func CheckThrow(t *testing.T, f func(), exception Exception) {
+	check := false
+	Try(f).Catch(func(e Exception) {
+		assert.Equal(t, exception.Code(), e.Code())
+		check = true
+	}).End()
+	assert.Equal(t, true, check)
+}
 
 func TestBlockWithInvalidTx(t *testing.T) {
 	main := newBaseTester(true, chain.SPECULATIVE)
@@ -64,17 +72,7 @@ func TestBlockWithInvalidTx(t *testing.T) {
 	//actData2 := chain.NewAccount{}
 	//act2.DataAs(&actData2)
 
-	requireException := false
-
-	Try(func() {
-		validator.Control.PushBlock(copyB, types.Complete)
-	}).Catch(func(e Exception) {
-		requireException = true
-		fmt.Println(e.DetailMessage())
-		assert.Equal(t, AccountNameExistsException{}.Code(), e.Code())
-	}).End()
-
-	assert.Equal(t, true, requireException)
+	CheckThrow(t, func() { validator.Control.PushBlock(copyB, types.Complete) }, &AccountNameExistsException{})
 }
 
 type blockPair struct {
@@ -204,14 +202,5 @@ func TestUntrustedProducer(t *testing.T) {
 	blocks, err := CorruptTrxInBlock(&main.BaseTester, common.N("tstproducera"))
 	assert.NoError(t, err)
 
-	requireException := false
-
-	Try(func() {
-		main.ValidatePushBlock(blocks.second)
-	}).Catch(func(e Exception) {
-		requireException = true
-		assert.Equal(t, UnsatisfiedAuthorization{}.Code(), e.Code())
-	}).End()
-
-	assert.Equal(t, true, requireException)
+	CheckThrow(t, func() { main.ValidatePushBlock(blocks.second) }, &UnsatisfiedAuthorization{})
 }
