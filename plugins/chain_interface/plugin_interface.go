@@ -112,6 +112,8 @@ const (
 	TransactionAsync
 )
 
+type BlockSyncCaller = BlockCaller
+
 type TransactionAsyncCaller struct {
 	Caller func(*types.PackedTransaction, bool, NextFunction/*TransactionTrace*/)
 }
