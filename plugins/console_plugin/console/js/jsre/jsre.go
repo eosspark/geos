@@ -1,19 +1,3 @@
-// Copyright 2015 The go-ethereum Authors
-// This file is part of the go-ethereum library.
-//
-// The go-ethereum library is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Lesser General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// The go-ethereum library is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Lesser General Public License for more details.
-//
-// You should have received a copy of the GNU Lesser General Public License
-// along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
-
 // Package jsre provides execution environment for JavaScript.
 package jsre
 
@@ -31,10 +15,7 @@ import (
 	"github.com/robertkrimen/otto"
 )
 
-var (
-	BigNumber_JS = deps.MustAsset("bignumber.js")
-	Web3_JS      = deps.MustAsset("web3.js")
-)
+var Eosgo_JS = deps.MustAsset("eosgo.js")
 
 /*
 JSRE is a generic JS runtime environment embedding the otto JS interpreter.
@@ -78,6 +59,8 @@ func New(assetPath string, output io.Writer) *JSRE {
 	go re.runEventLoop()
 	re.Set("loadScript", re.loadScript)
 	re.Set("inspect", re.prettyPrintJS)
+	re.Set("readTextFile", re.readTextFile)
+
 	return re
 }
 
@@ -265,7 +248,6 @@ func (re *JSRE) Bind(name string, v interface{}) error {
 
 // Run runs a piece of JS code.
 func (re *JSRE) Run(code string) (v otto.Value, err error) {
-	fmt.Println("jsre")
 	re.Do(func(vm *otto.Otto) { v, err = vm.Run(code) })
 	return v, err
 }
@@ -302,6 +284,23 @@ func (re *JSRE) loadScript(call otto.FunctionCall) otto.Value {
 	}
 	// TODO: return evaluation result
 	return otto.TrueValue()
+}
+
+// loadScript executes a JS script from inside the currently executing JS code.
+func (re *JSRE) readTextFile(call otto.FunctionCall) otto.Value {
+	file, err := call.Argument(0).ToString()
+	if err != nil {
+		// TODO: throw exception
+		return otto.FalseValue()
+	}
+
+	source, err := ioutil.ReadFile(file)
+	if err != nil {
+		// TODO: throw exception
+		return otto.FalseValue()
+	}
+	v, _ := call.Otto.ToValue(source)
+	return v
 }
 
 // Evaluate executes code and pretty prints the result to the specified output

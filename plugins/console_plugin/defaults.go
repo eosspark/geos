@@ -214,24 +214,3 @@ func (s *Service) Sleep(ctx context.Context, duration time.Duration) {
 	case <-ctx.Done():
 	}
 }
-
-func (s *Service) Rets() (string, error) {
-	return "", nil
-}
-
-func (s *Service) InvalidRets1() (error, string) {
-	return nil, ""
-}
-
-func (s *Service) InvalidRets2() (string, string) {
-	fmt.Println("invalidRets2")
-	return "aaaaaaa", "bbbbbbbb"
-}
-
-func (s *Service) InvalidRets3() (string, string, error) {
-	return "", "", nil
-}
-
-func (s *Service) Subscription(ctx context.Context) (*rpc.Subscription, error) {
-	return nil, nil
-}

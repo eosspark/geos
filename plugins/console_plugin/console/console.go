@@ -1,26 +1,11 @@
-// Copyright 2016 The go-ethereum Authors
-// This file is part of the go-ethereum library.
-//
-// The go-ethereum library is free software: you can redistribute it and/or modify
-// it under the terms of the GNU Lesser General Public License as published by
-// the Free Software Foundation, either version 3 of the License, or
-// (at your option) any later version.
-//
-// The go-ethereum library is distributed in the hope that it will be useful,
-// but WITHOUT ANY WARRANTY; without even the implied warranty of
-// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
-// GNU Lesser General Public License for more details.
-//
-// You should have received a copy of the GNU Lesser General Public License
-// along with the go-ethereum library. If not, see <http://www.gnu.org/licenses/>.
-
 package console
 
 import (
-	"context"
 	"fmt"
-	"github.com/eosspark/eos-go/plugins/chain_plugin"
-
+	"github.com/eosspark/eos-go/plugins/console_plugin/console/js/jsre"
+	"github.com/eosspark/eos-go/plugins/console_plugin/rpc"
+	"github.com/peterh/liner"
+	"github.com/robertkrimen/otto"
 	"io"
 	"io/ioutil"
 	"os"
@@ -29,18 +14,9 @@ import (
 	"regexp"
 	"strings"
 	"syscall"
-	"time"
-
-	"github.com/eosspark/eos-go/plugins/console_plugin/console/js/jsre"
-	"github.com/eosspark/eos-go/plugins/console_plugin/console/js/web3ext"
-	"github.com/eosspark/eos-go/plugins/console_plugin/rpc"
-	"github.com/mattn/go-colorable"
-	"github.com/peterh/liner"
-	"github.com/robertkrimen/otto"
 )
 
 var (
-	passwordRegexp = regexp.MustCompile(`personal.[nus]`)
 	onlyWhitespace = regexp.MustCompile(`^\s*$`)
 	exit           = regexp.MustCompile(`^\s*exit\s*;*\s*$`)
 )
@@ -56,7 +32,7 @@ const DefaultPrompt = "eosgo > "
 type Config struct {
 	DataDir  string       // Data directory to store the console history at
 	DocRoot  string       // Filesystem path from where to load JavaScript files from
-	Client   *rpc.Client  // RPC client to execute Ethereum requests through
+	Client   *rpc.Client  // RPC client to execute EOSGO requests through
 	Prompt   string       // Input prompt prefix string (defaults to DefaultPrompt)
 	Prompter UserPrompter // Input prompter to allow interactive user feedback (defaults to TerminalPrompter)
 	Printer  io.Writer    // Output writer to serialize any display strings to (defaults to os.Stdout)
@@ -67,7 +43,7 @@ type Config struct {
 // JavaScript console attached to a running node via an external or in-process RPC
 // client.
 type Console struct {
-	client   *rpc.Client  // RPC client to execute Ethereum requests through
+	client   *rpc.Client  // RPC client to execute EOSGO requests through
 	jsre     *jsre.JSRE   // JavaScript runtime environment running the interpreter
 	prompt   string       // Input prompt prefix string
 	prompter UserPrompter // Input prompter to allow interactive user feedback
@@ -87,7 +63,7 @@ func New(config Config) (*Console, error) {
 		config.Prompt = DefaultPrompt
 	}
 	if config.Printer == nil {
-		config.Printer = colorable.NewColorableStdout()
+		config.Printer = os.Stdout
 	}
 	// Initialize the console and return
 	console := &Console{
@@ -113,79 +89,117 @@ func New(config Config) (*Console, error) {
 // the console's JavaScript namespaces based on the exposed modules.
 func (c *Console) init(preload []string) (err error) {
 	// Initialize the JavaScript <-> Go RPC bridge
-	bridge := newBridge(c.client, c.prompter, c.printer)
-	c.jsre.Set("jeth", struct{}{})
-
-	jethObj, _ := c.jsre.Get("jeth")
-	jethObj.Object().Set("send", bridge.Send)
-	jethObj.Object().Set("sendAsync", bridge.Send)
-
-	//eosgo := newEosgo()
-	//jethObj.Object().Set("createKey", eosgo.CreateKey)
-
 	consoleObj, _ := c.jsre.Get("console")
 	consoleObj.Object().Set("log", c.consoleOutput)
 	consoleObj.Object().Set("error", c.consoleOutput)
 
 	eos := newEosgo(c)
-	c.jsre.Bind("eosgo", eos)
-	//c.jsre.Set("eosgo", struct {}{})
-	//eosobj ,err :=c.jsre.Get("eosgo")
-	//if err !=nil{
-	//	fmt.Printf("get eosgo :%s\n",err)
-	//}
-	//eosobj.Object().Set("createNewAccount", bridge.Send)
+	bridge := newBridge(c.client, c.prompter, c.printer)
+	c.jsre.Bind("eos", eos)
 
-	// Load all the js utility JavaScript libraries
-	if err := c.jsre.Compile("bignumber.js", jsre.BigNumber_JS); err != nil {
-		return fmt.Errorf("bignumber.js: %v", err)
+	//c.jsre.Set("eos", struct{}{})
+	eosObj, _ := c.jsre.Get("eos")
+	eosObj.Object().Set("send", bridge.Send)
+	eosObj.Object().Set("sendAsync", bridge.Send)
+	//eosObj.Object().Set("createAccount", eos.CreateAccount)
+	//eosObj.Object().Set("createKey", eos.CreateKey)
+
+	chain := newchainAPI(c)
+	//c.jsre.Set("chain", struct{}{})
+	//chainObj, _ := c.jsre.Get("chain")
+	//chainObj.Object().Set("getInfo", chain.GetInfo)
+	//chainObj.Object().Set("getBlock", chain.GetBlock)
+	//chainObj.Object().Set("getAccount", chain.GetAccount)
+	//chainObj.Object().Set("getCode", chain.GetCode)
+	//chainObj.Object().Set("getAbi", chain.GetAbi)
+
+	c.jsre.Bind("chain", chain)
+
+	wallet := newWalletapi(c)
+	c.jsre.Bind("wallet", wallet)
+	//c.jsre.Set("createKey", eos.CreateKey)
+	//c.jsre.Set("wallet", struct{}{})
+	//walletObj, _ := c.jsre.Get("wallet")
+	//walletObj.Object().Set("createWallet", wallet.CreateWallet)
+	//walletObj.Object().Set("importKey",wallet.ImportKey)
+
+	net := newNetAPI(c)
+	c.jsre.Bind("net", net)
+
+	contents, err := ioutil.ReadFile("/Users/walker/go/src/github.com/eosspark/eos-go/plugins/console_plugin/console/js/jsre/deps/eosgo.js")
+	if err != nil {
+		fmt.Println(err)
 	}
-	if err := c.jsre.Compile("web3.js", jsre.Web3_JS); err != nil {
-		return fmt.Errorf("web3.js: %v", err)
+	if err := c.jsre.Compile("eosgo.js", contents); err != nil {
+		return fmt.Errorf("eosgo.js:%v", err)
 	}
-	if _, err := c.jsre.Run("var Web3 = require('web3');"); err != nil {
-		return fmt.Errorf("web3 require: %v", err)
-	}
-	if _, err := c.jsre.Run("var web3 = new Web3(jeth);"); err != nil {
-		return fmt.Errorf("web3 provider: %v", err)
-	}
+	//if err := c.jsre.Compile("eosgo.js", jsre.Eosgo_JS); err != nil {
+	//	return fmt.Errorf("eosgo.js:%v", err)
+	//}
+	//
+
+	//c.jsre.Bind("eosgo", eos)
+	//c.jsre.Set("createKey", eos.CreateKey)
+
+	//// Load all the js utility JavaScript libraries
+	//if err := c.jsre.Compile("bignumber.js", jsre.BigNumber_JS); err != nil {
+	//	return fmt.Errorf("bignumber.js: %v", err)
+	//}
+	//if err := c.jsre.Compile("web3.js", jsre.Web3_JS); err != nil {
+	//	return fmt.Errorf("web3.js: %v", err)
+	//}
+	//if _, err := c.jsre.Run("var Web3 = require('web3');"); err != nil {
+	//	return fmt.Errorf("web3 require: %v", err)
+	//}
+	//if _, err := c.jsre.Run("var web3 = new Web3(jeth);"); err != nil {
+	//	return fmt.Errorf("web3 provider: %v", err)
+	//}
+
+	//fmt.Println("fibos console start")
+	//if _, err := c.jsre.Run("var Eosgo = require('eosgo');"); err != nil {
+	//return fmt.Errorf("eosgo require: %v", err)
+	//}
+	//fmt.Println("fibos console start")
+	//if _, err := c.jsre.Run("var eosgo = new Eosgo(jeth);"); err != nil {
+	//return fmt.Errorf("fibos provider: %v", err)
+	//}
 
 	// Load the supported APIs into the JavaScript runtime environment
 	//apis, err := c.client.SupportedModules()
 	//if err != nil {
-	//	return fmt.Errorf("api modules: %v", err)
+	//  return fmt.Errorf("api modules: %v", err)
 	//}
-	apis := map[string]string{"chain": "1.0", "wallet": "1.0"}
-	fmt.Println(apis)
+	//apis := map[string]string{"chain": "1.0", "wallet": "1.0", "rpc": "1.0"}
+	//
+	//flatten := "var eos = web3.eos; "
+	//for api := range apis {
+	//	if api == "web3" {
+	//		continue // manually mapped or ignore
+	//	}
+	//	if file, ok := web3ext.Modules[api]; ok {
+	//		// Load our extension for the module.
+	//		if err = c.jsre.Compile(fmt.Sprintf("%s.js", api), file); err != nil {
+	//			return fmt.Errorf("%s.js: %v", api, err)
+	//		}
+	//		flatten += fmt.Sprintf("var %s = web3.%s; ", api, api)
+	//		//var chain =web3.chain
+	//	} else if obj, err := c.jsre.Run("web3." + api); err == nil && obj.IsObject() {
+	//		// Enable web3.js built-in extension if available.
+	//		flatten += fmt.Sprintf("var %s = web3.%s; ", api, api)
+	//	}
+	//}
+	//if _, err = c.jsre.Run(flatten); err != nil {
+	//	return fmt.Errorf("namespace flattening: %v", err)
+	//}
 
-	flatten := "var eos = web3.eos; "
-	for api := range apis {
-		if api == "web3" {
-			continue // manually mapped or ignore
-		}
-		if file, ok := web3ext.Modules[api]; ok {
-			// Load our extension for the module.
-			if err = c.jsre.Compile(fmt.Sprintf("%s.js", api), file); err != nil {
-				return fmt.Errorf("%s.js: %v", api, err)
-			}
-			flatten += fmt.Sprintf("var %s = web3.%s; ", api, api)
-		} else if obj, err := c.jsre.Run("web3." + api); err == nil && obj.IsObject() {
-			// Enable web3.js built-in extension if available.
-			flatten += fmt.Sprintf("var %s = web3.%s; ", api, api)
-		}
-	}
-	if _, err = c.jsre.Run(flatten); err != nil {
-		return fmt.Errorf("namespace flattening: %v", err)
-	}
-
-	// The admin.sleep and admin.sleepBlocks are offered by the console and not by the RPC layer.
-	admin, err := c.jsre.Get("rpc")
+	//The admin.sleep and admin.sleepBlocks are offered by the console and not by the RPC layer.
+	admin, err := c.jsre.Get("eos")
 	if err != nil {
 		return err
 	}
 	if obj := admin.Object(); obj != nil { // make sure the admin api is enabled over the interface
 		//obj.Set("sleepBlocks", bridge.SleepBlocks)
-		obj.Set("sleep", bridge.Sleep)
+		//obj.Set("sleep", bridge.Sleep)
 		obj.Set("clearHistory", c.clearHistory)
 	}
 	// Preload any JavaScript files before starting the console
@@ -263,44 +277,24 @@ func (c *Console) AutoCompleteInput(line string, pos int) (string, []string, str
 // console's available modules.
 func (c *Console) Welcome() {
 	// Print some generic eosgo metadata
-	fmt.Fprintf(c.printer, "Welcome to the EOSGO JavaScript console!\n\n")
-	c.jsre.Run(`
-              console.log("get info: " + chain.getInfo());
-	`)
+	eosgoLogo()
+	fmt.Fprintf(c.printer, "\tWelcome to the EOSGO JavaScript console!\n")
+
+	//c.jsre.Run(`
+	//        console.log("get info: " + chain.getInfo());
+	//`)
 
 	// List all the supported modules for the user to call
 	//if apis, err := c.client.SupportedModules(); err == nil {
-	//	modules := make([]string, 0, len(apis))
-	//	for api, version := range apis {
-	//		modules = append(modules, fmt.Sprintf("%s:%s", api, version))
-	//	}
-	//	sort.Strings(modules)
-	//	fmt.Fprintln(c.printer, " modules:", strings.Join(modules, " "))
+	//  modules := make([]string, 0, len(apis))
+	//  for api, version := range apis {
+	//    modules = append(modules, fmt.Sprintf("%s:%s", api, version))
+	//  }
+	//  sort.Strings(modules)
+	//  fmt.Fprintln(c.printer, " modules:", strings.Join(modules, " "))
 	//}
 	//fmt.Fprintln(c.printer)
 
-	fmt.Println("test callContext: ************")
-	var result chain_plugin.GetInfoResult
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	err := c.client.CallContext(ctx, &result, "/v1/chain/get_info", nil)
-	if err != nil {
-		fmt.Println(err)
-	}
-	fmt.Printf("result %#v\n", result)
-
-	fmt.Println("test callContext: ************")
-}
-
-// Evaluate executes code and pretty prints the result to the specified output
-// stream.
-func (c *Console) Evaluate(statement string) error {
-	defer func() {
-		if r := recover(); r != nil {
-			fmt.Fprintf(c.printer, "[native] error: %v\n", r)
-		}
-	}()
-	return c.jsre.Evaluate(statement, c.printer)
 }
 
 // Interactive starts an interactive user session, where input is propted from
@@ -364,7 +358,7 @@ func (c *Console) Interactive() {
 				}
 				// If all the needed lines are present, save the command and run
 				if indents <= 0 {
-					if len(input) > 0 && input[0] != ' ' && !passwordRegexp.MatchString(input) {
+					if len(input) > 0 && input[0] != ' ' {
 						if command := strings.TrimSpace(input); len(c.history) == 0 || command != c.history[len(c.history)-1] {
 							c.history = append(c.history, command)
 							if c.prompter != nil {
@@ -372,13 +366,24 @@ func (c *Console) Interactive() {
 							}
 						}
 					}
-					//fmt.Println("input:  ", input)
+					//fmt.Println("*************console input:  ", input)
 					c.Evaluate(input)
 					input = ""
 				}
 			}
 		}
 	}()
+}
+
+// Evaluate executes code and pretty prints the result to the specified output
+// stream.
+func (c *Console) Evaluate(statement string) error {
+	defer func() {
+		if r := recover(); r != nil {
+			fmt.Fprintf(c.printer, "[native] error: %v\n", r)
+		}
+	}()
+	return c.jsre.Evaluate(statement, c.printer)
 }
 
 // countIndents returns the number of identations for the given input.
@@ -439,4 +444,24 @@ func (c *Console) Stop(graceful bool) error {
 	}
 	c.jsre.Stop(graceful)
 	return nil
+}
+
+func eosgoLogo() {
+	fmt.Println("\x1b[1;31m")
+	fmt.Println("\t _______  _______  _______  _______  _______")
+	fmt.Println("\t(  ____ \\(  ___  )(  ____ \\(  ____ \\(  ___  )")
+	fmt.Println("\t| (    \\/| (   ) || (    \\/| (    \\/| (   ) |")
+	fmt.Println("\t| (__    | |   | || (_____ | |  ___ | |   | |")
+	fmt.Println("\t|  __)   | |   | |(_____  )| | (_  )| |   | |")
+	fmt.Println("\t| (      | |   | |      ) || |   ) || |   | |")
+	fmt.Println("\t| (____/\\| (___) |/\\____) || (___) || (___) |")
+	fmt.Println("\t(_______/(_______)\\_______)\\_______/(_______)")
+	fmt.Println("\x1b[0m")
+
+	fmt.Println("\tFor more information:")
+	//fmt.Println("\tEOSGO Website: https://eos.io")
+	//fmt.Println("\tEOSGO Telegram channel @ https://t.me/EOSProject")
+	//fmt.Println("\tEOSGO Resources: https://eos.io/resources/")
+	//fmt.Println("\tEOSGO Stack Exchange: https://eosio.stackexchange.com")
+	fmt.Println("\tEOSGO Github: https://github.com/eosspark/eos-go\n")
 }

@@ -3,6 +3,7 @@ package abi_serializer
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/eosspark/eos-go/exception"
@@ -270,8 +271,8 @@ func ToABI(abiVec common.HexBytes, abi *AbiDef) bool {
 	if isEmptyABI(abiVec) { // 4 == packsize of empty Abi
 		return false
 	}
-	err := rlp.DecodeBytes(abiVec, abi)
-	if err != nil {
+
+	if nil != rlp.DecodeBytes(abiVec, abi) {
 		return false
 	}
 	return true
@@ -358,3 +359,46 @@ func (a AbiSerializer) BinaryToVariant(rtype typeName, binary []byte, maxSeriali
 	}).EosRethrowExceptions(&exception.UnpackException{}, "Unable to unpack %s from bytes", string(binary)).End()
 	return re
 }
+
+//template<typename T, typename Resolver>
+//void abi_serializer::to_variant( const T& o, variant& vo, Resolver resolver, const fc::microseconds& max_serialization_time ) try {
+//mutable_variant_object mvo;
+//impl::abi_traverse_context ctx(max_serialization_time);
+//impl::abi_to_variant::add(mvo, "_", o, resolver, ctx);
+//vo = std::move(mvo["_"]);
+//} FC_RETHROW_EXCEPTIONS(error, "Failed to serialize type", ("object",o))
+//
+//template<typename T, typename Resolver>
+//void abi_serializer::from_variant( const variant& v, T& o, Resolver resolver, const fc::microseconds& max_serialization_time ) try {
+//impl::abi_traverse_context ctx(max_serialization_time);
+//impl::abi_from_variant::extract(v, o, resolver, ctx);
+//} FC_RETHROW_EXCEPTIONS(error, "Failed to deserialize variant", ("variant",v))
+//
+//
+//} } // eosio::chain
+
+func ToVariant() {
+
+}
+
+func FromVariant(v *common.Variants, o *types.SignedTransaction, resolver *AbiSerializer, maxSerialization common.Microseconds) {
+	data, err := json.Marshal(v)
+	fmt.Println(data, err)
+	fmt.Printf("%s\n", string(data))
+	err = json.Unmarshal(data, o)
+	fmt.Println(o, err)
+
+	type Actions struct {
+		Actions []types.Action `json:'actions'`
+	}
+	var actions Actions
+	err = json.Unmarshal(data, &actions)
+	fmt.Println(err, actions)
+}
+
+//template<typename M, typename Resolver, not_require_abi_t<M> = 1>
+//static void extract( const variant& v, M& o, Resolver, abi_traverse_context& ctx )
+//{
+//   auto h = ctx.enter_scope();
+//   from_variant(v, o);
+//}

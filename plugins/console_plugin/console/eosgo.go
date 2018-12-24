@@ -6,15 +6,32 @@ import (
 	"github.com/eosspark/eos-go/chain"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
+	"github.com/eosspark/eos-go/crypto/abi_serializer"
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/eosspark/eos-go/exception"
 	"github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/log"
-	"github.com/eosspark/eos-go/plugins/console_plugin/console/js/eosapi"
 	"github.com/robertkrimen/otto"
-	"time"
+	"io/ioutil"
+	"strings"
 )
+
+var txExpiration = common.Seconds(30)         //30s
+var abiSerializerMaxTime = common.Seconds(10) // No risk to client side serialization taking a long time
+var txRefBlockNumOrID string
+var txForceUnique = false
+var txDontBroadcast = false
+var txReturnPacked = false
+var txSkipSign = false
+var txPrintJson = false
+var printRequest = false
+var printResponse = false
+
+var txMaxCpuUsage uint8 = 0
+var txMaxNetUsage uint32 = 0
+
+var delaysec uint32 = 0
 
 type eosgo struct {
 	c   *Console
@@ -22,7 +39,6 @@ type eosgo struct {
 }
 
 func newEosgo(c *Console) *eosgo {
-
 	e := &eosgo{
 		c: c,
 	}
@@ -41,23 +57,8 @@ func (e *eosgo) CreateKey(call otto.FunctionCall) (response otto.Value) {
 	v, _ := call.Otto.ToValue(&Keys{Pri: privateKey.String(), Pub: privateKey.PublicKey().String()})
 	return v
 }
-func (e *eosgo) GetInfo(call otto.FunctionCall) (response otto.Value) {
-	var result eosapi.InfoResp
-	err := e.c.client.Call(&result, "/v1/chain/get_info", nil)
-	if err != nil {
-		fmt.Println(err)
-	}
-	fmt.Printf("%#v\n\n", result)
 
-	v, _ := call.Otto.ToValue(result.String())
-	return v
-}
-
-type msg struct {
-	Msg string
-}
-
-func (e *eosgo) CreateAccount(call otto.FunctionCall) (resonse otto.Value) {
+func (e *eosgo) CreateAccount(call otto.FunctionCall) (response otto.Value) {
 	creator, err := call.Argument(0).ToString()
 	if err != nil {
 		return otto.UndefinedValue()
@@ -75,6 +76,8 @@ func (e *eosgo) CreateAccount(call otto.FunctionCall) (resonse otto.Value) {
 		return otto.UndefinedValue()
 	}
 
+	fmt.Println("eosgo params:  ", creator, name, ownerkey, activekey)
+
 	if len(activekey) == 0 {
 		activekey = ownerkey
 	}
@@ -85,7 +88,7 @@ func (e *eosgo) CreateAccount(call otto.FunctionCall) (resonse otto.Value) {
 	}
 	activeKey, err := ecc.NewPublicKey(activekey)
 	if err != nil {
-		throwJSException(fmt.Sprintf("Invalid owner public key: %s", activekey))
+		throwJSException(fmt.Sprintf("Invalid active public key: %s", activekey))
 	}
 
 	c := chain.NewAccount{
@@ -113,23 +116,134 @@ func (e *eosgo) CreateAccount(call otto.FunctionCall) (resonse otto.Value) {
 		},
 	}
 
-	//e.SendActions([]types.Action{action})
 	createAction := []*types.Action{action}
 	//if !simple {
 	//	fmt.Println("system create account")
 	//
 	//} else {
 	e.log.Info("creat account in test net")
-	e.sendActions(createAction, 1000, types.CompressionNone)
+	result := e.sendActions(createAction, 1000, types.CompressionNone)
 	//}
 
-	v, _ := call.Otto.ToValue(&msg{})
-
-	return v
+	return getJsResult(call, result)
 }
 
-func (e *eosgo) sendActions(actions []*types.Action, extraKcpu int32, compression types.CompressionType) {
-	e.log.Info("send action")
+// // push action
+// string contract_account;
+// string action;
+// string data;
+// vector<string> permissions;
+// auto actionsSubcommand = push->add_subcommand("action", localized("Push a transaction with a single action"));
+// actionsSubcommand->fallthrough(false);
+// actionsSubcommand->add_option("account", contract_account,
+//                               localized("The account providing the contract to execute"), true)->required();
+// actionsSubcommand->add_option("action", action,
+//                               localized("A JSON string or filename defining the action to execute on the contract"), true)->required();
+// actionsSubcommand->add_option("data", data, localized("The arguments to the contract"))->required();
+
+// add_standard_transaction_options(actionsSubcommand);
+// actionsSubcommand->set_callback([&] {
+//    fc::variant action_args_var;
+//    if( !data.empty() ) {
+//       try {
+//          action_args_var = json_from_file_or_string(data, fc::json::relaxed_parser);
+//       } EOS_RETHROW_EXCEPTIONS(action_type_exception, "Fail to parse action JSON data='${data}'", ("data", data))
+//    }
+//    auto accountPermissions = get_account_permissions(tx_permission);
+
+//    send_actions({chain::action{accountPermissions, contract_account, action, variant_to_bin( contract_account, action, action_args_var ) }});
+// });
+
+func (e *eosgo) PushAction(call otto.FunctionCall) (response otto.Value) {
+	contractAccount, err := call.Argument(0).ToString()
+	if err != nil {
+		return otto.UndefinedValue()
+	}
+	actionName, err := call.Argument(1).ToString()
+	if err != nil {
+		return otto.UndefinedValue()
+	}
+	data, err := call.Argument(2).ToString()
+	if err != nil {
+		return otto.UndefinedValue()
+	}
+	permissonstr, err := call.Argument(3).ToString()
+	if err != nil {
+		return otto.UndefinedValue()
+	}
+
+	actionArgsVar := &common.Variants{}
+	fmt.Println("data:", data)
+	err = json.Unmarshal([]byte(data), actionArgsVar)
+	fmt.Println("unmarshal:  ", actionArgsVar, err)
+
+	persmissions := getAccountPermissions(permissonstr)
+	fmt.Println(persmissions)
+	action := &types.Action{
+		Account:       common.N(contractAccount),
+		Name:          common.N(actionName),
+		Authorization: persmissions,
+		Data:          variantToBin(common.N(contractAccount), common.N(actionName), actionArgsVar),
+	}
+	e.log.Warn("%#v", action)
+	e.log.Info("push action...")
+	actions := []*types.Action{action}
+
+	result := e.sendActions(actions, 1000, types.CompressionNone)
+	return getJsResult(call, result)
+}
+
+func getAccountPermissions(in string) []types.PermissionLevel {
+	accountPermissions := make([]types.PermissionLevel, 0)
+	permissionStrs := strings.Split(in, ",")
+	for _, str := range permissionStrs {
+		pieces := strings.Split(str, "@")
+		if len(pieces) == 1 {
+			pieces = append(pieces, "active")
+		}
+		permission := types.PermissionLevel{
+			Actor:      common.N(pieces[0]),
+			Permission: common.N(pieces[1]),
+		}
+		accountPermissions = append(accountPermissions, permission)
+	}
+	return accountPermissions
+}
+
+var abiCache = make(map[common.AccountName]*abi_serializer.AbiSerializer)
+
+//resolver for ABI serializer to decode actions in proposed transaction in multisig contract
+func abisSerializerResolver(account common.AccountName) *abi_serializer.AbiSerializer {
+	it, ok := abiCache[account]
+	if ok {
+		return it
+	}
+	var abiResult GetAbiResult
+	err := DoHttpCall(&abiResult, common.GetAbiFunc, common.Variants{"account_name": account})
+	if err != nil {
+		fmt.Println("get abi from chain is error: %s", err.Error())
+	}
+	var abis *abi_serializer.AbiSerializer
+	if !common.Empty(abiResult.Abi) {
+		abis = abi_serializer.NewAbiSerializer(&abiResult.Abi, abiSerializerMaxTime)
+		abiCache[account] = abis
+	} else {
+		fmt.Printf("ABI for contract %s not found. Action data will be shown in hex only.\n", account)
+	}
+
+	return abis
+}
+
+func variantToBin(account common.AccountName, action common.ActionName, actionArgsVar *common.Variants) []byte {
+	abis := abisSerializerResolver(account)
+	try.FcAssert(!common.Empty(abis), "No ABI found %s", account)
+
+	actionType := abis.GetActionType(action)
+	try.FcAssert(len(actionType) != 0, "Unknown action %s in contract %s", action, account)
+	return abis.VariantToBinary(actionType, actionArgsVar, abiSerializerMaxTime)
+}
+
+func (e *eosgo) sendActions(actions []*types.Action, extraKcpu int32, compression types.CompressionType) interface{} {
 	result := e.pushActions(actions, extraKcpu, compression)
 
 	//if txPrintJson {
@@ -138,92 +252,64 @@ func (e *eosgo) sendActions(actions []*types.Action, extraKcpu int32, compressio
 	//} else {
 	printResult(result)
 	//}
+	return result
 }
 
 func (e *eosgo) pushActions(actions []*types.Action, extraKcpu int32, compression types.CompressionType) interface{} {
-	e.log.Info("push actions")
 	trx := &types.SignedTransaction{}
 	trx.Actions = actions
-	e.log.Info("trx.Actions")
 	return e.pushTransaction(trx, extraKcpu, compression)
 }
 
-var txExpiration time.Duration = 30 * time.Second
-var abi_serializer_max_time = 10 * time.Second // No risk to client side serialization taking a long time
-var tx_ref_block_num_or_id string
-var tx_force_unique = false
-var tx_dont_broadcast = false
-var tx_return_packed = false
-var tx_skip_sign = false
-var tx_print_json = false
-var print_request = false
-var print_response = false
-var no_auto_keosd = false
-
-var tx_max_cpu_usage uint8 = 0
-var tx_max_net_usage uint32 = 0
-
-var delaysec uint32 = 0
-
-type Variants map[string]interface{}
-
 func (e *eosgo) pushTransaction(trx *types.SignedTransaction, extraKcpu int32, compression types.CompressionType) interface{} {
-	e.log.Info("push transaction")
-
-	var info eosapi.InfoResp
-	err := e.c.client.Call(&info, "/v1/chain/get_info", nil)
+	var info GetInfoResult
+	err := DoHttpCall(&info, common.GetInfoFunc, nil)
 	if err != nil {
 		fmt.Println(err)
 	}
-	e.log.Info("receive getInfo()")
 
 	if len(trx.Signatures) == 0 { // #5445 can't change txn content if already signed
 		// calculate expiration date
-		tx_expiration := info.HeadBlockTime.AddUs(common.Microseconds(txExpiration.Seconds()))
-		trx.Expiration = common.TimePointSec(tx_expiration)
-		// fmt.Println(trx.Expiration)
+		trx.Expiration = common.NewTimePointSecTp(info.HeadBlockTime.AddUs(txExpiration))
+		fmt.Println(trx.Expiration.String())
 
 		// Set tapos, default to last irreversible block if it's not specified by the user
 		refBlockID := info.LastIrreversibleBlockID
-		if len(tx_ref_block_num_or_id) > 0 {
-			fmt.Println("tx_ref_block_num_or_id")
-			var refBlock eosapi.BlockResp
-			err := e.c.client.Call(&refBlock, "/v1/chain/get_block", Variants{"block_num_or_id": tx_ref_block_num_or_id})
+		if len(txRefBlockNumOrID) > 0 {
+			var refBlock GetBlockResult
+			err := DoHttpCall(&refBlock, common.GetBlockFunc, common.Variants{"block_num_or_id": txRefBlockNumOrID})
 			if err != nil {
 				fmt.Println(err)
-				try.EosThrow(&exception.InvalidRefBlockException{}, "Invalid reference block num or id: %s", tx_ref_block_num_or_id)
+				try.EosThrow(&exception.InvalidRefBlockException{}, "Invalid reference block num or id: %s", txRefBlockNumOrID)
 			}
-			e.log.Info("receive getInfo()")
+
 			refBlockID = refBlock.ID
 		}
-		fmt.Println(refBlockID)
 		trx.SetReferenceBlock(&refBlockID)
 
-		if tx_force_unique {
+		if txForceUnique {
 			// trx.ContextFreeActions. //TODO
 		}
-		trx.MaxCpuUsageMS = uint8(tx_max_cpu_usage)
-		trx.MaxNetUsageWords = (uint32(tx_max_net_usage) + 7) / 8
+		trx.MaxCpuUsageMS = uint8(txMaxCpuUsage)
+		trx.MaxNetUsageWords = (uint32(txMaxNetUsage) + 7) / 8
 		trx.DelaySec = uint32(delaysec)
 	}
-	e.log.Info("end %#v", trx)
 
-	if !tx_skip_sign {
+	if !txSkipSign {
 		requiredKeys := e.determineRequiredKeys(trx)
 		fmt.Println(requiredKeys)
 		e.signTransaction(trx, requiredKeys, &info.ChainID)
 	}
-	if !tx_dont_broadcast {
-		fmt.Println("push transaction")
-		var re Variants
+	if !txDontBroadcast {
+		var re common.Variant
 		packedTrx := types.NewPackedTransactionBySignedTrx(trx, compression)
-		err := e.c.client.Call(&re, "/v1/chain/push_transaction", packedTrx)
+		err := DoHttpCall(&re, common.PushTxnFunc, packedTrx)
 		if err != nil {
-			fmt.Println(err)
+			e.log.Error(err.Error())
 		}
 		return re
 	} else {
-		if !tx_return_packed {
+		if !txReturnPacked {
 			out, _ := json.Marshal(trx)
 			return out
 		} else {
@@ -238,48 +324,38 @@ func (e *eosgo) pushTransaction(trx *types.SignedTransaction, extraKcpu int32, c
 //}
 func (e *eosgo) determineRequiredKeys(trx *types.SignedTransaction) []string {
 	var publicKeys []string
-	err := e.c.client.Call(&publicKeys, "/v1/wallet/get_public_keys", nil)
+	err := DoHttpCall(&publicKeys, common.WalletPublicKeys, nil)
 	if err != nil {
-		fmt.Println(err)
+		e.log.Error(err.Error())
 	}
-
 	fmt.Println("get public keys: ", publicKeys)
 
 	var keys map[string][]string
-	fmt.Println("action data:", trx.Actions[0])
-	arg := &Variants{
+	arg := &common.Variants{
 		"transaction":    trx,
 		"available_keys": publicKeys,
 	}
-	err = e.c.client.Call(&keys, "/v1/chain/get_required_keys", arg)
+	err = DoHttpCall(&keys, common.GetRequiredKeys, arg)
 	if err != nil {
-		fmt.Println(err)
+		e.log.Error(err.Error())
 	}
 	return keys["required_keys"]
 }
 
-//void sign_transaction(signed_transaction& trx, fc::variant& required_keys, const chain_id_type& chain_id) {
-//fc::variants sign_args = {fc::variant(trx), required_keys, fc::variant(chain_id)};
-//const auto& signed_trx = call(wallet_url, wallet_sign_trx, sign_args);
-//trx = signed_trx.as<signed_transaction>();
-//}
-
 func (e *eosgo) signTransaction(trx *types.SignedTransaction, requiredKeys []string, chainID *common.ChainIdType) {
-	signedTrx := Variants{"signed_transaction": trx, "keys": requiredKeys, "id": chainID}
-	err := e.c.client.Call(trx, "/v1/wallet/sign_transaction", signedTrx)
+	signedTrx := common.Variants{"signed_transaction": trx, "keys": requiredKeys, "id": chainID}
+	err := DoHttpCall(trx, common.WalletSignTrx, signedTrx)
 	if err != nil {
-		fmt.Println(err)
+		e.log.Error(err.Error())
 	}
 }
 
 func printResult(v interface{}) {
-	data, err := json.Marshal(v)
-	if err != nil {
-		fmt.Println("%v\n", string(data))
-	}
+	data, _ := json.Marshal(v)
+	fmt.Println(string(data))
 }
 
-func (e *eosgo) PushTrx(call otto.FunctionCall) (resonse otto.Value) {
+func (e *eosgo) PushTrx(call otto.FunctionCall) (response otto.Value) {
 	var signtrx types.SignedTransaction
 
 	trx_var, err := call.Argument(0).ToString()
@@ -305,30 +381,101 @@ func (e *eosgo) PushTrx(call otto.FunctionCall) (resonse otto.Value) {
 	return v
 }
 
-//{"ref_block_num":"101","ref_block_prefix":"4159312339","expiration":"2017-09-25T06:28:49","scope":["initb","initc"],"actions":[{"code":"currency","type":"transfer","recipients":["initb","initc"],"authorization":[{"account":"initb","permission":"active"}],"data":"000000000041934b000000008041934be803000000000000"}],"signatures":[],"authorizations":[]}, {"ref_block_num":"101","ref_block_prefix":"4159312339","expiration":"2017-09-25T06:28:49","scope":["inita","initc"],"actions":[{"code":"currency","type":"transfer","recipients":["inita","initc"],"authorization":[{"account":"inita","permission":"active"}],"data":"000000008040934b000000008041934be803000000000000"}],"signatures":[],"authorizations":[]}]
+func (e *eosgo) SetCode(call otto.FunctionCall) (response otto.Value) {
+	account, err := call.Argument(0).ToString()
+	if err != nil {
+		return otto.UndefinedValue()
+	}
+	wasmPath, err := call.Argument(1).ToString()
+	if err != nil {
+		return otto.UndefinedValue()
+	}
 
-//func (e *eosgo) importWallet(call otto.FunctionCall) (response otto.Value) {
-//	walletName, err := call.Argument(0).ToString()
-//	if err != nil {
-//		return otto.UndefinedValue()
-//	}
-//	walletKeyStr, err := call.Argument(0).ToString()
-//	if err != nil {
-//		return otto.UndefinedValue()
-//	}
-//
-//	walletKey, err := ecc.NewPrivateKey(walletKeyStr)
-//	if err != nil {
-//		try.EosThrow(&exception.PrivateKeyTypeException{}, "Invalid private key: %s", walletKeyStr)
-//	}
-//
-//	err := e.c.client.Call(trx, "/v1/wallet/import_key", Variants{"name":walletName,"key":walletKeyStr})
-//	if err != nil {
-//		fmt.Println(err)
-//	}else{
-//		pubkey := walletKey.PublicKey()
-//		fmt.Println("imported private key for: ", pubkey.String())
-//
-//	}
-//
-//}
+	codeContent, err := ioutil.ReadFile(wasmPath)
+	if err != nil {
+		e.log.Error("get abi from file is error %s", err.Error())
+		return otto.FalseValue()
+	}
+
+	c := chain.SetCode{
+		Account:   common.N(account),
+		VmType:    0,
+		VmVersion: 0,
+		Code:      codeContent,
+	}
+	buffer, _ := rlp.EncodeToBytes(&c)
+
+	setCode := &types.Action{
+		Account: common.N("eosio"),
+		Name:    common.N("setcode"),
+		Authorization: []types.PermissionLevel{
+			{Actor: common.N(account), Permission: common.N("active")},
+		},
+		Data: buffer,
+	}
+	createAction := []*types.Action{setCode}
+	e.log.Info("Setting Code...")
+	result := e.sendActions(createAction, 10000, types.CompressionZlib)
+
+	return getJsResult(call, result)
+
+}
+func (e *eosgo) SetAbi(call otto.FunctionCall) (response otto.Value) {
+	account, err := call.Argument(0).ToString()
+	if err != nil {
+		return otto.UndefinedValue()
+	}
+	abiPath, err := call.Argument(1).ToString()
+	if err != nil {
+		return otto.UndefinedValue()
+	}
+
+	abiFile, err := ioutil.ReadFile(abiPath)
+	if err != nil {
+		e.log.Error("get abi from file is error %s", err.Error())
+		return otto.FalseValue()
+	}
+
+	fmt.Println(string(abiFile))
+	abiDef := &abi_serializer.AbiDef{}
+	if json.Unmarshal(abiFile, abiDef) != nil {
+		e.log.Error("unmarshal abi from file is error ")
+		return otto.FalseValue()
+	}
+
+	//if !abi_serializer.ToABI(abiFile,abiDef){
+	//	e.log.Error("get abi from file is error ")
+	//	return otto.FalseValue()
+	//}
+
+	abiContent, err := rlp.EncodeToBytes(abiDef)
+	if err != nil {
+		e.log.Error("pack abi is error %s", err.Error())
+		return otto.FalseValue()
+	}
+
+	c := chain.SetAbi{
+		Account: common.N(account),
+		Abi:     abiContent,
+	}
+	buffer, _ := rlp.EncodeToBytes(&c)
+	setAbi := &types.Action{
+		Account: common.N("eosio"),
+		Name:    common.N("setabi"),
+		Authorization: []types.PermissionLevel{
+			{Actor: common.N(account), Permission: common.N("active")},
+		},
+		Data: buffer,
+	}
+	createAction := []*types.Action{setAbi}
+
+	e.log.Info("Setting ABI...")
+	result := e.sendActions(createAction, 10000, types.CompressionZlib)
+	return getJsResult(call, result)
+}
+
+func (e *eosgo) SetContract(call otto.FunctionCall) (response otto.Value) {
+
+	v, _ := call.Otto.ToValue(nil)
+	return v
+}
