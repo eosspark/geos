@@ -356,16 +356,13 @@ func (wm *WalletManager) CreateKey(name, keyType string) string {
 }
 
 type SignTrxParams struct {
-	Txn     *types.SignedTransaction
-	Keys    []ecc.PublicKey
-	ChainID common.ChainIdType
+	Txn     *types.SignedTransaction `json:"signed_transaction"`
+	Keys    []ecc.PublicKey          `json:"keys"`
+	ChainID common.ChainIdType       `json:"id"`
 }
 
 func (wm *WalletManager) SignTransaction(txn *types.SignedTransaction, keys []ecc.PublicKey, chainID common.ChainIdType) *types.SignedTransaction {
 	wm.checkTimeout()
-	wm.log.Debug("sign transaction")
-	wm.log.Debug("%#v", txn)
-	wm.log.Debug("%s,%s", keys, chainID)
 
 	for _, key := range keys {
 		found := false
@@ -373,7 +370,6 @@ func (wm *WalletManager) SignTransaction(txn *types.SignedTransaction, keys []ec
 		for _, wallet := range wm.Wallets {
 			if !wallet.isLocked() {
 				sig := wallet.trySignDigest(txn.SigDigest(&chainID, txn.ContextFreeData).Bytes(), key)
-				wm.log.Error("sig :   %#v", sig)
 				if !common.Empty(sig) {
 					txn.Signatures = append(txn.Signatures, *sig)
 					found = true
@@ -385,8 +381,6 @@ func (wm *WalletManager) SignTransaction(txn *types.SignedTransaction, keys []ec
 			EosThrow(&WalletMissingPubKeyException{}, "public key not found in unlocked wallets %s", key)
 		}
 	}
-
-	wm.log.Debug("%#v", txn)
 	return txn
 
 }
