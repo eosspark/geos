@@ -88,3 +88,8 @@ func (iterator *MultiSetIterator) Last() bool {
 	iterator.End()
 	return iterator.Prev()
 }
+
+func (itr *MultiSetIterator) Equal(in MultiSetIterator) bool {
+
+	return itr.iterator.Equal(in.iterator)
+}

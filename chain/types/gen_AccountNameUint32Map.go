@@ -4,7 +4,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package treemap implements a map backed by red-black tree.
+// Package treemap implements a map backed by red-black Tree.
 //
 // Elements are ordered by key in the map.
 //
@@ -19,8 +19,7 @@ import (
 	"strings"
 
 	"github.com/eosspark/container/templates"
-	rbt "github.com/eosspark/container/trees/redblacktree"
-	"github.com/eosspark/container/utils"
+	rbt "github.com/eosspark/container/templates/tree"
 	"github.com/eosspark/eos-go/common"
 )
 
@@ -30,69 +29,53 @@ func assertAccountNameUint32MapImplementation() {
 	var _ templates.Map = (*AccountNameUint32Map)(nil)
 }
 
-// Map holds the elements in a red-black tree
+// Map holds the elements in a red-black Tree
 type AccountNameUint32Map struct {
-	isMulti bool
-	tree    *rbt.Tree
+	*rbt.Tree
 }
 
-// NewWith instantiates a tree map with the custom comparator.
+// NewWith instantiates a Tree map with the custom comparator.
 func NewAccountNameUint32Map() *AccountNameUint32Map {
-	return &AccountNameUint32Map{tree: rbt.NewWith(common.CompareName)}
+	return &AccountNameUint32Map{Tree: rbt.NewWith(common.CompareName, false)}
 }
 
 func CopyFromAccountNameUint32Map(tm *AccountNameUint32Map) *AccountNameUint32Map {
-	return &AccountNameUint32Map{tree: rbt.CopyFrom(tm.tree)}
+	return &AccountNameUint32Map{Tree: rbt.CopyFrom(tm.Tree)}
 }
 
-func (m *AccountNameUint32Map) GetComparator() utils.Comparator {
-	return m.tree.Comparator
+type MultiAccountNameUint32Map = AccountNameUint32Map
+
+func NewMultiAccountNameUint32Map() *MultiAccountNameUint32Map {
+	return &AccountNameUint32Map{Tree: rbt.NewWith(common.CompareName, true)}
+}
+
+func CopyMultiFromAccountNameUint32Map(tm *AccountNameUint32Map) *AccountNameUint32Map {
+	return &AccountNameUint32Map{Tree: rbt.CopyFrom(tm.Tree)}
 }
 
 // Put inserts key-value pair into the map.
 // Key should adhere to the comparator's type assertion, otherwise method panics.
 func (m *AccountNameUint32Map) Put(key common.AccountName, value uint32) {
-	if m.isMulti {
-		m.tree.MultiPut(key, value)
-	} else {
-		m.tree.Put(key, value)
-	}
+	m.Tree.Put(key, value)
 }
 
-// Get searches the element in the map by key and returns its value or nil if key is not found in tree.
+// Get searches the element in the map by key and returns its value or nil if key is not found in Tree.
 // Second return parameter is true if key was found, otherwise false.
 // Key should adhere to the comparator's type assertion, otherwise method panics.
-func (m *AccountNameUint32Map) Get(key common.AccountName) (value uint32, found bool) {
-	if v, ok := m.tree.Get(key); ok {
-		return v.(uint32), ok
-	}
-	return
+func (m *AccountNameUint32Map) Get(key common.AccountName) IteratorAccountNameUint32Map {
+	return IteratorAccountNameUint32Map{m.Tree.Get(key)}
 }
 
 // Remove removes the element from the map by key.
 // Key should adhere to the comparator's type assertion, otherwise method panics.
 func (m *AccountNameUint32Map) Remove(key common.AccountName) {
-	if m.isMulti {
-		m.tree.MultiRemove(key)
-	} else {
-		m.tree.Remove(key)
-	}
-}
-
-// Empty returns true if map does not contain any elements
-func (m *AccountNameUint32Map) Empty() bool {
-	return m.tree.Empty()
-}
-
-// Size returns number of elements in the map.
-func (m *AccountNameUint32Map) Size() int {
-	return m.tree.Size()
+	m.Tree.Remove(key)
 }
 
 // Keys returns all keys in-order
 func (m *AccountNameUint32Map) Keys() []common.AccountName {
-	keys := make([]common.AccountName, m.tree.Size())
-	it := m.tree.Iterator()
+	keys := make([]common.AccountName, m.Tree.Size())
+	it := m.Tree.Iterator()
 	for i := 0; it.Next(); i++ {
 		keys[i] = it.Key().(common.AccountName)
 	}
@@ -101,136 +84,31 @@ func (m *AccountNameUint32Map) Keys() []common.AccountName {
 
 // Values returns all values in-order based on the key.
 func (m *AccountNameUint32Map) Values() []uint32 {
-	values := make([]uint32, m.tree.Size())
-	it := m.tree.Iterator()
+	values := make([]uint32, m.Tree.Size())
+	it := m.Tree.Iterator()
 	for i := 0; it.Next(); i++ {
 		values[i] = it.Value().(uint32)
 	}
 	return values
 }
 
-// Clear removes all elements from the map.
-func (m *AccountNameUint32Map) Clear() {
-	m.tree.Clear()
-}
-
-// Min returns the minimum key and its value from the tree map.
-// Returns nil, nil if map is empty.
-func (m *AccountNameUint32Map) Min() (key common.AccountName, value uint32) {
-	if node := m.tree.Left(); node != nil {
-		return node.Key.(common.AccountName), node.Value.(uint32)
-	}
-	return
-}
-
-// Max returns the maximum key and its value from the tree map.
-// Returns nil, nil if map is empty.
-func (m *AccountNameUint32Map) Max() (key common.AccountName, value uint32) {
-	if node := m.tree.Right(); node != nil {
-		return node.Key.(common.AccountName), node.Value.(uint32)
-	}
-	return
-}
-
 // Each calls the given function once for each element, passing that element's key and value.
 func (m *AccountNameUint32Map) Each(f func(key common.AccountName, value uint32)) {
-	iterator := m.Iterator()
-	for iterator.Next() {
-		f(iterator.Key(), iterator.Value())
+	Iterator := m.Iterator()
+	for Iterator.Next() {
+		f(Iterator.Key(), Iterator.Value())
 	}
-}
-
-// Map invokes the given function once for each element and returns a container
-// containing the values returned by the given function as key/value pairs.
-func (m *AccountNameUint32Map) Map(f func(key1 common.AccountName, value1 uint32) (common.AccountName, uint32)) *AccountNameUint32Map {
-	newMap := &AccountNameUint32Map{tree: rbt.NewWith(m.tree.Comparator)}
-	iterator := m.Iterator()
-	for iterator.Next() {
-		key2, value2 := f(iterator.Key(), iterator.Value())
-		newMap.Put(key2, value2)
-	}
-	return newMap
-}
-
-// Select returns a new container containing all elements for which the given function returns a true value.
-func (m *AccountNameUint32Map) Select(f func(key common.AccountName, value uint32) bool) *AccountNameUint32Map {
-	newMap := &AccountNameUint32Map{tree: rbt.NewWith(m.tree.Comparator)}
-	iterator := m.Iterator()
-	for iterator.Next() {
-		if f(iterator.Key(), iterator.Value()) {
-			newMap.Put(iterator.Key(), iterator.Value())
-		}
-	}
-	return newMap
-}
-
-// Any passes each element of the container to the given function and
-// returns true if the function ever returns true for any element.
-func (m *AccountNameUint32Map) Any(f func(key common.AccountName, value uint32) bool) bool {
-	iterator := m.Iterator()
-	for iterator.Next() {
-		if f(iterator.Key(), iterator.Value()) {
-			return true
-		}
-	}
-	return false
-}
-
-// All passes each element of the container to the given function and
-// returns true if the function returns true for all elements.
-func (m *AccountNameUint32Map) All(f func(key common.AccountName, value uint32) bool) bool {
-	iterator := m.Iterator()
-	for iterator.Next() {
-		if !f(iterator.Key(), iterator.Value()) {
-			return false
-		}
-	}
-	return true
 }
 
 // Find passes each element of the container to the given function and returns
 // the first (key,value) for which the function is true or nil,nil otherwise if no element
 // matches the criteria.
 func (m *AccountNameUint32Map) Find(f func(key common.AccountName, value uint32) bool) (k common.AccountName, v uint32) {
-	iterator := m.Iterator()
-	for iterator.Next() {
-		if f(iterator.Key(), iterator.Value()) {
-			return iterator.Key(), iterator.Value()
+	Iterator := m.Iterator()
+	for Iterator.Next() {
+		if f(Iterator.Key(), Iterator.Value()) {
+			return Iterator.Key(), Iterator.Value()
 		}
-	}
-	return
-}
-
-// Floor finds the floor key-value pair for the input key.
-// In case that no floor is found, then both returned values will be nil.
-// It's generally enough to check the first value (key) for nil, which determines if floor was found.
-//
-// Floor key is defined as the largest key that is smaller than or equal to the given key.
-// A floor key may not be found, either because the map is empty, or because
-// all keys in the map are larger than the given key.
-//
-// Key should adhere to the comparator's type assertion, otherwise method panics.
-func (m *AccountNameUint32Map) Floor(key common.AccountName) (foundKey common.AccountName, foundValue uint32) {
-	node, found := m.tree.Floor(key)
-	if found {
-		return node.Key.(common.AccountName), node.Value.(uint32)
-	}
-	return
-}
-
-// Ceiling finds the ceiling key-value pair for the input key.
-// In case that no ceiling is found, then both returned values will be nil.
-// It's generally enough to check the first value (key) for nil, which determines if ceiling was found.
-//
-// Ceiling key is defined as the smallest key that is larger than or equal to the given key.
-// A ceiling key may not be found, either because the map is empty, or because
-// all keys in the map are smaller than the given key.
-//
-// Key should adhere to the comparator's type assertion, otherwise method panics.
-func (m *AccountNameUint32Map) Ceiling(key common.AccountName) (foundKey common.AccountName, foundValue uint32) {
-	node, found := m.tree.Ceiling(key)
-	if found {
-		return node.Key.(common.AccountName), node.Value.(uint32)
 	}
 	return
 }
@@ -246,73 +124,57 @@ func (m *AccountNameUint32Map) String() string {
 
 }
 
-// Iterator holding the iterator's state
+// Iterator holding the Iterator's state
 type IteratorAccountNameUint32Map struct {
-	iterator rbt.Iterator
+	rbt.Iterator
 }
 
-// Iterator returns a stateful iterator whose elements are key/value pairs.
+// Iterator returns a stateful Iterator whose elements are key/value pairs.
 func (m *AccountNameUint32Map) Iterator() IteratorAccountNameUint32Map {
-	return IteratorAccountNameUint32Map{iterator: m.tree.Iterator()}
+	return IteratorAccountNameUint32Map{Iterator: m.Tree.Iterator()}
 }
 
-// Next moves the iterator to the next element and returns true if there was a next element in the container.
-// If Next() returns true, then next element's key and value can be retrieved by Key() and Value().
-// If Next() was called for the first time, then it will point the iterator to the first element if it exists.
-// Modifies the state of the iterator.
-func (iterator *IteratorAccountNameUint32Map) Next() bool {
-	return iterator.iterator.Next()
+// Begin returns First Iterator whose position points to the first element
+// Return End Iterator when the map is empty
+func (m *AccountNameUint32Map) Begin() IteratorAccountNameUint32Map {
+	return IteratorAccountNameUint32Map{m.Tree.Begin()}
 }
 
-// Prev moves the iterator to the previous element and returns true if there was a previous element in the container.
-// If Prev() returns true, then previous element's key and value can be retrieved by Key() and Value().
-// Modifies the state of the iterator.
-func (iterator *IteratorAccountNameUint32Map) Prev() bool {
-	return iterator.iterator.Prev()
+// End returns End Iterator
+func (m *AccountNameUint32Map) End() IteratorAccountNameUint32Map {
+	return IteratorAccountNameUint32Map{m.Tree.End()}
 }
 
 // Value returns the current element's value.
-// Does not modify the state of the iterator.
-func (iterator *IteratorAccountNameUint32Map) Value() uint32 {
-	return iterator.iterator.Value().(uint32)
+// Does not modify the state of the Iterator.
+func (Iterator *IteratorAccountNameUint32Map) Value() uint32 {
+	return Iterator.Iterator.Value().(uint32)
 }
 
 // Key returns the current element's key.
-// Does not modify the state of the iterator.
-func (iterator *IteratorAccountNameUint32Map) Key() common.AccountName {
-	return iterator.iterator.Key().(common.AccountName)
+// Does not modify the state of the Iterator.
+func (Iterator *IteratorAccountNameUint32Map) Key() common.AccountName {
+	return Iterator.Iterator.Key().(common.AccountName)
 }
 
-// Begin resets the iterator to its initial state (one-before-first)
-// Call Next() to fetch the first element if any.
-func (iterator *IteratorAccountNameUint32Map) Begin() {
-	iterator.iterator.Begin()
+func (m *AccountNameUint32Map) LowerBound(key common.AccountName) *IteratorAccountNameUint32Map {
+	if itr := m.Tree.LowerBound(key); itr != m.Tree.End() {
+		return &IteratorAccountNameUint32Map{itr}
+	}
+	return nil
 }
 
-// End moves the iterator past the last element (one-past-the-end).
-// Call Prev() to fetch the last element if any.
-func (iterator *IteratorAccountNameUint32Map) End() {
-	iterator.iterator.End()
-}
-
-// First moves the iterator to the first element and returns true if there was a first element in the container.
-// If First() returns true, then first element's key and value can be retrieved by Key() and Value().
-// Modifies the state of the iterator
-func (iterator *IteratorAccountNameUint32Map) First() bool {
-	return iterator.iterator.First()
-}
-
-// Last moves the iterator to the last element and returns true if there was a last element in the container.
-// If Last() returns true, then last element's key and value can be retrieved by Key() and Value().
-// Modifies the state of the iterator.
-func (iterator *IteratorAccountNameUint32Map) Last() bool {
-	return iterator.iterator.Last()
+func (m *AccountNameUint32Map) UpperBound(key common.AccountName) *IteratorAccountNameUint32Map {
+	if itr := m.Tree.UpperBound(key); itr != m.Tree.End() {
+		return &IteratorAccountNameUint32Map{itr}
+	}
+	return nil
 }
 
 // ToJSON outputs the JSON representation of the map.
 type pairAccountNameUint32Map struct {
-	Key common.AccountName
-	Val uint32
+	Key common.AccountName `json:"key"`
+	Val uint32             `json:"val"`
 }
 
 func (m *AccountNameUint32Map) MarshalJSON() ([]byte, error) {
@@ -335,31 +197,4 @@ func (m *AccountNameUint32Map) UnmarshalJSON(data []byte) error {
 		}
 	}
 	return err
-}
-
-type MultiAccountNameUint32Map struct {
-	AccountNameUint32Map
-}
-
-func NewMultiAccountNameUint32Map() *MultiAccountNameUint32Map {
-	return &MultiAccountNameUint32Map{AccountNameUint32Map{tree: rbt.NewWith(common.CompareName), isMulti: true}}
-}
-
-func (m *MultiAccountNameUint32Map) Get(key common.AccountName) (front, end IteratorAccountNameUint32Map) {
-	lower, upper := m.tree.MultiGet(key)
-	return IteratorAccountNameUint32Map{lower}, IteratorAccountNameUint32Map{upper}
-}
-
-func (m *MultiAccountNameUint32Map) LowerBound(key common.AccountName) *IteratorAccountNameUint32Map {
-	if itr := m.tree.LowerBound(key); itr != m.tree.End() {
-		return &IteratorAccountNameUint32Map{itr}
-	}
-	return nil
-}
-
-func (m *MultiAccountNameUint32Map) UpperBound(key common.AccountName) *IteratorAccountNameUint32Map {
-	if itr := m.tree.UpperBound(key); itr != m.tree.End() {
-		return &IteratorAccountNameUint32Map{itr}
-	}
-	return nil
 }
