@@ -1,1 +1,1 @@
-var preloaded = "hello walker";
+var preloaded = "eosgo";

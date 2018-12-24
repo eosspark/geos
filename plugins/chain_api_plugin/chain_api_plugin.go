@@ -15,7 +15,7 @@ import (
 
 const ChainAPiPlug = PluginTypeName("ChainAPiPlugin")
 
-var templatePlugin = App().RegisterPlugin(ChainAPiPlug, NewChainAPiPlugin())
+var chainAPiPlugin = App().RegisterPlugin(ChainAPiPlug, NewChainAPiPlugin())
 
 type ChainApiPlugin struct {
 	AbstractPlugin
@@ -234,8 +234,6 @@ func (c *ChainApiPlugin) PluginStartup() {
 			http_plugin.HandleException(e, "chain", "get_required_keys", string(body), cb)
 		}).End()
 	})
-
-
 
 	//TODO read_write api
 	RWApi := App().GetPlugin(chain_plugin.ChainPlug).(*chain_plugin.ChainPlugin).GetReadWriteApi()

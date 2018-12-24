@@ -2,6 +2,8 @@ package producer_plugin
 
 import (
 	"fmt"
+	. "github.com/eosspark/eos-go/plugins/chain_interface"
+
 	//Chain "github.com/eosspark/eos-go/plugins/producer_plugin/testing" /*test model*/
 	"encoding/json"
 	"github.com/eosspark/container/sets/treeset"
@@ -211,7 +213,8 @@ func (p *ProducerPlugin) PluginInitialize(c *cli.Context) {
 			p.AddGreylistAccounts(param)
 		}
 
-		//}
+		App().GetMethod(BlockSync).Register(&BlockSyncCaller{Caller: p.my.OnIncomingBlock})
+		App().GetMethod(TransactionAsync).Register(&TransactionAsyncCaller{Caller: p.my.OnIncomingTransactionAsync})
 
 	}).FcLogAndRethrow().End()
 }

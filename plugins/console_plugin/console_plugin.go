@@ -175,7 +175,6 @@ func (cp *ConsolePlugin) PluginStartup() {
 		cp.my.console.Welcome()
 
 		cp.my.console.Interactive()
-		cp.my.log.Info("interactive start")
 
 		// Lastly start the configured RPC interfaces
 		//if err := cp.my.startRPC(cp.my.rpcAPIs); err != nil {

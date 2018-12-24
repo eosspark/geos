@@ -298,7 +298,7 @@ func (c *Client) Call(result interface{}, method string, args ...interface{}) er
 // The result must be a pointer so that package json can unmarshal into it. You
 // can also pass nil, in which case the result is ignored.
 func (c *Client) CallContext(ctx context.Context, result interface{}, method string, args ...interface{}) error {
-	var body Variants
+	//var body Variants
 	var err error
 
 	temp := make([]interface{}, 1)
@@ -311,11 +311,11 @@ func (c *Client) CallContext(ctx context.Context, result interface{}, method str
 
 	switch method {
 	case getInfoFunc:
-		body = nil
+		//body = nil
 		err = c.sendHTTP(ctx, op, nil, method)
 	case getBlockFunc:
-		body = Variants{"block_num_or_id": temp[0]}
-		err = c.sendHTTP(ctx, op, body, method)
+		//body = Variants{"block_num_or_id": temp[0]}
+		err = c.sendHTTP(ctx, op, temp[0], method)
 	case getRequiredKeys:
 		err = c.sendHTTP(ctx, op, temp[0], method)
 

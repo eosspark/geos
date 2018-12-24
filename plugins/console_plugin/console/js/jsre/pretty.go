@@ -132,12 +132,7 @@ func (ctx ppctx) printObject(obj *otto.Object, level int, inArray bool) {
 		fmt.Fprint(ctx.w, "]")
 
 	case "Object":
-		// Print values from bignumber.js as regular numbers.
-		if ctx.isBigNumber(obj) {
-			fmt.Fprint(ctx.w, NumberColor("%s", toString(obj)))
-			return
-		}
-		// Otherwise, print all fields indented, but stop if we're too deep.
+		// print all fields indented, but stop if we're too deep.
 		keys := ctx.fields(obj)
 		if len(keys) == 0 {
 			fmt.Fprint(ctx.w, "{}")
@@ -238,23 +233,6 @@ func iterOwnKeys(vm *otto.Otto, obj *otto.Object, f func(string)) {
 	default:
 		panic(fmt.Errorf("Object.getOwnPropertyNames returned unexpected type %T", gv))
 	}
-}
-
-func (ctx ppctx) isBigNumber(v *otto.Object) bool {
-	// Handle numbers with custom constructor.
-	if v, _ := v.Get("constructor"); v.Object() != nil {
-		if strings.HasPrefix(toString(v.Object()), "function BigNumber") {
-			return true
-		}
-	}
-	// Handle default constructor.
-	BigNumber, _ := ctx.vm.Object("BigNumber.prototype")
-	if BigNumber == nil {
-		return false
-	}
-	bv, _ := BigNumber.Call("isPrototypeOf", v)
-	b, _ := bv.ToBoolean()
-	return b
 }
 
 func toString(obj *otto.Object) string {
