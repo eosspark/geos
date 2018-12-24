@@ -4,7 +4,7 @@
 // Use of this source code is governed by a BSD-style
 // license that can be found in the LICENSE file.
 
-// Package treemap implements a map backed by red-black tree.
+// Package treemap implements a map backed by red-black Tree.
 //
 // Elements are ordered by key in the map.
 //
@@ -19,7 +19,7 @@ import (
 	"strings"
 
 	"github.com/eosspark/container/templates"
-	rbt "github.com/eosspark/container/trees/redblacktree"
+	rbt "github.com/eosspark/container/templates/tree"
 	"github.com/eosspark/container/utils"
 )
 
@@ -29,69 +29,53 @@ func assertStringIntMapImplementation() {
 	var _ templates.Map = (*StringIntMap)(nil)
 }
 
-// Map holds the elements in a red-black tree
+// Map holds the elements in a red-black Tree
 type StringIntMap struct {
-	isMulti bool
-	tree    *rbt.Tree
+	*rbt.Tree
 }
 
-// NewWith instantiates a tree map with the custom comparator.
+// NewWith instantiates a Tree map with the custom comparator.
 func NewStringIntMap() *StringIntMap {
-	return &StringIntMap{tree: rbt.NewWith(utils.StringComparator)}
+	return &StringIntMap{Tree: rbt.NewWith(utils.StringComparator, false)}
 }
 
 func CopyFromStringIntMap(tm *StringIntMap) *StringIntMap {
-	return &StringIntMap{tree: rbt.CopyFrom(tm.tree)}
+	return &StringIntMap{Tree: rbt.CopyFrom(tm.Tree)}
 }
 
-func (m *StringIntMap) GetComparator() utils.Comparator {
-	return m.tree.Comparator
+type MultiStringIntMap = StringIntMap
+
+func NewMultiStringIntMap() *MultiStringIntMap {
+	return &StringIntMap{Tree: rbt.NewWith(utils.StringComparator, true)}
+}
+
+func CopyMultiFromStringIntMap(tm *StringIntMap) *StringIntMap {
+	return &StringIntMap{Tree: rbt.CopyFrom(tm.Tree)}
 }
 
 // Put inserts key-value pair into the map.
 // Key should adhere to the comparator's type assertion, otherwise method panics.
 func (m *StringIntMap) Put(key string, value int) {
-	if m.isMulti {
-		m.tree.MultiPut(key, value)
-	} else {
-		m.tree.Put(key, value)
-	}
+	m.Tree.Put(key, value)
 }
 
-// Get searches the element in the map by key and returns its value or nil if key is not found in tree.
+// Get searches the element in the map by key and returns its value or nil if key is not found in Tree.
 // Second return parameter is true if key was found, otherwise false.
 // Key should adhere to the comparator's type assertion, otherwise method panics.
-func (m *StringIntMap) Get(key string) (value int, found bool) {
-	if v, ok := m.tree.Get(key); ok {
-		return v.(int), ok
-	}
-	return
+func (m *StringIntMap) Get(key string) IteratorStringIntMap {
+	return IteratorStringIntMap{m.Tree.Get(key)}
 }
 
 // Remove removes the element from the map by key.
 // Key should adhere to the comparator's type assertion, otherwise method panics.
 func (m *StringIntMap) Remove(key string) {
-	if m.isMulti {
-		m.tree.MultiRemove(key)
-	} else {
-		m.tree.Remove(key)
-	}
-}
-
-// Empty returns true if map does not contain any elements
-func (m *StringIntMap) Empty() bool {
-	return m.tree.Empty()
-}
-
-// Size returns number of elements in the map.
-func (m *StringIntMap) Size() int {
-	return m.tree.Size()
+	m.Tree.Remove(key)
 }
 
 // Keys returns all keys in-order
 func (m *StringIntMap) Keys() []string {
-	keys := make([]string, m.tree.Size())
-	it := m.tree.Iterator()
+	keys := make([]string, m.Tree.Size())
+	it := m.Tree.Iterator()
 	for i := 0; it.Next(); i++ {
 		keys[i] = it.Key().(string)
 	}
@@ -100,136 +84,31 @@ func (m *StringIntMap) Keys() []string {
 
 // Values returns all values in-order based on the key.
 func (m *StringIntMap) Values() []int {
-	values := make([]int, m.tree.Size())
-	it := m.tree.Iterator()
+	values := make([]int, m.Tree.Size())
+	it := m.Tree.Iterator()
 	for i := 0; it.Next(); i++ {
 		values[i] = it.Value().(int)
 	}
 	return values
 }
 
-// Clear removes all elements from the map.
-func (m *StringIntMap) Clear() {
-	m.tree.Clear()
-}
-
-// Min returns the minimum key and its value from the tree map.
-// Returns nil, nil if map is empty.
-func (m *StringIntMap) Min() (key string, value int) {
-	if node := m.tree.Left(); node != nil {
-		return node.Key.(string), node.Value.(int)
-	}
-	return
-}
-
-// Max returns the maximum key and its value from the tree map.
-// Returns nil, nil if map is empty.
-func (m *StringIntMap) Max() (key string, value int) {
-	if node := m.tree.Right(); node != nil {
-		return node.Key.(string), node.Value.(int)
-	}
-	return
-}
-
 // Each calls the given function once for each element, passing that element's key and value.
 func (m *StringIntMap) Each(f func(key string, value int)) {
-	iterator := m.Iterator()
-	for iterator.Next() {
-		f(iterator.Key(), iterator.Value())
+	Iterator := m.Iterator()
+	for Iterator.Next() {
+		f(Iterator.Key(), Iterator.Value())
 	}
-}
-
-// Map invokes the given function once for each element and returns a container
-// containing the values returned by the given function as key/value pairs.
-func (m *StringIntMap) Map(f func(key1 string, value1 int) (string, int)) *StringIntMap {
-	newMap := &StringIntMap{tree: rbt.NewWith(m.tree.Comparator)}
-	iterator := m.Iterator()
-	for iterator.Next() {
-		key2, value2 := f(iterator.Key(), iterator.Value())
-		newMap.Put(key2, value2)
-	}
-	return newMap
-}
-
-// Select returns a new container containing all elements for which the given function returns a true value.
-func (m *StringIntMap) Select(f func(key string, value int) bool) *StringIntMap {
-	newMap := &StringIntMap{tree: rbt.NewWith(m.tree.Comparator)}
-	iterator := m.Iterator()
-	for iterator.Next() {
-		if f(iterator.Key(), iterator.Value()) {
-			newMap.Put(iterator.Key(), iterator.Value())
-		}
-	}
-	return newMap
-}
-
-// Any passes each element of the container to the given function and
-// returns true if the function ever returns true for any element.
-func (m *StringIntMap) Any(f func(key string, value int) bool) bool {
-	iterator := m.Iterator()
-	for iterator.Next() {
-		if f(iterator.Key(), iterator.Value()) {
-			return true
-		}
-	}
-	return false
-}
-
-// All passes each element of the container to the given function and
-// returns true if the function returns true for all elements.
-func (m *StringIntMap) All(f func(key string, value int) bool) bool {
-	iterator := m.Iterator()
-	for iterator.Next() {
-		if !f(iterator.Key(), iterator.Value()) {
-			return false
-		}
-	}
-	return true
 }
 
 // Find passes each element of the container to the given function and returns
 // the first (key,value) for which the function is true or nil,nil otherwise if no element
 // matches the criteria.
 func (m *StringIntMap) Find(f func(key string, value int) bool) (k string, v int) {
-	iterator := m.Iterator()
-	for iterator.Next() {
-		if f(iterator.Key(), iterator.Value()) {
-			return iterator.Key(), iterator.Value()
+	Iterator := m.Iterator()
+	for Iterator.Next() {
+		if f(Iterator.Key(), Iterator.Value()) {
+			return Iterator.Key(), Iterator.Value()
 		}
-	}
-	return
-}
-
-// Floor finds the floor key-value pair for the input key.
-// In case that no floor is found, then both returned values will be nil.
-// It's generally enough to check the first value (key) for nil, which determines if floor was found.
-//
-// Floor key is defined as the largest key that is smaller than or equal to the given key.
-// A floor key may not be found, either because the map is empty, or because
-// all keys in the map are larger than the given key.
-//
-// Key should adhere to the comparator's type assertion, otherwise method panics.
-func (m *StringIntMap) Floor(key string) (foundKey string, foundValue int) {
-	node, found := m.tree.Floor(key)
-	if found {
-		return node.Key.(string), node.Value.(int)
-	}
-	return
-}
-
-// Ceiling finds the ceiling key-value pair for the input key.
-// In case that no ceiling is found, then both returned values will be nil.
-// It's generally enough to check the first value (key) for nil, which determines if ceiling was found.
-//
-// Ceiling key is defined as the smallest key that is larger than or equal to the given key.
-// A ceiling key may not be found, either because the map is empty, or because
-// all keys in the map are smaller than the given key.
-//
-// Key should adhere to the comparator's type assertion, otherwise method panics.
-func (m *StringIntMap) Ceiling(key string) (foundKey string, foundValue int) {
-	node, found := m.tree.Ceiling(key)
-	if found {
-		return node.Key.(string), node.Value.(int)
 	}
 	return
 }
@@ -245,73 +124,57 @@ func (m *StringIntMap) String() string {
 
 }
 
-// Iterator holding the iterator's state
+// Iterator holding the Iterator's state
 type IteratorStringIntMap struct {
-	iterator rbt.Iterator
+	rbt.Iterator
 }
 
-// Iterator returns a stateful iterator whose elements are key/value pairs.
+// Iterator returns a stateful Iterator whose elements are key/value pairs.
 func (m *StringIntMap) Iterator() IteratorStringIntMap {
-	return IteratorStringIntMap{iterator: m.tree.Iterator()}
+	return IteratorStringIntMap{Iterator: m.Tree.Iterator()}
 }
 
-// Next moves the iterator to the next element and returns true if there was a next element in the container.
-// If Next() returns true, then next element's key and value can be retrieved by Key() and Value().
-// If Next() was called for the first time, then it will point the iterator to the first element if it exists.
-// Modifies the state of the iterator.
-func (iterator *IteratorStringIntMap) Next() bool {
-	return iterator.iterator.Next()
+// Begin returns First Iterator whose position points to the first element
+// Return End Iterator when the map is empty
+func (m *StringIntMap) Begin() IteratorStringIntMap {
+	return IteratorStringIntMap{m.Tree.Begin()}
 }
 
-// Prev moves the iterator to the previous element and returns true if there was a previous element in the container.
-// If Prev() returns true, then previous element's key and value can be retrieved by Key() and Value().
-// Modifies the state of the iterator.
-func (iterator *IteratorStringIntMap) Prev() bool {
-	return iterator.iterator.Prev()
+// End returns End Iterator
+func (m *StringIntMap) End() IteratorStringIntMap {
+	return IteratorStringIntMap{m.Tree.End()}
 }
 
 // Value returns the current element's value.
-// Does not modify the state of the iterator.
-func (iterator *IteratorStringIntMap) Value() int {
-	return iterator.iterator.Value().(int)
+// Does not modify the state of the Iterator.
+func (Iterator *IteratorStringIntMap) Value() int {
+	return Iterator.Iterator.Value().(int)
 }
 
 // Key returns the current element's key.
-// Does not modify the state of the iterator.
-func (iterator *IteratorStringIntMap) Key() string {
-	return iterator.iterator.Key().(string)
+// Does not modify the state of the Iterator.
+func (Iterator *IteratorStringIntMap) Key() string {
+	return Iterator.Iterator.Key().(string)
 }
 
-// Begin resets the iterator to its initial state (one-before-first)
-// Call Next() to fetch the first element if any.
-func (iterator *IteratorStringIntMap) Begin() {
-	iterator.iterator.Begin()
+func (m *StringIntMap) LowerBound(key string) *IteratorStringIntMap {
+	if itr := m.Tree.LowerBound(key); itr != m.Tree.End() {
+		return &IteratorStringIntMap{itr}
+	}
+	return nil
 }
 
-// End moves the iterator past the last element (one-past-the-end).
-// Call Prev() to fetch the last element if any.
-func (iterator *IteratorStringIntMap) End() {
-	iterator.iterator.End()
-}
-
-// First moves the iterator to the first element and returns true if there was a first element in the container.
-// If First() returns true, then first element's key and value can be retrieved by Key() and Value().
-// Modifies the state of the iterator
-func (iterator *IteratorStringIntMap) First() bool {
-	return iterator.iterator.First()
-}
-
-// Last moves the iterator to the last element and returns true if there was a last element in the container.
-// If Last() returns true, then last element's key and value can be retrieved by Key() and Value().
-// Modifies the state of the iterator.
-func (iterator *IteratorStringIntMap) Last() bool {
-	return iterator.iterator.Last()
+func (m *StringIntMap) UpperBound(key string) *IteratorStringIntMap {
+	if itr := m.Tree.UpperBound(key); itr != m.Tree.End() {
+		return &IteratorStringIntMap{itr}
+	}
+	return nil
 }
 
 // ToJSON outputs the JSON representation of the map.
 type pairStringIntMap struct {
-	Key string
-	Val int
+	Key string `json:"key"`
+	Val int    `json:"val"`
 }
 
 func (m *StringIntMap) MarshalJSON() ([]byte, error) {
@@ -334,31 +197,4 @@ func (m *StringIntMap) UnmarshalJSON(data []byte) error {
 		}
 	}
 	return err
-}
-
-type MultiStringIntMap struct {
-	StringIntMap
-}
-
-func NewMultiStringIntMap() *MultiStringIntMap {
-	return &MultiStringIntMap{StringIntMap{tree: rbt.NewWith(utils.StringComparator), isMulti: true}}
-}
-
-func (m *MultiStringIntMap) Get(key string) (front, end IteratorStringIntMap) {
-	lower, upper := m.tree.MultiGet(key)
-	return IteratorStringIntMap{lower}, IteratorStringIntMap{upper}
-}
-
-func (m *MultiStringIntMap) LowerBound(key string) *IteratorStringIntMap {
-	if itr := m.tree.LowerBound(key); itr != m.tree.End() {
-		return &IteratorStringIntMap{itr}
-	}
-	return nil
-}
-
-func (m *MultiStringIntMap) UpperBound(key string) *IteratorStringIntMap {
-	if itr := m.tree.UpperBound(key); itr != m.tree.End() {
-		return &IteratorStringIntMap{itr}
-	}
-	return nil
 }

@@ -70,9 +70,9 @@ func (m *MultiMap) Get(key interface{}) (value interface{}, found bool) {
 // Get searches the element in the map by key and returns its value or nil if key is not found in tree.
 // Second return parameter is true if key was found, otherwise false.
 // Key should adhere to the comparator's type assertion, otherwise method panics.
-func (m *MultiMap) Gets(key interface{}) (MultiMapIterator, MultiMapIterator) {
-	lower, upper := m.tree.MultiGet(key)
-	return MultiMapIterator{iterator: lower}, MultiMapIterator{iterator: upper}
+func (m *MultiMap) Gets(key interface{}) (MultiMapIterator, bool) {
+	iterator, found := m.tree.MultiGet(key)
+	return MultiMapIterator{iterator: iterator}, found
 }
 
 // Remove removes the element from the map by key.

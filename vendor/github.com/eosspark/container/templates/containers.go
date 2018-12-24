@@ -5,6 +5,7 @@ type Container interface {
 	Size() int
 	Clear()
 
+
 	Serializer
 }
 
@@ -12,6 +13,7 @@ type Serializer interface {
 	MarshalJSON() ([]byte, error)
 	UnmarshalJSON([]byte) error
 }
+
 
 type Set interface {
 	Container

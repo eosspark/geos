@@ -116,10 +116,9 @@ func (set *MultiSet) Contains(items ...interface{}) bool {
 	return true
 }
 
-func (set *MultiSet) Get(key interface{}) (MultiSetIterator, MultiSetIterator) {
-	lower, upper := set.tree.MultiGet(key)
-	return MultiSetIterator{iterator: lower, tree: set.tree},
-	MultiSetIterator{iterator: upper, tree: set.tree}
+func (set *MultiSet) Get(key interface{}) (MultiSetIterator, bool) {
+	iterator, found := set.tree.MultiGet(key)
+	return MultiSetIterator{iterator: iterator, tree: set.tree}, found
 }
 
 // Empty returns true if set does not contain any elements.

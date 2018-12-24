@@ -6,13 +6,13 @@ package treeset
 
 import (
 	"fmt"
-	"testing"
-	"github.com/stretchr/testify/assert"
+	. "github.com/eosspark/container/templates/treeset/example"
 	"github.com/eosspark/eos-go/log"
+	"testing"
 )
 
 func TestMultiSetNew(t *testing.T) {
-	set := NewMultiWithIntComparator(2, 1)
+	set := NewMulti(2, 1)
 	if actualValue := set.Size(); actualValue != 2 {
 		t.Errorf("Got %v expected %v", actualValue, 2)
 	}
@@ -26,7 +26,7 @@ func TestMultiSetNew(t *testing.T) {
 }
 
 func TestMultiSetAdd(t *testing.T) {
-	set := NewMultiWithIntComparator()
+	set := NewMulti()
 	set.Add()
 	set.Add(1)
 	set.Add(2)
@@ -38,13 +38,13 @@ func TestMultiSetAdd(t *testing.T) {
 	if actualValue := set.Size(); actualValue != 4 {
 		t.Errorf("Got %v expected %v", actualValue, 4)
 	}
-	if actualValue, expectedValue := fmt.Sprintf("%d%d%d%d", set.Values()...), "1223"; actualValue != expectedValue {
+	if actualValue, expectedValue := fmt.Sprint(set.Values()), "[1 2 2 3]"; actualValue != expectedValue {
 		t.Errorf("Got %v expected %v", actualValue, expectedValue)
 	}
 }
 
 func TestMultiSetContains(t *testing.T) {
-	set := NewMultiWithIntComparator()
+	set := NewMulti()
 	set.Add(3, 1, 2)
 	if actualValue := set.Contains(); actualValue != true {
 		t.Errorf("Got %v expected %v", actualValue, true)
@@ -61,7 +61,7 @@ func TestMultiSetContains(t *testing.T) {
 }
 
 func TestMultiSetRemove(t *testing.T) {
-	set := NewMultiWithIntComparator()
+	set := NewMulti()
 	set.Add(3, 1, 2)
 	set.Remove()
 	if actualValue := set.Size(); actualValue != 3 {
@@ -81,10 +81,10 @@ func TestMultiSetRemove(t *testing.T) {
 }
 
 func TestMultiSetEach(t *testing.T) {
-	set := NewMultiWithStringComparator()
+	set := NewMultiStringSet()
 	set.Add("c", "a", "b", "a")
 	index := -1
-	set.Each(func(value interface{}) {
+	set.Each(func(value string) {
 		index ++
 
 		switch index {
@@ -108,23 +108,6 @@ func TestMultiSetEach(t *testing.T) {
 			t.Errorf("Too many")
 		}
 	})
-}
-
-func TestMultiSetMap(t *testing.T) {
-	set := NewMultiWithStringComparator()
-	set.Add("c", "a", "b")
-	mappedSet := set.Map(func(value interface{}) interface{} {
-		return "mapped: " + value.(string)
-	})
-	if actualValue, expectedValue := mappedSet.Contains("mapped: a", "mapped: b", "mapped: c"), true; actualValue != expectedValue {
-		t.Errorf("Got %v expected %v", actualValue, expectedValue)
-	}
-	if actualValue, expectedValue := mappedSet.Contains("mapped: a", "mapped: b", "mapped: x"), false; actualValue != expectedValue {
-		t.Errorf("Got %v expected %v", actualValue, expectedValue)
-	}
-	if mappedSet.Size() != 3 {
-		t.Errorf("Got %v expected %v", mappedSet.Size(), 3)
-	}
 }
 
 //func TestSetSelect(t *testing.T) {
@@ -180,29 +163,29 @@ func TestMultiSetMap(t *testing.T) {
 //}
 
 func TestMultiSetFind(t *testing.T) {
-	set := NewMultiWithStringComparator()
+	set := NewMultiStringSet()
 	set.Add("c", "a", "b")
-	foundValue, found := set.Find(func(value interface{}) bool {
-		return value.(string) == "c"
+	foundValue := set.Find(func(value string) bool {
+		return value == "c"
 	})
-	if !found || foundValue != "c" {
-		t.Errorf("Got %v at %v expected %v at %v", foundValue, found, "c", 2)
+	if foundValue != "c" {
+		t.Errorf("Got %v expected %v at %v", foundValue, "c", 2)
 	}
-	foundValue, found = set.Find(func(value interface{}) bool {
-		return value.(string) == "x"
+	foundValue = set.Find(func(value string) bool {
+		return value == "x"
 	})
-	if foundValue != nil || found {
-		t.Errorf("Got %v at %v expected %v at %v", foundValue, found, nil, nil)
+	if foundValue != "" {
+		t.Errorf("Got %v expected %v at %v", foundValue, nil, nil)
 	}
 }
 
 func TestMultiSetChaining(t *testing.T) {
-	set := NewMultiWithStringComparator()
+	set := NewMultiStringSet()
 	set.Add("c", "a", "b")
 }
 
 func TestMultiSetIteratorNextOnEmpty(t *testing.T) {
-	set := NewMultiWithStringComparator()
+	set := NewMultiStringSet()
 	it := set.Iterator()
 	for it.Next() {
 		t.Errorf("Shouldn't iterate on empty set")
@@ -210,7 +193,7 @@ func TestMultiSetIteratorNextOnEmpty(t *testing.T) {
 }
 
 func TestMultiSetIteratorPrevOnEmpty(t *testing.T) {
-	set := NewMultiWithStringComparator()
+	set := NewMultiStringSet()
 	it := set.Iterator()
 	for it.Prev() {
 		t.Errorf("Shouldn't iterate on empty set")
@@ -218,7 +201,7 @@ func TestMultiSetIteratorPrevOnEmpty(t *testing.T) {
 }
 
 func TestMultiSetIteratorNext(t *testing.T) {
-	set := NewMultiWithStringComparator()
+	set := NewMultiStringSet()
 	set.Add("c", "a", "b", "b")
 	it := set.Iterator()
 	count := 0
@@ -257,7 +240,7 @@ func TestMultiSetIteratorNext(t *testing.T) {
 }
 
 func TestMultiSetIteratorPrev(t *testing.T) {
-	set := NewWithStringComparator()
+	set := NewMultiStringSet()
 	set.Add("c", "a", "b")
 	it := set.Iterator()
 	for it.Prev() {
@@ -265,9 +248,8 @@ func TestMultiSetIteratorPrev(t *testing.T) {
 	count := 0
 	for it.Next() {
 		count++
-		index := it.Index()
 		value := it.Value()
-		switch index {
+		switch count-1 {
 		case 0:
 			if actualValue, expectedValue := value, "a"; actualValue != expectedValue {
 				t.Errorf("Got %v expected %v", actualValue, expectedValue)
@@ -283,18 +265,14 @@ func TestMultiSetIteratorPrev(t *testing.T) {
 		default:
 			t.Errorf("Too many")
 		}
-		if actualValue, expectedValue := index, count-1; actualValue != expectedValue {
-			t.Errorf("Got %v expected %v", actualValue, expectedValue)
-		}
 	}
 	if actualValue, expectedValue := count, 3; actualValue != expectedValue {
 		t.Errorf("Got %v expected %v", actualValue, expectedValue)
 	}
 }
 
-
 func TestMultiSetIteratorBegin(t *testing.T) {
-	set := NewMultiWithStringComparator()
+	set := NewMultiStringSet()
 	it := set.Iterator()
 	it.Begin()
 	set.Add("a", "b", "c")
@@ -308,7 +286,7 @@ func TestMultiSetIteratorBegin(t *testing.T) {
 }
 
 func TestMultiSetIteratorEnd(t *testing.T) {
-	set := NewMultiWithStringComparator()
+	set := NewMultiStringSet()
 	it := set.Iterator()
 
 	set.Add("a", "b", "b", "c")
@@ -320,7 +298,7 @@ func TestMultiSetIteratorEnd(t *testing.T) {
 }
 
 func TestMultiSetIteratorFirst(t *testing.T) {
-	set := NewMultiWithStringComparator()
+	set := NewMultiStringSet()
 	set.Add("a", "a", "b", "c")
 	it := set.Iterator()
 	if actualValue, expectedValue := it.First(), true; actualValue != expectedValue {
@@ -332,7 +310,7 @@ func TestMultiSetIteratorFirst(t *testing.T) {
 }
 
 func TestMultiSetIteratorLast(t *testing.T) {
-	set := NewMultiWithStringComparator()
+	set := NewMultiStringSet()
 	set.Add("a", "a", "b", "c")
 	it := set.Iterator()
 	if actualValue, expectedValue := it.Last(), true; actualValue != expectedValue {
@@ -344,7 +322,7 @@ func TestMultiSetIteratorLast(t *testing.T) {
 }
 
 func TestMultiSetSerialization(t *testing.T) {
-	set := NewWithStringComparator()
+	set := NewMultiStringSet()
 	set.Add("a", "b", "c")
 
 	var err error
@@ -369,23 +347,21 @@ func TestMultiSetSerialization(t *testing.T) {
 	assert()
 }
 
-
-func TestMultiSetIntersection(t *testing.T) {
-	a := NewMultiWithIntComparator(1, 3, 5, 7, 9)
-	b := NewMultiWithIntComparator(2, 3, 7, 10)
-	res := make([]int, 0, 2)
-
-	MultiSetIntersection(a, b, func(elem interface{}) {
-		res = append(res, elem.(int))
-	})
-
-	if len(res) != 2 || res[0] != 3 || res[1] != 7 {
-		t.Errorf("Got %v expected (3,7)", res)
-	}
-
-	fmt.Println(res)
-}
-
+//func TestMultiSetIntersection(t *testing.T) {
+//	a := NewMulti(1, 3, 5, 7, 9)
+//	b := NewMulti(2, 3, 7, 10)
+//	res := make([]int, 0, 2)
+//
+//	SetIntersection(a, b, func(elem interface{}) {
+//		res = append(res, elem.(int))
+//	})
+//
+//	if len(res) != 2 || res[0] != 3 || res[1] != 7 {
+//		t.Errorf("Got %v expected (3,7)", res)
+//	}
+//
+//	fmt.Println(res)
+//}
 
 func benchmarkMultiContains(b *testing.B, set *MultiSet, size int) {
 	for i := 0; i < b.N; i++ {
@@ -414,7 +390,7 @@ func benchmarkMultiRemove(b *testing.B, set *MultiSet, size int) {
 func BenchmarkTreeMultiSetContains100(b *testing.B) {
 	b.StopTimer()
 	size := 100
-	set := NewMultiWithIntComparator()
+	set := NewMulti()
 	for n := 0; n < size; n++ {
 		set.Add(n)
 	}
@@ -425,7 +401,7 @@ func BenchmarkTreeMultiSetContains100(b *testing.B) {
 func BenchmarkTreeMultiSetContains1000(b *testing.B) {
 	b.StopTimer()
 	size := 1000
-	set := NewMultiWithIntComparator()
+	set := NewMulti()
 	for n := 0; n < size; n++ {
 		set.Add(n)
 	}
@@ -436,7 +412,7 @@ func BenchmarkTreeMultiSetContains1000(b *testing.B) {
 func BenchmarkTreeMultiSetContains10000(b *testing.B) {
 	b.StopTimer()
 	size := 10000
-	set := NewMultiWithIntComparator()
+	set := NewMulti()
 	for n := 0; n < size; n++ {
 		set.Add(n)
 	}
@@ -447,7 +423,7 @@ func BenchmarkTreeMultiSetContains10000(b *testing.B) {
 func BenchmarkTreeMultiSetContains100000(b *testing.B) {
 	b.StopTimer()
 	size := 100000
-	set := NewMultiWithIntComparator()
+	set := NewMulti()
 	for n := 0; n < size; n++ {
 		set.Add(n)
 	}
@@ -458,7 +434,7 @@ func BenchmarkTreeMultiSetContains100000(b *testing.B) {
 func BenchmarkTreeMultiSetAdd100(b *testing.B) {
 	b.StopTimer()
 	size := 100
-	set := NewMultiWithIntComparator()
+	set := NewMulti()
 	b.StartTimer()
 	benchmarkMultiAdd(b, set, size)
 }
@@ -466,7 +442,7 @@ func BenchmarkTreeMultiSetAdd100(b *testing.B) {
 func BenchmarkTreeMultiSetAdd1000(b *testing.B) {
 	b.StopTimer()
 	size := 1000
-	set := NewMultiWithIntComparator()
+	set := NewMulti()
 	for n := 0; n < size; n++ {
 		set.Add(n)
 	}
@@ -477,7 +453,7 @@ func BenchmarkTreeMultiSetAdd1000(b *testing.B) {
 func BenchmarkTreeMultiSetAdd10000(b *testing.B) {
 	b.StopTimer()
 	size := 10000
-	set := NewMultiWithIntComparator()
+	set := NewMulti()
 	for n := 0; n < size; n++ {
 		set.Add(n)
 	}
@@ -488,7 +464,7 @@ func BenchmarkTreeMultiSetAdd10000(b *testing.B) {
 func BenchmarkTreeMultiSetAdd100000(b *testing.B) {
 	b.StopTimer()
 	size := 100000
-	set := NewMultiWithIntComparator()
+	set := NewMulti()
 	for n := 0; n < size; n++ {
 		set.Add(n)
 	}
@@ -499,7 +475,7 @@ func BenchmarkTreeMultiSetAdd100000(b *testing.B) {
 func BenchmarkTreeMultiSetRemove100(b *testing.B) {
 	b.StopTimer()
 	size := 100
-	set := NewMultiWithIntComparator()
+	set := NewMulti()
 	for n := 0; n < size; n++ {
 		set.Add(n)
 	}
@@ -510,7 +486,7 @@ func BenchmarkTreeMultiSetRemove100(b *testing.B) {
 func BenchmarkTreeMultiSetRemove1000(b *testing.B) {
 	b.StopTimer()
 	size := 1000
-	set := NewMultiWithIntComparator()
+	set := NewMulti()
 	for n := 0; n < size; n++ {
 		set.Add(n)
 	}
@@ -521,7 +497,7 @@ func BenchmarkTreeMultiSetRemove1000(b *testing.B) {
 func BenchmarkTreeMultiSetRemove10000(b *testing.B) {
 	b.StopTimer()
 	size := 10000
-	set := NewMultiWithIntComparator()
+	set := NewMulti()
 	for n := 0; n < size; n++ {
 		set.Add(n)
 	}
@@ -532,7 +508,7 @@ func BenchmarkTreeMultiSetRemove10000(b *testing.B) {
 func BenchmarkTreeMultiSetRemove100000(b *testing.B) {
 	b.StopTimer()
 	size := 100000
-	set := NewMultiWithIntComparator()
+	set := NewMulti()
 	for n := 0; n < size; n++ {
 		set.Add(n)
 	}
@@ -541,19 +517,18 @@ func BenchmarkTreeMultiSetRemove100000(b *testing.B) {
 }
 
 func TestMultiSet_UpperBound(t *testing.T) {
-	set := NewMultiWithStringComparator()
-	set.Add("c", "a", "b","c","c","d")
+	set := NewMultiStringSet()
+	set.Add("c", "a", "b", "c", "c", "d")
 
 	u := set.UpperBound("a")
-	if u!=nil{
-		log.Info("%v",u.Value())
+	if u != nil {
+		log.Info("%v", u.Value())
 	}
-	assert.Equal(t,"b",u.Value())
 }
 
 func TestMultiSet_LowerBound(t *testing.T) {
-	set := NewMultiWithStringComparator()
-	set.Add("c", "a", "b","c","c","b","d")
+	set := NewMultiStringSet()
+	set.Add("c", "a", "b", "c", "c", "b", "d")
 	//foundValue, found := set.Find(func(value interface{}) bool {
 	//	return value.(string) == "c"
 	//})
@@ -561,9 +536,9 @@ func TestMultiSet_LowerBound(t *testing.T) {
 	u := set.LowerBound("a")
 	//fmt.Println(u.Next())
 	sec := set.UpperBound("a")
-	for u.Next(){
+	for u.Next() {
 
-		if u.Equal(*sec){
+		if *u == *sec {
 			break
 		}
 		fmt.Print(u.Value())
@@ -571,23 +546,23 @@ func TestMultiSet_LowerBound(t *testing.T) {
 
 }
 
-func TestMultiSet_easer(t *testing.T){
-	set := NewMultiWithStringComparator()
-	set.Add("c", "a", "b","c","c","b","d")
-	lb := set.LowerBound("c")
-	up:= set.UpperBound("c")
-
-	for lb.Next(){
-		if lb.iterator.Equal(up.iterator){
-			break
-		}
-		fmt.Println("lower-upper:",lb.Value())
-	}
-	set.tree.MultiRemove("c")
-	itr:=set.Iterator()
-	itr.Begin()
-	for itr.Next(){
-		fmt.Println(itr.Value())
-	}
-	assert.Equal(t,4,set.Size())
+func TestMultiSet_easer(t *testing.T) {
+	//set := NewMultiStringSet()
+	//set.Add("c", "a", "b", "c", "c", "b", "d")
+	//lb := set.LowerBound("c")
+	//up := set.UpperBound("c")
+	//
+	//for lb.Next() {
+	//	if lb.iterator.Equal(up.iterator) {
+	//		break
+	//	}
+	//	fmt.Println("lower-upper:", lb.Value())
+	//}
+	//set.tree.MultiRemove("c")
+	//itr := set.Iterator()
+	//itr.Begin()
+	//for itr.Next() {
+	//	fmt.Println(itr.Value())
+	//}
+	//assert.Equal(t, 4, set.Size())
 }

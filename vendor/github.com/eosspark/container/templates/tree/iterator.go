@@ -28,6 +28,16 @@ func (tree *Tree) Iterator() Iterator {
 	return Iterator{tree: tree, node: nil, position: begin}
 }
 
+func (tree *Tree) Begin() Iterator {
+	itr := Iterator{tree: tree, node: nil, position: begin}
+	itr.Next()
+	return itr
+}
+
+func (tree *Tree) End() Iterator {
+	return Iterator{tree: tree, node: nil, position: end}
+}
+
 // Next moves the iterator to the next element and returns true if there was a next element in the container.
 // If Next() returns true, then next element's key and value can be retrieved by Key() and Value().
 // If Next() was called for the first time, then it will point the iterator to the first element if it exists.
@@ -121,6 +131,14 @@ between:
 	return true
 }
 
+func (iterator *Iterator) HasNext() bool {
+	return iterator.position != end
+}
+
+func (iterator *Iterator) HasPrev() bool {
+	return iterator.position != begin
+}
+
 // Value returns the current element's value.
 // Does not modify the state of the iterator.
 func (iterator *Iterator) Value() interface{} {
@@ -140,11 +158,19 @@ func (iterator *Iterator) Begin() {
 	iterator.position = begin
 }
 
+func (iterator *Iterator) IsBegin() bool {
+	return iterator.position == begin
+}
+
 // End moves the iterator past the last element (one-past-the-end).
 // Call Prev() to fetch the last element if any.
 func (iterator *Iterator) End() {
 	iterator.node = nil
 	iterator.position = end
+}
+
+func (iterator *Iterator) IsEnd() bool {
+	return iterator.position == end
 }
 
 // First moves the iterator to the first element and returns true if there was a first element in the container.
@@ -163,6 +189,11 @@ func (iterator *Iterator) Last() bool {
 	return iterator.Prev()
 }
 
-func (itr *Iterator) Equal(value Iterator) bool{
-	return itr.node == value.node
+// Delete remove the node which pointed by the iterator
+// The iterator will move to the next after delete
+// Modifies the state of the iterator.
+func (iterator *Iterator) Delete() {
+	node := iterator.node
+	iterator.Prev()
+	iterator.tree.remove(node)
 }

@@ -121,8 +121,8 @@ func (b *BlockHeaderState) MaybePromotePending() bool {
 		newProducerToLastProduced := NewAccountNameUint32Map()
 
 		for _, pro := range b.ActiveSchedule.Producers {
-			if blockNum, existing := b.ProducerToLastProduced.Get(pro.ProducerName); existing {
-				newProducerToLastProduced.Put(pro.ProducerName, blockNum)
+			if blockNum := b.ProducerToLastProduced.Get(pro.ProducerName); !blockNum.IsEnd() {
+				newProducerToLastProduced.Put(pro.ProducerName, blockNum.Value())
 			} else {
 				newProducerToLastProduced.Put(pro.ProducerName, b.DposIrreversibleBlocknum)
 			}
@@ -131,8 +131,8 @@ func (b *BlockHeaderState) MaybePromotePending() bool {
 		newProducerToLastImpliedIrb := NewAccountNameUint32Map()
 
 		for _, pro := range b.ActiveSchedule.Producers {
-			if blockNum, existing := b.ProducerToLastImpliedIrb.Get(pro.ProducerName); existing {
-				newProducerToLastImpliedIrb.Put(pro.ProducerName, blockNum)
+			if blockNum := b.ProducerToLastImpliedIrb.Get(pro.ProducerName); !blockNum.IsEnd() {
+				newProducerToLastImpliedIrb.Put(pro.ProducerName, blockNum.Value())
 			} else {
 				newProducerToLastImpliedIrb.Put(pro.ProducerName, b.DposIrreversibleBlocknum)
 			}
@@ -177,8 +177,8 @@ func (b *BlockHeaderState) Next(h SignedBlockHeader, trust bool) *BlockHeaderSta
 	EosAssert(result.Header.Producer == h.Producer, &WrongProducer{}, "wrong producer specified")
 	EosAssert(result.Header.ScheduleVersion == h.ScheduleVersion, &ProducerScheduleException{}, "schedule_version in signed block is corrupted")
 
-	if blockNum, found := b.ProducerToLastProduced.Get(h.Producer); found {
-		EosAssert(blockNum < result.BlockNum-uint32(h.Confirmed), &ProducerDoubleConfirm{}, "producer %s double-confirming known range", h.Producer)
+	if blockNum := b.ProducerToLastProduced.Get(h.Producer); !blockNum.IsEnd() {
+		EosAssert(blockNum.Value() < result.BlockNum-uint32(h.Confirmed), &ProducerDoubleConfirm{}, "producer %s double-confirming known range", h.Producer)
 	}
 
 	/// below this point is state changes that cannot be validated with headers alone, but never-the-less,
