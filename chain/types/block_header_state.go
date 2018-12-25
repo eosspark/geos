@@ -37,8 +37,8 @@ type BlockHeaderState struct {
 }
 
 func (b *BlockHeaderState) GetScheduledProducer(t BlockTimeStamp) ProducerKey {
-	index := uint32(t) % uint32(len(b.ActiveSchedule.Producers)*12)
-	index /= 12
+	index := uint32(t) % uint32(len(b.ActiveSchedule.Producers)*common.DefaultConfig.ProducerRepetitions)
+	index /= uint32(common.DefaultConfig.ProducerRepetitions)
 	return b.ActiveSchedule.Producers[index]
 }
 
