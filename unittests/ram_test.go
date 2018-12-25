@@ -2,12 +2,11 @@ package unittests
 
 import (
 	"fmt"
-	"github.com/docker/docker/pkg/testutil/assert"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/exception"
 	"github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/log"
-	assert2 "github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/assert"
 	"io/ioutil"
 	"testing"
 )
@@ -78,7 +77,7 @@ func TestRamTests(t *testing.T) {
 	initialRamUsage := rlm.GetAccountRamUsage(test1)
 
 	moreRam := uint64(tableAllocationBytes) + initBytes - uint64(initRequestBytes)
-	assert2.True(t, moreRam >= 0, "Underlying understanding changed, need to reduce size of init_request_bytes")
+	assert.True(t, moreRam >= 0, "Underlying understanding changed, need to reduce size of init_request_bytes")
 	log.Warn("init_bytes: %d, initial_ram_usage: %d, init_request_bytes: %d, more_ram: %d.", initBytes, initialRamUsage, initRequestBytes, moreRam)
 	e.BuyRamBytes(eosio, test1, uint32(moreRam))
 	e.BuyRamBytes(eosio, test2, uint32(moreRam))

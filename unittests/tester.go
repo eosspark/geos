@@ -35,7 +35,6 @@ var carol = common.N("carol1111111")
 var test1 = common.N("testram11111")
 var test2 = common.N("testram22222")
 
-
 type ActionResult = string
 
 type BaseTester struct {
