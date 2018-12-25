@@ -11,7 +11,6 @@ import (
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/tidwall/gjson"
-	"go.uber.org/zap"
 	"io"
 	"strconv"
 	"strings"
@@ -102,7 +101,7 @@ func (a *AbiDef) encodeField(binaryEncoder *rlp.Encoder, fieldName string, field
 				return e
 			}
 		} else {
-			abiLog.Debug("field is optional and *not* present", zap.String("name", fieldName), zap.String("type", fieldType))
+			abiLog.Debug("field is optional and *not* present, name: %s,  type: %s", fieldName, fieldType)
 			return binaryEncoder.WriteByte(0)
 		}
 
