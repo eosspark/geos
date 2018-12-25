@@ -1111,6 +1111,7 @@ func (c *Controller) CommitBlock(addToForkDb bool) {
 			ubo.SetBlock(c.Pending.PendingBlockState.SignedBlock)
 			c.DB.Insert(&ubo)
 		}
+		c.AcceptedBlock.Emit(c.Pending.PendingBlockState)
 		//emit( self.accepted_block, pending->_pending_block_state )
 	}).Catch(func(e interface{}) {
 		c.AbortBlock()
