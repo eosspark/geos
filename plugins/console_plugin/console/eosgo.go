@@ -12,6 +12,7 @@ import (
 	"github.com/eosspark/eos-go/exception"
 	"github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/log"
+	"github.com/eosspark/eos-go/plugins/chain_plugin"
 	"github.com/robertkrimen/otto"
 	"io/ioutil"
 	"strings"
@@ -31,7 +32,7 @@ var printResponse = false
 var txMaxCpuUsage uint8 = 0
 var txMaxNetUsage uint32 = 0
 
-var delaysec uint32 = 0
+var delaySec uint32 = 0
 
 type eosgo struct {
 	c   *Console
@@ -218,10 +219,10 @@ func abisSerializerResolver(account common.AccountName) *abi_serializer.AbiSeria
 	if ok {
 		return it
 	}
-	var abiResult GetAbiResult
+	var abiResult chain_plugin.GetAbiResult
 	err := DoHttpCall(&abiResult, common.GetAbiFunc, common.Variants{"account_name": account})
 	if err != nil {
-		fmt.Println("get abi from chain is error: %s", err.Error())
+		fmt.Println("get abi from chain is error: ", err.Error())
 	}
 	var abis *abi_serializer.AbiSerializer
 	if !common.Empty(abiResult.Abi) {
@@ -262,7 +263,7 @@ func (e *eosgo) pushActions(actions []*types.Action, extraKcpu int32, compressio
 }
 
 func (e *eosgo) pushTransaction(trx *types.SignedTransaction, extraKcpu int32, compression types.CompressionType) interface{} {
-	var info GetInfoResult
+	var info chain_plugin.GetInfoResult
 	err := DoHttpCall(&info, common.GetInfoFunc, nil)
 	if err != nil {
 		fmt.Println(err)
@@ -276,7 +277,8 @@ func (e *eosgo) pushTransaction(trx *types.SignedTransaction, extraKcpu int32, c
 		// Set tapos, default to last irreversible block if it's not specified by the user
 		refBlockID := info.LastIrreversibleBlockID
 		if len(txRefBlockNumOrID) > 0 {
-			var refBlock GetBlockResult
+			//var refBlock GetBlockResult
+			var refBlock chain_plugin.GetBlockResult
 			err := DoHttpCall(&refBlock, common.GetBlockFunc, common.Variants{"block_num_or_id": txRefBlockNumOrID})
 			if err != nil {
 				fmt.Println(err)
@@ -292,7 +294,7 @@ func (e *eosgo) pushTransaction(trx *types.SignedTransaction, extraKcpu int32, c
 		}
 		trx.MaxCpuUsageMS = uint8(txMaxCpuUsage)
 		trx.MaxNetUsageWords = (uint32(txMaxNetUsage) + 7) / 8
-		trx.DelaySec = uint32(delaysec)
+		trx.DelaySec = uint32(delaySec)
 	}
 
 	if !txSkipSign {

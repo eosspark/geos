@@ -8,6 +8,7 @@ import (
 	"github.com/eosspark/eos-go/exception"
 	"github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/log"
+	"github.com/eosspark/eos-go/plugins/chain_plugin"
 	"github.com/robertkrimen/otto"
 )
 
@@ -37,7 +38,7 @@ func getJsResult(call otto.FunctionCall, in interface{}) otto.Value {
 }
 
 func (a *chainAPI) GetInfo(call otto.FunctionCall) (response otto.Value) {
-	var info GetInfoResult
+	var info chain_plugin.GetInfoResult
 	err := DoHttpCall(&info, common.GetInfoFunc, nil)
 	if err != nil {
 		fmt.Println(err)
@@ -52,7 +53,7 @@ func (a *chainAPI) GetBlock(call otto.FunctionCall) (response otto.Value) {
 		return otto.UndefinedValue()
 	}
 
-	var refBlock GetBlockResult
+	var refBlock chain_plugin.GetBlockResult
 	err = DoHttpCall(&refBlock, common.GetBlockFunc, common.Variants{"block_num_or_id": txRefBlockNumOrID})
 	if err != nil {
 		fmt.Println(err)
@@ -83,7 +84,7 @@ func (a *chainAPI) GetAccount(call otto.FunctionCall) otto.Value {
 	if err != nil {
 		return otto.UndefinedValue()
 	}
-	var resp AccountResp
+	var resp chain_plugin.GetAccountResult
 	err = DoHttpCall(&resp, common.GetAccountFunc, common.Variants{"account_name": name})
 	if err != nil {
 		a.log.Error("get account is error: %s", err.Error())
@@ -169,7 +170,7 @@ func (a *chainAPI) GetCode(call otto.FunctionCall) otto.Value { //TODO save to f
 		return otto.UndefinedValue()
 	}
 	a.log.Debug("%s,%s,%s,%s", name, code, abi, wasm)
-	var resp GetCodeResult
+	var resp chain_plugin.GetCodeResult
 	err = DoHttpCall(&resp, common.GetCodeFunc, common.Variants{"account_name": name, "code_as_wasm": true})
 	if err != nil {
 		a.log.Error("get abi is error: %s", err.Error())
@@ -199,7 +200,7 @@ func (a *chainAPI) GetAbi(call otto.FunctionCall) otto.Value { //TODO save to fi
 	if err != nil {
 		return otto.UndefinedValue()
 	}
-	var resp GetAbiResult
+	var resp chain_plugin.GetAbiResult
 	err = DoHttpCall(&resp, common.GetAbiFunc, common.Variants{"account_name": name})
 	if err != nil {
 		a.log.Error("get abi is error: %s", err.Error())
@@ -315,7 +316,7 @@ func (a *chainAPI) GetTable(call otto.FunctionCall) (response otto.Value) {
 	//	limit =10
 	//}
 
-	var resp GetTableRowsResp
+	var resp chain_plugin.GetTableRowsResp
 	err = DoHttpCall(&resp, common.GetTableFunc,
 		common.Variants{"json": true,
 			"code":           code,
