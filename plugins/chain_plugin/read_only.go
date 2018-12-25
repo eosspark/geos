@@ -4,11 +4,11 @@ import (
 	"fmt"
 	"github.com/eosspark/container/sets/treeset"
 	"github.com/eosspark/eos-go/chain"
+	"github.com/eosspark/eos-go/chain/abi_serializer"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
-	"github.com/eosspark/eos-go/common/math"
+	math "github.com/eosspark/eos-go/common/eos_math"
 	"github.com/eosspark/eos-go/crypto"
-	"github.com/eosspark/eos-go/crypto/abi_serializer"
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/entity"
 	. "github.com/eosspark/eos-go/exception"
@@ -57,14 +57,14 @@ func (ro *ReadOnly) WalkKeyValueTable(code, scope, table common.Name, f func(int
 }
 
 type GetInfoResult struct {
-	ServerVersion            string             `json:"server_version"` // "2cc40a4e"
+	ServerVersion            string             `json:"server_version"`
 	ChainID                  common.ChainIdType `json:"chain_id"`
-	HeadBlockNum             uint32             `json:"head_block_num"`              // 2465669,
-	LastIrreversibleBlockNum uint32             `json:"last_irreversible_block_num"` // 2465655
-	LastIrreversibleBlockID  common.BlockIdType `json:"last_irreversible_block_id"`  // "00000008f98f0580d7efe7abc60abaaf8a865c9428a4267df30ff7d1937a1084"
-	HeadBlockID              common.BlockIdType `json:"head_block_id"`               // "00259f856bfa142d1d60aff77e70f0c4f3eab30789e9539d2684f9f8758f1b88",
-	HeadBlockTime            common.TimePoint   `json:"head_block_time"`             //  "2018-02-02T04:19:32"
-	HeadBlockProducer        common.AccountName `json:"head_block_producer"`         // "inita"
+	HeadBlockNum             uint32             `json:"head_block_num"`
+	LastIrreversibleBlockNum uint32             `json:"last_irreversible_block_num"`
+	LastIrreversibleBlockID  common.BlockIdType `json:"last_irreversible_block_id"`
+	HeadBlockID              common.BlockIdType `json:"head_block_id"`
+	HeadBlockTime            common.TimePoint   `json:"head_block_time"`
+	HeadBlockProducer        common.AccountName `json:"head_block_producer"`
 
 	VirtualBlockCPULimit uint64 `json:"virtual_block_cpu_limit"`
 	VirtualBlockNetLimit uint64 `json:"virtual_block_net_limit"`
@@ -97,7 +97,6 @@ type GetBlockParams struct {
 }
 
 type GetBlockResult struct {
-	//we don't need all blockresp??only need "id"
 	SignedBlock    *types.SignedBlock `json:"signed_block"`
 	ID             common.BlockIdType `json:"id"`
 	BlockNum       uint32             `json:"block_num"`

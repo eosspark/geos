@@ -48,10 +48,10 @@ func TerminalFormat(useColor bool) Format {
 
 		b := &bytes.Buffer{}
 		if color > 0 {
-			fmt.Fprintf(b, "\x1b[%dm%s %v %n\x1b[0m", color, r.Time.Format(eosTimeFormat), r.Call, r.Call)
+			fmt.Fprintf(b, "\x1b[%dm%s %v %n\x1b[0m", color, r.Time.UTC().Format(eosTimeFormat), r.Call, r.Call)
 
 		} else {
-			fmt.Fprintf(b, "%s %v %n", r.Time.Format(eosTimeFormat), r.Call, r.Call)
+			fmt.Fprintf(b, "%s %v %n", r.Time.UTC().Format(eosTimeFormat), r.Call, r.Call)
 		}
 
 		length := utf8.RuneCountInString(r.Call.String()) + utf8.RuneCountInString(fmt.Sprintf("%n", r.Call))
@@ -75,7 +75,7 @@ func LogfmtFormat() Format {
 	return FormatFunc(func(r *Record) []byte {
 		b := &bytes.Buffer{}
 		lvl := r.Lvl.AlignedString()
-		fmt.Fprintf(b, "%s %s %v %n %s", lvl, r.Time.Format(eosTimeFormat), r.Call, r.Call, r.Msg)
+		fmt.Fprintf(b, "%s %s %v %n %s", lvl, r.Time.UTC().Format(eosTimeFormat), r.Call, r.Call, r.Msg)
 
 		b.WriteByte('\n')
 		return b.Bytes()

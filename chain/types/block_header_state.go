@@ -2,7 +2,7 @@ package types
 
 import (
 	"github.com/eosspark/eos-go/common"
-	"github.com/eosspark/eos-go/common/math"
+	math "github.com/eosspark/eos-go/common/eos_math"
 	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/ecc"
 	. "github.com/eosspark/eos-go/exception"

@@ -3,7 +3,7 @@ package chain
 import (
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
-	arithmetic "github.com/eosspark/eos-go/common/arithmetic_types"
+	"github.com/eosspark/eos-go/common/eos_math"
 	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/eosspark/eos-go/entity"
@@ -12,8 +12,8 @@ import (
 	"strings"
 )
 
-func transactionIdToSenderId(tid common.TransactionIdType) *arithmetic.Uint128 {
-	id := &arithmetic.Uint128{tid.Hash[3], tid.Hash[2]}
+func transactionIdToSenderId(tid common.TransactionIdType) *eos_math.Uint128 {
+	id := &eos_math.Uint128{tid.Hash[3], tid.Hash[2]}
 	return id
 }
 

@@ -7,7 +7,7 @@ import (
 	"github.com/eosspark/container/sets/treeset"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
-	arithmetic "github.com/eosspark/eos-go/common/arithmetic_types"
+	"github.com/eosspark/eos-go/common/eos_math"
 	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/crypto/rlp"
@@ -124,7 +124,7 @@ func ashlti3(vm *VM) {
 	low := int64(vm.popUint64())
 	ret := int(vm.popUint64())
 
-	i := arithmetic.Int128{Low: uint64(low), High: uint64(high)}
+	i := eos_math.Int128{Low: uint64(low), High: uint64(high)}
 	i.LeftShifts(shift)
 
 	re, _ := rlp.EncodeToBytes(i)
@@ -138,7 +138,7 @@ func ashrti3(vm *VM) {
 	low := int64(vm.popUint64())
 	ret := int(vm.popUint64())
 
-	i := arithmetic.Int128{Low: uint64(low), High: uint64(high)}
+	i := eos_math.Int128{Low: uint64(low), High: uint64(high)}
 	i.RightShifts(shift)
 
 	re, _ := rlp.EncodeToBytes(i)
@@ -152,7 +152,7 @@ func lshlti3(vm *VM) {
 	low := int64(vm.popUint64())
 	ret := int(vm.popUint64())
 
-	i := arithmetic.Int128{Low: uint64(low), High: uint64(high)}
+	i := eos_math.Int128{Low: uint64(low), High: uint64(high)}
 	i.LeftShifts(shift)
 
 	re, _ := rlp.EncodeToBytes(i)
@@ -166,7 +166,7 @@ func lshrti3(vm *VM) {
 	low := int64(vm.popUint64())
 	ret := int(vm.popUint64())
 
-	i := arithmetic.Uint128{Low: uint64(low), High: uint64(high)}
+	i := eos_math.Uint128{Low: uint64(low), High: uint64(high)}
 	i.RightShifts(shift)
 
 	re, _ := rlp.EncodeToBytes(i)
@@ -181,8 +181,8 @@ func divti3(vm *VM) {
 	la := int64(vm.popUint64())
 	ret := int(vm.popUint64())
 
-	lhs := arithmetic.Int128{Low: uint64(la), High: uint64(ha)}
-	rhs := arithmetic.Int128{Low: uint64(lb), High: uint64(hb)}
+	lhs := eos_math.Int128{Low: uint64(la), High: uint64(ha)}
+	rhs := eos_math.Int128{Low: uint64(lb), High: uint64(hb)}
 
 	EosAssert(!rhs.IsZero(), &ArithmeticException{}, "divide by zero")
 
@@ -199,8 +199,8 @@ func udivti3(vm *VM) {
 	la := int64(vm.popUint64())
 	ret := int(vm.popUint64())
 
-	lhs := arithmetic.Uint128{Low: uint64(la), High: uint64(ha)}
-	rhs := arithmetic.Uint128{Low: uint64(lb), High: uint64(hb)}
+	lhs := eos_math.Uint128{Low: uint64(la), High: uint64(ha)}
+	rhs := eos_math.Uint128{Low: uint64(lb), High: uint64(hb)}
 
 	EosAssert(!rhs.IsZero(), &ArithmeticException{}, "divide by zero")
 	quotient, _ := lhs.Div(rhs)
@@ -217,8 +217,8 @@ func multi3(vm *VM) {
 	la := int64(vm.popUint64())
 	ret := int(vm.popUint64())
 
-	lhs := arithmetic.Int128{Low: uint64(la), High: uint64(ha)}
-	rhs := arithmetic.Int128{Low: uint64(lb), High: uint64(hb)}
+	lhs := eos_math.Int128{Low: uint64(la), High: uint64(ha)}
+	rhs := eos_math.Int128{Low: uint64(lb), High: uint64(hb)}
 
 	re, _ := rlp.EncodeToBytes(lhs.Mul(rhs))
 	setMemory(vm, ret, re, 0, len(re))
@@ -233,8 +233,8 @@ func modti3(vm *VM) {
 	la := int64(vm.popUint64())
 	ret := int(vm.popUint64())
 
-	lhs := arithmetic.Int128{High: uint64(ha), Low: uint64(la)}
-	rhs := arithmetic.Int128{High: uint64(hb), Low: uint64(lb)}
+	lhs := eos_math.Int128{High: uint64(ha), Low: uint64(la)}
+	rhs := eos_math.Int128{High: uint64(hb), Low: uint64(lb)}
 	EosAssert(!rhs.IsZero(), &ArithmeticException{}, "divide by zero")
 
 	_, remainder := lhs.Div(rhs)
@@ -250,8 +250,8 @@ func umodti3(vm *VM) {
 	la := int64(vm.popUint64())
 	ret := int(vm.popUint64())
 
-	lhs := arithmetic.Uint128{Low: uint64(la), High: uint64(ha)}
-	rhs := arithmetic.Uint128{Low: uint64(lb), High: uint64(hb)}
+	lhs := eos_math.Uint128{Low: uint64(la), High: uint64(ha)}
+	rhs := eos_math.Uint128{Low: uint64(lb), High: uint64(hb)}
 
 	EosAssert(!rhs.IsZero(), &ArithmeticException{}, "divide by zero")
 	_, remainder := lhs.Div(rhs)
@@ -267,8 +267,8 @@ func addtf3(vm *VM) {
 	la := int64(vm.popUint64())
 	ret := int(vm.popUint64())
 
-	a := arithmetic.Float128{Low: uint64(la), High: uint64(ha)}
-	b := arithmetic.Float128{Low: uint64(lb), High: uint64(hb)}
+	a := eos_math.Float128{Low: uint64(la), High: uint64(ha)}
+	b := eos_math.Float128{Low: uint64(lb), High: uint64(hb)}
 
 	re, _ := rlp.EncodeToBytes(a.Add(b))
 	setMemory(vm, ret, re, 0, len(re))
@@ -282,8 +282,8 @@ func subtf3(vm *VM) {
 	la := int64(vm.popUint64())
 	ret := int(vm.popUint64())
 
-	a := arithmetic.Float128{Low: uint64(la), High: uint64(ha)}
-	b := arithmetic.Float128{Low: uint64(lb), High: uint64(hb)}
+	a := eos_math.Float128{Low: uint64(la), High: uint64(ha)}
+	b := eos_math.Float128{Low: uint64(lb), High: uint64(hb)}
 
 	re, _ := rlp.EncodeToBytes(a.Sub(b))
 	setMemory(vm, ret, re, 0, len(re))
@@ -297,8 +297,8 @@ func multf3(vm *VM) {
 	la := int64(vm.popUint64())
 	ret := int(vm.popUint64())
 
-	a := arithmetic.Float128{Low: uint64(la), High: uint64(ha)}
-	b := arithmetic.Float128{Low: uint64(lb), High: uint64(hb)}
+	a := eos_math.Float128{Low: uint64(la), High: uint64(ha)}
+	b := eos_math.Float128{Low: uint64(lb), High: uint64(hb)}
 
 	re, _ := rlp.EncodeToBytes(a.Mul(b))
 	setMemory(vm, ret, re, 0, len(re))
@@ -312,8 +312,8 @@ func divtf3(vm *VM) {
 	la := int64(vm.popUint64())
 	ret := int(vm.popUint64())
 
-	a := arithmetic.Float128{Low: uint64(la), High: uint64(ha)}
-	b := arithmetic.Float128{Low: uint64(lb), High: uint64(hb)}
+	a := eos_math.Float128{Low: uint64(la), High: uint64(ha)}
+	b := eos_math.Float128{Low: uint64(lb), High: uint64(hb)}
 
 	re, _ := rlp.EncodeToBytes(a.Div(b))
 	setMemory(vm, ret, re, 0, len(re))
@@ -327,7 +327,7 @@ func negtf2(vm *VM) {
 
 	high := uint64(ha)
 	high ^= uint64(1) << 63
-	f128 := arithmetic.Float128{Low: uint64(la), High: high}
+	f128 := eos_math.Float128{Low: uint64(la), High: high}
 
 	re, _ := rlp.EncodeToBytes(f128)
 	setMemory(vm, ret, re, 0, len(re))
@@ -339,9 +339,9 @@ func extendsftf2(vm *VM) {
 	f := uint32(vm.popUint64())
 	ret := int(vm.popUint64())
 
-	//f32 := arithmetic.Float32(math.Float32bits(f))
-	f32 := arithmetic.Float32(f)
-	f128 := arithmetic.F32ToF128(f32)
+	//f32 := eos_math.Float32(math.Float32bits(f))
+	f32 := eos_math.Float32(f)
+	f128 := eos_math.F32ToF128(f32)
 
 	re, _ := rlp.EncodeToBytes(f128)
 	setMemory(vm, ret, re, 0, len(re))
@@ -353,9 +353,9 @@ func extenddftf2(vm *VM) { //TODO d double??
 	d := vm.popUint64()
 	ret := int(vm.popUint64())
 
-	//f64 := arithmetic.Float64(math.Float64bits(d))
-	f64 := arithmetic.Float64(d)
-	f128 := arithmetic.F64ToF128(f64)
+	//f64 := eos_math.Float64(math.Float64bits(d))
+	f64 := eos_math.Float64(d)
+	f128 := eos_math.F64ToF128(f64)
 
 	re, _ := rlp.EncodeToBytes(f128)
 	setMemory(vm, ret, re, 0, len(re))
@@ -367,8 +367,8 @@ func trunctfdf2(vm *VM) { //TODO double??
 	h := int64(vm.popUint64())
 	l := int64(vm.popUint64())
 
-	f128 := arithmetic.Float128{Low: uint64(l), High: uint64(h)}
-	f64 := arithmetic.F128ToF64(f128)
+	f128 := eos_math.Float128{Low: uint64(l), High: uint64(h)}
+	f64 := eos_math.F128ToF64(f128)
 	//return math.Float64frombits(uint64(f64))
 	vm.pushUint64(uint64(f64))
 }
@@ -378,8 +378,8 @@ func trunctfsf2(vm *VM) { //TODO float??
 	h := int64(vm.popUint64())
 	l := int64(vm.popUint64())
 
-	f128 := arithmetic.Float128{Low: uint64(l), High: uint64(h)}
-	f32 := arithmetic.F128ToF32(f128)
+	f128 := eos_math.Float128{Low: uint64(l), High: uint64(h)}
+	f32 := eos_math.F128ToF32(f128)
 	//return math.Float32frombits(uint32(f32))
 	vm.pushUint64(uint64(f32))
 }
@@ -388,36 +388,36 @@ func fixtfsi(vm *VM) {
 	h := int64(vm.popUint64())
 	l := int64(vm.popUint64())
 
-	f128 := arithmetic.Float128{Low: uint64(l), High: uint64(h)}
-	//return int(arithmetic.F128ToI32(f128, 0, false))
-	vm.pushUint64(uint64(arithmetic.F128ToI32(f128, 0, false)))
+	f128 := eos_math.Float128{Low: uint64(l), High: uint64(h)}
+	//return int(eos_math.F128ToI32(f128, 0, false))
+	vm.pushUint64(uint64(eos_math.F128ToI32(f128, 0, false)))
 }
 
 func fixtfdi(vm *VM) {
 	h := int64(vm.popUint64())
 	l := int64(vm.popUint64())
 
-	f128 := arithmetic.Float128{Low: uint64(l), High: uint64(h)}
-	//return arithmetic.F128ToI64(f128, 0, false)
-	vm.pushUint64(uint64(arithmetic.F128ToI64(f128, 0, false)))
+	f128 := eos_math.Float128{Low: uint64(l), High: uint64(h)}
+	//return eos_math.F128ToI64(f128, 0, false)
+	vm.pushUint64(uint64(eos_math.F128ToI64(f128, 0, false)))
 }
 
 func fixunstfsi(vm *VM) {
 	h := int64(vm.popUint64())
 	l := int64(vm.popUint64())
 
-	f128 := arithmetic.Float128{Low: uint64(l), High: uint64(h)}
-	//return int(arithmetic.F128ToUi32(f128, 0, false))
-	vm.pushUint64(uint64(arithmetic.F128ToUi32(f128, 0, false)))
+	f128 := eos_math.Float128{Low: uint64(l), High: uint64(h)}
+	//return int(eos_math.F128ToUi32(f128, 0, false))
+	vm.pushUint64(uint64(eos_math.F128ToUi32(f128, 0, false)))
 }
 
 func fixunstfdi(vm *VM) {
 	h := int64(vm.popUint64())
 	l := int64(vm.popUint64())
 
-	f128 := arithmetic.Float128{Low: uint64(l), High: uint64(h)}
-	//return int64(arithmetic.F128ToUi64(f128, 0, false))
-	vm.pushUint64(uint64(arithmetic.F128ToUi64(f128, 0, false)))
+	f128 := eos_math.Float128{Low: uint64(l), High: uint64(h)}
+	//return int64(eos_math.F128ToUi64(f128, 0, false))
+	vm.pushUint64(uint64(eos_math.F128ToUi64(f128, 0, false)))
 }
 
 func fixtfti(vm *VM) {
@@ -426,8 +426,8 @@ func fixtfti(vm *VM) {
 	l := int64(vm.popUint64())
 	ret := int(vm.popUint64())
 
-	f128 := arithmetic.Float128{Low: uint64(l), High: uint64(h)}
-	int128 := arithmetic.Fixtfti(f128)
+	f128 := eos_math.Float128{Low: uint64(l), High: uint64(h)}
+	int128 := eos_math.Fixtfti(f128)
 
 	re, _ := rlp.EncodeToBytes(int128)
 	setMemory(vm, ret, re, 0, len(re))
@@ -438,8 +438,8 @@ func fixunstfti(vm *VM) {
 	l := int64(vm.popUint64())
 	ret := int(vm.popUint64())
 
-	f := arithmetic.Float128{Low: uint64(l), High: uint64(h)}
-	uint128 := arithmetic.Fixunstfti(f)
+	f := eos_math.Float128{Low: uint64(l), High: uint64(h)}
+	uint128 := eos_math.Fixunstfti(f)
 
 	re, _ := rlp.EncodeToBytes(uint128)
 	setMemory(vm, ret, re, 0, len(re))
@@ -449,8 +449,8 @@ func fixsfti(vm *VM) { //TODO float??
 	a := uint32(vm.popUint64())
 	ret := int(vm.popUint64())
 
-	//int128 := arithmetic.Fixsfti(math.Float32bits(a))
-	int128 := arithmetic.Fixsfti(a)
+	//int128 := eos_math.Fixsfti(math.Float32bits(a))
+	int128 := eos_math.Fixsfti(a)
 	re, _ := rlp.EncodeToBytes(int128)
 	setMemory(vm, ret, re, 0, len(re))
 }
@@ -459,8 +459,8 @@ func fixdfti(vm *VM) { //TODO double??
 	a := vm.popUint64()
 	ret := int(vm.popUint64())
 
-	//int128 := arithmetic.Fixdfti(math.Float64bits(a))
-	int128 := arithmetic.Fixdfti(a)
+	//int128 := eos_math.Fixdfti(math.Float64bits(a))
+	int128 := eos_math.Fixdfti(a)
 	re, _ := rlp.EncodeToBytes(int128)
 	setMemory(vm, ret, re, 0, len(re))
 }
@@ -469,8 +469,8 @@ func fixunssfti(vm *VM) { //TODO float??
 	a := uint32(vm.popUint64())
 	ret := int(vm.popUint64())
 
-	//uint128 := arithmetic.Fixunssfti(math.Float32bits(a))
-	uint128 := arithmetic.Fixunssfti(a)
+	//uint128 := eos_math.Fixunssfti(math.Float32bits(a))
+	uint128 := eos_math.Fixunssfti(a)
 	re, _ := rlp.EncodeToBytes(uint128)
 	setMemory(vm, ret, re, 0, len(re))
 }
@@ -479,8 +479,8 @@ func fixunsdfti(vm *VM) { //TODO double??
 	a := vm.popUint64()
 	ret := int(vm.popUint64())
 
-	//uint128 := arithmetic.Fixunsdfti(math.Float64bits(a))
-	uint128 := arithmetic.Fixunsdfti(a)
+	//uint128 := eos_math.Fixunsdfti(math.Float64bits(a))
+	uint128 := eos_math.Fixunsdfti(a)
 	re, _ := rlp.EncodeToBytes(uint128)
 	setMemory(vm, ret, re, 0, len(re))
 }
@@ -488,15 +488,15 @@ func fixunsdfti(vm *VM) { //TODO double??
 func floatsidf(vm *VM) { //TODO double??
 	i := int(vm.popUint64())
 
-	//return math.Float64frombits(uint64(arithmetic.I32ToF64(int32(i))))
-	vm.pushUint64(uint64(arithmetic.I32ToF64(int32(i))))
+	//return math.Float64frombits(uint64(eos_math.I32ToF64(int32(i))))
+	vm.pushUint64(uint64(eos_math.I32ToF64(int32(i))))
 }
 
 func floatsitf(vm *VM) {
 	i := int(vm.popUint64())
 	ret := int(vm.popUint64())
 
-	re := arithmetic.I32ToF128(int32(i))
+	re := eos_math.I32ToF128(int32(i))
 	setMemory(vm, ret, re.Bytes(), 0, len(re.Bytes()))
 }
 
@@ -504,7 +504,7 @@ func floatditf(vm *VM) {
 	a := int64(vm.popUint64())
 	ret := int(vm.popUint64())
 
-	re := arithmetic.I64ToF128(a)
+	re := eos_math.I64ToF128(a)
 	setMemory(vm, ret, re.Bytes(), 0, len(re.Bytes()))
 }
 
@@ -512,7 +512,7 @@ func floatunsitf(vm *VM) {
 	i := int(vm.popUint64())
 	ret := int(vm.popUint64())
 
-	re := arithmetic.Ui32ToF128(uint32(i))
+	re := eos_math.Ui32ToF128(uint32(i))
 	setMemory(vm, ret, re.Bytes(), 0, len(re.Bytes()))
 }
 
@@ -520,7 +520,7 @@ func floatunditf(vm *VM) {
 	a := vm.popUint64()
 	ret := int(vm.popUint64())
 
-	re := arithmetic.Ui64ToF128(uint64(a))
+	re := eos_math.Ui64ToF128(uint64(a))
 	setMemory(vm, ret, re.Bytes(), 0, len(re.Bytes()))
 }
 
@@ -528,19 +528,19 @@ func floattidf(vm *VM) { //TODO double
 	h := vm.popUint64()
 	l := vm.popUint64()
 
-	v := arithmetic.Int128{Low: uint64(l), High: uint64(h)}
-	//return arithmetic.Floattidf(v)
-	vm.pushFloat64(arithmetic.Floattidf(v))
+	v := eos_math.Int128{Low: uint64(l), High: uint64(h)}
+	//return eos_math.Floattidf(v)
+	vm.pushFloat64(eos_math.Floattidf(v))
 }
 
 func floatuntidf(vm *VM) { //TODO double
 	h := vm.popUint64()
 	l := vm.popUint64()
 
-	v := arithmetic.Uint128{Low: uint64(l), High: uint64(h)}
-	// return arithmetic.Floatuntidf(v)
+	v := eos_math.Uint128{Low: uint64(l), High: uint64(h)}
+	// return eos_math.Floatuntidf(v)
 	// return
-	vm.pushFloat64(arithmetic.Floatuntidf(v))
+	vm.pushFloat64(eos_math.Floatuntidf(v))
 }
 
 func cmptf2(vm *VM) { //TODO unsame with regist
@@ -551,8 +551,8 @@ func cmptf2(vm *VM) { //TODO unsame with regist
 	ha := int64(vm.popUint64())
 	la := int64(vm.popUint64())
 
-	a := arithmetic.Float128{Low: uint64(la), High: uint64(ha)}
-	b := arithmetic.Float128{Low: uint64(lb), High: uint64(hb)}
+	a := eos_math.Float128{Low: uint64(la), High: uint64(ha)}
+	b := eos_math.Float128{Low: uint64(lb), High: uint64(hb)}
 	if _unordtf2(la, ha, lb, hb) != 0 {
 		vm.pushUint64(uint64(return_value_if_nan))
 		return
@@ -650,8 +650,8 @@ func unordtf2(vm *VM) {
 	ha := int64(vm.popUint64())
 	la := int64(vm.popUint64())
 
-	a := arithmetic.Float128{Low: uint64(la), High: uint64(ha)}
-	b := arithmetic.Float128{Low: uint64(lb), High: uint64(hb)}
+	a := eos_math.Float128{Low: uint64(la), High: uint64(ha)}
+	b := eos_math.Float128{Low: uint64(lb), High: uint64(hb)}
 	if a.IsNan() || b.IsNan() {
 		vm.pushUint64(1)
 		//return 1
@@ -661,8 +661,8 @@ func unordtf2(vm *VM) {
 }
 
 func _cmptf2(la, ha, lb, hb int64, return_value_if_nan int) int { //TODO unsame with regist
-	a := arithmetic.Float128{Low: uint64(la), High: uint64(ha)}
-	b := arithmetic.Float128{Low: uint64(lb), High: uint64(hb)}
+	a := eos_math.Float128{Low: uint64(la), High: uint64(ha)}
+	b := eos_math.Float128{Low: uint64(lb), High: uint64(hb)}
 	if _unordtf2(la, ha, lb, hb) != 0 {
 		return return_value_if_nan
 	}
@@ -676,8 +676,8 @@ func _cmptf2(la, ha, lb, hb int64, return_value_if_nan int) int { //TODO unsame 
 }
 
 func _unordtf2(la, ha, lb, hb int64) int {
-	a := arithmetic.Float128{Low: uint64(la), High: uint64(ha)}
-	b := arithmetic.Float128{Low: uint64(lb), High: uint64(hb)}
+	a := eos_math.Float128{Low: uint64(la), High: uint64(ha)}
+	b := eos_math.Float128{Low: uint64(lb), High: uint64(hb)}
 	if a.IsNan() || b.IsNan() {
 		return 1
 	}
@@ -1363,7 +1363,7 @@ func dbIdxDoubleStore(vm *VM) {
 	table := vm.popUint64()
 	scope := vm.popUint64()
 
-	secondaryKey := arithmetic.Float64(getUint64(vm, pValue))
+	secondaryKey := eos_math.Float64(getUint64(vm, pValue))
 	//float := math.Float64frombits(getUint64(vm, pValue))
 	//w.ilog.Info("float:%v", float)
 
@@ -1389,7 +1389,7 @@ func dbIdxDoubleUpdate(vm *VM) {
 	payer := vm.popUint64()
 	iterator := int(vm.popUint64())
 
-	secondaryKey := arithmetic.Float64(getUint64(vm, pValue))
+	secondaryKey := eos_math.Float64(getUint64(vm, pValue))
 	w.context.IdxDoubleUpdate(iterator, payer, &secondaryKey)
 
 	w.ilog.Debug("payer:%v secondaryKey:%v iterator:%v", common.AccountName(payer), secondaryKey, iterator)
@@ -1407,7 +1407,7 @@ func dbIdxDoublefindSecondary(vm *VM) {
 	code := vm.popUint64()
 
 	var primaryKey uint64
-	secondaryKey := arithmetic.Float64(getUint64(vm, pSecondary))
+	secondaryKey := eos_math.Float64(getUint64(vm, pSecondary))
 	iterator := w.context.IdxDoubleFindSecondary(code, scope, table, &secondaryKey, &primaryKey)
 	if iterator <= -1 {
 		vm.pushUint64(uint64(iterator))
@@ -1432,7 +1432,7 @@ func dbIdxDoubleLowerbound(vm *VM) {
 	code := vm.popUint64()
 
 	var primaryKey uint64
-	secondaryKey := arithmetic.Float64(getUint64(vm, pSecondary))
+	secondaryKey := eos_math.Float64(getUint64(vm, pSecondary))
 	iterator := w.context.IdxDoubleLowerbound(code, scope, table, &secondaryKey, &primaryKey)
 	if iterator <= -1 {
 		vm.pushUint64(uint64(iterator))
@@ -1458,7 +1458,7 @@ func dbIdxDoubleUpperbound(vm *VM) {
 	code := vm.popUint64()
 
 	var primaryKey uint64
-	secondaryKey := arithmetic.Float64(getUint64(vm, pSecondary))
+	secondaryKey := eos_math.Float64(getUint64(vm, pSecondary))
 	iterator := w.context.IdxDoubleUpperbound(code, scope, table, &secondaryKey, &primaryKey)
 	if iterator <= -1 {
 		vm.pushUint64(uint64(iterator))
@@ -1536,7 +1536,7 @@ func dbIdxDoubleFindPrimary(vm *VM) {
 	scope := vm.popUint64()
 	code := vm.popUint64()
 
-	var secondaryKey arithmetic.Float64
+	var secondaryKey eos_math.Float64
 	iterator := w.context.IdxDoubleFindPrimary(code, scope, table, &secondaryKey, primary)
 	if iterator <= -1 {
 		vm.pushUint64(uint64(iterator))
@@ -1885,7 +1885,7 @@ func printi128(vm *VM) {
 		val := int(vm.popUint64())
 
 		bytes := getMemory(vm, val, 16)
-		var v arithmetic.Int128
+		var v eos_math.Int128
 		rlp.DecodeBytes(bytes, &v)
 		str := v.String()
 		w.context.ContextAppend(str)
@@ -1901,7 +1901,7 @@ func printui128(vm *VM) {
 		val := int(vm.popUint64())
 
 		bytes := getMemory(vm, val, 16)
-		var v arithmetic.Uint128
+		var v eos_math.Uint128
 		rlp.DecodeBytes(bytes, &v)
 		str := v.String()
 		w.context.ContextAppend(str)
@@ -1944,7 +1944,7 @@ func printqf(vm *VM) {
 		val := int(vm.popUint64())
 
 		bytes := getMemory(vm, val, 16)
-		var v arithmetic.Float128
+		var v eos_math.Float128
 		rlp.DecodeBytes(bytes, &v)
 		str := v.String()
 		w.context.ContextAppend(str)
@@ -2311,7 +2311,7 @@ func sendDeferred(vm *VM) {
 	senderId := int(vm.popUint64())
 
 	bytes := getMemory(vm, senderId, 16)
-	id := &arithmetic.Uint128{}
+	id := &eos_math.Uint128{}
 	rlp.DecodeBytes(bytes, id)
 
 	trx := getBytes(vm, data, dataLen)
@@ -2327,7 +2327,7 @@ func cancelDeferred(vm *VM) {
 	senderId := int(vm.popUint64())
 
 	bytes := getMemory(vm, senderId, 16)
-	id := &arithmetic.Uint128{}
+	id := &eos_math.Uint128{}
 	rlp.DecodeBytes(bytes, id)
 
 	//return b2i(w.context.CancelDeferredTransaction(common.TransactionIdType{id}))

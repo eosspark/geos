@@ -28,7 +28,7 @@ import (
 )
 
 const (
-	maxPrettyPrintLevel = 3
+	maxPrettyPrintLevel = 8
 	indentString        = "  "
 )
 

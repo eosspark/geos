@@ -3,10 +3,8 @@ package wasmgo
 import (
 	"github.com/eosspark/container/sets/treeset"
 	"github.com/eosspark/eos-go/chain/types"
-	//"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
-	arithmetic "github.com/eosspark/eos-go/common/arithmetic_types"
-	//"github.com/eosspark/eos-go/log"
+	"github.com/eosspark/eos-go/common/eos_math"
 )
 
 type EnvContext interface {
@@ -56,16 +54,16 @@ type EnvContext interface {
 	Idx64FindPrimary(code uint64, scope uint64, table uint64, secondary *uint64, primary uint64) int
 
 	//secondaryKey Double
-	IdxDoubleStore(scope uint64, table uint64, payer uint64, id uint64, value *arithmetic.Float64) int
+	IdxDoubleStore(scope uint64, table uint64, payer uint64, id uint64, value *eos_math.Float64) int
 	IdxDoubleRemove(iterator int)
-	IdxDoubleUpdate(iterator int, payer uint64, value *arithmetic.Float64)
-	IdxDoubleFindSecondary(code uint64, scope uint64, table uint64, secondary *arithmetic.Float64, primary *uint64) int
-	IdxDoubleLowerbound(code uint64, scope uint64, table uint64, secondary *arithmetic.Float64, primary *uint64) int
-	IdxDoubleUpperbound(code uint64, scope uint64, table uint64, secondary *arithmetic.Float64, primary *uint64) int
+	IdxDoubleUpdate(iterator int, payer uint64, value *eos_math.Float64)
+	IdxDoubleFindSecondary(code uint64, scope uint64, table uint64, secondary *eos_math.Float64, primary *uint64) int
+	IdxDoubleLowerbound(code uint64, scope uint64, table uint64, secondary *eos_math.Float64, primary *uint64) int
+	IdxDoubleUpperbound(code uint64, scope uint64, table uint64, secondary *eos_math.Float64, primary *uint64) int
 	IdxDoubleEnd(code uint64, scope uint64, table uint64) int
 	IdxDoubleNext(iterator int, primary *uint64) int
 	IdxDoublePrevious(iterator int, primary *uint64) int
-	IdxDoubleFindPrimary(code uint64, scope uint64, table uint64, secondary *arithmetic.Float64, primary uint64) int
+	IdxDoubleFindPrimary(code uint64, scope uint64, table uint64, secondary *eos_math.Float64, primary uint64) int
 
 	//permission
 	GetPermissionLastUsed(account common.AccountName, permission common.PermissionName) common.TimePoint
@@ -104,9 +102,9 @@ type EnvContext interface {
 	InlineActionTooBig(dataLen int) bool
 	ExecuteInline(act *types.Action)
 	ExecuteContextFreeInline(act *types.Action)
-	//ScheduleDeferredTransaction(sendId *arithmetic.Uint128, payer common.AccountName, trx []byte, replaceExisting bool)
-	ScheduleDeferredTransaction(sendId *arithmetic.Uint128, payer common.AccountName, trx *types.Transaction, replaceExisting bool)
-	CancelDeferredTransaction(sendId *arithmetic.Uint128) bool
+	//ScheduleDeferredTransaction(sendId *eos_math.Uint128, payer common.AccountName, trx []byte, replaceExisting bool)
+	ScheduleDeferredTransaction(sendId *eos_math.Uint128, payer common.AccountName, trx *types.Transaction, replaceExisting bool)
+	CancelDeferredTransaction(sendId *eos_math.Uint128) bool
 	//GetPackedTransaction() []byte
 	//GetPackedTransaction() *types.SignedTransaction
 	GetPackedTransaction() *types.Transaction
