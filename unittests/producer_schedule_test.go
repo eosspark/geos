@@ -29,8 +29,8 @@ func isScheduleEqual(first []types.ProducerKey, second []types.ProducerKey) bool
 func calcBloclkNumOfNextRoundFirstBlock(control *Controller) uint64 {
 	res := control.HeadBlockNum() + 1
 	blocksPerRound := len(control.HeadBlockState().ActiveSchedule.Producers) * common.DefaultConfig.ProducerRepetitions
-	for res % uint32(blocksPerRound) != 0 {
-		res ++
+	for res%uint32(blocksPerRound) != 0 {
+		res++
 	}
 	return uint64(res)
 }
@@ -43,7 +43,7 @@ func TestVerifyProducerSchedule(t *testing.T) {
 			for i := uint32(0); i < checkDuration; i++ {
 				currentSchedule := b.Control.HeadBlockState().ActiveSchedule.Producers
 				currentAbsoluteSlot := b.Control.GetGlobalProperties().ProposedScheduleBlockNum
-				expectedProducer := getExpectedProducer(currentSchedule, uint64(currentAbsoluteSlot + 1))
+				expectedProducer := getExpectedProducer(currentSchedule, uint64(currentAbsoluteSlot+1))
 				isNewScheduleApplied := uint64(b.Control.LastIrreversibleBlockNum()) > effNewProdSchdBlockNum
 
 				if isNewScheduleApplied {
@@ -82,7 +82,7 @@ func TestVerifyProducerSchedule(t *testing.T) {
 
 		// ---- Test deliberately miss some blocks ----
 		numOfMissedBlocks := int64(5000)
-		b.ProduceBlock(common.Microseconds(500 * 1000 * numOfMissedBlocks), 0)
+		b.ProduceBlock(common.Microseconds(500*1000*numOfMissedBlocks), 0)
 		confirmScheduleCorrectness(secondProdSchd, effSecondProdSchdBlockNum)
 		b.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs), 0)
 
@@ -109,21 +109,21 @@ func TestProducerSchedulePromotionTest(t *testing.T) {
 	b.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs), 0)
 	compareSchedules := func(a []types.ProducerKey, b types.ProducerScheduleType) bool {
 		if len(a) == len(b.Producers) {
-			for i := 0; i < len(a); i ++ {
+			for i := 0; i < len(a); i++ {
 				if a[i] != b.Producers[i] {
 					break
 				}
-				if i == len(a) - 1 {
+				if i == len(a)-1 {
 					return true
 				}
 			}
 		}
 		return false
 	}
-	/*res := */b.SetProducers(&[]common.AccountName{alice, bob})
+	/*res := */ b.SetProducers(&[]common.AccountName{alice, bob})
 	sch1 := []types.ProducerKey{
-		{alice,b.getPublicKey(alice, "active")},
-		{bob,b.getPublicKey(bob, "active")},
+		{alice, b.getPublicKey(alice, "active")},
+		{bob, b.getPublicKey(bob, "active")},
 	}
 	assert.True(t, !common.Empty(b.Control.ProposedProducers()))
 	assert.True(t, compareSchedules(sch1, b.Control.ProposedProducers()))
@@ -140,11 +140,11 @@ func TestProducerSchedulePromotionTest(t *testing.T) {
 	assert.True(t, compareSchedules(sch1, *b.Control.ActiveProducers()))
 
 	b.ProduceBlocks(7, false)
-	/*res = */b.SetProducers(&[]common.AccountName{alice, bob, carol})
+	/*res = */ b.SetProducers(&[]common.AccountName{alice, bob, carol})
 	sch2 := []types.ProducerKey{
-		{alice,b.getPublicKey(alice, "active")},
-		{bob,b.getPublicKey(bob, "active")},
-		{carol,b.getPublicKey(carol, "active")},
+		{alice, b.getPublicKey(alice, "active")},
+		{bob, b.getPublicKey(bob, "active")},
+		{carol, b.getPublicKey(carol, "active")},
 	}
 
 	b.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs), 0)

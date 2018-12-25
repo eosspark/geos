@@ -576,7 +576,6 @@ var aligned_const_ref_wast string = `(module
    (i32.const 16)
   )
  )
-)
 )`
 
 var misaligned_ref_wast string = `(module
@@ -592,7 +591,6 @@ var misaligned_ref_wast string = `(module
    (i32.const 5)
   )
  )
-)
 )`
 
 var misaligned_const_ref_wast string = `(module
@@ -623,7 +621,6 @@ var misaligned_const_ref_wast string = `(module
    (i32.const 17)
   )
  )
-)
 )`
 
 func TestMisaligned(t *testing.T) {

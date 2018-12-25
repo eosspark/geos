@@ -2,12 +2,11 @@ package unittests
 
 import (
 	"fmt"
-	"github.com/docker/docker/pkg/testutil/assert"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/exception"
 	"github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/log"
-	assert2 "github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/assert"
 	"io/ioutil"
 	"testing"
 )
@@ -22,14 +21,10 @@ func TestRamTests(t *testing.T) {
 	//e.BuyRamBytes(common.DefaultConfig.SystemAccountName, common.N("eosio"), 70000)
 	e.ProduceBlocks(10, false)
 
-	test1 := common.N("testram11111")
-	test2 := common.N("testram22222")
-	e.CreateAccountWithResources2(test1, common.N("eosio"),
-		uint32(initRequestBytes+40))
-	e.CreateAccountWithResources2(test2, common.N("eosio"),
-		uint32(initRequestBytes+1190))
+	e.CreateAccountWithResources2(test1, eosio, uint32(initRequestBytes+40))
+	e.CreateAccountWithResources2(test2, eosio, uint32(initRequestBytes+1190))
 	e.ProduceBlocks(10, false)
-	assert.Equal(t, e.Stake(common.N("eosio.stake"), common.N("testram11111"), CoreFromString("10.0000"), CoreFromString("10.0000")), e.Success())
+	assert.Equal(t, e.Stake(eosioStake, common.N("testram11111"), CoreFromString("10.0000"), CoreFromString("10.0000")), e.Success())
 	e.ProduceBlocks(10, false)
 
 	//test_ram_limit
@@ -45,8 +40,8 @@ func TestRamTests(t *testing.T) {
 			skipLoop = true
 		}).Catch(func(ex exception.RamUsageExceeded) {
 			initRequestBytes += incrementContractBytes
-			e.BuyRamBytes(common.N("eosio"), test1, uint32(incrementContractBytes))
-			e.BuyRamBytes(common.N("eosio"), test2, uint32(incrementContractBytes))
+			e.BuyRamBytes(eosio, test1, uint32(incrementContractBytes))
+			e.BuyRamBytes(eosio, test2, uint32(incrementContractBytes))
 		}).End()
 		if skipLoop {
 			break
@@ -61,8 +56,8 @@ func TestRamTests(t *testing.T) {
 			skipLoop = true
 		}).Catch(func(ex exception.RamUsageExceeded) {
 			initRequestBytes += incrementContractBytes
-			e.BuyRamBytes(common.N("eosio"), test1, uint32(incrementContractBytes))
-			e.BuyRamBytes(common.N("eosio"), test2, uint32(incrementContractBytes))
+			e.BuyRamBytes(eosio, test1, uint32(incrementContractBytes))
+			e.BuyRamBytes(eosio, test2, uint32(incrementContractBytes))
 		}).End()
 		if skipLoop {
 			break
@@ -82,10 +77,10 @@ func TestRamTests(t *testing.T) {
 	initialRamUsage := rlm.GetAccountRamUsage(test1)
 
 	moreRam := uint64(tableAllocationBytes) + initBytes - uint64(initRequestBytes)
-	assert2.True(t, moreRam >= 0, "Underlying understanding changed, need to reduce size of init_request_bytes")
+	assert.True(t, moreRam >= 0, "Underlying understanding changed, need to reduce size of init_request_bytes")
 	log.Warn("init_bytes: %d, initial_ram_usage: %d, init_request_bytes: %d, more_ram: %d.", initBytes, initialRamUsage, initRequestBytes, moreRam)
-	e.BuyRamBytes(common.N("eosio"), test1, uint32(moreRam))
-	e.BuyRamBytes(common.N("eosio"), test2, uint32(moreRam))
+	e.BuyRamBytes(eosio, test1, uint32(moreRam))
+	e.BuyRamBytes(eosio, test2, uint32(moreRam))
 
 	// allocate just under the allocated bytes
 	actSenName := common.N("setentry")
@@ -435,8 +430,4 @@ func TestRamTests(t *testing.T) {
 	e.ProduceBlocks(1, false)
 
 	e.close()
-}
-
-func TestSimple(t *testing.T) {
-	fmt.Printf("%d\n", '\'')
 }

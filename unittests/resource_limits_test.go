@@ -1,15 +1,15 @@
 package unittests
 
 import (
-	. "github.com/eosspark/eos-go/chain"
 	"fmt"
 	"github.com/eosspark/container/sets/treeset"
+	. "github.com/eosspark/eos-go/chain"
 	"github.com/eosspark/eos-go/common"
+	"github.com/eosspark/eos-go/exception"
+	"github.com/eosspark/eos-go/exception/try"
 	"github.com/stretchr/testify/assert"
 	"math"
 	"testing"
-	"github.com/eosspark/eos-go/exception/try"
-	"github.com/eosspark/eos-go/exception"
 )
 
 func initializeResource() *ResourceLimitsManager {
