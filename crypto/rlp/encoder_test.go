@@ -67,9 +67,9 @@ func TestAsset(t *testing.T) {
 
 func TestDecoder_Checksum256(t *testing.T) {
 	s := crypto.NewSha256Byte(bytes.Repeat([]byte{1}, 32))
+
 	buf, err := rlp.EncodeToBytes(s)
 	assert.NoError(t, err)
-
 	var re crypto.Sha256
 	err = rlp.DecodeBytes(buf, &re)
 	assert.NoError(t, err)
@@ -264,12 +264,12 @@ func TestPub(t *testing.T) {
 		A.WhiteList.AddItem(val)
 	}
 	bytes, err := rlp.EncodeToBytes(A)
-	fmt.Println(bytes, err)
+	assert.NoError(t, err)
 
 	B := TreeSetPub{}
 	B.WhiteList = *treeset.NewWith(ecc.TypePubKey, ecc.ComparePubKey)
 	err = rlp.DecodeBytes(bytes, &B)
-
+	assert.NoError(t, err)
 	fmt.Println(B.WhiteList.Values(), err)
 }
 
@@ -414,4 +414,42 @@ func TestTreeMap(t *testing.T) {
 	json1, _ := tree.ProducerToLastProduced.ToJSON()
 	json2, _ := tree2.ProducerToLastProduced.ToJSON()
 	assert.Equal(t, json1, json2)
+}
+
+var AccountNameUint32MapBytes = []byte{90, 91, 123, 34, 107, 101, 121, 34, 58, 34, 101, 111, 115, 105, 111, 34, 44, 34, 118, 97, 108, 34, 58, 49, 48, 48, 125, 44, 123, 34, 107, 101, 121, 34, 58, 34, 101, 111, 115, 105, 111, 46, 108, 108, 108, 108, 108, 108, 34, 44, 34, 118, 97, 108, 34, 58, 57, 57, 125, 44, 123, 34, 107, 101, 121, 34, 58, 34, 101, 111, 115, 105, 111, 46, 116, 111, 107, 101, 110, 34, 44, 34, 118, 97, 108, 34, 58, 57, 57, 125, 93}
+
+func TestAccountNameUint32Map(t *testing.T) {
+	type BlockHead struct {
+		NewProducerToLastProduced *types.AccountNameUint32Map
+	}
+	var a BlockHead
+
+	a.NewProducerToLastProduced = types.NewAccountNameUint32Map()
+	a.NewProducerToLastProduced.Put(common.N("eosio"), 100)
+	a.NewProducerToLastProduced.Put(common.N("eosio.token"), 99)
+	a.NewProducerToLastProduced.Put(common.N("eosio.llllll"), 99)
+	jsonree, _ := a.NewProducerToLastProduced.ToJSON()
+	fmt.Println("*****:  ", jsonree)
+	bytes, err := rlp.EncodeToBytes(a)
+	fmt.Println(bytes, err)
+	//
+	//fmt.Printf("%v", bytes)
+	//var str string
+	//for i := 0; i < len(bytes); i++ {
+	//	str1 := fmt.Sprintf("%d,", bytes[i])
+	//	str = str + str1
+	//	fmt.Println(str)
+	//}
+
+	//fmt.Println(str)
+	//var test types.AccountNameUint32Map
+	//test = *types.NewAccountNameUint32Map()
+	//err = rlp.DecodeBytes(bytes,&test)
+	//fmt.Println("end:",err,test)
+
+	var test BlockHead
+	test.NewProducerToLastProduced = types.NewAccountNameUint32Map()
+	err = rlp.DecodeBytes(bytes, &test)
+	fmt.Println("end:", err, test)
+
 }

@@ -152,7 +152,7 @@ func (b *BlockHeaderState) SetNewProducers(pending SharedProducerScheduleType) {
 	EosAssert(len(b.PendingSchedule.Producers) == 0, &ProducerScheduleException{},
 		"cannot set new pending producers until last pending is confirmed")
 	b.Header.NewProducers = &pending
-	b.PendingScheduleHash = crypto.Hash256(*b.Header.NewProducers)
+	b.PendingScheduleHash = *crypto.Hash256(*b.Header.NewProducers)
 	b.PendingSchedule = *b.Header.NewProducers.ProducerScheduleType()
 	b.PendingScheduleLibNum = b.BlockNum
 }
@@ -234,7 +234,7 @@ func (b *BlockHeaderState) SetConfirmed(numPrevBlocks uint16) {
 func (b *BlockHeaderState) SigDigest() crypto.Sha256 {
 	headerBmroot := crypto.Hash256(common.MakePair(b.Header.Digest(), b.BlockrootMerkle.GetRoot()))
 	digest := crypto.Hash256(common.MakePair(headerBmroot, b.PendingScheduleHash))
-	return digest
+	return *digest
 }
 
 func (b *BlockHeaderState) Sign(signer func(sha256 crypto.Sha256) ecc.Signature) {

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"github.com/eosspark/container/maps/treemap"
 	"github.com/eosspark/container/sets/treeset"
+	"github.com/eosspark/container/templates"
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/exception"
 	"github.com/eosspark/eos-go/exception/try"
@@ -33,7 +34,6 @@ type Encoder struct {
 	vuint32 bool
 	vint32  bool
 	asset   bool
-	//eosArray    bool
 }
 
 var (
@@ -87,7 +87,8 @@ func (e *Encoder) Encode(v interface{}) (err error) {
 		return e.WritePublicKey(cv)
 	case ecc.Signature:
 		return e.WriteSignature(cv)
-
+	case templates.Container:
+		return e.WriteContains(cv)
 	case treeset.Set:
 		return e.WriteSet(cv)
 	case *treeset.Set:
@@ -104,6 +105,8 @@ func (e *Encoder) Encode(v interface{}) (err error) {
 		return e.WriteMultiSet(*cv)
 	case nil:
 		return
+		//default:
+		//	fmt.Println(reflect.TypeOf(v))
 	}
 
 	rv := reflect.Indirect(reflect.ValueOf(v))
@@ -152,12 +155,7 @@ func (e *Encoder) Encode(v interface{}) (err error) {
 	case reflect.Array:
 		l := t.Len()
 		try.EosAssert(l <= MAX_NUM_ARRAY_ELEMENT, &exception.AssertException{}, "the length of array is too big")
-		//if !e.eosArray {
-		//	if err = e.WriteUVarInt(l); err != nil {
-		//		return
-		//	}
-		//}
-		//e.eosArray = false //normal array like [4]int need length of array
+
 		for i := 0; i < l; i++ {
 			if err = e.Encode(rv.Index(i).Interface()); err != nil {
 				return
@@ -367,6 +365,18 @@ func (e *Encoder) WriteSignature(s ecc.Signature) (err error) {
 	}
 
 	return e.toWriter(s.Content) // should write 65 bytes
+}
+
+func (e *Encoder) WriteContains(c templates.Container) (err error) {
+	jsonBytes, err := c.MarshalJSON()
+	if err != nil {
+		return err
+	}
+
+	if err = e.WriteUVarInt(len(jsonBytes)); err != nil {
+		return
+	}
+	return e.toWriter(jsonBytes)
 }
 
 func (e *Encoder) WriteSet(t treeset.Set) (err error) {

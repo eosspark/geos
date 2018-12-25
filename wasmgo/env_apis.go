@@ -1597,7 +1597,7 @@ func memmove(vm *VM) {
 
 	w.ilog.Debug("dest:%d src:%d length:%d ", dest, src, length)
 
-	//EosAssert(abs(dest-src) >= length, &OverlappingMemoryError{}, "memove with overlapping memeory")
+	//EosAssert(abs(dest-src) >= length, &OverlappingMemoryError{}, "memmove with overlapping memory")
 	copy(vm.Memory()[dest:dest+length], vm.Memory()[src:src+length])
 	vm.pushUint64(uint64(dest))
 

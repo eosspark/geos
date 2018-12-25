@@ -30,7 +30,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/davecgh/go-spew/spew"
 	"github.com/eosspark/eos-go/log"
 )
 
@@ -94,7 +93,9 @@ func TestClientBatchRequest(t *testing.T) {
 		},
 	}
 	if !reflect.DeepEqual(batch, wantResult) {
-		t.Errorf("batch results mismatch:\ngot %swant %s", spew.Sdump(batch), spew.Sdump(wantResult))
+		t.Errorf("batch results mismatch:\ngot %swant %s", batch, wantResult)
+
+		//t.Errorf("batch results mismatch:\ngot %swant %s", spew.Sdump(batch), spew.Sdump(wantResult))
 	}
 }
 

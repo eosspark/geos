@@ -57,7 +57,7 @@ func (h Sha1) String() string {
 	return hex.EncodeToString(h.Bytes())
 }
 
-func Hash1(t interface{}) Sha1 {
+func Hash1(t interface{}) *Sha1 {
 	cereal, err := rlp.EncodeToBytes(t)
 	if err != nil {
 		panic(err)
@@ -71,7 +71,7 @@ func Hash1(t interface{}) Sha1 {
 		result.Hash[i] = binary.LittleEndian.Uint32(hashed[i*4 : (i+1)*4])
 	}
 
-	return result
+	return &result
 }
 
 func (h Sha1) MarshalJSON() ([]byte, error) {

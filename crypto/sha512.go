@@ -48,7 +48,7 @@ func NewSha512Byte(bytes []byte) *Sha512 {
 	return result
 }
 
-func Hash512(t interface{}) Sha512 {
+func Hash512(t interface{}) *Sha512 {
 	cereal, err := rlp.EncodeToBytes(t)
 	if err != nil {
 		panic(err)
@@ -57,7 +57,7 @@ func Hash512(t interface{}) Sha512 {
 	_, _ = h.Write(cereal)
 	hashed := h.Sum(nil)
 
-	result := Sha512{}
+	result := &Sha512{}
 	for i := range result.Hash {
 		result.Hash[i] = binary.LittleEndian.Uint64(hashed[i*8 : (i+1)*8])
 	}
