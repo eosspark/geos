@@ -374,20 +374,35 @@ func TestFloat64Bitwise(t *testing.T) {
 	})
 }
 
-//var i32_overflow_wast string = "(module
-//  (import \"env\" \"require_auth\" (func $require_auth (param i64)))
-//  (import "env" "eosio_assert" (func $eosio_assert (param i32 i32)))
-//   (table 0 anyfunc)
-//   (memory $0 1)
-//   (export \"apply\" (func $apply))
-//   (func $i32_trunc_s_f32 (param $0 f32) (result i32) (i32.trunc_s/f32 (get_local $0)))
-//   (func $i32_trunc_u_f32 (param $0 f32) (result i32) (i32.trunc_u/f32 (get_local $0)))
-//   (func $i32_trunc_s_f64 (param $0 f64) (result i32) (i32.trunc_s/f64 (get_local $0)))
-//   (func $i32_trunc_u_f64 (param $0 f64) (result i32) (i32.trunc_u/f64 (get_local $0)))
-//   (func $test (param $0 i32))
-//   (func $apply (param $0 i64)(param $1 i64)(param $2 i64)
-//    (call $test (call $%s (%s)))
-//))"
+var i32_overflow_wast string = `(module
+ (import "env" "require_auth" (func $require_auth (param i64)))
+ (import "env" "eosio_assert" (func $eosio_assert (param i32 i32)))
+  (table 0 anyfunc)
+  (memory $0 1)
+  (export "apply" (func $apply))
+  (func $i32_trunc_s_f32 (param $0 f32) (result i32) (i32.trunc_s/f32 (get_local $0)))
+  (func $i32_trunc_u_f32 (param $0 f32) (result i32) (i32.trunc_u/f32 (get_local $0)))
+  (func $i32_trunc_s_f64 (param $0 f64) (result i32) (i32.trunc_s/f64 (get_local $0)))
+  (func $i32_trunc_u_f64 (param $0 f64) (result i32) (i32.trunc_u/f64 (get_local $0)))
+  (func $test (param $0 i32))
+  (func $apply (param $0 i64)(param $1 i64)(param $2 i64)
+   (call $test (call $%s (%s)))
+))`
+
+var i64_overflow_wast string = `(module
+  (import "env" "require_auth" (func $require_auth (param i64)))
+  (import "env" "eosio_assert" (func $eosio_assert (param i32 i32)))
+   (table 0 anyfunc)
+   (memory $0 1)
+   (export "apply" (func $apply))
+   (func $i64_trunc_s_f32 (param $0 f32) (result i64) (i64.trunc_s/f32 (get_local $0)))
+   (func $i64_trunc_u_f32 (param $0 f32) (result i64) (i64.trunc_u/f32 (get_local $0)))
+   (func $i64_trunc_s_f64 (param $0 f64) (result i64) (i64.trunc_s/f64 (get_local $0)))
+   (func $i64_trunc_u_f64 (param $0 f64) (result i64) (i64.trunc_u/f64 (get_local $0)))
+   (func $test (param $0 i64))
+   (func $apply (param $0 i64)(param $1 i64)(param $2 i64)
+    (call $test (call $%s (%s)))
+))`
 
 func wast2wasm(wast []uint8) []uint8 {
 	wastTmp := "wast_tmp.wast"
@@ -404,13 +419,20 @@ func wast2wasm(wast []uint8) []uint8 {
 }
 
 func TestF32F64overflow(t *testing.T) {
-	name := "test_contracts/i32_overflow.wast"
-	t.Run(filepath.Base(name), func(t *testing.T) {
-		code, err := ioutil.ReadFile(name)
-		if err != nil {
-			t.Fatal(err)
-		}
-		i32_overflow_wast := string(code)
+	//nameI32 := "test_contracts/i32_overflow.wast"
+	//nameI64 := "test_contracts/i64_overflow.wast"
+	t.Run("", func(t *testing.T) {
+		//code, err := ioutil.ReadFile(nameI32)
+		//if err != nil {
+		//	t.Fatal(err)
+		//}
+		//i32_overflow_wast := string(code)
+		//
+		//code, err = ioutil.ReadFile(nameI64)
+		//if err != nil {
+		//	t.Fatal(err)
+		//}
+		//i64_overflow_wast := string(code)
 
 		f_tests := common.N("f_tests")
 		b := newBaseTester(true, chain.SPECULATIVE)
@@ -459,7 +481,182 @@ func TestF32F64overflow(t *testing.T) {
 		// -2^31
 		assert.Equal(t, check(i32_overflow_wast, "i32_trunc_s_f32", "f32.const -2147483648"), true)
 		// the maximum value below -2^31 in IEEE float32
-		assert.Equal(t, check(i32_overflow_wast, "i32_trunc_s_f32", "f32.const -2147483904"), true)
+		assert.Equal(t, check(i32_overflow_wast, "i32_trunc_s_f32", "f32.const -2147483904"), false)
+
+		//// float32 => uint32
+		assert.Equal(t, check(i32_overflow_wast, "i32_trunc_u_f32", "f32.const 0"), true)
+		assert.Equal(t, check(i32_overflow_wast, "i32_trunc_u_f32", "f32.const -1"), false)
+		// max value below 2^32 in IEEE float32
+		assert.Equal(t, check(i32_overflow_wast, "i32_trunc_u_f32", "f32.const 4294967040"), true)
+		assert.Equal(t, check(i32_overflow_wast, "i32_trunc_u_f32", "f32.const 4294967296"), false)
+
+		//// double => int32
+		assert.Equal(t, check(i32_overflow_wast, "i32_trunc_s_f64", "f64.const 2147483648"), false)
+		assert.Equal(t, check(i32_overflow_wast, "i32_trunc_s_f64", "f64.const 2147483647"), true)
+		assert.Equal(t, check(i32_overflow_wast, "i32_trunc_s_f64", "f64.const -2147483648"), true)
+		assert.Equal(t, check(i32_overflow_wast, "i32_trunc_s_f64", "f64.const -2147483649"), false)
+
+		//// double => uint32
+		assert.Equal(t, check(i32_overflow_wast, "i32_trunc_u_f64", "f64.const 0"), true)
+		assert.Equal(t, check(i32_overflow_wast, "i32_trunc_u_f64", "f64.const -1"), false)
+		assert.Equal(t, check(i32_overflow_wast, "i32_trunc_u_f64", "f64.const 4294967295"), true)
+		assert.Equal(t, check(i32_overflow_wast, "i32_trunc_u_f64", "f64.const 4294967296"), false)
+
+		//// float32 => int64
+		// 2^63
+		assert.Equal(t, check(i64_overflow_wast, "i64_trunc_s_f32", "f32.const 9223372036854775808"), false)
+		// the maximum value below 2^63 representable in IEEE float32
+		assert.Equal(t, check(i64_overflow_wast, "i64_trunc_s_f32", "f32.const 922337148709896192"), true)
+		// -2^63
+		assert.Equal(t, check(i64_overflow_wast, "i64_trunc_s_f32", "f32.const -9223372036854775808"), true)
+		// the maximum value below -2^63 in IEEE float32
+		assert.Equal(t, check(i64_overflow_wast, "i64_trunc_s_f32", "f32.const -9223373136366403584"), false)
+
+		//// float32 => uint64
+		assert.Equal(t, check(i64_overflow_wast, "i64_trunc_u_f32", "f32.const -1"), false)
+		assert.Equal(t, check(i64_overflow_wast, "i64_trunc_u_f32", "f32.const 0"), true)
+		// max value below 2^64 in IEEE float32
+		assert.Equal(t, check(i64_overflow_wast, "i64_trunc_u_f32", "f32.const 18446742974197923840"), true)
+		assert.Equal(t, check(i64_overflow_wast, "i64_trunc_u_f32", "f32.const 18446744073709551616"), false)
+
+		//// double => int64
+		// 2^63
+		assert.Equal(t, check(i64_overflow_wast, "i64_trunc_s_f64", "f32.const 9223372036854775808"), false)
+		// the maximum value below 2^63 representable in IEEE float64
+		assert.Equal(t, check(i64_overflow_wast, "i64_trunc_s_f64", "f32.const 9223372036854774784"), true)
+		// -2^63
+		assert.Equal(t, check(i64_overflow_wast, "i64_trunc_s_f64", "f64.const -9223372036854775808"), true)
+		// the maximum value below -2^63 in IEEE float64
+		assert.Equal(t, check(i64_overflow_wast, "i64_trunc_s_f64", "f64.const -9223372036854777856"), false)
+
+		//// double => uint64
+		assert.Equal(t, check(i64_overflow_wast, "i64_trunc_u_f64", "f64.const -1"), false)
+		assert.Equal(t, check(i64_overflow_wast, "i64_trunc_u_f64", "f64.const 0"), true)
+		// max value below 2^64 in IEEE float64
+		assert.Equal(t, check(i64_overflow_wast, "i64_trunc_u_f64", "f64.const 18446744073709549568"), true)
+		assert.Equal(t, check(i64_overflow_wast, "i64_trunc_u_f64", "f64.const 18446744073709551616"), false)
+
+		b.close()
+
+	})
+}
+
+var aligned_ref_wast string = `(module
+ (import "env" "sha256" (func $sha256 (param i32 i32 i32)))
+ (table 0 anyfunc)
+ (memory $0 32)
+ (data (i32.const 4) "hello")
+ (export "apply" (func $apply))
+ (func $apply (param $0 i64) (param $1 i64) (param $2 i64)
+  (call $sha256
+   (i32.const 4)
+   (i32.const 5)
+   (i32.const 16)
+  )
+ )
+)`
+
+var aligned_const_ref_wast string = `(module
+ (import "env" "sha256" (func $sha256 (param i32 i32 i32)))
+ (import "env" "assert_sha256" (func $assert_sha256 (param i32 i32 i32)))
+ (table 0 anyfunc)
+ (memory $0 32)
+ (data (i32.const 4) "hello")
+ (export "apply" (func $apply))
+ (func $apply (param $0 i64) (param $1 i64) (param $2 i64)
+  (local $3 i32)
+  (call $sha256
+   (i32.const 4)
+   (i32.const 5)
+   (i32.const 16)
+  )
+  (call $assert_sha256
+   (i32.const 4)
+   (i32.const 5)
+   (i32.const 16)
+  )
+ )
+)`
+
+var misaligned_ref_wast string = `(module
+ (import "env" "sha256" (func $sha256 (param i32 i32 i32)))
+ (table 0 anyfunc)
+ (memory $0 32)
+ (data (i32.const 4) "hello")
+ (export "apply" (func $apply))
+ (func $apply (param $0 i64) (param $1 i64) (param $2 i64)
+  (call $sha256
+   (i32.const 4)
+   (i32.const 5)
+   (i32.const 5)
+  )
+ )
+)`
+
+var misaligned_const_ref_wast string = `(module
+ (import "env" "sha256" (func $sha256 (param i32 i32 i32)))
+ (import "env" "assert_sha256" (func $assert_sha256 (param i32 i32 i32)))
+ (import "env" "memmove" (func $memmove (param i32 i32 i32) (result i32)))
+ (table 0 anyfunc)
+ (memory $0 32)
+ (data (i32.const 4) "hello")
+ (export "apply" (func $apply))
+ (func $apply (param $0 i64) (param $1 i64) (param $2 i64)
+  (local $3 i32)
+  (call $sha256
+   (i32.const 4)
+   (i32.const 5)
+   (i32.const 16)
+  )
+  (set_local $3
+   (call $memmove
+    (i32.const 17)
+    (i32.const 16)
+    (i32.const 64) 
+   )
+  )
+  (call $assert_sha256
+   (i32.const 4)
+   (i32.const 5)
+   (i32.const 17)
+  )
+ )
+)`
+
+func TestMisaligned(t *testing.T) {
+	t.Run("", func(t *testing.T) {
+		aligncheck := common.N("aligncheck")
+		b := newBaseTester(true, chain.SPECULATIVE)
+		b.CreateAccounts([]common.AccountName{aligncheck}, false, true)
+		b.ProduceBlocks(1, false)
+
+		checkAligned := func(wast string) {
+
+			wasm := wast2wasm([]byte(wast))
+			b.SetCode(aligncheck, wasm, nil)
+			b.ProduceBlocks(10, false)
+
+			trx := types.SignedTransaction{}
+			act := types.Action{
+				Account:       aligncheck,
+				Name:          common.N(""),
+				Authorization: []types.PermissionLevel{{aligncheck, common.DefaultConfig.ActiveName}}}
+			trx.Actions = append(trx.Actions, &act)
+			b.SetTransactionHeaders(&trx.Transaction, b.DefaultExpirationDelta, 0)
+
+			privKey := b.getPrivateKey(aligncheck, "active")
+			chainId := b.Control.GetChainId()
+			trx.Sign(&privKey, &chainId)
+			b.PushTransaction(&trx, common.MaxTimePoint(), b.DefaultBilledCpuTimeUs)
+			b.ProduceBlocks(1, false)
+			trxId := trx.ID()
+			assert.Equal(t, b.ChainHasTransaction(&trxId), true)
+		}
+
+		checkAligned(aligned_ref_wast)
+		checkAligned(misaligned_ref_wast)
+		checkAligned(aligned_const_ref_wast)
+		checkAligned(misaligned_const_ref_wast)
 
 		b.close()
 
