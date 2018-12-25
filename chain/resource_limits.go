@@ -4,13 +4,12 @@ import (
 	"github.com/eosspark/container/sets/treeset"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
-	"github.com/eosspark/eos-go/common/arithmetic_types"
+	"github.com/eosspark/eos-go/common/eos_math"
 	"github.com/eosspark/eos-go/database"
 	"github.com/eosspark/eos-go/entity"
 	. "github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/log"
-	"math"
 )
 
 type ResourceLimitsManager struct {
@@ -142,11 +141,11 @@ func (r *ResourceLimitsManager) AddTransactionUsage(account *treeset.Set, cpuUsa
 
 		if cpuWeight >= 0 && state.TotalCpuWeight > 0 {
 			windowSize := uint64(config.AccountCpuUsageAverageWindow)
-			virtualNetworkCapacityInWindow := arithmeticTypes.MulUint64(state.VirtualCpuLimit, windowSize)
-			cpuUsedInWindow := arithmeticTypes.MulUint64(usage.CpuUsage.ValueEx, windowSize)
-			cpuUsedInWindow, _ = cpuUsedInWindow.Div(arithmeticTypes.Uint128{Low: uint64(common.DefaultConfig.RateLimitingPrecision)})
-			userWeight := arithmeticTypes.Uint128{Low: uint64(cpuWeight)}
-			allUserWeight := arithmeticTypes.Uint128{Low: state.TotalCpuWeight}
+			virtualNetworkCapacityInWindow := eos_math.MulUint64(state.VirtualCpuLimit, windowSize)
+			cpuUsedInWindow := eos_math.MulUint64(usage.CpuUsage.ValueEx, windowSize)
+			cpuUsedInWindow, _ = cpuUsedInWindow.Div(eos_math.Uint128{Low: uint64(common.DefaultConfig.RateLimitingPrecision)})
+			userWeight := eos_math.Uint128{Low: uint64(cpuWeight)}
+			allUserWeight := eos_math.Uint128{Low: state.TotalCpuWeight}
 
 			maxUserUseInWindow := virtualNetworkCapacityInWindow.Mul(userWeight)
 			maxUserUseInWindow, _ = maxUserUseInWindow.Div(allUserWeight)
@@ -157,11 +156,11 @@ func (r *ResourceLimitsManager) AddTransactionUsage(account *treeset.Set, cpuUsa
 
 		if netWeight >= 0 && state.TotalNetWeight > 0 {
 			windowSize := uint64(config.AccountNetUsageAverageWindow)
-			virtualNetworkCapacityInWindow := arithmeticTypes.MulUint64(state.VirtualNetLimit, windowSize)
-			netUsedInWindow := arithmeticTypes.MulUint64(usage.NetUsage.ValueEx, windowSize)
-			netUsedInWindow, _ = netUsedInWindow.Div(arithmeticTypes.Uint128{Low: uint64(common.DefaultConfig.RateLimitingPrecision)})
-			userWeight := arithmeticTypes.Uint128{Low: uint64(netWeight)}
-			allUserWeight := arithmeticTypes.Uint128{Low: state.TotalNetWeight}
+			virtualNetworkCapacityInWindow := eos_math.MulUint64(state.VirtualNetLimit, windowSize)
+			netUsedInWindow := eos_math.MulUint64(usage.NetUsage.ValueEx, windowSize)
+			netUsedInWindow, _ = netUsedInWindow.Div(eos_math.Uint128{Low: uint64(common.DefaultConfig.RateLimitingPrecision)})
+			userWeight := eos_math.Uint128{Low: uint64(netWeight)}
+			allUserWeight := eos_math.Uint128{Low: state.TotalNetWeight}
 
 			maxUserUseInWindow := virtualNetworkCapacityInWindow.Mul(userWeight)
 			maxUserUseInWindow, _ = maxUserUseInWindow.Div(allUserWeight)
@@ -195,7 +194,7 @@ func (r *ResourceLimitsManager) AddPendingRamUsage(account common.AccountName, r
 		log.Error("AddPendingRamUsage is error: %s", err)
 	}
 
-	EosAssert(ramDelta <= 0 || math.MaxUint64-usage.RamUsage >= uint64(ramDelta), &TransactionException{},
+	EosAssert(ramDelta <= 0 || eos_math.MaxUint64-usage.RamUsage >= uint64(ramDelta), &TransactionException{},
 		"Ram usage delta would overflow UINT64_MAX")
 	EosAssert(ramDelta >= 0 || usage.RamUsage >= uint64(-ramDelta), &TransactionException{},
 		"Ram usage delta would underflow UINT64_MAX")
@@ -309,7 +308,7 @@ func (r *ResourceLimitsManager) ProcessAccountLimitUpdates() {
 		}
 
 		if pendingValue > 0 {
-			EosAssert(math.MaxUint64-*total >= uint64(pendingValue), &RateLimitingStateInconsistent{}, "overflow when applying new value to %s", debugWhich)
+			EosAssert(eos_math.MaxUint64-*total >= uint64(pendingValue), &RateLimitingStateInconsistent{}, "overflow when applying new value to %s", debugWhich)
 			*total += uint64(pendingValue)
 		}
 
@@ -464,22 +463,22 @@ func (r *ResourceLimitsManager) GetAccountCpuLimitEx(name common.AccountName, el
 
 	arl := types.AccountResourceLimit{}
 	windowSize := uint64(config.AccountCpuUsageAverageWindow)
-	virtualCpuCapacityInWindow := arithmeticTypes.Uint128{}
+	virtualCpuCapacityInWindow := eos_math.Uint128{}
 	if elastic {
-		virtualCpuCapacityInWindow = arithmeticTypes.MulUint64(state.VirtualCpuLimit, windowSize)
+		virtualCpuCapacityInWindow = eos_math.MulUint64(state.VirtualCpuLimit, windowSize)
 	} else {
-		virtualCpuCapacityInWindow = arithmeticTypes.MulUint64(config.CpuLimitParameters.Max, windowSize)
+		virtualCpuCapacityInWindow = eos_math.MulUint64(config.CpuLimitParameters.Max, windowSize)
 	}
-	userWeight := arithmeticTypes.Uint128{Low: uint64(cpuWeight)}
-	allUserWeight := arithmeticTypes.Uint128{Low: state.TotalCpuWeight}
+	userWeight := eos_math.Uint128{Low: uint64(cpuWeight)}
+	allUserWeight := eos_math.Uint128{Low: state.TotalCpuWeight}
 	maxUserUseInWindow := virtualCpuCapacityInWindow.Mul(userWeight)
 	maxUserUseInWindow, _ = maxUserUseInWindow.Div(allUserWeight)
 
 	//cpuUsedInWindow := IntegerDivideCeilUint64(              //TODO: ValueEx * windowSize may > MaxUnit64
 	//	usage.CpuUsage.ValueEx * windowSize,
 	//	uint64(common.DefaultConfig.RateLimitingPrecision))
-	cpuUsedInWindow := arithmeticTypes.MulUint64(usage.CpuUsage.ValueEx, windowSize)
-	cpuUsedInWindow, _ = cpuUsedInWindow.Div(arithmeticTypes.Uint128{Low: uint64(common.DefaultConfig.RateLimitingPrecision)})
+	cpuUsedInWindow := eos_math.MulUint64(usage.CpuUsage.ValueEx, windowSize)
+	cpuUsedInWindow, _ = cpuUsedInWindow.Div(eos_math.Uint128{Low: uint64(common.DefaultConfig.RateLimitingPrecision)})
 	if maxUserUseInWindow.Compare(cpuUsedInWindow) != 1 {
 		arl.Available = 0
 	} else {
@@ -524,22 +523,22 @@ func (r *ResourceLimitsManager) GetAccountNetLimitEx(name common.AccountName, el
 
 	arl := types.AccountResourceLimit{}
 	windowSize := uint64(config.AccountCpuUsageAverageWindow)
-	virtualNetworkCapacityInWindow := arithmeticTypes.Uint128{}
+	virtualNetworkCapacityInWindow := eos_math.Uint128{}
 	if elastic {
-		virtualNetworkCapacityInWindow = arithmeticTypes.MulUint64(state.VirtualNetLimit, windowSize)
+		virtualNetworkCapacityInWindow = eos_math.MulUint64(state.VirtualNetLimit, windowSize)
 	} else {
-		virtualNetworkCapacityInWindow = arithmeticTypes.MulUint64(config.CpuLimitParameters.Max, windowSize)
+		virtualNetworkCapacityInWindow = eos_math.MulUint64(config.CpuLimitParameters.Max, windowSize)
 	}
-	userWeight := arithmeticTypes.Uint128{Low: uint64(netWeight)}
-	allUserWeight := arithmeticTypes.Uint128{Low: state.TotalNetWeight}
+	userWeight := eos_math.Uint128{Low: uint64(netWeight)}
+	allUserWeight := eos_math.Uint128{Low: state.TotalNetWeight}
 
 	maxUserUseInWindow := virtualNetworkCapacityInWindow.Mul(userWeight)
 	maxUserUseInWindow, _ = maxUserUseInWindow.Div(allUserWeight)
 	//cpuUsedInWindow := IntegerDivideCeilUint64(              //TODO: ValueEx * windowSize may > MaxUnit64
 	//	usage.CpuUsage.ValueEx * windowSize,
 	//	uint64(common.DefaultConfig.RateLimitingPrecision))
-	netUsedInWindow := arithmeticTypes.MulUint64(usage.NetUsage.ValueEx, windowSize)
-	netUsedInWindow, _ = netUsedInWindow.Div(arithmeticTypes.Uint128{Low: uint64(common.DefaultConfig.RateLimitingPrecision)})
+	netUsedInWindow := eos_math.MulUint64(usage.NetUsage.ValueEx, windowSize)
+	netUsedInWindow, _ = netUsedInWindow.Div(eos_math.Uint128{Low: uint64(common.DefaultConfig.RateLimitingPrecision)})
 
 	if maxUserUseInWindow.Compare(netUsedInWindow) != 1 {
 		arl.Available = 0

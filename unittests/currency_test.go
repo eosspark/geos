@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"github.com/docker/docker/pkg/testutil/assert"
 	. "github.com/eosspark/eos-go/chain"
+	"github.com/eosspark/eos-go/chain/abi_serializer"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
-	"github.com/eosspark/eos-go/crypto/abi_serializer"
 	"github.com/eosspark/eos-go/exception"
 	"github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/log"
@@ -58,7 +58,7 @@ func NewCurrencyTester() *CurrencyTester {
 	}
 	cn := common.ActionName(common.N("create"))
 	result := ct.PushAction(&accountName, &cn, &createData)
-	log.Info("NewCurrencyTester push action issue:%#v", result.BlockNum)
+	log.Info("NewCurrencyTester push action issue:%v", result.BlockNum)
 	data := common.Variants{
 		"to":       eosioToken,
 		"quantity": "1000000.0000 EOS",
@@ -67,9 +67,9 @@ func NewCurrencyTester() *CurrencyTester {
 	in := common.ActionName(common.N("issue"))
 	result = ct.PushAction(&accountName, &in, &data)
 
-	log.Info("NewCurrencyTester push action issue::%#v", result.BlockNum)
+	log.Info("NewCurrencyTester push action issue::%v", result.BlockNum)
 	signedBlock := bt.DefaultProduceBlock()
-	log.Info("NewCurrencyTester produceBlock result:%#v", signedBlock.Producer)
+	log.Info("NewCurrencyTester produceBlock result:%v", signedBlock.Producer.String())
 	ct.validatingTester = bt
 	return ct
 }
@@ -109,7 +109,7 @@ func (c *CurrencyTester) Transfer(from *common.AccountName, to *common.AccountNa
 	return trace
 }
 
-func TestBootStrap(t *testing.T) {
+func TestBootstrap(t *testing.T) {
 	try.Try(func() {
 		ct := NewCurrencyTester()
 		s := "1000000.0000 EOS"
@@ -117,6 +117,7 @@ func TestBootStrap(t *testing.T) {
 		expected := asset.FromString(&s)
 		actionName := common.N(ct.eosioToken)
 		accountName := common.N(ct.eosioToken)
+
 		actual := ct.validatingTester.GetCurrencyBalance(&actionName, &expected.Symbol, &accountName)
 		assert.Equal(t, expected, actual)
 		ct.validatingTester.close()
@@ -140,7 +141,7 @@ func TestCurrencyTransfer(t *testing.T) {
 
 		s := "100.0000 EOS"
 		expected := common.Asset{}.FromString(&s)
-		fmt.Println("tmp code :", trace.ID)
+		fmt.Println("tmp code :%s,%v", trace.ID, ct.GetBalance(&alice))
 		assert.Equal(t, *ct.GetBalance(&alice), expected)
 		ct.validatingTester.close()
 	}).FcLogAndRethrow().End()
@@ -170,7 +171,7 @@ func TestDuplicateTransfer(t *testing.T) {
 		})
 
 		ct.validatingTester.DefaultProduceBlock()
-		log.Info("tmp code:", trace.BlockNum, expected)
+		log.Info("tmp code:%d,%v", trace.BlockNum, expected)
 		//assert.Equal(t, true, ct.validatingTester.ChainHasTransaction(&trace.ID))
 		//assert.Equal(t, ct.GetBalance(&alice), expected)
 		ct.validatingTester.close()
@@ -192,7 +193,7 @@ func TestAddTransfer(t *testing.T) {
 			"quantity": s,
 			"memo":     "fund Alice"}
 		trace := ct.PushAction(&eosioToken, &actionName, &data)
-		log.Info("tmp code:", trace.BlockNum, expected)
+		log.Info("tmp code:%d,%v", trace.BlockNum, expected)
 		ct.validatingTester.DefaultProduceBlock() //
 		//assert.Equal(t, true, ct.validatingTester.ChainHasTransaction(&trace.ID))
 		assert.Equal(t, *ct.GetBalance(&alice), expected)
@@ -237,7 +238,7 @@ func TestOverspend(t *testing.T) {
 			"quantity": s,
 			"memo":     "fund Alice"}
 		trace := ct.PushAction(&accountName, &actionName, &data)
-		log.Info("tmp code:", trace.BlockNum)
+		log.Info("tmp code:tmp code:%d,%v", trace.BlockNum)
 		ct.validatingTester.DefaultProduceBlock() //
 		//assert.Equal(t, true, ct.validatingTester.ChainHasTransaction(&trace.ID))
 		assert.Equal(t, *ct.GetBalance(&alice), expected)

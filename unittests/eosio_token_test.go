@@ -1,14 +1,11 @@
 package unittests
 
 import (
-	//"bytes"
-	//"encoding/hex"
 	"github.com/docker/docker/pkg/testutil/assert"
 	"github.com/eosspark/eos-go/chain"
+	"github.com/eosspark/eos-go/chain/abi_serializer"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
-	"github.com/eosspark/eos-go/crypto/abi_serializer"
-	//"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/eosspark/eos-go/entity"
 	"github.com/eosspark/eos-go/exception"
 	"github.com/eosspark/eos-go/exception/try"
@@ -16,7 +13,6 @@ import (
 	"io/ioutil"
 	"strings"
 	"testing"
-	//"unsafe"
 )
 
 type EosioTokenTester struct {

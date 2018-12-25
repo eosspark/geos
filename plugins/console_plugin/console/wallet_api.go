@@ -11,13 +11,13 @@ import (
 	"github.com/robertkrimen/otto"
 )
 
-type walletapi struct {
+type walletApi struct {
 	c   *Console
 	log log.Logger
 }
 
-func newWalletapi(c *Console) *walletapi {
-	w := &walletapi{
+func newWalletApi(c *Console) *walletApi {
+	w := &walletApi{
 		c: c,
 	}
 	w.log = log.New("eosgo")
@@ -25,7 +25,7 @@ func newWalletapi(c *Console) *walletapi {
 	return w
 }
 
-func (w *walletapi) CreateWallet(call otto.FunctionCall) (resonse otto.Value) {
+func (w *walletApi) CreateWallet(call otto.FunctionCall) (response otto.Value) {
 	walletName, err := call.Argument(0).ToString()
 	if err != nil {
 		return otto.UndefinedValue()
@@ -51,23 +51,23 @@ func (w *walletapi) CreateWallet(call otto.FunctionCall) (resonse otto.Value) {
 	return v
 }
 
-func (w *walletapi) OpenWallet(call otto.FunctionCall) (resonse otto.Value) {
+func (w *walletApi) OpenWallet(call otto.FunctionCall) (resonse otto.Value) {
 
 	v, _ := call.Otto.ToValue(nil)
 	return v
 }
-func (w *walletapi) ListWallets(call otto.FunctionCall) (resonse otto.Value) {
+func (w *walletApi) ListWallets(call otto.FunctionCall) (resonse otto.Value) {
 
 	v, _ := call.Otto.ToValue(nil)
 	return v
 }
-func (w *walletapi) ListKeys(call otto.FunctionCall) (resonse otto.Value) {
+func (w *walletApi) ListKeys(call otto.FunctionCall) (resonse otto.Value) {
 
 	v, _ := call.Otto.ToValue(nil)
 	return v
 }
 
-func (w *walletapi) GetPublicKeys(call otto.FunctionCall) (resonse otto.Value) {
+func (w *walletApi) GetPublicKeys(call otto.FunctionCall) (resonse otto.Value) {
 	var resp []string
 	err := DoHttpCall(&resp, common.WalletPublicKeys, nil)
 	if err != nil {
@@ -76,23 +76,23 @@ func (w *walletapi) GetPublicKeys(call otto.FunctionCall) (resonse otto.Value) {
 	v, _ := call.Otto.ToValue(resp)
 	return v
 }
-func (w *walletapi) LockWallet(call otto.FunctionCall) (resonse otto.Value) {
+func (w *walletApi) LockWallet(call otto.FunctionCall) (resonse otto.Value) {
 
 	v, _ := call.Otto.ToValue(nil)
 	return v
 }
-func (w *walletapi) LockAllWallet(call otto.FunctionCall) (resonse otto.Value) {
+func (w *walletApi) LockAllWallet(call otto.FunctionCall) (resonse otto.Value) {
 
 	v, _ := call.Otto.ToValue(nil)
 	return v
 }
-func (w *walletapi) UnlockWallet(call otto.FunctionCall) (resonse otto.Value) {
+func (w *walletApi) UnlockWallet(call otto.FunctionCall) (resonse otto.Value) {
 
 	v, _ := call.Otto.ToValue(nil)
 	return v
 }
 
-func (w *walletapi) ImportKey(call otto.FunctionCall) (resonse otto.Value) {
+func (w *walletApi) ImportKey(call otto.FunctionCall) (resonse otto.Value) {
 	walletName, err := call.Argument(0).ToString()
 	if err != nil {
 		return otto.UndefinedValue()
@@ -115,17 +115,17 @@ func (w *walletapi) ImportKey(call otto.FunctionCall) (resonse otto.Value) {
 	v, _ := call.Otto.ToValue(fmt.Sprintf("imported private key for: %s", walletKey.PublicKey().String()))
 	return v
 }
-func (w *walletapi) RemoveKey(call otto.FunctionCall) (resonse otto.Value) {
+func (w *walletApi) RemoveKey(call otto.FunctionCall) (resonse otto.Value) {
 
 	v, _ := call.Otto.ToValue(nil)
 	return v
 }
-func (w *walletapi) CreateKeyByWallet(call otto.FunctionCall) (resonse otto.Value) {
+func (w *walletApi) CreateKeyByWallet(call otto.FunctionCall) (resonse otto.Value) {
 
 	v, _ := call.Otto.ToValue(nil)
 	return v
 }
-func (w *walletapi) SignTransaction(call otto.FunctionCall) (resonse otto.Value) {
+func (w *walletApi) SignTransaction(call otto.FunctionCall) (resonse otto.Value) {
 	fmt.Println("sign transaction")
 
 	trxJsonToSign, err := call.Argument(0).ToString()

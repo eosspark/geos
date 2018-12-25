@@ -57,7 +57,6 @@ func FileExist(filePath string) bool {
 	if err != nil && os.IsNotExist(err) {
 		return false
 	}
-
 	return true
 }
 

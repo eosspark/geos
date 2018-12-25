@@ -115,7 +115,7 @@ func (c *Console) init(preload []string) (err error) {
 
 	c.jsre.Bind("chain", chain)
 
-	wallet := newWalletapi(c)
+	wallet := newWalletApi(c)
 	c.jsre.Bind("wallet", wallet)
 	//c.jsre.Set("createKey", eos.CreateKey)
 	//c.jsre.Set("wallet", struct{}{})

@@ -8,6 +8,7 @@ import (
 	"github.com/eosspark/eos-go/plugins/chain_api_plugin"
 	"github.com/eosspark/eos-go/plugins/chain_plugin"
 	"github.com/eosspark/eos-go/plugins/http_plugin"
+	"github.com/eosspark/eos-go/plugins/net_api_plugin"
 	"github.com/eosspark/eos-go/plugins/producer_plugin"
 	"github.com/eosspark/eos-go/plugins/wallet_api_plugin"
 	"github.com/eosspark/eos-go/plugins/wallet_plugin"
@@ -42,6 +43,7 @@ func main() {
 			chain_api_plugin.ChainAPiPlug,
 			wallet_api_plugin.WalletApiPlug,
 			wallet_plugin.WalletPlug,
+			net_api_plugin.NetApiPlug,
 
 			//console_plugin.ConsolePlug,
 			//net_plugin.NetPlug,
