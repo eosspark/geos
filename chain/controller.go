@@ -417,8 +417,10 @@ func (c *Controller) startBlock(when types.BlockTimeStamp, confirmBlockCount uin
 
 	EosAssert(c.Pending == nil, &BlockValidateException{}, "pending block already exists")
 	defer func() {
-		if c.Pending.PendingValid {
-			c.Pending = c.Pending.Reset()
+		if c.Pending != nil {
+			if c.Pending.PendingValid {
+				c.Pending = c.Pending.Reset()
+			}
 		}
 	}()
 	if !c.SkipDbSession(s) {

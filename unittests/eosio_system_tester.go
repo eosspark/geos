@@ -33,18 +33,18 @@ func initEosioSystemTester() *EosioSystemTester {
 	e := newEosioSystemTester(true, SPECULATIVE)
 
 	e.ProduceBlocks(2, false)
-	e.CreateAccounts([]common.AccountName{common.N("eosio.token"), common.N("eosio.ram"), common.N("eosio.ramfee"), common.N("eosio.stake"),
-		common.N("eosio.bpay"), common.N("eosio.vpay"), common.N("eosio.saving")}, false, true)
+	e.CreateAccounts([]common.AccountName{eosioToken, eosioRam, eosioRamFee, eosioStake,
+		eosioBpay, eosioVpay, eosioSaving}, false, true)
 	e.ProduceBlocks(100, false)
 
 	//eosio.token
 	wasmName := "test_contracts/eosio.token.wasm"
 	code, _ := ioutil.ReadFile(wasmName)
-	e.SetCode(common.N("eosio.token"), code, nil)
+	e.SetCode(eosioToken, code, nil)
 	abiName := "test_contracts/eosio.token.abi"
 	abi, _ := ioutil.ReadFile(abiName)
-	e.SetAbi(common.N("eosio.token"), abi, nil)
-	accnt := entity.AccountObject{Name: common.N("eosio.token")}
+	e.SetAbi(eosioToken, abi, nil)
+	accnt := entity.AccountObject{Name: eosioToken}
 	e.Control.DB.Find("byName", accnt, &accnt)
 	abiDef := abi_serializer.AbiDef{}
 	if !abi_serializer.ToABI(accnt.Abi, &abiDef) {
@@ -52,10 +52,10 @@ func initEosioSystemTester() *EosioSystemTester {
 	}
 	//TODO
 	//e.tokenAbiSer.SetAbi(&abiDef,&e.AbiSerializerMaxTime)
-	e.CreateCurrency(common.N("eosio.token"), common.DefaultConfig.SystemAccountName, CoreFromString("10000000000.0000"))
-	e.Issue(common.DefaultConfig.SystemAccountName, CoreFromString("10000000000.0000"), common.DefaultConfig.SystemAccountName)
-	currencyBalance := e.GetBalance(common.N("eosio"))
-	expectedBalance := CoreFromString("10000000000.0000")
+	e.CreateCurrency(eosioToken, common.DefaultConfig.SystemAccountName, CoreFromString("10000000000.0000"))
+	e.Issue(common.DefaultConfig.SystemAccountName, CoreFromString("1000000000.0000"), common.DefaultConfig.SystemAccountName)
+	currencyBalance := e.GetBalance(eosio)
+	expectedBalance := CoreFromString("1000000000.0000")
 	if currencyBalance != expectedBalance {
 		log.Error("error, initEosioSystemTester failed")
 	}
@@ -63,12 +63,12 @@ func initEosioSystemTester() *EosioSystemTester {
 	//eosio.system
 	wasmName = "test_contracts/eosio.system.wasm"
 	code, _ = ioutil.ReadFile(wasmName)
-	e.SetCode(common.N("eosio"), code, nil)
+	e.SetCode(eosio, code, nil)
 	abiName = "test_contracts/eosio.system.abi"
 	abi, _ = ioutil.ReadFile(abiName)
-	e.SetAbi(common.N("eosio"), abi, nil)
+	e.SetAbi(eosio, abi, nil)
 
-	accnt = entity.AccountObject{Name: common.N("eosio")}
+	accnt = entity.AccountObject{Name: eosio}
 	e.Control.DB.Find("byName", accnt, &accnt)
 	abiDef = abi_serializer.AbiDef{}
 	if !abi_serializer.ToABI(accnt.Abi, &abiDef) {
@@ -80,7 +80,7 @@ func initEosioSystemTester() *EosioSystemTester {
 	e.ProduceBlocks(1, false)
 
 	e.CreateAccountWithResources(
-		common.N("alice1111111"),
+		alice,
 		common.DefaultConfig.SystemAccountName,
 		CoreFromString("1.0000"),
 		false,
@@ -88,7 +88,7 @@ func initEosioSystemTester() *EosioSystemTester {
 		CoreFromString("10.0000"),
 	)
 	e.CreateAccountWithResources(
-		common.N("bob111111111"),
+		bob,
 		common.DefaultConfig.SystemAccountName,
 		CoreFromString("0.4500"),
 		false,
@@ -96,15 +96,15 @@ func initEosioSystemTester() *EosioSystemTester {
 		CoreFromString("10.0000"),
 	)
 	e.CreateAccountWithResources(
-		common.N("carol1111111"),
+		carol,
 		common.DefaultConfig.SystemAccountName,
 		CoreFromString("1.0000"),
 		false,
 		CoreFromString("10.0000"),
 		CoreFromString("10.0000"),
 	)
-	if CoreFromString("10000000000.0000").Amount != e.GetBalance(common.N("eosio")).Amount+e.GetBalance(common.N("eosio.ramfee")).Amount+
-		e.GetBalance(common.N("eosio.stake")).Amount+e.GetBalance(common.N("eosio.ram")).Amount {
+	if CoreFromString("1000000000.0000").Amount != e.GetBalance(eosio).Amount+e.GetBalance(eosioRamFee).Amount+
+		e.GetBalance(eosioStake).Amount+e.GetBalance(eosioRam).Amount {
 		log.Error("error")
 	}
 	return e
@@ -147,7 +147,7 @@ func (e EosioSystemTester) CreateAccountWithResources(name common.AccountName, c
 		"quant":    ramFunds,
 	}
 	buyRam := e.GetAction(
-		common.N("eosio"),
+		eosio,
 		common.N("buyram"),
 		[]types.PermissionLevel{{creator, common.DefaultConfig.ActiveName}},
 		&buyRamData,
@@ -162,7 +162,7 @@ func (e EosioSystemTester) CreateAccountWithResources(name common.AccountName, c
 		"transfer":           0,
 	}
 	delegate := e.GetAction(
-		common.N("eosio"),
+		eosio,
 		common.N("delegatebw"),
 		[]types.PermissionLevel{{creator, common.DefaultConfig.ActiveName}},
 		&delegateData,
@@ -204,7 +204,7 @@ func (e EosioSystemTester) CreateAccountWithResources2(name common.AccountName, 
 		"bytes":    ramBytes,
 	}
 	buyRam := e.GetAction(
-		common.N("eosio"),
+		eosio,
 		common.N("buyrambytes"),
 		[]types.PermissionLevel{{creator, common.DefaultConfig.ActiveName}},
 		&buyRamBytesData,
@@ -219,7 +219,7 @@ func (e EosioSystemTester) CreateAccountWithResources2(name common.AccountName, 
 		"transfer":           0,
 	}
 	delegate := e.GetAction(
-		common.N("eosio"),
+		eosio,
 		common.N("delegatebw"),
 		[]types.PermissionLevel{{creator, common.DefaultConfig.ActiveName}},
 		&delegateData,
@@ -233,6 +233,16 @@ func (e EosioSystemTester) CreateAccountWithResources2(name common.AccountName, 
 	return e.PushTransaction(&trx, common.MaxTimePoint(), e.DefaultBilledCpuTimeUs)
 }
 
+func (e EosioSystemTester) BuyRam(payer common.AccountName, receiver common.AccountName, eosin common.Asset) ActionResult {
+	buyRam := common.Variants{
+		"payer":    payer,
+		"receiver": receiver,
+		"quant":    eosin,
+	}
+	act := common.N("buyram")
+	return e.EsPushAction(&payer, &act, &buyRam, true)
+}
+
 func (e EosioSystemTester) BuyRamBytes(payer common.AccountName, receiver common.AccountName, numBytes uint32) ActionResult {
 	buyRamBytes := common.Variants{
 		"payer":    payer,
@@ -243,18 +253,27 @@ func (e EosioSystemTester) BuyRamBytes(payer common.AccountName, receiver common
 	return e.EsPushAction(&payer, &act, &buyRamBytes, true)
 }
 
+func (e EosioSystemTester) SellRam(account common.AccountName, numBytes uint64) ActionResult{
+	sellRam := common.Variants{
+		"account": account,
+		"bytes":   numBytes,
+	}
+	act := common.N("sellram")
+	return e.EsPushAction(&account, &act, &sellRam, true)
+}
+
 func (e EosioSystemTester) EsPushAction(signer *common.AccountName, name *common.ActionName, data *common.Variants, auth bool) ActionResult {
 	var authorizer common.AccountName
 	if auth == true {
 		authorizer = *signer
 	} else {
-		if *signer == common.N("bob111111111") {
-			authorizer = common.N("alice1111111")
+		if *signer == bob {
+			authorizer = alice
 		} else {
-			authorizer = common.N("bob111111111")
+			authorizer = bob
 		}
 	}
-	act := e.GetAction(common.N("eosio"), *name, []types.PermissionLevel{}, data)
+	act := e.GetAction(eosio, *name, []types.PermissionLevel{}, data)
 	return e.PushAction(act, common.AccountName(authorizer))
 }
 
@@ -272,7 +291,7 @@ func (e EosioSystemTester) Stake(from common.AccountName, to common.AccountName,
 
 func (e EosioSystemTester) GetBalance(act common.AccountName) common.Asset {
 	PrimaryKey := uint64(CORE_SYMBOL.ToSymbolCode())
-	data := e.GetRowByAccount(uint64(common.N("eosio.token")), uint64(act), uint64(common.N("accounts")), PrimaryKey)
+	data := e.GetRowByAccount(uint64(eosioToken), uint64(act), uint64(common.N("accounts")), PrimaryKey)
 	if len(data) == 0 {
 		return common.Asset{Amount: 0, Symbol: CORE_SYMBOL}
 	} else {
@@ -289,7 +308,7 @@ func (e EosioSystemTester) GetTotalStake(act uint64) common.Variants {
 		CpuWeight common.Asset
 		RamBytes  int64
 	}
-	data := e.GetRowByAccount(uint64(common.N("eosio")), uint64(act), uint64(common.N("userres")), act)
+	data := e.GetRowByAccount(uint64(eosio), uint64(act), uint64(common.N("userres")), act)
 	if len(data) == 0 {
 		return common.Variants{}
 	} else {
@@ -324,10 +343,29 @@ func (e EosioSystemTester) Issue(to common.Name, amount common.Asset, manager co
 	act := common.Variants{
 		"to":       to,
 		"quantity": amount,
-		"memo":     "",
+		"memo":     "issue",
 	}
 	acttype := common.N("issue")
-	contract := common.N("eosio.token")
+	contract := eosioToken
+	e.PushAction2(
+		&contract,
+		&acttype,
+		manager,
+		&act,
+		e.DefaultExpirationDelta,
+		0,
+	)
+}
+
+func (e EosioSystemTester) Transfer(from common.Name, to common.Name, amount common.Asset, manager common.Name){
+	act := common.Variants{
+		"from":     from,
+		"to":       to,
+		"quantity": amount,
+		"memo":     "transfer",
+	}
+	acttype := common.N("transfer")
+	contract := eosioToken
 	e.PushAction2(
 		&contract,
 		&acttype,

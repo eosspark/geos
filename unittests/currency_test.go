@@ -2,7 +2,6 @@ package unittests
 
 import (
 	"encoding/json"
-	"fmt"
 	"github.com/docker/docker/pkg/testutil/assert"
 	. "github.com/eosspark/eos-go/chain"
 	"github.com/eosspark/eos-go/chain/abi_serializer"
@@ -141,7 +140,7 @@ func TestCurrencyTransfer(t *testing.T) {
 
 		s := "100.0000 EOS"
 		expected := common.Asset{}.FromString(&s)
-		fmt.Println("tmp code :%s,%v", trace.ID, ct.GetBalance(&alice))
+		log.Info("tmp code :%s,%v", trace.ID, ct.GetBalance(&alice))
 		assert.Equal(t, *ct.GetBalance(&alice), expected)
 		ct.validatingTester.close()
 	}).FcLogAndRethrow().End()
@@ -297,7 +296,6 @@ func TestFullspend(t *testing.T) {
 		trace2 := ct.PushAction(&alice, &actionName, &data2)
 		log.Info("trace2 id:%d", trace2.ID)
 		ct.validatingTester.DefaultProduceBlock()
-
 		s := "100.0000 EOS"
 		expected := common.Asset{}.FromString(&s)
 		assert.Equal(t, *ct.GetBalance(&bob), expected)
@@ -308,14 +306,120 @@ func TestFullspend(t *testing.T) {
 
 func TestSymbol(t *testing.T) {
 	{
+		dollar := common.Symbol{Precision: 2, Symbol: "DLLR"}
+		sy := "2,DLLR"
+		dollar2 := common.Symbol{}.FromString(&sy)
+		assert.Equal(t, dollar2, dollar)
+		assert.Equal(t, dollar.Decimals(), uint8(2))
+		assert.Equal(t, dollar.Name(), "DLLR")
+		assert.Equal(t, dollar.Valid(), true)
+	}
+	{
+		def := CORE_SYMBOL
+		assert.Equal(t, def.Decimals(), uint8(4))
+		assert.Equal(t, def.Name(), CORE_SYMBOL_NAME)
+	}
+	{
+		returning := false
+		try.Try(func() {
+			sy := ""
+			common.Symbol{}.FromString(&sy)
+		}).Catch(func(e exception.SymbolTypeException) {
+			returning = true
+		}).End()
+		if returning {
+			assert.Equal(t, true, returning)
+		}
+	}
+	{
+		returning := false
+		try.Try(func() {
+			sy := "RND"
+			common.Symbol{}.FromString(&sy)
+		}).Catch(func(e exception.SymbolTypeException) {
+			returning = true
+		}).End()
+		assert.Equal(t, true, returning)
+	}
+	{
+		returning := false
+		try.Try(func() {
+			sy := "6,EoS"
+			common.Symbol{}.FromString(&sy)
+		}).Catch(func(e exception.SymbolTypeException) {
 
+			returning = true
+		}).End()
+		assert.Equal(t, true, returning)
+	}
+	{
+		str := "10 CUR"
+		asset := common.Asset{}.FromString(&str)
+		assert.Equal(t, asset.Amount, int64(10))
+		assert.Equal(t, asset.Decimals(), uint8(0))
+		assert.Equal(t, asset.Symbol.Symbol, "CUR")
+	}
+	{
+		returning := false
+		try.Try(func() {
+			str := "10CUR"
+			common.Asset{}.FromString(&str)
+		}).Catch(func(e exception.AssetTypeException) {
+			returning = true
+		}).End()
+		assert.Equal(t, true, returning)
+	}
+	{
+		returning := false
+		try.Try(func() {
+			str := "10. CUR"
+			common.Asset{}.FromString(&str)
+		}).Catch(func(e exception.AssetTypeException) {
+			returning = true
+		}).End()
+		assert.Equal(t, true, returning)
+	}
+	{
+		returning := false
+		try.Try(func() {
+			str := "10"
+			common.Asset{}.FromString(&str)
+		}).Catch(func(e exception.AssetTypeException) {
+			returning = true
+		}).End()
+		assert.Equal(t, true, returning)
+	}
+	{
+		str := "-001000000.00010 CUR"
+		asset := common.Asset{}.FromString(&str)
+		assert.Equal(t, asset.Amount, int64(-100000000010))
+		assert.Equal(t, asset.Decimals(), uint8(5))
+		assert.Equal(t, asset.Symbol.Symbol, "CUR")
+		assert.Equal(t, asset.String(), "-1000000.00010 CUR")
+	}
+	{
+		str := "-000000000.00100 CUR"
+		asset := common.Asset{}.FromString(&str)
+		assert.Equal(t, asset.Amount, int64(-100))
+		assert.Equal(t, asset.Decimals(), uint8(5))
+		assert.Equal(t, asset.Symbol.Symbol, "CUR")
+		assert.Equal(t, asset.String(), "-0.00100 CUR")
+	}
+
+	{
+		str := "-0.0001 PPP"
+		asset := common.Asset{}.FromString(&str)
+		assert.Equal(t, asset.Amount, int64(-1))
+		assert.Equal(t, asset.Decimals(), uint8(4))
+		assert.Equal(t, asset.Symbol.Symbol, "PPP")
+		assert.Equal(t, asset.String(), "-0.0001 PPP")
 	}
 }
 
 func TestProxy(t *testing.T) {
 	try.Try(func() {
 		ct := NewCurrencyTester()
-		ct.validatingTester.ProduceBlocks(2, true)
+		ct.validatingTester.ProduceBlocks(2, false)
 		alice := common.N("alice")
 		proxy := common.N("proxy")
 		ct.validatingTester.CreateAccounts([]common.AccountName{alice, proxy}, false, true)
@@ -338,11 +442,46 @@ func TestProxy(t *testing.T) {
 				"delay": 10,
 			}
 
-			trace := ct.PushAction(&alice, &act.Name, &data)
-			fmt.Println(trace.ID)
-			ct.validatingTester.DefaultProduceBlock()
+			//trace := ct.validatingTester.PushAction(&alice, &act.Name, &data)
+			trace := ct.validatingTester.PushAction2(&proxy, &act.Name, alice, &data, ct.validatingTester.DefaultExpirationDelta, 0)
+			log.Info("TestProxy %d", trace.ID)
+			ct.validatingTester.ProduceBlocks(1, false)
 			//assert.Equal(t, true, trace.ID)
+			ct.validatingTester.ProduceBlocks(1, false)
+		}
+
+		{
+			act1 := types.Action{}
+			act1.Account = eosioToken
+			act1.Name = common.N("transfer")
+			act1.Authorization = []types.PermissionLevel{{eosioToken, common.DefaultConfig.ActiveName}}
+			data1 := common.Variants{
+				"from":     eosioToken,
+				"to":       proxy,
+				"quantity": "5.0000 EOS",
+				"memo":     "fund Proxy",
+			}
+
+			//trace1 := ct.PushAction(&eosioToken, &act1.Name, &data1)
+			trace1 := ct.validatingTester.PushAction2(&eosioToken, &act1.Name, eosioToken, &data1, ct.validatingTester.DefaultExpirationDelta, 0)
+			log.Info("TestProxy %d", trace1.ID)
+			tt := ct.validatingTester.Control.HeadBlockTime().SecSinceEpoch()
+			expectedDelivery := common.Seconds(int64(tt)) + common.Seconds(10)
+			s := "5.0000 EOS"
+			expected := common.Asset{}.FromString(&s)
+			s1 := "0.0000 EOS"
+			expected1 := common.Asset{}.FromString(&s1)
+			for ct.validatingTester.Control.HeadBlockTime().TimeSinceEpoch() < expectedDelivery {
+				ct.validatingTester.ProduceBlocks(1, false)
+				assert.Equal(t, *ct.GetBalance(&proxy), expected)
+				assert.Equal(t, *ct.GetBalance(&alice), expected1)
+			}
+			ct.validatingTester.ProduceBlocks(1, false)
+			assert.Equal(t, *ct.GetBalance(&proxy), expected1)
+			assert.Equal(t, *ct.GetBalance(&alice), expected)
+
 			ct.validatingTester.close()
 		}
+
 	}).FcLogAndRethrow().End()
 }
