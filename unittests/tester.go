@@ -21,6 +21,20 @@ import (
 
 var CORE_SYMBOL = common.Symbol{Precision: 4, Symbol: "SYS"}
 var CORE_SYMBOL_NAME = "SYS"
+var eosio = common.N("eosio")
+var eosioToken = common.N("eosio.token")
+var eosioRam = common.N("eosio.ram")
+var eosioRamFee = common.N("eosio.ramfee")
+var eosioStake = common.N("eosio.stake")
+var eosioBpay = common.N("eosio.bpay")
+var eosioVpay = common.N("eosio.vpay")
+var eosioSaving = common.N("eosio.saving")
+var alice = common.N("alice1111111")
+var bob = common.N("bob111111111")
+var carol = common.N("carol1111111")
+var test1 = common.N("testram11111")
+var test2 = common.N("testram22222")
+
 
 type ActionResult = string
 
@@ -72,7 +86,7 @@ func newConfig(readMode DBReadMode) *Config {
 
 	cfg.Genesis = types.NewGenesisState()
 	cfg.Genesis.InitialTimestamp, _ = common.FromIsoString("2020-01-01T00:00:00.000")
-	cfg.Genesis.InitialKey = BaseTester{}.getPublicKey(common.DefaultConfig.SystemAccountName, "active")
+	cfg.Genesis.InitialKey = BaseTester{}.getPublicKey(eosio, "active")
 
 	cfg.ActorWhitelist = *treeset.NewWith(common.TypeName, common.CompareName)
 	cfg.ActorBlacklist = *treeset.NewWith(common.TypeName, common.CompareName)
@@ -118,13 +132,13 @@ func (t BaseTester) pushGenesisBlock() {
 	if err != nil {
 		log.Error("pushGenesisBlock is err : %v", err)
 	}
-	t.SetCode(common.DefaultConfig.SystemAccountName, code, nil)
+	t.SetCode(eosio, code, nil)
 	abiName := "test_contracts/eosio.bios.abi"
 	abi, err := ioutil.ReadFile(abiName)
 	if err != nil {
 		log.Error("pushGenesisBlock is err : %v", err)
 	}
-	t.SetAbi(common.DefaultConfig.SystemAccountName, abi, nil)
+	t.SetAbi(eosio, abi, nil)
 }
 
 func (t BaseTester) ProduceBlocks(n uint32, empty bool) {
@@ -219,7 +233,7 @@ func (t BaseTester) SetTransactionHeaders(trx *types.Transaction, expiration uin
 func (t BaseTester) CreateAccounts(names []common.AccountName, multiSig bool, includeCode bool) []*types.TransactionTrace {
 	traces := make([]*types.TransactionTrace, len(names))
 	for i, n := range names {
-		traces[i] = t.CreateAccount(n, common.DefaultConfig.SystemAccountName, multiSig, includeCode)
+		traces[i] = t.CreateAccount(n, eosio, multiSig, includeCode)
 	}
 	return traces
 }
@@ -394,7 +408,7 @@ func (t BaseTester) GetAction(code common.AccountName, actType common.AccountNam
 
 func (t BaseTester) getPrivateKey(keyName common.Name, role string) ecc.PrivateKey {
 	pk := &ecc.PrivateKey{}
-	if keyName == common.DefaultConfig.SystemAccountName {
+	if keyName == eosio {
 		pk, _ = ecc.NewPrivateKey("5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3")
 	} else {
 		rawPrivKey := crypto.Hash256(keyName.String() + role).Bytes()
@@ -430,7 +444,7 @@ func (t BaseTester) PushReqAuth(from common.AccountName, auths *[]types.Permissi
 	ps := params{From: from}
 	data, _ := rlp.EncodeToBytes(ps)
 	act := types.Action{
-		Account:       common.DefaultConfig.SystemAccountName,
+		Account:       eosio,
 		Name:          common.ActionName(common.N("reqauth")),
 		Authorization: *auths,
 		Data:          data,
@@ -447,7 +461,7 @@ func (t BaseTester) PushReqAuth(from common.AccountName, auths *[]types.Permissi
 func (t BaseTester) PushReqAuth2(from common.AccountName, role string, multiSig bool) *types.TransactionTrace {
 	if multiSig {
 		auths := []types.PermissionLevel{{Actor: from, Permission: common.DefaultConfig.OwnerName}}
-		keys := []ecc.PrivateKey{t.getPrivateKey(from, role), t.getPrivateKey(common.DefaultConfig.SystemAccountName, "active")}
+		keys := []ecc.PrivateKey{t.getPrivateKey(from, role), t.getPrivateKey(eosio, "active")}
 		return t.PushReqAuth(from, &auths, &keys)
 	} else {
 		auths := []types.PermissionLevel{{Actor: from, Permission: common.DefaultConfig.OwnerName}}
@@ -748,8 +762,8 @@ func (t BaseTester) SyncWith(other *BaseTester) {
 }
 
 func (t BaseTester) PushGenesisBlock() {
-	t.SetCode2(common.DefaultConfig.SystemAccountName, nil, nil)
-	t.SetAbi(common.DefaultConfig.SystemAccountName, nil, nil)
+	t.SetCode2(eosio, nil, nil)
+	t.SetAbi(eosio, nil, nil)
 }
 
 func (t BaseTester) GetProducerKeys(producerNames *[]common.AccountName) []types.ProducerKey {
@@ -771,9 +785,9 @@ func (t BaseTester) SetProducers(producerNames *[]common.AccountName) *types.Tra
 	schedule := t.GetProducerKeys(producerNames)
 	actName := common.N("setprods")
 	return t.PushAction2(
-		&common.DefaultConfig.SystemAccountName,
+		&eosio,
 		&actName,
-		common.N("eosio"),
+		eosio,
 		&common.Variants{"schedule": schedule},
 		t.DefaultExpirationDelta,
 		0,
@@ -869,7 +883,7 @@ func CoreFromString(s string) common.Asset {
 
 func (vt *ValidatingTester) CreateDefaultAccount(name common.AccountName) *types.TransactionTrace {
 	includeCode := true
-	creator := common.N("eosio")
+	creator := eosio
 	trx := types.SignedTransaction{}
 	vt.SetTransactionHeaders(&trx.Transaction, vt.DefaultExpirationDelta, 0)
 
