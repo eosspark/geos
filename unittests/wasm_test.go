@@ -654,7 +654,7 @@ func TestMisaligned(t *testing.T) {
 		}
 
 		checkAligned(aligned_ref_wast)
-		//	checkAligned(misaligned_ref_wast)
+		checkAligned(misaligned_ref_wast)
 		checkAligned(aligned_const_ref_wast)
 		checkAligned(misaligned_const_ref_wast)
 
