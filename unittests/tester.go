@@ -15,6 +15,7 @@ import (
 	"github.com/eosspark/eos-go/exception"
 	"github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/log"
+	"github.com/eosspark/eos-go/plugins/chain_interface"
 	"io/ioutil"
 	"math"
 )
@@ -107,7 +108,20 @@ func (t *BaseTester) open() {
 	//t.Control.AddIndices()
 	//t.Control.startUp()
 	t.ChainTransactions = make(map[common.BlockIdType]types.TransactionReceipt)
-	//t.Control.AcceptedBlock.Connect() // TODO: Control.signal
+	ab := chain_interface.AcceptedBlockCaller{Caller: t.acceptedBlock}
+	t.Control.AcceptedBlock.Connect(&ab) // TODO: Control.signal
+}
+
+func (t *BaseTester) acceptedBlock(b *types.BlockState) {
+	try.EosAssert(b.SignedBlock != nil, &exception.BlockLogNotFound{}, "tester acceptedBlock is not found")
+	for _, receipt := range b.SignedBlock.Transactions {
+		if receipt.Trx.PackedTransaction != nil {
+			t.ChainTransactions[receipt.Trx.PackedTransaction.ID()] = receipt
+		} else {
+			id := receipt.Trx.TransactionID
+			t.ChainTransactions[id] = receipt
+		}
+	}
 }
 
 func (t *BaseTester) close() {
