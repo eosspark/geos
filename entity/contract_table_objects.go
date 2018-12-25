@@ -2,7 +2,7 @@ package entity
 
 import (
 	"github.com/eosspark/eos-go/common"
-	arithmetic "github.com/eosspark/eos-go/common/arithmetic_types"
+	arithmetic "github.com/eosspark/eos-go/common/eos_math"
 )
 
 type Object struct {

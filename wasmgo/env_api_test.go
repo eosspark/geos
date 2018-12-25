@@ -11,11 +11,10 @@ import (
 	"fmt"
 	"github.com/eosspark/container/sets/treeset"
 	"github.com/eosspark/eos-go/chain"
+	abi "github.com/eosspark/eos-go/chain/abi_serializer"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
-	"github.com/eosspark/eos-go/common/math"
 	"github.com/eosspark/eos-go/crypto"
-	abi "github.com/eosspark/eos-go/crypto/abi_serializer"
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/entity"
 	"github.com/eosspark/eos-go/exception"
@@ -27,7 +26,7 @@ import (
 	"strings"
 	"testing"
 
-	arithmetic "github.com/eosspark/eos-go/common/arithmetic_types"
+	"github.com/eosspark/eos-go/common/eos_math"
 	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/eosspark/eos-go/wasmgo"
 	"github.com/stretchr/testify/assert"
@@ -272,17 +271,17 @@ func TestRamBillingInNotifyTests(t *testing.T) {
 		b.SetCode(common.AccountName(common.N("testapi2")), code, nil)
 		b.ProduceBlocks(1, false)
 
-		data := arithmetic.Int128{uint64(common.N("testapi")), uint64(common.N("testapi2"))}
+		data := eos_math.Int128{uint64(common.N("testapi")), uint64(common.N("testapi2"))}
 		load, _ := rlp.EncodeToBytes(&data)
 		retException := callTestFunctionCheckExceptionF2(t, b, &testApiAction{wasmTestAction("test_action", "test_ram_billing_in_notify")}, load, []common.AccountName{common.AccountName(common.N("testapi"))},
 			exception.SubjectiveBlockProductionException{}.Code(), "Cannot charge RAM to other accounts during notify.")
 		assert.Equal(t, retException, true)
 
-		data = arithmetic.Int128{0, uint64(common.N("testapi2"))}
+		data = eos_math.Int128{0, uint64(common.N("testapi2"))}
 		load, _ = rlp.EncodeToBytes(&data)
 		callTestF2(t, b, &testApiAction{wasmTestAction("test_action", "test_ram_billing_in_notify")}, load, []common.AccountName{common.AccountName(common.N("testapi"))})
 
-		data = arithmetic.Int128{uint64(common.N("testapi2")), uint64(common.N("testapi2"))}
+		data = eos_math.Int128{uint64(common.N("testapi2")), uint64(common.N("testapi2"))}
 		load, _ = rlp.EncodeToBytes(&data)
 		callTestF2(t, b, &testApiAction{wasmTestAction("test_action", "test_ram_billing_in_notify")}, load, []common.AccountName{common.AccountName(common.N("testapi"))})
 
@@ -2478,8 +2477,8 @@ func (t BaseTester) CreateAccount(name common.AccountName, creator common.Accoun
 
 	}
 	if includeCode {
-		try.EosAssert(ownerAuth.Threshold <= math.MaxUint16, nil, "threshold is too high")
-		try.EosAssert(uint64(activeAuth.Threshold) <= uint64(math.MaxUint64), nil, "threshold is too high")
+		try.EosAssert(ownerAuth.Threshold <= eos_math.MaxUint16, nil, "threshold is too high")
+		try.EosAssert(uint64(activeAuth.Threshold) <= uint64(eos_math.MaxUint64), nil, "threshold is too high")
 		ownerAuth.Accounts = append(ownerAuth.Accounts, types.PermissionLevelWeight{
 			Permission: types.PermissionLevel{Actor: name, Permission: common.DefaultConfig.EosioCodeName},
 			Weight:     types.WeightType(ownerAuth.Threshold),

@@ -1,9 +1,8 @@
 package chain
 
 import (
-	//"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
-	arithmetic "github.com/eosspark/eos-go/common/arithmetic_types"
+	"github.com/eosspark/eos-go/common/eos_math"
 	"github.com/eosspark/eos-go/entity"
 	. "github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
@@ -22,7 +21,7 @@ func NewIdxDouble(c *ApplyContext) *IdxDouble {
 	}
 }
 
-func (i *IdxDouble) store(scope uint64, table uint64, payer uint64, id uint64, secondary *arithmetic.Float64) int {
+func (i *IdxDouble) store(scope uint64, table uint64, payer uint64, id uint64, secondary *eos_math.Float64) int {
 
 	f := math.Float64frombits(uint64(*secondary))
 	EosAssert(!math.IsNaN(f), &TransactionException{}, "NaN is not an allowed value for a secondary key")
@@ -73,7 +72,7 @@ func (i *IdxDouble) remove(iterator int) {
 	i.itrCache.remove(iterator)
 }
 
-func (i *IdxDouble) update(iterator int, payer uint64, secondary *arithmetic.Float64) {
+func (i *IdxDouble) update(iterator int, payer uint64, secondary *eos_math.Float64) {
 	f := math.Float64frombits(uint64(*secondary))
 	EosAssert(!math.IsNaN(f), &TransactionException{}, "NaN is not an allowed value for a secondary key")
 
@@ -99,7 +98,7 @@ func (i *IdxDouble) update(iterator int, payer uint64, secondary *arithmetic.Flo
 	})
 }
 
-func (i *IdxDouble) findSecondary(code uint64, scope uint64, table uint64, secondary *arithmetic.Float64, primary *uint64) int {
+func (i *IdxDouble) findSecondary(code uint64, scope uint64, table uint64, secondary *eos_math.Float64, primary *uint64) int {
 	f := math.Float64frombits(uint64(*secondary))
 	EosAssert(!math.IsNaN(f), &TransactionException{}, "NaN is not an allowed value for a secondary key")
 
@@ -124,7 +123,7 @@ func (i *IdxDouble) findSecondary(code uint64, scope uint64, table uint64, secon
 	return iteratorOut
 }
 
-func (i *IdxDouble) lowerbound(code uint64, scope uint64, table uint64, secondary *arithmetic.Float64, primary *uint64) int {
+func (i *IdxDouble) lowerbound(code uint64, scope uint64, table uint64, secondary *eos_math.Float64, primary *uint64) int {
 	f := math.Float64frombits(uint64(*secondary))
 	EosAssert(!math.IsNaN(f), &TransactionException{}, "NaN is not an allowed value for a secondary key")
 
@@ -158,7 +157,7 @@ func (i *IdxDouble) lowerbound(code uint64, scope uint64, table uint64, secondar
 	return iteratorOut
 }
 
-func (i *IdxDouble) upperbound(code uint64, scope uint64, table uint64, secondary *arithmetic.Float64, primary *uint64) int {
+func (i *IdxDouble) upperbound(code uint64, scope uint64, table uint64, secondary *eos_math.Float64, primary *uint64) int {
 	f := math.Float64frombits(uint64(*secondary))
 	EosAssert(!math.IsNaN(f), &TransactionException{}, "NaN is not an allowed value for a secondary key")
 
@@ -280,7 +279,7 @@ func (i *IdxDouble) previous(iterator int, primary *uint64) int {
 	return iteratorOut
 }
 
-func (i *IdxDouble) findPrimary(code uint64, scope uint64, table uint64, secondary *arithmetic.Float64, primary uint64) int {
+func (i *IdxDouble) findPrimary(code uint64, scope uint64, table uint64, secondary *eos_math.Float64, primary uint64) int {
 	tab := i.context.FindTable(code, scope, table)
 	if tab == nil {
 		return -1
@@ -420,7 +419,7 @@ func (i *IdxDouble) previousPrimary(iterator int, primary *uint64) int {
 	return i.itrCache.add(&objNext)
 }
 
-func (i *IdxDouble) get(iterator int, secondary *arithmetic.Float64, primary *uint64) {
+func (i *IdxDouble) get(iterator int, secondary *eos_math.Float64, primary *uint64) {
 	obj := (i.itrCache.get(iterator)).(*entity.SecondaryObjectDouble)
 
 	*primary = obj.PrimaryKey

@@ -8,7 +8,7 @@ import (
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"io"
 
-	"github.com/eosspark/eos-go/common/arithmetic_types"
+	"github.com/eosspark/eos-go/common/eos_math"
 	"github.com/eosspark/eos-go/exception"
 	"github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/log"
@@ -112,8 +112,8 @@ func (e *encoder) encode(v interface{}) (err error) {
 			err = errors.New("pack wrong: v is not Signature")
 		}
 		return e.writeSignature(val)
-	case arithmeticTypes.Float64:
-		val, ok := v.(arithmeticTypes.Float64)
+	case eos_math.Float64:
+		val, ok := v.(eos_math.Float64)
 		if !ok {
 			plog.Info("pack wrong: v is not Float64")
 			err = errors.New("pack wrong: v is not Float64")
@@ -135,8 +135,8 @@ func (e *encoder) encode(v interface{}) (err error) {
 		}
 		return err
 
-	case arithmeticTypes.Float128:
-		f128, ok := v.(arithmeticTypes.Float128)
+	case eos_math.Float128:
+		f128, ok := v.(eos_math.Float128)
 		if !ok {
 			plog.Info("pack wrong: v is not Float128")
 			err = errors.New("pack wrong: v is not Float128")
@@ -163,8 +163,8 @@ func (e *encoder) encode(v interface{}) (err error) {
 			e.writeUint64(f128.Low)
 		}
 		return err
-	case arithmeticTypes.Uint128:
-		u128, ok := v.(arithmeticTypes.Uint128)
+	case eos_math.Uint128:
+		u128, ok := v.(eos_math.Uint128)
 		if !ok {
 			plog.Info("pack wrong: v is not Uint128")
 			err = errors.New("pack wrong: v is not Uint128")

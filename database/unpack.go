@@ -4,7 +4,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"github.com/eosspark/eos-go/common/arithmetic_types"
+	"github.com/eosspark/eos-go/common/eos_math"
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"io"
 	"io/ioutil"
@@ -123,7 +123,7 @@ func (d *decoder) decode(v interface{}) (err error) {
 		s, err = d.ReadSignature()
 		rv.Set(reflect.ValueOf(s))
 		return
-	case *arithmeticTypes.Float64:
+	case *eos_math.Float64:
 		var uZ uint64
 		var plus bool
 		plus, err = d.readBool()
@@ -145,8 +145,8 @@ func (d *decoder) decode(v interface{}) (err error) {
 		rv.SetUint(uZ)
 		return err
 
-	case *arithmeticTypes.Float128:
-		var f128 arithmeticTypes.Float128
+	case *eos_math.Float128:
+		var f128 eos_math.Float128
 
 		var plus bool
 		plus, err = d.readBool()
@@ -171,8 +171,8 @@ func (d *decoder) decode(v interface{}) (err error) {
 		rv.Set(reflect.ValueOf(f128))
 		return err
 
-	case *arithmeticTypes.Uint128:
-		var u128 arithmeticTypes.Uint128
+	case *eos_math.Uint128:
+		var u128 eos_math.Uint128
 		u128.High, err = d.readUint64()
 		u128.Low, err = d.readUint64()
 		rv.Set(reflect.ValueOf(u128))

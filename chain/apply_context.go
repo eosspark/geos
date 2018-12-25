@@ -5,7 +5,7 @@ import (
 	"github.com/eosspark/container/sets/treeset"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
-	arithmetic "github.com/eosspark/eos-go/common/arithmetic_types"
+	"github.com/eosspark/eos-go/common/eos_math"
 	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/crypto/rlp"
@@ -463,7 +463,7 @@ func (a *ApplyContext) ExecuteContextFreeInline(act *types.Action) {
 	a.CfaInlineActions = append(a.CfaInlineActions, *act)
 }
 
-func (a *ApplyContext) ScheduleDeferredTransaction(sendId *arithmetic.Uint128, payer common.AccountName, trx *types.Transaction, replaceExisting bool) {
+func (a *ApplyContext) ScheduleDeferredTransaction(sendId *eos_math.Uint128, payer common.AccountName, trx *types.Transaction, replaceExisting bool) {
 	EosAssert(len(trx.ContextFreeActions) == 0, &CfaInsideGeneratedTx{}, "context free actions are not currently allowed in generated transactions")
 
 	trx.Expiration = common.NewTimePointSecTp(common.MaxTimePoint()) //control.pending_block_time() + fc::microseconds(999'999)
@@ -540,7 +540,7 @@ func (a *ApplyContext) ScheduleDeferredTransaction(sendId *arithmetic.Uint128, p
 	a.AddRamUsage(payer, int64(common.BillableSizeV("generated_transaction_object")+uint64(trxSize)))
 
 }
-func (a *ApplyContext) CancelDeferredTransaction2(sendId *arithmetic.Uint128, sender common.AccountName) bool {
+func (a *ApplyContext) CancelDeferredTransaction2(sendId *eos_math.Uint128, sender common.AccountName) bool {
 
 	gto := entity.GeneratedTransactionObject{Sender: sender, SenderId: *sendId}
 	err := a.DB.Find("bySenderId", gto, &gto)
@@ -554,7 +554,7 @@ func (a *ApplyContext) CancelDeferredTransaction2(sendId *arithmetic.Uint128, se
 	return false
 }
 
-func (a *ApplyContext) CancelDeferredTransaction(sendId *arithmetic.Uint128) bool {
+func (a *ApplyContext) CancelDeferredTransaction(sendId *eos_math.Uint128) bool {
 	return a.CancelDeferredTransaction2(sendId, a.Receiver)
 }
 
@@ -1065,22 +1065,22 @@ func (a *ApplyContext) Idx64FindPrimary(code uint64, scope uint64, table uint64,
 	return a.idx64.findPrimary(code, scope, table, secondary, primary)
 }
 
-func (a *ApplyContext) IdxDoubleStore(scope uint64, table uint64, payer uint64, id uint64, value *arithmetic.Float64) int {
+func (a *ApplyContext) IdxDoubleStore(scope uint64, table uint64, payer uint64, id uint64, value *eos_math.Float64) int {
 	return a.idxDouble.store(scope, table, payer, id, value)
 }
 func (a *ApplyContext) IdxDoubleRemove(iterator int) {
 	a.idxDouble.remove(iterator)
 }
-func (a *ApplyContext) IdxDoubleUpdate(iterator int, payer uint64, value *arithmetic.Float64) {
+func (a *ApplyContext) IdxDoubleUpdate(iterator int, payer uint64, value *eos_math.Float64) {
 	a.idxDouble.update(iterator, payer, value)
 }
-func (a *ApplyContext) IdxDoubleFindSecondary(code uint64, scope uint64, table uint64, secondary *arithmetic.Float64, primary *uint64) int {
+func (a *ApplyContext) IdxDoubleFindSecondary(code uint64, scope uint64, table uint64, secondary *eos_math.Float64, primary *uint64) int {
 	return a.idxDouble.findSecondary(code, scope, table, secondary, primary)
 }
-func (a *ApplyContext) IdxDoubleLowerbound(code uint64, scope uint64, table uint64, secondary *arithmetic.Float64, primary *uint64) int {
+func (a *ApplyContext) IdxDoubleLowerbound(code uint64, scope uint64, table uint64, secondary *eos_math.Float64, primary *uint64) int {
 	return a.idxDouble.lowerbound(code, scope, table, secondary, primary)
 }
-func (a *ApplyContext) IdxDoubleUpperbound(code uint64, scope uint64, table uint64, secondary *arithmetic.Float64, primary *uint64) int {
+func (a *ApplyContext) IdxDoubleUpperbound(code uint64, scope uint64, table uint64, secondary *eos_math.Float64, primary *uint64) int {
 	return a.idxDouble.upperbound(code, scope, table, secondary, primary)
 }
 func (a *ApplyContext) IdxDoubleEnd(code uint64, scope uint64, table uint64) int {
@@ -1092,7 +1092,7 @@ func (a *ApplyContext) IdxDoubleNext(iterator int, primary *uint64) int {
 func (a *ApplyContext) IdxDoublePrevious(iterator int, primary *uint64) int {
 	return a.idxDouble.previous(iterator, primary)
 }
-func (a *ApplyContext) IdxDoubleFindPrimary(code uint64, scope uint64, table uint64, secondary *arithmetic.Float64, primary uint64) int {
+func (a *ApplyContext) IdxDoubleFindPrimary(code uint64, scope uint64, table uint64, secondary *eos_math.Float64, primary uint64) int {
 	return a.idxDouble.findPrimary(code, scope, table, secondary, primary)
 }
 

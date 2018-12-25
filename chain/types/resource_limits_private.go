@@ -2,11 +2,10 @@ package types
 
 import (
 	"github.com/eosspark/eos-go/common"
-	"math"
-	"github.com/eosspark/eos-go/log"
-	"github.com/eosspark/eos-go/common/arithmetic_types"
+	"github.com/eosspark/eos-go/common/eos_math"
 	. "github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
+	"github.com/eosspark/eos-go/log"
 )
 
 type Ratio struct {
@@ -68,8 +67,8 @@ func MultiWithRatio(value uint64, ratio Ratio) uint64 {
 	return value * ratio.Numerator / ratio.Denominator
 }
 
-func DowngradeCast(val arithmeticTypes.Uint128) int64 {
-	max := uint64(math.MaxInt64)
+func DowngradeCast(val eos_math.Uint128) int64 {
+	max := uint64(eos_math.MaxInt64)
 	if val.High != 0 && val.Low > max {
 		log.Error("Usage exceeds maximum value representable after extending for precision")
 	}
