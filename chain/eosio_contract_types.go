@@ -3,7 +3,7 @@ package chain
 import (
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
-	arithmetic "github.com/eosspark/eos-go/common/arithmetic_types"
+	"github.com/eosspark/eos-go/common/eos_math"
 )
 
 type contractTypesInterface interface {
@@ -125,11 +125,11 @@ func (c CancelDelay) GetName() common.ActionName {
 }
 
 type OnError struct {
-	SenderId arithmetic.Uint128
+	SenderId eos_math.Uint128
 	SentTrx  []byte
 }
 
-func NewOnError(sid arithmetic.Uint128, data []byte) *OnError {
+func NewOnError(sid eos_math.Uint128, data []byte) *OnError {
 	oe := OnError{SenderId: sid, SentTrx: data}
 	return &oe
 }

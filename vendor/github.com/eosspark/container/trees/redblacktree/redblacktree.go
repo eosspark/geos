@@ -15,7 +15,7 @@ import (
 	"fmt"
 	"github.com/eosspark/container/trees"
 	"github.com/eosspark/container/utils"
-)
+	)
 
 func assertTreeImplementation() {
 	var _ trees.Tree = (*Tree)(nil)
@@ -71,7 +71,7 @@ func copyNode(nd *Node) *Node {
 		return nil
 	}
 
-	n := &Node{Key: nd.Key, Value: nd.Value, color: nd.color}
+	n := &Node{Key:nd.Key, Value:nd.Value, color:nd.color}
 
 	if nd.Left != nil {
 		n.Left = copyNode(nd.Left)
@@ -93,15 +93,6 @@ func copyNode(nd *Node) *Node {
 	return n
 }
 
-func (tree *Tree) New(comparator utils.Comparator) {
-	tree.Comparator = comparator
-}
-
-func (tree *Tree) CopyFrom(rbt *Tree) {
-	tree.Comparator = rbt.Comparator
-	tree.size = rbt.size
-	tree.Root = copyNode(rbt.Root)
-}
 
 // Put inserts node into the tree.
 // Key should adhere to the comparator's type assertion, otherwise method panics.
@@ -146,7 +137,7 @@ func (tree *Tree) Put(key interface{}, value interface{}) {
 	tree.size++
 }
 
-func (tree *Tree) PutItem(key interface{}, value interface{}) (bool, interface{}, interface{}) {
+func (tree *Tree) PutItem(key interface{}, value interface{}) (bool , interface{},interface{}){
 	var resultOpt bool
 	var resultKey interface{}
 	var resultValue interface{}
@@ -167,8 +158,8 @@ func (tree *Tree) PutItem(key interface{}, value interface{}) (bool, interface{}
 			compare := tree.Comparator(key, node.Key)
 			switch {
 			case compare == 0:
-				resultOpt = false
-				return resultOpt, key, value
+				resultOpt=false
+				return resultOpt,key,value
 			case compare < 0:
 				if node.Left == nil {
 					node.Left = &Node{Key: key, Value: value, color: red}
@@ -177,7 +168,7 @@ func (tree *Tree) PutItem(key interface{}, value interface{}) (bool, interface{}
 				} else {
 					node = node.Left
 				}
-				resultOpt = true
+				resultOpt=true
 				resultKey = key
 				resultValue = value
 			case compare > 0:
@@ -188,7 +179,7 @@ func (tree *Tree) PutItem(key interface{}, value interface{}) (bool, interface{}
 				} else {
 					node = node.Right
 				}
-				resultOpt = true
+				resultOpt=true
 				resultKey = key
 				resultValue = value
 			}
@@ -197,7 +188,7 @@ func (tree *Tree) PutItem(key interface{}, value interface{}) (bool, interface{}
 	}
 	tree.insertCase1(insertedNode)
 	tree.size++
-	return resultOpt, resultKey, resultValue
+	return resultOpt,resultKey,resultValue
 }
 
 func (tree *Tree) MultiPut(key interface{}, value interface{}) {
@@ -248,66 +239,8 @@ func (tree *Tree) Get(key interface{}) (value interface{}, found bool) {
 	return nil, false
 }
 
-func (tree *Tree) MultiGet(key interface{}) (front, end Iterator) {
-	return tree.LowerBound(key), tree.UpperBound(key)
-}
-
-// LowerBound returns an iterator pointing to the first element that is not less than the given key.
-// Complexity: O(log N).
-func (tree *Tree) LowerBound(key interface{}) Iterator {
-	result := tree.End()
-	node := tree.Root
-
-	if node == nil {
-		return result
-	}
-
-	for {
-		if tree.Comparator(key, node.Key) > 0 {
-			if node.Right != nil {
-				node = node.Right
-			} else {
-				return result
-			}
-		} else {
-			result.node = node
-			result.position = between
-			if node.Left != nil {
-				node = node.Left
-			} else {
-				return result
-			}
-		}
-	}
-}
-
-// UpperBound returns an iterator pointing to the first element that is greater than the given key.
-// Complexity: O(log N).
-func (tree *Tree) UpperBound(key interface{}) Iterator {
-	result := tree.End()
-	node := tree.Root
-
-	if node == nil {
-		return result
-	}
-
-	for {
-		if tree.Comparator(key, node.Key) >= 0 {
-			if node.Right != nil {
-				node = node.Right
-			} else {
-				return result
-			}
-		} else {
-			result.node = node
-			result.position = between
-			if node.Left != nil {
-				node = node.Left
-			} else {
-				return result
-			}
-		}
-	}
+func (tree *Tree) MultiGet(key interface{}) (iterator Iterator, found bool) {
+	return tree.lookupEqual(key)
 }
 
 // Remove remove the node from the tree by key.
@@ -317,18 +250,14 @@ func (tree *Tree) Remove(key interface{}) {
 	tree.remove(node)
 }
 
-// MultiRemove remove all nodes from the tree by key.
 func (tree *Tree) MultiRemove(key interface{}) {
-	lower := tree.LowerBound(key)
-	if lower.position == end {
-		//found missed, nothing needs to remove
-		return
-	}
-
-	upper := tree.UpperBound(key)
-	for lower != upper {
-		tree.remove(lower.node)
-		lower.Next()
+	if iterator, found := tree.lookupEqual(key); found {
+		node := iterator.node
+		for iterator.Next() && tree.Comparator(key, iterator.Key()) == 0 {
+			tree.remove(node)
+			node = iterator.node
+		}
+		tree.remove(node)
 	}
 }
 
@@ -537,31 +466,31 @@ func (tree *Tree) lookup(key interface{}) *Node {
 	return nil
 }
 
-//func (tree *Tree) lookupEqual(key interface{}) (Iterator, bool) {
-//	node := tree.Root
-//	for node != nil {
-//		compare := tree.Comparator(key, node.Key)
-//		switch {
-//		case compare == 0:
-//			iterator := Iterator{tree: tree, node: node, position: between}
-//			for iterator.Prev() {
-//				if tree.Comparator(iterator.Key(), node.Key) != 0 {
-//					break
-//				}
-//			}
-//
-//			iterator.Next()
-//
-//			return iterator, true
-//
-//		case compare < 0:
-//			node = node.Left
-//		case compare > 0:
-//			node = node.Right
-//		}
-//	}
-//	return Iterator{tree: tree, node: nil, position: end}, false
-//}
+func (tree *Tree) lookupEqual(key interface{}) (Iterator, bool) {
+	node := tree.Root
+	for node != nil {
+		compare := tree.Comparator(key, node.Key)
+		switch {
+		case compare == 0:
+			iterator := Iterator{tree: tree, node: node, position: between}
+			for iterator.Prev() {
+				if iterator.Key() != node.Key {
+					break
+				}
+			}
+
+			iterator.Next()
+
+			return iterator, true
+
+		case compare < 0:
+			node = node.Left
+		case compare > 0:
+			node = node.Right
+		}
+	}
+	return Iterator{tree: tree, node: nil, position: end}, false
+}
 
 func (node *Node) grandparent() *Node {
 	if node != nil && node.Parent != nil {

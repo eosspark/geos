@@ -5,10 +5,10 @@ import (
 	"encoding/json"
 	"github.com/eosspark/container/sets/treeset"
 	. "github.com/eosspark/eos-go/chain"
+	abi "github.com/eosspark/eos-go/chain/abi_serializer"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto"
-	abi "github.com/eosspark/eos-go/crypto/abi_serializer"
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/eosspark/eos-go/entity"
@@ -656,7 +656,7 @@ func (t BaseTester) GetTransactionReceipt(txId *common.BlockIdType) *types.Trans
 
 func (t BaseTester) GetCurrencyBalance(code *common.AccountName, assetSymbol *common.Symbol, account *common.AccountName) common.Asset {
 	db := t.Control.DB
-	table := entity.TableIdObject{Code: *code, Scope: *account, Table: common.TableName(*account)}
+	table := entity.TableIdObject{Code: *code, Scope: *account, Table: common.N("accounts")}
 	err := db.Find("byCodeScopeTable", table, &table)
 	result := int64(0)
 	if err != nil {

@@ -28,10 +28,6 @@ func (tree *Tree) Iterator() Iterator {
 	return Iterator{tree: tree, node: nil, position: begin}
 }
 
-func (tree *Tree) End() Iterator {
-	return Iterator{tree: tree, node: nil, position: end}
-}
-
 // Next moves the iterator to the next element and returns true if there was a next element in the container.
 // If Next() returns true, then next element's key and value can be retrieved by Key() and Value().
 // If Next() was called for the first time, then it will point the iterator to the first element if it exists.
@@ -165,4 +161,8 @@ func (iterator *Iterator) First() bool {
 func (iterator *Iterator) Last() bool {
 	iterator.End()
 	return iterator.Prev()
+}
+
+func (itr *Iterator) Equal(value Iterator) bool{
+	return itr.node == value.node
 }

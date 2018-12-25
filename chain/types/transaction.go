@@ -7,14 +7,13 @@ import (
 	"fmt"
 	"github.com/eosspark/container/sets/treeset"
 	"github.com/eosspark/eos-go/common"
-	arithmetic "github.com/eosspark/eos-go/common/arithmetic_types"
+	"github.com/eosspark/eos-go/common/eos_math"
 	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/crypto/rlp"
 	. "github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
 	"io/ioutil"
-	"math"
 )
 
 type Extension struct {
@@ -60,7 +59,7 @@ func (t TransactionHeader) VerifyReferenceBlock(referenceBlock *common.BlockIdTy
 }
 
 func (t TransactionHeader) Validate() {
-	EosAssert(t.MaxNetUsageWords < math.MaxUint32/8, &TransactionException{}, "declared max_net_usage_words overflows when expanded to max net usage")
+	EosAssert(t.MaxNetUsageWords < eos_math.MaxUint32/8, &TransactionException{}, "declared max_net_usage_words overflows when expanded to max net usage")
 }
 
 func (t *TransactionHeader) SetReferenceBlock(referenceBlock *common.BlockIdType) {
@@ -334,7 +333,7 @@ func (p *PackedTransaction) SetTransactionWithCFD(t *SignedTransaction, cfd *[]c
 func (p *PackedTransaction) GetUnprunableSize() (size uint32) {
 	size = common.DefaultConfig.FixedNetOverheadOfPackedTrx
 	size += uint32(len(p.PackedTrx))
-	EosAssert(size <= math.MaxUint32, &TxTooBig{}, "packed_transaction is too big")
+	EosAssert(size <= eos_math.MaxUint32, &TxTooBig{}, "packed_transaction is too big")
 	return
 }
 
@@ -344,7 +343,7 @@ func (p *PackedTransaction) GetPrunableSize() uint32 {
 		panic(err)
 	}
 	size += len(p.PackedContextFreeData)
-	EosAssert(size <= math.MaxUint32, &TxTooBig{}, "packed_transaction is too big")
+	EosAssert(size <= eos_math.MaxUint32, &TxTooBig{}, "packed_transaction is too big")
 	return uint32(size)
 }
 
@@ -402,15 +401,6 @@ func (p *PackedTransaction) GetRawTransaction() common.HexBytes {
 		}
 	}).FcCaptureAndRethrow(p.Compression, p.PackedTrx).End()
 	return out
-	//switch p.Compression {
-	//case CompressionNone:
-	//	return p.PackedTrx
-	//case CompressionZlib:
-	//	return zlibDecompress(&p.PackedTrx)
-	//default:
-	//	//EOS_THROW(unknown_transaction_compression, "Unknown transaction compression algorithm");
-	//	panic("Unknown transaction compression algorithm")
-	//}
 }
 
 func (p *PackedTransaction) GetContextFreeData() []common.HexBytes {
@@ -427,15 +417,6 @@ func (p *PackedTransaction) GetContextFreeData() []common.HexBytes {
 		}
 	}).FcCaptureAndRethrow(p.Compression, p.PackedContextFreeData).End()
 	return out
-	//switch p.Compression {
-	//case CompressionNone:
-	//	return unpackContextFreeData(&p.PackedContextFreeData)
-	//case CompressionZlib:
-	//	return zlibDecompressContextFreeData(&p.PackedContextFreeData)
-	//default:
-	//	//EOS_THROW(unknown_transaction_compression, "Unknown transaction compression algorithm");
-	//	panic("Unknown transaction compression algorithm")
-	//}
 }
 
 func (p *PackedTransaction) Expiration() common.TimePointSec {
@@ -617,13 +598,13 @@ func zlibCompress(data []byte) []byte {
 type DeferredTransaction struct {
 	*SignedTransaction
 
-	SenderID     arithmetic.Uint128  `json:"sender_id"` // ID assigned by sender of generated, accessible via WASM api when executing normal or error
+	SenderID     eos_math.Uint128    `json:"sender_id"` // ID assigned by sender of generated, accessible via WASM api when executing normal or error
 	Sender       common.AccountName  `json:"sender"`    // receives error handler callback
 	Payer        common.AccountName  `json:"payer"`
 	ExecuteAfter common.TimePointSec `json::execute_after` // delayed execution
 }
 
-func NewDeferredTransaction(senderID arithmetic.Uint128, sender common.AccountName, payer common.AccountName,
+func NewDeferredTransaction(senderID eos_math.Uint128, sender common.AccountName, payer common.AccountName,
 	executeAfter common.TimePointSec, txn *SignedTransaction) *DeferredTransaction {
 	return &DeferredTransaction{
 		SignedTransaction: txn,
@@ -636,16 +617,16 @@ func NewDeferredTransaction(senderID arithmetic.Uint128, sender common.AccountNa
 
 type DeferredReference struct {
 	Sender   common.AccountName `json:"sender"`
-	SenderID arithmetic.Uint128 `json:"sender_id"`
+	SenderID eos_math.Uint128   `json:"sender_id"`
 }
 
-func NewDeferredReference(sender common.AccountName, senderID arithmetic.Uint128) *DeferredReference {
+func NewDeferredReference(sender common.AccountName, senderID eos_math.Uint128) *DeferredReference {
 	return &DeferredReference{
 		Sender:   sender,
 		SenderID: senderID,
 	}
 }
 
-func TransactionIDtoSenderID(tid common.TransactionIdType) arithmetic.Uint128 {
-	return arithmetic.Uint128{tid.Hash[3], tid.Hash[2]}
+func TransactionIDtoSenderID(tid common.TransactionIdType) eos_math.Uint128 {
+	return eos_math.Uint128{tid.Hash[3], tid.Hash[2]}
 }

@@ -49,14 +49,25 @@ func TestTry_pointer(t *testing.T) {
 	}).End()
 }
 
+func panicNil() {
+	var a *int
+	*a ++
+}
+
 func TestTry_RuntimeError(t *testing.T) {
 	Try(func() {
 		a, b := 1, 0
 		println(a / b)
 
-	}).Catch(func(n RuntimeError) {
-		assert.Equal(t, "runtime error: integer divide by zero", n.String())
+	}).Catch(func(n exception.StdException) {
+		log.Error(n.DetailMessage())
+	}).End()
 
+	Try(func() {
+		panicNil()
+
+	}).Catch(func(n exception.StdException) {
+		log.Error(n.DetailMessage())
 	}).End()
 }
 

@@ -32,7 +32,7 @@ type Asset struct {
 
 func (a *Asset) assert() {
 	try.EosAssert(a.isAmountWithinRange(), &exception.AssetTypeException{}, "magnitude of asset amount must be less than 2^62")
-	try.EosAssert(a.Symbol.valid(), &exception.AssetTypeException{}, "invalid symbol")
+	try.EosAssert(a.Symbol.Valid(), &exception.AssetTypeException{}, "invalid symbol")
 }
 
 func (a *Asset) isAmountWithinRange() bool {
@@ -40,7 +40,7 @@ func (a *Asset) isAmountWithinRange() bool {
 }
 
 func (a *Asset) isValid() bool {
-	return a.isAmountWithinRange() && a.Symbol.valid()
+	return a.isAmountWithinRange() && a.Symbol.Valid()
 }
 
 func (a Asset) Add(other Asset) Asset {
@@ -58,7 +58,13 @@ func (a Asset) Sub(other Asset) Asset {
 }
 
 func (a Asset) String() string {
-	strInt := fmt.Sprintf("%d", a.Amount)
+	sign := ""
+	abs := a.Amount
+	if a.Amount < 0 {
+		sign = "-"
+		abs = -1 * a.Amount
+	}
+	strInt := fmt.Sprintf("%d", abs)
 	if len(strInt) < int(a.Symbol.Precision+1) {
 		// prepend `0` for the difference:
 		strInt = strings.Repeat("0", int(a.Symbol.Precision+uint8(1))-len(strInt)) + strInt
@@ -71,7 +77,7 @@ func (a Asset) String() string {
 		result = strInt[:len(strInt)-int(a.Symbol.Precision)] + "." + strInt[len(strInt)-int(a.Symbol.Precision):]
 	}
 
-	return fmt.Sprintf("%s %s", result, a.Symbol.Symbol)
+	return fmt.Sprintf("%s %s", sign + result, a.Symbol.Symbol)
 }
 
 func (a Asset) FromString(from *string) Asset {
@@ -159,8 +165,17 @@ func (sym Symbol) FromString(from *string) Symbol {
 	precPart := string([]byte(*from)[:commaPos])
 	p, _ := strconv.ParseInt(precPart, 10, 64)
 	namePart := string([]byte(*from)[commaPos+1:])
+	try.EosAssert(sym.ValidName(namePart), &exception.SymbolTypeException{}, "invalid symbol: %s", namePart)
 	try.EosAssert(uint8(p) <= MaxPrecision, &exception.SymbolTypeException{}, "precision %v should be <= 18", p)
 	return Symbol{Precision: uint8(p), Symbol: namePart}
+}
+
+func (sym Symbol) String() string {
+	try.EosAssert(sym.Valid(), &exception.SymbolTypeException{}, "symbol is not valid")
+	v := sym.Precision
+	ret := strconv.Itoa(int(v))
+	ret += ","+sym.Symbol
+	return ret
 }
 
 func (sym *Symbol) SymbolValue() uint64 {
@@ -176,22 +191,24 @@ func (sym *Symbol) SymbolValue() uint64 {
 	result |= uint64(sym.Precision)
 	return result
 }
+
 func (sym *Symbol) ToSymbolCode() SymbolCode {
 	return SymbolCode(sym.SymbolValue()) >> 8
 }
-func (sym *Symbol) decimals() uint8 {
+
+func (sym *Symbol) Decimals() uint8 {
 	return sym.Precision
 }
 
-func (sym *Symbol) name() string {
+func (sym *Symbol) Name() string {
 	return sym.Symbol
 }
 
-func (sym *Symbol) valid() bool {
-	return sym.decimals() <= MaxPrecision && sym.validName(sym.Symbol)
+func (sym *Symbol) Valid() bool {
+	return sym.Decimals() <= MaxPrecision && sym.ValidName(sym.Symbol)
 }
 
-func (sym *Symbol) validName(name string) bool {
+func (sym *Symbol) ValidName(name string) bool {
 	return -1 == strings.IndexFunc(name, func(r rune) bool {
 		return !(r >= 'A' && r <= 'Z')
 	})

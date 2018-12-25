@@ -170,7 +170,8 @@ func (t *TransactionWithID) UnmarshalJSON(data []byte) error {
 		}
 		return nil
 	}
-	panic("types.TransactionWithID unmarshalJSON error: unsupported multi-variant trx serialization type from C++ code into Go")
+	//panic("types.TransactionWithID unmarshalJSON error: unsupported multi-variant trx serialization type from C++ code into Go")
+	return nil
 }
 
 func NewTransactionReceiptHeader() *TransactionReceiptHeader {

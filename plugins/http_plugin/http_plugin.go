@@ -308,155 +308,6 @@ func (h *HttpPlugin) VerboseErrors() bool {
 	return verboseHttpErrors
 }
 
-//func (h *HttpPlugin) httpHandler(ctx *fasthttp.RequestCtx) {
-//	ctx.SetContentType("text/plain; charset=utf8")
-//	// Set arbitrary headers
-//	ctx.Response.Header.Set("X-My-Header", "my-header-value")
-//	// Set cookies
-//	var c fasthttp.Cookie
-//	c.SetKey("cookie-name")
-//	c.SetValue("cookie-value")
-//	ctx.Response.Header.SetCookie(&c)
-//
-//	h.my.log.Info("%s", ctx.Path())
-//	h.my.log.Info("%s", ctx.Request.Body())
-//
-//	var Inputs map[string]string
-//	path := string(ctx.Path())
-//	body := bytes.NewBuffer(ctx.Request.Body())
-//
-//	chainROApi := App().GetPlugin(chain_plugin.ChainPlug).(*chain_plugin.ChainPlugin).GetReadOnlyApi()
-//	chainRWApi := App().GetPlugin(chain_plugin.ChainPlug).(*chain_plugin.ChainPlugin).GetReadWriteApi()
-//	walletMgr := App().GetPlugin(wallet_plugin.WalletPlug).(*wallet_plugin.WalletPlugin).GetWalletManager()
-//
-//	var reJson []byte
-//	var err error
-//
-//	switch path {
-//	case getInfoFunc:
-//		resp := chainROApi.GetInfo()
-//		reJson, err = json.Marshal(resp)
-//
-//	case getBlockFunc:
-//		params := chain_plugin.GetBlockParams{}
-//		if err := json.NewDecoder(body).Decode(&params); err != nil {
-//			fmt.Println("error:", err)
-//		}
-//
-//		resp := chainROApi.GetBlock(params)
-//		reJson, err = json.Marshal(resp)
-//
-//	case getRequiredKeys:
-//
-//		params := &chain_plugin.GetRequiredKeysParams{}
-//		if err := json.NewDecoder(body).Decode(params); err != nil {
-//			fmt.Println(" get balance error:", err)
-//		}
-//		resp := chainROApi.GetRequiredKeys(params)
-//		reJson, err = json.Marshal(resp)
-//	case getCurrencyBalanceFunc:
-//
-//		if err := json.NewDecoder(body).Decode(&Inputs); err != nil {
-//			fmt.Println(" get balance error:", err)
-//			//return nil
-//		}
-//		log.Error("%#v", Inputs)
-//
-//		fmt.Println(Inputs)
-//
-//	case pushTxnFunc:
-//		var packedTrx types.PackedTransaction
-//		if err := json.NewDecoder(body).Decode(&packedTrx); err != nil {
-//			fmt.Println(" decode packedTransaction:", err)
-//		}
-//		log.Error("%#v", Inputs)
-//		chainRWApi.PushTransaction(&packedTrx)
-//		reJson, err = json.Marshal("push transaction test")
-//	case walletCreate:
-//		var name string
-//		var result string
-//		if err := json.NewDecoder(body).Decode(&name); err != nil {
-//			fmt.Println(" decode wallet name:", err)
-//		}
-//		if len(name) == 0 {
-//			name = "default"
-//		}
-//		password, err := walletMgr.Create(name)
-//		if err != nil {
-//			result = err.Error()
-//		} else {
-//			result = password
-//		}
-//		reJson, err = json.Marshal(result)
-//
-//	case walletImportKey:
-//		type Params struct {
-//			Name string
-//			Key  string
-//		}
-//		var params Params
-//		if err := json.NewDecoder(body).Decode(&params); err != nil {
-//			fmt.Println(" get balance error:", err)
-//		}
-//		err := walletMgr.ImportKey(params.Name, params.Key)
-//		if err != nil {
-//			reJson, err = json.Marshal(err.Error())
-//		} else {
-//			walletKey, err := ecc.NewPrivateKey(params.Key)
-//			if err != nil {
-//				fmt.Println("invalid private key %s", params.Key)
-//				//try.EosThrow(&exception.PrivateKeyTypeException{}, "Invalid private key: %s", walletKeyStr)
-//			}
-//
-//			re := fmt.Sprintf("imported private key for: %s", walletKey.PublicKey().String())
-//			reJson, err = json.Marshal(re)
-//		}
-//
-//	case walletCreateKey:
-//		priKey, _ := ecc.NewRandomPrivateKey()
-//		type Keys struct {
-//			Pri ecc.PrivateKey `json:"Private Key"`
-//			Pub ecc.PublicKey  `json:"Public Key"`
-//		}
-//		resp := &Keys{Pri: *priKey, Pub: priKey.PublicKey()}
-//		reJson, err = json.Marshal(resp)
-//
-//	case walletSignTrx:
-//		type WalletSignedTrx struct {
-//			Trx  types.SignedTransaction `json:"signed_transaction"`
-//			Keys []ecc.PublicKey         `json:"keys"`
-//			ID   common.ChainIdType      `id`
-//		}
-//		var params WalletSignedTrx
-//		if err := json.NewDecoder(body).Decode(&params); err != nil {
-//			fmt.Println(" get balance error:", err)
-//
-//		}
-//
-//		h.my.log.Info("%s", err)
-//		h.my.log.Info("%#v", params)
-//		fmt.Println()
-//
-//		trx, err := walletMgr.SignTransaction(&params.Trx, params.Keys, params.ID)
-//		if err != nil {
-//			fmt.Println(err)
-//		}
-//		h.my.log.Debug("%#v", trx)
-//		if err != nil {
-//			reJson, err = json.Marshal(err.Error())
-//		} else {
-//			h.my.log.Debug("%#v", trx)
-//			reJson, err = json.Marshal(trx)
-//		}
-//	default:
-//		//return nil
-//	}
-//
-//	fmt.Println(string(reJson), err)
-//	fmt.Fprintf(ctx, "%s", reJson)
-//
-//}
-
 func (h *HttpPlugin) AddHandler(url string, handler UrlHandler) {
 	h.my.log.Info("add api url: %s", url)
 	App().GetIoService().Post(func(err error) {
@@ -465,8 +316,8 @@ func (h *HttpPlugin) AddHandler(url string, handler UrlHandler) {
 }
 
 func (h *HttpPlugin) Handler(ctx *fasthttp.RequestCtx) {
-	h.my.log.Info("%s", ctx.Path())
-	h.my.log.Info("%s", ctx.Request.Body())
+	h.my.log.Info("source: %s", ctx.Path())
+	h.my.log.Info("body: %s", ctx.Request.Body())
 
 	//fmt.Fprintf(ctx, "%s", re)
 	ctx.SetContentType("text/plain; charset=utf8")
@@ -487,8 +338,8 @@ func (h *HttpPlugin) Handler(ctx *fasthttp.RequestCtx) {
 		ctx.NotFound()
 	} else {
 		//con->defer_http_response();
-		h.my.log.Debug("handle getBlock")
 		handler(resource, body, func(code int, body []byte) {
+			h.my.log.Warn("return : %s", string(body))
 			ctx.SetBody([]byte(body))
 			ctx.SetStatusCode(code)
 		})

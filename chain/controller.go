@@ -3,10 +3,10 @@ package chain
 import (
 	"fmt"
 	"github.com/eosspark/container/sets/treeset"
+	abi "github.com/eosspark/eos-go/chain/abi_serializer"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto"
-	abi "github.com/eosspark/eos-go/crypto/abi_serializer"
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/eosspark/eos-go/database"
@@ -1132,8 +1132,8 @@ func (c *Controller) PushBlock(b *types.SignedBlock, s types.BlockStatus) {
 		//TODO: add to forkdb
 		c.PreAcceptedBlock.Emit(b)
 		//emit(self.pre_accepted_block, b )
-		trust := !c.Config.ForceAllChecks && (s == types.Irreversible || s == types.Validated)
-		newHeaderState := c.ForkDB.AddSignedBlockState(b, trust)
+		//trust := !c.Config.ForceAllChecks && (s == types.Irreversible || s == types.Validated)
+		//newHeaderState := c.ForkDB.AddSignedBlockState(b, trust)
 		exist, _ := c.Config.TrustedProducers.Find(func(index int, value interface{}) bool {
 			return c.Config.TrustedProducers.GetComparator()(value, b.Producer) == 0
 		})
@@ -1141,13 +1141,13 @@ func (c *Controller) PushBlock(b *types.SignedBlock, s types.BlockStatus) {
 		if exist != -1 {
 			c.TrustedProducerLightValidation = true
 		}
-		c.AcceptedBlockHeader.Emit(newHeaderState)
+		//c.AcceptedBlockHeader.Emit(newHeaderState)
 		//emit( self.accepted_block_header, new_header_state )
 		if c.ReadMode != IRREVERSIBLE {
 			c.maybeSwitchForks(s)
 		}
 		if s == types.Irreversible {
-			c.IrreversibleBlock.Emit(newHeaderState)
+			//c.IrreversibleBlock.Emit(newHeaderState)
 			//emit( self.irreversible_block, new_header_state )
 		}
 	}).FcLogAndRethrow().End()

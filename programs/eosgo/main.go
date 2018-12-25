@@ -5,7 +5,13 @@ import (
 	"github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/log"
 	. "github.com/eosspark/eos-go/plugins/appbase/app"
+	"github.com/eosspark/eos-go/plugins/chain_api_plugin"
+	"github.com/eosspark/eos-go/plugins/chain_plugin"
+	"github.com/eosspark/eos-go/plugins/http_plugin"
+	"github.com/eosspark/eos-go/plugins/net_api_plugin"
 	"github.com/eosspark/eos-go/plugins/producer_plugin"
+	"github.com/eosspark/eos-go/plugins/wallet_api_plugin"
+	"github.com/eosspark/eos-go/plugins/wallet_plugin"
 	"os"
 	"strings"
 )
@@ -32,11 +38,12 @@ func main() {
 		App().SetDefaultConfigDir()
 		if !App().Initialize([]PluginTypeName{
 			producer_plugin.ProducerPlug,
-			//chain_plugin.ChainPlug,
-			//http_plugin.HttpPlug,
-			//chain_api_plugin.ChainAPiPlug,
-			//wallet_api_plugin.WalletApiPlug,
-			//wallet_plugin.WalletPlug,
+			chain_plugin.ChainPlug,
+			http_plugin.HttpPlug,
+			chain_api_plugin.ChainAPiPlug,
+			wallet_api_plugin.WalletApiPlug,
+			wallet_plugin.WalletPlug,
+			net_api_plugin.NetApiPlug,
 
 			//console_plugin.ConsolePlug,
 			//net_plugin.NetPlug,
@@ -68,20 +75,6 @@ func main() {
 		}
 		log.Error(e.DetailMessage())
 		os.Exit(OTHER_FAIL)
-
-		//}).Catch(func(e try.RuntimeError) {
-		//	if strings.Contains(e.Message, "database dirty flag set") {
-		//		log.Error("database dirty flag set (likely due to unclean shutdown): replay required")
-		//		os.Exit(DATABASE_DIRTY)
-		//
-		//	} else if strings.Contains(e.Message, "database metadata dirty flag set") {
-		//		log.Error("database metadata dirty flag set (likely due to unclean shutdown): replay required")
-		//		os.Exit(DATABASE_DIRTY)
-		//
-		//	} else {
-		//		log.Error("%s", e.Message)
-		//	}
-		//	os.Exit(OTHER_FAIL)
 
 	}).Catch(func(interface{}) {
 		log.Error("unknown exception")

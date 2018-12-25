@@ -7,6 +7,7 @@ package treemap
 import (
 	"fmt"
 	. "github.com/eosspark/container/templates/treemap/example"
+	"github.com/eosspark/container/utils"
 	"testing"
 )
 
@@ -21,10 +22,9 @@ func TestMapPut(t *testing.T) {
 	m.Put(2, "b")
 	m.Put(1, "a") //overwrite
 
-	//TODO
-	//assert.Equal(t, 7, m.Size())
-	//assert.EqualValues(t, []int{1, 2, 3, 4, 5, 6, 7}, m.Keys())
-	//assert.EqualValues(t, []string{"a", "b", "c", "d", "e", "f", "g"}, m.Values())
+	utils.AssertTest(t, 7, m.Size())
+	utils.AssertTest(t, []int{1, 2, 3, 4, 5, 6, 7}, m.Keys())
+	utils.AssertTest(t, []string{"a", "b", "c", "d", "e", "f", "g"}, m.Values())
 
 	// key,expectedValue,expectedFound
 	tests1 := [][]interface{}{
@@ -40,8 +40,8 @@ func TestMapPut(t *testing.T) {
 
 	for _, test := range tests1 {
 		// retrievals
-		actualValue, actualFound := m.Get(test[0].(int))
-		if actualValue != test[1] || actualFound != test[2] {
+		actualValue := m.Get(test[0].(int))
+		if (actualValue.HasNext() && actualValue.Value() != test[1]) || actualValue.HasNext() != test[2] {
 			t.Errorf("Got %v expected %v", actualValue, test[1])
 		}
 	}
@@ -64,17 +64,17 @@ func TestMapRemove(t *testing.T) {
 	m.Remove(8)
 	m.Remove(5)
 
-	if actualValue, expectedValue := fmt.Sprintf("%d", m.Keys()), "[]"; actualValue != expectedValue {
+	if actualValue, expectedValue := fmt.Sprintf("%d", m.Keys()), "[1 2 3 4]"; actualValue != expectedValue {
 		t.Errorf("Got %v expected %v", actualValue, expectedValue)
 	}
-	if actualValue, expectedValue := fmt.Sprintf("%s", m.Values()), "[]"; actualValue != expectedValue {
+	if actualValue, expectedValue := fmt.Sprintf("%s", m.Values()), "[a b c d]"; actualValue != expectedValue {
 		t.Errorf("Got %v expected %v", actualValue, expectedValue)
 	}
-	if actualValue := m.Size(); actualValue != 0 {
-		t.Errorf("Got %v expected %v", actualValue, 0)
+	if actualValue := m.Size(); actualValue != 4 {
+		t.Errorf("Got %v expected %v", actualValue, 4)
 	}
-	if actualValue := m.Empty(); actualValue != true {
-		t.Errorf("Got %v expected %v", actualValue, true)
+	if actualValue := m.Empty(); actualValue != false {
+		t.Errorf("Got %v expected %v", actualValue, false)
 	}
 
 	tests2 := [][]interface{}{
@@ -89,8 +89,8 @@ func TestMapRemove(t *testing.T) {
 	}
 
 	for _, test := range tests2 {
-		actualValue, actualFound := m.Get(test[0].(int))
-		if actualValue != test[1] || actualFound != test[2] {
+		actualValue := m.Get(test[0].(int))
+		if (actualValue.HasNext() && actualValue.Value() != test[1]) || actualValue.HasNext() != test[2] {
 			t.Errorf("Got %v expected %v", actualValue, test[1])
 		}
 	}
@@ -116,35 +116,64 @@ func TestMapRemove(t *testing.T) {
 	}
 }
 
-/**
-func TestMapFloor(t *testing.T) {
-	m := NewIntStringMap()
+func TestMultiMap(t *testing.T) {
+	m := NewMultiIntStringMap()
+	m.Put(5, "e")
+	m.Put(6, "f")
 	m.Put(7, "g")
 	m.Put(3, "c")
+	m.Put(4, "d")
+	m.Put(1, "x")
+	m.Put(2, "b")
+	m.Put(2, "z")
 	m.Put(1, "a")
 
-	// key,expectedKey,expectedValue,expectedFound
-	tests1 := [][]interface{}{
-		{-1, nil, nil, false},
-		{0, nil, nil, false},
-		{1, 1, "a", true},
-		{2, 1, "a", true},
-		{3, 3, "c", true},
-		{4, 3, "c", true},
-		{7, 7, "g", true},
-		{8, 7, "g", true},
+	if expect, actual := fmt.Sprint([]int{1, 1, 2, 2, 3, 4, 5, 6, 7}), fmt.Sprint(m.Keys()); expect != actual {
+		t.Fatalf("expect %s, got %s", expect, actual)
 	}
 
-	for _, test := range tests1 {
-		// retrievals
-		actualKey, actualValue := m.Floor(test[0])
-		actualFound := actualKey != nil && actualValue != nil
-		if actualKey != test[1] || actualValue != test[2] || actualFound != test[3] {
-			t.Errorf("Got %v, %v, %v, expected %v, %v, %v", actualKey, actualValue, actualFound, test[1], test[2], test[3])
-		}
+	m.Remove(2)
+
+	if expect, actual := fmt.Sprint([]int{1, 1, 3, 4, 5, 6, 7}), fmt.Sprint(m.Keys()); expect != actual {
+		t.Fatalf("expect %s, got %s", expect, actual)
+	}
+
+	m.Remove(1)
+
+	if expect, actual := fmt.Sprint([]int{3, 4, 5, 6, 7}), fmt.Sprint(m.Keys()); expect != actual {
+		t.Fatalf("expect %s, got %s", expect, actual)
 	}
 }
 
+//func TestMapFloor(t *testing.T) {
+//	m := NewIntStringMap()
+//	m.Put(7, "g")
+//	m.Put(3, "c")
+//	m.Put(1, "a")
+//
+//	// key,expectedKey,expectedValue,expectedFound
+//	tests1 := [][]interface{}{
+//		{-1, nil, nil, false},
+//		{0, nil, nil, false},
+//		{1, 1, "a", true},
+//		{2, 1, "a", true},
+//		{3, 3, "c", true},
+//		{4, 3, "c", true},
+//		{7, 7, "g", true},
+//		{8, 7, "g", true},
+//	}
+//
+//	for _, test := range tests1 {
+//		// retrievals
+//		actualKey, actualValue := m.Floor(test[0].(int))
+//		actualFound := actualKey != nil && actualValue != nil
+//		if actualKey != test[1] || actualValue != test[2] || actualFound != test[3] {
+//			t.Errorf("Got %v, %v, %v, expected %v, %v, %v", actualKey, actualValue, actualFound, test[1], test[2], test[3])
+//		}
+//	}
+//}
+
+/**
 func TestMapCeiling(t *testing.T) {
 	m := NewIntStringMap()
 	m.Put(7, "g")
@@ -202,6 +231,17 @@ func TestMapEach(t *testing.T) {
 			t.Errorf("Too many")
 		}
 	})
+
+	expects := []string{"a","b","c"}
+
+	m1 := NewIntStringPtrMap()
+	m1.Put(0,&expects[0])
+	m1.Put(1,&expects[1])
+	m1.Put(2,&expects[2])
+	m1.Put(3,nil)
+
+	m1.Each(func(key int, value *string) {
+	})
 }
 
 func TestMapSerialization(t *testing.T) {
@@ -223,9 +263,34 @@ func TestMapSerialization(t *testing.T) {
 		t.Errorf("Got error %v", err)
 	}
 
-	//TODO
-	//assert.Equal(t, []int{1,2,3,4,5}, deserialized.Keys())
-	//assert.Equal(t, []string{"1","2","3","4","5"}, deserialized.Values())
+	utils.AssertTest(t, []int{1, 2, 3, 4, 5}, deserialized.Keys())
+	utils.AssertTest(t, []string{"1", "2", "3", "4", "5"}, deserialized.Values())
+}
+
+func TestMapSerialization2(t *testing.T) {
+	original := NewIntStringPtrMap()
+	expects := []string{"0","1","2","3","4","5"}
+
+	original.Put(4, &expects[4])
+	original.Put(5, &expects[5])
+	original.Put(3, &expects[3])
+	original.Put(2, &expects[2])
+	original.Put(1, &expects[1])
+	original.Put(6, nil)
+
+	serialized, err := original.MarshalJSON()
+	if err != nil {
+		t.Errorf("Got error %v", err)
+	}
+
+	deserialized := NewIntStringMap()
+	err = deserialized.UnmarshalJSON(serialized)
+	if err != nil {
+		t.Errorf("Got error %v", err)
+	}
+
+	utils.AssertTest(t, []int{1, 2, 3, 4, 5, 6}, deserialized.Keys())
+	utils.AssertTest(t, []string{"1", "2", "3", "4", "5", ""}, deserialized.Values())
 }
 
 /**
