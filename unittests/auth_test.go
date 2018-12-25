@@ -2,7 +2,6 @@ package unittests
 
 import (
 	"fmt"
-	"github.com/docker/docker/pkg/testutil/assert"
 	. "github.com/eosspark/eos-go/chain"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
@@ -11,7 +10,7 @@ import (
 	"github.com/eosspark/eos-go/entity"
 	. "github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
-	assert2 "github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
@@ -660,8 +659,8 @@ func TestNoDoubleBilling(t *testing.T) {
 	usage2 := entity.ResourceUsageObject{Owner: acc1a}
 	vt.Control.DB.Find("byOwner", usage2, &usage2)
 
-	assert2.True(t, usage.CpuUsage.Average() > 0)
-	assert2.True(t, usage.NetUsage.Average() > 0)
+	assert.True(t, usage.CpuUsage.Average() > 0)
+	assert.True(t, usage.NetUsage.Average() > 0)
 	assert.Equal(t, usage.CpuUsage.Average(), usage2.CpuUsage.Average())
 	assert.Equal(t, usage.NetUsage.Average(), usage2.NetUsage.Average())
 	vt.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs), 0)
