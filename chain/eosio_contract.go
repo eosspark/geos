@@ -189,7 +189,7 @@ func applyEosioSetcode(context *ApplyContext) {
 
 	var codeId *crypto.Sha256
 	if len(act.Code) > 0 {
-		codeId = crypto.NewSha256Byte(act.Code)
+		codeId = crypto.Hash256(act.Code)
 		//exec.validate(context.Control, act.Code)
 	}
 

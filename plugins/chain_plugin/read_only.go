@@ -364,7 +364,7 @@ func (ro *ReadOnly) GetCode(params GetCodeParams) GetCodeResult {
 
 	if account.Code.Size() > 0 {
 		result.Wasm = string(account.Code)
-		result.CodeHash = crypto.Hash256(account.Code)
+		result.CodeHash = *crypto.Hash256(account.Code)
 	}
 
 	var abi abi_serializer.AbiDef

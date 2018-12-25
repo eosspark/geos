@@ -91,7 +91,7 @@ func (m *IncrementalMerkle) Append(digest crypto.Sha256) crypto.Sha256 {
 
 			// calculate the partially realized node value by implying the "right" value is identical
 			// to the "left" value
-			top = crypto.Hash256(makeCanonicalPair(top, top))
+			top = *crypto.Hash256(makeCanonicalPair(top, top))
 			partial = true
 		} else {
 			// we are collapsing from a "right" value and an fully-realized "left"
@@ -107,7 +107,7 @@ func (m *IncrementalMerkle) Append(digest crypto.Sha256) crypto.Sha256 {
 			}
 
 			// calculate the node
-			top = crypto.Hash256(makeCanonicalPair(leftValue, top))
+			top = *crypto.Hash256(makeCanonicalPair(leftValue, top))
 		}
 
 		// move up a level in the tree
@@ -138,7 +138,7 @@ func Merkle(ids []crypto.Sha256) crypto.Sha256 {
 		}
 
 		for i := 0; i < len(ids)/2; i++ {
-			ids[i] = crypto.Hash256(makeCanonicalPair(ids[2*i], ids[(2*i)+1]))
+			ids[i] = *crypto.Hash256(makeCanonicalPair(ids[2*i], ids[(2*i)+1]))
 		}
 
 		ids = ids[:len(ids)/2]

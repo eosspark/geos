@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"github.com/eosspark/container/maps/treemap"
 	"github.com/eosspark/container/sets/treeset"
+	"github.com/eosspark/container/templates"
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/log"
 	"io"
@@ -163,6 +164,11 @@ func (d *Decoder) Decode(v interface{}) (err error) {
 		}
 		rv.Set(reflect.ValueOf(s))
 		return nil
+
+	case templates.Container:
+		v, err = d.ReadContains(realV)
+		return err
+
 	case *treeset.Set:
 		err = d.ReadTreeSet(realV)
 		if err != nil {
@@ -179,13 +185,14 @@ func (d *Decoder) Decode(v interface{}) (err error) {
 		rv.Set(reflect.ValueOf(*realV))
 		return
 	case treeset.MultiSet:
-		fmt.Println(181)
 		err = d.ReadTreeMultiSet(&realV)
 		if err != nil {
 			return
 		}
 		rv.Set(reflect.ValueOf(realV))
 		return
+		//default:
+		//	fmt.Println("default: ", reflect.TypeOf(v))
 	}
 
 	switch t.Kind() {
@@ -254,7 +261,6 @@ func (d *Decoder) Decode(v interface{}) (err error) {
 
 	case reflect.Array:
 		len := t.Len()
-
 		for i := 0; i < int(len); i++ {
 			if err = d.Decode(rv.Index(i).Addr().Interface()); err != nil {
 				return
@@ -326,8 +332,6 @@ func (d *Decoder) decodeStruct(v interface{}, t reflect.Type, rv reflect.Value) 
 			vuint32 = true
 		case "vint32":
 			vint32 = true
-		//case "array":
-		//	eosArray = true
 		//	//for types.TransactionWithID !!
 		case "trxID":
 			destaticVariantTag, _ = d.ReadByte()
@@ -345,7 +349,15 @@ func (d *Decoder) decodeStruct(v interface{}, t reflect.Type, rv reflect.Value) 
 		}
 
 		if v := rv.Field(i); v.CanSet() && t.Field(i).Name != "_" {
-			iface := v.Addr().Interface()
+			var iface interface{}
+			//if v.Kind() == reflect.Ptr {
+			//	if v.IsNil() {
+			//		v = reflect.New(v.Type())
+			//	}
+			//	iface = v.Interface()
+			//} else {
+			iface = v.Addr().Interface()
+			//}
 			if err = d.Decode(iface); err != nil {
 				return
 			}
@@ -629,6 +641,26 @@ func (d *Decoder) ReadSignature() (out ecc.Signature, err error) {
 
 	d.pos += TypeSize.Signature
 	return
+}
+func (d *Decoder) ReadContains(c templates.Container) (out templates.Container, err error) {
+	var l uint64
+	if l, err = d.ReadUvarint64(); err != nil {
+		return
+	}
+	if d.remaining() < int(l) {
+		err = fmt.Errorf("contains required [%d] bytes, remaining [%d]", l, d.remaining())
+		return
+	}
+	content := make([]byte, int(l))
+	copy(content, d.data[d.pos:d.pos+int(l)])
+
+	err = c.UnmarshalJSON(content)
+	if err != nil {
+		return
+	}
+	d.pos += int(l)
+	return c, nil
+
 }
 
 //func (d *Decoder) ReadSymbol() (out *Symbol, err error) {

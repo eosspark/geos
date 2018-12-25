@@ -136,7 +136,7 @@ func handshakePopulate(impl *netPluginIMpl, hello *HandshakeMessage) {
 	hello.NodeID = impl.nodeID
 	hello.Key = *impl.getAuthenticationKey()
 	hello.Time = common.Now()
-	hello.Token = crypto.Hash256(hello.Time)
+	hello.Token = *crypto.Hash256(hello.Time)
 	hello.Signature = *impl.signCompact(&hello.Key, &hello.Token)
 
 	// If we couldn't sign, don't send a token.

@@ -584,7 +584,7 @@ func (c *Controller) pushTransaction(trx *types.TransactionMetadata, deadLine co
 			}
 
 			if !trx.Implicit {
-				delete(c.UnappliedTransactions, crypto.Hash256(trx.SignedID))
+				delete(c.UnappliedTransactions, *crypto.Hash256(trx.SignedID))
 			}
 
 			returning = true
@@ -976,7 +976,7 @@ func scheduledFailureIsSubjective(e Exception) bool {
 func (c *Controller) setActionMerkle() {
 	actionDigests := make([]crypto.Sha256, len(c.Pending.Actions))
 	for _, b := range c.Pending.Actions {
-		actionDigests = append(actionDigests, crypto.Hash256(b.ActDigest))
+		actionDigests = append(actionDigests, *crypto.Hash256(b.ActDigest))
 	}
 	c.Pending.PendingBlockState.Header.ActionMRoot = common.CheckSum256Type(types.Merkle(actionDigests))
 }
@@ -984,7 +984,7 @@ func (c *Controller) setActionMerkle() {
 func (c *Controller) setTrxMerkle() {
 	actionDigests := make([]crypto.Sha256, len(c.Pending.Actions))
 	for _, b := range c.Pending.PendingBlockState.SignedBlock.Transactions {
-		actionDigests = append(actionDigests, crypto.Hash256(b.Digest()))
+		actionDigests = append(actionDigests, *crypto.Hash256(b.Digest()))
 	}
 	c.Pending.PendingBlockState.Header.TransactionMRoot = common.CheckSum256Type(types.Merkle(actionDigests))
 }
@@ -1679,7 +1679,7 @@ func (c *Controller) initializeForkDB() {
 	genHeader := types.BlockHeaderState{}
 	genHeader.ActiveSchedule = pst
 	genHeader.PendingSchedule = pst
-	genHeader.PendingScheduleHash = crypto.Hash256(pst)
+	genHeader.PendingScheduleHash = *crypto.Hash256(pst)
 	genHeader.Header.Timestamp = types.NewBlockTimeStamp(gs.InitialTimestamp)
 	genHeader.Header.ActionMRoot = common.CheckSum256Type(gs.ComputeChainID())
 	genHeader.BlockId = genHeader.Header.BlockID()

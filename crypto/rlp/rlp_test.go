@@ -313,8 +313,11 @@ func TestEncoder_Decode_struct_tag(t *testing.T) {
 	enc := NewEncoder(buf)
 	enc.writeString("123")
 
-	d := NewDecoder(buf.Bytes())
-	d.Decode(&s)
+	//d := NewDecoder(buf.Bytes())
+	//d.Decode(&s)
+
+	err := DecodeBytes(buf.Bytes(), &s)
+	assert.NoError(t, err)
 	assert.Equal(t, "", s.S1)
 	assert.Equal(t, "123", s.S2)
 
@@ -591,13 +594,13 @@ func TestOptional(t *testing.T) {
 	result := []byte{0x1, 0xe8, 0x3, 0x0, 0x0, 0x1, 0xc1, 0x87, 0xb, 0x32, 0xa, 0x9, 0x0, 0x0, 0xa, 0x1, 0x2, 0x3, 0x4, 0x5, 0x6, 0x7, 0x8, 0x9, 0x0}
 
 	enc, err := EncodeToBytes(test)
-	assert.NoError(t, err, nil)
+	assert.NoError(t, err)
 	assert.Equal(t, enc, result)
 	//fmt.Printf("%#v\n", enc)
 
 	check := &optionalStruct{}
-	err = DecodeBytes(result, &check)
-	assert.NoError(t, err, nil)
+	err = DecodeBytes(result, check)
+	assert.NoError(t, err)
 	assert.Equal(t, test, check)
 	//fmt.Printf("%V\n", check)
 }
@@ -692,6 +695,15 @@ func TestStructTag(t *testing.T) {
 	assert.NoError(t, err, nil)
 	assert.Equal(t, test2, check)
 
+}
+
+func TestNil(t *testing.T) {
+	s := "hello"
+	b, err := EncodeToBytes(s)
+	assert.NoError(t, err)
+	ss := (*string)(nil)
+	err = DecodeBytes(b, ss)
+	assert.NoError(t, err)
 }
 
 //func TestSignature(t *testing.T) {
