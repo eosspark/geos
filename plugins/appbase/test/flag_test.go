@@ -1,15 +1,13 @@
 package test
 
 import (
-	"os"
-	"gopkg.in/urfave/cli.v1"
-	"testing"
 	"fmt"
-	"sort"
+	"github.com/urfave/cli"
 	"log"
+	"os"
+	"sort"
+	"testing"
 )
-
-
 
 func makeArguments(values ...string) {
 	options := append([]string(values), "--") // use "--" to divide arguments
@@ -23,13 +21,13 @@ func makeArguments(values ...string) {
 }
 
 func TestFlag(t *testing.T) {
-	makeArguments("-p","9000","-d","chian")
+	makeArguments("-p", "9000", "-d", "chian")
 
 	app := cli.NewApp()
 	app.Name = "GoTest"
 	app.Usage = "hello world"
 	app.Version = "1.2.3"
-	app.Flags = []cli.Flag {
+	app.Flags = []cli.Flag{
 		cli.IntFlag{
 			Name:  "port, p",
 			Value: 8000,
@@ -66,14 +64,12 @@ func TestFlag(t *testing.T) {
 		Usage: "Print version information.",
 	}
 
-
 	sort.Sort(cli.FlagsByName(app.Flags))
 
-	cli.HelpFlag = cli.BoolFlag {
-		Name: "help, h",
+	cli.HelpFlag = cli.BoolFlag{
+		Name:  "help, h",
 		Usage: "Print this help message and exit.",
 	}
-
 
 	app.Action = func(c *cli.Context) error {
 		fmt.Println("BOOM!")
@@ -92,9 +88,3 @@ func TestFlag(t *testing.T) {
 		log.Fatal(err)
 	}
 }
-
-
-
-
-
-
