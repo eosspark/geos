@@ -724,20 +724,25 @@ func (c *Controller) GetScheduledTransactions() []common.TransactionIdType {
 	result := []common.TransactionIdType{}
 	gto := entity.GeneratedTransactionObject{}
 	idx, err := c.DB.GetIndex("byDelay", &gto)
-	itr := idx.Begin()
-	for itr != idx.End() && gto.DelayUntil <= c.PendingBlockTime() {
-		result = append(result, gto.TrxId)
-		itr.Next()
-		err = itr.Data(&gto)
-	}
 	if err != nil {
 		log.Error("Controller GetScheduledTransactions is error:%s", err)
 	}
+	itr := idx.Begin()
+	if itr == idx.End() {
+		return result
+	}
+	for itr.Data(&gto); ; {
+		if gto.DelayUntil <= c.PendingBlockTime() {
+			result = append(result, gto.TrxId)
+		}
+		if !itr.Next() {
+			break
+		}
+
+	}
 	if itr != nil {
 		itr.Release()
-	} /*else {
-		log.Info("Controller GetScheduledTransactions byDelay is not found data")
-	}*/
+	}
 	return result
 }
 func (c *Controller) PushScheduledTransaction(trxId *common.TransactionIdType, deadLine common.TimePoint, billedCpuTimeUs uint32) *types.TransactionTrace {
@@ -751,9 +756,10 @@ func (c *Controller) pushScheduledTransactionById(sheduled *common.TransactionId
 
 	gto := entity.GeneratedTransactionObject{}
 	gto.TrxId = *sheduled
-	c.DB.Find("byTrxId", gto, &gto)
-
-	EosAssert(&gto != nil, &UnknownTransactionException{}, "unknown transaction")
+	err := c.DB.Find("byTrxId", gto, &gto)
+	if err != nil {
+		log.Info("controller pushScheduledTransactionById find byTrxId is error:%s", err)
+	}
 	return c.pushScheduledTransactionByObject(&gto, deadLine, billedCpuTimeUs, explicitBilledCpuTime)
 }
 
