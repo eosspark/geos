@@ -3,6 +3,7 @@ package unittests
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"github.com/eosspark/container/sets/treeset"
 	. "github.com/eosspark/eos-go/chain"
 	abi "github.com/eosspark/eos-go/chain/abi_serializer"
@@ -729,26 +730,40 @@ func (t BaseTester) GetRowByAccount(code uint64, scope uint64, table uint64, act
 
 func (t BaseTester) Uint64ToUint8Vector(x uint64) []uint8 {
 	//TODO
-	var v []uint8
+	v := make([]byte, 8)
+	for i := uint8(0); i < 8; i++ {
+		v[i] = uint8(x >> (8 * i))
+	}
 	return v
 }
 
-func (t BaseTester) StringToUint8Vector(s *string) []uint8 {
-	//TODO
-	var v []uint8
-	return v
+func (t BaseTester) StringToUint8Vector(s string) []uint8 {
+	return []byte(s)
 }
 
-func (t BaseTester) ToUint64(v []uint8) uint64 {
-	//TODO
-	var data uint64
-	return data
-}
+func (t BaseTester) ToUint64(x common.Variant) uint64 {
+	var bytes []uint8
+	err := common.FromVariant(x, &bytes)
+	if err != nil {
+		fmt.Println("from variant is error: ", err)
+		return 0 //TODO
+	}
+	var re uint64
+	try.FcAssert(len(bytes) == 8)
+	for i := uint8(0); i < 8; i++ {
+		re += uint64(bytes[i]) << (8 * i)
+	}
 
-func (t BaseTester) ToString(v []uint8) string {
-	//TODO
-	var s string
-	return s
+	return re
+}
+func (t BaseTester) ToString(x common.Variant) string {
+	var bytes []uint8
+	err := common.FromVariant(x, &bytes)
+	if err != nil {
+		fmt.Println("from variant is error: ", err)
+		return "" //TODO
+	}
+	return string(bytes)
 }
 
 func (t BaseTester) SyncWith(other *BaseTester) {
