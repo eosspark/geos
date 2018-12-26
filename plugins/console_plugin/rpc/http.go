@@ -33,7 +33,6 @@ import (
 	"time"
 
 	"github.com/eosspark/eos-go/log"
-	"github.com/rs/cors"
 )
 
 const (
@@ -198,7 +197,7 @@ func (t *httpReadWriteNopCloser) Close() error {
 // Deprecated: Server implements http.Handler
 func NewHTTPServer(cors []string, vhosts []string, timeouts HTTPTimeouts, srv *Server) *http.Server {
 	// Wrap the CORS-handler within a host-handler
-	handler := newCorsHandler(srv, cors)
+	handler := newCorsHandler(srv, cors) //TODO walker: delete github.com/rs/cors !!
 	handler = newVHostHandler(vhosts, handler)
 
 	// Make sure timeout values are meaningful
@@ -280,13 +279,14 @@ func newCorsHandler(srv *Server, allowedOrigins []string) http.Handler {
 	if len(allowedOrigins) == 0 {
 		return srv
 	}
-	c := cors.New(cors.Options{
-		AllowedOrigins: allowedOrigins,
-		AllowedMethods: []string{http.MethodPost, http.MethodGet},
-		MaxAge:         600,
-		AllowedHeaders: []string{"*"},
-	})
-	return c.Handler(srv)
+	//c := cors.New(cors.Options{
+	//	AllowedOrigins: allowedOrigins,
+	//	AllowedMethods: []string{http.MethodPost, http.MethodGet},
+	//	MaxAge:         600,
+	//	AllowedHeaders: []string{"*"},
+	//})
+	//return c.Handler(srv)
+	return srv
 }
 
 // virtualHostHandler is a handler which validates the Host-header of incoming requests.

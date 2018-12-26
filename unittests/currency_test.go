@@ -14,9 +14,10 @@ import (
 	"testing"
 )
 
+/*
 var eosioToken = common.AccountName(common.N("eosio.token"))
 var DEFAULT_EXPIRATION_DELTA uint32 = 6
-var DEFAULT_BILLED_CPU_TIME_US uint32 = 2000
+var DEFAULT_BILLED_CPU_TIME_US uint32 = 2000*/
 
 type CurrencyTester struct {
 	abiSer           abi_serializer.AbiDef
@@ -86,7 +87,7 @@ func (c *CurrencyTester) PushAction(signer *common.AccountName, name *common.Act
 	key := c.validatingTester.getPrivateKey(*signer, "active")
 	chainID := c.validatingTester.Control.GetChainId()
 	trx.Sign(&key, &chainID)
-	return c.validatingTester.PushTransaction(trx, common.MaxTimePoint(), DEFAULT_BILLED_CPU_TIME_US)
+	return c.validatingTester.PushTransaction(trx, common.MaxTimePoint(), c.validatingTester.DefaultBilledCpuTimeUs)
 }
 
 func (ct *CurrencyTester) GetBalance(account *common.AccountName) *common.Asset {
@@ -140,7 +141,7 @@ func TestCurrencyTransfer(t *testing.T) {
 
 		s := "100.0000 EOS"
 		expected := common.Asset{}.FromString(&s)
-		log.Info("tmp code :%s,%v", trace.ID, ct.GetBalance(&alice))
+		assert.Equal(t, true, ct.validatingTester.ChainHasTransaction(&trace.ID))
 		assert.Equal(t, *ct.GetBalance(&alice), expected)
 		ct.validatingTester.close()
 	}).FcLogAndRethrow().End()
@@ -170,9 +171,8 @@ func TestDuplicateTransfer(t *testing.T) {
 		})
 
 		ct.validatingTester.DefaultProduceBlock()
-		log.Info("tmp code:%d,%v", trace.BlockNum, expected)
-		//assert.Equal(t, true, ct.validatingTester.ChainHasTransaction(&trace.ID))
-		//assert.Equal(t, ct.GetBalance(&alice), expected)
+		assert.Equal(t, true, ct.validatingTester.ChainHasTransaction(&trace.ID))
+		assert.Equal(t, *ct.GetBalance(&alice), expected)
 		ct.validatingTester.close()
 	}).FcLogAndRethrow().End()
 }
@@ -192,9 +192,8 @@ func TestAddTransfer(t *testing.T) {
 			"quantity": s,
 			"memo":     "fund Alice"}
 		trace := ct.PushAction(&eosioToken, &actionName, &data)
-		log.Info("tmp code:%d,%v", trace.BlockNum, expected)
 		ct.validatingTester.DefaultProduceBlock() //
-		//assert.Equal(t, true, ct.validatingTester.ChainHasTransaction(&trace.ID))
+		assert.Equal(t, true, ct.validatingTester.ChainHasTransaction(&trace.ID))
 		assert.Equal(t, *ct.GetBalance(&alice), expected)
 
 		asset2 := common.Asset{}
@@ -215,7 +214,7 @@ func TestAddTransfer(t *testing.T) {
 
 		ct.validatingTester.DefaultProduceBlock()
 
-		//assert.Equal(t, true, ct.validatingTester.ChainHasTransaction(&trace.ID))
+		assert.Equal(t, true, ct.validatingTester.ChainHasTransaction(&trace.ID))
 		assert.Equal(t, *ct.GetBalance(&alice), exp)
 		ct.validatingTester.close()
 	}).FcLogAndRethrow().End()
@@ -237,9 +236,8 @@ func TestOverspend(t *testing.T) {
 			"quantity": s,
 			"memo":     "fund Alice"}
 		trace := ct.PushAction(&accountName, &actionName, &data)
-		log.Info("tmp code:tmp code:%d,%v", trace.BlockNum)
 		ct.validatingTester.DefaultProduceBlock() //
-		//assert.Equal(t, true, ct.validatingTester.ChainHasTransaction(&trace.ID))
+		assert.Equal(t, true, ct.validatingTester.ChainHasTransaction(&trace.ID))
 		assert.Equal(t, *ct.GetBalance(&alice), expected)
 
 		s2 := "101.0000 EOS"
@@ -273,7 +271,7 @@ func TestFullspend(t *testing.T) {
 		ct.validatingTester.CreateAccounts([]common.AccountName{common.N("alice"), common.N("bob")}, false, true)
 		actionName := common.ActionName(common.N("transfer"))
 		alice := common.AccountName(common.N("alice"))
-		//zero := "0.0000 EOS"
+		zero := "0.0000 EOS"
 		val := "100.0000 EOS"
 		data := common.Variants{
 			"from":     eosioToken,
@@ -282,9 +280,8 @@ func TestFullspend(t *testing.T) {
 			"memo":     "all in! Alice"}
 		trace := ct.PushAction(&eosioToken, &actionName, &data)
 		ct.validatingTester.DefaultProduceBlock()
-		//assert.Equal(t, true, ct.validatingTester.ChainHasTransaction(&trace.ID))
-		log.Info("trace id:%v", trace)
-		//z :=common.Asset{}.FromString(&zero)
+		assert.Equal(t, true, ct.validatingTester.ChainHasTransaction(&trace.ID))
+		z := common.Asset{}.FromString(&zero)
 
 		assert.Equal(t, *ct.GetBalance(&alice), common.Asset{}.FromString(&val))
 		bob := common.AccountName(common.N("bob"))
@@ -298,8 +295,9 @@ func TestFullspend(t *testing.T) {
 		ct.validatingTester.DefaultProduceBlock()
 		s := "100.0000 EOS"
 		expected := common.Asset{}.FromString(&s)
+		assert.Equal(t, true, ct.validatingTester.ChainHasTransaction(&trace2.ID))
 		assert.Equal(t, *ct.GetBalance(&bob), expected)
-		//assert.Equal(t, *ct.GetBalance(&alice), z)
+		assert.Equal(t, *ct.GetBalance(&alice), z)
 		ct.validatingTester.close()
 	}).FcLogAndRethrow().End()
 }
@@ -416,6 +414,7 @@ func TestSymbol(t *testing.T) {
 	}
 }
 
+/*
 func TestProxy(t *testing.T) {
 	try.Try(func() {
 		ct := NewCurrencyTester()
@@ -485,3 +484,4 @@ func TestProxy(t *testing.T) {
 
 	}).FcLogAndRethrow().End()
 }
+*/

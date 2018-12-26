@@ -187,7 +187,7 @@ func applyEosioSetcode(context *ApplyContext) {
 	EosAssert(act.VmType == 0, &InvalidContractVmType{}, "code should be 0")
 	EosAssert(act.VmVersion == 0, &InvalidContractVmVersion{}, "version should be 0")
 
-	var codeId crypto.Sha256
+	var codeId *crypto.Sha256
 	if len(act.Code) > 0 {
 		codeId = crypto.Hash256(act.Code)
 		//exec.validate(context.Control, act.Code)
@@ -200,11 +200,11 @@ func applyEosioSetcode(context *ApplyContext) {
 	oldSize := len(accountObject.Code) * int(common.DefaultConfig.SetcodeRamBytesMultiplier)
 	newSize := codeSize * int(common.DefaultConfig.SetcodeRamBytesMultiplier)
 
-	EosAssert(accountObject.CodeVersion != codeId, &SetExactCode{}, "contract is already running this version of code")
+	EosAssert(accountObject.CodeVersion != *codeId, &SetExactCode{}, "contract is already running this version of code")
 
 	db.Modify(&accountObject, func(a *entity.AccountObject) {
 		a.LastCodeUpdate = context.Control.PendingBlockTime()
-		a.CodeVersion = codeId
+		a.CodeVersion = *codeId
 		if codeSize > 0 {
 			a.Code = act.Code
 		}

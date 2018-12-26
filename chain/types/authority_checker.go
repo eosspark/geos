@@ -88,14 +88,14 @@ const (
 	PermissionSatisfied
 )
 
-type PermissionCacheType map[PermissionLevel]PermissionCacheStatus
+type PermissionCacheType = map[PermissionLevel]PermissionCacheStatus
 
 func (ac *AuthorityChecker) PermissionStatusInCache(permissions PermissionCacheType, level *PermissionLevel) PermissionCacheStatus {
-	itr, ok := map[PermissionLevel]PermissionCacheStatus(permissions)[*level]
+	itr, ok := permissions[*level]
 	if ok {
 		return itr
 	}
-	itr2, ok := map[PermissionLevel]PermissionCacheStatus(permissions)[PermissionLevel{level.Actor, common.PermissionName(common.N(""))}]
+	itr2, ok := permissions[PermissionLevel{level.Actor, common.PermissionName(common.N(""))}]
 	if ok {
 		return itr2
 	}
@@ -103,11 +103,10 @@ func (ac *AuthorityChecker) PermissionStatusInCache(permissions PermissionCacheT
 }
 
 func (ac *AuthorityChecker) initializePermissionCache(cachedPermission *PermissionCacheType) *PermissionCacheType {
-	ac.ProvidedPermissions = *treeset.NewWith(ecc.TypePubKey,ecc.ComparePubKey)
 	itr := ac.ProvidedPermissions.Iterator()
 	for itr.Next() {
 		val := itr.Value()
-		map[PermissionLevel]PermissionCacheStatus(*cachedPermission)[*(val.(*PermissionLevel))] = PermissionSatisfied
+		(*cachedPermission)[(val.(PermissionLevel))] = PermissionSatisfied
 	}
 	return cachedPermission
 }
@@ -174,7 +173,7 @@ func (wtv *WeightTallyVisitor) VisitPermissionLevelWeight(permission PermissionL
 					return
 				}
 				propagateError = true
-				map[PermissionLevel]PermissionCacheStatus(*wtv.CachedPermissions)[permission.Permission] = BeingEvaluated
+				(*wtv.CachedPermissions)[permission.Permission] = BeingEvaluated
 				r = wtv.Checker.SatisfiedAcd(&auth, wtv.CachedPermissions, wtv.RecursionDepth+1)
 			}).Catch(func(e *PermissionQueryException) {
 				isNotFound = true
@@ -189,9 +188,9 @@ func (wtv *WeightTallyVisitor) VisitPermissionLevelWeight(permission PermissionL
 			}
 			if r {
 				wtv.TotalWeight += uint32(permission.Weight)
-				map[PermissionLevel]PermissionCacheStatus(*wtv.CachedPermissions)[permission.Permission] = PermissionSatisfied
+				(*wtv.CachedPermissions)[permission.Permission] = PermissionSatisfied
 			} else {
-				map[PermissionLevel]PermissionCacheStatus(*wtv.CachedPermissions)[permission.Permission] = PermissionUnsatisfied
+				(*wtv.CachedPermissions)[permission.Permission] = PermissionUnsatisfied
 			}
 		}
 	} else if status == PermissionSatisfied {

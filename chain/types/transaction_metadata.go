@@ -27,7 +27,7 @@ func NewTransactionMetadata(ptrx *PackedTransaction) *TransactionMetadata {
 	signedTransaction := ptrx.GetSignedTransaction()
 	return &TransactionMetadata{
 		ID:        signedTransaction.ID(),
-		SignedID:  common.TransactionIdType(hashed),
+		SignedID:  common.TransactionIdType(*hashed),
 		Trx:       signedTransaction,
 		PackedTrx: ptrx,
 	}
@@ -38,7 +38,7 @@ func NewTransactionMetadataBySignedTrx(t *SignedTransaction, c CompressionType) 
 	packedTrx := NewPackedTransactionBySignedTrx(t, c)
 	return &TransactionMetadata{
 		ID:        t.ID(),
-		SignedID:  common.TransactionIdType(hashed),
+		SignedID:  common.TransactionIdType(*hashed),
 		Trx:       t,
 		PackedTrx: packedTrx,
 		Implicit:  false,

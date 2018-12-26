@@ -42,7 +42,7 @@ func (g *GenesisState) ComputeChainID() common.ChainIdType {
 	if err != nil {
 		log.Error("ComputeChainID EncodeToBytes is error:%s", err.Error())
 	}
-	return common.ChainIdType(crypto.Hash256(b))
+	return common.ChainIdType(*crypto.Hash256(b))
 }
 
 func (g *GenesisState) Initial() ChainConfig {

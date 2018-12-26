@@ -225,7 +225,7 @@ func (a *ApplyContext) execOne(trace *types.ActionTrace) {
 
 	r := types.ActionReceipt{}
 	r.Receiver = a.Receiver
-	r.ActDigest = crypto.Hash256(a.Act)
+	r.ActDigest = *crypto.Hash256(a.Act)
 
 	trace.TrxId = a.TrxContext.ID
 	trace.BlockNum = a.Control.PendingBlockState().BlockNum
