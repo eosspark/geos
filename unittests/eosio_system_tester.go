@@ -438,7 +438,7 @@ func (e EosioSystemTester) GetVoterInfo(act uint64) common.Variants {
 		ProxiedVoteWeight float64
 		IsProxy           bool
 	}
-	data := e.GetRowByAccount(uint64(eosio), act, uint64(common.N("voters")), act)
+	data := e.GetRowByAccount(uint64(eosio), uint64(eosio), uint64(common.N("voters")), act)
 	if len(data) == 0 {
 		return common.Variants{}
 	} else {
@@ -563,4 +563,22 @@ func (e EosioSystemTester) Cross15PercentThreshold() {
 		e.PushTransaction(&trx, common.MaxTimePoint(), e.DefaultBilledCpuTimeUs)
 	}
 
+}
+
+func (e EosioSystemTester) Voter(acct common.AccountName) common.Variants {
+	return common.Variants{
+		"owner":               acct,
+		"proxy":               common.AccountName(0),
+		"producers":           []common.AccountName{},
+		"staked":              int64(0),
+		"last_vote_weight":    float64(0),
+ 		"proxied_vote_weight": float64(0),
+		"is_proxy":            false,
+	}
+}
+
+func (e EosioSystemTester) VoterAV(acct common.AccountName, voteStake common.Asset) common.Variants {
+	voter := e.Voter(acct)
+	voter["staked"] = voteStake.Amount
+	return voter
 }

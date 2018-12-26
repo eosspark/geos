@@ -129,7 +129,7 @@ func TestStakeUnstake(t *testing.T) {
 	assert.Equal(t, CoreFromString("210.0000"), total["net_weight"].(common.Asset))
 	assert.Equal(t, CoreFromString("110.0000"), total["cpu_weight"].(common.Asset))
 
-	//   REQUIRE_MATCHING_OBJECT( voter( "alice1111111", core_from_string("300.0000")), get_voter_info( "alice1111111" ) );
+	assert.Equal(t, e.VoterAV(alice, CoreFromString("300.0000")), e.GetVoterInfo(uint64(alice)))
 	bytes := total["ram_bytes"].(int64)
 	assert.True(t, 0 < bytes)
 
