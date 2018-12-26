@@ -9,19 +9,9 @@ import (
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/crypto/rlp"
 	. "github.com/eosspark/eos-go/exception"
-	. "github.com/eosspark/eos-go/exception/try"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
-
-func CheckThrow(t *testing.T, f func(), exception Exception) {
-	check := false
-	Try(f).Catch(func(e Exception) {
-		assert.Equal(t, exception.Code(), e.Code())
-		check = true
-	}).End()
-	assert.Equal(t, true, check)
-}
 
 func TestBlockWithInvalidTx(t *testing.T) {
 	main := newBaseTester(true, chain.SPECULATIVE)
