@@ -193,7 +193,7 @@ func (t BaseTester) produceBlock(skipTime common.Microseconds, skipPendingTrxs b
 		}
 
 		scheduledTrxs := t.Control.GetScheduledTransactions()
-		for len(scheduledTrxs) > 0 {
+		if len(scheduledTrxs) > 0 {
 			for _, trx := range scheduledTrxs {
 				trace := t.Control.PushScheduledTransaction(&trx, common.MaxTimePoint(), 0)
 				if trace.Except != nil {

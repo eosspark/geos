@@ -44,7 +44,9 @@ func GeneratedTransactions(gto *GeneratedTransactionObject) *GeneratedTransactio
 	gt.DelayUntil = gto.DelayUntil
 	gt.Expiration = gto.Expiration
 	gt.Published = gto.Published
-	gt.PackedTrx[0] = gto.PackedTrx[0]
-	gt.PackedTrx[1] = gto.PackedTrx[len(gto.PackedTrx)]
+	if gto.PackedTrx.Size() > 0 {
+		gt.PackedTrx = gto.PackedTrx[:]
+	}
+
 	return &gt
 }
