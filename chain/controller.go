@@ -756,9 +756,10 @@ func (c *Controller) pushScheduledTransactionById(sheduled *common.TransactionId
 
 	gto := entity.GeneratedTransactionObject{}
 	gto.TrxId = *sheduled
-	c.DB.Find("byTrxId", gto, &gto)
-
-	EosAssert(&gto != nil, &UnknownTransactionException{}, "unknown transaction")
+	err := c.DB.Find("byTrxId", gto, &gto)
+	if err != nil {
+		log.Info("controller pushScheduledTransactionById find byTrxId is error:%s", err)
+	}
 	return c.pushScheduledTransactionByObject(&gto, deadLine, billedCpuTimeUs, explicitBilledCpuTime)
 }
 
