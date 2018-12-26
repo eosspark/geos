@@ -1,6 +1,7 @@
 package unittests
 
 import (
+	"fmt"
 	. "github.com/eosspark/eos-go/chain"
 	"github.com/eosspark/eos-go/chain/abi_serializer"
 	"github.com/eosspark/eos-go/chain/types"
@@ -10,6 +11,8 @@ import (
 	"github.com/eosspark/eos-go/log"
 	"io/ioutil"
 )
+
+var producer = common.N("producer1111")
 
 type EosioSystemTester struct {
 	BaseTester
@@ -126,16 +129,16 @@ func (e EosioSystemTester) CreateAccountWithResources(name common.AccountName, c
 	}
 	activeAuth := types.NewAuthority(e.getPublicKey(name, "active"), 0)
 
-	new := NewAccount{
+	newAccount := NewAccount{
 		Creator: creator,
 		Name:    name,
 		Owner:   ownerAuth,
 		Active:  activeAuth,
 	}
-	data, _ := rlp.EncodeToBytes(new)
+	data, _ := rlp.EncodeToBytes(newAccount)
 	act := &types.Action{
-		Account:       new.GetAccount(),
-		Name:          new.GetName(),
+		Account:       newAccount.GetAccount(),
+		Name:          newAccount.GetName(),
 		Authorization: []types.PermissionLevel{{creator, common.DefaultConfig.ActiveName}},
 		Data:          data,
 	}
@@ -233,6 +236,66 @@ func (e EosioSystemTester) CreateAccountWithResources2(name common.AccountName, 
 	return e.PushTransaction(&trx, common.MaxTimePoint(), e.DefaultBilledCpuTimeUs)
 }
 
+func (e EosioSystemTester) SetupProducerAccounts(accounts []common.AccountName) *types.TransactionTrace {
+	creator := eosio
+	trx := types.SignedTransaction{}
+	e.SetTransactionHeaders(&trx.Transaction, e.DefaultExpirationDelta, 0)
+	cpu := CoreFromString("80.0000")
+	net := CoreFromString("80.0000")
+	ram := CoreFromString("1.0000")
+	for _, a := range accounts {
+		ownerAuth := types.NewAuthority(e.getPublicKey(a, "owner"), 0)
+		activeAuth := types.NewAuthority(e.getPublicKey(a, "active"), 0)
+		newAccount := NewAccount{
+			Creator: creator,
+			Name:    a,
+			Owner:   ownerAuth,
+			Active:  activeAuth,
+		}
+		data, _ := rlp.EncodeToBytes(newAccount)
+		newAccountAct := &types.Action{
+			Account:       newAccount.GetAccount(),
+			Name:          newAccount.GetName(),
+			Authorization: []types.PermissionLevel{{creator, common.DefaultConfig.ActiveName}},
+			Data:          data,
+		}
+		trx.Actions = append(trx.Actions, newAccountAct)
+
+		buyRamData := common.Variants{
+			"payer":    creator,
+			"receiver": a,
+			"quant":    ram,
+		}
+		buyRam := e.GetAction(
+			eosio,
+			common.N("buyram"),
+			[]types.PermissionLevel{{creator, common.DefaultConfig.ActiveName}},
+			&buyRamData,
+		)
+		trx.Actions = append(trx.Actions, buyRam)
+
+		delegateData := common.Variants{
+			"from":               creator,
+			"receiver":           a,
+			"stake_net_quantity": net,
+			"stake_cpu_quantity": cpu,
+			"transfer":           0,
+		}
+		delegate := e.GetAction(
+			eosio,
+			common.N("delegatebw"),
+			[]types.PermissionLevel{{creator, common.DefaultConfig.ActiveName}},
+			&delegateData,
+		)
+		trx.Actions = append(trx.Actions, delegate)
+	}
+	e.SetTransactionHeaders(&trx.Transaction, e.DefaultExpirationDelta, 0)
+	pk := e.getPrivateKey(creator, "active")
+	chainId := e.Control.GetChainId()
+	trx.Sign(&pk, &chainId)
+	return e.PushTransaction(&trx, common.MaxTimePoint(), e.DefaultBilledCpuTimeUs)
+}
+
 func (e EosioSystemTester) BuyRam(payer common.AccountName, receiver common.AccountName, eosin common.Asset) ActionResult {
 	buyRam := common.Variants{
 		"payer":    payer,
@@ -253,7 +316,7 @@ func (e EosioSystemTester) BuyRamBytes(payer common.AccountName, receiver common
 	return e.EsPushAction(&payer, &act, &buyRamBytes, true)
 }
 
-func (e EosioSystemTester) SellRam(account common.AccountName, numBytes uint64) ActionResult{
+func (e EosioSystemTester) SellRam(account common.AccountName, numBytes uint64) ActionResult {
 	sellRam := common.Variants{
 		"account": account,
 		"bytes":   numBytes,
@@ -287,6 +350,21 @@ func (e EosioSystemTester) Stake(from common.AccountName, to common.AccountName,
 	}
 	act := common.N("delegatebw")
 	return e.EsPushAction(&from, &act, &stake, true)
+}
+
+func (e EosioSystemTester) RegProducer(acnt common.AccountName) ActionResult {
+	regproducer := common.Variants{
+		"producer":     acnt,
+		"producer_key": e.getPublicKey(acnt, "active"),
+		"url":          "",
+		"location":     0,
+	}
+	act := common.N("regproducer")
+	r := e.EsPushAction(&acnt, &act, &regproducer, true)
+	if r != e.Success() {
+		log.Error("Wrong: Push action regproducer failed.")
+	}
+	return r
 }
 
 func (e EosioSystemTester) GetBalance(act common.AccountName) common.Asset {
@@ -357,7 +435,7 @@ func (e EosioSystemTester) Issue(to common.Name, amount common.Asset, manager co
 	)
 }
 
-func (e EosioSystemTester) Transfer(from common.Name, to common.Name, amount common.Asset, manager common.Name){
+func (e EosioSystemTester) Transfer(from common.Name, to common.Name, amount common.Asset, manager common.Name) {
 	act := common.Variants{
 		"from":     from,
 		"to":       to,
@@ -374,4 +452,61 @@ func (e EosioSystemTester) Transfer(from common.Name, to common.Name, amount com
 		e.DefaultExpirationDelta,
 		0,
 	)
+}
+
+func (e EosioSystemTester) Cross15PercentThreshold() {
+	e.SetupProducerAccounts([]common.AccountName{producer})
+	e.RegProducer(producer)
+	{
+		trx := types.SignedTransaction{}
+		e.SetTransactionHeaders(&trx.Transaction, e.DefaultExpirationDelta, 0)
+		delegatebwData := common.Variants{
+			"from":               eosio,
+			"receiver":           producer,
+			"stake_net_quantity": CoreFromString("150000000.0000"),
+			"stake_cpu_quantity": CoreFromString("0.0000"),
+			"transfer":           1,
+		}
+		delegate := e.GetAction(
+			eosio,
+			common.N("delegatebw"),
+			[]types.PermissionLevel{{eosio, common.DefaultConfig.ActiveName}},
+			&delegatebwData,
+		)
+		trx.Actions = append(trx.Actions, delegate)
+		voteproducerData := common.Variants{
+			"voter":     producer,
+			"proxy":     common.AccountName(0),
+			"producers": []common.AccountName{/*common.AccountName(math.MaxUint64),*/ producer},
+		}
+		fmt.Println("voteproducerData",voteproducerData)
+		voteproducer := e.GetAction(
+			eosio,
+			common.N("voteproducer"),
+			[]types.PermissionLevel{{producer, common.DefaultConfig.ActiveName}},
+			&voteproducerData,
+		)
+		trx.Actions = append(trx.Actions, voteproducer)
+		undelegatebwData := common.Variants{
+			"from":                 producer,
+			"receiver":             producer,
+			"unstake_net_quantity": CoreFromString("150000000.0000"),
+			"unstake_cpu_quantity": CoreFromString("0.0000"),
+		}
+		undelegate := e.GetAction(
+			eosio,
+			common.N("undelegatebw"),
+			[]types.PermissionLevel{{producer, common.DefaultConfig.ActiveName}},
+			&undelegatebwData,
+		)
+		trx.Actions = append(trx.Actions, undelegate)
+		e.SetTransactionHeaders(&trx.Transaction, e.DefaultExpirationDelta, 0)
+		eosioPriKey := e.getPrivateKey(eosio, "active")
+		producerPriKey := e.getPrivateKey(producer, "active")
+		chainId := e.Control.GetChainId()
+		trx.Sign(&eosioPriKey, &chainId)
+		trx.Sign(&producerPriKey, &chainId)
+		e.PushTransaction(&trx, common.MaxTimePoint(), e.DefaultBilledCpuTimeUs)
+	}
+
 }
