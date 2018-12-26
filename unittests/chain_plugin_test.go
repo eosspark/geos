@@ -1,21 +1,21 @@
 package unittests
 
 import (
-	"bytes"
-	"encoding/json"
+	"testing"
 	"fmt"
+	"github.com/eosspark/eos-go/plugins/chain_plugin"
+	"encoding/json"
+	"github.com/stretchr/testify/assert"
+	"bytes"
+	"io/ioutil"
 	"github.com/eosspark/eos-go/chain"
 	"github.com/eosspark/eos-go/chain/abi_serializer"
+	"github.com/eosspark/eos-go/entity"
 	"github.com/eosspark/eos-go/chain/types"
 	. "github.com/eosspark/eos-go/common"
-	"github.com/eosspark/eos-go/entity"
-	. "github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
+	. "github.com/eosspark/eos-go/exception"
 	"github.com/eosspark/eos-go/log"
-	"github.com/eosspark/eos-go/plugins/chain_plugin"
-	"github.com/stretchr/testify/assert"
-	"io/ioutil"
-	"testing"
 )
 
 func TestGetBlockWithInvalidAbi(t *testing.T) {
@@ -40,7 +40,8 @@ func TestGetBlockWithInvalidAbi(t *testing.T) {
 
 		resolver := func(name AccountName) (r *abi_serializer.AbiSerializer) {
 			Try(func() {
-				accnt := entity.AccountObject{Name: name}
+				accnt := entity.AccountObject{}
+				accnt.Name = name
 				if err := tester.Control.DataBase().Find("byName", accnt, &accnt); err != nil {
 					EosThrow(&DatabaseException{}, err.Error())
 				}
