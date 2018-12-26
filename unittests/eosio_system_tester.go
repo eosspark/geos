@@ -1,7 +1,6 @@
 package unittests
 
 import (
-	"fmt"
 	. "github.com/eosspark/eos-go/chain"
 	"github.com/eosspark/eos-go/chain/abi_serializer"
 	"github.com/eosspark/eos-go/chain/types"
@@ -15,7 +14,7 @@ import (
 var producer = common.N("producer1111")
 
 type EosioSystemTester struct {
-	BaseTester
+	ValidatingTester
 	abiSer      abi_serializer.AbiSerializer
 	tokenAbiSer abi_serializer.AbiSerializer
 }
@@ -27,8 +26,13 @@ func newEosioSystemTester(pushGenesis bool, readMode DBReadMode) *EosioSystemTes
 	e.AbiSerializerMaxTime = 1000 * 1000
 	e.ChainTransactions = make(map[common.BlockIdType]types.TransactionReceipt)
 	e.LastProducedBlock = make(map[common.AccountName]common.BlockIdType)
+	e.VCfg = *newConfig(readMode)
+	e.VCfg.BlocksDir = common.DefaultConfig.ValidatingBlocksDirName
+	e.VCfg.StateDir = common.DefaultConfig.ValidatingStateDirName
+	e.VCfg.ReversibleDir = common.DefaultConfig.ValidatingReversibleBlocksDirName
 
-	e.init(pushGenesis, readMode)
+	e.ValidatingControl = NewController(&e.VCfg)
+	e.init(true, readMode)
 	return e
 }
 
@@ -352,6 +356,29 @@ func (e EosioSystemTester) Stake(from common.AccountName, to common.AccountName,
 	return e.EsPushAction(&from, &act, &stake, true)
 }
 
+func (e EosioSystemTester) StakeWithTransfer(from common.AccountName, to common.AccountName, net common.Asset, cpu common.Asset) ActionResult {
+	stake := common.Variants{
+		"from":               from,
+		"receiver":           to,
+		"stake_net_quantity": net,
+		"stake_cpu_quantity": cpu,
+		"transfer":           true,
+	}
+	act := common.N("delegatebw")
+	return e.EsPushAction(&from, &act, &stake, true)
+}
+
+func (e EosioSystemTester) UnStake(from common.AccountName, to common.AccountName, net common.Asset, cpu common.Asset) ActionResult {
+	unStake := common.Variants{
+		"from":                 from,
+		"receiver":             to,
+		"unstake_net_quantity": net,
+		"unstake_cpu_quantity": cpu,
+	}
+	act := common.N("undelegatebw")
+	return e.EsPushAction(&from, &act, &unStake, true)
+}
+
 func (e EosioSystemTester) RegProducer(acnt common.AccountName) ActionResult {
 	regproducer := common.Variants{
 		"producer":     acnt,
@@ -386,7 +413,7 @@ func (e EosioSystemTester) GetTotalStake(act uint64) common.Variants {
 		CpuWeight common.Asset
 		RamBytes  int64
 	}
-	data := e.GetRowByAccount(uint64(eosio), uint64(act), uint64(common.N("userres")), act)
+	data := e.GetRowByAccount(uint64(eosio), act, uint64(common.N("userres")), act)
 	if len(data) == 0 {
 		return common.Variants{}
 	} else {
@@ -397,6 +424,34 @@ func (e EosioSystemTester) GetTotalStake(act uint64) common.Variants {
 			"net_weight": res.NetWeight,
 			"cpu_weight": res.CpuWeight,
 			"ram_bytes":  res.RamBytes,
+		}
+	}
+}
+
+func (e EosioSystemTester) GetVoterInfo(act uint64) common.Variants {
+	type VoterInfo struct {
+		Owner             common.AccountName
+		Proxy             common.AccountName
+		Producers         []common.AccountName
+		Staked            int64
+		LastVoteWeight    float64
+		ProxiedVoteWeight float64
+		IsProxy           bool
+	}
+	data := e.GetRowByAccount(uint64(eosio), act, uint64(common.N("voters")), act)
+	if len(data) == 0 {
+		return common.Variants{}
+	} else {
+		res := VoterInfo{}
+		rlp.DecodeBytes(data, &res)
+		return common.Variants{
+			"owner":               res.Owner,
+			"proxy":               res.Proxy,
+			"producers":           res.Producers,
+			"staked":              res.Staked,
+			"last_vote_weight":    res.LastVoteWeight,
+			"proxied_vote_weight": res.ProxiedVoteWeight,
+			"is_proxy":            res.IsProxy,
 		}
 	}
 }
@@ -477,9 +532,8 @@ func (e EosioSystemTester) Cross15PercentThreshold() {
 		voteproducerData := common.Variants{
 			"voter":     producer,
 			"proxy":     common.AccountName(0),
-			"producers": []common.AccountName{/*common.AccountName(math.MaxUint64),*/ producer},
+			"producers": []common.AccountName{ /*common.AccountName(1),*/ producer},
 		}
-		fmt.Println("voteproducerData",voteproducerData)
 		voteproducer := e.GetAction(
 			eosio,
 			common.N("voteproducer"),

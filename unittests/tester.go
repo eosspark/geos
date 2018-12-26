@@ -202,7 +202,6 @@ func (t BaseTester) produceBlock(skipTime common.Microseconds, skipPendingTrxs b
 			}
 		}
 	}
-
 	t.Control.FinalizeBlock()
 	t.Control.SignBlock(func(d common.DigestType) ecc.Signature {
 		sign, err := privKey.Sign(d.Bytes())
@@ -883,14 +882,26 @@ func NewValidatingTesterTrustedProducers(trustedProducers *treeset.Set) *Validat
 	return vt
 }
 
+func (vt ValidatingTester) ProduceBlocks(n uint32, empty bool) {
+	if empty {
+		for i := 0; uint32(i) < n; i++ {
+			vt.ProduceEmptyBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs), 0)
+		}
+	} else {
+		for i := 0; uint32(i) < n; i++ {
+			vt.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs), 0)
+		}
+	}
+}
+
 func (vt ValidatingTester) ProduceBlock(skipTime common.Microseconds, skipFlag uint32) *types.SignedBlock {
-	sb := vt.produceBlock(skipTime, false, skipFlag/2)
+	sb := vt.produceBlock(skipTime, false, skipFlag | 2)
 	vt.ValidatingControl.PushBlock(sb, types.Complete)
 	return sb
 }
 
 func (vt ValidatingTester) ProduceEmptyBlock(skipTime common.Microseconds, skipFlag uint32) *types.SignedBlock {
-	sb := vt.produceBlock(skipTime, true, skipFlag/2)
+	sb := vt.produceBlock(skipTime, true, skipFlag | 2)
 	vt.ValidatingControl.PushBlock(sb, types.Complete)
 	return sb
 }
