@@ -14,7 +14,7 @@ type Carnivore struct {
 type DbHouse struct {
 	Id        uint64 `multiIndex:"id,increment"`
 	Area      uint64 `multiIndex:"orderedUnique,less"`
-	Name      string
+	Name      string `multiIndex:"orderedUnique,less"`
 	Carnivore Carnivore `multiIndex:"inline"`
 }
 

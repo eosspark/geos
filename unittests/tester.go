@@ -349,7 +349,7 @@ func (t BaseTester) PushAction(act *types.Action, authorizer common.AccountName)
 	try.Try(func() {
 		t.PushTransaction(&trx, common.MaxTimePoint(), t.DefaultBilledCpuTimeUs)
 	}).Catch(func(ex exception.Exception) {
-		log.Error("tester PushAction is error: %v", ex.DetailMessage())
+		//log.Error("tester PushAction is error: %v", ex.DetailMessage())
 		try.Throw(ex)
 	}).End()
 	t.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs), 0)

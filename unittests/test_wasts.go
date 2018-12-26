@@ -183,7 +183,7 @@ var biggest_memory_wast string = `(module
  (import "env" "eosio_assert" (func $$eosio_assert (param i32 i32)))
  (import "env" "require_auth" (func $$require_auth (param i64)))
  (table 0 anyfunc)
- (memory $0 %d)
+ (memory $$0 %d)
  (export "memory" (memory $$0))
  (export "apply" (func $$apply))
  (func $$apply (param $$0 i64) (param $$1 i64) (param $$2 i64)
@@ -196,6 +196,14 @@ var biggest_memory_wast string = `(module
    (i32.const 0)
   )
  )
+)`
+
+var too_big_memory_wast string = `(module
+ (table 0 anyfunc)
+ (memory $$0 %d)
+ (export "memory" (memory $$0))
+ (export "apply" (func $$apply))
+ (func $$apply (param $$0 i64) (param $$1 i64) (param $$2 i64))
 )`
 
 var simple_no_memory_wast string = `(module
@@ -215,7 +223,7 @@ var simple_no_memory_wast string = `(module
  )
 )`
 
-var mutable_global_wast = `(module
+var mutable_global_wast string = `(module
  (import "env" "require_auth" (func $require_auth (param i64)))
  (import "env" "eosio_assert" (func $eosio_assert (param i32 i32)))
  (table 0 anyfunc)
@@ -235,4 +243,48 @@ var mutable_global_wast = `(module
   (call $eosio_assert (i32.const 0) (i32.const 0))
  )
  (global $g0 (mut i64) (i64.const 2))
+)`
+
+var valid_sparse_table string = `(module
+ (table 1024 anyfunc)
+ (export "apply" (func $apply))
+ (func $apply (param $0 i64) (param $1 i64) (param $2 i64))
+ (elem (i32.const 0) $apply)
+ (elem (i32.const 1022) $apply $apply)
+)`
+
+var too_big_table string = `(module
+ (table 1025 anyfunc)
+ (export "apply" (func $apply))
+ (func $apply (param $0 i64) (param $1 i64) (param $2 i64))
+ (elem (i32.const 0) $apply)
+ (elem (i32.const 1022) $apply $apply)
+)`
+
+var memory_init_borderline string = `(module
+ (memory $0 16)
+ (export "apply" (func $apply))
+ (func $apply (param $0 i64) (param $1 i64) (param $2 i64))
+ (data (i32.const 65532) "sup!")
+)`
+
+var memory_init_toolong string = `(module
+ (memory $0 16)
+ (export "apply" (func $apply))
+ (func $apply (param $0 i64) (param $1 i64) (param $2 i64))
+ (data (i32.const 65533) "sup!")
+)`
+
+var memory_init_negative string = `(module
+ (memory $0 16)
+ (export "apply" (func $apply))
+ (func $apply (param $0 i64) (param $1 i64) (param $2 i64))
+ (data (i32.const -1) "sup!")
+)`
+
+var memory_table_import string = `(module
+ (table  (import "foo" "table") 10 anyfunc)
+ (memory (import "nom" "memory") 0)
+ (export "apply" (func $apply))
+ (func $apply (param $0 i64) (param $1 i64) (param $2 i64))
 )`
