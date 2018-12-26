@@ -16,5 +16,5 @@ type ActionReceipt struct {
 }
 
 func (a *ActionReceipt) Digest() crypto.Sha256 {
-	return crypto.Hash256(a)
+	return *crypto.Hash256(a)
 }
