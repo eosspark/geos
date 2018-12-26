@@ -14,6 +14,25 @@ import (
 	"github.com/eosspark/eos-go/wasmgo/wasm"
 )
 
+const (
+	MaximumLinearMemory     = 33 * 1024 * 1024 //bytes
+	MaximumMutableGlobals   = 1024             //bytes
+	MaximumTableElements    = 1024             //elements
+	MaximumSectionElements  = 1024             //elements
+	MaximumLinearMemoryInit = 64 * 1024        //bytes
+	MaximumFuncLocalBytes   = 8192             //bytes
+	MaximumCallDepth        = 250              //nested calls
+	MaximumCodeSize         = 20 * 1024 * 1024 //bytes
+	WasmPageSize            = 64 * 1024        //bytes
+
+	// Assert(MaximumLinearMemory%WasmPageSize == 0, "MaximumLinearMemory must be mulitple of wasm page size")
+	// Assert(MaximumMutableGlobals%4 == 0, "MaximumMutableGlobals must be mulitple of 4")
+	// Assert(MaximumTableElements*8%4096 == 0, "maximum_table_elements*8 must be mulitple of 4096")
+	// Assert(MaximumLinearMemoryInit%MaximumCodeSize == 0, "MaximumLinearMemoryInit must be mulitple of wasm page size")
+	// Assert(MaximumFuncLocalBytes%8 == 0, "MaximumFuncLocalBytes must be mulitple of 8")
+	// Assert(MaximumFuncLocalBytes > 32, "MaximumFuncLocalBytes must be greater than 32")
+)
+
 var (
 	wasmGo    *WasmGo
 	envModule *wasm.Module
