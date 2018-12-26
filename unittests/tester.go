@@ -350,6 +350,7 @@ func (t BaseTester) PushAction(act *types.Action, authorizer common.AccountName)
 		t.PushTransaction(&trx, common.MaxTimePoint(), t.DefaultBilledCpuTimeUs)
 	}).Catch(func(ex exception.Exception) {
 		log.Error("tester PushAction is error: %v", ex.DetailMessage())
+		try.Throw(ex)
 	}).End()
 	t.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs), 0)
 	//BOOST_REQUIRE_EQUAL(true, chain_has_transaction(trx.id()))
@@ -391,6 +392,7 @@ func (t BaseTester) PushAction4(code *common.AccountName, acttype *common.Accoun
 
 func (t BaseTester) GetAction(code common.AccountName, actType common.AccountName,
 	auths []types.PermissionLevel, data *common.Variants) *types.Action {
+
 	acnt := t.Control.GetAccount(code)
 	a := acnt.GetAbi()
 	action := types.Action{code, actType, auths, nil}
@@ -400,7 +402,9 @@ func (t BaseTester) GetAction(code common.AccountName, actType common.AccountNam
 	//	log.Error("tester GetAction Marshal is error:%s", err)
 	//}
 	//action.Data, _ = a.EncodeAction(common.N(actionTypeName), buf) //TODO
+	//fmt.Println(buf)
 	action.Data, _ = a.EncodeAction(actType, buf)
+	//fmt.Println("data: ",action.Name,action.Data)
 	//if err != nil {
 	//	log.Error("tester GetAction EncodeAction is error:%s", err)
 	//}

@@ -8,6 +8,7 @@ import (
 	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/eosspark/eos-go/exception"
 	"github.com/eosspark/eos-go/exception/try"
+	"github.com/eosspark/eos-go/wasmgo"
 	"github.com/stretchr/testify/assert"
 	"io/ioutil"
 	"os"
@@ -200,16 +201,28 @@ func TestAbiFromVariant(t *testing.T) {
 		b.ProduceBlocks(1, false)
 
 		trx := types.SignedTransaction{}
-
-		//prettyTrx := common.Variants{
-		//	"actions": common.Variants{
-		//		"actions": "asserter",
-		//		"name":    "procassert",
-		//		"authorization": common.Variants{
-		//			"actor":      "asserter",
-		//			"permission": "active"}}}
-
+		// prettyTrx := common.Variants{
+		// 	"actions": common.Variants{
+		// 		"account": "asserter",
+		// 		"name":    "procassert",
+		// 		"authorization": common.Variants{
+		// 			"actor":      "asserter",
+		// 			"permission": "active"},
+		// 		"data":common.Variants{
+		// 			"condition":1,
+		// 			"message":"Should Not Assert"}}}
 		//abi_serializer::from_variant(pretty_trx, trx, resolver, abi_serializer_max_time);
+
+		actData := common.Variants{
+			"message": common.Variants{
+				"condition": 1,
+				"message":   "Should Not Assert"}}
+		act := b.GetAction(
+			asserter, common.N("procassert"),
+			[]types.PermissionLevel{{asserter, common.DefaultConfig.ActiveName}},
+			&actData)
+		trx.Actions = append(trx.Actions, act)
+
 		b.SetTransactionHeaders(&trx.Transaction, b.DefaultExpirationDelta, 0)
 		privKey := b.getPrivateKey(asserter, "active")
 		chainId := b.Control.GetChainId()
@@ -389,20 +402,7 @@ func wast2wasm(wast []uint8) []uint8 {
 }
 
 func TestF32F64overflow(t *testing.T) {
-	//nameI32 := "test_contracts/i32_overflow.wast"
-	//nameI64 := "test_contracts/i64_overflow.wast"
 	t.Run("", func(t *testing.T) {
-		//code, err := ioutil.ReadFile(nameI32)
-		//if err != nil {
-		//	t.Fatal(err)
-		//}
-		//i32_overflow_wast := string(code)
-		//
-		//code, err = ioutil.ReadFile(nameI64)
-		//if err != nil {
-		//	t.Fatal(err)
-		//}
-		//i64_overflow_wast := string(code)
 
 		f_tests := common.N("f_tests")
 		b := newBaseTester(true, chain.SPECULATIVE)
@@ -713,5 +713,171 @@ func TestCheckEntryBehavior2(t *testing.T) {
 
 		b.close()
 
+	})
+}
+
+func TestSimpleNoMemoryCheck(t *testing.T) {
+	t.Run("", func(t *testing.T) {
+
+		b := newBaseTester(true, chain.SPECULATIVE)
+		b.ProduceBlocks(2, false)
+
+		nomem := common.N("nomem")
+		b.CreateAccounts([]common.AccountName{nomem}, false, true)
+		b.ProduceBlocks(1, false)
+
+		wasm := wast2wasm([]byte(simple_no_memory_wast))
+		b.SetCode(nomem, wasm, nil)
+		b.ProduceBlocks(1, false)
+
+		trx := types.SignedTransaction{}
+		act := types.Action{
+			Account:       nomem,
+			Name:          common.N(""),
+			Authorization: []types.PermissionLevel{{nomem, common.DefaultConfig.ActiveName}}}
+		trx.Actions = append(trx.Actions, &act)
+		b.SetTransactionHeaders(&trx.Transaction, b.DefaultExpirationDelta, 0)
+
+		privKey := b.getPrivateKey(nomem, "active")
+		chainId := b.Control.GetChainId()
+		trx.Sign(&privKey, &chainId)
+		// b.PushTransaction(&trx, common.MaxTimePoint(), b.DefaultBilledCpuTimeUs)
+		// b.ProduceBlocks(1, false)
+
+		returning := false
+		try.Try(func() {
+			b.PushTransaction(&trx, common.MaxTimePoint(), b.DefaultBilledCpuTimeUs)
+		}).Catch(func(e exception.Exception) {
+			if (e.Code() == exception.WasmExecutionError{}.Code()) { //catch by check time
+				returning = true
+			}
+		}).End()
+
+		assert.Equal(t, returning, true)
+
+		b.close()
+
+	})
+}
+
+func TestCheckGlobalReset(t *testing.T) {
+	t.Run("", func(t *testing.T) {
+
+		b := newBaseTester(true, chain.SPECULATIVE)
+		b.ProduceBlocks(2, false)
+
+		globalreset := common.N("globalreset")
+		b.CreateAccounts([]common.AccountName{globalreset}, false, true)
+		b.ProduceBlocks(1, false)
+
+		wasm := wast2wasm([]byte(mutable_global_wast))
+		b.SetCode(globalreset, wasm, nil)
+		b.ProduceBlocks(1, false)
+
+		trx := types.SignedTransaction{}
+		act := types.Action{
+			Account:       globalreset,
+			Name:          common.N(""),
+			Authorization: []types.PermissionLevel{{globalreset, common.DefaultConfig.ActiveName}}}
+		trx.Actions = append(trx.Actions, &act)
+		b.SetTransactionHeaders(&trx.Transaction, b.DefaultExpirationDelta, 0)
+
+		privKey := b.getPrivateKey(globalreset, "active")
+		chainId := b.Control.GetChainId()
+		trx.Sign(&privKey, &chainId)
+
+		returning := false
+		try.Try(func() {
+			b.PushTransaction(&trx, common.MaxTimePoint(), b.DefaultBilledCpuTimeUs)
+		}).Catch(func(e exception.Exception) {
+			if (e.Code() == exception.WasmExecutionError{}.Code()) { //catch by check time
+				returning = true
+			}
+		}).End()
+
+		assert.Equal(t, returning, true)
+		b.close()
+
+	})
+}
+
+func TestStlTest(t *testing.T) {
+	t.Run("", func(t *testing.T) {
+		b := newBaseTester(true, chain.SPECULATIVE)
+		b.ProduceBlocks(2, false)
+
+		stltest := common.N("stltest")
+		alice := common.N("alice")
+		bob := common.N("bob")
+
+		b.CreateAccounts([]common.AccountName{stltest, alice, bob}, false, true)
+		b.ProduceBlocks(1, false)
+
+		wasm := "test_contracts/stltest.wasm"
+		abi := "test_contracts/stltest.abi"
+		code, _ := ioutil.ReadFile(wasm)
+		abiCode, _ := ioutil.ReadFile(abi)
+
+		b.SetCode(stltest, code, nil)
+		b.SetAbi(stltest, abiCode, nil)
+		b.ProduceBlocks(1, false)
+
+		trx := types.SignedTransaction{}
+		actData := common.Variants{
+			"message": common.Variants{
+				"from":    "bob",
+				"to":      "alice",
+				"message": "Hi Alice!"}}
+		act := b.GetAction(stltest,
+			common.N("message"),
+			[]types.PermissionLevel{{stltest, common.DefaultConfig.ActiveName}},
+			&actData)
+
+		trx.Actions = append(trx.Actions, act)
+		b.SetTransactionHeaders(&trx.Transaction, b.DefaultExpirationDelta, 0)
+
+		privKey := b.getPrivateKey(stltest, "active")
+		chainId := b.Control.GetChainId()
+		trx.Sign(&privKey, &chainId)
+
+		b.PushTransaction(&trx, common.MaxTimePoint(), b.DefaultBilledCpuTimeUs)
+		trxId := trx.ID()
+		assert.Equal(t, b.ChainHasTransaction(&trxId), true)
+
+		b.close()
+	})
+}
+
+func TestBigMemory(t *testing.T) {
+	t.Run("", func(t *testing.T) {
+		b := newBaseTester(true, chain.SPECULATIVE)
+		b.ProduceBlocks(2, false)
+
+		bigmem := common.N("bigmem")
+
+		b.CreateAccounts([]common.AccountName{bigmem, alice, bob}, false, true)
+		b.ProduceBlocks(1, false)
+
+		wast := fmt.Sprintf(biggest_memory_wast, wasmgo.MaximumLinearMemory/(64*1024))
+		wasm := wast2wasm([]byte(wast))
+		b.SetCode(bigmem, wasm, nil)
+		b.ProduceBlocks(1, false)
+
+		trx := types.SignedTransaction{}
+		act := types.Action{bigmem, common.N(""), []types.PermissionLevel{{bigmem, common.DefaultConfig.ActiveName}}, nil}
+
+		trx.Actions = append(trx.Actions, &act)
+		b.SetTransactionHeaders(&trx.Transaction, b.DefaultExpirationDelta, 0)
+
+		privKey := b.getPrivateKey(bigmem, "active")
+		chainId := b.Control.GetChainId()
+		trx.Sign(&privKey, &chainId)
+		b.PushTransaction(&trx, common.MaxTimePoint(), b.DefaultBilledCpuTimeUs)
+		b.ProduceBlocks(1, false)
+
+		trxId := trx.ID()
+		assert.Equal(t, b.ChainHasTransaction(&trxId), true)
+
+		b.close()
 	})
 }
