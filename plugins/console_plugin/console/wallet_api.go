@@ -25,10 +25,19 @@ func newWalletApi(c *Console) *walletApi {
 	return w
 }
 
-func (w *walletApi) CreateWallet(call otto.FunctionCall) (response otto.Value) {
+type CreateWalletResp struct {
+	Name     string
+	Caution  string
+	Password string
+}
+
+func (w *walletApi) Create(call otto.FunctionCall) (response otto.Value) {
 	walletName, err := call.Argument(0).ToString()
 	if err != nil {
 		return otto.UndefinedValue()
+	}
+	if len(walletName) == 0 {
+		walletName = "default"
 	}
 
 	var resp string
@@ -37,61 +46,100 @@ func (w *walletApi) CreateWallet(call otto.FunctionCall) (response otto.Value) {
 		return
 	}
 
-	//re := fmt.Sprintf(
-	//	"Creating wallet: %s\n"+
-	//		" Save password to use in the future to unlock this wallet.\n"+
-	//		" Without password imported keys will not be retrievable.\n"+
-	//		"%s", walletName, resp)
-
-	resps, _ := call.Otto.Object("console")
-	re := fmt.Sprintf("Creating wallet: %s", walletName)
-	resps.Call("log", re, "\nSave password to use in the future to unlock this wallet.\nWithout password imported keys will not be retrievable.\n", resp)
-
-	v, _ := call.Otto.ToValue("")
-	return v
+	result := CreateWalletResp{
+		Name:     walletName,
+		Caution:  "Save password to use in the future to unlock this wallet.Without password imported keys will not be retrievable.",
+		Password: resp,
+	}
+	return getJsResult(call, result)
 }
 
-func (w *walletApi) OpenWallet(call otto.FunctionCall) (resonse otto.Value) {
-
-	v, _ := call.Otto.ToValue(nil)
-	return v
-}
-func (w *walletApi) ListWallets(call otto.FunctionCall) (resonse otto.Value) {
-
-	v, _ := call.Otto.ToValue(nil)
-	return v
-}
-func (w *walletApi) ListKeys(call otto.FunctionCall) (resonse otto.Value) {
-
-	v, _ := call.Otto.ToValue(nil)
-	return v
+func (w *walletApi) Open(call otto.FunctionCall) (resonse otto.Value) {
+	walletName, err := call.Argument(0).ToString()
+	if err != nil {
+		return otto.UndefinedValue()
+	}
+	err = DoHttpCall(nil, common.WalletOpen, walletName)
+	if err != nil {
+		return
+	}
+	result := fmt.Sprintf("Opened: %s", walletName)
+	return getJsResult(call, result)
 }
 
-func (w *walletApi) GetPublicKeys(call otto.FunctionCall) (resonse otto.Value) {
+func (w *walletApi) List(call otto.FunctionCall) (resonse otto.Value) {
+	var resp []string
+	err := DoHttpCall(&resp, common.WalletList, nil)
+	if err != nil {
+		throwJSException(err)
+	}
+	return getJsResult(call, resp)
+}
+
+func (w *walletApi) PublicKeys(call otto.FunctionCall) (resonse otto.Value) {
 	var resp []string
 	err := DoHttpCall(&resp, common.WalletPublicKeys, nil)
 	if err != nil {
 		throwJSException(err)
 	}
-	v, _ := call.Otto.ToValue(resp)
-	return v
+	return getJsResult(call, resp)
 }
-func (w *walletApi) LockWallet(call otto.FunctionCall) (resonse otto.Value) {
-
-	v, _ := call.Otto.ToValue(nil)
-	return v
+func (w *walletApi) PrivateKeys(call otto.FunctionCall) (resonse otto.Value) {
+	walletName, err := call.Argument(0).ToString()
+	if err != nil {
+		return otto.UndefinedValue()
+	}
+	password, err := call.Argument(1).ToString()
+	if err != nil {
+		return otto.UndefinedValue()
+	}
+	vs := common.Variants{"name": walletName, "password": password}
+	var resp map[string]string
+	err = DoHttpCall(&resp, common.WalletListKeys, vs)
+	if err != nil {
+		throwJSException(err)
+	}
+	return getJsResult(call, resp)
 }
-func (w *walletApi) LockAllWallet(call otto.FunctionCall) (resonse otto.Value) {
-
-	v, _ := call.Otto.ToValue(nil)
-	return v
+func (w *walletApi) Lock(call otto.FunctionCall) (resonse otto.Value) {
+	walletName, err := call.Argument(0).ToString()
+	if err != nil {
+		return otto.UndefinedValue()
+	}
+	err = DoHttpCall(nil, common.WalletLock, walletName)
+	if err != nil {
+		return
+	}
+	result := fmt.Sprintf("Locked: %s", walletName)
+	return getJsResult(call, result)
 }
-func (w *walletApi) UnlockWallet(call otto.FunctionCall) (resonse otto.Value) {
-
-	v, _ := call.Otto.ToValue(nil)
-	return v
+func (w *walletApi) LockAll(call otto.FunctionCall) (resonse otto.Value) {
+	err := DoHttpCall(nil, common.WalletLockAll, nil)
+	if err != nil {
+		return
+	}
+	result := fmt.Sprintf("Locked All Wallets")
+	return getJsResult(call, result)
 }
+func (w *walletApi) Unlock(call otto.FunctionCall) (resonse otto.Value) {
+	walletName, err := call.Argument(0).ToString()
+	if err != nil {
+		return otto.UndefinedValue()
+	}
+	password, err := call.Argument(1).ToString()
+	if err != nil {
+		return otto.UndefinedValue()
+	}
 
+	vs := common.Variants{"name": walletName, "password": password}
+
+	err = DoHttpCall(nil, common.WalletUnlock, vs)
+	if err != nil {
+		return
+	}
+	result := fmt.Sprintf("Unlocked: %s", walletName)
+	return getJsResult(call, result)
+}
 func (w *walletApi) ImportKey(call otto.FunctionCall) (resonse otto.Value) {
 	walletName, err := call.Argument(0).ToString()
 	if err != nil {
@@ -101,7 +149,7 @@ func (w *walletApi) ImportKey(call otto.FunctionCall) (resonse otto.Value) {
 	if err != nil {
 		return otto.UndefinedValue()
 	}
-	fmt.Println(walletName, walletKeyStr)
+
 	walletKey, err := ecc.NewPrivateKey(walletKeyStr)
 	if err != nil {
 		try.EosThrow(&exception.PrivateKeyTypeException{}, "Invalid private key: %s", walletKeyStr)
@@ -112,22 +160,67 @@ func (w *walletApi) ImportKey(call otto.FunctionCall) (resonse otto.Value) {
 		throwJSException(err)
 	}
 
-	v, _ := call.Otto.ToValue(fmt.Sprintf("imported private key for: %s", walletKey.PublicKey().String()))
-	return v
+	re := fmt.Sprintf("imported private key for: %s", walletKey.PublicKey().String())
+	return getJsResult(call, re)
+
 }
+
+//wallet.RemoveKey('walletName','wallet_pw','pubkey')
+// remove keys from wallet
 func (w *walletApi) RemoveKey(call otto.FunctionCall) (resonse otto.Value) {
+	walletName, err := call.Argument(0).ToString()
+	if err != nil {
+		return otto.UndefinedValue()
+	}
+	walletPw, err := call.Argument(1).ToString()
+	if err != nil {
+		return otto.UndefinedValue()
+	}
+	walletRmKeyStr, err := call.Argument(2).ToString()
+	if err != nil {
+		return otto.UndefinedValue()
+	}
 
-	v, _ := call.Otto.ToValue(nil)
-	return v
-}
-func (w *walletApi) CreateKeyByWallet(call otto.FunctionCall) (resonse otto.Value) {
+	_, err = ecc.NewPublicKey(walletRmKeyStr)
+	if err != nil {
+		return throwJSException(fmt.Sprintf("Invalid public key: %s", walletRmKeyStr))
+	}
+	vs := common.Variants{
+		"name":     walletName,
+		"password": walletPw,
+		"key":      walletRmKeyStr,
+	}
+	err = DoHttpCall(nil, common.WalletRemoveKey, vs)
+	if err != nil {
+		throwJSException(err)
+	}
 
-	v, _ := call.Otto.ToValue(nil)
-	return v
+	result := fmt.Sprintf("removed private key for: %s", walletRmKeyStr)
+	return getJsResult(call, result)
 }
+
+// create a key within wallet
+//wallet.CreateKey('walletName','k1')
+func (w *walletApi) CreateKey(call otto.FunctionCall) (resonse otto.Value) {
+	walletName, err := call.Argument(0).ToString()
+	if err != nil {
+		return otto.UndefinedValue()
+	}
+	walletCreateKeyType, err := call.Argument(1).ToString()
+	if err != nil {
+		return otto.UndefinedValue()
+	}
+
+	var resp string
+	err = DoHttpCall(&resp, common.WalletCreateKey, common.Variants{"name": walletName, "keyType": walletCreateKeyType})
+	if err != nil {
+		throwJSException(err)
+	}
+	result := fmt.Sprintf("Created new private key with a public key of: %s", resp)
+	return getJsResult(call, result)
+}
+
 func (w *walletApi) SignTransaction(call otto.FunctionCall) (resonse otto.Value) {
-	fmt.Println("sign transaction")
-
 	trxJsonToSign, err := call.Argument(0).ToString()
 	if err != nil {
 		return otto.UndefinedValue()
@@ -147,9 +240,22 @@ func (w *walletApi) SignTransaction(call otto.FunctionCall) (resonse otto.Value)
 		strPrivateKey,
 		strChainID,
 	})
+	if err != nil {
+		return throwJSException("signedTransactoin is err")
+	}
 
-	fmt.Println(resp)
-
-	v, _ := call.Otto.ToValue(resp)
-	return v
+	return getJsResult(call, resp)
 }
+
+//WalletCreate     string = walletFuncBase + "/create"
+//WalletOpen       string = walletFuncBase + "/open"
+//WalletList       string = walletFuncBase + "/list_wallets"
+//WalletListKeys   string = walletFuncBase + "/list_keys"
+//WalletPublicKeys string = walletFuncBase + "/get_public_keys"
+//WalletLock       string = walletFuncBase + "/lock"
+//WalletLockAll    string = walletFuncBase + "/lock_all"
+//WalletUnlock     string = walletFuncBase + "/unlock"
+//WalletImportKey  string = walletFuncBase + "/import_key"
+//WalletRemoveKey  string = walletFuncBase + "/remove_key"
+//WalletCreateKey  string = walletFuncBase + "/create_key"
+//WalletSignTrx    string = walletFuncBase + "/sign_transaction"

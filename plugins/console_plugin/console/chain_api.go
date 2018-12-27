@@ -25,6 +25,7 @@ func newchainAPI(c *Console) *chainAPI {
 	e.log.SetHandler(log.TerminalHandler)
 	return e
 }
+
 func getJsResult(call otto.FunctionCall, in interface{}) otto.Value {
 	bytes, _ := json.Marshal(in)
 	resps, _ := call.Otto.Object("new Array()")
@@ -363,4 +364,54 @@ func (a *chainAPI) GetCurrencyBalance(call otto.FunctionCall) (response otto.Val
 		fmt.Println(resp[i])
 	}
 	return getJsResult(call, resp)
+}
+
+func (a *chainAPI) PushTransaction(call otto.FunctionCall) (response otto.Value) {
+
+	return getJsResult(call, nil)
+}
+
+func (a *chainAPI) PushTransactions(call otto.FunctionCall) (response otto.Value) {
+
+	return getJsResult(call, nil)
+}
+
+func (a *chainAPI) AbiJsonToBin(call otto.FunctionCall) (response otto.Value) {
+
+	return getJsResult(call, nil)
+}
+
+func (a *chainAPI) GetTableByScope(call otto.FunctionCall) (response otto.Value) {
+
+	return getJsResult(call, nil)
+}
+
+func (a *chainAPI) GetRawAbi(call otto.FunctionCall) (response otto.Value) {
+
+	return getJsResult(call, nil)
+}
+
+func (a *chainAPI) GetRawCodeAndAbi(call otto.FunctionCall) (response otto.Value) {
+
+	return getJsResult(call, nil)
+}
+
+func (a *chainAPI) GetCurrencyStats(call otto.FunctionCall) (response otto.Value) {
+
+	return getJsResult(call, nil)
+}
+
+func (a *chainAPI) GetProducers(call otto.FunctionCall) (response otto.Value) {
+
+	return getJsResult(call, nil)
+}
+
+func (a *chainAPI) GetSchedule(call otto.FunctionCall) (response otto.Value) {
+
+	return getJsResult(call, nil)
+}
+
+func (a *chainAPI) GetRequiredKeys(call otto.FunctionCall) (response otto.Value) {
+
+	return getJsResult(call, nil)
 }
