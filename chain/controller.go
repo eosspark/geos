@@ -366,13 +366,13 @@ func (c *Controller) OnIrreversible(s *types.BlockState) {
 		c.Blog.ReadHead()
 	}
 	logHead := c.Blog.head
-	EosAssert(!common.Empty(logHead), &BlockLogException{}, "block log head can not be found")
+	EosAssert(logHead != nil, &BlockLogException{}, "block log head can not be found")
 	lhBlockNum := logHead.BlockNumber()
 	c.DB.Commit(int64(s.BlockNum))
 	if s.BlockNum <= lhBlockNum {
 		return
 	}
-	EosAssert(s.BlockNum-1 == lhBlockNum, &UnlinkableBlockException{}, "unlinkable block", s.BlockNum, lhBlockNum)
+	EosAssert(s.BlockNum-1 == lhBlockNum, &UnlinkableBlockException{}, "unlinkable block:%d,%d", s.BlockNum, lhBlockNum)
 	EosAssert(s.Header.Previous == logHead.BlockID(), &UnlinkableBlockException{}, "irreversible doesn't link to block log head")
 	c.Blog.Append(s.SignedBlock)
 	bs := types.BlockState{}
@@ -1757,7 +1757,7 @@ func (c *Controller) initialize() {
 	if common.Empty(c.Head) {
 		c.initializeForkDB()
 		end := c.Blog.ReadHead()
-		if common.Empty(end) && end.BlockNumber() > 1 {
+		if !common.Empty(end) && end.BlockNumber() > 1 {
 			endTime := end.Timestamp.ToTimePoint()
 			c.RePlaying = true
 			c.ReplayHeadTime = endTime
@@ -1785,7 +1785,7 @@ func (c *Controller) initialize() {
 
 			c.RePlaying = false
 			c.ReplayHeadTime = common.TimePoint(0)
-		} else if !common.Empty(end) {
+		} else if common.Empty(end) {
 			c.Blog.ResetToGenesis(c.Config.Genesis, c.Head.SignedBlock)
 		}
 	}
@@ -1802,13 +1802,13 @@ func (c *Controller) initialize() {
 		r := entity.ReversibleBlockObject{}
 		objitr.Data(&r)
 		EosAssert(r.BlockNum == c.Head.BlockNum, &ForkDatabaseException{},
-			"reversible block database is inconsistent with fork database, replay blockchain", c.Head.BlockNum, r.BlockNum)
+			"reversible block database is inconsistent with fork database, replay blockchain %d,%d", c.Head.BlockNum, r.BlockNum)
 	} else {
 		end := c.Blog.ReadHead()
 		EosAssert(end != nil && end.BlockNumber() == c.Head.BlockNum, &ForkDatabaseException{},
-			"fork database exists but reversible block database does not, replay blockchain", end.BlockNumber(), c.Head.BlockNum)
+			"fork database exists but reversible block database does not, replay blockchain %d,%d", end.BlockNumber(), c.Head.BlockNum)
 	}
-	EosAssert(uint32(c.DB.Revision()) >= c.Head.BlockNum, &ForkDatabaseException{}, "fork database is inconsistent with shared memory", c.DB.Revision(), c.Head.BlockNum)
+	EosAssert(uint32(c.DB.Revision()) >= c.Head.BlockNum, &ForkDatabaseException{}, "fork database is inconsistent with shared memory %d,%d", c.DB.Revision(), c.Head.BlockNum)
 	for uint32(c.DB.Revision()) > c.Head.BlockNum {
 		c.DB.Undo()
 	}
