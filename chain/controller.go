@@ -1,5 +1,3 @@
-//+build none
-
 package chain
 
 import (
@@ -1193,7 +1191,7 @@ func (c *Controller) maybeSwitchForks(s types.BlockStatus) {
 		branches := c.ForkDB.FetchBranchFrom(&newHead.BlockId, &c.Head.BlockId)
 
 		for i := 0; i < len(branches.second); i++ {
-			c.ForkDB.MarkInCurrentChain(&branches.second[i], false)
+			c.ForkDB.MarkInCurrentChain(branches.second[i], false)
 			c.PopBlock()
 		}
 		length := len(branches.second) - 1
@@ -1208,18 +1206,18 @@ func (c *Controller) maybeSwitchForks(s types.BlockStatus) {
 				} else {
 					c.applyBlock(itr.SignedBlock, types.Complete)
 				}
-				c.Head = &itr
-				c.ForkDB.MarkInCurrentChain(&itr, true)
+				c.Head = itr
+				c.ForkDB.MarkInCurrentChain(itr, true)
 			}).Catch(func(e Exception) {
 				except = e
 			}).End()
 			if except == nil {
 				log.Error("exception thrown while switching forks :%s", except.DetailMessage())
-				c.ForkDB.SetValidity(&itr, false)
+				c.ForkDB.SetValidity(itr, false)
 				// pop all blocks from the bad fork
 				// ritr base is a forward itr to the last block successfully applied
 				for j := i; j < len(branches.first); j++ {
-					c.ForkDB.MarkInCurrentChain(&branches.first[j], false)
+					c.ForkDB.MarkInCurrentChain(branches.first[j], false)
 					c.PopBlock()
 				}
 				EosAssert(c.HeadBlockId() == branches.second[len(branches.second)-1].Header.Previous, &ForkDatabaseException{}, "loss of sync between fork_db and chainbase during fork switch reversal")
@@ -1227,8 +1225,8 @@ func (c *Controller) maybeSwitchForks(s types.BlockStatus) {
 				l := len(branches.second) - 1
 				for end := l; end >= 0; end-- {
 					c.applyBlock(branches.second[end].SignedBlock, types.Validated)
-					c.Head = &branches.second[end]
-					c.ForkDB.MarkInCurrentChain(&branches.second[end], true)
+					c.Head = branches.second[end]
+					c.ForkDB.MarkInCurrentChain(branches.second[end], true)
 				}
 				Throw(except)
 			}
