@@ -366,7 +366,7 @@ func (c *Controller) OnIrreversible(s *types.BlockState) {
 		c.Blog.ReadHead()
 	}
 	logHead := c.Blog.head
-	EosAssert(common.Empty(logHead), &BlockLogException{}, "block log head can not be found")
+	EosAssert(!common.Empty(logHead), &BlockLogException{}, "block log head can not be found")
 	lhBlockNum := logHead.BlockNumber()
 	c.DB.Commit(int64(s.BlockNum))
 	if s.BlockNum <= lhBlockNum {
@@ -566,6 +566,7 @@ func (c *Controller) pushTransaction(trx *types.TransactionMetadata, deadLine co
 				c.Pending.PendingBlockState.Trxs = append(c.Pending.PendingBlockState.Trxs, trx)
 			} else {
 				r := types.TransactionReceiptHeader{}
+				r.Status = types.TransactionStatusExecuted
 				r.CpuUsageUs = uint32(trxContext.BilledCpuTimeUs)
 				r.NetUsageWords = uint32(trace.NetUsage / 8)
 				trace.Receipt = r
@@ -1145,11 +1146,8 @@ func (c *Controller) PushBlock(b *types.SignedBlock, s types.BlockStatus) {
 		//emit(self.pre_accepted_block, b )
 		//trust := !c.Config.ForceAllChecks && (s == types.Irreversible || s == types.Validated)
 		//newHeaderState := c.ForkDB.AddSignedBlockState(b, trust)
-		exist, _ := c.Config.TrustedProducers.Find(func(index int, value interface{}) bool {
-			return c.Config.TrustedProducers.GetComparator()(value, b.Producer) == 0
-		})
 		//exist, _ := c.Config.trustedProducers.Find(&b.Producer)
-		if exist != -1 {
+		if c.Config.TrustedProducers.Contains(b.Producer) {
 			c.TrustedProducerLightValidation = true
 		}
 		//c.AcceptedBlockHeader.Emit(newHeaderState)
@@ -1452,15 +1450,9 @@ func (c *Controller) GetBlockIdForNum(blockNum uint32) common.BlockIdType {
 
 func (c *Controller) CheckContractList(code common.AccountName) {
 	if c.Config.ContractWhitelist.Size() > 0 {
-		exist, _ := c.Config.ContractWhitelist.Find(func(index int, value interface{}) bool {
-			return c.Config.ContractWhitelist.GetComparator()(value, &code) == 0
-		})
-		EosAssert(exist != -1, &ContractWhitelistException{}, "account %d is not on the contract whitelist", code)
+		EosAssert(c.Config.ContractWhitelist.Contains(code), &ContractWhitelistException{}, "account %d is not on the contract whitelist", code)
 	} else if c.Config.ContractBlacklist.Size() > 0 {
-		exist, _ := c.Config.ContractBlacklist.Find(func(index int, value interface{}) bool {
-			return c.Config.ContractBlacklist.GetComparator()(value, &code) == 0
-		})
-		EosAssert(exist == -1, &ContractBlacklistException{}, "account %d is on the contract blacklist", code)
+		EosAssert(!c.Config.ContractBlacklist.Contains(code), &ContractBlacklistException{}, "account %d is on the contract blacklist", code)
 	}
 }
 
@@ -1478,10 +1470,7 @@ func (c *Controller) CheckActionList(code common.AccountName, action common.Acti
 
 func (c *Controller) CheckKeyList(key *ecc.PublicKey) {
 	if c.Config.KeyBlacklist.Size() > 0 {
-		exist, _ := c.Config.KeyBlacklist.Find(func(index int, value interface{}) bool {
-			return c.Config.KeyBlacklist.GetComparator()(value, key) == 0
-		})
-		EosAssert(exist == -1, &KeyBlacklistException{}, "public key %v is on the key blacklist", key)
+		EosAssert(!c.Config.KeyBlacklist.Contains(key), &KeyBlacklistException{}, "public key %v is on the key blacklist", key)
 	}
 }
 
@@ -1498,14 +1487,7 @@ func (c *Controller) RemoveResourceGreyList(name *common.AccountName) {
 }
 
 func (c *Controller) IsResourceGreylisted(name *common.AccountName) bool {
-	exist, _ := c.Config.ResourceGreylist.Find(func(index int, value interface{}) bool {
-		return c.Config.ResourceGreylist.GetComparator()(value, *name) == 0
-	})
-	if exist > -1 {
-		return true
-	} else {
-		return false
-	}
+	return c.Config.ResourceGreylist.Contains(name)
 }
 func (c *Controller) GetResourceGreyList() treeset.Set {
 	return c.Config.ResourceGreylist
@@ -1855,19 +1837,13 @@ func (c *Controller) CheckActorList(actors *treeset.Set) {
 	if c.Config.ActorWhitelist.Size() > 0 {
 		itr := actors.Iterator()
 		for itr.Next() {
-			exist, _ := c.Config.ActorWhitelist.Find(func(index int, value interface{}) bool {
-				return c.Config.ActorWhitelist.GetComparator()(value, itr.Value()) == 0
-			})
-			EosAssert(exist != -1, &ActorWhitelistException{},
+			EosAssert(c.Config.ActorWhitelist.Contains(itr.Value()), &ActorWhitelistException{},
 				"authorizing actor(s) in transaction are not on the actor whitelist: %v", actors)
 		}
 	} else if c.Config.ActorBlacklist.Size() > 0 {
 		itr := actors.Iterator()
 		for itr.Next() {
-			exist, _ := c.Config.ActionBlacklist.Find(func(index int, value interface{}) bool {
-				return c.Config.ActionBlacklist.GetComparator()(value, itr.Value()) == 0
-			})
-			EosAssert(exist == -1, &ActorBlacklistException{},
+			EosAssert(!c.Config.ActionBlacklist.Contains(itr.Value()), &ActorBlacklistException{},
 				"authorizing actor(s) in transaction are on the actor blacklist: %v", actors)
 		}
 	}

@@ -107,7 +107,7 @@ func (api *API) call(path string, body interface{}) ([]byte, error) {
 
 	if api.Debug {
 		api.log.Warn("RESPONSE:")
-		api.log.Warn("string: %s", cnt.String())
+		api.log.Warn("body: %s", cnt.String())
 		// fmt.Println("byte: ", cnt.Bytes())
 		api.log.Warn("")
 	}
@@ -131,7 +131,7 @@ func DoHttpCall(result interface{}, path string, body interface{}) error {
 
 	if result != nil {
 		if err := json.Unmarshal(out, &result); err != nil {
-			fmt.Printf("Unmarshal: %s", err.Error())
+			fmt.Printf("dohttpCall, Unmarshal: %s", err.Error())
 			return err
 		}
 	}

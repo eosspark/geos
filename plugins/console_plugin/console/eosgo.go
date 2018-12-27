@@ -174,9 +174,7 @@ func (e *eosgo) PushAction(call otto.FunctionCall) (response otto.Value) {
 	}
 
 	actionArgsVar := &common.Variants{}
-	fmt.Println("data:", data)
-	err = json.Unmarshal([]byte(data), actionArgsVar)
-	fmt.Println("unmarshal:  ", actionArgsVar, err)
+	json.Unmarshal([]byte(data), actionArgsVar)
 
 	persmissions := getAccountPermissions(permissonstr)
 	fmt.Println(persmissions)
@@ -186,10 +184,9 @@ func (e *eosgo) PushAction(call otto.FunctionCall) (response otto.Value) {
 		Authorization: persmissions,
 		Data:          variantToBin(common.N(contractAccount), common.N(actionName), actionArgsVar),
 	}
-	e.log.Warn("%#v", action)
-	e.log.Info("push action...")
+	//e.log.Warn("%#v", action)
+	//e.log.Info("push action...")
 	actions := []*types.Action{action}
-
 	result := e.sendActions(actions, 1000, types.CompressionNone)
 	return getJsResult(call, result)
 }
