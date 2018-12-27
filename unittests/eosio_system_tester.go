@@ -1,14 +1,17 @@
 package unittests
 
 import (
+	"fmt"
 	. "github.com/eosspark/eos-go/chain"
 	"github.com/eosspark/eos-go/chain/abi_serializer"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
+	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/eosspark/eos-go/entity"
 	"github.com/eosspark/eos-go/log"
 	"io/ioutil"
+	"math"
 )
 
 var producer = common.N("producer1111")
@@ -397,6 +400,17 @@ func (e EosioSystemTester) RegProducer(acnt common.AccountName) ActionResult {
 	return r
 }
 
+func (e EosioSystemTester) Vote(voter common.AccountName, producers []common.AccountName, proxy common.AccountName) ActionResult {
+	vote := common.Variants{
+		"voter":     voter,
+		"proxy":     proxy,
+		"producers": producers,
+	}
+	act := common.N("voteproducer")
+	r := e.EsPushAction(&voter, &act, &vote, true)
+	return r
+}
+
 func (e EosioSystemTester) GetBalance(act common.AccountName) common.Asset {
 	PrimaryKey := uint64(CORE_SYMBOL.ToSymbolCode())
 	data := e.GetRowByAccount(uint64(eosioToken), uint64(act), uint64(common.N("accounts")), PrimaryKey)
@@ -410,26 +424,82 @@ func (e EosioSystemTester) GetBalance(act common.AccountName) common.Asset {
 }
 
 func (e EosioSystemTester) GetTotalStake(act common.AccountName) common.Variants {
+	type UserResources struct {
+		Owner     common.AccountName
+		NetWeight common.Asset
+		CpuWeight common.Asset
+		RamBytes  uint64
+	}
 	data := e.GetRowByAccount(uint64(eosio), uint64(act), uint64(common.N("userres")), uint64(act))
 	if len(data) == 0 {
 		return common.Variants{}
 	} else {
-		return e.abiSer.BinaryToVariant("user_resources", data, e.AbiSerializerMaxTime, false)
+		res := UserResources{}
+		rlp.DecodeBytes(data, &res)
+		return common.Variants{
+			"owner":      res.Owner,
+			"net_weight": res.NetWeight,
+			"cpu_weight": res.CpuWeight,
+			"ram_bytes":  res.RamBytes,
+		}
 	}
 }
 
 func (e EosioSystemTester) GetVoterInfo(act common.AccountName) common.Variants {
+	type VoterInfo struct {
+		Owner             common.AccountName
+		Proxy             common.AccountName
+		Producers         []common.AccountName
+		Staked            int64
+		LastVoteWeight    float64
+		ProxiedVoteWeight float64
+		IsProxy           bool
+	}
 	data := e.GetRowByAccount(uint64(eosio), uint64(eosio), uint64(common.N("voters")), uint64(act))
 	if len(data) == 0 {
 		return common.Variants{}
 	} else {
-		return e.abiSer.BinaryToVariant("voter_info", data, e.AbiSerializerMaxTime, false)
+		res := VoterInfo{}
+		rlp.DecodeBytes(data, &res)
+		return common.Variants{
+			"owner":               res.Owner,
+			"proxy":               res.Proxy,
+			"producers":           res.Producers,
+			"staked":              res.Staked,
+			"last_vote_weight":    res.LastVoteWeight,
+			"proxied_vote_weight": res.ProxiedVoteWeight,
+			"is_proxy":            res.IsProxy,
+		}
 	}
 }
 
 func (e EosioSystemTester) GetProducerInfo(act common.AccountName) common.Variants {
+	type ProducerInfo struct {
+		Owner         common.AccountName
+		TotalVotes    float64
+		ProducerKey   ecc.PublicKey
+		IsActive      bool
+		Url           string
+		UnpaidBlocks  uint32
+		LastClaimTime uint64
+		Location      uint16
+	}
 	data := e.GetRowByAccount(uint64(eosio), uint64(eosio), uint64(common.N("producers")), uint64(act))
-	return e.abiSer.BinaryToVariant("producer_info", data, e.AbiSerializerMaxTime, false)
+	res := ProducerInfo{}
+	err := rlp.DecodeBytes(data, &res)
+	if err != nil {
+		fmt.Println(err)
+	}
+	return common.Variants{
+		"owner":           res.Owner,
+		"total_votes":     res.TotalVotes,
+		"producer_key":    res.ProducerKey,
+		"is_active":       res.IsActive,
+		"url":             res.Url,
+		"unpaid_blocks":   res.UnpaidBlocks,
+		"last_claim_time": res.LastClaimTime,
+		"location":        res.Location,
+	}
 }
 
 func (e EosioSystemTester) CreateCurrency(contract common.Name, manager common.Name, maxSupply common.Asset) {
@@ -483,6 +553,11 @@ func (e EosioSystemTester) Transfer(from common.Name, to common.Name, amount com
 		e.DefaultExpirationDelta,
 		0,
 	)
+}
+
+func (e EosioSystemTester) Stake2Votes(stake common.Asset) float64 {
+	now := e.Control.PendingBlockTime().TimeSinceEpoch().Count() / 1000000
+	return float64(stake.Amount) *  math.Pow(float64(2), float64((now - common.DefaultConfig.BlockTimestampEpochMs / 1000) / (86400 * 7)) / float64(52))
 }
 
 func (e EosioSystemTester) GetRefundRequest(account common.AccountName) common.Variants {
