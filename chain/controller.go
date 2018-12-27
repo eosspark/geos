@@ -983,20 +983,21 @@ func scheduledFailureIsSubjective(e Exception) bool {
 	return (code == TxCpuUsageExceeded{}.Code()) || failureIsSubjective(e)
 }
 func (c *Controller) setActionMerkle() {
-	actionDigests := make([]crypto.Sha256, len(c.Pending.Actions))
+	actionDigests := make([]crypto.Sha256, 0, len(c.Pending.Actions))
 	for _, b := range c.Pending.Actions {
-		actionDigests = append(actionDigests, *crypto.Hash256(b.ActDigest))
+		actionDigests = append(actionDigests, b.Digest())
 	}
-	c.Pending.PendingBlockState.Header.ActionMRoot = common.CheckSum256Type(types.Merkle(actionDigests))
+	c.Pending.PendingBlockState.Header.ActionMRoot = types.Merkle(actionDigests)
 }
 
 func (c *Controller) setTrxMerkle() {
-	actionDigests := make([]crypto.Sha256, len(c.Pending.Actions))
+	trxDigests := make([]crypto.Sha256, 0, len(c.Pending.PendingBlockState.SignedBlock.Transactions))
 	for _, b := range c.Pending.PendingBlockState.SignedBlock.Transactions {
-		actionDigests = append(actionDigests, *crypto.Hash256(b.Digest()))
+		trxDigests = append(trxDigests, b.Digest())
 	}
-	c.Pending.PendingBlockState.Header.TransactionMRoot = common.CheckSum256Type(types.Merkle(actionDigests))
+	c.Pending.PendingBlockState.Header.TransactionMRoot = types.Merkle(trxDigests)
 }
+
 func (c *Controller) FinalizeBlock() {
 
 	EosAssert(c.Pending != nil, &BlockValidateException{}, "it is not valid to finalize when there is no pending block")
@@ -1371,11 +1372,11 @@ func (c *Controller) LightValidationAllowed(dro bool) (b bool) {
 	}
 
 	pbStatus := c.Pending.BlockStatus
+
 	considerSkippingOnReplay := (pbStatus == types.Irreversible || pbStatus == types.Validated) && !dro
+	considerSkippingOnValidate := pbStatus == types.Complete && (c.Config.BlockValidationMode == LIGHT || c.TrustedProducerLightValidation)
 
-	considerSkippingOnvalidate := (pbStatus == types.Complete && c.Config.BlockValidationMode == LIGHT)
-
-	return considerSkippingOnReplay || considerSkippingOnvalidate
+	return considerSkippingOnReplay || considerSkippingOnValidate
 }
 
 func (c *Controller) LastIrreversibleBlockNum() uint32 {
