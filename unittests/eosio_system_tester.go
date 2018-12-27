@@ -57,8 +57,7 @@ func initEosioSystemTester() *EosioSystemTester {
 	if !abi_serializer.ToABI(accnt.Abi, &abiDef) {
 		log.Error("eosio_system_tester::initEosioSystemTester failed with ToAbi")
 	}
-	//TODO
-	//e.tokenAbiSer.SetAbi(&abiDef,&e.AbiSerializerMaxTime)
+	e.tokenAbiSer.SetAbi(&abiDef, e.AbiSerializerMaxTime)
 	e.CreateCurrency(eosioToken, common.DefaultConfig.SystemAccountName, CoreFromString("10000000000.0000"))
 	e.Issue(common.DefaultConfig.SystemAccountName, CoreFromString("1000000000.0000"), common.DefaultConfig.SystemAccountName)
 	currencyBalance := e.GetBalance(eosio)
@@ -74,7 +73,11 @@ func initEosioSystemTester() *EosioSystemTester {
 	abiName = "test_contracts/eosio.system.abi"
 	abi, _ = ioutil.ReadFile(abiName)
 	e.SetAbi(eosio, abi, nil)
-
+	abiDef = abi_serializer.AbiDef{}
+	if !abi_serializer.ToABI(accnt.Abi, &abiDef) {
+		log.Error("eosio_system_tester::initEosioSystemTester failed with ToAbi")
+	}
+	e.abiSer.SetAbi(&abiDef, e.AbiSerializerMaxTime)
 	accnt = entity.AccountObject{Name: eosio}
 	e.Control.DB.Find("byName", accnt, &accnt)
 	abiDef = abi_serializer.AbiDef{}
@@ -406,54 +409,27 @@ func (e EosioSystemTester) GetBalance(act common.AccountName) common.Asset {
 	}
 }
 
-func (e EosioSystemTester) GetTotalStake(act uint64) common.Variants {
-	type UserResources struct {
-		Owner     common.AccountName
-		NetWeight common.Asset
-		CpuWeight common.Asset
-		RamBytes  int64
-	}
-	data := e.GetRowByAccount(uint64(eosio), act, uint64(common.N("userres")), act)
+func (e EosioSystemTester) GetTotalStake(act common.AccountName) common.Variants {
+	data := e.GetRowByAccount(uint64(eosio), uint64(act), uint64(common.N("userres")), uint64(act))
 	if len(data) == 0 {
 		return common.Variants{}
 	} else {
-		res := UserResources{}
-		rlp.DecodeBytes(data, &res)
-		return common.Variants{
-			"owner":      res.Owner,
-			"net_weight": res.NetWeight,
-			"cpu_weight": res.CpuWeight,
-			"ram_bytes":  res.RamBytes,
-		}
+		return e.abiSer.BinaryToVariant("user_resources", data, e.AbiSerializerMaxTime, false)
 	}
 }
 
-func (e EosioSystemTester) GetVoterInfo(act uint64) common.Variants {
-	type VoterInfo struct {
-		Owner             common.AccountName
-		Proxy             common.AccountName
-		Producers         []common.AccountName
-		Staked            int64
-		LastVoteWeight    float64
-		ProxiedVoteWeight float64
-		IsProxy           bool
-	}
-	data := e.GetRowByAccount(uint64(eosio), uint64(eosio), uint64(common.N("voters")), act)
+func (e EosioSystemTester) GetVoterInfo(act common.AccountName) common.Variants {
+	data := e.GetRowByAccount(uint64(eosio), uint64(eosio), uint64(common.N("voters")), uint64(act))
 	if len(data) == 0 {
 		return common.Variants{}
 	} else {
-		res := VoterInfo{}
-		rlp.DecodeBytes(data, &res)
-		return common.Variants{
-			"owner":               res.Owner,
-			"proxy":               res.Proxy,
-			"producers":           res.Producers,
-			"staked":              res.Staked,
-			"last_vote_weight":    res.LastVoteWeight,
-			"proxied_vote_weight": res.ProxiedVoteWeight,
-			"is_proxy":            res.IsProxy,
-		}
+		return e.abiSer.BinaryToVariant("voter_info", data, e.AbiSerializerMaxTime, false)
 	}
+}
+
+func (e EosioSystemTester) GetProducerInfo(act common.AccountName) common.Variants {
+	data := e.GetRowByAccount(uint64(eosio), uint64(eosio), uint64(common.N("producers")), uint64(act))
+	return e.abiSer.BinaryToVariant("producer_info", data, e.AbiSerializerMaxTime, false)
 }
 
 func (e EosioSystemTester) CreateCurrency(contract common.Name, manager common.Name, maxSupply common.Asset) {
@@ -507,6 +483,28 @@ func (e EosioSystemTester) Transfer(from common.Name, to common.Name, amount com
 		e.DefaultExpirationDelta,
 		0,
 	)
+}
+
+func (e EosioSystemTester) GetRefundRequest(account common.AccountName) common.Variants {
+	type RefundRequest struct {
+		Owner       common.AccountName
+		RequestTime common.TimePointSec
+		NetAmount   common.Asset
+		CpuAmount   common.Asset
+	}
+	data := e.GetRowByAccount(uint64(eosio), uint64(account), uint64(common.N("refunds")), uint64(account))
+	if len(data) == 0 {
+		return common.Variants{}
+	} else {
+		res := RefundRequest{}
+		rlp.DecodeBytes(data, &res)
+		return common.Variants{
+			"owner":        res.Owner,
+			"request_time": res.RequestTime,
+			"net_amount":   res.NetAmount,
+			"cpu_amount":   res.CpuAmount,
+		}
+	}
 }
 
 func (e EosioSystemTester) Cross15PercentThreshold() {
