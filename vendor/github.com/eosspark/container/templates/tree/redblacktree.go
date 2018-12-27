@@ -107,6 +107,10 @@ func (tree *Tree) CopyFrom(rbt *Tree) {
 // Put inserts node into the tree.
 // Key should adhere to the comparator's type assertion, otherwise method panics.
 func (tree *Tree) Put(key interface{}, value interface{}) {
+	tree.put(key, value)
+}
+
+func (tree *Tree) put(key interface{}, value interface{}) (*Node, bool) {
 	var insertedNode *Node
 	if tree.Root == nil {
 		// Assert key is of comparator's type for initial tree
@@ -145,7 +149,7 @@ func (tree *Tree) Put(key interface{}, value interface{}) {
 				case compare == 0:
 					node.Key = key
 					node.Value = value
-					return
+					return node, false
 				case compare < 0:
 					if node.Left == nil {
 						node.Left = &Node{Key: key, Value: value, color: red}
@@ -169,67 +173,34 @@ func (tree *Tree) Put(key interface{}, value interface{}) {
 	}
 	tree.insertCase1(insertedNode)
 	tree.size++
+
+	return insertedNode, true
 }
 
-func (tree *Tree) PutItem(key interface{}, value interface{}) (bool, interface{}, interface{}) {
-	var resultOpt bool
-	var resultKey interface{}
-	var resultValue interface{}
-
-	var insertedNode *Node
-	if tree.Root == nil {
-		// Assert key is of comparator's type for initial tree
-		tree.Comparator(key, key)
-		tree.Root = &Node{Key: key, Value: value, color: red}
-		insertedNode = tree.Root
-		resultOpt = true
-		resultKey = key
-		resultValue = value
-	} else {
-		node := tree.Root
-		loop := true
-		for loop {
-			compare := tree.Comparator(key, node.Key)
-			switch {
-			case compare == 0:
-				resultOpt = false
-				return resultOpt, key, value
-			case compare < 0:
-				if node.Left == nil {
-					node.Left = &Node{Key: key, Value: value, color: red}
-					insertedNode = node.Left
-					loop = false
-				} else {
-					node = node.Left
-				}
-				resultOpt = true
-				resultKey = key
-				resultValue = value
-			case compare > 0:
-				if node.Right == nil {
-					node.Right = &Node{Key: key, Value: value, color: red}
-					insertedNode = node.Right
-					loop = false
-				} else {
-					node = node.Right
-				}
-				resultOpt = true
-				resultKey = key
-				resultValue = value
-			}
-		}
-		insertedNode.Parent = node
+func (tree *Tree) Insert(key interface{}, value interface{}) Iterator {
+	node, new := tree.put(key, value)
+	if new {
+		return Iterator{tree: tree, node: node, position: between}
 	}
-	tree.insertCase1(insertedNode)
-	tree.size++
-	return resultOpt, resultKey, resultValue
+	return tree.End()
 }
 
 // Get searches the node in the tree by key and returns its value or nil if key is not found in tree.
 // Second return parameter is true if key was found, otherwise false.
 // Key should adhere to the comparator's type assertion, otherwise method panics.
 func (tree *Tree) Get(key interface{}) Iterator {
-	return tree.LowerBound(key)
+	if tree.isMulti {
+		lower := tree.LowerBound(key)
+		if !lower.IsEnd() && tree.Comparator(key, lower.Key()) == 0 {
+			return lower
+		}
+		return tree.End()
+	} else {
+		if node := tree.lookup(key); node != nil {
+			return Iterator{tree, node, between}
+		}
+		return tree.End()
+	}
 }
 
 // LowerBound returns an iterator pointing to the first element that is not less than the given key.

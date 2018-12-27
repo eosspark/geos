@@ -79,8 +79,11 @@ func StringSetIntersection(a *StringSet, b *StringSet, callback func(elem string
 
 // Add adds the item one to the set.Returns false and the interface if it already exists
 func (set *StringSet) AddItem(item string) (bool, string) {
-	opt, k, _ := set.Tree.PutItem(item, itemExistsStringSet)
-	return opt, k.(string)
+	itr := set.Tree.Insert(item, itemExistsStringSet)
+	if itr.IsEnd() {
+		return false, item
+	}
+	return true, itr.Value().(string)
 }
 
 // Add adds the items (one or more) to the set.
@@ -179,22 +182,16 @@ func (set *StringSet) Find(f func(value string) bool) (v string) {
 	return
 }
 
-func (set *StringSet) LowerBound(item string) *IteratorStringSet {
-	if itr := set.Tree.LowerBound(item); itr != set.Tree.End() {
-		return &IteratorStringSet{itr}
-	}
-	return nil
+func (set *StringSet) LowerBound(item string) IteratorStringSet {
+	return IteratorStringSet{set.Tree.LowerBound(item)}
 }
 
-func (set *StringSet) UpperBound(item string) *IteratorStringSet {
-	if itr := set.Tree.UpperBound(item); itr != set.Tree.End() {
-		return &IteratorStringSet{itr}
-	}
-	return nil
+func (set *StringSet) UpperBound(item string) IteratorStringSet {
+	return IteratorStringSet{set.Tree.UpperBound(item)}
 }
 
 // ToJSON outputs the JSON representation of the set.
-func (set *StringSet) MarshalJSON() ([]byte, error) {
+func (set StringSet) MarshalJSON() ([]byte, error) {
 	return json.Marshal(set.Values())
 }
 

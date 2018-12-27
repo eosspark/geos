@@ -59,6 +59,10 @@ func (m *AccountNameUint32Map) Put(key common.AccountName, value uint32) {
 	m.Tree.Put(key, value)
 }
 
+func (m *AccountNameUint32Map) Insert(key common.AccountName, value uint32) IteratorAccountNameUint32Map {
+	return IteratorAccountNameUint32Map{m.Tree.Insert(key, value)}
+}
+
 // Get searches the element in the map by key and returns its value or nil if key is not found in Tree.
 // Second return parameter is true if key was found, otherwise false.
 // Key should adhere to the comparator's type assertion, otherwise method panics.
@@ -114,7 +118,7 @@ func (m *AccountNameUint32Map) Find(f func(key common.AccountName, value uint32)
 }
 
 // String returns a string representation of container
-func (m *AccountNameUint32Map) String() string {
+func (m AccountNameUint32Map) String() string {
 	str := "TreeMap\nmap["
 	it := m.Iterator()
 	for it.Next() {
@@ -177,7 +181,7 @@ type pairAccountNameUint32Map struct {
 	Val uint32             `json:"val"`
 }
 
-func (m *AccountNameUint32Map) MarshalJSON() ([]byte, error) {
+func (m AccountNameUint32Map) MarshalJSON() ([]byte, error) {
 	elements := make([]pairAccountNameUint32Map, 0, m.Size())
 	it := m.Iterator()
 	for it.Next() {

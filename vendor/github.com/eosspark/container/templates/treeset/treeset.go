@@ -79,8 +79,11 @@ func SetIntersection(a *Set, b *Set, callback func(elem V)) {
 
 // Add adds the item one to the set.Returns false and the interface if it already exists
 func (set *Set) AddItem(item V) (bool, V) {
-	opt, k, _ := set.Tree.PutItem(item, itemExists)
-	return opt, k.(V)
+	itr := set.Tree.Insert(item, itemExists)
+	if itr.IsEnd() {
+		return false, item
+	}
+	return true, itr.Value().(V)
 }
 
 // Add adds the items (one or more) to the set.
@@ -179,22 +182,16 @@ func (set *Set) Find(f func(value V) bool) (v V) {
 	return
 }
 
-func (set *Set) LowerBound(item V) *Iterator {
-	if itr := set.Tree.LowerBound(item); itr != set.Tree.End() {
-		return &Iterator{itr}
-	}
-	return nil
+func (set *Set) LowerBound(item V) Iterator {
+	return Iterator{set.Tree.LowerBound(item)}
 }
 
-func (set *Set) UpperBound(item V) *Iterator {
-	if itr := set.Tree.UpperBound(item); itr != set.Tree.End() {
-		return &Iterator{itr}
-	}
-	return nil
+func (set *Set) UpperBound(item V) Iterator {
+	return Iterator{set.Tree.UpperBound(item)}
 }
 
 // ToJSON outputs the JSON representation of the set.
-func (set *Set) MarshalJSON() ([]byte, error) {
+func (set Set) MarshalJSON() ([]byte, error) {
 	return json.Marshal(set.Values())
 }
 
