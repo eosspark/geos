@@ -277,8 +277,7 @@ func (c *Console) AutoCompleteInput(line string, pos int) (string, []string, str
 // console's available modules.
 func (c *Console) Welcome() {
 	// Print some generic eosgo metadata
-	eosgoLogo()
-	fmt.Fprintf(c.printer, "\tWelcome to the EOSGO JavaScript console!\n")
+	c.logo()
 
 	//c.jsre.Run(`
 	//        console.log("get info: " + chain.getInfo());
@@ -446,22 +445,23 @@ func (c *Console) Stop(graceful bool) error {
 	return nil
 }
 
-func eosgoLogo() {
-	fmt.Println("\x1b[1;31m")
-	fmt.Println("\t _______  _______  _______  _______  _______")
-	fmt.Println("\t(  ____ \\(  ___  )(  ____ \\(  ____ \\(  ___  )")
-	fmt.Println("\t| (    \\/| (   ) || (    \\/| (    \\/| (   ) |")
-	fmt.Println("\t| (__    | |   | || (_____ | |  ___ | |   | |")
-	fmt.Println("\t|  __)   | |   | |(_____  )| | (_  )| |   | |")
-	fmt.Println("\t| (      | |   | |      ) || |   ) || |   | |")
-	fmt.Println("\t| (____/\\| (___) |/\\____) || (___) || (___) |")
-	fmt.Println("\t(_______/(_______)\\_______)\\_______/(_______)")
-	fmt.Println("\x1b[0m")
+func (c *Console) logo() {
+	fmt.Fprintf(c.printer, "\x1b[1;31m\n")
+	fmt.Fprintf(c.printer, "\t _______  _______  _______  _______  _______\n")
+	fmt.Fprintf(c.printer, "\t(  ____ \\(  ___  )(  ____ \\(  ____ \\(  ___  )\n")
+	fmt.Fprintf(c.printer, "\t| (    \\/| (   ) || (    \\/| (    \\/| (   ) |\n")
+	fmt.Fprintf(c.printer, "\t| (__    | |   | || (_____ | |  ___ | |   | |\n")
+	fmt.Fprintf(c.printer, "\t|  __)   | |   | |(_____  )| | (_  )| |   | |\n")
+	fmt.Fprintf(c.printer, "\t| (      | |   | |      ) || |   ) || |   | |\n")
+	fmt.Fprintf(c.printer, "\t| (____/\\| (___) |/\\____) || (___) || (___) |\n")
+	fmt.Fprintf(c.printer, "\t(_______/(_______)\\_______)\\_______/(_______)\n")
+	fmt.Fprintf(c.printer, "\x1b[0m\n")
 
-	fmt.Println("\tFor more information:")
-	//fmt.Println("\tEOSGO Website: https://eos.io")
-	//fmt.Println("\tEOSGO Telegram channel @ https://t.me/EOSProject")
-	//fmt.Println("\tEOSGO Resources: https://eos.io/resources/")
-	//fmt.Println("\tEOSGO Stack Exchange: https://eosio.stackexchange.com")
-	fmt.Println("\tEOSGO Github: https://github.com/eosspark/eos-go\n")
+	fmt.Fprintf(c.printer, "\tFor more information:\n")
+	//fmt.Fprintf(c.printer,"\tEOSGO Website: https://eos.io\n")
+	//fmt.Fprintf(c.printer,"\tEOSGO Telegram channel @ https://t.me/EOSProject\n")
+	//fmt.Fprintf(c.printer,"\tEOSGO Resources: https://eos.io/resources/\n")
+	//fmt.Fprintf(c.printer,"\tEOSGO Stack Exchange: https://eosio.stackexchange.com\n")
+	fmt.Fprintf(c.printer, "\tGithub: https://github.com/eosspark/eos-go\n\n")
+	fmt.Fprintf(c.printer, "\tWelcome to the EOSGO JavaScript console!\n")
 }
