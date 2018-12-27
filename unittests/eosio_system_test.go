@@ -129,7 +129,7 @@ func TestStakeUnstake(t *testing.T) {
 	assert.Equal(t, CoreFromString("210.0000"), total["net_weight"].(common.Asset))
 	assert.Equal(t, CoreFromString("110.0000"), total["cpu_weight"].(common.Asset))
 
-	assert.Equal(t, e.VoterAV(alice, CoreFromString("300.0000")), e.GetVoterInfo(uint64(alice)))
+	assert.Equal(t, e.VoterAccountAsset(alice, CoreFromString("300.0000")), e.GetVoterInfo(uint64(alice)))
 	bytes := total["ram_bytes"].(int64)
 	assert.True(t, 0 < bytes)
 
@@ -144,6 +144,8 @@ func TestStakeUnstake(t *testing.T) {
 
 	e.ProduceBlock(common.Hours(1),0)
 	e.ProduceBlocks(1, false)
+	assert.Equal(t, e.VoterAccountAsset(alice, CoreFromString("0.0000")), e.GetVoterInfo(uint64(alice)))
+	e.ProduceBlocks(1, false)
 	assert.Equal(t, CoreFromString("1000.0000"), e.GetBalance(alice))
 
 	e.close()
@@ -156,13 +158,48 @@ func TestStakeUnstakeWithTransfer(t *testing.T) {
 	e.Issue(eosioStake, CoreFromString("1000.0000"), eosio)
 	assert.Equal(t, CoreFromString("0.0000"), e.GetBalance(alice))
 
+	//eosio stakes for alice with transfer flag
 	e.Transfer(eosio, bob, CoreFromString("1000.0000"), eosio)
 	assert.Equal(t, e.Success(), e.StakeWithTransfer(bob, alice, CoreFromString("200.0000"), CoreFromString("100.0000")))
 
+	//check that alice has both bandwidth and voting power
 	total := e.GetTotalStake(uint64(alice))
 	assert.Equal(t, CoreFromString("210.0000"), total["net_weight"].(common.Asset))
 	assert.Equal(t, CoreFromString("110.0000"), total["cpu_weight"].(common.Asset))
+	assert.Equal(t, e.VoterAccountAsset(alice, CoreFromString("300.0000")), e.GetVoterInfo(uint64(alice)))
+	assert.Equal(t, CoreFromString("0.0000"), e.GetBalance(alice))
 
+	//alice stakes for herself
+	e.Transfer(eosio, alice, CoreFromString("1000.0000"), eosio)
+	assert.Equal(t, e.Success(), e.Stake(alice, alice, CoreFromString("200.0000"), CoreFromString("100.0000")))
+
+	//now alice's stake should be equal to transfered from eosio + own stake
+	total = e.GetTotalStake(uint64(alice))
+	assert.Equal(t, CoreFromString("700.0000"), e.GetBalance(alice))
+	assert.Equal(t, CoreFromString("410.0000"), total["net_weight"].(common.Asset))
+	assert.Equal(t, CoreFromString("210.0000"), total["cpu_weight"].(common.Asset))
+	assert.Equal(t, e.VoterAccountAsset(alice, CoreFromString("600.0000")), e.GetVoterInfo(uint64(alice)))
+
+	//alice can unstake everything (including what was transfered)
+	assert.Equal(t, e.Success(), e.UnStake(alice, alice, CoreFromString("400.0000"), CoreFromString("200.0000")))
+	assert.Equal(t, CoreFromString("700.0000"), e.GetBalance(alice))
+	e.ProduceBlock(common.Hours(3*24-1),0)
+	e.ProduceBlocks(1, false)
+	assert.Equal(t, CoreFromString("700.0000"), e.GetBalance(alice))
+
+	//after 3 days funds should be released
+	e.ProduceBlock(common.Hours(1),0)
+	e.ProduceBlocks(1, false)
+	assert.Equal(t, CoreFromString("1300.0000"), e.GetBalance(alice))
+
+	//stake should be equal to what was staked in constructor, voting power should be 0
+	total = e.GetTotalStake(uint64(alice))
+	assert.Equal(t, CoreFromString("10.0000"), total["net_weight"].(common.Asset))
+	assert.Equal(t, CoreFromString("10.0000"), total["cpu_weight"].(common.Asset))
+	assert.Equal(t, e.VoterAccountAsset(alice, CoreFromString("0.0000")), e.GetVoterInfo(uint64(alice)))
+
+	// Now alice stakes to bob with transfer flag
+	assert.Equal(t, e.Success(), e.StakeWithTransfer(alice, bob, CoreFromString("100.0000"), CoreFromString("100.0000")))
 	e.close()
 }
 

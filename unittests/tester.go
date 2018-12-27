@@ -110,7 +110,7 @@ func (t *BaseTester) open() {
 	//t.Control.startUp()
 	t.ChainTransactions = make(map[common.BlockIdType]types.TransactionReceipt)
 	ab := chain_interface.AcceptedBlockCaller{Caller: t.acceptedBlock}
-	t.Control.AcceptedBlock.Connect(&ab) // TODO: Control.signal
+	t.Control.AcceptedBlock.Connect(&ab)
 }
 
 func (t *BaseTester) acceptedBlock(b *types.BlockState) {
@@ -859,24 +859,36 @@ func newValidatingTester(pushGenesis bool, readMode DBReadMode) *ValidatingTeste
 	vt.VCfg.ReversibleDir = common.DefaultConfig.ValidatingReversibleBlocksDirName
 
 	vt.ValidatingControl = NewController(&vt.VCfg)
-	vt.init(true, readMode)
+	//TODO
+	//vt.ValidatingControl.AddIndices()
+	//vt.ValidatingControl.startUp()
+
+	vt.init(pushGenesis, readMode)
 	return vt
 }
 
 func (vt ValidatingTester) DefaultProduceBlock() *types.SignedBlock {
 	skipTime := common.DefaultConfig.BlockIntervalMs
 	skipFlag := uint32(0)
-	sb := vt.produceBlock(common.Milliseconds(skipTime), false, skipFlag/2)
+	sb := vt.produceBlock(common.Milliseconds(skipTime), false, skipFlag | 2)
 	vt.ValidatingControl.PushBlock(sb, types.Complete)
 	return sb
 }
 
 func NewValidatingTesterTrustedProducers(trustedProducers *treeset.Set) *ValidatingTester {
 	vt := &ValidatingTester{}
-	vcfg := newConfig(SPECULATIVE)
+	vt.DefaultExpirationDelta = 6
+	vt.DefaultBilledCpuTimeUs = 2000
+	vt.AbiSerializerMaxTime = 1000 * 1000
+	vt.ChainTransactions = make(map[common.BlockIdType]types.TransactionReceipt)
+	vt.LastProducedBlock = make(map[common.AccountName]common.BlockIdType)
+	vt.VCfg = *newConfig(SPECULATIVE)
+	vt.VCfg.TrustedProducers = *trustedProducers
+	vt.VCfg.BlocksDir = common.DefaultConfig.ValidatingBlocksDirName
+	vt.VCfg.StateDir = common.DefaultConfig.ValidatingStateDirName
+	vt.VCfg.ReversibleDir = common.DefaultConfig.ValidatingReversibleBlocksDirName
+	vt.ValidatingControl = NewController(&vt.VCfg)
 
-	vcfg.TrustedProducers = *trustedProducers
-	vt.ValidatingControl = NewController(vcfg)
 	vt.init(true, SPECULATIVE)
 
 	return vt

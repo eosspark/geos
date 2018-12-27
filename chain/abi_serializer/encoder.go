@@ -244,9 +244,9 @@ func (a *AbiDef) writeField(binaryEncoder *rlp.Encoder, fieldName string, fieldT
 		slot := uint32(t.Unix() - 946684800)
 		object = types.BlockTimeStamp(slot)
 	case "name":
-		//if len(value.Str) > 12 {
-		//	return fmt.Errorf("writing field: name: %s is to long. expected length of max 12 characters", value.Str)
-		//}
+		if len(value.Str) > 12 {
+			return fmt.Errorf("writing field: name: %s is to long. expected length of max 12 characters", value.Str)
+		}
 		object = common.N(value.Str)
 	case "bytes":
 		data, err := hex.DecodeString(value.String())

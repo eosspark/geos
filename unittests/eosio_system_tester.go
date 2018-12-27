@@ -577,7 +577,7 @@ func (e EosioSystemTester) Voter(acct common.AccountName) common.Variants {
 	}
 }
 
-func (e EosioSystemTester) VoterAV(acct common.AccountName, voteStake common.Asset) common.Variants {
+func (e EosioSystemTester) VoterAccountAsset(acct common.AccountName, voteStake common.Asset) common.Variants {
 	voter := e.Voter(acct)
 	voter["staked"] = voteStake.Amount
 	return voter
