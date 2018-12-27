@@ -509,3 +509,80 @@ var global_protection_some_set_wasm = []byte{
 	0x24, 0x01, //set global 1
 	0x0b, //end
 }
+
+var no_apply_wast string = `(module
+ (func $apply (param $0 i64) (param $1 i64) (param $2 i64))
+)`
+
+var no_apply_2_wast string = `(module
+  (type (;0;) (func))
+  (type (;1;) (func (result i64)))
+  (type (;2;) (func (param i64 i64)))
+  (type (;3;) (func (param i64)))
+  (type (;4;) (func (param i32 i32)))
+  (type (;5;) (func (result i32)))
+  (type (;6;) (func (param i32 i32) (result i32)))
+  (type (;7;) (func (param i32 i32 i32) (result i32)))
+  (type (;8;) (func (param i64 i64 i64)))
+  (func (;0;) (type 8) (param i64 i64 i64))
+  (global (;0;) f32 (f32.const -0x1.8008p+2 (;=-6.00049;)))
+  (export "llp/y" (func 0)))`
+
+var no_apply_3_wast string = `(module
+  (type (;0;) (func (param i64)))
+  (type (;1;) (func (param i64)))
+  (type (;2;) (func (param i64)))
+  (type (;3;) (func (param i64 i64 i64)))
+  (global (;0;) f32 (f32.const -0x1.8008p+2 (;=-6.00049;)))
+  (global (;1;) f32 (f32.const -0x1.8008p+2 (;=-6.00049;)))
+  (global (;2;) f32 (f32.const -0x1.8008p+2 (;=-6.00049;)))
+  (global (;3;) f32 (f32.const -0x1.8008p+2 (;=-6.00049;)))
+  (global (;4;) f32 (f32.const -0x1.8008p+2 (;=-6.00049;)))
+  (global (;5;) f32 (f32.const -0x1.8008p+2 (;=-6.00049;)))
+  (func (;0;) (type 3) (param i64 i64 i64))
+  (export "apply" (global 5))
+)`
+
+var apply_wrong_signature_wast string = `(module
+ (export "apply" (func $apply))
+ (func $apply (param $0 i64) (param $1 f64))
+)`
+
+var import_injected_wast string = `(module                                                                             
+ (export "apply" (func $apply))                                                   
+ (import "eosio_injection" "checktime" (func $inj (param i32)))  
+ (func $apply (param $0 i64) (param $1 i64) (param $2 i64))                         
+)`
+
+var memory_growth_memset_store string = `(module
+ (export "apply" (func $apply))
+ (memory $0 1)
+ (func $apply (param $0 i64)(param $1 i64)(param $2 i64)
+    (drop (grow_memory (i32.const 2)))
+    (i32.store (i32.const 80000) (i32.const 2))
+    (i32.store (i32.const 140000) (i32.const 3))
+ )
+)`
+
+var memory_growth_memset_test string = `(module
+ (export "apply" (func $apply))
+ (import "env" "eosio_assert" (func $eosio_assert (param i32 i32)))
+ (memory $0 1)
+ (func $apply (param $0 i64)(param $1 i64)(param $2 i64)
+   (drop (grow_memory (i32.const 2)))
+   (call $eosio_assert
+     (i32.eq
+       (i32.load offset=80000 (i32.const 0))
+       (i32.const 0)
+     )
+     (i32.const 0)
+   )
+   (call $eosio_assert
+     (i32.eq
+       (i32.load offset=140000 (i32.const 0))
+       (i32.const 0)
+     )
+     (i32.const 0)
+   )
+ )
+)`
