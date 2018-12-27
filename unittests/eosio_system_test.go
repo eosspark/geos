@@ -4,11 +4,13 @@ import (
 	"fmt"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto/rlp"
+	. "github.com/eosspark/eos-go/exception"
+	. "github.com/eosspark/eos-go/exception/try"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
-func TestBuySell(t *testing.T){
+func TestBuySell(t *testing.T) {
 	e := initEosioSystemTester()
 	assert.Equal(t, CoreFromString("0.0000"), e.GetBalance(alice))
 	e.Transfer(eosio, alice, CoreFromString("1000.0000"), eosio)
@@ -88,7 +90,7 @@ func TestBuySell(t *testing.T){
 	e.close()
 }
 
-func TestStakeUnstake(t *testing.T){
+func TestStakeUnstake(t *testing.T) {
 	e := initEosioSystemTester()
 	e.Cross15PercentThreshold()
 	e.ProduceBlocks(10, false)
@@ -97,6 +99,134 @@ func TestStakeUnstake(t *testing.T){
 	assert.Equal(t, CoreFromString("0.0000"), e.GetBalance(alice))
 	e.Transfer(eosio, alice, CoreFromString("1000.0000"), eosio)
 
+	assert.Equal(t, CoreFromString("1000.0000"), e.GetBalance(alice))
+	assert.Equal(t, e.Success(), e.Stake(eosio, alice, CoreFromString("200.0000"), CoreFromString("100.0000")))
+
+	total := e.GetTotalStake(uint64(alice))
+	assert.Equal(t, CoreFromString("210.0000"), total["net_weight"].(common.Asset))
+	assert.Equal(t, CoreFromString("110.0000"), total["cpu_weight"].(common.Asset))
+
+	initEosioStakeBalance := e.GetBalance(eosioStake)
+	assert.Equal(t, e.Success(), e.Stake(alice, alice, CoreFromString("200.0000"), CoreFromString("100.0000")))
+	assert.Equal(t, CoreFromString("700.0000"), e.GetBalance(alice))
+	assert.Equal(t, initEosioStakeBalance.Add(CoreFromString("300.0000")), e.GetBalance(eosioStake))
+	assert.Equal(t, e.Success(), e.UnStake(alice, alice, CoreFromString("200.0000"), CoreFromString("100.0000")))
+	assert.Equal(t, CoreFromString("700.0000"), e.GetBalance(alice))
+
+	e.ProduceBlock(common.Hours(3*24-1), 0)
+	e.ProduceBlocks(1, false)
+	assert.Equal(t, CoreFromString("700.0000"), e.GetBalance(alice))
+	assert.Equal(t, initEosioStakeBalance.Add(CoreFromString("300.0000")), e.GetBalance(eosioStake))
+
+	e.ProduceBlock(common.Hours(1), 0)
+	e.ProduceBlocks(1, false)
+	assert.Equal(t, CoreFromString("1000.0000"), e.GetBalance(alice))
+	assert.Equal(t, initEosioStakeBalance, e.GetBalance(eosioStake))
+
+	assert.Equal(t, e.Success(), e.Stake(alice, bob, CoreFromString("200.0000"), CoreFromString("100.0000")))
+	assert.Equal(t, CoreFromString("700.0000"), e.GetBalance(alice))
+	total = e.GetTotalStake(uint64(bob))
+	assert.Equal(t, CoreFromString("210.0000"), total["net_weight"].(common.Asset))
+	assert.Equal(t, CoreFromString("110.0000"), total["cpu_weight"].(common.Asset))
+
+	assert.Equal(t, e.VoterAccountAsset(alice, CoreFromString("300.0000")), e.GetVoterInfo(uint64(alice)))
+	bytes := total["ram_bytes"].(int64)
+	assert.True(t, 0 < bytes)
+
+	assert.Equal(t, e.Success(), e.UnStake(alice, bob, CoreFromString("200.0000"), CoreFromString("100.0000")))
+	total = e.GetTotalStake(uint64(bob))
+	assert.Equal(t, CoreFromString("10.0000"), total["net_weight"].(common.Asset))
+	assert.Equal(t, CoreFromString("10.0000"), total["cpu_weight"].(common.Asset))
+
+	e.ProduceBlock(common.Hours(3*24-1), 0)
+	e.ProduceBlocks(1, false)
+	assert.Equal(t, CoreFromString("700.0000"), e.GetBalance(alice))
+
+	e.ProduceBlock(common.Hours(1),0)
+	e.ProduceBlocks(1, false)
+	assert.Equal(t, e.VoterAccountAsset(alice, CoreFromString("0.0000")), e.GetVoterInfo(uint64(alice)))
+	e.ProduceBlocks(1, false)
+	assert.Equal(t, CoreFromString("1000.0000"), e.GetBalance(alice))
+
+	e.close()
+}
+
+func TestStakeUnstakeWithTransfer(t *testing.T) {
+	e := initEosioSystemTester()
+	e.Cross15PercentThreshold()
+	e.Issue(eosio, CoreFromString("1000.0000"), eosio)
+	e.Issue(eosioStake, CoreFromString("1000.0000"), eosio)
+	assert.Equal(t, CoreFromString("0.0000"), e.GetBalance(alice))
+
+	//eosio stakes for alice with transfer flag
+	e.Transfer(eosio, bob, CoreFromString("1000.0000"), eosio)
+	assert.Equal(t, e.Success(), e.StakeWithTransfer(bob, alice, CoreFromString("200.0000"), CoreFromString("100.0000")))
+
+	//check that alice has both bandwidth and voting power
+	total := e.GetTotalStake(uint64(alice))
+	assert.Equal(t, CoreFromString("210.0000"), total["net_weight"].(common.Asset))
+	assert.Equal(t, CoreFromString("110.0000"), total["cpu_weight"].(common.Asset))
+	assert.Equal(t, e.VoterAccountAsset(alice, CoreFromString("300.0000")), e.GetVoterInfo(uint64(alice)))
+	assert.Equal(t, CoreFromString("0.0000"), e.GetBalance(alice))
+
+	//alice stakes for herself
+	e.Transfer(eosio, alice, CoreFromString("1000.0000"), eosio)
+	assert.Equal(t, e.Success(), e.Stake(alice, alice, CoreFromString("200.0000"), CoreFromString("100.0000")))
+
+	//now alice's stake should be equal to transfered from eosio + own stake
+	total = e.GetTotalStake(uint64(alice))
+	assert.Equal(t, CoreFromString("700.0000"), e.GetBalance(alice))
+	assert.Equal(t, CoreFromString("410.0000"), total["net_weight"].(common.Asset))
+	assert.Equal(t, CoreFromString("210.0000"), total["cpu_weight"].(common.Asset))
+	assert.Equal(t, e.VoterAccountAsset(alice, CoreFromString("600.0000")), e.GetVoterInfo(uint64(alice)))
+
+	//alice can unstake everything (including what was transfered)
+	assert.Equal(t, e.Success(), e.UnStake(alice, alice, CoreFromString("400.0000"), CoreFromString("200.0000")))
+	assert.Equal(t, CoreFromString("700.0000"), e.GetBalance(alice))
+	e.ProduceBlock(common.Hours(3*24-1),0)
+	e.ProduceBlocks(1, false)
+	assert.Equal(t, CoreFromString("700.0000"), e.GetBalance(alice))
+
+	//after 3 days funds should be released
+	e.ProduceBlock(common.Hours(1),0)
+	e.ProduceBlocks(1, false)
+	assert.Equal(t, CoreFromString("1300.0000"), e.GetBalance(alice))
+
+	//stake should be equal to what was staked in constructor, voting power should be 0
+	total = e.GetTotalStake(uint64(alice))
+	assert.Equal(t, CoreFromString("10.0000"), total["net_weight"].(common.Asset))
+	assert.Equal(t, CoreFromString("10.0000"), total["cpu_weight"].(common.Asset))
+	assert.Equal(t, e.VoterAccountAsset(alice, CoreFromString("0.0000")), e.GetVoterInfo(uint64(alice)))
+
+	// Now alice stakes to bob with transfer flag
+	assert.Equal(t, e.Success(), e.StakeWithTransfer(alice, bob, CoreFromString("100.0000"), CoreFromString("100.0000")))
+	e.close()
+}
+
+func TestStakeToSelfWithTransfer(t *testing.T) {
+	e := initEosioSystemTester()
+	e.Cross15PercentThreshold()
+	assert.Equal(t, CoreFromString("0.0000"), e.GetBalance(alice))
+	e.Transfer(eosio, alice, CoreFromString("1000.0000"), eosio)
+	Try(func() {
+		e.StakeWithTransfer(alice, alice, CoreFromString("200.0000"), CoreFromString("100.0000"))
+	}).Catch(func(e Exception) {
+		assert.True(t, inString(e.DetailMessage(), "cannot use transfer flag if delegating to self"))
+	}).End()
+	e.close()
+}
+
+func TestStakeWhilePendingRefund(t *testing.T) {
+	e := initEosioSystemTester()
+	e.Cross15PercentThreshold()
+	e.Issue(eosio, CoreFromString("1000.0000"), eosio)
+	e.Issue(eosioStake, CoreFromString("1000.0000"), eosio)
+	assert.Equal(t, CoreFromString("0.0000"), e.GetBalance(alice))
+
+	e.Transfer(eosio, bob, CoreFromString("1000.0000"), eosio)
+	assert.Equal(t, e.Success(), e.StakeWithTransfer(bob, alice, CoreFromString("200.0000"), CoreFromString("100.0000")))
+
+	e.close()
 }
 
 func TestAccountName(t *testing.T) {
@@ -104,14 +234,14 @@ func TestAccountName(t *testing.T) {
 	//fmt.Println(a)
 	//fmt.Printf("%d\n",common.N("............1"))
 
-	a :=[]byte{16, 66, 8, 87, 33, 157, 232, 173, 0, 0, 0 ,0 ,0 ,0, 0 ,0, 2, 16, 66, 8 ,87, 33, 157, 232 ,173}
-	type VoteProducer struct{
-		Voter common.AccountName
-		Proxy common.AccountName
+	a := []byte{16, 66, 8, 87, 33, 157, 232, 173, 0, 0, 0, 0, 0, 0, 0, 0, 2, 16, 66, 8, 87, 33, 157, 232, 173}
+	type VoteProducer struct {
+		Voter     common.AccountName
+		Proxy     common.AccountName
 		Producers []common.AccountName
 	}
 	var Vote VoteProducer
-	err :=rlp.DecodeBytes(a,&Vote)
+	err := rlp.DecodeBytes(a, &Vote)
 	fmt.Println(err)
-	fmt.Printf("%v",Vote)
+	fmt.Printf("%v", Vote)
 }

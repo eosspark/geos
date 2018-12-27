@@ -28,6 +28,7 @@ func NewDefaultPendingState() *PendingState {
 	return &PendingState{}
 }
 func (p *PendingState) Reset() *PendingState {
+	p.DbSession.Undo()
 	return nil
 }
 

@@ -65,8 +65,7 @@ func initEosioTokenTester() *EosioTokenTester {
 func (e *EosioTokenTester) pushAction(signer common.AccountName, name common.ActionName, data *common.Variants) string {
 
 	act := e.GetAction(common.N("eosio.token"), name, []types.PermissionLevel{}, data)
-
-	log.Info("action:%v", act)
+	//log.Info("action:%v", act)
 	return e.PushAction(act, signer)
 }
 
@@ -130,11 +129,7 @@ func equal(v1 *common.Variants, v2 *common.Variants) bool {
 }
 
 func inString(s1, s2 string) bool {
-	if strings.Index(s1, s2) <= 0 {
-		return false
-	}
-
-	return true
+	return strings.Contains(s1, s2)
 }
 
 func TestCreate(t *testing.T) {
@@ -160,7 +155,7 @@ func TestCreateNegativeMaxSupply(t *testing.T) {
 		symbol := "-1000.000 TKN"
 		eosioToken.create(common.N("alice"), common.Asset{}.FromString(&symbol))
 	}).Catch(func(e exception.Exception) {
-		if inString(e.DetailMessage(), "max-supply must be positive") {
+		if strings.Contains(e.DetailMessage(), "max-supply must be positive") {
 			returning = true
 		}
 	}).End()
@@ -187,7 +182,7 @@ func TestSymbolAlreadyExists(t *testing.T) {
 		symbol = "100 TKN"
 		eosioToken.create(common.N("alice"), common.Asset{}.FromString(&symbol))
 	}).Catch(func(e exception.Exception) {
-		if inString(e.DetailMessage(), "token with symbol already exists") {
+		if strings.Contains(e.DetailMessage(), "token with symbol already exists") {
 			returning = true
 		}
 	}).End()
@@ -214,7 +209,7 @@ func TestCreateMaxSupply(t *testing.T) {
 	try.Try(func() {
 		eosioToken.create(common.N("alice"), max)
 	}).Catch(func(e exception.Exception) {
-		if inString(e.DetailMessage(), "magnitude of asset amount must be less than 2^62") {
+		if strings.Contains(e.DetailMessage(), "magnitude of asset amount must be less than 2^62") {
 			returning = true
 		}
 	}).End()
@@ -278,7 +273,7 @@ func TestIssue(t *testing.T) {
 		quantity = "500.001 TKN"
 		eosioToken.issue(common.N("alice"), common.N("alice"), common.Asset{}.FromString(&quantity), "hola")
 	}).Catch(func(e exception.Exception) {
-		if inString(e.DetailMessage(), "quantity exceeds available supply") {
+		if strings.Contains(e.DetailMessage(), "quantity exceeds available supply") {
 			returning = true
 		}
 	}).End()
@@ -289,7 +284,7 @@ func TestIssue(t *testing.T) {
 		quantity = "-1.000 TKN"
 		eosioToken.issue(common.N("alice"), common.N("alice"), common.Asset{}.FromString(&quantity), "hola")
 	}).Catch(func(e exception.Exception) {
-		if inString(e.DetailMessage(), "must issue positive quantity") {
+		if strings.Contains(e.DetailMessage(), "must issue positive quantity") {
 			returning = true
 		}
 	}).End()
@@ -349,7 +344,7 @@ func TestTransfer(t *testing.T) {
 		quantity = "701 CERO"
 		eosioToken.transfer(common.N("alice"), common.N("bob"), common.Asset{}.FromString(&quantity), "hola")
 	}).Catch(func(e exception.Exception) {
-		if inString(e.DetailMessage(), "overdrawn balance") {
+		if strings.Contains(e.DetailMessage(), "overdrawn balance") {
 			returning = true
 		}
 	}).End()
@@ -360,7 +355,7 @@ func TestTransfer(t *testing.T) {
 		quantity = "-1000 CERO"
 		eosioToken.transfer(common.N("alice"), common.N("bob"), common.Asset{}.FromString(&quantity), "hola")
 	}).Catch(func(e exception.Exception) {
-		if inString(e.DetailMessage(), "must transfer positive quantity") {
+		if strings.Contains(e.DetailMessage(), "must transfer positive quantity") {
 			returning = true
 		}
 	}).End()

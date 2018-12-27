@@ -3,6 +3,7 @@ package unittests
 import (
 	"fmt"
 	"github.com/eosspark/eos-go/chain"
+	//"github.com/eosspark/eos-go/chain/abi_serializer"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto/rlp"
@@ -22,35 +23,35 @@ type assertdef struct {
 	Message   string
 }
 
-func (d *assertdef) getAccount() common.AccountName {
+func (d *assertdef) GetAccount() common.AccountName {
 	return common.N("asserter")
 }
 
-func (d *assertdef) getName() common.AccountName {
+func (d *assertdef) GetName() common.AccountName {
 	return common.N("procassert")
 }
 
 type provereset struct{}
 
-func (d *provereset) getAccount() common.AccountName {
+func (d *provereset) GetAccount() common.AccountName {
 	return common.N("asserter")
 }
 
-func (d *provereset) getName() common.AccountName {
+func (d *provereset) GetName() common.AccountName {
 	return common.N("provereset")
 }
 
 type actionInterface interface {
-	getAccount() common.AccountName
-	getName() common.AccountName
+	GetAccount() common.AccountName
+	GetName() common.AccountName
 }
 
 func newAction(permissionLevel []types.PermissionLevel, a actionInterface) *types.Action {
 
 	payload, _ := rlp.EncodeToBytes(a)
 	act := types.Action{
-		Account:       common.AccountName(a.getAccount()),
-		Name:          common.AccountName(a.getName()),
+		Account:       common.AccountName(a.GetAccount()),
+		Name:          common.AccountName(a.GetName()),
 		Data:          payload,
 		Authorization: permissionLevel,
 	}
@@ -855,7 +856,7 @@ func TestBigMemory(t *testing.T) {
 
 		bigmem := common.N("bigmem")
 
-		b.CreateAccounts([]common.AccountName{bigmem, alice, bob}, false, true)
+		b.CreateAccounts([]common.AccountName{bigmem}, false, true)
 		b.ProduceBlocks(1, false)
 
 		wast := fmt.Sprintf(biggest_memory_wast, wasmgo.MaximumLinearMemory/(64*1024))
@@ -875,8 +876,987 @@ func TestBigMemory(t *testing.T) {
 		b.PushTransaction(&trx, common.MaxTimePoint(), b.DefaultBilledCpuTimeUs)
 		b.ProduceBlocks(1, false)
 
-		trxId := trx.ID()
-		assert.Equal(t, b.ChainHasTransaction(&trxId), true)
+		// trxId := trx.ID()
+		// assert.Equal(t, b.ChainHasTransaction(&trxId), true)
+
+		wast = fmt.Sprintf(too_big_memory_wast, wasmgo.MaximumLinearMemory/(64*1024)+1)
+		wasm = wast2wasm([]byte(wast))
+
+		returning := false
+		try.Try(func() {
+			b.SetCode(bigmem, wasm, nil)
+		}).Catch(func(e exception.Exception) {
+			if (e.Code() == exception.WasmExecutionError{}.Code()) {
+				returning = true
+			}
+		}).End()
+		assert.Equal(t, returning, true)
+
+		b.close()
+	})
+}
+
+func TestTableInit(t *testing.T) {
+	t.Run("", func(t *testing.T) {
+		b := newBaseTester(true, chain.SPECULATIVE)
+		b.ProduceBlocks(2, false)
+
+		tableinit := common.N("tableinit")
+
+		b.CreateAccounts([]common.AccountName{tableinit}, false, true)
+		b.ProduceBlocks(1, false)
+
+		wasm := wast2wasm([]byte(valid_sparse_table))
+		b.SetCode(tableinit, wasm, nil)
+		b.ProduceBlocks(1, false)
+
+		wasm = wast2wasm([]byte(too_big_table))
+		returning := false
+		try.Try(func() {
+			b.SetCode(tableinit, wasm, nil)
+		}).Catch(func(e exception.Exception) {
+			if (e.Code() == exception.WasmExecutionError{}.Code()) {
+				returning = true
+			}
+		}).End()
+		assert.Equal(t, returning, true)
+
+		b.close()
+	})
+}
+
+func TestMemoryInitBorder(t *testing.T) {
+	t.Run("", func(t *testing.T) {
+		b := newBaseTester(true, chain.SPECULATIVE)
+		b.ProduceBlocks(2, false)
+
+		memoryborder := common.N("memoryborder")
+
+		b.CreateAccounts([]common.AccountName{memoryborder}, false, true)
+		b.ProduceBlocks(1, false)
+
+		wasm := wast2wasm([]byte(memory_init_borderline))
+		b.SetCode(memoryborder, wasm, nil)
+		b.ProduceBlocks(1, false)
+
+		wasm = wast2wasm([]byte(memory_init_toolong))
+		returning := false
+		try.Try(func() {
+			b.SetCode(memoryborder, wasm, nil)
+		}).Catch(func(e exception.Exception) {
+			if (e.Code() == exception.WasmExecutionError{}.Code()) {
+				returning = true
+			}
+		}).End()
+		assert.Equal(t, returning, true)
+
+		wasm = wast2wasm([]byte(memory_init_negative))
+		returning = false
+		try.Try(func() {
+			b.SetCode(memoryborder, wasm, nil)
+		}).Catch(func(e exception.Exception) {
+			if (e.Code() == exception.WasmExecutionError{}.Code()) {
+				returning = true
+			}
+		}).End()
+		assert.Equal(t, returning, true)
+
+		b.close()
+	})
+}
+
+func TestImports(t *testing.T) {
+	t.Run("", func(t *testing.T) {
+		b := newBaseTester(true, chain.SPECULATIVE)
+		b.ProduceBlocks(2, false)
+		imports := common.N("imports")
+
+		b.CreateAccounts([]common.AccountName{imports}, false, true)
+		b.ProduceBlocks(1, false)
+
+		wasm := wast2wasm([]byte(memory_table_import))
+		returning := false
+		try.Try(func() {
+			b.SetCode(imports, wasm, nil)
+		}).Catch(func(e exception.Exception) {
+			returning = true
+		}).End()
+		assert.Equal(t, returning, true)
+
+		b.close()
+	})
+}
+
+func TestNestedLimit(t *testing.T) {
+	t.Run("", func(t *testing.T) {
+		b := newBaseTester(true, chain.SPECULATIVE)
+		b.ProduceBlocks(2, false)
+		nested := common.N("nested")
+
+		b.CreateAccounts([]common.AccountName{nested}, false, true)
+		b.ProduceBlocks(1, false)
+
+		nested2 := func(command string) {
+			wast := `(module (export "apply" (func $apply)) (func $apply (param $0 i64) (param $1 i64) (param $2 i64)`
+			for i := 0; i < 1023; i++ {
+				wast += fmt.Sprintf(command, i)
+			}
+			for i := 0; i < 1023; i++ {
+				wast += ")"
+			}
+			wast += "))"
+			wasm := wast2wasm([]byte(wast))
+			b.SetCode(nested, wasm, nil)
+
+		}
+
+		nestedException := func(command string) bool {
+			wast := `(module (export "apply" (func $apply)) (func $apply (param $0 i64) (param $1 i64) (param $2 i64)`
+			for i := 0; i < 1024; i++ {
+				wast += fmt.Sprintf(command, i)
+			}
+			for i := 0; i < 1024; i++ {
+				wast += ")"
+			}
+			wast += "))"
+			wasm := wast2wasm([]byte(wast))
+			returning := false
+			try.Try(func() {
+				b.SetCode(nested, wasm, nil)
+			}).Catch(func(e exception.Exception) {
+				if (e.Code() == exception.WasmExecutionError{}.Code()) {
+					returning = true
+				}
+			}).End()
+			return returning
+			//assert.Equal(t, returning, true)
+		}
+
+		//nested loops
+		nested2("(loop (drop (i32.const %d ))")
+		ret := nestedException("(loop (drop (i32.const %d ))")
+		assert.Equal(t, ret, true)
+
+		//nested blocks
+		nested2("(block (drop (i32.const %d ))")
+		ret = nestedException("(block (drop (i32.const %d ))")
+		assert.Equal(t, ret, true)
+
+		//nested ifs
+		nested2("if (i32.wrap/i64 (get_local $0)) (then (drop (i32.const %d ))")
+		ret = nestedException("if (i32.wrap/i64 (get_local $0)) (then (drop (i32.const %d ))")
+		assert.Equal(t, ret, true)
+
+		// mixed nested
+		{
+			wast := `(module (export "apply" (func $apply)) (func $apply (param $0 i64) (param $1 i64) (param $2 i64)`
+			for i := 0; i < 223; i++ {
+				wast += fmt.Sprintf("if (i32.wrap/i64 (get_local $0)) (then (drop (i32.const %d ))", i)
+			}
+			for i := 0; i < 400; i++ {
+				wast += fmt.Sprintf("(block (drop (i32.const %d ))", i)
+			}
+			for i := 0; i < 400; i++ {
+				wast += fmt.Sprintf("(loop (drop (i32.const %d ))", i)
+			}
+			for i := 0; i < 800; i++ {
+				wast += ")"
+			}
+			for i := 0; i < 223; i++ {
+				wast += "))"
+			}
+			wast += "))"
+			wasm := wast2wasm([]byte(wast))
+			b.SetCode(nested, wasm, nil)
+		}
+
+		{
+			wast := `(module (export "apply" (func $apply)) (func $apply (param $0 i64) (param $1 i64) (param $2 i64)`
+			for i := 0; i < 224; i++ {
+				wast += fmt.Sprintf("if (i32.wrap/i64 (get_local $0)) (then (drop (i32.const %d ))", i)
+			}
+			for i := 0; i < 400; i++ {
+				wast += fmt.Sprintf("(block (drop (i32.const %d ))", i)
+			}
+			for i := 0; i < 400; i++ {
+				wast += fmt.Sprintf("(loop (drop (i32.const %d ))", i)
+			}
+			for i := 0; i < 800; i++ {
+				wast += ")"
+			}
+			for i := 0; i < 224; i++ {
+				wast += "))"
+			}
+			wast += "))"
+			wasm := wast2wasm([]byte(wast))
+
+			returning := false
+			try.Try(func() {
+				b.SetCode(nested, wasm, nil)
+			}).Catch(func(e exception.Exception) {
+				if (e.Code() == exception.WasmExecutionError{}.Code()) {
+					returning = true
+				}
+			}).End()
+			assert.Equal(t, returning, true)
+		}
+
+		b.close()
+	})
+}
+
+func TestLotsoGlobals(t *testing.T) {
+	t.Run("", func(t *testing.T) {
+		b := newBaseTester(true, chain.SPECULATIVE)
+		b.ProduceBlocks(2, false)
+		nested := common.N("nested")
+
+		b.CreateAccounts([]common.AccountName{nested}, false, true)
+		b.ProduceBlocks(1, false)
+
+		wast := `(module (export "apply" (func $apply)) (func $apply (param $0 i64) (param $1 i64) (param $2 i64)`
+		for i := 0; i < 85; i++ {
+			wast += fmt.Sprintf("(global $g%d (mut i32) (i32.const 0))", i)
+			wast += fmt.Sprintf("(global $g%d (mut i64) (i64.const 0))", i+100)
+		}
+		//that gives us 1020 bytes of mutable globals
+		//add a few immutable ones for good measure
+		for i := 0; i < 10; i++ {
+			wast += fmt.Sprintf("(global $g%d i32 (i32.const 0))", i+100)
+		}
+
+		wasm := wast2wasm([]byte(wast + ")"))
+		b.SetCode(nested, wasm, nil)
+
+		//1024 should pass
+		wasm = wast2wasm([]byte(wast + "(global $z (mut i32) (i32.const -12)))"))
+		b.SetCode(nested, wasm, nil)
+		//1028 should fail
+		wasm = wast2wasm([]byte(wast + "(global $z (mut i64) (i64.const -12)))"))
+		returning := false
+		try.Try(func() {
+			b.SetCode(nested, wasm, nil)
+		}).Catch(func(e exception.Exception) {
+			if (e.Code() == exception.WasmExecutionError{}.Code()) {
+				returning = true
+			}
+		}).End()
+		assert.Equal(t, returning, true)
+
+		b.close()
+	})
+}
+
+func TestOffsetCheck(t *testing.T) {
+	t.Run("", func(t *testing.T) {
+		b := newBaseTester(true, chain.SPECULATIVE)
+		b.ProduceBlocks(2, false)
+		account := common.N("offsets")
+
+		b.CreateAccounts([]common.AccountName{account}, false, true)
+		b.ProduceBlocks(1, false)
+
+		loadops := []string{
+			"i32.load", "i64.load", "f32.load", "f64.load", "i32.load8_s", "i32.load8_u",
+			"i32.load16_s", "i32.load16_u", "i64.load8_s", "i64.load8_u", "i64.load16_s",
+			"i64.load16_u", "i64.load32_s", "i64.load32_u"}
+
+		storeops := [][]string{
+			{"i32.store", "i32"},
+			{"i64.store", "i64"},
+			{"f32.store", "f32"},
+			{"f64.store", "f64"},
+			{"i32.store8", "i32"},
+			{"i32.store16", "i32"},
+			{"i64.store8", "i64"},
+			{"i64.store16", "i64"},
+			{"i64.store32", "i64"}}
+
+		for _, s := range loadops {
+			wast := fmt.Sprintf("(module (memory $0 %d ) (func $apply (param $0 i64) (param $1 i64) (param $2 i64)", wasmgo.MaximumLinearMemory/(64*1024))
+			wast += fmt.Sprintf("(drop (%s offset=%d (i32.const 0)))", s, wasmgo.MaximumLinearMemory-2)
+			wast += `) (export "apply" (func $apply)) )`
+
+			wasm := wast2wasm([]byte(wast))
+			b.SetCode(account, wasm, nil)
+			b.ProduceBlocks(1, false)
+		}
+
+		for _, s := range storeops {
+			wast := fmt.Sprintf("(module (memory $0 %d ) (func $apply (param $0 i64) (param $1 i64) (param $2 i64)", wasmgo.MaximumLinearMemory/(64*1024))
+			wast += fmt.Sprintf("(%s offset=%d (i32.const 0)( %s.const 0))", s[0], wasmgo.MaximumLinearMemory-2, s[1])
+			wast += `) (export "apply" (func $apply)) )`
+
+			wasm := wast2wasm([]byte(wast))
+			b.SetCode(account, wasm, nil)
+			b.ProduceBlocks(1, false)
+		}
+
+		for _, s := range loadops {
+			wast := fmt.Sprintf("(module (memory $0 %d ) (func $apply (param $0 i64) (param $1 i64) (param $2 i64)", wasmgo.MaximumLinearMemory/(64*1024))
+			wast += fmt.Sprintf("(drop (%s offset=%d (i32.const 0)))", s, wasmgo.MaximumLinearMemory+4)
+			wast += `) (export "apply" (func $apply)) )`
+
+			wasm := wast2wasm([]byte(wast))
+			returning := false
+			try.Try(func() {
+				b.SetCode(account, wasm, nil)
+			}).Catch(func(e exception.Exception) {
+				if (e.Code() == exception.WasmExecutionError{}.Code()) {
+					returning = true
+				}
+			}).End()
+			assert.Equal(t, returning, true)
+			b.ProduceBlocks(1, false)
+		}
+
+		for _, s := range storeops {
+			wast := fmt.Sprintf("(module (memory $0 %d ) (func $apply (param $0 i64) (param $1 i64) (param $2 i64)", wasmgo.MaximumLinearMemory/(64*1024))
+			wast += fmt.Sprintf("(%s offset=%d (i32.const 0)( %s.const 0))", s[0], wasmgo.MaximumLinearMemory+4, s[1])
+			wast += `) (export "apply" (func $apply)) )`
+
+			wasm := wast2wasm([]byte(wast))
+			returning := false
+			try.Try(func() {
+				b.SetCode(account, wasm, nil)
+			}).Catch(func(e exception.Exception) {
+				if (e.Code() == exception.WasmExecutionError{}.Code()) {
+					returning = true
+				}
+			}).End()
+			assert.Equal(t, returning, true)
+			b.ProduceBlocks(1, false)
+		}
+
+		b.close()
+	})
+}
+
+func TestNoop(t *testing.T) {
+	t.Run("", func(t *testing.T) {
+		b := newBaseTester(true, chain.SPECULATIVE)
+		b.ProduceBlocks(2, false)
+
+		noop := common.N("noop")
+		alice := common.N("alice")
+
+		b.CreateAccounts([]common.AccountName{noop, alice}, false, true)
+		b.ProduceBlocks(1, false)
+
+		wasm := "test_contracts/noop.wasm"
+		abi := "test_contracts/noop.abi"
+		code, _ := ioutil.ReadFile(wasm)
+		abiCode, _ := ioutil.ReadFile(abi)
+
+		b.SetCode(noop, code, nil)
+		b.SetAbi(noop, abiCode, nil)
+
+		{
+			b.ProduceBlocks(5, false)
+			trx := types.SignedTransaction{}
+			actData := common.Variants{
+				"anyaction": common.Variants{
+					"from": "noop",
+					"type": "some type",
+					"data": "some data goes here"}}
+			act := b.GetAction(noop,
+				common.N("anyaction"),
+				[]types.PermissionLevel{{noop, common.DefaultConfig.ActiveName}},
+				&actData)
+
+			trx.Actions = append(trx.Actions, act)
+			b.SetTransactionHeaders(&trx.Transaction, b.DefaultExpirationDelta, 0)
+
+			privKey := b.getPrivateKey(noop, "active")
+			chainId := b.Control.GetChainId()
+			trx.Sign(&privKey, &chainId)
+
+			b.PushTransaction(&trx, common.MaxTimePoint(), b.DefaultBilledCpuTimeUs)
+			trxId := trx.ID()
+			assert.Equal(t, b.ChainHasTransaction(&trxId), true)
+		}
+
+		{
+			b.ProduceBlocks(5, false)
+			trx := types.SignedTransaction{}
+			actData := common.Variants{
+				"anyaction": common.Variants{
+					"from": "alice",
+					"type": "some type",
+					"data": "some data goes here"}}
+			act := b.GetAction(noop,
+				common.N("anyaction"),
+				[]types.PermissionLevel{{alice, common.DefaultConfig.ActiveName}},
+				&actData)
+
+			trx.Actions = append(trx.Actions, act)
+			b.SetTransactionHeaders(&trx.Transaction, b.DefaultExpirationDelta, 0)
+
+			privKey := b.getPrivateKey(alice, "active")
+			chainId := b.Control.GetChainId()
+			trx.Sign(&privKey, &chainId)
+
+			b.PushTransaction(&trx, common.MaxTimePoint(), b.DefaultBilledCpuTimeUs)
+			trxId := trx.ID()
+			assert.Equal(t, b.ChainHasTransaction(&trxId), true)
+		}
+
+		b.close()
+	})
+}
+
+func TestEosioAbi(t *testing.T) {
+	t.Run("", func(t *testing.T) {
+		b := newBaseTester(true, chain.SPECULATIVE)
+		b.ProduceBlocks(2, false)
+
+		//accnt := b.Control.GetAccount(common.DefaultConfig.SystemAccountName)
+		//abi := accnt.GetAbi()
+		//abiSerializer := abi_serializer.NewAbiSerializer(abi, b.AbiSerializerMaxTime)
+
+		trx := types.SignedTransaction{}
+		alice := common.N("alice")
+
+		ownerAuth := types.NewAuthority(b.getPublicKey(alice, "owner"), uint32(b.AbiSerializerMaxTime))
+
+		pl := []types.PermissionLevel{{common.DefaultConfig.SystemAccountName, common.PermissionName(common.N("active"))}}
+		a := chain.NewAccount{
+			common.DefaultConfig.SystemAccountName,
+			alice,
+			ownerAuth,
+			types.NewAuthority(b.getPublicKey(alice, "active"), uint32(b.AbiSerializerMaxTime))}
+
+		act := newAction(pl, &a)
+		trx.Actions = append(trx.Actions, act)
+		b.SetTransactionHeaders(&trx.Transaction, b.DefaultExpirationDelta, 0)
+
+		privKey := b.getPrivateKey(common.DefaultConfig.SystemAccountName, "active")
+		chainId := b.Control.GetChainId()
+		trx.Sign(&privKey, &chainId)
+
+		//result := b.PushTransaction(&trx, common.MaxTimePoint(), b.DefaultBilledCpuTimeUs)
+
+		// fc::variant pretty_output;
+		// // verify to_variant works on eos native contract type: newaccount
+		// // see abi_serializer::to_abi()
+		// abi_serializer::to_variant(*result, pretty_output, get_resolver(), abi_serializer_max_time);
+		// BOOST_TEST(fc::json::to_string(pretty_output).find("newaccount") != std::string::npos);
+
+		b.close()
+	})
+}
+
+func TestCheckBigDeserialization(t *testing.T) {
+	t.Run("", func(t *testing.T) {
+		b := newBaseTester(true, chain.SPECULATIVE)
+		b.ProduceBlocks(2, false)
+
+		account := common.N("cbd")
+		b.CreateAccounts([]common.AccountName{account}, false, true)
+		b.ProduceBlocks(1, false)
+
+		var module string = `(module
+		 (table 1025 anyfunc)
+		 (export "apply" (func $apply))
+		 (func $apply (param $0 i64) (param $1 i64) (param $2 i64))`
+
+		wast := module
+		for i := 0; i < wasmgo.MaximumSectionElements-2; i++ {
+			wast += fmt.Sprintf("  (func $AA_%d)", i)
+		}
+		wast += ")"
+
+		wasm := wast2wasm([]byte(wast))
+		b.SetCode(account, wasm, nil)
+		b.ProduceBlocks(1, false)
+		b.ProduceBlocks(1, false)
+
+		wast = module
+		for i := 0; i < wasmgo.MaximumSectionElements; i++ {
+			wast += fmt.Sprintf("  (func $AA_%d)", i)
+		}
+		wast += ")"
+		wasm = wast2wasm([]byte(wast))
+		returning := false
+		try.Try(func() {
+			b.SetCode(account, wasm, nil)
+		}).Catch(func(e exception.Exception) {
+			if (e.Code() == exception.WasmSerializationError{}.Code()) {
+				returning = true
+			}
+		}).End()
+		assert.Equal(t, returning, true)
+		b.ProduceBlocks(1, false)
+
+		wast = module
+		wast += " (func $aa "
+		for i := 0; i < wasmgo.MaximumSectionElements; i++ {
+			wast += " (drop (i32.const 3))"
+		}
+		wast += "))"
+		wasm = wast2wasm([]byte(wast))
+		returning = false
+		try.Try(func() {
+			b.SetCode(account, wasm, nil)
+		}).Catch(func(e exception.Exception) {
+			if (e.Code() == exception.AssertException{}.Code()) {
+				returning = true
+			}
+		}).End()
+		assert.Equal(t, returning, true)
+		b.ProduceBlocks(1, false)
+
+		var head string = `(module
+		 (memory $0 1)
+		 (export "apply" (func $apply))
+		 (data (i32.const 20) "`
+
+		var tail string = `")
+		 (export "apply" (func $apply))
+		 (func $apply  (param $0 i64)(param $1 i64)(param $2 i64))
+		 (func $aa 
+		 	(drop (i32.const 3))
+		 ))`
+
+		wast = head
+		for i := 0; i < wasmgo.MaximumFuncLocalBytes-1; i++ {
+			wast += "a"
+		}
+		wast += tail
+		wasm = wast2wasm([]byte(wast))
+		b.SetCode(account, wasm, nil)
+
+		wast = head
+		for i := 0; i < wasmgo.MaximumFuncLocalBytes; i++ {
+			wast += "a"
+		}
+		wast += tail
+		wasm = wast2wasm([]byte(wast))
+
+		returning = false
+		try.Try(func() {
+			b.SetCode(account, wasm, nil)
+		}).Catch(func(e exception.Exception) {
+			if (e.Code() == exception.WasmSerializationError{}.Code()) {
+				returning = true
+			}
+		}).End()
+		assert.Equal(t, returning, true)
+
+		//CheckThrow(t, b.SetCode(account, wasm, nil), exception.WasmSerializationError{}.Code())
+		b.close()
+	})
+}
+
+func TestCheckTableMaximum(t *testing.T) {
+	t.Run("", func(t *testing.T) {
+		b := newBaseTester(true, chain.SPECULATIVE)
+		b.ProduceBlocks(2, false)
+
+		account := common.N("tbl")
+		b.ProduceBlocks(1, false)
+
+		wasm := wast2wasm([]byte(table_checker_wast))
+		b.SetCode(account, wasm, nil)
+		b.ProduceBlocks(1, false)
+		{
+			var name uint64 = 555 << 32 //0x22b0000000000000 << 32 //555 << 32 //top 32 is what we assert against, bottom 32 is indirect call index
+			trx := types.SignedTransaction{}
+			act := types.Action{account, common.ActionName(name), []types.PermissionLevel{{account, common.DefaultConfig.ActiveName}}, nil}
+			trx.Actions = append(trx.Actions, &act)
+			b.SetTransactionHeaders(&trx.Transaction, b.DefaultExpirationDelta, 0)
+
+			privKey := b.getPrivateKey(account, "active")
+			chainId := b.Control.GetChainId()
+			trx.Sign(&privKey, &chainId)
+			b.PushTransaction(&trx, common.MaxTimePoint(), b.DefaultBilledCpuTimeUs)
+		}
+
+		b.ProduceBlocks(1, false)
+		{
+			var name uint64 = 555<<32 | 1022 //top 32 is what we assert against, bottom 32 is indirect call index
+			trx := types.SignedTransaction{}
+			act := types.Action{account, common.ActionName(name), []types.PermissionLevel{{account, common.DefaultConfig.ActiveName}}, nil}
+			trx.Actions = append(trx.Actions, &act)
+			b.SetTransactionHeaders(&trx.Transaction, b.DefaultExpirationDelta, 0)
+
+			privKey := b.getPrivateKey(account, "active")
+			chainId := b.Control.GetChainId()
+			trx.Sign(&privKey, &chainId)
+			b.PushTransaction(&trx, common.MaxTimePoint(), b.DefaultBilledCpuTimeUs)
+		}
+
+		b.ProduceBlocks(1, false)
+		{
+			var name uint64 = 7777<<32 | 1023 //top 32 is what we assert against, bottom 32 is indirect call index
+			trx := types.SignedTransaction{}
+			act := types.Action{account, common.ActionName(name), []types.PermissionLevel{{account, common.DefaultConfig.ActiveName}}, nil}
+			trx.Actions = append(trx.Actions, &act)
+			b.SetTransactionHeaders(&trx.Transaction, b.DefaultExpirationDelta, 0)
+
+			privKey := b.getPrivateKey(account, "active")
+			chainId := b.Control.GetChainId()
+			trx.Sign(&privKey, &chainId)
+			b.PushTransaction(&trx, common.MaxTimePoint(), b.DefaultBilledCpuTimeUs)
+		}
+
+		b.ProduceBlocks(1, false)
+		{
+			var name uint64 = 7778<<32 | 1023 //top 32 is what we assert against, bottom 32 is indirect call index
+			trx := types.SignedTransaction{}
+			act := types.Action{account, common.ActionName(name), []types.PermissionLevel{{account, common.DefaultConfig.ActiveName}}, nil}
+			trx.Actions = append(trx.Actions, &act)
+			b.SetTransactionHeaders(&trx.Transaction, b.DefaultExpirationDelta, 0)
+
+			privKey := b.getPrivateKey(account, "active")
+			chainId := b.Control.GetChainId()
+			trx.Sign(&privKey, &chainId)
+			//b.PushTransaction(&trx, common.MaxTimePoint(), b.DefaultBilledCpuTimeUs)
+			returning := false
+			try.Try(func() {
+				b.PushTransaction(&trx, common.MaxTimePoint(), b.DefaultBilledCpuTimeUs)
+			}).Catch(func(e exception.Exception) {
+				if (e.Code() == exception.EosioAssertMessageException{}.Code()) {
+					returning = true
+				}
+			}).End()
+			assert.Equal(t, returning, true)
+		}
+
+		b.ProduceBlocks(1, false)
+		{
+			var name uint64 = 133<<32 | 5 //top 32 is what we assert against, bottom 32 is indirect call index
+			trx := types.SignedTransaction{}
+			act := types.Action{account, common.ActionName(name), []types.PermissionLevel{{account, common.DefaultConfig.ActiveName}}, nil}
+			trx.Actions = append(trx.Actions, &act)
+			b.SetTransactionHeaders(&trx.Transaction, b.DefaultExpirationDelta, 0)
+
+			privKey := b.getPrivateKey(account, "active")
+			chainId := b.Control.GetChainId()
+			trx.Sign(&privKey, &chainId)
+			//b.PushTransaction(&trx, common.MaxTimePoint(), b.DefaultBilledCpuTimeUs)
+			returning := false
+			try.Try(func() {
+				b.PushTransaction(&trx, common.MaxTimePoint(), b.DefaultBilledCpuTimeUs)
+			}).Catch(func(e exception.Exception) {
+				if (e.Code() == exception.WasmExecutionError{}.Code()) {
+					returning = true
+				}
+			}).End()
+			assert.Equal(t, returning, true)
+		}
+
+		b.ProduceBlocks(1, false)
+		{
+			var name uint64 = wasmgo.MaximumTableElements + 54334
+			trx := types.SignedTransaction{}
+			act := types.Action{account, common.ActionName(name), []types.PermissionLevel{{account, common.DefaultConfig.ActiveName}}, nil}
+			trx.Actions = append(trx.Actions, &act)
+			b.SetTransactionHeaders(&trx.Transaction, b.DefaultExpirationDelta, 0)
+
+			privKey := b.getPrivateKey(account, "active")
+			chainId := b.Control.GetChainId()
+			trx.Sign(&privKey, &chainId)
+			//b.PushTransaction(&trx, common.MaxTimePoint(), b.DefaultBilledCpuTimeUs)
+			returning := false
+			try.Try(func() {
+				b.PushTransaction(&trx, common.MaxTimePoint(), b.DefaultBilledCpuTimeUs)
+			}).Catch(func(e exception.Exception) {
+				if (e.Code() == exception.WasmExecutionError{}.Code()) {
+					returning = true
+				}
+			}).End()
+			assert.Equal(t, returning, true)
+		}
+		b.ProduceBlocks(1, false)
+
+		wasm = wast2wasm([]byte(table_checker_proper_syntax_wast))
+		b.SetCode(account, wasm, nil)
+
+		b.ProduceBlocks(1, false)
+		{
+			var name uint64 = 555<<32 | 1022 //top 32 is what we assert against, bottom 32 is indirect call index
+			trx := types.SignedTransaction{}
+			act := types.Action{account, common.ActionName(name), []types.PermissionLevel{{account, common.DefaultConfig.ActiveName}}, nil}
+			trx.Actions = append(trx.Actions, &act)
+			b.SetTransactionHeaders(&trx.Transaction, b.DefaultExpirationDelta, 0)
+
+			privKey := b.getPrivateKey(account, "active")
+			chainId := b.Control.GetChainId()
+			trx.Sign(&privKey, &chainId)
+			b.PushTransaction(&trx, common.MaxTimePoint(), b.DefaultBilledCpuTimeUs)
+		}
+
+		b.ProduceBlocks(1, false)
+		{
+			var name uint64 = 7777<<32 | 1023 //top 32 is what we assert against, bottom 32 is indirect call index
+			trx := types.SignedTransaction{}
+			act := types.Action{account, common.ActionName(name), []types.PermissionLevel{{account, common.DefaultConfig.ActiveName}}, nil}
+			trx.Actions = append(trx.Actions, &act)
+			b.SetTransactionHeaders(&trx.Transaction, b.DefaultExpirationDelta, 0)
+
+			privKey := b.getPrivateKey(account, "active")
+			chainId := b.Control.GetChainId()
+			trx.Sign(&privKey, &chainId)
+			b.PushTransaction(&trx, common.MaxTimePoint(), b.DefaultBilledCpuTimeUs)
+		}
+
+		wasm = wast2wasm([]byte(table_checker_small_wast))
+		b.SetCode(account, wasm, nil)
+		b.ProduceBlocks(1, false)
+		{
+			var name uint64 = 888
+			trx := types.SignedTransaction{}
+			act := types.Action{account, common.ActionName(name), []types.PermissionLevel{{account, common.DefaultConfig.ActiveName}}, nil}
+			trx.Actions = append(trx.Actions, &act)
+			b.SetTransactionHeaders(&trx.Transaction, b.DefaultExpirationDelta, 0)
+
+			privKey := b.getPrivateKey(account, "active")
+			chainId := b.Control.GetChainId()
+			trx.Sign(&privKey, &chainId)
+			returning := false
+			try.Try(func() {
+				b.PushTransaction(&trx, common.MaxTimePoint(), b.DefaultBilledCpuTimeUs)
+			}).Catch(func(e exception.Exception) {
+				if (e.Code() == exception.WasmExecutionError{}.Code()) {
+					returning = true
+				}
+			}).End()
+			assert.Equal(t, returning, true)
+		}
+
+		b.close()
+	})
+}
+
+func TestProtectedGlobals(t *testing.T) {
+	t.Run("", func(t *testing.T) {
+		b := newBaseTester(true, chain.SPECULATIVE)
+		b.ProduceBlocks(2, false)
+
+		account := common.N("gob")
+		b.ProduceBlocks(1, false)
+
+		wasm := wast2wasm([]byte(global_protection_none_get_wast))
+		returning := false
+		try.Try(func() {
+			b.SetCode(account, wasm, nil)
+		}).Catch(func(e exception.Exception) {
+			//if (e.Code() == exception.Exception{}.Code()) {
+			returning = true
+			//}
+		}).End()
+		assert.Equal(t, returning, true)
+		b.ProduceBlocks(1, false)
+
+		wasm = wast2wasm([]byte(global_protection_some_get_wast))
+		returning = false
+		try.Try(func() {
+			b.SetCode(account, wasm, nil)
+		}).Catch(func(e exception.Exception) {
+			//if (e.Code() == exception.Exception{}.Code()) {
+			returning = true
+			//}
+		}).End()
+		assert.Equal(t, returning, true)
+		b.ProduceBlocks(1, false)
+
+		wasm = wast2wasm([]byte(global_protection_none_set_wast))
+		returning = false
+		try.Try(func() {
+			b.SetCode(account, wasm, nil)
+		}).Catch(func(e exception.Exception) {
+			//if (e.Code() == exception.Exception{}.Code()) {
+			returning = true
+			//}
+		}).End()
+		assert.Equal(t, returning, true)
+		b.ProduceBlocks(1, false)
+
+		wasm = wast2wasm([]byte(global_protection_some_set_wast))
+		returning = false
+		try.Try(func() {
+			b.SetCode(account, wasm, nil)
+		}).Catch(func(e exception.Exception) {
+			//if (e.Code() == exception.Exception{}.Code()) {
+			returning = true
+			//}
+		}).End()
+		assert.Equal(t, returning, true)
+		b.ProduceBlocks(1, false)
+
+		wasm = wast2wasm(global_protection_okay_get_wasm)
+		b.SetCode(account, wasm, nil)
+		b.ProduceBlocks(1, false)
+
+		wasm = wast2wasm(global_protection_none_get_wasm)
+		returning = false
+		try.Try(func() {
+			b.SetCode(account, wasm, nil)
+		}).Catch(func(e exception.Exception) {
+			//if (e.Code() == exception.Exception{}.Code()) {
+			returning = true
+			//}
+		}).End()
+		assert.Equal(t, returning, true)
+		b.ProduceBlocks(1, false)
+
+		wasm = wast2wasm(global_protection_some_get_wasm)
+		returning = false
+		try.Try(func() {
+			b.SetCode(account, wasm, nil)
+		}).Catch(func(e exception.Exception) {
+			//if (e.Code() == exception.Exception{}.Code()) {
+			returning = true
+			//}
+		}).End()
+		assert.Equal(t, returning, true)
+		b.ProduceBlocks(1, false)
+
+		wasm = wast2wasm(global_protection_okay_set_wasm)
+		b.SetCode(account, wasm, nil)
+		b.ProduceBlocks(1, false)
+
+		wasm = wast2wasm(global_protection_some_set_wasm)
+		returning = false
+		try.Try(func() {
+			b.SetCode(account, wasm, nil)
+		}).Catch(func(e exception.Exception) {
+			//if (e.Code() == exception.Exception{}.Code()) {
+			returning = true
+			//}
+		}).End()
+		assert.Equal(t, returning, true)
+		b.ProduceBlocks(1, false)
+
+		b.close()
+	})
+}
+
+func TestLotsoStack1(t *testing.T) {
+	t.Run("", func(t *testing.T) {
+		b := newBaseTester(true, chain.SPECULATIVE)
+		b.ProduceBlocks(2, false)
+
+		account := common.N("stackz")
+		b.CreateAccounts([]common.AccountName{account}, false, true)
+		b.ProduceBlocks(1, false)
+
+		var head string = `(module
+		 (import "env" "require_auth" (func $require_auth (param i64)))
+		 (export "apply" (func $apply))
+		 (func $apply  (param $0 i64)(param $1 i64)(param $2 i64))
+		 (func `
+		var tail string = ` ))`
+
+		wast := head
+		for i := 0; i < wasmgo.MaximumFuncLocalBytes; i += 8 {
+			wast += "(local i32)"
+		}
+		wast += tail
+
+		wasm := wast2wasm([]byte(wast))
+		b.SetCode(account, wasm, nil)
+		b.ProduceBlocks(1, false)
+
+		b.close()
+	})
+}
+
+func TestLotsoStack2(t *testing.T) {
+	t.Run("", func(t *testing.T) {
+		b := newBaseTester(true, chain.SPECULATIVE)
+		b.ProduceBlocks(2, false)
+
+		account := common.N("stackz")
+
+		b.CreateAccounts([]common.AccountName{account}, false, true)
+		b.ProduceBlocks(1, false)
+
+		var head string = `(module
+		 (import "env" "require_auth" (func $require_auth (param i64)))
+		 (export "apply" (func $apply))
+		 (func $apply  (param $0 i64)(param $1 i64)(param $2 i64) (call $require_auth (i64.const 14288945783897063424)))
+		 (func `
+		var tail string = ` ))`
+
+		wast := head
+		for i := 0; i < wasmgo.MaximumFuncLocalBytes; i += 8 {
+			wast += "(local f64)"
+		}
+		wast += tail
+
+		wasm := wast2wasm([]byte(wast))
+		b.SetCode(account, wasm, nil)
+		b.ProduceBlocks(1, false)
+
+		b.close()
+	})
+}
+
+func TestLotsoStack3(t *testing.T) {
+	t.Run("", func(t *testing.T) {
+		b := newBaseTester(true, chain.SPECULATIVE)
+		b.ProduceBlocks(2, false)
+
+		account := common.N("stackz")
+		b.CreateAccounts([]common.AccountName{account}, false, true)
+		b.ProduceBlocks(1, false)
+
+		{
+			trx := types.SignedTransaction{}
+			act := types.Action{
+				Account:       account,
+				Name:          common.N(""),
+				Authorization: []types.PermissionLevel{{account, common.DefaultConfig.ActiveName}}}
+			trx.Actions = append(trx.Actions, &act)
+			b.SetTransactionHeaders(&trx.Transaction, b.DefaultExpirationDelta, 0)
+
+			privKey := b.getPrivateKey(account, "active")
+			chainId := b.Control.GetChainId()
+			trx.Sign(&privKey, &chainId)
+			b.PushTransaction(&trx, common.MaxTimePoint(), b.DefaultBilledCpuTimeUs)
+			b.ProduceBlocks(1, false)
+		}
+
+		b.close()
+	})
+}
+func TestLotsoStack4(t *testing.T) {
+	t.Run("", func(t *testing.T) {
+		b := newBaseTester(true, chain.SPECULATIVE)
+		b.ProduceBlocks(2, false)
+
+		account := common.N("stackz")
+
+		b.CreateAccounts([]common.AccountName{account}, false, true)
+		b.ProduceBlocks(1, false)
+
+		var head string = `(module
+		 (import "env" "require_auth" (func $require_auth (param i64)))
+		 (export "apply" (func $apply))
+		 (func $apply  (param $0 i64)(param $1 i64)(param $2 i64) (call $require_auth (i64.const 14288945783897063424)))
+		 (func `
+		var tail string = ` ))`
+
+		wast := head
+		for i := 0; i < wasmgo.MaximumFuncLocalBytes; i += 8 {
+			wast += "(param i32)"
+		}
+		wast += tail
+
+		wasm := wast2wasm([]byte(wast))
+
+		returning := false
+		try.Try(func() {
+			b.SetCode(account, wasm, nil)
+		}).Catch(func(e exception.Exception) {
+			//if (e.Code() == exception.Exception{}.Code()) {
+			returning = true
+			//}
+		}).End()
+		assert.Equal(t, returning, true)
+		b.ProduceBlocks(1, false)
 
 		b.close()
 	})

@@ -414,7 +414,6 @@ func TestSymbol(t *testing.T) {
 	}
 }
 
-/*
 func TestProxy(t *testing.T) {
 	try.Try(func() {
 		ct := NewCurrencyTester()
@@ -443,9 +442,8 @@ func TestProxy(t *testing.T) {
 
 			//trace := ct.validatingTester.PushAction(&alice, &act.Name, &data)
 			trace := ct.validatingTester.PushAction2(&proxy, &act.Name, alice, &data, ct.validatingTester.DefaultExpirationDelta, 0)
-			log.Info("TestProxy %d", trace.ID)
 			ct.validatingTester.ProduceBlocks(1, false)
-			//assert.Equal(t, true, trace.ID)
+			assert.Equal(t, true, ct.validatingTester.ChainHasTransaction(&trace.ID))
 			ct.validatingTester.ProduceBlocks(1, false)
 		}
 
@@ -463,25 +461,24 @@ func TestProxy(t *testing.T) {
 
 			//trace1 := ct.PushAction(&eosioToken, &act1.Name, &data1)
 			trace1 := ct.validatingTester.PushAction2(&eosioToken, &act1.Name, eosioToken, &data1, ct.validatingTester.DefaultExpirationDelta, 0)
-			log.Info("TestProxy %d", trace1.ID)
-			tt := ct.validatingTester.Control.HeadBlockTime().SecSinceEpoch()
-			expectedDelivery := common.Seconds(int64(tt)) + common.Seconds(10)
+			tt := ct.validatingTester.Control.HeadBlockTime().TimeSinceEpoch().Count()
+			expectedDelivery := tt + common.Seconds(10).Count()
 			s := "5.0000 EOS"
 			expected := common.Asset{}.FromString(&s)
 			s1 := "0.0000 EOS"
 			expected1 := common.Asset{}.FromString(&s1)
-			for ct.validatingTester.Control.HeadBlockTime().TimeSinceEpoch() < expectedDelivery {
+			for ct.validatingTester.Control.HeadBlockTime().TimeSinceEpoch().Count() < expectedDelivery {
 				ct.validatingTester.ProduceBlocks(1, false)
 				assert.Equal(t, *ct.GetBalance(&proxy), expected)
 				assert.Equal(t, *ct.GetBalance(&alice), expected1)
 			}
+
 			ct.validatingTester.ProduceBlocks(1, false)
 			assert.Equal(t, *ct.GetBalance(&proxy), expected1)
 			assert.Equal(t, *ct.GetBalance(&alice), expected)
-
+			assert.Equal(t, true, ct.validatingTester.ChainHasTransaction(&trace1.ID))
 			ct.validatingTester.close()
 		}
 
 	}).FcLogAndRethrow().End()
 }
-*/

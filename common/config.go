@@ -54,6 +54,7 @@ func init() {
 
 	DefaultConfig.Percent_100 = 10000
 	DefaultConfig.Percent_1 = 100
+	DefaultConfig.IrreversibleThresholdPercent = 70 * DefaultConfig.Percent_1
 	DefaultConfig.AccountCpuUsageAverageWindowMs = 24 * 60 * 60 * 1000
 	DefaultConfig.AccountNetUsageAverageWindowMs = 24 * 60 * 60 * 1000
 	DefaultConfig.BlockCpuUsageAverageWindowMs = 60 * 1000
@@ -149,6 +150,7 @@ type Config struct {
 
 	Percent_100 int
 	Percent_1   int
+	IrreversibleThresholdPercent int
 
 	AccountCpuUsageAverageWindowMs uint32
 	AccountNetUsageAverageWindowMs uint32
