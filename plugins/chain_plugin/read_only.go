@@ -329,8 +329,9 @@ func (ro *ReadOnly) GetAbi(params GetAbiParams) GetAbiResult {
 	d := ro.db.DataBase()
 
 	account := entity.AccountObject{Name: params.AccountName}
-	err := d.Find("byName", account, &account)
-	EosAssert(err == nil, &DatabaseException{}, err.Error())
+	if err := d.Find("byName", account, &account); err != nil {
+		EosThrow(&DatabaseException{}, err.Error())
+	}
 
 	var abi abi_serializer.AbiDef
 	if abi_serializer.ToABI(account.Abi, &abi) {
@@ -358,8 +359,10 @@ func (ro *ReadOnly) GetCode(params GetCodeParams) GetCodeResult {
 	d := ro.db.DataBase()
 
 	account := entity.AccountObject{Name: params.AccountName}
-	err := d.Find("byName", account, &account)
-	EosAssert(err == nil, &DatabaseException{}, err.Error())
+	if err := d.Find("byName", account, &account); err != nil {
+		EosThrow(&DatabaseException{}, err.Error())
+	}
+
 	EosAssert(params.CodeAsWasm, &UnsupportedFeature{}, "Returning WAST from get_code is no longer supported")
 
 	if account.Code.Size() > 0 {
