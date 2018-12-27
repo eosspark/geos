@@ -1460,7 +1460,7 @@ func TestCheckTableMaximum(t *testing.T) {
 		b.SetCode(account, wasm, nil)
 		b.ProduceBlocks(1, false)
 		{
-			var name uint64 = 0x22b0000000000000 << 32 //555 << 32 //top 32 is what we assert against, bottom 32 is indirect call index
+			var name uint64 = 555 << 32 //0x22b0000000000000 << 32 //555 << 32 //top 32 is what we assert against, bottom 32 is indirect call index
 			trx := types.SignedTransaction{}
 			act := types.Action{account, common.ActionName(name), []types.PermissionLevel{{account, common.DefaultConfig.ActiveName}}, nil}
 			trx.Actions = append(trx.Actions, &act)
