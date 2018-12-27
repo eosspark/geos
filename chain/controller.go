@@ -1063,11 +1063,11 @@ func (c *Controller) applyBlock(b *types.SignedBlock, s types.BlockStatus) {
 			} else {
 				EosAssert(false, &BlockValidateException{}, "encountered unexpected receipt type")
 			}
-			transactionFailed := common.Empty(trace) && common.Empty(trace.Except)
-			transactionCanFail := receipt.Status == types.TransactionStatusHardFail && common.Empty(receipt.Trx.TransactionID)
+			transactionFailed := !common.Empty(trace) && !common.Empty(trace.Except)
+			transactionCanFail := receipt.Status == types.TransactionStatusHardFail && receipt.Trx.PackedTransaction == nil
 			if transactionFailed && !transactionCanFail {
-				/*edump((*trace));
-				throw *trace->except;*/
+				log.Error(trace.Except.DetailMessage())
+				Throw(trace.Except)
 			}
 			EosAssert(len(c.Pending.PendingBlockState.SignedBlock.Transactions) > 0,
 				&BlockValidateException{}, "expected a block:%v,expected_receipt:%v", *b, receipt)
@@ -1093,7 +1093,8 @@ func (c *Controller) applyBlock(b *types.SignedBlock, s types.BlockStatus) {
 	}).Catch(func(ex Exception) {
 		log.Error("controller ApplyBlock is error:%s", ex.DetailMessage())
 		c.AbortBlock()
-	}).End()
+		Throw(ex)
+	}).FcLogAndRethrow().End()
 }
 
 func (c *Controller) CommitBlock(addToForkDb bool) {
@@ -1120,6 +1121,7 @@ func (c *Controller) CommitBlock(addToForkDb bool) {
 		c.AcceptedBlock.Emit(c.Pending.PendingBlockState)
 		//emit( self.accepted_block, pending->_pending_block_state )
 	}).Catch(func(e interface{}) {
+		c.Pending.PendingValid = true
 		c.AbortBlock()
 		Throw(e)
 	}).End()
@@ -1183,7 +1185,7 @@ func (c *Controller) maybeSwitchForks(s types.BlockStatus) {
 			c.Head = newHead
 		}).Catch(func(e Exception) {
 			c.ForkDB.SetValidity(newHead, false)
-			EosThrow(e, "maybeSwitchForks is error:%v", e.DetailMessage())
+			Throw(e)
 		}).End()
 	} else if newHead.BlockId != c.Head.BlockId {
 		log.Info("switching forks from: %v (block number %v) to %v (block number %v)", c.Head.BlockId, c.Head.BlockNum, newHead.BlockId, newHead.BlockNum)
@@ -1216,7 +1218,7 @@ func (c *Controller) maybeSwitchForks(s types.BlockStatus) {
 				// pop all blocks from the bad fork
 				// ritr base is a forward itr to the last block successfully applied
 				for j := i; j < len(branches.first); j++ {
-					c.ForkDB.MarkInCurrentChain(&branches.first[j], true)
+					c.ForkDB.MarkInCurrentChain(&branches.first[j], false)
 					c.PopBlock()
 				}
 				EosAssert(c.HeadBlockId() == branches.second[len(branches.second)-1].Header.Previous, &ForkDatabaseException{}, "loss of sync between fork_db and chainbase during fork switch reversal")
@@ -1227,7 +1229,7 @@ func (c *Controller) maybeSwitchForks(s types.BlockStatus) {
 					c.Head = &branches.second[end]
 					c.ForkDB.MarkInCurrentChain(&branches.second[end], true)
 				}
-				EosThrow(except, "maybeSwitchForks is error:%v", except.DetailMessage())
+				Throw(except)
 			}
 			log.Info("successfully switched fork to new head %v", newHead.BlockId)
 		}
