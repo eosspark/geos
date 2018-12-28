@@ -258,6 +258,16 @@ func (d *Decoder) Decode(v interface{}) (err error) {
 		n, err = d.ReadUint64()
 		rv.SetUint(n)
 		return
+	case reflect.Float32:
+		var f float32
+		f, err = d.ReadFloat32()
+		rv.Set(reflect.ValueOf(f))
+		return
+	case reflect.Float64:
+		var f float64
+		f, err = d.ReadFloat64()
+		rv.SetFloat(f)
+		return
 
 	case reflect.Array:
 		len := t.Len()
@@ -349,15 +359,7 @@ func (d *Decoder) decodeStruct(v interface{}, t reflect.Type, rv reflect.Value) 
 		}
 
 		if v := rv.Field(i); v.CanSet() && t.Field(i).Name != "_" {
-			var iface interface{}
-			//if v.Kind() == reflect.Ptr {
-			//	if v.IsNil() {
-			//		v = reflect.New(v.Type())
-			//	}
-			//	iface = v.Interface()
-			//} else {
-			iface = v.Addr().Interface()
-			//}
+			iface := v.Addr().Interface()
 			if err = d.Decode(iface); err != nil {
 				return
 			}

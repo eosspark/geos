@@ -806,12 +806,6 @@ func (t BaseTester) GetProducerKeys(producerNames *[]common.AccountName) []types
 	return schedule
 }
 
-func (t BaseTester) SetProducerKeys(producerNames *[]common.AccountName) *types.TransactionTrace {
-	//TODO
-	//schedule := t.GetProducerKeys(producerNames)
-	return &types.TransactionTrace{}
-}
-
 func (t BaseTester) SetProducers(producerNames *[]common.AccountName) *types.TransactionTrace {
 	schedule := t.GetProducerKeys(producerNames)
 	actName := common.N("setprods")

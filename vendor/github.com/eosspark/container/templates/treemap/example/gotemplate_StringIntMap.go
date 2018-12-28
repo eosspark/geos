@@ -59,6 +59,10 @@ func (m *StringIntMap) Put(key string, value int) {
 	m.Tree.Put(key, value)
 }
 
+func (m *StringIntMap) Insert(key string, value int) IteratorStringIntMap {
+	return IteratorStringIntMap{m.Tree.Insert(key, value)}
+}
+
 // Get searches the element in the map by key and returns its value or nil if key is not found in Tree.
 // Second return parameter is true if key was found, otherwise false.
 // Key should adhere to the comparator's type assertion, otherwise method panics.
@@ -114,7 +118,7 @@ func (m *StringIntMap) Find(f func(key string, value int) bool) (k string, v int
 }
 
 // String returns a string representation of container
-func (m *StringIntMap) String() string {
+func (m StringIntMap) String() string {
 	str := "TreeMap\nmap["
 	it := m.Iterator()
 	for it.Next() {
@@ -157,18 +161,13 @@ func (Iterator *IteratorStringIntMap) Key() string {
 	return Iterator.Iterator.Key().(string)
 }
 
-func (m *StringIntMap) LowerBound(key string) *IteratorStringIntMap {
-	if itr := m.Tree.LowerBound(key); itr != m.Tree.End() {
-		return &IteratorStringIntMap{itr}
-	}
-	return nil
+func (m *StringIntMap) LowerBound(key string) IteratorStringIntMap {
+	return IteratorStringIntMap{m.Tree.LowerBound(key)}
 }
 
-func (m *StringIntMap) UpperBound(key string) *IteratorStringIntMap {
-	if itr := m.Tree.UpperBound(key); itr != m.Tree.End() {
-		return &IteratorStringIntMap{itr}
-	}
-	return nil
+func (m *StringIntMap) UpperBound(key string) IteratorStringIntMap {
+	return IteratorStringIntMap{m.Tree.UpperBound(key)}
+
 }
 
 // ToJSON outputs the JSON representation of the map.
@@ -177,7 +176,7 @@ type pairStringIntMap struct {
 	Val int    `json:"val"`
 }
 
-func (m *StringIntMap) MarshalJSON() ([]byte, error) {
+func (m StringIntMap) MarshalJSON() ([]byte, error) {
 	elements := make([]pairStringIntMap, 0, m.Size())
 	it := m.Iterator()
 	for it.Next() {
