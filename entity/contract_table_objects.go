@@ -2,7 +2,7 @@ package entity
 
 import (
 	"github.com/eosspark/eos-go/common"
-	arithmetic "github.com/eosspark/eos-go/common/eos_math"
+	"github.com/eosspark/eos-go/common/eos_math"
 )
 
 type Object struct {
@@ -26,23 +26,7 @@ type KeyValueObject struct {
 	Value      common.HexBytes // c++ SharedString
 }
 
-// type Uint64_t struct {
-// 	Value uint64
-// }
-
-// type Float64_t struct {
-// 	Value float64
-// }
-
-// type SecondaryObjectI64 struct {
-// 	ID           common.IdType `multiIndex:"id,increment"`
-// 	TId          common.IdType `multiIndex:"byPrimary,orderedUnique,less:bySecondary,orderedUnique,less"`
-// 	PrimaryKey   uint64        `multiIndex:"byPrimary,orderedUnique,less:bySecondary,orderedUnique,less"`
-// 	Payer        common.AccountName
-// 	SecondaryKey uint64 `multiIndex:"bySecondary,orderedUnique"`
-// }
-
-type SecondaryObjectI64 struct {
+type Idx64Object struct {
 	ID           common.IdType `multiIndex:"id,increment"`
 	TId          common.IdType `multiIndex:"byPrimary,orderedUnique,less:bySecondary,orderedUnique,less"`
 	SecondaryKey uint64        `multiIndex:"bySecondary,orderedUnique,less"`
@@ -50,41 +34,34 @@ type SecondaryObjectI64 struct {
 	Payer        common.AccountName
 }
 
-// type SecondaryObjectDouble struct {
-// 	ID           common.IdType `multiIndex:"id,increment"`
-// 	TId          common.IdType `multiIndex:"byPrimary,orderedUnique,less:bySecondary,orderedUnique,less"`
-// 	PrimaryKey   uint64        `multiIndex:"byPrimary,orderedUnique,less:bySecondary,orderedUnique,less"`
-// 	Payer        common.AccountName
-// 	SecondaryKey float64 `multiIndex:"bySecondary,orderedUnique"`
-// }
-type SecondaryObjectDouble struct {
-	ID           common.IdType      `multiIndex:"id,increment"`
-	TId          common.IdType      `multiIndex:"byPrimary,orderedUnique,less:bySecondary,orderedUnique,less"`
-	SecondaryKey arithmetic.Float64 `multiIndex:"bySecondary,orderedUnique,less"`
-	PrimaryKey   uint64             `multiIndex:"byPrimary,orderedUnique,less:bySecondary,orderedUnique,less"`
+type Idx128Object struct {
+	ID           common.IdType    `multiIndex:"id,increment"`
+	TId          common.IdType    `multiIndex:"byPrimary,orderedUnique,less:bySecondary,orderedUnique,less"`
+	SecondaryKey eos_math.Uint128 `multiIndex:"bySecondary,orderedUnique,less"`
+	PrimaryKey   uint64           `multiIndex:"byPrimary,orderedUnique,less:bySecondary,orderedUnique,less"`
 	Payer        common.AccountName
 }
 
-// type SecondaryObjectI128 struct {
-// 	ID           IdType `storm:"id,increment"`
-// 	TId          IdType
-// 	PrimaryKey   uint64
-// 	Payer        common.AccountName
-// 	SecondaryKey uint128_t
-// }
+type Idx256Object struct {
+	ID           common.IdType    `multiIndex:"id,increment"`
+	TId          common.IdType    `multiIndex:"byPrimary,orderedUnique,less:bySecondary,orderedUnique,less"`
+	SecondaryKey eos_math.Uint256 `multiIndex:"bySecondary,orderedUnique,less"`
+	PrimaryKey   uint64           `multiIndex:"byPrimary,orderedUnique,less:bySecondary,orderedUnique,less"`
+	Payer        common.AccountName
+}
 
-// type SecondaryObjectI128 struct {
-// 	ID           IdType `storm:"id,increment"`
-// 	TId          IdType
-// 	PrimaryKey   uint64
-// 	Payer        common.AccountName
-// 	SecondaryKey uint256_t
-// }
+type IdxDoubleObject struct {
+	ID           common.IdType    `multiIndex:"id,increment"`
+	TId          common.IdType    `multiIndex:"byPrimary,orderedUnique,less:bySecondary,orderedUnique,less"`
+	SecondaryKey eos_math.Float64 `multiIndex:"bySecondary,orderedUnique,less"`
+	PrimaryKey   uint64           `multiIndex:"byPrimary,orderedUnique,less:bySecondary,orderedUnique,less"`
+	Payer        common.AccountName
+}
 
-// type SecondaryObjectLongDouble struct {
-// 	ID           IdType `storm:"id,increment"`
-// 	TId          IdType
-// 	PrimaryKey   uint64
-// 	Payer        common.AccountName
-// 	SecondaryKey float128_t
-// }
+type IdxLongDoubleObject struct {
+	ID           common.IdType     `multiIndex:"id,increment"`
+	TId          common.IdType     `multiIndex:"byPrimary,orderedUnique,less:bySecondary,orderedUnique,less"`
+	SecondaryKey eos_math.Float128 `multiIndex:"bySecondary,orderedUnique,less"`
+	PrimaryKey   uint64            `multiIndex:"byPrimary,orderedUnique,less:bySecondary,orderedUnique,less"`
+	Payer        common.AccountName
+}

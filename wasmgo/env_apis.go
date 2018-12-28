@@ -1176,6 +1176,8 @@ func dbIdx64Store(vm *VM) {
 
 func dbIdx64Remove(vm *VM) {
 	w := vm.WasmGo
+	EosAssert(!w.context.ContextFreeAction(), &UnaccessibleApi{}, "only context free api's can be used in this context")
+
 	iterator := int(vm.popUint64())
 
 	w.context.Idx64Remove(iterator)
@@ -1184,6 +1186,7 @@ func dbIdx64Remove(vm *VM) {
 
 func dbIdx64Update(vm *VM) {
 	w := vm.WasmGo
+	EosAssert(!w.context.ContextFreeAction(), &UnaccessibleApi{}, "only context free api's can be used in this context")
 
 	pValue := int(vm.popUint64())
 	payer := vm.popUint64()
@@ -1193,7 +1196,6 @@ func dbIdx64Update(vm *VM) {
 	w.context.Idx64Update(iterator, payer, &secondaryKey)
 
 	w.ilog.Debug("payer:%v data:%v secondaryKey:%d", common.AccountName(payer), secondaryKey, iterator)
-
 }
 
 func dbIdx64findSecondary(vm *VM) {
@@ -1354,6 +1356,404 @@ func dbIdx64FindPrimary(vm *VM) {
 
 }
 
+func dbIdx128Store(vm *VM) {
+	w := vm.WasmGo
+	EosAssert(!w.context.ContextFreeAction(), &UnaccessibleApi{}, "only context free api's can be used in this context")
+
+	pValue := int(vm.popUint64())
+	id := vm.popUint64()
+	payer := vm.popUint64()
+	table := vm.popUint64()
+	scope := vm.popUint64()
+
+	secondaryKey := getUint128(vm, pValue)
+	iterator := w.context.Idx128Store(scope, table, payer, id, secondaryKey)
+	vm.pushUint64(uint64(iterator))
+
+	w.ilog.Debug("scope:%v table:%v payer:%v id:%d secondaryKey:%d iterator:%d",
+		common.ScopeName(scope), common.TableName(table), common.AccountName(payer), id, secondaryKey, iterator)
+}
+
+func dbIdx128Remove(vm *VM) {
+	w := vm.WasmGo
+	EosAssert(!w.context.ContextFreeAction(), &UnaccessibleApi{}, "only context free api's can be used in this context")
+	iterator := int(vm.popUint64())
+
+	w.context.Idx128Remove(iterator)
+	w.ilog.Debug("iterator:%d", iterator)
+}
+
+func dbIdx128Update(vm *VM) {
+	w := vm.WasmGo
+	EosAssert(!w.context.ContextFreeAction(), &UnaccessibleApi{}, "only context free api's can be used in this context")
+
+	pValue := int(vm.popUint64())
+	payer := vm.popUint64()
+	iterator := int(vm.popUint64())
+
+	secondaryKey := getUint128(vm, pValue)
+	w.context.Idx128Update(iterator, payer, secondaryKey)
+
+	w.ilog.Debug("payer:%v data:%v secondaryKey:%d", common.AccountName(payer), secondaryKey, iterator)
+}
+
+func dbIdx128findSecondary(vm *VM) {
+	w := vm.WasmGo
+
+	pPrimary := int(vm.popUint64())
+	pSecondary := int(vm.popUint64())
+	table := vm.popUint64()
+	scope := vm.popUint64()
+	code := vm.popUint64()
+
+	var primaryKey uint64
+	secondaryKey := getUint128(vm, pSecondary)
+	iterator := w.context.Idx128FindSecondary(code, scope, table, secondaryKey, &primaryKey)
+	if iterator <= -1 {
+		vm.pushUint64(uint64(iterator))
+		w.ilog.Debug("code:%v scope:%v table:%v secondaryKey:%d iterator:%d",
+			common.AccountName(code), common.ScopeName(scope), common.TableName(table), secondaryKey, iterator)
+		return
+	}
+	setUint64(vm, pPrimary, primaryKey)
+	vm.pushUint64(uint64(iterator))
+
+	w.ilog.Debug("code:%v scope:%v table:%v secondaryKey:%d primaryKey:%d iterator:%d",
+		common.AccountName(code), common.ScopeName(scope), common.TableName(table), secondaryKey, primaryKey, iterator)
+}
+
+func dbIdx128Lowerbound(vm *VM) {
+	w := vm.WasmGo
+
+	pPrimary := int(vm.popUint64())
+	pSecondary := int(vm.popUint64())
+	table := vm.popUint64()
+	scope := vm.popUint64()
+	code := vm.popUint64()
+
+	var primaryKey uint64
+
+	secondaryKey := getUint128(vm, pSecondary)
+	iterator := w.context.Idx128Lowerbound(code, scope, table, secondaryKey, &primaryKey)
+	if iterator <= -1 {
+		vm.pushUint64(uint64(iterator))
+		w.ilog.Debug("code:%v scope:%v table:%v secondaryKey:%d iterator:%d",
+			common.AccountName(code), common.ScopeName(scope), common.TableName(table), secondaryKey, iterator)
+		return
+	}
+
+	setUint64(vm, pPrimary, primaryKey)
+	setUint128(vm, pSecondary, secondaryKey)
+	vm.pushUint64(uint64(iterator))
+
+	w.ilog.Debug("code:%v scope:%v table:%v secondaryKey:%d primaryKey:%d iterator:%d",
+		common.AccountName(code), common.ScopeName(scope), common.TableName(table), secondaryKey, primaryKey, iterator)
+}
+
+func dbIdx128Upperbound(vm *VM) {
+	w := vm.WasmGo
+
+	pPrimary := int(vm.popUint64())
+	pSecondary := int(vm.popUint64())
+	table := vm.popUint64()
+	scope := vm.popUint64()
+	code := vm.popUint64()
+
+	var primaryKey uint64
+	secondaryKey := getUint128(vm, pSecondary)
+	iterator := w.context.Idx128Upperbound(code, scope, table, secondaryKey, &primaryKey)
+	if iterator <= -1 {
+		vm.pushUint64(uint64(iterator))
+		w.ilog.Debug("code:%v scope:%v table:%v secondaryKey:%d iterator:%d",
+			common.AccountName(code), common.ScopeName(scope), common.TableName(table), secondaryKey, iterator)
+		return
+	}
+	setUint64(vm, pPrimary, primaryKey)
+	setUint128(vm, pSecondary, secondaryKey)
+
+	vm.pushUint64(uint64(iterator))
+
+	w.ilog.Debug("code:%v scope:%v table:%v secondaryKey:%d primaryKey:%d iterator:%d",
+		common.AccountName(code), common.ScopeName(scope), common.TableName(table), secondaryKey, primaryKey, iterator)
+}
+
+func dbIdx128End(vm *VM) {
+	w := vm.WasmGo
+
+	table := vm.popUint64()
+	scope := vm.popUint64()
+	code := vm.popUint64()
+
+	iterator := w.context.Idx128End(code, scope, table)
+	vm.pushUint64(uint64(iterator))
+
+	w.ilog.Debug("code:%v scope:%v table:%v iterator:%d",
+		common.AccountName(code), common.ScopeName(scope), common.TableName(table), iterator)
+}
+
+func dbIdx128Next(vm *VM) {
+	w := vm.WasmGo
+
+	primary := int(vm.popUint64())
+	itr := int(vm.popUint64())
+
+	var p uint64
+	iterator := w.context.Idx128Next(itr, &p)
+	w.ilog.Debug("dbIdx128Next iterator:%d", iterator)
+	if iterator <= -1 {
+		vm.pushUint64(uint64(iterator))
+		w.ilog.Debug("iterator:%d nextIterator:%d", itr, iterator)
+		return
+	}
+	setUint64(vm, primary, p)
+	vm.pushUint64(uint64(iterator))
+
+	w.ilog.Debug("iterator:%d nextIterator:%d primary:%d", itr, iterator, p)
+}
+
+func dbIdx128Previous(vm *VM) {
+	w := vm.WasmGo
+
+	primary := int(vm.popUint64())
+	itr := int(vm.popUint64())
+
+	var p uint64
+	iterator := w.context.Idx128Previous(itr, &p)
+	if iterator <= -1 {
+		vm.pushUint64(uint64(iterator))
+		w.ilog.Debug("iterator:%d nextIterator:%d", itr, iterator)
+		return
+	}
+	setUint64(vm, primary, p)
+	vm.pushUint64(uint64(iterator))
+
+	w.ilog.Debug("iterator:%d previousIterator:%d primary:%d", itr, iterator, p)
+}
+
+func dbIdx128FindPrimary(vm *VM) {
+	w := vm.WasmGo
+
+	primary := vm.popUint64()
+	pSecondary := int(vm.popUint64())
+	table := vm.popUint64()
+	scope := vm.popUint64()
+	code := vm.popUint64()
+
+	var secondaryKey eos_math.Uint128
+	iterator := w.context.Idx128FindPrimary(code, scope, table, &secondaryKey, primary)
+	if iterator <= -1 {
+		vm.pushUint64(uint64(iterator))
+		w.ilog.Debug("code:%v scope:%v table:%v primaryKey:%d iterator:%d",
+			common.AccountName(code), common.ScopeName(scope), common.TableName(table), primary, iterator)
+		return
+	}
+	setUint128(vm, pSecondary, &secondaryKey)
+	vm.pushUint64(uint64(iterator))
+
+	w.ilog.Debug("code:%v scope:%v table:%v primaryKey:%d secondaryKey:%d iterator:%d",
+		common.AccountName(code), common.ScopeName(scope), common.TableName(table), primary, secondaryKey, iterator)
+
+}
+
+func dbIdx256Store(vm *VM) {
+	w := vm.WasmGo
+	EosAssert(!w.context.ContextFreeAction(), &UnaccessibleApi{}, "only context free api's can be used in this context")
+
+	pValue := int(vm.popUint64())
+	id := vm.popUint64()
+	payer := vm.popUint64()
+	table := vm.popUint64()
+	scope := vm.popUint64()
+
+	secondaryKey := getUint256(vm, pValue)
+	iterator := w.context.Idx256Store(scope, table, payer, id, secondaryKey)
+	vm.pushUint64(uint64(iterator))
+
+	w.ilog.Debug("scope:%v table:%v payer:%v id:%d secondaryKey:%d iterator:%d",
+		common.ScopeName(scope), common.TableName(table), common.AccountName(payer), id, secondaryKey, iterator)
+}
+
+func dbIdx256Remove(vm *VM) {
+	w := vm.WasmGo
+	EosAssert(!w.context.ContextFreeAction(), &UnaccessibleApi{}, "only context free api's can be used in this context")
+	iterator := int(vm.popUint64())
+
+	w.context.Idx256Remove(iterator)
+	w.ilog.Debug("iterator:%d", iterator)
+}
+
+func dbIdx256Update(vm *VM) {
+	w := vm.WasmGo
+	EosAssert(!w.context.ContextFreeAction(), &UnaccessibleApi{}, "only context free api's can be used in this context")
+
+	pValue := int(vm.popUint64())
+	payer := vm.popUint64()
+	iterator := int(vm.popUint64())
+
+	secondaryKey := getUint256(vm, pValue)
+	w.context.Idx256Update(iterator, payer, secondaryKey)
+
+	w.ilog.Debug("payer:%v data:%v secondaryKey:%d", common.AccountName(payer), secondaryKey, iterator)
+}
+
+func dbIdx256findSecondary(vm *VM) {
+	w := vm.WasmGo
+
+	pPrimary := int(vm.popUint64())
+	pSecondary := int(vm.popUint64())
+	table := vm.popUint64()
+	scope := vm.popUint64()
+	code := vm.popUint64()
+
+	var primaryKey uint64
+	secondaryKey := getUint256(vm, pSecondary)
+	iterator := w.context.Idx256FindSecondary(code, scope, table, secondaryKey, &primaryKey)
+	if iterator <= -1 {
+		vm.pushUint64(uint64(iterator))
+		w.ilog.Debug("code:%v scope:%v table:%v secondaryKey:%d iterator:%d",
+			common.AccountName(code), common.ScopeName(scope), common.TableName(table), secondaryKey, iterator)
+		return
+	}
+	setUint64(vm, pPrimary, primaryKey)
+	vm.pushUint64(uint64(iterator))
+
+	w.ilog.Debug("code:%v scope:%v table:%v secondaryKey:%d primaryKey:%d iterator:%d",
+		common.AccountName(code), common.ScopeName(scope), common.TableName(table), secondaryKey, primaryKey, iterator)
+}
+
+func dbIdx256Lowerbound(vm *VM) {
+	w := vm.WasmGo
+
+	pPrimary := int(vm.popUint64())
+	pSecondary := int(vm.popUint64())
+	table := vm.popUint64()
+	scope := vm.popUint64()
+	code := vm.popUint64()
+
+	var primaryKey uint64
+
+	secondaryKey := getUint256(vm, pSecondary)
+	iterator := w.context.Idx256Lowerbound(code, scope, table, secondaryKey, &primaryKey)
+	if iterator <= -1 {
+		vm.pushUint64(uint64(iterator))
+		w.ilog.Debug("code:%v scope:%v table:%v secondaryKey:%d iterator:%d",
+			common.AccountName(code), common.ScopeName(scope), common.TableName(table), secondaryKey, iterator)
+		return
+	}
+
+	setUint64(vm, pPrimary, primaryKey)
+	setUint256(vm, pSecondary, secondaryKey)
+	vm.pushUint64(uint64(iterator))
+
+	w.ilog.Debug("code:%v scope:%v table:%v secondaryKey:%d primaryKey:%d iterator:%d",
+		common.AccountName(code), common.ScopeName(scope), common.TableName(table), secondaryKey, primaryKey, iterator)
+}
+
+func dbIdx256Upperbound(vm *VM) {
+	w := vm.WasmGo
+
+	pPrimary := int(vm.popUint64())
+	pSecondary := int(vm.popUint64())
+	table := vm.popUint64()
+	scope := vm.popUint64()
+	code := vm.popUint64()
+
+	var primaryKey uint64
+	secondaryKey := getUint256(vm, pSecondary)
+	iterator := w.context.Idx256Upperbound(code, scope, table, secondaryKey, &primaryKey)
+	if iterator <= -1 {
+		vm.pushUint64(uint64(iterator))
+		w.ilog.Debug("code:%v scope:%v table:%v secondaryKey:%d iterator:%d",
+			common.AccountName(code), common.ScopeName(scope), common.TableName(table), secondaryKey, iterator)
+		return
+	}
+	setUint64(vm, pPrimary, primaryKey)
+	setUint256(vm, pSecondary, secondaryKey)
+
+	vm.pushUint64(uint64(iterator))
+
+	w.ilog.Debug("code:%v scope:%v table:%v secondaryKey:%d primaryKey:%d iterator:%d",
+		common.AccountName(code), common.ScopeName(scope), common.TableName(table), secondaryKey, primaryKey, iterator)
+}
+
+func dbIdx256End(vm *VM) {
+	w := vm.WasmGo
+
+	table := vm.popUint64()
+	scope := vm.popUint64()
+	code := vm.popUint64()
+
+	iterator := w.context.Idx256End(code, scope, table)
+	vm.pushUint64(uint64(iterator))
+
+	w.ilog.Debug("code:%v scope:%v table:%v iterator:%d",
+		common.AccountName(code), common.ScopeName(scope), common.TableName(table), iterator)
+}
+
+func dbIdx256Next(vm *VM) {
+	w := vm.WasmGo
+
+	primary := int(vm.popUint64())
+	itr := int(vm.popUint64())
+
+	var p uint64
+	iterator := w.context.Idx256Next(itr, &p)
+	w.ilog.Debug("dbIdx256Next iterator:%d", iterator)
+	if iterator <= -1 {
+		vm.pushUint64(uint64(iterator))
+		w.ilog.Debug("iterator:%d nextIterator:%d", itr, iterator)
+		return
+	}
+	setUint64(vm, primary, p)
+	vm.pushUint64(uint64(iterator))
+
+	w.ilog.Debug("iterator:%d nextIterator:%d primary:%d", itr, iterator, p)
+}
+
+func dbIdx256Previous(vm *VM) {
+	w := vm.WasmGo
+
+	primary := int(vm.popUint64())
+	itr := int(vm.popUint64())
+
+	var p uint64
+	iterator := w.context.Idx256Previous(itr, &p)
+	if iterator <= -1 {
+		vm.pushUint64(uint64(iterator))
+		w.ilog.Debug("iterator:%d nextIterator:%d", itr, iterator)
+		return
+	}
+	setUint64(vm, primary, p)
+	vm.pushUint64(uint64(iterator))
+
+	w.ilog.Debug("iterator:%d previousIterator:%d primary:%d", itr, iterator, p)
+}
+
+func dbIdx256FindPrimary(vm *VM) {
+	w := vm.WasmGo
+
+	primary := vm.popUint64()
+	pSecondary := int(vm.popUint64())
+	table := vm.popUint64()
+	scope := vm.popUint64()
+	code := vm.popUint64()
+
+	var secondaryKey eos_math.Uint256
+	iterator := w.context.Idx256FindPrimary(code, scope, table, &secondaryKey, primary)
+	if iterator <= -1 {
+		vm.pushUint64(uint64(iterator))
+		w.ilog.Debug("code:%v scope:%v table:%v primaryKey:%d iterator:%d",
+			common.AccountName(code), common.ScopeName(scope), common.TableName(table), primary, iterator)
+		return
+	}
+	setUint256(vm, pSecondary, &secondaryKey)
+	vm.pushUint64(uint64(iterator))
+
+	w.ilog.Debug("code:%v scope:%v table:%v primaryKey:%d secondaryKey:%d iterator:%d",
+		common.AccountName(code), common.ScopeName(scope), common.TableName(table), primary, secondaryKey, iterator)
+
+}
+
 func dbIdxDoubleStore(vm *VM) {
 	w := vm.WasmGo
 
@@ -1364,8 +1764,9 @@ func dbIdxDoubleStore(vm *VM) {
 	scope := vm.popUint64()
 
 	secondaryKey := eos_math.Float64(getUint64(vm, pValue))
-	//float := math.Float64frombits(getUint64(vm, pValue))
-	//w.ilog.Info("float:%v", float)
+
+	f := math.Float64frombits(uint64(secondaryKey))
+	EosAssert(!math.IsNaN(f), &TransactionException{}, "NaN is not an allowed value for a secondary key")
 
 	iterator := w.context.IdxDoubleStore(scope, table, payer, id, &secondaryKey)
 	vm.pushUint64(uint64(iterator))
@@ -1390,8 +1791,10 @@ func dbIdxDoubleUpdate(vm *VM) {
 	iterator := int(vm.popUint64())
 
 	secondaryKey := eos_math.Float64(getUint64(vm, pValue))
-	w.context.IdxDoubleUpdate(iterator, payer, &secondaryKey)
+	f := math.Float64frombits(uint64(secondaryKey))
+	EosAssert(!math.IsNaN(f), &TransactionException{}, "NaN is not an allowed value for a secondary key")
 
+	w.context.IdxDoubleUpdate(iterator, payer, &secondaryKey)
 	w.ilog.Debug("payer:%v secondaryKey:%v iterator:%v", common.AccountName(payer), secondaryKey, iterator)
 
 }
@@ -1408,6 +1811,9 @@ func dbIdxDoublefindSecondary(vm *VM) {
 
 	var primaryKey uint64
 	secondaryKey := eos_math.Float64(getUint64(vm, pSecondary))
+	f := math.Float64frombits(uint64(secondaryKey))
+	EosAssert(!math.IsNaN(f), &TransactionException{}, "NaN is not an allowed value for a secondary key")
+
 	iterator := w.context.IdxDoubleFindSecondary(code, scope, table, &secondaryKey, &primaryKey)
 	if iterator <= -1 {
 		vm.pushUint64(uint64(iterator))
@@ -1433,6 +1839,9 @@ func dbIdxDoubleLowerbound(vm *VM) {
 
 	var primaryKey uint64
 	secondaryKey := eos_math.Float64(getUint64(vm, pSecondary))
+	f := math.Float64frombits(uint64(secondaryKey))
+	EosAssert(!math.IsNaN(f), &TransactionException{}, "NaN is not an allowed value for a secondary key")
+
 	iterator := w.context.IdxDoubleLowerbound(code, scope, table, &secondaryKey, &primaryKey)
 	if iterator <= -1 {
 		vm.pushUint64(uint64(iterator))
@@ -1459,6 +1868,9 @@ func dbIdxDoubleUpperbound(vm *VM) {
 
 	var primaryKey uint64
 	secondaryKey := eos_math.Float64(getUint64(vm, pSecondary))
+	f := math.Float64frombits(uint64(secondaryKey))
+	EosAssert(!math.IsNaN(f), &TransactionException{}, "NaN is not an allowed value for a secondary key")
+
 	iterator := w.context.IdxDoubleUpperbound(code, scope, table, &secondaryKey, &primaryKey)
 	if iterator <= -1 {
 		vm.pushUint64(uint64(iterator))
@@ -1545,6 +1957,221 @@ func dbIdxDoubleFindPrimary(vm *VM) {
 		return
 	}
 	setUint64(vm, pSecondary, uint64(secondaryKey))
+	vm.pushUint64(uint64(iterator))
+
+	w.ilog.Debug("code:%v scope:%v table:%v primaryKey:%d secondaryKey:%v iterator:%d",
+		common.AccountName(code), common.ScopeName(scope), common.TableName(table), primary, secondaryKey, iterator)
+}
+
+func dbIdxLongDoubleStore(vm *VM) {
+	w := vm.WasmGo
+
+	pValue := int(vm.popUint64())
+	id := vm.popUint64()
+	payer := vm.popUint64()
+	table := vm.popUint64()
+	scope := vm.popUint64()
+
+	secondaryKey := getFloat128(vm, pValue)
+
+	// f := math.Float64frombits(uint64(secondaryKey))
+	// EosAssert(!math.IsNaN(f), &TransactionException{}, "NaN is not an allowed value for a secondary key")
+
+	iterator := w.context.IdxLongDoubleStore(scope, table, payer, id, secondaryKey)
+	vm.pushUint64(uint64(iterator))
+
+	w.ilog.Debug("scope:%v table:%v payer:%v id:%d secondaryKey:%v iterator:%d",
+		common.ScopeName(scope), common.TableName(table), common.AccountName(payer), id, secondaryKey, iterator)
+}
+
+func dbIdxLongDoubleRemove(vm *VM) {
+	w := vm.WasmGo
+	iterator := int(vm.popUint64())
+
+	w.context.IdxLongDoubleRemove(iterator)
+	w.ilog.Debug("iterator:%d", iterator)
+}
+
+func dbIdxLongDoubleUpdate(vm *VM) {
+	w := vm.WasmGo
+
+	pValue := int(vm.popUint64())
+	payer := vm.popUint64()
+	iterator := int(vm.popUint64())
+
+	// secondaryKey := eos_math.Float64(getUint64(vm, pValue))
+	// f := math.Float64frombits(uint64(secondaryKey))
+	// EosAssert(!math.IsNaN(f), &TransactionException{}, "NaN is not an allowed value for a secondary key")
+	secondaryKey := getFloat128(vm, pValue)
+
+	w.context.IdxLongDoubleUpdate(iterator, payer, secondaryKey)
+	w.ilog.Debug("payer:%v secondaryKey:%v iterator:%v", common.AccountName(payer), secondaryKey, iterator)
+
+}
+
+func dbIdxLongDoublefindSecondary(vm *VM) {
+
+	w := vm.WasmGo
+
+	pPrimary := int(vm.popUint64())
+	pSecondary := int(vm.popUint64())
+	table := vm.popUint64()
+	scope := vm.popUint64()
+	code := vm.popUint64()
+
+	var primaryKey uint64
+	// secondaryKey := eos_math.Float64(getUint64(vm, pSecondary))
+	// f := math.Float64frombits(uint64(secondaryKey))
+	// EosAssert(!math.IsNaN(f), &TransactionException{}, "NaN is not an allowed value for a secondary key")
+	secondaryKey := getFloat128(vm, pSecondary)
+
+	iterator := w.context.IdxLongDoubleFindSecondary(code, scope, table, secondaryKey, &primaryKey)
+	if iterator <= -1 {
+		vm.pushUint64(uint64(iterator))
+		w.ilog.Debug("code:%v scope:%v table:%v secondaryKey:%v iterator:%d",
+			common.AccountName(code), common.ScopeName(scope), common.TableName(table), secondaryKey, iterator)
+		return
+	}
+	setUint64(vm, pPrimary, primaryKey)
+	vm.pushUint64(uint64(iterator))
+
+	w.ilog.Debug("code:%v scope:%v table:%v secondaryKey:%v primaryKey:%d iterator:%d",
+		common.AccountName(code), common.ScopeName(scope), common.TableName(table), secondaryKey, primaryKey, iterator)
+}
+
+func dbIdxLongDoubleLowerbound(vm *VM) {
+	w := vm.WasmGo
+
+	pPrimary := int(vm.popUint64())
+	pSecondary := int(vm.popUint64())
+	table := vm.popUint64()
+	scope := vm.popUint64()
+	code := vm.popUint64()
+
+	var primaryKey uint64
+	// secondaryKey := eos_math.Float64(getUint64(vm, pSecondary))
+	// f := math.Float64frombits(uint64(secondaryKey))
+	// EosAssert(!math.IsNaN(f), &TransactionException{}, "NaN is not an allowed value for a secondary key")
+	secondaryKey := getFloat128(vm, pSecondary)
+
+	iterator := w.context.IdxLongDoubleLowerbound(code, scope, table, secondaryKey, &primaryKey)
+	if iterator <= -1 {
+		vm.pushUint64(uint64(iterator))
+		w.ilog.Debug("code:%v scope:%v table:%v secondaryKey:%v iterator:%d",
+			common.AccountName(code), common.ScopeName(scope), common.TableName(table), secondaryKey, iterator)
+		return
+	}
+	setUint64(vm, pPrimary, primaryKey)
+	setFloat128(vm, pSecondary, secondaryKey)
+	vm.pushUint64(uint64(iterator))
+
+	w.ilog.Debug("code:%v scope:%v table:%v secondaryKey:%v primaryKey:%d iterator:%d",
+		common.AccountName(code), common.ScopeName(scope), common.TableName(table), secondaryKey, primaryKey, iterator)
+}
+
+func dbIdxLongDoubleUpperbound(vm *VM) {
+	w := vm.WasmGo
+
+	pPrimary := int(vm.popUint64())
+	pSecondary := int(vm.popUint64())
+	table := vm.popUint64()
+	scope := vm.popUint64()
+	code := vm.popUint64()
+
+	var primaryKey uint64
+	// secondaryKey := eos_math.Float64(getUint64(vm, pSecondary))
+	// f := math.Float64frombits(uint64(secondaryKey))
+	// EosAssert(!math.IsNaN(f), &TransactionException{}, "NaN is not an allowed value for a secondary key")
+	secondaryKey := getFloat128(vm, pSecondary)
+
+	iterator := w.context.IdxLongDoubleUpperbound(code, scope, table, secondaryKey, &primaryKey)
+	if iterator <= -1 {
+		vm.pushUint64(uint64(iterator))
+		w.ilog.Debug("code:%v scope:%v table:%v secondaryKey:%v iterator:%d",
+			common.AccountName(code), common.ScopeName(scope), common.TableName(table), secondaryKey, iterator)
+		return
+	}
+	setUint64(vm, pPrimary, primaryKey)
+	//setUint64(vm, pSecondary, uint64(secondaryKey))
+	setFloat128(vm, pSecondary, secondaryKey)
+	vm.pushUint64(uint64(iterator))
+
+	w.ilog.Debug("code:%v scope:%v table:%v secondaryKey:%v primaryKey:%d iterator:%d",
+		common.AccountName(code), common.ScopeName(scope), common.TableName(table), secondaryKey, primaryKey, iterator)
+}
+
+func dbIdxLongDoubleEnd(vm *VM) {
+	w := vm.WasmGo
+
+	table := vm.popUint64()
+	scope := vm.popUint64()
+	code := vm.popUint64()
+
+	iterator := w.context.IdxLongDoubleEnd(code, scope, table)
+	vm.pushUint64(uint64(iterator))
+
+	w.ilog.Debug("code:%v scope:%v table:%v iterator:%d",
+		common.AccountName(code), common.ScopeName(scope), common.TableName(table), iterator)
+}
+
+func dbIdxLongDoubleNext(vm *VM) {
+	w := vm.WasmGo
+
+	primary := int(vm.popUint64())
+	itr := int(vm.popUint64())
+
+	var p uint64
+	iterator := w.context.IdxLongDoubleNext(itr, &p)
+	if iterator <= -1 {
+		vm.pushUint64(uint64(iterator))
+		w.ilog.Debug("iterator:%d nextIterator:%d", itr, iterator)
+		return
+	}
+
+	setUint64(vm, primary, p)
+	vm.pushUint64(uint64(iterator))
+
+	w.ilog.Debug("iterator:%d nextIterator:%d primary:%d", itr, iterator, p)
+}
+
+func dbIdxLongDoublePrevious(vm *VM) {
+	w := vm.WasmGo
+
+	primary := int(vm.popUint64())
+	itr := int(vm.popUint64())
+
+	var p uint64
+	iterator := w.context.IdxLongDoublePrevious(itr, &p)
+	if iterator <= -1 {
+		vm.pushUint64(uint64(iterator))
+		w.ilog.Debug("iterator:%d proviousIterator:%d", itr, iterator)
+		return
+	}
+	setUint64(vm, primary, p)
+	vm.pushUint64(uint64(iterator))
+
+	w.ilog.Debug("iterator:%d previousIterator:%d primary:%d", itr, iterator, p)
+}
+
+func dbIdxLongDoubleFindPrimary(vm *VM) {
+	w := vm.WasmGo
+
+	primary := vm.popUint64()
+	pSecondary := int(vm.popUint64())
+	table := vm.popUint64()
+	scope := vm.popUint64()
+	code := vm.popUint64()
+
+	var secondaryKey eos_math.Float128
+	iterator := w.context.IdxLongDoubleFindPrimary(code, scope, table, &secondaryKey, primary)
+	if iterator <= -1 {
+		vm.pushUint64(uint64(iterator))
+		w.ilog.Debug("code:%v scope:%v table:%v primaryKey:%d iterator:%d",
+			common.AccountName(code), common.ScopeName(scope), common.TableName(table), primary, iterator)
+		return
+	}
+	//setUint64(vm, pSecondary, uint64(secondaryKey))
+	setFloat128(vm, pSecondary, &secondaryKey)
 	vm.pushUint64(uint64(iterator))
 
 	w.ilog.Debug("code:%v scope:%v table:%v primaryKey:%d secondaryKey:%v iterator:%d",

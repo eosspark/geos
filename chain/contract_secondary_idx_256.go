@@ -6,32 +6,26 @@ import (
 	"github.com/eosspark/eos-go/entity"
 	. "github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
-	"math"
 )
 
-type IdxDouble struct {
+type Idx256 struct {
 	context  *ApplyContext
 	itrCache *iteratorCache
 }
 
-func NewIdxDouble(c *ApplyContext) *IdxDouble {
-	return &IdxDouble{
+func NewIdx256(c *ApplyContext) *Idx256 {
+	return &Idx256{
 		context:  c,
 		itrCache: NewIteratorCache(),
 	}
 }
 
-func (i *IdxDouble) store(scope uint64, table uint64, payer uint64, id uint64, secondary *eos_math.Float64) int {
+func (i *Idx256) store(scope uint64, table uint64, payer uint64, id uint64, secondary *eos_math.Uint256) int {
 
-	f := math.Float64frombits(uint64(*secondary))
-	EosAssert(!math.IsNaN(f), &TransactionException{}, "NaN is not an allowed value for a secondary key")
-	//EosAssert(!f.IsNan(), &TransactionException{}, "NaN is not an allowed value for a secondary key")
-
-	//w.ilog.Info("float:%v", float)
 	EosAssert(common.AccountName(payer) != common.AccountName(0), &InvalidTablePayer{}, "must specify a valid account to pay for new record")
 	tab := i.context.FindOrCreateTable(uint64(i.context.Receiver), scope, table, payer)
 
-	obj := entity.SecondaryObjectDouble{
+	obj := entity.Idx256Object{
 		TId:          tab.ID,
 		PrimaryKey:   uint64(id),
 		SecondaryKey: *secondary,
@@ -43,18 +37,20 @@ func (i *IdxDouble) store(scope uint64, table uint64, payer uint64, id uint64, s
 		t.Count++
 	})
 
-	i.context.UpdateDbUsage(common.AccountName(payer), int64(common.BillableSizeV("index_double_object")))
+	i.context.UpdateDbUsage(common.AccountName(payer), int64(common.BillableSizeV("Idx256Object")))
 
 	i.itrCache.cacheTable(tab)
 	iteratorOut := i.itrCache.add(&obj)
-	i.context.ilog.Info("object:%v iteratorOut:%d code:%v scope:%v table:%v payer:%v id:%d secondary:%v",
+	i.context.ilog.Debug("object:%v iteratorOut:%d code:%v scope:%v table:%v payer:%v id:%d secondary:%v",
 		obj, iteratorOut, i.context.Receiver, common.ScopeName(scope), common.TableName(table), common.AccountName(payer), id, *secondary)
 	return iteratorOut
+
 }
 
-func (i *IdxDouble) remove(iterator int) {
-	obj := (i.itrCache.get(iterator)).(*entity.SecondaryObjectDouble)
-	i.context.UpdateDbUsage(obj.Payer, -int64(common.BillableSizeV("index_double_object")))
+func (i *Idx256) remove(iterator int) {
+
+	obj := (i.itrCache.get(iterator)).(*entity.Idx256Object)
+	i.context.UpdateDbUsage(obj.Payer, -int64(common.BillableSizeV("Idx256Object")))
 
 	tab := i.itrCache.getTable(obj.TId)
 	EosAssert(tab.Code == i.context.Receiver, &TableAccessViolation{}, "db access violation")
@@ -63,22 +59,21 @@ func (i *IdxDouble) remove(iterator int) {
 		t.Count--
 	})
 
-	i.context.ilog.Info("object:%v iterator:%d ", *obj, iterator)
+	i.context.ilog.Debug("object:%v iterator:%d ", *obj, iterator)
 
 	i.context.DB.Remove(obj)
 	if tab.Count == 0 {
 		i.context.DB.Remove(tab)
 	}
 	i.itrCache.remove(iterator)
+
 }
 
-func (i *IdxDouble) update(iterator int, payer uint64, secondary *eos_math.Float64) {
-	f := math.Float64frombits(uint64(*secondary))
-	EosAssert(!math.IsNaN(f), &TransactionException{}, "NaN is not an allowed value for a secondary key")
+func (i *Idx256) update(iterator int, payer uint64, secondary *eos_math.Uint256) {
 
-	obj := (i.itrCache.get(iterator)).(*entity.SecondaryObjectDouble)
+	obj := (i.itrCache.get(iterator)).(*entity.Idx256Object)
 	objTable := i.itrCache.getTable(obj.TId)
-	i.context.ilog.Info("object:%v iterator:%d payer:%v secondary:%v", *obj, iterator, common.AccountName(payer), *secondary)
+	i.context.ilog.Debug("object:%v iterator:%d payer:%v secondary:%d", *obj, iterator, common.AccountName(payer), *secondary)
 	EosAssert(objTable.Code == i.context.Receiver, &TableAccessViolation{}, "db access violation")
 
 	accountPayer := common.AccountName(payer)
@@ -86,21 +81,20 @@ func (i *IdxDouble) update(iterator int, payer uint64, secondary *eos_math.Float
 		accountPayer = obj.Payer
 	}
 
-	billingSize := int64(common.BillableSizeV("index_double_object"))
+	billingSize := int64(common.BillableSizeV("Idx256Object"))
 	if obj.Payer != accountPayer {
 		i.context.UpdateDbUsage(obj.Payer, -billingSize)
 		i.context.UpdateDbUsage(accountPayer, +billingSize)
 	}
 
-	i.context.DB.Modify(obj, func(o *entity.SecondaryObjectDouble) {
+	i.context.DB.Modify(obj, func(o *entity.Idx256Object) {
 		o.SecondaryKey = *secondary
 		o.Payer = accountPayer
 	})
+
 }
 
-func (i *IdxDouble) findSecondary(code uint64, scope uint64, table uint64, secondary *eos_math.Float64, primary *uint64) int {
-	f := math.Float64frombits(uint64(*secondary))
-	EosAssert(!math.IsNaN(f), &TransactionException{}, "NaN is not an allowed value for a secondary key")
+func (i *Idx256) findSecondary(code uint64, scope uint64, table uint64, secondary *eos_math.Uint256, primary *uint64) int {
 
 	tab := i.context.FindTable(code, scope, table)
 	if tab == nil {
@@ -109,7 +103,7 @@ func (i *IdxDouble) findSecondary(code uint64, scope uint64, table uint64, secon
 
 	tableEndItr := i.itrCache.cacheTable(tab)
 
-	obj := entity.SecondaryObjectDouble{TId: tab.ID, SecondaryKey: *secondary}
+	obj := entity.Idx256Object{TId: tab.ID, SecondaryKey: *secondary}
 	err := i.context.DB.Find("bySecondary", obj, &obj)
 
 	if err != nil {
@@ -118,14 +112,12 @@ func (i *IdxDouble) findSecondary(code uint64, scope uint64, table uint64, secon
 
 	*primary = obj.PrimaryKey
 	iteratorOut := i.itrCache.add(&obj)
-	i.context.ilog.Info("object:%v iteratorOut:%d code:%v scope:%v table:%v secondary:%v",
-		obj, iteratorOut, iteratorOut, common.AccountName(code), common.ScopeName(scope), common.TableName(table), *secondary)
+	i.context.ilog.Debug("object:%v iteratorOut:%d code:%v scope:%v table:%v secondary:%d",
+		obj, iteratorOut, common.AccountName(code), common.ScopeName(scope), common.TableName(table), *secondary)
 	return iteratorOut
 }
 
-func (i *IdxDouble) lowerbound(code uint64, scope uint64, table uint64, secondary *eos_math.Float64, primary *uint64) int {
-	f := math.Float64frombits(uint64(*secondary))
-	EosAssert(!math.IsNaN(f), &TransactionException{}, "NaN is not an allowed value for a secondary key")
+func (i *Idx256) lowerbound(code uint64, scope uint64, table uint64, secondary *eos_math.Uint256, primary *uint64) int {
 
 	tab := i.context.FindTable(code, scope, table)
 	if tab == nil {
@@ -134,7 +126,12 @@ func (i *IdxDouble) lowerbound(code uint64, scope uint64, table uint64, secondar
 
 	tableEndItr := i.itrCache.cacheTable(tab)
 
-	obj := entity.SecondaryObjectDouble{TId: tab.ID, SecondaryKey: *secondary}
+	//for test
+	//if *secondary == 0 {
+	//	*secondary = 1
+	//}
+
+	obj := entity.Idx256Object{TId: tab.ID, SecondaryKey: *secondary}
 
 	idx, _ := i.context.DB.GetIndex("bySecondary", &obj)
 	itr, _ := idx.LowerBound(&obj)
@@ -142,7 +139,9 @@ func (i *IdxDouble) lowerbound(code uint64, scope uint64, table uint64, secondar
 		return tableEndItr
 	}
 
-	objLowerbound := entity.SecondaryObjectDouble{}
+	i.context.ilog.Debug("secondary:%v", *secondary)
+
+	objLowerbound := entity.Idx256Object{}
 	itr.Data(&objLowerbound)
 	if objLowerbound.TId != tab.ID {
 		return tableEndItr
@@ -152,14 +151,12 @@ func (i *IdxDouble) lowerbound(code uint64, scope uint64, table uint64, secondar
 	*secondary = objLowerbound.SecondaryKey
 
 	iteratorOut := i.itrCache.add(&objLowerbound)
-	i.context.ilog.Info("object:%v iteratorOut:%d code:%v scope:%v table:%v secondary:%v",
-		objLowerbound, iteratorOut, common.AccountName(code), common.ScopeName(scope), common.TableName(table), secondary)
+	i.context.ilog.Debug("object:%v iteratorOut:%d code:%v scope:%v table:%v secondary:%v",
+		objLowerbound, iteratorOut, common.AccountName(code), common.ScopeName(scope), common.TableName(table), *secondary)
 	return iteratorOut
 }
 
-func (i *IdxDouble) upperbound(code uint64, scope uint64, table uint64, secondary *eos_math.Float64, primary *uint64) int {
-	f := math.Float64frombits(uint64(*secondary))
-	EosAssert(!math.IsNaN(f), &TransactionException{}, "NaN is not an allowed value for a secondary key")
+func (i *Idx256) upperbound(code uint64, scope uint64, table uint64, secondary *eos_math.Uint256, primary *uint64) int {
 
 	tab := i.context.FindTable(code, scope, table)
 	if tab == nil {
@@ -168,7 +165,7 @@ func (i *IdxDouble) upperbound(code uint64, scope uint64, table uint64, secondar
 
 	tableEndItr := i.itrCache.cacheTable(tab)
 
-	obj := entity.SecondaryObjectDouble{TId: tab.ID, SecondaryKey: *secondary}
+	obj := entity.Idx256Object{TId: tab.ID, SecondaryKey: *secondary}
 
 	idx, _ := i.context.DB.GetIndex("bySecondary", &obj)
 	itr, _ := idx.UpperBound(&obj)
@@ -176,7 +173,7 @@ func (i *IdxDouble) upperbound(code uint64, scope uint64, table uint64, secondar
 		return tableEndItr
 	}
 
-	objUpperbound := entity.SecondaryObjectDouble{}
+	objUpperbound := entity.Idx256Object{}
 	itr.Data(&objUpperbound)
 	if objUpperbound.TId != tab.ID {
 		return tableEndItr
@@ -186,12 +183,15 @@ func (i *IdxDouble) upperbound(code uint64, scope uint64, table uint64, secondar
 	*secondary = objUpperbound.SecondaryKey
 
 	iteratorOut := i.itrCache.add(&objUpperbound)
-	i.context.ilog.Info("object:%v iteratorOut:%d code:%v scope:%v table:%v secondary:%v",
-		objUpperbound, iteratorOut, common.AccountName(code), common.ScopeName(scope), common.TableName(table), secondary)
+	i.context.ilog.Debug("object:%v iteratorOut:%d code:%v scope:%v table:%v secondary:%d",
+		objUpperbound, iteratorOut, common.AccountName(code), common.ScopeName(scope), common.TableName(table), *secondary)
 	return iteratorOut
 }
 
-func (i *IdxDouble) end(code uint64, scope uint64, table uint64) int {
+func (i *Idx256) end(code uint64, scope uint64, table uint64) int {
+
+	i.context.ilog.Info("code:%v scope:%v table:%v ",
+		common.AccountName(code), common.ScopeName(scope), common.TableName(table))
 
 	tab := i.context.FindTable(code, scope, table)
 	if tab == nil {
@@ -200,21 +200,21 @@ func (i *IdxDouble) end(code uint64, scope uint64, table uint64) int {
 	return i.itrCache.cacheTable(tab)
 }
 
-func (i *IdxDouble) next(iterator int, primary *uint64) int {
+func (i *Idx256) next(iterator int, primary *uint64) int {
 
 	if iterator < -1 {
 		return -1
 	}
-	obj := (i.itrCache.get(iterator)).(*entity.SecondaryObjectDouble)
+	obj := (i.itrCache.get(iterator)).(*entity.Idx256Object)
 
 	idx, _ := i.context.DB.GetIndex("bySecondary", obj)
 	itr := idx.IteratorTo(obj)
 
 	itr.Next()
-	objNext := entity.SecondaryObjectDouble{}
+	objNext := entity.Idx256Object{}
 	itr.Data(&objNext)
 
-	i.context.ilog.Info("Idx64 objNext:%v", objNext)
+	i.context.ilog.Debug("Idx256Object objNext:%v", objNext)
 
 	if idx.CompareEnd(itr) || objNext.TId != obj.TId {
 		return i.itrCache.getEndIteratorByTableID(obj.TId)
@@ -223,19 +223,20 @@ func (i *IdxDouble) next(iterator int, primary *uint64) int {
 	*primary = objNext.PrimaryKey
 
 	iteratorOut := i.itrCache.add(&objNext)
-	i.context.ilog.Info("object:%v iteratorIn:%d iteratorOut:%d secondaryKey:%v", objNext, iterator, iteratorOut, objNext.SecondaryKey)
+	i.context.ilog.Debug("object:%v iteratorIn:%d iteratorOut:%d", objNext, iterator, iteratorOut)
 	return iteratorOut
 
 }
 
-func (i *IdxDouble) previous(iterator int, primary *uint64) int {
-	idx, _ := i.context.DB.GetIndex("bySecondary", &entity.SecondaryObjectDouble{})
+func (i *Idx256) previous(iterator int, primary *uint64) int {
+
+	idx, _ := i.context.DB.GetIndex("bySecondary", &entity.Idx256Object{})
 
 	if iterator < -1 {
 		tab := i.itrCache.findTablebyEndIterator(iterator)
 		EosAssert(tab != nil, &InvalidTableIterator{}, "not a valid end iterator")
 
-		objTId := entity.SecondaryObjectDouble{TId: tab.ID}
+		objTId := entity.Idx256Object{TId: tab.ID}
 
 		itr, _ := idx.UpperBound(&objTId)
 		if idx.CompareIterator(idx.Begin(), idx.End()) || idx.CompareBegin(itr) {
@@ -258,7 +259,7 @@ func (i *IdxDouble) previous(iterator int, primary *uint64) int {
 		return iteratorOut
 	}
 
-	obj := (i.itrCache.get(iterator)).(*entity.SecondaryObjectDouble)
+	obj := (i.itrCache.get(iterator)).(*entity.Idx256Object)
 	itr := idx.IteratorTo(obj)
 
 	if idx.CompareBegin(itr) {
@@ -266,20 +267,21 @@ func (i *IdxDouble) previous(iterator int, primary *uint64) int {
 	}
 
 	itr.Prev()
-	objPrev := entity.SecondaryObjectDouble{}
+	objPrev := entity.Idx256Object{}
 	itr.Data(&objPrev)
-	i.context.ilog.Info("Idx64 objPrev:%v", objPrev)
+	i.context.ilog.Debug("Idx256Object objPrev:%v", objPrev)
 	if objPrev.TId != obj.TId {
 		return -1
 	}
 	*primary = objPrev.PrimaryKey
 
 	iteratorOut := i.itrCache.add(&objPrev)
-	i.context.ilog.Info("object:%v iteratorIn:%d iteratorOut:%d", objPrev, iterator, iteratorOut)
+	i.context.ilog.Debug("object:%v secondaryKey:%v iteratorIn:%d iteratorOut:%d", objPrev, objPrev.SecondaryKey, iterator, iteratorOut)
 	return iteratorOut
 }
 
-func (i *IdxDouble) findPrimary(code uint64, scope uint64, table uint64, secondary *eos_math.Float64, primary uint64) int {
+func (i *Idx256) findPrimary(code uint64, scope uint64, table uint64, secondary *eos_math.Uint256, primary uint64) int {
+
 	tab := i.context.FindTable(code, scope, table)
 	if tab == nil {
 		return -1
@@ -287,7 +289,7 @@ func (i *IdxDouble) findPrimary(code uint64, scope uint64, table uint64, seconda
 
 	tableEndItr := i.itrCache.cacheTable(tab)
 
-	obj := entity.SecondaryObjectDouble{TId: tab.ID, PrimaryKey: primary}
+	obj := entity.Idx256Object{TId: tab.ID, PrimaryKey: primary}
 	err := i.context.DB.Find("byPrimary", obj, &obj)
 	if err != nil {
 		return tableEndItr
@@ -296,12 +298,13 @@ func (i *IdxDouble) findPrimary(code uint64, scope uint64, table uint64, seconda
 	*secondary = obj.SecondaryKey
 
 	iteratorOut := i.itrCache.add(&obj)
-	i.context.ilog.Info("object:%v iteratorOut:%d code:%v scope:%v table:%v secondary:%d primary:%d ",
+	i.context.ilog.Debug("object:%v iteratorOut:%d code:%v scope:%v table:%v secondary:%d primary:%d ",
 		obj, iteratorOut, common.AccountName(code), common.ScopeName(scope), common.TableName(table), *secondary, primary)
 	return iteratorOut
 }
 
-func (i *IdxDouble) lowerboundPrimary(code uint64, scope uint64, table uint64, primary *uint64) int {
+func (i *Idx256) lowerboundPrimary(code uint64, scope uint64, table uint64, primary *uint64) int {
+
 	tab := i.context.FindTable(code, scope, table)
 	if tab == nil {
 		return -1
@@ -309,7 +312,7 @@ func (i *IdxDouble) lowerboundPrimary(code uint64, scope uint64, table uint64, p
 
 	tableEndItr := i.itrCache.cacheTable(tab)
 
-	obj := entity.SecondaryObjectDouble{TId: tab.ID, PrimaryKey: *primary}
+	obj := entity.Idx256Object{TId: tab.ID, PrimaryKey: *primary}
 	idx, _ := i.context.DB.GetIndex("byPrimary", &obj)
 
 	itr, _ := idx.LowerBound(&obj)
@@ -317,7 +320,7 @@ func (i *IdxDouble) lowerboundPrimary(code uint64, scope uint64, table uint64, p
 		return tableEndItr
 	}
 
-	objLowerbound := entity.SecondaryObjectDouble{}
+	objLowerbound := entity.Idx256Object{}
 	itr.Data(&objLowerbound)
 
 	if objLowerbound.TId != tab.ID {
@@ -327,7 +330,8 @@ func (i *IdxDouble) lowerboundPrimary(code uint64, scope uint64, table uint64, p
 	return i.itrCache.add(&objLowerbound)
 }
 
-func (i *IdxDouble) upperboundPrimary(code uint64, scope uint64, table uint64, primary *uint64) int {
+func (i *Idx256) upperboundPrimary(code uint64, scope uint64, table uint64, primary *uint64) int {
+
 	tab := i.context.FindTable(code, scope, table)
 	if tab == nil {
 		return -1
@@ -335,14 +339,14 @@ func (i *IdxDouble) upperboundPrimary(code uint64, scope uint64, table uint64, p
 
 	tableEndItr := i.itrCache.cacheTable(tab)
 
-	obj := entity.SecondaryObjectDouble{TId: tab.ID, PrimaryKey: *primary}
+	obj := entity.Idx256Object{TId: tab.ID, PrimaryKey: *primary}
 	idx, _ := i.context.DB.GetIndex("byPrimary", &obj)
 	itr, _ := idx.UpperBound(&obj)
 	if idx.CompareEnd(itr) {
 		return tableEndItr
 	}
-	//objUpperbound := (*types.SecondaryObjectI64)(itr.GetObject())
-	objUpperbound := entity.SecondaryObjectDouble{}
+	//objUpperbound := (*types.Idx256)(itr.GetObject())
+	objUpperbound := entity.Idx256Object{}
 	itr.Data(&objUpperbound)
 	if objUpperbound.TId != tab.ID {
 		return tableEndItr
@@ -352,17 +356,18 @@ func (i *IdxDouble) upperboundPrimary(code uint64, scope uint64, table uint64, p
 	return i.itrCache.add(&objUpperbound)
 }
 
-func (i *IdxDouble) nextPrimary(iterator int, primary *uint64) int {
+func (i *Idx256) nextPrimary(iterator int, primary *uint64) int {
+
 	if iterator < -1 {
 		return -1
 	}
-	obj := (i.itrCache.get(iterator)).(*entity.SecondaryObjectDouble)
+	obj := (i.itrCache.get(iterator)).(*entity.Idx256Object)
 	idx, _ := i.context.DB.GetIndex("byPrimary", obj)
 
 	itr := idx.IteratorTo(obj)
 
 	itr.Next()
-	objNext := entity.SecondaryObjectDouble{}
+	objNext := entity.Idx256Object{}
 	itr.Data(&objNext)
 
 	if idx.CompareEnd(itr) || objNext.TId != obj.TId {
@@ -374,15 +379,15 @@ func (i *IdxDouble) nextPrimary(iterator int, primary *uint64) int {
 
 }
 
-func (i *IdxDouble) previousPrimary(iterator int, primary *uint64) int {
+func (i *Idx256) previousPrimary(iterator int, primary *uint64) int {
 
-	idx, _ := i.context.DB.GetIndex("byPrimary", &entity.SecondaryObjectDouble{})
+	idx, _ := i.context.DB.GetIndex("byPrimary", &entity.Idx256Object{})
 
 	if iterator < -1 {
 		tab := i.itrCache.findTablebyEndIterator(iterator)
 		EosAssert(tab != nil, &InvalidTableIterator{}, "not a valid end iterator")
 
-		objTId := entity.SecondaryObjectDouble{TId: tab.ID}
+		objTId := entity.Idx256Object{TId: tab.ID}
 
 		itr, _ := idx.UpperBound(&objTId)
 		if idx.CompareIterator(idx.Begin(), idx.End()) || idx.CompareBegin(itr) {
@@ -390,7 +395,7 @@ func (i *IdxDouble) previousPrimary(iterator int, primary *uint64) int {
 		}
 
 		itr.Prev()
-		objPrev := entity.SecondaryObjectDouble{}
+		objPrev := entity.Idx256Object{}
 		itr.Data(&objPrev)
 
 		if objPrev.TId != tab.ID {
@@ -401,7 +406,7 @@ func (i *IdxDouble) previousPrimary(iterator int, primary *uint64) int {
 		return i.itrCache.add(&objPrev)
 	}
 
-	obj := (i.itrCache.get(iterator)).(*entity.SecondaryObjectDouble)
+	obj := (i.itrCache.get(iterator)).(*entity.Idx256Object)
 	itr := idx.IteratorTo(obj)
 
 	if idx.CompareBegin(itr) {
@@ -409,7 +414,7 @@ func (i *IdxDouble) previousPrimary(iterator int, primary *uint64) int {
 	}
 
 	itr.Prev()
-	objNext := entity.SecondaryObjectDouble{}
+	objNext := entity.Idx256Object{}
 	itr.Data(&objNext)
 
 	if objNext.TId != obj.TId {
@@ -419,8 +424,8 @@ func (i *IdxDouble) previousPrimary(iterator int, primary *uint64) int {
 	return i.itrCache.add(&objNext)
 }
 
-func (i *IdxDouble) get(iterator int, secondary *eos_math.Float64, primary *uint64) {
-	obj := (i.itrCache.get(iterator)).(*entity.SecondaryObjectDouble)
+func (i *Idx256) get(iterator int, secondary *eos_math.Uint256, primary *uint64) {
+	obj := (i.itrCache.get(iterator)).(*entity.Idx256Object)
 
 	*primary = obj.PrimaryKey
 	*secondary = obj.SecondaryKey

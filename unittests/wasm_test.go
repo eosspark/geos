@@ -839,7 +839,6 @@ func TestStlTest(t *testing.T) {
 		privKey := b.getPrivateKey(stltest, "active")
 		chainId := b.Control.GetChainId()
 		trx.Sign(&privKey, &chainId)
-
 		b.PushTransaction(&trx, common.MaxTimePoint(), b.DefaultBilledCpuTimeUs)
 		trxId := trx.ID()
 		assert.Equal(t, b.ChainHasTransaction(&trxId), true)

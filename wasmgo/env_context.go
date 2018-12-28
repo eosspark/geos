@@ -41,7 +41,7 @@ type EnvContext interface {
 	DbUpperboundI64(code uint64, scope uint64, table uint64, id uint64) int
 	DbEndI64(code uint64, scope uint64, table uint64) int
 
-	//secondaryKey 64
+	//index64 secondaryKey
 	Idx64Store(scope uint64, table uint64, payer uint64, id uint64, value *uint64) int
 	Idx64Remove(iterator int)
 	Idx64Update(iterator int, payer uint64, value *uint64)
@@ -53,7 +53,31 @@ type EnvContext interface {
 	Idx64Previous(iterator int, primary *uint64) int
 	Idx64FindPrimary(code uint64, scope uint64, table uint64, secondary *uint64, primary uint64) int
 
-	//secondaryKey Double
+	//index128 secondaryKey
+	Idx128Store(scope uint64, table uint64, payer uint64, id uint64, value *eos_math.Uint128) int
+	Idx128Remove(iterator int)
+	Idx128Update(iterator int, payer uint64, value *eos_math.Uint128)
+	Idx128FindSecondary(code uint64, scope uint64, table uint64, secondary *eos_math.Uint128, primary *uint64) int
+	Idx128Lowerbound(code uint64, scope uint64, table uint64, secondary *eos_math.Uint128, primary *uint64) int
+	Idx128Upperbound(code uint64, scope uint64, table uint64, secondary *eos_math.Uint128, primary *uint64) int
+	Idx128End(code uint64, scope uint64, table uint64) int
+	Idx128Next(iterator int, primary *uint64) int
+	Idx128Previous(iterator int, primary *uint64) int
+	Idx128FindPrimary(code uint64, scope uint64, table uint64, secondary *eos_math.Uint128, primary uint64) int
+
+	//index256 secondaryKey
+	Idx256Store(scope uint64, table uint64, payer uint64, id uint64, value *eos_math.Uint256) int
+	Idx256Remove(iterator int)
+	Idx256Update(iterator int, payer uint64, value *eos_math.Uint256)
+	Idx256FindSecondary(code uint64, scope uint64, table uint64, secondary *eos_math.Uint256, primary *uint64) int
+	Idx256Lowerbound(code uint64, scope uint64, table uint64, secondary *eos_math.Uint256, primary *uint64) int
+	Idx256Upperbound(code uint64, scope uint64, table uint64, secondary *eos_math.Uint256, primary *uint64) int
+	Idx256End(code uint64, scope uint64, table uint64) int
+	Idx256Next(iterator int, primary *uint64) int
+	Idx256Previous(iterator int, primary *uint64) int
+	Idx256FindPrimary(code uint64, scope uint64, table uint64, secondary *eos_math.Uint256, primary uint64) int
+
+	//index Double secondaryKey
 	IdxDoubleStore(scope uint64, table uint64, payer uint64, id uint64, value *eos_math.Float64) int
 	IdxDoubleRemove(iterator int)
 	IdxDoubleUpdate(iterator int, payer uint64, value *eos_math.Float64)
@@ -64,6 +88,18 @@ type EnvContext interface {
 	IdxDoubleNext(iterator int, primary *uint64) int
 	IdxDoublePrevious(iterator int, primary *uint64) int
 	IdxDoubleFindPrimary(code uint64, scope uint64, table uint64, secondary *eos_math.Float64, primary uint64) int
+
+	//index LongDouble secondaryKey
+	IdxLongDoubleStore(scope uint64, table uint64, payer uint64, id uint64, value *eos_math.Float128) int
+	IdxLongDoubleRemove(iterator int)
+	IdxLongDoubleUpdate(iterator int, payer uint64, value *eos_math.Float128)
+	IdxLongDoubleFindSecondary(code uint64, scope uint64, table uint64, secondary *eos_math.Float128, primary *uint64) int
+	IdxLongDoubleLowerbound(code uint64, scope uint64, table uint64, secondary *eos_math.Float128, primary *uint64) int
+	IdxLongDoubleUpperbound(code uint64, scope uint64, table uint64, secondary *eos_math.Float128, primary *uint64) int
+	IdxLongDoubleEnd(code uint64, scope uint64, table uint64) int
+	IdxLongDoubleNext(iterator int, primary *uint64) int
+	IdxLongDoublePrevious(iterator int, primary *uint64) int
+	IdxLongDoubleFindPrimary(code uint64, scope uint64, table uint64, secondary *eos_math.Float128, primary uint64) int
 
 	//permission
 	GetPermissionLastUsed(account common.AccountName, permission common.PermissionName) common.TimePoint
