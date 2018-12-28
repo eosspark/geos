@@ -1,47 +1,43 @@
 package unittests
 
 import (
-	"testing"
-	"fmt"
-	"github.com/eosspark/eos-go/plugins/chain_plugin"
-	"encoding/json"
-	"github.com/stretchr/testify/assert"
 	"bytes"
-	"io/ioutil"
+	"encoding/json"
+	"fmt"
 	"github.com/eosspark/eos-go/chain"
 	"github.com/eosspark/eos-go/chain/abi_serializer"
-	"github.com/eosspark/eos-go/entity"
 	"github.com/eosspark/eos-go/chain/types"
-	. "github.com/eosspark/eos-go/common"
-	. "github.com/eosspark/eos-go/exception/try"
+	"github.com/eosspark/eos-go/common"
+	"github.com/eosspark/eos-go/entity"
 	. "github.com/eosspark/eos-go/exception"
+	. "github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/log"
+	"github.com/eosspark/eos-go/plugins/chain_plugin"
+	"github.com/eosspark/eos-go/unittests/test_contracts"
+	"github.com/stretchr/testify/assert"
+	"testing"
 )
 
 func TestGetBlockWithInvalidAbi(t *testing.T) {
-	AssertAbi, err := ioutil.ReadFile("test_constracts/asserter.abi")
-	assert.NoError(t, err)
-	AssertWast, err := ioutil.ReadFile("test_constracts/asserter.wast")
-	assert.NoError(t, err)
-
+	tester := newValidatingTester(true, chain.SPECULATIVE)
+	//tester := NewValidatingTesterTrustedProducers(treeset.NewWith(TypeName, CompareName))
+	defer tester.close()
 	Try(func() {
-		tester := newValidatingTester(true, chain.SPECULATIVE)
 
 		tester.ProduceBlocks(2, false)
 
-		tester.CreateAccounts([]AccountName{N("asserter")}, false, true)
-		tester.ProduceBlock(Milliseconds(DefaultConfig.BlockIntervalMs), 0)
+		tester.CreateAccounts([]common.AccountName{common.N("asserter")}, false, true)
+		tester.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs), 0)
 
 		// setup contract and abi
-		tester.SetCode(N("asserter"), AssertWast, nil)
-		tester.SetAbi(N("asserter"), AssertAbi, nil)
+		tester.SetCode(common.N("asserter"), test_contracts.AsserterWast, nil)
+		tester.SetAbi(common.N("asserter"), test_contracts.AsserterAbi, nil)
 
 		tester.ProduceBlocks(1, false)
 
-		resolver := func(name AccountName) (r *abi_serializer.AbiSerializer) {
+		resolver := func(name common.AccountName) (r *abi_serializer.AbiSerializer) {
 			Try(func() {
-				accnt := entity.AccountObject{}
-				accnt.Name = name
+				accnt := entity.AccountObject{Name: name}
 				if err := tester.Control.DataBase().Find("byName", accnt, &accnt); err != nil {
 					EosThrow(&DatabaseException{}, err.Error())
 				}
@@ -56,37 +52,55 @@ func TestGetBlockWithInvalidAbi(t *testing.T) {
 		}
 
 		// abi should be resolved
-		assert.NotNil(t, resolver(N("asserter")) != nil)
+		r := resolver(common.N("asserter"))
+		assert.NotNil(t, r != nil)
 
-		prettyTrx := Variants{
-			"actions": Variants{
-				"account": "asserter",
-				"name":    "procassert",
-				"authorization": Variants{
-					"actor":     "asserter",
-					"permisson": DefaultConfig.ActiveName.String(),
-				},
-				"data": Variants{
-					"condition": 1,
-					"message":   "Should Not Assert!",
-				},
-			},
-		}
+		//prettyTrx := common.Variants{
+		//	"actions": []common.Variants{{
+		//		"account": "asserter",
+		//		"name":    "procassert",
+		//		"authorization": common.Variants{
+		//			"actor":     "asserter",
+		//			"permisson": common.DefaultConfig.ActiveName.String(),
+		//		},
+		//		"data": common.Variants{
+		//			"condition": 1,
+		//			"message":   "Should Not Assert!",
+		//		},
+		//	},
+		//	}}
 
 		trx := types.SignedTransaction{}
-		err := FromVariant(prettyTrx, &trx)
-		assert.NoError(t, err)
+		trx.Actions = append(trx.Actions, &types.Action{
+			Account: common.N("asserter"),
+			Name:    common.N("procassert"),
+			Authorization: []types.PermissionLevel{
+				{
+					Actor:      common.N("asserter"),
+					Permission: common.DefaultConfig.ActiveName,
+				},
+			},
+			Data: nil,
+		})
+
+		trx.Actions[0].Data = r.VariantToBinary("assertdef", &common.Variants{
+			"condition": 1,
+			"message":   "Should Not Assert!",
+		}, tester.AbiSerializerMaxTime)
+
+		//err := common.FromVariant(prettyTrx, &trx)
+		//assert.NoError(t, err)
 		tester.SetTransactionHeaders(&trx.Transaction, tester.DefaultExpirationDelta, 0)
-		priKey, chainId := tester.getPrivateKey(N("asserter"), "active"), tester.Control.GetChainId()
+		priKey, chainId := tester.getPrivateKey(common.N("asserter"), "active"), tester.Control.GetChainId()
 		trx.Sign(&priKey, &chainId)
-		tester.PushTransaction(&trx, MaxTimePoint(), tester.DefaultBilledCpuTimeUs)
+		tester.PushTransaction(&trx, common.MaxTimePoint(), tester.DefaultBilledCpuTimeUs)
 		tester.ProduceBlocks(1, false)
 
 		// retrieve block num
 		headNum := tester.Control.HeadBlockNum()
 		headNumStr := fmt.Sprintf("%d", headNum)
 		param := chain_plugin.GetBlockParams{headNumStr}
-		plugin := chain_plugin.NewReadOnly(tester.Control, MaxMicroseconds())
+		plugin := chain_plugin.NewReadOnly(tester.Control, common.MaxMicroseconds())
 
 		// block should be decoded successfully
 		blockStr, err := json.Marshal(plugin.GetBlock(param))
@@ -99,15 +113,15 @@ func TestGetBlockWithInvalidAbi(t *testing.T) {
 		assert.Equal(t, true, bytes.Contains(blockStr, []byte("011253686f756c64204e6f742041737365727421"))) //action data
 
 		// set an invalid abi (int8->xxxx)
-		abi2 := AssertAbi
+		abi2 := test_contracts.AsserterAbi
 		pos := bytes.Index(abi2, []byte("int8"))
 		assert.Equal(t, true, pos > 0)
 		copy(abi2[pos:pos+4], []byte("xxxx"))
-		tester.SetAbi(N("asserter"), abi2, nil)
+		tester.SetAbi(common.N("asserter"), abi2, nil)
 		tester.ProduceBlocks(1, false)
 
 		// resolving the invalid abi result in exception
-		CheckThrow(t, func() { resolver(N("asserter")) }, &InvalidTypeInsideAbi{})
+		CheckThrow(t, func() { resolver(common.N("asserter")) }, &InvalidTypeInsideAbi{})
 
 		// get the same block as string, results in decode failed(invalid abi) but not exception
 		blockStr2, err := json.Marshal(plugin.GetBlock(param))

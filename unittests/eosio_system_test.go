@@ -8,7 +8,7 @@ import (
 	. "github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
 	"github.com/stretchr/testify/assert"
-	"strconv"
+	"math"
 	"testing"
 )
 
@@ -19,7 +19,7 @@ func TestBuySell(t *testing.T) {
 	assert.Equal(t, e.Success(), e.Stake(eosio, alice, CoreFromString("200.0000"), CoreFromString("100.0000")))
 
 	total := e.GetTotalStake(alice)
-	initBytes := uint64(total["ram_bytes"].(float64))
+	initBytes := total["ram_bytes"].(uint64)
 	initialRamBalance := e.GetBalance(eosioRam)
 	initialRamFeeBalance := e.GetBalance(eosioRamFee)
 	assert.Equal(t, e.Success(), e.BuyRam(alice, alice, CoreFromString("200.0000")))
@@ -28,7 +28,7 @@ func TestBuySell(t *testing.T) {
 	assert.Equal(t, initialRamFeeBalance.Add(CoreFromString("1.0000")), e.GetBalance(eosioRamFee))
 
 	total = e.GetTotalStake(alice)
-	bytes := /*e.ToUint64(total["ram_bytes"])*/uint64(total["ram_bytes"].(float64))
+	bytes := total["ram_bytes"].(uint64)
 
 	boughtBytes := bytes - initBytes
 
@@ -36,7 +36,7 @@ func TestBuySell(t *testing.T) {
 	assert.Equal(t, e.Success(), e.SellRam(alice, boughtBytes))
 	assert.Equal(t, CoreFromString("998.0049"), e.GetBalance(alice))
 	total = e.GetTotalStake(alice)
-	assert.Equal(t, initBytes, uint64(total["ram_bytes"].(float64)))
+	assert.Equal(t, initBytes, total["ram_bytes"].(uint64))
 
 	e.Transfer(eosio, alice, CoreFromString("100000000.0000"), eosio)
 	assert.Equal(t, CoreFromString("100000998.0049"), e.GetBalance(alice))
@@ -44,15 +44,14 @@ func TestBuySell(t *testing.T) {
 	assert.Equal(t, CoreFromString("90000998.0049"), e.GetBalance(alice))
 
 	total = e.GetTotalStake(alice)
-	a, _ := strconv.Atoi(total["ram_bytes"].(string))
-	bytes = uint64(a)
+	bytes = total["ram_bytes"].(uint64)
 	boughtBytes = bytes - initBytes
 	assert.Equal(t, e.Success(), e.SellRam(alice, boughtBytes))
 
 	total = e.GetTotalStake(alice)
-	bytes = uint64(total["ram_bytes"].(float64))
+	bytes = total["ram_bytes"].(uint64)
 	boughtBytes = bytes - initBytes
-	assert.Equal(t, initBytes, uint64(total["ram_bytes"].(float64)))
+	assert.Equal(t, initBytes, total["ram_bytes"].(uint64))
 	assert.Equal(t, CoreFromString("99901248.0041"), e.GetBalance(alice))
 
 	assert.Equal(t, e.Success(), e.BuyRam(alice, alice, CoreFromString("100.0000")))
@@ -67,13 +66,13 @@ func TestBuySell(t *testing.T) {
 	assert.Equal(t, CoreFromString("99900688.0041"), e.GetBalance(alice))
 
 	newTotal := e.GetTotalStake(alice)
-	newBytes := uint64(newTotal["ram_bytes"].(float64))
+	newBytes := newTotal["ram_bytes"].(uint64)
 	boughtBytes = newBytes - bytes
 	assert.Equal(t, e.Success(), e.SellRam(alice, boughtBytes))
 	assert.Equal(t, CoreFromString("99901242.4179"), e.GetBalance(alice))
 
 	newTotal = e.GetTotalStake(alice)
-	startBytes := uint64(total["ram_bytes"].(float64))
+	startBytes := total["ram_bytes"].(uint64)
 
 	assert.Equal(t, e.Success(), e.BuyRam(alice, alice, CoreFromString("10000000.0000")))
 	assert.Equal(t, e.Success(), e.BuyRam(alice, alice, CoreFromString("10000000.0000")))
@@ -87,7 +86,7 @@ func TestBuySell(t *testing.T) {
 	assert.Equal(t, CoreFromString("49301242.4179"), e.GetBalance(alice))
 
 	finalTotal := e.GetTotalStake(alice)
-	endBytes := uint64(finalTotal["ram_bytes"].(float64))
+	endBytes := finalTotal["ram_bytes"].(uint64)
 	boughtBytes = endBytes - startBytes
 	assert.Equal(t, e.Success(), e.SellRam(alice, boughtBytes))
 	assert.Equal(t, CoreFromString("99396507.4142"), e.GetBalance(alice))
@@ -135,7 +134,7 @@ func TestStakeUnstake(t *testing.T) {
 	assert.Equal(t, CoreFromString("110.0000"), total["cpu_weight"].(common.Asset))
 
 	assert.Equal(t, e.VoterAccountAsset(alice, CoreFromString("300.0000")), e.GetVoterInfo(alice))
-	bytes := total["ram_bytes"].(int64)
+	bytes := total["ram_bytes"].(uint64)
 	assert.True(t, 0 < bytes)
 
 	//unstake from bob111111111
@@ -707,7 +706,7 @@ func TestProducerRegisterUnregister(t *testing.T) {
 	}
 
 	info := e.GetProducerInfo(alice)
-	assert.Equal(t, alice.String(), info["owner"].(string))
+	assert.Equal(t, alice, info["owner"].(common.AccountName))
 	assert.Equal(t, float64(0), info["total_votes"].(float64))
 	assert.Equal(t, "http://block.one", info["url"].(string))
 
@@ -723,10 +722,10 @@ func TestProducerRegisterUnregister(t *testing.T) {
 		assert.Equal(t, e.Success(), e.EsPushAction(&alice, &act, &data, true))
 	}
 	info = e.GetProducerInfo(alice)
-	assert.Equal(t, alice.String(), info["owner"].(string))
-	assert.Equal(t, key.String(), info["producer_key"].(string))
-	assert.Equal(t, "http://block.two", info["url"].(string))
-	assert.Equal(t, float64(1), info["location"].(float64))
+	assert.Equal(t, alice, info["owner"].(common.AccountName))
+	assert.Equal(t, key, info["producer_key"].(ecc.PublicKey))
+	assert.Equal(t, string("http://block.two"), info["url"].(string))
+	assert.Equal(t, uint16(1), info["location"].(uint16))
 
 	key2, _ := ecc.NewPublicKey("EOS5jnmSKrzdBHE9n8hw58y7yxFWBC8SNiG7m8S1crJH3KvAnf9o6")
 	{
@@ -740,10 +739,10 @@ func TestProducerRegisterUnregister(t *testing.T) {
 		assert.Equal(t, e.Success(), e.EsPushAction(&alice, &act, &data, true))
 	}
 	info = e.GetProducerInfo(alice)
-	assert.Equal(t, alice.String(), info["owner"].(string))
-	assert.Equal(t, key2.String(), info["producer_key"].(string))
-	assert.Equal(t, "http://block.two", info["url"].(string))
-	assert.Equal(t, float64(2), info["location"].(float64))
+	assert.Equal(t, alice, info["owner"].(common.AccountName))
+	assert.Equal(t, key2, info["producer_key"].(ecc.PublicKey))
+	assert.Equal(t, string("http://block.two"), info["url"].(string))
+	assert.Equal(t, uint16(2), info["location"].(uint16))
 
 	//unregister producer
 	{
@@ -756,12 +755,12 @@ func TestProducerRegisterUnregister(t *testing.T) {
 
 	//key should be empty
 	info = e.GetProducerInfo(alice)
-	assert.Equal(t, ecc.NewPublicKeyNil().String(), info["producer_key"].(string))
+	assert.Equal(t, *ecc.NewPublicKeyNil(), info["producer_key"].(ecc.PublicKey))
 
 	//everything else should stay the same
-	assert.Equal(t, alice.String(), info["owner"].(string))
-	assert.Equal(t, "http://block.two", info["url"].(string))
-	assert.Equal(t, float64(2), info["location"].(float64))
+	assert.Equal(t, alice, info["owner"].(common.AccountName))
+	assert.Equal(t, string("http://block.two"), info["url"].(string))
+	assert.Equal(t, uint16(2), info["location"].(uint16))
 
 	//unregister bob111111111 who is not a producer
 	{
@@ -779,6 +778,100 @@ func TestProducerRegisterUnregister(t *testing.T) {
 	}
 
 	e.close()
+}
+
+func TestVoteForProducer(t *testing.T) {
+	e := initEosioSystemTester()
+	e.Cross15PercentThreshold()
+	e.Issue(alice, CoreFromString("1000.0000"), eosio)
+	{
+		act := common.N("regproducer")
+		data := common.Variants{
+			"producer":     alice,
+			"producer_key": e.getPublicKey(alice, "active"),
+			"url":          "http://block.one",
+			"location":     0,
+		}
+		assert.Equal(t, e.Success(), e.EsPushAction(&alice, &act, &data, true))
+	}
+	prod := e.GetProducerInfo(alice)
+	assert.Equal(t, alice, prod["owner"].(common.AccountName))
+	assert.Equal(t, float64(0), prod["total_votes"].(float64))
+	assert.Equal(t, string("http://block.one"), prod["url"].(string))
+
+	e.Issue(bob, CoreFromString("2000.0000"), eosio)
+	e.Issue(carol, CoreFromString("3000.0000"), eosio)
+
+	//bob111111111 makes stake
+	assert.Equal(t, e.Success(), e.Stake(bob, bob, CoreFromString("11.0000"), CoreFromString("0.1111")))
+	assert.Equal(t, CoreFromString("1988.8889"), e.GetBalance(bob))
+	assert.Equal(t, e.VoterAccountAsset(bob, CoreFromString("11.1111")), e.GetVoterInfo(bob))
+
+	//bob111111111 votes for alice1111111
+	assert.Equal(t, e.Success(), e.Vote(bob, []common.AccountName{alice}, common.AccountName(0)))
+
+	//check that producer parameters stay the same after voting
+	prod = e.GetProducerInfo(alice)
+	assert.Equal(t, e.Stake2Votes(CoreFromString("11.1111")), prod["total_votes"].(float64))
+	assert.Equal(t, alice, prod["owner"].(common.AccountName))
+	assert.Equal(t, string("http://block.one"), prod["url"].(string))
+
+	//carol1111111 makes stake
+	assert.Equal(t, e.Success(), e.Stake(carol, carol, CoreFromString("22.0000"), CoreFromString("0.2222")))
+	assert.Equal(t, e.VoterAccountAsset(carol, CoreFromString("22.2222")), e.GetVoterInfo(carol))
+	assert.Equal(t, CoreFromString("2977.7778"), e.GetBalance(carol))
+
+	//carol1111111 votes for alice1111111
+	assert.Equal(t, e.Success(), e.Vote(carol, []common.AccountName{alice}, common.AccountName(0)))
+
+	//new stake votes be added to alice1111111's total_votes
+	prod = e.GetProducerInfo(alice)
+	assert.True(t, prod["total_votes"].(float64) - e.Stake2Votes(CoreFromString("33.3333")) <= math.Pow10(-4))
+
+	//bob111111111 increases his stake
+	assert.Equal(t, e.Success(), e.Stake(bob, bob, CoreFromString("33.0000"), CoreFromString("0.3333")))
+
+	//alice1111111 stake with transfer to bob111111111
+	assert.Equal(t, e.Success(), e.StakeWithTransfer(alice, bob, CoreFromString("22.0000"), CoreFromString("0.2222")))
+
+	//should increase alice1111111's total_votes
+	prod = e.GetProducerInfo(alice)
+	assert.Equal(t, e.Stake2Votes(CoreFromString("88.8888")), prod["total_votes"].(float64))
+
+	//carol1111111 unstakes part of the stake
+	assert.Equal(t, e.Success(), e.UnStake(carol, carol, CoreFromString("2.0000"), CoreFromString("0.0002")))
+
+	//should decrease alice1111111's total_votes
+	prod = e.GetProducerInfo(alice)
+	assert.Equal(t, e.Stake2Votes(CoreFromString("86.8886")), prod["total_votes"].(float64))
+
+	//bob111111111 revokes his vote
+	assert.Equal(t, e.Success(), e.Vote(bob, []common.AccountName{}, common.AccountName(0)))
+
+	//should decrease alice1111111's total_votes
+	prod = e.GetProducerInfo(alice)
+	assert.True(t, prod["total_votes"].(float64) - e.Stake2Votes(CoreFromString("20.2220")) <= math.Pow10(-4))
+
+	//but eos should still be at stake
+	assert.Equal(t, CoreFromString("1955.5556"), e.GetBalance(bob))
+
+	//carol1111111 unstakes rest of eos
+	assert.Equal(t, e.Success(), e.UnStake(carol, carol, CoreFromString("20.0000"), CoreFromString("0.2220")))
+
+	//should decrease alice1111111's total_votes to zero
+	prod = e.GetProducerInfo(alice)
+	assert.True(t, prod["total_votes"].(float64) - float64(0) <= math.Pow10(-4))
+
+	//carol1111111 should receive funds in 3 days
+	e.ProduceBlock(common.Days(3), 0)
+	e.ProduceBlocks(1, false)
+	assert.Equal(t, CoreFromString("3000.0000"), e.GetBalance(carol))
+
+	e.close()
+}
+
+func TestUnregisteredProducerVoting(t *testing.T) {
+
 }
 
 func TestAccountName(t *testing.T) {
