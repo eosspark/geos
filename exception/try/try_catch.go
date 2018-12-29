@@ -32,6 +32,12 @@ func Throw(e interface{}) {
 	panic(e)
 }
 
+func ThrowIf(expr bool, e interface{}) {
+	if expr {
+		panic(e)
+	}
+}
+
 type CatchOrFinally struct {
 	e interface{}
 }

@@ -10,6 +10,7 @@ import (
 	"github.com/eosspark/eos-go/log"
 	"github.com/eosspark/eos-go/plugins/chain_plugin"
 	"github.com/robertkrimen/otto"
+	"strings"
 )
 
 type chainAPI struct {
@@ -25,6 +26,7 @@ func newchainAPI(c *Console) *chainAPI {
 	e.log.SetHandler(log.TerminalHandler)
 	return e
 }
+
 func getJsResult(call otto.FunctionCall, in interface{}) otto.Value {
 	bytes, _ := json.Marshal(in)
 	resps, _ := call.Otto.Object("new Array()")
@@ -316,18 +318,52 @@ func (a *chainAPI) GetTable(call otto.FunctionCall) (response otto.Value) {
 	//	limit =10
 	//}
 
-	var resp chain_plugin.GetTableRowsResp
-	err = DoHttpCall(&resp, common.GetTableFunc,
-		common.Variants{"json": true,
-			"code":           code,
-			"scope":          scope,
-			"table":          table,
-			"table_key":      "",
-			"lower_bound":    "",
-			"upper_bound":    "",
-			"limit":          10,
-			"key_type":       "",
-			"index_position": 1})
+	var resp chain_plugin.GetTableRowsResult
+	err = DoHttpCall(&resp, common.GetTableFunc, common.Variants{"json": true,
+		"code":           code,
+		"scope":          scope,
+		"table":          table,
+		"table_key":      "",
+		"lower_bound":    "",
+		"upper_bound":    "",
+		"limit":          10,
+		"key_type":       "",
+		"index_position": 1})
+	if err != nil {
+		a.log.Error("get abi is error: %s", err.Error())
+	}
+	return getJsResult(call, resp)
+}
+
+func (a *chainAPI) GetScope(call otto.FunctionCall) (response otto.Value) {
+	code, err := call.Argument(0).ToString()
+	if err != nil {
+		return otto.UndefinedValue()
+	}
+	table, err := call.Argument(1).ToString()
+	if err != nil {
+		return otto.UndefinedValue()
+	}
+	lowerBound, err := call.Argument(2).ToString()
+	if err != nil {
+		return otto.UndefinedValue()
+	}
+	upBound, err := call.Argument(3).ToString()
+	if err != nil {
+		return otto.UndefinedValue()
+	}
+	limit, err := call.Argument(4).ToInteger()
+	if err != nil {
+		return otto.UndefinedValue()
+	}
+
+	var resp chain_plugin.GetTableByScopeResultRow
+	err = DoHttpCall(&resp, common.GetTableByScopeFunc, common.Variants{
+		"code":        code,
+		"table":       table,
+		"lower_bound": lowerBound,
+		"upper_bound": upBound,
+		"limit":       limit})
 	if err != nil {
 		a.log.Error("get abi is error: %s", err.Error())
 	}
@@ -363,4 +399,98 @@ func (a *chainAPI) GetCurrencyBalance(call otto.FunctionCall) (response otto.Val
 		fmt.Println(resp[i])
 	}
 	return getJsResult(call, resp)
+}
+
+func (a *chainAPI) GetCurrencyStats(call otto.FunctionCall) (response otto.Value) {
+	code, err := call.Argument(0).ToString()
+	if err != nil {
+		return otto.UndefinedValue()
+	}
+	symbol, err := call.Argument(1).ToString()
+	if err != nil {
+		return otto.UndefinedValue()
+	}
+	var resp chain_plugin.GEtCurrencyStatsResult
+	err = DoHttpCall(&resp, common.GetCurrencyStatsFunc, common.Variants{"code": code, "symbol": symbol})
+	if err != nil {
+		a.log.Error("GetCurrencyBalance is error: %s", err.Error())
+	}
+	return getJsResult(call, nil)
+}
+
+func (a *chainAPI) PushTransaction(call otto.FunctionCall) (response otto.Value) {
+
+	return getJsResult(call, nil)
+}
+
+func (a *chainAPI) PushTransactions(call otto.FunctionCall) (response otto.Value) {
+
+	return getJsResult(call, nil)
+}
+
+func (a *chainAPI) AbiJsonToBin(call otto.FunctionCall) (response otto.Value) {
+
+	return getJsResult(call, nil)
+}
+
+func (a *chainAPI) GetRawAbi(call otto.FunctionCall) (response otto.Value) {
+
+	return getJsResult(call, nil)
+}
+
+func (a *chainAPI) GetRawCodeAndAbi(call otto.FunctionCall) (response otto.Value) {
+
+	return getJsResult(call, nil)
+}
+
+func (a *chainAPI) GetProducers(call otto.FunctionCall) (response otto.Value) {
+
+	return getJsResult(call, nil)
+}
+
+func (a *chainAPI) GetSchedule(call otto.FunctionCall) (response otto.Value) {
+	printJSON := false
+	str, err := call.Argument(0).ToString()
+	if err != nil {
+		return otto.UndefinedValue()
+	}
+
+	if strings.Contains(str, "j") {
+		printJSON = true
+	}
+
+	var resp chain_plugin.GetProducerScheduleResult
+	err = DoHttpCall(&resp, common.GetScheduleFunc, nil)
+	if err != nil {
+		a.log.Error("GetCurrencyBalance is error: %s", err.Error())
+	}
+	if printJSON {
+		return getJsResult(call, nil)
+	}
+
+	print("active", resp.Active)
+	print("pending", resp.Pending)
+	print("proposed", resp.Proposed)
+
+	return getJsResult(call, nil)
+}
+
+func print(name string, schedule common.Variant) {
+
+	producerST, ok := schedule.(types.ProducerScheduleType)
+	if !ok {
+		fmt.Println("schedule is not producerScheduleType")
+	}
+	if schedule == nil {
+		fmt.Printf("%s schedule empty\n", name)
+		return
+	}
+	fmt.Printf("%s schedule version %s\n", name, producerST.Version)
+	fmt.Printf("    %-13s %s\n", "producer", "Producer key")
+	fmt.Printf("    %-13s %s\n", "=============", "==================")
+	for _, row := range producerST.Producers {
+		fmt.Printf("    %-13s %s\n", row.ProducerName.String(), row.BlockSigningKey.String())
+	}
+	fmt.Printf("\n")
+
 }

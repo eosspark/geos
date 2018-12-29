@@ -434,7 +434,7 @@ func (a *AuthorizationManager) CheckAuthorization(actions []*types.Action,
 				"provided permissions %v, and provided keys %v", p, providedDelay.Count()/1000, providedPermissions, providedKeys)
 	}
 	if !allowUnusedKeys {
-		EosAssert(checker.AllKeysUsed(), &TxIrrelevantSig{}, "transaction bears irrelevant signatures from these keys: ${keys}")
+		EosAssert(checker.AllKeysUsed(), &TxIrrelevantSig{}, "transaction bears irrelevant signatures from these keys: %v", checker.GetUnusedKeys())
 	}
 }
 

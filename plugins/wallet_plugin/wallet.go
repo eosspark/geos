@@ -12,6 +12,7 @@ import (
 	. "github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/log"
+	"io/ioutil"
 	"os"
 )
 
@@ -78,21 +79,12 @@ func (w *SoftWallet) GetWalletFilename() string {
 	return w.walletFilename
 }
 
-// func (w *WalletData) GetPrivateKey(password string) ecc.PrivateKey {
-
-// 	return nil
-// }
-// func (w *WalletData) GetPrivateKeyFromPassword(password string) Keyspair { //TODO
-// 	return nil
-// }
-
-func (w *SoftWallet) isnew() bool {
+func (w *SoftWallet) isNew() bool {
 	return len(w.wallet.CipherKeys) == 0
 }
 
 func (w *SoftWallet) isLocked() bool {
-	result := bytes.Compare(w.checksum, nil)
-	return result == 0
+	return bytes.Compare(w.checksum, nil) == 0
 }
 
 func (w *SoftWallet) Lock() (err error) {
@@ -113,43 +105,38 @@ func (w *SoftWallet) Lock() (err error) {
 	return nil
 }
 
-func (w *SoftWallet) UnLock(password string) (err error) {
-	if len([]rune(password)) == 0 {
-		return ErrWalletNoPassword
-	}
-	pw := hash512(password)
-	decrypted, err := Decrypt(string(pw[:]), w.wallet.CipherKeys)
-	if err != nil {
-		return err
-	}
-
-	var pk SprivateKeys
-	err = rlp.DecodeBytes(decrypted, &pk)
-	if err != nil {
-		return err
-	}
-
-	if result := bytes.Compare(pw, pk.CheckSum); result != 0 {
-		return ErrWallerInvalidPassword
-	}
-
-	keyMap := make(map[ecc.PublicKey]ecc.PrivateKey, len(pk.Keys))
-	for pub, pri := range pk.Keys {
-		privateKey, err := ecc.NewDeterministicPrivateKey(bytes.NewReader(pri.PrivKey)) //TODO
+func (w *SoftWallet) UnLock(password string) {
+	Try(func() {
+		FcAssert(len(password) > 0, "No password")
+		pw := hash512(password)
+		decrypted, err := Decrypt(string(pw[:]), w.wallet.CipherKeys)
 		if err != nil {
-			fmt.Println("NewDeterministicPrivateKey is wrong %s", err.Error())
+			fmt.Println("decrypt is error:", err)
+			FcAssert(false)
 		}
-		keyMap[pub] = *privateKey
-	}
 
-	w.Keys = keyMap
-	w.checksum = pk.CheckSum
+		var pk SprivateKeys
+		err = rlp.DecodeBytes(decrypted, &pk)
+		if err != nil {
+			fmt.Println("decodeBytes is error:", err)
+			FcAssert(false)
+		}
 
-	// for pub, pri := range w.Keys {
-	// 	fmt.Println(pub, pri)
-	// }
+		FcAssert(bytes.Compare(pw, pk.CheckSum) == 0, "Invalid password for wallet")
+		keyMap := make(map[ecc.PublicKey]ecc.PrivateKey, len(pk.Keys))
+		for pub, pri := range pk.Keys {
+			privateKey, err := ecc.NewDeterministicPrivateKey(bytes.NewReader(pri.PrivKey)) //TODO
+			if err != nil {
+				fmt.Println("NewDeterministicPrivateKey is wrong: ", err.Error())
+				FcAssert(false)
+			}
+			keyMap[pub] = *privateKey
+		}
 
-	return nil
+		w.Keys = keyMap
+		w.checksum = pk.CheckSum
+	}).EosRethrowExceptions(&WalletInvalidPasswordException{}, "Invalid password for wallet: %s", w.GetWalletFilename()).End()
+
 }
 
 func (w *SoftWallet) CheckPassword(password string) {
@@ -168,83 +155,31 @@ func (w *SoftWallet) CheckPassword(password string) {
 }
 
 //SetPassword Sets a new password on the wallet
-func (w *SoftWallet) SetPassword(password string) error {
-	if !w.isnew() {
-		fmt.Println("old ")
-		if !w.isLocked() {
-			return ErrWalletLocked
-		}
+func (w *SoftWallet) SetPassword(password string) {
+	if !w.isNew() {
+		EosAssert(!w.isLocked(), &WalletLockedException{}, "The wallet must be unlocked before the password can be set")
 	}
-
 	w.checksum = hash512(password)
 	w.Lock()
-	return nil
 }
 
-// func (w *SoftWallet) ListKeys(password string) []Keyspair {
-// 	return nil
-// }
 func (w *SoftWallet) ListPublicKeys(password string) []ecc.PublicKey {
 
 	return nil
 }
-func (w *SoftWallet) LoadWalletFile() bool { //TODO need filename ?
-	// TODO:  Merge imported wallet with existing wallet,
-	//        instead of replacing it
-
-	walletFile, err := os.Open(w.walletFilename)
-	defer walletFile.Close()
+func (w *SoftWallet) LoadWalletFile() bool {
+	contents, err := ioutil.ReadFile(w.walletFilename)
 	if err != nil {
-		fmt.Println(err)
+		fmt.Printf("read file from %s   :%s\n", w.walletFilename, err)
 		return false
 	}
-	buf := make([]byte, 1024) //TODO
-	lenth, err := walletFile.Read(buf)
+	err = json.Unmarshal(contents, &w.wallet)
 	if err != nil {
-		fmt.Println(w.walletFilename, string(buf[:lenth]), err)
+		fmt.Println("Unmarshal wallet: ", err)
 		return false
 	}
-	err = json.Unmarshal(buf[:lenth], &w.wallet)
-	if err != nil {
-		fmt.Println(err)
-		return false
-	}
-	// fmt.Println("wallet: ", w.wallet.CipherKeys)
 	return true
 }
-
-// if( wallet_filename == "" )
-//    wallet_filename = _wallet_filename;
-
-// if( ! fc::exists( wallet_filename ) )
-//    return false;
-
-// _wallet = fc::json::from_file( wallet_filename ).as< wallet_data >();
-
-// return true;
-
-// func (w *SoftWallet) SaveWalletFile(walletFilename string) {
-// func (w *SoftWallet) SaveWalletFile() (err error) { //TODO need walletFilename ?
-// 	w.encryptKeys()
-// 	fmt.Printf("Saving wallet to file %s\n", walletFilename)
-
-// 	data, err := json.Marshal(w)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	walletFile, err := os.OpenFile(walletFilename, os.O_RDWR|os.O_CREATE, 0766)
-// 	defer walletFile.Close()
-// 	_, err = walletFile.Write(data)
-// 	if err != nil {
-// 		return err
-// 	}
-// 	return nil
-// }
-
-// func (w CipherKeys) MarshalJSON() ([]byte, error) {
-
-// 	return json.Marshal(hex.EncodeToString(w))
-// }
 
 func (w *SoftWallet) SaveWalletFile() (err error) { //TODO need walletFilename ?
 
@@ -279,7 +214,6 @@ func (w *SoftWallet) ImportKey(wifKey string) (n bool, err error) {
 		return false, err
 	}
 	wifPubKey := priv.PublicKey()
-	// w.Keys = make(map[ecc.PublicKey]ecc.PrivateKey, 0)
 	if _, find := w.Keys[wifPubKey]; !find {
 		w.Keys[wifPubKey] = *priv
 		return true, nil
@@ -292,12 +226,23 @@ func (w *SoftWallet) RemoveKey(key string) bool {
 	return true
 }
 func (w *SoftWallet) CreateKey(keyType string) string {
-	return "test"
-}
+	if len(keyType) == 0 {
+		keyType = defaultKeyType
+	}
+	var privKey *ecc.PrivateKey
+	switch keyType {
+	case "K1":
+		privKey, _ = ecc.NewRandomPrivateKey()
+	case "R1":
+		privKey, _ = ecc.NewRandomPrivateKey() //TODO now not suppoted r1
 
-// func (w *SoftWallet) TrySignDigest(digest []byte, pubkey ecc.PublicKey) ecc.Signature {
-// 	return nil
-// }
+	default:
+		EosThrow(&UnsupportedKeyTypeException{}, "Key type %s not supported by software wallet", keyType)
+	}
+
+	w.ImportKey(privKey.String())
+	return privKey.PublicKey().String()
+}
 
 func (w *SoftWallet) encryptKeys() (err error) {
 	if !w.isLocked() {
@@ -319,36 +264,6 @@ func (w *SoftWallet) encryptKeys() (err error) {
 	return nil
 }
 
-func hash512(str string) (s []byte) {
-	h := sha512.New()
-	_, _ = h.Write([]byte(str))
-	s = h.Sum(nil)
-	return
-}
-
-func getdata(walletname, password string) map[ecc.PublicKey]ecc.PrivateKey {
-	file, err := os.Open(walletname)
-	if err != nil {
-		fmt.Println(err)
-	}
-	buf := make([]byte, 1024)
-	lenth, _ := file.Read(buf) //TODO lenth > 1024?
-	file.Close()
-
-	wallet := WalletData{}
-	json.Unmarshal(buf[:lenth], &wallet)
-
-	deckey := hash512(password)
-	decresult, err := Decrypt(string(deckey[:]), wallet.CipherKeys)
-
-	var data PlainKeys
-	err = rlp.DecodeBytes(decresult, &data)
-	for pub, priv := range data.Keys {
-		fmt.Println("keypairs: ", pub, priv)
-	}
-	return data.Keys
-}
-
 func (w *SoftWallet) trySignDigest(digest []byte, publicKey ecc.PublicKey) *ecc.Signature {
 	it, ok := w.Keys[publicKey]
 	if !ok {
@@ -361,4 +276,10 @@ func (w *SoftWallet) trySignDigest(digest []byte, publicKey ecc.PublicKey) *ecc.
 		return ecc.NewSigNil()
 	}
 	return &sig
+}
+
+func hash512(str string) []byte {
+	h := sha512.New()
+	_, _ = h.Write([]byte(str))
+	return h.Sum(nil)
 }

@@ -6,16 +6,18 @@ import (
 	"github.com/eosspark/eos-go/chain/abi_serializer"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
+	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/eosspark/eos-go/entity"
 	"github.com/eosspark/eos-go/log"
 	"io/ioutil"
+	"math"
 )
 
 var producer = common.N("producer1111")
 
 type EosioSystemTester struct {
-	BaseTester
+	ValidatingTester
 	abiSer      abi_serializer.AbiSerializer
 	tokenAbiSer abi_serializer.AbiSerializer
 }
@@ -27,8 +29,13 @@ func newEosioSystemTester(pushGenesis bool, readMode DBReadMode) *EosioSystemTes
 	e.AbiSerializerMaxTime = 1000 * 1000
 	e.ChainTransactions = make(map[common.BlockIdType]types.TransactionReceipt)
 	e.LastProducedBlock = make(map[common.AccountName]common.BlockIdType)
+	e.VCfg = *newConfig(readMode)
+	e.VCfg.BlocksDir = common.DefaultConfig.ValidatingBlocksDirName
+	e.VCfg.StateDir = common.DefaultConfig.ValidatingStateDirName
+	e.VCfg.ReversibleDir = common.DefaultConfig.ValidatingReversibleBlocksDirName
 
-	e.init(pushGenesis, readMode)
+	e.ValidatingControl = NewController(&e.VCfg)
+	e.init(true, readMode)
 	return e
 }
 
@@ -53,8 +60,7 @@ func initEosioSystemTester() *EosioSystemTester {
 	if !abi_serializer.ToABI(accnt.Abi, &abiDef) {
 		log.Error("eosio_system_tester::initEosioSystemTester failed with ToAbi")
 	}
-	//TODO
-	//e.tokenAbiSer.SetAbi(&abiDef,&e.AbiSerializerMaxTime)
+	e.tokenAbiSer.SetAbi(&abiDef, e.AbiSerializerMaxTime)
 	e.CreateCurrency(eosioToken, common.DefaultConfig.SystemAccountName, CoreFromString("10000000000.0000"))
 	e.Issue(common.DefaultConfig.SystemAccountName, CoreFromString("1000000000.0000"), common.DefaultConfig.SystemAccountName)
 	currencyBalance := e.GetBalance(eosio)
@@ -70,7 +76,11 @@ func initEosioSystemTester() *EosioSystemTester {
 	abiName = "test_contracts/eosio.system.abi"
 	abi, _ = ioutil.ReadFile(abiName)
 	e.SetAbi(eosio, abi, nil)
-
+	abiDef = abi_serializer.AbiDef{}
+	if !abi_serializer.ToABI(accnt.Abi, &abiDef) {
+		log.Error("eosio_system_tester::initEosioSystemTester failed with ToAbi")
+	}
+	e.abiSer.SetAbi(&abiDef, e.AbiSerializerMaxTime)
 	accnt = entity.AccountObject{Name: eosio}
 	e.Control.DB.Find("byName", accnt, &accnt)
 	abiDef = abi_serializer.AbiDef{}
@@ -352,6 +362,29 @@ func (e EosioSystemTester) Stake(from common.AccountName, to common.AccountName,
 	return e.EsPushAction(&from, &act, &stake, true)
 }
 
+func (e EosioSystemTester) StakeWithTransfer(from common.AccountName, to common.AccountName, net common.Asset, cpu common.Asset) ActionResult {
+	stake := common.Variants{
+		"from":               from,
+		"receiver":           to,
+		"stake_net_quantity": net,
+		"stake_cpu_quantity": cpu,
+		"transfer":           true,
+	}
+	act := common.N("delegatebw")
+	return e.EsPushAction(&from, &act, &stake, true)
+}
+
+func (e EosioSystemTester) UnStake(from common.AccountName, to common.AccountName, net common.Asset, cpu common.Asset) ActionResult {
+	unStake := common.Variants{
+		"from":                 from,
+		"receiver":             to,
+		"unstake_net_quantity": net,
+		"unstake_cpu_quantity": cpu,
+	}
+	act := common.N("undelegatebw")
+	return e.EsPushAction(&from, &act, &unStake, true)
+}
+
 func (e EosioSystemTester) RegProducer(acnt common.AccountName) ActionResult {
 	regproducer := common.Variants{
 		"producer":     acnt,
@@ -367,6 +400,17 @@ func (e EosioSystemTester) RegProducer(acnt common.AccountName) ActionResult {
 	return r
 }
 
+func (e EosioSystemTester) Vote(voter common.AccountName, producers []common.AccountName, proxy common.AccountName) ActionResult {
+	vote := common.Variants{
+		"voter":     voter,
+		"proxy":     proxy,
+		"producers": producers,
+	}
+	act := common.N("voteproducer")
+	r := e.EsPushAction(&voter, &act, &vote, true)
+	return r
+}
+
 func (e EosioSystemTester) GetBalance(act common.AccountName) common.Asset {
 	PrimaryKey := uint64(CORE_SYMBOL.ToSymbolCode())
 	data := e.GetRowByAccount(uint64(eosioToken), uint64(act), uint64(common.N("accounts")), PrimaryKey)
@@ -379,14 +423,14 @@ func (e EosioSystemTester) GetBalance(act common.AccountName) common.Asset {
 	}
 }
 
-func (e EosioSystemTester) GetTotalStake(act uint64) common.Variants {
+func (e EosioSystemTester) GetTotalStake(act common.AccountName) common.Variants {
 	type UserResources struct {
 		Owner     common.AccountName
 		NetWeight common.Asset
 		CpuWeight common.Asset
-		RamBytes  int64
+		RamBytes  uint64
 	}
-	data := e.GetRowByAccount(uint64(eosio), uint64(act), uint64(common.N("userres")), act)
+	data := e.GetRowByAccount(uint64(eosio), uint64(act), uint64(common.N("userres")), uint64(act))
 	if len(data) == 0 {
 		return common.Variants{}
 	} else {
@@ -398,6 +442,63 @@ func (e EosioSystemTester) GetTotalStake(act uint64) common.Variants {
 			"cpu_weight": res.CpuWeight,
 			"ram_bytes":  res.RamBytes,
 		}
+	}
+}
+
+func (e EosioSystemTester) GetVoterInfo(act common.AccountName) common.Variants {
+	type VoterInfo struct {
+		Owner             common.AccountName
+		Proxy             common.AccountName
+		Producers         []common.AccountName
+		Staked            int64
+		LastVoteWeight    float64
+		ProxiedVoteWeight float64
+		IsProxy           bool
+	}
+	data := e.GetRowByAccount(uint64(eosio), uint64(eosio), uint64(common.N("voters")), uint64(act))
+	if len(data) == 0 {
+		return common.Variants{}
+	} else {
+		res := VoterInfo{}
+		rlp.DecodeBytes(data, &res)
+		return common.Variants{
+			"owner":               res.Owner,
+			"proxy":               res.Proxy,
+			"producers":           res.Producers,
+			"staked":              res.Staked,
+			"last_vote_weight":    res.LastVoteWeight,
+			"proxied_vote_weight": res.ProxiedVoteWeight,
+			"is_proxy":            res.IsProxy,
+		}
+	}
+}
+
+func (e EosioSystemTester) GetProducerInfo(act common.AccountName) common.Variants {
+	type ProducerInfo struct {
+		Owner         common.AccountName
+		TotalVotes    float64
+		ProducerKey   ecc.PublicKey
+		IsActive      bool
+		Url           string
+		UnpaidBlocks  uint32
+		LastClaimTime uint64
+		Location      uint16
+	}
+	data := e.GetRowByAccount(uint64(eosio), uint64(eosio), uint64(common.N("producers")), uint64(act))
+	res := ProducerInfo{}
+	err := rlp.DecodeBytes(data, &res)
+	if err != nil {
+		fmt.Println(err)
+	}
+	return common.Variants{
+		"owner":           res.Owner,
+		"total_votes":     res.TotalVotes,
+		"producer_key":    res.ProducerKey,
+		"is_active":       res.IsActive,
+		"url":             res.Url,
+		"unpaid_blocks":   res.UnpaidBlocks,
+		"last_claim_time": res.LastClaimTime,
+		"location":        res.Location,
 	}
 }
 
@@ -454,6 +555,33 @@ func (e EosioSystemTester) Transfer(from common.Name, to common.Name, amount com
 	)
 }
 
+func (e EosioSystemTester) Stake2Votes(stake common.Asset) float64 {
+	now := e.Control.PendingBlockTime().TimeSinceEpoch().Count() / 1000000
+	return float64(stake.Amount) *  math.Pow(float64(2), float64((now - common.DefaultConfig.BlockTimestampEpochMs / 1000) / (86400 * 7)) / float64(52))
+}
+
+func (e EosioSystemTester) GetRefundRequest(account common.AccountName) common.Variants {
+	type RefundRequest struct {
+		Owner       common.AccountName
+		RequestTime common.TimePointSec
+		NetAmount   common.Asset
+		CpuAmount   common.Asset
+	}
+	data := e.GetRowByAccount(uint64(eosio), uint64(account), uint64(common.N("refunds")), uint64(account))
+	if len(data) == 0 {
+		return common.Variants{}
+	} else {
+		res := RefundRequest{}
+		rlp.DecodeBytes(data, &res)
+		return common.Variants{
+			"owner":        res.Owner,
+			"request_time": res.RequestTime,
+			"net_amount":   res.NetAmount,
+			"cpu_amount":   res.CpuAmount,
+		}
+	}
+}
+
 func (e EosioSystemTester) Cross15PercentThreshold() {
 	e.SetupProducerAccounts([]common.AccountName{producer})
 	e.RegProducer(producer)
@@ -477,9 +605,8 @@ func (e EosioSystemTester) Cross15PercentThreshold() {
 		voteproducerData := common.Variants{
 			"voter":     producer,
 			"proxy":     common.AccountName(0),
-			"producers": []common.AccountName{/*common.AccountName(math.MaxUint64),*/ producer},
+			"producers": []common.AccountName{ /*common.AccountName(1),*/ producer},
 		}
-		fmt.Println("voteproducerData",voteproducerData)
 		voteproducer := e.GetAction(
 			eosio,
 			common.N("voteproducer"),
@@ -509,4 +636,22 @@ func (e EosioSystemTester) Cross15PercentThreshold() {
 		e.PushTransaction(&trx, common.MaxTimePoint(), e.DefaultBilledCpuTimeUs)
 	}
 
+}
+
+func (e EosioSystemTester) Voter(acct common.AccountName) common.Variants {
+	return common.Variants{
+		"owner":               acct,
+		"proxy":               common.AccountName(0),
+		"producers":           []common.AccountName{},
+		"staked":              int64(0),
+		"last_vote_weight":    float64(0),
+ 		"proxied_vote_weight": float64(0),
+		"is_proxy":            false,
+	}
+}
+
+func (e EosioSystemTester) VoterAccountAsset(acct common.AccountName, voteStake common.Asset) common.Variants {
+	voter := e.Voter(acct)
+	voter["staked"] = voteStake.Amount
+	return voter
 }

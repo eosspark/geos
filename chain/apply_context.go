@@ -33,11 +33,11 @@ type ApplyContext struct {
 	UsedContestFreeApi bool
 	Trace              types.ActionTrace
 
-	idx64     *Idx64
-	idxDouble *IdxDouble
-	// IDX128        GenericIndex
-	// IDX256        GenericIndex
-	// IDXLongDouble GenericIndex
+	idx64         *Idx64
+	idx128        *Idx128
+	idx256        *Idx256
+	idxDouble     *IdxDouble
+	idxLongDouble *IdxLongDouble
 
 	//GenericIndex
 	KeyvalCache          *iteratorCache
@@ -77,13 +77,17 @@ func NewApplyContext(control *Controller, trxContext *TransactionContext, act *t
 	applyContext.CfaInlineActions = []types.Action{}
 
 	applyContext.idx64 = NewIdx64(applyContext)
+	applyContext.idx128 = NewIdx128(applyContext)
+	applyContext.idx256 = NewIdx256(applyContext)
 	applyContext.idxDouble = NewIdxDouble(applyContext)
+	applyContext.idxLongDouble = NewIdxLongDouble(applyContext)
+
 	applyContext.AccountRamDeltas = *treeset.NewWith(types.TypeAccountDelta, types.CompareAccountDelta)
 	applyContext.ilog = log.New("Apply_Context")
 	logHandler := log.StreamHandler(os.Stdout, log.TerminalFormat(true))
 	//applyContext.ilog.SetHandler(log.LvlFilterHandler(log.LvlDebug, logHandler))
 	applyContext.ilog.SetHandler(log.LvlFilterHandler(log.LvlInfo, logHandler))
-	//applyContext.ilog.SetHandler(log.DiscardHandler())
+	applyContext.ilog.SetHandler(log.DiscardHandler())
 	return applyContext
 
 }
@@ -1041,11 +1045,9 @@ func (a *ApplyContext) Idx64Update(iterator int, payer uint64, value *uint64) {
 	a.idx64.update(iterator, payer, value)
 }
 func (a *ApplyContext) Idx64FindSecondary(code uint64, scope uint64, table uint64, secondary *uint64, primary *uint64) int {
-	//a.idx64.update(iterator, payer, value)
 	return a.idx64.findSecondary(code, scope, table, secondary, primary)
 }
 func (a *ApplyContext) Idx64Lowerbound(code uint64, scope uint64, table uint64, secondary *uint64, primary *uint64) int {
-	//a.idx64.update(iterator, payer, value)
 	return a.idx64.lowerbound(code, scope, table, secondary, primary)
 }
 func (a *ApplyContext) Idx64Upperbound(code uint64, scope uint64, table uint64, secondary *uint64, primary *uint64) int {
@@ -1061,8 +1063,69 @@ func (a *ApplyContext) Idx64Previous(iterator int, primary *uint64) int {
 	return a.idx64.previous(iterator, primary)
 }
 func (a *ApplyContext) Idx64FindPrimary(code uint64, scope uint64, table uint64, secondary *uint64, primary uint64) int {
-	//a.idx64.update(iterator, payer, value)
 	return a.idx64.findPrimary(code, scope, table, secondary, primary)
+}
+
+func (a *ApplyContext) Idx128Store(scope uint64, table uint64, payer uint64, id uint64, value *eos_math.Uint128) int {
+	return a.idx128.store(scope, table, payer, id, value)
+}
+func (a *ApplyContext) Idx128Remove(iterator int) {
+	a.idx128.remove(iterator)
+}
+func (a *ApplyContext) Idx128Update(iterator int, payer uint64, value *eos_math.Uint128) {
+	a.idx128.update(iterator, payer, value)
+}
+func (a *ApplyContext) Idx128FindSecondary(code uint64, scope uint64, table uint64, secondary *eos_math.Uint128, primary *uint64) int {
+	return a.idx128.findSecondary(code, scope, table, secondary, primary)
+}
+func (a *ApplyContext) Idx128Lowerbound(code uint64, scope uint64, table uint64, secondary *eos_math.Uint128, primary *uint64) int {
+	return a.idx128.lowerbound(code, scope, table, secondary, primary)
+}
+func (a *ApplyContext) Idx128Upperbound(code uint64, scope uint64, table uint64, secondary *eos_math.Uint128, primary *uint64) int {
+	return a.idx128.upperbound(code, scope, table, secondary, primary)
+}
+func (a *ApplyContext) Idx128End(code uint64, scope uint64, table uint64) int {
+	return a.idx128.end(code, scope, table)
+}
+func (a *ApplyContext) Idx128Next(iterator int, primary *uint64) int {
+	return a.idx128.next(iterator, primary)
+}
+func (a *ApplyContext) Idx128Previous(iterator int, primary *uint64) int {
+	return a.idx128.previous(iterator, primary)
+}
+func (a *ApplyContext) Idx128FindPrimary(code uint64, scope uint64, table uint64, secondary *eos_math.Uint128, primary uint64) int {
+	return a.idx128.findPrimary(code, scope, table, secondary, primary)
+}
+
+func (a *ApplyContext) Idx256Store(scope uint64, table uint64, payer uint64, id uint64, value *eos_math.Uint256) int {
+	return a.idx256.store(scope, table, payer, id, value)
+}
+func (a *ApplyContext) Idx256Remove(iterator int) {
+	a.idx256.remove(iterator)
+}
+func (a *ApplyContext) Idx256Update(iterator int, payer uint64, value *eos_math.Uint256) {
+	a.idx256.update(iterator, payer, value)
+}
+func (a *ApplyContext) Idx256FindSecondary(code uint64, scope uint64, table uint64, secondary *eos_math.Uint256, primary *uint64) int {
+	return a.idx256.findSecondary(code, scope, table, secondary, primary)
+}
+func (a *ApplyContext) Idx256Lowerbound(code uint64, scope uint64, table uint64, secondary *eos_math.Uint256, primary *uint64) int {
+	return a.idx256.lowerbound(code, scope, table, secondary, primary)
+}
+func (a *ApplyContext) Idx256Upperbound(code uint64, scope uint64, table uint64, secondary *eos_math.Uint256, primary *uint64) int {
+	return a.idx256.upperbound(code, scope, table, secondary, primary)
+}
+func (a *ApplyContext) Idx256End(code uint64, scope uint64, table uint64) int {
+	return a.idx256.end(code, scope, table)
+}
+func (a *ApplyContext) Idx256Next(iterator int, primary *uint64) int {
+	return a.idx256.next(iterator, primary)
+}
+func (a *ApplyContext) Idx256Previous(iterator int, primary *uint64) int {
+	return a.idx256.previous(iterator, primary)
+}
+func (a *ApplyContext) Idx256FindPrimary(code uint64, scope uint64, table uint64, secondary *eos_math.Uint256, primary uint64) int {
+	return a.idx256.findPrimary(code, scope, table, secondary, primary)
 }
 
 func (a *ApplyContext) IdxDoubleStore(scope uint64, table uint64, payer uint64, id uint64, value *eos_math.Float64) int {
@@ -1094,6 +1157,37 @@ func (a *ApplyContext) IdxDoublePrevious(iterator int, primary *uint64) int {
 }
 func (a *ApplyContext) IdxDoubleFindPrimary(code uint64, scope uint64, table uint64, secondary *eos_math.Float64, primary uint64) int {
 	return a.idxDouble.findPrimary(code, scope, table, secondary, primary)
+}
+
+func (a *ApplyContext) IdxLongDoubleStore(scope uint64, table uint64, payer uint64, id uint64, value *eos_math.Float128) int {
+	return a.idxLongDouble.store(scope, table, payer, id, value)
+}
+func (a *ApplyContext) IdxLongDoubleRemove(iterator int) {
+	a.idxLongDouble.remove(iterator)
+}
+func (a *ApplyContext) IdxLongDoubleUpdate(iterator int, payer uint64, value *eos_math.Float128) {
+	a.idxLongDouble.update(iterator, payer, value)
+}
+func (a *ApplyContext) IdxLongDoubleFindSecondary(code uint64, scope uint64, table uint64, secondary *eos_math.Float128, primary *uint64) int {
+	return a.idxLongDouble.findSecondary(code, scope, table, secondary, primary)
+}
+func (a *ApplyContext) IdxLongDoubleLowerbound(code uint64, scope uint64, table uint64, secondary *eos_math.Float128, primary *uint64) int {
+	return a.idxLongDouble.lowerbound(code, scope, table, secondary, primary)
+}
+func (a *ApplyContext) IdxLongDoubleUpperbound(code uint64, scope uint64, table uint64, secondary *eos_math.Float128, primary *uint64) int {
+	return a.idxLongDouble.upperbound(code, scope, table, secondary, primary)
+}
+func (a *ApplyContext) IdxLongDoubleEnd(code uint64, scope uint64, table uint64) int {
+	return a.idxLongDouble.end(code, scope, table)
+}
+func (a *ApplyContext) IdxLongDoubleNext(iterator int, primary *uint64) int {
+	return a.idxLongDouble.next(iterator, primary)
+}
+func (a *ApplyContext) IdxLongDoublePrevious(iterator int, primary *uint64) int {
+	return a.idxLongDouble.previous(iterator, primary)
+}
+func (a *ApplyContext) IdxLongDoubleFindPrimary(code uint64, scope uint64, table uint64, secondary *eos_math.Float128, primary uint64) int {
+	return a.idxLongDouble.findPrimary(code, scope, table, secondary, primary)
 }
 
 func (a *ApplyContext) nextGlobalSequence() uint64 {

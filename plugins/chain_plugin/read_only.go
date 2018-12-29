@@ -56,23 +56,6 @@ func (ro *ReadOnly) WalkKeyValueTable(code, scope, table common.Name, f func(int
 
 }
 
-type GetInfoResult struct {
-	ServerVersion            string             `json:"server_version"`
-	ChainID                  common.ChainIdType `json:"chain_id"`
-	HeadBlockNum             uint32             `json:"head_block_num"`
-	LastIrreversibleBlockNum uint32             `json:"last_irreversible_block_num"`
-	LastIrreversibleBlockID  common.BlockIdType `json:"last_irreversible_block_id"`
-	HeadBlockID              common.BlockIdType `json:"head_block_id"`
-	HeadBlockTime            common.TimePoint   `json:"head_block_time"`
-	HeadBlockProducer        common.AccountName `json:"head_block_producer"`
-
-	VirtualBlockCPULimit uint64 `json:"virtual_block_cpu_limit"`
-	VirtualBlockNetLimit uint64 `json:"virtual_block_net_limit"`
-	BlockCPULimit        uint64 `json:"block_cpu_limit"`
-	BlockNetLimit        uint64 `json:"block_net_limit"`
-	ServerVersionString  string `json:"server_version_string"`
-}
-
 func (ro *ReadOnly) GetInfo() *GetInfoResult {
 	rm := ro.db.GetMutableResourceLimitsManager()
 	return &GetInfoResult{
@@ -90,17 +73,6 @@ func (ro *ReadOnly) GetInfo() *GetInfoResult {
 		BlockNetLimit:            rm.GetBlockNetLimit(),
 		ServerVersionString:      app.App().VersionString(),
 	}
-}
-
-type GetBlockParams struct {
-	BlockNumOrID string `json:"block_num_or_id"`
-}
-
-type GetBlockResult struct {
-	SignedBlock    *types.SignedBlock `json:"signed_block"`
-	ID             common.BlockIdType `json:"id"`
-	BlockNum       uint32             `json:"block_num"`
-	RefBlockPrefix uint32             `json:"ref_block_prefix"`
 }
 
 func (ro *ReadOnly) GetBlock(params GetBlockParams) *GetBlockResult {
@@ -132,12 +104,6 @@ func (ro *ReadOnly) GetBlock(params GetBlockParams) *GetBlockResult {
 	}
 }
 
-type GetBlockHeaderStateParams struct {
-	BlockNumOrID string `json:"block_num_or_id"`
-}
-
-type GetBlockHeaderStateResult = types.BlockHeaderState
-
 func (ro *ReadOnly) GetBlockHeaderState(params GetBlockHeaderStateParams) GetBlockHeaderStateResult {
 	var blockNum uint64
 	var b *types.BlockState
@@ -155,38 +121,6 @@ func (ro *ReadOnly) GetBlockHeaderState(params GetBlockHeaderStateParams) GetBlo
 	EosAssert(b != nil, &UnknownBlockException{}, "Could not find reversible block: %s", params.BlockNumOrID)
 
 	return b.BlockHeaderState
-}
-
-type GetAccountParams struct {
-	AccountName        common.AccountName `json:"account_name"`
-	ExpectedCoreSymbol *common.Symbol     `json:"expected_core_symbol"`
-}
-
-type GetAccountResult struct {
-	AccountName   common.AccountName `json:"account_name"`
-	HeadBlockNum  uint32             `json:"head_block_num"`
-	HeadBlockTime common.TimePoint   `json:"head_block_time"`
-
-	Privileged     bool             `json:"privileged"`
-	LastCodeUpdate common.TimePoint `json:"last_code_update"`
-	Created        common.TimePoint `json:"created"`
-
-	CoreLiquidBalance common.Asset `json:"core_liquid_balance"`
-
-	RAMQuota  int64 `json:"ram_quota"`
-	NetWeight int64 `json:"net_weight"`
-	CPUWeight int64 `json:"cpu_weight"`
-
-	NetLimit types.AccountResourceLimit `json:"net_limit"`
-	CpuLimit types.AccountResourceLimit `json:"cpu_limit"`
-	RAMUsage int64                      `json:"ram_usage"`
-
-	Permissions []types.Permission `json:"permissions"`
-
-	TotalResources         common.Variant `json:"total_resources"`
-	SelfDelegatedBandwidth common.Variant `json:"self_delegated_bandwidth"`
-	RefundRequest          common.Variant `json:"refund_request"`
-	VoterInfo              common.Variant `json:"voter_info"`
 }
 
 func (ro *ReadOnly) GetAccount(params GetAccountParams) GetAccountResult {
@@ -313,15 +247,6 @@ func (ro *ReadOnly) GetAccount(params GetAccountParams) GetAccountResult {
 	return result
 }
 
-type GetAbiParams struct {
-	AccountName common.Name `json:"account_name"`
-}
-
-type GetAbiResult struct {
-	AccountName common.Name           `json:"account_name"`
-	Abi         abi_serializer.AbiDef `json:"abi"`
-}
-
 func (ro *ReadOnly) GetAbi(params GetAbiParams) GetAbiResult {
 	result := GetAbiResult{}
 	result.AccountName = params.AccountName
@@ -329,8 +254,9 @@ func (ro *ReadOnly) GetAbi(params GetAbiParams) GetAbiResult {
 	d := ro.db.DataBase()
 
 	account := entity.AccountObject{Name: params.AccountName}
-	err := d.Find("byName", account, &account)
-	EosAssert(err == nil, &DatabaseException{}, err.Error())
+	if err := d.Find("byName", account, &account); err != nil {
+		EosThrow(&DatabaseException{}, err.Error())
+	}
 
 	var abi abi_serializer.AbiDef
 	if abi_serializer.ToABI(account.Abi, &abi) {
@@ -340,26 +266,15 @@ func (ro *ReadOnly) GetAbi(params GetAbiParams) GetAbiResult {
 	return result
 }
 
-type GetCodeParams struct {
-	AccountName common.Name `json:"account_name"`
-	CodeAsWasm  bool        `json:"code_as_wasm"`
-}
-
-type GetCodeResult struct {
-	AccountName common.Name           `json:"account_name"`
-	Wast        string                `json:"wast"`
-	Wasm        string                `json:"wasm"`
-	CodeHash    crypto.Sha256         `json:"code_hash"`
-	Abi         abi_serializer.AbiDef `json:"abi"`
-}
-
 func (ro *ReadOnly) GetCode(params GetCodeParams) GetCodeResult {
 	result := GetCodeResult{AccountName: params.AccountName}
 	d := ro.db.DataBase()
 
 	account := entity.AccountObject{Name: params.AccountName}
-	err := d.Find("byName", account, &account)
-	EosAssert(err == nil, &DatabaseException{}, err.Error())
+	if err := d.Find("byName", account, &account); err != nil {
+		EosThrow(&DatabaseException{}, err.Error())
+	}
+
 	EosAssert(params.CodeAsWasm, &UnsupportedFeature{}, "Returning WAST from get_code is no longer supported")
 
 	if account.Code.Size() > 0 {
@@ -373,14 +288,6 @@ func (ro *ReadOnly) GetCode(params GetCodeParams) GetCodeResult {
 	}
 
 	return result
-}
-
-type GetRequiredKeysParams struct {
-	Transaction   common.Variant  `json:"transaction"`
-	AvailableKeys []ecc.PublicKey `json:"available_keys"`
-}
-type GetRequiredKeysResult struct {
-	RequiredKeys []ecc.PublicKey `json:"required_keys"`
 }
 
 func (ro *ReadOnly) GetRequiredKeys(params GetRequiredKeysParams) GetRequiredKeysResult {
@@ -401,23 +308,12 @@ func (ro *ReadOnly) GetRequiredKeys(params GetRequiredKeysParams) GetRequiredKey
 	return GetRequiredKeysResult{RequiredKeys: result}
 }
 
-//rekey = {"available_keys":[],"transaction":{"expiration":19991,"ref_block_num":90,"ref_block_prefix":888,"max_net_usage_words":0,"max_cpu_usage_ms":0,"delay_sec":899,"context_free_actions":"hello","actions":null,"transaction_extensions":null,"signatures":[],"context_free_data":[]}}
-type GetCurrencyBalanceParams struct {
-	Code    common.Name
-	Account common.Name
-	Symbol  string
-}
-
-type GetCurrencyBalanceResult = []common.Asset
-
 func (ro *ReadOnly) GetCurrencyBalance(params GetCurrencyBalanceParams) GetCurrencyBalanceResult {
 	return GetCurrencyBalanceResult{} //TODO: get_currency_balance_result
 }
 
-type GetProducerScheduleResult struct {
-	Active   common.Variant
-	Pending  common.Variant
-	Proposed common.Variant
+func (ro *ReadOnly) GetCurrencyStats(params GetCurrencyStatsParams) GEtCurrencyStatsResult {
+	return make(map[string]GetCurrencyStats1) //TODO  get_currency_stats_result
 }
 
 func (ro *ReadOnly) GetProducerSchedule() GetProducerScheduleResult {

@@ -15,6 +15,7 @@ import (
 	. "github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/log"
 	"github.com/eosspark/eos-go/plugins/appbase/app/include"
+	"github.com/eosspark/eos-go/plugins/chain_interface"
 	"github.com/eosspark/eos-go/wasmgo"
 	"os"
 )
@@ -201,7 +202,8 @@ func GetControllerInstance() *Controller {
 }
 
 func validPath() {
-	path := []string{common.DefaultConfig.DefaultStateDirName, common.DefaultConfig.DefaultBlocksDirName, common.DefaultConfig.DefaultReversibleBlocksDirName}
+	path := []string{common.DefaultConfig.DefaultStateDirName, common.DefaultConfig.DefaultBlocksDirName, common.DefaultConfig.DefaultReversibleBlocksDirName,
+		common.DefaultConfig.ValidatingBlocksDirName, common.DefaultConfig.ValidatingStateDirName, common.DefaultConfig.ValidatingReversibleBlocksDirName}
 	for _, d := range path {
 		_, err := os.Stat(d)
 		if os.IsNotExist(err) {
@@ -215,7 +217,7 @@ func validPath() {
 	}
 }
 func NewController(cfg *Config) *Controller {
-	isActiveController = true //controller is active
+	validPath()
 	db, err := database.NewDataBase(cfg.StateDir)
 	reversibleDB, err := database.NewDataBase(cfg.ReversibleDir)
 
@@ -227,7 +229,7 @@ func NewController(cfg *Config) *Controller {
 	con.DB = db
 	con.ReversibleBlocks = reversibleDB
 
-	con.Blog = NewBlockLog(common.DefaultConfig.DefaultBlocksDirName)
+	con.Blog = NewBlockLog(cfg.BlocksDir)
 
 	con.ForkDB, err = newForkDatabase(cfg.BlocksDir, common.DefaultConfig.ForkDbName, true)
 
@@ -258,9 +260,7 @@ func NewController(cfg *Config) *Controller {
 	con.SetApplayHandler(common.AccountName(common.N("eosio")), common.AccountName(common.N("eosio")),
 		common.ActionName(common.N("canceldelay")), applyEosioCanceldalay)
 	con.initialize()
-	/*fork_db.irreversible.connect( [&]( auto b ) {
-		on_irreversible(b);
-	})*/
+	con.ForkDB.Irreversible.Connect(&chain_interface.IrreversibleBlockCaller{Caller: con.OnIrreversible})
 
 	return con
 }
@@ -317,6 +317,7 @@ func newController() *Controller {
 	con.ResourceLimits = newResourceLimitsManager(con)
 	con.Authorization = newAuthorizationManager(con)
 	con.UnappliedTransactions = make(map[crypto.Sha256]types.TransactionMetadata)
+	con.ForkDB.Irreversible.Connect(&chain_interface.IrreversibleBlockCaller{Caller: con.OnIrreversible})
 	con.initialize()
 	return con
 }
@@ -362,27 +363,29 @@ func (c *Controller) FindApplyHandler(receiver common.AccountName,
 }
 
 func (c *Controller) OnIrreversible(s *types.BlockState) {
-	if !common.Empty(c.Blog.head) {
+	if common.Empty(c.Blog.head) {
 		c.Blog.ReadHead()
 	}
 	logHead := c.Blog.head
-	EosAssert(common.Empty(logHead), &BlockLogException{}, "block log head can not be found")
+	EosAssert(logHead != nil, &BlockLogException{}, "block log head can not be found")
 	lhBlockNum := logHead.BlockNumber()
 	c.DB.Commit(int64(s.BlockNum))
 	if s.BlockNum <= lhBlockNum {
 		return
 	}
-	EosAssert(s.BlockNum-1 == lhBlockNum, &UnlinkableBlockException{}, "unlinkable block", s.BlockNum, lhBlockNum)
-	EosAssert(s.Header.Previous == logHead.BlockID(), &UnlinkableBlockException{}, "irreversible doesn't link to block log head")
+	EosAssert(s.BlockNum-1 == lhBlockNum, &UnlinkableBlockException{}, "unlinkable block:%d,%d", s.BlockNum, lhBlockNum)
+	EosAssert(s.SignedBlock.Previous == logHead.BlockID(), &UnlinkableBlockException{}, "irreversible doesn't link to block log head")
 	c.Blog.Append(s.SignedBlock)
-	bs := types.BlockState{}
-	ubi, err := c.ReversibleBlocks.GetIndex("byNum", &bs)
+	rbi := entity.ReversibleBlockObject{}
+	ubi, err := c.ReversibleBlocks.GetIndex("byNum", &rbi)
 	if err != nil {
-		log.Error("Controller OnIrreversible ReversibleBlocks.GetIndex is error:%s", err)
+		EosThrow(&DatabaseGuardException{}, err.Error())
 	}
 	itr := ubi.Begin()
-	tbs := types.BlockState{}
-	err = itr.Data(&tbs)
+	tbs := entity.ReversibleBlockObject{}
+	if itr != nil {
+		err = itr.Data(&tbs)
+	}
 	for itr != ubi.End() && tbs.BlockNum <= s.BlockNum {
 		c.ReversibleBlocks.Remove(itr)
 		itr = ubi.Begin()
@@ -566,6 +569,7 @@ func (c *Controller) pushTransaction(trx *types.TransactionMetadata, deadLine co
 				c.Pending.PendingBlockState.Trxs = append(c.Pending.PendingBlockState.Trxs, trx)
 			} else {
 				r := types.TransactionReceiptHeader{}
+				r.Status = types.TransactionStatusExecuted
 				r.CpuUsageUs = uint32(trxContext.BilledCpuTimeUs)
 				r.NetUsageWords = uint32(trace.NetUsage / 8)
 				trace.Receipt = r
@@ -982,20 +986,21 @@ func scheduledFailureIsSubjective(e Exception) bool {
 	return (code == TxCpuUsageExceeded{}.Code()) || failureIsSubjective(e)
 }
 func (c *Controller) setActionMerkle() {
-	actionDigests := make([]crypto.Sha256, len(c.Pending.Actions))
+	actionDigests := make([]crypto.Sha256, 0, len(c.Pending.Actions))
 	for _, b := range c.Pending.Actions {
-		actionDigests = append(actionDigests, *crypto.Hash256(b.ActDigest))
+		actionDigests = append(actionDigests, b.Digest())
 	}
-	c.Pending.PendingBlockState.Header.ActionMRoot = common.CheckSum256Type(types.Merkle(actionDigests))
+	c.Pending.PendingBlockState.Header.ActionMRoot = types.Merkle(actionDigests)
 }
 
 func (c *Controller) setTrxMerkle() {
-	actionDigests := make([]crypto.Sha256, len(c.Pending.Actions))
+	trxDigests := make([]crypto.Sha256, 0, len(c.Pending.PendingBlockState.SignedBlock.Transactions))
 	for _, b := range c.Pending.PendingBlockState.SignedBlock.Transactions {
-		actionDigests = append(actionDigests, *crypto.Hash256(b.Digest()))
+		trxDigests = append(trxDigests, b.Digest())
 	}
-	c.Pending.PendingBlockState.Header.TransactionMRoot = common.CheckSum256Type(types.Merkle(actionDigests))
+	c.Pending.PendingBlockState.Header.TransactionMRoot = types.Merkle(trxDigests)
 }
+
 func (c *Controller) FinalizeBlock() {
 
 	EosAssert(c.Pending != nil, &BlockValidateException{}, "it is not valid to finalize when there is no pending block")
@@ -1063,11 +1068,11 @@ func (c *Controller) applyBlock(b *types.SignedBlock, s types.BlockStatus) {
 			} else {
 				EosAssert(false, &BlockValidateException{}, "encountered unexpected receipt type")
 			}
-			transactionFailed := common.Empty(trace) && common.Empty(trace.Except)
-			transactionCanFail := receipt.Status == types.TransactionStatusHardFail && common.Empty(receipt.Trx.TransactionID)
+			transactionFailed := !common.Empty(trace) && !common.Empty(trace.Except)
+			transactionCanFail := receipt.Status == types.TransactionStatusHardFail && receipt.Trx.PackedTransaction == nil
 			if transactionFailed && !transactionCanFail {
-				/*edump((*trace));
-				throw *trace->except;*/
+				log.Error(trace.Except.DetailMessage())
+				Throw(trace.Except)
 			}
 			EosAssert(len(c.Pending.PendingBlockState.SignedBlock.Transactions) > 0,
 				&BlockValidateException{}, "expected a block:%v,expected_receipt:%v", *b, receipt)
@@ -1093,7 +1098,8 @@ func (c *Controller) applyBlock(b *types.SignedBlock, s types.BlockStatus) {
 	}).Catch(func(ex Exception) {
 		log.Error("controller ApplyBlock is error:%s", ex.DetailMessage())
 		c.AbortBlock()
-	}).End()
+		Throw(ex)
+	}).FcLogAndRethrow().End()
 }
 
 func (c *Controller) CommitBlock(addToForkDb bool) {
@@ -1120,6 +1126,7 @@ func (c *Controller) CommitBlock(addToForkDb bool) {
 		c.AcceptedBlock.Emit(c.Pending.PendingBlockState)
 		//emit( self.accepted_block, pending->_pending_block_state )
 	}).Catch(func(e interface{}) {
+		c.Pending.PendingValid = true
 		c.AbortBlock()
 		Throw(e)
 	}).End()
@@ -1141,13 +1148,10 @@ func (c *Controller) PushBlock(b *types.SignedBlock, s types.BlockStatus) {
 		//TODO: add to forkdb
 		c.PreAcceptedBlock.Emit(b)
 		//emit(self.pre_accepted_block, b )
-		//trust := !c.Config.ForceAllChecks && (s == types.Irreversible || s == types.Validated)
-		//newHeaderState := c.ForkDB.AddSignedBlockState(b, trust)
-		exist, _ := c.Config.TrustedProducers.Find(func(index int, value interface{}) bool {
-			return c.Config.TrustedProducers.GetComparator()(value, b.Producer) == 0
-		})
+		trust := !c.Config.ForceAllChecks && (s == types.Irreversible || s == types.Validated)
+		/*newHeaderState :=*/ c.ForkDB.AddSignedBlock(b, trust)
 		//exist, _ := c.Config.trustedProducers.Find(&b.Producer)
-		if exist != -1 {
+		if c.Config.TrustedProducers.Contains(b.Producer) {
 			c.TrustedProducerLightValidation = true
 		}
 		//c.AcceptedBlockHeader.Emit(newHeaderState)
@@ -1183,14 +1187,14 @@ func (c *Controller) maybeSwitchForks(s types.BlockStatus) {
 			c.Head = newHead
 		}).Catch(func(e Exception) {
 			c.ForkDB.SetValidity(newHead, false)
-			EosThrow(e, "maybeSwitchForks is error:%v", e.DetailMessage())
+			Throw(e)
 		}).End()
 	} else if newHead.BlockId != c.Head.BlockId {
 		log.Info("switching forks from: %v (block number %v) to %v (block number %v)", c.Head.BlockId, c.Head.BlockNum, newHead.BlockId, newHead.BlockNum)
 		branches := c.ForkDB.FetchBranchFrom(&newHead.BlockId, &c.Head.BlockId)
 
 		for i := 0; i < len(branches.second); i++ {
-			c.ForkDB.MarkInCurrentChain(&branches.second[i], false)
+			c.ForkDB.MarkInCurrentChain(branches.second[i], false)
 			c.PopBlock()
 		}
 		length := len(branches.second) - 1
@@ -1205,18 +1209,18 @@ func (c *Controller) maybeSwitchForks(s types.BlockStatus) {
 				} else {
 					c.applyBlock(itr.SignedBlock, types.Complete)
 				}
-				c.Head = &itr
-				c.ForkDB.MarkInCurrentChain(&itr, true)
+				c.Head = itr
+				c.ForkDB.MarkInCurrentChain(itr, true)
 			}).Catch(func(e Exception) {
 				except = e
 			}).End()
 			if except == nil {
 				log.Error("exception thrown while switching forks :%s", except.DetailMessage())
-				c.ForkDB.SetValidity(&itr, false)
+				c.ForkDB.SetValidity(itr, false)
 				// pop all blocks from the bad fork
 				// ritr base is a forward itr to the last block successfully applied
 				for j := i; j < len(branches.first); j++ {
-					c.ForkDB.MarkInCurrentChain(&branches.first[j], true)
+					c.ForkDB.MarkInCurrentChain(branches.first[j], false)
 					c.PopBlock()
 				}
 				EosAssert(c.HeadBlockId() == branches.second[len(branches.second)-1].Header.Previous, &ForkDatabaseException{}, "loss of sync between fork_db and chainbase during fork switch reversal")
@@ -1224,10 +1228,10 @@ func (c *Controller) maybeSwitchForks(s types.BlockStatus) {
 				l := len(branches.second) - 1
 				for end := l; end >= 0; end-- {
 					c.applyBlock(branches.second[end].SignedBlock, types.Validated)
-					c.Head = &branches.second[end]
-					c.ForkDB.MarkInCurrentChain(&branches.second[end], true)
+					c.Head = branches.second[end]
+					c.ForkDB.MarkInCurrentChain(branches.second[end], true)
 				}
-				EosThrow(except, "maybeSwitchForks is error:%v", except.DetailMessage())
+				Throw(except)
 			}
 			log.Info("successfully switched fork to new head %v", newHead.BlockId)
 		}
@@ -1371,11 +1375,11 @@ func (c *Controller) LightValidationAllowed(dro bool) (b bool) {
 	}
 
 	pbStatus := c.Pending.BlockStatus
+
 	considerSkippingOnReplay := (pbStatus == types.Irreversible || pbStatus == types.Validated) && !dro
+	considerSkippingOnValidate := pbStatus == types.Complete && (c.Config.BlockValidationMode == LIGHT || c.TrustedProducerLightValidation)
 
-	considerSkippingOnvalidate := (pbStatus == types.Complete && c.Config.BlockValidationMode == LIGHT)
-
-	return considerSkippingOnReplay || considerSkippingOnvalidate
+	return considerSkippingOnReplay || considerSkippingOnValidate
 }
 
 func (c *Controller) LastIrreversibleBlockNum() uint32 {
@@ -1450,15 +1454,9 @@ func (c *Controller) GetBlockIdForNum(blockNum uint32) common.BlockIdType {
 
 func (c *Controller) CheckContractList(code common.AccountName) {
 	if c.Config.ContractWhitelist.Size() > 0 {
-		exist, _ := c.Config.ContractWhitelist.Find(func(index int, value interface{}) bool {
-			return c.Config.ContractWhitelist.GetComparator()(value, &code) == 0
-		})
-		EosAssert(exist != -1, &ContractWhitelistException{}, "account %d is not on the contract whitelist", code)
+		EosAssert(c.Config.ContractWhitelist.Contains(code), &ContractWhitelistException{}, "account %d is not on the contract whitelist", code)
 	} else if c.Config.ContractBlacklist.Size() > 0 {
-		exist, _ := c.Config.ContractBlacklist.Find(func(index int, value interface{}) bool {
-			return c.Config.ContractBlacklist.GetComparator()(value, &code) == 0
-		})
-		EosAssert(exist == -1, &ContractBlacklistException{}, "account %d is on the contract blacklist", code)
+		EosAssert(!c.Config.ContractBlacklist.Contains(code), &ContractBlacklistException{}, "account %d is on the contract blacklist", code)
 	}
 }
 
@@ -1476,10 +1474,7 @@ func (c *Controller) CheckActionList(code common.AccountName, action common.Acti
 
 func (c *Controller) CheckKeyList(key *ecc.PublicKey) {
 	if c.Config.KeyBlacklist.Size() > 0 {
-		exist, _ := c.Config.KeyBlacklist.Find(func(index int, value interface{}) bool {
-			return c.Config.KeyBlacklist.GetComparator()(value, key) == 0
-		})
-		EosAssert(exist == -1, &KeyBlacklistException{}, "public key %v is on the key blacklist", key)
+		EosAssert(!c.Config.KeyBlacklist.Contains(key), &KeyBlacklistException{}, "public key %v is on the key blacklist", key)
 	}
 }
 
@@ -1496,14 +1491,7 @@ func (c *Controller) RemoveResourceGreyList(name *common.AccountName) {
 }
 
 func (c *Controller) IsResourceGreylisted(name *common.AccountName) bool {
-	exist, _ := c.Config.ResourceGreylist.Find(func(index int, value interface{}) bool {
-		return c.Config.ResourceGreylist.GetComparator()(value, *name) == 0
-	})
-	if exist > -1 {
-		return true
-	} else {
-		return false
-	}
+	return c.Config.ResourceGreylist.Contains(name)
 }
 func (c *Controller) GetResourceGreyList() treeset.Set {
 	return c.Config.ResourceGreylist
@@ -1772,7 +1760,7 @@ func (c *Controller) initialize() {
 	if common.Empty(c.Head) {
 		c.initializeForkDB()
 		end := c.Blog.ReadHead()
-		if common.Empty(end) && end.BlockNumber() > 1 {
+		if !common.Empty(end) && end.BlockNumber() > 1 {
 			endTime := end.Timestamp.ToTimePoint()
 			c.RePlaying = true
 			c.ReplayHeadTime = endTime
@@ -1800,7 +1788,7 @@ func (c *Controller) initialize() {
 
 			c.RePlaying = false
 			c.ReplayHeadTime = common.TimePoint(0)
-		} else if !common.Empty(end) {
+		} else if common.Empty(end) {
 			c.Blog.ResetToGenesis(c.Config.Genesis, c.Head.SignedBlock)
 		}
 	}
@@ -1817,13 +1805,13 @@ func (c *Controller) initialize() {
 		r := entity.ReversibleBlockObject{}
 		objitr.Data(&r)
 		EosAssert(r.BlockNum == c.Head.BlockNum, &ForkDatabaseException{},
-			"reversible block database is inconsistent with fork database, replay blockchain", c.Head.BlockNum, r.BlockNum)
+			"reversible block database is inconsistent with fork database, replay blockchain %d,%d", c.Head.BlockNum, r.BlockNum)
 	} else {
 		end := c.Blog.ReadHead()
 		EosAssert(end != nil && end.BlockNumber() == c.Head.BlockNum, &ForkDatabaseException{},
-			"fork database exists but reversible block database does not, replay blockchain", end.BlockNumber(), c.Head.BlockNum)
+			"fork database exists but reversible block database does not, replay blockchain %d,%d", end.BlockNumber(), c.Head.BlockNum)
 	}
-	EosAssert(uint32(c.DB.Revision()) >= c.Head.BlockNum, &ForkDatabaseException{}, "fork database is inconsistent with shared memory", c.DB.Revision(), c.Head.BlockNum)
+	EosAssert(uint32(c.DB.Revision()) >= c.Head.BlockNum, &ForkDatabaseException{}, "fork database is inconsistent with shared memory %d,%d", c.DB.Revision(), c.Head.BlockNum)
 	for uint32(c.DB.Revision()) > c.Head.BlockNum {
 		c.DB.Undo()
 	}
@@ -1853,19 +1841,13 @@ func (c *Controller) CheckActorList(actors *treeset.Set) {
 	if c.Config.ActorWhitelist.Size() > 0 {
 		itr := actors.Iterator()
 		for itr.Next() {
-			exist, _ := c.Config.ActorWhitelist.Find(func(index int, value interface{}) bool {
-				return c.Config.ActorWhitelist.GetComparator()(value, itr.Value()) == 0
-			})
-			EosAssert(exist != -1, &ActorWhitelistException{},
+			EosAssert(c.Config.ActorWhitelist.Contains(itr.Value()), &ActorWhitelistException{},
 				"authorizing actor(s) in transaction are not on the actor whitelist: %v", actors)
 		}
 	} else if c.Config.ActorBlacklist.Size() > 0 {
 		itr := actors.Iterator()
 		for itr.Next() {
-			exist, _ := c.Config.ActionBlacklist.Find(func(index int, value interface{}) bool {
-				return c.Config.ActionBlacklist.GetComparator()(value, itr.Value()) == 0
-			})
-			EosAssert(exist == -1, &ActorBlacklistException{},
+			EosAssert(!c.Config.ActionBlacklist.Contains(itr.Value()), &ActorBlacklistException{},
 				"authorizing actor(s) in transaction are on the actor blacklist: %v", actors)
 		}
 	}

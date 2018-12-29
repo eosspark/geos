@@ -37,6 +37,8 @@ func (a *AbiDef) EncodeStruct(structName typeName, json []byte) ([]byte, error) 
 
 func (a *AbiDef) EncodeAction(actionName common.ActionName, json []byte) ([]byte, error) {
 
+	abiLog.Info("actionName: %v", actionName)
+
 	action := a.ActionForName(actionName)
 	if action == nil {
 		return nil, fmt.Errorf("encode action: action %s not found in abi", actionName)

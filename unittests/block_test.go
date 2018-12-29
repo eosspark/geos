@@ -15,6 +15,7 @@ import (
 
 func TestBlockWithInvalidTx(t *testing.T) {
 	main := newBaseTester(true, chain.SPECULATIVE)
+	defer main.close()
 	var err error
 
 	// First we create a valid block with valid transaction
@@ -70,19 +71,20 @@ type blockPair struct {
 	second *types.SignedBlock
 }
 
-func CorruptTrxInBlock(main *BaseTester, actName common.AccountName) (blockPair, error) {
+func CorruptTrxInBlock(main *ValidatingTester, actName common.AccountName) (blockPair, error) {
 	var err error
 
 	// First we create a valid block with valid transaction
 	main.CreateAccount(actName, common.DefaultConfig.SystemAccountName, false, true)
 	b := main.ProduceBlockNoValidation(common.Milliseconds(common.DefaultConfig.BlockIntervalMs), 0)
 
+	//return blockPair{b, b}, nil
 	// Make a copy of the valid block and corrupt the transaction
-	copyB := types.NewSignedBlock1(&b.SignedBlockHeader)
+	copyB := b
 	signedTx := copyB.Transactions[len(copyB.Transactions)-1].Trx.PackedTransaction.GetSignedTransaction()
 	// Corrupt one signature
-	signedTx.Signatures = make([]ecc.Signature, 0)
 	priKey, chainId := main.getPrivateKey(actName, "active"), main.Control.GetChainId()
+	signedTx.Signatures = make([]ecc.Signature, 0)
 	signedTx.Sign(&priKey, &chainId)
 
 	// Replace the valid transaction with the invalid transaction
@@ -111,6 +113,7 @@ func CorruptTrxInBlock(main *BaseTester, actName common.AccountName) (blockPair,
 func TestTrustedProducer(t *testing.T) {
 	trustedProducers := treeset.NewWith(common.TypeName, common.CompareName, common.N("defproducera"), common.N("defproducerc"))
 	main := NewValidatingTesterTrustedProducers(trustedProducers)
+	defer main.close()
 	// only using validating_tester to keep the 2 chains in sync, not to validate that the validating_node matches the main node,
 	// since it won't be
 	main.SkipValidate = true
@@ -124,14 +127,14 @@ func TestTrustedProducer(t *testing.T) {
 	}
 	b := main.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs), 0)
 
-	trace := main.SetProducerKeys(&producers)
+	trace := main.SetProducers(&producers)
 	assert.Equal(t, Exception(nil), trace.Except)
 
 	for b.Producer != common.N("defproducera") {
 		b = main.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs), 0)
 	}
 
-	blocks, err := CorruptTrxInBlock(&main.BaseTester, common.N("tstproducera"))
+	blocks, err := CorruptTrxInBlock(main, common.N("tstproducera"))
 	assert.NoError(t, err)
 
 	main.ValidatePushBlock(blocks.second)
@@ -140,6 +143,7 @@ func TestTrustedProducer(t *testing.T) {
 func TestTrustedProducerVerify2nd(t *testing.T) {
 	trustedProducers := treeset.NewWith(common.TypeName, common.CompareName, common.N("defproducera"), common.N("defproducerc"))
 	main := NewValidatingTesterTrustedProducers(trustedProducers)
+	defer main.close()
 	// only using validating_tester to keep the 2 chains in sync, not to validate that the validating_node matches the main node,
 	// since it won't be
 	main.SkipValidate = true
@@ -153,14 +157,14 @@ func TestTrustedProducerVerify2nd(t *testing.T) {
 	}
 	b := main.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs), 0)
 
-	trace := main.SetProducerKeys(&producers)
+	trace := main.SetProducers(&producers)
 	assert.Equal(t, Exception(nil), trace.Except)
 
 	for b.Producer != common.N("defproducerc") {
 		b = main.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs), 0)
 	}
 
-	blocks, err := CorruptTrxInBlock(&main.BaseTester, common.N("tstproducera"))
+	blocks, err := CorruptTrxInBlock(main, common.N("tstproducera"))
 	assert.NoError(t, err)
 
 	main.ValidatePushBlock(blocks.second)
@@ -169,6 +173,7 @@ func TestTrustedProducerVerify2nd(t *testing.T) {
 func TestUntrustedProducer(t *testing.T) {
 	trustedProducers := treeset.NewWith(common.TypeName, common.CompareName, common.N("defproducera"), common.N("defproducerc"))
 	main := NewValidatingTesterTrustedProducers(trustedProducers)
+	defer main.close()
 	// only using validating_tester to keep the 2 chains in sync, not to validate that the validating_node matches the main node,
 	// since it won't be
 	main.SkipValidate = true
@@ -182,14 +187,14 @@ func TestUntrustedProducer(t *testing.T) {
 	}
 	b := main.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs), 0)
 
-	trace := main.SetProducerKeys(&producers)
+	trace := main.SetProducers(&producers)
 	assert.Equal(t, Exception(nil), trace.Except)
 
 	for b.Producer != common.N("defproducerb") {
 		b = main.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs), 0)
 	}
 
-	blocks, err := CorruptTrxInBlock(&main.BaseTester, common.N("tstproducera"))
+	blocks, err := CorruptTrxInBlock(main, common.N("tstproducera"))
 	assert.NoError(t, err)
 
 	CheckThrow(t, func() { main.ValidatePushBlock(blocks.second) }, &UnsatisfiedAuthorization{})
