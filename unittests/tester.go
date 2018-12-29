@@ -392,6 +392,21 @@ func (t BaseTester) PushAction4(code *common.AccountName, acttype *common.Accoun
 	return t.PushTransaction(&trx, common.MaxTimePoint(), t.DefaultBilledCpuTimeUs)
 }
 
+func (t BaseTester) GetResolver() func (name common.AccountName) *abi.AbiSerializer{
+	return func(name common.AccountName) *abi.AbiSerializer {
+		var r *abi.AbiSerializer
+		try.Try(func() {
+			accObj := entity.AccountObject{Name:name}
+			t.Control.DB.Find("byName",accObj,&accObj)
+			var abid abi.AbiDef
+			if abi.ToABI(accObj.Abi,&abid) {
+				r = abi.NewAbiSerializer(&abid,t.AbiSerializerMaxTime)
+			}
+		}).FcRethrowExceptions(log.LvlError, "Failed to find or parse ABI for %s", name)
+		return r
+	}
+}
+
 func (t BaseTester) GetAction(code common.AccountName, actType common.AccountName,
 	auths []types.PermissionLevel, data *common.Variants) *types.Action {
 

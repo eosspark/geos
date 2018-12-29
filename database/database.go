@@ -279,7 +279,6 @@ func (ldb *LDataBase) insert(in interface{}, flag ...bool) error { /* struct cfg
 	}
 
 	dbKV := &dbKeyValue{}
-	dbKV.id = cfg.id_
 	structKV(in, dbKV, cfg)
 
 	err = ldb.insertKvToDb(dbKV) /* (kv to db) kv insert database (atomic) */
@@ -288,6 +287,7 @@ func (ldb *LDataBase) insert(in interface{}, flag ...bool) error { /* struct cfg
 		return err
 	}
 
+	dbKV.id = cfg.id_
 	m := new(modifyValue)
 	m.newKv = dbKV
 	m.id = dbKV.id
@@ -351,11 +351,6 @@ func (ldb *LDataBase) remove(in interface{}) error {
 
 	dbKV := &dbKeyValue{}
 	structKV(in, dbKV, cfg) /* (kv.index) all key and value*/
-
-	err = DecodeBytes(dbKV.idk.key, &cfg.id_)
-	if err != nil {
-		return err
-	}
 
 	dbKV.id = cfg.id_
 	err = ldb.removeKvToDb(dbKV)
@@ -457,7 +452,8 @@ func (ldb *LDataBase) modifyRefToKv(oldRef, newRef *reflect.Value) error {
 		return err
 	}
 	m := new(modifyValue)
-	m.id = newKV.id
+	m.id = oldCfg.id_
+	//oldCfg.rId.Set(reflect.ValueOf(m.id).Convert(oldCfg.rId.Type()))
 	m.newKv = newKV
 	m.oldKv = oldKV
 	ldb.insertUndoState(oldCfg.Name,m, MODIFY)
