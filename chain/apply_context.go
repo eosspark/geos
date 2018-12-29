@@ -87,7 +87,7 @@ func NewApplyContext(control *Controller, trxContext *TransactionContext, act *t
 	logHandler := log.StreamHandler(os.Stdout, log.TerminalFormat(true))
 	//applyContext.ilog.SetHandler(log.LvlFilterHandler(log.LvlDebug, logHandler))
 	applyContext.ilog.SetHandler(log.LvlFilterHandler(log.LvlInfo, logHandler))
-	applyContext.ilog.SetHandler(log.DiscardHandler())
+	// applyContext.ilog.SetHandler(log.DiscardHandler())
 	return applyContext
 
 }
@@ -859,7 +859,7 @@ func (a *ApplyContext) DbGetI64(iterator int, buffer []byte, bufferSize int) int
 }
 func (a *ApplyContext) DbNextI64(iterator int, primary *uint64) int {
 
-	if iterator < -1 {
+	if iterator < -1 { // cannot increment past end iterator of table
 		return -1
 	}
 	obj := (a.KeyvalCache.get(iterator)).(*entity.KeyValueObject)
@@ -879,7 +879,7 @@ func (a *ApplyContext) DbNextI64(iterator int, primary *uint64) int {
 
 	*primary = objKeyval.PrimaryKey
 	iteratorOut := a.KeyvalCache.add(&objKeyval)
-	a.ilog.Debug("object:%#v iteratorIn:%d iteratorOut:%d", objKeyval, iterator, iteratorOut)
+	a.ilog.Debug("object:%v iteratorIn:%d iteratorOut:%d", objKeyval, iterator, iteratorOut)
 	return iteratorOut
 }
 

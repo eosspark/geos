@@ -1059,17 +1059,23 @@ func dbNextI64(vm *VM) {
 	primary := int(vm.popUint64())
 	itr := int(vm.popUint64())
 
-	var p uint64
-	iterator := w.context.DbNextI64(itr, &p)
-
-	if iterator <= -1 {
-		vm.pushUint64(uint64(iterator))
-		w.ilog.Debug("iterator:%d nextIterator:%d", itr, iterator)
+	if itr < -1 {
+		itr = -1
+		vm.pushUint64(uint64(itr))
+		w.ilog.Debug("iterator:%d nextIterator:%d", itr, itr)
 		return
 	}
+
+	var p uint64
+	iterator := w.context.DbNextI64(itr, &p)
+	if iterator <= -1 {
+		vm.pushUint64(uint64(iterator))
+		w.ilog.Debug("iterator:%d nextIterator:%d primary:%d", itr, iterator, p)
+		return
+	}
+
 	setUint64(vm, primary, p)
 	vm.pushUint64(uint64(iterator))
-
 	w.ilog.Debug("iterator:%d nextIterator:%d primary:%d", itr, iterator, p)
 
 }
@@ -1088,9 +1094,9 @@ func dbPreviousI64(vm *VM) {
 		w.ilog.Debug("iterator:%d nextIterator:%d", itr, iterator)
 		return
 	}
+
 	setUint64(vm, primary, p)
 	vm.pushUint64(uint64(iterator))
-
 	w.ilog.Debug("iterator:%d priviousIterator:%d primary:%d", itr, iterator, p)
 }
 
@@ -1559,6 +1565,10 @@ func dbIdx256Store(vm *VM) {
 	w := vm.WasmGo
 	EosAssert(!w.context.ContextFreeAction(), &UnaccessibleApi{}, "only context free api's can be used in this context")
 
+	dataLen := int(vm.popUint64())
+	EosAssert(dataLen == 2, &DbApiException{},
+		"invalid size of secondary key array for Idx256: given %d bytes but expected %d bytes", dataLen, 2)
+
 	pValue := int(vm.popUint64())
 	id := vm.popUint64()
 	payer := vm.popUint64()
@@ -1566,6 +1576,9 @@ func dbIdx256Store(vm *VM) {
 	scope := vm.popUint64()
 
 	secondaryKey := getUint256(vm, pValue)
+	w.ilog.Debug("scope:%v table:%v payer:%v id:%d secondaryKey:%d",
+		common.ScopeName(scope), common.TableName(table), common.AccountName(payer), id, secondaryKey)
+
 	iterator := w.context.Idx256Store(scope, table, payer, id, secondaryKey)
 	vm.pushUint64(uint64(iterator))
 
@@ -1586,6 +1599,10 @@ func dbIdx256Update(vm *VM) {
 	w := vm.WasmGo
 	EosAssert(!w.context.ContextFreeAction(), &UnaccessibleApi{}, "only context free api's can be used in this context")
 
+	dataLen := int(vm.popUint64())
+	EosAssert(dataLen == 2, &DbApiException{},
+		"invalid size of secondary key array for Idx256: given %d bytes but expected %d bytes", dataLen, 2)
+
 	pValue := int(vm.popUint64())
 	payer := vm.popUint64()
 	iterator := int(vm.popUint64())
@@ -1600,6 +1617,10 @@ func dbIdx256findSecondary(vm *VM) {
 	w := vm.WasmGo
 
 	pPrimary := int(vm.popUint64())
+	dataLen := int(vm.popUint64())
+	EosAssert(dataLen == 2, &DbApiException{},
+		"invalid size of secondary key array for Idx256: given %d bytes but expected %d bytes", dataLen, 2)
+
 	pSecondary := int(vm.popUint64())
 	table := vm.popUint64()
 	scope := vm.popUint64()
@@ -1625,6 +1646,10 @@ func dbIdx256Lowerbound(vm *VM) {
 	w := vm.WasmGo
 
 	pPrimary := int(vm.popUint64())
+	dataLen := int(vm.popUint64())
+	EosAssert(dataLen == 2, &DbApiException{},
+		"invalid size of secondary key array for Idx256: given %d bytes but expected %d bytes", dataLen, 2)
+
 	pSecondary := int(vm.popUint64())
 	table := vm.popUint64()
 	scope := vm.popUint64()
@@ -1653,6 +1678,10 @@ func dbIdx256Upperbound(vm *VM) {
 	w := vm.WasmGo
 
 	pPrimary := int(vm.popUint64())
+	dataLen := int(vm.popUint64())
+	EosAssert(dataLen == 2, &DbApiException{},
+		"invalid size of secondary key array for Idx256: given %d bytes but expected %d bytes", dataLen, 2)
+
 	pSecondary := int(vm.popUint64())
 	table := vm.popUint64()
 	scope := vm.popUint64()
@@ -1733,6 +1762,10 @@ func dbIdx256FindPrimary(vm *VM) {
 	w := vm.WasmGo
 
 	primary := vm.popUint64()
+	dataLen := int(vm.popUint64())
+	EosAssert(dataLen == 2, &DbApiException{},
+		"invalid size of secondary key array for Idx256: given %d bytes but expected %d bytes", dataLen, 2)
+
 	pSecondary := int(vm.popUint64())
 	table := vm.popUint64()
 	scope := vm.popUint64()

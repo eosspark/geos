@@ -22,6 +22,9 @@ func NewIdx256(c *ApplyContext) *Idx256 {
 
 func (i *Idx256) store(scope uint64, table uint64, payer uint64, id uint64, secondary *eos_math.Uint256) int {
 
+	//i.context.ilog.Debug("ocode:%v scope:%v table:%v payer:%v id:%d secondary:%v",
+	//	i.context.Receiver, common.ScopeName(scope), common.TableName(table), common.AccountName(payer), id, *secondary)
+
 	EosAssert(common.AccountName(payer) != common.AccountName(0), &InvalidTablePayer{}, "must specify a valid account to pay for new record")
 	tab := i.context.FindOrCreateTable(uint64(i.context.Receiver), scope, table, payer)
 
