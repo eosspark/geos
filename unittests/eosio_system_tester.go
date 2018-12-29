@@ -35,9 +35,6 @@ func newEosioSystemTester(pushGenesis bool, readMode DBReadMode) *EosioSystemTes
 	e.ChainTransactions = make(map[common.BlockIdType]types.TransactionReceipt)
 	e.LastProducedBlock = make(map[common.AccountName]common.BlockIdType)
 	e.VCfg = *newConfig(readMode)
-	e.VCfg.BlocksDir = common.DefaultConfig.ValidatingBlocksDirName
-	e.VCfg.StateDir = common.DefaultConfig.ValidatingStateDirName
-	e.VCfg.ReversibleDir = common.DefaultConfig.ValidatingReversibleBlocksDirName
 
 	e.ValidatingControl = NewController(&e.VCfg)
 	e.init(true, readMode)
