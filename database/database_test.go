@@ -223,6 +223,18 @@ func Test_modifyUndo(t *testing.T) {
 		log.Println(err)
 	}
 	{
+		it := idx.Begin()
+		tmp := DbTableIdObject{}
+		it.Data(&tmp)
+		//LogObj(tmp)
+		for it.Next(){
+
+			tmp = DbTableIdObject{}
+			it.Data(&tmp)
+			//LogObj(tmp)
+		}
+	}
+	{
 		// Code 11 12 13  21 22 23  31 32 33
 		it, err := idx.LowerBound(DbTableIdObject{Code: 11})
 		if err != nil {
@@ -240,6 +252,7 @@ func Test_modifyUndo(t *testing.T) {
 			i++
 			tmp := DbTableIdObject{}
 			it.Data(&tmp)
+			//LogObj(tmp)
 			if tmp != objs_[i] {
 				LogObj(objs_[i])
 				LogObj(tmp)
@@ -251,27 +264,76 @@ func Test_modifyUndo(t *testing.T) {
 
 
 	session := db.StartSession()
-	defer session.Undo()
-	obj := DbTableIdObject{ID: 4, Code: 21, Scope: 22, Table: 26, Payer: 27, Count: 25}
-	newObj := DbTableIdObject{ID: 4, Code: 200, Scope: 22, Table: 26, Payer: 27, Count: 25}
+	obj_4 := DbTableIdObject{ID: 4, Code: 22, Scope: 22, Table: 26, Payer: 27, Count: 25}
+	obj_4_ := DbTableIdObject{ID: 4, Code: 22, Scope: 22, Table: 26, Payer: 27, Count: 25}
+	obj_5 := DbTableIdObject{ID: 5, Code: 23, Scope: 22, Table: 28, Payer: 29, Count: 25}
+	obj_5_ := DbTableIdObject{ID: 5, Code: 23, Scope: 22, Table: 28, Payer: 29, Count: 25}
+	//newObj_4 := DbTableIdObject{ID: 4, Code: 200, Scope: 22, Table: 26, Payer: 27, Count: 25}
+	//newobj_5 := DbTableIdObject{ID: 5, Code: 201, Scope: 22, Table: 28, Payer: 29, Count: 25}
 
-	err = db.Modify(&obj, func(object *DbTableIdObject) {
+	err = db.Modify(&obj_4, func(object *DbTableIdObject) {
 		object.Code = 200
+	})
+	//err
+	err = db.Modify(&obj_5, func(object *DbTableIdObject) {
+		object.Code = 201
 	})
 	if err != nil {
 		log.Fatalln(err)
 	}
-	session.Undo()
-	obj = DbTableIdObject{}
-	tmp := DbTableIdObject{}
-	obj.ID = 4
-	err = db.Find("id", obj, &tmp)
-	if err != nil {
-		log.Fatalln(err)
+
+	{
+		obj := DbTableIdObject{}
+		tmp := DbTableIdObject{}
+		obj.ID = 4
+		err = db.Find("id", obj, &tmp)
+		if err != nil {
+			log.Fatalln(err)
+		}
+		if tmp != obj_4{
+			log.Fatalln("modify err")
+		}
 	}
-	if tmp == newObj {
-		LogObj(newObj)
-		log.Fatalln("modify test error")
+	{
+		obj := DbTableIdObject{}
+		tmp := DbTableIdObject{}
+		obj.ID = 5
+		err = db.Find("id", obj, &tmp)
+		if err != nil {
+			log.Fatalln(err)
+		}
+		if tmp != obj_5{
+			log.Fatalln("modify err")
+		}
+	}
+	session.Undo()
+	{
+		obj := DbTableIdObject{}
+		tmp := DbTableIdObject{}
+		obj.ID = 4
+		err = db.Find("id", obj, &tmp)
+		if err != nil {
+			log.Fatalln(err)
+		}
+		if tmp != obj_4_{
+			LogObj(obj_4_)
+			LogObj(tmp)
+			log.Fatalln("modify err")
+		}
+	}
+	{
+		obj := DbTableIdObject{}
+		tmp := DbTableIdObject{}
+		obj.ID = 5
+		err = db.Find("id", obj, &tmp)
+		if err != nil {
+			log.Fatalln(err)
+		}
+		if tmp != obj_5_{
+			LogObj(obj_5_)
+			LogObj(tmp)
+			log.Fatalln("modify err")
+		}
 	}
 }
 
@@ -468,6 +530,8 @@ func Test_undoRemove(t *testing.T) {
 	}
 
 }
+
+
 
 func Test_squash(t *testing.T) {
 	db, clo := openDb()
