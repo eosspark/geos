@@ -190,7 +190,7 @@ func applyEosioSetcode(context *ApplyContext) {
 	var codeId *crypto.Sha256
 	if len(act.Code) > 0 {
 		codeId = crypto.Hash256(act.Code)
-		//exec.validate(context.Control, act.Code)
+		//wasmgo.validate(context.Control, act.Code)
 	}
 
 	accountObject := entity.AccountObject{Name: act.Account}

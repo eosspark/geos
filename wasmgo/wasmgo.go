@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"github.com/eosspark/eos-go/common/eos_math"
 	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/eosspark/eos-go/exception"
@@ -347,6 +348,70 @@ func getMemory(vm *VM, mIndex int, bufferSize int) []byte {
 	return bytes
 }
 
+func setUint128(vm *VM, index int, val *eos_math.Uint128) {
+
+	//fmt.Println("setUint128")
+	c, _ := rlp.EncodeToBytes(*val)
+	setMemory(vm, index, c, 0, len(c))
+}
+
+func getUint128(vm *VM, index int) *eos_math.Uint128 {
+
+	//fmt.Println("getUint128")
+	var ret eos_math.Uint128
+	c := getMemory(vm, index, 16)
+	rlp.DecodeBytes(c, &ret)
+	return &ret
+}
+
+func setUint256(vm *VM, index int, val *eos_math.Uint256) {
+
+	//fmt.Println("setUint256")
+	c, _ := rlp.EncodeToBytes(*val)
+	setMemory(vm, index, c, 0, len(c))
+}
+
+func getUint256(vm *VM, index int) *eos_math.Uint256 {
+
+	//fmt.Println("getUint256")
+	var ret eos_math.Uint256
+	c := getMemory(vm, index, 16)
+	rlp.DecodeBytes(c, &ret)
+	return &ret
+}
+
+func setDouble(vm *VM, index int, val *eos_math.Float64) {
+
+	//fmt.Println("setDouble")
+	c, _ := rlp.EncodeToBytes(*val)
+	setMemory(vm, index, c, 0, len(c))
+}
+
+func getDouble(vm *VM, index int) *eos_math.Float64 {
+
+	//fmt.Println("getDouble")
+	var ret eos_math.Float64
+	c := getMemory(vm, index, 8)
+	rlp.DecodeBytes(c, &ret)
+	return &ret
+}
+
+func setFloat128(vm *VM, index int, val *eos_math.Float128) {
+
+	//fmt.Println("setUint128")
+	c, _ := rlp.EncodeToBytes(*val)
+	setMemory(vm, index, c, 0, len(c))
+}
+
+func getFloat128(vm *VM, index int) *eos_math.Float128 {
+
+	//fmt.Println("Float128")
+	var ret eos_math.Float128
+	c := getMemory(vm, index, 16)
+	rlp.DecodeBytes(c, &ret)
+	return &ret
+}
+
 func setUint64(vm *VM, index int, val uint64) {
 
 	//fmt.Println("setUint64")
@@ -365,14 +430,14 @@ func getUint64(vm *VM, index int) uint64 {
 
 func setFloat64(vm *VM, index int, val float64) {
 
-	fmt.Println("setUint64")
+	//fmt.Println("setUint64")
 	c, _ := rlp.EncodeToBytes(val)
 	setMemory(vm, index, c, 0, len(c))
 }
 
 func getFloat64(vm *VM, index int) float64 {
 
-	fmt.Println("getUint64")
+	//fmt.Println("getUint64")
 	var ret float64
 	c := getMemory(vm, index, 8)
 	rlp.DecodeBytes(c, &ret)
