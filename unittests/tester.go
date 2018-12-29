@@ -19,6 +19,8 @@ import (
 	"github.com/eosspark/eos-go/plugins/chain_interface"
 	"io/ioutil"
 	"math"
+	"strconv"
+	"time"
 )
 
 var CORE_SYMBOL = common.Symbol{Precision: 4, Symbol: "SYS"}
@@ -75,9 +77,10 @@ func (t *BaseTester) init(pushGenesis bool, readMode DBReadMode) {
 
 func newConfig(readMode DBReadMode) *Config {
 	cfg := &Config{}
-	cfg.BlocksDir = common.DefaultConfig.DefaultBlocksDirName
-	cfg.StateDir = common.DefaultConfig.DefaultStateDirName
-	cfg.ReversibleDir = common.DefaultConfig.DefaultReversibleBlocksDirName
+	tempDirSuffix := "_" + strconv.FormatInt(time.Now().UnixNano(), 10)
+	cfg.BlocksDir = common.DefaultConfig.DefaultBlocksDirName + tempDirSuffix
+	cfg.StateDir = common.DefaultConfig.DefaultStateDirName + tempDirSuffix
+	cfg.ReversibleDir = common.DefaultConfig.DefaultReversibleBlocksDirName + tempDirSuffix
 	cfg.StateSize = 1024 * 1024 * 8
 	cfg.StateGuardSize = 0
 	cfg.ReversibleCacheSize = 1024 * 1024 * 8
@@ -848,9 +851,6 @@ func newValidatingTester(pushGenesis bool, readMode DBReadMode) *ValidatingTeste
 	vt.ChainTransactions = make(map[common.BlockIdType]types.TransactionReceipt)
 	vt.LastProducedBlock = make(map[common.AccountName]common.BlockIdType)
 	vt.VCfg = *newConfig(readMode)
-	vt.VCfg.BlocksDir = common.DefaultConfig.ValidatingBlocksDirName
-	vt.VCfg.StateDir = common.DefaultConfig.ValidatingStateDirName
-	vt.VCfg.ReversibleDir = common.DefaultConfig.ValidatingReversibleBlocksDirName
 
 	vt.ValidatingControl = NewController(&vt.VCfg)
 	//TODO
@@ -864,7 +864,7 @@ func newValidatingTester(pushGenesis bool, readMode DBReadMode) *ValidatingTeste
 func (vt ValidatingTester) DefaultProduceBlock() *types.SignedBlock {
 	skipTime := common.DefaultConfig.BlockIntervalMs
 	skipFlag := uint32(0)
-	sb := vt.produceBlock(common.Milliseconds(skipTime), false, skipFlag | 2)
+	sb := vt.produceBlock(common.Milliseconds(skipTime), false, skipFlag|2)
 	vt.ValidatingControl.PushBlock(sb, types.Complete)
 	return sb
 }
@@ -878,9 +878,6 @@ func NewValidatingTesterTrustedProducers(trustedProducers *treeset.Set) *Validat
 	vt.LastProducedBlock = make(map[common.AccountName]common.BlockIdType)
 	vt.VCfg = *newConfig(SPECULATIVE)
 	vt.VCfg.TrustedProducers = *trustedProducers
-	vt.VCfg.BlocksDir = common.DefaultConfig.ValidatingBlocksDirName
-	vt.VCfg.StateDir = common.DefaultConfig.ValidatingStateDirName
-	vt.VCfg.ReversibleDir = common.DefaultConfig.ValidatingReversibleBlocksDirName
 	vt.ValidatingControl = NewController(&vt.VCfg)
 
 	vt.init(true, SPECULATIVE)
@@ -901,13 +898,13 @@ func (vt ValidatingTester) ProduceBlocks(n uint32, empty bool) {
 }
 
 func (vt ValidatingTester) ProduceBlock(skipTime common.Microseconds, skipFlag uint32) *types.SignedBlock {
-	sb := vt.produceBlock(skipTime, false, skipFlag | 2)
+	sb := vt.produceBlock(skipTime, false, skipFlag|2)
 	vt.ValidatingControl.PushBlock(sb, types.Complete)
 	return sb
 }
 
 func (vt ValidatingTester) ProduceEmptyBlock(skipTime common.Microseconds, skipFlag uint32) *types.SignedBlock {
-	sb := vt.produceBlock(skipTime, true, skipFlag | 2)
+	sb := vt.produceBlock(skipTime, true, skipFlag|2)
 	vt.ValidatingControl.PushBlock(sb, types.Complete)
 	return sb
 }
