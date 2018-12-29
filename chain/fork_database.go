@@ -4,84 +4,95 @@ import (
 	"github.com/eosspark/eos-go/chain/multi_index_containers/fork_multi_index"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
+	"github.com/eosspark/eos-go/crypto/rlp"
 	. "github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
-	"github.com/eosspark/eos-go/log"
 	"github.com/eosspark/eos-go/plugins/appbase/app/include"
+	"io/ioutil"
 	"os"
 )
 
 type ForkDatabase struct {
-	Index fork_multi_index.MultiIndex
-	Head  *types.BlockState `json:"head"`
-	//MultiIndexFork *MultiIndexFork
-	ForkDbPath string
+	Index      fork_multi_index.MultiIndex
+	Head       *types.BlockState `json:"head"`
+	dataDir    string
 	fileStream *os.File
 
 	Irreversible include.Signal
 }
 
-func GetForkDbInstance(stateDir string) *ForkDatabase {
-	forkDB := &ForkDatabase{Index: *fork_multi_index.New()}
-	//forkDB, err := newForkDatabase(stateDir, common.DefaultConfig.ForkDbName, true)
-	//try.EosAssert(err == nil, &exception.ForkDatabaseException{}, "%s", err)
-	return forkDB
+func NewForkDatabase(dataDir string) *ForkDatabase {
+	f := &ForkDatabase{Index: *fork_multi_index.New()}
+	f.dataDir = dataDir
+
+	if !common.FileExist(dataDir) {
+		os.MkdirAll(dataDir, os.ModePerm)
+	}
+
+	forkDbDat := f.dataDir + common.DefaultConfig.ForkDbName
+	if common.FileExist(forkDbDat) {
+		content, err := ioutil.ReadFile(forkDbDat)
+		ThrowIf(err != nil, err)
+
+		decode := rlp.NewDecoder(content)
+		var size uint
+		decode.Decode(&size)
+
+		for i := uint(0); i < size; i++ {
+			s := types.BlockState{}
+			decode.Decode(&s)
+			f.SetHead(&s)
+		}
+
+		headId := common.BlockIdType{}
+		decode.Decode(&headId)
+
+		f.Head = f.GetBlock(&headId)
+		err = os.Remove(forkDbDat)
+		ThrowIf(err != nil, err)
+	}
+
+	return f
 }
 
-func newForkDatabase(stateDir string, fileName string, rw bool) (*ForkDatabase, error) {
-	fk := &ForkDatabase{Index: *fork_multi_index.New()}
-	//_, err := os.Stat(stateDir)
-	//if err != nil {
-	//	os.MkdirAll(stateDir, os.ModePerm)
-	//}
-	//fk.ForkDbPath = stateDir + "/" + fileName
-	//fStream, err := os.OpenFile(fk.ForkDbPath, os.O_RDWR, os.ModePerm)
-	//if fStream == nil {
-	//	fStream, err = os.Create(fk.ForkDbPath)
-	//	try.EosAssert(err == nil, &exception.ForkDatabaseException{}, "%s", err)
-	//}
-	//
-	//b, err := ioutil.ReadAll(fStream)
-	//try.EosAssert(err == nil, &exception.ForkDatabaseException{}, "%s", err)
-	//
-	//if len(b) > 0 {
-	//	mif := &MultiIndexFork{}
-	//	mif.Indexs = make(map[string]*IndexFork)
-	//	index := &IndexFork{Target: "byBlockId", Uniqueness: true}
-	//	index2 := &IndexFork{Target: "byPrev", Uniqueness: false}
-	//	index3 := &IndexFork{Target: "byBlockNum", Uniqueness: false}
-	//	index4 := &IndexFork{Target: "byLibBlockNum", Uniqueness: false}
-	//	mif.Indexs["byBlockId"] = index
-	//	mif.Indexs["byPrev"] = index2
-	//	mif.Indexs["byBlockNum"] = index3
-	//	mif.Indexs["byLibBlockNum"] = index4
-	//	bt := treeset.NewMultiWith(types.BlockIdTypes, types.CompareBlockId)
-	//	index.Value = bt
-	//	mif.Indexs[index.Target] = index
-	//	bt2 := treeset.NewMultiWith(types.BlockIdTypes, types.ComparePrev)
-	//	index2.Value = bt2
-	//	mif.Indexs[index2.Target] = index2
-	//	bt3 := treeset.NewMultiWith(types.BlockNumType, types.CompareBlockNum)
-	//	index3.Value = bt3
-	//	mif.Indexs[index3.Target] = index3
-	//	bt4 := treeset.NewMultiWith(types.BlockNumType, types.CompareLibNum)
-	//	index4.Value = bt4
-	//	mif.Indexs[index4.Target] = index4
-	//	fmt.Println("forkDatabase:", len(mif.Indexs), mif.Indexs)
-	//	fmt.Println("value:  ", reflect.TypeOf(mif.Indexs["byBlockId"].Value).String())
-	//
-	//	fmt.Println("78:  ", index.Value.ValueType.String())
-	//
-	//	err := rlp.DecodeBytes(b, mif)
-	//	fmt.Println("forkDatabase error:", err)
-	//	fmt.Println("forkDatabase2:", len(mif.Indexs), mif.Indexs)
-	//	fk.MultiIndexFork = mif
-	//
-	//}
-	//
-	//fk.fileStream = fStream
-	//err = os.Remove(fk.ForkDbPath)
-	return fk, nil
+func (f *ForkDatabase) Close() {
+	if f.Index.Size() == 0 {
+		return
+	}
+
+	//TODO pack BlockState to forkDbDat
+	/*forkDbDat := f.dataDir + common.DefaultConfig.ForkDbName
+	file, err := os.OpenFile(forkDbDat, os.O_RDWR|os.O_CREATE|os.O_TRUNC, os.ModeAppend)
+	ThrowIf(err != nil, err)
+
+	out := rlp.NewEncoder(file)
+
+	numBlockInForkDB := uint(f.Index.Size())
+	out.Encode(numBlockInForkDB)
+
+	f.Index.ByBlockNum.Each(func(key fork_multi_index.ByBlockNumComposite, value fork_multi_index.IndexKey) {
+		s := f.Index.Value(value)
+		out.Encode(s)
+	})
+
+	if f.Head != nil {
+		out.Encode(f.Head.BlockId)
+	} else {
+		out.Encode(crypto.NewSha256Nil())
+	}*/
+
+	// we don't normally indicate the head block as irreversible
+	// we cannot normally prune the lib if it is the head block because
+	// the next block needs to build off of the head block. We are exiting
+	// now so we can prune this block as irreversible before exiting.
+	lib := f.Head.DposIrreversibleBlocknum
+	begin := f.Index.ByBlockNum.Begin()
+	oldest := f.Index.Value(begin.Value())
+	if oldest.BlockNum <= lib {
+		f.Prune(oldest)
+	}
+
+	f.Index.Clear()
 }
 
 func (f *ForkDatabase) SetHead(s *types.BlockState) {
@@ -134,7 +145,7 @@ func (f *ForkDatabase) AddSignedBlock(b *types.SignedBlock, trust bool) *types.B
 	return f.AddBlockState(result)
 }
 
-func (f *ForkDatabase) Add(c *types.HeaderConfirmation) {
+func (f *ForkDatabase) AddConfirmation(c *types.HeaderConfirmation) {
 	header := f.GetBlock(&c.BlockId)
 
 	EosAssert(header != nil, &ForkDbBlockNotFound{}, "unable to find block id:%#v ", c.BlockId)
@@ -186,13 +197,8 @@ func (f *ForkDatabase) FetchBranchFrom(first *common.BlockIdType, second *common
 	return result
 }
 
-func (f *ForkDatabase) debugs() {
-	println("libBlockIdx:", f.Index.ByLibBlockNum.Size(), "idIdx:", len(f.Index.ByBlockId))
-}
-
 /// remove all of the invalid forks built of this id including this id
 func (f *ForkDatabase) Remove(id *common.BlockIdType) {
-	f.debugs()
 	removeQueue := []common.BlockIdType{*id}
 	for i := 0; i < len(removeQueue); i++ {
 		itr, existing := f.Index.ByBlockId[removeQueue[i]]
@@ -212,7 +218,6 @@ func (f *ForkDatabase) Remove(id *common.BlockIdType) {
 		}
 
 	}
-	f.debugs()
 
 	libItr := f.Index.ByLibBlockNum.Begin()
 	f.Head = f.Index.Value(libItr.Value())
@@ -256,7 +261,8 @@ func (f *ForkDatabase) Prune(h *types.BlockState) {
 
 	itr, existing := f.Index.ByBlockId[h.BlockId]
 	if existing {
-		//TODO f.Irreversible.Emit(f.Index.Value(itr))
+		//TODO
+		f.Irreversible.Emit(f.Index.Value(itr))
 		f.Index.Erase(itr)
 	}
 
@@ -271,20 +277,6 @@ func (f *ForkDatabase) Prune(h *types.BlockState) {
 			continue
 		}
 		break
-		//		itrToRemove := f.Index.Value(nitr.Value())
-		//		if itrToRemove != nil && itrToRemove.BlockNum == num{
-		//			nitr.Next()
-		//			id := itrToRemove.BlockId
-		//			f.Remove(&id)
-		//			continue
-		//		} else {
-		//			if itrToRemove != nil {
-		//fmt.Println("IndexKey:", itrToRemove.BlockNum)
-		//			} else {
-		////fmt.Println("IndexKey is nil index:", nitr.Value())
-		//			}
-		//			break
-		//		}
 	}
 }
 
@@ -341,20 +333,4 @@ func (f *ForkDatabase) SetBftIrreversible(id common.BlockIdType) {
 	for len(queue) > 0 {
 		update(queue)
 	}
-}
-
-func (f *ForkDatabase) Close() {
-
-	log.Info("ForkDatabase Close tmp code")
-	f.Index.Clear()
-	/*bts, err := rlp.EncodeToBytes(f.MultiIndexFork)
-	fmt.Println("EncodeToBytes :  ",err)
-	fout, err := os.Create(f.ForkDbPath)
-	f.fileStream = fout
-	_, err = f.fileStream.Write(bts)
-	err = f.fileStream.Close()
-	try.EosAssert(err == nil, &exception.ForkDatabaseException{}, "%s", err)
-	if err != nil {
-		log.Error("ForkDatabase Close is error:%s", err)
-	}*/
 }

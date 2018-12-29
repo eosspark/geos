@@ -333,7 +333,10 @@ func structKV(in interface{}, dbKV *dbKeyValue, cfg *structInfo) error {
 	if err != nil {
 		return err
 	}
-
+	err = DecodeBytes(objId,&cfg.id_)
+	if err != nil {
+		return err
+	}
 	idk := splicingString([]byte(cfg.Name),objId)
 	kv_ := kv{}
 	kv_.key = idk
