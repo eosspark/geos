@@ -64,6 +64,27 @@ func newBaseTester(pushGenesis bool, readMode DBReadMode) *BaseTester {
 	return t
 }
 
+//for forked_test
+func newBaseTesterSecNode(pushGenesis bool, readMode DBReadMode) *BaseTester {
+	t := &BaseTester{}
+	t.DefaultExpirationDelta = 6
+	t.DefaultBilledCpuTimeUs = 2000
+	t.AbiSerializerMaxTime = 1000 * 1000
+	t.ChainTransactions = make(map[common.BlockIdType]types.TransactionReceipt)
+	t.LastProducedBlock = make(map[common.AccountName]common.BlockIdType)
+
+	cfg := newConfig(readMode)
+	cfg.BlocksDir = common.DefaultConfig.ValidatingBlocksDirName
+	cfg.StateDir = common.DefaultConfig.ValidatingStateDirName
+	cfg.ReversibleDir = common.DefaultConfig.ValidatingReversibleBlocksDirName
+
+	t.Control = NewController(cfg)
+	if pushGenesis {
+		t.pushGenesisBlock()
+	}
+	return t
+}
+
 func (t *BaseTester) init(pushGenesis bool, readMode DBReadMode) {
 	t.Cfg = *newConfig(readMode)
 
@@ -864,7 +885,7 @@ func newValidatingTester(pushGenesis bool, readMode DBReadMode) *ValidatingTeste
 func (vt ValidatingTester) DefaultProduceBlock() *types.SignedBlock {
 	skipTime := common.DefaultConfig.BlockIntervalMs
 	skipFlag := uint32(0)
-	sb := vt.produceBlock(common.Milliseconds(skipTime), false, skipFlag | 2)
+	sb := vt.produceBlock(common.Milliseconds(skipTime), false, skipFlag|2)
 	vt.ValidatingControl.PushBlock(sb, types.Complete)
 	return sb
 }
@@ -901,13 +922,13 @@ func (vt ValidatingTester) ProduceBlocks(n uint32, empty bool) {
 }
 
 func (vt ValidatingTester) ProduceBlock(skipTime common.Microseconds, skipFlag uint32) *types.SignedBlock {
-	sb := vt.produceBlock(skipTime, false, skipFlag | 2)
+	sb := vt.produceBlock(skipTime, false, skipFlag|2)
 	vt.ValidatingControl.PushBlock(sb, types.Complete)
 	return sb
 }
 
 func (vt ValidatingTester) ProduceEmptyBlock(skipTime common.Microseconds, skipFlag uint32) *types.SignedBlock {
-	sb := vt.produceBlock(skipTime, true, skipFlag | 2)
+	sb := vt.produceBlock(skipTime, true, skipFlag|2)
 	vt.ValidatingControl.PushBlock(sb, types.Complete)
 	return sb
 }
