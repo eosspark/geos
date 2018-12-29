@@ -22,10 +22,6 @@ func NewPayloadlessTester() *PayloadlessTester {
 	pt.ChainTransactions = make(map[common.BlockIdType]types.TransactionReceipt)
 	pt.LastProducedBlock = make(map[common.AccountName]common.BlockIdType)
 	pt.VCfg = *newConfig(chain.SPECULATIVE)
-	pt.VCfg.BlocksDir = common.DefaultConfig.ValidatingBlocksDirName
-	pt.VCfg.StateDir = common.DefaultConfig.ValidatingStateDirName
-	pt.VCfg.ReversibleDir = common.DefaultConfig.ValidatingReversibleBlocksDirName
-
 	pt.ValidatingControl = chain.NewController(&pt.VCfg)
 	pt.init(true, chain.SPECULATIVE)
 	return pt
