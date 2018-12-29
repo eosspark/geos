@@ -3,6 +3,7 @@ package chain
 import (
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/common/eos_math"
+	"github.com/eosspark/eos-go/database"
 	"github.com/eosspark/eos-go/entity"
 	. "github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
@@ -104,7 +105,7 @@ func (i *Idx128) findSecondary(code uint64, scope uint64, table uint64, secondar
 	tableEndItr := i.itrCache.cacheTable(tab)
 
 	obj := entity.Idx128Object{TId: tab.ID, SecondaryKey: *secondary}
-	err := i.context.DB.Find("bySecondary", obj, &obj)
+	err := i.context.DB.Find("bySecondary", obj, &obj, database.SKIP_ONE)
 
 	if err != nil {
 		return tableEndItr
@@ -126,15 +127,10 @@ func (i *Idx128) lowerbound(code uint64, scope uint64, table uint64, secondary *
 
 	tableEndItr := i.itrCache.cacheTable(tab)
 
-	//for test
-	//if *secondary == 0 {
-	//	*secondary = 1
-	//}
-
 	obj := entity.Idx128Object{TId: tab.ID, SecondaryKey: *secondary}
 
 	idx, _ := i.context.DB.GetIndex("bySecondary", &obj)
-	itr, _ := idx.LowerBound(&obj)
+	itr, _ := idx.LowerBound(&obj, database.SKIP_ONE)
 	if idx.CompareEnd(itr) {
 		return tableEndItr
 	}
@@ -168,7 +164,7 @@ func (i *Idx128) upperbound(code uint64, scope uint64, table uint64, secondary *
 	obj := entity.Idx128Object{TId: tab.ID, SecondaryKey: *secondary}
 
 	idx, _ := i.context.DB.GetIndex("bySecondary", &obj)
-	itr, _ := idx.UpperBound(&obj)
+	itr, _ := idx.UpperBound(&obj, database.SKIP_ONE)
 	if idx.CompareEnd(itr) {
 		return tableEndItr
 	}
@@ -238,7 +234,7 @@ func (i *Idx128) previous(iterator int, primary *uint64) int {
 
 		objTId := entity.Idx128Object{TId: tab.ID}
 
-		itr, _ := idx.UpperBound(&objTId)
+		itr, _ := idx.UpperBound(&objTId, database.SKIP_TWO)
 		if idx.CompareIterator(idx.Begin(), idx.End()) || idx.CompareBegin(itr) {
 			i.context.ilog.Info("iterator is the begin(nil) of index, iteratorIn:%d iteratorOut:%d", iterator, -1)
 			return -1
@@ -389,7 +385,7 @@ func (i *Idx128) previousPrimary(iterator int, primary *uint64) int {
 
 		objTId := entity.Idx128Object{TId: tab.ID}
 
-		itr, _ := idx.UpperBound(&objTId)
+		itr, _ := idx.UpperBound(&objTId, database.SKIP_ONE)
 		if idx.CompareIterator(idx.Begin(), idx.End()) || idx.CompareBegin(itr) {
 			return -1
 		}

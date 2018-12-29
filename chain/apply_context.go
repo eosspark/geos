@@ -85,8 +85,8 @@ func NewApplyContext(control *Controller, trxContext *TransactionContext, act *t
 	applyContext.AccountRamDeltas = *treeset.NewWith(types.TypeAccountDelta, types.CompareAccountDelta)
 	applyContext.ilog = log.New("Apply_Context")
 	logHandler := log.StreamHandler(os.Stdout, log.TerminalFormat(true))
-	//applyContext.ilog.SetHandler(log.LvlFilterHandler(log.LvlDebug, logHandler))
-	applyContext.ilog.SetHandler(log.LvlFilterHandler(log.LvlInfo, logHandler))
+	applyContext.ilog.SetHandler(log.LvlFilterHandler(log.LvlDebug, logHandler))
+	//applyContext.ilog.SetHandler(log.LvlFilterHandler(log.LvlInfo, logHandler))
 	// applyContext.ilog.SetHandler(log.DiscardHandler())
 	return applyContext
 
@@ -893,7 +893,7 @@ func (a *ApplyContext) DbPreviousI64(iterator int, primary *uint64) int {
 
 		obj := entity.KeyValueObject{TId: tab.ID}
 
-		itr, _ := idx.UpperBound(&obj)
+		itr, _ := idx.UpperBound(&obj, database.SKIP_ONE)
 		if idx.CompareIterator(idx.Begin(), idx.End()) || idx.CompareBegin(itr) {
 			a.ilog.Info("iterator is the begin(nil), iteratorIn:%d iteratorOut:%d", iterator, -1) // Empty table
 			return -1
