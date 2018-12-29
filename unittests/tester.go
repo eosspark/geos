@@ -903,6 +903,29 @@ func NewValidatingTesterTrustedProducers(trustedProducers *treeset.Set) *Validat
 	return vt
 }
 
+func (vt ValidatingTester) PushAction(act *types.Action, authorizer common.AccountName) ActionResult {
+	trx := types.SignedTransaction{}
+	if !common.Empty(authorizer) {
+		act.Authorization = []types.PermissionLevel{{authorizer, common.DefaultConfig.ActiveName}}
+	}
+	trx.Actions = append(trx.Actions, act)
+	vt.SetTransactionHeaders(&trx.Transaction, vt.DefaultExpirationDelta, 0)
+	if !common.Empty(authorizer) {
+		chainId := vt.Control.GetChainId()
+		privateKey := vt.getPrivateKey(authorizer, "active")
+		trx.Sign(&privateKey, &chainId)
+	}
+	try.Try(func() {
+		vt.PushTransaction(&trx, common.MaxTimePoint(), vt.DefaultBilledCpuTimeUs)
+	}).Catch(func(ex exception.Exception) {
+		//log.Error("tester PushAction is error: %v", ex.DetailMessage())
+		try.Throw(ex)
+	}).End()
+	vt.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs), 0)
+	//BOOST_REQUIRE_EQUAL(true, chain_has_transaction(trx.id()))
+	return vt.Success()
+}
+
 func (vt ValidatingTester) ProduceBlocks(n uint32, empty bool) {
 	if empty {
 		for i := 0; uint32(i) < n; i++ {
