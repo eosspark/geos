@@ -4,7 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/eosspark/eos-go/chain"
+	"github.com/eosspark/container/sets/treeset"
 	"github.com/eosspark/eos-go/chain/abi_serializer"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
@@ -19,8 +19,7 @@ import (
 )
 
 func TestGetBlockWithInvalidAbi(t *testing.T) {
-	tester := newValidatingTester(true, chain.SPECULATIVE)
-	//tester := NewValidatingTesterTrustedProducers(treeset.NewWith(TypeName, CompareName))
+	tester := NewValidatingTesterTrustedProducers(treeset.NewWith(common.TypeName, common.CompareName))
 	defer tester.close()
 	Try(func() {
 

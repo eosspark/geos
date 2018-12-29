@@ -202,19 +202,19 @@ func GetControllerInstance() *Controller {
 }
 
 func validPath() {
-	path := []string{common.DefaultConfig.DefaultStateDirName, common.DefaultConfig.DefaultBlocksDirName, common.DefaultConfig.DefaultReversibleBlocksDirName,
-		common.DefaultConfig.ValidatingBlocksDirName, common.DefaultConfig.ValidatingStateDirName, common.DefaultConfig.ValidatingReversibleBlocksDirName}
-	for _, d := range path {
-		_, err := os.Stat(d)
-		if os.IsNotExist(err) {
-			err := os.MkdirAll(d, os.ModePerm)
-			if err != nil {
-				log.Info("controller validPath mkdir failed:%s\n", err)
-			} else {
-				log.Info("controller validPath mkdir success:%s\n", d)
-			}
-		}
-	}
+	//path := []string{common.DefaultConfig.DefaultStateDirName, common.DefaultConfig.DefaultBlocksDirName, common.DefaultConfig.DefaultReversibleBlocksDirName,
+	//	comsmon.DefaultConfig.ValidatingBlocksDirName, common.DefaultConfig.ValidatingStateDirName, common.DefaultConfig.ValidatingReversibleBlocksDirName}
+	//for _, d := range path {
+	//	_, err := os.Stat(d)
+	//	if os.IsNotExist(err) {
+	//		err := os.MkdirAll(d, os.ModePerm)
+	//		if err != nil {
+	//			log.Info("controller validPath mkdir failed:%s\n", err)
+	//		} else {
+	//			log.Info("controller validPath mkdir success:%s\n", d)
+	//		}
+	//	}
+	//}
 }
 func NewController(cfg *Config) *Controller {
 	validPath()
@@ -231,7 +231,7 @@ func NewController(cfg *Config) *Controller {
 
 	con.Blog = NewBlockLog(cfg.BlocksDir)
 
-	con.ForkDB, err = newForkDatabase(cfg.BlocksDir, common.DefaultConfig.ForkDbName, true)
+	con.ForkDB = NewForkDatabase(cfg.BlocksDir)
 
 	con.ChainID = cfg.Genesis.ComputeChainID()
 
@@ -285,7 +285,7 @@ func newController() *Controller {
 
 	con.Blog = NewBlockLog(common.DefaultConfig.DefaultBlocksDirName)
 
-	con.ForkDB, _ = newForkDatabase(common.DefaultConfig.DefaultBlocksDirName, common.DefaultConfig.ForkDbName, true)
+	con.ForkDB = NewForkDatabase(common.DefaultConfig.DefaultBlocksDirName)
 	con.initConfig()
 	con.ChainID = con.Config.Genesis.ComputeChainID()
 
@@ -1169,7 +1169,7 @@ func (c *Controller) PushBlock(b *types.SignedBlock, s types.BlockStatus) {
 
 func (c *Controller) PushConfirmation(hc *types.HeaderConfirmation) {
 	EosAssert(c.Pending == nil, &BlockValidateException{}, "it is not valid to push a confirmation when there is a pending block")
-	c.ForkDB.Add(hc)
+	c.ForkDB.AddConfirmation(hc)
 	//c.AcceptedConfirmation.Emit(hc)
 	//emit( c.accepted_confirmation, hc )
 	if c.ReadMode != IRREVERSIBLE {

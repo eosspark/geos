@@ -19,6 +19,8 @@ import (
 	"github.com/eosspark/eos-go/plugins/chain_interface"
 	"io/ioutil"
 	"math"
+	"strconv"
+	"time"
 )
 
 var CORE_SYMBOL = common.Symbol{Precision: 4, Symbol: "SYS"}
@@ -96,9 +98,10 @@ func (t *BaseTester) init(pushGenesis bool, readMode DBReadMode) {
 
 func newConfig(readMode DBReadMode) *Config {
 	cfg := &Config{}
-	cfg.BlocksDir = common.DefaultConfig.DefaultBlocksDirName
-	cfg.StateDir = common.DefaultConfig.DefaultStateDirName
-	cfg.ReversibleDir = common.DefaultConfig.DefaultReversibleBlocksDirName
+	tempDirSuffix := "_" + strconv.FormatInt(time.Now().UnixNano(), 10)
+	cfg.BlocksDir = common.DefaultConfig.DefaultBlocksDirName + tempDirSuffix
+	cfg.StateDir = common.DefaultConfig.DefaultStateDirName + tempDirSuffix
+	cfg.ReversibleDir = common.DefaultConfig.DefaultReversibleBlocksDirName + tempDirSuffix
 	cfg.StateSize = 1024 * 1024 * 8
 	cfg.StateGuardSize = 0
 	cfg.ReversibleCacheSize = 1024 * 1024 * 8
@@ -408,6 +411,21 @@ func (t BaseTester) PushAction4(code *common.AccountName, acttype *common.Accoun
 		trx.Sign(&key, &chainId)
 	}
 	return t.PushTransaction(&trx, common.MaxTimePoint(), t.DefaultBilledCpuTimeUs)
+}
+
+func (t BaseTester) GetResolver() func (name common.AccountName) *abi.AbiSerializer{
+	return func(name common.AccountName) *abi.AbiSerializer {
+		var r *abi.AbiSerializer
+		try.Try(func() {
+			accObj := entity.AccountObject{Name:name}
+			t.Control.DB.Find("byName",accObj,&accObj)
+			var abid abi.AbiDef
+			if abi.ToABI(accObj.Abi,&abid) {
+				r = abi.NewAbiSerializer(&abid,t.AbiSerializerMaxTime)
+			}
+		}).FcRethrowExceptions(log.LvlError, "Failed to find or parse ABI for %s", name)
+		return r
+	}
 }
 
 func (t BaseTester) GetAction(code common.AccountName, actType common.AccountName,
@@ -869,9 +887,6 @@ func newValidatingTester(pushGenesis bool, readMode DBReadMode) *ValidatingTeste
 	vt.ChainTransactions = make(map[common.BlockIdType]types.TransactionReceipt)
 	vt.LastProducedBlock = make(map[common.AccountName]common.BlockIdType)
 	vt.VCfg = *newConfig(readMode)
-	vt.VCfg.BlocksDir = common.DefaultConfig.ValidatingBlocksDirName
-	vt.VCfg.StateDir = common.DefaultConfig.ValidatingStateDirName
-	vt.VCfg.ReversibleDir = common.DefaultConfig.ValidatingReversibleBlocksDirName
 
 	vt.ValidatingControl = NewController(&vt.VCfg)
 	//TODO
@@ -899,14 +914,34 @@ func NewValidatingTesterTrustedProducers(trustedProducers *treeset.Set) *Validat
 	vt.LastProducedBlock = make(map[common.AccountName]common.BlockIdType)
 	vt.VCfg = *newConfig(SPECULATIVE)
 	vt.VCfg.TrustedProducers = *trustedProducers
-	vt.VCfg.BlocksDir = common.DefaultConfig.ValidatingBlocksDirName
-	vt.VCfg.StateDir = common.DefaultConfig.ValidatingStateDirName
-	vt.VCfg.ReversibleDir = common.DefaultConfig.ValidatingReversibleBlocksDirName
 	vt.ValidatingControl = NewController(&vt.VCfg)
 
 	vt.init(true, SPECULATIVE)
 
 	return vt
+}
+
+func (vt ValidatingTester) PushAction(act *types.Action, authorizer common.AccountName) ActionResult {
+	trx := types.SignedTransaction{}
+	if !common.Empty(authorizer) {
+		act.Authorization = []types.PermissionLevel{{authorizer, common.DefaultConfig.ActiveName}}
+	}
+	trx.Actions = append(trx.Actions, act)
+	vt.SetTransactionHeaders(&trx.Transaction, vt.DefaultExpirationDelta, 0)
+	if !common.Empty(authorizer) {
+		chainId := vt.Control.GetChainId()
+		privateKey := vt.getPrivateKey(authorizer, "active")
+		trx.Sign(&privateKey, &chainId)
+	}
+	try.Try(func() {
+		vt.PushTransaction(&trx, common.MaxTimePoint(), vt.DefaultBilledCpuTimeUs)
+	}).Catch(func(ex exception.Exception) {
+		//log.Error("tester PushAction is error: %v", ex.DetailMessage())
+		try.Throw(ex)
+	}).End()
+	vt.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs), 0)
+	//BOOST_REQUIRE_EQUAL(true, chain_has_transaction(trx.id()))
+	return vt.Success()
 }
 
 func (vt ValidatingTester) ProduceBlocks(n uint32, empty bool) {

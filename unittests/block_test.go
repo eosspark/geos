@@ -52,9 +52,6 @@ func TestBlockWithInvalidTx(t *testing.T) {
 	assert.NoError(t, err)
 
 	// Push block with invalid transaction to other chain
-	common.DefaultConfig.DefaultBlocksDirName = common.DefaultConfig.DefaultBlocksDirName + "tmp"
-	common.DefaultConfig.DefaultStateDirName = common.DefaultConfig.DefaultStateDirName + "tmp"
-	common.DefaultConfig.DefaultReversibleBlocksDirName = common.DefaultConfig.DefaultReversibleBlocksDirName + "tmp"
 	validator := newBaseTester(true, chain.SPECULATIVE)
 	validator.Control.AbortBlock()
 
