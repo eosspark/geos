@@ -186,13 +186,8 @@ func (f *ForkDatabase) FetchBranchFrom(first *common.BlockIdType, second *common
 	return result
 }
 
-func (f *ForkDatabase) debugs() {
-	println("libBlockIdx:", f.Index.ByLibBlockNum.Size(), "idIdx:", len(f.Index.ByBlockId))
-}
-
 /// remove all of the invalid forks built of this id including this id
 func (f *ForkDatabase) Remove(id *common.BlockIdType) {
-	f.debugs()
 	removeQueue := []common.BlockIdType{*id}
 	for i := 0; i < len(removeQueue); i++ {
 		itr, existing := f.Index.ByBlockId[removeQueue[i]]
@@ -212,7 +207,6 @@ func (f *ForkDatabase) Remove(id *common.BlockIdType) {
 		}
 
 	}
-	f.debugs()
 
 	libItr := f.Index.ByLibBlockNum.Begin()
 	f.Head = f.Index.Value(libItr.Value())
@@ -256,7 +250,8 @@ func (f *ForkDatabase) Prune(h *types.BlockState) {
 
 	itr, existing := f.Index.ByBlockId[h.BlockId]
 	if existing {
-		//TODO f.Irreversible.Emit(f.Index.Value(itr))
+		//TODO
+		f.Irreversible.Emit(f.Index.Value(itr))
 		f.Index.Erase(itr)
 	}
 
