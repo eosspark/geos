@@ -404,7 +404,7 @@ func (c *Controller) AbortBlock() {
 		if c.ReadMode == SPECULATIVE {
 			if c.Pending.PendingBlockState != nil {
 				for _, trx := range c.Pending.PendingBlockState.Trxs {
-					c.UnappliedTransactions[crypto.Sha256(trx.SignedID)] = *trx
+					c.UnappliedTransactions[trx.SignedID] = *trx
 				}
 			}
 		}
@@ -511,6 +511,7 @@ func (c *Controller) PushTransaction(trx *types.TransactionMetadata, deadLine co
 }
 
 func (c *Controller) pushTransaction(trx *types.TransactionMetadata, deadLine common.TimePoint, billedCpuTimeUs uint32, explicitBilledCpuTime bool) (trxTrace *types.TransactionTrace) {
+
 	EosAssert(deadLine != common.TimePoint(0), &TransactionException{}, "deadline cannot be uninitialized")
 	var trace *types.TransactionTrace
 	returning, trace := false, (*types.TransactionTrace)(nil)
@@ -590,7 +591,7 @@ func (c *Controller) pushTransaction(trx *types.TransactionMetadata, deadLine co
 			}
 
 			if !trx.Implicit {
-				delete(c.UnappliedTransactions, *crypto.Hash256(trx.SignedID))
+				delete(c.UnappliedTransactions, crypto.Sha256(trx.SignedID))
 			}
 
 			returning = true
@@ -648,7 +649,7 @@ func (c *Controller) GetOnBlockTransaction() types.SignedTransaction {
 	onBlockAction.Authorization = []types.PermissionLevel{{common.AccountName(common.DefaultConfig.SystemAccountName), common.PermissionName(common.DefaultConfig.ActiveName)}}
 
 	data, err := rlp.EncodeToBytes(c.Head.Header)
-	if err != nil {
+	if err == nil {
 		onBlockAction.Data = data
 	}
 	trx := types.SignedTransaction{}
@@ -1145,17 +1146,14 @@ func (c *Controller) PushBlock(b *types.SignedBlock, s types.BlockStatus) {
 	Try(func() {
 		EosAssert(b != nil, &BlockValidateException{}, "trying to push empty block")
 		EosAssert(s != types.Incomplete, &BlockLogException{}, "invalid block status for a completed block")
-		//TODO: add to forkdb
 		c.PreAcceptedBlock.Emit(b)
-		//emit(self.pre_accepted_block, b )
+		//TODO emit(self.pre_accepted_block, b )
 		trust := !c.Config.ForceAllChecks && (s == types.Irreversible || s == types.Validated)
-		/*newHeaderState :=*/ c.ForkDB.AddSignedBlock(b, trust)
-		//exist, _ := c.Config.trustedProducers.Find(&b.Producer)
+		/*TODO newHeaderState :=*/ c.ForkDB.AddSignedBlock(b, trust)
 		if c.Config.TrustedProducers.Contains(b.Producer) {
 			c.TrustedProducerLightValidation = true
 		}
-		//c.AcceptedBlockHeader.Emit(newHeaderState)
-		//emit( self.accepted_block_header, new_header_state )
+		//TODO c.AcceptedBlockHeader.Emit(newHeaderState)
 		if c.ReadMode != IRREVERSIBLE {
 			c.maybeSwitchForks(s)
 		}
