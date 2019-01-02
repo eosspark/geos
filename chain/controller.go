@@ -439,6 +439,7 @@ func (c *Controller) startBlock(when types.BlockTimeStamp, confirmBlockCount uin
 	c.Pending.PendingBlockState = types.NewBlockState2(&c.Head.BlockHeaderState, when) //TODO std::make_shared<block_state>( *head, when ); // promotes pending schedule (if any) to active
 	c.Pending.PendingBlockState.InCurrentChain = true
 	c.Pending.PendingBlockState.SetConfirmed(confirmBlockCount)
+	fmt.Println("************************startblock****************", confirmBlockCount)
 	wasPendingPromoted := c.Pending.PendingBlockState.MaybePromotePending()
 
 	if c.ReadMode == DBReadMode(SPECULATIVE) || c.Pending.BlockStatus != types.BlockStatus(types.Incomplete) {
@@ -1056,7 +1057,6 @@ func (c *Controller) applyBlock(b *types.SignedBlock, s types.BlockStatus) {
 		EosAssert(len(b.BlockExtensions) == 0, &BlockValidateException{}, "no supported extensions")
 		producerBlockId := b.BlockID()
 		c.startBlock(b.Timestamp, b.Confirmed, s, &producerBlockId)
-
 		trace := &types.TransactionTrace{}
 		for _, receipt := range b.Transactions {
 			numPendingReceipts := len(c.Pending.PendingBlockState.SignedBlock.Transactions)
