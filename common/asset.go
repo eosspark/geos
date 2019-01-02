@@ -30,6 +30,14 @@ type Asset struct {
 //	return nil
 //}
 
+func NewAssetWithCheck(a int64, id Symbol) *Asset {
+	re := &Asset{
+		Amount: a,
+		Symbol: id,
+	}
+	re.assert()
+	return re
+}
 func (a *Asset) assert() {
 	try.EosAssert(a.isAmountWithinRange(), &exception.AssetTypeException{}, "magnitude of asset amount must be less than 2^62")
 	try.EosAssert(a.Symbol.Valid(), &exception.AssetTypeException{}, "invalid symbol")
@@ -77,7 +85,7 @@ func (a Asset) String() string {
 		result = strInt[:len(strInt)-int(a.Symbol.Precision)] + "." + strInt[len(strInt)-int(a.Symbol.Precision):]
 	}
 
-	return fmt.Sprintf("%s %s", sign + result, a.Symbol.Symbol)
+	return fmt.Sprintf("%s %s", sign+result, a.Symbol.Symbol)
 }
 
 func (a Asset) FromString(from *string) Asset {
@@ -174,7 +182,7 @@ func (sym Symbol) String() string {
 	try.EosAssert(sym.Valid(), &exception.SymbolTypeException{}, "symbol is not valid")
 	v := sym.Precision
 	ret := strconv.Itoa(int(v))
-	ret += ","+sym.Symbol
+	ret += "," + sym.Symbol
 	return ret
 }
 

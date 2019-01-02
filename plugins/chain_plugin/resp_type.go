@@ -170,12 +170,12 @@ type GetCurrencyStatsParams struct {
 	Code   common.Name `json:"code"`
 	Symbol string      `json:"symbol"`
 }
-type GetCurrencyStats1 struct {
+type GetCurrencyStats struct {
 	Supply    common.Asset       `json:"supply"`
 	MaxSupply common.Asset       `json:"max_supply"`
 	Issuer    common.AccountName `json:"issuer"`
 }
-type GEtCurrencyStatsResult = map[string]GetCurrencyStats1
+type GetCurrencyStatsResult = map[string]GetCurrencyStats
 
 type GetProducerScheduleParams struct {
 }
