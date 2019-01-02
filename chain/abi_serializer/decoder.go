@@ -87,7 +87,7 @@ func (a *AbiDef) decodeFields(binaryDecoder *rlp.Decoder, fields []FieldDef, jso
 
 func (a *AbiDef) decodeField(binaryDecoder *rlp.Decoder, fieldName string, fieldType string, isOptional bool, isArray bool, json []byte) ([]byte, error) {
 
-	abiLog.Debug("encode field,name :%s, type: %s", fieldName, fieldType)
+	abiLog.Error("decode field,name :%s, type: %s", fieldName, fieldType)
 
 	resultingJson := json
 	if isOptional {

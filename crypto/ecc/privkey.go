@@ -104,7 +104,7 @@ func (p *PrivateKey) Serialize() []byte {
 	return p.inner.Serialize()
 }
 
-func (p *PrivateKey) MarshalJSON() ([]byte, error) {
+func (p PrivateKey) MarshalJSON() ([]byte, error) {
 	return json.Marshal(p.String())
 }
 

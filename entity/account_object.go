@@ -34,7 +34,7 @@ type AccountSequenceObject struct {
 	AbiSequence  uint64
 }
 
-func (a *AccountObject) SetAbi(ad abi_serializer.AbiDef) {
+func (a *AccountObject) SetAbi(ad *abi_serializer.AbiDef) {
 	d, _ := rlp.EncodeToBytes(ad)
 	a.Abi = d
 }
