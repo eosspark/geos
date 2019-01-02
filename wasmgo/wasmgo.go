@@ -114,6 +114,28 @@ func NewWasmGo() *WasmGo {
 	w.Register("db_idx64_previous", dbIdx64Previous)
 	w.Register("db_idx64_find_primary", dbIdx64FindPrimary)
 
+	w.Register("db_idx128_store", dbIdx128Store)
+	w.Register("db_idx128_remove", dbIdx128Remove)
+	w.Register("db_idx128_update", dbIdx128Update)
+	w.Register("db_idx128_find_secondary", dbIdx128findSecondary)
+	w.Register("db_idx128_lowerbound", dbIdx128Lowerbound)
+	w.Register("db_idx128_upperbound", dbIdx128Upperbound)
+	w.Register("db_idx128_end", dbIdx128End)
+	w.Register("db_idx128_next", dbIdx128Next)
+	w.Register("db_idx128_previous", dbIdx128Previous)
+	w.Register("db_idx128_find_primary", dbIdx128FindPrimary)
+
+	w.Register("db_idx256_store", dbIdx256Store)
+	w.Register("db_idx256_remove", dbIdx256Remove)
+	w.Register("db_idx256_update", dbIdx256Update)
+	w.Register("db_idx256_find_secondary", dbIdx256findSecondary)
+	w.Register("db_idx256_lowerbound", dbIdx256Lowerbound)
+	w.Register("db_idx256_upperbound", dbIdx256Upperbound)
+	w.Register("db_idx256_end", dbIdx256End)
+	w.Register("db_idx256_next", dbIdx256Next)
+	w.Register("db_idx256_previous", dbIdx256Previous)
+	w.Register("db_idx256_find_primary", dbIdx256FindPrimary)
+
 	w.Register("db_idx_double_store", dbIdxDoubleStore)
 	w.Register("db_idx_double_remove", dbIdxDoubleRemove)
 	w.Register("db_idx_double_update", dbIdxDoubleUpdate)
@@ -124,6 +146,17 @@ func NewWasmGo() *WasmGo {
 	w.Register("db_idx_double_next", dbIdxDoubleNext)
 	w.Register("db_idx_double_previous", dbIdxDoublePrevious)
 	w.Register("db_idx_double_find_primary", dbIdxDoubleFindPrimary)
+
+	w.Register("db_idx_long_double_store", dbIdxLongDoubleStore)
+	w.Register("db_idx_long_double_remove", dbIdxLongDoubleRemove)
+	w.Register("db_idx_long_double_update", dbIdxLongDoubleUpdate)
+	w.Register("db_idx_long_double_find_secondary", dbIdxLongDoublefindSecondary)
+	w.Register("db_idx_long_double_lowerbound", dbIdxLongDoubleLowerbound)
+	w.Register("db_idx_long_double_upperbound", dbIdxLongDoubleUpperbound)
+	w.Register("db_idx_long_double_end", dbIdxLongDoubleEnd)
+	w.Register("db_idx_long_double_next", dbIdxLongDoubleNext)
+	w.Register("db_idx_long_double_previous", dbIdxLongDoublePrevious)
+	w.Register("db_idx_long_double_find_primary", dbIdxLongDoubleFindPrimary)
 
 	w.Register("memcpy", memcpy)
 	w.Register("memmove", memmove)
@@ -375,7 +408,7 @@ func getUint256(vm *VM, index int) *eos_math.Uint256 {
 
 	//fmt.Println("getUint256")
 	var ret eos_math.Uint256
-	c := getMemory(vm, index, 16)
+	c := getMemory(vm, index, 32)
 	rlp.DecodeBytes(c, &ret)
 	return &ret
 }

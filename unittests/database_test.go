@@ -6,7 +6,6 @@ import (
 	//"github.com/syndtr/goleveldb/leveldb"
 	. "github.com/eosspark/eos-go/database"
 	"github.com/eosspark/eos-go/chain"
-	"fmt"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/stretchr/testify/assert"
@@ -17,30 +16,24 @@ func TestUndo(t *testing.T) {
 	db := vt.Control.DB
 	sec := db.StartSession()
 
-	house := DbHouse{Id: uint64(1), Area: uint64(7), Name: "billy", Carnivore: Carnivore{7, 7}}
+	billy := DbHouse{Id: uint64(1), Area: uint64(7), Name: "billy", Carnivore: Carnivore{7, 7}}
 
-	err := db.Insert(&house) //insert success
-	if err != nil {
-		fmt.Println(err)
-	}
+	db.Insert(&billy) //insert success
+
 
 	// Make sure we can retrieve that account by name
 	tmp := DbHouse{}
-	err = db.Find("Name", house, &tmp) //find success
-	if err != nil {
-		fmt.Println(err)
-	}
+	db.Find("Name", billy, &tmp) //find success
+
 	LogObj(tmp)
 	//Undo creation of the account
 	sec.Undo()
 
 	// Make sure we can no longer find the account
 	tmp2 := DbHouse{}
-	err = db.Find("Name", house, &tmp2) //can't find after undo
+	db.Find("Name", billy, &tmp2) //can't find after undo
 	LogObj(tmp2)
-	if err != nil {
-		fmt.Println(err)
-	}
+
 	vt.close()
 }
 
@@ -88,6 +81,7 @@ func TestGetBlocks(t *testing.T) {
 	// Check the latest head block match
 	assert.Equal(t,test.Control.FetchBlockByNumber(NumOfBlocksToProd + NextNumOfBlocksToProd + 1).BlockID(), test.Control.HeadBlockId())
 
+	test.close()
 
 }
 

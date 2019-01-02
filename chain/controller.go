@@ -15,6 +15,7 @@ import (
 	. "github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/log"
 	"github.com/eosspark/eos-go/plugins/appbase/app/include"
+	"github.com/eosspark/eos-go/plugins/chain_interface"
 	"github.com/eosspark/eos-go/wasmgo"
 	"os"
 )
@@ -201,21 +202,22 @@ func GetControllerInstance() *Controller {
 }
 
 func validPath() {
-	path := []string{common.DefaultConfig.DefaultStateDirName, common.DefaultConfig.DefaultBlocksDirName, common.DefaultConfig.DefaultReversibleBlocksDirName}
-	for _, d := range path {
-		_, err := os.Stat(d)
-		if os.IsNotExist(err) {
-			err := os.MkdirAll(d, os.ModePerm)
-			if err != nil {
-				log.Info("controller validPath mkdir failed:%s\n", err)
-			} else {
-				log.Info("controller validPath mkdir success:%s\n", d)
-			}
-		}
-	}
+	//path := []string{common.DefaultConfig.DefaultStateDirName, common.DefaultConfig.DefaultBlocksDirName, common.DefaultConfig.DefaultReversibleBlocksDirName,
+	//	comsmon.DefaultConfig.ValidatingBlocksDirName, common.DefaultConfig.ValidatingStateDirName, common.DefaultConfig.ValidatingReversibleBlocksDirName}
+	//for _, d := range path {
+	//	_, err := os.Stat(d)
+	//	if os.IsNotExist(err) {
+	//		err := os.MkdirAll(d, os.ModePerm)
+	//		if err != nil {
+	//			log.Info("controller validPath mkdir failed:%s\n", err)
+	//		} else {
+	//			log.Info("controller validPath mkdir success:%s\n", d)
+	//		}
+	//	}
+	//}
 }
 func NewController(cfg *Config) *Controller {
-	isActiveController = true //controller is active
+	validPath()
 	db, err := database.NewDataBase(cfg.StateDir)
 	reversibleDB, err := database.NewDataBase(cfg.ReversibleDir)
 
@@ -227,9 +229,9 @@ func NewController(cfg *Config) *Controller {
 	con.DB = db
 	con.ReversibleBlocks = reversibleDB
 
-	con.Blog = NewBlockLog(common.DefaultConfig.DefaultBlocksDirName)
+	con.Blog = NewBlockLog(cfg.BlocksDir)
 
-	con.ForkDB, err = newForkDatabase(cfg.BlocksDir, common.DefaultConfig.ForkDbName, true)
+	con.ForkDB = NewForkDatabase(cfg.BlocksDir)
 
 	con.ChainID = cfg.Genesis.ComputeChainID()
 
@@ -258,9 +260,7 @@ func NewController(cfg *Config) *Controller {
 	con.SetApplayHandler(common.AccountName(common.N("eosio")), common.AccountName(common.N("eosio")),
 		common.ActionName(common.N("canceldelay")), applyEosioCanceldalay)
 	con.initialize()
-	/*fork_db.irreversible.connect( [&]( auto b ) {
-		on_irreversible(b);
-	})*/
+	con.ForkDB.Irreversible.Connect(&chain_interface.IrreversibleBlockCaller{Caller: con.OnIrreversible})
 
 	return con
 }
@@ -285,7 +285,7 @@ func newController() *Controller {
 
 	con.Blog = NewBlockLog(common.DefaultConfig.DefaultBlocksDirName)
 
-	con.ForkDB, _ = newForkDatabase(common.DefaultConfig.DefaultBlocksDirName, common.DefaultConfig.ForkDbName, true)
+	con.ForkDB = NewForkDatabase(common.DefaultConfig.DefaultBlocksDirName)
 	con.initConfig()
 	con.ChainID = con.Config.Genesis.ComputeChainID()
 
@@ -317,6 +317,7 @@ func newController() *Controller {
 	con.ResourceLimits = newResourceLimitsManager(con)
 	con.Authorization = newAuthorizationManager(con)
 	con.UnappliedTransactions = make(map[crypto.Sha256]types.TransactionMetadata)
+	con.ForkDB.Irreversible.Connect(&chain_interface.IrreversibleBlockCaller{Caller: con.OnIrreversible})
 	con.initialize()
 	return con
 }
@@ -362,7 +363,7 @@ func (c *Controller) FindApplyHandler(receiver common.AccountName,
 }
 
 func (c *Controller) OnIrreversible(s *types.BlockState) {
-	if !common.Empty(c.Blog.head) {
+	if common.Empty(c.Blog.head) {
 		c.Blog.ReadHead()
 	}
 	logHead := c.Blog.head
@@ -373,16 +374,18 @@ func (c *Controller) OnIrreversible(s *types.BlockState) {
 		return
 	}
 	EosAssert(s.BlockNum-1 == lhBlockNum, &UnlinkableBlockException{}, "unlinkable block:%d,%d", s.BlockNum, lhBlockNum)
-	EosAssert(s.Header.Previous == logHead.BlockID(), &UnlinkableBlockException{}, "irreversible doesn't link to block log head")
+	EosAssert(s.SignedBlock.Previous == logHead.BlockID(), &UnlinkableBlockException{}, "irreversible doesn't link to block log head")
 	c.Blog.Append(s.SignedBlock)
-	bs := types.BlockState{}
-	ubi, err := c.ReversibleBlocks.GetIndex("byNum", &bs)
+	rbi := entity.ReversibleBlockObject{}
+	ubi, err := c.ReversibleBlocks.GetIndex("byNum", &rbi)
 	if err != nil {
-		log.Error("Controller OnIrreversible ReversibleBlocks.GetIndex is error:%s", err)
+		EosThrow(&DatabaseGuardException{}, err.Error())
 	}
 	itr := ubi.Begin()
-	tbs := types.BlockState{}
-	err = itr.Data(&tbs)
+	tbs := entity.ReversibleBlockObject{}
+	if itr != nil {
+		err = itr.Data(&tbs)
+	}
 	for itr != ubi.End() && tbs.BlockNum <= s.BlockNum {
 		c.ReversibleBlocks.Remove(itr)
 		itr = ubi.Begin()
@@ -1145,8 +1148,8 @@ func (c *Controller) PushBlock(b *types.SignedBlock, s types.BlockStatus) {
 		//TODO: add to forkdb
 		c.PreAcceptedBlock.Emit(b)
 		//emit(self.pre_accepted_block, b )
-		//trust := !c.Config.ForceAllChecks && (s == types.Irreversible || s == types.Validated)
-		//newHeaderState := c.ForkDB.AddSignedBlockState(b, trust)
+		trust := !c.Config.ForceAllChecks && (s == types.Irreversible || s == types.Validated)
+		/*newHeaderState :=*/ c.ForkDB.AddSignedBlock(b, trust)
 		//exist, _ := c.Config.trustedProducers.Find(&b.Producer)
 		if c.Config.TrustedProducers.Contains(b.Producer) {
 			c.TrustedProducerLightValidation = true
@@ -1166,7 +1169,7 @@ func (c *Controller) PushBlock(b *types.SignedBlock, s types.BlockStatus) {
 
 func (c *Controller) PushConfirmation(hc *types.HeaderConfirmation) {
 	EosAssert(c.Pending == nil, &BlockValidateException{}, "it is not valid to push a confirmation when there is a pending block")
-	c.ForkDB.Add(hc)
+	c.ForkDB.AddConfirmation(hc)
 	//c.AcceptedConfirmation.Emit(hc)
 	//emit( c.accepted_confirmation, hc )
 	if c.ReadMode != IRREVERSIBLE {

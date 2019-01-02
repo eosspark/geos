@@ -33,11 +33,11 @@ func init() {
 		"permission_object":            {overhead: 5 * 32, value: 3*1 + 4 + 64 + 5*32},
 		"table_id_object":              {overhead: 32 * 2, value: 44 + 32*2},
 		"key_value_object":             {overhead: 32 * 2, value: 32 + 8 + 4 + 32*2},
-		"index64_object":               {overhead: 32 * 3, value: 24 + 8 + 32*3},
-		"index128_object":              {overhead: 32 * 3, value: 24 + 16 + 32*3},
-		"index256_object":              {overhead: 32 * 3, value: 24 + 32 + 32*3},
-		"index_double_object":          {overhead: 32 * 3, value: 24 + 8 + 32*3},
-		"index_long_double_object":     {overhead: 32 * 3, value: 24 + 16 + 32*3},
+		"Idx64Object":                  {overhead: 32 * 3, value: 24 + 8 + 32*3},
+		"Idx128Object":                 {overhead: 32 * 3, value: 24 + 16 + 32*3},
+		"Idx256Object":                 {overhead: 32 * 3, value: 24 + 32 + 32*3},
+		"IdxDoubleObject":              {overhead: 32 * 3, value: 24 + 8 + 32*3},
+		"IdxLongDoubleObject":          {overhead: 32 * 3, value: 24 + 16 + 32*3},
 		"generated_transaction_object": {overhead: 32 * 5, value: 96 + 4 + 32*5},
 	}
 
@@ -94,9 +94,6 @@ func init() {
 	DefaultConfig.DefaultBlocksDirName = "/tmp/data/blocks"
 	DefaultConfig.DefaultReversibleBlocksDirName = "/tmp/data/reversible"
 	DefaultConfig.DefaultStateDirName = "/tmp/data/state"
-	DefaultConfig.ValidatingBlocksDirName = "/tmp/data/vBlocks"
-	DefaultConfig.ValidatingReversibleBlocksDirName = "/tmp/data/vReversible"
-	DefaultConfig.ValidatingStateDirName = "/tmp/data/vState"
 
 	DefaultConfig.DefaultStateSize = 1 * 1024 * 1024 * 1024
 	DefaultConfig.DefaultStateGuardSize = 128 * 1024 * 1024
@@ -148,8 +145,8 @@ type Config struct {
 	MaxTrackedDposConfirmations int ///<
 	TransactionIdNetUsage       uint32
 
-	Percent_100 int
-	Percent_1   int
+	Percent_100                  int
+	Percent_1                    int
 	IrreversibleThresholdPercent int
 
 	AccountCpuUsageAverageWindowMs uint32
@@ -181,21 +178,17 @@ type Config struct {
 	MinNetUsageDeltaBetweenBaseAndMaxForTrx uint32
 	/**************************chain_config end****************************/
 
-	ForkDbName                        string
-	DBFileName                        string
-	ReversibleFileName                string
-	BlockFileName                     string
-	DefaultBlocksDirName              string
-	DefaultReversibleBlocksDirName    string
-	DefaultStateDirName               string
-	ValidatingBlocksDirName           string
-	ValidatingReversibleBlocksDirName string
-	ValidatingStateDirName            string
-
-	DefaultStateSize                  uint64
-	DefaultStateGuardSize             uint64
-	DefaultReversibleCacheSize        uint64
-	DefaultReversibleGuardSize        uint64
+	ForkDbName                     string
+	DBFileName                     string
+	ReversibleFileName             string
+	BlockFileName                  string
+	DefaultBlocksDirName           string
+	DefaultReversibleBlocksDirName string
+	DefaultStateDirName            string
+	DefaultStateSize               uint64
+	DefaultStateGuardSize          uint64
+	DefaultReversibleCacheSize     uint64
+	DefaultReversibleGuardSize     uint64
 	//FixedNetOverheadOfPackedTrx uint32 // TODO: C++ default value 16 and is this reasonable?
 }
 

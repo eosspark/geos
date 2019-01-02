@@ -28,7 +28,7 @@ func TestMultiIndexLoad(t *testing.T) {
 		var trxId1 common.BlockIdType
 		{
 			trx := types.SignedTransaction{}
-			actData := common.Variants{"trigger": common.Variants{"what": "hello", "bottom": "hi"}}
+			actData := common.Variants{"what": 0}
 			act := b.GetAction(account,
 				common.N("trigger"),
 				[]types.PermissionLevel{{account, common.DefaultConfig.ActiveName}},
@@ -47,7 +47,7 @@ func TestMultiIndexLoad(t *testing.T) {
 		var trxId2 common.BlockIdType
 		{
 			trx := types.SignedTransaction{}
-			actData := common.Variants{"trigger": common.Variants{"what": 1}}
+			actData := common.Variants{"what": 1}
 			act := b.GetAction(account,
 				common.N("trigger"),
 				[]types.PermissionLevel{{account, common.DefaultConfig.ActiveName}},
