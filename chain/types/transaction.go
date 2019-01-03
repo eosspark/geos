@@ -126,62 +126,35 @@ func (t *Transaction) SigDigest(chainID *common.ChainIdType, cfd []common.HexByt
 //useCache= true
 func (t *Transaction) GetSignatureKeys(signatures []ecc.Signature, chainID *common.ChainIdType, cfd []common.HexBytes,
 	allowDuplicateKeys bool, useCache bool) treeset.Set {
-	//Try(func() {
-	//	const recoveryCacheSize common.SizeT = 1000
-	//	recoveredPubKeys := treeset.NewWith(ecc.TypePubKey, ecc.ComparePubKey)
-	//
-	//	digest := t.SigDigest(chainID, cfd)
-	//	for _, sig := range signatures {
-	//		recov := ecc.PublicKey{}
-	//		if useCache {
-	//			it, ok := recoveryCache[sig.String()]
-	//			if !ok || it.TrxID != t.ID() {
-	//				recov, _ = sig.PublicKey(digest.Bytes())
-	//				recoveryCache[sig.String()] = CachedPubKey{t.ID(), recov, sig} //could fail on dup signatures; not a problem
-	//			} else {
-	//				recov = it.PubKey
-	//			}
-	//		} else {
-	//			recov, _ = sig.PublicKey(digest.Bytes())
-	//		}
-	//		result, _ := recoveredPubKeys.AddItem(recov)
-	//		EosAssert(allowDuplicateKeys || result, &TxDuplicateSig{},
-	//			"transaction includes more than one signature signed using the same key associated with public key: %s}", recov)
-	//	}
-	//	/*if useCache {
-	//		for len(t.RecoveryCache) > int(recoveryCacheSize) {
-	//			recovery_cache.erase( recovery_cache.begin() )
-	//		}
-	//	}*/
-	//	return *recoveredPubKeys
-	//})
-
 	const recoveryCacheSize common.SizeT = 1000
 	recoveredPubKeys := treeset.NewWith(ecc.TypePubKey, ecc.ComparePubKey)
-
-	digest := t.SigDigest(chainID, cfd)
-	for _, sig := range signatures {
-		recov := ecc.PublicKey{}
-		if useCache {
-			it, ok := recoveryCache[sig.String()]
-			if !ok || it.TrxID != t.ID() {
-				recov, _ = sig.PublicKey(digest.Bytes())
-				recoveryCache[sig.String()] = CachedPubKey{t.ID(), recov, sig} //could fail on dup signatures; not a problem
+	Try(func() {
+		digest := t.SigDigest(chainID, cfd)
+		for _, sig := range signatures {
+			recov := ecc.PublicKey{}
+			if useCache {
+				it, ok := recoveryCache[sig.String()]
+				if !ok || it.TrxID != t.ID() {
+					recov, _ = sig.PublicKey(digest.Bytes())
+					recoveryCache[sig.String()] = CachedPubKey{t.ID(), recov, sig} //could fail on dup signatures; not a problem
+				} else {
+					recov = it.PubKey
+				}
 			} else {
-				recov = it.PubKey
+				recov, _ = sig.PublicKey(digest.Bytes())
 			}
-		} else {
-			recov, _ = sig.PublicKey(digest.Bytes())
+			result, _ := recoveredPubKeys.AddItem(recov)
+			EosAssert(allowDuplicateKeys || result, &TxDuplicateSig{},
+				"transaction includes more than one signature signed using the same key associated with public key: %s}", recov)
 		}
-		result, _ := recoveredPubKeys.AddItem(recov)
-		EosAssert(allowDuplicateKeys || result, &TxDuplicateSig{},
-			"transaction includes more than one signature signed using the same key associated with public key: %s}", recov)
-	}
-	/*if useCache {
-		for len(t.RecoveryCache) > int(recoveryCacheSize) {
-			recovery_cache.erase( recovery_cache.begin() )
-		}
-	}*/
+		/*		if useCache {
+				for len(t.RecoveryCache) > int(recoveryCacheSize) {
+					recovery_cache.erase( recovery_cache.begin() )
+				}
+			}*/
+
+	}).FcLogAndRethrow().End()
+
 	return *recoveredPubKeys
 }
 
@@ -326,7 +299,7 @@ func (p *PackedTransaction) SetTransactionWithCFD(t *SignedTransaction, cfd *[]c
 		default:
 			EosThrow(&UnknownTransactionCompression{}, "Unknown transaction compression algorithm")
 		}
-	}).FcCaptureAndRethrow(compression, t)
+	}).FcCaptureAndRethrow(compression, t).End()
 
 	p.Compression = compression
 }
@@ -338,10 +311,7 @@ func (p *PackedTransaction) GetUnprunableSize() (size uint32) {
 }
 
 func (p *PackedTransaction) GetPrunableSize() uint32 {
-	size, err := rlp.EncodeSize(p.Signatures)
-	if err != nil {
-		panic(err)
-	}
+	size, _ := rlp.EncodeSize(p.Signatures)
 	size += len(p.PackedContextFreeData)
 	EosAssert(size <= eos_math.MaxUint32, &TxTooBig{}, "packed_transaction is too big")
 	return uint32(size)
@@ -352,40 +322,24 @@ func (p *PackedTransaction) PackedDigest() common.DigestType {
 	if p == nil {
 		p = &PackedTransaction{}
 	}
-	result, err := rlp.EncodeToBytes(p.Signatures)
-	if err != nil {
-		errout := fmt.Sprintf("PackedDigest:Signatures error:%s", err)
-		panic(errout)
-	}
+	result, _ := rlp.EncodeToBytes(p.Signatures)
 	prunable.Write(result)
-	result, err = rlp.EncodeToBytes(p.PackedContextFreeData)
-	if err != nil {
-		errout := fmt.Sprintf("PackedDigest:PackedContextFreeData error:%s", err)
-		panic(errout)
-	}
+	result, _ = rlp.EncodeToBytes(p.PackedContextFreeData)
 	prunable.Write(result)
 
 	prunableResult := prunable.Sum(nil)
 
 	enc := crypto.NewSha256()
-	result, err = rlp.EncodeToBytes(p.Compression)
-	if err != nil {
-		errout := fmt.Sprintf("PackedDigest:Compression error:%s", err)
-		panic(errout)
-	}
+	result, _ = rlp.EncodeToBytes(p.Compression)
 	enc.Write(result)
 
-	result, err = rlp.EncodeToBytes(p.PackedTrx)
-	if err != nil {
-		errout := fmt.Sprintf("PackedDigest:PackedTrx error:%s", err)
-		panic(errout)
-	}
+	result, _ = rlp.EncodeToBytes(p.PackedTrx)
+
 	enc.Write(result)
 	enc.Write(prunableResult)
 
 	hashed := enc.Sum(nil)
-	out := crypto.NewSha256Byte(hashed)
-	return common.DigestType(*out)
+	return common.DigestType(*crypto.NewSha256Byte(hashed))
 }
 
 func (p *PackedTransaction) GetRawTransaction() common.HexBytes {
@@ -432,15 +386,12 @@ func (p *PackedTransaction) ID() common.TransactionIdType {
 func (p *PackedTransaction) GetUncachedID() common.TransactionIdType {
 	raw := p.GetRawTransaction()
 	tx := Transaction{}
-	err := rlp.DecodeBytes([]byte(raw), &tx)
-	if err != nil {
-		panic(err)
-	}
+	rlp.DecodeBytes([]byte(raw), &tx)
 	return tx.ID()
 }
 
 func (p *PackedTransaction) localUnpack() {
-	if p.UnpackedTrx == nil {
+	if p.UnpackedTrx == nil { //TODO !unpackedTrx
 		Try(func() {
 			switch p.Compression {
 			case CompressionNone:
@@ -459,30 +410,18 @@ func (p *PackedTransaction) GetTransaction() *Transaction {
 	return p.UnpackedTrx
 }
 
-func (p *PackedTransaction) GetSignedTransaction() *SignedTransaction {
-	var SignedTrx *SignedTransaction
+func (p *PackedTransaction) GetSignedTransaction() (signedTrx *SignedTransaction) {
 	Try(func() {
 		switch p.Compression {
 		case CompressionNone:
-			SignedTrx = NewSignedTransaction(p.GetTransaction(), p.Signatures, unpackContextFreeData(&p.PackedContextFreeData))
+			signedTrx = NewSignedTransaction(p.GetTransaction(), p.Signatures, unpackContextFreeData(&p.PackedContextFreeData))
 		case CompressionZlib:
-			SignedTrx = NewSignedTransaction(p.GetTransaction(), p.Signatures, zlibDecompressContextFreeData(&p.PackedContextFreeData))
+			signedTrx = NewSignedTransaction(p.GetTransaction(), p.Signatures, zlibDecompressContextFreeData(&p.PackedContextFreeData))
 		default:
 			EosThrow(&UnknownTransactionCompression{}, "Unknown transaction compression algorithm")
 		}
-
-		//switch p.Compression {
-		//case CompressionNone:
-		//	return NewSignedTransaction(p.GetTransaction(), p.Signatures, unpackContextFreeData(&p.PackedContextFreeData))
-		//case CompressionZlib:
-		//	return NewSignedTransaction(p.GetTransaction(), p.Signatures, zlibDecompressContextFreeData(&p.PackedContextFreeData))
-		//default:
-		//	//EOS_THROW(unknown_transaction_compression, "Unknown transaction compression algorithm");
-		//	panic("Unknown transaction compression algorithm")
-		//}
 	}).FcCaptureAndRethrow(p.Compression, p.PackedTrx, p.PackedContextFreeData).End()
-	return SignedTrx
-
+	return
 }
 
 func (p *PackedTransaction) SetTransaction(t *Transaction, compression CompressionType) {
@@ -501,22 +440,18 @@ func (p *PackedTransaction) SetTransaction(t *Transaction, compression Compressi
 	p.Compression = compression
 }
 
-func unpackContextFreeData(data *common.HexBytes) (out []common.HexBytes) {
+func unpackContextFreeData(data *common.HexBytes) []common.HexBytes {
+	out := make([]common.HexBytes, 0)
 	if len(*data) == 0 {
-		return
+		return out
 	}
-	err := rlp.DecodeBytes([]byte(*data), out)
-	if err != nil {
-		panic(err)
-	}
-	return
+	rlp.DecodeBytes([]byte(*data), &out) //todo err?
+	return out
 }
-func unpackTransaction(data common.HexBytes) (tx *Transaction) {
-	err := rlp.DecodeBytes(data, &tx)
-	if err != nil {
-		panic(err)
-	}
-	return
+func unpackTransaction(data common.HexBytes) *Transaction {
+	tx := Transaction{}
+	rlp.DecodeBytes(data, &tx)
+	return &tx
 }
 
 func zlibDecompress(data *common.HexBytes) common.HexBytes { //TODO
@@ -543,22 +478,16 @@ func zlibDecompressTransaction(data *common.HexBytes) *Transaction {
 	return unpackTransaction(packedTrax)
 }
 
-func packTransaction(t *Transaction) (out []byte) { //Bytes
-	out, err := rlp.EncodeToBytes(t)
-	if err != nil {
-		panic(err)
-	}
-	return
+func packTransaction(t *Transaction) []byte { //Bytes
+	out, _ := rlp.EncodeToBytes(t)
+	return out
 }
 
 func packContextFreeData(cfd *[]common.HexBytes) (out []byte) {
 	if len(*cfd) == 0 {
 		return []byte{}
 	}
-	out, err := rlp.EncodeToBytes(cfd)
-	if err != nil {
-		panic(err)
-	}
+	out, _ = rlp.EncodeToBytes(cfd)
 	return
 }
 

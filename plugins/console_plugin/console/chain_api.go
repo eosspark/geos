@@ -8,23 +8,19 @@ import (
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/exception"
 	"github.com/eosspark/eos-go/exception/try"
-	"github.com/eosspark/eos-go/log"
 	"github.com/eosspark/eos-go/plugins/chain_plugin"
 	"github.com/robertkrimen/otto"
 	"strings"
 )
 
 type chainAPI struct {
-	c   *Console
-	log log.Logger
+	c *Console
 }
 
 func newchainAPI(c *Console) *chainAPI {
 	e := &chainAPI{
 		c: c,
 	}
-	e.log = log.New("chainAPI")
-	e.log.SetHandler(log.TerminalHandler)
 	return e
 }
 
@@ -90,7 +86,7 @@ func (a *chainAPI) GetAccount(call otto.FunctionCall) otto.Value {
 	var resp chain_plugin.GetAccountResult
 	err = DoHttpCall(&resp, common.GetAccountFunc, common.Variants{"account_name": name})
 	if err != nil {
-		a.log.Error("get account is error: %s", err.Error())
+		clog.Error("get account is error: %s", err.Error())
 	}
 	return getJsResult(call, resp)
 }
@@ -172,11 +168,11 @@ func (a *chainAPI) GetCode(call otto.FunctionCall) otto.Value { //TODO save to f
 	if err != nil {
 		return otto.UndefinedValue()
 	}
-	a.log.Debug("%s,%s,%s,%s", name, code, abi, wasm)
+	clog.Debug("%s,%s,%s,%s", name, code, abi, wasm)
 	var resp chain_plugin.GetCodeResult
 	err = DoHttpCall(&resp, common.GetCodeFunc, common.Variants{"account_name": name, "code_as_wasm": true})
 	if err != nil {
-		a.log.Error("get abi is error: %s", err.Error())
+		clog.Error("get abi is error: %s", err.Error())
 	}
 	return getJsResult(call, resp)
 }
@@ -206,7 +202,7 @@ func (a *chainAPI) GetAbi(call otto.FunctionCall) otto.Value { //TODO save to fi
 	var resp chain_plugin.GetAbiResult
 	err = DoHttpCall(&resp, common.GetAbiFunc, common.Variants{"account_name": name})
 	if err != nil {
-		a.log.Error("get abi is error: %s", err.Error())
+		clog.Error("get abi is error: %s", err.Error())
 	}
 	return getJsResult(call, resp)
 }
@@ -331,7 +327,7 @@ func (a *chainAPI) GetTable(call otto.FunctionCall) (response otto.Value) {
 		"key_type":       "",
 		"index_position": 1})
 	if err != nil {
-		a.log.Error("get abi is error: %s", err.Error())
+		clog.Error("get abi is error: %s", err.Error())
 	}
 	return getJsResult(call, resp)
 }
@@ -366,7 +362,7 @@ func (a *chainAPI) GetScope(call otto.FunctionCall) (response otto.Value) {
 		"upper_bound": upBound,
 		"limit":       limit})
 	if err != nil {
-		a.log.Error("get abi is error: %s", err.Error())
+		clog.Error("get abi is error: %s", err.Error())
 	}
 	return getJsResult(call, resp)
 }
@@ -393,7 +389,7 @@ func (a *chainAPI) GetCurrencyBalance(call otto.FunctionCall) (response otto.Val
 	var resp []common.Asset
 	err = DoHttpCall(&resp, common.GetCurrencyBalanceFunc, common.Variants{"account_name": accountName, "code": code, "symbol": symbol})
 	if err != nil {
-		a.log.Error("GetCurrencyBalance is error: %s", err.Error())
+		clog.Error("GetCurrencyBalance is error: %s", err.Error())
 	}
 
 	for i := 0; i < len(resp); i++ {
@@ -414,7 +410,7 @@ func (a *chainAPI) GetCurrencyStats(call otto.FunctionCall) (response otto.Value
 	var resp chain_plugin.GetCurrencyStatsResult
 	err = DoHttpCall(&resp, common.GetCurrencyStatsFunc, common.Variants{"code": code, "symbol": symbol})
 	if err != nil {
-		a.log.Error("GetCurrencyBalance is error: %s", err.Error())
+		clog.Error("GetCurrencyBalance is error: %s", err.Error())
 	}
 	return getJsResult(call, nil)
 }
@@ -463,7 +459,7 @@ func (a *chainAPI) GetSchedule(call otto.FunctionCall) (response otto.Value) {
 	var resp chain_plugin.GetProducerScheduleResult
 	err = DoHttpCall(&resp, common.GetScheduleFunc, nil)
 	if err != nil {
-		a.log.Error("GetCurrencyBalance is error: %s", err.Error())
+		clog.Error("GetCurrencyBalance is error: %s", err.Error())
 	}
 	if printJSON {
 		return getJsResult(call, nil)

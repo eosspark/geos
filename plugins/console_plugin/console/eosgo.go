@@ -34,24 +34,29 @@ var txMaxNetUsage uint32 = 0
 
 var delaySec uint32 = 0
 
+var clog log.Logger
+
+func init() {
+	clog = log.New("console")
+	clog.SetHandler(log.TerminalHandler)
+	clog.SetHandler(log.DiscardHandler())
+}
+
 type eosgo struct {
-	c   *Console
-	log log.Logger
+	c *Console
 }
 
 func newEosgo(c *Console) *eosgo {
 	e := &eosgo{
 		c: c,
 	}
-	e.log = log.New("eosgo")
-	e.log.SetHandler(log.TerminalHandler)
 	return e
 }
 
-func getAccountPermissions(in string) []types.PermissionLevel {
+func getAccountPermissions(permissions []string) []types.PermissionLevel {
 	accountPermissions := make([]types.PermissionLevel, 0)
-	permissionStrs := strings.Split(in, ",")
-	for _, str := range permissionStrs {
+
+	for _, str := range permissions {
 		pieces := strings.Split(str, "@")
 		if len(pieces) == 1 {
 			pieces = append(pieces, "active")
@@ -91,52 +96,52 @@ func abisSerializerResolver(account common.AccountName) *abi_serializer.AbiSeria
 
 func variantToBin(account common.AccountName, action common.ActionName, actionArgsVar *common.Variants) []byte {
 	abis := abisSerializerResolver(account)
-	FcAssert(!common.Empty(abis), "No ABI found %s", account)
+	FcAssert(!common.Empty(abis), fmt.Sprintf("No ABI found %s", account))
 
 	actionType := abis.GetActionType(action)
-	FcAssert(len(actionType) != 0, "Unknown action %s in contract %s", action, account)
+	FcAssert(len(actionType) != 0, fmt.Sprintf("Unknown action %s in contract %s", action, account))
 	return abis.VariantToBinary(actionType, actionArgsVar, abiSerializerMaxTime)
 }
 
 func binToVariant(account common.AccountName, action common.ActionName, actionArgs []byte) common.Variants {
 	abis := abisSerializerResolver(account)
-	FcAssert(!common.Empty(abis), "No ABI found %s", account)
+	FcAssert(!common.Empty(abis), fmt.Sprintf("No ABI found %s", account))
 	actionType := abis.GetActionType(action)
-	FcAssert(len(actionType) != 0, "Unknown action %s in contract %s", action, account)
+	FcAssert(len(actionType) != 0, fmt.Sprintf("Unknown action %s in contract %s", action, account))
 	return abis.BinaryToVariant(actionType, actionArgs, abiSerializerMaxTime, false)
 }
 
-func createBuyRam(creator common.Name, newaccount common.Name, quantity common.Asset, txPermissionStr string) *types.Action {
+func createBuyRam(creator common.Name, newaccount common.Name, quantity *common.Asset, txPermission []string) *types.Action {
 	actPayload := common.Variants{
 		"payer":    creator.String(),
 		"receiver": newaccount.String(),
 		"quant":    quantity.String(),
 	}
 	var auth []types.PermissionLevel
-	if len(txPermissionStr) == 0 {
+	if len(txPermission) == 0 {
 		auth = []types.PermissionLevel{{Actor: creator, Permission: common.DefaultConfig.ActiveName}}
 	} else {
-		auth = getAccountPermissions(txPermissionStr)
+		auth = getAccountPermissions(txPermission)
 	}
 	return createAction(auth, common.DefaultConfig.SystemAccountName, common.N("buyram"), &actPayload)
 }
 
-func createBuyRamBytes(creator common.Name, newaccount common.Name, numbytes uint32, txPermissionStr string) *types.Action {
+func createBuyRamBytes(creator common.Name, newaccount common.Name, numbytes uint32, txPermission []string) *types.Action {
 	actPayload := common.Variants{
 		"payer":    creator.String(),
 		"receiver": newaccount.String(),
 		"bytes":    numbytes,
 	}
 	var auth []types.PermissionLevel
-	if len(txPermissionStr) == 0 {
+	if len(txPermission) == 0 {
 		auth = []types.PermissionLevel{{Actor: creator, Permission: common.DefaultConfig.ActiveName}}
 	} else {
-		auth = getAccountPermissions(txPermissionStr)
+		auth = getAccountPermissions(txPermission)
 	}
 	return createAction(auth, common.DefaultConfig.SystemAccountName, common.N("buyrambytes"), &actPayload)
 }
 
-func createDelegate(from common.Name, receiver common.Name, net common.Asset, cpu common.Asset, transfer bool, txPermissionStr string) *types.Action {
+func createDelegate(from common.Name, receiver common.Name, net *common.Asset, cpu *common.Asset, transfer bool, txPermission []string) *types.Action {
 	actPayLoad := common.Variants{
 		"from":               from.String(),
 		"receiver":           receiver.String(),
@@ -145,10 +150,10 @@ func createDelegate(from common.Name, receiver common.Name, net common.Asset, cp
 		"transfer":           transfer,
 	}
 	var auth []types.PermissionLevel
-	if len(txPermissionStr) == 0 {
+	if len(txPermission) == 0 {
 		auth = []types.PermissionLevel{{Actor: from, Permission: common.DefaultConfig.ActiveName}}
 	} else {
-		auth = getAccountPermissions(txPermissionStr)
+		auth = getAccountPermissions(txPermission)
 	}
 	return createAction(auth, common.DefaultConfig.SystemAccountName, common.N("delegatebw"), &actPayLoad)
 }
@@ -161,6 +166,35 @@ func regProducerVariant(producer common.AccountName, key ecc.PublicKey, url stri
 		"location":     location,
 	}
 }
+
+func createNewAccount(creator common.Name, newaccount common.Name, owner ecc.PublicKey, active ecc.PublicKey, txPermission []string) *types.Action {
+	a := chain.NewAccount{
+		Creator: creator,
+		Name:    newaccount,
+		Owner: types.Authority{
+			Threshold: 1,
+			Keys:      []types.KeyWeight{{Key: owner, Weight: 1}},
+		},
+		Active: types.Authority{
+			Threshold: 1,
+			Keys:      []types.KeyWeight{{Key: active, Weight: 1}},
+		},
+	}
+	buffer, _ := rlp.EncodeToBytes(&a)
+	action := &types.Action{
+		Account: a.GetAccount(),
+		Name:    a.GetName(),
+		//Authorization:,
+		Data: buffer,
+	}
+	if len(txPermission) == 0 {
+		action.Authorization = []types.PermissionLevel{{Actor: creator, Permission: common.DefaultConfig.ActiveName}}
+	} else {
+		action.Authorization = getAccountPermissions(txPermission)
+	}
+
+	return action
+}
 func createAction(authorization []types.PermissionLevel, code common.AccountName, act common.ActionName, args *common.Variants) *types.Action {
 	return &types.Action{
 		Account:       code,
@@ -170,7 +204,7 @@ func createAction(authorization []types.PermissionLevel, code common.AccountName
 	}
 }
 
-func createOpen(contract string, owner common.Name, sym common.Symbol, ramPayer common.Name, txPermissionStr string) *types.Action {
+func createOpen(contract string, owner common.Name, sym common.Symbol, ramPayer common.Name, txPermission []string) *types.Action {
 	open := common.Variants{
 		"owner":     owner,
 		"symbol":    sym,
@@ -181,15 +215,15 @@ func createOpen(contract string, owner common.Name, sym common.Symbol, ramPayer 
 		Name:    common.N("open"),
 		Data:    variantToBin(common.N(contract), common.N("open"), &open),
 	}
-	if len(txPermissionStr) == 0 {
+	if len(txPermission) == 0 {
 		action.Authorization = []types.PermissionLevel{{Actor: ramPayer, Permission: common.DefaultConfig.ActiveName}}
 	} else {
-		action.Authorization = getAccountPermissions(txPermissionStr)
+		action.Authorization = getAccountPermissions(txPermission)
 	}
 	return action
 }
 
-func createTransfer(contract string, sender common.Name, recipient common.Name, amount common.Asset, memo string, txPermissionStr string) *types.Action {
+func createTransfer(contract string, sender common.Name, recipient common.Name, amount common.Asset, memo string, txPermission []string) *types.Action {
 	transfer := common.Variants{
 		"from":     sender,
 		"to":       recipient,
@@ -201,15 +235,15 @@ func createTransfer(contract string, sender common.Name, recipient common.Name, 
 		Name:    common.N("transfer"),
 		Data:    variantToBin(common.N(contract), common.N("transfer"), &transfer),
 	}
-	if len(txPermissionStr) == 0 {
+	if len(txPermission) == 0 {
 		action.Authorization = []types.PermissionLevel{{Actor: sender, Permission: common.DefaultConfig.ActiveName}}
 	} else {
-		action.Authorization = getAccountPermissions(txPermissionStr)
+		action.Authorization = getAccountPermissions(txPermission)
 	}
 	return action
 }
 
-func createSetABI(account common.Name, abi []byte, txPermissionStr string) *types.Action {
+func createSetABI(account common.Name, abi []byte, txPermission []string) *types.Action {
 	a := chain.SetAbi{
 		Account: account,
 		Abi:     abi,
@@ -220,15 +254,15 @@ func createSetABI(account common.Name, abi []byte, txPermissionStr string) *type
 		Name:    a.GetName(),
 		Data:    buffer,
 	}
-	if len(txPermissionStr) == 0 {
+	if len(txPermission) == 0 {
 		action.Authorization = []types.PermissionLevel{{Actor: account, Permission: common.DefaultConfig.ActiveName}}
 	} else {
-		action.Authorization = getAccountPermissions(txPermissionStr)
+		action.Authorization = getAccountPermissions(txPermission)
 	}
 	return action
 }
 
-func createSetCode(account common.Name, code []byte, txPermissionStr string) *types.Action {
+func createSetCode(account common.Name, code []byte, txPermission []string) *types.Action {
 	a := chain.SetCode{
 		Account:   account,
 		VmType:    0,
@@ -241,15 +275,15 @@ func createSetCode(account common.Name, code []byte, txPermissionStr string) *ty
 		Name:    a.GetName(),
 		Data:    buffer,
 	}
-	if len(txPermissionStr) == 0 {
+	if len(txPermission) == 0 {
 		action.Authorization = []types.PermissionLevel{{Actor: account, Permission: common.DefaultConfig.ActiveName}}
 	} else {
-		action.Authorization = getAccountPermissions(txPermissionStr)
+		action.Authorization = getAccountPermissions(txPermission)
 	}
 	return action
 }
 
-func createUpdateAuth(account common.Name, permission common.Name, parent common.Name, auth types.Authority, txPermissionStr string) *types.Action {
+func createUpdateAuth(account common.Name, permission common.Name, parent common.Name, auth types.Authority, txPermission []string) *types.Action {
 	a := chain.UpdateAuth{
 		Account:    account,
 		Permission: permission,
@@ -262,15 +296,15 @@ func createUpdateAuth(account common.Name, permission common.Name, parent common
 		Name:    a.GetName(),
 		Data:    buffer,
 	}
-	if len(txPermissionStr) == 0 {
+	if len(txPermission) == 0 {
 		action.Authorization = []types.PermissionLevel{{Actor: account, Permission: common.DefaultConfig.ActiveName}}
 	} else {
-		action.Authorization = getAccountPermissions(txPermissionStr)
+		action.Authorization = getAccountPermissions(txPermission)
 	}
 	return action
 }
 
-func createDeleteAuth(account common.Name, permission common.Name, txPermissionStr string) *types.Action {
+func createDeleteAuth(account common.Name, permission common.Name, txPermission []string) *types.Action {
 	a := chain.DeleteAuth{
 		Account:    account,
 		Permission: permission,
@@ -282,15 +316,15 @@ func createDeleteAuth(account common.Name, permission common.Name, txPermissionS
 		Name:    a.GetName(),
 		Data:    buffer,
 	}
-	if len(txPermissionStr) == 0 {
+	if len(txPermission) == 0 {
 		action.Authorization = []types.PermissionLevel{{Actor: account, Permission: common.DefaultConfig.ActiveName}}
 	} else {
-		action.Authorization = getAccountPermissions(txPermissionStr)
+		action.Authorization = getAccountPermissions(txPermission)
 	}
 	return action
 }
 
-func createLinkAuth(account common.Name, code common.Name, typeName common.Name, requirement common.Name, txPermissionStr string) *types.Action {
+func createLinkAuth(account common.Name, code common.Name, typeName common.Name, requirement common.Name, txPermission []string) *types.Action {
 	a := chain.LinkAuth{
 		Account:     account,
 		Code:        code,
@@ -304,15 +338,15 @@ func createLinkAuth(account common.Name, code common.Name, typeName common.Name,
 		Name:    a.GetName(),
 		Data:    buffer,
 	}
-	if len(txPermissionStr) == 0 {
+	if len(txPermission) == 0 {
 		action.Authorization = []types.PermissionLevel{{Actor: account, Permission: common.DefaultConfig.ActiveName}}
 	} else {
-		action.Authorization = getAccountPermissions(txPermissionStr)
+		action.Authorization = getAccountPermissions(txPermission)
 	}
 	return action
 }
 
-func createUnlinkAuth(account common.Name, code common.Name, typeName common.Name, txPermissionStr string) *types.Action {
+func createUnlinkAuth(account common.Name, code common.Name, typeName common.Name, txPermission []string) *types.Action {
 	a := chain.UnLinkAuth{
 		Account: account,
 		Code:    code,
@@ -325,10 +359,10 @@ func createUnlinkAuth(account common.Name, code common.Name, typeName common.Nam
 		Name:    a.GetName(),
 		Data:    buffer,
 	}
-	if len(txPermissionStr) == 0 {
+	if len(txPermission) == 0 {
 		action.Authorization = []types.PermissionLevel{{Actor: account, Permission: common.DefaultConfig.ActiveName}}
 	} else {
-		action.Authorization = getAccountPermissions(txPermissionStr)
+		action.Authorization = getAccountPermissions(txPermission)
 	}
 	return action
 }
@@ -367,11 +401,23 @@ type AssetPair struct {
 
 var assetCache = make(map[AssetPair]common.Symbol)
 
+func newAssetCache() {
+	a := AssetPair{
+		Name:       common.N("eosio.token"),
+		SymbolCode: 5462355,
+	}
+	assetCache[a] = common.Symbol{4, "SYS"}
+}
+
 func toAsset(code common.AccountName, s string) *common.Asset {
 	var expectedSymbol common.Symbol
 	a := common.Asset{}.FromString(&s)
 	sym := a.Symbol.ToSymbolCode()
 	symStr := a.Name()
+
+	if len(assetCache) == 0 { //TODO get currency stats now is not ready!!!!
+		newAssetCache()
+	}
 
 	asset, ok := assetCache[AssetPair{code, sym}]
 	if !ok {
@@ -381,7 +427,9 @@ func toAsset(code common.AccountName, s string) *common.Asset {
 			"code":   code,
 			"symbol": symStr,
 		})
+
 		if err != nil {
+			fmt.Println(err)
 			Throw("get currency stats is error")
 		}
 		objIt, ok := resp[symStr]
@@ -486,8 +534,8 @@ func (e *eosgo) CreateAccount(call otto.FunctionCall) (response otto.Value) {
 	//	fmt.Println("system create account")
 	//
 	//} else {
-	e.log.Info("creat account in test net")
-	result := e.sendActions(createAction, 1000, types.CompressionNone)
+	clog.Info("creat account in test net")
+	result := sendActions(createAction, 1000, types.CompressionNone)
 	//}
 
 	return getJsResult(call, result)
@@ -506,7 +554,7 @@ func (e *eosgo) PushAction(call otto.FunctionCall) (response otto.Value) {
 	if err != nil {
 		return otto.UndefinedValue()
 	}
-	permissonstr, err := call.Argument(3).ToString()
+	permissonStr, err := call.Argument(3).ToString()
 	if err != nil {
 		return otto.UndefinedValue()
 	}
@@ -514,23 +562,22 @@ func (e *eosgo) PushAction(call otto.FunctionCall) (response otto.Value) {
 	actionArgsVar := &common.Variants{}
 	json.Unmarshal([]byte(data), actionArgsVar)
 
-	persmissions := getAccountPermissions(permissonstr)
-	fmt.Println(persmissions)
+	permissions := getAccountPermissions([]string{permissonStr})
+	fmt.Println(permissions)
 	action := &types.Action{
 		Account:       common.N(contractAccount),
 		Name:          common.N(actionName),
-		Authorization: persmissions,
+		Authorization: permissions,
 		Data:          variantToBin(common.N(contractAccount), common.N(actionName), actionArgsVar),
 	}
-	//e.log.Warn("%#v", action)
-	//e.log.Info("push action...")
 	actions := []*types.Action{action}
-	result := e.sendActions(actions, 1000, types.CompressionNone)
+	result := sendActions(actions, 1000, types.CompressionNone)
 	return getJsResult(call, result)
 }
 
-func (e *eosgo) sendActions(actions []*types.Action, extraKcpu int32, compression types.CompressionType) interface{} {
-	result := e.pushActions(actions, extraKcpu, compression)
+func sendActions(actions []*types.Action, extraKcpu int32, compression types.CompressionType) interface{} {
+	fmt.Println("send actions...")
+	result := pushActions(actions, extraKcpu, compression)
 
 	//if txPrintJson {
 	//fmt.Println("txPrintJson")
@@ -541,13 +588,13 @@ func (e *eosgo) sendActions(actions []*types.Action, extraKcpu int32, compressio
 	return result
 }
 
-func (e *eosgo) pushActions(actions []*types.Action, extraKcpu int32, compression types.CompressionType) interface{} {
+func pushActions(actions []*types.Action, extraKcpu int32, compression types.CompressionType) interface{} {
 	trx := &types.SignedTransaction{}
 	trx.Actions = actions
-	return e.pushTransaction(trx, extraKcpu, compression)
+	return pushTransaction(trx, extraKcpu, compression)
 }
 
-func (e *eosgo) pushTransaction(trx *types.SignedTransaction, extraKcpu int32, compression types.CompressionType) interface{} {
+func pushTransaction(trx *types.SignedTransaction, extraKcpu int32, compression types.CompressionType) interface{} {
 	var info chain_plugin.GetInfoResult
 	err := DoHttpCall(&info, common.GetInfoFunc, nil)
 	if err != nil {
@@ -583,16 +630,15 @@ func (e *eosgo) pushTransaction(trx *types.SignedTransaction, extraKcpu int32, c
 	}
 
 	if !txSkipSign {
-		requiredKeys := e.determineRequiredKeys(trx)
-		fmt.Println(requiredKeys)
-		e.signTransaction(trx, requiredKeys, &info.ChainID)
+		requiredKeys := determineRequiredKeys(trx)
+		signTransaction(trx, requiredKeys, &info.ChainID)
 	}
 	if !txDontBroadcast {
 		var re common.Variant
 		packedTrx := types.NewPackedTransactionBySignedTrx(trx, compression)
 		err := DoHttpCall(&re, common.PushTxnFunc, packedTrx)
 		if err != nil {
-			e.log.Error(err.Error())
+			clog.Error(err.Error())
 		}
 		return re
 	} else {
@@ -606,13 +652,12 @@ func (e *eosgo) pushTransaction(trx *types.SignedTransaction, extraKcpu int32, c
 	}
 }
 
-func (e *eosgo) determineRequiredKeys(trx *types.SignedTransaction) []string {
+func determineRequiredKeys(trx *types.SignedTransaction) []string {
 	var publicKeys []string
 	err := DoHttpCall(&publicKeys, common.WalletPublicKeys, nil)
 	if err != nil {
-		e.log.Error(err.Error())
+		clog.Error(err.Error())
 	}
-	fmt.Println("get public keys: ", publicKeys)
 
 	var keys map[string][]string
 	arg := &common.Variants{
@@ -621,16 +666,16 @@ func (e *eosgo) determineRequiredKeys(trx *types.SignedTransaction) []string {
 	}
 	err = DoHttpCall(&keys, common.GetRequiredKeys, arg)
 	if err != nil {
-		e.log.Error(err.Error())
+		clog.Error(err.Error())
 	}
 	return keys["required_keys"]
 }
 
-func (e *eosgo) signTransaction(trx *types.SignedTransaction, requiredKeys []string, chainID *common.ChainIdType) {
+func signTransaction(trx *types.SignedTransaction, requiredKeys []string, chainID *common.ChainIdType) {
 	signedTrx := common.Variants{"signed_transaction": trx, "keys": requiredKeys, "id": chainID}
 	err := DoHttpCall(trx, common.WalletSignTrx, signedTrx)
 	if err != nil {
-		e.log.Error(err.Error())
+		clog.Error(err.Error())
 	}
 }
 
@@ -672,7 +717,7 @@ func (e *eosgo) SetCode(call otto.FunctionCall) (response otto.Value) {
 
 	codeContent, err := ioutil.ReadFile(wasmPath)
 	if err != nil {
-		e.log.Error("get abi from file is error %s", err.Error())
+		clog.Error("get abi from file is error %s", err.Error())
 		return otto.FalseValue()
 	}
 
@@ -693,8 +738,8 @@ func (e *eosgo) SetCode(call otto.FunctionCall) (response otto.Value) {
 		Data: buffer,
 	}
 	createAction := []*types.Action{setCode}
-	e.log.Info("Setting Code...")
-	result := e.sendActions(createAction, 10000, types.CompressionZlib)
+	clog.Info("Setting Code...")
+	result := sendActions(createAction, 10000, types.CompressionZlib)
 
 	return getJsResult(call, result)
 
@@ -712,20 +757,19 @@ func (e *eosgo) SetAbi(call otto.FunctionCall) (response otto.Value) {
 
 	abiFile, err := ioutil.ReadFile(abiPath)
 	if err != nil {
-		e.log.Error("get abi from file is error %s", err.Error())
+		clog.Error("get abi from file is error %s", err.Error())
 		return otto.FalseValue()
 	}
 
-	fmt.Println(string(abiFile))
 	abiDef := &abi_serializer.AbiDef{}
 	if json.Unmarshal(abiFile, abiDef) != nil {
-		e.log.Error("unmarshal abi from file is error ")
+		clog.Error("unmarshal abi from file is error ")
 		return otto.FalseValue()
 	}
 
 	abiContent, err := rlp.EncodeToBytes(abiDef)
 	if err != nil {
-		e.log.Error("pack abi is error %s", err.Error())
+		clog.Error("pack abi is error %s", err.Error())
 		return otto.FalseValue()
 	}
 
@@ -744,8 +788,8 @@ func (e *eosgo) SetAbi(call otto.FunctionCall) (response otto.Value) {
 	}
 	createAction := []*types.Action{setAbi}
 
-	e.log.Info("Setting ABI...")
-	result := e.sendActions(createAction, 10000, types.CompressionZlib)
+	clog.Info("Setting ABI...")
+	result := sendActions(createAction, 10000, types.CompressionZlib)
 	return getJsResult(call, result)
 }
 
@@ -783,8 +827,8 @@ func (e *eosgo) SetAccountPermission(call otto.FunctionCall) (response otto.Valu
 	permission := common.N(permissionStr)
 	isDelete := strings.Compare(authorityJsonOrFile, "null") == 0
 	if isDelete {
-		action := createDeleteAuth(account, permission, txPermissionStr)
-		e.sendActions([]*types.Action{action}, 1000, types.CompressionNone)
+		action := createDeleteAuth(account, permission, []string{txPermissionStr})
+		sendActions([]*types.Action{action}, 1000, types.CompressionNone)
 	} else {
 		auth := parseJsonAuthorityOrKey(authorityJsonOrFile)
 		var parent common.Name
@@ -812,8 +856,8 @@ func (e *eosgo) SetAccountPermission(call otto.FunctionCall) (response otto.Valu
 		} else {
 			parent = common.N(parentStr)
 		}
-		action := createUpdateAuth(account, permission, parent, auth, txPermissionStr)
-		e.sendActions([]*types.Action{action}, 1000, types.CompressionNone)
+		action := createUpdateAuth(account, permission, parent, auth, []string{txPermissionStr})
+		sendActions([]*types.Action{action}, 1000, types.CompressionNone)
 	}
 	return getJsResult(call, nil)
 }
@@ -845,12 +889,12 @@ func (e *eosgo) SetActionPermission(call otto.FunctionCall) (response otto.Value
 	typeName := common.N(typeStr)
 	isDelete := strings.Compare(requirementStr, "null") == 0
 	if isDelete {
-		action := createUnlinkAuth(accountName, codeName, typeName, txPermissionStr)
-		e.sendActions([]*types.Action{action}, 1000, types.CompressionNone)
+		action := createUnlinkAuth(accountName, codeName, typeName, []string{txPermissionStr})
+		sendActions([]*types.Action{action}, 1000, types.CompressionNone)
 	} else {
 		requirementName := common.N(requirementStr)
-		action := createLinkAuth(accountName, codeName, typeName, requirementName, txPermissionStr)
-		e.sendActions([]*types.Action{action}, 1000, types.CompressionNone)
+		action := createLinkAuth(accountName, codeName, typeName, requirementName, []string{txPermissionStr})
+		sendActions([]*types.Action{action}, 1000, types.CompressionNone)
 	}
 	return getJsResult(call, nil)
 }
@@ -883,7 +927,7 @@ func (e *eosgo) RegisterProducer(call otto.FunctionCall) (response otto.Value) {
 
 	regprodVar := regProducerVariant(common.N(producerStr), producerKey, url, uint16(loc))
 	action := createAction([]types.PermissionLevel{{common.N(producerStr), common.DefaultConfig.ActiveName}}, common.DefaultConfig.SystemAccountName, common.N("regproducer"), regprodVar)
-	e.sendActions([]*types.Action{action}, 1000, types.CompressionNone)
+	sendActions([]*types.Action{action}, 1000, types.CompressionNone)
 
 	return getJsResult(call, nil)
 }
