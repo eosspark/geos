@@ -76,9 +76,6 @@ func newBaseTesterSecNode(pushGenesis bool, readMode DBReadMode) *BaseTester {
 	t.LastProducedBlock = make(map[common.AccountName]common.BlockIdType)
 
 	cfg := newConfig(readMode)
-	cfg.BlocksDir = common.DefaultConfig.ValidatingBlocksDirName
-	cfg.StateDir = common.DefaultConfig.ValidatingStateDirName
-	cfg.ReversibleDir = common.DefaultConfig.ValidatingReversibleBlocksDirName
 
 	t.Control = NewController(cfg)
 	if pushGenesis {
@@ -140,7 +137,7 @@ func (t *BaseTester) open() {
 func (t *BaseTester) acceptedBlock(b *types.BlockState) {
 	try.EosAssert(b.SignedBlock != nil, &exception.BlockLogNotFound{}, "tester acceptedBlock is not found")
 	for _, receipt := range b.SignedBlock.Transactions {
-		if receipt.Trx.PackedTransaction != nil {
+		if !common.Empty(receipt.Trx.PackedTransaction) {
 			t.ChainTransactions[receipt.Trx.PackedTransaction.ID()] = receipt
 		} else {
 			id := receipt.Trx.TransactionID
@@ -413,15 +410,15 @@ func (t BaseTester) PushAction4(code *common.AccountName, acttype *common.Accoun
 	return t.PushTransaction(&trx, common.MaxTimePoint(), t.DefaultBilledCpuTimeUs)
 }
 
-func (t BaseTester) GetResolver() func (name common.AccountName) *abi.AbiSerializer{
+func (t BaseTester) GetResolver() func(name common.AccountName) *abi.AbiSerializer {
 	return func(name common.AccountName) *abi.AbiSerializer {
 		var r *abi.AbiSerializer
 		try.Try(func() {
-			accObj := entity.AccountObject{Name:name}
-			t.Control.DB.Find("byName",accObj,&accObj)
+			accObj := entity.AccountObject{Name: name}
+			t.Control.DB.Find("byName", accObj, &accObj)
 			var abid abi.AbiDef
-			if abi.ToABI(accObj.Abi,&abid) {
-				r = abi.NewAbiSerializer(&abid,t.AbiSerializerMaxTime)
+			if abi.ToABI(accObj.Abi, &abid) {
+				r = abi.NewAbiSerializer(&abid, t.AbiSerializerMaxTime)
 			}
 		}).FcRethrowExceptions(log.LvlError, "Failed to find or parse ABI for %s", name)
 		return r
@@ -720,8 +717,10 @@ func (t BaseTester) ChainHasTransaction(txId *common.BlockIdType) bool {
 }
 
 func (t BaseTester) GetTransactionReceipt(txId *common.BlockIdType) *types.TransactionReceipt {
-	val, _ := t.ChainTransactions[*txId]
-	return &val
+	if val, ok := t.ChainTransactions[*txId]; ok {
+		return &val
+	}
+	return nil
 }
 
 func (t BaseTester) GetCurrencyBalance(code *common.AccountName, assetSymbol *common.Symbol, account *common.AccountName) common.Asset {
