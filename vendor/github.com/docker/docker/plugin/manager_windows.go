@@ -1,27 +1,26 @@
-// +build windows
+// +build windows,experimental
 
 package plugin
 
 import (
 	"fmt"
 
-	"github.com/docker/docker/plugin/v2"
-	specs "github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/opencontainers/specs/specs-go"
 )
 
-func (pm *Manager) enable(p *v2.Plugin, c *controller, force bool) error {
+func (pm *Manager) enable(p *plugin, force bool) error {
 	return fmt.Errorf("Not implemented")
 }
 
-func (pm *Manager) initSpec(p *v2.Plugin) (*specs.Spec, error) {
+func (pm *Manager) initSpec(p *plugin) (*specs.Spec, error) {
 	return nil, fmt.Errorf("Not implemented")
 }
 
-func (pm *Manager) disable(p *v2.Plugin, c *controller) error {
+func (pm *Manager) disable(p *plugin) error {
 	return fmt.Errorf("Not implemented")
 }
 
-func (pm *Manager) restore(p *v2.Plugin) error {
+func (pm *Manager) restore(p *plugin) error {
 	return fmt.Errorf("Not implemented")
 }
 

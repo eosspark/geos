@@ -5,8 +5,6 @@ import (
 	"sort"
 	"strings"
 	"testing"
-
-	"github.com/docker/docker/pkg/testutil/assert"
 )
 
 const sampleImageJSON = `{
@@ -19,15 +17,22 @@ const sampleImageJSON = `{
 	}
 }`
 
-func TestNewFromJSON(t *testing.T) {
+func TestJSON(t *testing.T) {
 	img, err := NewFromJSON([]byte(sampleImageJSON))
-	assert.NilError(t, err)
-	assert.Equal(t, string(img.RawJSON()), sampleImageJSON)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rawJSON := img.RawJSON()
+	if string(rawJSON) != sampleImageJSON {
+		t.Fatalf("Raw JSON of config didn't match: expected %+v, got %v", sampleImageJSON, rawJSON)
+	}
 }
 
-func TestNewFromJSONWithInvalidJSON(t *testing.T) {
+func TestInvalidJSON(t *testing.T) {
 	_, err := NewFromJSON([]byte("{}"))
-	assert.Error(t, err, "invalid image JSON, no RootFS key")
+	if err == nil {
+		t.Fatal("Expected JSON parse error")
+	}
 }
 
 func TestMarshalKeyOrder(t *testing.T) {
@@ -38,7 +43,9 @@ func TestMarshalKeyOrder(t *testing.T) {
 			Architecture: "c",
 		},
 	})
-	assert.NilError(t, err)
+	if err != nil {
+		t.Fatal(err)
+	}
 
 	expectedOrder := []string{"architecture", "author", "comment"}
 	var indexes []int

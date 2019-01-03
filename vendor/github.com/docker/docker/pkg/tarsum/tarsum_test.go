@@ -200,8 +200,6 @@ func TestNewTarSumForLabel(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	defer reader.Close()
-
 	label := strings.Split(layer.tarsum, ":")[0]
 	ts, err := NewTarSumForLabel(reader, false, label)
 	if err != nil {
@@ -304,8 +302,6 @@ func TestTarSumsReadSize(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
-		defer reader.Close()
-
 		ts, err := NewTarSum(reader, false, layer.version)
 		if err != nil {
 			t.Fatal(err)
@@ -384,8 +380,6 @@ func TestTarSums(t *testing.T) {
 				t.Errorf("failed to open %s: %s", layer.jsonfile, err)
 				continue
 			}
-			defer jfh.Close()
-
 			buf, err := ioutil.ReadAll(jfh)
 			if err != nil {
 				t.Errorf("failed to readAll %s: %s", layer.jsonfile, err)
@@ -565,13 +559,12 @@ func Benchmark9kTar(b *testing.B) {
 		b.Error(err)
 		return
 	}
-	defer fh.Close()
-
 	n, err := io.Copy(buf, fh)
 	if err != nil {
 		b.Error(err)
 		return
 	}
+	fh.Close()
 
 	reader := bytes.NewReader(buf.Bytes())
 
@@ -596,13 +589,12 @@ func Benchmark9kTarGzip(b *testing.B) {
 		b.Error(err)
 		return
 	}
-	defer fh.Close()
-
 	n, err := io.Copy(buf, fh)
 	if err != nil {
 		b.Error(err)
 		return
 	}
+	fh.Close()
 
 	reader := bytes.NewReader(buf.Bytes())
 

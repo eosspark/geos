@@ -3,12 +3,11 @@ package main
 import (
 	"fmt"
 	"io/ioutil"
+	"os/exec"
+	"strings"
 	"time"
 
-	"github.com/docker/docker/integration-cli/checker"
-	"github.com/docker/docker/integration-cli/cli/build"
-	"github.com/docker/docker/pkg/testutil"
-	icmd "github.com/docker/docker/pkg/testutil/cmd"
+	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/go-check/check"
 )
 
@@ -16,18 +15,33 @@ func (s *DockerTrustSuite) TestTrustedPull(c *check.C) {
 	repoName := s.setupTrustedImage(c, "trusted-pull")
 
 	// Try pull
-	icmd.RunCmd(icmd.Command(dockerBinary, "pull", repoName), trustedCmd).Assert(c, SuccessTagging)
+	pullCmd := exec.Command(dockerBinary, "pull", repoName)
+	s.trustedCmd(pullCmd)
+	out, _, err := runCommandWithOutput(pullCmd)
+
+	c.Assert(err, check.IsNil, check.Commentf(out))
+	c.Assert(string(out), checker.Contains, "Tagging", check.Commentf(out))
 
 	dockerCmd(c, "rmi", repoName)
 	// Try untrusted pull to ensure we pushed the tag to the registry
-	icmd.RunCmd(icmd.Command(dockerBinary, "pull", "--disable-content-trust=true", repoName), trustedCmd).Assert(c, SuccessDownloaded)
+	pullCmd = exec.Command(dockerBinary, "pull", "--disable-content-trust=true", repoName)
+	s.trustedCmd(pullCmd)
+	out, _, err = runCommandWithOutput(pullCmd)
+	c.Assert(err, check.IsNil, check.Commentf(out))
+	c.Assert(string(out), checker.Contains, "Status: Downloaded", check.Commentf(out))
+
 }
 
 func (s *DockerTrustSuite) TestTrustedIsolatedPull(c *check.C) {
 	repoName := s.setupTrustedImage(c, "trusted-isolated-pull")
 
 	// Try pull (run from isolated directory without trust information)
-	icmd.RunCmd(icmd.Command(dockerBinary, "--config", "/tmp/docker-isolated", "pull", repoName), trustedCmd).Assert(c, SuccessTagging)
+	pullCmd := exec.Command(dockerBinary, "--config", "/tmp/docker-isolated", "pull", repoName)
+	s.trustedCmd(pullCmd)
+	out, _, err := runCommandWithOutput(pullCmd)
+
+	c.Assert(err, check.IsNil, check.Commentf(out))
+	c.Assert(string(out), checker.Contains, "Tagging", check.Commentf(string(out)))
 
 	dockerCmd(c, "rmi", repoName)
 }
@@ -40,10 +54,12 @@ func (s *DockerTrustSuite) TestUntrustedPull(c *check.C) {
 	dockerCmd(c, "rmi", repoName)
 
 	// Try trusted pull on untrusted tag
-	icmd.RunCmd(icmd.Command(dockerBinary, "pull", repoName), trustedCmd).Assert(c, icmd.Expected{
-		ExitCode: 1,
-		Err:      "Error: remote trust data does not exist",
-	})
+	pullCmd := exec.Command(dockerBinary, "pull", repoName)
+	s.trustedCmd(pullCmd)
+	out, _, err := runCommandWithOutput(pullCmd)
+
+	c.Assert(err, check.NotNil, check.Commentf(out))
+	c.Assert(string(out), checker.Contains, "Error: remote trust data does not exist", check.Commentf(out))
 }
 
 func (s *DockerTrustSuite) TestPullWhenCertExpired(c *check.C) {
@@ -53,21 +69,24 @@ func (s *DockerTrustSuite) TestPullWhenCertExpired(c *check.C) {
 	// Certificates have 10 years of expiration
 	elevenYearsFromNow := time.Now().Add(time.Hour * 24 * 365 * 11)
 
-	testutil.RunAtDifferentDate(elevenYearsFromNow, func() {
+	runAtDifferentDate(elevenYearsFromNow, func() {
 		// Try pull
-		icmd.RunCmd(icmd.Cmd{
-			Command: []string{dockerBinary, "pull", repoName},
-		}, trustedCmd).Assert(c, icmd.Expected{
-			ExitCode: 1,
-			Err:      "could not validate the path to a trusted root",
-		})
+		pullCmd := exec.Command(dockerBinary, "pull", repoName)
+		s.trustedCmd(pullCmd)
+		out, _, err := runCommandWithOutput(pullCmd)
+
+		c.Assert(err, check.NotNil, check.Commentf(out))
+		c.Assert(string(out), checker.Contains, "could not validate the path to a trusted root", check.Commentf(out))
 	})
 
-	testutil.RunAtDifferentDate(elevenYearsFromNow, func() {
+	runAtDifferentDate(elevenYearsFromNow, func() {
 		// Try pull
-		icmd.RunCmd(icmd.Cmd{
-			Command: []string{dockerBinary, "pull", "--disable-content-trust", repoName},
-		}, trustedCmd).Assert(c, SuccessDownloaded)
+		pullCmd := exec.Command(dockerBinary, "pull", "--disable-content-trust", repoName)
+		s.trustedCmd(pullCmd)
+		out, _, err := runCommandWithOutput(pullCmd)
+
+		c.Assert(err, check.IsNil, check.Commentf(out))
+		c.Assert(string(out), checker.Contains, "Status: Downloaded", check.Commentf(out))
 	})
 }
 
@@ -81,11 +100,21 @@ func (s *DockerTrustSuite) TestTrustedPullFromBadTrustServer(c *check.C) {
 	// tag the image and upload it to the private registry
 	dockerCmd(c, "tag", "busybox", repoName)
 
-	icmd.RunCmd(icmd.Command(dockerBinary, "push", repoName), trustedCmd).Assert(c, SuccessSigningAndPushing)
+	pushCmd := exec.Command(dockerBinary, "push", repoName)
+	s.trustedCmd(pushCmd)
+	out, _, err := runCommandWithOutput(pushCmd)
+
+	c.Assert(err, check.IsNil, check.Commentf(out))
+	c.Assert(string(out), checker.Contains, "Signing and pushing trust metadata", check.Commentf(out))
 	dockerCmd(c, "rmi", repoName)
 
 	// Try pull
-	icmd.RunCmd(icmd.Command(dockerBinary, "pull", repoName), trustedCmd).Assert(c, SuccessTagging)
+	pullCmd := exec.Command(dockerBinary, "pull", repoName)
+	s.trustedCmd(pullCmd)
+	out, _, err = runCommandWithOutput(pullCmd)
+
+	c.Assert(err, check.IsNil, check.Commentf(out))
+	c.Assert(string(out), checker.Contains, "Tagging", check.Commentf(out))
 	dockerCmd(c, "rmi", repoName)
 
 	// Kill the notary server, start a new "evil" one.
@@ -99,13 +128,23 @@ func (s *DockerTrustSuite) TestTrustedPullFromBadTrustServer(c *check.C) {
 	dockerCmd(c, "--config", evilLocalConfigDir, "tag", "busybox", repoName)
 
 	// Push up to the new server
-	icmd.RunCmd(icmd.Command(dockerBinary, "--config", evilLocalConfigDir, "push", repoName), trustedCmd).Assert(c, SuccessSigningAndPushing)
+	pushCmd = exec.Command(dockerBinary, "--config", evilLocalConfigDir, "push", repoName)
+	s.trustedCmd(pushCmd)
+	out, _, err = runCommandWithOutput(pushCmd)
 
-	// Now, try pulling with the original client from this new trust server. This should fail because the new root is invalid.
-	icmd.RunCmd(icmd.Command(dockerBinary, "pull", repoName), trustedCmd).Assert(c, icmd.Expected{
-		ExitCode: 1,
-		Err:      "could not rotate trust to a new trusted root",
-	})
+	c.Assert(err, check.IsNil, check.Commentf(out))
+	c.Assert(string(out), checker.Contains, "Signing and pushing trust metadata", check.Commentf(out))
+
+	// Now, try pulling with the original client from this new trust server. This should fall back to cached metadata.
+	pullCmd = exec.Command(dockerBinary, "pull", repoName)
+	s.trustedCmd(pullCmd)
+	out, _, err = runCommandWithOutput(pullCmd)
+	if err != nil {
+		c.Fatalf("Error falling back to cached trust data: %s\n%s", err, out)
+	}
+	if !strings.Contains(string(out), "Error while downloading remote metadata, using cached timestamp") {
+		c.Fatalf("Missing expected output on trusted pull:\n%s", out)
+	}
 }
 
 func (s *DockerTrustSuite) TestTrustedPullWithExpiredSnapshot(c *check.C) {
@@ -115,55 +154,88 @@ func (s *DockerTrustSuite) TestTrustedPullWithExpiredSnapshot(c *check.C) {
 	dockerCmd(c, "tag", "busybox", repoName)
 
 	// Push with default passphrases
-	icmd.RunCmd(icmd.Command(dockerBinary, "push", repoName), trustedCmd).Assert(c, SuccessSigningAndPushing)
+	pushCmd := exec.Command(dockerBinary, "push", repoName)
+	s.trustedCmd(pushCmd)
+	out, _, err := runCommandWithOutput(pushCmd)
+
+	c.Assert(err, check.IsNil, check.Commentf(out))
+	c.Assert(string(out), checker.Contains, "Signing and pushing trust metadata", check.Commentf(out))
+
 	dockerCmd(c, "rmi", repoName)
 
 	// Snapshots last for three years. This should be expired
 	fourYearsLater := time.Now().Add(time.Hour * 24 * 365 * 4)
 
-	testutil.RunAtDifferentDate(fourYearsLater, func() {
+	runAtDifferentDate(fourYearsLater, func() {
 		// Try pull
-		icmd.RunCmd(icmd.Cmd{
-			Command: []string{dockerBinary, "pull", repoName},
-		}, trustedCmd).Assert(c, icmd.Expected{
-			ExitCode: 1,
-			Err:      "repository out-of-date",
-		})
+		pullCmd := exec.Command(dockerBinary, "pull", repoName)
+		s.trustedCmd(pullCmd)
+		out, _, err = runCommandWithOutput(pullCmd)
+
+		c.Assert(err, check.NotNil, check.Commentf("Missing expected error running trusted pull with expired snapshots"))
+		c.Assert(string(out), checker.Contains, "repository out-of-date", check.Commentf(out))
 	})
 }
 
 func (s *DockerTrustSuite) TestTrustedOfflinePull(c *check.C) {
 	repoName := s.setupTrustedImage(c, "trusted-offline-pull")
 
-	icmd.RunCmd(icmd.Command(dockerBinary, "pull", repoName), trustedCmdWithServer("https://invalidnotaryserver")).Assert(c, icmd.Expected{
-		ExitCode: 1,
-		Err:      "error contacting notary server",
-	})
+	pullCmd := exec.Command(dockerBinary, "pull", repoName)
+	s.trustedCmdWithServer(pullCmd, "https://invalidnotaryserver")
+	out, _, err := runCommandWithOutput(pullCmd)
+
+	c.Assert(err, check.NotNil, check.Commentf(out))
+	c.Assert(string(out), checker.Contains, "error contacting notary server", check.Commentf(out))
 	// Do valid trusted pull to warm cache
-	icmd.RunCmd(icmd.Command(dockerBinary, "pull", repoName), trustedCmd).Assert(c, SuccessTagging)
+	pullCmd = exec.Command(dockerBinary, "pull", repoName)
+	s.trustedCmd(pullCmd)
+	out, _, err = runCommandWithOutput(pullCmd)
+
+	c.Assert(err, check.IsNil, check.Commentf(out))
+	c.Assert(string(out), checker.Contains, "Tagging", check.Commentf(out))
+
 	dockerCmd(c, "rmi", repoName)
 
 	// Try pull again with invalid notary server, should use cache
-	icmd.RunCmd(icmd.Command(dockerBinary, "pull", repoName), trustedCmdWithServer("https://invalidnotaryserver")).Assert(c, SuccessTagging)
+	pullCmd = exec.Command(dockerBinary, "pull", repoName)
+	s.trustedCmdWithServer(pullCmd, "https://invalidnotaryserver")
+	out, _, err = runCommandWithOutput(pullCmd)
+
+	c.Assert(err, check.IsNil, check.Commentf(out))
+	c.Assert(string(out), checker.Contains, "Tagging", check.Commentf(out))
 }
 
 func (s *DockerTrustSuite) TestTrustedPullDelete(c *check.C) {
 	repoName := fmt.Sprintf("%v/dockercli/%s:latest", privateRegistryURL, "trusted-pull-delete")
 	// tag the image and upload it to the private registry
-	buildImageSuccessfully(c, repoName, build.WithDockerfile(`
+	_, err := buildImage(repoName, `
                     FROM busybox
                     CMD echo trustedpulldelete
-                `))
-	icmd.RunCmd(icmd.Command(dockerBinary, "push", repoName), trustedCmd).Assert(c, SuccessSigningAndPushing)
+                `, true)
 
-	dockerCmd(c, "rmi", repoName)
+	pushCmd := exec.Command(dockerBinary, "push", repoName)
+	s.trustedCmd(pushCmd)
+	out, _, err := runCommandWithOutput(pushCmd)
+	if err != nil {
+		c.Fatalf("Error running trusted push: %s\n%s", err, out)
+	}
+	if !strings.Contains(string(out), "Signing and pushing trust metadata") {
+		c.Fatalf("Missing expected output on trusted push:\n%s", out)
+	}
+
+	if out, status := dockerCmd(c, "rmi", repoName); status != 0 {
+		c.Fatalf("Error removing image %q\n%s", repoName, out)
+	}
 
 	// Try pull
-	result := icmd.RunCmd(icmd.Command(dockerBinary, "pull", repoName), trustedCmd)
-	result.Assert(c, icmd.Success)
+	pullCmd := exec.Command(dockerBinary, "pull", repoName)
+	s.trustedCmd(pullCmd)
+	out, _, err = runCommandWithOutput(pullCmd)
 
-	matches := digestRegex.FindStringSubmatch(result.Combined())
-	c.Assert(matches, checker.HasLen, 2, check.Commentf("unable to parse digest from pull output: %s", result.Combined()))
+	c.Assert(err, check.IsNil, check.Commentf(out))
+
+	matches := digestRegex.FindStringSubmatch(out)
+	c.Assert(matches, checker.HasLen, 2, check.Commentf("unable to parse digest from pull output: %s", out))
 	pullDigest := matches[1]
 
 	imageID := inspectField(c, repoName, "Id")
@@ -176,7 +248,7 @@ func (s *DockerTrustSuite) TestTrustedPullDelete(c *check.C) {
 	// rmi of tag should also remove the digest reference
 	dockerCmd(c, "rmi", repoName)
 
-	_, err := inspectFieldWithError(imageByDigest, "Id")
+	_, err = inspectFieldWithError(imageByDigest, "Id")
 	c.Assert(err, checker.NotNil, check.Commentf("digest reference should have been removed"))
 
 	_, err = inspectFieldWithError(imageID, "Id")
@@ -190,13 +262,18 @@ func (s *DockerTrustSuite) TestTrustedPullReadsFromReleasesRole(c *check.C) {
 
 	// Push with targets first, initializing the repo
 	dockerCmd(c, "tag", "busybox", targetName)
-	icmd.RunCmd(icmd.Command(dockerBinary, "push", targetName), trustedCmd).Assert(c, icmd.Success)
+	pushCmd := exec.Command(dockerBinary, "push", targetName)
+	s.trustedCmd(pushCmd)
+	out, _, err := runCommandWithOutput(pushCmd)
+	c.Assert(err, check.IsNil, check.Commentf(out))
 	s.assertTargetInRoles(c, repoName, "latest", "targets")
 
 	// Try pull, check we retrieve from targets role
-	icmd.RunCmd(icmd.Command(dockerBinary, "-D", "pull", repoName), trustedCmd).Assert(c, icmd.Expected{
-		Err: "retrieving target for targets role",
-	})
+	pullCmd := exec.Command(dockerBinary, "-D", "pull", repoName)
+	s.trustedCmd(pullCmd)
+	out, _, err = runCommandWithOutput(pullCmd)
+	c.Assert(err, check.IsNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "retrieving target for targets role")
 
 	// Now we'll create the releases role, and try pushing and pulling
 	s.notaryCreateDelegation(c, repoName, "targets/releases", s.not.keys[0].Public)
@@ -205,23 +282,31 @@ func (s *DockerTrustSuite) TestTrustedPullReadsFromReleasesRole(c *check.C) {
 
 	// try a pull, check that we can still pull because we can still read the
 	// old tag in the targets role
-	icmd.RunCmd(icmd.Command(dockerBinary, "-D", "pull", repoName), trustedCmd).Assert(c, icmd.Expected{
-		Err: "retrieving target for targets role",
-	})
+	pullCmd = exec.Command(dockerBinary, "-D", "pull", repoName)
+	s.trustedCmd(pullCmd)
+	out, _, err = runCommandWithOutput(pullCmd)
+	c.Assert(err, check.IsNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "retrieving target for targets role")
 
 	// try a pull -a, check that it succeeds because we can still pull from the
 	// targets role
-	icmd.RunCmd(icmd.Command(dockerBinary, "-D", "pull", "-a", repoName), trustedCmd).Assert(c, icmd.Success)
+	pullCmd = exec.Command(dockerBinary, "-D", "pull", "-a", repoName)
+	s.trustedCmd(pullCmd)
+	out, _, err = runCommandWithOutput(pullCmd)
+	c.Assert(err, check.IsNil, check.Commentf(out))
 
 	// Push, should sign with targets/releases
 	dockerCmd(c, "tag", "busybox", targetName)
-	icmd.RunCmd(icmd.Command(dockerBinary, "push", targetName), trustedCmd).Assert(c, icmd.Success)
+	pushCmd = exec.Command(dockerBinary, "push", targetName)
+	s.trustedCmd(pushCmd)
+	out, _, err = runCommandWithOutput(pushCmd)
 	s.assertTargetInRoles(c, repoName, "latest", "targets", "targets/releases")
 
 	// Try pull, check we retrieve from targets/releases role
-	icmd.RunCmd(icmd.Command(dockerBinary, "-D", "pull", repoName), trustedCmd).Assert(c, icmd.Expected{
-		Err: "retrieving target for targets/releases role",
-	})
+	pullCmd = exec.Command(dockerBinary, "-D", "pull", repoName)
+	s.trustedCmd(pullCmd)
+	out, _, err = runCommandWithOutput(pullCmd)
+	c.Assert(out, checker.Contains, "retrieving target for targets/releases role")
 
 	// Create another delegation that we'll sign with
 	s.notaryCreateDelegation(c, repoName, "targets/other", s.not.keys[1].Public)
@@ -229,13 +314,16 @@ func (s *DockerTrustSuite) TestTrustedPullReadsFromReleasesRole(c *check.C) {
 	s.notaryPublish(c, repoName)
 
 	dockerCmd(c, "tag", "busybox", targetName)
-	icmd.RunCmd(icmd.Command(dockerBinary, "push", targetName), trustedCmd).Assert(c, icmd.Success)
+	pushCmd = exec.Command(dockerBinary, "push", targetName)
+	s.trustedCmd(pushCmd)
+	out, _, err = runCommandWithOutput(pushCmd)
 	s.assertTargetInRoles(c, repoName, "latest", "targets", "targets/releases", "targets/other")
 
 	// Try pull, check we retrieve from targets/releases role
-	icmd.RunCmd(icmd.Command(dockerBinary, "-D", "pull", repoName), trustedCmd).Assert(c, icmd.Expected{
-		Err: "retrieving target for targets/releases role",
-	})
+	pullCmd = exec.Command(dockerBinary, "-D", "pull", repoName)
+	s.trustedCmd(pullCmd)
+	out, _, err = runCommandWithOutput(pullCmd)
+	c.Assert(out, checker.Contains, "retrieving target for targets/releases role")
 }
 
 func (s *DockerTrustSuite) TestTrustedPullIgnoresOtherDelegationRoles(c *check.C) {
@@ -252,22 +340,26 @@ func (s *DockerTrustSuite) TestTrustedPullIgnoresOtherDelegationRoles(c *check.C
 
 	// Push should write to the delegation role, not targets
 	dockerCmd(c, "tag", "busybox", targetName)
-	icmd.RunCmd(icmd.Command(dockerBinary, "push", targetName), trustedCmd).Assert(c, icmd.Success)
+	pushCmd := exec.Command(dockerBinary, "push", targetName)
+	s.trustedCmd(pushCmd)
+	out, _, err := runCommandWithOutput(pushCmd)
+	c.Assert(err, check.IsNil, check.Commentf(out))
 	s.assertTargetInRoles(c, repoName, "latest", "targets/other")
 	s.assertTargetNotInRoles(c, repoName, "latest", "targets")
 
 	// Try pull - we should fail, since pull will only pull from the targets/releases
 	// role or the targets role
-	dockerCmd(c, "tag", "busybox", targetName)
-	icmd.RunCmd(icmd.Command(dockerBinary, "-D", "pull", repoName), trustedCmd).Assert(c, icmd.Expected{
-		ExitCode: 1,
-		Err:      "No trust data for",
-	})
+	pullCmd := exec.Command(dockerBinary, "-D", "pull", repoName)
+	s.trustedCmd(pullCmd)
+	out, _, err = runCommandWithOutput(pullCmd)
+	c.Assert(err, check.NotNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "No trust data for")
 
 	// try a pull -a: we should fail since pull will only pull from the targets/releases
 	// role or the targets role
-	icmd.RunCmd(icmd.Command(dockerBinary, "-D", "pull", "-a", repoName), trustedCmd).Assert(c, icmd.Expected{
-		ExitCode: 1,
-		Err:      "No trusted tags for",
-	})
+	pullCmd = exec.Command(dockerBinary, "-D", "pull", "-a", repoName)
+	s.trustedCmd(pullCmd)
+	out, _, err = runCommandWithOutput(pullCmd)
+	c.Assert(err, check.NotNil, check.Commentf(out))
+	c.Assert(out, checker.Contains, "No trusted tags for")
 }

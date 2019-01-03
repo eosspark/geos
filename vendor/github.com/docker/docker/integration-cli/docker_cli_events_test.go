@@ -2,23 +2,17 @@ package main
 
 import (
 	"bufio"
-	"encoding/json"
 	"fmt"
-	"io"
 	"io/ioutil"
 	"net/http"
 	"os"
 	"os/exec"
 	"strings"
+	"sync"
 	"time"
 
-	eventtypes "github.com/docker/docker/api/types/events"
-	eventstestutils "github.com/docker/docker/daemon/events/testutils"
-	"github.com/docker/docker/integration-cli/checker"
-	"github.com/docker/docker/integration-cli/cli/build"
-	"github.com/docker/docker/integration-cli/request"
-	"github.com/docker/docker/pkg/testutil"
-	icmd "github.com/docker/docker/pkg/testutil/cmd"
+	"github.com/docker/docker/daemon/events/testutils"
+	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/go-check/check"
 )
 
@@ -63,14 +57,11 @@ func (s *DockerSuite) TestEventsUntag(c *check.C) {
 	dockerCmd(c, "tag", image, "utest:tag2")
 	dockerCmd(c, "rmi", "utest:tag1")
 	dockerCmd(c, "rmi", "utest:tag2")
-
-	result := icmd.RunCmd(icmd.Cmd{
-		Command: []string{dockerBinary, "events", "--since=1"},
-		Timeout: time.Millisecond * 2500,
-	})
-	c.Assert(result, icmd.Matches, icmd.Expected{Timeout: true})
-
-	events := strings.Split(result.Stdout(), "\n")
+	eventsCmd := exec.Command(dockerBinary, "events", "--since=1")
+	out, exitCode, _, err := runCommandWithOutputForDuration(eventsCmd, time.Duration(time.Millisecond*2500))
+	c.Assert(err, checker.IsNil)
+	c.Assert(exitCode, checker.Equals, 0, check.Commentf("Failed to get events"))
+	events := strings.Split(out, "\n")
 	nEvents := len(events)
 	// The last element after the split above will be an empty string, so we
 	// get the two elements before the last, which are the untags we're
@@ -80,23 +71,49 @@ func (s *DockerSuite) TestEventsUntag(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestEventsLimit(c *check.C) {
-	// Windows: Limit to 4 goroutines creating containers in order to prevent
-	// timeouts creating so many containers simultaneously. This is a due to
-	// a bug in the Windows platform. It will be fixed in a Windows Update.
-	numContainers := 17
-	numConcurrentContainers := numContainers
-	if testEnv.DaemonPlatform() == "windows" {
-		numConcurrentContainers = 4
+func (s *DockerSuite) TestEventsContainerFailStartDie(c *check.C) {
+	_, _, err := dockerCmdWithError("run", "--name", "testeventdie", "busybox", "blerg")
+	c.Assert(err, checker.NotNil, check.Commentf("Container run with command blerg should have failed, but it did not"))
+
+	out, _ := dockerCmd(c, "events", "--since=0", "--until", daemonUnixTime(c))
+	events := strings.Split(strings.TrimSpace(out), "\n")
+
+	nEvents := len(events)
+	c.Assert(nEvents, checker.GreaterOrEqualThan, 1) //Missing expected event
+
+	actions := eventActionsByIDAndType(c, events, "testeventdie", "container")
+
+	var startEvent bool
+	var dieEvent bool
+	for _, a := range actions {
+		switch a {
+		case "start":
+			startEvent = true
+		case "die":
+			dieEvent = true
+		}
 	}
-	sem := make(chan bool, numConcurrentContainers)
-	errChan := make(chan error, numContainers)
+
+	// Windows platform is different from Linux, it will start container whatever
+	// so Windows can get start/die event but Linux can't
+	if daemonPlatform == "windows" {
+		c.Assert(startEvent, checker.True, check.Commentf("Start event not found: %v\n%v", actions, events))
+		c.Assert(dieEvent, checker.True, check.Commentf("Die event not found: %v\n%v", actions, events))
+	} else {
+		c.Assert(startEvent, checker.False, check.Commentf("Start event not expected: %v\n%v", actions, events))
+		c.Assert(dieEvent, checker.False, check.Commentf("Die event not expected: %v\n%v", actions, events))
+	}
+}
+
+func (s *DockerSuite) TestEventsLimit(c *check.C) {
+	var waitGroup sync.WaitGroup
+	errChan := make(chan error, 17)
 
 	args := []string{"run", "--rm", "busybox", "true"}
-	for i := 0; i < numContainers; i++ {
-		sem <- true
+	for i := 0; i < 17; i++ {
+		waitGroup.Add(1)
 		go func() {
-			defer func() { <-sem }()
+			defer waitGroup.Done()
 			out, err := exec.Command(dockerBinary, args...).CombinedOutput()
 			if err != nil {
 				err = fmt.Errorf("%v: %s", err, string(out))
@@ -105,10 +122,7 @@ func (s *DockerSuite) TestEventsLimit(c *check.C) {
 		}()
 	}
 
-	// Wait for all goroutines to finish
-	for i := 0; i < cap(sem); i++ {
-		sem <- true
-	}
+	waitGroup.Wait()
 	close(errChan)
 
 	for err := range errChan {
@@ -229,7 +243,7 @@ func (s *DockerSuite) TestEventsImageImport(c *check.C) {
 	cleanedContainerID := strings.TrimSpace(out)
 
 	since := daemonUnixTime(c)
-	out, _, err := testutil.RunCommandPipelineWithOutput(
+	out, _, err := runCommandPipelineWithOutput(
 		exec.Command(dockerBinary, "export", cleanedContainerID),
 		exec.Command(dockerBinary, "import", "-"),
 	)
@@ -261,8 +275,8 @@ func (s *DockerSuite) TestEventsImageLoad(c *check.C) {
 	c.Assert(noImageID, checker.Equals, "", check.Commentf("Should not have any image"))
 	dockerCmd(c, "load", "-i", "saveimg.tar")
 
-	result := icmd.RunCommand("rm", "-rf", "saveimg.tar")
-	c.Assert(result, icmd.Matches, icmd.Success)
+	cmd := exec.Command("rm", "-rf", "saveimg.tar")
+	runCommand(cmd)
 
 	out, _ = dockerCmd(c, "images", "-q", "--no-trunc", myImageName)
 	imageID := strings.TrimSpace(out)
@@ -284,13 +298,14 @@ func (s *DockerSuite) TestEventsImageLoad(c *check.C) {
 }
 
 func (s *DockerSuite) TestEventsPluginOps(c *check.C) {
-	testRequires(c, DaemonIsLinux, IsAmd64, Network)
+	testRequires(c, DaemonIsLinux, ExperimentalDaemon)
 
+	pluginName := "tiborvass/no-remove:latest"
 	since := daemonUnixTime(c)
 
-	dockerCmd(c, "plugin", "install", pNameWithTag, "--grant-all-permissions")
-	dockerCmd(c, "plugin", "disable", pNameWithTag)
-	dockerCmd(c, "plugin", "remove", pNameWithTag)
+	dockerCmd(c, "plugin", "install", pluginName, "--grant-all-permissions")
+	dockerCmd(c, "plugin", "disable", pluginName)
+	dockerCmd(c, "plugin", "remove", pluginName)
 
 	out, _ := dockerCmd(c, "events", "--since", since, "--until", daemonUnixTime(c))
 	events := strings.Split(out, "\n")
@@ -299,7 +314,7 @@ func (s *DockerSuite) TestEventsPluginOps(c *check.C) {
 	nEvents := len(events)
 	c.Assert(nEvents, checker.GreaterOrEqualThan, 4)
 
-	pluginEvents := eventActionsByIDAndType(c, events, pNameWithTag, "plugin")
+	pluginEvents := eventActionsByIDAndType(c, events, pluginName, "plugin")
 	c.Assert(pluginEvents, checker.HasLen, 4, check.Commentf("events: %v", events))
 
 	c.Assert(pluginEvents[0], checker.Equals, "pull", check.Commentf(out))
@@ -385,9 +400,11 @@ func (s *DockerSuite) TestEventsFilterImageLabels(c *check.C) {
 	label := "io.docker.testing=image"
 
 	// Build a test image.
-	buildImageSuccessfully(c, name, build.WithDockerfile(fmt.Sprintf(`
+	_, err := buildImage(name, fmt.Sprintf(`
 		FROM busybox:latest
-		LABEL %s`, label)))
+		LABEL %s`, label), true)
+	c.Assert(err, checker.IsNil, check.Commentf("Couldn't create image"))
+
 	dockerCmd(c, "tag", name, "labelfiltertest:tag1")
 	dockerCmd(c, "tag", name, "labelfiltertest:tag2")
 	dockerCmd(c, "tag", "busybox:latest", "labelfiltertest:tag3")
@@ -466,10 +483,10 @@ func (s *DockerSuite) TestEventsCommit(c *check.C) {
 
 func (s *DockerSuite) TestEventsCopy(c *check.C) {
 	// Build a test image.
-	buildImageSuccessfully(c, "cpimg", build.WithDockerfile(`
+	id, err := buildImage("cpimg", `
 		  FROM busybox
-		  RUN echo HI > /file`))
-	id := getIDByName(c, "cpimg")
+		  RUN echo HI > /file`, true)
+	c.Assert(err, checker.IsNil, check.Commentf("Couldn't create image"))
 
 	// Create an empty test file.
 	tempFile, err := ioutil.TempFile("", "test-events-copy-")
@@ -499,7 +516,7 @@ func (s *DockerSuite) TestEventsResize(c *check.C) {
 	c.Assert(waitRun(cID), checker.IsNil)
 
 	endpoint := "/containers/" + cID + "/resize?h=80&w=24"
-	status, _, err := request.SockRequest("POST", endpoint, nil, daemonHost())
+	status, _, err := sockRequest("POST", endpoint, nil)
 	c.Assert(status, checker.Equals, http.StatusOK)
 	c.Assert(err, checker.IsNil)
 
@@ -599,9 +616,11 @@ func (s *DockerSuite) TestEventsFilterType(c *check.C) {
 	label := "io.docker.testing=image"
 
 	// Build a test image.
-	buildImageSuccessfully(c, name, build.WithDockerfile(fmt.Sprintf(`
+	_, err := buildImage(name, fmt.Sprintf(`
 		FROM busybox:latest
-		LABEL %s`, label)))
+		LABEL %s`, label), true)
+	c.Assert(err, checker.IsNil, check.Commentf("Couldn't create image"))
+
 	dockerCmd(c, "tag", name, "labelfiltertest:tag1")
 	dockerCmd(c, "tag", name, "labelfiltertest:tag2")
 	dockerCmd(c, "tag", "busybox:latest", "labelfiltertest:tag3")
@@ -644,37 +663,6 @@ func (s *DockerSuite) TestEventsFilterType(c *check.C) {
 	c.Assert(len(events), checker.GreaterOrEqualThan, 1, check.Commentf("Events == %s", events))
 }
 
-// #25798
-func (s *DockerSuite) TestEventsSpecialFiltersWithExecCreate(c *check.C) {
-	since := daemonUnixTime(c)
-	runSleepingContainer(c, "--name", "test-container", "-d")
-	waitRun("test-container")
-
-	dockerCmd(c, "exec", "test-container", "echo", "hello-world")
-
-	out, _ := dockerCmd(
-		c,
-		"events",
-		"--since", since,
-		"--until", daemonUnixTime(c),
-		"--filter",
-		"event='exec_create: echo hello-world'",
-	)
-
-	events := strings.Split(strings.TrimSpace(out), "\n")
-	c.Assert(len(events), checker.Equals, 1, check.Commentf(out))
-
-	out, _ = dockerCmd(
-		c,
-		"events",
-		"--since", since,
-		"--until", daemonUnixTime(c),
-		"--filter",
-		"event=exec_create",
-	)
-	c.Assert(len(events), checker.Equals, 1, check.Commentf(out))
-}
-
 func (s *DockerSuite) TestEventsFilterImageInContainerAction(c *check.C) {
 	since := daemonUnixTime(c)
 	dockerCmd(c, "run", "--name", "test-container", "-d", "busybox", "true")
@@ -690,8 +678,8 @@ func (s *DockerSuite) TestEventsContainerRestart(c *check.C) {
 
 	// wait until test2 is auto removed.
 	waitTime := 10 * time.Second
-	if testEnv.DaemonPlatform() == "windows" {
-		// Windows takes longer...
+	if daemonPlatform == "windows" {
+		// nslookup isn't present in Windows busybox. Is built-in.
 		waitTime = 90 * time.Second
 	}
 
@@ -752,47 +740,4 @@ func (s *DockerSuite) TestEventsUntilInThePast(c *check.C) {
 
 	c.Assert(out, checker.Not(checker.Contains), "test-container2")
 	c.Assert(out, checker.Contains, "test-container")
-}
-
-func (s *DockerSuite) TestEventsFormat(c *check.C) {
-	since := daemonUnixTime(c)
-	dockerCmd(c, "run", "--rm", "busybox", "true")
-	dockerCmd(c, "run", "--rm", "busybox", "true")
-	out, _ := dockerCmd(c, "events", "--since", since, "--until", daemonUnixTime(c), "--format", "{{json .}}")
-	dec := json.NewDecoder(strings.NewReader(out))
-	// make sure we got 2 start events
-	startCount := 0
-	for {
-		var err error
-		var ev eventtypes.Message
-		if err = dec.Decode(&ev); err == io.EOF {
-			break
-		}
-		c.Assert(err, checker.IsNil)
-		if ev.Status == "start" {
-			startCount++
-		}
-	}
-
-	c.Assert(startCount, checker.Equals, 2, check.Commentf("should have had 2 start events but had %d, out: %s", startCount, out))
-}
-
-func (s *DockerSuite) TestEventsFormatBadFunc(c *check.C) {
-	// make sure it fails immediately, without receiving any event
-	result := dockerCmdWithResult("events", "--format", "{{badFuncString .}}")
-	c.Assert(result, icmd.Matches, icmd.Expected{
-		Error:    "exit status 64",
-		ExitCode: 64,
-		Err:      "Error parsing format: template: :1: function \"badFuncString\" not defined",
-	})
-}
-
-func (s *DockerSuite) TestEventsFormatBadField(c *check.C) {
-	// make sure it fails immediately, without receiving any event
-	result := dockerCmdWithResult("events", "--format", "{{.badFieldString}}")
-	c.Assert(result, icmd.Matches, icmd.Expected{
-		Error:    "exit status 64",
-		ExitCode: 64,
-		Err:      "Error parsing format: template: :1:2: executing \"\" at <.badFieldString>: can't evaluate field badFieldString in type *events.Message",
-	})
 }

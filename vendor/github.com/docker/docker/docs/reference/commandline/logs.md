@@ -1,19 +1,11 @@
 ---
-title: "logs"
-description: "The logs command description and usage"
-keywords: "logs, retrieve, docker"
+redirect_from:
+  - /reference/commandline/logs/
+description: The logs command description and usage
+keywords:
+- logs, retrieve, docker
+title: docker logs
 ---
-
-<!-- This file is maintained within the docker/docker Github
-     repository at https://github.com/docker/docker/. Make all
-     pull requests against that repo. If you see this file in
-     another repository, consider it read-only there, as it will
-     periodically be overwritten by the definitive file. Pull
-     requests which include edits to this file in other repositories
-     will be rejected.
--->
-
-# logs
 
 ```markdown
 Usage:  docker logs [OPTIONS] CONTAINER
@@ -24,12 +16,10 @@ Options:
       --details        Show extra details provided to logs
   -f, --follow         Follow log output
       --help           Print usage
-      --since string   Show logs since timestamp (e.g. 2013-01-02T13:23:37) or relative (e.g. 42m for 42 minutes)
+      --since string   Show logs since timestamp
       --tail string    Number of lines to show from the end of the logs (default "all")
   -t, --timestamps     Show timestamps
 ```
-
-## Description
 
 The `docker logs` command batch-retrieves logs present at the time of execution.
 

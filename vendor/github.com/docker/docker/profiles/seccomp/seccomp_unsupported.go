@@ -3,11 +3,11 @@
 package seccomp
 
 import (
-	"github.com/docker/docker/api/types"
-	"github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/docker/engine-api/types"
+	"github.com/opencontainers/specs/specs-go"
 )
 
 // DefaultProfile returns a nil pointer on unsupported systems.
-func DefaultProfile() *types.Seccomp {
+func DefaultProfile(rs *specs.Spec) *types.Seccomp {
 	return nil
 }

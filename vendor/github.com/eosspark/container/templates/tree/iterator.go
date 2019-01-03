@@ -190,10 +190,9 @@ func (iterator *Iterator) Last() bool {
 }
 
 // Delete remove the node which pointed by the iterator
-// The iterator will move to the next after delete
 // Modifies the state of the iterator.
 func (iterator *Iterator) Delete() {
 	node := iterator.node
-	iterator.Prev()
+	//iterator.Prev()
 	iterator.tree.remove(node)
 }

@@ -38,16 +38,12 @@ func setDefaultUmask() error {
 	return nil
 }
 
-func getDaemonConfDir(_ string) string {
+func getDaemonConfDir() string {
 	return "/etc/docker"
 }
 
 // setupConfigReloadTrap configures the USR2 signal to reload the configuration.
 func (cli *DaemonCli) setupConfigReloadTrap() {
-}
-
-// preNotifySystem sends a message to the host when the API is active, but before the daemon is
-func preNotifySystem() {
 }
 
 // notifySystem sends a message to the host when the server is ready to be used
@@ -56,11 +52,6 @@ func notifySystem() {
 
 func (cli *DaemonCli) getPlatformRemoteOptions() []libcontainerd.RemoteOption {
 	opts := []libcontainerd.RemoteOption{}
-	if cli.Config.ContainerdAddr != "" {
-		opts = append(opts, libcontainerd.WithRemoteAddr(cli.Config.ContainerdAddr))
-	} else {
-		opts = append(opts, libcontainerd.WithStartDaemon(true))
-	}
 	return opts
 }
 
@@ -68,12 +59,6 @@ func (cli *DaemonCli) getPlatformRemoteOptions() []libcontainerd.RemoteOption {
 // store their state.
 func (cli *DaemonCli) getLibcontainerdRoot() string {
 	return filepath.Join(cli.Config.ExecRoot, "libcontainerd")
-}
-
-// getSwarmRunRoot gets the root directory for swarm to store runtime state
-// For example, the control socket
-func (cli *DaemonCli) getSwarmRunRoot() string {
-	return filepath.Join(cli.Config.ExecRoot, "swarm")
 }
 
 func allocateDaemonPort(addr string) error {

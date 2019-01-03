@@ -1,19 +1,11 @@
 ---
-title: "cp"
-description: "The cp command description and usage"
-keywords: "copy, container, files, folders"
+redirect_from:
+  - /reference/commandline/cp/
+description: The cp command description and usage
+keywords:
+- copy, container, files, folders
+title: docker cp
 ---
-
-<!-- This file is maintained within the docker/docker Github
-     repository at https://github.com/docker/docker/. Make all
-     pull requests against that repo. If you see this file in
-     another repository, consider it read-only there, as it will
-     periodically be overwritten by the definitive file. Pull
-     requests which include edits to this file in other repositories
-     will be rejected.
--->
-
-# cp
 
 ```markdown
 Usage:  docker cp [OPTIONS] CONTAINER:SRC_PATH DEST_PATH|-
@@ -30,8 +22,6 @@ Options:
   -L, --follow-link   Always follow symbol link in SRC_PATH
       --help          Print usage
 ```
-
-## Description
 
 The `docker cp` utility copies the contents of `SRC_PATH` to the `DEST_PATH`.
 You can copy from the container's file system to the local machine or the
@@ -77,9 +67,9 @@ argument of `DEST_PATH`, the behavior is as follows:
     - `DEST_PATH` exists and is a file
         - Error condition: cannot copy a directory to a file
     - `DEST_PATH` exists and is a directory
-        - `SRC_PATH` does not end with `/.` (that is: _slash_ followed by _dot_)
+        - `SRC_PATH` does not end with `/.`
             - the source directory is copied into this directory
-        - `SRC_PATH` does end with `/.` (that is: _slash_ followed by _dot_)
+        - `SRC_PATH` does end with `/.`
             - the *content* of the source directory is copied into this
               directory
 
@@ -98,16 +88,15 @@ you must be explicit with a relative or absolute path, for example:
 It is not possible to copy certain system files such as resources under
 `/proc`, `/sys`, `/dev`, [tmpfs](run.md#mount-tmpfs-tmpfs), and mounts created by
 the user in the container. However, you can still copy such files by manually
-running `tar` in `docker exec`. Both of the following examples do the same thing
-in different ways (consider `SRC_PATH` and `DEST_PATH` are directories):
+running `tar` in `docker exec`. For example (consider `SRC_PATH` and `DEST_PATH`
+are directories):
 
-```bash
-$ docker exec foo tar Ccf $(dirname SRC_PATH) - $(basename SRC_PATH) | tar Cxf DEST_PATH -
-```
+    $ docker exec foo tar Ccf $(dirname SRC_PATH) - $(basename SRC_PATH) | tar Cxf DEST_PATH -
 
-```bash
-$ tar Ccf $(dirname SRC_PATH) - $(basename SRC_PATH) | docker exec -i foo tar Cxf DEST_PATH -
-```
+or
+
+    $ tar Ccf $(dirname SRC_PATH) - $(basename SRC_PATH) | docker exec -i foo tar Cxf DEST_PATH -
+
 
 Using `-` as the `SRC_PATH` streams the contents of `STDIN` as a tar archive.
 The command extracts the content of the tar to the `DEST_PATH` in container's

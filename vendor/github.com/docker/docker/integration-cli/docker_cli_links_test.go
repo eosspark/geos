@@ -1,13 +1,11 @@
 package main
 
 import (
-	"encoding/json"
 	"fmt"
 	"regexp"
 	"strings"
 
-	"github.com/docker/docker/integration-cli/checker"
-	"github.com/docker/docker/pkg/testutil"
+	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/docker/docker/runconfig"
 	"github.com/go-check/check"
 )
@@ -99,10 +97,10 @@ func (s *DockerSuite) TestLinksInspectLinksStarted(c *check.C) {
 	dockerCmd(c, "run", "-d", "--name", "testinspectlink", "--link", "container1:alias1", "--link", "container2:alias2", "busybox", "top")
 	links := inspectFieldJSON(c, "testinspectlink", "HostConfig.Links")
 
-	err := json.Unmarshal([]byte(links), &result)
+	err := unmarshalJSON([]byte(links), &result)
 	c.Assert(err, checker.IsNil)
 
-	output := testutil.ConvertSliceOfStringsToMap(result)
+	output := convertSliceOfStringsToMap(result)
 
 	c.Assert(output, checker.DeepEquals, expected)
 }
@@ -118,10 +116,10 @@ func (s *DockerSuite) TestLinksInspectLinksStopped(c *check.C) {
 	dockerCmd(c, "run", "-d", "--name", "testinspectlink", "--link", "container1:alias1", "--link", "container2:alias2", "busybox", "true")
 	links := inspectFieldJSON(c, "testinspectlink", "HostConfig.Links")
 
-	err := json.Unmarshal([]byte(links), &result)
+	err := unmarshalJSON([]byte(links), &result)
 	c.Assert(err, checker.IsNil)
 
-	output := testutil.ConvertSliceOfStringsToMap(result)
+	output := convertSliceOfStringsToMap(result)
 
 	c.Assert(output, checker.DeepEquals, expected)
 }
@@ -146,8 +144,11 @@ func (s *DockerSuite) TestLinksHostsFilesInject(c *check.C) {
 
 	c.Assert(waitRun(idTwo), checker.IsNil)
 
-	readContainerFileWithExec(c, idOne, "/etc/hosts")
-	contentTwo := readContainerFileWithExec(c, idTwo, "/etc/hosts")
+	contentOne, err := readContainerFileWithExec(idOne, "/etc/hosts")
+	c.Assert(err, checker.IsNil, check.Commentf("contentOne: %s", string(contentOne)))
+
+	contentTwo, err := readContainerFileWithExec(idTwo, "/etc/hosts")
+	c.Assert(err, checker.IsNil, check.Commentf("contentTwo: %s", string(contentTwo)))
 	// Host is not present in updated hosts file
 	c.Assert(string(contentTwo), checker.Contains, "onetwo")
 }
@@ -160,7 +161,8 @@ func (s *DockerSuite) TestLinksUpdateOnRestart(c *check.C) {
 	id := strings.TrimSpace(string(out))
 
 	realIP := inspectField(c, "one", "NetworkSettings.Networks.bridge.IPAddress")
-	content := readContainerFileWithExec(c, id, "/etc/hosts")
+	content, err := readContainerFileWithExec(id, "/etc/hosts")
+	c.Assert(err, checker.IsNil)
 
 	getIP := func(hosts []byte, hostname string) string {
 		re := regexp.MustCompile(fmt.Sprintf(`(\S*)\t%s`, regexp.QuoteMeta(hostname)))
@@ -177,7 +179,8 @@ func (s *DockerSuite) TestLinksUpdateOnRestart(c *check.C) {
 	dockerCmd(c, "restart", "one")
 	realIP = inspectField(c, "one", "NetworkSettings.Networks.bridge.IPAddress")
 
-	content = readContainerFileWithExec(c, id, "/etc/hosts")
+	content, err = readContainerFileWithExec(id, "/etc/hosts")
+	c.Assert(err, checker.IsNil, check.Commentf("content: %s", string(content)))
 	ip = getIP(content, "one")
 	c.Assert(ip, checker.Equals, realIP)
 

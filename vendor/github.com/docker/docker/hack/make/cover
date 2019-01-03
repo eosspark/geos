@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 set -e
 
 bundle_cover() {
@@ -12,4 +12,9 @@ bundle_cover() {
 	done
 }
 
-bundle_cover 2>&1 | tee "$DEST/report.log"
+if [ "$HAVE_GO_TEST_COVER" ]; then
+	bundle_cover 2>&1 | tee "$DEST/report.log"
+else
+	echo >&2 'warning: the current version of go does not support -cover'
+	echo >&2 '  skipping test coverage report'
+fi

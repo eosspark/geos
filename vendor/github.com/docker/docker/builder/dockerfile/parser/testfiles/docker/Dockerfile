@@ -9,7 +9,7 @@
 # docker run -v `pwd`:/go/src/github.com/docker/docker --privileged -i -t docker bash
 #
 # # Run the test suite:
-# docker run --privileged docker hack/make.sh test-unit test-integration-cli test-docker-py
+# docker run --privileged docker hack/make.sh test
 #
 # # Publish a release:
 # docker run --privileged \
@@ -39,6 +39,7 @@ RUN	apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -yq \
 	iptables \
 	libapparmor-dev \
 	libcap-dev \
+	libsqlite3-dev \
 	mercurial \
 	pandoc \
 	parallel \

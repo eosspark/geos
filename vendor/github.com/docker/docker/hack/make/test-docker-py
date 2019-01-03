@@ -1,7 +1,5 @@
-#!/usr/bin/env bash
+#!/bin/bash
 set -e
-
-source hack/make/.integration-test-helpers
 
 # subshell so that we can export PATH without breaking other things
 (
@@ -14,7 +12,7 @@ source hack/make/.integration-test-helpers
 	}
 
 	# exporting PYTHONPATH to import "docker" from our local docker-py
-	test_env PYTHONPATH="$dockerPy" py.test --junitxml="$DEST/results.xml" "$dockerPy/tests/integration"
+	test_env PYTHONPATH="$dockerPy" py.test "$dockerPy/tests/integration"
 
 	bundle .integration-daemon-stop
 ) 2>&1 | tee -a "$DEST/test.log"
