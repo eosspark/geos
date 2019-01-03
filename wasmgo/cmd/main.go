@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"github.com/eosspark/eos-go/chain"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
@@ -14,7 +13,7 @@ import (
 
 func main() {
 
-	name := "/Users/xiaoyu/go/src/github.com/eosspark/eos-go/wasmgo/cmd/hello.wasm"
+	name := "hello.wasm"
 	code, err := ioutil.ReadFile(name)
 	if err != nil {
 		log.Fatal(err)
@@ -23,23 +22,23 @@ func main() {
 	wasmgo := wasmgo.NewWasmGo()
 	param, _ := rlp.EncodeToBytes(common.N("walker")) //[]byte{0x00, 0x00, 0x00, 0x00, 0x5c, 0x05, 0xa3, 0xe1}
 	applyContext := &chain.ApplyContext{
-		Receiver: common.AccountName(common.N("hello")),
+		Receiver: common.N("hello"),
 		Act: &types.Action{
-			Account: common.AccountName(common.N("hello")),
-			Name:    common.ActionName(common.N("hi")),
+			Account: common.N("hello"),
+			Name:    common.N("hi"),
 			Data:    param,
 		},
 	}
 
 	codeVersion := crypto.NewSha256Byte([]byte(code))
 
-	for i := 0; i < 100; i++ {
-		applyContext.PseudoStart = common.Now()
-		//applyContext.Deadline = applyContext.PseudoStart + common.TimePoint(200000)
-		wasmgo.Apply(codeVersion, code, applyContext)
-		fmt.Println("No.", i, uint64(common.Now()-applyContext.PseudoStart))
-	}
+	//for i := 0; i < 100; i++ {
+	//	applyContext.PseudoStart = common.Now()
+	//	wasmgo.Apply(codeVersion, code, applyContext)
+	//	fmt.Println("No.", i, uint64(common.Now()-applyContext.PseudoStart))
+	//}
 
+	wasmgo.Apply(codeVersion, code, applyContext)
 	//print "hello, walker"
 	//fmt.Println(applyContext.PendingConsoleOutput)
 
