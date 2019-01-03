@@ -121,9 +121,9 @@ func NewSignedBlock1(h *SignedBlockHeader) *SignedBlock {
 	return &SignedBlock{SignedBlockHeader: *h}
 }
 
-func (m *SignedBlock) String() string {
+/*func (m *SignedBlock) String() string {
 	return "SignedBlock"
-}
+}*/
 
 type ProducerConfirmation struct {
 	BlockID     common.BlockIdType

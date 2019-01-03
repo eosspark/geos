@@ -2,11 +2,13 @@ package unittests
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/docker/docker/pkg/testutil/assert"
 	. "github.com/eosspark/eos-go/chain"
 	"github.com/eosspark/eos-go/chain/abi_serializer"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
+	"github.com/eosspark/eos-go/entity"
 	"github.com/eosspark/eos-go/exception"
 	"github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/log"
@@ -106,6 +108,17 @@ func (c *CurrencyTester) Transfer(from *common.AccountName, to *common.AccountNa
 		"memo":     memo}
 	trace := c.PushAction(from, &q, &data)
 	c.validatingTester.DefaultProduceBlock()
+	return trace
+}
+
+func (c *CurrencyTester) Issue(to *common.AccountName, quantity string, memo string) *types.TransactionTrace {
+	data := common.Variants{
+		"to":       to,
+		"quantity": quantity,
+		"memo":     memo}
+	actionName := common.N("issue")
+	trace := c.PushAction(&eosioToken, &actionName, &data)
+	c.validatingTester.ProduceBlocks(1, false)
 	return trace
 }
 
@@ -481,4 +494,173 @@ func TestProxy(t *testing.T) {
 		}
 
 	}).FcLogAndRethrow().End()
+}
+
+func TestInputQuantity(t *testing.T) {
+	ct := NewCurrencyTester()
+	ct.validatingTester.ProduceBlocks(2, false)
+	alice := common.N("alice")
+	carl := common.N("carl")
+	s := "100.0000 EOS"
+	expected := common.Asset{}.FromString(&s)
+	ct.validatingTester.CreateAccounts([]common.AccountName{common.N("alice"), common.N("bob"), common.N("carl")}, false, true)
+	{
+		trace := ct.Transfer(&eosioToken, &alice, "100.0000 EOS", "test transfer to alice 100.0000 EOS")
+		assert.Equal(t, true, ct.validatingTester.ChainHasTransaction(&trace.ID))
+		assert.Equal(t, *ct.GetBalance(&alice), expected)
+		assert.Equal(t, *ct.GetBalance(&alice), expected)
+	}
+
+	{
+		returning := false
+		try.Try(func() {
+			ct.Transfer(&alice, &carl, "20.50 USD", "throw")
+		}).Catch(func(e exception.EosioAssertMessageException) {
+			returning = true
+		}).End()
+		if returning {
+			assert.Equal(t, true, returning)
+		}
+	}
+
+	{
+		s := "125.0256 EOS"
+		expected := common.Asset{}.FromString(&s)
+		trace := ct.Issue(&alice, "25.0256 EOS", "Issue")
+		assert.Equal(t, true, ct.validatingTester.ChainHasTransaction(&trace.ID))
+		assert.Equal(t, *ct.GetBalance(&alice), expected)
+	}
+	ct.validatingTester.close()
+}
+
+func TestDeferredFailure(t *testing.T) {
+	ct := NewCurrencyTester()
+	ct.validatingTester.ProduceBlocks(2, false)
+	alice := common.N("alice")
+	proxy := common.N("proxy")
+	bob := common.N("bob")
+	ct.validatingTester.CreateAccounts([]common.AccountName{alice, bob, proxy}, false, true)
+	ct.validatingTester.DefaultProduceBlock()
+	wasmName := "test_contracts/proxy.wasm"
+	code, _ := ioutil.ReadFile(wasmName)
+	ct.validatingTester.SetCode(proxy, code, nil)
+	ct.validatingTester.SetCode(bob, code, nil)
+	ct.validatingTester.ProduceBlocks(1, false)
+	abiName := "test_contracts/proxy.abi"
+	abi, err := ioutil.ReadFile(abiName)
+	if err != nil {
+		log.Error("pushGenesisBlock is err : %v", err)
+	}
+	ct.validatingTester.SetAbi(proxy, abi, nil)
+	ct.validatingTester.SetAbi(bob, abi, nil)
+	// set up proxy owner bob
+	{
+		act := types.Action{}
+		act.Account = proxy
+		act.Name = common.N("setowner")
+		act.Authorization = []types.PermissionLevel{{common.N("bob"), common.DefaultConfig.ActiveName}}
+		data := common.Variants{
+			"owner": bob,
+			"delay": 10,
+		}
+		//trace := ct.PushAction(&proxy, &act.Name,&data)
+		trace := ct.validatingTester.PushAction2(&proxy, &act.Name, bob, &data, ct.validatingTester.DefaultExpirationDelta, 0)
+		ct.validatingTester.ProduceBlocks(1, false)
+		assert.Equal(t, true, ct.validatingTester.ChainHasTransaction(&trace.ID))
+		ct.validatingTester.ProduceBlocks(1, false)
+	}
+
+	gto := entity.GeneratedTransactionObject{}
+	index, _ := ct.validatingTester.Control.DataBase().GetIndex("byTrxId", &gto)
+	count := 0
+	itr := index.Begin()
+	if itr != index.End() {
+		count = 1
+	}
+
+	assert.Equal(t, 0, count)
+
+	actionName := common.N("transfer")
+	data := common.Variants{
+		"from":     eosioToken,
+		"to":       proxy,
+		"quantity": "5.0000 EOS",
+		"memo":     "fund Proxy",
+	}
+	ct.validatingTester.PushAction2(&eosioToken, &actionName, eosioToken, &data, ct.validatingTester.DefaultExpirationDelta, 0)
+	expectedDelivery := ct.validatingTester.Control.HeadBlockTime().TimeSinceEpoch().Count() + common.Seconds(10).Count()
+
+	var deferredId common.TransactionIdType
+	if index.Begin() != index.End() {
+		count = 1
+	}
+	assert.Equal(t, 1, count)
+	assert.Equal(t, false, ct.validatingTester.ChainHasTransaction(&deferredId))
+	s := "5.0000 EOS"
+	s2 := "0.0000 EOS"
+	for ct.validatingTester.Control.PendingBlockTime().TimeSinceEpoch().Count() < expectedDelivery {
+		ct.validatingTester.ProduceBlocks(1, false)
+		assert.Equal(t, *ct.GetBalance(&proxy), common.Asset{}.FromString(&s))
+		assert.Equal(t, *ct.GetBalance(&bob), common.Asset{}.FromString(&s2))
+		assert.Equal(t, *ct.GetBalance(&bob), common.Asset{}.FromString(&s2))
+		assert.Equal(t, 1, count)
+		assert.Equal(t, false, ct.validatingTester.ChainHasTransaction(&deferredId))
+	}
+
+	//fmt.Println("************************gto:",gto)
+	fmt.Println("************************time:", ct.validatingTester.Control.PendingBlockTime().TimeSinceEpoch().Count(), expectedDelivery)
+	//expectedRedelivery := ct.validatingTester.Control.HeadBlockTime().TimeSinceEpoch().Count() + common.Seconds(10).Count()
+	ct.validatingTester.ProduceBlocks(1, false)
+
+	itr = index.Begin()
+	err = itr.Data(&gto)
+	if err != nil {
+		fmt.Errorf("TestDeferredFailure:", "find gto is error")
+	}
+
+	if gto.DelayUntil <= ct.validatingTester.Control.PendingBlockTime() {
+		deferredId = gto.TrxId
+	}
+	assert.Equal(t, 1, count)
+	fmt.Println("**********A**************", deferredId, ct.validatingTester.GetTransactionReceipt(&deferredId))
+	//assert.Equal(t,true,ct.validatingTester.ChainHasTransaction(&deferredId))
+	assert.Equal(t, ct.validatingTester.GetTransactionReceipt(&deferredId).Status, types.TransactionStatusSoftFail)
+
+	// set up alice owner
+	/*index3,_ := ct.validatingTester.Control.DataBase().GetIndex("byTrxId",&gto)
+	index3.Begin().Data(&gto)
+	deferredId2:=  gto.TrxId
+	// set up alice owner
+	{
+		act := types.Action{}
+		act.Account = bob
+		act.Name = common.N("setowner")
+		act.Authorization = []types.PermissionLevel{{common.N("alice"), common.DefaultConfig.ActiveName}}
+		data := common.Variants{
+			"owner": alice,
+			"delay": 0,
+		}
+		//trace := ct.PushAction(&proxy, &act.Name,&data)
+		trace := ct.validatingTester.PushAction2(&bob, &act.Name, alice, &data, ct.validatingTester.DefaultExpirationDelta, 0)
+		ct.validatingTester.ProduceBlocks(1, false)
+		assert.Equal(t,true,ct.validatingTester.ChainHasTransaction(&trace.ID))
+	}
+	for ct.validatingTester.Control.HeadBlockTime().TimeSinceEpoch().Count() < expectedRedelivery{
+		ct.validatingTester.ProduceBlocks(1,false)
+		assert.Equal(t,ct.GetBalance(&proxy),common.Asset{}.FromString(&s))
+		assert.Equal(t,ct.GetBalance(&alice),common.Asset{}.FromString(&s2))
+		assert.Equal(t,ct.GetBalance(&bob),common.Asset{}.FromString(&s2))
+		assert.Equal(t,1,index2)
+		assert.Equal(t,false,ct.validatingTester.ChainHasTransaction(&deferredId2))
+	}
+
+	assert.Equal(t,1,index2)
+	ct.validatingTester.ProduceBlocks(1,false)
+	assert.Equal(t,0,index2)
+	assert.Equal(t,ct.validatingTester.GetTransactionReceipt(&deferredId2).Status,types.TransactionStatusSoftFail)
+	assert.Equal(t,ct.GetBalance(&proxy),common.Asset{}.FromString(&s2))
+	assert.Equal(t,ct.GetBalance(&alice),common.Asset{}.FromString(&s))
+	assert.Equal(t,ct.GetBalance(&bob),common.Asset{}.FromString(&s2))*/
+
+	ct.validatingTester.close()
 }
