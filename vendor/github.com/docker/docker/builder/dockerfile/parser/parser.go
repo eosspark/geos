@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"regexp"
-	"strconv"
 	"strings"
 	"unicode"
 
@@ -37,36 +36,11 @@ type Node struct {
 	EndLine    int             // the line in the original dockerfile where the node ends
 }
 
-// Dump dumps the AST defined by `node` as a list of sexps.
-// Returns a string suitable for printing.
-func (node *Node) Dump() string {
-	str := ""
-	str += node.Value
-
-	if len(node.Flags) > 0 {
-		str += fmt.Sprintf(" %q", node.Flags)
-	}
-
-	for _, n := range node.Children {
-		str += "(" + n.Dump() + ")\n"
-	}
-
-	for n := node.Next; n != nil; n = n.Next {
-		if len(n.Children) > 0 {
-			str += " " + n.Dump()
-		} else {
-			str += " " + strconv.Quote(n.Value)
-		}
-	}
-
-	return strings.TrimSpace(str)
-}
-
 // Directive is the structure used during a build run to hold the state of
 // parsing directives.
 type Directive struct {
 	EscapeToken           rune           // Current escape token
-	LineContinuationRegex *regexp.Regexp // Current line continuation regex
+	LineContinuationRegex *regexp.Regexp // Current line contination regex
 	LookingForDirectives  bool           // Whether we are currently looking for directives
 	EscapeSeen            bool           // Whether the escape directive has been seen
 }
@@ -106,7 +80,7 @@ func init() {
 		command.Entrypoint:  parseMaybeJSON,
 		command.Env:         parseEnv,
 		command.Expose:      parseStringsWhitespaceDelimited,
-		command.From:        parseStringsWhitespaceDelimited,
+		command.From:        parseString,
 		command.Healthcheck: parseHealthConfig,
 		command.Label:       parseLabel,
 		command.Maintainer:  parseString,
@@ -120,11 +94,26 @@ func init() {
 	}
 }
 
-// ParseLine parses a line and returns the remainder.
-func ParseLine(line string, d *Directive, ignoreCont bool) (string, *Node, error) {
-	if escapeFound, err := handleParserDirective(line, d); err != nil || escapeFound {
-		d.EscapeSeen = escapeFound
-		return "", nil, err
+// ParseLine parse a line and return the remainder.
+func ParseLine(line string, d *Directive) (string, *Node, error) {
+	// Handle the parser directive '# escape=<char>. Parser directives must precede
+	// any builder instruction or other comments, and cannot be repeated.
+	if d.LookingForDirectives {
+		tecMatch := tokenEscapeCommand.FindStringSubmatch(strings.ToLower(line))
+		if len(tecMatch) > 0 {
+			if d.EscapeSeen == true {
+				return "", nil, fmt.Errorf("only one escape parser directive can be used")
+			}
+			for i, n := range tokenEscapeCommand.SubexpNames() {
+				if n == "escapechar" {
+					if err := SetEscapeToken(tecMatch[i], d); err != nil {
+						return "", nil, err
+					}
+					d.EscapeSeen = true
+					return "", nil, nil
+				}
+			}
+		}
 	}
 
 	d.LookingForDirectives = false
@@ -133,65 +122,30 @@ func ParseLine(line string, d *Directive, ignoreCont bool) (string, *Node, error
 		return "", nil, nil
 	}
 
-	if !ignoreCont && d.LineContinuationRegex.MatchString(line) {
+	if d.LineContinuationRegex.MatchString(line) {
 		line = d.LineContinuationRegex.ReplaceAllString(line, "")
 		return line, nil, nil
 	}
 
-	node, err := newNodeFromLine(line, d)
-	return "", node, err
-}
-
-// newNodeFromLine splits the line into parts, and dispatches to a function
-// based on the command and command arguments. A Node is created from the
-// result of the dispatch.
-func newNodeFromLine(line string, directive *Directive) (*Node, error) {
 	cmd, flags, args, err := splitCommand(line)
 	if err != nil {
-		return nil, err
+		return "", nil, err
 	}
 
-	fn := dispatch[cmd]
-	// Ignore invalid Dockerfile instructions
-	if fn == nil {
-		fn = parseIgnore
-	}
-	next, attrs, err := fn(args, directive)
+	node := &Node{}
+	node.Value = cmd
+
+	sexp, attrs, err := fullDispatch(cmd, args, d)
 	if err != nil {
-		return nil, err
+		return "", nil, err
 	}
 
-	return &Node{
-		Value:      cmd,
-		Original:   line,
-		Flags:      flags,
-		Next:       next,
-		Attributes: attrs,
-	}, nil
-}
+	node.Next = sexp
+	node.Attributes = attrs
+	node.Original = line
+	node.Flags = flags
 
-// Handle the parser directive '# escape=<char>. Parser directives must precede
-// any builder instruction or other comments, and cannot be repeated.
-func handleParserDirective(line string, d *Directive) (bool, error) {
-	if !d.LookingForDirectives {
-		return false, nil
-	}
-	tecMatch := tokenEscapeCommand.FindStringSubmatch(strings.ToLower(line))
-	if len(tecMatch) == 0 {
-		return false, nil
-	}
-	if d.EscapeSeen == true {
-		return false, fmt.Errorf("only one escape parser directive can be used")
-	}
-	for i, n := range tokenEscapeCommand.SubexpNames() {
-		if n == "escapechar" {
-			if err := SetEscapeToken(tecMatch[i], d); err != nil {
-				return false, err
-			}
-			return true, nil
-		}
-	}
-	return false, nil
+	return "", node, nil
 }
 
 // Parse is the main parse routine.
@@ -211,7 +165,7 @@ func Parse(rwc io.Reader, d *Directive) (*Node, error) {
 		}
 		scannedLine := strings.TrimLeftFunc(string(scannedBytes), unicode.IsSpace)
 		currentLine++
-		line, child, err := ParseLine(scannedLine, d, false)
+		line, child, err := ParseLine(scannedLine, d)
 		if err != nil {
 			return nil, err
 		}
@@ -226,7 +180,7 @@ func Parse(rwc io.Reader, d *Directive) (*Node, error) {
 					continue
 				}
 
-				line, child, err = ParseLine(line+newline, d, false)
+				line, child, err = ParseLine(line+newline, d)
 				if err != nil {
 					return nil, err
 				}
@@ -236,13 +190,7 @@ func Parse(rwc io.Reader, d *Directive) (*Node, error) {
 				}
 			}
 			if child == nil && line != "" {
-				// When we call ParseLine we'll pass in 'true' for
-				// the ignoreCont param if we're at the EOF. This will
-				// prevent the func from returning immediately w/o
-				// parsing the line thinking that there's more input
-				// to come.
-
-				_, child, err = ParseLine(line, d, scanner.Err() == nil)
+				_, child, err = ParseLine(line, d)
 				if err != nil {
 					return nil, err
 				}
@@ -264,15 +212,4 @@ func Parse(rwc io.Reader, d *Directive) (*Node, error) {
 	}
 
 	return root, nil
-}
-
-// covers comments and empty lines. Lines should be trimmed before passing to
-// this function.
-func stripComments(line string) string {
-	// string is already trimmed at this point
-	if tokenComment.MatchString(line) {
-		return tokenComment.ReplaceAllString(line, "")
-	}
-
-	return line
 }

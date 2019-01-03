@@ -1,42 +1,32 @@
 ---
-title: "swarm leave"
-description: "The swarm leave command description and usage"
-keywords: "swarm, leave"
+redirect_from:
+  - /reference/commandline/swarm_leave/
+description: The swarm leave command description and usage
+keywords:
+- swarm, leave
+title: docker swarm leave
 ---
 
-<!-- This file is maintained within the docker/docker Github
-     repository at https://github.com/docker/docker/. Make all
-     pull requests against that repo. If you see this file in
-     another repository, consider it read-only there, as it will
-     periodically be overwritten by the definitive file. Pull
-     requests which include edits to this file in other repositories
-     will be rejected.
--->
-
-# swarm leave
+**Warning:** this command is part of the Swarm management feature introduced in Docker 1.12, and might be subject to non backward-compatible changes.
 
 ```markdown
-Usage:	docker swarm leave [OPTIONS]
+Usage:  docker swarm leave [OPTIONS]
 
-Leave the swarm
+Leave the swarm (workers only).
 
 Options:
-  -f, --force   Force this node to leave the swarm, ignoring warnings
+      --force   Force this node to leave the swarm, ignoring warnings
       --help    Print usage
 ```
 
-## Description
-
 When you run this command on a worker, that worker leaves the swarm.
 
-You can use the `--force` option on a manager to remove it from the swarm.
+You can use the `--force` option to on a manager to remove it from the swarm.
 However, this does not reconfigure the swarm to ensure that there are enough
 managers to maintain a quorum in the swarm. The safe way to remove a manager
 from a swarm is to demote it to a worker and then direct it to leave the quorum
 without using `--force`. Only use `--force` in situations where the swarm will
 no longer be used after the manager leaves, such as in a single-node swarm.
-
-## Examples
 
 Consider the following swarm, as seen from the manager:
 
@@ -55,17 +45,11 @@ $ docker swarm leave
 Node left the default swarm.
 ```
 
-The node will still appear in the node list, and marked as `down`. It no longer
-affects swarm operation, but a long list of `down` nodes can clutter the node
-list. To remove an inactive node from the list, use the [`node rm`](node_rm.md)
-command.
+To remove an inactive node, use the [`node rm`](node_rm.md) command instead.
 
-## Related commands
+## Related information
 
 * [node rm](node_rm.md)
 * [swarm init](swarm_init.md)
 * [swarm join](swarm_join.md)
-* [swarm join-token](swarm_join_token.md)
-* [swarm unlock](swarm_unlock.md)
-* [swarm unlock-key](swarm_unlock_key.md)
 * [swarm update](swarm_update.md)

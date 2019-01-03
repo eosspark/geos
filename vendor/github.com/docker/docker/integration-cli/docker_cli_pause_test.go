@@ -3,19 +3,20 @@ package main
 import (
 	"strings"
 
-	"github.com/docker/docker/integration-cli/checker"
+	"github.com/docker/docker/pkg/integration/checker"
 	"github.com/go-check/check"
 )
 
 func (s *DockerSuite) TestPause(c *check.C) {
-	testRequires(c, IsPausable)
-	defer unpauseAllContainers(c)
+	testRequires(c, DaemonIsLinux)
+	defer unpauseAllContainers()
 
 	name := "testeventpause"
-	runSleepingContainer(c, "-d", "--name", name)
+	dockerCmd(c, "run", "-d", "--name", name, "busybox", "top")
 
 	dockerCmd(c, "pause", name)
-	pausedContainers := getPausedContainers(c)
+	pausedContainers, err := getSliceOfPausedContainers()
+	c.Assert(err, checker.IsNil)
 	c.Assert(len(pausedContainers), checker.Equals, 1)
 
 	dockerCmd(c, "unpause", name)
@@ -29,18 +30,19 @@ func (s *DockerSuite) TestPause(c *check.C) {
 }
 
 func (s *DockerSuite) TestPauseMultipleContainers(c *check.C) {
-	testRequires(c, IsPausable)
-	defer unpauseAllContainers(c)
+	testRequires(c, DaemonIsLinux)
+	defer unpauseAllContainers()
 
 	containers := []string{
 		"testpausewithmorecontainers1",
 		"testpausewithmorecontainers2",
 	}
 	for _, name := range containers {
-		runSleepingContainer(c, "-d", "--name", name)
+		dockerCmd(c, "run", "-d", "--name", name, "busybox", "top")
 	}
 	dockerCmd(c, append([]string{"pause"}, containers...)...)
-	pausedContainers := getPausedContainers(c)
+	pausedContainers, err := getSliceOfPausedContainers()
+	c.Assert(err, checker.IsNil)
 	c.Assert(len(pausedContainers), checker.Equals, len(containers))
 
 	dockerCmd(c, append([]string{"unpause"}, containers...)...)
@@ -56,9 +58,9 @@ func (s *DockerSuite) TestPauseMultipleContainers(c *check.C) {
 	}
 }
 
-func (s *DockerSuite) TestPauseFailsOnWindowsServerContainers(c *check.C) {
-	testRequires(c, DaemonIsWindows, NotPausable)
-	runSleepingContainer(c, "-d", "--name=test")
+func (s *DockerSuite) TestPauseFailsOnWindows(c *check.C) {
+	testRequires(c, DaemonIsWindows)
+	dockerCmd(c, "run", "-d", "--name=test", "busybox", "sleep 3")
 	out, _, _ := dockerCmdWithError("pause", "test")
-	c.Assert(out, checker.Contains, "cannot pause Windows Server Containers")
+	c.Assert(out, checker.Contains, "Windows: Containers cannot be paused")
 }

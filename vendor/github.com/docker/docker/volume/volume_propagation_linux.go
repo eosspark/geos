@@ -4,31 +4,28 @@ package volume
 
 import (
 	"strings"
-
-	mounttypes "github.com/docker/docker/api/types/mount"
 )
 
 // DefaultPropagationMode defines what propagation mode should be used by
 // default if user has not specified one explicitly.
-// propagation modes
-const DefaultPropagationMode = mounttypes.PropagationRPrivate
+const DefaultPropagationMode string = "rprivate"
 
-var propagationModes = map[mounttypes.Propagation]bool{
-	mounttypes.PropagationPrivate:  true,
-	mounttypes.PropagationRPrivate: true,
-	mounttypes.PropagationSlave:    true,
-	mounttypes.PropagationRSlave:   true,
-	mounttypes.PropagationShared:   true,
-	mounttypes.PropagationRShared:  true,
+// propagation modes
+var propagationModes = map[string]bool{
+	"private":  true,
+	"rprivate": true,
+	"slave":    true,
+	"rslave":   true,
+	"shared":   true,
+	"rshared":  true,
 }
 
 // GetPropagation extracts and returns the mount propagation mode. If there
 // are no specifications, then by default it is "private".
-func GetPropagation(mode string) mounttypes.Propagation {
+func GetPropagation(mode string) string {
 	for _, o := range strings.Split(mode, ",") {
-		prop := mounttypes.Propagation(o)
-		if propagationModes[prop] {
-			return prop
+		if propagationModes[o] {
+			return o
 		}
 	}
 	return DefaultPropagationMode
@@ -39,7 +36,7 @@ func GetPropagation(mode string) mounttypes.Propagation {
 // present, false otherwise.
 func HasPropagation(mode string) bool {
 	for _, o := range strings.Split(mode, ",") {
-		if propagationModes[mounttypes.Propagation(o)] {
+		if propagationModes[o] {
 			return true
 		}
 	}

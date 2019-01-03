@@ -8,7 +8,6 @@ import (
 	"syscall"
 
 	"github.com/docker/docker/pkg/mount"
-	rsystem "github.com/opencontainers/runc/libcontainer/system"
 )
 
 // chroot on linux uses pivot_root instead of chroot
@@ -18,10 +17,6 @@ import (
 // Old root is removed after the call to pivot_root so it is no longer available under the new root.
 // This is similar to how libcontainer sets up a container's rootfs
 func chroot(path string) (err error) {
-	// if the engine is running in a user namespace we need to use actual chroot
-	if rsystem.RunningInUserNS() {
-		return realChroot(path)
-	}
 	if err := syscall.Unshare(syscall.CLONE_NEWNS); err != nil {
 		return fmt.Errorf("Error creating mount namespace before pivot: %v", err)
 	}
@@ -30,11 +25,9 @@ func chroot(path string) (err error) {
 	if err := mount.MakeRPrivate("/"); err != nil {
 		return err
 	}
-
-	if mounted, _ := mount.Mounted(path); !mounted {
-		if err := mount.Mount(path, path, "bind", "rbind,rw"); err != nil {
-			return realChroot(path)
-		}
+	// ensure path is a mountpoint
+	if err := mount.MakePrivate(path); err != nil {
+		return err
 	}
 
 	// setup oldRoot for pivot_root
