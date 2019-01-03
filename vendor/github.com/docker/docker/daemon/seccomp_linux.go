@@ -8,7 +8,7 @@ import (
 	"github.com/Sirupsen/logrus"
 	"github.com/docker/docker/container"
 	"github.com/docker/docker/profiles/seccomp"
-	"github.com/opencontainers/runtime-spec/specs-go"
+	"github.com/opencontainers/specs/specs-go"
 )
 
 var supportsSeccomp = true
@@ -32,21 +32,14 @@ func setSeccomp(daemon *Daemon, rs *specs.Spec, c *container.Container) error {
 		return nil
 	}
 	if c.SeccompProfile != "" {
-		profile, err = seccomp.LoadProfile(c.SeccompProfile, rs)
+		profile, err = seccomp.LoadProfile(c.SeccompProfile)
 		if err != nil {
 			return err
 		}
 	} else {
-		if daemon.seccompProfile != nil {
-			profile, err = seccomp.LoadProfile(string(daemon.seccompProfile), rs)
-			if err != nil {
-				return err
-			}
-		} else {
-			profile, err = seccomp.GetDefaultProfile(rs)
-			if err != nil {
-				return err
-			}
+		profile, err = seccomp.GetDefaultProfile(rs)
+		if err != nil {
+			return err
 		}
 	}
 

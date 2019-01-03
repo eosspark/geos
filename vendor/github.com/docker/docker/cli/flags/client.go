@@ -1,13 +1,12 @@
 package flags
 
-// ClientOptions are the options used to configure the client cli
-type ClientOptions struct {
-	Common    *CommonOptions
-	ConfigDir string
-	Version   bool
-}
+import flag "github.com/docker/docker/pkg/mflag"
 
-// NewClientOptions returns a new ClientOptions
-func NewClientOptions() *ClientOptions {
-	return &ClientOptions{Common: NewCommonOptions()}
+// ClientFlags represents flags for the docker client.
+type ClientFlags struct {
+	FlagSet   *flag.FlagSet
+	Common    *CommonFlags
+	PostParse func()
+
+	ConfigDir string
 }

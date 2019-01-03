@@ -59,14 +59,14 @@ func TestFileSpecPlugin(t *testing.T) {
 		}
 
 		if p.name != c.name {
-			t.Fatalf("Expected plugin `%s`, got %s\n", c.name, p.name)
+			t.Fatalf("Expected plugin `%s`, got %s\n", c.name, p.Name)
 		}
 
 		if p.Addr != c.addr {
 			t.Fatalf("Expected plugin addr `%s`, got %s\n", c.addr, p.Addr)
 		}
 
-		if !p.TLSConfig.InsecureSkipVerify {
+		if p.TLSConfig.InsecureSkipVerify != true {
 			t.Fatalf("Expected TLS verification to be skipped")
 		}
 	}
@@ -97,8 +97,8 @@ func TestFileJSONSpecPlugin(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if expected, actual := "example", plugin.name; expected != actual {
-		t.Fatalf("Expected plugin %q, got %s\n", expected, actual)
+	if plugin.name != "example" {
+		t.Fatalf("Expected plugin `plugin-example`, got %s\n", plugin.Name)
 	}
 
 	if plugin.Addr != "https://example.com/docker/plugin" {
@@ -138,8 +138,8 @@ func TestFileJSONSpecPluginWithoutTLSConfig(t *testing.T) {
 		t.Fatal(err)
 	}
 
-	if expected, actual := "example", plugin.name; expected != actual {
-		t.Fatalf("Expected plugin %q, got %s\n", expected, actual)
+	if plugin.name != "example" {
+		t.Fatalf("Expected plugin `plugin-example`, got %s\n", plugin.Name)
 	}
 
 	if plugin.Addr != "https://example.com/docker/plugin" {

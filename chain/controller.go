@@ -404,7 +404,7 @@ func (c *Controller) AbortBlock() {
 		if c.ReadMode == SPECULATIVE {
 			if c.Pending.PendingBlockState != nil {
 				for _, trx := range c.Pending.PendingBlockState.Trxs {
-					c.UnappliedTransactions[crypto.Sha256(trx.SignedID)] = *trx
+					c.UnappliedTransactions[trx.SignedID] = *trx
 				}
 			}
 		}
@@ -439,6 +439,7 @@ func (c *Controller) startBlock(when types.BlockTimeStamp, confirmBlockCount uin
 	c.Pending.PendingBlockState = types.NewBlockState2(&c.Head.BlockHeaderState, when) //TODO std::make_shared<block_state>( *head, when ); // promotes pending schedule (if any) to active
 	c.Pending.PendingBlockState.InCurrentChain = true
 	c.Pending.PendingBlockState.SetConfirmed(confirmBlockCount)
+	fmt.Println("************************startblock****************", confirmBlockCount)
 	wasPendingPromoted := c.Pending.PendingBlockState.MaybePromotePending()
 
 	if c.ReadMode == DBReadMode(SPECULATIVE) || c.Pending.BlockStatus != types.BlockStatus(types.Incomplete) {
@@ -484,7 +485,7 @@ func (c *Controller) startBlock(when types.BlockTimeStamp, confirmBlockCount uin
 }
 
 func (c *Controller) pushReceipt(trx interface{}, status types.TransactionStatus, cpuUsageUs uint64, netUsage uint64) *types.TransactionReceipt {
-	trxReceipt := types.TransactionReceipt{}
+	trxReceipt := types.NewTransactionReceipt() /*types.TransactionReceipt{}*/
 	tr := types.TransactionWithID{}
 	switch trx.(type) {
 	case common.TransactionIdType:
@@ -496,11 +497,11 @@ func (c *Controller) pushReceipt(trx interface{}, status types.TransactionStatus
 	trxReceipt.Trx = tr
 	netUsageWords := netUsage / 8
 	EosAssert(netUsageWords*8 == netUsage, &TransactionException{}, "net_usage is not divisible by 8")
-	c.Pending.PendingBlockState.SignedBlock.Transactions = append(c.Pending.PendingBlockState.SignedBlock.Transactions, trxReceipt)
+	c.Pending.PendingBlockState.SignedBlock.Transactions = append(c.Pending.PendingBlockState.SignedBlock.Transactions, *trxReceipt)
 	trxReceipt.CpuUsageUs = uint32(cpuUsageUs)
 	trxReceipt.NetUsageWords = uint32(netUsageWords)
 	trxReceipt.Status = types.TransactionStatus(status)
-	return &trxReceipt
+	return trxReceipt
 }
 
 func (c *Controller) PushTransaction(trx *types.TransactionMetadata, deadLine common.TimePoint, billedCpuTimeUs uint32) *types.TransactionTrace {
@@ -511,6 +512,7 @@ func (c *Controller) PushTransaction(trx *types.TransactionMetadata, deadLine co
 }
 
 func (c *Controller) pushTransaction(trx *types.TransactionMetadata, deadLine common.TimePoint, billedCpuTimeUs uint32, explicitBilledCpuTime bool) (trxTrace *types.TransactionTrace) {
+
 	EosAssert(deadLine != common.TimePoint(0), &TransactionException{}, "deadline cannot be uninitialized")
 	var trace *types.TransactionTrace
 	returning, trace := false, (*types.TransactionTrace)(nil)
@@ -590,7 +592,7 @@ func (c *Controller) pushTransaction(trx *types.TransactionMetadata, deadLine co
 			}
 
 			if !trx.Implicit {
-				delete(c.UnappliedTransactions, *crypto.Hash256(trx.SignedID))
+				delete(c.UnappliedTransactions, crypto.Sha256(trx.SignedID))
 			}
 
 			returning = true
@@ -648,7 +650,7 @@ func (c *Controller) GetOnBlockTransaction() types.SignedTransaction {
 	onBlockAction.Authorization = []types.PermissionLevel{{common.AccountName(common.DefaultConfig.SystemAccountName), common.PermissionName(common.DefaultConfig.ActiveName)}}
 
 	data, err := rlp.EncodeToBytes(c.Head.Header)
-	if err != nil {
+	if err == nil {
 		onBlockAction.Data = data
 	}
 	trx := types.SignedTransaction{}
@@ -890,7 +892,7 @@ func (c *Controller) pushScheduledTransactionByObject(gto *entity.GeneratedTrans
 		}
 
 		c.ResourceLimits.AddTransactionUsage(&trxContext.BillToAccounts, uint64(cpuTimeToBillUs), 0,
-			uint32(types.BlockTimeStamp(c.PendingBlockTime()))) // Should never fail
+			uint32(types.NewBlockTimeStamp(c.PendingBlockTime()))) // Should never fail
 
 		receipt := *c.pushReceipt(gtrx.TrxId, types.TransactionStatusHardFail, uint64(cpuTimeToBillUs), 0)
 		trace.Receipt = receipt.TransactionReceiptHeader
@@ -1017,8 +1019,8 @@ func (c *Controller) FinalizeBlock() {
 
 	cpu.ContractRate.Numerator = 99
 	cpu.ContractRate.Denominator = 100
-	cpu.ExpandRate.Numerator = 999
-	cpu.ExpandRate.Denominator = 1000
+	cpu.ExpandRate.Numerator = 1000
+	cpu.ExpandRate.Denominator = 999
 
 	net := types.ElasticLimitParameters{}
 	netTarget := common.EosPercent(uint64(chainConfig.MaxBlockNetUsage), chainConfig.TargetBlockNetUsagePct)
@@ -1029,10 +1031,10 @@ func (c *Controller) FinalizeBlock() {
 
 	net.ContractRate.Numerator = 99
 	net.ContractRate.Denominator = 100
-	net.ExpandRate.Numerator = 999
-	net.ExpandRate.Denominator = 1000
+	net.ExpandRate.Numerator = 1000
+	net.ExpandRate.Denominator = 999
 	c.ResourceLimits.SetBlockParameters(cpu, net)
-
+	c.ResourceLimits.ProcessBlockUsage(c.Pending.PendingBlockState.BlockNum)
 	c.setActionMerkle()
 
 	c.setTrxMerkle()
@@ -1055,7 +1057,6 @@ func (c *Controller) applyBlock(b *types.SignedBlock, s types.BlockStatus) {
 		EosAssert(len(b.BlockExtensions) == 0, &BlockValidateException{}, "no supported extensions")
 		producerBlockId := b.BlockID()
 		c.startBlock(b.Timestamp, b.Confirmed, s, &producerBlockId)
-
 		trace := &types.TransactionTrace{}
 		for _, receipt := range b.Transactions {
 			numPendingReceipts := len(c.Pending.PendingBlockState.SignedBlock.Transactions)
@@ -1123,6 +1124,7 @@ func (c *Controller) CommitBlock(addToForkDb bool) {
 			ubo.SetBlock(c.Pending.PendingBlockState.SignedBlock)
 			c.DB.Insert(&ubo)
 		}
+		fmt.Println("************************CommitBlock************************", c.Pending.PendingBlockState.SignedBlock.Transactions)
 		c.AcceptedBlock.Emit(c.Pending.PendingBlockState)
 		//emit( self.accepted_block, pending->_pending_block_state )
 	}).Catch(func(e interface{}) {
@@ -1145,17 +1147,14 @@ func (c *Controller) PushBlock(b *types.SignedBlock, s types.BlockStatus) {
 	Try(func() {
 		EosAssert(b != nil, &BlockValidateException{}, "trying to push empty block")
 		EosAssert(s != types.Incomplete, &BlockLogException{}, "invalid block status for a completed block")
-		//TODO: add to forkdb
 		c.PreAcceptedBlock.Emit(b)
-		//emit(self.pre_accepted_block, b )
+		//TODO emit(self.pre_accepted_block, b )
 		trust := !c.Config.ForceAllChecks && (s == types.Irreversible || s == types.Validated)
-		/*newHeaderState :=*/ c.ForkDB.AddSignedBlock(b, trust)
-		//exist, _ := c.Config.trustedProducers.Find(&b.Producer)
+		/*TODO newHeaderState :=*/ c.ForkDB.AddSignedBlock(b, trust)
 		if c.Config.TrustedProducers.Contains(b.Producer) {
 			c.TrustedProducerLightValidation = true
 		}
-		//c.AcceptedBlockHeader.Emit(newHeaderState)
-		//emit( self.accepted_block_header, new_header_state )
+		//TODO c.AcceptedBlockHeader.Emit(newHeaderState)
 		if c.ReadMode != IRREVERSIBLE {
 			c.maybeSwitchForks(s)
 		}

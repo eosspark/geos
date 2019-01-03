@@ -31,11 +31,51 @@ type AbiSerializer struct {
 	tables        map[common.Name]typeName
 	errorMessages map[uint64]string
 	variants      map[typeName]VariantDef
-	builtInTypes  map[string]common.Pair
+	builtInTypes  map[string]int
 }
 
-func (a AbiSerializer) ConfigureBuiltInTypes() {
-	//
+func (a *AbiSerializer) ConfigureBuiltInTypes() {
+	a.builtInTypes = make(map[string]int, 31)
+	a.builtInTypes["bool"] = 1
+	a.builtInTypes["int8"] = 1
+	a.builtInTypes["uint8"] = 1
+	a.builtInTypes["int16"] = 1
+	a.builtInTypes["uint16"] = 1
+	a.builtInTypes["int32"] = 1
+	a.builtInTypes["uint32"] = 1
+	a.builtInTypes["int64"] = 1
+	a.builtInTypes["uint64"] = 1
+	a.builtInTypes["int128"] = 1
+	a.builtInTypes["uint128"] = 1
+	a.builtInTypes["varint32"] = 1
+	a.builtInTypes["varuint32"] = 1
+
+	// TODO: Add proper support for floating point types. For now this is good enough.
+	a.builtInTypes["float32"] = 1
+	a.builtInTypes["float64"] = 1
+	a.builtInTypes["float128"] = 1
+
+	a.builtInTypes["time_point"] = 1
+	a.builtInTypes["time_point_sec"] = 1
+	a.builtInTypes["block_timestamp_type"] = 1
+
+	a.builtInTypes["name"] = 1
+
+	a.builtInTypes["bytes"] = 1
+	a.builtInTypes["string"] = 1
+
+	a.builtInTypes["checksum160"] = 1
+	a.builtInTypes["checksum256"] = 1
+	a.builtInTypes["checksum512"] = 1
+
+	a.builtInTypes["public_key"] = 1
+	a.builtInTypes["signature"] = 1
+
+	a.builtInTypes["symbol"] = 1
+	a.builtInTypes["symbol_code"] = 1
+	a.builtInTypes["asset"] = 1
+	a.builtInTypes["extended_asset"] = 1
+
 }
 
 func NewAbiSerializer(abi *AbiDef, maxSerializationTime common.Microseconds) *AbiSerializer {
@@ -360,6 +400,28 @@ func (a AbiSerializer) BinaryToVariant(rtype typeName, binary []byte, maxSeriali
 	return re
 }
 
+func (a AbiSerializer) BinaryToVariant2(rtype typeName, binary []byte, maxSerializationTime common.Microseconds, shortPath bool) []byte {
+	var re []byte
+	Try(func() {
+		var bytes []byte
+		var err error
+		if a.abi.StructForName(rtype) != nil {
+			bytes, err = a.abi.DecodeStruct(rtype, binary)
+		}
+		//else if a.abi.TableForName(rtype) != nil {
+		//	bytes, err = a.abi.DecodeTableRow(rtype, binary)
+		//}
+
+		if err != nil {
+			fmt.Println(err.Error())
+			Throw(fmt.Sprintf("binary_to_variant is error: %s", err.Error()))
+		}
+		re = bytes
+
+	}).EosRethrowExceptions(&exception.UnpackException{}, "Unable to unpack %s from bytes", string(binary)).End()
+	return re
+}
+
 //template<typename T, typename Resolver>
 //void abi_serializer::to_variant( const T& o, variant& vo, Resolver resolver, const fc::microseconds& max_serialization_time ) try {
 //mutable_variant_object mvo;
@@ -381,7 +443,28 @@ func ToVariant() {
 
 }
 
-func FromVariant(v *common.Variants, o *types.SignedTransaction, resolver *AbiSerializer, maxSerialization common.Microseconds) {
+//func FromVariant(v *common.Variants, o *types.SignedTransaction, resolver *AbiSerializer, maxSerialization common.Microseconds) {
+//	data, err := json.Marshal(v)
+//	fmt.Println(data, err)
+//	fmt.Printf("%s\n", string(data))
+//	err = json.Unmarshal(data, o)
+//	fmt.Println(o, err)
+//
+//	type Actions struct {
+//		Actions []types.Action `json:'actions'`
+//	}
+//	var actions Actions
+//	err = json.Unmarshal(data, &actions)
+//	fmt.Println(err, actions)
+//}
+
+//template<typename M, typename Resolver, not_require_abi_t<M> = 1>
+//static void extract( const variant& v, M& o, Resolver, abi_traverse_context& ctx )
+//{
+//   auto h = ctx.enter_scope();
+//   from_variant(v, o);
+//}
+func FromVariant(v *common.Variants, o *types.SignedTransaction, resolver func(account common.AccountName) *AbiSerializer, maxSerialization common.Microseconds) {
 	data, err := json.Marshal(v)
 	fmt.Println(data, err)
 	fmt.Printf("%s\n", string(data))
@@ -396,9 +479,57 @@ func FromVariant(v *common.Variants, o *types.SignedTransaction, resolver *AbiSe
 	fmt.Println(err, actions)
 }
 
-//template<typename M, typename Resolver, not_require_abi_t<M> = 1>
-//static void extract( const variant& v, M& o, Resolver, abi_traverse_context& ctx )
-//{
-//   auto h = ctx.enter_scope();
-//   from_variant(v, o);
-//}
+func FromVariantToActionData(actionParams *types.ContractTypesInterface, v *common.Variants, resolver func(account common.AccountName) *AbiSerializer, maxSerialization common.Microseconds) {
+	data, err := json.Marshal(v)
+	fmt.Println(data, err)
+	fmt.Printf("%s\n", string(data))
+	err = json.Unmarshal(data, actionParams)
+	fmt.Println(actionParams, err)
+}
+
+func ToVariantFromActionData(actionParams *types.ContractTypesInterface, v *common.Variants, resolver func(account common.AccountName) *AbiSerializer, maxSerialization common.Microseconds) {
+	bytes, err := json.Marshal(actionParams)
+	if err != nil {
+		fmt.Printf("marshal actionParams is error :%s\n", err.Error())
+	}
+	err = json.Unmarshal(bytes, v)
+	if err != nil {
+		fmt.Printf("Unmarshal variants is error: %s\n", err.Error())
+	}
+
+}
+
+func (a *AbiSerializer) variantToBinaryCpp(name typeName, data *common.Variants, allowExtensions bool, recursion_depth common.SizeT,
+	deadline common.TimePoint, maxSerializationTime common.Microseconds) (re []byte) {
+	Try(func() {
+
+		//buf, err := json.Marshal(data)
+		//if err != nil {
+		//	abiLog.Error("Marshal action is error: %s", err.Error())
+		//	Throw(fmt.Sprintf("Marshal action is error: %s", err.Error()))
+		//}
+		//
+		//re, err = a.abi.EncodeStruct(name, buf)
+		//if err != nil {
+		//	abiLog.Error("encode actoin is error:%s", err)
+		//	Throw(fmt.Errorf("encode actoin is error:%s", err))
+		//}
+
+		//		rtype :=a.ResolveType(name)
+		//		vItr := VariantDef{}
+		//		sItr :=StructDef{}
+		//
+		//		var buffer bytes.Buffer
+		//		encoder := rlp.NewEncoder(&buffer)
+		//
+		//		btype,ok :=a.builtInTypes[rtype]
+		//		if ok{
+		//a.abi.writeField(encoder,"",rtype,)
+		//		}else{
+		//
+		//		}
+
+	}).FcCaptureAndRethrow(name, data).End()
+	return re
+
+}

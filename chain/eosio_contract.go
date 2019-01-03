@@ -95,7 +95,8 @@ func ApplyEosioNewaccount(context *ApplyContext) {
 	err = db.Find("byName", existingAccount, &existingAccount)
 	EosAssert(err != nil, &AccountNameExistsException{}, "Cannot create account named %s, as that name is already taken", common.S(uint64(create.Name)))
 
-	newAccountObject := entity.AccountObject{Name: create.Name, CreationDate: types.BlockTimeStamp(context.Control.PendingBlockTime())}
+	//newAccountObject := entity.AccountObject{Name: create.Name, CreationDate: types.BlockTimeStamp(context.Control.PendingBlockTime())}
+	newAccountObject := entity.AccountObject{Name: create.Name, CreationDate: types.NewBlockTimeStamp(context.Control.PendingBlockTime())}
 	db.Insert(&newAccountObject)
 
 	newAccountSequenceObj := entity.AccountSequenceObject{Name: create.Name}

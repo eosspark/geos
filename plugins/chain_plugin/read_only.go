@@ -312,8 +312,8 @@ func (ro *ReadOnly) GetCurrencyBalance(params GetCurrencyBalanceParams) GetCurre
 	return GetCurrencyBalanceResult{} //TODO: get_currency_balance_result
 }
 
-func (ro *ReadOnly) GetCurrencyStats(params GetCurrencyStatsParams) GEtCurrencyStatsResult {
-	return make(map[string]GetCurrencyStats1) //TODO  get_currency_stats_result
+func (ro *ReadOnly) GetCurrencyStats(params GetCurrencyStatsParams) GetCurrencyStatsResult {
+	return make(map[string]GetCurrencyStats) //TODO  get_currency_stats_result
 }
 
 func (ro *ReadOnly) GetProducerSchedule() GetProducerScheduleResult {

@@ -20,20 +20,19 @@ Each repo should:
 github releases file.
 
 The goal here is for consuming repos to be able to use the tag version and
-changelog updates to determine whether the vendoring will cause any breaking or
+changelog updates to determine whether the vendoring will cause any  breaking or
 backward incompatible changes. This also means that repos can specify having
 dependency on a package of a specific version or greater up to the next major
 release, without encountering breaking changes.
 
 ## Semantic Versioning
-Annotated version tags should follow [Semantic Versioning](http://semver.org) policies:
+Annotated version tags should follow Schema Versioning policies.
+According to http://semver.org:
 
 "Given a version number MAJOR.MINOR.PATCH, increment the:
-
-   1. MAJOR version when you make incompatible API changes,
-   2. MINOR version when you add functionality in a backwards-compatible manner, and
-   3. PATCH version when you make backwards-compatible bug fixes.
-
+    MAJOR version when you make incompatible API changes,
+    MINOR version when you add functionality in a backwards-compatible manner, and
+    PATCH version when you make backwards-compatible bug fixes.
 Additional labels for pre-release and build metadata are available as extensions
 to the MAJOR.MINOR.PATCH format."
 

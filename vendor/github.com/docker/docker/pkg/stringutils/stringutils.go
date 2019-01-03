@@ -32,26 +32,12 @@ func GenerateRandomASCIIString(n int) string {
 	return string(res)
 }
 
-// Ellipsis truncates a string to fit within maxlen, and appends ellipsis (...).
-// For maxlen of 3 and lower, no ellipsis is appended.
-func Ellipsis(s string, maxlen int) string {
-	r := []rune(s)
-	if len(r) <= maxlen {
-		return s
-	}
-	if maxlen <= 3 {
-		return string(r[:maxlen])
-	}
-	return string(r[:maxlen-3]) + "..."
-}
-
 // Truncate truncates a string to maxlen.
 func Truncate(s string, maxlen int) string {
-	r := []rune(s)
-	if len(r) <= maxlen {
+	if len(s) <= maxlen {
 		return s
 	}
-	return string(r[:maxlen])
+	return s[:maxlen]
 }
 
 // InSlice tests whether a string is contained in a slice of strings or not.
@@ -77,7 +63,7 @@ func quote(word string, buf *bytes.Buffer) {
 	for i := 0; i < len(word); i++ {
 		b := word[i]
 		if b == '\'' {
-			// Replace literal ' with a close ', a \', and an open '
+			// Replace literal ' with a close ', a \', and a open '
 			buf.WriteString("'\\''")
 		} else {
 			buf.WriteByte(b)

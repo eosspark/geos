@@ -180,7 +180,7 @@ func (t *TransactionContext) init(initialNetUsage uint64) {
 	//t.ValidateRamUsage = make([]common.AccountName, t.BillToAccounts.Len())
 
 	// Update usage values of accounts to reflect new time
-	rl.UpdateAccountUsage(&t.BillToAccounts, uint32(types.BlockTimeStamp(t.Control.PendingBlockTime())))
+	rl.UpdateAccountUsage(&t.BillToAccounts, uint32(types.NewBlockTimeStamp(t.Control.PendingBlockTime())))
 
 	// Calculate the highest network usage and CPU time that all of the billed accounts can afford to be billed
 	accountNetLimit, accountCpuLimit, greylistedNet, greylistedCpu := t.MaxBandwidthBilledAccountsCanPay(false)
@@ -332,7 +332,8 @@ func (t *TransactionContext) Finalize() {
 	t.UpdateBilledCpuTime(now)
 	t.validateCpuUsageToBill(t.BilledCpuTimeUs, true)
 
-	rl.AddTransactionUsage(&t.BillToAccounts, uint64(t.BilledCpuTimeUs), *t.netUsage, uint32(types.BlockTimeStamp(t.Control.PendingBlockTime())))
+	//rl.AddTransactionUsage(&t.BillToAccounts, uint64(t.BilledCpuTimeUs), *t.netUsage, uint32(types.BlockTimeStamp(t.Control.PendingBlockTime())))
+	rl.AddTransactionUsage(&t.BillToAccounts, uint64(t.BilledCpuTimeUs), *t.netUsage, uint32(types.NewBlockTimeStamp(t.Control.PendingBlockTime())))
 
 }
 
@@ -525,7 +526,7 @@ func (t *TransactionContext) MaxBandwidthBilledAccountsCanPay(forceElasticLimits
 		accountName := itr.Value().(common.AccountName)
 		account := common.AccountName(accountName)
 
-		elastic := forceElasticLimits || !(t.Control.IsProducingBlock()) && t.Control.IsResourceGreylisted(&account)
+		elastic := forceElasticLimits || !(t.Control.IsProducingBlock() && t.Control.IsResourceGreylisted(&account))
 		netLimit := uint64(rl.GetAccountNetLimit(account, elastic))
 		if netLimit >= 0 {
 			accountNetLimit = int64(common.Min(uint64(accountNetLimit), uint64(netLimit)))

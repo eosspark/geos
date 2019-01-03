@@ -6,16 +6,11 @@ import (
 	"github.com/eosspark/eos-go/common/eos_math"
 )
 
-type contractTypesInterface interface {
-	GetAccount() common.AccountName
-	GetName() common.ActionName
-}
-
 type NewAccount struct {
-	Creator common.AccountName
-	Name    common.AccountName
-	Owner   types.Authority
-	Active  types.Authority
+	Creator common.AccountName `json:"creator"`
+	Name    common.AccountName `json:"name"`
+	Owner   types.Authority    `json:"owner"`
+	Active  types.Authority    `json:"active"`
 }
 
 func (n *NewAccount) GetAccount() common.AccountName {
@@ -23,14 +18,14 @@ func (n *NewAccount) GetAccount() common.AccountName {
 }
 
 func (n *NewAccount) GetName() common.ActionName {
-	return common.ActionName(common.N("newaccount"))
+	return common.N("newaccount")
 }
 
 type SetCode struct {
-	Account   common.AccountName
-	VmType    uint8
-	VmVersion uint8
-	Code      []byte
+	Account   common.AccountName `json:"account"`
+	VmType    uint8              `json:"vmtype"`
+	VmVersion uint8              `json:"vmversion"`
+	Code      []byte             `json:"code"`
 }
 
 func (s *SetCode) GetAccount() common.AccountName {
@@ -38,12 +33,12 @@ func (s *SetCode) GetAccount() common.AccountName {
 }
 
 func (s *SetCode) GetName() common.ActionName {
-	return common.ActionName(common.N("setcode"))
+	return common.N("setcode")
 }
 
 type SetAbi struct {
-	Account common.AccountName
-	Abi     []byte
+	Account common.AccountName `json:"account"`
+	Abi     []byte             `json:"abi"`
 }
 
 func (s SetAbi) GetAccount() common.AccountName {
@@ -51,14 +46,14 @@ func (s SetAbi) GetAccount() common.AccountName {
 }
 
 func (s SetAbi) GetName() common.ActionName {
-	return common.ActionName(common.N("setabi"))
+	return common.N("setabi")
 }
 
 type UpdateAuth struct {
-	Account    common.AccountName
-	Permission common.PermissionName
-	Parent     common.PermissionName
-	Auth       types.Authority
+	Account    common.AccountName    `json:"account"`
+	Permission common.PermissionName `json:"permission"`
+	Parent     common.PermissionName `json:"parent"`
+	Auth       types.Authority       `json:"auth"`
 }
 
 func (u UpdateAuth) GetAccount() common.AccountName {
@@ -66,12 +61,12 @@ func (u UpdateAuth) GetAccount() common.AccountName {
 }
 
 func (u UpdateAuth) GetName() common.ActionName {
-	return common.ActionName(common.N("updateauth"))
+	return common.N("updateauth")
 }
 
 type DeleteAuth struct {
-	Account    common.AccountName
-	Permission common.PermissionName
+	Account    common.AccountName    `json:""`
+	Permission common.PermissionName `json:""`
 }
 
 func (d DeleteAuth) GetAccount() common.AccountName {
@@ -79,14 +74,14 @@ func (d DeleteAuth) GetAccount() common.AccountName {
 }
 
 func (d DeleteAuth) GetName() common.ActionName {
-	return common.ActionName(common.N("deleteauth"))
+	return common.N("deleteauth")
 }
 
 type LinkAuth struct {
-	Account     common.AccountName
-	Code        common.AccountName
-	Type        common.ActionName
-	Requirement common.PermissionName
+	Account     common.AccountName    `json:"account"`
+	Code        common.AccountName    `json:"code"`
+	Type        common.ActionName     `json:"type"`
+	Requirement common.PermissionName `json:"requirement"`
 }
 
 func (l LinkAuth) GetAccount() common.AccountName {
@@ -94,13 +89,13 @@ func (l LinkAuth) GetAccount() common.AccountName {
 }
 
 func (l LinkAuth) GetName() common.ActionName {
-	return common.ActionName(common.N("linkauth"))
+	return common.N("linkauth")
 }
 
 type UnLinkAuth struct {
-	Account common.AccountName
-	Code    common.AccountName
-	Type    common.ActionName
+	Account common.AccountName `json:"account"`
+	Code    common.AccountName `json:"code"`
+	Type    common.ActionName  `json:"type"`
 }
 
 func (u UnLinkAuth) GetAccount() common.AccountName {
@@ -108,12 +103,12 @@ func (u UnLinkAuth) GetAccount() common.AccountName {
 }
 
 func (u UnLinkAuth) GetName() common.ActionName {
-	return common.ActionName(common.N("unlinkauth"))
+	return common.N("unlinkauth")
 }
 
 type CancelDelay struct {
-	CancelingAuth types.PermissionLevel
-	TrxId         common.TransactionIdType
+	CancelingAuth types.PermissionLevel    `json:""`
+	TrxId         common.TransactionIdType `json:""`
 }
 
 func (c CancelDelay) GetAccount() common.AccountName {
@@ -121,12 +116,12 @@ func (c CancelDelay) GetAccount() common.AccountName {
 }
 
 func (c CancelDelay) GetName() common.ActionName {
-	return common.ActionName(common.N("canceldelay"))
+	return common.N("canceldelay")
 }
 
 type OnError struct {
-	SenderId eos_math.Uint128
-	SentTrx  []byte
+	SenderId eos_math.Uint128 `json:"sender_id"`
+	SentTrx  []byte           `json:"sent_trx"`
 }
 
 func NewOnError(sid eos_math.Uint128, data []byte) *OnError {
@@ -138,5 +133,5 @@ func (o OnError) GetAccount() common.AccountName {
 }
 
 func (o OnError) GetName() common.ActionName {
-	return common.ActionName(common.N("onerror"))
+	return common.N("onerror")
 }
