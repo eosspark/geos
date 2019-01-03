@@ -485,7 +485,7 @@ func (c *Controller) startBlock(when types.BlockTimeStamp, confirmBlockCount uin
 }
 
 func (c *Controller) pushReceipt(trx interface{}, status types.TransactionStatus, cpuUsageUs uint64, netUsage uint64) *types.TransactionReceipt {
-	trxReceipt := types.TransactionReceipt{}
+	trxReceipt := types.NewTransactionReceipt() /*types.TransactionReceipt{}*/
 	tr := types.TransactionWithID{}
 	switch trx.(type) {
 	case common.TransactionIdType:
@@ -497,11 +497,11 @@ func (c *Controller) pushReceipt(trx interface{}, status types.TransactionStatus
 	trxReceipt.Trx = tr
 	netUsageWords := netUsage / 8
 	EosAssert(netUsageWords*8 == netUsage, &TransactionException{}, "net_usage is not divisible by 8")
-	c.Pending.PendingBlockState.SignedBlock.Transactions = append(c.Pending.PendingBlockState.SignedBlock.Transactions, trxReceipt)
+	c.Pending.PendingBlockState.SignedBlock.Transactions = append(c.Pending.PendingBlockState.SignedBlock.Transactions, *trxReceipt)
 	trxReceipt.CpuUsageUs = uint32(cpuUsageUs)
 	trxReceipt.NetUsageWords = uint32(netUsageWords)
 	trxReceipt.Status = types.TransactionStatus(status)
-	return &trxReceipt
+	return trxReceipt
 }
 
 func (c *Controller) PushTransaction(trx *types.TransactionMetadata, deadLine common.TimePoint, billedCpuTimeUs uint32) *types.TransactionTrace {
@@ -892,7 +892,7 @@ func (c *Controller) pushScheduledTransactionByObject(gto *entity.GeneratedTrans
 		}
 
 		c.ResourceLimits.AddTransactionUsage(&trxContext.BillToAccounts, uint64(cpuTimeToBillUs), 0,
-			uint32(types.BlockTimeStamp(c.PendingBlockTime()))) // Should never fail
+			uint32(types.NewBlockTimeStamp(c.PendingBlockTime()))) // Should never fail
 
 		receipt := *c.pushReceipt(gtrx.TrxId, types.TransactionStatusHardFail, uint64(cpuTimeToBillUs), 0)
 		trace.Receipt = receipt.TransactionReceiptHeader
@@ -1019,8 +1019,8 @@ func (c *Controller) FinalizeBlock() {
 
 	cpu.ContractRate.Numerator = 99
 	cpu.ContractRate.Denominator = 100
-	cpu.ExpandRate.Numerator = 999
-	cpu.ExpandRate.Denominator = 1000
+	cpu.ExpandRate.Numerator = 1000
+	cpu.ExpandRate.Denominator = 999
 
 	net := types.ElasticLimitParameters{}
 	netTarget := common.EosPercent(uint64(chainConfig.MaxBlockNetUsage), chainConfig.TargetBlockNetUsagePct)
@@ -1031,10 +1031,10 @@ func (c *Controller) FinalizeBlock() {
 
 	net.ContractRate.Numerator = 99
 	net.ContractRate.Denominator = 100
-	net.ExpandRate.Numerator = 999
-	net.ExpandRate.Denominator = 1000
+	net.ExpandRate.Numerator = 1000
+	net.ExpandRate.Denominator = 999
 	c.ResourceLimits.SetBlockParameters(cpu, net)
-
+	c.ResourceLimits.ProcessBlockUsage(c.Pending.PendingBlockState.BlockNum)
 	c.setActionMerkle()
 
 	c.setTrxMerkle()
@@ -1124,6 +1124,7 @@ func (c *Controller) CommitBlock(addToForkDb bool) {
 			ubo.SetBlock(c.Pending.PendingBlockState.SignedBlock)
 			c.DB.Insert(&ubo)
 		}
+		fmt.Println("************************CommitBlock************************", c.Pending.PendingBlockState.SignedBlock.Transactions)
 		c.AcceptedBlock.Emit(c.Pending.PendingBlockState)
 		//emit( self.accepted_block, pending->_pending_block_state )
 	}).Catch(func(e interface{}) {
