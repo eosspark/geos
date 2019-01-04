@@ -641,7 +641,6 @@ func TestDeferredFailure(t *testing.T) {
 		assert.Equal(t, 1, count)
 		assert.Equal(t, false, ct.validatingTester.ChainHasTransaction(&deferredId2))
 	}
-	fmt.Println("*******************", ct.validatingTester.Control.PendingBlockTime().TimeSinceEpoch().Count(), expectedRedelivery)
 	assert.Equal(t, 1, count)
 	// Second deferred transaction should be retired in this block and should succeed,
 	// which should move tokens from the proxy contract to the bob contract, thereby trigger the bob contract to
@@ -653,7 +652,6 @@ func TestDeferredFailure(t *testing.T) {
 	if index2.Begin() == index2.End() {
 		count = 0
 	}
-	fmt.Println(*ct.GetBalance(&proxy), *ct.GetBalance(&alice), *ct.GetBalance(&bob))
 	assert.Equal(t, 0, count)
 	assert.Equal(t, ct.validatingTester.GetTransactionReceipt(&deferredId2).Status, types.TransactionStatusExecuted)
 
