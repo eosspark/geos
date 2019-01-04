@@ -129,13 +129,16 @@ func (c *Console) init(preload []string) (err error) {
 	system := newSystem(c)
 	c.jsre.Bind("system", system)
 
-	contents, err := ioutil.ReadFile("/Users/walker/go/src/github.com/eosspark/eos-go/plugins/console_plugin/console/js/jsre/deps/eosgo.js")
-	if err != nil {
-		fmt.Println(err)
-	}
-	if err := c.jsre.Compile("eosgo.js", contents); err != nil {
-		return fmt.Errorf("eosgo.js:%v", err)
-	}
+	//path :="/Users/walker/go/src/github.com/eosspark/eos-go/plugins/console_plugin/console/js/jsre/deps/console.js"
+
+	//contents, err := ioutil.ReadFile("/Users/walker/go/src/github.com/eosspark/eos-go/plugins/console_plugin/console/js/jsre/deps/eosgo.js")
+	//if err != nil {
+	//	fmt.Println(err)
+	//}
+	//if err := c.jsre.Compile("eosgo.js", contents); err != nil {
+	//	return fmt.Errorf("eosgo.js:%v", err)
+	//}
+
 	//if err := c.jsre.Compile("eosgo.js", jsre.Eosgo_JS); err != nil {
 	//	return fmt.Errorf("eosgo.js:%v", err)
 	//}

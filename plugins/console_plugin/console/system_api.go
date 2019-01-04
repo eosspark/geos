@@ -6,6 +6,7 @@ import (
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto/ecc"
+	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/plugins/chain_plugin"
@@ -26,18 +27,25 @@ func newSystem(c *Console) *system {
 	return s
 }
 
+type ConsoleInterface interface {
+	getOptions() *StandardTransactionOptions
+}
 type StandardTransactionOptions struct {
-	Expiration        uint64   `json:"x""expiration"`
-	TxForceUnique     bool     `json:"f""force_unique"`
-	TxSkipSign        bool     `json:"s""skip_sign"`
-	TxPrintJson       bool     `json:"j""json"`
-	TxDontBroadcast   bool     `json:"d""dont_broadcast"`
+	Expiration        uint64   `json:"expiration"`
+	TxForceUnique     bool     `json:"force_unique"`
+	TxSkipSign        bool     `json:"skip_sign"`
+	TxPrintJson       bool     `json:"json"`
+	TxDontBroadcast   bool     `json:"dont_broadcast"`
 	TxReturnPacked    bool     `json:"return_packed"`
-	TxRefBlockNumOrId string   `json:"r""ref_block"`
+	TxRefBlockNumOrId string   `json:"ref_block"`
 	TxPermission      []string `json:"permission"`
 	TxMaxCpuUsage     uint8    `json:"max_cpu_usage_ms"`
 	TxMaxNetUsage     uint32   `json:"max_net_usage"`
 	DelaySec          uint32   `json:"delay_sec"`
+}
+
+func (s *StandardTransactionOptions) getOptions() *StandardTransactionOptions {
+	return s
 }
 
 type NewAccountParams struct {
@@ -63,9 +71,7 @@ func readParams(params interface{}, call otto.FunctionCall) {
 
 	rawReq := reqVal.String()
 	dec := json.NewDecoder(strings.NewReader(rawReq))
-
 	dec.Decode(&params)
-
 }
 
 func (s *system) NewAccount(call otto.FunctionCall) (response otto.Value) {
@@ -110,9 +116,9 @@ func (s *system) NewAccount(call otto.FunctionCall) (response otto.Value) {
 
 	if net.Amount != 0 || cpu.Amount != 0 {
 		delegate := createDelegate(params.Creator, params.Name, net, cpu, params.Transfer, params.TxPermission)
-		sendActions([]*types.Action{create, buyram, delegate}, 1000, types.CompressionNone)
+		sendActions([]*types.Action{create, buyram, delegate}, 1000, types.CompressionNone, &params)
 	} else {
-		sendActions([]*types.Action{create, buyram}, 1000, types.CompressionNone)
+		sendActions([]*types.Action{create, buyram}, 1000, types.CompressionNone, &params)
 	}
 
 	return getJsResult(call, nil)
@@ -140,7 +146,7 @@ func (s *system) RegProducer(call otto.FunctionCall) (response otto.Value) {
 	action := createAction([]types.PermissionLevel{{common.N(params.Producer), common.DefaultConfig.ActiveName}},
 		common.DefaultConfig.SystemAccountName, common.N("regproducer"), regprodVar)
 
-	re := sendActions([]*types.Action{action}, 1000, types.CompressionNone)
+	re := sendActions([]*types.Action{action}, 1000, types.CompressionNone, &params)
 
 	return getJsResult(call, re)
 }
@@ -158,7 +164,7 @@ func (s *system) Unregprod(call otto.FunctionCall) (response otto.Value) {
 
 	action := createAction([]types.PermissionLevel{{common.N(params.Producer), common.DefaultConfig.ActiveName}},
 		common.DefaultConfig.SystemAccountName, common.N("unregprod"), &actPayload)
-	re := sendActions([]*types.Action{action}, 1000, types.CompressionNone)
+	re := sendActions([]*types.Action{action}, 1000, types.CompressionNone, &params)
 
 	return getJsResult(call, re)
 }
@@ -180,7 +186,7 @@ func (s *system) VoteproducerProxy(call otto.FunctionCall) (response otto.Value)
 	}
 	action := createAction([]types.PermissionLevel{{common.N(params.Voter), common.DefaultConfig.ActiveName}},
 		common.DefaultConfig.SystemAccountName, common.N("voteproduer"), &actPayload)
-	re := sendActions([]*types.Action{action}, 1000, types.CompressionNone)
+	re := sendActions([]*types.Action{action}, 1000, types.CompressionNone, &params)
 
 	return getJsResult(call, re)
 }
@@ -218,7 +224,7 @@ func (s *system) VoteproducerProds(call otto.FunctionCall) (response otto.Value)
 
 	action := createAction([]types.PermissionLevel{{common.N(params.Vote), common.DefaultConfig.ActiveName}},
 		common.DefaultConfig.SystemAccountName, common.N("voteproducer"), &actPayload)
-	re := sendActions([]*types.Action{action}, 10000, types.CompressionNone)
+	re := sendActions([]*types.Action{action}, 10000, types.CompressionNone, &params)
 	return getJsResult(call, re)
 }
 
@@ -288,7 +294,7 @@ func (s *system) VoteproducerApprove(call otto.FunctionCall) (response otto.Valu
 
 	action := createAction([]types.PermissionLevel{{params.Voter, common.DefaultConfig.ActiveName}},
 		common.DefaultConfig.SystemAccountName, common.N("voteproducer"), &actPayload)
-	re := sendActions([]*types.Action{action}, 10000, types.CompressionNone)
+	re := sendActions([]*types.Action{action}, 10000, types.CompressionNone, &params)
 	return getJsResult(call, re)
 }
 
@@ -356,7 +362,7 @@ func (s *system) VoteproducerUnapproveProducer(call otto.FunctionCall) (response
 	action := createAction([]types.PermissionLevel{{params.Voter, common.DefaultConfig.ActiveName}},
 		common.DefaultConfig.SystemAccountName, common.N("voteproducer"), &actPayload)
 
-	re := sendActions([]*types.Action{action}, 10000, types.CompressionNone)
+	re := sendActions([]*types.Action{action}, 10000, types.CompressionNone, &params)
 	return getJsResult(call, re)
 }
 
@@ -460,7 +466,7 @@ func (s *system) Delegatebw(call otto.FunctionCall) (response otto.Value) {
 		acts = append(acts, createBuyRamBytes(common.N(params.From), common.N(params.Receive), params.BuyRamBytes, params.TxPermission))
 	}
 
-	re := sendActions(acts, 1000, types.CompressionNone)
+	re := sendActions(acts, 1000, types.CompressionNone, &params)
 	return getJsResult(call, re)
 }
 
@@ -484,7 +490,7 @@ func (s *system) Undelegatebw(call otto.FunctionCall) (response otto.Value) {
 	}
 	action := createAction([]types.PermissionLevel{{common.N(params.From), common.DefaultConfig.ActiveName}},
 		common.DefaultConfig.SystemAccountName, common.N("undelegatebw"), &actPayload)
-	re := sendActions([]*types.Action{action}, 1000, types.CompressionNone)
+	re := sendActions([]*types.Action{action}, 1000, types.CompressionNone, &params)
 	return getJsResult(call, re)
 }
 
@@ -547,7 +553,7 @@ func (s *system) Bidname(call otto.FunctionCall) (response otto.Value) {
 	action := createAction([]types.PermissionLevel{{common.N(params.Bidder), common.DefaultConfig.ActiveName}},
 		common.DefaultConfig.SystemAccountName, common.N("bidname"), &actPayload)
 
-	re := sendActions([]*types.Action{action}, 1000, types.CompressionNone)
+	re := sendActions([]*types.Action{action}, 1000, types.CompressionNone, &params)
 	return getJsResult(call, re)
 }
 
@@ -624,7 +630,7 @@ func (s *system) Buyram(call otto.FunctionCall) (response otto.Value) {
 		action = createBuyRam(common.N(params.From), common.N(params.Receiver), toAssetFromString(params.Amount), params.TxPermission)
 	}
 
-	re := sendActions([]*types.Action{action}, 1000, types.CompressionNone)
+	re := sendActions([]*types.Action{action}, 1000, types.CompressionNone, &params)
 	return getJsResult(call, re)
 }
 
@@ -644,7 +650,7 @@ func (s *system) Sellram(call otto.FunctionCall) (response otto.Value) {
 	}
 	action := createAction([]types.PermissionLevel{{common.N(params.Receiver), common.DefaultConfig.ActiveName}},
 		common.DefaultConfig.SystemAccountName, common.N("sellram"), &actPayload)
-	re := sendActions([]*types.Action{action}, 1000, types.CompressionNone)
+	re := sendActions([]*types.Action{action}, 1000, types.CompressionNone, &params)
 	return getJsResult(call, re)
 }
 
@@ -663,7 +669,7 @@ func (s *system) Claimrewards(call otto.FunctionCall) (response otto.Value) {
 	action := createAction([]types.PermissionLevel{{common.N(params.Owner), common.DefaultConfig.ActiveName}},
 		common.DefaultConfig.SystemAccountName, common.N("claimrewards"), &actPayload)
 
-	re := sendActions([]*types.Action{action}, 1000, types.CompressionNone)
+	re := sendActions([]*types.Action{action}, 1000, types.CompressionNone, &params)
 	return getJsResult(call, re)
 }
 
@@ -681,7 +687,7 @@ func (s *system) Regproxy(call otto.FunctionCall) (response otto.Value) {
 	}
 	action := createAction([]types.PermissionLevel{{common.N(params.Proxy), common.DefaultConfig.ActiveName}},
 		common.DefaultConfig.SystemAccountName, common.N("regproxy"), &actPayload)
-	re := sendActions([]*types.Action{action}, 1000, types.CompressionNone)
+	re := sendActions([]*types.Action{action}, 1000, types.CompressionNone, &params)
 	return getJsResult(call, re)
 }
 func (s *system) Unregproxy(call otto.FunctionCall) (response otto.Value) {
@@ -694,7 +700,7 @@ func (s *system) Unregproxy(call otto.FunctionCall) (response otto.Value) {
 	}
 	action := createAction([]types.PermissionLevel{{common.N(params.Proxy), common.DefaultConfig.ActiveName}},
 		common.DefaultConfig.SystemAccountName, common.N("regproxy"), &actPayload)
-	re := sendActions([]*types.Action{action}, 1000, types.CompressionNone)
+	re := sendActions([]*types.Action{action}, 1000, types.CompressionNone, &params)
 	return getJsResult(call, re)
 }
 
@@ -716,6 +722,178 @@ func (s *system) Canceldelay(call otto.FunctionCall) (response otto.Value) {
 	}
 
 	action := createAction([]types.PermissionLevel{cancelingAuth}, common.DefaultConfig.SystemAccountName, common.N("canceldelay"), &actPayload)
-	re := sendActions([]*types.Action{action}, 1000, types.CompressionNone)
+	re := sendActions([]*types.Action{action}, 1000, types.CompressionNone, &params)
 	return getJsResult(call, re)
+}
+
+func createAction(authorization []types.PermissionLevel, code common.AccountName, act common.ActionName, args *common.Variants) *types.Action {
+	return &types.Action{
+		Account:       code,
+		Name:          act,
+		Data:          variantToBin(code, act, args),
+		Authorization: authorization,
+	}
+}
+
+func createBuyRam(creator common.Name, newaccount common.Name, quantity *common.Asset, txPermission []string) *types.Action {
+	actPayload := common.Variants{
+		"payer":    creator.String(),
+		"receiver": newaccount.String(),
+		"quant":    quantity.String(),
+	}
+	var auth []types.PermissionLevel
+	if len(txPermission) == 0 {
+		auth = []types.PermissionLevel{{Actor: creator, Permission: common.DefaultConfig.ActiveName}}
+	} else {
+		auth = getAccountPermissions(txPermission)
+	}
+	return createAction(auth, common.DefaultConfig.SystemAccountName, common.N("buyram"), &actPayload)
+}
+
+func createBuyRamBytes(creator common.Name, newaccount common.Name, numbytes uint32, txPermission []string) *types.Action {
+	actPayload := common.Variants{
+		"payer":    creator.String(),
+		"receiver": newaccount.String(),
+		"bytes":    numbytes,
+	}
+	var auth []types.PermissionLevel
+	if len(txPermission) == 0 {
+		auth = []types.PermissionLevel{{Actor: creator, Permission: common.DefaultConfig.ActiveName}}
+	} else {
+		auth = getAccountPermissions(txPermission)
+	}
+	return createAction(auth, common.DefaultConfig.SystemAccountName, common.N("buyrambytes"), &actPayload)
+}
+
+func createDelegate(from common.Name, receiver common.Name, net *common.Asset, cpu *common.Asset, transfer bool, txPermission []string) *types.Action {
+	actPayLoad := common.Variants{
+		"from":               from.String(),
+		"receiver":           receiver.String(),
+		"stake_net_quantity": net.String(),
+		"stake_cpu_quantity": cpu.String(),
+		"transfer":           transfer,
+	}
+	var auth []types.PermissionLevel
+	if len(txPermission) == 0 {
+		auth = []types.PermissionLevel{{Actor: from, Permission: common.DefaultConfig.ActiveName}}
+	} else {
+		auth = getAccountPermissions(txPermission)
+	}
+	return createAction(auth, common.DefaultConfig.SystemAccountName, common.N("delegatebw"), &actPayLoad)
+}
+
+func sendActions(actions []*types.Action, extraKcpu int32, compression types.CompressionType, c ConsoleInterface) interface{} {
+	fmt.Println("send actions...", actions[0].Name)
+	result := pushActions(actions, extraKcpu, compression, c)
+
+	if c.getOptions().TxPrintJson {
+		return fmt.Sprintln(result)
+	}
+	return result
+}
+
+func pushActions(actions []*types.Action, extraKcpu int32, compression types.CompressionType, c ConsoleInterface) interface{} {
+	trx := types.NewSignedTransactionNil()
+	trx.Actions = actions
+	return pushTransaction(trx, extraKcpu, compression, c)
+}
+
+func pushTransaction(trx *types.SignedTransaction, extraKcpu int32, compression types.CompressionType, c ConsoleInterface) interface{} {
+	var info chain_plugin.GetInfoResult
+	err := DoHttpCall(&info, common.GetInfoFunc, nil)
+	if err != nil {
+		fmt.Println(err)
+	}
+
+	if len(trx.Signatures) == 0 { // #5445 can't change txn content if already signed
+		// calculate expiration date
+		var expiration common.Microseconds
+		if c.getOptions().Expiration == 0 {
+			expiration = common.Seconds(30)
+		} else {
+			expiration = common.Seconds(int64(c.getOptions().Expiration))
+		}
+		trx.Expiration = common.NewTimePointSecTp(info.HeadBlockTime.AddUs(expiration))
+
+		// Set tapos, default to last irreversible block if it's not specified by the user
+		refBlockID := info.LastIrreversibleBlockID
+		if len(c.getOptions().TxRefBlockNumOrId) > 0 {
+			//var refBlock GetBlockResult
+			var refBlock chain_plugin.GetBlockResult
+			err := DoHttpCall(&refBlock, common.GetBlockFunc, common.Variants{"block_num_or_id": c.getOptions().TxRefBlockNumOrId})
+			if err != nil {
+				fmt.Println(err)
+				EosThrow(&exception.InvalidRefBlockException{}, "Invalid reference block num or id: %s", c.getOptions().TxRefBlockNumOrId)
+			}
+			refBlockID = refBlock.ID
+		}
+		trx.SetReferenceBlock(&refBlockID)
+
+		if c.getOptions().TxForceUnique {
+			trx.ContextFreeActions = append(trx.ContextFreeActions, generateNonceAction())
+		}
+		trx.MaxCpuUsageMS = uint8(c.getOptions().TxMaxCpuUsage)
+		trx.MaxNetUsageWords = (uint32(c.getOptions().TxMaxNetUsage) + 7) / 8
+		trx.DelaySec = c.getOptions().DelaySec
+	}
+	if !c.getOptions().TxSkipSign {
+		requiredKeys := determineRequiredKeys(trx)
+		signTransaction(trx, requiredKeys, &info.ChainID)
+	}
+	if !c.getOptions().TxDontBroadcast {
+		var re common.Variant
+		packedTrx := types.NewPackedTransactionBySignedTrx(trx, compression)
+		err := DoHttpCall(&re, common.PushTxnFunc, packedTrx)
+		if err != nil {
+			clog.Error(err.Error())
+		}
+		return re
+	} else {
+		if !c.getOptions().TxReturnPacked {
+			out, _ := json.Marshal(trx)
+			return out
+		} else {
+			out, _ := json.Marshal(types.NewPackedTransactionBySignedTrx(trx, compression))
+			return out
+		}
+	}
+}
+
+func determineRequiredKeys(trx *types.SignedTransaction) []string {
+	var publicKeys []string
+	err := DoHttpCall(&publicKeys, common.WalletPublicKeys, nil)
+	if err != nil {
+		clog.Error(err.Error())
+	}
+
+	var keys map[string][]string
+	arg := &common.Variants{
+		"transaction":    trx,
+		"available_keys": publicKeys,
+	}
+	err = DoHttpCall(&keys, common.GetRequiredKeys, arg)
+	if err != nil {
+		clog.Error(err.Error())
+	}
+	return keys["required_keys"]
+}
+
+func signTransaction(trx *types.SignedTransaction, requiredKeys []string, chainID *common.ChainIdType) {
+	signedTrx := common.Variants{"signed_transaction": trx, "keys": requiredKeys, "id": chainID}
+	err := DoHttpCall(trx, common.WalletSignTrx, signedTrx)
+	if err != nil {
+		clog.Error(err.Error())
+	}
+}
+
+func generateNonceAction() *types.Action {
+	t := common.Now().TimeSinceEpoch()
+	data, _ := rlp.EncodeToBytes(t)
+
+	return &types.Action{
+		Account:       common.DefaultConfig.NullAccountName,
+		Name:          common.N("nonce"),
+		Authorization: []types.PermissionLevel{},
+		Data:          data,
+	}
 }

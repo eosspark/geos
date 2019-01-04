@@ -18,21 +18,21 @@ import (
 	"strings"
 )
 
-var txExpiration = common.Seconds(30)         //30s
+//var txExpiration = common.Seconds(30)         //30s
 var abiSerializerMaxTime = common.Seconds(10) // No risk to client side serialization taking a long time
-var txRefBlockNumOrID string
-var txForceUnique = false
-var txDontBroadcast = false
-var txReturnPacked = false
-var txSkipSign = false
-var txPrintJson = false
-var printRequest = false
-var printResponse = false
+//var txRefBlockNumOrID string
+//var txForceUnique = false
+//var txDontBroadcast = false
+//var txReturnPacked = false
+//var txSkipSign = false
+//var txPrintJson = false
+//var printRequest = false
+//var printResponse = false
 
-var txMaxCpuUsage uint8 = 0
-var txMaxNetUsage uint32 = 0
+//var txMaxCpuUsage uint8 = 0
+//var txMaxNetUsage uint32 = 0
 
-var delaySec uint32 = 0
+//var delaySec uint32 = 0
 
 var clog log.Logger
 
@@ -40,17 +40,6 @@ func init() {
 	clog = log.New("console")
 	clog.SetHandler(log.TerminalHandler)
 	clog.SetHandler(log.DiscardHandler())
-}
-
-type eosgo struct {
-	c *Console
-}
-
-func newEosgo(c *Console) *eosgo {
-	e := &eosgo{
-		c: c,
-	}
-	return e
 }
 
 func getAccountPermissions(permissions []string) []types.PermissionLevel {
@@ -111,53 +100,6 @@ func binToVariant(account common.AccountName, action common.ActionName, actionAr
 	return abis.BinaryToVariant(actionType, actionArgs, abiSerializerMaxTime, false)
 }
 
-func createBuyRam(creator common.Name, newaccount common.Name, quantity *common.Asset, txPermission []string) *types.Action {
-	actPayload := common.Variants{
-		"payer":    creator.String(),
-		"receiver": newaccount.String(),
-		"quant":    quantity.String(),
-	}
-	var auth []types.PermissionLevel
-	if len(txPermission) == 0 {
-		auth = []types.PermissionLevel{{Actor: creator, Permission: common.DefaultConfig.ActiveName}}
-	} else {
-		auth = getAccountPermissions(txPermission)
-	}
-	return createAction(auth, common.DefaultConfig.SystemAccountName, common.N("buyram"), &actPayload)
-}
-
-func createBuyRamBytes(creator common.Name, newaccount common.Name, numbytes uint32, txPermission []string) *types.Action {
-	actPayload := common.Variants{
-		"payer":    creator.String(),
-		"receiver": newaccount.String(),
-		"bytes":    numbytes,
-	}
-	var auth []types.PermissionLevel
-	if len(txPermission) == 0 {
-		auth = []types.PermissionLevel{{Actor: creator, Permission: common.DefaultConfig.ActiveName}}
-	} else {
-		auth = getAccountPermissions(txPermission)
-	}
-	return createAction(auth, common.DefaultConfig.SystemAccountName, common.N("buyrambytes"), &actPayload)
-}
-
-func createDelegate(from common.Name, receiver common.Name, net *common.Asset, cpu *common.Asset, transfer bool, txPermission []string) *types.Action {
-	actPayLoad := common.Variants{
-		"from":               from.String(),
-		"receiver":           receiver.String(),
-		"stake_net_quantity": net.String(),
-		"stake_cpu_quantity": cpu.String(),
-		"transfer":           transfer,
-	}
-	var auth []types.PermissionLevel
-	if len(txPermission) == 0 {
-		auth = []types.PermissionLevel{{Actor: from, Permission: common.DefaultConfig.ActiveName}}
-	} else {
-		auth = getAccountPermissions(txPermission)
-	}
-	return createAction(auth, common.DefaultConfig.SystemAccountName, common.N("delegatebw"), &actPayLoad)
-}
-
 func regProducerVariant(producer common.AccountName, key ecc.PublicKey, url string, location uint16) *common.Variants {
 	return &common.Variants{
 		"producer":     producer,
@@ -184,8 +126,7 @@ func createNewAccount(creator common.Name, newaccount common.Name, owner ecc.Pub
 	action := &types.Action{
 		Account: a.GetAccount(),
 		Name:    a.GetName(),
-		//Authorization:,
-		Data: buffer,
+		Data:    buffer,
 	}
 	if len(txPermission) == 0 {
 		action.Authorization = []types.PermissionLevel{{Actor: creator, Permission: common.DefaultConfig.ActiveName}}
@@ -194,14 +135,6 @@ func createNewAccount(creator common.Name, newaccount common.Name, owner ecc.Pub
 	}
 
 	return action
-}
-func createAction(authorization []types.PermissionLevel, code common.AccountName, act common.ActionName, args *common.Variants) *types.Action {
-	return &types.Action{
-		Account:       code,
-		Name:          act,
-		Data:          variantToBin(code, act, args),
-		Authorization: authorization,
-	}
 }
 
 func createOpen(contract string, owner common.Name, sym common.Symbol, ramPayer common.Name, txPermission []string) *types.Action {
@@ -461,6 +394,17 @@ func printResult(v interface{}) {
 	fmt.Println(string(data))
 }
 
+type eosgo struct {
+	c *Console
+}
+
+func newEosgo(c *Console) *eosgo {
+	e := &eosgo{
+		c: c,
+	}
+	return e
+}
+
 func (e *eosgo) CreateKey(call otto.FunctionCall) (response otto.Value) {
 	type Keys struct {
 		Pri string `json:"Private Key"`
@@ -472,211 +416,66 @@ func (e *eosgo) CreateKey(call otto.FunctionCall) (response otto.Value) {
 	return getJsResult(call, key)
 }
 
+type CreateAccountParams struct {
+	Creator   common.Name `json:"creator"`
+	Name      common.Name `json:"name"`
+	OwnerKey  string      `json:"owner"`
+	ActiveKey string      `json:"active"`
+	StandardTransactionOptions
+}
+
 func (e *eosgo) CreateAccount(call otto.FunctionCall) (response otto.Value) {
-	creator, err := call.Argument(0).ToString()
+	var params CreateAccountParams
+	readParams(&params, call)
+
+	if len(params.ActiveKey) == 0 {
+		params.ActiveKey = params.OwnerKey
+	}
+
+	ownerKey, err := ecc.NewPublicKey(params.OwnerKey)
 	if err != nil {
-		return otto.UndefinedValue()
+		throwJSException(fmt.Sprintf("Invalid owner public key: %s\n", params.OwnerKey))
 	}
-	name, err := call.Argument(1).ToString()
+	activeKey, err := ecc.NewPublicKey(params.ActiveKey)
 	if err != nil {
-		return otto.UndefinedValue()
-	}
-	ownerkey, err := call.Argument(2).ToString()
-	if err != nil {
-		return otto.UndefinedValue()
-	}
-	activekey, err := call.Argument(3).ToString()
-	if err != nil {
-		return otto.UndefinedValue()
+		throwJSException(fmt.Sprintf("Invalid active public key: %s\n", params.OwnerKey))
 	}
 
-	fmt.Println("eosgo params:  ", creator, name, ownerkey, activekey)
+	action := createNewAccount(params.Creator, params.Name, ownerKey, activeKey, params.TxPermission)
 
-	if len(activekey) == 0 {
-		activekey = ownerkey
-	}
-
-	ownerKey, err := ecc.NewPublicKey(ownerkey)
-	if err != nil {
-		throwJSException(fmt.Sprintf("Invalid owner public key: %s", ownerkey))
-	}
-	activeKey, err := ecc.NewPublicKey(activekey)
-	if err != nil {
-		throwJSException(fmt.Sprintf("Invalid active public key: %s", activekey))
-	}
-
-	c := chain.NewAccount{
-		Creator: common.AccountName(common.N(creator)),
-		Name:    common.AccountName(common.N(name)),
-		Owner: types.Authority{
-			Threshold: 1,
-			Keys:      []types.KeyWeight{{Key: ownerKey, Weight: 1}},
-		},
-		Active: types.Authority{
-			Threshold: 1,
-			Keys:      []types.KeyWeight{{Key: activeKey, Weight: 1}},
-		},
-	}
-
-	buffer, _ := rlp.EncodeToBytes(&c)
-
-	action := &types.Action{
-		Account: common.AccountName(common.N("eosio")),
-		Name:    common.ActionName(common.N("newaccount")),
-		Data:    buffer,
-		Authorization: []types.PermissionLevel{
-			{Actor: common.AccountName(common.N("eosio")), Permission: common.DefaultConfig.ActiveName},
-		},
-	}
-
-	createAction := []*types.Action{action}
-	//if !simple {
-	//	fmt.Println("system create account")
-	//
-	//} else {
 	clog.Info("creat account in test net")
-	result := sendActions(createAction, 1000, types.CompressionNone)
-	//}
+	re := sendActions([]*types.Action{action}, 1000, types.CompressionNone, &params)
+	return getJsResult(call, re)
+}
 
-	return getJsResult(call, result)
+type PushAction struct {
+	ContractAccount string `json:"account"`
+	Action          string `json:"action"`
+	Data            string `json:"data"`
+	StandardTransactionOptions
 }
 
 func (e *eosgo) PushAction(call otto.FunctionCall) (response otto.Value) {
-	contractAccount, err := call.Argument(0).ToString()
-	if err != nil {
-		return otto.UndefinedValue()
-	}
-	actionName, err := call.Argument(1).ToString()
-	if err != nil {
-		return otto.UndefinedValue()
-	}
-	data, err := call.Argument(2).ToString()
-	if err != nil {
-		return otto.UndefinedValue()
-	}
-	permissonStr, err := call.Argument(3).ToString()
-	if err != nil {
-		return otto.UndefinedValue()
-	}
+	var params PushAction
+	readParams(&params, call)
 
 	actionArgsVar := &common.Variants{}
-	json.Unmarshal([]byte(data), actionArgsVar)
+	err := json.Unmarshal([]byte(params.Data), actionArgsVar)
+	if err != nil {
+		throwJSException(fmt.Sprintln("Fail to parse action JSON data = ", params.Data))
+	}
 
-	permissions := getAccountPermissions([]string{permissonStr})
+	permissions := getAccountPermissions(params.TxPermission)
 	fmt.Println(permissions)
+
 	action := &types.Action{
-		Account:       common.N(contractAccount),
-		Name:          common.N(actionName),
+		Account:       common.N(params.ContractAccount),
+		Name:          common.N(params.Action),
 		Authorization: permissions,
-		Data:          variantToBin(common.N(contractAccount), common.N(actionName), actionArgsVar),
+		Data:          variantToBin(common.N(params.ContractAccount), common.N(params.Action), actionArgsVar),
 	}
-	actions := []*types.Action{action}
-	result := sendActions(actions, 1000, types.CompressionNone)
+	result := sendActions([]*types.Action{action}, 1000, types.CompressionNone, &params)
 	return getJsResult(call, result)
-}
-
-func sendActions(actions []*types.Action, extraKcpu int32, compression types.CompressionType) interface{} {
-	fmt.Println("send actions...")
-	result := pushActions(actions, extraKcpu, compression)
-
-	//if txPrintJson {
-	//fmt.Println("txPrintJson")
-	//fmt.Println(string(result))
-	//} else {
-	printResult(result)
-	//}
-	return result
-}
-
-func pushActions(actions []*types.Action, extraKcpu int32, compression types.CompressionType) interface{} {
-	trx := &types.SignedTransaction{}
-	trx.Actions = actions
-	return pushTransaction(trx, extraKcpu, compression)
-}
-
-func pushTransaction(trx *types.SignedTransaction, extraKcpu int32, compression types.CompressionType) interface{} {
-	var info chain_plugin.GetInfoResult
-	err := DoHttpCall(&info, common.GetInfoFunc, nil)
-	if err != nil {
-		fmt.Println(err)
-	}
-
-	if len(trx.Signatures) == 0 { // #5445 can't change txn content if already signed
-		// calculate expiration date
-		trx.Expiration = common.NewTimePointSecTp(info.HeadBlockTime.AddUs(txExpiration))
-		fmt.Println(trx.Expiration.String())
-
-		// Set tapos, default to last irreversible block if it's not specified by the user
-		refBlockID := info.LastIrreversibleBlockID
-		if len(txRefBlockNumOrID) > 0 {
-			//var refBlock GetBlockResult
-			var refBlock chain_plugin.GetBlockResult
-			err := DoHttpCall(&refBlock, common.GetBlockFunc, common.Variants{"block_num_or_id": txRefBlockNumOrID})
-			if err != nil {
-				fmt.Println(err)
-				EosThrow(&exception.InvalidRefBlockException{}, "Invalid reference block num or id: %s", txRefBlockNumOrID)
-			}
-
-			refBlockID = refBlock.ID
-		}
-		trx.SetReferenceBlock(&refBlockID)
-
-		if txForceUnique {
-			// trx.ContextFreeActions. //TODO
-		}
-		trx.MaxCpuUsageMS = uint8(txMaxCpuUsage)
-		trx.MaxNetUsageWords = (uint32(txMaxNetUsage) + 7) / 8
-		trx.DelaySec = uint32(delaySec)
-	}
-
-	if !txSkipSign {
-		requiredKeys := determineRequiredKeys(trx)
-		signTransaction(trx, requiredKeys, &info.ChainID)
-	}
-	if !txDontBroadcast {
-		var re common.Variant
-		packedTrx := types.NewPackedTransactionBySignedTrx(trx, compression)
-		err := DoHttpCall(&re, common.PushTxnFunc, packedTrx)
-		if err != nil {
-			clog.Error(err.Error())
-		}
-		return re
-	} else {
-		if !txReturnPacked {
-			out, _ := json.Marshal(trx)
-			return out
-		} else {
-			out, _ := json.Marshal(types.NewPackedTransactionBySignedTrx(trx, compression))
-			return out
-		}
-	}
-}
-
-func determineRequiredKeys(trx *types.SignedTransaction) []string {
-	var publicKeys []string
-	err := DoHttpCall(&publicKeys, common.WalletPublicKeys, nil)
-	if err != nil {
-		clog.Error(err.Error())
-	}
-
-	var keys map[string][]string
-	arg := &common.Variants{
-		"transaction":    trx,
-		"available_keys": publicKeys,
-	}
-	err = DoHttpCall(&keys, common.GetRequiredKeys, arg)
-	if err != nil {
-		clog.Error(err.Error())
-	}
-	return keys["required_keys"]
-}
-
-func signTransaction(trx *types.SignedTransaction, requiredKeys []string, chainID *common.ChainIdType) {
-	signedTrx := common.Variants{"signed_transaction": trx, "keys": requiredKeys, "id": chainID}
-	err := DoHttpCall(trx, common.WalletSignTrx, signedTrx)
-	if err != nil {
-		clog.Error(err.Error())
-	}
 }
 
 func (e *eosgo) PushTrx(call otto.FunctionCall) (response otto.Value) {
@@ -705,57 +504,43 @@ func (e *eosgo) PushTrx(call otto.FunctionCall) (response otto.Value) {
 	return v
 }
 
-func (e *eosgo) SetCode(call otto.FunctionCall) (response otto.Value) {
-	account, err := call.Argument(0).ToString()
-	if err != nil {
-		return otto.UndefinedValue()
-	}
-	wasmPath, err := call.Argument(1).ToString()
-	if err != nil {
-		return otto.UndefinedValue()
-	}
+type SetCodeParams struct {
+	Account                string `json:"account"`
+	ContractPath           string `json:"code_file"`
+	ContractClear          bool   `json:"clear"`
+	SuppressDuplicateCheck bool   `json:"suppress_duplicate_check"`
+	StandardTransactionOptions
+}
 
-	codeContent, err := ioutil.ReadFile(wasmPath)
+func (e *eosgo) SetCode(call otto.FunctionCall) (response otto.Value) {
+	var params SetCodeParams
+	readParams(&params, call)
+
+	codeContent, err := ioutil.ReadFile(params.ContractPath)
 	if err != nil {
 		clog.Error("get abi from file is error %s", err.Error())
 		return otto.FalseValue()
 	}
 
-	c := chain.SetCode{
-		Account:   common.N(account),
-		VmType:    0,
-		VmVersion: 0,
-		Code:      codeContent,
-	}
-	buffer, _ := rlp.EncodeToBytes(&c)
-
-	setCode := &types.Action{
-		Account: common.N("eosio"),
-		Name:    common.N("setcode"),
-		Authorization: []types.PermissionLevel{
-			{Actor: common.N(account), Permission: common.DefaultConfig.ActiveName},
-		},
-		Data: buffer,
-	}
-	createAction := []*types.Action{setCode}
+	action := createSetCode(common.N(params.Account), codeContent, params.TxPermission)
 	clog.Info("Setting Code...")
-	result := sendActions(createAction, 10000, types.CompressionZlib)
+	re := sendActions([]*types.Action{action}, 10000, types.CompressionZlib, &params)
+	return getJsResult(call, re)
+}
 
-	return getJsResult(call, result)
-
+type SetAbiParams struct {
+	Account                string `json:"account"`
+	AbiPath                string `json:"abi_file"`
+	ContractClear          bool   `json:"clear"`
+	SuppressDuplicateCheck bool   `json:"suppress_duplicate_check"`
+	StandardTransactionOptions
 }
 
 func (e *eosgo) SetAbi(call otto.FunctionCall) (response otto.Value) {
-	account, err := call.Argument(0).ToString()
-	if err != nil {
-		return otto.UndefinedValue()
-	}
-	abiPath, err := call.Argument(1).ToString()
-	if err != nil {
-		return otto.UndefinedValue()
-	}
+	var params SetAbiParams
+	readParams(&params, call)
 
-	abiFile, err := ioutil.ReadFile(abiPath)
+	abiFile, err := ioutil.ReadFile(params.AbiPath)
 	if err != nil {
 		clog.Error("get abi from file is error %s", err.Error())
 		return otto.FalseValue()
@@ -772,24 +557,9 @@ func (e *eosgo) SetAbi(call otto.FunctionCall) (response otto.Value) {
 		clog.Error("pack abi is error %s", err.Error())
 		return otto.FalseValue()
 	}
-
-	c := chain.SetAbi{
-		Account: common.N(account),
-		Abi:     abiContent,
-	}
-	buffer, _ := rlp.EncodeToBytes(&c)
-	setAbi := &types.Action{
-		Account: common.N("eosio"),
-		Name:    common.N("setabi"),
-		Authorization: []types.PermissionLevel{
-			{Actor: common.N(account), Permission: common.DefaultConfig.ActiveName},
-		},
-		Data: buffer,
-	}
-	createAction := []*types.Action{setAbi}
-
+	action := createSetABI(common.N(params.Account), abiContent, params.TxPermission)
 	clog.Info("Setting ABI...")
-	result := sendActions(createAction, 10000, types.CompressionZlib)
+	result := sendActions([]*types.Action{action}, 10000, types.CompressionZlib, &params)
 	return getJsResult(call, result)
 }
 
@@ -800,42 +570,31 @@ func (e *eosgo) SetContract(call otto.FunctionCall) (response otto.Value) {
 }
 
 //TODO set
+type SetAccountPermissionParams struct {
+	Account             string `json:"account"`
+	Permission          string `json:"permission"`
+	AuthorityJsonOrFile string `json:"authority"`
+	Parent              string `json:"parent"`
+	StandardTransactionOptions
+}
 
 func (e *eosgo) SetAccountPermission(call otto.FunctionCall) (response otto.Value) {
-	accountStr, err := call.Argument(0).ToString()
-	if err != nil {
-		return otto.UndefinedValue()
-	}
-	permissionStr, err := call.Argument(1).ToString()
-	if err != nil {
-		return otto.UndefinedValue()
-	}
-	authorityJsonOrFile, err := call.Argument(2).ToString()
-	if err != nil {
-		return otto.UndefinedValue()
-	}
-	parentStr, err := call.Argument(3).ToString()
-	if err != nil {
-		return otto.UndefinedValue()
-	}
-	txPermissionStr, err := call.Argument(4).ToString()
-	if err != nil {
-		return otto.UndefinedValue()
-	}
+	var params SetAccountPermissionParams
+	readParams(&params, call)
 
-	account := common.N(accountStr)
-	permission := common.N(permissionStr)
-	isDelete := strings.Compare(authorityJsonOrFile, "null") == 0
+	account := common.N(params.Account)
+	permission := common.N(params.Permission)
+	isDelete := strings.Compare(params.AuthorityJsonOrFile, "null") == 0
 	if isDelete {
-		action := createDeleteAuth(account, permission, []string{txPermissionStr})
-		sendActions([]*types.Action{action}, 1000, types.CompressionNone)
+		action := createDeleteAuth(account, permission, params.TxPermission)
+		sendActions([]*types.Action{action}, 1000, types.CompressionNone, &params)
 	} else {
-		auth := parseJsonAuthorityOrKey(authorityJsonOrFile)
+		auth := parseJsonAuthorityOrKey(params.AuthorityJsonOrFile)
 		var parent common.Name
-		if len(parentStr) == 0 && strings.Compare(permissionStr, "owner") != 0 {
+		if len(params.Parent) == 0 && strings.Compare(params.Permission, "owner") != 0 {
 			//see if we can auto-determine the proper parent
 			var accountResult chain_plugin.GetAccountResult
-			err := DoHttpCall(&accountResult, common.GetAccountFunc, common.Variants{"account_name": accountStr})
+			err := DoHttpCall(&accountResult, common.GetAccountFunc, common.Variants{"account_name": params.Account})
 			if err != nil {
 				Throw(err.Error())
 			}
@@ -843,7 +602,7 @@ func (e *eosgo) SetAccountPermission(call otto.FunctionCall) (response otto.Valu
 			var itr types.Permission
 			var i int
 			for i, itr = range accountResult.Permissions {
-				if itr.PermName == permissionStr {
+				if itr.PermName == params.Permission {
 					break
 				}
 			}
@@ -854,80 +613,37 @@ func (e *eosgo) SetAccountPermission(call otto.FunctionCall) (response otto.Valu
 				parent = common.DefaultConfig.ActiveName
 			}
 		} else {
-			parent = common.N(parentStr)
+			parent = common.N(params.Parent)
 		}
-		action := createUpdateAuth(account, permission, parent, auth, []string{txPermissionStr})
-		sendActions([]*types.Action{action}, 1000, types.CompressionNone)
+		action := createUpdateAuth(account, permission, parent, auth, params.TxPermission)
+		sendActions([]*types.Action{action}, 1000, types.CompressionNone, &params)
 	}
 	return getJsResult(call, nil)
+}
+
+type SetActionPermissionParams struct {
+	Account     string `json:"account"`
+	Code        string `json:"code"`
+	TypeStr     string `json:"type"`
+	Requirement string `json:"requirement"`
+	StandardTransactionOptions
 }
 
 func (e *eosgo) SetActionPermission(call otto.FunctionCall) (response otto.Value) {
-	accountStr, err := call.Argument(0).ToString()
-	if err != nil {
-		return otto.UndefinedValue()
-	}
-	codeStr, err := call.Argument(1).ToString()
-	if err != nil {
-		return otto.UndefinedValue()
-	}
-	typeStr, err := call.Argument(2).ToString()
-	if err != nil {
-		return otto.UndefinedValue()
-	}
-	requirementStr, err := call.Argument(3).ToString()
-	if err != nil {
-		return otto.UndefinedValue()
-	}
-	txPermissionStr, err := call.Argument(4).ToString()
-	if err != nil {
-		return otto.UndefinedValue()
-	}
+	var params SetActionPermissionParams
+	readParams(&params, call)
 
-	accountName := common.N(accountStr)
-	codeName := common.N(codeStr)
-	typeName := common.N(typeStr)
-	isDelete := strings.Compare(requirementStr, "null") == 0
+	accountName := common.N(params.Account)
+	codeName := common.N(params.Code)
+	typeName := common.N(params.TypeStr)
+	isDelete := strings.Compare(params.Requirement, "null") == 0
 	if isDelete {
-		action := createUnlinkAuth(accountName, codeName, typeName, []string{txPermissionStr})
-		sendActions([]*types.Action{action}, 1000, types.CompressionNone)
+		action := createUnlinkAuth(accountName, codeName, typeName, params.TxPermission)
+		sendActions([]*types.Action{action}, 1000, types.CompressionNone, &params)
 	} else {
-		requirementName := common.N(requirementStr)
-		action := createLinkAuth(accountName, codeName, typeName, requirementName, []string{txPermissionStr})
-		sendActions([]*types.Action{action}, 1000, types.CompressionNone)
+		requirementName := common.N(params.Requirement)
+		action := createLinkAuth(accountName, codeName, typeName, requirementName, params.TxPermission)
+		sendActions([]*types.Action{action}, 1000, types.CompressionNone, &params)
 	}
-	return getJsResult(call, nil)
-}
-
-func (e *eosgo) RegisterProducer(call otto.FunctionCall) (response otto.Value) {
-	producerStr, err := call.Argument(0).ToString()
-	if err != nil {
-		return otto.UndefinedValue()
-	}
-	producerKeyStr, err := call.Argument(1).ToString()
-	if err != nil {
-		return otto.UndefinedValue()
-	}
-	url, err := call.Argument(2).ToString()
-	if err != nil {
-		return otto.UndefinedValue()
-	}
-	loc, err := call.Argument(3).ToInteger()
-	if err != nil {
-		return otto.UndefinedValue()
-	}
-
-	var producerKey ecc.PublicKey
-	Try(func() {
-		producerKey, err = ecc.NewPublicKey(producerKeyStr)
-		if err != nil {
-			Throw(err.Error())
-		}
-	}).EosRethrowExceptions(&exception.PublicKeyTypeException{}, "Invalid producer public key: %s", producerKeyStr).End()
-
-	regprodVar := regProducerVariant(common.N(producerStr), producerKey, url, uint16(loc))
-	action := createAction([]types.PermissionLevel{{common.N(producerStr), common.DefaultConfig.ActiveName}}, common.DefaultConfig.SystemAccountName, common.N("regproducer"), regprodVar)
-	sendActions([]*types.Action{action}, 1000, types.CompressionNone)
-
 	return getJsResult(call, nil)
 }
