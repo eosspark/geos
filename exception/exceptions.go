@@ -27,7 +27,7 @@ package exception
  *   |- resource_limit_exception		 >3210000
  *   |- mongo_db_exception 				 >3220000
  *   |- contract_api_exception  		 >3230000
- */
+*/
 
 //TODO: go get gotemplate
 //go:generate go install github.com/eosspark/eos-go/log/...
@@ -291,5 +291,8 @@ package exception
 //go:generate gotemplate -outfmt "gen_%v" "github.com/eosspark/eos-go/exception/template" "ArithmeticException (_ContractApiException,3230003,\"Arithmetic exception\")"
 
 //go:generate go build .
+
+//go:generate gotemplate -outfmt "gen_%v" "github.com/eosspark/eos-go/exception/template" "ExplainedException(Exception,9000000,\"explained exception,see error log\")"
+//go:generate gotemplate -outfmt "gen_%v" "github.com/eosspark/eos-go/exception/template" "LocalizedException(Exception,10000000,\"an error occured\")"
 
 func registerException(e Exception) {}

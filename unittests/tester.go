@@ -220,7 +220,7 @@ func (t BaseTester) produceBlock(skipTime common.Microseconds, skipPendingTrxs b
 			for _, trx := range scheduledTrxs {
 				trace := t.Control.PushScheduledTransaction(&trx, common.MaxTimePoint(), 0)
 				if trace.Except != nil {
-					try.Throw(trace.Except)
+					//try.Throw(trace.Except)
 				}
 			}
 		}
@@ -477,6 +477,25 @@ func (t BaseTester) getPrivateKey(keyName common.Name, role string) ecc.PrivateK
 func (t BaseTester) getPublicKey(keyName common.Name, role string) ecc.PublicKey {
 	priKey := t.getPrivateKey(keyName, role)
 	return priKey.PublicKey()
+}
+
+func (t BaseTester) ProduceBlocksUntileEndOfRound() {
+	var blocksPerRound uint64
+	for {
+		blocksPerRound = uint64(len(t.Control.ActiveProducers().Producers) * common.DefaultConfig.ProducerRepetitions)
+		t.ProduceBlocks(1, false)
+
+		if uint64(t.Control.HeadBlockNum())%blocksPerRound == blocksPerRound-1 {
+			break
+		}
+	}
+}
+
+func (t BaseTester) ProduceBlocksForNrounds(numOfRounds int) {
+
+	for i := 0; i < numOfRounds; i++ {
+		t.ProduceBlocksUntileEndOfRound()
+	}
 }
 
 func (t BaseTester) ProduceBlock(skipTime common.Microseconds, skipFlag uint32) *types.SignedBlock {

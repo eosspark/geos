@@ -85,8 +85,8 @@ func NewApplyContext(control *Controller, trxContext *TransactionContext, act *t
 	applyContext.AccountRamDeltas = *treeset.NewWith(types.TypeAccountDelta, types.CompareAccountDelta)
 	applyContext.ilog = log.New("Apply_Context")
 	logHandler := log.StreamHandler(os.Stdout, log.TerminalFormat(true))
-	applyContext.ilog.SetHandler(log.LvlFilterHandler(log.LvlDebug, logHandler))
-	//applyContext.ilog.SetHandler(log.LvlFilterHandler(log.LvlInfo, logHandler))
+	//applyContext.ilog.SetHandler(log.LvlFilterHandler(log.LvlDebug, logHandler))
+	applyContext.ilog.SetHandler(log.LvlFilterHandler(log.LvlInfo, logHandler))
 	// applyContext.ilog.SetHandler(log.DiscardHandler())
 	return applyContext
 
@@ -246,7 +246,6 @@ func (a *ApplyContext) execOne(trace *types.ActionTrace) {
 			a.Privileged = account.Privileged
 			native := a.Control.FindApplyHandler(a.Receiver, a.Act.Account, a.Act.Name)
 
-			//a.ilog.Info("receiver:%v account:%v action:%v data:%v", a.Receiver, a.Act.Account, a.Act.Name, a.Act.Data)
 			//a.ilog.Info("receiver:%v account:%v action:%v", a.Receiver, a.Act.Account, a.Act.Name)
 
 			if native != nil {
