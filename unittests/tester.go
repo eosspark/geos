@@ -476,6 +476,25 @@ func (t BaseTester) getPublicKey(keyName common.Name, role string) ecc.PublicKey
 	return priKey.PublicKey()
 }
 
+func (t BaseTester) ProduceBlocksUntileEndOfRound() {
+	var blocksPerRound uint64
+	for {
+		blocksPerRound = uint64(len(t.Control.ActiveProducers().Producers) * common.DefaultConfig.ProducerRepetitions)
+		t.ProduceBlocks(1, false)
+
+		if uint64(t.Control.HeadBlockNum())%blocksPerRound == blocksPerRound-1 {
+			break
+		}
+	}
+}
+
+func (t BaseTester) ProduceBlocksForNrounds(numOfRounds int) {
+
+	for i := 0; i < numOfRounds; i++ {
+		t.ProduceBlocksUntileEndOfRound()
+	}
+}
+
 func (t BaseTester) ProduceBlock(skipTime common.Microseconds, skipFlag uint32) *types.SignedBlock {
 	return t.produceBlock(skipTime, false, skipFlag)
 }

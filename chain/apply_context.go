@@ -246,7 +246,6 @@ func (a *ApplyContext) execOne(trace *types.ActionTrace) {
 			a.Privileged = account.Privileged
 			native := a.Control.FindApplyHandler(a.Receiver, a.Act.Account, a.Act.Name)
 
-			//a.ilog.Info("receiver:%v account:%v action:%v data:%v", a.Receiver, a.Act.Account, a.Act.Name, a.Act.Data)
 			//a.ilog.Info("receiver:%v account:%v action:%v", a.Receiver, a.Act.Account, a.Act.Name)
 
 			if native != nil {
