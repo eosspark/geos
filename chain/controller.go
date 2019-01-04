@@ -947,7 +947,6 @@ func (c *Controller) applyOnerror(gtrx *entity.GeneratedTransaction, deadline co
 		trace.Receipt = c.pushReceipt(gtrx.TrxId, types.TransactionStatusSoftFail, uint64(trxContext.BilledCpuTimeUs), trace.NetUsage).TransactionReceiptHeader
 		trxContext.Squash()
 		//restore.cancel()
-
 		returning = true
 	}).Catch(func(e Exception) {
 		t := trxContext.UpdateBilledCpuTime(common.Now())
@@ -1071,7 +1070,7 @@ func (c *Controller) applyBlock(b *types.SignedBlock, s types.BlockStatus) {
 			} else {
 				EosAssert(false, &BlockValidateException{}, "encountered unexpected receipt type")
 			}
-			transactionFailed := !common.Empty(trace) && !common.Empty(trace.Except)
+			transactionFailed := !common.Empty(trace) && !common.Empty(trace.ExceptPtr)
 			transactionCanFail := receipt.Status == types.TransactionStatusHardFail && receipt.Trx.PackedTransaction == nil
 			if transactionFailed && !transactionCanFail {
 				log.Error(trace.Except.DetailMessage())
@@ -1684,10 +1683,8 @@ func (c *Controller) initializeForkDB() {
 	genHeader.ProducerToLastProduced = *types.NewAccountNameUint32Map()
 	genHeader.ProducerToLastImpliedIrb = *types.NewAccountNameUint32Map()
 	c.Head = types.NewBlockState(&genHeader)
-	signedBlock := types.SignedBlock{}
-	signedBlock.SignedBlockHeader = genHeader.Header
-	c.Head.SignedBlock = &signedBlock
-	//log.Info("Controller initializeForkDB:%v", c.ForkDB.DB)
+
+	c.Head.SignedBlock = types.NewSignedBlock1(&genHeader.Header)
 
 	c.ForkDB.SetHead(c.Head)
 	c.DB.SetRevision(int64(c.Head.BlockNum))
