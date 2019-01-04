@@ -25,6 +25,7 @@ import (
 
 var CORE_SYMBOL = common.Symbol{Precision: 4, Symbol: "SYS"}
 var CORE_SYMBOL_NAME = "SYS"
+var EPSINON = float64(0.001)
 var eosio = common.N("eosio")
 var eosioToken = common.N("eosio.token")
 var eosioRam = common.N("eosio.ram")
@@ -33,6 +34,7 @@ var eosioStake = common.N("eosio.stake")
 var eosioBpay = common.N("eosio.bpay")
 var eosioVpay = common.N("eosio.vpay")
 var eosioSaving = common.N("eosio.saving")
+var eosioName = common.N("eosio.names")
 var alice = common.N("alice1111111")
 var bob = common.N("bob111111111")
 var carol = common.N("carol1111111")
@@ -439,6 +441,7 @@ func (t BaseTester) GetAction(code common.AccountName, actType common.AccountNam
 	//action.Data, _ = a.EncodeAction(common.N(actionTypeName), buf) //TODO
 	//fmt.Println(buf)
 	action.Data, _ = a.EncodeAction(actType, buf)
+
 	//fmt.Println("data: ",action.Name,action.Data)
 	//if err != nil {
 	//	log.Error("tester GetAction EncodeAction is error:%s", err)
@@ -474,6 +477,25 @@ func (t BaseTester) getPrivateKey(keyName common.Name, role string) ecc.PrivateK
 func (t BaseTester) getPublicKey(keyName common.Name, role string) ecc.PublicKey {
 	priKey := t.getPrivateKey(keyName, role)
 	return priKey.PublicKey()
+}
+
+func (t BaseTester) ProduceBlocksUntileEndOfRound() {
+	var blocksPerRound uint64
+	for {
+		blocksPerRound = uint64(len(t.Control.ActiveProducers().Producers) * common.DefaultConfig.ProducerRepetitions)
+		t.ProduceBlocks(1, false)
+
+		if uint64(t.Control.HeadBlockNum())%blocksPerRound == blocksPerRound-1 {
+			break
+		}
+	}
+}
+
+func (t BaseTester) ProduceBlocksForNrounds(numOfRounds int) {
+
+	for i := 0; i < numOfRounds; i++ {
+		t.ProduceBlocksUntileEndOfRound()
+	}
 }
 
 func (t BaseTester) ProduceBlock(skipTime common.Microseconds, skipFlag uint32) *types.SignedBlock {
