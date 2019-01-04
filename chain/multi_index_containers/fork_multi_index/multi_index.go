@@ -2,6 +2,7 @@ package fork_multi_index
 
 import (
 	"bytes"
+	"container/list"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 )
@@ -76,7 +77,6 @@ var byLibBlockNumCompare = func(a, b interface{}) int {
 }
 
 type MultiIndex struct {
-	increaseKey   IndexKey
 	base          IndexBase
 	ByBlockId     map[common.BlockIdType]IndexKey
 	ByPrev        byPrevIndex
@@ -84,9 +84,8 @@ type MultiIndex struct {
 	ByLibBlockNum byLibBlockNumIndex
 }
 
-type IndexBase = map[IndexKey]*Node
-
-type IndexKey = uint32
+type IndexBase = *list.List
+type IndexKey = *list.Element
 
 type Node struct {
 	value                 *types.BlockState
@@ -98,7 +97,7 @@ type Node struct {
 
 func New() *MultiIndex {
 	m := MultiIndex{}
-	m.base = make(IndexBase)
+	m.base = list.New()
 	m.ByBlockId = make(map[common.BlockIdType]IndexKey)
 	m.ByPrev = *newMultiByPrevIndex()
 	m.ByBlockNum = *newMultiByBlockNumIndex()
@@ -107,74 +106,89 @@ func New() *MultiIndex {
 }
 
 func (m *MultiIndex) Value(k IndexKey) *types.BlockState {
-	if node, existing := m.base[k]; existing {
-		return node.value
-	}
-	return nil
+	return k.Value.(*Node).value
 }
 
-func (m *MultiIndex) Erase(k IndexKey) bool {
-	if node, existing := m.base[k]; existing {
-		delete(m.ByBlockId, node.hashByBlockId)
-		node.iteratorByPrev.Delete()
-		node.iteratorByBlockNum.Delete()
-		node.iteratorByLibBlockNum.Delete()
-		delete(m.base, k)
-if len(m.base) != m.ByBlockNum.Size() { println("Erase Failed")}
-		return true
-	}
-	return false
+func (m *MultiIndex) Erase(itr IndexKey) {
+	node := itr.Value.(*Node)
+	delete(m.ByBlockId, node.hashByBlockId)
+	node.iteratorByPrev.Delete()
+	node.iteratorByBlockNum.Delete()
+	node.iteratorByLibBlockNum.Delete()
 }
 
-func (m *MultiIndex) Modify(k IndexKey, modify func(b *types.BlockState)) bool {
-	if node, existing := m.base[k]; existing {
-		node.iteratorByPrev.Delete()
-		node.iteratorByBlockNum.Delete()
-		node.iteratorByLibBlockNum.Delete()
-		bsp := node.value
-		modify(bsp)
-		node.iteratorByPrev = m.ByPrev.Insert(bsp.Header.Previous, k)
-		node.iteratorByBlockNum = m.ByBlockNum.Insert(ByBlockNumComposite{&bsp.BlockNum, &bsp.InCurrentChain}, k)
-		node.iteratorByLibBlockNum = m.ByLibBlockNum.Insert(ByLibBlockNumComposite{
-			&bsp.DposIrreversibleBlocknum, &bsp.BftIrreversibleBlocknum, &bsp.BlockNum}, k)
-	}
-	return false
+func (m *MultiIndex) Modify(itr IndexKey, modifier func(b *types.BlockState)) bool {
+	node := itr.Value.(*Node)
+	delete(m.ByBlockId, node.hashByBlockId)
+	node.iteratorByPrev.Delete()
+	node.iteratorByBlockNum.Delete()
+	node.iteratorByLibBlockNum.Delete()
+
+	modifier(node.value)
+
+	return m.insert(node.value, itr)
 }
 
 func (m *MultiIndex) Insert(n *types.BlockState) bool {
-	m.increaseKey ++
-	return m.insert(n, m.increaseKey)
+	itr := m.base.PushBack(&Node{value: n})
+	return m.insert(n, itr)
 }
 
-func (m *MultiIndex) insert(n *types.BlockState, key IndexKey) bool {
+func (m *MultiIndex) insert(n *types.BlockState, itr IndexKey) bool {
+	node := itr.Value.(*Node)
+
 	if _, ok := m.ByBlockId[n.BlockId]; ok {
+		m.base.Remove(itr)
 		return false
 	}
-	m.ByBlockId[n.BlockId] = m.increaseKey
-	iteratorByPrev := m.ByPrev.Insert(n.Header.Previous, m.increaseKey)
-	iteratorByBlockNum := m.ByBlockNum.Insert(ByBlockNumComposite{&n.BlockNum, &n.InCurrentChain}, m.increaseKey)
-	iteratorByLibBlockNum := m.ByLibBlockNum.Insert(ByLibBlockNumComposite{&n.DposIrreversibleBlocknum,
-		&n.BftIrreversibleBlocknum, &n.BlockNum}, m.increaseKey)
+	m.ByBlockId[n.BlockId] = itr
+	node.hashByBlockId = n.BlockId
 
-	m.base[m.increaseKey] = &Node{n, n.BlockId, iteratorByPrev, iteratorByBlockNum, iteratorByLibBlockNum}
-	m.increaseKey++
+
+	node.iteratorByPrev = m.ByPrev.Insert(n.Header.Previous, itr)
+	if node.iteratorByPrev.IsEnd() {
+		delete(m.ByBlockId, n.BlockId)
+		m.base.Remove(itr)
+		return false
+	}
+
+	node.iteratorByBlockNum = m.ByBlockNum.Insert(ByBlockNumComposite{&n.BlockNum, &n.InCurrentChain}, itr)
+	if node.iteratorByBlockNum.IsEnd() {
+		node.iteratorByPrev.Delete()
+		delete(m.ByBlockId, n.BlockId)
+		m.base.Remove(itr)
+		return false
+	}
+
+	node.iteratorByLibBlockNum = m.ByLibBlockNum.Insert(ByLibBlockNumComposite{&n.DposIrreversibleBlocknum,
+		&n.BftIrreversibleBlocknum, &n.BlockNum}, itr)
+	if node.iteratorByLibBlockNum.IsEnd() {
+		node.iteratorByBlockNum.Delete()
+		node.iteratorByPrev.Delete()
+		delete(m.ByBlockId, n.BlockId)
+		m.base.Remove(itr)
+		return false
+	}
+
 	return true
 }
 
 func (m *MultiIndex) Find(id common.BlockIdType) (*types.BlockState, bool) {
-	n, found := m.ByBlockId[id]
-	return m.base[n].value, found
+	if itr, found := m.ByBlockId[id]; found {
+		return m.Value(itr), found
+	}
+
+	return nil, false
 }
 
 func (m *MultiIndex) Size() int {
-	return len(m.ByBlockId)
+	return m.base.Len()
 }
 
 func (m *MultiIndex) Clear() {
-	m.base = make(IndexBase)
+	m.base.Init()
 	m.ByBlockId = make(map[common.BlockIdType]IndexKey)
 	m.ByPrev.Clear()
 	m.ByBlockNum.Clear()
 	m.ByLibBlockNum.Clear()
-	m.increaseKey = 0
 }
