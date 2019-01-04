@@ -571,6 +571,7 @@ func TestDeferredFailure(t *testing.T) {
 	}
 
 	gto := entity.GeneratedTransactionObject{}
+
 	index, _ := ct.validatingTester.Control.DataBase().GetIndex("byTrxId", &gto)
 	count := 0
 	itr := index.Begin()
@@ -588,8 +589,7 @@ func TestDeferredFailure(t *testing.T) {
 		"memo":     "fund Proxy",
 	}
 	ct.validatingTester.PushAction2(&eosioToken, &actionName, eosioToken, &data, ct.validatingTester.DefaultExpirationDelta, 0)
-	expectedDelivery := ct.validatingTester.Control.HeadBlockTime().TimeSinceEpoch().Count() + common.Seconds(10).Count()
-
+	expectedDelivery := ct.validatingTester.Control.PendingBlockTime().TimeSinceEpoch().Count() + common.Seconds(10).Count()
 	var deferredId common.TransactionIdType
 	if index.Begin() != index.End() {
 		count = 1
@@ -602,27 +602,22 @@ func TestDeferredFailure(t *testing.T) {
 		ct.validatingTester.ProduceBlocks(1, false)
 		assert.Equal(t, *ct.GetBalance(&proxy), common.Asset{}.FromString(&s))
 		assert.Equal(t, *ct.GetBalance(&bob), common.Asset{}.FromString(&s2))
-		assert.Equal(t, *ct.GetBalance(&bob), common.Asset{}.FromString(&s2))
 		assert.Equal(t, 1, count)
 		assert.Equal(t, false, ct.validatingTester.ChainHasTransaction(&deferredId))
 	}
-
-	//fmt.Println("************************gto:",gto)
-	fmt.Println("************************time:", ct.validatingTester.Control.PendingBlockTime().TimeSinceEpoch().Count(), expectedDelivery)
-	//expectedRedelivery := ct.validatingTester.Control.HeadBlockTime().TimeSinceEpoch().Count() + common.Seconds(10).Count()
-	ct.validatingTester.ProduceBlocks(1, false)
-
 	itr = index.Begin()
 	err = itr.Data(&gto)
 	if err != nil {
 		fmt.Errorf("TestDeferredFailure:", "find gto is error")
 	}
 
-	if gto.DelayUntil <= ct.validatingTester.Control.PendingBlockTime() {
-		deferredId = gto.TrxId
-	}
+	//if gto.DelayUntil <= ct.validatingTester.Control.PendingBlockTime() {
+	deferredId = gto.TrxId
+
+	ct.validatingTester.ProduceBlocks(1, false)
+
 	assert.Equal(t, 1, count)
-	fmt.Println("**********A**************", deferredId, ct.validatingTester.GetTransactionReceipt(&deferredId))
+
 	//assert.Equal(t,true,ct.validatingTester.ChainHasTransaction(&deferredId))
 	assert.Equal(t, ct.validatingTester.GetTransactionReceipt(&deferredId).Status, types.TransactionStatusSoftFail)
 
@@ -664,3 +659,71 @@ func TestDeferredFailure(t *testing.T) {
 
 	ct.validatingTester.close()
 }
+
+/*func TestDeferredFailure(t *testing.T){
+	ct := NewCurrencyTester()
+	ct.validatingTester.ProduceBlocks(2, false)
+	alice := common.N("alice")
+	bob := common.N("bob")
+	proxy := common.N("proxy")
+	ct.validatingTester.CreateAccounts([]common.AccountName{alice,bob, proxy}, false, true)
+	ct.validatingTester.DefaultProduceBlock()
+	wasmName := "test_contracts/proxy.wasm"
+	code, _ := ioutil.ReadFile(wasmName)
+	ct.validatingTester.SetCode(proxy, code, nil)
+	//ct.validatingTester.SetCode(bob, code, nil)
+	abiName := "test_contracts/proxy.abi"
+	abi, _ := ioutil.ReadFile(abiName)
+
+	ct.validatingTester.SetAbi(proxy, abi, nil)
+	//ct.validatingTester.SetAbi(bob, abi, nil)
+	{
+		act := types.Action{}
+		act.Account = proxy
+		act.Name = common.N("setowner")
+		act.Authorization = []types.PermissionLevel{{common.N("bob"), common.DefaultConfig.ActiveName}}
+		data := common.Variants{
+			"owner": bob,
+			"delay": 10,
+		}
+
+		//trace := ct.validatingTester.PushAction(&alice, &act.Name, &data)
+		trace := ct.validatingTester.PushAction2(&proxy, &act.Name, bob, &data, ct.validatingTester.DefaultExpirationDelta, 0)
+		ct.validatingTester.ProduceBlocks(1, false)
+		assert.Equal(t, true, ct.validatingTester.ChainHasTransaction(&trace.ID))
+		ct.validatingTester.ProduceBlocks(1, false)
+	}
+
+	{
+		act1 := types.Action{}
+		act1.Account = eosioToken
+		act1.Name = common.N("transfer")
+		act1.Authorization = []types.PermissionLevel{{eosioToken, common.DefaultConfig.ActiveName}}
+		data1 := common.Variants{
+			"from":     eosioToken,
+			"to":       proxy,
+			"quantity": "5.0000 EOS",
+			"memo":     "fund Proxy",
+		}
+
+		//trace1 := ct.PushAction(&eosioToken, &act1.Name, &data1)
+		trace1 := ct.validatingTester.PushAction2(&eosioToken, &act1.Name, eosioToken, &data1, ct.validatingTester.DefaultExpirationDelta, 0)
+		tt := ct.validatingTester.Control.HeadBlockTime().TimeSinceEpoch().Count()
+		expectedDelivery := tt + common.Seconds(10).Count()
+		s := "5.0000 EOS"
+		expected := common.Asset{}.FromString(&s)
+		s1 := "0.0000 EOS"
+		expected1 := common.Asset{}.FromString(&s1)
+		for ct.validatingTester.Control.HeadBlockTime().TimeSinceEpoch().Count() < expectedDelivery {
+			ct.validatingTester.ProduceBlocks(1, false)
+			assert.Equal(t, *ct.GetBalance(&proxy), expected)
+			assert.Equal(t, *ct.GetBalance(&alice), expected1)
+		}
+
+		ct.validatingTester.ProduceBlocks(1, false)
+		assert.Equal(t, *ct.GetBalance(&proxy), expected1)
+		assert.Equal(t, *ct.GetBalance(&bob), expected)
+		assert.Equal(t, true, ct.validatingTester.ChainHasTransaction(&trace1.ID))
+		ct.validatingTester.close()
+	}
+}*/

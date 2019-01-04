@@ -439,7 +439,6 @@ func (c *Controller) startBlock(when types.BlockTimeStamp, confirmBlockCount uin
 	c.Pending.PendingBlockState = types.NewBlockState2(&c.Head.BlockHeaderState, when) //TODO std::make_shared<block_state>( *head, when ); // promotes pending schedule (if any) to active
 	c.Pending.PendingBlockState.InCurrentChain = true
 	c.Pending.PendingBlockState.SetConfirmed(confirmBlockCount)
-	fmt.Println("************************startblock****************", confirmBlockCount)
 	wasPendingPromoted := c.Pending.PendingBlockState.MaybePromotePending()
 
 	if c.ReadMode == DBReadMode(SPECULATIVE) || c.Pending.BlockStatus != types.BlockStatus(types.Incomplete) {
@@ -497,10 +496,10 @@ func (c *Controller) pushReceipt(trx interface{}, status types.TransactionStatus
 	trxReceipt.Trx = tr
 	netUsageWords := netUsage / 8
 	EosAssert(netUsageWords*8 == netUsage, &TransactionException{}, "net_usage is not divisible by 8")
-	c.Pending.PendingBlockState.SignedBlock.Transactions = append(c.Pending.PendingBlockState.SignedBlock.Transactions, *trxReceipt)
 	trxReceipt.CpuUsageUs = uint32(cpuUsageUs)
 	trxReceipt.NetUsageWords = uint32(netUsageWords)
-	trxReceipt.Status = types.TransactionStatus(status)
+	trxReceipt.Status = status
+	c.Pending.PendingBlockState.SignedBlock.Transactions = append(c.Pending.PendingBlockState.SignedBlock.Transactions, *trxReceipt)
 	return trxReceipt
 }
 
@@ -787,8 +786,9 @@ func (c *Controller) pushScheduledTransactionByObject(gto *entity.GeneratedTrans
 		log.Error("PushScheduleTransaction1 DecodeBytes is error :%s", err)
 	}
 
-	//trx := types.NewTransactionMetadataBySignedTrx(&dtrx,0) //TODO emit
-
+	trx := types.NewTransactionMetadataBySignedTrx(&dtrx, 0) //TODO emit
+	trx.Accepted = true
+	trx.Scheduled = true
 	trace := &types.TransactionTrace{}
 	if gtrx.Expiration < c.PendingBlockTime() {
 		trace.ID = gtrx.TrxId
@@ -837,7 +837,7 @@ func (c *Controller) pushScheduledTransactionByObject(gto *entity.GeneratedTrans
 		returning = true
 		//return trace
 	}).Catch(func(ex Exception) {
-		log.Error("PushScheduledTransaction is error:%s", ex.DetailMessage())
+		//log.Error("PushScheduledTransaction is error:%s", ex.DetailMessage())
 		cpuTimeToBillUs = trxContext.UpdateBilledCpuTime(common.Now())
 		trace.Except = ex
 		trace.ExceptPtr = ex
@@ -848,7 +848,7 @@ func (c *Controller) pushScheduledTransactionByObject(gto *entity.GeneratedTrans
 	}
 	trxContext.Undo()
 	if !failureIsSubjective(trace.Except) && gtrx.Sender != 0 { /*gtrx.Sender != account_name()*/
-		log.Info("%v", trace.Except.DetailMessage())
+		//log.Info("%v", trace.Except.DetailMessage())
 		errorTrace := c.applyOnerror(gtrx, deadLine, trxContext.pseudoStart, &cpuTimeToBillUs, billedCpuTimeUs, explicitBilledCpuTime)
 		errorTrace.FailedDtrxTrace = trace
 		trace = errorTrace
@@ -893,7 +893,7 @@ func (c *Controller) pushScheduledTransactionByObject(gto *entity.GeneratedTrans
 
 		c.ResourceLimits.AddTransactionUsage(&trxContext.BillToAccounts, uint64(cpuTimeToBillUs), 0,
 			uint32(types.NewBlockTimeStamp(c.PendingBlockTime()))) // Should never fail
-
+		log.Info("%v, hard*********************, %v", gtrx.TrxId, types.TransactionStatusHardFail)
 		receipt := *c.pushReceipt(gtrx.TrxId, types.TransactionStatusHardFail, uint64(cpuTimeToBillUs), 0)
 		trace.Receipt = receipt.TransactionReceiptHeader
 		/*emit( self.accepted_transaction, trx );
@@ -904,20 +904,23 @@ func (c *Controller) pushScheduledTransactionByObject(gto *entity.GeneratedTrans
 		/*emit( self.accepted_transaction, trx );
 		emit( self.applied_transaction, trace );*/
 	}
-	trxContext.InitForDeferredTrx(gtrx.Published)
 	//}
 	return trace
 }
 
 func (c *Controller) applyOnerror(gtrx *entity.GeneratedTransaction, deadline common.TimePoint, start common.TimePoint,
 	cpuTimeToBillUs *uint32, billedCpuTimeUs uint32, explicitBilledCpuTime bool) *types.TransactionTrace {
+
 	etrx := types.SignedTransaction{}
 	action := types.Action{}
 	action.Authorization = []types.PermissionLevel{{gtrx.Sender, common.DefaultConfig.ActiveName}}
-	action.Data = gtrx.PackedTrx
+	//action.Data = gtrx.PackedTrx
+
 	onError := NewOnError(gtrx.SenderId, gtrx.PackedTrx)
 	action.Account = onError.GetAccount()
 	action.Name = onError.GetName()
+	data, _ := rlp.EncodeToBytes(onError)
+	action.Data = data
 	etrx.Actions = append(etrx.Actions, &action)
 	in := c.PendingBlockTime().AddUs(common.Microseconds(999999))
 	etrx.Expiration = common.NewTimePointSecTp(in)
@@ -941,8 +944,7 @@ func (c *Controller) applyOnerror(gtrx *entity.GeneratedTransaction, deadline co
 		trxContext.Finalize()
 		defer func() {}() //TODO
 		//pushReceipt(trx interface{}, status types.TransactionStatus, cpuUsageUs uint64, netUsage uint64) *types.TransactionReceipt
-		t := c.pushReceipt(gtrx.TrxId, types.TransactionStatusSoftFail, uint64(trxContext.BilledCpuTimeUs), trace.NetUsage)
-		trace.Receipt = t.TransactionReceiptHeader
+		trace.Receipt = c.pushReceipt(gtrx.TrxId, types.TransactionStatusSoftFail, uint64(trxContext.BilledCpuTimeUs), trace.NetUsage).TransactionReceiptHeader
 		trxContext.Squash()
 		//restore.cancel()
 
@@ -1124,7 +1126,6 @@ func (c *Controller) CommitBlock(addToForkDb bool) {
 			ubo.SetBlock(c.Pending.PendingBlockState.SignedBlock)
 			c.DB.Insert(&ubo)
 		}
-		fmt.Println("************************CommitBlock************************", c.Pending.PendingBlockState.SignedBlock.Transactions)
 		c.AcceptedBlock.Emit(c.Pending.PendingBlockState)
 		//emit( self.accepted_block, pending->_pending_block_state )
 	}).Catch(func(e interface{}) {
