@@ -25,6 +25,7 @@ import (
 
 var CORE_SYMBOL = common.Symbol{Precision: 4, Symbol: "SYS"}
 var CORE_SYMBOL_NAME = "SYS"
+var EPSINON = float64(0.001)
 var eosio = common.N("eosio")
 var eosioToken = common.N("eosio.token")
 var eosioRam = common.N("eosio.ram")
@@ -33,6 +34,7 @@ var eosioStake = common.N("eosio.stake")
 var eosioBpay = common.N("eosio.bpay")
 var eosioVpay = common.N("eosio.vpay")
 var eosioSaving = common.N("eosio.saving")
+var eosioName = common.N("eosio.names")
 var alice = common.N("alice1111111")
 var bob = common.N("bob111111111")
 var carol = common.N("carol1111111")
@@ -439,6 +441,7 @@ func (t BaseTester) GetAction(code common.AccountName, actType common.AccountNam
 	//action.Data, _ = a.EncodeAction(common.N(actionTypeName), buf) //TODO
 	//fmt.Println(buf)
 	action.Data, _ = a.EncodeAction(actType, buf)
+
 	//fmt.Println("data: ",action.Name,action.Data)
 	//if err != nil {
 	//	log.Error("tester GetAction EncodeAction is error:%s", err)
