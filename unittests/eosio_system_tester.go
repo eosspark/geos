@@ -20,6 +20,9 @@ var producer2 = common.N("defproducerb")
 var producer3 = common.N("defproducerc")
 var voter1 = common.N("producvotera")
 var voter2 = common.N("producvoterb")
+var voter3 = common.N("producvoterc")
+var voter4 = common.N("producvoterd")
+
 
 type EosioSystemTester struct {
 	ValidatingTester
@@ -46,7 +49,7 @@ func initEosioSystemTester() *EosioSystemTester {
 
 	e.ProduceBlocks(2, false)
 	e.CreateAccounts([]common.AccountName{eosioToken, eosioRam, eosioRamFee, eosioStake,
-		eosioBpay, eosioVpay, eosioSaving}, false, true)
+		eosioBpay, eosioVpay, eosioSaving, eosioName}, false, true)
 	e.ProduceBlocks(100, false)
 
 	//eosio.token
@@ -391,6 +394,24 @@ func (e EosioSystemTester) UnStake(from common.AccountName, to common.AccountNam
 	}
 	act := common.N("undelegatebw")
 	return e.EsPushAction(&from, &act, &unStake, true)
+}
+
+func (e EosioSystemTester) BidName(bidder common.AccountName, newName common.AccountName, bid common.Asset) ActionResult {
+	bidName := common.Variants{
+		"bidder":  bidder,
+		"newname": newName,
+		"bid":     bid,
+	}
+	act := common.N("bidname")
+	return e.EsPushAction(&bidder, &act, &bidName, true)
+}
+
+func (e EosioSystemTester) SetRam(signer common.AccountName, maxRamSize uint64) ActionResult {
+	setRam := common.Variants{
+		"max_ram_size": maxRamSize,
+	}
+	act := common.N("setram")
+	return e.EsPushAction(&signer, &act, &setRam, true)
 }
 
 func (e EosioSystemTester) RegProducer(acnt common.AccountName) ActionResult {

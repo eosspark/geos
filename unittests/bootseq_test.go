@@ -13,7 +13,7 @@ import (
 
 type genesisAccount struct {
 	Aname          common.AccountName
-	InitialBlanace uint64
+	InitialBalance uint64
 }
 
 var testGenesis = []genesisAccount{
@@ -235,7 +235,6 @@ func (e *BootSeqTester) setCodeAbi(account common.AccountName, wasm []byte, abi 
 func TestBootSeq(t *testing.T) {
 
 	b := newBootSeqTester(true, chain.SPECULATIVE)
-
 	b.CreateAccounts([]common.AccountName{
 		common.N("eosio.msig"),
 		common.N("eosio.token"),
@@ -263,5 +262,65 @@ func TestBootSeq(t *testing.T) {
 
 	eosioTokenAcc := b.Control.GetAccount(common.N("eosio.token"))
 	assert.Equal(t, eosioTokenAcc.Privileged, true)
+
+	maxSupply := CoreFromString("10000000000.0000")
+	initialSupply := CoreFromString("1000000000.0000")
+
+	b.createCurrency(common.N("eosio.token"), common.DefaultConfig.SystemAccountName, maxSupply, nil)
+	b.issue(common.N("eosio.token"), common.DefaultConfig.SystemAccountName, common.DefaultConfig.SystemAccountName, initialSupply)
+
+	actual := b.getBalance(common.DefaultConfig.SystemAccountName)
+	assert.Equal(t, actual, initialSupply)
+
+	for _, a := range testGenesis {
+		b.CreateAccount(a.Aname, common.DefaultConfig.SystemAccountName, false, true)
+	}
+
+	wasm, _ = ioutil.ReadFile("test_contracts/eosio_system.wasm")
+	abi, _ = ioutil.ReadFile("test_contracts/eosio_system.abi")
+	b.setCodeAbi(common.DefaultConfig.SystemAccountName, wasm, abi, nil)
+
+	for _, a := range testGenesis {
+		ib := a.InitialBalance
+		ram := uint64(1000)
+		net := (ib - ram) / 2
+		cpu := ib - net - ram
+
+		r := b.buyram(common.DefaultConfig.SystemAccountName, a.Aname, common.Asset{int64(ram), CORE_SYMBOL})
+		assert.Equal(t, common.Empty(r.ExceptPtr), true)
+
+		r = b.delegateBandwidth(common.N("eosio.stake"), a.Aname, common.Asset{int64(net), CORE_SYMBOL}, common.Asset{int64(cpu), CORE_SYMBOL}, 1)
+		assert.Equal(t, common.Empty(r.ExceptPtr), true)
+	}
+
+	producerCandidates := []common.AccountName{
+		common.N("proda"), common.N("prodb"), common.N("prodc"), common.N("prodd"), common.N("prode"), common.N("prodf"), common.N("prodg"),
+		common.N("prodh"), common.N("prodi"), common.N("prodj"), common.N("prodk"), common.N("prodl"), common.N("prodm"), common.N("prodn"),
+		common.N("prodo"), common.N("prodp"), common.N("prodq"), common.N("prodr"), common.N("prods"), common.N("prodt"), common.N("produ"),
+		common.N("runnerup1"), common.N("runnerup2"), common.N("runnerup3")}
+
+	for _, pro := range producerCandidates {
+		b.registerProducer(pro)
+	}
+
+	votepro := func(voter common.AccountName, producers []common.AccountName) {
+
+		actType := common.N("voteproducer")
+		b.PushAction2(&common.DefaultConfig.SystemAccountName, &actType, voter,
+			&common.Variants{
+				"voter":     voter,
+				"proxy":     0,
+				"producers": producers},
+			b.DefaultExpirationDelta,
+			0)
+	}
+
+	votepro(common.N("b1"), []common.AccountName{common.N("proda"), common.N("prodb"), common.N("prodc"), common.N("prodd"), common.N("prode"), common.N("prodf"), common.N("prodg"),
+		common.N("prodh"), common.N("prodi"), common.N("prodj"), common.N("prodk"), common.N("prodl"), common.N("prodm"), common.N("prodn"),
+		common.N("prodo"), common.N("prodp"), common.N("prodq"), common.N("prodr"), common.N("prods"), common.N("prodt"), common.N("produ")})
+	votepro(common.N("whale2"), []common.AccountName{common.N("runnerup1"), common.N("runnerup2"), common.N("runnerup3")})
+	votepro(common.N("whale3"), []common.AccountName{common.N("proda"), common.N("prodb"), common.N("prodc"), common.N("prodd"), common.N("prode")})
+
+	assert.Equal(t, b.getGlobalState()["total_activated_stake"].(int64), 1499999997000)
 
 }

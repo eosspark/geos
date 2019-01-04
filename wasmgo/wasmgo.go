@@ -39,6 +39,8 @@ var (
 	envModule *wasm.Module
 	ignore    bool = false
 	debug     bool = false
+
+	vmCache = make(map[crypto.Sha256]*VM) //
 )
 
 type size_t int
@@ -264,38 +266,45 @@ func NewWasmGo() *WasmGo {
 func (w *WasmGo) Apply(code_id *crypto.Sha256, code []byte, context EnvContext) {
 	w.context = context
 
-	context.PauseBillingTimer()
+	var vm *VM = vmCache[*code_id]
+	//if vm, _ = vmCache[*code_id];
+	if vm != nil {
+		vm.WasmGo = w
+	} else {
+		context.PauseBillingTimer()
+		bf := bytes.NewReader(code)
 
-	bf := bytes.NewReader(code)
+		m, err := wasm.ReadModule(bf, w.importer)
+		if err != nil {
+			w.ilog.Error("could not read module: %v", err)
+		}
 
-	m, err := wasm.ReadModule(bf, w.importer)
-	if err != nil {
-		w.ilog.Error("could not read module: %v", err)
+		//if *verify {
+		//if true {
+		//	err = validate.VerifyModule(m)
+		//	if err != nil {
+		//		log.Fatalf("could not verify module: %v", err)
+		//	}
+		//}
+
+		if m.Export == nil {
+			w.ilog.Error("module has no export section")
+		}
+
+		vm, err = NewVM(m, w)
+		if err != nil {
+			w.ilog.Error("could not create VM: %v", err)
+		}
+
+		vmCache[*code_id] = vm
+
+		//fidx := m.Function.Types[int(i)]
+		//ftype := m.Types.Entries[int(fidx)]
+		context.ResumeBillingTimer()
 	}
 
-	//if *verify {
-	//if true {
-	//	err = validate.VerifyModule(m)
-	//	if err != nil {
-	//		log.Fatalf("could not verify module: %v", err)
-	//	}
-	//}
-
-	if m.Export == nil {
-		w.ilog.Error("module has no export section")
-	}
-
-	vm, err := NewVM(m, w)
-	if err != nil {
-		w.ilog.Error("could not create VM: %v", err)
-	}
-
-	e, _ := m.Export.Entries["apply"]
+	e, _ := vm.module.Export.Entries["apply"]
 	i := int64(e.Index)
-	//fidx := m.Function.Types[int(i)]
-	//ftype := m.Types.Entries[int(fidx)]
-
-	context.ResumeBillingTimer()
 
 	args := make([]uint64, 3)
 	args[0] = uint64(context.GetReceiver())
