@@ -16,20 +16,10 @@ import (
 	"strings"
 )
 
-type system struct {
-	c *Console
-}
-
-func newSystem(c *Console) *system {
-	s := &system{
-		c: c,
-	}
-	return s
-}
-
 type ConsoleInterface interface {
 	getOptions() *StandardTransactionOptions
 }
+
 type StandardTransactionOptions struct {
 	Expiration        uint64   `json:"expiration"`
 	TxForceUnique     bool     `json:"force_unique"`
@@ -72,6 +62,17 @@ func readParams(params interface{}, call otto.FunctionCall) {
 	rawReq := reqVal.String()
 	dec := json.NewDecoder(strings.NewReader(rawReq))
 	dec.Decode(&params)
+}
+
+type system struct {
+	c *Console
+}
+
+func newSystem(c *Console) *system {
+	s := &system{
+		c: c,
+	}
+	return s
 }
 
 func (s *system) NewAccount(call otto.FunctionCall) (response otto.Value) {
@@ -690,6 +691,7 @@ func (s *system) Regproxy(call otto.FunctionCall) (response otto.Value) {
 	re := sendActions([]*types.Action{action}, 1000, types.CompressionNone, &params)
 	return getJsResult(call, re)
 }
+
 func (s *system) Unregproxy(call otto.FunctionCall) (response otto.Value) {
 	var params RegproxyParams
 	readParams(&params, call)

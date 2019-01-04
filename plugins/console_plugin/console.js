@@ -62,12 +62,12 @@ eos.CreateAccount({
     active: 'EOS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV',
 });
 eos.SetCode({
-account:'eosio.token',
-code_file:'/Users/walker/go/src/github.com/eosspark/eos-go/programs/contract/eosio.token/eosio.token.wasm'
+    account:'eosio.token',
+    code_file:'../../contracts/eosio.token/eosio.token.wasm'
 });
 eos.SetAbi({
 account:'eosio.token',
-abi_file:'/Users/walker/go/src/github.com/eosspark/eos-go/programs/contract/eosio.token/eosio.token.abi'
+abi_file:'../../contracts/eosio.token/eosio.token.abi'
 });
 eos.PushAction({
   account:'eosio.token',
@@ -95,29 +95,25 @@ eos.PushAction({
 })
 eos.SetCode({
 account:'eosio',
-code_file:'/Users/walker/go/src/github.com/eosspark/eos-go/programs/contract/eosio.bios/eosio.bios.wasm'
+code_file:'../../contracts/eosio.bios/eosio.bios.wasm'
 });
 eos.SetAbi({
 account:'eosio',
-abi_file:'/Users/walker/go/src/github.com/eosspark/eos-go/programs/contract/eosio.bios/eosio.bios.abi'
+abi_file:'../../contracts/eosio.bios/eosio.bios.abi'
 });
 eos.SetCode({
 account:'eosio.msig',
-code_file:'/Users/walker/go/src/github.com/eosspark/eos-go/programs/contract/eosio.msig/eosio.msig.wasm'
+code_file:'../../contracts/eosio.msig/eosio.msig.wasm'
 });
 eos.SetAbi({
 account:'eosio.msig',
-abi_file:'/Users/walker/go/src/github.com/eosspark/eos-go/programs/contract/eosio.msig/eosio.msig.abi'
+abi_file:'../../contracts/eosio.msig/eosio.msig.abi'
 });
-// eos.SetCode({
-// account:'eosio',
-// code_file:'/Users/walker/go/src/github.com/eosspark/eos-go/programs/contract/eosio.system/eosio.system.wasm'
-// });
-// eos.SetAbi({
-// account:'eosio.system',
-// abi_file:'../contract/eosio.system/eosio.system.abi'
-// });
-// eos.SetAbi({
-// account:'eosio',
-// abi_file:'../contract/eosio.system/eosio.system.abi'
-// });
+eos.SetCode({
+account:'eosio',
+code_file:'../../contracts/eosio.system/eosio.system.wasm'
+});
+eos.SetAbi({
+account:'eosio',
+abi_file:'../../contracts/eosio.system/eosio.system.abi'
+});
