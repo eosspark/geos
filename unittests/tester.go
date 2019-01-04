@@ -3,7 +3,6 @@ package unittests
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"github.com/eosspark/container/sets/treeset"
 	. "github.com/eosspark/eos-go/chain"
 	abi "github.com/eosspark/eos-go/chain/abi_serializer"
@@ -392,15 +391,15 @@ func (t BaseTester) PushAction4(code *common.AccountName, acttype *common.Accoun
 	return t.PushTransaction(&trx, common.MaxTimePoint(), t.DefaultBilledCpuTimeUs)
 }
 
-func (t BaseTester) GetResolver() func (name common.AccountName) *abi.AbiSerializer{
+func (t BaseTester) GetResolver() func(name common.AccountName) *abi.AbiSerializer {
 	return func(name common.AccountName) *abi.AbiSerializer {
 		var r *abi.AbiSerializer
 		try.Try(func() {
-			accObj := entity.AccountObject{Name:name}
-			t.Control.DB.Find("byName",accObj,&accObj)
+			accObj := entity.AccountObject{Name: name}
+			t.Control.DB.Find("byName", accObj, &accObj)
 			var abid abi.AbiDef
-			if abi.ToABI(accObj.Abi,&abid) {
-				r = abi.NewAbiSerializer(&abid,t.AbiSerializerMaxTime)
+			if abi.ToABI(accObj.Abi, &abid) {
+				r = abi.NewAbiSerializer(&abid, t.AbiSerializerMaxTime)
 			}
 		}).FcRethrowExceptions(log.LvlError, "Failed to find or parse ABI for %s", name)
 		return r
@@ -764,11 +763,7 @@ func (t BaseTester) StringToUint8Vector(s string) []uint8 {
 
 func (t BaseTester) ToUint64(x common.Variant) uint64 {
 	var bytes []uint8
-	err := common.FromVariant(x, &bytes)
-	if err != nil {
-		fmt.Println("from variant is error: ", err)
-		return 0 //TODO
-	}
+	common.FromVariant(x, &bytes)
 	var re uint64
 	try.FcAssert(len(bytes) == 8)
 	for i := uint8(0); i < 8; i++ {
@@ -779,11 +774,7 @@ func (t BaseTester) ToUint64(x common.Variant) uint64 {
 }
 func (t BaseTester) ToString(x common.Variant) string {
 	var bytes []uint8
-	err := common.FromVariant(x, &bytes)
-	if err != nil {
-		fmt.Println("from variant is error: ", err)
-		return "" //TODO
-	}
+	common.FromVariant(x, &bytes)
 	return string(bytes)
 }
 
