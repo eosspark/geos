@@ -18,22 +18,7 @@ import (
 	"strings"
 )
 
-//var txExpiration = common.Seconds(30)         //30s
 var abiSerializerMaxTime = common.Seconds(10) // No risk to client side serialization taking a long time
-//var txRefBlockNumOrID string
-//var txForceUnique = false
-//var txDontBroadcast = false
-//var txReturnPacked = false
-//var txSkipSign = false
-//var txPrintJson = false
-//var printRequest = false
-//var printResponse = false
-
-//var txMaxCpuUsage uint8 = 0
-//var txMaxNetUsage uint32 = 0
-
-//var delaySec uint32 = 0
-
 var clog log.Logger
 
 func init() {
