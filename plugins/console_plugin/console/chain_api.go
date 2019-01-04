@@ -3,27 +3,24 @@ package console
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/eosspark/eos-go/chain/abi_serializer"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/exception"
 	"github.com/eosspark/eos-go/exception/try"
-	"github.com/eosspark/eos-go/log"
 	"github.com/eosspark/eos-go/plugins/chain_plugin"
 	"github.com/robertkrimen/otto"
 	"strings"
 )
 
 type chainAPI struct {
-	c   *Console
-	log log.Logger
+	c *Console
 }
 
 func newchainAPI(c *Console) *chainAPI {
 	e := &chainAPI{
 		c: c,
 	}
-	e.log = log.New("chainAPI")
-	e.log.SetHandler(log.TerminalHandler)
 	return e
 }
 
@@ -89,7 +86,7 @@ func (a *chainAPI) GetAccount(call otto.FunctionCall) otto.Value {
 	var resp chain_plugin.GetAccountResult
 	err = DoHttpCall(&resp, common.GetAccountFunc, common.Variants{"account_name": name})
 	if err != nil {
-		a.log.Error("get account is error: %s", err.Error())
+		clog.Error("get account is error: %s", err.Error())
 	}
 	return getJsResult(call, resp)
 }
@@ -171,11 +168,11 @@ func (a *chainAPI) GetCode(call otto.FunctionCall) otto.Value { //TODO save to f
 	if err != nil {
 		return otto.UndefinedValue()
 	}
-	a.log.Debug("%s,%s,%s,%s", name, code, abi, wasm)
+	clog.Debug("%s,%s,%s,%s", name, code, abi, wasm)
 	var resp chain_plugin.GetCodeResult
 	err = DoHttpCall(&resp, common.GetCodeFunc, common.Variants{"account_name": name, "code_as_wasm": true})
 	if err != nil {
-		a.log.Error("get abi is error: %s", err.Error())
+		clog.Error("get abi is error: %s", err.Error())
 	}
 	return getJsResult(call, resp)
 }
@@ -205,7 +202,7 @@ func (a *chainAPI) GetAbi(call otto.FunctionCall) otto.Value { //TODO save to fi
 	var resp chain_plugin.GetAbiResult
 	err = DoHttpCall(&resp, common.GetAbiFunc, common.Variants{"account_name": name})
 	if err != nil {
-		a.log.Error("get abi is error: %s", err.Error())
+		clog.Error("get abi is error: %s", err.Error())
 	}
 	return getJsResult(call, resp)
 }
@@ -330,7 +327,7 @@ func (a *chainAPI) GetTable(call otto.FunctionCall) (response otto.Value) {
 		"key_type":       "",
 		"index_position": 1})
 	if err != nil {
-		a.log.Error("get abi is error: %s", err.Error())
+		clog.Error("get abi is error: %s", err.Error())
 	}
 	return getJsResult(call, resp)
 }
@@ -365,7 +362,7 @@ func (a *chainAPI) GetScope(call otto.FunctionCall) (response otto.Value) {
 		"upper_bound": upBound,
 		"limit":       limit})
 	if err != nil {
-		a.log.Error("get abi is error: %s", err.Error())
+		clog.Error("get abi is error: %s", err.Error())
 	}
 	return getJsResult(call, resp)
 }
@@ -392,7 +389,7 @@ func (a *chainAPI) GetCurrencyBalance(call otto.FunctionCall) (response otto.Val
 	var resp []common.Asset
 	err = DoHttpCall(&resp, common.GetCurrencyBalanceFunc, common.Variants{"account_name": accountName, "code": code, "symbol": symbol})
 	if err != nil {
-		a.log.Error("GetCurrencyBalance is error: %s", err.Error())
+		clog.Error("GetCurrencyBalance is error: %s", err.Error())
 	}
 
 	for i := 0; i < len(resp); i++ {
@@ -410,10 +407,10 @@ func (a *chainAPI) GetCurrencyStats(call otto.FunctionCall) (response otto.Value
 	if err != nil {
 		return otto.UndefinedValue()
 	}
-	var resp chain_plugin.GEtCurrencyStatsResult
+	var resp chain_plugin.GetCurrencyStatsResult
 	err = DoHttpCall(&resp, common.GetCurrencyStatsFunc, common.Variants{"code": code, "symbol": symbol})
 	if err != nil {
-		a.log.Error("GetCurrencyBalance is error: %s", err.Error())
+		clog.Error("GetCurrencyBalance is error: %s", err.Error())
 	}
 	return getJsResult(call, nil)
 }
@@ -462,7 +459,7 @@ func (a *chainAPI) GetSchedule(call otto.FunctionCall) (response otto.Value) {
 	var resp chain_plugin.GetProducerScheduleResult
 	err = DoHttpCall(&resp, common.GetScheduleFunc, nil)
 	if err != nil {
-		a.log.Error("GetCurrencyBalance is error: %s", err.Error())
+		clog.Error("GetCurrencyBalance is error: %s", err.Error())
 	}
 	if printJSON {
 		return getJsResult(call, nil)
@@ -492,5 +489,63 @@ func print(name string, schedule common.Variant) {
 		fmt.Printf("    %-13s %s\n", row.ProducerName.String(), row.BlockSigningKey.String())
 	}
 	fmt.Printf("\n")
+
+}
+
+func (a *chainAPI) GetTransactionID(call otto.FunctionCall) (response otto.Value) {
+	var trx types.Transaction
+	JSON, _ := call.Otto.Object("JSON")
+	reqVal, err := JSON.Call("stringify", call.Argument(0))
+	if err != nil {
+		throwJSException(fmt.Sprintf("Fail to parse transaction JSON %s", reqVal.String()))
+	}
+	err = json.NewDecoder(strings.NewReader(reqVal.String())).Decode(&trx)
+	if err != nil {
+		throwJSException(fmt.Sprintf("Fail to parse transaction JSON %s", reqVal.String()))
+	}
+	id := trx.ID()
+
+	return getJsResult(call, id)
+}
+
+/*
+TODO  convert
+pack_transaction            From plain signed json to packed form
+unpack_transaction          From packed to plain signed json form
+pack_action_data            From json action data to packed form
+unpack_action_data          From packed to json action data form
+*/
+
+//string plain_signed_transaction_json;
+//bool pack_action_data_flag = false;
+func (a *chainAPI) ConvertPackTransaction(call otto.FunctionCall) (response otto.Value) {
+	plainSignedTransactionJson, err := call.Argument(0).ToString()
+	if err != nil {
+		return otto.UndefinedValue()
+	}
+	packActionDataFlag, err := call.Argument(1).ToBoolean()
+	if err != nil {
+		return otto.UndefinedValue()
+	}
+	var trx types.SignedTransaction
+	var trxVar common.Variants
+	err = json.Unmarshal([]byte(plainSignedTransactionJson), &trxVar)
+	if err != nil {
+		return throwJSException(err.Error())
+	}
+
+	packedTrx := &types.PackedTransaction{}
+	if packActionDataFlag {
+		abi_serializer.FromVariant(&trxVar, &trx, abisSerializerResolver, abiSerializerMaxTime)
+		packedTrx = types.NewPackedTransactionBySignedTrx(&trx, types.CompressionNone)
+	} else {
+		err = json.Unmarshal([]byte(plainSignedTransactionJson), &trx)
+		if err != nil {
+			return throwJSException(err.Error())
+		}
+		packedTrx = types.NewPackedTransactionBySignedTrx(&trx, types.CompressionNone)
+
+	}
+	return getJsResult(call, packedTrx)
 
 }

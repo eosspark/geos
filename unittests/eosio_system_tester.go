@@ -15,6 +15,14 @@ import (
 )
 
 var producer = common.N("producer1111")
+var producer1 = common.N("defproducera")
+var producer2 = common.N("defproducerb")
+var producer3 = common.N("defproducerc")
+var voter1 = common.N("producvotera")
+var voter2 = common.N("producvoterb")
+var voter3 = common.N("producvoterc")
+var voter4 = common.N("producvoterd")
+
 
 type EosioSystemTester struct {
 	ValidatingTester
@@ -41,7 +49,7 @@ func initEosioSystemTester() *EosioSystemTester {
 
 	e.ProduceBlocks(2, false)
 	e.CreateAccounts([]common.AccountName{eosioToken, eosioRam, eosioRamFee, eosioStake,
-		eosioBpay, eosioVpay, eosioSaving}, false, true)
+		eosioBpay, eosioVpay, eosioSaving, eosioName}, false, true)
 	e.ProduceBlocks(100, false)
 
 	//eosio.token
@@ -184,6 +192,12 @@ func (e EosioSystemTester) CreateAccountWithResources(name common.AccountName, c
 	chainId := e.Control.GetChainId()
 	trx.Sign(&pk, &chainId)
 	return e.PushTransaction(&trx, common.MaxTimePoint(), e.DefaultBilledCpuTimeUs)
+}
+
+func (e EosioSystemTester) CreateAccountsWithResources(accounts []common.AccountName, creator common.AccountName) {
+	for _, a := range accounts {
+		e.CreateAccountWithResources2(a, creator, 8000)
+	}
 }
 
 func (e EosioSystemTester) CreateAccountWithResources2(name common.AccountName, creator common.AccountName, ramBytes uint32) *types.TransactionTrace {
@@ -382,6 +396,24 @@ func (e EosioSystemTester) UnStake(from common.AccountName, to common.AccountNam
 	return e.EsPushAction(&from, &act, &unStake, true)
 }
 
+func (e EosioSystemTester) BidName(bidder common.AccountName, newName common.AccountName, bid common.Asset) ActionResult {
+	bidName := common.Variants{
+		"bidder":  bidder,
+		"newname": newName,
+		"bid":     bid,
+	}
+	act := common.N("bidname")
+	return e.EsPushAction(&bidder, &act, &bidName, true)
+}
+
+func (e EosioSystemTester) SetRam(signer common.AccountName, maxRamSize uint64) ActionResult {
+	setRam := common.Variants{
+		"max_ram_size": maxRamSize,
+	}
+	act := common.N("setram")
+	return e.EsPushAction(&signer, &act, &setRam, true)
+}
+
 func (e EosioSystemTester) RegProducer(acnt common.AccountName) ActionResult {
 	regproducer := common.Variants{
 		"producer":     acnt,
@@ -397,6 +429,24 @@ func (e EosioSystemTester) RegProducer(acnt common.AccountName) ActionResult {
 	return r
 }
 
+func (e EosioSystemTester) RegProxy(acnt common.AccountName) ActionResult {
+	act := common.N("regproxy")
+	regproxy := common.Variants{
+		"proxy":   acnt,
+		"isproxy": true,
+	}
+	return e.EsPushAction(&acnt, &act, &regproxy, true)
+}
+
+func (e EosioSystemTester) UnRegProxy(acnt common.AccountName) ActionResult {
+	act := common.N("regproxy")
+	regproxy := common.Variants{
+		"proxy":   acnt,
+		"isproxy": false,
+	}
+	return e.EsPushAction(&acnt, &act, &regproxy, true)
+}
+
 func (e EosioSystemTester) Vote(voter common.AccountName, producers []common.AccountName, proxy common.AccountName) ActionResult {
 	vote := common.Variants{
 		"voter":     voter,
@@ -405,6 +455,15 @@ func (e EosioSystemTester) Vote(voter common.AccountName, producers []common.Acc
 	}
 	act := common.N("voteproducer")
 	r := e.EsPushAction(&voter, &act, &vote, true)
+	return r
+}
+
+func (e EosioSystemTester) ClaimRewards(producer common.AccountName) ActionResult {
+	claimrewards := common.Variants{
+		"owner": producer,
+	}
+	act := common.N("claimrewards")
+	r := e.EsPushAction(&producer, &act, &claimrewards, true)
 	return r
 }
 
@@ -459,11 +518,11 @@ func (e EosioSystemTester) GetVoterInfo(act common.AccountName) common.Variants 
 		res := VoterInfo{}
 		rlp.DecodeBytes(data, &res)
 		return common.Variants{
-			"owner":               res.Owner,
-			"proxy":               res.Proxy,
-			"producers":           res.Producers,
-			"staked":              res.Staked,
-			"last_vote_weight":    res.LastVoteWeight,
+			"owner":     res.Owner,
+			"proxy":     res.Proxy,
+			"producers": res.Producers,
+			"staked":    res.Staked,
+			//"last_vote_weight":    res.LastVoteWeight,
 			"proxied_vote_weight": res.ProxiedVoteWeight,
 			"is_proxy":            res.IsProxy,
 		}
@@ -554,7 +613,73 @@ func (e EosioSystemTester) Transfer(from common.Name, to common.Name, amount com
 
 func (e EosioSystemTester) Stake2Votes(stake common.Asset) float64 {
 	now := e.Control.PendingBlockTime().TimeSinceEpoch().Count() / 1000000
-	return float64(stake.Amount) *  math.Pow(float64(2), float64((now - common.DefaultConfig.BlockTimestampEpochMs / 1000) / (86400 * 7)) / float64(52))
+	return float64(stake.Amount) * math.Pow(float64(2), float64((now-common.DefaultConfig.BlockTimestampEpochMs/1000)/(86400*7))/float64(52))
+}
+
+func (e EosioSystemTester) GetStats(symbol common.Symbol) common.Variants {
+	type CurrencyStats struct {
+		Supply    common.Asset
+		MaxSupply common.Asset
+		Issuer    common.AccountName
+	}
+	symbolCode := symbol.ToSymbolCode()
+	data := e.GetRowByAccount(uint64(eosioToken), uint64(symbolCode), uint64(common.N("stat")), uint64(symbolCode))
+	if len(data) == 0 {
+		return common.Variants{}
+	} else {
+		res := CurrencyStats{}
+		rlp.DecodeBytes(data, &res)
+		return common.Variants{
+			"supply":     res.Supply,
+			"max_supply": res.MaxSupply,
+			"issuer":     res.Issuer,
+		}
+	}
+}
+
+func (e EosioSystemTester) GetTokenSupply() common.Asset {
+	return e.GetStats(CORE_SYMBOL)["supply"].(common.Asset)
+}
+
+func (e EosioSystemTester) GetGlobalState() common.Variants {
+	type EosioGlobalState struct {
+		types.ChainConfig
+		MaxRamSize                     uint64
+		TotalRamBytesReserved          uint64
+		TotalRamStake                  int64
+		LastProducerScheduleUpdate     types.BlockTimeStamp
+		LastPervoteBucketFill          uint64
+		PervoteBucket                  int64
+		PerblockBucket                 int64
+		TotalUnpaidBlocks              uint32
+		TotalActivatedStake            int64
+		ThreshActivatedStakeTime       uint64
+		LastProducerScheduleSize       uint16
+		TotalProducerVoteWeight        float64
+		LastNameClose                  types.BlockTimeStamp
+	}
+	data := e.GetRowByAccount(uint64(eosio), uint64(eosio), uint64(common.N("global")), uint64(common.N("global")))
+	if len(data) == 0 {
+		return common.Variants{}
+	} else {
+		res := EosioGlobalState{}
+		rlp.DecodeBytes(data, &res)
+		return common.Variants{
+			"max_ram_size":                  res.MaxRamSize,
+			"total_ram_bytes_reserved":      res.TotalRamBytesReserved,
+			"total_ram_stake":               res.TotalRamStake,
+			"last_producer_schedule_update": res.LastProducerScheduleUpdate,
+			"last_pervote_bucket_fill":      res.LastPervoteBucketFill,
+			"pervote_bucket":                res.PervoteBucket,
+			"perblock_bucket":               res.PerblockBucket,
+			"total_unpaid_blocks":           res.TotalUnpaidBlocks,
+			"total_activated_stake":         res.TotalActivatedStake,
+			"thresh_activated_stake_time":   res.ThreshActivatedStakeTime,
+			"last_producer_schedule_size":   res.LastProducerScheduleSize,
+			"total_producer_vote_weight":    res.TotalProducerVoteWeight,
+			"last_name_close":               res.LastNameClose,
+		}
+	}
 }
 
 func (e EosioSystemTester) GetRefundRequest(account common.AccountName) common.Variants {
@@ -635,20 +760,32 @@ func (e EosioSystemTester) Cross15PercentThreshold() {
 
 }
 
-func (e EosioSystemTester) Voter(acct common.AccountName) common.Variants {
+func (e EosioSystemTester) Voter(acnt common.AccountName) common.Variants {
 	return common.Variants{
-		"owner":               acct,
-		"proxy":               common.AccountName(0),
-		"producers":           []common.AccountName{},
-		"staked":              int64(0),
-		"last_vote_weight":    float64(0),
- 		"proxied_vote_weight": float64(0),
+		"owner":     acnt,
+		"proxy":     common.AccountName(0),
+		"producers": []common.AccountName{},
+		"staked":    int64(0),
+		//"last_vote_weight":    float64(0),
+		"proxied_vote_weight": float64(0),
 		"is_proxy":            false,
 	}
 }
 
-func (e EosioSystemTester) VoterAccountAsset(acct common.AccountName, voteStake common.Asset) common.Variants {
-	voter := e.Voter(acct)
+func (e EosioSystemTester) VoterAccountAsset(acnt common.AccountName, voteStake common.Asset) common.Variants {
+	voter := e.Voter(acnt)
+	voter["staked"] = voteStake.Amount
+	return voter
+}
+
+func (e EosioSystemTester) Proxy(acnt common.AccountName) common.Variants {
+	voter := e.Voter(acnt)
+	voter["is_proxy"] = true
+	return voter
+}
+
+func (e EosioSystemTester) ProxyStake(acnt common.AccountName, voteStake common.Asset) common.Variants {
+	voter := e.Proxy(acnt)
 	voter["staked"] = voteStake.Amount
 	return voter
 }

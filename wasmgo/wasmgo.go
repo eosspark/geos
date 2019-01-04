@@ -39,6 +39,8 @@ var (
 	envModule *wasm.Module
 	ignore    bool = false
 	debug     bool = false
+
+	vmCache = make(map[crypto.Sha256]*VM) //
 )
 
 type size_t int
@@ -114,6 +116,28 @@ func NewWasmGo() *WasmGo {
 	w.Register("db_idx64_previous", dbIdx64Previous)
 	w.Register("db_idx64_find_primary", dbIdx64FindPrimary)
 
+	w.Register("db_idx128_store", dbIdx128Store)
+	w.Register("db_idx128_remove", dbIdx128Remove)
+	w.Register("db_idx128_update", dbIdx128Update)
+	w.Register("db_idx128_find_secondary", dbIdx128findSecondary)
+	w.Register("db_idx128_lowerbound", dbIdx128Lowerbound)
+	w.Register("db_idx128_upperbound", dbIdx128Upperbound)
+	w.Register("db_idx128_end", dbIdx128End)
+	w.Register("db_idx128_next", dbIdx128Next)
+	w.Register("db_idx128_previous", dbIdx128Previous)
+	w.Register("db_idx128_find_primary", dbIdx128FindPrimary)
+
+	w.Register("db_idx256_store", dbIdx256Store)
+	w.Register("db_idx256_remove", dbIdx256Remove)
+	w.Register("db_idx256_update", dbIdx256Update)
+	w.Register("db_idx256_find_secondary", dbIdx256findSecondary)
+	w.Register("db_idx256_lowerbound", dbIdx256Lowerbound)
+	w.Register("db_idx256_upperbound", dbIdx256Upperbound)
+	w.Register("db_idx256_end", dbIdx256End)
+	w.Register("db_idx256_next", dbIdx256Next)
+	w.Register("db_idx256_previous", dbIdx256Previous)
+	w.Register("db_idx256_find_primary", dbIdx256FindPrimary)
+
 	w.Register("db_idx_double_store", dbIdxDoubleStore)
 	w.Register("db_idx_double_remove", dbIdxDoubleRemove)
 	w.Register("db_idx_double_update", dbIdxDoubleUpdate)
@@ -124,6 +148,17 @@ func NewWasmGo() *WasmGo {
 	w.Register("db_idx_double_next", dbIdxDoubleNext)
 	w.Register("db_idx_double_previous", dbIdxDoublePrevious)
 	w.Register("db_idx_double_find_primary", dbIdxDoubleFindPrimary)
+
+	w.Register("db_idx_long_double_store", dbIdxLongDoubleStore)
+	w.Register("db_idx_long_double_remove", dbIdxLongDoubleRemove)
+	w.Register("db_idx_long_double_update", dbIdxLongDoubleUpdate)
+	w.Register("db_idx_long_double_find_secondary", dbIdxLongDoublefindSecondary)
+	w.Register("db_idx_long_double_lowerbound", dbIdxLongDoubleLowerbound)
+	w.Register("db_idx_long_double_upperbound", dbIdxLongDoubleUpperbound)
+	w.Register("db_idx_long_double_end", dbIdxLongDoubleEnd)
+	w.Register("db_idx_long_double_next", dbIdxLongDoubleNext)
+	w.Register("db_idx_long_double_previous", dbIdxLongDoublePrevious)
+	w.Register("db_idx_long_double_find_primary", dbIdxLongDoubleFindPrimary)
 
 	w.Register("memcpy", memcpy)
 	w.Register("memmove", memmove)
@@ -223,46 +258,53 @@ func NewWasmGo() *WasmGo {
 
 	wasmGo.ilog = log.New("wasmgo")
 	logHandler := log.StreamHandler(os.Stdout, log.TerminalFormat(true))
-	//wasmGo.ilog.SetHandler(log.LvlFilterHandler(log.LvlDebug, logHandler))
-	wasmGo.ilog.SetHandler(log.LvlFilterHandler(log.LvlInfo, logHandler))
+	wasmGo.ilog.SetHandler(log.LvlFilterHandler(log.LvlDebug, logHandler))
+	//wasmGo.ilog.SetHandler(log.LvlFilterHandler(log.LvlInfo, logHandler))
 	return wasmGo
 }
 
 func (w *WasmGo) Apply(code_id *crypto.Sha256, code []byte, context EnvContext) {
 	w.context = context
 
-	context.PauseBillingTimer()
+	var vm *VM = vmCache[*code_id]
+	//if vm, _ = vmCache[*code_id];
+	if vm != nil {
+		vm.WasmGo = w
+	} else {
+		context.PauseBillingTimer()
+		bf := bytes.NewReader(code)
 
-	bf := bytes.NewReader(code)
+		m, err := wasm.ReadModule(bf, w.importer)
+		if err != nil {
+			w.ilog.Error("could not read module: %v", err)
+		}
 
-	m, err := wasm.ReadModule(bf, w.importer)
-	if err != nil {
-		w.ilog.Error("could not read module: %v", err)
+		//if *verify {
+		//if true {
+		//	err = validate.VerifyModule(m)
+		//	if err != nil {
+		//		log.Fatalf("could not verify module: %v", err)
+		//	}
+		//}
+
+		if m.Export == nil {
+			w.ilog.Error("module has no export section")
+		}
+
+		vm, err = NewVM(m, w)
+		if err != nil {
+			w.ilog.Error("could not create VM: %v", err)
+		}
+
+		vmCache[*code_id] = vm
+
+		//fidx := m.Function.Types[int(i)]
+		//ftype := m.Types.Entries[int(fidx)]
+		context.ResumeBillingTimer()
 	}
 
-	//if *verify {
-	//if true {
-	//	err = validate.VerifyModule(m)
-	//	if err != nil {
-	//		log.Fatalf("could not verify module: %v", err)
-	//	}
-	//}
-
-	if m.Export == nil {
-		w.ilog.Error("module has no export section")
-	}
-
-	vm, err := NewVM(m, w)
-	if err != nil {
-		w.ilog.Error("could not create VM: %v", err)
-	}
-
-	e, _ := m.Export.Entries["apply"]
+	e, _ := vm.module.Export.Entries["apply"]
 	i := int64(e.Index)
-	//fidx := m.Function.Types[int(i)]
-	//ftype := m.Types.Entries[int(fidx)]
-
-	context.ResumeBillingTimer()
 
 	args := make([]uint64, 3)
 	args[0] = uint64(context.GetReceiver())
@@ -375,7 +417,7 @@ func getUint256(vm *VM, index int) *eos_math.Uint256 {
 
 	//fmt.Println("getUint256")
 	var ret eos_math.Uint256
-	c := getMemory(vm, index, 16)
+	c := getMemory(vm, index, 32)
 	rlp.DecodeBytes(c, &ret)
 	return &ret
 }

@@ -32,6 +32,14 @@ type Asset struct {
 //	return nil
 //}
 
+func NewAssetWithCheck(a int64, id Symbol) *Asset {
+	re := &Asset{
+		Amount: a,
+		Symbol: id,
+	}
+	re.assert()
+	return re
+}
 func (a *Asset) assert() {
 	EosAssert(a.isAmountWithinRange(), &AssetTypeException{}, "magnitude of asset amount must be less than 2^62")
 	EosAssert(a.Symbol.Valid(), &AssetTypeException{}, "invalid symbol")

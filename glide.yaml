@@ -2,6 +2,7 @@ package: github.com/eosspark/eos-go
 import:
 - package: github.com/deckarep/golang-set
 - package: github.com/docker/docker
+  version: 1.12.x
   subpackages:
   - pkg/reexec
 - package: github.com/eapache/channels
@@ -35,7 +36,10 @@ import:
 - package: github.com/urfave/cli
 - package: github.com/valyala/bytebufferpool
 - package: github.com/valyala/tcplisten
-- package: golang.org/x/crypto/ripemd160
-- package: golang.org/x/net/proxy
-- package: golang.org/x/net/websocket
-- package: gopkg.in/natefinch/npipe.v2
+- package: golang.org/x/crypto
+  subpackages:
+  - ripemd160
+- package: golang.org/x/net
+  subpackages:
+  - proxy
+  - websocket

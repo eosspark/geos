@@ -7,21 +7,17 @@ import (
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/exception"
 	"github.com/eosspark/eos-go/exception/try"
-	"github.com/eosspark/eos-go/log"
 	"github.com/robertkrimen/otto"
 )
 
 type walletApi struct {
-	c   *Console
-	log log.Logger
+	c *Console
 }
 
 func newWalletApi(c *Console) *walletApi {
 	w := &walletApi{
 		c: c,
 	}
-	w.log = log.New("eosgo")
-	w.log.SetHandler(log.TerminalHandler)
 	return w
 }
 

@@ -24,6 +24,7 @@ import (
 
 var CORE_SYMBOL = common.Symbol{Precision: 4, Symbol: "SYS"}
 var CORE_SYMBOL_NAME = "SYS"
+var EPSINON = float64(0.001)
 var eosio = common.N("eosio")
 var eosioToken = common.N("eosio.token")
 var eosioRam = common.N("eosio.ram")
@@ -32,6 +33,7 @@ var eosioStake = common.N("eosio.stake")
 var eosioBpay = common.N("eosio.bpay")
 var eosioVpay = common.N("eosio.vpay")
 var eosioSaving = common.N("eosio.saving")
+var eosioName = common.N("eosio.names")
 var alice = common.N("alice1111111")
 var bob = common.N("bob111111111")
 var carol = common.N("carol1111111")
@@ -62,6 +64,24 @@ func newBaseTester(pushGenesis bool, readMode DBReadMode) *BaseTester {
 	t.LastProducedBlock = make(map[common.AccountName]common.BlockIdType)
 
 	t.init(pushGenesis, readMode)
+	return t
+}
+
+//for forked_test
+func newBaseTesterSecNode(pushGenesis bool, readMode DBReadMode) *BaseTester {
+	t := &BaseTester{}
+	t.DefaultExpirationDelta = 6
+	t.DefaultBilledCpuTimeUs = 2000
+	t.AbiSerializerMaxTime = 1000 * 1000
+	t.ChainTransactions = make(map[common.BlockIdType]types.TransactionReceipt)
+	t.LastProducedBlock = make(map[common.AccountName]common.BlockIdType)
+
+	cfg := newConfig(readMode)
+
+	t.Control = NewController(cfg)
+	if pushGenesis {
+		t.pushGenesisBlock()
+	}
 	return t
 }
 
@@ -118,7 +138,7 @@ func (t *BaseTester) open() {
 func (t *BaseTester) acceptedBlock(b *types.BlockState) {
 	try.EosAssert(b.SignedBlock != nil, &exception.BlockLogNotFound{}, "tester acceptedBlock is not found")
 	for _, receipt := range b.SignedBlock.Transactions {
-		if receipt.Trx.PackedTransaction != nil {
+		if !common.Empty(receipt.Trx.PackedTransaction) {
 			t.ChainTransactions[receipt.Trx.PackedTransaction.ID()] = receipt
 		} else {
 			id := receipt.Trx.TransactionID
@@ -199,7 +219,7 @@ func (t BaseTester) produceBlock(skipTime common.Microseconds, skipPendingTrxs b
 			for _, trx := range scheduledTrxs {
 				trace := t.Control.PushScheduledTransaction(&trx, common.MaxTimePoint(), 0)
 				if trace.Except != nil {
-					try.Throw(trace.Except)
+					//try.Throw(trace.Except)
 				}
 			}
 		}
@@ -420,6 +440,7 @@ func (t BaseTester) GetAction(code common.AccountName, actType common.AccountNam
 	//action.Data, _ = a.EncodeAction(common.N(actionTypeName), buf) //TODO
 	//fmt.Println(buf)
 	action.Data, _ = a.EncodeAction(actType, buf)
+
 	//fmt.Println("data: ",action.Name,action.Data)
 	//if err != nil {
 	//	log.Error("tester GetAction EncodeAction is error:%s", err)
@@ -455,6 +476,25 @@ func (t BaseTester) getPrivateKey(keyName common.Name, role string) ecc.PrivateK
 func (t BaseTester) getPublicKey(keyName common.Name, role string) ecc.PublicKey {
 	priKey := t.getPrivateKey(keyName, role)
 	return priKey.PublicKey()
+}
+
+func (t BaseTester) ProduceBlocksUntileEndOfRound() {
+	var blocksPerRound uint64
+	for {
+		blocksPerRound = uint64(len(t.Control.ActiveProducers().Producers) * common.DefaultConfig.ProducerRepetitions)
+		t.ProduceBlocks(1, false)
+
+		if uint64(t.Control.HeadBlockNum())%blocksPerRound == blocksPerRound-1 {
+			break
+		}
+	}
+}
+
+func (t BaseTester) ProduceBlocksForNrounds(numOfRounds int) {
+
+	for i := 0; i < numOfRounds; i++ {
+		t.ProduceBlocksUntileEndOfRound()
+	}
 }
 
 func (t BaseTester) ProduceBlock(skipTime common.Microseconds, skipFlag uint32) *types.SignedBlock {
@@ -698,8 +738,10 @@ func (t BaseTester) ChainHasTransaction(txId *common.BlockIdType) bool {
 }
 
 func (t BaseTester) GetTransactionReceipt(txId *common.BlockIdType) *types.TransactionReceipt {
-	val, _ := t.ChainTransactions[*txId]
-	return &val
+	if val, ok := t.ChainTransactions[*txId]; ok {
+		return &val
+	}
+	return nil
 }
 
 func (t BaseTester) GetCurrencyBalance(code *common.AccountName, assetSymbol *common.Symbol, account *common.AccountName) common.Asset {
@@ -889,6 +931,29 @@ func NewValidatingTesterTrustedProducers(trustedProducers *treeset.Set) *Validat
 	vt.init(true, SPECULATIVE)
 
 	return vt
+}
+
+func (vt ValidatingTester) PushAction(act *types.Action, authorizer common.AccountName) ActionResult {
+	trx := types.SignedTransaction{}
+	if !common.Empty(authorizer) {
+		act.Authorization = []types.PermissionLevel{{authorizer, common.DefaultConfig.ActiveName}}
+	}
+	trx.Actions = append(trx.Actions, act)
+	vt.SetTransactionHeaders(&trx.Transaction, vt.DefaultExpirationDelta, 0)
+	if !common.Empty(authorizer) {
+		chainId := vt.Control.GetChainId()
+		privateKey := vt.getPrivateKey(authorizer, "active")
+		trx.Sign(&privateKey, &chainId)
+	}
+	try.Try(func() {
+		vt.PushTransaction(&trx, common.MaxTimePoint(), vt.DefaultBilledCpuTimeUs)
+	}).Catch(func(ex exception.Exception) {
+		//log.Error("tester PushAction is error: %v", ex.DetailMessage())
+		try.Throw(ex)
+	}).End()
+	vt.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs), 0)
+	//BOOST_REQUIRE_EQUAL(true, chain_has_transaction(trx.id()))
+	return vt.Success()
 }
 
 func (vt ValidatingTester) ProduceBlocks(n uint32, empty bool) {

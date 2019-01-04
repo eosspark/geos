@@ -75,13 +75,17 @@ func (a *AbiDef) encode(binaryEncoder *rlp.Encoder, structName string, json []by
 
 func (a *AbiDef) encodeFields(binaryEncoder *rlp.Encoder, fields []FieldDef, json []byte) error {
 	for _, field := range fields {
-		abiLog.Debug("encode field: name: %s, type: %s", field.Name, field.Type)
+		abiLog.Error("encode field: name: %s, type: %s", field.Name, field.Type)
 
 		fieldType, isOptional, isArray := analyzeFieldType(field.Type)
 		typeName := a.TypeNameForNewTypeName(fieldType)
 		fieldName := field.Name
 		if typeName != field.Type {
 			abiLog.Debug("type is an alias, from  %s to %s", field.Type, typeName)
+			if !isArray && strings.HasSuffix(typeName, "[]") {
+				fieldType, isOptional, isArray = analyzeFieldType(typeName)
+				typeName = a.TypeNameForNewTypeName(fieldType)
+			}
 		}
 
 		err := a.encodeField(binaryEncoder, fieldName, typeName, isOptional, isArray, json)
@@ -239,15 +243,16 @@ func (a *AbiDef) writeField(binaryEncoder *rlp.Encoder, fieldName string, fieldT
 		}
 		object = common.TimePoint(t.UTC().Nanosecond() / int(time.Millisecond))
 	case "block_timestamp_type":
-		t, err := time.Parse("2006-01-02T15:04:05.999999-07:00", value.Str)
+		t, err := time.Parse("2006-01-02T15:04:05.000", value.Str)
 		if err != nil {
 			return fmt.Errorf("writing field: block_timestamp_type: %s", err)
 		}
 		slot := uint32(t.Unix() - 946684800)
 		object = types.BlockTimeStamp(slot)
 	case "name":
-		if len(value.Str) > 12 {
-			return fmt.Errorf("writing field: name: %s is to long. expected length of max 12 characters", value.Str)
+		if len(value.Str) > 13 { //todo 12 or 13??
+			fmt.Printf("writing field: name: %s is to long. expected length of max 13 characters\n", value.Str)
+			return fmt.Errorf("writing field: name: %s is to long. expected length of max 13 characters", value.Str)
 		}
 		object = common.N(value.Str)
 	case "bytes":

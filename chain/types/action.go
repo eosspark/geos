@@ -25,6 +25,11 @@ func (a Action) DataAs(t interface{}) {
 	}
 }
 
+type ContractTypesInterface interface {
+	GetAccount() common.AccountName
+	GetName() common.ActionName
+}
+
 // func (a Action) Digest() SHA256Bytes {
 // 	toEat := jsonActionToServer{
 // 		Account:       a.Account,

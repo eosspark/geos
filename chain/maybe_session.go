@@ -1,7 +1,6 @@
 package chain
 
 import (
-	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/database"
 )
 
@@ -22,19 +21,19 @@ func NewMaybeSession2() *MaybeSession {
 }
 
 func (m *MaybeSession) Squash() {
-	if !common.Empty(m.MSession) {
+	if m.MSession != nil {
 		m.MSession.Squash()
 	}
 }
 
 func (m *MaybeSession) Push() {
-	if !common.Empty(m.MSession) {
+	if m.MSession != nil {
 		m.MSession.Push()
 	}
 }
 
 func (m *MaybeSession) Undo() {
-	if !common.Empty(m.MSession) {
+	if m.MSession != nil {
 		m.MSession.Undo()
 	}
 }

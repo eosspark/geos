@@ -8,7 +8,6 @@ import (
 	"github.com/eosspark/eos-go/plugins/chain_api_plugin"
 	"github.com/eosspark/eos-go/plugins/chain_plugin"
 	"github.com/eosspark/eos-go/plugins/http_plugin"
-	"github.com/eosspark/eos-go/plugins/net_api_plugin"
 	"github.com/eosspark/eos-go/plugins/producer_plugin"
 	"github.com/eosspark/eos-go/plugins/wallet_api_plugin"
 	"github.com/eosspark/eos-go/plugins/wallet_plugin"
@@ -29,7 +28,7 @@ const (
 
 const EOSGO_VERSION = 0x0
 
-//go run main.go -e -p eosio --private-key [\"EOS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV\",\"5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3\"] --console
+//go run main.go -e -p eosio --private-key [\"EOS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV\",\"5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3\"] --max-transaction-age=999999 --console
 func main() {
 	try.Try(func() {
 
@@ -43,7 +42,7 @@ func main() {
 			chain_api_plugin.ChainAPiPlug,
 			wallet_api_plugin.WalletApiPlug,
 			wallet_plugin.WalletPlug,
-			net_api_plugin.NetApiPlug,
+			//net_api_plugin.NetApiPlug,
 
 			//console_plugin.ConsolePlug,
 			//net_plugin.NetPlug,
