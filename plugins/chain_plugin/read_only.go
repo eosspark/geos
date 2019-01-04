@@ -10,11 +10,23 @@ import (
 	math "github.com/eosspark/eos-go/common/eos_math"
 	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/ecc"
-	"github.com/eosspark/eos-go/entity"
+	"github.com/eosspark/eos-go/crypto/rlp"
+	. "github.com/eosspark/eos-go/entity"
 	. "github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/plugins/appbase/app"
 	"strconv"
+	"strings"
+)
+
+const (
+	KEYi64 = "i64"
+	i64    = "i64"
+	i128   = "i128"
+	i256   = "i256"
+	f64    = "float64"
+	f128   = "float128"
+	sha256 = "sha256"
 )
 
 type ReadOnly struct {
@@ -27,33 +39,61 @@ func NewReadOnly(db *chain.Controller, abiSerializerMaxTime common.Microseconds)
 	return &ReadOnly{db: db, abiSerializerMaxTime: abiSerializerMaxTime}
 }
 
+func GetAbi(db *chain.Controller, account common.Name) abi_serializer.AbiDef {
+	d := db.DataBase()
+	codeAccnt := &AccountObject{Name: account}
+	err := d.Find("byName", codeAccnt, codeAccnt)
+	EosAssert(err == nil, &AccountQueryException{}, "Fail to retrieve account for %s", account)
+	var abi abi_serializer.AbiDef
+	abi_serializer.ToABI(codeAccnt.Abi, &abi)
+	return abi
+}
+
+func GetTableType(abi *abi_serializer.AbiDef, tableName common.TableName) string {
+	for _, t := range abi.Tables {
+		if t.Name == tableName {
+			return t.IndexType
+		}
+	}
+	EosAssert(false, &ContractTableQueryException{}, "Table %s is not specified in the ABI", tableName)
+	return ""
+}
+
+func CopyInlineRow(obj *KeyValueObject, data *[]byte) {
+	*data = make([]byte, obj.Value.Size())
+	copy(*data, obj.Value)
+}
+
 func (ro *ReadOnly) SetShortenAbiErrors(f bool) {
 	ro.shortenAbiErrors = f
 }
 
-func (ro *ReadOnly) WalkKeyValueTable(code, scope, table common.Name, f func(interface{}) bool) {
+func (ro *ReadOnly) WalkKeyValueTable(code, scope, table common.Name, f func(KeyValueObject) bool) {
 	db := ro.db.DataBase()
-	tid := entity.TableIdObject{Code: common.AccountName(code),
-		Scope: common.ScopeName(scope),
-		Table: common.TableName(table),
-	}
-
+	tid := TableIdObject{Code: code, Scope: scope, Table: table}
 	err := db.Find("byCodeScopeTable", tid, &tid)
 	if err == nil { //TODO: check miss or error
-		idx, e := db.GetIndex("byScopePrimary", entity.KeyValueObject{})
-		EosAssert(e == nil, &DatabaseException{}, e.Error())
-		newTid := tid.ID + 1
-		lower, e1 := idx.LowerBound(tid)
-		EosAssert(e1 == nil, &DatabaseException{}, e.Error())
-		upper, e2 := idx.UpperBound(newTid)
-		EosAssert(e2 == nil, &DatabaseException{}, e.Error())
+		idx, err := db.GetIndex("byScopePrimary", KeyValueObject{})
+		ThrowIf(err != nil, err)
 
-		//TODO lower_bound & upper_bound
-		for lower != upper {
-			lower.Next()
+		nextTid := tid.ID + 1
+
+		lower, err := idx.LowerBound(KeyValueObject{TId: tid.ID})
+		ThrowIf(err != nil, err)
+
+		upper, err := idx.UpperBound(KeyValueObject{TId: nextTid})
+		ThrowIf(err != nil, err)
+
+		for itr := lower; !idx.CompareIterator(itr, upper); itr.Next() {
+			data := KeyValueObject{}
+			if err := itr.Data(&data); err != nil {
+				Throw(err)
+			}
+			if !f(data) {
+				break
+			}
 		}
 	}
-
 }
 
 func (ro *ReadOnly) GetInfo() *GetInfoResult {
@@ -123,11 +163,48 @@ func (ro *ReadOnly) GetBlockHeaderState(params GetBlockHeaderStateParams) GetBlo
 	return b.BlockHeaderState
 }
 
+type RamMarketExchangeState struct {
+	Ignore1    common.Asset
+	Ignore2    common.Asset
+	Ignore3    common.Asset
+	CoreSymbol common.Asset
+	Ignore4    common.Asset
+}
+
+func (ro *ReadOnly) ExtractCoreSymbol() common.Symbol {
+	coreSymbol := common.Symbol{} // Default to CORE_SYMBOL if the appropriate data structure cannot be found in the system contract table data
+
+	// The following code makes assumptions about the contract deployed on eosio account (i.e. the system contract) and how it stores its data.
+	d := ro.db.DataBase()
+	tid := TableIdObject{Code: common.N("eosio"), Scope: common.N("eosio"), Table: common.N("rammarket")}
+	err := d.Find("byCodeScopeTable", tid, &tid)
+	if err == nil {
+		idx, err := d.GetIndex("byScopePrimary", KeyValueObject{})
+		ThrowIf(err != nil, err)
+
+		it := KeyValueObject{TId: tid.ID, PrimaryKey: common.StringToSymbol(4, "RAMCORE")}
+		err = idx.Find(it, &it)
+		if err == nil {
+			ramMarketExchangeState := RamMarketExchangeState{}
+
+			err := rlp.DecodeBytes(it.Value, &ramMarketExchangeState)
+			if err != nil {
+				return coreSymbol
+			}
+
+			if ramMarketExchangeState.CoreSymbol.Symbol.Valid() {
+				coreSymbol = ramMarketExchangeState.CoreSymbol.Symbol
+			}
+		}
+	}
+	return coreSymbol
+}
+
 func (ro *ReadOnly) GetAccount(params GetAccountParams) GetAccountResult {
 	var result GetAccountResult
 	result.AccountName = params.AccountName
 
-	//d := ro.db.DataBase()
+	d := ro.db.DataBase()
 	rm := ro.db.GetMutableResourceLimitsManager()
 
 	result.HeadBlockNum = ro.db.HeadBlockNum()
@@ -146,103 +223,123 @@ func (ro *ReadOnly) GetAccount(params GetAccountParams) GetAccountResult {
 	result.CpuLimit = rm.GetAccountCpuLimitEx(result.AccountName, !grelisted)
 	result.RAMUsage = rm.GetAccountRamUsage(result.AccountName)
 
-	//TODO permissions
-	/*
-			  const auto& permissions = d.get_index<permission_index,by_owner>();
-		      auto perm = permissions.lower_bound( boost::make_tuple( params.account_name ) );
-		      while( perm != permissions.end() && perm->owner == params.account_name ) {
-		         /// T0D0: lookup perm->parent name
-		         name parent;
+	permissions, err := d.GetIndex("byOwner", PermissionObject{})
+	ThrowIf(err != nil, err)
+	lower, err := permissions.LowerBound(PermissionObject{Owner: params.AccountName})
+	ThrowIf(err != nil, err)
 
-		         // Don't lookup parent if null
-		         if( perm->parent._id ) {
-		            const auto* p = d.find<permission_object,by_id>( perm->parent );
-		            if( p ) {
-		               EOS_ASSERT(perm->owner == p->owner, invalid_parent_permission, "Invalid parent permission");
-		               parent = p->name;
-		            }
-		         }
+	for !permissions.CompareEnd(lower) {
+		perm := PermissionObject{}
+		err = lower.Data(perm)
+		ThrowIf(err != nil, err)
 
-		         result.permissions.push_back( permission{ perm->name, parent, perm->auth.to_authority() } );
-		         ++perm;
-		      }
-	*/
+		if perm.Owner != params.AccountName {
+			break
+		}
+		/// TODO: lookup perm->parent name
+		var parent common.Name
 
-	//TODO token, delegated_bandwidth, refund, vote
-	/*
-			  const auto& code_account = db.db().get<account_object,by_name>( config::system_account_name );
+		// Don't lookup parent if null
+		if perm.Parent > 0 {
+			p := PermissionObject{ID: perm.Parent}
+			err = d.Find("id", p, &p)
+			if err == nil {
+				EosAssert(perm.Owner == p.Owner, &InvalidParentPermission{}, "Invalid parent permission")
+				parent = p.Name
+			}
+		}
 
-		   abi_def abi;
-		   if( abi_serializer::to_abi(code_account.abi, abi) ) {
-		      abi_serializer abis( abi, abi_serializer_max_time );
+		result.Permissions = append(result.Permissions, Permission{perm.Name, parent, perm.Auth.ToAuthority()})
+		lower.Next()
+	}
 
-		      const auto token_code = N(eosio.token);
+	codeAccount := AccountObject{Name: common.DefaultConfig.SystemAccountName}
+	err = d.Find("byName", codeAccount, &codeAccount)
 
-		      auto core_symbol = extract_core_symbol();
+	var abi abi_serializer.AbiDef
+	if abi_serializer.ToABI(codeAccount.Abi, &abi) {
+		abis := abi_serializer.NewAbiSerializer(&abi, ro.abiSerializerMaxTime)
 
-		      if (params.expected_core_symbol.valid())
-		         core_symbol = *(params.expected_core_symbol);
+		tokenCode := common.N("eosio.token")
 
-		      const auto* t_id = d.find<chain::table_id_object, chain::by_code_scope_table>(boost::make_tuple( token_code, params.account_name, N(accounts) ));
-		      if( t_id != nullptr ) {
-		         const auto &idx = d.get_index<key_value_index, by_scope_primary>();
-		         auto it = idx.find(boost::make_tuple( t_id->id, core_symbol.to_symbol_code() ));
-		         if( it != idx.end() && it->value.size() >= sizeof(asset) ) {
-		            asset bal;
-		            fc::datastream<const char *> ds(it->value.data(), it->value.size());
-		            fc::raw::unpack(ds, bal);
+		/// core balance
+		coreSymbol := ro.ExtractCoreSymbol()
 
-		            if( bal.get_symbol().valid() && bal.get_symbol() == core_symbol ) {
-		               result.core_liquid_balance = bal;
-		            }
-		         }
-		      }
+		tid := TableIdObject{Code: tokenCode, Scope: params.AccountName, Table: common.N("accounts")}
+		err = d.Find("byCodeScopeTable", tid, &tid)
+		if err == nil {
+			idx, err := d.GetIndex("byScopePrimary", KeyValueObject{})
+			ThrowIf(err != nil, err)
+			it := KeyValueObject{TId: tid.ID, PrimaryKey: coreSymbol.ToSymbolCode()}
+			err = idx.Find(it, &it)
+			if err == nil && it.Value.Size() >= common.SizeofAsset {
+				bal := common.Asset{}
+				err := rlp.DecodeBytes(it.Value, &bal)
+				ThrowIf(err != nil, err)
 
-		      t_id = d.find<chain::table_id_object, chain::by_code_scope_table>(boost::make_tuple( config::system_account_name, params.account_name, N(userres) ));
-		      if (t_id != nullptr) {
-		         const auto &idx = d.get_index<key_value_index, by_scope_primary>();
-		         auto it = idx.find(boost::make_tuple( t_id->id, params.account_name ));
-		         if ( it != idx.end() ) {
-		            vector<char> data;
-		            copy_inline_row(*it, data);
-		            result.total_resources = abis.binary_to_variant( "user_resources", data, abi_serializer_max_time, shorten_abi_errors );
-		         }
-		      }
+				if bal.Symbol.Valid() && bal.Symbol == coreSymbol {
+					result.CoreLiquidBalance = bal
+				}
+			}
 
-		      t_id = d.find<chain::table_id_object, chain::by_code_scope_table>(boost::make_tuple( config::system_account_name, params.account_name, N(delband) ));
-		      if (t_id != nullptr) {
-		         const auto &idx = d.get_index<key_value_index, by_scope_primary>();
-		         auto it = idx.find(boost::make_tuple( t_id->id, params.account_name ));
-		         if ( it != idx.end() ) {
-		            vector<char> data;
-		            copy_inline_row(*it, data);
-		            result.self_delegated_bandwidth = abis.binary_to_variant( "delegated_bandwidth", data, abi_serializer_max_time, shorten_abi_errors );
-		         }
-		      }
+		}
 
-		      t_id = d.find<chain::table_id_object, chain::by_code_scope_table>(boost::make_tuple( config::system_account_name, params.account_name, N(refunds) ));
-		      if (t_id != nullptr) {
-		         const auto &idx = d.get_index<key_value_index, by_scope_primary>();
-		         auto it = idx.find(boost::make_tuple( t_id->id, params.account_name ));
-		         if ( it != idx.end() ) {
-		            vector<char> data;
-		            copy_inline_row(*it, data);
-		            result.refund_request = abis.binary_to_variant( "refund_request", data, abi_serializer_max_time, shorten_abi_errors );
-		         }
-		      }
+		tid = TableIdObject{Code: common.DefaultConfig.SystemAccountName, Scope: params.AccountName, Table: common.N("userres")}
+		err = d.Find("byCodeScopeTable", tid, &tid)
+		if err == nil {
+			idx, err := d.GetIndex("byScopePrimary", KeyValueObject{})
+			ThrowIf(err != nil, err)
+			it := KeyValueObject{TId: tid.ID, PrimaryKey: uint64(params.AccountName)}
+			err = idx.Find(it, &it)
+			if err == nil {
+				var data []byte
+				CopyInlineRow(&it, &data)
+				result.TotalResources = abis.BinaryToVariant("user_resources", data, ro.abiSerializerMaxTime, false)
+			}
+		}
 
-		      t_id = d.find<chain::table_id_object, chain::by_code_scope_table>(boost::make_tuple( config::system_account_name, config::system_account_name, N(voters) ));
-		      if (t_id != nullptr) {
-		         const auto &idx = d.get_index<key_value_index, by_scope_primary>();
-		         auto it = idx.find(boost::make_tuple( t_id->id, params.account_name ));
-		         if ( it != idx.end() ) {
-		            vector<char> data;
-		            copy_inline_row(*it, data);
-		            result.voter_info = abis.binary_to_variant( "voter_info", data, abi_serializer_max_time, shorten_abi_errors );
-		         }
-		      }
-		   }
-	*/
+		tid = TableIdObject{Code: common.DefaultConfig.SystemAccountName, Scope: params.AccountName, Table: common.N("delband")}
+		err = d.Find("byCodeScopeTable", tid, &tid)
+		if err == nil {
+			idx, err := d.GetIndex("byScopePrimary", KeyValueObject{})
+			ThrowIf(err != nil, err)
+			it := KeyValueObject{TId: tid.ID, PrimaryKey: uint64(params.AccountName)}
+			err = idx.Find(it, &it)
+			if err == nil {
+				var data []byte
+				CopyInlineRow(&it, &data)
+				result.SelfDelegatedBandwidth = abis.BinaryToVariant("delegated_bandwidth", data, ro.abiSerializerMaxTime, false)
+			}
+		}
+
+		tid = TableIdObject{Code: common.DefaultConfig.SystemAccountName, Scope: params.AccountName, Table: common.N("refunds")}
+		err = d.Find("byCodeScopeTable", tid, &tid)
+		if err == nil {
+			idx, err := d.GetIndex("byScopePrimary", KeyValueObject{})
+			ThrowIf(err != nil, err)
+			it := KeyValueObject{TId: tid.ID, PrimaryKey: uint64(params.AccountName)}
+			err = idx.Find(it, &it)
+			if err == nil {
+				var data []byte
+				CopyInlineRow(&it, &data)
+				result.RefundRequest = abis.BinaryToVariant("refund_request", data, ro.abiSerializerMaxTime, false)
+			}
+		}
+
+		tid = TableIdObject{Code: common.DefaultConfig.SystemAccountName, Scope: common.DefaultConfig.SystemAccountName, Table: common.N("voters")}
+		err = d.Find("byCodeScopeTable", tid, &tid)
+		if err == nil {
+			idx, err := d.GetIndex("byScopePrimary", KeyValueObject{})
+			ThrowIf(err != nil, err)
+			it := KeyValueObject{TId: tid.ID, PrimaryKey: uint64(params.AccountName)}
+			err = idx.Find(it, &it)
+			if err == nil {
+				var data []byte
+				CopyInlineRow(&it, &data)
+				result.VoterInfo = abis.BinaryToVariant("voter_info", data, ro.abiSerializerMaxTime, false)
+			}
+		}
+	}
 
 	return result
 }
@@ -253,7 +350,7 @@ func (ro *ReadOnly) GetAbi(params GetAbiParams) GetAbiResult {
 
 	d := ro.db.DataBase()
 
-	account := entity.AccountObject{Name: params.AccountName}
+	account := AccountObject{Name: params.AccountName}
 	if err := d.Find("byName", account, &account); err != nil {
 		EosThrow(&DatabaseException{}, err.Error())
 	}
@@ -270,7 +367,7 @@ func (ro *ReadOnly) GetCode(params GetCodeParams) GetCodeResult {
 	result := GetCodeResult{AccountName: params.AccountName}
 	d := ro.db.DataBase()
 
-	account := entity.AccountObject{Name: params.AccountName}
+	account := AccountObject{Name: params.AccountName}
 	if err := d.Find("byName", account, &account); err != nil {
 		EosThrow(&DatabaseException{}, err.Error())
 	}
@@ -292,7 +389,7 @@ func (ro *ReadOnly) GetCode(params GetCodeParams) GetCodeResult {
 
 func (ro *ReadOnly) GetRequiredKeys(params GetRequiredKeysParams) GetRequiredKeysResult {
 	trx := &types.Transaction{}
-	EosAssert(common.FromVariant(&params.Transaction, trx) == nil, &TransactionTypeException{}, "Invalid transaction")
+	common.FromVariant(&params.Transaction, trx)
 
 	candidateKeys := treeset.NewWith(ecc.TypePubKey, ecc.ComparePubKey)
 	for _, key := range params.AvailableKeys {
@@ -308,31 +405,204 @@ func (ro *ReadOnly) GetRequiredKeys(params GetRequiredKeysParams) GetRequiredKey
 	return GetRequiredKeysResult{RequiredKeys: result}
 }
 
-func (ro *ReadOnly) GetCurrencyBalance(params GetCurrencyBalanceParams) GetCurrencyBalanceResult {
-	return GetCurrencyBalanceResult{} //TODO: get_currency_balance_result
+func (ro *ReadOnly) GetTableIndexName(p GetTableRowsParams, primary *bool) uint64 {
+	// see multi_index packing of index name
+	table := p.Table
+	index := uint64(table) & 0xFFFFFFFFFFFFFFF0
+	EosAssert(index == uint64(table), &ContractTableQueryException{}, "Unsupported table name: %s", p.Table)
+
+	*primary = false
+	pos := uint64(0)
+	if p.IndexPosition == "" || p.IndexPosition == "first" || p.IndexPosition == "primary" || p.IndexPosition == "one" {
+		*primary = true
+	} else if strings.HasPrefix(p.IndexPosition, "sec") || strings.HasPrefix(p.IndexPosition, "two") { // second, secondary
+		// pos 0
+	} else if strings.HasPrefix(p.IndexPosition, "ter") || strings.HasPrefix(p.IndexPosition, "th") { // tertiary, ternary, third, three
+		pos = 1
+	} else if strings.HasPrefix(p.IndexPosition, "fou") { // four, fourth
+		pos = 2
+	} else if strings.HasPrefix(p.IndexPosition, "fi") { // five, fifth
+		pos = 3
+	} else if strings.HasPrefix(p.IndexPosition, "six") { // six, sixth
+		pos = 4
+	} else if strings.HasPrefix(p.IndexPosition, "sev") { // seven, seventh
+		pos = 5
+	} else if strings.HasPrefix(p.IndexPosition, "eig") { // eight, eighth
+		pos = 6
+	} else if strings.HasPrefix(p.IndexPosition, "nin") { // nine, ninth
+		pos = 7
+	} else if strings.HasPrefix(p.IndexPosition, "ten") { // ten, tenth
+		pos = 8
+	} else {
+		Try(func() {
+			math.MustParseUint64(p.IndexPosition)
+		}).Catch(func(interface{}) {
+			EosAssert(false, &ContractTableQueryException{}, "Invalid index_position: %s", p.IndexPosition)
+		}).End()
+		if pos < 2 {
+			*primary = true
+			pos = 0
+		} else {
+			pos -= 2
+		}
+	}
+	index |= pos & 0x000000000000000F
+	return index
 }
 
-func (ro *ReadOnly) GetCurrencyStats(params GetCurrencyStatsParams) GEtCurrencyStatsResult {
-	return make(map[string]GetCurrencyStats1) //TODO  get_currency_stats_result
+func (ro *ReadOnly) GetTableRowsEx(p GetTableRowsParams, abi *abi_serializer.AbiDef) GetTableRowsResult {
+	result := GetTableRowsResult{}
+	d := ro.db.DataBase()
+	scope := common.N(p.Scope)
+
+	abis := abi_serializer.AbiSerializer{}
+	abis.SetAbi(abi, ro.abiSerializerMaxTime)
+	tid := TableIdObject{Code: p.Code, Scope: scope, Table: p.Table}
+	if d.Find("byCodeScopeTable", tid, &tid) == nil {
+		//TODO
+		idx, err := d.GetIndex("byScopePrimary", KeyValueObject{})
+		ThrowIf(err != nil, err)
+		nextTid := tid.ID + 1
+		lower, err := idx.LowerBound(KeyValueObject{TId: tid.ID})
+		ThrowIf(err != nil, err)
+		upper, err := idx.UpperBound(KeyValueObject{TId: nextTid})
+		ThrowIf(err != nil, err)
+
+		if len(p.LowerBound) > 0 {
+			if p.KeyType == "name" {
+				s := common.N(p.LowerBound)
+				lower, err = idx.LowerBound(KeyValueObject{TId: tid.ID, PrimaryKey: uint64(s)})
+				ThrowIf(err != nil, err)
+			} else {
+				lv := math.MustParseUint64(p.LowerBound)
+				lower, err = idx.LowerBound(KeyValueObject{TId: tid.ID, PrimaryKey: lv})
+				ThrowIf(err != nil, err)
+			}
+		}
+
+		if len(p.UpperBound) > 0 {
+			if p.KeyType == "name" {
+				s := common.N(p.UpperBound)
+				lower, err = idx.UpperBound(KeyValueObject{TId: tid.ID, PrimaryKey: uint64(s)})
+				ThrowIf(err != nil, err)
+			} else {
+				uv := math.MustParseUint64(p.UpperBound)
+				upper, err = idx.UpperBound(KeyValueObject{TId: tid.ID, PrimaryKey: uv})
+				ThrowIf(err != nil, err)
+			}
+		}
+
+		var data []byte
+		end := common.Now().AddUs(common.Microseconds(1000 * 10)) /// 10ms max time
+
+		count := uint32(0)
+		itr := lower
+		for ; !idx.CompareIterator(itr, upper); itr.Next() {
+			obj := KeyValueObject{}
+			err = itr.Data(&obj)
+			ThrowIf(err != nil, err)
+			CopyInlineRow(&obj, &data)
+
+			if p.JSON {
+				result.Rows = append(result.Rows, abis.BinaryToVariant(abis.GetTableType(p.Table), data, ro.abiSerializerMaxTime, false))
+			} else {
+				result.Rows = append(result.Rows, common.VariantsFromData(data))
+			}
+
+			if count = count + 1; count == p.Limit || common.Now() > end {
+				itr.Next()
+				break
+			}
+		}
+		if !idx.CompareIterator(itr, upper) {
+			result.More = true
+		}
+	}
+	return result
+}
+
+func (ro *ReadOnly) GetTableRows(p GetTableRowsParams) GetTableRowsResult {
+	abi := GetAbi(ro.db, p.Code)
+
+	primary := false
+	tableWithIndex := ro.GetTableIndexName(p, &primary)
+	if primary {
+		EosAssert(uint64(p.Table) == tableWithIndex, &ContractTableQueryException{}, "Invalid table name %s", p.Table)
+		tableType := GetTableType(&abi, p.Table)
+		if tableType == KEYi64 || p.KeyType == KEYi64 || p.KeyType == "name" {
+			return ro.GetTableRowsEx(p, &abi)
+		}
+		EosAssert(false, &ContractTableQueryException{}, "Invalid table type %s", tableType)
+	} else {
+		EosAssert(len(p.KeyType) != 0, &ContractTableQueryException{}, "key type required for non-primary index")
+
+		//todo: second key
+	}
+
+	return GetTableRowsResult{}
+}
+
+func (ro *ReadOnly) GetCurrencyBalance(params GetCurrencyBalanceParams) GetCurrencyBalanceResult {
+	abi := GetAbi(ro.db, params.Code)
+	GetTableType(&abi, common.N("accounts"))
+
+	var results []common.Asset
+	ro.WalkKeyValueTable(params.Code, params.Account, common.N("accounts"), func(obj KeyValueObject) bool {
+		EosAssert(obj.Value.Size() >= common.SizeofAsset, &AssetTypeException{}, "Invalid data on table")
+
+		cursor := common.Asset{}
+		err := rlp.DecodeBytes(obj.Value, &cursor)
+		ThrowIf(err != nil, err)
+
+		EosAssert(cursor.Symbol.Valid(), &AssetTypeException{}, "Invalid asset")
+
+		if params.Symbol == "" || cursor.Symbol.Name() == params.Symbol {
+			results = append(results, cursor)
+		}
+
+		// return false if we are looking for one and found it, true otherwise
+		return !(params.Symbol != "" && cursor.Symbol.Name() == params.Symbol)
+	})
+
+	return results
+}
+
+func (ro *ReadOnly) GetCurrencyStats(params GetCurrencyStatsParams) map[string]GetCurrencyStatsResult {
+	results := make(map[string]GetCurrencyStatsResult)
+
+	abi := GetAbi(ro.db, params.Code)
+	GetTableType(&abi, common.N("stat")) //assert if error
+
+	scope := common.StringToSymbol(0, strings.ToUpper(params.Symbol)) >> 8
+
+	ro.WalkKeyValueTable(params.Code, common.Name(scope), common.N("stat"), func(obj KeyValueObject) bool {
+		EosAssert(obj.Value.Size() >= SizeofGetCurrencyStatsResult, &AssetTypeException{}, "Invalid data on table")
+
+		ds := rlp.NewDecoder(obj.Value)
+		result := GetCurrencyStatsResult{}
+
+		ds.Decode(&result.Supply)
+		ds.Decode(&result.MaxSupply)
+		ds.Decode(&result.Issuer)
+
+		results[result.Supply.Symbol.Name()] = result
+		return true
+	})
+
+	return results
 }
 
 func (ro *ReadOnly) GetProducerSchedule() GetProducerScheduleResult {
 	result := GetProducerScheduleResult{}
 
-	if err := common.ToVariant(ro.db.ActiveProducers(), &result.Active); err != nil {
-		EosThrow(&ParseErrorException{}, err.Error())
-	}
+	common.ToVariant(ro.db.ActiveProducers(), &result.Active)
 
 	if len(ro.db.PendingProducers().Producers) > 0 {
-		if err := common.ToVariant(ro.db.PendingProducers(), &result.Pending); err != nil {
-			EosThrow(&ParseErrorException{}, err.Error())
-		}
+		common.ToVariant(ro.db.PendingProducers(), &result.Pending)
 	}
 
 	if proposed := ro.db.ProposedProducers(); !common.Empty(proposed) && len(proposed.Producers) > 0 {
-		if err := common.ToVariant(&proposed, &result.Proposed); err != nil {
-			EosThrow(&ParseErrorException{}, err.Error())
-		}
+		common.ToVariant(&proposed, &result.Proposed)
 	}
 
 	return result
