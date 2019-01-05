@@ -230,7 +230,7 @@ func (ro *ReadOnly) GetAccount(params GetAccountParams) GetAccountResult {
 
 	for !permissions.CompareEnd(lower) {
 		perm := PermissionObject{}
-		err = lower.Data(perm)
+		err = lower.Data(&perm)
 		ThrowIf(err != nil, err)
 
 		if perm.Owner != params.AccountName {

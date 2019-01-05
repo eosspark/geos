@@ -339,7 +339,7 @@ func toAsset(code common.AccountName, s string) *common.Asset {
 
 	asset, ok := assetCache[AssetPair{code, sym}]
 	if !ok {
-		var resp chain_plugin.GetCurrencyStatsResult
+		var resp map[string]chain_plugin.GetCurrencyStatsResult
 		err := DoHttpCall(&resp, common.GetCurrencyStatsFunc, common.Variants{
 			"json":   false,
 			"code":   code,
@@ -375,8 +375,22 @@ func toAssetFromString(s string) *common.Asset {
 }
 
 func printResult(v interface{}) {
+
 	data, _ := json.Marshal(v)
 	fmt.Println(string(data))
+
+	in, ok := v.(common.Variants)
+	if !ok {
+		fmt.Println("this is not variants")
+	} else {
+		processed, ok := in["processed"]
+		if !ok {
+			fmt.Println(in)
+		} else {
+			fmt.Println(processed)
+		}
+	}
+	clog.Warn("\rwarning: transaction executed locally, but may not be confirmed by the network yet")
 }
 
 type eosgo struct {
@@ -451,14 +465,13 @@ func (e *eosgo) PushAction(call otto.FunctionCall) (response otto.Value) {
 	}
 
 	permissions := getAccountPermissions(params.TxPermission)
-	fmt.Println(permissions)
-
 	action := &types.Action{
 		Account:       common.N(params.ContractAccount),
 		Name:          common.N(params.Action),
 		Authorization: permissions,
 		Data:          variantToBin(common.N(params.ContractAccount), common.N(params.Action), actionArgsVar),
 	}
+	fmt.Println("lll")
 	result := sendActions([]*types.Action{action}, 1000, types.CompressionNone, &params)
 	return getJsResult(call, result)
 }
@@ -584,15 +597,15 @@ func (e *eosgo) SetAccountPermission(call otto.FunctionCall) (response otto.Valu
 				Throw(err.Error())
 			}
 
-			var itr types.Permission
+			var itr chain_plugin.Permission
 			var i int
 			for i, itr = range accountResult.Permissions {
-				if itr.PermName == params.Permission {
+				if itr.PermName == permission {
 					break
 				}
 			}
 			if i != len(accountResult.Permissions) {
-				parent = common.N(itr.Parent)
+				parent = itr.Parent
 			} else {
 				//if this is a new permission and there is no parent we default to "active"
 				parent = common.DefaultConfig.ActiveName

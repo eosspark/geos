@@ -113,7 +113,6 @@ func (s *system) NewAccount(call otto.FunctionCall) (response otto.Value) {
 	}
 	net := toAssetFromString(params.StakeNet)
 	cpu := toAssetFromString(params.StakeCpu)
-	fmt.Println("net and cpu :   ", net, cpu)
 
 	if net.Amount != 0 || cpu.Amount != 0 {
 		delegate := createDelegate(params.Creator, params.Name, net, cpu, params.Transfer, params.TxPermission)
@@ -601,7 +600,7 @@ func (s *system) Bidnameinfo(call otto.FunctionCall) (response otto.Value) {
 }
 
 type BuyramParams struct {
-	From      string `json:"from"`
+	Payer     string `json:"payer"`
 	Receiver  string `json:"receiver"`
 	Amount    string `json:"amount"`
 	Kbytes    bool   `json:"kbytes"`
@@ -626,9 +625,9 @@ func (s *system) Buyram(call otto.FunctionCall) (response otto.Value) {
 		if err != nil {
 			throwJSException(fmt.Sprintf("parseUint is error: %s\n", err))
 		}
-		action = createBuyRamBytes(common.N(params.From), common.N(params.Receiver), uint32(amount*unit), params.TxPermission)
+		action = createBuyRamBytes(common.N(params.Payer), common.N(params.Receiver), uint32(amount*unit), params.TxPermission)
 	} else {
-		action = createBuyRam(common.N(params.From), common.N(params.Receiver), toAssetFromString(params.Amount), params.TxPermission)
+		action = createBuyRam(common.N(params.Payer), common.N(params.Receiver), toAssetFromString(params.Amount), params.TxPermission)
 	}
 
 	re := sendActions([]*types.Action{action}, 1000, types.CompressionNone, &params)
@@ -790,7 +789,10 @@ func sendActions(actions []*types.Action, extraKcpu int32, compression types.Com
 
 	if c.getOptions().TxPrintJson {
 		return fmt.Sprintln(result)
+	} else {
+		printResult(result)
 	}
+
 	return result
 }
 
