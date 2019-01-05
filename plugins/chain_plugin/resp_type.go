@@ -6,7 +6,6 @@ import (
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/ecc"
-	"unsafe"
 )
 
 type GetInfoResult struct {
@@ -133,7 +132,7 @@ type GetRequiredKeysResult struct {
 
 type GetCurrencyBalanceParams struct {
 	Code    common.Name `json:"code"`
-	Account common.Name `json:"account"`
+	Account common.Name `json:"account_name"`
 	Symbol  string      `json:"symbol"`
 }
 type GetCurrencyBalanceResult = []common.Asset
@@ -181,7 +180,7 @@ type GetCurrencyStatsResult struct {
 	Issuer    common.AccountName `json:"issuer"`
 }
 
-const SizeofGetCurrencyStatsResult = int(unsafe.Sizeof(GetCurrencyStatsResult{}))
+const SizeofGetCurrencyStatsResult int = 40
 
 type GetProducerScheduleParams struct {
 }

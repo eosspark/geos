@@ -9,11 +9,10 @@ import (
 	"math"
 	"strconv"
 	"strings"
-	"unsafe"
 )
 
 const maxAmount int64 = int64(1)<<62 - 1
-const SizeofAsset int = int(unsafe.Sizeof(Asset{}))
+const SizeofAsset int = 16
 
 type Asset struct {
 	Amount int64 `eos:"asset"`
