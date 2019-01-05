@@ -2,17 +2,15 @@
 
 package volume
 
-import mounttypes "github.com/docker/docker/api/types/mount"
-
 // DefaultPropagationMode is used only in linux. In other cases it returns
 // empty string.
-const DefaultPropagationMode mounttypes.Propagation = ""
+const DefaultPropagationMode string = ""
 
 // propagation modes not supported on this platform.
-var propagationModes = map[mounttypes.Propagation]bool{}
+var propagationModes = map[string]bool{}
 
 // GetPropagation is not supported. Return empty string.
-func GetPropagation(mode string) mounttypes.Propagation {
+func GetPropagation(mode string) string {
 	return DefaultPropagationMode
 }
 

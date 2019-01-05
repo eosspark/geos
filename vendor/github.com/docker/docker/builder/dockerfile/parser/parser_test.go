@@ -38,7 +38,6 @@ func TestTestNegative(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Dockerfile missing for %s: %v", dir, err)
 		}
-		defer df.Close()
 
 		d := Directive{LookingForDirectives: true}
 		SetEscapeToken(DefaultEscapeToken, &d)
@@ -46,6 +45,8 @@ func TestTestNegative(t *testing.T) {
 		if err == nil {
 			t.Fatalf("No error parsing broken dockerfile for %s", dir)
 		}
+
+		df.Close()
 	}
 }
 
@@ -152,7 +153,7 @@ func TestLineInformation(t *testing.T) {
 
 	if ast.StartLine != 5 || ast.EndLine != 31 {
 		fmt.Fprintf(os.Stderr, "Wrong root line information: expected(%d-%d), actual(%d-%d)\n", 5, 31, ast.StartLine, ast.EndLine)
-		t.Fatal("Root line information doesn't match result.")
+		t.Fatalf("Root line information doesn't match result.")
 	}
 	if len(ast.Children) != 3 {
 		fmt.Fprintf(os.Stderr, "Wrong number of child: expected(%d), actual(%d)\n", 3, len(ast.Children))
@@ -167,7 +168,7 @@ func TestLineInformation(t *testing.T) {
 		if child.StartLine != expected[i][0] || child.EndLine != expected[i][1] {
 			t.Logf("Wrong line information for child %d: expected(%d-%d), actual(%d-%d)\n",
 				i, expected[i][0], expected[i][1], child.StartLine, child.EndLine)
-			t.Fatal("Root line information doesn't match result.")
+			t.Fatalf("Root line information doesn't match result.")
 		}
 	}
 }

@@ -29,7 +29,7 @@ func TestMiddlewares(t *testing.T) {
 
 	localHandler := func(ctx context.Context, w http.ResponseWriter, r *http.Request, vars map[string]string) error {
 		if httputils.VersionFromContext(ctx) == "" {
-			t.Fatal("Expected version, got empty string")
+			t.Fatalf("Expected version, got empty string")
 		}
 
 		if sv := w.Header().Get("Server"); !strings.Contains(sv, "Docker/0.1omega2") {
@@ -39,7 +39,7 @@ func TestMiddlewares(t *testing.T) {
 		return nil
 	}
 
-	handlerFunc := srv.handlerWithGlobalMiddlewares(localHandler)
+	handlerFunc := srv.handleWithGlobalMiddlewares(localHandler)
 	if err := handlerFunc(ctx, resp, req, map[string]string{}); err != nil {
 		t.Fatal(err)
 	}

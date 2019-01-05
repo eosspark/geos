@@ -1,19 +1,8 @@
 ---
-title: "Docker network driver plugins"
+title: "Docker Engine network driver plugins"
 description: "Network driver plugins."
-keywords: "Examples, Usage, plugins, docker, documentation, user guide"
+keywords: ["Examples, Usage, plugins, docker, documentation, user guide"]
 ---
-
-<!-- This file is maintained within the docker/docker Github
-     repository at https://github.com/docker/docker/. Make all
-     pull requests against that repo. If you see this file in
-     another repository, consider it read-only there, as it will
-     periodically be overwritten by the definitive file. Pull
-     requests which include edits to this file in other repositories
-     will be rejected.
--->
-
-# Engine network driver plugins
 
 This document describes Docker Engine network driver plugins generally
 available in Docker Engine. To view information on plugins
@@ -30,7 +19,7 @@ kind of protocol.
 ## Network driver plugins and swarm mode
 
 Docker 1.12 adds support for cluster management and orchestration called
-[swarm mode](https://docs.docker.com/engine/swarm/). Docker Engine running in swarm mode currently
+[swarm mode](../swarm/index.md). Docker Engine running in swarm mode currently
 only supports the built-in overlay driver for networking. Therefore existing
 networking plugins will not work in swarm mode.
 
@@ -73,5 +62,5 @@ documented as part of libnetwork:
 
 To interact with the Docker maintainers and other interested users, see the IRC channel `#docker-network`.
 
--  [Docker networks feature overview](https://docs.docker.com/engine/userguide/networking/)
+-  [Docker networks feature overview](../userguide/networking/index.md)
 -  The [LibNetwork](https://github.com/docker/libnetwork) project

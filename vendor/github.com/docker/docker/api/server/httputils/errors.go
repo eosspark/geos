@@ -5,8 +5,8 @@ import (
 	"strings"
 
 	"github.com/Sirupsen/logrus"
-	"github.com/docker/docker/api/types"
-	"github.com/docker/docker/api/types/versions"
+	"github.com/docker/engine-api/types"
+	"github.com/docker/engine-api/types/versions"
 	"github.com/gorilla/mux"
 	"google.golang.org/grpc"
 )
@@ -28,7 +28,7 @@ type inputValidationError interface {
 	IsValidationError() bool
 }
 
-// GetHTTPErrorStatusCode retrieves status code from error message.
+// GetHTTPErrorStatusCode retrieve status code from error message
 func GetHTTPErrorStatusCode(err error) int {
 	if err == nil {
 		logrus.WithFields(logrus.Fields{"error": err}).Error("unexpected HTTP error handling")
@@ -54,7 +54,6 @@ func GetHTTPErrorStatusCode(err error) int {
 			code    int
 		}{
 			{"not found", http.StatusNotFound},
-			{"cannot find", http.StatusNotFound},
 			{"no such", http.StatusNotFound},
 			{"bad parameter", http.StatusBadRequest},
 			{"no command", http.StatusBadRequest},
@@ -63,9 +62,7 @@ func GetHTTPErrorStatusCode(err error) int {
 			{"wrong login/password", http.StatusUnauthorized},
 			{"unauthorized", http.StatusUnauthorized},
 			{"hasn't been activated", http.StatusForbidden},
-			{"this node", http.StatusServiceUnavailable},
-			{"needs to be unlocked", http.StatusServiceUnavailable},
-			{"certificates have expired", http.StatusServiceUnavailable},
+			{"this node", http.StatusNotAcceptable},
 		} {
 			if strings.Contains(errStr, status.keyword) {
 				statusCode = status.code
@@ -81,18 +78,13 @@ func GetHTTPErrorStatusCode(err error) int {
 	return statusCode
 }
 
-func apiVersionSupportsJSONErrors(version string) bool {
-	const firstAPIVersionWithJSONErrors = "1.23"
-	return version == "" || versions.GreaterThan(version, firstAPIVersionWithJSONErrors)
-}
-
 // MakeErrorHandler makes an HTTP handler that decodes a Docker error and
 // returns it in the response.
 func MakeErrorHandler(err error) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		statusCode := GetHTTPErrorStatusCode(err)
 		vars := mux.Vars(r)
-		if apiVersionSupportsJSONErrors(vars["version"]) {
+		if vars["version"] == "" || versions.GreaterThan(vars["version"], "1.23") {
 			response := &types.ErrorResponse{
 				Message: err.Error(),
 			}

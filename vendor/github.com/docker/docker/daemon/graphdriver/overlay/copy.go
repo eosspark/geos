@@ -11,7 +11,6 @@ import (
 
 	"github.com/docker/docker/pkg/pools"
 	"github.com/docker/docker/pkg/system"
-	rsystem "github.com/opencontainers/runc/libcontainer/system"
 )
 
 type copyFlags int
@@ -106,10 +105,6 @@ func copyDir(srcDir, dstDir string, flags copyFlags) error {
 		case os.ModeNamedPipe:
 			fallthrough
 		case os.ModeSocket:
-			if rsystem.RunningInUserNS() {
-				// cannot create a device if running in user namespace
-				return nil
-			}
 			if err := syscall.Mkfifo(dstPath, stat.Mode); err != nil {
 				return err
 			}

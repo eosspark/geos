@@ -1,11 +1,11 @@
-#!/usr/bin/env bash
+#!/bin/bash
 set -e
 
 # usage: ./generate.sh [versions]
 #    ie: ./generate.sh
 #        to update all Dockerfiles in this directory
-#    or: ./generate.sh centos-7
-#        to only update centos-7/Dockerfile
+#    or: ./generate.sh
+#        to only update fedora-23/Dockerfile
 #    or: ./generate.sh fedora-newversion
 #        to create a new folder and a Dockerfile within it
 
@@ -22,12 +22,8 @@ for version in "${versions[@]}"; do
 	suite="${version##*-}"
 	from="${distro}:${suite}"
 	installer=yum
-
 	if [[ "$distro" == "fedora" ]]; then
 		installer=dnf
-	fi
-	if [[ "$distro" == "photon" ]]; then
-		installer=tdnf
 	fi
 
 	mkdir -p "$version"
@@ -60,7 +56,7 @@ for version in "${versions[@]}"; do
 	esac
 
 	case "$from" in
-		centos:*|amazonlinux:latest)
+		centos:*)
 			# get "Development Tools" packages dependencies
 			echo 'RUN yum groupinstall -y "Development Tools"' >> "$version/Dockerfile"
 
@@ -77,14 +73,12 @@ for version in "${versions[@]}"; do
 			# get rpm-build and curl packages and dependencies
 			echo 'RUN zypper --non-interactive install ca-certificates* curl gzip rpm-build' >> "$version/Dockerfile"
 			;;
-		photon:*)
-			echo "RUN ${installer} install -y wget curl ca-certificates gzip make rpm-build sed gcc linux-api-headers glibc-devel binutils libseccomp libltdl-devel elfutils" >> "$version/Dockerfile"
-			;;
 		*)
 			echo "RUN ${installer} install -y @development-tools fedora-packager" >> "$version/Dockerfile"
 			;;
 	esac
 
+	# this list is sorted alphabetically; please keep it that way
 	packages=(
 		btrfs-progs-devel # for "btrfs/ioctl.h" (and "version.h" if possible)
 		device-mapper-devel # for "libdevmapper.h"
@@ -95,11 +89,10 @@ for version in "${versions[@]}"; do
 		pkgconfig # for the pkg-config command
 		selinux-policy
 		selinux-policy-devel
+		sqlite-devel # for "sqlite3.h"
 		systemd-devel # for "sd-journal.h" and libraries
 		tar # older versions of dev-tools do not have tar
 		git # required for containerd and runc clone
-		cmake # tini build
-		vim-common # tini build
 	)
 
 	case "$from" in
@@ -110,7 +103,7 @@ for version in "${versions[@]}"; do
 	esac
 
 	case "$from" in
-		oraclelinux:6|amazonlinux:latest)
+		oraclelinux:6)
 			# doesn't use systemd, doesn't have a devel package for it
 			packages=( "${packages[@]/systemd-devel}" )
 			;;
@@ -132,17 +125,12 @@ for version in "${versions[@]}"; do
 		opensuse:*)
 			packages=( "${packages[@]/btrfs-progs-devel/libbtrfs-devel}" )
 			packages=( "${packages[@]/pkgconfig/pkg-config}" )
-			packages=( "${packages[@]/vim-common/vim}" )
 			if [[ "$from" == "opensuse:13."* ]]; then
 				packages+=( systemd-rpm-macros )
 			fi
 
 			# use zypper
 			echo "RUN zypper --non-interactive install ${packages[*]}" >> "$version/Dockerfile"
-			;;
-		photon:*)
-			packages=( "${packages[@]/pkgconfig/pkg-config}" )
-			echo "RUN ${installer} install -y ${packages[*]}" >> "$version/Dockerfile"
 			;;
 		*)
 			echo "RUN ${installer} install -y ${packages[*]}" >> "$version/Dockerfile"
@@ -153,7 +141,7 @@ for version in "${versions[@]}"; do
 
 
 	awk '$1 == "ENV" && $2 == "GO_VERSION" { print; exit }' ../../../../Dockerfile >> "$version/Dockerfile"
-	echo 'RUN curl -fSL "https://golang.org/dl/go${GO_VERSION}.linux-amd64.tar.gz" | tar xzC /usr/local' >> "$version/Dockerfile"
+	echo 'RUN curl -fSL "https://storage.googleapis.com/golang/go${GO_VERSION}.linux-amd64.tar.gz" | tar xzC /usr/local' >> "$version/Dockerfile"
 	echo 'ENV PATH $PATH:/usr/local/go/bin' >> "$version/Dockerfile"
 
 	echo >> "$version/Dockerfile"

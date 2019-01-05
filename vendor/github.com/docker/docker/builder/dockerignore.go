@@ -36,7 +36,6 @@ func (c DockerIgnoreContext) Process(filesToRemove []string) error {
 		return err
 	}
 	excludes, _ := dockerignore.ReadAll(f)
-	f.Close()
 	filesToRemove = append([]string{".dockerignore"}, filesToRemove...)
 	for _, fileToRemove := range filesToRemove {
 		rm, _ := fileutils.Matches(fileToRemove, excludes)
