@@ -3,7 +3,7 @@ package unittests
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/docker/docker/pkg/testutil/assert"
+	"github.com/stretchr/testify/assert"
 	. "github.com/eosspark/eos-go/chain"
 	"github.com/eosspark/eos-go/chain/abi_serializer"
 	"github.com/eosspark/eos-go/chain/types"

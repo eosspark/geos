@@ -1,7 +1,7 @@
 package unittests
 
 import (
-	"github.com/docker/docker/pkg/testutil/assert"
+	"github.com/stretchr/testify/assert"
 	"github.com/eosspark/eos-go/chain"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
