@@ -3,7 +3,6 @@ package unittests
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"github.com/eosspark/container/sets/treeset"
 	. "github.com/eosspark/eos-go/chain"
 	abi "github.com/eosspark/eos-go/chain/abi_serializer"
@@ -25,6 +24,7 @@ import (
 
 var CORE_SYMBOL = common.Symbol{Precision: 4, Symbol: "SYS"}
 var CORE_SYMBOL_NAME = "SYS"
+var EPSINON = float64(0.001)
 var eosio = common.N("eosio")
 var eosioToken = common.N("eosio.token")
 var eosioRam = common.N("eosio.ram")
@@ -33,6 +33,7 @@ var eosioStake = common.N("eosio.stake")
 var eosioBpay = common.N("eosio.bpay")
 var eosioVpay = common.N("eosio.vpay")
 var eosioSaving = common.N("eosio.saving")
+var eosioName = common.N("eosio.names")
 var alice = common.N("alice1111111")
 var bob = common.N("bob111111111")
 var carol = common.N("carol1111111")
@@ -439,6 +440,7 @@ func (t BaseTester) GetAction(code common.AccountName, actType common.AccountNam
 	//action.Data, _ = a.EncodeAction(common.N(actionTypeName), buf) //TODO
 	//fmt.Println(buf)
 	action.Data, _ = a.EncodeAction(actType, buf)
+
 	//fmt.Println("data: ",action.Name,action.Data)
 	//if err != nil {
 	//	log.Error("tester GetAction EncodeAction is error:%s", err)
@@ -822,11 +824,7 @@ func (t BaseTester) StringToUint8Vector(s string) []uint8 {
 
 func (t BaseTester) ToUint64(x common.Variant) uint64 {
 	var bytes []uint8
-	err := common.FromVariant(x, &bytes)
-	if err != nil {
-		fmt.Println("from variant is error: ", err)
-		return 0 //TODO
-	}
+	common.FromVariant(x, &bytes)
 	var re uint64
 	try.FcAssert(len(bytes) == 8)
 	for i := uint8(0); i < 8; i++ {
@@ -837,11 +835,7 @@ func (t BaseTester) ToUint64(x common.Variant) uint64 {
 }
 func (t BaseTester) ToString(x common.Variant) string {
 	var bytes []uint8
-	err := common.FromVariant(x, &bytes)
-	if err != nil {
-		fmt.Println("from variant is error: ", err)
-		return "" //TODO
-	}
+	common.FromVariant(x, &bytes)
 	return string(bytes)
 }
 

@@ -2,12 +2,12 @@ package chain_plugin
 
 import (
 	"github.com/eosspark/eos-go/chain"
+	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	. "github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
-	. "github.com/eosspark/eos-go/plugins/chain_interface"
-	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/plugins/appbase/app"
+	. "github.com/eosspark/eos-go/plugins/chain_interface"
 )
 
 type ReadWrite struct {
@@ -66,8 +66,7 @@ type PushTransactionResult struct {
 func (rw *ReadWrite) PushTransaction(params PushTransactionParams, next NextFunction) {
 	Try(func() {
 		prettyInput := &types.PackedTransaction{}
-		EosAssert(common.FromVariant(&params, prettyInput) == nil,
-			&TransactionTypeException{}, "Invalid packed transaction")
+		common.FromVariant(&params, prettyInput)
 
 		app.App().GetMethod(TransactionAsync).CallMethods(prettyInput, true, func(result interface{}) {
 			if exception, ok := result.(Exception); ok {
@@ -79,16 +78,7 @@ func (rw *ReadWrite) PushTransaction(params PushTransactionParams, next NextFunc
 					id := trxTracePtr.ID
 					//TODO processed output
 					var output common.Variants
-					if err := common.ToVariant(trxTracePtr, &output); err != nil {
-						EosThrow(&ParseErrorException{}, err.Error())
-					}
-
-					//fc::variant output
-					//try {
-					//	output = db.to_variant_with_abi( *trx_trace_ptr, abi_serializer_max_time );
-					//} catch( chain::abi_exception& ) {
-					//	output = *trx_trace_ptr;
-					//}
+					common.ToVariant(trxTracePtr, &output)
 					next(PushTransactionResult{id, output})
 
 				}).CatchAndCall(next).End()

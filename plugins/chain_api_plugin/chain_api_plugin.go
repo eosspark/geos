@@ -211,6 +211,30 @@ func (c *ChainApiPlugin) PluginStartup() {
 		}).End()
 	})
 
+	httpPlugin.AddHandler(common.GetCurrencyStatsFunc, func(source string, body []byte, cb http_plugin.UrlResponseCallback) {
+		Try(func() {
+			if len(body) == 0 {
+				body = []byte("{}")
+			}
+
+			var param chain_plugin.GetCurrencyStatsParams
+			if err := json.Unmarshal(body, &param); err != nil {
+				EosThrow(&EofException{}, "marshal get_currency_stats params: %s", err.Error())
+			}
+
+			result := ROApi.GetCurrencyStats(param)
+
+			if byte, err := json.Marshal(result); err == nil {
+				cb(200, byte)
+			} else {
+				Throw(err)
+			}
+
+		}).Catch(func(e interface{}) {
+			http_plugin.HandleException(e, "chain", "get_currency_stats", string(body), cb)
+		}).End()
+	})
+
 	httpPlugin.AddHandler(common.GetRequiredKeys, func(source string, body []byte, cb http_plugin.UrlResponseCallback) {
 		Try(func() {
 			if len(body) == 0 {
@@ -232,6 +256,30 @@ func (c *ChainApiPlugin) PluginStartup() {
 
 		}).Catch(func(e interface{}) {
 			http_plugin.HandleException(e, "chain", "get_required_keys", string(body), cb)
+		}).End()
+	})
+
+	httpPlugin.AddHandler(common.GetTableFunc, func(source string, body []byte, cb http_plugin.UrlResponseCallback) {
+		Try(func() {
+			if len(body) == 0 {
+				body = []byte("{}")
+			}
+
+			var param chain_plugin.GetTableRowsParams
+			if err := json.Unmarshal(body, &param); err != nil {
+				EosThrow(&EofException{}, "marshal get_table params: %s", err.Error())
+			}
+
+			result := ROApi.GetTableRows(param)
+
+			if byte, err := json.Marshal(result); err == nil {
+				cb(200, byte)
+			} else {
+				Throw(err)
+			}
+
+		}).Catch(func(e interface{}) {
+			http_plugin.HandleException(e, "chain", "get_table", string(body), cb)
 		}).End()
 	})
 

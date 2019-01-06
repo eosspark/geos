@@ -3,7 +3,7 @@ package unittests
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/docker/docker/pkg/testutil/assert"
+	"github.com/stretchr/testify/assert"
 	. "github.com/eosspark/eos-go/chain"
 	"github.com/eosspark/eos-go/chain/abi_serializer"
 	"github.com/eosspark/eos-go/chain/types"
@@ -16,30 +16,18 @@ import (
 	"testing"
 )
 
-/*
-var eosioToken = common.AccountName(common.N("eosio.token"))
-var DEFAULT_EXPIRATION_DELTA uint32 = 6
-var DEFAULT_BILLED_CPU_TIME_US uint32 = 2000*/
-
 type CurrencyTester struct {
 	abiSer           abi_serializer.AbiDef
 	eosioToken       string
 	validatingTester *ValidatingTester
 }
 
-/*func initBaseTester() *BaseTester {
-	bt := newBaseTester(true, SPECULATIVE)
-	return bt
-}*/
-
 func NewCurrencyTester() *CurrencyTester {
 	ct := &CurrencyTester{}
 	ct.eosioToken = eosioToken.String()
 	bt := newValidatingTester(true, SPECULATIVE)
-	//ct.abiSer = abi_serializer.NewABI()
 	bt.CreateDefaultAccount(common.N(ct.eosioToken))
 	ct.validatingTester = bt
-	//bt.SetCode2(common.N("eosio"),eosioTokenWast)
 	wasmName := "test_contracts/eosio.token.wasm"
 	code, _ := ioutil.ReadFile(wasmName)
 	bt.SetCode(eosioToken, code, nil)
@@ -610,21 +598,24 @@ func TestDeferredFailure(t *testing.T) {
 	if err != nil {
 		fmt.Errorf("TestDeferredFailure:", "find gto is error")
 	}
-
-	//if gto.DelayUntil <= ct.validatingTester.Control.PendingBlockTime() {
 	deferredId = gto.TrxId
-
+	//next deferred trx
+	expectedRedelivery := ct.validatingTester.Control.PendingBlockTime().TimeSinceEpoch().Count() + common.Seconds(10).Count()
 	ct.validatingTester.ProduceBlocks(1, false)
 
 	assert.Equal(t, 1, count)
 
-	//assert.Equal(t,true,ct.validatingTester.ChainHasTransaction(&deferredId))
+	assert.Equal(t, true, ct.validatingTester.ChainHasTransaction(&deferredId))
 	assert.Equal(t, ct.validatingTester.GetTransactionReceipt(&deferredId).Status, types.TransactionStatusSoftFail)
+	//first deferred trx end
 
 	// set up alice owner
-	/*index3,_ := ct.validatingTester.Control.DataBase().GetIndex("byTrxId",&gto)
-	index3.Begin().Data(&gto)
-	deferredId2:=  gto.TrxId
+	count = 0
+	if index.Begin() != index.End() {
+		count = 1
+	}
+	index.Begin().Data(&gto)
+	deferredId2 := gto.TrxId
 	// set up alice owner
 	{
 		act := types.Action{}
@@ -638,92 +629,35 @@ func TestDeferredFailure(t *testing.T) {
 		//trace := ct.PushAction(&proxy, &act.Name,&data)
 		trace := ct.validatingTester.PushAction2(&bob, &act.Name, alice, &data, ct.validatingTester.DefaultExpirationDelta, 0)
 		ct.validatingTester.ProduceBlocks(1, false)
-		assert.Equal(t,true,ct.validatingTester.ChainHasTransaction(&trace.ID))
-	}
-	for ct.validatingTester.Control.HeadBlockTime().TimeSinceEpoch().Count() < expectedRedelivery{
-		ct.validatingTester.ProduceBlocks(1,false)
-		assert.Equal(t,ct.GetBalance(&proxy),common.Asset{}.FromString(&s))
-		assert.Equal(t,ct.GetBalance(&alice),common.Asset{}.FromString(&s2))
-		assert.Equal(t,ct.GetBalance(&bob),common.Asset{}.FromString(&s2))
-		assert.Equal(t,1,index2)
-		assert.Equal(t,false,ct.validatingTester.ChainHasTransaction(&deferredId2))
+
+		assert.Equal(t, true, ct.validatingTester.ChainHasTransaction(&trace.ID))
 	}
 
-	assert.Equal(t,1,index2)
-	ct.validatingTester.ProduceBlocks(1,false)
-	assert.Equal(t,0,index2)
-	assert.Equal(t,ct.validatingTester.GetTransactionReceipt(&deferredId2).Status,types.TransactionStatusSoftFail)
-	assert.Equal(t,ct.GetBalance(&proxy),common.Asset{}.FromString(&s2))
-	assert.Equal(t,ct.GetBalance(&alice),common.Asset{}.FromString(&s))
-	assert.Equal(t,ct.GetBalance(&bob),common.Asset{}.FromString(&s2))*/
+	for ct.validatingTester.Control.PendingBlockTime().TimeSinceEpoch().Count() < expectedRedelivery {
+		ct.validatingTester.ProduceBlocks(1, false)
+		assert.Equal(t, *ct.GetBalance(&proxy), common.Asset{}.FromString(&s))
+		assert.Equal(t, *ct.GetBalance(&alice), common.Asset{}.FromString(&s2))
+		assert.Equal(t, *ct.GetBalance(&bob), common.Asset{}.FromString(&s2))
+		assert.Equal(t, 1, count)
+		assert.Equal(t, false, ct.validatingTester.ChainHasTransaction(&deferredId2))
+	}
+	assert.Equal(t, 1, count)
+	// Second deferred transaction should be retired in this block and should succeed,
+	// which should move tokens from the proxy contract to the bob contract, thereby trigger the bob contract to
+	// schedule a third deferred transaction with no delay.
+	// That third deferred transaction (which moves tokens from the bob contract to account alice) should be executed immediately
+	// after in the same block (note that this is the current deferred transaction scheduling policy in tester and it may change).
+	ct.validatingTester.ProduceBlocks(2, false)
+	index2, _ := ct.validatingTester.Control.DataBase().GetIndex("byTrxId", &gto)
+	if index2.Begin() == index2.End() {
+		count = 0
+	}
+	assert.Equal(t, 0, count)
+	assert.Equal(t, ct.validatingTester.GetTransactionReceipt(&deferredId2).Status, types.TransactionStatusExecuted)
+
+	assert.Equal(t, *ct.GetBalance(&proxy), common.Asset{}.FromString(&s2))
+	assert.Equal(t, *ct.GetBalance(&alice), common.Asset{}.FromString(&s))
+	assert.Equal(t, *ct.GetBalance(&bob), common.Asset{}.FromString(&s2))
 
 	ct.validatingTester.close()
 }
-
-/*func TestDeferredFailure(t *testing.T){
-	ct := NewCurrencyTester()
-	ct.validatingTester.ProduceBlocks(2, false)
-	alice := common.N("alice")
-	bob := common.N("bob")
-	proxy := common.N("proxy")
-	ct.validatingTester.CreateAccounts([]common.AccountName{alice,bob, proxy}, false, true)
-	ct.validatingTester.DefaultProduceBlock()
-	wasmName := "test_contracts/proxy.wasm"
-	code, _ := ioutil.ReadFile(wasmName)
-	ct.validatingTester.SetCode(proxy, code, nil)
-	//ct.validatingTester.SetCode(bob, code, nil)
-	abiName := "test_contracts/proxy.abi"
-	abi, _ := ioutil.ReadFile(abiName)
-
-	ct.validatingTester.SetAbi(proxy, abi, nil)
-	//ct.validatingTester.SetAbi(bob, abi, nil)
-	{
-		act := types.Action{}
-		act.Account = proxy
-		act.Name = common.N("setowner")
-		act.Authorization = []types.PermissionLevel{{common.N("bob"), common.DefaultConfig.ActiveName}}
-		data := common.Variants{
-			"owner": bob,
-			"delay": 10,
-		}
-
-		//trace := ct.validatingTester.PushAction(&alice, &act.Name, &data)
-		trace := ct.validatingTester.PushAction2(&proxy, &act.Name, bob, &data, ct.validatingTester.DefaultExpirationDelta, 0)
-		ct.validatingTester.ProduceBlocks(1, false)
-		assert.Equal(t, true, ct.validatingTester.ChainHasTransaction(&trace.ID))
-		ct.validatingTester.ProduceBlocks(1, false)
-	}
-
-	{
-		act1 := types.Action{}
-		act1.Account = eosioToken
-		act1.Name = common.N("transfer")
-		act1.Authorization = []types.PermissionLevel{{eosioToken, common.DefaultConfig.ActiveName}}
-		data1 := common.Variants{
-			"from":     eosioToken,
-			"to":       proxy,
-			"quantity": "5.0000 EOS",
-			"memo":     "fund Proxy",
-		}
-
-		//trace1 := ct.PushAction(&eosioToken, &act1.Name, &data1)
-		trace1 := ct.validatingTester.PushAction2(&eosioToken, &act1.Name, eosioToken, &data1, ct.validatingTester.DefaultExpirationDelta, 0)
-		tt := ct.validatingTester.Control.HeadBlockTime().TimeSinceEpoch().Count()
-		expectedDelivery := tt + common.Seconds(10).Count()
-		s := "5.0000 EOS"
-		expected := common.Asset{}.FromString(&s)
-		s1 := "0.0000 EOS"
-		expected1 := common.Asset{}.FromString(&s1)
-		for ct.validatingTester.Control.HeadBlockTime().TimeSinceEpoch().Count() < expectedDelivery {
-			ct.validatingTester.ProduceBlocks(1, false)
-			assert.Equal(t, *ct.GetBalance(&proxy), expected)
-			assert.Equal(t, *ct.GetBalance(&alice), expected1)
-		}
-
-		ct.validatingTester.ProduceBlocks(1, false)
-		assert.Equal(t, *ct.GetBalance(&proxy), expected1)
-		assert.Equal(t, *ct.GetBalance(&bob), expected)
-		assert.Equal(t, true, ct.validatingTester.ChainHasTransaction(&trace1.ID))
-		ct.validatingTester.close()
-	}
-}*/

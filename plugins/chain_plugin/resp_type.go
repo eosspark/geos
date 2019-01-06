@@ -39,6 +39,12 @@ type GetBlockHeaderStateParams struct {
 }
 type GetBlockHeaderStateResult = types.BlockHeaderState
 
+type Permission struct {
+	PermName     common.Name
+	Parent       common.Name
+	RequiredAuth types.Authority
+}
+
 type GetAccountParams struct {
 	AccountName        common.AccountName `json:"account_name"`
 	ExpectedCoreSymbol *common.Symbol     `json:"expected_core_symbol"`
@@ -57,7 +63,7 @@ type GetAccountResult struct {
 	NetLimit               types.AccountResourceLimit `json:"net_limit"`
 	CpuLimit               types.AccountResourceLimit `json:"cpu_limit"`
 	RAMUsage               int64                      `json:"ram_usage"`
-	Permissions            []types.Permission         `json:"permissions"`
+	Permissions            []Permission               `json:"permissions"`
 	TotalResources         common.Variant             `json:"total_resources"`
 	SelfDelegatedBandwidth common.Variant             `json:"self_delegated_bandwidth"`
 	RefundRequest          common.Variant             `json:"refund_request"`
@@ -99,7 +105,6 @@ type GetRawCodeAndAbiResults struct {
 	AccountName common.Name `json:"account_name"`
 	Wasm        Blob        `json:"wasm"` //chain::blob
 	Abi         Blob        `json:"abi"`  //chain::blob
-
 }
 
 type Blob struct {
@@ -125,10 +130,9 @@ type GetRequiredKeysResult struct {
 	RequiredKeys []ecc.PublicKey `json:"required_keys"`
 }
 
-//rekey = {"available_keys":[],"transaction":{"expiration":19991,"ref_block_num":90,"ref_block_prefix":888,"max_net_usage_words":0,"max_cpu_usage_ms":0,"delay_sec":899,"context_free_actions":"hello","actions":null,"transaction_extensions":null,"signatures":[],"context_free_data":[]}}
 type GetCurrencyBalanceParams struct {
 	Code    common.Name `json:"code"`
-	Account common.Name `json:"account"`
+	Account common.Name `json:"account_name"`
 	Symbol  string      `json:"symbol"`
 }
 type GetCurrencyBalanceResult = []common.Asset
@@ -147,8 +151,8 @@ type GetTableRowsParams struct {
 	EncodeType    string      `json:"encode_type"`     //dec, hex , default=dec
 }
 type GetTableRowsResult struct {
-	More bool              `json:"more"` // one row per item, either encoded as hex String or JSON object
 	Rows []common.Variants `json:"rows"` // true if last element in data is not the end and sizeof data() < limit
+	More bool              `json:"more"` // one row per item, either encoded as hex String or JSON object
 }
 
 type GetTableByScopeParams struct {
@@ -170,12 +174,13 @@ type GetCurrencyStatsParams struct {
 	Code   common.Name `json:"code"`
 	Symbol string      `json:"symbol"`
 }
-type GetCurrencyStats struct {
+type GetCurrencyStatsResult struct {
 	Supply    common.Asset       `json:"supply"`
 	MaxSupply common.Asset       `json:"max_supply"`
 	Issuer    common.AccountName `json:"issuer"`
 }
-type GetCurrencyStatsResult = map[string]GetCurrencyStats
+
+const SizeofGetCurrencyStatsResult int = 40
 
 type GetProducerScheduleParams struct {
 }

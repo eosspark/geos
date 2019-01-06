@@ -17,7 +17,7 @@ func MinMicroseconds() Microseconds { return Microseconds(0) }
 
 func (ms Microseconds) ToSeconds() int64 { return int64(ms / 1e6) }
 func (ms Microseconds) Count() int64     { return int64(ms) }
-func (ms Microseconds) String() string   { return TimePoint(ms).String() }
+//func (ms Microseconds) String() string   { return TimePoint(ms).String() }
 
 func Seconds(s int64) Microseconds      { return Microseconds(s * 1e6) }
 func Milliseconds(s int64) Microseconds { return Microseconds(s * 1e3) }

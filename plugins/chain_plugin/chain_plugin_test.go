@@ -19,8 +19,7 @@ func TestApiParams(t *testing.T) {
 	}
 
 	var variant common.Variant
-	err := common.ToVariant(getCurrencyBalanceParams, &variant)
-	assert.NoError(t, err)
+	common.ToVariant(getCurrencyBalanceParams, &variant)
 	body, err := json.Marshal(variant)
 	assert.NoError(t, err)
 
@@ -45,8 +44,7 @@ func TestApiParams(t *testing.T) {
 		UnpackedTrx:           nil,
 	}
 
-	err = common.ToVariant(packed, &variant)
-	assert.NoError(t, err)
+	common.ToVariant(packed, &variant)
 
 	body, err = json.Marshal(variant)
 	assert.NoError(t, err)
@@ -56,8 +54,7 @@ func TestApiParams(t *testing.T) {
 	assert.NoError(t, err)
 
 	var prettyInput types.PackedTransaction
-	err = common.FromVariant(pushTrxParams, &prettyInput)
-	assert.NoError(t, err)
+	common.FromVariant(pushTrxParams, &prettyInput)
 	assert.Equal(t, sign, prettyInput.Signatures[0])
 	assert.Equal(t, types.CompressionNone, prettyInput.Compression)
 	assert.Equal(t, common.HexBytes(action), prettyInput.PackedTrx)

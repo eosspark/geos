@@ -26,10 +26,9 @@ func Try(f func()) (r *CatchOrFinally) {
 }
 
 func Throw(e interface{}) {
-	if e == nil {
-		return
+	if e != nil {
+		panic(e)
 	}
-	panic(e)
 }
 
 func ThrowIf(expr bool, e interface{}) {

@@ -1,7 +1,6 @@
 package unittests
 
 import (
-	"github.com/docker/docker/pkg/testutil/assert"
 	"github.com/eosspark/eos-go/chain"
 	"github.com/eosspark/eos-go/chain/abi_serializer"
 	"github.com/eosspark/eos-go/chain/types"
@@ -13,6 +12,7 @@ import (
 	"io/ioutil"
 	"strings"
 	"testing"
+	"github.com/stretchr/testify/assert"
 )
 
 type EosioTokenTester struct {

@@ -227,9 +227,7 @@ func (h *HttpPlugin) PluginInitialize(c *cli.Context) {
 func (h *HttpPlugin) PluginStartup() {
 	h.my.log.Info("http plugin startup")
 
-	handler := h.Handler
-
-	fasthttp.ListenAndAsyncServe(App().GetIoService(), h.my.listenStr, handler)
+	fasthttp.ListenAndAsyncServe(App().GetIoService(), h.my.listenStr, h.Handler)
 
 	//if(my->listen_endpoint) {
 	//	try {
@@ -249,13 +247,11 @@ func (h *HttpPlugin) PluginStartup() {
 	//	throw;
 	//	}
 	//}
-
 	//if h.my.ListenEndpoint != nil {
 	//	Try(func() {
 	//
 	//	})
 	//}
-
 	//if(my->unix_endpoint) {
 	//	try {
 	//		my->unix_server.clear_access_channels(websocketpp::log::alevel::all);
@@ -316,10 +312,9 @@ func (h *HttpPlugin) AddHandler(url string, handler UrlHandler) {
 }
 
 func (h *HttpPlugin) Handler(ctx *fasthttp.RequestCtx) {
-	h.my.log.Info("source: %s", ctx.Path())
-	h.my.log.Info("body: %s", ctx.Request.Body())
+	h.my.log.Error("source: %s", ctx.Path())
+	//h.my.log.Info("body: %s", ctx.Request.Body())
 
-	//fmt.Fprintf(ctx, "%s", re)
 	ctx.SetContentType("text/plain; charset=utf8")
 	// Set arbitrary headers
 	ctx.Response.Header.Set("X-My-Header", "my-header-value")
@@ -339,7 +334,7 @@ func (h *HttpPlugin) Handler(ctx *fasthttp.RequestCtx) {
 	} else {
 		//con->defer_http_response();
 		handler(resource, body, func(code int, body []byte) {
-			h.my.log.Warn("return : %s", string(body))
+			//h.my.log.Warn("return : %s", string(body))
 			ctx.SetBody([]byte(body))
 			ctx.SetStatusCode(code)
 		})
