@@ -497,6 +497,25 @@ func (t BaseTester) ProduceBlocksForNrounds(numOfRounds int) {
 	}
 }
 
+func (t BaseTester) ProduceMinNumOfBlocksToSpendTimeWoInactiveProd(targetElapsedTime common.Microseconds) {
+
+	var elapsedTime common.Microseconds
+
+	for elapsedTime < targetElapsedTime {
+		for i := 0; i < len(t.Control.HeadBlockState().ActiveSchedule.Producers); i++ {
+			timeToSkip := common.Microseconds(int64(common.DefaultConfig.ProducerRepetitions) * common.DefaultConfig.BlockIntervalMs)
+			t.produceBlock(timeToSkip, false, 0)
+
+			elapsedTime += timeToSkip
+		}
+
+		timeToSkip := common.Seconds(23 * 60 * 60)
+		t.produceBlock(timeToSkip, false, 0)
+
+		elapsedTime += timeToSkip
+	}
+}
+
 func (t BaseTester) ProduceBlock(skipTime common.Microseconds, skipFlag uint32) *types.SignedBlock {
 	return t.produceBlock(skipTime, false, skipFlag)
 }
