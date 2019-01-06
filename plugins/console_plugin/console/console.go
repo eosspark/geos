@@ -2,7 +2,7 @@ package console
 
 import (
 	"fmt"
-	"github.com/eosspark/eos-go/plugins/console_plugin/console/js/jsre"
+	"github.com/eosspark/eos-go/plugins/console_plugin/console/jsre"
 	"github.com/eosspark/eos-go/plugins/console_plugin/rpc"
 	"github.com/peterh/liner"
 	"github.com/robertkrimen/otto"
@@ -102,9 +102,11 @@ func (c *Console) init(preload []string) (err error) {
 	eosObj.Object().Set("send", bridge.Send)
 	eosObj.Object().Set("sendAsync", bridge.Send)
 	//eosObj.Object().Set("createAccount", eos.CreateAccount)
-	//eosObj.Object().Set("createKey", eos.CreateKey)
+	err = eosObj.Object().Set("exp", eos.Exp)
+	fmt.Println("********", err)
 
 	chain := newchainAPI(c)
+	c.jsre.Bind("chain", chain)
 	//c.jsre.Set("chain", struct{}{})
 	//chainObj, _ := c.jsre.Get("chain")
 	//chainObj.Object().Set("getInfo", chain.GetInfo)
@@ -112,8 +114,6 @@ func (c *Console) init(preload []string) (err error) {
 	//chainObj.Object().Set("getAccount", chain.GetAccount)
 	//chainObj.Object().Set("getCode", chain.GetCode)
 	//chainObj.Object().Set("getAbi", chain.GetAbi)
-
-	c.jsre.Bind("chain", chain)
 
 	wallet := newWalletApi(c)
 	c.jsre.Bind("wallet", wallet)

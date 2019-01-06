@@ -11,7 +11,7 @@ import (
 	"time"
 
 	"github.com/eosspark/eos-go/common"
-	"github.com/eosspark/eos-go/plugins/console_plugin/console/js/jsre/deps"
+	"github.com/eosspark/eos-go/plugins/console_plugin/console/jsre/deps"
 	"github.com/robertkrimen/otto"
 )
 

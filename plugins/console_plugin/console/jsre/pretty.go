@@ -89,7 +89,7 @@ func (ctx ppctx) printValue(v otto.Value, level int, inArray bool) {
 	case v.IsNull():
 		fmt.Fprint(ctx.w, SpecialColor("null"))
 	case v.IsUndefined():
-		fmt.Fprint(ctx.w, SpecialColor("undefined"))
+		//fmt.Fprint(ctx.w, SpecialColor("undefined"))//TODO print undefined ??
 	case v.IsString():
 		s, _ := v.ToString()
 		fmt.Fprint(ctx.w, StringColor("%q", s))
