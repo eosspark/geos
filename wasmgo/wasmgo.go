@@ -39,8 +39,7 @@ var (
 	envModule *wasm.Module
 	ignore    bool = false
 	debug     bool = false
-
-	vmCache = make(map[crypto.Sha256]*VM) //
+	//
 )
 
 type size_t int
@@ -48,7 +47,9 @@ type size_t int
 type WasmGo struct {
 	context EnvContext
 	handles map[string]*func(*VM)
-	//vm      *VM
+	vmCache map[crypto.Sha256]*VM
+
+	//vmCache = make(map[crypto.Sha256]*VM)
 	ilog log.Logger
 }
 
@@ -58,7 +59,7 @@ func NewWasmGo() *WasmGo {
 		return wasmGo
 	}
 
-	w := WasmGo{handles: make(map[string]*func(*VM))}
+	w := WasmGo{handles: make(map[string]*func(*VM)), vmCache: make(map[crypto.Sha256]*VM)}
 
 	w.Register("action_data_size", actionDataSize)
 	w.Register("read_action_data", readActionData)
@@ -266,8 +267,7 @@ func NewWasmGo() *WasmGo {
 func (w *WasmGo) Apply(code_id *crypto.Sha256, code []byte, context EnvContext) {
 	w.context = context
 
-	var vm *VM = vmCache[*code_id]
-	//if vm, _ = vmCache[*code_id];
+	var vm *VM = w.vmCache[*code_id]
 	if vm != nil {
 		vm.WasmGo = w
 	} else {
@@ -296,7 +296,7 @@ func (w *WasmGo) Apply(code_id *crypto.Sha256, code []byte, context EnvContext) 
 			w.ilog.Error("could not create VM: %v", err)
 		}
 
-		vmCache[*code_id] = vm
+		w.vmCache[*code_id] = vm
 
 		//fidx := m.Function.Types[int(i)]
 		//ftype := m.Types.Entries[int(fidx)]
