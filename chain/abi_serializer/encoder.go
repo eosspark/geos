@@ -118,7 +118,9 @@ func (a *AbiDef) encodeField(binaryEncoder *rlp.Encoder, fieldName string, field
 	if isArray {
 		abiLog.Debug("field is an array, name is %s,type is %s", fieldName, fieldType)
 		if !value.IsArray() {
-			return fmt.Errorf("encode field: expected array for field [%s] got [%s]", fieldName, value.Type.String())
+			binaryEncoder.WriteUVarInt(0)
+			return nil
+			//return fmt.Errorf("encode field: expected array for field [%s] got [%s]", fieldName, value.Type.String())
 		}
 
 		results := value.Array()
@@ -251,7 +253,6 @@ func (a *AbiDef) writeField(binaryEncoder *rlp.Encoder, fieldName string, fieldT
 		object = types.BlockTimeStamp(slot)
 	case "name":
 		if len(value.Str) > 13 { //todo 12 or 13??
-			fmt.Printf("writing field: name: %s is to long. expected length of max 13 characters\n", value.Str)
 			return fmt.Errorf("writing field: name: %s is to long. expected length of max 13 characters", value.Str)
 		}
 		object = common.N(value.Str)
