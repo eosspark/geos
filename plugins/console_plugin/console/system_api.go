@@ -16,54 +16,6 @@ import (
 	"strings"
 )
 
-type ConsoleInterface interface {
-	getOptions() *StandardTransactionOptions
-}
-
-type StandardTransactionOptions struct {
-	Expiration        uint64   `json:"expiration"`
-	TxForceUnique     bool     `json:"force_unique"`
-	TxSkipSign        bool     `json:"skip_sign"`
-	TxPrintJson       bool     `json:"json"`
-	TxDontBroadcast   bool     `json:"dont_broadcast"`
-	TxReturnPacked    bool     `json:"return_packed"`
-	TxRefBlockNumOrId string   `json:"ref_block"`
-	TxPermission      []string `json:"permission"`
-	TxMaxCpuUsage     uint8    `json:"max_cpu_usage_ms"`
-	TxMaxNetUsage     uint32   `json:"max_net_usage"`
-	DelaySec          uint32   `json:"delay_sec"`
-}
-
-func (s *StandardTransactionOptions) getOptions() *StandardTransactionOptions {
-	return s
-}
-
-type NewAccountParams struct {
-	Creator             common.Name `json:"creator"`
-	Name                common.Name `json:"name"`
-	OwnerKey            string      `json:"owner"`
-	ActiveKey           string      `json:"active"`
-	StakeNet            string      `json:"stake_net"`
-	StakeCpu            string      `json:"stake_cpu"`
-	BuyRamBytesInKbytes uint32      `json:"buy_ram_kbytes"`
-	BuyRamBytes         uint32      `json:"buy_ram_bytes"`
-	BuyRamEos           string      `json:"buy_ram"`
-	Transfer            bool        `json:"transfer"`
-	StandardTransactionOptions
-}
-
-func readParams(params interface{}, call otto.FunctionCall) {
-	JSON, _ := call.Otto.Object("JSON")
-	reqVal, err := JSON.Call("stringify", call.Argument(0))
-	if err != nil {
-		throwJSException(err.Error())
-	}
-
-	rawReq := reqVal.String()
-	dec := json.NewDecoder(strings.NewReader(rawReq))
-	dec.Decode(&params)
-}
-
 type system struct {
 	c *Console
 }
@@ -124,14 +76,6 @@ func (s *system) NewAccount(call otto.FunctionCall) (response otto.Value) {
 	return otto.UndefinedValue()
 }
 
-type RegisterProducer struct {
-	Producer    string `json:"producer"`
-	ProducerKey string `json:"producer_key"`
-	Url         string `json:"url"`
-	Loc         uint16 `json:"loc"`
-	StandardTransactionOptions
-}
-
 func (s *system) RegProducer(call otto.FunctionCall) (response otto.Value) {
 	var params RegisterProducer
 	readParams(&params, call)
@@ -150,11 +94,6 @@ func (s *system) RegProducer(call otto.FunctionCall) (response otto.Value) {
 	return otto.UndefinedValue()
 }
 
-type UnregrodParams struct {
-	Producer string `json:"producer"`
-	StandardTransactionOptions
-}
-
 func (s *system) Unregprod(call otto.FunctionCall) (response otto.Value) {
 	var params UnregrodParams
 	readParams(&params, call)
@@ -165,12 +104,6 @@ func (s *system) Unregprod(call otto.FunctionCall) (response otto.Value) {
 		common.DefaultConfig.SystemAccountName, common.N("unregprod"), &actPayload)
 	sendActions([]*types.Action{action}, 1000, types.CompressionNone, &params)
 	return otto.UndefinedValue()
-}
-
-type Proxy struct {
-	Voter string `json:"voter"`
-	Proxy string `json:"proxy"`
-	StandardTransactionOptions
 }
 
 func (s *system) VoteproducerProxy(call otto.FunctionCall) (response otto.Value) {
@@ -186,24 +119,6 @@ func (s *system) VoteproducerProxy(call otto.FunctionCall) (response otto.Value)
 		common.DefaultConfig.SystemAccountName, common.N("voteproduer"), &actPayload)
 	sendActions([]*types.Action{action}, 1000, types.CompressionNone, &params)
 	return otto.UndefinedValue()
-}
-
-type Producers []common.Name
-
-func (p Producers) Len() int {
-	return len(p)
-}
-func (p Producers) Less(i, j int) bool {
-	return uint64(p[i]) < uint64(p[j])
-}
-func (p Producers) Swap(i, j int) {
-	p[i], p[j] = p[j], p[i]
-}
-
-type Prods struct {
-	Vote          string    `json:"vote"`
-	ProducerNames Producers `json:"producer_names"`
-	StandardTransactionOptions
 }
 
 func (s *system) VoteproducerProds(call otto.FunctionCall) (response otto.Value) {
@@ -223,12 +138,6 @@ func (s *system) VoteproducerProds(call otto.FunctionCall) (response otto.Value)
 		common.DefaultConfig.SystemAccountName, common.N("voteproducer"), &actPayload)
 	sendActions([]*types.Action{action}, 10000, types.CompressionNone, &params)
 	return otto.UndefinedValue()
-}
-
-type Approve struct {
-	Voter        common.Name `json:"voter"`
-	ProducerName common.Name `json:"producer_name"`
-	StandardTransactionOptions
 }
 
 func (s *system) VoteproducerApprove(call otto.FunctionCall) (response otto.Value) {
@@ -295,12 +204,6 @@ func (s *system) VoteproducerApprove(call otto.FunctionCall) (response otto.Valu
 	return otto.UndefinedValue()
 }
 
-type UnapproveProducer struct {
-	Voter        common.Name `json:"voter"`
-	ProducerName common.Name `json:"producer_name"`
-	StandardTransactionOptions
-}
-
 func (s *system) VoteproducerUnapproveProducer(call otto.FunctionCall) (response otto.Value) {
 	var params UnapproveProducer
 	readParams(&params, call)
@@ -363,12 +266,6 @@ func (s *system) VoteproducerUnapproveProducer(call otto.FunctionCall) (response
 	return otto.UndefinedValue()
 }
 
-type ListproducersParams struct {
-	PrintJson bool   `json:"print_json"`
-	Limit     uint32 `json:"limit"`
-	Lower     string `json:"lower"`
-}
-
 func (s *system) Listproducers(call otto.FunctionCall) (response otto.Value) {
 	var params ListproducersParams
 	readParams(&params, call)
@@ -426,18 +323,6 @@ func (s *system) Listproducers(call otto.FunctionCall) (response otto.Value) {
 	return otto.UndefinedValue()
 }
 
-type DelegatebwParams struct {
-	From               string `json:"from"`
-	Receive            string `json:"receive"`
-	StakeNetAmount     string `json:"stake_net_amount"`
-	StakeCpuAmount     string `json:"stake_cpu_amount"`
-	StakeStorageAmount string `json:"stake_storage_amount"`
-	BuyRamAmount       string `json:"buy_ram_amount"`
-	BuyRamBytes        uint32 `json:"buy_ram_bytes"`
-	Transfer           bool   `json:"transfer"`
-	StandardTransactionOptions
-}
-
 func (s *system) Delegatebw(call otto.FunctionCall) (response otto.Value) {
 	var params DelegatebwParams
 	readParams(&params, call)
@@ -467,14 +352,6 @@ func (s *system) Delegatebw(call otto.FunctionCall) (response otto.Value) {
 	return otto.UndefinedValue()
 }
 
-type UndelegatebwParams struct {
-	From             string `json:"from"`
-	Receive          string `json:"receive"`
-	UnstakeNetAmount string `json:"unstake_net_amount"`
-	UnstakeCpuAmount string `json:"unstake_cpu_amount"`
-	StandardTransactionOptions
-}
-
 func (s *system) Undelegatebw(call otto.FunctionCall) (response otto.Value) {
 	var params UndelegatebwParams
 	readParams(&params, call)
@@ -489,11 +366,6 @@ func (s *system) Undelegatebw(call otto.FunctionCall) (response otto.Value) {
 		common.DefaultConfig.SystemAccountName, common.N("undelegatebw"), &actPayload)
 	sendActions([]*types.Action{action}, 1000, types.CompressionNone, &params)
 	return otto.UndefinedValue()
-}
-
-type ListbwParams struct {
-	Account   common.Name `json:"name"`
-	PrintJson bool        `json:"print_json"`
 }
 
 func (s *system) Listbw(call otto.FunctionCall) (response otto.Value) {
@@ -531,13 +403,6 @@ func (s *system) Listbw(call otto.FunctionCall) (response otto.Value) {
 	return otto.UndefinedValue()
 }
 
-type BidnameParams struct {
-	Bidder    string `json:"bidder"`
-	NewName   string `json:"newname"`
-	BidAmount string `json:"bid_amount"`
-	StandardTransactionOptions
-}
-
 func (s *system) Bidname(call otto.FunctionCall) (response otto.Value) {
 	var params BidnameParams
 	readParams(&params, call)
@@ -552,11 +417,6 @@ func (s *system) Bidname(call otto.FunctionCall) (response otto.Value) {
 
 	sendActions([]*types.Action{action}, 1000, types.CompressionNone, &params)
 	return otto.UndefinedValue()
-}
-
-type BidNameinfoParams struct {
-	PrintJson bool   `json:"print_json"`
-	Newname   string `json:"newname"`
 }
 
 func (s *system) Bidnameinfo(call otto.FunctionCall) (response otto.Value) {
@@ -596,15 +456,6 @@ func (s *system) Bidnameinfo(call otto.FunctionCall) (response otto.Value) {
 	return otto.UndefinedValue()
 }
 
-type BuyramParams struct {
-	Payer     string `json:"payer"`
-	Receiver  string `json:"receiver"`
-	Amount    string `json:"amount"`
-	Kbytes    bool   `json:"kbytes"`
-	BytesFlag bool   `json:"bytes"`
-	StandardTransactionOptions
-}
-
 func (s *system) Buyram(call otto.FunctionCall) (response otto.Value) {
 	var params BuyramParams
 	readParams(&params, call)
@@ -631,13 +482,6 @@ func (s *system) Buyram(call otto.FunctionCall) (response otto.Value) {
 	return otto.UndefinedValue()
 }
 
-type SellRamParams struct {
-	From     string `json:"from"`
-	Receiver string `json:"receiver"`
-	Amount   uint64 `json:"amount"`
-	StandardTransactionOptions
-}
-
 func (s *system) Sellram(call otto.FunctionCall) (response otto.Value) {
 	var params SellRamParams
 	readParams(&params, call)
@@ -649,11 +493,6 @@ func (s *system) Sellram(call otto.FunctionCall) (response otto.Value) {
 		common.DefaultConfig.SystemAccountName, common.N("sellram"), &actPayload)
 	sendActions([]*types.Action{action}, 1000, types.CompressionNone, &params)
 	return otto.UndefinedValue()
-}
-
-type ClaimrewardsParams struct {
-	Owner string `json:"owner"`
-	StandardTransactionOptions
 }
 
 func (s *system) Claimrewards(call otto.FunctionCall) (response otto.Value) {
@@ -668,11 +507,6 @@ func (s *system) Claimrewards(call otto.FunctionCall) (response otto.Value) {
 
 	sendActions([]*types.Action{action}, 1000, types.CompressionNone, &params)
 	return otto.UndefinedValue()
-}
-
-type RegproxyParams struct {
-	Proxy string `json:"proxy"`
-	StandardTransactionOptions
 }
 
 func (s *system) Regproxy(call otto.FunctionCall) (response otto.Value) {
@@ -702,13 +536,6 @@ func (s *system) Unregproxy(call otto.FunctionCall) (response otto.Value) {
 	return otto.UndefinedValue()
 }
 
-type CanceldelayParams struct {
-	CancelingAccount   string `json:"canceling_account"`
-	CanclingPermission string `json:"canceling_permission"`
-	TrxID              string `json:"trx_id"`
-	StandardTransactionOptions
-}
-
 func (s *system) Canceldelay(call otto.FunctionCall) (response otto.Value) {
 	var params CanceldelayParams
 	readParams(&params, call)
@@ -722,6 +549,30 @@ func (s *system) Canceldelay(call otto.FunctionCall) (response otto.Value) {
 	action := createAction([]types.PermissionLevel{cancelingAuth}, common.DefaultConfig.SystemAccountName, common.N("canceldelay"), &actPayload)
 	sendActions([]*types.Action{action}, 1000, types.CompressionNone, &params)
 	return otto.UndefinedValue()
+}
+
+func readParams(params interface{}, call otto.FunctionCall) {
+	JSON, _ := call.Otto.Object("JSON")
+	reqVal, err := JSON.Call("stringify", call.Argument(0))
+	if err != nil {
+		throwJSException(err.Error())
+	}
+
+	rawReq := reqVal.String()
+	dec := json.NewDecoder(strings.NewReader(rawReq))
+	dec.Decode(&params)
+}
+
+func getJsResult(call otto.FunctionCall, in interface{}) otto.Value {
+	bytes, _ := json.Marshal(in)
+	resps, _ := call.Otto.Object("new Array()")
+	JSON, _ := call.Otto.Object("JSON")
+	resultVal, _ := JSON.Call("parse", string(bytes))
+	resp, _ := call.Otto.Object(`({"eosgo":"1.0"})`)
+	resp.Set("result", resultVal)
+	resps.Call("push", resp)
+
+	return resps.Value()
 }
 
 func createAction(authorization []types.PermissionLevel, code common.AccountName, act common.ActionName, args *common.Variants) *types.Action {
@@ -841,13 +692,13 @@ func pushTransaction(trx *types.SignedTransaction, extraKcpu int32, compression 
 		signTransaction(trx, requiredKeys, &info.ChainID)
 	}
 	if !c.getOptions().TxDontBroadcast {
-		var re common.Variant
+		var result chain_plugin.PushTransactionResult
 		packedTrx := types.NewPackedTransactionBySignedTrx(trx, compression)
-		err := DoHttpCall(&re, common.PushTxnFunc, packedTrx)
+		err = DoHttpCall(&result, common.PushTxnFunc, packedTrx)
 		if err != nil {
 			clog.Error(err.Error())
 		}
-		return re
+		return result
 	} else {
 		if !c.getOptions().TxReturnPacked {
 			out, _ := json.Marshal(trx)

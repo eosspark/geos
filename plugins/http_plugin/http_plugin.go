@@ -312,7 +312,7 @@ func (h *HttpPlugin) AddHandler(url string, handler UrlHandler) {
 }
 
 func (h *HttpPlugin) Handler(ctx *fasthttp.RequestCtx) {
-	h.my.log.Error("source: %s", ctx.Path())
+	//h.my.log.Error("source: %s", ctx.Path())
 	//h.my.log.Info("body: %s", ctx.Request.Body())
 
 	ctx.SetContentType("text/plain; charset=utf8")

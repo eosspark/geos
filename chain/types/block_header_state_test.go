@@ -28,7 +28,7 @@ func NewBlockHeaderState(t *testing.T) *BlockHeaderState {
 	genHeader := new(BlockHeaderState)
 	genHeader.ActiveSchedule = initSchedule
 	genHeader.PendingSchedule = initSchedule
-	genHeader.PendingScheduleHash = crypto.Hash256(initSchedule)
+	genHeader.PendingScheduleHash = *crypto.Hash256(initSchedule)
 	genHeader.Header.Timestamp = BlockTimeStamp(1162339200) //1162339200 slot of 2018-6-1T12:00:00 UTC
 	genHeader.Header.Confirmed = 1
 	genHeader.BlockId = genHeader.Header.BlockID()

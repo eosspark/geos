@@ -178,12 +178,9 @@ func DialContext(ctx context.Context, rawurl string) (*Client, error) {
 	switch u.Scheme {
 	case "http", "https":
 		return DialHTTP(rawurl)
-	case "ws", "wss":
-		return DialWebsocket(ctx, rawurl, "")
 	case "stdio":
 		return DialStdIO(ctx)
-	case "":
-		return DialIPC(ctx, rawurl)
+
 	default:
 		return nil, fmt.Errorf("no known transport for URL scheme %q", u.Scheme)
 	}
@@ -298,59 +295,9 @@ func (c *Client) Call(result interface{}, method string, args ...interface{}) er
 // The result must be a pointer so that package json can unmarshal into it. You
 // can also pass nil, in which case the result is ignored.
 func (c *Client) CallContext(ctx context.Context, result interface{}, method string, args ...interface{}) error {
-	//var body Variants
-	var err error
 
-	temp := make([]interface{}, 1)
 	op := &requestOp{resp: make(chan []byte, 1)}
 	rpclog.Info("CallContext msg: %#v,   method: %s", args, method)
-
-	if len(args) > 0 {
-		temp, _ = args[0].([]interface{})
-	}
-
-	switch method {
-	case getInfoFunc:
-		//body = nil
-		err = c.sendHTTP(ctx, op, nil, method)
-	case getBlockFunc:
-		//body = Variants{"block_num_or_id": temp[0]}
-		err = c.sendHTTP(ctx, op, temp[0], method)
-	case getRequiredKeys:
-		err = c.sendHTTP(ctx, op, temp[0], method)
-
-	case "rpc_modules": //TODO
-		method = "/v1/chain/get_info"
-		err = c.sendHTTP(ctx, op, nil, method)
-	case pushTxnFunc:
-
-		err = c.sendHTTP(ctx, op, temp[0], method)
-
-	case walletImportKey:
-		fmt.Println(args)
-		msg := Variants{"name": temp[0], "key": temp[1]}
-		err = c.sendHTTP(ctx, op, msg, method)
-
-	case walletSignTrx:
-		err = c.sendHTTP(ctx, op, temp[0], method)
-	case walletPublicKeys:
-		err = c.sendHTTP(ctx, op, nil, method)
-
-	case walletCreateKey:
-		err = c.sendHTTP(ctx, op, nil, method)
-	case walletCreate:
-		err = c.sendHTTP(ctx, op, temp[0], method)
-
-	default:
-		log.Debug("%s is not defined !", method)
-		return errors.New(fmt.Sprintf("%s is not defined !", method))
-
-	}
-
-	//err := c.sendHTTP(ctx, op, body, path)
-	if err != nil {
-		return err
-	}
 
 	// dispatch has accepted the request and will close the channel when it quits.
 	switch resp, err := op.wait(ctx); {
