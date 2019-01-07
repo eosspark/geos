@@ -1,10 +1,10 @@
 package common_test
 
 import (
-	"testing"
-	"github.com/stretchr/testify/assert"
+	"encoding/json"
 	"github.com/eosspark/eos-go/common"
-		"encoding/json"
+	"github.com/stretchr/testify/assert"
+	"testing"
 )
 
 func TestToVariant(t *testing.T) {
@@ -16,14 +16,12 @@ func TestToVariant(t *testing.T) {
 
 	var variant common.Variant //:= make(map[string]interface{}, 3)
 
-	err := common.ToVariant(&example, &variant)
-	assert.NoError(t, err)
+	common.ToVariant(&example, &variant)
 
 	variant.(common.Variants)["B"] = "b"
 
-	err = common.FromVariant(&variant, &example)
+	common.FromVariant(&variant, &example)
 
-	assert.NoError(t, err)
 	assert.Equal(t, "b", example.B)
 	assert.Equal(t, []int{2, 3}, example.C)
 }
@@ -32,16 +30,10 @@ func TestToVariant_Simple(t *testing.T) {
 	example := 100
 	var variant common.Variant
 
-	err := common.ToVariant(&example, &variant)
-	assert.NoError(t, err)
-
-	vs, ok := common.VariantToVariants(variant)
-	assert.Empty(t, vs)
-	assert.Equal(t, false, ok)
+	common.ToVariant(&example, &variant)
 
 	var a int
-	err = common.FromVariant(&variant, &a)
-	assert.NoError(t, err)
+	common.FromVariant(&variant, &a)
 	assert.Equal(t, 100, a)
 }
 
@@ -53,19 +45,16 @@ func TestVariant(t *testing.T) {
 	}{1, "a", []int{2, 3}}
 
 	var variant common.Variant
-	err := common.ToVariant(&example, &variant)
-	assert.NoError(t, err)
+	common.ToVariant(&example, &variant)
 
 	data, err := json.Marshal(variant)
 	assert.NoError(t, err)
 
 	assert.Equal(t, "{\"A\":1,\"B\":\"a\",\"C\":[2,3]}", string(data))
 
-	vs,_ := common.VariantToVariants(variant)
+	(variant.(common.Variants))["B"] = "b"
 
-	(vs)["B"] = "b"
-
-	err = common.FromVariant(variant, &example)
+	common.FromVariant(variant, &example)
 
 	assert.Equal(t, "b", example.B)
 }

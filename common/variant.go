@@ -1,6 +1,10 @@
 package common
 
-import "encoding/json"
+import (
+	"encoding/json"
+	. "github.com/eosspark/eos-go/exception"
+	. "github.com/eosspark/eos-go/exception/try"
+)
 
 type Variant = interface{}
 
@@ -8,24 +12,28 @@ type StaticVariant = Variant // use type-assert to get static_variant
 
 type Variants = map[string]interface{}
 
-func ToVariant(T interface{}, variant Variant) error {
+func ToVariant(T interface{}, variant Variant) {
 	data, err := json.Marshal(T)
 	if err != nil {
-		return err
+		EosThrow(&ParseErrorException{}, err.Error())
 	}
 
-	if err = json.Unmarshal(data, variant); err != nil {
-		return err
+	err = json.Unmarshal(data, variant)
+	if err != nil {
+		EosThrow(&ParseErrorException{}, err.Error())
+	}
+}
+
+func FromVariant(variant Variant, T interface{}) {
+	ToVariant(variant, T)
+}
+
+func VariantsFromData(data []byte) Variants {
+	result := Variants{}
+	err := json.Unmarshal(data, &result)
+	if err != nil {
+		EosThrow(&ParseErrorException{}, err.Error())
 	}
 
-	return nil
-}
-
-func FromVariant(variant Variant, T interface{}) error {
-	return ToVariant(variant, T)
-}
-
-func VariantToVariants(variant Variant) (Variants, bool) {
-	vs, ok := variant.(Variants)
-	return vs, ok
+	return result
 }

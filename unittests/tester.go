@@ -3,7 +3,6 @@ package unittests
 import (
 	"bytes"
 	"encoding/json"
-	"fmt"
 	"github.com/eosspark/container/sets/treeset"
 	. "github.com/eosspark/eos-go/chain"
 	abi "github.com/eosspark/eos-go/chain/abi_serializer"
@@ -498,6 +497,25 @@ func (t BaseTester) ProduceBlocksForNrounds(numOfRounds int) {
 	}
 }
 
+func (t BaseTester) ProduceMinNumOfBlocksToSpendTimeWoInactiveProd(targetElapsedTime common.Microseconds) {
+
+	var elapsedTime common.Microseconds
+
+	for elapsedTime < targetElapsedTime {
+		for i := 0; i < len(t.Control.HeadBlockState().ActiveSchedule.Producers); i++ {
+			timeToSkip := common.Microseconds(int64(common.DefaultConfig.ProducerRepetitions) * common.DefaultConfig.BlockIntervalMs)
+			t.produceBlock(timeToSkip, false, 0)
+
+			elapsedTime += timeToSkip
+		}
+
+		timeToSkip := common.Seconds(23 * 60 * 60)
+		t.produceBlock(timeToSkip, false, 0)
+
+		elapsedTime += timeToSkip
+	}
+}
+
 func (t BaseTester) ProduceBlock(skipTime common.Microseconds, skipFlag uint32) *types.SignedBlock {
 	return t.produceBlock(skipTime, false, skipFlag)
 }
@@ -806,11 +824,7 @@ func (t BaseTester) StringToUint8Vector(s string) []uint8 {
 
 func (t BaseTester) ToUint64(x common.Variant) uint64 {
 	var bytes []uint8
-	err := common.FromVariant(x, &bytes)
-	if err != nil {
-		fmt.Println("from variant is error: ", err)
-		return 0 //TODO
-	}
+	common.FromVariant(x, &bytes)
 	var re uint64
 	try.FcAssert(len(bytes) == 8)
 	for i := uint8(0); i < 8; i++ {
@@ -821,11 +835,7 @@ func (t BaseTester) ToUint64(x common.Variant) uint64 {
 }
 func (t BaseTester) ToString(x common.Variant) string {
 	var bytes []uint8
-	err := common.FromVariant(x, &bytes)
-	if err != nil {
-		fmt.Println("from variant is error: ", err)
-		return "" //TODO
-	}
+	common.FromVariant(x, &bytes)
 	return string(bytes)
 }
 

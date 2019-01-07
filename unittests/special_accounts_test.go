@@ -4,7 +4,7 @@ import (
 	"testing"
 	"github.com/eosspark/eos-go/chain"
 	"github.com/eosspark/eos-go/common"
-	"github.com/docker/docker/pkg/testutil/assert"
+	"github.com/stretchr/testify/assert"
 	"github.com/eosspark/eos-go/entity"
 	"fmt"
 	"math"

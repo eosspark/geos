@@ -3,15 +3,16 @@ package common
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/eosspark/eos-go/exception"
-	"github.com/eosspark/eos-go/exception/try"
+	. "github.com/eosspark/eos-go/exception"
+	. "github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/log"
 	"math"
 	"strconv"
 	"strings"
 )
 
-var maxAmount int64 = int64(1)<<62 - 1
+const maxAmount int64 = int64(1)<<62 - 1
+const SizeofAsset int = 16
 
 type Asset struct {
 	Amount int64 `eos:"asset"`
@@ -39,8 +40,8 @@ func NewAssetWithCheck(a int64, id Symbol) *Asset {
 	return re
 }
 func (a *Asset) assert() {
-	try.EosAssert(a.isAmountWithinRange(), &exception.AssetTypeException{}, "magnitude of asset amount must be less than 2^62")
-	try.EosAssert(a.Symbol.Valid(), &exception.AssetTypeException{}, "invalid symbol")
+	EosAssert(a.isAmountWithinRange(), &AssetTypeException{}, "magnitude of asset amount must be less than 2^62")
+	EosAssert(a.Symbol.Valid(), &AssetTypeException{}, "invalid symbol")
 }
 
 func (a *Asset) isAmountWithinRange() bool {
@@ -90,13 +91,13 @@ func (a Asset) String() string {
 
 func (a Asset) FromString(from *string) Asset {
 	spacePos := strings.Index(*from, " ")
-	try.EosAssert(spacePos != -1, &exception.AssetTypeException{}, "Asset's amount and symbol should be separated with space")
+	EosAssert(spacePos != -1, &AssetTypeException{}, "Asset's amount and symbol should be separated with space")
 	symbolStr := string([]byte(*from)[spacePos+1:])
 	amountStr := string([]byte(*from)[:spacePos])
 
 	dotPos := strings.Index(amountStr, ".")
 	if dotPos != -1 {
-		try.EosAssert(dotPos != len(amountStr)-1, &exception.AssetTypeException{}, "Missing decimal fraction after decimal point")
+		EosAssert(dotPos != len(amountStr)-1, &AssetTypeException{}, "Missing decimal fraction after decimal point")
 	}
 
 	var precisionDigitStr string
@@ -134,12 +135,25 @@ type ExtendedAsset struct {
 	Contract AccountName
 }
 
-type SymbolCode uint64
+type SymbolCode = uint64
 
 // NOTE: there's also a new ExtendedSymbol (which includes the contract (as AccountName) on which it is)
 type Symbol struct {
 	Precision uint8
 	Symbol    string
+}
+
+func StringToSymbol(precision uint8, str string) (result uint64) {
+	Try(func() {
+		len := uint32(len(str))
+		for i := uint32(0); i < len; i++ {
+			// All characters must be upper case alphabets
+			EosAssert(str[i] >= 'A' && str[i] <= 'Z', &SymbolTypeException{}, "invalid character in symbol name")
+			result |= uint64(str[i]) << (8 * (i + 1))
+		}
+		result |= uint64(precision)
+	}).FcCaptureLogAndRethrow("str:%s", str)
+	return
 }
 
 var MaxPrecision = uint8(18)
@@ -167,19 +181,19 @@ var MaxPrecision = uint8(18)
 
 func (sym Symbol) FromString(from *string) Symbol {
 	//TODO: unComplete
-	try.EosAssert(!Empty(*from), &exception.SymbolTypeException{}, "creating symbol from empty string")
+	EosAssert(!Empty(*from), &SymbolTypeException{}, "creating symbol from empty string")
 	commaPos := strings.Index(*from, ",")
-	try.EosAssert(commaPos != -1, &exception.SymbolTypeException{}, "missing comma in symbol")
+	EosAssert(commaPos != -1, &SymbolTypeException{}, "missing comma in symbol")
 	precPart := string([]byte(*from)[:commaPos])
 	p, _ := strconv.ParseInt(precPart, 10, 64)
 	namePart := string([]byte(*from)[commaPos+1:])
-	try.EosAssert(sym.ValidName(namePart), &exception.SymbolTypeException{}, "invalid symbol: %s", namePart)
-	try.EosAssert(uint8(p) <= MaxPrecision, &exception.SymbolTypeException{}, "precision %v should be <= 18", p)
+	EosAssert(sym.ValidName(namePart), &SymbolTypeException{}, "invalid symbol: %s", namePart)
+	EosAssert(uint8(p) <= MaxPrecision, &SymbolTypeException{}, "precision %v should be <= 18", p)
 	return Symbol{Precision: uint8(p), Symbol: namePart}
 }
 
 func (sym Symbol) String() string {
-	try.EosAssert(sym.Valid(), &exception.SymbolTypeException{}, "symbol is not valid")
+	EosAssert(sym.Valid(), &SymbolTypeException{}, "symbol is not valid")
 	v := sym.Precision
 	ret := strconv.Itoa(int(v))
 	ret += "," + sym.Symbol

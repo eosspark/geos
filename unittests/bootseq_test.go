@@ -6,6 +6,8 @@ import (
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto/ecc"
+	"github.com/eosspark/eos-go/exception"
+	"github.com/eosspark/eos-go/exception/try"
 	"github.com/stretchr/testify/assert"
 	"io/ioutil"
 	"testing"
@@ -322,5 +324,81 @@ func TestBootSeq(t *testing.T) {
 	votepro(common.N("whale3"), []common.AccountName{common.N("proda"), common.N("prodb"), common.N("prodc"), common.N("prodd"), common.N("prode")})
 
 	assert.Equal(t, b.getGlobalState()["total_activated_stake"].(int64), 1499999997000)
+
+	b.ProduceBlocksForNrounds(2)
+	activeSchedule := b.Control.HeadBlockState().ActiveSchedule
+
+	assert.Equal(t, len(activeSchedule.Producers), 1)
+	assert.Equal(t, activeSchedule.Producers[0].ProducerName, "eosio")
+
+	b.ProduceMinNumOfBlocksToSpendTimeWoInactiveProd(common.Seconds(30 * 24 * 3600))
+
+	returning := false
+	try.Try(func() {
+		b.claimRewards(common.N("runnerup1"))
+	}).Catch(func(e exception.Exception) {
+		if (e.Code() == exception.EosioAssertMessageException{}.Code()) {
+			returning = true
+		}
+	}).End()
+	assert.Equal(t, returning, true)
+
+	votepro(common.N("whale4"), []common.AccountName{common.N("prodq"), common.N("prodr"), common.N("prodt"), common.N("produ")})
+	assert.Equal(t, b.getGlobalState()["total_activated_stake"].(int64), 1899999996000)
+
+	b.ProduceBlocksForNrounds(2)
+	activeSchedule = b.Control.HeadBlockState().ActiveSchedule
+	assert.Equal(t, len(activeSchedule.Producers), 21)
+	assert.Equal(t, activeSchedule.Producers[0].ProducerName, "eosio")
+	assert.Equal(t, activeSchedule.Producers[1].ProducerName, "eosio")
+	assert.Equal(t, activeSchedule.Producers[2].ProducerName, "eosio")
+	assert.Equal(t, activeSchedule.Producers[3].ProducerName, "eosio")
+	assert.Equal(t, activeSchedule.Producers[4].ProducerName, "eosio")
+	assert.Equal(t, activeSchedule.Producers[5].ProducerName, "eosio")
+	assert.Equal(t, activeSchedule.Producers[6].ProducerName, "eosio")
+	assert.Equal(t, activeSchedule.Producers[7].ProducerName, "eosio")
+	assert.Equal(t, activeSchedule.Producers[8].ProducerName, "eosio")
+	assert.Equal(t, activeSchedule.Producers[9].ProducerName, "eosio")
+	assert.Equal(t, activeSchedule.Producers[10].ProducerName, "eosio")
+	assert.Equal(t, activeSchedule.Producers[11].ProducerName, "eosio")
+	assert.Equal(t, activeSchedule.Producers[12].ProducerName, "eosio")
+	assert.Equal(t, activeSchedule.Producers[13].ProducerName, "eosio")
+	assert.Equal(t, activeSchedule.Producers[14].ProducerName, "eosio")
+	assert.Equal(t, activeSchedule.Producers[15].ProducerName, "eosio")
+	assert.Equal(t, activeSchedule.Producers[16].ProducerName, "eosio")
+	assert.Equal(t, activeSchedule.Producers[17].ProducerName, "eosio")
+	assert.Equal(t, activeSchedule.Producers[18].ProducerName, "eosio")
+	assert.Equal(t, activeSchedule.Producers[19].ProducerName, "eosio")
+	assert.Equal(t, activeSchedule.Producers[20].ProducerName, "eosio")
+
+	// Spend some time so the producer pay pool is filled by the inflation rate
+	b.ProduceMinNumOfBlocksToSpendTimeWoInactiveProd(common.Seconds(30 * 24 * 3600))
+
+	// Since the total activated stake is larger than 150,000,000, pool should be filled reward should be bigger than zero
+	b.claimRewards(common.N("runnerup1"))
+	assert.Equal(t, b.getBalance(common.N("runnerup1")).Amount > 0, true)
+
+	//firstJune2018 := common.Seconds(1527811200) // 2018-06-01
+	firstJune2028 := common.Seconds(1843430400) // 2028-06-01
+	// Ensure that now is yet 10 years after 2018-06-01 yet
+	assert.Equal(t, b.Control.HeadBlockTime().TimeSinceEpoch() < firstJune2028, true)
+
+	returning = false
+	try.Try(func() {
+		b.delegateBandwidth(common.N("b1"), common.N("b1"), CoreFromString("49999500.0000"), CoreFromString("49999500.0000"), 1)
+	}).Catch(func(e exception.Exception) {
+		if (e.Code() == exception.EosioAssertMessageException{}.Code()) {
+			returning = true
+		}
+	}).End()
+	assert.Equal(t, returning, true)
+
+	b.ProduceBlock(firstJune2028-b.Control.HeadBlockTime().TimeSinceEpoch(), 0)
+	b.delegateBandwidth(common.N("b1"), common.N("b1"), CoreFromString("49999500.0000"), CoreFromString("49999500.0000"), 1)
+
+	b.ProduceBlocks(7000, false)
+	votepro(common.N("minow1"), []common.AccountName{common.N("p1"), common.N("p2")})
+
+	b.close()
 
 }

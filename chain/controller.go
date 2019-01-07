@@ -324,15 +324,17 @@ func newController() *Controller {
 
 func (c *Controller) PopBlock() {
 	prev := c.ForkDB.GetBlock(&c.Head.Header.Previous)
-	r := entity.ReversibleBlockObject{}
-	//r.BlockNum = c.Head.BlockNum
 	EosAssert(common.Empty(prev), &BlockValidateException{}, "attempt to pop beyond last irreversible block")
-	errs := c.ReversibleBlocks.Find("BlockNum", c.Head.BlockNum, &r)
-	if errs != nil {
-		log.Error("PopBlock ReversibleBlocks Find is error :%s", errs.Error())
+	r := entity.ReversibleBlockObject{}
+	r.BlockNum = c.Head.BlockNum
+	out := entity.ReversibleBlockObject{}
+	err := c.ReversibleBlocks.Find("byNum", r, &out)
+
+	if err != nil {
+		log.Error("PopBlock ReversibleBlocks Find is error :%s", err.Error())
 	}
-	if !common.Empty(r) {
-		c.ReversibleBlocks.Remove(&r)
+	if !common.Empty(out) {
+		c.ReversibleBlocks.Remove(&out)
 	}
 
 	if c.ReadMode == SPECULATIVE {
@@ -343,7 +345,7 @@ func (c *Controller) PopBlock() {
 		}
 	}
 	c.Head = prev
-	c.UndoSession.Undo()
+	c.DB.Undo()
 }
 
 func (c *Controller) SetApplayHandler(receiver common.AccountName, contract common.AccountName, action common.ActionName, handler func(a *ApplyContext)) {
@@ -355,8 +357,7 @@ func (c *Controller) FindApplyHandler(receiver common.AccountName,
 	scope common.AccountName,
 	act common.ActionName) func(*ApplyContext) {
 	handlerKey := receiver + scope + act
-	handler, ok := c.ApplyHandlers[handlerKey.String()]
-	if ok {
+	if handler, ok := c.ApplyHandlers[handlerKey.String()]; ok {
 		return handler
 	}
 	return nil
@@ -506,7 +507,7 @@ func (c *Controller) pushReceipt(trx interface{}, status types.TransactionStatus
 func (c *Controller) PushTransaction(trx *types.TransactionMetadata, deadLine common.TimePoint, billedCpuTimeUs uint32) *types.TransactionTrace {
 	c.ValidateDbAvailableSize()
 	EosAssert(c.GetReadMode() != READONLY, &TransactionTypeException{}, "push transaction not allowed in read-only mode")
-	EosAssert(!common.Empty(trx) && !trx.Implicit && !trx.Scheduled, &TransactionTypeException{}, "Implicit/Scheduled transaction not allowed")
+	EosAssert(trx != nil && !trx.Implicit && !trx.Scheduled, &TransactionTypeException{}, "Implicit/Scheduled transaction not allowed")
 	return c.pushTransaction(trx, deadLine, billedCpuTimeUs, billedCpuTimeUs > 0)
 }
 
@@ -926,6 +927,7 @@ func (c *Controller) applyOnerror(gtrx *entity.GeneratedTransaction, deadline co
 	etrx.Expiration = common.NewTimePointSecTp(in)
 	blockId := c.HeadBlockId()
 	etrx.SetReferenceBlock(&blockId)
+
 	trxContext := NewTransactionContext(c, &etrx, etrx.ID(), start)
 	trxContext.deadline = deadline
 	trxContext.ExplicitBilledCpuTime = explicitBilledCpuTime
@@ -947,7 +949,6 @@ func (c *Controller) applyOnerror(gtrx *entity.GeneratedTransaction, deadline co
 		trace.Receipt = c.pushReceipt(gtrx.TrxId, types.TransactionStatusSoftFail, uint64(trxContext.BilledCpuTimeUs), trace.NetUsage).TransactionReceiptHeader
 		trxContext.Squash()
 		//restore.cancel()
-
 		returning = true
 	}).Catch(func(e Exception) {
 		t := trxContext.UpdateBilledCpuTime(common.Now())
@@ -1071,7 +1072,7 @@ func (c *Controller) applyBlock(b *types.SignedBlock, s types.BlockStatus) {
 			} else {
 				EosAssert(false, &BlockValidateException{}, "encountered unexpected receipt type")
 			}
-			transactionFailed := !common.Empty(trace) && !common.Empty(trace.Except)
+			transactionFailed := !common.Empty(trace) && !common.Empty(trace.ExceptPtr)
 			transactionCanFail := receipt.Status == types.TransactionStatusHardFail && receipt.Trx.PackedTransaction == nil
 			if transactionFailed && !transactionCanFail {
 				log.Error(trace.Except.DetailMessage())
@@ -1684,10 +1685,8 @@ func (c *Controller) initializeForkDB() {
 	genHeader.ProducerToLastProduced = *types.NewAccountNameUint32Map()
 	genHeader.ProducerToLastImpliedIrb = *types.NewAccountNameUint32Map()
 	c.Head = types.NewBlockState(&genHeader)
-	signedBlock := types.SignedBlock{}
-	signedBlock.SignedBlockHeader = genHeader.Header
-	c.Head.SignedBlock = &signedBlock
-	//log.Info("Controller initializeForkDB:%v", c.ForkDB.DB)
+
+	c.Head.SignedBlock = types.NewSignedBlock1(&genHeader.Header)
 
 	c.ForkDB.SetHead(c.Head)
 	c.DB.SetRevision(int64(c.Head.BlockNum))

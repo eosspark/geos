@@ -150,27 +150,20 @@ func (a *chainAPI) GetAccount(call otto.FunctionCall) otto.Value {
 //       abiout << abi;
 //    }
 // });
-func (a *chainAPI) GetCode(call otto.FunctionCall) otto.Value { //TODO save to file
 
-	name, err := call.Argument(0).ToString()
-	if err != nil {
-		return otto.UndefinedValue()
-	}
-	code, err := call.Argument(1).ToString()
-	if err != nil {
-		return otto.UndefinedValue()
-	}
-	abi, err := call.Argument(2).ToString()
-	if err != nil {
-		return otto.UndefinedValue()
-	}
-	wasm, err := call.Argument(3).ToString()
-	if err != nil {
-		return otto.UndefinedValue()
-	}
-	clog.Debug("%s,%s,%s,%s", name, code, abi, wasm)
+type GetCodeParams struct {
+	AccountName  string `json:"name"`
+	CodeFileName string `json:"code"`
+	AbiFileName  string `json:"abi"`
+	CodeAsWasm   bool   `json:"wasm"`
+}
+
+func (a *chainAPI) GetCode(call otto.FunctionCall) otto.Value { //TODO save to file
+	var params GetCodeParams
+	readParams(&params, call)
+
 	var resp chain_plugin.GetCodeResult
-	err = DoHttpCall(&resp, common.GetCodeFunc, common.Variants{"account_name": name, "code_as_wasm": true})
+	err := DoHttpCall(&resp, common.GetCodeFunc, common.Variants{"account_name": params.AccountName, "code_as_wasm": params.CodeAsWasm})
 	if err != nil {
 		clog.Error("get abi is error: %s", err.Error())
 	}
@@ -212,155 +205,72 @@ func (a *chainAPI) GetAbi(call otto.FunctionCall) otto.Value { //TODO save to fi
 //}
 
 // get table
-// string scope;
-// string code;
-// string table;
-// string lower;
-// string upper;
-// string table_key;
-// string key_type;
-// string encode_type{"dec"};
-// bool binary = false;
-// uint32_t limit = 10;
-// string index_position;
-// auto getTable = get->add_subcommand( "table", localized("Retrieve the contents of a database table"), false);
-// getTable->add_option( "account", code, localized("The account who owns the table") )->required();
-// getTable->add_option( "scope", scope, localized("The scope within the contract in which the table is found") )->required();
-// getTable->add_option( "table", table, localized("The name of the table as specified by the contract abi") )->required();
-// getTable->add_option( "-b,--binary", binary, localized("Return the value as BINARY rather than using abi to interpret as JSON") );
-// getTable->add_option( "-l,--limit", limit, localized("The maximum number of rows to return") );
-// getTable->add_option( "-k,--key", table_key, localized("Deprecated") );
-// getTable->add_option( "-L,--lower", lower, localized("JSON representation of lower bound value of key, defaults to first") );
-// getTable->add_option( "-U,--upper", upper, localized("JSON representation of upper bound value of key, defaults to last") );
-// getTable->add_option( "--index", index_position,
-//                       localized("Index number, 1 - primary (first), 2 - secondary index (in order defined by multi_index), 3 - third index, etc.\n"
-//                                 "\t\t\t\tNumber or name of index can be specified, e.g. 'secondary' or '2'."));
-// getTable->add_option( "--key-type", key_type,
-//                       localized("The key type of --index, primary only supports (i64), all others support (i64, i128, i256, float64, float128, ripemd160, sha256).\n"
-//                                 "\t\t\t\tSpecial type 'name' indicates an account name."));
-// getTable->add_option( "--encode-type", encode_type,
-//                       localized("The encoding type of key_type (i64 , i128 , float64, float128) only support decimal encoding e.g. 'dec'"
-//                                  "i256 - supports both 'dec' and 'hex', ripemd160 and sha256 is 'hex' only\n"));
-
-// getTable->set_callback([&] {
-//    auto result = call(get_table_func, fc::mutable_variant_object("json", !binary)
-//                       ("code",code)
-//                       ("scope",scope)
-//                       ("table",table)
-//                       ("table_key",table_key) // not used
-//                       ("lower_bound",lower)
-//                       ("upper_bound",upper)
-//                       ("limit",limit)
-//                       ("key_type",key_type)
-//                       ("index_position", index_position)
-//                       ("encode_type", encode_type)
-//                       );
-
-//    std::cout << fc::json::to_pretty_string(result)
-//              << std::endl;
-// });
-//const resp = await rpc.get_table_rows({
-//json: true,              // Get the response as json
-//code: 'eosio.token',     // Contract that we target
-//scope: 'testacc'         // Account that owns the data
-//table: 'accounts'        // Table name
-//limit: 10,               // maximum number of rows that we want to get
-//});
+type GetTableParams struct {
+	Code          string `json:"code"`
+	Scope         string `json:"scope"`
+	Table         string `json:"table"`
+	Binary        bool   `json:"binary"`
+	Limit         uint32 `json:"limit"` //default =10
+	TableKey      string `json:"key"`
+	Lower         string `json:"lower"`
+	Upper         string `json:"upper"`
+	IndexPosition string `json:"index"`
+	KeyType       string `json:"key_type"`
+	EncodeType    string `json:"encode_type"` //default ='dec'
+}
 
 func (a *chainAPI) GetTable(call otto.FunctionCall) (response otto.Value) {
+	var params GetTableParams
+	readParams(&params, call)
 
-	call.Argument(0).IsObject()
-	code, err := call.Argument(0).ToString()
-	if err != nil {
-		return otto.UndefinedValue()
+	if params.Limit == 0 {
+		params.Limit = 10
 	}
-	scope, err := call.Argument(1).ToString()
-	if err != nil {
-		return otto.UndefinedValue()
+	if len(params.EncodeType) == 0 {
+		params.EncodeType = "dec"
 	}
-	table, err := call.Argument(2).ToString()
-	if err != nil {
-		return otto.UndefinedValue()
-	}
-	//tableKey ,err :=call.Argument(3).ToString()
-	//if err !=nil{
-	//	return otto.UndefinedValue()
-	//}
-	//lower ,err :=call.Argument(4).ToString()
-	//if err !=nil{
-	//	return otto.UndefinedValue()
-	//}
-	//upper ,err :=call.Argument(5).ToString()
-	//if err !=nil{
-	//	return otto.UndefinedValue()
-	//}
-	//indexPosition ,err :=call.Argument(6).ToString()
-	//if err !=nil{
-	//	return otto.UndefinedValue()
-	//}
-	//keyType ,err :=call.Argument(7).ToString()
-	//if err !=nil{
-	//	return otto.UndefinedValue()
-	//}
-	//binary,err :=call.Argument(8).ToBoolean()
-	//if err !=nil{
-	//	return otto.UndefinedValue()
-	//}
-	//limit,err := call.Argument(9).ToInteger()
-	//if err !=nil{
-	//	return otto.UndefinedValue()
-	//}
-
-	//if limit ==0{
-	//	limit =10
-	//}
-
 	var resp chain_plugin.GetTableRowsResult
-	err = DoHttpCall(&resp, common.GetTableFunc, common.Variants{"json": true,
-		"code":           code,
-		"scope":          scope,
-		"table":          table,
-		"table_key":      "",
-		"lower_bound":    "",
-		"upper_bound":    "",
-		"limit":          10,
-		"key_type":       "",
-		"index_position": 1})
+	err := DoHttpCall(&resp, common.GetTableFunc, common.Variants{
+		"json":           !params.Binary,
+		"code":           params.Code,
+		"scope":          params.Scope,
+		"table":          params.Table,
+		"table_key":      params.TableKey,
+		"lower_bound":    params.Lower,
+		"upper_bound":    params.Upper,
+		"limit":          params.Limit,
+		"key_type":       params.KeyType,
+		"index_position": params.IndexPosition})
 	if err != nil {
 		clog.Error("get abi is error: %s", err.Error())
 	}
 	return getJsResult(call, resp)
 }
 
+// get scope
+type GetScopeParams struct {
+	Code  string `json:"code"`
+	Table string `json:"table"`
+	Limit uint32 `json:"limit"` //default =10
+	Lower string `json:"lower"`
+	Upper string `json:"upper"`
+}
+
 func (a *chainAPI) GetScope(call otto.FunctionCall) (response otto.Value) {
-	code, err := call.Argument(0).ToString()
-	if err != nil {
-		return otto.UndefinedValue()
-	}
-	table, err := call.Argument(1).ToString()
-	if err != nil {
-		return otto.UndefinedValue()
-	}
-	lowerBound, err := call.Argument(2).ToString()
-	if err != nil {
-		return otto.UndefinedValue()
-	}
-	upBound, err := call.Argument(3).ToString()
-	if err != nil {
-		return otto.UndefinedValue()
-	}
-	limit, err := call.Argument(4).ToInteger()
-	if err != nil {
-		return otto.UndefinedValue()
+	var params GetScopeParams
+	readParams(&params, call)
+
+	if params.Limit == 0 {
+		params.Limit = 10
 	}
 
 	var resp chain_plugin.GetTableByScopeResultRow
-	err = DoHttpCall(&resp, common.GetTableByScopeFunc, common.Variants{
-		"code":        code,
-		"table":       table,
-		"lower_bound": lowerBound,
-		"upper_bound": upBound,
-		"limit":       limit})
+	err := DoHttpCall(&resp, common.GetTableByScopeFunc, common.Variants{
+		"code":        params.Code,
+		"table":       params.Table,
+		"lower_bound": params.Lower,
+		"upper_bound": params.Upper,
+		"limit":       params.Limit})
 	if err != nil {
 		clog.Error("get abi is error: %s", err.Error())
 	}
@@ -407,12 +317,12 @@ func (a *chainAPI) GetCurrencyStats(call otto.FunctionCall) (response otto.Value
 	if err != nil {
 		return otto.UndefinedValue()
 	}
-	var resp chain_plugin.GetCurrencyStatsResult
+	var resp map[string]chain_plugin.GetCurrencyStatsResult
 	err = DoHttpCall(&resp, common.GetCurrencyStatsFunc, common.Variants{"code": code, "symbol": symbol})
 	if err != nil {
 		clog.Error("GetCurrencyBalance is error: %s", err.Error())
 	}
-	return getJsResult(call, nil)
+	return getJsResult(call, resp)
 }
 
 func (a *chainAPI) PushTransaction(call otto.FunctionCall) (response otto.Value) {

@@ -391,7 +391,7 @@ func (impl *ProducerPluginImpl) ScheduleProductionLoop() {
 				deadline += common.Microseconds(impl.ProduceTimeOffsetUs)
 			}
 			impl.Timer.ExpiresAt(deadline)
-			log.Debug("Scheduling Block Production on Normal Block #%d for %s", chain.PendingBlockState().BlockNum, deadline)
+			//log.Debug("Scheduling Block Production on Normal Block #%d for %s", chain.PendingBlockState().BlockNum, deadline)
 		} else {
 			EosAssert(chain.PendingBlockState() != nil, &MissingPendingBlockState{}, "producing without pending_block_state")
 			expectTime := chain.PendingBlockTime().SubUs(common.Microseconds(common.DefaultConfig.BlockIntervalUs))

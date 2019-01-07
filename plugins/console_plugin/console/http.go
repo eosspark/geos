@@ -45,7 +45,7 @@ func NewHttp(baseURL string) *API {
 		},
 		BaseURL: baseURL,
 		//Compress: common.CompressionZlib,
-		Debug: true,
+		Debug: false,
 	}
 	api.log = log.New("http")
 	api.log.SetHandler(log.TerminalHandler)
