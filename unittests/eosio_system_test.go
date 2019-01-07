@@ -2,13 +2,17 @@ package unittests
 
 import (
 	"fmt"
+	. "github.com/eosspark/eos-go/chain"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto/ecc"
+	"github.com/eosspark/eos-go/crypto/rlp"
 	. "github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
 	"github.com/stretchr/testify/assert"
+	"io/ioutil"
 	"math"
+	"strings"
 	"testing"
 )
 
@@ -158,6 +162,7 @@ func TestStakeUnstake(t *testing.T) {
 }
 
 func TestStakeUnstakeWithTransfer(t *testing.T) {
+	//TODO test
 	e := initEosioSystemTester()
 	e.Cross15PercentThreshold()
 	e.Issue(eosio, CoreFromString("1000.0000"), eosio)
@@ -1397,27 +1402,467 @@ func TestProducerPay(t *testing.T) {
 
 		// Amount issued per year is very close to the 5% inflation target. Small difference (500 tokens out of 50'000'000 issued)
 		// is due to compounding every 8 hours in this test as opposed to theoretical continuous compounding
-		assert.True(t, 500 * 1000 > int64(float64(initialSupply.Amount) * float64(0.05) - float64(supply.Amount - initialSupply.Amount)))
-		assert.True(t, 500 * 1000 > int64(float64(initialSupply.Amount) * float64(0.04) - float64(savings - initialSavings)))
+		assert.True(t, 500 * 10000 > int64(float64(initialSupply.Amount) * float64(0.05) - float64(supply.Amount - initialSupply.Amount)))
+		assert.True(t, 500 * 10000 > int64(float64(initialSupply.Amount) * float64(0.04) - float64(savings - initialSavings)))
 	}
 
 	e.close()
 }
 
 func TestMultipleProducerPay(t *testing.T) {
+	e := initEosioSystemTester()
+	withinOne := func(a int64, b int64) bool {
+		return math.Abs(float64(a-b)) <= 1
+	}
 
+	secsPerYear := 52 * 7 * 24 * 3600
+	usecsPerYear := secsPerYear * 1000000
+	contRate := 4.879 / 100
+	net := CoreFromString("80.0000")
+	cpu := CoreFromString("80.0000")
+	voters := []common.AccountName{voter1, voter2, voter3, voter4}
+	for _, v := range voters {
+		e.CreateAccountWithResources(v, eosio, CoreFromString("1.0000"), false, net, cpu)
+		e.Transfer(eosio, v, CoreFromString("100000000.0000"), eosio)
+		assert.Equal(t, e.Success(), e.Stake(v, v, CoreFromString("30000000.0000"), CoreFromString("30000000.0000")))
+	}
+
+	// create accounts {defproducera, defproducerb, ..., defproducerz, abcproducera, ..., abcproducern} and register as producers
+	var producersNames []common.AccountName
+	{
+		root := "defproducer"
+		for c := 'a'; c <= 'z'; c++ {
+			acc := common.N(root + string(c))
+			producersNames = append(producersNames, acc)
+		}
+		root = "abcproducer"
+		for c := 'a'; c <= 'n'; c++ {
+			acc := common.N(root + string(c))
+			producersNames = append(producersNames, acc)
+		}
+		e.SetupProducerAccounts(producersNames)
+		for _, prod := range producersNames {
+			assert.Equal(t, e.Success(), e.RegProducer(prod))
+			e.ProduceBlocks(1, false)
+			assert.True(t, math.Abs(e.GetProducerInfo(prod)["total_votes"].(float64) - e.Stake2Votes(CoreFromString("0.0000"))) <= EPSINON)
+		}
+	}
+
+	// producvotera votes for defproducera ... defproducerj
+	// producvoterb votes for defproducera ... defproduceru
+	// producvoterc votes for defproducera ... defproducerz
+	// producvoterd votes for abcproducera ... abcproducern
+	assert.Equal(t, e.Success(), e.Vote(voter1, producersNames[0:10], common.AccountName(0)))
+	assert.Equal(t, e.Success(), e.Vote(voter2, producersNames[0:21], common.AccountName(0)))
+	assert.Equal(t, e.Success(), e.Vote(voter3, producersNames[0:26], common.AccountName(0)))
+	assert.Equal(t, e.Success(), e.Vote(voter4, producersNames[26:39], common.AccountName(0)))
+
+	{
+		proda := e.GetProducerInfo(common.N("defproducera"))
+		prodj := e.GetProducerInfo(common.N("defproducerj"))
+		prodk := e.GetProducerInfo(common.N("defproducerk"))
+		produ := e.GetProducerInfo(common.N("defproduceru"))
+		prodv := e.GetProducerInfo(common.N("defproducerv"))
+		prodz := e.GetProducerInfo(common.N("defproducerz"))
+		assert.True(t, proda["unpaid_blocks"].(uint32) == 0 && prodz["unpaid_blocks"].(uint32) == 0)
+		assert.True(t, proda["last_claim_time"].(uint64) == 0 && prodz["last_claim_time"].(uint64) == 0)
+
+		// check vote ratios
+		assert.True(t, proda["total_votes"].(float64) > 0 && prodz["total_votes"].(float64) > 0)
+		assert.True(t, proda["total_votes"].(float64) == prodj["total_votes"].(float64))
+		assert.True(t, prodk["total_votes"].(float64) == produ["total_votes"].(float64))
+		assert.True(t, prodv["total_votes"].(float64) == prodz["total_votes"].(float64))
+		assert.True(t, 2 * proda["total_votes"].(float64) == 3 * produ["total_votes"].(float64))
+		assert.True(t, proda["total_votes"].(float64) == 3 * prodz["total_votes"].(float64))
+	}
+
+	// give a chance for everyone to produce blocks
+	{
+		e.ProduceBlocks(23*12+20, false)
+		all21Produced := true
+		for i := 0; i < 21; i++ {
+			if e.GetProducerInfo(producersNames[i])["unpaid_blocks"].(uint32) == uint32(0) {
+				all21Produced = false
+			}
+		}
+		restDidntProduce := true
+		for i := 21; i < len(producersNames); i++ {
+			if e.GetProducerInfo(producersNames[i])["unpaid_blocks"].(uint32) > uint32(0) {
+				restDidntProduce = false
+			}
+		}
+		assert.True(t, all21Produced && restDidntProduce)
+	}
+
+	var voteShares []float64
+	{
+		totalVotes := float64(0)
+		thisVotes := float64(0)
+		for i := 0; i < len(producersNames); i++ {
+			thisVotes = e.GetProducerInfo(producersNames[i])["total_votes"].(float64)
+			voteShares = append(voteShares, thisVotes)
+			totalVotes += thisVotes
+		}
+		assert.True(t, math.Abs(e.GetGlobalState()["total_producer_vote_weight"].(float64) - totalVotes)/totalVotes < EPSINON)
+		accum := float64(0)
+		for i, v := range voteShares {
+			voteShares[i] = v / totalVotes
+			accum += voteShares[i]
+		}
+		assert.True(t, math.Abs(float64(1) - accum) < EPSINON)
+		assert.True(t, math.Abs(float64(3./71.) - voteShares[0]) < EPSINON)
+		assert.True(t, math.Abs(float64(1./71.) - voteShares[38]) < EPSINON)
+	}
+
+	{
+		prodIndex := 2
+		prodName := producersNames[prodIndex]
+		initialGlobalState := e.GetGlobalState()
+		initialClaimTime := initialGlobalState["last_pervote_bucket_fill"].(uint64)
+		//initialPervoteBucket := initialGlobalState["pervote_bucket"].(int64)
+		//initialPerblockBucket := initialGlobalState["perblock_bucket"].(int64)
+		initialSavings := e.GetBalance(eosioSaving).Amount
+		initialTotUnpaidBlocks := initialGlobalState["total_unpaid_blocks"].(uint32)
+		initialSupply := e.GetTokenSupply()
+		//initialBpayBalance := e.GetBalance(eosioBpay)
+		//initialVpayBalance := e.GetBalance(eosioVpay)
+		initialBalance := e.GetBalance(prodName)
+		initialUnpaidBlocks := e.GetProducerInfo(prodName)["unpaid_blocks"].(uint32)
+
+		assert.Equal(t, e.Success(), e.ClaimRewards(prodName))
+
+		globalState := e.GetGlobalState()
+		claimTime := globalState["last_pervote_bucket_fill"].(uint64)
+		pervoteBucket := globalState["pervote_bucket"].(int64)
+		perblockBucket := globalState["perblock_bucket"].(int64)
+		savings := e.GetBalance(eosioSaving).Amount
+		//totUnpaidBlocks := globalState["total_unpaid_blocks"].(uint32)
+		supply := e.GetTokenSupply()
+		bpayBalance := e.GetBalance(eosioBpay)
+		vpayBalance := e.GetBalance(eosioVpay)
+		balance := e.GetBalance(prodName)
+		//unpaidBlocks := e.GetProducerInfo(prodName)["unpaid_blocks"].(uint32)
+
+		usecsBetweenFills := claimTime - initialClaimTime
+		//secsBetweenFills := usecsBetweenFills / 1000000
+
+		expectSupplyGrowth := float64(initialSupply.Amount) * float64(usecsBetweenFills) * contRate / float64(usecsPerYear)
+		assert.Equal(t, int64(expectSupplyGrowth), supply.Amount - initialSupply.Amount)
+
+		assert.Equal(t, int64(expectSupplyGrowth) - int64(expectSupplyGrowth)/5, savings - initialSavings)
+
+		expectedPerblockBucket := int64(float64(initialSupply.Amount) * float64(usecsBetweenFills) * (0.25 * contRate / 5.) / float64(usecsPerYear))
+		expectedPervoteBucket := int64(float64(initialSupply.Amount) * float64(usecsBetweenFills) * (0.75 * contRate / 5.) / float64(usecsPerYear))
+
+		fromPerblockBucket := int64(initialUnpaidBlocks) * expectedPerblockBucket / int64(initialTotUnpaidBlocks)
+		fromPervoteBucket := int64(voteShares[prodIndex] * float64(expectedPervoteBucket))
+
+		if fromPervoteBucket >= 100 * 10000 {
+			assert.True(t, withinOne(fromPerblockBucket + fromPervoteBucket, balance.Amount - initialBalance.Amount))
+			assert.True(t, withinOne(expectedPervoteBucket - fromPervoteBucket, pervoteBucket))
+		} else {
+			assert.True(t, withinOne(fromPerblockBucket, balance.Amount - initialBalance.Amount))
+			assert.True(t, withinOne(expectedPervoteBucket, pervoteBucket))
+			assert.True(t, withinOne(expectedPervoteBucket, vpayBalance.Amount))
+			assert.True(t, withinOne(perblockBucket, bpayBalance.Amount))
+		}
+
+		e.ProduceBlocks(5, false)
+		var ex string
+		Try(func() {
+			e.ClaimRewards(prodName)
+		}).Catch(func(e Exception) {
+			ex = e.DetailMessage()
+		}).End()
+		assert.True(t, inString(ex, "already claimed rewards within past day"))
+	}
+
+	{
+		prodIndex := 23
+		prodName := producersNames[prodIndex]
+		assert.Equal(t, e.Success(), e.ClaimRewards(prodName))
+		assert.Equal(t, int64(0), e.GetBalance(prodName).Amount)
+		var ex string
+		Try(func() {
+			e.ClaimRewards(prodName)
+		}).Catch(func(e Exception) {
+			ex = e.DetailMessage()
+		}).End()
+		assert.True(t, inString(ex, "already claimed rewards within past day"))
+	}
+
+	// Wait for 23 hours. By now, pervote_bucket has grown enough
+	// that a producer's share is more than 100 tokens.
+	e.ProduceBlock(common.Seconds(23 * 3600), 0)
+	{
+		prodIndex := 15
+		prodName := producersNames[prodIndex]
+		initialGlobalState := e.GetGlobalState()
+		initialClaimTime := initialGlobalState["last_pervote_bucket_fill"].(uint64)
+		initialPervoteBucket := initialGlobalState["pervote_bucket"].(int64)
+		initialPerblockBucket := initialGlobalState["perblock_bucket"].(int64)
+		initialSavings := e.GetBalance(eosioSaving).Amount
+		initialTotUnpaidBlocks := initialGlobalState["total_unpaid_blocks"].(uint32)
+		initialSupply := e.GetTokenSupply()
+		//initialBpayBalance := e.GetBalance(eosioBpay)
+		//initialVpayBalance := e.GetBalance(eosioVpay)
+		initialBalance := e.GetBalance(prodName)
+		initialUnpaidBlocks := e.GetProducerInfo(prodName)["unpaid_blocks"].(uint32)
+
+		assert.Equal(t, e.Success(), e.ClaimRewards(prodName))
+
+		globalState := e.GetGlobalState()
+		claimTime := globalState["last_pervote_bucket_fill"].(uint64)
+		pervoteBucket := globalState["pervote_bucket"].(int64)
+		perblockBucket := globalState["perblock_bucket"].(int64)
+		savings := e.GetBalance(eosioSaving).Amount
+		totUnpaidBlocks := globalState["total_unpaid_blocks"].(uint32)
+		supply := e.GetTokenSupply()
+		bpayBalance := e.GetBalance(eosioBpay)
+		vpayBalance := e.GetBalance(eosioVpay)
+		balance := e.GetBalance(prodName)
+		unpaidBlocks := e.GetProducerInfo(prodName)["unpaid_blocks"].(uint32)
+
+		usecsBetweenFills := claimTime - initialClaimTime
+
+		expectSupplyGrowth := float64(initialSupply.Amount) * float64(usecsBetweenFills) * contRate / float64(usecsPerYear)
+		assert.Equal(t, int64(expectSupplyGrowth), supply.Amount - initialSupply.Amount)
+		assert.Equal(t, int64(expectSupplyGrowth) - int64(expectSupplyGrowth)/5, savings - initialSavings)
+
+		expectedPerblockBucket := int64(float64(initialSupply.Amount) * float64(usecsBetweenFills) * (0.25 * contRate / 5.) / float64(usecsPerYear)) + initialPerblockBucket
+		expectedPervoteBucket := int64(float64(initialSupply.Amount) * float64(usecsBetweenFills) * (0.75 * contRate / 5.) / float64(usecsPerYear)) + initialPervoteBucket
+
+		fromPerblockBucket := int64(initialUnpaidBlocks) * expectedPerblockBucket / int64(initialTotUnpaidBlocks)
+		fromPervoteBucket := int64(voteShares[prodIndex] * float64(expectedPervoteBucket))
+
+		assert.True(t, withinOne(int64(initialTotUnpaidBlocks - totUnpaidBlocks), int64(initialUnpaidBlocks - unpaidBlocks)))
+		if fromPervoteBucket >= 100 * 10000 {
+			assert.True(t, withinOne(fromPerblockBucket + fromPervoteBucket, balance.Amount - initialBalance.Amount))
+			assert.True(t, withinOne(expectedPervoteBucket - fromPervoteBucket, pervoteBucket))
+			assert.True(t, withinOne(expectedPervoteBucket - fromPervoteBucket, vpayBalance.Amount))
+			assert.True(t, withinOne(expectedPerblockBucket - fromPerblockBucket, perblockBucket))
+			assert.True(t, withinOne(expectedPerblockBucket - fromPerblockBucket, bpayBalance.Amount))
+		} else {
+			assert.True(t, withinOne(fromPerblockBucket, balance.Amount - initialBalance.Amount))
+			assert.True(t, withinOne(expectedPervoteBucket, pervoteBucket))
+		}
+
+		e.ProduceBlocks(5, false)
+		var ex string
+		Try(func() {
+			e.ClaimRewards(prodName)
+		}).Catch(func(e Exception) {
+			ex = e.DetailMessage()
+		}).End()
+		assert.True(t, inString(ex, "already claimed rewards within past day"))
+	}
+
+	{
+		prodIndex := 24
+		prodName := producersNames[prodIndex]
+		assert.Equal(t, e.Success(), e.ClaimRewards(prodName))
+		assert.True(t, 100 * 10000 <= e.GetBalance(prodName).Amount)
+		var ex string
+		Try(func() {
+			e.ClaimRewards(prodName)
+		}).Catch(func(e Exception) {
+			ex = e.DetailMessage()
+		}).End()
+		assert.True(t, inString(ex, "already claimed rewards within past day"))
+	}
+
+	{
+		rmvIndex := 5
+		prodName := producersNames[rmvIndex]
+
+		info := e.GetProducerInfo(prodName)
+		assert.True(t, info["is_active"].(bool))
+		assert.NotEqual(t, *ecc.NewPublicKeyNil(), info["producer_key"].(ecc.PublicKey))
+		var ex string
+		Try(func() {
+			e.RmvProducer(prodName, prodName)
+		}).Catch(func(e Exception) {
+			ex = e.DetailMessage()
+		}).End()
+		assert.True(t, inString(ex, "missing authority of eosio"))
+
+		Try(func() {
+			e.RmvProducer(producersNames[rmvIndex + 2], prodName)
+		}).Catch(func(e Exception) {
+			ex = e.DetailMessage()
+		}).End()
+		assert.True(t, inString(ex, "missing authority of eosio"))
+
+		assert.Equal(t, e.Success(), e.RmvProducer(eosio, prodName))
+		{
+			restDidntProduce := true
+			for i := 21; i < len(producersNames); i++ {
+				if e.GetProducerInfo(producersNames[i])["unpaid_blocks"].(uint32) > 0{
+					restDidntProduce = false
+				}
+			}
+			assert.True(t, restDidntProduce)
+		}
+
+		e.ProduceBlocks(3*21*12, false)
+		info = e.GetProducerInfo(prodName)
+		initUnpaidBlocks := info["unpaid_blocks"].(uint32)
+		assert.True(t, !info["is_active"].(bool))
+		assert.Equal(t, *ecc.NewPublicKeyNil(), info["producer_key"].(ecc.PublicKey))
+		Try(func() {
+			e.ClaimRewards(prodName)
+		}).Catch(func(e Exception) {
+			ex = e.DetailMessage()
+		}).End()
+		assert.True(t, inString(ex, "producer does not have an active key"))
+
+		e.ProduceBlocks(3*21*12, false)
+		assert.Equal(t, initUnpaidBlocks, e.GetProducerInfo(prodName)["unpaid_blocks"].(uint32))
+		{
+			prodWasReplaced := false
+			for i := 21; i < len(producersNames); i++ {
+				if e.GetProducerInfo(producersNames[i])["unpaid_blocks"].(uint32) > 0{
+					prodWasReplaced = true
+				}
+			}
+			assert.True(t, prodWasReplaced)
+		}
+	}
+
+	{
+		var ex string
+		Try(func() {
+			e.RmvProducer(eosio, common.N("nonexistingp"))
+		}).Catch(func(e Exception) {
+			ex = e.DetailMessage()
+		}).End()
+		assert.True(t, inString(ex, "producer not found"))
+	}
+	e.close()
 }
 
 func TestProducersUpgradeSystemContract(t *testing.T) {
+	//TODO
+	e := initEosioSystemTester()
 
+	//install multisig contract
+	msigAbiSer := e.InitializeMultisig()
+	producersNames := e.ActiveAndVoteProducers()
+
+	//helper function
+	pushActionMsig := func(signer common.AccountName, name common.ActionName, data common.Variants, auth bool) ActionResult {
+		actionTypeName := msigAbiSer.GetActionType(name)
+		act := types.Action{}
+		act.Account = eosioMsig
+		act.Name = name
+		act.Data = msigAbiSer.VariantToBinary(actionTypeName, &data, e.AbiSerializerMaxTime)
+		type AA struct {
+			Proposer common.Name
+			Proposal_name common.Name
+			Requester []types.PermissionLevel
+			Trx types.Transaction
+		}
+		Abc :=AA{
+		}
+		err :=rlp.DecodeBytes(act.Data,&Abc)
+		fmt.Println(Abc,err)
+		var signerAuth common.AccountName
+		if auth {
+			signerAuth = signer
+		} else {
+			if signer == bob {
+				signerAuth = alice
+			} else {
+				signerAuth = bob
+			}
+		}
+		return e.PushAction(&act, signerAuth)
+	}
+
+	// test begins
+	var prodPerms []types.PermissionLevel
+	for _, x := range producersNames {
+		prodPerms = append(prodPerms, types.PermissionLevel{Actor:x, Permission:common.DefaultConfig.ActiveName})
+	}
+	//prepare system contract with different hash (contract differs in one byte)
+	wast, _ := ioutil.ReadFile("test_contracts/eosio.system.wast")
+	eosioSystemWast := string(wast)
+	eosioSystemWast = strings.Replace(eosioSystemWast, "producer votes must be unique and sorted", "Producer votes must be unique and sorted", 1)
+
+	trx := types.SignedTransaction{}
+	{
+		code := wast2wasm([]byte(eosioSystemWast))
+		setCode := SetCode{Account: eosio, VmType: 0, VmVersion: 0, Code: code}
+		data, _ := rlp.EncodeToBytes(setCode)
+		act := types.Action{
+			Account:       setCode.GetAccount(),
+			Name:          setCode.GetName(),
+			Authorization: []types.PermissionLevel{{eosio, common.DefaultConfig.ActiveName}},
+			Data:          data,
+		}
+		trx.Actions = append(trx.Actions, &act)
+		e.SetTransactionHeaders(&trx.Transaction, e.DefaultExpirationDelta, 0)
+		fmt.Println(trx.Expiration.SecSinceEpoch())
+		trx.Transaction.RefBlockNum = 2
+		trx.Transaction.RefBlockPrefix = 3
+	}
+	data := common.Variants{
+		"proposer":      alice,
+		"proposal_name": common.N("upgrade1"),
+		"trx":           trx.Transaction,
+		"requested":     prodPerms,
+	}
+	fmt.Println(trx.Transaction.Expiration)
+
+	assert.Equal(t, e.Success(), pushActionMsig(alice, common.N("propose"), data, true))
+
+	// get 15 approvals
+	for i := 0; i < 14; i++ {
+		data = common.Variants{
+			"proposer":      alice,
+			"proposal_name": common.N("upgrade1"),
+			"level":         types.PermissionLevel{Actor:producersNames[i], Permission:common.DefaultConfig.ActiveName},
+		}
+		assert.Equal(t, e.Success(), pushActionMsig(alice, common.N("approve"), data, true))
+	}
+
+	//should fail
+	var ex string
+	Try(func() {
+		data = common.Variants{
+			"proposer":      alice,
+			"proposal_name": common.N("upgrade1"),
+			"executer":      alice,
+		}
+		pushActionMsig(alice, common.N("exec"), data, true)
+	}).Catch(func(e Exception) {
+		ex = e.DetailMessage()
+	})
+	assert.True(t, inString(ex, "transaction authorization failed"))
+
+	// one more approval
+	data = common.Variants{
+		"proposer":      alice,
+		"proposal_name": common.N("upgrade1"),
+		"level":         types.PermissionLevel{Actor:producersNames[14], Permission:common.DefaultConfig.ActiveName},
+	}
+	assert.Equal(t, e.Success(), pushActionMsig(alice, common.N("approve"), data, true))
+
+	data = common.Variants{
+		"proposer":      alice,
+		"proposal_name": common.N("upgrade1"),
+		"executer":      alice,
+	}
+	pushActionMsig(alice, common.N("exec"), data, true)
+	e.ProduceBlocks(250, false)
 }
 
 func TestProducerOnblockCheck(t *testing.T) {
 	e := initEosioSystemTester()
 	largeAsset := CoreFromString("80.0000")
-	e.CreateAccountWithResources(producer1, eosio, CoreFromString("1.0000"), false, largeAsset, largeAsset)
-	e.CreateAccountWithResources(producer2, eosio, CoreFromString("1.0000"), false, largeAsset, largeAsset)
-	e.CreateAccountWithResources(producer3, eosio, CoreFromString("1.0000"), false, largeAsset, largeAsset)
+	e.CreateAccountWithResources(voter1, eosio, CoreFromString("1.0000"), false, largeAsset, largeAsset)
+	e.CreateAccountWithResources(voter2, eosio, CoreFromString("1.0000"), false, largeAsset, largeAsset)
+	e.CreateAccountWithResources(voter3, eosio, CoreFromString("1.0000"), false, largeAsset, largeAsset)
 
 	// create accounts {defproducera, defproducerb, ..., defproducerz} and register as producers
 	var producersNames []common.AccountName
@@ -1463,9 +1908,37 @@ func TestProducerOnblockCheck(t *testing.T) {
 		assert.True(t, !all21Produced && restDidntProduce)
 	}
 
-	{
+	// stake across 15% boundary
+	e.Transfer(eosio, voter2, CoreFromString("100000000.0000"), eosio)
+	assert.Equal(t, e.Success(), e.Stake(voter2, voter2, CoreFromString("4000000.0000"), CoreFromString("4000000.0000")))
+	e.Transfer(eosio, voter3, CoreFromString("100000000.0000"), eosio)
+	assert.Equal(t, e.Success(), e.Stake(voter3, voter3, CoreFromString("2000000.0000"), CoreFromString("2000000.0000")))
 
+	assert.Equal(t, e.Success(), e.Vote(voter2, producersNames[0:21], common.AccountName(0)))
+	assert.Equal(t, e.Success(), e.Vote(voter3, producersNames, common.AccountName(0)))
+
+	// give a chance for everyone to produce blocks
+	{
+		e.ProduceBlocks(21*12, false)
+		all21Produced := true
+		for i := 0; i < 21; i++ {
+			if e.GetProducerInfo(producersNames[i])["unpaid_blocks"].(uint32) == 0 {
+				all21Produced = false
+			}
+		}
+		restDidntProduce := true
+		for i := 21; i < len(producersNames); i++ {
+			if e.GetProducerInfo(producersNames[i])["unpaid_blocks"].(uint32) > 0 {
+				restDidntProduce = false
+			}
+		}
+		assert.True(t, all21Produced && restDidntProduce)
+		assert.Equal(t, e.Success(), e.ClaimRewards(producersNames[0]))
+		assert.True(t, e.GetBalance(producersNames[0]).Amount > 0)
 	}
+
+	assert.Equal(t, e.Success(), e.UnStake(voter1, voter1, CoreFromString("50.0000"), CoreFromString("50.0000")))
+	e.close()
 }
 
 func TestVotersActionsAffectProxyAndProducers(t *testing.T) {
@@ -1868,7 +2341,198 @@ func TestInvalidNames(t *testing.T) {
 }
 
 func TestMultipleNameBids(t *testing.T) {
-	//TODO
+	e := initEosioSystemTester()
+	alice := common.N("alice")
+	bob := common.N("bob")
+	carl := common.N("carl")
+	david := common.N("david")
+	eve := common.N("eve")
+	producer := common.N("producer")
+	accounts := []common.AccountName{alice, bob, carl, david, eve}
+	e.CreateAccountsWithResources(accounts, eosio)
+	for _, a := range accounts {
+		e.Transfer(eosio, a, CoreFromString("10000.0000"), eosio)
+		assert.Equal(t, CoreFromString("10000.0000"), e.GetBalance(a))
+	}
+	e.CreateAccountsWithResources([]common.AccountName{producer}, eosio)
+	assert.Equal(t, e.Success(), e.RegProducer(producer))
+
+	e.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs), 0)
+	// stake but but not enough to go live
+	e.StakeWithTransfer(eosio, bob, CoreFromString("35000000.0000"), CoreFromString("35000000.0000"))
+	e.StakeWithTransfer(eosio, carl, CoreFromString("35000000.0000"), CoreFromString("35000000.0000"))
+	assert.Equal(t, e.Success(), e.Vote(bob, []common.AccountName{producer}, common.AccountName(0)))
+	assert.Equal(t, e.Success(), e.Vote(carl, []common.AccountName{producer}, common.AccountName(0)))
+
+	// start bids
+	e.BidName(bob, common.N("prefa"), CoreFromString("1.0003"))
+	assert.Equal(t, CoreFromString("9998.9997"), e.GetBalance(bob))
+	e.BidName(bob, common.N("prefb"), CoreFromString("1.0000"))
+	e.BidName(bob, common.N("prefc"), CoreFromString("1.0000"))
+	assert.Equal(t, CoreFromString("9996.9997"), e.GetBalance(bob))
+
+	e.BidName(carl, common.N("prefd"), CoreFromString("1.0000"))
+	e.BidName(carl, common.N("prefe"), CoreFromString("1.0000"))
+	assert.Equal(t, CoreFromString("9998.0000"), e.GetBalance(carl))
+
+	var ex string
+	Try(func() {
+		e.BidName(bob, common.N("prefb"), CoreFromString("1.1001"))
+	}).Catch(func(e Exception) {
+		ex = e.DetailMessage()
+	})
+	assert.True(t, inString(ex, "assertion failure with message: account is already highest bidder"))
+	Try(func() {
+		e.BidName(alice, common.N("prefb"), CoreFromString("1.0999"))
+	}).Catch(func(e Exception) {
+		ex = e.DetailMessage()
+	}).End()
+	assert.True(t, inString(ex, "assertion failure with message: must increase bid by 10%"))
+	assert.Equal(t, CoreFromString("9996.9997"), e.GetBalance(bob))
+	assert.Equal(t, CoreFromString("10000.0000"), e.GetBalance(alice))
+
+	// alice outbids bob on prefb
+	initialNamesBalance := e.GetBalance(eosioName)
+	assert.Equal(t, e.Success(), e.BidName(alice, common.N("prefb"), CoreFromString("1.1001")))
+	assert.Equal(t, CoreFromString("9997.9997"), e.GetBalance(bob))
+	assert.Equal(t, CoreFromString("9998.8999"), e.GetBalance(alice))
+	assert.Equal(t, initialNamesBalance.Amount + CoreFromString("0.1001").Amount, e.GetBalance(eosioName).Amount)
+
+	// david outbids carl on prefd
+	assert.Equal(t, CoreFromString("9998.0000"), e.GetBalance(carl))
+	assert.Equal(t, CoreFromString("10000.0000"), e.GetBalance(david))
+	assert.Equal(t, e.Success(), e.BidName(david, common.N("prefd"), CoreFromString("1.9900")))
+	assert.Equal(t, CoreFromString("9999.0000"), e.GetBalance(carl))
+	assert.Equal(t, CoreFromString("9998.0100"), e.GetBalance(david))
+
+	// eve outbids carl on prefe
+	assert.Equal(t, e.Success(), e.BidName(eve, common.N("prefe"), CoreFromString("1.7200")))
+
+	e.ProduceBlock(common.Days(14), 0)
+	e.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs), 0)
+
+	// highest bid is from david for prefd but no bids can be closed yet
+	Try(func() {
+		e.CreateAccountWithResources2(common.N("prefd"), david, 8000)
+	}).Catch(func(e Exception) {
+		ex = e.DetailMessage()
+	}).End()
+	assert.True(t, inString(ex, "auction for name is not closed yet"))
+
+	// stake enough to go above the 15% threshold
+	e.StakeWithTransfer(eosio, alice, CoreFromString("10000000.0000"), CoreFromString("10000000.0000"))
+	assert.Equal(t, uint32(0), e.GetProducerInfo(producer)["unpaid_blocks"].(uint32))
+	assert.Equal(t, e.Success(), e.Vote(alice, []common.AccountName{producer}, common.AccountName(0)))
+
+	// need to wait for 14 days after going live
+	e.ProduceBlocks(10, false)
+	e.ProduceBlock(common.Days(2), 0)
+	e.ProduceBlocks(10, false)
+	Try(func() {
+		e.CreateAccountWithResources2(common.N("prefd"), david, 8000)
+	}).Catch(func(e Exception) {
+		ex = e.DetailMessage()
+	}).End()
+	assert.True(t, inString(ex, "auction for name is not closed yet"))
+
+	// it's been 14 days, auction for prefd has been closed
+	e.ProduceBlock(common.Days(12), 0)
+	e.CreateAccountWithResources2(common.N("prefd"), david, 8000)
+	e.ProduceBlocks(2, false)
+	e.ProduceBlock(common.Hours(23), 0)
+
+	// auctions for prefa, prefb, prefc, prefe haven't been closed
+	Try(func() {
+		e.CreateAccountWithResources2(common.N("prefa"), bob, 8000)
+	}).Catch(func(e Exception) {
+		ex = e.DetailMessage()
+	}).End()
+	assert.True(t, inString(ex, "auction for name is not closed yet"))
+	Try(func() {
+		e.CreateAccountWithResources2(common.N("prefb"), alice, 8000)
+	}).Catch(func(e Exception) {
+		ex = e.DetailMessage()
+	}).End()
+	assert.True(t, inString(ex, "auction for name is not closed yet"))
+	Try(func() {
+		e.CreateAccountWithResources2(common.N("prefc"), bob, 8000)
+	}).Catch(func(e Exception) {
+		ex = e.DetailMessage()
+	}).End()
+	assert.True(t, inString(ex, "auction for name is not closed yet"))
+	Try(func() {
+		e.CreateAccountWithResources2(common.N("prefe"), eve, 8000)
+	}).Catch(func(e Exception) {
+		ex = e.DetailMessage()
+	}).End()
+	assert.True(t, inString(ex, "auction for name is not closed yet"))
+
+	// attempt to create account with no bid
+	Try(func() {
+		e.CreateAccountWithResources2(common.N("prefg"), alice, 8000)
+	}).Catch(func(e Exception) {
+		ex = e.DetailMessage()
+	}).End()
+	assert.True(t, inString(ex, "no active bid for name"))
+
+	// changing highest bid pushes auction closing time by 24 hours
+	assert.Equal(t, e.Success(), e.BidName(eve, common.N("prefb"), CoreFromString("2.1880")))
+	e.ProduceBlock(common.Hours(22), 0)
+	e.ProduceBlocks(2, false)
+	Try(func() {
+		e.CreateAccountWithResources2(common.N("prefb"), eve, 8000)
+	}).Catch(func(e Exception) {
+		ex = e.DetailMessage()
+	}).End()
+	assert.True(t, inString(ex, "auction for name is not closed yet"))
+
+	// but changing a bid that is not the highest does not push closing time
+	assert.Equal(t, e.Success(), e.BidName(carl, common.N("prefe"), CoreFromString("2.0980")))
+	e.ProduceBlock(common.Hours(2), 0)
+	e.ProduceBlocks(2, false)
+	// bid for prefb has closed, only highest bidder can claim
+	Try(func() {
+		e.CreateAccountWithResources2(common.N("prefb"), alice, 8000)
+	}).Catch(func(e Exception) {
+		ex = e.DetailMessage()
+	}).End()
+	assert.True(t, inString(ex, "only highest bidder can claim"))
+	Try(func() {
+		e.CreateAccountWithResources2(common.N("prefb"), carl, 8000)
+	}).Catch(func(e Exception) {
+		ex = e.DetailMessage()
+	}).End()
+	assert.True(t, inString(ex, "only highest bidder can claim"))
+	e.CreateAccountWithResources2(common.N("prefb"), eve, 8000)
+
+	Try(func() {
+		e.CreateAccountWithResources2(common.N("prefe"), carl, 8000)
+	}).Catch(func(e Exception) {
+		ex = e.DetailMessage()
+	}).End()
+	assert.True(t, inString(ex, "auction for name is not closed yet"))
+	e.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs), 0)
+	e.ProduceBlock(common.Hours(24), 0)
+	// by now bid for prefe has closed
+	e.CreateAccountWithResources2(common.N("prefe"), carl, 8000)
+
+	// prefe can now create *.prefe
+	Try(func() {
+		e.CreateAccountWithResources2(common.N("xyz.prefe"), carl, 8000)
+	}).Catch(func(e Exception) {
+		ex = e.DetailMessage()
+	}).End()
+	assert.True(t, inString(ex, "only suffix may create this account"))
+	e.Transfer(eosio, common.N("prefe"), CoreFromString("10000.0000"), eosio)
+	e.CreateAccountWithResources2(common.N("xyz.prefe"), common.N("prefe"), 8000)
+
+	// other auctions haven't closed
+	Try(func() {
+		e.CreateAccountWithResources2(common.N("prefa"), bob, 8000)
+	}).Catch(func(e Exception) {
+		ex = e.DetailMessage()
+	}).End()
+	assert.True(t, inString(ex, "auction for name is not closed yet"))
 }
 
 func TestVoteProducersInAndOut(t *testing.T) {
@@ -1939,6 +2603,7 @@ func TestVoteProducersInAndOut(t *testing.T) {
 		assert.True(t, *ecc.NewPublicKeyNil() != e.GetProducerInfo(producersNames[votedOutIndex])["producer_key"].(ecc.PublicKey))
 		assert.Equal(t, e.Success(), e.ClaimRewards(producersNames[votedOutIndex]))
 	}
+	e.close()
 }
 
 func TestSetParams(t *testing.T) {
