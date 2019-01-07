@@ -1,7 +1,6 @@
 package fasthttp
 
 import (
-	"fmt"
 	"github.com/eosspark/eos-go/plugins/appbase/asio"
 	"io"
 	"net"
@@ -49,11 +48,10 @@ func (s *AsyncServer) accept(ln net.Listener, lastPerIPErrorTime time.Time, f fu
 	var err error
 
 	if c, err = acceptConn(s.Server, ln, &lastPerIPErrorTime); err != nil {
-		//wp.Stop()
 		if err == io.EOF {
-			fmt.Println("accept err", err.Error())
+			return
 		}
-		fmt.Println("accept err", err.Error())
+		return
 	}
 	s.ctx.Post(func(err error) {
 		f(c)
@@ -121,35 +119,29 @@ func (s *AsyncServer) Serve(ln net.Listener) error {
 			//}
 
 			con := c
-			c = nil
 			s.ctx.Post(func(err error) {
 				if con == nil {
 					return
 				}
 
-				if err = s.serveConn(con); err != nil && err != errHijacked {
-					errStr := err.Error()
-					if s.LogAllErrors || !(strings.Contains(errStr, "broken pipe") ||
-						strings.Contains(errStr, "reset by peer") ||
-						strings.Contains(errStr, "request headers: small read buffer") ||
-						strings.Contains(errStr, "i/o timeout")) {
-						s.Logger.Printf("error when serving connection %q<->%q: %s", con.LocalAddr(), con.RemoteAddr(), err)
+				if err = s.serveConn(con); err != nil {
+					if err != errHijacked {
+						errStr := err.Error()
+						if s.LogAllErrors || !(strings.Contains(errStr, "broken pipe") ||
+							strings.Contains(errStr, "reset by peer") ||
+							strings.Contains(errStr, "request headers: small read buffer") ||
+							strings.Contains(errStr, "i/o timeout")) {
+							s.Logger.Printf("error when serving connection %q<->%q: %s", con.LocalAddr(), con.RemoteAddr(), err)
+							con.Close()
+							s.setState(con, StateClosed)
+						}
+					} else if err == errHijacked {
+						s.setState(con, StateHijacked)
 					}
 				}
 			})
-			//if err == errHijacked {
-			//	wp.connState(c, StateHijacked)
-			//} else {
-			//	c.Close()
-			//	wp.connState(c, StateClosed)
-			//}
-			//c = nil
-			//
-			//if !wp.release(ch) {
-			//	break
-			//}
 
-			//c = nil
+			c = nil
 			handleFunc()
 		})
 	}
