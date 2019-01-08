@@ -959,6 +959,7 @@ func (c *Controller) applyOnerror(gtrx *entity.GeneratedTransaction, deadline co
 		cpuTimeToBillUs = &t
 		trace.Except = e
 		trace.ExceptPtr = e
+
 	}).End()
 
 	if returning {
@@ -1151,7 +1152,7 @@ func (c *Controller) PushBlock(b *types.SignedBlock, s types.BlockStatus) {
 	Try(func() {
 		EosAssert(b != nil, &BlockValidateException{}, "trying to push empty block")
 		EosAssert(s != types.Incomplete, &BlockLogException{}, "invalid block status for a completed block")
-		c.PreAcceptedBlock.Emit(b)
+		//c.PreAcceptedBlock.Emit(b)
 		//TODO emit(self.pre_accepted_block, b )
 		trust := !c.Config.ForceAllChecks && (s == types.Irreversible || s == types.Validated)
 		/*TODO newHeaderState :=*/ c.ForkDB.AddSignedBlock(b, trust)

@@ -40,6 +40,7 @@ var byBlockNumCompare = func(a, b interface{}) int {
 
 	return 0
 }
+
 //go:generate gotemplate -outfmt "gen_%v" "github.com/eosspark/container/templates/treemap" byLibBlockNumIndex(ByLibBlockNumComposite,IndexKey,byLibBlockNumCompare)
 type ByLibBlockNumComposite struct {
 	DposIrreversibleBlocknum *uint32
@@ -115,6 +116,7 @@ func (m *MultiIndex) Erase(itr IndexKey) {
 	node.iteratorByPrev.Delete()
 	node.iteratorByBlockNum.Delete()
 	node.iteratorByLibBlockNum.Delete()
+	m.base.Remove(itr)
 }
 
 func (m *MultiIndex) Modify(itr IndexKey, modifier func(b *types.BlockState)) bool {
@@ -143,7 +145,6 @@ func (m *MultiIndex) insert(n *types.BlockState, itr IndexKey) bool {
 	}
 	m.ByBlockId[n.BlockId] = itr
 	node.hashByBlockId = n.BlockId
-
 
 	node.iteratorByPrev = m.ByPrev.Insert(n.Header.Previous, itr)
 	if node.iteratorByPrev.IsEnd() {
