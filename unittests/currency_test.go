@@ -3,7 +3,6 @@ package unittests
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/stretchr/testify/assert"
 	. "github.com/eosspark/eos-go/chain"
 	"github.com/eosspark/eos-go/chain/abi_serializer"
 	"github.com/eosspark/eos-go/chain/types"
@@ -12,6 +11,7 @@ import (
 	"github.com/eosspark/eos-go/exception"
 	"github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/log"
+	"github.com/stretchr/testify/assert"
 	"io/ioutil"
 	"testing"
 )
@@ -596,7 +596,7 @@ func TestDeferredFailure(t *testing.T) {
 	itr = index.Begin()
 	err = itr.Data(&gto)
 	if err != nil {
-		fmt.Errorf("TestDeferredFailure:", "find gto is error")
+		fmt.Errorf("TestDeferredFailure:find gto is error")
 	}
 	deferredId = gto.TrxId
 	//next deferred trx

@@ -143,11 +143,16 @@ func (a *AbiDef) writeField(binaryEncoder *rlp.Encoder, fieldName string, fieldT
 	if structure != nil {
 		abiLog.Debug("field is a struct, name is %s", fieldName)
 
-		err := a.encodeFields(binaryEncoder, structure.Fields, []byte(value.Raw))
+		err := a.encode(binaryEncoder, structure.Name, []byte(value.Raw))
 		if err != nil {
 			return err
 		}
 		return nil
+		//err := a.encodeFields(binaryEncoder, structure.Fields, []byte(value.Raw))
+		//if err != nil {
+		//	return err
+		//}
+		//return nil
 	}
 
 	var object interface{}
@@ -237,7 +242,7 @@ func (a *AbiDef) writeField(binaryEncoder *rlp.Encoder, fieldName string, fieldT
 		if err != nil {
 			return fmt.Errorf("writing field: time_point_sec: %s", err)
 		}
-		object = common.TimePointSec(t.UTC().Second())
+		object = common.TimePointSec(t.UTC().Unix())
 	case "time_point":
 		t, err := time.Parse("2006-01-02T15:04:05.999", value.Str)
 		if err != nil {

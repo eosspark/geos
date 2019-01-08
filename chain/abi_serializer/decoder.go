@@ -9,7 +9,6 @@ import (
 	"github.com/eosspark/eos-go/common/eos_math"
 	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/rlp"
-	"github.com/tidwall/sjson"
 	"strings"
 	"time"
 	"unsafe"
@@ -110,7 +109,7 @@ func (a *AbiDef) decodeField(binaryDecoder *rlp.Decoder, fieldName string, field
 		}
 
 		if length == 0 {
-			resultingJson, _ = sjson.SetBytes(resultingJson, fieldName, []interface{}{})
+			resultingJson, _ = common.SetBytes(resultingJson, fieldName, []interface{}{})
 			//ignoring err because there is a bug in sjson. sjson shadow the err in case of a default type ...
 			//if err != nil {
 			//	return resultingJson, fmt.Errorf("reading field [%s] setting empty array: %s", fieldName, err)
@@ -147,7 +146,7 @@ func (a *AbiDef) read(binaryDecoder *rlp.Decoder, fieldName string, fieldType st
 			return []byte{}, err
 		}
 		abiLog.Debug("set field value,name: %s, json: %s", fieldName, structureJson)
-		return sjson.SetRawBytes(json, fieldName, structureJson)
+		return common.SetRawBytes(json, fieldName, structureJson)
 	}
 
 	var value interface{}
@@ -301,8 +300,7 @@ func (a *AbiDef) read(binaryDecoder *rlp.Decoder, fieldName string, fieldType st
 
 	abiLog.Debug("set field value,name: %s,value :%#v", fieldName, value)
 
-	return sjson.SetBytes(json, fieldName, value)
-
+	return common.SetBytes(json, fieldName, value)
 }
 
 func analyzeFieldType(fieldType string) (typeName string, isOptional bool, isArray bool) {

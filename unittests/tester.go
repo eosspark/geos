@@ -160,7 +160,11 @@ func (t BaseTester) IsSameChain(other *BaseTester) bool {
 func (t BaseTester) PushBlock(b *types.SignedBlock) *types.SignedBlock {
 	t.Control.AbortBlock()
 	t.Control.PushBlock(b, types.Complete)
-	return &types.SignedBlock{}
+	id := b.BlockID()
+	if v, ok := t.LastProducedBlock[b.Producer]; !ok || types.NumFromID(&id) > types.NumFromID(&v) {
+		t.LastProducedBlock[b.Producer] = b.BlockID()
+	}
+	return b
 }
 
 func (t BaseTester) pushGenesisBlock() {

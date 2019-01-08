@@ -253,7 +253,7 @@ func (srv *Server) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	w.Header().Set("content-type", contentType)
 	fmt.Printf("*******serverHTTP:   %#v\n", ctx)
 	fmt.Printf("codec: %#v\n\n", codec)
-	srv.ServeSingleRequest(ctx, codec, OptionMethodInvocation)
+	//srv.ServeSingleRequest(ctx, codec, OptionMethodInvocation)
 }
 
 // validateRequest returns a non-zero response code and error message if the

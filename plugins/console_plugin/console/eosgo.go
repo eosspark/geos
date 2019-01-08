@@ -42,18 +42,7 @@ func newEosgo(c *Console) *eosgo {
 	}
 	return e
 }
-func (e *eosgo) Exp() {
 
-	first := fmt.Sprint("status", " transaction: ", "09904343048038403", "  ", 100, "bytes  ", 504, " us")
-
-	second := fmt.Sprint("#", "eosio", "120192010ijii12109201")
-	third := fmt.Sprint("\x1b[1;33m \rwarning: transaction executed locally, but may not be confirmed by the network yet \x1b[0m")
-
-	fmt.Println(first)
-	fmt.Println(second)
-	fmt.Println(third)
-
-}
 func (e *eosgo) CreateKey(call otto.FunctionCall) (response otto.Value) {
 	type Keys struct {
 		Pri string `json:"Private Key"`
@@ -63,14 +52,6 @@ func (e *eosgo) CreateKey(call otto.FunctionCall) (response otto.Value) {
 	privateKey, _ := ecc.NewRandomPrivateKey()
 	key := Keys{Pri: privateKey.String(), Pub: privateKey.PublicKey().String()}
 	return getJsResult(call, key)
-}
-
-type CreateAccountParams struct {
-	Creator   common.Name `json:"creator"`
-	Name      common.Name `json:"name"`
-	OwnerKey  string      `json:"owner"`
-	ActiveKey string      `json:"active"`
-	StandardTransactionOptions
 }
 
 func (e *eosgo) CreateAccount(call otto.FunctionCall) (response otto.Value) {
@@ -97,34 +78,6 @@ func (e *eosgo) CreateAccount(call otto.FunctionCall) (response otto.Value) {
 	return getJsResult(call, re)
 }
 
-type PushAction struct {
-	ContractAccount string `json:"account"`
-	Action          string `json:"action"`
-	Data            string `json:"data"`
-	StandardTransactionOptions
-}
-
-//func (e *eosgo) PushAction(call otto.FunctionCall) (response otto.Value) {
-//	var params PushAction
-//	readParams(&params, call)
-//
-//	actionArgsVar := &common.Variants{}
-//	err := json.Unmarshal([]byte(params.Data), actionArgsVar)
-//	if err != nil {
-//		throwJSException(fmt.Sprintln("Fail to parse action JSON data = ", params.Data))
-//	}
-//
-//	permissions := getAccountPermissions(params.TxPermission)
-//	action := &types.Action{
-//		Account:       common.N(params.ContractAccount),
-//		Name:          common.N(params.Action),
-//		Authorization: permissions,
-//		Data:          variantToBin(common.N(params.ContractAccount), common.N(params.Action), actionArgsVar),
-//	}
-//	result := sendActions([]*types.Action{action}, 1000, types.CompressionNone, &params)
-//	return getJsResult(call, result)
-//}
-
 func (e *eosgo) PushAction(call otto.FunctionCall) (response otto.Value) {
 	var params PushAction
 	readParams(&params, call)
@@ -143,9 +96,7 @@ func (e *eosgo) PushAction(call otto.FunctionCall) (response otto.Value) {
 		Data:          variantToBin(common.N(params.ContractAccount), common.N(params.Action), actionArgsVar),
 	}
 	sendActions([]*types.Action{action}, 1000, types.CompressionNone, &params)
-	//return getJsResult(call, nil)
 	return otto.UndefinedValue()
-
 }
 
 func (e *eosgo) PushTrx(call otto.FunctionCall) (response otto.Value) {
@@ -174,14 +125,6 @@ func (e *eosgo) PushTrx(call otto.FunctionCall) (response otto.Value) {
 	return v
 }
 
-type SetCodeParams struct {
-	Account                string `json:"account"`
-	ContractPath           string `json:"code_file"`
-	ContractClear          bool   `json:"clear"`
-	SuppressDuplicateCheck bool   `json:"suppress_duplicate_check"`
-	StandardTransactionOptions
-}
-
 func (e *eosgo) SetCode(call otto.FunctionCall) (response otto.Value) {
 	var params SetCodeParams
 	readParams(&params, call)
@@ -194,16 +137,8 @@ func (e *eosgo) SetCode(call otto.FunctionCall) (response otto.Value) {
 
 	action := createSetCode(common.N(params.Account), codeContent, params.TxPermission)
 	clog.Info("Setting Code...")
-	re := sendActions([]*types.Action{action}, 10000, types.CompressionZlib, &params)
-	return getJsResult(call, re)
-}
-
-type SetAbiParams struct {
-	Account                string `json:"account"`
-	AbiPath                string `json:"abi_file"`
-	ContractClear          bool   `json:"clear"`
-	SuppressDuplicateCheck bool   `json:"suppress_duplicate_check"`
-	StandardTransactionOptions
+	sendActions([]*types.Action{action}, 10000, types.CompressionZlib, &params)
+	return otto.UndefinedValue()
 }
 
 func (e *eosgo) SetAbi(call otto.FunctionCall) (response otto.Value) {
@@ -229,8 +164,10 @@ func (e *eosgo) SetAbi(call otto.FunctionCall) (response otto.Value) {
 	}
 	action := createSetABI(common.N(params.Account), abiContent, params.TxPermission)
 	clog.Info("Setting ABI...")
-	result := sendActions([]*types.Action{action}, 10000, types.CompressionZlib, &params)
-	return getJsResult(call, result)
+	sendActions([]*types.Action{action}, 10000, types.CompressionZlib, &params)
+
+	abiCache[common.N(params.Account)] = abi_serializer.NewAbiSerializer(abiDef, abiSerializerMaxTime) //for resolve abi
+	return otto.UndefinedValue()
 }
 
 func (e *eosgo) SetContract(call otto.FunctionCall) (response otto.Value) {
@@ -240,14 +177,6 @@ func (e *eosgo) SetContract(call otto.FunctionCall) (response otto.Value) {
 }
 
 //TODO set
-type SetAccountPermissionParams struct {
-	Account             string `json:"account"`
-	Permission          string `json:"permission"`
-	AuthorityJsonOrFile string `json:"authority"`
-	Parent              string `json:"parent"`
-	StandardTransactionOptions
-}
-
 func (e *eosgo) SetAccountPermission(call otto.FunctionCall) (response otto.Value) {
 	var params SetAccountPermissionParams
 	readParams(&params, call)
@@ -289,14 +218,6 @@ func (e *eosgo) SetAccountPermission(call otto.FunctionCall) (response otto.Valu
 		sendActions([]*types.Action{action}, 1000, types.CompressionNone, &params)
 	}
 	return getJsResult(call, nil)
-}
-
-type SetActionPermissionParams struct {
-	Account     string `json:"account"`
-	Code        string `json:"code"`
-	TypeStr     string `json:"type"`
-	Requirement string `json:"requirement"`
-	StandardTransactionOptions
 }
 
 func (e *eosgo) SetActionPermission(call otto.FunctionCall) (response otto.Value) {
@@ -374,6 +295,13 @@ func binToVariant(account common.AccountName, action common.ActionName, actionAr
 	actionType := abis.GetActionType(action)
 	FcAssert(len(actionType) != 0, fmt.Sprintf("Unknown action %s in contract %s", action, account))
 	return abis.BinaryToVariant(actionType, actionArgs, abiSerializerMaxTime, false)
+}
+func binToVariant2(account common.AccountName, action common.ActionName, actionArgs []byte) interface{} {
+	abis := abisSerializerResolver(account)
+	FcAssert(!common.Empty(abis), fmt.Sprintf("No ABI found %s", account))
+	actionType := abis.GetActionType(action)
+	FcAssert(len(actionType) != 0, fmt.Sprintf("Unknown action %s in contract %s", action, account))
+	return abis.BinaryToVariantPrint(actionType, actionArgs, abiSerializerMaxTime, false)
 }
 
 func regProducerVariant(producer common.AccountName, key ecc.PublicKey, url string, location uint16) *common.Variants {
@@ -725,13 +653,13 @@ func printAction(action gjson.Result) {
 	codeName := act.Get("account").String()
 	funcName := act.Get("name").String()
 	data, _ := hex.DecodeString(act.Get("data").String())
-	funcData := binToVariant(common.N(codeName), common.N(funcName), data)
-	args, _ := json.Marshal(funcData)
+	a := binToVariant2(common.N(codeName), common.N(funcName), data)
+	args, _ := a.([]byte)
 
 	//TODO Parameters should not be sorted ！！
-	//if len(args)>100{
-	//	args =append(args[0:100] , []byte("...")...)
-	//}
+	if len(args) > 100 {
+		args = append(args[0:100], []byte("...")...)
+	}
 	actionName := fmt.Sprintf("%14s <= %-28s", receiver, codeName+"::"+funcName)
 
 	second := fmt.Sprint("#", actionName, string(args))

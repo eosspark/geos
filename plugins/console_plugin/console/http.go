@@ -81,9 +81,9 @@ func (api *API) call(path string, body interface{}) ([]byte, error) {
 		if err != nil {
 			fmt.Println(err)
 		}
-		api.log.Warn("-------------------------------")
-		api.log.Warn(string(requestDump))
-		api.log.Warn("")
+		api.log.Debug("-------------------------------")
+		api.log.Debug(string(requestDump))
+		api.log.Debug("")
 	}
 
 	resp, err := api.HttpClient.Do(req)
@@ -106,10 +106,10 @@ func (api *API) call(path string, body interface{}) ([]byte, error) {
 	}
 
 	if api.Debug {
-		api.log.Warn("RESPONSE:")
-		api.log.Warn("body: %s", cnt.String())
+		api.log.Debug("RESPONSE:")
+		api.log.Debug("body: %s", cnt.String())
 		// fmt.Println("byte: ", cnt.Bytes())
-		api.log.Warn("")
+		api.log.Debug("")
 	}
 
 	return cnt.Bytes(), nil

@@ -42,12 +42,18 @@ func (w *walletApi) Create(call otto.FunctionCall) (response otto.Value) {
 		return
 	}
 
-	result := CreateWalletResp{
-		Name:     walletName,
-		Caution:  "Save password to use in the future to unlock this wallet.Without password imported keys will not be retrievable.",
-		Password: resp,
-	}
-	return getJsResult(call, result)
+	//result := CreateWalletResp{
+	//	Name:     walletName,
+	//	Caution:  "Save password to use in the future to unlock this wallet.Without password imported keys will not be retrievable.",
+	//	Password: resp,
+	//}
+	//return getJsResult(call, result)
+	fmt.Println("Creating wallet: ", walletName)
+	fmt.Println("Save password to use in the future to unlock this wallet.")
+	fmt.Println("Without password imported keys will not be retrievable.")
+	fmt.Println("Password: ", resp)
+	return otto.UndefinedValue()
+
 }
 
 func (w *walletApi) Open(call otto.FunctionCall) (resonse otto.Value) {

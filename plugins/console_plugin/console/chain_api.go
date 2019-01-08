@@ -24,18 +24,6 @@ func newchainAPI(c *Console) *chainAPI {
 	return e
 }
 
-func getJsResult(call otto.FunctionCall, in interface{}) otto.Value {
-	bytes, _ := json.Marshal(in)
-	resps, _ := call.Otto.Object("new Array()")
-	JSON, _ := call.Otto.Object("JSON")
-	resultVal, _ := JSON.Call("parse", string(bytes))
-	resp, _ := call.Otto.Object(`({"eosgo":"1.0"})`)
-	resp.Set("result", resultVal)
-	resps.Call("push", resp)
-
-	return resps.Value()
-}
-
 func (a *chainAPI) GetInfo(call otto.FunctionCall) (response otto.Value) {
 	var info chain_plugin.GetInfoResult
 	err := DoHttpCall(&info, common.GetInfoFunc, nil)
@@ -151,13 +139,6 @@ func (a *chainAPI) GetAccount(call otto.FunctionCall) otto.Value {
 //    }
 // });
 
-type GetCodeParams struct {
-	AccountName  string `json:"name"`
-	CodeFileName string `json:"code"`
-	AbiFileName  string `json:"abi"`
-	CodeAsWasm   bool   `json:"wasm"`
-}
-
 func (a *chainAPI) GetCode(call otto.FunctionCall) otto.Value { //TODO save to file
 	var params GetCodeParams
 	readParams(&params, call)
@@ -204,21 +185,6 @@ func (a *chainAPI) GetAbi(call otto.FunctionCall) otto.Value { //TODO save to fi
 //
 //}
 
-// get table
-type GetTableParams struct {
-	Code          string `json:"code"`
-	Scope         string `json:"scope"`
-	Table         string `json:"table"`
-	Binary        bool   `json:"binary"`
-	Limit         uint32 `json:"limit"` //default =10
-	TableKey      string `json:"key"`
-	Lower         string `json:"lower"`
-	Upper         string `json:"upper"`
-	IndexPosition string `json:"index"`
-	KeyType       string `json:"key_type"`
-	EncodeType    string `json:"encode_type"` //default ='dec'
-}
-
 func (a *chainAPI) GetTable(call otto.FunctionCall) (response otto.Value) {
 	var params GetTableParams
 	readParams(&params, call)
@@ -245,15 +211,6 @@ func (a *chainAPI) GetTable(call otto.FunctionCall) (response otto.Value) {
 		clog.Error("get abi is error: %s", err.Error())
 	}
 	return getJsResult(call, resp)
-}
-
-// get scope
-type GetScopeParams struct {
-	Code  string `json:"code"`
-	Table string `json:"table"`
-	Limit uint32 `json:"limit"` //default =10
-	Lower string `json:"lower"`
-	Upper string `json:"upper"`
 }
 
 func (a *chainAPI) GetScope(call otto.FunctionCall) (response otto.Value) {
@@ -392,7 +349,7 @@ func print(name string, schedule common.Variant) {
 		fmt.Printf("%s schedule empty\n", name)
 		return
 	}
-	fmt.Printf("%s schedule version %s\n", name, producerST.Version)
+	fmt.Printf("%s schedule version %d\n", name, producerST.Version)
 	fmt.Printf("    %-13s %s\n", "producer", "Producer key")
 	fmt.Printf("    %-13s %s\n", "=============", "==================")
 	for _, row := range producerST.Producers {
