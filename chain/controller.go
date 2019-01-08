@@ -324,7 +324,8 @@ func newController() *Controller {
 
 func (c *Controller) PopBlock() {
 	prev := c.ForkDB.GetBlock(&c.Head.Header.Previous)
-	EosAssert(common.Empty(prev), &BlockValidateException{}, "attempt to pop beyond last irreversible block")
+	//EosAssert(common.Empty(prev), &BlockValidateException{}, "attempt to pop beyond last irreversible block")
+	EosAssert(!common.Empty(prev), &BlockValidateException{}, "attempt to pop beyond last irreversible block")
 	r := entity.ReversibleBlockObject{}
 	r.BlockNum = c.Head.BlockNum
 	out := entity.ReversibleBlockObject{}
@@ -387,9 +388,13 @@ func (c *Controller) OnIrreversible(s *types.BlockState) {
 	if itr != nil {
 		err = itr.Data(&tbs)
 	}
-	for itr != ubi.End() && tbs.BlockNum <= s.BlockNum {
-		c.ReversibleBlocks.Remove(itr)
+	for ; itr != ubi.End() && tbs.BlockNum <= s.BlockNum; itr.Data(&tbs) {
+		err := c.ReversibleBlocks.Remove(&tbs)
+		if err != nil {
+			log.Error("Controller OnIrreversible is error:", err)
+		}
 		itr = ubi.Begin()
+
 	}
 	if c.ReadMode == IRREVERSIBLE {
 		c.applyBlock(s.SignedBlock, types.Complete)
@@ -418,15 +423,13 @@ func (c *Controller) StartBlock(when types.BlockTimeStamp, confirmBlockCount uin
 	c.ValidateDbAvailableSize()
 }
 func (c *Controller) startBlock(when types.BlockTimeStamp, confirmBlockCount uint16, s types.BlockStatus, producerBlockId *common.BlockIdType) {
-
 	EosAssert(c.Pending == nil, &BlockValidateException{}, "pending block already exists")
 	defer func() {
-		if c.Pending != nil {
-			if c.Pending.PendingValid {
-				c.Pending = c.Pending.Reset()
-			}
+		if c.Pending != nil && c.Pending.PendingValid {
+			c.Pending = c.Pending.Reset()
 		}
 	}()
+
 	if !c.SkipDbSession(s) {
 		EosAssert(uint32(c.DB.Revision()) == c.Head.BlockNum, &DatabaseException{}, "db revision is not on par with head block,Revision %v,BlockNum %v,ForkDB.Header().BlockNum %v",
 			c.DB.Revision(), c.Head.BlockNum, c.ForkDB.Header().BlockNum)
@@ -434,15 +437,18 @@ func (c *Controller) startBlock(when types.BlockTimeStamp, confirmBlockCount uin
 	} else {
 		c.Pending = NewDefaultPendingState()
 	}
-
+	c.Pending.PendingValid = true
 	c.Pending.BlockStatus = s
 	c.Pending.ProducerBlockId = *producerBlockId
-	c.Pending.PendingBlockState = types.NewBlockState2(&c.Head.BlockHeaderState, when) //TODO std::make_shared<block_state>( *head, when ); // promotes pending schedule (if any) to active
+	c.Pending.PendingBlockState = types.NewBlockState2(&c.Head.BlockHeaderState, when) // promotes pending schedule (if any) to active
 	c.Pending.PendingBlockState.InCurrentChain = true
+	if confirmBlockCount == 48 {
+		fmt.Println("**********************")
+	}
 	c.Pending.PendingBlockState.SetConfirmed(confirmBlockCount)
 	wasPendingPromoted := c.Pending.PendingBlockState.MaybePromotePending()
 
-	if c.ReadMode == DBReadMode(SPECULATIVE) || c.Pending.BlockStatus != types.BlockStatus(types.Incomplete) {
+	if c.ReadMode == SPECULATIVE || c.Pending.BlockStatus != types.Incomplete {
 		gpo := c.GetGlobalProperties()
 		if (gpo.ProposedScheduleBlockNum != 0 && gpo.ProposedScheduleBlockNum <= c.Pending.PendingBlockState.DposIrreversibleBlocknum) &&
 			(len(c.Pending.PendingBlockState.PendingSchedule.Producers) == 0) && (!wasPendingPromoted) {
@@ -474,14 +480,15 @@ func (c *Controller) startBlock(when types.BlockTimeStamp, confirmBlockCount uin
 		}).Catch(func(e Exception) {
 			log.Error("Controller StartBlock exception:%s", e.DetailMessage())
 			Throw(e)
-		}).Catch(func(i interface{}) {
+		}).Catch(func(i Exception) {
 			//c++ nothing
 		}).End()
 
 		c.clearExpiredInputTransactions()
 		c.updateProducersAuthority()
 	}
-	//c.Pending.PendingValid = false
+	c.Pending.PendingValid = false
+
 }
 
 func (c *Controller) pushReceipt(trx interface{}, status types.TransactionStatus, cpuUsageUs uint64, netUsage uint64) *types.TransactionReceipt {
@@ -554,7 +561,7 @@ func (c *Controller) pushTransaction(trx *types.TransactionMetadata, deadLine co
 			}
 			trxContext.Exec()
 			trxContext.Finalize()
-			//TODO
+
 			defer func(b bool) {
 				c.InTrxRequiringChecks = b
 			}(c.InTrxRequiringChecks)
@@ -586,6 +593,7 @@ func (c *Controller) pushTransaction(trx *types.TransactionMetadata, deadLine co
 			//emit(c.applied_transaction, trace)
 			if c.ReadMode != SPECULATIVE && c.Pending.BlockStatus == types.Incomplete {
 				trxContext.Undo()
+
 			} else {
 				//restore.cancel()
 				trxContext.Squash()
@@ -838,7 +846,6 @@ func (c *Controller) pushScheduledTransactionByObject(gto *entity.GeneratedTrans
 		returning = true
 		//return trace
 	}).Catch(func(ex Exception) {
-		//log.Error("PushScheduledTransaction is error:%s", ex.DetailMessage())
 		cpuTimeToBillUs = trxContext.UpdateBilledCpuTime(common.Now())
 		trace.Except = ex
 		trace.ExceptPtr = ex
@@ -849,7 +856,6 @@ func (c *Controller) pushScheduledTransactionByObject(gto *entity.GeneratedTrans
 	}
 	trxContext.Undo()
 	if !failureIsSubjective(trace.Except) && gtrx.Sender != 0 { /*gtrx.Sender != account_name()*/
-		//log.Info("%v", trace.Except.DetailMessage())
 		errorTrace := c.applyOnerror(gtrx, deadLine, trxContext.pseudoStart, &cpuTimeToBillUs, billedCpuTimeUs, explicitBilledCpuTime)
 		errorTrace.FailedDtrxTrace = trace
 		trace = errorTrace
@@ -894,7 +900,6 @@ func (c *Controller) pushScheduledTransactionByObject(gto *entity.GeneratedTrans
 
 		c.ResourceLimits.AddTransactionUsage(&trxContext.BillToAccounts, uint64(cpuTimeToBillUs), 0,
 			uint32(types.NewBlockTimeStamp(c.PendingBlockTime()))) // Should never fail
-		log.Info("%v, hard*********************, %v", gtrx.TrxId, types.TransactionStatusHardFail)
 		receipt := *c.pushReceipt(gtrx.TrxId, types.TransactionStatusHardFail, uint64(cpuTimeToBillUs), 0)
 		trace.Receipt = receipt.TransactionReceiptHeader
 		/*emit( self.accepted_transaction, trx );
@@ -944,8 +949,7 @@ func (c *Controller) applyOnerror(gtrx *entity.GeneratedTransaction, deadline co
 		last := etrx.Actions[len(etrx.Actions)-1]
 		trxContext.DispatchAction(&tr, last, gtrx.Sender, false, 0) //default false 0
 		trxContext.Finalize()
-		defer func() {}() //TODO
-		//pushReceipt(trx interface{}, status types.TransactionStatus, cpuUsageUs uint64, netUsage uint64) *types.TransactionReceipt
+		//defer func() {}() //TODO
 		trace.Receipt = c.pushReceipt(gtrx.TrxId, types.TransactionStatusSoftFail, uint64(trxContext.BilledCpuTimeUs), trace.NetUsage).TransactionReceiptHeader
 		trxContext.Squash()
 		//restore.cancel()
@@ -1007,7 +1011,6 @@ func (c *Controller) setTrxMerkle() {
 }
 
 func (c *Controller) FinalizeBlock() {
-
 	EosAssert(c.Pending != nil, &BlockValidateException{}, "it is not valid to finalize when there is no pending block")
 
 	c.ResourceLimits.ProcessAccountLimitUpdates()
@@ -1051,7 +1054,6 @@ func (c *Controller) FinalizeBlock() {
 func (c *Controller) SignBlock(signerCallback func(sha256 crypto.Sha256) ecc.Signature) {
 	p := c.Pending.PendingBlockState
 	p.Sign(signerCallback)
-	//p.SignedBlock
 	p.SignedBlock.SignedBlockHeader = p.Header
 }
 
@@ -1117,6 +1119,7 @@ func (c *Controller) CommitBlock(addToForkDb bool) {
 			c.Pending.PendingBlockState.Validated = true
 			newBsp := c.ForkDB.AddBlockState(c.Pending.PendingBlockState)
 			//emit(self.accepted_block_header, pending->_pending_block_state)
+			c.AcceptedBlockHeader.Emit(c.Pending.PendingBlockState)
 			c.Head = c.ForkDB.Header()
 			EosAssert(newBsp == c.Head, &ForkDatabaseException{}, "committed block did not become the new head in fork database")
 		}
@@ -1125,11 +1128,11 @@ func (c *Controller) CommitBlock(addToForkDb bool) {
 			ubo := entity.ReversibleBlockObject{}
 			ubo.BlockNum = c.Pending.PendingBlockState.BlockNum
 			ubo.SetBlock(c.Pending.PendingBlockState.SignedBlock)
-			c.DB.Insert(&ubo)
+			c.ReversibleBlocks.Insert(&ubo)
 		}
 		c.AcceptedBlock.Emit(c.Pending.PendingBlockState)
 		//emit( self.accepted_block, pending->_pending_block_state )
-	}).Catch(func(e interface{}) {
+	}).Catch(func(e Exception) {
 		c.Pending.PendingValid = true
 		c.AbortBlock()
 		Throw(e)
@@ -1137,7 +1140,6 @@ func (c *Controller) CommitBlock(addToForkDb bool) {
 	c.Pending.Push()
 	c.Pending.PendingValid = true
 	//log.Info("commitBlock success!")
-
 }
 
 func (c *Controller) PushBlock(b *types.SignedBlock, s types.BlockStatus) {
@@ -1910,15 +1912,14 @@ func (c *Controller) initConfig() *Controller {
 		ReadMode:            SPECULATIVE,
 		BlockValidationMode: FULL,
 		Genesis:             types.NewGenesisState(),
-		//TODO tmp code
-		ActorWhitelist:    *treeset.NewWith(common.TypeName, common.CompareName),
-		ActorBlacklist:    *treeset.NewWith(common.TypeName, common.CompareName),
-		ContractWhitelist: *treeset.NewWith(common.TypeName, common.CompareName),
-		ContractBlacklist: *treeset.NewWith(common.TypeName, common.CompareName),
-		ActionBlacklist:   *treeset.NewWith(common.TypePair, common.ComparePair),
-		KeyBlacklist:      *treeset.NewWith(ecc.TypePubKey, ecc.ComparePubKey),
-		ResourceGreylist:  *treeset.NewWith(common.TypeName, common.CompareName),
-		TrustedProducers:  *treeset.NewWith(common.TypeName, common.CompareName),
+		ActorWhitelist:      *treeset.NewWith(common.TypeName, common.CompareName),
+		ActorBlacklist:      *treeset.NewWith(common.TypeName, common.CompareName),
+		ContractWhitelist:   *treeset.NewWith(common.TypeName, common.CompareName),
+		ContractBlacklist:   *treeset.NewWith(common.TypeName, common.CompareName),
+		ActionBlacklist:     *treeset.NewWith(common.TypePair, common.ComparePair),
+		KeyBlacklist:        *treeset.NewWith(ecc.TypePubKey, ecc.ComparePubKey),
+		ResourceGreylist:    *treeset.NewWith(common.TypeName, common.CompareName),
+		TrustedProducers:    *treeset.NewWith(common.TypeName, common.CompareName),
 	}
 	return c
 }
