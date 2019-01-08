@@ -1755,6 +1755,18 @@ func TestProducersUpgradeSystemContract(t *testing.T) {
 		act.Account = eosioMsig
 		act.Name = name
 		act.Data = msigAbiSer.VariantToBinary(actionTypeName, &data, e.AbiSerializerMaxTime)
+		type AA struct{
+			P common.AccountName
+			Pn common.AccountName
+			Trx  types.Transaction
+			Re []types.PermissionLevel
+		}
+		A :=AA{}
+		err :=rlp.DecodeBytes(act.Data,&A)
+		if err !=nil{
+			fmt.Println(err)
+		}
+		fmt.Println("trx****************:   ",A)
 		var signerAuth common.AccountName
 		if auth {
 			signerAuth = signer
@@ -1790,7 +1802,7 @@ func TestProducersUpgradeSystemContract(t *testing.T) {
 			Data:          data,
 		}
 		trx.Actions = append(trx.Actions, &act)
-		e.SetTransactionHeaders(&trx.Transaction, e.DefaultExpirationDelta, 0)
+		e.SetTransactionHeaders(&trx.Transaction, e.DefaultExpirationDelta + 9, 0)
 		fmt.Println(trx.Expiration.SecSinceEpoch())
 		trx.Transaction.RefBlockNum = 2
 		trx.Transaction.RefBlockPrefix = 3
@@ -1812,7 +1824,7 @@ func TestProducersUpgradeSystemContract(t *testing.T) {
 			"proposal_name": common.N("upgrade1"),
 			"level":         types.PermissionLevel{Actor:producersNames[i], Permission:common.DefaultConfig.ActiveName},
 		}
-		assert.Equal(t, e.Success(), pushActionMsig(alice, common.N("approve"), data, true))
+		assert.Equal(t, e.Success(), pushActionMsig(producersNames[i], common.N("approve"), data, true))
 	}
 
 	//should fail
@@ -1835,7 +1847,7 @@ func TestProducersUpgradeSystemContract(t *testing.T) {
 		"proposal_name": common.N("upgrade1"),
 		"level":         types.PermissionLevel{Actor:producersNames[14], Permission:common.DefaultConfig.ActiveName},
 	}
-	assert.Equal(t, e.Success(), pushActionMsig(alice, common.N("approve"), data, true))
+	assert.Equal(t, e.Success(), pushActionMsig(producersNames[14], common.N("approve"), data, true))
 
 	data = common.Variants{
 		"proposer":      alice,

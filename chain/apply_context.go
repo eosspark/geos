@@ -1393,6 +1393,7 @@ func (a *ApplyContext) IsPrivileged(n common.AccountName) bool {
 }
 func (a *ApplyContext) SetPrivileged(n common.AccountName, isPriv bool) {
 	account := entity.AccountObject{Name: n}
+	a.DB.Find("byName", account, &account)
 	a.DB.Modify(&account, func(ao *entity.AccountObject) {
 		ao.Privileged = isPriv
 	})
