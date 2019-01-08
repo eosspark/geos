@@ -414,6 +414,14 @@ func (e EosioSystemTester) SetRam(signer common.AccountName, maxRamSize uint64) 
 	return e.EsPushAction(&signer, &act, &setRam, true)
 }
 
+func (e EosioSystemTester) RmvProducer(signer common.AccountName, prodName common.AccountName) ActionResult {
+	rmvProducer := common.Variants{
+		"producer": prodName,
+	}
+	act := common.N("rmvproducer")
+	return e.EsPushAction(&signer, &act, &rmvProducer, true)
+}
+
 func (e EosioSystemTester) RegProducer(acnt common.AccountName) ActionResult {
 	regproducer := common.Variants{
 		"producer":     acnt,
@@ -702,6 +710,95 @@ func (e EosioSystemTester) GetRefundRequest(account common.AccountName) common.V
 			"cpu_amount":   res.CpuAmount,
 		}
 	}
+}
+
+func (e EosioSystemTester) InitializeMultisig() abi_serializer.AbiSerializer {
+	var msigAbiSer abi_serializer.AbiSerializer
+	e.CreateAccountWithResources2(eosioMsig, eosio, 8000)
+	e.BuyRam(eosio, eosioMsig, CoreFromString("5000.0000"))
+	e.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs), 0)
+	data := common.Variants{
+		"account": eosioMsig,
+		"is_priv": 1,
+	}
+	acttype := common.N("setpriv")
+	e.PushAction2(&eosio, &acttype, eosio, &data, e.DefaultExpirationDelta, 0)
+	wasmName := "test_contracts/eosio.msig.wasm"
+	code, _ := ioutil.ReadFile(wasmName)
+	e.SetCode(eosioMsig, code, nil)
+	abiName := "test_contracts/eosio.msig.abi"
+	abi, _ := ioutil.ReadFile(abiName)
+	e.SetAbi(eosioMsig, abi, nil)
+	e.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs), 0)
+	accnt := entity.AccountObject{Name: eosioMsig}
+	e.Control.DB.Find("byName", accnt, &accnt)
+	abiDef := abi_serializer.AbiDef{}
+	if !abi_serializer.ToABI(accnt.Abi, &abiDef) {
+		log.Error("eosio_system_tester::InitializeMultisig failed with ToAbi")
+	}
+	msigAbiSer.SetAbi(&abiDef, e.AbiSerializerMaxTime)
+	return msigAbiSer
+}
+
+func (e EosioSystemTester) ActiveAndVoteProducers() []common.AccountName {
+	//stake more than 15% of total EOS supply to activate chain
+	e.Transfer(eosio, alice, CoreFromString("650000000.0000"), eosio)
+	e.Stake(alice, alice, CoreFromString("300000000.0000"), CoreFromString("300000000.0000"))
+
+	// create accounts {defproducera, defproducerb, ..., defproducerz} and register as producers
+	var producersNames []common.AccountName
+	root := "defproducer"
+	for c := 'a'; c < 'a'+21; c++ {
+		acc := common.N(root + string(c))
+		producersNames = append(producersNames, acc)
+	}
+	e.SetupProducerAccounts(producersNames)
+
+	for _, a := range producersNames {
+		e.RegProducer(a)
+	}
+	e.ProduceBlocks(250, false)
+	auth := types.Authority{
+		Threshold: 1,
+		Keys: []types.KeyWeight{{Key: e.getPublicKey(eosio, "active"), Weight: 1}},
+		Accounts: []types.PermissionLevelWeight{
+			{Permission: types.PermissionLevel{Actor:eosio, Permission:common.DefaultConfig.EosioCodeName}, Weight:1},
+			{Permission: types.PermissionLevel{Actor:common.DefaultConfig.ProducersAccountName, Permission:common.DefaultConfig.ActiveName}, Weight:1},
+		},
+		Waits: []types.WaitWeight{},
+	}
+	data := common.Variants{
+		"account":    eosio,
+		"permission": common.N("active"),
+		"parent":     common.N("owner"),
+		"auth":       auth,
+	}
+
+	actName := UpdateAuth{}.GetName()
+	traceAuth := e.PushAction2(
+		&eosio,
+		&actName,
+		eosio,
+		&data,
+		e.DefaultExpirationDelta,
+		0,
+	)
+	if traceAuth.Receipt.Status != types.TransactionStatusExecuted {
+		log.Error("wrong: updateAuth failed.")
+	}
+
+	//vote for producers
+	e.Transfer(eosio, alice, CoreFromString("100000000.0000"), eosio)
+	e.Stake(alice, alice, CoreFromString("30000000.0000"), CoreFromString("30000000.0000"))
+	e.BuyRam(alice, alice, CoreFromString("30000000.0000"))
+	e.Vote(alice, producersNames[0:21], common.AccountName(0))
+	e.ProduceBlocks(250, false)
+
+	producerKeys := e.Control.HeadBlockState().ActiveSchedule.Producers
+	if len(producerKeys) != 21 || producerKeys[0].ProducerName != producer1 {
+		log.Error("wrong: update producers failed.")
+	}
+	return producersNames
 }
 
 func (e EosioSystemTester) Cross15PercentThreshold() {

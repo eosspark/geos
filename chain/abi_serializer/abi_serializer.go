@@ -312,7 +312,9 @@ func ToABI(abiVec common.HexBytes, abi *AbiDef) bool {
 		return false
 	}
 
-	if nil != rlp.DecodeBytes(abiVec, abi) {
+	err := rlp.DecodeBytes(abiVec, abi)
+	if err != nil {
+		fmt.Println(err)
 		return false
 	}
 	return true
@@ -422,6 +424,20 @@ func (a AbiSerializer) BinaryToVariant2(rtype typeName, binary []byte, maxSerial
 	return re
 }
 
+func (a AbiSerializer) BinaryToVariantPrint(rtype typeName, binary []byte, maxSerializationTime common.Microseconds, shortPath bool) interface{} {
+	var bytes []byte
+	Try(func() {
+		var err error
+		if a.abi.StructForName(rtype) != nil {
+			bytes, err = a.abi.DecodeStruct(rtype, binary)
+		}
+		if err != nil {
+			Throw(fmt.Sprintf("binary_to_variant is error: %s", err.Error()))
+		}
+	}).EosRethrowExceptions(&exception.UnpackException{}, "Unable to unpack %s from bytes", string(binary)).End()
+	return bytes
+}
+
 //template<typename T, typename Resolver>
 //void abi_serializer::to_variant( const T& o, variant& vo, Resolver resolver, const fc::microseconds& max_serialization_time ) try {
 //mutable_variant_object mvo;
@@ -496,40 +512,5 @@ func ToVariantFromActionData(actionParams *types.ContractTypesInterface, v *comm
 	if err != nil {
 		fmt.Printf("Unmarshal variants is error: %s\n", err.Error())
 	}
-
-}
-
-func (a *AbiSerializer) variantToBinaryCpp(name typeName, data *common.Variants, allowExtensions bool, recursion_depth common.SizeT,
-	deadline common.TimePoint, maxSerializationTime common.Microseconds) (re []byte) {
-	Try(func() {
-
-		//buf, err := json.Marshal(data)
-		//if err != nil {
-		//	abiLog.Error("Marshal action is error: %s", err.Error())
-		//	Throw(fmt.Sprintf("Marshal action is error: %s", err.Error()))
-		//}
-		//
-		//re, err = a.abi.EncodeStruct(name, buf)
-		//if err != nil {
-		//	abiLog.Error("encode actoin is error:%s", err)
-		//	Throw(fmt.Errorf("encode actoin is error:%s", err))
-		//}
-
-		//		rtype :=a.ResolveType(name)
-		//		vItr := VariantDef{}
-		//		sItr :=StructDef{}
-		//
-		//		var buffer bytes.Buffer
-		//		encoder := rlp.NewEncoder(&buffer)
-		//
-		//		btype,ok :=a.builtInTypes[rtype]
-		//		if ok{
-		//a.abi.writeField(encoder,"",rtype,)
-		//		}else{
-		//
-		//		}
-
-	}).FcCaptureAndRethrow(name, data).End()
-	return re
 
 }

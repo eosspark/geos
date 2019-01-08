@@ -102,7 +102,7 @@ func (c *Console) init(preload []string) (err error) {
 	eosObj.Object().Set("send", bridge.Send)
 	eosObj.Object().Set("sendAsync", bridge.Send)
 	//eosObj.Object().Set("createAccount", eos.CreateAccount)
-	err = eosObj.Object().Set("exp", eos.Exp)
+
 	fmt.Println("********", err)
 
 	chain := newchainAPI(c)
