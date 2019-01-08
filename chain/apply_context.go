@@ -1342,8 +1342,6 @@ func (a *ApplyContext) SetBlockchainParametersPacked(parameters []byte) {
 	a.DB.Modify(g, func(gpo *entity.GlobalPropertyObject) {
 		gpo.Configuration = cfg
 	})
-
-	a.Control.GpoCache[g.ID] = g
 }
 
 func (a *ApplyContext) SetBlockchainParameters(cfg *types.ChainConfig) {
@@ -1354,8 +1352,6 @@ func (a *ApplyContext) SetBlockchainParameters(cfg *types.ChainConfig) {
 	a.DB.Modify(g, func(gpo *entity.GlobalPropertyObject) {
 		gpo.Configuration = *cfg
 	})
-
-	a.Control.GpoCache[g.ID] = g
 }
 
 func (a *ApplyContext) GetBlockchainParameters() *types.ChainConfig {
