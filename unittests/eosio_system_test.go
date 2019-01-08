@@ -162,7 +162,6 @@ func TestStakeUnstake(t *testing.T) {
 }
 
 func TestStakeUnstakeWithTransfer(t *testing.T) {
-	//TODO test
 	e := initEosioSystemTester()
 	e.Cross15PercentThreshold()
 	e.Issue(eosio, CoreFromString("1000.0000"), eosio)
@@ -1756,16 +1755,6 @@ func TestProducersUpgradeSystemContract(t *testing.T) {
 		act.Account = eosioMsig
 		act.Name = name
 		act.Data = msigAbiSer.VariantToBinary(actionTypeName, &data, e.AbiSerializerMaxTime)
-		type AA struct {
-			Proposer common.Name
-			Proposal_name common.Name
-			Requester []types.PermissionLevel
-			Trx types.Transaction
-		}
-		Abc :=AA{
-		}
-		err :=rlp.DecodeBytes(act.Data,&Abc)
-		fmt.Println(Abc,err)
 		var signerAuth common.AccountName
 		if auth {
 			signerAuth = signer
@@ -2608,6 +2597,60 @@ func TestVoteProducersInAndOut(t *testing.T) {
 
 func TestSetParams(t *testing.T) {
 	//TODO
+	e := initEosioSystemTester()
+
+	//install multisig contract
+	msigAbiSer := e.InitializeMultisig()
+	producersNames := e.ActiveAndVoteProducers()
+
+	//helper function
+	pushActionMsig := func(signer common.AccountName, name common.ActionName, data common.Variants, auth bool) ActionResult {
+		actionTypeName := msigAbiSer.GetActionType(name)
+		act := types.Action{}
+		act.Account = eosioMsig
+		act.Name = name
+		act.Data = msigAbiSer.VariantToBinary(actionTypeName, &data, e.AbiSerializerMaxTime)
+		var signerAuth common.AccountName
+		if auth {
+			signerAuth = signer
+		} else {
+			if signer == bob {
+				signerAuth = alice
+			} else {
+				signerAuth = bob
+			}
+		}
+		return e.PushAction(&act, signerAuth)
+	}
+
+	//test begins
+	var prodPerms []types.PermissionLevel
+	for _, x := range producersNames {
+		prodPerms = append(prodPerms, types.PermissionLevel{Actor:x, Permission:common.DefaultConfig.ActiveName})
+	}
+	params := e.Control.GetGlobalProperties().Configuration
+
+	//change some values
+	params.MaxBlockNetUsage += 10
+	params.MaxTrxLifetime += 1
+
+	trx := types.SignedTransaction{}
+	{
+		data := common.Variants{"params": params}
+		act := e.GetAction(eosio, common.N("setparams"), []types.PermissionLevel{{eosio, common.DefaultConfig.ActiveName}}, &data)
+		trx.Actions = append(trx.Actions, act)
+		e.SetTransactionHeaders(&trx.Transaction, e.DefaultExpirationDelta, 0)
+		fmt.Println(trx.Expiration.SecSinceEpoch())
+		trx.Transaction.RefBlockNum = 2
+		trx.Transaction.RefBlockPrefix = 3
+	}
+	data := common.Variants{
+		"proposer":      alice,
+		"proposal_name": common.N("setparams1"),
+		"trx":           trx.Transaction,
+		"requested":     prodPerms,
+	}
+	assert.Equal(t, e.Success(), pushActionMsig(alice, common.N("propose"), data, true))
 }
 
 func TestSetRamEffect(t *testing.T) {
