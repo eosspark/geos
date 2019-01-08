@@ -182,7 +182,6 @@ type Controller struct {
 	TrustedProducerLightValidation bool                //default value false
 	ApplyHandlers                  map[string]v
 	UnappliedTransactions          map[crypto.Sha256]types.TransactionMetadata
-	GpoCache                       map[common.IdType]*entity.GlobalPropertyObject
 	PreAcceptedBlock               include.Signal
 	AcceptedBlockHeader            include.Signal
 	AcceptedBlock                  include.Signal
@@ -385,16 +384,17 @@ func (c *Controller) OnIrreversible(s *types.BlockState) {
 	}
 	itr := ubi.Begin()
 	tbs := entity.ReversibleBlockObject{}
-	if itr != nil {
+	if itr != ubi.End() {
 		err = itr.Data(&tbs)
 	}
-	for ; itr != ubi.End() && tbs.BlockNum <= s.BlockNum; itr.Data(&tbs) {
+	for itr != ubi.End() && tbs.BlockNum <= s.BlockNum {
 		err := c.ReversibleBlocks.Remove(&tbs)
 		if err != nil {
 			log.Error("Controller OnIrreversible is error:", err)
 		}
-		itr = ubi.Begin()
-
+		if itr.Next() {
+			itr.Data(&tbs)
+		}
 	}
 	if c.ReadMode == IRREVERSIBLE {
 		c.applyBlock(s.SignedBlock, types.Complete)
@@ -402,7 +402,7 @@ func (c *Controller) OnIrreversible(s *types.BlockState) {
 		c.ForkDB.SetValidity(s, true)
 		c.Head = s
 	}
-	//emit( self.irreversible_block, s )
+	c.IrreversibleBlock.Emit(s)
 }
 
 func (c *Controller) AbortBlock() {
@@ -442,9 +442,7 @@ func (c *Controller) startBlock(when types.BlockTimeStamp, confirmBlockCount uin
 	c.Pending.ProducerBlockId = *producerBlockId
 	c.Pending.PendingBlockState = types.NewBlockState2(&c.Head.BlockHeaderState, when) // promotes pending schedule (if any) to active
 	c.Pending.PendingBlockState.InCurrentChain = true
-	if confirmBlockCount == 48 {
-		fmt.Println("**********************")
-	}
+
 	c.Pending.PendingBlockState.SetConfirmed(confirmBlockCount)
 	wasPendingPromoted := c.Pending.PendingBlockState.MaybePromotePending()
 
@@ -465,7 +463,6 @@ func (c *Controller) startBlock(when types.BlockTimeStamp, confirmBlockCount uin
 				i.ProposedScheduleBlockNum = 0
 				i.ProposedSchedule.Clear()
 			})
-			c.GpoCache[gpo.ID] = gpo
 		}
 
 		Try(func() {
@@ -626,9 +623,7 @@ func (c *Controller) GetGlobalProperties() *entity.GlobalPropertyObject {
 
 	gpo := entity.GlobalPropertyObject{}
 	gpo.ID = 0
-	if c.GpoCache[gpo.ID] != nil {
-		return c.GpoCache[gpo.ID]
-	}
+
 	err := c.DB.Find("id", gpo, &gpo)
 	if err != nil {
 		log.Error("GetGlobalProperties is error detail:%s", err)
@@ -744,15 +739,17 @@ func (c *Controller) GetScheduledTransactions() []common.TransactionIdType {
 	itr := idx.Begin()
 	if itr == idx.End() {
 		return result
+	} else {
+		itr.Data(&gto)
 	}
-	for itr.Data(&gto); ; {
+	for itr != idx.End() {
 		if gto.DelayUntil <= c.PendingBlockTime() {
 			result = append(result, gto.TrxId)
 		}
 		if !itr.Next() {
 			break
 		}
-
+		itr.Data(&gto)
 	}
 	if itr != nil {
 		itr.Release()
@@ -1598,8 +1595,6 @@ func (c *Controller) SetProposedProducers(producers []types.ProducerKey) int64 {
 		tmp := p.ProposedSchedule.SharedProducerScheduleType(sch)
 		p.ProposedSchedule = *tmp
 	})
-	c.GpoCache[gpo.ID] = gpo
-
 	return int64(version)
 }
 
@@ -1717,8 +1712,7 @@ func (c *Controller) initializeDatabase() {
 	gpo := entity.GlobalPropertyObject{}
 	gpo.Configuration = gi
 	err = c.DB.Insert(&gpo)
-	c.GpoCache = make(map[common.IdType]*entity.GlobalPropertyObject)
-	c.GpoCache[gpo.ID] = &gpo
+
 	if err != nil {
 		log.Error("Controller initializeDatabase insert GlobalPropertyObject is error:%s", err)
 		EosAssert(err == nil, &DatabaseException{}, "Controller initializeDatabase is error :%s", err)
@@ -1735,8 +1729,10 @@ func (c *Controller) initializeDatabase() {
 	c.CreateNativeAccount(common.DefaultConfig.SystemAccountName, systemAuth, systemAuth, true)
 	emptyAuthority := types.Authority{}
 	emptyAuthority.Threshold = 1
+
 	activeProducersAuthority := types.Authority{}
 	activeProducersAuthority.Threshold = 1
+
 	p := types.PermissionLevelWeight{types.PermissionLevel{common.DefaultConfig.SystemAccountName, common.DefaultConfig.ActiveName}, 1}
 	activeProducersAuthority.Accounts = append(activeProducersAuthority.Accounts, p)
 	c.CreateNativeAccount(common.DefaultConfig.NullAccountName, emptyAuthority, emptyAuthority, false)
