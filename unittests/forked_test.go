@@ -6,6 +6,7 @@ import (
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto"
+	"github.com/eosspark/eos-go/exception"
 	"github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/log"
 	"github.com/stretchr/testify/assert"
@@ -52,7 +53,7 @@ func TestIrrblock(t *testing.T) {
 			{pam, ft.tester.getPublicKey(pam, "active")},
 			{scott, ft.tester.getPublicKey(scott, "active")},
 		}
-		log.Info("set producer schedule to [dan,sam,pam] trace:%v,setProducers result:%v,", r, res, sch)
+		log.Info("set producer schedule to [dan,sam,pam] trace:%v,setProducers result:%v,%v", r, res, sch)
 		ft.tester.ProduceBlocks(50, false)
 
 		ft.tester.close()
@@ -127,13 +128,13 @@ func TestForkWithBadBlock(t *testing.T) {
 		}
 
 		// go from most corrupted fork to least
-		/*for i:=0;i< len(forks);i++{
+		for i := 0; i < len(forks); i++ {
 			//BOOST_TEST_CONTEXT("Testing Fork: " << i) {
-			fork:=forks[i]
-			for fidx := 0 ;fidx< len(fork.blocks);fidx++{
-				ssk:= fork.blocks[fidx]
+			fork := forks[i]
+			for fidx := 0; fidx < len(fork.blocks); fidx++ {
+				ssk := fork.blocks[fidx]
 				// push the block only if its not known already
-				if bios.Control.FetchBlockById(ssk.BlockID())!=nil{
+				if bios.Control.FetchBlockById(ssk.BlockID()) != nil {
 					bios.PushBlock(ssk)
 				}
 			}
@@ -145,10 +146,10 @@ func TestForkWithBadBlock(t *testing.T) {
 			//}
 		}
 		lib := bios.Control.HeadBlockState().DposIrreversibleBlocknum
-		for tries:=0;bios.Control.HeadBlockState().DposIrreversibleBlocknum==lib && tries<10000;tries++ {
+		for tries := 0; bios.Control.HeadBlockState().DposIrreversibleBlocknum == lib && tries < 10000; tries++ {
 			//++<10000
-			bios.ProduceBlocks(1,false)
-		}*/
+			bios.ProduceBlocks(1, false)
+		}
 
 	}).FcLogAndRethrow().End()
 }
@@ -240,11 +241,6 @@ func TestForking(t *testing.T) {
 	assert.Equal(t, b.Producer.String(), "sam")
 	c2.ProduceBlocks(11+12, false)
 
-	/*test for c2 producer
-	b = c2.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs),0)
-	fmt.Println("*****************c2 producer:",b.Producer.String())
-	*/
-
 	log.Info("c1 blocks:")
 	b = c1.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs*13), 0)
 	assert.Equal(t, b.Producer.String(), "dan")
@@ -254,7 +250,7 @@ func TestForking(t *testing.T) {
 	start := forkBlockNum + 1
 	end := c2.Control.HeadBlockNum()
 	for ; start <= end; start++ {
-		log.Info("c2 ", start)
+		log.Info("c2 %v", start)
 		fb := c2.Control.FetchBlockByNumber(start)
 		c1.PushBlock(fb)
 	}
