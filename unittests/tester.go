@@ -48,7 +48,7 @@ var test2 = common.N("testram22222")
 type ActionResult = string
 
 func CatchThrowException(t *testing.T, expectException interface{}, function func()) {
-	var returning bool
+	returning := false
 	try.Try(func() {
 		function()
 	}).Catch(func(e exception.Exception) {
@@ -58,11 +58,21 @@ func CatchThrowException(t *testing.T, expectException interface{}, function fun
 }
 
 func CatchThrowMsg(t *testing.T, expectMsg string, function func()) {
-	var returning bool
+	returning := false
 	try.Try(func() {
 		function()
 	}).Catch(func(e exception.Exception) {
 		returning = strings.Contains(e.DetailMessage(), expectMsg)
+	}).End()
+	assert.True(t, returning)
+}
+
+func CatchThrowExceptionAndMsg(t *testing.T, expectException interface{}, expectMsg string, function func()) {
+	returning := false
+	try.Try(func() {
+		function()
+	}).Catch(func(e exception.Exception) {
+		returning = reflect.TypeOf(expectException) == reflect.TypeOf(e) && strings.Contains(e.DetailMessage(), expectMsg)
 	}).End()
 	assert.True(t, returning)
 }
