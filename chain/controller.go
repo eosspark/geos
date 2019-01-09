@@ -392,9 +392,10 @@ func (c *Controller) OnIrreversible(s *types.BlockState) {
 		if err != nil {
 			log.Error("Controller OnIrreversible is error:", err)
 		}
-		if itr.Next() {
-			itr.Data(&tbs)
+		if !itr.Next() {
+			break
 		}
+		itr.Data(&tbs)
 	}
 	if c.ReadMode == IRREVERSIBLE {
 		c.applyBlock(s.SignedBlock, types.Complete)
@@ -1152,7 +1153,8 @@ func (c *Controller) PushBlock(b *types.SignedBlock, s types.BlockStatus) {
 		//c.PreAcceptedBlock.Emit(b)
 		//TODO emit(self.pre_accepted_block, b )
 		trust := !c.Config.ForceAllChecks && (s == types.Irreversible || s == types.Validated)
-		/*TODO newHeaderState :=*/ c.ForkDB.AddSignedBlock(b, trust)
+
+		newHeaderState := c.ForkDB.AddSignedBlock(b, trust)
 		if c.Config.TrustedProducers.Contains(b.Producer) {
 			c.TrustedProducerLightValidation = true
 		}
@@ -1161,7 +1163,7 @@ func (c *Controller) PushBlock(b *types.SignedBlock, s types.BlockStatus) {
 			c.maybeSwitchForks(s)
 		}
 		if s == types.Irreversible {
-			//c.IrreversibleBlock.Emit(newHeaderState)
+			c.IrreversibleBlock.Emit(newHeaderState)
 			//emit( self.irreversible_block, new_header_state )
 		}
 	}).FcLogAndRethrow().End()
@@ -1215,7 +1217,7 @@ func (c *Controller) maybeSwitchForks(s types.BlockStatus) {
 			}).Catch(func(e Exception) {
 				except = e
 			}).End()
-			if except == nil {
+			if except != nil {
 				log.Error("exception thrown while switching forks :%s", except.DetailMessage())
 				c.ForkDB.SetValidity(itr, false)
 				// pop all blocks from the bad fork

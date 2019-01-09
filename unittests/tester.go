@@ -167,6 +167,16 @@ func (t BaseTester) PushBlock(b *types.SignedBlock) *types.SignedBlock {
 	return b
 }
 
+func (t BaseTester) PushBlock2(b *types.SignedBlock, status types.BlockStatus) *types.SignedBlock {
+	t.Control.AbortBlock()
+	t.Control.PushBlock(b, status)
+	id := b.BlockID()
+	if v, ok := t.LastProducedBlock[b.Producer]; !ok || types.NumFromID(&id) > types.NumFromID(&v) {
+		t.LastProducedBlock[b.Producer] = b.BlockID()
+	}
+	return b
+}
+
 func (t BaseTester) pushGenesisBlock() {
 	wasmName := "test_contracts/eosio.bios.wasm"
 	code, err := ioutil.ReadFile(wasmName)

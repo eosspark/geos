@@ -6,6 +6,7 @@ import (
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto"
+	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/exception"
 	"github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/log"
@@ -33,6 +34,16 @@ func pushBlocks(from *BaseTester, to *BaseTester) {
 	for to.Control.ForkDbHeadBlockNum() < from.Control.ForkDbHeadBlockNum() {
 		fb := from.Control.FetchBlockByNumber(to.Control.ForkDbHeadBlockNum() + 1)
 		to.PushBlock(fb)
+	}
+}
+
+func pushBlocks2(from *BaseTester, to *BaseTester) {
+
+	for i := 1; to.Control.ForkDbHeadBlockNum() < from.Control.ForkDbHeadBlockNum(); {
+		i++
+		fmt.Println("*************", i)
+		fb := from.Control.FetchBlockByNumber(to.Control.ForkDbHeadBlockNum() + 1)
+		to.PushBlock2(fb, types.Irreversible)
 	}
 }
 
@@ -371,6 +382,57 @@ func TestPruneRemoveBranch(t *testing.T) {
 }
 
 func TestConfirmation(t *testing.T) {
+	c := NewForkedTester().tester
+	c.ProduceBlocks(10, false)
+	dan := common.N("dan")
+	sam := common.N("sam")
+	pam := common.N("pam")
+	scott := common.N("scott")
+	invalid := common.N("invalid")
+	accounts := []common.AccountName{dan, sam, pam, scott}
+	c.CreateAccounts(accounts, false, true)
+	/*res := */ c.SetProducers(&accounts)
+	//privSam:=c.getPrivateKey( sam, "active" )
+	/*privDan := c.getPrivateKey( dan, "active" )
+	privPam := c.getPrivateKey( pam, "active" )
+	privScott := c.getPrivateKey( scott, "active" )*/
+	privInvalid := c.getPrivateKey(invalid, "active")
+
+	log.Info("set producer schedule to [dan,sam,pam,scott]")
+	c.ProduceBlocks(50, false)
+	c.Control.AbortBlock() // discard pending block
+
+	assert.Equal(t, uint32(61), c.Control.HeadBlockNum())
+
+	blk := c.Control.ForkDB.GetBlockInCurrentChainByNum(55)
+	/*blk61:=c.Control.ForkDB.GetBlockInCurrentChainByNum(61)
+	blk50:=c.Control.ForkDB.GetBlockInCurrentChainByNum(50)*/
+
+	assert.Equal(t, uint32(0), blk.BftIrreversibleBlocknum)
+	assert.Equal(t, 0, len(blk.Confirmations))
+	{
+		returning := false
+		try.Try(func() {
+			h := types.HeaderConfirmation{blk.BlockId, sam, ecc.Signature{}}
+			h.ProducerSignature, _ = privInvalid.Sign(blk.SigDigest().Bytes())
+			c.Control.PushConfirmation(&h)
+		}).Catch(func(e exception.Exception) {
+			returning = true
+		}).End()
+		assert.Equal(t, true, returning)
+	}
+	{
+		returning := false
+		try.Try(func() {
+			h := types.HeaderConfirmation{blk.BlockId, invalid, ecc.Signature{}}
+			h.ProducerSignature, _ = privInvalid.Sign(blk.SigDigest().Bytes())
+			c.Control.PushConfirmation(&h)
+		}).Catch(func(e exception.Exception) {
+			returning = true
+			fmt.Println(e.What())
+		}).End()
+		assert.Equal(t, true, returning)
+	}
 
 }
 
@@ -385,8 +447,7 @@ func TestReadModes(t *testing.T) {
 	accounts := []common.AccountName{dan, sam, pam}
 	c.CreateAccounts(accounts, false, true)
 	c.ProduceBlocks(1, false)
-	res := c.SetProducers(&accounts)
-	fmt.Println("ReadModes************************", res)
+	c.SetProducers(&accounts)
 	c.ProduceBlocks(200, false)
 	headBlockNum := c.Control.HeadBlockNum()
 
@@ -401,7 +462,8 @@ func TestReadModes(t *testing.T) {
 	assert.Equal(t, headBlockNum, readOnly.Control.HeadBlockNum())
 
 	irreversible := newBaseTester(true, chain.IRREVERSIBLE)
-	pushBlocks(c, irreversible)
+	pushBlocks2(c, irreversible)
+	fmt.Println("不可逆高度2：", c.Control.LastIrreversibleBlockNum(), irreversible.Control.HeadBlockNum(), headBlockNum)
 	assert.Equal(t, headBlockNum, irreversible.Control.ForkDbHeadBlockNum())
 	assert.Equal(t, headBlockNum-49, irreversible.Control.HeadBlockNum())
 
