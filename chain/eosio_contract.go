@@ -73,7 +73,7 @@ func ApplyEosioNewaccount(context *ApplyContext) {
 	context.RequireAuthorization(int64(create.Creator))
 
 	EosAssert(types.Validate(create.Owner), &ActionValidateException{}, "Invalid owner authority")
-	EosAssert(types.Validate(create.Active), &ActionValidateException{}, "Invalid owner authority")
+	EosAssert(types.Validate(create.Active), &ActionValidateException{}, "Invalid active authority")
 
 	db := context.DB
 	nameStr := common.S(uint64(create.Name))
