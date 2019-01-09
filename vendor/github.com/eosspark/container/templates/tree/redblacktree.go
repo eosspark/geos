@@ -280,6 +280,79 @@ func (tree *Tree) Remove(key interface{}) {
 	}
 }
 
+func (tree *Tree) swapNode(node *Node, pred *Node) {
+	if node == pred {
+		return
+	}
+
+	tmp := Node{pred.Key, pred.Value, pred.color,
+		pred.Left, pred.Right, pred.Parent}
+
+	pred.color = node.color
+	node.color = tmp.color
+
+	pred.Right = node.Right
+	if pred.Right != nil {
+		pred.Right.Parent = pred
+	}
+	node.Right = tmp.Right
+	if node.Right != nil {
+		node.Right.Parent = node
+	}
+
+	if pred.Parent == node {
+		pred.Left = node
+		node.Left = tmp.Left
+		if node.Left != nil {
+			node.Left.Parent = node
+		}
+
+		pred.Parent = node.Parent
+		if pred.Parent != nil {
+			if pred.Parent.Left == node {
+				pred.Parent.Left = pred
+			} else {
+				pred.Parent.Right = pred
+			}
+		} else {
+			tree.Root = pred
+		}
+		node.Parent = pred
+
+	} else {
+		pred.Left = node.Left
+		if pred.Left != nil {
+			pred.Left.Parent = pred
+		}
+		node.Left = tmp.Left
+		if node.Left != nil {
+			node.Left.Parent = node
+		}
+
+		pred.Parent = node.Parent
+		if pred.Parent != nil {
+			if pred.Parent.Left == node {
+				pred.Parent.Left = pred
+			} else {
+				pred.Parent.Right = pred
+			}
+		} else {
+			tree.Root = pred
+		}
+
+		node.Parent = tmp.Parent
+		if node.Parent != nil {
+			if node.Parent.Left == pred {
+				node.Parent.Left = node
+			} else {
+				node.Parent.Right = node
+			}
+		} else {
+			tree.Root = node
+		}
+	}
+}
+
 func (tree *Tree) remove(node *Node) {
 	var child *Node
 	if node == nil {
@@ -287,9 +360,7 @@ func (tree *Tree) remove(node *Node) {
 	}
 	if node.Left != nil && node.Right != nil {
 		pred := node.Left.maximumNode()
-		node.Key = pred.Key
-		node.Value = pred.Value
-		node = pred
+		tree.swapNode(node, pred)
 	}
 	if node.Left == nil || node.Right == nil {
 		if node.Right == nil {
@@ -308,6 +379,35 @@ func (tree *Tree) remove(node *Node) {
 	}
 	tree.size--
 }
+
+//func (tree *Tree) remove(node *Node) {
+//	var child *Node
+//	if node == nil {
+//		return
+//	}
+//	if node.Left != nil && node.Right != nil {
+//		pred := node.Left.maximumNode()
+//		node.Key = pred.Key
+//		node.Value = pred.Value
+//		node = pred
+//	}
+//	if node.Left == nil || node.Right == nil {
+//		if node.Right == nil {
+//			child = node.Left
+//		} else {
+//			child = node.Right
+//		}
+//		if node.color == black {
+//			node.color = nodeColor(child)
+//			tree.deleteCase1(node)
+//		}
+//		tree.replaceNode(node, child)
+//		if node.Parent == nil && child != nil {
+//			child.color = black
+//		}
+//	}
+//	tree.size--
+//}
 
 // Empty returns true if tree does not contain any nodes
 func (tree *Tree) Empty() bool {
@@ -436,9 +536,9 @@ func (tree *Tree) String() string {
 
 func (node *Node) String() string {
 	if !node.color {
-		return fmt.Sprintf("(%v:%v)", node.Key, "red")
+		return fmt.Sprintf("(%v:%v,%v)", node.Key, node.Value, "red")
 	}
-	return fmt.Sprintf("(%v)", node.Key)
+	return fmt.Sprintf("(%v,%v)", node.Key, node.Value)
 }
 
 func output(node *Node, prefix string, isTail bool, str *string) {
@@ -533,6 +633,16 @@ func (node *Node) sibling() *Node {
 		return node.Parent.Right
 	}
 	return node.Parent.Left
+}
+
+func (tree *Tree) isLeaf(node *Node) bool {
+	if node == nil {
+		return true
+	}
+	if node.Right == nil && node.Left == nil {
+		return true
+	}
+	return false
 }
 
 func (tree *Tree) rotateLeft(node *Node) {
