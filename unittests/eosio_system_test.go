@@ -218,13 +218,15 @@ func TestStakeToSelfWithTransfer(t *testing.T) {
 	e.Cross15PercentThreshold()
 	assert.Equal(t, CoreFromString("0.0000"), e.GetBalance(alice))
 	e.Transfer(eosio, alice, CoreFromString("1000.0000"), eosio)
-	var ex string
-	Try(func() {
-		e.StakeWithTransfer(alice, alice, CoreFromString("200.0000"), CoreFromString("100.0000"))
-	}).Catch(func(e Exception) {
-		ex = e.DetailMessage()
-	}).End()
-	assert.True(t, inString(ex, "cannot use transfer flag if delegating to self"))
+	stakeWithTransfer := func() { e.StakeWithTransfer(alice, alice, CoreFromString("200.0000"), CoreFromString("100.0000")) }
+	CatchThrowMsg(t, "cannot use transfer flag if delegating to self", stakeWithTransfer)
+	//var ex string
+	//Try(func() {
+	//	e.StakeWithTransfer(alice, alice, CoreFromString("200.0000"), CoreFromString("100.0000"))
+	//}).Catch(func(e Exception) {
+	//	ex = e.DetailMessage()
+	//}).End()
+	//assert.True(t, inString(ex, "cannot use transfer flag if delegating to self"))
 	e.close()
 }
 

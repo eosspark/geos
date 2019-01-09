@@ -155,7 +155,7 @@ type EnvContext interface {
 	PauseBillingTimer()
 	ResumeBillingTimer()
 
-	CheckAuthorization(n common.AccountName, permission common.PermissionName, providedKeys *treeset.Set, providedPermissions *treeset.Set, delayUS uint64)
-
+	CheckAuthorization(actions []*types.Action, providedKeys *treeset.Set, providedPermissions *treeset.Set, delayUS uint64)
+	CheckAuthorization2(n common.AccountName, permission common.PermissionName, providedKeys *treeset.Set, providedPermissions *treeset.Set, delayUS uint64)
 	//GetLogger() *log.Logger
 }

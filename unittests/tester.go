@@ -16,9 +16,13 @@ import (
 	"github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/log"
 	"github.com/eosspark/eos-go/plugins/chain_interface"
+	"github.com/stretchr/testify/assert"
 	"io/ioutil"
 	"math"
+	"reflect"
 	"strconv"
+	"strings"
+	"testing"
 	"time"
 )
 
@@ -42,6 +46,26 @@ var test1 = common.N("testram11111")
 var test2 = common.N("testram22222")
 
 type ActionResult = string
+
+func CatchThrowException(t *testing.T, expectException interface{}, function func()) {
+	var returning bool
+	try.Try(func() {
+		function()
+	}).Catch(func(e exception.Exception) {
+		returning = reflect.TypeOf(expectException) == reflect.TypeOf(e)
+	}).End()
+	assert.True(t, returning)
+}
+
+func CatchThrowMsg(t *testing.T, expectMsg string, function func()) {
+	var returning bool
+	try.Try(func() {
+		function()
+	}).Catch(func(e exception.Exception) {
+		returning = strings.Contains(e.DetailMessage(), expectMsg)
+	}).End()
+	assert.True(t, returning)
+}
 
 type BaseTester struct {
 	ActionResult           string
