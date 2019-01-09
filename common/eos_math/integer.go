@@ -2,6 +2,7 @@ package eos_math
 
 import (
 	"fmt"
+	"github.com/eosspark/eos-go/exception/try"
 	"strconv"
 )
 
@@ -57,7 +58,7 @@ func ParseUint64(s string) (uint64, bool) {
 func MustParseUint64(s string) uint64 {
 	v, ok := ParseUint64(s)
 	if !ok {
-		panic("invalid unsigned 64 bit integer: " + s)
+		try.Throw("invalid unsigned 64 bit integer: " + s)
 	}
 	return v
 }

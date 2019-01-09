@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"github.com/eosspark/eos-go/crypto/rlp"
+	. "github.com/eosspark/eos-go/exception/try"
 	"hash"
 )
 
@@ -25,9 +26,7 @@ func NewSha1Nil() *Sha1 {
 
 func NewSha1String(s string) *Sha1 {
 	bytes, err := hex.DecodeString(s)
-	if err != nil {
-		panic(err)
-	}
+	Throw(err)
 
 	result := new(Sha1)
 	for i := range result.Hash {
@@ -59,9 +58,7 @@ func (h Sha1) String() string {
 
 func Hash1(t interface{}) *Sha1 {
 	cereal, err := rlp.EncodeToBytes(t)
-	if err != nil {
-		panic(err)
-	}
+	Throw(err)
 	h := sha1.New()
 	_, _ = h.Write(cereal)
 	hashed := h.Sum(nil)

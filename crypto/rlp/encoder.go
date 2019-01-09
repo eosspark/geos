@@ -10,7 +10,7 @@ import (
 	"github.com/eosspark/container/templates"
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/exception"
-	"github.com/eosspark/eos-go/exception/try"
+	. "github.com/eosspark/eos-go/exception/try"
 	"io"
 	"math"
 	"reflect"
@@ -154,7 +154,7 @@ func (e *Encoder) Encode(v interface{}) (err error) {
 
 	case reflect.Array:
 		l := t.Len()
-		try.EosAssert(l <= MAX_NUM_ARRAY_ELEMENT, &exception.AssertException{}, "the length of array is too big")
+		EosAssert(l <= MAX_NUM_ARRAY_ELEMENT, &exception.AssertException{}, "the length of array is too big")
 
 		for i := 0; i < l; i++ {
 			if err = e.Encode(rv.Index(i).Interface()); err != nil {
@@ -163,7 +163,7 @@ func (e *Encoder) Encode(v interface{}) (err error) {
 		}
 	case reflect.Slice:
 		l := rv.Len()
-		try.EosAssert(l <= MAX_NUM_ARRAY_ELEMENT, &exception.AssertException{}, "the length of slice is too big")
+		EosAssert(l <= MAX_NUM_ARRAY_ELEMENT, &exception.AssertException{}, "the length of slice is too big")
 		if err = e.WriteUVarInt(l); err != nil {
 			return
 		}
@@ -242,7 +242,7 @@ func (e *Encoder) Encode(v interface{}) (err error) {
 }
 
 func (e *Encoder) writeByteArray(b []byte) error {
-	try.EosAssert(len(b) <= MAX_SIZE_OF_BYTE_ARRAYS, &exception.AssertException{}, "rlp encode ByteArray")
+	EosAssert(len(b) <= MAX_SIZE_OF_BYTE_ARRAYS, &exception.AssertException{}, "rlp encode ByteArray")
 	if err := e.WriteUVarInt(len(b)); err != nil {
 		return err
 	}
@@ -386,7 +386,7 @@ func (e *Encoder) WriteSet(t treeset.Set) (err error) {
 
 	t.Each(func(index int, value interface{}) {
 		if err = e.Encode(value); err != nil {
-			panic(err)
+			Throw(err)
 		}
 	})
 	return nil
@@ -399,10 +399,10 @@ func (e *Encoder) WriteMap(m treemap.Map) (err error) {
 
 	m.Each(func(key interface{}, value interface{}) {
 		if err = e.Encode(key); err != nil {
-			panic(err)
+			Throw(err)
 		}
 		if err = e.Encode(value); err != nil {
-			panic(err)
+			Throw(err)
 		}
 	})
 
@@ -417,7 +417,7 @@ func (e *Encoder) WriteMultiSet(t treeset.MultiSet) (err error) {
 	vals := t.Values()
 	for i := 0; i < int(l); i++ {
 		if err = e.Encode(vals[i]); err != nil {
-			panic(err)
+			Throw(err)
 		}
 	}
 	return nil

@@ -64,8 +64,7 @@ func (e MissingPendingBlockState) DetailMessage() string {
 	for _, l := range e.Elog {
 		buffer.WriteString("[")
 		buffer.WriteString(l.GetMessage())
-		buffer.WriteString("]")
-		buffer.WriteString("\n")
+		buffer.WriteString("] ")
 		buffer.WriteString(l.GetContext().String())
 		buffer.WriteString("\n")
 	}
