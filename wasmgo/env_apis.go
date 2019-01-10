@@ -2341,7 +2341,47 @@ func memset(vm *VM) {
 //}
 func checkTransactionAuthorization(vm *VM) {
 	fmt.Println("check_transaction_authorization")
-	//return 0
+
+	w := vm.WasmGo
+
+	permsSize := int(vm.popUint64())
+	permsData := int(vm.popUint64())
+	pubkeysSize := int(vm.popUint64())
+	pubkeysData := int(vm.popUint64())
+	trxSize := int(vm.popUint64())
+	trxData := int(vm.popUint64())
+
+	trxDataBytes := getMemory(vm, trxData, trxSize)
+	pubkeysDataBytes := getMemory(vm, pubkeysData, pubkeysSize)
+	permsDataBytes := getMemory(vm, permsData, permsSize)
+
+	providedKeys := treeset.NewWith(ecc.TypePubKey, ecc.ComparePubKey)
+	providedPermissions := treeset.NewWith(types.PermissionLevelType, types.ComparePermissionLevel)
+	trx := types.Transaction{}
+
+	unpackProvidedKeys(providedKeys, &pubkeysDataBytes)
+	unpackProvidedPermissions(providedPermissions, &permsDataBytes)
+	rlp.DecodeBytes(trxDataBytes, &trx)
+
+	w.ilog.Debug("actions:%v permission:%v providedKeys:%v providedPermissions:%v", trx.Actions, providedKeys, providedPermissions)
+
+	returning := false
+	Try(func() {
+		w.context.CheckAuthorization(
+			trx.Actions,
+			providedKeys,
+			providedPermissions,
+			uint64(trx.DelaySec))
+	}).Catch(func(e Exception) {
+		returning = true
+	}).End()
+
+	if returning {
+		vm.pushUint64(0)
+		return
+	}
+
+	vm.pushUint64(1)
 }
 
 //       bool check_permission_authorization( account_name account, permission_name permission,
@@ -2408,7 +2448,7 @@ func checkPermissionAuthorization(vm *VM) {
 
 	returning := false
 	Try(func() {
-		w.context.CheckAuthorization(account,
+		w.context.CheckAuthorization2(account,
 			permission,
 			providedKeys,
 			providedPermissions,

@@ -129,14 +129,12 @@ func (a *AuthorizationManager) FindPermission(level *types.PermissionLevel) (p *
 		po.Name = level.Permission
 		err := a.db.Find("byOwner", po, &po)
 		if err != nil {
-			log.Warn("%v@%v don't find", po.Owner, po.Name)
+			//log.Warn("%v@%v don't find", po.Owner, po.Name)
 			p = nil
 			return
 		}
 		p = &po
-	}).Catch(func(e Exception) {
-		FcRethrowException(&PermissionQueryException{}, log.LvlWarn, "FindPermission is error")
-	}).End()
+	}).EosRethrowExceptions(&PermissionQueryException{}, "Failed to retrieve permission: %v", level)
 	return p
 }
 
@@ -153,9 +151,7 @@ func (a *AuthorizationManager) GetPermission(level *types.PermissionLevel) (p *e
 			return
 		}
 		p = &po
-	}).Catch(func(e Exception) {
-		FcRethrowException(&PermissionQueryException{}, log.LvlWarn, "GetPermission is error")
-	}).End()
+	}).EosRethrowExceptions(&PermissionQueryException{}, "Failed to retrieve permission: %v", level)
 	return p
 }
 
@@ -246,11 +242,11 @@ func (a *AuthorizationManager) CheckLinkAuthAuthorization(link LinkAuth, auths [
 	auth := auths[0]
 	EosAssert(auth.Actor == link.Account, &IrrelevantAuthException{}, "the owner of the affected permission needs to be the actor of the declared authorization")
 
-	EosAssert(link.Type != UpdateAuth{}.GetName(), &ActionValidateException{}, "Cannot link eosio::UpdateAuth to a minimum permission")
-	EosAssert(link.Type != DeleteAuth{}.GetName(), &ActionValidateException{}, "Cannot link eosio::DeleteAuth to a minimum permission")
-	EosAssert(link.Type != LinkAuth{}.GetName(), &ActionValidateException{}, "Cannot link eosio::LinkAuth to a minimum permission")
-	EosAssert(link.Type != UnLinkAuth{}.GetName(), &ActionValidateException{}, "Cannot link eosio::UnLinkAuth to a minimum permission")
-	EosAssert(link.Type != CancelDelay{}.GetName(), &ActionValidateException{}, "Cannot link eosio::CancelDelay to a minimum permission")
+	EosAssert(link.Type != UpdateAuth{}.GetName(), &ActionValidateException{}, "Cannot link eosio::updateauth to a minimum permission")
+	EosAssert(link.Type != DeleteAuth{}.GetName(), &ActionValidateException{}, "Cannot link eosio::deleteauth to a minimum permission")
+	EosAssert(link.Type != LinkAuth{}.GetName(), &ActionValidateException{}, "Cannot link eosio::linkauth to a minimum permission")
+	EosAssert(link.Type != UnLinkAuth{}.GetName(), &ActionValidateException{}, "Cannot link eosio::unlinkauth to a minimum permission")
+	EosAssert(link.Type != CancelDelay{}.GetName(), &ActionValidateException{}, "Cannot link eosio::canceldelay to a minimum permission")
 
 	linkedPermissionName := a.LookupMinimumPermission(link.Account, link.Code, link.Type)
 	if common.Empty(&linkedPermissionName) {
@@ -440,7 +436,7 @@ func (a *AuthorizationManager) CheckAuthorization(actions []*types.Action,
 
 func (a *AuthorizationManager) CheckAuthorization2(account common.AccountName,
 	permission common.PermissionName,
-	providedKeys *treeset.Set, //flat_set<public_key_type>
+	providedKeys *treeset.Set,        //flat_set<public_key_type>
 	providedPermissions *treeset.Set, //flat_set<permission_level>
 	providedDelay common.Microseconds,
 	checkTime *func(),

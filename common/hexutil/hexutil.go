@@ -32,7 +32,9 @@ package hexutil
 
 import (
 	"encoding/hex"
+	"errors"
 	"fmt"
+	. "github.com/eosspark/eos-go/exception/try"
 	"math/big"
 	"strconv"
 )
@@ -75,7 +77,7 @@ func Decode(input string) ([]byte, error) {
 func MustDecode(input string) []byte {
 	dec, err := Decode(input)
 	if err != nil {
-		panic(err)
+		Throw(err)
 	}
 	return dec
 }
@@ -106,7 +108,7 @@ func DecodeUint64(input string) (uint64, error) {
 func MustDecodeUint64(input string) uint64 {
 	dec, err := DecodeUint64(input)
 	if err != nil {
-		panic(err)
+		Throw(err)
 	}
 	return dec
 }
@@ -130,7 +132,7 @@ func init() {
 	case 2:
 		bigWordNibbles = 8
 	default:
-		panic("weird big.Word size")
+		Throw(errors.New("weird big.Word size"))
 	}
 }
 
@@ -170,7 +172,7 @@ func DecodeBig(input string) (*big.Int, error) {
 func MustDecodeBig(input string) *big.Int {
 	dec, err := DecodeBig(input)
 	if err != nil {
-		panic(err)
+		Throw(err)
 	}
 	return dec
 }

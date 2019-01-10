@@ -269,6 +269,10 @@ func (d *decoder) decode(v interface{}) (err error) {
 		if l, err = d.readUvarint(); err != nil {
 			return
 		}
+		if l == 0 {
+			v = nil
+			return
+		}
 		rv.Set(reflect.MakeSlice(t, int(l), int(l)))
 		for i := 0; i < int(l); i++ {
 			if err = d.decode(rv.Index(i).Addr().Interface()); err != nil {

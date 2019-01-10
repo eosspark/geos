@@ -74,15 +74,15 @@ func (ro *ReadOnly) WalkKeyValueTable(code, scope, table common.Name, f func(Key
 	err := db.Find("byCodeScopeTable", tid, &tid)
 	if err == nil { //TODO: check miss or error
 		idx, err := db.GetIndex("byScopePrimary", KeyValueObject{})
-		ThrowIf(err != nil, err)
+		Throw(err)
 
 		nextTid := tid.ID + 1
 
 		lower, err := idx.LowerBound(KeyValueObject{TId: tid.ID})
-		ThrowIf(err != nil, err)
+		Throw(err)
 
 		upper, err := idx.UpperBound(KeyValueObject{TId: nextTid})
-		ThrowIf(err != nil, err)
+		Throw(err)
 
 		for itr := lower; !idx.CompareIterator(itr, upper); itr.Next() {
 			data := KeyValueObject{}
@@ -180,7 +180,7 @@ func (ro *ReadOnly) ExtractCoreSymbol() common.Symbol {
 	err := d.Find("byCodeScopeTable", tid, &tid)
 	if err == nil {
 		idx, err := d.GetIndex("byScopePrimary", KeyValueObject{})
-		ThrowIf(err != nil, err)
+		Throw(err)
 
 		it := KeyValueObject{TId: tid.ID, PrimaryKey: common.StringToSymbol(4, "RAMCORE")}
 		err = idx.Find(it, &it)
@@ -224,14 +224,14 @@ func (ro *ReadOnly) GetAccount(params GetAccountParams) GetAccountResult {
 	result.RAMUsage = rm.GetAccountRamUsage(result.AccountName)
 
 	permissions, err := d.GetIndex("byOwner", PermissionObject{})
-	ThrowIf(err != nil, err)
+	Throw(err)
 	lower, err := permissions.LowerBound(PermissionObject{Owner: params.AccountName})
-	ThrowIf(err != nil, err)
+	Throw(err)
 
 	for !permissions.CompareEnd(lower) {
 		perm := PermissionObject{}
 		err = lower.Data(&perm)
-		ThrowIf(err != nil, err)
+		Throw(err)
 
 		if perm.Owner != params.AccountName {
 			break
@@ -269,13 +269,13 @@ func (ro *ReadOnly) GetAccount(params GetAccountParams) GetAccountResult {
 		err = d.Find("byCodeScopeTable", tid, &tid)
 		if err == nil {
 			idx, err := d.GetIndex("byScopePrimary", KeyValueObject{})
-			ThrowIf(err != nil, err)
+			Throw(err)
 			it := KeyValueObject{TId: tid.ID, PrimaryKey: coreSymbol.ToSymbolCode()}
 			err = idx.Find(it, &it)
 			if err == nil && it.Value.Size() >= common.SizeofAsset {
 				bal := common.Asset{}
 				err := rlp.DecodeBytes(it.Value, &bal)
-				ThrowIf(err != nil, err)
+				Throw(err)
 
 				if bal.Symbol.Valid() && bal.Symbol == coreSymbol {
 					result.CoreLiquidBalance = bal
@@ -288,7 +288,7 @@ func (ro *ReadOnly) GetAccount(params GetAccountParams) GetAccountResult {
 		err = d.Find("byCodeScopeTable", tid, &tid)
 		if err == nil {
 			idx, err := d.GetIndex("byScopePrimary", KeyValueObject{})
-			ThrowIf(err != nil, err)
+			Throw(err)
 			it := KeyValueObject{TId: tid.ID, PrimaryKey: uint64(params.AccountName)}
 			err = idx.Find(it, &it)
 			if err == nil {
@@ -302,7 +302,7 @@ func (ro *ReadOnly) GetAccount(params GetAccountParams) GetAccountResult {
 		err = d.Find("byCodeScopeTable", tid, &tid)
 		if err == nil {
 			idx, err := d.GetIndex("byScopePrimary", KeyValueObject{})
-			ThrowIf(err != nil, err)
+			Throw(err)
 			it := KeyValueObject{TId: tid.ID, PrimaryKey: uint64(params.AccountName)}
 			err = idx.Find(it, &it)
 			if err == nil {
@@ -316,7 +316,7 @@ func (ro *ReadOnly) GetAccount(params GetAccountParams) GetAccountResult {
 		err = d.Find("byCodeScopeTable", tid, &tid)
 		if err == nil {
 			idx, err := d.GetIndex("byScopePrimary", KeyValueObject{})
-			ThrowIf(err != nil, err)
+			Throw(err)
 			it := KeyValueObject{TId: tid.ID, PrimaryKey: uint64(params.AccountName)}
 			err = idx.Find(it, &it)
 			if err == nil {
@@ -330,7 +330,7 @@ func (ro *ReadOnly) GetAccount(params GetAccountParams) GetAccountResult {
 		err = d.Find("byCodeScopeTable", tid, &tid)
 		if err == nil {
 			idx, err := d.GetIndex("byScopePrimary", KeyValueObject{})
-			ThrowIf(err != nil, err)
+			Throw(err)
 			it := KeyValueObject{TId: tid.ID, PrimaryKey: uint64(params.AccountName)}
 			err = idx.Find(it, &it)
 			if err == nil {
@@ -461,22 +461,22 @@ func (ro *ReadOnly) GetTableRowsEx(p GetTableRowsParams, abi *abi_serializer.Abi
 	if d.Find("byCodeScopeTable", tid, &tid) == nil {
 		//TODO
 		idx, err := d.GetIndex("byScopePrimary", KeyValueObject{})
-		ThrowIf(err != nil, err)
+		Throw(err)
 		nextTid := tid.ID + 1
 		lower, err := idx.LowerBound(KeyValueObject{TId: tid.ID})
-		ThrowIf(err != nil, err)
+		Throw(err)
 		upper, err := idx.UpperBound(KeyValueObject{TId: nextTid})
-		ThrowIf(err != nil, err)
+		Throw(err)
 
 		if len(p.LowerBound) > 0 {
 			if p.KeyType == "name" {
 				s := common.N(p.LowerBound)
 				lower, err = idx.LowerBound(KeyValueObject{TId: tid.ID, PrimaryKey: uint64(s)})
-				ThrowIf(err != nil, err)
+				Throw(err)
 			} else {
 				lv := math.MustParseUint64(p.LowerBound)
 				lower, err = idx.LowerBound(KeyValueObject{TId: tid.ID, PrimaryKey: lv})
-				ThrowIf(err != nil, err)
+				Throw(err)
 			}
 		}
 
@@ -484,11 +484,11 @@ func (ro *ReadOnly) GetTableRowsEx(p GetTableRowsParams, abi *abi_serializer.Abi
 			if p.KeyType == "name" {
 				s := common.N(p.UpperBound)
 				lower, err = idx.UpperBound(KeyValueObject{TId: tid.ID, PrimaryKey: uint64(s)})
-				ThrowIf(err != nil, err)
+				Throw(err)
 			} else {
 				uv := math.MustParseUint64(p.UpperBound)
 				upper, err = idx.UpperBound(KeyValueObject{TId: tid.ID, PrimaryKey: uv})
-				ThrowIf(err != nil, err)
+				Throw(err)
 			}
 		}
 
@@ -500,7 +500,7 @@ func (ro *ReadOnly) GetTableRowsEx(p GetTableRowsParams, abi *abi_serializer.Abi
 		for ; !idx.CompareIterator(itr, upper); itr.Next() {
 			obj := KeyValueObject{}
 			err = itr.Data(&obj)
-			ThrowIf(err != nil, err)
+			Throw(err)
 			CopyInlineRow(&obj, &data)
 
 			if p.JSON {
@@ -552,7 +552,7 @@ func (ro *ReadOnly) GetCurrencyBalance(params GetCurrencyBalanceParams) GetCurre
 
 		cursor := common.Asset{}
 		err := rlp.DecodeBytes(obj.Value, &cursor)
-		ThrowIf(err != nil, err)
+		Throw(err)
 
 		EosAssert(cursor.Symbol.Valid(), &AssetTypeException{}, "Invalid asset")
 

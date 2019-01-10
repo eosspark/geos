@@ -242,7 +242,7 @@ func (b *BlockHeaderState) Sign(signer func(sha256 crypto.Sha256) ecc.Signature)
 	b.Header.ProducerSignature = signer(d)
 	signKey, err := b.Header.ProducerSignature.PublicKey(d.Bytes())
 	if err != nil {
-		panic(err)
+		Throw(err)
 	}
 	EosAssert(b.BlockSigningKey.Compare(signKey), &WrongSigningKey{}, "block is signed with unexpected key")
 
@@ -251,7 +251,7 @@ func (b *BlockHeaderState) Sign(signer func(sha256 crypto.Sha256) ecc.Signature)
 func (b *BlockHeaderState) Signee() ecc.PublicKey {
 	pk, err := b.Header.ProducerSignature.PublicKey(b.SigDigest().Bytes())
 	if err != nil {
-		panic(err)
+		Throw(err)
 	}
 	return pk
 }
@@ -265,7 +265,7 @@ func (b *BlockHeaderState) AddConfirmation(conf *HeaderConfirmation) {
 	EosAssert(hasKey, &ProducerNotInSchedule{}, "producer not in current schedule")
 	signer, err := conf.ProducerSignature.PublicKey(b.SigDigest().Bytes())
 	if err != nil {
-		panic(err)
+		Throw(err)
 	}
 	EosAssert(signer.Compare(key), &WrongSigningKey{}, "confirmation not signed by expected key")
 

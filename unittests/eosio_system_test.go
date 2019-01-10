@@ -162,7 +162,6 @@ func TestStakeUnstake(t *testing.T) {
 }
 
 func TestStakeUnstakeWithTransfer(t *testing.T) {
-	//TODO test
 	e := initEosioSystemTester()
 	e.Cross15PercentThreshold()
 	e.Issue(eosio, CoreFromString("1000.0000"), eosio)
@@ -219,13 +218,15 @@ func TestStakeToSelfWithTransfer(t *testing.T) {
 	e.Cross15PercentThreshold()
 	assert.Equal(t, CoreFromString("0.0000"), e.GetBalance(alice))
 	e.Transfer(eosio, alice, CoreFromString("1000.0000"), eosio)
-	var ex string
-	Try(func() {
-		e.StakeWithTransfer(alice, alice, CoreFromString("200.0000"), CoreFromString("100.0000"))
-	}).Catch(func(e Exception) {
-		ex = e.DetailMessage()
-	}).End()
-	assert.True(t, inString(ex, "cannot use transfer flag if delegating to self"))
+	stakeWithTransfer := func() { e.StakeWithTransfer(alice, alice, CoreFromString("200.0000"), CoreFromString("100.0000")) }
+	CatchThrowMsg(t, "cannot use transfer flag if delegating to self", stakeWithTransfer)
+	//var ex string
+	//Try(func() {
+	//	e.StakeWithTransfer(alice, alice, CoreFromString("200.0000"), CoreFromString("100.0000"))
+	//}).Catch(func(e Exception) {
+	//	ex = e.DetailMessage()
+	//}).End()
+	//assert.True(t, inString(ex, "cannot use transfer flag if delegating to self"))
 	e.close()
 }
 
@@ -1756,16 +1757,18 @@ func TestProducersUpgradeSystemContract(t *testing.T) {
 		act.Account = eosioMsig
 		act.Name = name
 		act.Data = msigAbiSer.VariantToBinary(actionTypeName, &data, e.AbiSerializerMaxTime)
-		type AA struct {
-			Proposer common.Name
-			Proposal_name common.Name
-			Requester []types.PermissionLevel
-			Trx types.Transaction
+		type AA struct{
+			P common.AccountName
+			Pn common.AccountName
+			Trx  types.Transaction
+			Re []types.PermissionLevel
 		}
-		Abc :=AA{
+		A :=AA{}
+		err :=rlp.DecodeBytes(act.Data,&A)
+		if err !=nil{
+			fmt.Println(err)
 		}
-		err :=rlp.DecodeBytes(act.Data,&Abc)
-		fmt.Println(Abc,err)
+		fmt.Println("trx****************:   ",A)
 		var signerAuth common.AccountName
 		if auth {
 			signerAuth = signer
@@ -1801,7 +1804,7 @@ func TestProducersUpgradeSystemContract(t *testing.T) {
 			Data:          data,
 		}
 		trx.Actions = append(trx.Actions, &act)
-		e.SetTransactionHeaders(&trx.Transaction, e.DefaultExpirationDelta, 0)
+		e.SetTransactionHeaders(&trx.Transaction, e.DefaultExpirationDelta + 9, 0)
 		fmt.Println(trx.Expiration.SecSinceEpoch())
 		trx.Transaction.RefBlockNum = 2
 		trx.Transaction.RefBlockPrefix = 3
@@ -1823,7 +1826,7 @@ func TestProducersUpgradeSystemContract(t *testing.T) {
 			"proposal_name": common.N("upgrade1"),
 			"level":         types.PermissionLevel{Actor:producersNames[i], Permission:common.DefaultConfig.ActiveName},
 		}
-		assert.Equal(t, e.Success(), pushActionMsig(alice, common.N("approve"), data, true))
+		assert.Equal(t, e.Success(), pushActionMsig(producersNames[i], common.N("approve"), data, true))
 	}
 
 	//should fail
@@ -1846,7 +1849,7 @@ func TestProducersUpgradeSystemContract(t *testing.T) {
 		"proposal_name": common.N("upgrade1"),
 		"level":         types.PermissionLevel{Actor:producersNames[14], Permission:common.DefaultConfig.ActiveName},
 	}
-	assert.Equal(t, e.Success(), pushActionMsig(alice, common.N("approve"), data, true))
+	assert.Equal(t, e.Success(), pushActionMsig(producersNames[14], common.N("approve"), data, true))
 
 	data = common.Variants{
 		"proposer":      alice,
@@ -2608,6 +2611,60 @@ func TestVoteProducersInAndOut(t *testing.T) {
 
 func TestSetParams(t *testing.T) {
 	//TODO
+	e := initEosioSystemTester()
+
+	//install multisig contract
+	msigAbiSer := e.InitializeMultisig()
+	producersNames := e.ActiveAndVoteProducers()
+
+	//helper function
+	pushActionMsig := func(signer common.AccountName, name common.ActionName, data common.Variants, auth bool) ActionResult {
+		actionTypeName := msigAbiSer.GetActionType(name)
+		act := types.Action{}
+		act.Account = eosioMsig
+		act.Name = name
+		act.Data = msigAbiSer.VariantToBinary(actionTypeName, &data, e.AbiSerializerMaxTime)
+		var signerAuth common.AccountName
+		if auth {
+			signerAuth = signer
+		} else {
+			if signer == bob {
+				signerAuth = alice
+			} else {
+				signerAuth = bob
+			}
+		}
+		return e.PushAction(&act, signerAuth)
+	}
+
+	//test begins
+	var prodPerms []types.PermissionLevel
+	for _, x := range producersNames {
+		prodPerms = append(prodPerms, types.PermissionLevel{Actor:x, Permission:common.DefaultConfig.ActiveName})
+	}
+	params := e.Control.GetGlobalProperties().Configuration
+
+	//change some values
+	params.MaxBlockNetUsage += 10
+	params.MaxTrxLifetime += 1
+
+	trx := types.SignedTransaction{}
+	{
+		data := common.Variants{"params": params}
+		act := e.GetAction(eosio, common.N("setparams"), []types.PermissionLevel{{eosio, common.DefaultConfig.ActiveName}}, &data)
+		trx.Actions = append(trx.Actions, act)
+		e.SetTransactionHeaders(&trx.Transaction, e.DefaultExpirationDelta, 0)
+		fmt.Println(trx.Expiration.SecSinceEpoch())
+		trx.Transaction.RefBlockNum = 2
+		trx.Transaction.RefBlockPrefix = 3
+	}
+	data := common.Variants{
+		"proposer":      alice,
+		"proposal_name": common.N("setparams1"),
+		"trx":           trx.Transaction,
+		"requested":     prodPerms,
+	}
+	assert.Equal(t, e.Success(), pushActionMsig(alice, common.N("propose"), data, true))
 }
 
 func TestSetRamEffect(t *testing.T) {

@@ -3,7 +3,6 @@ package common
 
 import (
 	jsongo "encoding/json"
-	"fmt"
 	"reflect"
 	"strconv"
 	"unsafe"
@@ -263,7 +262,6 @@ func appendRawPaths(buf []byte, jstr string, paths []pathResult, raw string,
 		res = gjson.Get(jstr, paths[0].gpart)
 	}
 	if res.Index > 0 {
-		fmt.Println("res", res.Index)
 		if len(paths) > 1 {
 			buf = append(buf, jstr[:res.Index]...)
 			buf, err = appendRawPaths(buf, res.Raw, paths[1:], raw,

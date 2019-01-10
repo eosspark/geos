@@ -69,8 +69,7 @@ func (a *AbiDef) encode(binaryEncoder *rlp.Encoder, structName string, json []by
 			return fmt.Errorf("encode base [%s]: %s", structName, err)
 		}
 	}
-	err := a.encodeFields(binaryEncoder, structure.Fields, json)
-	return err
+	return a.encodeFields(binaryEncoder, structure.Fields, json)
 }
 
 func (a *AbiDef) encodeFields(binaryEncoder *rlp.Encoder, fields []FieldDef, json []byte) error {
@@ -118,9 +117,7 @@ func (a *AbiDef) encodeField(binaryEncoder *rlp.Encoder, fieldName string, field
 	if isArray {
 		abiLog.Debug("field is an array, name is %s,type is %s", fieldName, fieldType)
 		if !value.IsArray() {
-			binaryEncoder.WriteUVarInt(0)
-			return nil
-			//return fmt.Errorf("encode field: expected array for field [%s] got [%s]", fieldName, value.Type.String())
+			return binaryEncoder.WriteUVarInt(0)
 		}
 
 		results := value.Array()
@@ -141,9 +138,9 @@ func (a *AbiDef) writeField(binaryEncoder *rlp.Encoder, fieldName string, fieldT
 
 	structure := a.StructForName(fieldType)
 	if structure != nil {
-		abiLog.Debug("field is a struct, name is %s", fieldName)
+		abiLog.Debug("field is a struct, type is %s", fieldType)
 
-		err := a.encodeFields(binaryEncoder, structure.Fields, []byte(value.Raw))
+		err := a.encode(binaryEncoder, structure.Name, []byte(value.Raw))
 		if err != nil {
 			return err
 		}
@@ -176,18 +173,30 @@ func (a *AbiDef) writeField(binaryEncoder *rlp.Encoder, fieldName string, fieldT
 			return err
 		}
 		object = uint16(i)
-	case "int32", "varint32":
+	case "int32":
 		i, err := valueToInt(fieldName, value, 32)
 		if err != nil {
 			return err
 		}
 		object = int32(i)
-	case "uint32", "varuint32":
+	case "uint32":
 		i, err := valueToUint(fieldName, value, 32)
 		if err != nil {
 			return err
 		}
 		object = uint32(i)
+	case "varint32":
+		i, err := valueToInt(fieldName, value, 32)
+		if err != nil {
+			return err
+		}
+		return binaryEncoder.WriteVarInt(int(i))
+	case "varuint32":
+		i, err := valueToUint(fieldName, value, 32)
+		if err != nil {
+			return err
+		}
+		return binaryEncoder.WriteUVarInt(int(i))
 	case "int64":
 		var in Int64
 		if err := json.Unmarshal([]byte(value.Raw), &in); err != nil {
@@ -237,7 +246,7 @@ func (a *AbiDef) writeField(binaryEncoder *rlp.Encoder, fieldName string, fieldT
 		if err != nil {
 			return fmt.Errorf("writing field: time_point_sec: %s", err)
 		}
-		object = common.TimePointSec(t.UTC().Second())
+		object = common.TimePointSec(t.UTC().Unix())
 	case "time_point":
 		t, err := time.Parse("2006-01-02T15:04:05.999", value.Str)
 		if err != nil {
@@ -338,7 +347,6 @@ func (a *AbiDef) writeField(binaryEncoder *rlp.Encoder, fieldName string, fieldT
 	}
 
 	abiLog.Debug("write object %#v", object)
-
 	return binaryEncoder.Encode(object)
 }
 

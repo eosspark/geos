@@ -71,12 +71,9 @@ func TestForkWithBadBlock(t *testing.T) {
 		bios.ProduceBlocks(1, false)
 		bios.SetProducers(&accounts)
 
-		iii := 3
 		for bios.Control.PendingBlockState().Header.Producer.String() != "a" || bios.Control.HeadBlockState().Header.Producer.String() != "e" {
 			bios.ProduceBlocks(1, false)
-			iii++
 		}
-		fmt.Println(iii)
 		// sync remote node
 		remote := newBaseTesterSecNode(true, chain.SPECULATIVE)
 		pushBlocks(bios, remote)
@@ -85,7 +82,6 @@ func TestForkWithBadBlock(t *testing.T) {
 		for i := 0; i < 6; i++ {
 			bios.ProduceBlocks(1, false)
 			assert.Equal(t, bios.Control.HeadBlockState().Header.Producer.String(), "a")
-			iii++
 		}
 		forks := make([]ForkTracker, 7)
 
@@ -134,13 +130,14 @@ func TestForkWithBadBlock(t *testing.T) {
 			for fidx := 0; fidx < len(fork.blocks); fidx++ {
 				ssk := fork.blocks[fidx]
 				// push the block only if its not known already
-				if bios.Control.FetchBlockById(ssk.BlockID()) != nil {
+				if bios.Control.FetchBlockById(ssk.BlockID()) == nil {
 					bios.PushBlock(ssk)
 				}
 			}
 			try.Try(func() {
 				bios.PushBlock(fork.blocks[len(fork.blocks)-1])
 			}).Catch(func(e exception.FcException) {
+
 				try.Throw(e)
 			})
 			//}
@@ -333,5 +330,79 @@ func TestPruneRemoveBranch(t *testing.T) {
 	pushBlocks(c, c2)
 	assert.Equal(t, uint32(61), c.Control.HeadBlockNum())
 	assert.Equal(t, uint32(61), c2.Control.HeadBlockNum())
+
+	nextproducer := func(c *BaseTester, skipInterval int) common.Name {
+		headTime := c.Control.HeadBlockTime()
+		nextTime := headTime + common.TimePoint(common.Milliseconds(common.DefaultConfig.BlockIntervalMs*int64(skipInterval)))
+		return c.Control.HeadBlockState().GetScheduledProducer(types.NewBlockTimeStamp(nextTime)).ProducerName
+	}
+	// fork c: 2 producers: dan, sam
+	// fork c2: 1 producer: scott
+	skip1 := 1
+	skip2 := 1
+	for i := 0; i < 50; i++ {
+		next1 := nextproducer(c2, skip2)
+		if next1 == dan || next1 == sam {
+			c.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs*int64(skip1)), 0)
+			skip1 = 1
+		} else {
+			skip1++
+		}
+		next2 := nextproducer(c2, skip2)
+		if next2 == scott {
+			c2.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs*int64(skip2)), 0)
+			skip2 = 1
+		} else {
+			skip2++
+		}
+	}
+
+	assert.Equal(t, 87, c.Control.HeadBlockNum())
+	assert.Equal(t, 73, c2.Control.HeadBlockNum())
+
+	forkNum := c.Control.HeadBlockNum()
+	p := forkNum
+	// push fork from c2 => c
+	for p < c2.Control.HeadBlockNum() {
+		p++
+		fb := c2.Control.FetchBlockByNumber(p)
+		c.PushBlock(fb)
+	}
+}
+
+func TestConfirmation(t *testing.T) {
+
+}
+
+func TestReadModes(t *testing.T) {
+	c := NewForkedTester().tester
+	dan := common.N("dan")
+	sam := common.N("sam")
+	pam := common.N("pam")
+	c.ProduceBlocks(1, false)
+	c.ProduceBlocks(1, false)
+
+	accounts := []common.AccountName{dan, sam, pam}
+	c.CreateAccounts(accounts, false, true)
+	c.ProduceBlocks(1, false)
+	res := c.SetProducers(&accounts)
+	fmt.Println("ReadModes************************", res)
+	c.ProduceBlocks(200, false)
+	headBlockNum := c.Control.HeadBlockNum()
+
+	head := newBaseTester(true, chain.HEADER)
+	pushBlocks(c, head)
+	assert.Equal(t, headBlockNum, head.Control.ForkDbHeadBlockNum())
+	assert.Equal(t, headBlockNum, head.Control.HeadBlockNum())
+
+	readOnly := newBaseTester(false, chain.READONLY)
+	pushBlocks(c, readOnly)
+	assert.Equal(t, headBlockNum, readOnly.Control.ForkDbHeadBlockNum())
+	assert.Equal(t, headBlockNum, readOnly.Control.HeadBlockNum())
+
+	irreversible := newBaseTester(true, chain.IRREVERSIBLE)
+	pushBlocks(c, irreversible)
+	assert.Equal(t, headBlockNum, irreversible.Control.ForkDbHeadBlockNum())
+	assert.Equal(t, headBlockNum-49, irreversible.Control.HeadBlockNum())
 
 }

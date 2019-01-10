@@ -52,18 +52,14 @@ func (a *Asset) isValid() bool {
 	return a.isAmountWithinRange() && a.Symbol.Valid()
 }
 
-func (a Asset) Add(other Asset) Asset {
-	if a.Symbol != other.Symbol {
-		panic("Add applies only to assets with the same symbol")
-	}
-	return Asset{Amount: a.Amount + other.Amount, Symbol: a.Symbol}
+func (a Asset) Add(b Asset) Asset {
+	EosAssert(a.Symbol == b.Symbol, &AssetTypeException{}, "addition between two different asset is not allowed")
+	return Asset{Amount: a.Amount + b.Amount, Symbol: a.Symbol}
 }
 
-func (a Asset) Sub(other Asset) Asset {
-	if a.Symbol != other.Symbol {
-		panic("Sub applies only to assets with the same symbol")
-	}
-	return Asset{Amount: a.Amount - other.Amount, Symbol: a.Symbol}
+func (a Asset) Sub(b Asset) Asset {
+	EosAssert(a.Symbol == b.Symbol, &AssetTypeException{}, "subtraction between two different asset is not allowed")
+	return Asset{Amount: a.Amount - b.Amount, Symbol: a.Symbol}
 }
 
 func (a Asset) String() string {

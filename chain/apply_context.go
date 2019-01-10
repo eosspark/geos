@@ -1344,8 +1344,6 @@ func (a *ApplyContext) SetBlockchainParametersPacked(parameters []byte) {
 	a.DB.Modify(g, func(gpo *entity.GlobalPropertyObject) {
 		gpo.Configuration = cfg
 	})
-
-	a.Control.GpoCache[g.ID] = g
 }
 
 func (a *ApplyContext) SetBlockchainParameters(cfg *types.ChainConfig) {
@@ -1356,8 +1354,6 @@ func (a *ApplyContext) SetBlockchainParameters(cfg *types.ChainConfig) {
 	a.DB.Modify(g, func(gpo *entity.GlobalPropertyObject) {
 		gpo.Configuration = *cfg
 	})
-
-	a.Control.GpoCache[g.ID] = g
 }
 
 func (a *ApplyContext) GetBlockchainParameters() *types.ChainConfig {
@@ -1395,6 +1391,7 @@ func (a *ApplyContext) IsPrivileged(n common.AccountName) bool {
 }
 func (a *ApplyContext) SetPrivileged(n common.AccountName, isPriv bool) {
 	account := entity.AccountObject{Name: n}
+	a.DB.Find("byName", account, &account)
 	a.DB.Modify(&account, func(ao *entity.AccountObject) {
 		ao.Privileged = isPriv
 	})
@@ -1431,7 +1428,24 @@ func (a *ApplyContext) ContextFreeAction() bool {
 //
 //	return a.ilog
 //}
-func (a *ApplyContext) CheckAuthorization(n common.AccountName,
+
+func (a *ApplyContext) CheckAuthorization(actions []*types.Action,
+	providedKeys *treeset.Set,
+	providedPermissions *treeset.Set,
+	delayUS uint64) {
+
+	function := a.TrxContext.CheckTime
+	am := a.Control.GetAuthorizationManager()
+	am.CheckAuthorization(actions,
+		providedKeys,
+		providedPermissions,
+		common.Microseconds(delayUS),
+		&function,
+		false)
+
+}
+
+func (a *ApplyContext) CheckAuthorization2(n common.AccountName,
 	permission common.PermissionName,
 	providedKeys *treeset.Set,
 	providedPermissions *treeset.Set,

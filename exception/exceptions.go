@@ -32,7 +32,7 @@ package exception
 //TODO: go get gotemplate
 //go:generate go install github.com/eosspark/eos-go/log/...
 //go:generate go install github.com/eosspark/eos-go/exception/...
-//go:generate gotemplate -outfmt "gen_%v" "github.com/eosspark/eos-go/exception/template" "StdException(error,StdExceptionCode,\"golang standard error\")"
+//go:generate gotemplate -outfmt "gen_%v" "github.com/eosspark/eos-go/exception/template" "StdException(Exception,StdExceptionCode,\"golang standard error\")"
 //go:generate gotemplate -outfmt "gen_%v" "github.com/eosspark/eos-go/exception/template" "FcException(Exception,UnspecifiedExceptionCode,\"unspecified\")"
 //go:generate gotemplate -outfmt "gen_%v" "github.com/eosspark/eos-go/exception/template" "UnHandledException(Exception,UnhandledExceptionCode,\"unhandled\")"
 

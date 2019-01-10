@@ -5,18 +5,32 @@ import (
 	"github.com/eosspark/container/sets/treeset"
 	. "github.com/eosspark/eos-go/chain"
 	"github.com/eosspark/eos-go/common"
+	"github.com/eosspark/eos-go/database"
+	"github.com/eosspark/eos-go/entity"
 	"github.com/eosspark/eos-go/exception"
 	"github.com/eosspark/eos-go/exception/try"
+	"github.com/eosspark/eos-go/log"
 	"github.com/stretchr/testify/assert"
 	"math"
+	"os"
 	"testing"
 )
 
-func initializeResource() *ResourceLimitsManager {
+type ResourceLimitsFixture struct {
+	ResourceLimitsManager
+	Controller
+}
+
+func initializeResource() *ResourceLimitsFixture {
+	os.RemoveAll("/tmp/data")
 	control := GetControllerInstance()
 	rlm := control.ResourceLimits
 	rlm.InitializeDatabase()
-	return rlm
+	return &ResourceLimitsFixture{ResourceLimitsManager:*rlm, Controller: *control}
+}
+
+func (r ResourceLimitsFixture) startSession() database.Session{
+	return *r.DB.StartSession()
 }
 
 func expectedElasticIterations(from uint64, to uint64, rateNum uint64, rateDen uint64) uint64 {
@@ -74,6 +88,7 @@ func TestElasticCpuRelaxContract(t *testing.T) {
 
 	assert.Equal(t, expectedRelaxIteration+expectedContractIteration, uint64(iterations))
 	assert.Equal(t, uint64(common.DefaultConfig.MaxBlockCpuUsage), rlm.GetVirtualBlockCpuLimit())
+
 }
 
 func TestElasticNetRelaxContract(t *testing.T) {
@@ -130,21 +145,29 @@ func TestWeightedCapacityCpu(t *testing.T) {
 	}
 
 	rlm.ProcessAccountLimitUpdates()
+	config := entity.DefaultResourceLimitsConfigObject
+	err := rlm.DB.Find("id",config, &config)
+	if err != nil {
+		log.Error("%s", err)
+	}
+	err = rlm.DB.Modify(&config, func(r *entity.ResourceLimitsConfigObject) {
+		r.CpuLimitParameters.Max = math.MaxUint64
+	})
+	if err != nil {
+		log.Error("%s", err)
+	}
 
 	for idx := int(0); idx < len(weights); idx++ {
 		account := common.AccountName(idx + 100)
 		assert.Equal(t, expectedLimits[idx], rlm.GetAccountCpuLimit(account, true))
 		f := treeset.NewWith(common.TypeName, common.CompareName)
 		f.AddItem(account)
-		//s := rlm.db.StartSession()
-		//rlm.AddTransactionUsage(f, uint64(expectedLimits[idx]), 0, 0)
-		//s.Undo()
+		s := rlm.startSession()
+		rlm.AddTransactionUsage(f, uint64(expectedLimits[idx]), 0, 0)
+		s.Undo()
 
-		try.Try(func() {
-			rlm.AddTransactionUsage(f, uint64(expectedLimits[idx]), 0, 0)
-		}).Catch(func(e exception.TxCpuUsageExceeded) {
-			fmt.Println(e)
-		}).End()
+		addTrxUsage := func() {rlm.AddTransactionUsage(f, uint64(expectedLimits[idx] + 1), 0, 0)}
+		CatchThrowException(t, &exception.TxCpuUsageExceeded{}, addTrxUsage)
 	}
 }
 
@@ -167,13 +190,24 @@ func TestWeightedCapacityNet(t *testing.T) {
 	}
 
 	rlm.ProcessAccountLimitUpdates()
-	con := GetControllerInstance()
+	config := entity.DefaultResourceLimitsConfigObject
+	err := rlm.DB.Find("id",config, &config)
+	if err != nil {
+		log.Error("%s", err)
+	}
+	err = rlm.DB.Modify(&config, func(r *entity.ResourceLimitsConfigObject) {
+		r.NetLimitParameters.Max = math.MaxUint64
+	})
+	if err != nil {
+		log.Error("%s", err)
+	}
+
 	for idx := int(0); idx < len(weights); idx++ {
 		account := common.AccountName(idx + 100)
 		assert.Equal(t, expectedLimits[idx], rlm.GetAccountNetLimit(account, true))
 		f := treeset.NewWith(common.TypeName, common.CompareName)
 		f.AddItem(account)
-		s := con.DB.StartSession()
+		s := rlm.startSession()
 		rlm.AddTransactionUsage(f, 0, uint64(expectedLimits[idx]), 0)
 		s.Undo()
 
@@ -201,11 +235,8 @@ func TestEnforceBlockLimitsCpu(t *testing.T) {
 		rlm.AddTransactionUsage(f, increment, 0, 0)
 	}
 
-	try.Try(func() {
-		rlm.AddTransactionUsage(f, increment, 0, 0)
-	}).Catch(func(e exception.BlockResourceExhausted) {
-		fmt.Println(e)
-	}).End()
+	addTrxUsage := func() {rlm.AddTransactionUsage(f, increment, 0, 0)}
+	CatchThrowException(t, &exception.BlockResourceExhausted{}, addTrxUsage)
 }
 
 func TestEnforceBlockLimitsNet(t *testing.T) {
@@ -225,11 +256,8 @@ func TestEnforceBlockLimitsNet(t *testing.T) {
 		rlm.AddTransactionUsage(f, 0, increment, 0)
 	}
 
-	try.Try(func() {
-		rlm.AddTransactionUsage(f, 0, increment, 0)
-	}).Catch(func(e exception.BlockResourceExhausted) {
-		fmt.Println(e)
-	}).End()
+	addTrxUsage := func() {rlm.AddTransactionUsage(f, 0, increment, 0)}
+	CatchThrowException(t, &exception.BlockResourceExhausted{}, addTrxUsage)
 }
 
 func TestEnforceAccountRamLimit(t *testing.T) {
@@ -249,11 +277,8 @@ func TestEnforceAccountRamLimit(t *testing.T) {
 	}
 	rlm.AddPendingRamUsage(account, int64(increment))
 
-	try.Try(func() {
-		rlm.VerifyAccountRamUsage(account)
-	}).Catch(func(e exception.RamUsageExceeded) {
-		fmt.Println(e)
-	}).End()
+	verifyUsage := func() {rlm.VerifyAccountRamUsage(account)}
+	CatchThrowException(t, &exception.RamUsageExceeded{}, verifyUsage)
 }
 
 func TestEnforceAccountRamLimitUnderflow(t *testing.T) {
@@ -264,11 +289,8 @@ func TestEnforceAccountRamLimitUnderflow(t *testing.T) {
 	rlm.VerifyAccountRamUsage(account)
 	rlm.ProcessAccountLimitUpdates()
 
-	try.Try(func() {
-		rlm.AddPendingRamUsage(account, -101)
-	}).Catch(func(e exception.TransactionException) {
-		fmt.Println(e)
-	}).End()
+	AddUsage := func() {rlm.AddPendingRamUsage(account, -101)}
+	CatchThrowException(t, &exception.TransactionException{}, AddUsage)
 }
 
 func TestEnforceAccountRamLimitOverflow(t *testing.T) {
@@ -282,11 +304,8 @@ func TestEnforceAccountRamLimitOverflow(t *testing.T) {
 	rlm.AddPendingRamUsage(account, math.MaxUint64/2)
 	rlm.VerifyAccountRamUsage(account)
 
-	try.Try(func() {
-		rlm.AddPendingRamUsage(account, 2)
-	}).Catch(func(e exception.TransactionException) {
-		fmt.Println(e)
-	}).End()
+	AddUsage := func() {rlm.AddPendingRamUsage(account, 2)}
+	CatchThrowException(t, &exception.TransactionException{}, AddUsage)
 }
 
 func TestEnforceAccountRamCommitment(t *testing.T) {
@@ -311,11 +330,8 @@ func TestEnforceAccountRamCommitment(t *testing.T) {
 
 	rlm.SetAccountLimits(account, int64(limit-increment*expectedIterations), -1, -1)
 
-	try.Try(func() {
-		rlm.VerifyAccountRamUsage(account)
-	}).Catch(func(e exception.RamUsageExceeded) {
-		fmt.Println(e)
-	}).End()
+	verifyUsage := func() {rlm.VerifyAccountRamUsage(account)}
+	CatchThrowException(t, &exception.RamUsageExceeded{}, verifyUsage)
 }
 
 func TestSanityCheck(t *testing.T) {
@@ -327,9 +343,9 @@ func TestSanityCheck(t *testing.T) {
 	totalCpuPerPeriod := maxBlockCpu * blocksPerDay * 3
 
 	congestedCpuTimePerPeriod := totalCpuPerPeriod * userStake / totalStakedTokens
+	log.Warn("congestedCpuTimePerPeriod:%d", congestedCpuTimePerPeriod)
 	unCongestedCpuTimePerPeriod := (1000 * totalCpuPerPeriod) * userStake / totalStakedTokens
-	fmt.Println(congestedCpuTimePerPeriod)
-	fmt.Println(unCongestedCpuTimePerPeriod)
+	log.Warn("unCongestedCpuTimePerPeriod:%d", unCongestedCpuTimePerPeriod)
 
 	dan := common.AccountName(common.N("dan"))
 	everyone := common.AccountName(common.N("everyone"))
@@ -341,5 +357,4 @@ func TestSanityCheck(t *testing.T) {
 	f := treeset.NewWith(common.TypeName, common.CompareName)
 	f.AddItem(dan)
 	rlm.AddTransactionUsage(f, 10, 0, 1)
-	fmt.Println(rlm.GetAccountCpuLimit(dan, true))
 }

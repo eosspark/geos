@@ -162,10 +162,10 @@ func (b *BlockLog) Append(block *types.SignedBlock) uint64 {
 	EosAssert(b.genesisWriteToBlockLog, &BlockLogAppendFail{}, "Cannot append to block log until the genesis is first written")
 
 	pos, err := b.blockStream.Seek(0, end)
-	ThrowIf(err != nil, err)
+	Throw(err)
 
 	indexPos, err := b.indexStream.Seek(0, end)
-	ThrowIf(err != nil, err)
+	Throw(err)
 
 	EosAssert(indexPos == int64(SizeOfInt64*(block.BlockNumber()-1)), &BlockLogAppendFail{},
 		"Append to index file occuring at wrong position. position %d expected %d", indexPos, SizeOfInt64*(block.BlockNumber()-1))
@@ -206,7 +206,7 @@ func (b *BlockLog) ResetToGenesis(gs *types.GenesisState, benesisBlock *types.Si
 
 	b.blockStream, err = os.Create(b.blockFile)
 	b.indexStream, err = os.Create(b.indexFile)
-	ThrowIf(err != nil, err)
+	Throw(err)
 
 	version := uint32(0) // version of 0 is invalid; it indicates that the genesis was not properly written to the block log
 	bytes, _ := rlp.EncodeToBytes(version)
