@@ -1736,7 +1736,6 @@ func TestMultipleProducerPay(t *testing.T) {
 }
 
 func TestProducersUpgradeSystemContract(t *testing.T) {
-	//TODO
 	e := initEosioSystemTester()
 
 	//install multisig contract
@@ -1796,7 +1795,6 @@ func TestProducersUpgradeSystemContract(t *testing.T) {
 		"requested":     prodPerms,
 		"trx":           trx.Transaction,
 	}
-	fmt.Println(trx.Transaction.Expiration)
 
 	assert.Equal(t, e.Success(), pushActionMsig(alice, common.N("propose"), data, true))
 
@@ -2591,7 +2589,6 @@ func TestVoteProducersInAndOut(t *testing.T) {
 }
 
 func TestSetParams(t *testing.T) {
-	//TODO
 	e := initEosioSystemTester()
 
 	//install multisig contract
