@@ -1215,7 +1215,7 @@ func (c *Controller) maybeSwitchForks(s types.BlockStatus) {
 			}).Catch(func(e Exception) {
 				except = e
 			}).End()
-			if except == nil {
+			if except != nil {
 				log.Error("exception thrown while switching forks :%s", except.DetailMessage())
 				c.ForkDB.SetValidity(itr, false)
 				// pop all blocks from the bad fork

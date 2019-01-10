@@ -2,15 +2,34 @@ package try
 
 import (
 	"errors"
+	"github.com/stretchr/testify/assert"
+	"strings"
+
 	//. "github.com/eosspark/eos-go/exceptionx"
 	. "github.com/eosspark/eos-go/exception"
-	"github.com/eosspark/eos-go/log"
-	"github.com/stretchr/testify/assert"
+	. "github.com/eosspark/eos-go/log"
 	"testing"
 )
 
 func TestStaticAssert(t *testing.T) {
-	Assert(1 != 1, "test assert")
+	//Assert(1 != 1, "test assert")
+}
+
+func TestErrorThrow(t *testing.T) {
+	Try(func() {
+		Try(func() {
+			var a *int
+			*a ++
+		}).Catch(func(e Exception) {
+			FcRethrowException(e, LvlWarn, "rethrow error")
+		}).End()
+	}).Catch(func(e StdException) {
+		detail := e.DetailMessage()
+		assert.True(t, strings.Contains(detail, "rethrow error"))
+		assert.True(t, strings.Contains(detail, "assert_test.go:22"))
+		Error(detail)
+	}).End()
+
 }
 
 func TestEosAssert(t *testing.T) {
@@ -19,22 +38,102 @@ func TestEosAssert(t *testing.T) {
 	Try(func() {
 		EosAssert(false, &BlockNetUsageExceeded{}, "tester exception %s", "BlockNetUsageExceeded")
 	}).Catch(func(e Exception) {
-		log.Error(e.DetailMessage())
+		detail := e.DetailMessage()
+		assert.True(t, strings.Contains(detail, "tester exception BlockNetUsageExceeded"))
+		assert.True(t, strings.Contains(detail, "assert_test.go:39"))
+		Error(detail)
 	}).End()
+}
+
+func TestFcAssert(t *testing.T) {
+	Try(func() {
+		FcAssert(false, "tester exception %s", "BlockNetUsageExceeded")
+	}).Catch(func(e Exception) {
+		detail := e.DetailMessage()
+		assert.True(t, strings.Contains(detail, "assert:"))
+		assert.True(t, strings.Contains(detail, "tester exception BlockNetUsageExceeded"))
+		assert.True(t, strings.Contains(detail, "assert_test.go:50"))
+		Error(detail)
+	}).End()
+}
+
+func TestEosThrow(t *testing.T) {
+	Try(func() {
+		Try(func() {
+			EosThrow(&DatabaseGuardException{}, "tester exception %s", "DatabaseGuardException")
+		}).Catch(func(e Exception) {
+			assert.True(t, strings.Contains(e.DetailMessage(), "tester exception DatabaseGuardException"))
+			assert.True(t, strings.Contains(e.DetailMessage(), "assert_test.go:63"))
+			Throw(e)
+		}).End()
+	}).Catch(func(e DatabaseExceptions) {
+		assert.True(t, strings.Contains(e.DetailMessage(), "tester exception DatabaseGuardException"))
+		assert.True(t, strings.Contains(e.DetailMessage(), "assert_test.go:63"))
+		Warn(e.DetailMessage())
+	}).End()
+}
+
+func TestFcThrow(t *testing.T) {
+	Try(func() {
+		FcThrow("tester exception %s", "FcThrow")
+	}).Catch(func(e Exception) {
+		assert.True(t, strings.Contains(e.DetailMessage(), "FcException"))
+		assert.True(t, strings.Contains(e.DetailMessage(), "tester exception FcThrow"))
+		assert.True(t, strings.Contains(e.DetailMessage(), "assert_test.go:78"))
+		Error(e.DetailMessage())
+	}).End()
+}
+
+func TestFcRethrowException(t *testing.T) {
+	Try(func() {
+		Try(func() {
+			FcThrow("tester exception %s", "FcThrow")
+		}).Catch(func(e Exception) {
+			assert.True(t, strings.Contains(e.DetailMessage(), "tester exception FcThrow"))
+			assert.True(t, strings.Contains(e.DetailMessage(), "assert_test.go:90"))
+			FcRethrowException(e, LvlWarn, "rethrow, FcRethrowException")
+		}).End()
+	}).Catch(func(e Exception) {
+		assert.True(t, strings.Contains(e.DetailMessage(), "tester exception FcThrow"))
+		assert.True(t, strings.Contains(e.DetailMessage(), "rethrow, FcRethrowException"))
+		assert.True(t, strings.Contains(e.DetailMessage(), "assert_test.go:90"))
+		assert.True(t, strings.Contains(e.DetailMessage(), "assert_test.go:94"))
+		Warn(e.DetailMessage())
+	}).End()
+
 }
 
 func TestCatchOrFinally_EosRethrowExceptions(t *testing.T) {
 	Try(func() {
 		Try(func() {
+			EosAssert(false, &ActionTypeException{}, "tester exception %s", "ActionTypeException")
+		}).EosRethrowExceptions(&ChainTypeException{}, "eos rethrow")
+	}).Catch(func(e ActionTypeException) {
+		detail := e.DetailMessage()
+		Error(detail)
+	}).End()
+
+	Try(func() {
+		Try(func() {
 			EosAssert(false, &AssertException{}, "tester exception %s", "AssertException")
-		}).EosRethrowExceptions(&ChainTypeException{}, "block #%d assert", 100).End()
+		}).EosRethrowExceptions(&ChainTypeException{}, "eos rethrow non-chainException")
 	}).Catch(func(e *ChainTypeException) {
 		detail := e.DetailMessage()
-		log.Error(detail)
-		//assert.Equal(t, detail, "3010000 *exception.ChainTypeException: chain type exception\n"+
-		//	"block #100 assert\n"+
-		//	"tester exception AssertException\n")
+		Error(detail)
 	}).End()
+
+	Try(func() {
+		Try(func() {
+			Try(func() {
+				EosAssert(false, &AssertException{}, "tester exception %s", "AssertException")
+			}).EosRethrowExceptions(&ChainTypeException{}, "eos rethrow non-chainException")
+
+		}).EosRethrowExceptions(&BlockCpuUsageExceeded{}, "eos rethrow twice non-chainException")
+
+	}).Catch(func(e ChainTypeException) {
+		Error(e.DetailMessage())
+	}).End()
+
 }
 
 func TestCatchOrFinally_FcLogAndRethrow(t *testing.T) {
@@ -43,11 +142,7 @@ func TestCatchOrFinally_FcLogAndRethrow(t *testing.T) {
 			EosAssert(false, &BlockNetUsageExceeded{}, "tester exception %s", "BlockNetUsageExceeded")
 		}).FcLogAndRethrow().End()
 	}).Catch(func(e Exception) {
-		//detail := e.DetailMessage()
-		//log.Error(detail)
-		//assert.Equal(t, detail, "3080003 *exception.BlockNetUsageExceeded: Transaction network usage is too much for the remaining allowable usage of the current block\n"+
-		//	"tester exception BlockNetUsageExceeded\n"+
-		//	"rethrow\n")
+		Error(e.DetailMessage())
 	}).End()
 
 	Try(func() {
@@ -56,9 +151,7 @@ func TestCatchOrFinally_FcLogAndRethrow(t *testing.T) {
 		}).FcLogAndRethrow().End()
 	}).Catch(func(e Exception) {
 		detail := e.DetailMessage()
-		log.Error(detail)
-		//assert.Equal(t, detail, "0 *exception.FcException: unspecified\n"+
-		//	"rethrow: tester error\n")
+		Error(detail)
 	}).End()
 }
 
@@ -94,31 +187,19 @@ func TestCatchOrFinally_FcRethrowExceptions(t *testing.T) {
 	Try(func() {
 		Try(func() {
 			EosAssert(false, &BlockNetUsageExceeded{}, "tester exception %s", "BlockNetUsageExceeded")
-		}).FcRethrowExceptions(log.LvlWarn, "block %s", "001bac").End()
+		}).FcRethrowExceptions(LvlWarn, "block %s", "001bac").End()
 	}).Catch(func(e Exception) {
 		detail := e.DetailMessage()
-		log.Error(detail)
-		//assert.Equal(t, detail, "3080003 *exception.BlockNetUsageExceeded: Transaction network usage is too much for the remaining allowable usage of the current block\n"+
-		//	"tester exception BlockNetUsageExceeded\n"+
-		//	"block 001bac\n")
+		Error(detail)
 	}).End()
 
 	Try(func() {
 		Try(func() {
 			Throw(errors.New("test error"))
-		}).FcRethrowExceptions(log.LvlWarn, "block %s", "001bac").End()
+		}).FcRethrowExceptions(LvlWarn, "block %s", "001bac").End()
 	}).Catch(func(e Exception) {
-		log.Error(e.DetailMessage())
+		Error(e.DetailMessage())
 	}).End()
-
-	Try(func() {
-		Try(func() {
-			Throw(0)
-		}).FcRethrowExceptions(log.LvlWarn, "block %s", "001bac").End()
-	}).Catch(func(e Exception) {
-		log.Error(e.DetailMessage())
-	}).End()
-
 }
 
 func TestCatchOrFinally_FcCaptureLogAndRethrow(t *testing.T) {
@@ -128,10 +209,7 @@ func TestCatchOrFinally_FcCaptureLogAndRethrow(t *testing.T) {
 		}).FcCaptureLogAndRethrow("rethrow %s", "exception").End()
 	}).Catch(func(e Exception) {
 		detail := e.DetailMessage()
-		log.Error(detail)
-		//assert.Equal(t, detail, "3080003 *exception.BlockNetUsageExceeded: Transaction network usage is too much for the remaining allowable usage of the current block\n"+
-		//	"tester exception BlockNetUsageExceeded\n"+
-		//	"rethrow rethrow exception\n")
+		Error(detail)
 	}).End()
 }
 
@@ -142,28 +220,15 @@ func TestCatchOrFinally_FcCaptureAndRethrow(t *testing.T) {
 		}).FcCaptureAndRethrow("rethrow %s", "exception").End()
 	}).Catch(func(e Exception) {
 		detail := e.DetailMessage()
-		log.Error(detail)
-		assert.Equal(t, detail, "3080003 *exception.BlockNetUsageExceeded: Transaction network usage is too much for the remaining allowable usage of the current block\n"+
-			"tester exception BlockNetUsageExceeded\n"+
-			"rethrow exception\n")
+		Error(detail)
 	}).End()
 
 	Try(func() {
 		Try(func() {
-			Throw(errors.New("tester error"))
-		}).FcCaptureAndRethrow("rethrow %s", "error").End()
+			Throw("tester throw")
+		}).FcCaptureAndRethrow("rethrow").End()
 	}).Catch(func(e Exception) {
 		detail := e.DetailMessage()
-		log.Error(detail)
-		assert.Equal(t, detail, "0 *exception.FcException: unspecified\n"+
-			"tester error: rethrow error\n")
-	}).End()
-
-	Try(func() {
-		Try(func() {
-			Throw(0)
-		}).FcCaptureAndRethrow("rethrow %s", "any").End()
-	}).Catch(func(e Exception) {
-		log.Error(e.DetailMessage())
+		Error(detail)
 	}).End()
 }

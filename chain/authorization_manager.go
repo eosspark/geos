@@ -135,9 +135,7 @@ func (a *AuthorizationManager) FindPermission(level *types.PermissionLevel) (p *
 			return
 		}
 		p = &po
-	}).Catch(func(e Exception) {
-		FcRethrowException(&PermissionQueryException{}, log.LvlWarn, "FindPermission is error")
-	}).End()
+	}).EosRethrowExceptions(&PermissionQueryException{}, "Failed to retrieve permission: %v", level)
 	return p
 }
 
@@ -154,9 +152,7 @@ func (a *AuthorizationManager) GetPermission(level *types.PermissionLevel) (p *e
 			return
 		}
 		p = &po
-	}).Catch(func(e Exception) {
-		FcRethrowException(&PermissionQueryException{}, log.LvlWarn, "GetPermission is error")
-	}).End()
+	}).EosRethrowExceptions(&PermissionQueryException{}, "Failed to retrieve permission: %v", level)
 	return p
 }
 
@@ -441,7 +437,7 @@ func (a *AuthorizationManager) CheckAuthorization(actions []*types.Action,
 
 func (a *AuthorizationManager) CheckAuthorization2(account common.AccountName,
 	permission common.PermissionName,
-	providedKeys *treeset.Set, //flat_set<public_key_type>
+	providedKeys *treeset.Set,        //flat_set<public_key_type>
 	providedPermissions *treeset.Set, //flat_set<permission_level>
 	providedDelay common.Microseconds,
 	checkTime *func(),

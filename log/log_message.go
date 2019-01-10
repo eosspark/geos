@@ -2,16 +2,21 @@ package log
 
 import (
 	"fmt"
+	"github.com/go-stack/stack"
 	"runtime/debug"
 )
 
 type Context struct {
 	LogLevel  Lvl
+	Call      stack.Call
 	StackInfo []byte
 }
 
 func (c Context) String() string {
-	return string(c.StackInfo)
+	if len(c.StackInfo) > 0 {
+		return string(c.StackInfo)
+	}
+	return c.Call.String()
 }
 
 type Message struct {
@@ -21,14 +26,26 @@ type Message struct {
 }
 
 func FcLogMessage(level Lvl, format string, args ...interface{}) Message {
-	return Message{
+	return LogMessage(level, format, args, 2)
+}
+
+
+func LogMessage(level Lvl, format string, args []interface{}, skip ...int) Message {
+	msg := Message{
 		context: Context{
 			LogLevel:  level,
-			StackInfo: debug.Stack(),
 		},
 		Format: format,
 		Args:   args,
 	}
+
+	if len(skip) > 0 {
+		msg.context.Call = stack.Caller(skip[0])
+	} else {
+		msg.context.StackInfo = debug.Stack()
+	}
+
+	return msg
 }
 
 func (l Message) GetContext() Context {

@@ -270,12 +270,12 @@ func (impl *ProducerPluginImpl) OnIncomingTransactionAsync(trx *types.PackedTran
 
 	id := trx.ID()
 	if trx.Expiration().ToTimePoint() < blockTime {
-		sendResponse(&ExpiredTxException{Elog:log.Messages{log.FcLogMessage(log.LvlError, "expired transaction %s", id)}})
+		sendResponse(&ExpiredTxException{Elog: log.Messages{log.FcLogMessage(log.LvlError, "expired transaction %s", id)}})
 		return
 	}
 
 	if chain.IsKnownUnexpiredTransaction(&id) {
-		sendResponse(&TxDuplicate{Elog:log.Messages{log.FcLogMessage(log.LvlError, "duplicate transaction %s", id)}})
+		sendResponse(&TxDuplicate{Elog: log.Messages{log.FcLogMessage(log.LvlError, "duplicate transaction %s", id)}})
 		return
 	}
 

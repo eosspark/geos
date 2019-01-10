@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	. "github.com/eosspark/eos-go/exception/try"
 	"strings"
 
 	"github.com/eosspark/eos-go/crypto/btcsuite/btcd/btcec"
@@ -57,9 +58,7 @@ func NewPublicKeyFromData(data []byte) (out PublicKey, err error) {
 
 func MustNewPublicKeyFromData(data []byte) PublicKey {
 	key, err := NewPublicKeyFromData(data)
-	if err != nil {
-		panic(err.Error())
-	}
+	Throw(err)
 	return key
 }
 
@@ -106,9 +105,7 @@ func NewPublicKey(pubKey string) (out PublicKey, err error) {
 
 func MustNewPublicKey(pubKey string) PublicKey {
 	key, err := NewPublicKey(pubKey)
-	if err != nil {
-		panic(err.Error())
-	}
+	Throw(err)
 	return key
 }
 func NewPublicKeyNil() *PublicKey {
