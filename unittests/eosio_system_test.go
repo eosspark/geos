@@ -220,13 +220,6 @@ func TestStakeToSelfWithTransfer(t *testing.T) {
 	e.Transfer(eosio, alice, CoreFromString("1000.0000"), eosio)
 	stakeWithTransfer := func() { e.StakeWithTransfer(alice, alice, CoreFromString("200.0000"), CoreFromString("100.0000")) }
 	CatchThrowMsg(t, "cannot use transfer flag if delegating to self", stakeWithTransfer)
-	//var ex string
-	//Try(func() {
-	//	e.StakeWithTransfer(alice, alice, CoreFromString("200.0000"), CoreFromString("100.0000"))
-	//}).Catch(func(e Exception) {
-	//	ex = e.DetailMessage()
-	//}).End()
-	//assert.True(t, inString(ex, "cannot use transfer flag if delegating to self"))
 	e.close()
 }
 
@@ -1757,18 +1750,6 @@ func TestProducersUpgradeSystemContract(t *testing.T) {
 		act.Account = eosioMsig
 		act.Name = name
 		act.Data = msigAbiSer.VariantToBinary(actionTypeName, &data, e.AbiSerializerMaxTime)
-		type AA struct{
-			P common.AccountName
-			Pn common.AccountName
-			Trx  types.Transaction
-			Re []types.PermissionLevel
-		}
-		A :=AA{}
-		err :=rlp.DecodeBytes(act.Data,&A)
-		if err !=nil{
-			fmt.Println(err)
-		}
-		fmt.Println("trx****************:   ",A)
 		var signerAuth common.AccountName
 		if auth {
 			signerAuth = signer
@@ -1812,8 +1793,8 @@ func TestProducersUpgradeSystemContract(t *testing.T) {
 	data := common.Variants{
 		"proposer":      alice,
 		"proposal_name": common.N("upgrade1"),
-		"trx":           trx.Transaction,
 		"requested":     prodPerms,
+		"trx":           trx.Transaction,
 	}
 	fmt.Println(trx.Transaction.Expiration)
 

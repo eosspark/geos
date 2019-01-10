@@ -35,6 +35,7 @@ func (a *AuthorizationManager) CreatePermission(account common.AccountName,
 	initialCreationTime common.TimePoint,
 ) *entity.PermissionObject {
 	creationTime := initialCreationTime
+	//TODO
 	if creationTime == 1 {
 		creationTime = a.control.PendingBlockTime()
 	}
