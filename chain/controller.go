@@ -443,7 +443,6 @@ func (c *Controller) startBlock(when types.BlockTimeStamp, confirmBlockCount uin
 	c.Pending.ProducerBlockId = *producerBlockId
 	c.Pending.PendingBlockState = types.NewBlockState2(&c.Head.BlockHeaderState, when) // promotes pending schedule (if any) to active
 	c.Pending.PendingBlockState.InCurrentChain = true
-
 	c.Pending.PendingBlockState.SetConfirmed(confirmBlockCount)
 	wasPendingPromoted := c.Pending.PendingBlockState.MaybePromotePending()
 
@@ -546,7 +545,7 @@ func (c *Controller) pushTransaction(trx *types.TransactionMetadata, deadLine co
 			if trxContext.CanSubjectivelyFail && c.Pending.BlockStatus == types.Incomplete {
 				c.CheckActorList(&trxContext.BillToAccounts)
 			}
-			trxContext.Delay = common.Microseconds(trx.Trx.DelaySec)
+			trxContext.Delay = common.Seconds(int64(trx.Trx.DelaySec))
 			checkTime := func() {}
 			set := treeset.NewWith(types.PermissionLevelType, types.ComparePermissionLevel)
 			if !c.SkipAuthCheck() && !trx.Implicit {
@@ -932,7 +931,7 @@ func (c *Controller) applyOnerror(gtrx *entity.GeneratedTransaction, deadline co
 	etrx.SetReferenceBlock(&blockId)
 
 	trxContext := NewTransactionContext(c, &etrx, etrx.ID(), start)
-	trxContext.deadline = deadline
+	trxContext.Deadline = deadline
 	trxContext.ExplicitBilledCpuTime = explicitBilledCpuTime
 	trxContext.BilledCpuTimeUs = int64(billedCpuTimeUs)
 	trace := trxContext.Trace
@@ -1150,7 +1149,7 @@ func (c *Controller) PushBlock(b *types.SignedBlock, s types.BlockStatus) {
 	Try(func() {
 		EosAssert(b != nil, &BlockValidateException{}, "trying to push empty block")
 		EosAssert(s != types.Incomplete, &BlockLogException{}, "invalid block status for a completed block")
-		//c.PreAcceptedBlock.Emit(b)
+		c.PreAcceptedBlock.Emit(b)
 		//TODO emit(self.pre_accepted_block, b )
 		trust := !c.Config.ForceAllChecks && (s == types.Irreversible || s == types.Validated)
 
@@ -1158,7 +1157,7 @@ func (c *Controller) PushBlock(b *types.SignedBlock, s types.BlockStatus) {
 		if c.Config.TrustedProducers.Contains(b.Producer) {
 			c.TrustedProducerLightValidation = true
 		}
-		//TODO c.AcceptedBlockHeader.Emit(newHeaderState)
+		c.AcceptedBlockHeader.Emit(newHeaderState)
 		if c.ReadMode != IRREVERSIBLE {
 			c.maybeSwitchForks(s)
 		}
@@ -1217,16 +1216,17 @@ func (c *Controller) maybeSwitchForks(s types.BlockStatus) {
 			}).Catch(func(e Exception) {
 				except = e
 			}).End()
+
 			if except != nil {
 				log.Error("exception thrown while switching forks :%s", except.DetailMessage())
 				c.ForkDB.SetValidity(itr, false)
 				// pop all blocks from the bad fork
 				// ritr base is a forward itr to the last block successfully applied
-				for j := i; j < len(branches.first); j++ {
+				for j := i; j >= 0; j-- {
 					c.ForkDB.MarkInCurrentChain(branches.first[j], false)
 					c.PopBlock()
 				}
-				EosAssert(c.HeadBlockId() == branches.second[len(branches.second)-1].Header.Previous, &ForkDatabaseException{}, "loss of sync between fork_db and chainbase during fork switch reversal")
+				EosAssert(c.HeadBlockId() == branches.second[length].Header.Previous, &ForkDatabaseException{}, "loss of sync between fork_db and chainbase during fork switch reversal")
 				// re-apply good blocks
 				l := len(branches.second) - 1
 				for end := l; end >= 0; end-- {

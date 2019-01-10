@@ -580,7 +580,7 @@ func (t *TransactionContext) scheduleTransaction() {
 	//gto.SenderId = transactionIdToSenderId(gto.TrxId)
 	gto.DelayUntil = gto.Published + common.TimePoint(t.Delay)
 	gto.Expiration = gto.DelayUntil + common.TimePoint(common.Seconds(int64(t.Control.GetGlobalProperties().Configuration.DeferredTrxExpirationWindow)))
-	trxSize = 0 //gto.set(t.Trx) //TODO
+	trxSize = gto.Set(&t.Trx.Transaction) //TODO
 	t.Control.DB.Insert(&gto)
 
 	t.AddRamUsage(gto.Payer, int64(common.BillableSizeV("generated_transaction_object")+uint64(trxSize)))

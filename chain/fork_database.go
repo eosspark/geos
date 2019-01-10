@@ -318,19 +318,20 @@ func (f *ForkDatabase) SetBftIrreversible(id common.BlockIdType) {
 			pitr := pidx.LowerBound(i)
 			epitr := pidx.UpperBound(i)
 			for pitr != epitr {
-				f.Index.Modify(pitr.Value(), func(bsp *types.BlockState) {
+				itr := pitr
+				pitr.Next()
+				f.Index.Modify(itr.Value(), func(bsp *types.BlockState) {
 					if bsp.BftIrreversibleBlocknum < blockNum {
 						bsp.BftIrreversibleBlocknum = blockNum
 						updated = append(updated, bsp.BlockId)
 					}
 				})
-				pitr.Next()
 			}
 		}
 		return updated
 	}
 	queue := []common.BlockIdType{id}
 	for len(queue) > 0 {
-		update(queue)
+		queue = update(queue)
 	}
 }
