@@ -3,7 +3,6 @@ package wasmgo
 import (
 	"bytes"
 	"errors"
-	"fmt"
 	"github.com/eosspark/eos-go/common/eos_math"
 	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/rlp"
@@ -29,7 +28,7 @@ const (
 	// Assert(MaximumLinearMemory%WasmPageSize == 0, "MaximumLinearMemory must be mulitple of wasm page size")
 	// Assert(MaximumMutableGlobals%4 == 0, "MaximumMutableGlobals must be mulitple of 4")
 	// Assert(MaximumTableElements*8%4096 == 0, "maximum_table_elements*8 must be mulitple of 4096")
-	// Assert(MaximumLinearMemoryInit%MaximumCodeSize == 0, "MaximumLinearMemoryInit must be mulitple of wasm page size")
+	// Assert(MaximumLinearMemoryInit%WasmPageSize == 0, "MaximumLinearMemoryInit must be mulitple of wasm page size")
 	// Assert(MaximumFuncLocalBytes%8 == 0, "MaximumFuncLocalBytes must be mulitple of 8")
 	// Assert(MaximumFuncLocalBytes > 32, "MaximumFuncLocalBytes must be greater than 32")
 )
@@ -259,8 +258,8 @@ func NewWasmGo() *WasmGo {
 
 	wasmGo.ilog = log.New("wasmgo")
 	logHandler := log.StreamHandler(os.Stdout, log.TerminalFormat(true))
-	wasmGo.ilog.SetHandler(log.LvlFilterHandler(log.LvlDebug, logHandler))
-	//wasmGo.ilog.SetHandler(log.LvlFilterHandler(log.LvlInfo, logHandler))
+	//wasmGo.ilog.SetHandler(log.LvlFilterHandler(log.LvlDebug, logHandler))
+	wasmGo.ilog.SetHandler(log.LvlFilterHandler(log.LvlInfo, logHandler))
 	return wasmGo
 }
 
@@ -303,6 +302,11 @@ func (w *WasmGo) Apply(code_id *crypto.Sha256, code []byte, context EnvContext) 
 		context.ResumeBillingTimer()
 	}
 
+	err := vm.ExecStart()
+	if err != nil {
+		w.ilog.Error("err=%v", err)
+	}
+
 	e, _ := vm.module.Export.Entries["apply"]
 	i := int64(e.Index)
 
@@ -313,16 +317,17 @@ func (w *WasmGo) Apply(code_id *crypto.Sha256, code []byte, context EnvContext) 
 
 	o, err := vm.ExecCode(i, args[0], args[1], args[2])
 	if err != nil {
-		fmt.Printf("\n")
 		w.ilog.Error("err=%v", err)
 	}
 	//if len(ftype.ReturnTypes) == 0 {
 	//	fmt.Printf("\n")
 	//}
 	if o != nil {
-		//fmt.Printf("%[1]v (%[1]T)\n", o)
 		w.ilog.Error("%[1]v (%[1]T)\n", o)
 	}
+
+	vm.ClearMemory()
+	//w.vmCache[*code_id] = vm
 }
 
 func (w *WasmGo) Register(name string, handler func(*VM)) bool {

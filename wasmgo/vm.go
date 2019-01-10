@@ -85,16 +85,16 @@ func NewVM(module *wasm.Module, wasmGo *WasmGo) (*VM, error) {
 
 	vm.WasmGo = wasmGo
 
-	if module.Memory != nil && len(module.Memory.Entries) != 0 {
-		if len(module.Memory.Entries) > 1 {
-			return nil, ErrMultipleLinearMemories
-		}
-		vm.memory = make([]byte, uint(module.Memory.Entries[0].Limits.Initial)*wasmPageSize)
-		copy(vm.memory, module.LinearMemoryIndexSpace[0])
-	}
+	// if module.Memory != nil && len(module.Memory.Entries) != 0 {
+	// 	if len(module.Memory.Entries) > 1 {
+	// 		return nil, ErrMultipleLinearMemories
+	// 	}
+	// 	vm.memory = make([]byte, uint(module.Memory.Entries[0].Limits.Initial)*wasmPageSize)
+	// 	copy(vm.memory, module.LinearMemoryIndexSpace[0])
+	// }
 
 	vm.funcs = make([]function, len(module.FunctionIndexSpace))
-	vm.globals = make([]uint64, len(module.GlobalIndexSpace))
+	//vm.globals = make([]uint64, len(module.GlobalIndexSpace))
 	vm.newFuncTable()
 	vm.module = module
 
@@ -145,10 +145,47 @@ func NewVM(module *wasm.Module, wasmGo *WasmGo) (*VM, error) {
 		}
 	}
 
-	for i, global := range module.GlobalIndexSpace {
-		val, err := module.ExecInitExpr(global.Init)
+	// for i, global := range module.GlobalIndexSpace {
+	// 	val, err := module.ExecInitExpr(global.Init)
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
+	// 	switch v := val.(type) {
+	// 	case int32:
+	// 		vm.globals[i] = uint64(v)
+	// 	case int64:
+	// 		vm.globals[i] = uint64(v)
+	// 	case float32:
+	// 		vm.globals[i] = uint64(math.Float32bits(v))
+	// 	case float64:
+	// 		vm.globals[i] = uint64(math.Float64bits(v))
+	// 	}
+	// }
+
+	// if module.Start != nil {
+	// 	_, err := vm.ExecCode(int64(module.Start.Index))
+	// 	if err != nil {
+	// 		return nil, err
+	// 	}
+	// }
+
+	return &vm, nil
+}
+
+func (vm *VM) ExecStart() error {
+
+	if vm.module.Memory != nil && len(vm.module.Memory.Entries) != 0 {
+		if len(vm.module.Memory.Entries) > 1 {
+			return ErrMultipleLinearMemories
+		}
+		vm.memory = make([]byte, uint(vm.module.Memory.Entries[0].Limits.Initial)*wasmPageSize)
+		copy(vm.memory, vm.module.LinearMemoryIndexSpace[0])
+	}
+	vm.globals = make([]uint64, len(vm.module.GlobalIndexSpace))
+	for i, global := range vm.module.GlobalIndexSpace {
+		val, err := vm.module.ExecInitExpr(global.Init)
 		if err != nil {
-			return nil, err
+			return err
 		}
 		switch v := val.(type) {
 		case int32:
@@ -162,14 +199,19 @@ func NewVM(module *wasm.Module, wasmGo *WasmGo) (*VM, error) {
 		}
 	}
 
-	if module.Start != nil {
-		_, err := vm.ExecCode(int64(module.Start.Index))
+	if vm.module.Start != nil {
+		_, err := vm.ExecCode(int64(vm.module.Start.Index))
 		if err != nil {
-			return nil, err
+			return err
 		}
 	}
 
-	return &vm, nil
+	return nil
+
+}
+
+func (vm *VM) ClearMemory() {
+	vm.memory = nil //make([]byte, uint(vm.module.Memory.Entries[0].Limits.Initial)*wasmPageSize)
 }
 
 // Memory returns the linear memory space for the VM.
