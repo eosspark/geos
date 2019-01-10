@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	. "github.com/eosspark/eos-go/exception/try"
 	"strings"
 
 	"github.com/eosspark/eos-go/crypto/btcsuite/btcutil/base58"
@@ -58,9 +59,7 @@ func NewSignatureFromData(data []byte) (Signature, error) {
 
 func MustNewSignatureFromData(data []byte) Signature {
 	sig, err := NewSignatureFromData(data)
-	if err != nil {
-		panic(err.Error())
-	}
+	Throw(err)
 	return sig
 }
 

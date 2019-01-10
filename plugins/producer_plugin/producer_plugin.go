@@ -441,7 +441,7 @@ func makeKeySignatureProvider(key *ecc.PrivateKey) signatureProviderType {
 	signFunc := func(digest crypto.Sha256) *ecc.Signature {
 		sign, err := key.Sign(digest.Bytes())
 		if err != nil {
-			panic(err)
+			Throw(err)
 		}
 		return &sign
 	}

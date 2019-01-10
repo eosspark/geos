@@ -161,18 +161,13 @@ func (Iterator *IteratorAccountNameUint32Map) Key() common.AccountName {
 	return Iterator.Iterator.Key().(common.AccountName)
 }
 
-func (m *AccountNameUint32Map) LowerBound(key common.AccountName) *IteratorAccountNameUint32Map {
-	if itr := m.Tree.LowerBound(key); itr != m.Tree.End() {
-		return &IteratorAccountNameUint32Map{itr}
-	}
-	return nil
+func (m *AccountNameUint32Map) LowerBound(key common.AccountName) IteratorAccountNameUint32Map {
+	return IteratorAccountNameUint32Map{m.Tree.LowerBound(key)}
 }
 
-func (m *AccountNameUint32Map) UpperBound(key common.AccountName) *IteratorAccountNameUint32Map {
-	if itr := m.Tree.UpperBound(key); itr != m.Tree.End() {
-		return &IteratorAccountNameUint32Map{itr}
-	}
-	return nil
+func (m *AccountNameUint32Map) UpperBound(key common.AccountName) IteratorAccountNameUint32Map {
+	return IteratorAccountNameUint32Map{m.Tree.UpperBound(key)}
+
 }
 
 // ToJSON outputs the JSON representation of the map.

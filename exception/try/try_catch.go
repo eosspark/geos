@@ -2,7 +2,7 @@ package try
 
 import (
 	. "github.com/eosspark/eos-go/exception"
-	"github.com/eosspark/eos-go/log"
+	. "github.com/eosspark/eos-go/log"
 	"reflect"
 )
 
@@ -14,7 +14,7 @@ func Try(f func()) (r *CatchOrFinally) {
 
 			switch et := e.(type) {
 			case error:
-				r = &CatchOrFinally{NewStdException(et, log.FcLogMessage(log.LvlError, et.Error()))}
+				r = &CatchOrFinally{&StdException{Elog: Messages{LogMessage(LvlError, et.Error(), nil)}}}
 			default:
 				r = &CatchOrFinally{e}
 			}
@@ -26,14 +26,15 @@ func Try(f func()) (r *CatchOrFinally) {
 }
 
 func Throw(e interface{}) {
-	if e != nil {
-		panic(e)
-	}
-}
-
-func ThrowIf(expr bool, e interface{}) {
-	if expr {
-		panic(e)
+	switch et := e.(type) {
+	case nil:
+		return
+	case Exception:
+		panic(et)
+	case error:
+		panic(&StdException{Elog: Messages{LogMessage(LvlError, et.Error(), nil, 2)}})
+	default:
+		panic(&UnHandledException{Elog: Messages{LogMessage(LvlError, "throw: %v", []interface{}{et}, 2)}})
 	}
 }
 
@@ -296,7 +297,7 @@ func (c *CatchOrFinally) CatchAndCall(Next func(interface{})) *CatchOrFinally {
 		Next(err)
 
 	}).Catch(func(interface{}) {
-		e := &UnHandledException{Elog: log.Messages{log.FcLogMessage(log.LvlWarn, "rethrow")}}
+		e := &UnHandledException{Elog: Messages{LogMessage(LvlWarn, "rethrow", nil)}}
 		Next(e)
 	})
 }

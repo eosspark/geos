@@ -443,6 +443,7 @@ func (c *Controller) startBlock(when types.BlockTimeStamp, confirmBlockCount uin
 	c.Pending.ProducerBlockId = *producerBlockId
 	c.Pending.PendingBlockState = types.NewBlockState2(&c.Head.BlockHeaderState, when) // promotes pending schedule (if any) to active
 	c.Pending.PendingBlockState.InCurrentChain = true
+
 	c.Pending.PendingBlockState.SetConfirmed(confirmBlockCount)
 	wasPendingPromoted := c.Pending.PendingBlockState.MaybePromotePending()
 

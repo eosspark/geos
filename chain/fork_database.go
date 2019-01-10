@@ -32,7 +32,7 @@ func NewForkDatabase(dataDir string) *ForkDatabase {
 	forkDbDat := f.dataDir + common.DefaultConfig.ForkDbName
 	if common.FileExist(forkDbDat) {
 		content, err := ioutil.ReadFile(forkDbDat)
-		ThrowIf(err != nil, err)
+		Throw(err)
 
 		decode := rlp.NewDecoder(content)
 		var size uint
@@ -49,7 +49,7 @@ func NewForkDatabase(dataDir string) *ForkDatabase {
 
 		f.Head = f.GetBlock(&headId)
 		err = os.Remove(forkDbDat)
-		ThrowIf(err != nil, err)
+		Throw(err)
 	}
 
 	return f
@@ -63,7 +63,7 @@ func (f *ForkDatabase) Close() {
 	//TODO pack BlockState to forkDbDat
 	/*forkDbDat := f.dataDir + common.DefaultConfig.ForkDbName
 	file, err := os.OpenFile(forkDbDat, os.O_RDWR|os.O_CREATE|os.O_TRUNC, os.ModeAppend)
-	ThrowIf(err != nil, err)
+	Throw(err)
 
 	out := rlp.NewEncoder(file)
 

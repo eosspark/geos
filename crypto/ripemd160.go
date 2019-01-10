@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"github.com/eosspark/eos-go/crypto/rlp"
+	. "github.com/eosspark/eos-go/exception/try"
 	"golang.org/x/crypto/ripemd160"
 	"hash"
 )
@@ -24,9 +25,7 @@ func NewRipemd160Nil() *Ripemd160 {
 }
 func NewRipemd160String(s string) *Ripemd160 {
 	bytes, err := hex.DecodeString(s)
-	if err != nil {
-		panic(err)
-	}
+	Throw(err)
 
 	result := new(Ripemd160)
 	for i := range result.Hash {
@@ -58,9 +57,7 @@ func (h Ripemd160) String() string {
 
 func HashRipemd160(t interface{}) Ripemd160 {
 	cereal, err := rlp.EncodeToBytes(t)
-	if err != nil {
-		panic(err)
-	}
+	Throw(err)
 	h := ripemd160.New()
 	_, _ = h.Write(cereal)
 	hashed := h.Sum(nil)

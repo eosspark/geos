@@ -14,77 +14,72 @@ func Assert(expr bool, message string) {
 	}
 }
 
+const (
+	logMessageSkip         = 2
+	fcRethrowExceptionSkip = 3
+)
+
 func EosAssert(expr bool, exception Exception, format string, args ...interface{}) {
 	if !expr {
-		FcThrowException(exception, format, args...)
+		exception.AppendLog(LogMessage(LvlError, format, args, logMessageSkip))
+		panic(exception)
 	}
 }
 
 func FcAssert(test bool, args ...interface{}) {
 	if !test {
-		FcThrowException(&AssertException{}, "assert:", args...)
+		format, arg := FcFormatArgParams(args)
+		panic(&AssertException{Elog: []Message{LogMessage(LvlError, "assert:"+format, arg, logMessageSkip)}})
 	}
 }
 
 func EosThrow(exception Exception, format string, args ...interface{}) {
-	exception.AppendLog(FcLogMessage(LvlError, format, args...))
+	exception.AppendLog(LogMessage(LvlError, format, args, logMessageSkip))
 	Throw(exception)
 }
 
 func FcThrow(format string, args ...interface{}) {
-	Throw(&FcException{Elog: []Message{FcLogMessage(LvlError, format, args...)}})
-}
-
-func FcCaptureAndThrow(exception Exception, format string, args ...interface{}) {
-	exception.AppendLog(FcLogMessage(LvlError, format, args...))
-	Throw(exception)
-}
-
-func FcThrowException(exception Exception, format string, args ...interface{}) {
-	exception.AppendLog(FcLogMessage(LvlError, format, args...))
-	Throw(exception)
+	Throw(&FcException{Elog: []Message{LogMessage(LvlError, format, args, logMessageSkip)}})
 }
 
 func FcRethrowException(er Exception, logLevel Lvl, format string, args ...interface{}) {
-	er.AppendLog(FcLogMessage(logLevel, format, args...))
+	fcRethrowException(er, logLevel, format, args, fcRethrowExceptionSkip)
+}
+
+func fcRethrowException(er Exception, logLevel Lvl, format string, args []interface{}, skip int) {
+	er.AppendLog(LogMessage(logLevel, format, args, skip))
 	Throw(er)
 }
+
+const (
+	catchAndLogMessageSkip         = 4
+	catchAndfcRethrowExceptionSkip = 5
+)
 
 //noinspection GoStructInitializationWithoutFieldNames
 func (c *CatchOrFinally) EosRethrowExceptions(exception Exception, format string, args ...interface{}) *CatchOrFinally {
 	return c.Catch(func(e ChainExceptions) {
-		FcRethrowException(e, LvlWarn, format, args...)
+		fcRethrowException(e, LvlWarn, format, args, catchAndfcRethrowExceptionSkip)
 
 	}).Catch(func(e Exception) {
-		exception.AppendLog(FcLogMessage(LvlWarn, format, args...))
+		exception.AppendLog(LogMessage(LvlWarn, format, args, catchAndLogMessageSkip))
 		for _, log := range e.GetLog() {
 			exception.AppendLog(log)
 		}
 		Throw(exception)
 
-		//replaced by StdException
-		//}).Catch(func(e error) {
-		//	exception.AppendLog(FcLogMessage(LvlWarn, fmt.Sprintf("%s (%s)", format, e.Error()), args...))
-		//	Throw(exception)
-
 	}).Catch(func(interface{}) {
-		Throw(&UnHandledException{Elog: []Message{FcLogMessage(LvlWarn, format, args...)}})
+		Throw(&UnHandledException{Elog: []Message{LogMessage(LvlWarn, format, args, 4)}})
 	}).End()
 }
 
 func (c *CatchOrFinally) FcLogAndRethrow() *CatchOrFinally {
 	return c.Catch(func(er Exception) {
 		Warn(er.DetailMessage())
-		FcRethrowException(er, LvlWarn, "rethrow")
-
-		//replaced by StdException
-		//}).Catch(func(e error) {
-		//	fce := &FcException{Elog: []Message{FcLogMessage(LvlWarn, "rethrow: %s", e.Error())}}
-		//	Warn(fce.DetailMessage())
-		//	Throw(fce)
+		fcRethrowException(er, LvlWarn, "rethrow", nil, catchAndfcRethrowExceptionSkip)
 
 	}).Catch(func(a interface{}) {
-		e := &UnHandledException{Elog: []Message{FcLogMessage(LvlWarn, "rethrow %v", a)}}
+		e := &UnHandledException{Elog: []Message{LogMessage(LvlWarn, "rethrow %v", []interface{}{a}, catchAndLogMessageSkip)}}
 		Warn(e.DetailMessage())
 		Throw(e)
 	}).End()
@@ -94,18 +89,11 @@ func (c *CatchOrFinally) FcCaptureLogAndRethrow(args ...interface{}) *CatchOrFin
 	return c.Catch(func(er Exception) {
 		Warn(er.DetailMessage())
 		format, arg := FcFormatArgParams(args)
-		FcRethrowException(er, LvlWarn, "rethrow "+format, arg...)
-
-		//replaced by StdException
-		//}).Catch(func(e error) {
-		//	format, arg := FcFormatArgParams(args)
-		//	fce := &FcException{Elog: []Message{FcLogMessage(LvlWarn, fmt.Sprintf("rethrow %s %s", e.Error(), format), arg...)}}
-		//	Warn(fce.DetailMessage())
-		//	Throw(fce)
+		fcRethrowException(er, LvlWarn, "rethrow "+format, arg, catchAndfcRethrowExceptionSkip)
 
 	}).Catch(func(interface{}) {
 		format, arg := FcFormatArgParams(args)
-		e := &UnHandledException{Elog: []Message{FcLogMessage(LvlWarn, "rethrow "+format, arg...)}}
+		e := &UnHandledException{Elog: []Message{LogMessage(LvlWarn, "rethrow "+format, arg, catchAndLogMessageSkip)}}
 		Warn(e.DetailMessage())
 		Throw(e)
 	}).End()
@@ -115,15 +103,9 @@ func (c *CatchOrFinally) FcCaptureAndLog(args ...interface{}) *CatchOrFinally {
 	return c.Catch(func(er Exception) {
 		Warn(er.DetailMessage())
 
-		//replaced by StdException
-		//}).Catch(func(e error) {
-		//	format, arg := FcFormatArgParams(args)
-		//	fce := &FcException{Elog: []Message{FcLogMessage(LvlWarn, fmt.Sprintf("rethrow %s: %s", e.Error(), format), arg...)}}
-		//	Warn(fce.DetailMessage())
-
 	}).Catch(func(a interface{}) {
 		format, arg := FcFormatArgParams(args)
-		e := &UnHandledException{Elog: []Message{FcLogMessage(LvlWarn, "rethrow "+format, arg...)}}
+		e := &UnHandledException{Elog: []Message{LogMessage(LvlWarn, "rethrow "+format, arg, catchAndLogMessageSkip)}}
 		Warn(e.DetailMessage())
 	}).End()
 }
@@ -132,49 +114,31 @@ func (c *CatchOrFinally) FcLogAndDrop(args ...interface{}) *CatchOrFinally {
 	return c.Catch(func(er Exception) {
 		Warn(er.DetailMessage())
 
-		//replaced by StdException
-		//}).Catch(func(e error) {
-		//	format, arg := FcFormatArgParams(args)
-		//	fce := &FcException{Elog: []Message{FcLogMessage(LvlWarn, fmt.Sprintf("rethrow %s: %s", e.Error(), format), arg...)}}
-		//	Warn(fce.DetailMessage())
-
 	}).Catch(func(a interface{}) {
 		format, arg := FcFormatArgParams(args)
-		e := &UnHandledException{Elog: []Message{FcLogMessage(LvlWarn, "rethrow "+format, arg...)}}
+		e := &UnHandledException{Elog: []Message{LogMessage(LvlWarn, "rethrow "+format, arg, catchAndLogMessageSkip)}}
 		Warn(e.DetailMessage())
 	}).End()
 }
 
 func (c *CatchOrFinally) FcRethrowExceptions(logLevel Lvl, format string, args ...interface{}) *CatchOrFinally {
 	return c.Catch(func(er Exception) {
-		FcRethrowException(er, logLevel, format, args...)
-
-		//replaced by StdException
-		//}).Catch(func(e error) {
-		//	fce := &FcException{Elog: []Message{FcLogMessage(logLevel, fmt.Sprintf("%s: %s", e.Error(), format), args...)}}
-		//	Throw(fce)
+		fcRethrowException(er, logLevel, format, args, catchAndfcRethrowExceptionSkip)
 
 	}).Catch(func(interface{}) {
-		e := &UnHandledException{Elog: []Message{FcLogMessage(logLevel, format, args...)}}
+		e := &UnHandledException{Elog: []Message{LogMessage(logLevel, format, args, catchAndLogMessageSkip)}}
 		Throw(e)
 	}).End()
 }
 
-//noinspection ALL
 func (c *CatchOrFinally) FcCaptureAndRethrow(args ...interface{}) *CatchOrFinally {
 	return c.Catch(func(er Exception) {
 		format, arg := FcFormatArgParams(args)
-		FcRethrowException(er, LvlWarn, format, arg...)
-
-		//replaced by StdException
-		//}).Catch(func(e error) {
-		//	format, arg := FcFormatArgParams(args)
-		//	fce := &FcException{Elog: []Message{FcLogMessage(LvlWarn, fmt.Sprintf("%s: %s", e.Error(), format), arg...)}}
-		//	Throw(fce)
+		fcRethrowException(er, LvlWarn, format, arg, catchAndfcRethrowExceptionSkip)
 
 	}).Catch(func(interface{}) {
 		format, arg := FcFormatArgParams(args)
-		e := &UnHandledException{Elog: []Message{FcLogMessage(LvlWarn, format, arg...)}}
+		e := &UnHandledException{Elog: []Message{LogMessage(LvlWarn, format, arg, catchAndLogMessageSkip)}}
 		Throw(e)
 	}).End()
 }

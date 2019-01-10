@@ -212,7 +212,8 @@ func (vm *VM) currentMemory() {
 // 	vm.memory = append(vm.memory, make([]byte, n*wasmPageSize)...)
 // 	vm.pushInt32(int32(curLen))
 // }
-const PagesLen = 16
+//const PagesLen = 16
+const PagesLen = MaximumLinearMemory / WasmPageSize
 
 func (vm *VM) growMemory() {
 	_ = vm.fetchInt8() // reserved (https://github.com/WebAssembly/design/blob/27ac254c854994103c24834a994be16f74f54186/BinaryEncoding.md#memory-related-operators-described-here)

@@ -16,11 +16,11 @@ import (
 var StdExceptionName = reflect.TypeOf(StdException{}).Name()
 
 type StdException struct {
-	error
+	Exception
 	Elog log.Messages
 }
 
-func NewStdException(parent error, message log.Message) *StdException {
+func NewStdException(parent Exception, message log.Message) *StdException {
 	return &StdException{parent, log.Messages{message}}
 }
 
@@ -64,8 +64,7 @@ func (e StdException) DetailMessage() string {
 	for _, l := range e.Elog {
 		buffer.WriteString("[")
 		buffer.WriteString(l.GetMessage())
-		buffer.WriteString("]")
-		buffer.WriteString("\n")
+		buffer.WriteString("] ")
 		buffer.WriteString(l.GetContext().String())
 		buffer.WriteString("\n")
 	}

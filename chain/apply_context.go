@@ -1247,7 +1247,9 @@ func (a *ApplyContext) TaposBlockPrefix() int           { return int(a.TrxContex
 
 //context system api
 func (a *ApplyContext) CheckTime() {
-	a.TrxContext.CheckTime()
+	if a.TrxContext != nil {
+		a.TrxContext.CheckTime()
+	}
 }
 
 // func (a *ApplyContext) CurrentTime() int64 {
@@ -1402,15 +1404,17 @@ func (a *ApplyContext) ValidateRamUsageInsert(account common.AccountName) {
 }
 
 func (a *ApplyContext) PauseBillingTimer() {
-	a.TrxContext.PauseBillingTimer()
-
+	if a.TrxContext != nil {
+		a.TrxContext.PauseBillingTimer()
+	}
 	// now := common.Now()
 	// a.BilledTime = now - a.PseudoStart
 }
 
 func (a *ApplyContext) ResumeBillingTimer() {
-	a.TrxContext.ResumeBillingTimer()
-
+	if a.TrxContext != nil {
+		a.TrxContext.ResumeBillingTimer()
+	}
 	// now := common.Now()
 	// a.PseudoStart = now - a.BilledTime
 

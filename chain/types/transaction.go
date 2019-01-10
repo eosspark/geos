@@ -367,7 +367,6 @@ func (p *PackedTransaction) GetContextFreeData() []common.HexBytes {
 			out = zlibDecompressContextFreeData(&p.PackedContextFreeData)
 		default:
 			EosThrow(&UnknownTransactionCompression{}, "Unknown transaction compression algorithm")
-			panic("Unknown transaction compression algorithm")
 		}
 	}).FcCaptureAndRethrow(p.Compression, p.PackedContextFreeData).End()
 	return out
@@ -457,9 +456,7 @@ func unpackTransaction(data common.HexBytes) *Transaction {
 func zlibDecompress(data *common.HexBytes) common.HexBytes { //TODO
 	in := bytes.NewReader(*data)
 	r, err := zlib.NewReader(in)
-	if err != nil {
-		panic(err)
-	}
+	Throw(err)
 	result, _ := ioutil.ReadAll(r)
 	r.Close()
 	return result
@@ -508,9 +505,7 @@ func zlibCompressTransaction(t *Transaction) []byte {
 func zlibCompress(data []byte) []byte {
 	var in bytes.Buffer
 	w, err := zlib.NewWriterLevel(&in, zlib.BestCompression)
-	if err != nil {
-		panic(err)
-	}
+	Throw(err)
 	w.Write(data)
 	w.Close()
 	return in.Bytes()
