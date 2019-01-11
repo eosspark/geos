@@ -15,7 +15,8 @@ const (
 	TransactionStatusSoftFail                          ///< objectively failed (not executed), error handler executed
 	TransactionStatusHardFail                          ///< objectively failed and error handler objectively failed thus no state change
 	TransactionStatusDelayed                           ///< transaction delayed
-	TransactionStatusUnknown  = TransactionStatus(255)
+	TransactionStatusExpired
+	TransactionStatusUnknown = TransactionStatus(255)
 )
 
 type BlockStatus uint8
