@@ -20,17 +20,6 @@ import (
 	"os"
 )
 
-//var readycontroller chan bool //TODO test code
-
-/*var PreAcceptedBlock chan *types.SignedBlock
-var AcceptedBlockdHeader chan *types.BlockState
-var AcceptedBlock chan *types.BlockState
-var IrreversibleBlock chan *types.BlockState
-var AcceptedTransaction chan *types.TransactionMetadata
-var AppliedTransaction chan *types.TransactionTrace
-var AcceptedConfirmation chan *types.HeaderConfirmation
-var BadAlloc chan *int*/
-
 type DBReadMode int8
 
 const (
@@ -524,6 +513,9 @@ func (c *Controller) pushTransaction(trx *types.TransactionMetadata, deadLine co
 
 	Try(func() {
 		trxContext := *NewTransactionContext(c, trx.Trx, trx.ID, common.Now())
+		defer func() {
+			trxContext.Undo()
+		}()
 		if c.SubjectiveCupLeeway != 0 {
 			if c.Pending.BlockStatus == types.BlockStatus(types.Incomplete) {
 				trxContext.Leeway = c.SubjectiveCupLeeway
@@ -581,19 +573,15 @@ func (c *Controller) pushTransaction(trx *types.TransactionMetadata, deadLine co
 				r.NetUsageWords = uint32(trace.NetUsage / 8)
 				trace.Receipt = r
 			}
-			//fc::move_append(pending->_actions, move(trx_context.executed))
 			c.Pending.Actions = append(c.Pending.Actions, trxContext.Executed...)
 			if !trx.Accepted {
 				trx.Accepted = true
-				//emit( c.accepted_transaction, trx)
+				c.AcceptedTransaction.Emit(trx)
 			}
-
-			//emit(c.applied_transaction, trace)
+			c.AppliedTransaction.Emit(trace)
 			if c.ReadMode != SPECULATIVE && c.Pending.BlockStatus == types.Incomplete {
 				trxContext.Undo()
-
 			} else {
-				//restore.cancel()
 				trxContext.Squash()
 			}
 
@@ -612,9 +600,8 @@ func (c *Controller) pushTransaction(trx *types.TransactionMetadata, deadLine co
 		if !failureIsSubjective(trace.Except) {
 			delete(c.UnappliedTransactions, crypto.Sha256(trx.SignedID))
 		}
-		/*emit( c.accepted_transaction, trx )
-		emit( c.applied_transaction, trace )*/
-		trxContext.Undo()
+		c.AcceptedTransaction.Emit(trx)
+		c.AppliedTransaction.Emit(trace)
 		return
 	}).FcCaptureAndRethrow("trace:%v", trace).End()
 	return trace
@@ -782,6 +769,7 @@ func (c *Controller) pushScheduledTransactionByObject(gto *entity.GeneratedTrans
 	if !c.SkipDbSessions() {
 		c.UndoSession = *c.DB.StartSession()
 	}
+	defer func() { c.UndoSession.Undo() }()
 	gtrx := entity.GeneratedTransactions(gto)
 	c.RemoveScheduledTransaction(gto)
 	EosAssert(gtrx.DelayUntil <= c.PendingBlockTime(), &TransactionException{}, "this transaction isn't ready,gtrx.DelayUntil:%s,PendingBlockTime:%s", gtrx.DelayUntil, c.PendingBlockTime())
@@ -793,31 +781,31 @@ func (c *Controller) pushScheduledTransactionByObject(gto *entity.GeneratedTrans
 		log.Error("PushScheduleTransaction1 DecodeBytes is error :%s", err)
 	}
 
-	trx := types.NewTransactionMetadataBySignedTrx(&dtrx, 0) //TODO emit
+	trx := types.NewTransactionMetadataBySignedTrx(&dtrx, 0)
 	trx.Accepted = true
 	trx.Scheduled = true
 	trace := &types.TransactionTrace{}
 	if gtrx.Expiration < c.PendingBlockTime() {
+
 		trace.ID = gtrx.TrxId
 		trace.BlockNum = c.PendingBlockState().BlockNum
 		trace.BlockTime = types.NewBlockTimeStamp(c.PendingBlockTime())
 		trace.ProducerBlockId = c.PendingProducerBlockId()
 		trace.Scheduled = true
+
 		trace.Receipt = (*c.pushReceipt(&gtrx.TrxId, types.TransactionStatusExecuted, uint64(billedCpuTimeUs), 0)).TransactionReceiptHeader
-		//TODO
-		/*emit( self.accepted_transaction, trx );
-		emit( self.applied_transaction, trace );*/
+		c.AcceptedTransaction.Emit(trx)
+		c.AppliedTransaction.Emit(trace)
 		c.UndoSession.Squash()
 		return trace
 	}
 
-	defer func(b bool) {
-		c.InTrxRequiringChecks = b
-	}(c.InTrxRequiringChecks)
+	defer func(b bool) { c.InTrxRequiringChecks = b }(c.InTrxRequiringChecks)
 
 	c.InTrxRequiringChecks = true
 	cpuTimeToBillUs := billedCpuTimeUs
 	trxContext := NewTransactionContext(c, &dtrx, gtrx.TrxId, common.Now())
+	defer func() { trxContext.Undo() }()
 	trxContext.Leeway = common.Milliseconds(0)
 	trxContext.Deadline = deadLine
 	trxContext.ExplicitBilledCpuTime = explicitBilledCpuTime
@@ -828,19 +816,13 @@ func (c *Controller) pushScheduledTransactionByObject(gto *entity.GeneratedTrans
 		trxContext.InitForDeferredTrx(gtrx.Published)
 		trxContext.Exec()
 		trxContext.Finalize()
-		v := false
-		defer func() {
-			if v {
-				log.Info("defer func exec")
-			}
-		}() //TODO
+
 		trace.Receipt = (*c.pushReceipt(gtrx.TrxId, types.TransactionStatusExecuted, uint64(trxContext.BilledCpuTimeUs), trace.NetUsage)).TransactionReceiptHeader
 		c.Pending.Actions = append(c.Pending.Actions, trxContext.Executed...)
-		/*emit( self.accepted_transaction, trx );
-		emit( self.applied_transaction, trace );*/
+		c.AcceptedTransaction.Emit(trx)
+		c.AppliedTransaction.Emit(trace)
 		trxContext.Squash()
 		c.UndoSession.Squash()
-		v = true
 		returning = true
 		//return trace
 	}).Catch(func(ex Exception) {
@@ -853,13 +835,13 @@ func (c *Controller) pushScheduledTransactionByObject(gto *entity.GeneratedTrans
 		return trace
 	}
 	trxContext.Undo()
-	if !failureIsSubjective(trace.Except) && gtrx.Sender != 0 { /*gtrx.Sender != account_name()*/
+	if !failureIsSubjective(trace.Except) && gtrx.Sender != 0 {
 		errorTrace := c.applyOnerror(gtrx, deadLine, trxContext.pseudoStart, &cpuTimeToBillUs, billedCpuTimeUs, explicitBilledCpuTime)
 		errorTrace.FailedDtrxTrace = trace
 		trace = errorTrace
 		if common.Empty(trace.ExceptPtr) {
-			/*emit( self.accepted_transaction, trx );
-			emit( self.applied_transaction, trace );*/
+			c.AcceptedTransaction.Emit(trx)
+			c.AppliedTransaction.Emit(trace)
 			c.UndoSession.Squash()
 			return trace
 		}
@@ -875,10 +857,9 @@ func (c *Controller) pushScheduledTransactionByObject(gto *entity.GeneratedTrans
 
 	if !subjective {
 		// hard failure logic
-
 		if !explicitBilledCpuTime {
 			rl := c.GetMutableResourceLimitsManager()
-			rl.UpdateAccountUsage(&trxContext.BillToAccounts, uint32(types.NewBlockTimeStamp(c.PendingBlockTime())) /*.slot*/)
+			rl.UpdateAccountUsage(&trxContext.BillToAccounts, uint32(types.NewBlockTimeStamp(c.PendingBlockTime())))
 			//accountCpuLimit := 0
 			accountNetLimit, accountCpuLimit, greylistedNet, greylistedCpu := trxContext.MaxBandwidthBilledAccountsCanPay(true)
 
@@ -900,15 +881,13 @@ func (c *Controller) pushScheduledTransactionByObject(gto *entity.GeneratedTrans
 			uint32(types.NewBlockTimeStamp(c.PendingBlockTime()))) // Should never fail
 		receipt := *c.pushReceipt(gtrx.TrxId, types.TransactionStatusHardFail, uint64(cpuTimeToBillUs), 0)
 		trace.Receipt = receipt.TransactionReceiptHeader
-		/*emit( self.accepted_transaction, trx );
-		emit( self.applied_transaction, trace );*/
-
+		c.AcceptedTransaction.Emit(trx)
+		c.AppliedTransaction.Emit(trace)
 		c.UndoSession.Squash()
 	} else {
-		/*emit( self.accepted_transaction, trx );
-		emit( self.applied_transaction, trace );*/
+		c.AcceptedTransaction.Emit(trx)
+		c.AppliedTransaction.Emit(trace)
 	}
-	//}
 	return trace
 }
 
@@ -918,7 +897,6 @@ func (c *Controller) applyOnerror(gtrx *entity.GeneratedTransaction, deadline co
 	etrx := types.SignedTransaction{}
 	action := types.Action{}
 	action.Authorization = []types.PermissionLevel{{gtrx.Sender, common.DefaultConfig.ActiveName}}
-	//action.Data = gtrx.PackedTrx
 
 	onError := NewOnError(gtrx.SenderId, gtrx.PackedTrx)
 	action.Account = onError.GetAccount()
@@ -932,6 +910,7 @@ func (c *Controller) applyOnerror(gtrx *entity.GeneratedTransaction, deadline co
 	etrx.SetReferenceBlock(&blockId)
 
 	trxContext := NewTransactionContext(c, &etrx, etrx.ID(), start)
+	defer func() { trxContext.Undo() }()
 	trxContext.Deadline = deadline
 	trxContext.ExplicitBilledCpuTime = explicitBilledCpuTime
 	trxContext.BilledCpuTimeUs = int64(billedCpuTimeUs)
@@ -940,17 +919,16 @@ func (c *Controller) applyOnerror(gtrx *entity.GeneratedTransaction, deadline co
 	Try(func() {
 		trxContext.InitForImplicitTrx(0) //default
 		trxContext.Published = gtrx.Published
-		//trxContext.Trace.ActionTraces
+
 		at := types.ActionTrace{}
 		trxContext.Trace.ActionTraces = append(trxContext.Trace.ActionTraces, at)
 		tr := trxContext.Trace.ActionTraces[len(trxContext.Trace.ActionTraces)-1]
 		last := etrx.Actions[len(etrx.Actions)-1]
 		trxContext.DispatchAction(&tr, last, gtrx.Sender, false, 0) //default false 0
 		trxContext.Finalize()
-		//defer func() {}() //TODO
+
 		trace.Receipt = c.pushReceipt(gtrx.TrxId, types.TransactionStatusSoftFail, uint64(trxContext.BilledCpuTimeUs), trace.NetUsage).TransactionReceiptHeader
 		trxContext.Squash()
-		//restore.cancel()
 		returning = true
 	}).Catch(func(e Exception) {
 		t := trxContext.UpdateBilledCpuTime(common.Now())
@@ -1095,7 +1073,7 @@ func (c *Controller) applyBlock(b *types.SignedBlock, s types.BlockStatus) {
 		c.FinalizeBlock()
 
 		EosAssert(producerBlockId == c.Pending.PendingBlockState.Header.BlockID(), &BlockValidateException{},
-			"Block ID does not match,producer_block_id:%v", producerBlockId, "validator_block_id:%v", c.Pending.PendingBlockState.Header.BlockID())
+			"Block ID does not match,producer_block_id:%v,validator_block_id:%v", producerBlockId, c.Pending.PendingBlockState.Header.BlockID())
 
 		c.Pending.PendingBlockState.Header.ProducerSignature = b.ProducerSignature
 		c.CommitBlock(false)
@@ -1151,7 +1129,6 @@ func (c *Controller) PushBlock(b *types.SignedBlock, s types.BlockStatus) {
 		EosAssert(b != nil, &BlockValidateException{}, "trying to push empty block")
 		EosAssert(s != types.Incomplete, &BlockLogException{}, "invalid block status for a completed block")
 		c.PreAcceptedBlock.Emit(b)
-		//TODO emit(self.pre_accepted_block, b )
 		trust := !c.Config.ForceAllChecks && (s == types.Irreversible || s == types.Validated)
 
 		newHeaderState := c.ForkDB.AddSignedBlock(b, trust)
@@ -1164,7 +1141,6 @@ func (c *Controller) PushBlock(b *types.SignedBlock, s types.BlockStatus) {
 		}
 		if s == types.Irreversible {
 			c.IrreversibleBlock.Emit(newHeaderState)
-			//emit( self.irreversible_block, new_header_state )
 		}
 	}).FcLogAndRethrow().End()
 
@@ -1173,8 +1149,7 @@ func (c *Controller) PushBlock(b *types.SignedBlock, s types.BlockStatus) {
 func (c *Controller) PushConfirmation(hc *types.HeaderConfirmation) {
 	EosAssert(c.Pending == nil, &BlockValidateException{}, "it is not valid to push a confirmation when there is a pending block")
 	c.ForkDB.AddConfirmation(hc)
-	//c.AcceptedConfirmation.Emit(hc)
-	//emit( c.accepted_confirmation, hc )
+	c.AcceptedConfirmation.Emit(hc)
 	if c.ReadMode != IRREVERSIBLE {
 		c.maybeSwitchForks(types.Complete)
 	}
@@ -1223,7 +1198,7 @@ func (c *Controller) maybeSwitchForks(s types.BlockStatus) {
 				c.ForkDB.SetValidity(itr, false)
 				// pop all blocks from the bad fork
 				// ritr base is a forward itr to the last block successfully applied
-				for j := i; j >= 0; j-- {
+				for j := i + 1; j <= le; j++ {
 					c.ForkDB.MarkInCurrentChain(branches.first[j], false)
 					c.PopBlock()
 				}
@@ -1816,7 +1791,6 @@ func (c *Controller) initialize() {
 	for uint32(c.DB.Revision()) > c.Head.BlockNum {
 		c.DB.Undo()
 	}
-	//log.Info("controller initialize finished")
 }
 
 func (c *Controller) clearExpiredInputTransactions() {
@@ -1923,40 +1897,3 @@ func (c *Controller) initConfig() *Controller {
 	}
 	return c
 }
-
-/*
-//for ActionBlacklist
-type ActionBlacklistParam struct {
-	AccountName common.AccountName
-	ActionName  common.ActionName
-}
-
-func Hash(abp ActionBlacklistParam) string {
-	return crypto.Hash256(abp).String()
-}
-
-
-
-
-
-type applyCon struct {
-	handlerKey   map[common.AccountName]common.AccountName //c++ pair<scope_name,action_name>
-	applyContext func(*ApplyContext)
-}
-
-//apply_context
-type ApplyHandler struct {
-	applyHandler map[common.AccountName]applyCon
-	receiver     common.AccountName
-}*/
-
-/*    about chain
-
-signal<void(const signed_block_ptr&)>         pre_accepted_block;
-signal<void(const block_state_ptr&)>          accepted_block_header;
-signal<void(const block_state_ptr&)>          accepted_block;
-signal<void(const block_state_ptr&)>          irreversible_block;
-signal<void(const transaction_metadata_ptr&)> accepted_transaction;
-signal<void(const transaction_trace_ptr&)>    applied_transaction;
-signal<void(const header_confirmation&)>      accepted_confirmation;
-signal<void(const int&)>                      bad_alloc;*/

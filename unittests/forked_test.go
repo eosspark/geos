@@ -39,9 +39,7 @@ func pushBlocks(from *BaseTester, to *BaseTester) {
 
 func pushBlocks2(from *BaseTester, to *BaseTester) {
 
-	for i := 1; to.Control.ForkDbHeadBlockNum() < from.Control.ForkDbHeadBlockNum(); {
-		i++
-		fmt.Println("*************", i)
+	for to.Control.ForkDbHeadBlockNum() < from.Control.ForkDbHeadBlockNum() {
 		fb := from.Control.FetchBlockByNumber(to.Control.ForkDbHeadBlockNum() + 1)
 		to.PushBlock2(fb, types.Irreversible)
 	}
@@ -107,7 +105,7 @@ func TestForkWithBadBlock(t *testing.T) {
 			for j := 0; j < 7; j++ {
 				fork := forks[j]
 				if j <= i {
-					copyB := sk
+					copyB := types.NewSignedBlock1(&sk.SignedBlockHeader)
 					if j == i {
 						fork.blockMerkle = remote.Control.HeadBlockState().BlockrootMerkle
 						//copyB.ActionMRoot.Hash[0] ^= 0x1ULL
@@ -116,12 +114,13 @@ func TestForkWithBadBlock(t *testing.T) {
 						endB := fork.blocks[len(fork.blocks)-1]
 						copyB.Previous = endB.BlockID()
 					}
-					p := common.MakePair(copyB.Digest(), fork.blockMerkle.GetRoot())
-					headerBMRoot := crypto.Hash256(p)
-					sigDigest := crypto.Hash256(common.MakePair(headerBMRoot, remote.Control.HeadBlockState().PendingScheduleHash))
-					pk := remote.getPrivateKey(common.N("b"), "active")
-					copyB.ProducerSignature, _ = pk.Sign(sigDigest.Bytes())
 
+					headerBMRoot := crypto.Hash256(common.MakePair(copyB.Digest(), fork.blockMerkle.GetRoot()))
+					sigDigest := crypto.Hash256(common.MakePair(headerBMRoot, remote.Control.HeadBlockState().PendingScheduleHash))
+
+					pk := remote.getPrivateKey(common.N("b"), "active")
+
+					copyB.ProducerSignature, _ = pk.Sign(sigDigest.Bytes())
 					// add this new block to our corrupted block merkle
 					fork.blockMerkle.Append(copyB.BlockID())
 					fork.blocks = append(fork.blocks, copyB)
@@ -138,27 +137,29 @@ func TestForkWithBadBlock(t *testing.T) {
 		for i := 0; i < len(forks); i++ {
 			//BOOST_TEST_CONTEXT("Testing Fork: " << i) {
 			fork := forks[i]
-			for fidx := 0; fidx < len(fork.blocks); fidx++ {
+			for fidx := 0; fidx < len(fork.blocks)-1; fidx++ {
 				ssk := fork.blocks[fidx]
 				// push the block only if its not known already
 				if bios.Control.FetchBlockById(ssk.BlockID()) == nil {
 					bios.PushBlock(ssk)
 				}
 			}
+			// push the block which should attempt the corrupted fork and fail
+
+			var ex string
 			try.Try(func() {
 				bios.PushBlock(fork.blocks[len(fork.blocks)-1])
-			}).Catch(func(e exception.FcException) {
-
-				try.Throw(e)
-			})
-			//}
+			}).Catch(func(e exception.Exception) {
+				ex = e.DetailMessage()
+			}).End()
+			assert.True(t, inString(ex, "Block ID does not match"))
 		}
 		lib := bios.Control.HeadBlockState().DposIrreversibleBlocknum
 		for tries := 0; bios.Control.HeadBlockState().DposIrreversibleBlocknum == lib && tries < 10000; tries++ {
 			//++<10000
 			bios.ProduceBlocks(1, false)
 		}
-
+		fmt.Println(bios.Control.Head.BlockNum)
 	}).FcLogAndRethrow().End()
 }
 
@@ -166,7 +167,6 @@ func TestForking(t *testing.T) {
 	c1 := NewForkedTester().tester
 	c1.ProduceBlocks(1, false)
 	c1.ProduceBlocks(1, false)
-	//c1.ProduceBlocks(1,false)
 	dan := common.N("dan")
 	sam := common.N("sam")
 	pam := common.N("pam")
@@ -262,64 +262,63 @@ func TestForking(t *testing.T) {
 		fb := c2.Control.FetchBlockByNumber(start)
 		c1.PushBlock(fb)
 	}
-	/*log.Info("end push c2 blocks to c1")
+	log.Info("end push c2 blocks to c1")
 	log.Info("c1 blocks:")
-	c1.ProduceBlocks(24,false)
+	c1.ProduceBlocks(24, false)
 	// Switching active schedule to version 2 happens in this block.
-	b = c1.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs),0)
-	assert.Equal(t,b.Producer.String(),"pam")
-	b = c1.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs),0)
+	b = c1.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs), 0)
+	assert.Equal(t, b.Producer.String(), "pam")
+	b = c1.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs), 0)
 
-	c1.ProduceBlocks(10,false)
+	c1.ProduceBlocks(10, false)
 
-	log.Info( "push c1 blocks to c2" )
-	pushBlocks(c1, c2);
-	log.Info( "end push c1 blocks to c2" )
+	log.Info("push c1 blocks to c2")
+	pushBlocks(c1, c2)
+	log.Info("end push c1 blocks to c2")
 
 	// Now with four block producers active and two identical chains (for now),
 	// we can test out the case that would trigger the bug in the old fork db code:
 	forkBlockNum = c1.Control.HeadBlockNum()
-	log.Info( "cam and dan go off on their own fork on c1 while sam and pam go off on their own fork on c2" );
-	log.Info( "c1 blocks:" )
+	log.Info("cam and dan go off on their own fork on c1 while sam and pam go off on their own fork on c2")
+	log.Info("c1 blocks:")
 
-	c1.ProduceBlocks(12,false)// dan produces 12 blocks
-	b = c1.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs * 25),0)
+	c1.ProduceBlocks(12, false) // dan produces 12 blocks
+	b = c1.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs*25), 0)
 	// cam skips over sam and pam's blocks
-	c1.ProduceBlocks(23,false) // cam finishes the remaining 11 blocks then dan produces his 12 blocks
-	log.Info( "c2 blocks:" )
-	c2.ProduceBlock( common.Milliseconds(common.DefaultConfig.BlockIntervalMs * 25),0 ) // pam skips over dan and sam's blocks
-	c2.ProduceBlocks(11,false) // pam finishes the remaining 11 blocks
-	c2.ProduceBlock( common.Milliseconds(common.DefaultConfig.BlockIntervalMs * 25),0 ) // sam skips over cam and dan's blocks
-	c2.ProduceBlocks(11,false) // sam finishes the remaining 11 blocks
+	c1.ProduceBlocks(23, false) // cam finishes the remaining 11 blocks then dan produces his 12 blocks
+	log.Info("c2 blocks:")
+	c2.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs*25), 0) // pam skips over dan and sam's blocks
+	c2.ProduceBlocks(11, false)                                                      // pam finishes the remaining 11 blocks
+	c2.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs*25), 0) // sam skips over cam and dan's blocks
+	c2.ProduceBlocks(11, false)                                                      // sam finishes the remaining 11 blocks
 
-	log.Info( "now cam and dan rejoin sam and pam on c2" )
-	c2.ProduceBlock( common.Milliseconds(common.DefaultConfig.BlockIntervalMs * 13),0 ) // cam skips over pam's blocks (this block triggers a block on this branch to become irreversible)
-	c2.ProduceBlocks(11,false) // cam produces the remaining 11 blocks
-	b = c2.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs),0) // dan produces a block
+	log.Info("now cam and dan rejoin sam and pam on c2")
+	c2.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs*13), 0)  // cam skips over pam's blocks (this block triggers a block on this branch to become irreversible)
+	c2.ProduceBlocks(11, false)                                                       // cam produces the remaining 11 blocks
+	b = c2.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs), 0) // dan produces a block
 
 	// a node on chain 1 now gets all but the last block from chain 2 which should cause a fork switch
-	log.Info( "push c2 blocks (except for the last block by dan) to c1" )
+	log.Info("push c2 blocks (except for the last block by dan) to c1")
 
-	start=forkBlockNum+1
-	end=c2.Control.HeadBlockNum()
-	for ;start<=end;start++{
-		log.Info("c2 ",start)
+	start = forkBlockNum + 1
+	end = c2.Control.HeadBlockNum()
+	for ; start <= end; start++ {
+		log.Info("c2 %v", start)
 		fb := c2.Control.FetchBlockByNumber(start)
 		c1.PushBlock(fb)
 	}
-	log.Info( "end push c2 blocks to c1" )
-	log.Info( "now push dan's block to c1 but first corrupt it so it is a bad block" )
-	badBlock :=b
+	log.Info("end push c2 blocks to c1")
+	log.Info("now push dan's block to c1 but first corrupt it so it is a bad block")
+	badBlock := b
 	badBlock.TransactionMRoot = badBlock.Previous
 	c1.Control.AbortBlock()
-	returning := false
+	var ex string
 	try.Try(func() {
-		c1.Control.PushBlock(badBlock,types.Complete)
+		c1.Control.PushBlock(badBlock, types.Complete)
 	}).Catch(func(e exception.Exception) {
-		log.Error("test forking is error:%s",e.DetailMessage())
-		returning = true
+		ex = e.DetailMessage()
 	}).End()
-	assert.Equal(t,false,returning)*/
+	assert.True(t, inString(ex, "block not signed by expected key"))
 
 }
 
@@ -333,6 +332,7 @@ func TestPruneRemoveBranch(t *testing.T) {
 	scott := common.N("scott")
 	accounts := []common.AccountName{dan, sam, pam, scott}
 	c.CreateAccounts(accounts, false, true)
+	c.SetProducers(&accounts)
 	log.Info("set producer schedule to [dan,sam,pam,scott]")
 	c.ProduceBlocks(50, false)
 
@@ -341,6 +341,7 @@ func TestPruneRemoveBranch(t *testing.T) {
 	pushBlocks(c, c2)
 	assert.Equal(t, uint32(61), c.Control.HeadBlockNum())
 	assert.Equal(t, uint32(61), c2.Control.HeadBlockNum())
+	forkNum := c.Control.HeadBlockNum()
 
 	nextproducer := func(c *BaseTester, skipInterval int) common.Name {
 		headTime := c.Control.HeadBlockTime()
@@ -352,7 +353,7 @@ func TestPruneRemoveBranch(t *testing.T) {
 	skip1 := 1
 	skip2 := 1
 	for i := 0; i < 50; i++ {
-		next1 := nextproducer(c2, skip2)
+		next1 := nextproducer(c, skip1)
 		if next1 == dan || next1 == sam {
 			c.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs*int64(skip1)), 0)
 			skip1 = 1
@@ -367,11 +368,9 @@ func TestPruneRemoveBranch(t *testing.T) {
 			skip2++
 		}
 	}
+	assert.Equal(t, uint32(87), c.Control.HeadBlockNum())
+	assert.Equal(t, uint32(73), c2.Control.HeadBlockNum())
 
-	assert.Equal(t, 87, c.Control.HeadBlockNum())
-	assert.Equal(t, 73, c2.Control.HeadBlockNum())
-
-	forkNum := c.Control.HeadBlockNum()
 	p := forkNum
 	// push fork from c2 => c
 	for p < c2.Control.HeadBlockNum() {
@@ -379,6 +378,7 @@ func TestPruneRemoveBranch(t *testing.T) {
 		fb := c2.Control.FetchBlockByNumber(p)
 		c.PushBlock(fb)
 	}
+	assert.Equal(t, uint32(73), c.Control.HeadBlockNum())
 }
 
 func TestConfirmation(t *testing.T) {
@@ -392,10 +392,10 @@ func TestConfirmation(t *testing.T) {
 	accounts := []common.AccountName{dan, sam, pam, scott}
 	c.CreateAccounts(accounts, false, true)
 	/*res := */ c.SetProducers(&accounts)
-	//privSam:=c.getPrivateKey( sam, "active" )
-	/*privDan := c.getPrivateKey( dan, "active" )
-	privPam := c.getPrivateKey( pam, "active" )
-	privScott := c.getPrivateKey( scott, "active" )*/
+	privSam := c.getPrivateKey(sam, "active")
+	privDan := c.getPrivateKey(dan, "active")
+	privPam := c.getPrivateKey(pam, "active")
+	privScott := c.getPrivateKey(scott, "active")
 	privInvalid := c.getPrivateKey(invalid, "active")
 
 	log.Info("set producer schedule to [dan,sam,pam,scott]")
@@ -405,33 +405,102 @@ func TestConfirmation(t *testing.T) {
 	assert.Equal(t, uint32(61), c.Control.HeadBlockNum())
 
 	blk := c.Control.ForkDB.GetBlockInCurrentChainByNum(55)
-	/*blk61:=c.Control.ForkDB.GetBlockInCurrentChainByNum(61)
-	blk50:=c.Control.ForkDB.GetBlockInCurrentChainByNum(50)*/
+	blk61 := c.Control.ForkDB.GetBlockInCurrentChainByNum(61)
+	blk50 := c.Control.ForkDB.GetBlockInCurrentChainByNum(50)
 
 	assert.Equal(t, uint32(0), blk.BftIrreversibleBlocknum)
 	assert.Equal(t, 0, len(blk.Confirmations))
 	{
-		returning := false
+		var ex string
 		try.Try(func() {
 			h := types.HeaderConfirmation{blk.BlockId, sam, ecc.Signature{}}
 			h.ProducerSignature, _ = privInvalid.Sign(blk.SigDigest().Bytes())
 			c.Control.PushConfirmation(&h)
 		}).Catch(func(e exception.Exception) {
-			returning = true
+			ex = e.DetailMessage()
 		}).End()
-		assert.Equal(t, true, returning)
+		assert.True(t, inString(ex, "confirmation not signed by expected key"))
 	}
 	{
-		returning := false
+		var ex string
 		try.Try(func() {
 			h := types.HeaderConfirmation{blk.BlockId, invalid, ecc.Signature{}}
 			h.ProducerSignature, _ = privInvalid.Sign(blk.SigDigest().Bytes())
 			c.Control.PushConfirmation(&h)
 		}).Catch(func(e exception.Exception) {
-			returning = true
-			fmt.Println(e.What())
+			ex = e.DetailMessage()
 		}).End()
-		assert.Equal(t, true, returning)
+		assert.True(t, inString(ex, "producer not in current schedule"))
+	}
+	{
+		// signed by sam
+		h := types.HeaderConfirmation{blk.BlockId, sam, ecc.Signature{}}
+		h.ProducerSignature, _ = privSam.Sign(blk.SigDigest().Bytes())
+		c.Control.PushConfirmation(&h)
+		assert.Equal(t, uint32(0), blk.BftIrreversibleBlocknum)
+		assert.Equal(t, 1, len(blk.Confirmations))
+		// double confirm not allowed
+		var ex string
+		try.Try(func() {
+			h2 := types.HeaderConfirmation{blk.BlockId, sam, ecc.Signature{}}
+			h2.ProducerSignature, _ = privSam.Sign(blk.SigDigest().Bytes())
+			c.Control.PushConfirmation(&h2)
+		}).Catch(func(e exception.Exception) {
+			ex = e.DetailMessage()
+		}).End()
+		assert.True(t, inString(ex, "block already confirmed by this producer"))
+	}
+
+	{
+		// signed by dan
+		h := types.HeaderConfirmation{blk.BlockId, dan, ecc.Signature{}}
+		h.ProducerSignature, _ = privDan.Sign(blk.SigDigest().Bytes())
+		c.Control.PushConfirmation(&h)
+		assert.Equal(t, uint32(0), blk.BftIrreversibleBlocknum)
+		assert.Equal(t, 2, len(blk.Confirmations))
+
+		//signed by pam
+		h2 := types.HeaderConfirmation{blk.BlockId, pam, ecc.Signature{}}
+		h2.ProducerSignature, _ = privPam.Sign(blk.SigDigest().Bytes())
+		c.Control.PushConfirmation(&h2)
+		// we have more than 2/3 of confirmations, bft irreversible number should be set
+		assert.Equal(t, uint32(55), blk.BftIrreversibleBlocknum)
+		assert.Equal(t, uint32(55), blk61.BftIrreversibleBlocknum)
+		assert.Equal(t, uint32(0), blk50.BftIrreversibleBlocknum)
+		assert.Equal(t, 3, len(blk.Confirmations))
+	}
+	{
+		// signed by scott
+		h := types.HeaderConfirmation{blk.BlockId, scott, ecc.Signature{}}
+		h.ProducerSignature, _ = privScott.Sign(blk.SigDigest().Bytes())
+		c.Control.PushConfirmation(&h)
+		assert.Equal(t, uint32(55), blk.BftIrreversibleBlocknum)
+		assert.Equal(t, 4, len(blk.Confirmations))
+	}
+
+	{
+		h := types.HeaderConfirmation{blk50.BlockId, sam, ecc.Signature{}}
+		h.ProducerSignature, _ = privSam.Sign(blk50.SigDigest().Bytes())
+		c.Control.PushConfirmation(&h)
+
+		h2 := types.HeaderConfirmation{blk50.BlockId, dan, ecc.Signature{}}
+		h2.ProducerSignature, _ = privDan.Sign(blk50.SigDigest().Bytes())
+		c.Control.PushConfirmation(&h2)
+
+		h3 := types.HeaderConfirmation{blk50.BlockId, pam, ecc.Signature{}}
+		h3.ProducerSignature, _ = privPam.Sign(blk50.SigDigest().Bytes())
+		c.Control.PushConfirmation(&h3)
+		assert.Equal(t, uint32(50), blk50.BftIrreversibleBlocknum)
+
+		blk54 := c.Control.ForkDB.GetBlockInCurrentChainByNum(54)
+		assert.Equal(t, uint32(50), blk54.BftIrreversibleBlocknum)
+		assert.Equal(t, uint32(55), blk.BftIrreversibleBlocknum)
+		assert.Equal(t, uint32(55), blk61.BftIrreversibleBlocknum)
+
+		c.ProduceBlocks(20, false)
+		blk81 := c.Control.ForkDB.GetBlockInCurrentChainByNum(81)
+		assert.Equal(t, uint32(55), blk81.BftIrreversibleBlocknum)
+
 	}
 
 }
@@ -463,7 +532,8 @@ func TestReadModes(t *testing.T) {
 
 	irreversible := newBaseTester(true, chain.IRREVERSIBLE)
 	pushBlocks2(c, irreversible)
-	fmt.Println("不可逆高度2：", c.Control.LastIrreversibleBlockNum(), irreversible.Control.HeadBlockNum(), headBlockNum)
+	/*fmt.Println("**************irreversible**************：", c.Control.LastIrreversibleBlockNum(),irreversible.Control.LastIrreversibleBlockNum(), irreversible.Control.HeadBlockNum(), headBlockNum)
+	fmt.Println("**************irreversible**************：", irreversible.Control.LastIrreversibleBlockNum())*/
 	assert.Equal(t, headBlockNum, irreversible.Control.ForkDbHeadBlockNum())
 	assert.Equal(t, headBlockNum-49, irreversible.Control.HeadBlockNum())
 
