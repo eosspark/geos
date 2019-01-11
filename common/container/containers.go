@@ -1,4 +1,4 @@
-package templates
+package container
 
 type Container interface {
 	Empty() bool

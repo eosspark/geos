@@ -7,7 +7,7 @@ import (
 	"fmt"
 	"github.com/eosspark/container/maps/treemap"
 	"github.com/eosspark/container/sets/treeset"
-	"github.com/eosspark/container/templates"
+	"github.com/eosspark/eos-go/common/container"
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
@@ -87,7 +87,7 @@ func (e *Encoder) Encode(v interface{}) (err error) {
 		return e.WritePublicKey(cv)
 	case ecc.Signature:
 		return e.WriteSignature(cv)
-	case templates.Container:
+	case container.Container:
 		return e.WriteContains(cv)
 	case treeset.Set:
 		return e.WriteSet(cv)
@@ -367,7 +367,7 @@ func (e *Encoder) WriteSignature(s ecc.Signature) (err error) {
 	return e.toWriter(s.Content) // should write 65 bytes
 }
 
-func (e *Encoder) WriteContains(c templates.Container) (err error) {
+func (e *Encoder) WriteContains(c container.Container) (err error) {
 	jsonBytes, err := c.MarshalJSON()
 	if err != nil {
 		return err

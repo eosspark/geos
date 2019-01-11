@@ -39,6 +39,7 @@ var eosioVpay = common.N("eosio.vpay")
 var eosioSaving = common.N("eosio.saving")
 var eosioName = common.N("eosio.names")
 var eosioMsig = common.N("eosio.msig")
+var eosioSudo = common.N("eosio.sudo")
 var alice = common.N("alice1111111")
 var bob = common.N("bob111111111")
 var carol = common.N("carol1111111")
@@ -436,10 +437,10 @@ func (t BaseTester) PushAction2(code *common.AccountName, acttype *common.Accoun
 }
 
 func (t BaseTester) PushAction3(code *common.AccountName, acttype *common.AccountName,
-	actors *[]common.AccountName, data *common.Variants, expiration uint32, delaySec uint32) *types.TransactionTrace {
+	actors []*common.AccountName, data *common.Variants, expiration uint32, delaySec uint32) *types.TransactionTrace {
 	auths := make([]types.PermissionLevel, 0)
-	for _, actor := range auths {
-		auths = append(auths, actor)
+	for _, actor := range actors{
+		auths = append(auths, types.PermissionLevel{Actor:*actor, Permission:common.DefaultConfig.ActiveName})
 	}
 	return t.PushAction4(code, acttype, &auths, data, expiration, delaySec)
 }

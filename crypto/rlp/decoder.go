@@ -6,7 +6,7 @@ import (
 	"fmt"
 	"github.com/eosspark/container/maps/treemap"
 	"github.com/eosspark/container/sets/treeset"
-	"github.com/eosspark/container/templates"
+	"github.com/eosspark/eos-go/common/container"
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/log"
 	"io"
@@ -163,7 +163,7 @@ func (d *Decoder) Decode(v interface{}) (err error) {
 		rv.Set(reflect.ValueOf(s))
 		return nil
 
-	case templates.Container:
+	case container.Container:
 		v, err = d.ReadContains(realV)
 		return err
 
@@ -645,7 +645,7 @@ func (d *Decoder) ReadSignature() (out ecc.Signature, err error) {
 	d.pos += TypeSize.Signature
 	return
 }
-func (d *Decoder) ReadContains(c templates.Container) (out templates.Container, err error) {
+func (d *Decoder) ReadContains(c container.Container) (out container.Container, err error) {
 	var l uint64
 	if l, err = d.ReadUvarint64(); err != nil {
 		return
