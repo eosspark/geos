@@ -425,10 +425,10 @@ func (t BaseTester) PushAction2(code *common.AccountName, acttype *common.Accoun
 }
 
 func (t BaseTester) PushAction3(code *common.AccountName, acttype *common.AccountName,
-	actors *[]common.AccountName, data *common.Variants, expiration uint32, delaySec uint32) *types.TransactionTrace {
+	actors []*common.AccountName, data *common.Variants, expiration uint32, delaySec uint32) *types.TransactionTrace {
 	auths := make([]types.PermissionLevel, 0)
-	for _, actor := range auths {
-		auths = append(auths, actor)
+	for _, actor := range actors{
+		auths = append(auths, types.PermissionLevel{Actor:*actor, Permission:common.DefaultConfig.ActiveName})
 	}
 	return t.PushAction4(code, acttype, &auths, data, expiration, delaySec)
 }
