@@ -147,9 +147,8 @@ func (a *AuthorizationManager) GetPermission(level *types.PermissionLevel) (p *e
 		po.Name = level.Permission
 		err := a.db.Find("byOwner", po, &po)
 		if err != nil {
-			log.Warn("%v@%v don't find", po.Owner, po.Name)
-			p = nil
-			return
+			//log.Warn("%v@%v don't find", po.Owner, po.Name)
+			EosAssert(false, &PermissionQueryException{}, "Failed to retrieve permission: %v", level)
 		}
 		p = &po
 	}).EosRethrowExceptions(&PermissionQueryException{}, "Failed to retrieve permission: %v", level)
