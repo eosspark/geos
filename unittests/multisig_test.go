@@ -275,6 +275,7 @@ func TestProposeApproveExecute(t *testing.T) {
 	assert.True(t, e.ChainHasTransaction(&trace.ID))
 	assert.Equal(t, types.TransactionStatusExecuted, trace.Receipt.Status)
 	assert.Equal(t, int(1), len(trace.ActionTraces))
+	e.close()
 }
 
 func TestProposeApproveUnapprove(t *testing.T) {
@@ -288,6 +289,7 @@ func TestProposeApproveUnapprove(t *testing.T) {
 	assert.True(t, e.ChainHasTransaction(&trace.ID))
 	exec := func() {e.Exec(alice, alice, common.N("first"))}
 	CatchThrowExceptionAndMsg(t, &exception.EosioAssertMessageException{}, "transaction authorization failed", exec)
+	e.close()
 }
 
 func TestProposeApproveByTwo(t *testing.T) {
@@ -312,6 +314,7 @@ func TestProposeApproveByTwo(t *testing.T) {
 	assert.True(t, e.ChainHasTransaction(&trace.ID))
 	assert.Equal(t, types.TransactionStatusExecuted, trace.Receipt.Status)
 	assert.Equal(t, int(1), len(trace.ActionTraces))
+	e.close()
 }
 
 func TestProposeWithWrongRequestedAuth(t *testing.T) {
@@ -357,10 +360,7 @@ func TestBigTransaction(t *testing.T) {
 	assert.True(t, e.ChainHasTransaction(&trace.ID))
 	assert.Equal(t, types.TransactionStatusExecuted, trace.Receipt.Status)
 	assert.Equal(t, int(1), len(trace.ActionTraces))
-}
-
-func (e EosioMsigTester)PrepareTrxForTest(t *testing.T) {
-
+	e.close()
 }
 
 func TestUpdateSystemContractAllApprove(t *testing.T) {
@@ -448,6 +448,7 @@ func TestUpdateSystemContractAllApprove(t *testing.T) {
 	assert.True(t, e.ChainHasTransaction(&trace.ID))
 	assert.Equal(t, types.TransactionStatusExecuted, trace.Receipt.Status)
 	assert.Equal(t, int(1), len(trace.ActionTraces))
+	e.close()
 }
 
 func TestUpdateSystemContractMajorApprove(t *testing.T) {
@@ -552,4 +553,5 @@ func TestUpdateSystemContractMajorApprove(t *testing.T) {
 	// can't create account because system contract was replace by the test_api contract
 	createAccounts := func() {e.CreateAccountWithResources(common.N("alice1111113"), eosio, CoreFromString("1.0000"), false, CoreFromString("10.0000"), CoreFromString("10.0000"))}
 	CatchThrowExceptionAndMsg(t, &exception.EosioAssertMessageException{}, "Unknown Test", createAccounts)
+	e.close()
 }
