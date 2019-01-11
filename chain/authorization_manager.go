@@ -437,7 +437,7 @@ func (a *AuthorizationManager) CheckAuthorization(actions []*types.Action,
 
 func (a *AuthorizationManager) CheckAuthorization2(account common.AccountName,
 	permission common.PermissionName,
-	providedKeys *treeset.Set,        //flat_set<public_key_type>
+	providedKeys *treeset.Set, //flat_set<public_key_type>
 	providedPermissions *treeset.Set, //flat_set<permission_level>
 	providedDelay common.Microseconds,
 	checkTime *func(),
