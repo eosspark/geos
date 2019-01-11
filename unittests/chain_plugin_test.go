@@ -29,7 +29,7 @@ func TestGetBlockWithInvalidAbi(t *testing.T) {
 		tester.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs), 0)
 
 		// setup contract and abi
-		tester.SetCode(common.N("asserter"), test_contracts.AsserterWast, nil)
+		tester.SetCode(common.N("asserter"), wast2wasm(test_contracts.AsserterWast), nil)
 		tester.SetAbi(common.N("asserter"), test_contracts.AsserterAbi, nil)
 
 		tester.ProduceBlocks(1, false)
@@ -103,6 +103,7 @@ func TestGetBlockWithInvalidAbi(t *testing.T) {
 
 		// block should be decoded successfully
 		blockStr, err := json.Marshal(plugin.GetBlock(param))
+		fmt.Println(string(blockStr))
 		assert.NoError(t, err)
 
 		// block should be decoded successfully

@@ -7,13 +7,13 @@ import (
 	"github.com/eosspark/eos-go/common"
 )
 
-//go:generate go install "github.com/eosspark/container/templates/..."
-//go:generate gotemplate -outfmt "gen_%v" "github.com/eosspark/container/templates/treemap" byPrevIndex(common.BlockIdType,IndexKey,byPrevCompare)
+//go:generate go install "github.com/eosspark/eos-go/common/container/..."
+//go:generate gotemplate -outfmt "gen_%v" "github.com/eosspark/eos-go/common/container/treemap" byPrevIndex(common.BlockIdType,IndexKey,byPrevCompare)
 var byPrevCompare = func(a, b interface{}) int {
 	return bytes.Compare(a.(common.BlockIdType).Bytes(), b.(common.BlockIdType).Bytes())
 }
 
-//go:generate gotemplate -outfmt "gen_%v" "github.com/eosspark/container/templates/treemap" byBlockNumIndex(ByBlockNumComposite,IndexKey,byBlockNumCompare)
+//go:generate gotemplate -outfmt "gen_%v" "github.com/eosspark/eos-go/common/container/treemap" byBlockNumIndex(ByBlockNumComposite,IndexKey,byBlockNumCompare)
 type ByBlockNumComposite struct {
 	BlockNum       *uint32
 	InCurrentChain *bool
@@ -41,7 +41,7 @@ var byBlockNumCompare = func(a, b interface{}) int {
 	return 0
 }
 
-//go:generate gotemplate -outfmt "gen_%v" "github.com/eosspark/container/templates/treemap" byLibBlockNumIndex(ByLibBlockNumComposite,IndexKey,byLibBlockNumCompare)
+//go:generate gotemplate -outfmt "gen_%v" "github.com/eosspark/eos-go/common/container/treemap" byLibBlockNumIndex(ByLibBlockNumComposite,IndexKey,byLibBlockNumCompare)
 type ByLibBlockNumComposite struct {
 	DposIrreversibleBlocknum *uint32
 	BftIrreversibleBlocknum  *uint32
@@ -121,22 +121,50 @@ func (m *MultiIndex) Erase(itr IndexKey) {
 
 func (m *MultiIndex) Modify(itr IndexKey, modifier func(b *types.BlockState)) bool {
 	node := itr.Value.(*Node)
-	delete(m.ByBlockId, node.hashByBlockId)
-	node.iteratorByPrev.Delete()
-	node.iteratorByBlockNum.Delete()
-	node.iteratorByLibBlockNum.Delete()
-
 	modifier(node.value)
+	v := node.value
 
-	return m.insert(node.value, itr)
+	if v.BlockId != node.hashByBlockId {
+		delete(m.ByBlockId, node.hashByBlockId)
+		if _, ok := m.ByBlockId[v.BlockId]; ok {
+			m.base.Remove(itr)
+			return false
+		}
+		node.hashByBlockId = v.BlockId
+	}
+
+	node.iteratorByPrev = node.iteratorByPrev.Modify(v.Header.Previous, itr)
+	if node.iteratorByPrev.IsEnd() {
+		delete(m.ByBlockId, node.hashByBlockId)
+		m.base.Remove(itr)
+		return false
+	}
+
+	node.iteratorByBlockNum = node.iteratorByBlockNum.Modify(ByBlockNumComposite{&v.BlockNum, &v.InCurrentChain}, itr)
+	if node.iteratorByBlockNum.IsEnd() {
+		delete(m.ByBlockId, node.hashByBlockId)
+		node.iteratorByPrev.Delete()
+		m.base.Remove(itr)
+		return false
+	}
+
+	node.iteratorByLibBlockNum = node.iteratorByLibBlockNum.Modify(ByLibBlockNumComposite{
+		&v.DposIrreversibleBlocknum,
+		&v.BftIrreversibleBlocknum,
+		&v.BlockNum}, itr)
+	if node.iteratorByLibBlockNum.IsEnd() {
+		delete(m.ByBlockId, node.hashByBlockId)
+		node.iteratorByPrev.Delete()
+		node.iteratorByBlockNum.Delete()
+		m.base.Remove(itr)
+		return false
+	}
+
+	return true
 }
 
 func (m *MultiIndex) Insert(n *types.BlockState) bool {
 	itr := m.base.PushBack(&Node{value: n})
-	return m.insert(n, itr)
-}
-
-func (m *MultiIndex) insert(n *types.BlockState, itr IndexKey) bool {
 	node := itr.Value.(*Node)
 
 	if _, ok := m.ByBlockId[n.BlockId]; ok {

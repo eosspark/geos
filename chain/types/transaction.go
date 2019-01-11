@@ -231,7 +231,7 @@ type PackedTransaction struct {
 	Compression           CompressionType `json:"compression"` // in C++, it's an enum, not sure how it Binary-marshals..
 	PackedContextFreeData common.HexBytes `json:"packed_context_free_data"`
 	PackedTrx             common.HexBytes `json:"packed_trx"`
-	UnpackedTrx           *Transaction    `eos:"-"`
+	UnpackedTrx           *Transaction    `json:"transaction" eos:"-"`
 }
 
 type CompressionType uint8

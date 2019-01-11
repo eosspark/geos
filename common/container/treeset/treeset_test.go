@@ -6,7 +6,7 @@ package treeset
 
 import (
 	"fmt"
-	. "github.com/eosspark/container/templates/treeset/example"
+	. "github.com/eosspark/eos-go/common/container/treeset/example"
 	"testing"
 )
 
