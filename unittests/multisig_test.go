@@ -5,6 +5,7 @@ import (
 	"github.com/eosspark/eos-go/chain/abi_serializer"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
+	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/eosspark/eos-go/entity"
 	"github.com/eosspark/eos-go/exception"
@@ -237,6 +238,16 @@ func (e EosioMsigTester) Approve(approver common.AccountName, proposer common.Ac
 	return e.PushAction(approver, acttype, approve, true)
 }
 
+func (e EosioMsigTester) UnApprove(unapprover common.AccountName, proposer common.AccountName, proposalName common.Name, level types.PermissionLevel) *types.TransactionTrace {
+	unapprove := common.Variants{
+		"proposer":      proposer,
+		"proposal_name": proposalName,
+		"level":         level,
+	}
+	acttype := common.N("unapprove")
+	return e.PushAction(unapprover, acttype, unapprove, true)
+}
+
 func (e EosioMsigTester) Exec(executer common.AccountName, proposer common.AccountName, proposalName common.Name) *types.TransactionTrace {
 	exec := common.Variants{
 		"proposer":      proposer,
@@ -262,5 +273,283 @@ func TestProposeApproveExecute(t *testing.T) {
 	assert.True(t, e.ChainHasTransaction(&trace.ID))
 	trace = e.Exec(alice, alice, common.N("first"))
 	assert.True(t, e.ChainHasTransaction(&trace.ID))
+	assert.Equal(t, types.TransactionStatusExecuted, trace.Receipt.Status)
+	assert.Equal(t, int(1), len(trace.ActionTraces))
+}
 
+func TestProposeApproveUnapprove(t *testing.T) {
+	e := initEosioMsigTester()
+	trx := e.ReqAuth(alice, []types.PermissionLevel{{Actor: alice, Permission: common.DefaultConfig.ActiveName}}, e.AbiSerializerMaxTime)
+	trace := e.Propose(alice, common.N("first"), trx, []types.PermissionLevel{{alice, common.DefaultConfig.ActiveName}})
+	assert.True(t, e.ChainHasTransaction(&trace.ID))
+	trace = e.Approve(alice, alice, common.N("first"), types.PermissionLevel{Actor:alice, Permission:common.DefaultConfig.ActiveName})
+	assert.True(t, e.ChainHasTransaction(&trace.ID))
+	trace = e.UnApprove(alice, alice, common.N("first"), types.PermissionLevel{Actor:alice, Permission:common.DefaultConfig.ActiveName})
+	assert.True(t, e.ChainHasTransaction(&trace.ID))
+	exec := func() {e.Exec(alice, alice, common.N("first"))}
+	CatchThrowExceptionAndMsg(t, &exception.EosioAssertMessageException{}, "transaction authorization failed", exec)
+}
+
+func TestProposeApproveByTwo(t *testing.T) {
+	e := initEosioMsigTester()
+	trx := e.ReqAuth(alice, []types.PermissionLevel{{Actor: alice, Permission: common.DefaultConfig.ActiveName}, {Actor: bob, Permission: common.DefaultConfig.ActiveName}}, e.AbiSerializerMaxTime)
+	trace := e.Propose(alice, common.N("first"), trx, []types.PermissionLevel{{alice, common.DefaultConfig.ActiveName}, {Actor: bob, Permission: common.DefaultConfig.ActiveName}})
+	assert.True(t, e.ChainHasTransaction(&trace.ID))
+
+	//approve by alice
+	trace = e.Approve(alice, alice, common.N("first"), types.PermissionLevel{Actor:alice, Permission:common.DefaultConfig.ActiveName})
+	assert.True(t, e.ChainHasTransaction(&trace.ID))
+
+	//fail because approval by bob is missing
+	exec := func() {e.Exec(alice, alice, common.N("first"))}
+	CatchThrowExceptionAndMsg(t, &exception.EosioAssertMessageException{}, "transaction authorization failed", exec)
+
+	//approve by bob
+	trace = e.Approve(bob, alice, common.N("first"), types.PermissionLevel{Actor:bob, Permission:common.DefaultConfig.ActiveName})
+	assert.True(t, e.ChainHasTransaction(&trace.ID))
+
+	trace = e.Exec(alice, alice, common.N("first"))
+	assert.True(t, e.ChainHasTransaction(&trace.ID))
+	assert.Equal(t, types.TransactionStatusExecuted, trace.Receipt.Status)
+	assert.Equal(t, int(1), len(trace.ActionTraces))
+}
+
+func TestProposeWithWrongRequestedAuth(t *testing.T) {
+	e := initEosioMsigTester()
+	trx := e.ReqAuth(alice, []types.PermissionLevel{{Actor: alice, Permission: common.DefaultConfig.ActiveName}, {Actor: bob, Permission: common.DefaultConfig.ActiveName}}, e.AbiSerializerMaxTime)
+
+	//try with not enough requested auth
+	propose := func() {e.Propose(alice, common.N("first"), trx, []types.PermissionLevel{{alice, common.DefaultConfig.ActiveName}})}
+	CatchThrowExceptionAndMsg(t, &exception.EosioAssertMessageException{}, "transaction authorization failed", propose)
+}
+
+func TestBigTransaction(t *testing.T) {
+	e := initEosioMsigTester()
+
+	trx := types.Transaction{}
+	{
+		wasmName := "test_contracts/eosio.token.wasm"
+		code, _ := ioutil.ReadFile(wasmName)
+		setCode := SetCode{Account: alice, VmType: 0, VmVersion: 0, Code: code}
+		data, _ := rlp.EncodeToBytes(setCode)
+		act := types.Action{
+			Account:       setCode.GetAccount(),
+			Name:          setCode.GetName(),
+			Authorization: []types.PermissionLevel{{Actor: alice, Permission: common.DefaultConfig.ActiveName}, {Actor: bob, Permission: common.DefaultConfig.ActiveName}},
+			Data:          data,
+		}
+		trx.Actions = append(trx.Actions, &act)
+		e.SetTransactionHeaders(&trx, 0, 0)
+		expiration, _ := common.FromIsoString("2020-01-01T00:00:30")
+		trx.Expiration = common.NewTimePointSecTp(expiration)
+		trx.RefBlockNum = 2
+		trx.RefBlockPrefix = 3
+	}
+	trace := e.Propose(alice, common.N("first"), trx, []types.PermissionLevel{{alice, common.DefaultConfig.ActiveName}, {Actor: bob, Permission: common.DefaultConfig.ActiveName}})
+	assert.True(t, e.ChainHasTransaction(&trace.ID))
+
+	//approve by alice and bob, then exec
+	trace = e.Approve(alice, alice, common.N("first"), types.PermissionLevel{Actor:alice, Permission:common.DefaultConfig.ActiveName})
+	assert.True(t, e.ChainHasTransaction(&trace.ID))
+	trace = e.Approve(bob, alice, common.N("first"), types.PermissionLevel{Actor:bob, Permission:common.DefaultConfig.ActiveName})
+	assert.True(t, e.ChainHasTransaction(&trace.ID))
+	trace = e.Exec(alice, alice, common.N("first"))
+	assert.True(t, e.ChainHasTransaction(&trace.ID))
+	assert.Equal(t, types.TransactionStatusExecuted, trace.Receipt.Status)
+	assert.Equal(t, int(1), len(trace.ActionTraces))
+}
+
+func (e EosioMsigTester)PrepareTrxForTest(t *testing.T) {
+
+}
+
+func TestUpdateSystemContractAllApprove(t *testing.T) {
+	e := initEosioMsigTester()
+	authority := types.Authority{
+		Threshold: 1,
+		Keys:      []types.KeyWeight{{Key: e.getPublicKey(eosio, "active"), Weight: 1}},
+		Accounts:  []types.PermissionLevelWeight{
+			{Permission: types.PermissionLevel{Actor: common.DefaultConfig.ProducersAccountName, Permission: common.DefaultConfig.ActiveName}, Weight: 1},
+		},
+	}
+	e.SetAuthority(
+		eosio,
+		common.DefaultConfig.ActiveName,
+		authority,
+		common.DefaultConfig.OwnerName,
+		&[]types.PermissionLevel{{eosio, common.DefaultConfig.ActiveName}},
+		&[]ecc.PrivateKey{e.getPrivateKey(eosio, "active")},
+	)
+	e.SetProducers(&[]common.AccountName{alice, bob, carol})
+	e.ProduceBlocks(50, false)
+	e.CreateAccounts([]common.AccountName{eosioToken}, false, true)
+	wasmName := "test_contracts/eosio.token.wasm"
+	code, _ := ioutil.ReadFile(wasmName)
+	e.SetCode(eosioToken, code, nil)
+	abiName := "test_contracts/eosio.token.abi"
+	abi, _ := ioutil.ReadFile(abiName)
+	e.SetAbi(eosioToken, abi, nil)
+
+	e.CreateCurrency(eosioToken, eosio, CoreFromString("10000000000.0000"))
+	e.Issue(eosio, CoreFromString("1000000000.0000"), eosio)
+	assert.Equal(t, CoreFromString("1000000000.0000").Amount, e.GetBalance(eosio).Amount + e.GetBalance(eosioRamFee).Amount + e.GetBalance(eosioStake).Amount + e.GetBalance(eosioRam).Amount)
+	wasmName = "test_contracts/eosio.system.wasm"
+	code, _ = ioutil.ReadFile(wasmName)
+	e.SetCode(eosio, code, nil)
+	abiName = "test_contracts/eosio.system.abi"
+	abi, _ = ioutil.ReadFile(abiName)
+	e.SetAbi(eosio, abi, nil)
+	e.ProduceBlocks(1, false)
+
+	alice2 := common.N("alice1111112")
+	bob2 := common.N("bob111111112")
+	carol2 := common.N("carol1111112")
+	e.CreateAccountWithResources(alice2, eosio, CoreFromString("1.0000"), false, CoreFromString("10.0000"), CoreFromString("10.0000"))
+	e.CreateAccountWithResources(bob2, eosio, CoreFromString("0.4500"), false, CoreFromString("10.0000"), CoreFromString("10.0000"))
+	e.CreateAccountWithResources(carol2, eosio, CoreFromString("1.0000"), false, CoreFromString("10.0000"), CoreFromString("10.0000"))
+	assert.Equal(t, CoreFromString("1000000000.0000").Amount, e.GetBalance(eosio).Amount + e.GetBalance(eosioRamFee).Amount + e.GetBalance(eosioStake).Amount + e.GetBalance(eosioRam).Amount)
+
+	perm := []types.PermissionLevel{{alice, common.DefaultConfig.ActiveName}, {bob, common.DefaultConfig.ActiveName}, {carol, common.DefaultConfig.ActiveName}}
+	actionPerm := []types.PermissionLevel{{eosio, common.DefaultConfig.ActiveName}}
+	trx := types.Transaction{}
+	{
+		wasmName = "test_contracts/test_api.wasm"
+		code, _ := ioutil.ReadFile(wasmName)
+		setCode := SetCode{Account: eosio, VmType: 0, VmVersion: 0, Code: code}
+		data, _ := rlp.EncodeToBytes(setCode)
+		act := types.Action{
+			Account:       setCode.GetAccount(),
+			Name:          setCode.GetName(),
+			Authorization: actionPerm,
+			Data:          data,
+		}
+		trx.Actions = append(trx.Actions, &act)
+		e.SetTransactionHeaders(&trx, 0, 0)
+		expiration, _ := common.FromIsoString("2020-01-01T00:00:30")
+		trx.Expiration = common.NewTimePointSecTp(expiration)
+		trx.RefBlockNum = 2
+		trx.RefBlockPrefix = 3
+	}
+
+	// propose action
+	trace := e.Propose(alice, common.N("first"), trx, perm)
+	assert.True(t, e.ChainHasTransaction(&trace.ID))
+
+	//approve by alice, bob and carol
+	trace = e.Approve(alice, alice, common.N("first"), types.PermissionLevel{Actor:alice, Permission:common.DefaultConfig.ActiveName})
+	assert.True(t, e.ChainHasTransaction(&trace.ID))
+	trace = e.Approve(bob, alice, common.N("first"), types.PermissionLevel{Actor:bob, Permission:common.DefaultConfig.ActiveName})
+	assert.True(t, e.ChainHasTransaction(&trace.ID))
+	trace = e.Approve(carol, alice, common.N("first"), types.PermissionLevel{Actor:carol, Permission:common.DefaultConfig.ActiveName})
+	assert.True(t, e.ChainHasTransaction(&trace.ID))
+
+	// execute by alice to replace the eosio system contract
+	trace = e.Exec(alice, alice, common.N("first"))
+	assert.True(t, e.ChainHasTransaction(&trace.ID))
+	assert.Equal(t, types.TransactionStatusExecuted, trace.Receipt.Status)
+	assert.Equal(t, int(1), len(trace.ActionTraces))
+}
+
+func TestUpdateSystemContractMajorApprove(t *testing.T) {
+	e := initEosioMsigTester()
+	apple := common.N("apple")
+	authority := types.Authority{
+		Threshold: 1,
+		Keys:      []types.KeyWeight{{Key: e.getPublicKey(eosio, "active"), Weight: 1}},
+		Accounts:  []types.PermissionLevelWeight{
+			{Permission: types.PermissionLevel{Actor: common.DefaultConfig.ProducersAccountName, Permission: common.DefaultConfig.ActiveName}, Weight: 1},
+		},
+	}
+	e.SetAuthority(
+		eosio,
+		common.DefaultConfig.ActiveName,
+		authority,
+		common.DefaultConfig.OwnerName,
+		&[]types.PermissionLevel{{eosio, common.DefaultConfig.ActiveName}},
+		&[]ecc.PrivateKey{e.getPrivateKey(eosio, "active")},
+	)
+	e.CreateAccounts([]common.AccountName{apple}, false, true)
+	e.SetProducers(&[]common.AccountName{alice, bob, carol, apple})
+	e.ProduceBlocks(50, false)
+	e.CreateAccounts([]common.AccountName{eosioToken}, false, true)
+	wasmName := "test_contracts/eosio.token.wasm"
+	code, _ := ioutil.ReadFile(wasmName)
+	e.SetCode(eosioToken, code, nil)
+	abiName := "test_contracts/eosio.token.abi"
+	abi, _ := ioutil.ReadFile(abiName)
+	e.SetAbi(eosioToken, abi, nil)
+
+	e.CreateCurrency(eosioToken, eosio, CoreFromString("10000000000.0000"))
+	e.Issue(eosio, CoreFromString("1000000000.0000"), eosio)
+	assert.Equal(t, CoreFromString("1000000000.0000").Amount, e.GetBalance(eosio).Amount + e.GetBalance(eosioRamFee).Amount + e.GetBalance(eosioStake).Amount + e.GetBalance(eosioRam).Amount)
+	wasmName = "test_contracts/eosio.system.wasm"
+	code, _ = ioutil.ReadFile(wasmName)
+	e.SetCode(eosio, code, nil)
+	abiName = "test_contracts/eosio.system.abi"
+	abi, _ = ioutil.ReadFile(abiName)
+	e.SetAbi(eosio, abi, nil)
+	e.ProduceBlocks(1, false)
+
+	alice2 := common.N("alice1111112")
+	bob2 := common.N("bob111111112")
+	carol2 := common.N("carol1111112")
+	e.CreateAccountWithResources(alice2, eosio, CoreFromString("1.0000"), false, CoreFromString("10.0000"), CoreFromString("10.0000"))
+	e.CreateAccountWithResources(bob2, eosio, CoreFromString("0.4500"), false, CoreFromString("10.0000"), CoreFromString("10.0000"))
+	e.CreateAccountWithResources(carol2, eosio, CoreFromString("1.0000"), false, CoreFromString("10.0000"), CoreFromString("10.0000"))
+	assert.Equal(t, CoreFromString("1000000000.0000").Amount, e.GetBalance(eosio).Amount + e.GetBalance(eosioRamFee).Amount + e.GetBalance(eosioStake).Amount + e.GetBalance(eosioRam).Amount)
+
+	perm := []types.PermissionLevel{
+		{alice, common.DefaultConfig.ActiveName},
+		{bob, common.DefaultConfig.ActiveName},
+		{carol, common.DefaultConfig.ActiveName},
+		{apple, common.DefaultConfig.ActiveName},
+	}
+	actionPerm := []types.PermissionLevel{{eosio, common.DefaultConfig.ActiveName}}
+	trx := types.Transaction{}
+	{
+		wasmName = "test_contracts/test_api.wasm"
+		code, _ := ioutil.ReadFile(wasmName)
+		setCode := SetCode{Account: eosio, VmType: 0, VmVersion: 0, Code: code}
+		data, _ := rlp.EncodeToBytes(setCode)
+		act := types.Action{
+			Account:       setCode.GetAccount(),
+			Name:          setCode.GetName(),
+			Authorization: actionPerm,
+			Data:          data,
+		}
+		trx.Actions = append(trx.Actions, &act)
+		e.SetTransactionHeaders(&trx, 0, 0)
+		expiration, _ := common.FromIsoString("2020-01-01T00:00:30")
+		trx.Expiration = common.NewTimePointSecTp(expiration)
+		trx.RefBlockNum = 2
+		trx.RefBlockPrefix = 3
+	}
+
+	// propose action
+	trace := e.Propose(alice, common.N("first"), trx, perm)
+	assert.True(t, e.ChainHasTransaction(&trace.ID))
+
+	//approve by alice, bob
+	trace = e.Approve(alice, alice, common.N("first"), types.PermissionLevel{Actor:alice, Permission:common.DefaultConfig.ActiveName})
+	assert.True(t, e.ChainHasTransaction(&trace.ID))
+	trace = e.Approve(bob, alice, common.N("first"), types.PermissionLevel{Actor:bob, Permission:common.DefaultConfig.ActiveName})
+	assert.True(t, e.ChainHasTransaction(&trace.ID))
+
+	// not enough approvers
+	exec := func() {e.Exec(alice, alice, common.N("first"))}
+	CatchThrowExceptionAndMsg(t, &exception.EosioAssertMessageException{}, "transaction authorization failed", exec)
+
+	//approve by apple
+	trace = e.Approve(apple, alice, common.N("first"), types.PermissionLevel{Actor:apple, Permission:common.DefaultConfig.ActiveName})
+	assert.True(t, e.ChainHasTransaction(&trace.ID))
+
+	// execute by another producer different from proposer
+	trace = e.Exec(apple, alice, common.N("first"))
+	assert.True(t, e.ChainHasTransaction(&trace.ID))
+	assert.Equal(t, types.TransactionStatusExecuted, trace.Receipt.Status)
+	assert.Equal(t, int(1), len(trace.ActionTraces))
+
+	// can't create account because system contract was replace by the test_api contract
+	createAccounts := func() {e.CreateAccountWithResources(common.N("alice1111113"), eosio, CoreFromString("1.0000"), false, CoreFromString("10.0000"), CoreFromString("10.0000"))}
+	CatchThrowExceptionAndMsg(t, &exception.EosioAssertMessageException{}, "Unknown Test", createAccounts)
 }

@@ -1784,8 +1784,9 @@ func TestProducersUpgradeSystemContract(t *testing.T) {
 			Data:          data,
 		}
 		trx.Actions = append(trx.Actions, &act)
-		e.SetTransactionHeaders(&trx.Transaction, e.DefaultExpirationDelta+9, 0)
-		fmt.Println(trx.Expiration.SecSinceEpoch())
+		e.SetTransactionHeaders(&trx.Transaction, 0, 0)
+		expiration, _ := common.FromIsoString("2020-01-01T00:00:30")
+		trx.Expiration = common.NewTimePointSecTp(expiration)
 		trx.Transaction.RefBlockNum = 2
 		trx.Transaction.RefBlockPrefix = 3
 	}

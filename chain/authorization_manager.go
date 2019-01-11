@@ -302,8 +302,8 @@ func (a *AuthorizationManager) CheckCancelDelayAuthorization(cancel CancelDelay,
 		log.Error("CheckCancelDelayAuthorization is error: %s", err)
 	}
 
-	generatedIndex.BeginData(&generatedTrx)
-	EosAssert(!generatedIndex.CompareEnd(itr) && generatedTrx.TrxId == trxId, &TxNotFound{},
+	err = itr.Data(&generatedTrx)
+	EosAssert(err == nil && generatedTrx.TrxId == trxId, &TxNotFound{},
 		"cannot cancel trx_id=%v, there is no deferred transaction with that transaction id", trxId)
 
 	trx := types.Transaction{}
