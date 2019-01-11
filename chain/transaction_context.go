@@ -72,7 +72,7 @@ func NewTransactionContext(c *Controller, t *types.SignedTransaction, trxId comm
 		ApplyContextFree:      true,
 		CanSubjectivelyFail:   true,
 		Deadline:              common.MaxTimePoint(),
-		Leeway:                common.Microseconds(3000),
+		Leeway:                common.Microseconds(100000), //TODO default 3000
 		BilledCpuTimeUs:       0,
 		ExplicitBilledCpuTime: false,
 
@@ -408,10 +408,8 @@ func (t *TransactionContext) CheckTime() {
 		} else if t.deadlineExceptionCode == int64(LeewayDeadlineException{}.Code()) {
 			EosAssert(false,
 				&LeewayDeadlineException{},
-				"the transaction was unable to complete by deadline, ",
-				"but it is possible it could have succeeded if it were allowed to run to completion, now %v deadline %v start %v billing_timer %d",
-				now, t.deadline, t.Start, now-t.pseudoStart)
-
+				"the transaction was unable to complete by deadline, but it is possible it could have succeeded if it were allowed to run to completion, "+
+					"now %v deadline %v start %v billing_timer %d", now, t.deadline, t.Start, now-t.pseudoStart)
 		}
 		EosAssert(false,
 			&TransactionException{},

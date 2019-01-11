@@ -43,6 +43,7 @@ func newEosgo(c *Console) *eosgo {
 	return e
 }
 
+//CreateKey creates a new keypair and print the public and private keys
 func (e *eosgo) CreateKey(call otto.FunctionCall) (response otto.Value) {
 	type Keys struct {
 		Pri string `json:"Private Key"`
@@ -50,10 +51,15 @@ func (e *eosgo) CreateKey(call otto.FunctionCall) (response otto.Value) {
 	}
 
 	privateKey, _ := ecc.NewRandomPrivateKey()
-	key := Keys{Pri: privateKey.String(), Pub: privateKey.PublicKey().String()}
-	return getJsResult(call, key)
+	//key := Keys{Pri: privateKey.String(), Pub: privateKey.PublicKey().String()}
+	//return getJsResult(call, key)
+
+	fmt.Println("Private key: ", privateKey.String())
+	fmt.Println("Public key: ", privateKey.PublicKey().String())
+	return otto.UndefinedValue()
 }
 
+//CreateAccount creates a new account on the blockchain (assumes system contract does not restrict RAM usage)
 func (e *eosgo) CreateAccount(call otto.FunctionCall) (response otto.Value) {
 	var params CreateAccountParams
 	readParams(&params, call)
@@ -76,53 +82,6 @@ func (e *eosgo) CreateAccount(call otto.FunctionCall) (response otto.Value) {
 	clog.Info("creat account in test net")
 	re := sendActions([]*types.Action{action}, 1000, types.CompressionNone, &params)
 	return getJsResult(call, re)
-}
-
-func (e *eosgo) PushAction(call otto.FunctionCall) (response otto.Value) {
-	var params PushAction
-	readParams(&params, call)
-
-	actionArgsVar := &common.Variants{}
-	err := json.Unmarshal([]byte(params.Data), actionArgsVar)
-	if err != nil {
-		throwJSException(fmt.Sprintln("Fail to parse action JSON data = ", params.Data))
-	}
-
-	permissions := getAccountPermissions(params.TxPermission)
-	action := &types.Action{
-		Account:       common.N(params.ContractAccount),
-		Name:          common.N(params.Action),
-		Authorization: permissions,
-		Data:          variantToBin(common.N(params.ContractAccount), common.N(params.Action), actionArgsVar),
-	}
-	sendActions([]*types.Action{action}, 1000, types.CompressionNone, &params)
-	return otto.UndefinedValue()
-}
-
-func (e *eosgo) PushTrx(call otto.FunctionCall) (response otto.Value) {
-	//var signtrx types.SignedTransaction
-	//
-	//trx_var, err := call.Argument(0).ToString()
-	//if err != nil {
-	//	return otto.UndefinedValue()
-	//}
-	//fmt.Println("receive trx:", trx_var, err)
-	//fmt.Println()
-	//fmt.Println()
-	//aa := "{\"ref_block_num\":\"101\",\"ref_block_prefix\":\"4159312339\",\"expiration\":\"2017-09-25T06:28:49\",\"scope\":[\"initb\",\"initc\"],\"actions\":[{\"code\":\"currency\",\"type\":\"transfer\",\"recipients\":[\"initb\",\"initc\"],\"authorization\":[{\"account\":\"initb\",\"permission\":\"active\"}],\"data\":\"000000000041934b000000008041934be803000000000000\"}],\"signatures\":[],\"authorizations\":[]}, {\"ref_block_num\":\"101\",\"ref_block_prefix\":\"4159312339\",\"expiration\":\"2017-09-25T06:28:49\",\"scope\":[\"inita\",\"initc\"],\"actions\":[{\"code\":\"currency\",\"type\":\"transfer\",\"recipients\":[\"inita\",\"initc\"],\"authorization\":[{\"account\":\"inita\",\"permission\":\"active\"}],\"data\":\"000000008040934b000000008041934be803000000000000\"}],\"signatures\":[],\"authorizations\":[]}]"
-	//
-	//err = json.Unmarshal([]byte(aa), &signtrx)
-	//if err != nil {
-	//	fmt.Println(err)
-	//	//EOS_RETHROW_EXCEPTIONS(transaction_type_exception, "Fail to parse transaction JSON '${data}'", ("data",trx_to_push))
-	//	//try.FcThrowException(&exception.TransactionTypeException{},"Fail to parse transaction JSON %s",trx_var)
-	//}
-	//
-	//re := e.pushTransaction(&signtrx, 1000, types.CompressionNone)
-	//printResult(re)
-
-	v, _ := call.Otto.ToValue(nil)
-	return v
 }
 
 func (e *eosgo) SetCode(call otto.FunctionCall) (response otto.Value) {
@@ -170,6 +129,7 @@ func (e *eosgo) SetAbi(call otto.FunctionCall) (response otto.Value) {
 	return otto.UndefinedValue()
 }
 
+//SetContract creates or update the code on an account
 func (e *eosgo) SetContract(call otto.FunctionCall) (response otto.Value) {
 
 	v, _ := call.Otto.ToValue(nil)
@@ -177,6 +137,7 @@ func (e *eosgo) SetContract(call otto.FunctionCall) (response otto.Value) {
 }
 
 //TODO set
+//SetAccountPermission sets parameters dealing with account permissions
 func (e *eosgo) SetAccountPermission(call otto.FunctionCall) (response otto.Value) {
 	var params SetAccountPermissionParams
 	readParams(&params, call)
@@ -220,6 +181,7 @@ func (e *eosgo) SetAccountPermission(call otto.FunctionCall) (response otto.Valu
 	return getJsResult(call, nil)
 }
 
+//SetActionPermission sets parameters dealing with account permissions
 func (e *eosgo) SetActionPermission(call otto.FunctionCall) (response otto.Value) {
 	var params SetActionPermissionParams
 	readParams(&params, call)
@@ -237,6 +199,29 @@ func (e *eosgo) SetActionPermission(call otto.FunctionCall) (response otto.Value
 		sendActions([]*types.Action{action}, 1000, types.CompressionNone, &params)
 	}
 	return getJsResult(call, nil)
+}
+
+//Transfer transfers EOS from account to account
+func (e *eosgo) Transfer(call otto.FunctionCall) (response otto.Value) {
+	con := "eosio.token"
+	var params TransferParams
+	readParams(&params, call)
+
+	if params.TxForceUnique && len(params.Memo) == 0 {
+		// use the memo to add a nonce
+		params.Memo = generateNonceString()
+		params.TxForceUnique = false
+	}
+
+	transferAmount := toAsset(common.N(con), params.Amount)
+	transfer := createTransfer(con, common.N(params.Sender), common.N(params.Recipient), *transferAmount, params.Memo, params.TxPermission)
+	if !params.PayRam {
+		sendActions([]*types.Action{transfer}, 1000, types.CompressionNone, &params)
+	} else {
+		open := createOpen(con, common.N(params.Recipient), transferAmount.Symbol, common.N(params.Sender), params.TxPermission)
+		sendActions([]*types.Action{open}, 1000, types.CompressionNone, &params)
+	}
+	return otto.UndefinedValue()
 }
 
 func getAccountPermissions(permissions []string) []types.PermissionLevel {
@@ -296,6 +281,7 @@ func binToVariant(account common.AccountName, action common.ActionName, actionAr
 	FcAssert(len(actionType) != 0, fmt.Sprintf("Unknown action %s in contract %s", action, account))
 	return abis.BinaryToVariant(actionType, actionArgs, abiSerializerMaxTime, false)
 }
+
 func binToVariant2(account common.AccountName, action common.ActionName, actionArgs []byte) interface{} {
 	abis := abisSerializerResolver(account)
 	FcAssert(!common.Empty(abis), fmt.Sprintf("No ABI found %s", account))
@@ -609,6 +595,7 @@ func printResult(v interface{}) {
 			cpu = gjson.GetBytes(data, "Processed.Receipt.cpu_usage_us").Int()
 		} else {
 			status = "failed"
+			return
 		}
 
 		first := fmt.Sprint(status, " transaction: ", transactionID, "  ", net, "bytes  ", cpu, " us")

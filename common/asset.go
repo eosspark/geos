@@ -223,7 +223,7 @@ func (sym *Symbol) Name() string {
 }
 
 func (sym *Symbol) Valid() bool {
-	return sym.Decimals() <= MaxPrecision && sym.ValidName(sym.Symbol)
+	return sym.Decimals() <= MaxPrecision && len(sym.Symbol) != 0 && sym.ValidName(sym.Symbol)
 }
 
 func (sym *Symbol) ValidName(name string) bool {
@@ -310,8 +310,18 @@ func (a *Asset) UnmarshalJSON(data []byte) error {
 		return err
 	}
 
-	asset, err := NewAsset(s)
-	if err != nil {
+	var asset Asset
+	invalid := false
+	Try(func() {
+		asset, err = NewAsset(s)
+		if err != nil {
+			invalid = true
+		}
+	}).Catch(func(e interface{}) {
+		invalid = true
+	}).End()
+
+	if invalid {
 		return err
 	}
 
