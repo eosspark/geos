@@ -27,6 +27,7 @@ func newSystem(c *Console) *system {
 	return s
 }
 
+//NewAccount creates a new account on the blockchain with initial resources
 func (s *system) NewAccount(call otto.FunctionCall) (response otto.Value) {
 	var params NewAccountParams
 	readParams(&params, call)
@@ -76,11 +77,12 @@ func (s *system) NewAccount(call otto.FunctionCall) (response otto.Value) {
 	return otto.UndefinedValue()
 }
 
+//RegProducer registers a new producer
 func (s *system) RegProducer(call otto.FunctionCall) (response otto.Value) {
 	var params RegisterProducer
 	readParams(&params, call)
 
-	producerKey, err := ecc.NewPublicKey(params.ProducerKey)
+	producerKey, err := ecc.NewPublicKey(params.Key)
 	if err != nil {
 		Throw(err) // EOS_RETHROW_EXCEPTIONS(public_key_type_exception, "Invalid producer public key: ${public_key}", ("public_key", producer_key_str))
 	}
@@ -94,6 +96,7 @@ func (s *system) RegProducer(call otto.FunctionCall) (response otto.Value) {
 	return otto.UndefinedValue()
 }
 
+//Unregprod unregisters an existing producer
 func (s *system) Unregprod(call otto.FunctionCall) (response otto.Value) {
 	var params UnregrodParams
 	readParams(&params, call)
@@ -106,6 +109,7 @@ func (s *system) Unregprod(call otto.FunctionCall) (response otto.Value) {
 	return otto.UndefinedValue()
 }
 
+//VoteproducerProxy votes your stake through a proxy
 func (s *system) VoteproducerProxy(call otto.FunctionCall) (response otto.Value) {
 	var params Proxy
 	readParams(&params, call)
@@ -121,6 +125,7 @@ func (s *system) VoteproducerProxy(call otto.FunctionCall) (response otto.Value)
 	return otto.UndefinedValue()
 }
 
+//VoteproducerProds votes for one or more producers
 func (s *system) VoteproducerProds(call otto.FunctionCall) (response otto.Value) {
 	var params Prods
 	readParams(&params, call)
@@ -129,18 +134,19 @@ func (s *system) VoteproducerProds(call otto.FunctionCall) (response otto.Value)
 	fmt.Println("producerNames after:", params.ProducerNames)
 
 	actPayload := common.Variants{
-		"voter":     params.Vote,
+		"voter":     params.Voter,
 		"proxy":     "",
 		"producers": params.ProducerNames,
 	}
 
-	action := createAction([]types.PermissionLevel{{common.N(params.Vote), common.DefaultConfig.ActiveName}},
+	action := createAction([]types.PermissionLevel{{common.N(params.Voter), common.DefaultConfig.ActiveName}},
 		common.DefaultConfig.SystemAccountName, common.N("voteproducer"), &actPayload)
 	sendActions([]*types.Action{action}, 10000, types.CompressionNone, &params)
 	return otto.UndefinedValue()
 }
 
-func (s *system) VoteproducerApprove(call otto.FunctionCall) (response otto.Value) {
+//Approveroducer adds one producer to list of voted producers
+func (s *system) Approveroducer(call otto.FunctionCall) (response otto.Value) {
 	var params Approve
 	readParams(&params, call)
 
@@ -177,8 +183,8 @@ func (s *system) VoteproducerApprove(call otto.FunctionCall) (response otto.Valu
 	if !ok {
 		throwJSException(fmt.Sprintf("Voter info not found producers"))
 	}
-	var prods Producers
-	prodsVars := prodsInterface.(Producers)
+	var prods Names
+	prodsVars := prodsInterface.(Names)
 
 	for _, name := range prodsVars {
 		if uint64(name) != uint64(params.ProducerName) {
@@ -204,7 +210,8 @@ func (s *system) VoteproducerApprove(call otto.FunctionCall) (response otto.Valu
 	return otto.UndefinedValue()
 }
 
-func (s *system) VoteproducerUnapproveProducer(call otto.FunctionCall) (response otto.Value) {
+//UnapproveProducer removes one producer from list of voted producers
+func (s *system) UnapproveProducer(call otto.FunctionCall) (response otto.Value) {
 	var params UnapproveProducer
 	readParams(&params, call)
 
@@ -242,8 +249,8 @@ func (s *system) VoteproducerUnapproveProducer(call otto.FunctionCall) (response
 		throwJSException(fmt.Sprintf("Voter info not found producers"))
 	}
 
-	var prods Producers
-	prodsVars := prodsInterface.(Producers)
+	var prods Names
+	prodsVars := prodsInterface.(Names)
 
 	for _, name := range prodsVars {
 		if uint64(name) != uint64(params.ProducerName) {
@@ -266,6 +273,7 @@ func (s *system) VoteproducerUnapproveProducer(call otto.FunctionCall) (response
 	return otto.UndefinedValue()
 }
 
+//Listproducers lists producers
 func (s *system) Listproducers(call otto.FunctionCall) (response otto.Value) {
 	var params ListproducersParams
 	readParams(&params, call)
@@ -323,6 +331,7 @@ func (s *system) Listproducers(call otto.FunctionCall) (response otto.Value) {
 	return otto.UndefinedValue()
 }
 
+//Delegatebw delegates bandwidth
 func (s *system) Delegatebw(call otto.FunctionCall) (response otto.Value) {
 	var params DelegatebwParams
 	readParams(&params, call)
@@ -332,7 +341,7 @@ func (s *system) Delegatebw(call otto.FunctionCall) (response otto.Value) {
 
 	actPayload := common.Variants{
 		"from":               params.From,
-		"receiver":           params.Receive,
+		"receiver":           params.Receiver,
 		"stake_net_quantity": toAssetFromString(params.StakeNetAmount),
 		"stake_cpu_quantity": toAssetFromString(params.StakeCpuAmount),
 		"transfer":           params.Transfer,
@@ -343,15 +352,16 @@ func (s *system) Delegatebw(call otto.FunctionCall) (response otto.Value) {
 	acts := []*types.Action{action}
 
 	if len(params.BuyRamAmount) > 0 {
-		acts = append(acts, createBuyRam(common.N(params.From), common.N(params.Receive), toAssetFromString(params.BuyRamAmount), params.TxPermission))
+		acts = append(acts, createBuyRam(common.N(params.From), common.N(params.Receiver), toAssetFromString(params.BuyRamAmount), params.TxPermission))
 	} else if params.BuyRamBytes > 0 {
-		acts = append(acts, createBuyRamBytes(common.N(params.From), common.N(params.Receive), params.BuyRamBytes, params.TxPermission))
+		acts = append(acts, createBuyRamBytes(common.N(params.From), common.N(params.Receiver), params.BuyRamBytes, params.TxPermission))
 	}
 
 	sendActions(acts, 1000, types.CompressionNone, &params)
 	return otto.UndefinedValue()
 }
 
+//Undelegatebw undelegates bandwidth
 func (s *system) Undelegatebw(call otto.FunctionCall) (response otto.Value) {
 	var params UndelegatebwParams
 	readParams(&params, call)
@@ -368,6 +378,7 @@ func (s *system) Undelegatebw(call otto.FunctionCall) (response otto.Value) {
 	return otto.UndefinedValue()
 }
 
+//Listbw lists delegated bandwidth
 func (s *system) Listbw(call otto.FunctionCall) (response otto.Value) {
 	var params ListbwParams
 	readParams(&params, call)
@@ -403,6 +414,7 @@ func (s *system) Listbw(call otto.FunctionCall) (response otto.Value) {
 	return otto.UndefinedValue()
 }
 
+//Bidname: Name bidding
 func (s *system) Bidname(call otto.FunctionCall) (response otto.Value) {
 	var params BidnameParams
 	readParams(&params, call)
@@ -419,6 +431,7 @@ func (s *system) Bidname(call otto.FunctionCall) (response otto.Value) {
 	return otto.UndefinedValue()
 }
 
+//Bidnameinfo gets bidname info
 func (s *system) Bidnameinfo(call otto.FunctionCall) (response otto.Value) {
 	var params BidNameinfoParams
 	readParams(&params, call)
@@ -456,6 +469,7 @@ func (s *system) Bidnameinfo(call otto.FunctionCall) (response otto.Value) {
 	return otto.UndefinedValue()
 }
 
+//Buyram buy RAM
 func (s *system) Buyram(call otto.FunctionCall) (response otto.Value) {
 	var params BuyramParams
 	readParams(&params, call)
@@ -482,6 +496,7 @@ func (s *system) Buyram(call otto.FunctionCall) (response otto.Value) {
 	return otto.UndefinedValue()
 }
 
+//Sellram sell RAM
 func (s *system) Sellram(call otto.FunctionCall) (response otto.Value) {
 	var params SellRamParams
 	readParams(&params, call)
@@ -495,6 +510,7 @@ func (s *system) Sellram(call otto.FunctionCall) (response otto.Value) {
 	return otto.UndefinedValue()
 }
 
+//Claimrewards claims producer rewards
 func (s *system) Claimrewards(call otto.FunctionCall) (response otto.Value) {
 	var params ClaimrewardsParams
 	readParams(&params, call)
@@ -509,6 +525,7 @@ func (s *system) Claimrewards(call otto.FunctionCall) (response otto.Value) {
 	return otto.UndefinedValue()
 }
 
+//Regproxy Registers an account as a proxy (for voting)
 func (s *system) Regproxy(call otto.FunctionCall) (response otto.Value) {
 	var params RegproxyParams
 	readParams(&params, call)
@@ -522,6 +539,7 @@ func (s *system) Regproxy(call otto.FunctionCall) (response otto.Value) {
 	return otto.UndefinedValue()
 }
 
+//Unregproxy unregisters an account as a proxy (for voting)
 func (s *system) Unregproxy(call otto.FunctionCall) (response otto.Value) {
 	var params RegproxyParams
 	readParams(&params, call)
@@ -536,6 +554,7 @@ func (s *system) Unregproxy(call otto.FunctionCall) (response otto.Value) {
 	return otto.UndefinedValue()
 }
 
+//Canceldelay cancels a delayed transaction
 func (s *system) Canceldelay(call otto.FunctionCall) (response otto.Value) {
 	var params CanceldelayParams
 	readParams(&params, call)
@@ -747,4 +766,8 @@ func generateNonceAction() *types.Action {
 		Authorization: []types.PermissionLevel{},
 		Data:          data,
 	}
+}
+
+func generateNonceString() string {
+	return strconv.FormatInt(common.Now().TimeSinceEpoch().Count(), 10)
 }

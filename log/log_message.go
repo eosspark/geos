@@ -29,11 +29,10 @@ func FcLogMessage(level Lvl, format string, args ...interface{}) Message {
 	return LogMessage(level, format, args, 2)
 }
 
-
 func LogMessage(level Lvl, format string, args []interface{}, skip ...int) Message {
 	msg := Message{
 		context: Context{
-			LogLevel:  level,
+			LogLevel: level,
 		},
 		Format: format,
 		Args:   args,

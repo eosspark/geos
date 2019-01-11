@@ -19,7 +19,7 @@ func TestErrorThrow(t *testing.T) {
 	Try(func() {
 		Try(func() {
 			var a *int
-			*a ++
+			*a++
 		}).Catch(func(e Exception) {
 			FcRethrowException(e, LvlWarn, "rethrow error")
 		}).End()

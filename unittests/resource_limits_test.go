@@ -26,10 +26,10 @@ func initializeResource() *ResourceLimitsFixture {
 	control := GetControllerInstance()
 	rlm := control.ResourceLimits
 	rlm.InitializeDatabase()
-	return &ResourceLimitsFixture{ResourceLimitsManager:*rlm, Controller: *control}
+	return &ResourceLimitsFixture{ResourceLimitsManager: *rlm, Controller: *control}
 }
 
-func (r ResourceLimitsFixture) startSession() database.Session{
+func (r ResourceLimitsFixture) startSession() database.Session {
 	return *r.DB.StartSession()
 }
 
@@ -146,7 +146,7 @@ func TestWeightedCapacityCpu(t *testing.T) {
 
 	rlm.ProcessAccountLimitUpdates()
 	config := entity.DefaultResourceLimitsConfigObject
-	err := rlm.DB.Find("id",config, &config)
+	err := rlm.DB.Find("id", config, &config)
 	if err != nil {
 		log.Error("%s", err)
 	}
@@ -166,7 +166,7 @@ func TestWeightedCapacityCpu(t *testing.T) {
 		rlm.AddTransactionUsage(f, uint64(expectedLimits[idx]), 0, 0)
 		s.Undo()
 
-		addTrxUsage := func() {rlm.AddTransactionUsage(f, uint64(expectedLimits[idx] + 1), 0, 0)}
+		addTrxUsage := func() { rlm.AddTransactionUsage(f, uint64(expectedLimits[idx]+1), 0, 0) }
 		CatchThrowException(t, &exception.TxCpuUsageExceeded{}, addTrxUsage)
 	}
 }
@@ -191,7 +191,7 @@ func TestWeightedCapacityNet(t *testing.T) {
 
 	rlm.ProcessAccountLimitUpdates()
 	config := entity.DefaultResourceLimitsConfigObject
-	err := rlm.DB.Find("id",config, &config)
+	err := rlm.DB.Find("id", config, &config)
 	if err != nil {
 		log.Error("%s", err)
 	}
@@ -235,7 +235,7 @@ func TestEnforceBlockLimitsCpu(t *testing.T) {
 		rlm.AddTransactionUsage(f, increment, 0, 0)
 	}
 
-	addTrxUsage := func() {rlm.AddTransactionUsage(f, increment, 0, 0)}
+	addTrxUsage := func() { rlm.AddTransactionUsage(f, increment, 0, 0) }
 	CatchThrowException(t, &exception.BlockResourceExhausted{}, addTrxUsage)
 }
 
@@ -256,7 +256,7 @@ func TestEnforceBlockLimitsNet(t *testing.T) {
 		rlm.AddTransactionUsage(f, 0, increment, 0)
 	}
 
-	addTrxUsage := func() {rlm.AddTransactionUsage(f, 0, increment, 0)}
+	addTrxUsage := func() { rlm.AddTransactionUsage(f, 0, increment, 0) }
 	CatchThrowException(t, &exception.BlockResourceExhausted{}, addTrxUsage)
 }
 
@@ -277,7 +277,7 @@ func TestEnforceAccountRamLimit(t *testing.T) {
 	}
 	rlm.AddPendingRamUsage(account, int64(increment))
 
-	verifyUsage := func() {rlm.VerifyAccountRamUsage(account)}
+	verifyUsage := func() { rlm.VerifyAccountRamUsage(account) }
 	CatchThrowException(t, &exception.RamUsageExceeded{}, verifyUsage)
 }
 
@@ -289,7 +289,7 @@ func TestEnforceAccountRamLimitUnderflow(t *testing.T) {
 	rlm.VerifyAccountRamUsage(account)
 	rlm.ProcessAccountLimitUpdates()
 
-	AddUsage := func() {rlm.AddPendingRamUsage(account, -101)}
+	AddUsage := func() { rlm.AddPendingRamUsage(account, -101) }
 	CatchThrowException(t, &exception.TransactionException{}, AddUsage)
 }
 
@@ -304,7 +304,7 @@ func TestEnforceAccountRamLimitOverflow(t *testing.T) {
 	rlm.AddPendingRamUsage(account, math.MaxUint64/2)
 	rlm.VerifyAccountRamUsage(account)
 
-	AddUsage := func() {rlm.AddPendingRamUsage(account, 2)}
+	AddUsage := func() { rlm.AddPendingRamUsage(account, 2) }
 	CatchThrowException(t, &exception.TransactionException{}, AddUsage)
 }
 
@@ -330,7 +330,7 @@ func TestEnforceAccountRamCommitment(t *testing.T) {
 
 	rlm.SetAccountLimits(account, int64(limit-increment*expectedIterations), -1, -1)
 
-	verifyUsage := func() {rlm.VerifyAccountRamUsage(account)}
+	verifyUsage := func() { rlm.VerifyAccountRamUsage(account) }
 	CatchThrowException(t, &exception.RamUsageExceeded{}, verifyUsage)
 }
 

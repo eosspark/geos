@@ -30,12 +30,14 @@ func TestMissingSigs(t *testing.T) {
 	b.CreateAccounts([]common.AccountName{common.N("alice")}, false, true)
 	b.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs), 0)
 
-	reqAuth := func() {b.PushReqAuth(common.N("alice"), &[]types.PermissionLevel{{common.N("alice"), common.DefaultConfig.ActiveName}}, &[]ecc.PrivateKey{})}
+	reqAuth := func() {
+		b.PushReqAuth(common.N("alice"), &[]types.PermissionLevel{{common.N("alice"), common.DefaultConfig.ActiveName}}, &[]ecc.PrivateKey{})
+	}
 	CatchThrowException(t, &UnsatisfiedAuthorization{}, reqAuth)
 
-	trace :=  b.PushReqAuth2(common.N("alice"), "owner", false)
+	trace := b.PushReqAuth2(common.N("alice"), "owner", false)
 	b.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs), 0)
-	assert.Equal(t, b.ChainHasTransaction(&trace.ID),true)
+	assert.Equal(t, b.ChainHasTransaction(&trace.ID), true)
 	b.close()
 }
 
@@ -45,12 +47,12 @@ func TestMissingMultiSigs(t *testing.T) {
 	b.CreateAccount(common.N("alice"), common.DefaultConfig.SystemAccountName, true, true)
 	b.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs), 0)
 
-	reqAuth := func() {b.PushReqAuth2(common.N("alice"), "owner", false)}
+	reqAuth := func() { b.PushReqAuth2(common.N("alice"), "owner", false) }
 	CatchThrowException(t, &UnsatisfiedAuthorization{}, reqAuth)
 
-	trace :=  b.PushReqAuth2(common.N("alice"), "owner", true)
+	trace := b.PushReqAuth2(common.N("alice"), "owner", true)
 	b.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs), 0)
-	assert.Equal(t,b.ChainHasTransaction(&trace.ID),true)
+	assert.Equal(t, b.ChainHasTransaction(&trace.ID), true)
 	b.close()
 }
 
@@ -259,7 +261,6 @@ func TestUpdateAuths(t *testing.T) {
 		)
 	}
 	CatchThrowException(t, &ActionValidateException{}, setAuthority)
-
 
 	// Remove spending auth
 	vt.DeleteAuthority(
@@ -515,19 +516,20 @@ func TestCreateAccount(t *testing.T) {
 	assert.Equal(t, ycActiveAuthority.Auth.Keys[0].Weight, types.WeightType(1))
 
 	// Create duplicate name TODO
-	createAccount := func() {vt.CreateAccount(common.N("yc"), common.DefaultConfig.SystemAccountName, false, true)}
+	createAccount := func() { vt.CreateAccount(common.N("yc"), common.DefaultConfig.SystemAccountName, false, true) }
 	CatchThrowExceptionAndMsg(t, &AccountNameExistsException{}, "Cannot create account named yc, as that name is already taken", createAccount)
 
 	// Creating account with name more than 12 chars
-	createAccount = func() {vt.CreateAccount(common.N("ychahahahahah"), common.DefaultConfig.SystemAccountName, false, true)}
+	createAccount = func() {
+		vt.CreateAccount(common.N("ychahahahahah"), common.DefaultConfig.SystemAccountName, false, true)
+	}
 	CatchThrowExceptionAndMsg(t, &ActionValidateException{}, "account names can only be 12 chars long", createAccount)
-
 
 	// Create account with eosio. prefix with privileged account
 	vt.CreateAccount(common.N("eosio.yc"), common.DefaultConfig.SystemAccountName, false, true)
 
 	//Create account with eosio. prefix with non-privileged account, should fail
-	createAccount = func() {vt.CreateAccount(common.N("eosio.hn"), common.N("yc"), false, true)}
+	createAccount = func() { vt.CreateAccount(common.N("eosio.hn"), common.N("yc"), false, true) }
 	CatchThrowExceptionAndMsg(t, &ActionValidateException{}, "only privileged accounts can have names that start with 'eosio.'", createAccount)
 	vt.close()
 }
@@ -687,11 +689,11 @@ func TestStricterAuth(t *testing.T) {
 	}
 
 	// Threshold can't be zero
-	createAccount := func() {createAcc(acc2, acc1, 0)}
+	createAccount := func() { createAcc(acc2, acc1, 0) }
 	CatchThrowMsg(t, "Invalid owner authority", createAccount)
 
 	// Threshold can't be more than total weight
-	createAccount = func() {createAcc(acc4, acc1, 3)}
+	createAccount = func() { createAcc(acc4, acc1, 3) }
 	CatchThrowMsg(t, "Invalid owner authority", createAccount)
 
 	createAcc(acc3, acc1, 1)
@@ -744,7 +746,7 @@ func TestLinkAuthSpecial(t *testing.T) {
 				0,
 			)
 		}
-		CatchThrowMsg(t, "Cannot link eosio::" + rtype + " to a minimum permission", linkAuth)
+		CatchThrowMsg(t, "Cannot link eosio::"+rtype+" to a minimum permission", linkAuth)
 	}
 
 	validateDisallow("linkauth")

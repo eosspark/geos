@@ -76,26 +76,24 @@ var TypeSize = struct {
 	CurrencyName:   7,
 }
 
-var (
+var rlplog log.Logger
+
+// Decoder implements the EOS unpacking, similar to FC_BUFFER
+type Decoder struct {
+	data               []byte
+	pos                int
 	optional           bool
 	vuint32            bool
 	vint32             bool
 	trxID              bool
 	destaticVariantTag uint8
-	//eosArray           bool
-	asset  bool
-	rlplog log.Logger
-)
-
-// Decoder implements the EOS unpacking, similar to FC_BUFFER
-type Decoder struct {
-	data []byte
-	pos  int
+	asset              bool
 }
 
 func init() {
 	rlplog = log.New("rlp")
 	rlplog.SetHandler(log.TerminalHandler)
+	rlplog.SetHandler(log.DiscardHandler())
 }
 
 func Decode(r io.Reader, val interface{}) error {
@@ -135,14 +133,14 @@ func (d *Decoder) Decode(v interface{}) (err error) {
 		rv = reflect.Indirect(newRV)
 	}
 
-	if vuint32 { //TODO
-		vuint32 = false
+	if d.vuint32 { //TODO
+		d.vuint32 = false
 		var r uint64
 		r, _ = d.ReadUvarint64()
 		rv.SetUint(r)
 		return
-	} else if vint32 {
-		vint32 = false
+	} else if d.vint32 {
+		d.vint32 = false
 		var r int64
 		r, _ = d.ReadVarint64()
 		rv.SetInt(r)
@@ -202,6 +200,7 @@ func (d *Decoder) Decode(v interface{}) (err error) {
 			return err
 		}
 		rv.SetString(s)
+		rlplog.Info("decode string: %s", s)
 		return err
 	case reflect.Bool:
 		var r bool
@@ -281,8 +280,10 @@ func (d *Decoder) Decode(v interface{}) (err error) {
 	case reflect.Slice:
 		var l uint64
 		if l, err = d.ReadUvarint64(); err != nil {
+			fmt.Println("read varUint64: ", err)
 			return
 		}
+		rlplog.Warn("decode slice: length is %d, type: %s", l, rv.String())
 
 		rv.Set(reflect.MakeSlice(t, int(l), int(l)))
 		for i := 0; i < int(l); i++ {
@@ -326,7 +327,7 @@ func (d *Decoder) Decode(v interface{}) (err error) {
 
 func (d *Decoder) decodeStruct(v interface{}, t reflect.Type, rv reflect.Value) (err error) {
 	l := rv.NumField()
-
+	rlplog.Warn("decode struct:   %s, length is %d", t.String(), l)
 	for i := 0; i < l; i++ {
 		switch t.Field(i).Tag.Get("eos") {
 		case "-", "SVTag":
@@ -339,23 +340,23 @@ func (d *Decoder) decodeStruct(v interface{}, t reflect.Type, rv reflect.Value) 
 				continue
 			}
 		case "vuint32":
-			vuint32 = true
+			d.vuint32 = true
 		case "vint32":
-			vint32 = true
+			d.vint32 = true
 		//	//for types.TransactionWithID !!
 		case "trxID":
-			destaticVariantTag, _ = d.ReadByte()
+			d.destaticVariantTag, _ = d.ReadByte()
 		case "tag0":
-			if destaticVariantTag != 1 {
+			if d.destaticVariantTag != 1 {
 				continue
 			}
 		case "tag1":
-			if destaticVariantTag != 0 {
+			if d.destaticVariantTag != 0 {
 				continue
 			}
 
 		case "asset":
-			asset = true
+			d.asset = true
 		}
 
 		if v := rv.Field(i); v.CanSet() && t.Field(i).Name != "_" {
@@ -418,17 +419,17 @@ func (d *Decoder) ReadByteArray() (out []byte, err error) {
 }
 
 func (d *Decoder) ReadString() (out string, err error) {
-	if asset {
-		asset = false
+	if d.asset {
+		d.asset = false
 		if len(d.data) < 7 {
-			err = fmt.Errorf("asset symbol required [%d] bytes, remaining [%d]", 7, d.remaining())
-			return "", ErrValueTooLarge
+			return "", fmt.Errorf("asset symbol required [%d] bytes, remaining [%d]", 7, d.remaining())
 		}
 		data := d.data[d.pos : d.pos+7]
 		d.pos += 7
 		out = strings.TrimRight(string(data), "\x00")
 		return
 	}
+
 	data, err := d.ReadByteArray()
 	out = string(data)
 	return

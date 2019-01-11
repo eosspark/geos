@@ -72,7 +72,7 @@ func NewTransactionContext(c *Controller, t *types.SignedTransaction, trxId comm
 		ApplyContextFree:      true,
 		CanSubjectivelyFail:   true,
 		Deadline:              common.MaxTimePoint(),
-		Leeway:                common.Microseconds(3000),
+		Leeway:                common.Microseconds(100000), //TODO default 3000
 		BilledCpuTimeUs:       0,
 		ExplicitBilledCpuTime: false,
 
@@ -408,10 +408,8 @@ func (t *TransactionContext) CheckTime() {
 		} else if t.deadlineExceptionCode == int64(LeewayDeadlineException{}.Code()) {
 			EosAssert(false,
 				&LeewayDeadlineException{},
-				"the transaction was unable to complete by deadline, ",
-				"but it is possible it could have succeeded if it were allowed to run to completion, now %v deadline %v start %v billing_timer %d",
-				now, t.deadline, t.Start, now-t.pseudoStart)
-
+				"the transaction was unable to complete by deadline, but it is possible it could have succeeded if it were allowed to run to completion, "+
+					"now %v deadline %v start %v billing_timer %d", now, t.deadline, t.Start, now-t.pseudoStart)
 		}
 		EosAssert(false,
 			&TransactionException{},
@@ -580,7 +578,7 @@ func (t *TransactionContext) scheduleTransaction() {
 	//gto.SenderId = transactionIdToSenderId(gto.TrxId)
 	gto.DelayUntil = gto.Published + common.TimePoint(t.Delay)
 	gto.Expiration = gto.DelayUntil + common.TimePoint(common.Seconds(int64(t.Control.GetGlobalProperties().Configuration.DeferredTrxExpirationWindow)))
-	trxSize = 0 //gto.set(t.Trx) //TODO
+	trxSize = gto.Set(&t.Trx.Transaction) //TODO
 	t.Control.DB.Insert(&gto)
 
 	t.AddRamUsage(gto.Payer, int64(common.BillableSizeV("generated_transaction_object")+uint64(trxSize)))
