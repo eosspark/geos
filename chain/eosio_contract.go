@@ -331,16 +331,18 @@ func applyEosioDeleteauth(context *ApplyContext) {
 	EosAssert(remove.Permission != common.PermissionName(common.DefaultConfig.OwnerName), &ActionValidateException{}, "Cannot delete Owner authority")
 	EosAssert(remove.Permission != common.PermissionName(common.DefaultConfig.ActiveName), &ActionValidateException{}, "Cannot delete active authority")
 
-	//db := context.DB
-
+	db := context.DB
 	{
-		//permissionLinkIndexObject := entity.PermissionLinkObject{Account: remove.Account, RequiredPermission: remove.Permission}
-		//index,_ := db.GetIndex("byPermissionName", &permissionLinkIndexObject)
-
-		//r := index.EqualRange(permissionLinkIndexObject
-		// assert(r.first == r.second,  action_validate_exception,
-		//             "Cannot delete a linked authority. Unlink the authority first. This authority is linked to ${code}::${type}.",
-		//             ("code", string(r.first.GetObject().code))("type", string(r.first.GetObject().message_type)))
+		link := entity.PermissionLinkObject{}
+		permissionLinkIndexObject := entity.PermissionLinkObject{Account: remove.Account, RequiredPermission: remove.Permission}
+		index, _ := db.GetIndex("byPermissionName", &entity.PermissionLinkObject{})
+		if !index.Empty() {
+			itr, _ := index.LowerBound(&permissionLinkIndexObject)
+			itr.Data(&link)
+		}
+		EosAssert(common.Empty(link), &ActionValidateException{},
+			"Cannot delete a linked authority. Unlink the authority first. This authority is linked to %v::%v.",
+			link.Code, link.MessageType)
 	}
 
 	authorization := context.Control.GetMutableAuthorizationManager()

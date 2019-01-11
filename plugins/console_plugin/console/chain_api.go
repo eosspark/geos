@@ -10,7 +10,10 @@ import (
 	"github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/plugins/chain_plugin"
 	"github.com/robertkrimen/otto"
+	"github.com/tidwall/gjson"
+	"sort"
 	"strings"
+	"time"
 )
 
 type chainAPI struct {
@@ -24,6 +27,7 @@ func newchainAPI(c *Console) *chainAPI {
 	return e
 }
 
+//GetInfo gets current blockchain information
 func (a *chainAPI) GetInfo(call otto.FunctionCall) (response otto.Value) {
 	var info chain_plugin.GetInfoResult
 	err := DoHttpCall(&info, common.GetInfoFunc, nil)
@@ -34,38 +38,39 @@ func (a *chainAPI) GetInfo(call otto.FunctionCall) (response otto.Value) {
 	return getJsResult(call, info)
 }
 
+//GetBlock retrieves a full block from the blockchain
 func (a *chainAPI) GetBlock(call otto.FunctionCall) (response otto.Value) {
 	txRefBlockNumOrID, err := call.Argument(0).ToString()
 	if err != nil {
 		return otto.UndefinedValue()
 	}
-
-	var refBlock chain_plugin.GetBlockResult
-	err = DoHttpCall(&refBlock, common.GetBlockFunc, common.Variants{"block_num_or_id": txRefBlockNumOrID})
-	if err != nil {
-		fmt.Println(err)
-		try.EosThrow(&exception.InvalidRefBlockException{}, "Invalid reference block num or id: %s", txRefBlockNumOrID)
-	}
-
-	return getJsResult(call, refBlock)
-}
-
-func (a *chainAPI) GetBlockHeaderState(call otto.FunctionCall) (response otto.Value) {
-	txRefBlockNumOrID, err := call.Argument(0).ToString()
+	getBHS, err := call.Argument(1).ToBoolean()
 	if err != nil {
 		return otto.UndefinedValue()
 	}
 
-	var resp types.BlockHeaderState
-	err = DoHttpCall(&resp, common.GetBlockHeaderStateFunc, common.Variants{"block_num_or_id": txRefBlockNumOrID})
-	if err != nil {
-		fmt.Println(err)
-		try.EosThrow(&exception.InvalidRefBlockException{}, "Invalid reference block num or id: %s", txRefBlockNumOrID)
+	arg := common.Variants{"block_num_or_id": txRefBlockNumOrID}
+	if getBHS {
+		var resp types.BlockHeaderState
+		err = DoHttpCall(&resp, common.GetBlockHeaderStateFunc, arg)
+		if err != nil {
+			fmt.Println(err)
+			try.EosThrow(&exception.InvalidRefBlockException{}, "Invalid reference block num or id: %s", txRefBlockNumOrID)
+		}
+		return getJsResult(call, resp)
+	} else {
+		var resp chain_plugin.GetBlockResult
+		err = DoHttpCall(&resp, common.GetBlockFunc, arg)
+		if err != nil {
+			fmt.Println(err)
+			try.EosThrow(&exception.InvalidRefBlockException{}, "Invalid reference block num or id: %s", txRefBlockNumOrID)
+		}
+		return getJsResult(call, resp)
 	}
-
-	return getJsResult(call, resp)
+	return otto.FalseValue()
 }
 
+//GetAccount retrieves an account from the blockchain
 func (a *chainAPI) GetAccount(call otto.FunctionCall) otto.Value {
 	name, err := call.Argument(0).ToString()
 	if err != nil {
@@ -75,70 +80,14 @@ func (a *chainAPI) GetAccount(call otto.FunctionCall) otto.Value {
 	err = DoHttpCall(&resp, common.GetAccountFunc, common.Variants{"account_name": name})
 	if err != nil {
 		clog.Error("get account is error: %s", err.Error())
+		return otto.UndefinedValue()
 	}
-	return getJsResult(call, resp)
+	PrintAccountResult(&resp)
+	//return getJsResult(call, resp)
+	return otto.UndefinedValue()
 }
 
-// // get code
-// string codeFilename;
-// string abiFilename;
-// bool code_as_wasm = false;
-// auto getCode = get->add_subcommand("code", localized("Retrieve the code and ABI for an account"), false);
-// getCode->add_option("name", accountName, localized("The name of the account whose code should be retrieved"))->required();
-// getCode->add_option("-c,--code",codeFilename, localized("The name of the file to save the contract .wast/wasm to") );
-// getCode->add_option("-a,--abi",abiFilename, localized("The name of the file to save the contract .abi to") );
-// getCode->add_flag("--wasm", code_as_wasm, localized("Save contract as wasm"));
-// getCode->set_callback([&] {
-//    string code_hash, wasm, wast, abi;
-//    try {
-//       const auto result = call(get_raw_code_and_abi_func, fc::mutable_variant_object("account_name", accountName));
-//       const std::vector<char> wasm_v = result["wasm"].as_blob().data;
-//       const std::vector<char> abi_v = result["abi"].as_blob().data;
-
-//       fc::sha256 hash;
-//       if(wasm_v.size())
-//          hash = fc::sha256::hash(wasm_v.data(), wasm_v.size());
-//       code_hash = (string)hash;
-
-//       wasm = string(wasm_v.begin(), wasm_v.end());
-//       if(!code_as_wasm && wasm_v.size())
-//          wast = wasm_to_wast((const uint8_t*)wasm_v.data(), wasm_v.size(), false);
-
-//       abi_def abi_d;
-//       if(abi_serializer::to_abi(abi_v, abi_d))
-//          abi = fc::json::to_pretty_string(abi_d);
-//    }
-//    catch(chain::missing_chain_api_plugin_exception&) {
-//       //see if this is an old nodeos that doesn't support get_raw_code_and_abi
-//       const auto old_result = call(get_code_func, fc::mutable_variant_object("account_name", accountName)("code_as_wasm",code_as_wasm));
-//       code_hash = old_result["code_hash"].as_string();
-//       if(code_as_wasm) {
-//          wasm = old_result["wasm"].as_string();
-//          std::cout << localized("Warning: communicating to older nodeos which returns malformed binary wasm") << std::endl;
-//       }
-//       else
-//          wast = old_result["wast"].as_string();
-//       abi = fc::json::to_pretty_string(old_result["abi"]);
-//    }
-
-//    std::cout << localized("code hash: ${code_hash}", ("code_hash", code_hash)) << std::endl;
-
-//    if( codeFilename.size() ){
-//       std::cout << localized("saving ${type} to ${codeFilename}", ("type", (code_as_wasm ? "wasm" : "wast"))("codeFilename", codeFilename)) << std::endl;
-
-//       std::ofstream out( codeFilename.c_str() );
-//       if(code_as_wasm)
-//          out << wasm;
-//       else
-//          out << wast;
-//    }
-//    if( abiFilename.size() ) {
-//       std::cout << localized("saving abi to ${abiFilename}", ("abiFilename", abiFilename)) << std::endl;
-//       std::ofstream abiout( abiFilename.c_str() );
-//       abiout << abi;
-//    }
-// });
-
+//GetCode retrieves the code and ABI for an account
 func (a *chainAPI) GetCode(call otto.FunctionCall) otto.Value { //TODO save to file
 	var params GetCodeParams
 	readParams(&params, call)
@@ -151,23 +100,7 @@ func (a *chainAPI) GetCode(call otto.FunctionCall) otto.Value { //TODO save to f
 	return getJsResult(call, resp)
 }
 
-// // get abi
-// string filename;
-// auto getAbi = get->add_subcommand("abi", localized("Retrieve the ABI for an account"), false);
-// getAbi->add_option("name", accountName, localized("The name of the account whose abi should be retrieved"))->required();
-// getAbi->add_option("-f,--file",filename, localized("The name of the file to save the contract .abi to instead of writing to console") );
-// getAbi->set_callback([&] {
-//    auto result = call(get_abi_func, fc::mutable_variant_object("account_name", accountName));
-//    auto abi  = fc::json::to_pretty_string( result["abi"] );
-//    if( filename.size() ) {
-//       std::cerr << localized("saving abi to ${filename}", ("filename", filename)) << std::endl;
-//       std::ofstream abiout( filename.c_str() );
-//       abiout << abi;
-//    } else {
-//       std::cout << abi << "\n";
-//    }
-// });
-
+//GetAbi retrieves the ABI for an account
 func (a *chainAPI) GetAbi(call otto.FunctionCall) otto.Value { //TODO save to file
 	name, err := call.Argument(0).ToString()
 	if err != nil {
@@ -181,10 +114,7 @@ func (a *chainAPI) GetAbi(call otto.FunctionCall) otto.Value { //TODO save to fi
 	return getJsResult(call, resp)
 }
 
-//func (a *chainAPI)GetRawCodeAndAbi(call otto.FunctionCall)(response otto.Value){
-//
-//}
-
+//GetTable retrieves the contents of a database table
 func (a *chainAPI) GetTable(call otto.FunctionCall) (response otto.Value) {
 	var params GetTableParams
 	readParams(&params, call)
@@ -213,6 +143,7 @@ func (a *chainAPI) GetTable(call otto.FunctionCall) (response otto.Value) {
 	return getJsResult(call, resp)
 }
 
+//GetScope retrieves a list of scopes and tables owned by a contract
 func (a *chainAPI) GetScope(call otto.FunctionCall) (response otto.Value) {
 	var params GetScopeParams
 	readParams(&params, call)
@@ -234,6 +165,7 @@ func (a *chainAPI) GetScope(call otto.FunctionCall) (response otto.Value) {
 	return getJsResult(call, resp)
 }
 
+//GetCurrencyBalance retrieves information related to standard currencies
 func (a *chainAPI) GetCurrencyBalance(call otto.FunctionCall) (response otto.Value) {
 	var code, accountName, symbol string
 	code, err := call.Argument(0).ToString()
@@ -265,6 +197,7 @@ func (a *chainAPI) GetCurrencyBalance(call otto.FunctionCall) (response otto.Val
 	return getJsResult(call, resp)
 }
 
+//GetCurrencyStats retrieve the stats of for a given currency
 func (a *chainAPI) GetCurrencyStats(call otto.FunctionCall) (response otto.Value) {
 	code, err := call.Argument(0).ToString()
 	if err != nil {
@@ -282,11 +215,77 @@ func (a *chainAPI) GetCurrencyStats(call otto.FunctionCall) (response otto.Value
 	return getJsResult(call, resp)
 }
 
-func (a *chainAPI) PushTransaction(call otto.FunctionCall) (response otto.Value) {
-
-	return getJsResult(call, nil)
+//TODO history_plugin
+//GetAccounts retrieves accounts associated with a public key
+func (a *chainAPI) GetAccounts(call otto.FunctionCall) (response otto.Value) {
+	return otto.FalseValue()
 }
 
+//GetServants retrieves accounts which are servants of a given account
+func (a *chainAPI) GetServants(call otto.FunctionCall) (response otto.Value) {
+	return otto.FalseValue()
+}
+
+//GetTransaction retrieves a transaction from the blockchain
+func (a *chainAPI) GetTransaction(call otto.FunctionCall) (response otto.Value) {
+	return otto.FalseValue()
+}
+
+//GetActions retrieves all actions with specific account name referenced in authorization or receiver
+func (a *chainAPI) GetActions(call otto.FunctionCall) (response otto.Value) {
+	return otto.FalseValue()
+}
+
+//PushAction pushs a transaction with a single action
+func (e *eosgo) PushAction(call otto.FunctionCall) (response otto.Value) {
+	var params PushAction
+	readParams(&params, call)
+
+	actionArgsVar := &common.Variants{}
+	err := json.Unmarshal([]byte(params.Data), actionArgsVar)
+	if err != nil {
+		throwJSException(fmt.Sprintln("Fail to parse action JSON data = ", params.Data))
+	}
+
+	permissions := getAccountPermissions(params.TxPermission)
+	action := &types.Action{
+		Account:       common.N(params.ContractAccount),
+		Name:          common.N(params.Action),
+		Authorization: permissions,
+		Data:          variantToBin(common.N(params.ContractAccount), common.N(params.Action), actionArgsVar),
+	}
+	sendActions([]*types.Action{action}, 1000, types.CompressionNone, &params)
+	return otto.UndefinedValue()
+}
+
+//PushTransaction pushes an arbitrary JSON transaction
+func (a *chainAPI) PushTransaction(call otto.FunctionCall) (response otto.Value) {
+	//var signtrx types.SignedTransaction
+	//
+	//trx_var, err := call.Argument(0).ToString()
+	//if err != nil {
+	//	return otto.UndefinedValue()
+	//}
+	//fmt.Println("receive trx:", trx_var, err)
+	//fmt.Println()
+	//fmt.Println()
+	//aa := "{\"ref_block_num\":\"101\",\"ref_block_prefix\":\"4159312339\",\"expiration\":\"2017-09-25T06:28:49\",\"scope\":[\"initb\",\"initc\"],\"actions\":[{\"code\":\"currency\",\"type\":\"transfer\",\"recipients\":[\"initb\",\"initc\"],\"authorization\":[{\"account\":\"initb\",\"permission\":\"active\"}],\"data\":\"000000000041934b000000008041934be803000000000000\"}],\"signatures\":[],\"authorizations\":[]}, {\"ref_block_num\":\"101\",\"ref_block_prefix\":\"4159312339\",\"expiration\":\"2017-09-25T06:28:49\",\"scope\":[\"inita\",\"initc\"],\"actions\":[{\"code\":\"currency\",\"type\":\"transfer\",\"recipients\":[\"inita\",\"initc\"],\"authorization\":[{\"account\":\"inita\",\"permission\":\"active\"}],\"data\":\"000000008040934b000000008041934be803000000000000\"}],\"signatures\":[],\"authorizations\":[]}]"
+	//
+	//err = json.Unmarshal([]byte(aa), &signtrx)
+	//if err != nil {
+	//	fmt.Println(err)
+	//	//EOS_RETHROW_EXCEPTIONS(transaction_type_exception, "Fail to parse transaction JSON '${data}'", ("data",trx_to_push))
+	//	//try.FcThrowException(&exception.TransactionTypeException{},"Fail to parse transaction JSON %s",trx_var)
+	//}
+	//
+	//re := e.pushTransaction(&signtrx, 1000, types.CompressionNone)
+	//printResult(re)
+
+	v, _ := call.Otto.ToValue(nil)
+	return v
+}
+
+//PushTransactions pushes an array of arbitrary JSON transactions
 func (a *chainAPI) PushTransactions(call otto.FunctionCall) (response otto.Value) {
 
 	return getJsResult(call, nil)
@@ -312,6 +311,7 @@ func (a *chainAPI) GetProducers(call otto.FunctionCall) (response otto.Value) {
 	return getJsResult(call, nil)
 }
 
+//GetSchedule retrieves the producer schedule
 func (a *chainAPI) GetSchedule(call otto.FunctionCall) (response otto.Value) {
 	printJSON := false
 	str, err := call.Argument(0).ToString()
@@ -415,4 +415,233 @@ func (a *chainAPI) ConvertPackTransaction(call otto.FunctionCall) (response otto
 	}
 	return getJsResult(call, packedTrx)
 
+}
+
+var indent string = strings.Repeat(" ", 5)
+
+func PrintAccountResult(res *chain_plugin.GetAccountResult) {
+	var staked, unstaking common.Asset
+	if res.CoreLiquidBalance.Valid() {
+		unstaking = common.Asset{0, res.CoreLiquidBalance.Symbol}
+		staked = common.Asset{0, res.CoreLiquidBalance.Symbol}
+	}
+	fmt.Println("created: ", res.Created.String())
+	if res.Privileged {
+		fmt.Println("privileged: true")
+	}
+
+	fmt.Println("permissions: ")
+	tree := make(map[common.Name]Names)
+	var roots Names //we don't have multiple roots, but we can easily handle them here, so let's do it just in case
+	cache := make(map[common.Name]chain_plugin.Permission)
+	for _, perm := range res.Permissions {
+		if perm.Parent > 0 {
+			tree[perm.Parent] = append(tree[perm.Parent], perm.PermName)
+		} else {
+			roots = append(roots, perm.PermName)
+		}
+		cache[perm.PermName] = perm
+	}
+
+	dfsPrint := func(name common.AccountName, depth int) {
+		p, _ := cache[name]
+		fmt.Printf("%s%s%s%s%d%s", indent, strings.Repeat(" ", depth*3), name, " ", p.RequiredAuth.Threshold, ":    ")
+
+		sep := ""
+		for _, it := range p.RequiredAuth.Keys {
+			fmt.Print(sep, it.Weight, " ", it.Key.String())
+			sep = ", "
+		}
+		for _, acc := range p.RequiredAuth.Accounts {
+			fmt.Print(sep, acc.Weight, " ", acc.Permission.Actor.String(), "@", acc.Permission.Permission.String())
+			sep = ", "
+		}
+		fmt.Println()
+	}
+
+	sort.Sort(roots)
+	for _, r := range roots {
+		dfsPrint(r, 0)
+		it, ok := tree[r]
+		if ok {
+			children := it
+			sort.Sort(children)
+			for i, n := range children {
+				dfsPrint(n, 1+i)
+			}
+		} // else it's a leaf node
+	}
+
+	toPrettyNet := func(nbytes int64) string {
+		if nbytes == -1 {
+			return "unlimited"
+		}
+
+		unit := "bytes"
+		bytes := float64(nbytes)
+		if bytes >= 1024*1024*1024*1024 {
+			unit = "TiB"
+			bytes /= 1024 * 1024 * 1024 * 1024
+		} else if bytes >= 1024*1024*1024 {
+			unit = "GiB"
+			bytes /= 1024 * 1024 * 1024
+		} else if bytes >= 1024*1024 {
+			unit = "MiB"
+			bytes /= 1024 * 1024
+		} else if bytes >= 1024 {
+			unit = "KiB"
+			bytes /= 1024
+		}
+
+		return fmt.Sprintf("%.4g ", bytes) + fmt.Sprintf("%-5s", unit)
+	}
+
+	fmt.Println("memory: ")
+	fmt.Printf("%s%-15s%s%-15s%s\n\n", indent, "quota: ", toPrettyNet(res.RAMQuota), "  used: ", toPrettyNet(res.RAMUsage))
+
+	fmt.Println("net bandwidth: ")
+	if res.TotalResources != nil {
+		jsonResources, _ := json.Marshal(res.TotalResources)
+		netWeightStr := gjson.GetBytes(jsonResources, "net_weight").String()
+		netTotal := common.Asset{}.FromString(&netWeightStr)
+		if netTotal.Symbol != unstaking.Symbol {
+			// Core symbol of nodeos responding to the request is different than core symbol built into cleos
+			unstaking = common.Asset{0, netTotal.Symbol}
+			staked = common.Asset{0, netTotal.Symbol}
+		}
+
+		if res.SelfDelegatedBandwidth != nil {
+			jsonSelfDelegatedBandwidth, _ := json.Marshal(res.SelfDelegatedBandwidth)
+
+			netOwnStr := gjson.GetBytes(jsonSelfDelegatedBandwidth, "net_weight").String()
+			netOwn := common.Asset{}.FromString(&netOwnStr)
+			staked = netOwn
+			netOthers := netTotal.Sub(netOwn)
+
+			fmt.Printf("%s%s%20s%s%s\n", indent, "staked:", netOwn.String(), strings.Repeat(" ", 11), "(total stake delegated from account to self)")
+			fmt.Printf("%s%s%17s%s%s\n", indent, "delegated:", netOthers.String(), strings.Repeat(" ", 11), "(total staked delegated to account from others)")
+		} else {
+			netOthers := netTotal
+			fmt.Printf("%s%s%17s%s%s\n", indent, "delegated:", netOthers.String(), strings.Repeat(" ", 11), "(total staked delegated to account from others)")
+
+		}
+	}
+	fmt.Printf("%s%-11s%18s\n", indent, "used:", toPrettyNet(res.NetLimit.Used))
+	fmt.Printf("%s%-11s%18s\n", indent, "available:", toPrettyNet(res.NetLimit.Available))
+	fmt.Printf("%s%-11s%18s\n\n", indent, "limit:", toPrettyNet(res.NetLimit.Max))
+
+	fmt.Println("cpu bandwidth:")
+	if res.TotalResources != nil {
+		jsonResources, _ := json.Marshal(res.TotalResources)
+		cpuTotalStr := gjson.GetBytes(jsonResources, "cpu_weight").String()
+		cpuTotal := common.Asset{}.FromString(&cpuTotalStr)
+
+		if res.SelfDelegatedBandwidth != nil {
+			jsonSelfDelegatedBandwidth, _ := json.Marshal(res.SelfDelegatedBandwidth)
+
+			cpuOwnStr := gjson.GetBytes(jsonSelfDelegatedBandwidth, "cpu_weight").String()
+			cpuOwn := common.Asset{}.FromString(&cpuOwnStr)
+			staked = staked.Add(cpuOwn)
+			cpuOthers := cpuTotal.Sub(cpuOwn)
+
+			fmt.Printf("%s%s%20s%s%s\n", indent, "staked:", cpuOwn.String(), strings.Repeat(" ", 11), "(total stake delegated from account to self)")
+			fmt.Printf("%s%s%17s%s%s\n", indent, "delegated:", cpuOthers.String(), strings.Repeat(" ", 11), "(total staked delegated to account from others)")
+		} else {
+			cpuOthers := cpuTotal
+			fmt.Printf("%s%s%17s%s%s\n", indent, "delegated:", cpuOthers.String(), strings.Repeat(" ", 11), "(total staked delegated to account from others)")
+
+		}
+	}
+	toPrettyTime := func(nmicro int64, widthForUnits uint8) string {
+		if nmicro == -1 {
+			// special case. Treat it as unlimited
+			return "unlimited"
+		}
+
+		unit := "us"
+		micro := float64(nmicro)
+		if micro > 1000000*60*60 {
+			micro /= 1000000 * 60 * 60
+			unit = "hr"
+		} else if micro > 1000000*60 {
+			micro /= 1000000 * 60
+			unit = "min"
+		} else if micro > 1000000 {
+			micro /= 1000000
+			unit = "sec"
+		} else if micro > 1000 {
+			micro /= 1000
+			unit = "ms"
+		}
+
+		if widthForUnits > 0 {
+			return fmt.Sprintf("%.4g ", micro) + fmt.Sprintf("%-5s", unit)
+		}
+		return fmt.Sprintf("%.4g ", micro) + fmt.Sprintf("%s", unit)
+
+	}
+	fmt.Printf("%s%-11s%18s\n", indent, "used:", toPrettyTime(res.CpuLimit.Used, 5))
+	fmt.Printf("%s%-11s%18s\n", indent, "available:", toPrettyTime(res.CpuLimit.Available, 5))
+	fmt.Printf("%s%-11s%18s\n\n", indent, "limit:", toPrettyTime(res.CpuLimit.Max, 5))
+
+	if res.RefundRequest != nil {
+		jsonRefundRequest, _ := json.Marshal(res.RefundRequest)
+		requestTimeStr := gjson.GetBytes(jsonRefundRequest, "request_time").String()
+		requestTime, _ := common.FromIsoStringSec(requestTimeStr)
+		refundTime := requestTime.AddSec(uint32(3 * 24 * time.Hour.Seconds())) // +fc::days(3)
+		now := res.HeadBlockTime
+		netAmountStr := gjson.GetBytes(jsonRefundRequest, "net_amount").String()
+		net := common.Asset{}.FromString(&netAmountStr)
+		cpuAmountStr := gjson.GetBytes(jsonRefundRequest, "cpu_amount").String()
+		cpu := common.Asset{}.FromString(&cpuAmountStr)
+
+		unstaking = net.Add(cpu)
+		if unstaking.Amount > 0 {
+			fmt.Println("unstaking tokens:")
+			fmt.Printf("%s%-25s%20s\n", indent, "time of unstake request:", requestTime.String())
+
+			if now.SubTps(refundTime) > 0 {
+				fmt.Println(" (available to claim now with 'eosio::refund' action)")
+			} else {
+				fmt.Printf(" (funds will be available in %s", toPrettyTime(int64(refundTime.SubUs(now.TimeSinceEpoch())), 0))
+			}
+			fmt.Printf("%s%-25s%18s\n", indent, "from net bandwidth:", net)
+			fmt.Printf("%s%-25s%18s\n", indent, "from cpu bandwidth:", cpu)
+			fmt.Printf("%s%-25s%18s\n", indent, "total:", unstaking)
+		}
+	}
+
+	if res.CoreLiquidBalance.Valid() {
+		fmt.Println(res.CoreLiquidBalance.Symbol.Symbol, "balances: ")
+		fmt.Printf("%s%-11s%18s\n", indent, "liquid:", res.CoreLiquidBalance.String())
+		fmt.Printf("%s%-11s%18s\n", indent, "staked:", staked)
+		fmt.Printf("%s%-11s%18s\n", indent, "unstaking:", unstaking)
+		fmt.Printf("%s%-11s%18s\n\n", indent, "total:", res.CoreLiquidBalance.Add(staked).Add(unstaking).String())
+	}
+
+	if res.VoterInfo != nil {
+		jsonVoterInfo, _ := json.Marshal(res.VoterInfo)
+		proxyStr := gjson.GetBytes(jsonVoterInfo, "proxy").String()
+		if len(proxyStr) == 0 {
+			fmt.Print("producers:")
+			jsonProds := gjson.GetBytes(jsonVoterInfo, "producers")
+			if jsonProds.IsArray() {
+				prods := jsonProds.Array()
+				if len(prods) != 0 {
+					for i, _ := range prods {
+						if 1%3 == 0 {
+							fmt.Printf("\n%s", indent)
+						}
+						fmt.Printf("%-16s", prods[i].String())
+					}
+					fmt.Println()
+				} else {
+					fmt.Println(indent, "<not voted>")
+				}
+			}
+		} else {
+			fmt.Println("proxy:", indent, proxyStr)
+		}
+		fmt.Println()
+	}
 }

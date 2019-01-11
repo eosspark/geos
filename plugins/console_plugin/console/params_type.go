@@ -71,6 +71,15 @@ type SetActionPermissionParams struct {
 	StandardTransactionOptions
 }
 
+type TransferParams struct {
+	Sender    string `json:"sender"`
+	Recipient string `json:"recipient"`
+	Amount    string `json:"amount"`
+	Memo      string `json:"memo"`
+	PayRam    bool   `json:"pay_ram"`
+	StandardTransactionOptions
+}
+
 //system
 type NewAccountParams struct {
 	Creator             common.Name `json:"creator"`
@@ -87,10 +96,10 @@ type NewAccountParams struct {
 }
 
 type RegisterProducer struct {
-	Producer    string `json:"producer"`
-	ProducerKey string `json:"producer_key"`
-	Url         string `json:"url"`
-	Loc         uint16 `json:"loc"`
+	Producer string `json:"producer"`
+	Key      string `json:"key"`
+	Url      string `json:"url"`
+	Loc      uint16 `json:"loc"`
 	StandardTransactionOptions
 }
 
@@ -106,8 +115,8 @@ type Proxy struct {
 }
 
 type Prods struct {
-	Vote          string    `json:"vote"`
-	ProducerNames Producers `json:"producer_names"`
+	Voter         string `json:"voter"`
+	ProducerNames Names  `json:"producer_names"`
 	StandardTransactionOptions
 }
 
@@ -131,7 +140,7 @@ type ListproducersParams struct {
 
 type DelegatebwParams struct {
 	From               string `json:"from"`
-	Receive            string `json:"receive"`
+	Receiver           string `json:"receiver"`
 	StakeNetAmount     string `json:"stake_net_amount"`
 	StakeCpuAmount     string `json:"stake_cpu_amount"`
 	StakeStorageAmount string `json:"stake_storage_amount"`
@@ -199,18 +208,6 @@ type CanceldelayParams struct {
 	StandardTransactionOptions
 }
 
-type Producers []common.Name
-
-func (p Producers) Len() int {
-	return len(p)
-}
-func (p Producers) Less(i, j int) bool {
-	return uint64(p[i]) < uint64(p[j])
-}
-func (p Producers) Swap(i, j int) {
-	p[i], p[j] = p[j], p[i]
-}
-
 //chain
 type GetCodeParams struct {
 	AccountName  string `json:"name"`
@@ -237,4 +234,16 @@ type GetScopeParams struct {
 	Limit uint32 `json:"limit"` //default =10
 	Lower string `json:"lower"`
 	Upper string `json:"upper"`
+}
+
+type Names []common.Name
+
+func (n Names) Len() int {
+	return len(n)
+}
+func (n Names) Less(i, j int) bool {
+	return uint64(n[i]) < uint64(n[j])
+}
+func (n Names) Swap(i, j int) {
+	n[i], n[j] = n[j], n[i]
 }
