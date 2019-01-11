@@ -18,15 +18,15 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/eosspark/container/templates"
-	rbt "github.com/eosspark/container/templates/tree"
 	"github.com/eosspark/eos-go/common"
+	"github.com/eosspark/eos-go/common/container"
+	rbt "github.com/eosspark/eos-go/common/container/tree"
 )
 
 // template type Map(K,V,Compare)
 
 func assertAccountNameUint32MapImplementation() {
-	var _ templates.Map = (*AccountNameUint32Map)(nil)
+	var _ container.Map = (*AccountNameUint32Map)(nil)
 }
 
 // Map holds the elements in a red-black Tree
@@ -151,14 +151,18 @@ func (m *AccountNameUint32Map) End() IteratorAccountNameUint32Map {
 
 // Value returns the current element's value.
 // Does not modify the state of the Iterator.
-func (Iterator *IteratorAccountNameUint32Map) Value() uint32 {
-	return Iterator.Iterator.Value().(uint32)
+func (iterator *IteratorAccountNameUint32Map) Value() uint32 {
+	return iterator.Iterator.Value().(uint32)
 }
 
 // Key returns the current element's key.
 // Does not modify the state of the Iterator.
-func (Iterator *IteratorAccountNameUint32Map) Key() common.AccountName {
-	return Iterator.Iterator.Key().(common.AccountName)
+func (iterator *IteratorAccountNameUint32Map) Key() common.AccountName {
+	return iterator.Iterator.Key().(common.AccountName)
+}
+
+func (iterator *IteratorAccountNameUint32Map) Modify(key common.AccountName, value uint32) IteratorAccountNameUint32Map {
+	return IteratorAccountNameUint32Map{iterator.Iterator.Modify(key, value)}
 }
 
 func (m *AccountNameUint32Map) LowerBound(key common.AccountName) IteratorAccountNameUint32Map {

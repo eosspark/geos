@@ -585,32 +585,6 @@ func (tree *Tree) lookup(key interface{}) *Node {
 	return nil
 }
 
-//func (tree *Tree) lookupEqual(key interface{}) (Iterator, bool) {
-//	node := tree.Root
-//	for node != nil {
-//		compare := tree.Comparator(key, node.Key)
-//		switch {
-//		case compare == 0:
-//			iterator := Iterator{tree: tree, node: node, position: between}
-//			for iterator.Prev() {
-//				if tree.Comparator(iterator.Key(), node.Key) != 0 {
-//					break
-//				}
-//			}
-//
-//			iterator.Next()
-//
-//			return iterator, true
-//
-//		case compare < 0:
-//			node = node.Left
-//		case compare > 0:
-//			node = node.Right
-//		}
-//	}
-//	return Iterator{tree: tree, node: nil, position: end}, false
-//}
-
 func (node *Node) grandparent() *Node {
 	if node != nil && node.Parent != nil {
 		return node.Parent.Parent
@@ -635,7 +609,7 @@ func (node *Node) sibling() *Node {
 	return node.Parent.Left
 }
 
-func (tree *Tree) isLeaf(node *Node) bool {
+func (node *Node) isLeaf() bool {
 	if node == nil {
 		return true
 	}

@@ -196,3 +196,41 @@ func (iterator *Iterator) Delete() {
 	//iterator.Prev()
 	iterator.tree.remove(node)
 }
+
+func (iterator *Iterator) inPlace(key interface{}) bool {
+	prev := *iterator
+	next := *iterator
+	prev.Prev()
+	next.Next()
+
+	var (
+		comparator = iterator.tree.Comparator
+		prevResult int
+		nextResult int
+	)
+
+	if prev.IsBegin() {
+		prevResult = 1
+	} else {
+		prevResult = comparator(key, prev.Key())
+	}
+
+	if next.IsEnd() {
+		nextResult = -1
+	} else {
+		nextResult = comparator(key, next.Key())
+	}
+
+	return (iterator.tree.isMulti && prevResult >= 0 && nextResult <= 0) || (prevResult > 0 && nextResult < 0)
+}
+
+func (iterator *Iterator) Modify(key interface{}, value interface{}) Iterator {
+	if iterator.inPlace(key) {
+		iterator.node.Key = key
+		iterator.node.Value = value
+		return *iterator
+	}
+
+	iterator.Delete()
+	return iterator.tree.Insert(key, value)
+}

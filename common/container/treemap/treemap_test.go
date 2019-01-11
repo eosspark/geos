@@ -6,8 +6,8 @@ package treemap
 
 import (
 	"fmt"
-	. "github.com/eosspark/container/templates/treemap/example"
 	"github.com/eosspark/container/utils"
+	. "github.com/eosspark/eos-go/common/container/treemap/example"
 	"testing"
 )
 
@@ -232,13 +232,13 @@ func TestMapEach(t *testing.T) {
 		}
 	})
 
-	expects := []string{"a","b","c"}
+	expects := []string{"a", "b", "c"}
 
 	m1 := NewIntStringPtrMap()
-	m1.Put(0,&expects[0])
-	m1.Put(1,&expects[1])
-	m1.Put(2,&expects[2])
-	m1.Put(3,nil)
+	m1.Put(0, &expects[0])
+	m1.Put(1, &expects[1])
+	m1.Put(2, &expects[2])
+	m1.Put(3, nil)
 
 	m1.Each(func(key int, value *string) {
 	})
@@ -269,7 +269,7 @@ func TestMapSerialization(t *testing.T) {
 
 func TestMapSerialization2(t *testing.T) {
 	original := NewIntStringPtrMap()
-	expects := []string{"0","1","2","3","4","5"}
+	expects := []string{"0", "1", "2", "3", "4", "5"}
 
 	original.Put(4, &expects[4])
 	original.Put(5, &expects[5])

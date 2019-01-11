@@ -18,15 +18,15 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/eosspark/container/templates"
-	rbt "github.com/eosspark/container/templates/tree"
 	"github.com/eosspark/eos-go/common"
+	"github.com/eosspark/eos-go/common/container"
+	rbt "github.com/eosspark/eos-go/common/container/tree"
 )
 
 // template type Map(K,V,Compare)
 
 func assertByPrevIndexImplementation() {
-	var _ templates.Map = (*byPrevIndex)(nil)
+	var _ container.Map = (*byPrevIndex)(nil)
 }
 
 // Map holds the elements in a red-black Tree
@@ -151,14 +151,18 @@ func (m *byPrevIndex) End() iteratorByPrevIndex {
 
 // Value returns the current element's value.
 // Does not modify the state of the Iterator.
-func (Iterator *iteratorByPrevIndex) Value() IndexKey {
-	return Iterator.Iterator.Value().(IndexKey)
+func (iterator *iteratorByPrevIndex) Value() IndexKey {
+	return iterator.Iterator.Value().(IndexKey)
 }
 
 // Key returns the current element's key.
 // Does not modify the state of the Iterator.
-func (Iterator *iteratorByPrevIndex) Key() common.BlockIdType {
-	return Iterator.Iterator.Key().(common.BlockIdType)
+func (iterator *iteratorByPrevIndex) Key() common.BlockIdType {
+	return iterator.Iterator.Key().(common.BlockIdType)
+}
+
+func (iterator *iteratorByPrevIndex) Modify(key common.BlockIdType, value IndexKey) iteratorByPrevIndex {
+	return iteratorByPrevIndex{iterator.Iterator.Modify(key, value)}
 }
 
 func (m *byPrevIndex) LowerBound(key common.BlockIdType) iteratorByPrevIndex {

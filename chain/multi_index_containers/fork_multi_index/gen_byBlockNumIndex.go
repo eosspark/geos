@@ -18,14 +18,14 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/eosspark/container/templates"
-	rbt "github.com/eosspark/container/templates/tree"
+	"github.com/eosspark/eos-go/common/container"
+	rbt "github.com/eosspark/eos-go/common/container/tree"
 )
 
 // template type Map(K,V,Compare)
 
 func assertByBlockNumIndexImplementation() {
-	var _ templates.Map = (*byBlockNumIndex)(nil)
+	var _ container.Map = (*byBlockNumIndex)(nil)
 }
 
 // Map holds the elements in a red-black Tree
@@ -150,14 +150,18 @@ func (m *byBlockNumIndex) End() iteratorByBlockNumIndex {
 
 // Value returns the current element's value.
 // Does not modify the state of the Iterator.
-func (Iterator *iteratorByBlockNumIndex) Value() IndexKey {
-	return Iterator.Iterator.Value().(IndexKey)
+func (iterator *iteratorByBlockNumIndex) Value() IndexKey {
+	return iterator.Iterator.Value().(IndexKey)
 }
 
 // Key returns the current element's key.
 // Does not modify the state of the Iterator.
-func (Iterator *iteratorByBlockNumIndex) Key() ByBlockNumComposite {
-	return Iterator.Iterator.Key().(ByBlockNumComposite)
+func (iterator *iteratorByBlockNumIndex) Key() ByBlockNumComposite {
+	return iterator.Iterator.Key().(ByBlockNumComposite)
+}
+
+func (iterator *iteratorByBlockNumIndex) Modify(key ByBlockNumComposite, value IndexKey) iteratorByBlockNumIndex {
+	return iteratorByBlockNumIndex{iterator.Iterator.Modify(key, value)}
 }
 
 func (m *byBlockNumIndex) LowerBound(key ByBlockNumComposite) iteratorByBlockNumIndex {
