@@ -9,6 +9,9 @@ import (
 	. "github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/log"
+	"github.com/eosspark/eos-go/plugins/appbase/app"
+	"github.com/eosspark/eos-go/plugins/chain_plugin"
+	"github.com/eosspark/eos-go/plugins/producer_plugin/producer_multi_index"
 )
 
 func (impl *ProducerPluginImpl) CalculateNextBlockTime(producerName *common.AccountName, currentBlockTime types.BlockTimeStamp) *common.TimePoint {
@@ -199,136 +202,220 @@ func (impl *ProducerPluginImpl) StartBlock() (EnumStartBlockRusult, bool) {
 		isExhausted := false
 
 		// remove all persisted transactions that have now expired
-		for byTrxId, byExpire := range impl.PersistentTransactions {
-			if byExpire <= pbs.Header.Timestamp.ToTimePoint() {
-				delete(impl.PersistentTransactions, byTrxId)
+		persistedById := impl.PersistentTransactions.ById
+		persistedByExpire := impl.PersistentTransactions.ByExpiry
+		if !persistedByExpire.Empty() {
+			numExpiredPersistent := 0
+			//origCount := impl.PersistentTransactions.Size() TODO
+
+			for !persistedByExpire.Empty() && impl.PersistentTransactions.Value(persistedByExpire.Begin().Value()).Expiry <= pbs.Header.Timestamp.ToTimePoint() {
+				//txid := impl.PersistentTransactions.Value(persistedByExpire.Begin().Value()).TrxId TODO
+				if impl.PendingBlockMode == producing {
+					//TODO fc_dlog(_trx_trace_log, "[TRX_TRACE] Block ${block num} for producer ${prod} is EXPIRING PERSISTED tx: ${txid}",
+					//                       ("block_num", chain.head_block_num() + 1)
+					//                       ("prod", chain.pending_block_state()->header.producer)
+					//                       ("txid", txid));
+				} else {
+					//TODO fc_dlog(_trx_trace_log, "[TRX_TRACE] Speculative execution is EXPIRING PERSISTED tx: ${txid}",
+					//	("txid", txid));
+				}
+
+				impl.PersistentTransactions.Erase(persistedByExpire.Begin().Value())
+				numExpiredPersistent ++
 			}
+
+			//TODO fc_dlog(_log, "Processed ${n} persisted transactions, Expired ${expired}",
+			//	("n", orig_count)
+			// ("expired", num_expired_persistent));
 		}
 
 		origPendingTxnSize := len(impl.PendingIncomingTransactions)
 
-		if len(impl.PersistentTransactions) > 0 || impl.PendingBlockMode == EnumPendingBlockMode(producing) {
-			unappliedTrxs := chain.GetUnappliedTransactions()
+		// Processing unapplied transactions...
+		//
+		if impl.Producers.Empty() && len(persistedById) == 0 {
+			// if this node can never produce and has no persisted transactions,
+			// there is no need for unapplied transactions they can be dropped
+			chain.DropAllUnAppliedTransactions()
 
-			if len(impl.PersistentTransactions) > 0 {
-				for i, trx := range unappliedTrxs {
-					if _, has := impl.PersistentTransactions[trx.ID]; has {
-						// this is a persisted transaction, push it into the block (even if we are speculating) with
-						// no deadline as it has already passed the subjective deadlines once and we want to represent
-						// the state of the chain including this transaction
-						trace := chain.PushTransaction(trx, common.MaxTimePoint(), 0)
-						if trace != nil {
-							return EnumStartBlockRusult(failed), lastBlock
-						}
+		} else {
+			var applyTrxs []*types.TransactionMetadata
+			{ // derive appliable transactions from unapplied_transactions and drop droppable transactions
+				unappliedTrxs := chain.GetUnappliedTransactions()
+				applyTrxs = make([]*types.TransactionMetadata, 0, len(unappliedTrxs))
+
+				calculateTransactionCategory := func(trx *types.TransactionMetadata) EnumTxCategory {
+					if trx.PackedTrx.Expiration().ToTimePoint() < pbs.Header.Timestamp.ToTimePoint() {
+						return EXPIRED
+					} else if _, ok := persistedById[trx.ID]; ok {
+						return PERSISTED
+					} else {
+						return UNEXPIRED_UNPERSISTED
 					}
+				}
 
-					// remove it from further consideration as it is applied
-					unappliedTrxs[i] = nil
+				for _, trx := range unappliedTrxs {
+					category := calculateTransactionCategory(trx)
+					if category == EXPIRED || (category == UNEXPIRED_UNPERSISTED && impl.Producers.Empty()) {
+						if !impl.Producers.Empty() {
+							//TODO fc_dlog(_trx_trace_log, "[TRX_TRACE] Node with producers configured is dropping an EXPIRED transaction that was PREVIOUSLY ACCEPTED : ${txid}",
+							//	("txid", trx->id));
+						}
+						chain.DropUnappliedTransaction(trx)
+					} else if category == PERSISTED || (category == UNEXPIRED_UNPERSISTED && impl.PendingBlockMode == producing) {
+						applyTrxs = append(applyTrxs, trx)
+					}
 				}
 			}
 
-			if impl.PendingBlockMode == EnumPendingBlockMode(producing) {
-				for _, trx := range unappliedTrxs {
+			if len(applyTrxs) > 0 {
+				numApplied := 0
+				numFailed := 0
+				numProcessed := 0
+
+				for _, trx := range applyTrxs {
 					if blockTime <= common.Now() {
 						isExhausted = true
-					}
-					if isExhausted {
 						break
 					}
 
-					if trx == nil {
-						// nulled in the loop above, skip it
-						continue
-					}
+					numProcessed ++
 
-					if trx.PackedTrx.Expiration().ToTimePoint() < pbs.Header.Timestamp.ToTimePoint() {
-						// expired, drop it
-						chain.DropUnappliedTransaction(trx)
-						continue
-					}
-
-					deadline := common.Now().AddUs(common.Microseconds(impl.MaxTransactionTimeMs))
-					deadlineIsSubjective := false
-					if impl.MaxTransactionTimeMs < 0 || impl.PendingBlockMode == EnumPendingBlockMode(producing) && blockTime < deadline {
-						deadlineIsSubjective = true
-						deadline = blockTime
-					}
-
-					trace := chain.PushTransaction(trx, deadline, 0)
-					if trace.Except != nil {
-						if failureIsSubjective(trace.Except, deadlineIsSubjective) {
-							isExhausted = true
-						} else {
-							// this failed our configured maximum transaction time, we don't want to replay it
-							chain.DropUnappliedTransaction(trx)
+					returning := false
+					Try(func() {
+						deadline := common.Now().AddUs(common.Milliseconds(int64(impl.MaxTransactionTimeMs)))
+						deadlineIsSubjective := false
+						if impl.MaxTransactionTimeMs < 0 || (impl.PendingBlockMode == producing && blockTime < deadline) {
+							deadlineIsSubjective = true
+							deadline = blockTime
 						}
-					}
 
-					//TODO catch exception
+						trace := chain.PushTransaction(trx, deadline, 0)
+						if trace.Except != nil {
+							if failureIsSubjective(trace.Except, deadlineIsSubjective) {
+								isExhausted = true
+							} else {
+								// this failed our configured maximum transaction time, we don't want to replay it
+								chain.DropUnappliedTransaction(trx)
+								numFailed++
+							}
+						} else {
+							numApplied++
+						}
+					}).Catch(func(e GuardExceptions) {
+						app.App().GetPlugin(chain_plugin.ChainPlug).(*chain_plugin.ChainPlugin).HandleGuardException(e)
+						returning = true
+
+					}).FcLogAndDrop()
+
+					if returning {
+						return failed, lastBlock
+					}
 				}
+
+				//TODO fc_dlog(_log, "Processed ${m} of ${n} previously applied transactions, Applied ${applied}, Failed/Dropped ${failed}",
+				//	("m", num_processed)
+				// ("n", apply_trxs.size())
+				// ("applied", num_applied)
+				// ("failed", num_failed));
 			}
-		} ///unapplied transactions
+		}
 
 		if impl.PendingBlockMode == EnumPendingBlockMode(producing) {
-			for byTrxId, byExpire := range impl.BlacklistedTransactions {
-				if byExpire <= common.Now() {
-					delete(impl.BlacklistedTransactions, byTrxId)
+			blacklistById := impl.BlacklistedTransactions.ById
+			blacklistByExpiry := impl.BlacklistedTransactions.ByExpiry
+			now := common.Now()
+			if !blacklistByExpiry.Empty() {
+				numExpired := 0
+				//origCount := impl.BlacklistedTransactions.Size() TODO
+
+				for !blacklistByExpiry.Empty() && impl.BlacklistedTransactions.Value(blacklistByExpiry.Begin().Value()).Expiry <= now {
+					impl.BlacklistedTransactions.Erase(blacklistByExpiry.Begin().Value())
+					numExpired ++
 				}
+
+				/*TODO fc_dlog(_log, "Processed ${n} blacklisted transactions, Expired ${expired}",
+                      ("n", orig_count)
+                      ("expired", num_expired));*/
 			}
 
-			scheduledTrxs := chain.GetScheduledTransactions()
+			scheduleTrx := chain.GetScheduledTransactions()
+			if len(scheduleTrx) > 0 {
+				numApplied := 0
+				numFailed := 0
+				numProcessed := 0
 
-			for _, trx := range scheduledTrxs {
-				if blockTime <= common.Now() {
-					isExhausted = true
-				}
-				if isExhausted {
-					break
-				}
-
-				// configurable ratio of incoming txns vs deferred txns
-				for impl.IncomingTrxWeight >= 1.0 && origPendingTxnSize > 0 && len(impl.PendingIncomingTransactions) > 0 {
-					e := impl.PendingIncomingTransactions[0]
-					impl.PendingIncomingTransactions = impl.PendingIncomingTransactions[1:]
-					origPendingTxnSize--
-					impl.IncomingTrxWeight -= 1.0
-					impl.OnIncomingTransactionAsync(e.packedTransaction, e.persistUntilExpired, e.next)
-				}
-
-				if blockTime <= common.Now() {
-					isExhausted = true
-					break
-				}
-
-				if _, has := impl.BlacklistedTransactions[trx]; has {
-					continue
-				}
-
-				deadline := common.Now().AddUs(common.Microseconds(impl.MaxTransactionTimeMs))
-				deadlineIsSubjective := false
-				if impl.MaxTransactionTimeMs < 0 || impl.PendingBlockMode == EnumPendingBlockMode(producing) && blockTime < deadline {
-					deadlineIsSubjective = true
-					deadline = blockTime
-				}
-
-				trace := chain.PushScheduledTransaction(&trx, deadline, 0)
-				if trace.Except != nil {
-					if failureIsSubjective(trace.Except, deadlineIsSubjective) {
+				for _, trx := range scheduleTrx {
+					if blockTime <= common.Now() {
 						isExhausted = true
-					} else {
-						expiration := common.Now().AddUs(common.Seconds(0) /*TODO chain.get_global_properties().configuration.deferred_trx_expiration_window*/)
-						// this failed our configured maximum transaction time, we don't want to replay it add it to a blacklist
-						impl.BlacklistedTransactions[trx] = expiration
+						break
+					}
+
+					numProcessed++
+
+					// configurable ratio of incoming txns vs deferred txns
+					for impl.IncomingTrxWeight >= 1.0 && origPendingTxnSize > 0 && len(impl.PendingIncomingTransactions) > 0 {
+						e := impl.PendingIncomingTransactions[0]
+						impl.PendingIncomingTransactions = impl.PendingIncomingTransactions[1:]
+						origPendingTxnSize--
+						impl.IncomingTrxWeight -= 1.0
+						impl.OnIncomingTransactionAsync(e.packedTransaction, e.persistUntilExpired, e.next)
+					}
+
+					if blockTime <= common.Now() {
+						isExhausted = true
+						break
+					}
+
+					if _, ok := blacklistById[trx]; ok {
+						continue
+					}
+
+					returning := false
+					Try(func() {
+						deadline := common.Now().AddUs(common.Milliseconds(int64(impl.MaxTransactionTimeMs)))
+						deadlineIsSubjective := false
+						if impl.MaxTransactionTimeMs < 0 || (impl.PendingBlockMode == producing && blockTime < deadline) {
+							deadlineIsSubjective = true
+							deadline = blockTime
+						}
+
+						trace := chain.PushScheduledTransaction(&trx, deadline, 0)
+						if trace.Except != nil {
+							if failureIsSubjective(trace.Except, deadlineIsSubjective) {
+								isExhausted = true
+
+							} else {
+								exporation := common.Now().AddUs(common.Seconds(int64(chain.GetGlobalProperties().Configuration.DeferredTrxExpirationWindow)))
+								// this failed our configured maximum transaction time, we don't want to replay it add it to a blacklist
+								impl.BlacklistedTransactions.Insert(&producer_multi_index.TransactionIdWithExpiry{TrxId: trx, Expiry: exporation})
+								numFailed++
+							}
+						} else {
+							numApplied++
+						}
+					}).Catch(func(e GuardExceptions) {
+						app.App().GetPlugin(chain_plugin.ChainPlug).(*chain_plugin.ChainPlugin).HandleGuardException(e)
+						returning = true
+					}).FcLogAndDrop()
+
+					if returning {
+						return failed, lastBlock
+					}
+
+					impl.IncomingTrxWeight += impl.IncomingDeferRadio
+					if origPendingTxnSize <= 0 {
+						impl.IncomingTrxWeight = 0.0
 					}
 				}
 
-				//TODO catch exception
-
-				impl.IncomingTrxWeight += impl.IncomingDeferRadio
-				if origPendingTxnSize <= 0 {
-					impl.IncomingTrxWeight = 0.0
-				}
+				/*TODO fc_dlog(_log, "Processed ${m} of ${n} scheduled transactions, Applied ${applied}, Failed/Dropped ${failed}",
+                      ("m", num_processed)
+                      ("n", scheduled_trxs.size())
+                      ("applied", num_applied)
+                      ("failed", num_failed));*/
 			}
+
 		} ///scheduled transactions
 
 		if isExhausted || blockTime <= common.Now() {
@@ -336,13 +423,18 @@ func (impl *ProducerPluginImpl) StartBlock() (EnumStartBlockRusult, bool) {
 		} else {
 			// attempt to apply any pending incoming transactions
 			impl.IncomingTrxWeight = 0.0
-			if origPendingTxnSize > 0 && len(impl.PendingIncomingTransactions) > 0 {
-				e := impl.PendingIncomingTransactions[0]
-				impl.PendingIncomingTransactions = impl.PendingIncomingTransactions[1:]
-				origPendingTxnSize--
-				impl.OnIncomingTransactionAsync(e.packedTransaction, e.persistUntilExpired, e.next)
-				if blockTime <= common.Now() {
-					return EnumStartBlockRusult(exhausted), lastBlock
+
+			if len(impl.PendingIncomingTransactions) > 0 {
+				//TODO fc_dlog(_log, "Processing ${n} pending transactions");
+				for origPendingTxnSize > 0 && len(impl.PendingIncomingTransactions) > 0 {
+					e := impl.PendingIncomingTransactions[0]
+					impl.PendingIncomingTransactions = impl.PendingIncomingTransactions[1:]
+					origPendingTxnSize--
+					impl.OnIncomingTransactionAsync(e.packedTransaction, e.persistUntilExpired, e.next)
+					if blockTime <= common.Now() {
+						return EnumStartBlockRusult(exhausted), lastBlock
+					}
+
 				}
 			}
 			return EnumStartBlockRusult(succeeded), lastBlock

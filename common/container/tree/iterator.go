@@ -141,13 +141,13 @@ func (iterator *Iterator) HasPrev() bool {
 
 // Value returns the current element's value.
 // Does not modify the state of the iterator.
-func (iterator *Iterator) Value() interface{} {
+func (iterator Iterator) Value() interface{} {
 	return iterator.node.Value
 }
 
 // Key returns the current element's key.
 // Does not modify the state of the iterator.
-func (iterator *Iterator) Key() interface{} {
+func (iterator Iterator) Key() interface{} {
 	return iterator.node.Key
 }
 
@@ -158,7 +158,7 @@ func (iterator *Iterator) Begin() {
 	iterator.position = begin
 }
 
-func (iterator *Iterator) IsBegin() bool {
+func (iterator Iterator) IsBegin() bool {
 	return iterator.position == begin
 }
 
@@ -169,7 +169,7 @@ func (iterator *Iterator) End() {
 	iterator.position = end
 }
 
-func (iterator *Iterator) IsEnd() bool {
+func (iterator Iterator) IsEnd() bool {
 	return iterator.position == end
 }
 

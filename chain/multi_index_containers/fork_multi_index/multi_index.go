@@ -7,13 +7,33 @@ import (
 	"github.com/eosspark/eos-go/common"
 )
 
+type MultiIndex struct {
+	base          IndexBase
+	ByBlockId     byBlockIdIndex
+	ByPrev        byPrevIndex
+	ByBlockNum    byBlockNumIndex
+	ByLibBlockNum byLibBlockNumIndex
+}
+
+type IndexBase = *list.List
+type IndexKey = *list.Element
+
+type Node struct {
+	value                 *types.BlockState
+	hashByBlockId         common.BlockIdType
+	iteratorByPrev        iteratorByPrevIndex
+	iteratorByBlockNum    iteratorByBlockNumIndex
+	iteratorByLibBlockNum iteratorByLibBlockNumIndex
+}
+type byBlockIdIndex = map[common.BlockIdType]IndexKey
+
 //go:generate go install "github.com/eosspark/eos-go/common/container/..."
-//go:generate gotemplate -outfmt "gen_%v" "github.com/eosspark/eos-go/common/container/treemap" byPrevIndex(common.BlockIdType,IndexKey,byPrevCompare)
+//go:generate gotemplate -outfmt "gen_%v" "github.com/eosspark/eos-go/common/container/treemap" byPrevIndex(common.BlockIdType,IndexKey,byPrevCompare,true)
 var byPrevCompare = func(a, b interface{}) int {
 	return bytes.Compare(a.(common.BlockIdType).Bytes(), b.(common.BlockIdType).Bytes())
 }
 
-//go:generate gotemplate -outfmt "gen_%v" "github.com/eosspark/eos-go/common/container/treemap" byBlockNumIndex(ByBlockNumComposite,IndexKey,byBlockNumCompare)
+//go:generate gotemplate -outfmt "gen_%v" "github.com/eosspark/eos-go/common/container/treemap" byBlockNumIndex(ByBlockNumComposite,IndexKey,byBlockNumCompare,true)
 type ByBlockNumComposite struct {
 	BlockNum       *uint32
 	InCurrentChain *bool
@@ -41,7 +61,7 @@ var byBlockNumCompare = func(a, b interface{}) int {
 	return 0
 }
 
-//go:generate gotemplate -outfmt "gen_%v" "github.com/eosspark/eos-go/common/container/treemap" byLibBlockNumIndex(ByLibBlockNumComposite,IndexKey,byLibBlockNumCompare)
+//go:generate gotemplate -outfmt "gen_%v" "github.com/eosspark/eos-go/common/container/treemap" byLibBlockNumIndex(ByLibBlockNumComposite,IndexKey,byLibBlockNumCompare,true)
 type ByLibBlockNumComposite struct {
 	DposIrreversibleBlocknum *uint32
 	BftIrreversibleBlocknum  *uint32
@@ -77,33 +97,14 @@ var byLibBlockNumCompare = func(a, b interface{}) int {
 	return 0
 }
 
-type MultiIndex struct {
-	base          IndexBase
-	ByBlockId     map[common.BlockIdType]IndexKey
-	ByPrev        byPrevIndex
-	ByBlockNum    byBlockNumIndex
-	ByLibBlockNum byLibBlockNumIndex
-}
-
-type IndexBase = *list.List
-type IndexKey = *list.Element
-
-type Node struct {
-	value                 *types.BlockState
-	hashByBlockId         common.BlockIdType
-	iteratorByPrev        iteratorByPrevIndex
-	iteratorByBlockNum    iteratorByBlockNumIndex
-	iteratorByLibBlockNum iteratorByLibBlockNumIndex
-}
-
 func New() *MultiIndex {
-	m := MultiIndex{}
-	m.base = list.New()
-	m.ByBlockId = make(map[common.BlockIdType]IndexKey)
-	m.ByPrev = *newMultiByPrevIndex()
-	m.ByBlockNum = *newMultiByBlockNumIndex()
-	m.ByLibBlockNum = *newMultiByLibBlockNumIndex()
-	return &m
+	return &MultiIndex{
+		base:          list.New(),
+		ByBlockId:     byBlockIdIndex{},
+		ByPrev:        *newByPrevIndex(),
+		ByBlockNum:    *newByBlockNumIndex(),
+		ByLibBlockNum: *newByLibBlockNumIndex(),
+	}
 }
 
 func (m *MultiIndex) Value(k IndexKey) *types.BlockState {
@@ -216,7 +217,7 @@ func (m *MultiIndex) Size() int {
 
 func (m *MultiIndex) Clear() {
 	m.base.Init()
-	m.ByBlockId = make(map[common.BlockIdType]IndexKey)
+	m.ByBlockId = byBlockIdIndex{}
 	m.ByPrev.Clear()
 	m.ByBlockNum.Clear()
 	m.ByLibBlockNum.Clear()

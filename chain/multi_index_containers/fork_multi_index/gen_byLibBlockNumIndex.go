@@ -22,7 +22,7 @@ import (
 	rbt "github.com/eosspark/eos-go/common/container/tree"
 )
 
-// template type Map(K,V,Compare)
+// template type Map(K,V,Compare,Multi)
 
 func assertByLibBlockNumIndexImplementation() {
 	var _ container.Map = (*byLibBlockNumIndex)(nil)
@@ -35,20 +35,10 @@ type byLibBlockNumIndex struct {
 
 // NewWith instantiates a Tree map with the custom comparator.
 func newByLibBlockNumIndex() *byLibBlockNumIndex {
-	return &byLibBlockNumIndex{Tree: rbt.NewWith(byLibBlockNumCompare, false)}
-}
-
-func copyFromByLibBlockNumIndex(tm *byLibBlockNumIndex) *byLibBlockNumIndex {
-	return &byLibBlockNumIndex{Tree: rbt.CopyFrom(tm.Tree)}
-}
-
-type multiByLibBlockNumIndex = byLibBlockNumIndex
-
-func newMultiByLibBlockNumIndex() *multiByLibBlockNumIndex {
 	return &byLibBlockNumIndex{Tree: rbt.NewWith(byLibBlockNumCompare, true)}
 }
 
-func copyMultiFromByLibBlockNumIndex(tm *byLibBlockNumIndex) *byLibBlockNumIndex {
+func copyFromByLibBlockNumIndex(tm *byLibBlockNumIndex) *byLibBlockNumIndex {
 	return &byLibBlockNumIndex{Tree: rbt.CopyFrom(tm.Tree)}
 }
 
@@ -150,13 +140,13 @@ func (m *byLibBlockNumIndex) End() iteratorByLibBlockNumIndex {
 
 // Value returns the current element's value.
 // Does not modify the state of the Iterator.
-func (iterator *iteratorByLibBlockNumIndex) Value() IndexKey {
+func (iterator iteratorByLibBlockNumIndex) Value() IndexKey {
 	return iterator.Iterator.Value().(IndexKey)
 }
 
 // Key returns the current element's key.
 // Does not modify the state of the Iterator.
-func (iterator *iteratorByLibBlockNumIndex) Key() ByLibBlockNumComposite {
+func (iterator iteratorByLibBlockNumIndex) Key() ByLibBlockNumComposite {
 	return iterator.Iterator.Key().(ByLibBlockNumComposite)
 }
 

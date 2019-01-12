@@ -23,7 +23,7 @@ import (
 	rbt "github.com/eosspark/eos-go/common/container/tree"
 )
 
-// template type Map(K,V,Compare)
+// template type Map(K,V,Compare,Multi)
 
 func assertByPrevIndexImplementation() {
 	var _ container.Map = (*byPrevIndex)(nil)
@@ -36,20 +36,10 @@ type byPrevIndex struct {
 
 // NewWith instantiates a Tree map with the custom comparator.
 func newByPrevIndex() *byPrevIndex {
-	return &byPrevIndex{Tree: rbt.NewWith(byPrevCompare, false)}
-}
-
-func copyFromByPrevIndex(tm *byPrevIndex) *byPrevIndex {
-	return &byPrevIndex{Tree: rbt.CopyFrom(tm.Tree)}
-}
-
-type multiByPrevIndex = byPrevIndex
-
-func newMultiByPrevIndex() *multiByPrevIndex {
 	return &byPrevIndex{Tree: rbt.NewWith(byPrevCompare, true)}
 }
 
-func copyMultiFromByPrevIndex(tm *byPrevIndex) *byPrevIndex {
+func copyFromByPrevIndex(tm *byPrevIndex) *byPrevIndex {
 	return &byPrevIndex{Tree: rbt.CopyFrom(tm.Tree)}
 }
 
@@ -151,13 +141,13 @@ func (m *byPrevIndex) End() iteratorByPrevIndex {
 
 // Value returns the current element's value.
 // Does not modify the state of the Iterator.
-func (iterator *iteratorByPrevIndex) Value() IndexKey {
+func (iterator iteratorByPrevIndex) Value() IndexKey {
 	return iterator.Iterator.Value().(IndexKey)
 }
 
 // Key returns the current element's key.
 // Does not modify the state of the Iterator.
-func (iterator *iteratorByPrevIndex) Key() common.BlockIdType {
+func (iterator iteratorByPrevIndex) Key() common.BlockIdType {
 	return iterator.Iterator.Key().(common.BlockIdType)
 }
 

@@ -23,7 +23,7 @@ import (
 	rbt "github.com/eosspark/eos-go/common/container/tree"
 )
 
-// template type Map(K,V,Compare)
+// template type Map(K,V,Compare,Multi)
 
 func assertIntStringPtrMapImplementation() {
 	var _ container.Map = (*IntStringPtrMap)(nil)
@@ -40,16 +40,6 @@ func NewIntStringPtrMap() *IntStringPtrMap {
 }
 
 func CopyFromIntStringPtrMap(tm *IntStringPtrMap) *IntStringPtrMap {
-	return &IntStringPtrMap{Tree: rbt.CopyFrom(tm.Tree)}
-}
-
-type MultiIntStringPtrMap = IntStringPtrMap
-
-func NewMultiIntStringPtrMap() *MultiIntStringPtrMap {
-	return &IntStringPtrMap{Tree: rbt.NewWith(utils.IntComparator, true)}
-}
-
-func CopyMultiFromIntStringPtrMap(tm *IntStringPtrMap) *IntStringPtrMap {
 	return &IntStringPtrMap{Tree: rbt.CopyFrom(tm.Tree)}
 }
 

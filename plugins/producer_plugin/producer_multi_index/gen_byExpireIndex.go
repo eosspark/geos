@@ -11,72 +11,73 @@
 // Structure is not thread safe.
 //
 // Reference: http://en.wikipedia.org/wiki/Associative_array
-package fork_multi_index
+package producer_multi_index
 
 import (
 	"encoding/json"
 	"fmt"
 	"strings"
 
+	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/common/container"
 	rbt "github.com/eosspark/eos-go/common/container/tree"
 )
 
 // template type Map(K,V,Compare,Multi)
 
-func assertByBlockNumIndexImplementation() {
-	var _ container.Map = (*byBlockNumIndex)(nil)
+func assertByExpireIndexImplementation() {
+	var _ container.Map = (*byExpireIndex)(nil)
 }
 
 // Map holds the elements in a red-black Tree
-type byBlockNumIndex struct {
+type byExpireIndex struct {
 	*rbt.Tree
 }
 
 // NewWith instantiates a Tree map with the custom comparator.
-func newByBlockNumIndex() *byBlockNumIndex {
-	return &byBlockNumIndex{Tree: rbt.NewWith(byBlockNumCompare, true)}
+func newByExpireIndex() *byExpireIndex {
+	return &byExpireIndex{Tree: rbt.NewWith(byExpireCompare, true)}
 }
 
-func copyFromByBlockNumIndex(tm *byBlockNumIndex) *byBlockNumIndex {
-	return &byBlockNumIndex{Tree: rbt.CopyFrom(tm.Tree)}
+func copyFromByExpireIndex(tm *byExpireIndex) *byExpireIndex {
+	return &byExpireIndex{Tree: rbt.CopyFrom(tm.Tree)}
 }
 
 // Put inserts key-value pair into the map.
 // Key should adhere to the comparator's type assertion, otherwise method panics.
-func (m *byBlockNumIndex) Put(key ByBlockNumComposite, value IndexKey) {
+func (m *byExpireIndex) Put(key common.TimePoint, value IndexKey) {
 	m.Tree.Put(key, value)
 }
 
-func (m *byBlockNumIndex) Insert(key ByBlockNumComposite, value IndexKey) iteratorByBlockNumIndex {
-	return iteratorByBlockNumIndex{m.Tree.Insert(key, value)}
+func (m *byExpireIndex) Insert(key common.TimePoint, value IndexKey) iteratorByExpireIndex {
+	return iteratorByExpireIndex{m.Tree.Insert(key, value)}
 }
 
 // Get searches the element in the map by key and returns its value or nil if key is not found in Tree.
 // Second return parameter is true if key was found, otherwise false.
 // Key should adhere to the comparator's type assertion, otherwise method panics.
-func (m *byBlockNumIndex) Get(key ByBlockNumComposite) iteratorByBlockNumIndex {
-	return iteratorByBlockNumIndex{m.Tree.Get(key)}
+func (m *byExpireIndex) Get(key common.TimePoint) iteratorByExpireIndex {
+	return iteratorByExpireIndex{m.Tree.Get(key)}
 }
 
 // Remove removes the element from the map by key.
 // Key should adhere to the comparator's type assertion, otherwise method panics.
-func (m *byBlockNumIndex) Remove(key ByBlockNumComposite) {
+func (m *byExpireIndex) Remove(key common.TimePoint) {
 	m.Tree.Remove(key)
 }
 
 // Keys returns all keys in-order
-func (m *byBlockNumIndex) Keys() []ByBlockNumComposite {
-	keys := make([]ByBlockNumComposite, m.Tree.Size())
+func (m *byExpireIndex) Keys() []common.TimePoint {
+	keys := make([]common.TimePoint, m.Tree.Size())
 	it := m.Tree.Iterator()
 	for i := 0; it.Next(); i++ {
-		keys[i] = it.Key().(ByBlockNumComposite)
+		keys[i] = it.Key().(common.TimePoint)
 	}
 	return keys
 }
 
 // Values returns all values in-order based on the key.
-func (m *byBlockNumIndex) Values() []IndexKey {
+func (m *byExpireIndex) Values() []IndexKey {
 	values := make([]IndexKey, m.Tree.Size())
 	it := m.Tree.Iterator()
 	for i := 0; it.Next(); i++ {
@@ -86,7 +87,7 @@ func (m *byBlockNumIndex) Values() []IndexKey {
 }
 
 // Each calls the given function once for each element, passing that element's key and value.
-func (m *byBlockNumIndex) Each(f func(key ByBlockNumComposite, value IndexKey)) {
+func (m *byExpireIndex) Each(f func(key common.TimePoint, value IndexKey)) {
 	Iterator := m.Iterator()
 	for Iterator.Next() {
 		f(Iterator.Key(), Iterator.Value())
@@ -96,7 +97,7 @@ func (m *byBlockNumIndex) Each(f func(key ByBlockNumComposite, value IndexKey)) 
 // Find passes each element of the container to the given function and returns
 // the first (key,value) for which the function is true or nil,nil otherwise if no element
 // matches the criteria.
-func (m *byBlockNumIndex) Find(f func(key ByBlockNumComposite, value IndexKey) bool) (k ByBlockNumComposite, v IndexKey) {
+func (m *byExpireIndex) Find(f func(key common.TimePoint, value IndexKey) bool) (k common.TimePoint, v IndexKey) {
 	Iterator := m.Iterator()
 	for Iterator.Next() {
 		if f(Iterator.Key(), Iterator.Value()) {
@@ -107,7 +108,7 @@ func (m *byBlockNumIndex) Find(f func(key ByBlockNumComposite, value IndexKey) b
 }
 
 // String returns a string representation of container
-func (m byBlockNumIndex) String() string {
+func (m byExpireIndex) String() string {
 	str := "TreeMap\nmap["
 	it := m.Iterator()
 	for it.Next() {
@@ -118,69 +119,69 @@ func (m byBlockNumIndex) String() string {
 }
 
 // Iterator holding the Iterator's state
-type iteratorByBlockNumIndex struct {
+type iteratorByExpireIndex struct {
 	rbt.Iterator
 }
 
 // Iterator returns a stateful Iterator whose elements are key/value pairs.
-func (m *byBlockNumIndex) Iterator() iteratorByBlockNumIndex {
-	return iteratorByBlockNumIndex{Iterator: m.Tree.Iterator()}
+func (m *byExpireIndex) Iterator() iteratorByExpireIndex {
+	return iteratorByExpireIndex{Iterator: m.Tree.Iterator()}
 }
 
 // Begin returns First Iterator whose position points to the first element
 // Return End Iterator when the map is empty
-func (m *byBlockNumIndex) Begin() iteratorByBlockNumIndex {
-	return iteratorByBlockNumIndex{m.Tree.Begin()}
+func (m *byExpireIndex) Begin() iteratorByExpireIndex {
+	return iteratorByExpireIndex{m.Tree.Begin()}
 }
 
 // End returns End Iterator
-func (m *byBlockNumIndex) End() iteratorByBlockNumIndex {
-	return iteratorByBlockNumIndex{m.Tree.End()}
+func (m *byExpireIndex) End() iteratorByExpireIndex {
+	return iteratorByExpireIndex{m.Tree.End()}
 }
 
 // Value returns the current element's value.
 // Does not modify the state of the Iterator.
-func (iterator iteratorByBlockNumIndex) Value() IndexKey {
+func (iterator iteratorByExpireIndex) Value() IndexKey {
 	return iterator.Iterator.Value().(IndexKey)
 }
 
 // Key returns the current element's key.
 // Does not modify the state of the Iterator.
-func (iterator iteratorByBlockNumIndex) Key() ByBlockNumComposite {
-	return iterator.Iterator.Key().(ByBlockNumComposite)
+func (iterator iteratorByExpireIndex) Key() common.TimePoint {
+	return iterator.Iterator.Key().(common.TimePoint)
 }
 
-func (iterator *iteratorByBlockNumIndex) Modify(key ByBlockNumComposite, value IndexKey) iteratorByBlockNumIndex {
-	return iteratorByBlockNumIndex{iterator.Iterator.Modify(key, value)}
+func (iterator *iteratorByExpireIndex) Modify(key common.TimePoint, value IndexKey) iteratorByExpireIndex {
+	return iteratorByExpireIndex{iterator.Iterator.Modify(key, value)}
 }
 
-func (m *byBlockNumIndex) LowerBound(key ByBlockNumComposite) iteratorByBlockNumIndex {
-	return iteratorByBlockNumIndex{m.Tree.LowerBound(key)}
+func (m *byExpireIndex) LowerBound(key common.TimePoint) iteratorByExpireIndex {
+	return iteratorByExpireIndex{m.Tree.LowerBound(key)}
 }
 
-func (m *byBlockNumIndex) UpperBound(key ByBlockNumComposite) iteratorByBlockNumIndex {
-	return iteratorByBlockNumIndex{m.Tree.UpperBound(key)}
+func (m *byExpireIndex) UpperBound(key common.TimePoint) iteratorByExpireIndex {
+	return iteratorByExpireIndex{m.Tree.UpperBound(key)}
 
 }
 
 // ToJSON outputs the JSON representation of the map.
-type pairByBlockNumIndex struct {
-	Key ByBlockNumComposite `json:"key"`
-	Val IndexKey            `json:"val"`
+type pairByExpireIndex struct {
+	Key common.TimePoint `json:"key"`
+	Val IndexKey         `json:"val"`
 }
 
-func (m byBlockNumIndex) MarshalJSON() ([]byte, error) {
-	elements := make([]pairByBlockNumIndex, 0, m.Size())
+func (m byExpireIndex) MarshalJSON() ([]byte, error) {
+	elements := make([]pairByExpireIndex, 0, m.Size())
 	it := m.Iterator()
 	for it.Next() {
-		elements = append(elements, pairByBlockNumIndex{it.Key(), it.Value()})
+		elements = append(elements, pairByExpireIndex{it.Key(), it.Value()})
 	}
 	return json.Marshal(&elements)
 }
 
 // FromJSON populates the map from the input JSON representation.
-func (m *byBlockNumIndex) UnmarshalJSON(data []byte) error {
-	elements := make([]pairByBlockNumIndex, 0)
+func (m *byExpireIndex) UnmarshalJSON(data []byte) error {
+	elements := make([]pairByExpireIndex, 0)
 	err := json.Unmarshal(data, &elements)
 	if err == nil {
 		m.Clear()

@@ -18,10 +18,11 @@ import (
 	"strings"
 )
 
-// template type Set(V,Compare)
+// template type Set(V,Compare,Multi)
 type V = int
 
 var Compare = utils.IntComparator
+var Multi = false
 
 func assertSetImplementation() {
 	var _ container.Set = (*Set)(nil)
@@ -37,21 +38,13 @@ var itemExists = struct{}{}
 // NewWith instantiates a new empty set with the custom comparator.
 
 func New(Value ...V) *Set {
-	set := &Set{Tree: rbt.NewWith(Compare, false)}
+	set := &Set{Tree: rbt.NewWith(Compare, Multi)}
 	set.Add(Value...)
 	return set
 }
 
 func CopyFrom(ts *Set) *Set {
 	return &Set{Tree: rbt.CopyFrom(ts.Tree)}
-}
-
-type MultiSet = Set
-
-func NewMulti(items ...V) *MultiSet {
-	set := &Set{Tree: rbt.NewWith(Compare, true)}
-	set.Add(items...)
-	return set
 }
 
 func SetIntersection(a *Set, b *Set, callback func(elem V)) {
@@ -157,7 +150,7 @@ func (set *Set) End() Iterator {
 
 // Value returns the current element's value.
 // Does not modify the state of the iterator.
-func (iterator *Iterator) Value() V {
+func (iterator Iterator) Value() V {
 	return iterator.Iterator.Key().(V)
 }
 
