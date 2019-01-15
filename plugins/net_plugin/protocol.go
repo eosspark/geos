@@ -87,9 +87,8 @@ var ReasonToString = map[GoAwayReason]string{
 }
 
 type GoAwayMessage struct {
-	Reason GoAwayReason  `json:"reason"`
-	NodeID crypto.Sha256 `json:"node_id"` //for duplicate notification
-	//NodeID common.NodeIdType `json:"node_id"` //for duplicate notification
+	Reason GoAwayReason      `json:"reason"`
+	NodeID common.NodeIdType `json:"node_id"` //for duplicate notification
 }
 
 func (m *GoAwayMessage) GetType() P2PMessageType {

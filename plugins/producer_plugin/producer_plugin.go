@@ -291,7 +291,7 @@ func (p *ProducerPlugin) Resume() {
 	// it is possible that we are only speculating because of this policy which we have now changed
 	// re-evaluate that now
 	//
-	if p.my.PendingBlockMode == EnumPendingBlockMode(speculating) {
+	if p.my.PendingBlockMode == PendingBlockMode(speculating) {
 		chain := p.chain()
 		chain.AbortBlock()
 		p.my.ScheduleProductionLoop()
@@ -326,7 +326,7 @@ func (p *ProducerPlugin) UpdateRuntimeOptions(options RuntimeOptions) {
 		p.my.IncomingDeferRadio = *options.IncomingDeferRadio
 	}
 
-	if checkSpeculation && p.my.PendingBlockMode == EnumPendingBlockMode(speculating) {
+	if checkSpeculation && p.my.PendingBlockMode == PendingBlockMode(speculating) {
 		chain := p.chain()
 		chain.AbortBlock()
 		p.my.ScheduleProductionLoop()

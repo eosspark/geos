@@ -1,8 +1,8 @@
 package chain
 
 import (
-	"github.com/eosspark/eos-go/chain/multi_index_containers/fork_multi_index"
 	"github.com/eosspark/eos-go/chain/types"
+	"github.com/eosspark/eos-go/chain/types/forkdb_multi_index"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto/rlp"
 	. "github.com/eosspark/eos-go/exception"
@@ -13,7 +13,7 @@ import (
 )
 
 type ForkDatabase struct {
-	Index      fork_multi_index.MultiIndex
+	Index      *forkdb_multi_index.MultiIndex
 	Head       *types.BlockState `json:"head"`
 	dataDir    string
 	fileStream *os.File
@@ -22,7 +22,7 @@ type ForkDatabase struct {
 }
 
 func NewForkDatabase(dataDir string) *ForkDatabase {
-	f := &ForkDatabase{Index: *fork_multi_index.New()}
+	f := &ForkDatabase{Index: forkdb_multi_index.NewMultiIndex()}
 	f.dataDir = dataDir
 
 	if !common.FileExist(dataDir) {
@@ -86,8 +86,7 @@ func (f *ForkDatabase) Close() {
 	// the next block needs to build off of the head block. We are exiting
 	// now so we can prune this block as irreversible before exiting.
 	lib := f.Head.DposIrreversibleBlocknum
-	begin := f.Index.ByBlockNum.Begin()
-	oldest := f.Index.Value(begin.Value())
+	oldest := f.Index.GetByBlockNum().Begin().Value()
 	if oldest.BlockNum <= lib {
 		f.Prune(oldest)
 	}
@@ -109,18 +108,13 @@ func (f *ForkDatabase) SetHead(s *types.BlockState) {
 }
 
 func (f *ForkDatabase) AddBlockState(b *types.BlockState) *types.BlockState {
-	EosAssert(b != nil, &ForkDatabaseException{}, "attempt to add null block state")
-	EosAssert(f.Head != nil, &ForkDbBlockNotFound{}, "no head block set")
-
 	inserted := f.Index.Insert(b)
 	EosAssert(inserted, &ForkDatabaseException{}, "duplicate block added?")
 
-	libItr := f.Index.ByLibBlockNum.Begin()
-	f.Head = f.Index.Value(libItr.Value())
-	lib := f.Head.DposIrreversibleBlocknum
+	f.Head = f.Index.GetByLibBlockNum().Begin().Value()
 
-	nitr := f.Index.ByBlockNum.Begin()
-	oldest := f.Index.Value(nitr.Value())
+	lib := f.Head.DposIrreversibleBlocknum
+	oldest := f.Index.GetByBlockNum().Begin().Value()
 
 	if oldest.BlockNum < lib {
 		f.Prune(oldest)
@@ -133,14 +127,15 @@ func (f *ForkDatabase) AddSignedBlock(b *types.SignedBlock, trust bool) *types.B
 	EosAssert(b != nil, &ForkDatabaseException{}, "attempt to add null block")
 	EosAssert(f.Head != nil, &ForkDbBlockNotFound{}, "no head block set")
 
-	byIdIdx := f.Index.ByBlockId
-	_, existing := byIdIdx[b.BlockID()]
+	byIdIdx := f.Index.GetByBlockId()
+	_, existing := byIdIdx.Find(b.BlockID())
 	EosAssert(!existing, &ForkDatabaseException{}, "we already know about this block")
 
-	prior := f.Index.Value(byIdIdx[b.Previous])
-	EosAssert(prior != nil, &ForkDatabaseException{}, "unlinkable block:%s,%s", b.BlockID().String(), b.Previous.String())
+	prior, hasPrior := byIdIdx.Find(b.Previous)
+	EosAssert(hasPrior, &ForkDatabaseException{}, "unlinkable block:%s,%s", b.BlockID().String(), b.Previous.String())
 
-	result := types.NewBlockState3(&prior.BlockHeaderState, b, trust)
+	bhs := prior.Value().BlockHeaderState
+	result := types.NewBlockState3(&bhs, b, trust)
 	EosAssert(result != nil, &ForkDatabaseException{}, "fail to add new block state")
 	return f.AddBlockState(result)
 }
@@ -162,6 +157,10 @@ type FetchBranch struct {
 	second []*types.BlockState
 }
 
+/**
+  *  Given two head blocks, return two branches of the fork graph that
+  *  end with a common ancestor (same prior block)
+  */
 func (f *ForkDatabase) FetchBranchFrom(first *common.BlockIdType, second *common.BlockIdType) FetchBranch {
 	result := FetchBranch{}
 	firstBranch := f.GetBlock(first)
@@ -201,26 +200,21 @@ func (f *ForkDatabase) FetchBranchFrom(first *common.BlockIdType, second *common
 func (f *ForkDatabase) Remove(id *common.BlockIdType) {
 	removeQueue := []common.BlockIdType{*id}
 	for i := 0; i < len(removeQueue); i++ {
-		itr, existing := f.Index.ByBlockId[removeQueue[i]]
+		itr, existing := f.Index.GetByBlockId().Find(removeQueue[i])
 		if existing {
 			f.Index.Erase(itr)
 		}
 
-		prevIdx := f.Index.ByPrev
+		prevIdx := f.Index.GetByPrev()
 		prevItr := prevIdx.LowerBound(removeQueue[i])
-		for prevItr.HasNext() {
-			if bsp := f.Index.Value(prevItr.Value()); bsp.Header.Previous == removeQueue[i] {
-				removeQueue = append(removeQueue, bsp.BlockId)
-				prevItr.Next()
-				continue
-			}
-			break
+		for !prevItr.IsEnd() && prevItr.Value().Header.Previous == removeQueue[i] {
+			removeQueue = append(removeQueue, prevItr.Value().BlockId)
+			prevItr.Next()
 		}
 
 	}
 
-	libItr := f.Index.ByLibBlockNum.Begin()
-	f.Head = f.Index.Value(libItr.Value())
+	f.Head = f.Index.GetByLibBlockNum().Begin().Value()
 }
 
 func (f *ForkDatabase) SetValidity(h *types.BlockState, valid bool) {
@@ -236,100 +230,100 @@ func (f *ForkDatabase) MarkInCurrentChain(h *types.BlockState, inCurrentChain bo
 		return
 	}
 
-	byIdIdx := f.Index.ByBlockId
-	itr, existing := byIdIdx[h.BlockId]
+	byIdIdx := f.Index.GetByBlockId()
+	itr, existing := byIdIdx.Find(h.BlockId)
 	EosAssert(existing, &ForkDbBlockNotFound{}, "could not find block in fork database")
 
-	f.Index.Modify(itr, func(bsp *types.BlockState) {
-		bsp.InCurrentChain = inCurrentChain
+	f.Index.Modify(itr, func(bsp *forkdb_multi_index.BlockStatePtr) {
+		(*bsp).InCurrentChain = inCurrentChain
 	})
 }
 
 func (f *ForkDatabase) Prune(h *types.BlockState) {
 	num := h.BlockNum
 
-	byBn := f.Index.ByBlockNum
+	byBn := f.Index.GetByBlockNum()
 	bni := byBn.Begin()
-	for bni.HasNext() {
-		if bsp := f.Index.Value(bni.Value()); bsp.BlockNum < num {
-			f.Prune(bsp)
-			bni = byBn.Begin()
-			continue
-		}
-		break
+	for !bni.IsEnd() && bni.Value().BlockNum < num {
+		f.Prune(bni.Value())
+		bni = byBn.Begin()
 	}
 
-	itr, existing := f.Index.ByBlockId[h.BlockId]
+	itr, existing := f.Index.GetByBlockId().Find(h.BlockId)
 	if existing {
-		//TODO
-		f.Irreversible.Emit(f.Index.Value(itr))
+		f.Irreversible.Emit(itr.Value())
 		f.Index.Erase(itr)
 	}
 
-	numIdx := f.Index.ByBlockNum
-	nitr := numIdx.LowerBound(fork_multi_index.ByBlockNumComposite{BlockNum: &num})
+	numIdx := f.Index.GetByBlockNum()
+	nitr := numIdx.LowerBound(forkdb_multi_index.ByBlockNumComposite{BlockNum: &num})
 
-	for nitr.HasNext() {
-		if itrToRemove := f.Index.Value(nitr.Value()); itrToRemove.BlockNum == num {
-			nitr.Next()
-			id := itrToRemove.BlockId
-			f.Remove(&id)
-			continue
-		}
-		break
+	for !nitr.IsEnd() && nitr.Value().BlockNum == num {
+		itrToRemove := nitr
+		nitr.Next()
+		id := itrToRemove.Value().BlockId
+		f.Remove(&id)
 	}
 }
 
 func (f *ForkDatabase) GetBlock(id *common.BlockIdType) *types.BlockState {
-	b, existing := f.Index.Find(*id)
+	b, existing := f.Index.GetByBlockId().Find(*id)
 	if existing {
-		return b
+		return b.Value()
 	}
 	return nil
 }
 
 func (f *ForkDatabase) GetBlockInCurrentChainByNum(n uint32) *types.BlockState {
-	numIdx := f.Index.ByBlockNum
-	nitr := numIdx.LowerBound(fork_multi_index.ByBlockNumComposite{BlockNum: &n})
+	numIdx := f.Index.GetByBlockNum()
+	nitr := numIdx.LowerBound(forkdb_multi_index.ByBlockNumComposite{BlockNum: &n})
 
-	if nitr.IsEnd() {
+	if nitr.IsEnd() || nitr.Value().BlockNum != n || nitr.Value().InCurrentChain != true {
 		return nil
 	}
-
-	if bsp := f.Index.Value(nitr.Value()); bsp.BlockNum != n || bsp.InCurrentChain != true {
-		return nil
-	} else {
-		return bsp
-	}
+	return nitr.Value()
 }
 
+/**
+  *  This method will set this block as being BFT irreversible and will update
+  *  all blocks which build off of it to have the same bft_irb if their existing
+  *  bft irb is less than this block num.
+  *
+  *  This will require a search over all forks
+  */
 func (f *ForkDatabase) SetBftIrreversible(id common.BlockIdType) {
-	idx := f.Index.ByBlockId
-	itr := idx[id]
-	blockNum := f.Index.Value(itr).BlockNum
-	f.Index.Modify(itr, func(bsp *types.BlockState) {
-		bsp.BftIrreversibleBlocknum = bsp.BlockNum
+	idx := f.Index.GetByBlockId()
+	itr, _ := idx.Find(id)
+	blockNum := itr.Value().BlockNum
+	idx.Modify(itr, func(bsp *forkdb_multi_index.BlockStatePtr) {
+		(*bsp).BftIrreversibleBlocknum = (*bsp).BlockNum
 	})
 
+	/** to prevent stack-overflow, we perform a bredth-first traversal of the
+      * fork database. At each stage we iterate over the leafs from the prior stage
+      * and find all nodes that link their previous. If we update the bft lib then we
+      * add it to a queue for the next layer.  This lambda takes one layer and returns
+      * all block ids that need to be iterated over for next layer.
+      */
 	update := func(in []common.BlockIdType) []common.BlockIdType {
 		updated := []common.BlockIdType{}
 		for _, i := range in {
-			pidx := f.Index.ByPrev
+			pidx := f.Index.GetByPrev()
 			pitr := pidx.LowerBound(i)
 			epitr := pidx.UpperBound(i)
 			for pitr != epitr {
-				itr := pitr
-				pitr.Next()
-				f.Index.Modify(itr.Value(), func(bsp *types.BlockState) {
-					if bsp.BftIrreversibleBlocknum < blockNum {
-						bsp.BftIrreversibleBlocknum = blockNum
-						updated = append(updated, bsp.BlockId)
+				pidx.Modify(pitr, func(bsp *forkdb_multi_index.BlockStatePtr) {
+					if (*bsp).BftIrreversibleBlocknum < blockNum {
+						(*bsp).BftIrreversibleBlocknum = blockNum
+						updated = append(updated, (*bsp).BlockId)
 					}
 				})
+				pitr.Next()
 			}
 		}
 		return updated
 	}
+
 	queue := []common.BlockIdType{id}
 	for len(queue) > 0 {
 		queue = update(queue)
