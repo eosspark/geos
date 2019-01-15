@@ -20,6 +20,63 @@ type AuthorityChecker struct {
 	Visitor               WeightTallyVisitor
 }
 
+
+type MetaPermission []interface{}
+
+func (m MetaPermission) Len() int { return len(m) }
+
+func (m MetaPermission) Swap(i, j int) {
+	m[i], m[j] = m[j], m[i]
+}
+
+func (m MetaPermission) Less(i, j int) bool {
+	iType, jType := 0, 0
+	iWeight, jWeight := uint16(0), uint16(0)
+	switch v := m[i].(type) {
+	case WaitWeight:
+		iWeight = uint16(v.Weight)
+		iType = 1
+	case KeyWeight:
+		iWeight = uint16(v.Weight)
+		iType = 2
+	case PermissionLevelWeight:
+		iWeight = uint16(v.Weight)
+		iType = 3
+	}
+	switch v := m[j].(type) {
+	case WaitWeight:
+		jWeight = uint16(v.Weight)
+		iType = 1
+	case KeyWeight:
+		jWeight = uint16(v.Weight)
+		iType = 2
+	case PermissionLevelWeight:
+		jWeight = uint16(v.Weight)
+		iType = 3
+	}
+	if iWeight < jWeight {
+		return true
+	} else if iWeight > jWeight{
+		return false
+	} else {
+		if iType < jType {
+			return true
+		} else {
+			return false
+		}
+	}
+}
+
+func (m MetaPermission) Sort() {
+	for i := 0; i < m.Len() - 1; i++ {
+		for j := 0; j < m.Len() - 1 - i; j++ {
+			if m.Less(j, j + 1) {
+				m.Swap(j, j + 1)
+			}
+		}
+	}
+}
+
 func (ac *AuthorityChecker) SatisfiedLoc(permission *PermissionLevel,
 	overrideProvidedDelay common.Microseconds,
 	cachedPerms *PermissionCacheType) bool {
@@ -33,17 +90,37 @@ func (ac *AuthorityChecker) SatisfiedLc(permission *PermissionLevel, cachedPerms
 		cachedPerms = ac.initializePermissionCache(&cachedPermissions)
 	}
 	Visitor := WeightTallyVisitor{ac, cachedPerms, 0, 0}
-	return Visitor.Visit([]PermissionLevelWeight{{*permission, 1}}) > 0
+	return Visitor.Visit(PermissionLevelWeight{*permission, 1}) > 0
 }
 
-func (ac *AuthorityChecker) SatisfiedAcd(authority *SharedAuthority, cachedPermissions *PermissionCacheType, depth uint16) bool {
-	var metaPermission []interface{}
-	metaPermission = append(metaPermission, authority.Waits)
-	metaPermission = append(metaPermission, authority.Keys)
-	metaPermission = append(metaPermission, authority.Accounts)
-	visitor := WeightTallyVisitor{ac, cachedPermissions, depth, 0}
+func (ac *AuthorityChecker) SatisfiedAcd(authority *SharedAuthority, cachedPerms *PermissionCacheType, depth uint16) bool {
+	cachedPermissions := make(PermissionCacheType)
+	if cachedPerms == nil {
+		cachedPerms = ac.initializePermissionCache(&cachedPermissions)
+	}
+	var metaPermission MetaPermission
+	satisfied := false
+	oldUsedKeys := make([]bool, len(ac.UsedKeys))
+	copy(oldUsedKeys, ac.UsedKeys)
+	defer func() {
+		if !satisfied {
+			ac.UsedKeys = oldUsedKeys
+		}
+	}()
+	for _, wait := range authority.Waits {
+		metaPermission = append(metaPermission, wait)
+	}
+	for _, key := range authority.Keys {
+		metaPermission = append(metaPermission, key)
+	}
+	for _, account := range authority.Accounts {
+		metaPermission = append(metaPermission, account)
+	}
+	metaPermission.Sort()
+	visitor := WeightTallyVisitor{ac, cachedPerms, depth, 0}
 	for _, permission := range metaPermission {
 		if visitor.Visit(permission) >= authority.Threshold {
+			satisfied = true
 			return true
 		}
 	}
@@ -120,20 +197,14 @@ type WeightTallyVisitor struct {
 
 func (wtv *WeightTallyVisitor) Visit(permission interface{}) uint32 {
 	switch v := permission.(type) {
-	case []WaitWeight:
-		for _, p := range v {
-			wtv.VisitWaitWeight(p)
-		}
+	case WaitWeight:
+		wtv.VisitWaitWeight(v)
 		return wtv.TotalWeight
-	case []KeyWeight:
-		for _, p := range v {
-			wtv.VisitKeyWeight(p)
-		}
+	case KeyWeight:
+		wtv.VisitKeyWeight(v)
 		return wtv.TotalWeight
-	case []PermissionLevelWeight:
-		for _, p := range v {
-			wtv.VisitPermissionLevelWeight(p)
-		}
+	case PermissionLevelWeight:
+		wtv.VisitPermissionLevelWeight(v)
 		return wtv.TotalWeight
 	default:
 		return 0
