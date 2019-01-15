@@ -1,26 +1,23 @@
 package net_plugin
 
 import (
-	"bufio"
 	"crypto/rand"
-	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"github.com/eosspark/eos-go/chain"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
+	"github.com/eosspark/eos-go/log"
 	. "github.com/eosspark/eos-go/plugins/appbase/app"
 	"github.com/eosspark/eos-go/plugins/appbase/asio"
+	"github.com/eosspark/eos-go/plugins/chain_interface"
+	"github.com/eosspark/eos-go/plugins/chain_plugin"
 	"github.com/urfave/cli"
 	"net"
 	"time"
-)
-
-const (
-	p2pChainIDString string = "cf057bbfb72640471fd910bcb67639c22df9f92470936cddc1ade0e2f2e7dc4f"
-	//p2pChainIDString string = "aca376f206b8fc25a6ed44dbdc66547c36c6c33e3a119ffbeaef943642f0e906"
 )
 
 const NetPlug = PluginTypeName("NetPlugin")
@@ -29,14 +26,13 @@ var netPlugin Plugin = App().RegisterPlugin(NetPlug, NewNetPlugin(App().GetIoSer
 
 type NetPlugin struct {
 	AbstractPlugin
-	//ConfirmedBlock Signal //TODO signal ConfirmedBlock
 	my *netPluginIMpl
 }
 
 func NewNetPlugin(io *asio.IoContext) *NetPlugin {
 	plugin := &NetPlugin{}
 
-	plugin.my = NewNetPluginIMpl(io)
+	plugin.my = NewNetPluginIMpl()
 	plugin.my.Self = plugin
 
 	return plugin
@@ -132,7 +128,7 @@ func (n *NetPlugin) SetProgramOptions(options *[]cli.Flag) {
 }
 func (n *NetPlugin) PluginInitialize(c *cli.Context) {
 	Try(func() {
-		n.my.log.Info("Initialize net plugin")
+		netLog.Info("Initialize net plugin")
 
 		n.my.networkVersionMatch = c.Bool("network-version-match")
 		n.my.connectorPeriod = time.Duration(c.Int("connection-cleanup-period")) * time.Second
@@ -197,118 +193,97 @@ func (n *NetPlugin) PluginInitialize(c *cli.Context) {
 			}
 		}
 
-		//	my->chain_plug = app().find_plugin<chain_plugin>();
-		//	EOS_ASSERT( my->chain_plug, chain::missing_chain_plugin_exception, ""  );
-		//	my->chain_id = app().get_plugin<chain_plugin>().get_chain_id();
-		//fc::rand_pseudo_bytes( my->node_id.data(), my->node_id.data_size());
-		//	ilog( "my node_id is ${id}", ("id", my->node_id));
-
-		//n.my.keepAliceTimer.Reset(0)
-		//n.my.tiker()
-
-		cID, _ := hex.DecodeString(p2pChainIDString)
-		cIdHash := *crypto.NewSha256Byte(cID)
-		n.my.chainID = common.ChainIdType(cIdHash)
+		n.my.ChainPlugin = App().FindPlugin(chain_plugin.ChainPlug).(*chain_plugin.ChainPlugin)
+		EosAssert(n.my.ChainPlugin != nil, &exception.MissingChainPluginException{}, "")
+		n.my.chainID = n.my.ChainPlugin.GetChainId()
 
 		nodeID := make([]byte, 32)
 		rand.Read(nodeID)
 		nodeIdHash := *crypto.NewSha256Byte(nodeID)
 		n.my.nodeID = common.NodeIdType(nodeIdHash)
+		log.Info("my node_id is %s", n.my.nodeID)
+		n.my.connections = make([]*Connection, 25)
 
-		fmt.Println("chainID: ", n.my.chainID)
-		fmt.Println("nodeID: ", n.my.nodeID)
+		n.my.keepAliceTimer = asio.NewDeadlineTimer(App().GetIoService())
+		n.my.ticker()
 
-		n.my.peers = make(map[string]*Peer, 25)
-
-		//np.my.keepAliceTimer.Reset(0)
-
-		//n.my.loopWG.Add(1)
-		//go n.my.ticker()
 	}).FcLogAndRethrow().End()
 }
 
 func (n *NetPlugin) PluginStartup() {
-	n.my.log.Info("starting listener, max clients is %d", n.my.maxClientCount)
+	netLog.Info("starting listener, max clients is %d", n.my.maxClientCount)
 
-	//n.my.loopWG.Add(3)
-	//go n.my.startListenLoop()
-	//go n.my.startConnTimer()
-	//go n.my.startTxnTimer()
+	var err error
+	n.my.Listener, err = net.Listen("tcp", n.my.ListenEndpoint)
+	if err != nil {
+		log.Error("Error getting remote endpoint:", err)
+	}
+	netLog.Info("Listening on: %s", n.my.ListenEndpoint)
 
-	//chain::controller&cc = my->chain_plug->chain();
-	//	{
-	//		cc.accepted_block_header.connect( boost::bind(&net_plugin_impl::accepted_block_header, my.get(), _1));
-	//		cc.accepted_block.connect(  boost::bind(&net_plugin_impl::accepted_block, my.get(), _1));
-	//		cc.irreversible_block.connect( boost::bind(&net_plugin_impl::irreversible_block, my.get(), _1));
-	//		cc.accepted_transaction.connect( boost::bind(&net_plugin_impl::accepted_transaction, my.get(), _1));
-	//		cc.applied_transaction.connect( boost::bind(&net_plugin_impl::applied_transaction, my.get(), _1));
-	//		cc.accepted_confirmation.connect( boost::bind(&net_plugin_impl::accepted_confirmation, my.get(), _1));
-	//	}
-	//	my->incoming_transaction_ack_subscription = app().get_channel<channels::transaction_ack>().subscribe(boost::bind(&net_plugin_impl::transaction_ack, my.get(), _1));
-	//	if( cc.get_read_mode() == chain::db_read_mode::READ_ONLY ) {
-	//	my->max_nodes_per_host = 0;
-	//	ilog( "node in read-only mode setting max_nodes_per_host to 0 to prevent connections" );
-	//	}
+	n.my.startListenLoop()
+	n.my.startMonitors()
+
+	cc := n.my.ChainPlugin.Chain()
+	{
+		cc.AcceptedBlockHeader.Connect(&chain_interface.AcceptedBlockHeaderCaller{Caller: n.my.AcceptedBlockHeader})
+		cc.AcceptedBlock.Connect(&chain_interface.AcceptedBlockCaller{Caller: n.my.AcceptedBlock})
+		cc.IrreversibleBlock.Connect(&chain_interface.IrreversibleBlockCaller{Caller: n.my.IrreversibleBlock})
+		cc.AcceptedTransaction.Connect(&chain_interface.AcceptedTransactionCaller{Caller: n.my.AcceptedTransaction})
+		cc.AppliedTransaction.Connect(&chain_interface.AppliedTransactionCaller{Caller: n.my.AppliedTransaction})
+		cc.AcceptedConfirmation.Connect(&chain_interface.AcceptedConfirmationCaller{Caller: n.my.AcceptedConfirmation})
+	}
+	App().GetChannel(chain_interface.TransactionAck).Subscribe(&chain_interface.TransactionAckCaller{Caller: n.my.TransactionAck})
+
+	if cc.GetReadMode() == chain.READONLY {
+		n.my.maxNodesPerHost = 0
+		netLog.Info("node in read-only mode setting max_nodes_per_host to 0 to prevent connections")
+	}
 
 	for _, seedNode := range n.my.suppliedPeers {
 		re := n.Connect(seedNode)
 		if re != "added connection" {
-			//fmt.Println(re)
-			n.my.log.Error(re)
+			netLog.Error(re)
 		}
 	}
-
-	//n.my.loopWG.Wait()
 }
 
 func (n *NetPlugin) PluginShutdown() {
-	//ilog( "shutdown.." )
-	n.my.log.Info("shutdown...")
-	n.my.done = true
-	//if( my->acceptor ) {
-	//	ilog( "close acceptor" );
-	//	my->acceptor->close();
-	//
-	//	ilog( "close ${s} connections",( "s",my->connections.size()) );
-	//	auto cons = my->connections;
-	//	for( auto con : cons ) {
-	//	my->close( con);
-	//	}
-
-	n.my.log.Info("net Plugin exit shutdown")
+	Try(func() {
+		netLog.Info("shutdown...")
+		if n.my.Listener != nil {
+			netLog.Info("close listener")
+			n.my.Listener.Close()
+		}
+		netLog.Info("close %d connections", len(n.my.connections))
+		peers := n.my.connections
+		for _, p := range peers {
+			n.my.close(p)
+		}
+		netLog.Info("net Plugin exit shutdown")
+	}).FcCaptureAndRethrow().End()
 }
 
-//func (np *NetPlugin) numPeers() int {
-//	return np.my.countOpenSockets()
-//}
-
-//connect used to trigger a new connetion RPC API
+//Connect used to trigger a new connection RPC API
 func (n *NetPlugin) Connect(host string) string {
-	_, ok := n.my.peers[host]
-	if ok {
+	i, _ := n.my.findConnection(host)
+	if i >= 0 {
 		return "already connected"
 	}
 
-	con, err := net.Dial("tcp", host)
-	if err != nil {
-		return err.Error()
-	}
-
-	n.my.peers[host] = NewPeer(n.my, con, bufio.NewReader(con))
-	////fc_dlog(logger,"adding new connection to the list")
-	n.my.log.Info("connecting to: %s , adding new peer to the list", con.RemoteAddr())
-	n.my.loopWG.Add(1)
-	go n.my.peers[host].read(n.my)
-
+	c := NewConnectionByEndPoint(host, n.my)
+	netLog.Info("adding new peer to the list") //FC
+	n.my.connections = append(n.my.connections, c)
+	netLog.Info("calling active connector") //FC
+	n.my.connect(c)
 	return "added connection"
-
 }
 
 func (n *NetPlugin) Disconnect(host string) string {
-	for name, peer := range n.my.peers {
-		if name == host {
-			peer.connection.Close()
-			delete(n.my.peers, host)
+	for _, con := range n.my.connections {
+		if con.peerAddr == host {
+			con.reset()
+			n.my.close(con)
+			n.my.eraseConnection(con)
 			return "connection removed"
 		}
 	}
@@ -316,16 +291,16 @@ func (n *NetPlugin) Disconnect(host string) string {
 }
 
 func (n *NetPlugin) Status(host string) PeerStatus {
-	con, ok := n.my.peers[host]
-	if ok {
+	i, con := n.my.findConnection(host)
+	if i >= 0 {
 		return *con.getStatus()
 	}
 	return PeerStatus{}
 }
 
 func (n *NetPlugin) Connections() []PeerStatus {
-	result := make([]PeerStatus, len(n.my.peers))
-	for _, c := range n.my.peers {
+	result := make([]PeerStatus, len(n.my.connections))
+	for _, c := range n.my.connections {
 		result = append(result, *c.getStatus())
 	}
 	return result
