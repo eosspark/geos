@@ -10,6 +10,7 @@ import (
 	. "github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/log"
 	"github.com/eosspark/eos-go/plugins/appbase/asio"
+	"github.com/eosspark/eos-go/plugins/producer_plugin/producer_multi_index"
 )
 
 type ProducerPluginImpl struct {
@@ -74,8 +75,16 @@ const (
 	speculating
 )
 
+type EnumTxCategory int
+
+const (
+	PERSISTED = EnumTxCategory(iota)
+	UNEXPIRED_UNPERSISTED
+	EXPIRED
+)
+
 type signatureProviderType = func(sha256 crypto.Sha256) *ecc.Signature
-type transactionIdWithExpireIndex = map[common.TransactionIdType]common.TimePoint
+type transactionIdWithExpireIndex = producer_multi_index.MultiIndex
 
 func NewProducerPluginImpl(io *asio.IoContext) *ProducerPluginImpl {
 	impl := new(ProducerPluginImpl)
@@ -85,8 +94,8 @@ func NewProducerPluginImpl(io *asio.IoContext) *ProducerPluginImpl {
 	impl.Producers = treeset.NewWith(common.TypeName, common.CompareName)
 	impl.ProducerWatermarks = make(map[common.AccountName]uint32)
 
-	impl.PersistentTransactions = make(transactionIdWithExpireIndex)
-	impl.BlacklistedTransactions = make(transactionIdWithExpireIndex)
+	impl.PersistentTransactions = *producer_multi_index.New()
+	impl.BlacklistedTransactions = *producer_multi_index.New()
 
 	impl.IncomingTrxWeight = 0.0
 	impl.IncomingDeferRadio = 1.0 // 1:1
@@ -306,7 +315,7 @@ func (impl *ProducerPluginImpl) OnIncomingTransactionAsync(trx *types.PackedTran
 			if persistUntilExpired {
 				// if this trx didnt fail/soft-fail and the persist flag is set, store its ID so that we can
 				// ensure its applied to all future speculative blocks as well.
-				impl.PersistentTransactions[trx.ID()] = trx.Expiration().ToTimePoint()
+				impl.PersistentTransactions.Insert(&producer_multi_index.TransactionIdWithExpiry{TrxId: trx.ID(), Expiry: trx.Expiration().ToTimePoint()})
 			}
 			sendResponse(trace)
 		}

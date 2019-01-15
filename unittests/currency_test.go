@@ -555,7 +555,6 @@ func TestDeferredFailure(t *testing.T) {
 		trace := ct.validatingTester.PushAction2(&proxy, &act.Name, bob, &data, ct.validatingTester.DefaultExpirationDelta, 0)
 		ct.validatingTester.ProduceBlocks(1, false)
 		assert.Equal(t, true, ct.validatingTester.ChainHasTransaction(&trace.ID))
-		ct.validatingTester.ProduceBlocks(1, false)
 	}
 
 	gto := entity.GeneratedTransactionObject{}
@@ -647,9 +646,11 @@ func TestDeferredFailure(t *testing.T) {
 	// schedule a third deferred transaction with no delay.
 	// That third deferred transaction (which moves tokens from the bob contract to account alice) should be executed immediately
 	// after in the same block (note that this is the current deferred transaction scheduling policy in tester and it may change).
-	index2, _ := ct.validatingTester.Control.DataBase().GetIndex("byTrxId", &gto)
-	fmt.Println(gto.DelayUntil, index2.Begin().Value())
+	//fmt.Println("1",ct.validatingTester.Control.PendingBlockTime())
+	//ct.validatingTester.ProduceBlocks(1, false)
+
 	ct.validatingTester.ProduceBlocks(1, false)
+
 	index3, _ := ct.validatingTester.Control.DataBase().GetIndex("byTrxId", &gto)
 	if index3.Begin() == index3.End() {
 		count = 0

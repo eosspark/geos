@@ -21,7 +21,7 @@ import (
 	rbt "github.com/eosspark/eos-go/common/container/tree"
 )
 
-// template type Set(V,Compare)
+// template type Set(V,Compare,Multi)
 
 func assertStringSetImplementation() {
 	var _ container.Set = (*StringSet)(nil)
@@ -44,14 +44,6 @@ func NewStringSet(Value ...string) *StringSet {
 
 func CopyFromStringSet(ts *StringSet) *StringSet {
 	return &StringSet{Tree: rbt.CopyFrom(ts.Tree)}
-}
-
-type MultiStringSet = StringSet
-
-func NewMultiStringSet(items ...string) *MultiStringSet {
-	set := &StringSet{Tree: rbt.NewWith(utils.StringComparator, true)}
-	set.Add(items...)
-	return set
 }
 
 func StringSetIntersection(a *StringSet, b *StringSet, callback func(elem string)) {
@@ -157,7 +149,7 @@ func (set *StringSet) End() IteratorStringSet {
 
 // Value returns the current element's value.
 // Does not modify the state of the iterator.
-func (iterator *IteratorStringSet) Value() string {
+func (iterator IteratorStringSet) Value() string {
 	return iterator.Iterator.Key().(string)
 }
 

@@ -39,6 +39,7 @@ var eosioVpay = common.N("eosio.vpay")
 var eosioSaving = common.N("eosio.saving")
 var eosioName = common.N("eosio.names")
 var eosioMsig = common.N("eosio.msig")
+var eosioSudo = common.N("eosio.sudo")
 var alice = common.N("alice1111111")
 var bob = common.N("bob111111111")
 var carol = common.N("carol1111111")
@@ -264,13 +265,14 @@ func (t BaseTester) produceBlock(skipTime common.Microseconds, skipPendingTrxs b
 		}
 
 		scheduledTrxs := t.Control.GetScheduledTransactions()
-		if len(scheduledTrxs) > 0 {
+		for len(scheduledTrxs) > 0 {
 			for _, trx := range scheduledTrxs {
 				trace := t.Control.PushScheduledTransaction(&trx, common.MaxTimePoint(), 0)
 				if trace.Except != nil {
 					//try.Throw(trace.Except)
 				}
 			}
+			scheduledTrxs = t.Control.GetScheduledTransactions()
 		}
 	}
 	t.Control.FinalizeBlock()

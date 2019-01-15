@@ -17,6 +17,7 @@ import (
 	"github.com/eosspark/eos-go/plugins/appbase/app"
 )
 
+
 func TestProducerPlugin_FindByApplication(t *testing.T) {
 	plugin := app.App().FindPlugin(ProducerPlug).(*ProducerPlugin)
 	assert.NotNil(t, plugin)
@@ -117,8 +118,8 @@ func TestProducerPlugin_SignCompact(t *testing.T) {
 	sign1, _ := initPriKey.Sign(dataByteHash)
 	sign2, _ := initPriKey2.Sign(dataByteHash)
 
-	assert.Equal(t, sign1, *plugin.SignCompact(&initPubKey, dataHash))
-	assert.Equal(t, sign2, *plugin.SignCompact(&initPubKey2, dataHash))
+	assert.Equal(t, sign1, *plugin.SignCompact(&initPubKey, *dataHash))
+	assert.Equal(t, sign2, *plugin.SignCompact(&initPubKey2, *dataHash))
 	assert.NotEqual(t, sign1, sign2)
 }
 
@@ -140,7 +141,7 @@ func Test_makeKeySignatureProvider(t *testing.T) {
 
 	sp := makeKeySignatureProvider(initPriKey)
 	hash := crypto.Hash256("makeKeySignatureProvider")
-	pk, _ := sp(hash).PublicKey(hash.Bytes())
+	pk, _ := sp(*hash).PublicKey(hash.Bytes())
 	assert.Equal(t, initPubKey, pk)
 
 }
@@ -219,7 +220,7 @@ func TestProducerPluginImpl_CalculateNextBlockTime(t *testing.T) {
 	assert.Equal(t, pt/1e3, (pt/1e3/500)*500) // make sure pt can be divisible by 500ms
 
 	time := plugin.my.CalculateNextBlockTime(&account1, 100)
-	assert.Equal(t, "2000-01-01 00:00:50.5 +0000 UTC", time.String())
+	assert.Equal(t, "2000-01-01T00:00:50.5", time.String())
 
 	time = plugin.my.CalculateNextBlockTime(&account2, 100)
 	assert.Nil(t, time)

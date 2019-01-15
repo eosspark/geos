@@ -20,11 +20,12 @@ import (
 	"strings"
 )
 
-// template type Map(K,V,Compare)
+// template type Map(K,V,Compare,Multi)
 type K int
 type V int
 
 var Compare = utils.IntComparator
+var Multi = false
 
 func assertMapImplementation() {
 	var _ container.Map = (*Map)(nil)
@@ -37,20 +38,10 @@ type Map struct {
 
 // NewWith instantiates a Tree map with the custom comparator.
 func New() *Map {
-	return &Map{Tree: rbt.NewWith(Compare, false)}
+	return &Map{Tree: rbt.NewWith(Compare, Multi)}
 }
 
 func CopyFrom(tm *Map) *Map {
-	return &Map{Tree: rbt.CopyFrom(tm.Tree)}
-}
-
-type MultiMap = Map
-
-func NewMulti() *MultiMap {
-	return &Map{Tree: rbt.NewWith(Compare, true)}
-}
-
-func CopyMultiFrom(tm *Map) *Map {
 	return &Map{Tree: rbt.CopyFrom(tm.Tree)}
 }
 
@@ -152,13 +143,13 @@ func (m *Map) End() Iterator {
 
 // Value returns the current element's value.
 // Does not modify the state of the Iterator.
-func (iterator *Iterator) Value() V {
+func (iterator Iterator) Value() V {
 	return iterator.Iterator.Value().(V)
 }
 
 // Key returns the current element's key.
 // Does not modify the state of the Iterator.
-func (iterator *Iterator) Key() K {
+func (iterator Iterator) Key() K {
 	return iterator.Iterator.Key().(K)
 }
 

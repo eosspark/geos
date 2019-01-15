@@ -793,7 +793,7 @@ func (c *Controller) pushScheduledTransactionByObject(gto *entity.GeneratedTrans
 		trace.ProducerBlockId = c.PendingProducerBlockId()
 		trace.Scheduled = true
 
-		trace.Receipt = (*c.pushReceipt(&gtrx.TrxId, types.TransactionStatusExecuted, uint64(billedCpuTimeUs), 0)).TransactionReceiptHeader
+		trace.Receipt = (*c.pushReceipt(gtrx.TrxId, types.TransactionStatusExpired, uint64(billedCpuTimeUs), 0)).TransactionReceiptHeader
 		c.AcceptedTransaction.Emit(trx)
 		c.AppliedTransaction.Emit(trace)
 		c.UndoSession.Squash()
