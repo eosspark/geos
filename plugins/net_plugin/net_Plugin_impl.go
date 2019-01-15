@@ -221,7 +221,7 @@ func (impl *netPluginIMpl) AppliedTransaction(txn *types.TransactionTrace) {
 	fcLog.Debug("signaled,id = %s", txn.ID)
 }
 
-func (impl *netPluginIMpl) AcceptedConfirmation(head *types.HeaderConfirmation) {
+func (impl *netPluginIMpl) AcceptedConfirmation(head types.HeaderConfirmation) {
 	fcLog.Debug("signaled,id = %s", head.BlockId)
 }
 
@@ -305,22 +305,22 @@ func (impl *netPluginIMpl) expireTxns() {
 	old := impl.localTxns.GetByExpiry()
 	exUp := old.UpperBound(common.NewTimePointSecTp(common.Now()))
 	exLo := old.LowerBound(common.TimePointSec(0))
-	old.Erase(exLo, exUp)
+	old.Erases(exLo, exUp)
 
 	stale := impl.localTxns.GetByBlockNum()
 	cc := impl.ChainPlugin.Chain()
 	bn := cc.LastIrreversibleBlockNum()
-	stale.Erase(stale.LowerBound(1), stale.UpperBound(bn))
+	stale.Erases(stale.LowerBound(1), stale.UpperBound(bn))
 
 	for _, c := range impl.connections {
 		staleTxn := c.trxState.GetByBlockNum()
-		staleTxn.Erase(staleTxn.LowerBound(1), staleTxn.UpperBound(bn))
+		staleTxn.Erases(staleTxn.LowerBound(1), staleTxn.UpperBound(bn))
 
 		staleTxnE := c.trxState.GetByExpiry()
-		staleTxnE.Erase(staleTxnE.LowerBound(common.NewTimePointSecTp(0)), staleTxnE.UpperBound(common.NewTimePointSecTp(common.Now())))
+		staleTxnE.Erases(staleTxnE.LowerBound(common.NewTimePointSecTp(0)), staleTxnE.UpperBound(common.NewTimePointSecTp(common.Now())))
 
 		staleBlk := c.blkState.GetByBlockNum()
-		staleBlk.Erase(staleBlk.LowerBound(1), staleBlk.UpperBound(bn))
+		staleBlk.Erases(staleBlk.LowerBound(1), staleBlk.UpperBound(bn))
 	}
 }
 
