@@ -11,7 +11,7 @@ import (
 	"github.com/eosspark/eos-go/log"
 	"github.com/eosspark/eos-go/plugins/appbase/app"
 	"github.com/eosspark/eos-go/plugins/chain_plugin"
-	"github.com/eosspark/eos-go/plugins/producer_plugin/producer_multi_index"
+	. "github.com/eosspark/eos-go/plugins/producer_plugin/multi_index"
 )
 
 func (impl *ProducerPluginImpl) CalculateNextBlockTime(producerName *common.AccountName, currentBlockTime types.BlockTimeStamp) *common.TimePoint {
@@ -100,11 +100,11 @@ func (impl *ProducerPluginImpl) CalculatePendingBlockTime() common.TimePoint {
 	return blockTime
 }
 
-func (impl *ProducerPluginImpl) StartBlock() (EnumStartBlockRusult, bool) {
+func (impl *ProducerPluginImpl) StartBlock() (StartBlockResult, bool) {
 	chain := impl.Self.chain()
 
 	if chain.GetReadMode() == Chain.READONLY {
-		return EnumStartBlockRusult(waiting), false
+		return StartBlockResult(waiting), false
 	}
 
 	hbs := chain.HeadBlockState()
@@ -114,7 +114,7 @@ func (impl *ProducerPluginImpl) StartBlock() (EnumStartBlockRusult, bool) {
 	now := common.Now()
 	blockTime := impl.CalculatePendingBlockTime()
 
-	impl.PendingBlockMode = EnumPendingBlockMode(producing)
+	impl.PendingBlockMode = PendingBlockMode(producing)
 
 	// Not our turn
 	lastBlock := uint32(types.NewBlockTimeStamp(blockTime))%uint32(common.DefaultConfig.ProducerRepetitions) == uint32(common.DefaultConfig.ProducerRepetitions)-1
@@ -125,48 +125,48 @@ func (impl *ProducerPluginImpl) StartBlock() (EnumStartBlockRusult, bool) {
 
 	// If the next block production opportunity is in the present or future, we're synced.
 	if !impl.ProductionEnabled {
-		impl.PendingBlockMode = EnumPendingBlockMode(speculating)
+		impl.PendingBlockMode = PendingBlockMode(speculating)
 
 	} else if !impl.Producers.Contains(scheduleProducer.ProducerName) {
-		impl.PendingBlockMode = EnumPendingBlockMode(speculating)
+		impl.PendingBlockMode = PendingBlockMode(speculating)
 
 	} else if !hasSignatureProvider {
 		log.Error("Not producing block because I don't have the private key for %s", scheduleProducer.BlockSigningKey)
-		impl.PendingBlockMode = EnumPendingBlockMode(speculating)
+		impl.PendingBlockMode = PendingBlockMode(speculating)
 
 	} else if impl.ProductionPaused {
 		log.Error("Not producing block because production is explicitly paused")
-		impl.PendingBlockMode = EnumPendingBlockMode(speculating)
+		impl.PendingBlockMode = PendingBlockMode(speculating)
 
 	} else if impl.MaxIrreversibleBlockAgeUs >= 0 && irreversibleBlockAge >= impl.MaxIrreversibleBlockAgeUs {
 		log.Error("Not producing block because the irreversible block is too old [age:%ds, max:%ds]", irreversibleBlockAge.Count()/1e6, impl.MaxIrreversibleBlockAgeUs.Count()/1e6)
-		impl.PendingBlockMode = EnumPendingBlockMode(speculating)
+		impl.PendingBlockMode = PendingBlockMode(speculating)
 	}
 
-	if impl.PendingBlockMode == EnumPendingBlockMode(producing) {
+	if impl.PendingBlockMode == PendingBlockMode(producing) {
 		if hasCurrentWatermark {
 			if currentWatermark >= hbs.BlockNum+1 {
 				log.Error("Not producing block because \"%s\" signed a BFT confirmation OR block at a higher block number (%d) than the current fork's head (%d)",
 					scheduleProducer.ProducerName,
 					currentWatermark,
 					hbs.BlockNum)
-				impl.PendingBlockMode = EnumPendingBlockMode(speculating)
+				impl.PendingBlockMode = PendingBlockMode(speculating)
 			}
 
 		}
 	}
 
-	if impl.PendingBlockMode == EnumPendingBlockMode(speculating) {
+	if impl.PendingBlockMode == PendingBlockMode(speculating) {
 		headBlockAge := now.Sub(chain.HeadBlockTime())
 		if headBlockAge > common.Seconds(5) {
-			return EnumStartBlockRusult(waiting), lastBlock
+			return StartBlockResult(waiting), lastBlock
 		}
 	}
 
 	Try(func() {
 		blocksToConfirm := uint16(0)
 
-		if impl.PendingBlockMode == EnumPendingBlockMode(producing) {
+		if impl.PendingBlockMode == PendingBlockMode(producing) {
 			// determine how many blocks this producer can confirm
 			// 1) if it is not a producer from this node, assume no confirmations (we will discard this block anyway)
 			// 2) if it is a producer on this node that has never produced, the conservative approach is to assume no
@@ -193,22 +193,22 @@ func (impl *ProducerPluginImpl) StartBlock() (EnumStartBlockRusult, bool) {
 
 	if pbs != nil {
 
-		if impl.PendingBlockMode == EnumPendingBlockMode(producing) && pbs.BlockSigningKey != scheduleProducer.BlockSigningKey {
+		if impl.PendingBlockMode == PendingBlockMode(producing) && pbs.BlockSigningKey != scheduleProducer.BlockSigningKey {
 			log.Error("Block Signing Key is not expected value, reverting to speculative mode! [expected: \"%s\", actual: \"%s\"", scheduleProducer.BlockSigningKey, pbs.BlockSigningKey)
-			impl.PendingBlockMode = EnumPendingBlockMode(speculating)
+			impl.PendingBlockMode = PendingBlockMode(speculating)
 		}
 
 		// attempt to play persisted transactions first
 		isExhausted := false
 
 		// remove all persisted transactions that have now expired
-		persistedById := impl.PersistentTransactions.ById
-		persistedByExpire := impl.PersistentTransactions.ByExpiry
+		persistedById := impl.PersistentTransactions.GetById()
+		persistedByExpire := impl.PersistentTransactions.GetByExpiry()
 		if !persistedByExpire.Empty() {
 			numExpiredPersistent := 0
 			//origCount := impl.PersistentTransactions.Size() TODO
 
-			for !persistedByExpire.Empty() && impl.PersistentTransactions.Value(persistedByExpire.Begin().Value()).Expiry <= pbs.Header.Timestamp.ToTimePoint() {
+			for !persistedByExpire.Empty() && persistedByExpire.Begin().Value().Expiry <= pbs.Header.Timestamp.ToTimePoint() {
 				//txid := impl.PersistentTransactions.Value(persistedByExpire.Begin().Value()).TrxId TODO
 				if impl.PendingBlockMode == producing {
 					//TODO fc_dlog(_trx_trace_log, "[TRX_TRACE] Block ${block num} for producer ${prod} is EXPIRING PERSISTED tx: ${txid}",
@@ -220,7 +220,7 @@ func (impl *ProducerPluginImpl) StartBlock() (EnumStartBlockRusult, bool) {
 					//	("txid", txid));
 				}
 
-				impl.PersistentTransactions.Erase(persistedByExpire.Begin().Value())
+				persistedByExpire.Erase(persistedByExpire.Begin())
 				numExpiredPersistent ++
 			}
 
@@ -233,7 +233,7 @@ func (impl *ProducerPluginImpl) StartBlock() (EnumStartBlockRusult, bool) {
 
 		// Processing unapplied transactions...
 		//
-		if impl.Producers.Empty() && len(persistedById) == 0 {
+		if impl.Producers.Empty() && persistedById.Empty() {
 			// if this node can never produce and has no persisted transactions,
 			// there is no need for unapplied transactions they can be dropped
 			chain.DropAllUnAppliedTransactions()
@@ -247,7 +247,7 @@ func (impl *ProducerPluginImpl) StartBlock() (EnumStartBlockRusult, bool) {
 				calculateTransactionCategory := func(trx *types.TransactionMetadata) EnumTxCategory {
 					if trx.PackedTrx.Expiration().ToTimePoint() < pbs.Header.Timestamp.ToTimePoint() {
 						return EXPIRED
-					} else if _, ok := persistedById[trx.ID]; ok {
+					} else if _, ok := persistedById.Find(trx.ID); ok {
 						return PERSISTED
 					} else {
 						return UNEXPIRED_UNPERSISTED
@@ -321,16 +321,16 @@ func (impl *ProducerPluginImpl) StartBlock() (EnumStartBlockRusult, bool) {
 			}
 		}
 
-		if impl.PendingBlockMode == EnumPendingBlockMode(producing) {
-			blacklistById := impl.BlacklistedTransactions.ById
-			blacklistByExpiry := impl.BlacklistedTransactions.ByExpiry
+		if impl.PendingBlockMode == PendingBlockMode(producing) {
+			blacklistById := impl.BlacklistedTransactions.GetById()
+			blacklistByExpiry := impl.BlacklistedTransactions.GetByExpiry()
 			now := common.Now()
 			if !blacklistByExpiry.Empty() {
 				numExpired := 0
 				//origCount := impl.BlacklistedTransactions.Size() TODO
 
-				for !blacklistByExpiry.Empty() && impl.BlacklistedTransactions.Value(blacklistByExpiry.Begin().Value()).Expiry <= now {
-					impl.BlacklistedTransactions.Erase(blacklistByExpiry.Begin().Value())
+				for !blacklistByExpiry.Empty() && blacklistByExpiry.Begin().Value().Expiry <= now {
+					blacklistByExpiry.Erase(blacklistByExpiry.Begin())
 					numExpired ++
 				}
 
@@ -348,6 +348,8 @@ func (impl *ProducerPluginImpl) StartBlock() (EnumStartBlockRusult, bool) {
 				for _, trx := range scheduleTrx {
 					if blockTime <= common.Now() {
 						isExhausted = true
+					}
+					if isExhausted {
 						break
 					}
 
@@ -367,7 +369,7 @@ func (impl *ProducerPluginImpl) StartBlock() (EnumStartBlockRusult, bool) {
 						break
 					}
 
-					if _, ok := blacklistById[trx]; ok {
+					if _, ok := blacklistById.Find(trx); ok {
 						continue
 					}
 
@@ -388,7 +390,7 @@ func (impl *ProducerPluginImpl) StartBlock() (EnumStartBlockRusult, bool) {
 							} else {
 								exporation := common.Now().AddUs(common.Seconds(int64(chain.GetGlobalProperties().Configuration.DeferredTrxExpirationWindow)))
 								// this failed our configured maximum transaction time, we don't want to replay it add it to a blacklist
-								impl.BlacklistedTransactions.Insert(&producer_multi_index.TransactionIdWithExpiry{TrxId: trx, Expiry: exporation})
+								impl.BlacklistedTransactions.Insert(TransactionIdWithExpiry{TrxId: trx, Expiry: exporation})
 								numFailed++
 							}
 						} else {
@@ -419,7 +421,7 @@ func (impl *ProducerPluginImpl) StartBlock() (EnumStartBlockRusult, bool) {
 		} ///scheduled transactions
 
 		if isExhausted || blockTime <= common.Now() {
-			return EnumStartBlockRusult(exhausted), lastBlock
+			return StartBlockResult(exhausted), lastBlock
 		} else {
 			// attempt to apply any pending incoming transactions
 			impl.IncomingTrxWeight = 0.0
@@ -432,15 +434,15 @@ func (impl *ProducerPluginImpl) StartBlock() (EnumStartBlockRusult, bool) {
 					origPendingTxnSize--
 					impl.OnIncomingTransactionAsync(e.packedTransaction, e.persistUntilExpired, e.next)
 					if blockTime <= common.Now() {
-						return EnumStartBlockRusult(exhausted), lastBlock
+						return StartBlockResult(exhausted), lastBlock
 					}
 
 				}
 			}
-			return EnumStartBlockRusult(succeeded), lastBlock
+			return StartBlockResult(succeeded), lastBlock
 		}
 	}
-	return EnumStartBlockRusult(failed), lastBlock
+	return StartBlockResult(failed), lastBlock
 }
 
 func (impl *ProducerPluginImpl) ScheduleProductionLoop() {
@@ -449,7 +451,7 @@ func (impl *ProducerPluginImpl) ScheduleProductionLoop() {
 
 	result, lastBlock := impl.StartBlock()
 
-	if result == EnumStartBlockRusult(failed) {
+	if result == StartBlockResult(failed) {
 		log.Error("Failed to start a pending block, will try again later")
 		impl.Timer.ExpiresFromNow(common.Microseconds(common.DefaultConfig.BlockIntervalUs / 10))
 
@@ -462,7 +464,7 @@ func (impl *ProducerPluginImpl) ScheduleProductionLoop() {
 			}
 		})
 
-	} else if result == EnumStartBlockRusult(waiting) {
+	} else if result == StartBlockResult(waiting) {
 		if impl.Producers.Size() > 0 && !impl.ProductionDisabledByPolicy() {
 			log.Debug("Waiting till another block is received and scheduling Speculative/Production Change")
 			impl.ScheduleDelayedProductionLoop(types.NewBlockTimeStamp(impl.CalculatePendingBlockTime()))
@@ -471,9 +473,9 @@ func (impl *ProducerPluginImpl) ScheduleProductionLoop() {
 			// nothing to do until more blocks arrive
 		}
 
-	} else if impl.PendingBlockMode == EnumPendingBlockMode(producing) {
+	} else if impl.PendingBlockMode == PendingBlockMode(producing) {
 		// we succeeded but block may be exhausted
-		if result == EnumStartBlockRusult(succeeded) {
+		if result == StartBlockResult(succeeded) {
 			// ship this block off no later than its deadline
 			EosAssert(chain.PendingBlockState() != nil, &MissingPendingBlockState{}, "producing without pending_block_state, start_block succeeded")
 			deadline := chain.PendingBlockTime().TimeSinceEpoch()
@@ -506,7 +508,7 @@ func (impl *ProducerPluginImpl) ScheduleProductionLoop() {
 			}
 		})
 
-	} else if impl.PendingBlockMode == EnumPendingBlockMode(speculating) && impl.Producers.Size() > 0 && !impl.ProductionDisabledByPolicy() {
+	} else if impl.PendingBlockMode == PendingBlockMode(speculating) && impl.Producers.Size() > 0 && !impl.ProductionDisabledByPolicy() {
 		log.Debug("Speculative Block Created; Scheduling Speculative/Production Change")
 		EosAssert(chain.PendingBlockState() != nil, &MissingPendingBlockState{}, "speculating without pending_block_state")
 		pbs := chain.PendingBlockState()
@@ -580,7 +582,7 @@ func (impl *ProducerPluginImpl) MaybeProduceBlock() bool {
 }
 
 func (impl *ProducerPluginImpl) ProduceBlock() {
-	EosAssert(impl.PendingBlockMode == EnumPendingBlockMode(producing), &ProducerException{}, "called produce_block while not actually producing")
+	EosAssert(impl.PendingBlockMode == PendingBlockMode(producing), &ProducerException{}, "called produce_block while not actually producing")
 	chain := impl.Self.chain()
 	pbs := chain.PendingBlockState()
 	EosAssert(pbs != nil, &MissingPendingBlockState{}, "pending_block_state does not exist but it should, another plugin may have corrupted it")

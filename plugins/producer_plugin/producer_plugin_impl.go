@@ -10,7 +10,7 @@ import (
 	. "github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/log"
 	"github.com/eosspark/eos-go/plugins/appbase/asio"
-	"github.com/eosspark/eos-go/plugins/producer_plugin/producer_multi_index"
+	. "github.com/eosspark/eos-go/plugins/producer_plugin/multi_index"
 )
 
 type ProducerPluginImpl struct {
@@ -22,10 +22,10 @@ type ProducerPluginImpl struct {
 	Producers          *treeset.Set //<AccountName>
 	Timer              *common.Timer
 	ProducerWatermarks map[common.AccountName]uint32
-	PendingBlockMode   EnumPendingBlockMode
+	PendingBlockMode   PendingBlockMode
 
-	PersistentTransactions  transactionIdWithExpireIndex
-	BlacklistedTransactions transactionIdWithExpireIndex
+	PersistentTransactions  *TransactionIdWithExpiryIndex
+	BlacklistedTransactions *TransactionIdWithExpiryIndex
 
 	MaxTransactionTimeMs      int32
 	MaxIrreversibleBlockAgeUs common.Microseconds
@@ -59,19 +59,19 @@ type ProducerPluginImpl struct {
 	IncomingDeferRadio float64
 }
 
-type EnumStartBlockRusult int
+type StartBlockResult int
 
 const (
-	succeeded = EnumStartBlockRusult(iota)
+	succeeded = StartBlockResult(iota)
 	failed
 	waiting
 	exhausted
 )
 
-type EnumPendingBlockMode int
+type PendingBlockMode int
 
 const (
-	producing = EnumPendingBlockMode(iota)
+	producing = PendingBlockMode(iota)
 	speculating
 )
 
@@ -84,23 +84,18 @@ const (
 )
 
 type signatureProviderType = func(sha256 crypto.Sha256) *ecc.Signature
-type transactionIdWithExpireIndex = producer_multi_index.MultiIndex
 
 func NewProducerPluginImpl(io *asio.IoContext) *ProducerPluginImpl {
-	impl := new(ProducerPluginImpl)
-
-	impl.Timer = common.NewTimer(io)
-	impl.SignatureProviders = make(map[ecc.PublicKey]signatureProviderType)
-	impl.Producers = treeset.NewWith(common.TypeName, common.CompareName)
-	impl.ProducerWatermarks = make(map[common.AccountName]uint32)
-
-	impl.PersistentTransactions = *producer_multi_index.New()
-	impl.BlacklistedTransactions = *producer_multi_index.New()
-
-	impl.IncomingTrxWeight = 0.0
-	impl.IncomingDeferRadio = 1.0 // 1:1
-
-	return impl
+	return &ProducerPluginImpl{
+		Timer:                   common.NewTimer(io),
+		SignatureProviders:      make(map[ecc.PublicKey]signatureProviderType),
+		Producers:               treeset.NewWith(common.TypeName, common.CompareName),
+		ProducerWatermarks:      make(map[common.AccountName]uint32),
+		PersistentTransactions:  NewTransactionIdWithExpiryIndex(),
+		BlacklistedTransactions: NewTransactionIdWithExpiryIndex(),
+		IncomingTrxWeight:       0.0,
+		IncomingDeferRadio:      1.0, // 1:1
+	}
 }
 
 func (impl *ProducerPluginImpl) OnBlock(bsp *types.BlockState) {
@@ -257,7 +252,7 @@ func (impl *ProducerPluginImpl) OnIncomingTransactionAsync(trx *types.PackedTran
 		next(response)
 		if re, ok := response.(Exception); ok {
 			//TODO C: _transaction_ack_channel.publish(std::pair<fc::exception_ptr, packed_transaction_ptr>(response.get<fc::exception_ptr>(), trx));
-			if impl.PendingBlockMode == EnumPendingBlockMode(producing) {
+			if impl.PendingBlockMode == PendingBlockMode(producing) {
 				log.Debug("[TRX_TRACE] Block %d for producer %s is REJECTING tx: %s : %s ",
 					chain.HeadBlockNum()+1, chain.PendingBlockState().Header.Producer, trx.ID(), re.What())
 			} else {
@@ -267,7 +262,7 @@ func (impl *ProducerPluginImpl) OnIncomingTransactionAsync(trx *types.PackedTran
 
 		} else {
 			//TODO C: _transaction_ack_channel.publish(std::pair<fc::exception_ptr, packed_transaction_ptr>(nullptr, trx));
-			if impl.PendingBlockMode == EnumPendingBlockMode(producing) {
+			if impl.PendingBlockMode == PendingBlockMode(producing) {
 				log.Debug("[TRX_TRACE] Block %d for producer %s is ACCEPTING tx: %s",
 					chain.HeadBlockNum()+1, chain.PendingBlockState().Header.Producer, trx.ID())
 
@@ -291,7 +286,7 @@ func (impl *ProducerPluginImpl) OnIncomingTransactionAsync(trx *types.PackedTran
 	deadline := common.Now().AddUs(common.Milliseconds(int64(impl.MaxTransactionTimeMs)))
 	deadlineIsSubjective := false
 
-	if impl.MaxTransactionTimeMs < 0 || impl.PendingBlockMode == EnumPendingBlockMode(producing) && blockTime < deadline {
+	if impl.MaxTransactionTimeMs < 0 || impl.PendingBlockMode == PendingBlockMode(producing) && blockTime < deadline {
 		deadlineIsSubjective = true
 		deadline = blockTime
 	}
@@ -301,7 +296,7 @@ func (impl *ProducerPluginImpl) OnIncomingTransactionAsync(trx *types.PackedTran
 		if trace.Except != nil {
 			if failureIsSubjective(trace.Except, deadlineIsSubjective) {
 				impl.PendingIncomingTransactions = append(impl.PendingIncomingTransactions, pendingIncomingTransaction{trx, persistUntilExpired, next})
-				if impl.PendingBlockMode == EnumPendingBlockMode(producing) {
+				if impl.PendingBlockMode == PendingBlockMode(producing) {
 					log.Debug("[TRX_TRACE] Block %d for producer %s COULD NOT FIT, tx: %s RETRYING ",
 						chain.HeadBlockNum()+1, chain.PendingBlockState().Header.Producer, trx.ID())
 				} else {
@@ -315,7 +310,7 @@ func (impl *ProducerPluginImpl) OnIncomingTransactionAsync(trx *types.PackedTran
 			if persistUntilExpired {
 				// if this trx didnt fail/soft-fail and the persist flag is set, store its ID so that we can
 				// ensure its applied to all future speculative blocks as well.
-				impl.PersistentTransactions.Insert(&producer_multi_index.TransactionIdWithExpiry{TrxId: trx.ID(), Expiry: trx.Expiration().ToTimePoint()})
+				impl.PersistentTransactions.Insert(TransactionIdWithExpiry{TrxId: trx.ID(), Expiry: trx.Expiration().ToTimePoint()})
 			}
 			sendResponse(trace)
 		}

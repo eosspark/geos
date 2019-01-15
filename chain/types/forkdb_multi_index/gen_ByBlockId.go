@@ -51,6 +51,10 @@ func (i *ByBlockId) Size() int {
 	return len(i.inner)
 }
 
+func (i *ByBlockId) Empty() bool {
+	return len(i.inner) == 0
+}
+
 func (i *ByBlockId) clear() {
 	i.inner = map[common.BlockIdType]*ByBlockIdNode{}
 	i.super.clear()

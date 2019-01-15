@@ -73,6 +73,10 @@ func (i *HashedUniqueIndex) Size() int {
 	return len(i.inner)
 }
 
+func (i *HashedUniqueIndex) Empty() bool {
+	return len(i.inner) == 0
+}
+
 func (i *HashedUniqueIndex) clear() {
 	i.inner = map[Hash]*HashedUniqueIndexNode{}
 	i.super.clear()
