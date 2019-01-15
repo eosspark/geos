@@ -1,4 +1,4 @@
-package net_plugin
+package multi_index
 
 import (
 	"github.com/eosspark/eos-go/chain/types"
@@ -70,7 +70,7 @@ type TransactionState struct {
 //    > peer_block_state_index;
 
 type PeerBlockState struct {
-	ID            common.TransactionIdType
+	ID            common.BlockIdType
 	BlockNum      uint32
 	IsKnown       bool
 	IsNoticed     bool

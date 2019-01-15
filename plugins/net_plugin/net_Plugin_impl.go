@@ -386,14 +386,14 @@ func (impl *netPluginIMpl) authenticatePeer(msg *HandshakeMessage) bool {
 	}
 	msgTime := msg.Time
 	t := common.Now()
-	if time.Duration(uint64((t-msgTime)))*time.Microsecond > impl.peerAuthenticationInterval {
+	if time.Duration(uint64((t - msgTime)))*time.Microsecond > impl.peerAuthenticationInterval {
 		impl.log.Error("Peer %s sent a handshake with a timestamp skewed by more than 1 second", msg.P2PAddress)
 		return false
 	}
 
 	if msg.Signature.String() != crypto.NewSha256Nil().String() && msg.Token.String() != crypto.NewSha256Nil().String() {
 		hash := crypto.Hash256(msg.Time)
-		if !hash.Compare(msg.Token) {
+		if !hash.Equals(msg.Token) {
 			impl.log.Error("Peer %s sent a handshake with an invalid token.", msg.P2PAddress)
 			return false
 		}
@@ -483,7 +483,7 @@ func (impl *netPluginIMpl) handleHandshakeMsg(p *Peer, msg *HandshakeMessage) {
 	peerLib := msg.LastIrreversibleBlockNum
 
 	if msg.Generation == 1 {
-		if crypto.Sha256(msg.NodeID).Compare(crypto.Sha256(p.nodeID)) {
+		if crypto.Sha256(msg.NodeID).Equals(crypto.Sha256(p.nodeID)) {
 			impl.log.Error("Self connection detected. Closing connection")
 			goAwayMsg := &GoAwayMessage{
 				Reason: fatalOther,

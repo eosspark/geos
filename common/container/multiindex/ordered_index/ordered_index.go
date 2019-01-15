@@ -1,6 +1,7 @@
 package ordered_index
 
 import (
+	"fmt"
 	"github.com/eosspark/eos-go/common/container/multiindex"
 	"github.com/eosspark/eos-go/log"
 )
@@ -524,48 +525,48 @@ func (tree *OrderedIndex) Clear() {
 }
 
 // String returns a string representation of container
-//func (tree *OrderedIndex) String() string {
-//	str := "RedBlackTree\n"
-//	if !tree.Empty() {
-//		output(tree.Root, "", true, &str)
-//	}
-//	return str
-//}
+func (tree *OrderedIndex) String() string {
+	str := "OrderedIndex\n"
+	if !tree.Empty() {
+		output(tree.Root, "", true, &str)
+	}
+	return str
+}
 
-//func (node *OrderedIndexNode) String() string {
-//	if !node.color {
-//		return fmt.Sprintf("(%v:%v,%v)", node.Key, node.Value, "red")
-//	}
-//	return fmt.Sprintf("(%v,%v)", node.Key, node.Value)
-//}
+func (node *OrderedIndexNode) String() string {
+	if !node.color {
+		return fmt.Sprintf("(%v,%v)", node.Key, "red")
+	}
+	return fmt.Sprintf("(%v)", node.Key)
+}
 
-//func output(node *OrderedIndexNode, prefix string, isTail bool, str *string) {
-//	if node.Right != nil {
-//		newPrefix := prefix
-//		if isTail {
-//			newPrefix += "│   "
-//		} else {
-//			newPrefix += "    "
-//		}
-//		output(node.Right, newPrefix, false, str)
-//	}
-//	*str += prefix
-//	if isTail {
-//		*str += "└── "
-//	} else {
-//		*str += "┌── "
-//	}
-//	*str += node.String() + "\n"
-//	if node.Left != nil {
-//		newPrefix := prefix
-//		if isTail {
-//			newPrefix += "    "
-//		} else {
-//			newPrefix += "│   "
-//		}
-//		output(node.Left, newPrefix, true, str)
-//	}
-//}
+func output(node *OrderedIndexNode, prefix string, isTail bool, str *string) {
+	if node.Right != nil {
+		newPrefix := prefix
+		if isTail {
+			newPrefix += "│   "
+		} else {
+			newPrefix += "    "
+		}
+		output(node.Right, newPrefix, false, str)
+	}
+	*str += prefix
+	if isTail {
+		*str += "└── "
+	} else {
+		*str += "┌── "
+	}
+	*str += node.String() + "\n"
+	if node.Left != nil {
+		newPrefix := prefix
+		if isTail {
+			newPrefix += "    "
+		} else {
+			newPrefix += "│   "
+		}
+		output(node.Left, newPrefix, true, str)
+	}
+}
 
 func (node *OrderedIndexNode) grandparent() *OrderedIndexNode {
 	if node != nil && node.Parent != nil {

@@ -1,9 +1,9 @@
 package forkdb_multi_index
 
 import (
-	"bytes"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
+	"github.com/eosspark/eos-go/crypto"
 )
 
 type BlockStatePtr = *types.BlockState
@@ -24,7 +24,7 @@ var ByBlockIdFunc = func(n BlockStatePtr) common.BlockIdType { return n.BlockId 
 
 //go:generate gotemplate -outfmt "gen_%v" "github.com/eosspark/eos-go/common/container/multiindex/ordered_index" ByPrev(MultiIndex,MultiIndexNode,ByBlockNum,ByBlockNumNode,BlockStatePtr,common.BlockIdType,ByPrevFunc,ByPrevCompare,true)
 var ByPrevFunc = func(n BlockStatePtr) common.BlockIdType { return n.Header.Previous }
-var ByPrevCompare = func(a, b common.BlockIdType) int { return bytes.Compare(a.Bytes(), b.Bytes()) }
+var ByPrevCompare = crypto.Sha256Compare
 
 //go:generate gotemplate -outfmt "gen_%v" "github.com/eosspark/eos-go/common/container/multiindex/ordered_index" ByBlockNum(MultiIndex,MultiIndexNode,ByLibBlockNum,ByLibBlockNumNode,BlockStatePtr,ByBlockNumComposite,ByBlockNumFunc,ByBlockNumCompare,true)
 type ByBlockNumComposite struct {
@@ -89,4 +89,3 @@ var ByLibBlockNumCompare = func(aBlock, bBlock ByLibBlockNumComposite) int {
 
 	return 0
 }
-

@@ -1,7 +1,6 @@
 package types
 
 import (
-	"bytes"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto"
 	"reflect"
@@ -49,14 +48,6 @@ func (b *BlockState) ElementObject() {
 
 //for treeset
 var BlockIdTypes = reflect.TypeOf(common.BlockIdType(*crypto.NewSha256Nil()))
-
-func CompareBlockId(first interface{}, second interface{}) int {
-	return bytes.Compare(first.(*BlockState).BlockId.Bytes(), second.(*BlockState).BlockId.Bytes())
-}
-
-func ComparePrev(first interface{}, second interface{}) int {
-	return bytes.Compare(first.(*BlockState).BlockId.Bytes(), second.(*BlockState).BlockId.Bytes())
-}
 
 //for treeset
 var BlockNumType = reflect.TypeOf(uint32(0))
