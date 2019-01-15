@@ -87,8 +87,17 @@ func (tree *ByPrev) insert(v BlockStatePtr, fn *MultiIndexNode) (*ByPrevNode, bo
 	return nil, false
 }
 
-func (tree *ByPrev) Erase(iter IteratorByPrev) {
+func (tree *ByPrev) Erase(iter IteratorByPrev) (itr IteratorByPrev) {
+	itr = iter
+	itr.Next()
 	tree.final.erase(iter.node.final)
+	return
+}
+
+func (tree *ByPrev) Erases(first, last IteratorByPrev) {
+	for first != last {
+		first = tree.Erase(first)
+	}
 }
 
 func (tree *ByPrev) erase(n *ByPrevNode) {

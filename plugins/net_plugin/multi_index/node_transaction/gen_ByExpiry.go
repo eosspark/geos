@@ -88,8 +88,17 @@ func (tree *ByExpiry) insert(v multi_index.NodeTransactionState, fn *NodeTransac
 	return nil, false
 }
 
-func (tree *ByExpiry) Erase(iter IteratorByExpiry) {
+func (tree *ByExpiry) Erase(iter IteratorByExpiry) (itr IteratorByExpiry) {
+	itr = iter
+	itr.Next()
 	tree.final.erase(iter.node.final)
+	return
+}
+
+func (tree *ByExpiry) Erases(first, last IteratorByExpiry) {
+	for first != last {
+		first = tree.Erase(first)
+	}
 }
 
 func (tree *ByExpiry) erase(n *ByExpiryNode) {

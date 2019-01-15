@@ -86,8 +86,17 @@ func (tree *ByLibBlockNum) insert(v BlockStatePtr, fn *MultiIndexNode) (*ByLibBl
 	return nil, false
 }
 
-func (tree *ByLibBlockNum) Erase(iter IteratorByLibBlockNum) {
+func (tree *ByLibBlockNum) Erase(iter IteratorByLibBlockNum) (itr IteratorByLibBlockNum) {
+	itr = iter
+	itr.Next()
 	tree.final.erase(iter.node.final)
+	return
+}
+
+func (tree *ByLibBlockNum) Erases(first, last IteratorByLibBlockNum) {
+	for first != last {
+		first = tree.Erase(first)
+	}
 }
 
 func (tree *ByLibBlockNum) erase(n *ByLibBlockNumNode) {

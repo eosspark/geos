@@ -154,6 +154,14 @@ func (i *ByBlockId) modify_(iter multiindex.IteratorType, mod func(*BlockStatePt
 	}
 }
 
+func (i *ByBlockId) Values() []BlockStatePtr {
+	vs := make([]BlockStatePtr, 0, i.Size())
+	i.Each(func(key common.BlockIdType, obj BlockStatePtr) {
+		vs = append(vs, obj)
+	})
+	return vs
+}
+
 type IteratorByBlockId struct {
 	index    *ByBlockId
 	node     *ByBlockIdNode

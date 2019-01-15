@@ -88,8 +88,17 @@ func (tree *ById) insert(v multi_index.TransactionState, fn *TransactionStateInd
 	return nil, false
 }
 
-func (tree *ById) Erase(iter IteratorById) {
+func (tree *ById) Erase(iter IteratorById) (itr IteratorById) {
+	itr = iter
+	itr.Next()
 	tree.final.erase(iter.node.final)
+	return
+}
+
+func (tree *ById) Erases(first, last IteratorById) {
+	for first != last {
+		first = tree.Erase(first)
+	}
 }
 
 func (tree *ById) erase(n *ByIdNode) {

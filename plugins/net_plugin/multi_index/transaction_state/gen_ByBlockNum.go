@@ -87,8 +87,17 @@ func (tree *ByBlockNum) insert(v multi_index.TransactionState, fn *TransactionSt
 	return nil, false
 }
 
-func (tree *ByBlockNum) Erase(iter IteratorByBlockNum) {
+func (tree *ByBlockNum) Erase(iter IteratorByBlockNum) (itr IteratorByBlockNum) {
+	itr = iter
+	itr.Next()
 	tree.final.erase(iter.node.final)
+	return
+}
+
+func (tree *ByBlockNum) Erases(first, last IteratorByBlockNum) {
+	for first != last {
+		first = tree.Erase(first)
+	}
 }
 
 func (tree *ByBlockNum) erase(n *ByBlockNumNode) {

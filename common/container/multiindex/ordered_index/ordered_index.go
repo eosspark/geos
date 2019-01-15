@@ -111,8 +111,17 @@ func (tree *OrderedIndex) insert(v Value, fn *FinalNode) (*OrderedIndexNode, boo
 	return nil, false
 }
 
-func (tree *OrderedIndex) Erase(iter Iterator) {
+func (tree *OrderedIndex) Erase(iter Iterator) (itr Iterator) {
+	itr = iter
+	itr.Next()
 	tree.final.erase(iter.node.final)
+	return
+}
+
+func (tree *OrderedIndex) Erases(first, last Iterator) {
+	for first != last {
+		first = tree.Erase(first)
+	}
 }
 
 func (tree *OrderedIndex) erase(n *OrderedIndexNode) {

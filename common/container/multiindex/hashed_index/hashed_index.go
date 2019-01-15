@@ -176,6 +176,14 @@ func (i *HashedUniqueIndex) modify_(iter multiindex.IteratorType, mod func(*Valu
 	}
 }
 
+func (i *HashedUniqueIndex) Values() []Value {
+	vs := make([]Value, 0, i.Size())
+	i.Each(func(key Hash, obj Value) {
+		vs = append(vs, obj)
+	})
+	return vs
+}
+
 type Iterator struct {
 	index    *HashedUniqueIndex
 	node     *HashedUniqueIndexNode

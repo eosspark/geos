@@ -154,6 +154,14 @@ func (i *ById) modify_(iter multiindex.IteratorType, mod func(*TransactionIdWith
 	}
 }
 
+func (i *ById) Values() []TransactionIdWithExpiry {
+	vs := make([]TransactionIdWithExpiry, 0, i.Size())
+	i.Each(func(key common.TransactionIdType, obj TransactionIdWithExpiry) {
+		vs = append(vs, obj)
+	})
+	return vs
+}
+
 type IteratorById struct {
 	index    *ById
 	node     *ByIdNode
