@@ -199,11 +199,14 @@ func (e EosioMsigTester) ReqAuth(from common.AccountName, auths []types.Permissi
 	for _, level := range auths {
 		auth = append(auth, level)
 	}
-	reqauth := common.Variants{"from": from}
+	type Reqauth struct {
+		From common.AccountName
+	}
+	reqauth := Reqauth{From: from}
 	data, _ := rlp.EncodeToBytes(reqauth)
 	act := types.Action{
 		Account:       eosio,
-		Name:          common.N("requauth"),
+		Name:          common.N("reqauth"),
 		Authorization: auths,
 		Data:          data,
 	}
