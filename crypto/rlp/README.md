@@ -1,7 +1,8 @@
 rlp
 =====
 
-fork from https://github.com/eoscanada/eos-go,thanks eoscanada
+fork from https://github.com/eoscanada/eos-go
+thanks eoscanada
 
 ## examples
 

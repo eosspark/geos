@@ -7,6 +7,8 @@ import (
 	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
+	"github.com/eosspark/eos-go/log"
+	. "github.com/eosspark/eos-go/plugins/net_plugin/multi_index"
 	"unsafe"
 )
 
@@ -16,11 +18,11 @@ type BlockRequest struct {
 }
 type blockOrigin struct {
 	id   common.BlockIdType
-	peer *Peer
+	conn *Connection
 }
 type transactionOrigin struct {
 	id   common.TransactionIdType
-	Peer *Peer
+	conn *Connection
 }
 
 type dispatchManager struct {
@@ -30,8 +32,8 @@ type dispatchManager struct {
 	//receivedBlocks       map[common.BlockIdType]*Peer
 	//receivedTransactions map[common.TransactionIdType]*Peer
 
-	receivedBlocks       map[common.BlockIdType][]*Peer
-	receivedTransactions map[common.TransactionIdType][]*Peer
+	receivedBlocks       map[common.BlockIdType][]*Connection
+	receivedTransactions map[common.TransactionIdType][]*Connection
 	myImpl               *netPluginIMpl
 }
 
@@ -42,7 +44,7 @@ func NewDispatchManager(impl *netPluginIMpl) *dispatchManager {
 }
 
 func (d *dispatchManager) bcastBlock(myImpl *netPluginIMpl, bsum *types.SignedBlock) {
-	skips := map[*Peer]int{}
+	skips := map[*Connection]int{}
 
 	bid := bsum.BlockID()
 	bnum := bsum.BlockNumber()
@@ -62,33 +64,31 @@ func (d *dispatchManager) bcastBlock(myImpl *netPluginIMpl, bsum *types.SignedBl
 	pendingNotify.KnownBlocks.IDs = append(pendingNotify.KnownBlocks.IDs, &bid)
 	pendingNotify.KnownTrx.Mode = none
 
-	pbstate := peerBlockState{
-		id:          bid,
-		blockNum:    bnum,
-		isKnown:     false,
-		isNoticed:   true,
-		requestTime: common.TimePoint(0),
+	pbstate := PeerBlockState{
+		ID:            bid,
+		BlockNum:      bnum,
+		IsKnown:       false,
+		IsNoticed:     true,
+		RequestedTime: common.TimePoint(0),
 	}
 	// skip will be empty if our producer emitted this block so just send it
 	if (largeMsgNotify && msgsiz > d.justSendItMax) && len(skips) > 0 {
-		//fc_ilog(logger, "block size is ${ms}, sending notify",("ms", msgsiz))
-		myImpl.log.Info("block_size is %d ,sending notify", msgsiz)
-		myImpl.sendAll(&pendingNotify, func(p *Peer) bool {
+		fcLog.Info("block_size is %d ,sending notify", msgsiz)
+		myImpl.sendAll(&pendingNotify, func(p *Connection) bool {
 			_, ok := skips[p]
 			if ok || !p.current() {
 				return false
 			}
 			unknown := p.addPeerBlock(&pbstate)
 			if !unknown {
-				//elog("${p} already has knowledge of block ${b}", ("p",c->peer_name())("b",pbstate.block_num))
-				myImpl.log.Error("%s already has knowledge of block %d", p.peerAddr, pbstate.blockNum)
+				netLog.Error("%s already has knowledge of block %d", p.peerAddr, pbstate.BlockNum)
 			}
 			return unknown
 		})
 	} else {
-		pbstate.isKnown = true
+		pbstate.IsKnown = true
 		//for _,_ =range my.peers{
-		p := Peer{}
+		p := Connection{}
 		_, ok := skips[&p]
 		if ok || !p.current() {
 			//continue
@@ -100,37 +100,34 @@ func (d *dispatchManager) bcastBlock(myImpl *netPluginIMpl, bsum *types.SignedBl
 }
 
 func (d *dispatchManager) rejectedBlock(id *common.BlockIdType) {
-	//fc_dlog(logger,"not sending rejected transaction ${tid}",("tid",id));
-	d.myImpl.log.Debug("not sending rejected block %s", id)
+	fcLog.Debug("not sending rejected block %s", id)
 	_, ok := d.receivedBlocks[*id]
 	if ok {
 		delete(d.receivedBlocks, *id)
 	}
 }
 
-func (d *dispatchManager) recvBlock(p *Peer, id *common.BlockIdType, bnum uint32) {
+func (d *dispatchManager) recvBlock(p *Connection, id *common.BlockIdType, bnum uint32) {
 	d.receivedBlocks[*id] = append(d.receivedBlocks[*id], p)
 	IdsCount := len(p.lastReq.ReqBlocks.IDs)
 	if p != nil && p.lastReq != nil && p.lastReq.ReqBlocks.Mode != none && IdsCount > 0 && p.lastReq.ReqBlocks.IDs[IdsCount-1] == id {
 		p.lastReq = &RequestMessage{} //TODO
 	}
 
-	pbs := peerBlockState{
-		id:          *id,
-		blockNum:    bnum,
-		isKnown:     false,
-		isNoticed:   true,
-		requestTime: common.TimePoint(0),
+	pbs := PeerBlockState{
+		ID:            *id,
+		BlockNum:      bnum,
+		IsKnown:       false,
+		IsNoticed:     true,
+		RequestedTime: common.TimePoint(0),
 	}
 	p.addPeerBlock(&pbs)
-	//fc_dlog(logger, "canceling wait on ${p}", ("p",c->peer_name()));
-
-	d.myImpl.log.Debug("canceling wait on %s", p.peerAddr)
+	fcLog.Debug("canceling wait on %s", p.peerAddr)
 	p.cancelWait()
 }
 
-func (d *dispatchManager) bcastTransaction(myImpl *netPluginIMpl, trx *types.PackedTransaction) { // TODO impl
-	skips := map[*Peer]int{}
+func (d *dispatchManager) bcastTransaction(trx *types.PackedTransaction) { // TODO impl
+	skips := map[*Connection]int{}
 	id := trx.ID()
 
 	peers, ok := d.receivedTransactions[id]
@@ -148,8 +145,8 @@ func (d *dispatchManager) bcastTransaction(myImpl *netPluginIMpl, trx *types.Pac
 		}
 	}
 
-	if myImpl.localTxns.getIndex("by_id").findLocalTrxById(id) != nil { //found
-		d.myImpl.log.Info("found trxid in local_trxs")
+	if !d.myImpl.localTxns.GetById().Find(id).IsEnd() { //found
+		fcLog.Info("found trx id in local_trxs")
 		return
 	}
 
@@ -161,44 +158,36 @@ func (d *dispatchManager) bcastTransaction(myImpl *netPluginIMpl, trx *types.Pac
 	bufsize := packSize + uint32(unsafe.Sizeof(packSize))
 	buffer := make([]byte, bufsize)
 
-	binary.LittleEndian.PutUint32(buffer, uint32(unsafe.Sizeof(packSize))) //TODO binary.LittleEndian.PutUint32(buffer,4)
+	binary.LittleEndian.PutUint32(buffer, uint32(unsafe.Sizeof(packSize))) // binary.LittleEndian.PutUint32(buffer,4)
 	buffer = append(buffer, packedTrxBuf...)
-	nts := nodeTransactionState{
-		id:            id,
-		expires:       trxExpiration,
-		packedTxn:     *trx,
-		serializedTxn: buffer,
-		blockNum:      0,
-		trueBlock:     0,
-		requests:      0,
+	nts := NodeTransactionState{
+		ID:            id,
+		Expires:       trxExpiration,
+		PackedTxn:     *trx,
+		SerializedTxn: buffer,
+		BlockNum:      0,
+		TrueBlock:     0,
+		Requests:      0,
 	}
-	myImpl.localTxns.insertNodeTrx(&nts)
+	d.myImpl.localTxns.Insert(nts)
 
 	if !largeMsgNotify || bufsize <= d.justSendItMax {
 		packedTrx := PackedTransactionMessage{*trx}
-		myImpl.sendAll(&packedTrx, func(p *Peer) bool {
-			_, ok := skips[p]
-			if ok || p.syncing {
+		d.myImpl.sendAll(&packedTrx, func(c *Connection) bool {
+			_, ok := skips[c]
+			if ok || c.syncing {
 				return false
 			}
 
-			//bs := c->trx_state.find(id);
-			//	bool unknown = bs == c->trx_state.end()
-			bs := p.trxState.getIndex("by_id").findTrxById(id)
-			unknown := bs == nil
+			bs := c.trxState.GetById().Find(id)
+			unknown := bs.IsEnd()
 
 			if unknown {
-				//fc_dlog(logger, "sending notice to ${n}", ("n",c->peer_name() ) );
-				//c->trx_state.insert(transaction_state({id,false,true,0,trx_expiration,time_point() }))
-				d.myImpl.log.Debug("sending notice to  %s", p.peerAddr)
-				p.trxState.insertTrx(&transactionState{
-					id, false, true, 0, trxExpiration, common.TimePoint(0),
-				})
+				c.trxState.Insert(TransactionState{id, false, true, 0, trxExpiration, common.TimePoint(0)})
+				fcLog.Debug("sending notice to  %s", c.peerAddr)
 			} else {
-				//c->trx_state.modify(bs, ute)
-				p.trxState.modify(bs, true, func(in common.ElementObject) {
-					re := in.(*transactionState)
-					re.expires = trxExpiration
+				c.trxState.Modify(bs, func(state *TransactionState) {
+					(*state).Expires = trxExpiration
 				})
 			}
 			return unknown
@@ -208,194 +197,168 @@ func (d *dispatchManager) bcastTransaction(myImpl *netPluginIMpl, trx *types.Pac
 		pendingNotify.KnownTrx.Mode = normal
 		pendingNotify.KnownTrx.IDs = append(pendingNotify.KnownTrx.IDs, &id)
 		pendingNotify.KnownBlocks.Mode = none
-		myImpl.sendAll(&pendingNotify, func(p *Peer) bool {
-			_, ok := skips[p]
-			if ok || p.syncing {
+		d.myImpl.sendAll(&pendingNotify, func(c *Connection) bool {
+			_, ok := skips[c]
+			if ok || c.syncing {
 				return false
 			}
-			//bs := c->trx_state.find(id);
-			//	bool unknown = bs == c->trx_state.end()
-			bs := p.trxState.getIndex("by_id").findTrxById(id)
-			unknown := bs == nil
+
+			bs := c.trxState.GetById().Find(id)
+			unknown := bs.IsEnd()
 			if unknown {
-				//fc_dlog(logger, "sending notice to ${n}", ("n",c->peer_name() ) );
-				//c->trx_state.insert(transaction_state({id,false,true,0,trx_expiration,time_point() }))
-				d.myImpl.log.Debug("sending notice to  %s", p.peerAddr)
-				p.trxState.insertTrx(&transactionState{
-					id, false, true, 0, trxExpiration, common.TimePoint(0),
-				})
+				fcLog.Debug("sending notice to  %s", c.peerAddr)
+				c.trxState.Insert(TransactionState{id, false, true, 0, trxExpiration, common.TimePoint(0)})
 			} else {
-				//ute :=updateTxnExpiry{trxExpiration}
-				//c->trx_state.modify(bs, ute)
-				p.trxState.modify(bs, true, func(in common.ElementObject) {
-					re := in.(*transactionState)
-					re.expires = trxExpiration
+				c.trxState.Modify(bs, func(state *TransactionState) {
+					(*state).Expires = trxExpiration
 				})
 			}
 			return unknown
 		})
 	}
-
 }
 
 func (d *dispatchManager) rejectedTransaction(id *common.TransactionIdType) {
-	//fc_dlog(logger,"not sending rejected transaction ${tid}",("tid",id));
-	d.myImpl.log.Debug("not sending rejected transaction %s \n", id)
+	fcLog.Debug("not sending rejected transaction %s", id)
 	_, ok := d.receivedTransactions[*id]
 	if ok {
 		delete(d.receivedTransactions, *id)
 	}
 }
 
-func (d *dispatchManager) recvTransaction(p *Peer, id *common.TransactionIdType) {
+func (d *dispatchManager) recvTransaction(p *Connection, id *common.TransactionIdType) {
 	d.receivedTransactions[*id] = append(d.receivedTransactions[*id], p)
 	idsCount := len(p.lastReq.ReqTrx.IDs)
 	if p != nil && p.lastReq != nil && p.lastReq.ReqTrx.Mode != none && idsCount > 0 && p.lastReq.ReqTrx.IDs[idsCount-1] == id { //TODO c && c->last_req
 		//p.lastReq.reset()
 		p.lastReq = &RequestMessage{}
 	}
-	//fc_dlog(logger, "canceling wait on ${p}", ("p",c->peer_name()));
-	d.myImpl.log.Debug("canceling wait on %s \n", p.peerAddr)
+	fcLog.Debug("canceling wait on %s", p.peerAddr)
 	p.cancelWait()
 
 }
 
-func (d *dispatchManager) recvNotice(myImpl *netPluginIMpl, p *Peer, msg *NoticeMessage, generated bool) {
+func (d *dispatchManager) recvNotice(c *Connection, msg *NoticeMessage, generated bool) {
 	req := RequestMessage{}
 	req.ReqTrx.Mode = none
 	req.ReqBlocks.Mode = none
 	sendReq := false
-	//controller &cc = my_impl->chain_plug->chain();
+	cc := d.myImpl.ChainPlugin.Chain()
 
 	if msg.KnownTrx.Mode == normal {
 		req.ReqTrx.Mode = normal
 		req.ReqTrx.Pending = 0
 		for _, t := range msg.KnownTrx.IDs {
-			tx := myImpl.localTxns.getIndex("by_id").findLocalTrxById(*t)
-			if tx == nil {
-				//fc_dlog(logger,"did not find ${id}",("id",t));
-				d.myImpl.log.Debug("did not find %s", t.String())
+			tx := d.myImpl.localTxns.GetById().Find(*t)
 
+			if tx.IsEnd() {
+				fcLog.Debug("did not find %s", t.String())
 				//At this point the details of the txn are not known, just its id. This
 				//effectively gives 120 seconds to learn of the details of the txn which
 				//will update the expiry in bcast_transaction
+				c.trxState.Insert(TransactionState{*t, true, true, 0,
+					common.TimePointSec(common.Now() + 120), common.TimePoint(0)})
 
-				trxState := transactionState{
-					id:              *t,
-					isKnownByPeer:   true,
-					isNoticedToPeer: true,
-					blockNum:        0,
-					expires:         common.TimePointSec(common.Now()) + 120,
-					requestedTime:   common.TimePoint(0),
-				}
-				p.trxState.insertTrx(&trxState)
 				req.ReqTrx.IDs = append(req.ReqTrx.IDs, t)
 				d.reqTrx = append(d.reqTrx, *t)
 			} else {
-				//fc_dlog(logger,"big msg manager found txn id in table, ${id}",("id", t));
-				d.myImpl.log.Debug("big msg manager found txn id in table,%s", t.String())
+				fcLog.Debug("big msg manager found txn id in table,%s", t.String())
 			}
 		}
 		sendReq = !(len(req.ReqTrx.IDs) == 0)
-		//fc_dlog(logger,"big msg manager send_req ids list has ${ids} entries", ("ids", req.req_trx.ids.size()));
-		d.myImpl.log.Debug("big msg manager send_req ids list has %d entries\n", len(req.ReqTrx.IDs))
+		fcLog.Debug("big msg manager send_req ids list has %d entries", len(req.ReqTrx.IDs))
 
-	} else if msg.KnownTrx.Mode == none {
-		d.myImpl.log.Error("passed a notice_message with something other than a normal on none known_trx")
+	} else if msg.KnownTrx.Mode != none {
+		log.Error("passed a notice_message with something other than a normal on none known_trx")
 		return
 	}
 
 	if msg.KnownBlocks.Mode == normal {
 		req.ReqBlocks.Mode = normal
-		b := types.SignedBlock{}
+
 		for _, blkID := range msg.KnownBlocks.IDs {
-			entry := peerBlockState{*blkID, 0, true, true, common.TimePoint(0)}
+			b := &types.SignedBlock{}
+			entry := PeerBlockState{*blkID, 0, true, true, common.TimePoint(0)}
 			Try(func() {
-				//b = cc.fetchBlockByID(blkID)
-				if &b != nil { //TODO
-					entry.blockNum = b.BlockNumber()
+				b = cc.FetchBlockById(*blkID)
+				if b != nil {
+					entry.BlockNum = b.BlockNumber()
 				}
 			}).Catch(func(ex *exception.AssertException) {
-				d.myImpl.log.Info("caught assert on fetch_block_by_id, %s", ex.What())
+				netLog.Info("caught assert on fetch_block_by_id, %s", ex.What())
 				//keep going, client can ask another peer
-			}).Catch(func(interface{}) {
-				d.myImpl.log.Error("failed to retrieve block for id")
+			}).Catch(func(e interface{}) {
+				netLog.Error("failed to retrieve block for id")
 			}).End()
 
 			if common.Empty(b) {
 				sendReq = true
 				req.ReqBlocks.IDs = append(req.ReqBlocks.IDs, blkID)
-				entry.requestTime = common.Now()
+				entry.RequestedTime = common.Now()
 			}
-			p.addPeerBlock(&entry)
+			c.addPeerBlock(&entry)
 		}
 	} else if msg.KnownBlocks.Mode != none {
-		d.myImpl.log.Error("passed a notice_message with something other than a normal on none known_blocks")
+		netLog.Error("passed a notice_message with something other than a normal on none known_blocks")
 		return
 	}
 
-	d.myImpl.log.Debug("send req = %s\n", sendReq)
+	netLog.Debug("send req = %s", sendReq)
 	if sendReq {
-		p.write(&req)
-		p.fetchWait()
-		p.lastReq = &req
+		c.write(&req)
+		c.fetchWait()
+		c.lastReq = &req
 	}
 }
 
-func (d *dispatchManager) retryFetch(p *Peer) {
-	if common.Empty(p.lastReq) {
+func (d *dispatchManager) retryFetch(c *Connection) {
+	if common.Empty(c.lastReq) {
 		return
 	}
-	//fc_wlog( logger, "failed to fetch from ${p}",("p",c->peer_name()))
-	d.myImpl.log.Debug("failed to fetch from %s \n", p.peerAddr)
-	var tid common.TransactionIdType
-	var bid common.BlockIdType
-	isTxn := false
+	fcLog.Debug("failed to fetch from %s", c.peerAddr)
+	var (
+		tid   common.TransactionIdType
+		bid   common.BlockIdType
+		isTxn bool
+	)
 
-	reqTrxCount := len(p.lastReq.ReqTrx.IDs)
-	reqBlockCount := len(p.lastReq.ReqBlocks.IDs)
-	if p.lastReq.ReqTrx.Mode == normal && reqTrxCount > 0 {
+	reqTrxCount := len(c.lastReq.ReqTrx.IDs)
+	reqBlockCount := len(c.lastReq.ReqBlocks.IDs)
+	if c.lastReq.ReqTrx.Mode == normal && reqTrxCount > 0 {
 		isTxn = true
-		tid = *p.lastReq.ReqTrx.IDs[reqTrxCount-1]
-	} else if p.lastReq.ReqBlocks.Mode == normal && reqBlockCount > 0 {
-		bid = *p.lastReq.ReqBlocks.IDs[reqBlockCount-1]
+		tid = *c.lastReq.ReqTrx.IDs[reqTrxCount-1]
+	} else if c.lastReq.ReqBlocks.Mode == normal && reqBlockCount > 0 {
+		bid = *c.lastReq.ReqBlocks.IDs[reqBlockCount-1]
 	} else {
-		//fc_wlog( logger,"no retry, block mpde = ${b} trx mode = ${t}",
-		//	("b",modes_str(c->last_req->req_blocks.mode))("t",modes_str(c->last_req->req_trx.mode)));
-		d.myImpl.log.Debug("no retry,block mode = %s trx mode = %s\n", modeTostring[p.lastReq.ReqBlocks.Mode], modeTostring[p.lastReq.ReqTrx.Mode])
+		fcLog.Debug("no retry,block mode = %s trx mode = %s\n", modeTostring[c.lastReq.ReqBlocks.Mode], modeTostring[c.lastReq.ReqTrx.Mode])
 		return
 	}
 
-	//for
-	peer := &Peer{}
-	if peer == p || !common.Empty(peer.lastReq) {
-		//continue
-	}
-
-	sendit := false
-
-	if isTxn {
-		trx := p.trxState.getIndex("by_id").findTrxById(tid)
-		if trx != nil && trx.isKnownByPeer {
-			sendit = true
+	for _, conn := range d.myImpl.connections {
+		if conn == c || conn.lastReq != nil {
+			continue
 		}
-	} else {
-		blk := p.blkState.getIndex("by_id").findPeerById(bid)
-		if blk != nil && blk.isKnown {
-			sendit = true
+
+		sendIt := false
+		if isTxn {
+			trx := conn.trxState.GetById().Find(tid)
+			sendIt = !trx.IsEnd() && trx.Value().IsKnownByPeer
+		} else {
+			blk := conn.blkState.GetById().Find(bid)
+			sendIt = !blk.IsEnd() && blk.Value().IsKnown
 		}
+		if sendIt {
+			conn.write(c.lastReq)
+			conn.fetchWait()
+			conn.lastReq = c.lastReq
+			return
+		}
+
 	}
-	if sendit {
-		peer.write(p.lastReq)
-		peer.fetchWait()
-		peer.lastReq = p.lastReq
-		return
-	}
-	//}
 
 	// at this point no other peer has it, re-request or do nothing?
-	if p.connected() {
-		p.write(p.lastReq)
-		p.fetchWait()
+	if c.connected() {
+		c.write(c.lastReq)
+		c.fetchWait()
 	}
 }
