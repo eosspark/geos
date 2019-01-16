@@ -1,6 +1,7 @@
 package net_plugin
 
 import (
+	"encoding/binary"
 	"github.com/eosspark/eos-go/chain"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
@@ -10,13 +11,50 @@ import (
 	. "github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/log"
 	. "github.com/eosspark/eos-go/plugins/appbase/app"
-	"github.com/eosspark/eos-go/plugins/appbase/asio"
+	. "github.com/eosspark/eos-go/plugins/appbase/asio"
 	"github.com/eosspark/eos-go/plugins/chain_plugin"
 	"github.com/eosspark/eos-go/plugins/net_plugin/multi_index"
 	"github.com/eosspark/eos-go/plugins/net_plugin/multi_index/node_transaction"
 	"github.com/eosspark/eos-go/plugins/producer_plugin"
 	"net"
 	"time"
+)
+
+const (
+	// default value initializers
+	defSendBufferSizeMb        = 4
+	defSendBufferSize          = 1024 * 1024 * defSendBufferSizeMb
+	defMaxClients              = 25 // 0 for unlimited clients
+	defMaxNodesPerHost         = 1
+	defConnRetryWait           = 30
+	defTxnExpireWait           = time.Duration(3 * time.Second)
+	defRespExpectedWait        = time.Duration(5 * time.Second)
+	defSyncFetchSpan           = 100
+	defMaxJustSend      uint32 = 1500 // roughly 1 "mtu"
+	largeMsgNotify      bool   = false
+
+	messageHeaderSize = 4
+
+	/*	   For a while, network version was a 16 bit value equal to the second set of 16 bits
+		   of the current build's git commit id. We are now replacing that with an integer protocol
+		   identifier. Based on historical analysis of all git commit identifiers, the larges gap
+		   between ajacent commit id values is shown below.
+		   these numbers were found with the following commands on the master branch:
+
+		   git log | grep "^commit" | awk '{print substr($2,5,4)}' | sort -u > sorted.txt
+		   rm -f gap.txt; prev=0; for a in $(cat sorted.txt); do echo $prev $((0x$a - 0x$prev)) $a >> gap.txt; prev=$a; done; sort -k2 -n gap.txt | tail
+
+		   DO NOT EDIT net_version_base OR net_version_range!
+	*/
+	netVersionBase  uint16 = 0x04b5
+	netVersionRange uint16 = 106
+
+	//If there is a change to network protocol or behavior, increment net version to identify
+	//the need for compatibility hooks
+	protoBase         uint16 = 0
+	protoExplicitSync uint16 = 1
+
+	netVersion uint16 = protoExplicitSync
 )
 
 var netLog log.Logger
@@ -45,9 +83,9 @@ type netPluginIMpl struct {
 	privateKeys        map[ecc.PublicKey]ecc.PrivateKey //< overlapping with producer keys, also authenticating non-producing nodes
 	allowedConnections possibleConnections
 	done               bool
-	connectorCheck     *asio.DeadlineTimer
-	transactionCheck   *asio.DeadlineTimer
-	keepAliceTimer     *asio.DeadlineTimer
+	connectorCheck     *DeadlineTimer
+	transactionCheck   *DeadlineTimer
+	keepAliceTimer     *DeadlineTimer
 
 	connectorPeriod            time.Duration
 	txnExpPeriod               time.Duration
@@ -70,7 +108,8 @@ type netPluginIMpl struct {
 	syncMaster *syncManager
 	dispatcher *dispatchManager
 
-	ChainPlugin *chain_plugin.ChainPlugin
+	ChainPlugin     *chain_plugin.ChainPlugin
+	startedSessions int
 
 	Self *NetPlugin
 }
@@ -101,7 +140,9 @@ func NewNetPluginIMpl() *netPluginIMpl {
 	//impl.log.SetHandler(log.DiscardHandler())
 
 	fcLog = log.New("fc")
-	fcLog.SetHandler(log.TerminalHandler)
+	//fcLog.SetHandler(log.TerminalHandler)
+	h, _ := log.FileHandler("./net_fc.log", log.LogfmtFormat())
+	fcLog.SetHandler(h)
 
 	peerLog = log.New("peer")
 	peerLog.SetHandler(log.TerminalHandler)
@@ -110,7 +151,7 @@ func NewNetPluginIMpl() *netPluginIMpl {
 }
 
 func (impl *netPluginIMpl) startListenLoop() {
-	socket := asio.NewReactiveSocket(App().GetIoService())
+	socket := NewReactiveSocket(App().GetIoService())
 
 	socket.AsyncAccept(impl.Listener, func(conn net.Conn, err error) {
 		if conn == nil {
@@ -126,10 +167,10 @@ func (impl *netPluginIMpl) startListenLoop() {
 			log.Info("accept connection: %s,visitor: %d, fromAddr: %d", paddr, visitors, fromAddr)
 
 			for _, c := range impl.connections {
-				if c.socket != nil { //
+				if c.conn != nil { //
 					if len(c.peerAddr) == 0 {
 						visitors++
-						if paddr == c.socket.RemoteAddr().String() {
+						if paddr == c.conn.RemoteAddr().String() {
 							fromAddr++
 						}
 					}
@@ -141,9 +182,9 @@ func (impl *netPluginIMpl) startListenLoop() {
 			}
 			if fromAddr < impl.maxNodesPerHost && (impl.maxClientCount == 0 || impl.numClients < impl.maxClientCount) {
 				impl.numClients++
-				c := NewConnectionByConn(conn, impl)
+				c := NewConnectionByConn(socket, conn, impl)
 				impl.connections = append(impl.connections, c)
-				//start_session( c );TODO
+				impl.startSession(socket, c)
 			} else {
 				if fromAddr >= impl.maxNodesPerHost {
 					log.Error("Number of connections (%d) from %s exceeds limit", fromAddr+1, paddr)
@@ -172,6 +213,98 @@ func (impl *netPluginIMpl) startListenLoop() {
 	})
 }
 
+// bool net_plugin_impl::start_session( connection_ptr con ) {
+//    boost::asio::ip::tcp::no_delay nodelay( true );
+//    boost::system::error_code ec;
+//    con->socket->set_option( nodelay, ec );
+//    if (ec) {
+//       elog( "connection failed to ${peer}: ${error}",
+//             ( "peer", con->peer_name())("error",ec.message()));
+//       con->connecting = false;
+//       close(con);
+//       return false;
+//    }
+//    else {
+//       start_read_message( con );
+//       ++started_sessions;
+//       return true;
+//    }
+// }
+
+func (impl *netPluginIMpl) startSession(socket *ReactiveSocket, con *Connection) bool {
+	impl.startReadMessage(socket, con)
+	impl.startedSessions++
+	return true
+}
+
+func (impl *netPluginIMpl) startReadMessage(socket *ReactiveSocket, con *Connection) {
+
+	buf := make([]byte, 4096)
+	socket.AsyncRead(con.conn, buf, func(n int, err error) {
+		if err != nil {
+			pName := con.peerAddr
+			//if (ec.value() != boost::asio::error::eof) {
+			//	netLog.Error( "Error reading message from %s: %s",pName,err) );
+			//} else {
+			//	netLog.Info( "Peer %s closed connection",pName )
+			//}
+			netLog.Info("Peer %s closed connection", pName)
+			impl.close(con)
+			return
+		}
+		if n < messageHeaderSize {
+
+		} else {
+			//uint32_t message_length;
+			//auto index = conn->pending_message_buffer.read_index();
+			//conn->pending_message_buffer.peek(&message_length, sizeof(message_length), index);
+			//if(message_length > def_send_buffer_size*2 || message_length == 0) {
+			//boost::system::error_code ec;
+			//	elog("incoming message length unexpected (${i}), from ${p}", ("i", message_length)("p",boost::lexical_cast<std::string>(conn->socket->remote_endpoint(ec))));
+			//	close(conn);
+			//	return;
+			//}
+			//
+			//auto total_message_bytes = message_length + message_header_size;
+			//
+			//if (bytes_in_buffer >= total_message_bytes) {
+			//	conn->pending_message_buffer.advance_read_ptr(message_header_size);
+			//	if (!conn->process_next_message(*this, message_length)) {
+			//		return;
+			//	}
+			//} else {
+			//	auto outstanding_message_bytes = total_message_bytes - bytes_in_buffer;
+			//	auto available_buffer_bytes = conn->pending_message_buffer.bytes_to_write();
+			//	if (outstanding_message_bytes > available_buffer_bytes) {
+			//		conn->pending_message_buffer.add_space( outstanding_message_bytes - available_buffer_bytes );
+			//	}
+			//
+			//	conn->outstanding_read_bytes.emplace(outstanding_message_bytes);
+			//	break;
+			//}
+
+			messageLength := uint32(0)
+
+			messageLength = binary.LittleEndian.Uint32(buf[:4])
+
+			if messageLength > defSendBufferSize*2 || messageLength == 0 {
+				netLog.Error("incoming message length unexpected %d, from %s", messageLength, con.peerAddr)
+				impl.close(con)
+				return
+			}
+			if uint32(len(buf)) < 4+messageLength {
+				netLog.Error("the lenth of buf is less than incoming message length unexpected ")
+			}
+
+			con.processNextMessage(buf[4 : 4+messageLength])
+
+		}
+
+		impl.startReadMessage(socket, con)
+	})
+
+}
+
 func (impl *netPluginIMpl) connect(peer *Connection) {
 
 }
@@ -194,7 +327,7 @@ func (impl *netPluginIMpl) countOpenSockets() int {
 func (impl *netPluginIMpl) sendAll(msg P2PMessage, verify func(c *Connection) bool) {
 	for _, c := range impl.connections {
 		if c.current() && verify(c) {
-			c.write(msg)
+			c.enqueue(msg, true)
 		}
 	}
 }
@@ -221,7 +354,7 @@ func (impl *netPluginIMpl) AppliedTransaction(txn *types.TransactionTrace) {
 	fcLog.Debug("signaled,id = %s", txn.ID)
 }
 
-func (impl *netPluginIMpl) AcceptedConfirmation(head types.HeaderConfirmation) {
+func (impl *netPluginIMpl) AcceptedConfirmation(head *types.HeaderConfirmation) {
 	fcLog.Debug("signaled,id = %s", head.BlockId)
 }
 
@@ -238,8 +371,8 @@ func (impl *netPluginIMpl) TransactionAck(results common.Pair) {
 }
 
 func (impl *netPluginIMpl) startMonitors() {
-	impl.connectorCheck = asio.NewDeadlineTimer(App().GetIoService())
-	impl.transactionCheck = asio.NewDeadlineTimer(App().GetIoService())
+	impl.connectorCheck = NewDeadlineTimer(App().GetIoService())
+	impl.transactionCheck = NewDeadlineTimer(App().GetIoService())
 
 	impl.startConnTimer(impl.connectorPeriod, nil)
 	impl.startTxnTimer()
@@ -266,7 +399,12 @@ func (impl *netPluginIMpl) connectionMonitor(fromConnection *Connection) {
 	if fromConnection != nil {
 		i, it = impl.findConnection(fromConnection.peerAddr)
 	} else {
-		i, it = 0, impl.connections[0]
+		if len(impl.connections) > 0 {
+			i, it = 0, impl.connections[0]
+		} else {
+			impl.startConnTimer(impl.connectorPeriod, nil)
+			return
+		}
 	}
 
 	for ; i < len(impl.connections); i++ {
@@ -274,7 +412,7 @@ func (impl *netPluginIMpl) connectionMonitor(fromConnection *Connection) {
 			impl.startConnTimer(time.Millisecond, it)
 			return
 		}
-		if it.socket == nil && !it.connecting {
+		if it.conn == nil && !it.connecting {
 			if len(it.peerAddr) > 0 {
 				impl.connect(it)
 			} else {
@@ -452,7 +590,7 @@ func (impl *netPluginIMpl) handleHandshakeMsg(c *Connection, msg *HandshakeMessa
 			Reason: fatalOther,
 			NodeID: *crypto.NewSha256Nil(),
 		}
-		c.write(goAwayMsg)
+		c.enqueue(goAwayMsg, true)
 		return
 	}
 
@@ -472,7 +610,7 @@ func (impl *netPluginIMpl) handleHandshakeMsg(c *Connection, msg *HandshakeMessa
 				Reason: fatalOther,
 				NodeID: *crypto.NewSha256Nil(),
 			}
-			c.write(goAwayMsg)
+			c.enqueue(goAwayMsg, true)
 		}
 
 		if len(c.peerAddr) == 0 || c.lastHandshakeRecv.NodeID.Equals(*crypto.NewSha256Nil()) {
@@ -494,8 +632,7 @@ func (impl *netPluginIMpl) handleHandshakeMsg(c *Connection, msg *HandshakeMessa
 						Reason: duplicate,
 						NodeID: c.nodeID,
 					}
-					//c.enqueue(goAwayMsg)
-					c.write(goAwayMsg)
+					c.enqueue(goAwayMsg, true)
 					c.noRetry = duplicate
 					return
 				}
@@ -510,11 +647,11 @@ func (impl *netPluginIMpl) handleHandshakeMsg(c *Connection, msg *HandshakeMessa
 				Reason: wrongChain,
 				NodeID: *crypto.NewSha256Nil(),
 			}
-			c.write(goAwayMsg)
+			c.enqueue(goAwayMsg, true)
 			return
 		}
 
-		c.protocolVersion = toProtocolVersion(msg.NetworkVersion)
+		c.protocolVersion = impl.toProtocolVersion(msg.NetworkVersion)
 		if c.protocolVersion != netVersion {
 			if impl.networkVersionMatch {
 				netLog.Error("Peer network version does not match expected %d but got %d", netVersion, c.protocolVersion)
@@ -522,7 +659,7 @@ func (impl *netPluginIMpl) handleHandshakeMsg(c *Connection, msg *HandshakeMessa
 					Reason: wrongVersion,
 					NodeID: *crypto.NewSha256Nil(),
 				}
-				c.write(goAwayMsg)
+				c.enqueue(goAwayMsg, true)
 				return
 			} else {
 				netLog.Info("local network version: %d Remote version: %d", netVersion, c.protocolVersion)
@@ -539,7 +676,7 @@ func (impl *netPluginIMpl) handleHandshakeMsg(c *Connection, msg *HandshakeMessa
 				Reason: authentication,
 				NodeID: *crypto.NewSha256Nil(),
 			}
-			c.write(goAwayMsg)
+			c.enqueue(goAwayMsg, true)
 			return
 		}
 
@@ -563,7 +700,7 @@ func (impl *netPluginIMpl) handleHandshakeMsg(c *Connection, msg *HandshakeMessa
 					Reason: forked,
 					NodeID: *crypto.NewSha256Nil(),
 				}
-				c.write(goAwayMsg)
+				c.enqueue(goAwayMsg, true)
 				return
 			}
 		}
@@ -688,7 +825,7 @@ func (impl *netPluginIMpl) handleNoticeMsg(c *Connection, msg *NoticeMessage) {
 	}
 	netLog.Debug("send req = %t", sendReq)
 	if sendReq {
-		c.write(&req)
+		c.enqueue(&req, true)
 	}
 }
 
@@ -864,4 +1001,14 @@ func (impl *netPluginIMpl) eraseConnection(it *Connection) {
 			impl.connections = append(impl.connections[:i], impl.connections[i+1:]...)
 		}
 	}
+}
+
+func (impl *netPluginIMpl) toProtocolVersion(v uint16) uint16 {
+	if v >= netVersionBase {
+		v -= netVersionBase
+		if v <= netVersionRange {
+			return v
+		}
+	}
+	return 0
 }

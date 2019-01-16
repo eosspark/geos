@@ -85,55 +85,90 @@ func (e *eosgo) CreateAccount(call otto.FunctionCall) (response otto.Value) {
 }
 
 func (e *eosgo) SetCode(call otto.FunctionCall) (response otto.Value) {
-	var params SetCodeParams
+	var params SetContractParams
 	readParams(&params, call)
 
-	codeContent, err := ioutil.ReadFile(params.ContractPath)
-	if err != nil {
-		clog.Error("get abi from file is error %s", err.Error())
-		return otto.FalseValue()
-	}
-
-	action := createSetCode(common.N(params.Account), codeContent, params.TxPermission)
-	clog.Info("Setting Code...")
-	sendActions([]*types.Action{action}, 10000, types.CompressionZlib, &params)
+	setCodeCallBack(&params)
 	return otto.UndefinedValue()
 }
 
 func (e *eosgo) SetAbi(call otto.FunctionCall) (response otto.Value) {
-	var params SetAbiParams
+	var params SetContractParams
 	readParams(&params, call)
 
-	abiFile, err := ioutil.ReadFile(params.AbiPath)
-	if err != nil {
-		clog.Error("get abi from file is error %s", err.Error())
-		return otto.FalseValue()
-	}
-
-	abiDef := &abi_serializer.AbiDef{}
-	if json.Unmarshal(abiFile, abiDef) != nil {
-		clog.Error("unmarshal abi from file is error ")
-		return otto.FalseValue()
-	}
-
-	abiContent, err := rlp.EncodeToBytes(abiDef)
-	if err != nil {
-		clog.Error("pack abi is error %s", err.Error())
-		return otto.FalseValue()
-	}
-	action := createSetABI(common.N(params.Account), abiContent, params.TxPermission)
-	clog.Info("Setting ABI...")
-	sendActions([]*types.Action{action}, 10000, types.CompressionZlib, &params)
-
-	abiCache[common.N(params.Account)] = abi_serializer.NewAbiSerializer(abiDef, abiSerializerMaxTime) //for resolve abi
+	setAbiCallBack(&params)
 	return otto.UndefinedValue()
 }
 
 //SetContract creates or update the code on an account
 func (e *eosgo) SetContract(call otto.FunctionCall) (response otto.Value) {
+	var params SetContractParams
+	readParams(&params, call)
 
-	v, _ := call.Otto.ToValue(nil)
-	return v
+	setCodeCallBack(&params)
+	setAbiCallBack(&params)
+
+	return otto.UndefinedValue()
+}
+
+func setAbiCallBack(params *SetContractParams) {
+	abiFile, err := ioutil.ReadFile(params.AbiPath)
+	if err != nil {
+		clog.Error("get abi from file is error %s", err.Error())
+		return
+	}
+
+	abiDef := &abi_serializer.AbiDef{}
+	if json.Unmarshal(abiFile, abiDef) != nil {
+		clog.Error("unmarshal abi from file is error ")
+		return
+	}
+
+	abiContent, err := rlp.EncodeToBytes(abiDef)
+	if err != nil {
+		clog.Error("pack abi is error %s", err.Error())
+		return
+	}
+	action := createSetABI(common.N(params.Account), abiContent, params.TxPermission)
+	clog.Info("Setting ABI...")
+	sendActions([]*types.Action{action}, 10000, types.CompressionZlib, params)
+
+	abiCache[common.N(params.Account)] = abi_serializer.NewAbiSerializer(abiDef, abiSerializerMaxTime) //for resolve abi
+}
+
+func setCodeCallBack(params *SetContractParams) {
+	codeContent, err := ioutil.ReadFile(params.ContractPath)
+	if err != nil {
+		clog.Error("get abi from file is error %s", err.Error())
+		return
+	}
+
+	action := createSetCode(common.N(params.Account), codeContent, params.TxPermission)
+	clog.Info("Setting Code...")
+	sendActions([]*types.Action{action}, 10000, types.CompressionZlib, params)
+}
+
+//Transfer transfers EOS from account to account
+func (e *eosgo) Transfer(call otto.FunctionCall) (response otto.Value) {
+	con := "eosio.token"
+	var params TransferParams
+	readParams(&params, call)
+
+	if params.TxForceUnique && len(params.Memo) == 0 {
+		// use the memo to add a nonce
+		params.Memo = generateNonceString()
+		params.TxForceUnique = false
+	}
+
+	transferAmount := toAsset(common.N(con), params.Amount)
+	transfer := createTransfer(con, common.N(params.Sender), common.N(params.Recipient), *transferAmount, params.Memo, params.TxPermission)
+	if !params.PayRam {
+		sendActions([]*types.Action{transfer}, 1000, types.CompressionNone, &params)
+	} else {
+		open := createOpen(con, common.N(params.Recipient), transferAmount.Symbol, common.N(params.Sender), params.TxPermission)
+		sendActions([]*types.Action{open}, 1000, types.CompressionNone, &params)
+	}
+	return otto.UndefinedValue()
 }
 
 //TODO set
@@ -199,29 +234,6 @@ func (e *eosgo) SetActionPermission(call otto.FunctionCall) (response otto.Value
 		sendActions([]*types.Action{action}, 1000, types.CompressionNone, &params)
 	}
 	return getJsResult(call, nil)
-}
-
-//Transfer transfers EOS from account to account
-func (e *eosgo) Transfer(call otto.FunctionCall) (response otto.Value) {
-	con := "eosio.token"
-	var params TransferParams
-	readParams(&params, call)
-
-	if params.TxForceUnique && len(params.Memo) == 0 {
-		// use the memo to add a nonce
-		params.Memo = generateNonceString()
-		params.TxForceUnique = false
-	}
-
-	transferAmount := toAsset(common.N(con), params.Amount)
-	transfer := createTransfer(con, common.N(params.Sender), common.N(params.Recipient), *transferAmount, params.Memo, params.TxPermission)
-	if !params.PayRam {
-		sendActions([]*types.Action{transfer}, 1000, types.CompressionNone, &params)
-	} else {
-		open := createOpen(con, common.N(params.Recipient), transferAmount.Symbol, common.N(params.Sender), params.TxPermission)
-		sendActions([]*types.Action{open}, 1000, types.CompressionNone, &params)
-	}
-	return otto.UndefinedValue()
 }
 
 func getAccountPermissions(permissions []string) []types.PermissionLevel {

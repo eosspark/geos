@@ -4,7 +4,6 @@ import (
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/ecc"
-	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/eosspark/eos-go/exception"
 	"github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/log"
@@ -12,12 +11,13 @@ import (
 
 /*var isActiveGenesis bool = false
 var instance = &GenesisState{}*/
-type GenesisState struct {
-	InitialTimestamp common.TimePoint `json:"initial_timestamp"`
-	InitialKey       ecc.PublicKey    `json:"initial_key"`
-}
-
 const EosioRootKey = "EOS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV"
+
+type GenesisState struct {
+	InitialTimestamp     common.TimePoint `json:"initial_timestamp"`
+	InitialKey           ecc.PublicKey    `json:"initial_key"`
+	InitialConfiguration ChainConfig      `json:"initial_configuration"`
+}
 
 func NewGenesisState() *GenesisState {
 	g := &GenesisState{}
@@ -25,28 +25,20 @@ func NewGenesisState() *GenesisState {
 	if err != nil {
 		log.Error("NewGenesisState is error detail:%s", err.Error())
 	}
-	//g.EosioRootKey = "EOS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV"
+
 	g.InitialTimestamp = its
 	key, err := ecc.NewPublicKey(EosioRootKey)
 	if err != nil {
 		try.EosThrow(&exception.PublicKeyTypeException{}, err.Error())
 	}
 	g.InitialKey = key
-	g.Initial()
+	g.InitialConfiguration = g.Initial()
+
 	return g
 }
 
-func (g *GenesisState) ComputeChainID() common.ChainIdType {
-
-	b, err := rlp.EncodeToBytes(g)
-	if err != nil {
-		log.Error("ComputeChainID EncodeToBytes is error:%s", err.Error())
-	}
-	return common.ChainIdType(*crypto.Hash256(b))
-}
-
 func (g *GenesisState) Initial() ChainConfig {
-	InitialConfiguration := ChainConfig{
+	return ChainConfig{
 		MaxBlockNetUsage:               common.DefaultConfig.MaxBlockNetUsage,
 		TargetBlockNetUsagePct:         common.DefaultConfig.TargetBlockNetUsagePct,
 		MaxTransactionNetUsage:         common.DefaultConfig.MaxTransactionNetUsage,
@@ -67,6 +59,8 @@ func (g *GenesisState) Initial() ChainConfig {
 		MaxInlineActionDepth:        common.DefaultConfig.MaxInlineActionDepth,
 		MaxAuthorityDepth:           common.DefaultConfig.MaxAuthorityDepth,
 	}
+}
 
-	return InitialConfiguration
+func (g *GenesisState) ComputeChainID() common.ChainIdType {
+	return common.ChainIdType(*crypto.Hash256(g))
 }

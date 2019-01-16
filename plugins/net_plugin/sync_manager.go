@@ -4,65 +4,10 @@ import (
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/exception"
-	"github.com/eosspark/eos-go/exception/try"
+	. "github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/plugins/appbase/app"
 	"github.com/eosspark/eos-go/plugins/chain_plugin"
-	"time"
 )
-
-const (
-	// default value initializers
-	defSendBufferSizeMb        = 4
-	defSendBufferSize          = 1024 * 1024 * defSendBufferSizeMb
-	defMaxClients              = 25 // 0 for unlimited clients
-	defMaxNodesPerHost         = 1
-	defConnRetryWait           = 30
-	defTxnExpireWait           = time.Duration(3 * time.Second)
-	defRespExpectedWait        = time.Duration(5 * time.Second)
-	defSyncFetchSpan           = 100
-	defMaxJustSend      uint32 = 1500 // roughly 1 "mtu"
-	largeMsgNotify      bool   = false
-
-	messageHeaderSize = 4
-
-	/*	   For a while, network version was a 16 bit value equal to the second set of 16 bits
-		   of the current build's git commit id. We are now replacing that with an integer protocol
-		   identifier. Based on historical analysis of all git commit identifiers, the larges gap
-		   between ajacent commit id values is shown below.
-		   these numbers were found with the following commands on the master branch:
-
-		   git log | grep "^commit" | awk '{print substr($2,5,4)}' | sort -u > sorted.txt
-		   rm -f gap.txt; prev=0; for a in $(cat sorted.txt); do echo $prev $((0x$a - 0x$prev)) $a >> gap.txt; prev=$a; done; sort -k2 -n gap.txt | tail
-
-		   DO NOT EDIT net_version_base OR net_version_range!
-	*/
-	netVersionBase  uint16 = 0x04b5
-	netVersionRange uint16 = 106
-
-	//If there is a change to network protocol or behavior, increment net version to identify
-	//the need for compatibility hooks
-	protoBase         uint16 = 0
-	protoExplicitSync uint16 = 1
-
-	netVersion uint16 = protoExplicitSync
-)
-
-//Index by start_block_num
-type syncState struct {
-	startBlock uint32
-	endBlock   uint32
-	last       uint32           //last sent or received
-	startTime  common.TimePoint //time request made or received
-}
-
-func newSyncState(start, end, lastActed uint32) *syncState {
-	return &syncState{
-		startBlock: start,
-		endBlock:   end,
-		last:       lastActed,
-		startTime:  common.Now(),
-	}
-}
 
 type stages byte
 
@@ -93,7 +38,7 @@ func NewSyncManager(impl *netPluginIMpl, span uint32) *syncManager {
 		myImpl:               impl,
 	}
 	s.chainPlugin = app.App().FindPlugin(chain_plugin.ChainPlug).(*chain_plugin.ChainPlugin)
-	try.EosAssert(s.chainPlugin != nil, &exception.MissingChainPluginException{}, "")
+	EosAssert(s.chainPlugin != nil, &exception.MissingChainPluginException{}, "")
 	return s
 }
 
@@ -189,10 +134,11 @@ func (s *syncManager) requestNextChunk(conn *Connection) {
 			//			cptr =s.myImpl.connections[0]
 			//		}
 			//	}
-			//
 			//}
+			//TODO
 
-			////scan the list of peers looking for another able to provide sync blocks.
+			//scan the list of peers looking for another able to provide sync blocks.
+
 			//auto cstart_it = cptr;
 			//do {
 			//	//select the first one which is current and break out.
@@ -203,6 +149,7 @@ func (s *syncManager) requestNextChunk(conn *Connection) {
 			//	if(++cptr == my_impl->connections.end())
 			//	cptr = my_impl->connections.begin();
 			//} while(cptr != cstart_it);
+
 			// no need to check the result, either source advanced or the whole list was checked and the old source is reused.
 		}
 	}
@@ -256,26 +203,23 @@ func (s *syncManager) recvHandshake(c *Connection, msg *HandshakeMessage) {
 	//
 	//-----------------------------
 
-	//head := cc.headBlockNum()
-	//headID :=cc.headBlockID()
-
-	head := uint32(100) //TODO
-	headID := common.BlockIdType(*crypto.NewSha256Nil())
+	head := cc.ForkDbHeadBlockNum()
+	headID := cc.ForkDbHeadBlockId()
 
 	if headID == msg.HeadID {
-		netLog.Info("sync check statue 0")
+		fcLog.Info("sync check statue 0")
 		// notify peer of our pending transactions
 
 		note := NoticeMessage{}
 		note.KnownBlocks.Mode = none
 		note.KnownTrx.Mode = catchUp
 		note.KnownBlocks.Pending = uint32(s.myImpl.localTxns.Size())
-		c.write(&note)
+		c.enqueue(&note, true)
 		return
 	}
 
 	if head < peerLib {
-		netLog.Info("sync check state 1")
+		fcLog.Info("sync check state 1")
 		//wait for receipt of a notice message before initiating sync
 		if c.protocolVersion < protoExplicitSync {
 			s.startSync(c, peerLib)
@@ -284,38 +228,38 @@ func (s *syncManager) recvHandshake(c *Connection, msg *HandshakeMessage) {
 	}
 
 	if libNum > msg.HeadNum {
-		netLog.Info("sync check state 2")
+		fcLog.Info("sync check state 2")
 		if msg.Generation > 1 || c.protocolVersion > protoBase {
 			note := NoticeMessage{}
 			note.KnownBlocks.Mode = lastIrrCatchUp
 			note.KnownBlocks.Pending = head
 			note.KnownTrx.Mode = lastIrrCatchUp
 			note.KnownTrx.Pending = libNum
-			c.write(&note)
+			c.enqueue(&note, true)
 		}
 		c.syncing = true
 		return
 	}
 
 	if head <= msg.HeadNum {
-		netLog.Info("sync check state 3")
+		fcLog.Info("sync check state 3")
 		s.verifyCatchup(c, msg.HeadNum, msg.HeadID)
 		return
 	} else {
-		netLog.Info("sync check state 4")
+		fcLog.Info("sync check state 4")
 		if msg.Generation > 1 || c.protocolVersion > protoBase {
 			note := NoticeMessage{}
 			note.KnownBlocks.Mode = catchUp
 			note.KnownBlocks.Pending = head
 			note.KnownBlocks.IDs = append(note.KnownBlocks.IDs, &headID)
 			note.KnownTrx.Mode = none
-			c.write(&note)
+			c.enqueue(&note, true)
 		}
 		c.syncing = true
 		return
 	}
 
-	netLog.Error("sync check failed to resolve status")
+	//netLog.Error("sync check failed to resolve status")
 }
 
 func (s *syncManager) startSync(c *Connection, target uint32) {
@@ -374,11 +318,11 @@ func (s *syncManager) verifyCatchup(c *Connection, num uint32, id common.BlockId
 	}
 
 	req.ReqTrx.Mode = none
-	c.write(&req)
+	c.enqueue(&req, true)
 }
 
 func (s *syncManager) recvNotice(c *Connection, msg *NoticeMessage) {
-	netLog.Info("sync_manager got %s block notice", modeTostring[msg.KnownBlocks.Mode])
+	fcLog.Info("sync_manager got %s block notice", modeTostring[msg.KnownBlocks.Mode])
 	if msg.KnownBlocks.Mode == catchUp {
 		IDsCount := len(msg.KnownBlocks.IDs)
 		if IDsCount == 0 {
@@ -395,7 +339,7 @@ func (s *syncManager) recvNotice(c *Connection, msg *NoticeMessage) {
 
 func (s *syncManager) rejectedBlock(c *Connection, blkNum uint32) {
 	if s.state != inSync {
-		netLog.Info("block %d not accepted from %s", blkNum, c.peerAddr)
+		fcLog.Debug("block %d not accepted from %s", blkNum, c.peerAddr)
 		s.syncLastRequestedNum = 0
 		s.source.reset()
 		s.myImpl.close(c)
@@ -404,7 +348,7 @@ func (s *syncManager) rejectedBlock(c *Connection, blkNum uint32) {
 	}
 }
 
-func (s *syncManager) recvBlock(c *Connection, blkID common.BlockIdType, blkNum uint32) { //TODO impl
+func (s *syncManager) recvBlock(c *Connection, blkID common.BlockIdType, blkNum uint32) {
 	fcLog.Debug("got block %d from %s", blkNum, c.peerAddr)
 	if s.state == libCatchup {
 		if blkNum != s.syncNextExpectedNum {
@@ -434,11 +378,11 @@ func (s *syncManager) recvBlock(c *Connection, blkID common.BlockIdType, blkNum 
 		}
 	} else if s.state == libCatchup {
 		if blkNum == s.syncKnownLibNum {
-			fcLog.Info("All caught up with last known last irreversible block resending handshake")
+			fcLog.Debug("All caught up with last known last irreversible block resending handshake")
 			s.setStage(inSync)
 			s.sendHandshakes(s.myImpl)
 		} else if blkNum == s.syncLastRequestedNum {
-			s.requestNextChunk(c) //TODO        request_next_chunk();
+			s.requestNextChunk(nil)
 		} else {
 			fcLog.Debug("calling sync_wait on connecting %s", c.peerAddr)
 			c.syncWait()

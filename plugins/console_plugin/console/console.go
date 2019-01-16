@@ -123,8 +123,8 @@ func (c *Console) init(preload []string) (err error) {
 	//walletObj.Object().Set("createWallet", wallet.CreateWallet)
 	//walletObj.Object().Set("importKey",wallet.ImportKey)
 
-	//net := newNetAPI(c)
-	//c.jsre.Bind("net", net)
+	net := newNetAPI(c)
+	c.jsre.Bind("net", net)
 
 	system := newSystem(c)
 	c.jsre.Bind("system", system)

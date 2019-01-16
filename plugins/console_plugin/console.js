@@ -64,20 +64,13 @@ eos.CreateAccount({
 });
 eos.SetCode({
     account:'eosio',
-    code_file:'../../contracts/eosio.bios/eosio.bios.wasm'
+    code_file:'../../contracts/eosio.bios/eosio.bios.wasm',
+    abi_file:'../../contracts/eosio.bios/eosio.bios.abi',
 });
-eos.SetAbi({
-    account:'eosio',
-    abi_file:'../../contracts/eosio.bios/eosio.bios.abi'
-});
-
-eos.SetCode({
+eos.SetContract({
     account:'eosio.token',
-    code_file:'../../contracts/eosio.token/eosio.token.wasm'
-});
-eos.SetAbi({
-   account:'eosio.token',
-   abi_file:'../../contracts/eosio.token/eosio.token.abi'
+    code_file:'../../contracts/eosio.token/eosio.token.wasm',
+    abi_file:'../../contracts/eosio.token/eosio.token.abi',
 });
 eos.PushAction({
   account:'eosio.token',
@@ -94,90 +87,163 @@ eos.PushAction({
 eos.PushAction({
   account:'eosio.token',
   action:'transfer',
-  data:'{"from":"eosio","to":"walker","quantity":"1.0000 SYS","memo":"hello walker"}',
+  data:'{"from":"eosio","to":"walker","quantity":"5000000000.0030 SYS","memo":"hello walker"}',
   permission:['eosio'],
 })
+eos.PushAction({
+    account:'eosio.token',
+    action:'transfer',
+    data:'{"from":"eosio","to":"eosio.token","quantity":"18888.0000 SYS","memo":"hello eosio.token"}',
+    permission:['eosio'],
+})
+eos.SetContract({
+    account:'eosio',
+    code_file:'../../contracts/eosio.system/eosio.system.wasm',
+    abi_file: '../../contracts/eosio.system/eosio.system.abi',
+});
 
-eos.SetCode({
-   account:'eosio',
-   code_file:'../../contracts/eosio.system/eosio.system.wasm'
-});
-eos.SetAbi({
-   account:'eosio',
-   abi_file:'../../contracts/eosio.system/eosio.system.abi'
-});
 system.Buyram({
     payer:'eosio',
     receiver:'eosio',
-    amount:'10000000.0000 SYS',
+    amount:'1000000000.0000 SYS',
 });
 system.Delegatebw({
     from:'eosio',
     receiver:'eosio',
-    stake_net_amount:'1000000.0000 SYS',
-    stake_cpu_amount:'1000000.0000 SYS',
+    stake_net_amount:'100000.0000 SYS',
+    stake_cpu_amount:'100000.0000 SYS',
+});
+system.Buyram({
+    payer:'eosio',
+    receiver:'walker',
+    amount:'10000000.0000 SYS',
+});
+system.Delegatebw({
+    from:'eosio',
+    receiver:'walker',
+    stake_net_amount:'100000.0000 SYS',
+    stake_cpu_amount:'100000.0000 SYS',
+});
+
+system.NewAccount({
+    creator: 'eosio',
+    name: "walkerwalker",
+    owner: 'EOS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV',
+    active: 'EOS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV',
+    stake_net:'50000.0000 SYS',
+    stake_cpu:'50000.0000 SYS',
+    buy_ram:'10000.0000 SYS',
+    permission:['eosio'],
 });
 
 // system.NewAccount({
 //     creator: 'eosio',
-//     name: "walkerwalker",
+//     name: "producer1",
 //     owner: 'EOS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV',
 //     active: 'EOS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV',
-//     stake_net:'50.0000 SYS',
-//     stake_cpu:'50.0000 SYS',
-//     buy_ram:'100.0000 SYS',
+//     stake_net:'50000.0000 SYS',
+//     stake_cpu:'50000.0000 SYS',
+//     buy_ram:'10000.0000 SYS',
 //     permission:['eosio'],
+// });
+// system.NewAccount({
+//     creator: 'eosio',
+//     name: "producer2",
+//     owner: 'EOS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV',
+//     active: 'EOS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV',
+//     stake_net:'500000.0000 SYS',
+//     stake_cpu:'500000.0000 SYS',
+//     buy_ram:'1000000.0000 SYS',
+//     permission:['eosio'],
+// });
+// system.NewAccount({
+//     creator: 'eosio',
+//     name: "producer3",
+//     owner: 'EOS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV',
+//     active: 'EOS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV',
+//     stake_net:'500000.0000 SYS',
+//     stake_cpu:'500000.0000 SYS',
+//     buy_ram:'1000000.0000 SYS',
+//     permission:['eosio'],
+// });
+// system.NewAccount({
+//     creator: 'eosio',
+//     name: "producer4",
+//     owner: 'EOS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV',
+//     active: 'EOS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV',
+//     stake_net:'500000.0000 SYS',
+//     stake_cpu:'500000.0000 SYS',
+//     buy_ram:'1000000.0000 SYS',
+//     permission:['eosio'],
+// });
+// system.NewAccount({
+//     creator: 'eosio',
+//     name: "producer5",
+//     owner: 'EOS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV',
+//     active: 'EOS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV',
+//     stake_net:'500000.0000 SYS',
+//     stake_cpu:'500000.0000 SYS',
+//     buy_ram:'1000000.0000 SYS',
+//     permission:['eosio'],
+// });
+//
+// eos.Transfer({
+//     sender:'eosio',
+//     recipient:'producer1',
+//     amount:'1000000000.0000 SYS',
+// });
+// eos.Transfer({
+//     sender:'eosio',
+//     recipient:'producer2',
+//     amount:'1000000000.0000 SYS',
+// });
+// eos.Transfer({
+//     sender:'eosio',
+//     recipient:'producer3',
+//     amount:'1000000000.0000 SYS',
+// });
+// eos.Transfer({
+//     sender:'eosio',
+//     recipient:'producer4',
+//     amount:'1000000000.0000 SYS',
+// });
+// eos.Transfer({
+//     sender:'eosio',
+//     recipient:'producer5',
+//     amount:'1000000000.0000 SYS',
 // });
 
-// system.NewAccount({
-//     creator: 'eosio',
-//     name: "accountpro1",
-//     owner: 'EOS5iuUZS9ChytQbbYN5xDAHfF2CTep2SKjcy7ToMGXnW21vhzU5z',
-//     active: 'EOS5iuUZS9ChytQbbYN5xDAHfF2CTep2SKjcy7ToMGXnW21vhzU5z',
-//     stake_net:'50.0000 SYS',
-//     stake_cpu:'50.0000 SYS',
-//     buy_ram:'100.0000 SYS',
-//     permission:['eosio'],
+
+
+// system.Delegatebw({
+//     from:'producer1',
+//     receiver:'producer1',
+//     stake_net_amount:'50000.0000 SYS',
+//     stake_cpu_amount:'50000.0000 SYS',
 // });
-// system.NewAccount({
-//     creator: 'eosio',
-//     name: "accountpro2",
-//     owner: 'EOS5iuUZS9ChytQbbYN5xDAHfF2CTep2SKjcy7ToMGXnW21vhzU5z',
-//     active: 'EOS5iuUZS9ChytQbbYN5xDAHfF2CTep2SKjcy7ToMGXnW21vhzU5z',
-//     stake_net:'50.0000 SYS',
-//     stake_cpu:'50.0000 SYS',
-//     buy_ram:'100.0000 SYS',
-//     permission:['eosio'],
+// system.Delegatebw({
+//     from:'producer2',
+//     receiver:'producer2',
+//     stake_net_amount:'50000.0000 SYS',
+//     stake_cpu_amount:'50000.0000 SYS',
 // });
-// system.NewAccount({
-//     creator: 'eosio',
-//     name: "accountpro3",
-//     owner: 'EOS5iuUZS9ChytQbbYN5xDAHfF2CTep2SKjcy7ToMGXnW21vhzU5z',
-//     active: 'EOS5iuUZS9ChytQbbYN5xDAHfF2CTep2SKjcy7ToMGXnW21vhzU5z',
-//     stake_net:'50.0000 SYS',
-//     stake_cpu:'50.0000 SYS',
-//     buy_ram:'100.0000 SYS',
-//     permission:['eosio'],
+// system.Delegatebw({
+//     from:'producer3',
+//     receiver:'producer3',
+//     stake_net_amount:'50000.0000 SYS',
+//     stake_cpu_amount:'50000.0000 SYS',
 // });
-// system.NewAccount({
-//     creator: 'eosio',
-//     name: "accountpro4",
-//     owner: 'EOS5iuUZS9ChytQbbYN5xDAHfF2CTep2SKjcy7ToMGXnW21vhzU5z',
-//     active: 'EOS5iuUZS9ChytQbbYN5xDAHfF2CTep2SKjcy7ToMGXnW21vhzU5z',
-//     stake_net:'50.0000 SYS',
-//     stake_cpu:'50.0000 SYS',
-//     buy_ram:'100.0000 SYS',
-//     permission:['eosio'],
+// system.Delegatebw({
+//     from:'producer4',
+//     receiver:'producer4',
+//     stake_net_amount:'50000.0000 SYS',
+//     stake_cpu_amount:'50000.0000 SYS',
 // });
-// system.NewAccount({
-//     creator: 'eosio',
-//     name: "accountpro5",
-//     owner: 'EOS5iuUZS9ChytQbbYN5xDAHfF2CTep2SKjcy7ToMGXnW21vhzU5z',
-//     active: 'EOS5iuUZS9ChytQbbYN5xDAHfF2CTep2SKjcy7ToMGXnW21vhzU5z',
-//     stake_net:'50.0000 SYS',
-//     stake_cpu:'50.0000 SYS',
-//     buy_ram:'100.0000 SYS',
-//     permission:['eosio'],
+// system.Delegatebw({
+//     from:'producer5',
+//     receiver:'producer5',
+//     stake_net_amount:'50000.0000 SYS',
+//     stake_cpu_amount:'50000.0000 SYS',
 // });
 
 
