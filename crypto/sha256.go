@@ -64,6 +64,20 @@ func Hash256(t interface{}) *Sha256 {
 	return result
 }
 
+func Hash256String(t string) *Sha256 {
+	cereal :=[]byte(t)
+	h := sha256.New()
+	_, _ = h.Write(cereal)
+	hashed := h.Sum(nil)
+
+	result := &Sha256{}
+	for i := range result.Hash {
+		result.Hash[i] = binary.LittleEndian.Uint64(hashed[i*8 : (i+1)*8])
+	}
+
+	return result
+}
+
 func (h Sha256) MarshalJSON() ([]byte, error) {
 	return json.Marshal(hex.EncodeToString(h.Bytes()))
 }
