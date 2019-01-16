@@ -523,6 +523,7 @@ func TestAuthorityChecker(t *testing.T) {
 		assert.True(t, !types.Validate(F.ToAuthority()))
 		assert.True(t, !types.Validate(G.ToAuthority()))
 	}
+	bt.close()
 }
 
 func TestTransactionTest(t *testing.T) {
@@ -550,4 +551,31 @@ func TestTransactionTest(t *testing.T) {
 	}
 	trx.ContextFreeActions = append(trx.ContextFreeActions, &contextFreeAct)
 	bt.SetTransactionHeaders(&trx.Transaction, bt.DefaultExpirationDelta, 0)
+	trx.Expiration = common.NewTimePointSecTp(common.Now())
+	trx.Validate()
+	assert.Equal(t, int(0), len(trx.Signatures))
+	privKey := bt.getPrivateKey(eosio, "active")
+	chainId := bt.Control.GetChainId()
+	trx.SignWithoutAppend(privKey, &chainId)
+	assert.Equal(t, int(0), len(trx.Signatures))
+	trx.Sign(&privKey, &chainId)
+	assert.Equal(t, int(1), len(trx.Signatures))
+	trx.Validate()
+
+	pkt := types.PackedTransaction{}
+	pkt.SetTransaction(&trx.Transaction, types.CompressionNone)
+
+	pkt2 := types.PackedTransaction{}
+	pkt2.SetTransaction(&trx.Transaction, types.CompressionZlib)
+
+	assert.True(t, trx.Expiration == pkt.Expiration())
+	assert.True(t, trx.Expiration == pkt2.Expiration())
+
+	assert.Equal(t, trx.ID(), pkt.ID())
+	assert.Equal(t, trx.ID(), pkt2.ID())
+
+	raw := pkt.GetRawTransaction()
+	raw2 := pkt2.GetRawTransaction()
+	assert.Equal(t, raw.Size(), raw2.Size())
+	bt.close()
 }
