@@ -471,12 +471,9 @@ func (r *ResourceLimitsManager) GetAccountCpuLimitEx(name common.AccountName, el
 	}
 	userWeight := eos_math.Uint128{Low: uint64(cpuWeight)}
 	allUserWeight := eos_math.Uint128{Low: state.TotalCpuWeight}
+
 	maxUserUseInWindow := virtualCpuCapacityInWindow.Mul(userWeight)
 	maxUserUseInWindow, _ = maxUserUseInWindow.Div(allUserWeight)
-
-	//cpuUsedInWindow := IntegerDivideCeilUint64(              //TODO: ValueEx * windowSize may > MaxUnit64
-	//	usage.CpuUsage.ValueEx * windowSize,
-	//	uint64(common.DefaultConfig.RateLimitingPrecision))
 	cpuUsedInWindow := eos_math.MulUint64(usage.CpuUsage.ValueEx, windowSize)
 	cpuUsedInWindow, _ = cpuUsedInWindow.Div(eos_math.Uint128{Low: uint64(common.DefaultConfig.RateLimitingPrecision)})
 	if maxUserUseInWindow.Compare(cpuUsedInWindow) != 1 {
@@ -534,9 +531,6 @@ func (r *ResourceLimitsManager) GetAccountNetLimitEx(name common.AccountName, el
 
 	maxUserUseInWindow := virtualNetworkCapacityInWindow.Mul(userWeight)
 	maxUserUseInWindow, _ = maxUserUseInWindow.Div(allUserWeight)
-	//cpuUsedInWindow := IntegerDivideCeilUint64(              //TODO: ValueEx * windowSize may > MaxUnit64
-	//	usage.CpuUsage.ValueEx * windowSize,
-	//	uint64(common.DefaultConfig.RateLimitingPrecision))
 	netUsedInWindow := eos_math.MulUint64(usage.NetUsage.ValueEx, windowSize)
 	netUsedInWindow, _ = netUsedInWindow.Div(eos_math.Uint128{Low: uint64(common.DefaultConfig.RateLimitingPrecision)})
 

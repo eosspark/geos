@@ -244,7 +244,7 @@ func Validate(auth Authority) bool {
 	}
 
 	for i, a := range auth.Accounts {
-		if i > 0 && ! (ComparePermissionLevel(auth.Accounts[i-1].Permission, a.Permission) == -1){ //TODO
+		if i > 0 && ! (ComparePermissionLevel(auth.Accounts[i-1].Permission, a.Permission) == -1){
 			return false
 		}
 		totalWeight += uint32(a.Weight)

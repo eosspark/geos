@@ -483,18 +483,8 @@ func (t BaseTester) GetAction(code common.AccountName, actType common.AccountNam
 	acnt := t.Control.GetAccount(code)
 	a := acnt.GetAbi()
 	action := types.Action{code, actType, auths, nil}
-	//actionTypeName := a.ActionForName(actType).Type
 	buf, _ := json.Marshal(data)
-	//if err != nil {
-	//	log.Error("tester GetAction Marshal is error:%s", err)
-	//}
-	//action.Data, _ = a.EncodeAction(common.N(actionTypeName), buf) //TODO
-	//fmt.Println(buf)
 	action.Data, _ = a.EncodeAction(actType, buf)
-	//fmt.Println("data: ",action.Name,action.Data)
-	//if err != nil {
-	//	log.Error("tester GetAction EncodeAction is error:%s", err)
-	//}
 	return &action
 
 	//action := types.Action{code, actType, auths, nil}
