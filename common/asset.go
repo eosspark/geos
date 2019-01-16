@@ -108,22 +108,47 @@ func (a Asset) FromString(from *string) Asset {
 
 	var intPart, fractPart int64
 	if dotPos != -1 {
-		intPart, _ = strconv.ParseInt(string([]byte(amountStr)[:dotPos]), 10, 64)
+		intPartString := string([]byte(amountStr)[:dotPos])
+		CheckParseInt64(intPartString)
+		intPart, _ = strconv.ParseInt(intPartString, 10, 64)
 		fractPart, _ = strconv.ParseInt(string([]byte(amountStr)[dotPos+1:]), 10, 64)
 		if amountStr[0] == '-' {
 			fractPart *= -1
 		}
 	} else {
-		intPart, _ = strconv.ParseInt(amountStr, 10, 64)
+		intPartString := amountStr
+		CheckParseInt64(intPartString)
+		intPart, _ = strconv.ParseInt(intPartString, 10, 64)
 	}
 	amount := intPart
 	for i := uint8(0); i < sym.Precision; i++ {
 		amount *= 10
+		if intPart >= 0 {
+			EosAssert(intPart <= amount, &OverflowException{}, "asset amount overflow")
+		} else {
+			EosAssert(intPart >= amount, &UnderflowException{}, "asset amount underflow")
+		}
 	}
+
 	amount += fractPart
+	if fractPart > 0 {
+		EosAssert(fractPart <= amount, &OverflowException{}, "asset amount overflow")
+	} else if fractPart < 0{
+		EosAssert(fractPart >= amount, &UnderflowException{}, "asset amount underflow")
+	}
 	asset := Asset{Amount: amount, Symbol: sym}
 	asset.assert()
 	return asset
+}
+
+func CheckParseInt64(s string) {
+	MaxInt64String := strconv.FormatInt(math.MaxInt64, 10)
+	if s[0] != '-' {
+		EosAssert(len(s) <= len(MaxInt64String) && s <= MaxInt64String, &ParseErrorException{}, "Couldn't parse int64")
+	} else {
+		s = s[1:]
+		EosAssert(len(s) <= len(MaxInt64String) && s <= MaxInt64String, &ParseErrorException{}, "Couldn't parse int64")
+	}
 }
 
 type ExtendedAsset struct {
