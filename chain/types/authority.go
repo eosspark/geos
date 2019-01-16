@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto/ecc"
+	"github.com/eosspark/eos-go/crypto/rlp"
 	"reflect"
 	"strconv"
 	"strings"
@@ -23,9 +24,9 @@ type PermissionLevel struct {
 	Permission common.PermissionName `json:"permission"`
 }
 
-func (p *PermissionLevel) GetKey() []byte {
+func (level *PermissionLevel) GetKey() []byte {
 	b := make([]byte, 8)
-	binary.BigEndian.PutUint64(b, uint64(p.Actor))
+	binary.BigEndian.PutUint64(b, uint64(level.Actor))
 	return b
 }
 
@@ -57,11 +58,11 @@ type KeyWeight struct {
 	Weight WeightType    `json:"weight"`
 }
 
-func (k KeyWeight) Compare(kw KeyWeight) bool {
-	if !k.Key.Compare(kw.Key) {
+func (key KeyWeight) Compare(kw KeyWeight) bool {
+	if !key.Key.Compare(kw.Key) {
 		return false
 	}
-	if k.Weight != kw.Weight {
+	if key.Weight != kw.Weight {
 		return false
 	}
 	return true
@@ -213,18 +214,20 @@ func (sharedAuth SharedAuthority) Equals(sharedAuthor SharedAuthority) bool {
 	return true
 }
 
-func (sharedAuth SharedAuthority) GetBillableSize() uint64 { //TODO
+func (sharedAuth SharedAuthority) GetBillableSize() uint64 {
 	accountSize := uint64(len(sharedAuth.Accounts)) * common.BillableSizeV("permission_level_weight")
 	waitsSize := uint64(len(sharedAuth.Waits)) * common.BillableSizeV("wait_weight")
 	keysSize := uint64(0)
+	keySize := 0
 	for _, key := range sharedAuth.Keys {
 		keysSize += common.BillableSizeV("key_weight")
-		keysSize += uint64(key.Weight) * 0 //TODO
+		keySize, _ = rlp.EncodeSize(key.Key)
+		keysSize += uint64(keySize)
 	}
 	return accountSize + waitsSize + keysSize
 }
 
-func Validate(auth Authority) bool { //TODO: sort.
+func Validate(auth Authority) bool {
 	var totalWeight uint32 = 0
 	if len(auth.Accounts)+len(auth.Keys)+len(auth.Waits) > 1<<16 {
 		return false
@@ -232,32 +235,26 @@ func Validate(auth Authority) bool { //TODO: sort.
 	if auth.Threshold == 0 {
 		return false
 	}
-	var prevKey KeyWeight
-	prevKey.Weight = 0
-	for _, k := range auth.Keys {
-		if k.Weight == 0 {
+
+	for i, k := range auth.Keys {
+		if i > 0 && ! (ecc.ComparePubKey(auth.Keys[i-1].Key, k.Key) == -1){
 			return false
 		}
 		totalWeight += uint32(k.Weight)
-		prevKey = k
 	}
-	var prevAcc PermissionLevelWeight
-	prevAcc.Weight = 0
-	for _, a := range auth.Accounts {
-		if a.Weight == 0 {
+
+	for i, a := range auth.Accounts {
+		if i > 0 && ! (ComparePermissionLevel(auth.Accounts[i-1].Permission, a.Permission) == -1){ //TODO
 			return false
 		}
 		totalWeight += uint32(a.Weight)
-		prevAcc = a
 	}
-	var prevWts WaitWeight
-	prevWts.Weight = 0
-	for _, w := range auth.Waits {
-		if w.Weight == 0 {
+
+	for i, w := range auth.Waits {
+		if i > 0 && auth.Waits[i-1].WaitSec >= w.WaitSec {
 			return false
 		}
 		totalWeight += uint32(w.Weight)
-		prevWts = w
 	}
 
 	return totalWeight >= auth.Threshold

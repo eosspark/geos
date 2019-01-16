@@ -6,6 +6,7 @@ import (
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto/ecc"
+	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/eosspark/eos-go/exception"
 	"github.com/stretchr/testify/assert"
 	"testing"
@@ -406,4 +407,147 @@ func TestAuthorityChecker(t *testing.T) {
 		checker = makeAuthChecker(getAuthority, 1, []ecc.PublicKey{d,e})
 		assert.True(t, !checker.SatisfiedAcd(&A, nil, 0))
 	}
+
+	assert.True(t, ecc.ComparePubKey(b, a) == -1)
+	assert.True(t, ecc.ComparePubKey(b, c) == -1)
+	assert.True(t, ecc.ComparePubKey(a, c) == -1)
+
+	{
+		// valid key order: b < a < c
+		A = types.SharedAuthority{
+			Threshold: 2,
+			Keys:      []types.KeyWeight{{b, 1}, {a, 1}, {c, 1}},
+		}
+		B := types.SharedAuthority{
+			Threshold: 1,
+			Keys:      []types.KeyWeight{{b, 1}, {c, 1}},
+		}
+		C := types.SharedAuthority{
+			Threshold: 1,
+			Keys:      []types.KeyWeight{{a, 1}, {c, 1}, {b, 1}},
+		}
+		D := types.SharedAuthority{
+			Threshold: 1,
+			Keys:      []types.KeyWeight{{b, 1}, {c, 1}, {c, 1}},
+		}
+		E := types.SharedAuthority{
+			Threshold: 1,
+			Keys:      []types.KeyWeight{{b, 1}, {b, 1}, {c, 1}},
+		}
+		F := types.SharedAuthority{
+			Threshold: 4,
+			Keys:      []types.KeyWeight{{b, 1}, {a, 1}, {c, 1}},
+		}
+		checker := makeAuthChecker(getNullAuthority, uint16(2), []ecc.PublicKey{a,b,c})
+		assert.True(t, types.Validate(A.ToAuthority()))
+		assert.True(t, types.Validate(B.ToAuthority()))
+		assert.True(t, !types.Validate(C.ToAuthority()))
+		assert.True(t, !types.Validate(D.ToAuthority()))
+		assert.True(t, !types.Validate(E.ToAuthority()))
+		assert.True(t, !types.Validate(F.ToAuthority()))
+
+		assert.True(t, !checker.AllKeysUsed())
+		unusedKeys := checker.GetUnusedKeys()
+		assert.True(t, unusedKeys.Size() == 3)
+		assert.True(t, checker.SatisfiedAcd(&A, nil, 0))
+		assert.True(t, checker.SatisfiedAcd(&B, nil, 0))
+		assert.True(t, !checker.AllKeysUsed())
+		unusedKeys = checker.GetUnusedKeys()
+		assert.True(t, unusedKeys.Size() == 1)
+	}
+
+	{
+		A := types.SharedAuthority{
+			Threshold: 4,
+			Keys:      []types.KeyWeight{{b, 1}, {a, 1}, {c, 1}},
+			Accounts:  []types.PermissionLevelWeight{
+							{types.PermissionLevel{Actor:common.N("a"), Permission:common.N("world")},1},
+							{types.PermissionLevel{Actor:common.N("hello"), Permission:common.N("world")},1},
+							{types.PermissionLevel{Actor:common.N("hi"), Permission:common.N("world")},1},
+						},
+		}
+		B := types.SharedAuthority{
+			Threshold: 4,
+			Keys:      []types.KeyWeight{{b, 1}, {a, 1}, {c, 1}},
+			Accounts:  []types.PermissionLevelWeight{
+				{types.PermissionLevel{Actor:common.N("hello"), Permission:common.N("world")},1},
+			},
+		}
+		C := types.SharedAuthority{
+			Threshold: 4,
+			Keys:      []types.KeyWeight{{b, 1}, {a, 1}, {c, 1}},
+			Accounts:  []types.PermissionLevelWeight{
+				{types.PermissionLevel{Actor:common.N("hello"), Permission:common.N("there")},1},
+				{types.PermissionLevel{Actor:common.N("hello"), Permission:common.N("world")},1},
+			},
+		}
+		D := types.SharedAuthority{
+			Threshold: 4,
+			Keys:      []types.KeyWeight{{b, 1}, {a, 1}, {c, 1}},
+			Accounts:  []types.PermissionLevelWeight{
+				{types.PermissionLevel{Actor:common.N("hello"), Permission:common.N("world")},1},
+				{types.PermissionLevel{Actor:common.N("hello"), Permission:common.N("world")},2},
+			},
+		}
+		E := types.SharedAuthority{
+			Threshold: 4,
+			Keys:      []types.KeyWeight{{b, 1}, {a, 1}, {c, 1}},
+			Accounts:  []types.PermissionLevelWeight{
+				{types.PermissionLevel{Actor:common.N("hello"), Permission:common.N("world")},2},
+				{types.PermissionLevel{Actor:common.N("hello"), Permission:common.N("there")},1},
+			},
+		}
+		F := types.SharedAuthority{
+			Threshold: 4,
+			Keys:      []types.KeyWeight{{b, 1}, {a, 1}, {c, 1}},
+			Accounts:  []types.PermissionLevelWeight{
+				{types.PermissionLevel{Actor:common.N("hi"), Permission:common.N("world")},2},
+				{types.PermissionLevel{Actor:common.N("hello"), Permission:common.N("world")},1},
+			},
+		}
+		G :=types.SharedAuthority{
+			Threshold: 7,
+			Keys:      []types.KeyWeight{{b, 1}, {a, 1}, {c, 1}},
+			Accounts:  []types.PermissionLevelWeight{
+				{types.PermissionLevel{Actor:common.N("a"), Permission:common.N("world")},1},
+				{types.PermissionLevel{Actor:common.N("hello"), Permission:common.N("world")},1},
+				{types.PermissionLevel{Actor:common.N("hi"), Permission:common.N("world")},1},
+
+			},
+		}
+		assert.True(t, types.Validate(A.ToAuthority()))
+		assert.True(t, types.Validate(B.ToAuthority()))
+		assert.True(t, types.Validate(C.ToAuthority()))
+		assert.True(t, !types.Validate(D.ToAuthority()))
+		assert.True(t, !types.Validate(E.ToAuthority()))
+		assert.True(t, !types.Validate(F.ToAuthority()))
+		assert.True(t, !types.Validate(G.ToAuthority()))
+	}
+}
+
+func TestTransactionTest(t *testing.T) {
+	bt := newBaseTester(true, chain.SPECULATIVE)
+	trx := types.SignedTransaction{}
+	type params struct {
+		From common.AccountName
+	}
+	ps := params{From: eosio}
+	data, _ := rlp.EncodeToBytes(ps)
+	act := types.Action{
+		Account:       eosio,
+		Name:          common.ActionName(common.N("reqauth")),
+		Authorization: []types.PermissionLevel{{eosio, common.DefaultConfig.ActiveName}},
+		Data:          data,
+	}
+	trx.Actions = append(trx.Actions, &act)
+	nonce := "dummy"
+	data, _ = rlp.EncodeToBytes(nonce)
+	contextFreeAct := types.Action{
+		Account:       eosio,
+		Name:          common.ActionName(common.N("nonce")),
+		Authorization: []types.PermissionLevel{},
+		Data:          data,
+	}
+	trx.ContextFreeActions = append(trx.ContextFreeActions, &contextFreeAct)
+	bt.SetTransactionHeaders(&trx.Transaction, bt.DefaultExpirationDelta, 0)
 }

@@ -516,7 +516,7 @@ func (t BaseTester) getPrivateKey(keyName common.Name, role string) ecc.PrivateK
 	if keyName == eosio {
 		pk, _ = ecc.NewPrivateKey("5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3")
 	} else {
-		rawPrivKey := crypto.Hash256(keyName.String() + role).Bytes()
+		rawPrivKey := crypto.Hash256String(keyName.String() + role).Bytes()
 		g := bytes.NewReader(rawPrivKey)
 		pk, _ = ecc.NewDeterministicPrivateKey(g)
 	}
