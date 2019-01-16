@@ -65,11 +65,11 @@ func (a *AppliedTransactionCaller) Call(data ...interface{}) {
 }
 
 type AcceptedConfirmationCaller struct {
-	Caller func(h types.HeaderConfirmation)
+	Caller func(h *types.HeaderConfirmation)
 }
 
 func (a *AcceptedConfirmationCaller) Call(data ...interface{}) {
-	a.Caller(data[0].(types.HeaderConfirmation))
+	a.Caller(data[0].(*types.HeaderConfirmation))
 }
 
 type BlockCaller struct {
@@ -96,7 +96,6 @@ func (a *TransactionAckCaller) Call(data ...interface{}) {
 	a.Caller(data[0].(common.Pair))
 }
 
-
 type MethodsType int
 
 const (
@@ -115,10 +114,9 @@ const (
 type BlockSyncCaller = BlockCaller
 
 type TransactionAsyncCaller struct {
-	Caller func(*types.PackedTransaction, bool, NextFunction/*TransactionTrace*/)
+	Caller func(*types.PackedTransaction, bool, NextFunction /*TransactionTrace*/)
 }
 
 func (t *TransactionAsyncCaller) Call(data ...interface{}) {
 	t.Caller(data[0].(*types.PackedTransaction), data[1].(bool), data[2].(NextFunction))
 }
-
