@@ -64,9 +64,10 @@ func Hash256(t interface{}) *Sha256 {
 	return result
 }
 
-func Hash256String(s string) *Sha256 {
+func Hash256String(t string) *Sha256 {
+	cereal :=[]byte(t)
 	h := sha256.New()
-	_, _ = h.Write([]byte(s))
+	_, _ = h.Write(cereal)
 	hashed := h.Sum(nil)
 
 	result := &Sha256{}

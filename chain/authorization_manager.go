@@ -35,8 +35,7 @@ func (a *AuthorizationManager) CreatePermission(account common.AccountName,
 	initialCreationTime common.TimePoint,
 ) *entity.PermissionObject {
 	creationTime := initialCreationTime
-	//TODO
-	if creationTime == 1 {
+	if creationTime == common.TimePoint(0) {
 		creationTime = a.control.PendingBlockTime()
 	}
 
@@ -122,7 +121,7 @@ func (a *AuthorizationManager) GetPermissionLastUsed(permission *entity.Permissi
 	return puo.LastUsed
 }
 
-func (a *AuthorizationManager) FindPermission(level *types.PermissionLevel) (p *entity.PermissionObject) { //TODO
+func (a *AuthorizationManager) FindPermission(level *types.PermissionLevel) (p *entity.PermissionObject) {
 	Try(func() {
 		EosAssert(!level.Actor.Empty() && !level.Permission.Empty(), &InvalidPermission{}, "Invalid permission")
 		po := entity.PermissionObject{}

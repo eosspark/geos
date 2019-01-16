@@ -272,22 +272,16 @@ func (wtv *WeightTallyVisitor) VisitPermissionLevelWeight(permission PermissionL
 
 func MakeAuthChecker(pta PermissionToAuthorityFunc,
 	recursionDepthLimit uint16,
-	providedKeys *treeset.Set,       //[]*ecc.PublicKey,
-	providedPermission *treeset.Set, //[]*PermissionLevel,
+	providedKeys *treeset.Set,
+	providedPermission *treeset.Set,
 	providedDelay common.Microseconds,
 	checkTime *func()) AuthorityChecker {
-	//noopChecktime := func() {}
 	providedKeysArray := make([]ecc.PublicKey, 0)
 	usedKeysArray := make([]bool, providedKeys.Size())
 	itr := providedKeys.Iterator()
 	for itr.Next() {
 		providedKeysArray = append(providedKeysArray, itr.Value().(ecc.PublicKey))
 	}
-	/*for i := 0; i < len(providedKeys.Values()); i++ {
-		data:=providedKeys.Values()
-		element := data[i].(ecc.PublicKey)
-		providedKeysArray[i] = element
-	}*/
 	return AuthorityChecker{permissionToAuthority: pta, RecursionDepthLimit: recursionDepthLimit,
 		ProvidedKeys: providedKeysArray, ProvidedPermissions: *providedPermission,
 		ProvidedDelay: providedDelay, UsedKeys: usedKeysArray, CheckTime: checkTime,
