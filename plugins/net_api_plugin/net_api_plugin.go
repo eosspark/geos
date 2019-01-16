@@ -2,7 +2,6 @@ package net_api_plugin
 
 import (
 	"encoding/json"
-	"fmt"
 	"github.com/eosspark/eos-go/common"
 	. "github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/log"
@@ -61,7 +60,7 @@ func (n *NetApiPlugin) PluginStartup() {
 			if len(body) == 0 {
 				body = []byte("{}")
 			}
-			fmt.Println("/v1/net/connect")
+
 			result := netMgr.Connect(string(body))
 			if byte, err := json.Marshal(result); err == nil {
 				cb(200, byte)

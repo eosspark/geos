@@ -2,7 +2,6 @@ package net_plugin
 
 import (
 	"encoding/binary"
-	"encoding/json"
 	"fmt"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
@@ -22,20 +21,41 @@ import (
 	"net"
 	"reflect"
 	"runtime"
-	"time"
 )
 
 const (
 	tsBufferSize int = 32
 )
 
+//Index by start_block_num
+type syncState struct {
+	startBlock uint32
+	endBlock   uint32
+	last       uint32           //last sent or received
+	startTime  common.TimePoint //time request made or received
+}
+
+func newSyncState(start, end, lastActed uint32) *syncState {
+	return &syncState{
+		startBlock: start,
+		endBlock:   end,
+		last:       lastActed,
+		startTime:  common.Now(),
+	}
+}
+
+type queuedWrite struct {
+	buff     []byte
+	callback func(err error, n int)
+}
+
 type Connection struct {
 	blkState      *peer_block_state.PeerBlockStateIndex
 	trxState      *transaction_state.TransactionStateIndex
 	peerRequested *syncState //this peer is requesting info from us
-	//socket socketPtr
+	socket        *asio.ReactiveSocket
 
-	socket               net.Conn
+	conn                 net.Conn
 	reader               io.Reader
 	pendingMessageBuffer [1024 * 1024]byte
 	//outstandingReadBytes optional<int>
@@ -56,8 +76,7 @@ type Connection struct {
 	noRetry     GoAwayReason
 	forkHead    common.BlockIdType
 	forkHeadNum uint32
-	//lastReq optional<request_message>
-	lastReq *RequestMessage
+	lastReq     *RequestMessage
 
 	// Members set from network data
 	org common.TimePoint //originate timestamp
@@ -69,6 +88,9 @@ type Connection struct {
 	offset float64 //peer offset double TODO
 
 	ts [tsBufferSize]byte //working buffer for making human readable timestamps
+
+	writeQueue []queuedWrite
+	outQueue   []queuedWrite
 
 	impl *netPluginIMpl
 }
@@ -85,6 +107,7 @@ func NewConnectionByEndPoint(endpoint string, impl *netPluginIMpl) *Connection {
 		blkState:           peer_block_state.NewPeerBlockStateIndex(),
 		trxState:           transaction_state.NewTransactionStateIndex(),
 		peerRequested:      new(syncState),
+		socket:             asio.NewReactiveSocket(App().GetIoService()),
 		lastHandshakeSent:  &HandshakeMessage{},
 		lastHandshakeRecv:  &HandshakeMessage{},
 		sentHandshakeCount: 0,
@@ -105,12 +128,13 @@ func NewConnectionByEndPoint(endpoint string, impl *netPluginIMpl) *Connection {
 	return conn
 }
 
-func NewConnectionByConn(c net.Conn, impl *netPluginIMpl) *Connection {
+func NewConnectionByConn(socket *asio.ReactiveSocket, c net.Conn, impl *netPluginIMpl) *Connection {
 	conn := &Connection{
 		blkState:           peer_block_state.NewPeerBlockStateIndex(),
 		trxState:           transaction_state.NewTransactionStateIndex(),
 		peerRequested:      new(syncState),
-		socket:             c,
+		conn:               c,
+		socket:             socket,
 		lastHandshakeSent:  &HandshakeMessage{},
 		lastHandshakeRecv:  &HandshakeMessage{},
 		sentHandshakeCount: 0,
@@ -136,22 +160,6 @@ func (c *Connection) initialize() {
 	rnd := c.nodeID.Bytes()
 	rnd[0] = 0
 	c.responseExpected = asio.NewDeadlineTimer(App().GetIoService())
-}
-
-func NewPeer(impl *netPluginIMpl, conn net.Conn, reader io.Reader) *Connection {
-	return &Connection{
-		blkState:      peer_block_state.NewPeerBlockStateIndex(),
-		trxState:      transaction_state.NewTransactionStateIndex(),
-		peerRequested: new(syncState),
-
-		socket:             conn,
-		reader:             reader,
-		peerAddr:           conn.RemoteAddr().String(),
-		lastHandshakeSent:  &HandshakeMessage{},
-		lastHandshakeRecv:  &HandshakeMessage{},
-		sentHandshakeCount: 0,
-		impl:               impl,
-	}
 }
 
 func (c *Connection) getStatus() *PeerStatus {
@@ -187,11 +195,9 @@ func (c *Connection) sendHandshake(impl *netPluginIMpl) {
 	handshakePopulate(impl, c.lastHandshakeSent)
 	c.sentHandshakeCount += 1
 	c.lastHandshakeSent.Generation = c.sentHandshakeCount
-	//fc_dlog(logger, "Sending handshake generation ${g} to ${ep}",
-	//	("g",last_handshake_sent.generation)("ep", peer_name()));
 
-	fmt.Printf("Sending handshake generation %d to %s\n", c.lastHandshakeSent.Generation, c.peerAddr)
-	c.write(c.lastHandshakeSent)
+	fcLog.Info("Sending handshake generation %d to %s\n", c.lastHandshakeSent.Generation, c.peerAddr)
+	c.enqueue(c.lastHandshakeSent, true)
 }
 
 func handshakePopulate(impl *netPluginIMpl, hello *HandshakeMessage) {
@@ -222,28 +228,23 @@ func handshakePopulate(impl *netPluginIMpl, hello *HandshakeMessage) {
 	}
 	hello.Agent = impl.userAgentName
 
-	//controller& cc = my_impl->chain_plug->chain();
+	cc := impl.ChainPlugin.Chain()
 	hello.HeadID = common.BlockIdNil()
-	//hello.head_num = cc.fork_db_head_block_num();
-	//hello.last_irreversible_block_num = cc.last_irreversible_block_num();
-
-	//hello.HeadNum =  cc.fork_db_head_block_num();
-	//hello.LastIrreversibleBlockID = hello.LastIrreversibleBlockID
+	hello.LastIrreversibleBlockID = common.BlockIdNil()
+	hello.HeadNum = cc.ForkDbHeadBlockNum()
+	hello.LastIrreversibleBlockNum = cc.LastIrreversibleBlockNum()
 
 	if hello.LastIrreversibleBlockNum > 0 {
 		Try(func() {
-			//hello.LastIrreversibleBlockID = cc.get_block_id_for_num(hello.last_irreversible_block_num)
-			//hello.LastIrreversibleBlockID =
+			hello.LastIrreversibleBlockID = cc.GetBlockIdForNum(hello.LastIrreversibleBlockNum)
 		}).Catch(func(ex *exception.UnknownBlockException) {
-			//ilog("caught unkown_block");
-			fmt.Println("caught unkown_block")
-			//hello.LastIrreversibleBlockNum =0
+			netLog.Info("caught unkown_block")
+			hello.LastIrreversibleBlockNum = 0
 		}).End()
 	}
 	if hello.HeadNum > 0 {
 		Try(func() {
-			//hello.id = cc.get_block_id_for_num( hello.head_num )
-			//hello.id =
+			hello.HeadID = cc.GetBlockIdForNum(hello.HeadNum)
 		}).Catch(func(ex *exception.UnknownBlockException) {
 			hello.HeadNum = 0
 		}).End()
@@ -255,19 +256,6 @@ func (c *Connection) PeerName() string {
 	return c.peerAddr
 }
 
-//void connection::sync_wait( ) {
-//response_expected->expires_from_now( my_impl->resp_expected_period);
-//connection_wptr c(shared_from_this());
-//response_expected->async_wait( [c]( boost::system::error_code ec){
-//connection_ptr conn = c.lock();
-//if (!conn) {
-//// connection was destroyed before this lambda was delivered
-//return;
-//}
-//
-//conn->sync_timeout(ec);
-//} );
-//}
 func (c *Connection) syncWait() {
 
 }
@@ -281,21 +269,17 @@ func (c *Connection) fetchWait() {
 }
 
 func (c *Connection) cancelSync(reason GoAwayReason) {
-	//fc_dlog(logger,"cancel sync reason = ${m}, write queue size ${o} peer ${p}",
-	//	("m",reason_str(reason)) ("o", write_queue.size())("p", peer_name()));
-
-	netLog.Debug("cancel sync reason = %s, write queue size %d peer %s", ReasonToString[reason], c.write)
+	fcLog.Debug("cancel sync reason = %s, write queue size %d peer %s", ReasonToString[reason], len(c.writeQueue), c.peerAddr)
 
 	c.cancelWait()
 	//c.flushQueues()
 	switch reason {
 	case validation, fatalOther:
 		c.noRetry = reason
-		c.write(&GoAwayMessage{Reason: reason})
+		c.enqueue(&GoAwayMessage{Reason: reason}, true)
 	default:
-		//fc_dlog(logger, "sending empty request but not calling sync wait on ${p}", ("p",peer_name()))
-		netLog.Debug("sending empty request but not calling sync wait on %s", c.peerAddr)
-		c.write(&SyncRequestMessage{0, 0})
+		fcLog.Debug("sending empty request but not calling sync wait on %s", c.peerAddr)
+		c.enqueue(&SyncRequestMessage{0, 0}, true)
 	}
 
 }
@@ -311,7 +295,6 @@ func (c *Connection) txnSendPending(ids []*common.TransactionIdType) {
 				}
 			}
 			if !found {
-				//my_impl->local_txns.modify(tx,incr_in_flight);
 				c.impl.localTxns.Modify(tx, func(state *NodeTransactionState) {
 					exp := state.Expires.SecSinceEpoch()
 					state.Expires = common.TimePointSec(exp + 1*60)
@@ -386,7 +369,7 @@ func (c *Connection) blkSendBranch() {
 	note.KnownBlocks.Pending = 0
 	fcLog.Debug("head_num = %d", headNum)
 	if headNum == 0 {
-		c.write(&note) //todo
+		c.enqueue(&note, true) //todo
 		return
 	}
 
@@ -413,7 +396,7 @@ func (c *Connection) blkSendBranch() {
 		headID = cc.ForkDbHeadBlockId()
 	}).Catch(func(ex *exception.AssertException) {
 		log.Error("unable to retrieve block info: %s for %s", ex.What(), c.peerAddr)
-		c.write(&note)
+		c.enqueue(&note, true)
 		returning = true
 	}).Catch(func(ex exception.Exception) {
 
@@ -458,7 +441,7 @@ func (c *Connection) blkSendBranch() {
 	if len(bStack) > 0 {
 		if bStack[count-1].Previous.Equals(libID) || bStack[count-1].Previous.Equals(remoteHeadID) {
 			for i := len(bStack); i > 0; i-- {
-				c.write(&SignedBlockMessage{*bStack[i-1]})
+				c.enqueue(&SignedBlockMessage{*bStack[i-1]}, true)
 			}
 		}
 		fcLog.Info("Sent %d blocks on my fork", count)
@@ -479,8 +462,7 @@ func (c *Connection) blkSend(ids []*common.BlockIdType) {
 			b := cc.FetchBlockById(*blkID)
 			if b != nil {
 				netLog.Debug("found block for id ar num %d", b.BlockNumber())
-				//enqueue(net_message(*b))//TODO
-				c.write(&SignedBlockMessage{*b})
+				c.enqueue(&SignedBlockMessage{*b}, true)
 			} else {
 				netLog.Info("fetch block by id returned null, id %s on block %d of %d for %s",
 					blkID, count, len(ids), c.peerAddr)
@@ -527,8 +509,8 @@ func (c *Connection) enqueueSyncBlock() bool {
 	Try(func() {
 		sb := cc.FetchBlockByNumber(num)
 		if sb != nil {
-			//enqueue( *sb, trigger_send);//todo
-			fmt.Println(triggerSend)
+			c.enqueue(&SignedBlockMessage{*sb}, triggerSend)
+			netLog.Info("%s", triggerSend)
 			result = true
 		}
 	}).Catch(func(e interface{}) {
@@ -543,7 +525,7 @@ func (c *Connection) requestSyncBlocks(start, end uint32) {
 		StartBlock: start,
 		EndBlock:   end,
 	}
-	c.write(&syncRequest)
+	c.enqueue(&syncRequest, true)
 	c.syncWait()
 }
 
@@ -589,7 +571,7 @@ func (c *Connection) sendTime(msg *TimeMessage) {
 		Rec: msg.Dst,
 		Xmt: common.Now(),
 	}
-	c.write(xpkt)
+	c.enqueue(xpkt, true)
 }
 
 func (c *Connection) sendTimeTicker() {
@@ -599,7 +581,7 @@ func (c *Connection) sendTimeTicker() {
 		Xmt: common.Now(),
 	}
 	c.org = xpkt.Xmt
-	c.write(xpkt)
+	c.enqueue(xpkt, true)
 }
 
 func (c *Connection) addPeerBlock(entry *PeerBlockState) bool {
@@ -608,7 +590,6 @@ func (c *Connection) addPeerBlock(entry *PeerBlockState) bool {
 	if added {
 		c.blkState.Insert(*entry)
 	} else {
-		//blk_state.modify(bptr,set_is_known);
 		c.blkState.Modify(bPtr, func(state *PeerBlockState) {
 			(*state).IsKnown = true
 		})
@@ -625,95 +606,79 @@ func (c *Connection) addPeerBlock(entry *PeerBlockState) bool {
 	return added
 }
 
-func (c *Connection) read(impl *netPluginIMpl) {
-	defer func() {
-		c.socket.Close()
-
-	}()
-
-	netLog.Info("start read message!")
-
-	for {
-		p2pMessage, err := ReadP2PMessageData(c.reader)
-		if err != nil {
-			fmt.Println("Error reading from p2p client:", err)
-			continue
+func (c *Connection) processNextMessage(payloadBytes []byte) bool {
+	result := true
+	Try(func() {
+		messageType := P2PMessageType(payloadBytes[0])
+		attr, ok := messageType.reflectTypes()
+		if !ok {
+			Throw(fmt.Errorf("decode, unknown p2p message type %d", messageType))
 		}
-		time.Sleep(100 * time.Millisecond) //TODO for testing
-		//data, err := json.Marshal(p2pMessage)
-		//if err != nil {
-		//	fmt.Println(err)
-		//}
-		//fmt.Println(c.peerAddr, ": Receive P2PMessag ", string(data))
+		msg := reflect.New(attr.ReflectType)
+		err := rlp.DecodeBytes(payloadBytes[1:], msg.Interface())
+		if err != nil {
+			Throw(err)
+		}
+
+		p2pMessage := msg.Interface().(P2PMessage)
 
 		switch msg := p2pMessage.(type) {
 		case *HandshakeMessage:
-			impl.handleHandshakeMsg(c, msg)
+			c.impl.handleHandshakeMsg(c, msg)
 		case *ChainSizeMessage:
-			impl.handleChainSizeMsg(c, msg)
+			c.impl.handleChainSizeMsg(c, msg)
 		case *GoAwayMessage:
-			impl.handleGoawayMsg(c, msg)
-			fmt.Printf("GO AWAY Reason[%d] \n", msg.Reason)
+			c.impl.handleGoawayMsg(c, msg)
 		case *TimeMessage:
-			impl.handleTimeMsg(c, msg)
+			c.impl.handleTimeMsg(c, msg)
 		case *NoticeMessage:
-			impl.handleNoticeMsg(c, msg)
+			c.impl.handleNoticeMsg(c, msg)
 		case *RequestMessage:
-			impl.handleRequestMsg(c, msg)
+			c.impl.handleRequestMsg(c, msg)
 		case *SyncRequestMessage:
-			impl.handleSyncRequestMsg(c, msg)
+			c.impl.handleSyncRequestMsg(c, msg)
 		case *SignedBlockMessage:
-			impl.handleSignedBlock(c, msg)
+			c.impl.handleSignedBlock(c, msg)
 		case *PackedTransactionMessage:
-			impl.handlePackTransaction(c, msg)
+			c.impl.handlePackTransaction(c, msg)
 		default:
-			fmt.Println("unsupport p2pmessage type")
+			Throw(fmt.Errorf("unsuppoted p2p message type %d", messageType))
 		}
-
-	}
+	}).Catch(func(e exception.FcException) {
+		netLog.Error("read message is error:%s", e.DetailMessage())
+		c.impl.close(c)
+		result = false
+	}).End()
+	return result
 }
 
-func ReadP2PMessageData(r io.Reader) (p2pMessage P2PMessage, err error) {
-	//data := make([]byte, 0)
-	lengthBytes := make([]byte, 4, 4)
-	_, err = io.ReadFull(r, lengthBytes)
-	if err != nil {
-		return
-	}
-	//data = append(data, lengthBytes...)
-	size := binary.LittleEndian.Uint32(lengthBytes)
-	payloadBytes := make([]byte, size, size)
-	count, err := io.ReadFull(r, payloadBytes)
-	if count != int(size) {
-		err = fmt.Errorf("readfull not full read [%d] expected[%d]", count, size)
-		return
-	}
-	if err != nil {
-		fmt.Println("readfull ,error:", err)
-		return
-	}
-	//data = append(data, payloadBytes...)
-	//fmt.Printf("receive data:  %#v\n", data)
+//func (c *Connection) write(message P2PMessage) {
+//	payload, err := rlp.EncodeToBytes(message)
+//	if err != nil {
+//		err = fmt.Errorf("p2p message, %s", err)
+//		return
+//	}
+//	messageLen := uint32(len(payload) + 1)
+//	buf := make([]byte, 4)
+//	binary.LittleEndian.PutUint32(buf, messageLen)
+//	sendBuf := append(buf, byte(message.GetType()))
+//	sendBuf = append(sendBuf, payload...)
+//
+//	c.conn.Write(sendBuf)
+//
+//	data, _ := json.Marshal(message)
+//	netLog.Info("%s: send Message json: %s", c.peerAddr, string(data))
+//
+//	return
+//}
 
-	messagetype := P2PMessageType(payloadBytes[0])
-	attr, ok := messagetype.reflectTypes()
-	if !ok {
-		fmt.Errorf("decode, unknown p2p message type [%d]", messagetype)
-		return
-	}
-	msg := reflect.New(attr.ReflectType)
-	err = rlp.DecodeBytes(payloadBytes[1:], msg.Interface())
-	if err != nil {
-		return nil, err
+func (c *Connection) enqueue(m P2PMessage, triggerSend bool) {
+	closeAfterSend := noReason
+	if m.GetType() == GoAwayMessageType {
+		closeAfterSend = m.(*GoAwayMessage).Reason
 	}
 
-	p2pMessage = msg.Interface().(P2PMessage)
-
-	return
-}
-
-func (c *Connection) write(message P2PMessage) {
-	payload, err := rlp.EncodeToBytes(message)
+	payload, err := rlp.EncodeToBytes(m)
 	if err != nil {
 		err = fmt.Errorf("p2p message, %s", err)
 		return
@@ -721,23 +686,80 @@ func (c *Connection) write(message P2PMessage) {
 	messageLen := uint32(len(payload) + 1)
 	buf := make([]byte, 4)
 	binary.LittleEndian.PutUint32(buf, messageLen)
-	sendBuf := append(buf, byte(message.GetType()))
+	sendBuf := append(buf, byte(m.GetType()))
 	sendBuf = append(sendBuf, payload...)
 
-	c.socket.Write(sendBuf)
-
-	data, _ := json.Marshal(message)
-	netLog.Info("%s: send Message json: %s", c.peerAddr, string(data))
-
-	return
+	c.queueWrite(sendBuf, triggerSend, func(err error, n int) {
+		if c != nil {
+			if closeAfterSend != noReason {
+				netLog.Error("snet a go away message: %s, closing connection to %s", ReasonToString[closeAfterSend], c.PeerName())
+				c.impl.close(c)
+				return
+			}
+		} else {
+			fcLog.Warn("connection expired before enqueued net_message called callback!")
+		}
+	})
 }
 
-func toProtocolVersion(v uint16) uint16 {
-	if v >= netVersionBase {
-		v -= netVersionBase
-		if v <= netVersionRange {
-			return v
-		}
+func (c *Connection) queueWrite(buf []byte, triggerSend bool, callback func(err error, n int)) {
+	c.writeQueue = append(c.writeQueue, queuedWrite{buf, callback})
+	if len(c.outQueue) == 0 && triggerSend {
+		c.doQueueWrite()
 	}
-	return 0
+}
+
+func (c *Connection) doQueueWrite() {
+	if len(c.writeQueue) == 0 || len(c.outQueue) > 0 {
+		return
+	}
+
+	if c.socket == nil {
+		fcLog.Error("socket not open to %s", c.peerAddr)
+		c.impl.close(c)
+		return
+	}
+	bufs := make([]byte, 0)
+	for i := 0; i < len(c.writeQueue); i++ {
+		m := c.writeQueue[i]
+		bufs = append(bufs, m.buff...)
+		c.outQueue = append(c.outQueue, m)
+	}
+
+	c.socket.AsyncWrite(c.conn, bufs, func(n int, err error) {
+		Try(func() {
+			for _, m := range c.outQueue {
+				m.callback(err, n)
+			}
+			if err != nil {
+				pName := "no connection name"
+				if c != nil {
+					pName = c.PeerName()
+				}
+				netLog.Error("error sending to peer %s,error is %s", pName, err.Error())
+				netLog.Info("connection closure detected o write to %s", pName)
+				c.impl.close(c)
+				return
+			}
+
+			c.outQueue = nil
+
+			c.enqueueSyncBlock()
+			c.doQueueWrite()
+
+		}).Catch(func(e interface{}) {
+			//conn :=c.lock()//TODO
+			conn := c
+			var pName string
+			if conn != nil {
+				pName = c.peerAddr
+			} else {
+				pName = "no connection name"
+			}
+
+			netLog.Error("Exception in do_queue_write to %s", pName)
+
+		}).End()
+
+	})
 }

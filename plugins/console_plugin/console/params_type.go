@@ -39,16 +39,9 @@ type PushAction struct {
 	StandardTransactionOptions
 }
 
-type SetCodeParams struct {
+type SetContractParams struct {
 	Account                string `json:"account"`
 	ContractPath           string `json:"code_file"`
-	ContractClear          bool   `json:"clear"`
-	SuppressDuplicateCheck bool   `json:"suppress_duplicate_check"`
-	StandardTransactionOptions
-}
-
-type SetAbiParams struct {
-	Account                string `json:"account"`
 	AbiPath                string `json:"abi_file"`
 	ContractClear          bool   `json:"clear"`
 	SuppressDuplicateCheck bool   `json:"suppress_duplicate_check"`

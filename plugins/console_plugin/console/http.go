@@ -105,24 +105,16 @@ func (api *API) call(path string, body interface{}) ([]byte, error) {
 		return nil, fmt.Errorf("%s: status code=%d, body=%s", req.URL.String(), resp.StatusCode, cnt.String())
 	}
 
+	//api.log.Debug("Response body: %s", cnt.String())
+
 	if api.Debug {
-		api.log.Debug("RESPONSE:")
-		api.log.Debug("body: %s", cnt.String())
-		// fmt.Println("byte: ", cnt.Bytes())
-		api.log.Debug("")
+		api.log.Debug("Response body: %s", cnt.String())
 	}
 
 	return cnt.Bytes(), nil
 }
 
 func DoHttpCall(result interface{}, path string, body interface{}) error {
-	//var url string
-	//if strings.Contains(path,"/v1/chain/"){
-	//	url ="http://127.0.0.1:8888"
-	//}else{
-	//	url ="http://127.0.0.1:8000"
-	//}
-	//http := NewHttp(url)
 	http := NewHttp(common.HttpEndPoint)
 	out, err := http.call(path, body)
 	if err != nil {
@@ -131,7 +123,7 @@ func DoHttpCall(result interface{}, path string, body interface{}) error {
 
 	if result != nil {
 		if err := json.Unmarshal(out, &result); err != nil {
-			fmt.Printf("dohttpCall, Unmarshal: %s", err.Error())
+			fmt.Printf("dohttpCall, Unmarshal: %s\n", err.Error())
 			return err
 		}
 	}

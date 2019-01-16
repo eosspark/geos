@@ -12,26 +12,9 @@ import (
 	"unsafe"
 )
 
-type BlockRequest struct {
-	id         common.BlockIdType
-	localRetry bool
-}
-type blockOrigin struct {
-	id   common.BlockIdType
-	conn *Connection
-}
-type transactionOrigin struct {
-	id   common.TransactionIdType
-	conn *Connection
-}
-
 type dispatchManager struct {
-	justSendItMax uint32
-	regBlks       []BlockRequest
-	reqTrx        []common.TransactionIdType
-	//receivedBlocks       map[common.BlockIdType]*Peer
-	//receivedTransactions map[common.TransactionIdType]*Peer
-
+	justSendItMax        uint32
+	reqTrx               []common.TransactionIdType
 	receivedBlocks       map[common.BlockIdType][]*Connection
 	receivedTransactions map[common.TransactionIdType][]*Connection
 	myImpl               *netPluginIMpl
@@ -87,15 +70,14 @@ func (d *dispatchManager) bcastBlock(myImpl *netPluginIMpl, bsum *types.SignedBl
 		})
 	} else {
 		pbstate.IsKnown = true
-		//for _,_ =range my.peers{
-		p := Connection{}
-		_, ok := skips[&p]
-		if ok || !p.current() {
-			//continue
+		for _, cp := range d.myImpl.connections {
+			_, ok := skips[cp]
+			if ok || !cp.current() {
+				continue
+			}
+			cp.addPeerBlock(&pbstate)
+			cp.enqueue(&msg, true)
 		}
-		p.addPeerBlock(&pbstate)
-		p.write(&msg)
-		//}
 	}
 }
 
@@ -183,7 +165,14 @@ func (d *dispatchManager) bcastTransaction(trx *types.PackedTransaction) { // TO
 			unknown := bs.IsEnd()
 
 			if unknown {
-				c.trxState.Insert(TransactionState{id, false, true, 0, trxExpiration, common.TimePoint(0)})
+				c.trxState.Insert(TransactionState{
+					ID:              id,
+					IsKnownByPeer:   false,
+					IsNoticedToPeer: true,
+					BlockNum:        0,
+					Expires:         trxExpiration,
+					RequestedTime:   common.TimePoint(0),
+				})
 				fcLog.Debug("sending notice to  %s", c.peerAddr)
 			} else {
 				c.trxState.Modify(bs, func(state *TransactionState) {
@@ -207,7 +196,14 @@ func (d *dispatchManager) bcastTransaction(trx *types.PackedTransaction) { // TO
 			unknown := bs.IsEnd()
 			if unknown {
 				fcLog.Debug("sending notice to  %s", c.peerAddr)
-				c.trxState.Insert(TransactionState{id, false, true, 0, trxExpiration, common.TimePoint(0)})
+				c.trxState.Insert(TransactionState{
+					ID:              id,
+					IsKnownByPeer:   false,
+					IsNoticedToPeer: true,
+					BlockNum:        0,
+					Expires:         trxExpiration,
+					RequestedTime:   common.TimePoint(0),
+				})
 			} else {
 				c.trxState.Modify(bs, func(state *TransactionState) {
 					(*state).Expires = trxExpiration
@@ -256,8 +252,14 @@ func (d *dispatchManager) recvNotice(c *Connection, msg *NoticeMessage, generate
 				//At this point the details of the txn are not known, just its id. This
 				//effectively gives 120 seconds to learn of the details of the txn which
 				//will update the expiry in bcast_transaction
-				c.trxState.Insert(TransactionState{*t, true, true, 0,
-					common.TimePointSec(common.Now() + 120), common.TimePoint(0)})
+				c.trxState.Insert(TransactionState{
+					ID:              *t,
+					IsKnownByPeer:   true,
+					IsNoticedToPeer: true,
+					BlockNum:        0,
+					Expires:         common.TimePointSec(common.Now() + 120),
+					RequestedTime:   common.TimePoint(0),
+				})
 
 				req.ReqTrx.IDs = append(req.ReqTrx.IDs, t)
 				d.reqTrx = append(d.reqTrx, *t)
@@ -278,7 +280,13 @@ func (d *dispatchManager) recvNotice(c *Connection, msg *NoticeMessage, generate
 
 		for _, blkID := range msg.KnownBlocks.IDs {
 			b := &types.SignedBlock{}
-			entry := PeerBlockState{*blkID, 0, true, true, common.TimePoint(0)}
+			entry := PeerBlockState{
+				ID:            *blkID,
+				BlockNum:      0,
+				IsKnown:       true,
+				IsNoticed:     true,
+				RequestedTime: common.TimePoint(0),
+			}
 			Try(func() {
 				b = cc.FetchBlockById(*blkID)
 				if b != nil {
@@ -305,7 +313,7 @@ func (d *dispatchManager) recvNotice(c *Connection, msg *NoticeMessage, generate
 
 	netLog.Debug("send req = %s", sendReq)
 	if sendReq {
-		c.write(&req)
+		c.enqueue(&req, true)
 		c.fetchWait()
 		c.lastReq = &req
 	}
@@ -348,7 +356,7 @@ func (d *dispatchManager) retryFetch(c *Connection) {
 			sendIt = !blk.IsEnd() && blk.Value().IsKnown
 		}
 		if sendIt {
-			conn.write(c.lastReq)
+			conn.enqueue(c.lastReq, true)
 			conn.fetchWait()
 			conn.lastReq = c.lastReq
 			return
@@ -358,7 +366,7 @@ func (d *dispatchManager) retryFetch(c *Connection) {
 
 	// at this point no other peer has it, re-request or do nothing?
 	if c.connected() {
-		c.write(c.lastReq)
+		c.enqueue(c.lastReq, true)
 		c.fetchWait()
 	}
 }

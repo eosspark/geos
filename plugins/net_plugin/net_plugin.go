@@ -43,7 +43,7 @@ func (n *NetPlugin) SetProgramOptions(options *[]cli.Flag) {
 		cli.StringFlag{
 			Name:  "p2p-listen-endpoint",
 			Usage: "The actual host:port used to listen for incoming p2p connections.",
-			Value: "0.0.0.0:9876",
+			Value: "0.0.0.0:9800",
 		},
 		cli.StringFlag{
 			Name:  "p2p-server-address",
@@ -201,8 +201,9 @@ func (n *NetPlugin) PluginInitialize(c *cli.Context) {
 		rand.Read(nodeID)
 		nodeIdHash := *crypto.NewSha256Byte(nodeID)
 		n.my.nodeID = common.NodeIdType(nodeIdHash)
-		log.Info("my node_id is %s", n.my.nodeID)
-		n.my.connections = make([]*Connection, 25)
+		netLog.Info("my node_id is %s", n.my.nodeID)
+		netLog.Info("my chain_id is %s", n.my.ChainPlugin.GetChainId())
+		n.my.connections = make([]*Connection, 0)
 
 		n.my.keepAliceTimer = asio.NewDeadlineTimer(App().GetIoService())
 		n.my.ticker()
@@ -251,7 +252,7 @@ func (n *NetPlugin) PluginShutdown() {
 	Try(func() {
 		netLog.Info("shutdown...")
 		if n.my.Listener != nil {
-			netLog.Info("close listener")
+			netLog.Info("close acceptor")
 			n.my.Listener.Close()
 		}
 		netLog.Info("close %d connections", len(n.my.connections))
@@ -259,7 +260,7 @@ func (n *NetPlugin) PluginShutdown() {
 		for _, p := range peers {
 			n.my.close(p)
 		}
-		netLog.Info("net Plugin exit shutdown")
+		netLog.Info("exit shutdown")
 	}).FcCaptureAndRethrow().End()
 }
 
