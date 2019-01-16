@@ -372,7 +372,7 @@ func (d *Decoder) decodeStruct(v interface{}, t reflect.Type, rv reflect.Value) 
 
 func (d *Decoder) ReadUvarint64() (uint64, error) {
 	l, read := binary.Uvarint(d.data[d.pos:])
-	if read <= 0 {
+	if read < 0 {
 		return l, ErrVarIntBufferSize
 	}
 	d.pos += read
@@ -380,7 +380,7 @@ func (d *Decoder) ReadUvarint64() (uint64, error) {
 }
 func (d *Decoder) ReadVarint64() (out int64, err error) {
 	l, read := binary.Varint(d.data[d.pos:])
-	if read <= 0 {
+	if read < 0 {
 		return l, ErrVarIntBufferSize
 	}
 	d.pos += read

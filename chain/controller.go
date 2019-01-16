@@ -1650,7 +1650,7 @@ func (c *Controller) initializeForkDB() {
 	gs := c.Config.Genesis
 	pst := types.ProducerScheduleType{0, []types.ProducerKey{
 		{common.DefaultConfig.SystemAccountName, gs.InitialKey}}}
-	genHeader := types.BlockHeaderState{}
+	genHeader := types.BlockHeaderState{Header: *types.NewSignedBlockHeader()}
 	genHeader.ActiveSchedule = pst
 	genHeader.PendingSchedule = pst
 	genHeader.PendingScheduleHash = *crypto.Hash256(pst)

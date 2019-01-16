@@ -22,7 +22,10 @@ type dispatchManager struct {
 
 func NewDispatchManager(impl *netPluginIMpl) *dispatchManager {
 	return &dispatchManager{
-		myImpl: impl,
+		reqTrx:               make([]common.TransactionIdType, 0),
+		receivedBlocks:       make(map[common.BlockIdType][]*Connection, 0),
+		receivedTransactions: make(map[common.TransactionIdType][]*Connection, 0),
+		myImpl:               impl,
 	}
 }
 
@@ -44,7 +47,7 @@ func (d *dispatchManager) bcastBlock(myImpl *netPluginIMpl, bsum *types.SignedBl
 	msgsiz := uint32(packsize) + uint32(unsafe.Sizeof(packsize))
 	pendingNotify := NoticeMessage{}
 	pendingNotify.KnownBlocks.Mode = normal
-	pendingNotify.KnownBlocks.IDs = append(pendingNotify.KnownBlocks.IDs, &bid)
+	pendingNotify.KnownBlocks.IDs = append(pendingNotify.KnownBlocks.IDs, bid)
 	pendingNotify.KnownTrx.Mode = none
 
 	pbstate := PeerBlockState{
@@ -89,23 +92,29 @@ func (d *dispatchManager) rejectedBlock(id *common.BlockIdType) {
 	}
 }
 
-func (d *dispatchManager) recvBlock(p *Connection, id *common.BlockIdType, bnum uint32) {
-	d.receivedBlocks[*id] = append(d.receivedBlocks[*id], p)
-	IdsCount := len(p.lastReq.ReqBlocks.IDs)
-	if p != nil && p.lastReq != nil && p.lastReq.ReqBlocks.Mode != none && IdsCount > 0 && p.lastReq.ReqBlocks.IDs[IdsCount-1] == id {
-		p.lastReq = &RequestMessage{} //TODO
+func (d *dispatchManager) recvBlock(c *Connection, id common.BlockIdType, bnum uint32) {
+	if _, ok := d.receivedBlocks[id]; ok {
+		d.receivedBlocks[id] = append(d.receivedBlocks[id], c)
+	} else {
+		d.receivedBlocks[id] = make([]*Connection, 0)
+		d.receivedBlocks[id] = append(d.receivedBlocks[id], c)
+	}
+
+	IdsCount := len(c.lastReq.ReqBlocks.IDs)
+	if c != nil && c.lastReq != nil && c.lastReq.ReqBlocks.Mode != none && IdsCount > 0 && c.lastReq.ReqBlocks.IDs[IdsCount-1] == id {
+		c.lastReq = &RequestMessage{} //TODO
 	}
 
 	pbs := PeerBlockState{
-		ID:            *id,
+		ID:            id,
 		BlockNum:      bnum,
 		IsKnown:       false,
 		IsNoticed:     true,
 		RequestedTime: common.TimePoint(0),
 	}
-	p.addPeerBlock(&pbs)
-	fcLog.Debug("canceling wait on %s", p.peerAddr)
-	p.cancelWait()
+	c.addPeerBlock(&pbs)
+	fcLog.Debug("canceling wait on %s", c.peerAddr)
+	c.cancelWait()
 }
 
 func (d *dispatchManager) bcastTransaction(trx *types.PackedTransaction) { // TODO impl
@@ -184,7 +193,7 @@ func (d *dispatchManager) bcastTransaction(trx *types.PackedTransaction) { // TO
 	} else {
 		pendingNotify := NoticeMessage{}
 		pendingNotify.KnownTrx.Mode = normal
-		pendingNotify.KnownTrx.IDs = append(pendingNotify.KnownTrx.IDs, &id)
+		pendingNotify.KnownTrx.IDs = append(pendingNotify.KnownTrx.IDs, id)
 		pendingNotify.KnownBlocks.Mode = none
 		d.myImpl.sendAll(&pendingNotify, func(c *Connection) bool {
 			_, ok := skips[c]
@@ -214,16 +223,16 @@ func (d *dispatchManager) bcastTransaction(trx *types.PackedTransaction) { // TO
 	}
 }
 
-func (d *dispatchManager) rejectedTransaction(id *common.TransactionIdType) {
+func (d *dispatchManager) rejectedTransaction(id common.TransactionIdType) {
 	fcLog.Debug("not sending rejected transaction %s", id)
-	_, ok := d.receivedTransactions[*id]
+	_, ok := d.receivedTransactions[id]
 	if ok {
-		delete(d.receivedTransactions, *id)
+		delete(d.receivedTransactions, id)
 	}
 }
 
-func (d *dispatchManager) recvTransaction(p *Connection, id *common.TransactionIdType) {
-	d.receivedTransactions[*id] = append(d.receivedTransactions[*id], p)
+func (d *dispatchManager) recvTransaction(p *Connection, id common.TransactionIdType) {
+	d.receivedTransactions[id] = append(d.receivedTransactions[id], p)
 	idsCount := len(p.lastReq.ReqTrx.IDs)
 	if p != nil && p.lastReq != nil && p.lastReq.ReqTrx.Mode != none && idsCount > 0 && p.lastReq.ReqTrx.IDs[idsCount-1] == id { //TODO c && c->last_req
 		//p.lastReq.reset()
@@ -245,7 +254,7 @@ func (d *dispatchManager) recvNotice(c *Connection, msg *NoticeMessage, generate
 		req.ReqTrx.Mode = normal
 		req.ReqTrx.Pending = 0
 		for _, t := range msg.KnownTrx.IDs {
-			tx := d.myImpl.localTxns.GetById().Find(*t)
+			tx := d.myImpl.localTxns.GetById().Find(t)
 
 			if tx.IsEnd() {
 				fcLog.Debug("did not find %s", t.String())
@@ -253,7 +262,7 @@ func (d *dispatchManager) recvNotice(c *Connection, msg *NoticeMessage, generate
 				//effectively gives 120 seconds to learn of the details of the txn which
 				//will update the expiry in bcast_transaction
 				c.trxState.Insert(TransactionState{
-					ID:              *t,
+					ID:              t,
 					IsKnownByPeer:   true,
 					IsNoticedToPeer: true,
 					BlockNum:        0,
@@ -262,7 +271,7 @@ func (d *dispatchManager) recvNotice(c *Connection, msg *NoticeMessage, generate
 				})
 
 				req.ReqTrx.IDs = append(req.ReqTrx.IDs, t)
-				d.reqTrx = append(d.reqTrx, *t)
+				d.reqTrx = append(d.reqTrx, t)
 			} else {
 				fcLog.Debug("big msg manager found txn id in table,%s", t.String())
 			}
@@ -281,14 +290,14 @@ func (d *dispatchManager) recvNotice(c *Connection, msg *NoticeMessage, generate
 		for _, blkID := range msg.KnownBlocks.IDs {
 			b := &types.SignedBlock{}
 			entry := PeerBlockState{
-				ID:            *blkID,
+				ID:            blkID,
 				BlockNum:      0,
 				IsKnown:       true,
 				IsNoticed:     true,
 				RequestedTime: common.TimePoint(0),
 			}
 			Try(func() {
-				b = cc.FetchBlockById(*blkID)
+				b = cc.FetchBlockById(blkID)
 				if b != nil {
 					entry.BlockNum = b.BlockNumber()
 				}
@@ -334,9 +343,9 @@ func (d *dispatchManager) retryFetch(c *Connection) {
 	reqBlockCount := len(c.lastReq.ReqBlocks.IDs)
 	if c.lastReq.ReqTrx.Mode == normal && reqTrxCount > 0 {
 		isTxn = true
-		tid = *c.lastReq.ReqTrx.IDs[reqTrxCount-1]
+		tid = c.lastReq.ReqTrx.IDs[reqTrxCount-1]
 	} else if c.lastReq.ReqBlocks.Mode == normal && reqBlockCount > 0 {
-		bid = *c.lastReq.ReqBlocks.IDs[reqBlockCount-1]
+		bid = c.lastReq.ReqBlocks.IDs[reqBlockCount-1]
 	} else {
 		fcLog.Debug("no retry,block mode = %s trx mode = %s\n", modeTostring[c.lastReq.ReqBlocks.Mode], modeTostring[c.lastReq.ReqTrx.Mode])
 		return

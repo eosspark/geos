@@ -17,6 +17,7 @@ import (
 	. "github.com/eosspark/eos-go/plugins/net_plugin/multi_index"
 	"github.com/eosspark/eos-go/plugins/net_plugin/multi_index/peer_block_state"
 	"github.com/eosspark/eos-go/plugins/net_plugin/multi_index/transaction_state"
+	"gopkg.in/gin-gonic/gin.v1/json"
 	"io"
 	"net"
 	"reflect"
@@ -64,14 +65,13 @@ type Connection struct {
 	nodeID             common.NodeIdType
 	lastHandshakeRecv  *HandshakeMessage
 	lastHandshakeSent  *HandshakeMessage
-	sentHandshakeCount uint16 //int16
+	sentHandshakeCount uint16
 	connecting         bool
 	syncing            bool
 	protocolVersion    uint16
 	peerAddr           string
 	responseExpected   *asio.DeadlineTimer
-	//pendingFetch optional<request_message>
-	pendingFetch *RequestMessage
+	pendingFetch       *RequestMessage
 
 	noRetry     GoAwayReason
 	forkHead    common.BlockIdType
@@ -85,7 +85,7 @@ type Connection struct {
 	xmt common.TimePoint // transmit timestamp
 
 	// Computed data
-	offset float64 //peer offset double TODO
+	offset float64 //peer offset double
 
 	ts [tsBufferSize]byte //working buffer for making human readable timestamps
 
@@ -117,10 +117,10 @@ func NewConnectionByEndPoint(endpoint string, impl *netPluginIMpl) *Connection {
 		noRetry:            noReason,
 		forkHeadNum:        0,
 		impl:               impl,
-		//forkHead:
-		//nodeID:
-		//lastReq:
-		peerAddr: endpoint,
+		forkHead:           common.BlockIdNil(),
+		nodeID:             common.NodeIdType(*crypto.NewSha256Nil()),
+		lastReq:            &RequestMessage{},
+		peerAddr:           endpoint,
 	}
 	netLog.Warn("accepted network connection")
 	conn.initialize()
@@ -132,7 +132,7 @@ func NewConnectionByConn(socket *asio.ReactiveSocket, c net.Conn, impl *netPlugi
 	conn := &Connection{
 		blkState:           peer_block_state.NewPeerBlockStateIndex(),
 		trxState:           transaction_state.NewTransactionStateIndex(),
-		peerRequested:      new(syncState),
+		peerRequested:      &syncState{},
 		conn:               c,
 		socket:             socket,
 		lastHandshakeSent:  &HandshakeMessage{},
@@ -144,11 +144,10 @@ func NewConnectionByConn(socket *asio.ReactiveSocket, c net.Conn, impl *netPlugi
 		noRetry:            noReason,
 		forkHeadNum:        0,
 		impl:               impl,
-		//forkHead:
-		//nodeID:
-		//lastReq:
-		//peerAddr:           c.RemoteAddr().String(),
-
+		forkHead:           common.BlockIdNil(),
+		nodeID:             common.NodeIdType(*crypto.NewSha256Nil()),
+		lastReq:            &RequestMessage{},
+		peerAddr:           c.RemoteAddr().String(),
 	}
 	netLog.Warn("accepted network connection")
 	conn.initialize()
@@ -196,7 +195,7 @@ func (c *Connection) sendHandshake(impl *netPluginIMpl) {
 	c.sentHandshakeCount += 1
 	c.lastHandshakeSent.Generation = c.sentHandshakeCount
 
-	fcLog.Info("Sending handshake generation %d to %s\n", c.lastHandshakeSent.Generation, c.peerAddr)
+	fcLog.Info("Sending handshake generation %d to %s", c.lastHandshakeSent.Generation, c.peerAddr)
 	c.enqueue(c.lastHandshakeSent, true)
 }
 
@@ -214,7 +213,7 @@ func handshakePopulate(impl *netPluginIMpl, hello *HandshakeMessage) {
 		hello.Token = *crypto.NewSha256Nil()
 	}
 
-	hello.P2PAddress = impl.p2PAddress + "-" + hello.NodeID.String()[:7]
+	hello.P2PAddress = impl.p2PAddress + " - " + hello.NodeID.String()[:7]
 
 	switch runtime.GOOS {
 	case "darwin":
@@ -284,7 +283,7 @@ func (c *Connection) cancelSync(reason GoAwayReason) {
 
 }
 
-func (c *Connection) txnSendPending(ids []*common.TransactionIdType) {
+func (c *Connection) txnSendPending(ids []common.TransactionIdType) {
 	for tx := c.impl.localTxns.GetById().Begin(); !tx.IsEnd(); tx.Next() {
 		if len(tx.Value().SerializedTxn) > 0 && tx.Value().BlockNum == 0 {
 			found := false
@@ -308,18 +307,27 @@ func (c *Connection) txnSendPending(ids []*common.TransactionIdType) {
 					}
 				})
 
-				//TODO queueWrite()
-				//queue_write(std::make_shared<vector<char>>(tx->serialized_txn),
-				//	true,
-				//	[tx_id=tx->id](boost::system::error_code ec, std::size_t ) {
-				//auto& local_txns = my_impl->local_txns;
-				//auto tx = local_txns.get<by_id>().find(tx_id);
-				//if (tx != local_txns.end()) {
-				//local_txns.modify(tx, decr_in_flight);
-				//} else {
-				//fc_wlog(logger, "Local pending TX erased before queued_write called callback");
-				//}
-				//});
+				c.queueWrite(tx.Value().SerializedTxn, true, func(err error, n int) {
+					localTxns := c.impl.localTxns
+					tx := localTxns.GetById().Find(tx.Value().ID)
+					if !tx.IsEnd() {
+						localTxns.Modify(tx, func(state *NodeTransactionState) {
+							exp := state.Expires.SecSinceEpoch()
+							state.Expires = common.TimePointSec(exp - 1*60)
+							if state.Requests == 0 {
+								state.TrueBlock = state.BlockNum
+								state.BlockNum = 0
+							}
+							state.Requests = state.Requests - 1
+							if state.Requests == 0 {
+								state.BlockNum = state.TrueBlock
+							}
+
+						})
+					} else {
+						fcLog.Warn("Local pending TX erased before queued_write called callback")
+					}
+				})
 
 			}
 
@@ -328,9 +336,9 @@ func (c *Connection) txnSendPending(ids []*common.TransactionIdType) {
 
 }
 
-func (c *Connection) txnSend(ids []*common.TransactionIdType) {
+func (c *Connection) txnSend(ids []common.TransactionIdType) {
 	for _, t := range ids {
-		tx := c.impl.localTxns.GetById().Find(*t)
+		tx := c.impl.localTxns.GetById().Find(t)
 		if !tx.IsEnd() && len(tx.Value().SerializedTxn) > 0 {
 			c.impl.localTxns.Modify(tx, func(state *NodeTransactionState) {
 				exp := state.Expires.SecSinceEpoch()
@@ -344,17 +352,27 @@ func (c *Connection) txnSend(ids []*common.TransactionIdType) {
 					state.BlockNum = state.TrueBlock
 				}
 			})
-			//queue_write(std::make_shared<vector<char>>(tx->serialized_txn),
-			//	true,
-			//	[t](boost::system::error_code ec, std::size_t ) {
-			//	auto& local_txns = my_impl->local_txns;
-			//	auto tx = local_txns.get<by_id>().find(t);
-			//	if (tx != local_txns.end()) {
-			//		local_txns.modify(tx, decr_in_flight);
-			//	} else {
-			//		fc_wlog(logger, "Local TX erased before queued_write called callback");
-			//	}
-			//});
+
+			c.queueWrite(tx.Value().SerializedTxn, true, func(err error, n int) {
+				localTxns := c.impl.localTxns
+				tx := localTxns.GetById().Find(t)
+				if !tx.IsEnd() {
+					localTxns.Modify(tx, func(state *NodeTransactionState) {
+						exp := state.Expires.SecSinceEpoch()
+						state.Expires = common.TimePointSec(exp - 1*60)
+						if state.Requests == 0 {
+							state.TrueBlock = state.BlockNum
+							state.BlockNum = 0
+						}
+						state.Requests = state.Requests - 1
+						if state.Requests == 0 {
+							state.BlockNum = state.TrueBlock
+						}
+					})
+				} else {
+					fcLog.Warn("Local TX erased before queued_write called callback")
+				}
+			})
 		}
 	}
 }
@@ -369,7 +387,7 @@ func (c *Connection) blkSendBranch() {
 	note.KnownBlocks.Pending = 0
 	fcLog.Debug("head_num = %d", headNum)
 	if headNum == 0 {
-		c.enqueue(&note, true) //todo
+		c.enqueue(&note, true)
 		return
 	}
 
@@ -452,14 +470,14 @@ func (c *Connection) blkSendBranch() {
 	c.syncing = false
 }
 
-func (c *Connection) blkSend(ids []*common.BlockIdType) {
+func (c *Connection) blkSend(ids []common.BlockIdType) {
 	cc := c.impl.ChainPlugin.Chain()
 	var count int
 	breaking := false
 	for _, blkID := range ids {
 		count++
 		Try(func() {
-			b := cc.FetchBlockById(*blkID)
+			b := cc.FetchBlockById(blkID)
 			if b != nil {
 				netLog.Debug("found block for id ar num %d", b.BlockNumber())
 				c.enqueue(&SignedBlockMessage{*b}, true)
@@ -488,7 +506,6 @@ func (c *Connection) stopSend() {
 	c.syncing = false
 }
 
-//void enqueue( const net_message &msg, bool trigger_send = true );
 //void cancel_sync(go_away_reason);
 //void flush_queues();
 
@@ -510,11 +527,10 @@ func (c *Connection) enqueueSyncBlock() bool {
 		sb := cc.FetchBlockByNumber(num)
 		if sb != nil {
 			c.enqueue(&SignedBlockMessage{*sb}, triggerSend)
-			netLog.Info("%s", triggerSend)
 			result = true
 		}
 	}).Catch(func(e interface{}) {
-		log.Warn("write loop exception")
+		netLog.Warn("write loop exception")
 	}).End()
 
 	return result
@@ -531,11 +547,6 @@ func (c *Connection) requestSyncBlocks(start, end uint32) {
 
 //void sync_timeout(boost::system::error_code ec);
 //void fetch_timeout(boost::system::error_code ec);
-//
-//void queue_write(std::shared_ptr<vector<char>> buff,
-//bool trigger_send,
-//std::function<void(boost::system::error_code, std::size_t)> callback);
-//void do_queue_write();
 
 func isValid(msg *HandshakeMessage) bool {
 	// Do some basic validation of an incoming handshake_message, so things
@@ -622,21 +633,24 @@ func (c *Connection) processNextMessage(payloadBytes []byte) bool {
 
 		p2pMessage := msg.Interface().(P2PMessage)
 
+		bytes, _ := json.Marshal(p2pMessage)
+		fcLog.Info("received %d message :%s", p2pMessage.GetType(), string(bytes))
+
 		switch msg := p2pMessage.(type) {
 		case *HandshakeMessage:
-			c.impl.handleHandshakeMsg(c, msg)
+			c.impl.handleHandshake(c, msg)
 		case *ChainSizeMessage:
-			c.impl.handleChainSizeMsg(c, msg)
+			c.impl.handleChainSize(c, msg)
 		case *GoAwayMessage:
-			c.impl.handleGoawayMsg(c, msg)
+			c.impl.handleGoaway(c, msg)
 		case *TimeMessage:
-			c.impl.handleTimeMsg(c, msg)
+			c.impl.handleTime(c, msg)
 		case *NoticeMessage:
-			c.impl.handleNoticeMsg(c, msg)
+			c.impl.handleNotice(c, msg)
 		case *RequestMessage:
-			c.impl.handleRequestMsg(c, msg)
+			c.impl.handleRequest(c, msg)
 		case *SyncRequestMessage:
-			c.impl.handleSyncRequestMsg(c, msg)
+			c.impl.handleSyncRequest(c, msg)
 		case *SignedBlockMessage:
 			c.impl.handleSignedBlock(c, msg)
 		case *PackedTransactionMessage:
@@ -651,26 +665,6 @@ func (c *Connection) processNextMessage(payloadBytes []byte) bool {
 	}).End()
 	return result
 }
-
-//func (c *Connection) write(message P2PMessage) {
-//	payload, err := rlp.EncodeToBytes(message)
-//	if err != nil {
-//		err = fmt.Errorf("p2p message, %s", err)
-//		return
-//	}
-//	messageLen := uint32(len(payload) + 1)
-//	buf := make([]byte, 4)
-//	binary.LittleEndian.PutUint32(buf, messageLen)
-//	sendBuf := append(buf, byte(message.GetType()))
-//	sendBuf = append(sendBuf, payload...)
-//
-//	c.conn.Write(sendBuf)
-//
-//	data, _ := json.Marshal(message)
-//	netLog.Info("%s: send Message json: %s", c.peerAddr, string(data))
-//
-//	return
-//}
 
 func (c *Connection) enqueue(m P2PMessage, triggerSend bool) {
 	closeAfterSend := noReason
@@ -688,6 +682,10 @@ func (c *Connection) enqueue(m P2PMessage, triggerSend bool) {
 	binary.LittleEndian.PutUint32(buf, messageLen)
 	sendBuf := append(buf, byte(m.GetType()))
 	sendBuf = append(sendBuf, payload...)
+
+	bytes, _ := json.Marshal(m)
+	netLog.Error("send message :%d,%s", m.GetType(), string(bytes))
+	fcLog.Error("send message :%d,%s", m.GetType(), string(bytes))
 
 	c.queueWrite(sendBuf, triggerSend, func(err error, n int) {
 		if c != nil {
@@ -719,12 +717,16 @@ func (c *Connection) doQueueWrite() {
 		c.impl.close(c)
 		return
 	}
+
 	bufs := make([]byte, 0)
 	for i := 0; i < len(c.writeQueue); i++ {
 		m := c.writeQueue[i]
 		bufs = append(bufs, m.buff...)
 		c.outQueue = append(c.outQueue, m)
 	}
+	c.writeQueue = nil
+
+	fcLog.Error(" doqueueWrite *******")
 
 	c.socket.AsyncWrite(c.conn, bufs, func(n int, err error) {
 		Try(func() {

@@ -16,6 +16,7 @@ import (
 	"github.com/eosspark/eos-go/plugins/net_plugin/multi_index"
 	"github.com/eosspark/eos-go/plugins/net_plugin/multi_index/node_transaction"
 	"github.com/eosspark/eos-go/plugins/producer_plugin"
+	"gopkg.in/gin-gonic/gin.v1/json"
 	"net"
 	"time"
 )
@@ -57,10 +58,6 @@ const (
 	netVersion uint16 = protoExplicitSync
 )
 
-var netLog log.Logger
-var fcLog log.Logger
-var peerLog log.Logger
-
 type possibleConnections byte
 
 const (
@@ -68,6 +65,12 @@ const (
 	producersPossible possibleConnections = 1 << 0
 	specifiedPossible possibleConnections = 1 << 1
 	anyPossible       possibleConnections = 1 << 2
+)
+
+var (
+	netLog  log.Logger
+	fcLog   log.Logger
+	peerLog log.Logger
 )
 
 type netPluginIMpl struct {
@@ -167,7 +170,7 @@ func (impl *netPluginIMpl) startListenLoop() {
 			log.Info("accept connection: %s,visitor: %d, fromAddr: %d", paddr, visitors, fromAddr)
 
 			for _, c := range impl.connections {
-				if c.conn != nil { //
+				if c.conn != nil {
 					if len(c.peerAddr) == 0 {
 						visitors++
 						if paddr == c.conn.RemoteAddr().String() {
@@ -212,24 +215,6 @@ func (impl *netPluginIMpl) startListenLoop() {
 		impl.startListenLoop()
 	})
 }
-
-// bool net_plugin_impl::start_session( connection_ptr con ) {
-//    boost::asio::ip::tcp::no_delay nodelay( true );
-//    boost::system::error_code ec;
-//    con->socket->set_option( nodelay, ec );
-//    if (ec) {
-//       elog( "connection failed to ${peer}: ${error}",
-//             ( "peer", con->peer_name())("error",ec.message()));
-//       con->connecting = false;
-//       close(con);
-//       return false;
-//    }
-//    else {
-//       start_read_message( con );
-//       ++started_sessions;
-//       return true;
-//    }
-// }
 
 func (impl *netPluginIMpl) startSession(socket *ReactiveSocket, con *Connection) bool {
 	impl.startReadMessage(socket, con)
@@ -302,7 +287,6 @@ func (impl *netPluginIMpl) startReadMessage(socket *ReactiveSocket, con *Connect
 
 		impl.startReadMessage(socket, con)
 	})
-
 }
 
 func (impl *netPluginIMpl) connect(peer *Connection) {
@@ -312,7 +296,7 @@ func (impl *netPluginIMpl) connect(peer *Connection) {
 func (impl *netPluginIMpl) close(c *Connection) {
 	if len(c.peerAddr) == 0 {
 		if impl.numClients == 0 {
-			netLog.Warn("num_clients already at 0") //FC
+			fcLog.Warn("num_clients already at 0")
 		} else {
 			impl.numClients--
 		}
@@ -347,7 +331,7 @@ func (impl *netPluginIMpl) IrreversibleBlock(block *types.BlockState) {
 
 func (impl *netPluginIMpl) AcceptedTransaction(md *types.TransactionMetadata) {
 	fcLog.Debug("signaled,id = %s", md.ID)
-	impl.dispatcher.bcastTransaction(md.PackedTrx)
+	//impl.dispatcher.bcastTransaction(md.PackedTrx)
 }
 
 func (impl *netPluginIMpl) AppliedTransaction(txn *types.TransactionTrace) {
@@ -363,7 +347,7 @@ func (impl *netPluginIMpl) TransactionAck(results common.Pair) {
 	id := packedTrx.ID()
 	if results.First != nil {
 		fcLog.Info("signaled NACK, trx-id = %s :%s", id, results.First)
-		impl.dispatcher.rejectedTransaction(&id)
+		impl.dispatcher.rejectedTransaction(id)
 	} else {
 		fcLog.Info("signaled ACK,trx-id = %s", id)
 		impl.dispatcher.bcastTransaction(&packedTrx)
@@ -549,9 +533,6 @@ func (impl *netPluginIMpl) getAuthenticationKey() *ecc.PublicKey {
 		for pubKey := range impl.privateKeys { //TODO easier  ？？？
 			return &pubKey
 		}
-		/*producer_plugin* pp = app().find_plugin<producer_plugin>();
-		if(pp != nullptr && pp->get_state() == abstract_plugin::started)
-		   return pp->first_producer_public_key();*/
 		return &ecc.PublicKey{}
 	}
 
@@ -570,22 +551,22 @@ func (impl *netPluginIMpl) signCompact(signer *ecc.PublicKey, digest *crypto.Sha
 		}
 		return &signature
 	} else {
-		pp := App().FindPlugin("ProducerPlugin").(*producer_plugin.ProducerPlugin)
-		if pp != nil && pp.GetState() == Started {
-			return pp.SignCompact(signer, *digest)
-		}
+		//pp := App().FindPlugin("ProducerPlugin").(*producer_plugin.ProducerPlugin)//TODO
+		//if pp != nil && pp.GetState() == Started {
+		//	return pp.SignCompact(signer, *digest)
+		//}
 	}
 	return ecc.NewSigNil()
 }
 
-func (impl *netPluginIMpl) handleChainSizeMsg(c *Connection, msg *ChainSizeMessage) {
+func (impl *netPluginIMpl) handleChainSize(c *Connection, msg *ChainSizeMessage) {
 	netLog.Info("%s : receives chain_size_message", c.peerAddr)
 }
 
-func (impl *netPluginIMpl) handleHandshakeMsg(c *Connection, msg *HandshakeMessage) {
-	netLog.Info("%s : receives handshake_message", c.peerAddr)
+func (impl *netPluginIMpl) handleHandshake(c *Connection, msg *HandshakeMessage) {
+	//peerLog.Info("%s : receives handshake_message", c.peerAddr)
 	if !isValid(msg) {
-		netLog.Error("%s : bad handshake message", c.peerAddr)
+		peerLog.Error("%s : bad handshake message", c.peerAddr)
 		goAwayMsg := &GoAwayMessage{
 			Reason: fatalOther,
 			NodeID: *crypto.NewSha256Nil(),
@@ -594,7 +575,8 @@ func (impl *netPluginIMpl) handleHandshakeMsg(c *Connection, msg *HandshakeMessa
 		return
 	}
 
-	//netLog.Info("%s : receive a handshake message %v", c.peerAddr, msg)
+	bytes, _ := json.Marshal(msg)
+	netLog.Info("%s : receive a handshake message %s", c.peerAddr, string(bytes))
 
 	cc := App().FindPlugin("ChainPlugin").(*chain_plugin.ChainPlugin).Chain()
 	libNum := cc.LastIrreversibleBlockNum()
@@ -614,7 +596,7 @@ func (impl *netPluginIMpl) handleHandshakeMsg(c *Connection, msg *HandshakeMessa
 		}
 
 		if len(c.peerAddr) == 0 || c.lastHandshakeRecv.NodeID.Equals(*crypto.NewSha256Nil()) {
-			netLog.Info("checking for duplicate")
+			fcLog.Debug("checking for duplicate")
 			for _, check := range impl.connections {
 				if check == c {
 					continue
@@ -627,7 +609,7 @@ func (impl *netPluginIMpl) handleHandshakeMsg(c *Connection, msg *HandshakeMessa
 					if msg.Time+c.lastHandshakeSent.Time <= check.lastHandshakeSent.Time+check.lastHandshakeRecv.Time {
 						continue
 					}
-					netLog.Debug("sending go_away duplicate to %s", msg.P2PAddress)
+					fcLog.Debug("sending go_away duplicate to %s", msg.P2PAddress)
 					goAwayMsg := &GoAwayMessage{
 						Reason: duplicate,
 						NodeID: c.nodeID,
@@ -638,7 +620,7 @@ func (impl *netPluginIMpl) handleHandshakeMsg(c *Connection, msg *HandshakeMessa
 				}
 			}
 		} else {
-			netLog.Debug("skipping dulicate check, addr ==%s, id == %s", c.peerAddr, c.lastHandshakeRecv.NodeID)
+			fcLog.Debug("skipping dulicate check, addr ==%s, id == %s", c.peerAddr, c.lastHandshakeRecv.NodeID)
 		}
 
 		if !msg.ChainID.Equals(impl.chainID) {
@@ -681,7 +663,7 @@ func (impl *netPluginIMpl) handleHandshakeMsg(c *Connection, msg *HandshakeMessa
 		}
 
 		onFork := false
-		netLog.Debug("lib_num = %d peer_lib = %d")
+		fcLog.Debug("lib_num = %d peer_lib = %d", libNum, peerLib)
 		if peerLib <= libNum && peerLib > 0 {
 			Try(func() {
 				peerLibID := cc.GetBlockIdForNum(peerLib)
@@ -712,10 +694,9 @@ func (impl *netPluginIMpl) handleHandshakeMsg(c *Connection, msg *HandshakeMessa
 
 	c.lastHandshakeRecv = msg
 	impl.syncMaster.recvHandshake(c, msg)
-
 }
 
-func (impl *netPluginIMpl) handleGoawayMsg(c *Connection, msg *GoAwayMessage) {
+func (impl *netPluginIMpl) handleGoaway(c *Connection, msg *GoAwayMessage) {
 	rsn := ReasonToString[msg.Reason]
 	netLog.Info("%s : receive a go_away_message", c.peerAddr)
 	netLog.Info("receive go_away_message reason = %s", rsn)
@@ -734,7 +715,7 @@ func (impl *netPluginIMpl) handleGoawayMsg(c *Connection, msg *GoAwayMessage) {
 //to floating double.  All further processing is in
 //floating-double arithmetic with rounding done by the hardware.
 //This is necessary in order to avoid overflow and preserve precision.
-func (impl *netPluginIMpl) handleTimeMsg(c *Connection, msg *TimeMessage) {
+func (impl *netPluginIMpl) handleTime(c *Connection, msg *TimeMessage) {
 	netLog.Info("receive time_message")
 	netLog.Info("%s: receive a time message %v", c.peerAddr, msg)
 
@@ -768,19 +749,19 @@ func (impl *netPluginIMpl) handleTimeMsg(c *Connection, msg *TimeMessage) {
 	c.rec = 0
 }
 
-func (impl *netPluginIMpl) handleNoticeMsg(c *Connection, msg *NoticeMessage) {
+func (impl *netPluginIMpl) handleNotice(c *Connection, msg *NoticeMessage) {
 	// peer tells us about one or more blocks or txns. When done syncing, forward on
 	// notices of previously unknown blocks or txns,
-	netLog.Info("%s : receive notice_message", c.peerAddr)
-	netLog.Info("%s : received notice_message %v", c.peerAddr, msg)
+	//netLog.Info("%s : receive notice_message", c.peerAddr)
+	bytes, _ := json.Marshal(msg)
+	netLog.Info("%s : received notice_message %s", c.peerAddr, string(bytes))
 
 	c.connecting = false
 	req := RequestMessage{}
 	sendReq := false
 
 	if msg.KnownTrx.Mode != none {
-		netLog.Debug("this is a %s notice with %d transactions",
-			modeTostring[msg.KnownTrx.Mode], msg.KnownTrx.Pending)
+		netLog.Debug("this is a %s notice with %d transactions", modeTostring[msg.KnownTrx.Mode], msg.KnownTrx.Pending)
 	}
 
 	switch msg.KnownTrx.Mode {
@@ -795,12 +776,10 @@ func (impl *netPluginIMpl) handleNoticeMsg(c *Connection, msg *NoticeMessage) {
 			sendReq = true
 			knownSum := impl.localTxns.Size()
 			if knownSum > 0 {
-				//for( const auto& t : local_txns.get<by_id>( ) ) {//TODO
-				//	req.req_trx.ids.push_back( t.id );
-				//}
-
-				//ltx :=impl.localTxns.GetById()
-				//req.ReqTrx.IDs =append(req.ReqTrx.IDs,ltx.Begin())
+				ltx := impl.localTxns.GetById()
+				for _, t := range ltx.Values() {
+					req.ReqTrx.IDs = append(req.ReqTrx.IDs, t.ID)
+				}
 			}
 		}
 	case normal:
@@ -821,16 +800,17 @@ func (impl *netPluginIMpl) handleNoticeMsg(c *Connection, msg *NoticeMessage) {
 	case normal:
 		impl.dispatcher.recvNotice(c, msg, false)
 	default:
-		netLog.Error("bad notice_message : invalid known.mode %d", msg.KnownBlocks.Mode)
+		peerLog.Error("bad notice_message : invalid known.mode %d", msg.KnownBlocks.Mode)
 	}
-	netLog.Debug("send req = %t", sendReq)
+	fcLog.Debug("send req = %t", sendReq)
 	if sendReq {
 		c.enqueue(&req, true)
 	}
 }
 
-func (impl *netPluginIMpl) handleRequestMsg(c *Connection, msg *RequestMessage) {
-	netLog.Info("%s: received request_message %v", c.peerAddr, msg)
+func (impl *netPluginIMpl) handleRequest(c *Connection, msg *RequestMessage) {
+	bytes, _ := json.Marshal(msg)
+	netLog.Info("%s: received request_message %s", c.peerAddr, string(bytes))
 
 	switch msg.ReqBlocks.Mode {
 	case catchUp:
@@ -855,7 +835,7 @@ func (impl *netPluginIMpl) handleRequestMsg(c *Connection, msg *RequestMessage) 
 	}
 }
 
-func (impl *netPluginIMpl) handleSyncRequestMsg(c *Connection, msg *SyncRequestMessage) {
+func (impl *netPluginIMpl) handleSyncRequest(c *Connection, msg *SyncRequestMessage) {
 	netLog.Info("%s : received sync_request_message %v", c.peerAddr, msg)
 	if msg.EndBlock == 0 {
 		c.peerRequested = nil //TODO
@@ -888,7 +868,7 @@ func (impl *netPluginIMpl) handlePackTransaction(c *Connection, msg *PackedTrans
 		return
 	}
 
-	impl.dispatcher.recvTransaction(c, &tid)
+	impl.dispatcher.recvTransaction(c, tid)
 
 	impl.ChainPlugin.AcceptTransaction(&msg.PackedTransaction, func(result common.StaticVariant) {
 		if exception, ok := result.(Exception); ok {
@@ -902,12 +882,13 @@ func (impl *netPluginIMpl) handlePackTransaction(c *Connection, msg *PackedTrans
 			}
 			peerLog.Error("bad packed_transaction : %s", trace.Except.DetailMessage())
 		}
-		impl.dispatcher.rejectedTransaction(&tid)
+		impl.dispatcher.rejectedTransaction(tid)
 	})
 }
 
 func (impl *netPluginIMpl) handleSignedBlock(c *Connection, msg *SignedBlockMessage) {
-	netLog.Info("%s : receive signed_block message %v", c.peerAddr, msg)
+	bytes, _ := json.Marshal(msg)
+	netLog.Info("%s : receive signed_block message %v", c.peerAddr, string(bytes))
 
 	cc := impl.ChainPlugin.Chain()
 	blkID := msg.BlockID()
@@ -925,7 +906,7 @@ func (impl *netPluginIMpl) handleSignedBlock(c *Connection, msg *SignedBlockMess
 		log.Error("Caught an unknown exception trying to recall blockID")
 	}).End()
 
-	impl.dispatcher.recvBlock(c, &blkID, blkNum)
+	impl.dispatcher.recvBlock(c, blkID, blkNum)
 	age := common.Now().Sub(msg.Timestamp.ToTimePoint())
 	peerLog.Info("received signed_block : %d block age in secs = %d", blkNum, age.ToSeconds())
 
@@ -949,7 +930,7 @@ func (impl *netPluginIMpl) handleSignedBlock(c *Connection, msg *SignedBlockMess
 		reason = noReason
 	}).Catch(func(ex interface{}) {
 		peerLog.Error("bad signed_block : unknown exception")
-		log.Error("handle sync block caught something else from %s", c.peerAddr)
+		//log.Error("handle sync block caught something else from %s", c.peerAddr)
 	}).End()
 
 	if reason == noReason {

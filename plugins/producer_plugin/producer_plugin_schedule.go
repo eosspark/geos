@@ -221,7 +221,7 @@ func (impl *ProducerPluginImpl) StartBlock() (StartBlockResult, bool) {
 				}
 
 				persistedByExpire.Erase(persistedByExpire.Begin())
-				numExpiredPersistent ++
+				numExpiredPersistent++
 			}
 
 			//TODO fc_dlog(_log, "Processed ${n} persisted transactions, Expired ${expired}",
@@ -279,7 +279,7 @@ func (impl *ProducerPluginImpl) StartBlock() (StartBlockResult, bool) {
 						break
 					}
 
-					numProcessed ++
+					numProcessed++
 
 					returning := false
 					Try(func() {
@@ -331,12 +331,12 @@ func (impl *ProducerPluginImpl) StartBlock() (StartBlockResult, bool) {
 
 				for !blacklistByExpiry.Empty() && blacklistByExpiry.Begin().Value().Expiry <= now {
 					blacklistByExpiry.Erase(blacklistByExpiry.Begin())
-					numExpired ++
+					numExpired++
 				}
 
 				/*TODO fc_dlog(_log, "Processed ${n} blacklisted transactions, Expired ${expired}",
-                      ("n", orig_count)
-                      ("expired", num_expired));*/
+				  ("n", orig_count)
+				  ("expired", num_expired));*/
 			}
 
 			scheduleTrx := chain.GetScheduledTransactions()
@@ -412,10 +412,10 @@ func (impl *ProducerPluginImpl) StartBlock() (StartBlockResult, bool) {
 				}
 
 				/*TODO fc_dlog(_log, "Processed ${m} of ${n} scheduled transactions, Applied ${applied}, Failed/Dropped ${failed}",
-                      ("m", num_processed)
-                      ("n", scheduled_trxs.size())
-                      ("applied", num_applied)
-                      ("failed", num_failed));*/
+				  ("m", num_processed)
+				  ("n", scheduled_trxs.size())
+				  ("applied", num_applied)
+				  ("failed", num_failed));*/
 			}
 
 		} ///scheduled transactions
@@ -503,8 +503,8 @@ func (impl *ProducerPluginImpl) ScheduleProductionLoop() {
 		cid := impl.timerCorelationId
 		impl.Timer.AsyncWait(func(err error) {
 			if impl != nil && err == nil && cid == impl.timerCorelationId {
-				res := impl.MaybeProduceBlock()
-				log.Debug("Producing Block #%d returned: %v", chain.PendingBlockState().BlockNum, res)
+				impl.MaybeProduceBlock()
+				//log.Debug("Producing Block #%d returned: %v", chain.PendingBlockState().BlockNum, res)
 			}
 		})
 
@@ -601,7 +601,7 @@ func (impl *ProducerPluginImpl) ProduceBlock() {
 	newBs := chain.HeadBlockState()
 	impl.ProducerWatermarks[newBs.Header.Producer] = chain.HeadBlockNum()
 
-	log.Info("Produced block %s...#%d @ %s signed by %s [trxs: %d, lib: %d, confirmed: %d]\n",
+	log.Info("Produced block %s...#%d @ %s signed by %s [trxs: %d, lib: %d, confirmed: %d]",
 		newBs.BlockId.String()[0:16], newBs.BlockNum, newBs.Header.Timestamp, common.S(uint64(newBs.Header.Producer)),
 		len(newBs.SignedBlock.Transactions), chain.LastIrreversibleBlockNum(), newBs.Header.Confirmed)
 }

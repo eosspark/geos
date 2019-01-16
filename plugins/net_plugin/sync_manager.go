@@ -35,6 +35,7 @@ func NewSyncManager(impl *netPluginIMpl, span uint32) *syncManager {
 		syncNextExpectedNum:  1,
 		syncReqSpan:          span,
 		state:                inSync,
+		source:               &Connection{},
 		myImpl:               impl,
 	}
 	s.chainPlugin = app.App().FindPlugin(chain_plugin.ChainPlug).(*chain_plugin.ChainPlugin)
@@ -251,7 +252,7 @@ func (s *syncManager) recvHandshake(c *Connection, msg *HandshakeMessage) {
 			note := NoticeMessage{}
 			note.KnownBlocks.Mode = catchUp
 			note.KnownBlocks.Pending = head
-			note.KnownBlocks.IDs = append(note.KnownBlocks.IDs, &headID)
+			note.KnownBlocks.IDs = append(note.KnownBlocks.IDs, headID)
 			note.KnownTrx.Mode = none
 			c.enqueue(&note, true)
 		}
@@ -328,7 +329,7 @@ func (s *syncManager) recvNotice(c *Connection, msg *NoticeMessage) {
 		if IDsCount == 0 {
 			netLog.Error("got a catch up with ids size = 0")
 		} else {
-			s.verifyCatchup(c, msg.KnownBlocks.Pending, *msg.KnownBlocks.IDs[IDsCount-1])
+			s.verifyCatchup(c, msg.KnownBlocks.Pending, msg.KnownBlocks.IDs[IDsCount-1])
 		}
 	} else {
 		c.lastHandshakeRecv.LastIrreversibleBlockNum = msg.KnownTrx.Pending

@@ -10,7 +10,6 @@ import (
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
-	"github.com/eosspark/eos-go/log"
 	. "github.com/eosspark/eos-go/plugins/appbase/app"
 	"github.com/eosspark/eos-go/plugins/appbase/asio"
 	"github.com/eosspark/eos-go/plugins/chain_interface"
@@ -68,7 +67,7 @@ func (n *NetPlugin) SetProgramOptions(options *[]cli.Flag) {
 			Name: "allowed-connection",
 			Usage: "Can be 'any' or 'producers' or 'specified' or 'none'. If 'specified', " + "peer-key must be specified at least once. " +
 				"If only 'producers', peer-key is not required. 'producers' and 'specified' may be combined.",
-			Value: &cli.StringSlice{"any"}, //TODO
+			Value: &cli.StringSlice{"any"},
 		},
 		cli.StringSliceFlag{
 			Name:  "peer_key",
@@ -93,7 +92,7 @@ func (n *NetPlugin) SetProgramOptions(options *[]cli.Flag) {
 			Usage: "max connection cleanup time per cleanup call in millisec",
 			Value: 10,
 		},
-		cli.BoolFlag{ //false
+		cli.BoolFlag{
 			Name:  "network-version-match",
 			Usage: "True to require exact match of peer network version.",
 		},
@@ -141,12 +140,12 @@ func (n *NetPlugin) PluginInitialize(c *cli.Context) {
 		n.my.numClients = 0
 		n.my.useSocketReadWatermark = c.Bool("use-socket-read-watermark")
 		n.my.ListenEndpoint = c.String("p2p-listen-endpoint")
-		n.my.p2PAddress = c.String("p2p-server-address")
+		n.my.p2PAddress = c.String("p2p-listen-endpoint")
 		n.my.suppliedPeers = c.StringSlice("p2p-peer-address")
 		n.my.userAgentName = c.String("agent-name")
 
-		allowecRemotes := c.StringSlice("allowed-connection")
-		for _, allowedRemote := range allowecRemotes {
+		allowedRemotes := c.StringSlice("allowed-connection")
+		for _, allowedRemote := range allowedRemotes {
 			switch allowedRemote {
 			case "any":
 				n.my.allowedConnections |= anyPossible
@@ -168,7 +167,7 @@ func (n *NetPlugin) PluginInitialize(c *cli.Context) {
 			for _, keyString := range keyStrings {
 				pubKey, err := ecc.NewPublicKey(keyString)
 				if err != nil {
-					panic(err)
+					Throw(err)
 				}
 				n.my.AllowedPeers = append(n.my.AllowedPeers, pubKey)
 			}
@@ -180,14 +179,14 @@ func (n *NetPlugin) PluginInitialize(c *cli.Context) {
 				json.Unmarshal([]byte(keyIdToWifPairString), &keyIdToWifPair)
 				pubKey, err := ecc.NewPublicKey(keyIdToWifPair[0])
 				if err != nil {
-					panic(err)
+					Throw(err)
 				}
 				prikey, err := ecc.NewPrivateKey(keyIdToWifPair[1])
 				if err != nil {
-					panic(err)
+					Throw(err)
 				}
 				if prikey.PublicKey() != pubKey {
-					panic(fmt.Errorf("the privateKey and PublicKey are not pairs"))
+					Throw(fmt.Errorf("the privateKey and PublicKey are not pairs"))
 				}
 				n.my.privateKeys[pubKey] = *prikey
 			}
@@ -202,7 +201,6 @@ func (n *NetPlugin) PluginInitialize(c *cli.Context) {
 		nodeIdHash := *crypto.NewSha256Byte(nodeID)
 		n.my.nodeID = common.NodeIdType(nodeIdHash)
 		netLog.Info("my node_id is %s", n.my.nodeID)
-		netLog.Info("my chain_id is %s", n.my.ChainPlugin.GetChainId())
 		n.my.connections = make([]*Connection, 0)
 
 		n.my.keepAliceTimer = asio.NewDeadlineTimer(App().GetIoService())
@@ -217,7 +215,7 @@ func (n *NetPlugin) PluginStartup() {
 	var err error
 	n.my.Listener, err = net.Listen("tcp", n.my.ListenEndpoint)
 	if err != nil {
-		log.Error("Error getting remote endpoint:", err)
+		netLog.Error("Error getting remote endpoint:", err)
 	}
 	netLog.Info("Listening on: %s", n.my.ListenEndpoint)
 
