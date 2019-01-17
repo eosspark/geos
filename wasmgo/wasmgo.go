@@ -374,7 +374,8 @@ func b2i(b bool) int {
 }
 
 func setMemory(vm *VM, mIndex int, data []byte, dIndex int, bufferSize int) {
-	try.EosAssert(!(bufferSize > (1<<16) || mIndex+bufferSize > (1<<16)), &exception.OverlappingMemoryError{}, "access violoation")
+	//try.EosAssert(!(bufferSize > (1<<16) || mIndex+bufferSize > (1<<16)), &exception.OverlappingMemoryError{}, "access violoation")
+	try.EosAssert(!(bufferSize > cap(vm.Memory()) || mIndex+bufferSize > cap(vm.Memory())), &exception.OverflowException{}, "memory overflow")
 	copy(vm.Memory()[mIndex:mIndex+bufferSize], data[dIndex:dIndex+bufferSize])
 }
 
@@ -385,7 +386,7 @@ func getMemory(vm *VM, mIndex int, bufferSize int) []byte {
 
 	cap := cap(vm.Memory())
 	if cap < mIndex || cap < mIndex+bufferSize {
-		try.EosAssert(false, &exception.OverlappingMemoryError{}, "memcpy can only accept non-aliasing pointers")
+		try.EosAssert(false, &exception.OverflowException{}, "memory overflow")
 		//fmt.Println("getMemory heap Memory out of bound")
 		return nil
 	}

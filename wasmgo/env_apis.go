@@ -1020,7 +1020,7 @@ func dbUpdateI64(vm *VM) {
 	bytes := getMemory(vm, buffer, bufferSize)
 	w.context.DbUpdateI64(iterator, payer, bytes)
 
-	w.ilog.Debug("data:%v iterator:%d payer:%v ", bytes, iterator, payer)
+	w.ilog.Debug("data:%v iterator:%d payer:%v ", bytes, iterator, common.AccountName(payer))
 
 }
 
