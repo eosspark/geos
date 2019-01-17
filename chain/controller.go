@@ -640,19 +640,19 @@ func (c *Controller) GetOnBlockTransaction() types.SignedTransaction {
 	onBlockAction.Name = common.ActionName(common.N("onblock"))
 	onBlockAction.Authorization = []types.PermissionLevel{{common.AccountName(common.DefaultConfig.SystemAccountName), common.PermissionName(common.DefaultConfig.ActiveName)}}
 
-	data, err := rlp.EncodeToBytes(c.Head.Header)
+	data, err := rlp.EncodeToBytes(c.HeadBlockHeader())
 	if err == nil {
 		onBlockAction.Data = data
 	}
-	trx := types.SignedTransaction{}
+	trx := types.NewSignedTransactionNil()
 	trx.Actions = append(trx.Actions, &onBlockAction)
 	trx.SetReferenceBlock(&c.Head.BlockId)
 	in := c.PendingBlockTime().AddUs(common.Microseconds(999999))
 	trx.Expiration = common.NewTimePointSecTp(in)
-	return trx
+	return *trx
 }
 func (c *Controller) SkipDbSession(bs types.BlockStatus) bool {
-	considerSkipping := (bs == types.Irreversible)
+	considerSkipping := bs == types.Irreversible
 	return considerSkipping && !c.Config.DisableReplayOpts && !c.InTrxRequiringChecks
 }
 
@@ -973,8 +973,8 @@ func scheduledFailureIsSubjective(e Exception) bool {
 }
 func (c *Controller) setActionMerkle() {
 	actionDigests := make([]crypto.Sha256, 0, len(c.Pending.Actions))
-	for _, b := range c.Pending.Actions {
-		actionDigests = append(actionDigests, b.Digest())
+	for _, a := range c.Pending.Actions {
+		actionDigests = append(actionDigests, a.Digest())
 	}
 	c.Pending.PendingBlockState.Header.ActionMRoot = types.Merkle(actionDigests)
 }

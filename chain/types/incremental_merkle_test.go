@@ -1,8 +1,8 @@
 package types
 
 import (
-	"github.com/stretchr/testify/assert"
 	"github.com/eosspark/eos-go/crypto"
+	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
@@ -11,7 +11,7 @@ func Test_append(t *testing.T) {
 
 	var merkelAdd = func(t *testing.T, merkel *IncrementalMerkle, o interface{}) {
 		test := crypto.Hash256(o)
-		assert.Equal(t, merkel.Append(test), merkel.GetRoot())
+		assert.Equal(t, merkel.Append(*test), merkel.GetRoot())
 	}
 
 	merkelAdd(t, merkel, "eos")
