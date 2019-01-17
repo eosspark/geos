@@ -164,3 +164,7 @@ func (f *FixedKey) MakeFromWordSequence(first interface{}, rest ...interface{}) 
 	}).End()
 	return f
 }
+
+func (f *FixedKey) GetArray() []WordT {
+	return f.data
+}
