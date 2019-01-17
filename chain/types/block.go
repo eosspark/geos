@@ -175,35 +175,24 @@ func (t *TransactionWithID) UnmarshalJSON(data []byte) error {
 }
 
 func NewTransactionReceiptHeader() *TransactionReceiptHeader {
-	trh := TransactionReceiptHeader{}
-	trh.Status = TransactionStatusHardFail
-	return &trh
+	return &TransactionReceiptHeader{Status: TransactionStatusHardFail}
 }
 
-func NewTransactionReceiptHeader2(status TransactionStatus) *TransactionReceiptHeader {
-	trh := TransactionReceiptHeader{}
-	trh.Status = status
-	return &trh
+func NewTransactionReceiptHeader1(status TransactionStatus) *TransactionReceiptHeader {
+	return &TransactionReceiptHeader{Status: status}
 }
 
 func NewTransactionReceipt() *TransactionReceipt {
-	tr := TransactionReceipt{}
-	tr.TransactionReceiptHeader = *NewTransactionReceiptHeader()
-	return &tr
+	return &TransactionReceipt{TransactionReceiptHeader: *NewTransactionReceiptHeader()}
 }
 
-func NewTransactionReceipt2(tid common.TransactionIdType) *TransactionReceipt {
-	tr := TransactionReceipt{}
-	tr.TransactionReceiptHeader = *NewTransactionReceiptHeader2(TransactionStatusExecuted)
-	tr.Trx.TransactionID = tid
-	return &tr
+func NewTransactionReceiptWithID(tid common.TransactionIdType) *TransactionReceipt {
+	return &TransactionReceipt{TransactionReceiptHeader: *NewTransactionReceiptHeader1(TransactionStatusExecuted), Trx: TransactionWithID{TransactionID: tid}}
 }
 
-func NewTransactionReceipt3(ptrx PackedTransaction) *TransactionReceipt {
-	tr := TransactionReceipt{}
-	tr.TransactionReceiptHeader = *NewTransactionReceiptHeader2(TransactionStatusExecuted)
-	tr.Trx.PackedTransaction = &ptrx
-	return &tr
+func NewTransactionReceiptWithPtrx(ptrx PackedTransaction) *TransactionReceipt {
+	return &TransactionReceipt{TransactionReceiptHeader: *NewTransactionReceiptHeader1(TransactionStatusExecuted), Trx: TransactionWithID{PackedTransaction: &ptrx}}
+
 }
 
 func (t *TransactionReceipt) Digest() common.DigestType { //TODO crypto.Sha256??

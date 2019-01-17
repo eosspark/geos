@@ -1,13 +1,13 @@
 package types
 
 import (
-	"github.com/eosspark/eos-go/common"
+	. "github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto"
 )
 
 type IncrementalMerkle struct {
-	NodeCount   uint64          `json:"node_count"`
-	ActiveNodes []crypto.Sha256 `json:"active_nodes"`
+	NodeCount   uint64       `json:"node_count"`
+	ActiveNodes []DigestType `json:"active_nodes"`
 }
 
 /**
@@ -15,11 +15,11 @@ type IncrementalMerkle struct {
  *
  * @return
  */
-func (m IncrementalMerkle) GetRoot() crypto.Sha256 {
+func (m IncrementalMerkle) GetRoot() DigestType {
 	if m.NodeCount > 0 {
 		return m.ActiveNodes[len(m.ActiveNodes)-1]
 	} else {
-		return crypto.Sha256{}
+		return DigestType{}
 	}
 }
 
@@ -69,14 +69,14 @@ func (m IncrementalMerkle) GetRoot() crypto.Sha256 {
  * @param digest - the node to add
  * @return - the new root
  */
-func (m *IncrementalMerkle) Append(digest crypto.Sha256) crypto.Sha256 {
+func (m *IncrementalMerkle) Append(digest DigestType) DigestType {
 	partial := false
 	maxDepth := calculateMaxDepth(m.NodeCount + 1)
 	currentDepth := maxDepth - 1
 	index := m.NodeCount
 	top := digest
 	activeIter := 0
-	updateActiveNodes := make([]crypto.Sha256, 0, maxDepth)
+	updateActiveNodes := make([]DigestType, 0, maxDepth)
 
 	for currentDepth > 0 {
 		if index&0x1 == 0 {
@@ -127,9 +127,9 @@ func (m *IncrementalMerkle) Append(digest crypto.Sha256) crypto.Sha256 {
 	return m.ActiveNodes[len(m.ActiveNodes)-1]
 }
 
-func Merkle(ids []crypto.Sha256) crypto.Sha256 {
+func Merkle(ids []DigestType) DigestType {
 	if 0 == len(ids) {
-		return crypto.Sha256{}
+		return DigestType{}
 	}
 
 	for len(ids) > 1 {
@@ -147,26 +147,24 @@ func Merkle(ids []crypto.Sha256) crypto.Sha256 {
 	return ids[0]
 }
 
-func makeCanonicalLeft(val crypto.Sha256) crypto.Sha256 {
-	canonicalL := val
-	canonicalL.Hash[0] &= 0xFFFFFFFFFFFFFF7F
-	return canonicalL
+func makeCanonicalLeft(val DigestType) DigestType {
+	val.Hash[0] &= 0xFFFFFFFFFFFFFF7F
+	return val
 }
-func makeCanonicalRight(val crypto.Sha256) crypto.Sha256 {
-	canonicalR := val
-	canonicalR.Hash[0] &= 0x0000000000000080
-	return canonicalR
+func makeCanonicalRight(val DigestType) DigestType {
+	val.Hash[0] |= 0x0000000000000080
+	return val
 }
 
-func makeCanonicalPair(l crypto.Sha256, r crypto.Sha256) common.Pair {
-	return common.MakePair(makeCanonicalLeft(l), makeCanonicalRight(r))
+func makeCanonicalPair(l DigestType, r DigestType) Pair {
+	return MakePair(makeCanonicalLeft(l), makeCanonicalRight(r))
 }
 
-func isCanonicalLeft(val crypto.Sha256) bool {
+func isCanonicalLeft(val DigestType) bool {
 	return val.Hash[0]&0x0000000000000080 == 0
 }
 
-func isCanonicalRight(val crypto.Sha256) bool {
+func isCanonicalRight(val DigestType) bool {
 	return val.Hash[0]&0x0000000000000080 != 0
 }
 
@@ -241,7 +239,7 @@ func clzPower2(value uint64) int {
 	return lz
 }
 
-func moveNodes(to *[]crypto.Sha256, from *[]crypto.Sha256) {
-	*to = make([]crypto.Sha256, len(*from))
+func moveNodes(to *[]DigestType, from *[]DigestType) {
+	*to = make([]DigestType, len(*from))
 	copy(*to, *from)
 }

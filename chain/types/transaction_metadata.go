@@ -11,13 +11,13 @@ type TransactionMetadata struct {
 	SignedID    common.TransactionIdType `json:"signed_id"`
 	Trx         *SignedTransaction       `json:"trx"`
 	PackedTrx   *PackedTransaction       `json:"packed_trx"`
-	SigningKeys Pair                     `json:"signing_keys"`
+	SigningKeys SigningKeysType          `json:"signing_keys"`
 	Accepted    bool                     `json:"accepted"`
 	Implicit    bool                     `json:"implicit"`
 	Scheduled   bool                     `json:"scheduled"`
 }
 
-type Pair struct {
+type SigningKeysType struct {
 	ID        common.ChainIdType
 	PublicKey treeset.Set
 }
@@ -48,7 +48,7 @@ func NewTransactionMetadataBySignedTrx(t *SignedTransaction, c CompressionType) 
 func (t *TransactionMetadata) RecoverKeys(chainID *common.ChainIdType) *treeset.Set {
 	////if( !signing_keys || signing_keys->first != chain_id ) TODO !signing_keys ？？  ->&tm.SigningKeys ==nil
 	//if t.SigningKeys.ID != *chainID { // Unlikely for more than one chain_id to be used in one nodeos instance
-	//	t.SigningKeys = Pair{
+	//	t.SigningKeys = SigningKeysType{
 	//		ID:        *chainID,
 	//		PublicKey: t.Trx.GetSignatureKeys(chainID, false, true),
 	//	}
@@ -56,7 +56,7 @@ func (t *TransactionMetadata) RecoverKeys(chainID *common.ChainIdType) *treeset.
 	//return &t.SigningKeys.PublicKey
 
 	if common.Empty(t.SigningKeys) || t.SigningKeys.ID != *chainID { // Unlikely for more than one chain_id to be used in one nodeos instance
-		t.SigningKeys = Pair{
+		t.SigningKeys = SigningKeysType{
 			ID:        *chainID,
 			PublicKey: t.Trx.GetSignatureKeys(chainID, false, true),
 		}
