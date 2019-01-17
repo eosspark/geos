@@ -396,7 +396,7 @@ func (t BaseTester) PushTransaction(trx *types.SignedTransaction, deadline commo
 			//try.EosThrow(trace.ExceptPtr, "tester PushTransaction is error :%#v", trace.ExceptPtr.DetailMessage())
 		}
 		if trace.Except != nil {
-			try.Throw(trace.ExceptPtr)
+			try.Throw(trace.Except)
 			//try.EosThrow(trace.Except, "tester PushTransaction is error :%#v", trace.Except.DetailMessage())
 		}
 		r = trace
