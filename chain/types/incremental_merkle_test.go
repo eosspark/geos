@@ -67,3 +67,18 @@ func Test_moveNodes(t *testing.T) {
 	moveNodes(&dst, &src)
 	assert.Equal(t, *crypto.NewSha256String("26b25d457597a7b0463f9620f666dd10aa2c4373a505967c7c8d70922a2d6ece"), dst[0])
 }
+
+func TestMerkle(t *testing.T) {
+	ids := []crypto.Sha256{*crypto.NewSha256String("00000043df9347b6d053a03a78499bc420acb05c5c3bec6acbd8d37a68b3f195"),
+		*crypto.NewSha256String("00000042332b70edb826b578924218b8b509c3dcb2011608829f9f5f85d983b0")}
+
+	assert.Equal(t, "ad2b926aa8d86b1ed9dc70b47b48778c43a2406eabba236d81580286640f78d5", Merkle(ids).String())
+}
+
+func TestIncrementalMerkle_GetRoot(t *testing.T) {
+	m := new(IncrementalMerkle)
+	m.Append(*crypto.NewSha256String("00000043df9347b6d053a03a78499bc420acb05c5c3bec6acbd8d37a68b3f195"))
+	m.Append(*crypto.NewSha256String("00000042332b70edb826b578924218b8b509c3dcb2011608829f9f5f85d983b0"))
+
+	assert.Equal(t, "ad2b926aa8d86b1ed9dc70b47b48778c43a2406eabba236d81580286640f78d5", m.GetRoot().String())
+}

@@ -2,6 +2,7 @@ package types
 
 import (
 	"github.com/eosspark/eos-go/common"
+	"github.com/eosspark/eos-go/common/container"
 	math "github.com/eosspark/eos-go/common/eos_math"
 	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/ecc"
@@ -43,22 +44,19 @@ func (b *BlockHeaderState) GetScheduledProducer(t BlockTimeStamp) ProducerKey {
 }
 
 func (b *BlockHeaderState) CalcDposLastIrreversible() uint32 {
-	blockNums := make([]int, 0, b.ProducerToLastImpliedIrb.Size())
-	b.ProducerToLastImpliedIrb.Each(func(first common.AccountName, second uint32) {
-		blockNums = append(blockNums, int(second))
-	})
+	blockNums := b.ProducerToLastImpliedIrb.Values()
 	/// 2/3 must be greater, so if I go 1/3 into the list sorted from low to high, then 2/3 are greater
 
 	if len(blockNums) == 0 {
 		return 0
 	}
 	/// TODO: update to nth_element
-	sort.Ints(blockNums)
+	sort.Sort(container.UInt32Slice(blockNums))
 	return uint32(blockNums[(len(blockNums)-1)/3])
 }
 
 func (b *BlockHeaderState) GenerateNext(when BlockTimeStamp) *BlockHeaderState {
-	result := new(BlockHeaderState)
+	result := &BlockHeaderState{}
 
 	if when > 0 {
 		EosAssert(when > b.Header.Timestamp, &BlockValidateException{}, "next block must be in the future")
