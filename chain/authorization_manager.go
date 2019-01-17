@@ -460,7 +460,8 @@ func (a *AuthorizationManager) CheckAuthorization2(account common.AccountName,
 		providedKeys,
 		providedPermissions,
 		effectiveProvidedDelay,
-		checkTime)
+		checkTime,
+	)
 	EosAssert(checker.SatisfiedLc(&types.PermissionLevel{account, permission}, nil), &UnsatisfiedAuthorization{},
 		"permission '%v' was not satisfied under a provided delay of %v ms, provided permissions %v, and provided keys %v",
 		types.PermissionLevel{account, permission}, providedDelay.Count()/1000, providedPermissions, providedKeys)
