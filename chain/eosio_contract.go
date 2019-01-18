@@ -244,6 +244,7 @@ func applyEosioSetabi(context *ApplyContext) {
 	})
 
 	accountSequenceObj := entity.AccountSequenceObject{Name: act.Account}
+	db.Find("byName", accountSequenceObj, &accountSequenceObj)
 	db.Modify(&accountSequenceObj, func(aso *entity.AccountSequenceObject) {
 		aso.CodeSequence += 1
 	})

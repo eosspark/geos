@@ -224,7 +224,6 @@ func (a *ApplyContext) printDebug(receiver common.AccountName, at *types.ActionT
 }
 
 func (a *ApplyContext) execOne(trace *types.ActionTrace) {
-
 	start := common.Now() //common.TimePoint.now()
 
 	r := types.ActionReceipt{}
@@ -385,7 +384,7 @@ func (a *ApplyContext) RequireAuthorization2(account int64, permission int64) {
 	EosAssert(false, &MissingAuthException{}, "missing authority of %s/%s", common.S(uint64(account)), common.S(uint64(permission)))
 }
 
-func (a *ApplyContext) HasReciptient(code int64) bool {
+func (a *ApplyContext) HasRecipient(code int64) bool {
 	for _, a := range a.Notified {
 		if a == common.AccountName(code) {
 			return true
@@ -393,8 +392,9 @@ func (a *ApplyContext) HasReciptient(code int64) bool {
 	}
 	return false
 }
+
 func (a *ApplyContext) RequireRecipient(recipient int64) {
-	if !a.HasReciptient(recipient) {
+	if !a.HasRecipient(recipient) {
 		a.Notified = append(a.Notified, common.AccountName(recipient))
 	}
 
