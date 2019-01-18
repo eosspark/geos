@@ -5,6 +5,7 @@ import (
 	. "github.com/eosspark/eos-go/common/eos_math"
 	. "github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
+	"github.com/eosspark/eos-go/log"
 	"reflect"
 )
 
@@ -160,10 +161,10 @@ func (f *FixedKey) MakeFromWordSequence(first interface{}, rest ...interface{}) 
 		FcAssert(SizeOf(first) * (1 +len(rest)) <= f.Size, "too many words supplied to make_from_word_sequence")
 		var arr []interface{}
 		arr = append(arr, first)
-		arr = append(arr, rest)
+		arr = append(arr, rest...)
 		f.SetFromWordSequence(arr)
 	}).Catch(func(e Exception) {
-
+		log.Error(e.DetailMessage())
 	}).End()
 	return f
 }

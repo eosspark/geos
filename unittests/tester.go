@@ -439,8 +439,8 @@ func (t BaseTester) PushAction2(code *common.AccountName, acttype *common.Accoun
 func (t BaseTester) PushAction3(code *common.AccountName, acttype *common.AccountName,
 	actors []*common.AccountName, data *common.Variants, expiration uint32, delaySec uint32) *types.TransactionTrace {
 	auths := make([]types.PermissionLevel, 0)
-	for _, actor := range actors{
-		auths = append(auths, types.PermissionLevel{Actor:*actor, Permission:common.DefaultConfig.ActiveName})
+	for _, actor := range actors {
+		auths = append(auths, types.PermissionLevel{Actor: *actor, Permission: common.DefaultConfig.ActiveName})
 	}
 	return t.PushAction4(code, acttype, &auths, data, expiration, delaySec)
 }
@@ -941,6 +941,12 @@ func (t BaseTester) FindTable(code common.Name, scope common.Name, table common.
 func (t BaseTester) Success() ActionResult {
 	return "success"
 }
+func (t BaseTester) Error(msg string) ActionResult {
+	return msg
+}
+func (t BaseTester) WasmAssertMsg(msg string) ActionResult {
+	return "assertion failure with message: " + msg
+}
 
 type ValidatingTester struct {
 	BaseTester
@@ -1004,12 +1010,17 @@ func (vt ValidatingTester) PushAction(act *types.Action, authorizer common.Accou
 		privateKey := vt.getPrivateKey(authorizer, "active")
 		trx.Sign(&privateKey, &chainId)
 	}
+	returning, msg := false, ""
 	try.Try(func() {
 		vt.PushTransaction(&trx, common.MaxTimePoint(), vt.DefaultBilledCpuTimeUs)
 	}).Catch(func(ex exception.Exception) {
 		//log.Error("tester PushAction is error: %v", ex.DetailMessage())
-		try.Throw(ex)
+		returning, msg = true, ex.TopMessage()
+		return
 	}).End()
+	if returning {
+		return vt.Error(msg)
+	}
 	vt.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs), 0)
 	//BOOST_REQUIRE_EQUAL(true, chain_has_transaction(trx.id()))
 	return vt.Success()
