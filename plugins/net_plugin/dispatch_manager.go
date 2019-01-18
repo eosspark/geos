@@ -323,7 +323,7 @@ func (d *dispatchManager) recvNotice(c *Connection, msg *NoticeMessage, generate
 	netLog.Debug("send req = %s", sendReq)
 	if sendReq {
 		c.enqueue(&req, true)
-		c.fetchWait()
+		//c.fetchWait()
 		c.lastReq = &req
 	}
 }
@@ -366,7 +366,7 @@ func (d *dispatchManager) retryFetch(c *Connection) {
 		}
 		if sendIt {
 			conn.enqueue(c.lastReq, true)
-			conn.fetchWait()
+			//conn.fetchWait()
 			conn.lastReq = c.lastReq
 			return
 		}
@@ -376,6 +376,6 @@ func (d *dispatchManager) retryFetch(c *Connection) {
 	// at this point no other peer has it, re-request or do nothing?
 	if c.connected() {
 		c.enqueue(c.lastReq, true)
-		c.fetchWait()
+		//c.fetchWait()
 	}
 }

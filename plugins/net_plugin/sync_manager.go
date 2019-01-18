@@ -156,7 +156,7 @@ func (s *syncManager) requestNextChunk(conn *Connection) {
 	}
 
 	// verify there is an available source
-	if s.source != nil || !s.source.current() {
+	if s.source == nil || !s.source.current() {
 		netLog.Error("Unable to continue syncing at this time")
 		s.syncLastRequestedNum = s.chainPlugin.Chain().LastIrreversibleBlockNum()
 		s.setStage(inSync) // probably not, but we can't do anything else
@@ -180,7 +180,7 @@ func (s *syncManager) requestNextChunk(conn *Connection) {
 func (s *syncManager) sendHandshakes(impl *netPluginIMpl) {
 	for _, ci := range impl.connections {
 		if ci.current() {
-			ci.sendHandshake(impl)
+			ci.sendHandshake()
 		}
 	}
 }
@@ -386,7 +386,7 @@ func (s *syncManager) recvBlock(c *Connection, blkID common.BlockIdType, blkNum 
 			s.requestNextChunk(nil)
 		} else {
 			fcLog.Debug("calling sync_wait on connecting %s", c.peerAddr)
-			c.syncWait()
+			//c.syncWait()
 		}
 	}
 }

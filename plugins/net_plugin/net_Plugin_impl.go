@@ -21,6 +21,14 @@ import (
 	"time"
 )
 
+var (
+	netLog  log.Logger
+	fcLog   log.Logger
+	peerLog log.Logger
+)
+
+type possibleConnections byte
+
 const (
 	// default value initializers
 	defSendBufferSizeMb        = 4
@@ -56,21 +64,11 @@ const (
 	protoExplicitSync uint16 = 1
 
 	netVersion uint16 = protoExplicitSync
-)
 
-type possibleConnections byte
-
-const (
 	nonePossible      possibleConnections = 0
 	producersPossible possibleConnections = 1 << 0
 	specifiedPossible possibleConnections = 1 << 1
 	anyPossible       possibleConnections = 1 << 2
-)
-
-var (
-	netLog  log.Logger
-	fcLog   log.Logger
-	peerLog log.Logger
 )
 
 type netPluginIMpl struct {
@@ -166,14 +164,14 @@ func (impl *netPluginIMpl) startListenLoop() {
 		if err == nil {
 			visitors := uint32(0)
 			fromAddr := uint32(0)
-			paddr := conn.RemoteAddr().String()
-			log.Info("accept connection: %s,visitor: %d, fromAddr: %d", paddr, visitors, fromAddr)
+			pAddr := conn.RemoteAddr().String()
+			log.Info("accept connection: %s,visitor: %d, fromAddr: %d", pAddr, visitors, fromAddr)
 
 			for _, c := range impl.connections {
 				if c.conn != nil {
 					if len(c.peerAddr) == 0 {
 						visitors++
-						if paddr == c.conn.RemoteAddr().String() {
+						if pAddr == c.conn.RemoteAddr().String() {
 							fromAddr++
 						}
 					}
@@ -190,7 +188,7 @@ func (impl *netPluginIMpl) startListenLoop() {
 				impl.startSession(socket, c)
 			} else {
 				if fromAddr >= impl.maxNodesPerHost {
-					log.Error("Number of connections (%d) from %s exceeds limit", fromAddr+1, paddr)
+					log.Error("Number of connections (%d) from %s exceeds limit", fromAddr+1, pAddr)
 				} else {
 					log.Error("Error max_client_count %d exceeded", impl.maxClientCount)
 				}
@@ -322,7 +320,7 @@ func (impl *netPluginIMpl) AcceptedBlockHeader(block *types.BlockState) {
 
 func (impl *netPluginIMpl) AcceptedBlock(block *types.BlockState) {
 	fcLog.Debug("signaled,id = %s", block.BlockId)
-	impl.dispatcher.bcastBlock(impl, block.SignedBlock)
+	//impl.dispatcher.bcastBlock(impl, block.SignedBlock)
 }
 
 func (impl *netPluginIMpl) IrreversibleBlock(block *types.BlockState) {
@@ -688,7 +686,7 @@ func (impl *netPluginIMpl) handleHandshake(c *Connection, msg *HandshakeMessage)
 		}
 
 		if c.sentHandshakeCount == 0 {
-			c.sendHandshake(impl)
+			c.sendHandshake()
 		}
 	}
 
@@ -716,9 +714,9 @@ func (impl *netPluginIMpl) handleGoaway(c *Connection, msg *GoAwayMessage) {
 //floating-double arithmetic with rounding done by the hardware.
 //This is necessary in order to avoid overflow and preserve precision.
 func (impl *netPluginIMpl) handleTime(c *Connection, msg *TimeMessage) {
-	netLog.Info("receive time_message")
-	netLog.Info("%s: receive a time message %v", c.peerAddr, msg)
-
+	//netLog.Info("receive time_message")
+	//netLog.Info("%s: receive a time message %v", c.peerAddr, msg)
+	fcLog.Info("receive time_message")
 	/* We've already lost however many microseconds it took to dispatch
 	 * the message, but it can't be helped.
 	 */
@@ -761,7 +759,7 @@ func (impl *netPluginIMpl) handleNotice(c *Connection, msg *NoticeMessage) {
 	sendReq := false
 
 	if msg.KnownTrx.Mode != none {
-		netLog.Debug("this is a %s notice with %d transactions", modeTostring[msg.KnownTrx.Mode], msg.KnownTrx.Pending)
+		fcLog.Debug("this is a %s notice with %d transactions", modeTostring[msg.KnownTrx.Mode], msg.KnownTrx.Pending)
 	}
 
 	switch msg.KnownTrx.Mode {
@@ -787,7 +785,7 @@ func (impl *netPluginIMpl) handleNotice(c *Connection, msg *NoticeMessage) {
 	}
 
 	if msg.KnownBlocks.Mode != none {
-		netLog.Debug("this is a %s notice with  %d blocks",
+		fcLog.Debug("this is a %s notice with  %d blocks",
 			modeTostring[msg.KnownBlocks.Mode], msg.KnownBlocks.Pending)
 	}
 	switch msg.KnownBlocks.Mode {
@@ -802,6 +800,7 @@ func (impl *netPluginIMpl) handleNotice(c *Connection, msg *NoticeMessage) {
 	default:
 		peerLog.Error("bad notice_message : invalid known.mode %d", msg.KnownBlocks.Mode)
 	}
+
 	fcLog.Debug("send req = %t", sendReq)
 	if sendReq {
 		c.enqueue(&req, true)
@@ -839,8 +838,7 @@ func (impl *netPluginIMpl) handleSyncRequest(c *Connection, msg *SyncRequestMess
 	netLog.Info("%s : received sync_request_message %v", c.peerAddr, msg)
 	if msg.EndBlock == 0 {
 		c.peerRequested = nil //TODO
-		//c.peerRequested.reset()
-		//c.flushQueues()
+		c.flushQueues()
 	} else {
 		c.peerRequested = newSyncState(msg.StartBlock, msg.EndBlock, msg.StartBlock-1)
 		c.enqueueSyncBlock()
@@ -896,15 +894,19 @@ func (impl *netPluginIMpl) handleSignedBlock(c *Connection, msg *SignedBlockMess
 	fcLog.Debug("canceling wait on %s", c.peerAddr)
 	c.cancelWait()
 
+	returning := false
 	Try(func() {
 		if cc.FetchBlockById(blkID) != nil {
 			impl.syncMaster.recvBlock(c, blkID, blkNum)
-			return
+			returning = true
 		}
 	}).Catch(func(e interface{}) {
-		// should this even be caught?
 		log.Error("Caught an unknown exception trying to recall blockID")
 	}).End()
+
+	if returning {
+		return
+	}
 
 	impl.dispatcher.recvBlock(c, blkID, blkNum)
 	age := common.Now().Sub(msg.Timestamp.ToTimePoint())
@@ -930,7 +932,7 @@ func (impl *netPluginIMpl) handleSignedBlock(c *Connection, msg *SignedBlockMess
 		reason = noReason
 	}).Catch(func(ex interface{}) {
 		peerLog.Error("bad signed_block : unknown exception")
-		//log.Error("handle sync block caught something else from %s", c.peerAddr)
+		netLog.Error("handle sync block caught something else from %s", c.peerAddr)
 	}).End()
 
 	if reason == noReason {

@@ -319,27 +319,21 @@ func (p *PackedTransaction) GetPrunableSize() uint32 {
 
 func (p *PackedTransaction) PackedDigest() common.DigestType {
 	prunable := crypto.NewSha256()
-	if p == nil {
-		p = &PackedTransaction{}
-	}
 	result, _ := rlp.EncodeToBytes(p.Signatures)
 	prunable.Write(result)
 	result, _ = rlp.EncodeToBytes(p.PackedContextFreeData)
 	prunable.Write(result)
-
-	prunableResult := prunable.Sum(nil)
+	prunableResult := *crypto.NewSha256Byte(prunable.Sum(nil))
 
 	enc := crypto.NewSha256()
 	result, _ = rlp.EncodeToBytes(p.Compression)
 	enc.Write(result)
-
 	result, _ = rlp.EncodeToBytes(p.PackedTrx)
-
 	enc.Write(result)
-	enc.Write(prunableResult)
+	result, _ = rlp.EncodeToBytes(prunableResult)
+	enc.Write(result)
 
-	hashed := enc.Sum(nil)
-	return common.DigestType(*crypto.NewSha256Byte(hashed))
+	return *crypto.NewSha256Byte(enc.Sum(nil))
 }
 
 func (p *PackedTransaction) GetRawTransaction() common.HexBytes {
