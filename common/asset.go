@@ -144,10 +144,10 @@ func (a Asset) FromString(from *string) Asset {
 func CheckParseInt64(s string) {
 	MaxInt64String := strconv.FormatInt(math.MaxInt64, 10)
 	if s[0] != '-' {
-		EosAssert(len(s) <= len(MaxInt64String) && s <= MaxInt64String, &ParseErrorException{}, "Couldn't parse int64")
+		EosAssert(len(s) < len(MaxInt64String) || (len(s) == len(MaxInt64String) && s <= MaxInt64String), &ParseErrorException{}, "Couldn't parse int64")
 	} else {
 		s = s[1:]
-		EosAssert(len(s) <= len(MaxInt64String) && s <= MaxInt64String, &ParseErrorException{}, "Couldn't parse int64")
+		EosAssert(len(s) < len(MaxInt64String) || (len(s) == len(MaxInt64String) && s <= MaxInt64String), &ParseErrorException{}, "Couldn't parse int64")
 	}
 }
 
