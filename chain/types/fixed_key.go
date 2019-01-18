@@ -6,7 +6,6 @@ import (
 	. "github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
 	"reflect"
-	"unsafe"
 )
 
 func IsIntegral(T interface{}) bool {
@@ -92,15 +91,19 @@ func ConvertToWordT(T interface{}) WordT {
 	}
 }
 
+func SizeOf(T interface{}) int {
+	return int(reflect.TypeOf(T).Size())
+}
+
 func IsSame(T interface{}, compType interface{}) bool {
 	return reflect.TypeOf(T) == reflect.TypeOf(compType)
 }
 
 type WordT = Uint128
 
-var wordTSize = unsafe.Sizeof(WordT{})
+var wordTSize = SizeOf(WordT{})
 
-var SizeOfWordT = int(unsafe.Sizeof(WordT{}))
+var SizeOfWordT = SizeOf(WordT{})
 
 type FixedKey struct {
 	Size common.SizeT
@@ -113,12 +116,12 @@ func (f FixedKey) numWords() common.SizeT {
 
 func (f FixedKey) EnableFirstWord(first interface{}) bool {
 	var boolType bool
-	return IsIntegral(first) && !IsSame(first, boolType) && unsafe.Sizeof(first) <= wordTSize
+	return IsIntegral(first) && !IsSame(first, boolType) && SizeOf(first) <= wordTSize
 }
 
 func (f *FixedKey) SetFromWordSequence(arr []interface{}) {
 
-	wordSize := unsafe.Sizeof(reflect.TypeOf(arr[0]))
+	wordSize := SizeOf(reflect.TypeOf(arr[0]))
 	tempWord := CreateUint128(int(0))
 	subWordShift := 8 * wordSize
 	numSubWords := wordTSize / wordSize
@@ -128,7 +131,7 @@ func (f *FixedKey) SetFromWordSequence(arr []interface{}) {
 	for _, w := range arr {
 		if subWordsLeft > 1 {
 			tempWord = tempWord.Or(ConvertToWordT(w))
-			tempWord.LeftShifts(int(subWordShift))
+			tempWord.LeftShifts(subWordShift)
 			subWordsLeft --
 			continue
 		}
@@ -152,9 +155,9 @@ func (f *FixedKey) SetFromWordSequence(arr []interface{}) {
 func (f *FixedKey) MakeFromWordSequence(first interface{}, rest ...interface{}) *FixedKey {
 	Try(func() {
 		FcAssert(f.EnableFirstWord(first), "The first word is invalid")
-		FcAssert(wordTSize == wordTSize/unsafe.Sizeof(first) * unsafe.Sizeof(first),
+		FcAssert(wordTSize == wordTSize/SizeOf(first) * SizeOf(first),
 			"size of the backing word size is not divisible by the size of the words supplied as arguments")
-		FcAssert(int(unsafe.Sizeof(first)) * (1 +len(rest)) <= f.Size, "too many words supplied to make_from_word_sequence")
+		FcAssert(SizeOf(first) * (1 +len(rest)) <= f.Size, "too many words supplied to make_from_word_sequence")
 		var arr []interface{}
 		arr = append(arr, first)
 		arr = append(arr, rest)
