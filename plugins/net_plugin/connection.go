@@ -18,15 +18,22 @@ import (
 	"github.com/eosspark/eos-go/plugins/net_plugin/multi_index/peer_block_state"
 	"github.com/eosspark/eos-go/plugins/net_plugin/multi_index/transaction_state"
 	"gopkg.in/gin-gonic/gin.v1/json"
-	"io"
 	"net"
 	"reflect"
 	"runtime"
 )
 
-const (
-	tsBufferSize int = 32
-)
+type PeerStatus struct {
+	Peer          string
+	Connecting    bool
+	Syncing       bool
+	LastHandshake HandshakeMessage
+}
+
+type queuedWrite struct {
+	buff     []byte
+	callback func(err error, n int)
+}
 
 //Index by start_block_num
 type syncState struct {
@@ -45,61 +52,40 @@ func newSyncState(start, end, lastActed uint32) *syncState {
 	}
 }
 
-type queuedWrite struct {
-	buff     []byte
-	callback func(err error, n int)
-}
-
 type Connection struct {
 	blkState      *peer_block_state.PeerBlockStateIndex
 	trxState      *transaction_state.TransactionStateIndex
 	peerRequested *syncState //this peer is requesting info from us
-	socket        *asio.ReactiveSocket
 
+	socket               *asio.ReactiveSocket
 	conn                 net.Conn
-	reader               io.Reader
 	pendingMessageBuffer [1024 * 1024]byte
-	//outstandingReadBytes optional<int>
-	blkBuffer []byte
-
-	nodeID             common.NodeIdType
-	lastHandshakeRecv  *HandshakeMessage
-	lastHandshakeSent  *HandshakeMessage
-	sentHandshakeCount uint16
-	connecting         bool
-	syncing            bool
-	protocolVersion    uint16
-	peerAddr           string
-	responseExpected   *asio.DeadlineTimer
-	pendingFetch       *RequestMessage
-
-	noRetry     GoAwayReason
-	forkHead    common.BlockIdType
-	forkHeadNum uint32
-	lastReq     *RequestMessage
+	nodeID               common.NodeIdType
+	lastHandshakeRecv    *HandshakeMessage
+	lastHandshakeSent    *HandshakeMessage
+	sentHandshakeCount   uint16
+	connecting           bool
+	syncing              bool
+	protocolVersion      uint16
+	peerAddr             string
+	responseExpected     *asio.DeadlineTimer
+	pendingFetch         *RequestMessage
+	noRetry              GoAwayReason
+	forkHead             common.BlockIdType
+	forkHeadNum          uint32
+	lastReq              *RequestMessage
 
 	// Members set from network data
-	org common.TimePoint //originate timestamp
-	rec common.TimePoint //receive timestamp
-	dst common.TimePoint //destination timestamp
-	xmt common.TimePoint // transmit timestamp
-
-	// Computed data
-	offset float64 //peer offset double
-
-	ts [tsBufferSize]byte //working buffer for making human readable timestamps
+	org    common.TimePoint //originate timestamp
+	rec    common.TimePoint //receive timestamp
+	dst    common.TimePoint //destination timestamp
+	xmt    common.TimePoint // transmit timestamp
+	offset float64          //peer offset
 
 	writeQueue []queuedWrite
 	outQueue   []queuedWrite
 
 	impl *netPluginIMpl
-}
-
-type PeerStatus struct {
-	Peer          string
-	Connecting    bool
-	Syncing       bool
-	LastHandshake HandshakeMessage
 }
 
 func NewConnectionByEndPoint(endpoint string, impl *netPluginIMpl) *Connection {
@@ -132,7 +118,7 @@ func NewConnectionByConn(socket *asio.ReactiveSocket, c net.Conn, impl *netPlugi
 	conn := &Connection{
 		blkState:           peer_block_state.NewPeerBlockStateIndex(),
 		trxState:           transaction_state.NewTransactionStateIndex(),
-		peerRequested:      &syncState{},
+		peerRequested:      new(syncState),
 		conn:               c,
 		socket:             socket,
 		lastHandshakeSent:  &HandshakeMessage{},
@@ -170,28 +156,44 @@ func (c *Connection) getStatus() *PeerStatus {
 	}
 }
 
-func (c *Connection) connected() bool {
-
-	return false
+func (c *Connection) connected() bool { //TODO
+	return c.socket != nil && !c.connecting
 }
 
-func (c *Connection) current() bool { //TODO
-
-	return true
+func (c *Connection) current() bool {
+	return c.connected() && !c.syncing
 }
 
-func (c *Connection) reset() {
-	c.peerRequested = nil //TODO
+func (c *Connection) reset() { //TODO
+	c.peerRequested = nil
 	c.blkState = nil
 	c.trxState = nil
 }
 
-func (c *Connection) close() { //TODO
-
+func (c *Connection) close() {
+	if c.socket != nil {
+		//c.socket.close()
+		c.socket = nil
+	} else {
+		netLog.Warn("no socket to close")
+	}
+	c.flushQueues()
+	c.connecting = false
+	c.syncing = false
+	if !common.Empty(c.lastReq) {
+		c.impl.dispatcher.retryFetch(c)
+	}
+	c.reset()
+	c.sentHandshakeCount = 0
+	c.lastHandshakeRecv = &HandshakeMessage{}
+	c.lastHandshakeSent = &HandshakeMessage{}
+	c.impl.syncMaster.resetLibNum(c)
+	fcLog.Debug("cancel wait on %s", c.PeerName())
+	c.cancelWait()
 }
 
-func (c *Connection) sendHandshake(impl *netPluginIMpl) {
-	handshakePopulate(impl, c.lastHandshakeSent)
+func (c *Connection) sendHandshake() {
+	c.handshakePopulate(c.impl, c.lastHandshakeSent)
 	c.sentHandshakeCount += 1
 	c.lastHandshakeSent.Generation = c.sentHandshakeCount
 
@@ -199,7 +201,7 @@ func (c *Connection) sendHandshake(impl *netPluginIMpl) {
 	c.enqueue(c.lastHandshakeSent, true)
 }
 
-func handshakePopulate(impl *netPluginIMpl, hello *HandshakeMessage) {
+func (c *Connection) handshakePopulate(impl *netPluginIMpl, hello *HandshakeMessage) {
 	hello.NetworkVersion = netVersionBase + netVersion
 	hello.ChainID = impl.chainID
 	hello.NodeID = impl.nodeID
@@ -252,18 +254,61 @@ func handshakePopulate(impl *netPluginIMpl, hello *HandshakeMessage) {
 }
 
 func (c *Connection) PeerName() string {
-	return c.peerAddr
+	if len(c.lastHandshakeRecv.P2PAddress) != 0 {
+		return c.lastHandshakeRecv.P2PAddress
+	}
+
+	if len(c.peerAddr) != 0 {
+		return c.peerAddr
+	}
+	return "connecting client"
+}
+
+func (c *Connection) cancelWait() {
+	if c.responseExpected != nil {
+		c.responseExpected.Cancel()
+	}
 }
 
 func (c *Connection) syncWait() {
 
-}
-
-func (c *Connection) cancelWait() {
-
+	//c.responseExpected.ExpiresFromNow(c.impl.respExpectedPeriod)
+	//c.responseExpected.AsyncWait(func(err error) {
+	//	if c == nil {
+	//		// connection was destroyed before this lambda was delivered
+	//		return
+	//	}
+	//	c.syncTimeout(err)
+	//})
 }
 
 func (c *Connection) fetchWait() {
+	//c.responseExpected.ExpiresFromNow(c.impl.respExpectedPeriod)
+	//c.responseExpected.AsyncWait(func(err error) {
+	//	if c == nil {
+	//		// connection was destroyed before this lambda was delivered
+	//		return
+	//	}
+	//	c.fetchTimeout(err)
+	//})
+}
+
+func (c *Connection) syncTimeout(err error) { //TODO not same as C++
+	if err == nil {
+		c.impl.syncMaster.reassignFetch(c, benignOther)
+	} else {
+		netLog.Error("setting timer for sync request fot error %s", err)
+	}
+}
+
+func (c *Connection) fetchTimeout(err error) { //TODO not same as C++
+	if err == nil {
+		if c.pendingFetch != nil && c.pendingFetch.ReqTrx.empty() || c.pendingFetch.ReqBlocks.empty() {
+			c.impl.dispatcher.retryFetch(c)
+		}
+	} else {
+		netLog.Error("setting time for fetch request got error %s", err)
+	}
 
 }
 
@@ -271,7 +316,8 @@ func (c *Connection) cancelSync(reason GoAwayReason) {
 	fcLog.Debug("cancel sync reason = %s, write queue size %d peer %s", ReasonToString[reason], len(c.writeQueue), c.peerAddr)
 
 	c.cancelWait()
-	//c.flushQueues()
+	c.flushQueues()
+
 	switch reason {
 	case validation, fatalOther:
 		c.noRetry = reason
@@ -280,7 +326,6 @@ func (c *Connection) cancelSync(reason GoAwayReason) {
 		fcLog.Debug("sending empty request but not calling sync wait on %s", c.peerAddr)
 		c.enqueue(&SyncRequestMessage{0, 0}, true)
 	}
-
 }
 
 func (c *Connection) txnSendPending(ids []common.TransactionIdType) {
@@ -506,12 +551,19 @@ func (c *Connection) stopSend() {
 	c.syncing = false
 }
 
-//void cancel_sync(go_away_reason);
-//void flush_queues();
+func (c *Connection) flushQueues() {
+	c.writeQueue = nil
+}
 
 func (c *Connection) enqueueSyncBlock() bool {
 	cc := App().FindPlugin(chain_plugin.ChainPlug).(*chain_plugin.ChainPlugin).Chain()
-	if c.peerRequested == nil {
+	//if common.Empty(c.peerRequested){
+	//	return false
+	//}
+	//if c.peerRequested ==nil{
+	//	return false
+	//}
+	if c.peerRequested.startTime == 0 { //TODO check nil
 		return false
 	}
 
@@ -542,11 +594,8 @@ func (c *Connection) requestSyncBlocks(start, end uint32) {
 		EndBlock:   end,
 	}
 	c.enqueue(&syncRequest, true)
-	c.syncWait()
+	//c.syncWait()
 }
-
-//void sync_timeout(boost::system::error_code ec);
-//void fetch_timeout(boost::system::error_code ec);
 
 func isValid(msg *HandshakeMessage) bool {
 	// Do some basic validation of an incoming handshake_message, so things
@@ -654,7 +703,7 @@ func (c *Connection) processNextMessage(payloadBytes []byte) bool {
 		case *SignedBlockMessage:
 			c.impl.handleSignedBlock(c, msg)
 		case *PackedTransactionMessage:
-			c.impl.handlePackTransaction(c, msg)
+			//c.impl.handlePackTransaction(c, msg)
 		default:
 			Throw(fmt.Errorf("unsuppoted p2p message type %d", messageType))
 		}
