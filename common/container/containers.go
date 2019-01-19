@@ -1,10 +1,11 @@
 package container
 
+import "github.com/eosspark/eos-go/log"
+
 type Container interface {
 	Empty() bool
 	Size() int
 	Clear()
-
 
 	Serializer
 }
@@ -14,7 +15,6 @@ type Serializer interface {
 	UnmarshalJSON([]byte) error
 }
 
-
 type Set interface {
 	Container
 }
@@ -22,3 +22,5 @@ type Set interface {
 type Map interface {
 	Container
 }
+
+var Logger = log.NewWithHandle("container::log", log.DiscardHandler())
