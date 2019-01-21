@@ -280,6 +280,10 @@ func (tree *Tree) Remove(key interface{}) {
 	}
 }
 
+func (tree *Tree) RemoveOne(itr Iterator) {
+	tree.remove(itr.node)
+}
+
 func (tree *Tree) swapNode(node *Node, pred *Node) {
 	if node == pred {
 		return

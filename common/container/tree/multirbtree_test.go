@@ -529,7 +529,6 @@ func TestRedBlackTreeLowerUpperBound(t *testing.T) {
 	assert(1, lower.node.Value.(int))
 	assert(2, upper.node.Value.(int))
 
-
 	lower = tree.LowerBound(0)
 	upper = tree.UpperBound(0)
 
@@ -566,7 +565,7 @@ func TestRedBlackMultiTreeIteratorDelete(t *testing.T) {
 	index := 1
 
 	for itr := tree.Begin(); itr.HasNext(); itr.Next() {
-		itr.Delete()
+		tree.RemoveOne(itr)
 		utils.AssertTest(t, expects[index:], tree.Values())
 		index ++
 	}

@@ -45,9 +45,7 @@ func StringComparator(a, b interface{}) int {
 
 var TypeInt = reflect.TypeOf(int(0))
 // IntComparator provides a basic comparison on int
-func IntComparator(a, b interface{}) int {
-	aAsserted := a.(int)
-	bAsserted := b.(int)
+func IntComparator(aAsserted, bAsserted int) int {
 	switch {
 	case aAsserted > bAsserted:
 		return 1
@@ -164,11 +162,11 @@ func UInt16Comparator(a, b interface{}) int {
 }
 
 // UInt32Comparator provides a basic comparison on uint32
-func UInt32Comparator(a, b uint32) int {
+func UInt32Comparator(aAsserted, bAsserted uint32) int {
 	switch {
-	case a > b:
+	case aAsserted > bAsserted:
 		return 1
-	case a < b:
+	case aAsserted < bAsserted:
 		return -1
 	default:
 		return 0

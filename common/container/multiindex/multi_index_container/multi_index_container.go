@@ -1,8 +1,8 @@
 package multi_index_container
 
 import (
+	"github.com/eosspark/eos-go/common/container"
 	"github.com/eosspark/eos-go/common/container/multiindex"
-	"github.com/eosspark/eos-go/log"
 )
 
 // template type MultiIndex(SuperIndex,SuperNode,Value)
@@ -94,7 +94,7 @@ func (m *MultiIndex) Modify(iter multiindex.IteratorType, mod func(*Value)) bool
 func (m *MultiIndex) modify(mod func(*Value), n *MultiIndexNode) (*MultiIndexNode, bool) {
 	defer func() {
 		if e := recover(); e != nil {
-			log.Error("#multi modify failed: %v", e)
+			container.Logger.Error("#multi modify failed: %v", e)
 			m.erase(n)
 			m.count--
 			panic(e)
@@ -146,7 +146,7 @@ func (i *MultiIndexBase) erase(n *MultiIndexBaseNode) {
 }
 
 func (i *MultiIndexBase) erase_(iter multiindex.IteratorType) {
-	log.Warn("erase iterator doesn't match all index")
+	container.Logger.Warn("erase iterator doesn't match all index")
 }
 
 func (i *MultiIndexBase) modify(n *MultiIndexBaseNode) (*MultiIndexBaseNode, bool) {
@@ -154,7 +154,7 @@ func (i *MultiIndexBase) modify(n *MultiIndexBaseNode) (*MultiIndexBaseNode, boo
 }
 
 func (i *MultiIndexBase) modify_(iter multiindex.IteratorType, mod func(*Value)) bool {
-	log.Warn("modify iterator doesn't match all index")
+	container.Logger.Warn("modify iterator doesn't match all index")
 	return false
 }
 
