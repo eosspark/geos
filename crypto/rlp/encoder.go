@@ -3,9 +3,9 @@ package rlp
 import (
 	"bytes"
 	"encoding/binary"
+	"errors"
 	"github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
-	"github.com/kataras/iris/core/errors"
 	"io"
 	"math"
 	"reflect"

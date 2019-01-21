@@ -2,6 +2,7 @@ package net_plugin
 
 import (
 	"encoding/binary"
+	"encoding/json"
 	"fmt"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
@@ -17,7 +18,6 @@ import (
 	. "github.com/eosspark/eos-go/plugins/net_plugin/multi_index"
 	"github.com/eosspark/eos-go/plugins/net_plugin/multi_index/peer_block_state"
 	"github.com/eosspark/eos-go/plugins/net_plugin/multi_index/transaction_state"
-	"gopkg.in/gin-gonic/gin.v1/json"
 	"net"
 	"reflect"
 	"runtime"

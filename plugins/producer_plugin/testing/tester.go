@@ -31,7 +31,7 @@ func NewChainTester(when types.BlockTimeStamp, names ...common.AccountName) *Cha
 
 	tester.Control.head.ActiveSchedule = sch
 	tester.Control.head.PendingSchedule = sch
-	tester.Control.head.PendingScheduleHash = crypto.Hash256(sch)
+	tester.Control.head.PendingScheduleHash = *crypto.Hash256(sch)
 
 	tester.Control.forkDb.add(tester.Control.head)
 

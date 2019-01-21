@@ -152,10 +152,6 @@ func (iterator IteratorAccountNameUint32Map) Key() common.AccountName {
 	return iterator.Iterator.Key().(common.AccountName)
 }
 
-func (iterator *IteratorAccountNameUint32Map) Modify(key common.AccountName, value uint32) IteratorAccountNameUint32Map {
-	return IteratorAccountNameUint32Map{iterator.Iterator.Modify(key, value)}
-}
-
 func (m *AccountNameUint32Map) LowerBound(key common.AccountName) IteratorAccountNameUint32Map {
 	return IteratorAccountNameUint32Map{m.Tree.LowerBound(key)}
 }

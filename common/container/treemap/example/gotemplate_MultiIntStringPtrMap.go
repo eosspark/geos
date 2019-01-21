@@ -25,69 +25,69 @@ import (
 
 // template type Map(K,V,Compare,Multi)
 
-func assertStringIntMapImplementation() {
-	var _ container.Map = (*StringIntMap)(nil)
+func assertMultiIntStringPtrMapImplementation() {
+	var _ container.Map = (*MultiIntStringPtrMap)(nil)
 }
 
 // Map holds the elements in a red-black Tree
-type StringIntMap struct {
+type MultiIntStringPtrMap struct {
 	*rbt.Tree
 }
 
 // NewWith instantiates a Tree map with the custom comparator.
-func NewStringIntMap() *StringIntMap {
-	return &StringIntMap{Tree: rbt.NewWith(utils.StringComparator, false)}
+func NewMultiIntStringPtrMap() *MultiIntStringPtrMap {
+	return &MultiIntStringPtrMap{Tree: rbt.NewWith(utils.IntComparator, true)}
 }
 
-func CopyFromStringIntMap(tm *StringIntMap) *StringIntMap {
-	return &StringIntMap{Tree: rbt.CopyFrom(tm.Tree)}
+func CopyFromMultiIntStringPtrMap(tm *MultiIntStringPtrMap) *MultiIntStringPtrMap {
+	return &MultiIntStringPtrMap{Tree: rbt.CopyFrom(tm.Tree)}
 }
 
 // Put inserts key-value pair into the map.
 // Key should adhere to the comparator's type assertion, otherwise method panics.
-func (m *StringIntMap) Put(key string, value int) {
+func (m *MultiIntStringPtrMap) Put(key int, value *string) {
 	m.Tree.Put(key, value)
 }
 
-func (m *StringIntMap) Insert(key string, value int) IteratorStringIntMap {
-	return IteratorStringIntMap{m.Tree.Insert(key, value)}
+func (m *MultiIntStringPtrMap) Insert(key int, value *string) IteratorMultiIntStringPtrMap {
+	return IteratorMultiIntStringPtrMap{m.Tree.Insert(key, value)}
 }
 
 // Get searches the element in the map by key and returns its value or nil if key is not found in Tree.
 // Second return parameter is true if key was found, otherwise false.
 // Key should adhere to the comparator's type assertion, otherwise method panics.
-func (m *StringIntMap) Get(key string) IteratorStringIntMap {
-	return IteratorStringIntMap{m.Tree.Get(key)}
+func (m *MultiIntStringPtrMap) Get(key int) IteratorMultiIntStringPtrMap {
+	return IteratorMultiIntStringPtrMap{m.Tree.Get(key)}
 }
 
 // Remove removes the element from the map by key.
 // Key should adhere to the comparator's type assertion, otherwise method panics.
-func (m *StringIntMap) Remove(key string) {
+func (m *MultiIntStringPtrMap) Remove(key int) {
 	m.Tree.Remove(key)
 }
 
 // Keys returns all keys in-order
-func (m *StringIntMap) Keys() []string {
-	keys := make([]string, m.Tree.Size())
+func (m *MultiIntStringPtrMap) Keys() []int {
+	keys := make([]int, m.Tree.Size())
 	it := m.Tree.Iterator()
 	for i := 0; it.Next(); i++ {
-		keys[i] = it.Key().(string)
+		keys[i] = it.Key().(int)
 	}
 	return keys
 }
 
 // Values returns all values in-order based on the key.
-func (m *StringIntMap) Values() []int {
-	values := make([]int, m.Tree.Size())
+func (m *MultiIntStringPtrMap) Values() []*string {
+	values := make([]*string, m.Tree.Size())
 	it := m.Tree.Iterator()
 	for i := 0; it.Next(); i++ {
-		values[i] = it.Value().(int)
+		values[i] = it.Value().(*string)
 	}
 	return values
 }
 
 // Each calls the given function once for each element, passing that element's key and value.
-func (m *StringIntMap) Each(f func(key string, value int)) {
+func (m *MultiIntStringPtrMap) Each(f func(key int, value *string)) {
 	Iterator := m.Iterator()
 	for Iterator.Next() {
 		f(Iterator.Key(), Iterator.Value())
@@ -97,7 +97,7 @@ func (m *StringIntMap) Each(f func(key string, value int)) {
 // Find passes each element of the container to the given function and returns
 // the first (key,value) for which the function is true or nil,nil otherwise if no element
 // matches the criteria.
-func (m *StringIntMap) Find(f func(key string, value int) bool) (k string, v int) {
+func (m *MultiIntStringPtrMap) Find(f func(key int, value *string) bool) (k int, v *string) {
 	Iterator := m.Iterator()
 	for Iterator.Next() {
 		if f(Iterator.Key(), Iterator.Value()) {
@@ -108,7 +108,7 @@ func (m *StringIntMap) Find(f func(key string, value int) bool) (k string, v int
 }
 
 // String returns a string representation of container
-func (m StringIntMap) String() string {
+func (m MultiIntStringPtrMap) String() string {
 	str := "TreeMap\nmap["
 	it := m.Iterator()
 	for it.Next() {
@@ -119,65 +119,65 @@ func (m StringIntMap) String() string {
 }
 
 // Iterator holding the Iterator's state
-type IteratorStringIntMap struct {
+type IteratorMultiIntStringPtrMap struct {
 	rbt.Iterator
 }
 
 // Iterator returns a stateful Iterator whose elements are key/value pairs.
-func (m *StringIntMap) Iterator() IteratorStringIntMap {
-	return IteratorStringIntMap{Iterator: m.Tree.Iterator()}
+func (m *MultiIntStringPtrMap) Iterator() IteratorMultiIntStringPtrMap {
+	return IteratorMultiIntStringPtrMap{Iterator: m.Tree.Iterator()}
 }
 
 // Begin returns First Iterator whose position points to the first element
 // Return End Iterator when the map is empty
-func (m *StringIntMap) Begin() IteratorStringIntMap {
-	return IteratorStringIntMap{m.Tree.Begin()}
+func (m *MultiIntStringPtrMap) Begin() IteratorMultiIntStringPtrMap {
+	return IteratorMultiIntStringPtrMap{m.Tree.Begin()}
 }
 
 // End returns End Iterator
-func (m *StringIntMap) End() IteratorStringIntMap {
-	return IteratorStringIntMap{m.Tree.End()}
+func (m *MultiIntStringPtrMap) End() IteratorMultiIntStringPtrMap {
+	return IteratorMultiIntStringPtrMap{m.Tree.End()}
 }
 
 // Value returns the current element's value.
 // Does not modify the state of the Iterator.
-func (iterator IteratorStringIntMap) Value() int {
-	return iterator.Iterator.Value().(int)
+func (iterator IteratorMultiIntStringPtrMap) Value() *string {
+	return iterator.Iterator.Value().(*string)
 }
 
 // Key returns the current element's key.
 // Does not modify the state of the Iterator.
-func (iterator IteratorStringIntMap) Key() string {
-	return iterator.Iterator.Key().(string)
+func (iterator IteratorMultiIntStringPtrMap) Key() int {
+	return iterator.Iterator.Key().(int)
 }
 
-func (m *StringIntMap) LowerBound(key string) IteratorStringIntMap {
-	return IteratorStringIntMap{m.Tree.LowerBound(key)}
+func (m *MultiIntStringPtrMap) LowerBound(key int) IteratorMultiIntStringPtrMap {
+	return IteratorMultiIntStringPtrMap{m.Tree.LowerBound(key)}
 }
 
-func (m *StringIntMap) UpperBound(key string) IteratorStringIntMap {
-	return IteratorStringIntMap{m.Tree.UpperBound(key)}
+func (m *MultiIntStringPtrMap) UpperBound(key int) IteratorMultiIntStringPtrMap {
+	return IteratorMultiIntStringPtrMap{m.Tree.UpperBound(key)}
 
 }
 
 // ToJSON outputs the JSON representation of the map.
-type pairStringIntMap struct {
-	Key string `json:"key"`
-	Val int    `json:"val"`
+type pairMultiIntStringPtrMap struct {
+	Key int     `json:"key"`
+	Val *string `json:"val"`
 }
 
-func (m StringIntMap) MarshalJSON() ([]byte, error) {
-	elements := make([]pairStringIntMap, 0, m.Size())
+func (m MultiIntStringPtrMap) MarshalJSON() ([]byte, error) {
+	elements := make([]pairMultiIntStringPtrMap, 0, m.Size())
 	it := m.Iterator()
 	for it.Next() {
-		elements = append(elements, pairStringIntMap{it.Key(), it.Value()})
+		elements = append(elements, pairMultiIntStringPtrMap{it.Key(), it.Value()})
 	}
 	return json.Marshal(&elements)
 }
 
 // FromJSON populates the map from the input JSON representation.
-func (m *StringIntMap) UnmarshalJSON(data []byte) error {
-	elements := make([]pairStringIntMap, 0)
+func (m *MultiIntStringPtrMap) UnmarshalJSON(data []byte) error {
+	elements := make([]pairMultiIntStringPtrMap, 0)
 	err := json.Unmarshal(data, &elements)
 	if err == nil {
 		m.Clear()

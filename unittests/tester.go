@@ -313,7 +313,7 @@ func (t BaseTester) SetTransactionHeaders(trx *types.Transaction, expiration uin
 
 	trx.MaxNetUsageWords = 0
 	trx.MaxCpuUsageMS = 0
-	trx.DelaySec = delaySec
+	trx.DelaySec = common.Vuint32(delaySec)
 }
 
 func (t BaseTester) CreateAccounts(names []common.AccountName, multiSig bool, includeCode bool) []*types.TransactionTrace {

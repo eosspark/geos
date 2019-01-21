@@ -155,10 +155,6 @@ func (iterator Iterator) Key() K {
 	return iterator.Iterator.Key().(K)
 }
 
-func (iterator *Iterator) Modify(key K, value V) Iterator {
-	return Iterator{iterator.Iterator.Modify(key, value)}
-}
-
 func (m *Map) LowerBound(key K) Iterator {
 	return Iterator{m.Tree.LowerBound(key)}
 }

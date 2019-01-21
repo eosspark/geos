@@ -2,6 +2,7 @@ package net_plugin
 
 import (
 	"encoding/binary"
+	"encoding/json"
 	"github.com/eosspark/eos-go/chain"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
@@ -16,7 +17,6 @@ import (
 	"github.com/eosspark/eos-go/plugins/net_plugin/multi_index"
 	"github.com/eosspark/eos-go/plugins/net_plugin/multi_index/node_transaction"
 	"github.com/eosspark/eos-go/plugins/producer_plugin"
-	"gopkg.in/gin-gonic/gin.v1/json"
 	"net"
 	"strings"
 	"time"
