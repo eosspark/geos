@@ -4,14 +4,11 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"github.com/eosspark/eos-go/common/container"
-	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/log"
 	"io"
 	"io/ioutil"
 	"math"
 	"reflect"
-	"strings"
 )
 
 var (
@@ -550,153 +547,6 @@ func (d *Decoder) ReadChecksum512() (out []byte, err error) {
 	copy(out, d.data[d.pos:d.pos+TypeSize.Checksum512])
 	d.pos += TypeSize.Checksum512
 	return
-}
-
-func (d *Decoder) ReadPublicKey() (out ecc.PublicKey, err error) {
-
-	if d.remaining() < TypeSize.PublicKey {
-		err = fmt.Errorf("publicKey required [%d] bytes, remaining [%d]", TypeSize.PublicKey, d.remaining())
-		return
-	}
-	keyContent := make([]byte, 34)
-	copy(keyContent, d.data[d.pos:d.pos+TypeSize.PublicKey])
-
-	out, err = ecc.NewPublicKeyFromData(keyContent)
-	if err != nil {
-		err = fmt.Errorf("publicKey: key from data: %s", err)
-	}
-
-	d.pos += TypeSize.PublicKey
-	return
-}
-
-func (d *Decoder) ReadSignature() (out ecc.Signature, err error) {
-	if d.remaining() < TypeSize.Signature {
-		err = fmt.Errorf("signature required [%d] bytes, remaining [%d]", TypeSize.Signature, d.remaining())
-		return
-	}
-	sigContent := make([]byte, 66)
-	copy(sigContent, d.data[d.pos:d.pos+TypeSize.Signature])
-	out, err = ecc.NewSignatureFromData(sigContent)
-	if err != nil {
-		return out, fmt.Errorf("new signature: %s", err)
-	}
-
-	d.pos += TypeSize.Signature
-	return
-}
-func (d *Decoder) ReadContains(c container.Container) (out container.Container, err error) {
-	var l uint64
-	if l, err = d.ReadUvarint64(); err != nil {
-		return
-	}
-	if d.remaining() < int(l) {
-		err = fmt.Errorf("contains required [%d] bytes, remaining [%d]", l, d.remaining())
-		return
-	}
-	content := make([]byte, int(l))
-	copy(content, d.data[d.pos:d.pos+int(l)])
-
-	err = c.UnmarshalJSON(content)
-	if err != nil {
-		return
-	}
-	d.pos += int(l)
-	return c, nil
-
-}
-
-//func (d *Decoder) ReadSymbol() (out *Symbol, err error) {
-//
-//	precision, err := d.ReadUint8()
-//	if err != nil {
-//		return out, fmt.Errorf("read symbol: read precision: %s", err)
-//	}
-//	symbol, err := d.ReadString()
-//	if err != nil {
-//		return out, fmt.Errorf("read symbol: read symbol: %s", err)
-//	}
-//
-//	out = &Symbol{
-//		Precision: precision,
-//		Symbol:    symbol,
-//	}
-//	return
-//}
-
-type Symbol struct {
-	Precision uint8
-	Symbol    string
-}
-
-func (d *Decoder) ReadSymbol() (out *Symbol, err error) {
-
-	precision, err := d.ReadUint8()
-	if err != nil {
-		return out, fmt.Errorf("read symbol: read precision: %s", err)
-	}
-	symbol, err := d.ReadString()
-	if err != nil {
-		return out, fmt.Errorf("read symbol: read symbol: %s", err)
-	}
-
-	out = &Symbol{
-		Precision: precision,
-		Symbol:    symbol,
-	}
-	return
-}
-
-type Asset struct {
-	Amount int64
-	Symbol
-}
-
-func (d *Decoder) ReadAsset() (out Asset, err error) {
-
-	amount, err := d.ReadInt64()
-	precision, err := d.ReadByte()
-	if err != nil {
-		return out, fmt.Errorf("readSymbol precision, %s", err)
-	}
-
-	if d.remaining() < 7 {
-		err = fmt.Errorf("asset symbol required [%d] bytes, remaining [%d]", 7, d.remaining())
-		return
-	}
-
-	data := d.data[d.pos : d.pos+7]
-	d.pos += 7
-
-	out = Asset{}
-	out.Amount = amount
-	out.Precision = precision
-	out.Symbol.Symbol = strings.TrimRight(string(data), "\x00")
-	return
-}
-
-type ExtendedAsset struct {
-	Asset    Asset
-	Contract uint64
-}
-
-func (d *Decoder) ReadExtendedAsset() (out ExtendedAsset, err error) {
-	asset, err := d.ReadAsset()
-	if err != nil {
-		return out, fmt.Errorf("read extended asset: read asset: %s", err)
-	}
-
-	contract, err := d.ReadName()
-	if err != nil {
-		return out, fmt.Errorf("read extended asset: read name: %s", err)
-	}
-
-	extendedAsset := ExtendedAsset{
-		Asset:    asset,
-		Contract: contract,
-	}
-
-	return extendedAsset, err
 }
 
 func (d *Decoder) remaining() int {

@@ -70,7 +70,8 @@ func (e *Encoder) Encode(v interface{}) (err error) {
 			return err
 		}
 		return e.toWriter(re)
-
+	case nil:
+		return
 	default:
 		//fmt.Println("not serializer")
 	}
