@@ -4,8 +4,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"github.com/eosspark/container/maps/treemap"
-	"github.com/eosspark/container/sets/treeset"
 	"github.com/eosspark/eos-go/common/container"
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/log"
@@ -78,16 +76,17 @@ var TypeSize = struct {
 
 var rlplog log.Logger
 
+type Unpack interface {
+	Unpack([]byte) (int, error)
+}
+
 // Decoder implements the EOS unpacking, similar to FC_BUFFER
 type Decoder struct {
 	data               []byte
 	pos                int
 	optional           bool
-	vuint32            bool
-	vint32             bool
 	trxID              bool
 	destaticVariantTag uint8
-	asset              bool
 }
 
 func init() {
@@ -118,8 +117,26 @@ func NewDecoder(data []byte) *Decoder {
 		pos:  0,
 	}
 }
+func (d *Decoder) GetPos() int {
+	return d.pos
+}
+
+func (d *Decoder) GetData() []byte {
+	return d.data
+}
 
 func (d *Decoder) Decode(v interface{}) (err error) {
+	switch p := v.(type) {
+	case Unpack:
+		pos, err := p.Unpack(d.data[d.pos:])
+		if err != nil {
+			fmt.Println(err)
+		}
+		d.pos = d.pos + pos
+		return err
+	default:
+		//fmt.Println("not a Unpack")
+	}
 	rv := reflect.Indirect(reflect.ValueOf(v))
 	if !rv.CanAddr() {
 		return ErrUnPointer
@@ -131,66 +148,6 @@ func (d *Decoder) Decode(v interface{}) (err error) {
 		newRV := reflect.New(t)
 		rv.Set(newRV)
 		rv = reflect.Indirect(newRV)
-	}
-
-	if d.vuint32 { //TODO
-		d.vuint32 = false
-		var r uint64
-		r, _ = d.ReadUvarint64()
-		rv.SetUint(r)
-		return
-	} else if d.vint32 {
-		d.vint32 = false
-		var r int64
-		r, _ = d.ReadVarint64()
-		rv.SetInt(r)
-		return
-	}
-
-	switch realV := v.(type) {
-	case *ecc.PublicKey:
-		p, err := d.ReadPublicKey()
-		if err != nil {
-			return err
-		}
-		rv.Set(reflect.ValueOf(p))
-		return nil
-	case *ecc.Signature:
-		s, err := d.ReadSignature()
-		if err != nil {
-			return err
-		}
-		rv.Set(reflect.ValueOf(s))
-		return nil
-
-	case container.Container:
-		v, err = d.ReadContains(realV)
-		return err
-
-	case *treeset.Set:
-		err = d.ReadTreeSet(realV)
-		if err != nil {
-			return
-		}
-		rv.Set(reflect.ValueOf(*realV))
-		return
-
-	case *treemap.Map:
-		err = d.ReadTreeMap(realV)
-		if err != nil {
-			return
-		}
-		rv.Set(reflect.ValueOf(*realV))
-		return
-	case treeset.MultiSet:
-		err = d.ReadTreeMultiSet(&realV)
-		if err != nil {
-			return
-		}
-		rv.Set(reflect.ValueOf(realV))
-		return
-		//default:
-		//	fmt.Println("default: ", reflect.TypeOf(v))
 	}
 
 	switch t.Kind() {
@@ -339,11 +296,7 @@ func (d *Decoder) decodeStruct(v interface{}, t reflect.Type, rv reflect.Value) 
 				v = nil
 				continue
 			}
-		case "vuint32":
-			d.vuint32 = true
-		case "vint32":
-			d.vint32 = true
-		//	//for types.TransactionWithID !!
+
 		case "trxID":
 			d.destaticVariantTag, _ = d.ReadByte()
 		case "tag0":
@@ -355,8 +308,6 @@ func (d *Decoder) decodeStruct(v interface{}, t reflect.Type, rv reflect.Value) 
 				continue
 			}
 
-		case "asset":
-			d.asset = true
 		}
 
 		if v := rv.Field(i); v.CanSet() && t.Field(i).Name != "_" {
@@ -419,17 +370,6 @@ func (d *Decoder) ReadByteArray() (out []byte, err error) {
 }
 
 func (d *Decoder) ReadString() (out string, err error) {
-	if d.asset {
-		d.asset = false
-		if len(d.data) < 7 {
-			return "", fmt.Errorf("asset symbol required [%d] bytes, remaining [%d]", 7, d.remaining())
-		}
-		data := d.data[d.pos : d.pos+7]
-		d.pos += 7
-		out = strings.TrimRight(string(data), "\x00")
-		return
-	}
-
 	data, err := d.ReadByteArray()
 	out = string(data)
 	return
@@ -757,68 +697,6 @@ func (d *Decoder) ReadExtendedAsset() (out ExtendedAsset, err error) {
 	}
 
 	return extendedAsset, err
-}
-
-func (d *Decoder) ReadTreeSet(t *treeset.Set) (err error) {
-	contain := reflect.New(t.ValueType).Interface()
-	var l uint64
-	if l, err = d.ReadUvarint64(); err != nil {
-		return
-	}
-	for i := 0; i < int(l); i++ {
-		newDecoder := NewDecoder(d.data[d.pos:])
-		err = newDecoder.Decode(contain)
-		if err != nil {
-			return
-		}
-		d.pos += newDecoder.pos
-		t.AddItem(reflect.ValueOf(contain).Elem().Interface())
-	}
-	return
-}
-
-func (d *Decoder) ReadTreeMultiSet(t *treeset.MultiSet) (err error) {
-	contain := reflect.New(t.ValueType).Interface()
-	var l uint64
-	if l, err = d.ReadUvarint64(); err != nil {
-		return
-	}
-	for i := 0; i < int(l); i++ {
-		newDecoder := NewDecoder(d.data[d.pos:])
-		err = newDecoder.Decode(contain)
-		if err != nil {
-			return
-		}
-		d.pos += newDecoder.pos
-		//t.AddItem(reflect.ValueOf(contain).Elem().Interface())
-		t.Add(reflect.ValueOf(contain).Elem().Interface())
-	}
-	return
-}
-
-func (d *Decoder) ReadTreeMap(m *treemap.Map) (err error) {
-	mapKey := reflect.New(m.KeyType).Interface()
-	mapVal := reflect.New(m.ValueType).Interface()
-
-	var l uint64
-	if l, err = d.ReadUvarint64(); err != nil {
-		return
-	}
-
-	for i := 0; i < int(l); i++ {
-		newDecoder := NewDecoder(d.data[d.pos:])
-		if err = newDecoder.Decode(mapKey); err != nil {
-			return
-		}
-		d.pos += newDecoder.pos
-		newDecoder = NewDecoder(d.data[d.pos:])
-		if err = newDecoder.Decode(mapVal); err != nil {
-			return
-		}
-		d.pos += newDecoder.pos
-		m.Put(reflect.ValueOf(mapKey).Elem().Interface(), reflect.ValueOf(mapVal).Elem().Interface())
-	}
-	return
 }
 
 func (d *Decoder) remaining() int {

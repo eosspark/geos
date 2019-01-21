@@ -84,7 +84,7 @@ func (s TransactionStatus) String() string {
 type TransactionReceiptHeader struct {
 	Status        TransactionStatus `json:"status"`
 	CpuUsageUs    uint32            `json:"cpu_usage_us"`
-	NetUsageWords uint32            `json:"net_usage_words" eos:"vuint32"`
+	NetUsageWords common.Vuint32    `json:"net_usage_words" eos:"vuint32"`
 }
 
 type TransactionReceipt struct {
@@ -157,6 +157,45 @@ func (t *TransactionWithID) UnmarshalJSON(data []byte) error {
 	}
 	return nil
 }
+
+//func (t TransactionWithID) Pack() ([]byte, error) { //TODO
+//	re := make([]byte, 0, 0)
+//	if t.TransactionID.Equals(common.TransactionIdNil()) {
+//		re = append(re, 1)
+//		bytes, err := rlp.EncodeToBytes(t.PackedTransaction)
+//		if err != nil {
+//			return nil, err
+//		}
+//		re = append(re, bytes...)
+//	} else {
+//		re = append(re, 0)
+//		bytes, err := rlp.EncodeToBytes(t.TransactionID)
+//		if err != nil {
+//			return nil, err
+//		}
+//		re = append(re, bytes...)
+//	}
+//
+//	return re, nil
+//}
+//func (t *TransactionWithID) Unpack(in []byte) (l int, err error) {
+//	decoder:=rlp.NewDecoder(in)
+//	tag,_:=decoder.ReadByte()
+//	if tag ==0{
+//		err :=decoder.Decode(&t.TransactionID)
+//		if err !=nil{
+//			return 0,err
+//		}
+//	}else if tag ==1{
+//		err :=decoder.Decode(&t.PackedTransaction)
+//		if err !=nil{
+//			fmt.Println("error:",err.Error())
+//			return 0,err
+//		}
+//	}
+//	fmt.Println("unpack transactionWithID :",t)
+//	return decoder.GetPos(),nil
+//}
 
 func NewTransactionReceiptHeader() *TransactionReceiptHeader {
 	return &TransactionReceiptHeader{Status: TransactionStatusHardFail}

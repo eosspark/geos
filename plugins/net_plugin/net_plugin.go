@@ -139,6 +139,8 @@ func (n *NetPlugin) PluginInitialize(c *cli.Context) {
 		n.my.maxNodesPerHost = uint32(c.Int("p2p-max-nodes-per-host"))
 		n.my.numClients = 0
 		n.my.useSocketReadWatermark = c.Bool("use-socket-read-watermark")
+
+		//n.my.resolver =App().GetIoService()
 		n.my.ListenEndpoint = c.String("p2p-listen-endpoint")
 		n.my.p2PAddress = c.String("p2p-listen-endpoint")
 		n.my.suppliedPeers = c.StringSlice("p2p-peer-address")
@@ -270,9 +272,9 @@ func (n *NetPlugin) Connect(host string) string {
 	}
 
 	c := NewConnectionByEndPoint(host, n.my)
-	netLog.Info("adding new peer to the list") //FC
+	fcLog.Info("adding new peer to the list")
 	n.my.connections = append(n.my.connections, c)
-	netLog.Info("calling active connector") //FC
+	fcLog.Info("calling active connector")
 	n.my.connect(c)
 	return "added connection"
 }

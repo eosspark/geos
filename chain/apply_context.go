@@ -281,8 +281,8 @@ func (a *ApplyContext) execOne(trace *types.ActionTrace) {
 
 	accountSequence := entity.AccountSequenceObject{Name: a.Act.Account}
 	a.DB.Find("byName", accountSequence, &accountSequence)
-	r.CodeSequence = uint32(accountSequence.CodeSequence)
-	r.AbiSequence = uint32(accountSequence.AbiSequence)
+	r.CodeSequence = common.Vuint32(accountSequence.CodeSequence)
+	r.AbiSequence = common.Vuint32(accountSequence.AbiSequence)
 
 	r.AuthSequence = make(map[common.AccountName]uint64)
 	for _, auth := range a.Act.Authorization {

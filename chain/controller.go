@@ -492,7 +492,7 @@ func (c *Controller) pushReceipt(trx interface{}, status types.TransactionStatus
 	netUsageWords := netUsage / 8
 	EosAssert(netUsageWords*8 == netUsage, &TransactionException{}, "net_usage is not divisible by 8")
 	trxReceipt.CpuUsageUs = uint32(cpuUsageUs)
-	trxReceipt.NetUsageWords = uint32(netUsageWords)
+	trxReceipt.NetUsageWords = common.Vuint32(netUsageWords)
 	trxReceipt.Status = status
 	c.Pending.PendingBlockState.SignedBlock.Transactions = append(c.Pending.PendingBlockState.SignedBlock.Transactions, *trxReceipt)
 	return trxReceipt
@@ -570,7 +570,7 @@ func (c *Controller) pushTransaction(trx *types.TransactionMetadata, deadLine co
 				r := types.TransactionReceiptHeader{}
 				r.Status = types.TransactionStatusExecuted
 				r.CpuUsageUs = uint32(trxContext.BilledCpuTimeUs)
-				r.NetUsageWords = uint32(trace.NetUsage / 8)
+				r.NetUsageWords = common.Vuint32(trace.NetUsage / 8)
 				trace.Receipt = r
 			}
 			c.Pending.Actions = append(c.Pending.Actions, trxContext.Executed...)

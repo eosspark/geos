@@ -29,7 +29,7 @@ func NewDispatchManager(impl *netPluginIMpl) *dispatchManager {
 	}
 }
 
-func (d *dispatchManager) bcastBlock(myImpl *netPluginIMpl, bsum *types.SignedBlock) {
+func (d *dispatchManager) bastBlock(myImpl *netPluginIMpl, bsum *types.SignedBlock) {
 	skips := map[*Connection]int{}
 
 	bid := bsum.BlockID()
@@ -43,14 +43,14 @@ func (d *dispatchManager) bcastBlock(myImpl *netPluginIMpl, bsum *types.SignedBl
 	delete(d.receivedBlocks, bid)
 
 	msg := SignedBlockMessage{*bsum}
-	packsize, _ := rlp.EncodeSize(msg)
-	msgsiz := uint32(packsize) + uint32(unsafe.Sizeof(packsize))
+	packSize, _ := rlp.EncodeSize(msg)
+	msgSiz := uint32(packSize) + uint32(unsafe.Sizeof(packSize))
 	pendingNotify := NoticeMessage{}
 	pendingNotify.KnownBlocks.Mode = normal
 	pendingNotify.KnownBlocks.IDs = append(pendingNotify.KnownBlocks.IDs, bid)
 	pendingNotify.KnownTrx.Mode = none
 
-	pbstate := PeerBlockState{
+	pbState := PeerBlockState{
 		ID:            bid,
 		BlockNum:      bnum,
 		IsKnown:       false,
@@ -58,27 +58,27 @@ func (d *dispatchManager) bcastBlock(myImpl *netPluginIMpl, bsum *types.SignedBl
 		RequestedTime: common.TimePoint(0),
 	}
 	// skip will be empty if our producer emitted this block so just send it
-	if (largeMsgNotify && msgsiz > d.justSendItMax) && len(skips) > 0 {
-		fcLog.Info("block_size is %d ,sending notify", msgsiz)
-		myImpl.sendAll(&pendingNotify, func(p *Connection) bool {
-			_, ok := skips[p]
-			if ok || !p.current() {
+	if (largeMsgNotify && msgSiz > d.justSendItMax) && len(skips) > 0 {
+		fcLog.Info("block_size is %d ,sending notify", msgSiz)
+		myImpl.sendAll(&pendingNotify, func(c *Connection) bool {
+			_, ok := skips[c]
+			if ok || !c.current() {
 				return false
 			}
-			unknown := p.addPeerBlock(&pbstate)
+			unknown := c.addPeerBlock(&pbState)
 			if !unknown {
-				netLog.Error("%s already has knowledge of block %d", p.peerAddr, pbstate.BlockNum)
+				netLog.Error("%s already has knowledge of block %d", c.peerAddr, pbState.BlockNum)
 			}
 			return unknown
 		})
 	} else {
-		pbstate.IsKnown = true
+		pbState.IsKnown = true
 		for _, cp := range d.myImpl.connections {
 			_, ok := skips[cp]
 			if ok || !cp.current() {
 				continue
 			}
-			cp.addPeerBlock(&pbstate)
+			cp.addPeerBlock(&pbState)
 			cp.enqueue(&msg, true)
 		}
 	}
@@ -113,8 +113,8 @@ func (d *dispatchManager) recvBlock(c *Connection, id common.BlockIdType, bnum u
 		RequestedTime: common.TimePoint(0),
 	}
 	c.addPeerBlock(&pbs)
-	fcLog.Debug("canceling wait on %s", c.peerAddr)
-	c.cancelWait()
+	//fcLog.Debug("canceling wait on %s", c.peerAddr)
+	//c.cancelWait()
 }
 
 func (d *dispatchManager) bcastTransaction(trx *types.PackedTransaction) { // TODO impl
@@ -146,8 +146,8 @@ func (d *dispatchManager) bcastTransaction(trx *types.PackedTransaction) { // TO
 	packedTrxBuf, _ := rlp.EncodeToBytes(msg)
 
 	packSize := uint32(len(packedTrxBuf))
-	bufsize := packSize + uint32(unsafe.Sizeof(packSize))
-	buffer := make([]byte, bufsize)
+	bufSize := packSize + uint32(unsafe.Sizeof(packSize))
+	buffer := make([]byte, bufSize)
 
 	binary.LittleEndian.PutUint32(buffer, uint32(unsafe.Sizeof(packSize))) // binary.LittleEndian.PutUint32(buffer,4)
 	buffer = append(buffer, packedTrxBuf...)
@@ -162,7 +162,7 @@ func (d *dispatchManager) bcastTransaction(trx *types.PackedTransaction) { // TO
 	}
 	d.myImpl.localTxns.Insert(nts)
 
-	if !largeMsgNotify || bufsize <= d.justSendItMax {
+	if !largeMsgNotify || bufSize <= d.justSendItMax {
 		packedTrx := PackedTransactionMessage{*trx}
 		d.myImpl.sendAll(&packedTrx, func(c *Connection) bool {
 			_, ok := skips[c]
@@ -302,7 +302,7 @@ func (d *dispatchManager) recvNotice(c *Connection, msg *NoticeMessage, generate
 					entry.BlockNum = b.BlockNumber()
 				}
 			}).Catch(func(ex *exception.AssertException) {
-				netLog.Info("caught assert on fetch_block_by_id, %s", ex.What())
+				fcLog.Info("caught assert on fetch_block_by_id, %s", ex.What())
 				//keep going, client can ask another peer
 			}).Catch(func(e interface{}) {
 				netLog.Error("failed to retrieve block for id")
@@ -320,7 +320,7 @@ func (d *dispatchManager) recvNotice(c *Connection, msg *NoticeMessage, generate
 		return
 	}
 
-	netLog.Debug("send req = %s", sendReq)
+	fcLog.Debug("send req = %s", sendReq)
 	if sendReq {
 		c.enqueue(&req, true)
 		//c.fetchWait()
@@ -347,7 +347,7 @@ func (d *dispatchManager) retryFetch(c *Connection) {
 	} else if c.lastReq.ReqBlocks.Mode == normal && reqBlockCount > 0 {
 		bid = c.lastReq.ReqBlocks.IDs[reqBlockCount-1]
 	} else {
-		fcLog.Debug("no retry,block mode = %s trx mode = %s\n", modeTostring[c.lastReq.ReqBlocks.Mode], modeTostring[c.lastReq.ReqTrx.Mode])
+		fcLog.Debug("no retry,block mode = %s trx mode = %s", modeTostring[c.lastReq.ReqBlocks.Mode], modeTostring[c.lastReq.ReqTrx.Mode])
 		return
 	}
 

@@ -142,8 +142,8 @@ func NewConnectionByConn(socket *asio.ReactiveSocket, c net.Conn, impl *netPlugi
 }
 
 func (c *Connection) initialize() {
-	rnd := c.nodeID.Bytes()
-	rnd[0] = 0
+	rnd := &c.nodeID
+	rnd.Hash[0] = 0
 	c.responseExpected = asio.NewDeadlineTimer(App().GetIoService())
 }
 
@@ -524,10 +524,10 @@ func (c *Connection) blkSend(ids []common.BlockIdType) {
 		Try(func() {
 			b := cc.FetchBlockById(blkID)
 			if b != nil {
-				netLog.Debug("found block for id ar num %d", b.BlockNumber())
+				fcLog.Debug("found block for id ar num %d", b.BlockNumber())
 				c.enqueue(&SignedBlockMessage{*b}, true)
 			} else {
-				netLog.Info("fetch block by id returned null, id %s on block %d of %d for %s",
+				fcLog.Info("fetch block by id returned null, id %s on block %d of %d for %s",
 					blkID, count, len(ids), c.peerAddr)
 				breaking = true
 			}
@@ -582,7 +582,7 @@ func (c *Connection) enqueueSyncBlock() bool {
 			result = true
 		}
 	}).Catch(func(e interface{}) {
-		netLog.Warn("write loop exception")
+		fcLog.Warn("write loop exception")
 	}).End()
 
 	return result
@@ -603,21 +603,21 @@ func isValid(msg *HandshakeMessage) bool {
 	// affecting state.
 	valid := true
 	if msg.LastIrreversibleBlockNum > msg.HeadNum {
-		netLog.Warn("Handshake message validation: last irreversible block %d is greater than head block %d",
+		fcLog.Warn("Handshake message validation: last irreversible block %d is greater than head block %d",
 			msg.LastIrreversibleBlockNum, msg.HeadNum)
 		valid = false
 	}
 	if len(msg.P2PAddress) == 0 {
-		netLog.Warn("Handshake message validation: p2p_address is null string")
+		fcLog.Warn("Handshake message validation: p2p_address is null string")
 		valid = false
 	}
 	if len(msg.OS) == 0 {
-		netLog.Warn("Handshake message validation: os field is null string")
+		fcLog.Warn("Handshake message validation: os field is null string")
 		valid = false
 	}
 	if (common.CompareString(msg.Signature, ecc.NewSigNil()) != 0 || msg.Token.Equals(*crypto.NewSha256Nil())) &&
 		msg.Token.Equals(*crypto.Hash256(msg.Time)) {
-		netLog.Warn("Handshake message validation: token field invalid")
+		fcLog.Warn("Handshake message validation: token field invalid")
 		valid = false
 	}
 
@@ -672,7 +672,7 @@ func (c *Connection) processNextMessage(payloadBytes []byte) bool {
 		messageType := P2PMessageType(payloadBytes[0])
 		attr, ok := messageType.reflectTypes()
 		if !ok {
-			Throw(fmt.Errorf("decode, unknown p2p message type %d", messageType))
+			Throw(fmt.Errorf("processNextMessage, unknown p2p message type %d", messageType))
 		}
 		msg := reflect.New(attr.ReflectType)
 		err := rlp.DecodeBytes(payloadBytes[1:], msg.Interface())
@@ -683,7 +683,7 @@ func (c *Connection) processNextMessage(payloadBytes []byte) bool {
 		p2pMessage := msg.Interface().(P2PMessage)
 
 		bytes, _ := json.Marshal(p2pMessage)
-		fcLog.Info("received %d message :%s", p2pMessage.GetType(), string(bytes))
+		fcLog.Info("received message %d  :%s\n", p2pMessage.GetType(), string(bytes))
 
 		switch msg := p2pMessage.(type) {
 		case *HandshakeMessage:
@@ -733,8 +733,7 @@ func (c *Connection) enqueue(m P2PMessage, triggerSend bool) {
 	sendBuf = append(sendBuf, payload...)
 
 	bytes, _ := json.Marshal(m)
-	netLog.Error("send message :%d,%s", m.GetType(), string(bytes))
-	fcLog.Error("send message :%d,%s", m.GetType(), string(bytes))
+	fcLog.Debug("send message :%d,%s", m.GetType(), string(bytes))
 
 	c.queueWrite(sendBuf, triggerSend, func(err error, n int) {
 		if c != nil {
@@ -775,8 +774,6 @@ func (c *Connection) doQueueWrite() {
 	}
 	c.writeQueue = nil
 
-	fcLog.Error(" doqueueWrite *******")
-
 	c.socket.AsyncWrite(c.conn, bufs, func(n int, err error) {
 		Try(func() {
 			for _, m := range c.outQueue {
@@ -788,7 +785,7 @@ func (c *Connection) doQueueWrite() {
 					pName = c.PeerName()
 				}
 				netLog.Error("error sending to peer %s,error is %s", pName, err.Error())
-				netLog.Info("connection closure detected o write to %s", pName)
+				fcLog.Info("connection closure detected o write to %s", pName)
 				c.impl.close(c)
 				return
 			}

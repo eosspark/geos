@@ -60,14 +60,14 @@ func (s *syncManager) setStage(newState stages) {
 	if s.state == newState {
 		return
 	}
-	netLog.Info("old state %s becoming %s", stageStr(s.state), stageStr(newState))
+	fcLog.Info("old state %s becoming %s", stageStr(s.state), stageStr(newState))
 	s.state = newState
 }
 
 func (s *syncManager) isActive(c *Connection) bool {
 	if s.state == headCatchup && c != nil {
 		fhSet := c.forkHead != common.BlockIdNil()
-		netLog.Info("fork_head_num = %d fork_head set = %s", c.forkHeadNum, fhSet)
+		fcLog.Info("fork_head_num = %d fork_head set = %s", c.forkHeadNum, fhSet)
 
 		return c.forkHead != common.BlockIdNil() && c.forkHeadNum < s.chainPlugin.Chain().ForkDbHeadBlockNum()
 	}
@@ -306,7 +306,7 @@ func (s *syncManager) verifyCatchup(c *Connection, num uint32, id common.BlockId
 	if req.ReqBlocks.Mode == catchUp {
 		c.forkHead = id
 		c.forkHeadNum = num
-		netLog.Info("got a catch_up notice while in %s, fork head num = %d target LIB = %d next_expected = %d",
+		fcLog.Info("got a catch_up notice while in %s, fork head num = %d target LIB = %d next_expected = %d",
 			stageStr(s.state), num, s.syncKnownLibNum, s.syncNextExpectedNum)
 		if s.state == libCatchup {
 			return
@@ -354,7 +354,7 @@ func (s *syncManager) recvBlock(c *Connection, blkID common.BlockIdType, blkNum 
 	if s.state == libCatchup {
 		if blkNum != s.syncNextExpectedNum {
 			fcLog.Info("expected block %d but got %d", s.syncNextExpectedNum, blkNum)
-			s.myImpl.close(c)
+			//s.myImpl.close(c)
 			return
 		}
 		s.syncNextExpectedNum = blkNum + 1
@@ -385,7 +385,7 @@ func (s *syncManager) recvBlock(c *Connection, blkID common.BlockIdType, blkNum 
 		} else if blkNum == s.syncLastRequestedNum {
 			s.requestNextChunk(nil)
 		} else {
-			fcLog.Debug("calling sync_wait on connecting %s", c.peerAddr)
+			//fcLog.Debug("calling sync_wait on connecting %s", c.peerAddr)
 			//c.syncWait()
 		}
 	}

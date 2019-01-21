@@ -15,8 +15,10 @@ import (
 	"encoding/json"
 	"fmt"
 	"github.com/eosspark/container/utils"
+	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/common/container"
 	rbt "github.com/eosspark/eos-go/common/container/tree"
+	"github.com/eosspark/eos-go/crypto/rlp"
 	"strings"
 )
 
@@ -192,4 +194,33 @@ func (m *Map) UnmarshalJSON(data []byte) error {
 		}
 	}
 	return err
+}
+
+func (m Map) Pack() (re []byte, err error) {
+	re = append(re, common.WriteUVarInt(m.Size())...)
+	m.Each(func(key K, value V) {
+		rekey, _ := rlp.EncodeToBytes(key)
+		re = append(re, rekey...)
+		reVal, _ := rlp.EncodeToBytes(value)
+		re = append(re, reVal...)
+	})
+	return re, nil
+}
+
+func (m *Map) Unpack(in []byte) (int, error) {
+	m.Tree = rbt.NewWith(Compare, Multi)
+
+	decoder := rlp.NewDecoder(in)
+	l, err := decoder.ReadUvarint64()
+	if err != nil {
+		return 0, err
+	}
+
+	for i := 0; i < int(l); i++ {
+		k, v := new(K), new(V)
+		decoder.Decode(k)
+		decoder.Decode(v)
+		m.Put(*k, *v)
+	}
+	return decoder.GetPos(), nil
 }

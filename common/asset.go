@@ -3,6 +3,7 @@ package common
 import (
 	"encoding/json"
 	"fmt"
+	"github.com/eosspark/eos-go/crypto/rlp"
 	. "github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/log"
@@ -19,17 +20,27 @@ type Asset struct {
 	Symbol
 }
 
-//func (a Asset) Pack(p *fcbuffer.PackStream) error {
-//	p.WriteInt64(a.Amount)
-//	return a.Symbol.Pack(p)
-//
-//}
-//
-//func (a *Asset) Unpack(u *fcbuffer.UnPackStream) error {
-//	a.Amount, _ = u.ReadInt64()
-//	a.Symbol.Unpack(u)
-//	return nil
-//}
+func (s Asset) Pack() (re []byte, err error) {
+	re = append(re, WriteInt64(s.Amount)...)
+	reSymbol, err := s.Symbol.Pack()
+	if err != nil {
+		return nil, err
+	}
+	re = append(re, reSymbol...)
+	return re, nil
+}
+
+func (s *Asset) Unpack(in []byte) (int, error) {
+	decoder := rlp.NewDecoder(in)
+	a, err := decoder.ReadInt64()
+	if err != nil {
+		return 0, err
+	}
+	s.Amount = a
+	l, err := s.Symbol.Unpack(decoder.GetData()[decoder.GetPos():])
+	return l + decoder.GetPos(), err
+
+}
 
 func NewAssetWithCheck(a int64, id Symbol) *Asset {
 	re := &Asset{
@@ -133,7 +144,7 @@ func (a Asset) FromString(from *string) Asset {
 	amount += fractPart
 	if fractPart > 0 {
 		EosAssert(fractPart <= amount, &OverflowException{}, "asset amount overflow")
-	} else if fractPart < 0{
+	} else if fractPart < 0 {
 		EosAssert(fractPart >= amount, &UnderflowException{}, "asset amount underflow")
 	}
 	asset := Asset{Amount: amount, Symbol: sym}
@@ -164,6 +175,24 @@ type Symbol struct {
 	Symbol    string
 }
 
+func (s Symbol) Pack() (re []byte, err error) {
+	symbol := make([]byte, 7, 7)
+	copy(symbol[:], []byte(s.Symbol))
+
+	re = append(re, byte(s.Precision))
+	re = append(re, symbol...)
+	return re, nil
+}
+func (s *Symbol) Unpack(in []byte) (int, error) {
+	if len(in) < 8 {
+		return 0, fmt.Errorf("asset symbol required [%d] bytes, remaining [%d]", 7, len(in))
+	}
+	s.Precision = uint8(in[0])
+	s.Symbol = strings.TrimRight(string(in[1:8]), "\x00")
+	return 8, nil
+
+}
+
 func StringToSymbol(precision uint8, str string) (result uint64) {
 	Try(func() {
 		len := uint32(len(str))
@@ -178,27 +207,6 @@ func StringToSymbol(precision uint8, str string) (result uint64) {
 }
 
 var MaxPrecision = uint8(18)
-
-//func (s Symbol) Pack(p *fcbuffer.PackStream) error {
-//	p.WriteUint8(s.Precision)
-//	symbol := make([]byte, 7, 7)
-//	copy(symbol[:], []byte(s.Symbol))
-//	p.ToWriter(symbol)
-//	return nil
-//}
-//
-//func (s *Symbol) Unpack(u *fcbuffer.UnPackStream) error {
-//	s.Precision, _ = u.ReadUint8()
-//
-//	if u.Remaining() < 7 {
-//		u.Log.Error("asset symbol required [%d] bytes, remaining [%d]", 7, u.Remaining())
-//		return nil
-//	}
-//	data := u.Data[u.Pos : u.Pos+7]
-//	u.Pos += 7
-//	s.Symbol = strings.TrimRight(string(data), "\x00")
-//	return nil
-//}
 
 func (sym Symbol) FromString(from *string) Symbol {
 	//TODO: unComplete

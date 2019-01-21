@@ -15,8 +15,9 @@ func init() {
 	Assert(math.MaxUint8 >= common.DefaultConfig.MaxProducers*2/3+1, "8bit confirmations may not be able to hold all of the needed confirmations")
 }
 
-//go:generate go install github.com/eosspark/eos-go/common/container/...
-//go:generate gotemplate -outfmt "gen_%v" "github.com/eosspark/eos-go/common/container/treemap" AccountNameUint32Map(common.AccountName,uint32,common.CompareName)
+//go:generate go install github.com/eosspark/eos-go/common/...
+//go:generate go install github.com/eosspark/eos-go/crypto/...
+//go:generate gotemplate -outfmt "gen_%v" "github.com/eosspark/eos-go/common/container/treemap" AccountNameUint32Map(common.AccountName,uint32,common.CompareName,false)
 type BlockHeaderState struct {
 	ID                               common.IdType        `multiIndex:"id,increment" json:"id"`
 	BlockId                          common.BlockIdType   `multiIndex:"byId,orderedUnique" json:"block_id"`

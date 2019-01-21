@@ -44,9 +44,9 @@ type TransactionHeader struct {
 	RefBlockNum    uint16              `json:"ref_block_num"`
 	RefBlockPrefix uint32              `json:"ref_block_prefix"`
 
-	MaxNetUsageWords uint32 `json:"max_net_usage_words" eos:"vuint32"`
-	MaxCpuUsageMS    uint8  `json:"max_cpu_usage_ms"`
-	DelaySec         uint32 `json:"delay_sec" eos:"vuint32"` // number of secs to delay, making it cancellable for that duration
+	MaxNetUsageWords common.Vuint32 `json:"max_net_usage_words" eos:"vuint32"`
+	MaxCpuUsageMS    uint8          `json:"max_cpu_usage_ms"`
+	DelaySec         common.Vuint32 `json:"delay_sec" eos:"vuint32"` // number of secs to delay, making it cancellable for that duration
 }
 
 func (t TransactionHeader) GetRefBlocknum(headBlocknum uint32) uint32 {
