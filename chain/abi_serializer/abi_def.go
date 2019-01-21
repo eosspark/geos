@@ -21,8 +21,8 @@ type fieldName = string
 
 func init() {
 	abiLog = log.New("abi")
-	abiLog.SetHandler(log.TerminalHandler)
-	//abiLog.SetHandler(log.DiscardHandler())
+	//abiLog.SetHandler(log.TerminalHandler)
+	abiLog.SetHandler(log.DiscardHandler())
 }
 
 type TypeDef struct {

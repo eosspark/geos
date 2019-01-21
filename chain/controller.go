@@ -379,7 +379,7 @@ func (c *Controller) OnIrreversible(s *types.BlockState) {
 	for itr != ubi.End() && tbs.BlockNum <= s.BlockNum {
 		err := c.ReversibleBlocks.Remove(&tbs)
 		if err != nil {
-			log.Error("Controller OnIrreversible is error:", err)
+			log.Error("Controller OnIrreversible is error: %s", err)
 		}
 		if !itr.Next() {
 			break

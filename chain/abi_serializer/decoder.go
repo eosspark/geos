@@ -8,10 +8,10 @@ import (
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/common/eos_math"
 	"github.com/eosspark/eos-go/crypto"
+	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/crypto/rlp"
 	"strings"
 	"time"
-	"unsafe"
 )
 
 func (a *AbiDef) DecodeAction(actionName string, data []byte) ([]byte, error) {
@@ -22,20 +22,6 @@ func (a *AbiDef) DecodeAction(actionName string, data []byte) ([]byte, error) {
 	}
 
 	return a.decode(binaryDecoder, action.Type)
-}
-
-//func (a *AbiDef) DecodeTableRow(tableName string, data []byte) ([]byte, error) {
-//	binaryDecoder := rlp.NewDecoder(data)
-//	tbl := a.TableForName(tableName)
-//	if tbl == nil {
-//		return []byte{}, fmt.Errorf("table name %s not found in abi", tableName)
-//	}
-//	return a.decode(binaryDecoder, tbl.Type)
-//}
-
-func (a *AbiDef) DecodeTableRowTyped(tableType string, data []byte) ([]byte, error) {
-	binaryDecoder := rlp.NewDecoder(data)
-	return a.decode(binaryDecoder, tableType)
 }
 
 func (a *AbiDef) DecodeStruct(structType string, data []byte) ([]byte, error) {
@@ -258,38 +244,39 @@ func (a *AbiDef) read(binaryDecoder *rlp.Decoder, fieldName string, fieldType st
 		}
 		err = e
 	case "public_key":
-		value, err = binaryDecoder.ReadPublicKey()
-	case "signature":
-		value, err = binaryDecoder.ReadSignature()
-	case "symbol":
-		symbol, e := binaryDecoder.ReadSymbol()
-		err = e
+		var pubKey ecc.PublicKey
+		err = binaryDecoder.Decode(&pubKey)
 		if err == nil {
-			value = fmt.Sprintf("%d,%s", symbol.Precision, symbol.Symbol)
+			value = pubKey
+		}
+	case "signature":
+		var sig ecc.Signature
+		err = binaryDecoder.Decode(&sig)
+		if err == nil {
+			value = sig
+		}
+	case "symbol":
+		s := common.Symbol{}
+		err := binaryDecoder.Decode(&s)
+		if err == nil {
+			value = fmt.Sprintf("%d,%s", s.Precision, s.Symbol)
 		}
 	case "symbol_code":
 		var data uint64
 		data, err = binaryDecoder.ReadUint64()
 		value = common.SymbolCode(data)
 	case "asset":
-		data, e := binaryDecoder.ReadAsset()
-		if e == nil {
-			value = *(*common.Asset)(unsafe.Pointer(&data))
+		a := common.Asset{}
+		err = binaryDecoder.Decode(&a)
+		if err == nil {
+			value = a
 		}
-		//asset := common.Asset{
-		//	Amount: data.Amount,
-		//}
-		//asset.Precision = data.Precision
-		//asset.Symbol.Symbol = data.Symbol.Symbol
-		//value = asset
-		err = e
 	case "extended_asset":
-		data, e := binaryDecoder.ReadExtendedAsset()
-		if e == nil {
-			value = *(*common.ExtendedAsset)(unsafe.Pointer(&data))
+		e := common.ExtendedAsset{}
+		err = binaryDecoder.Decode(&e)
+		if err == nil {
+			value = e
 		}
-		err = e
-
 	default:
 		return nil, fmt.Errorf("read field of type [%s]: unknown type", fieldType)
 	}
@@ -299,7 +286,6 @@ func (a *AbiDef) read(binaryDecoder *rlp.Decoder, fieldName string, fieldType st
 	}
 
 	abiLog.Debug("set field value,name: %s,value :%#v", fieldName, value)
-
 	return common.SetBytes(json, fieldName, value)
 }
 
