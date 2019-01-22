@@ -54,6 +54,9 @@ func CatchThrowException(t *testing.T, expectException interface{}, function fun
 		function()
 	}).Catch(func(e exception.Exception) {
 		returning = reflect.TypeOf(expectException) == reflect.TypeOf(e)
+		if !returning {
+			log.Error("actual error : %s", e.DetailMessage())
+		}
 	}).End()
 	assert.True(t, returning)
 }
@@ -64,6 +67,9 @@ func CatchThrowMsg(t *testing.T, expectMsg string, function func()) {
 		function()
 	}).Catch(func(e exception.Exception) {
 		returning = strings.Contains(e.DetailMessage(), expectMsg)
+		if !returning {
+			log.Error("actual error : %s", e.DetailMessage())
+		}
 	}).End()
 	assert.True(t, returning)
 }
@@ -74,6 +80,9 @@ func CatchThrowExceptionAndMsg(t *testing.T, expectException interface{}, expect
 		function()
 	}).Catch(func(e exception.Exception) {
 		returning = reflect.TypeOf(expectException) == reflect.TypeOf(e) && strings.Contains(e.DetailMessage(), expectMsg)
+		if !returning {
+			log.Error("actual error : %s", e.DetailMessage())
+		}
 	}).End()
 	assert.True(t, returning)
 }
