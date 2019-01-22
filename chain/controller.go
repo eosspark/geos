@@ -24,7 +24,7 @@ type DBReadMode int8
 
 const (
 	SPECULATIVE = DBReadMode(iota)
-	HEADER      //HEAD
+	HEADER       //HEAD
 	READONLY
 	IRREVERSIBLE
 )
@@ -99,7 +99,6 @@ type Config struct {
 	TrustedProducers        treeset.Set
 	BlocksDir               string
 	StateDir                string
-	ReversibleDir           string
 	StateSize               uint64
 	StateGuardSize          uint64
 	ReversibleCacheSize     uint64
@@ -207,7 +206,7 @@ func validPath() {
 func NewController(cfg *Config) *Controller {
 	validPath()
 	db, err := database.NewDataBase(cfg.StateDir)
-	reversibleDB, err := database.NewDataBase(cfg.ReversibleDir)
+	reversibleDB, err := database.NewDataBase(cfg.BlocksDir + "/" + common.DefaultConfig.DefaultReversibleBlocksDirName)
 
 	if err != nil {
 		log.Error("newController create database is error :%s", err)
@@ -219,7 +218,7 @@ func NewController(cfg *Config) *Controller {
 
 	con.Blog = NewBlockLog(cfg.BlocksDir)
 
-	con.ForkDB = NewForkDatabase(cfg.BlocksDir)
+	con.ForkDB = NewForkDatabase(cfg.StateDir)
 
 	con.ChainID = cfg.Genesis.ComputeChainID()
 
@@ -247,10 +246,20 @@ func NewController(cfg *Config) *Controller {
 		common.ActionName(common.N("unlinkauth")), applyEosioUnlinkauth)
 	con.SetApplayHandler(common.AccountName(common.N("eosio")), common.AccountName(common.N("eosio")),
 		common.ActionName(common.N("canceldelay")), applyEosioCanceldalay)
-	con.initialize()
+
 	con.ForkDB.Irreversible.Connect(&chain_interface.IrreversibleBlockCaller{Caller: con.OnIrreversible})
 
 	return con
+}
+
+func (c *Controller) Startup() {
+	//TODO c.AddIndices()
+
+	c.Head = c.ForkDB.Head
+	if c.Head == nil {
+		log.Warn("No head block in fork db, perhaps we need to replay")
+	}
+	c.initialize()
 }
 
 func newController() *Controller {
@@ -306,7 +315,9 @@ func newController() *Controller {
 	con.Authorization = newAuthorizationManager(con)
 	con.UnappliedTransactions = make(map[crypto.Sha256]types.TransactionMetadata)
 	con.ForkDB.Irreversible.Connect(&chain_interface.IrreversibleBlockCaller{Caller: con.OnIrreversible})
-	con.initialize()
+
+	con.Startup()
+
 	return con
 }
 
@@ -373,10 +384,10 @@ func (c *Controller) OnIrreversible(s *types.BlockState) {
 	}
 	itr := ubi.Begin()
 	tbs := entity.ReversibleBlockObject{}
-	if itr != ubi.End() {
+	if !ubi.CompareEnd(itr) {
 		err = itr.Data(&tbs)
 	}
-	for itr != ubi.End() && tbs.BlockNum <= s.BlockNum {
+	for !ubi.CompareEnd(itr) && tbs.BlockNum <= s.BlockNum {
 		err := c.ReversibleBlocks.Remove(&tbs)
 		if err != nil {
 			log.Error("Controller OnIrreversible is error: %s", err)
@@ -677,13 +688,14 @@ func (c *Controller) IsProducingBlock() bool {
 }
 
 func (c *Controller) Close() {
+	c.AbortBlock()
 	//session.close()
 	c.ForkDB.Close()
 	c.DB.Close()
 	c.ReversibleBlocks.Close()
 
 	//log.Info("Controller destory!")
-	c.testClean()
+	//c.testClean()
 	isActiveController = false
 
 	c = nil
@@ -725,7 +737,7 @@ func (c *Controller) GetScheduledTransactions() []common.TransactionIdType {
 		log.Error("Controller GetScheduledTransactions is error:%s", err)
 	}
 	itr := idx.Begin()
-	if itr == idx.End() {
+	if idx.CompareEnd(itr) {
 		return result
 	} else {
 		itr.Data(&gto)
@@ -1776,7 +1788,7 @@ func (c *Controller) initialize() {
 	}
 	//c++ rbegin and rend
 	objitr := ubi.End()
-	if objitr != ubi.Begin() {
+	if !ubi.CompareBegin(objitr) {
 		objitr.Prev()
 		r := entity.ReversibleBlockObject{}
 		objitr.Data(&r)
@@ -1872,7 +1884,6 @@ func (c *Controller) initConfig() *Controller {
 	c.Config = Config{
 		BlocksDir:               common.DefaultConfig.DefaultBlocksDirName,
 		StateDir:                common.DefaultConfig.DefaultStateDirName,
-		ReversibleDir:           common.DefaultConfig.DefaultReversibleBlocksDirName,
 		StateSize:               common.DefaultConfig.DefaultStateSize,
 		StateGuardSize:          common.DefaultConfig.DefaultStateGuardSize,
 		ReversibleCacheSize:     common.DefaultConfig.DefaultReversibleCacheSize,
