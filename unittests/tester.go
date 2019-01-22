@@ -349,7 +349,17 @@ func (t BaseTester) CreateAccount(name common.AccountName, creator common.Accoun
 	activeAuth := types.NewAuthority(t.getPublicKey(name, "active"), 0)
 
 	sortPermissions := func(auth *types.Authority) {
-
+		len := len(auth.Accounts)
+		pw := types.PermissionLevelWeight{}
+		for i := 0; i < len - 1; i++ {
+			for j := 0; j < len - 1 - i; j++ {
+				if types.ComparePermissionLevel(auth.Accounts[j].Permission, auth.Accounts[j+1].Permission) == 1 {
+					pw = auth.Accounts[j]
+					auth.Accounts[j] = auth.Accounts[j+1]
+					auth.Accounts[j+1] = pw
+				}
+			}
+		}
 	}
 	if includeCode {
 		try.EosAssert(ownerAuth.Threshold <= math.MaxUint16, nil, "threshold is too high")
