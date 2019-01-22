@@ -269,7 +269,7 @@ func TestProposeApproveExecute(t *testing.T) {
 
 	//fail to execute before approval
 	exec := func() {e.Exec(alice, alice, common.N("first"))}
-	CatchThrowExceptionAndMsg(t, &exception.EosioAssertMessageException{}, "transaction authorization failed", exec)
+	CheckThrowExceptionAndMsg(t, &exception.EosioAssertMessageException{}, "transaction authorization failed", exec)
 
 	//approve and execute
 	trace = e.Approve(alice, alice, common.N("first"), types.PermissionLevel{Actor:alice, Permission:common.DefaultConfig.ActiveName})
@@ -291,7 +291,7 @@ func TestProposeApproveUnapprove(t *testing.T) {
 	trace = e.UnApprove(alice, alice, common.N("first"), types.PermissionLevel{Actor:alice, Permission:common.DefaultConfig.ActiveName})
 	assert.True(t, e.ChainHasTransaction(&trace.ID))
 	exec := func() {e.Exec(alice, alice, common.N("first"))}
-	CatchThrowExceptionAndMsg(t, &exception.EosioAssertMessageException{}, "transaction authorization failed", exec)
+	CheckThrowExceptionAndMsg(t, &exception.EosioAssertMessageException{}, "transaction authorization failed", exec)
 	e.close()
 }
 
@@ -307,7 +307,7 @@ func TestProposeApproveByTwo(t *testing.T) {
 
 	//fail because approval by bob is missing
 	exec := func() {e.Exec(alice, alice, common.N("first"))}
-	CatchThrowExceptionAndMsg(t, &exception.EosioAssertMessageException{}, "transaction authorization failed", exec)
+	CheckThrowExceptionAndMsg(t, &exception.EosioAssertMessageException{}, "transaction authorization failed", exec)
 
 	//approve by bob
 	trace = e.Approve(bob, alice, common.N("first"), types.PermissionLevel{Actor:bob, Permission:common.DefaultConfig.ActiveName})
@@ -326,7 +326,7 @@ func TestProposeWithWrongRequestedAuth(t *testing.T) {
 
 	//try with not enough requested auth
 	propose := func() {e.Propose(alice, common.N("first"), trx, []types.PermissionLevel{{alice, common.DefaultConfig.ActiveName}})}
-	CatchThrowExceptionAndMsg(t, &exception.EosioAssertMessageException{}, "transaction authorization failed", propose)
+	CheckThrowExceptionAndMsg(t, &exception.EosioAssertMessageException{}, "transaction authorization failed", propose)
 }
 
 func TestBigTransaction(t *testing.T) {
@@ -541,7 +541,7 @@ func TestUpdateSystemContractMajorApprove(t *testing.T) {
 
 	// not enough approvers
 	exec := func() {e.Exec(alice, alice, common.N("first"))}
-	CatchThrowExceptionAndMsg(t, &exception.EosioAssertMessageException{}, "transaction authorization failed", exec)
+	CheckThrowExceptionAndMsg(t, &exception.EosioAssertMessageException{}, "transaction authorization failed", exec)
 
 	//approve by apple
 	trace = e.Approve(apple, alice, common.N("first"), types.PermissionLevel{Actor:apple, Permission:common.DefaultConfig.ActiveName})
@@ -555,6 +555,6 @@ func TestUpdateSystemContractMajorApprove(t *testing.T) {
 
 	// can't create account because system contract was replace by the test_api contract
 	createAccounts := func() {e.CreateAccountWithResources(common.N("alice1111113"), eosio, CoreFromString("1.0000"), false, CoreFromString("10.0000"), CoreFromString("10.0000"))}
-	CatchThrowExceptionAndMsg(t, &exception.EosioAssertMessageException{}, "Unknown Test", createAccounts)
+	CheckThrowExceptionAndMsg(t, &exception.EosioAssertMessageException{}, "Unknown Test", createAccounts)
 	e.close()
 }

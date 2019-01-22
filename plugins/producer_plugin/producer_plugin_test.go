@@ -183,28 +183,28 @@ func TestProducerPluginImpl_StartBlock(t *testing.T) {
 func TestProducerPluginImpl_ScheduleProductionLoop(t *testing.T) {
 	plugin := producerPluginInitialize("-e", "-p", "eosio", "--private-key",
 		"[\"EOS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV\", \"5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3\"]")
-	hbn := plugin.chain().HeadBlockNum()
+	hbn := plugin.my.Chain.HeadBlockNum()
 
 	plugin.PluginStartup()
 	assert.Equal(t, true, plugin.my.MaybeProduceBlock(), "produce failed in startup ")
-	assert.EqualValues(t, hbn+1, plugin.chain().HeadBlockNum())
+	assert.EqualValues(t, hbn+1, plugin.my.Chain.HeadBlockNum())
 
 	plugin.my.ScheduleProductionLoop()
 	assert.Equal(t, true, plugin.my.MaybeProduceBlock(), "produce failed in schedule loop")
-	assert.EqualValues(t, hbn+2, plugin.chain().HeadBlockNum())
+	assert.EqualValues(t, hbn+2, plugin.my.Chain.HeadBlockNum())
 }
 
 func TestProducerPluginImpl_MaybeProduceBlock(t *testing.T) {
 	plugin := producerPluginInitialize("-e", "-p", "eosio", "--private-key",
 		"[\"EOS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV\", "+
 			"\"5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3\"]")
-	hbn := plugin.chain().HeadBlockNum()
+	hbn := plugin.my.Chain.HeadBlockNum()
 	plugin.PluginStartup()
 
 	assert.Equal(t, true, plugin.my.MaybeProduceBlock())
-	assert.EqualValues(t, hbn+1, plugin.chain().HeadBlockNum())
+	assert.EqualValues(t, hbn+1, plugin.my.Chain.HeadBlockNum())
 	assert.Equal(t, true, plugin.my.MaybeProduceBlock())
-	assert.EqualValues(t, hbn+2, plugin.chain().HeadBlockNum())
+	assert.EqualValues(t, hbn+2, plugin.my.Chain.HeadBlockNum())
 }
 
 func TestProducerPluginImpl_CalculateNextBlockTime(t *testing.T) {
@@ -238,7 +238,7 @@ func TestProducerPluginImpl_CalculatePendingBlockTime(t *testing.T) {
 func TestProducerPluginImpl_OnIncomingBlock(t *testing.T) {
 	plugin := producerPluginInitialize("-p", "eosio")
 	//
-	chain := plugin.chain()
+	chain := plugin.my.Chain
 	block := &types.SignedBlock{}
 	block.Timestamp = types.NewBlockTimeStamp(*plugin.my.CalculateNextBlockTime(&eosio, chain.HeadBlockState().SignedBlock.Timestamp))
 	block.Producer = common.N("eosio")
@@ -267,7 +267,7 @@ func BenchmarkProducerPluginImpl_OnIncomingBlock(b *testing.B) {
 	b.StopTimer()
 	log.Root().SetHandler(log.DiscardHandler())
 	plugin := producerPluginInitialize("-p", "eosio")
-	chain := plugin.chain()
+	chain := plugin.my.Chain
 
 	for i := 0; i < b.N; i++ {
 		block := &types.SignedBlock{}

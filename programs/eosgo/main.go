@@ -38,8 +38,8 @@ func main() {
 		App().SetDefaultDataDir()
 		App().SetDefaultConfigDir()
 		if !App().Initialize([]PluginTypeName{
-			producer_plugin.ProducerPlug,
 			chain_plugin.ChainPlug,
+			producer_plugin.ProducerPlug,
 			http_plugin.HttpPlug,
 			chain_api_plugin.ChainAPiPlug,
 			wallet_api_plugin.WalletApiPlug,

@@ -120,7 +120,7 @@ func TestRamTests(t *testing.T) {
 		e.DefaultExpirationDelta,
 		0,
 	)}
-	CatchThrowExceptionAndMsg(t, &exception.RamUsageExceeded{}, "account testram11111 has insufficient ram", stFunc)
+	CheckThrowExceptionAndMsg(t, &exception.RamUsageExceeded{}, "account testram11111 has insufficient ram", stFunc)
 	ramUsage = rlm.GetAccountRamUsage(test1)
 
 	e.ProduceBlocks(1, false)
@@ -159,7 +159,7 @@ func TestRamTests(t *testing.T) {
 		e.DefaultExpirationDelta,
 		0,
 	)}
-	CatchThrowExceptionAndMsg(t, &exception.RamUsageExceeded{}, "account testram11111 has insufficient ram", stFunc)
+	CheckThrowExceptionAndMsg(t, &exception.RamUsageExceeded{}, "account testram11111 has insufficient ram", stFunc)
 	e.ProduceBlocks(1, false)
 	assert.Equal(t, rlm.GetAccountRamUsage(test1), ramUsage-1000)
 
@@ -178,7 +178,7 @@ func TestRamTests(t *testing.T) {
 		e.DefaultExpirationDelta,
 		0,
 	)}
-	CatchThrowExceptionAndMsg(t, &exception.RamUsageExceeded{}, "account testram11111 has insufficient ram", stFunc)
+	CheckThrowExceptionAndMsg(t, &exception.RamUsageExceeded{}, "account testram11111 has insufficient ram", stFunc)
 	e.ProduceBlocks(1, false)
 	assert.Equal(t, rlm.GetAccountRamUsage(test1), ramUsage-1000)
 
@@ -228,7 +228,7 @@ func TestRamTests(t *testing.T) {
 		e.DefaultExpirationDelta,
 		0,
 	)}
-	CatchThrowExceptionAndMsg(t, &exception.RamUsageExceeded{}, "account testram11111 has insufficient ram", stFunc)
+	CheckThrowExceptionAndMsg(t, &exception.RamUsageExceeded{}, "account testram11111 has insufficient ram", stFunc)
 
 	e.ProduceBlocks(1, false)
 
@@ -264,7 +264,7 @@ func TestRamTests(t *testing.T) {
 		e.DefaultExpirationDelta,
 		0,
 	)}
-	CatchThrowExceptionAndMsg(t, &exception.RamUsageExceeded{}, "account testram11111 has insufficient ram", stFunc)
+	CheckThrowExceptionAndMsg(t, &exception.RamUsageExceeded{}, "account testram11111 has insufficient ram", stFunc)
 	e.ProduceBlocks(1, false)
 
 	// verify that the new entry is under the allocation bytes limit
@@ -299,7 +299,7 @@ func TestRamTests(t *testing.T) {
 		e.DefaultExpirationDelta,
 		0,
 	)}
-	CatchThrowExceptionAndMsg(t, &exception.RamUsageExceeded{}, "account testram11111 has insufficient ram", stFunc)
+	CheckThrowExceptionAndMsg(t, &exception.RamUsageExceeded{}, "account testram11111 has insufficient ram", stFunc)
 	e.ProduceBlocks(1, false)
 
 	// verify that the new entry is under the allocation bytes limit, because entry 12 is now charged to testram22222
@@ -334,7 +334,7 @@ func TestRamTests(t *testing.T) {
 		e.DefaultExpirationDelta,
 		0,
 	)}
-	CatchThrowExceptionAndMsg(t, &exception.RamUsageExceeded{}, "account testram22222 has insufficient ram", stFunc)
+	CheckThrowExceptionAndMsg(t, &exception.RamUsageExceeded{}, "account testram22222 has insufficient ram", stFunc)
 	e.ProduceBlocks(1, false)
 
 	// verify that new entries for testram22222 are under the allocation bytes limit
@@ -369,7 +369,7 @@ func TestRamTests(t *testing.T) {
 		e.DefaultExpirationDelta,
 		0,
 	)}
-	CatchThrowExceptionAndMsg(t, &exception.RamUsageExceeded{}, "account testram22222 has insufficient ram", stFunc)
+	CheckThrowExceptionAndMsg(t, &exception.RamUsageExceeded{}, "account testram22222 has insufficient ram", stFunc)
 	e.ProduceBlocks(1, false)
 	rmentry = common.Variants{
 		"from": 20,

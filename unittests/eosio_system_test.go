@@ -1992,7 +1992,7 @@ func TestBuyName(t *testing.T) {
 
 	// dan shouldn't be able to create fail
 	create := func() {e.CreateAccountsWithResources([]common.AccountName{common.N("fail")}, dan)}
-	CatchThrowExceptionAndMsg(t, &EosioAssertMessageException{}, e.WasmAssertMsg("no active bid for name"), create)
+	CheckThrowExceptionAndMsg(t, &EosioAssertMessageException{}, e.WasmAssertMsg("no active bid for name"), create)
 	e.BidName(dan, common.N("nofail"), CoreFromString("1.0000"))
 
 	// didn't increase bid by 10%
@@ -2004,7 +2004,7 @@ func TestBuyName(t *testing.T) {
 
 	// dan shouldn't be able to do this, sam won
 	create = func() {e.CreateAccountsWithResources([]common.AccountName{common.N("nofail")}, dan)}
-	CatchThrowExceptionAndMsg(t, &EosioAssertMessageException{}, e.WasmAssertMsg("only highest bidder can claim"), create)
+	CheckThrowExceptionAndMsg(t, &EosioAssertMessageException{}, e.WasmAssertMsg("only highest bidder can claim"), create)
 	e.CreateAccountsWithResources([]common.AccountName{common.N("nofail")}, sam)
 	e.Transfer(eosio, common.N("nofail"), CoreFromString("1000.0000"), eosio)
 
@@ -2013,7 +2013,7 @@ func TestBuyName(t *testing.T) {
 
 	// dan shouldn't be able to do this
 	create = func() {e.CreateAccountsWithResources([]common.AccountName{common.N("test.fail")}, dan)}
-	CatchThrowExceptionAndMsg(t, &EosioAssertMessageException{}, e.WasmAssertMsg("only suffix may create this account"), create)
+	CheckThrowExceptionAndMsg(t, &EosioAssertMessageException{}, e.WasmAssertMsg("only suffix may create this account"), create)
 
 	e.close()
 }
@@ -2096,7 +2096,7 @@ func TestMultipleNameBids(t *testing.T) {
 
 	// highest bid is from david for prefd but no bids can be closed yet
 	create := func() {e.CreateAccountWithResources2(common.N("prefd"), david, 8000)}
-	CatchThrowMsg(t, e.WasmAssertMsg("auction for name is not closed yet"), create)
+	CheckThrowMsg(t, e.WasmAssertMsg("auction for name is not closed yet"), create)
 
 	// stake enough to go above the 15% threshold
 	e.StakeWithTransfer(eosio, alice, CoreFromString("10000000.0000"), CoreFromString("10000000.0000"))
@@ -2108,7 +2108,7 @@ func TestMultipleNameBids(t *testing.T) {
 	e.ProduceBlock(common.Days(2), 0)
 	e.ProduceBlocks(10, false)
 	create = func() {e.CreateAccountWithResources2(common.N("prefd"), david, 8000)}
-	CatchThrowMsg(t, e.WasmAssertMsg("auction for name is not closed yet"), create)
+	CheckThrowMsg(t, e.WasmAssertMsg("auction for name is not closed yet"), create)
 
 	// it's been 14 days, auction for prefd has been closed
 	e.ProduceBlock(common.Days(12), 0)
@@ -2118,24 +2118,24 @@ func TestMultipleNameBids(t *testing.T) {
 
 	// auctions for prefa, prefb, prefc, prefe haven't been closed
 	create = func() {e.CreateAccountWithResources2(common.N("prefa"), bob, 8000)}
-	CatchThrowMsg(t, e.WasmAssertMsg("auction for name is not closed yet"), create)
+	CheckThrowMsg(t, e.WasmAssertMsg("auction for name is not closed yet"), create)
 	create = func() {e.CreateAccountWithResources2(common.N("prefb"), alice, 8000)}
-	CatchThrowMsg(t, e.WasmAssertMsg("auction for name is not closed yet"), create)
+	CheckThrowMsg(t, e.WasmAssertMsg("auction for name is not closed yet"), create)
 	create = func() {e.CreateAccountWithResources2(common.N("prefc"), bob, 8000)}
-	CatchThrowMsg(t, e.WasmAssertMsg("auction for name is not closed yet"), create)
+	CheckThrowMsg(t, e.WasmAssertMsg("auction for name is not closed yet"), create)
 	create = func() {e.CreateAccountWithResources2(common.N("prefe"), eve, 8000)}
-	CatchThrowMsg(t, e.WasmAssertMsg("auction for name is not closed yet"), create)
+	CheckThrowMsg(t, e.WasmAssertMsg("auction for name is not closed yet"), create)
 
 	// attempt to create account with no bid
 	create = func() {e.CreateAccountWithResources2(common.N("prefg"), alice, 8000)}
-	CatchThrowMsg(t, e.WasmAssertMsg("no active bid for name"), create)
+	CheckThrowMsg(t, e.WasmAssertMsg("no active bid for name"), create)
 
 	// changing highest bid pushes auction closing time by 24 hours
 	assert.Equal(t, e.Success(), e.BidName(eve, common.N("prefb"), CoreFromString("2.1880")))
 	e.ProduceBlock(common.Hours(22), 0)
 	e.ProduceBlocks(2, false)
 	create = func() {e.CreateAccountWithResources2(common.N("prefb"), eve, 8000)}
-	CatchThrowMsg(t, e.WasmAssertMsg("auction for name is not closed yet"), create)
+	CheckThrowMsg(t, e.WasmAssertMsg("auction for name is not closed yet"), create)
 
 	// but changing a bid that is not the highest does not push closing time
 	assert.Equal(t, e.Success(), e.BidName(carl, common.N("prefe"), CoreFromString("2.0980")))
@@ -2143,12 +2143,12 @@ func TestMultipleNameBids(t *testing.T) {
 	e.ProduceBlocks(2, false)
 	// bid for prefb has closed, only highest bidder can claim
 	create = func() {e.CreateAccountWithResources2(common.N("prefb"), alice, 8000)}
-	CatchThrowMsg(t, e.WasmAssertMsg("only highest bidder can claim"), create)
+	CheckThrowMsg(t, e.WasmAssertMsg("only highest bidder can claim"), create)
 	create = func() {e.CreateAccountWithResources2(common.N("prefb"), carl, 8000)}
-	CatchThrowMsg(t, e.WasmAssertMsg("only highest bidder can claim"), create)
+	CheckThrowMsg(t, e.WasmAssertMsg("only highest bidder can claim"), create)
 	e.CreateAccountWithResources2(common.N("prefb"), eve, 8000)
 	create = func() {e.CreateAccountWithResources2(common.N("prefe"), carl, 8000)}
-	CatchThrowMsg(t, e.WasmAssertMsg("auction for name is not closed yet"), create)
+	CheckThrowMsg(t, e.WasmAssertMsg("auction for name is not closed yet"), create)
 
 	e.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs), 0)
 	e.ProduceBlock(common.Hours(24), 0)
@@ -2157,14 +2157,14 @@ func TestMultipleNameBids(t *testing.T) {
 
 	// prefe can now create *.prefe
 	create = func() {e.CreateAccountWithResources2(common.N("xyz.prefe"), carl, 8000)}
-	CatchThrowMsg(t, e.WasmAssertMsg("only suffix may create this account"), create)
+	CheckThrowMsg(t, e.WasmAssertMsg("only suffix may create this account"), create)
 
 	e.Transfer(eosio, common.N("prefe"), CoreFromString("10000.0000"), eosio)
 	e.CreateAccountWithResources2(common.N("xyz.prefe"), common.N("prefe"), 8000)
 
 	// other auctions haven't closed
 	create = func() {e.CreateAccountWithResources2(common.N("prefa"), bob, 8000)}
-	CatchThrowMsg(t, e.WasmAssertMsg("auction for name is not closed yet"), create)
+	CheckThrowMsg(t, e.WasmAssertMsg("auction for name is not closed yet"), create)
 
 	e.close()
 }

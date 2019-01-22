@@ -23,20 +23,6 @@ type IdentityTester struct {
 	ProducerName string
 }
 
-type Certvalue struct {
-	Property   common.Name
-	Type       string
-	Data       string
-	Memo       string
-	Confidence uint8
-}
-
-/*		{"name":"property", "type":"name"},
-        {"name":"type", "type":"string"},
-        {"name":"data", "type":"uint8[]"},
-        {"name":"memo", "type":"string"},
-        {"name":"confidence", "type":"uint8"}*/
-
 func NewIdentityTester(test *testing.T) *IdentityTester {
 	t := &IdentityTester{test: test}
 	t.ValidatingTester = *newValidatingTester(true, chain.SPECULATIVE)
@@ -48,7 +34,7 @@ func NewIdentityTester(test *testing.T) *IdentityTester {
 
 	t.SetCode(common.N("identity"), wast2wasm(IdentityWast), nil)
 	t.SetAbi(common.N("identity"), IdentityAbi, nil)
-	t.SetCode(common.N("identitytest"), IdentityTestWast, nil)
+	t.SetCode(common.N("identitytest"), wast2wasm(IdentityTestWast), nil)
 	t.SetAbi(common.N("identitytest"), IdentityTestAbi, nil)
 	t.ProduceBlocks(1, false)
 
@@ -78,12 +64,14 @@ func (t *IdentityTester) GetResultUint64() uint64 {
 
 	obj := KeyValueObject{TId: tid.ID}
 	itr, _ := idx.LowerBound(obj)
-	_ = itr.Data(&obj)
+	if !itr.End() {
+		_ = itr.Data(&obj)
+	}
 	FcAssert(!itr.End() && obj.TId == tid.ID, "lower_bound failed")
 
 	FcAssert(uint64(common.N("result")) == obj.PrimaryKey, "row with result not found")
 	FcAssert(obj.Value.Size() == 8, "unexpected result size")
-	return binary.BigEndian.Uint64(itr.Value()) //TODO is little？ or use unsafe.Pointer
+	return binary.LittleEndian.Uint64(obj.Value)
 }
 
 func (t *IdentityTester) GetOwnerForIdentity(identity uint64) uint64 {
@@ -141,7 +129,9 @@ func (t *IdentityTester) GetIdentity(idnt uint64) common.Variants {
 	idx, _ := db.GetIndex("byScopePrimary", obj)
 
 	itr, _ := idx.LowerBound(obj)
-	itr.Data(&obj)
+	if !itr.End() {
+		itr.Data(&obj)
+	}
 	FcAssert(!itr.End() && obj.TId == tid.ID, "lower_bound failed")
 	assert.Equal(t.test, idnt, obj.PrimaryKey)
 
@@ -175,31 +165,6 @@ func (t *IdentityTester) Certify(certifier string, identity uint64, fields []com
 	return t.PushAction(&certAct, authorizer)
 }
 
-//func (t *IdentityTester) Certify1(certifier string, identity uint64, fields []Certvalue, auth bool /*= true*/) ActionResult {
-//	fieldss,_ := json.Marshal(fields)
-//	certAct := types.Action{
-//		Account: common.N("identity"),
-//		Name:    common.N("certprop"),
-//		Data: t.AbiSer.VariantToBinary("certprop", &common.Variants{
-//			"bill_storage_to": certifier,
-//			"certifier":       certifier,
-//			"identity":        identity,
-//			"value":           fieldss,
-//		}, t.AbiSerializerMaxTime),
-//	}
-//	var authorizer common.AccountName
-//	if auth {
-//		authorizer = common.N(certifier)
-//	} else {
-//		if certifier == "bob" {
-//			authorizer = common.N("alice")
-//		} else {
-//			authorizer = common.N("bob")
-//		}
-//	}
-//	return t.PushAction(&certAct, authorizer)
-//}
-
 func (t *IdentityTester) GetCertrow(identity uint64, property string, trusted uint64, certifier string) common.Variants {
 	db := t.Control.DataBase()
 	tid := TableIdObject{Code: common.N("identity"), Scope: common.AccountName(identity), Table: common.N("certs")}
@@ -211,14 +176,18 @@ func (t *IdentityTester) GetCertrow(identity uint64, property string, trusted ui
 	obj := Idx256Object{TId: tid.ID, SecondaryKey: eos_math.Uint256{Low: key[0], High: key[1]}}
 	idx, _ := db.GetIndex("bySecondary", obj)
 	itr, _ := idx.LowerBound(obj)
-	itr.Data(&obj)
+	if !itr.End() {
+		itr.Data(&obj)
+	}
 	if !itr.End() && obj.TId == tid.ID && obj.SecondaryKey == (eos_math.Uint256{Low: key[0], High: key[1]}) {
 		primaryKey := obj.PrimaryKey
 		obj := KeyValueObject{TId: tid.ID, PrimaryKey: primaryKey}
 		idx, _ := db.GetIndex("byScopePrimary", obj)
 
 		itr, _ := idx.LowerBound(obj)
-		itr.Data(&obj)
+		if !itr.End() {
+			itr.Data(&obj)
+		}
 		FcAssert(!itr.End() && obj.TId == tid.ID && primaryKey == obj.PrimaryKey, "Record found in secondary index, but not found in primary index.")
 
 		data := make([]byte, obj.Value.Size())
@@ -241,7 +210,9 @@ func (t *IdentityTester) GetAccountrow(account string) common.Variants {
 	obj := KeyValueObject{TId: tid.ID, PrimaryKey: uint64(common.N("account"))}
 	idx, _ := db.GetIndex("byScopePrimary", obj)
 	itr, _ := idx.LowerBound(obj)
-	itr.Data(&obj)
+	if !itr.End() {
+		itr.Data(&obj)
+	}
 	if !itr.End() && obj.TId == tid.ID && uint64(common.N("account")) == obj.PrimaryKey {
 		data := make([]byte, obj.Value.Size())
 		copy(data, obj.Value)
@@ -349,17 +320,10 @@ func TestCertifyDecertify(test *testing.T) {
 	assert.Equal(test, t.Success(), t.Certify("alice", identityVal, []common.Variants{{
 		"property":   "name",
 		"type":       "string",
-		"data":       []uint8("Alice Smith"),
+		"data":       common.HexBytes("Alice Smith"),
 		"memo":       "",
 		"confidence": 100,
 	}}, true))
-	//assert.Equal(test, t.Success(), t.Certify1("alice", identityVal, []Certvalue{{
-	//	Property: common.N("name"),
-	//	Type:     "string",
-	//	Data:     ("Alice Smith"),
-	//	Memo: "",
-	//	Confidence: 100,
-	//}}, true))
 
 	obj := t.GetCertrow(identityVal, "name", 0, "alice")
 	// check action
@@ -378,13 +342,13 @@ func TestCertifyDecertify(test *testing.T) {
 	fields := []common.Variants{{
 		"property":   "email",
 		"type":       "string",
-		"data":       []byte("alice@alice.name"),
+		"data":       common.HexBytes("alice@alice.name"),
 		"memo":       "official email",
 		"confidence": 95,
 	}, {
 		"property":   "address",
 		"type":       "string",
-		"data":       []byte("1750 Kraft Drive SW, Blacksburg, VA 24060"),
+		"data":       common.HexBytes("1750 Kraft Drive SW, Blacksburg, VA 24060"),
 		"memo":       "official address",
 		"confidence": 80,
 	}}
@@ -397,16 +361,16 @@ func TestCertifyDecertify(test *testing.T) {
 	assert.Equal(test, t.WasmAssertMsg("identity does not exist"), t.Certify("alice", nonExistent, []common.Variants{{
 		"property":   "name",
 		"type":       "string",
-		"data":       []byte("Alice Smith"),
+		"data":       common.HexBytes("Alice Smith"),
 		"memo":       "",
 		"confidence": 100,
 	}}, true))
 
 	//parameter "type" should be not longer than 32 bytes
-	assert.Equal(test, t.WasmAssertMsg("certrow::type should be not longer than 32 bytes"), t.Certify("alice", nonExistent, []common.Variants{{
+	assert.Equal(test, t.WasmAssertMsg("certrow::type should be not longer than 32 bytes"), t.Certify("alice", identityVal, []common.Variants{{
 		"property":   "height",
 		"type":       "super_long_type_name_which_is_not_allowed",
-		"data":       []byte("Alice Smith"),
+		"data":       common.HexBytes("Alice Smith"),
 		"memo":       "",
 		"confidence": 100,
 	}}, true))
@@ -417,26 +381,26 @@ func TestCertifyDecertify(test *testing.T) {
 	obj = t.GetCertrow(identityVal, "email", 0, "bob")
 	assert.True(test, obj != nil)
 	assert.Equal(test, "email", asString(obj["property"]))
-	assert.Equal(test, 0, asUint64(obj["trusted"]))
+	assert.Equal(test, uint64(0), asUint64(obj["trusted"]))
 	assert.Equal(test, "bob", asString(obj["certifier"]))
-	assert.Equal(test, 95, asUint64(obj["confidence"]))
+	assert.Equal(test, uint64(95), asUint64(obj["confidence"]))
 	assert.Equal(test, "string", asString(obj["type"]))
 	assert.Equal(test, "alice@alice.name", t.ToString(obj["data"]))
 
 	obj = t.GetCertrow(identityVal, "address", 0, "bob")
 	assert.True(test, obj != nil)
 	assert.Equal(test, "address", asString(obj["property"]))
-	assert.Equal(test, 0, asUint64(obj["trusted"]))
+	assert.Equal(test, uint64(0), asUint64(obj["trusted"]))
 	assert.Equal(test, "bob", asString(obj["certifier"]))
-	assert.Equal(test, 80, asUint64(obj["confidence"]))
+	assert.Equal(test, uint64(80), asUint64(obj["confidence"]))
 	assert.Equal(test, "string", asString(obj["type"]))
 	assert.Equal(test, "1750 Kraft Drive SW, Blacksburg, VA 24060", t.ToString(obj["data"]))
 
 	//now alice certifies another email
-	assert.Equal(test, t.Success(), t.Certify("alice", nonExistent, []common.Variants{{
+	assert.Equal(test, t.Success(), t.Certify("alice", identityVal, []common.Variants{{
 		"property":   "email",
 		"type":       "string",
-		"data":       []byte("alice.smith@gmail.com"),
+		"data":       common.HexBytes("alice.smith@gmail.com"),
 		"memo":       "",
 		"confidence": 100,
 	}}, true))
@@ -444,9 +408,9 @@ func TestCertifyDecertify(test *testing.T) {
 	obj = t.GetCertrow(identityVal, "email", 0, "alice")
 	assert.True(test, obj != nil)
 	assert.Equal(test, "email", asString(obj["property"]))
-	assert.Equal(test, 0, asUint64(obj["trusted"]))
-	assert.Equal(test, "bob", asString(obj["certifier"]))
-	assert.Equal(test, 100, asUint64(obj["confidence"]))
+	assert.Equal(test, uint64(0), asUint64(obj["trusted"]))
+	assert.Equal(test, "alice", asString(obj["certifier"]))
+	assert.Equal(test, uint64(100), asUint64(obj["confidence"]))
 	assert.Equal(test, "string", asString(obj["type"]))
 	assert.Equal(test, "alice.smith@gmail.com", t.ToString(obj["data"]))
 
@@ -456,10 +420,10 @@ func TestCertifyDecertify(test *testing.T) {
 	assert.Equal(test, "alice@alice.name", t.ToString(obj["data"]))
 
 	//remove email certification made by alice
-	assert.Equal(test, t.Success(), t.Certify("alice", nonExistent, []common.Variants{{
+	assert.Equal(test, t.Success(), t.Certify("alice", identityVal, []common.Variants{{
 		"property":   "email",
 		"type":       "string",
-		"data":       []byte(""),
+		"data":       common.HexBytes(""),
 		"memo":       "",
 		"confidence": 0,
 	}}, true))
@@ -519,9 +483,9 @@ func TestCertifyDecertifyOwner(test *testing.T) {
 	obj := t.GetCertrow(identityVal, "owner", 0, "alice")
 	assert.True(test, obj != nil)
 	assert.Equal(test, "owner", asString(obj["property"]))
-	assert.Equal(test, 0, asUint64(obj["trusted"]))
+	assert.Equal(test, uint64(0), asUint64(obj["trusted"]))
 	assert.Equal(test, "alice", asString(obj["certifier"]))
-	assert.Equal(test, 100, asUint64(obj["confidence"]))
+	assert.Equal(test, uint64(100), asUint64(obj["confidence"]))
 	assert.Equal(test, "account", asString(obj["type"]))
 	assert.Equal(test, uint64(common.N("alice")), t.ToUint64(obj["data"]))
 
@@ -531,8 +495,8 @@ func TestCertifyDecertifyOwner(test *testing.T) {
 	assert.Equal(test, identityVal, asUint64(obj["identity"]))
 
 	// ownership was certified by alice, but not by a block producer or someone trusted by a block producer
-	assert.Equal(test, 0, t.GetOwnerForIdentity(identityVal))
-	assert.Equal(test, 0, t.GetIdentityForAccount("alice"))
+	assert.Equal(test, uint64(0), t.GetOwnerForIdentity(identityVal))
+	assert.Equal(test, uint64(0), t.GetIdentityForAccount("alice"))
 
 	//remove bob's certification
 	assert.Equal(test, t.Success(), t.Certify("bob", identityVal, []common.Variants{{
@@ -580,16 +544,16 @@ func TestOwnerCertifiedByProducer(test *testing.T) {
 	obj := t.GetCertrow(identityVal, "owner", 1, t.ProducerName)
 	assert.True(test, obj != nil)
 	assert.Equal(test, "owner", asString(obj["property"]))
-	assert.Equal(test, 1, asUint64(obj["trusted"]))
+	assert.Equal(test, uint64(1), asUint64(obj["trusted"]))
 	assert.Equal(test, t.ProducerName, asString(obj["certifier"]))
 	assert.Equal(test, uint64(common.N("alice")), t.ToUint64(obj["data"]))
 
 	//uncertified copy of that row shouldn't exist
-	assert.Equal(test, true, t.GetCertrow(identityVal, "owner", 0, t.ProducerName) != nil)
+	assert.Equal(test, true, t.GetCertrow(identityVal, "owner", 0, t.ProducerName) == nil)
 
 	//alice still has not claimed the identity - she is not the official owner yet
-	assert.Equal(test, 0, t.GetOwnerForIdentity(identityVal))
-	assert.Equal(test, 0, t.GetIdentityForAccount("alice"))
+	assert.Equal(test, uint64(0), t.GetOwnerForIdentity(identityVal))
+	assert.Equal(test, uint64(0), t.GetIdentityForAccount("alice"))
 
 	//alice claims it
 	assert.Equal(test, t.Success(), t.Certify("alice", identityVal, []common.Variants{{
@@ -617,8 +581,8 @@ func TestOwnerCertifiedByProducer(test *testing.T) {
 	assert.Equal(test, true, t.GetCertrow(identityVal, "owner", 0, "alice") != nil)
 
 	//but now she is not official owner
-	assert.Equal(test, 0, t.GetOwnerForIdentity(identityVal))
-	assert.Equal(test, 0, t.GetIdentityForAccount("alice"))
+	assert.Equal(test, uint64(0), t.GetOwnerForIdentity(identityVal))
+	assert.Equal(test, uint64(0), t.GetIdentityForAccount("alice"))
 }
 
 func TestOwnerCertifiedByTrustedAccount(test *testing.T) {
@@ -636,8 +600,8 @@ func TestOwnerCertifiedByTrustedAccount(test *testing.T) {
 	assert.Equal(test, true, t.GetCertrow(identityVal, "owner", 0, "alice") != nil)
 
 	//alice claimed the identity, but it hasn't been certified yet - she is not the official owner
-	assert.Equal(test, 0, t.GetOwnerForIdentity(identityVal))
-	assert.Equal(test, 0, t.GetIdentityForAccount("alice"))
+	assert.Equal(test, uint64(0), t.GetOwnerForIdentity(identityVal))
+	assert.Equal(test, uint64(0), t.GetIdentityForAccount("alice"))
 
 	//block producer trusts bob
 	assert.Equal(test, t.Success(), t.Settrust(t.ProducerName, "bob", 1, true))
@@ -667,8 +631,8 @@ func TestOwnerCertifiedByTrustedAccount(test *testing.T) {
 	assert.Equal(test, true, t.GetCertrow(identityVal, "owner", 1, "bob") != nil)
 
 	//but now alice shouldn't be the official owner
-	assert.Equal(test, 0, t.GetOwnerForIdentity(identityVal))
-	assert.Equal(test, 0, t.GetIdentityForAccount("alice"))
+	assert.Equal(test, uint64(0), t.GetOwnerForIdentity(identityVal))
+	assert.Equal(test, uint64(0), t.GetIdentityForAccount("alice"))
 }
 
 func TestOwnerCertificationBecomesTrusted(test *testing.T) {
@@ -697,8 +661,8 @@ func TestOwnerCertificationBecomesTrusted(test *testing.T) {
 	}}, true))
 	assert.Equal(test, true, t.GetCertrow(identityVal, "owner", 0, "alice") != nil)
 	//alice claimed the identity, but it is certified by untrusted accounts only - she is not the official owner
-	assert.Equal(test, 0, t.GetOwnerForIdentity(identityVal))
-	assert.Equal(test, 0, t.GetIdentityForAccount("alice"))
+	assert.Equal(test, uint64(0), t.GetOwnerForIdentity(identityVal))
+	assert.Equal(test, uint64(0), t.GetIdentityForAccount("alice"))
 
 	//block producer trusts bob
 	assert.Equal(test, t.Success(), t.Settrust(t.ProducerName, "bob", 1, true))
@@ -763,6 +727,6 @@ func TestOwnershipContradiction(test *testing.T) {
 	assert.Equal(test, true, t.GetCertrow(identityVal, "owner", 1, t.ProducerName) != nil)
 
 	//now neither alice or bob are official owners, because we have 2 trusted certifications in contradiction to each other
-	assert.Equal(test, 0, t.GetOwnerForIdentity(identityVal))
-	assert.Equal(test, 0, t.GetIdentityForAccount("alice"))
+	assert.Equal(test, uint64(0), t.GetOwnerForIdentity(identityVal))
+	assert.Equal(test, uint64(0), t.GetIdentityForAccount("alice"))
 }

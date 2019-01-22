@@ -3,6 +3,7 @@ package producer_plugin
 import (
 	"fmt"
 	. "github.com/eosspark/eos-go/plugins/chain_interface"
+	"github.com/eosspark/eos-go/plugins/chain_plugin"
 
 	//Chain "github.com/eosspark/eos-go/plugins/producer_plugin/testing" /*test model*/
 	"encoding/json"
@@ -62,10 +63,10 @@ func NewProducerPlugin(io *asio.IoContext) *ProducerPlugin {
 	return plugin
 }
 
-func (p *ProducerPlugin) chain() *Chain.Controller {
-	//return App().FindPlugin(chain_plugin.ChainPlug).(*chain_plugin.ChainPlugin).Chain()
-	return Chain.GetControllerInstance()
-}
+//func (p *ProducerPlugin) chain() *Chain.Controller {
+//	//return App().FindPlugin(chain_plugin.ChainPlug).(*chain_plugin.ChainPlugin).Chain()
+//	return Chain.GetControllerInstance()
+//}
 
 func (p *ProducerPlugin) SetProgramOptions(options *[]cli.Flag) {
 	*options = append(*options,
@@ -223,7 +224,9 @@ func (p *ProducerPlugin) PluginStartup() {
 	Try(func() {
 		log.Info("producer plugin:  plugin_startup() begin")
 
-		chain := p.chain()
+		p.my.Chain = App().GetPlugin(chain_plugin.ChainPlug).(*chain_plugin.ChainPlugin).Chain()
+		chain := p.my.Chain
+
 		EosAssert(p.my.Producers.Size() == 0 || chain.GetReadMode() == Chain.DBReadMode(Chain.SPECULATIVE), &PluginConfigException{},
 			"node cannot have any producer-name configured because block production is impossible when read_mode is not \"speculative\"")
 
@@ -292,7 +295,7 @@ func (p *ProducerPlugin) Resume() {
 	// re-evaluate that now
 	//
 	if p.my.PendingBlockMode == PendingBlockMode(speculating) {
-		chain := p.chain()
+		chain := p.my.Chain
 		chain.AbortBlock()
 		p.my.ScheduleProductionLoop()
 	}
@@ -327,14 +330,14 @@ func (p *ProducerPlugin) UpdateRuntimeOptions(options RuntimeOptions) {
 	}
 
 	if checkSpeculation && p.my.PendingBlockMode == PendingBlockMode(speculating) {
-		chain := p.chain()
-		chain.AbortBlock()
+		//chain := p.my.Chain
+		p.my.Chain.AbortBlock()
 		p.my.ScheduleProductionLoop()
 	}
 
 	if options.SubjectiveCpuLeewayUs != nil {
-		chain := p.chain()
-		chain.SetSubjectiveCpuLeeway(common.Microseconds(*options.SubjectiveCpuLeewayUs))
+		//chain := p.my.Chain
+		p.my.Chain.SetSubjectiveCpuLeeway(common.Microseconds(*options.SubjectiveCpuLeewayUs))
 	}
 }
 
@@ -353,7 +356,7 @@ func (p *ProducerPlugin) GetRuntimeOptions() RuntimeOptions {
 }
 
 func (p *ProducerPlugin) AddGreylistAccounts(params GreylistParams) {
-	chain := p.chain()
+	chain := p.my.Chain
 	itr := params.Accounts.Iterator()
 	for itr.Next() {
 		val := itr.Value().(common.AccountName)
@@ -365,7 +368,7 @@ func (p *ProducerPlugin) AddGreylistAccounts(params GreylistParams) {
 }
 
 func (p *ProducerPlugin) RemoveGreylistAccounts(params GreylistParams) {
-	chain := p.chain()
+	chain := p.my.Chain
 	itr := params.Accounts.Iterator()
 	for itr.Next() {
 		val := itr.Value().(common.AccountName)
@@ -377,7 +380,7 @@ func (p *ProducerPlugin) RemoveGreylistAccounts(params GreylistParams) {
 }
 
 func (p *ProducerPlugin) GetGreylist() GreylistParams {
-	chain := p.chain()
+	chain := p.my.Chain
 	result := GreylistParams{}
 	list := chain.GetResourceGreyList()
 	result.Accounts = *treeset.NewWith(common.TypeName, common.CompareName)
@@ -390,7 +393,7 @@ func (p *ProducerPlugin) GetGreylist() GreylistParams {
 }
 
 func (p *ProducerPlugin) GetWhitelistBlacklist() WhitelistAndBlacklist {
-	chain := p.chain()
+	chain := p.my.Chain
 	return WhitelistAndBlacklist{
 		chain.GetActorWhiteList(),
 		chain.GetActorBlackList(),
@@ -402,7 +405,7 @@ func (p *ProducerPlugin) GetWhitelistBlacklist() WhitelistAndBlacklist {
 }
 
 func (p *ProducerPlugin) SetWhitelistBlacklist(params WhitelistAndBlacklist) {
-	chain := p.chain()
+	chain := p.my.Chain
 	if params.ActorWhitelist != nil {
 		chain.SetActorWhiteList(params.ActorWhitelist)
 	}

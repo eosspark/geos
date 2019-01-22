@@ -23,6 +23,7 @@ func NewPayloadlessTester() *PayloadlessTester {
 	pt.LastProducedBlock = make(map[common.AccountName]common.BlockIdType)
 	pt.VCfg = *newConfig(chain.SPECULATIVE)
 	pt.ValidatingControl = chain.NewController(&pt.VCfg)
+	pt.ValidatingControl.Startup()
 	pt.init(true, chain.SPECULATIVE)
 	return pt
 }
