@@ -293,7 +293,7 @@ func TestSudoWithMsigUnapprove(t *testing.T) {
 
 	// The proposal should not have sufficient approvals to pass the authorization checks of eosio.sudo::exec.
 	exec := func() {e.Exec(alice, carol, common.N("first"))}
-	CatchThrowExceptionAndMsg(t, &exception.EosioAssertMessageException{}, "transaction authorization failed", exec)
+	CheckThrowExceptionAndMsg(t, &exception.EosioAssertMessageException{}, "transaction authorization failed", exec)
 }
 
 func TestSudoWithMsigProducersChange(t *testing.T) {
@@ -325,10 +325,10 @@ func TestSudoWithMsigProducersChange(t *testing.T) {
 	e.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs), 0)
 
 	exec := func() {e.Exec(alice, carol, common.N("first"))}
-	CatchThrowExceptionAndMsg(t, &exception.EosioAssertMessageException{}, "transaction authorization failed", exec)
+	CheckThrowExceptionAndMsg(t, &exception.EosioAssertMessageException{}, "transaction authorization failed", exec)
 
 	approve := func() {e.Approve(common.N("newprod1"), carol, common.N("first"), types.PermissionLevel{Actor:common.N("newprod1"), Permission:active})}
-	CatchThrowExceptionAndMsg(t, &exception.EosioAssertMessageException{}, "approval is not on the list of requested approvals", approve)
+	CheckThrowExceptionAndMsg(t, &exception.EosioAssertMessageException{}, "approval is not on the list of requested approvals", approve)
 
 	// But prod5 still can provide the fifth approval necessary to satisfy the 2/3+1 threshold of the new producer set
 	e.Approve(producer5, carol, common.N("first"), types.PermissionLevel{Actor:producer5, Permission:active})

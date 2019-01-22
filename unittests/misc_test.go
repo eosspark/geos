@@ -65,13 +65,13 @@ func TestAssetFromStringOverflow(t *testing.T) {
 
 	// precision = 19, magnitude < 2^61
 	fromStringFunc := func() {fromString("0.1000000000000000000 CUR")}
-	CatchThrowExceptionAndMsg(t, &exception.SymbolTypeException{}, "precision 19 should be <= 18", fromStringFunc)
+	CheckThrowExceptionAndMsg(t, &exception.SymbolTypeException{}, "precision 19 should be <= 18", fromStringFunc)
 	fromStringFunc = func() {fromString("-0.1000000000000000000 CUR")}
-	CatchThrowExceptionAndMsg(t, &exception.SymbolTypeException{}, "precision 19 should be <= 18", fromStringFunc)
+	CheckThrowExceptionAndMsg(t, &exception.SymbolTypeException{}, "precision 19 should be <= 18", fromStringFunc)
 	fromStringFunc = func() {fromString("1.0000000000000000000 CUR")}
-	CatchThrowExceptionAndMsg(t, &exception.SymbolTypeException{}, "precision 19 should be <= 18", fromStringFunc)
+	CheckThrowExceptionAndMsg(t, &exception.SymbolTypeException{}, "precision 19 should be <= 18", fromStringFunc)
 	fromStringFunc = func() {fromString("-1.0000000000000000000 CUR")}
-	CatchThrowExceptionAndMsg(t, &exception.SymbolTypeException{}, "precision 19 should be <= 18", fromStringFunc)
+	CheckThrowExceptionAndMsg(t, &exception.SymbolTypeException{}, "precision 19 should be <= 18", fromStringFunc)
 
 	// precision = 18, magnitude < 2^58
 	a = fromString("0.100000000000000000 CUR")
@@ -81,13 +81,13 @@ func TestAssetFromStringOverflow(t *testing.T) {
 
 	// precision = 18, magnitude = 2^62
 	fromStringFunc = func() {fromString("4.611686018427387904 CUR")}
-	CatchThrowExceptionAndMsg(t, &exception.AssetTypeException{}, "magnitude of asset amount must be less than 2^62", fromStringFunc)
+	CheckThrowExceptionAndMsg(t, &exception.AssetTypeException{}, "magnitude of asset amount must be less than 2^62", fromStringFunc)
 	fromStringFunc = func() {fromString("-4.611686018427387904 CUR")}
-	CatchThrowExceptionAndMsg(t, &exception.AssetTypeException{}, "magnitude of asset amount must be less than 2^62", fromStringFunc)
+	CheckThrowExceptionAndMsg(t, &exception.AssetTypeException{}, "magnitude of asset amount must be less than 2^62", fromStringFunc)
 	fromStringFunc = func() {fromString("4611686018427387.904 CUR")}
-	CatchThrowExceptionAndMsg(t, &exception.AssetTypeException{}, "magnitude of asset amount must be less than 2^62", fromStringFunc)
+	CheckThrowExceptionAndMsg(t, &exception.AssetTypeException{}, "magnitude of asset amount must be less than 2^62", fromStringFunc)
 	fromStringFunc = func() {fromString("-4611686018427387.904 CUR")}
-	CatchThrowExceptionAndMsg(t, &exception.AssetTypeException{}, "magnitude of asset amount must be less than 2^62", fromStringFunc)
+	CheckThrowExceptionAndMsg(t, &exception.AssetTypeException{}, "magnitude of asset amount must be less than 2^62", fromStringFunc)
 
 	// precision = 18, magnitude = 2^62-1
 	a = fromString("4.611686018427387903 CUR")
@@ -97,33 +97,33 @@ func TestAssetFromStringOverflow(t *testing.T) {
 
 	// precision = 0, magnitude = 2^62
 	fromStringFunc = func() {fromString("4611686018427387904 CUR")}
-	CatchThrowExceptionAndMsg(t, &exception.AssetTypeException{}, "magnitude of asset amount must be less than 2^62", fromStringFunc)
+	CheckThrowExceptionAndMsg(t, &exception.AssetTypeException{}, "magnitude of asset amount must be less than 2^62", fromStringFunc)
 	fromStringFunc = func() {fromString("-4611686018427387904 CUR")}
-	CatchThrowExceptionAndMsg(t, &exception.AssetTypeException{}, "magnitude of asset amount must be less than 2^62", fromStringFunc)
+	CheckThrowExceptionAndMsg(t, &exception.AssetTypeException{}, "magnitude of asset amount must be less than 2^62", fromStringFunc)
 
 	// precision = 18, magnitude = 2^65
 	fromStringFunc = func() {fromString("36.893488147419103232 CUR")}
-	CatchThrowException(t, &exception.OverflowException{}, fromStringFunc)
+	CheckThrowException(t, &exception.OverflowException{}, fromStringFunc)
 	fromStringFunc = func() {fromString("-36.893488147419103232 CUR")}
-	CatchThrowException(t, &exception.UnderflowException{}, fromStringFunc)
+	CheckThrowException(t, &exception.UnderflowException{}, fromStringFunc)
 
 	// precision = 14, magnitude > 2^76
 	fromStringFunc = func() {fromString("1000000000.00000000000000 CUR")}
-	CatchThrowException(t, &exception.OverflowException{}, fromStringFunc)
+	CheckThrowException(t, &exception.OverflowException{}, fromStringFunc)
 	fromStringFunc = func() {fromString("-1000000000.00000000000000 CUR")}
-	CatchThrowException(t, &exception.UnderflowException{}, fromStringFunc)
+	CheckThrowException(t, &exception.UnderflowException{}, fromStringFunc)
 
 	// precision = 0, magnitude > 2^76
 	fromStringFunc = func() {fromString("100000000000000000000000 CUR")}
-	CatchThrowExceptionAndMsg(t, &exception.ParseErrorException{}, "Couldn't parse int64", fromStringFunc)
+	CheckThrowExceptionAndMsg(t, &exception.ParseErrorException{}, "Couldn't parse int64", fromStringFunc)
 	fromStringFunc = func() {fromString("-100000000000000000000000 CUR")}
-	CatchThrowExceptionAndMsg(t, &exception.ParseErrorException{}, "Couldn't parse int64", fromStringFunc)
+	CheckThrowExceptionAndMsg(t, &exception.ParseErrorException{}, "Couldn't parse int64", fromStringFunc)
 
 	// precision = 20, magnitude > 2^142
 	fromStringFunc = func() {fromString("100000000000000000000000.00000000000000000000 CUR")}
-	CatchThrowExceptionAndMsg(t, &exception.SymbolTypeException{}, "precision 20 should be <= 18", fromStringFunc)
+	CheckThrowExceptionAndMsg(t, &exception.SymbolTypeException{}, "precision 20 should be <= 18", fromStringFunc)
 	fromStringFunc = func() {fromString("-100000000000000000000000.00000000000000000000 CUR")}
-	CatchThrowExceptionAndMsg(t, &exception.SymbolTypeException{}, "precision 20 should be <= 18", fromStringFunc)
+	CheckThrowExceptionAndMsg(t, &exception.SymbolTypeException{}, "precision 20 should be <= 18", fromStringFunc)
 }
 
 func TestAuthorityChecker(t *testing.T) {
