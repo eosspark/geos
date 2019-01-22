@@ -2,6 +2,7 @@ package producer_plugin
 
 import (
 	"github.com/eosspark/container/sets/treeset"
+	"github.com/eosspark/eos-go/chain"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto"
@@ -14,6 +15,8 @@ import (
 )
 
 type ProducerPluginImpl struct {
+	Chain *chain.Controller
+
 	ProductionEnabled   bool
 	ProductionPaused    bool
 	ProductionSkipFlags uint32
@@ -181,7 +184,7 @@ func (impl *ProducerPluginImpl) OnIncomingBlock(block *types.SignedBlock) {
 
 	EosAssert(block.Timestamp.ToTimePoint() < common.Now().AddUs(common.Seconds(7)), &BlockFromTheFuture{}, "received a block from the future, ignoring it")
 
-	chain := impl.Self.chain()
+	chain := impl.Chain
 
 	/* de-dupe here... no point in aborting block if we already know the block */
 	id := block.BlockID()
@@ -240,7 +243,7 @@ type pendingIncomingTransaction struct {
 }
 
 func (impl *ProducerPluginImpl) OnIncomingTransactionAsync(trx *types.PackedTransaction, persistUntilExpired bool, next func(interface{})) {
-	chain := impl.Self.chain()
+	chain := impl.Chain
 	if chain.PendingBlockState() == nil {
 		impl.PendingIncomingTransactions = append(impl.PendingIncomingTransactions, pendingIncomingTransaction{trx, persistUntilExpired, next})
 		return
