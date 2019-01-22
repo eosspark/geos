@@ -173,7 +173,7 @@ func TestWeightedCapacityCpu(t *testing.T) {
 		s.Undo()
 
 		addTrxUsage := func() { rlm.AddTransactionUsage(f, uint64(expectedLimits[idx]+1), 0, 0) }
-		CatchThrowException(t, &exception.TxCpuUsageExceeded{}, addTrxUsage)
+		CheckThrowException(t, &exception.TxCpuUsageExceeded{}, addTrxUsage)
 	}
 
 	rlm.Close()
@@ -246,7 +246,7 @@ func TestEnforceBlockLimitsCpu(t *testing.T) {
 	}
 
 	addTrxUsage := func() { rlm.AddTransactionUsage(f, increment, 0, 0) }
-	CatchThrowException(t, &exception.BlockResourceExhausted{}, addTrxUsage)
+	CheckThrowException(t, &exception.BlockResourceExhausted{}, addTrxUsage)
 
 	rlm.Close()
 }
@@ -269,7 +269,7 @@ func TestEnforceBlockLimitsNet(t *testing.T) {
 	}
 
 	addTrxUsage := func() { rlm.AddTransactionUsage(f, 0, increment, 0) }
-	CatchThrowException(t, &exception.BlockResourceExhausted{}, addTrxUsage)
+	CheckThrowException(t, &exception.BlockResourceExhausted{}, addTrxUsage)
 
 	rlm.Close()
 }
@@ -292,7 +292,7 @@ func TestEnforceAccountRamLimit(t *testing.T) {
 	rlm.AddPendingRamUsage(account, int64(increment))
 
 	verifyUsage := func() { rlm.VerifyAccountRamUsage(account) }
-	CatchThrowException(t, &exception.RamUsageExceeded{}, verifyUsage)
+	CheckThrowException(t, &exception.RamUsageExceeded{}, verifyUsage)
 
 	rlm.Close()
 }
@@ -306,7 +306,7 @@ func TestEnforceAccountRamLimitUnderflow(t *testing.T) {
 	rlm.ProcessAccountLimitUpdates()
 
 	AddUsage := func() { rlm.AddPendingRamUsage(account, -101) }
-	CatchThrowException(t, &exception.TransactionException{}, AddUsage)
+	CheckThrowException(t, &exception.TransactionException{}, AddUsage)
 
 	rlm.Close()
 }
@@ -323,7 +323,7 @@ func TestEnforceAccountRamLimitOverflow(t *testing.T) {
 	rlm.VerifyAccountRamUsage(account)
 
 	AddUsage := func() { rlm.AddPendingRamUsage(account, 2) }
-	CatchThrowException(t, &exception.TransactionException{}, AddUsage)
+	CheckThrowException(t, &exception.TransactionException{}, AddUsage)
 
 	rlm.Close()
 }
@@ -351,7 +351,7 @@ func TestEnforceAccountRamCommitment(t *testing.T) {
 	rlm.SetAccountLimits(account, int64(limit-increment*expectedIterations), -1, -1)
 
 	verifyUsage := func() { rlm.VerifyAccountRamUsage(account) }
-	CatchThrowException(t, &exception.RamUsageExceeded{}, verifyUsage)
+	CheckThrowException(t, &exception.RamUsageExceeded{}, verifyUsage)
 
 	rlm.Close()
 }
