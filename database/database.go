@@ -648,6 +648,11 @@ func (ldb *LDataBase) EndIterator(begin, end, typeName []byte) (*DbIterator, err
 	ldb.log.Info("begin : %v, end : %v, typeName: %v", begin, end, typeName)
 
 	it := ldb.db.NewIterator(&util.Range{Start: begin, Limit: end}, nil)
+	if !it.Next(){
+		// not found  --> iterator is nil  == end
+		itr := &DbIterator{it: nil, db: ldb.db, first: false, typeName: typeName, currentStatus: itEND}
+		return itr, nil
+	}
 
 	if it.Last() {
 		it.Next()
