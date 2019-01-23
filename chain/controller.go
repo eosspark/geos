@@ -180,31 +180,7 @@ type Controller struct {
 	BadAlloc                       include.Signal
 }
 
-func GetControllerInstance() *Controller {
-	if !isActiveController {
-		validPath()
-		instance = newController()
-	}
-	return instance
-}
-
-func validPath() {
-	//path := []string{common.DefaultConfig.DefaultStateDirName, common.DefaultConfig.DefaultBlocksDirName, common.DefaultConfig.DefaultReversibleBlocksDirName,
-	//	comsmon.DefaultConfig.ValidatingBlocksDirName, common.DefaultConfig.ValidatingStateDirName, common.DefaultConfig.ValidatingReversibleBlocksDirName}
-	//for _, d := range path {
-	//	_, err := os.Stat(d)
-	//	if os.IsNotExist(err) {
-	//		err := os.MkdirAll(d, os.ModePerm)
-	//		if err != nil {
-	//			log.Info("controller validPath mkdir failed:%s\n", err)
-	//		} else {
-	//			log.Info("controller validPath mkdir success:%s\n", d)
-	//		}
-	//	}
-	//}
-}
 func NewController(cfg *Config) *Controller {
-	validPath()
 	db, err := database.NewDataBase(cfg.StateDir)
 	reversibleDB, err := database.NewDataBase(cfg.BlocksDir + "/" + common.DefaultConfig.DefaultReversibleBlocksDirName)
 
@@ -246,67 +222,20 @@ func NewController(cfg *Config) *Controller {
 		common.ActionName(common.N("unlinkauth")), applyEosioUnlinkauth)
 	con.SetApplayHandler(common.AccountName(common.N("eosio")), common.AccountName(common.N("eosio")),
 		common.ActionName(common.N("canceldelay")), applyEosioCanceldalay)
-	con.initialize()
+
 	con.ForkDB.Irreversible.Connect(&chain_interface.IrreversibleBlockCaller{Caller: con.OnIrreversible})
 
 	return con
 }
 
-func newController() *Controller {
-	isActiveController = true //controller is active
-	//init db
-	db, err := database.NewDataBase(common.DefaultConfig.DefaultStateDirName)
-	if err != nil {
-		log.Error("newController is error :%s", err)
-		return nil
+func (c *Controller) Startup() {
+	//TODO c.AddIndices()
+
+	c.Head = c.ForkDB.Head
+	if c.Head == nil {
+		log.Warn("No head block in fork db, perhaps we need to replay")
 	}
-	//init ReversibleBlocks
-	//reversibleDir := common.DefaultConfig.DefaultBlocksDirName + "/" + common.DefaultConfig.DefaultReversibleBlocksDirName
-	reversibleDB, err := database.NewDataBase(common.DefaultConfig.DefaultReversibleBlocksDirName)
-	if err != nil {
-		log.Error("newController init reversibleDB is error:%s", err)
-	}
-	con := &Controller{InTrxRequiringChecks: false, RePlaying: false, TrustedProducerLightValidation: false}
-	con.DB = db
-	con.ReversibleBlocks = reversibleDB
-
-	con.Blog = NewBlockLog(common.DefaultConfig.DefaultBlocksDirName)
-
-	con.ForkDB = NewForkDatabase(common.DefaultConfig.DefaultBlocksDirName)
-	con.initConfig()
-	con.ChainID = con.Config.Genesis.ComputeChainID()
-
-	con.ReadMode = con.Config.ReadMode
-	con.ApplyHandlers = make(map[string]v)
-	con.WasmIf = wasmgo.NewWasmGo()
-
-	con.SetApplayHandler(common.AccountName(common.N("eosio")), common.AccountName(common.N("eosio")),
-		common.ActionName(common.N("newaccount")), applyEosioNewaccount)
-	con.SetApplayHandler(common.AccountName(common.N("eosio")), common.AccountName(common.N("eosio")),
-		common.ActionName(common.N("setcode")), applyEosioSetcode)
-	con.SetApplayHandler(common.AccountName(common.N("eosio")), common.AccountName(common.N("eosio")),
-		common.ActionName(common.N("setabi")), applyEosioSetabi)
-	con.SetApplayHandler(common.AccountName(common.N("eosio")), common.AccountName(common.N("eosio")),
-		common.ActionName(common.N("updateauth")), applyEosioUpdateauth)
-	con.SetApplayHandler(common.AccountName(common.N("eosio")), common.AccountName(common.N("eosio")),
-		common.ActionName(common.N("deleteauth")), applyEosioDeleteauth)
-	con.SetApplayHandler(common.AccountName(common.N("eosio")), common.AccountName(common.N("eosio")),
-		common.ActionName(common.N("linkauth")), applyEosioLinkauth)
-	con.SetApplayHandler(common.AccountName(common.N("eosio")), common.AccountName(common.N("eosio")),
-		common.ActionName(common.N("unlinkauth")), applyEosioUnlinkauth)
-	con.SetApplayHandler(common.AccountName(common.N("eosio")), common.AccountName(common.N("eosio")),
-		common.ActionName(common.N("canceldelay")), applyEosioCanceldalay)
-
-	//IrreversibleBlock.connect()
-	//readycontroller = make(chan bool)
-	//go initResource(con, readycontroller)
-	//con.Pending = &PendingState{}
-	con.ResourceLimits = newResourceLimitsManager(con)
-	con.Authorization = newAuthorizationManager(con)
-	con.UnappliedTransactions = make(map[crypto.Sha256]types.TransactionMetadata)
-	con.ForkDB.Irreversible.Connect(&chain_interface.IrreversibleBlockCaller{Caller: con.OnIrreversible})
-	con.initialize()
-	return con
+	c.initialize()
 }
 
 func (c *Controller) PopBlock() {
@@ -1650,7 +1579,7 @@ func (c *Controller) initializeForkDB() {
 	gs := c.Config.Genesis
 	pst := types.ProducerScheduleType{0, []types.ProducerKey{
 		{common.DefaultConfig.SystemAccountName, gs.InitialKey}}}
-	genHeader := types.BlockHeaderState{}
+	genHeader := types.BlockHeaderState{Header: *types.NewSignedBlockHeader()}
 	genHeader.ActiveSchedule = pst
 	genHeader.PendingSchedule = pst
 	genHeader.PendingScheduleHash = *crypto.Hash256(pst)
