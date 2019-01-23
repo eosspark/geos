@@ -5,18 +5,17 @@ import (
 	"github.com/urfave/cli"
 	"testing"
 
-	"github.com/eosspark/eos-go/common"
-	"github.com/eosspark/eos-go/plugins/appbase/asio"
 	"crypto/sha256"
+	"github.com/eosspark/eos-go/chain/types"
+	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/crypto/rlp"
-	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/log"
 	"github.com/eosspark/eos-go/plugins/appbase/app"
+	"github.com/eosspark/eos-go/plugins/appbase/asio"
 )
-
 
 func TestProducerPlugin_FindByApplication(t *testing.T) {
 	plugin := app.App().FindPlugin(ProducerPlug).(*ProducerPlugin)

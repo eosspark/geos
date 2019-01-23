@@ -19,6 +19,7 @@ import (
 type Comparator func(a, b interface{}) int
 
 var TypeString = reflect.TypeOf(string(""))
+
 // StringComparator provides a fast comparison on strings
 func StringComparator(a, b interface{}) int {
 	s1 := a.(string)
@@ -44,6 +45,7 @@ func StringComparator(a, b interface{}) int {
 }
 
 var TypeInt = reflect.TypeOf(int(0))
+
 // IntComparator provides a basic comparison on int
 func IntComparator(aAsserted, bAsserted int) int {
 	switch {
@@ -57,6 +59,7 @@ func IntComparator(aAsserted, bAsserted int) int {
 }
 
 var TypeInt8 = reflect.TypeOf(int8(0))
+
 // Int8Comparator provides a basic comparison on int8
 func Int8Comparator(a, b interface{}) int {
 	aAsserted := a.(int8)
@@ -72,6 +75,7 @@ func Int8Comparator(a, b interface{}) int {
 }
 
 var TypeInt16 = reflect.TypeOf(int16(0))
+
 // Int16Comparator provides a basic comparison on int16
 func Int16Comparator(a, b interface{}) int {
 	aAsserted := a.(int16)
@@ -87,6 +91,7 @@ func Int16Comparator(a, b interface{}) int {
 }
 
 var TypeInt32 = reflect.TypeOf(int32(0))
+
 // Int32Comparator provides a basic comparison on int32
 func Int32Comparator(a, b interface{}) int {
 	aAsserted := a.(int32)
@@ -102,6 +107,7 @@ func Int32Comparator(a, b interface{}) int {
 }
 
 var TypeInt64 = reflect.TypeOf(int64(0))
+
 // Int64Comparator provides a basic comparison on int64
 func Int64Comparator(a, b interface{}) int {
 	aAsserted := a.(int64)
@@ -117,6 +123,7 @@ func Int64Comparator(a, b interface{}) int {
 }
 
 var TypeUInt = reflect.TypeOf(uint(0))
+
 // UIntComparator provides a basic comparison on uint
 func UIntComparator(a, b interface{}) int {
 	aAsserted := a.(uint)
@@ -132,6 +139,7 @@ func UIntComparator(a, b interface{}) int {
 }
 
 var TypeUInt8 = reflect.TypeOf(uint8(0))
+
 // UInt8Comparator provides a basic comparison on uint8
 func UInt8Comparator(a, b interface{}) int {
 	aAsserted := a.(uint8)
@@ -147,6 +155,7 @@ func UInt8Comparator(a, b interface{}) int {
 }
 
 var TypeUInt16 = reflect.TypeOf(uint16(0))
+
 // UInt16Comparator provides a basic comparison on uint16
 func UInt16Comparator(a, b interface{}) int {
 	aAsserted := a.(uint16)
@@ -174,6 +183,7 @@ func UInt32Comparator(aAsserted, bAsserted uint32) int {
 }
 
 var TypeUInt64 = reflect.TypeOf(uint64(0))
+
 // UInt64Comparator provides a basic comparison on uint64
 func UInt64Comparator(a, b interface{}) int {
 	aAsserted := a.(uint64)
@@ -189,6 +199,7 @@ func UInt64Comparator(a, b interface{}) int {
 }
 
 var TypeFloat32 = reflect.TypeOf(float32(0))
+
 // Float32Comparator provides a basic comparison on float32
 func Float32Comparator(a, b interface{}) int {
 	aAsserted := a.(float32)
@@ -204,6 +215,7 @@ func Float32Comparator(a, b interface{}) int {
 }
 
 var TypeFloat64 = reflect.TypeOf(float64(0))
+
 // Float64Comparator provides a basic comparison on float64
 func Float64Comparator(a, b interface{}) int {
 	aAsserted := a.(float64)
@@ -219,6 +231,7 @@ func Float64Comparator(a, b interface{}) int {
 }
 
 var TypeByte = reflect.TypeOf(byte(0))
+
 // ByteComparator provides a basic comparison on byte
 func ByteComparator(a, b interface{}) int {
 	aAsserted := a.(byte)
@@ -234,6 +247,7 @@ func ByteComparator(a, b interface{}) int {
 }
 
 var TypeRune = reflect.TypeOf(rune(0))
+
 // RuneComparator provides a basic comparison on rune
 func RuneComparator(a, b interface{}) int {
 	aAsserted := a.(rune)
@@ -249,6 +263,7 @@ func RuneComparator(a, b interface{}) int {
 }
 
 var TypeTime = reflect.TypeOf(time.Time{})
+
 // TimeComparator provides a basic comparison on time.Time
 func TimeComparator(a, b interface{}) int {
 	aAsserted := a.(time.Time)

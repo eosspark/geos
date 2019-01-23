@@ -1,13 +1,13 @@
 package unittests
 
 import (
-	"testing"
-	"github.com/eosspark/eos-go/common"
-	"io/ioutil"
-	"github.com/eosspark/eos-go/chain/types"
-	"github.com/eosspark/eos-go/chain"
-	"github.com/stretchr/testify/assert"
 	"fmt"
+	"github.com/eosspark/eos-go/chain"
+	"github.com/eosspark/eos-go/chain/types"
+	"github.com/eosspark/eos-go/common"
+	"github.com/stretchr/testify/assert"
+	"io/ioutil"
+	"testing"
 )
 
 type PayloadlessTester struct {
@@ -28,19 +28,19 @@ func NewPayloadlessTester() *PayloadlessTester {
 	return pt
 }
 
-func TestPayloadless (t *testing.T) {
+func TestPayloadless(t *testing.T) {
 	pt := NewPayloadlessTester()
-	pt.CreateAccount(common.N("payloadless"),common.DefaultConfig.SystemAccountName,false,true)
+	pt.CreateAccount(common.N("payloadless"), common.DefaultConfig.SystemAccountName, false, true)
 
 	payloadless := common.N("payloadless")
-	doit :=common.N("doit")
+	doit := common.N("doit")
 
 	wasm := "test_contracts/payloadless.wasm"
 	abi := "test_contracts/payloadless.abi"
 	code, _ := ioutil.ReadFile(wasm)
-	abiCode,_ := ioutil.ReadFile(abi)
-	pt.SetCode(payloadless,code,nil)
-	pt.SetAbi(payloadless,abiCode,nil)
+	abiCode, _ := ioutil.ReadFile(abi)
+	pt.SetCode(payloadless, code, nil)
+	pt.SetAbi(payloadless, abiCode, nil)
 	data := common.Variants{}
 	trace := pt.PushAction2(
 		&payloadless,
@@ -51,7 +51,7 @@ func TestPayloadless (t *testing.T) {
 		0,
 	)
 	msg := trace.ActionTraces[0].Console
-	assert.Equal(t,msg,"Im a payloadless action")
+	assert.Equal(t, msg, "Im a payloadless action")
 	pt.close()
 }
 
@@ -59,43 +59,41 @@ func TestPayloadless (t *testing.T) {
 // abi_serializer was failing when action data was empty.
 func TestAbiSerializer(t *testing.T) {
 	pt := NewPayloadlessTester()
-	pt.CreateAccount(common.N("payloadless"),common.DefaultConfig.SystemAccountName,false,true)
+	pt.CreateAccount(common.N("payloadless"), common.DefaultConfig.SystemAccountName, false, true)
 
 	payloadless := common.N("payloadless")
-	doit :=common.N("doit")
+	doit := common.N("doit")
 
 	wasm := "test_contracts/payloadless.wasm"
 	abi := "test_contracts/payloadless.abi"
 	code, _ := ioutil.ReadFile(wasm)
-	abiCode,_ := ioutil.ReadFile(abi)
-	pt.SetCode(payloadless,code,nil)
-	pt.SetAbi(payloadless,abiCode,nil)
+	abiCode, _ := ioutil.ReadFile(abi)
+	pt.SetCode(payloadless, code, nil)
+	pt.SetAbi(payloadless, abiCode, nil)
 
 	prettyTrx := &types.SignedTransaction{}
 	prettyTrx.Actions = append(prettyTrx.Actions, &types.Action{
 		Account: payloadless,
-		Name :doit,
-		Authorization: []types.PermissionLevel {
+		Name:    doit,
+		Authorization: []types.PermissionLevel{
 			{
-				Actor: payloadless,
-				Permission:common.DefaultConfig.ActiveName,
+				Actor:      payloadless,
+				Permission: common.DefaultConfig.ActiveName,
 			},
 		},
-		Data:nil,
+		Data: nil,
 	})
-
-
 
 	// from_variant is key to this test as abi_serializer was explicitly not allowing empty "data"
 	//abi_serializer.FromVariant(&prettyTrx,trx,pt.GetResolver(),pt.AbiSerializerMaxTime)
-	pt.SetTransactionHeaders(&prettyTrx.Transaction,pt.DefaultExpirationDelta,0)
+	pt.SetTransactionHeaders(&prettyTrx.Transaction, pt.DefaultExpirationDelta, 0)
 
-	priKey,chainId := pt.getPrivateKey(payloadless,"active"),pt.Control.GetChainId()
-	prettyTrx.Sign(&priKey,&chainId)
+	priKey, chainId := pt.getPrivateKey(payloadless, "active"), pt.Control.GetChainId()
+	prettyTrx.Sign(&priKey, &chainId)
 
 	trace := pt.PushTransaction(prettyTrx, common.MaxTimePoint(), pt.DefaultBilledCpuTimeUs)
 	msg := trace.ActionTraces[len(trace.ActionTraces)-1].Console
 	fmt.Println(msg)
-	assert.Equal(t,msg,"Im a payloadless action")
+	assert.Equal(t, msg, "Im a payloadless action")
 	pt.close()
 }

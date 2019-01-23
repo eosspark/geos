@@ -33,9 +33,9 @@ func nameSuffix(n uint64) uint64 {
 		return n
 	}
 
-	mask := uint64(1 << remainingBitsAfterLastActualDot - 16)
+	mask := uint64(1<<remainingBitsAfterLastActualDot - 16)
 	shift := 64 - remainingBitsAfterLastActualDot
-	return (n & mask) << shift + thirteenthCharacter << (shift - 1)
+	return (n&mask)<<shift + thirteenthCharacter<<(shift-1)
 }
 
 func fromString(s string) common.Asset {
@@ -64,13 +64,13 @@ func TestAssetFromStringOverflow(t *testing.T) {
 	a := common.Asset{}
 
 	// precision = 19, magnitude < 2^61
-	fromStringFunc := func() {fromString("0.1000000000000000000 CUR")}
+	fromStringFunc := func() { fromString("0.1000000000000000000 CUR") }
 	CheckThrowExceptionAndMsg(t, &exception.SymbolTypeException{}, "precision 19 should be <= 18", fromStringFunc)
-	fromStringFunc = func() {fromString("-0.1000000000000000000 CUR")}
+	fromStringFunc = func() { fromString("-0.1000000000000000000 CUR") }
 	CheckThrowExceptionAndMsg(t, &exception.SymbolTypeException{}, "precision 19 should be <= 18", fromStringFunc)
-	fromStringFunc = func() {fromString("1.0000000000000000000 CUR")}
+	fromStringFunc = func() { fromString("1.0000000000000000000 CUR") }
 	CheckThrowExceptionAndMsg(t, &exception.SymbolTypeException{}, "precision 19 should be <= 18", fromStringFunc)
-	fromStringFunc = func() {fromString("-1.0000000000000000000 CUR")}
+	fromStringFunc = func() { fromString("-1.0000000000000000000 CUR") }
 	CheckThrowExceptionAndMsg(t, &exception.SymbolTypeException{}, "precision 19 should be <= 18", fromStringFunc)
 
 	// precision = 18, magnitude < 2^58
@@ -80,13 +80,13 @@ func TestAssetFromStringOverflow(t *testing.T) {
 	assert.Equal(t, int64(-100000000000000000), a.Amount)
 
 	// precision = 18, magnitude = 2^62
-	fromStringFunc = func() {fromString("4.611686018427387904 CUR")}
+	fromStringFunc = func() { fromString("4.611686018427387904 CUR") }
 	CheckThrowExceptionAndMsg(t, &exception.AssetTypeException{}, "magnitude of asset amount must be less than 2^62", fromStringFunc)
-	fromStringFunc = func() {fromString("-4.611686018427387904 CUR")}
+	fromStringFunc = func() { fromString("-4.611686018427387904 CUR") }
 	CheckThrowExceptionAndMsg(t, &exception.AssetTypeException{}, "magnitude of asset amount must be less than 2^62", fromStringFunc)
-	fromStringFunc = func() {fromString("4611686018427387.904 CUR")}
+	fromStringFunc = func() { fromString("4611686018427387.904 CUR") }
 	CheckThrowExceptionAndMsg(t, &exception.AssetTypeException{}, "magnitude of asset amount must be less than 2^62", fromStringFunc)
-	fromStringFunc = func() {fromString("-4611686018427387.904 CUR")}
+	fromStringFunc = func() { fromString("-4611686018427387.904 CUR") }
 	CheckThrowExceptionAndMsg(t, &exception.AssetTypeException{}, "magnitude of asset amount must be less than 2^62", fromStringFunc)
 
 	// precision = 18, magnitude = 2^62-1
@@ -96,33 +96,33 @@ func TestAssetFromStringOverflow(t *testing.T) {
 	assert.Equal(t, int64(-4611686018427387903), a.Amount)
 
 	// precision = 0, magnitude = 2^62
-	fromStringFunc = func() {fromString("4611686018427387904 CUR")}
+	fromStringFunc = func() { fromString("4611686018427387904 CUR") }
 	CheckThrowExceptionAndMsg(t, &exception.AssetTypeException{}, "magnitude of asset amount must be less than 2^62", fromStringFunc)
-	fromStringFunc = func() {fromString("-4611686018427387904 CUR")}
+	fromStringFunc = func() { fromString("-4611686018427387904 CUR") }
 	CheckThrowExceptionAndMsg(t, &exception.AssetTypeException{}, "magnitude of asset amount must be less than 2^62", fromStringFunc)
 
 	// precision = 18, magnitude = 2^65
-	fromStringFunc = func() {fromString("36.893488147419103232 CUR")}
+	fromStringFunc = func() { fromString("36.893488147419103232 CUR") }
 	CheckThrowException(t, &exception.OverflowException{}, fromStringFunc)
-	fromStringFunc = func() {fromString("-36.893488147419103232 CUR")}
+	fromStringFunc = func() { fromString("-36.893488147419103232 CUR") }
 	CheckThrowException(t, &exception.UnderflowException{}, fromStringFunc)
 
 	// precision = 14, magnitude > 2^76
-	fromStringFunc = func() {fromString("1000000000.00000000000000 CUR")}
+	fromStringFunc = func() { fromString("1000000000.00000000000000 CUR") }
 	CheckThrowException(t, &exception.OverflowException{}, fromStringFunc)
-	fromStringFunc = func() {fromString("-1000000000.00000000000000 CUR")}
+	fromStringFunc = func() { fromString("-1000000000.00000000000000 CUR") }
 	CheckThrowException(t, &exception.UnderflowException{}, fromStringFunc)
 
 	// precision = 0, magnitude > 2^76
-	fromStringFunc = func() {fromString("100000000000000000000000 CUR")}
+	fromStringFunc = func() { fromString("100000000000000000000000 CUR") }
 	CheckThrowExceptionAndMsg(t, &exception.ParseErrorException{}, "Couldn't parse int64", fromStringFunc)
-	fromStringFunc = func() {fromString("-100000000000000000000000 CUR")}
+	fromStringFunc = func() { fromString("-100000000000000000000000 CUR") }
 	CheckThrowExceptionAndMsg(t, &exception.ParseErrorException{}, "Couldn't parse int64", fromStringFunc)
 
 	// precision = 20, magnitude > 2^142
-	fromStringFunc = func() {fromString("100000000000000000000000.00000000000000000000 CUR")}
+	fromStringFunc = func() { fromString("100000000000000000000000.00000000000000000000 CUR") }
 	CheckThrowExceptionAndMsg(t, &exception.SymbolTypeException{}, "precision 20 should be <= 18", fromStringFunc)
-	fromStringFunc = func() {fromString("-100000000000000000000000.00000000000000000000 CUR")}
+	fromStringFunc = func() { fromString("-100000000000000000000000.00000000000000000000 CUR") }
 	CheckThrowExceptionAndMsg(t, &exception.SymbolTypeException{}, "precision 20 should be <= 18", fromStringFunc)
 }
 
@@ -133,9 +133,9 @@ func TestAuthorityChecker(t *testing.T) {
 	b := bt.getPublicKey(common.N("b"), "active")
 	c := bt.getPublicKey(common.N("c"), "active")
 
-	getNullAuthority := func(p *types.PermissionLevel) types.SharedAuthority {return types.SharedAuthority{}}
+	getNullAuthority := func(p *types.PermissionLevel) types.SharedAuthority { return types.SharedAuthority{} }
 
-	makeAuthChecker := func(pta types.PermissionToAuthorityFunc, recursionDepthLimit uint16, pubkeys []ecc.PublicKey) types.AuthorityChecker{
+	makeAuthChecker := func(pta types.PermissionToAuthorityFunc, recursionDepthLimit uint16, pubkeys []ecc.PublicKey) types.AuthorityChecker {
 		keySet := treeset.NewWith(ecc.TypePubKey, ecc.ComparePubKey)
 		for _, key := range pubkeys {
 			keySet.Add(key)
@@ -145,7 +145,7 @@ func TestAuthorityChecker(t *testing.T) {
 		return types.MakeAuthChecker(pta, recursionDepthLimit, keySet, permissionLevelSet, common.Microseconds(0), &checkTime)
 	}
 
-	A := types.SharedAuthority{Threshold:2, Keys:[]types.KeyWeight{{Key:a, Weight:1}, {Key:b, Weight:1}}}
+	A := types.SharedAuthority{Threshold: 2, Keys: []types.KeyWeight{{Key: a, Weight: 1}, {Key: b, Weight: 1}}}
 
 	{
 		checker := makeAuthChecker(getNullAuthority, uint16(2), []ecc.PublicKey{a, b})
@@ -185,7 +185,7 @@ func TestAuthorityChecker(t *testing.T) {
 		assert.True(t, usedKeys.Size() == 0)
 	}
 
-	A = types.SharedAuthority{Threshold:3, Keys:[]types.KeyWeight{{Key:a, Weight:1}, {Key:b, Weight:1}, {Key:c, Weight:1}}}
+	A = types.SharedAuthority{Threshold: 3, Keys: []types.KeyWeight{{Key: a, Weight: 1}, {Key: b, Weight: 1}, {Key: c, Weight: 1}}}
 
 	{
 		checker := makeAuthChecker(getNullAuthority, 2, []ecc.PublicKey{c, b, a})
@@ -198,7 +198,7 @@ func TestAuthorityChecker(t *testing.T) {
 		assert.True(t, !checker.SatisfiedAcd(&A, nil, 0))
 	}
 
-	A = types.SharedAuthority{Threshold:1, Keys:[]types.KeyWeight{{Key:a, Weight:1}, {Key:b, Weight:1}}}
+	A = types.SharedAuthority{Threshold: 1, Keys: []types.KeyWeight{{Key: a, Weight: 1}, {Key: b, Weight: 1}}}
 
 	{
 		checker := makeAuthChecker(getNullAuthority, 2, []ecc.PublicKey{a})
@@ -209,7 +209,7 @@ func TestAuthorityChecker(t *testing.T) {
 		assert.True(t, !checker.SatisfiedAcd(&A, nil, 0))
 	}
 
-	A = types.SharedAuthority{Threshold:1, Keys:[]types.KeyWeight{{Key:a, Weight:2}, {Key:b, Weight:1}}}
+	A = types.SharedAuthority{Threshold: 1, Keys: []types.KeyWeight{{Key: a, Weight: 2}, {Key: b, Weight: 1}}}
 
 	{
 		checker := makeAuthChecker(getNullAuthority, 2, []ecc.PublicKey{a})
@@ -220,12 +220,14 @@ func TestAuthorityChecker(t *testing.T) {
 		assert.True(t, !checker.SatisfiedAcd(&A, nil, 0))
 	}
 
-	getCAuthority := func(p *types.PermissionLevel) types.SharedAuthority {return types.SharedAuthority{Threshold:1, Keys:[]types.KeyWeight{{Key:c, Weight:1}}}}
+	getCAuthority := func(p *types.PermissionLevel) types.SharedAuthority {
+		return types.SharedAuthority{Threshold: 1, Keys: []types.KeyWeight{{Key: c, Weight: 1}}}
+	}
 
 	A = types.SharedAuthority{
 		Threshold: 2,
-		Keys: []types.KeyWeight{{Key:a, Weight:2}, {Key:b, Weight:1}},
-		Accounts: []types.PermissionLevelWeight{{Permission:types.PermissionLevel{Actor:common.N("hello"), Permission:common.N("world")}, Weight:1}},
+		Keys:      []types.KeyWeight{{Key: a, Weight: 2}, {Key: b, Weight: 1}},
+		Accounts:  []types.PermissionLevelWeight{{Permission: types.PermissionLevel{Actor: common.N("hello"), Permission: common.N("world")}, Weight: 1}},
 	}
 
 	{
@@ -274,18 +276,18 @@ func TestAuthorityChecker(t *testing.T) {
 
 	A = types.SharedAuthority{
 		Threshold: 3,
-		Keys: []types.KeyWeight{{a,2}, {b,1}},
-		Accounts: []types.PermissionLevelWeight{{Permission:types.PermissionLevel{Actor:common.N("hello"), Permission:common.N("world")}, Weight:3}},
+		Keys:      []types.KeyWeight{{a, 2}, {b, 1}},
+		Accounts:  []types.PermissionLevelWeight{{Permission: types.PermissionLevel{Actor: common.N("hello"), Permission: common.N("world")}, Weight: 3}},
 	}
 
 	{
-		checker := makeAuthChecker(getCAuthority, uint16(2), []ecc.PublicKey{a,b})
+		checker := makeAuthChecker(getCAuthority, uint16(2), []ecc.PublicKey{a, b})
 		assert.True(t, checker.SatisfiedAcd(&A, nil, 0))
 		assert.True(t, checker.AllKeysUsed())
 	}
 
 	{
-		checker := makeAuthChecker(getCAuthority, uint16(2), []ecc.PublicKey{a,b,c})
+		checker := makeAuthChecker(getCAuthority, uint16(2), []ecc.PublicKey{a, b, c})
 		assert.True(t, checker.SatisfiedAcd(&A, nil, 0))
 		assert.True(t, !checker.AllKeysUsed())
 		usedKeys := checker.GetUsedKeys()
@@ -296,8 +298,8 @@ func TestAuthorityChecker(t *testing.T) {
 
 	A = types.SharedAuthority{
 		Threshold: 2,
-		Keys: []types.KeyWeight{{a,1}, {b,1}},
-		Accounts: []types.PermissionLevelWeight{{Permission:types.PermissionLevel{Actor:common.N("hello"), Permission:common.N("world")}, Weight:1}},
+		Keys:      []types.KeyWeight{{a, 1}, {b, 1}},
+		Accounts:  []types.PermissionLevelWeight{{Permission: types.PermissionLevel{Actor: common.N("hello"), Permission: common.N("world")}, Weight: 1}},
 	}
 
 	{
@@ -307,16 +309,16 @@ func TestAuthorityChecker(t *testing.T) {
 		assert.True(t, !checker.SatisfiedAcd(&A, nil, 0))
 		checker = makeAuthChecker(getCAuthority, 2, []ecc.PublicKey{c})
 		assert.True(t, !checker.SatisfiedAcd(&A, nil, 0))
-		checker = makeAuthChecker(getCAuthority, 2, []ecc.PublicKey{a,b})
+		checker = makeAuthChecker(getCAuthority, 2, []ecc.PublicKey{a, b})
 		assert.True(t, checker.SatisfiedAcd(&A, nil, 0))
-		checker = makeAuthChecker(getCAuthority, 2, []ecc.PublicKey{b,c})
+		checker = makeAuthChecker(getCAuthority, 2, []ecc.PublicKey{b, c})
 		assert.True(t, checker.SatisfiedAcd(&A, nil, 0))
-		checker = makeAuthChecker(getCAuthority, 2, []ecc.PublicKey{a,c})
+		checker = makeAuthChecker(getCAuthority, 2, []ecc.PublicKey{a, c})
 		assert.True(t, checker.SatisfiedAcd(&A, nil, 0))
 	}
 
 	{
-		checker := makeAuthChecker(getCAuthority, uint16(2), []ecc.PublicKey{a,b,c})
+		checker := makeAuthChecker(getCAuthority, uint16(2), []ecc.PublicKey{a, b, c})
 		assert.True(t, checker.SatisfiedAcd(&A, nil, 0))
 		assert.True(t, !checker.AllKeysUsed())
 		usedKeys := checker.GetUsedKeys()
@@ -327,12 +329,12 @@ func TestAuthorityChecker(t *testing.T) {
 
 	A = types.SharedAuthority{
 		Threshold: 2,
-		Keys: []types.KeyWeight{{a,1}, {b,1}},
-		Accounts: []types.PermissionLevelWeight{{Permission:types.PermissionLevel{Actor:common.N("hello"), Permission:common.N("world")}, Weight:2}},
+		Keys:      []types.KeyWeight{{a, 1}, {b, 1}},
+		Accounts:  []types.PermissionLevelWeight{{Permission: types.PermissionLevel{Actor: common.N("hello"), Permission: common.N("world")}, Weight: 2}},
 	}
 
 	{
-		checker := makeAuthChecker(getCAuthority, 2, []ecc.PublicKey{a,b})
+		checker := makeAuthChecker(getCAuthority, 2, []ecc.PublicKey{a, b})
 		assert.True(t, checker.SatisfiedAcd(&A, nil, 0))
 		checker = makeAuthChecker(getCAuthority, 2, []ecc.PublicKey{c})
 		assert.True(t, checker.SatisfiedAcd(&A, nil, 0))
@@ -343,7 +345,7 @@ func TestAuthorityChecker(t *testing.T) {
 	}
 
 	{
-		checker := makeAuthChecker(getCAuthority, uint16(2), []ecc.PublicKey{a,b,c})
+		checker := makeAuthChecker(getCAuthority, uint16(2), []ecc.PublicKey{a, b, c})
 		assert.True(t, checker.SatisfiedAcd(&A, nil, 0))
 		assert.True(t, !checker.AllKeysUsed())
 		usedKeys := checker.GetUsedKeys()
@@ -359,30 +361,30 @@ func TestAuthorityChecker(t *testing.T) {
 		if p.Actor == common.N("top") {
 			return types.SharedAuthority{
 				Threshold: 2,
-				Keys: []types.KeyWeight{{d,1}},
-				Accounts: []types.PermissionLevelWeight{{Permission:types.PermissionLevel{Actor:common.N("bottom"), Permission:common.N("bottom")}, Weight:1}},
+				Keys:      []types.KeyWeight{{d, 1}},
+				Accounts:  []types.PermissionLevelWeight{{Permission: types.PermissionLevel{Actor: common.N("bottom"), Permission: common.N("bottom")}, Weight: 1}},
 			}
 		}
 		return types.SharedAuthority{
 			Threshold: 1,
-			Keys: []types.KeyWeight{{e,1}},
+			Keys:      []types.KeyWeight{{e, 1}},
 		}
 	}
 
 	A = types.SharedAuthority{
 		Threshold: 5,
-		Keys: []types.KeyWeight{{a,2}, {b, 2}, {c, 2}},
-		Accounts: []types.PermissionLevelWeight{{Permission:types.PermissionLevel{Actor:common.N("top"), Permission:common.N("top")}, Weight:5}},
+		Keys:      []types.KeyWeight{{a, 2}, {b, 2}, {c, 2}},
+		Accounts:  []types.PermissionLevelWeight{{Permission: types.PermissionLevel{Actor: common.N("top"), Permission: common.N("top")}, Weight: 5}},
 	}
 
 	{
-		checker := makeAuthChecker(getAuthority, uint16(2), []ecc.PublicKey{d,e})
+		checker := makeAuthChecker(getAuthority, uint16(2), []ecc.PublicKey{d, e})
 		assert.True(t, checker.SatisfiedAcd(&A, nil, 0))
 		assert.True(t, checker.AllKeysUsed())
 	}
 
 	{
-		checker := makeAuthChecker(getAuthority, uint16(2), []ecc.PublicKey{a,b,c,d,e})
+		checker := makeAuthChecker(getAuthority, uint16(2), []ecc.PublicKey{a, b, c, d, e})
 		assert.True(t, checker.SatisfiedAcd(&A, nil, 0))
 		assert.True(t, !checker.AllKeysUsed())
 		usedKeys := checker.GetUsedKeys()
@@ -392,7 +394,7 @@ func TestAuthorityChecker(t *testing.T) {
 	}
 
 	{
-		checker := makeAuthChecker(getAuthority, uint16(2), []ecc.PublicKey{a,b,c,e})
+		checker := makeAuthChecker(getAuthority, uint16(2), []ecc.PublicKey{a, b, c, e})
 		assert.True(t, checker.SatisfiedAcd(&A, nil, 0))
 		assert.True(t, !checker.AllKeysUsed())
 		usedKeys := checker.GetUsedKeys()
@@ -402,9 +404,9 @@ func TestAuthorityChecker(t *testing.T) {
 	}
 
 	{
-		checker := makeAuthChecker(getAuthority, 1, []ecc.PublicKey{a,b,c})
+		checker := makeAuthChecker(getAuthority, 1, []ecc.PublicKey{a, b, c})
 		assert.True(t, checker.SatisfiedAcd(&A, nil, 0))
-		checker = makeAuthChecker(getAuthority, 1, []ecc.PublicKey{d,e})
+		checker = makeAuthChecker(getAuthority, 1, []ecc.PublicKey{d, e})
 		assert.True(t, !checker.SatisfiedAcd(&A, nil, 0))
 	}
 
@@ -438,7 +440,7 @@ func TestAuthorityChecker(t *testing.T) {
 			Threshold: 4,
 			Keys:      []types.KeyWeight{{b, 1}, {a, 1}, {c, 1}},
 		}
-		checker := makeAuthChecker(getNullAuthority, uint16(2), []ecc.PublicKey{a,b,c})
+		checker := makeAuthChecker(getNullAuthority, uint16(2), []ecc.PublicKey{a, b, c})
 		assert.True(t, types.Validate(A.ToAuthority()))
 		assert.True(t, types.Validate(B.ToAuthority()))
 		assert.True(t, !types.Validate(C.ToAuthority()))
@@ -460,59 +462,58 @@ func TestAuthorityChecker(t *testing.T) {
 		A := types.SharedAuthority{
 			Threshold: 4,
 			Keys:      []types.KeyWeight{{b, 1}, {a, 1}, {c, 1}},
-			Accounts:  []types.PermissionLevelWeight{
-							{types.PermissionLevel{Actor:common.N("a"), Permission:common.N("world")},1},
-							{types.PermissionLevel{Actor:common.N("hello"), Permission:common.N("world")},1},
-							{types.PermissionLevel{Actor:common.N("hi"), Permission:common.N("world")},1},
-						},
+			Accounts: []types.PermissionLevelWeight{
+				{types.PermissionLevel{Actor: common.N("a"), Permission: common.N("world")}, 1},
+				{types.PermissionLevel{Actor: common.N("hello"), Permission: common.N("world")}, 1},
+				{types.PermissionLevel{Actor: common.N("hi"), Permission: common.N("world")}, 1},
+			},
 		}
 		B := types.SharedAuthority{
 			Threshold: 4,
 			Keys:      []types.KeyWeight{{b, 1}, {a, 1}, {c, 1}},
-			Accounts:  []types.PermissionLevelWeight{
-				{types.PermissionLevel{Actor:common.N("hello"), Permission:common.N("world")},1},
+			Accounts: []types.PermissionLevelWeight{
+				{types.PermissionLevel{Actor: common.N("hello"), Permission: common.N("world")}, 1},
 			},
 		}
 		C := types.SharedAuthority{
 			Threshold: 4,
 			Keys:      []types.KeyWeight{{b, 1}, {a, 1}, {c, 1}},
-			Accounts:  []types.PermissionLevelWeight{
-				{types.PermissionLevel{Actor:common.N("hello"), Permission:common.N("there")},1},
-				{types.PermissionLevel{Actor:common.N("hello"), Permission:common.N("world")},1},
+			Accounts: []types.PermissionLevelWeight{
+				{types.PermissionLevel{Actor: common.N("hello"), Permission: common.N("there")}, 1},
+				{types.PermissionLevel{Actor: common.N("hello"), Permission: common.N("world")}, 1},
 			},
 		}
 		D := types.SharedAuthority{
 			Threshold: 4,
 			Keys:      []types.KeyWeight{{b, 1}, {a, 1}, {c, 1}},
-			Accounts:  []types.PermissionLevelWeight{
-				{types.PermissionLevel{Actor:common.N("hello"), Permission:common.N("world")},1},
-				{types.PermissionLevel{Actor:common.N("hello"), Permission:common.N("world")},2},
+			Accounts: []types.PermissionLevelWeight{
+				{types.PermissionLevel{Actor: common.N("hello"), Permission: common.N("world")}, 1},
+				{types.PermissionLevel{Actor: common.N("hello"), Permission: common.N("world")}, 2},
 			},
 		}
 		E := types.SharedAuthority{
 			Threshold: 4,
 			Keys:      []types.KeyWeight{{b, 1}, {a, 1}, {c, 1}},
-			Accounts:  []types.PermissionLevelWeight{
-				{types.PermissionLevel{Actor:common.N("hello"), Permission:common.N("world")},2},
-				{types.PermissionLevel{Actor:common.N("hello"), Permission:common.N("there")},1},
+			Accounts: []types.PermissionLevelWeight{
+				{types.PermissionLevel{Actor: common.N("hello"), Permission: common.N("world")}, 2},
+				{types.PermissionLevel{Actor: common.N("hello"), Permission: common.N("there")}, 1},
 			},
 		}
 		F := types.SharedAuthority{
 			Threshold: 4,
 			Keys:      []types.KeyWeight{{b, 1}, {a, 1}, {c, 1}},
-			Accounts:  []types.PermissionLevelWeight{
-				{types.PermissionLevel{Actor:common.N("hi"), Permission:common.N("world")},2},
-				{types.PermissionLevel{Actor:common.N("hello"), Permission:common.N("world")},1},
+			Accounts: []types.PermissionLevelWeight{
+				{types.PermissionLevel{Actor: common.N("hi"), Permission: common.N("world")}, 2},
+				{types.PermissionLevel{Actor: common.N("hello"), Permission: common.N("world")}, 1},
 			},
 		}
-		G :=types.SharedAuthority{
+		G := types.SharedAuthority{
 			Threshold: 7,
 			Keys:      []types.KeyWeight{{b, 1}, {a, 1}, {c, 1}},
-			Accounts:  []types.PermissionLevelWeight{
-				{types.PermissionLevel{Actor:common.N("a"), Permission:common.N("world")},1},
-				{types.PermissionLevel{Actor:common.N("hello"), Permission:common.N("world")},1},
-				{types.PermissionLevel{Actor:common.N("hi"), Permission:common.N("world")},1},
-
+			Accounts: []types.PermissionLevelWeight{
+				{types.PermissionLevel{Actor: common.N("a"), Permission: common.N("world")}, 1},
+				{types.PermissionLevel{Actor: common.N("hello"), Permission: common.N("world")}, 1},
+				{types.PermissionLevel{Actor: common.N("hi"), Permission: common.N("world")}, 1},
 			},
 		}
 		assert.True(t, types.Validate(A.ToAuthority()))

@@ -24,7 +24,7 @@ type DBReadMode int8
 
 const (
 	SPECULATIVE = DBReadMode(iota)
-	HEADER       //HEAD
+	HEADER      //HEAD
 	READONLY
 	IRREVERSIBLE
 )

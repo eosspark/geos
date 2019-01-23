@@ -112,14 +112,16 @@ func TestRamTests(t *testing.T) {
 		"size":  1790,
 	}
 
-	stFunc := func() {e.PushAction2(
-		&test1,
-		&actSenName,
-		test1,
-		&setentry,
-		e.DefaultExpirationDelta,
-		0,
-	)}
+	stFunc := func() {
+		e.PushAction2(
+			&test1,
+			&actSenName,
+			test1,
+			&setentry,
+			e.DefaultExpirationDelta,
+			0,
+		)
+	}
 	CheckThrowExceptionAndMsg(t, &exception.RamUsageExceeded{}, "account testram11111 has insufficient ram", stFunc)
 	ramUsage = rlm.GetAccountRamUsage(test1)
 
@@ -151,14 +153,16 @@ func TestRamTests(t *testing.T) {
 		"to":    11,
 		"size":  1680,
 	}
-	stFunc = func() {e.PushAction2(
-		&test1,
-		&actSenName,
-		test1,
-		&setentry,
-		e.DefaultExpirationDelta,
-		0,
-	)}
+	stFunc = func() {
+		e.PushAction2(
+			&test1,
+			&actSenName,
+			test1,
+			&setentry,
+			e.DefaultExpirationDelta,
+			0,
+		)
+	}
 	CheckThrowExceptionAndMsg(t, &exception.RamUsageExceeded{}, "account testram11111 has insufficient ram", stFunc)
 	e.ProduceBlocks(1, false)
 	assert.Equal(t, rlm.GetAccountRamUsage(test1), ramUsage-1000)
@@ -170,14 +174,16 @@ func TestRamTests(t *testing.T) {
 		"to":    11,
 		"size":  1760,
 	}
-	stFunc = func() {e.PushAction2(
-		&test1,
-		&actSenName,
-		test1,
-		&setentry,
-		e.DefaultExpirationDelta,
-		0,
-	)}
+	stFunc = func() {
+		e.PushAction2(
+			&test1,
+			&actSenName,
+			test1,
+			&setentry,
+			e.DefaultExpirationDelta,
+			0,
+		)
+	}
 	CheckThrowExceptionAndMsg(t, &exception.RamUsageExceeded{}, "account testram11111 has insufficient ram", stFunc)
 	e.ProduceBlocks(1, false)
 	assert.Equal(t, rlm.GetAccountRamUsage(test1), ramUsage-1000)
@@ -220,14 +226,16 @@ func TestRamTests(t *testing.T) {
 		"to":    12,
 		"size":  1780,
 	}
-	stFunc = func() {e.PushAction2(
-		&test1,
-		&actSenName,
-		test1,
-		&setentry,
-		e.DefaultExpirationDelta,
-		0,
-	)}
+	stFunc = func() {
+		e.PushAction2(
+			&test1,
+			&actSenName,
+			test1,
+			&setentry,
+			e.DefaultExpirationDelta,
+			0,
+		)
+	}
 	CheckThrowExceptionAndMsg(t, &exception.RamUsageExceeded{}, "account testram11111 has insufficient ram", stFunc)
 
 	e.ProduceBlocks(1, false)
@@ -256,14 +264,16 @@ func TestRamTests(t *testing.T) {
 		"to":    13,
 		"size":  1660,
 	}
-	stFunc = func() {e.PushAction2(
-		&test1,
-		&actSenName,
-		test1,
-		&setentry,
-		e.DefaultExpirationDelta,
-		0,
-	)}
+	stFunc = func() {
+		e.PushAction2(
+			&test1,
+			&actSenName,
+			test1,
+			&setentry,
+			e.DefaultExpirationDelta,
+			0,
+		)
+	}
 	CheckThrowExceptionAndMsg(t, &exception.RamUsageExceeded{}, "account testram11111 has insufficient ram", stFunc)
 	e.ProduceBlocks(1, false)
 
@@ -277,7 +287,7 @@ func TestRamTests(t *testing.T) {
 	e.PushAction3(
 		&test1,
 		&actSenName,
-		[]*common.AccountName{&test1,&test2},
+		[]*common.AccountName{&test1, &test2},
 		&setentry,
 		e.DefaultExpirationDelta,
 		0,
@@ -291,14 +301,16 @@ func TestRamTests(t *testing.T) {
 		"to":    13,
 		"size":  1900,
 	}
-	stFunc = func() {e.PushAction2(
-		&test1,
-		&actSenName,
-		test1,
-		&setentry,
-		e.DefaultExpirationDelta,
-		0,
-	)}
+	stFunc = func() {
+		e.PushAction2(
+			&test1,
+			&actSenName,
+			test1,
+			&setentry,
+			e.DefaultExpirationDelta,
+			0,
+		)
+	}
 	CheckThrowExceptionAndMsg(t, &exception.RamUsageExceeded{}, "account testram11111 has insufficient ram", stFunc)
 	e.ProduceBlocks(1, false)
 
@@ -326,14 +338,16 @@ func TestRamTests(t *testing.T) {
 		"to":    21,
 		"size":  1930,
 	}
-	stFunc = func() {e.PushAction3(
-		&test1,
-		&actSenName,
-		[]*common.AccountName{&test1,&test2},
-		&setentry,
-		e.DefaultExpirationDelta,
-		0,
-	)}
+	stFunc = func() {
+		e.PushAction3(
+			&test1,
+			&actSenName,
+			[]*common.AccountName{&test1, &test2},
+			&setentry,
+			e.DefaultExpirationDelta,
+			0,
+		)
+	}
 	CheckThrowExceptionAndMsg(t, &exception.RamUsageExceeded{}, "account testram22222 has insufficient ram", stFunc)
 	e.ProduceBlocks(1, false)
 
@@ -347,7 +361,7 @@ func TestRamTests(t *testing.T) {
 	e.PushAction3(
 		&test1,
 		&actSenName,
-		[]*common.AccountName{&test1,&test2},
+		[]*common.AccountName{&test1, &test2},
 		&setentry,
 		e.DefaultExpirationDelta,
 		0,
@@ -361,14 +375,16 @@ func TestRamTests(t *testing.T) {
 		"to":    22,
 		"size":  1910,
 	}
-	stFunc = func() {e.PushAction3(
-		&test1,
-		&actSenName,
-		[]*common.AccountName{&test1,&test2},
-		&setentry,
-		e.DefaultExpirationDelta,
-		0,
-	)}
+	stFunc = func() {
+		e.PushAction3(
+			&test1,
+			&actSenName,
+			[]*common.AccountName{&test1, &test2},
+			&setentry,
+			e.DefaultExpirationDelta,
+			0,
+		)
+	}
 	CheckThrowExceptionAndMsg(t, &exception.RamUsageExceeded{}, "account testram22222 has insufficient ram", stFunc)
 	e.ProduceBlocks(1, false)
 	rmentry = common.Variants{
@@ -395,7 +411,7 @@ func TestRamTests(t *testing.T) {
 	e.PushAction3(
 		&test1,
 		&actSenName,
-		[]*common.AccountName{&test1,&test2},
+		[]*common.AccountName{&test1, &test2},
 		&setentry,
 		e.DefaultExpirationDelta,
 		0,

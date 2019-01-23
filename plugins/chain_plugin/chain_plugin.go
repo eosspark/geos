@@ -410,13 +410,13 @@ func (c *ChainPlugin) PluginStartup() {
 	//my->chain->head_block_num(), my->chain_config->genesis.initial_timestamp
 	Try(func() {
 		c.my.Chain.Startup()
-	}).Catch(func(e *DatabaseGuardException){
+	}).Catch(func(e *DatabaseGuardException) {
 		c.logGuardException(e)
 		Throw(e)
 	})
 
 	if !c.my.Readonly {
-		log.Info("starting chain in read/write mode");
+		log.Info("starting chain in read/write mode")
 	}
 
 	log.Info("Blockchain started; head block is #%d, genesis timestamp is %s", c.my.Chain.HeadBlockNum(), c.my.ChainConfig.Genesis.InitialTimestamp)

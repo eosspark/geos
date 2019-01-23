@@ -85,7 +85,7 @@ func TestMultiSetEach(t *testing.T) {
 	set.Add("c", "a", "b", "a")
 	index := -1
 	set.Each(func(value string) {
-		index ++
+		index++
 
 		switch index {
 		case 0:
@@ -249,7 +249,7 @@ func TestMultiSetIteratorPrev(t *testing.T) {
 	for it.Next() {
 		count++
 		value := it.Value()
-		switch count-1 {
+		switch count - 1 {
 		case 0:
 			if actualValue, expectedValue := value, "a"; actualValue != expectedValue {
 				t.Errorf("Got %v expected %v", actualValue, expectedValue)
