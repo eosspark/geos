@@ -37,8 +37,10 @@ func main() {
 	//	wasmgo.Apply(codeVersion, code, applyContext)
 	//	fmt.Println("No.", i, uint64(common.Now()-applyContext.PseudoStart))
 	//}
-
+	//for i:= 0; i < 100; i ++ {
 	wasmgo.Apply(codeVersion, code, applyContext)
+	//fmt.Println(applyContext.PendingConsoleOutput)
+	//}
 	//print "hello, walker"
 	//fmt.Println(applyContext.PendingConsoleOutput)
 

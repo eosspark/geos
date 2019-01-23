@@ -17,12 +17,9 @@ func init() {
 	//root.SetHandler(DiscardHandler())
 	//root.SetHandler(LvlFilterHandler(LvlError,TerminalHandler))
 
-	//h,_ := FileHandler("./log.log",LogfmtFormat())
-	//root.SetHandler(h)
-
 	h, _ := FileHandler("./fc.log", LogfmtFormat())
 	FcLog.SetHandler(h)
-	FcLog.SetHandler(DiscardHandler())
+	//FcLog.SetHandler(DiscardHandler())
 }
 
 func New(name string) Logger {
