@@ -1,7 +1,6 @@
 package database
 
 import (
-	"fmt"
 	"math"
 	"reflect"
 
@@ -166,7 +165,6 @@ func (ldb *LDataBase) Close() {
 		ldb.log.Info("----------------- database close -----------------")
 	}
 	ldb.isClosed = true
-	fmt.Println("db is close")
 }
 
 func (ldb *LDataBase) writeIncrementToDb() error {
