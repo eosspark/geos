@@ -87,9 +87,7 @@ func (index *MultiIndex) CompareBegin(in Iterator) bool {
 		return false
 	}
 	it := index.Begin()
-return	index.CompareIterator(in,it)
-	//return bytes.Compare(in.Value(), it.Value()) == 0
-	//return it.Begin() == in.Begin()
+	return index.CompareIterator(in,it)
 }
 
 /*
@@ -156,10 +154,11 @@ func (index *MultiIndex) End() Iterator {
 	// TODO
 	it, err := index.db.EndIterator(index.begin, index.end, index.typeName)
 	if err != nil {
-		//throw
 		return nil
 	}
-
+	if it == nil {
+		return nil
+	}
 	return it
 }
 

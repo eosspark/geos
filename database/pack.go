@@ -87,6 +87,7 @@ func EncodeSize(val interface{}) (int, error) {
 }
 
 func (e *encoder) encode(v interface{}) (err error) {
+
 	switch v.(type) {
 	case ecc.PublicKey:
 		val, ok := v.(ecc.PublicKey)
@@ -161,10 +162,6 @@ func (e *encoder) encode(v interface{}) (err error) {
 		}
 		e.writeUint64(u128.High)
 		e.writeUint64(u128.Low)
-
-		return err
-	case nil:
-		return
 	}
 
 	rv := reflect.Indirect(reflect.ValueOf(v))
