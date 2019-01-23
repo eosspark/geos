@@ -5,6 +5,7 @@ import (
 	"github.com/syndtr/goleveldb/leveldb"
 	"log"
 	"os"
+	"runtime/pprof"
 	"testing"
 )
 
@@ -12,6 +13,13 @@ var logFlag = false
 //var logFlag = true
 
 func Test_rawDb(t *testing.T) {
+	cpuf, err := os.Create("cpu_profile")
+	if err != nil {
+		log.Fatal(err)
+	}
+	pprof.StartCPUProfile(cpuf)
+	defer pprof.StopCPUProfile()
+
 
 	fileName := "./eosspark"
 	reFn := func() {
@@ -364,8 +372,8 @@ func Test_undoInsert(t *testing.T) {
 	}
 
 	// Code 11 12 13
-	it, err := idx.LowerBound(DbTableIdObject{Code: 11})
-	if !idx.CompareEnd(it){
+	_, err = idx.LowerBound(DbTableIdObject{Code: 11})
+	if err != ErrNotFound {
 		log.Fatalln(err)
 	}
 
@@ -385,7 +393,7 @@ func Test_undoInsert(t *testing.T) {
 	if err != nil {
 		log.Println(err)
 	}
-	it, err = idx.LowerBound(DbTableIdObject{Code: 11})
+	it, err := idx.LowerBound(DbTableIdObject{Code: 11})
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -1853,28 +1861,51 @@ func MakeResourceLimitsObjects() []DbResourceLimitsObject {
 }
 
 func Test_findIdZero(t *testing.T){
-	//number := 10
-	//i := 11
-	//out := DbTableIdObject{}
-	//obj := DbTableIdObject{Code: AccountName(number + 1), Scope: ScopeName(number + 2), Table: TableName(number + 3 + i + 1), Payer: AccountName(number + 4 + i + 1), Count: uint32(number + 5)}
-	//tmp := DbTableIdObject{Code: AccountName(number + 1), Scope: ScopeName(number + 2), Table: TableName(number + 3 + i + 1), Payer: AccountName(number + 4 + i + 1), Count: uint32(number + 5)}
+	number := 10
+	i := 11
+	out := DbTableIdObject{}
+	obj := DbTableIdObject{Code: AccountName(number + 1), Scope: ScopeName(number + 2), Table: TableName(number + 3 + i + 1), Payer: AccountName(number + 4 + i + 1), Count: uint32(number + 5)}
+	tmp := DbTableIdObject{Code: AccountName(number + 1), Scope: ScopeName(number + 2), Table: TableName(number + 3 + i + 1), Payer: AccountName(number + 4 + i + 1), Count: uint32(number + 5)}
 	db, clo := openDb()
 	if db == nil {
 		log.Fatalln("db open failed")
 	}
 	defer clo()
-
-	hou := DbHouse{Carnivore: Carnivore{28, 38}}
-	idx, err := db.GetIndex("Lion", hou)
-		if err != nil {
+	db.Insert(&obj)
+	err := db.Find("id",&tmp,&out)
+	if err != nil{
 		log.Fatalln(err)
 	}
-	it, err := idx.LowerBound(hou)
-	if err != nil{
-		fmt.Println(err)
+	if tmp != out{
+		LogObj(out)
+		LogObj(tmp)
+		log.Fatalln("not equal")
 	}
-	if !idx.CompareEnd(it){
-		log.Fatal("error compare end")
+}
+
+func Test_reversion(t *testing.T) {
+	fileName := "./hello"
+
+	db, err := NewDataBase(fileName, logFlag)
+	if err != nil {
+		log.Fatalln("new database failed : ", err)
 	}
+
+	for db.Revision() >0 {
+		db.Undo()
+		fmt.Println(db.Revision())
+	}
+
+	s1 := db.StartSession()
+	objs, _ := Objects()
+	for i := 0; i < 3; i++ {
+		err := db.Insert(&objs[i])
+		if err != nil {
+			log.Println(err)
+		}
+	}
+	s1.Push()
+	fmt.Println(db.Revision())
+	db.Close()
 }
 
