@@ -703,8 +703,8 @@ func pushTransaction(trx *types.SignedTransaction, extraKcpu int32, compression 
 			trx.ContextFreeActions = append(trx.ContextFreeActions, generateNonceAction())
 		}
 		trx.MaxCpuUsageMS = uint8(c.getOptions().TxMaxCpuUsage)
-		trx.MaxNetUsageWords = (uint32(c.getOptions().TxMaxNetUsage) + 7) / 8
-		trx.DelaySec = c.getOptions().DelaySec
+		trx.MaxNetUsageWords = (common.Vuint32(c.getOptions().TxMaxNetUsage) + 7) / 8
+		trx.DelaySec = common.Vuint32(c.getOptions().DelaySec)
 	}
 	if !c.getOptions().TxSkipSign {
 		requiredKeys := determineRequiredKeys(trx)

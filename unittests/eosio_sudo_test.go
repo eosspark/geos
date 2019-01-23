@@ -167,7 +167,7 @@ func (e EosioSudoTester) SudoExec(executer common.AccountName, trx *types.Transa
 	//}
 	type Exec struct {
 		Executer common.AccountName
-		Trx types.Transaction
+		Trx      types.Transaction
 	}
 	exec := Exec{executer, *trx}
 	data, _ := rlp.EncodeToBytes(exec)
@@ -208,14 +208,18 @@ func (e EosioSudoTester) ReqAuth(from common.AccountName, auths []types.Permissi
 
 func TestSudoExecDirect(t *testing.T) {
 	e := initEosioSudoTester()
-	trx := e.ReqAuth(bob, []types.PermissionLevel{{bob,common.DefaultConfig.ActiveName}}, e.DefaultExpirationDelta)
+	trx := e.ReqAuth(bob, []types.PermissionLevel{{bob, common.DefaultConfig.ActiveName}}, e.DefaultExpirationDelta)
 	sudoTrx := types.SignedTransaction{Transaction: e.SudoExec(alice, &trx, e.DefaultExpirationDelta)}
 	chainId := e.Control.GetChainId()
 	pk := e.getPrivateKey(alice, "active")
 	sudoTrx.Sign(&pk, &chainId)
 	prodVector := []common.AccountName{producer1, producer2, producer3, producer4}
 	trace := types.TransactionTrace{}
-	appliedTrxCaller := chain_interface.AppliedTransactionCaller{Caller: func(t *types.TransactionTrace) {if t.Scheduled {trace = *t}}}
+	appliedTrxCaller := chain_interface.AppliedTransactionCaller{Caller: func(t *types.TransactionTrace) {
+		if t.Scheduled {
+			trace = *t
+		}
+	}}
 	e.Control.AppliedTransaction.Connect(&appliedTrxCaller)
 	for _, actor := range prodVector {
 		pk = e.getPrivateKey(actor, "active")
@@ -231,7 +235,7 @@ func TestSudoExecDirect(t *testing.T) {
 
 func TestSudoWithMsig(t *testing.T) {
 	e := initEosioSudoTester()
-	trx := e.ReqAuth(bob, []types.PermissionLevel{{bob,common.DefaultConfig.ActiveName}}, e.DefaultExpirationDelta)
+	trx := e.ReqAuth(bob, []types.PermissionLevel{{bob, common.DefaultConfig.ActiveName}}, e.DefaultExpirationDelta)
 	sudoTrx := e.SudoExec(alice, &trx, e.DefaultExpirationDelta)
 	active := common.DefaultConfig.ActiveName
 	e.Propose(carol, common.N("first"), sudoTrx, []types.PermissionLevel{
@@ -239,16 +243,20 @@ func TestSudoWithMsig(t *testing.T) {
 		{producer2, active}, {producer3, active},
 		{producer4, active}, {producer5, active},
 	})
-	e.Approve(alice, carol, common.N("first"), types.PermissionLevel{Actor:alice, Permission:active})
+	e.Approve(alice, carol, common.N("first"), types.PermissionLevel{Actor: alice, Permission: active})
 
 	// More than 2/3 of block producers approve
-	e.Approve(producer1, carol, common.N("first"), types.PermissionLevel{Actor:producer1, Permission:active})
-	e.Approve(producer2, carol, common.N("first"), types.PermissionLevel{Actor:producer2, Permission:active})
-	e.Approve(producer3, carol, common.N("first"), types.PermissionLevel{Actor:producer3, Permission:active})
-	e.Approve(producer4, carol, common.N("first"), types.PermissionLevel{Actor:producer4, Permission:active})
+	e.Approve(producer1, carol, common.N("first"), types.PermissionLevel{Actor: producer1, Permission: active})
+	e.Approve(producer2, carol, common.N("first"), types.PermissionLevel{Actor: producer2, Permission: active})
+	e.Approve(producer3, carol, common.N("first"), types.PermissionLevel{Actor: producer3, Permission: active})
+	e.Approve(producer4, carol, common.N("first"), types.PermissionLevel{Actor: producer4, Permission: active})
 
 	var traces []types.TransactionTrace
-	appliedTrxCaller := chain_interface.AppliedTransactionCaller{Caller: func(t *types.TransactionTrace) {if t.Scheduled {traces = append(traces, *t)}}}
+	appliedTrxCaller := chain_interface.AppliedTransactionCaller{Caller: func(t *types.TransactionTrace) {
+		if t.Scheduled {
+			traces = append(traces, *t)
+		}
+	}}
 	e.Control.AppliedTransaction.Connect(&appliedTrxCaller)
 
 	// Now the proposal should be ready to execute
@@ -270,7 +278,7 @@ func TestSudoWithMsig(t *testing.T) {
 
 func TestSudoWithMsigUnapprove(t *testing.T) {
 	e := initEosioSudoTester()
-	trx := e.ReqAuth(bob, []types.PermissionLevel{{bob,common.DefaultConfig.ActiveName}}, e.DefaultExpirationDelta)
+	trx := e.ReqAuth(bob, []types.PermissionLevel{{bob, common.DefaultConfig.ActiveName}}, e.DefaultExpirationDelta)
 	sudoTrx := e.SudoExec(alice, &trx, e.DefaultExpirationDelta)
 	active := common.DefaultConfig.ActiveName
 	e.Propose(carol, common.N("first"), sudoTrx, []types.PermissionLevel{
@@ -278,28 +286,28 @@ func TestSudoWithMsigUnapprove(t *testing.T) {
 		{producer2, active}, {producer3, active},
 		{producer4, active}, {producer5, active},
 	})
-	e.Approve(alice, carol, common.N("first"), types.PermissionLevel{Actor:alice, Permission:active})
+	e.Approve(alice, carol, common.N("first"), types.PermissionLevel{Actor: alice, Permission: active})
 
 	// 3 of the 4 needed producers approve
-	e.Approve(producer1, carol, common.N("first"), types.PermissionLevel{Actor:producer1, Permission:active})
-	e.Approve(producer2, carol, common.N("first"), types.PermissionLevel{Actor:producer2, Permission:active})
-	e.Approve(producer3, carol, common.N("first"), types.PermissionLevel{Actor:producer3, Permission:active})
-	e.Approve(producer4, carol, common.N("first"), types.PermissionLevel{Actor:producer4, Permission:active})
+	e.Approve(producer1, carol, common.N("first"), types.PermissionLevel{Actor: producer1, Permission: active})
+	e.Approve(producer2, carol, common.N("first"), types.PermissionLevel{Actor: producer2, Permission: active})
+	e.Approve(producer3, carol, common.N("first"), types.PermissionLevel{Actor: producer3, Permission: active})
+	e.Approve(producer4, carol, common.N("first"), types.PermissionLevel{Actor: producer4, Permission: active})
 
 	// first producer takes back approval
-	e.UnApprove(producer1, carol, common.N("first"), types.PermissionLevel{Actor:producer1, Permission:active})
+	e.UnApprove(producer1, carol, common.N("first"), types.PermissionLevel{Actor: producer1, Permission: active})
 
 	e.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs), 0)
 
 	// The proposal should not have sufficient approvals to pass the authorization checks of eosio.sudo::exec.
-	exec := func() {e.Exec(alice, carol, common.N("first"))}
-	CatchThrowExceptionAndMsg(t, &exception.EosioAssertMessageException{}, "transaction authorization failed", exec)
+	exec := func() { e.Exec(alice, carol, common.N("first")) }
+	CheckThrowExceptionAndMsg(t, &exception.EosioAssertMessageException{}, "transaction authorization failed", exec)
 }
 
 func TestSudoWithMsigProducersChange(t *testing.T) {
 	e := initEosioSudoTester()
 	e.CreateAccounts([]common.AccountName{common.N("newprod1")}, false, true)
-	trx := e.ReqAuth(bob, []types.PermissionLevel{{bob,common.DefaultConfig.ActiveName}}, e.DefaultExpirationDelta)
+	trx := e.ReqAuth(bob, []types.PermissionLevel{{bob, common.DefaultConfig.ActiveName}}, e.DefaultExpirationDelta)
 	sudoTrx := e.SudoExec(alice, &trx, 36000)
 	active := common.DefaultConfig.ActiveName
 	e.Propose(carol, common.N("first"), sudoTrx, []types.PermissionLevel{
@@ -307,11 +315,11 @@ func TestSudoWithMsigProducersChange(t *testing.T) {
 		{producer2, active}, {producer3, active},
 		{producer4, active}, {producer5, active},
 	})
-	e.Approve(alice, carol, common.N("first"), types.PermissionLevel{Actor:alice, Permission:active})
+	e.Approve(alice, carol, common.N("first"), types.PermissionLevel{Actor: alice, Permission: active})
 
 	// 2 of the 4 needed producers approve
-	e.Approve(producer1, carol, common.N("first"), types.PermissionLevel{Actor:producer1, Permission:active})
-	e.Approve(producer2, carol, common.N("first"), types.PermissionLevel{Actor:producer2, Permission:active})
+	e.Approve(producer1, carol, common.N("first"), types.PermissionLevel{Actor: producer1, Permission: active})
+	e.Approve(producer2, carol, common.N("first"), types.PermissionLevel{Actor: producer2, Permission: active})
 
 	e.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs), 0)
 	e.SetProducers(&[]common.AccountName{producer1, producer2, producer3, producer4, producer5, common.N("newprod1")})
@@ -320,21 +328,27 @@ func TestSudoWithMsigProducersChange(t *testing.T) {
 		e.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs), 0)
 	}
 
-	e.Approve(producer3, carol, common.N("first"), types.PermissionLevel{Actor:producer3, Permission:active})
-	e.Approve(producer4, carol, common.N("first"), types.PermissionLevel{Actor:producer4, Permission:active})
+	e.Approve(producer3, carol, common.N("first"), types.PermissionLevel{Actor: producer3, Permission: active})
+	e.Approve(producer4, carol, common.N("first"), types.PermissionLevel{Actor: producer4, Permission: active})
 	e.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs), 0)
 
-	exec := func() {e.Exec(alice, carol, common.N("first"))}
-	CatchThrowExceptionAndMsg(t, &exception.EosioAssertMessageException{}, "transaction authorization failed", exec)
+	exec := func() { e.Exec(alice, carol, common.N("first")) }
+	CheckThrowExceptionAndMsg(t, &exception.EosioAssertMessageException{}, "transaction authorization failed", exec)
 
-	approve := func() {e.Approve(common.N("newprod1"), carol, common.N("first"), types.PermissionLevel{Actor:common.N("newprod1"), Permission:active})}
-	CatchThrowExceptionAndMsg(t, &exception.EosioAssertMessageException{}, "approval is not on the list of requested approvals", approve)
+	approve := func() {
+		e.Approve(common.N("newprod1"), carol, common.N("first"), types.PermissionLevel{Actor: common.N("newprod1"), Permission: active})
+	}
+	CheckThrowExceptionAndMsg(t, &exception.EosioAssertMessageException{}, "approval is not on the list of requested approvals", approve)
 
 	// But prod5 still can provide the fifth approval necessary to satisfy the 2/3+1 threshold of the new producer set
-	e.Approve(producer5, carol, common.N("first"), types.PermissionLevel{Actor:producer5, Permission:active})
+	e.Approve(producer5, carol, common.N("first"), types.PermissionLevel{Actor: producer5, Permission: active})
 
 	var traces []types.TransactionTrace
-	appliedTrxCaller := chain_interface.AppliedTransactionCaller{Caller: func(t *types.TransactionTrace) {if t.Scheduled {traces = append(traces, *t)}}}
+	appliedTrxCaller := chain_interface.AppliedTransactionCaller{Caller: func(t *types.TransactionTrace) {
+		if t.Scheduled {
+			traces = append(traces, *t)
+		}
+	}}
 	e.Control.AppliedTransaction.Connect(&appliedTrxCaller)
 
 	// Now the proposal should be ready to execute

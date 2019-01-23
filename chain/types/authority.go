@@ -34,14 +34,14 @@ func (level *PermissionLevel) GetKey() []byte {
 var PermissionLevelType = reflect.TypeOf(PermissionLevel{})
 
 func ComparePermissionLevel(first interface{}, second interface{}) int {
-	if first.(PermissionLevel).Permission > second.(PermissionLevel).Permission {
-		return 1
-	} else if first.(PermissionLevel).Permission < second.(PermissionLevel).Permission {
-		return -1
-	}
 	if first.(PermissionLevel).Actor > second.(PermissionLevel).Actor {
 		return 1
 	} else if first.(PermissionLevel).Actor < second.(PermissionLevel).Actor {
+		return -1
+	}
+	if first.(PermissionLevel).Permission > second.(PermissionLevel).Permission {
+		return 1
+	} else if first.(PermissionLevel).Permission < second.(PermissionLevel).Permission {
 		return -1
 	} else {
 		return 0
@@ -237,14 +237,14 @@ func Validate(auth Authority) bool {
 	}
 
 	for i, k := range auth.Keys {
-		if i > 0 && ! (ecc.ComparePubKey(auth.Keys[i-1].Key, k.Key) == -1){
+		if i > 0 && !(ecc.ComparePubKey(auth.Keys[i-1].Key, k.Key) == -1) {
 			return false
 		}
 		totalWeight += uint32(k.Weight)
 	}
 
 	for i, a := range auth.Accounts {
-		if i > 0 && ! (ComparePermissionLevel(auth.Accounts[i-1].Permission, a.Permission) == -1){
+		if i > 0 && !(ComparePermissionLevel(auth.Accounts[i-1].Permission, a.Permission) == -1) {
 			return false
 		}
 		totalWeight += uint32(a.Weight)

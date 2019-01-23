@@ -3,8 +3,10 @@ package chain_plugin
 import (
 	"github.com/eosspark/eos-go/chain"
 	"github.com/eosspark/eos-go/common"
-	"github.com/eosspark/eos-go/plugins/appbase/asio"
+	"github.com/eosspark/eos-go/plugins/appbase/app"
 	"github.com/eosspark/eos-go/plugins/appbase/app/include"
+	"github.com/eosspark/eos-go/plugins/appbase/asio"
+	. "github.com/eosspark/eos-go/plugins/chain_interface"
 )
 
 type ChainPluginImpl struct {
@@ -34,18 +36,21 @@ type ChainPluginImpl struct {
 	IncomingBlockChannel        include.Channel
 
 	// retained references to methods for easy calling
-	IncomingBlockSyncMethod        include.Method
-	incomingTransactionAsyncMethod include.Method
+	IncomingBlockSyncMethod        *include.Method
+	IncomingTransactionAsyncMethod *include.Method
 
 	// method provider handles
-	GetBlockByNumberProvider               include.Method
-	GetBlockByIdProvider                   include.Method
-	GetHeadBlockIdProvider                 include.Method
-	GetLastIrreversibleBlockNumberProvider include.Method
+	GetBlockByNumberProvider               *include.Method
+	GetBlockByIdProvider                   *include.Method
+	GetHeadBlockIdProvider                 *include.Method
+	GetLastIrreversibleBlockNumberProvider *include.Method
 
 	// scoped connections for chain controller
 }
 
 func NewChainPluginImpl() *ChainPluginImpl {
-	return new(ChainPluginImpl)
+	return &ChainPluginImpl{
+		IncomingBlockSyncMethod:        app.App().GetMethod(BlockSync),
+		IncomingTransactionAsyncMethod: app.App().GetMethod(TransactionAsync),
+	}
 }

@@ -98,9 +98,30 @@ func Max(x, y uint64) uint64 {
 	}
 }
 
-type Varuint32 struct {
-	V uint32 `eos:"vuint32"`
+type Vuint32 uint32
+
+func (v Vuint32) Pack() ([]byte, error) {
+	return WriteUVarInt(int(v)), nil
 }
-type Varint32 struct {
-	V int32 `eos:"vint32"`
+func (v *Vuint32) Unpack(in []byte) (l int, err error) {
+	re, l, err := ReadUvarint64(in)
+	if err != nil {
+		return 0, nil
+	}
+	*v = Vuint32(re)
+	return l, nil
+}
+
+type Vint32 int32
+
+func (v Vint32) Pack() ([]byte, error) {
+	return WriteVarInt(int(v)), nil
+}
+func (v *Vint32) Unpack(in []byte) (l int, err error) {
+	re, l, err := ReadVarint64(in)
+	if err != nil {
+		return 0, nil
+	}
+	*v = Vint32(re)
+	return l, nil
 }

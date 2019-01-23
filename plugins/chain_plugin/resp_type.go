@@ -4,9 +4,19 @@ import (
 	"github.com/eosspark/eos-go/chain/abi_serializer"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
+	"github.com/eosspark/eos-go/common/eos_math"
 	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/ecc"
+	. "github.com/eosspark/eos-go/exception/try"
 )
+
+func convertToUint64(str, desc string) uint64 {
+	r, success := eos_math.ParseUint64(str)
+	if !success {
+		FcThrow("Could not convert %s string '%s' to key type.", desc, str)
+	}
+	return r
+}
 
 type GetInfoResult struct {
 	ServerVersion            string             `json:"server_version"`
@@ -168,6 +178,10 @@ type GetTableByScopeResultRow struct {
 	Table common.Name `json:"table"`
 	Payer common.Name `json:"payer"`
 	Count uint32      `json:"count"`
+}
+type GetTableByScopeResult struct {
+	Rows []GetTableByScopeResultRow
+	More string //< fill lower_bound with this value to fetch more rows
 }
 
 type GetCurrencyStatsParams struct {

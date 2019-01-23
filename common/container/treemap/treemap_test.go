@@ -116,34 +116,34 @@ func TestMapRemove(t *testing.T) {
 	}
 }
 
-func TestMultiMap(t *testing.T) {
-	m := NewMultiIntStringMap()
-	m.Put(5, "e")
-	m.Put(6, "f")
-	m.Put(7, "g")
-	m.Put(3, "c")
-	m.Put(4, "d")
-	m.Put(1, "x")
-	m.Put(2, "b")
-	m.Put(2, "z")
-	m.Put(1, "a")
-
-	if expect, actual := fmt.Sprint([]int{1, 1, 2, 2, 3, 4, 5, 6, 7}), fmt.Sprint(m.Keys()); expect != actual {
-		t.Fatalf("expect %s, got %s", expect, actual)
-	}
-
-	m.Remove(2)
-
-	if expect, actual := fmt.Sprint([]int{1, 1, 3, 4, 5, 6, 7}), fmt.Sprint(m.Keys()); expect != actual {
-		t.Fatalf("expect %s, got %s", expect, actual)
-	}
-
-	m.Remove(1)
-
-	if expect, actual := fmt.Sprint([]int{3, 4, 5, 6, 7}), fmt.Sprint(m.Keys()); expect != actual {
-		t.Fatalf("expect %s, got %s", expect, actual)
-	}
-}
+//func TestMultiMap(t *testing.T) {
+//	m := NewMultiIntStringMap()
+//	m.Put(5, "e")
+//	m.Put(6, "f")
+//	m.Put(7, "g")
+//	m.Put(3, "c")
+//	m.Put(4, "d")
+//	m.Put(1, "x")
+//	m.Put(2, "b")
+//	m.Put(2, "z")
+//	m.Put(1, "a")
+//
+//	if expect, actual := fmt.Sprint([]int{1, 1, 2, 2, 3, 4, 5, 6, 7}), fmt.Sprint(m.Keys()); expect != actual {
+//		t.Fatalf("expect %s, got %s", expect, actual)
+//	}
+//
+//	m.Remove(2)
+//
+//	if expect, actual := fmt.Sprint([]int{1, 1, 3, 4, 5, 6, 7}), fmt.Sprint(m.Keys()); expect != actual {
+//		t.Fatalf("expect %s, got %s", expect, actual)
+//	}
+//
+//	m.Remove(1)
+//
+//	if expect, actual := fmt.Sprint([]int{3, 4, 5, 6, 7}), fmt.Sprint(m.Keys()); expect != actual {
+//		t.Fatalf("expect %s, got %s", expect, actual)
+//	}
+//}
 
 //func TestMapFloor(t *testing.T) {
 //	m := NewIntStringMap()

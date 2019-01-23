@@ -224,7 +224,6 @@ func (a *ApplyContext) printDebug(receiver common.AccountName, at *types.ActionT
 }
 
 func (a *ApplyContext) execOne(trace *types.ActionTrace) {
-
 	start := common.Now() //common.TimePoint.now()
 
 	r := types.ActionReceipt{}
@@ -282,8 +281,8 @@ func (a *ApplyContext) execOne(trace *types.ActionTrace) {
 
 	accountSequence := entity.AccountSequenceObject{Name: a.Act.Account}
 	a.DB.Find("byName", accountSequence, &accountSequence)
-	r.CodeSequence = uint32(accountSequence.CodeSequence)
-	r.AbiSequence = uint32(accountSequence.AbiSequence)
+	r.CodeSequence = common.Vuint32(accountSequence.CodeSequence)
+	r.AbiSequence = common.Vuint32(accountSequence.AbiSequence)
 
 	r.AuthSequence = make(map[common.AccountName]uint64)
 	for _, auth := range a.Act.Authorization {
@@ -385,7 +384,7 @@ func (a *ApplyContext) RequireAuthorization2(account int64, permission int64) {
 	EosAssert(false, &MissingAuthException{}, "missing authority of %s/%s", common.S(uint64(account)), common.S(uint64(permission)))
 }
 
-func (a *ApplyContext) HasReciptient(code int64) bool {
+func (a *ApplyContext) HasRecipient(code int64) bool {
 	for _, a := range a.Notified {
 		if a == common.AccountName(code) {
 			return true
@@ -393,8 +392,9 @@ func (a *ApplyContext) HasReciptient(code int64) bool {
 	}
 	return false
 }
+
 func (a *ApplyContext) RequireRecipient(recipient int64) {
-	if !a.HasReciptient(recipient) {
+	if !a.HasRecipient(recipient) {
 		a.Notified = append(a.Notified, common.AccountName(recipient))
 	}
 
@@ -538,7 +538,7 @@ func (a *ApplyContext) ScheduleDeferredTransaction(sendId *eos_math.Uint128, pay
 		a.DB.Insert(&gto)
 	}
 
-	EosAssert(a.Control.IsRamBillingInNotifyAllowed() || (a.Receiver == payer) || a.Privileged, //||(receiver == act.account)
+	EosAssert(a.Control.IsRamBillingInNotifyAllowed() || (a.Receiver == payer) || a.Privileged || (a.Receiver == a.Act.Account),
 		&SubjectiveBlockProductionException{}, "Cannot charge RAM to other accounts during notify.")
 	a.AddRamUsage(payer, int64(common.BillableSizeV("generated_transaction_object")+uint64(trxSize)))
 

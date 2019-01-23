@@ -24,6 +24,35 @@ type Signature struct {
 	innerSignature innerSignature
 }
 
+func (s Signature) Pack() ([]byte, error) {
+	re := make([]byte, 0)
+
+	if len(s.Content) == 0 {
+		s.Curve = CurveK1
+		s.Content = make([]byte, 65)
+	}
+	if len(s.Content) != 65 {
+		return nil, fmt.Errorf("signature should be 65 bytes, was %d", len(s.Content))
+	}
+	re = append(re, byte(s.Curve))
+	re = append(re, s.Content...)
+	return re, nil
+
+}
+func (s *Signature) Unpack(in []byte) (l int, err error) {
+	if len(in) < 66 {
+		return 0, fmt.Errorf("signature required [%d] bytes, remaining [%d]", 66, len(in))
+	}
+	sigContent := make([]byte, 66)
+	copy(sigContent, in[:66])
+	*s, err = NewSignatureFromData(sigContent)
+	if err != nil {
+		return 0, fmt.Errorf("new signature: %s", err)
+	}
+	return 66, nil
+
+}
+
 func (s Signature) Verify(hash []byte, pubKey PublicKey) bool {
 	return s.innerSignature.verify(s.Content, hash, pubKey)
 }

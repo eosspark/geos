@@ -1,6 +1,7 @@
 package chain
 
 import (
+	"bytes"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/chain/types/forkdb_multi_index"
 	"github.com/eosspark/eos-go/common"
@@ -10,6 +11,7 @@ import (
 	"github.com/eosspark/eos-go/plugins/appbase/app/include"
 	"io/ioutil"
 	"os"
+	"strconv"
 )
 
 type ForkDatabase struct {
@@ -29,7 +31,7 @@ func NewForkDatabase(dataDir string) *ForkDatabase {
 		os.MkdirAll(dataDir, os.ModePerm)
 	}
 
-	forkDbDat := f.dataDir + common.DefaultConfig.ForkDbName
+	forkDbDat := f.dataDir + "/" + common.DefaultConfig.ForkDbName
 	if common.FileExist(forkDbDat) {
 		content, err := ioutil.ReadFile(forkDbDat)
 		Throw(err)
@@ -60,9 +62,8 @@ func (f *ForkDatabase) Close() {
 		return
 	}
 
-	//TODO pack BlockState to forkDbDat
-	/*forkDbDat := f.dataDir + common.DefaultConfig.ForkDbName
-	file, err := os.OpenFile(forkDbDat, os.O_RDWR|os.O_CREATE|os.O_TRUNC, os.ModeAppend)
+	forkDbDat := f.dataDir + "/" + common.DefaultConfig.ForkDbName
+	file, err := os.OpenFile(forkDbDat, os.O_RDWR|os.O_CREATE|os.O_TRUNC, os.ModePerm)
 	Throw(err)
 
 	out := rlp.NewEncoder(file)
@@ -70,16 +71,15 @@ func (f *ForkDatabase) Close() {
 	numBlockInForkDB := uint(f.Index.Size())
 	out.Encode(numBlockInForkDB)
 
-	f.Index.ByBlockNum.Each(func(key fork_multi_index.ByBlockNumComposite, value fork_multi_index.IndexKey) {
-		s := f.Index.Value(value)
-		out.Encode(s)
-	})
+	for itr := f.Index.GetByBlockNum().Begin(); itr.HasNext(); itr.Next() {
+		out.Encode(*itr.Value())
+	}
 
 	if f.Head != nil {
 		out.Encode(f.Head.BlockId)
 	} else {
-		out.Encode(crypto.NewSha256Nil())
-	}*/
+		out.Encode(common.BlockIdType{})
+	}
 
 	// we don't normally indicate the head block as irreversible
 	// we cannot normally prune the lib if it is the head block because
@@ -158,9 +158,9 @@ type FetchBranch struct {
 }
 
 /**
-  *  Given two head blocks, return two branches of the fork graph that
-  *  end with a common ancestor (same prior block)
-  */
+ *  Given two head blocks, return two branches of the fork graph that
+ *  end with a common ancestor (same prior block)
+ */
 func (f *ForkDatabase) FetchBranchFrom(first *common.BlockIdType, second *common.BlockIdType) FetchBranch {
 	result := FetchBranch{}
 	firstBranch := f.GetBlock(first)
@@ -285,12 +285,12 @@ func (f *ForkDatabase) GetBlockInCurrentChainByNum(n uint32) *types.BlockState {
 }
 
 /**
-  *  This method will set this block as being BFT irreversible and will update
-  *  all blocks which build off of it to have the same bft_irb if their existing
-  *  bft irb is less than this block num.
-  *
-  *  This will require a search over all forks
-  */
+ *  This method will set this block as being BFT irreversible and will update
+ *  all blocks which build off of it to have the same bft_irb if their existing
+ *  bft irb is less than this block num.
+ *
+ *  This will require a search over all forks
+ */
 func (f *ForkDatabase) SetBftIrreversible(id common.BlockIdType) {
 	idx := f.Index.GetByBlockId()
 	itr, _ := idx.Find(id)
@@ -300,11 +300,11 @@ func (f *ForkDatabase) SetBftIrreversible(id common.BlockIdType) {
 	})
 
 	/** to prevent stack-overflow, we perform a bredth-first traversal of the
-      * fork database. At each stage we iterate over the leafs from the prior stage
-      * and find all nodes that link their previous. If we update the bft lib then we
-      * add it to a queue for the next layer.  This lambda takes one layer and returns
-      * all block ids that need to be iterated over for next layer.
-      */
+	 * fork database. At each stage we iterate over the leafs from the prior stage
+	 * and find all nodes that link their previous. If we update the bft lib then we
+	 * add it to a queue for the next layer.  This lambda takes one layer and returns
+	 * all block ids that need to be iterated over for next layer.
+	 */
 	update := func(in []common.BlockIdType) []common.BlockIdType {
 		updated := []common.BlockIdType{}
 		for _, i := range in {
@@ -328,4 +328,28 @@ func (f *ForkDatabase) SetBftIrreversible(id common.BlockIdType) {
 	for len(queue) > 0 {
 		queue = update(queue)
 	}
+}
+
+func (f *ForkDatabase) ToString() string {
+	var buffer bytes.Buffer
+	buffer.WriteString("forkdb current head status:")
+	buffer.WriteString("\n[")
+	buffer.WriteString("DposIrreversibleBlocknum:")
+	buffer.WriteString(strconv.Itoa(int(f.Head.DposIrreversibleBlocknum)))
+	buffer.WriteString("\n")
+	buffer.WriteString("BftIrreversibleBlocknum:")
+	buffer.WriteString(strconv.Itoa(int(f.Head.BftIrreversibleBlocknum)))
+	buffer.WriteString("\n")
+	buffer.WriteString("Blocknum:")
+	buffer.WriteString(strconv.Itoa(int(f.Head.BlockNum)))
+	buffer.WriteString("\n")
+	buffer.WriteString("InCurrentChain:")
+	if f.Head.InCurrentChain {
+		buffer.WriteString("true")
+	} else {
+		buffer.WriteString("false")
+	}
+
+	buffer.WriteString("]")
+	return buffer.String()
 }

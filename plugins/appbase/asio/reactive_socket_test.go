@@ -1,11 +1,12 @@
 package asio
 
 import (
-	"testing"
-	"net"
+	"context"
 	"fmt"
-	"time"
 	"github.com/stretchr/testify/assert"
+	"net"
+	"testing"
+	"time"
 )
 
 func TestReactiveSocket_AsyncAccept(t *testing.T) {
@@ -23,13 +24,13 @@ func TestReactiveSocket_AsyncAccept(t *testing.T) {
 	const COUNT = 100
 	var doWrite func()
 	var (
-		stop 	= false
+		stop    = false
 		dialogs = make([]net.Conn, COUNT)
-		index 	= 0
+		index   = 0
 	)
 
 	go func() {
-		for i:=0; i<COUNT && !stop; i++ {
+		for i := 0; i < COUNT && !stop; i++ {
 			conn, err := net.Dial("tcp", ":8888")
 			if err != nil {
 				t.Fatal(err)
@@ -37,9 +38,9 @@ func TestReactiveSocket_AsyncAccept(t *testing.T) {
 			}
 
 			dialogs[index] = conn
-			index ++
+			index++
 
-			doWrite = func () {
+			doWrite = func() {
 				time.Sleep(time.Second)
 				conn.Write([]byte("hello"))
 				if !stop {
@@ -63,11 +64,11 @@ func TestReactiveSocket_AsyncAccept(t *testing.T) {
 
 	ioc.Run()
 
-	for _,c := range connects {
+	for _, c := range connects {
 		c.Close()
 	}
 
-	for i:=0; i<index && i<COUNT; i++ {
+	for i := 0; i < index && i < COUNT; i++ {
 		dialogs[i].Close()
 	}
 
@@ -101,8 +102,6 @@ func startAcceptLoop(t *testing.T, socket *ReactiveSocket, listen net.Listener, 
 	})
 }
 
-
-
 func startRead(t *testing.T, socket *ReactiveSocket, conn net.Conn) {
 	buf := make([]byte, 64)
 	socket.AsyncRead(conn, buf, func(n int, err error) {
@@ -118,4 +117,47 @@ func startRead(t *testing.T, socket *ReactiveSocket, conn net.Conn) {
 	})
 }
 
+func TestConnect(t *testing.T) {
+	io := NewIoContext()
+	s := NewReactiveSocket(io)
 
+	listen, _ := net.Listen("tcp", "127.0.0.1:8888")
+	s.AsyncAccept(listen, func(conn net.Conn, err error) {})
+
+	noerr := false
+	s.AsyncConnect("tcp", "127.0.0.1:8888", func(conn net.Conn, err error) {
+		noerr = err == nil
+		assert.Equal(t, "127.0.0.1:8888", conn.RemoteAddr().String())
+	})
+
+	timer := NewDeadlineTimer(io)
+	timer.ExpiresFromNow(time.Millisecond * 100)
+	timer.AsyncWait(func(err error) {
+		io.Stop()
+	})
+	io.Run()
+
+	assert.Equal(t, true, noerr)
+}
+
+func TestResolve(t *testing.T) {
+	io := NewIoContext()
+	s := NewReactiveSocket(io)
+	c := context.Background()
+
+	noerr := false
+	addrs := ""
+	s.AsyncResolve(c, "localhost", 8888, func(address string, err error) {
+		noerr = err == nil
+		addrs += address
+	})
+
+	timer := NewDeadlineTimer(io)
+	timer.ExpiresFromNow(time.Millisecond * 100)
+	timer.AsyncWait(func(err error) {
+		io.Stop()
+	})
+	io.Run()
+	assert.Equal(t, true, noerr)
+	assert.Contains(t, addrs, "127.0.0.1:8888")
+}

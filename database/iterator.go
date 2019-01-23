@@ -118,6 +118,9 @@ func (index *DbIterator) prev() bool {
 }
 
 func (index *DbIterator) End() bool {
+	if index.it == nil && index.currentStatus == itEND {
+		return true
+	}
 	if index.it == nil {
 		return false
 	}
@@ -128,6 +131,7 @@ func (index *DbIterator) End() bool {
 }
 
 func (index *DbIterator) Begin() bool {
+
 	if index.it == nil {
 		return false
 	}

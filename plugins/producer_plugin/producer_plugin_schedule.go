@@ -14,10 +14,10 @@ import (
 	. "github.com/eosspark/eos-go/plugins/producer_plugin/multi_index"
 )
 
-func (impl *ProducerPluginImpl) CalculateNextBlockTime(producerName *common.AccountName, currentBlockTime types.BlockTimeStamp) *common.TimePoint {
+func (impl *ProducerPluginImpl) CalculateNextBlockTime(producerName common.AccountName, currentBlockTime types.BlockTimeStamp) *common.TimePoint {
 	var result common.TimePoint
 
-	chain := impl.Self.chain()
+	chain := impl.Chain
 
 	hbs := chain.HeadBlockState()
 	activeSchedule := hbs.ActiveSchedule.Producers
@@ -26,7 +26,7 @@ func (impl *ProducerPluginImpl) CalculateNextBlockTime(producerName *common.Acco
 	var itr *types.ProducerKey
 	var producerIndex uint32
 	for index, asp := range activeSchedule {
-		if asp.ProducerName == *producerName {
+		if asp.ProducerName == producerName {
 			itr = &asp
 			producerIndex = uint32(index)
 			break
@@ -45,7 +45,7 @@ func (impl *ProducerPluginImpl) CalculateNextBlockTime(producerName *common.Acco
 	// disqualify this producer for longer but it is assumed they will wake up, determine that they
 	// are disqualified for longer due to skipped blocks and re-caculate their next block with better
 	// information then
-	currentWatermark, hasCurrentWatermark := impl.ProducerWatermarks[*producerName]
+	currentWatermark, hasCurrentWatermark := impl.ProducerWatermarks[producerName]
 	if hasCurrentWatermark {
 		blockNum := chain.PendingBlockState().BlockNum
 		if chain.PendingBlockState() != nil {
@@ -82,7 +82,7 @@ func (impl *ProducerPluginImpl) CalculateNextBlockTime(producerName *common.Acco
 }
 
 func (impl *ProducerPluginImpl) CalculatePendingBlockTime() common.TimePoint {
-	chain := impl.Self.chain()
+	chain := impl.Chain
 	now := common.Now()
 	var base common.TimePoint
 	if now > chain.HeadBlockTime() {
@@ -101,7 +101,7 @@ func (impl *ProducerPluginImpl) CalculatePendingBlockTime() common.TimePoint {
 }
 
 func (impl *ProducerPluginImpl) StartBlock() (StartBlockResult, bool) {
-	chain := impl.Self.chain()
+	chain := impl.Chain
 
 	if chain.GetReadMode() == Chain.READONLY {
 		return StartBlockResult(waiting), false
@@ -221,7 +221,7 @@ func (impl *ProducerPluginImpl) StartBlock() (StartBlockResult, bool) {
 				}
 
 				persistedByExpire.Erase(persistedByExpire.Begin())
-				numExpiredPersistent ++
+				numExpiredPersistent++
 			}
 
 			//TODO fc_dlog(_log, "Processed ${n} persisted transactions, Expired ${expired}",
@@ -279,7 +279,7 @@ func (impl *ProducerPluginImpl) StartBlock() (StartBlockResult, bool) {
 						break
 					}
 
-					numProcessed ++
+					numProcessed++
 
 					returning := false
 					Try(func() {
@@ -331,12 +331,12 @@ func (impl *ProducerPluginImpl) StartBlock() (StartBlockResult, bool) {
 
 				for !blacklistByExpiry.Empty() && blacklistByExpiry.Begin().Value().Expiry <= now {
 					blacklistByExpiry.Erase(blacklistByExpiry.Begin())
-					numExpired ++
+					numExpired++
 				}
 
 				/*TODO fc_dlog(_log, "Processed ${n} blacklisted transactions, Expired ${expired}",
-                      ("n", orig_count)
-                      ("expired", num_expired));*/
+				  ("n", orig_count)
+				  ("expired", num_expired));*/
 			}
 
 			scheduleTrx := chain.GetScheduledTransactions()
@@ -412,10 +412,10 @@ func (impl *ProducerPluginImpl) StartBlock() (StartBlockResult, bool) {
 				}
 
 				/*TODO fc_dlog(_log, "Processed ${m} of ${n} scheduled transactions, Applied ${applied}, Failed/Dropped ${failed}",
-                      ("m", num_processed)
-                      ("n", scheduled_trxs.size())
-                      ("applied", num_applied)
-                      ("failed", num_failed));*/
+				  ("m", num_processed)
+				  ("n", scheduled_trxs.size())
+				  ("applied", num_applied)
+				  ("failed", num_failed));*/
 			}
 
 		} ///scheduled transactions
@@ -446,7 +446,7 @@ func (impl *ProducerPluginImpl) StartBlock() (StartBlockResult, bool) {
 }
 
 func (impl *ProducerPluginImpl) ScheduleProductionLoop() {
-	chain := impl.Self.chain()
+	chain := impl.Chain
 	impl.Timer.Cancel()
 
 	result, lastBlock := impl.StartBlock()
@@ -503,8 +503,8 @@ func (impl *ProducerPluginImpl) ScheduleProductionLoop() {
 		cid := impl.timerCorelationId
 		impl.Timer.AsyncWait(func(err error) {
 			if impl != nil && err == nil && cid == impl.timerCorelationId {
-				res := impl.MaybeProduceBlock()
-				log.Debug("Producing Block #%d returned: %v", chain.PendingBlockState().BlockNum, res)
+				impl.MaybeProduceBlock()
+				//log.Debug("Producing Block #%d returned: %v", chain.PendingBlockState().BlockNum, res)
 			}
 		})
 
@@ -524,7 +524,7 @@ func (impl *ProducerPluginImpl) ScheduleDelayedProductionLoop(currentBlockTime t
 	var wakeUpTime *common.TimePoint
 	impl.Producers.Each(func(index int, value interface{}) {
 		p := value.(common.AccountName)
-		nextProducerBlockTime := impl.CalculateNextBlockTime(&p, currentBlockTime)
+		nextProducerBlockTime := impl.CalculateNextBlockTime(p, currentBlockTime)
 		if nextProducerBlockTime != nil {
 			producerWakeupTime := nextProducerBlockTime.SubUs(common.Microseconds(common.DefaultConfig.BlockIntervalUs))
 			if wakeUpTime != nil {
@@ -576,14 +576,14 @@ func (impl *ProducerPluginImpl) MaybeProduceBlock() bool {
 	}
 
 	log.Debug("Aborting block due to produce_block error")
-	chain := impl.Self.chain()
+	chain := impl.Chain
 	chain.AbortBlock()
 	return false
 }
 
 func (impl *ProducerPluginImpl) ProduceBlock() {
 	EosAssert(impl.PendingBlockMode == PendingBlockMode(producing), &ProducerException{}, "called produce_block while not actually producing")
-	chain := impl.Self.chain()
+	chain := impl.Chain
 	pbs := chain.PendingBlockState()
 	EosAssert(pbs != nil, &MissingPendingBlockState{}, "pending_block_state does not exist but it should, another plugin may have corrupted it")
 
@@ -601,7 +601,7 @@ func (impl *ProducerPluginImpl) ProduceBlock() {
 	newBs := chain.HeadBlockState()
 	impl.ProducerWatermarks[newBs.Header.Producer] = chain.HeadBlockNum()
 
-	log.Info("Produced block %s...#%d @ %s signed by %s [trxs: %d, lib: %d, confirmed: %d]\n",
+	log.Info("Produced block %s...#%d @ %s signed by %s [trxs: %d, lib: %d, confirmed: %d]",
 		newBs.BlockId.String()[0:16], newBs.BlockNum, newBs.Header.Timestamp, common.S(uint64(newBs.Header.Producer)),
 		len(newBs.SignedBlock.Transactions), chain.LastIrreversibleBlockNum(), newBs.Header.Confirmed)
 }

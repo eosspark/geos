@@ -1,7 +1,6 @@
 package unittests
 
 import (
-	"fmt"
 	"github.com/eosspark/eos-go/chain"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
@@ -159,7 +158,6 @@ func TestForkWithBadBlock(t *testing.T) {
 			//++<10000
 			bios.ProduceBlocks(1, false)
 		}
-		fmt.Println(bios.Control.Head.BlockNum)
 	}).FcLogAndRethrow().End()
 }
 
@@ -222,7 +220,6 @@ func TestForking(t *testing.T) {
 	c1.ProduceBlocks(3, false)
 
 	b := c1.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs), 0)
-	fmt.Println("c1 produce blockNum:", b.BlockNumber())
 	assert.Equal(t, b.Producer.String(), "dan")
 	b = c1.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs), 0)
 	assert.Equal(t, b.Producer.String(), "sam")

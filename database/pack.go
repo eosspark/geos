@@ -88,15 +88,6 @@ func EncodeSize(val interface{}) (int, error) {
 
 func (e *encoder) encode(v interface{}) (err error) {
 
-	rv := reflect.Indirect(reflect.ValueOf(v))
-	t := rv.Type()
-
-	if e.vuint32 {
-		e.vuint32 = false
-		e.writeUVarInt(int(rv.Uint()))
-		return
-	}
-
 	switch v.(type) {
 	case ecc.PublicKey:
 		val, ok := v.(ecc.PublicKey)
@@ -171,9 +162,10 @@ func (e *encoder) encode(v interface{}) (err error) {
 		}
 		e.writeUint64(u128.High)
 		e.writeUint64(u128.Low)
-
-		return err
 	}
+
+	rv := reflect.Indirect(reflect.ValueOf(v))
+	t := rv.Type()
 
 	switch t.Kind() {
 	case reflect.String:
@@ -195,6 +187,11 @@ func (e *encoder) encode(v interface{}) (err error) {
 	case reflect.Uint16:
 		return e.writeUint16(uint16(rv.Uint()))
 	case reflect.Uint32:
+		if e.vuint32 {
+			e.vuint32 = false
+			e.writeUVarInt(int(rv.Uint()))
+			return
+		}
 		return e.writeUint32(uint32(rv.Uint()))
 	case reflect.Uint:
 		return e.writeUint32(uint32(rv.Uint()))

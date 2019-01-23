@@ -87,8 +87,7 @@ func (index *MultiIndex) CompareBegin(in Iterator) bool {
 		return false
 	}
 	it := index.Begin()
-	return bytes.Compare(in.Value(), it.Value()) == 0
-	//return it.Begin() == in.Begin()
+	return index.CompareIterator(in,it)
 }
 
 /*

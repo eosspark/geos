@@ -2,8 +2,8 @@ package ordered_index
 
 import (
 	"fmt"
+	"github.com/eosspark/eos-go/common/container"
 	"github.com/eosspark/eos-go/common/container/multiindex"
-	"github.com/eosspark/eos-go/log"
 )
 
 // template type OrderedIndex(FinalIndex,FinalNode,SuperIndex,SuperNode,Value,Key,KeyFunc,Comparator,Multiply)
@@ -98,7 +98,7 @@ func (tree *OrderedIndex) insert(v Value, fn *FinalNode) (*OrderedIndexNode, boo
 
 	node, res := tree.put(key)
 	if !res {
-		log.Warn("#ordered index insert failed")
+		container.Logger.Warn("#ordered index insert failed")
 		return nil, false
 	}
 	sn, res := tree.super.insert(v, fn)
@@ -153,7 +153,7 @@ func (tree *OrderedIndex) modify(n *OrderedIndexNode) (*OrderedIndexNode, bool) 
 		tree.remove(n)
 		node, res := tree.put(n.Key)
 		if !res {
-			log.Warn("#ordered index modify failed")
+			container.Logger.Warn("#ordered index modify failed")
 			tree.super.erase(n.super)
 			return nil, false
 		}

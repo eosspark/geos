@@ -104,14 +104,6 @@ func (d *decoder) decode(v interface{}) (err error) {
 		rv = reflect.Indirect(newRV)
 	}
 
-	if vuint32 {
-		vuint32 = false
-		var r uint64
-		r, _ = d.readUvarint()
-		rv.SetUint(r)
-		return
-	}
-
 	switch v.(type) {
 	case *ecc.PublicKey:
 		var p ecc.PublicKey
@@ -233,6 +225,13 @@ func (d *decoder) decode(v interface{}) (err error) {
 		rv.SetUint(uint64(n))
 		return
 	case reflect.Uint32:
+		if vuint32 {
+			vuint32 = false
+			var r uint64
+			r, _ = d.readUvarint()
+			rv.SetUint(r)
+			return
+		}
 		var n uint32
 		n, err = d.readUint32()
 		rv.SetUint(uint64(n))

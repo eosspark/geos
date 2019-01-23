@@ -11,6 +11,7 @@ import (
 	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/crypto/rlp"
+	"github.com/eosspark/eos-go/database"
 	. "github.com/eosspark/eos-go/entity"
 	. "github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
@@ -453,11 +454,11 @@ func (ro *ReadOnly) GetTableIndexName(p GetTableRowsParams, primary *bool) uint6
 func (ro *ReadOnly) GetTableRowsEx(p GetTableRowsParams, abi *abi_serializer.AbiDef) GetTableRowsResult {
 	result := GetTableRowsResult{}
 	d := ro.db.DataBase()
-	scope := common.N(p.Scope)
+	scope := convertToUint64(p.Scope, "scope")
 
 	abis := abi_serializer.AbiSerializer{}
 	abis.SetAbi(abi, ro.abiSerializerMaxTime)
-	tid := TableIdObject{Code: p.Code, Scope: scope, Table: p.Table}
+	tid := TableIdObject{Code: p.Code, Scope: common.ScopeName(scope), Table: p.Table}
 	if d.Find("byCodeScopeTable", tid, &tid) == nil {
 		//TODO
 		idx, err := d.GetIndex("byScopePrimary", KeyValueObject{})
@@ -474,7 +475,7 @@ func (ro *ReadOnly) GetTableRowsEx(p GetTableRowsParams, abi *abi_serializer.Abi
 				lower, err = idx.LowerBound(KeyValueObject{TId: tid.ID, PrimaryKey: uint64(s)})
 				Throw(err)
 			} else {
-				lv := math.MustParseUint64(p.LowerBound)
+				lv := convertToUint64(p.LowerBound, "lower_bound")
 				lower, err = idx.LowerBound(KeyValueObject{TId: tid.ID, PrimaryKey: lv})
 				Throw(err)
 			}
@@ -486,7 +487,7 @@ func (ro *ReadOnly) GetTableRowsEx(p GetTableRowsParams, abi *abi_serializer.Abi
 				lower, err = idx.UpperBound(KeyValueObject{TId: tid.ID, PrimaryKey: uint64(s)})
 				Throw(err)
 			} else {
-				uv := math.MustParseUint64(p.UpperBound)
+				uv := convertToUint64(p.UpperBound, "upper_bound")
 				upper, err = idx.UpperBound(KeyValueObject{TId: tid.ID, PrimaryKey: uv})
 				Throw(err)
 			}
@@ -540,6 +541,55 @@ func (ro *ReadOnly) GetTableRows(p GetTableRowsParams) GetTableRowsResult {
 	}
 
 	return GetTableRowsResult{}
+}
+
+func (ro *ReadOnly) GetTableByScope(p GetTableByScopeParams) GetTableByScopeResult {
+	d := ro.db.DB
+	idx, err := d.GetIndex("byCodeScopeTable", TableIdObject{})
+	Throw(err)
+	var lower database.Iterator
+	var upper database.Iterator
+
+	if len(p.LowerBound) > 0 {
+		scope := convertToUint64(p.LowerBound, "lower_bound scope")
+		lower, err = idx.LowerBound(TableIdObject{Code: p.Code, Scope: common.ScopeName(scope), Table: p.Table})
+		Throw(err)
+	} else {
+		lower, err = idx.LowerBound(TableIdObject{Code: p.Code, Scope: 0, Table: p.Table})
+	}
+	if len(p.UpperBound) > 0 {
+		scope := convertToUint64(p.UpperBound, "upper_bound scope")
+		upper, err = idx.LowerBound(TableIdObject{Code: p.Code, Scope: common.ScopeName(scope), Table: 0})
+		Throw(err)
+	} else {
+		upper, err = idx.LowerBound(TableIdObject{Code: p.Code + 1, Scope: 0, Table: 0})
+	}
+
+	end := common.Now().AddUs(common.Microseconds(1000 * 10))
+	count := uint32(0)
+	itr := lower
+	result := GetTableByScopeResult{}
+	for ; !idx.CompareIterator(itr, upper); itr.Next() {
+		obj := TableIdObject{}
+		Throw(itr.Data(&obj))
+		if p.Table > 0 && obj.Table != p.Table {
+			if common.Now() > end {
+				break
+			}
+			continue
+		}
+		result.Rows = append(result.Rows, GetTableByScopeResultRow{obj.Code, obj.Scope, obj.Table, obj.Payer, obj.Count})
+		if count++; count == p.Limit || common.Now() > end {
+			itr.Next()
+			break
+		}
+	}
+	if !idx.CompareIterator(itr, upper) {
+		obj := TableIdObject{}
+		Throw(itr.Data(&obj))
+		result.More = obj.Scope.String()
+	}
+	return result
 }
 
 func (ro *ReadOnly) GetCurrencyBalance(params GetCurrencyBalanceParams) GetCurrencyBalanceResult {

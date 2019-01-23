@@ -1,6 +1,7 @@
 package types
 
 import (
+	"encoding/binary"
 	"encoding/json"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto"
@@ -80,27 +81,10 @@ func (s TransactionStatus) String() string {
 
 }
 
-// type ShardLock struct {
-// 	AccountName common.AccountName `json:"account_name"`
-// 	ScopeName   common.ScopeName   `json:"scope_name"`
-// }
-
-// type ShardSummary struct {
-// 	ReadLocks    []ShardLock          `json:"read_locks"`
-// 	WriteLocks   []ShardLock          `json:"write_locks"`
-// 	Transactions []TransactionReceipt `json:"transactions"`
-// }
-
-// type Cycles []ShardSummary
-// type RegionSummary struct {
-// 	Region        uint16   `json:"region"`
-// 	CyclesSummary []Cycles `json:"cycles_summary"`
-// }
-
 type TransactionReceiptHeader struct {
 	Status        TransactionStatus `json:"status"`
 	CpuUsageUs    uint32            `json:"cpu_usage_us"`
-	NetUsageWords uint32            `json:"net_usage_words" eos:"vuint32"`
+	NetUsageWords common.Vuint32    `json:"net_usage_words" eos:"vuint32"`
 }
 
 type TransactionReceipt struct {
@@ -174,49 +158,80 @@ func (t *TransactionWithID) UnmarshalJSON(data []byte) error {
 	return nil
 }
 
+//func (t TransactionWithID) Pack() ([]byte, error) { //TODO
+//	re := make([]byte, 0, 0)
+//	if t.TransactionID.Equals(common.TransactionIdNil()) {
+//		re = append(re, 1)
+//		bytes, err := rlp.EncodeToBytes(t.PackedTransaction)
+//		if err != nil {
+//			return nil, err
+//		}
+//		re = append(re, bytes...)
+//	} else {
+//		re = append(re, 0)
+//		bytes, err := rlp.EncodeToBytes(t.TransactionID)
+//		if err != nil {
+//			return nil, err
+//		}
+//		re = append(re, bytes...)
+//	}
+//
+//	return re, nil
+//}
+//func (t *TransactionWithID) Unpack(in []byte) (l int, err error) {
+//	decoder:=rlp.NewDecoder(in)
+//	tag,_:=decoder.ReadByte()
+//	if tag ==0{
+//		err :=decoder.Decode(&t.TransactionID)
+//		if err !=nil{
+//			return 0,err
+//		}
+//	}else if tag ==1{
+//		err :=decoder.Decode(&t.PackedTransaction)
+//		if err !=nil{
+//			fmt.Println("error:",err.Error())
+//			return 0,err
+//		}
+//	}
+//	fmt.Println("unpack transactionWithID :",t)
+//	return decoder.GetPos(),nil
+//}
+
 func NewTransactionReceiptHeader() *TransactionReceiptHeader {
-	trh := TransactionReceiptHeader{}
-	trh.Status = TransactionStatusHardFail
-	return &trh
+	return &TransactionReceiptHeader{Status: TransactionStatusHardFail}
 }
 
-func NewTransactionReceiptHeader2(status TransactionStatus) *TransactionReceiptHeader {
-	trh := TransactionReceiptHeader{}
-	trh.Status = status
-	return &trh
+func NewTransactionReceiptHeader1(status TransactionStatus) *TransactionReceiptHeader {
+	return &TransactionReceiptHeader{Status: status}
 }
 
 func NewTransactionReceipt() *TransactionReceipt {
-	tr := TransactionReceipt{}
-	tr.TransactionReceiptHeader = *NewTransactionReceiptHeader()
-	return &tr
+	return &TransactionReceipt{TransactionReceiptHeader: *NewTransactionReceiptHeader()}
 }
 
-func NewTransactionReceipt2(tid common.TransactionIdType) *TransactionReceipt {
-	tr := TransactionReceipt{}
-	tr.TransactionReceiptHeader = *NewTransactionReceiptHeader2(TransactionStatusExecuted)
-	tr.Trx.TransactionID = tid
-	return &tr
+func NewTransactionReceiptWithID(tid common.TransactionIdType) *TransactionReceipt {
+	return &TransactionReceipt{TransactionReceiptHeader: *NewTransactionReceiptHeader1(TransactionStatusExecuted), Trx: TransactionWithID{TransactionID: tid}}
 }
 
-func NewTransactionReceipt3(ptrx PackedTransaction) *TransactionReceipt {
-	tr := TransactionReceipt{}
-	tr.TransactionReceiptHeader = *NewTransactionReceiptHeader2(TransactionStatusExecuted)
-	tr.Trx.PackedTransaction = &ptrx
-	return &tr
+func NewTransactionReceiptWithPtrx(ptrx PackedTransaction) *TransactionReceipt {
+	return &TransactionReceipt{TransactionReceiptHeader: *NewTransactionReceiptHeader1(TransactionStatusExecuted), Trx: TransactionWithID{PackedTransaction: &ptrx}}
+
 }
 
-func (t *TransactionReceipt) Digest() common.DigestType { //TODO crypto.Sha256??
+func (t *TransactionReceipt) Digest() common.DigestType {
 	enc := crypto.NewSha256()
 	status, _ := rlp.EncodeToBytes(t.Status)
 	cpuUsageUs, _ := rlp.EncodeToBytes(t.CpuUsageUs)
-	netUsageWords, _ := rlp.EncodeToBytes(t.NetUsageWords)
+	//netUsageWords, _ := rlp.EncodeToBytes(t.NetUsageWords)
+	buf := make([]byte, 8) //TODO t.NetUsageWords is a vuint32!!
+	l := binary.PutUvarint(buf, uint64(25))
+	netUsageWords := buf[:l]
 
 	enc.Write(status)
 	enc.Write(cpuUsageUs)
 	enc.Write(netUsageWords)
 
-	if t.Trx.TransactionID != common.TransactionIdType(*crypto.NewSha256Nil()) {
+	if !t.Trx.TransactionID.Equals(common.TransactionIdNil()) {
 		trxID, _ := rlp.EncodeToBytes(t.Trx.TransactionID)
 		enc.Write(trxID)
 	} else {
@@ -224,6 +239,5 @@ func (t *TransactionReceipt) Digest() common.DigestType { //TODO crypto.Sha256??
 		enc.Write(packedTrx)
 	}
 
-	out := crypto.NewSha256Byte(enc.Sum(nil))
-	return common.DigestType(*out)
+	return *crypto.NewSha256Byte(enc.Sum(nil))
 }

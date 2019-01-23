@@ -20,7 +20,6 @@ type AuthorityChecker struct {
 	Visitor               WeightTallyVisitor
 }
 
-
 type MetaPermission []interface{}
 
 func (m MetaPermission) Len() int { return len(m) }
@@ -56,7 +55,7 @@ func (m MetaPermission) Less(i, j int) bool {
 	}
 	if iWeight < jWeight {
 		return true
-	} else if iWeight > jWeight{
+	} else if iWeight > jWeight {
 		return false
 	} else {
 		if iType < jType {
@@ -68,10 +67,10 @@ func (m MetaPermission) Less(i, j int) bool {
 }
 
 func (m MetaPermission) Sort() {
-	for i := 0; i < m.Len() - 1; i++ {
-		for j := 0; j < m.Len() - 1 - i; j++ {
-			if m.Less(j, j + 1) {
-				m.Swap(j, j + 1)
+	for i := 0; i < m.Len()-1; i++ {
+		for j := 0; j < m.Len()-1-i; j++ {
+			if m.Less(j, j+1) {
+				m.Swap(j, j+1)
 			}
 		}
 	}
@@ -207,7 +206,7 @@ func (wtv *WeightTallyVisitor) Visit(permission interface{}) uint32 {
 		wtv.VisitPermissionLevelWeight(v)
 		return wtv.TotalWeight
 	default:
-		return 0
+		return wtv.TotalWeight
 	}
 }
 

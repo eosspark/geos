@@ -99,7 +99,6 @@ type Config struct {
 	TrustedProducers        treeset.Set
 	BlocksDir               string
 	StateDir                string
-	ReversibleDir           string
 	StateSize               uint64
 	StateGuardSize          uint64
 	ReversibleCacheSize     uint64
@@ -181,33 +180,9 @@ type Controller struct {
 	BadAlloc                       include.Signal
 }
 
-func GetControllerInstance() *Controller {
-	if !isActiveController {
-		validPath()
-		instance = newController()
-	}
-	return instance
-}
-
-func validPath() {
-	//path := []string{common.DefaultConfig.DefaultStateDirName, common.DefaultConfig.DefaultBlocksDirName, common.DefaultConfig.DefaultReversibleBlocksDirName,
-	//	comsmon.DefaultConfig.ValidatingBlocksDirName, common.DefaultConfig.ValidatingStateDirName, common.DefaultConfig.ValidatingReversibleBlocksDirName}
-	//for _, d := range path {
-	//	_, err := os.Stat(d)
-	//	if os.IsNotExist(err) {
-	//		err := os.MkdirAll(d, os.ModePerm)
-	//		if err != nil {
-	//			log.Info("controller validPath mkdir failed:%s\n", err)
-	//		} else {
-	//			log.Info("controller validPath mkdir success:%s\n", d)
-	//		}
-	//	}
-	//}
-}
 func NewController(cfg *Config) *Controller {
-	validPath()
 	db, err := database.NewDataBase(cfg.StateDir)
-	reversibleDB, err := database.NewDataBase(cfg.ReversibleDir)
+	reversibleDB, err := database.NewDataBase(cfg.BlocksDir + "/" + common.DefaultConfig.DefaultReversibleBlocksDirName)
 
 	if err != nil {
 		log.Error("newController create database is error :%s", err)
@@ -219,7 +194,7 @@ func NewController(cfg *Config) *Controller {
 
 	con.Blog = NewBlockLog(cfg.BlocksDir)
 
-	con.ForkDB = NewForkDatabase(cfg.BlocksDir)
+	con.ForkDB = NewForkDatabase(cfg.StateDir)
 
 	con.ChainID = cfg.Genesis.ComputeChainID()
 
@@ -247,67 +222,20 @@ func NewController(cfg *Config) *Controller {
 		common.ActionName(common.N("unlinkauth")), applyEosioUnlinkauth)
 	con.SetApplayHandler(common.AccountName(common.N("eosio")), common.AccountName(common.N("eosio")),
 		common.ActionName(common.N("canceldelay")), applyEosioCanceldalay)
-	con.initialize()
+
 	con.ForkDB.Irreversible.Connect(&chain_interface.IrreversibleBlockCaller{Caller: con.OnIrreversible})
 
 	return con
 }
 
-func newController() *Controller {
-	isActiveController = true //controller is active
-	//init db
-	db, err := database.NewDataBase(common.DefaultConfig.DefaultStateDirName)
-	if err != nil {
-		log.Error("newController is error :%s", err)
-		return nil
+func (c *Controller) Startup() {
+	//TODO c.AddIndices()
+
+	c.Head = c.ForkDB.Head
+	if c.Head == nil {
+		log.Warn("No head block in fork db, perhaps we need to replay")
 	}
-	//init ReversibleBlocks
-	//reversibleDir := common.DefaultConfig.DefaultBlocksDirName + "/" + common.DefaultConfig.DefaultReversibleBlocksDirName
-	reversibleDB, err := database.NewDataBase(common.DefaultConfig.DefaultReversibleBlocksDirName)
-	if err != nil {
-		log.Error("newController init reversibleDB is error:%s", err)
-	}
-	con := &Controller{InTrxRequiringChecks: false, RePlaying: false, TrustedProducerLightValidation: false}
-	con.DB = db
-	con.ReversibleBlocks = reversibleDB
-
-	con.Blog = NewBlockLog(common.DefaultConfig.DefaultBlocksDirName)
-
-	con.ForkDB = NewForkDatabase(common.DefaultConfig.DefaultBlocksDirName)
-	con.initConfig()
-	con.ChainID = con.Config.Genesis.ComputeChainID()
-
-	con.ReadMode = con.Config.ReadMode
-	con.ApplyHandlers = make(map[string]v)
-	con.WasmIf = wasmgo.NewWasmGo()
-
-	con.SetApplayHandler(common.AccountName(common.N("eosio")), common.AccountName(common.N("eosio")),
-		common.ActionName(common.N("newaccount")), applyEosioNewaccount)
-	con.SetApplayHandler(common.AccountName(common.N("eosio")), common.AccountName(common.N("eosio")),
-		common.ActionName(common.N("setcode")), applyEosioSetcode)
-	con.SetApplayHandler(common.AccountName(common.N("eosio")), common.AccountName(common.N("eosio")),
-		common.ActionName(common.N("setabi")), applyEosioSetabi)
-	con.SetApplayHandler(common.AccountName(common.N("eosio")), common.AccountName(common.N("eosio")),
-		common.ActionName(common.N("updateauth")), applyEosioUpdateauth)
-	con.SetApplayHandler(common.AccountName(common.N("eosio")), common.AccountName(common.N("eosio")),
-		common.ActionName(common.N("deleteauth")), applyEosioDeleteauth)
-	con.SetApplayHandler(common.AccountName(common.N("eosio")), common.AccountName(common.N("eosio")),
-		common.ActionName(common.N("linkauth")), applyEosioLinkauth)
-	con.SetApplayHandler(common.AccountName(common.N("eosio")), common.AccountName(common.N("eosio")),
-		common.ActionName(common.N("unlinkauth")), applyEosioUnlinkauth)
-	con.SetApplayHandler(common.AccountName(common.N("eosio")), common.AccountName(common.N("eosio")),
-		common.ActionName(common.N("canceldelay")), applyEosioCanceldalay)
-
-	//IrreversibleBlock.connect()
-	//readycontroller = make(chan bool)
-	//go initResource(con, readycontroller)
-	//con.Pending = &PendingState{}
-	con.ResourceLimits = newResourceLimitsManager(con)
-	con.Authorization = newAuthorizationManager(con)
-	con.UnappliedTransactions = make(map[crypto.Sha256]types.TransactionMetadata)
-	con.ForkDB.Irreversible.Connect(&chain_interface.IrreversibleBlockCaller{Caller: con.OnIrreversible})
-	con.initialize()
-	return con
+	c.initialize()
 }
 
 func (c *Controller) PopBlock() {
@@ -373,13 +301,13 @@ func (c *Controller) OnIrreversible(s *types.BlockState) {
 	}
 	itr := ubi.Begin()
 	tbs := entity.ReversibleBlockObject{}
-	if itr != ubi.End() {
+	if !ubi.CompareEnd(itr) {
 		err = itr.Data(&tbs)
 	}
-	for itr != ubi.End() && tbs.BlockNum <= s.BlockNum {
+	for !ubi.CompareEnd(itr) && tbs.BlockNum <= s.BlockNum {
 		err := c.ReversibleBlocks.Remove(&tbs)
 		if err != nil {
-			log.Error("Controller OnIrreversible is error:", err)
+			log.Error("Controller OnIrreversible is error: %s", err)
 		}
 		if !itr.Next() {
 			break
@@ -492,7 +420,7 @@ func (c *Controller) pushReceipt(trx interface{}, status types.TransactionStatus
 	netUsageWords := netUsage / 8
 	EosAssert(netUsageWords*8 == netUsage, &TransactionException{}, "net_usage is not divisible by 8")
 	trxReceipt.CpuUsageUs = uint32(cpuUsageUs)
-	trxReceipt.NetUsageWords = uint32(netUsageWords)
+	trxReceipt.NetUsageWords = common.Vuint32(netUsageWords)
 	trxReceipt.Status = status
 	c.Pending.PendingBlockState.SignedBlock.Transactions = append(c.Pending.PendingBlockState.SignedBlock.Transactions, *trxReceipt)
 	return trxReceipt
@@ -570,7 +498,7 @@ func (c *Controller) pushTransaction(trx *types.TransactionMetadata, deadLine co
 				r := types.TransactionReceiptHeader{}
 				r.Status = types.TransactionStatusExecuted
 				r.CpuUsageUs = uint32(trxContext.BilledCpuTimeUs)
-				r.NetUsageWords = uint32(trace.NetUsage / 8)
+				r.NetUsageWords = common.Vuint32(trace.NetUsage / 8)
 				trace.Receipt = r
 			}
 			c.Pending.Actions = append(c.Pending.Actions, trxContext.Executed...)
@@ -640,19 +568,19 @@ func (c *Controller) GetOnBlockTransaction() types.SignedTransaction {
 	onBlockAction.Name = common.ActionName(common.N("onblock"))
 	onBlockAction.Authorization = []types.PermissionLevel{{common.AccountName(common.DefaultConfig.SystemAccountName), common.PermissionName(common.DefaultConfig.ActiveName)}}
 
-	data, err := rlp.EncodeToBytes(c.Head.Header)
+	data, err := rlp.EncodeToBytes(c.HeadBlockHeader())
 	if err == nil {
 		onBlockAction.Data = data
 	}
-	trx := types.SignedTransaction{}
+	trx := types.NewSignedTransactionNil()
 	trx.Actions = append(trx.Actions, &onBlockAction)
 	trx.SetReferenceBlock(&c.Head.BlockId)
 	in := c.PendingBlockTime().AddUs(common.Microseconds(999999))
 	trx.Expiration = common.NewTimePointSecTp(in)
-	return trx
+	return *trx
 }
 func (c *Controller) SkipDbSession(bs types.BlockStatus) bool {
-	considerSkipping := (bs == types.Irreversible)
+	considerSkipping := bs == types.Irreversible
 	return considerSkipping && !c.Config.DisableReplayOpts && !c.InTrxRequiringChecks
 }
 
@@ -677,13 +605,14 @@ func (c *Controller) IsProducingBlock() bool {
 }
 
 func (c *Controller) Close() {
+	c.AbortBlock()
 	//session.close()
 	c.ForkDB.Close()
 	c.DB.Close()
 	c.ReversibleBlocks.Close()
 
 	//log.Info("Controller destory!")
-	c.testClean()
+	//c.testClean()
 	isActiveController = false
 
 	c = nil
@@ -725,7 +654,7 @@ func (c *Controller) GetScheduledTransactions() []common.TransactionIdType {
 		log.Error("Controller GetScheduledTransactions is error:%s", err)
 	}
 	itr := idx.Begin()
-	if itr == idx.End() {
+	if idx.CompareEnd(itr) {
 		return result
 	} else {
 		itr.Data(&gto)
@@ -973,8 +902,8 @@ func scheduledFailureIsSubjective(e Exception) bool {
 }
 func (c *Controller) setActionMerkle() {
 	actionDigests := make([]crypto.Sha256, 0, len(c.Pending.Actions))
-	for _, b := range c.Pending.Actions {
-		actionDigests = append(actionDigests, b.Digest())
+	for _, a := range c.Pending.Actions {
+		actionDigests = append(actionDigests, a.Digest())
 	}
 	c.Pending.PendingBlockState.Header.ActionMRoot = types.Merkle(actionDigests)
 }
@@ -1650,7 +1579,7 @@ func (c *Controller) initializeForkDB() {
 	gs := c.Config.Genesis
 	pst := types.ProducerScheduleType{0, []types.ProducerKey{
 		{common.DefaultConfig.SystemAccountName, gs.InitialKey}}}
-	genHeader := types.BlockHeaderState{}
+	genHeader := types.BlockHeaderState{Header: *types.NewSignedBlockHeader()}
 	genHeader.ActiveSchedule = pst
 	genHeader.PendingSchedule = pst
 	genHeader.PendingScheduleHash = *crypto.Hash256(pst)
@@ -1776,7 +1705,7 @@ func (c *Controller) initialize() {
 	}
 	//c++ rbegin and rend
 	objitr := ubi.End()
-	if objitr != ubi.Begin() {
+	if !ubi.CompareBegin(objitr) {
 		objitr.Prev()
 		r := entity.ReversibleBlockObject{}
 		objitr.Data(&r)
@@ -1872,7 +1801,6 @@ func (c *Controller) initConfig() *Controller {
 	c.Config = Config{
 		BlocksDir:               common.DefaultConfig.DefaultBlocksDirName,
 		StateDir:                common.DefaultConfig.DefaultStateDirName,
-		ReversibleDir:           common.DefaultConfig.DefaultReversibleBlocksDirName,
 		StateSize:               common.DefaultConfig.DefaultStateSize,
 		StateGuardSize:          common.DefaultConfig.DefaultStateGuardSize,
 		ReversibleCacheSize:     common.DefaultConfig.DefaultReversibleCacheSize,

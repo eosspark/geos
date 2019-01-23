@@ -127,14 +127,23 @@ var modeTostring = map[IdListMode]string{
 }
 
 type OrderedTransactionIDs struct {
-	Mode    IdListMode                  `json:"mode"`
-	Pending uint32                      `json:"pending"`
-	IDs     []*common.TransactionIdType `json:"ids"`
+	Mode    IdListMode                 `json:"mode"`
+	Pending uint32                     `json:"pending"`
+	IDs     []common.TransactionIdType `json:"ids"`
 }
+
+func (t *OrderedTransactionIDs) empty() bool {
+	return t.Mode == none || len(t.IDs) == 0
+}
+
 type OrderedBlockIDs struct {
-	Mode    IdListMode            `json:"mode"`
-	Pending uint32                `json:"pending"`
-	IDs     []*common.BlockIdType `json:"ids"`
+	Mode    IdListMode           `json:"mode"`
+	Pending uint32               `json:"pending"`
+	IDs     []common.BlockIdType `json:"ids"`
+}
+
+func (b *OrderedBlockIDs) empty() bool {
+	return b.Mode == none || len(b.IDs) == 0
 }
 
 type NoticeMessage struct {

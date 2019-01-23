@@ -8,7 +8,6 @@ import (
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/crypto/rlp"
 	. "github.com/eosspark/eos-go/exception"
-	. "github.com/eosspark/eos-go/exception/try"
 	"github.com/stretchr/testify/assert"
 	"io/ioutil"
 	"math"
@@ -218,8 +217,7 @@ func TestStakeToSelfWithTransfer(t *testing.T) {
 	e.Cross15PercentThreshold()
 	assert.Equal(t, CoreFromString("0.0000"), e.GetBalance(alice))
 	e.Transfer(eosio, alice, CoreFromString("1000.0000"), eosio)
-	stakeWithTransfer := func() { e.StakeWithTransfer(alice, alice, CoreFromString("200.0000"), CoreFromString("100.0000")) }
-	CatchThrowMsg(t, "cannot use transfer flag if delegating to self", stakeWithTransfer)
+	assert.Equal(t, e.WasmAssertMsg("cannot use transfer flag if delegating to self"), e.StakeWithTransfer(alice, alice, CoreFromString("200.0000"), CoreFromString("100.0000")))
 	e.close()
 }
 
@@ -282,36 +280,27 @@ func TestFailWithoutAuth(t *testing.T) {
 	e.Issue(alice, CoreFromString("1000.0000"), eosio)
 	assert.Equal(t, e.Success(), e.Stake(eosio, alice, CoreFromString("2000.0000"), CoreFromString("1000.0000")))
 	assert.Equal(t, e.Success(), e.Stake(alice, bob, CoreFromString("10.0000"), CoreFromString("10.0000")))
-	var ex string
-	Try(func() {
-		act := common.N("delegatebw")
-		data := common.Variants{
-			"from":               alice,
-			"receiver":           bob,
-			"stake_net_quantity": CoreFromString("10.0000"),
-			"stake_cpu_quantity": CoreFromString("10.0000"),
-			"transfer":           0,
-		}
-		e.EsPushAction(&alice, &act, &data, false)
-	}).Catch(func(e Exception) {
-		ex = e.DetailMessage()
-	}).End()
-	assert.True(t, inString(ex, "missing authority of alice1111111"))
+	act := common.N("delegatebw")
+	data := common.Variants{
+		"from":               alice,
+		"receiver":           bob,
+		"stake_net_quantity": CoreFromString("10.0000"),
+		"stake_cpu_quantity": CoreFromString("10.0000"),
+		"transfer":           0,
+	}
+	assert.Equal(t, e.Error("missing authority of alice1111111"), e.EsPushAction(&alice, &act, &data, false))
 
-	Try(func() {
-		act := common.N("undelegatebw")
-		data := common.Variants{
-			"from":                 alice,
-			"receiver":             bob,
-			"unstake_net_quantity": CoreFromString("200.0000"),
-			"unstake_cpu_quantity": CoreFromString("100.0000"),
-			"transfer":             0,
-		}
-		e.EsPushAction(&alice, &act, &data, false)
-	}).Catch(func(e Exception) {
-		ex = e.DetailMessage()
-	}).End()
-	assert.True(t, inString(ex, "missing authority of alice1111111"))
+	act = common.N("undelegatebw")
+	data = common.Variants{
+		"from":                 alice,
+		"receiver":             bob,
+		"unstake_net_quantity": CoreFromString("200.0000"),
+		"unstake_cpu_quantity": CoreFromString("100.0000"),
+		"transfer":             0,
+	}
+	e.EsPushAction(&alice, &act, &data, false)
+	assert.Equal(t, e.Error("missing authority of alice1111111"), e.EsPushAction(&alice, &act, &data, false))
+
 	e.close()
 }
 
@@ -319,34 +308,13 @@ func TestStakeNegative(t *testing.T) {
 	e := initEosioSystemTester()
 	e.Issue(alice, CoreFromString("1000.0000"), eosio)
 
-	var ex string
-	Try(func() {
-		e.Stake(alice, alice, CoreFromString("-0.0001"), CoreFromString("0.0000"))
-	}).Catch(func(e Exception) {
-		ex = e.DetailMessage()
-	}).End()
-	assert.True(t, inString(ex, "must stake a positive amount"))
+	assert.Equal(t, e.WasmAssertMsg("must stake a positive amount"), e.Stake(alice, alice, CoreFromString("-0.0001"), CoreFromString("0.0000")))
 
-	Try(func() {
-		e.Stake(alice, alice, CoreFromString("0.0000"), CoreFromString("-0.0001"))
-	}).Catch(func(e Exception) {
-		ex = e.DetailMessage()
-	}).End()
-	assert.True(t, inString(ex, "must stake a positive amount"))
+	assert.Equal(t, e.WasmAssertMsg("must stake a positive amount"), e.Stake(alice, alice, CoreFromString("0.0000"), CoreFromString("-0.0001")))
 
-	Try(func() {
-		e.Stake(alice, alice, CoreFromString("00.0000"), CoreFromString("00.0000"))
-	}).Catch(func(e Exception) {
-		ex = e.DetailMessage()
-	}).End()
-	assert.True(t, inString(ex, "must stake a positive amount"))
+	assert.Equal(t, e.WasmAssertMsg("must stake a positive amount"), e.Stake(alice, alice, CoreFromString("00.0000"), CoreFromString("00.0000")))
 
-	Try(func() {
-		e.Stake(alice, alice, CoreFromString("0.0000"), CoreFromString("00.0000"))
-	}).Catch(func(e Exception) {
-		ex = e.DetailMessage()
-	}).End()
-	assert.True(t, inString(ex, "must stake a positive amount"))
+	assert.Equal(t, e.WasmAssertMsg("must stake a positive amount"), e.Stake(alice, alice, CoreFromString("0.0000"), CoreFromString("00.0000")))
 
 	e.close()
 }
@@ -360,27 +328,11 @@ func TestUnstakeNegative(t *testing.T) {
 	assert.Equal(t, CoreFromString("210.0001"), total["net_weight"].(common.Asset))
 	assert.Equal(t, e.VoterAccountAsset(alice, CoreFromString("300.0002")), e.GetVoterInfo(alice))
 
-	var ex string
-	Try(func() {
-		e.UnStake(alice, bob, CoreFromString("-1.0000"), CoreFromString("0.0000"))
-	}).Catch(func(e Exception) {
-		ex = e.DetailMessage()
-	}).End()
-	assert.True(t, inString(ex, "must unstake a positive amount"))
+	assert.Equal(t, e.WasmAssertMsg("must unstake a positive amount"), e.UnStake(alice, bob, CoreFromString("-1.0000"), CoreFromString("0.0000")))
 
-	Try(func() {
-		e.UnStake(alice, bob, CoreFromString("0.0000"), CoreFromString("-1.0000"))
-	}).Catch(func(e Exception) {
-		ex = e.DetailMessage()
-	}).End()
-	assert.True(t, inString(ex, "must unstake a positive amount"))
+	assert.Equal(t, e.WasmAssertMsg("must unstake a positive amount"), e.UnStake(alice, bob, CoreFromString("0.0000"), CoreFromString("-1.0000")))
 
-	Try(func() {
-		e.UnStake(alice, alice, CoreFromString("0.0000"), CoreFromString("0.0000"))
-	}).Catch(func(e Exception) {
-		ex = e.DetailMessage()
-	}).End()
-	assert.True(t, inString(ex, "must unstake a positive amount"))
+	assert.Equal(t, e.WasmAssertMsg("must unstake a positive amount"), e.UnStake(alice, bob, CoreFromString("0.0000"), CoreFromString("0.0000")))
 
 	e.close()
 }
@@ -397,21 +349,10 @@ func TestUnstakeMoreThanAtStake(t *testing.T) {
 	assert.Equal(t, CoreFromString("700.0000"), e.GetBalance(alice))
 
 	//trying to unstake more net bandwith than at stake
-	var ex string
-	Try(func() {
-		e.UnStake(alice, alice, CoreFromString("200.0001"), CoreFromString("0.0000"))
-	}).Catch(func(e Exception) {
-		ex = e.DetailMessage()
-	}).End()
-	assert.True(t, inString(ex, "insufficient staked net bandwidth"))
+	assert.Equal(t, e.WasmAssertMsg("insufficient staked net bandwidth"), e.UnStake(alice, alice, CoreFromString("200.0001"), CoreFromString("0.0000")))
 
 	//trying to unstake more cpu bandwith than at stake
-	Try(func() {
-		e.UnStake(alice, alice, CoreFromString("0.0000"), CoreFromString("100.0001"))
-	}).Catch(func(e Exception) {
-		ex = e.DetailMessage()
-	}).End()
-	assert.True(t, inString(ex, "insufficient staked cpu bandwidth"))
+	assert.Equal(t, e.WasmAssertMsg("insufficient staked cpu bandwidth"), e.UnStake(alice, alice, CoreFromString("0.0000"), CoreFromString("100.0001")))
 
 	//check that nothing has changed
 	total = e.GetTotalStake(alice)
@@ -439,20 +380,9 @@ func TestDelegateToAnotherUser(t *testing.T) {
 	assert.Equal(t, common.Variants{}, e.GetVoterInfo(bob))
 
 	//bob111111111 should not be able to unstake what was staked by alice1111111
-	var ex string
-	Try(func() {
-		e.UnStake(bob, bob, CoreFromString("10.0000"), CoreFromString("0.0000"))
-	}).Catch(func(e Exception) {
-		ex = e.DetailMessage()
-	}).End()
-	assert.True(t, inString(ex, "insufficient staked net bandwidth"))
+	assert.Equal(t, e.WasmAssertMsg("insufficient staked net bandwidth"), e.UnStake(bob, bob, CoreFromString("10.0000"), CoreFromString("0.0000")))
 
-	Try(func() {
-		e.UnStake(bob, bob, CoreFromString("0.0000"), CoreFromString("10.0000"))
-	}).Catch(func(e Exception) {
-		ex = e.DetailMessage()
-	}).End()
-	assert.True(t, inString(ex, "insufficient staked cpu bandwidth"))
+	assert.Equal(t, e.WasmAssertMsg("insufficient staked cpu bandwidth"), e.UnStake(bob, bob, CoreFromString("0.0000"), CoreFromString("10.0000")))
 
 	e.Issue(carol, CoreFromString("1000.0000"), eosio)
 	assert.Equal(t, e.Success(), e.Stake(carol, bob, CoreFromString("20.0000"), CoreFromString("10.0000")))
@@ -463,19 +393,9 @@ func TestDelegateToAnotherUser(t *testing.T) {
 	assert.Equal(t, e.VoterAccountAsset(carol, CoreFromString("30.0000")), e.GetVoterInfo(carol))
 
 	//alice1111111 should not be able to unstake money staked by carol1111111
-	Try(func() {
-		e.UnStake(alice, bob, CoreFromString("201.0000"), CoreFromString("1.0000"))
-	}).Catch(func(e Exception) {
-		ex = e.DetailMessage()
-	}).End()
-	assert.True(t, inString(ex, "insufficient staked net bandwidth"))
+	assert.Equal(t, e.WasmAssertMsg("insufficient staked net bandwidth"), e.UnStake(alice, bob, CoreFromString("201.0000"), CoreFromString("1.0000")))
 
-	Try(func() {
-		e.UnStake(alice, bob, CoreFromString("1.0000"), CoreFromString("101.0000"))
-	}).Catch(func(e Exception) {
-		ex = e.DetailMessage()
-	}).End()
-	assert.True(t, inString(ex, "insufficient staked cpu bandwidth"))
+	assert.Equal(t, e.WasmAssertMsg("insufficient staked cpu bandwidth"), e.UnStake(alice, bob, CoreFromString("1.0000"), CoreFromString("101.0000")))
 
 	total = e.GetTotalStake(bob)
 	assert.Equal(t, CoreFromString("230.0000"), total["net_weight"].(common.Asset))
@@ -763,17 +683,12 @@ func TestProducerRegisterUnregister(t *testing.T) {
 
 	//unregister bob111111111 who is not a producer
 	{
-		var ex string
-		Try(func() {
-			act := common.N("unregprod")
-			data := common.Variants{
-				"producer": bob,
-			}
-			e.EsPushAction(&bob, &act, &data, true)
-		}).Catch(func(e Exception) {
-			ex = e.DetailMessage()
-		}).End()
-		assert.True(t, inString(ex, "producer not found"))
+		act := common.N("unregprod")
+		data := common.Variants{
+			"producer": bob,
+		}
+
+		assert.Equal(t, e.WasmAssertMsg("producer not found"), e.EsPushAction(&bob, &act, &data, true))
 	}
 
 	e.close()
@@ -875,15 +790,7 @@ func TestUnregisteredProducerVoting(t *testing.T) {
 	assert.Equal(t, e.Success(), e.Stake(bob, bob, CoreFromString("13.0000"), CoreFromString("0.5791")))
 
 	//bob111111111 should not be able to vote for alice1111111 who is not a producer
-	{
-		var ex string
-		Try(func() {
-			e.Vote(bob, []common.AccountName{alice}, common.AccountName(0))
-		}).Catch(func(e Exception) {
-			ex = e.DetailMessage()
-		}).End()
-		assert.True(t, inString(ex, "producer is not registered"))
-	}
+	assert.Equal(t, e.WasmAssertMsg("producer is not registered"), e.Vote(bob, []common.AccountName{alice}, common.AccountName(0)))
 
 	//alice1111111 registers as a producer
 	e.Issue(alice, CoreFromString("1000.0000"), eosio)
@@ -912,15 +819,7 @@ func TestUnregisteredProducerVoting(t *testing.T) {
 	assert.Equal(t, *ecc.NewPublicKeyNil(), prod["producer_key"].(ecc.PublicKey))
 
 	//bob111111111 should not be able to vote for alice1111111 who is an unregistered producer
-	{
-		var ex string
-		Try(func() {
-			e.Vote(bob, []common.AccountName{alice}, common.AccountName(0))
-		}).Catch(func(e Exception) {
-			ex = e.DetailMessage()
-		}).End()
-		assert.True(t, inString(ex, "producer is not currently registered"))
-	}
+	assert.Equal(t, e.WasmAssertMsg("producer is not currently registered"), e.Vote(bob, []common.AccountName{alice}, common.AccountName(0)))
 
 	e.close()
 }
@@ -936,13 +835,7 @@ func TestMoreThan30ProducerVoting(t *testing.T) {
 	for i := 0; i < 31; i++ {
 		producers = append(producers, alice)
 	}
-	var ex string
-	Try(func() {
-		e.Vote(bob, producers, common.AccountName(0))
-	}).Catch(func(e Exception) {
-		ex = e.DetailMessage()
-	}).End()
-	assert.True(t, inString(ex, "attempt to vote for too many producers"))
+	assert.Equal(t, e.WasmAssertMsg("attempt to vote for too many producers"), e.Vote(bob, producers, common.AccountName(0)))
 	e.close()
 }
 
@@ -970,13 +863,8 @@ func TestVoteSameProducer30Times(t *testing.T) {
 	for i := 0; i < 30; i++ {
 		producers = append(producers, alice)
 	}
-	var ex string
-	Try(func() {
-		e.Vote(bob, producers, common.AccountName(0))
-	}).Catch(func(e Exception) {
-		ex = e.DetailMessage()
-	})
-	assert.True(t, inString(ex, "producer votes must be unique and sorted"))
+
+	assert.Equal(t, e.WasmAssertMsg("producer votes must be unique and sorted"), e.Vote(bob, producers, common.AccountName(0)))
 
 	prod := e.GetProducerInfo(alice)
 	assert.True(t, math.Abs(prod["total_votes"].(float64)-float64(0)) <= EPSINON)
@@ -1304,25 +1192,15 @@ func TestProducerPay(t *testing.T) {
 	}
 
 	{
-		var ex string
-		Try(func() {
-			e.ClaimRewards(producer1)
-		}).Catch(func(e Exception) {
-			ex = e.DetailMessage()
-		})
-		assert.True(t, inString(ex, "already claimed rewards within past day"))
+		assert.Equal(t, e.WasmAssertMsg("already claimed rewards within past day"), e.ClaimRewards(producer1))
+
 	}
 
 	// defproducera waits for 23 hours and 55 minutes, can't claim rewards yet
+
 	{
 		e.ProduceBlock(common.Seconds(23*3600+55*60), 0)
-		var ex string
-		Try(func() {
-			e.ClaimRewards(producer1)
-		}).Catch(func(e Exception) {
-			ex = e.DetailMessage()
-		})
-		assert.True(t, inString(ex, "already claimed rewards within past day"))
+		assert.Equal(t, e.WasmAssertMsg("already claimed rewards within past day"), e.ClaimRewards(producer1))
 	}
 
 	// wait 5 more minutes, defproducera can now claim rewards again
@@ -1562,13 +1440,7 @@ func TestMultipleProducerPay(t *testing.T) {
 		}
 
 		e.ProduceBlocks(5, false)
-		var ex string
-		Try(func() {
-			e.ClaimRewards(prodName)
-		}).Catch(func(e Exception) {
-			ex = e.DetailMessage()
-		}).End()
-		assert.True(t, inString(ex, "already claimed rewards within past day"))
+		assert.Equal(t, e.WasmAssertMsg("already claimed rewards within past day"), e.ClaimRewards(prodName))
 	}
 
 	{
@@ -1576,13 +1448,7 @@ func TestMultipleProducerPay(t *testing.T) {
 		prodName := producersNames[prodIndex]
 		assert.Equal(t, e.Success(), e.ClaimRewards(prodName))
 		assert.Equal(t, int64(0), e.GetBalance(prodName).Amount)
-		var ex string
-		Try(func() {
-			e.ClaimRewards(prodName)
-		}).Catch(func(e Exception) {
-			ex = e.DetailMessage()
-		}).End()
-		assert.True(t, inString(ex, "already claimed rewards within past day"))
+		assert.Equal(t, e.WasmAssertMsg("already claimed rewards within past day"), e.ClaimRewards(prodName))
 	}
 
 	// Wait for 23 hours. By now, pervote_bucket has grown enough
@@ -1642,13 +1508,7 @@ func TestMultipleProducerPay(t *testing.T) {
 		}
 
 		e.ProduceBlocks(5, false)
-		var ex string
-		Try(func() {
-			e.ClaimRewards(prodName)
-		}).Catch(func(e Exception) {
-			ex = e.DetailMessage()
-		}).End()
-		assert.True(t, inString(ex, "already claimed rewards within past day"))
+		assert.Equal(t, e.WasmAssertMsg("already claimed rewards within past day"), e.ClaimRewards(prodName))
 	}
 
 	{
@@ -1656,13 +1516,7 @@ func TestMultipleProducerPay(t *testing.T) {
 		prodName := producersNames[prodIndex]
 		assert.Equal(t, e.Success(), e.ClaimRewards(prodName))
 		assert.True(t, 100*10000 <= e.GetBalance(prodName).Amount)
-		var ex string
-		Try(func() {
-			e.ClaimRewards(prodName)
-		}).Catch(func(e Exception) {
-			ex = e.DetailMessage()
-		}).End()
-		assert.True(t, inString(ex, "already claimed rewards within past day"))
+		assert.Equal(t, e.WasmAssertMsg("already claimed rewards within past day"), e.ClaimRewards(prodName))
 	}
 
 	{
@@ -1672,20 +1526,8 @@ func TestMultipleProducerPay(t *testing.T) {
 		info := e.GetProducerInfo(prodName)
 		assert.True(t, info["is_active"].(bool))
 		assert.NotEqual(t, *ecc.NewPublicKeyNil(), info["producer_key"].(ecc.PublicKey))
-		var ex string
-		Try(func() {
-			e.RmvProducer(prodName, prodName)
-		}).Catch(func(e Exception) {
-			ex = e.DetailMessage()
-		}).End()
-		assert.True(t, inString(ex, "missing authority of eosio"))
-
-		Try(func() {
-			e.RmvProducer(producersNames[rmvIndex+2], prodName)
-		}).Catch(func(e Exception) {
-			ex = e.DetailMessage()
-		}).End()
-		assert.True(t, inString(ex, "missing authority of eosio"))
+		assert.Equal(t, e.Error("missing authority of eosio"), e.RmvProducer(prodName, prodName))
+		assert.Equal(t, e.Error("missing authority of eosio"), e.RmvProducer(producersNames[rmvIndex+2], prodName))
 
 		assert.Equal(t, e.Success(), e.RmvProducer(eosio, prodName))
 		{
@@ -1703,12 +1545,7 @@ func TestMultipleProducerPay(t *testing.T) {
 		initUnpaidBlocks := info["unpaid_blocks"].(uint32)
 		assert.True(t, !info["is_active"].(bool))
 		assert.Equal(t, *ecc.NewPublicKeyNil(), info["producer_key"].(ecc.PublicKey))
-		Try(func() {
-			e.ClaimRewards(prodName)
-		}).Catch(func(e Exception) {
-			ex = e.DetailMessage()
-		}).End()
-		assert.True(t, inString(ex, "producer does not have an active key"))
+		assert.Equal(t, e.WasmAssertMsg("producer does not have an active key"), e.ClaimRewards(prodName))
 
 		e.ProduceBlocks(3*21*12, false)
 		assert.Equal(t, initUnpaidBlocks, e.GetProducerInfo(prodName)["unpaid_blocks"].(uint32))
@@ -1724,13 +1561,7 @@ func TestMultipleProducerPay(t *testing.T) {
 	}
 
 	{
-		var ex string
-		Try(func() {
-			e.RmvProducer(eosio, common.N("nonexistingp"))
-		}).Catch(func(e Exception) {
-			ex = e.DetailMessage()
-		}).End()
-		assert.True(t, inString(ex, "producer not found"))
+		assert.Equal(t, e.WasmAssertMsg("producer not found"), e.RmvProducer(eosio, common.N("nonexistingp")))
 	}
 	e.close()
 }
@@ -1785,7 +1616,7 @@ func TestProducersUpgradeSystemContract(t *testing.T) {
 		}
 		trx.Actions = append(trx.Actions, &act)
 		e.SetTransactionHeaders(&trx.Transaction, 0, 0)
-		expiration, _ := common.FromIsoString("2020-01-01T00:00:30")
+		expiration, _ := common.FromIsoString("2020-01-01T00:30:00")
 		trx.Expiration = common.NewTimePointSecTp(expiration)
 		trx.Transaction.RefBlockNum = 2
 		trx.Transaction.RefBlockPrefix = 3
@@ -1810,18 +1641,13 @@ func TestProducersUpgradeSystemContract(t *testing.T) {
 	}
 
 	//should fail
-	var ex string
-	Try(func() {
-		data = common.Variants{
-			"proposer":      alice,
-			"proposal_name": common.N("upgrade1"),
-			"executer":      alice,
-		}
-		pushActionMsig(alice, common.N("exec"), data, true)
-	}).Catch(func(e Exception) {
-		ex = e.DetailMessage()
-	})
-	assert.True(t, inString(ex, "transaction authorization failed"))
+
+	data = common.Variants{
+		"proposer":      alice,
+		"proposal_name": common.N("upgrade1"),
+		"executer":      alice,
+	}
+	assert.Equal(t, e.WasmAssertMsg("transaction authorization failed"), pushActionMsig(alice, common.N("exec"), data, true))
 
 	// one more approval
 	data = common.Variants{
@@ -1838,6 +1664,8 @@ func TestProducersUpgradeSystemContract(t *testing.T) {
 	}
 	pushActionMsig(alice, common.N("exec"), data, true)
 	e.ProduceBlocks(250, false)
+
+	e.close()
 }
 
 func TestProducerOnblockCheck(t *testing.T) {
@@ -1865,13 +1693,7 @@ func TestProducerOnblockCheck(t *testing.T) {
 	e.Transfer(eosio, voter1, CoreFromString("200000000.0000"), eosio)
 	assert.Equal(t, e.Success(), e.Stake(voter1, voter1, CoreFromString("70000000.0000"), CoreFromString("70000000.0000")))
 	assert.Equal(t, e.Success(), e.Vote(voter1, producersNames[0:10], common.AccountName(0)))
-	var ex string
-	Try(func() {
-		e.UnStake(voter1, voter1, CoreFromString("50.0000"), CoreFromString("50.0000"))
-	}).Catch(func(e Exception) {
-		ex = e.DetailMessage()
-	})
-	assert.True(t, inString(ex, "cannot undelegate bandwidth until the chain is activated (at least 15% of all tokens participate in voting)"))
+	assert.Equal(t, e.WasmAssertMsg("cannot undelegate bandwidth until the chain is activated (at least 15% of all tokens participate in voting)"), e.UnStake(voter1, voter1, CoreFromString("50.0000"), CoreFromString("50.0000")))
 
 	// give a chance for everyone to produce blocks
 	{
@@ -2011,13 +1833,7 @@ func TestVoteBothProxyAndProducers(t *testing.T) {
 	//bob111111111 chooses alice1111111 as a proxy
 	e.Issue(bob, CoreFromString("1000.0000"), eosio)
 	assert.Equal(t, e.Success(), e.Stake(bob, bob, CoreFromString("100.0002"), CoreFromString("50.0001")))
-	var ex string
-	Try(func() {
-		e.Vote(bob, []common.AccountName{carol}, alice)
-	}).Catch(func(e Exception) {
-		ex = e.DetailMessage()
-	})
-	assert.True(t, inString(ex, "cannot vote for producers and proxy at same time"))
+	assert.Equal(t, e.WasmAssertMsg("cannot vote for producers and proxy at same time"), e.Vote(bob, []common.AccountName{carol}, alice))
 
 	e.close()
 }
@@ -2029,21 +1845,10 @@ func TestSelectInvalidProxy(t *testing.T) {
 	assert.Equal(t, e.Success(), e.Stake(bob, bob, CoreFromString("100.0002"), CoreFromString("50.0001")))
 
 	//selecting account not registered as a proxy
-	var ex string
-	Try(func() {
-		e.Vote(bob, []common.AccountName{}, alice)
-	}).Catch(func(e Exception) {
-		ex = e.DetailMessage()
-	})
-	assert.True(t, inString(ex, "invalid proxy specified"))
+	assert.Equal(t, e.WasmAssertMsg("invalid proxy specified"), e.Vote(bob, []common.AccountName{}, alice))
 
 	//selecting not existing account as a proxy
-	Try(func() {
-		e.Vote(bob, []common.AccountName{}, common.N("notexist"))
-	}).Catch(func(e Exception) {
-		ex = e.DetailMessage()
-	})
-	assert.True(t, inString(ex, "invalid proxy specified"))
+	assert.Equal(t, e.WasmAssertMsg("invalid proxy specified"), e.Vote(bob, []common.AccountName{}, common.N("notexist")))
 
 	e.close()
 }
@@ -2063,32 +1868,18 @@ func TestDoubleRegisterUnregisterProxyKeepsVotes(t *testing.T) {
 	assert.True(t, math.Abs(e.GetVoterInfo(alice)["proxied_vote_weight"].(float64)-e.Stake2Votes(CoreFromString("150.0003"))) <= EPSINON)
 
 	//double registering should fail without affecting total votes and stake
-	{
-		var ex string
-		Try(func() {
-			e.RegProxy(alice)
-		}).Catch(func(e Exception) {
-			ex = e.DetailMessage()
-		})
-		assert.True(t, inString(ex, "action has no effect"))
-	}
+	assert.Equal(t, e.WasmAssertMsg("action has no effect"), e.RegProxy(alice))
 	assert.True(t, math.Abs(e.GetVoterInfo(alice)["proxied_vote_weight"].(float64)-e.Stake2Votes(CoreFromString("150.0003"))) <= EPSINON)
 
-	//uregister
+	//unregister
 	assert.Equal(t, e.Success(), e.UnRegProxy(alice))
 	assert.True(t, math.Abs(e.GetVoterInfo(alice)["proxied_vote_weight"].(float64)-e.Stake2Votes(CoreFromString("150.0003"))) <= EPSINON)
 
 	//double unregistering should not affect proxied_votes and stake
-	{
-		var ex string
-		Try(func() {
-			e.UnRegProxy(alice)
-		}).Catch(func(e Exception) {
-			ex = e.DetailMessage()
-		})
-		assert.True(t, inString(ex, "action has no effect"))
-	}
+	assert.Equal(t, e.WasmAssertMsg("action has no effect"), e.UnRegProxy(alice))
 	assert.True(t, math.Abs(e.GetVoterInfo(alice)["proxied_vote_weight"].(float64)-e.Stake2Votes(CoreFromString("150.0003"))) <= EPSINON)
+
+	e.close()
 }
 
 func TestProxyCannotUseAnotherProxy(t *testing.T) {
@@ -2100,40 +1891,18 @@ func TestProxyCannotUseAnotherProxy(t *testing.T) {
 	//proxy should not be able to use a proxy
 	e.Issue(bob, CoreFromString("1000.0000"), eosio)
 	assert.Equal(t, e.Success(), e.Stake(bob, bob, CoreFromString("100.0002"), CoreFromString("50.0001")))
-	{
-		var ex string
-		Try(func() {
-			e.Vote(bob, []common.AccountName{}, alice)
-		}).Catch(func(e Exception) {
-			ex = e.DetailMessage()
-		})
-		assert.True(t, inString(ex, "account registered as a proxy is not allowed to use a proxy"))
-	}
+	assert.Equal(t, e.WasmAssertMsg("account registered as a proxy is not allowed to use a proxy"), e.Vote(bob, []common.AccountName{}, alice))
 
 	//voter that uses a proxy should not be allowed to become a proxy
 	e.Issue(carol, CoreFromString("1000.0000"), eosio)
 	assert.Equal(t, e.Success(), e.Stake(carol, carol, CoreFromString("100.0002"), CoreFromString("50.0001")))
 	assert.Equal(t, e.Success(), e.Vote(carol, []common.AccountName{}, alice))
-	{
-		var ex string
-		Try(func() {
-			e.RegProxy(carol)
-		}).Catch(func(e Exception) {
-			ex = e.DetailMessage()
-		})
-		assert.True(t, inString(ex, "account that uses a proxy is not allowed to become a proxy"))
-	}
+	assert.Equal(t, e.WasmAssertMsg("account that uses a proxy is not allowed to become a proxy"), e.RegProxy(carol))
 
 	//proxy should not be able to use itself as a proxy
-	{
-		var ex string
-		Try(func() {
-			e.Vote(bob, []common.AccountName{}, bob)
-		}).Catch(func(e Exception) {
-			ex = e.DetailMessage()
-		})
-		assert.True(t, inString(ex, "cannot proxy to self"))
-	}
+	assert.Equal(t, e.WasmAssertMsg("cannot proxy to self"), e.Vote(bob, []common.AccountName{}, bob))
+
+	e.close()
 }
 
 func configToVariant(config types.ChainConfig) common.Variants {
@@ -2221,55 +1990,29 @@ func TestBuyName(t *testing.T) {
 	e.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs), 0)
 
 	// dan shouldn't be able to create fail
-	{
-		var ex string
-		Try(func() {
-			e.CreateAccountsWithResources([]common.AccountName{common.N("fail")}, dan)
-		}).Catch(func(e Exception) {
-			ex = e.DetailMessage()
-		})
-		assert.True(t, inString(ex, "no active bid for name"))
-	}
+	create := func() { e.CreateAccountsWithResources([]common.AccountName{common.N("fail")}, dan) }
+	CheckThrowExceptionAndMsg(t, &EosioAssertMessageException{}, e.WasmAssertMsg("no active bid for name"), create)
 	e.BidName(dan, common.N("nofail"), CoreFromString("1.0000"))
 
 	// didn't increase bid by 10%
-	{
-		var ex string
-		Try(func() {
-			e.BidName(sam, common.N("nofail"), CoreFromString("1.0000"))
-		}).Catch(func(e Exception) {
-			ex = e.DetailMessage()
-		})
-		assert.True(t, inString(ex, "assertion failure with message: must increase bid by 10%"))
-	}
+	assert.Equal(t, e.WasmAssertMsg("must increase bid by 10%"), e.BidName(sam, common.N("nofail"), CoreFromString("1.0000")))
+
 	e.BidName(sam, common.N("nofail"), CoreFromString("2.0000"))
 	e.ProduceBlock(common.Days(1), 0)
 	e.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs), 0)
 
 	// dan shouldn't be able to do this, sam won
-	{
-		var ex string
-		Try(func() {
-			e.CreateAccountsWithResources([]common.AccountName{common.N("nofail")}, dan)
-		}).Catch(func(e Exception) {
-			ex = e.DetailMessage()
-		})
-		assert.True(t, inString(ex, "only highest bidder can claim"))
-	}
+	create = func() { e.CreateAccountsWithResources([]common.AccountName{common.N("nofail")}, dan) }
+	CheckThrowExceptionAndMsg(t, &EosioAssertMessageException{}, e.WasmAssertMsg("only highest bidder can claim"), create)
 	e.CreateAccountsWithResources([]common.AccountName{common.N("nofail")}, sam)
 	e.Transfer(eosio, common.N("nofail"), CoreFromString("1000.0000"), eosio)
 
 	// only nofail can create test.nofail
 	e.CreateAccountsWithResources([]common.AccountName{common.N("test.nofail")}, common.N("nofail"))
-	{
-		var ex string
-		Try(func() {
-			e.CreateAccountsWithResources([]common.AccountName{common.N("test.fail")}, dan)
-		}).Catch(func(e Exception) {
-			ex = e.DetailMessage()
-		})
-		assert.True(t, inString(ex, "only suffix may create this account"))
-	}
+
+	// dan shouldn't be able to do this
+	create = func() { e.CreateAccountsWithResources([]common.AccountName{common.N("test.fail")}, dan) }
+	CheckThrowExceptionAndMsg(t, &EosioAssertMessageException{}, e.WasmAssertMsg("only suffix may create this account"), create)
 
 	e.close()
 }
@@ -2278,47 +2021,13 @@ func TestInvalidNames(t *testing.T) {
 	e := initEosioSystemTester()
 	dan := common.N("dan")
 	e.CreateAccountsWithResources([]common.AccountName{dan}, eosio)
-	{
-		var ex string
-		Try(func() {
-			e.BidName(dan, common.N("abcdefg.12345"), CoreFromString("1.0000"))
-		}).Catch(func(e Exception) {
-			ex = e.DetailMessage()
-		})
-		fmt.Println(ex)
-		assert.True(t, inString(ex, "you can only bid on top-level suffix"))
-	}
+	assert.Equal(t, e.WasmAssertMsg("you can only bid on top-level suffix"), e.BidName(dan, common.N("abcdefg.12345"), CoreFromString("1.0000")))
 
-	{
-		var ex string
-		Try(func() {
-			e.BidName(dan, common.N(""), CoreFromString("1.0000"))
-		}).Catch(func(e Exception) {
-			ex = e.DetailMessage()
-		})
-		assert.True(t, inString(ex, "the empty name is not a valid account name to bid on"))
-	}
+	assert.Equal(t, e.WasmAssertMsg("the empty name is not a valid account name to bid on"), e.BidName(dan, common.N(""), CoreFromString("1.0000")))
 
-	{
-		var ex string
-		Try(func() {
-			e.BidName(dan, common.N("abcdefgh12345"), CoreFromString("1.0000"))
-		}).Catch(func(e Exception) {
-			ex = e.DetailMessage()
-		})
-		fmt.Println(ex)
-		assert.True(t, inString(ex, "13 character names are not valid account names to bid on"))
-	}
+	assert.Equal(t, e.WasmAssertMsg("13 character names are not valid account names to bid on"), e.BidName(dan, common.N("abcdefgh12345"), CoreFromString("1.0000")))
 
-	{
-		var ex string
-		Try(func() {
-			e.BidName(dan, common.N("abcdefg12345"), CoreFromString("1.0000"))
-		}).Catch(func(e Exception) {
-			ex = e.DetailMessage()
-		})
-		assert.True(t, inString(ex, "accounts with 12 character names and no dots can be created without bidding required"))
-	}
+	assert.Equal(t, e.WasmAssertMsg("accounts with 12 character names and no dots can be created without bidding required"), e.BidName(dan, common.N("abcdefg12345"), CoreFromString("1.0000")))
 
 	e.close()
 }
@@ -2358,19 +2067,9 @@ func TestMultipleNameBids(t *testing.T) {
 	e.BidName(carl, common.N("prefe"), CoreFromString("1.0000"))
 	assert.Equal(t, CoreFromString("9998.0000"), e.GetBalance(carl))
 
-	var ex string
-	Try(func() {
-		e.BidName(bob, common.N("prefb"), CoreFromString("1.1001"))
-	}).Catch(func(e Exception) {
-		ex = e.DetailMessage()
-	})
-	assert.True(t, inString(ex, "assertion failure with message: account is already highest bidder"))
-	Try(func() {
-		e.BidName(alice, common.N("prefb"), CoreFromString("1.0999"))
-	}).Catch(func(e Exception) {
-		ex = e.DetailMessage()
-	}).End()
-	assert.True(t, inString(ex, "assertion failure with message: must increase bid by 10%"))
+	assert.Equal(t, e.WasmAssertMsg("account is already highest bidder"), e.BidName(bob, common.N("prefb"), CoreFromString("1.1001")))
+	assert.Equal(t, e.WasmAssertMsg("must increase bid by 10%"), e.BidName(alice, common.N("prefb"), CoreFromString("1.0999")))
+
 	assert.Equal(t, CoreFromString("9996.9997"), e.GetBalance(bob))
 	assert.Equal(t, CoreFromString("10000.0000"), e.GetBalance(alice))
 
@@ -2395,12 +2094,8 @@ func TestMultipleNameBids(t *testing.T) {
 	e.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs), 0)
 
 	// highest bid is from david for prefd but no bids can be closed yet
-	Try(func() {
-		e.CreateAccountWithResources2(common.N("prefd"), david, 8000)
-	}).Catch(func(e Exception) {
-		ex = e.DetailMessage()
-	}).End()
-	assert.True(t, inString(ex, "auction for name is not closed yet"))
+	create := func() { e.CreateAccountWithResources2(common.N("prefd"), david, 8000) }
+	CheckThrowMsg(t, e.WasmAssertMsg("auction for name is not closed yet"), create)
 
 	// stake enough to go above the 15% threshold
 	e.StakeWithTransfer(eosio, alice, CoreFromString("10000000.0000"), CoreFromString("10000000.0000"))
@@ -2411,12 +2106,8 @@ func TestMultipleNameBids(t *testing.T) {
 	e.ProduceBlocks(10, false)
 	e.ProduceBlock(common.Days(2), 0)
 	e.ProduceBlocks(10, false)
-	Try(func() {
-		e.CreateAccountWithResources2(common.N("prefd"), david, 8000)
-	}).Catch(func(e Exception) {
-		ex = e.DetailMessage()
-	}).End()
-	assert.True(t, inString(ex, "auction for name is not closed yet"))
+	create = func() { e.CreateAccountWithResources2(common.N("prefd"), david, 8000) }
+	CheckThrowMsg(t, e.WasmAssertMsg("auction for name is not closed yet"), create)
 
 	// it's been 14 days, auction for prefd has been closed
 	e.ProduceBlock(common.Days(12), 0)
@@ -2425,97 +2116,56 @@ func TestMultipleNameBids(t *testing.T) {
 	e.ProduceBlock(common.Hours(23), 0)
 
 	// auctions for prefa, prefb, prefc, prefe haven't been closed
-	Try(func() {
-		e.CreateAccountWithResources2(common.N("prefa"), bob, 8000)
-	}).Catch(func(e Exception) {
-		ex = e.DetailMessage()
-	}).End()
-	assert.True(t, inString(ex, "auction for name is not closed yet"))
-	Try(func() {
-		e.CreateAccountWithResources2(common.N("prefb"), alice, 8000)
-	}).Catch(func(e Exception) {
-		ex = e.DetailMessage()
-	}).End()
-	assert.True(t, inString(ex, "auction for name is not closed yet"))
-	Try(func() {
-		e.CreateAccountWithResources2(common.N("prefc"), bob, 8000)
-	}).Catch(func(e Exception) {
-		ex = e.DetailMessage()
-	}).End()
-	assert.True(t, inString(ex, "auction for name is not closed yet"))
-	Try(func() {
-		e.CreateAccountWithResources2(common.N("prefe"), eve, 8000)
-	}).Catch(func(e Exception) {
-		ex = e.DetailMessage()
-	}).End()
-	assert.True(t, inString(ex, "auction for name is not closed yet"))
+	create = func() { e.CreateAccountWithResources2(common.N("prefa"), bob, 8000) }
+	CheckThrowMsg(t, e.WasmAssertMsg("auction for name is not closed yet"), create)
+	create = func() { e.CreateAccountWithResources2(common.N("prefb"), alice, 8000) }
+	CheckThrowMsg(t, e.WasmAssertMsg("auction for name is not closed yet"), create)
+	create = func() { e.CreateAccountWithResources2(common.N("prefc"), bob, 8000) }
+	CheckThrowMsg(t, e.WasmAssertMsg("auction for name is not closed yet"), create)
+	create = func() { e.CreateAccountWithResources2(common.N("prefe"), eve, 8000) }
+	CheckThrowMsg(t, e.WasmAssertMsg("auction for name is not closed yet"), create)
 
 	// attempt to create account with no bid
-	Try(func() {
-		e.CreateAccountWithResources2(common.N("prefg"), alice, 8000)
-	}).Catch(func(e Exception) {
-		ex = e.DetailMessage()
-	}).End()
-	assert.True(t, inString(ex, "no active bid for name"))
+	create = func() { e.CreateAccountWithResources2(common.N("prefg"), alice, 8000) }
+	CheckThrowMsg(t, e.WasmAssertMsg("no active bid for name"), create)
 
 	// changing highest bid pushes auction closing time by 24 hours
 	assert.Equal(t, e.Success(), e.BidName(eve, common.N("prefb"), CoreFromString("2.1880")))
 	e.ProduceBlock(common.Hours(22), 0)
 	e.ProduceBlocks(2, false)
-	Try(func() {
-		e.CreateAccountWithResources2(common.N("prefb"), eve, 8000)
-	}).Catch(func(e Exception) {
-		ex = e.DetailMessage()
-	}).End()
-	assert.True(t, inString(ex, "auction for name is not closed yet"))
+	create = func() { e.CreateAccountWithResources2(common.N("prefb"), eve, 8000) }
+	CheckThrowMsg(t, e.WasmAssertMsg("auction for name is not closed yet"), create)
 
 	// but changing a bid that is not the highest does not push closing time
 	assert.Equal(t, e.Success(), e.BidName(carl, common.N("prefe"), CoreFromString("2.0980")))
 	e.ProduceBlock(common.Hours(2), 0)
 	e.ProduceBlocks(2, false)
 	// bid for prefb has closed, only highest bidder can claim
-	Try(func() {
-		e.CreateAccountWithResources2(common.N("prefb"), alice, 8000)
-	}).Catch(func(e Exception) {
-		ex = e.DetailMessage()
-	}).End()
-	assert.True(t, inString(ex, "only highest bidder can claim"))
-	Try(func() {
-		e.CreateAccountWithResources2(common.N("prefb"), carl, 8000)
-	}).Catch(func(e Exception) {
-		ex = e.DetailMessage()
-	}).End()
-	assert.True(t, inString(ex, "only highest bidder can claim"))
+	create = func() { e.CreateAccountWithResources2(common.N("prefb"), alice, 8000) }
+	CheckThrowMsg(t, e.WasmAssertMsg("only highest bidder can claim"), create)
+	create = func() { e.CreateAccountWithResources2(common.N("prefb"), carl, 8000) }
+	CheckThrowMsg(t, e.WasmAssertMsg("only highest bidder can claim"), create)
 	e.CreateAccountWithResources2(common.N("prefb"), eve, 8000)
+	create = func() { e.CreateAccountWithResources2(common.N("prefe"), carl, 8000) }
+	CheckThrowMsg(t, e.WasmAssertMsg("auction for name is not closed yet"), create)
 
-	Try(func() {
-		e.CreateAccountWithResources2(common.N("prefe"), carl, 8000)
-	}).Catch(func(e Exception) {
-		ex = e.DetailMessage()
-	}).End()
-	assert.True(t, inString(ex, "auction for name is not closed yet"))
 	e.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs), 0)
 	e.ProduceBlock(common.Hours(24), 0)
 	// by now bid for prefe has closed
 	e.CreateAccountWithResources2(common.N("prefe"), carl, 8000)
 
 	// prefe can now create *.prefe
-	Try(func() {
-		e.CreateAccountWithResources2(common.N("xyz.prefe"), carl, 8000)
-	}).Catch(func(e Exception) {
-		ex = e.DetailMessage()
-	}).End()
-	assert.True(t, inString(ex, "only suffix may create this account"))
+	create = func() { e.CreateAccountWithResources2(common.N("xyz.prefe"), carl, 8000) }
+	CheckThrowMsg(t, e.WasmAssertMsg("only suffix may create this account"), create)
+
 	e.Transfer(eosio, common.N("prefe"), CoreFromString("10000.0000"), eosio)
 	e.CreateAccountWithResources2(common.N("xyz.prefe"), common.N("prefe"), 8000)
 
 	// other auctions haven't closed
-	Try(func() {
-		e.CreateAccountWithResources2(common.N("prefa"), bob, 8000)
-	}).Catch(func(e Exception) {
-		ex = e.DetailMessage()
-	}).End()
-	assert.True(t, inString(ex, "auction for name is not closed yet"))
+	create = func() { e.CreateAccountWithResources2(common.N("prefa"), bob, 8000) }
+	CheckThrowMsg(t, e.WasmAssertMsg("auction for name is not closed yet"), create)
+
+	e.close()
 }
 
 func TestVoteProducersInAndOut(t *testing.T) {
@@ -2547,7 +2197,7 @@ func TestVoteProducersInAndOut(t *testing.T) {
 		e.Transfer(eosio, vote, CoreFromString("200000000.0000"), eosio)
 		assert.Equal(t, e.Success(), e.Stake(vote, vote, CoreFromString("30000000.0000"), CoreFromString("30000000.0000")))
 	}
-	fmt.Println(producersNames[0:20])
+
 	assert.Equal(t, e.Success(), e.Vote(voter1, producersNames[0:20], common.AccountName(0)))
 	assert.Equal(t, e.Success(), e.Vote(voter2, producersNames[0:21], common.AccountName(0)))
 	assert.Equal(t, e.Success(), e.Vote(voter3, producersNames, common.AccountName(0)))
@@ -2681,19 +2331,9 @@ func TestSetRamEffect(t *testing.T) {
 		boughtBytes := e.GetTotalStake(bobby)["ram_bytes"].(uint64) - initByte
 
 		// increase max_ram_size, ram bought by bobby loses part of its value
-		var ex string
-		Try(func() {
-			e.SetRam(eosio, uint64(uint64(64)*1024*1024*1024))
-		}).Catch(func(e Exception) {
-			ex = e.DetailMessage()
-		}).End()
-		assert.True(t, inString(ex, "ram may only be increased"))
-		Try(func() {
-			e.SetRam(bobby, uint64(uint64(80)*1024*1024*1024))
-		}).Catch(func(e Exception) {
-			ex = e.DetailMessage()
-		}).End()
-		assert.True(t, inString(ex, "missing authority of eosio"))
+		assert.Equal(t, e.WasmAssertMsg("ram may only be increased"), e.SetRam(eosio, uint64(uint64(64)*1024*1024*1024)))
+		assert.Equal(t, e.Error("missing authority of eosio"), e.SetRam(bobby, uint64(uint64(80)*1024*1024*1024)))
+
 		assert.Equal(t, e.Success(), e.SetRam(eosio, uint64(uint64(80)*1024*1024*1024)))
 
 		assert.Equal(t, e.Success(), e.SellRam(bobby, boughtBytes))

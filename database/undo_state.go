@@ -2,9 +2,9 @@ package database
 
 /////////////////////////////////////////////////////// UndoState  //////////////////////////////////////////////////////////
 type modifyValue struct {
-	id    int64
-	oldKv *dbKeyValue
-	newKv *dbKeyValue
+	Id    int64
+	OldKv *dbKeyValue
+	NewKv *dbKeyValue
 }
 
 type undoState struct {
@@ -14,9 +14,9 @@ type undoState struct {
 }
 
 type undoContainer struct {
-	undo      map[string]*undoState
-	oldIds    map[string]int64
-	reversion int64
+	Undo      map[string]*undoState
+	OldIds    map[string]int64
+	Reversion int64
 }
 
 func newUndoContainer(reversion int64, oldIds map[string]int64) *undoContainer {
@@ -25,62 +25,66 @@ func newUndoContainer(reversion int64, oldIds map[string]int64) *undoContainer {
 	for k, v := range oldIds {
 		oldIds_[k] = v
 	}
-	return &undoContainer{undo: make(map[string]*undoState), oldIds: oldIds, reversion: reversion}
+	return &undoContainer{Undo: make(map[string]*undoState), OldIds: oldIds, Reversion: reversion}
 }
 
 func newUndoState() *undoState {
+	//nv := new (modifyValue)
+	//rv := new (modifyValue)
+	//ov := new (modifyValue)
 	return &undoState{
 		NewValue:    make(map[int64]*modifyValue),
 		RemoveValue: make(map[int64]*modifyValue),
 		OldValue:    make(map[int64]*modifyValue),
 	}
+
 }
 
 func (container *undoContainer) checkType(typeName string) {
-	if _, ok := container.undo[typeName]; ok {
+	if _, ok := container.Undo[typeName]; ok {
 		return
 	}
 	undo := newUndoState()
-	container.undo[typeName] = undo
+	container.Undo[typeName] = undo
 }
 
 func (container *undoContainer) undoContainerInsert(typeName string, value *modifyValue) {
 	container.checkType(typeName)
 
-	_, ok := container.undo[typeName]
+	_, ok := container.Undo[typeName]
 	if !ok {
 		panic("undo container insert error : " + typeName)
 	}
-	container.undo[typeName].undoStackInsert(value)
+	container.Undo[typeName].undoStackInsert(value)
 }
 
 func (container *undoContainer) undoContainerRemove(typeName string, value *modifyValue) {
 	container.checkType(typeName)
 
-	_, ok := container.undo[typeName]
+	_, ok := container.Undo[typeName]
 	if !ok {
 		panic("undo container remove error : " + typeName)
 	}
-	container.undo[typeName].undoStackRemove(value)
+	container.Undo[typeName].undoStackRemove(value)
 }
 
 func (container *undoContainer) undoContainerModify(typeName string, value *modifyValue) {
 	container.checkType(typeName)
 
-	_, ok := container.undo[typeName]
+	_, ok := container.Undo[typeName]
 	if !ok {
 		panic("undo container modify error : " + typeName)
 	}
-	container.undo[typeName].undoStackModify(value)
+	container.Undo[typeName].undoStackModify(value)
 }
 
 func (stack *undoState) undoStackInsert(value *modifyValue) {
-	id := value.id
+	id := value.Id
 	stack.NewValue[id] = value
 }
 
 func (stack *undoState) undoStackRemove(value *modifyValue) {
-	id := value.id
+	id := value.Id
 	_, ok := stack.NewValue[id]
 	if ok {
 		delete(stack.NewValue, id)
@@ -101,7 +105,7 @@ func (stack *undoState) undoStackRemove(value *modifyValue) {
 }
 
 func (stack *undoState) undoStackModify(value *modifyValue) {
-	id := value.id
+	id := value.Id
 	if _, ok := stack.NewValue[id]; ok {
 		return
 	}

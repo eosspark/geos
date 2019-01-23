@@ -87,6 +87,13 @@ func (a *AbiDef) encodeFields(binaryEncoder *rlp.Encoder, fields []FieldDef, jso
 			}
 		}
 
+		if field.Type == "uint8[]" { //TODO json bug
+			value := gjson.GetBytes(json, fieldName)
+			results, _ := hex.DecodeString(value.Array()[0].String())
+			binaryEncoder.Encode(results)
+			continue
+		}
+
 		err := a.encodeField(binaryEncoder, fieldName, typeName, isOptional, isArray, json)
 		if err != nil {
 			return fmt.Errorf("encoding fields: %s", err)

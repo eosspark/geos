@@ -5,6 +5,7 @@ import (
 	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
+	. "github.com/eosspark/eos-go/log"
 	"github.com/eosspark/eos-go/plugins/appbase/app"
 	"github.com/eosspark/eos-go/plugins/chain_plugin"
 )
@@ -35,6 +36,7 @@ func NewSyncManager(impl *netPluginIMpl, span uint32) *syncManager {
 		syncNextExpectedNum:  1,
 		syncReqSpan:          span,
 		state:                inSync,
+		source:               &Connection{},
 		myImpl:               impl,
 	}
 	s.chainPlugin = app.App().FindPlugin(chain_plugin.ChainPlug).(*chain_plugin.ChainPlugin)
@@ -59,14 +61,14 @@ func (s *syncManager) setStage(newState stages) {
 	if s.state == newState {
 		return
 	}
-	netLog.Info("old state %s becoming %s", stageStr(s.state), stageStr(newState))
+	FcLog.Info("old state %s becoming %s", stageStr(s.state), stageStr(newState))
 	s.state = newState
 }
 
 func (s *syncManager) isActive(c *Connection) bool {
 	if s.state == headCatchup && c != nil {
 		fhSet := c.forkHead != common.BlockIdNil()
-		netLog.Info("fork_head_num = %d fork_head set = %s", c.forkHeadNum, fhSet)
+		FcLog.Info("fork_head_num = %d fork_head set = %s", c.forkHeadNum, fhSet)
 
 		return c.forkHead != common.BlockIdNil() && c.forkHeadNum < s.chainPlugin.Chain().ForkDbHeadBlockNum()
 	}
@@ -88,7 +90,7 @@ func (s *syncManager) resetLibNum(c *Connection) {
 }
 
 func (s *syncManager) syncRequired() bool {
-	fcLog.Info("last req = %d, last recv = %d, known = %d, our head %d",
+	FcLog.Info("last req = %d, last recv = %d, known = %d, our head %d",
 		s.syncLastRequestedNum, s.syncNextExpectedNum, s.syncKnownLibNum, s.chainPlugin.Chain().ForkDbHeadBlockNum())
 	return s.syncLastRequestedNum < s.syncKnownLibNum || s.chainPlugin.Chain().ForkDbHeadBlockNum() < s.syncLastRequestedNum
 }
@@ -97,7 +99,7 @@ func (s *syncManager) requestNextChunk(conn *Connection) {
 	headBlock := s.chainPlugin.Chain().ForkDbHeadBlockNum()
 
 	if headBlock < s.syncLastRequestedNum && s.source != nil && s.source.current() {
-		fcLog.Info("ignoring request, head is %d last req = %d source is %s", headBlock, s.syncLastRequestedNum, s.source.peerAddr)
+		FcLog.Info("ignoring request, head is %d last req = %d source is %s", headBlock, s.syncLastRequestedNum, s.source.peerAddr)
 		return
 	}
 
@@ -155,7 +157,7 @@ func (s *syncManager) requestNextChunk(conn *Connection) {
 	}
 
 	// verify there is an available source
-	if s.source != nil || !s.source.current() {
+	if s.source == nil || !s.source.current() {
 		netLog.Error("Unable to continue syncing at this time")
 		s.syncLastRequestedNum = s.chainPlugin.Chain().LastIrreversibleBlockNum()
 		s.setStage(inSync) // probably not, but we can't do anything else
@@ -169,7 +171,7 @@ func (s *syncManager) requestNextChunk(conn *Connection) {
 			end = s.syncKnownLibNum
 		}
 		if end > 0 && end >= start {
-			fcLog.Info("requesting range %s to %d, from %d\n", s.source.peerAddr, start, end)
+			FcLog.Info("requesting range %s to %d, from %d\n", s.source.peerAddr, start, end)
 			s.source.requestSyncBlocks(start, end)
 			s.syncLastRequestedNum = end
 		}
@@ -179,7 +181,7 @@ func (s *syncManager) requestNextChunk(conn *Connection) {
 func (s *syncManager) sendHandshakes(impl *netPluginIMpl) {
 	for _, ci := range impl.connections {
 		if ci.current() {
-			ci.sendHandshake(impl)
+			ci.sendHandshake()
 		}
 	}
 }
@@ -207,7 +209,7 @@ func (s *syncManager) recvHandshake(c *Connection, msg *HandshakeMessage) {
 	headID := cc.ForkDbHeadBlockId()
 
 	if headID == msg.HeadID {
-		fcLog.Info("sync check statue 0")
+		FcLog.Info("sync check statue 0")
 		// notify peer of our pending transactions
 
 		note := NoticeMessage{}
@@ -219,7 +221,7 @@ func (s *syncManager) recvHandshake(c *Connection, msg *HandshakeMessage) {
 	}
 
 	if head < peerLib {
-		fcLog.Info("sync check state 1")
+		FcLog.Info("sync check state 1")
 		//wait for receipt of a notice message before initiating sync
 		if c.protocolVersion < protoExplicitSync {
 			s.startSync(c, peerLib)
@@ -228,7 +230,7 @@ func (s *syncManager) recvHandshake(c *Connection, msg *HandshakeMessage) {
 	}
 
 	if libNum > msg.HeadNum {
-		fcLog.Info("sync check state 2")
+		FcLog.Info("sync check state 2")
 		if msg.Generation > 1 || c.protocolVersion > protoBase {
 			note := NoticeMessage{}
 			note.KnownBlocks.Mode = lastIrrCatchUp
@@ -242,16 +244,16 @@ func (s *syncManager) recvHandshake(c *Connection, msg *HandshakeMessage) {
 	}
 
 	if head <= msg.HeadNum {
-		fcLog.Info("sync check state 3")
+		FcLog.Info("sync check state 3")
 		s.verifyCatchup(c, msg.HeadNum, msg.HeadID)
 		return
 	} else {
-		fcLog.Info("sync check state 4")
+		FcLog.Info("sync check state 4")
 		if msg.Generation > 1 || c.protocolVersion > protoBase {
 			note := NoticeMessage{}
 			note.KnownBlocks.Mode = catchUp
 			note.KnownBlocks.Pending = head
-			note.KnownBlocks.IDs = append(note.KnownBlocks.IDs, &headID)
+			note.KnownBlocks.IDs = append(note.KnownBlocks.IDs, headID)
 			note.KnownTrx.Mode = none
 			c.enqueue(&note, true)
 		}
@@ -269,7 +271,7 @@ func (s *syncManager) startSync(c *Connection, target uint32) {
 	if !s.syncRequired() {
 		bNum := s.myImpl.ChainPlugin.Chain().LastIrreversibleBlockNum()
 		hNum := s.myImpl.ChainPlugin.Chain().ForkDbHeadBlockNum()
-		fcLog.Info("we are already caught up, my irr = %d,head =%d,target = %d", bNum, hNum, target)
+		FcLog.Info("we are already caught up, my irr = %d,head =%d,target = %d", bNum, hNum, target)
 		return
 	}
 	if s.state == inSync {
@@ -277,13 +279,13 @@ func (s *syncManager) startSync(c *Connection, target uint32) {
 		s.syncNextExpectedNum = s.myImpl.ChainPlugin.Chain().LastIrreversibleBlockNum() + 1
 	}
 
-	fcLog.Info("Catching up with chain, our last req is %d, theirs is %d peer %s", +s.syncLastRequestedNum, target, c.peerAddr)
+	FcLog.Info("Catching up with chain, our last req is %d, theirs is %d peer %s", +s.syncLastRequestedNum, target, c.peerAddr)
 
 	s.requestNextChunk(c)
 }
 
 func (s *syncManager) reassignFetch(c *Connection, reason GoAwayReason) {
-	fcLog.Info("reassign_fetch, our last req is %d, next expected is %d peer %s", +s.syncLastRequestedNum, s.syncNextExpectedNum, c.peerAddr)
+	FcLog.Info("reassign_fetch, our last req is %d, next expected is %d peer %s", +s.syncLastRequestedNum, s.syncNextExpectedNum, c.peerAddr)
 	if c == s.source {
 		c.cancelSync(reason)
 		s.syncLastRequestedNum = 0
@@ -305,7 +307,7 @@ func (s *syncManager) verifyCatchup(c *Connection, num uint32, id common.BlockId
 	if req.ReqBlocks.Mode == catchUp {
 		c.forkHead = id
 		c.forkHeadNum = num
-		netLog.Info("got a catch_up notice while in %s, fork head num = %d target LIB = %d next_expected = %d",
+		FcLog.Info("got a catch_up notice while in %s, fork head num = %d target LIB = %d next_expected = %d",
 			stageStr(s.state), num, s.syncKnownLibNum, s.syncNextExpectedNum)
 		if s.state == libCatchup {
 			return
@@ -322,13 +324,13 @@ func (s *syncManager) verifyCatchup(c *Connection, num uint32, id common.BlockId
 }
 
 func (s *syncManager) recvNotice(c *Connection, msg *NoticeMessage) {
-	fcLog.Info("sync_manager got %s block notice", modeTostring[msg.KnownBlocks.Mode])
+	FcLog.Info("sync_manager got %s block notice", modeTostring[msg.KnownBlocks.Mode])
 	if msg.KnownBlocks.Mode == catchUp {
 		IDsCount := len(msg.KnownBlocks.IDs)
 		if IDsCount == 0 {
 			netLog.Error("got a catch up with ids size = 0")
 		} else {
-			s.verifyCatchup(c, msg.KnownBlocks.Pending, *msg.KnownBlocks.IDs[IDsCount-1])
+			s.verifyCatchup(c, msg.KnownBlocks.Pending, msg.KnownBlocks.IDs[IDsCount-1])
 		}
 	} else {
 		c.lastHandshakeRecv.LastIrreversibleBlockNum = msg.KnownTrx.Pending
@@ -339,7 +341,7 @@ func (s *syncManager) recvNotice(c *Connection, msg *NoticeMessage) {
 
 func (s *syncManager) rejectedBlock(c *Connection, blkNum uint32) {
 	if s.state != inSync {
-		fcLog.Debug("block %d not accepted from %s", blkNum, c.peerAddr)
+		FcLog.Debug("block %d not accepted from %s", blkNum, c.peerAddr)
 		s.syncLastRequestedNum = 0
 		s.source.reset()
 		s.myImpl.close(c)
@@ -349,18 +351,18 @@ func (s *syncManager) rejectedBlock(c *Connection, blkNum uint32) {
 }
 
 func (s *syncManager) recvBlock(c *Connection, blkID common.BlockIdType, blkNum uint32) {
-	fcLog.Debug("got block %d from %s", blkNum, c.peerAddr)
+	FcLog.Debug("got block %d from %s", blkNum, c.peerAddr)
 	if s.state == libCatchup {
 		if blkNum != s.syncNextExpectedNum {
-			fcLog.Info("expected block %d but got %d", s.syncNextExpectedNum, blkNum)
-			s.myImpl.close(c)
+			FcLog.Info("expected block %d but got %d", s.syncNextExpectedNum, blkNum)
+			//s.myImpl.close(c)
 			return
 		}
 		s.syncNextExpectedNum = blkNum + 1
 	}
 
 	if s.state == headCatchup {
-		fcLog.Debug("sync_manager in head_catchup state")
+		FcLog.Debug("sync_manager in head_catchup state")
 		s.setStage(inSync)
 		s.source.reset()
 
@@ -378,14 +380,14 @@ func (s *syncManager) recvBlock(c *Connection, blkID common.BlockIdType, blkNum 
 		}
 	} else if s.state == libCatchup {
 		if blkNum == s.syncKnownLibNum {
-			fcLog.Debug("All caught up with last known last irreversible block resending handshake")
+			FcLog.Debug("All caught up with last known last irreversible block resending handshake")
 			s.setStage(inSync)
 			s.sendHandshakes(s.myImpl)
 		} else if blkNum == s.syncLastRequestedNum {
 			s.requestNextChunk(nil)
 		} else {
-			fcLog.Debug("calling sync_wait on connecting %s", c.peerAddr)
-			c.syncWait()
+			//FcLog.Debug("calling sync_wait on connecting %s", c.peerAddr)
+			//c.syncWait()
 		}
 	}
 }

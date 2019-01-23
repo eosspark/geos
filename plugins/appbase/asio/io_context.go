@@ -5,8 +5,7 @@ type IoContext struct {
 }
 
 func NewIoContext() *IoContext {
-	i := new(IoContext)
-	return i
+	return &IoContext{}
 }
 
 func (i *IoContext) Run() {
@@ -73,4 +72,3 @@ type ReactorService interface {
 //
 //	opv.Call(opArgs)
 //}
-

@@ -3,10 +3,12 @@ package common
 import (
 	"encoding/binary"
 	"encoding/json"
+	"fmt"
+	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
-	"strings"
 	"reflect"
+	"strings"
 )
 
 // ported from libraries/chain/name.cpp in eosio
@@ -26,8 +28,26 @@ func (n *Name) GetKey() []byte {
 	return b
 }
 
+func (n Name) Pack() ([]byte, error) {
+	buf := make([]byte, 8)
+	binary.LittleEndian.PutUint64(buf, uint64(n))
+	return buf, nil
+}
+
+func (n *Name) Unpack(in []byte) (rlp.Unpack, error) {
+	if len(in) < 8 {
+		return nil, fmt.Errorf("rlp: uint64 required [%d] bytes, remaining [%d]", 8, len(in))
+	}
+
+	data := in[:8]
+	out := binary.LittleEndian.Uint64(data)
+	fmt.Println(Name(out))
+	return nil, nil
+}
+
 //for treeset
 var TypeName = reflect.TypeOf(Name(0))
+
 func CompareName(first interface{}, second interface{}) int {
 	if first.(Name) == second.(Name) {
 		return 0

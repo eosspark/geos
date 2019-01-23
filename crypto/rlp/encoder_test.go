@@ -163,7 +163,7 @@ type EncodeTestStruct struct {
 	F13 []byte
 	//F14 common.TimePoint
 	F15 types.BlockTimeStamp
-	F16 common.Varuint32
+	//F16 common.Varuint32
 	F17 bool
 	F18 common.Asset
 }
@@ -192,7 +192,7 @@ func TestDecoder_Encode(t *testing.T) {
 		F13: []byte{1, 2, 3, 4, 5},
 		//F14: tstamp,
 		F15: blockts,
-		F16: common.Varuint32{999},
+		//F16: common.Varuint32{999},
 		F17: true,
 		F18: common.NewEOSAsset(100000),
 	}
@@ -219,7 +219,7 @@ func TestDecoder_Encode(t *testing.T) {
 	assert.Equal(t, []byte{1, 2, 3, 4, 5}, s.F13)
 	//assert.Equal(t, tstamp, s.F14)
 	assert.Equal(t, blockts, s.F15)
-	assert.Equal(t, common.Varuint32{999}, s.F16)
+	//assert.Equal(t, common.Varuint32{999}, s.F16)
 	assert.Equal(t, true, s.F17)
 	assert.Equal(t, int64(100000), s.F18.Amount)
 	assert.Equal(t, uint8(4), s.F18.Precision)

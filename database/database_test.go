@@ -1,9 +1,11 @@
 package database
 
 import (
+	"fmt"
 	"github.com/syndtr/goleveldb/leveldb"
 	"log"
 	"os"
+	"runtime/pprof"
 	"testing"
 )
 
@@ -11,6 +13,13 @@ var logFlag = false
 //var logFlag = true
 
 func Test_rawDb(t *testing.T) {
+	cpuf, err := os.Create("cpu_profile")
+	if err != nil {
+		log.Fatal(err)
+	}
+	pprof.StartCPUProfile(cpuf)
+	defer pprof.StopCPUProfile()
+
 
 	fileName := "./eosspark"
 	reFn := func() {
@@ -1872,5 +1881,31 @@ func Test_findIdZero(t *testing.T){
 		LogObj(tmp)
 		log.Fatalln("not equal")
 	}
+}
+
+func Test_reversion(t *testing.T) {
+	fileName := "./hello"
+
+	db, err := NewDataBase(fileName, logFlag)
+	if err != nil {
+		log.Fatalln("new database failed : ", err)
+	}
+
+	for db.Revision() >0 {
+		db.Undo()
+		fmt.Println(db.Revision())
+	}
+
+	s1 := db.StartSession()
+	objs, _ := Objects()
+	for i := 0; i < 3; i++ {
+		err := db.Insert(&objs[i])
+		if err != nil {
+			log.Println(err)
+		}
+	}
+	s1.Push()
+	fmt.Println(db.Revision())
+	db.Close()
 }
 
