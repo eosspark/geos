@@ -102,7 +102,7 @@ func (d *dispatchManager) recvBlock(c *Connection, id common.BlockIdType, bnum u
 
 	IdsCount := len(c.lastReq.ReqBlocks.IDs)
 	if c != nil && c.lastReq != nil && c.lastReq.ReqBlocks.Mode != none && IdsCount > 0 && c.lastReq.ReqBlocks.IDs[IdsCount-1] == id {
-		c.lastReq = &RequestMessage{} //TODO
+		c.lastReq = &RequestMessage{}
 	}
 
 	pbs := PeerBlockState{
@@ -113,7 +113,7 @@ func (d *dispatchManager) recvBlock(c *Connection, id common.BlockIdType, bnum u
 		RequestedTime: common.TimePoint(0),
 	}
 	c.addPeerBlock(&pbs)
-	//FcLog.Debug("canceling wait on %s", c.peerAddr)
+	FcLog.Debug("canceling wait on %s", c.peerAddr)
 	//c.cancelWait()
 }
 
@@ -231,16 +231,15 @@ func (d *dispatchManager) rejectedTransaction(id common.TransactionIdType) {
 	}
 }
 
-func (d *dispatchManager) recvTransaction(p *Connection, id common.TransactionIdType) {
-	d.receivedTransactions[id] = append(d.receivedTransactions[id], p)
-	idsCount := len(p.lastReq.ReqTrx.IDs)
-	if p != nil && p.lastReq != nil && p.lastReq.ReqTrx.Mode != none && idsCount > 0 && p.lastReq.ReqTrx.IDs[idsCount-1] == id { //TODO c && c->last_req
-		//p.lastReq.reset()
-		p.lastReq = &RequestMessage{}
+func (d *dispatchManager) recvTransaction(c *Connection, id common.TransactionIdType) {
+	d.receivedTransactions[id] = append(d.receivedTransactions[id], c)
+	idsCount := len(c.lastReq.ReqTrx.IDs)
+	if c != nil && c.lastReq != nil && c.lastReq.ReqTrx.Mode != none && idsCount > 0 && c.lastReq.ReqTrx.IDs[idsCount-1] == id { //TODO c && c->last_req
+		//c.lastReq.reset()
+		c.lastReq = &RequestMessage{}
 	}
-	FcLog.Debug("canceling wait on %s", p.peerAddr)
-	p.cancelWait()
-
+	//FcLog.Debug("canceling wait on %s", c.peerAddr)
+	//c.cancelWait()
 }
 
 func (d *dispatchManager) recvNotice(c *Connection, msg *NoticeMessage, generated bool) {

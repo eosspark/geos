@@ -163,8 +163,6 @@ func (e *encoder) encode(v interface{}) (err error) {
 		e.writeUint64(u128.Low)
 
 		return err
-	case nil:
-		return
 	}
 
 	rv := reflect.Indirect(reflect.ValueOf(v))
