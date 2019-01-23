@@ -22,7 +22,10 @@ type ResourceLimitsFixture struct {
 }
 
 func initializeResource() *ResourceLimitsFixture {
-	os.RemoveAll("/tmp/data")
+	err := os.RemoveAll("/tmp/data/")
+	if err != nil {
+		log.Error("Node data has been emptied is error:%s", err)
+	}
 	control := GetControllerInstance()
 	rlm := control.ResourceLimits
 	rlm.InitializeDatabase()
@@ -89,6 +92,7 @@ func TestElasticCpuRelaxContract(t *testing.T) {
 	assert.Equal(t, expectedRelaxIteration+expectedContractIteration, uint64(iterations))
 	assert.Equal(t, uint64(common.DefaultConfig.MaxBlockCpuUsage), rlm.GetVirtualBlockCpuLimit())
 
+	rlm.Close()
 }
 
 func TestElasticNetRelaxContract(t *testing.T) {
@@ -124,6 +128,8 @@ func TestElasticNetRelaxContract(t *testing.T) {
 	}
 	assert.Equal(t, expectedRelaxIteration+expectedContractIteration, uint64(iterations))
 	assert.Equal(t, uint64(common.DefaultConfig.MaxBlockNetUsage), rlm.GetVirtualBlockNetLimit())
+
+	rlm.Close()
 }
 
 func TestWeightedCapacityCpu(t *testing.T) {
@@ -169,6 +175,8 @@ func TestWeightedCapacityCpu(t *testing.T) {
 		addTrxUsage := func() { rlm.AddTransactionUsage(f, uint64(expectedLimits[idx]+1), 0, 0) }
 		CheckThrowException(t, &exception.TxCpuUsageExceeded{}, addTrxUsage)
 	}
+
+	rlm.Close()
 }
 
 func TestWeightedCapacityNet(t *testing.T) {
@@ -217,6 +225,8 @@ func TestWeightedCapacityNet(t *testing.T) {
 			fmt.Println(e)
 		}).End()
 	}
+
+	rlm.Close()
 }
 
 func TestEnforceBlockLimitsCpu(t *testing.T) {
@@ -237,6 +247,8 @@ func TestEnforceBlockLimitsCpu(t *testing.T) {
 
 	addTrxUsage := func() { rlm.AddTransactionUsage(f, increment, 0, 0) }
 	CheckThrowException(t, &exception.BlockResourceExhausted{}, addTrxUsage)
+
+	rlm.Close()
 }
 
 func TestEnforceBlockLimitsNet(t *testing.T) {
@@ -258,6 +270,8 @@ func TestEnforceBlockLimitsNet(t *testing.T) {
 
 	addTrxUsage := func() { rlm.AddTransactionUsage(f, 0, increment, 0) }
 	CheckThrowException(t, &exception.BlockResourceExhausted{}, addTrxUsage)
+
+	rlm.Close()
 }
 
 func TestEnforceAccountRamLimit(t *testing.T) {
@@ -279,6 +293,8 @@ func TestEnforceAccountRamLimit(t *testing.T) {
 
 	verifyUsage := func() { rlm.VerifyAccountRamUsage(account) }
 	CheckThrowException(t, &exception.RamUsageExceeded{}, verifyUsage)
+
+	rlm.Close()
 }
 
 func TestEnforceAccountRamLimitUnderflow(t *testing.T) {
@@ -291,6 +307,8 @@ func TestEnforceAccountRamLimitUnderflow(t *testing.T) {
 
 	AddUsage := func() { rlm.AddPendingRamUsage(account, -101) }
 	CheckThrowException(t, &exception.TransactionException{}, AddUsage)
+
+	rlm.Close()
 }
 
 func TestEnforceAccountRamLimitOverflow(t *testing.T) {
@@ -306,6 +324,8 @@ func TestEnforceAccountRamLimitOverflow(t *testing.T) {
 
 	AddUsage := func() { rlm.AddPendingRamUsage(account, 2) }
 	CheckThrowException(t, &exception.TransactionException{}, AddUsage)
+
+	rlm.Close()
 }
 
 func TestEnforceAccountRamCommitment(t *testing.T) {
@@ -332,6 +352,8 @@ func TestEnforceAccountRamCommitment(t *testing.T) {
 
 	verifyUsage := func() { rlm.VerifyAccountRamUsage(account) }
 	CheckThrowException(t, &exception.RamUsageExceeded{}, verifyUsage)
+
+	rlm.Close()
 }
 
 func TestSanityCheck(t *testing.T) {
@@ -357,4 +379,6 @@ func TestSanityCheck(t *testing.T) {
 	f := treeset.NewWith(common.TypeName, common.CompareName)
 	f.AddItem(dan)
 	rlm.AddTransactionUsage(f, 10, 0, 1)
+
+	rlm.Close()
 }
