@@ -1,7 +1,8 @@
 wasmgo
 =====
 
-fork from https://github.com/go-interpreter/wagon
+Fork from https://github.com/go-interpreter/wagon
+Fork from https://github.com/perlin-network/life 
 
 **NOTE:** `wasmgo` requires `Go >= 1.9.x`.
 
