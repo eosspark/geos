@@ -48,7 +48,7 @@ func init() {
 	DefaultConfig.BlockTimestampEpochMs = 946684800000 // epoch is year 2000.
 	DefaultConfig.BlockTimestamoEpochNanos = 1e6 * DefaultConfig.BlockTimestampEpochMs
 
-	DefaultConfig.DefaultAbiSerializerMaxTimeMs = 15*1000
+	DefaultConfig.DefaultAbiSerializerMaxTimeMs = 15 * 1000
 
 	DefaultConfig.ProducerRepetitions = 12
 	DefaultConfig.MaxProducers = 125

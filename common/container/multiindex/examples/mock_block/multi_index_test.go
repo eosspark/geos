@@ -45,7 +45,7 @@ func TestLoopModify(t *testing.T) {
 		itr := pitr
 		pitr.Next()
 		pidx.Modify(itr, func(tb **MockBlock) {
-			(*tb).Perv ++
+			(*tb).Perv++
 		})
 	}
 

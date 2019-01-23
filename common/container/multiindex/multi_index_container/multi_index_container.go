@@ -72,7 +72,7 @@ func (m *MultiIndex) insert(v Value) (*MultiIndexNode, bool) {
 	n, res := m.super.insert(v, fn)
 	if res {
 		fn.super = n
-		m.count ++
+		m.count++
 		return fn, true
 	}
 	return nil, false
@@ -84,7 +84,7 @@ func (m *MultiIndex) Erase(iter multiindex.IteratorType) {
 
 func (m *MultiIndex) erase(n *MultiIndexNode) {
 	m.super.erase(n.super)
-	m.count --
+	m.count--
 }
 
 func (m *MultiIndex) Modify(iter multiindex.IteratorType, mod func(*Value)) bool {

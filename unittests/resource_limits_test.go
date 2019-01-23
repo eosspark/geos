@@ -26,7 +26,7 @@ func initializeResource() *ResourceLimitsFixture {
 	if err != nil {
 		log.Error("Node data has been emptied is error:%s", err)
 	}
-	control := GetControllerInstance()
+	control := NewController(NewConfig())
 	rlm := control.ResourceLimits
 	rlm.InitializeDatabase()
 	return &ResourceLimitsFixture{ResourceLimitsManager: *rlm, Controller: *control}

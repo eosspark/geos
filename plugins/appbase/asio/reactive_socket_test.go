@@ -38,7 +38,7 @@ func TestReactiveSocket_AsyncAccept(t *testing.T) {
 			}
 
 			dialogs[index] = conn
-			index ++
+			index++
 
 			doWrite = func() {
 				time.Sleep(time.Second)

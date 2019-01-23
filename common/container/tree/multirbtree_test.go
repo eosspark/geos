@@ -567,7 +567,7 @@ func TestRedBlackMultiTreeIteratorDelete(t *testing.T) {
 	for itr := tree.Begin(); itr.HasNext(); itr.Next() {
 		tree.RemoveOne(itr)
 		utils.AssertTest(t, expects[index:], tree.Values())
-		index ++
+		index++
 	}
 }
 

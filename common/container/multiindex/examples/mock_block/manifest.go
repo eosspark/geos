@@ -66,6 +66,7 @@ var ByNumCompare = func(aKey, bKey ByNumComposite) int {
 	}
 	return 0
 }
+
 //go:generate gotemplate "github.com/eosspark/eos-go/common/container/multiindex/ordered_index" ByLibNum(TestIndex,TestIndexNode,TestIndexBase,TestIndexBaseNode,ValueType,ByLibNumComposite,ByLibNumKeyFunc,ByLibNumCompare,true)
 type ByLibNumComposite struct {
 	Dpos *int

@@ -14,6 +14,8 @@ const (
 	tagGreater   = "greater"
 	tagInline    = "inline"
 	dbIncrement  = "db_increment"
+ undoKey = "undo_stack"
+	dbReversion = "db_reversion"
 )
 
 /*

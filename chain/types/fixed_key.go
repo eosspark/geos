@@ -42,53 +42,53 @@ func ConvertToWordT(T interface{}) WordT {
 	switch v := T.(type) {
 	case int:
 		if v >= 0 {
-			return Uint128{Low:uint64(v), High:0}
+			return Uint128{Low: uint64(v), High: 0}
 		} else {
-			return Uint128{Low:0, High:0}
+			return Uint128{Low: 0, High: 0}
 		}
 	case int8:
 		if v >= 0 {
-			return Uint128{Low:uint64(v), High:0}
+			return Uint128{Low: uint64(v), High: 0}
 		} else {
-			return Uint128{Low:0, High:0}
+			return Uint128{Low: 0, High: 0}
 		}
 	case int16:
 		if v >= 0 {
-			return Uint128{Low:uint64(v), High:0}
+			return Uint128{Low: uint64(v), High: 0}
 		} else {
-			return Uint128{Low:0, High:0}
+			return Uint128{Low: 0, High: 0}
 		}
 	case int32:
 		if v >= 0 {
-			return Uint128{Low:uint64(v), High:0}
+			return Uint128{Low: uint64(v), High: 0}
 		} else {
-			return Uint128{Low:0, High:0}
+			return Uint128{Low: 0, High: 0}
 		}
 	case int64:
 		if v >= 0 {
-			return Uint128{Low:uint64(v), High:0}
+			return Uint128{Low: uint64(v), High: 0}
 		} else {
-			return Uint128{Low:0, High:0}
+			return Uint128{Low: 0, High: 0}
 		}
 	case uint:
-		return Uint128{Low:uint64(v), High:0}
+		return Uint128{Low: uint64(v), High: 0}
 	case uint8:
-		return Uint128{Low:uint64(v), High:0}
+		return Uint128{Low: uint64(v), High: 0}
 	case uint16:
-		return Uint128{Low:uint64(v), High:0}
+		return Uint128{Low: uint64(v), High: 0}
 	case uint32:
-		return Uint128{Low:uint64(v), High:0}
+		return Uint128{Low: uint64(v), High: 0}
 	case uint64:
-		return Uint128{Low:uint64(v), High:0}
+		return Uint128{Low: uint64(v), High: 0}
 	case bool:
-		if v == true{
-			return Uint128{Low:1, High:0}
+		if v == true {
+			return Uint128{Low: 1, High: 0}
 		} else {
-			return Uint128{Low:0, High:0}
+			return Uint128{Low: 0, High: 0}
 		}
 
 	default:
-		return Uint128{Low:0, High:0}
+		return Uint128{Low: 0, High: 0}
 	}
 }
 
@@ -133,7 +133,7 @@ func (f *FixedKey) SetFromWordSequence(arr []interface{}) {
 		if subWordsLeft > 1 {
 			tempWord = tempWord.Or(ConvertToWordT(w))
 			tempWord.LeftShifts(subWordShift)
-			subWordsLeft --
+			subWordsLeft--
 			continue
 		}
 
@@ -142,12 +142,12 @@ func (f *FixedKey) SetFromWordSequence(arr []interface{}) {
 		subWordsLeft = numSubWords
 
 		f.data[i] = tempWord
-		tempWord = Uint128{Low:0,High:0}
+		tempWord = Uint128{Low: 0, High: 0}
 		i++
 	}
 	if subWordsLeft != numSubWords {
 		if subWordsLeft > 1 {
-			tempWord.LeftShifts(8 * int(subWordsLeft - 1))
+			tempWord.LeftShifts(8 * int(subWordsLeft-1))
 		}
 		f.data[i] = tempWord
 	}
@@ -156,9 +156,9 @@ func (f *FixedKey) SetFromWordSequence(arr []interface{}) {
 func (f *FixedKey) MakeFromWordSequence(first interface{}, rest ...interface{}) *FixedKey {
 	Try(func() {
 		FcAssert(f.EnableFirstWord(first), "The first word is invalid")
-		FcAssert(wordTSize == wordTSize/SizeOf(first) * SizeOf(first),
+		FcAssert(wordTSize == wordTSize/SizeOf(first)*SizeOf(first),
 			"size of the backing word size is not divisible by the size of the words supplied as arguments")
-		FcAssert(SizeOf(first) * (1 +len(rest)) <= f.Size, "too many words supplied to make_from_word_sequence")
+		FcAssert(SizeOf(first)*(1+len(rest)) <= f.Size, "too many words supplied to make_from_word_sequence")
 		var arr []interface{}
 		arr = append(arr, first)
 		arr = append(arr, rest...)
