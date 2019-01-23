@@ -538,7 +538,7 @@ func (a *ApplyContext) ScheduleDeferredTransaction(sendId *eos_math.Uint128, pay
 		a.DB.Insert(&gto)
 	}
 
-	EosAssert(a.Control.IsRamBillingInNotifyAllowed() || (a.Receiver == payer) || a.Privileged, //||(receiver == act.account)
+	EosAssert(a.Control.IsRamBillingInNotifyAllowed() || (a.Receiver == payer) || a.Privileged || (a.Receiver == a.Act.Account),
 		&SubjectiveBlockProductionException{}, "Cannot charge RAM to other accounts during notify.")
 	a.AddRamUsage(payer, int64(common.BillableSizeV("generated_transaction_object")+uint64(trxSize)))
 

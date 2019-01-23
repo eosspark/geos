@@ -23,7 +23,7 @@ type ResourceLimitsFixture struct {
 
 func initializeResource() *ResourceLimitsFixture {
 	os.RemoveAll("/tmp/data")
-	control := GetControllerInstance()
+	control := NewController(NewConfig())
 	rlm := control.ResourceLimits
 	rlm.InitializeDatabase()
 	return &ResourceLimitsFixture{ResourceLimitsManager: *rlm, Controller: *control}

@@ -181,31 +181,7 @@ type Controller struct {
 	BadAlloc                       include.Signal
 }
 
-func GetControllerInstance() *Controller {
-	if !isActiveController {
-		validPath()
-		instance = newController()
-	}
-	return instance
-}
-
-func validPath() {
-	//path := []string{common.DefaultConfig.DefaultStateDirName, common.DefaultConfig.DefaultBlocksDirName, common.DefaultConfig.DefaultReversibleBlocksDirName,
-	//	comsmon.DefaultConfig.ValidatingBlocksDirName, common.DefaultConfig.ValidatingStateDirName, common.DefaultConfig.ValidatingReversibleBlocksDirName}
-	//for _, d := range path {
-	//	_, err := os.Stat(d)
-	//	if os.IsNotExist(err) {
-	//		err := os.MkdirAll(d, os.ModePerm)
-	//		if err != nil {
-	//			log.Info("controller validPath mkdir failed:%s\n", err)
-	//		} else {
-	//			log.Info("controller validPath mkdir success:%s\n", d)
-	//		}
-	//	}
-	//}
-}
 func NewController(cfg *Config) *Controller {
-	validPath()
 	db, err := database.NewDataBase(cfg.StateDir)
 	reversibleDB, err := database.NewDataBase(cfg.ReversibleDir)
 
@@ -249,64 +225,7 @@ func NewController(cfg *Config) *Controller {
 		common.ActionName(common.N("canceldelay")), applyEosioCanceldalay)
 	con.initialize()
 	con.ForkDB.Irreversible.Connect(&chain_interface.IrreversibleBlockCaller{Caller: con.OnIrreversible})
-
-	return con
-}
-
-func newController() *Controller {
-	isActiveController = true //controller is active
-	//init db
-	db, err := database.NewDataBase(common.DefaultConfig.DefaultStateDirName)
-	if err != nil {
-		log.Error("newController is error :%s", err)
-		return nil
-	}
-	//init ReversibleBlocks
-	//reversibleDir := common.DefaultConfig.DefaultBlocksDirName + "/" + common.DefaultConfig.DefaultReversibleBlocksDirName
-	reversibleDB, err := database.NewDataBase(common.DefaultConfig.DefaultReversibleBlocksDirName)
-	if err != nil {
-		log.Error("newController init reversibleDB is error:%s", err)
-	}
-	con := &Controller{InTrxRequiringChecks: false, RePlaying: false, TrustedProducerLightValidation: false}
-	con.DB = db
-	con.ReversibleBlocks = reversibleDB
-
-	con.Blog = NewBlockLog(common.DefaultConfig.DefaultBlocksDirName)
-
-	con.ForkDB = NewForkDatabase(common.DefaultConfig.DefaultBlocksDirName)
-	con.initConfig()
-	con.ChainID = con.Config.Genesis.ComputeChainID()
-
-	con.ReadMode = con.Config.ReadMode
-	con.ApplyHandlers = make(map[string]v)
-	con.WasmIf = wasmgo.NewWasmGo()
-
-	con.SetApplayHandler(common.AccountName(common.N("eosio")), common.AccountName(common.N("eosio")),
-		common.ActionName(common.N("newaccount")), applyEosioNewaccount)
-	con.SetApplayHandler(common.AccountName(common.N("eosio")), common.AccountName(common.N("eosio")),
-		common.ActionName(common.N("setcode")), applyEosioSetcode)
-	con.SetApplayHandler(common.AccountName(common.N("eosio")), common.AccountName(common.N("eosio")),
-		common.ActionName(common.N("setabi")), applyEosioSetabi)
-	con.SetApplayHandler(common.AccountName(common.N("eosio")), common.AccountName(common.N("eosio")),
-		common.ActionName(common.N("updateauth")), applyEosioUpdateauth)
-	con.SetApplayHandler(common.AccountName(common.N("eosio")), common.AccountName(common.N("eosio")),
-		common.ActionName(common.N("deleteauth")), applyEosioDeleteauth)
-	con.SetApplayHandler(common.AccountName(common.N("eosio")), common.AccountName(common.N("eosio")),
-		common.ActionName(common.N("linkauth")), applyEosioLinkauth)
-	con.SetApplayHandler(common.AccountName(common.N("eosio")), common.AccountName(common.N("eosio")),
-		common.ActionName(common.N("unlinkauth")), applyEosioUnlinkauth)
-	con.SetApplayHandler(common.AccountName(common.N("eosio")), common.AccountName(common.N("eosio")),
-		common.ActionName(common.N("canceldelay")), applyEosioCanceldalay)
-
-	//IrreversibleBlock.connect()
-	//readycontroller = make(chan bool)
-	//go initResource(con, readycontroller)
-	//con.Pending = &PendingState{}
-	con.ResourceLimits = newResourceLimitsManager(con)
-	con.Authorization = newAuthorizationManager(con)
-	con.UnappliedTransactions = make(map[crypto.Sha256]types.TransactionMetadata)
-	con.ForkDB.Irreversible.Connect(&chain_interface.IrreversibleBlockCaller{Caller: con.OnIrreversible})
-	con.initialize()
+	con.Head = con.ForkDB.Head
 	return con
 }
 
@@ -373,10 +292,10 @@ func (c *Controller) OnIrreversible(s *types.BlockState) {
 	}
 	itr := ubi.Begin()
 	tbs := entity.ReversibleBlockObject{}
-	if itr != ubi.End() {
+	if !ubi.CompareEnd(itr) {
 		err = itr.Data(&tbs)
 	}
-	for itr != ubi.End() && tbs.BlockNum <= s.BlockNum {
+	for !ubi.CompareEnd(itr) && tbs.BlockNum <= s.BlockNum {
 		err := c.ReversibleBlocks.Remove(&tbs)
 		if err != nil {
 			log.Error("Controller OnIrreversible is error:", err)
@@ -681,12 +600,12 @@ func (c *Controller) Close() {
 	c.ForkDB.Close()
 	c.DB.Close()
 	c.ReversibleBlocks.Close()
-
+	c.Blog.Close()
 	//log.Info("Controller destory!")
-	c.testClean()
+	//c.testClean()
 	isActiveController = false
 
-	c = nil
+	//c = nil
 }
 
 func (c *Controller) testClean() {
@@ -725,12 +644,13 @@ func (c *Controller) GetScheduledTransactions() []common.TransactionIdType {
 		log.Error("Controller GetScheduledTransactions is error:%s", err)
 	}
 	itr := idx.Begin()
-	if itr == idx.End() {
+	//if itr == idx.End() {
+	if idx.CompareEnd(itr) {
 		return result
 	} else {
 		itr.Data(&gto)
 	}
-	for itr != idx.End() {
+	for !idx.CompareEnd(itr) {
 		if gto.DelayUntil <= c.PendingBlockTime() {
 			result = append(result, gto.TrxId)
 		}
@@ -1079,7 +999,7 @@ func (c *Controller) applyBlock(b *types.SignedBlock, s types.BlockStatus) {
 		c.CommitBlock(false)
 		return
 	}).Catch(func(ex Exception) {
-		log.Error("controller ApplyBlock is error:%s", ex.DetailMessage())
+		//log.Error("controller ApplyBlock is error:%s", ex.DetailMessage())
 		c.AbortBlock()
 		Throw(ex)
 	}).FcLogAndRethrow().End()
@@ -1168,7 +1088,10 @@ func (c *Controller) maybeSwitchForks(s types.BlockStatus) {
 			Throw(e)
 		}).End()
 	} else if newHead.BlockId != c.Head.BlockId {
-		log.Info("switching forks from: %v (block number %v) to %v (block number %v)", c.Head.BlockId, c.Head.BlockNum, newHead.BlockId, newHead.BlockNum)
+		log.Warn("switching forks from: (block number %v) -> (block number %v)", c.Head.BlockNum, newHead.BlockNum)
+		//log.Info("current chain status [DposIrreversibleBlocknum:%v,BftIrreversibleBlocknum:%v,HeadBlockNum:%v,inCurrentChain:%v],accept block status [DposIrreversibleBlocknum:%v,BftIrreversibleBlocknum:%v,HeadBlockNum:%v]",c.Head.DposIrreversibleBlocknum,c.Head.BftIrreversibleBlocknum,c.HeadBlockNum(),c.Head.InCurrentChain,newHead.DposIrreversibleBlocknum,newHead.BftIrreversibleBlocknum,newHead.BlockNum,newHead.InCurrentChain)
+		log.Info("current chain status:%s", c.ForkDB.ToString())
+		log.Info("accept block status [DposIrreversibleBlocknum:%d,BftIrreversibleBlocknum:%d,HeadBlockNum:%d]", newHead.DposIrreversibleBlocknum, newHead.BftIrreversibleBlocknum, newHead.BlockNum, newHead.InCurrentChain)
 		branches := c.ForkDB.FetchBranchFrom(&newHead.BlockId, &c.Head.BlockId)
 
 		for i := 0; i < len(branches.second); i++ {
@@ -1212,8 +1135,8 @@ func (c *Controller) maybeSwitchForks(s types.BlockStatus) {
 				}
 				Throw(except)
 			}
-			log.Info("successfully switched fork to new head %v", newHead.BlockId)
 		}
+		log.Info("successfully switched fork to new head num:%v", newHead.BlockNum)
 	}
 
 }
@@ -1433,9 +1356,9 @@ func (c *Controller) GetBlockIdForNum(blockNum uint32) common.BlockIdType {
 
 func (c *Controller) CheckContractList(code common.AccountName) {
 	if c.Config.ContractWhitelist.Size() > 0 {
-		EosAssert(c.Config.ContractWhitelist.Contains(code), &ContractWhitelistException{}, "account %d is not on the contract whitelist", code)
+		EosAssert(c.Config.ContractWhitelist.Contains(code), &ContractWhitelistException{}, "account %s is not on the contract whitelist", common.S(uint64(code)))
 	} else if c.Config.ContractBlacklist.Size() > 0 {
-		EosAssert(!c.Config.ContractBlacklist.Contains(code), &ContractBlacklistException{}, "account %d is on the contract blacklist", code)
+		EosAssert(!c.Config.ContractBlacklist.Contains(code), &ContractBlacklistException{}, "account %s is on the contract blacklist", common.S(uint64(code)))
 	}
 }
 
@@ -1777,6 +1700,7 @@ func (c *Controller) initialize() {
 	//c++ rbegin and rend
 	objitr := ubi.End()
 	if objitr != ubi.Begin() {
+		//if !ubi.CompareBegin(objitr){
 		objitr.Prev()
 		r := entity.ReversibleBlockObject{}
 		objitr.Data(&r)
@@ -1822,8 +1746,8 @@ func (c *Controller) CheckActorList(actors *treeset.Set) {
 	} else if c.Config.ActorBlacklist.Size() > 0 {
 		itr := actors.Iterator()
 		for itr.Next() {
-			EosAssert(!c.Config.ActionBlacklist.Contains(itr.Value()), &ActorBlacklistException{},
-				"authorizing actor(s) in transaction are on the actor blacklist: %v", actors)
+			EosAssert(!c.Config.ActorBlacklist.Contains(itr.Value()), &ActorBlacklistException{},
+				"authorizing actor(s) in transaction are on the actor blacklist: %v", itr.Value())
 		}
 	}
 }

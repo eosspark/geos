@@ -439,8 +439,8 @@ func (t BaseTester) PushAction2(code *common.AccountName, acttype *common.Accoun
 func (t BaseTester) PushAction3(code *common.AccountName, acttype *common.AccountName,
 	actors []*common.AccountName, data *common.Variants, expiration uint32, delaySec uint32) *types.TransactionTrace {
 	auths := make([]types.PermissionLevel, 0)
-	for _, actor := range actors{
-		auths = append(auths, types.PermissionLevel{Actor:*actor, Permission:common.DefaultConfig.ActiveName})
+	for _, actor := range actors {
+		auths = append(auths, types.PermissionLevel{Actor: *actor, Permission: common.DefaultConfig.ActiveName})
 	}
 	return t.PushAction4(code, acttype, &auths, data, expiration, delaySec)
 }
@@ -1102,4 +1102,11 @@ func (vt *ValidatingTester) CreateDefaultAccount(name common.AccountName) *types
 	chainId := vt.Control.GetChainId()
 	trx.Sign(&pk, &chainId)
 	return vt.PushTransaction(&trx, common.MaxTimePoint(), vt.DefaultBilledCpuTimeUs)
+}
+
+func (t *BaseTester) SetLastProducedBlockMap(lpb map[common.AccountName]common.BlockIdType) {
+	t.LastProducedBlock = lpb
+}
+func (t *BaseTester) GetLastProducedBlockMap() map[common.AccountName]common.BlockIdType {
+	return t.LastProducedBlock
 }

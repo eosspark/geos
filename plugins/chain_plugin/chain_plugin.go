@@ -1,21 +1,21 @@
 package chain_plugin
 
 import (
-	"github.com/eosspark/eos-go/chain"
-	"github.com/eosspark/eos-go/common"
-	. "github.com/eosspark/eos-go/exception"
-	"github.com/eosspark/eos-go/log"
-	"github.com/urfave/cli"
-	. "github.com/eosspark/eos-go/plugins/appbase/app"
-	. "github.com/eosspark/eos-go/exception/try"
-	"github.com/eosspark/eos-go/chain/types"
-	"strings"
-	"github.com/eosspark/eos-go/crypto/ecc"
-	"os"
 	"encoding/json"
-	"path/filepath"
-	"github.com/eosspark/eos-go/plugins/chain_interface"
 	"fmt"
+	"github.com/eosspark/eos-go/chain"
+	"github.com/eosspark/eos-go/chain/types"
+	"github.com/eosspark/eos-go/common"
+	"github.com/eosspark/eos-go/crypto/ecc"
+	. "github.com/eosspark/eos-go/exception"
+	. "github.com/eosspark/eos-go/exception/try"
+	"github.com/eosspark/eos-go/log"
+	. "github.com/eosspark/eos-go/plugins/appbase/app"
+	"github.com/eosspark/eos-go/plugins/chain_interface"
+	"github.com/urfave/cli"
+	"os"
+	"path/filepath"
+	"strings"
 )
 
 const ChainPlug = PluginTypeName("ChainPlugin")
@@ -177,7 +177,6 @@ func (c *ChainPlugin) SetProgramOptions(options *[]cli.Flag) {
 			Name:  "snapshot",
 			Usage: "File to read Snapshot State from",
 		},
-
 	)
 }
 
@@ -372,7 +371,7 @@ func (c *ChainPlugin) PluginInitialize(options *cli.Context) {
 	}
 
 	if readMode := options.String("read-mode"); readMode != "" {
-		if dbReadMode,ok := chain.DBReadModeFromString(readMode); ok {
+		if dbReadMode, ok := chain.DBReadModeFromString(readMode); ok {
 			c.my.ChainConfig.ReadMode = dbReadMode
 		} else {
 			log.Error("The read-mode option %s format failed", readMode)
@@ -387,7 +386,7 @@ func (c *ChainPlugin) PluginInitialize(options *cli.Context) {
 	}
 
 	//c.my.Chain = chain.NewController(c.my.ChainConfig) //TODO
-	c.my.Chain = chain.GetControllerInstance()
+	c.my.Chain = chain.NewController(c.my.ChainConfig)
 	c.my.ChainId = c.my.Chain.GetChainId()
 
 	// set up method providers
@@ -471,6 +470,6 @@ func (c *ChainPlugin) HandleGuardException(e GuardExceptions) {
 }
 
 func (c *ChainPlugin) HandleDbExhaustion() {
-	log.Info("database memory exhausted: increase chain-state-db-size-mb and/or reversible-blocks-db-size-mb");
+	log.Info("database memory exhausted: increase chain-state-db-size-mb and/or reversible-blocks-db-size-mb")
 	os.Exit(1)
 }
