@@ -1,7 +1,9 @@
 package asio
 
 import (
-		"io"
+	"context"
+	"fmt"
+	"io"
 	"net"
 )
 
@@ -25,6 +27,30 @@ func (r *ReactiveSocket) AsyncAccept(listen net.Listener, op func(conn net.Conn,
 func (r *ReactiveSocket) accept(listen net.Listener, op func(conn net.Conn, err error)) {
 	connect, err := listen.Accept()
 	r.ctx.GetService().post(socketAcceptOp{op, connect, err})
+}
+
+func (r *ReactiveSocket) AsyncConnect(network, address string, op func(conn net.Conn, err error)) {
+	go r.connect(network, address, op)
+}
+
+func (r *ReactiveSocket) connect(network, address string, op func(net.Conn, error)) {
+	conn, err := net.Dial(network, address)
+	r.ctx.GetService().post(socketConnectOp{op, conn, err})
+}
+
+func (r *ReactiveSocket) AsyncResolve(ctx context.Context, host string, port string, op func(address string, err error)) {
+	go r.resolve(ctx, host, port, op)
+}
+
+func (r *ReactiveSocket) resolve(ctx context.Context, host string, port string, op func(string, error)) {
+	ips, err := net.DefaultResolver.LookupIPAddr(ctx, host)
+	if err != nil {
+		r.ctx.GetService().post(socketResolveOp{op, "", err})
+		return
+	}
+	for _, ip := range ips {
+		r.ctx.GetService().post(socketResolveOp{op, fmt.Sprintf("%s:%s", ip.IP.String(), port), err})
+	}
 }
 
 func (r *ReactiveSocket) AsyncRead(reader io.Reader, b []byte, op func(n int, err error)) {
@@ -51,7 +77,6 @@ func (r *ReactiveSocket) readFull(reader io.Reader, b []byte, op func(n int, err
 	r.ctx.GetService().post(socketReadFullOp{op, n, err})
 }
 
-
 func (r *ReactiveSocket) AsyncWrite(writer io.Writer, b []byte, op func(n int, ec error)) {
 	// call block function io.Writer.Write in a separate goroutine, new goroutine will exit after writing event
 	// callback operation will be executed in io_service in the correct time
@@ -63,8 +88,3 @@ func (r *ReactiveSocket) write(writer io.Writer, b []byte, op func(n int, ec err
 	n, err := writer.Write(b)
 	r.ctx.GetService().post(socketWriteOp{op, n, err})
 }
-
-
-
-
-

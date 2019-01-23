@@ -28,9 +28,9 @@ func init() {
 		"permission_level_weight":      {value: 24},
 		"key_weight":                   {value: 8},
 		"wait_weight":                  {value: 16},
-		"shared_authority":             {value: 3*1 + 4},
+		"shared_authority":             {value: 3*16 + 4},
 		"permission_link_object":       {overhead: 32 * 3, value: 40 + 32},
-		"permission_object":            {overhead: 5 * 32, value: 3*1 + 4 + 64 + 5*32},
+		"permission_object":            {overhead: 5 * 32, value: 64 /*(BillableSizeV("shared_authority"))*/ + 64 + 5*32},
 		"table_id_object":              {overhead: 32 * 2, value: 44 + 32*2},
 		"key_value_object":             {overhead: 32 * 2, value: 32 + 8 + 4 + 32*2},
 		"Idx64Object":                  {overhead: 32 * 3, value: 24 + 8 + 32*3},
@@ -47,6 +47,8 @@ func init() {
 	DefaultConfig.BlockIntervalUs = 1000 * DefaultConfig.BlockIntervalMs
 	DefaultConfig.BlockTimestampEpochMs = 946684800000 // epoch is year 2000.
 	DefaultConfig.BlockTimestamoEpochNanos = 1e6 * DefaultConfig.BlockTimestampEpochMs
+
+	DefaultConfig.DefaultAbiSerializerMaxTimeMs = 15*1000
 
 	DefaultConfig.ProducerRepetitions = 12
 	DefaultConfig.MaxProducers = 125
@@ -91,9 +93,9 @@ func init() {
 	DefaultConfig.DBFileName = "shared_memory.bin"
 	DefaultConfig.ReversibleFileName = "shared_memory_tmp.bin" //wait db modify
 	DefaultConfig.BlockFileName = "blog.log"
-	DefaultConfig.DefaultBlocksDirName = "/tmp/data/blocks"
-	DefaultConfig.DefaultReversibleBlocksDirName = "/tmp/data/reversible"
-	DefaultConfig.DefaultStateDirName = "/tmp/data/state"
+	DefaultConfig.DefaultBlocksDirName = "blocks"
+	DefaultConfig.DefaultReversibleBlocksDirName = "reversible"
+	DefaultConfig.DefaultStateDirName = "state"
 
 	DefaultConfig.DefaultStateSize = 1 * 1024 * 1024 * 1024
 	DefaultConfig.DefaultStateGuardSize = 128 * 1024 * 1024
@@ -124,6 +126,9 @@ type Config struct {
 	BlockIntervalUs          int64
 	BlockTimestampEpochMs    int64
 	BlockTimestamoEpochNanos int64
+
+	//chain_plugin config
+	DefaultAbiSerializerMaxTimeMs uint32
 
 	/**
 	 *  The number of sequential blocks produced by a single producer

@@ -362,7 +362,7 @@ func (a *AbiSerializer) variantToBinary(name typeName, data *common.Variants, al
 
 		re, err = a.abi.EncodeStruct(name, buf)
 		if err != nil {
-			abiLog.Error("encode actoin is error:%s", err)
+			abiLog.Error("encode action is error:%s", err)
 			Throw(fmt.Errorf("encode actoin is error:%s", err))
 		}
 

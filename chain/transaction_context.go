@@ -103,7 +103,7 @@ func NewTransactionContext(c *Controller, t *types.SignedTransaction, trxId comm
 		//ActionTraces: []types.ActionTrace{},
 	}
 	tc.netUsage = &tc.Trace.NetUsage
-	tc.Executed = make([]types.ActionReceipt, tc.Trx.TotalActions())
+	tc.Executed = make([]types.ActionReceipt, 0, tc.Trx.TotalActions())
 
 	EosAssert(len(tc.Trx.TransactionExtensions) == 0, &UnsupportedFeature{}, "we don't support any extensions yet")
 

@@ -31,7 +31,7 @@ func NewForkDatabase(dataDir string) *ForkDatabase {
 		os.MkdirAll(dataDir, os.ModePerm)
 	}
 
-	forkDbDat := f.dataDir + common.DefaultConfig.ForkDbName
+	forkDbDat := f.dataDir + "/" + common.DefaultConfig.ForkDbName
 	if common.FileExist(forkDbDat) {
 		content, err := ioutil.ReadFile(forkDbDat)
 		Throw(err)
@@ -62,9 +62,8 @@ func (f *ForkDatabase) Close() {
 		return
 	}
 
-	//TODO pack BlockState to forkDbDat
-	/*forkDbDat := f.dataDir + common.DefaultConfig.ForkDbName
-	file, err := os.OpenFile(forkDbDat, os.O_RDWR|os.O_CREATE|os.O_TRUNC, os.ModeAppend)
+	forkDbDat := f.dataDir + "/" + common.DefaultConfig.ForkDbName
+	file, err := os.OpenFile(forkDbDat, os.O_RDWR|os.O_CREATE|os.O_TRUNC, os.ModePerm)
 	Throw(err)
 
 	out := rlp.NewEncoder(file)
@@ -72,16 +71,15 @@ func (f *ForkDatabase) Close() {
 	numBlockInForkDB := uint(f.Index.Size())
 	out.Encode(numBlockInForkDB)
 
-	f.Index.ByBlockNum.Each(func(key fork_multi_index.ByBlockNumComposite, value fork_multi_index.IndexKey) {
-		s := f.Index.Value(value)
-		out.Encode(s)
-	})
+	for itr := f.Index.GetByBlockNum().Begin(); itr.HasNext(); itr.Next() {
+		out.Encode(*itr.Value())
+	}
 
 	if f.Head != nil {
 		out.Encode(f.Head.BlockId)
 	} else {
-		out.Encode(crypto.NewSha256Nil())
-	}*/
+		out.Encode(common.BlockIdType{})
+	}
 
 	// we don't normally indicate the head block as irreversible
 	// we cannot normally prune the lib if it is the head block because

@@ -12,8 +12,8 @@ import (
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/eosspark/eos-go/entity"
-	"github.com/eosspark/eos-go/exception"
-	"github.com/eosspark/eos-go/exception/try"
+	. "github.com/eosspark/eos-go/exception"
+	. "github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/log"
 	"github.com/eosspark/eos-go/plugins/chain_interface"
 	"github.com/stretchr/testify/assert"
@@ -48,32 +48,43 @@ var test2 = common.N("testram22222")
 
 type ActionResult = string
 
-func CatchThrowException(t *testing.T, expectException interface{}, function func()) {
+func CheckThrowException(t *testing.T, expectException Exception, function func()) {
 	returning := false
-	try.Try(func() {
-		function()
-	}).Catch(func(e exception.Exception) {
+	Try(function).Catch(func(e Exception) {
 		returning = reflect.TypeOf(expectException) == reflect.TypeOf(e)
+		if !returning {
+			log.Error("actual error : %s", e.DetailMessage())
+		}
 	}).End()
 	assert.True(t, returning)
 }
 
-func CatchThrowMsg(t *testing.T, expectMsg string, function func()) {
+func CheckNoThrow(t *testing.T, function func()) {
+	Try(function).Catch(func(e Exception) {
+		assert.Fail(t, e.DetailMessage())
+	}).Catch(func(interface{}) {
+		assert.Fail(t, "check no throw failed")
+	})
+}
+
+func CheckThrowMsg(t *testing.T, expectMsg string, function func()) {
 	returning := false
-	try.Try(func() {
-		function()
-	}).Catch(func(e exception.Exception) {
+	Try(function).Catch(func(e Exception) {
 		returning = strings.Contains(e.DetailMessage(), expectMsg)
+		if !returning {
+			log.Error("actual error : %s", e.DetailMessage())
+		}
 	}).End()
 	assert.True(t, returning)
 }
 
-func CatchThrowExceptionAndMsg(t *testing.T, expectException interface{}, expectMsg string, function func()) {
+func CheckThrowExceptionAndMsg(t *testing.T, expectException Exception, expectMsg string, function func()) {
 	returning := false
-	try.Try(func() {
-		function()
-	}).Catch(func(e exception.Exception) {
+	Try(function).Catch(func(e Exception) {
 		returning = reflect.TypeOf(expectException) == reflect.TypeOf(e) && strings.Contains(e.DetailMessage(), expectMsg)
+		if !returning {
+			log.Error("actual error : %s", e.DetailMessage())
+		}
 	}).End()
 	assert.True(t, returning)
 }
@@ -115,6 +126,8 @@ func newBaseTesterSecNode(pushGenesis bool, readMode DBReadMode) *BaseTester {
 	cfg := newConfig(readMode)
 
 	t.Control = NewController(cfg)
+	t.Control.Startup()
+
 	if pushGenesis {
 		t.pushGenesisBlock()
 	}
@@ -130,12 +143,15 @@ func (t *BaseTester) init(pushGenesis bool, readMode DBReadMode) {
 	}
 }
 
+func tmpdir() string {
+	return "/tmp/data/" + strconv.FormatInt(time.Now().UnixNano(), 10) + "/"
+}
+
 func newConfig(readMode DBReadMode) *Config {
 	cfg := &Config{}
-	tempDirSuffix := "_" + strconv.FormatInt(time.Now().UnixNano(), 10)
-	cfg.BlocksDir = common.DefaultConfig.DefaultBlocksDirName + tempDirSuffix
-	cfg.StateDir = common.DefaultConfig.DefaultStateDirName + tempDirSuffix
-	cfg.ReversibleDir = common.DefaultConfig.DefaultReversibleBlocksDirName + tempDirSuffix
+	prefix := tmpdir()
+	cfg.BlocksDir = prefix + "blocks"
+	cfg.StateDir = prefix + "state"
 	cfg.StateSize = 1024 * 1024 * 8
 	cfg.StateGuardSize = 0
 	cfg.ReversibleCacheSize = 1024 * 1024 * 8
@@ -165,14 +181,14 @@ func (t *BaseTester) open() {
 	t.Control = NewController(&t.Cfg)
 	//TODO
 	//t.Control.AddIndices()
-	//t.Control.startUp()
+	t.Control.Startup()
 	t.ChainTransactions = make(map[common.BlockIdType]types.TransactionReceipt)
 	ab := chain_interface.AcceptedBlockCaller{Caller: t.acceptedBlock}
 	t.Control.AcceptedBlock.Connect(&ab)
 }
 
 func (t *BaseTester) acceptedBlock(b *types.BlockState) {
-	try.EosAssert(b.SignedBlock != nil, &exception.BlockLogNotFound{}, "tester acceptedBlock is not found")
+	EosAssert(b.SignedBlock != nil, &BlockLogNotFound{}, "tester acceptedBlock is not found")
 	for _, receipt := range b.SignedBlock.Transactions {
 		if !common.Empty(receipt.Trx.PackedTransaction) {
 			t.ChainTransactions[receipt.Trx.PackedTransaction.ID()] = receipt
@@ -260,7 +276,7 @@ func (t BaseTester) produceBlock(skipTime common.Microseconds, skipPendingTrxs b
 		for _, trx := range unappliedTrxs {
 			trace := t.Control.PushTransaction(trx, common.MaxTimePoint(), 0)
 			if trace.Except != nil {
-				try.Throw(trace.Except)
+				Throw(trace.Except)
 			}
 		}
 
@@ -313,7 +329,7 @@ func (t BaseTester) SetTransactionHeaders(trx *types.Transaction, expiration uin
 
 	trx.MaxNetUsageWords = 0
 	trx.MaxCpuUsageMS = 0
-	trx.DelaySec = delaySec
+	trx.DelaySec = common.Vuint32(delaySec)
 }
 
 func (t BaseTester) CreateAccounts(names []common.AccountName, multiSig bool, includeCode bool) []*types.TransactionTrace {
@@ -340,11 +356,21 @@ func (t BaseTester) CreateAccount(name common.AccountName, creator common.Accoun
 	activeAuth := types.NewAuthority(t.getPublicKey(name, "active"), 0)
 
 	sortPermissions := func(auth *types.Authority) {
-
+		len := len(auth.Accounts)
+		pw := types.PermissionLevelWeight{}
+		for i := 0; i < len - 1; i++ {
+			for j := 0; j < len - 1 - i; j++ {
+				if types.ComparePermissionLevel(auth.Accounts[j].Permission, auth.Accounts[j+1].Permission) == 1 {
+					pw = auth.Accounts[j]
+					auth.Accounts[j] = auth.Accounts[j+1]
+					auth.Accounts[j+1] = pw
+				}
+			}
+		}
 	}
 	if includeCode {
-		try.EosAssert(ownerAuth.Threshold <= math.MaxUint16, nil, "threshold is too high")
-		try.EosAssert(uint64(activeAuth.Threshold) <= uint64(math.MaxUint64), nil, "threshold is too high")
+		EosAssert(ownerAuth.Threshold <= math.MaxUint16, nil, "threshold is too high")
+		EosAssert(uint64(activeAuth.Threshold) <= uint64(math.MaxUint64), nil, "threshold is too high")
 		ownerAuth.Accounts = append(ownerAuth.Accounts, types.PermissionLevelWeight{
 			Permission: types.PermissionLevel{Actor: name, Permission: common.DefaultConfig.EosioCodeName},
 			Weight:     types.WeightType(ownerAuth.Threshold),
@@ -380,7 +406,7 @@ func (t BaseTester) CreateAccount(name common.AccountName, creator common.Accoun
 
 func (t BaseTester) PushTransaction(trx *types.SignedTransaction, deadline common.TimePoint, billedCpuTimeUs uint32) (trace *types.TransactionTrace) {
 	_, r := false, (*types.TransactionTrace)(nil)
-	try.Try(func() {
+	Try(func() {
 		if t.Control.PendingBlockState() == nil {
 			t.startBlock(t.Control.HeadBlockTime().AddUs(common.Microseconds(common.DefaultConfig.BlockIntervalUs)))
 		}
@@ -392,11 +418,11 @@ func (t BaseTester) PushTransaction(trx *types.SignedTransaction, deadline commo
 		mtrx := types.NewTransactionMetadataBySignedTrx(trx, c)
 		trace = t.Control.PushTransaction(mtrx, deadline, billedCpuTimeUs)
 		if trace.ExceptPtr != nil {
-			try.Throw(trace.ExceptPtr)
+			Throw(trace.ExceptPtr)
 			//try.EosThrow(trace.ExceptPtr, "tester PushTransaction is error :%#v", trace.ExceptPtr.DetailMessage())
 		}
 		if trace.Except != nil {
-			try.Throw(trace.ExceptPtr)
+			Throw(trace.Except)
 			//try.EosThrow(trace.Except, "tester PushTransaction is error :%#v", trace.Except.DetailMessage())
 		}
 		r = trace
@@ -418,11 +444,11 @@ func (t BaseTester) PushAction(act *types.Action, authorizer common.AccountName)
 		privateKey := t.getPrivateKey(authorizer, "active")
 		trx.Sign(&privateKey, &chainId)
 	}
-	try.Try(func() {
+	Try(func() {
 		t.PushTransaction(&trx, common.MaxTimePoint(), t.DefaultBilledCpuTimeUs)
-	}).Catch(func(ex exception.Exception) {
+	}).Catch(func(ex Exception) {
 		//log.Error("tester PushAction is error: %v", ex.DetailMessage())
-		try.Throw(ex)
+		Throw(ex)
 	}).End()
 	t.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs), 0)
 	//BOOST_REQUIRE_EQUAL(true, chain_has_transaction(trx.id()))
@@ -448,7 +474,7 @@ func (t BaseTester) PushAction3(code *common.AccountName, acttype *common.Accoun
 func (t BaseTester) PushAction4(code *common.AccountName, acttype *common.AccountName,
 	auths *[]types.PermissionLevel, data *common.Variants, expiration uint32, delaySec uint32) *types.TransactionTrace {
 	trx := types.SignedTransaction{}
-	try.Try(func() {
+	Try(func() {
 		action := t.GetAction(*code, *acttype, *auths, data)
 		trx.Actions = append(trx.Actions, action)
 	})
@@ -465,7 +491,7 @@ func (t BaseTester) PushAction4(code *common.AccountName, acttype *common.Accoun
 func (t BaseTester) GetResolver() func(name common.AccountName) *abi.AbiSerializer {
 	return func(name common.AccountName) *abi.AbiSerializer {
 		var r *abi.AbiSerializer
-		try.Try(func() {
+		Try(func() {
 			accObj := entity.AccountObject{Name: name}
 			t.Control.DB.Find("byName", accObj, &accObj)
 			var abid abi.AbiDef
@@ -849,7 +875,7 @@ func (t BaseTester) GetRowByAccount(code uint64, scope uint64, table uint64, act
 	return data
 }
 
-func (t BaseTester) Uint64ToUint8Vector(x uint64) []uint8 {
+func (t BaseTester) Uint64ToUint8Vector(x uint64) common.HexBytes {
 	//TODO
 	v := make([]byte, 8)
 	for i := uint8(0); i < 8; i++ {
@@ -858,7 +884,7 @@ func (t BaseTester) Uint64ToUint8Vector(x uint64) []uint8 {
 	return v
 }
 
-func (t BaseTester) StringToUint8Vector(s string) []uint8 {
+func (t BaseTester) StringToUint8Vector(s string) common.HexBytes {
 	return []byte(s)
 }
 
@@ -866,7 +892,7 @@ func (t BaseTester) ToUint64(x common.Variant) uint64 {
 	var bytes []uint8
 	common.FromVariant(x, &bytes)
 	var re uint64
-	try.FcAssert(len(bytes) == 8)
+	FcAssert(len(bytes) == 8)
 	for i := uint8(0); i < 8; i++ {
 		re += uint64(bytes[i]) << (8 * i)
 	}
@@ -941,6 +967,12 @@ func (t BaseTester) FindTable(code common.Name, scope common.Name, table common.
 func (t BaseTester) Success() ActionResult {
 	return "success"
 }
+func (t BaseTester) Error(msg string) ActionResult {
+	return msg
+}
+func (t BaseTester) WasmAssertMsg(msg string) ActionResult {
+	return "assertion failure with message: " + msg
+}
 
 type ValidatingTester struct {
 	BaseTester
@@ -962,7 +994,7 @@ func newValidatingTester(pushGenesis bool, readMode DBReadMode) *ValidatingTeste
 	vt.ValidatingControl = NewController(&vt.VCfg)
 	//TODO
 	//vt.ValidatingControl.AddIndices()
-	//vt.ValidatingControl.startUp()
+	vt.ValidatingControl.Startup()
 
 	vt.init(pushGenesis, readMode)
 	return vt
@@ -986,6 +1018,7 @@ func NewValidatingTesterTrustedProducers(trustedProducers *treeset.Set) *Validat
 	vt.VCfg = *newConfig(SPECULATIVE)
 	vt.VCfg.TrustedProducers = *trustedProducers
 	vt.ValidatingControl = NewController(&vt.VCfg)
+	vt.ValidatingControl.Startup()
 
 	vt.init(true, SPECULATIVE)
 
@@ -1004,12 +1037,17 @@ func (vt ValidatingTester) PushAction(act *types.Action, authorizer common.Accou
 		privateKey := vt.getPrivateKey(authorizer, "active")
 		trx.Sign(&privateKey, &chainId)
 	}
-	try.Try(func() {
+	returning, msg := false, ""
+	Try(func() {
 		vt.PushTransaction(&trx, common.MaxTimePoint(), vt.DefaultBilledCpuTimeUs)
-	}).Catch(func(ex exception.Exception) {
-		//log.Error("tester PushAction is error: %v", ex.DetailMessage())
-		try.Throw(ex)
+	}).Catch(func(ex Exception) {
+		log.Error("tester PushAction is error: %v", ex.DetailMessage())
+		returning, msg = true, ex.TopMessage()
+		return
 	}).End()
+	if returning {
+		return vt.Error(msg)
+	}
 	vt.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs), 0)
 	//BOOST_REQUIRE_EQUAL(true, chain_has_transaction(trx.id()))
 	return vt.Success()
@@ -1069,8 +1107,8 @@ func (vt *ValidatingTester) CreateDefaultAccount(name common.AccountName) *types
 
 	sortPermissions := func(auth *types.Authority) {}
 	if includeCode {
-		try.EosAssert(ownerAuth.Threshold <= math.MaxUint16, nil, "threshold is too high")
-		try.EosAssert(uint64(activeAuth.Threshold) <= uint64(math.MaxUint64), nil, "threshold is too high")
+		EosAssert(ownerAuth.Threshold <= math.MaxUint16, nil, "threshold is too high")
+		EosAssert(uint64(activeAuth.Threshold) <= uint64(math.MaxUint64), nil, "threshold is too high")
 		ownerAuth.Accounts = append(ownerAuth.Accounts, types.PermissionLevelWeight{
 			Permission: types.PermissionLevel{Actor: name, Permission: common.DefaultConfig.EosioCodeName},
 			Weight:     types.WeightType(ownerAuth.Threshold),

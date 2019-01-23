@@ -125,6 +125,18 @@ func (u Uint128) Compare(v Uint128) int {
 	return 0
 }
 
+func (u Uint128) And(v Uint128) Uint128 {
+	u.Low &= v.Low
+	u.High &= v.High
+	return u
+}
+
+func (u Uint128) Or(v Uint128) Uint128 {
+	u.Low |= v.Low
+	u.High |= v.High
+	return u
+}
+
 func (u Uint128) Add(v Uint128) Uint128 {
 	if u.Low+v.Low < u.Low {
 		u.High += v.High + 1

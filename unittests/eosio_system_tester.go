@@ -25,7 +25,6 @@ var voter2 = common.N("producvoterb")
 var voter3 = common.N("producvoterc")
 var voter4 = common.N("producvoterd")
 
-
 type EosioSystemTester struct {
 	ValidatingTester
 	abiSer      abi_serializer.AbiSerializer
@@ -42,6 +41,7 @@ func newEosioSystemTester(pushGenesis bool, readMode DBReadMode) *EosioSystemTes
 	e.VCfg = *newConfig(readMode)
 
 	e.ValidatingControl = NewController(&e.VCfg)
+	e.ValidatingControl.Startup()
 	e.init(true, readMode)
 	return e
 }
@@ -654,19 +654,19 @@ func (e EosioSystemTester) GetTokenSupply() common.Asset {
 func (e EosioSystemTester) GetGlobalState() common.Variants {
 	type EosioGlobalState struct {
 		types.ChainConfig
-		MaxRamSize                     uint64
-		TotalRamBytesReserved          uint64
-		TotalRamStake                  int64
-		LastProducerScheduleUpdate     types.BlockTimeStamp
-		LastPervoteBucketFill          uint64
-		PervoteBucket                  int64
-		PerblockBucket                 int64
-		TotalUnpaidBlocks              uint32
-		TotalActivatedStake            int64
-		ThreshActivatedStakeTime       uint64
-		LastProducerScheduleSize       uint16
-		TotalProducerVoteWeight        float64
-		LastNameClose                  types.BlockTimeStamp
+		MaxRamSize                 uint64
+		TotalRamBytesReserved      uint64
+		TotalRamStake              int64
+		LastProducerScheduleUpdate types.BlockTimeStamp
+		LastPervoteBucketFill      uint64
+		PervoteBucket              int64
+		PerblockBucket             int64
+		TotalUnpaidBlocks          uint32
+		TotalActivatedStake        int64
+		ThreshActivatedStakeTime   uint64
+		LastProducerScheduleSize   uint16
+		TotalProducerVoteWeight    float64
+		LastNameClose              types.BlockTimeStamp
 	}
 	data := e.GetRowByAccount(uint64(eosio), uint64(eosio), uint64(common.N("global")), uint64(common.N("global")))
 	if len(data) == 0 {
@@ -762,10 +762,10 @@ func (e EosioSystemTester) ActiveAndVoteProducers() []common.AccountName {
 	e.ProduceBlocks(250, false)
 	auth := types.Authority{
 		Threshold: 1,
-		Keys: []types.KeyWeight{{Key: e.getPublicKey(eosio, "active"), Weight: 1}},
+		Keys:      []types.KeyWeight{{Key: e.getPublicKey(eosio, "active"), Weight: 1}},
 		Accounts: []types.PermissionLevelWeight{
-			{Permission: types.PermissionLevel{Actor:eosio, Permission:common.DefaultConfig.EosioCodeName}, Weight:1},
-			{Permission: types.PermissionLevel{Actor:common.DefaultConfig.ProducersAccountName, Permission:common.DefaultConfig.ActiveName}, Weight:1},
+			{Permission: types.PermissionLevel{Actor: eosio, Permission: common.DefaultConfig.EosioCodeName}, Weight: 1},
+			{Permission: types.PermissionLevel{Actor: common.DefaultConfig.ProducersAccountName, Permission: common.DefaultConfig.ActiveName}, Weight: 1},
 		},
 		Waits: []types.WaitWeight{},
 	}

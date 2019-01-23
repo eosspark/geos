@@ -1,15 +1,15 @@
 package hashed_index
 
 import (
+	"github.com/eosspark/eos-go/common/container"
 	"github.com/eosspark/eos-go/common/container/multiindex"
-	"github.com/eosspark/eos-go/log"
 )
 
-// template type HashedUniqueIndex(FinalIndex,FinalNode,SuperIndex,SuperNode,Value,Hash,HashFunc)
+// template type HashedUniqueIndex(FinalIndex,FinalNode,SuperIndex,SuperNode,Value,Hash,KeyFunc)
 type Hash = int
 type Value = int
 
-var HashFunc = func(Value) Hash { return 0 }
+var KeyFunc = func(Value) Hash { return 0 }
 
 type HashedUniqueIndex struct {
 	super *SuperIndex                     // index on the HashedUniqueIndex, IndexBase is the last super index
@@ -91,10 +91,10 @@ func (i *HashedUniqueIndex) Insert(v Value) (Iterator, bool) {
 }
 
 func (i *HashedUniqueIndex) insert(v Value, fn *FinalNode) (*HashedUniqueIndexNode, bool) {
-	hash := HashFunc(v)
+	hash := KeyFunc(v)
 	node := HashedUniqueIndexNode{hash: hash}
 	if _, ok := i.inner[hash]; ok {
-		log.Warn("#hash index insert failed")
+		container.Logger.Warn("#hash index insert failed")
 		return nil, false
 	}
 	i.inner[hash] = &node
@@ -149,9 +149,9 @@ func (i *HashedUniqueIndex) Modify(iter Iterator, mod func(*Value)) bool {
 func (i *HashedUniqueIndex) modify(n *HashedUniqueIndexNode) (*HashedUniqueIndexNode, bool) {
 	delete(i.inner, n.hash)
 
-	hash := HashFunc(*n.value())
+	hash := KeyFunc(*n.value())
 	if _, exist := i.inner[hash]; exist {
-		log.Warn("#hash index modify failed")
+		container.Logger.Warn("#hash index modify failed")
 		i.super.erase(n.super)
 		return nil, false
 	}
@@ -224,7 +224,7 @@ func (iter Iterator) Value() (v Value) {
 }
 
 func (iter Iterator) HasNext() bool {
-	log.Warn("hashed index iterator is unmoveable")
+	container.Logger.Warn("hashed index iterator is unmoveable")
 	return false
 }
 

@@ -157,6 +157,15 @@ func NewBlockLog(dataDir string) *BlockLog {
 
 	return blockLog
 }
+
+func (b *BlockLog) Close() {
+	if b != nil {
+		b.flush()
+		b.blockStream.Close()
+		b.indexStream.Close()
+	}
+}
+
 func (b *BlockLog) Append(block *types.SignedBlock) uint64 {
 
 	EosAssert(b.genesisWriteToBlockLog, &BlockLogAppendFail{}, "Cannot append to block log until the genesis is first written")
@@ -221,6 +230,12 @@ func (b *BlockLog) ResetToGenesis(gs *types.GenesisState, benesisBlock *types.Si
 	b.genesisWriteToBlockLog = true
 
 	ret := b.Append(benesisBlock)
+	_, err = b.blockStream.Seek(0, end)
+	Throw(err)
+
+	b.blockStream.Close()
+	b.blockStream, err = os.OpenFile(b.blockFile, os.O_RDWR, os.ModePerm)
+	Throw(err)
 
 	bytes, _ = rlp.EncodeToBytes(supportedVersion)
 	b.blockStream.Write(bytes)

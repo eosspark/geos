@@ -51,7 +51,7 @@ func TestBlockWithInvalidTx(t *testing.T) {
 	validator := newBaseTester(true, chain.SPECULATIVE)
 	validator.Control.AbortBlock()
 
-	CheckThrow(t, func() { validator.Control.PushBlock(copyB, types.Complete) }, &AccountNameExistsException{})
+	CheckThrowException(t, &AccountNameExistsException{}, func() { validator.Control.PushBlock(copyB, types.Complete) })
 }
 
 type blockPair struct {
@@ -185,5 +185,5 @@ func TestUntrustedProducer(t *testing.T) {
 	blocks, err := CorruptTrxInBlock(main, common.N("tstproducera"))
 	assert.NoError(t, err)
 
-	CheckThrow(t, func() { main.ValidatePushBlock(blocks.second) }, &UnsatisfiedAuthorization{})
+	CheckThrowException(t, &UnsatisfiedAuthorization{}, func() { main.ValidatePushBlock(blocks.second) })
 }

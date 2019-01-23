@@ -33,7 +33,7 @@ func TestMissingSigs(t *testing.T) {
 	reqAuth := func() {
 		b.PushReqAuth(common.N("alice"), &[]types.PermissionLevel{{common.N("alice"), common.DefaultConfig.ActiveName}}, &[]ecc.PrivateKey{})
 	}
-	CatchThrowException(t, &UnsatisfiedAuthorization{}, reqAuth)
+	CheckThrowException(t, &UnsatisfiedAuthorization{}, reqAuth)
 
 	trace := b.PushReqAuth2(common.N("alice"), "owner", false)
 	b.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs), 0)
@@ -48,7 +48,7 @@ func TestMissingMultiSigs(t *testing.T) {
 	b.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs), 0)
 
 	reqAuth := func() { b.PushReqAuth2(common.N("alice"), "owner", false) }
-	CatchThrowException(t, &UnsatisfiedAuthorization{}, reqAuth)
+	CheckThrowException(t, &UnsatisfiedAuthorization{}, reqAuth)
 
 	trace := b.PushReqAuth2(common.N("alice"), "owner", true)
 	b.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs), 0)
@@ -67,7 +67,7 @@ func TestMissingAuths(t *testing.T) {
 			&[]ecc.PrivateKey{b.getPrivateKey(common.N("bob"), "active")},
 		)
 	}
-	CatchThrowException(t, &MissingAuthException{}, reqAuth)
+	CheckThrowException(t, &MissingAuthException{}, reqAuth)
 	b.close()
 }
 
@@ -122,7 +122,7 @@ func TestUpdateAuths(t *testing.T) {
 			&[]ecc.PrivateKey{vt.getPrivateKey(common.N("alice"), "owner")},
 		)
 	}
-	CatchThrowException(t, &ActionValidateException{}, deleteAuth)
+	CheckThrowException(t, &ActionValidateException{}, deleteAuth)
 
 	deleteAuth = func() {
 		vt.DeleteAuthority(
@@ -132,7 +132,7 @@ func TestUpdateAuths(t *testing.T) {
 			&[]ecc.PrivateKey{vt.getPrivateKey(common.N("alice"), "owner")},
 		)
 	}
-	CatchThrowException(t, &ActionValidateException{}, deleteAuth)
+	CheckThrowException(t, &ActionValidateException{}, deleteAuth)
 
 	// Change owner permission
 	newOwnerPrivKey := vt.getPrivateKey(common.N("alice"), "new_owner")
@@ -206,7 +206,7 @@ func TestUpdateAuths(t *testing.T) {
 			&[]ecc.PrivateKey{vt.getPrivateKey(common.N("bob"), "active")},
 		)
 	}
-	CatchThrowException(t, &IrrelevantAuthException{}, setAuthority)
+	CheckThrowException(t, &IrrelevantAuthException{}, setAuthority)
 
 	// Create new spending auth
 	vt.SetAuthority(
@@ -247,7 +247,7 @@ func TestUpdateAuths(t *testing.T) {
 			&[]ecc.PrivateKey{spendingPrivKey},
 		)
 	}
-	CatchThrowException(t, &ActionValidateException{}, setAuthority)
+	CheckThrowException(t, &ActionValidateException{}, setAuthority)
 
 	// Update spending auth parent to be owner, should fail
 	setAuthority = func() {
@@ -260,7 +260,7 @@ func TestUpdateAuths(t *testing.T) {
 			&[]ecc.PrivateKey{spendingPrivKey},
 		)
 	}
-	CatchThrowException(t, &ActionValidateException{}, setAuthority)
+	CheckThrowException(t, &ActionValidateException{}, setAuthority)
 
 	// Remove spending auth
 	vt.DeleteAuthority(
@@ -327,7 +327,7 @@ func TestUpdateAuths(t *testing.T) {
 			&[]ecc.PrivateKey{newActivePrivKey},
 		)
 	}
-	CatchThrowException(t, &ActionValidateException{}, deleteAuth)
+	CheckThrowException(t, &ActionValidateException{}, deleteAuth)
 
 	// Update trading parent to be spending, should fail since changing parent authority is not supported
 	setAuthority = func() {
@@ -340,7 +340,7 @@ func TestUpdateAuths(t *testing.T) {
 			&[]ecc.PrivateKey{tradingPrivKey},
 		)
 	}
-	CatchThrowException(t, &ActionValidateException{}, setAuthority)
+	CheckThrowException(t, &ActionValidateException{}, setAuthority)
 
 	// Delete spending auth
 	vt.DeleteAuthority(
@@ -398,7 +398,7 @@ func TestLinkAuths(t *testing.T) {
 			&[]ecc.PrivateKey{spendingPrivKey},
 		)
 	}
-	CatchThrowException(t, &IrrelevantAuthException{}, reqAuth)
+	CheckThrowException(t, &IrrelevantAuthException{}, reqAuth)
 	// Link authority for eosio reqauth action with alice's spending key
 	vt.LinkAuthority(common.N("alice"), common.N("eosio"), common.N("spending"), common.N("reqauth"))
 	// Now, req auth action with alice's spending key should succeed
@@ -414,7 +414,7 @@ func TestLinkAuths(t *testing.T) {
 	linkAuth := func() {
 		vt.LinkAuthority(common.N("alice"), common.N("eosio"), common.N("spending"), common.N("reqauth"))
 	}
-	CatchThrowException(t, &ActionValidateException{}, linkAuth)
+	CheckThrowException(t, &ActionValidateException{}, linkAuth)
 	// Unlink alice with eosio reqauth
 	vt.UnlinkAuthority(common.N("alice"), common.N("eosio"), common.N("reqauth"))
 	// Now, req auth action with alice's spending key should fail
@@ -425,7 +425,7 @@ func TestLinkAuths(t *testing.T) {
 			&[]ecc.PrivateKey{spendingPrivKey},
 		)
 	}
-	CatchThrowException(t, &IrrelevantAuthException{}, reqAuth)
+	CheckThrowException(t, &IrrelevantAuthException{}, reqAuth)
 	vt.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs), 0)
 
 	// Send req auth action with scud key, it should fail
@@ -436,7 +436,7 @@ func TestLinkAuths(t *testing.T) {
 			&[]ecc.PrivateKey{scudPrivKey},
 		)
 	}
-	CatchThrowException(t, &IrrelevantAuthException{}, reqAuth)
+	CheckThrowException(t, &IrrelevantAuthException{}, reqAuth)
 	// Link authority for any eosio action with alice's scud key
 	vt.LinkAuthority(common.N("alice"), common.N("eosio"), common.N("scud"), common.N(""))
 	// Now, req auth action with alice's scud key should succeed
@@ -483,7 +483,7 @@ func TestLinkThenUpdateAuth(t *testing.T) {
 			&[]ecc.PrivateKey{firstPrivKey},
 		)
 	}
-	CatchThrowException(t, &UnsatisfiedAuthorization{}, reqAuth)
+	CheckThrowException(t, &UnsatisfiedAuthorization{}, reqAuth)
 	// Using updated authority, should succeed
 	vt.PushReqAuth(
 		common.N("alice"),
@@ -517,20 +517,20 @@ func TestCreateAccount(t *testing.T) {
 
 	// Create duplicate name TODO
 	createAccount := func() { vt.CreateAccount(common.N("yc"), common.DefaultConfig.SystemAccountName, false, true) }
-	CatchThrowExceptionAndMsg(t, &AccountNameExistsException{}, "Cannot create account named yc, as that name is already taken", createAccount)
+	CheckThrowExceptionAndMsg(t, &AccountNameExistsException{}, "Cannot create account named yc, as that name is already taken", createAccount)
 
 	// Creating account with name more than 12 chars
 	createAccount = func() {
 		vt.CreateAccount(common.N("ychahahahahah"), common.DefaultConfig.SystemAccountName, false, true)
 	}
-	CatchThrowExceptionAndMsg(t, &ActionValidateException{}, "account names can only be 12 chars long", createAccount)
+	CheckThrowExceptionAndMsg(t, &ActionValidateException{}, "account names can only be 12 chars long", createAccount)
 
 	// Create account with eosio. prefix with privileged account
 	vt.CreateAccount(common.N("eosio.yc"), common.DefaultConfig.SystemAccountName, false, true)
 
 	//Create account with eosio. prefix with non-privileged account, should fail
 	createAccount = func() { vt.CreateAccount(common.N("eosio.hn"), common.N("yc"), false, true) }
-	CatchThrowExceptionAndMsg(t, &ActionValidateException{}, "only privileged accounts can have names that start with 'eosio.'", createAccount)
+	CheckThrowExceptionAndMsg(t, &ActionValidateException{}, "only privileged accounts can have names that start with 'eosio.'", createAccount)
 	vt.close()
 }
 
@@ -555,7 +555,7 @@ func TestAnyAuth(t *testing.T) {
 			&[]ecc.PrivateKey{aliceSpendingPrivKey},
 		)
 	}
-	CatchThrowException(t, &IrrelevantAuthException{}, reqAuth)
+	CheckThrowException(t, &IrrelevantAuthException{}, reqAuth)
 	vt.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs), 0)
 
 	// link to eosio.any permission
@@ -577,7 +577,7 @@ func TestAnyAuth(t *testing.T) {
 			&[]ecc.PrivateKey{bobSpendingPrivKey},
 		)
 	}
-	CatchThrowException(t, &MissingAuthException{}, reqAuth)
+	CheckThrowException(t, &MissingAuthException{}, reqAuth)
 	vt.close()
 }
 
@@ -690,11 +690,11 @@ func TestStricterAuth(t *testing.T) {
 
 	// Threshold can't be zero
 	createAccount := func() { createAcc(acc2, acc1, 0) }
-	CatchThrowMsg(t, "Invalid owner authority", createAccount)
+	CheckThrowMsg(t, "Invalid owner authority", createAccount)
 
 	// Threshold can't be more than total weight
 	createAccount = func() { createAcc(acc4, acc1, 3) }
-	CatchThrowMsg(t, "Invalid owner authority", createAccount)
+	CheckThrowMsg(t, "Invalid owner authority", createAccount)
 
 	createAcc(acc3, acc1, 1)
 	vt.close()
@@ -746,7 +746,7 @@ func TestLinkAuthSpecial(t *testing.T) {
 				0,
 			)
 		}
-		CatchThrowMsg(t, "Cannot link eosio::"+rtype+" to a minimum permission", linkAuth)
+		CheckThrowMsg(t, "Cannot link eosio::"+rtype+" to a minimum permission", linkAuth)
 	}
 
 	validateDisallow("linkauth")

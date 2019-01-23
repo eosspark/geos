@@ -558,61 +558,61 @@ func TestRedBlackTreeIteratorLast(t *testing.T) {
 	}
 }
 
-func TestRedBlackTreeIteratorModify(t *testing.T) {
-	tree := NewWithIntComparator(false)
-	tree.Put(3, "c")
-	tree.Put(1, "a")
-	tree.Put(2, "b")
-	itr := tree.Get(2)
-	itr.Modify(5, "x")
-
-	if actualValue, expectedValue := fmt.Sprintf("%d%d%d", tree.Keys()...), "135"; actualValue != expectedValue {
-		t.Errorf("Got %v expected %v", actualValue, expectedValue)
-	}
-	if actualValue, expectedValue := fmt.Sprintf("%s", tree.Values()), "[a c x]"; actualValue != expectedValue {
-		t.Errorf("Got %v expected %v", actualValue, expectedValue)
-	}
-
-	tree = NewWithIntComparator(true)
-	tree.Put(3, "a")
-	tree.Put(3, "b")
-	tree.Put(3, "c")
-	tree.Put(5, "y")
-
-	lower := tree.LowerBound(3)
-	if actualValue, expectedValue := fmt.Sprintf("%s", lower.Value()), "a"; actualValue != expectedValue {
-		t.Errorf("Got %v expected %v", actualValue, expectedValue)
-	}
-
-	lower.Modify(5, "x")
-	if actualValue, expectedValue := fmt.Sprintf("%d%d%d%d", tree.Keys()...), "3355"; actualValue != expectedValue {
-		t.Errorf("Got %v expected %v", actualValue, expectedValue)
-	}
-	if actualValue, expectedValue := fmt.Sprintf("%s", tree.Values()), "[b c y x]"; actualValue != expectedValue {
-		t.Errorf("Got %v expected %v", actualValue, expectedValue)
-	}
-
-	tree = NewWithIntComparator(true)
-	itr1 := tree.Insert(1,1)
-	itr2 := tree.Insert(2,2)
-	tree.Insert(3,3)
-	itr4 := tree.Insert(4,4)
-
-	itr1.Modify(4, 1)
-	if actualValue, expectedValue := fmt.Sprintf("%d", tree.Values()), "[2 3 4 1]"; actualValue != expectedValue {
-		t.Errorf("Got %v expected %v", actualValue, expectedValue)
-	}
-
-	itr2.Modify(4, 2)
-	if actualValue, expectedValue := fmt.Sprintf("%d", tree.Values()), "[3 4 1 2]"; actualValue != expectedValue {
-		t.Errorf("Got %v expected %v", actualValue, expectedValue)
-	}
-
-	itr4.Modify(4,4)
-	if actualValue, expectedValue := fmt.Sprintf("%d", tree.Values()), "[3 4 1 2]"; actualValue != expectedValue {
-		t.Errorf("Got %v expected %v", actualValue, expectedValue)
-	}
-}
+//func TestRedBlackTreeIteratorModify(t *testing.T) {
+//	tree := NewWithIntComparator(false)
+//	tree.Put(3, "c")
+//	tree.Put(1, "a")
+//	tree.Put(2, "b")
+//	itr := tree.Get(2)
+//	itr.Modify(5, "x")
+//
+//	if actualValue, expectedValue := fmt.Sprintf("%d%d%d", tree.Keys()...), "135"; actualValue != expectedValue {
+//		t.Errorf("Got %v expected %v", actualValue, expectedValue)
+//	}
+//	if actualValue, expectedValue := fmt.Sprintf("%s", tree.Values()), "[a c x]"; actualValue != expectedValue {
+//		t.Errorf("Got %v expected %v", actualValue, expectedValue)
+//	}
+//
+//	tree = NewWithIntComparator(true)
+//	tree.Put(3, "a")
+//	tree.Put(3, "b")
+//	tree.Put(3, "c")
+//	tree.Put(5, "y")
+//
+//	lower := tree.LowerBound(3)
+//	if actualValue, expectedValue := fmt.Sprintf("%s", lower.Value()), "a"; actualValue != expectedValue {
+//		t.Errorf("Got %v expected %v", actualValue, expectedValue)
+//	}
+//
+//	lower.Modify(5, "x")
+//	if actualValue, expectedValue := fmt.Sprintf("%d%d%d%d", tree.Keys()...), "3355"; actualValue != expectedValue {
+//		t.Errorf("Got %v expected %v", actualValue, expectedValue)
+//	}
+//	if actualValue, expectedValue := fmt.Sprintf("%s", tree.Values()), "[b c y x]"; actualValue != expectedValue {
+//		t.Errorf("Got %v expected %v", actualValue, expectedValue)
+//	}
+//
+//	tree = NewWithIntComparator(true)
+//	itr1 := tree.Insert(1,1)
+//	itr2 := tree.Insert(2,2)
+//	tree.Insert(3,3)
+//	itr4 := tree.Insert(4,4)
+//
+//	itr1.Modify(4, 1)
+//	if actualValue, expectedValue := fmt.Sprintf("%d", tree.Values()), "[2 3 4 1]"; actualValue != expectedValue {
+//		t.Errorf("Got %v expected %v", actualValue, expectedValue)
+//	}
+//
+//	itr2.Modify(4, 2)
+//	if actualValue, expectedValue := fmt.Sprintf("%d", tree.Values()), "[3 4 1 2]"; actualValue != expectedValue {
+//		t.Errorf("Got %v expected %v", actualValue, expectedValue)
+//	}
+//
+//	itr4.Modify(4,4)
+//	if actualValue, expectedValue := fmt.Sprintf("%d", tree.Values()), "[3 4 1 2]"; actualValue != expectedValue {
+//		t.Errorf("Got %v expected %v", actualValue, expectedValue)
+//	}
+//}
 
 func TestRedBlackTreeSerialization(t *testing.T) {
 	tree := NewWithStringComparator(false)

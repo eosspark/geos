@@ -2,6 +2,7 @@ package app
 
 import (
 	"fmt"
+	"github.com/eosspark/eos-go/common"
 	. "github.com/eosspark/eos-go/exception"
 	"github.com/eosspark/eos-go/exception/try"
 	. "github.com/eosspark/eos-go/plugins/appbase/app/include"
@@ -275,10 +276,16 @@ func (app *Application) VersionString() string {
 
 func (app *Application) SetDefaultConfigDir() {
 	app.my.ConfigDir = DefaultConfigDir()
+	if !common.FileExist(app.my.ConfigDir) {
+		try.Throw(os.MkdirAll(app.my.ConfigDir, os.ModePerm))
+	}
 }
 
 func (app *Application) SetDefaultDataDir() {
 	app.my.DateDir = DefaultDataDir()
+	if !common.FileExist(app.my.DateDir) {
+		try.Throw(os.MkdirAll(app.my.DateDir, os.ModePerm))
+	}
 }
 
 func DefaultConfigDir() string {
@@ -286,9 +293,9 @@ func DefaultConfigDir() string {
 	home := homeDir()
 	if home != "" {
 		if runtime.GOOS == "darwin" {
-			return filepath.Join(home, "Library", "Application Support", "eosgo", "nodes", "config")
+			return filepath.Join(home, "Library", "Application Support", "eosgo", "config")
 		} else if runtime.GOOS == "windows" {
-			return filepath.Join(home, "AppData", "Roaming", "eosgo", "nodes", "config")
+			return filepath.Join(home, "AppData", "Roaming", "eosgo", "config")
 		} else {
 			return filepath.Join(home, ".clef")
 		}
@@ -302,9 +309,9 @@ func DefaultDataDir() string {
 	home := homeDir()
 	if home != "" {
 		if runtime.GOOS == "darwin" {
-			return filepath.Join(home, "Library", "Application Support", "eosgo", "nodes", "data")
+			return filepath.Join(home, "Library", "Application Support", "eosgo", "data")
 		} else if runtime.GOOS == "windows" {
-			return filepath.Join(home, "AppData", "Roaming", "eosgo", "nodes", "data")
+			return filepath.Join(home, "AppData", "Roaming", "eosgo", "data")
 		} else {
 			return filepath.Join(home, ".clef")
 		}

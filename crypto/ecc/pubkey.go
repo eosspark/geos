@@ -30,6 +30,26 @@ type PublicKey struct {
 	inner innerPublicKey
 }
 
+func (p PublicKey) Pack() ([]byte, error) {
+	re := make([]byte, 0, 0)
+	re = append(re, byte(p.Curve))
+	re = append(re, p.Content[:]...)
+	return re, nil
+}
+
+func (p *PublicKey) Unpack(in []byte) (l int, err error) {
+	if len(in) < 34 {
+		return 0, fmt.Errorf("publicKey required [%d] bytes, remaining [%d]", 34, len(in))
+	}
+	keyContent := make([]byte, 34)
+	copy(keyContent, in[:34])
+	*p, err = NewPublicKeyFromData(keyContent)
+	if err != nil {
+		return 0, fmt.Errorf("publicKey: key from data: %s", err)
+	}
+	return 34, nil
+}
+
 func NewPublicKeyFromData(data []byte) (out PublicKey, err error) {
 	if len(data) != 34 {
 		return out, fmt.Errorf("public key data must have a length of 33 ")

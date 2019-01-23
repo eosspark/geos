@@ -22,7 +22,7 @@ type EnvContext interface {
 	RequireAuthorization2(account int64, permission int64)
 	RequireRecipient(recipient int64)
 	IsAccount(n int64) bool
-	HasReciptient(code int64) bool
+	HasRecipient(code int64) bool
 
 	//console
 	//ResetConsole()

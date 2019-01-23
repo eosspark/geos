@@ -1,6 +1,7 @@
 package database
 
 import (
+	"fmt"
 	"github.com/syndtr/goleveldb/leveldb"
 	"log"
 	"os"
@@ -363,8 +364,8 @@ func Test_undoInsert(t *testing.T) {
 	}
 
 	// Code 11 12 13
-	_, err = idx.LowerBound(DbTableIdObject{Code: 11})
-	if err != ErrNotFound {
+	it, err := idx.LowerBound(DbTableIdObject{Code: 11})
+	if !idx.CompareEnd(it){
 		log.Fatalln(err)
 	}
 
@@ -384,7 +385,7 @@ func Test_undoInsert(t *testing.T) {
 	if err != nil {
 		log.Println(err)
 	}
-	it, err := idx.LowerBound(DbTableIdObject{Code: 11})
+	it, err = idx.LowerBound(DbTableIdObject{Code: 11})
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -1852,25 +1853,28 @@ func MakeResourceLimitsObjects() []DbResourceLimitsObject {
 }
 
 func Test_findIdZero(t *testing.T){
-	number := 10
-	i := 11
-	out := DbTableIdObject{}
-	obj := DbTableIdObject{Code: AccountName(number + 1), Scope: ScopeName(number + 2), Table: TableName(number + 3 + i + 1), Payer: AccountName(number + 4 + i + 1), Count: uint32(number + 5)}
-	tmp := DbTableIdObject{Code: AccountName(number + 1), Scope: ScopeName(number + 2), Table: TableName(number + 3 + i + 1), Payer: AccountName(number + 4 + i + 1), Count: uint32(number + 5)}
+	//number := 10
+	//i := 11
+	//out := DbTableIdObject{}
+	//obj := DbTableIdObject{Code: AccountName(number + 1), Scope: ScopeName(number + 2), Table: TableName(number + 3 + i + 1), Payer: AccountName(number + 4 + i + 1), Count: uint32(number + 5)}
+	//tmp := DbTableIdObject{Code: AccountName(number + 1), Scope: ScopeName(number + 2), Table: TableName(number + 3 + i + 1), Payer: AccountName(number + 4 + i + 1), Count: uint32(number + 5)}
 	db, clo := openDb()
 	if db == nil {
 		log.Fatalln("db open failed")
 	}
 	defer clo()
-	db.Insert(&obj)
-	err := db.Find("id",&tmp,&out)
-	if err != nil{
+
+	hou := DbHouse{Carnivore: Carnivore{28, 38}}
+	idx, err := db.GetIndex("Lion", hou)
+		if err != nil {
 		log.Fatalln(err)
 	}
-	if tmp != out{
-		LogObj(out)
-		LogObj(tmp)
-		log.Fatalln("not equal")
+	it, err := idx.LowerBound(hou)
+	if err != nil{
+		fmt.Println(err)
+	}
+	if !idx.CompareEnd(it){
+		log.Fatal("error compare end")
 	}
 }
 

@@ -21,9 +21,10 @@ import (
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/common/container"
 	rbt "github.com/eosspark/eos-go/common/container/tree"
+	"github.com/eosspark/eos-go/crypto/rlp"
 )
 
-// template type Map(K,V,Compare)
+// template type Map(K,V,Compare,Multi)
 
 func assertAccountNameUint32MapImplementation() {
 	var _ container.Map = (*AccountNameUint32Map)(nil)
@@ -40,16 +41,6 @@ func NewAccountNameUint32Map() *AccountNameUint32Map {
 }
 
 func CopyFromAccountNameUint32Map(tm *AccountNameUint32Map) *AccountNameUint32Map {
-	return &AccountNameUint32Map{Tree: rbt.CopyFrom(tm.Tree)}
-}
-
-type MultiAccountNameUint32Map = AccountNameUint32Map
-
-func NewMultiAccountNameUint32Map() *MultiAccountNameUint32Map {
-	return &AccountNameUint32Map{Tree: rbt.NewWith(common.CompareName, true)}
-}
-
-func CopyMultiFromAccountNameUint32Map(tm *AccountNameUint32Map) *AccountNameUint32Map {
 	return &AccountNameUint32Map{Tree: rbt.CopyFrom(tm.Tree)}
 }
 
@@ -151,18 +142,14 @@ func (m *AccountNameUint32Map) End() IteratorAccountNameUint32Map {
 
 // Value returns the current element's value.
 // Does not modify the state of the Iterator.
-func (iterator *IteratorAccountNameUint32Map) Value() uint32 {
+func (iterator IteratorAccountNameUint32Map) Value() uint32 {
 	return iterator.Iterator.Value().(uint32)
 }
 
 // Key returns the current element's key.
 // Does not modify the state of the Iterator.
-func (iterator *IteratorAccountNameUint32Map) Key() common.AccountName {
+func (iterator IteratorAccountNameUint32Map) Key() common.AccountName {
 	return iterator.Iterator.Key().(common.AccountName)
-}
-
-func (iterator *IteratorAccountNameUint32Map) Modify(key common.AccountName, value uint32) IteratorAccountNameUint32Map {
-	return IteratorAccountNameUint32Map{iterator.Iterator.Modify(key, value)}
 }
 
 func (m *AccountNameUint32Map) LowerBound(key common.AccountName) IteratorAccountNameUint32Map {
@@ -200,4 +187,33 @@ func (m *AccountNameUint32Map) UnmarshalJSON(data []byte) error {
 		}
 	}
 	return err
+}
+
+func (m AccountNameUint32Map) Pack() (re []byte, err error) {
+	re = append(re, common.WriteUVarInt(m.Size())...)
+	m.Each(func(key common.AccountName, value uint32) {
+		rekey, _ := rlp.EncodeToBytes(key)
+		re = append(re, rekey...)
+		reVal, _ := rlp.EncodeToBytes(value)
+		re = append(re, reVal...)
+	})
+	return re, nil
+}
+
+func (m *AccountNameUint32Map) Unpack(in []byte) (int, error) {
+	m.Tree = rbt.NewWith(common.CompareName, false)
+
+	decoder := rlp.NewDecoder(in)
+	l, err := decoder.ReadUvarint64()
+	if err != nil {
+		return 0, err
+	}
+
+	for i := 0; i < int(l); i++ {
+		k, v := new(common.AccountName), new(uint32)
+		decoder.Decode(k)
+		decoder.Decode(v)
+		m.Put(*k, *v)
+	}
+	return decoder.GetPos(), nil
 }

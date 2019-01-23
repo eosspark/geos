@@ -2298,9 +2298,8 @@ func (t *BaseTester) init(pushGenesis bool, readMode chain.DBReadMode) {
 
 func newConfig(readMode chain.DBReadMode) *chain.Config {
 	cfg := &chain.Config{}
-	cfg.BlocksDir = common.DefaultConfig.DefaultBlocksDirName
-	cfg.StateDir = common.DefaultConfig.DefaultStateDirName
-	cfg.ReversibleDir = common.DefaultConfig.DefaultReversibleBlocksDirName
+	cfg.BlocksDir = "/tmp/data/" + common.DefaultConfig.DefaultBlocksDirName
+	cfg.StateDir = "/tmp/data/" + common.DefaultConfig.DefaultStateDirName
 	cfg.StateSize = 1024 * 1024 * 8
 	cfg.StateGuardSize = 0
 	cfg.ReversibleCacheSize = 1024 * 1024 * 8
@@ -2328,7 +2327,7 @@ func newConfig(readMode chain.DBReadMode) *chain.Config {
 
 func (t *BaseTester) open() {
 	//t.Control.Config = t.Cfg
-	//t.Control.startUp() //TODO
+	t.Control.Startup() //TODO
 	//t.Control.StartBlock()
 	t.ChainTransactions = make(map[common.BlockIdType]types.TransactionReceipt)
 	//t.Control.AcceptedBlock.Connect() // TODO: Control.signal
@@ -2447,7 +2446,7 @@ func (t BaseTester) SetTransactionHeaders(trx *types.Transaction, expiration uin
 
 	trx.MaxNetUsageWords = 0
 	trx.MaxCpuUsageMS = 0
-	trx.DelaySec = delaySec
+	trx.DelaySec = common.Vuint32(delaySec)
 }
 
 func (t BaseTester) CreateAccounts(names []common.AccountName, multiSig bool, includeCode bool) []*types.TransactionTrace {

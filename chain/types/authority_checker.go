@@ -207,7 +207,7 @@ func (wtv *WeightTallyVisitor) Visit(permission interface{}) uint32 {
 		wtv.VisitPermissionLevelWeight(v)
 		return wtv.TotalWeight
 	default:
-		return 0
+		return wtv.TotalWeight
 	}
 }
 

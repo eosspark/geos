@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"github.com/eosspark/eos-go/chain"
 	"github.com/eosspark/eos-go/chain/types"
-	"github.com/eosspark/eos-go/common"
+	. "github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto/ecc"
 	. "github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
@@ -39,11 +39,13 @@ func (c *ChainPlugin) SetProgramOptions(options *[]cli.Flag) {
 		cli.StringFlag{
 			Name:  "blocks-dir",
 			Usage: "the location of the blocks directory (absolute path or relative to application data dir)",
+			Value: App().DataDir() + "/blocks",
 		},
 		cli.StringSliceFlag{
 			Name:  "checkpoint",
 			Usage: "Pairs of [BLOCK_NUM,BLOCK_ID] that should be enforced as checkpoints.",
 		},
+
 		cli.StringFlag{
 			Name:  "wasm-runtime",
 			Usage: "Override default WASM runtime.",
@@ -52,22 +54,23 @@ func (c *ChainPlugin) SetProgramOptions(options *[]cli.Flag) {
 			Name:  "abi-serializer-max-time-ms",
 			Usage: "Override default maximum ABI serialization time allowed in ms",
 		},
-		cli.Uint64Flag{
-			Name:  "chain-state-db-size-mb",
-			Usage: "Maximum size (in MiB) of the chain state database",
-		},
-		cli.Uint64Flag{
-			Name:  "chain-state-db-guard-size-mb",
-			Usage: "Safely shut down node when free space remaining in the chain state database drops below this size (in MiB).",
-		},
-		cli.Uint64Flag{
-			Name:  "reversible-blocks-db-size-mb",
-			Usage: "Maximum size (in MiB) of the reversible blocks database",
-		},
-		cli.Uint64Flag{
-			Name:  "reversible-blocks-db-guard-size-mb",
-			Usage: "Safely shut down node when free space remaining in the reverseible blocks database drops below this size (in MiB).",
-		},
+		//TODO UNUSED
+		//cli.Uint64Flag{
+		//	Name:  "chain-state-db-size-mb",
+		//	Usage: "Maximum size (in MiB) of the chain state database",
+		//},
+		//cli.Uint64Flag{
+		//	Name:  "chain-state-db-guard-size-mb",
+		//	Usage: "Safely shut down node when free space remaining in the chain state database drops below this size (in MiB).",
+		//},
+		//cli.Uint64Flag{
+		//	Name:  "reversible-blocks-db-size-mb",
+		//	Usage: "Maximum size (in MiB) of the reversible blocks database",
+		//},
+		//cli.Uint64Flag{
+		//	Name:  "reversible-blocks-db-guard-size-mb",
+		//	Usage: "Safely shut down node when free space remaining in the reverseible blocks database drops below this size (in MiB).",
+		//},
 		cli.BoolFlag{
 			Name:  "contracts-console",
 			Usage: "print contract's output to console",
@@ -203,28 +206,28 @@ func (c *ChainPlugin) PluginInitialize(options *cli.Context) {
 	c.my.ChainConfig = chain.NewConfig()
 
 	for _, actor := range options.StringSlice("actor-whitelist") {
-		c.my.ChainConfig.ActorWhitelist.Add(common.N(actor))
+		c.my.ChainConfig.ActorWhitelist.Add(N(actor))
 	}
 	for _, actor := range options.StringSlice("actor-blacklist") {
-		c.my.ChainConfig.ActorBlacklist.Add(common.N(actor))
+		c.my.ChainConfig.ActorBlacklist.Add(N(actor))
 	}
 	for _, constract := range options.StringSlice("contract-whitelist") {
-		c.my.ChainConfig.ContractWhitelist.Add(common.N(constract))
+		c.my.ChainConfig.ContractWhitelist.Add(N(constract))
 	}
 	for _, constract := range options.StringSlice("contract-blacklist") {
-		c.my.ChainConfig.ContractBlacklist.Add(common.N(constract))
+		c.my.ChainConfig.ContractBlacklist.Add(N(constract))
 	}
 
 	for _, producer := range options.StringSlice("trusted-producer") {
-		c.my.ChainConfig.TrustedProducers.Add(common.N(producer))
+		c.my.ChainConfig.TrustedProducers.Add(N(producer))
 	}
 
 	for _, action := range options.StringSlice("action-blacklist") {
 		pos := strings.Index(action, "::")
 		EosAssert(pos != -1, &PluginConfigException{}, "Invalid entry in action-blacklist: '%s'", action)
-		code := common.N(action[0:pos])
-		act := common.N(action[pos+2:])
-		c.my.ChainConfig.ActionBlacklist.Add(common.MakePair(code, act))
+		code := N(action[0:pos])
+		act := N(action[pos+2:])
+		c.my.ChainConfig.ActionBlacklist.Add(MakePair(code, act))
 	}
 
 	for _, keyStr := range options.StringSlice("key-blacklist") {
@@ -235,9 +238,7 @@ func (c *ChainPlugin) PluginInitialize(options *cli.Context) {
 		c.my.ChainConfig.KeyBlacklist.Add(key)
 	}
 
-	if dir := options.String("blocks-dir"); dir != "" {
-		c.my.BlockDir = dir
-	}
+	c.my.BlockDir = options.String("blocks-dir")
 
 	for _, cp := range options.StringSlice("checkpoint") {
 		//TODO handle checkpoint
@@ -247,25 +248,28 @@ func (c *ChainPlugin) PluginInitialize(options *cli.Context) {
 	//TODO wasm-runtime: just use wasmgo?
 
 	if ms := options.Uint("abi-serializer-max-time-ms"); ms > 0 {
-		c.my.AbiSerializerMaxTimeMs = common.Microseconds(ms * 1000)
+		c.my.AbiSerializerMaxTimeMs = Microseconds(ms * 1000)
+	} else {
+		c.my.AbiSerializerMaxTimeMs = Microseconds(DefaultConfig.DefaultAbiSerializerMaxTimeMs)
 	}
 
 	c.my.ChainConfig.BlocksDir = c.my.BlockDir
-	c.my.ChainConfig.StateDir = App().DataDir()
+	c.my.ChainConfig.StateDir = App().DataDir() + "/" + DefaultConfig.DefaultStateDirName
 	c.my.ChainConfig.ReadOnly = c.my.Readonly
 
-	if mb := options.Uint64("chain-state-db-size-mb"); mb > 0 {
-		c.my.ChainConfig.StateSize = mb * 1024 * 1024
-	}
-	if mb := options.Uint64("chain-state-db-guard-size-mb"); mb > 0 {
-		c.my.ChainConfig.StateGuardSize = mb * 1024 * 1024
-	}
-	if mb := options.Uint64("reversible-blocks-db-size-mb"); mb > 0 {
-		c.my.ChainConfig.ReversibleCacheSize = mb * 1024 * 1024
-	}
-	if mb := options.Uint64("reversible-blocks-db-guard-size-mb"); mb > 0 {
-		c.my.ChainConfig.ReversibleGuardSize = mb * 1024 * 1024
-	}
+	//TODO UNUSED
+	//if mb := options.Uint64("chain-state-db-size-mb"); mb > 0 {
+	//	c.my.ChainConfig.StateSize = mb * 1024 * 1024
+	//}
+	//if mb := options.Uint64("chain-state-db-guard-size-mb"); mb > 0 {
+	//	c.my.ChainConfig.StateGuardSize = mb * 1024 * 1024
+	//}
+	//if mb := options.Uint64("reversible-blocks-db-size-mb"); mb > 0 {
+	//	c.my.ChainConfig.ReversibleCacheSize = mb * 1024 * 1024
+	//}
+	//if mb := options.Uint64("reversible-blocks-db-guard-size-mb"); mb > 0 {
+	//	c.my.ChainConfig.ReversibleGuardSize = mb * 1024 * 1024
+	//}
 
 	//TODO handle wasm-runtime
 	c.my.ChainConfig.ForceAllChecks = options.Bool("force-all-checks")
@@ -324,14 +328,14 @@ func (c *ChainPlugin) PluginInitialize(options *cli.Context) {
 		ClearDirectoryContents(c.my.ChainConfig.StateDir)
 		if options.Bool("fix-reversible-blocks") {
 			if !c.RecoverReversibleBlocks(fmt.Sprintf("%s/%s", c.my.ChainConfig.BlocksDir,
-				common.DefaultConfig.DefaultReversibleBlocksDirName),
+				DefaultConfig.DefaultReversibleBlocksDirName),
 				uint32(c.my.ChainConfig.ReversibleCacheSize), "", 0) {
 				log.Info("Reversible blocks database was not corrupted.")
 			}
 		}
 	} else if options.Bool("fix-reversible-blocks") {
 		if !c.RecoverReversibleBlocks(fmt.Sprintf("%s/%s", c.my.ChainConfig.BlocksDir,
-			common.DefaultConfig.DefaultReversibleBlocksDirName),
+			DefaultConfig.DefaultReversibleBlocksDirName),
 			uint32(c.my.ChainConfig.ReversibleCacheSize), "", uint32(options.Uint("truncate-at-block"))) {
 			log.Info("Reversible blocks database verified to not be corrupted. Now exiting...")
 		} else {
@@ -344,7 +348,7 @@ func (c *ChainPlugin) PluginInitialize(options *cli.Context) {
 
 	} else if reversibleBlocksFile := options.String("import-reversible-blocks"); reversibleBlocksFile != "" {
 		log.Info("Importing reversible blocks from '%s'", reversibleBlocksFile)
-		path := fmt.Sprintf("%s/%s", c.my.ChainConfig.BlocksDir, common.DefaultConfig.DefaultReversibleBlocksDirName)
+		path := fmt.Sprintf("%s/%s", c.my.ChainConfig.BlocksDir, DefaultConfig.DefaultReversibleBlocksDirName)
 		os.RemoveAll(path)
 
 		c.ImportReversibleBlocks(path, uint32(c.my.ChainConfig.ReversibleCacheSize), reversibleBlocksFile)
@@ -377,16 +381,20 @@ func (c *ChainPlugin) PluginInitialize(options *cli.Context) {
 			log.Error("The read-mode option %s format failed", readMode)
 		}
 		EosAssert(c.my.ChainConfig.ReadMode != chain.IRREVERSIBLE, &PluginConfigException{}, "irreversible mode not currently supported.")
+	} else {
+		c.my.ChainConfig.ReadMode = chain.SPECULATIVE
 	}
 
 	if validationMode := options.String("validation-mode"); validationMode != "" {
 		if blockValidationMode, ok := chain.ValidationModeFromString(validationMode); ok {
 			c.my.ChainConfig.BlockValidationMode = blockValidationMode
 		}
+	} else {
+		c.my.ChainConfig.BlockValidationMode = chain.FULL
 	}
 
-	//c.my.Chain = chain.NewController(c.my.ChainConfig) //TODO
-	c.my.Chain = chain.NewController(c.my.ChainConfig)
+	c.my.Chain = chain.NewController(c.my.ChainConfig) //TODO
+	//c.my.Chain = chain.GetControllerInstance()
 	c.my.ChainId = c.my.Chain.GetChainId()
 
 	// set up method providers
@@ -400,6 +408,18 @@ func (c *ChainPlugin) PluginStartup() {
 	//log.Info("Blockchain started; head block is #%d, genesis timestamp is %s",
 	//	c.my.Chain.HeadBlockNum(), c.my.ChainConfig.Genesis.InitialTimestamp)
 	//my->chain->head_block_num(), my->chain_config->genesis.initial_timestamp
+	Try(func() {
+		c.my.Chain.Startup()
+	}).Catch(func(e *DatabaseGuardException){
+		c.logGuardException(e)
+		Throw(e)
+	})
+
+	if !c.my.Readonly {
+		log.Info("starting chain in read/write mode");
+	}
+
+	log.Info("Blockchain started; head block is #%d, genesis timestamp is %s", c.my.Chain.HeadBlockNum(), c.my.ChainConfig.Genesis.InitialTimestamp)
 }
 
 func (c *ChainPlugin) PluginShutdown() {
@@ -420,7 +440,7 @@ func (c *ChainPlugin) AcceptBlock(block *types.SignedBlock) {
 }
 
 func (c *ChainPlugin) AcceptTransaction(trx *types.PackedTransaction, next chain_interface.NextFunction) {
-	c.my.incomingTransactionAsyncMethod.CallMethods(trx, false, next)
+	c.my.IncomingTransactionAsyncMethod.CallMethods(trx, false, next)
 }
 
 func (c *ChainPlugin) RecoverReversibleBlocks(dbDir string, cacheSize uint32, newDbDir string, truncateAtBlock uint32) bool {
@@ -442,11 +462,11 @@ func (c *ChainPlugin) Chain() *chain.Controller {
 	return c.my.Chain
 }
 
-func (c *ChainPlugin) GetChainId() common.ChainIdType {
+func (c *ChainPlugin) GetChainId() ChainIdType {
 	return c.my.ChainId
 }
 
-func (c *ChainPlugin) GetAbiSerializerMaxTime() common.Microseconds {
+func (c *ChainPlugin) GetAbiSerializerMaxTime() Microseconds {
 	return c.my.AbiSerializerMaxTimeMs
 }
 

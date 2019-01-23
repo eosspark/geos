@@ -34,8 +34,8 @@ type ActionReceipt struct {
 	GlobalSequence uint64                        `json:"global_sequence"`
 	RecvSequence   uint64                        `json:"recv_sequence"`
 	AuthSequence   map[common.AccountName]uint64 `json:"auth_sequence"`
-	CodeSequence   uint32                        `json:"code_sequence" eos:"vuint32""`
-	AbiSequence    uint32                        `json:"abi_sequence" eos:"vuint32"`
+	CodeSequence   common.Vuint32                `json:"code_sequence" eos:"vuint32"`
+	AbiSequence    common.Vuint32                `json:"abi_sequence" eos:"vuint32"`
 }
 
 func (a *ActionReceipt) Digest() crypto.Sha256 {

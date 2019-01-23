@@ -16,10 +16,7 @@ type ReadWrite struct {
 }
 
 func NewReadWrite(db *chain.Controller, abiSerializerMaxTime common.Microseconds) *ReadWrite {
-	rw := new(ReadWrite)
-	rw.db = db
-	rw.abiSerializerMaxTime = abiSerializerMaxTime
-	return rw
+	return &ReadWrite{db: db, abiSerializerMaxTime: abiSerializerMaxTime}
 }
 
 func (rw *ReadWrite) Validate() {

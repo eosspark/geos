@@ -141,18 +141,14 @@ func (m *StringIntMap) End() IteratorStringIntMap {
 
 // Value returns the current element's value.
 // Does not modify the state of the Iterator.
-func (iterator *IteratorStringIntMap) Value() int {
+func (iterator IteratorStringIntMap) Value() int {
 	return iterator.Iterator.Value().(int)
 }
 
 // Key returns the current element's key.
 // Does not modify the state of the Iterator.
-func (iterator *IteratorStringIntMap) Key() string {
+func (iterator IteratorStringIntMap) Key() string {
 	return iterator.Iterator.Key().(string)
-}
-
-func (iterator *IteratorStringIntMap) Modify(key string, value int) IteratorStringIntMap {
-	return IteratorStringIntMap{iterator.Iterator.Modify(key, value)}
 }
 
 func (m *StringIntMap) LowerBound(key string) IteratorStringIntMap {
