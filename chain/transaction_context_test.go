@@ -31,7 +31,7 @@ func TestContract(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		control := GetControllerInstance()
+		control := NewController(NewConfig())
 		blockTimeStamp := types.NewBlockTimeStamp(common.Now())
 		control.StartBlock(blockTimeStamp, 0)
 
@@ -279,7 +279,7 @@ func TestTransactionContextTest(t *testing.T) {
 		}
 
 		//set code
-		control := GetControllerInstance()
+		control := NewController(NewConfig())
 		blockTimeStamp := types.NewBlockTimeStamp(common.Now())
 		control.StartBlock(blockTimeStamp, 0)
 

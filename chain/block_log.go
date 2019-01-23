@@ -312,7 +312,7 @@ func (b *BlockLog) ReadHead() *types.SignedBlock {
 	}
 
 	var pos uint64
-	bytes := make([]byte, end)
+	bytes := make([]byte, 8)
 	b.blockStream.Seek(-SizeOfInt64, end)
 	b.blockStream.Read(bytes)
 	rlp.DecodeBytes(bytes, &pos)
