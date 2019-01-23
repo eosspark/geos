@@ -7,12 +7,12 @@ import (
 
 var (
 	root            = &logger{name: "", h: new(swapHandler), enable: true}
+	FcLog           = &logger{name: "fc", h: new(swapHandler), enable: true}
 	StdoutHandler   = StreamHandler(os.Stdout, LogfmtFormat())
 	TerminalHandler = StreamHandler(os.Stdout, TerminalFormat(true))
 )
 
 func init() {
-
 	root.SetHandler(TerminalHandler)
 	//root.SetHandler(DiscardHandler())
 	//root.SetHandler(LvlFilterHandler(LvlError,TerminalHandler))
@@ -20,6 +20,9 @@ func init() {
 	//h,_ := FileHandler("./log.log",LogfmtFormat())
 	//root.SetHandler(h)
 
+	h, _ := FileHandler("./fc.log", LogfmtFormat())
+	FcLog.SetHandler(h)
+	FcLog.SetHandler(DiscardHandler())
 }
 
 func New(name string) Logger {

@@ -11,7 +11,7 @@ import (
 	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
-	"github.com/eosspark/eos-go/log"
+	. "github.com/eosspark/eos-go/log"
 	. "github.com/eosspark/eos-go/plugins/appbase/app"
 	"github.com/eosspark/eos-go/plugins/appbase/asio"
 	"github.com/eosspark/eos-go/plugins/chain_plugin"
@@ -74,6 +74,9 @@ type Connection struct {
 	forkHead             common.BlockIdType
 	forkHeadNum          uint32
 	lastReq              *RequestMessage
+
+	//outstandingReadBytes int //optional
+	bufTemp []byte
 
 	// Members set from network data
 	org    common.TimePoint //originate timestamp
@@ -188,7 +191,7 @@ func (c *Connection) close() {
 	c.lastHandshakeRecv = &HandshakeMessage{}
 	c.lastHandshakeSent = &HandshakeMessage{}
 	c.impl.syncMaster.resetLibNum(c)
-	fcLog.Debug("cancel wait on %s", c.PeerName())
+	FcLog.Debug("cancel wait on %s", c.PeerName())
 	c.cancelWait()
 }
 
@@ -197,7 +200,7 @@ func (c *Connection) sendHandshake() {
 	c.sentHandshakeCount += 1
 	c.lastHandshakeSent.Generation = c.sentHandshakeCount
 
-	fcLog.Info("Sending handshake generation %d to %s", c.lastHandshakeSent.Generation, c.peerAddr)
+	FcLog.Info("Sending handshake generation %d to %s", c.lastHandshakeSent.Generation, c.peerAddr)
 	c.enqueue(c.lastHandshakeSent, true)
 }
 
@@ -313,7 +316,7 @@ func (c *Connection) fetchTimeout(err error) { //TODO not same as C++
 }
 
 func (c *Connection) cancelSync(reason GoAwayReason) {
-	fcLog.Debug("cancel sync reason = %s, write queue size %d peer %s", ReasonToString[reason], len(c.writeQueue), c.peerAddr)
+	FcLog.Debug("cancel sync reason = %s, write queue size %d peer %s", ReasonToString[reason], len(c.writeQueue), c.peerAddr)
 
 	c.cancelWait()
 	c.flushQueues()
@@ -323,7 +326,7 @@ func (c *Connection) cancelSync(reason GoAwayReason) {
 		c.noRetry = reason
 		c.enqueue(&GoAwayMessage{Reason: reason}, true)
 	default:
-		fcLog.Debug("sending empty request but not calling sync wait on %s", c.peerAddr)
+		FcLog.Debug("sending empty request but not calling sync wait on %s", c.peerAddr)
 		c.enqueue(&SyncRequestMessage{0, 0}, true)
 	}
 }
@@ -370,7 +373,7 @@ func (c *Connection) txnSendPending(ids []common.TransactionIdType) {
 
 						})
 					} else {
-						fcLog.Warn("Local pending TX erased before queued_write called callback")
+						FcLog.Warn("Local pending TX erased before queued_write called callback")
 					}
 				})
 
@@ -415,7 +418,7 @@ func (c *Connection) txnSend(ids []common.TransactionIdType) {
 						}
 					})
 				} else {
-					fcLog.Warn("Local TX erased before queued_write called callback")
+					FcLog.Warn("Local TX erased before queued_write called callback")
 				}
 			})
 		}
@@ -430,7 +433,7 @@ func (c *Connection) blkSendBranch() {
 
 	note.KnownBlocks.Mode = normal
 	note.KnownBlocks.Pending = 0
-	fcLog.Debug("head_num = %d", headNum)
+	FcLog.Debug("head_num = %d", headNum)
 	if headNum == 0 {
 		c.enqueue(&note, true)
 		return
@@ -447,7 +450,7 @@ func (c *Connection) blkSendBranch() {
 		if c.lastHandshakeRecv.Generation >= 1 {
 			remoteHeadID = c.lastHandshakeRecv.HeadID
 			remoteHeadNum = types.NumFromID(&remoteHeadID)
-			fcLog.Debug("maybe truncating branch at = %d : %s", remoteHeadNum, remoteHeadID)
+			FcLog.Debug("maybe truncating branch at = %d : %s", remoteHeadNum, remoteHeadID)
 		}
 		// base our branch off of the last handshake we sent the peer instead of our current
 		// LIB which could have moved forward in time as packets were in flight.
@@ -458,7 +461,7 @@ func (c *Connection) blkSendBranch() {
 		}
 		headID = cc.ForkDbHeadBlockId()
 	}).Catch(func(ex *exception.AssertException) {
-		log.Error("unable to retrieve block info: %s for %s", ex.What(), c.peerAddr)
+		netLog.Error("unable to retrieve block info: %s for %s", ex.What(), c.peerAddr)
 		c.enqueue(&note, true)
 		returning = true
 	}).Catch(func(ex exception.Exception) {
@@ -507,9 +510,9 @@ func (c *Connection) blkSendBranch() {
 				c.enqueue(&SignedBlockMessage{*bStack[i-1]}, true)
 			}
 		}
-		fcLog.Info("Sent %d blocks on my fork", count)
+		FcLog.Info("Sent %d blocks on my fork", count)
 	} else {
-		fcLog.Info("Nothing to send on fork request")
+		FcLog.Info("Nothing to send on fork request")
 	}
 
 	c.syncing = false
@@ -524,10 +527,10 @@ func (c *Connection) blkSend(ids []common.BlockIdType) {
 		Try(func() {
 			b := cc.FetchBlockById(blkID)
 			if b != nil {
-				fcLog.Debug("found block for id ar num %d", b.BlockNumber())
+				FcLog.Debug("found block for id ar num %d", b.BlockNumber())
 				c.enqueue(&SignedBlockMessage{*b}, true)
 			} else {
-				fcLog.Info("fetch block by id returned null, id %s on block %d of %d for %s",
+				FcLog.Info("fetch block by id returned null, id %s on block %d of %d for %s",
 					blkID, count, len(ids), c.peerAddr)
 				breaking = true
 			}
@@ -582,7 +585,7 @@ func (c *Connection) enqueueSyncBlock() bool {
 			result = true
 		}
 	}).Catch(func(e interface{}) {
-		fcLog.Warn("write loop exception")
+		FcLog.Warn("write loop exception")
 	}).End()
 
 	return result
@@ -603,21 +606,21 @@ func isValid(msg *HandshakeMessage) bool {
 	// affecting state.
 	valid := true
 	if msg.LastIrreversibleBlockNum > msg.HeadNum {
-		fcLog.Warn("Handshake message validation: last irreversible block %d is greater than head block %d",
+		FcLog.Warn("Handshake message validation: last irreversible block %d is greater than head block %d",
 			msg.LastIrreversibleBlockNum, msg.HeadNum)
 		valid = false
 	}
 	if len(msg.P2PAddress) == 0 {
-		fcLog.Warn("Handshake message validation: p2p_address is null string")
+		FcLog.Warn("Handshake message validation: p2p_address is null string")
 		valid = false
 	}
 	if len(msg.OS) == 0 {
-		fcLog.Warn("Handshake message validation: os field is null string")
+		FcLog.Warn("Handshake message validation: os field is null string")
 		valid = false
 	}
 	if (common.CompareString(msg.Signature, ecc.NewSigNil()) != 0 || msg.Token.Equals(*crypto.NewSha256Nil())) &&
 		msg.Token.Equals(*crypto.Hash256(msg.Time)) {
-		fcLog.Warn("Handshake message validation: token field invalid")
+		FcLog.Warn("Handshake message validation: token field invalid")
 		valid = false
 	}
 
@@ -683,7 +686,7 @@ func (c *Connection) processNextMessage(payloadBytes []byte) bool {
 		p2pMessage := msg.Interface().(P2PMessage)
 
 		bytes, _ := json.Marshal(p2pMessage)
-		fcLog.Info("received message %d  :%s\n", p2pMessage.GetType(), string(bytes))
+		FcLog.Info("received message %d  :%s\n", p2pMessage.GetType(), string(bytes))
 
 		switch msg := p2pMessage.(type) {
 		case *HandshakeMessage:
@@ -733,7 +736,7 @@ func (c *Connection) enqueue(m P2PMessage, triggerSend bool) {
 	sendBuf = append(sendBuf, payload...)
 
 	bytes, _ := json.Marshal(m)
-	fcLog.Debug("send message :%d,%s", m.GetType(), string(bytes))
+	FcLog.Debug("send message :%d,%s", m.GetType(), string(bytes))
 
 	c.queueWrite(sendBuf, triggerSend, func(err error, n int) {
 		if c != nil {
@@ -743,7 +746,7 @@ func (c *Connection) enqueue(m P2PMessage, triggerSend bool) {
 				return
 			}
 		} else {
-			fcLog.Warn("connection expired before enqueued net_message called callback!")
+			FcLog.Warn("connection expired before enqueued net_message called callback!")
 		}
 	})
 }
@@ -761,7 +764,7 @@ func (c *Connection) doQueueWrite() {
 	}
 
 	if c.socket == nil {
-		fcLog.Error("socket not open to %s", c.peerAddr)
+		FcLog.Error("socket not open to %s", c.peerAddr)
 		c.impl.close(c)
 		return
 	}
@@ -785,7 +788,7 @@ func (c *Connection) doQueueWrite() {
 					pName = c.PeerName()
 				}
 				netLog.Error("error sending to peer %s,error is %s", pName, err.Error())
-				fcLog.Info("connection closure detected o write to %s", pName)
+				FcLog.Info("connection closure detected o write to %s", pName)
 				c.impl.close(c)
 				return
 			}

@@ -10,6 +10,7 @@ import (
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
+	. "github.com/eosspark/eos-go/log"
 	. "github.com/eosspark/eos-go/plugins/appbase/app"
 	"github.com/eosspark/eos-go/plugins/appbase/asio"
 	"github.com/eosspark/eos-go/plugins/chain_interface"
@@ -31,7 +32,7 @@ type NetPlugin struct {
 func NewNetPlugin(io *asio.IoContext) *NetPlugin {
 	plugin := &NetPlugin{}
 
-	plugin.my = NewNetPluginIMpl()
+	plugin.my = NewNetPluginIMpl(io)
 	plugin.my.Self = plugin
 
 	return plugin
@@ -140,7 +141,6 @@ func (n *NetPlugin) PluginInitialize(c *cli.Context) {
 		n.my.numClients = 0
 		n.my.useSocketReadWatermark = c.Bool("use-socket-read-watermark")
 
-		//n.my.resolver =App().GetIoService()
 		n.my.ListenEndpoint = c.String("p2p-listen-endpoint")
 		n.my.p2PAddress = c.String("p2p-listen-endpoint")
 		n.my.suppliedPeers = c.StringSlice("p2p-peer-address")
@@ -272,9 +272,9 @@ func (n *NetPlugin) Connect(host string) string {
 	}
 
 	c := NewConnectionByEndPoint(host, n.my)
-	fcLog.Info("adding new peer to the list")
+	FcLog.Info("adding new peer to the list")
 	n.my.connections = append(n.my.connections, c)
-	fcLog.Info("calling active connector")
+	FcLog.Info("calling active connector")
 	n.my.connect(c)
 	return "added connection"
 }

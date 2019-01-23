@@ -38,18 +38,18 @@ func (r *ReactiveSocket) connect(network, address string, op func(net.Conn, erro
 	r.ctx.GetService().post(socketConnectOp{op, conn, err})
 }
 
-func (r *ReactiveSocket) AsyncResolve(ctx context.Context, host string, port int, op func(address string, err error)) {
+func (r *ReactiveSocket) AsyncResolve(ctx context.Context, host string, port string, op func(address string, err error)) {
 	go r.resolve(ctx, host, port, op)
 }
 
-func (r *ReactiveSocket) resolve(ctx context.Context, host string, port int, op func(string, error)) {
+func (r *ReactiveSocket) resolve(ctx context.Context, host string, port string, op func(string, error)) {
 	ips, err := net.DefaultResolver.LookupIPAddr(ctx, host)
 	if err != nil {
 		r.ctx.GetService().post(socketResolveOp{op, "", err})
 		return
 	}
 	for _, ip := range ips {
-		r.ctx.GetService().post(socketResolveOp{op, fmt.Sprintf("%s:%d", ip.IP.String(), port), err})
+		r.ctx.GetService().post(socketResolveOp{op, fmt.Sprintf("%s:%s", ip.IP.String(), port), err})
 	}
 }
 

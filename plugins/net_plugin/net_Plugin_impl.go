@@ -1,6 +1,7 @@
 package net_plugin
 
 import (
+	"context"
 	"encoding/binary"
 	"encoding/json"
 	"github.com/eosspark/eos-go/chain"
@@ -10,23 +11,20 @@ import (
 	"github.com/eosspark/eos-go/crypto/ecc"
 	. "github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
-	"github.com/eosspark/eos-go/log"
+	. "github.com/eosspark/eos-go/log"
 	. "github.com/eosspark/eos-go/plugins/appbase/app"
 	. "github.com/eosspark/eos-go/plugins/appbase/asio"
 	"github.com/eosspark/eos-go/plugins/chain_plugin"
 	"github.com/eosspark/eos-go/plugins/net_plugin/multi_index"
 	"github.com/eosspark/eos-go/plugins/net_plugin/multi_index/node_transaction"
 	"github.com/eosspark/eos-go/plugins/producer_plugin"
+	"io"
 	"net"
 	"strings"
 	"time"
 )
 
-var (
-	netLog  log.Logger
-	fcLog   log.Logger
-	peerLog log.Logger
-)
+var netLog Logger
 
 type possibleConnections byte
 
@@ -73,9 +71,9 @@ const (
 )
 
 type netPluginIMpl struct {
-	Listener       net.Listener
-	ListenEndpoint string
-
+	Listener           net.Listener
+	ListenEndpoint     string
+	resolver           *ReactiveSocket
 	p2PAddress         string
 	maxClientCount     uint32
 	maxNodesPerHost    uint32
@@ -112,11 +110,12 @@ type netPluginIMpl struct {
 
 	ChainPlugin     *chain_plugin.ChainPlugin
 	startedSessions int
+	context         context.Context
 
 	Self *NetPlugin
 }
 
-func NewNetPluginIMpl() *netPluginIMpl {
+func NewNetPluginIMpl(io *IoContext) *netPluginIMpl {
 	impl := &netPluginIMpl{
 		maxClientCount:             0,
 		maxNodesPerHost:            1,
@@ -132,22 +131,16 @@ func NewNetPluginIMpl() *netPluginIMpl {
 		privateKeys:                make(map[ecc.PublicKey]ecc.PrivateKey),
 		localTxns:                  node_transaction.NewNodeTransactionIndex(),
 		connections:                make([]*Connection, 0),
+		resolver:                   NewReactiveSocket(io),
+		context:                    context.Background(),
 	}
 
 	impl.syncMaster = NewSyncManager(impl, 250)
 	impl.dispatcher = NewDispatchManager(impl)
 
-	netLog = log.New("net")
-	netLog.SetHandler(log.TerminalHandler)
-	//impl.log.SetHandler(log.DiscardHandler())
-
-	fcLog = log.New("fc")
-	//fcLog.SetHandler(log.TerminalHandler)
-	h, _ := log.FileHandler("./net_fc.log", log.LogfmtFormat())
-	fcLog.SetHandler(h)
-
-	peerLog = log.New("peer")
-	peerLog.SetHandler(log.TerminalHandler)
+	netLog = New("net")
+	netLog.SetHandler(TerminalHandler)
+	//impl.log.SetHandler(DiscardHandler())
 
 	return impl
 }
@@ -157,7 +150,7 @@ func (impl *netPluginIMpl) startListenLoop() {
 
 	socket.AsyncAccept(impl.Listener, func(conn net.Conn, err error) {
 		if conn == nil {
-			log.Error("Error connect, nil")
+			netLog.Error("Error connect, nil")
 			impl.startListenLoop()
 			return
 		}
@@ -166,7 +159,7 @@ func (impl *netPluginIMpl) startListenLoop() {
 			visitors := uint32(0)
 			fromAddr := uint32(0)
 			pAddr := conn.RemoteAddr().String()
-			log.Info("accept connection: %s,visitor: %d, fromAddr: %d", pAddr, visitors, fromAddr)
+			netLog.Info("accept connection: %s,visitor: %d, fromAddr: %d", pAddr, visitors, fromAddr)
 
 			for _, c := range impl.connections {
 				if c.conn != nil {
@@ -179,7 +172,7 @@ func (impl *netPluginIMpl) startListenLoop() {
 				}
 			}
 			if impl.numClients != visitors {
-				fcLog.Info("checking max client, visitors = %d, num clients %d", visitors, impl.numClients)
+				FcLog.Info("checking max client, visitors = %d, num clients %d", visitors, impl.numClients)
 				impl.numClients = visitors
 			}
 			if fromAddr < impl.maxNodesPerHost && (impl.maxClientCount == 0 || impl.numClients < impl.maxClientCount) {
@@ -189,14 +182,14 @@ func (impl *netPluginIMpl) startListenLoop() {
 				impl.startSession(socket, c)
 			} else {
 				if fromAddr >= impl.maxNodesPerHost {
-					log.Error("Number of connections (%d) from %s exceeds limit", fromAddr+1, pAddr)
+					netLog.Error("Number of connections (%d) from %s exceeds limit", fromAddr+1, pAddr)
 				} else {
-					log.Error("Error max_client_count %d exceeded", impl.maxClientCount)
+					netLog.Error("Error max_client_count %d exceeded", impl.maxClientCount)
 				}
 				conn.Close()
 			}
 		} else {
-			log.Error("Error accepting connection: %s", err.Error())
+			netLog.Error("Error accepting connection: %s", err.Error())
 
 			//// For the listed error codes below, recall start_listen_loop()
 			//switch (ec.value()) {
@@ -221,95 +214,97 @@ func (impl *netPluginIMpl) startSession(socket *ReactiveSocket, con *Connection)
 	return true
 }
 
-func (impl *netPluginIMpl) startReadMessage(socket *ReactiveSocket, con *Connection) {
-
-	buf := make([]byte, 4096)
-	socket.AsyncRead(con.conn, buf, func(n int, err error) {
-
-		if err != nil {
-			pName := con.peerAddr
-			//if (ec.value() != boost::asio::error::eof) {
-			//	netLog.Error( "Error reading message from %s: %s",pName,err) );
-			//} else {
-			//	netLog.Info( "Peer %s closed connection",pName )
-			//}
-			fcLog.Info("Peer %s closed connection", pName)
-			impl.close(con)
+func (impl *netPluginIMpl) startReadMessage(socket *ReactiveSocket, conn *Connection) {
+	returning := false
+	pendingMessageBuffer := make([]byte, 0)
+	Try(func() {
+		if conn.conn == nil {
+			returning = true
 			return
 		}
-		if n < messageHeaderSize {
 
-		} else {
-			//uint32_t message_length;
-			//auto index = conn->pending_message_buffer.read_index();
-			//conn->pending_message_buffer.peek(&message_length, sizeof(message_length), index);
-			//if(message_length > def_send_buffer_size*2 || message_length == 0) {
-			//boost::system::error_code ec;
-			//	elog("incoming message length unexpected (${i}), from ${p}", ("i", message_length)("p",boost::lexical_cast<std::string>(conn->socket->remote_endpoint(ec))));
-			//	close(conn);
-			//	return;
-			//}
-			//
-			//auto total_message_bytes = message_length + message_header_size;
-			//
-			//if (bytes_in_buffer >= total_message_bytes) {
-			//	conn->pending_message_buffer.advance_read_ptr(message_header_size);
-			//	if (!conn->process_next_message(*this, message_length)) {
-			//		return;
-			//	}
-			//} else {
-			//	auto outstanding_message_bytes = total_message_bytes - bytes_in_buffer;
-			//	auto available_buffer_bytes = conn->pending_message_buffer.bytes_to_write();
-			//	if (outstanding_message_bytes > available_buffer_bytes) {
-			//		conn->pending_message_buffer.add_space( outstanding_message_bytes - available_buffer_bytes );
-			//	}
-			//
-			//	conn->outstanding_read_bytes.emplace(outstanding_message_bytes);
-			//	break;
-			//}
-
-			messageLength := uint32(0)
-
-			messageLength = binary.LittleEndian.Uint32(buf[:4])
-
-			if messageLength > defSendBufferSize*2 || messageLength == 0 {
-				netLog.Error("incoming message length unexpected %d, from %s", messageLength, con.peerAddr)
-				impl.close(con)
+		buf := make([]byte, 4096)
+		socket.AsyncRead(conn.conn, buf, func(n int, err error) {
+			if conn == nil {
+				returning = true
 				return
 			}
-			if uint32(len(buf)) < 4+messageLength {
-				netLog.Error("the length of buf is less than incoming message length unexpected ")
+
+			Try(func() {
+				if err == nil {
+					if len(conn.bufTemp) > 0 {
+						pendingMessageBuffer = append(conn.bufTemp, buf[:n]...)
+					} else {
+						pendingMessageBuffer = buf[:n]
+					}
+					conn.bufTemp = nil
+					n = len(pendingMessageBuffer)
+
+					//netLog.Warn("receive new data: %d,%v", n, pendingMessageBuffer[:n])
+					for i := 0; i < n; {
+						bytesInBuf := n - i
+						if bytesInBuf < messageHeaderSize {
+							conn.bufTemp = append(conn.bufTemp, pendingMessageBuffer[i:n]...)
+							break
+						} else {
+							messageLength := int(binary.LittleEndian.Uint32(pendingMessageBuffer[i : i+4]))
+							if messageLength > defSendBufferSize*2 || messageLength == 0 {
+								netLog.Error("incoming message length unexpected %d, from %s", messageLength, conn.conn.RemoteAddr())
+								impl.close(conn)
+								returning = true
+								return
+							}
+							totalMessageBytes := messageLength + messageHeaderSize
+							if bytesInBuf >= totalMessageBytes {
+								if !conn.processNextMessage(pendingMessageBuffer[i+4 : i+4+totalMessageBytes]) {
+									returning = true
+									return
+								}
+								i = i + totalMessageBytes
+							} else {
+								conn.bufTemp = append(conn.bufTemp, pendingMessageBuffer[i:n]...)
+								break
+							}
+						}
+					}
+					impl.startReadMessage(socket, conn)
+
+				} else {
+					pName := conn.peerAddr
+					if err == io.EOF {
+						netLog.Error("Error reading message from %s: %s", pName, err)
+					} else {
+						netLog.Info("Peer %s closed connection", pName)
+					}
+					impl.close(conn)
+				}
+			}).Catch(func(ex interface{}) {
+				pName := "no connection name"
+				if conn != nil {
+					pName = conn.PeerName()
+				}
+				netLog.Error("Eception in handling read data from %s %s", pName, ex)
+				impl.close(conn)
+			}).End()
+
+			if returning {
+				return
 			}
-
-			con.processNextMessage(buf[4 : 4+messageLength])
-
+		})
+	}).Catch(func(e interface{}) {
+		pName := "no connection name"
+		if conn != nil {
+			pName = conn.PeerName()
 		}
+		netLog.Error("Undefined exception handling reading %s", pName)
+		impl.close(conn)
+	}).End()
 
-		impl.startReadMessage(socket, con)
-	})
 }
-
-//     tcp::resolver::query query( tcp::v4(), host.c_str(), port.c_str() );
-//     connection_wptr weak_conn = c;
-//     // Note: need to add support for IPv6 too
-
-//     resolver->async_resolve( query,
-//                              [weak_conn, this]( const boost::system::error_code& err,
-//                                         tcp::resolver::iterator endpoint_itr ){
-//                                 auto c = weak_conn.lock();
-//                                 if (!c) return;
-//                                 if( !err ) {
-//                                    connect( c, endpoint_itr );
-//                                 } else {
-//                                    elog( "Unable to resolve ${peer_addr}: ${error}",
-//                                          (  "peer_addr", c->peer_name() )("error", err.message() ) );
-//                                 }
-//                              });
-//  }
 
 func (impl *netPluginIMpl) connect(c *Connection) {
 	if c.noRetry != noReason {
-		fcLog.Debug("Skipping connect due to go_away reason %s", ReasonToString[c.noRetry])
+		FcLog.Debug("Skipping connect due to go_away reason %s", ReasonToString[c.noRetry])
 		return
 	}
 
@@ -331,46 +326,52 @@ func (impl *netPluginIMpl) connect(c *Connection) {
 		return
 	}
 
-	host := c.peerAddr[:colon]
-	port := c.peerAddr[colon+1:]
-	fcLog.Info("host:post =%s:%s", host, port)
+	host := c.peerAddr[1:colon]
+	port := c.peerAddr[colon+1 : len(c.peerAddr)-1]
+
+	netLog.Info("host:post =%s:%s", host, port)
+
+	impl.resolver.AsyncResolve(impl.context, host, port, func(address string, err error) {
+		if c == nil {
+			return
+		}
+		if err == nil {
+			impl.connect2(c, address)
+		} else {
+			netLog.Error("Unable to resolve %s:%s,%s", host, port, err)
+		}
+	})
 
 }
 
-// void net_plugin_impl::connect( connection_ptr c, tcp::resolver::iterator endpoint_itr ) {
-//    if( c->no_retry != go_away_reason::no_reason) {
-//       string rsn = reason_str(c->no_retry);
-//       return;
-//    }
-//    auto current_endpoint = *endpoint_itr;
-//    ++endpoint_itr;
-//    c->connecting = true;
-//    connection_wptr weak_conn = c;
-//    c->socket->async_connect( current_endpoint, [weak_conn, endpoint_itr, this] ( const boost::system::error_code& err ) {
-//          auto c = weak_conn.lock();
-//          if (!c) return;
-//          if( !err && c->socket->is_open() ) {
-//             if (start_session( c )) {
-//                c->send_handshake ();
-//             }
-//          } else {
-//             if( endpoint_itr != tcp::resolver::iterator() ) {
-//                close(c);
-//                connect( c, endpoint_itr );
-//             }
-//             else {
-//                elog( "connection failed to ${peer}: ${error}",
-//                      ( "peer", c->peer_name())("error",err.message()));
-//                c->connecting = false;
-//                my_impl->close(c);
-//             }
-//          }
-//       } );
-// }
+func (impl *netPluginIMpl) connect2(c *Connection, endPoint string) {
+	if c.noRetry != GoAwayReason(noReason) {
+		rsn := ReasonToString[c.noRetry]
+		netLog.Warn("no retry is %s", rsn)
+		return
+	}
+
+	c.connecting = true
+	c.socket.AsyncConnect("tcp", endPoint, func(conn net.Conn, err error) {
+		if c == nil {
+			return
+		}
+		if err == nil {
+			if impl.startSession(c.socket, c) {
+				c.sendHandshake()
+			}
+		} else {
+			netLog.Error("connection failed to %s:%s", c.PeerName(), err.Error())
+			c.connecting = false
+			impl.close(c)
+		}
+
+	})
+}
 
 func (impl *netPluginIMpl) connectWithEndPoint(c *Connection, endPoint string) {
 	if c.noRetry != noReason {
-		fcLog.Debug("Skipping connect due to go_away reason %s", ReasonToString[c.noRetry])
+		FcLog.Debug("Skipping connect due to go_away reason %s", ReasonToString[c.noRetry])
 		return
 	}
 
@@ -379,7 +380,7 @@ func (impl *netPluginIMpl) connectWithEndPoint(c *Connection, endPoint string) {
 func (impl *netPluginIMpl) close(c *Connection) {
 	if len(c.peerAddr) == 0 {
 		if impl.numClients == 0 {
-			fcLog.Warn("num_clients already at 0")
+			FcLog.Warn("num_clients already at 0")
 		} else {
 			impl.numClients--
 		}
@@ -400,39 +401,39 @@ func (impl *netPluginIMpl) sendAll(msg P2PMessage, verify func(c *Connection) bo
 }
 
 func (impl *netPluginIMpl) AcceptedBlockHeader(block *types.BlockState) {
-	//fcLog.Debug("signaled,id = %s", block.BlockId)
+	//FcLog.Debug("signaled,id = %s", block.BlockId)
 }
 
 func (impl *netPluginIMpl) AcceptedBlock(block *types.BlockState) {
-	//fcLog.Debug("signaled,id = %s", block.BlockId)
+	//FcLog.Debug("signaled,id = %s", block.BlockId)
 	//impl.dispatcher.bcastBlock(impl, block.SignedBlock)
 }
 
 func (impl *netPluginIMpl) IrreversibleBlock(block *types.BlockState) {
-	//fcLog.Debug("signaled,id = %s", block.BlockId)
+	//FcLog.Debug("signaled,id = %s", block.BlockId)
 }
 
 func (impl *netPluginIMpl) AcceptedTransaction(md *types.TransactionMetadata) {
-	//fcLog.Debug("signaled,id = %s", md.ID)
+	//FcLog.Debug("signaled,id = %s", md.ID)
 	//impl.dispatcher.bcastTransaction(md.PackedTrx)
 }
 
 func (impl *netPluginIMpl) AppliedTransaction(txn *types.TransactionTrace) {
-	//fcLog.Debug("signaled,id = %s", txn.ID)
+	//FcLog.Debug("signaled,id = %s", txn.ID)
 }
 
 func (impl *netPluginIMpl) AcceptedConfirmation(head *types.HeaderConfirmation) {
-	//fcLog.Debug("signaled,id = %s", head.BlockId)
+	//FcLog.Debug("signaled,id = %s", head.BlockId)
 }
 
 func (impl *netPluginIMpl) TransactionAck(results common.Pair) {
 	packedTrx := results.Second.(types.PackedTransaction) //TODO  std::pair<fc::exception_ptr, packed_transaction_ptr>&
 	id := packedTrx.ID()
 	if results.First != nil {
-		fcLog.Info("signaled NACK, trx-id = %s :%s", id, results.First)
+		FcLog.Info("signaled NACK, trx-id = %s :%s", id, results.First)
 		impl.dispatcher.rejectedTransaction(id)
 	} else {
-		fcLog.Info("signaled ACK,trx-id = %s", id)
+		FcLog.Info("signaled ACK,trx-id = %s", id)
 		impl.dispatcher.bcastTransaction(&packedTrx)
 	}
 }
@@ -449,7 +450,7 @@ func (impl *netPluginIMpl) startConnTimer(du time.Duration, fromConnection *Conn
 	impl.connectorCheck.ExpiresFromNow(impl.connectorPeriod)
 	impl.connectorCheck.AsyncWait(func(err error) {
 		if err != nil {
-			log.Error("Error from connection check monitor: %s", err.Error())
+			netLog.Error("Error from connection check monitor: %s", err.Error())
 			impl.startConnTimer(impl.connectorPeriod, nil)
 		} else {
 			impl.connectionMonitor(fromConnection)
@@ -495,7 +496,7 @@ func (impl *netPluginIMpl) startTxnTimer() {
 	impl.transactionCheck.ExpiresFromNow(impl.txnExpPeriod)
 	impl.transactionCheck.AsyncWait(func(err error) {
 		if err != nil {
-			log.Error("Error from transaction check monitor: %s", err.Error())
+			netLog.Error("Error from transaction check monitor: %s", err.Error())
 			impl.startTxnTimer()
 		} else {
 			impl.expireTxns()
@@ -535,7 +536,7 @@ func (impl *netPluginIMpl) ticker() {
 	impl.keepAliceTimer.AsyncWait(func(err error) {
 		impl.ticker()
 		if err != nil {
-			log.Warn("Peer keep live ticked sooner than expected: %s", err)
+			Warn("Peer keep live ticked sooner than expected: %s", err)
 		}
 		for _, peer := range impl.connections {
 			peer.sendTimeTicker()
@@ -597,7 +598,7 @@ func (impl *netPluginIMpl) authenticatePeer(msg *HandshakeMessage) bool {
 			return false
 		}
 	} else if impl.allowedConnections&(producersPossible|specifiedPossible) != 0 {
-		fcLog.Debug("Peer sent a handshake with blank signature and token,but this node accepts only authenticate connections.")
+		FcLog.Debug("Peer sent a handshake with blank signature and token,but this node accepts only authenticate connections.")
 		return false
 	}
 
@@ -643,13 +644,13 @@ func (impl *netPluginIMpl) signCompact(signer *ecc.PublicKey, digest *crypto.Sha
 }
 
 func (impl *netPluginIMpl) handleChainSize(c *Connection, msg *ChainSizeMessage) {
-	fcLog.Info("%s : receives chain_size_message", c.peerAddr)
+	FcLog.Info("%s : receives chain_size_message", c.peerAddr)
 }
 
 func (impl *netPluginIMpl) handleHandshake(c *Connection, msg *HandshakeMessage) {
-	//fcLog.Info("%s : receives handshake_message", c.peerAddr)
+	//log.FcLog.Info("%s : receives handshake_message", c.peerAddr)
 	if !isValid(msg) {
-		fcLog.Error("%s : bad handshake message", c.peerAddr)
+		FcLog.Error("%s : bad handshake message", c.peerAddr)
 		goAwayMsg := &GoAwayMessage{
 			Reason: fatalOther,
 			NodeID: *crypto.NewSha256Nil(),
@@ -659,7 +660,7 @@ func (impl *netPluginIMpl) handleHandshake(c *Connection, msg *HandshakeMessage)
 	}
 
 	bytes, _ := json.Marshal(msg)
-	fcLog.Info("%s : receive a handshake message %s", c.peerAddr, string(bytes))
+	FcLog.Info("%s : receive a handshake message %s", c.peerAddr, string(bytes))
 
 	cc := App().FindPlugin("ChainPlugin").(*chain_plugin.ChainPlugin).Chain()
 	libNum := cc.LastIrreversibleBlockNum()
@@ -679,7 +680,7 @@ func (impl *netPluginIMpl) handleHandshake(c *Connection, msg *HandshakeMessage)
 		}
 
 		if len(c.peerAddr) == 0 || c.lastHandshakeRecv.NodeID.Equals(*crypto.NewSha256Nil()) {
-			fcLog.Debug("checking for duplicate")
+			FcLog.Debug("checking for duplicate")
 			for _, check := range impl.connections {
 				if check == c {
 					continue
@@ -692,7 +693,7 @@ func (impl *netPluginIMpl) handleHandshake(c *Connection, msg *HandshakeMessage)
 					if msg.Time+c.lastHandshakeSent.Time <= check.lastHandshakeSent.Time+check.lastHandshakeRecv.Time {
 						continue
 					}
-					fcLog.Debug("sending go_away duplicate to %s", msg.P2PAddress)
+					FcLog.Debug("sending go_away duplicate to %s", msg.P2PAddress)
 					goAwayMsg := &GoAwayMessage{
 						Reason: duplicate,
 						NodeID: c.nodeID,
@@ -703,7 +704,7 @@ func (impl *netPluginIMpl) handleHandshake(c *Connection, msg *HandshakeMessage)
 				}
 			}
 		} else {
-			fcLog.Debug("skipping dulicate check, addr ==%s, id == %s", c.peerAddr, c.lastHandshakeRecv.NodeID)
+			FcLog.Debug("skipping dulicate check, addr ==%s, id == %s", c.peerAddr, c.lastHandshakeRecv.NodeID)
 		}
 
 		if !msg.ChainID.Equals(impl.chainID) {
@@ -727,7 +728,7 @@ func (impl *netPluginIMpl) handleHandshake(c *Connection, msg *HandshakeMessage)
 				c.enqueue(goAwayMsg, true)
 				return
 			} else {
-				fcLog.Info("local network version: %d Remote version: %d", netVersion, c.protocolVersion)
+				FcLog.Info("local network version: %d Remote version: %d", netVersion, c.protocolVersion)
 			}
 		}
 
@@ -746,13 +747,13 @@ func (impl *netPluginIMpl) handleHandshake(c *Connection, msg *HandshakeMessage)
 		}
 
 		onFork := false
-		fcLog.Debug("lib_num = %d peer_lib = %d", libNum, peerLib)
+		FcLog.Debug("lib_num = %d peer_lib = %d", libNum, peerLib)
 		if peerLib <= libNum && peerLib > 0 {
 			Try(func() {
 				peerLibID := cc.GetBlockIdForNum(peerLib)
 				onFork = !msg.LastIrreversibleBlockID.Equals(peerLibID)
 			}).Catch(func(ex UnknownBlockException) {
-				fcLog.Warn("peer last irreversible block %d is unknown", peerLib)
+				FcLog.Warn("peer last irreversible block %d is unknown", peerLib)
 				onFork = true
 			}).Catch(func(e interface{}) {
 				netLog.Warn("caught an exception getting block id for %d", peerLib)
@@ -781,8 +782,8 @@ func (impl *netPluginIMpl) handleHandshake(c *Connection, msg *HandshakeMessage)
 
 func (impl *netPluginIMpl) handleGoaway(c *Connection, msg *GoAwayMessage) {
 	//rsn := ReasonToString[msg.Reason]
-	//fcLog.Info("%s : receive a go_away_message", c.peerAddr)
-	//fcLog.Info("receive go_away_message reason = %s", rsn)
+	//FcLog.Info("%s : receive a go_away_message", c.peerAddr)
+	//FcLog.Info("receive go_away_message reason = %s", rsn)
 	c.noRetry = msg.Reason
 	if msg.Reason == duplicate {
 		c.nodeID = msg.NodeID
@@ -799,9 +800,9 @@ func (impl *netPluginIMpl) handleGoaway(c *Connection, msg *GoAwayMessage) {
 //floating-double arithmetic with rounding done by the hardware.
 //This is necessary in order to avoid overflow and preserve precision.
 func (impl *netPluginIMpl) handleTime(c *Connection, msg *TimeMessage) {
-	//fcLog.Info("receive time_message")
-	//fcLog.Info("%s: receive a time message %v", c.peerAddr, msg)
-	//fcLog.Info("receive time_message")
+	//FcLog.Info("receive time_message")
+	//FcLog.Info("%s: receive a time message %v", c.peerAddr, msg)
+	//FcLog.Info("receive time_message")
 	/* We've already lost however many microseconds it took to dispatch
 	 * the message, but it can't be helped.
 	 */
@@ -826,7 +827,7 @@ func (impl *netPluginIMpl) handleTime(c *Connection, msg *TimeMessage) {
 
 	//p.offset = float64((p.rec-p.org)+(msg.Xmt-p.dst)) / 2
 	//NsecPerUsec := float64(1000)
-	//fcLog.Info("Clock offset is %v ns  %v us", p.offset, p.offset/NsecPerUsec)
+	//FcLog.Info("Clock offset is %v ns  %v us", p.offset, p.offset/NsecPerUsec)
 
 	c.org = 0
 	c.rec = 0
@@ -835,16 +836,16 @@ func (impl *netPluginIMpl) handleTime(c *Connection, msg *TimeMessage) {
 func (impl *netPluginIMpl) handleNotice(c *Connection, msg *NoticeMessage) {
 	// peer tells us about one or more blocks or txns. When done syncing, forward on
 	// notices of previously unknown blocks or txns,
-	//fcLog.Info("%s : receive notice_message", c.peerAddr)
+	//FcLog.Info("%s : receive notice_message", c.peerAddr)
 	//bytes, _ := json.Marshal(msg)
-	//fcLog.Info("%s : received notice_message %s", c.peerAddr, string(bytes))
+	//FcLog.Info("%s : received notice_message %s", c.peerAddr, string(bytes))
 
 	c.connecting = false
 	req := RequestMessage{}
 	sendReq := false
 
 	if msg.KnownTrx.Mode != none {
-		fcLog.Debug("this is a %s notice with %d transactions", modeTostring[msg.KnownTrx.Mode], msg.KnownTrx.Pending)
+		FcLog.Debug("this is a %s notice with %d transactions", modeTostring[msg.KnownTrx.Mode], msg.KnownTrx.Pending)
 	}
 
 	switch msg.KnownTrx.Mode {
@@ -870,7 +871,7 @@ func (impl *netPluginIMpl) handleNotice(c *Connection, msg *NoticeMessage) {
 	}
 
 	if msg.KnownBlocks.Mode != none {
-		fcLog.Debug("this is a %s notice with  %d blocks",
+		FcLog.Debug("this is a %s notice with  %d blocks",
 			modeTostring[msg.KnownBlocks.Mode], msg.KnownBlocks.Pending)
 	}
 	switch msg.KnownBlocks.Mode {
@@ -883,10 +884,10 @@ func (impl *netPluginIMpl) handleNotice(c *Connection, msg *NoticeMessage) {
 	case normal:
 		impl.dispatcher.recvNotice(c, msg, false)
 	default:
-		fcLog.Error("bad notice_message : invalid known.mode %d", msg.KnownBlocks.Mode)
+		FcLog.Error("bad notice_message : invalid known.mode %d", msg.KnownBlocks.Mode)
 	}
 
-	fcLog.Debug("send req = %t", sendReq)
+	FcLog.Debug("send req = %t", sendReq)
 	if sendReq {
 		c.enqueue(&req, true)
 	}
@@ -894,14 +895,14 @@ func (impl *netPluginIMpl) handleNotice(c *Connection, msg *NoticeMessage) {
 
 func (impl *netPluginIMpl) handleRequest(c *Connection, msg *RequestMessage) {
 	//bytes, _ := json.Marshal(msg)
-	//fcLog.Info("%s: received request_message %s", c.peerAddr, string(bytes))
+	//FcLog.Info("%s: received request_message %s", c.peerAddr, string(bytes))
 
 	switch msg.ReqBlocks.Mode {
 	case catchUp:
-		fcLog.Info("%s : received request_message:catch_up", c.peerAddr)
+		FcLog.Info("%s : received request_message:catch_up", c.peerAddr)
 		c.blkSendBranch()
 	case normal:
-		fcLog.Info("%s : receive request_message:normal", c.peerAddr)
+		FcLog.Info("%s : receive request_message:normal", c.peerAddr)
 		c.blkSend(msg.ReqBlocks.IDs)
 	default:
 	}
@@ -920,7 +921,7 @@ func (impl *netPluginIMpl) handleRequest(c *Connection, msg *RequestMessage) {
 }
 
 func (impl *netPluginIMpl) handleSyncRequest(c *Connection, msg *SyncRequestMessage) {
-	//fcLog.Info("%s : received sync_request_message %v", c.peerAddr, msg)
+	//FcLog.Info("%s : received sync_request_message %v", c.peerAddr, msg)
 	if msg.EndBlock == 0 {
 		c.peerRequested = nil //TODO
 		c.flushQueues()
@@ -931,23 +932,23 @@ func (impl *netPluginIMpl) handleSyncRequest(c *Connection, msg *SyncRequestMess
 }
 
 func (impl *netPluginIMpl) handlePackTransaction(c *Connection, msg *PackedTransactionMessage) {
-	//fcLog.Debug("got a packed transaction ,cancel wait")
-	//fcLog.Info(" %s receive packed transaction", c.peerAddr)
+	//FcLog.Debug("got a packed transaction ,cancel wait")
+	//FcLog.Info(" %s receive packed transaction", c.peerAddr)
 
 	cc := impl.ChainPlugin.Chain()
 	if cc.GetReadMode() == chain.READONLY {
-		fcLog.Debug("got a txn in read-only mode - dropping")
+		FcLog.Debug("got a txn in read-only mode - dropping")
 		return
 	}
 
 	if impl.syncMaster.isActive(c) {
-		fcLog.Debug("got a txn during sync - dropping")
+		FcLog.Debug("got a txn during sync - dropping")
 		return
 	}
 	tid := msg.ID()
 	c.cancelWait()
 	if !impl.localTxns.GetById().Find(tid).IsEnd() {
-		fcLog.Debug("got a duplicate transaction - dropping")
+		FcLog.Debug("got a duplicate transaction - dropping")
 		return
 	}
 
@@ -955,15 +956,15 @@ func (impl *netPluginIMpl) handlePackTransaction(c *Connection, msg *PackedTrans
 
 	impl.ChainPlugin.AcceptTransaction(&msg.PackedTransaction, func(result common.StaticVariant) {
 		if exception, ok := result.(Exception); ok {
-			fcLog.Debug("bad packed_transaction : %s", exception.DetailMessage())
+			FcLog.Debug("bad packed_transaction : %s", exception.DetailMessage())
 		} else {
 			trace, _ := result.(types.TransactionTrace)
 			if trace.Except == nil {
-				fcLog.Debug("chain accepted transaction")
+				FcLog.Debug("chain accepted transaction")
 				impl.dispatcher.bcastTransaction(&msg.PackedTransaction)
 				return
 			}
-			fcLog.Error("bad packed_transaction : %s", trace.Except.DetailMessage())
+			FcLog.Error("bad packed_transaction : %s", trace.Except.DetailMessage())
 		}
 		impl.dispatcher.rejectedTransaction(tid)
 	})
@@ -971,12 +972,12 @@ func (impl *netPluginIMpl) handlePackTransaction(c *Connection, msg *PackedTrans
 
 func (impl *netPluginIMpl) handleSignedBlock(c *Connection, msg *SignedBlockMessage) {
 	//bytes, _ := json.Marshal(msg)
-	//fcLog.Info("%s : receive signed_block message %v", c.peerAddr, string(bytes))
+	//FcLog.Info("%s : receive signed_block message %v", c.peerAddr, string(bytes))
 
 	cc := impl.ChainPlugin.Chain()
 	blkID := msg.BlockID()
 	blkNum := msg.BlockNumber()
-	//fcLog.Debug("canceling wait on %s", c.peerAddr)
+	//FcLog.Debug("canceling wait on %s", c.peerAddr)
 	//c.cancelWait()
 
 	returning := false
@@ -995,27 +996,27 @@ func (impl *netPluginIMpl) handleSignedBlock(c *Connection, msg *SignedBlockMess
 
 	impl.dispatcher.recvBlock(c, blkID, blkNum)
 	age := common.Now().Sub(msg.Timestamp.ToTimePoint())
-	fcLog.Info("received signed_block : %d block age in secs = %d", blkNum, age.ToSeconds())
+	FcLog.Info("received signed_block : %d block age in secs = %d", blkNum, age.ToSeconds())
 
 	reason := fatalOther
 	Try(func() {
 		impl.ChainPlugin.AcceptBlock(&msg.SignedBlock)
 		reason = noReason
 	}).Catch(func(ex UnlinkableBlockException) {
-		fcLog.Error("bad signed_block : %s", ex.DetailMessage())
+		FcLog.Error("bad signed_block : %s", ex.DetailMessage())
 		reason = unlinkable
 	}).Catch(func(ex BlockValidateException) {
-		fcLog.Error("bad signed_block : %s", ex.DetailMessage())
+		FcLog.Error("bad signed_block : %s", ex.DetailMessage())
 		reason = validation
 	}).Catch(func(ex AssertException) {
-		fcLog.Error("bad signed_block : %s", ex.DetailMessage())
+		FcLog.Error("bad signed_block : %s", ex.DetailMessage())
 		netLog.Error("unable to accept block on assert exception %s from %s", ex.DetailMessage(), c.peerAddr)
 	}).Catch(func(ex FcException) {
-		fcLog.Error("bad signed_block : %s", ex.DetailMessage())
+		FcLog.Error("bad signed_block : %s", ex.DetailMessage())
 		netLog.Error("accept_block threw a non-assert exception %s from %s", ex.DetailMessage(), c.peerAddr)
 		reason = noReason
 	}).Catch(func(ex interface{}) {
-		fcLog.Error("bad signed_block : unknown exception")
+		FcLog.Error("bad signed_block : unknown exception")
 		netLog.Error("handle sync block caught something else from %s", c.peerAddr)
 	}).End()
 
