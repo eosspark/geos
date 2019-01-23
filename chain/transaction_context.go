@@ -573,6 +573,7 @@ func (t *TransactionContext) scheduleTransaction() {
 		TrxId:     t.ID,
 		Payer:     firstAuth,
 		Sender:    common.AccountName(0),
+		SenderId:  *transactionIdToSenderId(t.ID),
 		Published: t.Control.PendingBlockTime(),
 	}
 	//gto.SenderId = transactionIdToSenderId(gto.TrxId)
