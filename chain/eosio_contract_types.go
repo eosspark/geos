@@ -107,7 +107,7 @@ func (u UnLinkAuth) GetName() common.ActionName {
 }
 
 type CancelDelay struct {
-	CancelingAuth types.PermissionLevel    `json:""`
+	CancelingAuth common.PermissionLevel    `json:""`
 	TrxId         common.TransactionIdType `json:""`
 }
 

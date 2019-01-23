@@ -1,13 +1,12 @@
 package types
 
 import (
-	"encoding/binary"
-	"github.com/eosspark/container/sets/treeset"
+	. "github.com/eosspark/eos-go/chain/types/generated_containers"
 	"github.com/eosspark/eos-go/common"
 	. "github.com/eosspark/eos-go/exception"
-	"reflect"
 )
 
+//go:generate gotemplate -outfmt "gen_%v" "github.com/eosspark/eos-go/common/container/treeset" AccountDeltaSet(AccountDelta,CompareAccountDelta,false)
 type BaseActionTrace struct {
 	Receipt          ActionReceipt
 	Act              Action
@@ -20,7 +19,7 @@ type BaseActionTrace struct {
 	BlockNum         uint32
 	BlockTime        BlockTimeStamp
 	ProducerBlockId  common.BlockIdType
-	AccountRamDeltas treeset.Set
+	AccountRamDeltas AccountDeltaSet
 
 	Except Exception
 }
@@ -46,29 +45,6 @@ type TransactionTrace struct {
 	ExceptPtr Exception
 }
 
-type AccountDelta struct {
-	Account common.AccountName
-	Delta   int64
-}
-
-func (a *AccountDelta) GetKey() []byte {
-	b := make([]byte, 8)
-	binary.BigEndian.PutUint64(b, uint64(a.Account))
-	return b
-}
-
-var TypeAccountDelta = reflect.TypeOf(AccountDelta{})
-
-func CompareAccountDelta(first interface{}, second interface{}) int {
-	if first.(AccountDelta).Account == second.(AccountDelta).Account {
-		return 0
-	}
-	if first.(AccountDelta).Account < second.(AccountDelta).Account {
-		return -1
-	}
-	return 1
-}
-
 func NewBaseActionTrace(ar *ActionReceipt) *BaseActionTrace {
 	bat := BaseActionTrace{}
 	bat.Receipt = *ar
@@ -77,11 +53,4 @@ func NewBaseActionTrace(ar *ActionReceipt) *BaseActionTrace {
 	bat.TotalCpuUsage = 0
 	bat.CpuUsage = 0
 	return &bat
-}
-
-func NewAccountDelta(name *common.AccountName, d int64) *AccountDelta {
-	ad := AccountDelta{}
-	ad.Account = *name
-	ad.Delta = d
-	return &ad
 }

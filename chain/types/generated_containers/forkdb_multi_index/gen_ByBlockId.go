@@ -4,11 +4,11 @@ package forkdb_multi_index
 
 import (
 	"github.com/eosspark/eos-go/common"
+	"github.com/eosspark/eos-go/common/container"
 	"github.com/eosspark/eos-go/common/container/multiindex"
-	"github.com/eosspark/eos-go/log"
 )
 
-// template type HashedUniqueIndex(FinalIndex,FinalNode,SuperIndex,SuperNode,Value,Hash,HashFunc)
+// template type HashedUniqueIndex(FinalIndex,FinalNode,SuperIndex,SuperNode,Value,Hash,KeyFunc)
 
 type ByBlockId struct {
 	super *ByPrev                               // index on the HashedUniqueIndex, IndexBase is the last super index
@@ -72,7 +72,7 @@ func (i *ByBlockId) insert(v BlockStatePtr, fn *MultiIndexNode) (*ByBlockIdNode,
 	hash := ByBlockIdFunc(v)
 	node := ByBlockIdNode{hash: hash}
 	if _, ok := i.inner[hash]; ok {
-		log.Warn("#hash index insert failed")
+		container.Logger.Warn("#hash index insert failed")
 		return nil, false
 	}
 	i.inner[hash] = &node
@@ -129,7 +129,7 @@ func (i *ByBlockId) modify(n *ByBlockIdNode) (*ByBlockIdNode, bool) {
 
 	hash := ByBlockIdFunc(*n.value())
 	if _, exist := i.inner[hash]; exist {
-		log.Warn("#hash index modify failed")
+		container.Logger.Warn("#hash index modify failed")
 		i.super.erase(n.super)
 		return nil, false
 	}
@@ -202,7 +202,7 @@ func (iter IteratorByBlockId) Value() (v BlockStatePtr) {
 }
 
 func (iter IteratorByBlockId) HasNext() bool {
-	log.Warn("hashed index iterator is unmoveable")
+	container.Logger.Warn("hashed index iterator is unmoveable")
 	return false
 }
 

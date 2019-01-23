@@ -139,7 +139,7 @@ func (e EosioSystemTester) CreateAccountWithResources(name common.AccountName, c
 		ownerAuth = types.Authority{
 			Threshold: 2,
 			Keys:      []types.KeyWeight{{Key: e.getPublicKey(name, "owner"), Weight: 1}},
-			Accounts:  []types.PermissionLevelWeight{{Permission: types.PermissionLevel{Actor: creator, Permission: common.DefaultConfig.ActiveName}, Weight: 1}},
+			Accounts:  []types.PermissionLevelWeight{{Permission: common.PermissionLevel{Actor: creator, Permission: common.DefaultConfig.ActiveName}, Weight: 1}},
 		}
 	} else {
 		ownerAuth = types.NewAuthority(e.getPublicKey(name, "owner"), 0)
@@ -156,7 +156,7 @@ func (e EosioSystemTester) CreateAccountWithResources(name common.AccountName, c
 	act := &types.Action{
 		Account:       newAccount.GetAccount(),
 		Name:          newAccount.GetName(),
-		Authorization: []types.PermissionLevel{{creator, common.DefaultConfig.ActiveName}},
+		Authorization: []common.PermissionLevel{{creator, common.DefaultConfig.ActiveName}},
 		Data:          data,
 	}
 	trx.Actions = append(trx.Actions, act)
@@ -169,7 +169,7 @@ func (e EosioSystemTester) CreateAccountWithResources(name common.AccountName, c
 	buyRam := e.GetAction(
 		eosio,
 		common.N("buyram"),
-		[]types.PermissionLevel{{creator, common.DefaultConfig.ActiveName}},
+		[]common.PermissionLevel{{creator, common.DefaultConfig.ActiveName}},
 		&buyRamData,
 	)
 	trx.Actions = append(trx.Actions, buyRam)
@@ -184,7 +184,7 @@ func (e EosioSystemTester) CreateAccountWithResources(name common.AccountName, c
 	delegate := e.GetAction(
 		eosio,
 		common.N("delegatebw"),
-		[]types.PermissionLevel{{creator, common.DefaultConfig.ActiveName}},
+		[]common.PermissionLevel{{creator, common.DefaultConfig.ActiveName}},
 		&delegateData,
 	)
 	trx.Actions = append(trx.Actions, delegate)
@@ -219,7 +219,7 @@ func (e EosioSystemTester) CreateAccountWithResources2(name common.AccountName, 
 	act := &types.Action{
 		Account:       new.GetAccount(),
 		Name:          new.GetName(),
-		Authorization: []types.PermissionLevel{{creator, common.DefaultConfig.ActiveName}},
+		Authorization: []common.PermissionLevel{{creator, common.DefaultConfig.ActiveName}},
 		Data:          data,
 	}
 	trx.Actions = append(trx.Actions, act)
@@ -232,7 +232,7 @@ func (e EosioSystemTester) CreateAccountWithResources2(name common.AccountName, 
 	buyRam := e.GetAction(
 		eosio,
 		common.N("buyrambytes"),
-		[]types.PermissionLevel{{creator, common.DefaultConfig.ActiveName}},
+		[]common.PermissionLevel{{creator, common.DefaultConfig.ActiveName}},
 		&buyRamBytesData,
 	)
 	trx.Actions = append(trx.Actions, buyRam)
@@ -247,7 +247,7 @@ func (e EosioSystemTester) CreateAccountWithResources2(name common.AccountName, 
 	delegate := e.GetAction(
 		eosio,
 		common.N("delegatebw"),
-		[]types.PermissionLevel{{creator, common.DefaultConfig.ActiveName}},
+		[]common.PermissionLevel{{creator, common.DefaultConfig.ActiveName}},
 		&delegateData,
 	)
 	trx.Actions = append(trx.Actions, delegate)
@@ -279,7 +279,7 @@ func (e EosioSystemTester) SetupProducerAccounts(accounts []common.AccountName) 
 		newAccountAct := &types.Action{
 			Account:       newAccount.GetAccount(),
 			Name:          newAccount.GetName(),
-			Authorization: []types.PermissionLevel{{creator, common.DefaultConfig.ActiveName}},
+			Authorization: []common.PermissionLevel{{creator, common.DefaultConfig.ActiveName}},
 			Data:          data,
 		}
 		trx.Actions = append(trx.Actions, newAccountAct)
@@ -292,7 +292,7 @@ func (e EosioSystemTester) SetupProducerAccounts(accounts []common.AccountName) 
 		buyRam := e.GetAction(
 			eosio,
 			common.N("buyram"),
-			[]types.PermissionLevel{{creator, common.DefaultConfig.ActiveName}},
+			[]common.PermissionLevel{{creator, common.DefaultConfig.ActiveName}},
 			&buyRamData,
 		)
 		trx.Actions = append(trx.Actions, buyRam)
@@ -307,7 +307,7 @@ func (e EosioSystemTester) SetupProducerAccounts(accounts []common.AccountName) 
 		delegate := e.GetAction(
 			eosio,
 			common.N("delegatebw"),
-			[]types.PermissionLevel{{creator, common.DefaultConfig.ActiveName}},
+			[]common.PermissionLevel{{creator, common.DefaultConfig.ActiveName}},
 			&delegateData,
 		)
 		trx.Actions = append(trx.Actions, delegate)
@@ -359,7 +359,7 @@ func (e EosioSystemTester) EsPushAction(signer *common.AccountName, name *common
 			authorizer = bob
 		}
 	}
-	act := e.GetAction(eosio, *name, []types.PermissionLevel{}, data)
+	act := e.GetAction(eosio, *name, []common.PermissionLevel{}, data)
 	return e.PushAction(act, common.AccountName(authorizer))
 }
 
@@ -764,8 +764,8 @@ func (e EosioSystemTester) ActiveAndVoteProducers() []common.AccountName {
 		Threshold: 1,
 		Keys:      []types.KeyWeight{{Key: e.getPublicKey(eosio, "active"), Weight: 1}},
 		Accounts: []types.PermissionLevelWeight{
-			{Permission: types.PermissionLevel{Actor: eosio, Permission: common.DefaultConfig.EosioCodeName}, Weight: 1},
-			{Permission: types.PermissionLevel{Actor: common.DefaultConfig.ProducersAccountName, Permission: common.DefaultConfig.ActiveName}, Weight: 1},
+			{Permission: common.PermissionLevel{Actor: eosio, Permission: common.DefaultConfig.EosioCodeName}, Weight: 1},
+			{Permission: common.PermissionLevel{Actor: common.DefaultConfig.ProducersAccountName, Permission: common.DefaultConfig.ActiveName}, Weight: 1},
 		},
 		Waits: []types.WaitWeight{},
 	}
@@ -819,7 +819,7 @@ func (e EosioSystemTester) Cross15PercentThreshold() {
 		delegate := e.GetAction(
 			eosio,
 			common.N("delegatebw"),
-			[]types.PermissionLevel{{eosio, common.DefaultConfig.ActiveName}},
+			[]common.PermissionLevel{{eosio, common.DefaultConfig.ActiveName}},
 			&delegatebwData,
 		)
 		trx.Actions = append(trx.Actions, delegate)
@@ -831,7 +831,7 @@ func (e EosioSystemTester) Cross15PercentThreshold() {
 		voteproducer := e.GetAction(
 			eosio,
 			common.N("voteproducer"),
-			[]types.PermissionLevel{{producer, common.DefaultConfig.ActiveName}},
+			[]common.PermissionLevel{{producer, common.DefaultConfig.ActiveName}},
 			&voteproducerData,
 		)
 		trx.Actions = append(trx.Actions, voteproducer)
@@ -844,7 +844,7 @@ func (e EosioSystemTester) Cross15PercentThreshold() {
 		undelegate := e.GetAction(
 			eosio,
 			common.N("undelegatebw"),
-			[]types.PermissionLevel{{producer, common.DefaultConfig.ActiveName}},
+			[]common.PermissionLevel{{producer, common.DefaultConfig.ActiveName}},
 			&undelegatebwData,
 		)
 		trx.Actions = append(trx.Actions, undelegate)

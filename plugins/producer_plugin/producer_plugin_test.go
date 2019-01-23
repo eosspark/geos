@@ -215,13 +215,13 @@ func TestProducerPluginImpl_CalculateNextBlockTime(t *testing.T) {
 		"--private-key", "[\"EOS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV\", \"5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3\"]",
 		"--private-key", "[\"EOS5jeUuKEZ8s8LLoxz4rNysYdHWboup8KtkyJzZYQzcVKFGek9Zu\", \"5Ja3h2wJNUnNcoj39jDMHGigsazvbGHAeLYEHM5uTwtfUoRDoYP\"]")
 
-	pt := *plugin.my.CalculateNextBlockTime(&account1, 0)
+	pt := *plugin.my.CalculateNextBlockTime(account1, 0)
 	assert.Equal(t, pt/1e3, (pt/1e3/500)*500) // make sure pt can be divisible by 500ms
 
-	time := plugin.my.CalculateNextBlockTime(&account1, 100)
+	time := plugin.my.CalculateNextBlockTime(account1, 100)
 	assert.Equal(t, "2000-01-01T00:00:50.5", time.String())
 
-	time = plugin.my.CalculateNextBlockTime(&account2, 100)
+	time = plugin.my.CalculateNextBlockTime(account2, 100)
 	assert.Nil(t, time)
 }
 
@@ -239,7 +239,7 @@ func TestProducerPluginImpl_OnIncomingBlock(t *testing.T) {
 	//
 	chain := plugin.my.Chain
 	block := &types.SignedBlock{}
-	block.Timestamp = types.NewBlockTimeStamp(*plugin.my.CalculateNextBlockTime(&eosio, chain.HeadBlockState().SignedBlock.Timestamp))
+	block.Timestamp = types.NewBlockTimeStamp(*plugin.my.CalculateNextBlockTime(eosio, chain.HeadBlockState().SignedBlock.Timestamp))
 	block.Producer = common.N("eosio")
 	block.Previous = chain.HeadBlockState().BlockId
 

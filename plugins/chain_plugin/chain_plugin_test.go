@@ -2,7 +2,9 @@ package chain_plugin
 
 import (
 	"encoding/json"
+	"fmt"
 	"github.com/eosspark/eos-go/chain/types"
+	. "github.com/eosspark/eos-go/chain/types/generated_containers"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/ecc"
@@ -60,4 +62,13 @@ func TestApiParams(t *testing.T) {
 	assert.Equal(t, common.HexBytes(action), prettyInput.PackedTrx)
 	assert.Equal(t, common.HexBytes(action), prettyInput.PackedContextFreeData)
 	assert.Equal(t, (*types.Transaction)(nil), prettyInput.UnpackedTrx)
+}
+
+func TestJsonFormat(t *testing.T) {
+	res := GetRequiredKeysResult{*NewPublicKeySet()}
+	pri1, _ := ecc.NewRandomPrivateKey()
+	pri2, _ := ecc.NewRandomPrivateKey()
+	res.RequiredKeys.Add(pri1.PublicKey(), pri2.PublicKey())
+	s, _ := json.Marshal(res)
+	fmt.Println(string(s))
 }

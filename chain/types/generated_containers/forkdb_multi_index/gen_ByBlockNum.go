@@ -5,8 +5,8 @@ package forkdb_multi_index
 import (
 	"fmt"
 
+	"github.com/eosspark/eos-go/common/container"
 	"github.com/eosspark/eos-go/common/container/multiindex"
-	"github.com/eosspark/eos-go/log"
 )
 
 // template type OrderedIndex(FinalIndex,FinalNode,SuperIndex,SuperNode,Value,Key,KeyFunc,Comparator,Multiply)
@@ -73,7 +73,7 @@ func (tree *ByBlockNum) insert(v BlockStatePtr, fn *MultiIndexNode) (*ByBlockNum
 
 	node, res := tree.put(key)
 	if !res {
-		log.Warn("#ordered index insert failed")
+		container.Logger.Warn("#ordered index insert failed")
 		return nil, false
 	}
 	sn, res := tree.super.insert(v, fn)
@@ -128,7 +128,7 @@ func (tree *ByBlockNum) modify(n *ByBlockNumNode) (*ByBlockNumNode, bool) {
 		tree.remove(n)
 		node, res := tree.put(n.Key)
 		if !res {
-			log.Warn("#ordered index modify failed")
+			container.Logger.Warn("#ordered index modify failed")
 			tree.super.erase(n.super)
 			return nil, false
 		}

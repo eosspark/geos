@@ -2,12 +2,11 @@ package chain
 
 import (
 	"fmt"
-	"github.com/eosspark/container/sets/treeset"
 	"github.com/eosspark/eos-go/chain/types"
+	. "github.com/eosspark/eos-go/chain/types/generated_containers"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/common/eos_math"
 	"github.com/eosspark/eos-go/crypto"
-	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/eosspark/eos-go/database"
 	"github.com/eosspark/eos-go/entity"
@@ -45,7 +44,7 @@ type ApplyContext struct {
 	InlineActions        []types.Action
 	CfaInlineActions     []types.Action
 	PendingConsoleOutput string
-	AccountRamDeltas     treeset.Set
+	AccountRamDeltas     AccountDeltaSet
 	ilog                 log.Logger
 
 	// PseudoStart common.TimePoint
@@ -82,7 +81,7 @@ func NewApplyContext(control *Controller, trxContext *TransactionContext, act *t
 	applyContext.idxDouble = NewIdxDouble(applyContext)
 	applyContext.idxLongDouble = NewIdxLongDouble(applyContext)
 
-	applyContext.AccountRamDeltas = *treeset.NewWith(types.TypeAccountDelta, types.CompareAccountDelta)
+	applyContext.AccountRamDeltas = *NewAccountDeltaSet()
 	applyContext.ilog = log.New("Apply_Context")
 	logHandler := log.StreamHandler(os.Stdout, log.TerminalFormat(true))
 	//applyContext.ilog.SetHandler(log.LvlFilterHandler(log.LvlDebug, logHandler))
@@ -284,9 +283,9 @@ func (a *ApplyContext) execOne(trace *types.ActionTrace) {
 	r.CodeSequence = common.Vuint32(accountSequence.CodeSequence)
 	r.AbiSequence = common.Vuint32(accountSequence.AbiSequence)
 
-	r.AuthSequence = make(map[common.AccountName]uint64)
+	r.AuthSequence = *NewAccountNameUint64Map()
 	for _, auth := range a.Act.Authorization {
-		r.AuthSequence[auth.Actor] = a.nextAuthSequence(auth.Actor)
+		r.AuthSequence.Put(auth.Actor, a.nextAuthSequence(auth.Actor))
 	}
 
 	trace.Receipt = r
@@ -494,9 +493,9 @@ func (a *ApplyContext) ScheduleDeferredTransaction(sendId *eos_math.Uint128, pay
 		if checkAuth {
 
 			checkTime := a.TrxContext.CheckTime
-			providedKeys := treeset.NewWith(ecc.TypePubKey, ecc.ComparePubKey)
-			providedPermissions := treeset.NewWith(types.PermissionLevelType, types.ComparePermissionLevel)
-			providedPermissions.AddItem(types.PermissionLevel{a.Receiver, common.DefaultConfig.EosioCodeName})
+			providedKeys := NewPublicKeySet()
+			providedPermissions := NewPermissionLevelSet()
+			providedPermissions.AddItem(common.PermissionLevel{a.Receiver, common.DefaultConfig.EosioCodeName})
 
 			a.Control.GetAuthorizationManager().CheckAuthorization(
 				trx.Actions,
@@ -549,7 +548,7 @@ func (a *ApplyContext) CancelDeferredTransaction2(sendId *eos_math.Uint128, send
 	err := a.DB.Find("bySenderId", gto, &gto)
 	if err == nil {
 
-		a.AddRamUsage(gto.Payer, -int64(common.BillableSizeV("generated_transaction_object")+uint64(len(gto.PackedTrx))))
+		a.AddRamUsage(gto.Payer, -int64(common.BillableSizeV("generated_transaction_object") + uint64(len(gto.PackedTrx))))
 		a.DB.Remove(&gto)
 		return true
 	}
@@ -1231,7 +1230,7 @@ func (a *ApplyContext) AddRamUsage(account common.AccountName, ramDelta int64) {
 
 	a.TrxContext.AddRamUsage(account, ramDelta)
 
-	accountDelta := types.AccountDelta{account, ramDelta}
+	accountDelta := common.AccountDelta{account, ramDelta}
 	a.AccountRamDeltas.AddItem(accountDelta)
 	//p, ok := a.AccountRamDeltas.Insert(&accountDelta)
 	//if !ok {
@@ -1286,7 +1285,7 @@ func (a *ApplyContext) PublicationTime() common.TimePoint {
 func (a *ApplyContext) GetPermissionLastUsed(account common.AccountName, permission common.PermissionName) common.TimePoint {
 
 	am := a.Control.GetAuthorizationManager()
-	return am.GetPermissionLastUsed(am.GetPermission(&types.PermissionLevel{Actor: account, Permission: permission}))
+	return am.GetPermissionLastUsed(am.GetPermission(&common.PermissionLevel{Actor: account, Permission: permission}))
 }
 func (a *ApplyContext) GetAccountCreateTime(account common.AccountName) common.TimePoint {
 
@@ -1430,8 +1429,8 @@ func (a *ApplyContext) ContextFreeAction() bool {
 //}
 
 func (a *ApplyContext) CheckAuthorization(actions []*types.Action,
-	providedKeys *treeset.Set,
-	providedPermissions *treeset.Set,
+	providedKeys *PublicKeySet,
+	providedPermissions *PermissionLevelSet,
 	delayUS uint64) {
 
 	function := a.TrxContext.CheckTime
@@ -1447,8 +1446,8 @@ func (a *ApplyContext) CheckAuthorization(actions []*types.Action,
 
 func (a *ApplyContext) CheckAuthorization2(n common.AccountName,
 	permission common.PermissionName,
-	providedKeys *treeset.Set,
-	providedPermissions *treeset.Set,
+	providedKeys *PublicKeySet,
+	providedPermissions *PermissionLevelSet,
 	delayUS uint64) {
 
 	function := a.TrxContext.CheckTime

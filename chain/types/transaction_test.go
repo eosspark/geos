@@ -64,8 +64,8 @@ func TestTransaction_GetSignatureKeys(t *testing.T) {
 	bytes, err := rlp.EncodeToBytes(digist)
 	assert.Equal(t, digist.Bytes(), bytes)
 	pub, _ := ecc.NewPublicKey("EOS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV")
-	_, keys := set.Find(func(i int, value interface{}) bool {
-		return set.GetComparator()(value, pub) == 0
+	keys := set.Find(func(value ecc.PublicKey) bool {
+		return set.Comparator(value, pub) == 0
 	})
 	assert.Equal(t, pub, keys)
 

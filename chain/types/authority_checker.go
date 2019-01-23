@@ -1,21 +1,22 @@
 package types
 
 import (
-	"github.com/eosspark/container/sets/treeset"
-	"github.com/eosspark/eos-go/common"
+	"github.com/eosspark/eos-go/chain/types/generated_containers"
+	. "github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto/ecc"
 	. "github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
 )
 
+//go:generate gotemplate -outfmt "gen_%v" "github.com/eosspark/eos-go/common/container/treeset" PermissionLevelSet(PermissionLevel,ComparePermissionLevel,false)
 type PermissionToAuthorityFunc func(*PermissionLevel) SharedAuthority
 type AuthorityChecker struct {
 	permissionToAuthority PermissionToAuthorityFunc
 	CheckTime             *func()
 	ProvidedKeys          []ecc.PublicKey
-	ProvidedPermissions   treeset.Set
+	ProvidedPermissions   generated.PermissionLevelSet
 	UsedKeys              []bool
-	ProvidedDelay         common.Microseconds
+	ProvidedDelay         Microseconds
 	RecursionDepthLimit   uint16
 	Visitor               WeightTallyVisitor
 }
@@ -77,7 +78,7 @@ func (m MetaPermission) Sort() {
 }
 
 func (ac *AuthorityChecker) SatisfiedLoc(permission *PermissionLevel,
-	overrideProvidedDelay common.Microseconds,
+	overrideProvidedDelay Microseconds,
 	cachedPerms *PermissionCacheType) bool {
 	ac.ProvidedDelay = overrideProvidedDelay
 	return ac.SatisfiedLc(permission, cachedPerms)
@@ -135,8 +136,8 @@ func (ac *AuthorityChecker) AllKeysUsed() bool {
 	return true
 }
 
-func (ac *AuthorityChecker) GetUsedKeys() treeset.Set {
-	f := treeset.NewWith(ecc.TypePubKey, ecc.ComparePubKey)
+func (ac *AuthorityChecker) GetUsedKeys() generated.PublicKeySet {
+	f := generated.NewPublicKeySet()
 	for i, usedKey := range ac.UsedKeys {
 		if usedKey == true {
 			f.AddItem(ac.ProvidedKeys[i])
@@ -145,8 +146,8 @@ func (ac *AuthorityChecker) GetUsedKeys() treeset.Set {
 	return *f
 }
 
-func (ac *AuthorityChecker) GetUnusedKeys() treeset.Set {
-	f := treeset.NewWith(ecc.TypePubKey, ecc.ComparePubKey)
+func (ac *AuthorityChecker) GetUnusedKeys() generated.PublicKeySet {
+	f := generated.NewPublicKeySet()
 	for i, usedKey := range ac.UsedKeys {
 		if usedKey == false {
 			f.AddItem(ac.ProvidedKeys[i])
@@ -171,7 +172,7 @@ func (ac *AuthorityChecker) PermissionStatusInCache(permissions PermissionCacheT
 	if ok {
 		return itr
 	}
-	itr2, ok := permissions[PermissionLevel{level.Actor, common.PermissionName(common.N(""))}]
+	itr2, ok := permissions[PermissionLevel{level.Actor, PermissionName(N(""))}]
 	if ok {
 		return itr2
 	}
@@ -181,8 +182,7 @@ func (ac *AuthorityChecker) PermissionStatusInCache(permissions PermissionCacheT
 func (ac *AuthorityChecker) initializePermissionCache(cachedPermission *PermissionCacheType) *PermissionCacheType {
 	itr := ac.ProvidedPermissions.Iterator()
 	for itr.Next() {
-		val := itr.Value()
-		(*cachedPermission)[(val.(PermissionLevel))] = PermissionSatisfied
+		(*cachedPermission)[itr.Value()] = PermissionSatisfied
 	}
 	return cachedPermission
 }
@@ -211,7 +211,7 @@ func (wtv *WeightTallyVisitor) Visit(permission interface{}) uint32 {
 }
 
 func (wtv *WeightTallyVisitor) VisitWaitWeight(permission WaitWeight) uint32 {
-	if wtv.Checker.ProvidedDelay >= common.Seconds(int64(permission.WaitSec)) {
+	if wtv.Checker.ProvidedDelay >= Seconds(int64(permission.WaitSec)) {
 		wtv.TotalWeight += uint32(permission.Weight)
 	}
 	return wtv.TotalWeight
@@ -271,15 +271,15 @@ func (wtv *WeightTallyVisitor) VisitPermissionLevelWeight(permission PermissionL
 
 func MakeAuthChecker(pta PermissionToAuthorityFunc,
 	recursionDepthLimit uint16,
-	providedKeys *treeset.Set,
-	providedPermission *treeset.Set,
-	providedDelay common.Microseconds,
+	providedKeys *generated.PublicKeySet,
+	providedPermission *generated.PermissionLevelSet,
+	providedDelay Microseconds,
 	checkTime *func()) AuthorityChecker {
 	providedKeysArray := make([]ecc.PublicKey, 0)
 	usedKeysArray := make([]bool, providedKeys.Size())
 	itr := providedKeys.Iterator()
 	for itr.Next() {
-		providedKeysArray = append(providedKeysArray, itr.Value().(ecc.PublicKey))
+		providedKeysArray = append(providedKeysArray, itr.Value())
 	}
 	return AuthorityChecker{permissionToAuthority: pta, RecursionDepthLimit: recursionDepthLimit,
 		ProvidedKeys: providedKeysArray, ProvidedPermissions: *providedPermission,

@@ -11,7 +11,7 @@
 // Structure is not thread safe.
 //
 // Reference: http://en.wikipedia.org/wiki/Associative_array
-package types
+package generated
 
 import (
 	"encoding/json"

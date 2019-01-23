@@ -75,7 +75,7 @@ func TestAbiSerializer(t *testing.T) {
 	prettyTrx.Actions = append(prettyTrx.Actions, &types.Action{
 		Account: payloadless,
 		Name:    doit,
-		Authorization: []types.PermissionLevel{
+		Authorization: []common.PermissionLevel {
 			{
 				Actor:      payloadless,
 				Permission: common.DefaultConfig.ActiveName,

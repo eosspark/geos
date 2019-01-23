@@ -11,7 +11,7 @@
 // Structure is not thread safe.
 //
 // Reference: http://en.wikipedia.org/wiki/Associative_array
-package example
+package generated
 
 import (
 	"encoding/json"
@@ -26,69 +26,69 @@ import (
 
 // template type Map(K,V,Compare,Multi)
 
-func assertIntStringPtrMapImplementation() {
-	var _ container.Map = (*IntStringPtrMap)(nil)
+func assertAccountNameUint64MapImplementation() {
+	var _ container.Map = (*AccountNameUint64Map)(nil)
 }
 
 // Map holds the elements in a red-black Tree
-type IntStringPtrMap struct {
+type AccountNameUint64Map struct {
 	*rbt.Tree
 }
 
 // NewWith instantiates a Tree map with the custom comparator.
-func NewIntStringPtrMap() *IntStringPtrMap {
-	return &IntStringPtrMap{Tree: rbt.NewWith(IntComparator, false)}
+func NewAccountNameUint64Map() *AccountNameUint64Map {
+	return &AccountNameUint64Map{Tree: rbt.NewWith(common.CompareName, false)}
 }
 
-func CopyFromIntStringPtrMap(tm *IntStringPtrMap) *IntStringPtrMap {
-	return &IntStringPtrMap{Tree: rbt.CopyFrom(tm.Tree)}
+func CopyFromAccountNameUint64Map(tm *AccountNameUint64Map) *AccountNameUint64Map {
+	return &AccountNameUint64Map{Tree: rbt.CopyFrom(tm.Tree)}
 }
 
 // Put inserts key-value pair into the map.
 // Key should adhere to the comparator's type assertion, otherwise method panics.
-func (m *IntStringPtrMap) Put(key int, value *string) {
+func (m *AccountNameUint64Map) Put(key common.AccountName, value uint64) {
 	m.Tree.Put(key, value)
 }
 
-func (m *IntStringPtrMap) Insert(key int, value *string) IteratorIntStringPtrMap {
-	return IteratorIntStringPtrMap{m.Tree.Insert(key, value)}
+func (m *AccountNameUint64Map) Insert(key common.AccountName, value uint64) IteratorAccountNameUint64Map {
+	return IteratorAccountNameUint64Map{m.Tree.Insert(key, value)}
 }
 
 // Get searches the element in the map by key and returns its value or nil if key is not found in Tree.
 // Second return parameter is true if key was found, otherwise false.
 // Key should adhere to the comparator's type assertion, otherwise method panics.
-func (m *IntStringPtrMap) Get(key int) IteratorIntStringPtrMap {
-	return IteratorIntStringPtrMap{m.Tree.Get(key)}
+func (m *AccountNameUint64Map) Get(key common.AccountName) IteratorAccountNameUint64Map {
+	return IteratorAccountNameUint64Map{m.Tree.Get(key)}
 }
 
 // Remove removes the element from the map by key.
 // Key should adhere to the comparator's type assertion, otherwise method panics.
-func (m *IntStringPtrMap) Remove(key int) {
+func (m *AccountNameUint64Map) Remove(key common.AccountName) {
 	m.Tree.Remove(key)
 }
 
 // Keys returns all keys in-order
-func (m *IntStringPtrMap) Keys() []int {
-	keys := make([]int, m.Tree.Size())
+func (m *AccountNameUint64Map) Keys() []common.AccountName {
+	keys := make([]common.AccountName, m.Tree.Size())
 	it := m.Tree.Iterator()
 	for i := 0; it.Next(); i++ {
-		keys[i] = it.Key().(int)
+		keys[i] = it.Key().(common.AccountName)
 	}
 	return keys
 }
 
 // Values returns all values in-order based on the key.
-func (m *IntStringPtrMap) Values() []*string {
-	values := make([]*string, m.Tree.Size())
+func (m *AccountNameUint64Map) Values() []uint64 {
+	values := make([]uint64, m.Tree.Size())
 	it := m.Tree.Iterator()
 	for i := 0; it.Next(); i++ {
-		values[i] = it.Value().(*string)
+		values[i] = it.Value().(uint64)
 	}
 	return values
 }
 
 // Each calls the given function once for each element, passing that element's key and value.
-func (m *IntStringPtrMap) Each(f func(key int, value *string)) {
+func (m *AccountNameUint64Map) Each(f func(key common.AccountName, value uint64)) {
 	Iterator := m.Iterator()
 	for Iterator.Next() {
 		f(Iterator.Key(), Iterator.Value())
@@ -98,7 +98,7 @@ func (m *IntStringPtrMap) Each(f func(key int, value *string)) {
 // Find passes each element of the container to the given function and returns
 // the first (key,value) for which the function is true or nil,nil otherwise if no element
 // matches the criteria.
-func (m *IntStringPtrMap) Find(f func(key int, value *string) bool) (k int, v *string) {
+func (m *AccountNameUint64Map) Find(f func(key common.AccountName, value uint64) bool) (k common.AccountName, v uint64) {
 	Iterator := m.Iterator()
 	for Iterator.Next() {
 		if f(Iterator.Key(), Iterator.Value()) {
@@ -109,7 +109,7 @@ func (m *IntStringPtrMap) Find(f func(key int, value *string) bool) (k int, v *s
 }
 
 // String returns a string representation of container
-func (m IntStringPtrMap) String() string {
+func (m AccountNameUint64Map) String() string {
 	str := "TreeMap\nmap["
 	it := m.Iterator()
 	for it.Next() {
@@ -120,65 +120,65 @@ func (m IntStringPtrMap) String() string {
 }
 
 // Iterator holding the Iterator's state
-type IteratorIntStringPtrMap struct {
+type IteratorAccountNameUint64Map struct {
 	rbt.Iterator
 }
 
 // Iterator returns a stateful Iterator whose elements are key/value pairs.
-func (m *IntStringPtrMap) Iterator() IteratorIntStringPtrMap {
-	return IteratorIntStringPtrMap{Iterator: m.Tree.Iterator()}
+func (m *AccountNameUint64Map) Iterator() IteratorAccountNameUint64Map {
+	return IteratorAccountNameUint64Map{Iterator: m.Tree.Iterator()}
 }
 
 // Begin returns First Iterator whose position points to the first element
 // Return End Iterator when the map is empty
-func (m *IntStringPtrMap) Begin() IteratorIntStringPtrMap {
-	return IteratorIntStringPtrMap{m.Tree.Begin()}
+func (m *AccountNameUint64Map) Begin() IteratorAccountNameUint64Map {
+	return IteratorAccountNameUint64Map{m.Tree.Begin()}
 }
 
 // End returns End Iterator
-func (m *IntStringPtrMap) End() IteratorIntStringPtrMap {
-	return IteratorIntStringPtrMap{m.Tree.End()}
+func (m *AccountNameUint64Map) End() IteratorAccountNameUint64Map {
+	return IteratorAccountNameUint64Map{m.Tree.End()}
 }
 
 // Value returns the current element's value.
 // Does not modify the state of the Iterator.
-func (iterator IteratorIntStringPtrMap) Value() *string {
-	return iterator.Iterator.Value().(*string)
+func (iterator IteratorAccountNameUint64Map) Value() uint64 {
+	return iterator.Iterator.Value().(uint64)
 }
 
 // Key returns the current element's key.
 // Does not modify the state of the Iterator.
-func (iterator IteratorIntStringPtrMap) Key() int {
-	return iterator.Iterator.Key().(int)
+func (iterator IteratorAccountNameUint64Map) Key() common.AccountName {
+	return iterator.Iterator.Key().(common.AccountName)
 }
 
-func (m *IntStringPtrMap) LowerBound(key int) IteratorIntStringPtrMap {
-	return IteratorIntStringPtrMap{m.Tree.LowerBound(key)}
+func (m *AccountNameUint64Map) LowerBound(key common.AccountName) IteratorAccountNameUint64Map {
+	return IteratorAccountNameUint64Map{m.Tree.LowerBound(key)}
 }
 
-func (m *IntStringPtrMap) UpperBound(key int) IteratorIntStringPtrMap {
-	return IteratorIntStringPtrMap{m.Tree.UpperBound(key)}
+func (m *AccountNameUint64Map) UpperBound(key common.AccountName) IteratorAccountNameUint64Map {
+	return IteratorAccountNameUint64Map{m.Tree.UpperBound(key)}
 
 }
 
 // ToJSON outputs the JSON representation of the map.
-type pairIntStringPtrMap struct {
-	Key int     `json:"key"`
-	Val *string `json:"val"`
+type pairAccountNameUint64Map struct {
+	Key common.AccountName `json:"key"`
+	Val uint64             `json:"val"`
 }
 
-func (m IntStringPtrMap) MarshalJSON() ([]byte, error) {
-	elements := make([]pairIntStringPtrMap, 0, m.Size())
+func (m AccountNameUint64Map) MarshalJSON() ([]byte, error) {
+	elements := make([]pairAccountNameUint64Map, 0, m.Size())
 	it := m.Iterator()
 	for it.Next() {
-		elements = append(elements, pairIntStringPtrMap{it.Key(), it.Value()})
+		elements = append(elements, pairAccountNameUint64Map{it.Key(), it.Value()})
 	}
 	return json.Marshal(&elements)
 }
 
 // FromJSON populates the map from the input JSON representation.
-func (m *IntStringPtrMap) UnmarshalJSON(data []byte) error {
-	elements := make([]pairIntStringPtrMap, 0)
+func (m *AccountNameUint64Map) UnmarshalJSON(data []byte) error {
+	elements := make([]pairAccountNameUint64Map, 0)
 	err := json.Unmarshal(data, &elements)
 	if err == nil {
 		m.Clear()
@@ -189,9 +189,9 @@ func (m *IntStringPtrMap) UnmarshalJSON(data []byte) error {
 	return err
 }
 
-func (m IntStringPtrMap) Pack() (re []byte, err error) {
+func (m AccountNameUint64Map) Pack() (re []byte, err error) {
 	re = append(re, common.WriteUVarInt(m.Size())...)
-	m.Each(func(key int, value *string) {
+	m.Each(func(key common.AccountName, value uint64) {
 		rekey, _ := rlp.EncodeToBytes(key)
 		re = append(re, rekey...)
 		reVal, _ := rlp.EncodeToBytes(value)
@@ -200,8 +200,8 @@ func (m IntStringPtrMap) Pack() (re []byte, err error) {
 	return re, nil
 }
 
-func (m *IntStringPtrMap) Unpack(in []byte) (int, error) {
-	m.Tree = rbt.NewWith(IntComparator, false)
+func (m *AccountNameUint64Map) Unpack(in []byte) (int, error) {
+	m.Tree = rbt.NewWith(common.CompareName, false)
 
 	decoder := rlp.NewDecoder(in)
 	l, err := decoder.ReadUvarint64()
@@ -210,7 +210,7 @@ func (m *IntStringPtrMap) Unpack(in []byte) (int, error) {
 	}
 
 	for i := 0; i < int(l); i++ {
-		k, v := new(int), new(*string)
+		k, v := new(common.AccountName), new(uint64)
 		decoder.Decode(k)
 		decoder.Decode(v)
 		m.Put(*k, *v)

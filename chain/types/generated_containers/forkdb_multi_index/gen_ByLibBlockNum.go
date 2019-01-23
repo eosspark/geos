@@ -5,29 +5,28 @@ package forkdb_multi_index
 import (
 	"fmt"
 
-	"github.com/eosspark/eos-go/common"
+	"github.com/eosspark/eos-go/common/container"
 	"github.com/eosspark/eos-go/common/container/multiindex"
-	"github.com/eosspark/eos-go/log"
 )
 
 // template type OrderedIndex(FinalIndex,FinalNode,SuperIndex,SuperNode,Value,Key,KeyFunc,Comparator,Multiply)
 
 // OrderedIndex holds elements of the red-black tree
-type ByPrev struct {
-	super *ByBlockNum // index on the OrderedIndex, IndexBase is the last super index
-	final *MultiIndex // index under the OrderedIndex, MultiIndex is the final index
+type ByLibBlockNum struct {
+	super *MultiIndexBase // index on the OrderedIndex, IndexBase is the last super index
+	final *MultiIndex     // index under the OrderedIndex, MultiIndex is the final index
 
-	Root *ByPrevNode
+	Root *ByLibBlockNumNode
 	size int
 }
 
-func (tree *ByPrev) init(final *MultiIndex) {
+func (tree *ByLibBlockNum) init(final *MultiIndex) {
 	tree.final = final
-	tree.super = &ByBlockNum{}
+	tree.super = &MultiIndexBase{}
 	tree.super.init(final)
 }
 
-func (tree *ByPrev) clear() {
+func (tree *ByLibBlockNum) clear() {
 	tree.Clear()
 	tree.super.clear()
 }
@@ -37,31 +36,31 @@ func (tree *ByPrev) clear() {
 /*generic class*/
 
 // OrderedIndexNode is a single element within the tree
-type ByPrevNode struct {
-	Key    common.BlockIdType
-	super  *ByBlockNumNode
+type ByLibBlockNumNode struct {
+	Key    ByLibBlockNumComposite
+	super  *MultiIndexBaseNode
 	final  *MultiIndexNode
-	color  colorByPrev
-	Left   *ByPrevNode
-	Right  *ByPrevNode
-	Parent *ByPrevNode
+	color  colorByLibBlockNum
+	Left   *ByLibBlockNumNode
+	Right  *ByLibBlockNumNode
+	Parent *ByLibBlockNumNode
 }
 
 /*generic class*/
 
 /*generic class*/
 
-func (node *ByPrevNode) value() *BlockStatePtr {
+func (node *ByLibBlockNumNode) value() *BlockStatePtr {
 	return node.super.value()
 }
 
-type colorByPrev bool
+type colorByLibBlockNum bool
 
 const (
-	blackByPrev, redByPrev colorByPrev = true, false
+	blackByLibBlockNum, redByLibBlockNum colorByLibBlockNum = true, false
 )
 
-func (tree *ByPrev) Insert(v BlockStatePtr) (IteratorByPrev, bool) {
+func (tree *ByLibBlockNum) Insert(v BlockStatePtr) (IteratorByLibBlockNum, bool) {
 	fn, res := tree.final.insert(v)
 	if res {
 		return tree.makeIterator(fn), true
@@ -69,12 +68,12 @@ func (tree *ByPrev) Insert(v BlockStatePtr) (IteratorByPrev, bool) {
 	return tree.End(), false
 }
 
-func (tree *ByPrev) insert(v BlockStatePtr, fn *MultiIndexNode) (*ByPrevNode, bool) {
-	key := ByPrevFunc(v)
+func (tree *ByLibBlockNum) insert(v BlockStatePtr, fn *MultiIndexNode) (*ByLibBlockNumNode, bool) {
+	key := ByLibBlockNumFunc(v)
 
 	node, res := tree.put(key)
 	if !res {
-		log.Warn("#ordered index insert failed")
+		container.Logger.Warn("#ordered index insert failed")
 		return nil, false
 	}
 	sn, res := tree.super.insert(v, fn)
@@ -87,49 +86,49 @@ func (tree *ByPrev) insert(v BlockStatePtr, fn *MultiIndexNode) (*ByPrevNode, bo
 	return nil, false
 }
 
-func (tree *ByPrev) Erase(iter IteratorByPrev) (itr IteratorByPrev) {
+func (tree *ByLibBlockNum) Erase(iter IteratorByLibBlockNum) (itr IteratorByLibBlockNum) {
 	itr = iter
 	itr.Next()
 	tree.final.erase(iter.node.final)
 	return
 }
 
-func (tree *ByPrev) Erases(first, last IteratorByPrev) {
+func (tree *ByLibBlockNum) Erases(first, last IteratorByLibBlockNum) {
 	for first != last {
 		first = tree.Erase(first)
 	}
 }
 
-func (tree *ByPrev) erase(n *ByPrevNode) {
+func (tree *ByLibBlockNum) erase(n *ByLibBlockNumNode) {
 	tree.remove(n)
 	tree.super.erase(n.super)
 	n.super = nil
 	n.final = nil
 }
 
-func (tree *ByPrev) erase_(iter multiindex.IteratorType) {
-	if itr, ok := iter.(IteratorByPrev); ok {
+func (tree *ByLibBlockNum) erase_(iter multiindex.IteratorType) {
+	if itr, ok := iter.(IteratorByLibBlockNum); ok {
 		tree.Erase(itr)
 	} else {
 		tree.super.erase_(iter)
 	}
 }
 
-func (tree *ByPrev) Modify(iter IteratorByPrev, mod func(*BlockStatePtr)) bool {
+func (tree *ByLibBlockNum) Modify(iter IteratorByLibBlockNum, mod func(*BlockStatePtr)) bool {
 	if _, b := tree.final.modify(mod, iter.node.final); b {
 		return true
 	}
 	return false
 }
 
-func (tree *ByPrev) modify(n *ByPrevNode) (*ByPrevNode, bool) {
-	n.Key = ByPrevFunc(*n.value())
+func (tree *ByLibBlockNum) modify(n *ByLibBlockNumNode) (*ByLibBlockNumNode, bool) {
+	n.Key = ByLibBlockNumFunc(*n.value())
 
 	if !tree.inPlace(n) {
 		tree.remove(n)
 		node, res := tree.put(n.Key)
 		if !res {
-			log.Warn("#ordered index modify failed")
+			container.Logger.Warn("#ordered index modify failed")
 			tree.super.erase(n.super)
 			return nil, false
 		}
@@ -167,8 +166,8 @@ func (tree *ByPrev) modify(n *ByPrevNode) (*ByPrevNode, bool) {
 	return n, true
 }
 
-func (tree *ByPrev) modify_(iter multiindex.IteratorType, mod func(*BlockStatePtr)) bool {
-	if itr, ok := iter.(IteratorByPrev); ok {
+func (tree *ByLibBlockNum) modify_(iter multiindex.IteratorType, mod func(*BlockStatePtr)) bool {
+	if itr, ok := iter.(IteratorByLibBlockNum); ok {
 		return tree.Modify(itr, mod)
 	} else {
 		return tree.super.modify_(iter, mod)
@@ -178,16 +177,16 @@ func (tree *ByPrev) modify_(iter multiindex.IteratorType, mod func(*BlockStatePt
 // Get searches the node in the tree by key and returns its value or nil if key is not found in tree.
 // Second return parameter is true if key was found, otherwise false.
 // Key should adhere to the comparator's type assertion, otherwise method panics.
-func (tree *ByPrev) Find(key common.BlockIdType) IteratorByPrev {
+func (tree *ByLibBlockNum) Find(key ByLibBlockNumComposite) IteratorByLibBlockNum {
 	if true {
 		lower := tree.LowerBound(key)
-		if !lower.IsEnd() && ByPrevCompare(key, lower.Key()) == 0 {
+		if !lower.IsEnd() && ByLibBlockNumCompare(key, lower.Key()) == 0 {
 			return lower
 		}
 		return tree.End()
 	} else {
 		if node := tree.lookup(key); node != nil {
-			return IteratorByPrev{tree, node, betweenByPrev}
+			return IteratorByLibBlockNum{tree, node, betweenByLibBlockNum}
 		}
 		return tree.End()
 	}
@@ -195,7 +194,7 @@ func (tree *ByPrev) Find(key common.BlockIdType) IteratorByPrev {
 
 // LowerBound returns an iterator pointing to the first element that is not less than the given key.
 // Complexity: O(log N).
-func (tree *ByPrev) LowerBound(key common.BlockIdType) IteratorByPrev {
+func (tree *ByLibBlockNum) LowerBound(key ByLibBlockNumComposite) IteratorByLibBlockNum {
 	result := tree.End()
 	node := tree.Root
 
@@ -204,7 +203,7 @@ func (tree *ByPrev) LowerBound(key common.BlockIdType) IteratorByPrev {
 	}
 
 	for {
-		if ByPrevCompare(key, node.Key) > 0 {
+		if ByLibBlockNumCompare(key, node.Key) > 0 {
 			if node.Right != nil {
 				node = node.Right
 			} else {
@@ -212,7 +211,7 @@ func (tree *ByPrev) LowerBound(key common.BlockIdType) IteratorByPrev {
 			}
 		} else {
 			result.node = node
-			result.position = betweenByPrev
+			result.position = betweenByLibBlockNum
 			if node.Left != nil {
 				node = node.Left
 			} else {
@@ -224,7 +223,7 @@ func (tree *ByPrev) LowerBound(key common.BlockIdType) IteratorByPrev {
 
 // UpperBound returns an iterator pointing to the first element that is greater than the given key.
 // Complexity: O(log N).
-func (tree *ByPrev) UpperBound(key common.BlockIdType) IteratorByPrev {
+func (tree *ByLibBlockNum) UpperBound(key ByLibBlockNumComposite) IteratorByLibBlockNum {
 	result := tree.End()
 	node := tree.Root
 
@@ -233,7 +232,7 @@ func (tree *ByPrev) UpperBound(key common.BlockIdType) IteratorByPrev {
 	}
 
 	for {
-		if ByPrevCompare(key, node.Key) >= 0 {
+		if ByLibBlockNumCompare(key, node.Key) >= 0 {
 			if node.Right != nil {
 				node = node.Right
 			} else {
@@ -241,7 +240,7 @@ func (tree *ByPrev) UpperBound(key common.BlockIdType) IteratorByPrev {
 			}
 		} else {
 			result.node = node
-			result.position = betweenByPrev
+			result.position = betweenByLibBlockNum
 			if node.Left != nil {
 				node = node.Left
 			} else {
@@ -253,10 +252,10 @@ func (tree *ByPrev) UpperBound(key common.BlockIdType) IteratorByPrev {
 
 // Remove remove the node from the tree by key.
 // Key should adhere to the comparator's type assertion, otherwise method panics.
-func (tree *ByPrev) Remove(key common.BlockIdType) {
+func (tree *ByLibBlockNum) Remove(key ByLibBlockNumComposite) {
 	if true {
-		for lower := tree.LowerBound(key); lower.position != endByPrev; {
-			if ByPrevCompare(lower.Key(), key) == 0 {
+		for lower := tree.LowerBound(key); lower.position != endByLibBlockNum; {
+			if ByLibBlockNumCompare(lower.Key(), key) == 0 {
 				node := lower.node
 				lower.Next()
 				tree.remove(node)
@@ -270,23 +269,23 @@ func (tree *ByPrev) Remove(key common.BlockIdType) {
 	}
 }
 
-func (tree *ByPrev) put(key common.BlockIdType) (*ByPrevNode, bool) {
-	var insertedNode *ByPrevNode
+func (tree *ByLibBlockNum) put(key ByLibBlockNumComposite) (*ByLibBlockNumNode, bool) {
+	var insertedNode *ByLibBlockNumNode
 	if tree.Root == nil {
 		// Assert key is of comparator's type for initial tree
-		ByPrevCompare(key, key)
-		tree.Root = &ByPrevNode{Key: key, color: redByPrev}
+		ByLibBlockNumCompare(key, key)
+		tree.Root = &ByLibBlockNumNode{Key: key, color: redByLibBlockNum}
 		insertedNode = tree.Root
 	} else {
 		node := tree.Root
 		loop := true
 		if true {
 			for loop {
-				compare := ByPrevCompare(key, node.Key)
+				compare := ByLibBlockNumCompare(key, node.Key)
 				switch {
 				case compare < 0:
 					if node.Left == nil {
-						node.Left = &ByPrevNode{Key: key, color: redByPrev}
+						node.Left = &ByLibBlockNumNode{Key: key, color: redByLibBlockNum}
 						insertedNode = node.Left
 						loop = false
 					} else {
@@ -294,7 +293,7 @@ func (tree *ByPrev) put(key common.BlockIdType) (*ByPrevNode, bool) {
 					}
 				case compare >= 0:
 					if node.Right == nil {
-						node.Right = &ByPrevNode{Key: key, color: redByPrev}
+						node.Right = &ByLibBlockNumNode{Key: key, color: redByLibBlockNum}
 						insertedNode = node.Right
 						loop = false
 					} else {
@@ -304,14 +303,14 @@ func (tree *ByPrev) put(key common.BlockIdType) (*ByPrevNode, bool) {
 			}
 		} else {
 			for loop {
-				compare := ByPrevCompare(key, node.Key)
+				compare := ByLibBlockNumCompare(key, node.Key)
 				switch {
 				case compare == 0:
 					node.Key = key
 					return node, false
 				case compare < 0:
 					if node.Left == nil {
-						node.Left = &ByPrevNode{Key: key, color: redByPrev}
+						node.Left = &ByLibBlockNumNode{Key: key, color: redByLibBlockNum}
 						insertedNode = node.Left
 						loop = false
 					} else {
@@ -319,7 +318,7 @@ func (tree *ByPrev) put(key common.BlockIdType) (*ByPrevNode, bool) {
 					}
 				case compare > 0:
 					if node.Right == nil {
-						node.Right = &ByPrevNode{Key: key, color: redByPrev}
+						node.Right = &ByLibBlockNumNode{Key: key, color: redByLibBlockNum}
 						insertedNode = node.Right
 						loop = false
 					} else {
@@ -336,12 +335,12 @@ func (tree *ByPrev) put(key common.BlockIdType) (*ByPrevNode, bool) {
 	return insertedNode, true
 }
 
-func (tree *ByPrev) swapNode(node *ByPrevNode, pred *ByPrevNode) {
+func (tree *ByLibBlockNum) swapNode(node *ByLibBlockNumNode, pred *ByLibBlockNumNode) {
 	if node == pred {
 		return
 	}
 
-	tmp := ByPrevNode{color: pred.color, Left: pred.Left, Right: pred.Right, Parent: pred.Parent}
+	tmp := ByLibBlockNumNode{color: pred.color, Left: pred.Left, Right: pred.Right, Parent: pred.Parent}
 
 	pred.color = node.color
 	node.color = tmp.color
@@ -408,8 +407,8 @@ func (tree *ByPrev) swapNode(node *ByPrevNode, pred *ByPrevNode) {
 	}
 }
 
-func (tree *ByPrev) remove(node *ByPrevNode) {
-	var child *ByPrevNode
+func (tree *ByLibBlockNum) remove(node *ByLibBlockNumNode) {
+	var child *ByLibBlockNumNode
 	if node == nil {
 		return
 	}
@@ -423,22 +422,22 @@ func (tree *ByPrev) remove(node *ByPrevNode) {
 		} else {
 			child = node.Right
 		}
-		if node.color == blackByPrev {
-			node.color = nodeColorByPrev(child)
+		if node.color == blackByLibBlockNum {
+			node.color = nodeColorByLibBlockNum(child)
 			tree.deleteCase1(node)
 		}
 		tree.replaceNode(node, child)
 		if node.Parent == nil && child != nil {
-			child.color = blackByPrev
+			child.color = blackByLibBlockNum
 		}
 	}
 	tree.size--
 }
 
-func (tree *ByPrev) lookup(key common.BlockIdType) *ByPrevNode {
+func (tree *ByLibBlockNum) lookup(key ByLibBlockNumComposite) *ByLibBlockNumNode {
 	node := tree.Root
 	for node != nil {
-		compare := ByPrevCompare(key, node.Key)
+		compare := ByLibBlockNumCompare(key, node.Key)
 		switch {
 		case compare == 0:
 			return node
@@ -452,18 +451,18 @@ func (tree *ByPrev) lookup(key common.BlockIdType) *ByPrevNode {
 }
 
 // Empty returns true if tree does not contain any nodes
-func (tree *ByPrev) Empty() bool {
+func (tree *ByLibBlockNum) Empty() bool {
 	return tree.size == 0
 }
 
 // Size returns number of nodes in the tree.
-func (tree *ByPrev) Size() int {
+func (tree *ByLibBlockNum) Size() int {
 	return tree.size
 }
 
 // Keys returns all keys in-order
-func (tree *ByPrev) Keys() []common.BlockIdType {
-	keys := make([]common.BlockIdType, tree.size)
+func (tree *ByLibBlockNum) Keys() []ByLibBlockNumComposite {
+	keys := make([]ByLibBlockNumComposite, tree.size)
 	it := tree.Iterator()
 	for i := 0; it.Next(); i++ {
 		keys[i] = it.Key()
@@ -472,7 +471,7 @@ func (tree *ByPrev) Keys() []common.BlockIdType {
 }
 
 // Values returns all values in-order based on the key.
-func (tree *ByPrev) Values() []BlockStatePtr {
+func (tree *ByLibBlockNum) Values() []BlockStatePtr {
 	values := make([]BlockStatePtr, tree.size)
 	it := tree.Iterator()
 	for i := 0; it.Next(); i++ {
@@ -482,8 +481,8 @@ func (tree *ByPrev) Values() []BlockStatePtr {
 }
 
 // Left returns the left-most (min) node or nil if tree is empty.
-func (tree *ByPrev) Left() *ByPrevNode {
-	var parent *ByPrevNode
+func (tree *ByLibBlockNum) Left() *ByLibBlockNumNode {
+	var parent *ByLibBlockNumNode
 	current := tree.Root
 	for current != nil {
 		parent = current
@@ -493,8 +492,8 @@ func (tree *ByPrev) Left() *ByPrevNode {
 }
 
 // Right returns the right-most (max) node or nil if tree is empty.
-func (tree *ByPrev) Right() *ByPrevNode {
-	var parent *ByPrevNode
+func (tree *ByLibBlockNum) Right() *ByLibBlockNumNode {
+	var parent *ByLibBlockNumNode
 	current := tree.Root
 	for current != nil {
 		parent = current
@@ -504,28 +503,28 @@ func (tree *ByPrev) Right() *ByPrevNode {
 }
 
 // Clear removes all nodes from the tree.
-func (tree *ByPrev) Clear() {
+func (tree *ByLibBlockNum) Clear() {
 	tree.Root = nil
 	tree.size = 0
 }
 
 // String returns a string representation of container
-func (tree *ByPrev) String() string {
+func (tree *ByLibBlockNum) String() string {
 	str := "OrderedIndex\n"
 	if !tree.Empty() {
-		outputByPrev(tree.Root, "", true, &str)
+		outputByLibBlockNum(tree.Root, "", true, &str)
 	}
 	return str
 }
 
-func (node *ByPrevNode) String() string {
+func (node *ByLibBlockNumNode) String() string {
 	if !node.color {
 		return fmt.Sprintf("(%v,%v)", node.Key, "red")
 	}
 	return fmt.Sprintf("(%v)", node.Key)
 }
 
-func outputByPrev(node *ByPrevNode, prefix string, isTail bool, str *string) {
+func outputByLibBlockNum(node *ByLibBlockNumNode, prefix string, isTail bool, str *string) {
 	if node.Right != nil {
 		newPrefix := prefix
 		if isTail {
@@ -533,7 +532,7 @@ func outputByPrev(node *ByPrevNode, prefix string, isTail bool, str *string) {
 		} else {
 			newPrefix += "    "
 		}
-		outputByPrev(node.Right, newPrefix, false, str)
+		outputByLibBlockNum(node.Right, newPrefix, false, str)
 	}
 	*str += prefix
 	if isTail {
@@ -549,25 +548,25 @@ func outputByPrev(node *ByPrevNode, prefix string, isTail bool, str *string) {
 		} else {
 			newPrefix += "│   "
 		}
-		outputByPrev(node.Left, newPrefix, true, str)
+		outputByLibBlockNum(node.Left, newPrefix, true, str)
 	}
 }
 
-func (node *ByPrevNode) grandparent() *ByPrevNode {
+func (node *ByLibBlockNumNode) grandparent() *ByLibBlockNumNode {
 	if node != nil && node.Parent != nil {
 		return node.Parent.Parent
 	}
 	return nil
 }
 
-func (node *ByPrevNode) uncle() *ByPrevNode {
+func (node *ByLibBlockNumNode) uncle() *ByLibBlockNumNode {
 	if node == nil || node.Parent == nil || node.Parent.Parent == nil {
 		return nil
 	}
 	return node.Parent.sibling()
 }
 
-func (node *ByPrevNode) sibling() *ByPrevNode {
+func (node *ByLibBlockNumNode) sibling() *ByLibBlockNumNode {
 	if node == nil || node.Parent == nil {
 		return nil
 	}
@@ -577,7 +576,7 @@ func (node *ByPrevNode) sibling() *ByPrevNode {
 	return node.Parent.Left
 }
 
-func (node *ByPrevNode) isLeaf() bool {
+func (node *ByLibBlockNumNode) isLeaf() bool {
 	if node == nil {
 		return true
 	}
@@ -587,7 +586,7 @@ func (node *ByPrevNode) isLeaf() bool {
 	return false
 }
 
-func (tree *ByPrev) rotateLeft(node *ByPrevNode) {
+func (tree *ByLibBlockNum) rotateLeft(node *ByLibBlockNumNode) {
 	right := node.Right
 	tree.replaceNode(node, right)
 	node.Right = right.Left
@@ -598,7 +597,7 @@ func (tree *ByPrev) rotateLeft(node *ByPrevNode) {
 	node.Parent = right
 }
 
-func (tree *ByPrev) rotateRight(node *ByPrevNode) {
+func (tree *ByLibBlockNum) rotateRight(node *ByLibBlockNumNode) {
 	left := node.Left
 	tree.replaceNode(node, left)
 	node.Left = left.Right
@@ -609,7 +608,7 @@ func (tree *ByPrev) rotateRight(node *ByPrevNode) {
 	node.Parent = left
 }
 
-func (tree *ByPrev) replaceNode(old *ByPrevNode, new *ByPrevNode) {
+func (tree *ByLibBlockNum) replaceNode(old *ByLibBlockNumNode, new *ByLibBlockNumNode) {
 	if old.Parent == nil {
 		tree.Root = new
 	} else {
@@ -624,34 +623,34 @@ func (tree *ByPrev) replaceNode(old *ByPrevNode, new *ByPrevNode) {
 	}
 }
 
-func (tree *ByPrev) insertCase1(node *ByPrevNode) {
+func (tree *ByLibBlockNum) insertCase1(node *ByLibBlockNumNode) {
 	if node.Parent == nil {
-		node.color = blackByPrev
+		node.color = blackByLibBlockNum
 	} else {
 		tree.insertCase2(node)
 	}
 }
 
-func (tree *ByPrev) insertCase2(node *ByPrevNode) {
-	if nodeColorByPrev(node.Parent) == blackByPrev {
+func (tree *ByLibBlockNum) insertCase2(node *ByLibBlockNumNode) {
+	if nodeColorByLibBlockNum(node.Parent) == blackByLibBlockNum {
 		return
 	}
 	tree.insertCase3(node)
 }
 
-func (tree *ByPrev) insertCase3(node *ByPrevNode) {
+func (tree *ByLibBlockNum) insertCase3(node *ByLibBlockNumNode) {
 	uncle := node.uncle()
-	if nodeColorByPrev(uncle) == redByPrev {
-		node.Parent.color = blackByPrev
-		uncle.color = blackByPrev
-		node.grandparent().color = redByPrev
+	if nodeColorByLibBlockNum(uncle) == redByLibBlockNum {
+		node.Parent.color = blackByLibBlockNum
+		uncle.color = blackByLibBlockNum
+		node.grandparent().color = redByLibBlockNum
 		tree.insertCase1(node.grandparent())
 	} else {
 		tree.insertCase4(node)
 	}
 }
 
-func (tree *ByPrev) insertCase4(node *ByPrevNode) {
+func (tree *ByLibBlockNum) insertCase4(node *ByLibBlockNumNode) {
 	grandparent := node.grandparent()
 	if node == node.Parent.Right && node.Parent == grandparent.Left {
 		tree.rotateLeft(node.Parent)
@@ -663,10 +662,10 @@ func (tree *ByPrev) insertCase4(node *ByPrevNode) {
 	tree.insertCase5(node)
 }
 
-func (tree *ByPrev) insertCase5(node *ByPrevNode) {
-	node.Parent.color = blackByPrev
+func (tree *ByLibBlockNum) insertCase5(node *ByLibBlockNumNode) {
+	node.Parent.color = blackByLibBlockNum
 	grandparent := node.grandparent()
-	grandparent.color = redByPrev
+	grandparent.color = redByLibBlockNum
 	if node == node.Parent.Left && node.Parent == grandparent.Left {
 		tree.rotateRight(grandparent)
 	} else if node == node.Parent.Right && node.Parent == grandparent.Right {
@@ -674,7 +673,7 @@ func (tree *ByPrev) insertCase5(node *ByPrevNode) {
 	}
 }
 
-func (node *ByPrevNode) maximumNode() *ByPrevNode {
+func (node *ByLibBlockNumNode) maximumNode() *ByLibBlockNumNode {
 	if node == nil {
 		return nil
 	}
@@ -684,18 +683,18 @@ func (node *ByPrevNode) maximumNode() *ByPrevNode {
 	return node
 }
 
-func (tree *ByPrev) deleteCase1(node *ByPrevNode) {
+func (tree *ByLibBlockNum) deleteCase1(node *ByLibBlockNumNode) {
 	if node.Parent == nil {
 		return
 	}
 	tree.deleteCase2(node)
 }
 
-func (tree *ByPrev) deleteCase2(node *ByPrevNode) {
+func (tree *ByLibBlockNum) deleteCase2(node *ByLibBlockNumNode) {
 	sibling := node.sibling()
-	if nodeColorByPrev(sibling) == redByPrev {
-		node.Parent.color = redByPrev
-		sibling.color = blackByPrev
+	if nodeColorByLibBlockNum(sibling) == redByLibBlockNum {
+		node.Parent.color = redByLibBlockNum
+		sibling.color = blackByLibBlockNum
 		if node == node.Parent.Left {
 			tree.rotateLeft(node.Parent)
 		} else {
@@ -705,82 +704,82 @@ func (tree *ByPrev) deleteCase2(node *ByPrevNode) {
 	tree.deleteCase3(node)
 }
 
-func (tree *ByPrev) deleteCase3(node *ByPrevNode) {
+func (tree *ByLibBlockNum) deleteCase3(node *ByLibBlockNumNode) {
 	sibling := node.sibling()
-	if nodeColorByPrev(node.Parent) == blackByPrev &&
-		nodeColorByPrev(sibling) == blackByPrev &&
-		nodeColorByPrev(sibling.Left) == blackByPrev &&
-		nodeColorByPrev(sibling.Right) == blackByPrev {
-		sibling.color = redByPrev
+	if nodeColorByLibBlockNum(node.Parent) == blackByLibBlockNum &&
+		nodeColorByLibBlockNum(sibling) == blackByLibBlockNum &&
+		nodeColorByLibBlockNum(sibling.Left) == blackByLibBlockNum &&
+		nodeColorByLibBlockNum(sibling.Right) == blackByLibBlockNum {
+		sibling.color = redByLibBlockNum
 		tree.deleteCase1(node.Parent)
 	} else {
 		tree.deleteCase4(node)
 	}
 }
 
-func (tree *ByPrev) deleteCase4(node *ByPrevNode) {
+func (tree *ByLibBlockNum) deleteCase4(node *ByLibBlockNumNode) {
 	sibling := node.sibling()
-	if nodeColorByPrev(node.Parent) == redByPrev &&
-		nodeColorByPrev(sibling) == blackByPrev &&
-		nodeColorByPrev(sibling.Left) == blackByPrev &&
-		nodeColorByPrev(sibling.Right) == blackByPrev {
-		sibling.color = redByPrev
-		node.Parent.color = blackByPrev
+	if nodeColorByLibBlockNum(node.Parent) == redByLibBlockNum &&
+		nodeColorByLibBlockNum(sibling) == blackByLibBlockNum &&
+		nodeColorByLibBlockNum(sibling.Left) == blackByLibBlockNum &&
+		nodeColorByLibBlockNum(sibling.Right) == blackByLibBlockNum {
+		sibling.color = redByLibBlockNum
+		node.Parent.color = blackByLibBlockNum
 	} else {
 		tree.deleteCase5(node)
 	}
 }
 
-func (tree *ByPrev) deleteCase5(node *ByPrevNode) {
+func (tree *ByLibBlockNum) deleteCase5(node *ByLibBlockNumNode) {
 	sibling := node.sibling()
 	if node == node.Parent.Left &&
-		nodeColorByPrev(sibling) == blackByPrev &&
-		nodeColorByPrev(sibling.Left) == redByPrev &&
-		nodeColorByPrev(sibling.Right) == blackByPrev {
-		sibling.color = redByPrev
-		sibling.Left.color = blackByPrev
+		nodeColorByLibBlockNum(sibling) == blackByLibBlockNum &&
+		nodeColorByLibBlockNum(sibling.Left) == redByLibBlockNum &&
+		nodeColorByLibBlockNum(sibling.Right) == blackByLibBlockNum {
+		sibling.color = redByLibBlockNum
+		sibling.Left.color = blackByLibBlockNum
 		tree.rotateRight(sibling)
 	} else if node == node.Parent.Right &&
-		nodeColorByPrev(sibling) == blackByPrev &&
-		nodeColorByPrev(sibling.Right) == redByPrev &&
-		nodeColorByPrev(sibling.Left) == blackByPrev {
-		sibling.color = redByPrev
-		sibling.Right.color = blackByPrev
+		nodeColorByLibBlockNum(sibling) == blackByLibBlockNum &&
+		nodeColorByLibBlockNum(sibling.Right) == redByLibBlockNum &&
+		nodeColorByLibBlockNum(sibling.Left) == blackByLibBlockNum {
+		sibling.color = redByLibBlockNum
+		sibling.Right.color = blackByLibBlockNum
 		tree.rotateLeft(sibling)
 	}
 	tree.deleteCase6(node)
 }
 
-func (tree *ByPrev) deleteCase6(node *ByPrevNode) {
+func (tree *ByLibBlockNum) deleteCase6(node *ByLibBlockNumNode) {
 	sibling := node.sibling()
-	sibling.color = nodeColorByPrev(node.Parent)
-	node.Parent.color = blackByPrev
-	if node == node.Parent.Left && nodeColorByPrev(sibling.Right) == redByPrev {
-		sibling.Right.color = blackByPrev
+	sibling.color = nodeColorByLibBlockNum(node.Parent)
+	node.Parent.color = blackByLibBlockNum
+	if node == node.Parent.Left && nodeColorByLibBlockNum(sibling.Right) == redByLibBlockNum {
+		sibling.Right.color = blackByLibBlockNum
 		tree.rotateLeft(node.Parent)
-	} else if nodeColorByPrev(sibling.Left) == redByPrev {
-		sibling.Left.color = blackByPrev
+	} else if nodeColorByLibBlockNum(sibling.Left) == redByLibBlockNum {
+		sibling.Left.color = blackByLibBlockNum
 		tree.rotateRight(node.Parent)
 	}
 }
 
-func nodeColorByPrev(node *ByPrevNode) colorByPrev {
+func nodeColorByLibBlockNum(node *ByLibBlockNumNode) colorByLibBlockNum {
 	if node == nil {
-		return blackByPrev
+		return blackByLibBlockNum
 	}
 	return node.color
 }
 
 //////////////iterator////////////////
 
-func (tree *ByPrev) makeIterator(fn *MultiIndexNode) IteratorByPrev {
+func (tree *ByLibBlockNum) makeIterator(fn *MultiIndexNode) IteratorByLibBlockNum {
 	node := fn.GetSuperNode()
 	for {
 		if node == nil {
 			panic("Wrong index node type!")
 
-		} else if n, ok := node.(*ByPrevNode); ok {
-			return IteratorByPrev{tree: tree, node: n, position: betweenByPrev}
+		} else if n, ok := node.(*ByLibBlockNumNode); ok {
+			return IteratorByLibBlockNum{tree: tree, node: n, position: betweenByLibBlockNum}
 		} else {
 			node = node.(multiindex.NodeType).GetSuperNode()
 		}
@@ -788,42 +787,42 @@ func (tree *ByPrev) makeIterator(fn *MultiIndexNode) IteratorByPrev {
 }
 
 // Iterator holding the iterator's state
-type IteratorByPrev struct {
-	tree     *ByPrev
-	node     *ByPrevNode
-	position positionByPrev
+type IteratorByLibBlockNum struct {
+	tree     *ByLibBlockNum
+	node     *ByLibBlockNumNode
+	position positionByLibBlockNum
 }
 
-type positionByPrev byte
+type positionByLibBlockNum byte
 
 const (
-	beginByPrev, betweenByPrev, endByPrev positionByPrev = 0, 1, 2
+	beginByLibBlockNum, betweenByLibBlockNum, endByLibBlockNum positionByLibBlockNum = 0, 1, 2
 )
 
 // Iterator returns a stateful iterator whose elements are key/value pairs.
-func (tree *ByPrev) Iterator() IteratorByPrev {
-	return IteratorByPrev{tree: tree, node: nil, position: beginByPrev}
+func (tree *ByLibBlockNum) Iterator() IteratorByLibBlockNum {
+	return IteratorByLibBlockNum{tree: tree, node: nil, position: beginByLibBlockNum}
 }
 
-func (tree *ByPrev) Begin() IteratorByPrev {
-	itr := IteratorByPrev{tree: tree, node: nil, position: beginByPrev}
+func (tree *ByLibBlockNum) Begin() IteratorByLibBlockNum {
+	itr := IteratorByLibBlockNum{tree: tree, node: nil, position: beginByLibBlockNum}
 	itr.Next()
 	return itr
 }
 
-func (tree *ByPrev) End() IteratorByPrev {
-	return IteratorByPrev{tree: tree, node: nil, position: endByPrev}
+func (tree *ByLibBlockNum) End() IteratorByLibBlockNum {
+	return IteratorByLibBlockNum{tree: tree, node: nil, position: endByLibBlockNum}
 }
 
 // Next moves the iterator to the next element and returns true if there was a next element in the container.
 // If Next() returns true, then next element's key and value can be retrieved by Key() and Value().
 // If Next() was called for the first time, then it will point the iterator to the first element if it exists.
 // Modifies the state of the iterator.
-func (iterator *IteratorByPrev) Next() bool {
-	if iterator.position == endByPrev {
+func (iterator *IteratorByLibBlockNum) Next() bool {
+	if iterator.position == endByLibBlockNum {
 		goto end
 	}
-	if iterator.position == beginByPrev {
+	if iterator.position == beginByLibBlockNum {
 		left := iterator.tree.Left()
 		if left == nil {
 			goto end
@@ -851,22 +850,22 @@ func (iterator *IteratorByPrev) Next() bool {
 
 end:
 	iterator.node = nil
-	iterator.position = endByPrev
+	iterator.position = endByLibBlockNum
 	return false
 
 between:
-	iterator.position = betweenByPrev
+	iterator.position = betweenByLibBlockNum
 	return true
 }
 
 // Prev moves the iterator to the previous element and returns true if there was a previous element in the container.
 // If Prev() returns true, then previous element's key and value can be retrieved by Key() and Value().
 // Modifies the state of the iterator.
-func (iterator *IteratorByPrev) Prev() bool {
-	if iterator.position == beginByPrev {
+func (iterator *IteratorByLibBlockNum) Prev() bool {
+	if iterator.position == beginByLibBlockNum {
 		goto begin
 	}
-	if iterator.position == endByPrev {
+	if iterator.position == endByLibBlockNum {
 		right := iterator.tree.Right()
 		if right == nil {
 			goto begin
@@ -897,67 +896,67 @@ func (iterator *IteratorByPrev) Prev() bool {
 
 begin:
 	iterator.node = nil
-	iterator.position = beginByPrev
+	iterator.position = beginByLibBlockNum
 	return false
 
 between:
-	iterator.position = betweenByPrev
+	iterator.position = betweenByLibBlockNum
 	return true
 }
 
-func (iterator IteratorByPrev) HasNext() bool {
-	return iterator.position != endByPrev
+func (iterator IteratorByLibBlockNum) HasNext() bool {
+	return iterator.position != endByLibBlockNum
 }
 
-func (iterator *IteratorByPrev) HasPrev() bool {
-	return iterator.position != beginByPrev
+func (iterator *IteratorByLibBlockNum) HasPrev() bool {
+	return iterator.position != beginByLibBlockNum
 }
 
 // Value returns the current element's value.
 // Does not modify the state of the iterator.
-func (iterator IteratorByPrev) Value() BlockStatePtr {
+func (iterator IteratorByLibBlockNum) Value() BlockStatePtr {
 	return *iterator.node.value()
 }
 
 // Key returns the current element's key.
 // Does not modify the state of the iterator.
-func (iterator IteratorByPrev) Key() common.BlockIdType {
+func (iterator IteratorByLibBlockNum) Key() ByLibBlockNumComposite {
 	return iterator.node.Key
 }
 
 // Begin resets the iterator to its initial state (one-before-first)
 // Call Next() to fetch the first element if any.
-func (iterator *IteratorByPrev) Begin() {
+func (iterator *IteratorByLibBlockNum) Begin() {
 	iterator.node = nil
-	iterator.position = beginByPrev
+	iterator.position = beginByLibBlockNum
 }
 
-func (iterator IteratorByPrev) IsBegin() bool {
-	return iterator.position == beginByPrev
+func (iterator IteratorByLibBlockNum) IsBegin() bool {
+	return iterator.position == beginByLibBlockNum
 }
 
 // End moves the iterator past the last element (one-past-the-end).
 // Call Prev() to fetch the last element if any.
-func (iterator *IteratorByPrev) End() {
+func (iterator *IteratorByLibBlockNum) End() {
 	iterator.node = nil
-	iterator.position = endByPrev
+	iterator.position = endByLibBlockNum
 }
 
-func (iterator IteratorByPrev) IsEnd() bool {
-	return iterator.position == endByPrev
+func (iterator IteratorByLibBlockNum) IsEnd() bool {
+	return iterator.position == endByLibBlockNum
 }
 
 // Delete remove the node which pointed by the iterator
 // Modifies the state of the iterator.
-func (iterator *IteratorByPrev) Delete() {
+func (iterator *IteratorByLibBlockNum) Delete() {
 	node := iterator.node
 	//iterator.Prev()
 	iterator.tree.remove(node)
 }
 
-func (tree *ByPrev) inPlace(n *ByPrevNode) bool {
-	prev := IteratorByPrev{tree, n, betweenByPrev}
-	next := IteratorByPrev{tree, n, betweenByPrev}
+func (tree *ByLibBlockNum) inPlace(n *ByLibBlockNumNode) bool {
+	prev := IteratorByLibBlockNum{tree, n, betweenByLibBlockNum}
+	next := IteratorByLibBlockNum{tree, n, betweenByLibBlockNum}
 	prev.Prev()
 	next.Next()
 
@@ -969,13 +968,13 @@ func (tree *ByPrev) inPlace(n *ByPrevNode) bool {
 	if prev.IsBegin() {
 		prevResult = 1
 	} else {
-		prevResult = ByPrevCompare(n.Key, prev.Key())
+		prevResult = ByLibBlockNumCompare(n.Key, prev.Key())
 	}
 
 	if next.IsEnd() {
 		nextResult = -1
 	} else {
-		nextResult = ByPrevCompare(n.Key, next.Key())
+		nextResult = ByLibBlockNumCompare(n.Key, next.Key())
 	}
 
 	return (true && prevResult >= 0 && nextResult <= 0) ||

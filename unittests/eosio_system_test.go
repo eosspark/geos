@@ -1594,9 +1594,9 @@ func TestProducersUpgradeSystemContract(t *testing.T) {
 	}
 
 	// test begins
-	var prodPerms []types.PermissionLevel
+	var prodPerms []common.PermissionLevel
 	for _, x := range producersNames {
-		prodPerms = append(prodPerms, types.PermissionLevel{Actor: x, Permission: common.DefaultConfig.ActiveName})
+		prodPerms = append(prodPerms, common.PermissionLevel{Actor: x, Permission: common.DefaultConfig.ActiveName})
 	}
 	//prepare system contract with different hash (contract differs in one byte)
 	wast, _ := ioutil.ReadFile("test_contracts/eosio.system.wast")
@@ -1611,7 +1611,7 @@ func TestProducersUpgradeSystemContract(t *testing.T) {
 		act := types.Action{
 			Account:       setCode.GetAccount(),
 			Name:          setCode.GetName(),
-			Authorization: []types.PermissionLevel{{eosio, common.DefaultConfig.ActiveName}},
+			Authorization: []common.PermissionLevel{{eosio, common.DefaultConfig.ActiveName}},
 			Data:          data,
 		}
 		trx.Actions = append(trx.Actions, &act)
@@ -1635,7 +1635,7 @@ func TestProducersUpgradeSystemContract(t *testing.T) {
 		data = common.Variants{
 			"proposer":      alice,
 			"proposal_name": common.N("upgrade1"),
-			"level":         types.PermissionLevel{Actor: producersNames[i], Permission: common.DefaultConfig.ActiveName},
+			"level":         common.PermissionLevel{Actor: producersNames[i], Permission: common.DefaultConfig.ActiveName},
 		}
 		assert.Equal(t, e.Success(), pushActionMsig(producersNames[i], common.N("approve"), data, true))
 	}
@@ -1653,7 +1653,7 @@ func TestProducersUpgradeSystemContract(t *testing.T) {
 	data = common.Variants{
 		"proposer":      alice,
 		"proposal_name": common.N("upgrade1"),
-		"level":         types.PermissionLevel{Actor: producersNames[14], Permission: common.DefaultConfig.ActiveName},
+		"level":         common.PermissionLevel{Actor: producersNames[14], Permission: common.DefaultConfig.ActiveName},
 	}
 	assert.Equal(t, e.Success(), pushActionMsig(producersNames[14], common.N("approve"), data, true))
 
@@ -2267,9 +2267,9 @@ func TestSetParams(t *testing.T) {
 	}
 
 	//test begins
-	var prodPerms []types.PermissionLevel
+	var prodPerms []common.PermissionLevel
 	for _, x := range producersNames {
-		prodPerms = append(prodPerms, types.PermissionLevel{Actor: x, Permission: common.DefaultConfig.ActiveName})
+		prodPerms = append(prodPerms, common.PermissionLevel{Actor: x, Permission: common.DefaultConfig.ActiveName})
 	}
 	params := e.Control.GetGlobalProperties().Configuration
 
@@ -2280,7 +2280,7 @@ func TestSetParams(t *testing.T) {
 	trx := types.SignedTransaction{}
 	{
 		data := common.Variants{"params": params}
-		act := e.GetAction(eosio, common.N("setparams"), []types.PermissionLevel{{eosio, common.DefaultConfig.ActiveName}}, &data)
+		act := e.GetAction(eosio, common.N("setparams"), []common.PermissionLevel{{eosio, common.DefaultConfig.ActiveName}}, &data)
 		trx.Actions = append(trx.Actions, act)
 		e.SetTransactionHeaders(&trx.Transaction, e.DefaultExpirationDelta, 0)
 		fmt.Println(trx.Expiration.SecSinceEpoch())

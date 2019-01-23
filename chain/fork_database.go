@@ -3,7 +3,7 @@ package chain
 import (
 	"bytes"
 	"github.com/eosspark/eos-go/chain/types"
-	"github.com/eosspark/eos-go/chain/types/forkdb_multi_index"
+	"github.com/eosspark/eos-go/chain/types/generated_containers/forkdb_multi_index"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto/rlp"
 	. "github.com/eosspark/eos-go/exception"

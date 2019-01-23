@@ -3,10 +3,10 @@ package chain_plugin
 import (
 	"github.com/eosspark/eos-go/chain/abi_serializer"
 	"github.com/eosspark/eos-go/chain/types"
+	. "github.com/eosspark/eos-go/chain/types/generated_containers"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/common/eos_math"
 	"github.com/eosspark/eos-go/crypto"
-	"github.com/eosspark/eos-go/crypto/ecc"
 	. "github.com/eosspark/eos-go/exception/try"
 )
 
@@ -133,11 +133,11 @@ type GetRawAbiResult struct {
 }
 
 type GetRequiredKeysParams struct {
-	Transaction   common.Variant  `json:"transaction"`
-	AvailableKeys []ecc.PublicKey `json:"available_keys"`
+	Transaction   common.Variant `json:"transaction"`
+	AvailableKeys PublicKeySet   `json:"available_keys"`
 }
 type GetRequiredKeysResult struct {
-	RequiredKeys []ecc.PublicKey `json:"required_keys"`
+	RequiredKeys PublicKeySet `json:"required_keys"`
 }
 
 type GetCurrencyBalanceParams struct {

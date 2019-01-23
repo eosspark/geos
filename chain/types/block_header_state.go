@@ -1,6 +1,7 @@
 package types
 
 import (
+	. "github.com/eosspark/eos-go/chain/types/generated_containers"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/common/container"
 	math "github.com/eosspark/eos-go/common/eos_math"
@@ -23,17 +24,17 @@ type BlockHeaderState struct {
 	Header                           SignedBlockHeader    `multiIndex:"inline" json:"header"`
 	DposProposedIrreversibleBlocknum uint32               `json:"dpos_proposed_irreversible_blocknum"`
 	DposIrreversibleBlocknum         uint32               `multiIndex:"byLibBlockNum,orderedUnique" json:"dpos_irreversible_blocknum"`
-	BftIrreversibleBlocknum          uint32               `multiIndex:"byLibBlockNum,orderedUnique" json:"bft_irreversible_blocknum"`
-	PendingScheduleLibNum            uint32               `json:"pending_schedule_lib_num"`
-	PendingScheduleHash              crypto.Sha256        `json:"pending_schedule_hash"`
-	PendingSchedule                  ProducerScheduleType `json:"pending_schedule"`
-	ActiveSchedule                   ProducerScheduleType `json:"active_schedule"`
-	BlockrootMerkle                  IncrementalMerkle    `json:"blockroot_merkle"`
-	ProducerToLastProduced           AccountNameUint32Map `json:"producer_to_last_produced"`
-	ProducerToLastImpliedIrb         AccountNameUint32Map `json:"producer_to_last_implied_irb"`
-	BlockSigningKey                  ecc.PublicKey        `json:"block_signing_key"`
-	ConfirmCount                     []uint8              `json:"confirm_count"`
-	Confirmations                    []HeaderConfirmation `json:"confirmations"`
+	BftIrreversibleBlocknum  uint32               `multiIndex:"byLibBlockNum,orderedUnique" json:"bft_irreversible_blocknum"`
+	PendingScheduleLibNum    uint32               `json:"pending_schedule_lib_num"`
+	PendingScheduleHash      crypto.Sha256        `json:"pending_schedule_hash"`
+	PendingSchedule          ProducerScheduleType `json:"pending_schedule"`
+	ActiveSchedule           ProducerScheduleType `json:"active_schedule"`
+	BlockrootMerkle          IncrementalMerkle    `json:"blockroot_merkle"`
+	ProducerToLastProduced   AccountNameUint32Map `json:"producer_to_last_produced"`
+	ProducerToLastImpliedIrb AccountNameUint32Map `json:"producer_to_last_implied_irb"`
+	BlockSigningKey          ecc.PublicKey        `json:"block_signing_key"`
+	ConfirmCount             []uint8              `json:"confirm_count"`
+	Confirmations            []HeaderConfirmation `json:"confirmations"`
 }
 
 func (b *BlockHeaderState) GetScheduledProducer(t BlockTimeStamp) ProducerKey {
