@@ -643,7 +643,7 @@ func (c *Controller) DropUnappliedTransaction(metadata *types.TransactionMetadat
 }
 
 func (c *Controller) DropAllUnAppliedTransactions() {
-	c.UnappliedTransactions = nil
+	c.UnappliedTransactions = make(map[crypto.Sha256]types.TransactionMetadata)
 }
 func (c *Controller) GetScheduledTransactions() []common.TransactionIdType {
 

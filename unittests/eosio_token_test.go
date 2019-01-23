@@ -9,10 +9,10 @@ import (
 	"github.com/eosspark/eos-go/exception"
 	"github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/log"
+	"github.com/stretchr/testify/assert"
 	"io/ioutil"
 	"strings"
 	"testing"
-	"github.com/stretchr/testify/assert"
 )
 
 type EosioTokenTester struct {
@@ -344,6 +344,7 @@ func TestTransfer(t *testing.T) {
 		quantity = "701 CERO"
 		eosioToken.transfer(common.N("alice"), common.N("bob"), common.Asset{}.FromString(&quantity), "hola")
 	}).Catch(func(e exception.Exception) {
+		//fmt.Println(e.DetailMessage())
 		if strings.Contains(e.DetailMessage(), "overdrawn balance") {
 			returning = true
 		}

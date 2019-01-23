@@ -21,12 +21,20 @@ type ResourceLimitsFixture struct {
 	Controller
 }
 
+func (r ResourceLimitsFixture) Close() {
+	r.DB.Close()
+	err := os.RemoveAll("/tmp/data/")
+	if err != nil {
+		log.Error("Node data has been emptied is error:%s", err)
+	}
+}
+
 func initializeResource() *ResourceLimitsFixture {
 	err := os.RemoveAll("/tmp/data/")
 	if err != nil {
 		log.Error("Node data has been emptied is error:%s", err)
 	}
-	control := NewController(NewConfig())
+	control := NewController(newConfig(SPECULATIVE))
 	rlm := control.ResourceLimits
 	rlm.InitializeDatabase()
 	return &ResourceLimitsFixture{ResourceLimitsManager: *rlm, Controller: *control}

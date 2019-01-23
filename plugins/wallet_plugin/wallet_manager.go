@@ -49,7 +49,7 @@ func walletManager() *WalletManager {
 
 	manager.log = log.New("wallet_plugin")
 	manager.log.SetHandler(log.TerminalHandler)
-	//manager.log.SetHandler(log.DiscardHandler())
+	manager.log.SetHandler(log.DiscardHandler())
 	return manager
 }
 
