@@ -31,7 +31,7 @@ func TestMissingSigs(t *testing.T) {
 	b.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs), 0)
 
 	reqAuth := func() {
-		b.PushReqAuth(common.N("alice"), &[]types.PermissionLevel{{common.N("alice"), common.DefaultConfig.ActiveName}}, &[]ecc.PrivateKey{})
+		b.PushReqAuth(common.N("alice"), &[]common.PermissionLevel{{common.N("alice"), common.DefaultConfig.ActiveName}}, &[]ecc.PrivateKey{})
 	}
 	CheckThrowException(t, &UnsatisfiedAuthorization{}, reqAuth)
 
@@ -63,7 +63,7 @@ func TestMissingAuths(t *testing.T) {
 	reqAuth := func() {
 		b.PushReqAuth(
 			common.N("alice"),
-			&[]types.PermissionLevel{{common.N("bob"), common.DefaultConfig.ActiveName}},
+			&[]common.PermissionLevel{{common.N("bob"), common.DefaultConfig.ActiveName}},
 			&[]ecc.PrivateKey{b.getPrivateKey(common.N("bob"), "active")},
 		)
 	}
@@ -78,30 +78,30 @@ func TestDelegateAuth(t *testing.T) {
 	delegatedAuth := types.SharedAuthority{
 		Threshold: 1,
 		Keys:      []types.KeyWeight{},
-		Accounts:  []types.PermissionLevelWeight{{Permission: types.PermissionLevel{Actor: common.N("bob"), Permission: common.DefaultConfig.ActiveName}, Weight: 1}},
+		Accounts:  []types.PermissionLevelWeight{{Permission: common.PermissionLevel{Actor: common.N("bob"), Permission: common.DefaultConfig.ActiveName}, Weight: 1}},
 	}
 	pk := b.getPrivateKey(common.N("alice"), "active")
 	realAuth := types.SharedAuthority{
 		Threshold: 1,
 		Keys:      []types.KeyWeight{{pk.PublicKey(), 1}},
 		Accounts: []types.PermissionLevelWeight{
-			{Permission: types.PermissionLevel{Actor: common.N("alice"), Permission: common.DefaultConfig.EosioCodeName}, Weight: 1},
+			{Permission: common.PermissionLevel{Actor: common.N("alice"), Permission: common.DefaultConfig.EosioCodeName}, Weight: 1},
 		},
 	}
-	originalAuth := a.GetPermission(&types.PermissionLevel{Actor: common.N("alice"), Permission: common.DefaultConfig.ActiveName}).Auth
+	originalAuth := a.GetPermission(&common.PermissionLevel{Actor: common.N("alice"), Permission: common.DefaultConfig.ActiveName}).Auth
 	assert.Equal(t, originalAuth.Equals(realAuth), true)
 	b.SetAuthority2(common.N("alice"), common.DefaultConfig.ActiveName, delegatedAuth.ToAuthority(), common.DefaultConfig.OwnerName)
 
-	newAuth := a.GetPermission(&types.PermissionLevel{Actor: common.N("alice"), Permission: common.DefaultConfig.ActiveName}).Auth
+	newAuth := a.GetPermission(&common.PermissionLevel{Actor: common.N("alice"), Permission: common.DefaultConfig.ActiveName}).Auth
 	assert.Equal(t, newAuth.Equals(delegatedAuth), true)
 
 	b.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs*2), 0)
-	auth := a.GetPermission(&types.PermissionLevel{Actor: common.N("alice"), Permission: common.DefaultConfig.ActiveName}).Auth
+	auth := a.GetPermission(&common.PermissionLevel{Actor: common.N("alice"), Permission: common.DefaultConfig.ActiveName}).Auth
 	assert.Equal(t, newAuth.Equals(auth), true)
 
 	b.PushReqAuth(
 		common.N("alice"),
-		&[]types.PermissionLevel{{common.N("alice"), common.DefaultConfig.ActiveName}},
+		&[]common.PermissionLevel{{common.N("alice"), common.DefaultConfig.ActiveName}},
 		&[]ecc.PrivateKey{b.getPrivateKey(common.N("bob"), "active")},
 	)
 	b.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs), 0)
@@ -118,7 +118,7 @@ func TestUpdateAuths(t *testing.T) {
 		vt.DeleteAuthority(
 			common.N("alice"),
 			common.N("active"),
-			&[]types.PermissionLevel{{common.N("alice"), common.DefaultConfig.OwnerName}},
+			&[]common.PermissionLevel{{common.N("alice"), common.DefaultConfig.OwnerName}},
 			&[]ecc.PrivateKey{vt.getPrivateKey(common.N("alice"), "owner")},
 		)
 	}
@@ -128,7 +128,7 @@ func TestUpdateAuths(t *testing.T) {
 		vt.DeleteAuthority(
 			common.N("alice"),
 			common.N("owner"),
-			&[]types.PermissionLevel{{common.N("alice"), common.DefaultConfig.OwnerName}},
+			&[]common.PermissionLevel{{common.N("alice"), common.DefaultConfig.OwnerName}},
 			&[]ecc.PrivateKey{vt.getPrivateKey(common.N("alice"), "owner")},
 		)
 	}
@@ -170,7 +170,7 @@ func TestUpdateAuths(t *testing.T) {
 		common.N("active"),
 		types.NewAuthority(newActivePubKey, 0),
 		common.N("owner"),
-		&[]types.PermissionLevel{{common.N("alice"), common.N("active")}},
+		&[]common.PermissionLevel{{common.N("alice"), common.N("active")}},
 		&[]ecc.PrivateKey{vt.getPrivateKey(common.N("alice"), "active")},
 	)
 	vt.ProduceBlocks(1, false)
@@ -202,7 +202,7 @@ func TestUpdateAuths(t *testing.T) {
 			common.N("spending"),
 			types.NewAuthority(spendingPubKey, 0),
 			common.N("active"),
-			&[]types.PermissionLevel{{common.N("bob"), common.N("active")}},
+			&[]common.PermissionLevel{{common.N("bob"), common.N("active")}},
 			&[]ecc.PrivateKey{vt.getPrivateKey(common.N("bob"), "active")},
 		)
 	}
@@ -214,7 +214,7 @@ func TestUpdateAuths(t *testing.T) {
 		common.N("spending"),
 		types.NewAuthority(spendingPubKey, 0),
 		common.N("active"),
-		&[]types.PermissionLevel{{common.N("alice"), common.N("active")}},
+		&[]common.PermissionLevel{{common.N("alice"), common.N("active")}},
 		&[]ecc.PrivateKey{newActivePrivKey},
 	)
 
@@ -243,7 +243,7 @@ func TestUpdateAuths(t *testing.T) {
 			common.N("spending"),
 			types.NewAuthority(spendingPubKey, 0),
 			common.N("spending"),
-			&[]types.PermissionLevel{{common.N("alice"), common.N("spending")}},
+			&[]common.PermissionLevel{{common.N("alice"), common.N("spending")}},
 			&[]ecc.PrivateKey{spendingPrivKey},
 		)
 	}
@@ -256,7 +256,7 @@ func TestUpdateAuths(t *testing.T) {
 			common.N("spending"),
 			types.NewAuthority(spendingPubKey, 0),
 			common.N("owner"),
-			&[]types.PermissionLevel{{common.N("alice"), common.N("spending")}},
+			&[]common.PermissionLevel{{common.N("alice"), common.N("spending")}},
 			&[]ecc.PrivateKey{spendingPrivKey},
 		)
 	}
@@ -266,7 +266,7 @@ func TestUpdateAuths(t *testing.T) {
 	vt.DeleteAuthority(
 		common.N("alice"),
 		common.N("spending"),
-		&[]types.PermissionLevel{{common.N("alice"), common.N("active")}},
+		&[]common.PermissionLevel{{common.N("alice"), common.N("active")}},
 		&[]ecc.PrivateKey{newActivePrivKey},
 	)
 	delete := entity.PermissionObject{Owner: common.N("alice"), Name: common.N("spending")}
@@ -280,7 +280,7 @@ func TestUpdateAuths(t *testing.T) {
 		common.N("trading"),
 		types.NewAuthority(tradingPubKey, 0),
 		common.N("active"),
-		&[]types.PermissionLevel{{common.N("alice"), common.N("active")}},
+		&[]common.PermissionLevel{{common.N("alice"), common.N("active")}},
 		&[]ecc.PrivateKey{newActivePrivKey},
 	)
 	// Recreate spending auth again, however this time, it's under trading instead of owner
@@ -289,7 +289,7 @@ func TestUpdateAuths(t *testing.T) {
 		common.N("spending"),
 		types.NewAuthority(spendingPubKey, 0),
 		common.N("trading"),
-		&[]types.PermissionLevel{{common.N("alice"), common.N("trading")}},
+		&[]common.PermissionLevel{{common.N("alice"), common.N("trading")}},
 		&[]ecc.PrivateKey{tradingPrivKey},
 	)
 
@@ -323,7 +323,7 @@ func TestUpdateAuths(t *testing.T) {
 		vt.DeleteAuthority(
 			common.N("alice"),
 			common.N("trading"),
-			&[]types.PermissionLevel{{common.N("alice"), common.N("active")}},
+			&[]common.PermissionLevel{{common.N("alice"), common.N("active")}},
 			&[]ecc.PrivateKey{newActivePrivKey},
 		)
 	}
@@ -336,7 +336,7 @@ func TestUpdateAuths(t *testing.T) {
 			common.N("trading"),
 			types.NewAuthority(tradingPubKey, 0),
 			common.N("spending"),
-			&[]types.PermissionLevel{{common.N("alice"), common.N("trading")}},
+			&[]common.PermissionLevel{{common.N("alice"), common.N("trading")}},
 			&[]ecc.PrivateKey{tradingPrivKey},
 		)
 	}
@@ -346,7 +346,7 @@ func TestUpdateAuths(t *testing.T) {
 	vt.DeleteAuthority(
 		common.N("alice"),
 		common.N("spending"),
-		&[]types.PermissionLevel{{common.N("alice"), common.N("active")}},
+		&[]common.PermissionLevel{{common.N("alice"), common.N("active")}},
 		&[]ecc.PrivateKey{newActivePrivKey},
 	)
 
@@ -354,7 +354,7 @@ func TestUpdateAuths(t *testing.T) {
 	vt.DeleteAuthority(
 		common.N("alice"),
 		common.N("trading"),
-		&[]types.PermissionLevel{{common.N("alice"), common.N("active")}},
+		&[]common.PermissionLevel{{common.N("alice"), common.N("active")}},
 		&[]ecc.PrivateKey{newActivePrivKey},
 	)
 
@@ -394,7 +394,7 @@ func TestLinkAuths(t *testing.T) {
 	reqAuth := func() {
 		vt.PushReqAuth(
 			common.N("alice"),
-			&[]types.PermissionLevel{{common.N("alice"), common.N("spending")}},
+			&[]common.PermissionLevel{{common.N("alice"), common.N("spending")}},
 			&[]ecc.PrivateKey{spendingPrivKey},
 		)
 	}
@@ -404,7 +404,7 @@ func TestLinkAuths(t *testing.T) {
 	// Now, req auth action with alice's spending key should succeed
 	vt.PushReqAuth(
 		common.N("alice"),
-		&[]types.PermissionLevel{{common.N("alice"), common.N("spending")}},
+		&[]common.PermissionLevel{{common.N("alice"), common.N("spending")}},
 		&[]ecc.PrivateKey{spendingPrivKey},
 	)
 
@@ -421,7 +421,7 @@ func TestLinkAuths(t *testing.T) {
 	reqAuth = func() {
 		vt.PushReqAuth(
 			common.N("alice"),
-			&[]types.PermissionLevel{{common.N("alice"), common.N("spending")}},
+			&[]common.PermissionLevel{{common.N("alice"), common.N("spending")}},
 			&[]ecc.PrivateKey{spendingPrivKey},
 		)
 	}
@@ -432,7 +432,7 @@ func TestLinkAuths(t *testing.T) {
 	reqAuth = func() {
 		vt.PushReqAuth(
 			common.N("alice"),
-			&[]types.PermissionLevel{{common.N("alice"), common.N("scud")}},
+			&[]common.PermissionLevel{{common.N("alice"), common.N("scud")}},
 			&[]ecc.PrivateKey{scudPrivKey},
 		)
 	}
@@ -442,13 +442,13 @@ func TestLinkAuths(t *testing.T) {
 	// Now, req auth action with alice's scud key should succeed
 	vt.PushReqAuth(
 		common.N("alice"),
-		&[]types.PermissionLevel{{common.N("alice"), common.N("scud")}},
+		&[]common.PermissionLevel{{common.N("alice"), common.N("scud")}},
 		&[]ecc.PrivateKey{scudPrivKey},
 	)
 	// req auth action with alice's spending key should also be fine, since it is the parent of alice's scud key
 	vt.PushReqAuth(
 		common.N("alice"),
-		&[]types.PermissionLevel{{common.N("alice"), common.N("spending")}},
+		&[]common.PermissionLevel{{common.N("alice"), common.N("spending")}},
 		&[]ecc.PrivateKey{spendingPrivKey},
 	)
 	vt.close()
@@ -467,7 +467,7 @@ func TestLinkThenUpdateAuth(t *testing.T) {
 	vt.LinkAuthority(common.N("alice"), common.N("eosio"), common.N("first"), common.N("reqauth"))
 	vt.PushReqAuth(
 		common.N("alice"),
-		&[]types.PermissionLevel{{common.N("alice"), common.N("first")}},
+		&[]common.PermissionLevel{{common.N("alice"), common.N("first")}},
 		&[]ecc.PrivateKey{firstPrivKey},
 	)
 
@@ -479,7 +479,7 @@ func TestLinkThenUpdateAuth(t *testing.T) {
 	reqAuth := func() {
 		vt.PushReqAuth(
 			common.N("alice"),
-			&[]types.PermissionLevel{{common.N("alice"), common.N("first")}},
+			&[]common.PermissionLevel{{common.N("alice"), common.N("first")}},
 			&[]ecc.PrivateKey{firstPrivKey},
 		)
 	}
@@ -487,7 +487,7 @@ func TestLinkThenUpdateAuth(t *testing.T) {
 	// Using updated authority, should succeed
 	vt.PushReqAuth(
 		common.N("alice"),
-		&[]types.PermissionLevel{{common.N("alice"), common.N("first")}},
+		&[]common.PermissionLevel{{common.N("alice"), common.N("first")}},
 		&[]ecc.PrivateKey{secondPrivKey},
 	)
 	vt.close()
@@ -551,7 +551,7 @@ func TestAnyAuth(t *testing.T) {
 	reqAuth := func() {
 		vt.PushReqAuth(
 			common.N("alice"),
-			&[]types.PermissionLevel{{common.N("alice"), common.N("spending")}},
+			&[]common.PermissionLevel{{common.N("alice"), common.N("spending")}},
 			&[]ecc.PrivateKey{aliceSpendingPrivKey},
 		)
 	}
@@ -565,7 +565,7 @@ func TestAnyAuth(t *testing.T) {
 	// this should succeed because eosio::reqauth is linked to any permission
 	vt.PushReqAuth(
 		common.N("alice"),
-		&[]types.PermissionLevel{{common.N("alice"), common.N("spending")}},
+		&[]common.PermissionLevel{{common.N("alice"), common.N("spending")}},
 		&[]ecc.PrivateKey{aliceSpendingPrivKey},
 	)
 
@@ -573,7 +573,7 @@ func TestAnyAuth(t *testing.T) {
 	reqAuth = func() {
 		vt.PushReqAuth(
 			common.N("alice"),
-			&[]types.PermissionLevel{{common.N("bob"), common.N("spending")}},
+			&[]common.PermissionLevel{{common.N("bob"), common.N("spending")}},
 			&[]ecc.PrivateKey{bobSpendingPrivKey},
 		)
 	}
@@ -597,7 +597,7 @@ func TestNoDoubleBilling(t *testing.T) {
 		trx := types.SignedTransaction{}
 		vt.SetTransactionHeaders(&trx.Transaction, vt.DefaultExpirationDelta, 0)
 
-		pls := []types.PermissionLevel{
+		pls := []common.PermissionLevel{
 			{acc1, common.N("active")},
 			{acc1, common.N("owner")},
 			{acc1a, common.N("owner")},
@@ -661,11 +661,11 @@ func TestStricterAuth(t *testing.T) {
 		invalidAuth := types.Authority{
 			Threshold: uint32(threshold),
 			Keys:      []types.KeyWeight{{vt.getPublicKey(a, "owner"), 1}},
-			Accounts:  []types.PermissionLevelWeight{{types.PermissionLevel{creator, common.DefaultConfig.ActiveName}, 1}},
+			Accounts:  []types.PermissionLevelWeight{{common.PermissionLevel{creator, common.DefaultConfig.ActiveName}, 1}},
 			Waits:     []types.WaitWeight{},
 		}
 
-		pls := []types.PermissionLevel{{creator, common.N("active")}}
+		pls := []common.PermissionLevel{{creator, common.N("active")}}
 
 		new := NewAccount{
 			Creator: creator,

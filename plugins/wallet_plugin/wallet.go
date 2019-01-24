@@ -11,7 +11,6 @@ import (
 	"github.com/eosspark/eos-go/crypto/rlp"
 	. "github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
-	"github.com/eosspark/eos-go/log"
 	"io/ioutil"
 	"os"
 )
@@ -185,7 +184,6 @@ func (w *SoftWallet) SaveWalletFile() (err error) { //TODO need walletFilename ?
 
 	w.encryptKeys()
 
-	log.Debug("Saving wallet to file %s\n", w.walletFilename)
 	data, err := json.Marshal(w.wallet)
 	if err != nil {
 		fmt.Println(w.wallet, err)

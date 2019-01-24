@@ -1,12 +1,10 @@
 package types
 
 import (
-	"encoding/binary"
 	"fmt"
-	"github.com/eosspark/eos-go/common"
+	. "github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/crypto/rlp"
-	"reflect"
 	"strconv"
 	"strings"
 )
@@ -17,35 +15,6 @@ type Permission struct {
 	PermName     string    `json:"perm_name"`
 	Parent       string    `json:"parent"`
 	RequiredAuth Authority `json:"required_auth"`
-}
-
-type PermissionLevel struct {
-	Actor      common.AccountName    `json:"actor"`
-	Permission common.PermissionName `json:"permission"`
-}
-
-func (level *PermissionLevel) GetKey() []byte {
-	b := make([]byte, 8)
-	binary.BigEndian.PutUint64(b, uint64(level.Actor))
-	return b
-}
-
-//for treeset
-var PermissionLevelType = reflect.TypeOf(PermissionLevel{})
-
-func ComparePermissionLevel(first interface{}, second interface{}) int {
-	if first.(PermissionLevel).Actor > second.(PermissionLevel).Actor {
-		return 1
-	} else if first.(PermissionLevel).Actor < second.(PermissionLevel).Actor {
-		return -1
-	}
-	if first.(PermissionLevel).Permission > second.(PermissionLevel).Permission {
-		return 1
-	} else if first.(PermissionLevel).Permission < second.(PermissionLevel).Permission {
-		return -1
-	} else {
-		return 0
-	}
 }
 
 type PermissionLevelWeight struct {
@@ -103,15 +72,15 @@ func NewPermissionLevel(in string) (out PermissionLevel, err error) {
 		return out, fmt.Errorf("account name %q too long", parts[0])
 	}
 
-	out.Actor = common.AccountName(common.N(parts[0]))
-	out.Permission = common.PermissionName(common.N("active"))
+	out.Actor = AccountName(N(parts[0]))
+	out.Permission = PermissionName(N("active"))
 
 	if len(parts) == 2 {
 		if len(parts[1]) > 12 {
 			return out, fmt.Errorf("permission %q name too long", parts[1])
 		}
 
-		out.Permission = common.PermissionName(common.N("active"))
+		out.Permission = PermissionName(N("active"))
 	}
 
 	return
@@ -138,10 +107,6 @@ func (sharedAuth *SharedAuthority) ToAuthority() Authority {
 
 func (weight WeightType) String() string {
 	return strconv.FormatInt(int64(weight), 10)
-}
-
-func (level PermissionLevel) String() string {
-	return "{ actor: " + level.Actor.String() + ", " + "permission: " + level.Permission.String() + "}"
 }
 
 func (key KeyWeight) String() string {
@@ -215,12 +180,12 @@ func (sharedAuth SharedAuthority) Equals(sharedAuthor SharedAuthority) bool {
 }
 
 func (sharedAuth SharedAuthority) GetBillableSize() uint64 {
-	accountSize := uint64(len(sharedAuth.Accounts)) * common.BillableSizeV("permission_level_weight")
-	waitsSize := uint64(len(sharedAuth.Waits)) * common.BillableSizeV("wait_weight")
+	accountSize := uint64(len(sharedAuth.Accounts)) * BillableSizeV("permission_level_weight")
+	waitsSize := uint64(len(sharedAuth.Waits)) * BillableSizeV("wait_weight")
 	keysSize := uint64(0)
 	keySize := 0
 	for _, key := range sharedAuth.Keys {
-		keysSize += common.BillableSizeV("key_weight")
+		keysSize += BillableSizeV("key_weight")
 		keySize, _ = rlp.EncodeSize(key.Key)
 		keysSize += uint64(keySize)
 	}

@@ -6,8 +6,8 @@ package treemap
 
 import (
 	"fmt"
-	"github.com/eosspark/container/utils"
 	. "github.com/eosspark/eos-go/common/container/treemap/example"
+	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
@@ -22,9 +22,9 @@ func TestMapPut(t *testing.T) {
 	m.Put(2, "b")
 	m.Put(1, "a") //overwrite
 
-	utils.AssertTest(t, 7, m.Size())
-	utils.AssertTest(t, []int{1, 2, 3, 4, 5, 6, 7}, m.Keys())
-	utils.AssertTest(t, []string{"a", "b", "c", "d", "e", "f", "g"}, m.Values())
+	assert.Equal(t, 7, m.Size())
+	assert.Equal(t, []int{1, 2, 3, 4, 5, 6, 7}, m.Keys())
+	assert.Equal(t, []string{"a", "b", "c", "d", "e", "f", "g"}, m.Values())
 
 	// key,expectedValue,expectedFound
 	tests1 := [][]interface{}{
@@ -263,8 +263,8 @@ func TestMapSerialization(t *testing.T) {
 		t.Errorf("Got error %v", err)
 	}
 
-	utils.AssertTest(t, []int{1, 2, 3, 4, 5}, deserialized.Keys())
-	utils.AssertTest(t, []string{"1", "2", "3", "4", "5"}, deserialized.Values())
+	assert.Equal(t, []int{1, 2, 3, 4, 5}, deserialized.Keys())
+	assert.Equal(t, []string{"1", "2", "3", "4", "5"}, deserialized.Values())
 }
 
 func TestMapSerialization2(t *testing.T) {
@@ -289,8 +289,8 @@ func TestMapSerialization2(t *testing.T) {
 		t.Errorf("Got error %v", err)
 	}
 
-	utils.AssertTest(t, []int{1, 2, 3, 4, 5, 6}, deserialized.Keys())
-	utils.AssertTest(t, []string{"1", "2", "3", "4", "5", ""}, deserialized.Values())
+	assert.Equal(t, []int{1, 2, 3, 4, 5, 6}, deserialized.Keys())
+	assert.Equal(t, []string{"1", "2", "3", "4", "5", ""}, deserialized.Values())
 }
 
 /**

@@ -1,8 +1,8 @@
 package chain
 
 import (
-	"github.com/eosspark/container/sets/treeset"
 	"github.com/eosspark/eos-go/chain/types"
+	. "github.com/eosspark/eos-go/chain/types/generated_containers"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/common/eos_math"
 	"github.com/eosspark/eos-go/database"
@@ -71,7 +71,7 @@ func (r *ResourceLimitsManager) SetBlockParameters(cpuLimitParameters types.Elas
 	}
 }
 
-func (r *ResourceLimitsManager) UpdateAccountUsage(account *treeset.Set, timeSlot uint32) { //待定
+func (r *ResourceLimitsManager) UpdateAccountUsage(account *AccountNameSet, timeSlot uint32) { //待定
 	config := entity.DefaultResourceLimitsConfigObject
 	err := r.db.Find("id", config, &config)
 	if err != nil {
@@ -80,7 +80,7 @@ func (r *ResourceLimitsManager) UpdateAccountUsage(account *treeset.Set, timeSlo
 	usage := entity.ResourceUsageObject{}
 	itr := account.Iterator()
 	for itr.Next() {
-		usage.Owner = itr.Value().(common.AccountName)
+		usage.Owner = itr.Value()
 		err := r.db.Find("byOwner", usage, &usage)
 		if err != nil {
 			log.Error("UpdateAccountUsage is error: %s", err)
@@ -109,7 +109,7 @@ func (r *ResourceLimitsManager) UpdateAccountUsage(account *treeset.Set, timeSlo
 	}*/
 }
 
-func (r *ResourceLimitsManager) AddTransactionUsage(account *treeset.Set, cpuUsage uint64, netUsage uint64, timeSlot uint32) {
+func (r *ResourceLimitsManager) AddTransactionUsage(account *AccountNameSet, cpuUsage uint64, netUsage uint64, timeSlot uint32) {
 	state := entity.DefaultResourceLimitsStateObject
 	err := r.db.Find("id", state, &state)
 	if err != nil {
@@ -124,13 +124,13 @@ func (r *ResourceLimitsManager) AddTransactionUsage(account *treeset.Set, cpuUsa
 	//for _, a := range account.Data {
 	for itr.Next() {
 		usage := entity.ResourceUsageObject{}
-		usage.Owner = itr.Value().(common.AccountName)
+		usage.Owner = itr.Value()
 		err := r.db.Find("byOwner", usage, &usage)
 		if err != nil {
 			log.Error("AddTransactionUsage is error: %s", err)
 		}
 		var unUsed, netWeight, cpuWeight int64
-		r.GetAccountLimits(itr.Value().(common.AccountName), &unUsed, &netWeight, &cpuWeight)
+		r.GetAccountLimits(itr.Value(), &unUsed, &netWeight, &cpuWeight)
 		err = r.db.Modify(&usage, func(bu *entity.ResourceUsageObject) {
 			bu.CpuUsage.Add(cpuUsage, timeSlot, config.AccountCpuUsageAverageWindow)
 			bu.NetUsage.Add(netUsage, timeSlot, config.AccountNetUsageAverageWindow)

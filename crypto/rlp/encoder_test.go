@@ -4,10 +4,8 @@ import (
 	"bytes"
 	"encoding/hex"
 	"fmt"
-	"github.com/eosspark/container/maps/treemap"
-	"github.com/eosspark/container/sets/treeset"
-	"github.com/eosspark/container/utils"
 	"github.com/eosspark/eos-go/chain/types"
+	. "github.com/eosspark/eos-go/chain/types/generated_containers"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/ecc"
@@ -228,14 +226,14 @@ func TestDecoder_Encode(t *testing.T) {
 }
 
 type TreeSetExp struct {
-	ActorWhitelist treeset.Set //common.AccountName
+	ActorWhitelist AccountNameSet //common.AccountName
 }
 
 func TestTreeSet(t *testing.T) {
 	vals := []common.AccountName{common.AccountName(common.N("eos")), common.AccountName(common.N("io"))}
 	A := TreeSetExp{}
 
-	A.ActorWhitelist = *treeset.NewWith(common.TypeName, common.CompareName)
+	A.ActorWhitelist = *NewAccountNameSet()
 	for _, val := range vals {
 		A.ActorWhitelist.AddItem(val)
 	}
@@ -243,7 +241,7 @@ func TestTreeSet(t *testing.T) {
 	fmt.Println(bytes, err)
 
 	B := TreeSetExp{}
-	B.ActorWhitelist = *treeset.NewWith(common.TypeName, common.CompareName)
+	B.ActorWhitelist = *NewAccountNameSet()
 	err = rlp.DecodeBytes(bytes, &B)
 
 	fmt.Println(B.ActorWhitelist.Values(), err)
@@ -251,7 +249,7 @@ func TestTreeSet(t *testing.T) {
 }
 
 type TreeSetPub struct {
-	WhiteList treeset.Set
+	WhiteList PublicKeySet
 }
 
 func TestPub(t *testing.T) {
@@ -259,7 +257,7 @@ func TestPub(t *testing.T) {
 	vals := []ecc.PublicKey{ecc.MustNewPublicKey("EOS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV"), ecc.MustNewPublicKey("EOS5kpVjpFXiFHwhbrSLndAqCdpLLUctXhq583WjFH5tqy2VLYhLc")}
 	A := TreeSetPub{}
 
-	A.WhiteList = *treeset.NewWith(ecc.TypePubKey, ecc.ComparePubKey)
+	A.WhiteList = *NewPublicKeySet()
 	for _, val := range vals {
 		A.WhiteList.AddItem(val)
 	}
@@ -267,7 +265,7 @@ func TestPub(t *testing.T) {
 	assert.NoError(t, err)
 
 	B := TreeSetPub{}
-	B.WhiteList = *treeset.NewWith(ecc.TypePubKey, ecc.ComparePubKey)
+	B.WhiteList = *NewPublicKeySet()
 	err = rlp.DecodeBytes(bytes, &B)
 	assert.NoError(t, err)
 	fmt.Println(B.WhiteList.Values(), err)
@@ -275,7 +273,7 @@ func TestPub(t *testing.T) {
 
 func BenchmarkTreeSetInsert(b *testing.B) {
 	b.StopTimer()
-	set := treeset.NewWith(common.TypeName, common.CompareName)
+	set := NewAccountNameSet()
 
 	b.StartTimer()
 	for n := 0; n < b.N; n++ {
@@ -291,7 +289,7 @@ func BenchmarkTreeSetInsert(b *testing.B) {
 
 func BenchmarkTreeSetFromDecode(b *testing.B) {
 	b.StopTimer()
-	set := treeset.NewWith(common.TypeName, common.CompareName)
+	set := NewAccountNameSet()
 	for i := 0; i < 100000; i++ {
 		set.AddItem(common.Name(i))
 	}
@@ -302,7 +300,7 @@ func BenchmarkTreeSetFromDecode(b *testing.B) {
 		b.Fatal(err)
 	}
 
-	ss := treeset.NewWith(common.TypeName, common.CompareName)
+	ss := NewAccountNameSet()
 	if err = rlp.DecodeBytes(bytes, ss); err != nil {
 		b.Fatal(err)
 	}
@@ -335,7 +333,7 @@ func init() {
 func BenchmarkTreeSetInsert2(b *testing.B) {
 	b.StopTimer()
 
-	set := treeset.NewWith(ecc.TypePubKey, ecc.ComparePubKey)
+	set := NewPublicKeySet()
 
 	b.StartTimer()
 	for n := 0; n < b.N; n++ {
@@ -351,7 +349,7 @@ func BenchmarkTreeSetInsert2(b *testing.B) {
 
 func BenchmarkTreeSetFromDecode2(b *testing.B) {
 	b.StopTimer()
-	set := treeset.NewWith(ecc.TypePubKey, ecc.ComparePubKey)
+	set := NewPublicKeySet()
 	for i := 0; i < bench; i++ {
 		set.AddItem(pks[i])
 	}
@@ -362,7 +360,7 @@ func BenchmarkTreeSetFromDecode2(b *testing.B) {
 		b.Fatal(err)
 	}
 
-	ss := treeset.NewWith(ecc.TypePubKey, ecc.ComparePubKey)
+	ss := NewPublicKeySet()
 	if err = rlp.DecodeBytes(bytes, ss); err != nil {
 		b.Fatal(err)
 	}
@@ -380,7 +378,7 @@ func BenchmarkTreeSetFromDecode2(b *testing.B) {
 }
 
 type TreeMapExp struct {
-	ProducerToLastProduced treemap.Map
+	ProducerToLastProduced AccountNameUint32Map
 }
 
 func TestTreeMap(t *testing.T) {
@@ -390,12 +388,12 @@ func TestTreeMap(t *testing.T) {
 		common.N("hello"): 90,
 	}
 	tree := TreeMapExp{}
-	tree.ProducerToLastProduced = *treemap.NewWith(common.TypeName, utils.TypeUInt32, common.CompareName)
+	tree.ProducerToLastProduced = *NewAccountNameUint32Map()
 	for k, v := range keyvalue {
 		tree.ProducerToLastProduced.Put(k, v)
 	}
-	tree.ProducerToLastProduced.Each(func(key interface{}, value interface{}) {
-		fmt.Println(key, value)
+	tree.ProducerToLastProduced.Each(func(key common.AccountName, value uint32) {
+
 	})
 	bytes, err := rlp.EncodeToBytes(tree)
 	if err != nil {
@@ -404,12 +402,12 @@ func TestTreeMap(t *testing.T) {
 	fmt.Println(bytes)
 
 	tree2 := TreeMapExp{}
-	tree2.ProducerToLastProduced = *treemap.NewWith(common.TypeName, utils.TypeUInt32, common.CompareName)
+	tree2.ProducerToLastProduced = *NewAccountNameUint32Map()
 
 	err = rlp.DecodeBytes(bytes, &tree2)
 	assert.NoError(t, err, err)
-	tree2.ProducerToLastProduced.Each(func(key interface{}, value interface{}) {
-		fmt.Println(key, value)
+	tree2.ProducerToLastProduced.Each(func(key common.AccountName, value uint32) {
+
 	})
 	json1, _ := tree.ProducerToLastProduced.ToJSON()
 	json2, _ := tree2.ProducerToLastProduced.ToJSON()
@@ -420,11 +418,11 @@ var AccountNameUint32MapBytes = []byte{90, 91, 123, 34, 107, 101, 121, 34, 58, 3
 
 func TestAccountNameUint32Map(t *testing.T) {
 	type BlockHead struct {
-		NewProducerToLastProduced *types.AccountNameUint32Map
+		NewProducerToLastProduced *AccountNameUint32Map
 	}
 	var a BlockHead
 
-	a.NewProducerToLastProduced = types.NewAccountNameUint32Map()
+	a.NewProducerToLastProduced = NewAccountNameUint32Map()
 	a.NewProducerToLastProduced.Put(common.N("eosio"), 100)
 	a.NewProducerToLastProduced.Put(common.N("eosio.token"), 99)
 	a.NewProducerToLastProduced.Put(common.N("eosio.llllll"), 99)
@@ -448,7 +446,7 @@ func TestAccountNameUint32Map(t *testing.T) {
 	//fmt.Println("end:",err,test)
 
 	var test BlockHead
-	test.NewProducerToLastProduced = types.NewAccountNameUint32Map()
+	test.NewProducerToLastProduced = NewAccountNameUint32Map()
 	err = rlp.DecodeBytes(bytes, &test)
 	fmt.Println("end:", err, test)
 

@@ -64,7 +64,7 @@ func initEosioTokenTester() *EosioTokenTester {
 
 func (e *EosioTokenTester) pushAction(signer common.AccountName, name common.ActionName, data *common.Variants) string {
 
-	act := e.GetAction(common.N("eosio.token"), name, []types.PermissionLevel{}, data)
+	act := e.GetAction(common.N("eosio.token"), name, []common.PermissionLevel{}, data)
 	//log.Info("action:%v", act)
 	return e.PushAction(act, signer)
 }

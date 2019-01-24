@@ -2,9 +2,9 @@ package chain
 
 import (
 	"fmt"
-	"github.com/eosspark/container/sets/treeset"
 	abi "github.com/eosspark/eos-go/chain/abi_serializer"
 	"github.com/eosspark/eos-go/chain/types"
+	. "github.com/eosspark/eos-go/chain/types/generated_containers"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/ecc"
@@ -89,14 +89,14 @@ func ValidationModeFromString(s string) (ValidationMode, bool) {
 }
 
 type Config struct {
-	ActorWhitelist          treeset.Set //common.AccountName
-	ActorBlacklist          treeset.Set //common.AccountName
-	ContractWhitelist       treeset.Set //common.AccountName
-	ContractBlacklist       treeset.Set //common.AccountName]struct{}
-	ActionBlacklist         treeset.Set //common.Pair //see actionBlacklist
-	KeyBlacklist            treeset.Set
-	ResourceGreylist        treeset.Set
-	TrustedProducers        treeset.Set
+	ActorWhitelist          AccountNameSet //common.AccountName
+	ActorBlacklist          AccountNameSet //common.AccountName
+	ContractWhitelist       AccountNameSet //common.AccountName
+	ContractBlacklist       AccountNameSet //common.AccountName]struct{}
+	ActionBlacklist         NamePairSet    //common.Pair //see actionBlacklist
+	KeyBlacklist            PublicKeySet
+	ResourceGreylist        AccountNameSet
+	TrustedProducers        AccountNameSet
 	BlocksDir               string
 	StateDir                string
 	StateSize               uint64
@@ -113,6 +113,11 @@ type Config struct {
 	VmType                  wasmgo.WasmGo
 	ReadMode                DBReadMode
 	BlockValidationMode     ValidationMode
+}
+
+type DeNamePair struct {
+	First  common.AccountName
+	Second common.ActionName
 }
 
 func NewConfig() *Config {
@@ -132,14 +137,14 @@ func NewConfig() *Config {
 		BlockValidationMode:     FULL,
 		Genesis:                 types.NewGenesisState(),
 
-		ActorWhitelist:    *treeset.NewWith(common.TypeName, common.CompareName),
-		ActorBlacklist:    *treeset.NewWith(common.TypeName, common.CompareName),
-		ContractWhitelist: *treeset.NewWith(common.TypeName, common.CompareName),
-		ContractBlacklist: *treeset.NewWith(common.TypeName, common.CompareName),
-		ActionBlacklist:   *treeset.NewWith(common.TypePair, common.ComparePair),
-		KeyBlacklist:      *treeset.NewWith(ecc.TypePubKey, ecc.ComparePubKey),
-		ResourceGreylist:  *treeset.NewWith(common.TypeName, common.CompareName),
-		TrustedProducers:  *treeset.NewWith(common.TypeName, common.CompareName),
+		ActorWhitelist:    *NewAccountNameSet(),
+		ActorBlacklist:    *NewAccountNameSet(),
+		ContractWhitelist: *NewAccountNameSet(),
+		ContractBlacklist: *NewAccountNameSet(),
+		ActionBlacklist:   *NewNamePairSet(),
+		KeyBlacklist:      *NewPublicKeySet(),
+		ResourceGreylist:  *NewAccountNameSet(),
+		TrustedProducers:  *NewAccountNameSet(),
 	}
 }
 
@@ -468,7 +473,7 @@ func (c *Controller) pushTransaction(trx *types.TransactionMetadata, deadLine co
 			}
 			trxContext.Delay = common.Seconds(int64(trx.Trx.DelaySec))
 			checkTime := func() {}
-			set := treeset.NewWith(types.PermissionLevelType, types.ComparePermissionLevel)
+			set := NewPermissionLevelSet()
 			if !c.SkipAuthCheck() && !trx.Implicit {
 				c.Authorization.CheckAuthorization(trx.Trx.Actions,
 					trx.RecoverKeys(&c.ChainID),
@@ -566,7 +571,7 @@ func (c *Controller) GetOnBlockTransaction() types.SignedTransaction {
 	onBlockAction := types.Action{}
 	onBlockAction.Account = common.AccountName(common.DefaultConfig.SystemAccountName)
 	onBlockAction.Name = common.ActionName(common.N("onblock"))
-	onBlockAction.Authorization = []types.PermissionLevel{{common.AccountName(common.DefaultConfig.SystemAccountName), common.PermissionName(common.DefaultConfig.ActiveName)}}
+	onBlockAction.Authorization = []common.PermissionLevel{{common.AccountName(common.DefaultConfig.SystemAccountName), common.PermissionName(common.DefaultConfig.ActiveName)}}
 
 	data, err := rlp.EncodeToBytes(c.HeadBlockHeader())
 	if err == nil {
@@ -825,7 +830,7 @@ func (c *Controller) applyOnerror(gtrx *entity.GeneratedTransaction, deadline co
 
 	etrx := types.SignedTransaction{}
 	action := types.Action{}
-	action.Authorization = []types.PermissionLevel{{gtrx.Sender, common.DefaultConfig.ActiveName}}
+	action.Authorization = []common.PermissionLevel{{gtrx.Sender, common.DefaultConfig.ActiveName}}
 
 	onError := NewOnError(gtrx.SenderId, gtrx.PackedTrx)
 	action.Account = onError.GetAccount()
@@ -1169,48 +1174,47 @@ func (c *Controller) GetAuthorizationManager() *AuthorizationManager { return c.
 
 func (c *Controller) GetMutableAuthorizationManager() *AuthorizationManager { return c.Authorization }
 
-//c++ flat_set<account_name> map[common.AccountName]interface{}
-func (c *Controller) GetActorWhiteList() *treeset.Set {
+func (c *Controller) GetActorWhiteList() *AccountNameSet {
 	return &c.Config.ActorWhitelist
 }
 
-func (c *Controller) GetActorBlackList() *treeset.Set {
+func (c *Controller) GetActorBlackList() *AccountNameSet {
 	return &c.Config.ActorBlacklist
 }
 
-func (c *Controller) GetContractWhiteList() *treeset.Set {
+func (c *Controller) GetContractWhiteList() *AccountNameSet {
 	return &c.Config.ContractWhitelist
 }
 
-func (c *Controller) GetContractBlackList() *treeset.Set {
+func (c *Controller) GetContractBlackList() *AccountNameSet {
 	return &c.Config.ContractBlacklist
 }
 
-func (c *Controller) GetActionBlockList() *treeset.Set { return &c.Config.ActionBlacklist }
+func (c *Controller) GetActionBlackList() *NamePairSet { return &c.Config.ActionBlacklist }
 
-func (c *Controller) GetKeyBlackList() *treeset.Set { return &c.Config.KeyBlacklist }
+func (c *Controller) GetKeyBlackList() *PublicKeySet { return &c.Config.KeyBlacklist }
 
-func (c *Controller) SetActorWhiteList(params *treeset.Set) {
+func (c *Controller) SetActorWhiteList(params *AccountNameSet) {
 	c.Config.ActorWhitelist = *params
 }
 
-func (c *Controller) SetActorBlackList(params *treeset.Set) {
+func (c *Controller) SetActorBlackList(params *AccountNameSet) {
 	c.Config.ActorBlacklist = *params
 }
 
-func (c *Controller) SetContractWhiteList(params *treeset.Set) {
+func (c *Controller) SetContractWhiteList(params *AccountNameSet) {
 	c.Config.ContractWhitelist = *params
 }
 
-func (c *Controller) SetContractBlackList(params *treeset.Set) {
+func (c *Controller) SetContractBlackList(params *AccountNameSet) {
 	c.Config.ContractBlacklist = *params
 }
 
-func (c *Controller) SetActionBlackList(params *treeset.Set) {
+func (c *Controller) SetActionBlackList(params *NamePairSet) {
 	c.Config.ActionBlacklist = *params
 }
 
-func (c *Controller) SetKeyBlackList(params *treeset.Set) {
+func (c *Controller) SetKeyBlackList(params *PublicKeySet) {
 	c.Config.KeyBlacklist = *params
 }
 
@@ -1370,19 +1374,13 @@ func (c *Controller) CheckContractList(code common.AccountName) {
 
 func (c *Controller) CheckActionList(code common.AccountName, action common.ActionName) {
 	if c.Config.ActionBlacklist.Size() > 0 {
-		abl := common.MakePair(code, action)
-		//key := Hash(abl)
-		exist, _ := c.Config.ActionBlacklist.Find(func(index int, value interface{}) bool {
-			return c.Config.ActionBlacklist.GetComparator()(value, &abl) == 0
-		})
-
-		EosAssert(exist == -1, &ActionBlacklistException{}, "action '%v::%v' is on the action blacklist", code, action)
+		EosAssert(!c.Config.ActionBlacklist.Contains(common.NamePair{code, action}), &ActionBlacklistException{}, "action '%v::%v' is on the action blacklist", code, action)
 	}
 }
 
 func (c *Controller) CheckKeyList(key *ecc.PublicKey) {
 	if c.Config.KeyBlacklist.Size() > 0 {
-		EosAssert(!c.Config.KeyBlacklist.Contains(key), &KeyBlacklistException{}, "public key %v is on the key blacklist", key)
+		EosAssert(!c.Config.KeyBlacklist.Contains(*key), &KeyBlacklistException{}, "public key %v is on the key blacklist", key)
 	}
 }
 
@@ -1390,18 +1388,18 @@ func (c *Controller) IsRamBillingInNotifyAllowed() bool {
 	return !c.IsProducingBlock() || c.Config.AllowRamBillingInNotify
 }
 
-func (c *Controller) AddResourceGreyList(name *common.AccountName) {
-	c.Config.ResourceGreylist.AddItem(*name)
+func (c *Controller) AddResourceGreyList(name common.AccountName) {
+	c.Config.ResourceGreylist.AddItem(name)
 }
 
-func (c *Controller) RemoveResourceGreyList(name *common.AccountName) {
-	c.Config.ResourceGreylist.Remove(*name)
+func (c *Controller) RemoveResourceGreyList(name common.AccountName) {
+	c.Config.ResourceGreylist.Remove(name)
 }
 
-func (c *Controller) IsResourceGreylisted(name *common.AccountName) bool {
+func (c *Controller) IsResourceGreylisted(name common.AccountName) bool {
 	return c.Config.ResourceGreylist.Contains(name)
 }
-func (c *Controller) GetResourceGreyList() treeset.Set {
+func (c *Controller) GetResourceGreyList() AccountNameSet {
 	return c.Config.ResourceGreylist
 }
 
@@ -1587,8 +1585,8 @@ func (c *Controller) initializeForkDB() {
 	genHeader.Header.ActionMRoot = common.CheckSum256Type(gs.ComputeChainID())
 	genHeader.BlockId = genHeader.Header.BlockID()
 	genHeader.BlockNum = genHeader.Header.BlockNumber()
-	genHeader.ProducerToLastProduced = *types.NewAccountNameUint32Map()
-	genHeader.ProducerToLastImpliedIrb = *types.NewAccountNameUint32Map()
+	genHeader.ProducerToLastProduced = *NewAccountNameUint32Map()
+	genHeader.ProducerToLastImpliedIrb = *NewAccountNameUint32Map()
 	c.Head = types.NewBlockState(&genHeader)
 
 	c.Head.SignedBlock = types.NewSignedBlock1(&genHeader.Header)
@@ -1640,11 +1638,11 @@ func (c *Controller) initializeDatabase() {
 	activeProducersAuthority := types.Authority{}
 	activeProducersAuthority.Threshold = 1
 
-	p := types.PermissionLevelWeight{types.PermissionLevel{common.DefaultConfig.SystemAccountName, common.DefaultConfig.ActiveName}, 1}
+	p := types.PermissionLevelWeight{common.PermissionLevel{common.DefaultConfig.SystemAccountName, common.DefaultConfig.ActiveName}, 1}
 	activeProducersAuthority.Accounts = append(activeProducersAuthority.Accounts, p)
 	c.CreateNativeAccount(common.DefaultConfig.NullAccountName, emptyAuthority, emptyAuthority, false)
 	c.CreateNativeAccount(common.DefaultConfig.ProducersAccountName, emptyAuthority, activeProducersAuthority, false)
-	activePermission := c.Authorization.GetPermission(&types.PermissionLevel{common.DefaultConfig.ProducersAccountName, common.DefaultConfig.ActiveName})
+	activePermission := c.Authorization.GetPermission(&common.PermissionLevel{common.DefaultConfig.ProducersAccountName, common.DefaultConfig.ActiveName})
 
 	majorityPermission := c.Authorization.CreatePermission(common.DefaultConfig.ProducersAccountName,
 		common.DefaultConfig.MajorityProducersPermissionName,
@@ -1741,7 +1739,7 @@ func (c *Controller) clearExpiredInputTransactions() {
 	}
 }
 
-func (c *Controller) CheckActorList(actors *treeset.Set) {
+func (c *Controller) CheckActorList(actors *AccountNameSet) {
 	if c.Config.ActorWhitelist.Size() > 0 {
 		itr := actors.Iterator()
 		for itr.Next() {
@@ -1751,7 +1749,7 @@ func (c *Controller) CheckActorList(actors *treeset.Set) {
 	} else if c.Config.ActorBlacklist.Size() > 0 {
 		itr := actors.Iterator()
 		for itr.Next() {
-			EosAssert(!c.Config.ActionBlacklist.Contains(itr.Value()), &ActorBlacklistException{},
+			EosAssert(!c.Config.ActorBlacklist.Contains(itr.Value()), &ActorBlacklistException{},
 				"authorizing actor(s) in transaction are on the actor blacklist: %v", actors)
 		}
 	}
@@ -1761,7 +1759,7 @@ func (c *Controller) updateProducersAuthority() {
 	updatePermission := func(permission *entity.PermissionObject, threshold uint32) {
 		auth := types.Authority{threshold, []types.KeyWeight{}, []types.PermissionLevelWeight{}, []types.WaitWeight{}}
 		for _, p := range producers {
-			auth.Accounts = append(auth.Accounts, types.PermissionLevelWeight{types.PermissionLevel{p.ProducerName, common.DefaultConfig.ActiveName}, 1})
+			auth.Accounts = append(auth.Accounts, types.PermissionLevelWeight{common.PermissionLevel{p.ProducerName, common.DefaultConfig.ActiveName}, 1})
 		}
 		if !permission.Auth.Equals(auth.ToSharedAuthority()) {
 			c.DB.Modify(permission, func(param *entity.PermissionObject) {
@@ -1774,11 +1772,11 @@ func (c *Controller) updateProducersAuthority() {
 	calculateThreshold := func(numerator uint32, denominator uint32) uint32 {
 		return ((uint32(numProducers) * numerator) / denominator) + 1
 	}
-	updatePermission(c.Authorization.GetPermission(&types.PermissionLevel{common.DefaultConfig.ProducersAccountName, common.DefaultConfig.ActiveName}), calculateThreshold(2, 3))
+	updatePermission(c.Authorization.GetPermission(&common.PermissionLevel{common.DefaultConfig.ProducersAccountName, common.DefaultConfig.ActiveName}), calculateThreshold(2, 3))
 
-	updatePermission(c.Authorization.GetPermission(&types.PermissionLevel{common.DefaultConfig.ProducersAccountName, common.DefaultConfig.MajorityProducersPermissionName}), calculateThreshold(1, 2))
+	updatePermission(c.Authorization.GetPermission(&common.PermissionLevel{common.DefaultConfig.ProducersAccountName, common.DefaultConfig.MajorityProducersPermissionName}), calculateThreshold(1, 2))
 
-	updatePermission(c.Authorization.GetPermission(&types.PermissionLevel{common.DefaultConfig.ProducersAccountName, common.DefaultConfig.MinorityProducersPermissionName}), calculateThreshold(1, 3))
+	updatePermission(c.Authorization.GetPermission(&common.PermissionLevel{common.DefaultConfig.ProducersAccountName, common.DefaultConfig.MinorityProducersPermissionName}), calculateThreshold(1, 3))
 
 }
 
@@ -1814,14 +1812,14 @@ func (c *Controller) initConfig() *Controller {
 		ReadMode:            SPECULATIVE,
 		BlockValidationMode: FULL,
 		Genesis:             types.NewGenesisState(),
-		ActorWhitelist:      *treeset.NewWith(common.TypeName, common.CompareName),
-		ActorBlacklist:      *treeset.NewWith(common.TypeName, common.CompareName),
-		ContractWhitelist:   *treeset.NewWith(common.TypeName, common.CompareName),
-		ContractBlacklist:   *treeset.NewWith(common.TypeName, common.CompareName),
-		ActionBlacklist:     *treeset.NewWith(common.TypePair, common.ComparePair),
-		KeyBlacklist:        *treeset.NewWith(ecc.TypePubKey, ecc.ComparePubKey),
-		ResourceGreylist:    *treeset.NewWith(common.TypeName, common.CompareName),
-		TrustedProducers:    *treeset.NewWith(common.TypeName, common.CompareName),
+		ActorWhitelist:      *NewAccountNameSet(),
+		ActorBlacklist:      *NewAccountNameSet(),
+		ContractWhitelist:   *NewAccountNameSet(),
+		ContractBlacklist:   *NewAccountNameSet(),
+		ActionBlacklist:     *NewNamePairSet(),
+		KeyBlacklist:        *NewPublicKeySet(),
+		ResourceGreylist:    *NewAccountNameSet(),
+		TrustedProducers:    *NewAccountNameSet(),
 	}
 	return c
 }

@@ -13,13 +13,8 @@ package redblacktree
 
 import (
 	"fmt"
-	"github.com/eosspark/container/trees"
-	"github.com/eosspark/container/utils"
+	"github.com/eosspark/eos-go/common/container"
 )
-
-func assertTreeImplementation() {
-	var _ trees.Tree = (*Tree)(nil)
-}
 
 type color bool
 
@@ -32,7 +27,7 @@ type Tree struct {
 	isMulti    bool
 	Root       *Node
 	size       int
-	Comparator utils.Comparator
+	Comparator func(a, b interface{}) int
 }
 
 // Node is a single element within the tree
@@ -46,18 +41,22 @@ type Node struct {
 }
 
 // NewWith instantiates a red-black tree with the custom comparator.
-func NewWith(comparator utils.Comparator, isMulti bool) *Tree {
+func NewWith(comparator func(a, b interface{}) int, isMulti bool) *Tree {
 	return &Tree{Comparator: comparator, isMulti: isMulti}
 }
 
 // NewWithIntComparator instantiates a red-black tree with the IntComparator, i.e. keys are of type int.
 func NewWithIntComparator(isMulti bool) *Tree {
-	return &Tree{Comparator: utils.IntComparator, isMulti: isMulti}
+	return &Tree{Comparator: func(a, b interface{}) int {
+		return container.IntComparator(a.(int), b.(int))
+	}, isMulti: isMulti}
 }
 
 // NewWithStringComparator instantiates a red-black tree with the StringComparator, i.e. keys are of type string.
 func NewWithStringComparator(isMulti bool) *Tree {
-	return &Tree{Comparator: utils.StringComparator, isMulti: isMulti}
+	return &Tree{Comparator: func(a, b interface{}) int {
+		return container.StringComparator(a.(string), b.(string))
+	}, isMulti: isMulti}
 }
 
 func CopyFrom(rbt *Tree) *Tree {
@@ -94,7 +93,7 @@ func copyNode(nd *Node) *Node {
 	return n
 }
 
-func (tree *Tree) New(comparator utils.Comparator) {
+func (tree *Tree) New(comparator func(a, b interface{}) int) {
 	tree.Comparator = comparator
 }
 

@@ -2,9 +2,9 @@ package testing
 
 import (
 	"fmt"
-	"github.com/eosspark/container/sets/treeset"
 	"github.com/eosspark/eos-go/chain"
 	"github.com/eosspark/eos-go/chain/types"
+	. "github.com/eosspark/eos-go/chain/types/generated_containers"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/ecc"
@@ -14,7 +14,7 @@ type DBReadMode = chain.DBReadMode
 
 const (
 	SPECULATIVE = DBReadMode(iota)
-	HEADER      //HEAD
+	HEADER       //HEAD
 	READONLY
 	IRREVERSIBLE
 )
@@ -240,26 +240,26 @@ func (c *Controller) SetSubjectiveCpuLeeway(leeway common.Microseconds) {}
 func (c *Controller) AddResourceGreyList(name *common.AccountName)    {}
 func (c *Controller) RemoveResourceGreyList(name *common.AccountName) {}
 
-func (c *Controller) GetResourceGreyList() *treeset.Set { return nil }
+func (c *Controller) GetResourceGreyList() *AccountNameSet { return nil }
 
-func (c *Controller) GetActorWhiteList() *treeset.Set { return nil }
+func (c *Controller) GetActorWhiteList() *AccountNameSet { return nil }
 
-func (c *Controller) GetActorBlackList() *treeset.Set { return nil }
+func (c *Controller) GetActorBlackList() *AccountNameSet { return nil }
 
-func (c *Controller) GetContractWhiteList() *treeset.Set { return nil }
+func (c *Controller) GetContractWhiteList() *AccountNameSet { return nil }
 
-func (c *Controller) GetContractBlackList() *treeset.Set { return nil }
+func (c *Controller) GetContractBlackList() *AccountNameSet { return nil }
 
-func (c *Controller) GetActionBlockList() *treeset.Set { return nil }
+func (c *Controller) GetActionBlackList() *NamePairSet { return nil }
 
-func (c *Controller) GetKeyBlackList() *treeset.Set { return nil }
+func (c *Controller) GetKeyBlackList() *PublicKeySet { return nil }
 
-func (c *Controller) SetActorWhiteList(params *treeset.Set) {}
-func (c *Controller) SetActorBlackList(params *treeset.Set) {}
+func (c *Controller) SetActorWhiteList(params *AccountNameSet) {}
+func (c *Controller) SetActorBlackList(params *AccountNameSet) {}
 
-func (c *Controller) SetContractWhiteList(params *treeset.Set) {}
-func (c *Controller) SetContractBlackList(params *treeset.Set) {}
+func (c *Controller) SetContractWhiteList(params *AccountNameSet) {}
+func (c *Controller) SetContractBlackList(params *AccountNameSet) {}
 
-func (c *Controller) SetActionBlackList(params *treeset.Set) {}
+func (c *Controller) SetActionBlackList(params *NamePairSet) {}
 
-func (c *Controller) SetKeyBlackList(params *treeset.Set) {}
+func (c *Controller) SetKeyBlackList(params *PublicKeySet) {}

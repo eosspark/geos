@@ -31,7 +31,7 @@ func TestContract(t *testing.T) {
 			t.Fatal(err)
 		}
 
-		control := GetControllerInstance()
+		control := NewController(NewConfig())
 		blockTimeStamp := types.NewBlockTimeStamp(common.Now())
 		control.StartBlock(blockTimeStamp, 0)
 
@@ -109,7 +109,7 @@ func NewTransfer(from, to common.AccountName, quantity common.Asset, memo string
 	return &types.Action{
 		Account: common.AccountName(common.N("eosio.token")),
 		Name:    common.ActionName(common.N("transfer")),
-		Authorization: []types.PermissionLevel{
+		Authorization: []common.PermissionLevel{
 			{Actor: from, Permission: common.PermissionName(common.N("active"))},
 		},
 		Data: NewActionData(Transfer{
@@ -133,7 +133,7 @@ func NewIssue(issuer common.AccountName, to common.AccountName, quantity common.
 	return &types.Action{
 		Account: common.AccountName(common.N("eosio.token")),
 		Name:    common.ActionName(common.N("issue")),
-		Authorization: []types.PermissionLevel{
+		Authorization: []common.PermissionLevel{
 			{Actor: issuer, Permission: common.PermissionName(common.N("active"))},
 		},
 		Data: NewActionData(Issue{
@@ -155,7 +155,7 @@ func NewCreate(issuer common.AccountName, maxSupply common.Asset) *types.Action 
 	return &types.Action{
 		Account: common.AccountName(common.N("eosio.token")),
 		Name:    common.ActionName(common.N("create")),
-		Authorization: []types.PermissionLevel{
+		Authorization: []common.PermissionLevel{
 			{Actor: common.AccountName(common.N("eosio.token")), Permission: common.PermissionName(common.N("active"))},
 		},
 		Data: NewActionData(Create{
@@ -184,7 +184,7 @@ func SCode(control *Controller, account string, code []byte) {
 		Account: common.AccountName(common.N("eosio")),
 		Name:    common.ActionName(common.N("setcode")),
 		Data:    buffer,
-		Authorization: []types.PermissionLevel{
+		Authorization: []common.PermissionLevel{
 			{Actor: common.AccountName(common.N(account)), Permission: common.PermissionName(common.N("active"))},
 		},
 	}
@@ -222,7 +222,7 @@ func CreateNewAccount(control *Controller, name string) {
 		Account: common.AccountName(common.N("eosio")),
 		Name:    common.ActionName(common.N("newaccount")),
 		Data:    buffer,
-		Authorization: []types.PermissionLevel{
+		Authorization: []common.PermissionLevel{
 			{Actor: common.AccountName(common.N("eosio")), Permission: common.PermissionName(common.N("active"))},
 		},
 	}
@@ -279,7 +279,7 @@ func TestTransactionContextTest(t *testing.T) {
 		}
 
 		//set code
-		control := GetControllerInstance()
+		control := NewController(NewConfig())
 		blockTimeStamp := types.NewBlockTimeStamp(common.Now())
 		control.StartBlock(blockTimeStamp, 0)
 
@@ -297,8 +297,8 @@ func TestTransactionContextTest(t *testing.T) {
 			Account: common.AccountName(common.N(account)),
 			Name:    common.ActionName(common.N("setcode")),
 			Data:    buffer,
-			Authorization: []types.PermissionLevel{
-				//types.PermissionLevel{Actor: common.AccountName(common.N("eosio.token")), Permission: common.PermissionName(common.N("active"))},
+			Authorization: []common.PermissionLevel{
+				//common.PermissionLevel{Actor: common.AccountName(common.N("eosio.token")), Permission: common.PermissionName(common.N("active"))},
 				{Actor: common.AccountName(common.N(account)), Permission: common.PermissionName(common.N("active"))},
 			},
 		}
@@ -312,8 +312,8 @@ func TestTransactionContextTest(t *testing.T) {
 			Account: common.AccountName(common.N(account)),
 			Name:    common.ActionName(common.N("hi")),
 			Data:    buffer,
-			Authorization: []types.PermissionLevel{
-				//types.PermissionLevel{Actor: common.AccountName(common.N("eosio.token")), Permission: common.PermissionName(common.N("active"))},
+			Authorization: []common.PermissionLevel{
+				//common.PermissionLevel{Actor: common.AccountName(common.N("eosio.token")), Permission: common.PermissionName(common.N("active"))},
 				{Actor: common.AccountName(common.N(account)), Permission: common.PermissionName(common.N("active"))},
 			},
 		}

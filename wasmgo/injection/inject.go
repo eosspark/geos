@@ -35,9 +35,11 @@ func Inject(m *wasm.Module) {
 	}
 
 	//shift all table entries for call indirect
-	for i, elememts := range m.Elements.Entries {
-		for j, _ := range elememts.Elems {
-			m.Elements.Entries[i].Elems[j]++
+	if m.Elements != nil {
+		for i, elememts := range m.Elements.Entries {
+			for j, _ := range elememts.Elems {
+				m.Elements.Entries[i].Elems[j]++
+			}
 		}
 	}
 

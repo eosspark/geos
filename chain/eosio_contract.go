@@ -39,7 +39,7 @@ func validateAuthorityPrecondition(context *ApplyContext, auth *types.Authority)
 		}
 
 		Try(func() {
-			context.Control.GetAuthorizationManager().GetPermission(&types.PermissionLevel{a.Permission.Actor, a.Permission.Permission})
+			context.Control.GetAuthorizationManager().GetPermission(&common.PermissionLevel{a.Permission.Actor, a.Permission.Permission})
 		}).Catch(func(e *PermissionQueryException) {
 			//   EOS_THROW( action_validate_exception,
 			//             "permission '${perm}' does not exist",
@@ -299,11 +299,11 @@ func applyEosioUpdateauth(context *ApplyContext) {
 	validateAuthorityPrecondition(context, &update.Auth)
 
 	authorization := context.Control.GetMutableAuthorizationManager()
-	permission := authorization.FindPermission(&types.PermissionLevel{update.Account, update.Permission})
+	permission := authorization.FindPermission(&common.PermissionLevel{update.Account, update.Permission})
 
 	parentId := common.IdType(0)
 	if update.Permission != common.PermissionName(common.DefaultConfig.OwnerName) {
-		parent := authorization.GetPermission(&types.PermissionLevel{update.Account, update.Parent})
+		parent := authorization.GetPermission(&common.PermissionLevel{update.Account, update.Parent})
 		parentId = parent.ID
 	}
 
@@ -347,7 +347,7 @@ func applyEosioDeleteauth(context *ApplyContext) {
 	}
 
 	authorization := context.Control.GetMutableAuthorizationManager()
-	permission := authorization.GetPermission(&types.PermissionLevel{remove.Account, remove.Permission})
+	permission := authorization.GetPermission(&common.PermissionLevel{remove.Account, remove.Permission})
 	oldSize := common.BillableSizeV("permission_object") + permission.Auth.GetBillableSize()
 	authorization.RemovePermission(permission)
 
