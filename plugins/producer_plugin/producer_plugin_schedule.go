@@ -47,7 +47,7 @@ func (impl *ProducerPluginImpl) CalculateNextBlockTime(producerName common.Accou
 	// information then
 	currentWatermark, hasCurrentWatermark := impl.ProducerWatermarks[producerName]
 	if hasCurrentWatermark {
-		blockNum := chain.PendingBlockState().BlockNum
+		blockNum := chain.HeadBlockNum()
 		if chain.PendingBlockState() != nil {
 			blockNum++
 		}
@@ -522,9 +522,8 @@ func (impl *ProducerPluginImpl) ScheduleProductionLoop() {
 func (impl *ProducerPluginImpl) ScheduleDelayedProductionLoop(currentBlockTime types.BlockTimeStamp) {
 	// if we have any producers then we should at least set a timer for our next available slot
 	var wakeUpTime *common.TimePoint
-	impl.Producers.Each(func(index int, value interface{}) {
-		p := value.(common.AccountName)
-		nextProducerBlockTime := impl.CalculateNextBlockTime(p, currentBlockTime)
+	for itr := impl.Producers.Begin(); itr.HasNext(); itr.Next() {
+		nextProducerBlockTime := impl.CalculateNextBlockTime(itr.Value(), currentBlockTime)
 		if nextProducerBlockTime != nil {
 			producerWakeupTime := nextProducerBlockTime.SubUs(common.Microseconds(common.DefaultConfig.BlockIntervalUs))
 			if wakeUpTime != nil {
@@ -536,7 +535,7 @@ func (impl *ProducerPluginImpl) ScheduleDelayedProductionLoop(currentBlockTime t
 				wakeUpTime = &producerWakeupTime
 			}
 		}
-	})
+	}
 
 	if wakeUpTime != nil {
 		log.Debug("Scheduling Speculative/Production Change at %s", wakeUpTime)

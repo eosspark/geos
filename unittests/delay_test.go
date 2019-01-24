@@ -39,7 +39,7 @@ func TestValidating(t *testing.T) {
 		creator := common.DefaultConfig.SystemAccountName
 		ownerAuth := types.NewAuthority(b.getPublicKey(newco, "owner"), 0)
 
-		pl := []types.PermissionLevel{{common.DefaultConfig.SystemAccountName, common.N("active")}}
+		pl := []common.PermissionLevel{{common.DefaultConfig.SystemAccountName, common.N("active")}}
 		a := NewAccount{
 			creator,
 			newco,
@@ -73,7 +73,7 @@ func TestValidatingError(t *testing.T) {
 		creator := common.DefaultConfig.SystemAccountName
 		ownerAuth := types.NewAuthority(b.getPublicKey(newco, "owner"), 0)
 
-		pl := []types.PermissionLevel{{common.DefaultConfig.SystemAccountName, common.PermissionName(common.N("active"))}}
+		pl := []common.PermissionLevel{{common.DefaultConfig.SystemAccountName, common.PermissionName(common.N("active"))}}
 		a := NewAccount{
 			common.N("bad"), /// a does not exist, this should error when execute
 			newco,
@@ -1828,7 +1828,7 @@ func TestLinkDelayLinkChange(t *testing.T) {
 			"requirement": common.N("second"),
 		}
 		linkName = LinkAuth{}.GetName()
-		pl := []types.PermissionLevel{{tester, common.PermissionName(common.N("first"))}}
+		pl := []common.PermissionLevel{{tester, common.PermissionName(common.N("first"))}}
 
 		CheckThrowMsg(t, "transaction declares authority", func() {
 			chain.PushAction4(
@@ -2134,7 +2134,7 @@ func TestLinkDelayUnlink(t *testing.T) {
 		}
 		unLinkName := UnLinkAuth{}.GetName()
 
-		pl := []types.PermissionLevel{ {tester, common.PermissionName(common.N("first"))}}
+		pl := []common.PermissionLevel{ {tester, common.PermissionName(common.N("first"))}}
 
 		CheckThrowMsg(t, "transaction declares authority", func() {
 			chain.PushAction4(
@@ -2724,7 +2724,7 @@ func TestMindelay(t *testing.T) {
 		act := types.Action{}
 		act.Account = eosioToken
 		act.Name = transfer
-		act.Authorization =[]types.PermissionLevel{{tester, common.DefaultConfig.ActiveName}}
+		act.Authorization =[]common.PermissionLevel{{tester, common.DefaultConfig.ActiveName}}
 		data := common.Variants{"from": tester, "to": tester2,"quantity": "3.0000 CUR", "memo": "hi"}
 		act.Data = abis.VariantToBinary(actionTypeName, &data, chain.AbiSerializerMaxTime)
 
@@ -2955,7 +2955,7 @@ func TestCancelDelay(t *testing.T) {
 			"parent": common.N("active"),
 			"auth": types.NewAuthority(chain.getPublicKey(tester, "first"), 0),
 		}
-		auth := []types.PermissionLevel{{ tester, common.N("first")}}
+		auth := []common.PermissionLevel{{ tester, common.N("first")}}
 
 		CheckThrowMsg(t, "transaction declares authority", func() {
 			trace = chain.PushAction4(
@@ -3049,8 +3049,8 @@ func TestCancelDelay(t *testing.T) {
 
 		// send canceldelay for first delayed transaction
 		trx := types.SignedTransaction{}
-		pl := []types.PermissionLevel{{tester, common.PermissionName(common.N("active"))}}
-		cancelDelay := CancelDelay{types.PermissionLevel{tester, common.PermissionName(common.N("active"))}, ids[0]}
+		pl := []common.PermissionLevel{{tester, common.PermissionName(common.N("active"))}}
+		cancelDelay := CancelDelay{common.PermissionLevel{tester, common.PermissionName(common.N("active"))}, ids[0]}
 		act := newAction(pl, &cancelDelay)
 		trx.Actions = append(trx.Actions, act)
 
@@ -3333,8 +3333,8 @@ func TestCancelDelay2(t *testing.T) {
 
 		// attempt canceldelay with wrong canceling_auth for delayed transfer of 1.0000 CUR
 		trx := types.SignedTransaction{}
-		pl := []types.PermissionLevel{{tester, common.PermissionName(common.N("active"))}}
-		cancelDelay := CancelDelay{types.PermissionLevel{tester, common.PermissionName(common.N("active"))}, trxId}
+		pl := []common.PermissionLevel{{tester, common.PermissionName(common.N("active"))}}
+		cancelDelay := CancelDelay{common.PermissionLevel{tester, common.PermissionName(common.N("active"))}, trxId}
 		act := newAction(pl, &cancelDelay)
 		trx.Actions = append(trx.Actions, act)
 
@@ -3349,8 +3349,8 @@ func TestCancelDelay2(t *testing.T) {
 
 		// attempt canceldelay with "second" permission for delayed transfer of 1.0000 CUR
 		trx = types.SignedTransaction{}
-		pl = []types.PermissionLevel{{tester, common.PermissionName(common.N("second"))}}
-		cancelDelay = CancelDelay{types.PermissionLevel{tester, common.PermissionName(common.N("first"))}, trxId}
+		pl = []common.PermissionLevel{{tester, common.PermissionName(common.N("second"))}}
+		cancelDelay = CancelDelay{common.PermissionLevel{tester, common.PermissionName(common.N("first"))}, trxId}
 		act = newAction(pl, &cancelDelay)
 		trx.Actions = append(trx.Actions, act)
 
@@ -3364,8 +3364,8 @@ func TestCancelDelay2(t *testing.T) {
 
 		// canceldelay with "active" permission for delayed transfer of 1.0000 CUR
 		trx = types.SignedTransaction{}
-		pl = []types.PermissionLevel{{tester, common.PermissionName(common.N("active"))}}
-		cancelDelay = CancelDelay{types.PermissionLevel{tester, common.PermissionName(common.N("first"))}, trxId}
+		pl = []common.PermissionLevel{{tester, common.PermissionName(common.N("active"))}}
+		cancelDelay = CancelDelay{common.PermissionLevel{tester, common.PermissionName(common.N("first"))}, trxId}
 		act = newAction(pl, &cancelDelay)
 		trx.Actions = append(trx.Actions, act)
 
@@ -3452,8 +3452,8 @@ func TestCancelDelay2(t *testing.T) {
 
 		// canceldelay with "first" permission for delayed transfer of 5.0000 CUR
 		trx = types.SignedTransaction{}
-		pl = []types.PermissionLevel{{tester, common.PermissionName(common.N("first"))}}
-		cancelDelay = CancelDelay{types.PermissionLevel{tester, common.PermissionName(common.N("second"))}, ids[0]}
+		pl = []common.PermissionLevel{{tester, common.PermissionName(common.N("first"))}}
+		cancelDelay = CancelDelay{common.PermissionLevel{tester, common.PermissionName(common.N("second"))}, ids[0]}
 		act = newAction(pl, &cancelDelay)
 		trx.Actions = append(trx.Actions, act)
 
@@ -3489,7 +3489,7 @@ func TestCancelDelay2(t *testing.T) {
 
 
 		// this transaction will be delayed 10 blocks
-		auth := []types.PermissionLevel{{ tester, common.PermissionName(common.N("owner"))}}
+		auth := []common.PermissionLevel{{ tester, common.PermissionName(common.N("owner"))}}
 		trace = chain.PushAction4(
 			&eosioToken,
 			&transfer,
@@ -3522,8 +3522,8 @@ func TestCancelDelay2(t *testing.T) {
 
 		// attempt canceldelay with "active" permission for delayed transfer of 10.0000 CUR
 		trx = types.SignedTransaction{}
-		pl = []types.PermissionLevel{{tester, common.PermissionName(common.N("active"))}}
-		cancelDelay = CancelDelay{types.PermissionLevel{tester, common.PermissionName(common.N("owner"))}, ids[0]}
+		pl = []common.PermissionLevel{{tester, common.PermissionName(common.N("active"))}}
+		cancelDelay = CancelDelay{common.PermissionLevel{tester, common.PermissionName(common.N("owner"))}, ids[0]}
 		act = newAction(pl, &cancelDelay)
 		trx.Actions = append(trx.Actions, act)
 
@@ -3536,8 +3536,8 @@ func TestCancelDelay2(t *testing.T) {
 		// attempt canceldelay with "active" permission for delayed transfer of 10.0000 CUR
 
 		trx = types.SignedTransaction{}
-		pl = []types.PermissionLevel{{tester, common.PermissionName(common.N("owner"))}}
-		cancelDelay = CancelDelay{types.PermissionLevel{tester, common.PermissionName(common.N("owner"))}, ids[0]}
+		pl = []common.PermissionLevel{{tester, common.PermissionName(common.N("owner"))}}
+		cancelDelay = CancelDelay{common.PermissionLevel{tester, common.PermissionName(common.N("owner"))}, ids[0]}
 		act = newAction(pl, &cancelDelay)
 		trx.Actions = append(trx.Actions, act)
 
@@ -3742,7 +3742,7 @@ func TestValidatingDelay(t *testing.T) {
 		creator := common.DefaultConfig.SystemAccountName
 		ownerAuth := types.NewAuthority(b.getPublicKey(newco, "owner"), uint32(b.AbiSerializerMaxTime))
 
-		pl := []types.PermissionLevel{{common.DefaultConfig.SystemAccountName, common.PermissionName(common.N("active"))}}
+		pl := []common.PermissionLevel{{common.DefaultConfig.SystemAccountName, common.PermissionName(common.N("active"))}}
 		a := NewAccount{
 			creator,
 			newco,

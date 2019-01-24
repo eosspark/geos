@@ -5,7 +5,7 @@ import (
 	"compress/zlib"
 	"encoding/json"
 	"fmt"
-	"github.com/eosspark/container/sets/treeset"
+	. "github.com/eosspark/eos-go/chain/types/generated_containers"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/common/eos_math"
 	"github.com/eosspark/eos-go/crypto"
@@ -80,7 +80,8 @@ type CachedPubKey struct {
 //Transaction consits of a set of messages which must all be applied or
 //all are rejected. These messages have access to data within the given
 //read and write scopes.
-type Transaction struct { // WARN: is a `variant` in C++, can be a SignedTransaction or a Transaction.
+type Transaction struct {
+	// WARN: is a `variant` in C++, can be a SignedTransaction or a Transaction.
 	TransactionHeader
 
 	ContextFreeActions    []*Action    `json:"context_free_actions"`
@@ -125,9 +126,9 @@ func (t *Transaction) SigDigest(chainID *common.ChainIdType, cfd []common.HexByt
 //allowDuplicateKeys = false
 //useCache= true
 func (t *Transaction) GetSignatureKeys(signatures []ecc.Signature, chainID *common.ChainIdType, cfd []common.HexBytes,
-	allowDuplicateKeys bool, useCache bool) treeset.Set {
+	allowDuplicateKeys bool, useCache bool) PublicKeySet {
 	const recoveryCacheSize common.SizeT = 1000
-	recoveredPubKeys := treeset.NewWith(ecc.TypePubKey, ecc.ComparePubKey)
+	recoveredPubKeys := NewPublicKeySet()
 	Try(func() {
 		digest := t.SigDigest(chainID, cfd)
 		for _, sig := range signatures {
@@ -210,7 +211,7 @@ func (s *SignedTransaction) SignWithoutAppend(key ecc.PrivateKey, chainID *commo
 }
 
 //allowDeplicateKeys =false,useCache=true
-func (st *SignedTransaction) GetSignatureKeys(chainID *common.ChainIdType, allowDeplicateKeys bool, useCache bool) treeset.Set {
+func (st *SignedTransaction) GetSignatureKeys(chainID *common.ChainIdType, allowDeplicateKeys bool, useCache bool) PublicKeySet {
 	return st.Transaction.GetSignatureKeys(st.Signatures, chainID, st.ContextFreeData, allowDeplicateKeys, useCache)
 }
 

@@ -4,12 +4,6 @@
 
 package redblacktree
 
-import "github.com/eosspark/container/containers"
-
-func assertIteratorImplementation() {
-	var _ containers.ReverseIteratorWithKey = (*Iterator)(nil)
-}
-
 // Iterator holding the iterator's state
 type Iterator struct {
 	tree     *Tree

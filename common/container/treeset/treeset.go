@@ -12,7 +12,6 @@ package treeset
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/eosspark/container/utils"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/common/container"
 	rbt "github.com/eosspark/eos-go/common/container/tree"
@@ -23,7 +22,7 @@ import (
 // template type Set(V,Compare,Multi)
 type V = int
 
-var Compare = utils.IntComparator
+var Compare = func(a, b interface{}) int { return container.IntComparator(a.(int), b.(int)) }
 var Multi = false
 
 func assertSetImplementation() {
@@ -78,7 +77,7 @@ func (set *Set) AddItem(item V) (bool, V) {
 	if itr.IsEnd() {
 		return false, item
 	}
-	return true, itr.Value().(V)
+	return true, itr.Key().(V)
 }
 
 // Add adds the items (one or more) to the set.
@@ -195,7 +194,7 @@ func (set *Set) UnmarshalJSON(data []byte) error {
 	elements := make([]V, 0)
 	err := json.Unmarshal(data, &elements)
 	if err == nil {
-		set.Clear()
+		set.Tree = rbt.NewWith(Compare, Multi)
 		set.Add(elements...)
 	}
 	return err

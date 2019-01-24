@@ -1,6 +1,7 @@
 package types
 
 import (
+	"github.com/eosspark/eos-go/chain/types/generated_containers"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/rlp"
@@ -12,7 +13,7 @@ import (
 type Action struct {
 	Account       common.AccountName `json:"account"`
 	Name          common.ActionName  `json:"name"`
-	Authorization []PermissionLevel  `json:"authorization,omitempty"`
+	Authorization []common.PermissionLevel  `json:"authorization,omitempty"`
 	Data          common.HexBytes    `json:"data"`
 }
 
@@ -28,14 +29,16 @@ type ContractTypesInterface interface {
 	GetName() common.ActionName
 }
 
+//go:generate gotemplate -outfmt "gen_%v" "github.com/eosspark/eos-go/common/container/treeset" AccountNameSet(common.AccountName,common.CompareName,false)
+//go:generate gotemplate -outfmt "gen_%v" "github.com/eosspark/eos-go/common/container/treemap" AccountNameUint64Map(common.AccountName,uint64,common.CompareName,false)
 type ActionReceipt struct {
-	Receiver       common.AccountName            `json:"receiver"`
-	ActDigest      crypto.Sha256                 `json:"act_digest"`
-	GlobalSequence uint64                        `json:"global_sequence"`
-	RecvSequence   uint64                        `json:"recv_sequence"`
-	AuthSequence   map[common.AccountName]uint64 `json:"auth_sequence"`
-	CodeSequence   common.Vuint32                `json:"code_sequence" eos:"vuint32"`
-	AbiSequence    common.Vuint32                `json:"abi_sequence" eos:"vuint32"`
+	Receiver       common.AccountName   `json:"receiver"`
+	ActDigest      crypto.Sha256        `json:"act_digest"`
+	GlobalSequence uint64               `json:"global_sequence"`
+	RecvSequence   uint64               `json:"recv_sequence"`
+	AuthSequence   generated.AccountNameUint64Map `json:"auth_sequence"`
+	CodeSequence   common.Vuint32       `json:"code_sequence"`
+	AbiSequence    common.Vuint32       `json:"abi_sequence"`
 }
 
 func (a *ActionReceipt) Digest() crypto.Sha256 {

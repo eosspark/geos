@@ -6,7 +6,7 @@ package redblacktree
 
 import (
 	"fmt"
-	"github.com/eosspark/container/utils"
+	"github.com/stretchr/testify/assert"
 	"math/rand"
 	"testing"
 )
@@ -481,11 +481,11 @@ func TestRedBlackMultiTreeMultiRemove(t *testing.T) {
 	tree.Put(4, 42)
 
 	tree.Remove(1)
-	utils.AssertTest(t, []int{21, 22, 31, 32, 41, 42, 5}, tree.Values())
+	assert.Equal(t, []int{21, 22, 31, 32, 41, 42, 5}, tree.Values())
 	tree.Remove(3)
-	utils.AssertTest(t, []int{21, 22, 41, 42, 5}, tree.Values())
+	assert.Equal(t, []int{21, 22, 41, 42, 5}, tree.Values())
 	tree.Remove(5)
-	utils.AssertTest(t, []int{21, 22, 41, 42}, tree.Values())
+	assert.Equal(t, []int{21, 22, 41, 42}, tree.Values())
 }
 
 func TestRedBlackTreeLowerUpperBound(t *testing.T) {
@@ -566,7 +566,7 @@ func TestRedBlackMultiTreeIteratorDelete(t *testing.T) {
 
 	for itr := tree.Begin(); itr.HasNext(); itr.Next() {
 		tree.RemoveOne(itr)
-		utils.AssertTest(t, expects[index:], tree.Values())
+		assert.Equal(t, expects[index:], tree.Values())
 		index++
 	}
 }
@@ -656,37 +656,6 @@ func TestRedBlackMultiTreeIteratorLast(t *testing.T) {
 	if key, value := it.Key(), it.Value(); key != 3 || value != "c" {
 		t.Errorf("Got %v,%v expected %v,%v", key, value, 3, "c")
 	}
-}
-
-func TestRedBlackMultiTreeSerialization(t *testing.T) {
-	tree := NewWithStringComparator(true)
-	tree.Put("c", "3")
-	tree.Put("b", "2")
-	tree.Put("a", "1")
-
-	var err error
-	assert := func() {
-		if actualValue, expectedValue := tree.Size(), 3; actualValue != expectedValue {
-			t.Errorf("Got %v expected %v", actualValue, expectedValue)
-		}
-		if actualValue := tree.Keys(); actualValue[0].(string) != "a" || actualValue[1].(string) != "b" || actualValue[2].(string) != "c" {
-			t.Errorf("Got %v expected %v", actualValue, "[a,b,c]")
-		}
-		if actualValue := tree.Values(); actualValue[0].(string) != "1" || actualValue[1].(string) != "2" || actualValue[2].(string) != "3" {
-			t.Errorf("Got %v expected %v", actualValue, "[1,2,3]")
-		}
-		if err != nil {
-			t.Errorf("Got error %v", err)
-		}
-	}
-
-	assert()
-
-	json, err := tree.ToJSON()
-	assert()
-
-	err = tree.FromJSON(json)
-	assert()
 }
 
 func benchmarkMultiGet(b *testing.B, tree *Tree, size int) {

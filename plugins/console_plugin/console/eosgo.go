@@ -80,8 +80,8 @@ func (e *eosgo) CreateAccount(call otto.FunctionCall) (response otto.Value) {
 	action := createNewAccount(params.Creator, params.Name, ownerKey, activeKey, params.TxPermission)
 
 	clog.Info("creat account in test net")
-	re := sendActions([]*types.Action{action}, 1000, types.CompressionNone, &params)
-	return getJsResult(call, re)
+	sendActions([]*types.Action{action}, 1000, types.CompressionNone, &params)
+	return otto.UndefinedValue()
 }
 
 func (e *eosgo) SetCode(call otto.FunctionCall) (response otto.Value) {
@@ -236,15 +236,15 @@ func (e *eosgo) SetActionPermission(call otto.FunctionCall) (response otto.Value
 	return getJsResult(call, nil)
 }
 
-func getAccountPermissions(permissions []string) []types.PermissionLevel {
-	accountPermissions := make([]types.PermissionLevel, 0)
+func getAccountPermissions(permissions []string) []common.PermissionLevel {
+	accountPermissions := make([]common.PermissionLevel, 0)
 
 	for _, str := range permissions {
 		pieces := strings.Split(str, "@")
 		if len(pieces) == 1 {
 			pieces = append(pieces, "active")
 		}
-		permission := types.PermissionLevel{
+		permission := common.PermissionLevel{
 			Actor:      common.N(pieces[0]),
 			Permission: common.N(pieces[1]),
 		}
@@ -331,7 +331,7 @@ func createNewAccount(creator common.Name, newaccount common.Name, owner ecc.Pub
 		Data:    buffer,
 	}
 	if len(txPermission) == 0 {
-		action.Authorization = []types.PermissionLevel{{Actor: creator, Permission: common.DefaultConfig.ActiveName}}
+		action.Authorization = []common.PermissionLevel{{Actor: creator, Permission: common.DefaultConfig.ActiveName}}
 	} else {
 		action.Authorization = getAccountPermissions(txPermission)
 	}
@@ -351,7 +351,7 @@ func createOpen(contract string, owner common.Name, sym common.Symbol, ramPayer 
 		Data:    variantToBin(common.N(contract), common.N("open"), &open),
 	}
 	if len(txPermission) == 0 {
-		action.Authorization = []types.PermissionLevel{{Actor: ramPayer, Permission: common.DefaultConfig.ActiveName}}
+		action.Authorization = []common.PermissionLevel{{Actor: ramPayer, Permission: common.DefaultConfig.ActiveName}}
 	} else {
 		action.Authorization = getAccountPermissions(txPermission)
 	}
@@ -371,7 +371,7 @@ func createTransfer(contract string, sender common.Name, recipient common.Name, 
 		Data:    variantToBin(common.N(contract), common.N("transfer"), &transfer),
 	}
 	if len(txPermission) == 0 {
-		action.Authorization = []types.PermissionLevel{{Actor: sender, Permission: common.DefaultConfig.ActiveName}}
+		action.Authorization = []common.PermissionLevel{{Actor: sender, Permission: common.DefaultConfig.ActiveName}}
 	} else {
 		action.Authorization = getAccountPermissions(txPermission)
 	}
@@ -390,7 +390,7 @@ func createSetABI(account common.Name, abi []byte, txPermission []string) *types
 		Data:    buffer,
 	}
 	if len(txPermission) == 0 {
-		action.Authorization = []types.PermissionLevel{{Actor: account, Permission: common.DefaultConfig.ActiveName}}
+		action.Authorization = []common.PermissionLevel{{Actor: account, Permission: common.DefaultConfig.ActiveName}}
 	} else {
 		action.Authorization = getAccountPermissions(txPermission)
 	}
@@ -411,7 +411,7 @@ func createSetCode(account common.Name, code []byte, txPermission []string) *typ
 		Data:    buffer,
 	}
 	if len(txPermission) == 0 {
-		action.Authorization = []types.PermissionLevel{{Actor: account, Permission: common.DefaultConfig.ActiveName}}
+		action.Authorization = []common.PermissionLevel{{Actor: account, Permission: common.DefaultConfig.ActiveName}}
 	} else {
 		action.Authorization = getAccountPermissions(txPermission)
 	}
@@ -432,7 +432,7 @@ func createUpdateAuth(account common.Name, permission common.Name, parent common
 		Data:    buffer,
 	}
 	if len(txPermission) == 0 {
-		action.Authorization = []types.PermissionLevel{{Actor: account, Permission: common.DefaultConfig.ActiveName}}
+		action.Authorization = []common.PermissionLevel{{Actor: account, Permission: common.DefaultConfig.ActiveName}}
 	} else {
 		action.Authorization = getAccountPermissions(txPermission)
 	}
@@ -452,7 +452,7 @@ func createDeleteAuth(account common.Name, permission common.Name, txPermission 
 		Data:    buffer,
 	}
 	if len(txPermission) == 0 {
-		action.Authorization = []types.PermissionLevel{{Actor: account, Permission: common.DefaultConfig.ActiveName}}
+		action.Authorization = []common.PermissionLevel{{Actor: account, Permission: common.DefaultConfig.ActiveName}}
 	} else {
 		action.Authorization = getAccountPermissions(txPermission)
 	}
@@ -474,7 +474,7 @@ func createLinkAuth(account common.Name, code common.Name, typeName common.Name,
 		Data:    buffer,
 	}
 	if len(txPermission) == 0 {
-		action.Authorization = []types.PermissionLevel{{Actor: account, Permission: common.DefaultConfig.ActiveName}}
+		action.Authorization = []common.PermissionLevel{{Actor: account, Permission: common.DefaultConfig.ActiveName}}
 	} else {
 		action.Authorization = getAccountPermissions(txPermission)
 	}
@@ -495,7 +495,7 @@ func createUnlinkAuth(account common.Name, code common.Name, typeName common.Nam
 		Data:    buffer,
 	}
 	if len(txPermission) == 0 {
-		action.Authorization = []types.PermissionLevel{{Actor: account, Permission: common.DefaultConfig.ActiveName}}
+		action.Authorization = []common.PermissionLevel{{Actor: account, Permission: common.DefaultConfig.ActiveName}}
 	} else {
 		action.Authorization = getAccountPermissions(txPermission)
 	}

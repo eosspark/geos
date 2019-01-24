@@ -42,14 +42,14 @@ func (m *multisig) Propose(call otto.FunctionCall) (response otto.Value) {
 	var params ProposeParams
 	readParams(&params, call)
 
-	reqperm := make([]types.PermissionLevel, 0)
+	reqperm := make([]common.PermissionLevel, 0)
 	err := json.Unmarshal([]byte(params.RequestedPerm), &reqperm)
 	if err != nil {
 		fmt.Println("Unmarshal requestedPerm is error: ", err)
 		return otto.FalseValue()
 	}
 
-	trxperm := make([]types.PermissionLevel, 0)
+	trxperm := make([]common.PermissionLevel, 0)
 	err = json.Unmarshal([]byte(params.TransactionPerm), &trxperm)
 	if err != nil {
 		fmt.Println("Unmarshal TransactionPerm is error: ", err)
@@ -73,7 +73,7 @@ func (m *multisig) Propose(call otto.FunctionCall) (response otto.Value) {
 	accountPermissions := getAccountPermissions(params.TxPermission)
 	if len(accountPermissions) == 0 {
 		if len(params.Proposer) > 0 {
-			accountPermissions = []types.PermissionLevel{{common.N(params.Proposer), common.DefaultConfig.ActiveName}}
+			accountPermissions = []common.PermissionLevel{{common.N(params.Proposer), common.DefaultConfig.ActiveName}}
 		} else {
 			try.EosThrow(&exception.MissingAuthException{}, "Authority is not provided (either by multisig parameter <proposer> or -p")
 		}
@@ -139,7 +139,7 @@ func (m *multisig) ProposeTrx(call otto.FunctionCall) (response otto.Value) {
 	var params ProposeTrxParams
 	readParams(&params, call)
 
-	reqperm := make([]types.PermissionLevel, 0)
+	reqperm := make([]common.PermissionLevel, 0)
 	err := json.Unmarshal([]byte(params.RequestedPerm), &reqperm)
 	if err != nil {
 		fmt.Println("Unmarshal requestedPerm is error: ", err)
@@ -155,7 +155,7 @@ func (m *multisig) ProposeTrx(call otto.FunctionCall) (response otto.Value) {
 	accountPermissions := getAccountPermissions(params.TxPermission)
 	if len(accountPermissions) == 0 {
 		if len(params.Proposer) > 0 {
-			accountPermissions = []types.PermissionLevel{{common.N(params.Proposer), common.DefaultConfig.ActiveName}}
+			accountPermissions = []common.PermissionLevel{{common.N(params.Proposer), common.DefaultConfig.ActiveName}}
 		} else {
 			try.EosThrow(&exception.MissingAuthException{}, "Authority is not provided (either by multisig parameter <proposer> or -p")
 		}
@@ -255,7 +255,7 @@ func (m *multisig) Unapprove(call otto.FunctionCall) (response otto.Value) {
 }
 
 func approveOrunapprove(action string, p *ApproveAndUnapproveParams) {
-	var permissions []types.PermissionLevel
+	var permissions []common.PermissionLevel
 	err := json.Unmarshal([]byte(p.Perm), &permissions)
 	if err != nil {
 		fmt.Println("Fail to parse permissions JSON ", p.Perm, err)
@@ -266,9 +266,9 @@ func approveOrunapprove(action string, p *ApproveAndUnapproveParams) {
 		"proposal_name": p.ProposalName,
 		"level":         p.Perm,
 	}
-	var accountPermissions []types.PermissionLevel
+	var accountPermissions []common.PermissionLevel
 	if len(p.TxPermission) == 0 {
-		accountPermissions = []types.PermissionLevel{{common.N(p.Proposer), common.DefaultConfig.ActiveName}}
+		accountPermissions = []common.PermissionLevel{{common.N(p.Proposer), common.DefaultConfig.ActiveName}}
 	} else {
 		accountPermissions = getAccountPermissions(p.TxPermission)
 	}
@@ -297,7 +297,7 @@ func (m *multisig) Cancel(call otto.FunctionCall) (response otto.Value) {
 	accountPermissions := getAccountPermissions(params.TxPermission)
 	if len(accountPermissions) == 0 {
 		if len(params.Proposer) > 0 {
-			accountPermissions = []types.PermissionLevel{{common.N(params.Canceler), common.DefaultConfig.ActiveName}}
+			accountPermissions = []common.PermissionLevel{{common.N(params.Canceler), common.DefaultConfig.ActiveName}}
 		} else {
 			try.EosThrow(&exception.MissingAuthException{}, "Authority is not provided (either by multisig parameter <proposer> or -p")
 		}
@@ -338,7 +338,7 @@ func (m *multisig) Exec(call otto.FunctionCall) (response otto.Value) {
 	accountPermissions := getAccountPermissions(params.TxPermission)
 	if len(accountPermissions) == 0 {
 		if len(params.Proposer) > 0 {
-			accountPermissions = []types.PermissionLevel{{common.N(params.Executer), common.DefaultConfig.ActiveName}}
+			accountPermissions = []common.PermissionLevel{{common.N(params.Executer), common.DefaultConfig.ActiveName}}
 		} else {
 			try.EosThrow(&exception.MissingAuthException{}, "Authority is not provided (either by multisig parameter <proposer> or -p")
 		}

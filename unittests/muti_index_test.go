@@ -31,7 +31,7 @@ func TestMultiIndexLoad(t *testing.T) {
 			actData := common.Variants{"what": 0}
 			act := b.GetAction(account,
 				common.N("trigger"),
-				[]types.PermissionLevel{{account, common.DefaultConfig.ActiveName}},
+				[]common.PermissionLevel{{account, common.DefaultConfig.ActiveName}},
 				&actData)
 
 			trx.Actions = append(trx.Actions, act)
@@ -50,7 +50,7 @@ func TestMultiIndexLoad(t *testing.T) {
 			actData := common.Variants{"what": 1}
 			act := b.GetAction(account,
 				common.N("trigger"),
-				[]types.PermissionLevel{{account, common.DefaultConfig.ActiveName}},
+				[]common.PermissionLevel{{account, common.DefaultConfig.ActiveName}},
 				&actData)
 
 			trx.Actions = append(trx.Actions, act)

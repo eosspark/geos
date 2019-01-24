@@ -14,7 +14,6 @@ package treemap
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/eosspark/container/utils"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/common/container"
 	rbt "github.com/eosspark/eos-go/common/container/tree"
@@ -26,7 +25,7 @@ import (
 type K int
 type V int
 
-var Compare = utils.IntComparator
+var Compare = func(a, b interface{}) int { return container.IntComparator(a.(int), b.(int)) }
 var Multi = false
 
 func assertMapImplementation() {
@@ -184,7 +183,7 @@ func (m *Map) UnmarshalJSON(data []byte) error {
 	elements := make([]pair, 0)
 	err := json.Unmarshal(data, &elements)
 	if err == nil {
-		m.Clear()
+		m.Tree = rbt.NewWith(Compare, Multi)
 		for _, pair := range elements {
 			m.Put(pair.Key, pair.Val)
 		}

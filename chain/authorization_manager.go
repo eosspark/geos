@@ -1,8 +1,8 @@
 package chain
 
 import (
-	"github.com/eosspark/container/sets/treeset"
 	"github.com/eosspark/eos-go/chain/types"
+	. "github.com/eosspark/eos-go/chain/types/generated_containers"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/eosspark/eos-go/database"
@@ -121,7 +121,7 @@ func (a *AuthorizationManager) GetPermissionLastUsed(permission *entity.Permissi
 	return puo.LastUsed
 }
 
-func (a *AuthorizationManager) FindPermission(level *types.PermissionLevel) (p *entity.PermissionObject) {
+func (a *AuthorizationManager) FindPermission(level *common.PermissionLevel) (p *entity.PermissionObject) {
 	Try(func() {
 		EosAssert(!level.Actor.Empty() && !level.Permission.Empty(), &InvalidPermission{}, "Invalid permission")
 		po := entity.PermissionObject{}
@@ -138,7 +138,7 @@ func (a *AuthorizationManager) FindPermission(level *types.PermissionLevel) (p *
 	return p
 }
 
-func (a *AuthorizationManager) GetPermission(level *types.PermissionLevel) (p *entity.PermissionObject) {
+func (a *AuthorizationManager) GetPermission(level *common.PermissionLevel) (p *entity.PermissionObject) {
 	Try(func() {
 		EosAssert(!level.Actor.Empty() && !level.Permission.Empty(), &InvalidPermission{}, "Invalid permission")
 		po := entity.PermissionObject{}
@@ -206,13 +206,13 @@ func (a *AuthorizationManager) LookupMinimumPermission(authorizerAccount common.
 	return p
 }
 
-func (a *AuthorizationManager) CheckUpdateAuthAuthorization(update UpdateAuth, auths []types.PermissionLevel) {
+func (a *AuthorizationManager) CheckUpdateAuthAuthorization(update UpdateAuth, auths []common.PermissionLevel) {
 	EosAssert(len(auths) == 1, &IrrelevantAuthException{}, "UpdateAuth action should only have one declared authorization")
 	auth := auths[0]
 	EosAssert(auth.Actor == update.Account, &IrrelevantAuthException{}, "the owner of the affected permission needs to be the actor of the declared authorization")
-	minPermission := a.FindPermission(&types.PermissionLevel{Actor: update.Account, Permission: update.Permission})
+	minPermission := a.FindPermission(&common.PermissionLevel{Actor: update.Account, Permission: update.Permission})
 	if minPermission == nil {
-		permission := a.GetPermission(&types.PermissionLevel{Actor: update.Account, Permission: update.Parent})
+		permission := a.GetPermission(&common.PermissionLevel{Actor: update.Account, Permission: update.Parent})
 		minPermission = permission
 	}
 	permissionIndex, err := a.db.GetIndex("id", entity.PermissionObject{})
@@ -220,23 +220,23 @@ func (a *AuthorizationManager) CheckUpdateAuthAuthorization(update UpdateAuth, a
 		log.Error("CheckUpdateAuthAuthorization is error: %s", err)
 	}
 	EosAssert(a.GetPermission(&auth).Satisfies(*minPermission, permissionIndex), &IrrelevantAuthException{},
-		"UpdateAuth action declares irrelevant authority '%v'; minimum authority is %v", auth, types.PermissionLevel{update.Account, minPermission.Name})
+		"UpdateAuth action declares irrelevant authority '%v'; minimum authority is %v", auth, common.PermissionLevel{update.Account, minPermission.Name})
 }
 
-func (a *AuthorizationManager) CheckDeleteAuthAuthorization(del DeleteAuth, auths []types.PermissionLevel) {
+func (a *AuthorizationManager) CheckDeleteAuthAuthorization(del DeleteAuth, auths []common.PermissionLevel) {
 	EosAssert(len(auths) == 1, &IrrelevantAuthException{}, "DeleteAuth action should only have one declared authorization")
 	auth := auths[0]
 	EosAssert(auth.Actor == del.Account, &IrrelevantAuthException{}, "the owner of the affected permission needs to be the actor of the declared authorization")
-	minPermission := a.GetPermission(&types.PermissionLevel{Actor: del.Account, Permission: del.Permission})
+	minPermission := a.GetPermission(&common.PermissionLevel{Actor: del.Account, Permission: del.Permission})
 	permissionIndex, err := a.db.GetIndex("id", entity.PermissionObject{})
 	if err != nil {
 		log.Error("CheckDeleteAuthAuthorization is error: %s", err)
 	}
 	EosAssert(a.GetPermission(&auth).Satisfies(*minPermission, permissionIndex), &IrrelevantAuthException{},
-		"DeleteAuth action declares irrelevant authority '%v'; minimum authority is %v", auth, types.PermissionLevel{minPermission.Owner, minPermission.Name})
+		"DeleteAuth action declares irrelevant authority '%v'; minimum authority is %v", auth, common.PermissionLevel{minPermission.Owner, minPermission.Name})
 }
 
-func (a *AuthorizationManager) CheckLinkAuthAuthorization(link LinkAuth, auths []types.PermissionLevel) {
+func (a *AuthorizationManager) CheckLinkAuthAuthorization(link LinkAuth, auths []common.PermissionLevel) {
 	EosAssert(len(auths) == 1, &IrrelevantAuthException{}, "link action should only have one declared authorization")
 	auth := auths[0]
 	EosAssert(auth.Actor == link.Account, &IrrelevantAuthException{}, "the owner of the affected permission needs to be the actor of the declared authorization")
@@ -255,11 +255,11 @@ func (a *AuthorizationManager) CheckLinkAuthAuthorization(link LinkAuth, auths [
 	if err != nil {
 		log.Error("CheckLinkAuthAuthorization is error: %s", err)
 	}
-	EosAssert(a.GetPermission(&auth).Satisfies(*a.GetPermission(&types.PermissionLevel{link.Account, *linkedPermissionName}), permissionIndex), &IrrelevantAuthException{},
-		"LinkAuth action declares irrelevant authority '%v'; minimum authority is %v", auth, types.PermissionLevel{link.Account, *linkedPermissionName})
+	EosAssert(a.GetPermission(&auth).Satisfies(*a.GetPermission(&common.PermissionLevel{link.Account, *linkedPermissionName}), permissionIndex), &IrrelevantAuthException{},
+		"LinkAuth action declares irrelevant authority '%v'; minimum authority is %v", auth, common.PermissionLevel{link.Account, *linkedPermissionName})
 }
 
-func (a *AuthorizationManager) CheckUnLinkAuthAuthorization(unlink UnLinkAuth, auths []types.PermissionLevel) {
+func (a *AuthorizationManager) CheckUnLinkAuthAuthorization(unlink UnLinkAuth, auths []common.PermissionLevel) {
 	EosAssert(len(auths) == 1, &IrrelevantAuthException{}, "unlink action should only have one declared authorization")
 	auth := auths[0]
 	EosAssert(auth.Actor == unlink.Account, &IrrelevantAuthException{},
@@ -276,11 +276,11 @@ func (a *AuthorizationManager) CheckUnLinkAuthAuthorization(unlink UnLinkAuth, a
 	if err != nil {
 		log.Error("CheckUnLinkAuthAuthorization is error: %s", err)
 	}
-	EosAssert(a.GetPermission(&auth).Satisfies(*a.GetPermission(&types.PermissionLevel{unlink.Account, *unlinkedPermissionName}), permissionIndex), &IrrelevantAuthException{},
-		"unlink action declares irrelevant authority '%v'; minimum authority is %v", auth, types.PermissionLevel{unlink.Account, *unlinkedPermissionName})
+	EosAssert(a.GetPermission(&auth).Satisfies(*a.GetPermission(&common.PermissionLevel{unlink.Account, *unlinkedPermissionName}), permissionIndex), &IrrelevantAuthException{},
+		"unlink action declares irrelevant authority '%v'; minimum authority is %v", auth, common.PermissionLevel{unlink.Account, *unlinkedPermissionName})
 }
 
-func (a *AuthorizationManager) CheckCancelDelayAuthorization(cancel CancelDelay, auths []types.PermissionLevel) common.Microseconds {
+func (a *AuthorizationManager) CheckCancelDelayAuthorization(cancel CancelDelay, auths []common.PermissionLevel) common.Microseconds {
 	EosAssert(len(auths) == 1, &IrrelevantAuthException{}, "CancelDelay action should only have one declared authorization")
 	auth := auths[0]
 	permissionIndex, err := a.db.GetIndex("id", entity.PermissionObject{})
@@ -325,8 +325,8 @@ func (a *AuthorizationManager) CheckCancelDelayAuthorization(cancel CancelDelay,
 }
 
 func (a *AuthorizationManager) CheckAuthorization(actions []*types.Action,
-	providedKeys *treeset.Set,
-	providedPermissions *treeset.Set,
+	providedKeys *PublicKeySet,
+	providedPermissions *PermissionLevelSet,
 	providedDelay common.Microseconds,
 	checkTime *func(),
 	allowUnusedKeys bool,
@@ -338,7 +338,7 @@ func (a *AuthorizationManager) CheckAuthorization(actions []*types.Action,
 	} else {
 		effectiveProvidedDelay = providedDelay
 	}
-	checker := types.MakeAuthChecker(func(p *types.PermissionLevel) types.SharedAuthority {
+	checker := types.MakeAuthChecker(func(p *common.PermissionLevel) types.SharedAuthority {
 		perm := a.GetPermission(p)
 		if perm != nil {
 			return perm.Auth
@@ -352,7 +352,7 @@ func (a *AuthorizationManager) CheckAuthorization(actions []*types.Action,
 		effectiveProvidedDelay,
 		checkTime,
 	)
-	permissionToSatisfy := make(map[types.PermissionLevel]common.Microseconds)
+	permissionToSatisfy := make(map[common.PermissionLevel]common.Microseconds)
 
 	for _, act := range actions {
 		specialCase := false
@@ -396,13 +396,13 @@ func (a *AuthorizationManager) CheckAuthorization(actions []*types.Action,
 			if !specialCase {
 				minPermissionName := a.LookupMinimumPermission(declaredAuth.Actor, act.Account, act.Name)
 				if minPermissionName != nil {
-					minPermission := a.GetPermission(&types.PermissionLevel{Actor: declaredAuth.Actor, Permission: *minPermissionName})
+					minPermission := a.GetPermission(&common.PermissionLevel{Actor: declaredAuth.Actor, Permission: *minPermissionName})
 					permissionIndex, err := a.db.GetIndex("id", entity.PermissionObject{})
 					if err != nil {
 						log.Error("CheckAuthorization is error: %s", err)
 					}
 					EosAssert(a.GetPermission(&declaredAuth).Satisfies(*minPermission, permissionIndex), &IrrelevantAuthException{},
-						"action declares irrelevant authority '%v'; minimum authority is %v", declaredAuth, types.PermissionLevel{minPermission.Owner, minPermission.Name})
+						"action declares irrelevant authority '%v'; minimum authority is %v", declaredAuth, common.PermissionLevel{minPermission.Owner, minPermission.Name})
 				}
 			}
 
@@ -435,8 +435,8 @@ func (a *AuthorizationManager) CheckAuthorization(actions []*types.Action,
 
 func (a *AuthorizationManager) CheckAuthorization2(account common.AccountName,
 	permission common.PermissionName,
-	providedKeys *treeset.Set, //flat_set<public_key_type>
-	providedPermissions *treeset.Set, //flat_set<permission_level>
+	providedKeys *PublicKeySet,        //flat_set<public_key_type>
+	providedPermissions *PermissionLevelSet, //flat_set<permission_level>
 	providedDelay common.Microseconds,
 	checkTime *func(),
 	allowUnusedKeys bool,
@@ -448,7 +448,7 @@ func (a *AuthorizationManager) CheckAuthorization2(account common.AccountName,
 	} else {
 		effectiveProvidedDelay = providedDelay
 	}
-	checker := types.MakeAuthChecker(func(p *types.PermissionLevel) types.SharedAuthority {
+	checker := types.MakeAuthChecker(func(p *common.PermissionLevel) types.SharedAuthority {
 		perm := a.GetPermission(p)
 		if perm != nil {
 			return perm.Auth
@@ -462,9 +462,9 @@ func (a *AuthorizationManager) CheckAuthorization2(account common.AccountName,
 		effectiveProvidedDelay,
 		checkTime,
 	)
-	EosAssert(checker.SatisfiedLc(&types.PermissionLevel{account, permission}, nil), &UnsatisfiedAuthorization{},
+	EosAssert(checker.SatisfiedLc(&common.PermissionLevel{account, permission}, nil), &UnsatisfiedAuthorization{},
 		"permission '%v' was not satisfied under a provided delay of %v ms, provided permissions %v, and provided keys %v",
-		types.PermissionLevel{account, permission}, providedDelay.Count()/1000, providedPermissions, providedKeys)
+		common.PermissionLevel{account, permission}, providedDelay.Count()/1000, providedPermissions, providedKeys)
 
 	if !allowUnusedKeys {
 		EosAssert(checker.AllKeysUsed(), &TxIrrelevantSig{}, "irrelevant keys provided: %v", checker.GetUnusedKeys())
@@ -472,10 +472,10 @@ func (a *AuthorizationManager) CheckAuthorization2(account common.AccountName,
 }
 
 func (a *AuthorizationManager) GetRequiredKeys(trx *types.Transaction,
-	candidateKeys *treeset.Set,
-	providedDelay common.Microseconds) treeset.Set {
+	candidateKeys *PublicKeySet,
+	providedDelay common.Microseconds) PublicKeySet {
 	checker := types.MakeAuthChecker(
-		func(p *types.PermissionLevel) types.SharedAuthority {
+		func(p *common.PermissionLevel) types.SharedAuthority {
 			perm := a.GetPermission(p)
 			if perm != nil {
 				return perm.Auth
@@ -485,7 +485,7 @@ func (a *AuthorizationManager) GetRequiredKeys(trx *types.Transaction,
 		},
 		a.control.GetGlobalProperties().Configuration.MaxAuthorityDepth,
 		candidateKeys,
-		treeset.NewWith(types.PermissionLevelType, types.ComparePermissionLevel),
+		NewPermissionLevelSet(),
 		providedDelay,
 		noopCheckTime,
 	)

@@ -3,10 +3,10 @@ package unittests
 import (
 	"bytes"
 	"encoding/json"
-	"github.com/eosspark/container/sets/treeset"
 	. "github.com/eosspark/eos-go/chain"
 	abi "github.com/eosspark/eos-go/chain/abi_serializer"
 	"github.com/eosspark/eos-go/chain/types"
+	. "github.com/eosspark/eos-go/chain/types/generated_containers"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/ecc"
@@ -163,14 +163,14 @@ func newConfig(readMode DBReadMode) *Config {
 	cfg.Genesis.InitialTimestamp, _ = common.FromIsoString("2020-01-01T00:00:00.000")
 	cfg.Genesis.InitialKey = BaseTester{}.getPublicKey(eosio, "active")
 
-	cfg.ActorWhitelist = *treeset.NewWith(common.TypeName, common.CompareName)
-	cfg.ActorBlacklist = *treeset.NewWith(common.TypeName, common.CompareName)
-	cfg.ContractWhitelist = *treeset.NewWith(common.TypeName, common.CompareName)
-	cfg.ContractBlacklist = *treeset.NewWith(common.TypeName, common.CompareName)
-	cfg.ActionBlacklist = *treeset.NewWith(common.TypePair, common.ComparePair)
-	cfg.KeyBlacklist = *treeset.NewWith(ecc.TypePubKey, ecc.ComparePubKey)
-	cfg.ResourceGreylist = *treeset.NewWith(common.TypeName, common.CompareName)
-	cfg.TrustedProducers = *treeset.NewWith(common.TypeName, common.CompareName)
+	cfg.ActorWhitelist = *NewAccountNameSet()
+	cfg.ActorBlacklist = *NewAccountNameSet()
+	cfg.ContractWhitelist = *NewAccountNameSet()
+	cfg.ContractBlacklist = *NewAccountNameSet()
+	cfg.ActionBlacklist = *NewNamePairSet()
+	cfg.KeyBlacklist = *NewPublicKeySet()
+	cfg.ResourceGreylist = *NewAccountNameSet()
+	cfg.TrustedProducers = *NewAccountNameSet()
 
 	//cfg.VmType = common.DefaultConfig.DefaultWasmRuntime // TODO
 
@@ -348,7 +348,7 @@ func (t BaseTester) CreateAccount(name common.AccountName, creator common.Accoun
 		ownerAuth = types.Authority{
 			Threshold: 2,
 			Keys:      []types.KeyWeight{{Key: t.getPublicKey(name, "owner"), Weight: 1}},
-			Accounts:  []types.PermissionLevelWeight{{Permission: types.PermissionLevel{Actor: creator, Permission: common.DefaultConfig.ActiveName}, Weight: 1}},
+			Accounts:  []types.PermissionLevelWeight{{Permission: common.PermissionLevel{Actor: creator, Permission: common.DefaultConfig.ActiveName}, Weight: 1}},
 		}
 	} else {
 		ownerAuth = types.NewAuthority(t.getPublicKey(name, "owner"), 0)
@@ -360,7 +360,7 @@ func (t BaseTester) CreateAccount(name common.AccountName, creator common.Accoun
 		pw := types.PermissionLevelWeight{}
 		for i := 0; i < len-1; i++ {
 			for j := 0; j < len-1-i; j++ {
-				if types.ComparePermissionLevel(auth.Accounts[j].Permission, auth.Accounts[j+1].Permission) == 1 {
+				if common.ComparePermissionLevel(auth.Accounts[j].Permission, auth.Accounts[j+1].Permission) == 1 {
 					pw = auth.Accounts[j]
 					auth.Accounts[j] = auth.Accounts[j+1]
 					auth.Accounts[j+1] = pw
@@ -372,12 +372,12 @@ func (t BaseTester) CreateAccount(name common.AccountName, creator common.Accoun
 		EosAssert(ownerAuth.Threshold <= math.MaxUint16, nil, "threshold is too high")
 		EosAssert(uint64(activeAuth.Threshold) <= uint64(math.MaxUint64), nil, "threshold is too high")
 		ownerAuth.Accounts = append(ownerAuth.Accounts, types.PermissionLevelWeight{
-			Permission: types.PermissionLevel{Actor: name, Permission: common.DefaultConfig.EosioCodeName},
+			Permission: common.PermissionLevel{Actor: name, Permission: common.DefaultConfig.EosioCodeName},
 			Weight:     types.WeightType(ownerAuth.Threshold),
 		})
 		sortPermissions(&ownerAuth)
 		activeAuth.Accounts = append(activeAuth.Accounts, types.PermissionLevelWeight{
-			Permission: types.PermissionLevel{Actor: name, Permission: common.DefaultConfig.EosioCodeName},
+			Permission: common.PermissionLevel{Actor: name, Permission: common.DefaultConfig.EosioCodeName},
 			Weight:     types.WeightType(activeAuth.Threshold),
 		})
 		sortPermissions(&activeAuth)
@@ -392,7 +392,7 @@ func (t BaseTester) CreateAccount(name common.AccountName, creator common.Accoun
 	act := &types.Action{
 		Account:       new.GetAccount(),
 		Name:          new.GetName(),
-		Authorization: []types.PermissionLevel{{creator, common.DefaultConfig.ActiveName}},
+		Authorization: []common.PermissionLevel{{creator, common.DefaultConfig.ActiveName}},
 		Data:          data,
 	}
 	trx.Actions = append(trx.Actions, act)
@@ -435,7 +435,7 @@ func (t BaseTester) PushTransaction(trx *types.SignedTransaction, deadline commo
 func (t BaseTester) PushAction(act *types.Action, authorizer common.AccountName) ActionResult {
 	trx := types.SignedTransaction{}
 	if !common.Empty(authorizer) {
-		act.Authorization = []types.PermissionLevel{{authorizer, common.DefaultConfig.ActiveName}}
+		act.Authorization = []common.PermissionLevel{{authorizer, common.DefaultConfig.ActiveName}}
 	}
 	trx.Actions = append(trx.Actions, act)
 	t.SetTransactionHeaders(&trx.Transaction, t.DefaultExpirationDelta, 0)
@@ -457,22 +457,22 @@ func (t BaseTester) PushAction(act *types.Action, authorizer common.AccountName)
 
 func (t BaseTester) PushAction2(code *common.AccountName, acttype *common.AccountName,
 	actor common.AccountName, data *common.Variants, expiration uint32, delaySec uint32) *types.TransactionTrace {
-	auths := make([]types.PermissionLevel, 0)
-	auths = append(auths, types.PermissionLevel{Actor: actor, Permission: common.DefaultConfig.ActiveName})
+	auths := make([]common.PermissionLevel, 0)
+	auths = append(auths, common.PermissionLevel{Actor: actor, Permission: common.DefaultConfig.ActiveName})
 	return t.PushAction4(code, acttype, &auths, data, expiration, delaySec)
 }
 
 func (t BaseTester) PushAction3(code *common.AccountName, acttype *common.AccountName,
 	actors []*common.AccountName, data *common.Variants, expiration uint32, delaySec uint32) *types.TransactionTrace {
-	auths := make([]types.PermissionLevel, 0)
+	auths := make([]common.PermissionLevel, 0)
 	for _, actor := range actors {
-		auths = append(auths, types.PermissionLevel{Actor: *actor, Permission: common.DefaultConfig.ActiveName})
+		auths = append(auths, common.PermissionLevel{Actor: *actor, Permission: common.DefaultConfig.ActiveName})
 	}
 	return t.PushAction4(code, acttype, &auths, data, expiration, delaySec)
 }
 
 func (t BaseTester) PushAction4(code *common.AccountName, acttype *common.AccountName,
-	auths *[]types.PermissionLevel, data *common.Variants, expiration uint32, delaySec uint32) *types.TransactionTrace {
+	auths *[]common.PermissionLevel, data *common.Variants, expiration uint32, delaySec uint32) *types.TransactionTrace {
 	trx := types.SignedTransaction{}
 	Try(func() {
 		action := t.GetAction(*code, *acttype, *auths, data)
@@ -504,7 +504,7 @@ func (t BaseTester) GetResolver() func(name common.AccountName) *abi.AbiSerializ
 }
 
 func (t BaseTester) GetAction(code common.AccountName, actType common.AccountName,
-	auths []types.PermissionLevel, data *common.Variants) *types.Action {
+	auths []common.PermissionLevel, data *common.Variants) *types.Action {
 
 	acnt := t.Control.GetAccount(code)
 	a := acnt.GetAbi()
@@ -595,7 +595,7 @@ func (t BaseTester) ProduceEmptyBlock(skipTime common.Microseconds, skipFlag uin
 	return t.produceBlock(skipTime, true, skipFlag)
 }
 
-func (t BaseTester) PushReqAuth(from common.AccountName, auths *[]types.PermissionLevel, keys *[]ecc.PrivateKey) *types.TransactionTrace {
+func (t BaseTester) PushReqAuth(from common.AccountName, auths *[]common.PermissionLevel, keys *[]ecc.PrivateKey) *types.TransactionTrace {
 	trx := types.SignedTransaction{}
 	type params struct {
 		From common.AccountName
@@ -619,11 +619,11 @@ func (t BaseTester) PushReqAuth(from common.AccountName, auths *[]types.Permissi
 
 func (t BaseTester) PushReqAuth2(from common.AccountName, role string, multiSig bool) *types.TransactionTrace {
 	if multiSig {
-		auths := []types.PermissionLevel{{Actor: from, Permission: common.DefaultConfig.OwnerName}}
+		auths := []common.PermissionLevel{{Actor: from, Permission: common.DefaultConfig.OwnerName}}
 		keys := []ecc.PrivateKey{t.getPrivateKey(from, role), t.getPrivateKey(eosio, "active")}
 		return t.PushReqAuth(from, &auths, &keys)
 	} else {
-		auths := []types.PermissionLevel{{Actor: from, Permission: common.DefaultConfig.OwnerName}}
+		auths := []common.PermissionLevel{{Actor: from, Permission: common.DefaultConfig.OwnerName}}
 		keys := []ecc.PrivateKey{t.getPrivateKey(from, role)}
 		return t.PushReqAuth(from, &auths, &keys)
 	}
@@ -648,7 +648,7 @@ func (t BaseTester) Transfer(from common.AccountName, to common.AccountName, amo
 		"memo":     memo,
 	}
 	acttype := common.N("transfer")
-	act := t.GetAction(currency, acttype, []types.PermissionLevel{{from, common.N("active")}}, &data)
+	act := t.GetAction(currency, acttype, []common.PermissionLevel{{from, common.N("active")}}, &data)
 	trx.Actions = append(trx.Actions, act)
 	t.SetTransactionHeaders(&trx.Transaction, t.DefaultExpirationDelta, 0)
 	privKey := t.getPrivateKey(from, "active")
@@ -668,7 +668,7 @@ func (t BaseTester) Issue(to common.AccountName, amount string, currency common.
 		"quantity": amount,
 	}
 	acttype := common.N("issue")
-	act := t.GetAction(currency, acttype, []types.PermissionLevel{{currency, common.N("active")}}, &data)
+	act := t.GetAction(currency, acttype, []common.PermissionLevel{{currency, common.N("active")}}, &data)
 	trx.Actions = append(trx.Actions, act)
 	t.SetTransactionHeaders(&trx.Transaction, t.DefaultExpirationDelta, 0)
 	privKey := t.getPrivateKey(currency, "active")
@@ -684,7 +684,7 @@ func (t BaseTester) LinkAuthority(account common.AccountName, code common.Accoun
 	act := types.Action{
 		Account:       link.GetAccount(),
 		Name:          link.GetName(),
-		Authorization: []types.PermissionLevel{{account, common.DefaultConfig.ActiveName}},
+		Authorization: []common.PermissionLevel{{account, common.DefaultConfig.ActiveName}},
 		Data:          data,
 	}
 	trx.Actions = append(trx.Actions, &act)
@@ -702,7 +702,7 @@ func (t BaseTester) UnlinkAuthority(account common.AccountName, code common.Acco
 	act := types.Action{
 		Account:       unlink.GetAccount(),
 		Name:          unlink.GetName(),
-		Authorization: []types.PermissionLevel{{account, common.DefaultConfig.ActiveName}},
+		Authorization: []common.PermissionLevel{{account, common.DefaultConfig.ActiveName}},
 		Data:          data,
 	}
 	trx.Actions = append(trx.Actions, &act)
@@ -713,7 +713,7 @@ func (t BaseTester) UnlinkAuthority(account common.AccountName, code common.Acco
 	t.PushTransaction(&trx, common.MaxTimePoint(), t.DefaultBilledCpuTimeUs)
 }
 
-func (t BaseTester) SetAuthority(account common.AccountName, perm common.PermissionName, auth types.Authority, parent common.PermissionName, auths *[]types.PermissionLevel, keys *[]ecc.PrivateKey) {
+func (t BaseTester) SetAuthority(account common.AccountName, perm common.PermissionName, auth types.Authority, parent common.PermissionName, auths *[]common.PermissionLevel, keys *[]ecc.PrivateKey) {
 	trx := types.SignedTransaction{}
 	update := UpdateAuth{Account: account, Permission: perm, Parent: parent, Auth: auth}
 	data, _ := rlp.EncodeToBytes(update)
@@ -733,12 +733,12 @@ func (t BaseTester) SetAuthority(account common.AccountName, perm common.Permiss
 }
 
 func (t BaseTester) SetAuthority2(account common.AccountName, perm common.PermissionName, auth types.Authority, parent common.PermissionName) {
-	permL := types.PermissionLevel{Actor: account, Permission: common.DefaultConfig.OwnerName}
+	permL := common.PermissionLevel{Actor: account, Permission: common.DefaultConfig.OwnerName}
 	privKey := t.getPrivateKey(account, "owner")
-	t.SetAuthority(account, perm, auth, parent, &[]types.PermissionLevel{permL}, &[]ecc.PrivateKey{privKey})
+	t.SetAuthority(account, perm, auth, parent, &[]common.PermissionLevel{permL}, &[]ecc.PrivateKey{privKey})
 }
 
-func (t BaseTester) DeleteAuthority(account common.AccountName, perm common.PermissionName, auths *[]types.PermissionLevel, keys *[]ecc.PrivateKey) {
+func (t BaseTester) DeleteAuthority(account common.AccountName, perm common.PermissionName, auths *[]common.PermissionLevel, keys *[]ecc.PrivateKey) {
 	trx := types.SignedTransaction{}
 	delete := DeleteAuth{Account: account, Permission: perm}
 	data, _ := rlp.EncodeToBytes(delete)
@@ -758,9 +758,9 @@ func (t BaseTester) DeleteAuthority(account common.AccountName, perm common.Perm
 }
 
 func (t BaseTester) DeleteAuthority2(account common.AccountName, perm common.PermissionName) {
-	permL := types.PermissionLevel{Actor: account, Permission: common.DefaultConfig.OwnerName}
+	permL := common.PermissionLevel{Actor: account, Permission: common.DefaultConfig.OwnerName}
 	privKey := t.getPrivateKey(account, "owner")
-	t.DeleteAuthority(account, perm, &[]types.PermissionLevel{permL}, &[]ecc.PrivateKey{privKey})
+	t.DeleteAuthority(account, perm, &[]common.PermissionLevel{permL}, &[]ecc.PrivateKey{privKey})
 }
 
 func (t BaseTester) SetCode(account common.AccountName, wasm []uint8, signer *ecc.PrivateKey) {
@@ -770,7 +770,7 @@ func (t BaseTester) SetCode(account common.AccountName, wasm []uint8, signer *ec
 	act := types.Action{
 		Account:       setCode.GetAccount(),
 		Name:          setCode.GetName(),
-		Authorization: []types.PermissionLevel{{account, common.DefaultConfig.ActiveName}},
+		Authorization: []common.PermissionLevel{{account, common.DefaultConfig.ActiveName}},
 		Data:          data,
 	}
 	trx.Actions = append(trx.Actions, &act)
@@ -802,7 +802,7 @@ func (t BaseTester) SetAbi(account common.AccountName, abiJson []byte, signer *e
 	act := types.Action{
 		Account:       setAbi.GetAccount(),
 		Name:          setAbi.GetName(),
-		Authorization: []types.PermissionLevel{{account, common.DefaultConfig.ActiveName}},
+		Authorization: []common.PermissionLevel{{account, common.DefaultConfig.ActiveName}},
 		Data:          data,
 	}
 	trx.Actions = append(trx.Actions, &act)
@@ -1008,7 +1008,7 @@ func (vt ValidatingTester) DefaultProduceBlock() *types.SignedBlock {
 	return sb
 }
 
-func NewValidatingTesterTrustedProducers(trustedProducers *treeset.Set) *ValidatingTester {
+func NewValidatingTesterTrustedProducers(trustedProducers *AccountNameSet) *ValidatingTester {
 	vt := &ValidatingTester{}
 	vt.DefaultExpirationDelta = 6
 	vt.DefaultBilledCpuTimeUs = 2000
@@ -1028,7 +1028,7 @@ func NewValidatingTesterTrustedProducers(trustedProducers *treeset.Set) *Validat
 func (vt ValidatingTester) PushAction(act *types.Action, authorizer common.AccountName) ActionResult {
 	trx := types.SignedTransaction{}
 	if !common.Empty(authorizer) {
-		act.Authorization = []types.PermissionLevel{{authorizer, common.DefaultConfig.ActiveName}}
+		act.Authorization = []common.PermissionLevel{{authorizer, common.DefaultConfig.ActiveName}}
 	}
 	trx.Actions = append(trx.Actions, act)
 	vt.SetTransactionHeaders(&trx.Transaction, vt.DefaultExpirationDelta, 0)
@@ -1110,12 +1110,12 @@ func (vt *ValidatingTester) CreateDefaultAccount(name common.AccountName) *types
 		EosAssert(ownerAuth.Threshold <= math.MaxUint16, nil, "threshold is too high")
 		EosAssert(uint64(activeAuth.Threshold) <= uint64(math.MaxUint64), nil, "threshold is too high")
 		ownerAuth.Accounts = append(ownerAuth.Accounts, types.PermissionLevelWeight{
-			Permission: types.PermissionLevel{Actor: name, Permission: common.DefaultConfig.EosioCodeName},
+			Permission: common.PermissionLevel{Actor: name, Permission: common.DefaultConfig.EosioCodeName},
 			Weight:     types.WeightType(ownerAuth.Threshold),
 		})
 		sortPermissions(&ownerAuth)
 		activeAuth.Accounts = append(activeAuth.Accounts, types.PermissionLevelWeight{
-			Permission: types.PermissionLevel{Actor: name, Permission: common.DefaultConfig.EosioCodeName},
+			Permission: common.PermissionLevel{Actor: name, Permission: common.DefaultConfig.EosioCodeName},
 			Weight:     types.WeightType(activeAuth.Threshold),
 		})
 		sortPermissions(&activeAuth)
@@ -1130,7 +1130,7 @@ func (vt *ValidatingTester) CreateDefaultAccount(name common.AccountName) *types
 	act := &types.Action{
 		Account:       new.GetAccount(),
 		Name:          new.GetName(),
-		Authorization: []types.PermissionLevel{{creator, common.DefaultConfig.ActiveName}},
+		Authorization: []common.PermissionLevel{{creator, common.DefaultConfig.ActiveName}},
 		Data:          data,
 	}
 	trx.Actions = append(trx.Actions, act)

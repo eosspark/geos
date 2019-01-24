@@ -2,14 +2,12 @@ package chain_plugin
 
 import (
 	"fmt"
-	"github.com/eosspark/container/sets/treeset"
 	"github.com/eosspark/eos-go/chain"
 	"github.com/eosspark/eos-go/chain/abi_serializer"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	math "github.com/eosspark/eos-go/common/eos_math"
 	"github.com/eosspark/eos-go/crypto"
-	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/eosspark/eos-go/database"
 	. "github.com/eosspark/eos-go/entity"
@@ -219,7 +217,7 @@ func (ro *ReadOnly) GetAccount(params GetAccountParams) GetAccountResult {
 	result.LastCodeUpdate = a.LastCodeUpdate
 	result.Created = a.CreationDate.ToTimePoint()
 
-	grelisted := ro.db.IsResourceGreylisted(&result.AccountName)
+	grelisted := ro.db.IsResourceGreylisted(result.AccountName)
 	result.NetLimit = rm.GetAccountNetLimitEx(result.AccountName, !grelisted)
 	result.CpuLimit = rm.GetAccountCpuLimitEx(result.AccountName, !grelisted)
 	result.RAMUsage = rm.GetAccountRamUsage(result.AccountName)
@@ -392,18 +390,7 @@ func (ro *ReadOnly) GetRequiredKeys(params GetRequiredKeysParams) GetRequiredKey
 	trx := &types.Transaction{}
 	common.FromVariant(&params.Transaction, trx)
 
-	candidateKeys := treeset.NewWith(ecc.TypePubKey, ecc.ComparePubKey)
-	for _, key := range params.AvailableKeys {
-		candidateKeys.Add(key)
-	}
-
-	keys := ro.db.GetAuthorizationManager().GetRequiredKeys(trx, candidateKeys, 0)
-	result := make([]ecc.PublicKey, 0, keys.Size())
-	keys.Each(func(index int, value interface{}) {
-		result = append(result, value.(ecc.PublicKey))
-	})
-
-	return GetRequiredKeysResult{RequiredKeys: result}
+	return GetRequiredKeysResult{RequiredKeys: ro.db.GetAuthorizationManager().GetRequiredKeys(trx, &params.AvailableKeys, 0)}
 }
 
 func (ro *ReadOnly) GetTableIndexName(p GetTableRowsParams, primary *bool) uint64 {

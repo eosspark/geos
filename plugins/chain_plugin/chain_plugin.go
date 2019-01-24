@@ -227,7 +227,7 @@ func (c *ChainPlugin) PluginInitialize(options *cli.Context) {
 		EosAssert(pos != -1, &PluginConfigException{}, "Invalid entry in action-blacklist: '%s'", action)
 		code := N(action[0:pos])
 		act := N(action[pos+2:])
-		c.my.ChainConfig.ActionBlacklist.Add(MakePair(code, act))
+		c.my.ChainConfig.ActionBlacklist.Add(NamePair{code, act})
 	}
 
 	for _, keyStr := range options.StringSlice("key-blacklist") {

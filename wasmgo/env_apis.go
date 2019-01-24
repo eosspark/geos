@@ -4,8 +4,8 @@ import (
 	"bytes"
 	"encoding/hex"
 	"fmt"
-	"github.com/eosspark/container/sets/treeset"
 	"github.com/eosspark/eos-go/chain/types"
+	. "github.com/eosspark/eos-go/chain/types/generated_containers"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/common/eos_math"
 	"github.com/eosspark/eos-go/crypto"
@@ -2608,8 +2608,8 @@ func checkTransactionAuthorization(vm *VirtualMachine) int64 {
 	pubkeysDataBytes := getMemory(vm, pubkeysData, pubkeysSize)
 	permsDataBytes := getMemory(vm, permsData, permsSize)
 
-	providedKeys := treeset.NewWith(ecc.TypePubKey, ecc.ComparePubKey)
-	providedPermissions := treeset.NewWith(types.PermissionLevelType, types.ComparePermissionLevel)
+	providedKeys := NewPublicKeySet()
+	providedPermissions := NewPermissionLevelSet()
 	trx := types.Transaction{}
 
 	unpackProvidedKeys(providedKeys, &pubkeysDataBytes)
@@ -2655,8 +2655,8 @@ func checkPermissionAuthorization(vm *VirtualMachine) int64 {
 	pubkeysDataBytes := getMemory(vm, pubkeysData, pubkeysSize)
 	permsDataBytes := getMemory(vm, permsData, permsSize)
 
-	providedKeys := treeset.NewWith(ecc.TypePubKey, ecc.ComparePubKey)
-	providedPermissions := treeset.NewWith(types.PermissionLevelType, types.ComparePermissionLevel)
+	providedKeys := NewPublicKeySet()
+	providedPermissions := NewPermissionLevelSet()
 
 	unpackProvidedKeys(providedKeys, &pubkeysDataBytes)
 	unpackProvidedPermissions(providedPermissions, &permsDataBytes)
@@ -2683,7 +2683,7 @@ func checkPermissionAuthorization(vm *VirtualMachine) int64 {
 	return 1
 }
 
-func unpackProvidedKeys(ps *treeset.Set, pubkeysData *[]byte) {
+func unpackProvidedKeys(ps *PublicKeySet, pubkeysData *[]byte) {
 	if len(*pubkeysData) == 0 {
 		return
 	}
@@ -2697,12 +2697,12 @@ func unpackProvidedKeys(ps *treeset.Set, pubkeysData *[]byte) {
 
 }
 
-func unpackProvidedPermissions(ps *treeset.Set, permsData *[]byte) {
+func unpackProvidedPermissions(ps *PermissionLevelSet, permsData *[]byte) {
 	if len(*permsData) == 0 {
 		return
 	}
 
-	permissions := []types.PermissionLevel{}
+	permissions := []common.PermissionLevel{}
 	rlp.DecodeBytes(*permsData, &permissions)
 
 	for _, permission := range permissions {

@@ -2,6 +2,7 @@ package testing
 
 import (
 	"github.com/eosspark/eos-go/chain/types"
+	. "github.com/eosspark/eos-go/chain/types/generated_containers"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/ecc"
@@ -68,8 +69,8 @@ func (t *ChainTester) NewHeaderStateTester(when types.BlockTimeStamp) *types.Blo
 	genHeader.Header.Confirmed = 1
 	genHeader.BlockId = genHeader.Header.BlockID()
 	genHeader.BlockNum = genHeader.Header.BlockNumber()
-	genHeader.ProducerToLastProduced = *types.NewAccountNameUint32Map()
-	genHeader.ProducerToLastImpliedIrb = *types.NewAccountNameUint32Map()
+	genHeader.ProducerToLastProduced = *NewAccountNameUint32Map()
+	genHeader.ProducerToLastImpliedIrb = *NewAccountNameUint32Map()
 
 	return genHeader
 }
