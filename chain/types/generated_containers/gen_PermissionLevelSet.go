@@ -193,7 +193,7 @@ func (set *PermissionLevelSet) UnmarshalJSON(data []byte) error {
 	elements := make([]common.PermissionLevel, 0)
 	err := json.Unmarshal(data, &elements)
 	if err == nil {
-		set.Clear()
+		set.Tree = rbt.NewWith(common.ComparePermissionLevel, false)
 		set.Add(elements...)
 	}
 	return err

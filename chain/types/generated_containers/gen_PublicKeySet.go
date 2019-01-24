@@ -194,7 +194,7 @@ func (set *PublicKeySet) UnmarshalJSON(data []byte) error {
 	elements := make([]ecc.PublicKey, 0)
 	err := json.Unmarshal(data, &elements)
 	if err == nil {
-		set.Clear()
+		set.Tree = rbt.NewWith(ecc.ComparePubKey, false)
 		set.Add(elements...)
 	}
 	return err

@@ -193,7 +193,7 @@ func (set *NamePairSet) UnmarshalJSON(data []byte) error {
 	elements := make([]common.NamePair, 0)
 	err := json.Unmarshal(data, &elements)
 	if err == nil {
-		set.Clear()
+		set.Tree = rbt.NewWith(common.CompareNamePair, false)
 		set.Add(elements...)
 	}
 	return err

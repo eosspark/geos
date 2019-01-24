@@ -193,7 +193,7 @@ func (set *AccountNameSet) UnmarshalJSON(data []byte) error {
 	elements := make([]common.AccountName, 0)
 	err := json.Unmarshal(data, &elements)
 	if err == nil {
-		set.Clear()
+		set.Tree = rbt.NewWith(common.CompareName, false)
 		set.Add(elements...)
 	}
 	return err

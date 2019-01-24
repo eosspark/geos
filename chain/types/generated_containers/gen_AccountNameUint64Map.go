@@ -181,7 +181,7 @@ func (m *AccountNameUint64Map) UnmarshalJSON(data []byte) error {
 	elements := make([]pairAccountNameUint64Map, 0)
 	err := json.Unmarshal(data, &elements)
 	if err == nil {
-		m.Clear()
+		m.Tree = rbt.NewWith(common.CompareName, false)
 		for _, pair := range elements {
 			m.Put(pair.Key, pair.Val)
 		}
