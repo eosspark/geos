@@ -2,7 +2,7 @@ package chain
 
 import (
 	"github.com/eosspark/eos-go/chain/types"
-	"github.com/eosspark/eos-go/common"
+	common "github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/crypto/rlp"
@@ -32,6 +32,7 @@ func TestContract(t *testing.T) {
 		}
 
 		control := NewController(NewConfig())
+		control.Startup()
 		blockTimeStamp := types.NewBlockTimeStamp(common.Now())
 		control.StartBlock(blockTimeStamp, 0)
 
@@ -280,6 +281,7 @@ func TestTransactionContextTest(t *testing.T) {
 
 		//set code
 		control := NewController(NewConfig())
+		control.Startup()
 		blockTimeStamp := types.NewBlockTimeStamp(common.Now())
 		control.StartBlock(blockTimeStamp, 0)
 
@@ -318,7 +320,7 @@ func TestTransactionContextTest(t *testing.T) {
 			},
 		}
 		trxHeader := types.TransactionHeader{
-			Expiration:       common.MaxTimePointSec(),
+			Expiration:       common.NewTimePointSecTp(common.Now().AddUs(common.Minutes(10))),
 			RefBlockNum:      4,
 			RefBlockPrefix:   3832731038,
 			MaxNetUsageWords: 100000,

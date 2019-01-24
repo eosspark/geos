@@ -13,27 +13,27 @@ import (
 	"github.com/stretchr/testify/assert"
 	"strings"
 	"testing"
-	"time"
 )
 
-func TestController_ProduceProcess(t *testing.T) {
-	timer := time.NewTicker(1 * time.Second)
-	for {
-		select {
-		case <-timer.C:
-			produceProcess()
-		}
-	}
+var path string = "/tmp/data/"
 
+func TestController_ProduceProcess(t *testing.T) {
+	//timer := time.NewTicker(1 * time.Second)
+	cfg := NewConfig()
+	cfg.BlocksDir = path + cfg.BlocksDir
+	cfg.StateDir = path + cfg.StateDir
+	con := NewController(cfg)
+	con.Startup()
+	for i := 0; i < 100; i++ {
+		produceProcess(con)
+	}
+	con.Close()
 }
 
-func produceProcess() {
-	con := GetControllerInstance()
-	/*basetester := newBaseTester(con)
-	basetester.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs), 0)*/
+func produceProcess(con *Controller) {
 
 	signatureProviders := make(map[ecc.PublicKey]signatureProviderType)
-	//con := GetControllerInstance()
+	//con := NewController(NewConfig())
 	con.AbortBlock()
 	now := common.Now()
 	var base common.TimePoint
@@ -94,16 +94,6 @@ func makeKeySignatureProvider(key *ecc.PrivateKey) signatureProviderType {
 	return signFunc
 }
 
-func TestPopBlock(t *testing.T) {
-	con := GetControllerInstance()
-	con.PopBlock()
-}
-
-func TestAbortBlock(t *testing.T) {
-	con := GetControllerInstance()
-	con.AbortBlock()
-}
-
 func CallBackApplayHandler(p *ApplyContext) {
 	fmt.Println("SetApplyHandler CallBack")
 }
@@ -112,7 +102,7 @@ func CallBackApplayHandler2(p *ApplyContext) {
 	fmt.Println("SetApplyHandler CallBack2")
 }
 func TestSetApplyHandler(t *testing.T) {
-	con := GetControllerInstance()
+	con := NewController(NewConfig())
 
 	//applyCon := ApplyContext{}
 	con.SetApplayHandler(common.AccountName(common.N("eosio")), common.ScopeName(common.N("eosio")), common.ActionName(common.N("newaccount")), CallBackApplayHandler)
@@ -125,85 +115,120 @@ func TestSetApplyHandler(t *testing.T) {
 	handler2(nil)
 
 	fmt.Println(len(con.ApplyHandlers))
-
+	con.Close()
 }
 
 var IrreversibleBlock chan types.BlockState = make(chan types.BlockState)
 
 func TestController_CreateNativeAccount(t *testing.T) {
 	//CreateNativeAccount(name common.AccountName,owner types.Authority,active types.Authority,isPrivileged bool)
-	control := GetControllerInstance()
+	cfg := NewConfig()
+	cfg.BlocksDir = path + cfg.BlocksDir
+	cfg.StateDir = path + cfg.StateDir
+	con := NewController(cfg)
 	name := common.AccountName(common.N("eos"))
 
 	owner := types.Authority{}
 	owner.Threshold = 2
 	active := types.Authority{}
 	active.Threshold = 1
-	control.CreateNativeAccount(name, owner, active, false)
+	con.CreateNativeAccount(name, owner, active, false)
 	fmt.Println(name)
 	result := entity.AccountObject{}
 	result.Name = name
 	//control.DB.Find("name", result)
 
-	fmt.Println("check account name:", strings.Compare(name.String(), "eos"))
+	//fmt.Println("check account name:", strings.Compare(name.String(), "eos"))
 	assert.Equal(t, "eos", name.String())
-	control.Close()
-}
-
-func TestController_GetWasmInterface(t *testing.T) {
-	control := GetControllerInstance()
-	log.Info("%#v", control.WasmIf)
-	//assert.Equal(t, nil, control.WasmIf)
+	con.Close()
 }
 
 func TestController_GetGlobalProperties(t *testing.T) {
-	c := GetControllerInstance()
-	result := c.GetGlobalProperties()
+	cfg := NewConfig()
+	cfg.BlocksDir = path + cfg.BlocksDir
+	cfg.StateDir = path + cfg.StateDir
+	con := NewController(cfg)
+	result := con.GetGlobalProperties()
 	gp := entity.GlobalPropertyObject{}
 	gp.ID = common.IdType(1)
-	err := c.DB.Find("ID", gp, &gp)
+	err := con.DB.Find("ID", gp, &gp)
 	if err != nil {
 		assert.Error(t, err, gp)
 	}
 	assert.Equal(t, false, common.Empty(result)) //GlobalProperties not initialized
 	assert.Equal(t, false, result == &gp)
-	c.Close()
+	con.Close()
 }
 
 func TestController_GetDynamicGlobalProperties(t *testing.T) {
-	c := GetControllerInstance()
-	result := c.GetDynamicGlobalProperties()
+	cfg := NewConfig()
+	cfg.BlocksDir = path + cfg.BlocksDir
+	cfg.StateDir = path + cfg.StateDir
+	con := NewController(cfg)
+	con.Startup()
+	con.GetDynamicGlobalProperties()
 	dgpo := entity.DynamicGlobalPropertyObject{}
-	dgpo.ID = 1
-	assert.Equal(t, &dgpo, result)
-	//fmt.Println("*******", result)
+	dgpo.ID = 0
+	con.Close()
 }
-
+func inString(s1, s2 string) bool {
+	return strings.Contains(s1, s2)
+}
 func TestController_GetBlockIdForNum_NotFound(t *testing.T) {
-	c := GetControllerInstance()
+	cfg := NewConfig()
+	cfg.BlocksDir = path + cfg.BlocksDir
+	cfg.StateDir = path + cfg.StateDir
+	con := NewController(cfg)
+	con.Startup()
+	var ex string
 	try.Try(func() {
-		c.GetBlockIdForNum(10)
-	}).Catch(func(ex exception.Exception) { //TODO catch exception code
-		assert.Equal(t, 3100002, int(ex.Code()))
+		con.GetBlockIdForNum(10)
+	}).Catch(func(e exception.UnknownBlockException) {
+		ex = e.DetailMessage()
 	}).End()
-
+	//fmt.Println("--A--",ex)
+	assert.True(t, inString(ex, "Could not find block: 10"))
+	con.Close()
 }
 
 func TestController_StartBlock(t *testing.T) {
-	c := GetControllerInstance()
-	w := types.NewBlockTimeStamp(common.Now())
+	cfg := NewConfig()
+	cfg.BlocksDir = path + cfg.BlocksDir
+	cfg.StateDir = path + cfg.StateDir
+	con := NewController(cfg)
+	con.Startup()
 	s := types.Irreversible
-	c.StartBlock(w, uint16(s))
-	c.Close()
+	now := common.Now()
+	var base common.TimePoint
+	if now > con.HeadBlockTime() {
+		base = now
+	} else {
+		base = con.HeadBlockTime()
+	}
+	minTimeToNextBlock := common.DefaultConfig.BlockIntervalUs - (int64(base.TimeSinceEpoch()) % common.DefaultConfig.BlockIntervalUs)
+	blockTime := base.AddUs(common.Microseconds(minTimeToNextBlock))
+
+	if blockTime.Sub(now) < common.Microseconds(common.DefaultConfig.BlockIntervalUs/10) { // we must sleep for at least 50ms
+		blockTime = blockTime.AddUs(common.Microseconds(common.DefaultConfig.BlockIntervalUs))
+	}
+	con.StartBlock(types.NewBlockTimeStamp(blockTime), uint16(s))
+	con.Close()
 }
 
 func TestController_Close(t *testing.T) {
-	c := GetControllerInstance()
-	c.Close()
+	cfg := NewConfig()
+	cfg.BlocksDir = path + cfg.BlocksDir
+	cfg.StateDir = path + cfg.StateDir
+	con := NewController(cfg)
+	con.Close()
 }
 
 func TestController_UpdateProducersAuthority(t *testing.T) {
-	c := GetControllerInstance()
+	cfg := NewConfig()
+	cfg.BlocksDir = path + cfg.BlocksDir
+	cfg.StateDir = path + cfg.StateDir
+	c := NewController(cfg)
+	c.Startup()
 	c.AbortBlock()
 	now := common.Now()
 	var base common.TimePoint
@@ -221,13 +246,4 @@ func TestController_UpdateProducersAuthority(t *testing.T) {
 	c.StartBlock(types.NewBlockTimeStamp(blockTime), 0)
 	c.updateProducersAuthority()
 	c.Close()
-}
-
-func BenchmarkGetControllerInstance(b *testing.B) {
-	b.StopTimer()
-	b.StartTimer()
-	GetControllerInstance()
-	b.StopTimer()
-	/*i := c.LastIrreversibleBlockId()
-	fmt.Println(i)*/
 }

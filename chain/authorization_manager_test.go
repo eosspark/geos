@@ -7,14 +7,18 @@ import (
 )
 
 func TestAuthorizationManager_CreatePermission(t *testing.T) {
-	control := GetControllerInstance()
+	cfg := NewConfig()
+	cfg.BlocksDir = path + cfg.BlocksDir
+	cfg.StateDir = path + cfg.StateDir
+	control := NewController(cfg)
+	control.Startup()
 	az := newAuthorizationManager(control)
 
 	az.CreatePermission(common.AccountName(common.N("yc")),
 		common.PermissionName(common.N("active")),
 		PermissionIdType(1),
 		types.Authority{}, 2)
-
+	control.Close()
 	//Need control.pending
 	//az.CreatePermission(common.AccountName(common.N("yc")),
 	//					common.PermissionName(common.N("active")),
