@@ -21,14 +21,14 @@ func newAbiTraverseContextWithDeadline(maxSerializationTime common.Microseconds,
 	return abiTraverseContext{maxSerializationTime: maxSerializationTime, deadline: deadline}
 }
 
-func outputName(s string, str string, shorten bool, maxLength common.SizeT){
+func outputName(s string, str string, shorten bool, maxLength common.SizeT) {
 	minNumCharactersAtEnds := common.SizeT(4)
 	preferredNumTailEndCharacters := common.SizeT(6)
 	fillIn := "..."
 	Assert(minNumCharactersAtEnds <= preferredNumTailEndCharacters, "preferred number of tail end characters cannot be less than the imposed absolute minimum")
 	fillInLength := len(fillIn)
-	minLength := fillInLength + 2 * minNumCharactersAtEnds
-	preferredMinLength := fillInLength + 2 * preferredNumTailEndCharacters
+	minLength := fillInLength + 2*minNumCharactersAtEnds
+	preferredMinLength := fillInLength + 2*preferredNumTailEndCharacters
 
 	maxLength = common.SizeT(common.Max(uint64(maxLength), uint64(minLength)))
 	if !shorten || len(str) <= maxLength {
@@ -38,11 +38,11 @@ func outputName(s string, str string, shorten bool, maxLength common.SizeT){
 
 	actualNumTailEndCharacters := preferredNumTailEndCharacters
 	if maxLength < preferredMinLength {
-		actualNumTailEndCharacters = minNumCharactersAtEnds + (maxLength - minLength) / 2
+		actualNumTailEndCharacters = minNumCharactersAtEnds + (maxLength-minLength)/2
 	}
-	s += string([]byte(str)[:maxLength - fillInLength - actualNumTailEndCharacters])
+	s += string([]byte(str)[:maxLength-fillInLength-actualNumTailEndCharacters])
 	s += fillIn
-	s += string([]byte(str + string(len(str) - actualNumTailEndCharacters))[:actualNumTailEndCharacters])
+	s += string([]byte(str + string(len(str)-actualNumTailEndCharacters))[:actualNumTailEndCharacters])
 }
 
 func (a abiTraverseContext) checkDeadline() {
@@ -65,21 +65,21 @@ type defMapItr struct {
 	second interface{}
 }
 
-type emptyPathRoot struct {}
+type emptyPathRoot struct{}
 
-type arrayTypePathRoot struct {}
+type arrayTypePathRoot struct{}
 
 type structTypePathRoot struct {
-	structItr   defMapItr
+	structItr defMapItr
 }
 
 type variantTypePathRoot struct {
-	variantItr  defMapItr
+	variantItr defMapItr
 }
 
 type pathRoot = common.StaticVariant
 
-type emptyPathItem struct {}
+type emptyPathItem struct{}
 
 type arrayIndexPathItem struct {
 	typeHint   pathRoot
@@ -131,11 +131,11 @@ func (aw abiTraverseContextWithPath) setPathRoot(typename typeName) {
 	} else {
 		structDef, ok := aw.abis.structs[rtype]
 		if ok {
-			aw.rootOfPath = structTypePathRoot{structItr:defMapItr{first: rtype, second: structDef}}
+			aw.rootOfPath = structTypePathRoot{structItr: defMapItr{first: rtype, second: structDef}}
 		} else {
 			variantDef, ok := aw.abis.variants[rtype]
 			if ok {
-				aw.rootOfPath = variantTypePathRoot{variantItr:defMapItr{first: rtype, second: variantDef}}
+				aw.rootOfPath = variantTypePathRoot{variantItr: defMapItr{first: rtype, second: variantDef}}
 			}
 		}
 	}
@@ -154,7 +154,10 @@ func (aw abiTraverseContextWithPath) setArrayIndexOfPathBack(i uint32) {
 	EosAssert(len(aw.path) > 0, &AbiException{}, "path is empty")
 	b := aw.path[len(aw.path)-1]
 	EosAssert(reflect.TypeOf(b) == reflect.TypeOf(arrayIndexPathItem{}), &AbiException{}, "trying to set array index without first pushing new array index item")
-	b.(arrayIndexPathItem).arrayIndex = i
+	bb, ok := b.(arrayIndexPathItem)
+	if ok {
+		bb.arrayIndex = 1
+	}
 }
 
 func (aw abiTraverseContextWithPath) hintArrayTypeIfInArray() {
@@ -162,7 +165,11 @@ func (aw abiTraverseContextWithPath) hintArrayTypeIfInArray() {
 	if len == 0 || reflect.TypeOf(aw.path[len-1]) != reflect.TypeOf(arrayIndexPathItem{}) {
 		return
 	}
-	aw.path[len-1].(arrayIndexPathItem).typeHint = arrayTypePathRoot{}
+	//aw.path[len-1].(arrayIndexPathItem).typeHint = arrayTypePathRoot{}
+	a, ok := aw.path[len-1].(arrayIndexPathItem)
+	if ok {
+		a.typeHint = arrayTypePathRoot{}
+	}
 }
 
 func (aw abiTraverseContextWithPath) hintStructTypeIfInArray(itr defMapItr) {
@@ -170,7 +177,11 @@ func (aw abiTraverseContextWithPath) hintStructTypeIfInArray(itr defMapItr) {
 	if len == 0 || reflect.TypeOf(aw.path[len-1]) != reflect.TypeOf(arrayIndexPathItem{}) {
 		return
 	}
-	aw.path[len-1].(arrayIndexPathItem).typeHint = structTypePathRoot{structItr:itr}
+	//aw.path[len-1].(arrayIndexPathItem).typeHint = structTypePathRoot{structItr:itr}
+	a, ok := aw.path[len-1].(arrayIndexPathItem)
+	if ok {
+		a.typeHint = structTypePathRoot{structItr: itr}
+	}
 }
 
 func (aw abiTraverseContextWithPath) hintVariantTypeIfInArray(itr defMapItr) {
@@ -178,7 +189,11 @@ func (aw abiTraverseContextWithPath) hintVariantTypeIfInArray(itr defMapItr) {
 	if len == 0 || reflect.TypeOf(aw.path[len-1]) != reflect.TypeOf(arrayIndexPathItem{}) {
 		return
 	}
-	aw.path[len-1].(arrayIndexPathItem).typeHint = variantTypePathRoot{variantItr:itr}
+	//aw.path[len-1].(arrayIndexPathItem).typeHint = variantTypePathRoot{variantItr:itr}
+	a, ok := aw.path[len-1].(arrayIndexPathItem)
+	if ok {
+		a.typeHint = variantTypePathRoot{variantItr: itr}
+	}
 }
 
 func (aw abiTraverseContextWithPath) maybeShorten(str string) string {
@@ -191,7 +206,7 @@ func (aw abiTraverseContextWithPath) maybeShorten(str string) string {
 }
 
 type pathItemTypeVisitor struct {
-    s            string
+	s            string
 	shortenNames bool
 }
 

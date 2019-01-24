@@ -146,6 +146,7 @@ func (e *Encoder) Encode(v interface{}) (err error) {
 				e.writeBool(true)
 
 			case "tag0":
+				trxIsID = false
 				if rv.Field(i).IsNil() {
 					e.writeUint8(0)
 					trxIsID = true
