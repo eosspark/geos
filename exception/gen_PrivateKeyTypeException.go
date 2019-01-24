@@ -46,7 +46,7 @@ func (e PrivateKeyTypeException) GetLog() log.Messages {
 
 func (e PrivateKeyTypeException) TopMessage() string {
 	for _, l := range e.Elog {
-		if msg := l.GetMessage(); msg != "" {
+		if msg := l.GetMessage(); len(msg) > 0 {
 			return msg
 		}
 	}
@@ -56,17 +56,17 @@ func (e PrivateKeyTypeException) TopMessage() string {
 func (e PrivateKeyTypeException) DetailMessage() string {
 	var buffer bytes.Buffer
 	buffer.WriteString(strconv.Itoa(int(e.Code())))
-	buffer.WriteString(" ")
+	buffer.WriteByte(' ')
 	buffer.WriteString(e.Name())
-	buffer.WriteString(": ")
+	buffer.Write([]byte{':', ' '})
 	buffer.WriteString(e.What())
-	buffer.WriteString("\n")
+	buffer.WriteByte('\n')
 	for _, l := range e.Elog {
-		buffer.WriteString("[")
+		buffer.WriteByte('[')
 		buffer.WriteString(l.GetMessage())
-		buffer.WriteString("] ")
+		buffer.Write([]byte{']', ' '})
 		buffer.WriteString(l.GetContext().String())
-		buffer.WriteString("\n")
+		buffer.WriteByte('\n')
 	}
 	return buffer.String()
 }
