@@ -54,6 +54,15 @@ type WhitelistAndBlacklist struct {
 	KeyBlacklist      *PublicKeySet
 }
 
+type WhitelistAndBlacklistParam struct {
+	ActorWhitelist    []common.AccountName
+	ActorBlacklist    []common.AccountName
+	ContractWhitelist []common.AccountName
+	ContractBlacklist []common.AccountName
+	ActionBlacklist   []common.NamePair
+	KeyBlacklist      []string
+}
+
 type GreylistParams struct {
 	Accounts []common.AccountName
 }
