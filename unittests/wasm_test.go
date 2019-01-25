@@ -667,11 +667,11 @@ func TestCheckEntryBehavior(t *testing.T) {
 		b.PushTransaction(&trx, common.MaxTimePoint(), b.DefaultBilledCpuTimeUs)
 		b.ProduceBlocks(1, false)
 
-		//trxId := trx.ID()
-		//assert.Equal(t, b.ChainHasTransaction(&trxId), true)
+		trxId := trx.ID()
+		assert.Equal(t, b.ChainHasTransaction(&trxId), true)
 
-		// receipt := b.GetTransactionReceipt(&trxId)
-		// assert.Equal(t, receipt.Status, types.TransactionStatusExecuted)
+		receipt := b.GetTransactionReceipt(&trxId)
+		assert.Equal(t, receipt.Status, types.TransactionStatusExecuted)
 
 		b.close()
 
@@ -706,11 +706,11 @@ func TestCheckEntryBehavior2(t *testing.T) {
 		b.PushTransaction(&trx, common.MaxTimePoint(), b.DefaultBilledCpuTimeUs)
 		b.ProduceBlocks(1, false)
 
-		//trxId := trx.ID()
-		//assert.Equal(t, b.ChainHasTransaction(&trxId), true)
+		trxId := trx.ID()
+		assert.Equal(t, b.ChainHasTransaction(&trxId), true)
 
-		// receipt := b.GetTransactionReceipt(&trxId)
-		// assert.Equal(t, receipt.Status, types.TransactionStatusExecuted)
+		receipt := b.GetTransactionReceipt(&trxId)
+		assert.Equal(t, receipt.Status, types.TransactionStatusExecuted)
 
 		b.close()
 
@@ -742,8 +742,6 @@ func TestSimpleNoMemoryCheck(t *testing.T) {
 		privKey := b.getPrivateKey(nomem, "active")
 		chainId := b.Control.GetChainId()
 		trx.Sign(&privKey, &chainId)
-		// b.PushTransaction(&trx, common.MaxTimePoint(), b.DefaultBilledCpuTimeUs)
-		// b.ProduceBlocks(1, false)
 
 		returning := false
 		try.Try(func() {
@@ -786,16 +784,15 @@ func TestCheckGlobalReset(t *testing.T) {
 		chainId := b.Control.GetChainId()
 		trx.Sign(&privKey, &chainId)
 
-		returning := false
-		try.Try(func() {
-			b.PushTransaction(&trx, common.MaxTimePoint(), b.DefaultBilledCpuTimeUs)
-		}).Catch(func(e exception.Exception) {
-			if (e.Code() == exception.WasmExecutionError{}.Code()) {
-				returning = true
-			}
-		}).End()
+		b.PushTransaction(&trx, common.MaxTimePoint(), b.DefaultBilledCpuTimeUs)
+		b.ProduceBlocks(1, false)
 
-		assert.Equal(t, returning, true)
+		trxId := trx.ID()
+		assert.Equal(t, b.ChainHasTransaction(&trxId), true)
+
+		receipt := b.GetTransactionReceipt(&trxId)
+		assert.Equal(t, receipt.Status, types.TransactionStatusExecuted)
+
 		b.close()
 
 	})
@@ -824,10 +821,9 @@ func TestStlTest(t *testing.T) {
 
 		trx := types.SignedTransaction{}
 		actData := common.Variants{
-			"message": common.Variants{
-				"from":    "bob",
-				"to":      "alice",
-				"message": "Hi Alice!"}}
+			"from":    common.N("bob"),
+			"to":      common.N("alice"),
+			"message": "Hi Alice!"}
 		act := b.GetAction(stltest,
 			common.N("message"),
 			[]common.PermissionLevel{{stltest, common.DefaultConfig.ActiveName}},
@@ -840,8 +836,12 @@ func TestStlTest(t *testing.T) {
 		chainId := b.Control.GetChainId()
 		trx.Sign(&privKey, &chainId)
 		b.PushTransaction(&trx, common.MaxTimePoint(), b.DefaultBilledCpuTimeUs)
+		b.ProduceBlocks(1, false)
+
 		trxId := trx.ID()
 		assert.Equal(t, b.ChainHasTransaction(&trxId), true)
+
+		//fmt.Println(ret)
 
 		b.close()
 	})

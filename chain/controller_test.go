@@ -11,6 +11,7 @@ import (
 	"github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/log"
 	"github.com/stretchr/testify/assert"
+	"os"
 	"strings"
 	"testing"
 )
@@ -102,8 +103,11 @@ func CallBackApplayHandler2(p *ApplyContext) {
 	fmt.Println("SetApplyHandler CallBack2")
 }
 func TestSetApplyHandler(t *testing.T) {
-	con := NewController(NewConfig())
-
+	cfg := NewConfig()
+	cfg.BlocksDir = path + cfg.BlocksDir
+	cfg.StateDir = path + cfg.StateDir
+	con := NewController(cfg)
+	con.Startup()
 	//applyCon := ApplyContext{}
 	con.SetApplayHandler(common.AccountName(common.N("eosio")), common.ScopeName(common.N("eosio")), common.ActionName(common.N("newaccount")), CallBackApplayHandler)
 	con.SetApplayHandler(common.AccountName(common.N("eosio")), common.ScopeName(common.N("eosio")), common.ActionName(common.N("setcode")), CallBackApplayHandler2)
@@ -175,6 +179,7 @@ func inString(s1, s2 string) bool {
 	return strings.Contains(s1, s2)
 }
 func TestController_GetBlockIdForNum_NotFound(t *testing.T) {
+	os.RemoveAll(path)
 	cfg := NewConfig()
 	cfg.BlocksDir = path + cfg.BlocksDir
 	cfg.StateDir = path + cfg.StateDir

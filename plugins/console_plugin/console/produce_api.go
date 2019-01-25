@@ -61,3 +61,14 @@ func (n *ProduceAPI) SetWhitelistBlacklist(call otto.FunctionCall) (response ott
 	}
 	return otto.UndefinedValue()
 }
+
+func (n *ProduceAPI) GetWhitelistBlacklist(call otto.FunctionCall) (response otto.Value) {
+	var result SetWhitelistBlacklistParams
+
+	err := DoHttpCall(&result, common.ProducerGetWhitelistBlacklist, nil)
+	if err != nil {
+		clog.Error("GetWhitelistBlacklist is error: %s", err.Error())
+		return otto.FalseValue()
+	}
+	return otto.UndefinedValue()
+}

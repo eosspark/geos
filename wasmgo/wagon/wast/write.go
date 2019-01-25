@@ -66,6 +66,7 @@ func (w *writer) writeModule() error {
 	w.writeData()
 	w.writeExports()
 	w.writeElements()
+	w.writeStart()
 	w.writeFunctions()
 
 	bw.WriteString(")\n")
@@ -267,6 +268,14 @@ func (w *writer) writeExports() {
 		}
 		w.Print(" %d))", e.Index)
 	}
+}
+
+func (w *writer) writeStart() {
+	if w.m.Start == nil {
+		return
+	}
+	w.WriteString("\n")
+	w.Print(tab+"(start %d)", w.m.Start.Index)
 }
 
 func (w *writer) writeElements() {

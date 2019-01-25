@@ -2,18 +2,17 @@ package unittests
 
 import (
 	"encoding/json"
-	"fmt"
 	"github.com/eosspark/eos-go/chain"
 	"github.com/eosspark/eos-go/chain/types"
+	"github.com/eosspark/eos-go/chain/types/generated_containers"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/exception"
 	"github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/log"
 	"github.com/stretchr/testify/assert"
 	"io/ioutil"
-	"testing"
-	"github.com/eosspark/eos-go/chain/types/generated_containers"
 	"os"
+	"testing"
 )
 
 var charlie = common.N("charlie")
@@ -68,14 +67,14 @@ func newBaseTesterblack(pushGenesis bool, cfg *chain.Config) *BaseTester {
 	}
 	return t
 }
-func (w *WhitelistBlacklistTester) initConfig(bootstrap bool,exist bool) {
+func (w *WhitelistBlacklistTester) initConfig(bootstrap bool, exist bool) {
 	cfg := w.GetDefaultChainConfiguration(path)
-	if !exist{
+	if !exist {
 		cfg.BlocksDir = path + cfg.BlocksDir
 		cfg.StateDir = path + cfg.StateDir
-	}else{
-		cfg.BlocksDir = path+"node2/" + cfg.BlocksDir
-		cfg.StateDir = path+"node2/" + cfg.StateDir
+	} else {
+		cfg.BlocksDir = path + "node2/" + cfg.BlocksDir
+		cfg.StateDir = path + "node2/" + cfg.StateDir
 	}
 
 	cfg.StateSize = 1024 * 1024 * 8
@@ -187,7 +186,7 @@ func (w *WhitelistBlacklistTester) Transfer(from common.AccountName, to common.A
 func TestActorWhitelist(t *testing.T) {
 	os.RemoveAll(path)
 	w := NewWhitelistBlacklistTester()
-	w.initConfig(true,false)
+	w.initConfig(true, false)
 
 	w.ActorWhitelist.Add(common.DefaultConfig.SystemAccountName)
 	w.ActorWhitelist.Add(eosioToken)
@@ -245,7 +244,7 @@ func TestActorWhitelist(t *testing.T) {
 func TestActorBlacklist(t *testing.T) {
 	os.RemoveAll(path)
 	w := NewWhitelistBlacklistTester()
-	w.initConfig(true,false)
+	w.initConfig(true, false)
 	w.ActorBlacklist.Add(bob)
 	w.chain.Control.SetActorBlackList(&w.ActorBlacklist)
 
@@ -290,7 +289,6 @@ func TestActorBlacklist(t *testing.T) {
 			w.chain.PushTransaction(&trx, common.MaxTimePoint(), w.chain.DefaultBilledCpuTimeUs)
 		}).Catch(func(e exception.ActorBlacklistException) {
 			ex = e.DetailMessage()
-			fmt.Println(ex)
 		}).End()
 		assert.True(t, inString(ex, "authorizing actor(s) in transaction are on the actor blacklist: bob111111111"))
 
@@ -301,7 +299,7 @@ func TestActorBlacklist(t *testing.T) {
 func TestContractWhitelist(t *testing.T) {
 	os.RemoveAll(path)
 	w := NewWhitelistBlacklistTester()
-	w.initConfig(true,false)
+	w.initConfig(true, false)
 	w.ContractWhitelist.Add(common.DefaultConfig.SystemAccountName)
 	w.ContractWhitelist.Add(eosioToken)
 	w.ContractWhitelist.Add(bob)
@@ -336,7 +334,6 @@ func TestContractWhitelist(t *testing.T) {
 			w.Transfer(alice, charlie, "1.00 TOK")
 		}).Catch(func(e exception.ContractWhitelistException) {
 			ex = e.DetailMessage()
-			fmt.Println(ex)
 		}).End()
 		assert.True(t, inString(ex, "account charlie is not on the contract whitelist"))
 
@@ -378,7 +375,7 @@ func TestContractWhitelist(t *testing.T) {
 func TestContractBlacklist(t *testing.T) {
 	os.RemoveAll(path)
 	w := NewWhitelistBlacklistTester()
-	w.initConfig(true,false)
+	w.initConfig(true, false)
 	w.ContractBlacklist.Add(charlie)
 	w.chain.Control.SetContractBlackList(&w.ContractBlacklist)
 
@@ -437,7 +434,6 @@ func TestContractBlacklist(t *testing.T) {
 			w.chain.PushAction2(&charlie, &act, charlie, &createData, w.chain.DefaultExpirationDelta, 0)
 		}).Catch(func(e exception.ContractBlacklistException) {
 			ex = e.DetailMessage()
-			//fmt.Println(e.DetailMessage())
 		}).End()
 		assert.True(t, inString(ex, "account charlie is on the contract blacklist"))
 	}
@@ -447,12 +443,12 @@ func TestContractBlacklist(t *testing.T) {
 func TestActionBlacklist(t *testing.T) {
 	os.RemoveAll(path)
 	w := NewWhitelistBlacklistTester()
-	w.initConfig(true,false)
+	w.initConfig(true, false)
 	w.ContractWhitelist.Add(common.DefaultConfig.SystemAccountName)
 	w.ContractWhitelist.Add(eosioToken)
 	w.ContractWhitelist.Add(bob)
 	w.ContractWhitelist.Add(charlie)
-	//w.ActionBlacklist = *treeset.NewWith(common.TypePair, common.ComparePair)
+
 	abl := common.NamePair{charlie, common.N("create")}
 	w.ActionBlacklist.Add(abl)
 
@@ -488,8 +484,9 @@ func TestActionBlacklist(t *testing.T) {
 		}
 		w.chain.PushAction2(&bob, &act, bob, &createData, w.chain.DefaultExpirationDelta, 0)
 	}
-	var ex string
+
 	{
+		var ex string
 		try.Try(func() {
 			act := common.ActionName(common.N("create"))
 			createData := common.Variants{
@@ -500,6 +497,7 @@ func TestActionBlacklist(t *testing.T) {
 		}).Catch(func(e exception.ActionBlacklistException) {
 			ex = e.DetailMessage()
 		}).End()
+		assert.True(t, inString(ex, "action 'charlie::create' is on the action blacklist"))
 	}
 	w.chain.ProduceBlocks(1, false)
 }
@@ -507,7 +505,7 @@ func TestActionBlacklist(t *testing.T) {
 func TestBlacklistEosio(t *testing.T) {
 	os.RemoveAll(path)
 	w := NewWhitelistBlacklistTester()
-	w.initConfig(true,false)
+	w.initConfig(true, false)
 	w.chain.ProduceBlocks(1, false)
 
 	wasmName := "test_contracts/eosio.token.wasm"
@@ -519,16 +517,13 @@ func TestBlacklistEosio(t *testing.T) {
 		log.Error("eosio.token.abi is err : %v", err)
 	}
 	w.chain.SetAbi(common.DefaultConfig.SystemAccountName, abi, nil)
-
 	w.chain.ProduceBlocks(1, false)
 	w.Shutdown()
 
 	w.ContractBlacklist.Add(common.DefaultConfig.SystemAccountName)
-	w.initConfig(false,false)
-	//w.chain.Control.SetContractBlackList(&w.ContractBlacklist)
-
+	w.initConfig(false, false)
 	w2 := NewWhitelistBlacklistTester()
-	w2.initConfig(true,true)
+	w2.initConfig(true, true)
 	w2.chain.ProduceBlocks(1, false)
 	for w2.chain.Control.HeadBlockNum() < w.chain.Control.HeadBlockNum() {
 		b := w.chain.Control.FetchBlockByNumber(w2.chain.Control.HeadBlockNum() + 1)
@@ -546,7 +541,7 @@ func TestBlacklistEosio(t *testing.T) {
 func TestDeferredBlacklistFailure(t *testing.T) {
 	os.RemoveAll(path)
 	w := NewWhitelistBlacklistTester()
-	w.initConfig(true,false)
+	w.initConfig(true, false)
 	w.chain.ProduceBlocks(1, false)
 	wasmName := "test_contracts/deferred_test.wasm"
 	code, _ := ioutil.ReadFile(wasmName)
@@ -575,10 +570,10 @@ func TestDeferredBlacklistFailure(t *testing.T) {
 	w.Shutdown()
 
 	w.ContractBlacklist.Add(charlie)
-	w.initConfig(false,false)
+	w.initConfig(false, false)
 
 	w2 := NewWhitelistBlacklistTester()
-	w2.initConfig(false,true)
+	w2.initConfig(false, true)
 	for w2.chain.Control.HeadBlockNum() < w.chain.Control.HeadBlockNum() {
 		b := w.chain.Control.FetchBlockByNumber(w2.chain.Control.HeadBlockNum() + 1)
 		w2.chain.PushBlock(b)
@@ -599,18 +594,18 @@ func TestDeferredBlacklistFailure(t *testing.T) {
 	})
 	assert.True(t, inString(ex, "account charlie is on the contract blacklist"))
 
-	w.chain.ProduceBlocks(2,true)
+	w.chain.ProduceBlocks(2, true)
 
-	for w2.chain.Control.HeadBlockNum()<w.chain.Control.HeadBlockNum(){
-		b:=w.chain.Control.FetchBlockByNumber(w2.chain.Control.HeadBlockNum()+1)
+	for w2.chain.Control.HeadBlockNum() < w.chain.Control.HeadBlockNum() {
+		b := w.chain.Control.FetchBlockByNumber(w2.chain.Control.HeadBlockNum() + 1)
 		w2.chain.PushBlock(b)
 	}
 }
 
-func TestBlacklistOnerror(t *testing.T){
+func TestBlacklistOnerror(t *testing.T) {
 	os.RemoveAll(path)
 	w := NewWhitelistBlacklistTester()
-	w.initConfig(true,false)
+	w.initConfig(true, false)
 	w.chain.ProduceBlocks(1, false)
 	wasmName := "test_contracts/deferred_test.wasm"
 	code, _ := ioutil.ReadFile(wasmName)
@@ -636,21 +631,20 @@ func TestBlacklistOnerror(t *testing.T){
 	}
 	w.chain.PushAction2(&bob, &act, alice, &data, w.chain.DefaultExpirationDelta, 0)
 
-	w.chain.ProduceBlocks(1,false)
+	w.chain.ProduceBlocks(1, false)
 
 	w.Shutdown()
 	abl := common.NamePair{common.DefaultConfig.SystemAccountName, common.N("onerror")}
 	w.ActionBlacklist.Add(abl)
-	w.initConfig(false,false)
+	w.initConfig(false, false)
 
-	w.chain.PushAction2(&bob,&act,alice,&data,w.chain.DefaultExpirationDelta,0)
+	w.chain.PushAction2(&bob, &act, alice, &data, w.chain.DefaultExpirationDelta, 0)
 
 	var ex string
 	try.Try(func() {
-		w.chain.ProduceBlocks(1,false)
+		w.chain.ProduceBlocks(1, false)
 	}).Catch(func(e exception.Exception) {
 		ex = e.DetailMessage()
-		fmt.Println(ex)
 	})
-	assert.True(t,inString(ex,"action 'eosio::onerror' is on the action blacklist"))
+	assert.True(t, inString(ex, "action 'eosio::onerror' is on the action blacklist"))
 }

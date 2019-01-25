@@ -17,7 +17,6 @@ import (
 	"github.com/eosspark/eos-go/plugins/appbase/app/include"
 	"github.com/eosspark/eos-go/plugins/chain_interface"
 	"github.com/eosspark/eos-go/wasmgo"
-	"os"
 )
 
 type DBReadMode int8
@@ -147,10 +146,6 @@ func NewConfig() *Config {
 		TrustedProducers:  *NewAccountNameSet(),
 	}
 }
-
-var isActiveController bool //default value false ;Does the process include control ;
-
-var instance *Controller
 
 type v func(ctx *ApplyContext)
 
@@ -612,23 +607,10 @@ func (c *Controller) IsProducingBlock() bool {
 
 func (c *Controller) Close() {
 	c.AbortBlock()
-	//session.close()
 	c.ForkDB.Close()
 	c.DB.Close()
 	c.ReversibleBlocks.Close()
-
-	//log.Info("Controller destory!")
-	//c.testClean()
-	isActiveController = false
-
 	c = nil
-}
-
-func (c *Controller) testClean() {
-	err := os.RemoveAll("/tmp/data/")
-	if err != nil {
-		log.Error("Node data has been emptied is error:%s", err)
-	}
 }
 
 func (c *Controller) GetUnappliedTransactions() []*types.TransactionMetadata {
@@ -1367,15 +1349,15 @@ func (c *Controller) GetBlockIdForNum(blockNum uint32) common.BlockIdType {
 
 func (c *Controller) CheckContractList(code common.AccountName) {
 	if c.Config.ContractWhitelist.Size() > 0 {
-		EosAssert(c.Config.ContractWhitelist.Contains(code), &ContractWhitelistException{}, "account %d is not on the contract whitelist", code)
+		EosAssert(c.Config.ContractWhitelist.Contains(code), &ContractWhitelistException{}, "account %s is not on the contract whitelist", common.S(uint64(code)))
 	} else if c.Config.ContractBlacklist.Size() > 0 {
-		EosAssert(!c.Config.ContractBlacklist.Contains(code), &ContractBlacklistException{}, "account %d is on the contract blacklist", code)
+		EosAssert(!c.Config.ContractBlacklist.Contains(code), &ContractBlacklistException{}, "account %s is on the contract blacklist", common.S(uint64(code)))
 	}
 }
 
 func (c *Controller) CheckActionList(code common.AccountName, action common.ActionName) {
 	if c.Config.ActionBlacklist.Size() > 0 {
-		EosAssert(!c.Config.ActionBlacklist.Contains(common.NamePair{code, action}), &ActionBlacklistException{}, "action '%v::%v' is on the action blacklist", code, action)
+		EosAssert(!c.Config.ActionBlacklist.Contains(common.NamePair{code, action}), &ActionBlacklistException{}, "action '%s::%v' is on the action blacklist", common.S(uint64(code)), action)
 	}
 }
 
@@ -1745,13 +1727,13 @@ func (c *Controller) CheckActorList(actors *AccountNameSet) {
 		itr := actors.Iterator()
 		for itr.Next() {
 			EosAssert(c.Config.ActorWhitelist.Contains(itr.Value()), &ActorWhitelistException{},
-				"authorizing actor(s) in transaction are not on the actor whitelist: %v", actors)
+				"authorizing actor(s) in transaction are not on the actor whitelist: %v", itr.Value())
 		}
 	} else if c.Config.ActorBlacklist.Size() > 0 {
 		itr := actors.Iterator()
 		for itr.Next() {
 			EosAssert(!c.Config.ActorBlacklist.Contains(itr.Value()), &ActorBlacklistException{},
-				"authorizing actor(s) in transaction are on the actor blacklist: %v", actors)
+				"authorizing actor(s) in transaction are on the actor blacklist: %v", itr.Value())
 		}
 	}
 }

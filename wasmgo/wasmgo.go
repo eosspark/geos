@@ -55,8 +55,8 @@ func NewWasmGo() *WasmGo {
 
 	wasmGo.ilog = log.New("wasmgo")
 	logHandler := log.StreamHandler(os.Stdout, log.TerminalFormat(true))
-	//wasmGo.ilog.SetHandler(log.LvlFilterHandler(log.LvlDebug, logHandler))
-	wasmGo.ilog.SetHandler(log.LvlFilterHandler(log.LvlInfo, logHandler))
+	wasmGo.ilog.SetHandler(log.LvlFilterHandler(log.LvlDebug, logHandler))
+	//wasmGo.ilog.SetHandler(log.LvlFilterHandler(log.LvlInfo, logHandler))
 	return wasmGo
 }
 
@@ -77,7 +77,8 @@ func (w *WasmGo) Apply(codeId *crypto.Sha256, code []byte, context EnvContext) {
 		var err error
 		vm, err = NewVirtualMachine(w, code, VMConfig{
 			EnableJIT:          false,
-			DefaultMemoryPages: 128,
+			MaxMemoryPages:     MaximumLinearMemory / WasmPageSize,
+			DefaultMemoryPages: 1,
 			DefaultTableSize:   65536,
 		}, new(Resolver), nil)
 
