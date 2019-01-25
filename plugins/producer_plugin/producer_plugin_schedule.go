@@ -206,27 +206,23 @@ func (impl *ProducerPluginImpl) StartBlock() (StartBlockResult, bool) {
 		persistedByExpire := impl.PersistentTransactions.GetByExpiry()
 		if !persistedByExpire.Empty() {
 			numExpiredPersistent := 0
-			//origCount := impl.PersistentTransactions.Size() TODO
+			origCount := impl.PersistentTransactions.Size()
 
 			for !persistedByExpire.Empty() && persistedByExpire.Begin().Value().Expiry <= pbs.Header.Timestamp.ToTimePoint() {
-				//txid := impl.PersistentTransactions.Value(persistedByExpire.Begin().Value()).TrxId TODO
+				txid := persistedByExpire.Begin().Value().TrxId
 				if impl.PendingBlockMode == producing {
-					//TODO fc_dlog(_trx_trace_log, "[TRX_TRACE] Block ${block num} for producer ${prod} is EXPIRING PERSISTED tx: ${txid}",
-					//                       ("block_num", chain.head_block_num() + 1)
-					//                       ("prod", chain.pending_block_state()->header.producer)
-					//                       ("txid", txid));
+					trxTraceLog.Debug("[TRX_TRACE] Block #%d for producer %s is EXPIRING PERSISTED tx: %s",
+						chain.HeadBlockNum()+1, chain.PendingBlockState().Header.Producer, txid)
+
 				} else {
-					//TODO fc_dlog(_trx_trace_log, "[TRX_TRACE] Speculative execution is EXPIRING PERSISTED tx: ${txid}",
-					//	("txid", txid));
+					trxTraceLog.Debug("[TRX_TRACE] Speculative execution is EXPIRING PERSISTED tx: %s", txid)
 				}
 
 				persistedByExpire.Erase(persistedByExpire.Begin())
 				numExpiredPersistent++
 			}
 
-			//TODO fc_dlog(_log, "Processed ${n} persisted transactions, Expired ${expired}",
-			//	("n", orig_count)
-			// ("expired", num_expired_persistent));
+			ppLog.Debug("Processed %d persisted transactions, Expired %d", origCount, numExpiredPersistent)
 		}
 
 		origPendingTxnSize := len(impl.PendingIncomingTransactions)
@@ -258,8 +254,7 @@ func (impl *ProducerPluginImpl) StartBlock() (StartBlockResult, bool) {
 					category := calculateTransactionCategory(trx)
 					if category == EXPIRED || (category == UNEXPIRED_UNPERSISTED && impl.Producers.Empty()) {
 						if !impl.Producers.Empty() {
-							//TODO fc_dlog(_trx_trace_log, "[TRX_TRACE] Node with producers configured is dropping an EXPIRED transaction that was PREVIOUSLY ACCEPTED : ${txid}",
-							//	("txid", trx->id));
+							trxTraceLog.Debug("[TRX_TRACE] Node with producers configured is dropping an EXPIRED transaction that was PREVIOUSLY ACCEPTED : %s", trx.ID)
 						}
 						chain.DropUnappliedTransaction(trx)
 					} else if category == PERSISTED || (category == UNEXPIRED_UNPERSISTED && impl.PendingBlockMode == producing) {
@@ -313,11 +308,9 @@ func (impl *ProducerPluginImpl) StartBlock() (StartBlockResult, bool) {
 					}
 				}
 
-				//TODO fc_dlog(_log, "Processed ${m} of ${n} previously applied transactions, Applied ${applied}, Failed/Dropped ${failed}",
-				//	("m", num_processed)
-				// ("n", apply_trxs.size())
-				// ("applied", num_applied)
-				// ("failed", num_failed));
+				ppLog.Debug("Processed %d of %d previously applied transactions, Applied %d, Failed/Dropped %d",
+					numProcessed, len(applyTrxs), numApplied, numFailed)
+
 			}
 		}
 
@@ -327,16 +320,15 @@ func (impl *ProducerPluginImpl) StartBlock() (StartBlockResult, bool) {
 			now := common.Now()
 			if !blacklistByExpiry.Empty() {
 				numExpired := 0
-				//origCount := impl.BlacklistedTransactions.Size() TODO
+				origCount := impl.BlacklistedTransactions.Size()
 
 				for !blacklistByExpiry.Empty() && blacklistByExpiry.Begin().Value().Expiry <= now {
 					blacklistByExpiry.Erase(blacklistByExpiry.Begin())
 					numExpired++
 				}
 
-				/*TODO fc_dlog(_log, "Processed ${n} blacklisted transactions, Expired ${expired}",
-				  ("n", orig_count)
-				  ("expired", num_expired));*/
+				ppLog.Debug("Processed ${n} blacklisted transactions, Expired ${expired}",
+					origCount, numExpired)
 			}
 
 			scheduleTrx := chain.GetScheduledTransactions()
@@ -411,11 +403,8 @@ func (impl *ProducerPluginImpl) StartBlock() (StartBlockResult, bool) {
 					}
 				}
 
-				/*TODO fc_dlog(_log, "Processed ${m} of ${n} scheduled transactions, Applied ${applied}, Failed/Dropped ${failed}",
-				  ("m", num_processed)
-				  ("n", scheduled_trxs.size())
-				  ("applied", num_applied)
-				  ("failed", num_failed));*/
+				ppLog.Debug("Processed %d of %d scheduled transactions, Applied %d, Failed/Dropped %d",
+					numProcessed, len(scheduleTrx), numApplied, numFailed)
 			}
 
 		} ///scheduled transactions
@@ -427,7 +416,7 @@ func (impl *ProducerPluginImpl) StartBlock() (StartBlockResult, bool) {
 			impl.IncomingTrxWeight = 0.0
 
 			if len(impl.PendingIncomingTransactions) > 0 {
-				//TODO fc_dlog(_log, "Processing ${n} pending transactions");
+				ppLog.Debug("Processing ${n} pending transactions")
 				for origPendingTxnSize > 0 && len(impl.PendingIncomingTransactions) > 0 {
 					e := impl.PendingIncomingTransactions[0]
 					impl.PendingIncomingTransactions = impl.PendingIncomingTransactions[1:]
@@ -466,10 +455,10 @@ func (impl *ProducerPluginImpl) ScheduleProductionLoop() {
 
 	} else if result == StartBlockResult(waiting) {
 		if impl.Producers.Size() > 0 && !impl.ProductionDisabledByPolicy() {
-			log.Debug("Waiting till another block is received and scheduling Speculative/Production Change")
+			ppLog.Debug("Waiting till another block is received and scheduling Speculative/Production Change")
 			impl.ScheduleDelayedProductionLoop(types.NewBlockTimeStamp(impl.CalculatePendingBlockTime()))
 		} else {
-			log.Debug("Waiting till another block is received")
+			ppLog.Debug("Waiting till another block is received")
 			// nothing to do until more blocks arrive
 		}
 
@@ -485,17 +474,17 @@ func (impl *ProducerPluginImpl) ScheduleProductionLoop() {
 				deadline += common.Microseconds(impl.ProduceTimeOffsetUs)
 			}
 			impl.Timer.ExpiresAt(deadline)
-			//log.Debug("Scheduling Block Production on Normal Block #%d for %s", chain.PendingBlockState().BlockNum, deadline)
+			ppLog.Debug("Scheduling Block Production on Normal Block #%d for %s", chain.PendingBlockState().BlockNum, deadline)
 		} else {
 			EosAssert(chain.PendingBlockState() != nil, &MissingPendingBlockState{}, "producing without pending_block_state")
 			expectTime := chain.PendingBlockTime().SubUs(common.Microseconds(common.DefaultConfig.BlockIntervalUs))
 			// ship this block off up to 1 block time earlier or immediately
 			if common.Now() >= expectTime {
 				impl.Timer.ExpiresFromNow(0)
-				log.Debug("Scheduling Block Production on Exhausted Block #%d immediately", chain.PendingBlockState().BlockNum)
+				ppLog.Debug("Scheduling Block Production on Exhausted Block #%d immediately", chain.PendingBlockState().BlockNum)
 			} else {
 				impl.Timer.ExpiresAt(expectTime.TimeSinceEpoch())
-				log.Debug("Scheduling Block Production on Exhausted Block #%d at %s", chain.PendingBlockState().BlockNum, expectTime)
+				ppLog.Debug("Scheduling Block Production on Exhausted Block #%d at %s", chain.PendingBlockState().BlockNum, expectTime)
 			}
 		}
 
@@ -503,19 +492,23 @@ func (impl *ProducerPluginImpl) ScheduleProductionLoop() {
 		cid := impl.timerCorelationId
 		impl.Timer.AsyncWait(func(err error) {
 			if impl != nil && err == nil && cid == impl.timerCorelationId {
-				impl.MaybeProduceBlock()
-				//log.Debug("Producing Block #%d returned: %v", chain.PendingBlockState().BlockNum, res)
+				blockNum := uint32(0)
+				if pending := chain.PendingBlockState(); pending != nil {
+					blockNum = pending.BlockNum
+				}
+				res := impl.MaybeProduceBlock()
+				ppLog.Debug("Producing Block #%d returned: %v", blockNum, res)
 			}
 		})
 
 	} else if impl.PendingBlockMode == PendingBlockMode(speculating) && impl.Producers.Size() > 0 && !impl.ProductionDisabledByPolicy() {
-		log.Debug("Speculative Block Created; Scheduling Speculative/Production Change")
+		ppLog.Debug("Speculative Block Created; Scheduling Speculative/Production Change")
 		EosAssert(chain.PendingBlockState() != nil, &MissingPendingBlockState{}, "speculating without pending_block_state")
 		pbs := chain.PendingBlockState()
 		impl.ScheduleDelayedProductionLoop(pbs.Header.Timestamp)
 
 	} else {
-		log.Debug("Speculative Block Created")
+		ppLog.Debug("Speculative Block Created")
 	}
 }
 
@@ -538,7 +531,7 @@ func (impl *ProducerPluginImpl) ScheduleDelayedProductionLoop(currentBlockTime t
 	}
 
 	if wakeUpTime != nil {
-		log.Debug("Scheduling Speculative/Production Change at %s", wakeUpTime)
+		ppLog.Debug("Scheduling Speculative/Production Change at %s", wakeUpTime)
 		impl.Timer.ExpiresAt(wakeUpTime.TimeSinceEpoch())
 
 		impl.timerCorelationId++
@@ -551,7 +544,7 @@ func (impl *ProducerPluginImpl) ScheduleDelayedProductionLoop(currentBlockTime t
 			}
 		})
 	} else {
-		log.Debug("Speculative Block Created; Not Scheduling Speculative/Production, no local producers had valid wake up times")
+		ppLog.Debug("Speculative Block Created; Not Scheduling Speculative/Production, no local producers had valid wake up times")
 	}
 
 }
@@ -574,7 +567,7 @@ func (impl *ProducerPluginImpl) MaybeProduceBlock() bool {
 		return r
 	}
 
-	log.Debug("Aborting block due to produce_block error")
+	ppLog.Debug("Aborting block due to produce_block error")
 	chain := impl.Chain
 	chain.AbortBlock()
 	return false

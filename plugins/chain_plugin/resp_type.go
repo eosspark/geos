@@ -7,15 +7,35 @@ import (
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/common/eos_math"
 	"github.com/eosspark/eos-go/crypto"
+	. "github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
+	"strings"
 )
 
 func convertToUint64(str, desc string) uint64 {
-	r, success := eos_math.ParseUint64(str)
+	value, success := eos_math.ParseUint64(str)
 	if !success {
-		FcThrow("Could not convert %s string '%s' to key type.", desc, str)
+		// not a number str, trans to name
+		Try(func() {
+			trimedStr := strings.TrimSpace(str)
+			s := common.N(trimedStr)
+			value = uint64(s)
+		}).Catch(func(interface{}) {
+			// not a name str, trans to symbol
+			Try(func() {
+				sym := common.Symbol{}.FromString(&str)
+				value = sym.SymbolValue()
+			}).Catch(func(interface{}) {
+				Try(func() {
+					value = common.StringToSymbol(0, str) >> 8
+				}).Catch(func(interface{}) {
+					EosAssert(false, &ChainTypeException{}, "Could not convert %s string '%s' to any of the following: "+
+						"uint64_t, valid name, or valid symbol (with or without the precision)", desc, str)
+				})
+			}).End()
+		}).End()
 	}
-	return r
+	return value
 }
 
 type GetInfoResult struct {

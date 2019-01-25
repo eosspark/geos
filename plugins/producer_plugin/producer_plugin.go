@@ -24,7 +24,11 @@ import (
 
 const ProducerPlug = PluginTypeName("ProducerPlugin")
 
-var producerPlugin Plugin = App().RegisterPlugin(ProducerPlug, NewProducerPlugin(App().GetIoService()))
+var (
+	producerPlugin = App().RegisterPlugin(ProducerPlug, NewProducerPlugin(App().GetIoService()))
+	ppLog          = log.GetLoggerMap()["producer_plugin"]
+	trxTraceLog    = log.GetLoggerMap()["transaction_tracing"]
+)
 
 type ProducerPlugin struct {
 	AbstractPlugin
