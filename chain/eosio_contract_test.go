@@ -17,7 +17,7 @@ func TestApplyEosioNewAccount(t *testing.T) {
 	t.Run("", func(t *testing.T) {
 
 		//get a control
-		control := GetControllerInstance()
+		control := NewController(NewConfig())
 		blockTimeStamp := types.NewBlockTimeStamp(common.Now())
 		control.StartBlock(blockTimeStamp, 0)
 
@@ -95,7 +95,7 @@ func TestApplyEosioSetcode(t *testing.T) {
 		}
 
 		//get a control
-		control := GetControllerInstance()
+		control := NewController(NewConfig())
 		blockTimeStamp := types.NewBlockTimeStamp(common.Now())
 		control.StartBlock(blockTimeStamp, 0)
 
@@ -137,7 +137,7 @@ func TestApplyEosioUpdateauth(t *testing.T) {
 	t.Run("", func(t *testing.T) {
 
 		//get a control
-		control := GetControllerInstance()
+		control := NewController(NewConfig())
 		blockTimeStamp := types.NewBlockTimeStamp(common.Now())
 		control.StartBlock(blockTimeStamp, 0)
 
@@ -198,7 +198,7 @@ func TestApplyEosioLinkauthAndUnlinkauth(t *testing.T) {
 		}
 
 		//get a control
-		control := GetControllerInstance()
+		control := NewController(NewConfig())
 		blockTimeStamp := types.NewBlockTimeStamp(common.Now())
 		control.StartBlock(blockTimeStamp, 0)
 

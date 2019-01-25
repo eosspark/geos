@@ -11,7 +11,8 @@ import (
 	"github.com/eosspark/eos-go/crypto/ecc"
 	. "github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
-	. "github.com/eosspark/eos-go/log"
+	"github.com/eosspark/eos-go/log"
+
 	. "github.com/eosspark/eos-go/plugins/appbase/app"
 	. "github.com/eosspark/eos-go/plugins/appbase/asio"
 	"github.com/eosspark/eos-go/plugins/chain_plugin"
@@ -24,7 +25,8 @@ import (
 	"time"
 )
 
-var netLog Logger
+var netLog log.Logger
+var FcLog = log.GetLoggerMap()["net_plugin"]
 
 type possibleConnections byte
 
@@ -138,8 +140,8 @@ func NewNetPluginIMpl(io *IoContext) *netPluginIMpl {
 	impl.syncMaster = NewSyncManager(impl, 100)
 	impl.dispatcher = NewDispatchManager(impl)
 
-	netLog = New("net")
-	netLog.SetHandler(TerminalHandler)
+	netLog = log.New("net")
+	netLog.SetHandler(log.TerminalHandler)
 	//impl.log.SetHandler(DiscardHandler())
 
 	return impl
@@ -538,7 +540,7 @@ func (impl *netPluginIMpl) ticker() {
 	impl.keepAliceTimer.AsyncWait(func(err error) {
 		impl.ticker()
 		if err != nil {
-			Warn("Peer keep live ticked sooner than expected: %s", err)
+			netLog.Warn("Peer keep live ticked sooner than expected: %s", err)
 		}
 		for _, peer := range impl.connections {
 			peer.sendTimeTicker()

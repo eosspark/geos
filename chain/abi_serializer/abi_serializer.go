@@ -191,23 +191,18 @@ func (a AbiSerializer) FundamentalType(stype typeName) string {
 	}
 }
 
-func (a AbiSerializer) IsType(rtype typeName, maxSerializationTime common.Microseconds) bool {
-	ctx := newAbiTraverseContext(maxSerializationTime)
-	return a.IsTypeWithCtx(rtype, ctx)
-}
-
-func (a AbiSerializer) IsTypeWithCtx(rtype typeName, ctx abiTraverseContext) bool {
-	h := ctx.enterScope()
-	defer h()
-	typeName := a.FundamentalType(rtype)
-	_, ok1 := a.builtInTypes[typeName]
-	stype, ok2 := a.typeDefs[typeName]
-	if ok2 {
-		ok2 = a.IsTypeWithCtx(stype, ctx)
+func (a AbiSerializer) IsType(rtype typeName, recursionDepth common.SizeT, deadline *common.TimePoint, maxSerializationTime common.Microseconds) bool {
+	EosAssert(common.Now() < *deadline, &exception.AbiSerializationDeadlineException{}, "serialization time limit %vus exceeded", maxSerializationTime)
+	recursionDepth++
+	if recursionDepth > maxRecursionDepth {
+		return false
 	}
-	_, ok3 := a.structs[typeName]
-	_, ok4 := a.variants[typeName]
-	if ok1 || ok2 || ok3 || ok4 {
+	ftype := a.FundamentalType(rtype)
+	if a.IsBuiltinType(ftype) {
+		return true
+	}
+
+	if a.IsStruct(ftype) {
 		return true
 	}
 	return false
@@ -517,4 +512,5 @@ func ToVariantFromActionData(actionParams *types.ContractTypesInterface, v *comm
 	if err != nil {
 		fmt.Printf("Unmarshal variants is error: %s\n", err.Error())
 	}
+
 }

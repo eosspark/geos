@@ -206,10 +206,12 @@ func NewController(cfg *Config) *Controller {
 	con.ReadMode = cfg.ReadMode
 	con.ApplyHandlers = make(map[string]v)
 	con.WasmIf = wasmgo.NewWasmGo()
+
+	con.Config = *cfg
+
 	con.ResourceLimits = newResourceLimitsManager(con)
 	con.Authorization = newAuthorizationManager(con)
 	con.UnappliedTransactions = make(map[crypto.Sha256]types.TransactionMetadata)
-	con.Config = *cfg
 
 	con.SetApplayHandler(common.AccountName(common.N("eosio")), common.AccountName(common.N("eosio")),
 		common.ActionName(common.N("newaccount")), applyEosioNewaccount)
@@ -227,7 +229,6 @@ func NewController(cfg *Config) *Controller {
 		common.ActionName(common.N("unlinkauth")), applyEosioUnlinkauth)
 	con.SetApplayHandler(common.AccountName(common.N("eosio")), common.AccountName(common.N("eosio")),
 		common.ActionName(common.N("canceldelay")), applyEosioCanceldalay)
-
 	con.ForkDB.Irreversible.Connect(&chain_interface.IrreversibleBlockCaller{Caller: con.OnIrreversible})
 
 	return con

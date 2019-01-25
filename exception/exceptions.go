@@ -290,9 +290,8 @@ package exception
 //go:generate gotemplate -outfmt "gen_%v" "github.com/eosspark/eos-go/exception/template" "DbApiException (_ContractApiException,3230002,\"Database API exception\")"
 //go:generate gotemplate -outfmt "gen_%v" "github.com/eosspark/eos-go/exception/template" "ArithmeticException (_ContractApiException,3230003,\"Arithmetic exception\")"
 
-//go:generate go build .
-
+// Exception in plugin
 //go:generate gotemplate -outfmt "gen_%v" "github.com/eosspark/eos-go/exception/template" "ExplainedException(Exception,9000000,\"explained exception,see error log\")"
 //go:generate gotemplate -outfmt "gen_%v" "github.com/eosspark/eos-go/exception/template" "LocalizedException(Exception,10000000,\"an error occured\")"
 
-func registerException(e Exception) {}
+//go:generate go build .
