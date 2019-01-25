@@ -1,3 +1,4 @@
+loadScript("/Users/walker/go/src/github.com/eosspark/eos-go/plugins/console_plugin/console.js")
 wallet.Create('walker');
 wallet.ImportKey('walker','5K2G1AucmTj11jNp4rRAW9RsaXHWVEFubETNAADuhr9SA9EXdYZ');
 wallet.ImportKey('walker','5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3');
@@ -96,45 +97,46 @@ eos.PushAction({
     data:'{"from":"eosio","to":"eosio.token","quantity":"18888.0000 SYS","memo":"hello eosio.token"}',
     p:['eosio'],
 });
-// eos.SetContract({
-//     account:'eosio',
-//     code_file:'../../contracts/eosio.system/eosio.system.wasm',
-//     abi_file: '../../contracts/eosio.system/eosio.system.abi',
-// });
 
-// system.Buyram({
-//     payer:'eosio',
-//     receiver:'eosio',
-//     amount:'1000000000.0000 SYS',
-// });
-// system.Delegatebw({
-//     from:'eosio',
-//     receiver:'eosio',
-//     stake_net_amount:'100000.0000 SYS',
-//     stake_cpu_amount:'100000.0000 SYS',
-// });
-// system.Buyram({
-//     payer:'eosio',
-//     receiver:'walker',
-//     amount:'10000000.0000 SYS',
-// });
-// system.Delegatebw({
-//     from:'eosio',
-//     receiver:'walker',
-//     stake_net_amount:'100000.0000 SYS',
-//     stake_cpu_amount:'100000.0000 SYS',
-// });
+eos.SetContract({
+    account:'eosio',
+    code_file:'../../contracts/eosio.system/eosio.system.wasm',
+    abi_file: '../../contracts/eosio.system/eosio.system.abi',
+});
 
-// system.NewAccount({
-//     creator: 'eosio',
-//     name: "walkerwalker",
-//     owner: 'EOS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV',
-//     active: 'EOS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV',
-//     stake_net:'50000.0000 SYS',
-//     stake_cpu:'50000.0000 SYS',
-//     buy_ram:'10000.0000 SYS',
-//     p:['eosio'],
-// });
+system.Buyram({
+    payer:'eosio',
+    receiver:'eosio',
+    amount:'1000000000.0000 SYS',
+});
+system.Delegatebw({
+    from:'eosio',
+    receiver:'eosio',
+    stake_net_amount:'100000.0000 SYS',
+    stake_cpu_amount:'100000.0000 SYS',
+});
+system.Buyram({
+    payer:'eosio',
+    receiver:'walker',
+    amount:'10000000.0000 SYS',
+});
+system.Delegatebw({
+    from:'eosio',
+    receiver:'walker',
+    stake_net_amount:'100000.0000 SYS',
+    stake_cpu_amount:'100000.0000 SYS',
+});
+
+system.NewAccount({
+    creator: 'eosio',
+    name: "walkerwalker",
+    owner: 'EOS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV',
+    active: 'EOS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV',
+    stake_net:'50000.0000 SYS',
+    stake_cpu:'50000.0000 SYS',
+    buy_ram:'10000.0000 SYS',
+    p:['eosio'],
+});
 
 // system.NewAccount({
 //     creator: 'eosio',

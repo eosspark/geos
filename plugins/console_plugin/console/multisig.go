@@ -1,10 +1,12 @@
 package console
 
 import (
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
+	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/eosspark/eos-go/exception"
 	"github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/plugins/chain_plugin"
@@ -18,8 +20,7 @@ type multisig struct {
 
 //Multisig contract commands
 func newMultisig(c *Console) *multisig {
-	m := &multisig{c: c}
-	return m
+	return &multisig{c: c}
 }
 
 //Propose proposes action
@@ -141,7 +142,7 @@ func (m *multisig) ProposeTrx(call otto.FunctionCall) (response otto.Value) {
 		Data: variantToBin(common.N("eosio.msig"), common.N("propose"),
 			&common.Variants{
 				"proposer":      params.Proposer,
-				"proposa;_name": params.ProposalName,
+				"proposal_name": params.ProposalName,
 				"requested":     reqperm,
 				"trx":           trx,
 			}),
@@ -181,20 +182,16 @@ func (m *multisig) Review(call otto.FunctionCall) (response otto.Value) {
 		fmt.Println("Proposal not found")
 		return
 	}
-	//trxHex := obj.Get("packed_transaction").String()
-	//fmt.Println([]byte(trxHex))
 
-	//trx := types.Transaction{}
-	//fmt.Println(obj.String())
-	//err = rlp.DecodeBytes([]byte(trxHex), &trx)
-	//if err != nil {
-	//	fmt.Println("decode packed_transaction is error:", err)
-	//	return
-	//}
-
-	//common.Set(obj.String(), "transaction", trx) //TODO
-	fmt.Println(obj.String())
-
+	data, _ := hex.DecodeString(obj.Get("packed_transaction").String())
+	trx := types.Transaction{}
+	rlp.DecodeBytes(data, &trx)
+	re, _ := common.Set(obj.String(), "transaction", trx)
+	fmt.Println("{")
+	fmt.Println("\tproposal_name: ", gjson.GetBytes([]byte(re), "proposal_name"))
+	fmt.Println("\tpacked_transaction:", gjson.GetBytes([]byte(re), "packed_transaction"))
+	fmt.Println("\ttransaction:", gjson.GetBytes([]byte(re), "transaction"))
+	fmt.Println("}")
 	return otto.UndefinedValue()
 }
 
