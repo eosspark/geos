@@ -17,7 +17,6 @@ import (
 	"github.com/robertkrimen/otto"
 	"github.com/tidwall/gjson"
 	"io/ioutil"
-	"os"
 	"strings"
 )
 
@@ -26,10 +25,8 @@ var clog log.Logger
 
 func init() {
 	clog = log.New("console")
-	//clog.SetHandler(log.TerminalHandler)
+	clog.SetHandler(log.TerminalHandler)
 	//clog.SetHandler(log.DiscardHandler())
-	logHandler := log.StreamHandler(os.Stdout, log.TerminalFormat(true))
-	clog.SetHandler(log.LvlFilterHandler(log.LvlWarn, logHandler))
 }
 
 type eosgo struct {
@@ -37,23 +34,13 @@ type eosgo struct {
 }
 
 func newEosgo(c *Console) *eosgo {
-	e := &eosgo{
-		c: c,
-	}
+	e := &eosgo{c: c}
 	return e
 }
 
 //CreateKey creates a new keypair and print the public and private keys
 func (e *eosgo) CreateKey(call otto.FunctionCall) (response otto.Value) {
-	type Keys struct {
-		Pri string `json:"Private Key"`
-		Pub string `json:"Public Key"`
-	}
-
 	privateKey, _ := ecc.NewRandomPrivateKey()
-	//key := Keys{Pri: privateKey.String(), Pub: privateKey.PublicKey().String()}
-	//return getJsResult(call, key)
-
 	fmt.Println("Private key: ", privateKey.String())
 	fmt.Println("Public key: ", privateKey.PublicKey().String())
 	return otto.UndefinedValue()
@@ -213,7 +200,7 @@ func (e *eosgo) SetAccountPermission(call otto.FunctionCall) (response otto.Valu
 		action := createUpdateAuth(account, permission, parent, auth, params.TxPermission)
 		sendActions([]*types.Action{action}, 1000, types.CompressionNone, &params)
 	}
-	return getJsResult(call, nil)
+	return otto.UndefinedValue()
 }
 
 //SetActionPermission sets parameters dealing with account permissions
@@ -233,7 +220,7 @@ func (e *eosgo) SetActionPermission(call otto.FunctionCall) (response otto.Value
 		action := createLinkAuth(accountName, codeName, typeName, requirementName, params.TxPermission)
 		sendActions([]*types.Action{action}, 1000, types.CompressionNone, &params)
 	}
-	return getJsResult(call, nil)
+	return otto.UndefinedValue()
 }
 
 func getAccountPermissions(permissions []string) []common.PermissionLevel {
@@ -286,15 +273,7 @@ func variantToBin(account common.AccountName, action common.ActionName, actionAr
 	return abis.VariantToBinary(actionType, actionArgsVar, abiSerializerMaxTime)
 }
 
-func binToVariant(account common.AccountName, action common.ActionName, actionArgs []byte) common.Variants {
-	abis := abisSerializerResolver(account)
-	FcAssert(!common.Empty(abis), fmt.Sprintf("No ABI found %s", account))
-	actionType := abis.GetActionType(action)
-	FcAssert(len(actionType) != 0, fmt.Sprintf("Unknown action %s in contract %s", action, account))
-	return abis.BinaryToVariant(actionType, actionArgs, abiSerializerMaxTime, false)
-}
-
-func binToVariant2(account common.AccountName, action common.ActionName, actionArgs []byte) interface{} {
+func binToVariant(account common.AccountName, action common.ActionName, actionArgs []byte) interface{} {
 	abis := abisSerializerResolver(account)
 	FcAssert(!common.Empty(abis), fmt.Sprintf("No ABI found %s", account))
 	actionType := abis.GetActionType(action)
@@ -335,7 +314,6 @@ func createNewAccount(creator common.Name, newaccount common.Name, owner ecc.Pub
 	} else {
 		action.Authorization = getAccountPermissions(txPermission)
 	}
-
 	return action
 }
 
@@ -652,13 +630,15 @@ func printAction(action gjson.Result) {
 	codeName := act.Get("account").String()
 	funcName := act.Get("name").String()
 	data, _ := hex.DecodeString(act.Get("data").String())
-	a := binToVariant2(common.N(codeName), common.N(funcName), data)
+
+	a := binToVariant(common.N(codeName), common.N(funcName), data)
 	args, _ := a.([]byte)
 
 	//TODO Parameters should not be sorted ！！
-	if len(args) > 100 {
-		args = append(args[0:100], []byte("...")...)
-	}
+	//if len(args) > 100 {
+
+	//args = append(args[0:100], []byte("...")...)
+	//}
 	actionName := fmt.Sprintf("%14s <= %-28s", receiver, codeName+"::"+funcName)
 
 	second := fmt.Sprint("#", actionName, string(args))

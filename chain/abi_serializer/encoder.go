@@ -103,9 +103,8 @@ func (a *AbiDef) encodeFields(binaryEncoder *rlp.Encoder, fields []FieldDef, jso
 }
 
 func (a *AbiDef) encodeField(binaryEncoder *rlp.Encoder, fieldName string, fieldType string, isOptional bool, isArray bool, json []byte) (err error) {
-	abiLog.Debug("encode field json : %#v", json)
-
 	value := gjson.GetBytes(json, fieldName)
+	abiLog.Debug("encode field fieldName :%s  value:%s, json: %s", fieldName, value.String(), string(json))
 	if isOptional {
 		if value.Exists() {
 			abiLog.Debug("field is optional and present, name : %s, type: %s", fieldName, fieldType)

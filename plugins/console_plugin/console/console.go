@@ -130,6 +130,9 @@ func (c *Console) init(preload []string) (err error) {
 	multisig := newMultisig(c)
 	c.jsre.Bind("multisig", multisig)
 
+	producer := newProduceAPI(c)
+	c.jsre.Bind("producer", producer)
+
 	//path :="/Users/walker/go/src/github.com/eosspark/eos-go/plugins/console_plugin/console/js/jsre/deps/console.js"
 
 	//contents, err := ioutil.ReadFile("/Users/walker/go/src/github.com/eosspark/eos-go/plugins/console_plugin/console/js/jsre/deps/eosgo.js")

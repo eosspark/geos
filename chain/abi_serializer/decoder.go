@@ -126,8 +126,8 @@ func (a *AbiDef) read(binaryDecoder *rlp.Decoder, fieldName string, fieldType st
 	structure := a.StructForName(fieldType)
 
 	if structure != nil {
-		abiLog.Debug("field is a struct,name: %s", fieldName)
-		structureJson, err := a.decodeFields(binaryDecoder, structure.Fields, []byte{})
+		abiLog.Debug("field is a struct,name: %s ,%v", fieldName, structure.Fields)
+		structureJson, err := a.decode(binaryDecoder, structure.Name)
 		if err != nil {
 			return []byte{}, err
 		}

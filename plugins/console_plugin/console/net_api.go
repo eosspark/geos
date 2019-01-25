@@ -13,9 +13,7 @@ type NetAPI struct {
 }
 
 func newNetAPI(c *Console) *NetAPI {
-	n := &NetAPI{
-		c: c,
-	}
+	n := &NetAPI{c: c}
 	return n
 }
 
@@ -32,7 +30,6 @@ func (n *NetAPI) Connect(call otto.FunctionCall) (response otto.Value) {
 		fmt.Println(err)
 		return otto.FalseValue()
 	}
-
 	return getJsResult(call, connectInfo)
 }
 
