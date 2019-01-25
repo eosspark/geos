@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
-	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/eosspark/eos-go/exception"
 	"github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/plugins/chain_plugin"
@@ -19,22 +18,8 @@ type multisig struct {
 
 //Multisig contract commands
 func newMultisig(c *Console) *multisig {
-	m := &multisig{
-		c: c,
-	}
+	m := &multisig{c: c}
 	return m
-}
-
-type ProposeParams struct {
-	ProposalName            string `json:"proposal_name"`
-	RequestedPerm           string `json:"requested_permissions"`
-	TransactionPerm         string `json:"trx_permissions"`
-	ProposedContract        string `json:"contract"`
-	ProposedAction          string `json:"action"`
-	ProposedTransaction     string `json:"data"`
-	Proposer                string `json:"proposer"`
-	ProposalExpirationHours int    `json:"proposal_expiration"` //TODO default 24
-	StandardTransactionOptions
 }
 
 //Propose proposes action
@@ -42,14 +27,14 @@ func (m *multisig) Propose(call otto.FunctionCall) (response otto.Value) {
 	var params ProposeParams
 	readParams(&params, call)
 
-	reqperm := make([]types.PermissionLevel, 0)
+	reqperm := make([]common.PermissionLevel, 0)
 	err := json.Unmarshal([]byte(params.RequestedPerm), &reqperm)
 	if err != nil {
 		fmt.Println("Unmarshal requestedPerm is error: ", err)
 		return otto.FalseValue()
 	}
 
-	trxperm := make([]types.PermissionLevel, 0)
+	trxperm := make([]common.PermissionLevel, 0)
 	err = json.Unmarshal([]byte(params.TransactionPerm), &trxperm)
 	if err != nil {
 		fmt.Println("Unmarshal TransactionPerm is error: ", err)
@@ -73,7 +58,7 @@ func (m *multisig) Propose(call otto.FunctionCall) (response otto.Value) {
 	accountPermissions := getAccountPermissions(params.TxPermission)
 	if len(accountPermissions) == 0 {
 		if len(params.Proposer) > 0 {
-			accountPermissions = []types.PermissionLevel{{common.N(params.Proposer), common.DefaultConfig.ActiveName}}
+			accountPermissions = []common.PermissionLevel{{common.N(params.Proposer), common.DefaultConfig.ActiveName}}
 		} else {
 			try.EosThrow(&exception.MissingAuthException{}, "Authority is not provided (either by multisig parameter <proposer> or -p")
 		}
@@ -101,37 +86,22 @@ func (m *multisig) Propose(call otto.FunctionCall) (response otto.Value) {
 	}
 	trx.Actions = append(trx.Actions, action)
 
-	//fc::to_variant(trx, trx_var);//TODO
-	bytes, err := json.Marshal(trx)
-	if err != nil {
-		fmt.Println("Marshal trx is error: ", err)
-		return otto.FalseValue()
-	}
-
-	args := common.Variants{
-		"proposer":      params.Proposer,
-		"proposal_name": params.ProposalName,
-		"requested":     params.RequestedPerm,
-		"trx":           string(bytes), //trxVar,
-	}
-
 	actionPropose := &types.Action{
 		Account:       common.N("eosio.msig"),
 		Name:          common.N("propose"),
 		Authorization: accountPermissions,
-		Data:          variantToBin(common.N("eosio.msig"), common.N("propose"), &args),
+		Data: variantToBin(
+			common.N("eosio.msig"),
+			common.N("propose"),
+			&common.Variants{
+				"proposer":      params.Proposer,
+				"proposal_name": params.ProposalName,
+				"requested":     reqperm,
+				"trx":           trx,
+			}),
 	}
 	sendActions([]*types.Action{actionPropose}, 1000, types.CompressionNone, &params)
-
 	return otto.UndefinedValue()
-}
-
-type ProposeTrxParams struct {
-	ProposalName  string `json:"proposal_name"`
-	RequestedPerm string `json:"requested_permissions"`
-	Proposer      string `json:"proposer"`
-	TrxToPush     string `json:"transaction"`
-	StandardTransactionOptions
 }
 
 //ProposeTrx proposes transaction
@@ -139,7 +109,7 @@ func (m *multisig) ProposeTrx(call otto.FunctionCall) (response otto.Value) {
 	var params ProposeTrxParams
 	readParams(&params, call)
 
-	reqperm := make([]types.PermissionLevel, 0)
+	reqperm := make([]common.PermissionLevel, 0)
 	err := json.Unmarshal([]byte(params.RequestedPerm), &reqperm)
 	if err != nil {
 		fmt.Println("Unmarshal requestedPerm is error: ", err)
@@ -147,7 +117,7 @@ func (m *multisig) ProposeTrx(call otto.FunctionCall) (response otto.Value) {
 	}
 
 	trx := types.Transaction{}
-	err = json.Unmarshal([]byte(params.RequestedPerm), &trx)
+	err = json.Unmarshal([]byte(params.TrxToPush), &trx)
 	if err != nil {
 		fmt.Println("Unmarshal requestedPerm is error: ", err)
 		return otto.FalseValue()
@@ -155,7 +125,7 @@ func (m *multisig) ProposeTrx(call otto.FunctionCall) (response otto.Value) {
 	accountPermissions := getAccountPermissions(params.TxPermission)
 	if len(accountPermissions) == 0 {
 		if len(params.Proposer) > 0 {
-			accountPermissions = []types.PermissionLevel{{common.N(params.Proposer), common.DefaultConfig.ActiveName}}
+			accountPermissions = []common.PermissionLevel{{common.N(params.Proposer), common.DefaultConfig.ActiveName}}
 		} else {
 			try.EosThrow(&exception.MissingAuthException{}, "Authority is not provided (either by multisig parameter <proposer> or -p")
 		}
@@ -164,27 +134,20 @@ func (m *multisig) ProposeTrx(call otto.FunctionCall) (response otto.Value) {
 		params.Proposer = accountPermissions[0].Actor.String()
 	}
 
-	args := common.Variants{
-		"proposer":      params.Proposer,
-		"proposa;_name": params.ProposalName,
-		"requested":     params.RequestedPerm,
-		"trx":           params.TrxToPush,
-	}
-
 	actionPropose := &types.Action{
 		Account:       common.N("eosio.msig"),
 		Name:          common.N("propose"),
 		Authorization: accountPermissions,
-		Data:          variantToBin(common.N("eosio.msig"), common.N("propose"), &args),
+		Data: variantToBin(common.N("eosio.msig"), common.N("propose"),
+			&common.Variants{
+				"proposer":      params.Proposer,
+				"proposa;_name": params.ProposalName,
+				"requested":     reqperm,
+				"trx":           trx,
+			}),
 	}
 	sendActions([]*types.Action{actionPropose}, 1000, types.CompressionNone, &params)
-
 	return otto.UndefinedValue()
-}
-
-type ReviewParams struct {
-	ProposalName string `json:"proposal_name"`
-	Proposer     string `json:"proposer"`
 }
 
 //Review reviews transaction
@@ -203,6 +166,9 @@ func (m *multisig) Review(call otto.FunctionCall) (response otto.Value) {
 		"upper_bound": "",
 		"limit":       1,
 	})
+	if err != nil {
+		return otto.FalseValue()
+	}
 
 	result, _ := json.Marshal(resp)
 	rows := gjson.GetBytes(result, "rows").Array()
@@ -215,25 +181,21 @@ func (m *multisig) Review(call otto.FunctionCall) (response otto.Value) {
 		fmt.Println("Proposal not found")
 		return
 	}
-	trxHex := obj.Get("packed_transaction").String()
-	trx := types.Transaction{}
-	err = rlp.DecodeBytes([]byte(trxHex), &trx)
-	if err != nil {
-		fmt.Println("decode packed_transaction is error:", err)
-		return
-	}
+	//trxHex := obj.Get("packed_transaction").String()
+	//fmt.Println([]byte(trxHex))
 
-	common.Set(obj.String(), "transaction", trx) //TODO
+	//trx := types.Transaction{}
+	//fmt.Println(obj.String())
+	//err = rlp.DecodeBytes([]byte(trxHex), &trx)
+	//if err != nil {
+	//	fmt.Println("decode packed_transaction is error:", err)
+	//	return
+	//}
+
+	//common.Set(obj.String(), "transaction", trx) //TODO
 	fmt.Println(obj.String())
 
 	return otto.UndefinedValue()
-}
-
-type ApproveAndUnapproveParams struct {
-	Proposer     string `json:"proposer"`
-	ProposalName string `json:"proposal_name"`
-	Perm         string `json:"permissions"`
-	StandardTransactionOptions
 }
 
 //Approve approves proposed transaction
@@ -241,7 +203,7 @@ func (m *multisig) Approve(call otto.FunctionCall) (response otto.Value) {
 	var params ApproveAndUnapproveParams
 	readParams(&params, call)
 
-	approveOrunapprove("approve", &params)
+	approveOrUnapprove("approve", &params)
 	return otto.UndefinedValue()
 }
 
@@ -250,25 +212,21 @@ func (m *multisig) Unapprove(call otto.FunctionCall) (response otto.Value) {
 	var params ApproveAndUnapproveParams
 	readParams(&params, call)
 
-	approveOrunapprove("unapprove", &params)
+	approveOrUnapprove("unapprove", &params)
 	return otto.UndefinedValue()
 }
 
-func approveOrunapprove(action string, p *ApproveAndUnapproveParams) {
-	var permissions []types.PermissionLevel
+func approveOrUnapprove(action string, p *ApproveAndUnapproveParams) {
+	var permissions common.PermissionLevel
 	err := json.Unmarshal([]byte(p.Perm), &permissions)
 	if err != nil {
 		fmt.Println("Fail to parse permissions JSON ", p.Perm, err)
 		return
 	}
-	args := common.Variants{
-		"proposer":      p.Proposer,
-		"proposal_name": p.ProposalName,
-		"level":         p.Perm,
-	}
-	var accountPermissions []types.PermissionLevel
+
+	var accountPermissions []common.PermissionLevel
 	if len(p.TxPermission) == 0 {
-		accountPermissions = []types.PermissionLevel{{common.N(p.Proposer), common.DefaultConfig.ActiveName}}
+		accountPermissions = []common.PermissionLevel{{common.N(p.Proposer), common.DefaultConfig.ActiveName}}
 	} else {
 		accountPermissions = getAccountPermissions(p.TxPermission)
 	}
@@ -276,17 +234,13 @@ func approveOrunapprove(action string, p *ApproveAndUnapproveParams) {
 		Account:       common.N("eosio.msig"),
 		Name:          common.N(action),
 		Authorization: accountPermissions,
-		Data:          variantToBin(common.N("eosio.msig"), common.N(action), &args),
+		Data: variantToBin(common.N("eosio.msig"), common.N(action), &common.Variants{
+			"proposer":      p.Proposer,
+			"proposal_name": p.ProposalName,
+			"level":         permissions,
+		}),
 	}
-
 	sendActions([]*types.Action{a}, 1000, types.CompressionNone, p)
-}
-
-type CancelParams struct {
-	Proposer     string `json:"proposer"`
-	ProposalName string `json:"proposal_name"`
-	Canceler     string `json:"canceler"`
-	StandardTransactionOptions
 }
 
 //Cancel cancels proposed transaction
@@ -297,7 +251,7 @@ func (m *multisig) Cancel(call otto.FunctionCall) (response otto.Value) {
 	accountPermissions := getAccountPermissions(params.TxPermission)
 	if len(accountPermissions) == 0 {
 		if len(params.Proposer) > 0 {
-			accountPermissions = []types.PermissionLevel{{common.N(params.Canceler), common.DefaultConfig.ActiveName}}
+			accountPermissions = []common.PermissionLevel{{common.N(params.Canceler), common.DefaultConfig.ActiveName}}
 		} else {
 			try.EosThrow(&exception.MissingAuthException{}, "Authority is not provided (either by multisig parameter <proposer> or -p")
 		}
@@ -306,28 +260,18 @@ func (m *multisig) Cancel(call otto.FunctionCall) (response otto.Value) {
 		params.Canceler = accountPermissions[0].Actor.String()
 	}
 
-	args := common.Variants{
-		"proposer":      params.Proposer,
-		"proposal_name": params.ProposalName,
-		"canceler":      params.Canceler,
-	}
-
 	action := &types.Action{
 		Account:       common.N("eosio.msig"),
 		Name:          common.N("cancel"),
 		Authorization: accountPermissions,
-		Data:          variantToBin(common.N("eosio.msig"), common.N("cancel"), &args),
+		Data: variantToBin(common.N("eosio.msig"), common.N("cancel"), &common.Variants{
+			"proposer":      params.Proposer,
+			"proposal_name": params.ProposalName,
+			"canceler":      params.Canceler,
+		}),
 	}
 	sendActions([]*types.Action{action}, 1000, types.CompressionNone, &params)
-
 	return otto.UndefinedValue()
-}
-
-type ExecuteParams struct {
-	Proposer     string `json:"proposer"`
-	ProposalName string `json:"proposal_name"`
-	Executer     string `json:"executer"`
-	StandardTransactionOptions
 }
 
 //Exec execute proposed transaction
@@ -338,7 +282,7 @@ func (m *multisig) Exec(call otto.FunctionCall) (response otto.Value) {
 	accountPermissions := getAccountPermissions(params.TxPermission)
 	if len(accountPermissions) == 0 {
 		if len(params.Proposer) > 0 {
-			accountPermissions = []types.PermissionLevel{{common.N(params.Executer), common.DefaultConfig.ActiveName}}
+			accountPermissions = []common.PermissionLevel{{common.N(params.Executer), common.DefaultConfig.ActiveName}}
 		} else {
 			try.EosThrow(&exception.MissingAuthException{}, "Authority is not provided (either by multisig parameter <proposer> or -p")
 		}
@@ -347,19 +291,16 @@ func (m *multisig) Exec(call otto.FunctionCall) (response otto.Value) {
 		params.Executer = accountPermissions[0].Actor.String()
 	}
 
-	args := common.Variants{
-		"proposer":      params.Proposer,
-		"proposal_name": params.ProposalName,
-		"executer":      params.Executer,
-	}
-
 	action := &types.Action{
 		Account:       common.N("eosio.msig"),
 		Name:          common.N("exec"),
 		Authorization: accountPermissions,
-		Data:          variantToBin(common.N("eosio.msig"), common.N("exec"), &args),
+		Data: variantToBin(common.N("eosio.msig"), common.N("exec"), &common.Variants{
+			"proposer":      params.Proposer,
+			"proposal_name": params.ProposalName,
+			"executer":      params.Executer,
+		}),
 	}
 	sendActions([]*types.Action{action}, 1000, types.CompressionNone, &params)
-
 	return otto.UndefinedValue()
 }

@@ -176,7 +176,8 @@ func (impl *ProducerPluginImpl) OnIrreversibleBlock(lib *types.SignedBlock) {
 }
 
 func (impl *ProducerPluginImpl) OnIncomingBlock(block *types.SignedBlock) {
-	log.Debug("received incoming block %s", block.BlockID())
+
+	ppLog.Debug("received incoming block %s", block.BlockID())
 
 	EosAssert(block.Timestamp.ToTimePoint() < common.Now().AddUs(common.Seconds(7)), &BlockFromTheFuture{}, "received a block from the future, ignoring it")
 
@@ -252,21 +253,21 @@ func (impl *ProducerPluginImpl) OnIncomingTransactionAsync(trx *types.PackedTran
 		if re, ok := response.(Exception); ok {
 			//TODO C: _transaction_ack_channel.publish(std::pair<fc::exception_ptr, packed_transaction_ptr>(response.get<fc::exception_ptr>(), trx));
 			if impl.PendingBlockMode == PendingBlockMode(producing) {
-				log.Debug("[TRX_TRACE] Block %d for producer %s is REJECTING tx: %s : %s ",
+				trxTraceLog.Debug("[TRX_TRACE] Block %d for producer %s is REJECTING tx: %s : %s ",
 					chain.HeadBlockNum()+1, chain.PendingBlockState().Header.Producer, trx.ID(), re.What())
 			} else {
-				log.Debug("[TRX_TRACE] Speculative execution is REJECTING tx: %s : %s ",
+				trxTraceLog.Debug("[TRX_TRACE] Speculative execution is REJECTING tx: %s : %s ",
 					trx.ID(), re.What())
 			}
 
 		} else {
 			//TODO C: _transaction_ack_channel.publish(std::pair<fc::exception_ptr, packed_transaction_ptr>(nullptr, trx));
 			if impl.PendingBlockMode == PendingBlockMode(producing) {
-				log.Debug("[TRX_TRACE] Block %d for producer %s is ACCEPTING tx: %s",
+				trxTraceLog.Debug("[TRX_TRACE] Block %d for producer %s is ACCEPTING tx: %s",
 					chain.HeadBlockNum()+1, chain.PendingBlockState().Header.Producer, trx.ID())
 
 			} else {
-				log.Debug("[TRX_TRACE] Speculative execution is ACCEPTING tx: %s", trx.ID())
+				trxTraceLog.Debug("[TRX_TRACE] Speculative execution is ACCEPTING tx: %s", trx.ID())
 			}
 		}
 	}
@@ -296,10 +297,10 @@ func (impl *ProducerPluginImpl) OnIncomingTransactionAsync(trx *types.PackedTran
 			if failureIsSubjective(trace.Except, deadlineIsSubjective) {
 				impl.PendingIncomingTransactions = append(impl.PendingIncomingTransactions, pendingIncomingTransaction{trx, persistUntilExpired, next})
 				if impl.PendingBlockMode == PendingBlockMode(producing) {
-					log.Debug("[TRX_TRACE] Block %d for producer %s COULD NOT FIT, tx: %s RETRYING ",
+					trxTraceLog.Debug("[TRX_TRACE] Block %d for producer %s COULD NOT FIT, tx: %s RETRYING ",
 						chain.HeadBlockNum()+1, chain.PendingBlockState().Header.Producer, trx.ID())
 				} else {
-					log.Debug("[TRX_TRACE] Speculative execution COULD NOT FIT tx: %s} RETRYING", trx.ID())
+					trxTraceLog.Debug("[TRX_TRACE] Speculative execution COULD NOT FIT tx: %s} RETRYING", trx.ID())
 				}
 
 			} else {

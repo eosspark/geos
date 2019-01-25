@@ -7,7 +7,6 @@ import (
 	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
-	. "github.com/eosspark/eos-go/log"
 	. "github.com/eosspark/eos-go/plugins/net_plugin/multi_index"
 	"unsafe"
 )

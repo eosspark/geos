@@ -72,3 +72,12 @@ func TestJsonFormat(t *testing.T) {
 	s, _ := json.Marshal(res)
 	fmt.Println(string(s))
 }
+
+func TestConvertUint64(t *testing.T) {
+	a := convertToUint64("123", "a")
+	fmt.Println(a)
+	b := convertToUint64("eosio", "b")
+	fmt.Println(b)
+	c := convertToUint64("sys", "c")
+	fmt.Println(c)
+}

@@ -103,8 +103,6 @@ func (c *Console) init(preload []string) (err error) {
 	eosObj.Object().Set("sendAsync", bridge.Send)
 	//eosObj.Object().Set("createAccount", eos.CreateAccount)
 
-	fmt.Println("********", err)
-
 	chain := newchainAPI(c)
 	c.jsre.Bind("chain", chain)
 	//c.jsre.Set("chain", struct{}{})
@@ -128,6 +126,12 @@ func (c *Console) init(preload []string) (err error) {
 
 	system := newSystem(c)
 	c.jsre.Bind("system", system)
+
+	multisig := newMultisig(c)
+	c.jsre.Bind("multisig", multisig)
+
+	producer := newProduceAPI(c)
+	c.jsre.Bind("producer", producer)
 
 	//path :="/Users/walker/go/src/github.com/eosspark/eos-go/plugins/console_plugin/console/js/jsre/deps/console.js"
 
@@ -463,11 +467,11 @@ func (c *Console) logo() {
 	fmt.Fprintf(c.printer, "\t(_______/(_______)\\_______)\\_______/(_______)\n")
 	fmt.Fprintf(c.printer, "\x1b[0m\n")
 
-	fmt.Fprintf(c.printer, "\tFor more information:\n")
+	//fmt.Fprintf(c.printer, "\tFor more information:\n")
 	//fmt.Fprintf(c.printer,"\tEOSGO Website: https://eos.io\n")
 	//fmt.Fprintf(c.printer,"\tEOSGO Telegram channel @ https://t.me/EOSProject\n")
 	//fmt.Fprintf(c.printer,"\tEOSGO Resources: https://eos.io/resources/\n")
 	//fmt.Fprintf(c.printer,"\tEOSGO Stack Exchange: https://eosio.stackexchange.com\n")
-	fmt.Fprintf(c.printer, "\tGithub: https://github.com/eosspark/eos-go\n\n")
+	//fmt.Fprintf(c.printer, "\tGithub: https://github.com/eosspark/eos-go\n\n")
 	fmt.Fprintf(c.printer, "\tWelcome to the EOSGO JavaScript console!\n")
 }

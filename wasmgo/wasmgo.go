@@ -143,9 +143,9 @@ func (r *Resolver) ResolveFunc(module, field string) FunctionImport {
 			return currentReceiver
 
 		case "require_auth":
-			return hasAuthorization
-		case "has_auth":
 			return requireAuthorization
+		case "has_auth":
+			return hasAuthorization
 		case "require_auth2":
 			return requireAuth2
 		case "require_recipient":

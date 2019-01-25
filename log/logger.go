@@ -132,7 +132,6 @@ type Logger interface {
 	Warn(format string, arg ...interface{})
 	Error(format string, arg ...interface{})
 	//Crit(format string, arg ...interface{})
-
 }
 
 type logger struct {
@@ -150,23 +149,23 @@ func (l *logger) SetEnable(e bool) {
 	l.enable = e
 }
 func (l *logger) Debug(format string, arg ...interface{}) {
-	if l.enable {
+	if l != nil && l.enable {
 		l.write(LvlDebug, fmt.Sprintf(format, arg...), skipLevel)
 	}
 }
 func (l *logger) Info(format string, arg ...interface{}) {
-	if l.enable {
+	if l != nil && l.enable {
 		l.write(LvlInfo, fmt.Sprintf(format, arg...), skipLevel)
 	}
 }
 
 func (l *logger) Warn(format string, arg ...interface{}) {
-	if l.enable {
+	if l != nil && l.enable {
 		l.write(LvlWarn, fmt.Sprintf(format, arg...), skipLevel)
 	}
 }
 func (l *logger) Error(format string, arg ...interface{}) {
-	if l.enable {
+	if l != nil && l.enable {
 		l.write(LvlError, fmt.Sprintf(format, arg...), skipLevel)
 	}
 }

@@ -193,7 +193,7 @@ func (set *AccountDeltaSet) UnmarshalJSON(data []byte) error {
 	elements := make([]common.AccountDelta, 0)
 	err := json.Unmarshal(data, &elements)
 	if err == nil {
-		set.Clear()
+		set.Tree = rbt.NewWith(common.CompareAccountDelta, false)
 		set.Add(elements...)
 	}
 	return err

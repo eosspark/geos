@@ -24,7 +24,11 @@ import (
 
 const ProducerPlug = PluginTypeName("ProducerPlugin")
 
-var producerPlugin Plugin = App().RegisterPlugin(ProducerPlug, NewProducerPlugin(App().GetIoService()))
+var (
+	producerPlugin = App().RegisterPlugin(ProducerPlug, NewProducerPlugin(App().GetIoService()))
+	ppLog          = log.GetLoggerMap()["producer_plugin"]
+	trxTraceLog    = log.GetLoggerMap()["transaction_tracing"]
+)
 
 type ProducerPlugin struct {
 	AbstractPlugin
@@ -48,6 +52,15 @@ type WhitelistAndBlacklist struct {
 	ContractBlacklist *AccountNameSet
 	ActionBlacklist   *NamePairSet
 	KeyBlacklist      *PublicKeySet
+}
+
+type WhitelistAndBlacklistParam struct {
+	ActorWhitelist    []common.AccountName
+	ActorBlacklist    []common.AccountName
+	ContractWhitelist []common.AccountName
+	ContractBlacklist []common.AccountName
+	ActionBlacklist   []common.NamePair
+	KeyBlacklist      []string
 }
 
 type GreylistParams struct {

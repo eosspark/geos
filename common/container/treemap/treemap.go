@@ -183,7 +183,7 @@ func (m *Map) UnmarshalJSON(data []byte) error {
 	elements := make([]pair, 0)
 	err := json.Unmarshal(data, &elements)
 	if err == nil {
-		m.Clear()
+		m.Tree = rbt.NewWith(Compare, Multi)
 		for _, pair := range elements {
 			m.Put(pair.Key, pair.Val)
 		}

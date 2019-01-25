@@ -60,4 +60,18 @@ const (
 	WalletSignTrx    string = walletFuncBase + "/sign_transaction"
 
 	// keosdStop string = "/v1/keosd/stop"
+
+	producerFuncBase               string = "/v1/producer"
+	ProducerPause                  string = producerFuncBase + "/pause"
+	ProducerResume                 string = producerFuncBase + "/resume"
+	ProducerPaused                 string = producerFuncBase + "/paused"
+	ProducerGetRuntimeOptions      string = producerFuncBase + "/get_runtime_options"
+	ProducerUpdateRuntimeOptions   string = producerFuncBase + "/update_runtime_options"
+	ProducerAddGreylistAccounts    string = producerFuncBase + "/add_greylist_accounts"
+	ProducerRemoveGreylistAccounts string = producerFuncBase + "/remove_greylist_accounts"
+	ProducerGetGreylist            string = producerFuncBase + "/get_greylist"
+	ProducerGetWhitelistBlacklist  string = producerFuncBase + "/get_whitelist_blacklist"
+	ProducerSetWhitelistBlacklist  string = producerFuncBase + "/set_whitelist_blacklist"
+	ProducerGetIntegrityHash       string = producerFuncBase + "/get_integrity_hash"
+	ProducerCreateSnapshot         string = producerFuncBase + "/create_snapshot"
 )
