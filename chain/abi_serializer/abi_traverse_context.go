@@ -154,7 +154,10 @@ func (aw abiTraverseContextWithPath) setArrayIndexOfPathBack(i uint32) {
 	EosAssert(len(aw.path) > 0, &AbiException{}, "path is empty")
 	b := aw.path[len(aw.path)-1]
 	EosAssert(reflect.TypeOf(b) == reflect.TypeOf(arrayIndexPathItem{}), &AbiException{}, "trying to set array index without first pushing new array index item")
-	b.(arrayIndexPathItem).arrayIndex = i
+
+	arrayItem := b.(arrayIndexPathItem)
+	arrayItem.arrayIndex = i
+	b = arrayItem
 }
 
 func (aw abiTraverseContextWithPath) hintArrayTypeIfInArray() {
@@ -162,7 +165,10 @@ func (aw abiTraverseContextWithPath) hintArrayTypeIfInArray() {
 	if len == 0 || reflect.TypeOf(aw.path[len-1]) != reflect.TypeOf(arrayIndexPathItem{}) {
 		return
 	}
-	aw.path[len-1].(arrayIndexPathItem).typeHint = arrayTypePathRoot{}
+
+	arrayItem := aw.path[len-1].(arrayIndexPathItem)
+	arrayItem.typeHint = arrayTypePathRoot{}
+	aw.path[len-1] = arrayItem
 }
 
 func (aw abiTraverseContextWithPath) hintStructTypeIfInArray(itr defMapItr) {
@@ -170,7 +176,10 @@ func (aw abiTraverseContextWithPath) hintStructTypeIfInArray(itr defMapItr) {
 	if len == 0 || reflect.TypeOf(aw.path[len-1]) != reflect.TypeOf(arrayIndexPathItem{}) {
 		return
 	}
-	aw.path[len-1].(arrayIndexPathItem).typeHint = structTypePathRoot{structItr:itr}
+
+	arrayItem := aw.path[len-1].(arrayIndexPathItem)
+	arrayItem.typeHint = structTypePathRoot{structItr:itr}
+	aw.path[len-1] = arrayItem
 }
 
 func (aw abiTraverseContextWithPath) hintVariantTypeIfInArray(itr defMapItr) {
@@ -178,7 +187,10 @@ func (aw abiTraverseContextWithPath) hintVariantTypeIfInArray(itr defMapItr) {
 	if len == 0 || reflect.TypeOf(aw.path[len-1]) != reflect.TypeOf(arrayIndexPathItem{}) {
 		return
 	}
-	aw.path[len-1].(arrayIndexPathItem).typeHint = variantTypePathRoot{variantItr:itr}
+
+	arrayItem := aw.path[len-1].(arrayIndexPathItem)
+	arrayItem.typeHint = variantTypePathRoot{variantItr:itr}
+	aw.path[len-1] = arrayItem
 }
 
 func (aw abiTraverseContextWithPath) maybeShorten(str string) string {
