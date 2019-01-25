@@ -22,11 +22,6 @@ var (
 	ErrWalletKeyExist        = errors.New("Key already in wallet")
 )
 
-const (
-	walletFilenameExtension string = ".wallet"
-	defaultKeyType          string = "K1"
-)
-
 type CKeys []byte
 type WalletData struct {
 	CipherKeys CKeys `json:"cipher_keys"` /** encrypted keys */
@@ -181,7 +176,6 @@ func (w *SoftWallet) LoadWalletFile() bool {
 }
 
 func (w *SoftWallet) SaveWalletFile() (err error) { //TODO need walletFilename ?
-
 	w.encryptKeys()
 
 	data, err := json.Marshal(w.wallet)
@@ -189,14 +183,10 @@ func (w *SoftWallet) SaveWalletFile() (err error) { //TODO need walletFilename ?
 		fmt.Println(w.wallet, err)
 		return err
 	}
-
 	walletFile, err := os.OpenFile(w.walletFilename, os.O_RDWR|os.O_CREATE, 0766)
 	defer walletFile.Close()
 	_, err = walletFile.Write(data)
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
 func (w *SoftWallet) SetWalletFilename(filename string) {
