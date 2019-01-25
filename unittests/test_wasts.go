@@ -180,15 +180,15 @@ var entry_wast_2 string = `(module
 )`
 
 var biggest_memory_wast string = `(module
- (import "env" "eosio_assert" (func $$eosio_assert (param i32 i32)))
- (import "env" "require_auth" (func $$require_auth (param i64)))
+ (import "env" "eosio_assert" (func $eosio_assert (param i32 i32)))
+ (import "env" "require_auth" (func $require_auth (param i64)))
  (table 0 anyfunc)
- (memory $$0 %d)
- (export "memory" (memory $$0))
- (export "apply" (func $$apply))
- (func $$apply (param $$0 i64) (param $$1 i64) (param $$2 i64)
-  (call $$require_auth (i64.const 4294504710842351616))
-  (call $$eosio_assert
+ (memory $0 %d)
+ (export "memory" (memory $0))
+ (export "apply" (func $apply))
+ (func $apply (param $0 i64) (param $1 i64) (param $2 i64)
+  (call $require_auth (i64.const 4294504710842351616))
+  (call $eosio_assert
    (i32.eq
      (grow_memory (i32.const 1))
      (i32.const -1)

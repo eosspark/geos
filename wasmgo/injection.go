@@ -1,4 +1,4 @@
-package injection
+package wasmgo
 
 import (
 	//"fmt"
@@ -10,6 +10,7 @@ import (
 
 func Inject(m *wasm.Module) {
 
+	//inject checktime
 	importChecktime := wasm.ImportEntry{ModuleName: "env", FieldName: "checktime", Type: wasm.FuncImport{uint32(GetOrCreateCheckTimeSig(m))}}
 	m.Import.Entries = append([]wasm.ImportEntry{importChecktime}, m.Import.Entries[0:]...)
 
@@ -18,7 +19,7 @@ func Inject(m *wasm.Module) {
 		if err != nil {
 			panic(err)
 		}
-		injectDisassemble := InjectDisassembly(d)
+		injectDisassemble := InjectBody(d)
 		code, _ := disasm.Assemble(injectDisassemble.Code)
 		m.FunctionIndexSpace[i].Body.Code = code
 	}
@@ -45,16 +46,16 @@ func Inject(m *wasm.Module) {
 
 }
 
-func InjectDisassembly(d *disasm.Disassembly) *disasm.Disassembly {
-	//inject checktime
+func InjectBody(d *disasm.Disassembly) *disasm.Disassembly {
 
+	//inject checktime
 	disas := &disasm.Disassembly{MaxDepth: d.MaxDepth}
 	checkTime := disasm.Instr{
 		Op: ops.Op{Code: 0x10, Name: "call", Polymorphic: true},
 		//Immediates: make([]interface{}, 1),
 	}
-
 	checkTime.Immediates = append(checkTime.Immediates, uint32(0))
+
 	for _, instr := range d.Code {
 
 		switch instr.Op.Code {

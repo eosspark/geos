@@ -1,16 +1,18 @@
 package wasmgo
 
 import (
+	"bytes"
 	"encoding/binary"
 	"fmt"
-	"github.com/eosspark/eos-go/wasmgo/injection"
+	"github.com/eosspark/eos-go/wasmgo/wagon/wast"
+	"io/ioutil"
 	"math"
 	"math/bits"
 
+	. "github.com/eosspark/eos-go/exception"
+	. "github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/wasmgo/compiler"
 	"github.com/eosspark/eos-go/wasmgo/compiler/opcodes"
-	"github.com/eosspark/eos-go/wasmgo/utils"
-
 	"github.com/eosspark/eos-go/wasmgo/wagon/wasm"
 )
 
@@ -106,11 +108,12 @@ func NewVirtualMachine(
 		return nil, err
 	}
 
-	injection.Inject(m.Base)
+	//inject timecheck for infinite loop
+	Inject(m.Base)
 
-	//buf := new(bytes.Buffer)
-	//wast.WriteTo(buf, m.Base)
-	//ioutil.WriteFile("/tmp/hello.wat", buf.Bytes(), 0644)
+	buf := new(bytes.Buffer)
+	wast.WriteTo(buf, m.Base)
+	ioutil.WriteFile("/tmp/hello.wat", buf.Bytes(), 0644)
 
 	m.DisableFloatingPoint = config.DisableFloatingPoint
 
@@ -119,7 +122,7 @@ func NewVirtualMachine(
 		return nil, err
 	}
 
-	defer utils.CatchPanic(&retErr)
+	//defer utils.CatchPanic(&retErr)
 
 	table := make([]uint32, 0)
 	globals := make([]int64, 0)
@@ -214,6 +217,10 @@ func NewVirtualMachine(
 				copy(memory[int(offset):], e.Data)
 			}
 		}
+	}
+
+	if m.Base.Memory == nil {
+		EosAssert(false, &WasmExecutionError{}, "memory section missing")
 	}
 
 	return &VirtualMachine{

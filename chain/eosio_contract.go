@@ -9,6 +9,7 @@ import (
 	"github.com/eosspark/eos-go/entity"
 	. "github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
+	"github.com/eosspark/eos-go/wasmgo"
 	"strings"
 )
 
@@ -191,7 +192,7 @@ func applyEosioSetcode(context *ApplyContext) {
 	var codeId *crypto.Sha256
 	if len(act.Code) > 0 {
 		codeId = crypto.Hash256(act.Code)
-		//wasmgo.validate(context.Control, act.Code)
+		wasmgo.Validate(context.Control.IsProducingBlock(), act.Code)
 	}
 
 	accountObject := entity.AccountObject{Name: act.Account}
@@ -433,8 +434,8 @@ func applyEosioUnlinkauth(context *ApplyContext) {
 
 func applyEosioCanceldalay(context *ApplyContext) {
 
-	cancel := &CancelDelay{}
-	rlp.DecodeBytes(context.Act.Data, cancel)
+	cancel := CancelDelay{}
+	rlp.DecodeBytes(context.Act.Data, &cancel)
 
 	context.RequireAuthorization(int64(cancel.CancelingAuth.Actor))
 	trxId := cancel.TrxId

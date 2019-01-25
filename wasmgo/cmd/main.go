@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"github.com/eosspark/eos-go/chain"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
@@ -32,16 +33,10 @@ func main() {
 
 	codeVersion := crypto.NewSha256Byte([]byte(code))
 
-	//for i := 0; i < 100; i++ {
-	//	applyContext.PseudoStart = common.Now()
-	//	wasmgo.Apply(codeVersion, code, applyContext)
-	//	fmt.Println("No.", i, uint64(common.Now()-applyContext.PseudoStart))
-	//}
 	//for i:= 0; i < 100; i ++ {
 	wasmgo.Apply(codeVersion, code, applyContext)
-	//fmt.Println(applyContext.PendingConsoleOutput)
 	//}
 	//print "hello, walker"
-	//fmt.Println(applyContext.PendingConsoleOutput)
+	fmt.Println(applyContext.PendingConsoleOutput)
 
 }
