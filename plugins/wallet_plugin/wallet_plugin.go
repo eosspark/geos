@@ -23,10 +23,7 @@ type WalletPlugin struct {
 }
 
 func NewWalletPlugin(io *asio.IoContext) *WalletPlugin {
-	plugin := &WalletPlugin{}
-
-	return plugin
-
+	return &WalletPlugin{}
 }
 
 func (w *WalletPlugin) SetProgramOptions(options *[]cli.Flag) {
@@ -99,11 +96,11 @@ func getWalletDir() string {
 	home := os.Getenv("HOME")
 	if home != "" {
 		if runtime.GOOS == "darwin" {
-			return filepath.Join(home, "wallet")
+			return filepath.Join(home, "eosgo_wallet")
 		} else if runtime.GOOS == "windows" {
-			return filepath.Join(home, "wallet")
+			return filepath.Join(home, "eosgo_wallet")
 		} else {
-			return filepath.Join(home, "wallet")
+			return filepath.Join(home, "eosgo_wallet")
 		}
 	}
 	return "."
