@@ -372,10 +372,13 @@ func Test_undoInsert(t *testing.T) {
 	}
 
 	// Code 11 12 13
-	_, err = idx.LowerBound(DbTableIdObject{Code: 11})
-	if err != ErrNotFound {
-		log.Fatalln(err)
+		{
+			it, _ := idx.LowerBound(DbTableIdObject{Code: 11})
+			if !idx.CompareEnd(it){
+				log.Fatal("compare end err")
+		}
 	}
+
 
 	//////////////////////////////////////////////		COMMIT		///////////////////////////////////
 
