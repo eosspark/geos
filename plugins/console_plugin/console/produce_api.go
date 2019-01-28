@@ -70,5 +70,5 @@ func (n *ProduceAPI) GetWhitelistBlacklist(call otto.FunctionCall) (response ott
 		clog.Error("GetWhitelistBlacklist is error: %s", err.Error())
 		return otto.FalseValue()
 	}
-	return otto.UndefinedValue()
+	return getJsResult(call, result)
 }
