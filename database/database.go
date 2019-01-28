@@ -275,7 +275,7 @@ func (ldb *LDataBase) UndoAll() {
 	}
 }
 
-func (ldb *LDataBase) squash() {
+func (ldb *LDataBase) Squash() {
 
 	if ldb.stack.Size() == 1 {
 		ldb.stack.Pop()
@@ -690,7 +690,7 @@ func (ldb *LDataBase) GetMutableIndex(fieldName string, in interface{}) (*MultiI
 	return ldb.GetIndex(fieldName, in)
 }
 
-func (ldb *LDataBase) lowerBound(begin, end, fieldName []byte, data interface{}, skip ...SkipSuffix) (*DbIterator, error) {
+func (ldb *LDataBase) LowerBound(begin, end, fieldName []byte, data interface{}, skip ...SkipSuffix) (*DbIterator, error) {
 	key, typeName := ldb.dbPrefix(begin, fieldName, data, skip...)
 	//return ldb.dbIterator(key,begin,end,typeName,false)
 	it := ldb.db.NewIterator(&util.Range{Start: begin, Limit: end}, nil)
@@ -713,7 +713,7 @@ func (ldb *LDataBase) lowerBound(begin, end, fieldName []byte, data interface{},
 	return idx, nil
 }
 
-func (ldb *LDataBase) upperBound(begin, end, fieldName []byte, data interface{}, skip ...SkipSuffix) (*DbIterator, error) {
+func (ldb *LDataBase) UpperBound(begin, end, fieldName []byte, data interface{}, skip ...SkipSuffix) (*DbIterator, error) {
 
 	key, typeName := ldb.dbPrefix(begin, fieldName, data, skip...)
 	key = keyEnd(key)
