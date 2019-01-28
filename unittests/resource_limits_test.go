@@ -2,8 +2,8 @@ package unittests
 
 import (
 	"fmt"
-	"github.com/eosspark/container/sets/treeset"
 	. "github.com/eosspark/eos-go/chain"
+	. "github.com/eosspark/eos-go/chain/types/generated_containers"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/database"
 	"github.com/eosspark/eos-go/entity"
@@ -21,12 +21,20 @@ type ResourceLimitsFixture struct {
 	Controller
 }
 
+func (r ResourceLimitsFixture) Close() {
+	r.DB.Close()
+	err := os.RemoveAll("/tmp/data/")
+	if err != nil {
+		log.Error("Node data has been emptied is error:%s", err)
+	}
+}
+
 func initializeResource() *ResourceLimitsFixture {
 	err := os.RemoveAll("/tmp/data/")
 	if err != nil {
 		log.Error("Node data has been emptied is error:%s", err)
 	}
-	control := NewController(NewConfig())
+	control := NewController(newConfig(SPECULATIVE))
 	rlm := control.ResourceLimits
 	rlm.InitializeDatabase()
 	return &ResourceLimitsFixture{ResourceLimitsManager: *rlm, Controller: *control}
@@ -70,7 +78,7 @@ func TestElasticCpuRelaxContract(t *testing.T) {
 	rlm.InitializeAccount(account)
 	rlm.SetAccountLimits(account, -1, -1, -1)
 	rlm.ProcessAccountLimitUpdates()
-	f := treeset.NewWith(common.TypeName, common.CompareName)
+	f := NewAccountNameSet()
 	f.AddItem(account)
 
 	iterations := uint32(0)
@@ -109,7 +117,7 @@ func TestElasticNetRelaxContract(t *testing.T) {
 	rlm.SetAccountLimits(account, -1, -1, -1)
 	rlm.ProcessAccountLimitUpdates()
 
-	f := treeset.NewWith(common.TypeName, common.CompareName)
+	f := NewAccountNameSet()
 	f.AddItem(account)
 
 	iterations := uint32(0)
@@ -166,7 +174,7 @@ func TestWeightedCapacityCpu(t *testing.T) {
 	for idx := int(0); idx < len(weights); idx++ {
 		account := common.AccountName(idx + 100)
 		assert.Equal(t, expectedLimits[idx], rlm.GetAccountCpuLimit(account, true))
-		f := treeset.NewWith(common.TypeName, common.CompareName)
+		f := NewAccountNameSet()
 		f.AddItem(account)
 		s := rlm.startSession()
 		rlm.AddTransactionUsage(f, uint64(expectedLimits[idx]), 0, 0)
@@ -213,7 +221,7 @@ func TestWeightedCapacityNet(t *testing.T) {
 	for idx := int(0); idx < len(weights); idx++ {
 		account := common.AccountName(idx + 100)
 		assert.Equal(t, expectedLimits[idx], rlm.GetAccountNetLimit(account, true))
-		f := treeset.NewWith(common.TypeName, common.CompareName)
+		f := NewAccountNameSet()
 		f.AddItem(account)
 		s := rlm.startSession()
 		rlm.AddTransactionUsage(f, 0, uint64(expectedLimits[idx]), 0)
@@ -235,7 +243,7 @@ func TestEnforceBlockLimitsCpu(t *testing.T) {
 	rlm.InitializeAccount(account)
 	rlm.SetAccountLimits(account, -1, -1, -1)
 	rlm.ProcessAccountLimitUpdates()
-	f := treeset.NewWith(common.TypeName, common.CompareName)
+	f := NewAccountNameSet()
 	f.AddItem(account)
 
 	increment := uint64(1000)
@@ -258,7 +266,7 @@ func TestEnforceBlockLimitsNet(t *testing.T) {
 	rlm.SetAccountLimits(account, -1, -1, -1)
 	rlm.ProcessAccountLimitUpdates()
 
-	f := treeset.NewWith(common.TypeName, common.CompareName)
+	f := NewAccountNameSet()
 	f.AddItem(account)
 
 	increment := uint64(1000)
@@ -376,7 +384,7 @@ func TestSanityCheck(t *testing.T) {
 	rlm.SetAccountLimits(dan, 0, 0, 10000)
 	rlm.SetAccountLimits(everyone, 0, 0, 10000000000000-10000)
 	rlm.ProcessAccountLimitUpdates()
-	f := treeset.NewWith(common.TypeName, common.CompareName)
+	f := NewAccountNameSet()
 	f.AddItem(dan)
 	rlm.AddTransactionUsage(f, 10, 0, 1)
 

@@ -17,7 +17,7 @@ func TestApplyEosioNewAccount(t *testing.T) {
 	t.Run("", func(t *testing.T) {
 
 		//get a control
-		control := GetControllerInstance()
+		control := NewController(NewConfig())
 		blockTimeStamp := types.NewBlockTimeStamp(common.Now())
 		control.StartBlock(blockTimeStamp, 0)
 
@@ -44,8 +44,8 @@ func TestApplyEosioNewAccount(t *testing.T) {
 			Account: common.AccountName(common.N("eosio")),
 			Name:    common.ActionName(common.N("newaccount")),
 			Data:    buffer,
-			Authorization: []types.PermissionLevel{
-				//types.PermissionLevel{Actor: common.AccountName(common.N("eosio.token")), Permission: common.PermissionName(common.N("active"))},
+			Authorization: []common.PermissionLevel{
+				//common.PermissionLevel{Actor: common.AccountName(common.N("eosio.token")), Permission: common.PermissionName(common.N("active"))},
 				{Actor: common.AccountName(common.N("eosio")), Permission: common.PermissionName(common.N("active"))},
 			},
 		}
@@ -95,7 +95,7 @@ func TestApplyEosioSetcode(t *testing.T) {
 		}
 
 		//get a control
-		control := GetControllerInstance()
+		control := NewController(NewConfig())
 		blockTimeStamp := types.NewBlockTimeStamp(common.Now())
 		control.StartBlock(blockTimeStamp, 0)
 
@@ -113,8 +113,8 @@ func TestApplyEosioSetcode(t *testing.T) {
 			Account: common.AccountName(common.N(account)),
 			Name:    common.ActionName(common.N("setcode")),
 			Data:    buffer,
-			Authorization: []types.PermissionLevel{
-				//types.PermissionLevel{Actor: common.AccountName(common.N("eosio.token")), Permission: common.PermissionName(common.N("active"))},
+			Authorization: []common.PermissionLevel{
+				//common.PermissionLevel{Actor: common.AccountName(common.N("eosio.token")), Permission: common.PermissionName(common.N("active"))},
 				{Actor: common.AccountName(common.N(account)), Permission: common.PermissionName(common.N("active"))},
 			},
 		}
@@ -137,7 +137,7 @@ func TestApplyEosioUpdateauth(t *testing.T) {
 	t.Run("", func(t *testing.T) {
 
 		//get a control
-		control := GetControllerInstance()
+		control := NewController(NewConfig())
 		blockTimeStamp := types.NewBlockTimeStamp(common.Now())
 		control.StartBlock(blockTimeStamp, 0)
 
@@ -154,7 +154,7 @@ func TestApplyEosioUpdateauth(t *testing.T) {
 			Auth: types.Authority{
 				Threshold: 2,
 				Accounts: []types.PermissionLevelWeight{{
-					Permission: types.PermissionLevel{Actor: common.AccountName(common.N(account2)), Permission: common.PermissionName(common.N("active"))},
+					Permission: common.PermissionLevel{Actor: common.AccountName(common.N(account2)), Permission: common.PermissionName(common.N("active"))},
 					Weight:     2,
 				}},
 			},
@@ -165,8 +165,8 @@ func TestApplyEosioUpdateauth(t *testing.T) {
 			Account: common.AccountName(common.N(account1)),
 			Name:    common.ActionName(common.N("updateauth")),
 			Data:    buffer,
-			Authorization: []types.PermissionLevel{
-				//types.PermissionLevel{Actor: common.AccountName(common.N("eosio.token")), Permission: common.PermissionName(common.N("active"))},
+			Authorization: []common.PermissionLevel{
+				//common.PermissionLevel{Actor: common.AccountName(common.N("eosio.token")), Permission: common.PermissionName(common.N("active"))},
 				{common.AccountName(common.N(account1)), common.PermissionName(common.N("active"))},
 			},
 		}
@@ -175,7 +175,7 @@ func TestApplyEosioUpdateauth(t *testing.T) {
 		applyEosioUpdateauth(a)
 
 		authorization := a.Control.GetMutableAuthorizationManager()
-		permission := authorization.FindPermission(&types.PermissionLevel{updateAuth.Account, updateAuth.Permission})
+		permission := authorization.FindPermission(&common.PermissionLevel{updateAuth.Account, updateAuth.Permission})
 		assert.Equal(t, permission.Auth.Threshold, updateAuth.Auth.Threshold)
 
 		// accountObject := entity.AccountObject{Name: action.Account}
@@ -198,7 +198,7 @@ func TestApplyEosioLinkauthAndUnlinkauth(t *testing.T) {
 		}
 
 		//get a control
-		control := GetControllerInstance()
+		control := NewController(NewConfig())
 		blockTimeStamp := types.NewBlockTimeStamp(common.Now())
 		control.StartBlock(blockTimeStamp, 0)
 
@@ -219,8 +219,8 @@ func TestApplyEosioLinkauthAndUnlinkauth(t *testing.T) {
 			Account: common.AccountName(common.N(accountCode)),
 			Name:    common.ActionName(common.N("setcode")),
 			Data:    buffer,
-			Authorization: []types.PermissionLevel{
-				//types.PermissionLevel{Actor: common.AccountName(common.N("eosio.token")), Permission: common.PermissionName(common.N("active"))},
+			Authorization: []common.PermissionLevel{
+				//common.PermissionLevel{Actor: common.AccountName(common.N("eosio.token")), Permission: common.PermissionName(common.N("active"))},
 				{Actor: common.AccountName(common.N(accountCode)), Permission: common.PermissionName(common.N("active"))},
 			},
 		}
@@ -239,8 +239,8 @@ func TestApplyEosioLinkauthAndUnlinkauth(t *testing.T) {
 			Account: common.AccountName(common.N(account)),
 			Name:    common.ActionName(common.N("linkauth")),
 			Data:    buffer,
-			Authorization: []types.PermissionLevel{
-				//types.PermissionLevel{Actor: common.AccountName(common.N("eosio.token")), Permission: common.PermissionName(common.N("active"))},
+			Authorization: []common.PermissionLevel{
+				//common.PermissionLevel{Actor: common.AccountName(common.N("eosio.token")), Permission: common.PermissionName(common.N("active"))},
 				{Actor: common.AccountName(common.N(account)), Permission: common.PermissionName(common.N("active"))},
 			},
 		}
@@ -265,8 +265,8 @@ func TestApplyEosioLinkauthAndUnlinkauth(t *testing.T) {
 			Account: common.AccountName(common.N(account)),
 			Name:    common.ActionName(common.N("linkauth")),
 			Data:    buffer,
-			Authorization: []types.PermissionLevel{
-				//types.PermissionLevel{Actor: common.AccountName(common.N("eosio.token")), Permission: common.PermissionName(common.N("active"))},
+			Authorization: []common.PermissionLevel{
+				//common.PermissionLevel{Actor: common.AccountName(common.N("eosio.token")), Permission: common.PermissionName(common.N("active"))},
 				{Actor: common.AccountName(common.N(account)), Permission: common.PermissionName(common.N("active"))},
 			},
 		}
@@ -340,8 +340,8 @@ func createNewAccount(control *Controller, name string) {
 		Account: common.AccountName(common.N("eosio")),
 		Name:    common.ActionName(common.N("newaccount")),
 		Data:    buffer,
-		Authorization: []types.PermissionLevel{
-			//types.PermissionLevel{Actor: common.AccountName(common.N("eosio.token")), Permission: common.PermissionName(common.N("active"))},
+		Authorization: []common.PermissionLevel{
+			//common.PermissionLevel{Actor: common.AccountName(common.N("eosio.token")), Permission: common.PermissionName(common.N("active"))},
 			{Actor: common.AccountName(common.N("eosio")), Permission: common.PermissionName(common.N("active"))},
 		},
 	}

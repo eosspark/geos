@@ -65,7 +65,7 @@ func NewCurrencyTester() *CurrencyTester {
 }
 
 func (c *CurrencyTester) PushAction(signer *common.AccountName, name *common.ActionName, data *common.Variants) *types.TransactionTrace {
-	action := types.Action{eosioToken, *name, []types.PermissionLevel{{*signer, common.DefaultConfig.ActiveName}}, nil}
+	action := types.Action{eosioToken, *name, []common.PermissionLevel{{*signer, common.DefaultConfig.ActiveName}}, nil}
 	acnt := c.validatingTester.Control.GetAccount(eosioToken)
 	a := acnt.GetAbi()
 	buf, _ := json.Marshal(data)
@@ -435,7 +435,7 @@ func TestProxy(t *testing.T) {
 			act := types.Action{}
 			act.Account = proxy
 			act.Name = common.N("setowner")
-			act.Authorization = []types.PermissionLevel{{common.N("alice"), common.DefaultConfig.ActiveName}}
+			act.Authorization = []common.PermissionLevel{{common.N("alice"), common.DefaultConfig.ActiveName}}
 			data := common.Variants{
 				"owner": alice,
 				"delay": 10,
@@ -452,7 +452,7 @@ func TestProxy(t *testing.T) {
 			act1 := types.Action{}
 			act1.Account = eosioToken
 			act1.Name = common.N("transfer")
-			act1.Authorization = []types.PermissionLevel{{eosioToken, common.DefaultConfig.ActiveName}}
+			act1.Authorization = []common.PermissionLevel{{eosioToken, common.DefaultConfig.ActiveName}}
 			data1 := common.Variants{
 				"from":     eosioToken,
 				"to":       proxy,
@@ -546,7 +546,7 @@ func TestDeferredFailure(t *testing.T) {
 		act := types.Action{}
 		act.Account = proxy
 		act.Name = common.N("setowner")
-		act.Authorization = []types.PermissionLevel{{common.N("bob"), common.DefaultConfig.ActiveName}}
+		act.Authorization = []common.PermissionLevel{{common.N("bob"), common.DefaultConfig.ActiveName}}
 		data := common.Variants{
 			"owner": bob,
 			"delay": 10,
@@ -620,7 +620,7 @@ func TestDeferredFailure(t *testing.T) {
 		act := types.Action{}
 		act.Account = bob
 		act.Name = common.N("setowner")
-		act.Authorization = []types.PermissionLevel{{common.N("alice"), common.DefaultConfig.ActiveName}}
+		act.Authorization = []common.PermissionLevel{{common.N("alice"), common.DefaultConfig.ActiveName}}
 		data := common.Variants{
 			"owner": alice,
 			"delay": 0,

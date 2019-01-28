@@ -46,7 +46,7 @@ type actionInterface interface {
 	GetName() common.AccountName
 }
 
-func newAction(permissionLevel []types.PermissionLevel, a actionInterface) *types.Action {
+func newAction(permissionLevel []common.PermissionLevel, a actionInterface) *types.Action {
 
 	payload, _ := rlp.EncodeToBytes(a)
 	act := types.Action{
@@ -79,7 +79,7 @@ func TestBasic(t *testing.T) {
 		var noAssertID common.TransactionIdType
 		{
 			trx := types.SignedTransaction{}
-			pl := []types.PermissionLevel{{asserter, common.DefaultConfig.ActiveName}}
+			pl := []common.PermissionLevel{{asserter, common.DefaultConfig.ActiveName}}
 			action := assertdef{1, "Should Not Assert!"}
 			act := newAction(pl, &action)
 			trx.Actions = append(trx.Actions, act)
@@ -110,7 +110,7 @@ func TestBasic(t *testing.T) {
 		{
 			trx := types.SignedTransaction{}
 
-			pl := []types.PermissionLevel{{asserter, common.DefaultConfig.ActiveName}}
+			pl := []common.PermissionLevel{{asserter, common.DefaultConfig.ActiveName}}
 			action := assertdef{0, "Should Assert!"}
 			act := newAction(pl, &action)
 			trx.Actions = append(trx.Actions, act)
@@ -159,7 +159,7 @@ func TestProveMemReset(t *testing.T) {
 		for i := 0; i < 5; i++ {
 			trx := types.SignedTransaction{}
 
-			pl := []types.PermissionLevel{{asserter, common.DefaultConfig.ActiveName}}
+			pl := []common.PermissionLevel{{asserter, common.DefaultConfig.ActiveName}}
 			action := provereset{}
 			act := newAction(pl, &action)
 			trx.Actions = append(trx.Actions, act)
@@ -220,7 +220,7 @@ func TestAbiFromVariant(t *testing.T) {
 				"message":   "Should Not Assert"}}
 		act := b.GetAction(
 			asserter, common.N("procassert"),
-			[]types.PermissionLevel{{asserter, common.DefaultConfig.ActiveName}},
+			[]common.PermissionLevel{{asserter, common.DefaultConfig.ActiveName}},
 			&actData)
 		trx.Actions = append(trx.Actions, act)
 
@@ -260,7 +260,7 @@ func TestSoftfloat32(t *testing.T) {
 		act := types.Action{
 			Account:       tester,
 			Name:          common.N(""),
-			Authorization: []types.PermissionLevel{{tester, common.DefaultConfig.ActiveName}}}
+			Authorization: []common.PermissionLevel{{tester, common.DefaultConfig.ActiveName}}}
 		trx.Actions = append(trx.Actions, &act)
 		b.SetTransactionHeaders(&trx.Transaction, b.DefaultExpirationDelta, 0)
 
@@ -298,7 +298,7 @@ func TestErrorfloat32(t *testing.T) {
 		act := types.Action{
 			Account:       f32_tests,
 			Name:          common.N(""),
-			Authorization: []types.PermissionLevel{{f32_tests, common.DefaultConfig.ActiveName}}}
+			Authorization: []common.PermissionLevel{{f32_tests, common.DefaultConfig.ActiveName}}}
 		trx.Actions = append(trx.Actions, &act)
 		b.SetTransactionHeaders(&trx.Transaction, b.DefaultExpirationDelta, 0)
 
@@ -335,7 +335,7 @@ func TestFloat64(t *testing.T) {
 		act := types.Action{
 			Account:       f64_tests,
 			Name:          common.N(""),
-			Authorization: []types.PermissionLevel{{f64_tests, common.DefaultConfig.ActiveName}}}
+			Authorization: []common.PermissionLevel{{f64_tests, common.DefaultConfig.ActiveName}}}
 		trx.Actions = append(trx.Actions, &act)
 		b.SetTransactionHeaders(&trx.Transaction, b.DefaultExpirationDelta, 0)
 
@@ -372,7 +372,7 @@ func TestFloat64Bitwise(t *testing.T) {
 		act := types.Action{
 			Account:       f64_tests,
 			Name:          common.N(""),
-			Authorization: []types.PermissionLevel{{f64_tests, common.DefaultConfig.ActiveName}}}
+			Authorization: []common.PermissionLevel{{f64_tests, common.DefaultConfig.ActiveName}}}
 		trx.Actions = append(trx.Actions, &act)
 		b.SetTransactionHeaders(&trx.Transaction, b.DefaultExpirationDelta, 0)
 
@@ -424,7 +424,7 @@ func TestF32F64overflow(t *testing.T) {
 			act := types.Action{
 				Account:       tester,
 				Name:          common.N(""),
-				Authorization: []types.PermissionLevel{{tester, common.DefaultConfig.ActiveName}}}
+				Authorization: []common.PermissionLevel{{tester, common.DefaultConfig.ActiveName}}}
 			trx.Actions = append(trx.Actions, &act)
 			b.SetTransactionHeaders(&trx.Transaction, b.DefaultExpirationDelta, 0)
 
@@ -529,7 +529,7 @@ func TestMisaligned(t *testing.T) {
 			act := types.Action{
 				Account:       aligncheck,
 				Name:          common.N(""),
-				Authorization: []types.PermissionLevel{{aligncheck, common.DefaultConfig.ActiveName}}}
+				Authorization: []common.PermissionLevel{{aligncheck, common.DefaultConfig.ActiveName}}}
 			trx.Actions = append(trx.Actions, &act)
 			b.SetTransactionHeaders(&trx.Transaction, b.DefaultExpirationDelta, 0)
 
@@ -599,7 +599,7 @@ func TestWeightedCpuLimit(t *testing.T) {
 				act := types.Action{
 					Account:       f_tests,
 					Name:          actionName,
-					Authorization: []types.PermissionLevel{{f_tests, common.DefaultConfig.ActiveName}}}
+					Authorization: []common.PermissionLevel{{f_tests, common.DefaultConfig.ActiveName}}}
 				trx.Actions = append(trx.Actions, &act)
 			}
 			b.SetTransactionHeaders(&trx.Transaction, b.DefaultExpirationDelta, 0)
@@ -657,7 +657,7 @@ func TestCheckEntryBehavior(t *testing.T) {
 		act := types.Action{
 			Account:       entrycheck,
 			Name:          common.N(""),
-			Authorization: []types.PermissionLevel{{entrycheck, common.DefaultConfig.ActiveName}}}
+			Authorization: []common.PermissionLevel{{entrycheck, common.DefaultConfig.ActiveName}}}
 		trx.Actions = append(trx.Actions, &act)
 		b.SetTransactionHeaders(&trx.Transaction, b.DefaultExpirationDelta, 0)
 
@@ -667,11 +667,11 @@ func TestCheckEntryBehavior(t *testing.T) {
 		b.PushTransaction(&trx, common.MaxTimePoint(), b.DefaultBilledCpuTimeUs)
 		b.ProduceBlocks(1, false)
 
-		//trxId := trx.ID()
-		//assert.Equal(t, b.ChainHasTransaction(&trxId), true)
+		trxId := trx.ID()
+		assert.Equal(t, b.ChainHasTransaction(&trxId), true)
 
-		// receipt := b.GetTransactionReceipt(&trxId)
-		// assert.Equal(t, receipt.Status, types.TransactionStatusExecuted)
+		receipt := b.GetTransactionReceipt(&trxId)
+		assert.Equal(t, receipt.Status, types.TransactionStatusExecuted)
 
 		b.close()
 
@@ -696,7 +696,7 @@ func TestCheckEntryBehavior2(t *testing.T) {
 		act := types.Action{
 			Account:       entrycheck,
 			Name:          common.N(""),
-			Authorization: []types.PermissionLevel{{entrycheck, common.DefaultConfig.ActiveName}}}
+			Authorization: []common.PermissionLevel{{entrycheck, common.DefaultConfig.ActiveName}}}
 		trx.Actions = append(trx.Actions, &act)
 		b.SetTransactionHeaders(&trx.Transaction, b.DefaultExpirationDelta, 0)
 
@@ -706,11 +706,11 @@ func TestCheckEntryBehavior2(t *testing.T) {
 		b.PushTransaction(&trx, common.MaxTimePoint(), b.DefaultBilledCpuTimeUs)
 		b.ProduceBlocks(1, false)
 
-		//trxId := trx.ID()
-		//assert.Equal(t, b.ChainHasTransaction(&trxId), true)
+		trxId := trx.ID()
+		assert.Equal(t, b.ChainHasTransaction(&trxId), true)
 
-		// receipt := b.GetTransactionReceipt(&trxId)
-		// assert.Equal(t, receipt.Status, types.TransactionStatusExecuted)
+		receipt := b.GetTransactionReceipt(&trxId)
+		assert.Equal(t, receipt.Status, types.TransactionStatusExecuted)
 
 		b.close()
 
@@ -735,15 +735,13 @@ func TestSimpleNoMemoryCheck(t *testing.T) {
 		act := types.Action{
 			Account:       nomem,
 			Name:          common.N(""),
-			Authorization: []types.PermissionLevel{{nomem, common.DefaultConfig.ActiveName}}}
+			Authorization: []common.PermissionLevel{{nomem, common.DefaultConfig.ActiveName}}}
 		trx.Actions = append(trx.Actions, &act)
 		b.SetTransactionHeaders(&trx.Transaction, b.DefaultExpirationDelta, 0)
 
 		privKey := b.getPrivateKey(nomem, "active")
 		chainId := b.Control.GetChainId()
 		trx.Sign(&privKey, &chainId)
-		// b.PushTransaction(&trx, common.MaxTimePoint(), b.DefaultBilledCpuTimeUs)
-		// b.ProduceBlocks(1, false)
 
 		returning := false
 		try.Try(func() {
@@ -778,7 +776,7 @@ func TestCheckGlobalReset(t *testing.T) {
 		act := types.Action{
 			Account:       globalreset,
 			Name:          common.N(""),
-			Authorization: []types.PermissionLevel{{globalreset, common.DefaultConfig.ActiveName}}}
+			Authorization: []common.PermissionLevel{{globalreset, common.DefaultConfig.ActiveName}}}
 		trx.Actions = append(trx.Actions, &act)
 		b.SetTransactionHeaders(&trx.Transaction, b.DefaultExpirationDelta, 0)
 
@@ -786,16 +784,15 @@ func TestCheckGlobalReset(t *testing.T) {
 		chainId := b.Control.GetChainId()
 		trx.Sign(&privKey, &chainId)
 
-		returning := false
-		try.Try(func() {
-			b.PushTransaction(&trx, common.MaxTimePoint(), b.DefaultBilledCpuTimeUs)
-		}).Catch(func(e exception.Exception) {
-			if (e.Code() == exception.WasmExecutionError{}.Code()) {
-				returning = true
-			}
-		}).End()
+		b.PushTransaction(&trx, common.MaxTimePoint(), b.DefaultBilledCpuTimeUs)
+		b.ProduceBlocks(1, false)
 
-		assert.Equal(t, returning, true)
+		trxId := trx.ID()
+		assert.Equal(t, b.ChainHasTransaction(&trxId), true)
+
+		receipt := b.GetTransactionReceipt(&trxId)
+		assert.Equal(t, receipt.Status, types.TransactionStatusExecuted)
+
 		b.close()
 
 	})
@@ -824,13 +821,12 @@ func TestStlTest(t *testing.T) {
 
 		trx := types.SignedTransaction{}
 		actData := common.Variants{
-			"message": common.Variants{
-				"from":    "bob",
-				"to":      "alice",
-				"message": "Hi Alice!"}}
+			"from":    common.N("bob"),
+			"to":      common.N("alice"),
+			"message": "Hi Alice!"}
 		act := b.GetAction(stltest,
 			common.N("message"),
-			[]types.PermissionLevel{{stltest, common.DefaultConfig.ActiveName}},
+			[]common.PermissionLevel{{stltest, common.DefaultConfig.ActiveName}},
 			&actData)
 
 		trx.Actions = append(trx.Actions, act)
@@ -840,8 +836,12 @@ func TestStlTest(t *testing.T) {
 		chainId := b.Control.GetChainId()
 		trx.Sign(&privKey, &chainId)
 		b.PushTransaction(&trx, common.MaxTimePoint(), b.DefaultBilledCpuTimeUs)
+		b.ProduceBlocks(1, false)
+
 		trxId := trx.ID()
 		assert.Equal(t, b.ChainHasTransaction(&trxId), true)
+
+		//fmt.Println(ret)
 
 		b.close()
 	})
@@ -863,7 +863,7 @@ func TestBigMemory(t *testing.T) {
 		b.ProduceBlocks(1, false)
 
 		trx := types.SignedTransaction{}
-		act := types.Action{bigmem, common.N(""), []types.PermissionLevel{{bigmem, common.DefaultConfig.ActiveName}}, nil}
+		act := types.Action{bigmem, common.N(""), []common.PermissionLevel{{bigmem, common.DefaultConfig.ActiveName}}, nil}
 
 		trx.Actions = append(trx.Actions, &act)
 		b.SetTransactionHeaders(&trx.Transaction, b.DefaultExpirationDelta, 0)
@@ -1259,7 +1259,7 @@ func TestNoop(t *testing.T) {
 					"data": "some data goes here"}}
 			act := b.GetAction(noop,
 				common.N("anyaction"),
-				[]types.PermissionLevel{{noop, common.DefaultConfig.ActiveName}},
+				[]common.PermissionLevel{{noop, common.DefaultConfig.ActiveName}},
 				&actData)
 
 			trx.Actions = append(trx.Actions, act)
@@ -1284,7 +1284,7 @@ func TestNoop(t *testing.T) {
 					"data": "some data goes here"}}
 			act := b.GetAction(noop,
 				common.N("anyaction"),
-				[]types.PermissionLevel{{alice, common.DefaultConfig.ActiveName}},
+				[]common.PermissionLevel{{alice, common.DefaultConfig.ActiveName}},
 				&actData)
 
 			trx.Actions = append(trx.Actions, act)
@@ -1317,7 +1317,7 @@ func TestEosioAbi(t *testing.T) {
 
 		ownerAuth := types.NewAuthority(b.getPublicKey(alice, "owner"), uint32(b.AbiSerializerMaxTime))
 
-		pl := []types.PermissionLevel{{common.DefaultConfig.SystemAccountName, common.PermissionName(common.N("active"))}}
+		pl := []common.PermissionLevel{{common.DefaultConfig.SystemAccountName, common.PermissionName(common.N("active"))}}
 		a := chain.NewAccount{
 			common.DefaultConfig.SystemAccountName,
 			alice,
@@ -1460,7 +1460,7 @@ func TestCheckTableMaximum(t *testing.T) {
 		{
 			var name uint64 = 555 << 32 //0x22b0000000000000 << 32 //555 << 32 //top 32 is what we assert against, bottom 32 is indirect call index
 			trx := types.SignedTransaction{}
-			act := types.Action{account, common.ActionName(name), []types.PermissionLevel{{account, common.DefaultConfig.ActiveName}}, nil}
+			act := types.Action{account, common.ActionName(name), []common.PermissionLevel{{account, common.DefaultConfig.ActiveName}}, nil}
 			trx.Actions = append(trx.Actions, &act)
 			b.SetTransactionHeaders(&trx.Transaction, b.DefaultExpirationDelta, 0)
 
@@ -1474,7 +1474,7 @@ func TestCheckTableMaximum(t *testing.T) {
 		{
 			var name uint64 = 555<<32 | 1022 //top 32 is what we assert against, bottom 32 is indirect call index
 			trx := types.SignedTransaction{}
-			act := types.Action{account, common.ActionName(name), []types.PermissionLevel{{account, common.DefaultConfig.ActiveName}}, nil}
+			act := types.Action{account, common.ActionName(name), []common.PermissionLevel{{account, common.DefaultConfig.ActiveName}}, nil}
 			trx.Actions = append(trx.Actions, &act)
 			b.SetTransactionHeaders(&trx.Transaction, b.DefaultExpirationDelta, 0)
 
@@ -1488,7 +1488,7 @@ func TestCheckTableMaximum(t *testing.T) {
 		{
 			var name uint64 = 7777<<32 | 1023 //top 32 is what we assert against, bottom 32 is indirect call index
 			trx := types.SignedTransaction{}
-			act := types.Action{account, common.ActionName(name), []types.PermissionLevel{{account, common.DefaultConfig.ActiveName}}, nil}
+			act := types.Action{account, common.ActionName(name), []common.PermissionLevel{{account, common.DefaultConfig.ActiveName}}, nil}
 			trx.Actions = append(trx.Actions, &act)
 			b.SetTransactionHeaders(&trx.Transaction, b.DefaultExpirationDelta, 0)
 
@@ -1502,7 +1502,7 @@ func TestCheckTableMaximum(t *testing.T) {
 		{
 			var name uint64 = 7778<<32 | 1023 //top 32 is what we assert against, bottom 32 is indirect call index
 			trx := types.SignedTransaction{}
-			act := types.Action{account, common.ActionName(name), []types.PermissionLevel{{account, common.DefaultConfig.ActiveName}}, nil}
+			act := types.Action{account, common.ActionName(name), []common.PermissionLevel{{account, common.DefaultConfig.ActiveName}}, nil}
 			trx.Actions = append(trx.Actions, &act)
 			b.SetTransactionHeaders(&trx.Transaction, b.DefaultExpirationDelta, 0)
 
@@ -1525,7 +1525,7 @@ func TestCheckTableMaximum(t *testing.T) {
 		{
 			var name uint64 = 133<<32 | 5 //top 32 is what we assert against, bottom 32 is indirect call index
 			trx := types.SignedTransaction{}
-			act := types.Action{account, common.ActionName(name), []types.PermissionLevel{{account, common.DefaultConfig.ActiveName}}, nil}
+			act := types.Action{account, common.ActionName(name), []common.PermissionLevel{{account, common.DefaultConfig.ActiveName}}, nil}
 			trx.Actions = append(trx.Actions, &act)
 			b.SetTransactionHeaders(&trx.Transaction, b.DefaultExpirationDelta, 0)
 
@@ -1548,7 +1548,7 @@ func TestCheckTableMaximum(t *testing.T) {
 		{
 			var name uint64 = wasmgo.MaximumTableElements + 54334
 			trx := types.SignedTransaction{}
-			act := types.Action{account, common.ActionName(name), []types.PermissionLevel{{account, common.DefaultConfig.ActiveName}}, nil}
+			act := types.Action{account, common.ActionName(name), []common.PermissionLevel{{account, common.DefaultConfig.ActiveName}}, nil}
 			trx.Actions = append(trx.Actions, &act)
 			b.SetTransactionHeaders(&trx.Transaction, b.DefaultExpirationDelta, 0)
 
@@ -1575,7 +1575,7 @@ func TestCheckTableMaximum(t *testing.T) {
 		{
 			var name uint64 = 555<<32 | 1022 //top 32 is what we assert against, bottom 32 is indirect call index
 			trx := types.SignedTransaction{}
-			act := types.Action{account, common.ActionName(name), []types.PermissionLevel{{account, common.DefaultConfig.ActiveName}}, nil}
+			act := types.Action{account, common.ActionName(name), []common.PermissionLevel{{account, common.DefaultConfig.ActiveName}}, nil}
 			trx.Actions = append(trx.Actions, &act)
 			b.SetTransactionHeaders(&trx.Transaction, b.DefaultExpirationDelta, 0)
 
@@ -1589,7 +1589,7 @@ func TestCheckTableMaximum(t *testing.T) {
 		{
 			var name uint64 = 7777<<32 | 1023 //top 32 is what we assert against, bottom 32 is indirect call index
 			trx := types.SignedTransaction{}
-			act := types.Action{account, common.ActionName(name), []types.PermissionLevel{{account, common.DefaultConfig.ActiveName}}, nil}
+			act := types.Action{account, common.ActionName(name), []common.PermissionLevel{{account, common.DefaultConfig.ActiveName}}, nil}
 			trx.Actions = append(trx.Actions, &act)
 			b.SetTransactionHeaders(&trx.Transaction, b.DefaultExpirationDelta, 0)
 
@@ -1605,7 +1605,7 @@ func TestCheckTableMaximum(t *testing.T) {
 		{
 			var name uint64 = 888
 			trx := types.SignedTransaction{}
-			act := types.Action{account, common.ActionName(name), []types.PermissionLevel{{account, common.DefaultConfig.ActiveName}}, nil}
+			act := types.Action{account, common.ActionName(name), []common.PermissionLevel{{account, common.DefaultConfig.ActiveName}}, nil}
 			trx.Actions = append(trx.Actions, &act)
 			b.SetTransactionHeaders(&trx.Transaction, b.DefaultExpirationDelta, 0)
 
@@ -1806,7 +1806,7 @@ func TestLotsoStack3(t *testing.T) {
 			act := types.Action{
 				Account:       account,
 				Name:          common.N(""),
-				Authorization: []types.PermissionLevel{{account, common.DefaultConfig.ActiveName}}}
+				Authorization: []common.PermissionLevel{{account, common.DefaultConfig.ActiveName}}}
 			trx.Actions = append(trx.Actions, &act)
 			b.SetTransactionHeaders(&trx.Transaction, b.DefaultExpirationDelta, 0)
 
@@ -1902,7 +1902,7 @@ func TestLotsoStack6(t *testing.T) {
 			act := types.Action{
 				Account:       account,
 				Name:          common.N(""),
-				Authorization: []types.PermissionLevel{{account, common.DefaultConfig.ActiveName}}}
+				Authorization: []common.PermissionLevel{{account, common.DefaultConfig.ActiveName}}}
 			trx.Actions = append(trx.Actions, &act)
 			b.SetTransactionHeaders(&trx.Transaction, b.DefaultExpirationDelta, 0)
 
@@ -2153,7 +2153,7 @@ func TestMemGrowthMemset(t *testing.T) {
 		act := types.Action{
 			Account:       account,
 			Name:          common.N(""),
-			Authorization: []types.PermissionLevel{{account, common.DefaultConfig.ActiveName}}}
+			Authorization: []common.PermissionLevel{{account, common.DefaultConfig.ActiveName}}}
 
 		wasm := wast2wasm([]byte(memory_growth_memset_store))
 		b.SetCode(account, wasm, nil)

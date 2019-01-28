@@ -16,9 +16,10 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/eosspark/container/utils"
+	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/common/container"
 	rbt "github.com/eosspark/eos-go/common/container/tree"
+	"github.com/eosspark/eos-go/crypto/rlp"
 )
 
 // template type Set(V,Compare,Multi)
@@ -37,7 +38,7 @@ var itemExistsMultiStringSet = struct{}{}
 // NewWith instantiates a new empty set with the custom comparator.
 
 func NewMultiStringSet(Value ...string) *MultiStringSet {
-	set := &MultiStringSet{Tree: rbt.NewWith(utils.StringComparator, true)}
+	set := &MultiStringSet{Tree: rbt.NewWith(StringComparator, true)}
 	set.Add(Value...)
 	return set
 }
@@ -55,7 +56,7 @@ func MultiStringSetIntersection(a *MultiStringSet, b *MultiStringSet, callback f
 	}
 
 	for aHasNext, bHasNext := true, true; aHasNext && bHasNext; {
-		comp := utils.StringComparator(aIterator.Value(), bIterator.Value())
+		comp := StringComparator(aIterator.Value(), bIterator.Value())
 		switch {
 		case comp > 0:
 			bHasNext = bIterator.Next()
@@ -75,7 +76,7 @@ func (set *MultiStringSet) AddItem(item string) (bool, string) {
 	if itr.IsEnd() {
 		return false, item
 	}
-	return true, itr.Value().(string)
+	return true, itr.Key().(string)
 }
 
 // Add adds the items (one or more) to the set.
@@ -196,4 +197,30 @@ func (set *MultiStringSet) UnmarshalJSON(data []byte) error {
 		set.Add(elements...)
 	}
 	return err
+}
+
+func (set MultiStringSet) Pack() (re []byte, err error) {
+	re = append(re, common.WriteUVarInt(set.Size())...)
+	set.Each(func(value string) {
+		reVal, _ := rlp.EncodeToBytes(value)
+		re = append(re, reVal...)
+	})
+	return re, nil
+}
+
+func (set *MultiStringSet) Unpack(in []byte) (int, error) {
+	set.Tree = rbt.NewWith(StringComparator, true)
+
+	decoder := rlp.NewDecoder(in)
+	l, err := decoder.ReadUvarint64()
+	if err != nil {
+		return 0, err
+	}
+
+	for i := 0; i < int(l); i++ {
+		v := new(string)
+		decoder.Decode(v)
+		set.Add(*v)
+	}
+	return decoder.GetPos(), nil
 }

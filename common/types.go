@@ -125,3 +125,73 @@ func (v *Vint32) Unpack(in []byte) (l int, err error) {
 	*v = Vint32(re)
 	return l, nil
 }
+
+type PermissionLevel struct {
+	Actor      AccountName    `json:"actor"`
+	Permission PermissionName `json:"permission"`
+}
+
+func ComparePermissionLevel(first interface{}, second interface{}) int {
+	if first.(PermissionLevel).Actor > second.(PermissionLevel).Actor {
+		return 1
+	} else if first.(PermissionLevel).Actor < second.(PermissionLevel).Actor {
+		return -1
+	}
+	if first.(PermissionLevel).Permission > second.(PermissionLevel).Permission {
+		return 1
+	} else if first.(PermissionLevel).Permission < second.(PermissionLevel).Permission {
+		return -1
+	} else {
+		return 0
+	}
+}
+
+func (level PermissionLevel) String() string {
+	return "{ actor: " + level.Actor.String() + ", " + "permission: " + level.Permission.String() + "}"
+}
+
+type AccountDelta struct {
+	Account AccountName
+	Delta   int64
+}
+
+func NewAccountDelta(name AccountName, d int64) *AccountDelta {
+	return &AccountDelta{name, d}
+}
+
+func CompareAccountDelta(first interface{}, second interface{}) int {
+	if first.(AccountDelta).Account == second.(AccountDelta).Account {
+		return 0
+	}
+	if first.(AccountDelta).Account < second.(AccountDelta).Account {
+		return -1
+	}
+	return 1
+}
+
+type NamePair struct {
+	First  AccountName
+	Second ActionName
+}
+
+func CompareNamePair(a, b interface{}) int {
+	aPair, bPair := a.(NamePair), b.(NamePair)
+	aFirst, bFirst := aPair.First, bPair.First
+	aSecond, bSecond := aPair.Second, bPair.Second
+
+	switch {
+	case aFirst > bFirst:
+		return 1
+	case aFirst < bFirst:
+		return -1
+	}
+
+	switch {
+	case aSecond > bSecond:
+		return 1
+	case aSecond < bSecond:
+		return -1
+	}
+
+	return 0
+}

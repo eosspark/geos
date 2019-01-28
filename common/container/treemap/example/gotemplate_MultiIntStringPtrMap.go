@@ -18,9 +18,10 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/eosspark/container/utils"
+	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/common/container"
 	rbt "github.com/eosspark/eos-go/common/container/tree"
+	"github.com/eosspark/eos-go/crypto/rlp"
 )
 
 // template type Map(K,V,Compare,Multi)
@@ -36,7 +37,7 @@ type MultiIntStringPtrMap struct {
 
 // NewWith instantiates a Tree map with the custom comparator.
 func NewMultiIntStringPtrMap() *MultiIntStringPtrMap {
-	return &MultiIntStringPtrMap{Tree: rbt.NewWith(utils.IntComparator, true)}
+	return &MultiIntStringPtrMap{Tree: rbt.NewWith(IntComparator, true)}
 }
 
 func CopyFromMultiIntStringPtrMap(tm *MultiIntStringPtrMap) *MultiIntStringPtrMap {
@@ -186,4 +187,33 @@ func (m *MultiIntStringPtrMap) UnmarshalJSON(data []byte) error {
 		}
 	}
 	return err
+}
+
+func (m MultiIntStringPtrMap) Pack() (re []byte, err error) {
+	re = append(re, common.WriteUVarInt(m.Size())...)
+	m.Each(func(key int, value *string) {
+		rekey, _ := rlp.EncodeToBytes(key)
+		re = append(re, rekey...)
+		reVal, _ := rlp.EncodeToBytes(value)
+		re = append(re, reVal...)
+	})
+	return re, nil
+}
+
+func (m *MultiIntStringPtrMap) Unpack(in []byte) (int, error) {
+	m.Tree = rbt.NewWith(IntComparator, true)
+
+	decoder := rlp.NewDecoder(in)
+	l, err := decoder.ReadUvarint64()
+	if err != nil {
+		return 0, err
+	}
+
+	for i := 0; i < int(l); i++ {
+		k, v := new(int), new(*string)
+		decoder.Decode(k)
+		decoder.Decode(v)
+		m.Put(*k, *v)
+	}
+	return decoder.GetPos(), nil
 }

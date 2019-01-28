@@ -16,9 +16,10 @@ import (
 	"fmt"
 	"strings"
 
-	"github.com/eosspark/container/utils"
+	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/common/container"
 	rbt "github.com/eosspark/eos-go/common/container/tree"
+	"github.com/eosspark/eos-go/crypto/rlp"
 )
 
 // template type Set(V,Compare,Multi)
@@ -37,7 +38,7 @@ var itemExistsStringSet = struct{}{}
 // NewWith instantiates a new empty set with the custom comparator.
 
 func NewStringSet(Value ...string) *StringSet {
-	set := &StringSet{Tree: rbt.NewWith(utils.StringComparator, false)}
+	set := &StringSet{Tree: rbt.NewWith(StringComparator, false)}
 	set.Add(Value...)
 	return set
 }
@@ -55,7 +56,7 @@ func StringSetIntersection(a *StringSet, b *StringSet, callback func(elem string
 	}
 
 	for aHasNext, bHasNext := true, true; aHasNext && bHasNext; {
-		comp := utils.StringComparator(aIterator.Value(), bIterator.Value())
+		comp := StringComparator(aIterator.Value(), bIterator.Value())
 		switch {
 		case comp > 0:
 			bHasNext = bIterator.Next()
@@ -75,7 +76,7 @@ func (set *StringSet) AddItem(item string) (bool, string) {
 	if itr.IsEnd() {
 		return false, item
 	}
-	return true, itr.Value().(string)
+	return true, itr.Key().(string)
 }
 
 // Add adds the items (one or more) to the set.
@@ -196,4 +197,30 @@ func (set *StringSet) UnmarshalJSON(data []byte) error {
 		set.Add(elements...)
 	}
 	return err
+}
+
+func (set StringSet) Pack() (re []byte, err error) {
+	re = append(re, common.WriteUVarInt(set.Size())...)
+	set.Each(func(value string) {
+		reVal, _ := rlp.EncodeToBytes(value)
+		re = append(re, reVal...)
+	})
+	return re, nil
+}
+
+func (set *StringSet) Unpack(in []byte) (int, error) {
+	set.Tree = rbt.NewWith(StringComparator, false)
+
+	decoder := rlp.NewDecoder(in)
+	l, err := decoder.ReadUvarint64()
+	if err != nil {
+		return 0, err
+	}
+
+	for i := 0; i < int(l); i++ {
+		v := new(string)
+		decoder.Decode(v)
+		set.Add(*v)
+	}
+	return decoder.GetPos(), nil
 }

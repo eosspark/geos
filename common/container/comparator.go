@@ -21,9 +21,7 @@ type Comparator func(a, b interface{}) int
 var TypeString = reflect.TypeOf(string(""))
 
 // StringComparator provides a fast comparison on strings
-func StringComparator(a, b interface{}) int {
-	s1 := a.(string)
-	s2 := b.(string)
+func StringComparator(s1, s2 string) int {
 	min := len(s2)
 	if len(s1) < len(s2) {
 		min = len(s1)

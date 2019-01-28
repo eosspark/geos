@@ -25,20 +25,16 @@ type BlockLog struct {
 	genesisWriteToBlockLog bool
 }
 
-/// static field
 const (
+	/// static field
 	nPos             = math.MaxUint64
 	supportedVersion = uint32(1)
-)
 
-/// sizeof
-const (
+	/// sizeof
 	SizeOfInt32 = 4
 	SizeOfInt64 = 8
-)
 
-/// seek whence
-const (
+	/// seek whence
 	beg = 0
 	cur = 1
 	end = 2
@@ -312,7 +308,7 @@ func (b *BlockLog) ReadHead() *types.SignedBlock {
 	}
 
 	var pos uint64
-	bytes := make([]byte, end)
+	bytes := make([]byte, SizeOfInt64)
 	b.blockStream.Seek(-SizeOfInt64, end)
 	b.blockStream.Read(bytes)
 	rlp.DecodeBytes(bytes, &pos)

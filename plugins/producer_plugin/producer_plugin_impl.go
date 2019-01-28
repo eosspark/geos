@@ -1,9 +1,9 @@
 package producer_plugin
 
 import (
-	"github.com/eosspark/container/sets/treeset"
 	"github.com/eosspark/eos-go/chain"
 	"github.com/eosspark/eos-go/chain/types"
+	. "github.com/eosspark/eos-go/chain/types/generated_containers"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/ecc"
@@ -22,7 +22,7 @@ type ProducerPluginImpl struct {
 	ProductionSkipFlags uint32
 
 	SignatureProviders map[ecc.PublicKey]signatureProviderType
-	Producers          *treeset.Set //<AccountName>
+	Producers          AccountNameSet
 	Timer              *common.Timer
 	ProducerWatermarks map[common.AccountName]uint32
 	PendingBlockMode   PendingBlockMode
@@ -92,7 +92,7 @@ func NewProducerPluginImpl(io *asio.IoContext) *ProducerPluginImpl {
 	return &ProducerPluginImpl{
 		Timer:                   common.NewTimer(io),
 		SignatureProviders:      make(map[ecc.PublicKey]signatureProviderType),
-		Producers:               treeset.NewWith(common.TypeName, common.CompareName),
+		Producers:               *NewAccountNameSet(),
 		ProducerWatermarks:      make(map[common.AccountName]uint32),
 		PersistentTransactions:  NewTransactionIdWithExpiryIndex(),
 		BlacklistedTransactions: NewTransactionIdWithExpiryIndex(),
@@ -114,24 +114,20 @@ func (impl *ProducerPluginImpl) OnBlock(bsp *types.BlockState) {
 
 	activeProducerToSigningKey := bsp.ActiveSchedule.Producers
 
-	activeProducers := treeset.NewWith(common.TypeName, common.CompareName) //<AccountName>
+	activeProducers := NewAccountNameSet()
 
 	for _, p := range bsp.ActiveSchedule.Producers {
-		activeProducers.Add(&p.ProducerName)
+		activeProducers.Add(p.ProducerName)
 	}
 
-	treeset.SetIntersection(impl.Producers, activeProducers, func(e interface{}) {
-		producer := e.(common.AccountName)
+	AccountNameSetIntersection(&impl.Producers, activeProducers, func(producer common.AccountName) {
 		if producer != bsp.Header.Producer {
-			itr := func() *types.ProducerKey {
-				for _, k := range activeProducerToSigningKey {
-					if k.ProducerName == producer {
-						return &k
-					}
+			var itr *types.ProducerKey
+			for _, k := range activeProducerToSigningKey {
+				if k.ProducerName == producer {
+					itr = &k
 				}
-
-				return nil
-			}()
+			}
 
 			if itr != nil {
 				privateKeyItr := impl.SignatureProviders[itr.BlockSigningKey]
@@ -158,7 +154,7 @@ func (impl *ProducerPluginImpl) OnBlock(bsp *types.BlockState) {
 
 	// for newly installed producers we can set their watermarks to the block they became active
 	if newBs.MaybePromotePending() && bsp.ActiveSchedule.Version != newBs.ActiveSchedule.Version {
-		newProducers := treeset.NewWith(common.TypeName, common.CompareName)
+		newProducers := NewAccountNameSet()
 		for _, p := range newBs.ActiveSchedule.Producers {
 			if impl.Producers.Contains(p.ProducerName) {
 				newProducers.Add(p.ProducerName)
@@ -166,11 +162,11 @@ func (impl *ProducerPluginImpl) OnBlock(bsp *types.BlockState) {
 		}
 
 		for _, p := range bsp.ActiveSchedule.Producers {
-			newProducers.Remove(&p.ProducerName)
+			newProducers.Remove(p.ProducerName)
 		}
 
-		newProducers.Each(func(index int, value interface{}) {
-			impl.ProducerWatermarks[value.(common.AccountName)] = hbn
+		newProducers.Each(func(newProducer common.AccountName) {
+			impl.ProducerWatermarks[newProducer] = hbn
 		})
 	}
 }
@@ -180,7 +176,8 @@ func (impl *ProducerPluginImpl) OnIrreversibleBlock(lib *types.SignedBlock) {
 }
 
 func (impl *ProducerPluginImpl) OnIncomingBlock(block *types.SignedBlock) {
-	log.Debug("received incoming block %s", block.BlockID())
+
+	ppLog.Debug("received incoming block %s", block.BlockID())
 
 	EosAssert(block.Timestamp.ToTimePoint() < common.Now().AddUs(common.Seconds(7)), &BlockFromTheFuture{}, "received a block from the future, ignoring it")
 
@@ -256,21 +253,21 @@ func (impl *ProducerPluginImpl) OnIncomingTransactionAsync(trx *types.PackedTran
 		if re, ok := response.(Exception); ok {
 			//TODO C: _transaction_ack_channel.publish(std::pair<fc::exception_ptr, packed_transaction_ptr>(response.get<fc::exception_ptr>(), trx));
 			if impl.PendingBlockMode == PendingBlockMode(producing) {
-				log.Debug("[TRX_TRACE] Block %d for producer %s is REJECTING tx: %s : %s ",
+				trxTraceLog.Debug("[TRX_TRACE] Block %d for producer %s is REJECTING tx: %s : %s ",
 					chain.HeadBlockNum()+1, chain.PendingBlockState().Header.Producer, trx.ID(), re.What())
 			} else {
-				log.Debug("[TRX_TRACE] Speculative execution is REJECTING tx: %s : %s ",
+				trxTraceLog.Debug("[TRX_TRACE] Speculative execution is REJECTING tx: %s : %s ",
 					trx.ID(), re.What())
 			}
 
 		} else {
 			//TODO C: _transaction_ack_channel.publish(std::pair<fc::exception_ptr, packed_transaction_ptr>(nullptr, trx));
 			if impl.PendingBlockMode == PendingBlockMode(producing) {
-				log.Debug("[TRX_TRACE] Block %d for producer %s is ACCEPTING tx: %s",
+				trxTraceLog.Debug("[TRX_TRACE] Block %d for producer %s is ACCEPTING tx: %s",
 					chain.HeadBlockNum()+1, chain.PendingBlockState().Header.Producer, trx.ID())
 
 			} else {
-				log.Debug("[TRX_TRACE] Speculative execution is ACCEPTING tx: %s", trx.ID())
+				trxTraceLog.Debug("[TRX_TRACE] Speculative execution is ACCEPTING tx: %s", trx.ID())
 			}
 		}
 	}
@@ -300,10 +297,10 @@ func (impl *ProducerPluginImpl) OnIncomingTransactionAsync(trx *types.PackedTran
 			if failureIsSubjective(trace.Except, deadlineIsSubjective) {
 				impl.PendingIncomingTransactions = append(impl.PendingIncomingTransactions, pendingIncomingTransaction{trx, persistUntilExpired, next})
 				if impl.PendingBlockMode == PendingBlockMode(producing) {
-					log.Debug("[TRX_TRACE] Block %d for producer %s COULD NOT FIT, tx: %s RETRYING ",
+					trxTraceLog.Debug("[TRX_TRACE] Block %d for producer %s COULD NOT FIT, tx: %s RETRYING ",
 						chain.HeadBlockNum()+1, chain.PendingBlockState().Header.Producer, trx.ID())
 				} else {
-					log.Debug("[TRX_TRACE] Speculative execution COULD NOT FIT tx: %s} RETRYING", trx.ID())
+					trxTraceLog.Debug("[TRX_TRACE] Speculative execution COULD NOT FIT tx: %s} RETRYING", trx.ID())
 				}
 
 			} else {

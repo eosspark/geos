@@ -46,7 +46,7 @@ func initEosioSudoTester() *EosioSudoTester {
 	e.ProduceBlocks(1, false)
 
 	trx := types.SignedTransaction{}
-	auth := types.Authority{Threshold: 1, Accounts: []types.PermissionLevelWeight{{Permission: types.PermissionLevel{Actor: eosio, Permission: common.DefaultConfig.ActiveName}, Weight: 1}}}
+	auth := types.Authority{Threshold: 1, Accounts: []types.PermissionLevelWeight{{Permission: common.PermissionLevel{Actor: eosio, Permission: common.DefaultConfig.ActiveName}, Weight: 1}}}
 	newAccount := NewAccount{
 		Creator: eosio,
 		Name:    eosioSudo,
@@ -57,7 +57,7 @@ func initEosioSudoTester() *EosioSudoTester {
 	action := types.Action{
 		Account:       newAccount.GetAccount(),
 		Name:          newAccount.GetName(),
-		Authorization: []types.PermissionLevel{{eosio, common.DefaultConfig.ActiveName}},
+		Authorization: []common.PermissionLevel{{eosio, common.DefaultConfig.ActiveName}},
 		Data:          actionData,
 	}
 	trx.Actions = append(trx.Actions, &action)
@@ -88,7 +88,7 @@ func initEosioSudoTester() *EosioSudoTester {
 		Threshold: 1,
 		Keys:      []types.KeyWeight{{Key: e.getPublicKey(eosio, "active"), Weight: 1}},
 		Accounts: []types.PermissionLevelWeight{
-			{Permission: types.PermissionLevel{Actor: common.DefaultConfig.ProducersAccountName, Permission: common.DefaultConfig.ActiveName}, Weight: 1},
+			{Permission: common.PermissionLevel{Actor: common.DefaultConfig.ProducersAccountName, Permission: common.DefaultConfig.ActiveName}, Weight: 1},
 		},
 	}
 	e.SetAuthority(
@@ -96,7 +96,7 @@ func initEosioSudoTester() *EosioSudoTester {
 		common.DefaultConfig.ActiveName,
 		authority,
 		common.DefaultConfig.OwnerName,
-		&[]types.PermissionLevel{{eosio, common.DefaultConfig.OwnerName}},
+		&[]common.PermissionLevel{{eosio, common.DefaultConfig.OwnerName}},
 		&[]ecc.PrivateKey{e.getPrivateKey(eosio, "active")},
 	)
 
@@ -118,7 +118,7 @@ func initEosioSudoTester() *EosioSudoTester {
 	return e
 }
 
-func (e EosioSudoTester) Propose(proposer common.AccountName, proposalName common.Name, trx types.Transaction, request []types.PermissionLevel) *types.TransactionTrace {
+func (e EosioSudoTester) Propose(proposer common.AccountName, proposalName common.Name, trx types.Transaction, request []common.PermissionLevel) *types.TransactionTrace {
 	propose := common.Variants{
 		"proposer":      proposer,
 		"proposal_name": proposalName,
@@ -129,7 +129,7 @@ func (e EosioSudoTester) Propose(proposer common.AccountName, proposalName commo
 	return e.PushAction2(&eosioMsig, &acttype, proposer, &propose, e.DefaultExpirationDelta, 0)
 }
 
-func (e EosioSudoTester) Approve(approver common.AccountName, proposer common.AccountName, proposalName common.Name, level types.PermissionLevel) *types.TransactionTrace {
+func (e EosioSudoTester) Approve(approver common.AccountName, proposer common.AccountName, proposalName common.Name, level common.PermissionLevel) *types.TransactionTrace {
 	approve := common.Variants{
 		"proposer":      proposer,
 		"proposal_name": proposalName,
@@ -139,7 +139,7 @@ func (e EosioSudoTester) Approve(approver common.AccountName, proposer common.Ac
 	return e.PushAction2(&eosioMsig, &acttype, approver, &approve, e.DefaultExpirationDelta, 0)
 }
 
-func (e EosioSudoTester) UnApprove(unapprover common.AccountName, proposer common.AccountName, proposalName common.Name, level types.PermissionLevel) *types.TransactionTrace {
+func (e EosioSudoTester) UnApprove(unapprover common.AccountName, proposer common.AccountName, proposalName common.Name, level common.PermissionLevel) *types.TransactionTrace {
 	unapprove := common.Variants{
 		"proposer":      proposer,
 		"proposal_name": proposalName,
@@ -160,7 +160,7 @@ func (e EosioSudoTester) Exec(executer common.AccountName, proposer common.Accou
 }
 
 func (e EosioSudoTester) SudoExec(executer common.AccountName, trx *types.Transaction, expiration uint32) types.Transaction {
-	auth := []types.PermissionLevel{{executer, common.DefaultConfig.ActiveName}, {eosioSudo, common.DefaultConfig.ActiveName}}
+	auth := []common.PermissionLevel{{executer, common.DefaultConfig.ActiveName}, {eosioSudo, common.DefaultConfig.ActiveName}}
 	//exec := common.Variants{
 	//	"executer": executer,
 	//	"trx":      *trx,
@@ -183,8 +183,8 @@ func (e EosioSudoTester) SudoExec(executer common.AccountName, trx *types.Transa
 	return trx2
 }
 
-func (e EosioSudoTester) ReqAuth(from common.AccountName, auths []types.PermissionLevel, expiration uint32) types.Transaction {
-	var auth []types.PermissionLevel
+func (e EosioSudoTester) ReqAuth(from common.AccountName, auths []common.PermissionLevel, expiration uint32) types.Transaction {
+	var auth []common.PermissionLevel
 	for _, level := range auths {
 		auth = append(auth, level)
 	}
@@ -208,7 +208,7 @@ func (e EosioSudoTester) ReqAuth(from common.AccountName, auths []types.Permissi
 
 func TestSudoExecDirect(t *testing.T) {
 	e := initEosioSudoTester()
-	trx := e.ReqAuth(bob, []types.PermissionLevel{{bob, common.DefaultConfig.ActiveName}}, e.DefaultExpirationDelta)
+	trx := e.ReqAuth(bob, []common.PermissionLevel{{bob,common.DefaultConfig.ActiveName}}, e.DefaultExpirationDelta)
 	sudoTrx := types.SignedTransaction{Transaction: e.SudoExec(alice, &trx, e.DefaultExpirationDelta)}
 	chainId := e.Control.GetChainId()
 	pk := e.getPrivateKey(alice, "active")
@@ -235,21 +235,21 @@ func TestSudoExecDirect(t *testing.T) {
 
 func TestSudoWithMsig(t *testing.T) {
 	e := initEosioSudoTester()
-	trx := e.ReqAuth(bob, []types.PermissionLevel{{bob, common.DefaultConfig.ActiveName}}, e.DefaultExpirationDelta)
+	trx := e.ReqAuth(bob, []common.PermissionLevel{{bob,common.DefaultConfig.ActiveName}}, e.DefaultExpirationDelta)
 	sudoTrx := e.SudoExec(alice, &trx, e.DefaultExpirationDelta)
 	active := common.DefaultConfig.ActiveName
-	e.Propose(carol, common.N("first"), sudoTrx, []types.PermissionLevel{
+	e.Propose(carol, common.N("first"), sudoTrx, []common.PermissionLevel{
 		{alice, active}, {producer1, active},
 		{producer2, active}, {producer3, active},
 		{producer4, active}, {producer5, active},
 	})
-	e.Approve(alice, carol, common.N("first"), types.PermissionLevel{Actor: alice, Permission: active})
+	e.Approve(alice, carol, common.N("first"), common.PermissionLevel{Actor:alice, Permission:active})
 
 	// More than 2/3 of block producers approve
-	e.Approve(producer1, carol, common.N("first"), types.PermissionLevel{Actor: producer1, Permission: active})
-	e.Approve(producer2, carol, common.N("first"), types.PermissionLevel{Actor: producer2, Permission: active})
-	e.Approve(producer3, carol, common.N("first"), types.PermissionLevel{Actor: producer3, Permission: active})
-	e.Approve(producer4, carol, common.N("first"), types.PermissionLevel{Actor: producer4, Permission: active})
+	e.Approve(producer1, carol, common.N("first"), common.PermissionLevel{Actor:producer1, Permission:active})
+	e.Approve(producer2, carol, common.N("first"), common.PermissionLevel{Actor:producer2, Permission:active})
+	e.Approve(producer3, carol, common.N("first"), common.PermissionLevel{Actor:producer3, Permission:active})
+	e.Approve(producer4, carol, common.N("first"), common.PermissionLevel{Actor:producer4, Permission:active})
 
 	var traces []types.TransactionTrace
 	appliedTrxCaller := chain_interface.AppliedTransactionCaller{Caller: func(t *types.TransactionTrace) {
@@ -278,24 +278,24 @@ func TestSudoWithMsig(t *testing.T) {
 
 func TestSudoWithMsigUnapprove(t *testing.T) {
 	e := initEosioSudoTester()
-	trx := e.ReqAuth(bob, []types.PermissionLevel{{bob, common.DefaultConfig.ActiveName}}, e.DefaultExpirationDelta)
+	trx := e.ReqAuth(bob, []common.PermissionLevel{{bob,common.DefaultConfig.ActiveName}}, e.DefaultExpirationDelta)
 	sudoTrx := e.SudoExec(alice, &trx, e.DefaultExpirationDelta)
 	active := common.DefaultConfig.ActiveName
-	e.Propose(carol, common.N("first"), sudoTrx, []types.PermissionLevel{
+	e.Propose(carol, common.N("first"), sudoTrx, []common.PermissionLevel{
 		{alice, active}, {producer1, active},
 		{producer2, active}, {producer3, active},
 		{producer4, active}, {producer5, active},
 	})
-	e.Approve(alice, carol, common.N("first"), types.PermissionLevel{Actor: alice, Permission: active})
+	e.Approve(alice, carol, common.N("first"), common.PermissionLevel{Actor:alice, Permission:active})
 
 	// 3 of the 4 needed producers approve
-	e.Approve(producer1, carol, common.N("first"), types.PermissionLevel{Actor: producer1, Permission: active})
-	e.Approve(producer2, carol, common.N("first"), types.PermissionLevel{Actor: producer2, Permission: active})
-	e.Approve(producer3, carol, common.N("first"), types.PermissionLevel{Actor: producer3, Permission: active})
-	e.Approve(producer4, carol, common.N("first"), types.PermissionLevel{Actor: producer4, Permission: active})
+	e.Approve(producer1, carol, common.N("first"), common.PermissionLevel{Actor:producer1, Permission:active})
+	e.Approve(producer2, carol, common.N("first"), common.PermissionLevel{Actor:producer2, Permission:active})
+	e.Approve(producer3, carol, common.N("first"), common.PermissionLevel{Actor:producer3, Permission:active})
+	e.Approve(producer4, carol, common.N("first"), common.PermissionLevel{Actor:producer4, Permission:active})
 
 	// first producer takes back approval
-	e.UnApprove(producer1, carol, common.N("first"), types.PermissionLevel{Actor: producer1, Permission: active})
+	e.UnApprove(producer1, carol, common.N("first"), common.PermissionLevel{Actor:producer1, Permission:active})
 
 	e.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs), 0)
 
@@ -307,19 +307,19 @@ func TestSudoWithMsigUnapprove(t *testing.T) {
 func TestSudoWithMsigProducersChange(t *testing.T) {
 	e := initEosioSudoTester()
 	e.CreateAccounts([]common.AccountName{common.N("newprod1")}, false, true)
-	trx := e.ReqAuth(bob, []types.PermissionLevel{{bob, common.DefaultConfig.ActiveName}}, e.DefaultExpirationDelta)
+	trx := e.ReqAuth(bob, []common.PermissionLevel{{bob,common.DefaultConfig.ActiveName}}, e.DefaultExpirationDelta)
 	sudoTrx := e.SudoExec(alice, &trx, 36000)
 	active := common.DefaultConfig.ActiveName
-	e.Propose(carol, common.N("first"), sudoTrx, []types.PermissionLevel{
+	e.Propose(carol, common.N("first"), sudoTrx, []common.PermissionLevel{
 		{alice, active}, {producer1, active},
 		{producer2, active}, {producer3, active},
 		{producer4, active}, {producer5, active},
 	})
-	e.Approve(alice, carol, common.N("first"), types.PermissionLevel{Actor: alice, Permission: active})
+	e.Approve(alice, carol, common.N("first"), common.PermissionLevel{Actor:alice, Permission:active})
 
 	// 2 of the 4 needed producers approve
-	e.Approve(producer1, carol, common.N("first"), types.PermissionLevel{Actor: producer1, Permission: active})
-	e.Approve(producer2, carol, common.N("first"), types.PermissionLevel{Actor: producer2, Permission: active})
+	e.Approve(producer1, carol, common.N("first"), common.PermissionLevel{Actor:producer1, Permission:active})
+	e.Approve(producer2, carol, common.N("first"), common.PermissionLevel{Actor:producer2, Permission:active})
 
 	e.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs), 0)
 	e.SetProducers(&[]common.AccountName{producer1, producer2, producer3, producer4, producer5, common.N("newprod1")})
@@ -328,20 +328,20 @@ func TestSudoWithMsigProducersChange(t *testing.T) {
 		e.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs), 0)
 	}
 
-	e.Approve(producer3, carol, common.N("first"), types.PermissionLevel{Actor: producer3, Permission: active})
-	e.Approve(producer4, carol, common.N("first"), types.PermissionLevel{Actor: producer4, Permission: active})
+	e.Approve(producer3, carol, common.N("first"), common.PermissionLevel{Actor:producer3, Permission:active})
+	e.Approve(producer4, carol, common.N("first"), common.PermissionLevel{Actor:producer4, Permission:active})
 	e.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs), 0)
 
 	exec := func() { e.Exec(alice, carol, common.N("first")) }
 	CheckThrowExceptionAndMsg(t, &exception.EosioAssertMessageException{}, "transaction authorization failed", exec)
 
 	approve := func() {
-		e.Approve(common.N("newprod1"), carol, common.N("first"), types.PermissionLevel{Actor: common.N("newprod1"), Permission: active})
+		e.Approve(common.N("newprod1"), carol, common.N("first"), common.PermissionLevel{Actor: common.N("newprod1"), Permission: active})
 	}
 	CheckThrowExceptionAndMsg(t, &exception.EosioAssertMessageException{}, "approval is not on the list of requested approvals", approve)
 
 	// But prod5 still can provide the fifth approval necessary to satisfy the 2/3+1 threshold of the new producer set
-	e.Approve(producer5, carol, common.N("first"), types.PermissionLevel{Actor: producer5, Permission: active})
+	e.Approve(producer5, carol, common.N("first"), common.PermissionLevel{Actor:producer5, Permission:active})
 
 	var traces []types.TransactionTrace
 	appliedTrxCaller := chain_interface.AppliedTransactionCaller{Caller: func(t *types.TransactionTrace) {

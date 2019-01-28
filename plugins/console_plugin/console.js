@@ -1,3 +1,4 @@
+loadScript("/Users/walker/go/src/github.com/eosspark/eos-go/plugins/console_plugin/console.js")
 wallet.Create('walker');
 wallet.ImportKey('walker','5K2G1AucmTj11jNp4rRAW9RsaXHWVEFubETNAADuhr9SA9EXdYZ');
 wallet.ImportKey('walker','5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3');
@@ -62,7 +63,7 @@ eos.CreateAccount({
     owner: 'EOS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV',
     active: 'EOS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV',
 });
-eos.SetCode({
+eos.SetContract({
     account:'eosio',
     code_file:'../../contracts/eosio.bios/eosio.bios.wasm',
     abi_file:'../../contracts/eosio.bios/eosio.bios.abi',
@@ -76,26 +77,27 @@ eos.PushAction({
   account:'eosio.token',
   action:'create',
   data:'{"issuer":"eosio","maximum_supply":"100000000000000.0000 SYS"}',
-  permission:['eosio.token'],
+  p:['eosio.token'],
 });
 eos.PushAction({
   account:'eosio.token',
   action:'issue',
   data:'{"to":"eosio","quantity":"10000000000000.0000 SYS","memo":"issue"}',
-  permission:['eosio'],
+  p:['eosio'],
 });
 eos.PushAction({
   account:'eosio.token',
   action:'transfer',
   data:'{"from":"eosio","to":"walker","quantity":"5000000000.0030 SYS","memo":"hello walker"}',
-  permission:['eosio'],
-})
+  p:['eosio'],
+});
 eos.PushAction({
     account:'eosio.token',
     action:'transfer',
     data:'{"from":"eosio","to":"eosio.token","quantity":"18888.0000 SYS","memo":"hello eosio.token"}',
-    permission:['eosio'],
-})
+    p:['eosio'],
+});
+
 eos.SetContract({
     account:'eosio',
     code_file:'../../contracts/eosio.system/eosio.system.wasm',
@@ -133,7 +135,7 @@ system.NewAccount({
     stake_net:'50000.0000 SYS',
     stake_cpu:'50000.0000 SYS',
     buy_ram:'10000.0000 SYS',
-    permission:['eosio'],
+    p:['eosio'],
 });
 
 // system.NewAccount({
@@ -144,7 +146,7 @@ system.NewAccount({
 //     stake_net:'50000.0000 SYS',
 //     stake_cpu:'50000.0000 SYS',
 //     buy_ram:'10000.0000 SYS',
-//     permission:['eosio'],
+//     p:['eosio'],
 // });
 // system.NewAccount({
 //     creator: 'eosio',
@@ -154,7 +156,7 @@ system.NewAccount({
 //     stake_net:'500000.0000 SYS',
 //     stake_cpu:'500000.0000 SYS',
 //     buy_ram:'1000000.0000 SYS',
-//     permission:['eosio'],
+//     p:['eosio'],
 // });
 // system.NewAccount({
 //     creator: 'eosio',
@@ -164,7 +166,7 @@ system.NewAccount({
 //     stake_net:'500000.0000 SYS',
 //     stake_cpu:'500000.0000 SYS',
 //     buy_ram:'1000000.0000 SYS',
-//     permission:['eosio'],
+//     p:['eosio'],
 // });
 // system.NewAccount({
 //     creator: 'eosio',
@@ -174,7 +176,7 @@ system.NewAccount({
 //     stake_net:'500000.0000 SYS',
 //     stake_cpu:'500000.0000 SYS',
 //     buy_ram:'1000000.0000 SYS',
-//     permission:['eosio'],
+//     p:['eosio'],
 // });
 // system.NewAccount({
 //     creator: 'eosio',
@@ -184,7 +186,7 @@ system.NewAccount({
 //     stake_net:'500000.0000 SYS',
 //     stake_cpu:'500000.0000 SYS',
 //     buy_ram:'1000000.0000 SYS',
-//     permission:['eosio'],
+//     p:['eosio'],
 // });
 //
 // eos.Transfer({

@@ -6,8 +6,8 @@ package treemap
 
 import (
 	"fmt"
-	"github.com/eosspark/container/utils"
 	. "github.com/eosspark/eos-go/common/container/treemap/example"
+	"github.com/stretchr/testify/assert"
 	"testing"
 )
 
@@ -25,8 +25,8 @@ func TestMultiMapPut(t *testing.T) {
 	if actualValue := m.Size(); actualValue != 8 {
 		t.Errorf("Got %v expected %v", actualValue, 8)
 	}
-	utils.AssertTest(t, []int{1, 1, 2, 3, 4, 5, 6, 7}, m.Keys())
-	utils.AssertTest(t, []string{"x", "a", "b", "c", "d", "e", "f", "g"}, m.Values())
+	assert.Equal(t, []int{1, 1, 2, 3, 4, 5, 6, 7}, m.Keys())
+	assert.Equal(t, []string{"x", "a", "b", "c", "d", "e", "f", "g"}, m.Values())
 
 	// key,expectedValue,expectedFound
 	tests1 := [][]interface{}{
@@ -44,11 +44,11 @@ func TestMultiMapPut(t *testing.T) {
 		// retrievals
 		lower := m.Get(test[0].(int))
 		if expect := test[1]; expect != nil {
-			utils.AssertTest(t, test[1].(string), lower.Value())
+			assert.Equal(t, test[1].(string), lower.Value())
 		} else {
-			utils.AssertTest(t, true, lower == m.End())
-			utils.AssertTest(t, true, lower.IsEnd())
-			utils.AssertTest(t, false, lower.HasNext())
+			assert.Equal(t, true, lower == m.End())
+			assert.Equal(t, true, lower.IsEnd())
+			assert.Equal(t, false, lower.HasNext())
 		}
 	}
 }
@@ -70,8 +70,8 @@ func TestMultiMapRemove(t *testing.T) {
 	m.Remove(8)
 	m.Remove(5)
 
-	utils.AssertTest(t, []int{1, 1, 2, 3, 4}, m.Keys())
-	utils.AssertTest(t, []interface{}{"x", "a", "b", "c", "d"}, m.Values())
+	assert.Equal(t, []int{1, 1, 2, 3, 4}, m.Keys())
+	assert.Equal(t, []interface{}{"x", "a", "b", "c", "d"}, m.Values())
 
 	if actualValue := m.Size(); actualValue != 5 {
 		t.Errorf("Got %v expected %v", actualValue, 5)

@@ -11,7 +11,8 @@ import (
 	"github.com/eosspark/eos-go/crypto/ecc"
 	. "github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
-	. "github.com/eosspark/eos-go/log"
+	"github.com/eosspark/eos-go/log"
+
 	. "github.com/eosspark/eos-go/plugins/appbase/app"
 	. "github.com/eosspark/eos-go/plugins/appbase/asio"
 	"github.com/eosspark/eos-go/plugins/chain_plugin"
@@ -24,7 +25,8 @@ import (
 	"time"
 )
 
-var netLog Logger
+var netLog log.Logger
+var FcLog = log.GetLoggerMap()["net_plugin"]
 
 type possibleConnections byte
 
@@ -135,11 +137,11 @@ func NewNetPluginIMpl(io *IoContext) *netPluginIMpl {
 		context:                    context.Background(),
 	}
 
-	impl.syncMaster = NewSyncManager(impl, 250)
+	impl.syncMaster = NewSyncManager(impl, 100)
 	impl.dispatcher = NewDispatchManager(impl)
 
-	netLog = New("net")
-	netLog.SetHandler(TerminalHandler)
+	netLog = log.New("net")
+	netLog.SetHandler(log.TerminalHandler)
 	//impl.log.SetHandler(DiscardHandler())
 
 	return impl
@@ -385,7 +387,9 @@ func (impl *netPluginIMpl) close(c *Connection) {
 			impl.numClients--
 		}
 	}
+	impl.eraseConnection(c)
 	c.close()
+	netLog.Info(" all connections: %s", impl.connections)
 }
 
 func (impl *netPluginIMpl) countOpenSockets() int {
@@ -536,7 +540,7 @@ func (impl *netPluginIMpl) ticker() {
 	impl.keepAliceTimer.AsyncWait(func(err error) {
 		impl.ticker()
 		if err != nil {
-			Warn("Peer keep live ticked sooner than expected: %s", err)
+			netLog.Warn("Peer keep live ticked sooner than expected: %s", err)
 		}
 		for _, peer := range impl.connections {
 			peer.sendTimeTicker()
@@ -800,9 +804,6 @@ func (impl *netPluginIMpl) handleGoaway(c *Connection, msg *GoAwayMessage) {
 //floating-double arithmetic with rounding done by the hardware.
 //This is necessary in order to avoid overflow and preserve precision.
 func (impl *netPluginIMpl) handleTime(c *Connection, msg *TimeMessage) {
-	//FcLog.Info("receive time_message")
-	//FcLog.Info("%s: receive a time message %v", c.peerAddr, msg)
-	//FcLog.Info("receive time_message")
 	/* We've already lost however many microseconds it took to dispatch
 	 * the message, but it can't be helped.
 	 */
@@ -921,9 +922,9 @@ func (impl *netPluginIMpl) handleRequest(c *Connection, msg *RequestMessage) {
 }
 
 func (impl *netPluginIMpl) handleSyncRequest(c *Connection, msg *SyncRequestMessage) {
-	//FcLog.Info("%s : received sync_request_message %v", c.peerAddr, msg)
+	FcLog.Info("%s : received sync_request_message %v", c.peerAddr, msg)
 	if msg.EndBlock == 0 {
-		c.peerRequested = nil //TODO
+		c.peerRequested = &syncState{}
 		c.flushQueues()
 	} else {
 		c.peerRequested = newSyncState(msg.StartBlock, msg.EndBlock, msg.StartBlock-1)
@@ -946,7 +947,7 @@ func (impl *netPluginIMpl) handlePackTransaction(c *Connection, msg *PackedTrans
 		return
 	}
 	tid := msg.ID()
-	c.cancelWait()
+	//c.cancelWait()
 	if !impl.localTxns.GetById().Find(tid).IsEnd() {
 		FcLog.Debug("got a duplicate transaction - dropping")
 		return
@@ -961,7 +962,7 @@ func (impl *netPluginIMpl) handlePackTransaction(c *Connection, msg *PackedTrans
 			trace, _ := result.(types.TransactionTrace)
 			if trace.Except == nil {
 				FcLog.Debug("chain accepted transaction")
-				impl.dispatcher.bcastTransaction(&msg.PackedTransaction)
+				//impl.dispatcher.bcastTransaction(&msg.PackedTransaction)
 				return
 			}
 			FcLog.Error("bad packed_transaction : %s", trace.Except.DetailMessage())
@@ -972,7 +973,12 @@ func (impl *netPluginIMpl) handlePackTransaction(c *Connection, msg *PackedTrans
 
 func (impl *netPluginIMpl) handleSignedBlock(c *Connection, msg *SignedBlockMessage) {
 	//bytes, _ := json.Marshal(msg)
-	//FcLog.Info("%s : receive signed_block message %v", c.peerAddr, string(bytes))
+	//FcLog.Info("%s : receive signed_block message %d, %v", c.peerAddr,msg.BlockNumber(), string(bytes))
+	//if len(msg.Transactions)>0{
+	//	if msg.Transactions[0].Trx.PackedTransaction.Compression == types.CompressionZlib{
+	//		netLog.Error("signed_block message %v", string(bytes))
+	//	}
+	//}
 
 	cc := impl.ChainPlugin.Chain()
 	blkID := msg.BlockID()
@@ -1020,6 +1026,7 @@ func (impl *netPluginIMpl) handleSignedBlock(c *Connection, msg *SignedBlockMess
 		netLog.Error("handle sync block caught something else from %s", c.peerAddr)
 	}).End()
 
+	FcLog.Debug("accept block's reason is  ***: %s", ReasonToString[reason])
 	if reason == noReason {
 		var id common.TransactionIdType
 		for _, recpt := range msg.Transactions {

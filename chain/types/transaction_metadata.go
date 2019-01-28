@@ -1,7 +1,7 @@
 package types
 
 import (
-	"github.com/eosspark/container/sets/treeset"
+	. "github.com/eosspark/eos-go/chain/types/generated_containers"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto"
 )
@@ -17,9 +17,10 @@ type TransactionMetadata struct {
 	Scheduled   bool                     `json:"scheduled"`
 }
 
+//go:generate gotemplate -outfmt "gen_%v" "github.com/eosspark/eos-go/common/container/treeset" PublicKeySet(ecc.PublicKey,ecc.ComparePubKey,false)
 type SigningKeysType struct {
 	ID        common.ChainIdType
-	PublicKey treeset.Set
+	PublicKey PublicKeySet
 }
 
 func NewTransactionMetadata(ptrx *PackedTransaction) *TransactionMetadata {
@@ -45,7 +46,7 @@ func NewTransactionMetadataBySignedTrx(t *SignedTransaction, c CompressionType) 
 	}
 }
 
-func (t *TransactionMetadata) RecoverKeys(chainID *common.ChainIdType) *treeset.Set {
+func (t *TransactionMetadata) RecoverKeys(chainID *common.ChainIdType) *PublicKeySet {
 	////if( !signing_keys || signing_keys->first != chain_id ) TODO !signing_keys ？？  ->&tm.SigningKeys ==nil
 	//if t.SigningKeys.ID != *chainID { // Unlikely for more than one chain_id to be used in one nodeos instance
 	//	t.SigningKeys = SigningKeysType{

@@ -17,7 +17,6 @@ import (
 	"github.com/robertkrimen/otto"
 	"github.com/tidwall/gjson"
 	"io/ioutil"
-	"os"
 	"strings"
 )
 
@@ -26,10 +25,8 @@ var clog log.Logger
 
 func init() {
 	clog = log.New("console")
-	//clog.SetHandler(log.TerminalHandler)
+	clog.SetHandler(log.TerminalHandler)
 	//clog.SetHandler(log.DiscardHandler())
-	logHandler := log.StreamHandler(os.Stdout, log.TerminalFormat(true))
-	clog.SetHandler(log.LvlFilterHandler(log.LvlWarn, logHandler))
 }
 
 type eosgo struct {
@@ -37,23 +34,13 @@ type eosgo struct {
 }
 
 func newEosgo(c *Console) *eosgo {
-	e := &eosgo{
-		c: c,
-	}
+	e := &eosgo{c: c}
 	return e
 }
 
 //CreateKey creates a new keypair and print the public and private keys
 func (e *eosgo) CreateKey(call otto.FunctionCall) (response otto.Value) {
-	type Keys struct {
-		Pri string `json:"Private Key"`
-		Pub string `json:"Public Key"`
-	}
-
 	privateKey, _ := ecc.NewRandomPrivateKey()
-	//key := Keys{Pri: privateKey.String(), Pub: privateKey.PublicKey().String()}
-	//return getJsResult(call, key)
-
 	fmt.Println("Private key: ", privateKey.String())
 	fmt.Println("Public key: ", privateKey.PublicKey().String())
 	return otto.UndefinedValue()
@@ -80,8 +67,8 @@ func (e *eosgo) CreateAccount(call otto.FunctionCall) (response otto.Value) {
 	action := createNewAccount(params.Creator, params.Name, ownerKey, activeKey, params.TxPermission)
 
 	clog.Info("creat account in test net")
-	re := sendActions([]*types.Action{action}, 1000, types.CompressionNone, &params)
-	return getJsResult(call, re)
+	sendActions([]*types.Action{action}, 1000, types.CompressionNone, &params)
+	return otto.UndefinedValue()
 }
 
 func (e *eosgo) SetCode(call otto.FunctionCall) (response otto.Value) {
@@ -213,7 +200,7 @@ func (e *eosgo) SetAccountPermission(call otto.FunctionCall) (response otto.Valu
 		action := createUpdateAuth(account, permission, parent, auth, params.TxPermission)
 		sendActions([]*types.Action{action}, 1000, types.CompressionNone, &params)
 	}
-	return getJsResult(call, nil)
+	return otto.UndefinedValue()
 }
 
 //SetActionPermission sets parameters dealing with account permissions
@@ -233,18 +220,18 @@ func (e *eosgo) SetActionPermission(call otto.FunctionCall) (response otto.Value
 		action := createLinkAuth(accountName, codeName, typeName, requirementName, params.TxPermission)
 		sendActions([]*types.Action{action}, 1000, types.CompressionNone, &params)
 	}
-	return getJsResult(call, nil)
+	return otto.UndefinedValue()
 }
 
-func getAccountPermissions(permissions []string) []types.PermissionLevel {
-	accountPermissions := make([]types.PermissionLevel, 0)
+func getAccountPermissions(permissions []string) []common.PermissionLevel {
+	accountPermissions := make([]common.PermissionLevel, 0)
 
 	for _, str := range permissions {
 		pieces := strings.Split(str, "@")
 		if len(pieces) == 1 {
 			pieces = append(pieces, "active")
 		}
-		permission := types.PermissionLevel{
+		permission := common.PermissionLevel{
 			Actor:      common.N(pieces[0]),
 			Permission: common.N(pieces[1]),
 		}
@@ -286,15 +273,7 @@ func variantToBin(account common.AccountName, action common.ActionName, actionAr
 	return abis.VariantToBinary(actionType, actionArgsVar, abiSerializerMaxTime)
 }
 
-func binToVariant(account common.AccountName, action common.ActionName, actionArgs []byte) common.Variants {
-	abis := abisSerializerResolver(account)
-	FcAssert(!common.Empty(abis), fmt.Sprintf("No ABI found %s", account))
-	actionType := abis.GetActionType(action)
-	FcAssert(len(actionType) != 0, fmt.Sprintf("Unknown action %s in contract %s", action, account))
-	return abis.BinaryToVariant(actionType, actionArgs, abiSerializerMaxTime, false)
-}
-
-func binToVariant2(account common.AccountName, action common.ActionName, actionArgs []byte) interface{} {
+func binToVariant(account common.AccountName, action common.ActionName, actionArgs []byte) interface{} {
 	abis := abisSerializerResolver(account)
 	FcAssert(!common.Empty(abis), fmt.Sprintf("No ABI found %s", account))
 	actionType := abis.GetActionType(action)
@@ -331,11 +310,10 @@ func createNewAccount(creator common.Name, newaccount common.Name, owner ecc.Pub
 		Data:    buffer,
 	}
 	if len(txPermission) == 0 {
-		action.Authorization = []types.PermissionLevel{{Actor: creator, Permission: common.DefaultConfig.ActiveName}}
+		action.Authorization = []common.PermissionLevel{{Actor: creator, Permission: common.DefaultConfig.ActiveName}}
 	} else {
 		action.Authorization = getAccountPermissions(txPermission)
 	}
-
 	return action
 }
 
@@ -351,7 +329,7 @@ func createOpen(contract string, owner common.Name, sym common.Symbol, ramPayer 
 		Data:    variantToBin(common.N(contract), common.N("open"), &open),
 	}
 	if len(txPermission) == 0 {
-		action.Authorization = []types.PermissionLevel{{Actor: ramPayer, Permission: common.DefaultConfig.ActiveName}}
+		action.Authorization = []common.PermissionLevel{{Actor: ramPayer, Permission: common.DefaultConfig.ActiveName}}
 	} else {
 		action.Authorization = getAccountPermissions(txPermission)
 	}
@@ -371,7 +349,7 @@ func createTransfer(contract string, sender common.Name, recipient common.Name, 
 		Data:    variantToBin(common.N(contract), common.N("transfer"), &transfer),
 	}
 	if len(txPermission) == 0 {
-		action.Authorization = []types.PermissionLevel{{Actor: sender, Permission: common.DefaultConfig.ActiveName}}
+		action.Authorization = []common.PermissionLevel{{Actor: sender, Permission: common.DefaultConfig.ActiveName}}
 	} else {
 		action.Authorization = getAccountPermissions(txPermission)
 	}
@@ -390,7 +368,7 @@ func createSetABI(account common.Name, abi []byte, txPermission []string) *types
 		Data:    buffer,
 	}
 	if len(txPermission) == 0 {
-		action.Authorization = []types.PermissionLevel{{Actor: account, Permission: common.DefaultConfig.ActiveName}}
+		action.Authorization = []common.PermissionLevel{{Actor: account, Permission: common.DefaultConfig.ActiveName}}
 	} else {
 		action.Authorization = getAccountPermissions(txPermission)
 	}
@@ -411,7 +389,7 @@ func createSetCode(account common.Name, code []byte, txPermission []string) *typ
 		Data:    buffer,
 	}
 	if len(txPermission) == 0 {
-		action.Authorization = []types.PermissionLevel{{Actor: account, Permission: common.DefaultConfig.ActiveName}}
+		action.Authorization = []common.PermissionLevel{{Actor: account, Permission: common.DefaultConfig.ActiveName}}
 	} else {
 		action.Authorization = getAccountPermissions(txPermission)
 	}
@@ -432,7 +410,7 @@ func createUpdateAuth(account common.Name, permission common.Name, parent common
 		Data:    buffer,
 	}
 	if len(txPermission) == 0 {
-		action.Authorization = []types.PermissionLevel{{Actor: account, Permission: common.DefaultConfig.ActiveName}}
+		action.Authorization = []common.PermissionLevel{{Actor: account, Permission: common.DefaultConfig.ActiveName}}
 	} else {
 		action.Authorization = getAccountPermissions(txPermission)
 	}
@@ -452,7 +430,7 @@ func createDeleteAuth(account common.Name, permission common.Name, txPermission 
 		Data:    buffer,
 	}
 	if len(txPermission) == 0 {
-		action.Authorization = []types.PermissionLevel{{Actor: account, Permission: common.DefaultConfig.ActiveName}}
+		action.Authorization = []common.PermissionLevel{{Actor: account, Permission: common.DefaultConfig.ActiveName}}
 	} else {
 		action.Authorization = getAccountPermissions(txPermission)
 	}
@@ -474,7 +452,7 @@ func createLinkAuth(account common.Name, code common.Name, typeName common.Name,
 		Data:    buffer,
 	}
 	if len(txPermission) == 0 {
-		action.Authorization = []types.PermissionLevel{{Actor: account, Permission: common.DefaultConfig.ActiveName}}
+		action.Authorization = []common.PermissionLevel{{Actor: account, Permission: common.DefaultConfig.ActiveName}}
 	} else {
 		action.Authorization = getAccountPermissions(txPermission)
 	}
@@ -495,7 +473,7 @@ func createUnlinkAuth(account common.Name, code common.Name, typeName common.Nam
 		Data:    buffer,
 	}
 	if len(txPermission) == 0 {
-		action.Authorization = []types.PermissionLevel{{Actor: account, Permission: common.DefaultConfig.ActiveName}}
+		action.Authorization = []common.PermissionLevel{{Actor: account, Permission: common.DefaultConfig.ActiveName}}
 	} else {
 		action.Authorization = getAccountPermissions(txPermission)
 	}
@@ -652,7 +630,8 @@ func printAction(action gjson.Result) {
 	codeName := act.Get("account").String()
 	funcName := act.Get("name").String()
 	data, _ := hex.DecodeString(act.Get("data").String())
-	a := binToVariant2(common.N(codeName), common.N(funcName), data)
+
+	a := binToVariant(common.N(codeName), common.N(funcName), data)
 	args, _ := a.([]byte)
 
 	//TODO Parameters should not be sorted ！！

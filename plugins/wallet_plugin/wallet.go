@@ -11,7 +11,6 @@ import (
 	"github.com/eosspark/eos-go/crypto/rlp"
 	. "github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
-	"github.com/eosspark/eos-go/log"
 	"io/ioutil"
 	"os"
 )
@@ -21,11 +20,6 @@ var (
 	ErrWalletNoPassword      = errors.New("No password")
 	ErrWallerInvalidPassword = errors.New("Invalid password for wallet")
 	ErrWalletKeyExist        = errors.New("Key already in wallet")
-)
-
-const (
-	walletFilenameExtension string = ".wallet"
-	defaultKeyType          string = "K1"
 )
 
 type CKeys []byte
@@ -182,23 +176,17 @@ func (w *SoftWallet) LoadWalletFile() bool {
 }
 
 func (w *SoftWallet) SaveWalletFile() (err error) { //TODO need walletFilename ?
-
 	w.encryptKeys()
 
-	log.Debug("Saving wallet to file %s\n", w.walletFilename)
 	data, err := json.Marshal(w.wallet)
 	if err != nil {
 		fmt.Println(w.wallet, err)
 		return err
 	}
-
 	walletFile, err := os.OpenFile(w.walletFilename, os.O_RDWR|os.O_CREATE, 0766)
 	defer walletFile.Close()
 	_, err = walletFile.Write(data)
-	if err != nil {
-		return err
-	}
-	return nil
+	return err
 }
 
 func (w *SoftWallet) SetWalletFilename(filename string) {

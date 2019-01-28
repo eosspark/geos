@@ -14,7 +14,7 @@ type StandardTransactionOptions struct {
 	TxDontBroadcast   bool     `json:"dont_broadcast"`
 	TxReturnPacked    bool     `json:"return_packed"`
 	TxRefBlockNumOrId string   `json:"ref_block"`
-	TxPermission      []string `json:"permission"`
+	TxPermission      []string `json:"p"`
 	TxMaxCpuUsage     uint8    `json:"max_cpu_usage_ms"`
 	TxMaxNetUsage     uint32   `json:"max_net_usage"`
 	DelaySec          uint32   `json:"delay_sec"`
@@ -239,4 +239,50 @@ func (n Names) Less(i, j int) bool {
 }
 func (n Names) Swap(i, j int) {
 	n[i], n[j] = n[j], n[i]
+}
+
+type ProposeParams struct {
+	ProposalName            string `json:"proposal_name"`
+	RequestedPerm           string `json:"requested_permissions"`
+	TransactionPerm         string `json:"trx_permissions"`
+	ProposedContract        string `json:"contract"`
+	ProposedAction          string `json:"action"`
+	ProposedTransaction     string `json:"data"`
+	Proposer                string `json:"proposer"`
+	ProposalExpirationHours int    `json:"proposal_expiration"` //TODO default 24
+	StandardTransactionOptions
+}
+
+type ProposeTrxParams struct {
+	ProposalName  string `json:"proposal_name"`
+	RequestedPerm string `json:"requested_permissions"`
+	Proposer      string `json:"proposer"`
+	TrxToPush     string `json:"transaction"`
+	StandardTransactionOptions
+}
+
+type ReviewParams struct {
+	ProposalName string `json:"proposal_name"`
+	Proposer     string `json:"proposer"`
+}
+
+type ApproveAndUnapproveParams struct {
+	Proposer     string `json:"proposer"`
+	ProposalName string `json:"proposal_name"`
+	Perm         string `json:"permissions"`
+	StandardTransactionOptions
+}
+
+type CancelParams struct {
+	Proposer     string `json:"proposer"`
+	ProposalName string `json:"proposal_name"`
+	Canceler     string `json:"canceler"`
+	StandardTransactionOptions
+}
+
+type ExecuteParams struct {
+	Proposer     string `json:"proposer"`
+	ProposalName string `json:"proposal_name"`
+	Executer     string `json:"executer"`
+	StandardTransactionOptions
 }

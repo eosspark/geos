@@ -11,7 +11,7 @@ import (
 	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
-	. "github.com/eosspark/eos-go/log"
+
 	. "github.com/eosspark/eos-go/plugins/appbase/app"
 	"github.com/eosspark/eos-go/plugins/appbase/asio"
 	"github.com/eosspark/eos-go/plugins/chain_plugin"
@@ -167,15 +167,15 @@ func (c *Connection) current() bool {
 	return c.connected() && !c.syncing
 }
 
-func (c *Connection) reset() { //TODO
-	c.peerRequested = nil
-	c.blkState = nil
-	c.trxState = nil
+func (c *Connection) reset() {
+	c.peerRequested = &syncState{}
+	c.blkState = peer_block_state.NewPeerBlockStateIndex()
+	c.trxState = transaction_state.NewTransactionStateIndex()
+
 }
 
 func (c *Connection) close() {
 	if c.socket != nil {
-		//c.socket.close()
 		c.socket = nil
 	} else {
 		netLog.Warn("no socket to close")
@@ -193,6 +193,7 @@ func (c *Connection) close() {
 	c.impl.syncMaster.resetLibNum(c)
 	FcLog.Debug("cancel wait on %s", c.PeerName())
 	c.cancelWait()
+	c.bufTemp = nil
 }
 
 func (c *Connection) sendHandshake() {
@@ -574,7 +575,7 @@ func (c *Connection) enqueueSyncBlock() bool {
 	num := c.peerRequested.last
 	triggerSend := num == c.peerRequested.startBlock
 	if num == c.peerRequested.endBlock {
-		c.peerRequested = nil
+		c.peerRequested = &syncState{}
 	}
 
 	result := false
@@ -706,7 +707,7 @@ func (c *Connection) processNextMessage(payloadBytes []byte) bool {
 		case *SignedBlockMessage:
 			c.impl.handleSignedBlock(c, msg)
 		case *PackedTransactionMessage:
-			//c.impl.handlePackTransaction(c, msg)
+			c.impl.handlePackTransaction(c, msg)
 		default:
 			Throw(fmt.Errorf("unsuppoted p2p message type %d", messageType))
 		}
@@ -808,7 +809,7 @@ func (c *Connection) doQueueWrite() {
 				pName = "no connection name"
 			}
 
-			netLog.Error("Exception in do_queue_write to %s", pName)
+			netLog.Error("Exception in do_queue_write to %s: %s", pName, e)
 
 		}).End()
 

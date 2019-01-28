@@ -1,9 +1,9 @@
 package unittests
 
 import (
-	"github.com/eosspark/container/sets/treeset"
 	"github.com/eosspark/eos-go/chain"
 	"github.com/eosspark/eos-go/chain/types"
+	. "github.com/eosspark/eos-go/chain/types/generated_containers"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/ecc"
@@ -99,8 +99,7 @@ func CorruptTrxInBlock(main *ValidatingTester, actName common.AccountName) (bloc
 }
 
 func TestTrustedProducer(t *testing.T) {
-	trustedProducers := treeset.NewWith(common.TypeName, common.CompareName, common.N("defproducera"), common.N("defproducerc"))
-	main := NewValidatingTesterTrustedProducers(trustedProducers)
+	main := NewValidatingTesterTrustedProducers(NewAccountNameSet(common.N("defproducera"), common.N("defproducerc")))
 	defer main.close()
 	// only using validating_tester to keep the 2 chains in sync, not to validate that the validating_node matches the main node,
 	// since it won't be
@@ -129,8 +128,7 @@ func TestTrustedProducer(t *testing.T) {
 }
 
 func TestTrustedProducerVerify2nd(t *testing.T) {
-	trustedProducers := treeset.NewWith(common.TypeName, common.CompareName, common.N("defproducera"), common.N("defproducerc"))
-	main := NewValidatingTesterTrustedProducers(trustedProducers)
+	main := NewValidatingTesterTrustedProducers(NewAccountNameSet(common.N("defproducera"), common.N("defproducerc")))
 	defer main.close()
 	// only using validating_tester to keep the 2 chains in sync, not to validate that the validating_node matches the main node,
 	// since it won't be
@@ -159,8 +157,7 @@ func TestTrustedProducerVerify2nd(t *testing.T) {
 }
 
 func TestUntrustedProducer(t *testing.T) {
-	trustedProducers := treeset.NewWith(common.TypeName, common.CompareName, common.N("defproducera"), common.N("defproducerc"))
-	main := NewValidatingTesterTrustedProducers(trustedProducers)
+	main := NewValidatingTesterTrustedProducers(NewAccountNameSet(common.N("defproducera"), common.N("defproducerc")))
 	defer main.close()
 	// only using validating_tester to keep the 2 chains in sync, not to validate that the validating_node matches the main node,
 	// since it won't be

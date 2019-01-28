@@ -5,7 +5,6 @@ import (
 	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
-	. "github.com/eosspark/eos-go/log"
 	"github.com/eosspark/eos-go/plugins/appbase/app"
 	"github.com/eosspark/eos-go/plugins/chain_plugin"
 )
@@ -171,7 +170,7 @@ func (s *syncManager) requestNextChunk(conn *Connection) {
 			end = s.syncKnownLibNum
 		}
 		if end > 0 && end >= start {
-			FcLog.Info("requesting range %s to %d, from %d\n", s.source.peerAddr, start, end)
+			FcLog.Info("requesting range %s to %d, from %d\n", s.source.peerAddr, end, start)
 			s.source.requestSyncBlocks(start, end)
 			s.syncLastRequestedNum = end
 		}
@@ -279,13 +278,13 @@ func (s *syncManager) startSync(c *Connection, target uint32) {
 		s.syncNextExpectedNum = s.myImpl.ChainPlugin.Chain().LastIrreversibleBlockNum() + 1
 	}
 
-	FcLog.Info("Catching up with chain, our last req is %d, theirs is %d peer %s", +s.syncLastRequestedNum, target, c.peerAddr)
+	FcLog.Info("Catching up with chain, our last req is %d, theirs is %d peer %s", s.syncLastRequestedNum, target, c.peerAddr)
 
 	s.requestNextChunk(c)
 }
 
 func (s *syncManager) reassignFetch(c *Connection, reason GoAwayReason) {
-	FcLog.Info("reassign_fetch, our last req is %d, next expected is %d peer %s", +s.syncLastRequestedNum, s.syncNextExpectedNum, c.peerAddr)
+	FcLog.Info("reassign_fetch, our last req is %d, next expected is %d peer %s", s.syncLastRequestedNum, s.syncNextExpectedNum, c.peerAddr)
 	if c == s.source {
 		c.cancelSync(reason)
 		s.syncLastRequestedNum = 0
@@ -351,7 +350,7 @@ func (s *syncManager) rejectedBlock(c *Connection, blkNum uint32) {
 }
 
 func (s *syncManager) recvBlock(c *Connection, blkID common.BlockIdType, blkNum uint32) {
-	FcLog.Debug("got block %d from %s", blkNum, c.peerAddr)
+	FcLog.Debug("got block %d from %s,state:%s", blkNum, c.peerAddr, stageStr(s.state))
 	if s.state == libCatchup {
 		if blkNum != s.syncNextExpectedNum {
 			FcLog.Info("expected block %d but got %d", s.syncNextExpectedNum, blkNum)
