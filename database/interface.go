@@ -29,14 +29,9 @@ type DataBase interface {
 
 	Revision() int64
 
-	lowerBound(key, value, typeName []byte, in interface{},skip... SkipSuffix) (*DbIterator, error)
-
-	upperBound(key, value, typeName []byte, in interface{},skip... SkipSuffix) (*DbIterator, error)
-
 	IteratorTo(begin, end, fieldName []byte, in interface{},skip...SkipSuffix) (*DbIterator, error)
 
 	BeginIterator(begin, end, typeName []byte) (*DbIterator, error)
-	EndIterator(begin, end, typeName []byte) (*DbIterator, error)
 
-	squash()
+	EndIterator(begin, end, typeName []byte) (*DbIterator, error)
 }
