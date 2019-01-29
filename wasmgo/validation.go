@@ -1,14 +1,15 @@
 package wasmgo
 
 import (
+	"bytes"
 	. "github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/wasmgo/compiler"
 
-	//"github.com/eosspark/eos-go/log"
-
+	//"fmt"
 	"github.com/eosspark/eos-go/wasmgo/wagon/disasm"
 	"github.com/eosspark/eos-go/wasmgo/wagon/wasm"
+	"github.com/eosspark/eos-go/wasmgo/wagon/wasm/leb128"
 
 	ops "github.com/eosspark/eos-go/wasmgo/wagon/wasm/operators"
 )
@@ -86,7 +87,16 @@ func dataSegementsValidation(m *wasm.Module) error {
 		if ds.Offset[0] != ops.I32Const {
 			EosThrow(&WasmExecutionError{}, "Smart contract has unexpected memory base offset type")
 		}
-		if int(ds.Offset[1])+len(ds.Data) > MaximumLinearMemoryInit {
+
+		r := bytes.NewReader(ds.Offset)
+		r.ReadByte() //ops.I32Const
+		offset, _ := leb128.ReadVarint32(r)
+
+		if offset < 0 {
+			EosThrow(&WasmExecutionError{}, "offset must positive")
+		}
+
+		if int(offset)+len(ds.Data) > MaximumLinearMemoryInit {
 			EosThrow(&WasmExecutionError{}, "Smart contract data segments must lie in first %d KiB", MaximumLinearMemoryInit/1024)
 		}
 	}
@@ -199,6 +209,10 @@ func ensureApplyExported(m *wasm.Module) error {
 }
 
 func getImportFuctionNumber(m *wasm.Module) int {
+
+	if m.Import == nil {
+		return 0
+	}
 
 	count := 0
 	for _, entry := range m.Import.Entries {
