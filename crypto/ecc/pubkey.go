@@ -240,10 +240,10 @@ func (p PublicKey) Compare(pub PublicKey) bool {
 	return true
 }
 
-func (p PublicKey) GetKey() []byte {
+/*func (p PublicKey) GetKey() []byte {
 	sl, _ := p.MarshalJSON()
 	return sl
-}
+}*/
 
 var TypePubKey = reflect.TypeOf(PublicKey{})
 
