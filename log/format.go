@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	eosTimeFormat = "2006-01-02T15:04:05.999"
+	eosTimeFormat = "2006-01-02T15:04:05.000"
 	floatFormat   = 'f'
 	termMsgJust   = 70
 )
@@ -47,11 +47,12 @@ func TerminalFormat(useColor bool) Format {
 		}
 
 		b := &bytes.Buffer{}
+		lvl := r.Lvl.AlignedString()
 		if color > 0 {
-			fmt.Fprintf(b, "\x1b[%dm%s %v %n\x1b[0m", color, r.Time.UTC().Format(eosTimeFormat), r.Call, r.Call)
+			fmt.Fprintf(b, "\x1b[%dm%5s %s %v %n\x1b[0m", color, lvl, r.Time.UTC().Format(eosTimeFormat), r.Call, r.Call)
 
 		} else {
-			fmt.Fprintf(b, "%s %v %n", r.Time.UTC().Format(eosTimeFormat), r.Call, r.Call)
+			fmt.Fprintf(b, "%5s %s %v %n", lvl, r.Time.UTC().Format(eosTimeFormat), r.Call, r.Call)
 		}
 
 		length := utf8.RuneCountInString(r.Call.String()) + utf8.RuneCountInString(fmt.Sprintf("%n", r.Call))

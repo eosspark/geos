@@ -1,9 +1,6 @@
 package common
 
 import (
-	"bytes"
-	"github.com/eosspark/eos-go/database"
-	"github.com/eosspark/eos-go/log"
 	"reflect"
 )
 
@@ -25,16 +22,17 @@ func MakePair(a interface{}, b interface{}) Pair {
 	return Pair{a, b}
 }
 
-func (p *Pair) GetKey() []byte {
+/*func (p *Pair) GetKey() []byte {
 	byt, err := database.EncodeToBytes(p)
 	if err != nil {
 		log.Error("Pair GetKey is error :%s", err.Error())
 		return nil
 	}
 	return byt
-}
+}*/
 
 var TypePair = reflect.TypeOf(&Pair{})
-func ComparePair(first interface{}, second interface{}) int {
+
+/*func ComparePair(first interface{}, second interface{}) int {
 	return bytes.Compare(first.(*Pair).GetKey(), second.(*Pair).GetKey())
-}
+}*/

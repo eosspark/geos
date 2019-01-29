@@ -2,7 +2,6 @@ package http_plugin
 
 import (
 	"github.com/eosspark/eos-go/common"
-	"github.com/eosspark/eos-go/log"
 	"github.com/eosspark/eos-go/plugins/appbase/asio"
 	"github.com/eosspark/eos-go/plugins/console_plugin/rpc"
 	"net"
@@ -32,16 +31,11 @@ type HttpPluginImpl struct {
 	Handlers *rpc.Server
 
 	self *HttpPlugin
-	log  log.Logger
 }
 
 func NewHttpPluginImpl(io *asio.IoContext) *HttpPluginImpl {
 	impl := new(HttpPluginImpl)
 	impl.UrlHandlers = make(map[string]UrlHandler)
 	impl.AccessControlAllowCredentials = false
-
-	impl.log = log.New("HttpPlugin")
-	impl.log.SetHandler(log.TerminalHandler)
-
 	return impl
 }

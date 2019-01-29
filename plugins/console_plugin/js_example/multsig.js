@@ -179,3 +179,82 @@ multisig.Approve({
     permissions:'{"actor": "liuxia", "permission": "owner"}',
     p:["liuxia@owner"],
 });
+
+multisig.Approve({
+    proposer:'liuxia',
+    proposal_name:'multsigtest',
+    permissions:'{"actor": "yinhu", "permission": "owner"}',
+    p:["yinhu@owner"],
+});
+
+chain.GetTable({
+    code:'eosio.msig',
+    scope:'liuxia',
+    table:'approvals',
+});
+
+//set system contract
+eos.SetContract({
+    account:'eosio',
+    code_file:'../../contracts/eosio.system/eosio.system.wasm',
+    abi_file: '../../contracts/eosio.system/eosio.system.abi',
+});
+
+eos.PushAction({
+    account:'eosio',
+    action:'setpriv',
+    data:'{"account":"eosio.msig","is_priv":1}',
+    p:['eosio'],
+});
+
+system.Buyram({
+    payer:'eosio',
+    receiver:'liuxia',
+    amount:'10000000.0000 SYS',
+});
+system.Delegatebw({
+    from:'eosio',
+    receiver:'liuxia',
+    stake_net_amount:'100000.0000 SYS',
+    stake_cpu_amount:'100000.0000 SYS',
+});
+system.Buyram({
+    payer:'eosio',
+    receiver:'yinhu',
+    amount:'10000000.0000 SYS',
+});
+system.Delegatebw({
+    from:'eosio',
+    receiver:'yinhu',
+    stake_net_amount:'100000.0000 SYS',
+    stake_cpu_amount:'100000.0000 SYS',
+});
+
+multisig.Exec({
+    proposer:'liuxia',
+    proposal_name:'multsigtest',
+    executer:'liuxia',
+    p:['liuxia@owner'],
+});
+
+// multisig.Cancel({
+//     proposer:'liuxia',
+//     proposal_name:'multsigtest',
+//     canceler:'liuxia',
+//     p:['liuxia@owner'],
+// });
+
+// multisig.Unapprove({
+//     proposer:'liuxia',
+//     proposal_name:'multsigtest',
+//     permissions:'{"actor": "liuxia", "permission": "owner"}',
+//     p:["liuxia@owner"],
+// });
+//
+// multisig.ProposeTrx({
+//     proposal_name:'multisigtrx',
+//     requested_permissions:'[{"actor": "liuxia", "permission": "owner"}, {"actor": "yinhu", "permission": "owner"}]',
+//     proposer:'liuxia',
+//     transaction:'{"expiration":"2019-01-27T08:13:04","ref_block_num":9393,"ref_block_prefix":3246808941,"max_net_usage_words":0,"max_cpu_usage_ms":0,"delay_sec":0,"context_free_actions":null,"actions":[{"account":"eosio.token","name":"transfer","authorization":[{"actor":"walker","permission":"active"}],"data":"000000005c05a3e10000000018d7b58b20f40e0000000000045359530000000000"}],"transaction_extensions":null,"signatures":["SIG_K1_KbimLwAgsemUHYbUQPY3NppFUvQWNx57EvkLiqcuWoxFU52R1JQUvhzwuk3NAbP6sLkxpsoC6Kf2HnxvtbKjNjdku1um3J"],"context_free_data":[]}',
+//     p:['liuxia'],
+// })

@@ -19,7 +19,7 @@ func (session *Session) Squash() {
 		return
 	}
 
-	session.db.squash()
+	session.db.Squash()
 	session.db = nil
 	session.apply = false
 }

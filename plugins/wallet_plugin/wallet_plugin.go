@@ -7,6 +7,9 @@ import (
 	. "github.com/eosspark/eos-go/plugins/appbase/app"
 	"github.com/eosspark/eos-go/plugins/appbase/asio"
 	"github.com/urfave/cli"
+	"os"
+	"path/filepath"
+	"runtime"
 )
 
 const WalletPlug = PluginTypeName("WalletPlugin")
@@ -20,10 +23,7 @@ type WalletPlugin struct {
 }
 
 func NewWalletPlugin(io *asio.IoContext) *WalletPlugin {
-	plugin := &WalletPlugin{}
-
-	return plugin
-
+	return &WalletPlugin{}
 }
 
 func (w *WalletPlugin) SetProgramOptions(options *[]cli.Flag) {
@@ -37,7 +37,8 @@ func (w *WalletPlugin) SetProgramOptions(options *[]cli.Flag) {
 			Name: "unlock-timeout",
 			Usage: "Timeout for unlocked wallet in seconds (default 900 (15 minutes))." +
 				"Wallets will automatically lock after specified number of seconds of inactivity.Activity is defined as any wallet command e.g. list-wallets.",
-			Value: 900},
+			Value: 900,
+		},
 		cli.StringFlag{
 			Name:  "yubihsm-url",
 			Usage: "Override default URL of http://localhost:12345 for connecting to yubihsm-connector)",
@@ -56,10 +57,9 @@ func (w *WalletPlugin) PluginInitialize(c *cli.Context) {
 	Try(func() {
 		w.walletManager = walletManager()
 
-		if c.IsSet("wallet_dir") {
-			walletDir := common.AbsolutePath(App().DataDir(), c.String("wallet-dir"))
-			w.walletManager.SetDir(walletDir)
-		}
+		walletDir := common.AbsolutePath(getWalletDir(), c.String("wallet-dir"))
+		w.walletManager.SetDir(walletDir)
+
 		if c.IsSet("unlock-timeout") {
 			timeout := c.Int64("unlock-timeout")
 			EosAssert(timeout > 0, &exception.InvalidLockTimeoutException{}, "Please specify a positive timeout %d", timeout)
@@ -90,4 +90,18 @@ func (w *WalletPlugin) PluginShutdown() {
 
 func (w *WalletPlugin) GetWalletManager() *WalletManager {
 	return w.walletManager
+}
+
+func getWalletDir() string {
+	home := os.Getenv("HOME")
+	if home != "" {
+		if runtime.GOOS == "darwin" {
+			return filepath.Join(home, "eosgo_wallet")
+		} else if runtime.GOOS == "windows" {
+			return filepath.Join(home, "eosgo_wallet")
+		} else {
+			return filepath.Join(home, "eosgo_wallet")
+		}
+	}
+	return "."
 }

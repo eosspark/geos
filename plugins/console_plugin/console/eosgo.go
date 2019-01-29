@@ -635,10 +635,9 @@ func printAction(action gjson.Result) {
 	args, _ := a.([]byte)
 
 	//TODO Parameters should not be sorted ！！
-	//if len(args) > 100 {
-
-	//args = append(args[0:100], []byte("...")...)
-	//}
+	if len(args) > 100 {
+		args = append(args[0:100], []byte("...")...)
+	}
 	actionName := fmt.Sprintf("%14s <= %-28s", receiver, codeName+"::"+funcName)
 
 	second := fmt.Sprint("#", actionName, string(args))

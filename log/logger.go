@@ -42,17 +42,17 @@ const (
 func (l Lvl) AlignedString() string {
 	switch l {
 	case LvlAll:
-		return "ALL"
+		return "all"
 	case LvlDebug:
-		return "DEBUG"
+		return "debug"
 	case LvlInfo:
-		return "INFO "
+		return "info"
 	case LvlWarn:
-		return "WARN "
+		return "warn"
 	case LvlError:
-		return "ERROR"
+		return "error"
 	case LvlOff:
-		return "OFF "
+		return "off"
 	default:
 		panic("Unknown level")
 	}
@@ -62,17 +62,17 @@ func (l Lvl) AlignedString() string {
 func (l Lvl) String() string {
 	switch l {
 	case LvlAll:
-		return "all"
+		return "all   "
 	case LvlDebug:
-		return "dbug"
+		return "debug "
 	case LvlInfo:
-		return "info"
+		return "info  "
 	case LvlWarn:
-		return "warn"
+		return "warn  "
 	case LvlError:
-		return "eror"
+		return "error "
 	case LvlOff:
-		return "off"
+		return "off   "
 	default:
 		panic("Unknown level")
 	}

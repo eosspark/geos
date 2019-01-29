@@ -2,6 +2,7 @@ package http_plugin
 
 import (
 	"encoding/json"
+	"github.com/eosspark/eos-go/common"
 	. "github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/log"
@@ -12,22 +13,20 @@ import (
 )
 
 const (
+	HttpPlug                  = PluginTypeName("HttpPlugin")
 	httpListenendpoint string = "127.0.0.1:8888"
 )
 
-var verboseHttpErrors = false
-
-const HttpPlug = PluginTypeName("HttpPlugin")
-
-var httpPlugin Plugin = App().RegisterPlugin(HttpPlug, NewHttpPlugin(App().GetIoService()))
+var (
+	verboseHttpErrors bool
+	hlog              log.Logger
+	httpPlugin        Plugin = App().RegisterPlugin(HttpPlug, NewHttpPlugin(App().GetIoService()))
+)
 
 type HttpPlugin struct {
 	AbstractPlugin
-	//ConfirmedBlock Signal //TODO signal ConfirmedBlock
 	my *HttpPluginImpl
 }
-
-var hlog log.Logger
 
 func NewHttpPlugin(io *asio.IoContext) *HttpPlugin {
 	h := &HttpPlugin{}
@@ -95,139 +94,55 @@ func (h *HttpPlugin) SetProgramOptions(options *[]cli.Flag) {
 }
 
 func (h *HttpPlugin) PluginInitialize(c *cli.Context) {
-
 	Try(func() {
+		hlog.Info("http plugin initialize")
+		h.my.AccessControlAllowOrigin = c.String("access-control-allow-origin")
+
+		if c.IsSet("access-control-allow-origin") {
+			h.my.AccessControlAllowOrigin = c.String("access-control-allow-origin")
+			hlog.Info("configured http with Access-Control-Allow-Origin : %s", h.my.AccessControlAllowOrigin)
+		}
+		if c.IsSet("access-control-allow-headers") {
+			h.my.AccessControlAllowHeaders = c.String("access-control-allow-headers")
+			hlog.Info("configured http with Access-Control-Allow-Headers : %s", h.my.AccessControlAllowHeaders)
+		}
+		if c.IsSet("access-control-max-age") {
+			h.my.AccessControlMaxAge = c.String("access-control-max-age")
+			hlog.Info("configured http with Access-Control-Max-Age : %s", h.my.AccessControlMaxAge)
+		}
+
+		h.my.AccessControlAllowCredentials = c.Bool("access-control-allow-credentials") //TODO
+		if h.my.AccessControlAllowCredentials {
+			hlog.Info("configured http with Access-Control-Allow-Credentials: true")
+		}
+
 		h.my.listenStr = c.String("http-server-address")
-
-		//handle := rpc.NewServer()
-		//apis := plugins()
-		//for _, api := range apis {
-		//	if err := handle.RegisterName(api.Namespace, api.Service); err != nil {
-		//		h.my.log.Error(err.Error())
-		//		panic(err)
-		//	}
-		//	h.my.log.Debug("InProc registered :  namespace =%s", api.Namespace)
-		//}
-		//
-		//h.my.Handlers = handle
-		//// All APIs registered, start the HTTP listener
-		//listener, err := net.Listen("tcp", listenStr)
-		//if err != nil {
-		//	h.my.log.Error("%s", err)
-		//}
-		//listener = netutil.LimitListener(listener,1)
-		//
-		//h.my.Listener = listener
-		//h.my.log.Info("configured http to listen on %s", listenStr)
-
+		hlog.Info("configured http to listen on %s", h.my.listenStr)
+		//listenStr := c.String("http-server-address")
+		//h.my.ListenEndpoint = http.NewServeMux()
+		//httpPlugin.Handle(walletSetTimeOutFunc, walletPlugin.SetTimeOut())
+		//h.my.log.Info("configured http to listen on %s", "")
 		//err := http.ListenAndServe(listenStr, h.my.ListenEndpoint)
 		//if err != nil {
 		//	h.my.log.Error("failed to configure https to listen on %s , %s", listenStr, err.Error())
 		//	panic(err)
 		//}
-		//h.my.log.Info("configured http to listen on %s", h.my.listenStr)
-	}).End()
-	//Try(func() {
-	//	h.my.log.Info("http plugin initialize")
-	//	h.my.AccessControlAllowOrigin = c.String("access-control-allow-origin")
-	//
-	//	if c.IsSet("access-control-allow-origin") {
-	//		h.my.AccessControlAllowOrigin = c.String("access-control-allow-origin")
-	//		h.my.log.Info("configured http with Access-Control-Allow-Origin : %s", h.my.AccessControlAllowOrigin)
-	//	}
-	//	if c.IsSet("access-control-allow-headers") {
-	//		h.my.AccessControlAllowHeaders = c.String("access-control-allow-headers")
-	//		h.my.log.Info("configured http with Access-Control-Allow-Headers : %s", h.my.AccessControlAllowHeaders)
-	//	}
-	//	if c.IsSet("access-control-max-age") {
-	//		h.my.AccessControlMaxAge = c.String("access-control-max-age")
-	//		h.my.log.Info("configured http with Access-Control-Max-Age : %s", h.my.AccessControlMaxAge)
-	//	}
-	//
-	//	h.my.AccessControlAllowCredentials = c.Bool("access-control-allow-credentials") //TODO
-	//	if h.my.AccessControlAllowCredentials {
-	//		h.my.log.Info("configured http with Access-Control-Allow-Credentials: true")
-	//	}
-	//
-	//	//if c.IsSet("http-server-address") {
-	//		listenStr := c.String("http-server-address")
-	//		h.my.ListenEndpoint = http.NewServeMux()
-	//		// httpPlugin.Handle(walletSetTimeOutFunc, walletPlugin.SetTimeOut())
-	//	h.my.log.Info("configured http to listen on %s", "")
-	//		err := http.ListenAndServe(listenStr, h.my.ListenEndpoint)
-	//		if err != nil {
-	//			h.my.log.Error("failed to configure https to listen on %s , %s", listenStr, err.Error())
-	//			panic(err)
-	//		}
-	//		h.my.log.Info("configured http to listen on %s", h.my.listenStr)
-	//	//}
-	//
-	//
-	//	//if c.IsSet("https-server-address") {
-	//	//	//	if( !options.count( "https-certificate-chain-file" ) ||
-	//	//	//		options.at( "https-certificate-chain-file" ).as<string>().empty()) {
-	//	//	//		elog( "https-certificate-chain-file is required for HTTPS" );
-	//	//	//		return;
-	//	//	//	}
-	//	//	//	if( !options.count( "https-private-key-file" ) ||
-	//	//	//		options.at( "https-private-key-file" ).as<string>().empty()) {
-	//	//	//		elog( "https-private-key-file is required for HTTPS" );
-	//	//	//		return;
-	//	//	//	}
-	//	//	//
-	//	//	//	string lipstr = options.at( my->https_server_address_option_name ).as<string>();
-	//	//	//	string host = lipstr.substr( 0, lipstr.find( ':' ));
-	//	//	//	string port = lipstr.substr( host.size() + 1, lipstr.size());
-	//	//	//tcp::resolver::query query( tcp::v4(), host.c_str(), port.c_str());
-	//	//	//	try {
-	//	//	//		my->https_listen_endpoint = *resolver.resolve( query );
-	//	//	//		ilog( "configured https to listen on ${h}:${p} (TLS configuration will be validated momentarily)",
-	//	//	//	("h", host)( "p", port ));
-	//	//	//		my->https_cert_chain = options.at( "https-certificate-chain-file" ).as<string>();
-	//	//	//		my->https_key = options.at( "https-private-key-file" ).as<string>();
-	//	//	//	} catch ( const boost::system::system_error& ec ) {
-	//	//	//	elog( "failed to configure https to listen on ${h}:${p} (${m})",
-	//	//	//	("h", host)( "p", port )( "m", ec.what()));
-	//	//	//	}
-	//	//	//
-	//	//	//	// add in resolved hosts and ports as well
-	//	//	//	if (my->https_listen_endpoint) {
-	//	//	//		my->add_aliases_for_endpoint(*my->https_listen_endpoint, host, port);
-	//	//	//	}\
-	//	//
-	//	//	if !c.IsSet("https-certificate-chain-file") || len(c.String("https-certificate-chain-file")) == 0 {
-	//	//		h.my.log.Error("https-certificate-chain-file is required for HTTPS")
-	//	//		return
-	//	//	}
-	//	//
-	//	//	if !c.IsSet("https-private-key-file") || len(c.String("https-private-key-file")) == 0 {
-	//	//		h.my.log.Error("https-private-key-file is required for HTTPS")
-	//	//		return
-	//	//	}
-	//	//
-	//	//	lipStr := c.String("https-server-address")
-	//	//	h.my.HttpsListenEndpoint = http.NewServeMux() //TODO https need to emplace
-	//	//	err := http.ListenAndServe(lipStr, h.my.HttpsListenEndpoint)
-	//	//	if err != nil {
-	//	//		h.my.log.Error("failed to configure https to listen on %s , %s", lipStr, err.Error())
-	//	//		panic(err)
-	//	//	}
-	//	//	h.my.log.Info("configured https to listen on %s (TLS configuration will be validated momentarily)", lipStr)
-	//	//	h.my.httpsCeryChain = c.String("https-certificate-chain-file")
-	//	//	h.my.httpsKey = c.String("https-private-key-file")
-	//	//
-	//	//}
-	//
-	//	h.my.MaxBodySize = common.SizeT(c.Uint64("max-body-size"))
-	//	verboseHttpErrors = c.Bool("verbose-http-errors")
-	//
-	//}).FcLogAndRethrow().End()
+
+		h.my.MaxBodySize = common.SizeT(c.Uint64("max-body-size"))
+		verboseHttpErrors = c.Bool("verbose-http-errors")
+
+	}).FcLogAndRethrow().End()
 }
 
 func (h *HttpPlugin) PluginStartup() {
-	h.my.log.Info("http plugin startup")
+	hlog.Info("http plugin startup")
 
-	fasthttp.ListenAndAsyncServe(App().GetIoService(), h.my.listenStr, h.Handler)
+	if len(h.my.listenStr) > 0 {
+		err := fasthttp.ListenAndAsyncServe(App().GetIoService(), h.my.listenStr, h.Handler)
+		if err != nil {
+			hlog.Error("start fastHttp is error: %s", err)
+		}
+	}
 
 	//if(my->listen_endpoint) {
 	//	try {
@@ -305,7 +220,7 @@ func (h *HttpPlugin) VerboseErrors() bool {
 }
 
 func (h *HttpPlugin) AddHandler(url string, handler UrlHandler) {
-	h.my.log.Info("add api url: %s", url)
+	hlog.Info("add api url: %s", url)
 	App().GetIoService().Post(func(err error) {
 		h.my.UrlHandlers[url] = handler
 	})
@@ -329,7 +244,7 @@ func (h *HttpPlugin) Handler(ctx *fasthttp.RequestCtx) {
 
 	handler, ok := h.my.UrlHandlers[resource]
 	if !ok {
-		h.my.log.Debug("404 - not found: %s", resource)
+		hlog.Debug("404 - not found: %s", resource)
 		ctx.NotFound()
 	} else {
 		//con->defer_http_response();
@@ -344,17 +259,14 @@ func (h *HttpPlugin) Handler(ctx *fasthttp.RequestCtx) {
 func (h *HttpPlugin) IsOnLoopBack() bool { //TODO
 	//return (!my->listen_endpoint || my->listen_endpoint->address().is_loopback()) && (!my->https_listen_endpoint || my->https_listen_endpoint->address().is_loopback());
 
-	return false
+	return true
 }
 func (h *HttpPlugin) IsSecure() bool { //TODO
 	//return (!my->listen_endpoint || my->listen_endpoint->address().is_loopback());
-	return false
+	return true
 }
 
-/**
- * @brief Structure used to create JSON error responses
- */
-
+//Structure used to create JSON error responses
 const detailsLimit int = 10
 
 type errorDetail struct {

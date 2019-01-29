@@ -151,65 +151,12 @@ func (c *Console) init(preload []string) (err error) {
 	//c.jsre.Bind("eosgo", eos)
 	//c.jsre.Set("createKey", eos.CreateKey)
 
-	//// Load all the js utility JavaScript libraries
-	//if err := c.jsre.Compile("bignumber.js", jsre.BigNumber_JS); err != nil {
-	//	return fmt.Errorf("bignumber.js: %v", err)
-	//}
-	//if err := c.jsre.Compile("web3.js", jsre.Web3_JS); err != nil {
-	//	return fmt.Errorf("web3.js: %v", err)
-	//}
-	//if _, err := c.jsre.Run("var Web3 = require('web3');"); err != nil {
-	//	return fmt.Errorf("web3 require: %v", err)
-	//}
-	//if _, err := c.jsre.Run("var web3 = new Web3(jeth);"); err != nil {
-	//	return fmt.Errorf("web3 provider: %v", err)
-	//}
-
-	//fmt.Println("fibos console start")
-	//if _, err := c.jsre.Run("var Eosgo = require('eosgo');"); err != nil {
-	//return fmt.Errorf("eosgo require: %v", err)
-	//}
-	//fmt.Println("fibos console start")
-	//if _, err := c.jsre.Run("var eosgo = new Eosgo(jeth);"); err != nil {
-	//return fmt.Errorf("fibos provider: %v", err)
-	//}
-
-	// Load the supported APIs into the JavaScript runtime environment
-	//apis, err := c.client.SupportedModules()
-	//if err != nil {
-	//  return fmt.Errorf("api modules: %v", err)
-	//}
-	//apis := map[string]string{"chain": "1.0", "wallet": "1.0", "rpc": "1.0"}
-	//
-	//flatten := "var eos = web3.eos; "
-	//for api := range apis {
-	//	if api == "web3" {
-	//		continue // manually mapped or ignore
-	//	}
-	//	if file, ok := web3ext.Modules[api]; ok {
-	//		// Load our extension for the module.
-	//		if err = c.jsre.Compile(fmt.Sprintf("%s.js", api), file); err != nil {
-	//			return fmt.Errorf("%s.js: %v", api, err)
-	//		}
-	//		flatten += fmt.Sprintf("var %s = web3.%s; ", api, api)
-	//		//var chain =web3.chain
-	//	} else if obj, err := c.jsre.Run("web3." + api); err == nil && obj.IsObject() {
-	//		// Enable web3.js built-in extension if available.
-	//		flatten += fmt.Sprintf("var %s = web3.%s; ", api, api)
-	//	}
-	//}
-	//if _, err = c.jsre.Run(flatten); err != nil {
-	//	return fmt.Errorf("namespace flattening: %v", err)
-	//}
-
 	//The admin.sleep and admin.sleepBlocks are offered by the console and not by the RPC layer.
 	admin, err := c.jsre.Get("eos")
 	if err != nil {
 		return err
 	}
 	if obj := admin.Object(); obj != nil { // make sure the admin api is enabled over the interface
-		//obj.Set("sleepBlocks", bridge.SleepBlocks)
-		//obj.Set("sleep", bridge.Sleep)
 		obj.Set("clearHistory", c.clearHistory)
 	}
 	// Preload any JavaScript files before starting the console
@@ -292,18 +239,6 @@ func (c *Console) Welcome() {
 	//c.jsre.Run(`
 	//        console.log("get info: " + chain.getInfo());
 	//`)
-
-	// List all the supported modules for the user to call
-	//if apis, err := c.client.SupportedModules(); err == nil {
-	//  modules := make([]string, 0, len(apis))
-	//  for api, version := range apis {
-	//    modules = append(modules, fmt.Sprintf("%s:%s", api, version))
-	//  }
-	//  sort.Strings(modules)
-	//  fmt.Fprintln(c.printer, " modules:", strings.Join(modules, " "))
-	//}
-	//fmt.Fprintln(c.printer)
-
 }
 
 // Interactive starts an interactive user session, where input is propted from
@@ -363,7 +298,7 @@ func (c *Console) Interactive() {
 				if indents <= 0 {
 					prompt = c.prompt
 				} else {
-					prompt = strings.Repeat(".", indents*3) + " "
+					prompt = strings.Repeat(" ", indents*3) + " "
 				}
 				// If all the needed lines are present, save the command and run
 				if indents <= 0 {
