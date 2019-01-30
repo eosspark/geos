@@ -22,10 +22,9 @@ type ScopeName = Name
 func (n Name) String() string {
 	return S(uint64(n))
 }
-func (n *Name) GetKey() []byte {
-	b := make([]byte, 8)
-	binary.BigEndian.PutUint64(b, uint64(*n))
-	return b
+
+func (n Name) IsEmpty() bool {
+	return n == 0
 }
 
 func (n Name) Pack() ([]byte, error) {

@@ -24,17 +24,17 @@ type BlockHeaderState struct {
 	Header                           SignedBlockHeader    `multiIndex:"inline" json:"header"`
 	DposProposedIrreversibleBlocknum uint32               `json:"dpos_proposed_irreversible_blocknum"`
 	DposIrreversibleBlocknum         uint32               `multiIndex:"byLibBlockNum,orderedUnique" json:"dpos_irreversible_blocknum"`
-	BftIrreversibleBlocknum  uint32               `multiIndex:"byLibBlockNum,orderedUnique" json:"bft_irreversible_blocknum"`
-	PendingScheduleLibNum    uint32               `json:"pending_schedule_lib_num"`
-	PendingScheduleHash      crypto.Sha256        `json:"pending_schedule_hash"`
-	PendingSchedule          ProducerScheduleType `json:"pending_schedule"`
-	ActiveSchedule           ProducerScheduleType `json:"active_schedule"`
-	BlockrootMerkle          IncrementalMerkle    `json:"blockroot_merkle"`
-	ProducerToLastProduced   AccountNameUint32Map `json:"producer_to_last_produced"`
-	ProducerToLastImpliedIrb AccountNameUint32Map `json:"producer_to_last_implied_irb"`
-	BlockSigningKey          ecc.PublicKey        `json:"block_signing_key"`
-	ConfirmCount             []uint8              `json:"confirm_count"`
-	Confirmations            []HeaderConfirmation `json:"confirmations"`
+	BftIrreversibleBlocknum          uint32               `multiIndex:"byLibBlockNum,orderedUnique" json:"bft_irreversible_blocknum"`
+	PendingScheduleLibNum            uint32               `json:"pending_schedule_lib_num"`
+	PendingScheduleHash              crypto.Sha256        `json:"pending_schedule_hash"`
+	PendingSchedule                  ProducerScheduleType `json:"pending_schedule"`
+	ActiveSchedule                   ProducerScheduleType `json:"active_schedule"`
+	BlockrootMerkle                  IncrementalMerkle    `json:"blockroot_merkle"`
+	ProducerToLastProduced           AccountNameUint32Map `json:"producer_to_last_produced"`
+	ProducerToLastImpliedIrb         AccountNameUint32Map `json:"producer_to_last_implied_irb"`
+	BlockSigningKey                  ecc.PublicKey        `json:"block_signing_key"`
+	ConfirmCount                     []uint8              `json:"confirm_count"`
+	Confirmations                    []HeaderConfirmation `json:"confirmations"`
 }
 
 func (b *BlockHeaderState) GetScheduledProducer(t BlockTimeStamp) ProducerKey {
@@ -268,4 +268,12 @@ func (b *BlockHeaderState) AddConfirmation(conf *HeaderConfirmation) {
 	EosAssert(signer.Compare(key), &WrongSigningKey{}, "confirmation not signed by expected key")
 
 	b.Confirmations = append(b.Confirmations, *conf)
+}
+
+func (b BlockHeaderState) IsEmpty() bool {
+	return b.ID == 0 && b.BlockId.IsEmpty() && b.BlockNum == 0 && b.Header.IsEmpty() && b.DposProposedIrreversibleBlocknum == 0 && b.DposIrreversibleBlocknum == 0 &&
+		b.BftIrreversibleBlocknum == 0 && b.PendingScheduleLibNum == 0 && b.PendingScheduleHash.IsEmpty() &&
+		b.PendingSchedule.IsEmpty() && b.ActiveSchedule.IsEmpty() && b.BlockrootMerkle.IsEmpty() &&
+		b.ProducerToLastProduced.Size() == 0 && b.ProducerToLastProduced.Size() == 0 && b.BlockSigningKey.IsEmpty() &&
+		len(b.ConfirmCount) == 0 && len(b.Confirmations) == 0
 }

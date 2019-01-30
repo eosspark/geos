@@ -56,3 +56,12 @@ type HeaderConfirmation struct {
 	Producer          common.AccountName `json:"producer"`
 	ProducerSignature ecc.Signature      `json:"producers_signature"`
 }
+
+func (b BlockHeader) IsEmpty() bool {
+	return b.Timestamp == 0 && b.Producer.IsEmpty() && b.Confirmed == 0 && b.Previous.IsEmpty() &&
+		b.TransactionMRoot.IsEmpty() && b.ActionMRoot.IsEmpty() && b.ScheduleVersion == 0 && b.NewProducers == nil &&
+		len(b.HeaderExtensions) == 0
+}
+func (s SignedBlockHeader) IsEmpty() bool {
+	return len(s.ProducerSignature.Content) == 0 && s.BlockHeader.IsEmpty()
+}

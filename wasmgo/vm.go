@@ -1,11 +1,11 @@
 package wasmgo
 
 import (
-	"bytes"
+	//"bytes"
 	"encoding/binary"
 	"fmt"
-	"github.com/eosspark/eos-go/wasmgo/wagon/wast"
-	"io/ioutil"
+	//"github.com/eosspark/eos-go/wasmgo/wagon/wast"
+	//"io/ioutil"
 	"math"
 	"math/bits"
 
@@ -111,9 +111,9 @@ func NewVirtualMachine(
 	//inject timecheck for infinite loop
 	Inject(m.Base)
 
-	buf := new(bytes.Buffer)
-	wast.WriteTo(buf, m.Base)
-	ioutil.WriteFile("/tmp/hello.wat", buf.Bytes(), 0644)
+	//buf := new(bytes.Buffer)
+	//wast.WriteTo(buf, m.Base)
+	//ioutil.WriteFile("/tmp/hello.wat", buf.Bytes(), 0644)
 
 	m.DisableFloatingPoint = config.DisableFloatingPoint
 

@@ -241,3 +241,11 @@ func (t *TransactionReceipt) Digest() common.DigestType {
 
 	return *crypto.NewSha256Byte(enc.Sum(nil))
 }
+
+func (s SignedBlock) IsEmpty() bool {
+	return len(s.Transactions) == 0 && len(s.BlockExtensions) == 0 && s.SignedBlockHeader.IsEmpty()
+}
+
+func (t TransactionReceiptHeader) IsEmpty() bool {
+	return t.Status == 0 && t.CpuUsageUs == 0 && t.NetUsageWords == 0
+}

@@ -57,3 +57,11 @@ func (s *SharedProducerScheduleType) ProducerScheduleType() *ProducerScheduleTyp
 	}
 	return &result
 }
+
+func (p SharedProducerScheduleType) IsEmpty() bool {
+	return p.Version == 0 && len(p.Producers) == 0
+}
+
+func (p ProducerScheduleType) IsEmpty() bool {
+	return p.Version == 0 && len(p.Producers) == 0
+}

@@ -15,17 +15,17 @@ type ChainConfig struct {
 	ContextFreeDiscountNetUsageNum uint32
 	ContextFreeDiscountNetUsageDen uint32
 
-	MaxBlockCpuUsage               uint32
-	TargetBlockCpuUsagePct         uint32
-	MaxTransactionCpuUsage         uint32
-	MinTransactionCpuUsage         uint32
+	MaxBlockCpuUsage       uint32
+	TargetBlockCpuUsagePct uint32
+	MaxTransactionCpuUsage uint32
+	MinTransactionCpuUsage uint32
 
-	MaxTrxLifetime                 uint32
-	DeferredTrxExpirationWindow    uint32
-	MaxTrxDelay                    uint32
-	MaxInlineActionSize            uint32
-	MaxInlineActionDepth           uint16
-	MaxAuthorityDepth              uint16
+	MaxTrxLifetime              uint32
+	DeferredTrxExpirationWindow uint32
+	MaxTrxDelay                 uint32
+	MaxInlineActionSize         uint32
+	MaxInlineActionDepth        uint16
+	MaxAuthorityDepth           uint16
 }
 
 func (c *ChainConfig) Validate() {
@@ -61,4 +61,13 @@ func (c *ChainConfig) Validate() {
 
 	try.EosAssert(1 <= c.MaxAuthorityDepth, &exception.ActionValidateException{},
 		"max authority depth should be at least 1")
+}
+
+func (c ChainConfig) IsEmpty() bool {
+	return c.MaxBlockNetUsage == 0 && c.TargetBlockNetUsagePct == 0 && c.MaxTransactionNetUsage == 0 &&
+		c.BasePerTransactionNetUsage == 0 && c.NetUsageLeeway == 0 && c.ContextFreeDiscountNetUsageNum == 0 &&
+		c.ContextFreeDiscountNetUsageDen == 0 && c.MaxBlockCpuUsage == 0 && c.TargetBlockCpuUsagePct == 0 &&
+		c.MaxTransactionCpuUsage == 0 && c.MinTransactionCpuUsage == 0 && c.MaxTrxLifetime == 0 &&
+		c.DeferredTrxExpirationWindow == 0 && c.MaxTrxDelay == 0 && c.MaxInlineActionSize == 0 &&
+		c.MaxInlineActionDepth == 0 && c.MaxAuthorityDepth == 0
 }

@@ -524,7 +524,7 @@ func (r *ResourceLimitsManager) GetAccountNetLimitEx(name common.AccountName, el
 	if elastic {
 		virtualNetworkCapacityInWindow = eos_math.MulUint64(state.VirtualNetLimit, windowSize)
 	} else {
-		virtualNetworkCapacityInWindow = eos_math.MulUint64(config.CpuLimitParameters.Max, windowSize)
+		virtualNetworkCapacityInWindow = eos_math.MulUint64(config.NetLimitParameters.Max, windowSize)
 	}
 	userWeight := eos_math.Uint128{Low: uint64(netWeight)}
 	allUserWeight := eos_math.Uint128{Low: state.TotalNetWeight}

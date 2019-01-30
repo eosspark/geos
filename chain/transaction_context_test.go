@@ -9,6 +9,7 @@ import (
 	"github.com/eosspark/eos-go/entity"
 	"github.com/stretchr/testify/assert"
 	"io/ioutil"
+	"os"
 	"path/filepath"
 	"testing"
 )
@@ -30,8 +31,12 @@ func TestContract(t *testing.T) {
 		if err != nil {
 			t.Fatal(err)
 		}
+		os.RemoveAll("/tmp/data/")
+		cfg := NewConfig()
+		cfg.BlocksDir = path + cfg.BlocksDir
+		cfg.StateDir = path + cfg.StateDir
+		control := NewController(cfg)
 
-		control := NewController(NewConfig())
 		control.Startup()
 		blockTimeStamp := types.NewBlockTimeStamp(common.Now())
 		control.StartBlock(blockTimeStamp, 0)
@@ -280,7 +285,11 @@ func TestTransactionContextTest(t *testing.T) {
 		}
 
 		//set code
-		control := NewController(NewConfig())
+		os.RemoveAll("/tmp/data/")
+		cfg := NewConfig()
+		cfg.BlocksDir = path + cfg.BlocksDir
+		cfg.StateDir = path + cfg.StateDir
+		control := NewController(cfg)
 		control.Startup()
 		blockTimeStamp := types.NewBlockTimeStamp(common.Now())
 		control.StartBlock(blockTimeStamp, 0)

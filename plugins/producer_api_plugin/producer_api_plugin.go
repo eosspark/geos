@@ -102,7 +102,10 @@ func (c *ProducerApiPlugin) PluginStartup() {
 				}
 			}
 			proApi.SetWhitelistBlacklist(w)
-			cb(200, nil)
+			if byte, err := json.Marshal("set is ok"); err == nil {
+				cb(200, byte)
+			}
+
 		}).Catch(func(e interface{}) {
 			http_plugin.HandleException(e, "producer", "set_whitelist_blacklist", string(body), cb)
 		}).End()

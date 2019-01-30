@@ -26,3 +26,7 @@ func (rbo *ReversibleBlockObject) GetBlock() *types.SignedBlock {
 	rlp.DecodeBytes(rbo.PackedBlock, result)
 	return &result
 }
+
+func (rbo ReversibleBlockObject) IsEmpty() bool {
+	return rbo.ID == 0 && rbo.BlockNum == 0 && rbo.PackedBlock.Size() == 0
+}

@@ -54,3 +54,9 @@ func NewBaseActionTrace(ar *ActionReceipt) *BaseActionTrace {
 	bat.CpuUsage = 0
 	return &bat
 }
+
+func (t TransactionTrace) IsEmpty() bool {
+	return t.ID.IsEmpty() && t.BlockNum == 0 && t.BlockTime == 0 && t.ProducerBlockId.IsEmpty() &&
+		t.Receipt.IsEmpty() && t.Elapsed == 0 && t.NetUsage == 0 && t.Scheduled && len(t.ActionTraces) == 0 &&
+		t.FailedDtrxTrace == nil && t.Except == nil && t.ExceptPtr == nil
+}
