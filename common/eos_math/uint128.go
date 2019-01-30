@@ -109,6 +109,16 @@ func (u *Uint128) RightShifts(shift int) {
 		u.RightShift()
 	}
 }
+func (u *Uint128) RightShifts2(shift int) Uint128 {
+	Utemp := Uint128{
+		High: u.High,
+		Low:  u.Low,
+	}
+	for i := 0; i < shift; i++ {
+		Utemp.RightShift()
+	}
+	return Utemp
+}
 
 //if u > v , return 1; u < v , return -1; u = v , return 0 .
 func (u Uint128) Compare(v Uint128) int {
