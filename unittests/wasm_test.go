@@ -963,27 +963,27 @@ func TestMemoryInitBorder(t *testing.T) {
 	})
 }
 
-func TestImports(t *testing.T) {
-	t.Run("", func(t *testing.T) {
-		b := newBaseTester(true, chain.SPECULATIVE)
-		b.ProduceBlocks(2, false)
-		imports := common.N("imports")
+// func TestImports(t *testing.T) {
+// 	t.Run("", func(t *testing.T) {
+// 		b := newBaseTester(true, chain.SPECULATIVE)
+// 		b.ProduceBlocks(2, false)
+// 		imports := common.N("imports")
 
-		b.CreateAccounts([]common.AccountName{imports}, false, true)
-		b.ProduceBlocks(1, false)
+// 		b.CreateAccounts([]common.AccountName{imports}, false, true)
+// 		b.ProduceBlocks(1, false)
 
-		wasm := wast2wasm([]byte(memory_table_import))
-		returning := false
-		try.Try(func() {
-			b.SetCode(imports, wasm, nil)
-		}).Catch(func(e exception.Exception) {
-			returning = true
-		}).End()
-		assert.Equal(t, returning, true)
+// 		wasm := wast2wasm([]byte(memory_table_import))
+// 		returning := false
+// 		try.Try(func() {
+// 			b.SetCode(imports, wasm, nil)
+// 		}).Catch(func(e exception.Exception) {
+// 			returning = true
+// 		}).End()
+// 		assert.Equal(t, returning, true)
 
-		b.close()
-	})
-}
+// 		b.close()
+// 	})
+// }
 
 func TestNestedLimit(t *testing.T) {
 	t.Run("", func(t *testing.T) {
@@ -995,9 +995,14 @@ func TestNestedLimit(t *testing.T) {
 		b.ProduceBlocks(1, false)
 
 		nested2 := func(command string) {
-			wast := `(module (export "apply" (func $apply)) (func $apply (param $0 i64) (param $1 i64) (param $2 i64)`
+			var module string = `(module
+(export "apply" (func $apply))
+(func $apply (param $0 i64) (param $1 i64) (param $2 i64)
+`
+			wast := module
 			for i := 0; i < 1023; i++ {
 				wast += fmt.Sprintf(command, i)
+				//wast += '\n'
 			}
 			for i := 0; i < 1023; i++ {
 				wast += ")"
@@ -1005,7 +1010,6 @@ func TestNestedLimit(t *testing.T) {
 			wast += "))"
 			wasm := wast2wasm([]byte(wast))
 			b.SetCode(nested, wasm, nil)
-
 		}
 
 		nestedException := func(command string) bool {
@@ -1031,13 +1035,13 @@ func TestNestedLimit(t *testing.T) {
 		}
 
 		//nested loops
-		nested2("(loop (drop (i32.const %d ))")
-		ret := nestedException("(loop (drop (i32.const %d ))")
+		nested2("(loop (drop (i32.const %d))\n")
+		ret := nestedException("(loop (drop (i32.const %d))")
 		assert.Equal(t, ret, true)
 
 		//nested blocks
 		nested2("(block (drop (i32.const %d ))")
-		ret = nestedException("(block (drop (i32.const %d ))")
+		ret = nestedException("(block (drop (i32.const %d))")
 		assert.Equal(t, ret, true)
 
 		//nested ifs
