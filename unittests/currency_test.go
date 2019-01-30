@@ -562,7 +562,7 @@ func TestDeferredFailure(t *testing.T) {
 	index, _ := ct.validatingTester.Control.DataBase().GetIndex("byTrxId", &gto)
 	count := 0
 	itr := index.Begin()
-	if itr != index.End() {
+	if !index.CompareEnd(itr) {
 		count = 1
 	}
 
@@ -578,7 +578,7 @@ func TestDeferredFailure(t *testing.T) {
 	ct.validatingTester.PushAction2(&eosioToken, &actionName, eosioToken, &data, ct.validatingTester.DefaultExpirationDelta, 0)
 	expectedDelivery := ct.validatingTester.Control.PendingBlockTime().TimeSinceEpoch().Count() + common.Seconds(10).Count()
 	var deferredId common.TransactionIdType
-	if index.Begin() != index.End() {
+	if !index.CompareEnd(index.Begin()) {
 		count = 1
 	}
 	assert.Equal(t, 1, count)
@@ -610,7 +610,7 @@ func TestDeferredFailure(t *testing.T) {
 
 	// set up alice owner
 	count = 0
-	if index.Begin() != index.End() {
+	if !index.CompareEnd(itr) {
 		count = 1
 	}
 	index.Begin().Data(&gto)
@@ -652,7 +652,7 @@ func TestDeferredFailure(t *testing.T) {
 	ct.validatingTester.ProduceBlocks(1, false)
 
 	index3, _ := ct.validatingTester.Control.DataBase().GetIndex("byTrxId", &gto)
-	if index3.Begin() == index3.End() {
+	if index3.CompareEnd(index3.Begin()) {
 		count = 0
 	}
 	assert.Equal(t, 0, count)
