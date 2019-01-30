@@ -49,6 +49,9 @@ type TransactionHeader struct {
 	DelaySec         common.Vuint32 `json:"delay_sec" eos:"vuint32"` // number of secs to delay, making it cancellable for that duration
 }
 
+func (t TransactionHeader) IsEmpty() bool {
+	return t.Expiration == 0 && t.RefBlockNum == 0 && t.RefBlockPrefix == 0 && t.MaxNetUsageWords == 0 && t.MaxCpuUsageMS == 0 && t.DelaySec == 0
+}
 func (t TransactionHeader) GetRefBlocknum(headBlocknum uint32) uint32 {
 	return headBlocknum/0xffff*0xffff + headBlocknum%0xffff
 }
@@ -87,6 +90,10 @@ type Transaction struct {
 	ContextFreeActions    []*Action    `json:"context_free_actions"`
 	Actions               []*Action    `json:"actions"`
 	TransactionExtensions []*Extension `json:"transaction_extensions"`
+}
+
+func (t Transaction) IsEmtpy() bool {
+	return len(t.ContextFreeActions) == 0 && len(t.Actions) == 0 && len(t.TransactionExtensions) == 0 && t.TransactionHeader.IsEmpty()
 }
 
 func (t *Transaction) ID() common.TransactionIdType {
@@ -504,6 +511,10 @@ func zlibCompress(data []byte) []byte {
 	w.Write(data)
 	w.Close()
 	return in.Bytes()
+}
+
+func (p PackedTransaction) IsEmpty() bool {
+	return len(p.Signatures) == 0 && p.Compression == 0 && p.PackedContextFreeData.Size() == 0 && p.PackedTrx.Size() == 0 && p.UnpackedTrx.IsEmpty()
 }
 
 /**

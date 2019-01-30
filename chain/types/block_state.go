@@ -40,3 +40,7 @@ var BlockIdTypes = reflect.TypeOf(common.BlockIdType(*crypto.NewSha256Nil()))
 
 //for treeset
 var BlockNumType = reflect.TypeOf(uint32(0))
+
+func (b *BlockState) IsEmpty() bool {
+	return b.SignedBlock.IsEmpty() && !b.Validated && !b.InCurrentChain && len(b.Trxs) == 0
+}

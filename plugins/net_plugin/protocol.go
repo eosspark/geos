@@ -172,6 +172,10 @@ type RequestMessage struct {
 	ReqBlocks OrderedBlockIDs       `json:"req_blocks"`
 }
 
+func (r RequestMessage) IsEmpty() bool {
+	return r.ReqTrx.empty() && r.ReqBlocks.empty()
+}
+
 func (m *RequestMessage) GetType() P2PMessageType {
 	return RequestMessageType
 }

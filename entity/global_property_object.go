@@ -17,6 +17,11 @@ type DynamicGlobalPropertyObject struct {
 	GlobalActionSequence uint64
 }
 
+func (g GlobalPropertyObject) IsEmpty() bool {
+	return g.ID == 0 && g.ProposedScheduleBlockNum == 0 &&
+		g.ProposedSchedule.IsEmpty() && g.Configuration.IsEmpty()
+}
+
 /*
 type Config struct {
 	ActorWhitelist          common.FlatSet //common.AccountName

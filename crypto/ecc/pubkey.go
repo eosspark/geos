@@ -263,3 +263,8 @@ func ComparePubKey(first interface{}, second interface{}) int {
 		return 0
 	}
 }
+
+func (p PublicKey) IsEmpty() bool {
+	tmp := bytes.Repeat([]byte{0}, 33)
+	return bytes.Equal(tmp, p.Content[:])
+}

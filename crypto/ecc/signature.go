@@ -159,3 +159,7 @@ func NewSigNil() *Signature {
 		innerSignature: &innerK1Signature{},
 	}
 }
+
+func (s Signature) IsEmpty() bool {
+	return len(s.Content) == 0
+}

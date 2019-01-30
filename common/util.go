@@ -5,14 +5,21 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
-	"reflect"
+	"unsafe"
 )
 
 type CheckEmpty interface {
 	IsEmpty() bool
 }
 
-func empty(i interface{}) bool {
+const _SizeOfAddress = unsafe.Sizeof(uintptr(0))
+
+func Empty(i interface{}) bool {
+
+	if *(*uintptr)(unsafe.Pointer(uintptr(unsafe.Pointer(&i)) + _SizeOfAddress)) == 0 {
+		return true
+	}
+
 	switch t := i.(type) {
 	case nil:
 		return true
@@ -34,8 +41,6 @@ func empty(i interface{}) bool {
 		return t == ""
 	case bool:
 		return !t
-	case *CheckEmpty:
-		return t == nil
 	case CheckEmpty:
 		return t.IsEmpty()
 	default:
@@ -43,7 +48,7 @@ func empty(i interface{}) bool {
 	}
 }
 
-func Empty(i interface{}) bool {
+/*func Empty(i interface{}) bool {
 	if i == nil {
 		return true
 	}
@@ -51,7 +56,7 @@ func Empty(i interface{}) bool {
 	empty := reflect.Zero(reflect.ValueOf(i).Type()).Interface()
 
 	return reflect.DeepEqual(current, empty)
-}
+}*/
 
 // FileExist checks if a file exists at filePath.
 func FileExist(filePath string) bool {

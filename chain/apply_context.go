@@ -433,15 +433,16 @@ func (a *ApplyContext) ExecuteInline(act *types.Action) {
 
 	if !a.Control.SkipAuthCheck() && !a.Privileged && act.Account != a.Receiver {
 
-		/*f := a.TrxContext.CheckTime
-		fs := treeset.Set{}
-		fs.Insert(&types.PermissionLevel{a.Receiver, common.DefaultConfig.EosioCodeName})
+		checkTime := a.TrxContext.CheckTime
+		providedKeys := NewPublicKeySet()
+		providedPermissions := NewPermissionLevelSet()
+		providedPermissions.Add(common.PermissionLevel{a.Receiver, common.DefaultConfig.EosioCodeName})
 		a.Control.GetAuthorizationManager().CheckAuthorization([]*types.Action{act},
-			&treeset.Set,
-			&treeset.Set,
+			providedKeys,
+			providedPermissions,
 			common.Microseconds(a.Control.PendingBlockTime()-a.TrxContext.Published),
-			&f,
-			false)*/
+			&checkTime,
+			false)
 
 	}
 
@@ -548,7 +549,7 @@ func (a *ApplyContext) CancelDeferredTransaction2(sendId *eos_math.Uint128, send
 	err := a.DB.Find("bySenderId", gto, &gto)
 	if err == nil {
 
-		a.AddRamUsage(gto.Payer, -int64(common.BillableSizeV("generated_transaction_object") + uint64(len(gto.PackedTrx))))
+		a.AddRamUsage(gto.Payer, -int64(common.BillableSizeV("generated_transaction_object")+uint64(len(gto.PackedTrx))))
 		a.DB.Remove(&gto)
 		return true
 	}

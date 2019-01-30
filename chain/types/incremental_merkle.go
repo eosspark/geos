@@ -243,3 +243,7 @@ func moveNodes(to *[]DigestType, from *[]DigestType) {
 	*to = make([]DigestType, len(*from))
 	copy(*to, *from)
 }
+
+func (i IncrementalMerkle) IsEmpty() bool {
+	return i.NodeCount == 0 && len(i.ActiveNodes) == 0
+}

@@ -141,6 +141,12 @@ func (a *AbiDef) TypeNameForNewTypeName(typeName string) string {
 	return typeName
 }
 
+func (a AbiDef) IsEmpty() bool {
+	return a.Version != "" && len(a.Types) == 0 && len(a.Structs) == 0 && len(a.Actions) == 0 &&
+		len(a.Tables) == 0 && len(a.RicardianClauses) == 0 && len(a.ErrorMessages) == 0 &&
+		len(a.Extensions) == 0 && len(a.Variants) == 0
+}
+
 //types for abi
 
 type Int64 int64

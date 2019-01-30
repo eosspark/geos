@@ -248,7 +248,7 @@ func (a *AuthorizationManager) CheckLinkAuthAuthorization(link LinkAuth, auths [
 	EosAssert(link.Type != CancelDelay{}.GetName(), &ActionValidateException{}, "Cannot link eosio::canceldelay to a minimum permission")
 
 	linkedPermissionName := a.LookupMinimumPermission(link.Account, link.Code, link.Type)
-	if common.Empty(&linkedPermissionName) {
+	if linkedPermissionName.Empty() {
 		return
 	}
 	permissionIndex, err := a.db.GetIndex("id", entity.PermissionObject{})
@@ -266,7 +266,7 @@ func (a *AuthorizationManager) CheckUnLinkAuthAuthorization(unlink UnLinkAuth, a
 		"the owner of the affected permission needs to be the actor of the declared authorization")
 
 	unlinkedPermissionName := a.LookupLinkedPermission(unlink.Account, unlink.Code, unlink.Type)
-	EosAssert(!common.Empty(&unlinkedPermissionName), &TransactionException{},
+	EosAssert(!unlinkedPermissionName.Empty(), &TransactionException{},
 		"cannot unlink non-existent permission link of account '%v' for actions matching '%v::%v", unlink.Account, unlink.Code, unlink.Type)
 
 	if *unlinkedPermissionName == common.DefaultConfig.EosioAnyName {
@@ -435,7 +435,7 @@ func (a *AuthorizationManager) CheckAuthorization(actions []*types.Action,
 
 func (a *AuthorizationManager) CheckAuthorization2(account common.AccountName,
 	permission common.PermissionName,
-	providedKeys *PublicKeySet,        //flat_set<public_key_type>
+	providedKeys *PublicKeySet, //flat_set<public_key_type>
 	providedPermissions *PermissionLevelSet, //flat_set<permission_level>
 	providedDelay common.Microseconds,
 	checkTime *func(),
