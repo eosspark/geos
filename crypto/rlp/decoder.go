@@ -126,7 +126,7 @@ func (d *Decoder) Decode(v interface{}) (err error) {
 	if u, ok := v.(Unpack); ok {
 		pos, err := u.Unpack(d.data[d.pos:])
 		if err != nil {
-			fmt.Println(err)
+			return err
 		}
 		d.pos = d.pos + pos
 		return err

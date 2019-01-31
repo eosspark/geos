@@ -390,12 +390,12 @@ func (a AbiSerializer) BinaryToVariant(rtype typeName, binary []byte, maxSeriali
 		//}
 
 		if err != nil {
-			fmt.Println(err.Error())
+			fmt.Println("BinaryToVariant:", err.Error())
 			Throw(fmt.Sprintf("binary_to_variant is error: %s", err.Error()))
 		}
 		err = json.Unmarshal(bytes, &re)
 		if err != nil {
-			fmt.Println(err.Error())
+			fmt.Println("BinaryToVariant:", err.Error())
 			Throw(fmt.Sprintf("unmarshal variants is error: %s", err.Error()))
 		}
 	}).EosRethrowExceptions(&exception.UnpackException{}, "Unable to unpack %s from bytes", string(binary)).End()

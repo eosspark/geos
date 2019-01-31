@@ -31,6 +31,7 @@ func (w *walletApi) Create(call otto.FunctionCall) (response otto.Value) {
 	var resp string
 	err = DoHttpCall(&resp, common.WalletCreate, walletName)
 	if err != nil {
+		fmt.Println(err)
 		return
 	}
 
