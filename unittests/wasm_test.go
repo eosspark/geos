@@ -995,16 +995,13 @@ func TestNestedLimit(t *testing.T) {
 		b.ProduceBlocks(1, false)
 
 		nested2 := func(command string) {
-			var module string = `(module
-(export "apply" (func $apply))
-(func $apply (param $0 i64) (param $1 i64) (param $2 i64)
-`
+			var module string = `(module (export "apply" (func $apply)) (func $apply (param $0 i64) (param $1 i64) (param $2 i64)`
 			wast := module
-			for i := 0; i < 1023; i++ {
+			for i := 0; i < 850; i++ {
 				wast += fmt.Sprintf(command, i)
 				//wast += '\n'
 			}
-			for i := 0; i < 1023; i++ {
+			for i := 0; i < 850; i++ {
 				wast += ")"
 			}
 			wast += "))"
@@ -1035,7 +1032,7 @@ func TestNestedLimit(t *testing.T) {
 		}
 
 		//nested loops
-		nested2("(loop (drop (i32.const %d))\n")
+		nested2("(loop (drop (i32.const %d))")
 		ret := nestedException("(loop (drop (i32.const %d))")
 		assert.Equal(t, ret, true)
 
@@ -1116,7 +1113,7 @@ func TestLotsoGlobals(t *testing.T) {
 		b.CreateAccounts([]common.AccountName{nested}, false, true)
 		b.ProduceBlocks(1, false)
 
-		wast := `(module (export "apply" (func $apply)) (func $apply (param $0 i64) (param $1 i64) (param $2 i64)`
+		wast := `(module (export "apply" (func $apply)) (func $apply (param $0 i64) (param $1 i64) (param $2 i64))`
 		for i := 0; i < 85; i++ {
 			wast += fmt.Sprintf("(global $g%d (mut i32) (i32.const 0))", i)
 			wast += fmt.Sprintf("(global $g%d (mut i64) (i64.const 0))", i+100)
@@ -1124,7 +1121,7 @@ func TestLotsoGlobals(t *testing.T) {
 		//that gives us 1020 bytes of mutable globals
 		//add a few immutable ones for good measure
 		for i := 0; i < 10; i++ {
-			wast += fmt.Sprintf("(global $g%d i32 (i32.const 0))", i+100)
+			wast += fmt.Sprintf("(global $g%d i32 (i32.const 0))", i+200)
 		}
 
 		wasm := wast2wasm([]byte(wast + ")"))

@@ -127,11 +127,9 @@ func globalsValidation(m *wasm.Module) error {
 		}
 
 		switch global.Type.Type {
-		case wasm.ValueTypeI32:
-		case wasm.ValueTypeF32:
+		case wasm.ValueTypeI32, wasm.ValueTypeF32:
 			mutableGlobalsTotalSize += 4
-		case wasm.ValueTypeI64:
-		case wasm.ValueTypeF64:
+		case wasm.ValueTypeI64, wasm.ValueTypeF64:
 			mutableGlobalsTotalSize += 8
 		default:
 			EosThrow(&WasmExecutionError{}, "Smart contract has unexpected global definition value type")
