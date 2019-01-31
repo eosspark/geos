@@ -1,10 +1,8 @@
 package eos_math
 
 import (
-	"encoding/binary"
 	"fmt"
 	"math"
-	"strconv"
 )
 
 /*----------------------------------------------------------------------------
@@ -38,35 +36,6 @@ func (f Float32) String() string {
 
 func (f Float64) String() string {
 	return fmt.Sprintf("%e", math.Float64frombits(uint64(f)))
-}
-
-func (f Float128) String() string {
-	var sigStr string
-	number := make([]byte, 16)
-	binary.LittleEndian.PutUint64(number[:], f.Low)
-	binary.LittleEndian.PutUint64(number[8:], f.High)
-	fmt.Println(f128_to_extF80(f))
-	ext80 := f128_to_extF80(f)
-	fmt.Println(ext80)
-	if ext80.signExp&0x8000 != 0 {
-		sigStr = "-"
-	}
-	return fmt.Sprintf("%s1.", sigStr)
-	//return fmt.Sprintf("0x%s%s", hex.EncodeToString(number[:8]), hex.EncodeToString(number[8:]))
-
-}
-func (f Float128) String2() string {
-	number := make([]byte, 16)
-	binary.LittleEndian.PutUint64(number[:], f.Low)
-	binary.LittleEndian.PutUint64(number[8:], f.High)
-	fmt.Println(f128_to_extF80(f))
-	ext80 := f128_to_extF80(f)
-	fmt.Println(ext80)
-	//f64 := F128ToF64(f)
-	aa := float64(6.666666666666667e-07)
-
-	str := strconv.FormatFloat(aa, 'e', 18, 64)
-	return str
 }
 
 func (f Float128) Bytes() []byte {

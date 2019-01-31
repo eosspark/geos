@@ -438,6 +438,11 @@ func (a AbiSerializer) BinaryToVariantPrint(rtype typeName, binary []byte, maxSe
 	return bytes
 }
 
+func (a AbiSerializer) IsEmpty() bool {
+	return a.abi == nil && len(a.typeDefs) == 0 && len(a.structs) == 0 && len(a.actions) == 0 &&
+		len(a.tables) == 0 && len(a.errorMessages) == 0 && len(a.variants) == 0 && len(a.builtInTypes) == 0
+}
+
 //template<typename T, typename Resolver>
 //void abi_serializer::to_variant( const T& o, variant& vo, Resolver resolver, const fc::microseconds& max_serialization_time ) try {
 //mutable_variant_object mvo;

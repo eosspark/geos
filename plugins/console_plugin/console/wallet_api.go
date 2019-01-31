@@ -15,17 +15,8 @@ type walletApi struct {
 }
 
 func newWalletApi(c *Console) *walletApi {
-	w := &walletApi{
-		c: c,
-	}
-	return w
+	return &walletApi{c: c}
 }
-
-//type CreateWalletResp struct {
-//	Name     string
-//	Caution  string
-//	Password string
-//}
 
 //Create creates a new wallet locally
 func (w *walletApi) Create(call otto.FunctionCall) (response otto.Value) {
@@ -43,18 +34,11 @@ func (w *walletApi) Create(call otto.FunctionCall) (response otto.Value) {
 		return
 	}
 
-	//result := CreateWalletResp{
-	//	Name:     walletName,
-	//	Caution:  "Save password to use in the future to unlock this wallet.Without password imported keys will not be retrievable.",
-	//	Password: resp,
-	//}
-	//return getJsResult(call, result)
 	fmt.Println("Creating wallet: ", walletName)
 	fmt.Println("Save password to use in the future to unlock this wallet.")
 	fmt.Println("Without password imported keys will not be retrievable.")
 	fmt.Println("Password: ", resp)
 	return otto.UndefinedValue()
-
 }
 
 //Open opens an existing wallet
@@ -261,16 +245,3 @@ func (w *walletApi) SignTransaction(call otto.FunctionCall) (resonse otto.Value)
 
 	return getJsResult(call, resp)
 }
-
-//WalletCreate     string = walletFuncBase + "/create"
-//WalletOpen       string = walletFuncBase + "/open"
-//WalletList       string = walletFuncBase + "/list_wallets"
-//WalletListKeys   string = walletFuncBase + "/list_keys"
-//WalletPublicKeys string = walletFuncBase + "/get_public_keys"
-//WalletLock       string = walletFuncBase + "/lock"
-//WalletLockAll    string = walletFuncBase + "/lock_all"
-//WalletUnlock     string = walletFuncBase + "/unlock"
-//WalletImportKey  string = walletFuncBase + "/import_key"
-//WalletRemoveKey  string = walletFuncBase + "/remove_key"
-//WalletCreateKey  string = walletFuncBase + "/create_key"
-//WalletSignTrx    string = walletFuncBase + "/sign_transaction"

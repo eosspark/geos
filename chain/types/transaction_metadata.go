@@ -23,6 +23,10 @@ type SigningKeysType struct {
 	PublicKey PublicKeySet
 }
 
+func (s *SigningKeysType) IsEmpty() bool {
+	return s.ID.IsEmpty() && s.PublicKey.Empty()
+}
+
 func NewTransactionMetadata(ptrx *PackedTransaction) *TransactionMetadata {
 	hashed := crypto.Hash256(ptrx)
 	signedTransaction := ptrx.GetSignedTransaction()

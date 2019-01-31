@@ -123,17 +123,15 @@ func (d *Decoder) GetData() []byte {
 }
 
 func (d *Decoder) Decode(v interface{}) (err error) {
-	switch p := v.(type) {
-	case Unpack:
-		pos, err := p.Unpack(d.data[d.pos:])
+	if u, ok := v.(Unpack); ok {
+		pos, err := u.Unpack(d.data[d.pos:])
 		if err != nil {
 			fmt.Println(err)
 		}
 		d.pos = d.pos + pos
 		return err
-	default:
-		//fmt.Println("not a Unpack")
 	}
+
 	rv := reflect.Indirect(reflect.ValueOf(v))
 	if !rv.CanAddr() {
 		return ErrUnPointer

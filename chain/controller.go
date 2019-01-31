@@ -621,7 +621,7 @@ func (c *Controller) GetUnappliedTransactions() []*types.TransactionMetadata {
 		}
 	} else {
 		log.Info("not empty unapplied_transactions in non-speculative mode")
-		EosAssert(common.Empty(c.UnappliedTransactions), &TransactionException{}, "not empty unapplied_transactions in non-speculative mode")
+		EosAssert(len(c.UnappliedTransactions) == 0, &TransactionException{}, "not empty unapplied_transactions in non-speculative mode")
 	}
 	return result
 }

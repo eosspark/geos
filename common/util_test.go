@@ -1,6 +1,7 @@
 package common
 
 import (
+	"fmt"
 	"github.com/stretchr/testify/assert"
 	"testing"
 )
@@ -38,6 +39,26 @@ func TestEmpty(t *testing.T) {
 	assert.Equal(t, true, Empty(test1))
 }
 
+type sss struct {
+	a int
+}
+
+func (s sss) IsEmpty() bool {
+	return s.a == 0
+}
+func Test_IsEmpty(t *testing.T) {
+
+	var s *sss
+	fmt.Println(Empty(s))
+
+	s = &sss{1}
+	fmt.Println(Empty(s))
+
+	fmt.Println(Empty(sss{}))
+	fmt.Println(Empty(sss{1}))
+
+}
+
 type Data struct {
 	a     string
 	b     []string
@@ -68,13 +89,13 @@ func (d *ChildData) IsEmpty() bool {
 var d = Data{}
 
 func Test_empty(t *testing.T) {
-	assert.Equal(t, true, empty(uint8(0)))
-	assert.Equal(t, true, empty(uint32(0)))
-	assert.Equal(t, true, empty(uint64(0)))
-	assert.Equal(t, true, empty(int64(0)))
-	assert.Equal(t, true, empty(int32(0)))
-	assert.Equal(t, true, empty(int(0)))
-	assert.Equal(t, true, empty(false))
+	assert.Equal(t, true, Empty(uint8(0)))
+	assert.Equal(t, true, Empty(uint32(0)))
+	assert.Equal(t, true, Empty(uint64(0)))
+	assert.Equal(t, true, Empty(int64(0)))
+	assert.Equal(t, true, Empty(int32(0)))
+	assert.Equal(t, true, Empty(int(0)))
+	assert.Equal(t, true, Empty(false))
 }
 
 func BenchmarkEmpty(b *testing.B) {
@@ -86,9 +107,7 @@ func BenchmarkEmpty(b *testing.B) {
 
 func BenchmarkEmpty2(b *testing.B) {
 	for i := 0; i < b.N; i++ {
-		if empty(d) {
+		if Empty(d) {
 		}
 	}
 }
-
-

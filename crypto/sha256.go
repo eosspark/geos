@@ -65,7 +65,7 @@ func Hash256(t interface{}) *Sha256 {
 }
 
 func Hash256String(t string) *Sha256 {
-	cereal :=[]byte(t)
+	cereal := []byte(t)
 	h := sha256.New()
 	_, _ = h.Write(cereal)
 	hashed := h.Sum(nil)
@@ -145,4 +145,8 @@ func Sha256Compare(a, b Sha256) int {
 		}
 	}
 	return 0
+}
+
+func (h Sha256) IsEmpty() bool {
+	return len(h.Hash) == 0
 }
