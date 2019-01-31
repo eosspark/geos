@@ -74,9 +74,8 @@ const (
 
 type netPluginIMpl struct {
 	Listener           net.Listener
-	ListenEndpoint     string
-	resolver           *ReactiveSocket
 	p2PAddress         string
+	resolver           *ReactiveSocket
 	maxClientCount     uint32
 	maxNodesPerHost    uint32
 	numClients         uint32
@@ -135,6 +134,7 @@ func NewNetPluginIMpl(io *IoContext) *netPluginIMpl {
 		connections:                make([]*Connection, 0),
 		resolver:                   NewReactiveSocket(io),
 		context:                    context.Background(),
+		suppliedPeers:              make([]string, 0),
 	}
 
 	impl.syncMaster = NewSyncManager(impl, 100)
@@ -328,10 +328,10 @@ func (impl *netPluginIMpl) connect(c *Connection) {
 		return
 	}
 
-	host := c.peerAddr[1:colon]
-	port := c.peerAddr[colon+1 : len(c.peerAddr)-1]
+	host := c.peerAddr[:colon]
+	port := c.peerAddr[colon+1 : len(c.peerAddr)]
 
-	netLog.Info("host:post =%s:%s", host, port)
+	netLog.Info("host:post =%s,%s", host, port)
 
 	impl.resolver.AsyncResolve(impl.context, host, port, func(address string, err error) {
 		if c == nil {
@@ -359,6 +359,7 @@ func (impl *netPluginIMpl) connect2(c *Connection, endPoint string) {
 			return
 		}
 		if err == nil {
+			c.conn = conn
 			if impl.startSession(c.socket, c) {
 				c.sendHandshake()
 			}
@@ -389,14 +390,13 @@ func (impl *netPluginIMpl) close(c *Connection) {
 	}
 	impl.eraseConnection(c)
 	c.close()
-	netLog.Info(" all connections: %s", impl.connections)
 }
 
 func (impl *netPluginIMpl) countOpenSockets() int {
 	return len(impl.connections)
 }
 
-func (impl *netPluginIMpl) sendAll(msg P2PMessage, verify func(c *Connection) bool) {
+func (impl *netPluginIMpl) sendAll(msg NetMessage, verify func(c *Connection) bool) {
 	for _, c := range impl.connections {
 		if c.current() && verify(c) {
 			c.enqueue(msg, true)
@@ -405,29 +405,30 @@ func (impl *netPluginIMpl) sendAll(msg P2PMessage, verify func(c *Connection) bo
 }
 
 func (impl *netPluginIMpl) AcceptedBlockHeader(block *types.BlockState) {
-	//FcLog.Debug("signaled,id = %s", block.BlockId)
+	FcLog.Debug("signaled,id = %s", block.BlockId)
 }
 
 func (impl *netPluginIMpl) AcceptedBlock(block *types.BlockState) {
-	//FcLog.Debug("signaled,id = %s", block.BlockId)
+	FcLog.Debug("signaled,id = %s", block.BlockId)
 	//impl.dispatcher.bcastBlock(impl, block.SignedBlock)
 }
 
 func (impl *netPluginIMpl) IrreversibleBlock(block *types.BlockState) {
-	//FcLog.Debug("signaled,id = %s", block.BlockId)
+	FcLog.Debug("signaled,id = %s", block.BlockId)
 }
 
 func (impl *netPluginIMpl) AcceptedTransaction(md *types.TransactionMetadata) {
-	//FcLog.Debug("signaled,id = %s", md.ID)
+	FcLog.Debug("signaled,id = %s", md.ID)
+	//netLog.Error("comming an transaction:%s %s ",md.ID,md.Trx)
 	//impl.dispatcher.bcastTransaction(md.PackedTrx)
 }
 
 func (impl *netPluginIMpl) AppliedTransaction(txn *types.TransactionTrace) {
-	//FcLog.Debug("signaled,id = %s", txn.ID)
+	FcLog.Debug("signaled,id = %s", txn.ID)
 }
 
 func (impl *netPluginIMpl) AcceptedConfirmation(head *types.HeaderConfirmation) {
-	//FcLog.Debug("signaled,id = %s", head.BlockId)
+	FcLog.Debug("signaled,id = %s", head.BlockId)
 }
 
 func (impl *netPluginIMpl) TransactionAck(results common.Pair) {
@@ -506,7 +507,6 @@ func (impl *netPluginIMpl) startTxnTimer() {
 			impl.expireTxns()
 		}
 	})
-
 }
 
 func (impl *netPluginIMpl) expireTxns() {
@@ -630,29 +630,28 @@ func (impl *netPluginIMpl) getAuthenticationKey() *ecc.PublicKey {
 //signCompact returns a signature of the digest using the corresponding private key of the signer.
 //If there are no configured private keys, returns an empty signature.
 func (impl *netPluginIMpl) signCompact(signer *ecc.PublicKey, digest *crypto.Sha256) *ecc.Signature {
-	privateKeyPtr, ok := impl.privateKeys[*signer]
+	priKey, ok := impl.privateKeys[*signer]
 	if ok {
-		signature, err := privateKeyPtr.Sign(digest.Bytes())
+		signature, err := priKey.Sign(digest.Bytes())
 		if err != nil {
 			netLog.Error("signCompact is error: %s", err.Error())
 			return ecc.NewSigNil()
 		}
 		return &signature
-	} else {
-		//pp := App().FindPlugin("ProducerPlugin").(*producer_plugin.ProducerPlugin)//TODO
-		//if pp != nil && pp.GetState() == Started {
-		//	return pp.SignCompact(signer, *digest)
-		//}
+	}
+	pp := App().FindPlugin("ProducerPlugin").(*producer_plugin.ProducerPlugin) //TODO
+	if pp != nil && pp.GetState() == Started {
+		return pp.SignCompact(signer, *digest)
 	}
 	return ecc.NewSigNil()
 }
 
 func (impl *netPluginIMpl) handleChainSize(c *Connection, msg *ChainSizeMessage) {
-	FcLog.Info("%s : receives chain_size_message", c.peerAddr)
+	FcLog.Info("%s : receives chain_size_message", c.peerAddr, msg.String())
 }
 
 func (impl *netPluginIMpl) handleHandshake(c *Connection, msg *HandshakeMessage) {
-	//log.FcLog.Info("%s : receives handshake_message", c.peerAddr)
+	FcLog.Info("%s : receives handshake_message %s", c.peerAddr, msg.String())
 	if !isValid(msg) {
 		FcLog.Error("%s : bad handshake message", c.peerAddr)
 		goAwayMsg := &GoAwayMessage{
@@ -785,15 +784,14 @@ func (impl *netPluginIMpl) handleHandshake(c *Connection, msg *HandshakeMessage)
 }
 
 func (impl *netPluginIMpl) handleGoaway(c *Connection, msg *GoAwayMessage) {
-	//rsn := ReasonToString[msg.Reason]
-	//FcLog.Info("%s : receive a go_away_message", c.peerAddr)
-	//FcLog.Info("receive go_away_message reason = %s", rsn)
+	rsn := ReasonToString[msg.Reason]
+	FcLog.Info("%s : receive go_away_message reason = %s", c.peerAddr, rsn)
 	c.noRetry = msg.Reason
 	if msg.Reason == duplicate {
 		c.nodeID = msg.NodeID
 	}
-	//p.flushQueues()
-	c.close()
+	c.flushQueues()
+	impl.close(c)
 }
 
 //handleTimeMsg process time_message
@@ -804,6 +802,7 @@ func (impl *netPluginIMpl) handleGoaway(c *Connection, msg *GoAwayMessage) {
 //floating-double arithmetic with rounding done by the hardware.
 //This is necessary in order to avoid overflow and preserve precision.
 func (impl *netPluginIMpl) handleTime(c *Connection, msg *TimeMessage) {
+	FcLog.Info("%s :received time_message %s", c.peerAddr, msg.String())
 	/* We've already lost however many microseconds it took to dispatch
 	 * the message, but it can't be helped.
 	 */
@@ -837,9 +836,7 @@ func (impl *netPluginIMpl) handleTime(c *Connection, msg *TimeMessage) {
 func (impl *netPluginIMpl) handleNotice(c *Connection, msg *NoticeMessage) {
 	// peer tells us about one or more blocks or txns. When done syncing, forward on
 	// notices of previously unknown blocks or txns,
-	//FcLog.Info("%s : receive notice_message", c.peerAddr)
-	//bytes, _ := json.Marshal(msg)
-	//FcLog.Info("%s : received notice_message %s", c.peerAddr, string(bytes))
+	FcLog.Info("%s : received notice_message %s", c.peerAddr, msg.String())
 
 	c.connecting = false
 	req := RequestMessage{}
@@ -895,8 +892,7 @@ func (impl *netPluginIMpl) handleNotice(c *Connection, msg *NoticeMessage) {
 }
 
 func (impl *netPluginIMpl) handleRequest(c *Connection, msg *RequestMessage) {
-	//bytes, _ := json.Marshal(msg)
-	//FcLog.Info("%s: received request_message %s", c.peerAddr, string(bytes))
+	FcLog.Info("%s: received request_message %s", c.peerAddr, msg.String())
 
 	switch msg.ReqBlocks.Mode {
 	case catchUp:
@@ -922,7 +918,7 @@ func (impl *netPluginIMpl) handleRequest(c *Connection, msg *RequestMessage) {
 }
 
 func (impl *netPluginIMpl) handleSyncRequest(c *Connection, msg *SyncRequestMessage) {
-	FcLog.Info("%s : received sync_request_message %v", c.peerAddr, msg)
+	FcLog.Info("%s : received sync_request_message %v", c.peerAddr, msg.String())
 	if msg.EndBlock == 0 {
 		c.peerRequested = &syncState{}
 		c.flushQueues()
@@ -933,8 +929,7 @@ func (impl *netPluginIMpl) handleSyncRequest(c *Connection, msg *SyncRequestMess
 }
 
 func (impl *netPluginIMpl) handlePackTransaction(c *Connection, msg *PackedTransactionMessage) {
-	//FcLog.Debug("got a packed transaction ,cancel wait")
-	//FcLog.Info(" %s receive packed transaction", c.peerAddr)
+	FcLog.Info(" %s received packed transaction %s", c.peerAddr, msg.String())
 
 	cc := impl.ChainPlugin.Chain()
 	if cc.GetReadMode() == chain.READONLY {
@@ -972,13 +967,7 @@ func (impl *netPluginIMpl) handlePackTransaction(c *Connection, msg *PackedTrans
 }
 
 func (impl *netPluginIMpl) handleSignedBlock(c *Connection, msg *SignedBlockMessage) {
-	//bytes, _ := json.Marshal(msg)
-	//FcLog.Info("%s : receive signed_block message %d, %v", c.peerAddr,msg.BlockNumber(), string(bytes))
-	//if len(msg.Transactions)>0{
-	//	if msg.Transactions[0].Trx.PackedTransaction.Compression == types.CompressionZlib{
-	//		netLog.Error("signed_block message %v", string(bytes))
-	//	}
-	//}
+	FcLog.Info("%s : receive signed_block message %d, %v", c.peerAddr, msg.BlockNumber(), msg.String())
 
 	cc := impl.ChainPlugin.Chain()
 	blkID := msg.BlockID()

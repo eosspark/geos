@@ -30,8 +30,8 @@ func NewTemplatePlugin() *NetApiPlugin {
 	return plugin
 }
 
-func (n *NetApiPlugin) SetProgramOptions(options *[]cli.Flag) {
-}
+func (n *NetApiPlugin) SetProgramOptions(options *[]cli.Flag) {}
+
 func (n *NetApiPlugin) PluginInitialize(options *cli.Context) {
 	Try(func() {
 		httpPlugin := App().GetPlugin(http_plugin.HttpPlug).(*http_plugin.HttpPlugin)
@@ -49,6 +49,7 @@ func (n *NetApiPlugin) PluginInitialize(options *cli.Context) {
 		}
 	}).FcLogAndRethrow().End()
 }
+
 func (n *NetApiPlugin) PluginStartup() {
 	n.log.Info("starting net_api_plugin")
 
@@ -57,11 +58,8 @@ func (n *NetApiPlugin) PluginStartup() {
 
 	httpPlugin.AddHandler(common.NetConnect, func(source string, body []byte, cb http_plugin.UrlResponseCallback) {
 		Try(func() {
-			if len(body) == 0 {
-				body = []byte("{}")
-			}
-
-			result := netMgr.Connect(string(body))
+			//127.0.0.1:9111 ->[34 49 50 55 46 48 46 48 46 49 58 57 49 49 49 34],delete 34...34 ""
+			result := netMgr.Connect(string(body[1 : len(body)-1]))
 			if byte, err := json.Marshal(result); err == nil {
 				cb(200, byte)
 			} else {
@@ -75,11 +73,7 @@ func (n *NetApiPlugin) PluginStartup() {
 
 	httpPlugin.AddHandler(common.NetDisconnect, func(source string, body []byte, cb http_plugin.UrlResponseCallback) {
 		Try(func() {
-			if len(body) == 0 {
-				body = []byte("{}")
-			}
-
-			result := netMgr.Disconnect(string(body))
+			result := netMgr.Disconnect(string(body[1 : len(body)-1]))
 			if byte, err := json.Marshal(result); err == nil {
 				cb(200, byte)
 			} else {
@@ -93,11 +87,7 @@ func (n *NetApiPlugin) PluginStartup() {
 
 	httpPlugin.AddHandler(common.NetStatus, func(source string, body []byte, cb http_plugin.UrlResponseCallback) {
 		Try(func() {
-			if len(body) == 0 {
-				body = []byte("{}")
-			}
-
-			result := netMgr.Status(string(body))
+			result := netMgr.Status(string(body[1 : len(body)-1]))
 			if byte, err := json.Marshal(result); err == nil {
 				cb(200, byte)
 			} else {
@@ -111,11 +101,6 @@ func (n *NetApiPlugin) PluginStartup() {
 
 	httpPlugin.AddHandler(common.NetConnections, func(source string, body []byte, cb http_plugin.UrlResponseCallback) {
 		Try(func() {
-
-			if len(body) == 0 {
-				body = []byte("{}")
-			}
-
 			result := netMgr.Connections()
 			if byte, err := json.Marshal(result); err == nil {
 				cb(200, byte)
@@ -129,5 +114,4 @@ func (n *NetApiPlugin) PluginStartup() {
 	})
 }
 
-func (n *NetApiPlugin) PluginShutdown() {
-}
+func (n *NetApiPlugin) PluginShutdown() {}

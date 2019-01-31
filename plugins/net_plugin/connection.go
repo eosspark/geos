@@ -2,7 +2,6 @@ package net_plugin
 
 import (
 	"encoding/binary"
-	"encoding/json"
 	"fmt"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
@@ -24,10 +23,10 @@ import (
 )
 
 type PeerStatus struct {
-	Peer          string
-	Connecting    bool
-	Syncing       bool
-	LastHandshake HandshakeMessage
+	Peer          string           `json:"peer"`
+	Connecting    bool             `json:"connecting"`
+	Syncing       bool             `json:"syncing"`
+	LastHandshake HandshakeMessage `json:"last_handshake"`
 }
 
 type queuedWrite struct {
@@ -93,23 +92,26 @@ type Connection struct {
 
 func NewConnectionByEndPoint(endpoint string, impl *netPluginIMpl) *Connection {
 	conn := &Connection{
-		blkState:           peer_block_state.NewPeerBlockStateIndex(),
-		trxState:           transaction_state.NewTransactionStateIndex(),
-		peerRequested:      new(syncState),
+		blkState:      peer_block_state.NewPeerBlockStateIndex(),
+		trxState:      transaction_state.NewTransactionStateIndex(),
+		peerRequested: &syncState{},
+		//conn:,
 		socket:             asio.NewReactiveSocket(App().GetIoService()),
-		lastHandshakeSent:  &HandshakeMessage{},
+		nodeID:             common.NodeIdType(*crypto.NewSha256Nil()),
 		lastHandshakeRecv:  &HandshakeMessage{},
+		lastHandshakeSent:  &HandshakeMessage{},
 		sentHandshakeCount: 0,
 		connecting:         false,
 		syncing:            false,
 		protocolVersion:    0,
-		noRetry:            noReason,
-		forkHeadNum:        0,
-		impl:               impl,
-		forkHead:           common.BlockIdNil(),
-		nodeID:             common.NodeIdType(*crypto.NewSha256Nil()),
-		lastReq:            &RequestMessage{},
 		peerAddr:           endpoint,
+		//responseExpected:
+		pendingFetch: &RequestMessage{},
+		noRetry:      noReason,
+		forkHead:     common.BlockIdNil(),
+		forkHeadNum:  0,
+		lastReq:      &RequestMessage{},
+		impl:         impl,
 	}
 	netLog.Warn("accepted network connection")
 	conn.initialize()
@@ -121,22 +123,24 @@ func NewConnectionByConn(socket *asio.ReactiveSocket, c net.Conn, impl *netPlugi
 	conn := &Connection{
 		blkState:           peer_block_state.NewPeerBlockStateIndex(),
 		trxState:           transaction_state.NewTransactionStateIndex(),
-		peerRequested:      new(syncState),
+		peerRequested:      &syncState{},
 		conn:               c,
 		socket:             socket,
-		lastHandshakeSent:  &HandshakeMessage{},
+		nodeID:             common.NodeIdType(*crypto.NewSha256Nil()),
 		lastHandshakeRecv:  &HandshakeMessage{},
+		lastHandshakeSent:  &HandshakeMessage{},
 		sentHandshakeCount: 0,
 		connecting:         true,
 		syncing:            false,
 		protocolVersion:    0,
-		noRetry:            noReason,
-		forkHeadNum:        0,
-		impl:               impl,
-		forkHead:           common.BlockIdNil(),
-		nodeID:             common.NodeIdType(*crypto.NewSha256Nil()),
-		lastReq:            &RequestMessage{},
-		peerAddr:           c.RemoteAddr().String(),
+		peerAddr:           c.RemoteAddr().String(), //,
+		//responseExpected:,
+		pendingFetch: &RequestMessage{},
+		noRetry:      noReason,
+		forkHead:     common.BlockIdNil(),
+		forkHeadNum:  0,
+		lastReq:      &RequestMessage{},
+		impl:         impl,
 	}
 	netLog.Warn("accepted network connection")
 	conn.initialize()
@@ -171,7 +175,6 @@ func (c *Connection) reset() {
 	c.peerRequested = &syncState{}
 	c.blkState = peer_block_state.NewPeerBlockStateIndex()
 	c.trxState = transaction_state.NewTransactionStateIndex()
-
 }
 
 func (c *Connection) close() {
@@ -673,7 +676,7 @@ func (c *Connection) addPeerBlock(entry *PeerBlockState) bool {
 func (c *Connection) processNextMessage(payloadBytes []byte) bool {
 	result := true
 	Try(func() {
-		messageType := P2PMessageType(payloadBytes[0])
+		messageType := NetMessageType(payloadBytes[0])
 		attr, ok := messageType.reflectTypes()
 		if !ok {
 			Throw(fmt.Errorf("processNextMessage, unknown p2p message type %d", messageType))
@@ -684,12 +687,8 @@ func (c *Connection) processNextMessage(payloadBytes []byte) bool {
 			Throw(err)
 		}
 
-		p2pMessage := msg.Interface().(P2PMessage)
-
-		bytes, _ := json.Marshal(p2pMessage)
-		FcLog.Info("received message %d  :%s\n", p2pMessage.GetType(), string(bytes))
-
-		switch msg := p2pMessage.(type) {
+		netMsg := msg.Interface().(NetMessage)
+		switch msg := netMsg.(type) {
 		case *HandshakeMessage:
 			c.impl.handleHandshake(c, msg)
 		case *ChainSizeMessage:
@@ -711,6 +710,7 @@ func (c *Connection) processNextMessage(payloadBytes []byte) bool {
 		default:
 			Throw(fmt.Errorf("unsuppoted p2p message type %d", messageType))
 		}
+
 	}).Catch(func(e exception.FcException) {
 		netLog.Error("read message is error:%s", e.DetailMessage())
 		c.impl.close(c)
@@ -719,7 +719,7 @@ func (c *Connection) processNextMessage(payloadBytes []byte) bool {
 	return result
 }
 
-func (c *Connection) enqueue(m P2PMessage, triggerSend bool) {
+func (c *Connection) enqueue(m NetMessage, triggerSend bool) {
 	closeAfterSend := noReason
 	if m.GetType() == GoAwayMessageType {
 		closeAfterSend = m.(*GoAwayMessage).Reason
@@ -727,7 +727,7 @@ func (c *Connection) enqueue(m P2PMessage, triggerSend bool) {
 
 	payload, err := rlp.EncodeToBytes(m)
 	if err != nil {
-		err = fmt.Errorf("p2p message, %s", err)
+		err = fmt.Errorf("net message, %s", err)
 		return
 	}
 	messageLen := uint32(len(payload) + 1)
@@ -736,13 +736,12 @@ func (c *Connection) enqueue(m P2PMessage, triggerSend bool) {
 	sendBuf := append(buf, byte(m.GetType()))
 	sendBuf = append(sendBuf, payload...)
 
-	bytes, _ := json.Marshal(m)
-	FcLog.Debug("send message :%d,%s", m.GetType(), string(bytes))
+	FcLog.Debug("send message :%d,%s", m.GetType(), m.String())
 
 	c.queueWrite(sendBuf, triggerSend, func(err error, n int) {
 		if c != nil {
 			if closeAfterSend != noReason {
-				netLog.Error("snet a go away message: %s, closing connection to %s", ReasonToString[closeAfterSend], c.PeerName())
+				netLog.Error("sent a go away message: %s, closing connection to %s", ReasonToString[closeAfterSend], c.PeerName())
 				c.impl.close(c)
 				return
 			}
@@ -793,7 +792,6 @@ func (c *Connection) doQueueWrite() {
 				c.impl.close(c)
 				return
 			}
-
 			c.outQueue = nil
 
 			c.enqueueSyncBlock()
@@ -810,7 +808,6 @@ func (c *Connection) doQueueWrite() {
 			}
 
 			netLog.Error("Exception in do_queue_write to %s: %s", pName, e)
-
 		}).End()
 
 	})

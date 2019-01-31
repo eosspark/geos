@@ -140,7 +140,6 @@ func (n *NetPlugin) PluginInitialize(c *cli.Context) {
 		n.my.numClients = 0
 		n.my.useSocketReadWatermark = c.Bool("use-socket-read-watermark")
 
-		n.my.ListenEndpoint = c.String("p2p-listen-endpoint")
 		n.my.p2PAddress = c.String("p2p-listen-endpoint")
 		n.my.suppliedPeers = c.StringSlice("p2p-peer-address")
 		n.my.userAgentName = c.String("agent-name")
@@ -214,11 +213,11 @@ func (n *NetPlugin) PluginStartup() {
 	netLog.Info("starting listener, max clients is %d", n.my.maxClientCount)
 
 	var err error
-	n.my.Listener, err = net.Listen("tcp", n.my.ListenEndpoint)
+	n.my.Listener, err = net.Listen("tcp", n.my.p2PAddress)
 	if err != nil {
 		netLog.Error("Error getting remote endpoint:", err)
 	}
-	netLog.Info("Listening on: %s", n.my.ListenEndpoint)
+	netLog.Info("Listening on: %s", n.my.p2PAddress)
 
 	n.my.startListenLoop()
 	n.my.startMonitors()
@@ -298,10 +297,10 @@ func (n *NetPlugin) Status(host string) PeerStatus {
 	return PeerStatus{}
 }
 
-func (n *NetPlugin) Connections() []PeerStatus {
-	result := make([]PeerStatus, len(n.my.connections))
+func (n *NetPlugin) Connections() []*PeerStatus {
+	result := make([]*PeerStatus, 0)
 	for _, c := range n.my.connections {
-		result = append(result, *c.getStatus())
+		result = append(result, c.getStatus())
 	}
 	return result
 }

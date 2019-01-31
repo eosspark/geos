@@ -288,7 +288,7 @@ func (p *ProducerPlugin) IsProducerKey(key ecc.PublicKey) bool {
 }
 
 func (p *ProducerPlugin) SignCompact(key *ecc.PublicKey, digest crypto.Sha256) *ecc.Signature {
-	if key != nil {
+	if !key.Compare(*ecc.NewPublicKeyNil()) {
 		privateKeyFunc := p.my.SignatureProviders[*key]
 		EosAssert(privateKeyFunc != nil, &ProducerPrivKeyNotFound{}, "Local producer has no private key in config.ini corresponding to public key %s", key)
 
