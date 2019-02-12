@@ -36,7 +36,7 @@ func NewBlockState3(prev *BlockHeaderState, b *SignedBlock, trust bool) *BlockSt
 }
 
 //for treeset
-var BlockIdTypes = reflect.TypeOf(common.BlockIdType(*crypto.NewSha256Nil()))
+var BlockIdTypes = reflect.TypeOf(common.BlockIdType(crypto.NewSha256Nil()))
 
 //for treeset
 var BlockNumType = reflect.TypeOf(uint32(0))

@@ -43,7 +43,7 @@ func (e *eosgo) CreateKey(call otto.FunctionCall) (response otto.Value) {
 	privateKey, _ := ecc.NewRandomPrivateKey()
 	fmt.Println("Private key: ", privateKey.String())
 	fmt.Println("Public key: ", privateKey.PublicKey().String())
-	return otto.UndefinedValue()
+	return
 }
 
 //CreateAccount creates a new account on the blockchain (assumes system contract does not restrict RAM usage)
@@ -68,7 +68,7 @@ func (e *eosgo) CreateAccount(call otto.FunctionCall) (response otto.Value) {
 
 	clog.Info("creat account in test net")
 	sendActions([]*types.Action{action}, 1000, types.CompressionNone, &params)
-	return otto.UndefinedValue()
+	return
 }
 
 func (e *eosgo) SetCode(call otto.FunctionCall) (response otto.Value) {
@@ -76,7 +76,7 @@ func (e *eosgo) SetCode(call otto.FunctionCall) (response otto.Value) {
 	readParams(&params, call)
 
 	setCodeCallBack(&params)
-	return otto.UndefinedValue()
+	return
 }
 
 func (e *eosgo) SetAbi(call otto.FunctionCall) (response otto.Value) {
@@ -84,7 +84,7 @@ func (e *eosgo) SetAbi(call otto.FunctionCall) (response otto.Value) {
 	readParams(&params, call)
 
 	setAbiCallBack(&params)
-	return otto.UndefinedValue()
+	return
 }
 
 //SetContract creates or update the code on an account
@@ -95,7 +95,7 @@ func (e *eosgo) SetContract(call otto.FunctionCall) (response otto.Value) {
 	setCodeCallBack(&params)
 	setAbiCallBack(&params)
 
-	return otto.UndefinedValue()
+	return
 }
 
 func setAbiCallBack(params *SetContractParams) {
@@ -155,7 +155,7 @@ func (e *eosgo) Transfer(call otto.FunctionCall) (response otto.Value) {
 		open := createOpen(con, common.N(params.Recipient), transferAmount.Symbol, common.N(params.Sender), params.TxPermission)
 		sendActions([]*types.Action{open}, 1000, types.CompressionNone, &params)
 	}
-	return otto.UndefinedValue()
+	return
 }
 
 //TODO set
@@ -200,7 +200,7 @@ func (e *eosgo) SetAccountPermission(call otto.FunctionCall) (response otto.Valu
 		action := createUpdateAuth(account, permission, parent, auth, params.TxPermission)
 		sendActions([]*types.Action{action}, 1000, types.CompressionNone, &params)
 	}
-	return otto.UndefinedValue()
+	return
 }
 
 //SetActionPermission sets parameters dealing with account permissions
@@ -220,7 +220,7 @@ func (e *eosgo) SetActionPermission(call otto.FunctionCall) (response otto.Value
 		action := createLinkAuth(accountName, codeName, typeName, requirementName, params.TxPermission)
 		sendActions([]*types.Action{action}, 1000, types.CompressionNone, &params)
 	}
-	return otto.UndefinedValue()
+	return
 }
 
 func getAccountPermissions(permissions []string) []common.PermissionLevel {
@@ -644,7 +644,7 @@ func printAction(action gjson.Result) {
 	fmt.Println(second)
 
 	console := act.Get("console").String()
-	if len(console) > 0 { //TODO
+	if len(console) > 0 {
 		re := strings.Fields(console)
 		third := fmt.Sprint(">>", re)
 		fmt.Println(third)

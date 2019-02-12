@@ -20,11 +20,11 @@ type IdType = int64
 type KeyType = uint64
 
 func BlockIdNil() BlockIdType {
-	return *crypto.NewSha256Nil()
+	return crypto.NewSha256Nil()
 }
 
 func TransactionIdNil() TransactionIdType {
-	return *crypto.NewSha256Nil()
+	return crypto.NewSha256Nil()
 }
 
 func DecodeIdTypeString(str string) (id [4]uint64, err error) {

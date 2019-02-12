@@ -102,7 +102,7 @@ func (m *multisig) Propose(call otto.FunctionCall) (response otto.Value) {
 			}),
 	}
 	sendActions([]*types.Action{actionPropose}, 1000, types.CompressionNone, &params)
-	return otto.UndefinedValue()
+	return
 }
 
 //ProposeTrx proposes transaction
@@ -148,7 +148,7 @@ func (m *multisig) ProposeTrx(call otto.FunctionCall) (response otto.Value) {
 			}),
 	}
 	sendActions([]*types.Action{actionPropose}, 1000, types.CompressionNone, &params)
-	return otto.UndefinedValue()
+	return
 }
 
 //Review reviews transaction
@@ -192,7 +192,7 @@ func (m *multisig) Review(call otto.FunctionCall) (response otto.Value) {
 	fmt.Println("\tpacked_transaction:", gjson.GetBytes([]byte(re), "packed_transaction"))
 	fmt.Println("\ttransaction:", gjson.GetBytes([]byte(re), "transaction"))
 	fmt.Println("}")
-	return otto.UndefinedValue()
+	return
 }
 
 //Approve approves proposed transaction
@@ -201,7 +201,7 @@ func (m *multisig) Approve(call otto.FunctionCall) (response otto.Value) {
 	readParams(&params, call)
 
 	approveOrUnapprove("approve", &params)
-	return otto.UndefinedValue()
+	return
 }
 
 //Unapprove unapproves proposed transaction
@@ -210,7 +210,7 @@ func (m *multisig) Unapprove(call otto.FunctionCall) (response otto.Value) {
 	readParams(&params, call)
 
 	approveOrUnapprove("unapprove", &params)
-	return otto.UndefinedValue()
+	return
 }
 
 func approveOrUnapprove(action string, p *ApproveAndUnapproveParams) {
@@ -268,7 +268,7 @@ func (m *multisig) Cancel(call otto.FunctionCall) (response otto.Value) {
 		}),
 	}
 	sendActions([]*types.Action{action}, 1000, types.CompressionNone, &params)
-	return otto.UndefinedValue()
+	return
 }
 
 //Exec execute proposed transaction
@@ -299,5 +299,5 @@ func (m *multisig) Exec(call otto.FunctionCall) (response otto.Value) {
 		}),
 	}
 	sendActions([]*types.Action{action}, 1000, types.CompressionNone, &params)
-	return otto.UndefinedValue()
+	return
 }

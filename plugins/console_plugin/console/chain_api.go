@@ -6,8 +6,6 @@ import (
 	"github.com/eosspark/eos-go/chain/abi_serializer"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
-	"github.com/eosspark/eos-go/exception"
-	"github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/plugins/chain_plugin"
 	"github.com/robertkrimen/otto"
 	"github.com/tidwall/gjson"
@@ -32,9 +30,8 @@ func (a *chainAPI) GetInfo(call otto.FunctionCall) (response otto.Value) {
 	var info chain_plugin.GetInfoResult
 	err := DoHttpCall(&info, common.GetInfoFunc, nil)
 	if err != nil {
-		fmt.Println(err)
+		return getJsResult(call, err.Error())
 	}
-
 	return getJsResult(call, info)
 }
 
@@ -53,25 +50,21 @@ func (a *chainAPI) GetBlock(call otto.FunctionCall) (response otto.Value) {
 	if getBHS {
 		var resp types.BlockHeaderState
 		err = DoHttpCall(&resp, common.GetBlockHeaderStateFunc, arg)
-		if err != nil {
-			fmt.Println(err)
-			try.EosThrow(&exception.InvalidRefBlockException{}, "Invalid reference block num or id: %s", txRefBlockNumOrID)
+		if err == nil {
+			return getJsResult(call, resp)
 		}
-		return getJsResult(call, resp)
 	} else {
 		var resp chain_plugin.GetBlockResult
 		err = DoHttpCall(&resp, common.GetBlockFunc, arg)
-		if err != nil {
-			fmt.Println(err)
-			try.EosThrow(&exception.InvalidRefBlockException{}, "Invalid reference block num or id: %s", txRefBlockNumOrID)
+		if err == nil {
+			return getJsResult(call, resp)
 		}
-		return getJsResult(call, resp)
 	}
-	return otto.FalseValue()
+	return getJsResult(call, err.Error())
 }
 
 //GetAccount retrieves an account from the blockchain
-func (a *chainAPI) GetAccount(call otto.FunctionCall) otto.Value {
+func (a *chainAPI) GetAccount(call otto.FunctionCall) (response otto.Value) {
 	name, err := call.Argument(0).ToString()
 	if err != nil {
 		return otto.UndefinedValue()
@@ -84,11 +77,11 @@ func (a *chainAPI) GetAccount(call otto.FunctionCall) otto.Value {
 	}
 	PrintAccountResult(&resp)
 	//return getJsResult(call, resp)
-	return otto.UndefinedValue()
+	return
 }
 
 //GetCode retrieves the code and ABI for an account
-func (a *chainAPI) GetCode(call otto.FunctionCall) otto.Value { //TODO save to file
+func (a *chainAPI) GetCode(call otto.FunctionCall) (response otto.Value) { //TODO save to file
 	var params GetCodeParams
 	readParams(&params, call)
 
@@ -101,7 +94,7 @@ func (a *chainAPI) GetCode(call otto.FunctionCall) otto.Value { //TODO save to f
 }
 
 //GetAbi retrieves the ABI for an account
-func (a *chainAPI) GetAbi(call otto.FunctionCall) otto.Value { //TODO save to file
+func (a *chainAPI) GetAbi(call otto.FunctionCall) (response otto.Value) { //TODO save to file
 	name, err := call.Argument(0).ToString()
 	if err != nil {
 		return otto.UndefinedValue()
@@ -215,26 +208,26 @@ func (a *chainAPI) GetCurrencyStats(call otto.FunctionCall) (response otto.Value
 	return getJsResult(call, resp)
 }
 
-//TODO history_plugin
-//GetAccounts retrieves accounts associated with a public key
-func (a *chainAPI) GetAccounts(call otto.FunctionCall) (response otto.Value) {
-	return otto.FalseValue()
-}
-
-//GetServants retrieves accounts which are servants of a given account
-func (a *chainAPI) GetServants(call otto.FunctionCall) (response otto.Value) {
-	return otto.FalseValue()
-}
-
-//GetTransaction retrieves a transaction from the blockchain
-func (a *chainAPI) GetTransaction(call otto.FunctionCall) (response otto.Value) {
-	return otto.FalseValue()
-}
-
-//GetActions retrieves all actions with specific account name referenced in authorization or receiver
-func (a *chainAPI) GetActions(call otto.FunctionCall) (response otto.Value) {
-	return otto.FalseValue()
-}
+////TODO history_plugin
+////GetAccounts retrieves accounts associated with a public key
+//func (a *chainAPI) GetAccounts(call otto.FunctionCall) (response otto.Value) {
+//	return otto.FalseValue()
+//}
+//
+////GetServants retrieves accounts which are servants of a given account
+//func (a *chainAPI) GetServants(call otto.FunctionCall) (response otto.Value) {
+//	return otto.FalseValue()
+//}
+//
+////GetTransaction retrieves a transaction from the blockchain
+//func (a *chainAPI) GetTransaction(call otto.FunctionCall) (response otto.Value) {
+//	return otto.FalseValue()
+//}
+//
+////GetActions retrieves all actions with specific account name referenced in authorization or receiver
+//func (a *chainAPI) GetActions(call otto.FunctionCall) (response otto.Value) {
+//	return otto.FalseValue()
+//}
 
 //PushAction pushs a transaction with a single action
 func (e *eosgo) PushAction(call otto.FunctionCall) (response otto.Value) {
@@ -258,58 +251,58 @@ func (e *eosgo) PushAction(call otto.FunctionCall) (response otto.Value) {
 	return otto.UndefinedValue()
 }
 
-//PushTransaction pushes an arbitrary JSON transaction
-func (a *chainAPI) PushTransaction(call otto.FunctionCall) (response otto.Value) {
-	//var signtrx types.SignedTransaction
-	//
-	//trx_var, err := call.Argument(0).ToString()
-	//if err != nil {
-	//	return otto.UndefinedValue()
-	//}
-	//fmt.Println("receive trx:", trx_var, err)
-	//fmt.Println()
-	//fmt.Println()
-	//aa := "{\"ref_block_num\":\"101\",\"ref_block_prefix\":\"4159312339\",\"expiration\":\"2017-09-25T06:28:49\",\"scope\":[\"initb\",\"initc\"],\"actions\":[{\"code\":\"currency\",\"type\":\"transfer\",\"recipients\":[\"initb\",\"initc\"],\"authorization\":[{\"account\":\"initb\",\"permission\":\"active\"}],\"data\":\"000000000041934b000000008041934be803000000000000\"}],\"signatures\":[],\"authorizations\":[]}, {\"ref_block_num\":\"101\",\"ref_block_prefix\":\"4159312339\",\"expiration\":\"2017-09-25T06:28:49\",\"scope\":[\"inita\",\"initc\"],\"actions\":[{\"code\":\"currency\",\"type\":\"transfer\",\"recipients\":[\"inita\",\"initc\"],\"authorization\":[{\"account\":\"inita\",\"permission\":\"active\"}],\"data\":\"000000008040934b000000008041934be803000000000000\"}],\"signatures\":[],\"authorizations\":[]}]"
-	//
-	//err = json.Unmarshal([]byte(aa), &signtrx)
-	//if err != nil {
-	//	fmt.Println(err)
-	//	//EOS_RETHROW_EXCEPTIONS(transaction_type_exception, "Fail to parse transaction JSON '${data}'", ("data",trx_to_push))
-	//	//try.FcThrowException(&exception.TransactionTypeException{},"Fail to parse transaction JSON %s",trx_var)
-	//}
-	//
-	//re := e.pushTransaction(&signtrx, 1000, types.CompressionNone)
-	//printResult(re)
+////PushTransaction pushes an arbitrary JSON transaction
+//func (a *chainAPI) PushTransaction(call otto.FunctionCall) (response otto.Value) {
+//	//var signtrx types.SignedTransaction
+//	//
+//	//trx_var, err := call.Argument(0).ToString()
+//	//if err != nil {
+//	//	return otto.UndefinedValue()
+//	//}
+//	//fmt.Println("receive trx:", trx_var, err)
+//	//fmt.Println()
+//	//fmt.Println()
+//	//aa := "{\"ref_block_num\":\"101\",\"ref_block_prefix\":\"4159312339\",\"expiration\":\"2017-09-25T06:28:49\",\"scope\":[\"initb\",\"initc\"],\"actions\":[{\"code\":\"currency\",\"type\":\"transfer\",\"recipients\":[\"initb\",\"initc\"],\"authorization\":[{\"account\":\"initb\",\"permission\":\"active\"}],\"data\":\"000000000041934b000000008041934be803000000000000\"}],\"signatures\":[],\"authorizations\":[]}, {\"ref_block_num\":\"101\",\"ref_block_prefix\":\"4159312339\",\"expiration\":\"2017-09-25T06:28:49\",\"scope\":[\"inita\",\"initc\"],\"actions\":[{\"code\":\"currency\",\"type\":\"transfer\",\"recipients\":[\"inita\",\"initc\"],\"authorization\":[{\"account\":\"inita\",\"permission\":\"active\"}],\"data\":\"000000008040934b000000008041934be803000000000000\"}],\"signatures\":[],\"authorizations\":[]}]"
+//	//
+//	//err = json.Unmarshal([]byte(aa), &signtrx)
+//	//if err != nil {
+//	//	fmt.Println(err)
+//	//	//EOS_RETHROW_EXCEPTIONS(transaction_type_exception, "Fail to parse transaction JSON '${data}'", ("data",trx_to_push))
+//	//	//try.FcThrowException(&exception.TransactionTypeException{},"Fail to parse transaction JSON %s",trx_var)
+//	//}
+//	//
+//	//re := e.pushTransaction(&signtrx, 1000, types.CompressionNone)
+//	//printResult(re)
+//
+//	v, _ := call.Otto.ToValue(nil)
+//	return v
+//}
 
-	v, _ := call.Otto.ToValue(nil)
-	return v
-}
-
-//PushTransactions pushes an array of arbitrary JSON transactions
-func (a *chainAPI) PushTransactions(call otto.FunctionCall) (response otto.Value) {
-
-	return getJsResult(call, nil)
-}
-
-func (a *chainAPI) AbiJsonToBin(call otto.FunctionCall) (response otto.Value) {
-
-	return getJsResult(call, nil)
-}
-
-func (a *chainAPI) GetRawAbi(call otto.FunctionCall) (response otto.Value) {
-
-	return getJsResult(call, nil)
-}
-
-func (a *chainAPI) GetRawCodeAndAbi(call otto.FunctionCall) (response otto.Value) {
-
-	return getJsResult(call, nil)
-}
-
-func (a *chainAPI) GetProducers(call otto.FunctionCall) (response otto.Value) {
-
-	return getJsResult(call, nil)
-}
+////PushTransactions pushes an array of arbitrary JSON transactions
+//func (a *chainAPI) PushTransactions(call otto.FunctionCall) (response otto.Value) {
+//
+//	return getJsResult(call, nil)
+//}
+//
+//func (a *chainAPI) AbiJsonToBin(call otto.FunctionCall) (response otto.Value) {
+//
+//	return getJsResult(call, nil)
+//}
+//
+//func (a *chainAPI) GetRawAbi(call otto.FunctionCall) (response otto.Value) {
+//
+//	return getJsResult(call, nil)
+//}
+//
+//func (a *chainAPI) GetRawCodeAndAbi(call otto.FunctionCall) (response otto.Value) {
+//
+//	return getJsResult(call, nil)
+//}
+//
+//func (a *chainAPI) GetProducers(call otto.FunctionCall) (response otto.Value) {
+//
+//	return getJsResult(call, nil)
+//}
 
 //GetSchedule retrieves the producer schedule
 func (a *chainAPI) GetSchedule(call otto.FunctionCall) (response otto.Value) {
@@ -634,7 +627,7 @@ func PrintAccountResult(res *chain_plugin.GetAccountResult) {
 						}
 						fmt.Printf("%-16s", prods[i].String())
 					}
-					fmt.Println()
+					//fmt.Println()
 				} else {
 					fmt.Println(indent, "<not voted>")
 				}
@@ -642,6 +635,6 @@ func PrintAccountResult(res *chain_plugin.GetAccountResult) {
 		} else {
 			fmt.Println("proxy:", indent, proxyStr)
 		}
-		fmt.Println()
+		//fmt.Println()
 	}
 }

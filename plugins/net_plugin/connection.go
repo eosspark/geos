@@ -97,7 +97,7 @@ func NewConnectionByEndPoint(endpoint string, impl *netPluginIMpl) *Connection {
 		peerRequested: &syncState{},
 		//conn:,
 		socket:             asio.NewReactiveSocket(App().GetIoService()),
-		nodeID:             common.NodeIdType(*crypto.NewSha256Nil()),
+		nodeID:             common.NodeIdType(crypto.NewSha256Nil()),
 		lastHandshakeRecv:  &HandshakeMessage{},
 		lastHandshakeSent:  &HandshakeMessage{},
 		sentHandshakeCount: 0,
@@ -126,7 +126,7 @@ func NewConnectionByConn(socket *asio.ReactiveSocket, c net.Conn, impl *netPlugi
 		peerRequested:      &syncState{},
 		conn:               c,
 		socket:             socket,
-		nodeID:             common.NodeIdType(*crypto.NewSha256Nil()),
+		nodeID:             common.NodeIdType(crypto.NewSha256Nil()),
 		lastHandshakeRecv:  &HandshakeMessage{},
 		lastHandshakeSent:  &HandshakeMessage{},
 		sentHandshakeCount: 0,
@@ -219,7 +219,7 @@ func (c *Connection) handshakePopulate(impl *netPluginIMpl, hello *HandshakeMess
 
 	// If we couldn't sign, don't send a token.
 	if common.Empty(hello.Signature) {
-		hello.Token = *crypto.NewSha256Nil()
+		hello.Token = crypto.NewSha256Nil()
 	}
 
 	hello.P2PAddress = impl.p2PAddress + " - " + hello.NodeID.String()[:7]
@@ -320,7 +320,7 @@ func (c *Connection) fetchTimeout(err error) { //TODO not same as C++
 }
 
 func (c *Connection) cancelSync(reason GoAwayReason) {
-	FcLog.Debug("cancel sync reason = %s, write queue size %d peer %s", ReasonToString[reason], len(c.writeQueue), c.peerAddr)
+	FcLog.Debug("cancel sync reason = %s, write queue size %d peer %s", ReasonStr[reason], len(c.writeQueue), c.peerAddr)
 
 	c.cancelWait()
 	c.flushQueues()
@@ -622,7 +622,7 @@ func isValid(msg *HandshakeMessage) bool {
 		FcLog.Warn("Handshake message validation: os field is null string")
 		valid = false
 	}
-	if (common.CompareString(msg.Signature, ecc.NewSigNil()) != 0 || msg.Token.Equals(*crypto.NewSha256Nil())) &&
+	if (common.CompareString(msg.Signature, ecc.NewSigNil()) != 0 || msg.Token.Equals(crypto.NewSha256Nil())) &&
 		msg.Token.Equals(*crypto.Hash256(msg.Time)) {
 		FcLog.Warn("Handshake message validation: token field invalid")
 		valid = false
@@ -741,7 +741,7 @@ func (c *Connection) enqueue(m NetMessage, triggerSend bool) {
 	c.queueWrite(sendBuf, triggerSend, func(err error, n int) {
 		if c != nil {
 			if closeAfterSend != noReason {
-				netLog.Error("sent a go away message: %s, closing connection to %s", ReasonToString[closeAfterSend], c.PeerName())
+				netLog.Error("sent a go away message: %s, closing connection to %s", ReasonStr[closeAfterSend], c.PeerName())
 				c.impl.close(c)
 				return
 			}

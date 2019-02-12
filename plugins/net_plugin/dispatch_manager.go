@@ -32,7 +32,7 @@ func (d *dispatchManager) bastBlock(myImpl *netPluginIMpl, bsum *types.SignedBlo
 	skips := map[*Connection]int{}
 
 	bid := bsum.BlockID()
-	bnum := bsum.BlockNumber()
+	bNum := bsum.BlockNumber()
 	_, ok := d.receivedBlocks[bid]
 	if ok {
 		for i, p := range d.receivedBlocks[bid] {
@@ -51,7 +51,7 @@ func (d *dispatchManager) bastBlock(myImpl *netPluginIMpl, bsum *types.SignedBlo
 
 	pbState := PeerBlockState{
 		ID:            bid,
-		BlockNum:      bnum,
+		BlockNum:      bNum,
 		IsKnown:       false,
 		IsNoticed:     true,
 		RequestedTime: common.TimePoint(0),
@@ -85,8 +85,7 @@ func (d *dispatchManager) bastBlock(myImpl *netPluginIMpl, bsum *types.SignedBlo
 
 func (d *dispatchManager) rejectedBlock(id *common.BlockIdType) {
 	FcLog.Debug("not sending rejected block %s", id)
-	_, ok := d.receivedBlocks[*id]
-	if ok {
+	if _, ok := d.receivedBlocks[*id]; ok {
 		delete(d.receivedBlocks, *id)
 	}
 }
@@ -116,7 +115,7 @@ func (d *dispatchManager) recvBlock(c *Connection, id common.BlockIdType, bnum u
 	//c.cancelWait()
 }
 
-func (d *dispatchManager) bcastTransaction(trx *types.PackedTransaction) { // TODO impl
+func (d *dispatchManager) bcastTransaction(trx *types.PackedTransaction) {
 	skips := map[*Connection]int{}
 	id := trx.ID()
 
@@ -224,8 +223,7 @@ func (d *dispatchManager) bcastTransaction(trx *types.PackedTransaction) { // TO
 
 func (d *dispatchManager) rejectedTransaction(id common.TransactionIdType) {
 	FcLog.Debug("not sending rejected transaction %s", id)
-	_, ok := d.receivedTransactions[id]
-	if ok {
+	if _, ok := d.receivedTransactions[id]; ok {
 		delete(d.receivedTransactions, id)
 	}
 }
@@ -233,8 +231,7 @@ func (d *dispatchManager) rejectedTransaction(id common.TransactionIdType) {
 func (d *dispatchManager) recvTransaction(c *Connection, id common.TransactionIdType) {
 	d.receivedTransactions[id] = append(d.receivedTransactions[id], c)
 	idsCount := len(c.lastReq.ReqTrx.IDs)
-	if c != nil && c.lastReq != nil && c.lastReq.ReqTrx.Mode != none && idsCount > 0 && c.lastReq.ReqTrx.IDs[idsCount-1] == id { //TODO c && c->last_req
-		//c.lastReq.reset()
+	if c != nil && c.lastReq != nil && c.lastReq.ReqTrx.Mode != none && idsCount > 0 && c.lastReq.ReqTrx.IDs[idsCount-1] == id {
 		c.lastReq = &RequestMessage{}
 	}
 	//FcLog.Debug("canceling wait on %s", c.peerAddr)
@@ -274,7 +271,7 @@ func (d *dispatchManager) recvNotice(c *Connection, msg *NoticeMessage, generate
 				FcLog.Debug("big msg manager found txn id in table,%s", t.String())
 			}
 		}
-		sendReq = !(len(req.ReqTrx.IDs) == 0)
+		sendReq = len(req.ReqTrx.IDs) != 0
 		FcLog.Debug("big msg manager send_req ids list has %d entries", len(req.ReqTrx.IDs))
 
 	} else if msg.KnownTrx.Mode != none {
@@ -345,7 +342,7 @@ func (d *dispatchManager) retryFetch(c *Connection) {
 	} else if c.lastReq.ReqBlocks.Mode == normal && reqBlockCount > 0 {
 		bid = c.lastReq.ReqBlocks.IDs[reqBlockCount-1]
 	} else {
-		FcLog.Debug("no retry,block mode = %s trx mode = %s", modeTostring[c.lastReq.ReqBlocks.Mode], modeTostring[c.lastReq.ReqTrx.Mode])
+		FcLog.Debug("no retry,block mode = %s trx mode = %s", modeStr[c.lastReq.ReqBlocks.Mode], modeStr[c.lastReq.ReqTrx.Mode])
 		return
 	}
 

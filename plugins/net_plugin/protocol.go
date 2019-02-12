@@ -130,7 +130,7 @@ const (
 	crazy                               //some crazy reason
 )
 
-var ReasonToString = map[GoAwayReason]string{
+var ReasonStr = map[GoAwayReason]string{
 	noReason:       "no reason",
 	selfConnect:    "self connect",
 	duplicate:      "duplicate",
@@ -182,7 +182,7 @@ const (
 	normal
 )
 
-var modeTostring = map[IdListMode]string{
+var modeStr = map[IdListMode]string{
 	none:           "none",
 	catchUp:        "catch up",
 	lastIrrCatchUp: "last irreversible",

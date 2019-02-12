@@ -323,7 +323,7 @@ func (s *syncManager) verifyCatchup(c *Connection, num uint32, id common.BlockId
 }
 
 func (s *syncManager) recvNotice(c *Connection, msg *NoticeMessage) {
-	FcLog.Info("sync_manager got %s block notice", modeTostring[msg.KnownBlocks.Mode])
+	FcLog.Info("sync_manager got %s block notice", modeStr[msg.KnownBlocks.Mode])
 	if msg.KnownBlocks.Mode == catchUp {
 		IDsCount := len(msg.KnownBlocks.IDs)
 		if IDsCount == 0 {
@@ -354,7 +354,7 @@ func (s *syncManager) recvBlock(c *Connection, blkID common.BlockIdType, blkNum 
 	if s.state == libCatchup {
 		if blkNum != s.syncNextExpectedNum {
 			FcLog.Info("expected block %d but got %d", s.syncNextExpectedNum, blkNum)
-			//s.myImpl.close(c)
+			s.myImpl.close(c)
 			return
 		}
 		s.syncNextExpectedNum = blkNum + 1
@@ -365,7 +365,7 @@ func (s *syncManager) recvBlock(c *Connection, blkID common.BlockIdType, blkNum 
 		s.setStage(inSync)
 		s.source.reset()
 
-		nullID := *crypto.NewSha256Nil()
+		nullID := crypto.NewSha256Nil()
 		for _, cp := range s.myImpl.connections {
 			if cp.forkHead.Equals(nullID) {
 				continue
