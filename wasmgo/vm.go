@@ -134,8 +134,14 @@ func NewVirtualMachine(
 			switch imp.Type.Kind() {
 			case wasm.ExternalFunction:
 				funcImports = append(funcImports, impResolver.ResolveFunc(imp.ModuleName, imp.FieldName))
+				if len(funcImports) >= MaximumSectionElements {
+					EosThrow(&WasmExecutionError{}, "Too many function imports")
+				}
 			case wasm.ExternalGlobal:
 				globals = append(globals, impResolver.ResolveGlobal(imp.ModuleName, imp.FieldName))
+				if len(globals) >= MaximumSectionElements {
+					EosThrow(&WasmExecutionError{}, "Too many global imports")
+				}
 			case wasm.ExternalMemory:
 				// TODO: Do we want a real import?
 				if m.Base.Memory != nil && len(m.Base.Memory.Entries) > 0 {

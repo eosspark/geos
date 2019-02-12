@@ -21,7 +21,7 @@ const (
 	MaximumLinearMemoryInit = 64 * 1024        //bytes
 	MaximumFuncLocalBytes   = 8192             //bytes
 	MaximumCallDepth        = 250              //nested calls
-	MaximumCodeSize         = 20 * 1024 * 1024 //bytes
+	MaximumCodeSize         = 1024 * 1024      //bytes 20 * 1024  *1024
 	WasmPageSize            = 64 * 1024        //bytes
 
 	// Assert(MaximumLinearMemory%WasmPageSize == 0, "MaximumLinearMemory must be mulitple of wasm page size")

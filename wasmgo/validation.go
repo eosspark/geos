@@ -46,6 +46,7 @@ func ValidateModule(m *wasm.Module) error {
 		globalsValidation,
 		maximumFunctionStack,
 		ensureApplyExported,
+		maximumSerialize,
 	} {
 		if err := fn(m); err != nil {
 			return err
@@ -159,6 +160,21 @@ func maximumFunctionStack(m *wasm.Module) error {
 
 		if functionStackUsage > MaximumFuncLocalBytes {
 			EosThrow(&WasmExecutionError{}, "Smart contract function has more than %d bytes of stack usage", MaximumFuncLocalBytes)
+		}
+	}
+
+	return nil
+}
+
+func maximumSerialize(m *wasm.Module) error {
+
+	if m.Data == nil {
+		return nil
+	}
+
+	for _, entry := range m.Data.Entries {
+		if len(entry.Data) >= MaximumFuncLocalBytes {
+			EosThrow(&WasmSerializationError{}, "too many locals")
 		}
 	}
 

@@ -8,12 +8,13 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	. "github.com/eosspark/eos-go/exception"
+	. "github.com/eosspark/eos-go/exception/try"
+	"github.com/eosspark/eos-go/wasmgo/wagon/wasm/internal/readpos"
+	"github.com/eosspark/eos-go/wasmgo/wagon/wasm/leb128"
 	"io"
 	"io/ioutil"
 	"sort"
-
-	"github.com/eosspark/eos-go/wasmgo/wagon/wasm/internal/readpos"
-	"github.com/eosspark/eos-go/wasmgo/wagon/wasm/leb128"
 )
 
 // Section is a generic WASM section interface.
@@ -127,6 +128,10 @@ func (m *Module) readSection(r *readpos.ReadPos) (bool, error) {
 		return false, err
 	}
 
+	if s.ID == SectionIDCode && payloadDataLen >= 20*1024 { //MaximumCodeSize 20*1024
+		EosThrow(&FcException{}, "Function body too large")
+	}
+
 	logger.Printf("Section payload length: %d", payloadDataLen)
 
 	s.Start = r.CurPos
@@ -206,6 +211,11 @@ func (m *Module) readSection(r *readpos.ReadPos) (bool, error) {
 		if len(m.Function.Types) != len(s.Bodies) {
 			return false, errors.New("The number of entries in the function and code section are unequal")
 		}
+
+		if len(m.Function.Types) >= 1024 { //MaximumSectionElements
+			EosThrow(&WasmSerializationError{}, "Too many function defs")
+		}
+
 		if m.Types == nil {
 			return false, MissingSectionError(SectionIDType)
 		}
