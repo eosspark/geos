@@ -337,7 +337,7 @@ func (c *Controller) AbortBlock() {
 	}
 }
 func (c *Controller) StartBlock(when types.BlockTimeStamp, confirmBlockCount uint16) {
-	pbi := common.BlockIdType(*crypto.NewSha256Nil())
+	pbi := common.BlockIdType(crypto.NewSha256Nil())
 	c.startBlock(when, confirmBlockCount, types.Incomplete, &pbi)
 	c.ValidateDbAvailableSize()
 }

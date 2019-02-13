@@ -14,7 +14,7 @@ import (
 
 const (
 	HttpPlug                  = PluginTypeName("HttpPlugin")
-	httpListenendpoint string = "127.0.0.1:8888"
+	httpListenEndpoint string = "127.0.0.1:8888"
 )
 
 var (
@@ -43,7 +43,7 @@ func (h *HttpPlugin) SetProgramOptions(options *[]cli.Flag) {
 		cli.StringFlag{
 			Name:  "http-server-address",
 			Usage: "The local IP and port to listen for incoming http connections; set blank to disable.",
-			Value: httpListenendpoint,
+			Value: httpListenEndpoint,
 		},
 		cli.StringFlag{
 			Name:  "https-server-address",
@@ -227,8 +227,8 @@ func (h *HttpPlugin) AddHandler(url string, handler UrlHandler) {
 }
 
 func (h *HttpPlugin) Handler(ctx *fasthttp.RequestCtx) {
-	//h.my.log.Error("source: %s", ctx.Path())
-	//h.my.log.Info("body: %s", ctx.Request.Body())
+	//hlog.Error("source: %s", ctx.Path())
+	//hlog.Info("body: %s", ctx.Request.Body())
 
 	ctx.SetContentType("text/plain; charset=utf8")
 	// Set arbitrary headers
@@ -247,9 +247,8 @@ func (h *HttpPlugin) Handler(ctx *fasthttp.RequestCtx) {
 		hlog.Debug("404 - not found: %s", resource)
 		ctx.NotFound()
 	} else {
-		//con->defer_http_response();
 		handler(resource, body, func(code int, body []byte) {
-			//h.my.log.Warn("return : %s", string(body))
+			//hlog.Debug("body: %s",string(body))
 			ctx.SetBody([]byte(body))
 			ctx.SetStatusCode(code)
 		})
@@ -269,47 +268,47 @@ func (h *HttpPlugin) IsSecure() bool { //TODO
 //Structure used to create JSON error responses
 const detailsLimit int = 10
 
-type errorDetail struct {
-	message    string
-	file       string
-	lineNumber uint64
-	method     string
+type ErrorDetail struct {
+	Message    string
+	File       string
+	LineNumber uint64
+	Method     string
 }
-type errorInfo struct {
-	code    int64
-	name    string
-	what    string
-	details []errorDetail
+type ErrorInfo struct {
+	Code    int64
+	Name    string
+	What    string
+	Details []ErrorDetail
 }
 
-func newErrorInfo(exc Exception, includeLog bool) errorInfo {
-	e := errorInfo{}
-	e.code = int64(exc.Code())
-	e.name = exc.String()
-	e.what = exc.What()
+func newErrorInfo(exc Exception, includeLog bool) ErrorInfo {
+	e := ErrorInfo{}
+	e.Code = int64(exc.Code())
+	e.Name = exc.String()
+	e.What = exc.What()
 	if includeLog {
 		for _, itr := range exc.GetLog() {
 			// Prevent sending trace that are too big
-			if len(e.details) >= detailsLimit {
+			if len(e.Details) >= detailsLimit {
 				break
 			}
 			// Append error
-			detail := errorDetail{
-				message: itr.GetMessage(),
+			detail := ErrorDetail{
+				Message: itr.GetMessage(),
 				//file:,
 				//lineNumber:,
 				//method:,
 			}
-			e.details = append(e.details, detail)
+			e.Details = append(e.Details, detail)
 		}
 	}
 	return e
 }
 
-type errorResults struct {
-	code    uint16
-	message string
-	error   errorInfo
+type ErrorResults struct {
+	Code    uint16
+	Message string
+	Error   ErrorInfo
 }
 
 func HandleException(e interface{}, apiName, callName, body string, cb UrlResponseCallback) {
@@ -317,36 +316,38 @@ func HandleException(e interface{}, apiName, callName, body string, cb UrlRespon
 		Try(func() {
 			Throw(e)
 		}).Catch(func(e *UnsatisfiedAuthorization) {
-			results := errorResults{code: 401, message: "UnAuthorized", error: newErrorInfo(e, verboseHttpErrors)}
+			results := ErrorResults{Code: 401, Message: "UnAuthorized", Error: newErrorInfo(e, verboseHttpErrors)}
 			re, _ := json.Marshal(results)
 			cb(401, re)
 		}).Catch(func(e *TxDuplicate) {
-			results := errorResults{409, "Conflict", newErrorInfo(e, verboseHttpErrors)}
+			results := ErrorResults{409, "Conflict", newErrorInfo(e, verboseHttpErrors)}
 			re, _ := json.Marshal(results)
 			cb(409, re)
 		}).Catch(func(e *EofException) {
-			results := errorResults{422, "Unprocessable Entity", newErrorInfo(e, verboseHttpErrors)}
+			results := ErrorResults{422, "Unprocessable Entity", newErrorInfo(e, verboseHttpErrors)}
 			re, _ := json.Marshal(results)
 			cb(422, re)
 			hlog.Error("Unable to parse arguments to %s.%s", apiName, callName)
 			hlog.Debug("Bad arguments: %s", body)
 		}).Catch(func(e Exception) {
-			results := errorResults{500, "Internal Service Error", newErrorInfo(e, verboseHttpErrors)}
+			results := ErrorResults{500, "Internal Service Error", newErrorInfo(e, verboseHttpErrors)}
+			hlog.Debug("results: %v", results)
 			re, _ := json.Marshal(results)
+			hlog.Debug("results: %s", re)
 			cb(500, re)
 			if e.Code() != (GreylistNetUsageExceeded{}).Code() && e.Code() != (GreylistCpuUsageExceeded{}).Code() {
 				hlog.Error("FC Exception encountered while processing %s.%s", apiName, callName)
 				hlog.Debug("Exception Details: %s", e.DetailMessage())
 			}
 		}).Catch(func(e error) {
-			results := errorResults{500, "Internal Service Error",
+			results := ErrorResults{500, "Internal Service Error",
 				newErrorInfo(&FcException{Elog: log.Messages{log.FcLogMessage(log.LvlError, e.Error())}}, verboseHttpErrors)}
 			re, _ := json.Marshal(results)
 			cb(500, re)
 			hlog.Error("STD Exception encountered while processing %s.%s", apiName, callName)
 			hlog.Debug("Exception Details: %s", e.Error())
 		}).Catch(func(interface{}) {
-			results := errorResults{500, "Internal Service Error",
+			results := ErrorResults{500, "Internal Service Error",
 				newErrorInfo(&FcException{Elog: log.Messages{log.FcLogMessage(log.LvlError, "Unknown Exception")}}, verboseHttpErrors)}
 			re, _ := json.Marshal(results)
 			cb(500, re)

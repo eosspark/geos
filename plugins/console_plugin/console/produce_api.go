@@ -19,7 +19,7 @@ func (n *ProduceAPI) Pause(call otto.FunctionCall) (response otto.Value) {
 		clog.Error("SetWhitelistBlacklist is error: %s", err.Error())
 		return otto.FalseValue()
 	}
-	return otto.UndefinedValue()
+	return
 }
 
 func (n *ProduceAPI) Resume(call otto.FunctionCall) (response otto.Value) {
@@ -28,7 +28,7 @@ func (n *ProduceAPI) Resume(call otto.FunctionCall) (response otto.Value) {
 		clog.Error("SetWhitelistBlacklist is error: %s", err.Error())
 		return otto.FalseValue()
 	}
-	return otto.UndefinedValue()
+	return
 }
 
 func (n *ProduceAPI) Paused(call otto.FunctionCall) (response otto.Value) {
@@ -37,7 +37,7 @@ func (n *ProduceAPI) Paused(call otto.FunctionCall) (response otto.Value) {
 		clog.Error("SetWhitelistBlacklist is error: %s", err.Error())
 		return otto.FalseValue()
 	}
-	return otto.UndefinedValue()
+	return
 }
 
 type SetWhitelistBlacklistParams struct {
@@ -59,7 +59,7 @@ func (n *ProduceAPI) SetWhitelistBlacklist(call otto.FunctionCall) (response ott
 		clog.Error("SetWhitelistBlacklist is error: %s", err.Error())
 		return otto.FalseValue()
 	}
-	return otto.UndefinedValue()
+	return
 }
 
 func (n *ProduceAPI) GetWhitelistBlacklist(call otto.FunctionCall) (response otto.Value) {

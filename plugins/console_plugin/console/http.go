@@ -3,27 +3,23 @@ package console
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"fmt"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/log"
+	"github.com/eosspark/eos-go/plugins/http_plugin"
 	"io"
 	"net"
 	"net/http"
 	"net/http/httputil"
+	"strings"
 	"time"
 )
-
-var ErrNotFound = errors.New("resource not found")
 
 type API struct {
 	HttpClient *http.Client
 	BaseURL    string
 	Debug      bool
-	//Compress                common.CompressionType
-	DefaultMaxCPUUsageMS    uint8
-	DefaultMaxNetUsageWords uint32 // in 8-bytes words
-	log                     log.Logger
+	log        log.Logger
 }
 
 func NewHttp(baseURL string) *API {
@@ -44,8 +40,7 @@ func NewHttp(baseURL string) *API {
 			},
 		},
 		BaseURL: baseURL,
-		//Compress: common.CompressionZlib,
-		Debug: false,
+		Debug:   false,
 	}
 	api.log = log.New("http")
 	api.log.SetHandler(log.TerminalHandler)
@@ -69,7 +64,6 @@ func (api *API) call(path string, body interface{}) ([]byte, error) {
 		return nil, err
 	}
 	targetURL := api.BaseURL + path
-	// targetURL := fmt.Sprintf("%s/v1/%s/%s", api.BaseURL, baseAPI, endpoint)
 	req, err := http.NewRequest("POST", targetURL, jsonBody)
 	if err != nil {
 		return nil, fmt.Errorf("NewRequest: %s", err)
@@ -98,19 +92,38 @@ func (api *API) call(path string, body interface{}) ([]byte, error) {
 		return nil, fmt.Errorf("Copy: %s", err)
 	}
 
-	if resp.StatusCode == 404 {
-		return nil, ErrNotFound
-	}
-	if resp.StatusCode > 299 {
-		return nil, fmt.Errorf("%s: status code=%d, body=%s", req.URL.String(), resp.StatusCode, cnt.String())
-	}
-
-	//api.log.Debug("Response body: %s", cnt.String())
-
 	if api.Debug {
 		api.log.Debug("Response body: %s", cnt.String())
 	}
 
+	statusCode := resp.StatusCode
+	if statusCode == 200 || statusCode == 201 || statusCode == 202 {
+		return cnt.Bytes(), nil
+	} else if statusCode == 404 {
+		//Unknown endpoint
+		if strings.Contains(path, common.ChainFuncBase) {
+			return nil, fmt.Errorf("%s: %s", "Missing Chain API Plugin", targetURL)
+		} else if strings.Contains(path, common.WalletFuncBase) {
+			return nil, fmt.Errorf("%s: %s", "Missing Wallet API Plugin", targetURL)
+		} else if strings.Contains(path, common.HistoryFuncBase) {
+			return nil, fmt.Errorf("%s: %s", "Missing History API Plugin", targetURL)
+		} else if strings.Contains(path, common.NetFuncBase) {
+			return nil, fmt.Errorf("%s: %s", "Missing Net API Plugin", targetURL)
+		}
+	} else {
+		var errorInfo http_plugin.ErrorResults
+		err := json.Unmarshal(cnt.Bytes(), &errorInfo)
+		if err != nil {
+			fmt.Println(err)
+		}
+		//api.log.Debug("error :%v",errorInfo)
+		return nil, fmt.Errorf("Error: %d %s", errorInfo.Error.Code, errorInfo.Error.What)
+	}
+
+	if statusCode != 200 {
+		api.log.Error("http request fail: Error code %d\n: %s", cnt.String())
+		return nil, fmt.Errorf("%s", "http request fail")
+	}
 	return cnt.Bytes(), nil
 }
 

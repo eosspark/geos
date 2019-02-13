@@ -2,7 +2,6 @@ package net_plugin
 
 import (
 	"encoding/binary"
-	"encoding/json"
 	"fmt"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
@@ -24,10 +23,10 @@ import (
 )
 
 type PeerStatus struct {
-	Peer          string
-	Connecting    bool
-	Syncing       bool
-	LastHandshake HandshakeMessage
+	Peer          string           `json:"peer"`
+	Connecting    bool             `json:"connecting"`
+	Syncing       bool             `json:"syncing"`
+	LastHandshake HandshakeMessage `json:"last_handshake"`
 }
 
 type queuedWrite struct {
@@ -93,23 +92,26 @@ type Connection struct {
 
 func NewConnectionByEndPoint(endpoint string, impl *netPluginIMpl) *Connection {
 	conn := &Connection{
-		blkState:           peer_block_state.NewPeerBlockStateIndex(),
-		trxState:           transaction_state.NewTransactionStateIndex(),
-		peerRequested:      new(syncState),
+		blkState:      peer_block_state.NewPeerBlockStateIndex(),
+		trxState:      transaction_state.NewTransactionStateIndex(),
+		peerRequested: &syncState{},
+		//conn:,
 		socket:             asio.NewReactiveSocket(App().GetIoService()),
-		lastHandshakeSent:  &HandshakeMessage{},
+		nodeID:             common.NodeIdType(crypto.NewSha256Nil()),
 		lastHandshakeRecv:  &HandshakeMessage{},
+		lastHandshakeSent:  &HandshakeMessage{},
 		sentHandshakeCount: 0,
 		connecting:         false,
 		syncing:            false,
 		protocolVersion:    0,
-		noRetry:            noReason,
-		forkHeadNum:        0,
-		impl:               impl,
-		forkHead:           common.BlockIdNil(),
-		nodeID:             common.NodeIdType(*crypto.NewSha256Nil()),
-		lastReq:            &RequestMessage{},
 		peerAddr:           endpoint,
+		//responseExpected:
+		pendingFetch: &RequestMessage{},
+		noRetry:      noReason,
+		forkHead:     common.BlockIdNil(),
+		forkHeadNum:  0,
+		lastReq:      &RequestMessage{},
+		impl:         impl,
 	}
 	netLog.Warn("accepted network connection")
 	conn.initialize()
@@ -121,22 +123,24 @@ func NewConnectionByConn(socket *asio.ReactiveSocket, c net.Conn, impl *netPlugi
 	conn := &Connection{
 		blkState:           peer_block_state.NewPeerBlockStateIndex(),
 		trxState:           transaction_state.NewTransactionStateIndex(),
-		peerRequested:      new(syncState),
+		peerRequested:      &syncState{},
 		conn:               c,
 		socket:             socket,
-		lastHandshakeSent:  &HandshakeMessage{},
+		nodeID:             common.NodeIdType(crypto.NewSha256Nil()),
 		lastHandshakeRecv:  &HandshakeMessage{},
+		lastHandshakeSent:  &HandshakeMessage{},
 		sentHandshakeCount: 0,
 		connecting:         true,
 		syncing:            false,
 		protocolVersion:    0,
-		noRetry:            noReason,
-		forkHeadNum:        0,
-		impl:               impl,
-		forkHead:           common.BlockIdNil(),
-		nodeID:             common.NodeIdType(*crypto.NewSha256Nil()),
-		lastReq:            &RequestMessage{},
-		peerAddr:           c.RemoteAddr().String(),
+		peerAddr:           c.RemoteAddr().String(), //,
+		//responseExpected:,
+		pendingFetch: &RequestMessage{},
+		noRetry:      noReason,
+		forkHead:     common.BlockIdNil(),
+		forkHeadNum:  0,
+		lastReq:      &RequestMessage{},
+		impl:         impl,
 	}
 	netLog.Warn("accepted network connection")
 	conn.initialize()
@@ -171,7 +175,6 @@ func (c *Connection) reset() {
 	c.peerRequested = &syncState{}
 	c.blkState = peer_block_state.NewPeerBlockStateIndex()
 	c.trxState = transaction_state.NewTransactionStateIndex()
-
 }
 
 func (c *Connection) close() {
@@ -216,7 +219,7 @@ func (c *Connection) handshakePopulate(impl *netPluginIMpl, hello *HandshakeMess
 
 	// If we couldn't sign, don't send a token.
 	if common.Empty(hello.Signature) {
-		hello.Token = *crypto.NewSha256Nil()
+		hello.Token = crypto.NewSha256Nil()
 	}
 
 	hello.P2PAddress = impl.p2PAddress + " - " + hello.NodeID.String()[:7]
@@ -317,7 +320,7 @@ func (c *Connection) fetchTimeout(err error) { //TODO not same as C++
 }
 
 func (c *Connection) cancelSync(reason GoAwayReason) {
-	FcLog.Debug("cancel sync reason = %s, write queue size %d peer %s", ReasonToString[reason], len(c.writeQueue), c.peerAddr)
+	FcLog.Debug("cancel sync reason = %s, write queue size %d peer %s", ReasonStr[reason], len(c.writeQueue), c.peerAddr)
 
 	c.cancelWait()
 	c.flushQueues()
@@ -371,18 +374,14 @@ func (c *Connection) txnSendPending(ids []common.TransactionIdType) {
 							if state.Requests == 0 {
 								state.BlockNum = state.TrueBlock
 							}
-
 						})
 					} else {
 						FcLog.Warn("Local pending TX erased before queued_write called callback")
 					}
 				})
-
 			}
-
 		}
 	}
-
 }
 
 func (c *Connection) txnSend(ids []common.TransactionIdType) {
@@ -465,11 +464,8 @@ func (c *Connection) blkSendBranch() {
 		netLog.Error("unable to retrieve block info: %s for %s", ex.What(), c.peerAddr)
 		c.enqueue(&note, true)
 		returning = true
-	}).Catch(func(ex exception.Exception) {
+	}).Catch(func(ex exception.Exception) {}).Catch(func(interface{}) {}).End()
 
-	}).Catch(func(interface{}) {
-
-	}).End()
 	if returning {
 		return
 	}
@@ -564,9 +560,7 @@ func (c *Connection) enqueueSyncBlock() bool {
 	//if common.Empty(c.peerRequested){
 	//	return false
 	//}
-	//if c.peerRequested ==nil{
-	//	return false
-	//}
+
 	if c.peerRequested.startTime == 0 { //TODO check nil
 		return false
 	}
@@ -619,7 +613,7 @@ func isValid(msg *HandshakeMessage) bool {
 		FcLog.Warn("Handshake message validation: os field is null string")
 		valid = false
 	}
-	if (common.CompareString(msg.Signature, ecc.NewSigNil()) != 0 || msg.Token.Equals(*crypto.NewSha256Nil())) &&
+	if (common.CompareString(msg.Signature, ecc.NewSigNil()) != 0 || msg.Token.Equals(crypto.NewSha256Nil())) &&
 		msg.Token.Equals(*crypto.Hash256(msg.Time)) {
 		FcLog.Warn("Handshake message validation: token field invalid")
 		valid = false
@@ -673,7 +667,7 @@ func (c *Connection) addPeerBlock(entry *PeerBlockState) bool {
 func (c *Connection) processNextMessage(payloadBytes []byte) bool {
 	result := true
 	Try(func() {
-		messageType := P2PMessageType(payloadBytes[0])
+		messageType := NetMessageType(payloadBytes[0])
 		attr, ok := messageType.reflectTypes()
 		if !ok {
 			Throw(fmt.Errorf("processNextMessage, unknown p2p message type %d", messageType))
@@ -684,12 +678,8 @@ func (c *Connection) processNextMessage(payloadBytes []byte) bool {
 			Throw(err)
 		}
 
-		p2pMessage := msg.Interface().(P2PMessage)
-
-		bytes, _ := json.Marshal(p2pMessage)
-		FcLog.Info("received message %d  :%s\n", p2pMessage.GetType(), string(bytes))
-
-		switch msg := p2pMessage.(type) {
+		netMsg := msg.Interface().(NetMessage)
+		switch msg := netMsg.(type) {
 		case *HandshakeMessage:
 			c.impl.handleHandshake(c, msg)
 		case *ChainSizeMessage:
@@ -711,6 +701,7 @@ func (c *Connection) processNextMessage(payloadBytes []byte) bool {
 		default:
 			Throw(fmt.Errorf("unsuppoted p2p message type %d", messageType))
 		}
+
 	}).Catch(func(e exception.FcException) {
 		netLog.Error("read message is error:%s", e.DetailMessage())
 		c.impl.close(c)
@@ -719,30 +710,25 @@ func (c *Connection) processNextMessage(payloadBytes []byte) bool {
 	return result
 }
 
-func (c *Connection) enqueue(m P2PMessage, triggerSend bool) {
+func (c *Connection) enqueue(m NetMessage, triggerSend bool) {
 	closeAfterSend := noReason
 	if m.GetType() == GoAwayMessageType {
 		closeAfterSend = m.(*GoAwayMessage).Reason
 	}
 
-	payload, err := rlp.EncodeToBytes(m)
-	if err != nil {
-		err = fmt.Errorf("p2p message, %s", err)
-		return
-	}
+	payload, _ := rlp.EncodeToBytes(m)
 	messageLen := uint32(len(payload) + 1)
 	buf := make([]byte, 4)
 	binary.LittleEndian.PutUint32(buf, messageLen)
 	sendBuf := append(buf, byte(m.GetType()))
 	sendBuf = append(sendBuf, payload...)
 
-	bytes, _ := json.Marshal(m)
-	FcLog.Debug("send message :%d,%s", m.GetType(), string(bytes))
+	FcLog.Debug("send message :%d,%s", m.GetType(), m.String())
 
 	c.queueWrite(sendBuf, triggerSend, func(err error, n int) {
 		if c != nil {
 			if closeAfterSend != noReason {
-				netLog.Error("snet a go away message: %s, closing connection to %s", ReasonToString[closeAfterSend], c.PeerName())
+				netLog.Error("sent a go away message: %s, closing connection to %s", ReasonStr[closeAfterSend], c.PeerName())
 				c.impl.close(c)
 				return
 			}
@@ -793,14 +779,12 @@ func (c *Connection) doQueueWrite() {
 				c.impl.close(c)
 				return
 			}
-
 			c.outQueue = nil
 
 			c.enqueueSyncBlock()
 			c.doQueueWrite()
 
 		}).Catch(func(e interface{}) {
-			//conn :=c.lock()//TODO
 			conn := c
 			var pName string
 			if conn != nil {
@@ -810,8 +794,6 @@ func (c *Connection) doQueueWrite() {
 			}
 
 			netLog.Error("Exception in do_queue_write to %s: %s", pName, e)
-
 		}).End()
-
 	})
 }

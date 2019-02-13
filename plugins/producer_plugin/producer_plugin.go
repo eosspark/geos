@@ -2,6 +2,7 @@ package producer_plugin
 
 import (
 	"fmt"
+	"github.com/eosspark/eos-go/chain/types"
 	. "github.com/eosspark/eos-go/chain/types/generated_containers"
 	. "github.com/eosspark/eos-go/plugins/chain_interface"
 	"github.com/eosspark/eos-go/plugins/chain_plugin"
@@ -245,9 +246,8 @@ func (p *ProducerPlugin) PluginStartup() {
 		EosAssert(p.my.Producers.Size() == 0 || chain.GetValidationMode() == Chain.ValidationMode(Chain.FULL), &PluginConfigException{},
 			"node cannot have any producer-name configured because block production is not safe when validation_mode is not \"full\"")
 
-		//TODO if
-		// my->_accepted_block_connection.emplace(chain.accepted_block.connect( [this]( const auto& bsp ){ my->on_block( bsp ); } ));
-		// my->_irreversible_block_connection.emplace(chain.irreversible_block.connect( [this]( const auto& bsp ){ my->on_irreversible_block( bsp->block ); } ));
+		chain.AcceptedBlock.Connect(&AcceptedBlockCaller{Caller: func(bsp *types.BlockState) { p.my.OnBlock(bsp) }})
+		chain.IrreversibleBlock.Connect(&IrreversibleBlockCaller{Caller: func(bsp *types.BlockState) { p.my.OnIrreversibleBlock(bsp.SignedBlock) }})
 
 		libNum := chain.LastIrreversibleBlockNum()
 		lib := chain.FetchBlockByNumber(libNum)
@@ -288,7 +288,7 @@ func (p *ProducerPlugin) IsProducerKey(key ecc.PublicKey) bool {
 }
 
 func (p *ProducerPlugin) SignCompact(key *ecc.PublicKey, digest crypto.Sha256) *ecc.Signature {
-	if key != nil {
+	if !key.Compare(*ecc.NewPublicKeyNil()) {
 		privateKeyFunc := p.my.SignatureProviders[*key]
 		EosAssert(privateKeyFunc != nil, &ProducerPrivKeyNotFound{}, "Local producer has no private key in config.ini corresponding to public key %s", key)
 

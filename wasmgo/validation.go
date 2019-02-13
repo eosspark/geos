@@ -46,6 +46,7 @@ func ValidateModule(m *wasm.Module) error {
 		globalsValidation,
 		maximumFunctionStack,
 		ensureApplyExported,
+		maximumSerialize,
 	} {
 		if err := fn(m); err != nil {
 			return err
@@ -127,11 +128,9 @@ func globalsValidation(m *wasm.Module) error {
 		}
 
 		switch global.Type.Type {
-		case wasm.ValueTypeI32:
-		case wasm.ValueTypeF32:
+		case wasm.ValueTypeI32, wasm.ValueTypeF32:
 			mutableGlobalsTotalSize += 4
-		case wasm.ValueTypeI64:
-		case wasm.ValueTypeF64:
+		case wasm.ValueTypeI64, wasm.ValueTypeF64:
 			mutableGlobalsTotalSize += 8
 		default:
 			EosThrow(&WasmExecutionError{}, "Smart contract has unexpected global definition value type")
@@ -161,6 +160,21 @@ func maximumFunctionStack(m *wasm.Module) error {
 
 		if functionStackUsage > MaximumFuncLocalBytes {
 			EosThrow(&WasmExecutionError{}, "Smart contract function has more than %d bytes of stack usage", MaximumFuncLocalBytes)
+		}
+	}
+
+	return nil
+}
+
+func maximumSerialize(m *wasm.Module) error {
+
+	if m.Data == nil {
+		return nil
+	}
+
+	for _, entry := range m.Data.Entries {
+		if len(entry.Data) >= MaximumFuncLocalBytes {
+			EosThrow(&WasmSerializationError{}, "too many locals")
 		}
 	}
 

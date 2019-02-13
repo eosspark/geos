@@ -34,10 +34,10 @@ type ConsolePluginImpl struct {
 	wsListener net.Listener // Websocket RPC listener socket to server API requests
 	wsHandler  *rpc.Server  // Websocket RPC request handler to process the API requests
 
-	stop chan struct{} // Channel to wait for termination notifications
-
-	Self *ConsolePlugin
-	log  log.Logger
+	stop    chan struct{} // Channel to wait for termination notifications
+	baseUrl string
+	Self    *ConsolePlugin
+	log     log.Logger
 }
 
 func NewConsolePluginImpl(io *asio.IoContext) *ConsolePluginImpl {

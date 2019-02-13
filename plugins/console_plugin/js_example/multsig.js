@@ -152,7 +152,7 @@ eos.PushAction({
     p:['eosio'],
 });
 
-multisig.Propose({
+multisig.propose({
     proposal_name:'multsigtest',
     requested_permissions:'[{"actor": "liuxia", "permission": "owner"}, {"actor": "yinhu", "permission": "owner"}]',
     trx_permissions:'[{"actor": "walker", "permission":"owner"}]',
@@ -162,7 +162,7 @@ multisig.Propose({
     p:['liuxia'],
 });
 
-multisig.Review({
+multisig.review({
     proposer:'liuxia',
     proposal_name:'multsigtest',
 });
@@ -173,14 +173,14 @@ chain.GetTable({
     table:'approvals',
 });
 
-multisig.Approve({
+multisig.approve({
     proposer:'liuxia',
     proposal_name:'multsigtest',
     permissions:'{"actor": "liuxia", "permission": "owner"}',
     p:["liuxia@owner"],
 });
 
-multisig.Approve({
+multisig.approve({
     proposer:'liuxia',
     proposal_name:'multsigtest',
     permissions:'{"actor": "yinhu", "permission": "owner"}',
@@ -230,28 +230,28 @@ system.Delegatebw({
     stake_cpu_amount:'100000.0000 SYS',
 });
 
-multisig.Exec({
+multisig.exec({
     proposer:'liuxia',
     proposal_name:'multsigtest',
     executer:'liuxia',
     p:['liuxia@owner'],
 });
 
-// multisig.Cancel({
+// multisig.cancel({
 //     proposer:'liuxia',
 //     proposal_name:'multsigtest',
 //     canceler:'liuxia',
 //     p:['liuxia@owner'],
 // });
-
-// multisig.Unapprove({
+//
+// multisig.unapprove({
 //     proposer:'liuxia',
 //     proposal_name:'multsigtest',
 //     permissions:'{"actor": "liuxia", "permission": "owner"}',
 //     p:["liuxia@owner"],
 // });
-//
-// multisig.ProposeTrx({
+
+// multisig.proposetrx({
 //     proposal_name:'multisigtrx',
 //     requested_permissions:'[{"actor": "liuxia", "permission": "owner"}, {"actor": "yinhu", "permission": "owner"}]',
 //     proposer:'liuxia',

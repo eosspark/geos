@@ -1,6 +1,7 @@
 package console_plugin
 
 import (
+	"fmt"
 	"github.com/eosspark/eos-go/common"
 	. "github.com/eosspark/eos-go/exception/try"
 	. "github.com/eosspark/eos-go/plugins/appbase/app"
@@ -34,6 +35,11 @@ func (cp *ConsolePlugin) SetProgramOptions(options *[]cli.Flag) {
 		cli.BoolFlag{
 			Name:  "console",
 			Usage: "Start an interactive JavaScript environment",
+		},
+		cli.StringFlag{
+			Name:  "attach",
+			Usage: "Start an interactive JavaScript environment (connect to node)",
+			Value: common.HttpEndPoint,
 		},
 		cli.StringFlag{ // ATM the url is left to the user and deployment to
 			Name:  "jspath",
@@ -134,6 +140,8 @@ func (cp *ConsolePlugin) PluginInitialize(c *cli.Context) {
 		} else {
 			cp.my.preload = nil
 		}
+		cp.my.baseUrl = c.String("attach")
+		fmt.Println("baseURL:  ", cp.my.baseUrl)
 
 		cp.my.enable = c.Bool("console")
 		if cp.my.enable {

@@ -75,7 +75,7 @@ func (s *system) NewAccount(call otto.FunctionCall) (response otto.Value) {
 		sendActions([]*types.Action{create, buyram}, 1000, types.CompressionNone, &params)
 	}
 
-	return otto.UndefinedValue()
+	return
 }
 
 //RegProducer registers a new producer
@@ -94,7 +94,7 @@ func (s *system) RegProducer(call otto.FunctionCall) (response otto.Value) {
 		common.DefaultConfig.SystemAccountName, common.N("regproducer"), regprodVar)
 
 	sendActions([]*types.Action{action}, 1000, types.CompressionNone, &params)
-	return otto.UndefinedValue()
+	return
 }
 
 //Unregprod unregisters an existing producer
@@ -107,7 +107,7 @@ func (s *system) Unregprod(call otto.FunctionCall) (response otto.Value) {
 	action := createAction([]common.PermissionLevel{{common.N(params.Producer), common.DefaultConfig.ActiveName}},
 		common.DefaultConfig.SystemAccountName, common.N("unregprod"), &actPayload)
 	sendActions([]*types.Action{action}, 1000, types.CompressionNone, &params)
-	return otto.UndefinedValue()
+	return
 }
 
 //VoteproducerProxy votes your stake through a proxy
@@ -123,7 +123,7 @@ func (s *system) VoteproducerProxy(call otto.FunctionCall) (response otto.Value)
 	action := createAction([]common.PermissionLevel{{common.N(params.Voter), common.DefaultConfig.ActiveName}},
 		common.DefaultConfig.SystemAccountName, common.N("voteproduer"), &actPayload)
 	sendActions([]*types.Action{action}, 1000, types.CompressionNone, &params)
-	return otto.UndefinedValue()
+	return
 }
 
 //VoteproducerProds votes for one or more producers
@@ -143,7 +143,7 @@ func (s *system) VoteproducerProds(call otto.FunctionCall) (response otto.Value)
 	action := createAction([]common.PermissionLevel{{common.N(params.Voter), common.DefaultConfig.ActiveName}},
 		common.DefaultConfig.SystemAccountName, common.N("voteproducer"), &actPayload)
 	sendActions([]*types.Action{action}, 10000, types.CompressionNone, &params)
-	return otto.UndefinedValue()
+	return
 }
 
 //Approveroducer adds one producer to list of voted producers
@@ -208,7 +208,7 @@ func (s *system) Approveroducer(call otto.FunctionCall) (response otto.Value) {
 	action := createAction([]common.PermissionLevel{{params.Voter, common.DefaultConfig.ActiveName}},
 		common.DefaultConfig.SystemAccountName, common.N("voteproducer"), &actPayload)
 	sendActions([]*types.Action{action}, 10000, types.CompressionNone, &params)
-	return otto.UndefinedValue()
+	return
 }
 
 //UnapproveProducer removes one producer from list of voted producers
@@ -271,7 +271,7 @@ func (s *system) UnapproveProducer(call otto.FunctionCall) (response otto.Value)
 		common.DefaultConfig.SystemAccountName, common.N("voteproducer"), &actPayload)
 
 	sendActions([]*types.Action{action}, 10000, types.CompressionNone, &params)
-	return otto.UndefinedValue()
+	return
 }
 
 //Listproducers lists producers
@@ -329,7 +329,7 @@ func (s *system) Listproducers(call otto.FunctionCall) (response otto.Value) {
 		fmt.Printf("-L %s for more\n", resp.More)
 	}
 
-	return otto.UndefinedValue()
+	return
 }
 
 //Delegatebw delegates bandwidth
@@ -359,7 +359,7 @@ func (s *system) Delegatebw(call otto.FunctionCall) (response otto.Value) {
 	}
 
 	sendActions(acts, 1000, types.CompressionNone, &params)
-	return otto.UndefinedValue()
+	return
 }
 
 //Undelegatebw undelegates bandwidth
@@ -376,7 +376,7 @@ func (s *system) Undelegatebw(call otto.FunctionCall) (response otto.Value) {
 	action := createAction([]common.PermissionLevel{{common.N(params.From), common.DefaultConfig.ActiveName}},
 		common.DefaultConfig.SystemAccountName, common.N("undelegatebw"), &actPayload)
 	sendActions([]*types.Action{action}, 1000, types.CompressionNone, &params)
-	return otto.UndefinedValue()
+	return
 }
 
 //Listbw lists delegated bandwidth
@@ -412,7 +412,7 @@ func (s *system) Listbw(call otto.FunctionCall) (response otto.Value) {
 		return getJsResult(call, fmt.Sprintln(resp))
 	}
 
-	return otto.UndefinedValue()
+	return
 }
 
 //Bidname: Name bidding
@@ -429,7 +429,7 @@ func (s *system) Bidname(call otto.FunctionCall) (response otto.Value) {
 		common.DefaultConfig.SystemAccountName, common.N("bidname"), &actPayload)
 
 	sendActions([]*types.Action{action}, 1000, types.CompressionNone, &params)
-	return otto.UndefinedValue()
+	return
 }
 
 //Bidnameinfo gets bidname info
@@ -467,7 +467,7 @@ func (s *system) Bidnameinfo(call otto.FunctionCall) (response otto.Value) {
 		//	if (bid < 0) std::cout << "This auction has already closed" << std::endl;
 	}
 
-	return otto.UndefinedValue()
+	return
 }
 
 //Buyram buy RAM
@@ -494,7 +494,7 @@ func (s *system) Buyram(call otto.FunctionCall) (response otto.Value) {
 	}
 
 	sendActions([]*types.Action{action}, 1000, types.CompressionNone, &params)
-	return otto.UndefinedValue()
+	return
 }
 
 //Sellram sell RAM
@@ -508,7 +508,7 @@ func (s *system) Sellram(call otto.FunctionCall) (response otto.Value) {
 	action := createAction([]common.PermissionLevel{{common.N(params.Receiver), common.DefaultConfig.ActiveName}},
 		common.DefaultConfig.SystemAccountName, common.N("sellram"), &actPayload)
 	sendActions([]*types.Action{action}, 1000, types.CompressionNone, &params)
-	return otto.UndefinedValue()
+	return
 }
 
 //Claimrewards claims producer rewards
@@ -523,7 +523,7 @@ func (s *system) Claimrewards(call otto.FunctionCall) (response otto.Value) {
 		common.DefaultConfig.SystemAccountName, common.N("claimrewards"), &actPayload)
 
 	sendActions([]*types.Action{action}, 1000, types.CompressionNone, &params)
-	return otto.UndefinedValue()
+	return
 }
 
 //Regproxy Registers an account as a proxy (for voting)
@@ -537,7 +537,7 @@ func (s *system) Regproxy(call otto.FunctionCall) (response otto.Value) {
 	action := createAction([]common.PermissionLevel{{common.N(params.Proxy), common.DefaultConfig.ActiveName}},
 		common.DefaultConfig.SystemAccountName, common.N("regproxy"), &actPayload)
 	sendActions([]*types.Action{action}, 1000, types.CompressionNone, &params)
-	return otto.UndefinedValue()
+	return
 }
 
 //Unregproxy unregisters an account as a proxy (for voting)
@@ -552,7 +552,7 @@ func (s *system) Unregproxy(call otto.FunctionCall) (response otto.Value) {
 	action := createAction([]common.PermissionLevel{{common.N(params.Proxy), common.DefaultConfig.ActiveName}},
 		common.DefaultConfig.SystemAccountName, common.N("regproxy"), &actPayload)
 	sendActions([]*types.Action{action}, 1000, types.CompressionNone, &params)
-	return otto.UndefinedValue()
+	return
 }
 
 //Canceldelay cancels a delayed transaction
@@ -568,7 +568,7 @@ func (s *system) Canceldelay(call otto.FunctionCall) (response otto.Value) {
 
 	action := createAction([]common.PermissionLevel{cancelingAuth}, common.DefaultConfig.SystemAccountName, common.N("canceldelay"), &actPayload)
 	sendActions([]*types.Action{action}, 1000, types.CompressionNone, &params)
-	return otto.UndefinedValue()
+	return
 }
 
 func readParams(params interface{}, call otto.FunctionCall) {

@@ -1,7 +1,7 @@
 package net_plugin
 
 import (
-	"errors"
+	"encoding/json"
 	"fmt"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
@@ -10,8 +10,65 @@ import (
 	"reflect"
 )
 
-type P2PMessage interface {
-	GetType() P2PMessageType
+type NetMessageType byte
+
+const (
+	HandshakeMessageType NetMessageType = iota // 0
+	ChainSizeType
+	GoAwayMessageType
+	TimeMessageType
+	NoticeMessageType // 4
+	RequestMessageType
+	SyncRequestMessageType
+	SignedBlockType
+	PackedTransactionMessageType //8
+)
+
+type MessageReflectTypes struct {
+	Name        string
+	ReflectType reflect.Type
+}
+
+var messageAttributes = []MessageReflectTypes{
+	{Name: "Handshake", ReflectType: reflect.TypeOf(HandshakeMessage{})},
+	{Name: "ChainSize", ReflectType: reflect.TypeOf(ChainSizeMessage{})},
+	{Name: "GoAway", ReflectType: reflect.TypeOf(GoAwayMessage{})},
+	{Name: "Time", ReflectType: reflect.TypeOf(TimeMessage{})},
+	{Name: "Notice", ReflectType: reflect.TypeOf(NoticeMessage{})},
+	{Name: "Request", ReflectType: reflect.TypeOf(RequestMessage{})},
+	{Name: "SyncRequest", ReflectType: reflect.TypeOf(SyncRequestMessage{})},
+	{Name: "SignedBlock", ReflectType: reflect.TypeOf(SignedBlockMessage{})},
+	{Name: "PackedTransaction", ReflectType: reflect.TypeOf(PackedTransactionMessage{})},
+}
+
+func (t NetMessageType) isValid() bool {
+	index := byte(t)
+	return int(index) < len(messageAttributes)
+}
+
+func (t NetMessageType) Name() (string, bool) {
+	index := byte(t)
+	if !t.isValid() {
+		return "Unknown", false
+	}
+
+	attr := messageAttributes[index]
+	return attr.Name, true
+}
+
+func (t NetMessageType) reflectTypes() (MessageReflectTypes, bool) {
+	index := byte(t)
+	if !t.isValid() {
+		return MessageReflectTypes{}, false
+	}
+
+	attr := messageAttributes[index]
+	return attr, true
+}
+
+type NetMessage interface {
+	GetType() NetMessageType
+	String() string
 }
 
 type HandshakeMessage struct {
@@ -32,13 +89,12 @@ type HandshakeMessage struct {
 	Generation               uint16             `json:"generation"`
 }
 
-func (m *HandshakeMessage) GetType() P2PMessageType {
+func (h *HandshakeMessage) GetType() NetMessageType {
 	return HandshakeMessageType
 }
-
-func (m *HandshakeMessage) String() string {
-	// return fmt.Sprintf("Handshake: Head [%d] Last Irreversible [%d] Time [%s]", m.HeadNum, m.LastIrreversibleBlockNum, m.Time)
-	return "handshakemessage"
+func (h *HandshakeMessage) String() string {
+	bytes, _ := json.Marshal(h)
+	return string(bytes)
 }
 
 type ChainSizeMessage struct {
@@ -48,8 +104,12 @@ type ChainSizeMessage struct {
 	HeadID                   common.BlockIdType `json:"head_id"`
 }
 
-func (m *ChainSizeMessage) GetType() P2PMessageType {
+func (c *ChainSizeMessage) GetType() NetMessageType {
 	return ChainSizeType
+}
+func (c *ChainSizeMessage) String() string {
+	bytes, _ := json.Marshal(c)
+	return string(bytes)
 }
 
 type GoAwayReason uint32
@@ -70,7 +130,7 @@ const (
 	crazy                               //some crazy reason
 )
 
-var ReasonToString = map[GoAwayReason]string{
+var ReasonStr = map[GoAwayReason]string{
 	noReason:       "no reason",
 	selfConnect:    "self connect",
 	duplicate:      "duplicate",
@@ -91,8 +151,12 @@ type GoAwayMessage struct {
 	NodeID common.NodeIdType `json:"node_id"` //for duplicate notification
 }
 
-func (m *GoAwayMessage) GetType() P2PMessageType {
+func (g *GoAwayMessage) GetType() NetMessageType {
 	return GoAwayMessageType
+}
+func (g *GoAwayMessage) String() string {
+	bytes, _ := json.Marshal(g)
+	return string(bytes)
 }
 
 type TimeMessage struct {
@@ -102,10 +166,9 @@ type TimeMessage struct {
 	Dst common.TimePoint `json:"dst"` //destination timestamp
 }
 
-func (m *TimeMessage) GetType() P2PMessageType {
+func (t *TimeMessage) GetType() NetMessageType {
 	return TimeMessageType
 }
-
 func (t *TimeMessage) String() string {
 	return fmt.Sprintf("Origin [%s], Receive [%s], Transmit [%s], Destination [%s]", t.Org, t.Rec, t.Xmt, t.Dst)
 }
@@ -119,7 +182,7 @@ const (
 	normal
 )
 
-var modeTostring = map[IdListMode]string{
+var modeStr = map[IdListMode]string{
 	none:           "none",
 	catchUp:        "catch up",
 	lastIrrCatchUp: "last irreversible",
@@ -151,8 +214,12 @@ type NoticeMessage struct {
 	KnownBlocks OrderedBlockIDs       `json:"known_blocks"`
 }
 
-func (m *NoticeMessage) GetType() P2PMessageType {
+func (n *NoticeMessage) GetType() NetMessageType {
 	return NoticeMessageType
+}
+func (n *NoticeMessage) String() string {
+	bytes, _ := json.Marshal(n)
+	return string(bytes)
 }
 
 type SyncRequestMessage struct {
@@ -160,11 +227,11 @@ type SyncRequestMessage struct {
 	EndBlock   uint32 `json:"end_block"`
 }
 
-func (m *SyncRequestMessage) GetType() P2PMessageType {
+func (s *SyncRequestMessage) GetType() NetMessageType {
 	return SyncRequestMessageType
 }
-func (m *SyncRequestMessage) String() string {
-	return fmt.Sprintf("SyncRequest: Start Block [%d] End Block [%d]", m.StartBlock, m.EndBlock)
+func (s *SyncRequestMessage) String() string {
+	return fmt.Sprintf("SyncRequest: Start Block [%d] End Block [%d]", s.StartBlock, s.EndBlock)
 }
 
 type RequestMessage struct {
@@ -172,97 +239,39 @@ type RequestMessage struct {
 	ReqBlocks OrderedBlockIDs       `json:"req_blocks"`
 }
 
+func (r *RequestMessage) GetType() NetMessageType {
+	return RequestMessageType
+}
+func (r *RequestMessage) String() string {
+	bytes, _ := json.Marshal(r)
+	return string(bytes)
+}
 func (r RequestMessage) IsEmpty() bool {
 	return r.ReqTrx.empty() && r.ReqBlocks.empty()
-}
-
-func (m *RequestMessage) GetType() P2PMessageType {
-	return RequestMessageType
 }
 
 type SignedBlockMessage struct {
 	types.SignedBlock
 }
 
-func (s *SignedBlockMessage) GetType() P2PMessageType {
+func (s *SignedBlockMessage) GetType() NetMessageType {
 	return SignedBlockType
+}
+func (s *SignedBlockMessage) String() string {
+	bytes, _ := json.Marshal(s)
+	return string(bytes)
 }
 
 type PackedTransactionMessage struct {
 	types.PackedTransaction
 }
 
-func (m *PackedTransactionMessage) GetType() P2PMessageType {
+func (p *PackedTransactionMessage) GetType() NetMessageType {
 	return PackedTransactionMessageType
 }
-
-type P2PMessageType byte
-
-const (
-	HandshakeMessageType P2PMessageType = iota // 0
-	ChainSizeType
-	GoAwayMessageType
-	TimeMessageType
-	NoticeMessageType // 4
-	RequestMessageType
-	SyncRequestMessageType
-	SignedBlockType
-	PackedTransactionMessageType //8
-)
-
-type MessageReflectTypes struct {
-	Name        string
-	ReflectType reflect.Type
-}
-
-var messageAttributes = []MessageReflectTypes{
-	{Name: "Handshake", ReflectType: reflect.TypeOf(HandshakeMessage{})},
-	{Name: "ChainSize", ReflectType: reflect.TypeOf(ChainSizeMessage{})},
-	{Name: "GoAway", ReflectType: reflect.TypeOf(GoAwayMessage{})},
-	{Name: "Time", ReflectType: reflect.TypeOf(TimeMessage{})},
-	{Name: "Notice", ReflectType: reflect.TypeOf(NoticeMessage{})},
-	{Name: "Request", ReflectType: reflect.TypeOf(RequestMessage{})},
-	{Name: "SyncRequest", ReflectType: reflect.TypeOf(SyncRequestMessage{})},
-	{Name: "SignedBlock", ReflectType: reflect.TypeOf(SignedBlockMessage{})},
-	{Name: "PackedTransaction", ReflectType: reflect.TypeOf(PackedTransactionMessage{})},
-}
-
-var ErrUnknownMessageType = errors.New("unknown type")
-
-func NewMessageType(aType byte) (t P2PMessageType, err error) {
-	t = P2PMessageType(aType)
-	if !t.isValid() {
-		return t, ErrUnknownMessageType
-	}
-
-	return
-}
-
-func (t P2PMessageType) isValid() bool {
-	index := byte(t)
-	return int(index) < len(messageAttributes) && index >= 0
-}
-
-func (t P2PMessageType) Name() (string, bool) {
-	index := byte(t)
-
-	if !t.isValid() {
-		return "Unknown", false
-	}
-
-	attr := messageAttributes[index]
-	return attr.Name, true
-}
-
-func (t P2PMessageType) reflectTypes() (MessageReflectTypes, bool) {
-	index := byte(t)
-
-	if !t.isValid() {
-		return MessageReflectTypes{}, false
-	}
-
-	attr := messageAttributes[index]
-	return attr, true
+func (p *PackedTransactionMessage) String() string {
+	bytes, _ := json.Marshal(p)
+	return string(bytes)
 }
 
 /**

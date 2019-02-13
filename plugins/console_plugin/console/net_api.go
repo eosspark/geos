@@ -1,7 +1,6 @@
 package console
 
 import (
-	"fmt"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/plugins/net_plugin"
 	"github.com/robertkrimen/otto"
@@ -25,10 +24,8 @@ func (n *NetAPI) Connect(call otto.FunctionCall) (response otto.Value) {
 	}
 
 	var connectInfo string
-	err = DoHttpCall(&connectInfo, common.NetConnect, host)
-	if err != nil {
-		fmt.Println(err)
-		return otto.FalseValue()
+	if err := DoHttpCall(&connectInfo, common.NetConnect, host); err != nil {
+		return getJsResult(call, err.Error())
 	}
 	return getJsResult(call, connectInfo)
 }
@@ -41,10 +38,8 @@ func (n *NetAPI) Disconnect(call otto.FunctionCall) (response otto.Value) {
 	}
 
 	var result string
-	err = DoHttpCall(&result, common.NetDisconnect, host)
-	if err != nil {
-		fmt.Println(err)
-		return otto.FalseValue()
+	if err = DoHttpCall(&result, common.NetDisconnect, host); err != nil {
+		return getJsResult(call, err.Error())
 	}
 	return getJsResult(call, result)
 }
@@ -57,26 +52,17 @@ func (n *NetAPI) Status(call otto.FunctionCall) (response otto.Value) {
 	}
 
 	var result net_plugin.PeerStatus
-	err = DoHttpCall(&result, common.NetStatus, host)
-	if err != nil {
-		fmt.Println(err)
-		return otto.FalseValue()
+	if err = DoHttpCall(&result, common.NetStatus, host); err != nil {
+		return getJsResult(call, err.Error())
 	}
 	return getJsResult(call, result)
 }
 
 //Peers status of exiting connection
 func (n *NetAPI) Peers(call otto.FunctionCall) (response otto.Value) {
-	host, err := call.Argument(0).ToString()
-	if err != nil {
-		return otto.UndefinedValue()
-	}
-
 	var result []net_plugin.PeerStatus
-	err = DoHttpCall(&result, common.NetConnections, host)
-	if err != nil {
-		fmt.Println(err)
-		return otto.FalseValue()
+	if err := DoHttpCall(&result, common.NetConnections, nil); err != nil {
+		return getJsResult(call, err.Error())
 	}
 	return getJsResult(call, result)
 }
