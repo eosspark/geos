@@ -14,17 +14,17 @@ import (
 	"github.com/tidwall/gjson"
 )
 
-type multisig struct {
+type multiSig struct {
 	c *Console
 }
 
-//Multisig contract commands
-func newMultisig(c *Console) *multisig {
-	return &multisig{c: c}
+//MultiSig contract commands
+func newMultiSig(c *Console) *multiSig {
+	return &multiSig{c: c}
 }
 
 //Propose proposes action
-func (m *multisig) Propose(call otto.FunctionCall) (response otto.Value) {
+func (m *multiSig) Propose(call otto.FunctionCall) (response otto.Value) {
 	var params ProposeParams
 	readParams(&params, call)
 
@@ -106,7 +106,7 @@ func (m *multisig) Propose(call otto.FunctionCall) (response otto.Value) {
 }
 
 //ProposeTrx proposes transaction
-func (m *multisig) ProposeTrx(call otto.FunctionCall) (response otto.Value) {
+func (m *multiSig) ProposeTrx(call otto.FunctionCall) (response otto.Value) {
 	var params ProposeTrxParams
 	readParams(&params, call)
 
@@ -152,7 +152,7 @@ func (m *multisig) ProposeTrx(call otto.FunctionCall) (response otto.Value) {
 }
 
 //Review reviews transaction
-func (m *multisig) Review(call otto.FunctionCall) (response otto.Value) {
+func (m *multiSig) Review(call otto.FunctionCall) (response otto.Value) {
 	var params ReviewParams
 	readParams(&params, call)
 
@@ -196,7 +196,7 @@ func (m *multisig) Review(call otto.FunctionCall) (response otto.Value) {
 }
 
 //Approve approves proposed transaction
-func (m *multisig) Approve(call otto.FunctionCall) (response otto.Value) {
+func (m *multiSig) Approve(call otto.FunctionCall) (response otto.Value) {
 	var params ApproveAndUnapproveParams
 	readParams(&params, call)
 
@@ -205,7 +205,7 @@ func (m *multisig) Approve(call otto.FunctionCall) (response otto.Value) {
 }
 
 //Unapprove unapproves proposed transaction
-func (m *multisig) Unapprove(call otto.FunctionCall) (response otto.Value) {
+func (m *multiSig) Unapprove(call otto.FunctionCall) (response otto.Value) {
 	var params ApproveAndUnapproveParams
 	readParams(&params, call)
 
@@ -241,7 +241,7 @@ func approveOrUnapprove(action string, p *ApproveAndUnapproveParams) {
 }
 
 //Cancel cancels proposed transaction
-func (m *multisig) Cancel(call otto.FunctionCall) (response otto.Value) {
+func (m *multiSig) Cancel(call otto.FunctionCall) (response otto.Value) {
 	var params CancelParams
 	readParams(&params, call)
 
@@ -272,7 +272,7 @@ func (m *multisig) Cancel(call otto.FunctionCall) (response otto.Value) {
 }
 
 //Exec execute proposed transaction
-func (m *multisig) Exec(call otto.FunctionCall) (response otto.Value) {
+func (m *multiSig) Exec(call otto.FunctionCall) (response otto.Value) {
 	var params ExecuteParams
 	readParams(&params, call)
 

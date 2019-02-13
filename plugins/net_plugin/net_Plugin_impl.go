@@ -72,6 +72,11 @@ const (
 )
 
 type netPluginIMpl struct {
+	syncMaster *syncManager
+	dispatcher *dispatchManager
+
+	localTxns *node_transaction.NodeTransactionIndex
+
 	Listener           net.Listener
 	p2PAddress         string
 	resolver           *ReactiveSocket
@@ -82,10 +87,10 @@ type netPluginIMpl struct {
 	AllowedPeers       []ecc.PublicKey                  //< peer keys allowed to connect
 	privateKeys        map[ecc.PublicKey]ecc.PrivateKey //< overlapping with producer keys, also authenticating non-producing nodes
 	allowedConnections possibleConnections
-	done               bool
-	connectorCheck     *DeadlineTimer
-	transactionCheck   *DeadlineTimer
-	keepAliceTimer     *DeadlineTimer
+
+	connectorCheck   *DeadlineTimer
+	transactionCheck *DeadlineTimer
+	keepAliceTimer   *DeadlineTimer
 
 	connectorPeriod            time.Duration
 	txnExpPeriod               time.Duration
@@ -99,18 +104,10 @@ type netPluginIMpl struct {
 	nodeID              common.NodeIdType
 	userAgentName       string
 
-	useSocketReadWatermark bool
-
-	localTxns *node_transaction.NodeTransactionIndex
-
 	connections []*Connection
 
-	syncMaster *syncManager
-	dispatcher *dispatchManager
-
-	ChainPlugin     *chain_plugin.ChainPlugin
-	startedSessions int
-	context         context.Context
+	ChainPlugin *chain_plugin.ChainPlugin
+	context     context.Context
 
 	Self *NetPlugin
 }
@@ -121,13 +118,11 @@ func NewNetPluginIMpl(io *IoContext) *netPluginIMpl {
 		maxNodesPerHost:            1,
 		numClients:                 0,
 		allowedConnections:         nonePossible,
-		done:                       false,
 		keepaliveInterval:          32 * time.Second,
 		peerAuthenticationInterval: 1 * time.Second,
 		maxCleanupTimeMs:           0,
 		networkVersionMatch:        false,
 		txnExpPeriod:               defTxnExpireWait,
-		useSocketReadWatermark:     false,
 		privateKeys:                make(map[ecc.PublicKey]ecc.PrivateKey),
 		localTxns:                  node_transaction.NewNodeTransactionIndex(),
 		connections:                make([]*Connection, 0),
@@ -180,7 +175,8 @@ func (impl *netPluginIMpl) startListenLoop() {
 				impl.numClients++
 				c := NewConnectionByConn(socket, conn, impl)
 				impl.connections = append(impl.connections, c)
-				impl.startSession(socket, c)
+				impl.startReadMessage(socket, c)
+
 			} else {
 				if fromAddr >= impl.maxNodesPerHost {
 					netLog.Error("Number of connections (%d) from %s exceeds limit", fromAddr+1, pAddr)
@@ -195,12 +191,6 @@ func (impl *netPluginIMpl) startListenLoop() {
 
 		impl.startListenLoop()
 	})
-}
-
-func (impl *netPluginIMpl) startSession(socket *ReactiveSocket, con *Connection) bool {
-	impl.startReadMessage(socket, con)
-	impl.startedSessions++
-	return true
 }
 
 func (impl *netPluginIMpl) startReadMessage(socket *ReactiveSocket, conn *Connection) {
@@ -341,9 +331,9 @@ func (impl *netPluginIMpl) connect2(c *Connection, endPoint string) {
 		}
 		if err == nil {
 			c.conn = conn
-			if impl.startSession(c.socket, c) {
-				c.sendHandshake()
-			}
+			impl.startReadMessage(c.socket, c)
+			c.sendHandshake()
+
 		} else {
 			netLog.Error("connection failed to %s:%s", c.PeerName(), err.Error())
 			c.connecting = false
@@ -405,14 +395,15 @@ func (impl *netPluginIMpl) AcceptedConfirmation(head *types.HeaderConfirmation) 
 }
 
 func (impl *netPluginIMpl) TransactionAck(results common.Pair) {
-	packedTrx := results.Second.(types.PackedTransaction) //TODO  std::pair<fc::exception_ptr, packed_transaction_ptr>&
+	packedTrx, _ := results.Second.(*types.PackedTransaction)
+
 	id := packedTrx.ID()
 	if results.First != nil {
 		FcLog.Info("signaled NACK, trx-id = %s :%s", id, results.First)
 		impl.dispatcher.rejectedTransaction(id)
 	} else {
 		FcLog.Info("signaled ACK,trx-id = %s", id)
-		impl.dispatcher.bcastTransaction(&packedTrx)
+		impl.dispatcher.bcastTransaction(packedTrx)
 	}
 }
 
@@ -632,7 +623,7 @@ func (impl *netPluginIMpl) handleHandshake(c *Connection, msg *HandshakeMessage)
 		return
 	}
 
-	cc := App().FindPlugin("ChainPlugin").(*chain_plugin.ChainPlugin).Chain()
+	cc := impl.ChainPlugin.Chain()
 	libNum := cc.LastIrreversibleBlockNum()
 	peerLib := msg.LastIrreversibleBlockNum
 	if c.connecting {

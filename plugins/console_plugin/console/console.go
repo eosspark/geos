@@ -127,29 +127,25 @@ func (c *Console) init(preload []string) (err error) {
 	system := newSystem(c)
 	c.jsre.Bind("system", system)
 
-	multisig := newMultisig(c)
-	c.jsre.Bind("multisig", multisig)
-
 	producer := newProduceAPI(c)
 	c.jsre.Bind("producer", producer)
 
-	//path :="/Users/walker/go/src/github.com/eosspark/eos-go/plugins/console_plugin/console/js/jsre/deps/console.js"
-
-	//contents, err := ioutil.ReadFile("/Users/walker/go/src/github.com/eosspark/eos-go/plugins/console_plugin/console/js/jsre/deps/eosgo.js")
-	//if err != nil {
-	//	fmt.Println(err)
-	//}
-	//if err := c.jsre.Compile("eosgo.js", contents); err != nil {
-	//	return fmt.Errorf("eosgo.js:%v", err)
-	//}
+	multiSig := newMultiSig(c)
+	//c.jsre.Bind("multiSig", multiSig)
+	c.jsre.Set("multisig", struct{}{})
+	multiSigObj, _ := c.jsre.Get("multisig")
+	multiSigObj.Object().Set("propose", multiSig.Propose)
+	multiSigObj.Object().Set("proposetrx", multiSig.ProposeTrx)
+	multiSigObj.Object().Set("review", multiSig.Review)
+	multiSigObj.Object().Set("approve", multiSig.Approve)
+	multiSigObj.Object().Set("unapprove", multiSig.Unapprove)
+	multiSigObj.Object().Set("cancel", multiSig.Cancel)
+	multiSigObj.Object().Set("exec", multiSig.Exec)
 
 	//if err := c.jsre.Compile("eosgo.js", jsre.Eosgo_JS); err != nil {
 	//	return fmt.Errorf("eosgo.js:%v", err)
 	//}
 	//
-
-	//c.jsre.Bind("eosgo", eos)
-	//c.jsre.Set("createKey", eos.CreateKey)
 
 	//The admin.sleep and admin.sleepBlocks are offered by the console and not by the RPC layer.
 	admin, err := c.jsre.Get("eos")

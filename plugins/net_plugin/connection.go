@@ -374,18 +374,14 @@ func (c *Connection) txnSendPending(ids []common.TransactionIdType) {
 							if state.Requests == 0 {
 								state.BlockNum = state.TrueBlock
 							}
-
 						})
 					} else {
 						FcLog.Warn("Local pending TX erased before queued_write called callback")
 					}
 				})
-
 			}
-
 		}
 	}
-
 }
 
 func (c *Connection) txnSend(ids []common.TransactionIdType) {
@@ -468,11 +464,8 @@ func (c *Connection) blkSendBranch() {
 		netLog.Error("unable to retrieve block info: %s for %s", ex.What(), c.peerAddr)
 		c.enqueue(&note, true)
 		returning = true
-	}).Catch(func(ex exception.Exception) {
+	}).Catch(func(ex exception.Exception) {}).Catch(func(interface{}) {}).End()
 
-	}).Catch(func(interface{}) {
-
-	}).End()
 	if returning {
 		return
 	}
@@ -567,9 +560,7 @@ func (c *Connection) enqueueSyncBlock() bool {
 	//if common.Empty(c.peerRequested){
 	//	return false
 	//}
-	//if c.peerRequested ==nil{
-	//	return false
-	//}
+
 	if c.peerRequested.startTime == 0 { //TODO check nil
 		return false
 	}
@@ -725,11 +716,7 @@ func (c *Connection) enqueue(m NetMessage, triggerSend bool) {
 		closeAfterSend = m.(*GoAwayMessage).Reason
 	}
 
-	payload, err := rlp.EncodeToBytes(m)
-	if err != nil {
-		err = fmt.Errorf("net message, %s", err)
-		return
-	}
+	payload, _ := rlp.EncodeToBytes(m)
 	messageLen := uint32(len(payload) + 1)
 	buf := make([]byte, 4)
 	binary.LittleEndian.PutUint32(buf, messageLen)
@@ -798,7 +785,6 @@ func (c *Connection) doQueueWrite() {
 			c.doQueueWrite()
 
 		}).Catch(func(e interface{}) {
-			//conn :=c.lock()//TODO
 			conn := c
 			var pName string
 			if conn != nil {
@@ -809,6 +795,5 @@ func (c *Connection) doQueueWrite() {
 
 			netLog.Error("Exception in do_queue_write to %s: %s", pName, e)
 		}).End()
-
 	})
 }

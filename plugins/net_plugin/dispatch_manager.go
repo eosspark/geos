@@ -33,8 +33,7 @@ func (d *dispatchManager) bastBlock(myImpl *netPluginIMpl, bsum *types.SignedBlo
 
 	bid := bsum.BlockID()
 	bNum := bsum.BlockNumber()
-	_, ok := d.receivedBlocks[bid]
-	if ok {
+	if _, ok := d.receivedBlocks[bid]; ok {
 		for i, p := range d.receivedBlocks[bid] {
 			skips[p] = i
 		}

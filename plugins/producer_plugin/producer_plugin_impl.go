@@ -10,7 +10,10 @@ import (
 	. "github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/log"
+	"github.com/eosspark/eos-go/plugins/appbase/app"
+	"github.com/eosspark/eos-go/plugins/appbase/app/include"
 	"github.com/eosspark/eos-go/plugins/appbase/asio"
+	"github.com/eosspark/eos-go/plugins/chain_interface"
 	. "github.com/eosspark/eos-go/plugins/producer_plugin/multi_index"
 )
 
@@ -60,6 +63,8 @@ type ProducerPluginImpl struct {
 	// keep a expected ratio between defer txn and incoming txn
 	IncomingTrxWeight  float64
 	IncomingDeferRadio float64
+
+	TransactionAckChannel *include.Channel
 }
 
 type StartBlockResult int
@@ -98,6 +103,7 @@ func NewProducerPluginImpl(io *asio.IoContext) *ProducerPluginImpl {
 		BlacklistedTransactions: NewTransactionIdWithExpiryIndex(),
 		IncomingTrxWeight:       0.0,
 		IncomingDeferRadio:      1.0, // 1:1
+		TransactionAckChannel:   app.App().GetChannel(chain_interface.TransactionAck),
 	}
 }
 
@@ -218,7 +224,7 @@ func (impl *ProducerPluginImpl) OnIncomingBlock(block *types.SignedBlock) {
 	}
 
 	if except {
-		//TODO:C++ app().get_channel<channels::rejected_block>().publish( block );
+		app.App().GetChannel(chain_interface.RejectedBlock).Publish(block)
 		return
 	}
 
@@ -251,7 +257,7 @@ func (impl *ProducerPluginImpl) OnIncomingTransactionAsync(trx *types.PackedTran
 	sendResponse := func(response interface{}) {
 		next(response)
 		if re, ok := response.(Exception); ok {
-			//TODO C: _transaction_ack_channel.publish(std::pair<fc::exception_ptr, packed_transaction_ptr>(response.get<fc::exception_ptr>(), trx));
+			impl.TransactionAckChannel.Publish(common.Pair{re, trx})
 			if impl.PendingBlockMode == PendingBlockMode(producing) {
 				trxTraceLog.Debug("[TRX_TRACE] Block %d for producer %s is REJECTING tx: %s : %s ",
 					chain.HeadBlockNum()+1, chain.PendingBlockState().Header.Producer, trx.ID(), re.What())
@@ -261,7 +267,7 @@ func (impl *ProducerPluginImpl) OnIncomingTransactionAsync(trx *types.PackedTran
 			}
 
 		} else {
-			//TODO C: _transaction_ack_channel.publish(std::pair<fc::exception_ptr, packed_transaction_ptr>(nullptr, trx));
+			impl.TransactionAckChannel.Publish(common.Pair{nil, trx})
 			if impl.PendingBlockMode == PendingBlockMode(producing) {
 				trxTraceLog.Debug("[TRX_TRACE] Block %d for producer %s is ACCEPTING tx: %s",
 					chain.HeadBlockNum()+1, chain.PendingBlockState().Header.Producer, trx.ID())

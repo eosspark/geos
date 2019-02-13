@@ -106,10 +106,10 @@ func (n *NetPlugin) SetProgramOptions(options *[]cli.Flag) {
 			Usage: "maximum sizes of transaction or block messages that are sent without first sending a notice",
 			Value: uint(defMaxJustSend),
 		},
-		cli.BoolFlag{ //false
-			Name:  "use-socket-read-watermark",
-			Usage: "Enable expirimental socket read watermark optimization",
-		},
+		//cli.BoolFlag{ //false
+		//	Name:  "use-socket-read-watermark",
+		//	Usage: "Enable expirimental socket read watermark optimization",
+		//},
 		cli.StringFlag{
 			Name: "peer-log-format",
 			Usage: "The string used to format peers when logging messages about them.  Variables are escaped with ${<variable name>}.\n" +
@@ -138,7 +138,6 @@ func (n *NetPlugin) PluginInitialize(c *cli.Context) {
 		n.my.maxClientCount = uint32(c.Int("max-clients"))
 		n.my.maxNodesPerHost = uint32(c.Int("p2p-max-nodes-per-host"))
 		n.my.numClients = 0
-		n.my.useSocketReadWatermark = c.Bool("use-socket-read-watermark")
 
 		n.my.p2PAddress = c.String("p2p-listen-endpoint")
 		n.my.suppliedPeers = c.StringSlice("p2p-peer-address")
