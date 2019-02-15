@@ -77,29 +77,30 @@ func (w *SoftWallet) isNew() bool {
 	return len(w.wallet.CipherKeys) == 0
 }
 
-func (w *SoftWallet) isLocked() bool {
+func (w *SoftWallet) IsLocked() bool {
 	return bytes.Compare(w.checksum, nil) == 0
 }
 
-func (w *SoftWallet) Lock() (err error) {
-	if w.isLocked() {
-		return ErrWalletLocked
-	}
-	err = w.encryptKeys()
-	if err != nil {
-		return err
-	}
+func (w *SoftWallet) Lock() {
+	Try(func() {
+		EosAssert(!w.IsLocked(), &WalletLockedException{}, "Unable to lock a locked wallet")
+		/*err := */w.encryptKeys()
+		//if err != nil {
+		//	return err
+		//}
+		//
+		//for i := range w.Keys {
+		//	w.Keys[i] = ecc.PrivateKey{}
+		//}
+		//w.Keys = nil //TODO to clear all data
+		//w.checksum = nil
+		//
+		//return nil
+	})
 
-	for i := range w.Keys {
-		w.Keys[i] = ecc.PrivateKey{}
-	}
-	w.Keys = nil //TODO to clear all data
-	w.checksum = nil
-
-	return nil
 }
 
-func (w *SoftWallet) UnLock(password string) {
+func (w *SoftWallet) Unlock(password string) {
 	Try(func() {
 		FcAssert(len(password) > 0, "No password")
 		pw := hash512(password)
@@ -151,16 +152,21 @@ func (w *SoftWallet) CheckPassword(password string) {
 //SetPassword Sets a new password on the wallet
 func (w *SoftWallet) SetPassword(password string) {
 	if !w.isNew() {
-		EosAssert(!w.isLocked(), &WalletLockedException{}, "The wallet must be unlocked before the password can be set")
+		EosAssert(!w.IsLocked(), &WalletLockedException{}, "The wallet must be unlocked before the password can be set")
 	}
 	w.checksum = hash512(password)
 	w.Lock()
 }
 
-func (w *SoftWallet) ListPublicKeys(password string) []ecc.PublicKey {
-
+func (w *SoftWallet) ListKeys() map[ecc.PublicKey]ecc.PrivateKey {
+	EosAssert(!w.IsLocked(), &WalletLockedException{}, "Unable to list public keys of a locked wallet")
 	return nil
 }
+
+func (w *SoftWallet) ListPublicKeys() []ecc.PublicKey {
+	return nil
+}
+
 func (w *SoftWallet) LoadWalletFile() bool {
 	contents, err := ioutil.ReadFile(w.walletFilename)
 	if err != nil {
@@ -193,20 +199,20 @@ func (w *SoftWallet) SetWalletFilename(filename string) {
 	w.walletFilename = filename
 }
 
-func (w *SoftWallet) ImportKey(wifKey string) (n bool, err error) {
-	if w.isLocked() {
-		return false, ErrWalletLocked
+func (w *SoftWallet) ImportKey(wifKey string) (n bool) {
+	if w.IsLocked() {
+		return false
 	}
 	priv, err := ecc.NewPrivateKey(wifKey)
 	if err != nil {
-		return false, err
+		return false
 	}
 	wifPubKey := priv.PublicKey()
 	if _, find := w.Keys[wifPubKey]; !find {
 		w.Keys[wifPubKey] = *priv
-		return true, nil
+		return true
 	} else {
-		return false, ErrWalletKeyExist
+		return false
 	}
 }
 
@@ -233,7 +239,7 @@ func (w *SoftWallet) CreateKey(keyType string) string {
 }
 
 func (w *SoftWallet) encryptKeys() (err error) {
-	if !w.isLocked() {
+	if !w.IsLocked() {
 		keymap := make(map[ecc.PublicKey]Sprivate, 0)
 		for pub, pri := range w.Keys {
 			keymap[pub] = Sprivate{Curve: pri.Curve, PrivKey: pri.Serialize()}
@@ -252,7 +258,11 @@ func (w *SoftWallet) encryptKeys() (err error) {
 	return nil
 }
 
-func (w *SoftWallet) trySignDigest(digest []byte, publicKey ecc.PublicKey) *ecc.Signature {
+func (w *SoftWallet) GetPrivateKey(pubkey ecc.PublicKey) ecc.PrivateKey {
+	return ecc.PrivateKey{}
+}
+
+func (w *SoftWallet) TrySignDigest(digest []byte, publicKey ecc.PublicKey) *ecc.Signature {
 	it, ok := w.Keys[publicKey]
 	if !ok {
 		return ecc.NewSigNil()

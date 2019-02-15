@@ -107,9 +107,9 @@ func (wm *WalletManager) Create(name string) string {
 	wallet.SetPassword(password)
 	walletFileName := fmt.Sprintf("%s/%s%s", wm.dir, name, fileExt)
 	wallet.SetWalletFilename(walletFileName)
-	wallet.UnLock(password)
+	wallet.Unlock(password)
 	wallet.Lock()
-	wallet.UnLock(password)
+	wallet.Unlock(password)
 	// Explicitly save the wallet file here, to ensure it now exists.
 	wallet.SaveWalletFile()
 
@@ -144,7 +144,7 @@ func (wm *WalletManager) Open(name string) {
 func (wm *WalletManager) ListWallets() []string {
 	var result []string
 	for name, wallet := range wm.Wallets {
-		if wallet.isLocked() {
+		if wallet.IsLocked() {
 			result = append(result, name)
 		} else {
 			result = append(result, name+"*")
@@ -191,7 +191,7 @@ func (wm *WalletManager) ListKeys(name, password string) RespKeys {
 	if !ok {
 		EosThrow(&WalletNonexistentException{}, "Wallet not found: %s", name)
 	}
-	if wallet.isLocked() {
+	if wallet.IsLocked() {
 		EosThrow(&WalletLockedException{}, "Wallet is locked: %s", name)
 	}
 	wallet.CheckPassword(password)
@@ -203,7 +203,7 @@ func (wm *WalletManager) GetPublicKeys() (re []string) {
 	EosAssert(len(wm.Wallets) != 0, &WalletNotAvailableException{}, "You don't have any wallet!")
 	isAllWalletLocked := true
 	for name, wallet := range wm.Wallets {
-		if !wallet.isLocked() {
+		if !wallet.IsLocked() {
 			isAllWalletLocked = false
 			wm.log.Debug("wallet: %s is unlocked\n", name)
 			for pubkey, _ := range wallet.Keys {
@@ -223,7 +223,7 @@ func (wm *WalletManager) LockAllwallets() {
 func (wm *WalletManager) lockAll() {
 	// no call to check_timeout since we are locking all anyway
 	for _, wallet := range wm.Wallets {
-		if !wallet.isLocked() {
+		if !wallet.IsLocked() {
 			wallet.Lock()
 		}
 	}
@@ -257,11 +257,11 @@ func (wm *WalletManager) Unlock(name, password string) {
 	if !ok {
 		EosThrow(&WalletException{}, "Wallet not found", name)
 	}
-	if !wallet.isLocked() {
+	if !wallet.IsLocked() {
 		EosThrow(&WalletUnlockedException{}, "Wallet is already unlocked:%s", name)
 	}
-	wallet.UnLock(password)
-	wm.log.Debug("locked :%b", wallet.isLocked())
+	wallet.Unlock(password)
+	wm.log.Debug("locked :%b", wallet.IsLocked())
 
 }
 
@@ -276,14 +276,14 @@ func (wm *WalletManager) ImportKey(name, wifkey string) {
 		EosThrow(&WalletNonexistentException{}, "Wallet nor found: %s", name)
 	}
 
-	if wallet.isLocked() {
+	if wallet.IsLocked() {
 		EosThrow(&WalletLockedException{}, "Wallet is locked: %s\n", name)
 	}
 
-	ok, err := wallet.ImportKey(wifkey)
-	if err != nil {
-		EosThrow(&KeyExistException{}, "Key already in wallet")
-	}
+	ok = wallet.ImportKey(wifkey)
+	//if err != nil {
+	//	EosThrow(&KeyExistException{}, "Key already in wallet")
+	//}
 	if ok {
 		wallet.SaveWalletFile()
 	}
@@ -301,7 +301,7 @@ func (wm *WalletManager) RemoveKey(name, password, key string) {
 	if !ok {
 		EosThrow(&WalletNonexistentException{}, "Wallet not found:%s\n", name)
 	}
-	if wallet.isLocked() {
+	if wallet.IsLocked() {
 		EosThrow(&WalletLockedException{}, "Wallet is locked: %s\n", name)
 	}
 	wallet.CheckPassword(password) //throws if bad password
@@ -319,7 +319,7 @@ func (wm *WalletManager) CreateKey(name, keyType string) string {
 	if !ok {
 		EosThrow(&WalletNonexistentException{}, "Wallet not found:%s\n", name)
 	}
-	if wallet.isLocked() {
+	if wallet.IsLocked() {
 		EosThrow(&WalletLockedException{}, "Wallet is locked: %s\n", name)
 	}
 
@@ -340,8 +340,8 @@ func (wm *WalletManager) SignTransaction(txn *types.SignedTransaction, keys []ec
 		found := false
 
 		for _, wallet := range wm.Wallets {
-			if !wallet.isLocked() {
-				sig := wallet.trySignDigest(txn.SigDigest(&chainID, txn.ContextFreeData).Bytes(), key)
+			if !wallet.IsLocked() {
+				sig := wallet.TrySignDigest(txn.SigDigest(&chainID, txn.ContextFreeData).Bytes(), key)
 				if !common.Empty(sig) {
 					txn.Signatures = append(txn.Signatures, *sig)
 					found = true
@@ -360,8 +360,8 @@ func (wm *WalletManager) SignDigest(digest common.DigestType, key ecc.PublicKey)
 	wm.checkTimeout()
 	Try(func() {
 		for _, wallet := range wm.Wallets {
-			if !wallet.isLocked() {
-				sig = *wallet.trySignDigest(crypto.Sha256(digest).Bytes(), key)
+			if !wallet.IsLocked() {
+				sig = *wallet.TrySignDigest(crypto.Sha256(digest).Bytes(), key)
 				if !common.Empty(sig) {
 					break
 				}
