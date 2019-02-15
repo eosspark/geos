@@ -13,7 +13,7 @@ func newProduceAPI(c *Console) *ProduceAPI {
 	return &ProduceAPI{c: c}
 }
 
-func (n *ProduceAPI) Pause(call otto.FunctionCall) (response otto.Value) {
+func (p *ProduceAPI) Pause(call otto.FunctionCall) (response otto.Value) {
 	err := DoHttpCall(nil, common.ProducerPause, nil)
 	if err != nil {
 		clog.Error("SetWhitelistBlacklist is error: %s", err.Error())
@@ -22,7 +22,7 @@ func (n *ProduceAPI) Pause(call otto.FunctionCall) (response otto.Value) {
 	return
 }
 
-func (n *ProduceAPI) Resume(call otto.FunctionCall) (response otto.Value) {
+func (p *ProduceAPI) Resume(call otto.FunctionCall) (response otto.Value) {
 	err := DoHttpCall(nil, common.ProducerResume, nil)
 	if err != nil {
 		clog.Error("SetWhitelistBlacklist is error: %s", err.Error())
@@ -31,7 +31,7 @@ func (n *ProduceAPI) Resume(call otto.FunctionCall) (response otto.Value) {
 	return
 }
 
-func (n *ProduceAPI) Paused(call otto.FunctionCall) (response otto.Value) {
+func (p *ProduceAPI) Paused(call otto.FunctionCall) (response otto.Value) {
 	err := DoHttpCall(nil, common.ProducerPaused, nil)
 	if err != nil {
 		clog.Error("SetWhitelistBlacklist is error: %s", err.Error())
@@ -49,7 +49,7 @@ type SetWhitelistBlacklistParams struct {
 	KeyBlacklist      []string             `json:"keyBlacklist"`
 }
 
-func (n *ProduceAPI) SetWhitelistBlacklist(call otto.FunctionCall) (response otto.Value) {
+func (p *ProduceAPI) SetWhitelistBlacklist(call otto.FunctionCall) (response otto.Value) {
 	var params SetWhitelistBlacklistParams
 	readParams(&params, call)
 	clog.Info("params : %v", params)
@@ -62,7 +62,7 @@ func (n *ProduceAPI) SetWhitelistBlacklist(call otto.FunctionCall) (response ott
 	return
 }
 
-func (n *ProduceAPI) GetWhitelistBlacklist(call otto.FunctionCall) (response otto.Value) {
+func (p *ProduceAPI) GetWhitelistBlacklist(call otto.FunctionCall) (response otto.Value) {
 	var result SetWhitelistBlacklistParams
 
 	err := DoHttpCall(&result, common.ProducerGetWhitelistBlacklist, nil)

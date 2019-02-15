@@ -1,10 +1,6 @@
 package common
 
 const (
-	ChainUrl = "http://127.0.0.1:8888"
-	// walletUrl = "http://127.0.0.1:8900"
-	WalletUrl = "http://127.0.0.1:8888"
-	// walletUrl = "http://127.0.0.1:8765"
 	HttpEndPoint = "http://127.0.0.1:8888"
 )
 
