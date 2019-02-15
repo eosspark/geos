@@ -75,7 +75,7 @@ func (e *eosgo) SetCode(call otto.FunctionCall) (response otto.Value) {
 	var params SetContractParams
 	readParams(&params, call)
 
-	setCodeCallBack(&params)
+	e.setCodeCallBack(&params)
 	return
 }
 
@@ -83,7 +83,7 @@ func (e *eosgo) SetAbi(call otto.FunctionCall) (response otto.Value) {
 	var params SetContractParams
 	readParams(&params, call)
 
-	setAbiCallBack(&params)
+	e.setAbiCallBack(&params)
 	return
 }
 
@@ -92,13 +92,13 @@ func (e *eosgo) SetContract(call otto.FunctionCall) (response otto.Value) {
 	var params SetContractParams
 	readParams(&params, call)
 
-	setCodeCallBack(&params)
-	setAbiCallBack(&params)
+	e.setCodeCallBack(&params)
+	e.setAbiCallBack(&params)
 
 	return
 }
 
-func setAbiCallBack(params *SetContractParams) {
+func (e *eosgo) setAbiCallBack(params *SetContractParams) {
 	abiFile, err := ioutil.ReadFile(params.AbiPath)
 	if err != nil {
 		clog.Error("get abi from file is error %s", err.Error())
@@ -123,7 +123,7 @@ func setAbiCallBack(params *SetContractParams) {
 	abiCache[common.N(params.Account)] = abi_serializer.NewAbiSerializer(abiDef, abiSerializerMaxTime) //for resolve abi
 }
 
-func setCodeCallBack(params *SetContractParams) {
+func (e *eosgo) setCodeCallBack(params *SetContractParams) {
 	codeContent, err := ioutil.ReadFile(params.ContractPath)
 	if err != nil {
 		clog.Error("get abi from file is error %s", err.Error())
@@ -528,7 +528,7 @@ func toAsset(code common.AccountName, s string) *common.Asset {
 	sym := a.Symbol.ToSymbolCode()
 	symStr := a.Name()
 
-	if len(assetCache) == 0 { //TODO get currency stats now is not ready!!!!
+	if len(assetCache) == 0 {
 		newAssetCache()
 	}
 

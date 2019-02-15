@@ -8,7 +8,8 @@ import (
 
 //NetAPI interacts with local p2p network connections
 type NetAPI struct {
-	c *Console
+	c       *Console
+	baseUrl string
 }
 
 func newNetAPI(c *Console) *NetAPI {

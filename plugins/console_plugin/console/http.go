@@ -15,15 +15,17 @@ import (
 	"time"
 )
 
-type API struct {
+var BaseUrl string
+
+type client struct {
 	HttpClient *http.Client
 	BaseURL    string
 	Debug      bool
 	log        log.Logger
 }
 
-func NewHttp(baseURL string) *API {
-	api := &API{
+func NewClient(baseURL string) *client {
+	client := &client{
 		HttpClient: &http.Client{
 			Transport: &http.Transport{
 				Proxy: http.ProxyFromEnvironment,
@@ -42,9 +44,9 @@ func NewHttp(baseURL string) *API {
 		BaseURL: baseURL,
 		Debug:   false,
 	}
-	api.log = log.New("http")
-	api.log.SetHandler(log.TerminalHandler)
-	return api
+	client.log = log.New("http")
+	client.log.SetHandler(log.TerminalHandler)
+	return client
 }
 
 func enc(v interface{}) (io.Reader, error) {
@@ -58,29 +60,29 @@ func enc(v interface{}) (io.Reader, error) {
 	return bytes.NewReader(cnt), nil
 }
 
-func (api *API) call(path string, body interface{}) ([]byte, error) {
+func (client *client) call(path string, body interface{}) ([]byte, error) {
 	jsonBody, err := enc(body)
 	if err != nil {
 		return nil, err
 	}
-	targetURL := api.BaseURL + path
+	targetURL := client.BaseURL + path
 	req, err := http.NewRequest("POST", targetURL, jsonBody)
 	if err != nil {
 		return nil, fmt.Errorf("NewRequest: %s", err)
 	}
 
-	if api.Debug {
+	if client.Debug {
 		// Useful when debugging API calls
 		requestDump, err := httputil.DumpRequest(req, true)
 		if err != nil {
 			fmt.Println(err)
 		}
-		api.log.Debug("-------------------------------")
-		api.log.Debug(string(requestDump))
-		api.log.Debug("")
+		client.log.Debug("-------------------------------")
+		client.log.Debug(string(requestDump))
+		client.log.Debug("")
 	}
 
-	resp, err := api.HttpClient.Do(req)
+	resp, err := client.HttpClient.Do(req)
 	if err != nil {
 		return nil, fmt.Errorf("%s: %s", req.URL.String(), err)
 	}
@@ -92,8 +94,8 @@ func (api *API) call(path string, body interface{}) ([]byte, error) {
 		return nil, fmt.Errorf("Copy: %s", err)
 	}
 
-	if api.Debug {
-		api.log.Debug("Response body: %s", cnt.String())
+	if client.Debug {
+		client.log.Debug("Response body: %s", cnt.String())
 	}
 
 	statusCode := resp.StatusCode
@@ -121,15 +123,15 @@ func (api *API) call(path string, body interface{}) ([]byte, error) {
 	}
 
 	if statusCode != 200 {
-		api.log.Error("http request fail: Error code %d\n: %s", cnt.String())
+		client.log.Error("http request fail: Error code %d\n: %s", cnt.String())
 		return nil, fmt.Errorf("%s", "http request fail")
 	}
 	return cnt.Bytes(), nil
 }
 
 func DoHttpCall(result interface{}, path string, body interface{}) error {
-	http := NewHttp(common.HttpEndPoint)
-	out, err := http.call(path, body)
+	client := NewClient(BaseUrl)
+	out, err := client.call(path, body)
 	if err != nil {
 		return err
 	}

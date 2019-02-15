@@ -3,7 +3,6 @@ package console
 import (
 	"fmt"
 	"github.com/eosspark/eos-go/plugins/console_plugin/console/jsre"
-	"github.com/eosspark/eos-go/plugins/console_plugin/rpc"
 	"github.com/peterh/liner"
 	"github.com/robertkrimen/otto"
 	"io"
@@ -32,7 +31,7 @@ const DefaultPrompt = "eosgo > "
 type Config struct {
 	DataDir  string       // Data directory to store the console history at
 	DocRoot  string       // Filesystem path from where to load JavaScript files from
-	Client   *rpc.Client  // RPC client to execute EOSGO requests through
+	Client   *client      // RPC client to execute EOSGO requests through
 	Prompt   string       // Input prompt prefix string (defaults to DefaultPrompt)
 	Prompter UserPrompter // Input prompter to allow interactive user feedback (defaults to TerminalPrompter)
 	Printer  io.Writer    // Output writer to serialize any display strings to (defaults to os.Stdout)
@@ -43,7 +42,7 @@ type Config struct {
 // JavaScript console attached to a running node via an external or in-process RPC
 // client.
 type Console struct {
-	client   *rpc.Client  // RPC client to execute EOSGO requests through
+	client   *client      // RPC client to execute EOSGO requests through
 	jsre     *jsre.JSRE   // JavaScript runtime environment running the interpreter
 	prompt   string       // Input prompt prefix string
 	prompter UserPrompter // Input prompter to allow interactive user feedback
@@ -67,6 +66,7 @@ func New(config Config) (*Console, error) {
 	}
 	// Initialize the console and return
 	console := &Console{
+		//client:   config.Client,
 		client:   config.Client,
 		jsre:     jsre.New(config.DocRoot, config.Printer),
 		prompt:   config.Prompt,
@@ -94,14 +94,8 @@ func (c *Console) init(preload []string) (err error) {
 	consoleObj.Object().Set("error", c.consoleOutput)
 
 	eos := newEosgo(c)
-	bridge := newBridge(c.client, c.prompter, c.printer)
+	//bridge := newBridge(c.client, c.prompter, c.printer)
 	c.jsre.Bind("eos", eos)
-
-	//c.jsre.Set("eos", struct{}{})
-	eosObj, _ := c.jsre.Get("eos")
-	eosObj.Object().Set("send", bridge.Send)
-	eosObj.Object().Set("sendAsync", bridge.Send)
-	//eosObj.Object().Set("createAccount", eos.CreateAccount)
 
 	chain := newchainAPI(c)
 	c.jsre.Bind("chain", chain)
@@ -405,4 +399,14 @@ func (c *Console) logo() {
 	//fmt.Fprintf(c.printer,"\tEOSGO Stack Exchange: https://eosio.stackexchange.com\n")
 	//fmt.Fprintf(c.printer, "\tGithub: https://github.com/eosspark/eos-go\n\n")
 	fmt.Fprintf(c.printer, "\tWelcome to the EOSGO JavaScript console!\n")
+}
+
+// throwJSException panics on an otto.Value. The Otto VM will recover from the
+// Go panic and throw msg as a JavaScript error.
+func throwJSException(msg interface{}) otto.Value {
+	val, err := otto.ToValue(msg)
+	if err != nil {
+		//log.Error("Failed to serialize JavaScript exception", "exception", msg, "err", err)
+	}
+	panic(val)
 }

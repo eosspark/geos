@@ -200,7 +200,7 @@ func (m *multiSig) Approve(call otto.FunctionCall) (response otto.Value) {
 	var params ApproveAndUnapproveParams
 	readParams(&params, call)
 
-	approveOrUnapprove("approve", &params)
+	m.approveOrUnapprove("approve", &params)
 	return
 }
 
@@ -209,11 +209,11 @@ func (m *multiSig) Unapprove(call otto.FunctionCall) (response otto.Value) {
 	var params ApproveAndUnapproveParams
 	readParams(&params, call)
 
-	approveOrUnapprove("unapprove", &params)
+	m.approveOrUnapprove("unapprove", &params)
 	return
 }
 
-func approveOrUnapprove(action string, p *ApproveAndUnapproveParams) {
+func (m *multiSig) approveOrUnapprove(action string, p *ApproveAndUnapproveParams) {
 	var permissions common.PermissionLevel
 	err := json.Unmarshal([]byte(p.Perm), &permissions)
 	if err != nil {
