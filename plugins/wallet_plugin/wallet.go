@@ -280,15 +280,13 @@ func (w *SoftWallet) Unlock(password string) {
 		pw := hash512(password)
 		decrypted, err := Decrypt(string(pw[:]), w.my.Wallet.CipherKeys)
 		if err != nil {
-			fmt.Println("decrypt is error:", err)
-			FcAssert(false)
+			FcAssert(false, "decrypt is error: %v", err)
 		}
 
 		var pk SprivateKeys
 		err = rlp.DecodeBytes(decrypted, &pk)
 		if err != nil {
-			fmt.Println("decodeBytes is error:", err)
-			FcAssert(false)
+			FcAssert(false, "decodeBytes is error: %v", err)
 		}
 
 		FcAssert(bytes.Compare(pw, pk.CheckSum) == 0, "Invalid password for wallet")
@@ -296,8 +294,7 @@ func (w *SoftWallet) Unlock(password string) {
 		for pub, pri := range pk.Keys {
 			privateKey, err := ecc.NewDeterministicPrivateKey(bytes.NewReader(pri.PrivKey)) //TODO
 			if err != nil {
-				fmt.Println("NewDeterministicPrivateKey is wrong: ", err.Error())
-				FcAssert(false)
+				FcAssert(false, "NewDeterministicPrivateKey is wrong: %v", err.Error())
 			}
 			keyMap[pub] = *privateKey
 		}
