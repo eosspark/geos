@@ -111,7 +111,7 @@ func (wm *WalletManager) Create(name string) string {
 	wallet.Lock()
 	wallet.Unlock(password)
 	// Explicitly save the wallet file here, to ensure it now exists.
-	wallet.SaveWalletFile()
+	wallet.SaveWalletFile(DefaultWalletFilename)
 
 	// If we have name in our map then remove it since we want the emplace below to replace.
 	// This can happen if the wallet file is removed while eos-walletd is running.
@@ -130,7 +130,7 @@ func (wm *WalletManager) Open(name string) {
 	var wallet SoftWallet
 	walletFileName := fmt.Sprintf("%s/%s%s", wm.dir, name, fileExt)
 	wallet.SetWalletFilename(walletFileName)
-	if !wallet.LoadWalletFile() {
+	if !wallet.LoadWalletFile("") {
 		EosThrow(&WalletNonexistentException{}, "Unable to open file: %s", walletFileName)
 	}
 	// If we have name in our map then remove it since we want the emplace below to replace.
@@ -196,7 +196,7 @@ func (wm *WalletManager) ListKeys(name, password string) RespKeys {
 	}
 	wallet.CheckPassword(password)
 
-	return wallet.Keys
+	return wallet.my.Keys
 }
 
 func (wm *WalletManager) GetPublicKeys() (re []string) {
@@ -206,7 +206,7 @@ func (wm *WalletManager) GetPublicKeys() (re []string) {
 		if !wallet.IsLocked() {
 			isAllWalletLocked = false
 			wm.log.Debug("wallet: %s is unlocked\n", name)
-			for pubkey, _ := range wallet.Keys {
+			for pubkey, _ := range wallet.my.Keys {
 				re = append(re, pubkey.String())
 			}
 		}
@@ -285,7 +285,7 @@ func (wm *WalletManager) ImportKey(name, wifkey string) {
 	//	EosThrow(&KeyExistException{}, "Key already in wallet")
 	//}
 	if ok {
-		wallet.SaveWalletFile()
+		wallet.SaveWalletFile(DefaultWalletFilename)
 	}
 }
 
