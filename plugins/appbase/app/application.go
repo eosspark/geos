@@ -108,6 +108,10 @@ func (app *Application) setProgramOptions() {
 			Name:  "logconf",
 			Usage: "Logging configuration file name/path for library users",
 		},
+		cli.StringSliceFlag{
+			Name:  "plugin",
+			Usage: "Plugin(s) to enable, may be specified multiple times",
+		},
 	)
 	cli.HelpFlag = cli.BoolFlag{
 		Name:  "help, h",
@@ -148,6 +152,13 @@ func (app *Application) InitializeImpl(p []Plugin) bool {
 			}
 			if c.String("config-dir") != "" {
 				app.my.ConfigDir = homeDir() + c.String("config-dir")
+			}
+
+			if len(c.StringSlice("plugin")) > 0 {
+				plugins := c.StringSlice("plugin")
+				for _, plugin := range plugins {
+					app.GetPlugin(plugin).Initialize(c)
+				}
 			}
 
 			return nil

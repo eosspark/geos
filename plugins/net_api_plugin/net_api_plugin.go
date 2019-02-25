@@ -11,9 +11,9 @@ import (
 	"github.com/urfave/cli"
 )
 
-const NetApiPlug = PluginTypeName("NetAPiPlugin")
+const NetApiPlug = PluginTypeName("NetApiPlugin")
 
-var netApiPlugin = App().RegisterPlugin(NetApiPlug, NewTemplatePlugin())
+var netApiPlugin = App().RegisterPlugin(NetApiPlug, NewNetApiPlugin())
 
 type NetApiPlugin struct {
 	AbstractPlugin
@@ -23,7 +23,7 @@ type NetApiPlugin struct {
 type NetAPiPluginImpl struct {
 }
 
-func NewTemplatePlugin() *NetApiPlugin {
+func NewNetApiPlugin() *NetApiPlugin {
 	plugin := &NetApiPlugin{}
 	plugin.log = log.New("netApiPlugin")
 	plugin.log.SetHandler(log.TerminalHandler)

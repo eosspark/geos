@@ -3,7 +3,6 @@ package http_plugin
 import (
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/plugins/appbase/asio"
-	"github.com/eosspark/eos-go/plugins/console_plugin/rpc"
 	"net"
 	"net/http"
 )
@@ -28,7 +27,7 @@ type HttpPluginImpl struct {
 	HttpsListenEndpoint *http.ServeMux
 
 	Listener net.Listener
-	Handlers *rpc.Server
+	//Handlers *rpc.Server
 
 	self *HttpPlugin
 }

@@ -13,9 +13,9 @@ import (
 	"github.com/urfave/cli"
 )
 
-const ChainAPiPlug = PluginTypeName("ChainAPiPlugin")
+const ChainApiPlug = PluginTypeName("ChainApiPlugin")
 
-var chainAPiPlugin = App().RegisterPlugin(ChainAPiPlug, NewChainAPiPlugin())
+var chainApiPlugin = App().RegisterPlugin(ChainApiPlug, NewChainApiPlugin())
 
 type ChainApiPlugin struct {
 	AbstractPlugin
@@ -27,7 +27,7 @@ type ChainApiPluginImpl struct {
 	db *chain.Controller
 }
 
-func NewChainAPiPlugin() *ChainApiPlugin {
+func NewChainApiPlugin() *ChainApiPlugin {
 	plugin := &ChainApiPlugin{}
 	plugin.my = &ChainApiPluginImpl{}
 	plugin.log = log.New("ChainAPiPlugin")

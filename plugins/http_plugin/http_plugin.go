@@ -333,7 +333,6 @@ func HandleException(e interface{}, apiName, callName, body string, cb UrlRespon
 			results := ErrorResults{500, "Internal Service Error", newErrorInfo(e, verboseHttpErrors)}
 			hlog.Debug("results: %v", results)
 			re, _ := json.Marshal(results)
-			hlog.Debug("results: %s", re)
 			cb(500, re)
 			if e.Code() != (GreylistNetUsageExceeded{}).Code() && e.Code() != (GreylistCpuUsageExceeded{}).Code() {
 				hlog.Error("FC Exception encountered while processing %s.%s", apiName, callName)

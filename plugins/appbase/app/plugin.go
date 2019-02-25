@@ -29,7 +29,7 @@ type Plugin interface {
 	bind(plugin Plugin)
 }
 
-type PluginTypeName string
+type PluginTypeName = string
 
 type State int
 

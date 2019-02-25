@@ -94,6 +94,10 @@ func (s *syncManager) syncRequired() bool {
 	return s.syncLastRequestedNum < s.syncKnownLibNum || s.chainPlugin.Chain().ForkDbHeadBlockNum() < s.syncLastRequestedNum
 }
 
+func findConnection(peer string) {
+
+}
+
 func (s *syncManager) requestNextChunk(conn *Connection) {
 	headBlock := s.chainPlugin.Chain().ForkDbHeadBlockNum()
 
@@ -116,42 +120,47 @@ func (s *syncManager) requestNextChunk(conn *Connection) {
 				s.source = s.myImpl.connections[0]
 			}
 		} else {
-			// init to a linear array search
-			//cptr := s.myImpl.connections[0]
-			//cend :=s.myImpl.connections[len(s.myImpl.connections)-1]
-			//var i int
-			//end :=len(s.myImpl.connections)-1
-			//if s.source !=nil{
-			//	//try to find it in the list
-			//	i,cptr = s.myImpl.findConnection(s.source.peerAddr)
-			//	cend =cptr
-			//	if i ==end{
-			//		//not there - must have been closed! cend is now connections.end, so just flatten the ring.
-			//		s.source.reset()
-			//		cptr =s.myImpl.connections[0]
-			//	}else {
-			//		//was found - advance the start to the next. cend is the old source.
-			//		if i+1 ==end && i !=end{
-			//			cptr =s.myImpl.connections[0]
-			//		}
-			//	}
-			//}
-			//TODO
+			if len(s.myImpl.connections) == 1 {
+				if s.source == nil {
+					s.source = s.myImpl.connections[0]
+				}
+			} else {
+				cptr := 0
+				end := len(s.myImpl.connections) - 1
+				cend := end
+				if s.source != nil {
+					cptr, _ = s.myImpl.findConnection(s.source.peerAddr)
+					cend = cptr
+					if cptr == -1 {
+						//not there - must have been closed! cend is now connections.end, so just flatten the ring.
+						s.source.reset()
+						cptr = 0
+					} else {
+						//was found - advance the start to the next. cend is the old source.
+						if cptr+1 == end && cend != end {
+							cptr = 0
+						}
+					}
+				}
+				cstartIt := cptr
+				for {
+					//select the first one which is current and break out.
+					if s.myImpl.connections[cptr].current() {
+						s.source = s.myImpl.connections[cptr]
+						break
+					}
 
-			//scan the list of peers looking for another able to provide sync blocks.
-
-			//auto cstart_it = cptr;
-			//do {
-			//	//select the first one which is current and break out.
-			//	if((*cptr)->current()) {
-			//	source = *cptr;
-			//	break;
-			//}
-			//	if(++cptr == my_impl->connections.end())
-			//	cptr = my_impl->connections.begin();
-			//} while(cptr != cstart_it);
-
-			// no need to check the result, either source advanced or the whole list was checked and the old source is reused.
+					if cptr == end {
+						cptr = 0
+					} else {
+						cptr++
+					}
+					if cstartIt == cptr {
+						break
+					}
+				}
+				// no need to check the result, either source advanced or the whole list was checked and the old source is reused.
+			}
 		}
 	}
 
