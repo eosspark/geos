@@ -1,3 +1,5 @@
+//+build !shared
+
 package ordered_index
 
 import (

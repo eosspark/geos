@@ -1,3 +1,5 @@
+//+build !shared
+
 package hashed_index
 
 import (

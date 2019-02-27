@@ -1,3 +1,5 @@
+//+build !shared
+
 package multi_index_container
 
 import (
