@@ -20,7 +20,7 @@ import (
 
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/common/container"
-	rbt "github.com/eosspark/eos-go/common/container/tree"
+	rbt "github.com/eosspark/eos-go/common/container/redblacktree"
 	"github.com/eosspark/eos-go/crypto/rlp"
 )
 
@@ -181,7 +181,7 @@ func (m *IntStringPtrMap) UnmarshalJSON(data []byte) error {
 	elements := make([]pairIntStringPtrMap, 0)
 	err := json.Unmarshal(data, &elements)
 	if err == nil {
-		m.Clear()
+		m.Tree = rbt.NewWith(IntComparator, false)
 		for _, pair := range elements {
 			m.Put(pair.Key, pair.Val)
 		}

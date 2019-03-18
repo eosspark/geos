@@ -4,54 +4,99 @@ package int
 
 import (
 	"fmt"
+	"unsafe"
 
 	"github.com/eosspark/eos-go/common/container"
 	"github.com/eosspark/eos-go/common/container/multiindex"
+	. "github.com/eosspark/eos-go/common/container/offsetptr"
 )
 
-// template type OrderedIndex(FinalIndex,FinalNode,SuperIndex,SuperNode,Value,Key,KeyFunc,Comparator,Multiply)
+// template type OrderedIndex(FinalIndex,FinalNode,SuperIndex,SuperNode,Value,Key,KeyFunc,Comparator,Multiply,Allocator)
 
 // OrderedIndex holds elements of the red-black tree
 type ByNum struct {
-	super *ByPrev    // index on the OrderedIndex, IndexBase is the last super index
-	final *TestIndex // index under the OrderedIndex, MultiIndex is the final index
+	super Pointer `*SuperIndex` // index on the OrderedIndex, IndexBase is the last super index
+	final Pointer `*FinalIndex` // index under the OrderedIndex, MultiIndex is the final index
 
-	Root *ByNumNode
+	Root Pointer `*OrderedIndexNode`
 	size int
 }
 
 func (tree *ByNum) init(final *TestIndex) {
-	tree.final = final
-	tree.super = &ByPrev{}
-	tree.super.init(final)
+	tree.Root.Set(nil)
+	tree.size = 0
+	tree.final.Set(unsafe.Pointer(final))
+	//tree.final = final
+	tree.super.Set(unsafe.Pointer(NewSuperIndexByNum()))
+	//tree.super = NewSuperIndex()
+	(*ByPrev)(tree.super.Get()).init(final)
+	//tree.super.init(final)
+}
+
+func (tree *ByNum) free() {
+	(*ByPrev)(tree.super.Get()).free()
 }
 
 func (tree *ByNum) clear() {
 	tree.Clear()
-	tree.super.clear()
+	(*ByPrev)(tree.super.Get()).clear()
 }
 
 /*generic class*/
+
+const _SizeofSuperIndexByNum = unsafe.Sizeof(ByPrev{})
+
+func NewSuperIndexByNum() *ByPrev {
+	if alloc == nil {
+		return &ByPrev{}
+	}
+	return (*ByPrev)(alloc.Allocate(_SizeofSuperIndexByNum))
+}
 
 /*generic class*/
 
 // OrderedIndexNode is a single element within the tree
 type ByNumNode struct {
 	Key    int
-	super  *ByPrevNode
-	final  *TestIndexNode
+	super  Pointer `*SuperNode`
+	final  Pointer `*FinalNode`
 	color  colorByNum
-	Left   *ByNumNode
-	Right  *ByNumNode
-	Parent *ByNumNode
+	Left   Pointer `*OrderedIndexNode`
+	Right  Pointer `*OrderedIndexNode`
+	Parent Pointer `*OrderedIndexNode`
+}
+
+type np_ByNum = *ByNumNode
+
+const _SizeofByNumNode = unsafe.Sizeof(ByNumNode{})
+
+func NewByNumNode(key int, color colorByNum) (n *ByNumNode) {
+	n = np_ByNum(alloc.Allocate(_SizeofByNumNode))
+	n.Key = key
+	n.color = color
+	n.super.Set(nil)
+	n.final.Set(nil)
+	n.Left.Set(nil)
+	n.Right.Set(nil)
+	n.Parent.Set(nil)
+
+	return n
 }
 
 /*generic class*/
 
 /*generic class*/
 
+func (node *ByNumNode) free() {
+	if node != nil {
+		alloc.DeAllocate(unsafe.Pointer(node))
+	}
+	// else free by golang gc
+}
+
 func (node *ByNumNode) value() *int {
-	return node.super.value()
+	return (*ByPrevNode)(node.super.Get()).value()
+	//return node.super.value()
 }
 
 type colorByNum bool
@@ -61,7 +106,8 @@ const (
 )
 
 func (tree *ByNum) Insert(v int) (IteratorByNum, bool) {
-	fn, res := tree.final.insert(v)
+	fn, res := (*TestIndex)(tree.final.Get()).insert(v)
+	//fn, res := tree.final.insert(v)
 	if res {
 		return tree.makeIterator(fn), true
 	}
@@ -76,10 +122,13 @@ func (tree *ByNum) insert(v int, fn *TestIndexNode) (*ByNumNode, bool) {
 		container.Logger.Warn("#ordered index insert failed")
 		return nil, false
 	}
-	sn, res := tree.super.insert(v, fn)
+	sn, res := (*ByPrev)(tree.super.Get()).insert(v, fn)
+	//sn, res := tree.super.insert(v, fn)
 	if res {
-		node.super = sn
-		node.final = fn
+		node.super.Set(unsafe.Pointer(sn))
+		//node.super = sn
+		node.final.Set(unsafe.Pointer(fn))
+		//node.final = fn
 		return node, true
 	}
 	tree.remove(node)
@@ -89,7 +138,8 @@ func (tree *ByNum) insert(v int, fn *TestIndexNode) (*ByNumNode, bool) {
 func (tree *ByNum) Erase(iter IteratorByNum) (itr IteratorByNum) {
 	itr = iter
 	itr.Next()
-	tree.final.erase(iter.node.final)
+	(*TestIndex)(tree.final.Get()).erase((*TestIndexNode)(iter.node.final.Get()))
+	//tree.final.erase(iter.node.final)
 	return
 }
 
@@ -101,21 +151,25 @@ func (tree *ByNum) Erases(first, last IteratorByNum) {
 
 func (tree *ByNum) erase(n *ByNumNode) {
 	tree.remove(n)
-	tree.super.erase(n.super)
-	n.super = nil
-	n.final = nil
+	(*ByPrev)(tree.super.Get()).erase((*ByPrevNode)(n.super.Get()))
+	//tree.super.erase(n.super)
+	n.free()
+	//n.super = nil
+	//n.final = nil
 }
 
 func (tree *ByNum) erase_(iter multiindex.IteratorType) {
 	if itr, ok := iter.(IteratorByNum); ok {
 		tree.Erase(itr)
 	} else {
-		tree.super.erase_(iter)
+		(*ByPrev)(tree.super.Get()).erase_(iter)
+		//tree.super.erase_(iter)
 	}
 }
 
 func (tree *ByNum) Modify(iter IteratorByNum, mod func(*int)) bool {
-	if _, b := tree.final.modify(mod, iter.node.final); b {
+	if _, b := (*TestIndex)(tree.final.Get()).modify(mod, (*TestIndexNode)(iter.node.final.Get())); b {
+		//if _, b := tree.final.modify(mod, iter.node.final); b {
 		return true
 	}
 	return false
@@ -129,38 +183,25 @@ func (tree *ByNum) modify(n *ByNumNode) (*ByNumNode, bool) {
 		node, res := tree.put(n.Key)
 		if !res {
 			container.Logger.Warn("#ordered index modify failed")
-			tree.super.erase(n.super)
+			(*ByPrev)(tree.super.Get()).erase((*ByPrevNode)(n.super.Get()))
+			//tree.super.erase(n.super)
 			return nil, false
 		}
 
-		//n.Left = node.Left
-		//if n.Left != nil {
-		//	n.Left.Parent = n
-		//}
-		//n.Right = node.Right
-		//if n.Right != nil {
-		//	n.Right.Parent = n
-		//}
-		//n.Parent = node.Parent
-		//if n.Parent != nil {
-		//	if n.Parent.Left == node {
-		//		n.Parent.Left = n
-		//	} else {
-		//		n.Parent.Right = n
-		//	}
-		//} else {
-		//	tree.Root = n
-		//}
-		node.super = n.super
-		node.final = n.final
+		node.super.Forward(&n.super)
+		node.final.Forward(&n.final)
+
+		n.free()
 		n = node
 	}
 
-	if sn, res := tree.super.modify(n.super); !res {
+	if sn, res := (*ByPrev)(tree.super.Get()).modify((*ByPrevNode)(n.super.Get())); !res {
+		//if sn, res := tree.super.modify(n.super); !res {
 		tree.remove(n)
 		return nil, false
 	} else {
-		n.super = sn
+		n.super.Set(unsafe.Pointer(sn))
+		//n.super = sn
 	}
 
 	return n, true
@@ -170,7 +211,8 @@ func (tree *ByNum) modify_(iter multiindex.IteratorType, mod func(*int)) bool {
 	if itr, ok := iter.(IteratorByNum); ok {
 		return tree.Modify(itr, mod)
 	} else {
-		return tree.super.modify_(iter, mod)
+		return (*ByPrev)(tree.super.Get()).modify_(iter, mod)
+		//return tree.super.modify_(iter, mod)
 	}
 }
 
@@ -196,7 +238,7 @@ func (tree *ByNum) Find(key int) IteratorByNum {
 // Complexity: O(log N).
 func (tree *ByNum) LowerBound(key int) IteratorByNum {
 	result := tree.End()
-	node := tree.Root
+	node := np_ByNum(tree.Root.Get())
 
 	if node == nil {
 		return result
@@ -204,16 +246,21 @@ func (tree *ByNum) LowerBound(key int) IteratorByNum {
 
 	for {
 		if ByNumCompare(key, node.Key) > 0 {
-			if node.Right != nil {
-				node = node.Right
+			if !node.Right.IsNil() {
+				//if node.Right != nil {
+				node = np_ByNum(node.Right.Get())
+				//node = node.Right
 			} else {
 				return result
 			}
 		} else {
 			result.node = node
+			//result.node = node
 			result.position = betweenByNum
-			if node.Left != nil {
-				node = node.Left
+			if !node.Left.IsNil() {
+				//if node.Left != nil {
+				node = np_ByNum(node.Left.Get())
+				//node = node.Left
 			} else {
 				return result
 			}
@@ -225,7 +272,7 @@ func (tree *ByNum) LowerBound(key int) IteratorByNum {
 // Complexity: O(log N).
 func (tree *ByNum) UpperBound(key int) IteratorByNum {
 	result := tree.End()
-	node := tree.Root
+	node := np_ByNum(tree.Root.Get())
 
 	if node == nil {
 		return result
@@ -233,16 +280,21 @@ func (tree *ByNum) UpperBound(key int) IteratorByNum {
 
 	for {
 		if ByNumCompare(key, node.Key) >= 0 {
-			if node.Right != nil {
-				node = node.Right
+			if !node.Right.IsNil() {
+				//if node.Right != nil {
+				node = np_ByNum(node.Right.Get())
+				//node = node.Right
 			} else {
 				return result
 			}
 		} else {
 			result.node = node
+			//result.node = node
 			result.position = betweenByNum
-			if node.Left != nil {
-				node = node.Left
+			if !node.Left.IsNil() {
+				//if node.Left != nil {
+				node = np_ByNum(node.Left.Get())
+				//node = node.Left
 			} else {
 				return result
 			}
@@ -271,63 +323,86 @@ func (tree *ByNum) Remove(key int) {
 
 func (tree *ByNum) put(key int) (*ByNumNode, bool) {
 	var insertedNode *ByNumNode
-	if tree.Root == nil {
+	if tree.Root.IsNil() {
+		//if tree.Root == nil {
 		// Assert key is of comparator's type for initial tree
 		ByNumCompare(key, key)
-		tree.Root = &ByNumNode{Key: key, color: redByNum}
-		insertedNode = tree.Root
+		tree.Root.Set(unsafe.Pointer(NewByNumNode(key, redByNum)))
+		//tree.Root = &OrderedIndexNode{Key: key, color: red}
+		insertedNode = np_ByNum(tree.Root.Get())
 	} else {
-		node := tree.Root
+		node := np_ByNum(tree.Root.Get())
 		loop := true
 		if true {
 			for loop {
 				compare := ByNumCompare(key, node.Key)
+				//compare := Comparator(key, node.Key)
 				switch {
 				case compare < 0:
-					if node.Left == nil {
-						node.Left = &ByNumNode{Key: key, color: redByNum}
-						insertedNode = node.Left
+					if node.Left.IsNil() {
+						//if node.Left == nil {
+						node.Left.Set(unsafe.Pointer(NewByNumNode(key, redByNum)))
+						//node.Left = NewOrderedIndexNode(key, red)
+						insertedNode = np_ByNum(node.Left.Get())
+						//insertedNode = node.Left
 						loop = false
 					} else {
-						node = node.Left
+						node = np_ByNum(node.Left.Get())
+						//node = node.Left
 					}
 				case compare >= 0:
-					if node.Right == nil {
-						node.Right = &ByNumNode{Key: key, color: redByNum}
-						insertedNode = node.Right
+					if node.Right.IsNil() {
+						//if node.Right == nil {
+						node.Right.Set(unsafe.Pointer(NewByNumNode(key, redByNum)))
+						//node.Right = NewOrderedIndexNode(key, red)
+						insertedNode = np_ByNum(node.Right.Get())
+						//insertedNode = node.Right
 						loop = false
 					} else {
-						node = node.Right
+						node = np_ByNum(node.Right.Get())
+						//node = node.Right
 					}
 				}
 			}
 		} else {
 			for loop {
 				compare := ByNumCompare(key, node.Key)
+				//compare := Comparator(key, node.Key)
 				switch {
 				case compare == 0:
 					node.Key = key
+					//node.Key = key
 					return node, false
+					//return node, false
 				case compare < 0:
-					if node.Left == nil {
-						node.Left = &ByNumNode{Key: key, color: redByNum}
-						insertedNode = node.Left
+					if node.Left.IsNil() {
+						//if node.Left == nil {
+						node.Left.Set(unsafe.Pointer(NewByNumNode(key, redByNum)))
+						//node.Left = NewOrderedIndexNode(key, red)
+						insertedNode = np_ByNum(node.Left.Get())
+						//insertedNode = node.Left
 						loop = false
 					} else {
-						node = node.Left
+						node = np_ByNum(node.Left.Get())
+						//node = node.Left
 					}
 				case compare > 0:
-					if node.Right == nil {
-						node.Right = &ByNumNode{Key: key, color: redByNum}
-						insertedNode = node.Right
+					if node.Right.IsNil() {
+						//if node.Right == nil {
+						node.Right.Set(unsafe.Pointer(NewByNumNode(key, redByNum)))
+						//node.Right = NewOrderedIndexNode(key, red)
+						insertedNode = np_ByNum(node.Right.Get())
+						//insertedNode = node.Right
 						loop = false
 					} else {
-						node = node.Right
+						node = np_ByNum(node.Right.Get())
+						//node = node.Right
 					}
 				}
 			}
 		}
-		insertedNode.Parent = node
+		insertedNode.Parent.Set(unsafe.Pointer(node))
+		//insertedNode.Parent = node
 	}
 	tree.insertCase1(insertedNode)
 	tree.size++
@@ -340,69 +415,102 @@ func (tree *ByNum) swapNode(node *ByNumNode, pred *ByNumNode) {
 		return
 	}
 
-	tmp := ByNumNode{color: pred.color, Left: pred.Left, Right: pred.Right, Parent: pred.Parent}
+	tmp := ByNumNode{color: pred.color}
+	tmp.Left.Forward(&pred.Left)
+	tmp.Right.Forward(&pred.Right)
+	tmp.Parent.Forward(&pred.Parent)
+	//tmp := OrderedIndexNode{color: pred.color, Left: pred.Left, Right: pred.Right, Parent: pred.Parent}
 
 	pred.color = node.color
 	node.color = tmp.color
 
-	pred.Right = node.Right
-	if pred.Right != nil {
-		pred.Right.Parent = pred
+	pred.Right.Forward(&node.Right)
+	if !pred.Right.IsNil() {
+		//if pred.Right != nil {
+		np_ByNum(pred.Right.Get()).Parent.Set(unsafe.Pointer(pred))
+		//pred.Right.Parent = pred
 	}
-	node.Right = tmp.Right
-	if node.Right != nil {
-		node.Right.Parent = node
+	node.Right.Forward(&tmp.Right)
+	if !node.Right.IsNil() {
+		//if node.Right != nil {
+		np_ByNum(pred.Right.Get()).Parent.Set(unsafe.Pointer(node))
+		//node.Right.Parent = node
 	}
 
-	if pred.Parent == node {
-		pred.Left = node
-		node.Left = tmp.Left
-		if node.Left != nil {
-			node.Left.Parent = node
+	if np_ByNum(pred.Parent.Get()) == node {
+		//if pred.Parent == node {
+		pred.Left.Set(unsafe.Pointer(node))
+		//pred.Left = node
+		node.Left.Forward(&tmp.Left)
+		//node.Left = tmp.Left
+		if !node.Left.IsNil() {
+			//if node.Left != nil {
+			np_ByNum(node.Left.Get()).Parent.Set(unsafe.Pointer(node))
+			//node.Left.Parent = node
 		}
 
-		pred.Parent = node.Parent
-		if pred.Parent != nil {
-			if pred.Parent.Left == node {
-				pred.Parent.Left = pred
+		pred.Parent.Forward(&node.Parent)
+		//pred.Parent = node.Parent
+		if !pred.Parent.IsNil() {
+			//if pred.Parent != nil {
+			if np_ByNum(np_ByNum(pred.Parent.Get()).Left.Get()) == node {
+				//if pred.Parent.Left == node {
+				np_ByNum(pred.Parent.Get()).Left.Set(unsafe.Pointer(pred))
+				//pred.Parent.Left = pred
 			} else {
-				pred.Parent.Right = pred
+				np_ByNum(pred.Parent.Get()).Right.Set(unsafe.Pointer(pred))
+				//pred.Parent.Right = pred
 			}
 		} else {
-			tree.Root = pred
+			tree.Root.Set(unsafe.Pointer(pred))
+			//tree.Root = pred
 		}
-		node.Parent = pred
+		node.Parent.Set(unsafe.Pointer(pred))
+		//node.Parent = pred
 
 	} else {
-		pred.Left = node.Left
-		if pred.Left != nil {
-			pred.Left.Parent = pred
+		pred.Left.Forward(&node.Left)
+		if !pred.Left.IsNil() {
+			//if pred.Left != nil {
+			np_ByNum(pred.Left.Get()).Parent.Set(unsafe.Pointer(pred))
+			//pred.Left.Parent = pred
 		}
-		node.Left = tmp.Left
-		if node.Left != nil {
-			node.Left.Parent = node
-		}
-
-		pred.Parent = node.Parent
-		if pred.Parent != nil {
-			if pred.Parent.Left == node {
-				pred.Parent.Left = pred
-			} else {
-				pred.Parent.Right = pred
-			}
-		} else {
-			tree.Root = pred
+		node.Left.Forward(&tmp.Left)
+		if !node.Left.IsNil() {
+			//if node.Left != nil {
+			np_ByNum(pred.Left.Get()).Parent.Set(unsafe.Pointer(node))
+			//node.Left.Parent = node
 		}
 
-		node.Parent = tmp.Parent
-		if node.Parent != nil {
-			if node.Parent.Left == pred {
-				node.Parent.Left = node
+		pred.Parent.Forward(&node.Parent)
+		if !pred.Parent.IsNil() {
+			if np_ByNum(np_ByNum(pred.Parent.Get()).Left.Get()) == node {
+				//if pred.Parent.Left == node {
+				np_ByNum(pred.Parent.Get()).Left.Set(unsafe.Pointer(pred))
+				//pred.Parent.Left = pred
 			} else {
-				node.Parent.Right = node
+				np_ByNum(pred.Parent.Get()).Right.Set(unsafe.Pointer(pred))
+				//pred.Parent.Right = pred
 			}
 		} else {
-			tree.Root = node
+			tree.Root.Set(unsafe.Pointer(pred))
+			//tree.Root = pred
+		}
+
+		node.Parent.Forward(&tmp.Parent)
+		if !node.Parent.IsNil() {
+			//if node.Parent != nil {
+			if np_ByNum(np_ByNum(node.Parent.Get()).Left.Get()) == pred {
+				//if node.Parent.Left == pred {
+				np_ByNum(node.Parent.Get()).Left.Set(unsafe.Pointer(node))
+				//node.Parent.Left = node
+			} else {
+				np_ByNum(node.Parent.Get()).Right.Set(unsafe.Pointer(node))
+				//node.Parent.Right = node
+			}
+		} else {
+			tree.Root.Set(unsafe.Pointer(node))
+			//tree.Root = node
 		}
 	}
 }
@@ -412,22 +520,29 @@ func (tree *ByNum) remove(node *ByNumNode) {
 	if node == nil {
 		return
 	}
-	if node.Left != nil && node.Right != nil {
-		pred := node.Left.maximumNode()
+	if !node.Left.IsNil() && !node.Right.IsNil() {
+		//if node.Left != nil && node.Right != nil {
+		pred := np_ByNum(node.Left.Get()).maximumNode()
+		//pred := node.Left.maximumNode()
 		tree.swapNode(node, pred)
 	}
-	if node.Left == nil || node.Right == nil {
-		if node.Right == nil {
-			child = node.Left
+	if node.Left.IsNil() || node.Right.IsNil() {
+		//if node.Left == nil || node.Right == nil {
+		if node.Right.IsNil() {
+			//if node.Right == nil {
+			child = np_ByNum(node.Left.Get())
+			//child = node.Left
 		} else {
-			child = node.Right
+			child = np_ByNum(node.Right.Get())
+			//child = node.Right
 		}
 		if node.color == blackByNum {
 			node.color = nodeColorByNum(child)
 			tree.deleteCase1(node)
 		}
 		tree.replaceNode(node, child)
-		if node.Parent == nil && child != nil {
+		if node.Parent.IsNil() && child != nil {
+			//if node.Parent == nil && child != nil {
 			child.color = blackByNum
 		}
 	}
@@ -435,16 +550,19 @@ func (tree *ByNum) remove(node *ByNumNode) {
 }
 
 func (tree *ByNum) lookup(key int) *ByNumNode {
-	node := tree.Root
+	node := np_ByNum(tree.Root.Get())
+	//node := tree.Root
 	for node != nil {
 		compare := ByNumCompare(key, node.Key)
 		switch {
 		case compare == 0:
 			return node
 		case compare < 0:
-			node = node.Left
+			node = np_ByNum(node.Left.Get())
+			//node = node.Left
 		case compare > 0:
-			node = node.Right
+			node = np_ByNum(node.Right.Get())
+			//node = node.Right
 		}
 	}
 	return nil
@@ -483,10 +601,12 @@ func (tree *ByNum) Values() []int {
 // Left returns the left-most (min) node or nil if tree is empty.
 func (tree *ByNum) Left() *ByNumNode {
 	var parent *ByNumNode
-	current := tree.Root
+	current := np_ByNum(tree.Root.Get())
+	//current := tree.Root
 	for current != nil {
 		parent = current
-		current = current.Left
+		current = np_ByNum(current.Left.Get())
+		//current = current.Left
 	}
 	return parent
 }
@@ -494,17 +614,22 @@ func (tree *ByNum) Left() *ByNumNode {
 // Right returns the right-most (max) node or nil if tree is empty.
 func (tree *ByNum) Right() *ByNumNode {
 	var parent *ByNumNode
-	current := tree.Root
+	current := np_ByNum(tree.Root.Get())
+	//current := tree.Root
 	for current != nil {
 		parent = current
-		current = current.Right
+		current = np_ByNum(current.Right.Get())
 	}
 	return parent
 }
 
 // Clear removes all nodes from the tree.
 func (tree *ByNum) Clear() {
-	tree.Root = nil
+	if alloc != nil {
+		//TODO DeAllocator
+	}
+	tree.Root.Set(nil)
+	//tree.Root = nil
 	tree.size = 0
 }
 
@@ -512,7 +637,8 @@ func (tree *ByNum) Clear() {
 func (tree *ByNum) String() string {
 	str := "OrderedIndex\n"
 	if !tree.Empty() {
-		outputByNum(tree.Root, "", true, &str)
+		outputByNum(np_ByNum(tree.Root.Get()), "", true, &str)
+		//output(tree.Root, "", true, &str)
 	}
 	return str
 }
@@ -525,14 +651,16 @@ func (node *ByNumNode) String() string {
 }
 
 func outputByNum(node *ByNumNode, prefix string, isTail bool, str *string) {
-	if node.Right != nil {
+	if !node.Right.IsNil() {
+		//if node.Right != nil {
 		newPrefix := prefix
 		if isTail {
 			newPrefix += "│   "
 		} else {
 			newPrefix += "    "
 		}
-		outputByNum(node.Right, newPrefix, false, str)
+		outputByNum(np_ByNum(node.Right.Get()), newPrefix, false, str)
+		//output(node.Right, newPrefix, false, str)
 	}
 	*str += prefix
 	if isTail {
@@ -541,90 +669,115 @@ func outputByNum(node *ByNumNode, prefix string, isTail bool, str *string) {
 		*str += "┌── "
 	}
 	*str += node.String() + "\n"
-	if node.Left != nil {
+	if !node.Left.IsNil() {
+		//if node.Left != nil {
 		newPrefix := prefix
 		if isTail {
 			newPrefix += "    "
 		} else {
 			newPrefix += "│   "
 		}
-		outputByNum(node.Left, newPrefix, true, str)
+		outputByNum(np_ByNum(node.Left.Get()), newPrefix, true, str)
+		//output(node.Left, newPrefix, true, str)
 	}
 }
 
 func (node *ByNumNode) grandparent() *ByNumNode {
-	if node != nil && node.Parent != nil {
-		return node.Parent.Parent
+	if node != nil && !node.Parent.IsNil() {
+		//if node != nil && node.Parent != nil {
+		return np_ByNum(np_ByNum(node.Parent.Get()).Parent.Get())
+		//return node.Parent.Parent
 	}
 	return nil
 }
 
 func (node *ByNumNode) uncle() *ByNumNode {
-	if node == nil || node.Parent == nil || node.Parent.Parent == nil {
+	if node == nil || node.Parent.IsNil() || np_ByNum(node.Parent.Get()).Parent.IsNil() {
+		//if node == nil || node.Parent == nil || node.Parent.Parent == nil {
 		return nil
 	}
-	return node.Parent.sibling()
+	return np_ByNum(node.Parent.Get()).sibling()
+	//return node.Parent.sibling()
 }
 
 func (node *ByNumNode) sibling() *ByNumNode {
-	if node == nil || node.Parent == nil {
+	if node == nil || node.Parent.IsNil() {
+		//if node == nil || node.Parent == nil {
 		return nil
 	}
-	if node == node.Parent.Left {
-		return node.Parent.Right
+	if node == np_ByNum(np_ByNum(node.Parent.Get()).Left.Get()) {
+		//if node == node.Parent.Left {
+		return np_ByNum(np_ByNum(node.Parent.Get()).Right.Get())
+		//return node.Parent.Get().Right
 	}
-	return node.Parent.Left
+	return np_ByNum(np_ByNum(node.Parent.Get()).Left.Get())
+	//return node.Parent.Left
 }
 
 func (node *ByNumNode) isLeaf() bool {
 	if node == nil {
 		return true
 	}
-	if node.Right == nil && node.Left == nil {
+	if node.Right.IsNil() && node.Left.IsNil() {
+		//if node.Right == nil && node.Left == nil {
 		return true
 	}
 	return false
 }
 
 func (tree *ByNum) rotateLeft(node *ByNumNode) {
-	right := node.Right
+	right := np_ByNum(node.Right.Get())
 	tree.replaceNode(node, right)
-	node.Right = right.Left
-	if right.Left != nil {
-		right.Left.Parent = node
+	node.Right.Forward(&right.Left)
+	if !right.Left.IsNil() {
+		//if right.Left != nil {
+		np_ByNum(right.Left.Get()).Parent.Set(unsafe.Pointer(node))
+		//right.Left.Parent = node
 	}
-	right.Left = node
-	node.Parent = right
+	right.Left.Set(unsafe.Pointer(node))
+	//right.Left = node
+	node.Parent.Set(unsafe.Pointer(right))
+	//node.Parent = right
 }
 
 func (tree *ByNum) rotateRight(node *ByNumNode) {
-	left := node.Left
+	left := np_ByNum(node.Left.Get())
+	//left := node.Left
 	tree.replaceNode(node, left)
-	node.Left = left.Right
-	if left.Right != nil {
-		left.Right.Parent = node
+	node.Left.Forward(&left.Right)
+	if !left.Right.IsNil() {
+		//if left.Right != nil {
+		np_ByNum(left.Right.Get()).Parent.Set(unsafe.Pointer(node))
+		//left.Right.Parent = node
 	}
-	left.Right = node
-	node.Parent = left
+	left.Right.Set(unsafe.Pointer(node))
+	//left.Right = node
+	node.Parent.Set(unsafe.Pointer(left))
 }
 
 func (tree *ByNum) replaceNode(old *ByNumNode, new *ByNumNode) {
-	if old.Parent == nil {
-		tree.Root = new
+	if old.Parent.IsNil() {
+		//if old.Parent == nil {
+		tree.Root.Set(unsafe.Pointer(new))
+		//tree.Root = new
 	} else {
-		if old == old.Parent.Left {
-			old.Parent.Left = new
+		if old == np_ByNum(np_ByNum(old.Parent.Get()).Left.Get()) {
+			//if old == old.Parent.Left {
+			np_ByNum(old.Parent.Get()).Left.Set(unsafe.Pointer(new))
+			//old.Parent.Left = new
 		} else {
-			old.Parent.Right = new
+			np_ByNum(old.Parent.Get()).Right.Set(unsafe.Pointer(new))
+			//old.Parent.Right = new
 		}
 	}
 	if new != nil {
-		new.Parent = old.Parent
+		new.Parent.Forward(&old.Parent)
 	}
 }
 
 func (tree *ByNum) insertCase1(node *ByNumNode) {
-	if node.Parent == nil {
+	if node.Parent.IsNil() {
+		//if node.Parent == nil {
 		node.color = blackByNum
 	} else {
 		tree.insertCase2(node)
@@ -632,7 +785,8 @@ func (tree *ByNum) insertCase1(node *ByNumNode) {
 }
 
 func (tree *ByNum) insertCase2(node *ByNumNode) {
-	if nodeColorByNum(node.Parent) == blackByNum {
+	if nodeColorByNum(np_ByNum(node.Parent.Get())) == blackByNum {
+		//if nodeColor(node.Parent) == black {
 		return
 	}
 	tree.insertCase3(node)
@@ -641,7 +795,8 @@ func (tree *ByNum) insertCase2(node *ByNumNode) {
 func (tree *ByNum) insertCase3(node *ByNumNode) {
 	uncle := node.uncle()
 	if nodeColorByNum(uncle) == redByNum {
-		node.Parent.color = blackByNum
+		np_ByNum(node.Parent.Get()).color = blackByNum
+		//node.Parent.color = black
 		uncle.color = blackByNum
 		node.grandparent().color = redByNum
 		tree.insertCase1(node.grandparent())
@@ -652,23 +807,32 @@ func (tree *ByNum) insertCase3(node *ByNumNode) {
 
 func (tree *ByNum) insertCase4(node *ByNumNode) {
 	grandparent := node.grandparent()
-	if node == node.Parent.Right && node.Parent == grandparent.Left {
-		tree.rotateLeft(node.Parent)
-		node = node.Left
-	} else if node == node.Parent.Left && node.Parent == grandparent.Right {
-		tree.rotateRight(node.Parent)
-		node = node.Right
+	if node == np_ByNum(np_ByNum(node.Parent.Get()).Right.Get()) && node.Parent.Get() == grandparent.Left.Get() {
+		//if node == node.Parent.Right && node.Parent == grandparent.Left {
+		tree.rotateLeft(np_ByNum(node.Parent.Get()))
+		//tree.rotateLeft(node.Parent)
+		node = np_ByNum(node.Left.Get())
+		//node = node.Left
+	} else if node == np_ByNum(np_ByNum(node.Parent.Get()).Left.Get()) && node.Parent.Get() == grandparent.Right.Get() {
+		//} else if node == node.Parent.Left && node.Parent == grandparent.Right {
+		tree.rotateRight(np_ByNum(node.Parent.Get()))
+		//tree.rotateRight(node.Parent)
+		node = np_ByNum(node.Right.Get())
+		//node = node.Right
 	}
 	tree.insertCase5(node)
 }
 
 func (tree *ByNum) insertCase5(node *ByNumNode) {
-	node.Parent.color = blackByNum
+	np_ByNum(node.Parent.Get()).color = blackByNum
+	//node.Parent.color = black
 	grandparent := node.grandparent()
 	grandparent.color = redByNum
-	if node == node.Parent.Left && node.Parent == grandparent.Left {
+	if node == np_ByNum(np_ByNum(node.Parent.Get()).Left.Get()) && node.Parent.Get() == grandparent.Left.Get() {
+		//if node == node.Parent.Left && node.Parent == grandparent.Left {
 		tree.rotateRight(grandparent)
-	} else if node == node.Parent.Right && node.Parent == grandparent.Right {
+	} else if node == np_ByNum(np_ByNum(node.Parent.Get()).Right.Get()) && node.Parent.Get() == grandparent.Right.Get() {
+		//} else if node == node.Parent.Right && node.Parent == grandparent.Right {
 		tree.rotateLeft(grandparent)
 	}
 }
@@ -677,14 +841,17 @@ func (node *ByNumNode) maximumNode() *ByNumNode {
 	if node == nil {
 		return nil
 	}
-	for node.Right != nil {
-		node = node.Right
+	for !node.Right.IsNil() {
+		//for node.Right != nil {
+		node = np_ByNum(node.Right.Get())
+		//node = node.Right
 	}
 	return node
 }
 
 func (tree *ByNum) deleteCase1(node *ByNumNode) {
-	if node.Parent == nil {
+	if node.Parent.IsNil() {
+		//if node.Parent == nil {
 		return
 	}
 	tree.deleteCase2(node)
@@ -693,12 +860,16 @@ func (tree *ByNum) deleteCase1(node *ByNumNode) {
 func (tree *ByNum) deleteCase2(node *ByNumNode) {
 	sibling := node.sibling()
 	if nodeColorByNum(sibling) == redByNum {
-		node.Parent.color = redByNum
+		np_ByNum(node.Parent.Get()).color = redByNum
+		//node.Parent.color = red
 		sibling.color = blackByNum
-		if node == node.Parent.Left {
-			tree.rotateLeft(node.Parent)
+		if node == np_ByNum(np_ByNum(node.Parent.Get()).Left.Get()) {
+			//if node == node.Parent.Left {
+			tree.rotateLeft(np_ByNum(node.Parent.Get()))
+			//tree.rotateLeft(node.Parent)
 		} else {
-			tree.rotateRight(node.Parent)
+			tree.rotateRight(np_ByNum(node.Parent.Get()))
+			//tree.rotateRight(node.Parent)
 		}
 	}
 	tree.deleteCase3(node)
@@ -706,12 +877,17 @@ func (tree *ByNum) deleteCase2(node *ByNumNode) {
 
 func (tree *ByNum) deleteCase3(node *ByNumNode) {
 	sibling := node.sibling()
-	if nodeColorByNum(node.Parent) == blackByNum &&
+	if nodeColorByNum(np_ByNum(node.Parent.Get())) == blackByNum &&
+		//if nodeColor(node.Parent) == black &&
 		nodeColorByNum(sibling) == blackByNum &&
-		nodeColorByNum(sibling.Left) == blackByNum &&
-		nodeColorByNum(sibling.Right) == blackByNum {
+		//nodeColor(sibling) == black &&
+		nodeColorByNum(np_ByNum(sibling.Left.Get())) == blackByNum &&
+		//nodeColor(sibling.Left) == black &&
+		nodeColorByNum(np_ByNum(sibling.Right.Get())) == blackByNum {
+		//nodeColor(sibling.Right) == black {
 		sibling.color = redByNum
-		tree.deleteCase1(node.Parent)
+		tree.deleteCase1(np_ByNum(node.Parent.Get()))
+		//tree.deleteCase1(node.Parent)
 	} else {
 		tree.deleteCase4(node)
 	}
@@ -719,12 +895,16 @@ func (tree *ByNum) deleteCase3(node *ByNumNode) {
 
 func (tree *ByNum) deleteCase4(node *ByNumNode) {
 	sibling := node.sibling()
-	if nodeColorByNum(node.Parent) == redByNum &&
+	if nodeColorByNum(np_ByNum(node.Parent.Get())) == redByNum &&
+		//if nodeColor(node.Parent) == red &&
 		nodeColorByNum(sibling) == blackByNum &&
-		nodeColorByNum(sibling.Left) == blackByNum &&
-		nodeColorByNum(sibling.Right) == blackByNum {
+		nodeColorByNum(np_ByNum(sibling.Left.Get())) == blackByNum &&
+		//nodeColor(sibling.Left) == black &&
+		nodeColorByNum(np_ByNum(sibling.Right.Get())) == blackByNum {
+		//nodeColor(sibling.Right) == black {
 		sibling.color = redByNum
-		node.Parent.color = blackByNum
+		np_ByNum(node.Parent.Get()).color = blackByNum
+		//node.Parent.color = black
 	} else {
 		tree.deleteCase5(node)
 	}
@@ -732,19 +912,27 @@ func (tree *ByNum) deleteCase4(node *ByNumNode) {
 
 func (tree *ByNum) deleteCase5(node *ByNumNode) {
 	sibling := node.sibling()
-	if node == node.Parent.Left &&
+	if node == np_ByNum(np_ByNum(node.Parent.Get()).Left.Get()) &&
+		//if node == node.Parent.Left &&
 		nodeColorByNum(sibling) == blackByNum &&
-		nodeColorByNum(sibling.Left) == redByNum &&
-		nodeColorByNum(sibling.Right) == blackByNum {
+		nodeColorByNum(np_ByNum(sibling.Left.Get())) == redByNum &&
+		//nodeColor(sibling.Left) == red &&
+		nodeColorByNum(np_ByNum(sibling.Right.Get())) == blackByNum {
+		//nodeColor(sibling.Right) == black {
 		sibling.color = redByNum
-		sibling.Left.color = blackByNum
+		np_ByNum(sibling.Left.Get()).color = blackByNum
+		//sibling.Left.color = black
 		tree.rotateRight(sibling)
-	} else if node == node.Parent.Right &&
+	} else if node == np_ByNum(np_ByNum(node.Parent.Get()).Right.Get()) &&
+		//} else if node == node.Parent.Right &&
 		nodeColorByNum(sibling) == blackByNum &&
-		nodeColorByNum(sibling.Right) == redByNum &&
-		nodeColorByNum(sibling.Left) == blackByNum {
+		nodeColorByNum(np_ByNum(sibling.Right.Get())) == redByNum &&
+		//nodeColor(sibling.Right) == red &&
+		nodeColorByNum(np_ByNum(sibling.Left.Get())) == blackByNum {
+		//nodeColor(sibling.Left) == black {
 		sibling.color = redByNum
-		sibling.Right.color = blackByNum
+		np_ByNum(sibling.Right.Get()).color = blackByNum
+		//sibling.Right.color = black
 		tree.rotateLeft(sibling)
 	}
 	tree.deleteCase6(node)
@@ -752,14 +940,22 @@ func (tree *ByNum) deleteCase5(node *ByNumNode) {
 
 func (tree *ByNum) deleteCase6(node *ByNumNode) {
 	sibling := node.sibling()
-	sibling.color = nodeColorByNum(node.Parent)
-	node.Parent.color = blackByNum
-	if node == node.Parent.Left && nodeColorByNum(sibling.Right) == redByNum {
-		sibling.Right.color = blackByNum
-		tree.rotateLeft(node.Parent)
-	} else if nodeColorByNum(sibling.Left) == redByNum {
-		sibling.Left.color = blackByNum
-		tree.rotateRight(node.Parent)
+	sibling.color = nodeColorByNum(np_ByNum(node.Parent.Get()))
+	//sibling.color = nodeColor(node.Parent)
+	np_ByNum(node.Parent.Get()).color = blackByNum
+	//node.Parent.color = black
+	if node == np_ByNum(np_ByNum(node.Parent.Get()).Left.Get()) && nodeColorByNum(np_ByNum(sibling.Right.Get())) == redByNum {
+		//if node == node.Parent.Left && nodeColor(sibling.Right) == red {
+		np_ByNum(sibling.Right.Get()).color = blackByNum
+		//sibling.Right.color = black
+		tree.rotateLeft(np_ByNum(node.Parent.Get()))
+		//tree.rotateLeft(node.Parent)
+	} else if nodeColorByNum(np_ByNum(sibling.Left.Get())) == redByNum {
+		//} else if nodeColor(sibling.Left) == red {
+		np_ByNum(sibling.Left.Get()).color = blackByNum
+		//sibling.Left.color = black
+		tree.rotateRight(np_ByNum(node.Parent.Get()))
+		//tree.rotateRight(node.Parent)
 	}
 }
 
@@ -778,7 +974,7 @@ func (tree *ByNum) makeIterator(fn *TestIndexNode) IteratorByNum {
 		if node == nil {
 			panic("Wrong index node type!")
 
-		} else if n, ok := node.(*ByNumNode); ok {
+		} else if n, ok := node.(np_ByNum); ok {
 			return IteratorByNum{tree: tree, node: n, position: betweenByNum}
 		} else {
 			node = node.(multiindex.NodeType).GetSuperNode()
@@ -830,18 +1026,26 @@ func (iterator *IteratorByNum) Next() bool {
 		iterator.node = left
 		goto between
 	}
-	if iterator.node.Right != nil {
-		iterator.node = iterator.node.Right
-		for iterator.node.Left != nil {
-			iterator.node = iterator.node.Left
+	if !iterator.node.Right.IsNil() {
+		//if iterator.node.Right != nil {
+		iterator.node = np_ByNum(iterator.node.Right.Get())
+		//iterator.node = iterator.node.Right
+		for !iterator.node.Left.IsNil() {
+			//for iterator.node.Left != nil {
+			iterator.node = np_ByNum(iterator.node.Left.Get())
+			//iterator.node = iterator.node.Left
 		}
 		goto between
 	}
-	if iterator.node.Parent != nil {
+	if !iterator.node.Parent.IsNil() {
+		//if iterator.node.Parent != nil {
 		node := iterator.node
-		for iterator.node.Parent != nil {
-			iterator.node = iterator.node.Parent
-			if node == iterator.node.Left {
+		for !iterator.node.Parent.IsNil() {
+			//for iterator.node.Parent != nil {
+			iterator.node = np_ByNum(iterator.node.Parent.Get())
+			//iterator.node = iterator.node.Parent
+			if node == np_ByNum(iterator.node.Left.Get()) {
+				//if node == iterator.node.Left {
 				goto between
 			}
 			node = iterator.node
@@ -873,24 +1077,29 @@ func (iterator *IteratorByNum) Prev() bool {
 		iterator.node = right
 		goto between
 	}
-	if iterator.node.Left != nil {
-		iterator.node = iterator.node.Left
-		for iterator.node.Right != nil {
-			iterator.node = iterator.node.Right
+	if !iterator.node.Left.IsNil() {
+		//if iterator.node.Left != nil {
+		iterator.node = np_ByNum(iterator.node.Left.Get())
+		//iterator.node = iterator.node.Left
+		for !iterator.node.Right.IsNil() {
+			//for iterator.node.Right != nil {
+			iterator.node = np_ByNum(iterator.node.Right.Get())
+			//iterator.node = iterator.node.Right
 		}
 		goto between
 	}
-	if iterator.node.Parent != nil {
+	if !iterator.node.Parent.IsNil() {
+		//if iterator.node.Parent != nil {
 		node := iterator.node
-		for iterator.node.Parent != nil {
-			iterator.node = iterator.node.Parent
-			if node == iterator.node.Right {
+		for !iterator.node.Parent.IsNil() {
+			//for iterator.node.Parent != nil {
+			iterator.node = np_ByNum(iterator.node.Parent.Get())
+			//iterator.node = iterator.node.Parent
+			if node == np_ByNum(iterator.node.Right.Get()) {
+				//if node == iterator.node.Right {
 				goto between
 			}
 			node = iterator.node
-			//if iterator.tree.Comparator(node.Key, iterator.node.Key) >= 0 {
-			//	goto between
-			//}
 		}
 	}
 

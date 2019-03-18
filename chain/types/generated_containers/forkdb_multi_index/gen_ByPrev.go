@@ -520,9 +520,9 @@ func (tree *ByPrev) String() string {
 
 func (node *ByPrevNode) String() string {
 	if !node.color {
-		return fmt.Sprintf("(%v,%v)", node.Key, "red")
+		return fmt.Sprintf("(%v,%v,%v)", node.Key.Hash[0], (*node.value()).BlockNum, "red")
 	}
-	return fmt.Sprintf("(%v)", node.Key)
+	return fmt.Sprintf("(%v,%v)", node.Key.Hash[0], (*node.value()).BlockNum)
 }
 
 func outputByPrev(node *ByPrevNode, prefix string, isTail bool, str *string) {

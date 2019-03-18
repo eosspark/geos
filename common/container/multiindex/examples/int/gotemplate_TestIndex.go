@@ -3,28 +3,56 @@
 package int
 
 import (
+	"unsafe"
+
 	"github.com/eosspark/eos-go/common/container"
 	"github.com/eosspark/eos-go/common/container/multiindex"
+	. "github.com/eosspark/eos-go/common/container/offsetptr"
 )
 
-// template type MultiIndex(SuperIndex,SuperNode,Value)
+// template type MultiIndex(SuperIndex,SuperNode,Value,Allocator)
 
 type TestIndex struct {
-	super *ById
+	super Pointer `*SuperIndex`
 	count int
 }
 
-func NewTestIndex() *TestIndex {
-	m := &TestIndex{}
-	m.super = &ById{}
-	m.super.init(m)
+const _SizeofTestIndex = unsafe.Sizeof(TestIndex{})
+
+func NewTestIndex() (m *TestIndex) {
+	m = (*TestIndex)(alloc.Allocate(_SizeofTestIndex))
+	m.super.Set(alloc.Allocate(_SizeofSuperIndexTestIndex))
+	m.count = 0
+
+	(*ById)(m.super.Get()).init(m)
 	return m
+}
+
+func (m *TestIndex) Free() {
+	(*ById)(m.super.Get()).free()
+	alloc.DeAllocate(unsafe.Pointer(m))
 }
 
 /*generic class*/
 
+const _SizeofSuperIndexTestIndex = unsafe.Sizeof(ById{})
+
 type TestIndexNode struct {
-	super *ByIdNode
+	super Pointer `*SuperNode`
+}
+
+const _SizeofTestIndexNode = unsafe.Sizeof(TestIndexNode{})
+
+func NewTestIndexNode() *TestIndexNode {
+	n := (*TestIndexNode)(alloc.Allocate(_SizeofTestIndexNode))
+	n.super.Set(nil)
+	return n
+}
+
+func (n *TestIndexNode) free() {
+	if n != nil {
+		alloc.DeAllocate(unsafe.Pointer(n))
+	}
 }
 
 /*generic class*/
@@ -42,7 +70,7 @@ func (m *TestIndex) Size() int {
 }
 
 func (m *TestIndex) Clear() {
-	m.super.clear()
+	(*ById)(m.super.Get()).clear()
 	m.count = 0
 }
 
@@ -52,27 +80,30 @@ func (m *TestIndex) Insert(v int) bool {
 }
 
 func (m *TestIndex) insert(v int) (*TestIndexNode, bool) {
-	fn := &TestIndexNode{}
-	n, res := m.super.insert(v, fn)
+	fn := NewTestIndexNode()
+	n, res := (*ById)(m.super.Get()).insert(v, fn)
 	if res {
-		fn.super = n
+		fn.super.Set(unsafe.Pointer(n))
 		m.count++
 		return fn, true
 	}
+
+	fn.free()
 	return nil, false
 }
 
 func (m *TestIndex) Erase(iter multiindex.IteratorType) {
-	m.super.erase_(iter)
+	(*ById)(m.super.Get()).erase_(iter)
 }
 
 func (m *TestIndex) erase(n *TestIndexNode) {
-	m.super.erase(n.super)
-	m.count--
+	m.count-- // only sub count when MultiIndexNode erase itself
+	(*ById)(m.super.Get()).erase((*ByIdNode)(n.super.Get()))
+	n.free() // free memory finally
 }
 
 func (m *TestIndex) Modify(iter multiindex.IteratorType, mod func(*int)) bool {
-	return m.super.modify_(iter, mod)
+	return (*ById)(m.super.Get()).modify_(iter, mod)
 }
 
 func (m *TestIndex) modify(mod func(*int), n *TestIndexNode) (*TestIndexNode, bool) {
@@ -85,34 +116,37 @@ func (m *TestIndex) modify(mod func(*int), n *TestIndexNode) (*TestIndexNode, bo
 		}
 	}()
 	mod(n.value())
-	if sn, res := m.super.modify(n.super); !res {
+	if sn, res := (*ById)(m.super.Get()).modify((*ByIdNode)(n.super.Get())); !res {
+		//delete for failure
 		m.count--
+		n.free()
 		return nil, false
 	} else {
-		n.super = sn
+		n.super.Set(unsafe.Pointer(sn))
 		return n, true
 	}
 }
 
-func (n *TestIndexNode) GetSuperNode() interface{} { return n.super }
+func (n *TestIndexNode) GetSuperNode() interface{} { return (*ByIdNode)(n.super.Get()) }
 func (n *TestIndexNode) GetFinalNode() interface{} { return nil }
 
 func (n *TestIndexNode) value() *int {
-	return n.super.value()
+	return (*ByIdNode)(n.super.Get()).value()
 }
 
 /// IndexBase
 type TestIndexBase struct {
-	final *TestIndex
-}
-
-type TestIndexBaseNode struct {
-	final *TestIndexNode
-	pv    *int
+	final Pointer `*MultiIndex`
 }
 
 func (i *TestIndexBase) init(final *TestIndex) {
-	i.final = final
+	i.final.Set(unsafe.Pointer(final))
+}
+
+func (i *TestIndexBase) free() {
+	if i != nil {
+		alloc.DeAllocate(unsafe.Pointer(i))
+	}
 }
 
 func (i *TestIndexBase) clear() {}
@@ -122,11 +156,11 @@ func (i *TestIndexBase) GetSuperIndex() interface{} { return nil }
 func (i *TestIndexBase) GetFinalIndex() interface{} { return i.final }
 
 func (i *TestIndexBase) insert(v int, fn *TestIndexNode) (*TestIndexBaseNode, bool) {
-	return &TestIndexBaseNode{fn, &v}, true
+	return NewTestIndexBaseNode(fn, v), true
 }
 
 func (i *TestIndexBase) erase(n *TestIndexBaseNode) {
-	n.pv = nil
+	n.free()
 }
 
 func (i *TestIndexBase) erase_(iter multiindex.IteratorType) {
@@ -142,6 +176,29 @@ func (i *TestIndexBase) modify_(iter multiindex.IteratorType, mod func(*int)) bo
 	return false
 }
 
+type TestIndexBaseNode struct {
+	final Pointer `*MultiIndexNode`
+	pv    Pointer `*Value`
+}
+
+const _SizeofTestIndexBaseNode = unsafe.Sizeof(TestIndexBaseNode{})
+
+func NewTestIndexBaseNode(final *TestIndexNode, pv int) (mn *TestIndexBaseNode) {
+	mn = (*TestIndexBaseNode)(alloc.Allocate(_SizeofTestIndexBaseNode))
+	pvAlloc := alloc.Allocate(unsafe.Sizeof(pv))
+	mn.pv.Set(pvAlloc)
+	*(*int)(pvAlloc) = pv
+	mn.final.Set(unsafe.Pointer(final))
+	return
+}
+
+func (n *TestIndexBaseNode) free() {
+	if n != nil {
+		alloc.DeAllocate(n.pv.Get())
+		alloc.DeAllocate(unsafe.Pointer(n))
+	}
+}
+
 func (n *TestIndexBaseNode) value() *int {
-	return n.pv
+	return (*int)(n.pv.Get())
 }

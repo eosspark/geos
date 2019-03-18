@@ -18,7 +18,7 @@ import (
 
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/common/container"
-	rbt "github.com/eosspark/eos-go/common/container/tree"
+	rbt "github.com/eosspark/eos-go/common/container/redblacktree"
 	"github.com/eosspark/eos-go/crypto/rlp"
 )
 
@@ -193,7 +193,7 @@ func (set *MultiStringSet) UnmarshalJSON(data []byte) error {
 	elements := make([]string, 0)
 	err := json.Unmarshal(data, &elements)
 	if err == nil {
-		set.Clear()
+		set.Tree = rbt.NewWith(StringComparator, true)
 		set.Add(elements...)
 	}
 	return err

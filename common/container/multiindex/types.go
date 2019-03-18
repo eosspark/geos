@@ -13,9 +13,11 @@ type NodeType interface {
 type IteratorType interface {
 	IsEnd() bool
 	HasNext() bool
+	//Next() bool
 }
 
 type ReverseIteratorType interface {
 	IsBegin() bool
 	HasPrev() bool
+	//Prev() bool
 }

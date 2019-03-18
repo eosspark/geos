@@ -3,208 +3,405 @@
 package int
 
 import (
+	"unsafe"
+
 	"github.com/eosspark/eos-go/common/container"
+	"github.com/eosspark/eos-go/common/container/allocator"
 	"github.com/eosspark/eos-go/common/container/multiindex"
+	. "github.com/eosspark/eos-go/common/container/offsetptr"
 )
 
-// template type HashedUniqueIndex(FinalIndex,FinalNode,SuperIndex,SuperNode,Value,Hash,KeyFunc)
+// template type HashedIndex(FinalIndex,FinalNode,SuperIndex,SuperNode,Value,Key,KeyFunc,Hasher,Allocator)
+
+//TODO nonunique_hashtable const Multiply = false
 
 type ByPrev struct {
-	super *TestIndexBase      // index on the HashedUniqueIndex, IndexBase is the last super index
-	final *TestIndex          // index under the HashedUniqueIndex, MultiIndex is the final index
-	inner map[int]*ByPrevNode // use hashmap to safe HashedUniqueIndex's k/v(HashedUniqueIndexNode)
+	super Pointer `*SuperIndex` // index on the HashedUniqueIndex, IndexBase is the last super index
+	final Pointer `*FinalIndex` // index under the HashedUniqueIndex, MultiIndex is the final index
+	//inner map[Hash]*HashedIndexNode // use hashmap to safe HashedUniqueIndex's k/v(HashedUniqueIndexNode)
+	b *BucketsByPrev
+	l uintptr
 }
 
-func (i *ByPrev) init(final *TestIndex) {
-	i.final = final
-	i.inner = map[int]*ByPrevNode{}
-	i.super = &TestIndexBase{}
-	i.super.init(final)
+func (h *ByPrev) init(final *TestIndex) {
+	h.final.Set(unsafe.Pointer(final))
+	h.super.Set(unsafe.Pointer(NewSuperIndexByPrev()))
+	//i.inner = map[Hash]*HashedIndexNode{}
+	h.b = NewBucketsByPrev(0)
+	h.l = 0
+	(*TestIndexBase)(h.super.Get()).init(final)
+}
+
+func (h *ByPrev) free() {
+	(*TestIndexBase)(h.super.Get()).free()
+	alloc.DeAllocate(unsafe.Pointer(h))
 }
 
 /*generic class*/
 
+func NewSuperIndexByPrev() *TestIndexBase {
+	return (*TestIndexBase)(alloc.Allocate(unsafe.Sizeof(TestIndexBase{})))
+}
+
 /*generic class*/
+
+type BucketsByPrev struct {
+	array **ByPrevNode
+	len   uintptr
+}
+
+const _SizeofBucketsByPrev = unsafe.Sizeof(BucketsByPrev{})
+const _SizeofBucketByPrev = unsafe.Sizeof(&ByPrevNode{})
+
+func NewBucketsByPrev(size uintptr) *BucketsByPrev {
+	b := (*BucketsByPrev)(alloc.Allocate(_SizeofBucketsByPrev))
+	if size == 0 {
+		size++
+	}
+	b.array = (**ByPrevNode)(alloc.Allocate(_SizeofBucketByPrev * size))
+	allocator.Memset(unsafe.Pointer(b.array), 0, _SizeofBucketByPrev*size)
+	b.len = size
+	return b
+}
+
+func (b *BucketsByPrev) Put(i uintptr, e *ByPrevNode) {
+	*(**ByPrevNode)(unsafe.Pointer(uintptr(unsafe.Pointer(b.array)) + _SizeofBucketByPrev*i)) = e
+}
+
+func (b *BucketsByPrev) At(i uintptr) *ByPrevNode {
+	return *(**ByPrevNode)(unsafe.Pointer(uintptr(unsafe.Pointer(b.array)) + _SizeofBucketByPrev*i))
+}
 
 type ByPrevNode struct {
-	super *TestIndexBaseNode // index-node on the HashedUniqueIndexNode, IndexBaseNode is the last super node
-	final *TestIndexNode     // index-node under the HashedUniqueIndexNode, MultiIndexNode is the final index
-	hash  int                // k of hashmap
+	super  Pointer `*SuperNode` // index-node on the HashedUniqueIndexNode, IndexBaseNode is the last super node
+	final  Pointer `*FinalNode` // index-node under the HashedUniqueIndexNode, MultiIndexNode is the final index
+	bucket uintptr // buckets position
+	key    int     // k of hashtable
+	next   *ByPrevNode
+}
+
+func NewByPrevNode(bucket uintptr, key int) *ByPrevNode {
+	n := (*ByPrevNode)(alloc.Allocate(unsafe.Sizeof(ByPrevNode{})))
+	n.key = key
+	n.bucket = bucket
+	n.super.Set(nil)
+	n.final.Set(nil)
+	n.next = nil
+	return n
+}
+
+func (n *ByPrevNode) free() {
+	if n != nil {
+		alloc.DeAllocate(unsafe.Pointer(n))
+	}
 }
 
 /*generic class*/
 
 /*generic class*/
 
-func (i *ByPrev) GetSuperIndex() interface{} { return i.super }
-func (i *ByPrev) GetFinalIndex() interface{} { return i.final }
+func (h *ByPrev) GetSuperIndex() interface{} { return h.super }
+func (h *ByPrev) GetFinalIndex() interface{} { return h.final }
 
 func (n *ByPrevNode) GetSuperNode() interface{} { return n.super }
 func (n *ByPrevNode) GetFinalNode() interface{} { return n.final }
 
 func (n *ByPrevNode) value() *int {
-	return n.super.value()
+	return (*TestIndexBaseNode)(n.super.Get()).value()
 }
 
-func (i *ByPrev) Size() int {
-	return len(i.inner)
-}
+//
+//func (n *HashedIndexNode) Put(bucket uintptr, key Key) (entry *HashedIndexNode, appended bool) {
+//	if n == nil {
+//		return NewHashedIndexNode(bucket, key), true
+//	}
+//
+//	if n.key == key {
+//		return n, false
+//	} else {
+//		n.next, appended = n.next.Put(bucket, key)
+//		return n, appended
+//	}
+//}
+//
+//func (n *HashedIndexNode) Remove(key Key) (node *HashedIndexNode, removed bool) {
+//	if n == nil {
+//		return n, false
+//	}
+//
+//	if n.key == key {
+//		next := n.next
+//		n.free()
+//		return next, true
+//	} else {
+//		n.next, removed = n.next.Remove(key)
+//		return n, removed
+//	}
+//}
 
-func (i *ByPrev) Empty() bool {
-	return len(i.inner) == 0
-}
-
-func (i *ByPrev) clear() {
-	i.inner = map[int]*ByPrevNode{}
-	i.super.clear()
-}
-
-func (i *ByPrev) Insert(v int) (IteratorByPrev, bool) {
-	fn, res := i.final.insert(v)
-	if res {
-		return i.makeIterator(fn), true
+func (n *ByPrevNode) Get(key int) *ByPrevNode {
+	for node := n; node != nil; node = node.next {
+		if node.key == key {
+			return node
+		}
 	}
-	return i.End(), false
+	return nil
 }
 
-func (i *ByPrev) insert(v int, fn *TestIndexNode) (*ByPrevNode, bool) {
-	hash := ByPrevHashFunc(v)
-	node := ByPrevNode{hash: hash}
-	if _, ok := i.inner[hash]; ok {
+func (h *ByPrev) Size() int {
+	return int(h.l)
+}
+
+func (h *ByPrev) Empty() bool {
+	return h.l == 0
+}
+
+func (h *ByPrev) clear() {
+	//h.inner = map[Hash]*HashedIndexNode{}
+	(*TestIndexBase)(h.super.Get()).clear()
+}
+
+func (h *ByPrev) Insert(v int) (IteratorByPrev, bool) {
+	fn, res := (*TestIndex)(h.final.Get()).insert(v)
+	if res {
+		return h.makeIterator(fn), true
+	}
+	return h.End(), false
+}
+
+func (h *ByPrev) insert(v int, fn *TestIndexNode) (*ByPrevNode, bool) {
+	key := ByPrevKeyFunc(v)
+	bucket := ByPrevHashFunc(key) % h.b.len
+	node := NewByPrevNode(bucket, key)
+
+	if !h.link(bucket, key, node) {
 		container.Logger.Warn("#hash index insert failed")
+		node.free()
 		return nil, false
 	}
-	i.inner[hash] = &node
-	sn, res := i.super.insert(v, fn)
-	if res {
-		node.final = fn
-		node.super = sn
-		return &node, true
+
+	if h.l > h.b.len {
+		h.resize()
 	}
-	delete(i.inner, hash)
+
+	sn, res := (*TestIndexBase)(h.super.Get()).insert(v, fn)
+	if res {
+		node.final.Set(unsafe.Pointer(fn))
+		node.super.Set(unsafe.Pointer(sn))
+		return node, true
+	}
+
+	//rollback for failed insert of SuperIndex
+	h.unlink(node) //should never failed
 	return nil, false
 }
 
-func (i *ByPrev) Find(k int) (IteratorByPrev, bool) {
-	node, res := i.inner[k]
-	if res {
-		return IteratorByPrev{i, node, betweenByPrev}, true
-	}
-	return i.End(), false
+func (h *ByPrev) Find(k int) IteratorByPrev {
+	return IteratorByPrev{h, h.b.At(ByPrevHashFunc(k) % h.b.len).Get(k)}
 }
 
-func (i *ByPrev) Each(f func(key int, obj int)) {
-	for k, v := range i.inner {
-		f(k, *v.value())
-	}
+func (h *ByPrev) Erase(iter IteratorByPrev) {
+	(*TestIndex)(h.final.Get()).erase((*TestIndexNode)(iter.node.final.Get()))
 }
 
-func (i *ByPrev) Erase(iter IteratorByPrev) {
-	i.final.erase(iter.node.final)
+func (h *ByPrev) erase(n *ByPrevNode) {
+	h.unlink(n) //should never failed
+	(*TestIndexBase)(h.super.Get()).erase((*TestIndexBaseNode)(n.super.Get()))
+	n.free()
 }
 
-func (i *ByPrev) erase(n *ByPrevNode) {
-	delete(i.inner, n.hash)
-	i.super.erase(n.super)
-}
-
-func (i *ByPrev) erase_(iter multiindex.IteratorType) {
+func (h *ByPrev) erase_(iter multiindex.IteratorType) {
 	if itr, ok := iter.(IteratorByPrev); ok {
-		i.Erase(itr)
+		h.Erase(itr)
 	} else {
-		i.super.erase_(iter)
+		(*TestIndexBase)(h.super.Get()).erase_(iter)
 	}
 }
 
-func (i *ByPrev) Modify(iter IteratorByPrev, mod func(*int)) bool {
-	if _, b := i.final.modify(mod, iter.node.final); b {
+func (h *ByPrev) Modify(iter IteratorByPrev, mod func(*int)) bool {
+	if _, b := (*TestIndex)(h.final.Get()).modify(mod, (*TestIndexNode)(iter.node.final.Get())); b {
 		return true
 	}
 	return false
 }
 
-func (i *ByPrev) modify(n *ByPrevNode) (*ByPrevNode, bool) {
-	delete(i.inner, n.hash)
+func (h *ByPrev) modify(n *ByPrevNode) (*ByPrevNode, bool) {
+	key := ByPrevKeyFunc(*n.value())
+	bucket := ByPrevHashFunc(key) % h.b.len
 
-	hash := ByPrevHashFunc(*n.value())
-	if _, exist := i.inner[hash]; exist {
-		container.Logger.Warn("#hash index modify failed")
-		i.super.erase(n.super)
-		return nil, false
+	if !h.inPlace(bucket, key, n) {
+		h.unlink(n)
+		if !h.link(bucket, key, n) {
+			container.Logger.Warn("#hash index modify failed")
+			(*TestIndexBase)(h.super.Get()).erase((*TestIndexBaseNode)(n.super.Get()))
+			n.free()
+			return nil, false
+		}
 	}
 
-	i.inner[hash] = n
-
-	if sn, res := i.super.modify(n.super); !res {
-		delete(i.inner, hash)
+	if sn, res := (*TestIndexBase)(h.super.Get()).modify((*TestIndexBaseNode)(n.super.Get())); !res {
+		h.unlink(n)
+		n.free()
 		return nil, false
 	} else {
-		n.super = sn
+		n.super.Set(unsafe.Pointer(sn))
 	}
 
 	return n, true
 }
 
-func (i *ByPrev) modify_(iter multiindex.IteratorType, mod func(*int)) bool {
+func (h *ByPrev) modify_(iter multiindex.IteratorType, mod func(*int)) bool {
 	if itr, ok := iter.(IteratorByPrev); ok {
-		return i.Modify(itr, mod)
+		return h.Modify(itr, mod)
 	} else {
-		return i.super.modify_(iter, mod)
+		return (*TestIndexBase)(h.super.Get()).modify_(iter, mod)
 	}
 }
 
-func (i *ByPrev) Values() []int {
-	vs := make([]int, 0, i.Size())
-	i.Each(func(key int, obj int) {
-		vs = append(vs, obj)
-	})
+func (h *ByPrev) Values() []int {
+	vs := make([]int, 0, h.Size())
+	for it := h.Begin(); it.HasNext(); it.Next() {
+		vs = append(vs, it.Value())
+	}
 	return vs
 }
 
-type IteratorByPrev struct {
-	index    *ByPrev
-	node     *ByPrevNode
-	position posByPrev
+func (h *ByPrev) resize() {
+	n := h.b.len * 2
+	tmp := NewBucketsByPrev(n)
+	for bucket := uintptr(0); bucket < h.b.len; bucket++ {
+		first := h.b.At(bucket)
+		for first != nil {
+			newBucket := ByPrevHashFunc(first.key) % n
+			h.b.Put(bucket, first.next)
+
+			first.bucket = newBucket
+			first.next = tmp.At(newBucket)
+
+			tmp.Put(newBucket, first)
+			first = h.b.At(bucket)
+		}
+	}
+
+	alloc.DeAllocate(unsafe.Pointer(h.b))
+	h.b = tmp
 }
 
-type posByPrev byte
+func (h *ByPrev) inPlace(buc uintptr, k int, x *ByPrevNode) bool {
+	found := false
+	for y := h.b.At(buc); y != nil; y = y.next {
+		if x == y {
+			found = true
+		} else if k == y.key {
+			found = false
+		}
+	}
+	return found
+}
 
-const (
-	//begin   = 0
-	betweenByPrev = 1
-	endByPrev     = 2
-)
+func (h *ByPrev) unlink(n *ByPrevNode) {
+	var node, prev *ByPrevNode
 
-func (i *ByPrev) makeIterator(fn *TestIndexNode) IteratorByPrev {
+	for node = h.b.At(n.bucket); node != nil; node = node.next {
+		if node == n {
+			break
+		}
+		prev = node
+	}
+
+	if prev != nil {
+		prev.next = node.next
+	} else {
+		h.b.Put(n.bucket, nil)
+	}
+
+	h.l--
+}
+
+func (h *ByPrev) link(buc uintptr, k int, n *ByPrevNode) bool {
+	var prev *ByPrevNode
+	for node := h.b.At(buc); node != nil; node = node.next {
+		if node.key == k {
+			return false
+		}
+		prev = node
+	}
+
+	if prev != nil {
+		prev.next = n
+	} else {
+		h.b.Put(buc, n)
+	}
+
+	n.key = k
+	n.next = nil
+	h.l++
+
+	return true
+}
+
+type IteratorByPrev struct {
+	index *ByPrev
+	node  *ByPrevNode
+}
+
+func (h *ByPrev) Begin() IteratorByPrev {
+	if h.l == 0 {
+		return h.End()
+	}
+
+	for i := uintptr(0); i < h.b.len; i++ {
+		if e := h.b.At(i); e != nil {
+			return IteratorByPrev{h, e}
+		}
+	}
+
+	panic(container.ErrFatalAddress)
+}
+
+func (h *ByPrev) makeIterator(fn *TestIndexNode) IteratorByPrev {
 	node := fn.GetSuperNode()
 	for {
 		if node == nil {
 			panic("Wrong index node type!")
 
 		} else if n, ok := node.(*ByPrevNode); ok {
-			return IteratorByPrev{i, n, betweenByPrev}
+			return IteratorByPrev{h, n}
 		} else {
 			node = node.(multiindex.NodeType).GetSuperNode()
 		}
 	}
 }
 
-func (i *ByPrev) End() IteratorByPrev {
-	return IteratorByPrev{i, nil, endByPrev}
+func (h *ByPrev) End() IteratorByPrev {
+	return IteratorByPrev{h, nil}
 }
 
 func (iter IteratorByPrev) Value() (v int) {
-	if iter.position == betweenByPrev {
-		return *iter.node.value()
-	}
-	return
+	return *iter.node.value()
 }
 
-func (iter IteratorByPrev) HasNext() bool {
-	container.Logger.Warn("hashed index iterator is unmoveable")
+func (iter *IteratorByPrev) Next() bool {
+	if iter.node.next != nil {
+		iter.node = iter.node.next
+		return true
+	}
+
+	for bucket := (ByPrevHashFunc(iter.node.key) % iter.index.b.len) + 1; bucket < iter.index.b.len; bucket++ {
+		if entry := iter.index.b.At(bucket); entry != nil {
+			iter.node = entry
+			return true
+		}
+	}
+
+	iter.node = nil
 	return false
 }
 
+func (iter IteratorByPrev) HasNext() bool {
+	return iter.node != nil
+}
+
 func (iter IteratorByPrev) IsEnd() bool {
-	return iter.position == endByPrev
+	return iter.node == nil
 }

@@ -1,5 +1,7 @@
 package generated
 
+//go:generate go install "github.com/eosspark/eos-go/common/container/treemap"
+//go:generate go install "github.com/eosspark/eos-go/common/container/treeset"
 //go:generate gotemplate -outfmt "gen_%v" "github.com/eosspark/eos-go/common/container/treeset" AccountNameSet(common.AccountName,common.CompareName,false)
 //go:generate gotemplate -outfmt "gen_%v" "github.com/eosspark/eos-go/common/container/treemap" AccountNameUint32Map(common.AccountName,uint32,common.CompareName,false)
 //go:generate gotemplate -outfmt "gen_%v" "github.com/eosspark/eos-go/common/container/treemap" AccountNameUint64Map(common.AccountName,uint64,common.CompareName,false)

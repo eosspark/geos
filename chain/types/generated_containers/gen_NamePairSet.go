@@ -18,7 +18,7 @@ import (
 
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/common/container"
-	rbt "github.com/eosspark/eos-go/common/container/tree"
+	rbt "github.com/eosspark/eos-go/common/container/redblacktree"
 	"github.com/eosspark/eos-go/crypto/rlp"
 )
 
