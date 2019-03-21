@@ -2,7 +2,7 @@ package fasthttp_test
 
 import (
 	"fmt"
-	"github.com/eosspark/eos-go/plugins/appbase/asio"
+	"github.com/eosspark/eos-go/libraries/asio"
 	"github.com/eosspark/eos-go/plugins/http_plugin/fasthttp"
 	"log"
 	"syscall"

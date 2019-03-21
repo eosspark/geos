@@ -11,7 +11,7 @@ import (
 	"github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
 	. "github.com/eosspark/eos-go/plugins/appbase/app"
-	"github.com/eosspark/eos-go/plugins/appbase/asio"
+	"github.com/eosspark/eos-go/libraries/asio"
 	"github.com/eosspark/eos-go/plugins/chain_interface"
 	"github.com/eosspark/eos-go/plugins/chain_plugin"
 	"github.com/urfave/cli"

@@ -6,8 +6,8 @@ import (
 	"fmt"
 
 	"github.com/eosspark/eos-go/common"
-	"github.com/eosspark/eos-go/common/container"
-	"github.com/eosspark/eos-go/common/container/multiindex"
+	"github.com/eosspark/eos-go/libraries/container"
+	"github.com/eosspark/eos-go/libraries/multiindex"
 )
 
 // template type OrderedIndex(FinalIndex,FinalNode,SuperIndex,SuperNode,Value,Key,KeyFunc,Comparator,Multiply)
@@ -520,9 +520,9 @@ func (tree *ByPrev) String() string {
 
 func (node *ByPrevNode) String() string {
 	if !node.color {
-		return fmt.Sprintf("(%v,%v,%v)", node.Key.Hash[0], (*node.value()).BlockNum, "red")
+		return fmt.Sprintf("(%v,%v)", node.Key, "red")
 	}
-	return fmt.Sprintf("(%v,%v)", node.Key.Hash[0], (*node.value()).BlockNum)
+	return fmt.Sprintf("(%v)", node.Key)
 }
 
 func outputByPrev(node *ByPrevNode, prefix string, isTail bool, str *string) {

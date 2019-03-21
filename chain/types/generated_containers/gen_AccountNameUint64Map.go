@@ -19,9 +19,9 @@ import (
 	"strings"
 
 	"github.com/eosspark/eos-go/common"
-	"github.com/eosspark/eos-go/common/container"
-	rbt "github.com/eosspark/eos-go/common/container/redblacktree"
 	"github.com/eosspark/eos-go/crypto/rlp"
+	"github.com/eosspark/eos-go/libraries/container"
+	rbt "github.com/eosspark/eos-go/libraries/container/redblacktree"
 )
 
 // template type Map(K,V,Compare,Multi)

@@ -3,8 +3,8 @@
 package multi_index
 
 import (
-	"github.com/eosspark/eos-go/common/container/multiindex"
-	"github.com/eosspark/eos-go/log"
+	"github.com/eosspark/eos-go/libraries/container"
+	"github.com/eosspark/eos-go/libraries/multiindex"
 )
 
 // template type MultiIndex(SuperIndex,SuperNode,Value)
@@ -78,7 +78,7 @@ func (m *TransactionIdWithExpiryIndex) Modify(iter multiindex.IteratorType, mod 
 func (m *TransactionIdWithExpiryIndex) modify(mod func(*TransactionIdWithExpiry), n *TransactionIdWithExpiryIndexNode) (*TransactionIdWithExpiryIndexNode, bool) {
 	defer func() {
 		if e := recover(); e != nil {
-			log.Error("#multi modify failed: %v", e)
+			container.Logger.Error("#multi modify failed: %v", e)
 			m.erase(n)
 			m.count--
 			panic(e)
@@ -130,7 +130,7 @@ func (i *TransactionIdWithExpiryIndexBase) erase(n *TransactionIdWithExpiryIndex
 }
 
 func (i *TransactionIdWithExpiryIndexBase) erase_(iter multiindex.IteratorType) {
-	log.Warn("erase iterator doesn't match all index")
+	container.Logger.Warn("erase iterator doesn't match all index")
 }
 
 func (i *TransactionIdWithExpiryIndexBase) modify(n *TransactionIdWithExpiryIndexBaseNode) (*TransactionIdWithExpiryIndexBaseNode, bool) {
@@ -138,7 +138,7 @@ func (i *TransactionIdWithExpiryIndexBase) modify(n *TransactionIdWithExpiryInde
 }
 
 func (i *TransactionIdWithExpiryIndexBase) modify_(iter multiindex.IteratorType, mod func(*TransactionIdWithExpiry)) bool {
-	log.Warn("modify iterator doesn't match all index")
+	container.Logger.Warn("modify iterator doesn't match all index")
 	return false
 }
 

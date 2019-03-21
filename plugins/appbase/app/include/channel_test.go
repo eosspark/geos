@@ -5,7 +5,7 @@ import (
 	."github.com/eosspark/eos-go/plugins/chain_interface"
 	"github.com/eosspark/eos-go/chain/types"
 	"fmt"
-	"github.com/eosspark/eos-go/plugins/appbase/asio"
+	"github.com/eosspark/eos-go/libraries/asio"
 	"time"
 	."github.com/eosspark/eos-go/plugins/appbase/app/include"
 	."github.com/eosspark/eos-go/plugins/appbase/app"

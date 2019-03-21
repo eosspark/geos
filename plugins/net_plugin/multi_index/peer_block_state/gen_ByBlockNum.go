@@ -5,8 +5,8 @@ package peer_block_state
 import (
 	"fmt"
 
-	"github.com/eosspark/eos-go/common/container/multiindex"
-	"github.com/eosspark/eos-go/log"
+	"github.com/eosspark/eos-go/libraries/container"
+	"github.com/eosspark/eos-go/libraries/multiindex"
 	"github.com/eosspark/eos-go/plugins/net_plugin/multi_index"
 )
 
@@ -74,7 +74,7 @@ func (tree *ByBlockNum) insert(v multi_index.PeerBlockState, fn *PeerBlockStateI
 
 	node, res := tree.put(key)
 	if !res {
-		log.Warn("#ordered index insert failed")
+		container.Logger.Warn("#ordered index insert failed")
 		return nil, false
 	}
 	sn, res := tree.super.insert(v, fn)
@@ -129,7 +129,7 @@ func (tree *ByBlockNum) modify(n *ByBlockNumNode) (*ByBlockNumNode, bool) {
 		tree.remove(n)
 		node, res := tree.put(n.Key)
 		if !res {
-			log.Warn("#ordered index modify failed")
+			container.Logger.Warn("#ordered index modify failed")
 			tree.super.erase(n.super)
 			return nil, false
 		}

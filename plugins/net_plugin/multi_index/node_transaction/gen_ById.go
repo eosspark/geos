@@ -6,8 +6,8 @@ import (
 	"fmt"
 
 	"github.com/eosspark/eos-go/common"
-	"github.com/eosspark/eos-go/common/container/multiindex"
-	"github.com/eosspark/eos-go/log"
+	"github.com/eosspark/eos-go/libraries/container"
+	"github.com/eosspark/eos-go/libraries/multiindex"
 	"github.com/eosspark/eos-go/plugins/net_plugin/multi_index"
 )
 
@@ -75,7 +75,7 @@ func (tree *ById) insert(v multi_index.NodeTransactionState, fn *NodeTransaction
 
 	node, res := tree.put(key)
 	if !res {
-		log.Warn("#ordered index insert failed")
+		container.Logger.Warn("#ordered index insert failed")
 		return nil, false
 	}
 	sn, res := tree.super.insert(v, fn)
@@ -130,7 +130,7 @@ func (tree *ById) modify(n *ByIdNode) (*ByIdNode, bool) {
 		tree.remove(n)
 		node, res := tree.put(n.Key)
 		if !res {
-			log.Warn("#ordered index modify failed")
+			container.Logger.Warn("#ordered index modify failed")
 			tree.super.erase(n.super)
 			return nil, false
 		}

@@ -2,7 +2,7 @@ package common
 
 import (
 	"fmt"
-	"github.com/eosspark/eos-go/plugins/appbase/asio"
+	"github.com/eosspark/eos-go/libraries/asio"
 	"github.com/stretchr/testify/assert"
 	_ "net/http/pprof"
 	"testing"

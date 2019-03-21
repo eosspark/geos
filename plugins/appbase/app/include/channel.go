@@ -1,6 +1,6 @@
 package include
 
-import "github.com/eosspark/eos-go/plugins/appbase/asio"
+import "github.com/eosspark/eos-go/libraries/asio"
 
 type Channel struct {
 	iosPtr *asio.IoContext

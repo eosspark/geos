@@ -5,8 +5,8 @@ package forkdb_multi_index
 import (
 	"fmt"
 
-	"github.com/eosspark/eos-go/common/container"
-	"github.com/eosspark/eos-go/common/container/multiindex"
+	"github.com/eosspark/eos-go/libraries/container"
+	"github.com/eosspark/eos-go/libraries/multiindex"
 )
 
 // template type OrderedIndex(FinalIndex,FinalNode,SuperIndex,SuperNode,Value,Key,KeyFunc,Comparator,Multiply)

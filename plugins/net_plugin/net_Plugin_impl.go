@@ -13,7 +13,7 @@ import (
 	"github.com/eosspark/eos-go/log"
 
 	. "github.com/eosspark/eos-go/plugins/appbase/app"
-	. "github.com/eosspark/eos-go/plugins/appbase/asio"
+	. "github.com/eosspark/eos-go/libraries/asio"
 	"github.com/eosspark/eos-go/plugins/chain_plugin"
 	"github.com/eosspark/eos-go/plugins/net_plugin/multi_index"
 	"github.com/eosspark/eos-go/plugins/net_plugin/multi_index/node_transaction"

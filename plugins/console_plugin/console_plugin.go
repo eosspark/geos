@@ -4,7 +4,7 @@ import (
 	"github.com/eosspark/eos-go/common"
 	. "github.com/eosspark/eos-go/exception/try"
 	. "github.com/eosspark/eos-go/plugins/appbase/app"
-	"github.com/eosspark/eos-go/plugins/appbase/asio"
+	"github.com/eosspark/eos-go/libraries/asio"
 	"github.com/eosspark/eos-go/plugins/console_plugin/console"
 	"github.com/urfave/cli"
 	"strings"

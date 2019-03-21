@@ -1,7 +1,7 @@
 package fasthttp
 
 import (
-	"github.com/eosspark/eos-go/plugins/appbase/asio"
+	"github.com/eosspark/eos-go/libraries/asio"
 	"io"
 	"net"
 	"strings"

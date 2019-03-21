@@ -3,8 +3,8 @@
 package transaction_state
 
 import (
-	"github.com/eosspark/eos-go/common/container/multiindex"
-	"github.com/eosspark/eos-go/log"
+	"github.com/eosspark/eos-go/libraries/container"
+	"github.com/eosspark/eos-go/libraries/multiindex"
 	"github.com/eosspark/eos-go/plugins/net_plugin/multi_index"
 )
 
@@ -79,7 +79,7 @@ func (m *TransactionStateIndex) Modify(iter multiindex.IteratorType, mod func(*m
 func (m *TransactionStateIndex) modify(mod func(*multi_index.TransactionState), n *TransactionStateIndexNode) (*TransactionStateIndexNode, bool) {
 	defer func() {
 		if e := recover(); e != nil {
-			log.Error("#multi modify failed: %v", e)
+			container.Logger.Error("#multi modify failed: %v", e)
 			m.erase(n)
 			m.count--
 			panic(e)
@@ -131,7 +131,7 @@ func (i *TransactionStateIndexBase) erase(n *TransactionStateIndexBaseNode) {
 }
 
 func (i *TransactionStateIndexBase) erase_(iter multiindex.IteratorType) {
-	log.Warn("erase iterator doesn't match all index")
+	container.Logger.Warn("erase iterator doesn't match all index")
 }
 
 func (i *TransactionStateIndexBase) modify(n *TransactionStateIndexBaseNode) (*TransactionStateIndexBaseNode, bool) {
@@ -139,7 +139,7 @@ func (i *TransactionStateIndexBase) modify(n *TransactionStateIndexBaseNode) (*T
 }
 
 func (i *TransactionStateIndexBase) modify_(iter multiindex.IteratorType, mod func(*multi_index.TransactionState)) bool {
-	log.Warn("modify iterator doesn't match all index")
+	container.Logger.Warn("modify iterator doesn't match all index")
 	return false
 }
 

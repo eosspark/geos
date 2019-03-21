@@ -3,12 +3,12 @@ package types
 import (
 	. "github.com/eosspark/eos-go/chain/types/generated_containers"
 	"github.com/eosspark/eos-go/common"
-	"github.com/eosspark/eos-go/common/container"
 	math "github.com/eosspark/eos-go/common/eos_math"
 	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/ecc"
 	. "github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
+	"github.com/eosspark/eos-go/libraries/container"
 	"sort"
 )
 
@@ -16,7 +16,6 @@ func init() {
 	Assert(math.MaxUint8 >= common.DefaultConfig.MaxProducers*2/3+1, "8bit confirmations may not be able to hold all of the needed confirmations")
 }
 
-//go:generate gotemplate -outfmt "gen_%v" "github.com/eosspark/eos-go/common/container/treemap" AccountNameUint32Map(common.AccountName,uint32,common.CompareName,false)
 type BlockHeaderState struct {
 	ID                               common.IdType        `multiIndex:"id,increment" json:"id"`
 	BlockId                          common.BlockIdType   `multiIndex:"byId,orderedUnique" json:"block_id"`
