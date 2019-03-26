@@ -116,9 +116,9 @@ func SetBytesOptions(json []byte, path string, value interface{},
 	var err error
 	switch v := value.(type) {
 	default:
-		b, merr := jsongo.Marshal(value)
-		if merr != nil {
-			return nil, merr
+		b, err := jsongo.Marshal(value)
+		if err != nil {
+			return nil, err
 		}
 		// raw := *(*string)(unsafe.Pointer(&b))
 		raw := string(b)
