@@ -1,6 +1,8 @@
 package types
 
 import (
+	"sort"
+
 	. "github.com/eosspark/eos-go/chain/types/generated_containers"
 	"github.com/eosspark/eos-go/common"
 	math "github.com/eosspark/eos-go/common/eos_math"
@@ -9,7 +11,6 @@ import (
 	. "github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/libraries/container"
-	"sort"
 )
 
 func init() {

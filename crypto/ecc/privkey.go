@@ -4,10 +4,11 @@ import (
 	cryptorand "crypto/rand"
 	"encoding/json"
 	"fmt"
-	"github.com/eosspark/eos-go/crypto/btcsuite/btcd/btcec"
-	"github.com/eosspark/eos-go/crypto/btcsuite/btcutil"
 	"io"
 	"strings"
+
+	"github.com/eosspark/eos-go/crypto/btcsuite/btcd/btcec"
+	"github.com/eosspark/eos-go/crypto/btcsuite/btcutil"
 )
 
 const PrivateKeyPrefix = "PVT_"

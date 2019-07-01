@@ -2,10 +2,11 @@ package common
 
 import (
 	"fmt"
+	"testing"
+
 	"github.com/eosspark/eos-go/exception"
 	"github.com/eosspark/eos-go/exception/try"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func TestNewName(t *testing.T) {

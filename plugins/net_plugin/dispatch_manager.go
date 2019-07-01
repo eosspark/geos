@@ -2,13 +2,14 @@ package net_plugin
 
 import (
 	"encoding/binary"
+	"unsafe"
+
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
 	. "github.com/eosspark/eos-go/plugins/net_plugin/multi_index"
-	"unsafe"
 )
 
 type dispatchManager struct {
@@ -314,7 +315,7 @@ func (d *dispatchManager) recvNotice(c *Connection, msg *NoticeMessage, generate
 		return
 	}
 
-	FcLog.Debug("send req = %s", sendReq)
+	FcLog.Debug("send req = %v", sendReq)
 	if sendReq {
 		c.enqueue(&req, true)
 		//c.fetchWait()

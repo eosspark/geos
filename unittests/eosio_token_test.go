@@ -1,6 +1,10 @@
 package unittests
 
 import (
+	"io/ioutil"
+	"strings"
+	"testing"
+
 	"github.com/eosspark/eos-go/chain"
 	"github.com/eosspark/eos-go/chain/abi_serializer"
 	"github.com/eosspark/eos-go/chain/types"
@@ -9,10 +13,8 @@ import (
 	"github.com/eosspark/eos-go/exception"
 	"github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/log"
+
 	"github.com/stretchr/testify/assert"
-	"io/ioutil"
-	"strings"
-	"testing"
 )
 
 type EosioTokenTester struct {
@@ -203,7 +205,7 @@ func TestCreateMaxSupply(t *testing.T) {
 	assert.Equal(t, ret, true)
 	eosioToken.ProduceBlocks(1, false)
 
-	max := common.Asset{10, common.Symbol{0, "NKT"}}
+	max := common.Asset{Amount: 10, Symbol: common.Symbol{Precision: 0, Symbol: "NKT"}}
 	max.Amount = 4611686018427387904
 	returning := false
 	try.Try(func() {

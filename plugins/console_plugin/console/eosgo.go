@@ -4,6 +4,9 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"strings"
+
 	"github.com/eosspark/eos-go/chain"
 	"github.com/eosspark/eos-go/chain/abi_serializer"
 	"github.com/eosspark/eos-go/chain/types"
@@ -14,10 +17,9 @@ import (
 	. "github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/log"
 	"github.com/eosspark/eos-go/plugins/chain_plugin"
+
 	"github.com/robertkrimen/otto"
 	"github.com/tidwall/gjson"
-	"io/ioutil"
-	"strings"
 )
 
 var abiSerializerMaxTime = common.Seconds(10) // No risk to client side serialization taking a long time
@@ -519,7 +521,7 @@ func newAssetCache() {
 		Name:       common.N("eosio.token"),
 		SymbolCode: 5462355,
 	}
-	assetCache[a] = common.Symbol{4, "SYS"}
+	assetCache[a] = common.Symbol{Precision: 4, Symbol: "SYS"}
 }
 
 func toAsset(code common.AccountName, s string) *common.Asset {

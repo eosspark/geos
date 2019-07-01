@@ -1,6 +1,8 @@
 package chain_plugin
 
 import (
+	"strings"
+
 	"github.com/eosspark/eos-go/chain/abi_serializer"
 	"github.com/eosspark/eos-go/chain/types"
 	. "github.com/eosspark/eos-go/chain/types/generated_containers"
@@ -9,7 +11,6 @@ import (
 	"github.com/eosspark/eos-go/crypto"
 	. "github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
-	"strings"
 )
 
 func convertToUint64(str, desc string) uint64 {

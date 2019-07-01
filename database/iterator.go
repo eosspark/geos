@@ -1,9 +1,9 @@
 package database
 
 import (
+	"fmt"
 	"github.com/syndtr/goleveldb/leveldb"
 	"reflect"
-	"fmt"
 )
 
 //Do not use the functions in this file
@@ -67,32 +67,30 @@ func (index *DbIterator) clearKV() {
 	index.value = nil
 }
 
-func (index *DbIterator) setKV(k,v[]byte) {
+func (index *DbIterator) setKV(k, v []byte) {
 	index.key = k
 	index.value = v
 }
 
 func (index *DbIterator) keyValue(key []byte) error {
 
-	k := splicingString(index.typeName,key)
-	v,err := getDbKey(k,index.db)
+	k := splicingString(index.typeName, key)
+	v, err := getDbKey(k, index.db)
 	if err != nil {
 		return err
 	}
 
 	index.clearKV()
-	index.setKV(k,v)
+	index.setKV(k, v)
 	return nil
 }
 
 func (index *DbIterator) Next() bool {
 
-
 	return index.next()
 }
 
 func (index *DbIterator) Prev() bool {
-
 
 	return index.prev()
 }
@@ -161,7 +159,7 @@ func (index *DbIterator) Data(data interface{}) error {
 	index.keyValue(index.it.Value())
 	key := index.Value()
 	err := DecodeBytes(key, data)
-	if err != nil{
+	if err != nil {
 		//
 		fmt.Println(err)
 	}

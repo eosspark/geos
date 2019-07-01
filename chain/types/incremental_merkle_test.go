@@ -2,10 +2,11 @@ package types
 
 import (
 	"fmt"
+	"testing"
+
 	. "github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func Test_nextPowerOf2(t *testing.T) {

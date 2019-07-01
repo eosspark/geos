@@ -2,6 +2,9 @@ package chain_plugin
 
 import (
 	"fmt"
+	"strconv"
+	"strings"
+
 	"github.com/eosspark/eos-go/chain"
 	"github.com/eosspark/eos-go/chain/abi_serializer"
 	"github.com/eosspark/eos-go/chain/types"
@@ -14,8 +17,6 @@ import (
 	. "github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/plugins/appbase/app"
-	"strconv"
-	"strings"
 )
 
 const (

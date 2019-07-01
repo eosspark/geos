@@ -4,9 +4,9 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
-	//"github.com/eosspark/eos-go/wasmgo/injection"
-
 	//"fmt"
+
+	//"github.com/eosspark/eos-go/wasmgo/injection"
 	"github.com/eosspark/eos-go/wasmgo/wagon/disasm"
 	"github.com/eosspark/eos-go/wasmgo/wagon/wasm"
 	//"github.com/eosspark/eos-go/wasmgo/wagon/validate"

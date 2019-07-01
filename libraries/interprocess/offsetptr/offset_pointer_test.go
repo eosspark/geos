@@ -1,11 +1,13 @@
 package offsetptr
 
 import (
-	"github.com/eosspark/eos-go/libraries/interprocess/allocator/callocator"
-	"github.com/stretchr/testify/assert"
 	"runtime"
 	"testing"
 	"unsafe"
+
+	"github.com/eosspark/eos-go/libraries/interprocess/allocator/callocator"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestPointer_Get(t *testing.T) {

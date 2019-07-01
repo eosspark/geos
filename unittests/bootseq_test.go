@@ -1,6 +1,9 @@
 package unittests
 
 import (
+	"io/ioutil"
+	"testing"
+
 	"github.com/eosspark/eos-go/chain"
 	"github.com/eosspark/eos-go/chain/abi_serializer"
 	"github.com/eosspark/eos-go/chain/types"
@@ -8,9 +11,8 @@ import (
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/exception"
 	"github.com/eosspark/eos-go/exception/try"
+
 	"github.com/stretchr/testify/assert"
-	"io/ioutil"
-	"testing"
 )
 
 type genesisAccount struct {
@@ -288,10 +290,10 @@ func TestBootSeq(t *testing.T) {
 		net := (ib - ram) / 2
 		cpu := ib - net - ram
 
-		r := b.buyram(common.DefaultConfig.SystemAccountName, a.Aname, common.Asset{int64(ram), CORE_SYMBOL})
+		r := b.buyram(common.DefaultConfig.SystemAccountName, a.Aname, common.Asset{Amount: int64(ram), Symbol: CORE_SYMBOL})
 		assert.Equal(t, common.Empty(r.ExceptPtr), true)
 
-		r = b.delegateBandwidth(common.N("eosio.stake"), a.Aname, common.Asset{int64(net), CORE_SYMBOL}, common.Asset{int64(cpu), CORE_SYMBOL}, 1)
+		r = b.delegateBandwidth(common.N("eosio.stake"), a.Aname, common.Asset{Amount: int64(net), Symbol: CORE_SYMBOL}, common.Asset{Amount: int64(cpu), Symbol: CORE_SYMBOL}, 1)
 		assert.Equal(t, common.Empty(r.ExceptPtr), true)
 	}
 

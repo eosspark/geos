@@ -2,8 +2,9 @@ package log
 
 import (
 	"fmt"
-	"github.com/go-stack/stack"
 	"runtime/debug"
+
+	"github.com/go-stack/stack"
 )
 
 type Context struct {

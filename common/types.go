@@ -4,8 +4,9 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
-	"github.com/eosspark/eos-go/crypto"
 	"strings"
+
+	"github.com/eosspark/eos-go/crypto"
 )
 
 type SizeT = int

@@ -6,9 +6,10 @@ package treeset
 
 import (
 	"fmt"
+	"testing"
+
 	. "github.com/eosspark/eos-go/libraries/container/treeset/example"
 	"github.com/eosspark/eos-go/log"
-	"testing"
 )
 
 //func TestMultiSetNew(t *testing.T) {
@@ -340,11 +341,11 @@ func TestMultiSetSerialization(t *testing.T) {
 
 	assert()
 
-	json, err := set.ToJSON()
-	assert()
-
-	err = set.FromJSON(json)
-	assert()
+	//json, err := set.ToJSON()
+	//assert()
+	//
+	//err = set.FromJSON(json)
+	//assert()
 }
 
 //func TestMultiSetIntersection(t *testing.T) {

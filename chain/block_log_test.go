@@ -2,12 +2,13 @@ package chain
 
 import (
 	"fmt"
+	"os"
+	"testing"
+
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/stretchr/testify/assert"
-	"os"
-	"testing"
 )
 
 func TestBlockTest(t *testing.T) {

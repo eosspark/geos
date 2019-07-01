@@ -327,7 +327,7 @@ func (impl *ProducerPluginImpl) StartBlock() (StartBlockResult, bool) {
 					numExpired++
 				}
 
-				ppLog.Debug("Processed ${n} blacklisted transactions, Expired ${expired}",
+				ppLog.Debug("Processed %d blacklisted transactions, Expired %d",
 					origCount, numExpired)
 			}
 
@@ -474,7 +474,7 @@ func (impl *ProducerPluginImpl) ScheduleProductionLoop() {
 				deadline += common.Microseconds(impl.ProduceTimeOffsetUs)
 			}
 			impl.Timer.ExpiresAt(deadline)
-			ppLog.Debug("Scheduling Block Production on Normal Block #%d for %s", chain.PendingBlockState().BlockNum, deadline)
+			ppLog.Debug("Scheduling Block Production on Normal Block %d for %v", chain.PendingBlockState().BlockNum, deadline)
 		} else {
 			EosAssert(chain.PendingBlockState() != nil, &MissingPendingBlockState{}, "producing without pending_block_state")
 			expectTime := chain.PendingBlockTime().SubUs(common.Microseconds(common.DefaultConfig.BlockIntervalUs))

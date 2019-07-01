@@ -3,9 +3,9 @@ package chain_plugin
 import (
 	"github.com/eosspark/eos-go/chain"
 	"github.com/eosspark/eos-go/common"
+	"github.com/eosspark/eos-go/libraries/asio"
 	"github.com/eosspark/eos-go/plugins/appbase/app"
 	"github.com/eosspark/eos-go/plugins/appbase/app/include"
-	"github.com/eosspark/eos-go/libraries/asio"
 	. "github.com/eosspark/eos-go/plugins/chain_interface"
 )
 

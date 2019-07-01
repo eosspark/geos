@@ -2,6 +2,7 @@ package chain
 
 import (
 	"fmt"
+
 	abi "github.com/eosspark/eos-go/chain/abi_serializer"
 	"github.com/eosspark/eos-go/chain/types"
 	. "github.com/eosspark/eos-go/chain/types/generated_containers"
@@ -567,7 +568,11 @@ func (c *Controller) GetOnBlockTransaction() types.SignedTransaction {
 	onBlockAction := types.Action{}
 	onBlockAction.Account = common.AccountName(common.DefaultConfig.SystemAccountName)
 	onBlockAction.Name = common.ActionName(common.N("onblock"))
-	onBlockAction.Authorization = []common.PermissionLevel{{common.AccountName(common.DefaultConfig.SystemAccountName), common.PermissionName(common.DefaultConfig.ActiveName)}}
+	onBlockAction.Authorization = []common.PermissionLevel{
+		{Actor: common.AccountName(common.DefaultConfig.SystemAccountName),
+			Permission: common.PermissionName(common.DefaultConfig.ActiveName),
+		},
+	}
 
 	data, err := rlp.EncodeToBytes(c.HeadBlockHeader())
 	if err == nil {
@@ -813,7 +818,7 @@ func (c *Controller) applyOnerror(gtrx *entity.GeneratedTransaction, deadline co
 
 	etrx := types.SignedTransaction{}
 	action := types.Action{}
-	action.Authorization = []common.PermissionLevel{{gtrx.Sender, common.DefaultConfig.ActiveName}}
+	action.Authorization = []common.PermissionLevel{{Actor: gtrx.Sender, Permission: common.DefaultConfig.ActiveName}}
 
 	onError := NewOnError(gtrx.SenderId, gtrx.PackedTrx)
 	action.Account = onError.GetAccount()
@@ -1357,7 +1362,7 @@ func (c *Controller) CheckContractList(code common.AccountName) {
 
 func (c *Controller) CheckActionList(code common.AccountName, action common.ActionName) {
 	if c.Config.ActionBlacklist.Size() > 0 {
-		EosAssert(!c.Config.ActionBlacklist.Contains(common.NamePair{code, action}), &ActionBlacklistException{}, "action '%s::%v' is on the action blacklist", common.S(uint64(code)), action)
+		EosAssert(!c.Config.ActionBlacklist.Contains(common.NamePair{First: code, Second: action}), &ActionBlacklistException{}, "action '%s::%v' is on the action blacklist", common.S(uint64(code)), action)
 	}
 }
 
@@ -1558,8 +1563,8 @@ func (c *Controller) CreateNativeAccount(name common.AccountName, owner types.Au
 func (c *Controller) initializeForkDB() {
 
 	gs := c.Config.Genesis
-	pst := types.ProducerScheduleType{0, []types.ProducerKey{
-		{common.DefaultConfig.SystemAccountName, gs.InitialKey}}}
+	pst := types.ProducerScheduleType{Version: 0, Producers: []types.ProducerKey{
+		{ProducerName: common.DefaultConfig.SystemAccountName, BlockSigningKey: gs.InitialKey}}}
 	genHeader := types.BlockHeaderState{Header: *types.NewSignedBlockHeader()}
 	genHeader.ActiveSchedule = pst
 	genHeader.PendingSchedule = pst
@@ -1621,11 +1626,11 @@ func (c *Controller) initializeDatabase() {
 	activeProducersAuthority := types.Authority{}
 	activeProducersAuthority.Threshold = 1
 
-	p := types.PermissionLevelWeight{common.PermissionLevel{common.DefaultConfig.SystemAccountName, common.DefaultConfig.ActiveName}, 1}
+	p := types.PermissionLevelWeight{Permission: common.PermissionLevel{Actor: common.DefaultConfig.SystemAccountName, Permission: common.DefaultConfig.ActiveName}, Weight: 1}
 	activeProducersAuthority.Accounts = append(activeProducersAuthority.Accounts, p)
 	c.CreateNativeAccount(common.DefaultConfig.NullAccountName, emptyAuthority, emptyAuthority, false)
 	c.CreateNativeAccount(common.DefaultConfig.ProducersAccountName, emptyAuthority, activeProducersAuthority, false)
-	activePermission := c.Authorization.GetPermission(&common.PermissionLevel{common.DefaultConfig.ProducersAccountName, common.DefaultConfig.ActiveName})
+	activePermission := c.Authorization.GetPermission(&common.PermissionLevel{Actor: common.DefaultConfig.ProducersAccountName, Permission: common.DefaultConfig.ActiveName})
 
 	majorityPermission := c.Authorization.CreatePermission(common.DefaultConfig.ProducersAccountName,
 		common.DefaultConfig.MajorityProducersPermissionName,
@@ -1681,7 +1686,7 @@ func (c *Controller) initialize() {
 	rbi := entity.ReversibleBlockObject{}
 	ubi, err := c.ReversibleBlocks.GetIndex("byNum", &rbi)
 	if err != nil {
-		fmt.Errorf("initialize database ReversibleBlocks GetIndex is error :%s", err)
+		fmt.Printf("initialize database ReversibleBlocks GetIndex is error :%s", err)
 		EosAssert(err == nil, &DatabaseException{}, "Controller initialize is error :%s", err)
 	}
 	//c++ rbegin and rend
@@ -1740,9 +1745,9 @@ func (c *Controller) CheckActorList(actors *AccountNameSet) {
 func (c *Controller) updateProducersAuthority() {
 	producers := c.Pending.PendingBlockState.ActiveSchedule.Producers
 	updatePermission := func(permission *entity.PermissionObject, threshold uint32) {
-		auth := types.Authority{threshold, []types.KeyWeight{}, []types.PermissionLevelWeight{}, []types.WaitWeight{}}
+		auth := types.Authority{Threshold: threshold, Keys: []types.KeyWeight{}, Accounts: []types.PermissionLevelWeight{}, Waits: []types.WaitWeight{}}
 		for _, p := range producers {
-			auth.Accounts = append(auth.Accounts, types.PermissionLevelWeight{common.PermissionLevel{p.ProducerName, common.DefaultConfig.ActiveName}, 1})
+			auth.Accounts = append(auth.Accounts, types.PermissionLevelWeight{Permission: common.PermissionLevel{Actor: p.ProducerName, Permission: common.DefaultConfig.ActiveName}, Weight: 1})
 		}
 		if !permission.Auth.Equals(auth.ToSharedAuthority()) {
 			c.DB.Modify(permission, func(param *entity.PermissionObject) {
@@ -1755,11 +1760,11 @@ func (c *Controller) updateProducersAuthority() {
 	calculateThreshold := func(numerator uint32, denominator uint32) uint32 {
 		return ((uint32(numProducers) * numerator) / denominator) + 1
 	}
-	updatePermission(c.Authorization.GetPermission(&common.PermissionLevel{common.DefaultConfig.ProducersAccountName, common.DefaultConfig.ActiveName}), calculateThreshold(2, 3))
+	updatePermission(c.Authorization.GetPermission(&common.PermissionLevel{Actor: common.DefaultConfig.ProducersAccountName, Permission: common.DefaultConfig.ActiveName}), calculateThreshold(2, 3))
 
-	updatePermission(c.Authorization.GetPermission(&common.PermissionLevel{common.DefaultConfig.ProducersAccountName, common.DefaultConfig.MajorityProducersPermissionName}), calculateThreshold(1, 2))
+	updatePermission(c.Authorization.GetPermission(&common.PermissionLevel{Actor: common.DefaultConfig.ProducersAccountName, Permission: common.DefaultConfig.MajorityProducersPermissionName}), calculateThreshold(1, 2))
 
-	updatePermission(c.Authorization.GetPermission(&common.PermissionLevel{common.DefaultConfig.ProducersAccountName, common.DefaultConfig.MinorityProducersPermissionName}), calculateThreshold(1, 3))
+	updatePermission(c.Authorization.GetPermission(&common.PermissionLevel{Actor: common.DefaultConfig.ProducersAccountName, Permission: common.DefaultConfig.MinorityProducersPermissionName}), calculateThreshold(1, 3))
 
 }
 

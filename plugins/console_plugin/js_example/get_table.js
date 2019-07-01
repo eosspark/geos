@@ -1,0 +1,71 @@
+chain.GetTable({
+    code:'eosio.token',
+    scope:'sys',
+    table:'accounts',
+});
+chain.GetTable({
+    code:'eosio.token',
+    scope:'eosio',
+    table:'accounts',
+});
+chain.GetTable({
+    code:'eosio.token',
+    scope:'walker',
+    table:'accounts',
+});
+chain.GetTable({
+    code:'eosio.token',
+    scope:'eosio',
+    table:'stat',
+});
+chain.GetTable({
+    code:'eosio.token',
+    scope:'RMB',
+    table:'stat',
+});
+chain.GetTable({
+    code:'eosio.token',
+    scope:'SYS',
+    table:'stat',
+});
+
+chain.GetTable({
+    code:'eosio',
+    scope:'eosio',
+    table:'producers',
+});
+chain.GetTable({
+    code:'eosio',
+    scope:'eosio',
+    table:'global',
+});
+chain.GetTable({
+    code:'eosio',
+    scope:'eosio',
+    table:'voters',
+});
+chain.GetTable({
+    code:'eosio',
+    scope:'eosio',
+    table:'userres',
+});
+chain.GetTable({
+    code:'eosio',
+    scope:'eosio',
+    table:'delband',
+});
+chain.GetTable({
+    code:'eosio',
+    scope:'eosio',
+    table:'rammarket',
+});
+chain.GetTable({
+    code:'eosio',
+    scope:'eosio',
+    table:'refunds',
+});
+chain.GetTable({
+    code:'eosio',
+    scope:'eosio',
+    table:'namebids',
+});

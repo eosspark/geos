@@ -2,12 +2,11 @@ package compiler
 
 import (
 	"fmt"
-
 	"math"
+	"strings"
 
 	"github.com/eosspark/eos-go/wasmgo/wagon/disasm"
 	"github.com/eosspark/eos-go/wasmgo/wagon/wasm"
-	"strings"
 )
 
 type TyValueID uint64

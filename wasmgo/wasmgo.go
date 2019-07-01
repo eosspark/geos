@@ -2,14 +2,15 @@ package wasmgo
 
 import (
 	"fmt"
+	"os"
+	//"time"
+
 	"github.com/eosspark/eos-go/common/eos_math"
 	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/eosspark/eos-go/exception"
 	"github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/log"
-	"os"
-	//"time"
 	//"github.com/eosspark/eos-go/wasmgo/wasm"
 )
 
@@ -24,11 +25,11 @@ const (
 	MaximumCodeSize         = 1024 * 1024      //bytes 20 * 1024  *1024
 	WasmPageSize            = 64 * 1024        //bytes
 
-	// Assert(MaximumLinearMemory%WasmPageSize == 0, "MaximumLinearMemory must be mulitple of wasm page size")
-	// Assert(MaximumMutableGlobals%4 == 0, "MaximumMutableGlobals must be mulitple of 4")
-	// Assert(MaximumTableElements*8%4096 == 0, "maximum_table_elements*8 must be mulitple of 4096")
-	// Assert(MaximumLinearMemoryInit%WasmPageSize == 0, "MaximumLinearMemoryInit must be mulitple of wasm page size")
-	// Assert(MaximumFuncLocalBytes%8 == 0, "MaximumFuncLocalBytes must be mulitple of 8")
+	// Assert(MaximumLinearMemory%WasmPageSize == 0, "MaximumLinearMemory must be multiple of wasm page size")
+	// Assert(MaximumMutableGlobals%4 == 0, "MaximumMutableGlobals must be multiple of 4")
+	// Assert(MaximumTableElements*8%4096 == 0, "maximum_table_elements*8 must be multiple of 4096")
+	// Assert(MaximumLinearMemoryInit%WasmPageSize == 0, "MaximumLinearMemoryInit must be multiple of wasm page size")
+	// Assert(MaximumFuncLocalBytes%8 == 0, "MaximumFuncLocalBytes must be multiple of 8")
 	// Assert(MaximumFuncLocalBytes > 32, "MaximumFuncLocalBytes must be greater than 32")
 )
 

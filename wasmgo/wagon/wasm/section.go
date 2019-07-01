@@ -8,13 +8,14 @@ import (
 	"bytes"
 	"errors"
 	"fmt"
+	"io"
+	"io/ioutil"
+	"sort"
+
 	. "github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/wasmgo/wagon/wasm/internal/readpos"
 	"github.com/eosspark/eos-go/wasmgo/wagon/wasm/leb128"
-	"io"
-	"io/ioutil"
-	"sort"
 )
 
 // Section is a generic WASM section interface.
@@ -922,7 +923,7 @@ func (l *LocalEntry) MarshalWASM(w io.Writer) error {
 	return nil
 }
 
-// SectionData describes the intial values of a module's linear memory
+// SectionData describes the initial values of a module's linear memory
 type SectionData struct {
 	RawSection
 	Entries []DataSegment

@@ -127,7 +127,7 @@ eos.SetContract({
 //     stake_net_amount:'100000.0000 SYS',
 //     stake_cpu_amount:'100000.0000 SYS',
 // });
-
+//
 // system.NewAccount({
 //     creator: 'eosio',
 //     name: "walkerwalker",

@@ -172,7 +172,7 @@ func (ac *AuthorityChecker) PermissionStatusInCache(permissions PermissionCacheT
 	if ok {
 		return itr
 	}
-	itr2, ok := permissions[PermissionLevel{level.Actor, PermissionName(N(""))}]
+	itr2, ok := permissions[PermissionLevel{Actor: level.Actor, Permission: PermissionName(N(""))}]
 	if ok {
 		return itr2
 	}

@@ -2,6 +2,10 @@ package chain
 
 import (
 	"fmt"
+	"os"
+	"strings"
+	"testing"
+
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto"
@@ -10,10 +14,8 @@ import (
 	"github.com/eosspark/eos-go/exception"
 	"github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/log"
+
 	"github.com/stretchr/testify/assert"
-	"os"
-	"strings"
-	"testing"
 )
 
 var path string = "/tmp/data/"

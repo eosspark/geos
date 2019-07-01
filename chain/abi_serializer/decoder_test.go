@@ -4,18 +4,20 @@ import (
 	"bytes"
 	"encoding/hex"
 	"fmt"
+	"math"
+	"strings"
+	"testing"
+	"time"
+
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/crypto/rlp"
+
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/tidwall/gjson"
-	"math"
-	"strings"
-	"testing"
-	"time"
 )
 
 func TestABI_DecodeAction(t *testing.T) {

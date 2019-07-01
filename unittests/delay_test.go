@@ -1,37 +1,37 @@
 package unittests
 
 import (
+	"fmt"
+	"io/ioutil"
 	"testing"
+
 	. "github.com/eosspark/eos-go/chain"
+	"github.com/eosspark/eos-go/chain/abi_serializer"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
-	"github.com/stretchr/testify/assert"
-	"github.com/eosspark/eos-go/exception"
-	"io/ioutil"
-	"github.com/eosspark/eos-go/entity"
-
-	"github.com/eosspark/eos-go/chain/abi_serializer"
 	"github.com/eosspark/eos-go/database"
-	"fmt"
+	"github.com/eosspark/eos-go/entity"
+	"github.com/eosspark/eos-go/exception"
+
+	"github.com/stretchr/testify/assert"
 )
 
 //eos-go db don't supply func db.get_index.size ,so add func--TakeCountOf
-func TakeCountOf (generatedIndex *database.MultiIndex) (count int){
+func TakeCountOf(generatedIndex *database.MultiIndex) (count int) {
 	it := generatedIndex.Begin()
 	count = 0
-	for generatedIndex.CompareIterator(it, generatedIndex.End()) == false  {
+	for generatedIndex.CompareIterator(it, generatedIndex.End()) == false {
 		it.Next()
 		count++
 	}
 	return count
 }
 
-
 func TestValidating(t *testing.T) {
 	t.Run("", func(t *testing.T) {
 
 		b := newBaseTester(true, SPECULATIVE)
-		b.ProduceBlocks(2,false)
+		b.ProduceBlocks(2, false)
 
 		trx := types.SignedTransaction{}
 
@@ -39,24 +39,23 @@ func TestValidating(t *testing.T) {
 		creator := common.DefaultConfig.SystemAccountName
 		ownerAuth := types.NewAuthority(b.getPublicKey(newco, "owner"), 0)
 
-		pl := []common.PermissionLevel{{common.DefaultConfig.SystemAccountName, common.N("active")}}
+		pl := []common.PermissionLevel{{Actor: common.DefaultConfig.SystemAccountName, Permission: common.N("active")}}
 		a := NewAccount{
-			creator,
-			newco,
-			ownerAuth,
-			types.NewAuthority(b.getPublicKey(newco, "active"), 0)}
-		act := newAction(pl,&a)
-		trx.Actions = append(trx.Actions,act)
-		b.SetTransactionHeaders(&trx.Transaction, b.DefaultExpirationDelta,0)
+			Creator: creator,
+			Name:    newco,
+			Owner:   ownerAuth,
+			Active:  types.NewAuthority(b.getPublicKey(newco, "active"), 0)}
+		act := newAction(pl, &a)
+		trx.Actions = append(trx.Actions, act)
+		b.SetTransactionHeaders(&trx.Transaction, b.DefaultExpirationDelta, 0)
 		trx.DelaySec = 3
-		privKey := b.getPrivateKey(creator,"active")
+		privKey := b.getPrivateKey(creator, "active")
 		chainId := b.Control.GetChainId()
-		trx.Sign(&privKey,&chainId)
-
+		trx.Sign(&privKey, &chainId)
 
 		b.PushTransaction(&trx, common.MaxTimePoint(), b.DefaultBilledCpuTimeUs)
 
-		b.ProduceBlocks(8,false)
+		b.ProduceBlocks(8, false)
 		b.close()
 	})
 }
@@ -65,7 +64,7 @@ func TestValidatingError(t *testing.T) {
 	t.Run("", func(t *testing.T) {
 
 		b := newBaseTester(true, SPECULATIVE)
-		b.ProduceBlocks(2,false)
+		b.ProduceBlocks(2, false)
 
 		trx := types.SignedTransaction{}
 
@@ -73,28 +72,27 @@ func TestValidatingError(t *testing.T) {
 		creator := common.DefaultConfig.SystemAccountName
 		ownerAuth := types.NewAuthority(b.getPublicKey(newco, "owner"), 0)
 
-		pl := []common.PermissionLevel{{common.DefaultConfig.SystemAccountName, common.PermissionName(common.N("active"))}}
+		pl := []common.PermissionLevel{{Actor: common.DefaultConfig.SystemAccountName, Permission: common.N("active")}}
 		a := NewAccount{
-			common.N("bad"), /// a does not exist, this should error when execute
-			newco,
-			ownerAuth,
-			types.NewAuthority(b.getPublicKey(newco, "active"), 0)}
-		act := newAction(pl,&a)
-		trx.Actions = append(trx.Actions,act)
-		b.SetTransactionHeaders(&trx.Transaction, b.DefaultExpirationDelta,0)
+			Creator: common.N("bad"), /// a does not exist, this should error when execute
+			Name:    newco,
+			Owner:   ownerAuth,
+			Active:  types.NewAuthority(b.getPublicKey(newco, "active"), 0)}
+		act := newAction(pl, &a)
+		trx.Actions = append(trx.Actions, act)
+		b.SetTransactionHeaders(&trx.Transaction, b.DefaultExpirationDelta, 0)
 		trx.DelaySec = 3
-		privKey := b.getPrivateKey(creator,"active")
+		privKey := b.getPrivateKey(creator, "active")
 		chainId := b.Control.GetChainId()
-		trx.Sign(&privKey,&chainId)
+		trx.Sign(&privKey, &chainId)
 
 		b.PushTransaction(&trx, common.MaxTimePoint(), b.DefaultBilledCpuTimeUs)
 
-
-		b.ProduceBlocks(6,false)
+		b.ProduceBlocks(6, false)
 
 		scheduledTrxs := b.Control.GetScheduledTransactions()
-		assert.Equal(t, len(scheduledTrxs),1)
-		dtrace := b.Control.PushScheduledTransaction(&scheduledTrxs[len(scheduledTrxs)-1],common.MaxTimePoint(),0)
+		assert.Equal(t, len(scheduledTrxs), 1)
+		dtrace := b.Control.PushScheduledTransaction(&scheduledTrxs[len(scheduledTrxs)-1], common.MaxTimePoint(), 0)
 
 		assert.Equal(t, dtrace.Except != nil, true)
 		assert.Equal(t, dtrace.Except.Code(), exception.MissingAuthException{}.Code())
@@ -110,31 +108,29 @@ func TestLinkDelayDirect(t *testing.T) {
 		_, chain := initializeValidatingTester()
 		tester := common.AccountName(common.N("tester"))
 		tester2 := common.AccountName(common.N("tester2"))
-		chain.ProduceBlocks(1,false)
-		chain.CreateAccount(eosioToken,eosio,false,true)
-		chain.ProduceBlocks(10,false)
+		chain.ProduceBlocks(1, false)
+		chain.CreateAccount(eosioToken, eosio, false, true)
+		chain.ProduceBlocks(10, false)
 
 		eosioTokenWasm := "test_contracts/eosio.token.wasm"
 		eosioTokenAbi := "test_contracts/eosio.token.abi"
 		code, _ := ioutil.ReadFile(eosioTokenWasm)
 		abi, _ := ioutil.ReadFile(eosioTokenAbi)
 		chain.SetCode(eosioToken, code, nil)
-		chain.SetAbi(eosioToken,abi,nil)
+		chain.SetAbi(eosioToken, abi, nil)
 
-		chain.ProduceBlocks(1,false)
-		chain.CreateAccount(common.N("tester"),eosio,false,true)
-		chain.CreateAccount(common.N("tester2"), eosio, false,true)
+		chain.ProduceBlocks(1, false)
+		chain.CreateAccount(common.N("tester"), eosio, false, true)
+		chain.CreateAccount(common.N("tester2"), eosio, false, true)
 		chain.ProduceBlocks(10, false)
 
-
 		updateAuthData := common.Variants{
-			"account": tester,
+			"account":    tester,
 			"permission": common.N("first"),
-			"parent": common.N("active"),
-			"auth": types.NewAuthority(chain.getPublicKey(tester, "first"), 0),
-
+			"parent":     common.N("active"),
+			"auth":       types.NewAuthority(chain.getPublicKey(tester, "first"), 0),
 		}
-		actName :=UpdateAuth{}.GetName()
+		actName := UpdateAuth{}.GetName()
 		chain.PushAction2(
 			&eosio,
 			&actName,
@@ -145,9 +141,9 @@ func TestLinkDelayDirect(t *testing.T) {
 		)
 
 		LinkAuthData := common.Variants{
-			"account": tester,
-			"code": eosioToken,
-			"type": common.N("transfer"),
+			"account":     tester,
+			"code":        eosioToken,
+			"type":        common.N("transfer"),
 			"requirement": common.N("first"),
 		}
 		linkName := LinkAuth{}.GetName()
@@ -160,7 +156,7 @@ func TestLinkDelayDirect(t *testing.T) {
 			0,
 		)
 
-		chain.ProduceBlocks(1,false)
+		chain.ProduceBlocks(1, false)
 		create := common.N("create")
 		chain.PushAction2(
 			&eosioToken,
@@ -171,7 +167,7 @@ func TestLinkDelayDirect(t *testing.T) {
 			0)
 
 		issue := common.N("issue")
-		chain.ProduceBlocks(1,false)
+		chain.ProduceBlocks(1, false)
 		chain.PushAction2(
 			&eosioToken,
 			&issue,
@@ -181,16 +177,16 @@ func TestLinkDelayDirect(t *testing.T) {
 			0)
 
 		transfer := common.N("transfer")
-		chain.ProduceBlocks(1,false)
+		chain.ProduceBlocks(1, false)
 		trace := chain.PushAction2(
 			&eosioToken,
 			&transfer,
 			eosioToken,
-			&common.Variants{"from": eosioToken, "to": tester,"quantity": "100.0000 CUR", "memo": "hi"},
+			&common.Variants{"from": eosioToken, "to": tester, "quantity": "100.0000 CUR", "memo": "hi"},
 			chain.DefaultExpirationDelta,
 			0)
-		assert.Equal(t, types.TransactionStatusExecuted,trace.Receipt.Status)
-		
+		assert.Equal(t, types.TransactionStatusExecuted, trace.Receipt.Status)
+
 		generatedIndex, _ := chain.Control.DB.GetIndex("byTrxId", entity.GeneratedTransactionObject{})
 		assert.Equal(t, TakeCountOf(generatedIndex), 0)
 
@@ -199,7 +195,7 @@ func TestLinkDelayDirect(t *testing.T) {
 		symbol := common.Symbol{Precision: 4, Symbol: "CUR"}
 		eosioTokenAccount := common.AccountName(eosioToken)
 		liquidBalance := chain.GetCurrencyBalance(&eosioToken, &symbol, &eosioTokenAccount)
-		s :="999900.0000 CUR"
+		s := "999900.0000 CUR"
 		asset := common.Asset{}
 		expected := asset.FromString(&s)
 		assert.Equal(t, expected, liquidBalance)
@@ -209,17 +205,16 @@ func TestLinkDelayDirect(t *testing.T) {
 		liquidBalance = chain.GetCurrencyBalance(&eosioToken, &symbol, &tester)
 		assert.Equal(t, expected, liquidBalance)
 
-
 		trace = chain.PushAction2(
 			&eosioToken,
 			&transfer,
 			tester,
-			&common.Variants{"from": tester, "to": tester2,"quantity": "1.0000 CUR", "memo": "hi"},
+			&common.Variants{"from": tester, "to": tester2, "quantity": "1.0000 CUR", "memo": "hi"},
 			chain.DefaultExpirationDelta,
 			0)
 
 		assert.Equal(t, types.TransactionStatusExecuted, trace.Receipt.Status)
-		
+
 		generatedIndex, _ = chain.Control.DB.GetIndex("byTrxId", entity.GeneratedTransactionObject{})
 		assert.Equal(t, TakeCountOf(generatedIndex), 0)
 
@@ -235,19 +230,16 @@ func TestLinkDelayDirect(t *testing.T) {
 		expected = asset.FromString(&s)
 		assert.Equal(t, expected, liquidBalance)
 
-		
 		liquidBalance = chain.GetCurrencyBalance(&eosioToken, &symbol, &tester2)
 		s = "1.0000 CUR"
 		expected = asset.FromString(&s)
 		assert.Equal(t, expected, liquidBalance)
 
-
 		updateAuthData = common.Variants{
-			"account": tester,
+			"account":    tester,
 			"permission": common.N("first"),
-			"parent": common.N("active"),
-			"auth": types.NewAuthority(chain.getPublicKey(tester, "first"), 10),
-
+			"parent":     common.N("active"),
+			"auth":       types.NewAuthority(chain.getPublicKey(tester, "first"), 10),
 		}
 		trace = chain.PushAction2(
 			&eosio,
@@ -258,7 +250,7 @@ func TestLinkDelayDirect(t *testing.T) {
 			0,
 		)
 		assert.Equal(t, types.TransactionStatusExecuted, trace.Receipt.Status)
-		
+
 		generatedIndex, _ = chain.Control.DB.GetIndex("byTrxId", entity.GeneratedTransactionObject{})
 		assert.Equal(t, TakeCountOf(generatedIndex), 0)
 
@@ -268,11 +260,11 @@ func TestLinkDelayDirect(t *testing.T) {
 			&eosioToken,
 			&transfer,
 			tester,
-			&common.Variants{"from": tester, "to": tester2,"quantity": "3.0000 CUR", "memo": "hi"},
+			&common.Variants{"from": tester, "to": tester2, "quantity": "3.0000 CUR", "memo": "hi"},
 			20,
 			10)
 		assert.Equal(t, types.TransactionStatusDelayed, trace.Receipt.Status)
-		
+
 		generatedIndex, _ = chain.Control.DB.GetIndex("byTrxId", entity.GeneratedTransactionObject{})
 		assert.Equal(t, 1, TakeCountOf(generatedIndex))
 		assert.Equal(t, 0, len(trace.ActionTraces))
@@ -334,8 +326,7 @@ func TestLinkDelayDirect(t *testing.T) {
 	})
 }
 
-
-func TestDeleteAuth(t *testing.T){
+func TestDeleteAuth(t *testing.T) {
 	t.Run("", func(t *testing.T) {
 		_, chain := initializeValidatingTester()
 		tester := common.AccountName(common.N("tester"))
@@ -350,7 +341,7 @@ func TestDeleteAuth(t *testing.T){
 		code, _ := ioutil.ReadFile(eosioTokenWasm)
 		abi, _ := ioutil.ReadFile(eosioTokenAbi)
 		chain.SetCode(eosioToken, code, nil)
-		chain.SetAbi(eosioToken,abi,nil)
+		chain.SetAbi(eosioToken, abi, nil)
 
 		chain.ProduceBlocks(1, false)
 		chain.CreateAccount(common.N("tester"), eosio, false, true)
@@ -359,10 +350,10 @@ func TestDeleteAuth(t *testing.T){
 
 		// can't delete auth because it doesn't exist
 		deleteAuthData := common.Variants{
-			"account": tester,
+			"account":    tester,
 			"permission": common.N("first"),
 		}
-		actName :=DeleteAuth{}.GetName()
+		actName := DeleteAuth{}.GetName()
 
 		CheckThrowMsg(t, "Failed to retrieve permission", func() {
 			chain.PushAction2(
@@ -375,16 +366,14 @@ func TestDeleteAuth(t *testing.T){
 			)
 		})
 
-
 		//update auth
 		updateAuthData := common.Variants{
-			"account": tester,
+			"account":    tester,
 			"permission": common.N("first"),
-			"parent": common.N("active"),
-			"auth": types.NewAuthority(chain.getPublicKey(tester, "first"), 0),
-
+			"parent":     common.N("active"),
+			"auth":       types.NewAuthority(chain.getPublicKey(tester, "first"), 0),
 		}
-		actName =UpdateAuth{}.GetName()
+		actName = UpdateAuth{}.GetName()
 		chain.PushAction2(
 			&eosio,
 			&actName,
@@ -396,9 +385,9 @@ func TestDeleteAuth(t *testing.T){
 
 		//link auth
 		LinkAuthData := common.Variants{
-			"account": tester,
-			"code": eosioToken,
-			"type": common.N("transfer"),
+			"account":     tester,
+			"code":        eosioToken,
+			"type":        common.N("transfer"),
 			"requirement": common.N("first"),
 		}
 		linkName := LinkAuth{}.GetName()
@@ -427,7 +416,7 @@ func TestDeleteAuth(t *testing.T){
 
 		// issue to account "eosio.token"
 		issue := common.N("issue")
-		chain.ProduceBlocks(1,false)
+		chain.ProduceBlocks(1, false)
 		chain.PushAction2(
 			&eosioToken,
 			&issue,
@@ -436,14 +425,13 @@ func TestDeleteAuth(t *testing.T){
 			chain.DefaultExpirationDelta,
 			0)
 
-
 		// transfer from eosio.token to tester
 		transfer := common.N("transfer")
 		trace := chain.PushAction2(
 			&eosioToken,
 			&transfer,
 			eosioToken,
-			&common.Variants{"from": eosioToken, "to": tester,"quantity": "100.0000 CUR", "memo": "hi"},
+			&common.Variants{"from": eosioToken, "to": tester, "quantity": "100.0000 CUR", "memo": "hi"},
 			chain.DefaultExpirationDelta,
 			0)
 		assert.Equal(t, types.TransactionStatusExecuted, trace.Receipt.Status)
@@ -453,23 +441,21 @@ func TestDeleteAuth(t *testing.T){
 		symbol := common.Symbol{Precision: 4, Symbol: "CUR"}
 		eosioTokenAccount := common.AccountName(eosioToken)
 		liquidBalance := chain.GetCurrencyBalance(&eosioToken, &symbol, &eosioTokenAccount)
-		s :="999900.0000 CUR"
+		s := "999900.0000 CUR"
 		asset := common.Asset{}
 		expected := asset.FromString(&s)
 		assert.Equal(t, expected, liquidBalance)
 
-		
 		s = "100.0000 CUR"
 		expected = asset.FromString(&s)
 		liquidBalance = chain.GetCurrencyBalance(&eosioToken, &symbol, &tester)
 		assert.Equal(t, expected, liquidBalance)
 
-
 		trace = chain.PushAction2(
 			&eosioToken,
 			&transfer,
 			tester,
-			&common.Variants{"from": tester, "to": tester2,"quantity": "1.0000 CUR", "memo": "hi"},
+			&common.Variants{"from": tester, "to": tester2, "quantity": "1.0000 CUR", "memo": "hi"},
 			chain.DefaultExpirationDelta,
 			0)
 
@@ -483,7 +469,6 @@ func TestDeleteAuth(t *testing.T){
 		expected = asset.FromString(&s)
 		assert.Equal(t, expected, liquidBalance)
 
-		
 		liquidBalance = chain.GetCurrencyBalance(&eosioToken, &symbol, &tester2)
 		s = "1.0000 CUR"
 		expected = asset.FromString(&s)
@@ -495,10 +480,10 @@ func TestDeleteAuth(t *testing.T){
 
 		// can't delete auth because it's linked
 		deleteAuthData = common.Variants{
-			"account": tester,
+			"account":    tester,
 			"permission": common.N("first"),
 		}
-		actName =DeleteAuth{}.GetName()
+		actName = DeleteAuth{}.GetName()
 
 		CheckThrowMsg(t, "Cannot delete a linked authority", func() {
 			chain.PushAction2(
@@ -517,8 +502,8 @@ func TestDeleteAuth(t *testing.T){
 		//unlink auth
 		unLinkAuthData := common.Variants{
 			"account": tester,
-			"code": eosioToken,
-			"type": common.N("transfer"),
+			"code":    eosioToken,
+			"type":    common.N("transfer"),
 		}
 		unLinkName := UnLinkAuth{}.GetName()
 		chain.PushAction2(
@@ -533,7 +518,7 @@ func TestDeleteAuth(t *testing.T){
 
 		// delete auth
 		deleteAuthData = common.Variants{
-			"account": tester,
+			"account":    tester,
 			"permission": common.N("first"),
 		}
 		actName = DeleteAuth{}.GetName()
@@ -554,7 +539,7 @@ func TestDeleteAuth(t *testing.T){
 			&eosioToken,
 			&transfer,
 			tester,
-			&common.Variants{"from": tester, "to": tester2,"quantity": "3.0000 CUR", "memo": "hi"},
+			&common.Variants{"from": tester, "to": tester2, "quantity": "3.0000 CUR", "memo": "hi"},
 			chain.DefaultExpirationDelta,
 			0)
 		assert.Equal(t, types.TransactionStatusExecuted, trace.Receipt.Status)
@@ -566,7 +551,6 @@ func TestDeleteAuth(t *testing.T){
 		expected = asset.FromString(&s)
 		assert.Equal(t, expected, liquidBalance)
 
-
 		liquidBalance = chain.GetCurrencyBalance(&eosioToken, &symbol, &tester2)
 		s = "4.0000 CUR"
 		expected = asset.FromString(&s)
@@ -574,7 +558,6 @@ func TestDeleteAuth(t *testing.T){
 		chain.close()
 	})
 }
-
 
 func TestLinkDelayDirectParentPermission(t *testing.T) {
 	t.Run("", func(t *testing.T) {
@@ -591,7 +574,7 @@ func TestLinkDelayDirectParentPermission(t *testing.T) {
 		code, _ := ioutil.ReadFile(eosioTokenWasm)
 		abi, _ := ioutil.ReadFile(eosioTokenAbi)
 		chain.SetCode(eosioToken, code, nil)
-		chain.SetAbi(eosioToken,abi,nil)
+		chain.SetAbi(eosioToken, abi, nil)
 
 		chain.ProduceBlocks(1, false)
 		chain.CreateAccount(common.N("tester"), eosio, false, true)
@@ -599,13 +582,12 @@ func TestLinkDelayDirectParentPermission(t *testing.T) {
 		chain.ProduceBlocks(10, false)
 
 		updateAuthData := common.Variants{
-			"account": tester,
+			"account":    tester,
 			"permission": common.N("first"),
-			"parent": common.N("active"),
-			"auth": types.NewAuthority(chain.getPublicKey(tester, "first"), 0),
-
+			"parent":     common.N("active"),
+			"auth":       types.NewAuthority(chain.getPublicKey(tester, "first"), 0),
 		}
-		actName :=UpdateAuth{}.GetName()
+		actName := UpdateAuth{}.GetName()
 		chain.PushAction2(
 			&eosio,
 			&actName,
@@ -616,9 +598,9 @@ func TestLinkDelayDirectParentPermission(t *testing.T) {
 		)
 
 		LinkAuthData := common.Variants{
-			"account": tester,
-			"code": eosioToken,
-			"type": common.N("transfer"),
+			"account":     tester,
+			"code":        eosioToken,
+			"type":        common.N("transfer"),
 			"requirement": common.N("first"),
 		}
 		linkName := LinkAuth{}.GetName()
@@ -631,7 +613,7 @@ func TestLinkDelayDirectParentPermission(t *testing.T) {
 			0,
 		)
 
-		chain.ProduceBlocks(1,false)
+		chain.ProduceBlocks(1, false)
 		create := common.N("create")
 		chain.PushAction2(
 			&eosioToken,
@@ -642,7 +624,7 @@ func TestLinkDelayDirectParentPermission(t *testing.T) {
 			0)
 
 		issue := common.N("issue")
-		chain.ProduceBlocks(1,false)
+		chain.ProduceBlocks(1, false)
 		chain.PushAction2(
 			&eosioToken,
 			&issue,
@@ -652,42 +634,38 @@ func TestLinkDelayDirectParentPermission(t *testing.T) {
 			0)
 
 		transfer := common.N("transfer")
-		chain.ProduceBlocks(1,false)
+		chain.ProduceBlocks(1, false)
 		trace := chain.PushAction2(
 			&eosioToken,
 			&transfer,
 			eosioToken,
-			&common.Variants{"from": eosioToken, "to": tester,"quantity": "100.0000 CUR", "memo": "hi"},
+			&common.Variants{"from": eosioToken, "to": tester, "quantity": "100.0000 CUR", "memo": "hi"},
 			chain.DefaultExpirationDelta,
 			0)
-		assert.Equal(t, types.TransactionStatusExecuted,trace.Receipt.Status)
+		assert.Equal(t, types.TransactionStatusExecuted, trace.Receipt.Status)
 		generatedIndex, _ := chain.Control.DB.GetIndex("byTrxId", entity.GeneratedTransactionObject{})
 		assert.Equal(t, TakeCountOf(generatedIndex), 0)
-
-
 
 		chain.ProduceBlocks(1, false)
 
 		symbol := common.Symbol{Precision: 4, Symbol: "CUR"}
 		eosioTokenAccount := common.AccountName(eosioToken)
 		liquidBalance := chain.GetCurrencyBalance(&eosioToken, &symbol, &eosioTokenAccount)
-		s :="999900.0000 CUR"
+		s := "999900.0000 CUR"
 		asset := common.Asset{}
 		expected := asset.FromString(&s)
 		assert.Equal(t, expected, liquidBalance)
 
-		
 		s = "100.0000 CUR"
 		expected = asset.FromString(&s)
 		liquidBalance = chain.GetCurrencyBalance(&eosioToken, &symbol, &tester)
 		assert.Equal(t, expected, liquidBalance)
 
-
 		trace = chain.PushAction2(
 			&eosioToken,
 			&transfer,
 			tester,
-			&common.Variants{"from": tester, "to": tester2,"quantity": "1.0000 CUR", "memo": "hi"},
+			&common.Variants{"from": tester, "to": tester2, "quantity": "1.0000 CUR", "memo": "hi"},
 			chain.DefaultExpirationDelta,
 			0)
 
@@ -707,19 +685,16 @@ func TestLinkDelayDirectParentPermission(t *testing.T) {
 		expected = asset.FromString(&s)
 		assert.Equal(t, expected, liquidBalance)
 
-		
 		liquidBalance = chain.GetCurrencyBalance(&eosioToken, &symbol, &tester2)
 		s = "1.0000 CUR"
 		expected = asset.FromString(&s)
 		assert.Equal(t, expected, liquidBalance)
 
-
 		updateAuthData = common.Variants{
-			"account": tester,
+			"account":    tester,
 			"permission": common.N("active"),
-			"parent": common.N("owner"),
-			"auth": types.NewAuthority(chain.getPublicKey(tester, "active"), 15),
-
+			"parent":     common.N("owner"),
+			"auth":       types.NewAuthority(chain.getPublicKey(tester, "active"), 15),
 		}
 		trace = chain.PushAction2(
 			&eosio,
@@ -739,15 +714,13 @@ func TestLinkDelayDirectParentPermission(t *testing.T) {
 			&eosioToken,
 			&transfer,
 			tester,
-			&common.Variants{"from": tester, "to": tester2,"quantity": "3.0000 CUR", "memo": "hi"},
+			&common.Variants{"from": tester, "to": tester2, "quantity": "3.0000 CUR", "memo": "hi"},
 			20,
 			15)
 		assert.Equal(t, types.TransactionStatusDelayed, trace.Receipt.Status)
 		generatedIndex, _ = chain.Control.DB.GetIndex("byTrxId", entity.GeneratedTransactionObject{})
 		assert.Equal(t, 1, TakeCountOf(generatedIndex))
 		assert.Equal(t, 0, len(trace.ActionTraces))
-
-
 
 		liquidBalance = chain.GetCurrencyBalance(&eosioToken, &symbol, &tester)
 		s = "99.0000 CUR"
@@ -805,37 +778,34 @@ func TestLinkDelayDirectParentPermission(t *testing.T) {
 	})
 }
 
-
 func TestLinkDelayDirectWalkParentPermission(t *testing.T) {
 	t.Run("", func(t *testing.T) {
 		_, chain := initializeValidatingTester()
 		tester := common.AccountName(common.N("tester"))
 		tester2 := common.AccountName(common.N("tester2"))
-		chain.ProduceBlocks(1,false)
-		chain.CreateAccount(eosioToken,eosio,false,true)
-		chain.ProduceBlocks(10,false)
+		chain.ProduceBlocks(1, false)
+		chain.CreateAccount(eosioToken, eosio, false, true)
+		chain.ProduceBlocks(10, false)
 
 		eosioTokenWasm := "test_contracts/eosio.token.wasm"
 		eosioTokenAbi := "test_contracts/eosio.token.abi"
 		code, _ := ioutil.ReadFile(eosioTokenWasm)
 		abi, _ := ioutil.ReadFile(eosioTokenAbi)
 		chain.SetCode(eosioToken, code, nil)
-		chain.SetAbi(eosioToken,abi,nil)
+		chain.SetAbi(eosioToken, abi, nil)
 
-		chain.ProduceBlocks(1,false)
-		chain.CreateAccount(common.N("tester"),eosio,false,true)
-		chain.CreateAccount(common.N("tester2"), eosio, false,true)
+		chain.ProduceBlocks(1, false)
+		chain.CreateAccount(common.N("tester"), eosio, false, true)
+		chain.CreateAccount(common.N("tester2"), eosio, false, true)
 		chain.ProduceBlocks(10, false)
 
-
 		updateAuthData := common.Variants{
-			"account": tester,
+			"account":    tester,
 			"permission": common.N("first"),
-			"parent": common.N("active"),
-			"auth": types.NewAuthority(chain.getPublicKey(tester, "first"), 0),
-
+			"parent":     common.N("active"),
+			"auth":       types.NewAuthority(chain.getPublicKey(tester, "first"), 0),
 		}
-		actName :=UpdateAuth{}.GetName()
+		actName := UpdateAuth{}.GetName()
 		chain.PushAction2(
 			&eosio,
 			&actName,
@@ -846,11 +816,10 @@ func TestLinkDelayDirectWalkParentPermission(t *testing.T) {
 		)
 
 		updateAuthData2 := common.Variants{
-			"account": tester,
+			"account":    tester,
 			"permission": common.N("second"),
-			"parent": common.N("first"),
-			"auth": types.NewAuthority(chain.getPublicKey(tester, "second"), 0),
-
+			"parent":     common.N("first"),
+			"auth":       types.NewAuthority(chain.getPublicKey(tester, "second"), 0),
 		}
 		chain.PushAction2(
 			&eosio,
@@ -862,9 +831,9 @@ func TestLinkDelayDirectWalkParentPermission(t *testing.T) {
 		)
 
 		LinkAuthData := common.Variants{
-			"account": tester,
-			"code": eosioToken,
-			"type": common.N("transfer"),
+			"account":     tester,
+			"code":        eosioToken,
+			"type":        common.N("transfer"),
 			"requirement": common.N("second"),
 		}
 		linkName := LinkAuth{}.GetName()
@@ -877,7 +846,7 @@ func TestLinkDelayDirectWalkParentPermission(t *testing.T) {
 			0,
 		)
 
-		chain.ProduceBlocks(1,false)
+		chain.ProduceBlocks(1, false)
 		create := common.N("create")
 		chain.PushAction2(
 			&eosioToken,
@@ -888,7 +857,7 @@ func TestLinkDelayDirectWalkParentPermission(t *testing.T) {
 			0)
 
 		issue := common.N("issue")
-		chain.ProduceBlocks(1,false)
+		chain.ProduceBlocks(1, false)
 		chain.PushAction2(
 			&eosioToken,
 			&issue,
@@ -898,16 +867,16 @@ func TestLinkDelayDirectWalkParentPermission(t *testing.T) {
 			0)
 
 		transfer := common.N("transfer")
-		chain.ProduceBlocks(1,false)
+		chain.ProduceBlocks(1, false)
 		trace := chain.PushAction2(
 			&eosioToken,
 			&transfer,
 			eosioToken,
-			&common.Variants{"from": eosioToken, "to": tester,"quantity": "100.0000 CUR", "memo": "hi"},
+			&common.Variants{"from": eosioToken, "to": tester, "quantity": "100.0000 CUR", "memo": "hi"},
 			chain.DefaultExpirationDelta,
 			0)
-		assert.Equal(t, types.TransactionStatusExecuted,trace.Receipt.Status)
-		
+		assert.Equal(t, types.TransactionStatusExecuted, trace.Receipt.Status)
+
 		generatedIndex, _ := chain.Control.DB.GetIndex("byTrxId", entity.GeneratedTransactionObject{})
 		assert.Equal(t, TakeCountOf(generatedIndex), 0)
 
@@ -916,28 +885,26 @@ func TestLinkDelayDirectWalkParentPermission(t *testing.T) {
 		symbol := common.Symbol{Precision: 4, Symbol: "CUR"}
 		eosioTokenAccount := common.AccountName(eosioToken)
 		liquidBalance := chain.GetCurrencyBalance(&eosioToken, &symbol, &eosioTokenAccount)
-		s :="999900.0000 CUR"
+		s := "999900.0000 CUR"
 		asset := common.Asset{}
 		expected := asset.FromString(&s)
 		assert.Equal(t, expected, liquidBalance)
 
-		
 		s = "100.0000 CUR"
 		expected = asset.FromString(&s)
 		liquidBalance = chain.GetCurrencyBalance(&eosioToken, &symbol, &tester)
 		assert.Equal(t, expected, liquidBalance)
 
-
 		trace = chain.PushAction2(
 			&eosioToken,
 			&transfer,
 			tester,
-			&common.Variants{"from": tester, "to": tester2,"quantity": "1.0000 CUR", "memo": "hi"},
+			&common.Variants{"from": tester, "to": tester2, "quantity": "1.0000 CUR", "memo": "hi"},
 			chain.DefaultExpirationDelta,
 			0)
 
 		assert.Equal(t, types.TransactionStatusExecuted, trace.Receipt.Status)
-		
+
 		generatedIndex, _ = chain.Control.DB.GetIndex("byTrxId", entity.GeneratedTransactionObject{})
 		assert.Equal(t, TakeCountOf(generatedIndex), 0)
 
@@ -953,19 +920,16 @@ func TestLinkDelayDirectWalkParentPermission(t *testing.T) {
 		expected = asset.FromString(&s)
 		assert.Equal(t, expected, liquidBalance)
 
-		
 		liquidBalance = chain.GetCurrencyBalance(&eosioToken, &symbol, &tester2)
 		s = "1.0000 CUR"
 		expected = asset.FromString(&s)
 		assert.Equal(t, expected, liquidBalance)
 
-
 		updateAuthData = common.Variants{
-			"account": tester,
+			"account":    tester,
 			"permission": common.N("first"),
-			"parent": common.N("active"),
-			"auth": types.NewAuthority(chain.getPublicKey(tester, "first"), 20),
-
+			"parent":     common.N("active"),
+			"auth":       types.NewAuthority(chain.getPublicKey(tester, "first"), 20),
 		}
 		trace = chain.PushAction2(
 			&eosio,
@@ -976,7 +940,7 @@ func TestLinkDelayDirectWalkParentPermission(t *testing.T) {
 			0,
 		)
 		assert.Equal(t, types.TransactionStatusExecuted, trace.Receipt.Status)
-		
+
 		generatedIndex, _ = chain.Control.DB.GetIndex("byTrxId", entity.GeneratedTransactionObject{})
 		assert.Equal(t, TakeCountOf(generatedIndex), 0)
 
@@ -986,11 +950,11 @@ func TestLinkDelayDirectWalkParentPermission(t *testing.T) {
 			&eosioToken,
 			&transfer,
 			tester,
-			&common.Variants{"from": tester, "to": tester2,"quantity": "3.0000 CUR", "memo": "hi"},
+			&common.Variants{"from": tester, "to": tester2, "quantity": "3.0000 CUR", "memo": "hi"},
 			30,
 			20)
 		assert.Equal(t, types.TransactionStatusDelayed, trace.Receipt.Status)
-		
+
 		generatedIndex, _ = chain.Control.DB.GetIndex("byTrxId", entity.GeneratedTransactionObject{})
 		assert.Equal(t, 1, TakeCountOf(generatedIndex))
 		assert.Equal(t, 0, len(trace.ActionTraces))
@@ -1051,7 +1015,6 @@ func TestLinkDelayDirectWalkParentPermission(t *testing.T) {
 	})
 }
 
-
 func TestLinkDelayPermissionChange(t *testing.T) {
 	t.Run("", func(t *testing.T) {
 		_, chain := initializeValidatingTester()
@@ -1067,7 +1030,7 @@ func TestLinkDelayPermissionChange(t *testing.T) {
 		code, _ := ioutil.ReadFile(eosioTokenWasm)
 		abi, _ := ioutil.ReadFile(eosioTokenAbi)
 		chain.SetCode(eosioToken, code, nil)
-		chain.SetAbi(eosioToken,abi,nil)
+		chain.SetAbi(eosioToken, abi, nil)
 
 		chain.ProduceBlocks(1, false)
 		chain.CreateAccount(common.N("tester"), eosio, false, true)
@@ -1075,13 +1038,12 @@ func TestLinkDelayPermissionChange(t *testing.T) {
 		chain.ProduceBlocks(10, false)
 
 		updateAuthData := common.Variants{
-			"account": tester,
+			"account":    tester,
 			"permission": common.N("first"),
-			"parent": common.N("active"),
-			"auth": types.NewAuthority(chain.getPublicKey(tester, "first"), 10),
-
+			"parent":     common.N("active"),
+			"auth":       types.NewAuthority(chain.getPublicKey(tester, "first"), 10),
 		}
-		actName :=UpdateAuth{}.GetName()
+		actName := UpdateAuth{}.GetName()
 		chain.PushAction2(
 			&eosio,
 			&actName,
@@ -1092,9 +1054,9 @@ func TestLinkDelayPermissionChange(t *testing.T) {
 		)
 
 		LinkAuthData := common.Variants{
-			"account": tester,
-			"code": eosioToken,
-			"type": common.N("transfer"),
+			"account":     tester,
+			"code":        eosioToken,
+			"type":        common.N("transfer"),
 			"requirement": common.N("first"),
 		}
 		linkName := LinkAuth{}.GetName()
@@ -1107,7 +1069,7 @@ func TestLinkDelayPermissionChange(t *testing.T) {
 			0,
 		)
 
-		chain.ProduceBlocks(1,false)
+		chain.ProduceBlocks(1, false)
 		create := common.N("create")
 		chain.PushAction2(
 			&eosioToken,
@@ -1118,7 +1080,7 @@ func TestLinkDelayPermissionChange(t *testing.T) {
 			0)
 
 		issue := common.N("issue")
-		chain.ProduceBlocks(1,false)
+		chain.ProduceBlocks(1, false)
 		chain.PushAction2(
 			&eosioToken,
 			&issue,
@@ -1128,16 +1090,16 @@ func TestLinkDelayPermissionChange(t *testing.T) {
 			0)
 
 		transfer := common.N("transfer")
-		chain.ProduceBlocks(1,false)
+		chain.ProduceBlocks(1, false)
 		trace := chain.PushAction2(
 			&eosioToken,
 			&transfer,
 			eosioToken,
-			&common.Variants{"from": eosioToken, "to": tester,"quantity": "100.0000 CUR", "memo": "hi"},
+			&common.Variants{"from": eosioToken, "to": tester, "quantity": "100.0000 CUR", "memo": "hi"},
 			chain.DefaultExpirationDelta,
 			0)
-		assert.Equal(t, types.TransactionStatusExecuted,trace.Receipt.Status)
-		
+		assert.Equal(t, types.TransactionStatusExecuted, trace.Receipt.Status)
+
 		generatedIndex, _ := chain.Control.DB.GetIndex("byTrxId", entity.GeneratedTransactionObject{})
 		assert.Equal(t, TakeCountOf(generatedIndex), 0)
 
@@ -1146,12 +1108,11 @@ func TestLinkDelayPermissionChange(t *testing.T) {
 		symbol := common.Symbol{Precision: 4, Symbol: "CUR"}
 		eosioTokenAccount := common.AccountName(eosioToken)
 		liquidBalance := chain.GetCurrencyBalance(&eosioToken, &symbol, &eosioTokenAccount)
-		s :="999900.0000 CUR"
+		s := "999900.0000 CUR"
 		asset := common.Asset{}
 		expected := asset.FromString(&s)
 		assert.Equal(t, expected, liquidBalance)
 
-		
 		s = "100.0000 CUR"
 		expected = asset.FromString(&s)
 		liquidBalance = chain.GetCurrencyBalance(&eosioToken, &symbol, &tester)
@@ -1162,12 +1123,12 @@ func TestLinkDelayPermissionChange(t *testing.T) {
 			&eosioToken,
 			&transfer,
 			tester,
-			&common.Variants{"from": tester, "to": tester2,"quantity": "1.0000 CUR", "memo": "hi"},
+			&common.Variants{"from": tester, "to": tester2, "quantity": "1.0000 CUR", "memo": "hi"},
 			30,
 			10)
 
 		assert.Equal(t, types.TransactionStatusDelayed, trace.Receipt.Status)
-		
+
 		generatedIndex, _ = chain.Control.DB.GetIndex("byTrxId", entity.GeneratedTransactionObject{})
 		assert.Equal(t, 1, TakeCountOf(generatedIndex))
 		assert.Equal(t, 0, len(trace.ActionTraces))
@@ -1184,7 +1145,6 @@ func TestLinkDelayPermissionChange(t *testing.T) {
 		expected = asset.FromString(&s)
 		assert.Equal(t, expected, liquidBalance)
 
-		
 		liquidBalance = chain.GetCurrencyBalance(&eosioToken, &symbol, &tester2)
 		s = "0.0000 CUR"
 		expected = asset.FromString(&s)
@@ -1192,11 +1152,10 @@ func TestLinkDelayPermissionChange(t *testing.T) {
 
 		// this transaction will be delayed 20 blocks
 		updateAuthData = common.Variants{
-			"account": tester,
+			"account":    tester,
 			"permission": common.N("first"),
-			"parent": common.N("active"),
-			"auth": types.NewAuthority(chain.getPublicKey(tester, "first"), 0),
-
+			"parent":     common.N("active"),
+			"auth":       types.NewAuthority(chain.getPublicKey(tester, "first"), 0),
 		}
 		trace = chain.PushAction2(
 			&eosio,
@@ -1207,10 +1166,10 @@ func TestLinkDelayPermissionChange(t *testing.T) {
 			10,
 		)
 		assert.Equal(t, types.TransactionStatusDelayed, trace.Receipt.Status)
-		
+
 		generatedIndex, _ = chain.Control.DB.GetIndex("byTrxId", entity.GeneratedTransactionObject{})
-		assert.Equal(t, TakeCountOf(generatedIndex),2 )
-		assert.Equal(t,  len(trace.ActionTraces),0)
+		assert.Equal(t, TakeCountOf(generatedIndex), 2)
+		assert.Equal(t, len(trace.ActionTraces), 0)
 
 		chain.ProduceBlocks(1, false)
 
@@ -1241,14 +1200,14 @@ func TestLinkDelayPermissionChange(t *testing.T) {
 			&eosioToken,
 			&transfer,
 			tester,
-			&common.Variants{"from": tester, "to": tester2,"quantity": "5.0000 CUR", "memo": "hi"},
+			&common.Variants{"from": tester, "to": tester2, "quantity": "5.0000 CUR", "memo": "hi"},
 			30,
 			10)
 		assert.Equal(t, types.TransactionStatusDelayed, trace.Receipt.Status)
-		
+
 		generatedIndex, _ = chain.Control.DB.GetIndex("byTrxId", entity.GeneratedTransactionObject{})
-		assert.Equal(t, TakeCountOf(generatedIndex),3)
-		assert.Equal(t, len(trace.ActionTraces),0)
+		assert.Equal(t, TakeCountOf(generatedIndex), 3)
+		assert.Equal(t, len(trace.ActionTraces), 0)
 
 		chain.ProduceBlocks(1, false)
 
@@ -1273,12 +1232,10 @@ func TestLinkDelayPermissionChange(t *testing.T) {
 		assert.Equal(t, expected, liquidBalance)
 
 		// first transfer will finally be performed
-		chain.ProduceBlocks(1,false)
+		chain.ProduceBlocks(1, false)
 
-		
 		generatedIndex, _ = chain.Control.DB.GetIndex("byTrxId", entity.GeneratedTransactionObject{})
-		assert.Equal(t, TakeCountOf(generatedIndex),2)
-
+		assert.Equal(t, TakeCountOf(generatedIndex), 2)
 
 		liquidBalance = chain.GetCurrencyBalance(&eosioToken, &symbol, &tester)
 		s = "99.0000 CUR"
@@ -1292,16 +1249,15 @@ func TestLinkDelayPermissionChange(t *testing.T) {
 		// delayed update auth removing the delay will finally execute
 		chain.ProduceBlocks(1, false)
 
-		
 		generatedIndex, _ = chain.Control.DB.GetIndex("byTrxId", entity.GeneratedTransactionObject{})
-		assert.Equal(t, TakeCountOf(generatedIndex),1)
+		assert.Equal(t, TakeCountOf(generatedIndex), 1)
 
 		// this transfer is performed right away since delay is removed
 		trace = chain.PushAction2(
 			&eosioToken,
 			&transfer,
 			tester,
-			&common.Variants{"from": tester, "to": tester2,"quantity": "10.0000 CUR", "memo": "hi"},
+			&common.Variants{"from": tester, "to": tester2, "quantity": "10.0000 CUR", "memo": "hi"},
 			chain.DefaultExpirationDelta,
 			0)
 		assert.Equal(t, types.TransactionStatusExecuted, trace.Receipt.Status)
@@ -1328,16 +1284,14 @@ func TestLinkDelayPermissionChange(t *testing.T) {
 		expected = asset.FromString(&s)
 		assert.Equal(t, expected, liquidBalance)
 
-		
 		generatedIndex, _ = chain.Control.DB.GetIndex("byTrxId", entity.GeneratedTransactionObject{})
-		assert.Equal(t, TakeCountOf(generatedIndex),1)
+		assert.Equal(t, TakeCountOf(generatedIndex), 1)
 
 		// second transfer finally is performed
 		chain.ProduceBlocks(1, false)
 
-		
 		generatedIndex, _ = chain.Control.DB.GetIndex("byTrxId", entity.GeneratedTransactionObject{})
-		assert.Equal(t, TakeCountOf(generatedIndex),0)
+		assert.Equal(t, TakeCountOf(generatedIndex), 0)
 
 		liquidBalance = chain.GetCurrencyBalance(&eosioToken, &symbol, &tester)
 		s = "84.0000 CUR"
@@ -1350,7 +1304,6 @@ func TestLinkDelayPermissionChange(t *testing.T) {
 		chain.close()
 	})
 }
-
 
 func TestLinkDelayPermissionChangeWithDelayHeirarchy(t *testing.T) {
 	t.Run("", func(t *testing.T) {
@@ -1367,7 +1320,7 @@ func TestLinkDelayPermissionChangeWithDelayHeirarchy(t *testing.T) {
 		code, _ := ioutil.ReadFile(eosioTokenWasm)
 		abi, _ := ioutil.ReadFile(eosioTokenAbi)
 		chain.SetCode(eosioToken, code, nil)
-		chain.SetAbi(eosioToken,abi,nil)
+		chain.SetAbi(eosioToken, abi, nil)
 
 		chain.ProduceBlocks(1, false)
 		chain.CreateAccount(common.N("tester"), eosio, false, true)
@@ -1375,13 +1328,12 @@ func TestLinkDelayPermissionChangeWithDelayHeirarchy(t *testing.T) {
 		chain.ProduceBlocks(10, false)
 
 		updateAuthData := common.Variants{
-			"account": tester,
+			"account":    tester,
 			"permission": common.N("first"),
-			"parent": common.N("active"),
-			"auth": types.NewAuthority(chain.getPublicKey(tester, "first"), 10),
-
+			"parent":     common.N("active"),
+			"auth":       types.NewAuthority(chain.getPublicKey(tester, "first"), 10),
 		}
-		actName :=UpdateAuth{}.GetName()
+		actName := UpdateAuth{}.GetName()
 		chain.PushAction2(
 			&eosio,
 			&actName,
@@ -1392,11 +1344,10 @@ func TestLinkDelayPermissionChangeWithDelayHeirarchy(t *testing.T) {
 		)
 
 		updateAuthData2 := common.Variants{
-			"account": tester,
+			"account":    tester,
 			"permission": common.N("second"),
-			"parent": common.N("first"),
-			"auth": types.NewAuthority(chain.getPublicKey(tester, "second"), 0),
-
+			"parent":     common.N("first"),
+			"auth":       types.NewAuthority(chain.getPublicKey(tester, "second"), 0),
 		}
 
 		chain.PushAction2(
@@ -1409,9 +1360,9 @@ func TestLinkDelayPermissionChangeWithDelayHeirarchy(t *testing.T) {
 		)
 
 		LinkAuthData := common.Variants{
-			"account": tester,
-			"code": eosioToken,
-			"type": common.N("transfer"),
+			"account":     tester,
+			"code":        eosioToken,
+			"type":        common.N("transfer"),
 			"requirement": common.N("second"),
 		}
 		linkName := LinkAuth{}.GetName()
@@ -1424,7 +1375,7 @@ func TestLinkDelayPermissionChangeWithDelayHeirarchy(t *testing.T) {
 			0,
 		)
 
-		chain.ProduceBlocks(1,false)
+		chain.ProduceBlocks(1, false)
 		create := common.N("create")
 		chain.PushAction2(
 			&eosioToken,
@@ -1435,7 +1386,7 @@ func TestLinkDelayPermissionChangeWithDelayHeirarchy(t *testing.T) {
 			0)
 
 		issue := common.N("issue")
-		chain.ProduceBlocks(1,false)
+		chain.ProduceBlocks(1, false)
 		chain.PushAction2(
 			&eosioToken,
 			&issue,
@@ -1445,16 +1396,16 @@ func TestLinkDelayPermissionChangeWithDelayHeirarchy(t *testing.T) {
 			0)
 
 		transfer := common.N("transfer")
-		chain.ProduceBlocks(1,false)
+		chain.ProduceBlocks(1, false)
 		trace := chain.PushAction2(
 			&eosioToken,
 			&transfer,
 			eosioToken,
-			&common.Variants{"from": eosioToken, "to": tester,"quantity": "100.0000 CUR", "memo": "hi"},
+			&common.Variants{"from": eosioToken, "to": tester, "quantity": "100.0000 CUR", "memo": "hi"},
 			chain.DefaultExpirationDelta,
 			0)
-		assert.Equal(t, types.TransactionStatusExecuted,trace.Receipt.Status)
-		
+		assert.Equal(t, types.TransactionStatusExecuted, trace.Receipt.Status)
+
 		generatedIndex, _ := chain.Control.DB.GetIndex("byTrxId", entity.GeneratedTransactionObject{})
 		assert.Equal(t, TakeCountOf(generatedIndex), 0)
 
@@ -1463,12 +1414,11 @@ func TestLinkDelayPermissionChangeWithDelayHeirarchy(t *testing.T) {
 		symbol := common.Symbol{Precision: 4, Symbol: "CUR"}
 		eosioTokenAccount := common.AccountName(eosioToken)
 		liquidBalance := chain.GetCurrencyBalance(&eosioToken, &symbol, &eosioTokenAccount)
-		s :="999900.0000 CUR"
+		s := "999900.0000 CUR"
 		asset := common.Asset{}
 		expected := asset.FromString(&s)
 		assert.Equal(t, expected, liquidBalance)
 
-		
 		s = "100.0000 CUR"
 		expected = asset.FromString(&s)
 		liquidBalance = chain.GetCurrencyBalance(&eosioToken, &symbol, &tester)
@@ -1479,12 +1429,12 @@ func TestLinkDelayPermissionChangeWithDelayHeirarchy(t *testing.T) {
 			&eosioToken,
 			&transfer,
 			tester,
-			&common.Variants{"from": tester, "to": tester2,"quantity": "1.0000 CUR", "memo": "hi"},
+			&common.Variants{"from": tester, "to": tester2, "quantity": "1.0000 CUR", "memo": "hi"},
 			30,
 			10)
 
 		assert.Equal(t, types.TransactionStatusDelayed, trace.Receipt.Status)
-		
+
 		generatedIndex, _ = chain.Control.DB.GetIndex("byTrxId", entity.GeneratedTransactionObject{})
 		assert.Equal(t, 1, TakeCountOf(generatedIndex))
 		assert.Equal(t, 0, len(trace.ActionTraces))
@@ -1501,7 +1451,6 @@ func TestLinkDelayPermissionChangeWithDelayHeirarchy(t *testing.T) {
 		expected = asset.FromString(&s)
 		assert.Equal(t, expected, liquidBalance)
 
-		
 		liquidBalance = chain.GetCurrencyBalance(&eosioToken, &symbol, &tester2)
 		s = "0.0000 CUR"
 		expected = asset.FromString(&s)
@@ -1509,11 +1458,10 @@ func TestLinkDelayPermissionChangeWithDelayHeirarchy(t *testing.T) {
 
 		// this transaction will be delayed 20 blocks
 		updateAuthData = common.Variants{
-			"account": tester,
+			"account":    tester,
 			"permission": common.N("first"),
-			"parent": common.N("active"),
-			"auth": types.NewAuthority(chain.getPublicKey(tester, "first"), 0),
-
+			"parent":     common.N("active"),
+			"auth":       types.NewAuthority(chain.getPublicKey(tester, "first"), 0),
 		}
 		trace = chain.PushAction2(
 			&eosio,
@@ -1524,10 +1472,10 @@ func TestLinkDelayPermissionChangeWithDelayHeirarchy(t *testing.T) {
 			10,
 		)
 		assert.Equal(t, types.TransactionStatusDelayed, trace.Receipt.Status)
-		
+
 		generatedIndex, _ = chain.Control.DB.GetIndex("byTrxId", entity.GeneratedTransactionObject{})
-		assert.Equal(t, TakeCountOf(generatedIndex),2 )
-		assert.Equal(t,  len(trace.ActionTraces),0)
+		assert.Equal(t, TakeCountOf(generatedIndex), 2)
+		assert.Equal(t, len(trace.ActionTraces), 0)
 
 		chain.ProduceBlocks(1, false)
 
@@ -1558,14 +1506,14 @@ func TestLinkDelayPermissionChangeWithDelayHeirarchy(t *testing.T) {
 			&eosioToken,
 			&transfer,
 			tester,
-			&common.Variants{"from": tester, "to": tester2,"quantity": "5.0000 CUR", "memo": "hi"},
+			&common.Variants{"from": tester, "to": tester2, "quantity": "5.0000 CUR", "memo": "hi"},
 			30,
 			10)
 		assert.Equal(t, types.TransactionStatusDelayed, trace.Receipt.Status)
-		
+
 		generatedIndex, _ = chain.Control.DB.GetIndex("byTrxId", entity.GeneratedTransactionObject{})
-		assert.Equal(t, TakeCountOf(generatedIndex),3)
-		assert.Equal(t, len(trace.ActionTraces),0)
+		assert.Equal(t, TakeCountOf(generatedIndex), 3)
+		assert.Equal(t, len(trace.ActionTraces), 0)
 
 		chain.ProduceBlocks(1, false)
 
@@ -1590,8 +1538,7 @@ func TestLinkDelayPermissionChangeWithDelayHeirarchy(t *testing.T) {
 		assert.Equal(t, expected, liquidBalance)
 
 		// first transfer will finally be performed
-		chain.ProduceBlocks(1,false)
-
+		chain.ProduceBlocks(1, false)
 
 		liquidBalance = chain.GetCurrencyBalance(&eosioToken, &symbol, &tester)
 		s = "99.0000 CUR"
@@ -1604,19 +1551,18 @@ func TestLinkDelayPermissionChangeWithDelayHeirarchy(t *testing.T) {
 
 		chain.ProduceBlocks(1, false)
 
-
 		// this transfer is performed right away since delay is removed
 		trace = chain.PushAction2(
 			&eosioToken,
 			&transfer,
 			tester,
-			&common.Variants{"from": tester, "to": tester2,"quantity": "10.0000 CUR", "memo": "hi"},
+			&common.Variants{"from": tester, "to": tester2, "quantity": "10.0000 CUR", "memo": "hi"},
 			chain.DefaultExpirationDelta,
 			0)
 		assert.Equal(t, types.TransactionStatusExecuted, trace.Receipt.Status)
-		
+
 		generatedIndex, _ = chain.Control.DB.GetIndex("byTrxId", entity.GeneratedTransactionObject{})
-		assert.Equal(t, TakeCountOf(generatedIndex),1)
+		assert.Equal(t, TakeCountOf(generatedIndex), 1)
 
 		chain.ProduceBlocks(1, false)
 
@@ -1666,7 +1612,6 @@ func TestLinkDelayPermissionChangeWithDelayHeirarchy(t *testing.T) {
 	})
 }
 
-
 func TestLinkDelayLinkChange(t *testing.T) {
 	t.Run("", func(t *testing.T) {
 		_, chain := initializeValidatingTester()
@@ -1682,7 +1627,7 @@ func TestLinkDelayLinkChange(t *testing.T) {
 		code, _ := ioutil.ReadFile(eosioTokenWasm)
 		abi, _ := ioutil.ReadFile(eosioTokenAbi)
 		chain.SetCode(eosioToken, code, nil)
-		chain.SetAbi(eosioToken,abi,nil)
+		chain.SetAbi(eosioToken, abi, nil)
 
 		chain.ProduceBlocks(1, false)
 		chain.CreateAccount(common.N("tester"), eosio, false, true)
@@ -1690,13 +1635,12 @@ func TestLinkDelayLinkChange(t *testing.T) {
 		chain.ProduceBlocks(10, false)
 
 		updateAuthData := common.Variants{
-			"account": tester,
+			"account":    tester,
 			"permission": common.N("first"),
-			"parent": common.N("active"),
-			"auth": types.NewAuthority(chain.getPublicKey(tester, "first"), 10),
-
+			"parent":     common.N("active"),
+			"auth":       types.NewAuthority(chain.getPublicKey(tester, "first"), 10),
 		}
-		actName :=UpdateAuth{}.GetName()
+		actName := UpdateAuth{}.GetName()
 		chain.PushAction2(
 			&eosio,
 			&actName,
@@ -1707,9 +1651,9 @@ func TestLinkDelayLinkChange(t *testing.T) {
 		)
 
 		LinkAuthData := common.Variants{
-			"account": tester,
-			"code": eosioToken,
-			"type": common.N("transfer"),
+			"account":     tester,
+			"code":        eosioToken,
+			"type":        common.N("transfer"),
 			"requirement": common.N("first"),
 		}
 		linkName := LinkAuth{}.GetName()
@@ -1723,11 +1667,10 @@ func TestLinkDelayLinkChange(t *testing.T) {
 		)
 
 		updateAuthData2 := common.Variants{
-			"account": tester,
+			"account":    tester,
 			"permission": common.N("second"),
-			"parent": common.N("active"),
-			"auth": types.NewAuthority(chain.getPublicKey(tester, "second"), 0),
-
+			"parent":     common.N("active"),
+			"auth":       types.NewAuthority(chain.getPublicKey(tester, "second"), 0),
 		}
 		chain.PushAction2(
 			&eosio,
@@ -1738,7 +1681,7 @@ func TestLinkDelayLinkChange(t *testing.T) {
 			0,
 		)
 
-		chain.ProduceBlocks(1,false)
+		chain.ProduceBlocks(1, false)
 		create := common.N("create")
 		chain.PushAction2(
 			&eosioToken,
@@ -1749,7 +1692,7 @@ func TestLinkDelayLinkChange(t *testing.T) {
 			0)
 
 		issue := common.N("issue")
-		chain.ProduceBlocks(1,false)
+		chain.ProduceBlocks(1, false)
 		chain.PushAction2(
 			&eosioToken,
 			&issue,
@@ -1759,16 +1702,16 @@ func TestLinkDelayLinkChange(t *testing.T) {
 			0)
 
 		transfer := common.N("transfer")
-		chain.ProduceBlocks(1,false)
+		chain.ProduceBlocks(1, false)
 		trace := chain.PushAction2(
 			&eosioToken,
 			&transfer,
 			eosioToken,
-			&common.Variants{"from": eosioToken, "to": tester,"quantity": "100.0000 CUR", "memo": "hi"},
+			&common.Variants{"from": eosioToken, "to": tester, "quantity": "100.0000 CUR", "memo": "hi"},
 			chain.DefaultExpirationDelta,
 			0)
-		assert.Equal(t, types.TransactionStatusExecuted,trace.Receipt.Status)
-		
+		assert.Equal(t, types.TransactionStatusExecuted, trace.Receipt.Status)
+
 		generatedIndex, _ := chain.Control.DB.GetIndex("byTrxId", entity.GeneratedTransactionObject{})
 		assert.Equal(t, TakeCountOf(generatedIndex), 0)
 
@@ -1777,12 +1720,11 @@ func TestLinkDelayLinkChange(t *testing.T) {
 		symbol := common.Symbol{Precision: 4, Symbol: "CUR"}
 		eosioTokenAccount := common.AccountName(eosioToken)
 		liquidBalance := chain.GetCurrencyBalance(&eosioToken, &symbol, &eosioTokenAccount)
-		s :="999900.0000 CUR"
+		s := "999900.0000 CUR"
 		asset := common.Asset{}
 		expected := asset.FromString(&s)
 		assert.Equal(t, expected, liquidBalance)
 
-		
 		s = "100.0000 CUR"
 		expected = asset.FromString(&s)
 		liquidBalance = chain.GetCurrencyBalance(&eosioToken, &symbol, &tester)
@@ -1793,12 +1735,12 @@ func TestLinkDelayLinkChange(t *testing.T) {
 			&eosioToken,
 			&transfer,
 			tester,
-			&common.Variants{"from": tester, "to": tester2,"quantity": "1.0000 CUR", "memo": "hi"},
+			&common.Variants{"from": tester, "to": tester2, "quantity": "1.0000 CUR", "memo": "hi"},
 			30,
 			10)
 
 		assert.Equal(t, types.TransactionStatusDelayed, trace.Receipt.Status)
-		
+
 		generatedIndex, _ = chain.Control.DB.GetIndex("byTrxId", entity.GeneratedTransactionObject{})
 		assert.Equal(t, 1, TakeCountOf(generatedIndex))
 		assert.Equal(t, 0, len(trace.ActionTraces))
@@ -1815,20 +1757,19 @@ func TestLinkDelayLinkChange(t *testing.T) {
 		expected = asset.FromString(&s)
 		assert.Equal(t, expected, liquidBalance)
 
-		
 		liquidBalance = chain.GetCurrencyBalance(&eosioToken, &symbol, &tester2)
 		s = "0.0000 CUR"
 		expected = asset.FromString(&s)
 		assert.Equal(t, expected, liquidBalance)
 
 		LinkAuthData = common.Variants{
-			"account": tester,
-			"code": eosioToken,
-			"type": common.N("transfer"),
+			"account":     tester,
+			"code":        eosioToken,
+			"type":        common.N("transfer"),
 			"requirement": common.N("second"),
 		}
 		linkName = LinkAuth{}.GetName()
-		pl := []common.PermissionLevel{{tester, common.PermissionName(common.N("first"))}}
+		pl := []common.PermissionLevel{{Actor: tester, Permission: common.PermissionName(common.N("first"))}}
 
 		CheckThrowMsg(t, "transaction declares authority", func() {
 			chain.PushAction4(
@@ -1843,9 +1784,9 @@ func TestLinkDelayLinkChange(t *testing.T) {
 
 		// this transaction will be delayed 20 blocks
 		LinkAuthData = common.Variants{
-			"account": tester,
-			"code": eosioToken,
-			"type": common.N("transfer"),
+			"account":     tester,
+			"code":        eosioToken,
+			"type":        common.N("transfer"),
 			"requirement": common.N("second"),
 		}
 		linkName = LinkAuth{}.GetName()
@@ -1858,7 +1799,7 @@ func TestLinkDelayLinkChange(t *testing.T) {
 			10,
 		)
 		assert.Equal(t, types.TransactionStatusDelayed, trace.Receipt.Status)
-		
+
 		generatedIndex, _ = chain.Control.DB.GetIndex("byTrxId", entity.GeneratedTransactionObject{})
 		assert.Equal(t, 2, TakeCountOf(generatedIndex))
 		assert.Equal(t, 0, len(trace.ActionTraces))
@@ -1892,14 +1833,14 @@ func TestLinkDelayLinkChange(t *testing.T) {
 			&eosioToken,
 			&transfer,
 			tester,
-			&common.Variants{"from": tester, "to": tester2,"quantity": "5.0000 CUR", "memo": "hi"},
+			&common.Variants{"from": tester, "to": tester2, "quantity": "5.0000 CUR", "memo": "hi"},
 			30,
 			10)
 		assert.Equal(t, types.TransactionStatusDelayed, trace.Receipt.Status)
-		
+
 		generatedIndex, _ = chain.Control.DB.GetIndex("byTrxId", entity.GeneratedTransactionObject{})
-		assert.Equal(t, TakeCountOf(generatedIndex),3)
-		assert.Equal(t, len(trace.ActionTraces),0)
+		assert.Equal(t, TakeCountOf(generatedIndex), 3)
+		assert.Equal(t, len(trace.ActionTraces), 0)
 
 		chain.ProduceBlocks(1, false)
 
@@ -1924,8 +1865,7 @@ func TestLinkDelayLinkChange(t *testing.T) {
 		assert.Equal(t, expected, liquidBalance)
 
 		// first transfer will finally be performed
-		chain.ProduceBlocks(1,false)
-
+		chain.ProduceBlocks(1, false)
 
 		liquidBalance = chain.GetCurrencyBalance(&eosioToken, &symbol, &tester)
 		s = "99.0000 CUR"
@@ -1939,20 +1879,18 @@ func TestLinkDelayLinkChange(t *testing.T) {
 		// delay on minimum permission of transfer is finally removed
 		chain.ProduceBlocks(1, false)
 
-
 		// this transfer is performed right away since delay is removed
 		trace = chain.PushAction2(
 			&eosioToken,
 			&transfer,
 			tester,
-			&common.Variants{"from": tester, "to": tester2,"quantity": "10.0000 CUR", "memo": "hi"},
+			&common.Variants{"from": tester, "to": tester2, "quantity": "10.0000 CUR", "memo": "hi"},
 			chain.DefaultExpirationDelta,
 			0)
 		assert.Equal(t, types.TransactionStatusExecuted, trace.Receipt.Status)
-		
-		generatedIndex, _ = chain.Control.DB.GetIndex("byTrxId", entity.GeneratedTransactionObject{})
-		assert.Equal(t, TakeCountOf(generatedIndex),1)
 
+		generatedIndex, _ = chain.Control.DB.GetIndex("byTrxId", entity.GeneratedTransactionObject{})
+		assert.Equal(t, TakeCountOf(generatedIndex), 1)
 
 		liquidBalance = chain.GetCurrencyBalance(&eosioToken, &symbol, &tester)
 		s = "89.0000 CUR"
@@ -1990,7 +1928,6 @@ func TestLinkDelayLinkChange(t *testing.T) {
 	})
 }
 
-
 func TestLinkDelayUnlink(t *testing.T) {
 	t.Run("", func(t *testing.T) {
 		_, chain := initializeValidatingTester()
@@ -2006,7 +1943,7 @@ func TestLinkDelayUnlink(t *testing.T) {
 		code, _ := ioutil.ReadFile(eosioTokenWasm)
 		abi, _ := ioutil.ReadFile(eosioTokenAbi)
 		chain.SetCode(eosioToken, code, nil)
-		chain.SetAbi(eosioToken,abi,nil)
+		chain.SetAbi(eosioToken, abi, nil)
 
 		chain.ProduceBlocks(1, false)
 		chain.CreateAccount(common.N("tester"), eosio, false, true)
@@ -2014,13 +1951,12 @@ func TestLinkDelayUnlink(t *testing.T) {
 		chain.ProduceBlocks(10, false)
 
 		updateAuthData := common.Variants{
-			"account": tester,
+			"account":    tester,
 			"permission": common.N("first"),
-			"parent": common.N("active"),
-			"auth": types.NewAuthority(chain.getPublicKey(tester, "first"), 10),
-
+			"parent":     common.N("active"),
+			"auth":       types.NewAuthority(chain.getPublicKey(tester, "first"), 10),
 		}
-		actName :=UpdateAuth{}.GetName()
+		actName := UpdateAuth{}.GetName()
 		chain.PushAction2(
 			&eosio,
 			&actName,
@@ -2031,9 +1967,9 @@ func TestLinkDelayUnlink(t *testing.T) {
 		)
 
 		LinkAuthData := common.Variants{
-			"account": tester,
-			"code": eosioToken,
-			"type": common.N("transfer"),
+			"account":     tester,
+			"code":        eosioToken,
+			"type":        common.N("transfer"),
 			"requirement": common.N("first"),
 		}
 		linkName := LinkAuth{}.GetName()
@@ -2046,7 +1982,7 @@ func TestLinkDelayUnlink(t *testing.T) {
 			0,
 		)
 
-		chain.ProduceBlocks(1,false)
+		chain.ProduceBlocks(1, false)
 		create := common.N("create")
 		chain.PushAction2(
 			&eosioToken,
@@ -2057,7 +1993,7 @@ func TestLinkDelayUnlink(t *testing.T) {
 			0)
 
 		issue := common.N("issue")
-		chain.ProduceBlocks(1,false)
+		chain.ProduceBlocks(1, false)
 		chain.PushAction2(
 			&eosioToken,
 			&issue,
@@ -2067,28 +2003,26 @@ func TestLinkDelayUnlink(t *testing.T) {
 			0)
 
 		transfer := common.N("transfer")
-		chain.ProduceBlocks(1,false)
+		chain.ProduceBlocks(1, false)
 		trace := chain.PushAction2(
 			&eosioToken,
 			&transfer,
 			eosioToken,
-			&common.Variants{"from": eosioToken, "to": tester,"quantity": "100.0000 CUR", "memo": "hi"},
+			&common.Variants{"from": eosioToken, "to": tester, "quantity": "100.0000 CUR", "memo": "hi"},
 			chain.DefaultExpirationDelta,
 			0)
-		assert.Equal(t, types.TransactionStatusExecuted,trace.Receipt.Status)
-
+		assert.Equal(t, types.TransactionStatusExecuted, trace.Receipt.Status)
 
 		chain.ProduceBlocks(1, false)
 
 		symbol := common.Symbol{Precision: 4, Symbol: "CUR"}
 		eosioTokenAccount := common.AccountName(eosioToken)
 		liquidBalance := chain.GetCurrencyBalance(&eosioToken, &symbol, &eosioTokenAccount)
-		s :="999900.0000 CUR"
+		s := "999900.0000 CUR"
 		asset := common.Asset{}
 		expected := asset.FromString(&s)
 		assert.Equal(t, expected, liquidBalance)
 
-		
 		s = "100.0000 CUR"
 		expected = asset.FromString(&s)
 		liquidBalance = chain.GetCurrencyBalance(&eosioToken, &symbol, &tester)
@@ -2099,12 +2033,12 @@ func TestLinkDelayUnlink(t *testing.T) {
 			&eosioToken,
 			&transfer,
 			tester,
-			&common.Variants{"from": tester, "to": tester2,"quantity": "1.0000 CUR", "memo": "hi"},
+			&common.Variants{"from": tester, "to": tester2, "quantity": "1.0000 CUR", "memo": "hi"},
 			30,
 			10)
 
 		assert.Equal(t, types.TransactionStatusDelayed, trace.Receipt.Status)
-		
+
 		generatedIndex, _ := chain.Control.DB.GetIndex("byTrxId", entity.GeneratedTransactionObject{})
 		assert.Equal(t, 1, TakeCountOf(generatedIndex))
 		assert.Equal(t, 0, len(trace.ActionTraces))
@@ -2121,7 +2055,6 @@ func TestLinkDelayUnlink(t *testing.T) {
 		expected = asset.FromString(&s)
 		assert.Equal(t, expected, liquidBalance)
 
-		
 		liquidBalance = chain.GetCurrencyBalance(&eosioToken, &symbol, &tester2)
 		s = "0.0000 CUR"
 		expected = asset.FromString(&s)
@@ -2129,12 +2062,12 @@ func TestLinkDelayUnlink(t *testing.T) {
 
 		unLinkAuthData := common.Variants{
 			"account": tester,
-			"code": eosioToken,
-			"type": common.N("transfer"),
+			"code":    eosioToken,
+			"type":    common.N("transfer"),
 		}
 		unLinkName := UnLinkAuth{}.GetName()
 
-		pl := []common.PermissionLevel{ {tester, common.PermissionName(common.N("first"))}}
+		pl := []common.PermissionLevel{{Actor: tester, Permission: common.PermissionName(common.N("first"))}}
 
 		CheckThrowMsg(t, "transaction declares authority", func() {
 			chain.PushAction4(
@@ -2147,7 +2080,6 @@ func TestLinkDelayUnlink(t *testing.T) {
 			)
 		})
 
-
 		// this transaction will be delayed 20 blocks
 		trace = chain.PushAction2(
 			&eosio,
@@ -2158,10 +2090,10 @@ func TestLinkDelayUnlink(t *testing.T) {
 			10,
 		)
 		assert.Equal(t, types.TransactionStatusDelayed, trace.Receipt.Status)
-		
+
 		generatedIndex, _ = chain.Control.DB.GetIndex("byTrxId", entity.GeneratedTransactionObject{})
-		assert.Equal(t, TakeCountOf(generatedIndex),2 )
-		assert.Equal(t,  len(trace.ActionTraces),0)
+		assert.Equal(t, TakeCountOf(generatedIndex), 2)
+		assert.Equal(t, len(trace.ActionTraces), 0)
 
 		chain.ProduceBlocks(1, false)
 
@@ -2192,14 +2124,14 @@ func TestLinkDelayUnlink(t *testing.T) {
 			&eosioToken,
 			&transfer,
 			tester,
-			&common.Variants{"from": tester, "to": tester2,"quantity": "5.0000 CUR", "memo": "hi"},
+			&common.Variants{"from": tester, "to": tester2, "quantity": "5.0000 CUR", "memo": "hi"},
 			30,
 			10)
 		assert.Equal(t, types.TransactionStatusDelayed, trace.Receipt.Status)
-		
+
 		generatedIndex, _ = chain.Control.DB.GetIndex("byTrxId", entity.GeneratedTransactionObject{})
-		assert.Equal(t, TakeCountOf(generatedIndex),3)
-		assert.Equal(t, len(trace.ActionTraces),0)
+		assert.Equal(t, TakeCountOf(generatedIndex), 3)
+		assert.Equal(t, len(trace.ActionTraces), 0)
 
 		chain.ProduceBlocks(1, false)
 
@@ -2224,8 +2156,7 @@ func TestLinkDelayUnlink(t *testing.T) {
 		assert.Equal(t, expected, liquidBalance)
 
 		// first transfer will finally be performed
-		chain.ProduceBlocks(1,false)
-
+		chain.ProduceBlocks(1, false)
 
 		liquidBalance = chain.GetCurrencyBalance(&eosioToken, &symbol, &tester)
 		s = "99.0000 CUR"
@@ -2238,13 +2169,12 @@ func TestLinkDelayUnlink(t *testing.T) {
 
 		chain.ProduceBlocks(1, false)
 
-
 		// this transfer is performed right away since delay is removed
 		trace = chain.PushAction2(
 			&eosioToken,
 			&transfer,
 			tester,
-			&common.Variants{"from": tester, "to": tester2,"quantity": "10.0000 CUR", "memo": "hi"},
+			&common.Variants{"from": tester, "to": tester2, "quantity": "10.0000 CUR", "memo": "hi"},
 			chain.DefaultExpirationDelta,
 			0)
 		assert.Equal(t, types.TransactionStatusExecuted, trace.Receipt.Status)
@@ -2271,7 +2201,6 @@ func TestLinkDelayUnlink(t *testing.T) {
 		expected = asset.FromString(&s)
 		assert.Equal(t, expected, liquidBalance)
 
-
 		// second transfer finally is performed
 		chain.ProduceBlocks(1, false)
 
@@ -2286,7 +2215,6 @@ func TestLinkDelayUnlink(t *testing.T) {
 		chain.close()
 	})
 }
-
 
 func TestLinkDelayLinkChangeHeirarchy(t *testing.T) {
 	t.Run("", func(t *testing.T) {
@@ -2303,7 +2231,7 @@ func TestLinkDelayLinkChangeHeirarchy(t *testing.T) {
 		code, _ := ioutil.ReadFile(eosioTokenWasm)
 		abi, _ := ioutil.ReadFile(eosioTokenAbi)
 		chain.SetCode(eosioToken, code, nil)
-		chain.SetAbi(eosioToken,abi,nil)
+		chain.SetAbi(eosioToken, abi, nil)
 
 		chain.ProduceBlocks(1, false)
 		chain.CreateAccount(common.N("tester"), eosio, false, true)
@@ -2311,13 +2239,12 @@ func TestLinkDelayLinkChangeHeirarchy(t *testing.T) {
 		chain.ProduceBlocks(10, false)
 
 		updateAuthData := common.Variants{
-			"account": tester,
+			"account":    tester,
 			"permission": common.N("first"),
-			"parent": common.N("active"),
-			"auth": types.NewAuthority(chain.getPublicKey(tester, "first"), 10),
-
+			"parent":     common.N("active"),
+			"auth":       types.NewAuthority(chain.getPublicKey(tester, "first"), 10),
 		}
-		actName :=UpdateAuth{}.GetName()
+		actName := UpdateAuth{}.GetName()
 		chain.PushAction2(
 			&eosio,
 			&actName,
@@ -2328,11 +2255,10 @@ func TestLinkDelayLinkChangeHeirarchy(t *testing.T) {
 		)
 
 		updateAuthData2 := common.Variants{
-			"account": tester,
+			"account":    tester,
 			"permission": common.N("second"),
-			"parent": common.N("first"),
-			"auth": types.NewAuthority(chain.getPublicKey(tester, "first"), 0),
-
+			"parent":     common.N("first"),
+			"auth":       types.NewAuthority(chain.getPublicKey(tester, "first"), 0),
 		}
 
 		chain.PushAction2(
@@ -2345,9 +2271,9 @@ func TestLinkDelayLinkChangeHeirarchy(t *testing.T) {
 		)
 
 		LinkAuthData := common.Variants{
-			"account": tester,
-			"code": eosioToken,
-			"type": common.N("transfer"),
+			"account":     tester,
+			"code":        eosioToken,
+			"type":        common.N("transfer"),
 			"requirement": common.N("second"),
 		}
 		linkName := LinkAuth{}.GetName()
@@ -2361,11 +2287,10 @@ func TestLinkDelayLinkChangeHeirarchy(t *testing.T) {
 		)
 
 		updateAuthData3 := common.Variants{
-			"account": tester,
+			"account":    tester,
 			"permission": common.N("third"),
-			"parent": common.N("active"),
-			"auth": types.NewAuthority(chain.getPublicKey(tester, "third"), 0),
-
+			"parent":     common.N("active"),
+			"auth":       types.NewAuthority(chain.getPublicKey(tester, "third"), 0),
 		}
 		chain.PushAction2(
 			&eosio,
@@ -2376,7 +2301,7 @@ func TestLinkDelayLinkChangeHeirarchy(t *testing.T) {
 			0,
 		)
 
-		chain.ProduceBlocks(1,false)
+		chain.ProduceBlocks(1, false)
 		create := common.N("create")
 		chain.PushAction2(
 			&eosioToken,
@@ -2387,7 +2312,7 @@ func TestLinkDelayLinkChangeHeirarchy(t *testing.T) {
 			0)
 
 		issue := common.N("issue")
-		chain.ProduceBlocks(1,false)
+		chain.ProduceBlocks(1, false)
 		chain.PushAction2(
 			&eosioToken,
 			&issue,
@@ -2397,16 +2322,16 @@ func TestLinkDelayLinkChangeHeirarchy(t *testing.T) {
 			0)
 
 		transfer := common.N("transfer")
-		chain.ProduceBlocks(1,false)
+		chain.ProduceBlocks(1, false)
 		trace := chain.PushAction2(
 			&eosioToken,
 			&transfer,
 			eosioToken,
-			&common.Variants{"from": eosioToken, "to": tester,"quantity": "100.0000 CUR", "memo": "hi"},
+			&common.Variants{"from": eosioToken, "to": tester, "quantity": "100.0000 CUR", "memo": "hi"},
 			chain.DefaultExpirationDelta,
 			0)
-		assert.Equal(t, types.TransactionStatusExecuted,trace.Receipt.Status)
-		
+		assert.Equal(t, types.TransactionStatusExecuted, trace.Receipt.Status)
+
 		generatedIndex, _ := chain.Control.DB.GetIndex("byTrxId", entity.GeneratedTransactionObject{})
 		assert.Equal(t, TakeCountOf(generatedIndex), 0)
 
@@ -2415,12 +2340,11 @@ func TestLinkDelayLinkChangeHeirarchy(t *testing.T) {
 		symbol := common.Symbol{Precision: 4, Symbol: "CUR"}
 		eosioTokenAccount := common.AccountName(eosioToken)
 		liquidBalance := chain.GetCurrencyBalance(&eosioToken, &symbol, &eosioTokenAccount)
-		s :="999900.0000 CUR"
+		s := "999900.0000 CUR"
 		asset := common.Asset{}
 		expected := asset.FromString(&s)
 		assert.Equal(t, expected, liquidBalance)
 
-		
 		s = "100.0000 CUR"
 		expected = asset.FromString(&s)
 		liquidBalance = chain.GetCurrencyBalance(&eosioToken, &symbol, &tester)
@@ -2431,12 +2355,12 @@ func TestLinkDelayLinkChangeHeirarchy(t *testing.T) {
 			&eosioToken,
 			&transfer,
 			tester,
-			&common.Variants{"from": tester, "to": tester2,"quantity": "1.0000 CUR", "memo": "hi"},
+			&common.Variants{"from": tester, "to": tester2, "quantity": "1.0000 CUR", "memo": "hi"},
 			30,
 			10)
 
 		assert.Equal(t, types.TransactionStatusDelayed, trace.Receipt.Status)
-		
+
 		generatedIndex, _ = chain.Control.DB.GetIndex("byTrxId", entity.GeneratedTransactionObject{})
 		assert.Equal(t, 1, TakeCountOf(generatedIndex))
 		assert.Equal(t, 0, len(trace.ActionTraces))
@@ -2453,7 +2377,6 @@ func TestLinkDelayLinkChangeHeirarchy(t *testing.T) {
 		expected = asset.FromString(&s)
 		assert.Equal(t, expected, liquidBalance)
 
-		
 		liquidBalance = chain.GetCurrencyBalance(&eosioToken, &symbol, &tester2)
 		s = "0.0000 CUR"
 		expected = asset.FromString(&s)
@@ -2461,11 +2384,10 @@ func TestLinkDelayLinkChangeHeirarchy(t *testing.T) {
 
 		// this transaction will be delayed 20 blocks
 		LinkAuthData = common.Variants{
-			"account": tester,
-			"code": eosioToken,
-			"type": common.N("transfer"),
+			"account":     tester,
+			"code":        eosioToken,
+			"type":        common.N("transfer"),
 			"requirement": common.N("third"),
-
 		}
 		trace = chain.PushAction2(
 			&eosio,
@@ -2476,10 +2398,10 @@ func TestLinkDelayLinkChangeHeirarchy(t *testing.T) {
 			10,
 		)
 		assert.Equal(t, types.TransactionStatusDelayed, trace.Receipt.Status)
-		
+
 		generatedIndex, _ = chain.Control.DB.GetIndex("byTrxId", entity.GeneratedTransactionObject{})
-		assert.Equal(t, TakeCountOf(generatedIndex),2 )
-		assert.Equal(t,  len(trace.ActionTraces),0)
+		assert.Equal(t, TakeCountOf(generatedIndex), 2)
+		assert.Equal(t, len(trace.ActionTraces), 0)
 
 		chain.ProduceBlocks(1, false)
 
@@ -2510,14 +2432,14 @@ func TestLinkDelayLinkChangeHeirarchy(t *testing.T) {
 			&eosioToken,
 			&transfer,
 			tester,
-			&common.Variants{"from": tester, "to": tester2,"quantity": "5.0000 CUR", "memo": "hi"},
+			&common.Variants{"from": tester, "to": tester2, "quantity": "5.0000 CUR", "memo": "hi"},
 			30,
 			10)
 		assert.Equal(t, types.TransactionStatusDelayed, trace.Receipt.Status)
-		
+
 		generatedIndex, _ = chain.Control.DB.GetIndex("byTrxId", entity.GeneratedTransactionObject{})
-		assert.Equal(t, TakeCountOf(generatedIndex),3)
-		assert.Equal(t, len(trace.ActionTraces),0)
+		assert.Equal(t, TakeCountOf(generatedIndex), 3)
+		assert.Equal(t, len(trace.ActionTraces), 0)
 
 		chain.ProduceBlocks(1, false)
 
@@ -2542,8 +2464,7 @@ func TestLinkDelayLinkChangeHeirarchy(t *testing.T) {
 		assert.Equal(t, expected, liquidBalance)
 
 		// first transfer will finally be performed
-		chain.ProduceBlocks(1,false)
-
+		chain.ProduceBlocks(1, false)
 
 		liquidBalance = chain.GetCurrencyBalance(&eosioToken, &symbol, &tester)
 		s = "99.0000 CUR"
@@ -2557,20 +2478,18 @@ func TestLinkDelayLinkChangeHeirarchy(t *testing.T) {
 		// delay on minimum permission of transfer is finally removed
 		chain.ProduceBlocks(1, false)
 
-
 		// this transfer is performed right away since delay is removed
 		trace = chain.PushAction2(
 			&eosioToken,
 			&transfer,
 			tester,
-			&common.Variants{"from": tester, "to": tester2,"quantity": "10.0000 CUR", "memo": "hi"},
+			&common.Variants{"from": tester, "to": tester2, "quantity": "10.0000 CUR", "memo": "hi"},
 			chain.DefaultExpirationDelta,
 			0)
 		assert.Equal(t, types.TransactionStatusExecuted, trace.Receipt.Status)
-		
-		generatedIndex, _ = chain.Control.DB.GetIndex("byTrxId", entity.GeneratedTransactionObject{})
-		assert.Equal(t, TakeCountOf(generatedIndex),1)
 
+		generatedIndex, _ = chain.Control.DB.GetIndex("byTrxId", entity.GeneratedTransactionObject{})
+		assert.Equal(t, TakeCountOf(generatedIndex), 1)
 
 		liquidBalance = chain.GetCurrencyBalance(&eosioToken, &symbol, &tester)
 		s = "89.0000 CUR"
@@ -2592,7 +2511,6 @@ func TestLinkDelayLinkChangeHeirarchy(t *testing.T) {
 		expected = asset.FromString(&s)
 		assert.Equal(t, expected, liquidBalance)
 
-
 		// second transfer finally is performed
 		chain.ProduceBlocks(1, false)
 
@@ -2607,7 +2525,6 @@ func TestLinkDelayLinkChangeHeirarchy(t *testing.T) {
 		chain.close()
 	})
 }
-
 
 func TestMindelay(t *testing.T) {
 	t.Run("", func(t *testing.T) {
@@ -2624,13 +2541,12 @@ func TestMindelay(t *testing.T) {
 		code, _ := ioutil.ReadFile(eosioTokenWasm)
 		abi, _ := ioutil.ReadFile(eosioTokenAbi)
 		chain.SetCode(eosioToken, code, nil)
-		chain.SetAbi(eosioToken,abi,nil)
+		chain.SetAbi(eosioToken, abi, nil)
 
 		chain.ProduceBlocks(1, false)
 		chain.CreateAccount(common.N("tester"), eosio, false, true)
 		chain.CreateAccount(common.N("tester2"), eosio, false, true)
 		chain.ProduceBlocks(10, false)
-
 
 		create := common.N("create")
 		chain.PushAction2(
@@ -2642,7 +2558,7 @@ func TestMindelay(t *testing.T) {
 			0)
 
 		issue := common.N("issue")
-		chain.ProduceBlocks(1,false)
+		chain.ProduceBlocks(1, false)
 		chain.PushAction2(
 			&eosioToken,
 			&issue,
@@ -2652,16 +2568,16 @@ func TestMindelay(t *testing.T) {
 			0)
 
 		transfer := common.N("transfer")
-		chain.ProduceBlocks(1,false)
+		chain.ProduceBlocks(1, false)
 		trace := chain.PushAction2(
 			&eosioToken,
 			&transfer,
 			eosioToken,
-			&common.Variants{"from": eosioToken, "to": tester,"quantity": "100.0000 CUR", "memo": "hi"},
+			&common.Variants{"from": eosioToken, "to": tester, "quantity": "100.0000 CUR", "memo": "hi"},
 			chain.DefaultExpirationDelta,
 			0)
-		assert.Equal(t, types.TransactionStatusExecuted,trace.Receipt.Status)
-		
+		assert.Equal(t, types.TransactionStatusExecuted, trace.Receipt.Status)
+
 		generatedIndex, _ := chain.Control.DB.GetIndex("byTrxId", entity.GeneratedTransactionObject{})
 		assert.Equal(t, TakeCountOf(generatedIndex), 0)
 
@@ -2670,12 +2586,11 @@ func TestMindelay(t *testing.T) {
 		symbol := common.Symbol{Precision: 4, Symbol: "CUR"}
 		eosioTokenAccount := common.AccountName(eosioToken)
 		liquidBalance := chain.GetCurrencyBalance(&eosioToken, &symbol, &eosioTokenAccount)
-		s :="999900.0000 CUR"
+		s := "999900.0000 CUR"
 		asset := common.Asset{}
 		expected := asset.FromString(&s)
 		assert.Equal(t, expected, liquidBalance)
 
-		
 		s = "100.0000 CUR"
 		expected = asset.FromString(&s)
 		liquidBalance = chain.GetCurrencyBalance(&eosioToken, &symbol, &tester)
@@ -2685,12 +2600,12 @@ func TestMindelay(t *testing.T) {
 			&eosioToken,
 			&transfer,
 			tester,
-			&common.Variants{"from": tester, "to": tester2,"quantity": "1.0000 CUR", "memo": "hi"},
+			&common.Variants{"from": tester, "to": tester2, "quantity": "1.0000 CUR", "memo": "hi"},
 			chain.DefaultExpirationDelta,
 			0)
 
 		assert.Equal(t, types.TransactionStatusExecuted, trace.Receipt.Status)
-		
+
 		generatedIndex, _ = chain.Control.DB.GetIndex("byTrxId", entity.GeneratedTransactionObject{})
 		assert.Equal(t, 0, TakeCountOf(generatedIndex))
 
@@ -2706,7 +2621,6 @@ func TestMindelay(t *testing.T) {
 		expected = asset.FromString(&s)
 		assert.Equal(t, expected, liquidBalance)
 
-		
 		liquidBalance = chain.GetCurrencyBalance(&eosioToken, &symbol, &tester2)
 		s = "1.0000 CUR"
 		expected = asset.FromString(&s)
@@ -2724,8 +2638,8 @@ func TestMindelay(t *testing.T) {
 		act := types.Action{}
 		act.Account = eosioToken
 		act.Name = transfer
-		act.Authorization =[]common.PermissionLevel{{tester, common.DefaultConfig.ActiveName}}
-		data := common.Variants{"from": tester, "to": tester2,"quantity": "3.0000 CUR", "memo": "hi"}
+		act.Authorization = []common.PermissionLevel{{Actor: tester, Permission: common.DefaultConfig.ActiveName}}
+		data := common.Variants{"from": tester, "to": tester2, "quantity": "3.0000 CUR", "memo": "hi"}
 		act.Data = abis.VariantToBinary(actionTypeName, &data, chain.AbiSerializerMaxTime)
 
 		trx := types.SignedTransaction{}
@@ -2738,7 +2652,7 @@ func TestMindelay(t *testing.T) {
 		trace = chain.PushTransaction(&trx, common.MaxTimePoint(), chain.DefaultBilledCpuTimeUs)
 
 		assert.Equal(t, types.TransactionStatusDelayed, trace.Receipt.Status)
-		
+
 		generatedIndex, _ = chain.Control.DB.GetIndex("byTrxId", entity.GeneratedTransactionObject{})
 		assert.Equal(t, 1, TakeCountOf(generatedIndex))
 		assert.Equal(t, 0, len(trace.ActionTraces))
@@ -2816,7 +2730,7 @@ func TestCancelDelay(t *testing.T) {
 		code, _ := ioutil.ReadFile(eosioTokenWasm)
 		abi, _ := ioutil.ReadFile(eosioTokenAbi)
 		chain.SetCode(eosioToken, code, nil)
-		chain.SetAbi(eosioToken,abi,nil)
+		chain.SetAbi(eosioToken, abi, nil)
 
 		chain.ProduceBlocks(1, false)
 		chain.CreateAccount(common.N("tester"), eosio, false, true)
@@ -2824,13 +2738,12 @@ func TestCancelDelay(t *testing.T) {
 		chain.ProduceBlocks(10, false)
 
 		updateAuthData := common.Variants{
-			"account": tester,
+			"account":    tester,
 			"permission": common.N("first"),
-			"parent": common.N("active"),
-			"auth": types.NewAuthority(chain.getPublicKey(tester, "first"), 10),
-
+			"parent":     common.N("active"),
+			"auth":       types.NewAuthority(chain.getPublicKey(tester, "first"), 10),
 		}
-		actName :=UpdateAuth{}.GetName()
+		actName := UpdateAuth{}.GetName()
 		chain.PushAction2(
 			&eosio,
 			&actName,
@@ -2840,11 +2753,10 @@ func TestCancelDelay(t *testing.T) {
 			0,
 		)
 
-
 		LinkAuthData := common.Variants{
-			"account": tester,
-			"code": eosioToken,
-			"type": common.N("transfer"),
+			"account":     tester,
+			"code":        eosioToken,
+			"type":        common.N("transfer"),
 			"requirement": common.N("first"),
 		}
 		linkName := LinkAuth{}.GetName()
@@ -2857,8 +2769,7 @@ func TestCancelDelay(t *testing.T) {
 			0,
 		)
 
-
-		chain.ProduceBlocks(1,false)
+		chain.ProduceBlocks(1, false)
 		create := common.N("create")
 		chain.PushAction2(
 			&eosioToken,
@@ -2869,7 +2780,7 @@ func TestCancelDelay(t *testing.T) {
 			0)
 
 		issue := common.N("issue")
-		chain.ProduceBlocks(1,false)
+		chain.ProduceBlocks(1, false)
 		chain.PushAction2(
 			&eosioToken,
 			&issue,
@@ -2879,16 +2790,16 @@ func TestCancelDelay(t *testing.T) {
 			0)
 
 		transfer := common.N("transfer")
-		chain.ProduceBlocks(1,false)
+		chain.ProduceBlocks(1, false)
 		trace := chain.PushAction2(
 			&eosioToken,
 			&transfer,
 			eosioToken,
-			&common.Variants{"from": eosioToken, "to": tester,"quantity": "100.0000 CUR", "memo": "hi"},
+			&common.Variants{"from": eosioToken, "to": tester, "quantity": "100.0000 CUR", "memo": "hi"},
 			chain.DefaultExpirationDelta,
 			0)
-		assert.Equal(t, types.TransactionStatusExecuted,trace.Receipt.Status)
-		
+		assert.Equal(t, types.TransactionStatusExecuted, trace.Receipt.Status)
+
 		generatedIndex, _ := chain.Control.DB.GetIndex("byTrxId", entity.GeneratedTransactionObject{})
 		assert.Equal(t, TakeCountOf(generatedIndex), 0)
 
@@ -2897,11 +2808,10 @@ func TestCancelDelay(t *testing.T) {
 		symbol := common.Symbol{Precision: 4, Symbol: "CUR"}
 		eosioTokenAccount := common.AccountName(eosioToken)
 		liquidBalance := chain.GetCurrencyBalance(&eosioToken, &symbol, &eosioTokenAccount)
-		s :="999900.0000 CUR"
+		s := "999900.0000 CUR"
 		asset := common.Asset{}
 		expected := asset.FromString(&s)
 		assert.Equal(t, expected, liquidBalance)
-
 
 		s = "100.0000 CUR"
 		expected = asset.FromString(&s)
@@ -2913,13 +2823,13 @@ func TestCancelDelay(t *testing.T) {
 			&eosioToken,
 			&transfer,
 			tester,
-			&common.Variants{"from": tester, "to": tester2,"quantity": "1.0000 CUR", "memo": "hi"},
+			&common.Variants{"from": tester, "to": tester2, "quantity": "1.0000 CUR", "memo": "hi"},
 			30,
 			10)
 		ids = append(ids, trace.ID)
 
 		assert.Equal(t, types.TransactionStatusDelayed, trace.Receipt.Status)
-		
+
 		generatedIndex, _ = chain.Control.DB.GetIndex("byTrxId", entity.GeneratedTransactionObject{})
 		assert.Equal(t, 1, TakeCountOf(generatedIndex))
 		assert.Equal(t, 0, len(trace.ActionTraces))
@@ -2950,12 +2860,12 @@ func TestCancelDelay(t *testing.T) {
 		assert.Equal(t, expected, liquidBalance)
 
 		updateAuthData = common.Variants{
-			"account": tester,
+			"account":    tester,
 			"permission": common.N("first"),
-			"parent": common.N("active"),
-			"auth": types.NewAuthority(chain.getPublicKey(tester, "first"), 0),
+			"parent":     common.N("active"),
+			"auth":       types.NewAuthority(chain.getPublicKey(tester, "first"), 0),
 		}
-		auth := []common.PermissionLevel{{ tester, common.N("first")}}
+		auth := []common.PermissionLevel{{Actor: tester, Permission: common.N("first")}}
 
 		CheckThrowMsg(t, "transaction declares authority", func() {
 			trace = chain.PushAction4(
@@ -2970,10 +2880,10 @@ func TestCancelDelay(t *testing.T) {
 
 		// this transaction will be delayed 20 blocks
 		updateAuthData = common.Variants{
-			"account": tester,
+			"account":    tester,
 			"permission": common.N("first"),
-			"parent": common.N("active"),
-			"auth": types.NewAuthority(chain.getPublicKey(tester, "first"), 0),
+			"parent":     common.N("active"),
+			"auth":       types.NewAuthority(chain.getPublicKey(tester, "first"), 0),
 		}
 		trace = chain.PushAction2(
 			&eosio,
@@ -2987,8 +2897,8 @@ func TestCancelDelay(t *testing.T) {
 		ids = append(ids, trace.ID)
 		assert.Equal(t, types.TransactionStatusDelayed, trace.Receipt.Status)
 		generatedIndex, _ = chain.Control.DB.GetIndex("byTrxId", entity.GeneratedTransactionObject{})
-		assert.Equal(t, TakeCountOf(generatedIndex),2 )
-		assert.Equal(t,  len(trace.ActionTraces),0)
+		assert.Equal(t, TakeCountOf(generatedIndex), 2)
+		assert.Equal(t, len(trace.ActionTraces), 0)
 
 		chain.ProduceBlocks(1, false)
 
@@ -3020,7 +2930,7 @@ func TestCancelDelay(t *testing.T) {
 			&eosioToken,
 			&transfer,
 			tester,
-			&common.Variants{"from": tester, "to": tester2,"quantity": "5.0000 CUR", "memo": "hi"},
+			&common.Variants{"from": tester, "to": tester2, "quantity": "5.0000 CUR", "memo": "hi"},
 			30,
 			10)
 		for i, v := range ids {
@@ -3030,10 +2940,10 @@ func TestCancelDelay(t *testing.T) {
 		ids = append(ids, trace.ID)
 
 		assert.Equal(t, types.TransactionStatusDelayed, trace.Receipt.Status)
-		
+
 		generatedIndex, _ = chain.Control.DB.GetIndex("byTrxId", entity.GeneratedTransactionObject{})
-		assert.Equal(t, TakeCountOf(generatedIndex),3)
-		assert.Equal(t, len(trace.ActionTraces),0)
+		assert.Equal(t, TakeCountOf(generatedIndex), 3)
+		assert.Equal(t, len(trace.ActionTraces), 0)
 
 		chain.ProduceBlocks(1, false)
 
@@ -3046,11 +2956,10 @@ func TestCancelDelay(t *testing.T) {
 		expected = asset.FromString(&s)
 		assert.Equal(t, expected, liquidBalance)
 
-
 		// send canceldelay for first delayed transaction
 		trx := types.SignedTransaction{}
-		pl := []common.PermissionLevel{{tester, common.PermissionName(common.N("active"))}}
-		cancelDelay := CancelDelay{common.PermissionLevel{tester, common.PermissionName(common.N("active"))}, ids[0]}
+		pl := []common.PermissionLevel{{Actor: tester, Permission: common.PermissionName(common.N("active"))}}
+		cancelDelay := CancelDelay{CancelingAuth: common.PermissionLevel{Actor: tester, Permission: common.PermissionName(common.N("active"))}, TrxId: ids[0]}
 		act := newAction(pl, &cancelDelay)
 		trx.Actions = append(trx.Actions, act)
 
@@ -3061,15 +2970,12 @@ func TestCancelDelay(t *testing.T) {
 		trace = chain.PushTransaction(&trx, common.MaxTimePoint(), chain.DefaultBilledCpuTimeUs)
 
 		assert.Equal(t, types.TransactionStatusExecuted, trace.Receipt.Status)
-		
-		generatedIndex, _ = chain.Control.DB.GetIndex("byTrxId", entity.GeneratedTransactionObject{})
-		assert.Equal(t, TakeCountOf(generatedIndex),2)
 
+		generatedIndex, _ = chain.Control.DB.GetIndex("byTrxId", entity.GeneratedTransactionObject{})
+		assert.Equal(t, TakeCountOf(generatedIndex), 2)
 
 		it = generatedIndex.Begin()
 		assert.Equal(t, it != generatedIndex.End(), true)
-
-
 
 		chain.ProduceBlocks(1, false)
 		liquidBalance = chain.GetCurrencyBalance(&eosioToken, &symbol, &tester)
@@ -3081,23 +2987,19 @@ func TestCancelDelay(t *testing.T) {
 		expected = asset.FromString(&s)
 		assert.Equal(t, expected, liquidBalance)
 
-		
 		generatedIndex, _ = chain.Control.DB.GetIndex("byTrxId", entity.GeneratedTransactionObject{})
-		assert.Equal(t, TakeCountOf(generatedIndex),2)
+		assert.Equal(t, TakeCountOf(generatedIndex), 2)
 
-		chain.ProduceBlocks(1,false)
+		chain.ProduceBlocks(1, false)
 
-		
 		generatedIndex, _ = chain.Control.DB.GetIndex("byTrxId", entity.GeneratedTransactionObject{})
-		assert.Equal(t, TakeCountOf(generatedIndex),2)
+		assert.Equal(t, TakeCountOf(generatedIndex), 2)
 
-		chain.ProduceBlocks(1,false)
+		chain.ProduceBlocks(1, false)
 		// update auth will finally be performed
 
-		
 		generatedIndex, _ = chain.Control.DB.GetIndex("byTrxId", entity.GeneratedTransactionObject{})
-		assert.Equal(t, TakeCountOf(generatedIndex),1)
-
+		assert.Equal(t, TakeCountOf(generatedIndex), 1)
 
 		liquidBalance = chain.GetCurrencyBalance(&eosioToken, &symbol, &tester)
 		s = "100.0000 CUR"
@@ -3108,19 +3010,18 @@ func TestCancelDelay(t *testing.T) {
 		expected = asset.FromString(&s)
 		assert.Equal(t, expected, liquidBalance)
 
-
 		// this transfer is performed right away since delay is removed
 		trace = chain.PushAction2(
 			&eosioToken,
 			&transfer,
 			tester,
-			&common.Variants{"from": tester, "to": tester2,"quantity": "10.0000 CUR", "memo": "hi"},
+			&common.Variants{"from": tester, "to": tester2, "quantity": "10.0000 CUR", "memo": "hi"},
 			chain.DefaultExpirationDelta,
 			0)
 		assert.Equal(t, types.TransactionStatusExecuted, trace.Receipt.Status)
-		
+
 		generatedIndex, _ = chain.Control.DB.GetIndex("byTrxId", entity.GeneratedTransactionObject{})
-		assert.Equal(t, TakeCountOf(generatedIndex),1)
+		assert.Equal(t, TakeCountOf(generatedIndex), 1)
 
 		chain.ProduceBlocks(1, false)
 
@@ -3135,9 +3036,8 @@ func TestCancelDelay(t *testing.T) {
 
 		chain.ProduceBlocks(15, false)
 
-		
 		generatedIndex, _ = chain.Control.DB.GetIndex("byTrxId", entity.GeneratedTransactionObject{})
-		assert.Equal(t, TakeCountOf(generatedIndex),1)
+		assert.Equal(t, TakeCountOf(generatedIndex), 1)
 
 		liquidBalance = chain.GetCurrencyBalance(&eosioToken, &symbol, &tester)
 		s = "90.0000 CUR"
@@ -3148,13 +3048,11 @@ func TestCancelDelay(t *testing.T) {
 		expected = asset.FromString(&s)
 		assert.Equal(t, expected, liquidBalance)
 
-
 		// second transfer finally is performed
 		chain.ProduceBlocks(1, false)
 
-		
 		generatedIndex, _ = chain.Control.DB.GetIndex("byTrxId", entity.GeneratedTransactionObject{})
-		assert.Equal(t, TakeCountOf(generatedIndex),0)
+		assert.Equal(t, TakeCountOf(generatedIndex), 0)
 
 		liquidBalance = chain.GetCurrencyBalance(&eosioToken, &symbol, &tester)
 		s = "85.0000 CUR"
@@ -3186,7 +3084,7 @@ func TestCancelDelay2(t *testing.T) {
 		code, _ := ioutil.ReadFile(eosioTokenWasm)
 		abi, _ := ioutil.ReadFile(eosioTokenAbi)
 		chain.SetCode(eosioToken, code, nil)
-		chain.SetAbi(eosioToken,abi,nil)
+		chain.SetAbi(eosioToken, abi, nil)
 
 		chain.ProduceBlocks(1, false)
 		chain.CreateAccount(common.N("tester"), eosio, false, true)
@@ -3194,13 +3092,12 @@ func TestCancelDelay2(t *testing.T) {
 		chain.ProduceBlocks(1, false)
 
 		updateAuthData := common.Variants{
-			"account": tester,
+			"account":    tester,
 			"permission": common.N("first"),
-			"parent": common.N("active"),
-			"auth": types.NewAuthority(chain.getPublicKey(tester, "first"), 5),
-
+			"parent":     common.N("active"),
+			"auth":       types.NewAuthority(chain.getPublicKey(tester, "first"), 5),
 		}
-		actName :=UpdateAuth{}.GetName()
+		actName := UpdateAuth{}.GetName()
 		chain.PushAction2(
 			&eosio,
 			&actName,
@@ -3211,11 +3108,10 @@ func TestCancelDelay2(t *testing.T) {
 		)
 
 		updateAuthData2 := common.Variants{
-			"account": tester,
+			"account":    tester,
 			"permission": common.N("second"),
-			"parent": common.N("first"),
-			"auth": types.NewAuthority(chain.getPublicKey(tester, "second"), 0),
-
+			"parent":     common.N("first"),
+			"auth":       types.NewAuthority(chain.getPublicKey(tester, "second"), 0),
 		}
 		chain.PushAction2(
 			&eosio,
@@ -3227,9 +3123,9 @@ func TestCancelDelay2(t *testing.T) {
 		)
 
 		LinkAuthData := common.Variants{
-			"account": tester,
-			"code": eosioToken,
-			"type": common.N("transfer"),
+			"account":     tester,
+			"code":        eosioToken,
+			"type":        common.N("transfer"),
 			"requirement": common.N("first"),
 		}
 		linkName := LinkAuth{}.GetName()
@@ -3242,8 +3138,7 @@ func TestCancelDelay2(t *testing.T) {
 			0,
 		)
 
-
-		chain.ProduceBlocks(1,false)
+		chain.ProduceBlocks(1, false)
 		create := common.N("create")
 		chain.PushAction2(
 			&eosioToken,
@@ -3254,7 +3149,7 @@ func TestCancelDelay2(t *testing.T) {
 			0)
 
 		issue := common.N("issue")
-		chain.ProduceBlocks(1,false)
+		chain.ProduceBlocks(1, false)
 		chain.PushAction2(
 			&eosioToken,
 			&issue,
@@ -3264,16 +3159,16 @@ func TestCancelDelay2(t *testing.T) {
 			0)
 
 		transfer := common.N("transfer")
-		chain.ProduceBlocks(1,false)
+		chain.ProduceBlocks(1, false)
 		trace := chain.PushAction2(
 			&eosioToken,
 			&transfer,
 			eosioToken,
-			&common.Variants{"from": eosioToken, "to": tester,"quantity": "100.0000 CUR", "memo": "hi"},
+			&common.Variants{"from": eosioToken, "to": tester, "quantity": "100.0000 CUR", "memo": "hi"},
 			chain.DefaultExpirationDelta,
 			0)
-		assert.Equal(t, types.TransactionStatusExecuted,trace.Receipt.Status)
-		
+		assert.Equal(t, types.TransactionStatusExecuted, trace.Receipt.Status)
+
 		generatedIndex, _ := chain.Control.DB.GetIndex("byTrxId", entity.GeneratedTransactionObject{})
 		assert.Equal(t, TakeCountOf(generatedIndex), 0)
 
@@ -3282,12 +3177,11 @@ func TestCancelDelay2(t *testing.T) {
 		symbol := common.Symbol{Precision: 4, Symbol: "CUR"}
 		eosioTokenAccount := common.AccountName(eosioToken)
 		liquidBalance := chain.GetCurrencyBalance(&eosioToken, &symbol, &eosioTokenAccount)
-		s :="999900.0000 CUR"
+		s := "999900.0000 CUR"
 		asset := common.Asset{}
 		expected := asset.FromString(&s)
 		assert.Equal(t, expected, liquidBalance)
 
-		
 		s = "100.0000 CUR"
 		expected = asset.FromString(&s)
 		liquidBalance = chain.GetCurrencyBalance(&eosioToken, &symbol, &tester)
@@ -3298,21 +3192,20 @@ func TestCancelDelay2(t *testing.T) {
 			&eosioToken,
 			&transfer,
 			tester,
-			&common.Variants{"from": tester, "to": tester2,"quantity": "1.0000 CUR", "memo": "hi"},
+			&common.Variants{"from": tester, "to": tester2, "quantity": "1.0000 CUR", "memo": "hi"},
 			30,
 			5)
 		trxId := trace.ID
 
 		assert.Equal(t, types.TransactionStatusDelayed, trace.Receipt.Status)
-		
+
 		generatedIndex, _ = chain.Control.DB.GetIndex("byTrxId", entity.GeneratedTransactionObject{})
 		assert.Equal(t, 1, generatedIndex)
 		assert.Equal(t, 0, len(trace.ActionTraces))
 
-
 		it := generatedIndex.Begin()
 		assert.Equal(t, it != generatedIndex.End(), true)
-		
+
 		//generatedIndex, _ = chain.Control.DB.GetIndex("byTrxId", entity.GeneratedTransactionObject{})
 		//in :=entity.GeneratedTransaction{TrxId:trace.ID}
 		//err := generatedIndex.Find(in, &in)
@@ -3325,7 +3218,6 @@ func TestCancelDelay2(t *testing.T) {
 		expected = asset.FromString(&s)
 		assert.Equal(t, expected, liquidBalance)
 
-		
 		liquidBalance = chain.GetCurrencyBalance(&eosioToken, &symbol, &tester2)
 		s = "0.0000 CUR"
 		expected = asset.FromString(&s)
@@ -3333,8 +3225,8 @@ func TestCancelDelay2(t *testing.T) {
 
 		// attempt canceldelay with wrong canceling_auth for delayed transfer of 1.0000 CUR
 		trx := types.SignedTransaction{}
-		pl := []common.PermissionLevel{{tester, common.PermissionName(common.N("active"))}}
-		cancelDelay := CancelDelay{common.PermissionLevel{tester, common.PermissionName(common.N("active"))}, trxId}
+		pl := []common.PermissionLevel{{Actor: tester, Permission: common.N("active")}}
+		cancelDelay := CancelDelay{CancelingAuth: common.PermissionLevel{Actor: tester, Permission: common.N("active")}, TrxId: trxId}
 		act := newAction(pl, &cancelDelay)
 		trx.Actions = append(trx.Actions, act)
 
@@ -3346,11 +3238,10 @@ func TestCancelDelay2(t *testing.T) {
 			trace = chain.PushTransaction(&trx, common.MaxTimePoint(), chain.DefaultBilledCpuTimeUs)
 		})
 
-
 		// attempt canceldelay with "second" permission for delayed transfer of 1.0000 CUR
 		trx = types.SignedTransaction{}
-		pl = []common.PermissionLevel{{tester, common.PermissionName(common.N("second"))}}
-		cancelDelay = CancelDelay{common.PermissionLevel{tester, common.PermissionName(common.N("first"))}, trxId}
+		pl = []common.PermissionLevel{{Actor: tester, Permission: common.N("second")}}
+		cancelDelay = CancelDelay{CancelingAuth: common.PermissionLevel{Actor: tester, Permission: common.N("first")}, TrxId: trxId}
 		act = newAction(pl, &cancelDelay)
 		trx.Actions = append(trx.Actions, act)
 
@@ -3358,14 +3249,14 @@ func TestCancelDelay2(t *testing.T) {
 		pk = chain.getPrivateKey(tester, "second")
 		chainId = chain.Control.GetChainId()
 		trx.Sign(&pk, &chainId)
-		CheckThrowMsg(t,  "canceldelay action declares irrelevant authority", func() {
+		CheckThrowMsg(t, "canceldelay action declares irrelevant authority", func() {
 			trace = chain.PushTransaction(&trx, common.MaxTimePoint(), chain.DefaultBilledCpuTimeUs)
 		})
 
 		// canceldelay with "active" permission for delayed transfer of 1.0000 CUR
 		trx = types.SignedTransaction{}
-		pl = []common.PermissionLevel{{tester, common.PermissionName(common.N("active"))}}
-		cancelDelay = CancelDelay{common.PermissionLevel{tester, common.PermissionName(common.N("first"))}, trxId}
+		pl = []common.PermissionLevel{{Actor: tester, Permission: common.N("active")}}
+		cancelDelay = CancelDelay{CancelingAuth: common.PermissionLevel{Actor: tester, Permission: common.N("first")}, TrxId: trxId}
 		act = newAction(pl, &cancelDelay)
 		trx.Actions = append(trx.Actions, act)
 
@@ -3377,12 +3268,11 @@ func TestCancelDelay2(t *testing.T) {
 
 		assert.Equal(t, types.TransactionStatusExecuted, trace.Receipt.Status)
 		generatedIndex, _ = chain.Control.DB.GetIndex("byTrxId", entity.GeneratedTransactionObject{})
-		assert.Equal(t, TakeCountOf(generatedIndex),0 )
-
+		assert.Equal(t, TakeCountOf(generatedIndex), 0)
 
 		it = generatedIndex.Begin()
 		assert.Equal(t, it != generatedIndex.End(), true)
-		
+
 		//generatedIndex, _ = chain.Control.DB.GetIndex("byTrxId", entity.GeneratedTransactionObject{})
 		//in :=entity.GeneratedTransaction{TrxId: trxId}
 		//err := generatedIndex.Find(in, &in)
@@ -3401,9 +3291,9 @@ func TestCancelDelay2(t *testing.T) {
 		assert.Equal(t, expected, liquidBalance)
 
 		LinkAuthData = common.Variants{
-			"account": tester,
-			"code": eosioToken,
-			"type": common.N("transfer"),
+			"account":     tester,
+			"code":        eosioToken,
+			"type":        common.N("transfer"),
 			"requirement": common.N("second"),
 		}
 		linkName = LinkAuth{}.GetName()
@@ -3422,14 +3312,14 @@ func TestCancelDelay2(t *testing.T) {
 			&eosioToken,
 			&transfer,
 			tester,
-			&common.Variants{"from": tester, "to": tester2,"quantity": "5.0000 CUR", "memo": "hi"},
+			&common.Variants{"from": tester, "to": tester2, "quantity": "5.0000 CUR", "memo": "hi"},
 			30,
 			5)
 		trxId = trace.ID
 		assert.Equal(t, types.TransactionStatusDelayed, trace.Receipt.Status)
 		generatedIndex, _ = chain.Control.DB.GetIndex("byTrxId", entity.GeneratedTransactionObject{})
-		assert.Equal(t, TakeCountOf(generatedIndex),1)
-		assert.Equal(t, len(trace.ActionTraces),0)
+		assert.Equal(t, TakeCountOf(generatedIndex), 1)
+		assert.Equal(t, len(trace.ActionTraces), 0)
 
 		it = generatedIndex.Begin()
 		assert.Equal(t, it != generatedIndex.End(), true)
@@ -3452,8 +3342,8 @@ func TestCancelDelay2(t *testing.T) {
 
 		// canceldelay with "first" permission for delayed transfer of 5.0000 CUR
 		trx = types.SignedTransaction{}
-		pl = []common.PermissionLevel{{tester, common.PermissionName(common.N("first"))}}
-		cancelDelay = CancelDelay{common.PermissionLevel{tester, common.PermissionName(common.N("second"))}, ids[0]}
+		pl = []common.PermissionLevel{{Actor: tester, Permission: common.PermissionName(common.N("first"))}}
+		cancelDelay = CancelDelay{CancelingAuth: common.PermissionLevel{Actor: tester, Permission: common.PermissionName(common.N("second"))}, TrxId: ids[0]}
 		act = newAction(pl, &cancelDelay)
 		trx.Actions = append(trx.Actions, act)
 
@@ -3464,9 +3354,9 @@ func TestCancelDelay2(t *testing.T) {
 		trace = chain.PushTransaction(&trx, common.MaxTimePoint(), chain.DefaultBilledCpuTimeUs)
 
 		assert.Equal(t, types.TransactionStatusExecuted, trace.Receipt.Status)
-		
+
 		generatedIndex, _ = chain.Control.DB.GetIndex("byTrxId", entity.GeneratedTransactionObject{})
-		assert.Equal(t, TakeCountOf(generatedIndex),0)
+		assert.Equal(t, TakeCountOf(generatedIndex), 0)
 
 		it = generatedIndex.Begin()
 		assert.Equal(t, it != generatedIndex.End(), true)
@@ -3487,20 +3377,19 @@ func TestCancelDelay2(t *testing.T) {
 		expected = asset.FromString(&s)
 		assert.Equal(t, expected, liquidBalance)
 
-
 		// this transaction will be delayed 10 blocks
-		auth := []common.PermissionLevel{{ tester, common.PermissionName(common.N("owner"))}}
+		auth := []common.PermissionLevel{{Actor: tester, Permission: common.PermissionName(common.N("owner"))}}
 		trace = chain.PushAction4(
 			&eosioToken,
 			&transfer,
 			&auth,
-			&common.Variants{"from": tester, "to": tester2,"quantity": "10.0000 CUR", "memo": "hi"},
+			&common.Variants{"from": tester, "to": tester2, "quantity": "10.0000 CUR", "memo": "hi"},
 			30,
 			5)
 		trxId = trace.ID
 		assert.Equal(t, types.TransactionStatusDelayed, trace.Receipt.Status)
 		generatedIndex, _ = chain.Control.DB.GetIndex("byTrxId", entity.GeneratedTransactionObject{})
-		assert.Equal(t, TakeCountOf(generatedIndex),1)
+		assert.Equal(t, TakeCountOf(generatedIndex), 1)
 		assert.Equal(t, len(trace.ActionTraces), 0)
 
 		it = generatedIndex.Begin()
@@ -3522,8 +3411,8 @@ func TestCancelDelay2(t *testing.T) {
 
 		// attempt canceldelay with "active" permission for delayed transfer of 10.0000 CUR
 		trx = types.SignedTransaction{}
-		pl = []common.PermissionLevel{{tester, common.PermissionName(common.N("active"))}}
-		cancelDelay = CancelDelay{common.PermissionLevel{tester, common.PermissionName(common.N("owner"))}, ids[0]}
+		pl = []common.PermissionLevel{{Actor: tester, Permission: common.PermissionName(common.N("active"))}}
+		cancelDelay = CancelDelay{CancelingAuth: common.PermissionLevel{Actor: tester, Permission: common.PermissionName(common.N("owner"))}, TrxId: ids[0]}
 		act = newAction(pl, &cancelDelay)
 		trx.Actions = append(trx.Actions, act)
 
@@ -3536,8 +3425,8 @@ func TestCancelDelay2(t *testing.T) {
 		// attempt canceldelay with "active" permission for delayed transfer of 10.0000 CUR
 
 		trx = types.SignedTransaction{}
-		pl = []common.PermissionLevel{{tester, common.PermissionName(common.N("owner"))}}
-		cancelDelay = CancelDelay{common.PermissionLevel{tester, common.PermissionName(common.N("owner"))}, ids[0]}
+		pl = []common.PermissionLevel{{Actor: tester, Permission: common.PermissionName(common.N("owner"))}}
+		cancelDelay = CancelDelay{CancelingAuth: common.PermissionLevel{Actor: tester, Permission: common.PermissionName(common.N("owner"))}, TrxId: ids[0]}
 		act = newAction(pl, &cancelDelay)
 		trx.Actions = append(trx.Actions, act)
 
@@ -3549,12 +3438,10 @@ func TestCancelDelay2(t *testing.T) {
 
 		assert.Equal(t, types.TransactionStatusExecuted, trace.Receipt.Status)
 		generatedIndex, _ = chain.Control.DB.GetIndex("byTrxId", entity.GeneratedTransactionObject{})
-		assert.Equal(t, TakeCountOf(generatedIndex),0)
+		assert.Equal(t, TakeCountOf(generatedIndex), 0)
 
 		it = generatedIndex.Begin()
 		assert.Equal(t, it != generatedIndex.End(), true)
-
-
 
 		liquidBalance = chain.GetCurrencyBalance(&eosioToken, &symbol, &tester)
 		s = "100.0000 CUR"
@@ -3568,7 +3455,6 @@ func TestCancelDelay2(t *testing.T) {
 	})
 }
 
-
 func TestMaxTransactionDelayCreate(t *testing.T) {
 	t.Run("", func(t *testing.T) {
 		//assuming max transaction delay is 45 days (default in config.hpp)
@@ -3581,13 +3467,13 @@ func TestMaxTransactionDelayCreate(t *testing.T) {
 		chain.ProduceBlocks(10, false)
 
 		updateAuthData := common.Variants{
-			"account": tester,
+			"account":    tester,
 			"permission": common.N("first"),
-			"parent": common.N("active"),
-			"auth": types.NewAuthority(chain.getPublicKey(tester, "first"), 50*86400),// 50 days delay
+			"parent":     common.N("active"),
+			"auth":       types.NewAuthority(chain.getPublicKey(tester, "first"), 50*86400), // 50 days delay
 
 		}
-		actName :=UpdateAuth{}.GetName()
+		actName := UpdateAuth{}.GetName()
 		CheckThrowMsg(t, "Cannot set delay longer than max_transacton_delay", func() {
 			chain.PushAction2(
 				&eosio,
@@ -3601,7 +3487,6 @@ func TestMaxTransactionDelayCreate(t *testing.T) {
 		chain.close()
 	})
 }
-
 
 func TestMaxTransactionDelayExecute(t *testing.T) {
 	t.Run("", func(t *testing.T) {
@@ -3617,10 +3502,9 @@ func TestMaxTransactionDelayExecute(t *testing.T) {
 		code, _ := ioutil.ReadFile(eosioTokenWasm)
 		abi, _ := ioutil.ReadFile(eosioTokenAbi)
 		chain.SetCode(eosioToken, code, nil)
-		chain.SetAbi(eosioToken,abi,nil)
+		chain.SetAbi(eosioToken, abi, nil)
 
 		chain.CreateAccount(common.N("tester"), eosio, false, true)
-
 
 		create := common.N("create")
 		chain.PushAction2(
@@ -3640,17 +3524,16 @@ func TestMaxTransactionDelayExecute(t *testing.T) {
 			chain.DefaultExpirationDelta,
 			0)
 
-
 		//create a permission level with delay 30 days and associate it with token transfer
 		updateAuthData := common.Variants{
-			"account": tester,
+			"account":    tester,
 			"permission": common.N("first"),
-			"parent": common.N("active"),
-			"auth": types.NewAuthority(chain.getPublicKey(tester, "first"), 30*86400),// 30 days delay
+			"parent":     common.N("active"),
+			"auth":       types.NewAuthority(chain.getPublicKey(tester, "first"), 30*86400), // 30 days delay
 
 		}
-		actName :=UpdateAuth{}.GetName()
-		trace :=chain.PushAction2(
+		actName := UpdateAuth{}.GetName()
+		trace := chain.PushAction2(
 			&eosio,
 			&actName,
 			tester,
@@ -3660,9 +3543,9 @@ func TestMaxTransactionDelayExecute(t *testing.T) {
 		)
 		assert.Equal(t, types.TransactionStatusExecuted, trace.Receipt.Status)
 		LinkAuthData := common.Variants{
-			"account": tester,
-			"code": eosioToken,
-			"type": common.N("transfer"),
+			"account":     tester,
+			"code":        eosioToken,
+			"type":        common.N("transfer"),
 			"requirement": common.N("first"),
 		}
 		linkName := LinkAuth{}.GetName()
@@ -3696,7 +3579,7 @@ func TestMaxTransactionDelayExecute(t *testing.T) {
 			&eosioToken,
 			&transfer,
 			tester,
-			&common.Variants{"from": tester, "to": eosioToken,"quantity": "9.0000 CUR", "memo": ""},
+			&common.Variants{"from": tester, "to": eosioToken, "quantity": "9.0000 CUR", "memo": ""},
 			120,
 			60)
 		assert.Equal(t, types.TransactionStatusDelayed, trace.Receipt.Status)
@@ -3704,36 +3587,34 @@ func TestMaxTransactionDelayExecute(t *testing.T) {
 		chain.ProduceBlocks(1, false)
 
 		generatedIndex, _ := chain.Control.DB.GetIndex("byTrxId", entity.GeneratedTransactionObject{})
-		assert.Equal(t, TakeCountOf(generatedIndex),1)
-		assert.Equal(t, len(trace.ActionTraces),0)
+		assert.Equal(t, TakeCountOf(generatedIndex), 1)
+		assert.Equal(t, len(trace.ActionTraces), 0)
 
 		//check that the delayed transaction executed after after 60 sec
 		chain.ProduceBlocks(120, false)
 		generatedIndex, _ = chain.Control.DB.GetIndex("byTrxId", entity.GeneratedTransactionObject{})
-		assert.Equal(t, TakeCountOf(generatedIndex),0)
+		assert.Equal(t, TakeCountOf(generatedIndex), 0)
 		symbol := common.Symbol{Precision: 4, Symbol: "CUR"}
-	    fmt.Println(chain.GetCurrencyBalance(&eosioToken, &symbol, &tester))
+		fmt.Println(chain.GetCurrencyBalance(&eosioToken, &symbol, &tester))
 
 		//check that the transfer really happened
 		symbol = common.Symbol{Precision: 4, Symbol: "CUR"}
 		liquidBalance := chain.GetCurrencyBalance(&eosioToken, &symbol, &tester)
-		s :="91.0000 CUR"
+		s := "91.0000 CUR"
 		asset := common.Asset{}
 		expected := asset.FromString(&s)
 		assert.Equal(t, expected, liquidBalance)
-
 
 		chain.close()
 
 	})
 }
 
-
 func TestValidatingDelay(t *testing.T) {
 	t.Run("", func(t *testing.T) {
 
 		b := newValidatingTester(true, SPECULATIVE)
-		b.ProduceBlocks(2,false)
+		b.ProduceBlocks(2, false)
 		//b.pro
 
 		trx := types.SignedTransaction{}
@@ -3742,20 +3623,20 @@ func TestValidatingDelay(t *testing.T) {
 		creator := common.DefaultConfig.SystemAccountName
 		ownerAuth := types.NewAuthority(b.getPublicKey(newco, "owner"), uint32(b.AbiSerializerMaxTime))
 
-		pl := []common.PermissionLevel{{common.DefaultConfig.SystemAccountName, common.PermissionName(common.N("active"))}}
+		pl := []common.PermissionLevel{{Actor: common.DefaultConfig.SystemAccountName, Permission: common.PermissionName(common.N("active"))}}
 		a := NewAccount{
-			creator,
-			newco,
-			ownerAuth,
-			types.NewAuthority(b.getPublicKey(newco, "active"), uint32(b.AbiSerializerMaxTime))}
-		act := newAction(pl,&a)
-		trx.Actions = append(trx.Actions,act)
-		b.SetTransactionHeaders(&trx.Transaction, b.DefaultExpirationDelta,0)
+			Creator: creator,
+			Name:    newco,
+			Owner:   ownerAuth,
+			Active:  types.NewAuthority(b.getPublicKey(newco, "active"), uint32(b.AbiSerializerMaxTime))}
+		act := newAction(pl, &a)
+		trx.Actions = append(trx.Actions, act)
+		b.SetTransactionHeaders(&trx.Transaction, b.DefaultExpirationDelta, 0)
 		trx.DelaySec = 3
 		trx.Expiration = common.NewTimePointSecTp(b.Control.HeadBlockTime().AddUs(common.Microseconds(1000000)))
-		privKey := b.getPrivateKey(creator,"active")
+		privKey := b.getPrivateKey(creator, "active")
 		chainId := b.Control.GetChainId()
-		trx.Sign(&privKey,&chainId)
+		trx.Sign(&privKey, &chainId)
 
 		trace := b.PushTransaction(&trx, common.MaxTimePoint(), b.DefaultBilledCpuTimeUs)
 		assert.Equal(t, types.TransactionStatusDelayed, trace.Receipt.Status)
@@ -3771,15 +3652,7 @@ func TestValidatingDelay(t *testing.T) {
 
 		b.CreateAccount(common.N("tester"), eosio, false, true)
 
-
 		b.close()
 
-		})
-	}
-
-
-
-
-
-
-
+	})
+}

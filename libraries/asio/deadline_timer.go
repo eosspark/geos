@@ -3,7 +3,7 @@ package asio
 import "time"
 
 type DeadlineTimer struct {
-	ctx *IoContext
+	ctx      *IoContext
 	internal *time.Timer
 	duration time.Duration
 }

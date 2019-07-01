@@ -5,10 +5,11 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
-	"github.com/eosspark/eos-go/crypto/rlp"
-	. "github.com/eosspark/eos-go/exception/try"
 	"hash"
 	"strings"
+
+	"github.com/eosspark/eos-go/crypto/rlp"
+	. "github.com/eosspark/eos-go/exception/try"
 )
 
 type Sha512 struct {

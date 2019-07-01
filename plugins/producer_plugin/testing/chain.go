@@ -2,6 +2,7 @@ package testing
 
 import (
 	"fmt"
+
 	"github.com/eosspark/eos-go/chain"
 	"github.com/eosspark/eos-go/chain/types"
 	. "github.com/eosspark/eos-go/chain/types/generated_containers"
@@ -14,7 +15,7 @@ type DBReadMode = chain.DBReadMode
 
 const (
 	SPECULATIVE = DBReadMode(iota)
-	HEADER       //HEAD
+	HEADER      //HEAD
 	READONLY
 	IRREVERSIBLE
 )

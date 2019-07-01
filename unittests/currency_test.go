@@ -3,6 +3,9 @@ package unittests
 import (
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
+	"testing"
+
 	. "github.com/eosspark/eos-go/chain"
 	"github.com/eosspark/eos-go/chain/abi_serializer"
 	"github.com/eosspark/eos-go/chain/types"
@@ -11,9 +14,8 @@ import (
 	"github.com/eosspark/eos-go/exception"
 	"github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/log"
+
 	"github.com/stretchr/testify/assert"
-	"io/ioutil"
-	"testing"
 )
 
 type CurrencyTester struct {
@@ -65,7 +67,7 @@ func NewCurrencyTester() *CurrencyTester {
 }
 
 func (c *CurrencyTester) PushAction(signer *common.AccountName, name *common.ActionName, data *common.Variants) *types.TransactionTrace {
-	action := types.Action{eosioToken, *name, []common.PermissionLevel{{*signer, common.DefaultConfig.ActiveName}}, nil}
+	action := types.Action{Account: eosioToken, Name: *name, Authorization: []common.PermissionLevel{{Actor: *signer, Permission: common.DefaultConfig.ActiveName}}, Data: nil}
 	acnt := c.validatingTester.Control.GetAccount(eosioToken)
 	a := acnt.GetAbi()
 	buf, _ := json.Marshal(data)
@@ -435,7 +437,7 @@ func TestProxy(t *testing.T) {
 			act := types.Action{}
 			act.Account = proxy
 			act.Name = common.N("setowner")
-			act.Authorization = []common.PermissionLevel{{common.N("alice"), common.DefaultConfig.ActiveName}}
+			act.Authorization = []common.PermissionLevel{{Actor: common.N("alice"), Permission: common.DefaultConfig.ActiveName}}
 			data := common.Variants{
 				"owner": alice,
 				"delay": 10,
@@ -452,7 +454,7 @@ func TestProxy(t *testing.T) {
 			act1 := types.Action{}
 			act1.Account = eosioToken
 			act1.Name = common.N("transfer")
-			act1.Authorization = []common.PermissionLevel{{eosioToken, common.DefaultConfig.ActiveName}}
+			act1.Authorization = []common.PermissionLevel{{Actor: eosioToken, Permission: common.DefaultConfig.ActiveName}}
 			data1 := common.Variants{
 				"from":     eosioToken,
 				"to":       proxy,
@@ -546,7 +548,7 @@ func TestDeferredFailure(t *testing.T) {
 		act := types.Action{}
 		act.Account = proxy
 		act.Name = common.N("setowner")
-		act.Authorization = []common.PermissionLevel{{common.N("bob"), common.DefaultConfig.ActiveName}}
+		act.Authorization = []common.PermissionLevel{{Actor: common.N("bob"), Permission: common.DefaultConfig.ActiveName}}
 		data := common.Variants{
 			"owner": bob,
 			"delay": 10,
@@ -595,7 +597,7 @@ func TestDeferredFailure(t *testing.T) {
 	itr = index.Begin()
 	err = itr.Data(&gto)
 	if err != nil {
-		fmt.Errorf("TestDeferredFailure:find gto is error")
+		fmt.Println("TestDeferredFailure:find gto is error")
 	}
 	deferredId = gto.TrxId
 	//next deferred trx
@@ -620,7 +622,7 @@ func TestDeferredFailure(t *testing.T) {
 		act := types.Action{}
 		act.Account = bob
 		act.Name = common.N("setowner")
-		act.Authorization = []common.PermissionLevel{{common.N("alice"), common.DefaultConfig.ActiveName}}
+		act.Authorization = []common.PermissionLevel{{Actor: common.N("alice"), Permission: common.DefaultConfig.ActiveName}}
 		data := common.Variants{
 			"owner": alice,
 			"delay": 0,

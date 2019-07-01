@@ -4,14 +4,15 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
+	"strings"
+	"time"
+
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/common/eos_math"
 	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/crypto/rlp"
-	"strings"
-	"time"
 )
 
 func (a *AbiDef) DecodeAction(actionName string, data []byte) ([]byte, error) {

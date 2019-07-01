@@ -1,20 +1,21 @@
 package producer_plugin
 
 import (
-	"github.com/stretchr/testify/assert"
-	"github.com/urfave/cli"
+	"crypto/sha256"
 	"testing"
 
-	"crypto/sha256"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/eosspark/eos-go/exception/try"
+	"github.com/eosspark/eos-go/libraries/asio"
 	"github.com/eosspark/eos-go/log"
 	"github.com/eosspark/eos-go/plugins/appbase/app"
-	"github.com/eosspark/eos-go/libraries/asio"
+
+	"github.com/stretchr/testify/assert"
+	"github.com/urfave/cli"
 )
 
 func TestProducerPlugin_FindByApplication(t *testing.T) {
@@ -250,7 +251,7 @@ func TestProducerPluginImpl_OnIncomingBlock(t *testing.T) {
 	blockrootMerkle.Append(chain.HeadBlockState().BlockId)
 
 	blockHash := block.Digest()
-	scheduleHash := crypto.Hash256(types.ProducerScheduleType{Version: 0, Producers: []types.ProducerKey{{eosio, priKey.PublicKey()}}})
+	scheduleHash := crypto.Hash256(types.ProducerScheduleType{Version: 0, Producers: []types.ProducerKey{{ProducerName: eosio, BlockSigningKey: priKey.PublicKey()}}})
 	headerBmroot := crypto.Hash256(common.MakePair(blockHash, blockrootMerkle.GetRoot()))
 	digest := crypto.Hash256(common.MakePair(headerBmroot, scheduleHash))
 
@@ -270,7 +271,7 @@ func BenchmarkProducerPluginImpl_OnIncomingBlock(b *testing.B) {
 
 	for i := 0; i < b.N; i++ {
 		block := &types.SignedBlock{}
-		block.Timestamp = types.NewBlockTimeStamp(*plugin.my.CalculateNextBlockTime(&eosio, chain.HeadBlockState().SignedBlock.Timestamp))
+		block.Timestamp = types.NewBlockTimeStamp(*plugin.my.CalculateNextBlockTime(eosio, chain.HeadBlockState().SignedBlock.Timestamp))
 		block.Producer = common.N("eosio")
 		block.Previous = chain.HeadBlockState().BlockId
 
@@ -280,7 +281,7 @@ func BenchmarkProducerPluginImpl_OnIncomingBlock(b *testing.B) {
 		blockrootMerkle.Append(chain.HeadBlockState().BlockId)
 
 		blockHash := block.Digest()
-		scheduleHash := crypto.Hash256(types.ProducerScheduleType{Version: 0, Producers: []types.ProducerKey{{eosio, priKey.PublicKey()}}})
+		scheduleHash := crypto.Hash256(types.ProducerScheduleType{Version: 0, Producers: []types.ProducerKey{{ProducerName: eosio, BlockSigningKey: priKey.PublicKey()}}})
 		headerBmroot := crypto.Hash256(common.MakePair(blockHash, blockrootMerkle.GetRoot()))
 		digest := crypto.Hash256(common.MakePair(headerBmroot, scheduleHash))
 

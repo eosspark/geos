@@ -4,11 +4,12 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"github.com/eosspark/eos-go/log"
 	"io"
 	"io/ioutil"
 	"math"
 	"reflect"
+
+	"github.com/eosspark/eos-go/log"
 )
 
 var (

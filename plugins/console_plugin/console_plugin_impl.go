@@ -1,8 +1,8 @@
 package console_plugin
 
 import (
-	"github.com/eosspark/eos-go/log"
 	"github.com/eosspark/eos-go/libraries/asio"
+	"github.com/eosspark/eos-go/log"
 	"github.com/eosspark/eos-go/plugins/console_plugin/console"
 )
 

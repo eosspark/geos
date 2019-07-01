@@ -2,12 +2,13 @@ package fasthttp_test
 
 import (
 	"fmt"
-	"github.com/eosspark/eos-go/libraries/asio"
-	"github.com/eosspark/eos-go/plugins/http_plugin/fasthttp"
 	"log"
 	"syscall"
 	"testing"
 	"time"
+
+	"github.com/eosspark/eos-go/libraries/asio"
+	"github.com/eosspark/eos-go/plugins/http_plugin/fasthttp"
 )
 
 func TestListenAndServe(t *testing.T) {
@@ -44,7 +45,7 @@ func TestClient(t *testing.T) {
 	go func() {
 		lastTime, count := time.Now(), 0
 		requestHandler := func(ctx *fasthttp.RequestCtx) {
-			count ++
+			count++
 			if time.Now().Sub(lastTime) >= time.Second {
 				fmt.Printf("cont:%d, and %f(us) per request\n", count, float64(1*1e6)/float64(count))
 				lastTime = time.Now()

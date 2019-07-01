@@ -11,9 +11,6 @@ import (
 	"path/filepath"
 	"strings"
 	"testing"
-
-	//"github.com/eosspark/eos-go/wasmgo/wasm"
-	//"github.com/eosspark/eos-go/wasmgo/wast"
 )
 
 var testPaths = []string{

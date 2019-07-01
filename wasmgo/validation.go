@@ -2,15 +2,13 @@ package wasmgo
 
 import (
 	"bytes"
+
 	. "github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/wasmgo/compiler"
-
-	//"fmt"
 	"github.com/eosspark/eos-go/wasmgo/wagon/disasm"
 	"github.com/eosspark/eos-go/wasmgo/wagon/wasm"
 	"github.com/eosspark/eos-go/wasmgo/wagon/wasm/leb128"
-
 	ops "github.com/eosspark/eos-go/wasmgo/wagon/wasm/operators"
 )
 
@@ -210,8 +208,8 @@ func ensureApplyExported(m *wasm.Module) error {
 			functionSig := m.Types.Entries[m.Function.Types[index]]
 			if len(functionSig.ParamTypes) == 3 &&
 				functionSig.ParamTypes[0] == wasm.ValueTypeI64 &&
-				functionSig.ParamTypes[0] == wasm.ValueTypeI64 &&
-				functionSig.ParamTypes[0] == wasm.ValueTypeI64 &&
+				functionSig.ParamTypes[1] == wasm.ValueTypeI64 &&
+				functionSig.ParamTypes[2] == wasm.ValueTypeI64 &&
 				len(functionSig.ReturnTypes) == 0 {
 				return nil
 			}

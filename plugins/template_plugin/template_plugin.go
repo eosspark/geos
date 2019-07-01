@@ -3,6 +3,7 @@ package template_plugin
 
 import (
 	. "github.com/eosspark/eos-go/plugins/appbase/app"
+
 	"github.com/urfave/cli"
 )
 

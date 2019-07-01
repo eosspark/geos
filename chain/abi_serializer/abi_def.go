@@ -6,12 +6,13 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/eosspark/eos-go/chain/types"
-	"github.com/eosspark/eos-go/common"
-	"github.com/eosspark/eos-go/log"
 	"io"
 	"strconv"
 	"strings"
+
+	"github.com/eosspark/eos-go/chain/types"
+	"github.com/eosspark/eos-go/common"
+	"github.com/eosspark/eos-go/log"
 )
 
 var abiLog log.Logger

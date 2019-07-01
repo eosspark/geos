@@ -1,13 +1,14 @@
 package chain
 
 import (
+	"math"
+	"os"
+
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto/rlp"
 	. "github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
-	"math"
-	"os"
 )
 
 type BlockLog struct {
@@ -173,7 +174,7 @@ func (b *BlockLog) Append(block *types.SignedBlock) uint64 {
 	Throw(err)
 
 	EosAssert(indexPos == int64(SizeOfInt64*(block.BlockNumber()-1)), &BlockLogAppendFail{},
-		"Append to index file occuring at wrong position. position %d expected %d", indexPos, SizeOfInt64*(block.BlockNumber()-1))
+		"Append to index file occurring at wrong position. position %d expected %d", indexPos, SizeOfInt64*(block.BlockNumber()-1))
 
 	data, _ := rlp.EncodeToBytes(block)
 

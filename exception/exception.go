@@ -6,8 +6,8 @@ type ExcTypes = int64
 
 const (
 	UnspecifiedExceptionCode = ExcTypes(iota)
-	UnhandledExceptionCode    ///< for unhandled 3rd party exceptions
-	TimeoutExceptionCode      ///< timeout exceptions
+	UnhandledExceptionCode   ///< for unhandled 3rd party exceptions
+	TimeoutExceptionCode     ///< timeout exceptions
 	FileNotFoundExceptionCode
 	ParseErrorExceptionCode
 	InvalidArgExceptionCode

@@ -2,8 +2,9 @@ package eos_math
 
 import (
 	"fmt"
-	"github.com/eosspark/eos-go/exception/try"
 	"strconv"
+
+	"github.com/eosspark/eos-go/exception/try"
 )
 
 // Integer limit values.

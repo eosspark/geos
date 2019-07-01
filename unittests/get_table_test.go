@@ -1,13 +1,15 @@
 package unittests
 
 import (
-	. "github.com/eosspark/eos-go/chain"
-	"github.com/eosspark/eos-go/common"
-	"github.com/eosspark/eos-go/plugins/chain_plugin"
-	"github.com/stretchr/testify/assert"
 	"io/ioutil"
 	"math"
 	"testing"
+
+	. "github.com/eosspark/eos-go/chain"
+	"github.com/eosspark/eos-go/common"
+	"github.com/eosspark/eos-go/plugins/chain_plugin"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestGetScope(t *testing.T) {

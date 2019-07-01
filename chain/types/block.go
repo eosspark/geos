@@ -3,6 +3,7 @@ package types
 import (
 	"encoding/binary"
 	"encoding/json"
+
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/ecc"

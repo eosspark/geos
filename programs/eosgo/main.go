@@ -1,6 +1,9 @@
 package main
 
 import (
+	"os"
+	"strings"
+
 	. "github.com/eosspark/eos-go/exception"
 	"github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/log"
@@ -9,8 +12,7 @@ import (
 	"github.com/eosspark/eos-go/plugins/http_plugin"
 	"github.com/eosspark/eos-go/plugins/net_plugin"
 	"github.com/eosspark/eos-go/plugins/producer_plugin"
-	"os"
-	"strings"
+	"github.com/eosspark/eos-go/plugins/wallet_plugin"
 
 	_ "github.com/eosspark/eos-go/plugins/chain_api_plugin"
 	_ "github.com/eosspark/eos-go/plugins/console_plugin"
@@ -33,7 +35,7 @@ const (
 const EOSGO_VERSION = 0x0
 
 //go run main.go -e -p eosio --private-key [\"EOS6MRyAjQq8ud7hVNYcfnVPJqcVpscN5So8BhtHuGYqET5GDW5CV\",\"5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3\"]
-// --plugin ChainApiPlugin --plugin WalletPlugin --plugin WalletApiPlugin --plugin ChainApiPlugin --plugin NetApiPlugin --max-transaction-age=999999999
+//--plugin ChainApiPlugin --plugin WalletPlugin --plugin WalletApiPlugin --plugin ChainApiPlugin --plugin NetApiPlugin --plugin ProducerPlugin --max-transaction-age=999999999
 func main() {
 	try.Try(func() {
 		App().SetVersion(EOSGO_VERSION)
@@ -44,6 +46,7 @@ func main() {
 			producer_plugin.ProducerPlug,
 			http_plugin.HttpPlug,
 			net_plugin.NetPlug,
+			wallet_plugin.WalletPlug,
 		}) {
 			os.Exit(INITIALIZE_FAIL)
 		}

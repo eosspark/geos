@@ -1,10 +1,11 @@
 package http_plugin
 
 import (
-	"github.com/eosspark/eos-go/common"
-	"github.com/eosspark/eos-go/libraries/asio"
 	"net"
 	"net/http"
+
+	"github.com/eosspark/eos-go/common"
+	"github.com/eosspark/eos-go/libraries/asio"
 )
 
 type NextFunction = func(interface{})

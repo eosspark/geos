@@ -3,6 +3,14 @@ package unittests
 import (
 	"bytes"
 	"encoding/json"
+	"io/ioutil"
+	"math"
+	"reflect"
+	"strconv"
+	"strings"
+	"testing"
+	"time"
+
 	. "github.com/eosspark/eos-go/chain"
 	abi "github.com/eosspark/eos-go/chain/abi_serializer"
 	"github.com/eosspark/eos-go/chain/types"
@@ -16,14 +24,8 @@ import (
 	. "github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/log"
 	"github.com/eosspark/eos-go/plugins/chain_interface"
+
 	"github.com/stretchr/testify/assert"
-	"io/ioutil"
-	"math"
-	"reflect"
-	"strconv"
-	"strings"
-	"testing"
-	"time"
 )
 
 var CORE_SYMBOL = common.Symbol{Precision: 4, Symbol: "SYS"}
@@ -392,7 +394,7 @@ func (t BaseTester) CreateAccount(name common.AccountName, creator common.Accoun
 	act := &types.Action{
 		Account:       new.GetAccount(),
 		Name:          new.GetName(),
-		Authorization: []common.PermissionLevel{{creator, common.DefaultConfig.ActiveName}},
+		Authorization: []common.PermissionLevel{{Actor: creator, Permission: common.DefaultConfig.ActiveName}},
 		Data:          data,
 	}
 	trx.Actions = append(trx.Actions, act)
@@ -435,7 +437,7 @@ func (t BaseTester) PushTransaction(trx *types.SignedTransaction, deadline commo
 func (t BaseTester) PushAction(act *types.Action, authorizer common.AccountName) ActionResult {
 	trx := types.SignedTransaction{}
 	if !common.Empty(authorizer) {
-		act.Authorization = []common.PermissionLevel{{authorizer, common.DefaultConfig.ActiveName}}
+		act.Authorization = []common.PermissionLevel{{Actor: authorizer, Permission: common.DefaultConfig.ActiveName}}
 	}
 	trx.Actions = append(trx.Actions, act)
 	t.SetTransactionHeaders(&trx.Transaction, t.DefaultExpirationDelta, 0)
@@ -508,7 +510,7 @@ func (t BaseTester) GetAction(code common.AccountName, actType common.AccountNam
 
 	acnt := t.Control.GetAccount(code)
 	a := acnt.GetAbi()
-	action := types.Action{code, actType, auths, nil}
+	action := types.Action{Account: code, Name: actType, Authorization: auths, Data: nil}
 	buf, _ := json.Marshal(data)
 	action.Data, _ = a.EncodeAction(actType, buf)
 	return &action
@@ -648,7 +650,7 @@ func (t BaseTester) Transfer(from common.AccountName, to common.AccountName, amo
 		"memo":     memo,
 	}
 	acttype := common.N("transfer")
-	act := t.GetAction(currency, acttype, []common.PermissionLevel{{from, common.N("active")}}, &data)
+	act := t.GetAction(currency, acttype, []common.PermissionLevel{{Actor: from, Permission: common.N("active")}}, &data)
 	trx.Actions = append(trx.Actions, act)
 	t.SetTransactionHeaders(&trx.Transaction, t.DefaultExpirationDelta, 0)
 	privKey := t.getPrivateKey(from, "active")
@@ -668,7 +670,7 @@ func (t BaseTester) Issue(to common.AccountName, amount string, currency common.
 		"quantity": amount,
 	}
 	acttype := common.N("issue")
-	act := t.GetAction(currency, acttype, []common.PermissionLevel{{currency, common.N("active")}}, &data)
+	act := t.GetAction(currency, acttype, []common.PermissionLevel{{Actor: currency, Permission: common.N("active")}}, &data)
 	trx.Actions = append(trx.Actions, act)
 	t.SetTransactionHeaders(&trx.Transaction, t.DefaultExpirationDelta, 0)
 	privKey := t.getPrivateKey(currency, "active")
@@ -684,7 +686,7 @@ func (t BaseTester) LinkAuthority(account common.AccountName, code common.Accoun
 	act := types.Action{
 		Account:       link.GetAccount(),
 		Name:          link.GetName(),
-		Authorization: []common.PermissionLevel{{account, common.DefaultConfig.ActiveName}},
+		Authorization: []common.PermissionLevel{{Actor: account, Permission: common.DefaultConfig.ActiveName}},
 		Data:          data,
 	}
 	trx.Actions = append(trx.Actions, &act)
@@ -702,7 +704,7 @@ func (t BaseTester) UnlinkAuthority(account common.AccountName, code common.Acco
 	act := types.Action{
 		Account:       unlink.GetAccount(),
 		Name:          unlink.GetName(),
-		Authorization: []common.PermissionLevel{{account, common.DefaultConfig.ActiveName}},
+		Authorization: []common.PermissionLevel{{Actor: account, Permission: common.DefaultConfig.ActiveName}},
 		Data:          data,
 	}
 	trx.Actions = append(trx.Actions, &act)
@@ -770,7 +772,7 @@ func (t BaseTester) SetCode(account common.AccountName, wasm []uint8, signer *ec
 	act := types.Action{
 		Account:       setCode.GetAccount(),
 		Name:          setCode.GetName(),
-		Authorization: []common.PermissionLevel{{account, common.DefaultConfig.ActiveName}},
+		Authorization: []common.PermissionLevel{{Actor: account, Permission: common.DefaultConfig.ActiveName}},
 		Data:          data,
 	}
 	trx.Actions = append(trx.Actions, &act)
@@ -802,7 +804,7 @@ func (t BaseTester) SetAbi(account common.AccountName, abiJson []byte, signer *e
 	act := types.Action{
 		Account:       setAbi.GetAccount(),
 		Name:          setAbi.GetName(),
-		Authorization: []common.PermissionLevel{{account, common.DefaultConfig.ActiveName}},
+		Authorization: []common.PermissionLevel{{Actor: account, Permission: common.DefaultConfig.ActiveName}},
 		Data:          data,
 	}
 	trx.Actions = append(trx.Actions, &act)
@@ -1028,7 +1030,7 @@ func NewValidatingTesterTrustedProducers(trustedProducers *AccountNameSet) *Vali
 func (vt ValidatingTester) PushAction(act *types.Action, authorizer common.AccountName) ActionResult {
 	trx := types.SignedTransaction{}
 	if !common.Empty(authorizer) {
-		act.Authorization = []common.PermissionLevel{{authorizer, common.DefaultConfig.ActiveName}}
+		act.Authorization = []common.PermissionLevel{{Actor: authorizer, Permission: common.DefaultConfig.ActiveName}}
 	}
 	trx.Actions = append(trx.Actions, act)
 	vt.SetTransactionHeaders(&trx.Transaction, vt.DefaultExpirationDelta, 0)
@@ -1130,7 +1132,7 @@ func (vt *ValidatingTester) CreateDefaultAccount(name common.AccountName) *types
 	act := &types.Action{
 		Account:       new.GetAccount(),
 		Name:          new.GetName(),
-		Authorization: []common.PermissionLevel{{creator, common.DefaultConfig.ActiveName}},
+		Authorization: []common.PermissionLevel{{Actor: creator, Permission: common.DefaultConfig.ActiveName}},
 		Data:          data,
 	}
 	trx.Actions = append(trx.Actions, act)

@@ -1,11 +1,12 @@
 package chain
 
 import (
+	"testing"
+
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/eosspark/eos-go/entity"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func TestIteratorCache(t *testing.T) {

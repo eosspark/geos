@@ -1,15 +1,17 @@
 package wallet_plugin
 
 import (
-	"github.com/eosspark/eos-go/common"
-	"github.com/eosspark/eos-go/exception"
-	. "github.com/eosspark/eos-go/exception/try"
-	. "github.com/eosspark/eos-go/plugins/appbase/app"
-	"github.com/eosspark/eos-go/libraries/asio"
-	"github.com/urfave/cli"
 	"os"
 	"path/filepath"
 	"runtime"
+
+	"github.com/eosspark/eos-go/common"
+	"github.com/eosspark/eos-go/exception"
+	. "github.com/eosspark/eos-go/exception/try"
+	"github.com/eosspark/eos-go/libraries/asio"
+	. "github.com/eosspark/eos-go/plugins/appbase/app"
+
+	"github.com/urfave/cli"
 )
 
 const WalletPlug = PluginTypeName("WalletPlugin")

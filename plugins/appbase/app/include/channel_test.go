@@ -1,18 +1,15 @@
 package include_test
 
 import (
-	"testing"
-	."github.com/eosspark/eos-go/plugins/chain_interface"
-	"github.com/eosspark/eos-go/chain/types"
 	"fmt"
-	"github.com/eosspark/eos-go/libraries/asio"
+	"testing"
 	"time"
-	."github.com/eosspark/eos-go/plugins/appbase/app/include"
-	."github.com/eosspark/eos-go/plugins/appbase/app"
+
+	"github.com/eosspark/eos-go/chain/types"
+	"github.com/eosspark/eos-go/libraries/asio"
+	. "github.com/eosspark/eos-go/plugins/appbase/app"
+	. "github.com/eosspark/eos-go/plugins/chain_interface"
 )
-
-
-
 
 //var  acceptedBlockHeader *Signal;
 //var  acceptedBlock *Signal;
@@ -23,7 +20,6 @@ import (
 //var  badAlloc *Signal;
 
 type blockAcceptor struct {
-
 }
 
 func (*blockAcceptor) doAccept(s *types.SignedBlock) {
@@ -34,17 +30,16 @@ func doAccept(s *types.SignedBlock) {
 	fmt.Println(s.Timestamp)
 }
 
-
-func (*blockAcceptor)doRejectedBlockFunc(s *types.SignedBlock){
+func (*blockAcceptor) doRejectedBlockFunc(s *types.SignedBlock) {
 	fmt.Println(s.Timestamp)
 }
 
 func Test_Channel(t *testing.T) {
 
 	//subscribe
-	App().GetChannel(PreAcceptedBlock).Subscribe(&PreAcceptedBlockCaller{doAccept})
-	App().GetChannel(PreAcceptedBlock).Subscribe(&PreAcceptedBlockCaller{new(blockAcceptor).doAccept})
-	rbf :=&RejectedBlockCaller{new(blockAcceptor).doRejectedBlockFunc}
+	App().GetChannel(PreAcceptedBlock).Subscribe(&PreAcceptedBlockCaller{Caller: doAccept})
+	App().GetChannel(PreAcceptedBlock).Subscribe(&PreAcceptedBlockCaller{Caller: new(blockAcceptor).doAccept})
+	rbf := &RejectedBlockCaller{Caller: new(blockAcceptor).doRejectedBlockFunc}
 	App().GetChannel(RejectedBlock).Subscribe(rbf)
 
 	//call
@@ -54,7 +49,6 @@ func Test_Channel(t *testing.T) {
 	App().GetChannel(RejectedBlock).Publish(sb)
 	App().GetChannel(PreAcceptedBlock).Publish(sb)
 	App().GetChannel(AcceptedBlockHeader).Publish(sb)
-
 
 	timer := asio.NewDeadlineTimer(App().GetIoService())
 	timer.ExpiresFromNow(time.Millisecond)

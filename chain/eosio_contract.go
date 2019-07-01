@@ -1,6 +1,8 @@
 package chain
 
 import (
+	"strings"
+
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/common/eos_math"
@@ -10,11 +12,10 @@ import (
 	. "github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/wasmgo"
-	"strings"
 )
 
 func transactionIdToSenderId(tid common.TransactionIdType) *eos_math.Uint128 {
-	id := &eos_math.Uint128{tid.Hash[3], tid.Hash[2]}
+	id := &eos_math.Uint128{Low: tid.Hash[3], High: tid.Hash[2]}
 	return id
 }
 
@@ -40,7 +41,7 @@ func validateAuthorityPrecondition(context *ApplyContext, auth *types.Authority)
 		}
 
 		Try(func() {
-			context.Control.GetAuthorizationManager().GetPermission(&common.PermissionLevel{a.Permission.Actor, a.Permission.Permission})
+			context.Control.GetAuthorizationManager().GetPermission(&common.PermissionLevel{Actor: a.Permission.Actor, Permission: a.Permission.Permission})
 		}).Catch(func(e *PermissionQueryException) {
 			//   EOS_THROW( action_validate_exception,
 			//             "permission '${perm}' does not exist",
@@ -300,11 +301,11 @@ func applyEosioUpdateauth(context *ApplyContext) {
 	validateAuthorityPrecondition(context, &update.Auth)
 
 	authorization := context.Control.GetMutableAuthorizationManager()
-	permission := authorization.FindPermission(&common.PermissionLevel{update.Account, update.Permission})
+	permission := authorization.FindPermission(&common.PermissionLevel{Actor: update.Account, Permission: update.Permission})
 
 	parentId := common.IdType(0)
 	if update.Permission != common.PermissionName(common.DefaultConfig.OwnerName) {
-		parent := authorization.GetPermission(&common.PermissionLevel{update.Account, update.Parent})
+		parent := authorization.GetPermission(&common.PermissionLevel{Actor: update.Account, Permission: update.Parent})
 		parentId = parent.ID
 	}
 
@@ -348,7 +349,7 @@ func applyEosioDeleteauth(context *ApplyContext) {
 	}
 
 	authorization := context.Control.GetMutableAuthorizationManager()
-	permission := authorization.GetPermission(&common.PermissionLevel{remove.Account, remove.Permission})
+	permission := authorization.GetPermission(&common.PermissionLevel{Actor: remove.Account, Permission: remove.Permission})
 	oldSize := common.BillableSizeV("permission_object") + permission.Auth.GetBillableSize()
 	authorization.RemovePermission(permission)
 

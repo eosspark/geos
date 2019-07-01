@@ -2,6 +2,8 @@ package entity
 
 import (
 	"fmt"
+	"reflect"
+
 	"github.com/eosspark/eos-go/chain/abi_serializer"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
@@ -9,7 +11,6 @@ import (
 	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/eosspark/eos-go/exception"
 	"github.com/eosspark/eos-go/exception/try"
-	"reflect"
 )
 
 type AccountObject struct {

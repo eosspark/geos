@@ -3,9 +3,10 @@ package template
 import (
 	"bytes"
 	"encoding/json"
-	"github.com/eosspark/eos-go/log"
 	"reflect"
 	"strconv"
+
+	"github.com/eosspark/eos-go/log"
 )
 
 // template type Exception(PARENT,CODE,WHAT)

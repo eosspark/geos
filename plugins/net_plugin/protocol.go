@@ -3,11 +3,12 @@ package net_plugin
 import (
 	"encoding/json"
 	"fmt"
+	"reflect"
+
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/ecc"
-	"reflect"
 )
 
 type NetMessageType byte

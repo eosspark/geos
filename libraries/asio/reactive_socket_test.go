@@ -3,10 +3,11 @@ package asio
 import (
 	"context"
 	"fmt"
-	"github.com/stretchr/testify/assert"
 	"net"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestReactiveSocket_AsyncAccept(t *testing.T) {
@@ -147,7 +148,7 @@ func TestResolve(t *testing.T) {
 
 	noerr := false
 	addrs := ""
-	s.AsyncResolve(c, "localhost", 8888, func(address string, err error) {
+	s.AsyncResolve(c, "localhost", "8888", func(address string, err error) {
 		noerr = err == nil
 		addrs += address
 	})

@@ -12,11 +12,12 @@ package treeset
 import (
 	"encoding/json"
 	"fmt"
+	"strings"
+
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/eosspark/eos-go/libraries/container"
 	rbt "github.com/eosspark/eos-go/libraries/container/redblacktree"
-	"strings"
 )
 
 // template type Set(V,Compare,Multi)

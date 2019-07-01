@@ -14,6 +14,7 @@ import (
 )
 
 type SkipSuffix int
+
 const (
 	_ SkipSuffix = iota
 	SKIP_ONE
@@ -30,7 +31,7 @@ type LDataBase struct {
 	log       log.Logger
 	batch     *leveldb.Batch
 	count     int64
-	isClosed	bool
+	isClosed  bool
 }
 
 /*
@@ -63,7 +64,7 @@ func NewDataBase(path string, flag ...bool) (DataBase, error) {
 	/* read reversion */
 	reversion := readReversionFromDb(db)
 	/* read stack */
-	stack:=readUndoStackFromDb(db)
+	stack := readUndoStackFromDb(db)
 	logFlag := false
 	if len(flag) > 0 {
 		logFlag = flag[0]
@@ -76,9 +77,9 @@ func NewDataBase(path string, flag ...bool) (DataBase, error) {
 	} else {
 		dbLog.SetHandler(log.DiscardHandler())
 	}
-	return &LDataBase{db: db, stack:stack , path: path, nextId: nextId, logFlag: logFlag, log: dbLog, batch: new(leveldb.Batch),reversion:reversion}, nil
+	return &LDataBase{db: db, stack: stack, path: path, nextId: nextId, logFlag: logFlag, log: dbLog, batch: new(leveldb.Batch), reversion: reversion}, nil
 }
-func readUndoStackFromDb(db*leveldb.DB)(*deque){
+func readUndoStackFromDb(db *leveldb.DB) *deque {
 	key := []byte(undoKey)
 	val, err := db.Get(key, nil)
 	if err != nil && err != leveldb.ErrNotFound {
@@ -86,44 +87,44 @@ func readUndoStackFromDb(db*leveldb.DB)(*deque){
 
 	}
 	dq := newDeque()
-	if err == leveldb.ErrNotFound{
+	if err == leveldb.ErrNotFound {
 		return dq
 	}
 	values := [][]byte{}
 	err = DecodeBytes(val, &values)
-	if err != nil{
+	if err != nil {
 		// throw
 	}
 	cons := []undoContainer{}
 
-	for index,_ := range values{
+	for index, _ := range values {
 		con := undoContainer{}
-		err = DecodeBytes(values[index],&con)
-		if err != nil{
+		err = DecodeBytes(values[index], &con)
+		if err != nil {
 			//throw
 		}
 		cons = append(cons, con)
 	}
 
-	for index,_:= range cons{
+	for index, _ := range cons {
 		dq.Append(&cons[index])
 	}
 
-	return  dq
+	return dq
 }
-func readReversionFromDb(db *leveldb.DB) (int64 ) {
+func readReversionFromDb(db *leveldb.DB) int64 {
 	key := []byte(dbReversion)
 	val, err := db.Get(key, nil)
 	if err != nil && err != leveldb.ErrNotFound {
 		//throw
 
 	}
-	if err == leveldb.ErrNotFound{
+	if err == leveldb.ErrNotFound {
 		return 0
 	}
 	var reversion int64
 	err = DecodeBytes(val, &reversion)
-	if err != nil{
+	if err != nil {
 		// throw
 	}
 	return reversion
@@ -150,7 +151,7 @@ func readIncrementFromDb(db *leveldb.DB) (map[string]int64, error) {
 }
 
 func (ldb *LDataBase) Close() {
-	if ldb.isClosed{
+	if ldb.isClosed {
 		return
 	}
 	err := ldb.writeIncrementToDb()
@@ -184,12 +185,12 @@ func (ldb *LDataBase) writeIncrementToDb() error {
 		return err
 	}
 	// write reversion
-	val,err = EncodeToBytes(ldb.reversion)
-	if err != nil{
+	val, err = EncodeToBytes(ldb.reversion)
+	if err != nil {
 		return err
 	}
-	err = ldb.db.Put([]byte(dbReversion),val,nil)
-	if err != nil{
+	err = ldb.db.Put([]byte(dbReversion), val, nil)
+	if err != nil {
 		return err
 	}
 	// write undo stack
@@ -197,31 +198,30 @@ func (ldb *LDataBase) writeIncrementToDb() error {
 	return nil
 }
 
-
-func (ldb *LDataBase) undoStackToByte() [] byte{
-		u := ldb.getStack()
-		uv := undoContainer{}
-		uv = *u
-		val, err := EncodeToBytes(uv)
-		if err != nil{
-			return nil
-		}
-		return val
+func (ldb *LDataBase) undoStackToByte() []byte {
+	u := ldb.getStack()
+	uv := undoContainer{}
+	uv = *u
+	val, err := EncodeToBytes(uv)
+	if err != nil {
+		return nil
+	}
+	return val
 }
-func (ldb*LDataBase)writeUndoStack(){
+func (ldb *LDataBase) writeUndoStack() {
 	values := [][]byte{}
-	for ldb.stack.Size() > 0{
+	for ldb.stack.Size() > 0 {
 		val := ldb.undoStackToByte()
-		values = append(values,val)
+		values = append(values, val)
 		ldb.stack.Pop()
 	}
-	if len(values)	!= 0{
-		val ,err:= EncodeToBytes(values)
-		if err != nil{
+	if len(values) != 0 {
+		val, err := EncodeToBytes(values)
+		if err != nil {
 			// throw
 		}
-		err = ldb.db.Put([]byte(undoKey),val,nil)
-		if err != nil{
+		err = ldb.db.Put([]byte(undoKey), val, nil)
+		if err != nil {
 			//throw
 		}
 	}
@@ -244,21 +244,21 @@ func (ldb *LDataBase) Undo() {
 
 		for _, value := range undo.OldValue { /* 	Undo edit */
 			err := ldb.modifyKvToDb(value.NewKv, value.OldKv)
-			if err != nil{
+			if err != nil {
 				//throw
 			}
 		}
 
 		for _, value := range undo.NewValue { /*	Undo new */
 			err := ldb.removeKvToDb(value.NewKv)
-			if err != nil{
+			if err != nil {
 				//throw
 			}
 		}
 
 		for _, value := range undo.RemoveValue { /*	Undo remove */
 			err := ldb.insertKvToDb(value.NewKv)
-			if err != nil{
+			if err != nil {
 				//throw
 			}
 		}
@@ -287,7 +287,7 @@ func (ldb *LDataBase) Squash() {
 
 	for typeName, undo := range stack.Undo {
 
-		if _,ok := preStack.Undo[typeName];!ok{
+		if _, ok := preStack.Undo[typeName]; !ok {
 			preStack.Undo[typeName] = newUndoState()
 		}
 		//TODO assert typeName
@@ -388,7 +388,7 @@ func (ldb *LDataBase) insert(in interface{}, flag ...bool) error { /* struct cfg
 	m.NewKv = dbKV
 	m.Id = dbKV.id
 	m.OldKv = dbKV
-	ldb.insertUndoState(cfg.Name,m, INSERT)
+	ldb.insertUndoState(cfg.Name, m, INSERT)
 	return nil
 }
 
@@ -460,7 +460,7 @@ func (ldb *LDataBase) remove(in interface{}) error {
 	m.NewKv = dbKV
 	m.Id = dbKV.id
 	m.OldKv = dbKV
-	ldb.insertUndoState(cfg.Name,m, REMOVE)
+	ldb.insertUndoState(cfg.Name, m, REMOVE)
 	return nil
 }
 
@@ -536,7 +536,7 @@ func (ldb *LDataBase) modifyRefToKv(oldRef, newRef *reflect.Value) error {
 		ldb.log.Error("newCfg and oldCfg id failed,  newCfg id is :  %v,  oldCfg id is : %v", newCfg.id_, oldCfg.id_)
 		return errors.New("newCfg and oldCfg id failed")
 	}
-	if oldCfg.Name != newCfg.Name{
+	if oldCfg.Name != newCfg.Name {
 		return errors.New("newCfg and oldCfg typeName failed")
 	}
 	newKV := &dbKeyValue{}
@@ -554,7 +554,7 @@ func (ldb *LDataBase) modifyRefToKv(oldRef, newRef *reflect.Value) error {
 	//oldCfg.rId.Set(reflect.ValueOf(m.id).Convert(oldCfg.rId.Type()))
 	m.NewKv = newKV
 	m.OldKv = oldKV
-	ldb.insertUndoState(oldCfg.Name,m, MODIFY)
+	ldb.insertUndoState(oldCfg.Name, m, MODIFY)
 	return nil
 }
 
@@ -746,7 +746,7 @@ func (ldb *LDataBase) EndIterator(begin, end, typeName []byte) (*DbIterator, err
 	ldb.log.Info("begin : %v, end : %v, typeName: %v", begin, end, typeName)
 
 	it := ldb.db.NewIterator(&util.Range{Start: begin, Limit: end}, nil)
-	if !it.Next(){
+	if !it.Next() {
 		// not found  --> iterator is nil  == end
 		itr := &DbIterator{it: nil, db: ldb.db, first: false, typeName: typeName, currentStatus: itEND}
 		return itr, nil
@@ -903,7 +903,7 @@ const (
 	MODIFY = undoOperatorType(2)
 )
 
-func (ldb *LDataBase) insertUndoState(typeName string,value *modifyValue, oT undoOperatorType) {
+func (ldb *LDataBase) insertUndoState(typeName string, value *modifyValue, oT undoOperatorType) {
 	if !ldb.enable() {
 		return
 	}
@@ -915,11 +915,11 @@ func (ldb *LDataBase) insertUndoState(typeName string,value *modifyValue, oT und
 	}
 	switch oT {
 	case INSERT:
-		stack.undoContainerInsert(typeName,value)
+		stack.undoContainerInsert(typeName, value)
 	case REMOVE:
-		stack.undoContainerRemove(typeName,value)
+		stack.undoContainerRemove(typeName, value)
 	case MODIFY:
-		stack.undoContainerModify(typeName,value)
+		stack.undoContainerModify(typeName, value)
 	default:
 		/* panic*/
 	}
@@ -942,7 +942,6 @@ func (ldb *LDataBase) getFirstStack() *undoContainer {
 		return nil
 		//panic(TYPE_NOT_FOUND)
 	}
-	return nil
 }
 
 func (ldb *LDataBase) getSecond() *undoContainer {
@@ -954,7 +953,6 @@ func (ldb *LDataBase) getSecond() *undoContainer {
 		return nil
 		//panic(TYPE_NOT_FOUND)
 	}
-	return nil
 }
 
 func (ldb *LDataBase) getStack() *undoContainer {
@@ -968,7 +966,6 @@ func (ldb *LDataBase) getStack() *undoContainer {
 	default:
 		return nil
 	}
-	return nil
 }
 
 func getDbKey(key []byte, db *leveldb.DB) ([]byte, error) {

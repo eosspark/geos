@@ -458,7 +458,7 @@ func (r *ResourceLimitsManager) GetAccountCpuLimitEx(name common.AccountName, el
 	r.GetAccountLimits(name, &x, &y, &cpuWeight)
 
 	if cpuWeight < 0 || state.TotalCpuWeight == 0 {
-		return types.AccountResourceLimit{-1, -1, -1}
+		return types.AccountResourceLimit{Used: -1, Available: -1, Max: -1}
 	}
 
 	arl := types.AccountResourceLimit{}
@@ -515,7 +515,7 @@ func (r *ResourceLimitsManager) GetAccountNetLimitEx(name common.AccountName, el
 	r.GetAccountLimits(name, &x, &netWeight, &y)
 
 	if netWeight < 0 || state.TotalNetWeight == 0 {
-		return types.AccountResourceLimit{-1, -1, -1}
+		return types.AccountResourceLimit{Used: -1, Available: -1, Max: -1}
 	}
 
 	arl := types.AccountResourceLimit{}

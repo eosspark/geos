@@ -2,12 +2,14 @@ package unittests
 
 import (
 	"fmt"
+	"io/ioutil"
+	"testing"
+
 	"github.com/eosspark/eos-go/chain"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
+
 	"github.com/stretchr/testify/assert"
-	"io/ioutil"
-	"testing"
 )
 
 type PayloadlessTester struct {
@@ -75,7 +77,7 @@ func TestAbiSerializer(t *testing.T) {
 	prettyTrx.Actions = append(prettyTrx.Actions, &types.Action{
 		Account: payloadless,
 		Name:    doit,
-		Authorization: []common.PermissionLevel {
+		Authorization: []common.PermissionLevel{
 			{
 				Actor:      payloadless,
 				Permission: common.DefaultConfig.ActiveName,

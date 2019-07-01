@@ -7,13 +7,13 @@ import (
 
 func CommonTypeDefs() []abi.TypeDef {
 	ts := make([]abi.TypeDef, 0)
-	ts = append(ts, abi.TypeDef{"account_name", "name"})
-	ts = append(ts, abi.TypeDef{"permission_name", "name"})
-	ts = append(ts, abi.TypeDef{"action_name", "name"})
-	ts = append(ts, abi.TypeDef{"table_name", "name"})
-	ts = append(ts, abi.TypeDef{"transaction_id_type", "checksum256"})
-	ts = append(ts, abi.TypeDef{"block_id_type", "checksum256"})
-	ts = append(ts, abi.TypeDef{"weight_type", "uint16"})
+	ts = append(ts, abi.TypeDef{NewTypeName: "account_name", Type: "name"})
+	ts = append(ts, abi.TypeDef{NewTypeName: "permission_name", Type: "name"})
+	ts = append(ts, abi.TypeDef{NewTypeName: "action_name", Type: "name"})
+	ts = append(ts, abi.TypeDef{NewTypeName: "table_name", Type: "name"})
+	ts = append(ts, abi.TypeDef{NewTypeName: "transaction_id_type", Type: "checksum256"})
+	ts = append(ts, abi.TypeDef{NewTypeName: "block_id_type", Type: "checksum256"})
+	ts = append(ts, abi.TypeDef{NewTypeName: "weight_type", Type: "uint16"})
 	return ts
 }
 
@@ -30,26 +30,26 @@ func EosioContractAbi(eosioSystemAbi abi.AbiDef) *abi.AbiDef {
 		Name: "permission_level",
 		Base: "",
 		Fields: []abi.FieldDef{
-			{"actor", "account_name"},
-			{"permission", "permission_name"},
+			{Name: "actor", Type: "account_name"},
+			{Name: "permission", Type: "permission_name"},
 		},
 	})
 	eosAbi.Structs = append(eosAbi.Structs, abi.StructDef{
 		Name: "action",
 		Base: "",
 		Fields: []abi.FieldDef{
-			{"account", "account_name"},
-			{"name", "action_name"},
-			{"authorization", "permission_level[]"},
-			{"data", "bytes"},
+			{Name: "account", Type: "account_name"},
+			{Name: "name", Type: "action_name"},
+			{Name: "authorization", Type: "permission_level[]"},
+			{Name: "data", Type: "bytes"},
 		},
 	})
 	eosAbi.Structs = append(eosAbi.Structs, abi.StructDef{
 		Name: "extension",
 		Base: "",
 		Fields: []abi.FieldDef{
-			{"type", "uint16"},
-			{"data", "bytes"},
+			{Name: "type", Type: "uint16"},
+			{Name: "data", Type: "bytes"},
 		},
 	})
 
@@ -57,12 +57,12 @@ func EosioContractAbi(eosioSystemAbi abi.AbiDef) *abi.AbiDef {
 		Name: "transaction_header",
 		Base: "",
 		Fields: []abi.FieldDef{
-			{"expiration", "time_point_sec"},
-			{"ref_block_num", "uint16"},
-			{"ref_block_prefix", "uint32"},
-			{"max_net_usage_words", "varuint32"},
-			{"max_cpu_usage_ms", "uint8"},
-			{"delay_sec", "varuint32"},
+			{Name: "expiration", Type: "time_point_sec"},
+			{Name: "ref_block_num", Type: "uint16"},
+			{Name: "ref_block_prefix", Type: "uint32"},
+			{Name: "max_net_usage_words", Type: "varuint32"},
+			{Name: "max_cpu_usage_ms", Type: "uint8"},
+			{Name: "delay_sec", Type: "varuint32"},
 		},
 	})
 
@@ -70,9 +70,9 @@ func EosioContractAbi(eosioSystemAbi abi.AbiDef) *abi.AbiDef {
 		Name: "transaction",
 		Base: "transaction_header",
 		Fields: []abi.FieldDef{
-			{"context_free_actions", "action[]"},
-			{"actions", "action[]"},
-			{"transaction_extensions", "extension[]"},
+			{Name: "context_free_actions", Type: "action[]"},
+			{Name: "actions", Type: "action[]"},
+			{Name: "transaction_extensions", Type: "extension[]"},
 		},
 	})
 
@@ -81,16 +81,16 @@ func EosioContractAbi(eosioSystemAbi abi.AbiDef) *abi.AbiDef {
 		Name: "producer_key",
 		Base: "",
 		Fields: []abi.FieldDef{
-			{"producer_name", "account_name"},
-			{"block_signing_key", "public_key"},
+			{Name: "producer_name", Type: "account_name"},
+			{Name: "block_signing_key", Type: "public_key"},
 		},
 	})
 	eosAbi.Structs = append(eosAbi.Structs, abi.StructDef{
 		Name: "producer_schedule",
 		Base: "",
 		Fields: []abi.FieldDef{
-			{"version", "uint32"},
-			{"producers", "producer_key[]"},
+			{Name: "version", Type: "uint32"},
+			{Name: "producers", Type: "producer_key[]"},
 		},
 	})
 
@@ -98,15 +98,15 @@ func EosioContractAbi(eosioSystemAbi abi.AbiDef) *abi.AbiDef {
 		Name: "block_header",
 		Base: "",
 		Fields: []abi.FieldDef{
-			{"timestamp", "uint32"},
-			{"producer", "account_name"},
-			{"confirmed", "uint16"},
-			{"previous", "block_id_type"},
-			{"transaction_mroot", "checksum256"},
-			{"action_mroot", "checksum256"},
-			{"schedule_version", "uint32"},
-			{"new_producers", "producer_schedule?"},
-			{"header_extensions", "extension[]"},
+			{Name: "timestamp", Type: "uint32"},
+			{Name: "producer", Type: "account_name"},
+			{Name: "confirmed", Type: "uint16"},
+			{Name: "previous", Type: "block_id_type"},
+			{Name: "transaction_mroot", Type: "checksum256"},
+			{Name: "action_mroot", Type: "checksum256"},
+			{Name: "schedule_version", Type: "uint32"},
+			{Name: "new_producers", Type: "producer_schedule?"},
+			{Name: "header_extensions", Type: "extension[]"},
 		},
 	})
 
@@ -115,8 +115,8 @@ func EosioContractAbi(eosioSystemAbi abi.AbiDef) *abi.AbiDef {
 		Name: "key_weight",
 		Base: "",
 		Fields: []abi.FieldDef{
-			{"key", "public_key"},
-			{"weight", "weight_type"},
+			{Name: "key", Type: "public_key"},
+			{Name: "weight", Type: "weight_type"},
 		},
 	})
 
@@ -124,8 +124,8 @@ func EosioContractAbi(eosioSystemAbi abi.AbiDef) *abi.AbiDef {
 		Name: "permission_level_weight",
 		Base: "",
 		Fields: []abi.FieldDef{
-			{"permission", "permission_level"},
-			{"weight", "weight_type"},
+			{Name: "permission", Type: "permission_level"},
+			{Name: "weight", Type: "weight_type"},
 		},
 	})
 
@@ -133,8 +133,8 @@ func EosioContractAbi(eosioSystemAbi abi.AbiDef) *abi.AbiDef {
 		Name: "wait_weight",
 		Base: "",
 		Fields: []abi.FieldDef{
-			{"wait_sec", "uint32"},
-			{"weight", "weight_type"},
+			{Name: "wait_sec", Type: "uint32"},
+			{Name: "weight", Type: "weight_type"},
 		},
 	})
 
@@ -142,10 +142,10 @@ func EosioContractAbi(eosioSystemAbi abi.AbiDef) *abi.AbiDef {
 		Name: "authority",
 		Base: "",
 		Fields: []abi.FieldDef{
-			{"threshold", "uint32"},
-			{"keys", "key_weight[]"},
-			{"accounts", "permission_level_weight[]"},
-			{"waits", "weight_type[]"},
+			{Name: "threshold", Type: "uint32"},
+			{Name: "keys", Type: "key_weight[]"},
+			{Name: "accounts", Type: "permission_level_weight[]"},
+			{Name: "waits", Type: "weight_type[]"},
 		},
 	})
 
@@ -154,10 +154,10 @@ func EosioContractAbi(eosioSystemAbi abi.AbiDef) *abi.AbiDef {
 		Name: "newaccount",
 		Base: "",
 		Fields: []abi.FieldDef{
-			{"creator", "account_name"},
-			{"name", "account_name"},
-			{"owner", "authority"},
-			{"active", "authority"},
+			{Name: "creator", Type: "account_name"},
+			{Name: "name", Type: "account_name"},
+			{Name: "owner", Type: "authority"},
+			{Name: "active", Type: "authority"},
 		},
 	})
 
@@ -165,10 +165,10 @@ func EosioContractAbi(eosioSystemAbi abi.AbiDef) *abi.AbiDef {
 		Name: "setcode",
 		Base: "",
 		Fields: []abi.FieldDef{
-			{"account", "account_name"},
-			{"vmtype", "uint8"},
-			{"vmversion", "uint8"},
-			{"code", "bytes"},
+			{Name: "account", Type: "account_name"},
+			{Name: "vmtype", Type: "uint8"},
+			{Name: "vmversion", Type: "uint8"},
+			{Name: "code", Type: "bytes"},
 		},
 	})
 
@@ -176,8 +176,8 @@ func EosioContractAbi(eosioSystemAbi abi.AbiDef) *abi.AbiDef {
 		Name: "setabi",
 		Base: "",
 		Fields: []abi.FieldDef{
-			{"account", "account_name"},
-			{"abi", "bytes"},
+			{Name: "account", Type: "account_name"},
+			{Name: "abi", Type: "bytes"},
 		},
 	})
 
@@ -185,10 +185,10 @@ func EosioContractAbi(eosioSystemAbi abi.AbiDef) *abi.AbiDef {
 		Name: "updateauth",
 		Base: "",
 		Fields: []abi.FieldDef{
-			{"account", "account_name"},
-			{"permission", "permission_name"},
-			{"parent", "permission_name"},
-			{"auth", "authority"},
+			{Name: "account", Type: "account_name"},
+			{Name: "permission", Type: "permission_name"},
+			{Name: "parent", Type: "permission_name"},
+			{Name: "auth", Type: "authority"},
 		},
 	})
 
@@ -196,8 +196,8 @@ func EosioContractAbi(eosioSystemAbi abi.AbiDef) *abi.AbiDef {
 		Name: "deleteauth",
 		Base: "",
 		Fields: []abi.FieldDef{
-			{"account", "account_name"},
-			{"permission", "permission_name"},
+			{Name: "account", Type: "account_name"},
+			{Name: "permission", Type: "permission_name"},
 		},
 	})
 
@@ -205,26 +205,26 @@ func EosioContractAbi(eosioSystemAbi abi.AbiDef) *abi.AbiDef {
 		Name: "linkauth",
 		Base: "",
 		Fields: []abi.FieldDef{
-			{"account", "account_name"},
-			{"code", "account_name"},
-			{"type", "account_name"},
-			{"requirement", "permission_name"},
+			{Name: "account", Type: "account_name"},
+			{Name: "code", Type: "account_name"},
+			{Name: "type", Type: "account_name"},
+			{Name: "requirement", Type: "permission_name"},
 		},
 	})
 
 	eosAbi.Structs = append(eosAbi.Structs, abi.StructDef{Name: "unlinkauth", Base: "",
 		Fields: []abi.FieldDef{
-			{"account", "account_name"},
-			{"code", "permission_name"},
-			{"type", "permission_name"},
+			{Name: "account", Type: "account_name"},
+			{Name: "code", Type: "permission_name"},
+			{Name: "type", Type: "permission_name"},
 		},
 	})
 	eosAbi.Structs = append(eosAbi.Structs, abi.StructDef{
 		Name: "canceldelay",
 		Base: "",
 		Fields: []abi.FieldDef{
-			{"canceling_auth", "permission_level"},
-			{"trx_id", "transaction_id_type"},
+			{Name: "canceling_auth", Type: "permission_level"},
+			{Name: "trx_id", Type: "transaction_id_type"},
 		},
 	})
 
@@ -232,8 +232,8 @@ func EosioContractAbi(eosioSystemAbi abi.AbiDef) *abi.AbiDef {
 		Name: "onerror",
 		Base: "",
 		Fields: []abi.FieldDef{
-			{"sender_id", "uint128"},
-			{"send_trx", "bytes"},
+			{Name: "sender_id", Type: "uint128"},
+			{Name: "send_trx", Type: "bytes"},
 		},
 	})
 
@@ -241,7 +241,7 @@ func EosioContractAbi(eosioSystemAbi abi.AbiDef) *abi.AbiDef {
 		Name: "onblock",
 		Base: "",
 		Fields: []abi.FieldDef{
-			{"header", "block_header"},
+			{Name: "header", Type: "block_header"},
 		},
 	})
 

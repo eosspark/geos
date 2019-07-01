@@ -9,19 +9,15 @@ import (
 type KeyMapType = map[ecc.PublicKey]uint16
 
 type YhConnector struct {
-
 }
 
 type YhSession struct {
-
 }
 
 type YhCapabilities struct {
-
 }
 
 type YubihsmApi struct {
-
 }
 
 type YubihsmWalletImpl struct {

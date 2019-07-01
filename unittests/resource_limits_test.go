@@ -2,6 +2,10 @@ package unittests
 
 import (
 	"fmt"
+	"math"
+	"os"
+	"testing"
+
 	. "github.com/eosspark/eos-go/chain"
 	. "github.com/eosspark/eos-go/chain/types/generated_containers"
 	"github.com/eosspark/eos-go/common"
@@ -10,10 +14,8 @@ import (
 	"github.com/eosspark/eos-go/exception"
 	"github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/log"
+
 	"github.com/stretchr/testify/assert"
-	"math"
-	"os"
-	"testing"
 )
 
 type ResourceLimitsFixture struct {

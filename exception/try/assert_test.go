@@ -2,13 +2,14 @@ package try
 
 import (
 	"errors"
-	"github.com/stretchr/testify/assert"
 	"strings"
+	"testing"
 
 	//. "github.com/eosspark/eos-go/exceptionx"
 	. "github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/log"
-	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestStaticAssert(t *testing.T) {

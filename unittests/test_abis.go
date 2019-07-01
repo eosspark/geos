@@ -474,9 +474,9 @@ var myOther = `
       "permlvlwgt"        : {"permission":{"actor":"acc1","permission":"permname1"},"weight":1},
       "permlvlwgt_arr"    : [{"permission":{"actor":"acc1","permission":"permname1"},"weight":1},{"permission":{"actor":"acc2","permission":"permname2"},"weight":2}],
       "transaction"       : {
-        "ref_block_num":"1",
-        "ref_block_prefix":"2",
-        "expiration":"2021-12-20T15:30",
+        "ref_block_num":1,
+        "ref_block_prefix":2,
+        "expiration":"2021-12-20T15:30:00",
         "context_free_actions":[{"account":"contextfree1", "name":"cfactionname1", "authorization":[{"actor":"cfacc1","permission":"cfpermname1"}], "data":"778899"}],
         "actions":[{"account":"accountname1", "name":"actionname1", "authorization":[{"actor":"acc1","permission":"permname1"}], "data":"445566"}],
         "max_net_usage_words":15,
@@ -485,9 +485,9 @@ var myOther = `
         "transaction_extensions": []
       },
       "transaction_arr": [{
-        "ref_block_num":"1",
-        "ref_block_prefix":"2",
-        "expiration":"2021-12-20T15:30",
+        "ref_block_num":1,
+        "ref_block_prefix":2,
+        "expiration":"2021-12-20T15:30:00",
         "context_free_actions":[{"account":"contextfree1", "name":"cfactionname1", "authorization":[{"actor":"cfacc1","permission":"cfpermname1"}], "data":"778899"}],
         "actions":[{"account":"acc1", "name":"actionname1", "authorization":[{"actor":"acc1","permission":"permname1"}], "data":"445566"}],
         "max_net_usage_words":15,
@@ -495,9 +495,9 @@ var myOther = `
         "delay_sec":0,
         "transaction_extensions": []
       },{
-        "ref_block_num":"2",
-        "ref_block_prefix":"3",
-        "expiration":"2021-12-20T15:40",
+        "ref_block_num":2,
+        "ref_block_prefix":3,
+        "expiration":"2021-12-20T15:40:00",
         "context_free_actions":[{"account":"contextfree1", "name":"cfactionname1", "authorization":[{"actor":"cfacc1","permission":"cfpermname1"}], "data":"778899"}],
         "actions":[{"account":"acc2", "name":"actionname2", "authorization":[{"actor":"acc2","permission":"permname2"}], "data":""}],
         "max_net_usage_words":21,
@@ -506,9 +506,9 @@ var myOther = `
         "transaction_extensions": []
       }],
       "strx": {
-        "ref_block_num":"1",
-        "ref_block_prefix":"2",
-        "expiration":"2021-12-20T15:30",
+        "ref_block_num":1,
+        "ref_block_prefix":2,
+        "expiration":"2021-12-20T15:30:00",
         "region": "1",
         "signatures" : ["SIG_K1_Jzdpi5RCzHLGsQbpGhndXBzcFs8vT5LHAtWLMxPzBdwRHSmJkcCdVu6oqPUQn1hbGUdErHvxtdSTS1YA73BThQFwV1v4G5"],
         "context_free_data" : ["abcdef","0123456789","ABCDEF0123456789abcdef"],
@@ -520,9 +520,9 @@ var myOther = `
         "transaction_extensions": []
       },
       "strx_arr": [{
-        "ref_block_num":"1",
-        "ref_block_prefix":"2",
-        "expiration":"2021-12-20T15:30",
+        "ref_block_num":1,
+        "ref_block_prefix":2,
+        "expiration":"2021-12-20T15:30:00",
         "region": "1",
         "signatures" : ["SIG_K1_Jzdpi5RCzHLGsQbpGhndXBzcFs8vT5LHAtWLMxPzBdwRHSmJkcCdVu6oqPUQn1hbGUdErHvxtdSTS1YA73BThQFwV1v4G5"],
         "context_free_data" : ["abcdef","0123456789","ABCDEF0123456789abcdef"],
@@ -533,9 +533,9 @@ var myOther = `
         "delay_sec":0,
         "transaction_extensions": []
       },{
-        "ref_block_num":"2",
-        "ref_block_prefix":"3",
-        "expiration":"2021-12-20T15:40",
+        "ref_block_num":2,
+        "ref_block_prefix":3,
+        "expiration":"2021-12-20T15:40:00",
         "region": "1",
         "signatures" : ["SIG_K1_Jzdpi5RCzHLGsQbpGhndXBzcFs8vT5LHAtWLMxPzBdwRHSmJkcCdVu6oqPUQn1hbGUdErHvxtdSTS1YA73BThQFwV1v4G5"],
         "context_free_data" : ["abcdef","0123456789","ABCDEF0123456789abcdef"],

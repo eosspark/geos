@@ -1,26 +1,27 @@
 package producer_plugin
 
 import (
+	"encoding/json"
 	"fmt"
+	"strings"
+	"time"
+
 	"github.com/eosspark/eos-go/chain/types"
 	. "github.com/eosspark/eos-go/chain/types/generated_containers"
 	. "github.com/eosspark/eos-go/plugins/chain_interface"
 	"github.com/eosspark/eos-go/plugins/chain_plugin"
-
 	//Chain "github.com/eosspark/eos-go/plugins/producer_plugin/testing" /*test model*/
-	"encoding/json"
 	Chain "github.com/eosspark/eos-go/chain" /*real chain*/
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/ecc"
 	. "github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
+	"github.com/eosspark/eos-go/libraries/asio"
 	"github.com/eosspark/eos-go/log"
 	. "github.com/eosspark/eos-go/plugins/appbase/app"
-	"github.com/eosspark/eos-go/libraries/asio"
+
 	"github.com/urfave/cli"
-	"strings"
-	"time"
 )
 
 const ProducerPlug = PluginTypeName("ProducerPlugin")
@@ -140,7 +141,7 @@ func (p *ProducerPlugin) SetProgramOptions(options *[]cli.Flag) {
 		},
 		cli.Float64Flag{
 			Name:  "incoming-defer-ratio",
-			Usage: "ratio between incoming transations and deferred transactions when both are exhausted",
+			Usage: "ratio between incoming transactions and deferred transactions when both are exhausted",
 			Value: 1.0,
 		},
 	)

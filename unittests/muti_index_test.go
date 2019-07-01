@@ -1,12 +1,14 @@
 package unittests
 
 import (
-	"github.com/stretchr/testify/assert"
+	"io/ioutil"
+	"testing"
+
 	"github.com/eosspark/eos-go/chain"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
-	"io/ioutil"
-	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestMultiIndexLoad(t *testing.T) {
@@ -31,7 +33,7 @@ func TestMultiIndexLoad(t *testing.T) {
 			actData := common.Variants{"what": 0}
 			act := b.GetAction(account,
 				common.N("trigger"),
-				[]common.PermissionLevel{{account, common.DefaultConfig.ActiveName}},
+				[]common.PermissionLevel{{Actor: account, Permission: common.DefaultConfig.ActiveName}},
 				&actData)
 
 			trx.Actions = append(trx.Actions, act)
@@ -50,7 +52,7 @@ func TestMultiIndexLoad(t *testing.T) {
 			actData := common.Variants{"what": 1}
 			act := b.GetAction(account,
 				common.N("trigger"),
-				[]common.PermissionLevel{{account, common.DefaultConfig.ActiveName}},
+				[]common.PermissionLevel{{Actor: account, Permission: common.DefaultConfig.ActiveName}},
 				&actData)
 
 			trx.Actions = append(trx.Actions, act)

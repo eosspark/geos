@@ -2,6 +2,10 @@ package unittests
 
 import (
 	"encoding/json"
+	"io/ioutil"
+	"os"
+	"testing"
+
 	"github.com/eosspark/eos-go/chain"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/chain/types/generated_containers"
@@ -9,10 +13,8 @@ import (
 	"github.com/eosspark/eos-go/exception"
 	"github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/log"
+
 	"github.com/stretchr/testify/assert"
-	"io/ioutil"
-	"os"
-	"testing"
 )
 
 var charlie = common.N("charlie")
@@ -171,7 +173,7 @@ func (w *WhitelistBlacklistTester) Transfer(from common.AccountName, to common.A
 	act := types.Action{}
 	act.Account = eosioToken
 	act.Name = common.N("transfer")
-	act.Authorization = []common.PermissionLevel{{from, common.DefaultConfig.ActiveName}}
+	act.Authorization = []common.PermissionLevel{{Actor: from, Permission: common.DefaultConfig.ActiveName}}
 	data := common.Variants{
 		"from":     from,
 		"to":       to,
@@ -210,7 +212,7 @@ func TestActorWhitelist(t *testing.T) {
 		action := types.Action{}
 		action.Account = eosioToken
 		action.Name = common.N("transfer")
-		action.Authorization = []common.PermissionLevel{{alice, common.DefaultConfig.ActiveName}, {bob, common.DefaultConfig.ActiveName}}
+		action.Authorization = []common.PermissionLevel{{Actor: alice, Permission: common.DefaultConfig.ActiveName}, {Actor: bob, Permission: common.DefaultConfig.ActiveName}}
 		data := common.Variants{
 			"from":     alice,
 			"to":       bob,
@@ -266,7 +268,7 @@ func TestActorBlacklist(t *testing.T) {
 		action := types.Action{}
 		action.Account = eosioToken
 		action.Name = common.N("transfer")
-		action.Authorization = []common.PermissionLevel{{alice, common.DefaultConfig.ActiveName}, {bob, common.DefaultConfig.ActiveName}}
+		action.Authorization = []common.PermissionLevel{{Actor: alice, Permission: common.DefaultConfig.ActiveName}, {Actor: bob, Permission: common.DefaultConfig.ActiveName}}
 		data := common.Variants{
 			"from":     alice,
 			"to":       bob,
@@ -449,7 +451,7 @@ func TestActionBlacklist(t *testing.T) {
 	w.ContractWhitelist.Add(bob)
 	w.ContractWhitelist.Add(charlie)
 
-	abl := common.NamePair{charlie, common.N("create")}
+	abl := common.NamePair{First: charlie, Second: common.N("create")}
 	w.ActionBlacklist.Add(abl)
 
 	w.chain.Control.SetContractWhiteList(&w.ContractWhitelist)
@@ -634,7 +636,7 @@ func TestBlacklistOnerror(t *testing.T) {
 	w.chain.ProduceBlocks(1, false)
 
 	w.Shutdown()
-	abl := common.NamePair{common.DefaultConfig.SystemAccountName, common.N("onerror")}
+	abl := common.NamePair{First: common.DefaultConfig.SystemAccountName, Second: common.N("onerror")}
 	w.ActionBlacklist.Add(abl)
 	w.initConfig(false, false)
 

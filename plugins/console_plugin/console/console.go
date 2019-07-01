@@ -2,9 +2,6 @@ package console
 
 import (
 	"fmt"
-	"github.com/eosspark/eos-go/plugins/console_plugin/console/jsre"
-	"github.com/peterh/liner"
-	"github.com/robertkrimen/otto"
 	"io"
 	"io/ioutil"
 	"os"
@@ -13,6 +10,11 @@ import (
 	"regexp"
 	"strings"
 	"syscall"
+
+	"github.com/eosspark/eos-go/plugins/console_plugin/console/jsre"
+
+	"github.com/peterh/liner"
+	"github.com/robertkrimen/otto"
 )
 
 var (

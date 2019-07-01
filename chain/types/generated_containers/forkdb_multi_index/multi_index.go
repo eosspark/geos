@@ -60,7 +60,9 @@ type ByLibBlockNumComposite struct {
 	BlockNum                 *uint32
 }
 
-var ByLibBlockNumFunc = func(n BlockStatePtr) ByLibBlockNumComposite { return ByLibBlockNumComposite{&n.DposIrreversibleBlocknum, &n.BftIrreversibleBlocknum, &n.BlockNum} }
+var ByLibBlockNumFunc = func(n BlockStatePtr) ByLibBlockNumComposite {
+	return ByLibBlockNumComposite{&n.DposIrreversibleBlocknum, &n.BftIrreversibleBlocknum, &n.BlockNum}
+}
 var ByLibBlockNumCompare = func(aBlock, bBlock ByLibBlockNumComposite) int {
 	if aBlock.DposIrreversibleBlocknum != nil && bBlock.DposIrreversibleBlocknum != nil {
 		if *aBlock.DposIrreversibleBlocknum > *bBlock.DposIrreversibleBlocknum {

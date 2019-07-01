@@ -3,6 +3,8 @@ package unittests
 import (
 	"encoding/binary"
 	"fmt"
+	"testing"
+
 	"github.com/eosspark/eos-go/chain"
 	"github.com/eosspark/eos-go/chain/abi_serializer"
 	"github.com/eosspark/eos-go/chain/types"
@@ -11,8 +13,8 @@ import (
 	. "github.com/eosspark/eos-go/entity"
 	. "github.com/eosspark/eos-go/exception/try"
 	. "github.com/eosspark/eos-go/unittests/test_contracts"
+
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 type IdentityTester struct {
@@ -462,7 +464,7 @@ func TestCertifyDecertifyOwner(test *testing.T) {
 		"property":   "owner",
 		"type":       "account",
 		"data":       t.Uint64ToUint8Vector(uint64(common.N("alice"))),
-		"memo":       "claiming onwership",
+		"memo":       "claiming ownership",
 		"confidence": 100,
 	}}, true))
 	assert.Equal(test, true, t.GetCertrow(identityVal, "owner", 0, "bob") != nil)
@@ -477,7 +479,7 @@ func TestCertifyDecertifyOwner(test *testing.T) {
 		"property":   "owner",
 		"type":       "account",
 		"data":       t.Uint64ToUint8Vector(uint64(common.N("alice"))),
-		"memo":       "claiming onwership",
+		"memo":       "claiming ownership",
 		"confidence": 100,
 	}}, true))
 	obj := t.GetCertrow(identityVal, "owner", 0, "alice")
@@ -503,7 +505,7 @@ func TestCertifyDecertifyOwner(test *testing.T) {
 		"property":   "owner",
 		"type":       "account",
 		"data":       t.Uint64ToUint8Vector(uint64(common.N("alice"))),
-		"memo":       "claiming onwership",
+		"memo":       "claiming ownership",
 		"confidence": 0,
 	}}, true))
 
@@ -517,7 +519,7 @@ func TestCertifyDecertifyOwner(test *testing.T) {
 		"property":   "owner",
 		"type":       "account",
 		"data":       t.Uint64ToUint8Vector(uint64(common.N("alice"))),
-		"memo":       "claiming onwership",
+		"memo":       "claiming ownership",
 		"confidence": 0,
 	}}, true))
 	obj = t.GetCertrow(identityVal, "owner", 0, "alice")
@@ -560,7 +562,7 @@ func TestOwnerCertifiedByProducer(test *testing.T) {
 		"property":   "owner",
 		"type":       "account",
 		"data":       t.Uint64ToUint8Vector(uint64(common.N("alice"))),
-		"memo":       "claiming onwership",
+		"memo":       "claiming ownership",
 		"confidence": 100,
 	}}, true))
 	assert.Equal(test, true, t.GetCertrow(identityVal, "owner", 0, "alice") != nil)
@@ -594,7 +596,7 @@ func TestOwnerCertifiedByTrustedAccount(test *testing.T) {
 		"property":   "owner",
 		"type":       "account",
 		"data":       t.Uint64ToUint8Vector(uint64(common.N("alice"))),
-		"memo":       "claiming onwership",
+		"memo":       "claiming ownership",
 		"confidence": 100,
 	}}, true))
 	assert.Equal(test, true, t.GetCertrow(identityVal, "owner", 0, "alice") != nil)
@@ -656,7 +658,7 @@ func TestOwnerCertificationBecomesTrusted(test *testing.T) {
 		"property":   "owner",
 		"type":       "account",
 		"data":       t.Uint64ToUint8Vector(uint64(common.N("alice"))),
-		"memo":       "claiming onwership",
+		"memo":       "claiming ownership",
 		"confidence": 100,
 	}}, true))
 	assert.Equal(test, true, t.GetCertrow(identityVal, "owner", 0, "alice") != nil)
@@ -685,7 +687,7 @@ func TestOwnershipContradiction(test *testing.T) {
 		"property":   "owner",
 		"type":       "account",
 		"data":       t.Uint64ToUint8Vector(uint64(common.N("alice"))),
-		"memo":       "claiming onwership",
+		"memo":       "claiming ownership",
 		"confidence": 100,
 	}}, true))
 
@@ -694,7 +696,7 @@ func TestOwnershipContradiction(test *testing.T) {
 		"property":   "owner",
 		"type":       "account",
 		"data":       t.Uint64ToUint8Vector(uint64(common.N("alice"))),
-		"memo":       "claiming onwership",
+		"memo":       "claiming ownership",
 		"confidence": 100,
 	}}, true))
 	assert.Equal(test, true, t.GetCertrow(identityVal, "owner", 1, t.ProducerName) != nil)
@@ -708,7 +710,7 @@ func TestOwnershipContradiction(test *testing.T) {
 		"property":   "owner",
 		"type":       "account",
 		"data":       t.Uint64ToUint8Vector(uint64(common.N("bob"))),
-		"memo":       "claiming onwership",
+		"memo":       "claiming ownership",
 		"confidence": 100,
 	}}, true))
 

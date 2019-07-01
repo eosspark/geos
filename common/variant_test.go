@@ -2,9 +2,10 @@ package common_test
 
 import (
 	"encoding/json"
+	"testing"
+
 	"github.com/eosspark/eos-go/common"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func TestToVariant(t *testing.T) {
@@ -59,11 +60,11 @@ func TestVariant(t *testing.T) {
 	assert.Equal(t, "b", example.B)
 }
 
-func Example_StaticVariant() {
+func Example_Variant() {
 	var example common.StaticVariant = int(1)
 
 	if vt, ok := example.(int); ok {
-		vt ++
+		vt++
 	} else if _, ok := example.(string); ok {
 		//else operation
 	}

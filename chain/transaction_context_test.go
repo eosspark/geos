@@ -1,6 +1,11 @@
 package chain
 
 import (
+	"io/ioutil"
+	"os"
+	"path/filepath"
+	"testing"
+
 	"github.com/eosspark/eos-go/chain/types"
 	common "github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto"
@@ -8,10 +13,6 @@ import (
 	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/eosspark/eos-go/entity"
 	"github.com/stretchr/testify/assert"
-	"io/ioutil"
-	"os"
-	"path/filepath"
-	"testing"
 )
 
 func NewActionData(action interface{}) []byte {
@@ -77,7 +78,7 @@ func TestContract(t *testing.T) {
 
 func issueTransfer(control *Controller, from string, to string, amount int64, symbol string, memo string) {
 
-	action := NewTransfer(common.AccountName(common.N(from)), common.AccountName(common.N(to)), common.Asset{amount, common.Symbol{4, symbol}}, memo)
+	action := NewTransfer(common.N(from), common.N(to), common.Asset{Amount: amount, Symbol: common.Symbol{Precision: 4, Symbol: symbol}}, memo)
 
 	wif := "5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3"
 	privateKey, _ := ecc.NewPrivateKey(wif)
@@ -89,7 +90,8 @@ func issueTransfer(control *Controller, from string, to string, amount int64, sy
 
 func issueToken(control *Controller, issuer string, to string, amount int64, symbol string, memo string) {
 
-	action := NewIssue(common.AccountName(common.N(issuer)), common.AccountName(common.N(to)), common.Asset{amount, common.Symbol{4, symbol}}, memo)
+	action := NewIssue(common.N(issuer), common.N(to),
+		common.Asset{Amount: amount, Symbol: common.Symbol{Precision: 4, Symbol: symbol}}, memo)
 
 	wif := "5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3"
 	privateKey, _ := ecc.NewPrivateKey(wif)
@@ -100,8 +102,7 @@ func issueToken(control *Controller, issuer string, to string, amount int64, sym
 }
 
 func createToken(control *Controller, issuer string, amount int64, symbol string) {
-
-	action := NewCreate(common.AccountName(common.N(issuer)), common.Asset{amount, common.Symbol{4, symbol}})
+	action := NewCreate(common.N(issuer), common.Asset{Amount: amount, Symbol: common.Symbol{Precision: 4, Symbol: symbol}})
 
 	wif := "5KQwrPbwdL6PhXujxW37FSSQZ1JiwsST4cqQzDeyXtP79zkvFD3"
 	privateKey, _ := ecc.NewPrivateKey(wif)

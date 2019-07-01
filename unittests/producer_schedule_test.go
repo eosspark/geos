@@ -1,11 +1,13 @@
 package unittests
 
 import (
+	"testing"
+
 	. "github.com/eosspark/eos-go/chain"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
+
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 // Calculate expected producer given the schedule and slot number
@@ -122,8 +124,8 @@ func TestProducerSchedulePromotionTest(t *testing.T) {
 	}
 	/*res := */ b.SetProducers(&[]common.AccountName{alice, bob})
 	sch1 := []types.ProducerKey{
-		{alice, b.getPublicKey(alice, "active")},
-		{bob, b.getPublicKey(bob, "active")},
+		{ProducerName: alice, BlockSigningKey: b.getPublicKey(alice, "active")},
+		{ProducerName: bob, BlockSigningKey: b.getPublicKey(bob, "active")},
 	}
 	assert.True(t, !common.Empty(b.Control.ProposedProducers()))
 	assert.True(t, compareSchedules(sch1, b.Control.ProposedProducers()))
@@ -142,9 +144,9 @@ func TestProducerSchedulePromotionTest(t *testing.T) {
 	b.ProduceBlocks(7, false)
 	/*res = */ b.SetProducers(&[]common.AccountName{alice, bob, carol})
 	sch2 := []types.ProducerKey{
-		{alice, b.getPublicKey(alice, "active")},
-		{bob, b.getPublicKey(bob, "active")},
-		{carol, b.getPublicKey(carol, "active")},
+		{ProducerName: alice, BlockSigningKey: b.getPublicKey(alice, "active")},
+		{ProducerName: bob, BlockSigningKey: b.getPublicKey(bob, "active")},
+		{ProducerName: carol, BlockSigningKey: b.getPublicKey(carol, "active")},
 	}
 
 	b.ProduceBlock(common.Milliseconds(common.DefaultConfig.BlockIntervalMs), 0)

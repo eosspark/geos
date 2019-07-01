@@ -1,6 +1,9 @@
 package chain
 
 import (
+	"math"
+	"os"
+
 	"github.com/eosspark/eos-go/chain/types"
 	. "github.com/eosspark/eos-go/chain/types/generated_containers"
 	"github.com/eosspark/eos-go/common"
@@ -9,8 +12,6 @@ import (
 	. "github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/log"
-	"math"
-	"os"
 )
 
 /*type AccountForSet common.AccountName

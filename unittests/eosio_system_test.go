@@ -2,17 +2,19 @@ package unittests
 
 import (
 	"fmt"
+	"io/ioutil"
+	"math"
+	"strings"
+	"testing"
+
 	. "github.com/eosspark/eos-go/chain"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/crypto/rlp"
 	. "github.com/eosspark/eos-go/exception"
+
 	"github.com/stretchr/testify/assert"
-	"io/ioutil"
-	"math"
-	"strings"
-	"testing"
 )
 
 func TestBuySell(t *testing.T) {
@@ -182,14 +184,14 @@ func TestStakeUnstakeWithTransfer(t *testing.T) {
 	e.Transfer(eosio, alice, CoreFromString("1000.0000"), eosio)
 	assert.Equal(t, e.Success(), e.Stake(alice, alice, CoreFromString("200.0000"), CoreFromString("100.0000")))
 
-	//now alice's stake should be equal to transfered from eosio + own stake
+	//now alice's stake should be equal to transferred from eosio + own stake
 	total = e.GetTotalStake(alice)
 	assert.Equal(t, CoreFromString("700.0000"), e.GetBalance(alice))
 	assert.Equal(t, CoreFromString("410.0000"), total["net_weight"].(common.Asset))
 	assert.Equal(t, CoreFromString("210.0000"), total["cpu_weight"].(common.Asset))
 	assert.Equal(t, e.VoterAccountAsset(alice, CoreFromString("600.0000")), e.GetVoterInfo(alice))
 
-	//alice can unstake everything (including what was transfered)
+	//alice can unstake everything (including what was transferred)
 	assert.Equal(t, e.Success(), e.UnStake(alice, alice, CoreFromString("400.0000"), CoreFromString("200.0000")))
 	assert.Equal(t, CoreFromString("700.0000"), e.GetBalance(alice))
 	e.ProduceBlock(common.Hours(3*24-1), 0)
@@ -243,14 +245,14 @@ func TestStakeWhilePendingRefund(t *testing.T) {
 	e.Transfer(eosio, alice, CoreFromString("1000.0000"), eosio)
 	assert.Equal(t, e.Success(), e.Stake(alice, alice, CoreFromString("200.0000"), CoreFromString("100.0000")))
 
-	//now alice's stake should be equal to transfered from eosio + own stake
+	//now alice's stake should be equal to transferred from eosio + own stake
 	total = e.GetTotalStake(alice)
 	assert.Equal(t, CoreFromString("700.0000"), e.GetBalance(alice))
 	assert.Equal(t, CoreFromString("410.0000"), total["net_weight"].(common.Asset))
 	assert.Equal(t, CoreFromString("210.0000"), total["cpu_weight"].(common.Asset))
 	assert.Equal(t, e.VoterAccountAsset(alice, CoreFromString("600.0000")), e.GetVoterInfo(alice))
 
-	//alice can unstake everything (including what was transfered)
+	//alice can unstake everything (including what was transferred)
 	assert.Equal(t, e.Success(), e.UnStake(alice, alice, CoreFromString("400.0000"), CoreFromString("200.0000")))
 	assert.Equal(t, CoreFromString("700.0000"), e.GetBalance(alice))
 
@@ -348,10 +350,10 @@ func TestUnstakeMoreThanAtStake(t *testing.T) {
 	assert.Equal(t, CoreFromString("110.0000"), total["cpu_weight"].(common.Asset))
 	assert.Equal(t, CoreFromString("700.0000"), e.GetBalance(alice))
 
-	//trying to unstake more net bandwith than at stake
+	//trying to unstake more net bandwidth than at stake
 	assert.Equal(t, e.WasmAssertMsg("insufficient staked net bandwidth"), e.UnStake(alice, alice, CoreFromString("200.0001"), CoreFromString("0.0000")))
 
-	//trying to unstake more cpu bandwith than at stake
+	//trying to unstake more cpu bandwidth than at stake
 	assert.Equal(t, e.WasmAssertMsg("insufficient staked cpu bandwidth"), e.UnStake(alice, alice, CoreFromString("0.0000"), CoreFromString("100.0001")))
 
 	//check that nothing has changed
@@ -401,7 +403,7 @@ func TestDelegateToAnotherUser(t *testing.T) {
 	assert.Equal(t, CoreFromString("230.0000"), total["net_weight"].(common.Asset))
 	assert.Equal(t, CoreFromString("120.0000"), total["cpu_weight"].(common.Asset))
 
-	//balance should not change after unsuccessfull attempts to unstake
+	//balance should not change after unsuccessful attempts to unstake
 	assert.Equal(t, CoreFromString("700.0000"), e.GetBalance(alice))
 
 	//voting power too
@@ -1611,7 +1613,7 @@ func TestProducersUpgradeSystemContract(t *testing.T) {
 		act := types.Action{
 			Account:       setCode.GetAccount(),
 			Name:          setCode.GetName(),
-			Authorization: []common.PermissionLevel{{eosio, common.DefaultConfig.ActiveName}},
+			Authorization: []common.PermissionLevel{{Actor: eosio, Permission: common.DefaultConfig.ActiveName}},
 			Data:          data,
 		}
 		trx.Actions = append(trx.Actions, &act)
@@ -2280,7 +2282,8 @@ func TestSetParams(t *testing.T) {
 	trx := types.SignedTransaction{}
 	{
 		data := common.Variants{"params": params}
-		act := e.GetAction(eosio, common.N("setparams"), []common.PermissionLevel{{eosio, common.DefaultConfig.ActiveName}}, &data)
+		act := e.GetAction(eosio, common.N("setparams"),
+			[]common.PermissionLevel{{Actor: eosio, Permission: common.DefaultConfig.ActiveName}}, &data)
 		trx.Actions = append(trx.Actions, act)
 		e.SetTransactionHeaders(&trx.Transaction, e.DefaultExpirationDelta, 0)
 		fmt.Println(trx.Expiration.SecSinceEpoch())

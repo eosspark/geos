@@ -1,9 +1,10 @@
 package chain
 
 import (
+	"testing"
+
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
-	"testing"
 )
 
 func TestAuthorizationManager_CreatePermission(t *testing.T) {

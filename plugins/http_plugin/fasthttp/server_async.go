@@ -1,12 +1,13 @@
 package fasthttp
 
 import (
-	"github.com/eosspark/eos-go/libraries/asio"
 	"io"
 	"net"
 	"strings"
 	"sync/atomic"
 	"time"
+
+	"github.com/eosspark/eos-go/libraries/asio"
 )
 
 type AsyncServer struct {

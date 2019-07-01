@@ -9,10 +9,10 @@ import (
 	"github.com/eosspark/eos-go/crypto/ecc"
 	. "github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
+	"github.com/eosspark/eos-go/libraries/asio"
 	"github.com/eosspark/eos-go/log"
 	"github.com/eosspark/eos-go/plugins/appbase/app"
 	"github.com/eosspark/eos-go/plugins/appbase/app/include"
-	"github.com/eosspark/eos-go/libraries/asio"
 	"github.com/eosspark/eos-go/plugins/chain_interface"
 	. "github.com/eosspark/eos-go/plugins/producer_plugin/multi_index"
 )
@@ -257,7 +257,7 @@ func (impl *ProducerPluginImpl) OnIncomingTransactionAsync(trx *types.PackedTran
 	sendResponse := func(response interface{}) {
 		next(response)
 		if re, ok := response.(Exception); ok {
-			impl.TransactionAckChannel.Publish(common.Pair{re, trx})
+			impl.TransactionAckChannel.Publish(common.Pair{First: re, Second: trx})
 			if impl.PendingBlockMode == PendingBlockMode(producing) {
 				trxTraceLog.Debug("[TRX_TRACE] Block %d for producer %s is REJECTING tx: %s : %s ",
 					chain.HeadBlockNum()+1, chain.PendingBlockState().Header.Producer, trx.ID(), re.What())
@@ -267,7 +267,7 @@ func (impl *ProducerPluginImpl) OnIncomingTransactionAsync(trx *types.PackedTran
 			}
 
 		} else {
-			impl.TransactionAckChannel.Publish(common.Pair{nil, trx})
+			impl.TransactionAckChannel.Publish(common.Pair{First: nil, Second: trx})
 			if impl.PendingBlockMode == PendingBlockMode(producing) {
 				trxTraceLog.Debug("[TRX_TRACE] Block %d for producer %s is ACCEPTING tx: %s",
 					chain.HeadBlockNum()+1, chain.PendingBlockState().Header.Producer, trx.ID())

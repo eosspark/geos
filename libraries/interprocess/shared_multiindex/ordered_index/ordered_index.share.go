@@ -2,11 +2,12 @@ package ordered_index
 
 import (
 	"fmt"
+	"unsafe"
+
 	"github.com/eosspark/eos-go/libraries/container"
 	"github.com/eosspark/eos-go/libraries/interprocess/allocator"
 	. "github.com/eosspark/eos-go/libraries/interprocess/offsetptr"
 	"github.com/eosspark/eos-go/libraries/multiindex"
-	"unsafe"
 )
 
 // template type OrderedIndex(FinalIndex,FinalNode,SuperIndex,SuperNode,Value,Key,KeyFunc,Comparator,Multiply,Allocator)
@@ -912,11 +913,11 @@ func (tree *OrderedIndex) deleteCase2(node *OrderedIndexNode) {
 func (tree *OrderedIndex) deleteCase3(node *OrderedIndexNode) {
 	sibling := node.sibling()
 	if nodeColor(np_(node.Parent.Get())) == black &&
-	//if nodeColor(node.Parent) == black &&
+		//if nodeColor(node.Parent) == black &&
 		nodeColor(sibling) == black &&
-	//nodeColor(sibling) == black &&
+		//nodeColor(sibling) == black &&
 		nodeColor(np_(sibling.Left.Get())) == black &&
-	//nodeColor(sibling.Left) == black &&
+		//nodeColor(sibling.Left) == black &&
 		nodeColor(np_(sibling.Right.Get())) == black {
 		//nodeColor(sibling.Right) == black {
 		sibling.color = red
@@ -930,10 +931,10 @@ func (tree *OrderedIndex) deleteCase3(node *OrderedIndexNode) {
 func (tree *OrderedIndex) deleteCase4(node *OrderedIndexNode) {
 	sibling := node.sibling()
 	if nodeColor(np_(node.Parent.Get())) == red &&
-	//if nodeColor(node.Parent) == red &&
+		//if nodeColor(node.Parent) == red &&
 		nodeColor(sibling) == black &&
 		nodeColor(np_(sibling.Left.Get())) == black &&
-	//nodeColor(sibling.Left) == black &&
+		//nodeColor(sibling.Left) == black &&
 		nodeColor(np_(sibling.Right.Get())) == black {
 		//nodeColor(sibling.Right) == black {
 		sibling.color = red
@@ -947,10 +948,10 @@ func (tree *OrderedIndex) deleteCase4(node *OrderedIndexNode) {
 func (tree *OrderedIndex) deleteCase5(node *OrderedIndexNode) {
 	sibling := node.sibling()
 	if node == np_(np_(node.Parent.Get()).Left.Get()) &&
-	//if node == node.Parent.Left &&
+		//if node == node.Parent.Left &&
 		nodeColor(sibling) == black &&
 		nodeColor(np_(sibling.Left.Get())) == red &&
-	//nodeColor(sibling.Left) == red &&
+		//nodeColor(sibling.Left) == red &&
 		nodeColor(np_(sibling.Right.Get())) == black {
 		//nodeColor(sibling.Right) == black {
 		sibling.color = red
@@ -958,10 +959,10 @@ func (tree *OrderedIndex) deleteCase5(node *OrderedIndexNode) {
 		//sibling.Left.color = black
 		tree.rotateRight(sibling)
 	} else if node == np_(np_(node.Parent.Get()).Right.Get()) &&
-	//} else if node == node.Parent.Right &&
+		//} else if node == node.Parent.Right &&
 		nodeColor(sibling) == black &&
 		nodeColor(np_(sibling.Right.Get())) == red &&
-	//nodeColor(sibling.Right) == red &&
+		//nodeColor(sibling.Right) == red &&
 		nodeColor(np_(sibling.Left.Get())) == black {
 		//nodeColor(sibling.Left) == black {
 		sibling.color = red

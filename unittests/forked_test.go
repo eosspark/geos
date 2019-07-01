@@ -1,6 +1,9 @@
 package unittests
 
 import (
+	"io/ioutil"
+	"testing"
+
 	"github.com/eosspark/eos-go/chain"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
@@ -9,9 +12,8 @@ import (
 	"github.com/eosspark/eos-go/exception"
 	"github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/log"
+
 	"github.com/stretchr/testify/assert"
-	"io/ioutil"
-	"testing"
 )
 
 type ForkedTester struct {
@@ -56,10 +58,10 @@ func TestIrrblock(t *testing.T) {
 		r := ft.tester.CreateAccounts(accounts, false, true)
 		res := ft.tester.SetProducers(&accounts)
 		sch := []types.ProducerKey{
-			{dan, ft.tester.getPublicKey(dan, "active")},
-			{sam, ft.tester.getPublicKey(sam, "active")},
-			{pam, ft.tester.getPublicKey(pam, "active")},
-			{scott, ft.tester.getPublicKey(scott, "active")},
+			{ProducerName: dan, BlockSigningKey: ft.tester.getPublicKey(dan, "active")},
+			{ProducerName: sam, BlockSigningKey: ft.tester.getPublicKey(sam, "active")},
+			{ProducerName: pam, BlockSigningKey: ft.tester.getPublicKey(pam, "active")},
+			{ProducerName: scott, BlockSigningKey: ft.tester.getPublicKey(scott, "active")},
 		}
 		log.Info("set producer schedule to [dan,sam,pam] trace:%v,setProducers result:%v,%v", r, res, sch)
 		ft.tester.ProduceBlocks(50, false)
@@ -174,9 +176,9 @@ func TestForking(t *testing.T) {
 	c1.ProduceBlocks(1, false)
 	res := c1.SetProducers(&accounts)
 	sch := []types.ProducerKey{
-		{dan, c1.getPublicKey(dan, "active")},
-		{sam, c1.getPublicKey(sam, "active")},
-		{pam, c1.getPublicKey(pam, "active")},
+		{ProducerName: dan, BlockSigningKey: c1.getPublicKey(dan, "active")},
+		{ProducerName: sam, BlockSigningKey: c1.getPublicKey(sam, "active")},
+		{ProducerName: pam, BlockSigningKey: c1.getPublicKey(pam, "active")},
 	}
 	log.Info("set producer schedule to [dan,sam,pam] trace:%v,setProducers result:%v,", res, sch)
 	c1.ProduceBlocks(30, false)
@@ -410,7 +412,7 @@ func TestConfirmation(t *testing.T) {
 	{
 		var ex string
 		try.Try(func() {
-			h := types.HeaderConfirmation{blk.BlockId, sam, ecc.Signature{}}
+			h := types.HeaderConfirmation{BlockId: blk.BlockId, Producer: sam, ProducerSignature: ecc.Signature{}}
 			h.ProducerSignature, _ = privInvalid.Sign(blk.SigDigest().Bytes())
 			c.Control.PushConfirmation(&h)
 		}).Catch(func(e exception.Exception) {
@@ -421,7 +423,7 @@ func TestConfirmation(t *testing.T) {
 	{
 		var ex string
 		try.Try(func() {
-			h := types.HeaderConfirmation{blk.BlockId, invalid, ecc.Signature{}}
+			h := types.HeaderConfirmation{BlockId: blk.BlockId, Producer: invalid, ProducerSignature: ecc.Signature{}}
 			h.ProducerSignature, _ = privInvalid.Sign(blk.SigDigest().Bytes())
 			c.Control.PushConfirmation(&h)
 		}).Catch(func(e exception.Exception) {
@@ -431,7 +433,7 @@ func TestConfirmation(t *testing.T) {
 	}
 	{
 		// signed by sam
-		h := types.HeaderConfirmation{blk.BlockId, sam, ecc.Signature{}}
+		h := types.HeaderConfirmation{BlockId: blk.BlockId, Producer: sam, ProducerSignature: ecc.Signature{}}
 		h.ProducerSignature, _ = privSam.Sign(blk.SigDigest().Bytes())
 		c.Control.PushConfirmation(&h)
 		assert.Equal(t, uint32(0), blk.BftIrreversibleBlocknum)
@@ -439,7 +441,7 @@ func TestConfirmation(t *testing.T) {
 		// double confirm not allowed
 		var ex string
 		try.Try(func() {
-			h2 := types.HeaderConfirmation{blk.BlockId, sam, ecc.Signature{}}
+			h2 := types.HeaderConfirmation{BlockId: blk.BlockId, Producer: sam, ProducerSignature: ecc.Signature{}}
 			h2.ProducerSignature, _ = privSam.Sign(blk.SigDigest().Bytes())
 			c.Control.PushConfirmation(&h2)
 		}).Catch(func(e exception.Exception) {
@@ -450,14 +452,14 @@ func TestConfirmation(t *testing.T) {
 
 	{
 		// signed by dan
-		h := types.HeaderConfirmation{blk.BlockId, dan, ecc.Signature{}}
+		h := types.HeaderConfirmation{BlockId: blk.BlockId, Producer: dan, ProducerSignature: ecc.Signature{}}
 		h.ProducerSignature, _ = privDan.Sign(blk.SigDigest().Bytes())
 		c.Control.PushConfirmation(&h)
 		assert.Equal(t, uint32(0), blk.BftIrreversibleBlocknum)
 		assert.Equal(t, 2, len(blk.Confirmations))
 
 		//signed by pam
-		h2 := types.HeaderConfirmation{blk.BlockId, pam, ecc.Signature{}}
+		h2 := types.HeaderConfirmation{BlockId: blk.BlockId, Producer: pam, ProducerSignature: ecc.Signature{}}
 		h2.ProducerSignature, _ = privPam.Sign(blk.SigDigest().Bytes())
 		c.Control.PushConfirmation(&h2)
 		// we have more than 2/3 of confirmations, bft irreversible number should be set
@@ -468,7 +470,7 @@ func TestConfirmation(t *testing.T) {
 	}
 	{
 		// signed by scott
-		h := types.HeaderConfirmation{blk.BlockId, scott, ecc.Signature{}}
+		h := types.HeaderConfirmation{BlockId: blk.BlockId, Producer: scott, ProducerSignature: ecc.Signature{}}
 		h.ProducerSignature, _ = privScott.Sign(blk.SigDigest().Bytes())
 		c.Control.PushConfirmation(&h)
 		assert.Equal(t, uint32(55), blk.BftIrreversibleBlocknum)
@@ -476,15 +478,15 @@ func TestConfirmation(t *testing.T) {
 	}
 
 	{
-		h := types.HeaderConfirmation{blk50.BlockId, sam, ecc.Signature{}}
+		h := types.HeaderConfirmation{BlockId: blk50.BlockId, Producer: sam, ProducerSignature: ecc.Signature{}}
 		h.ProducerSignature, _ = privSam.Sign(blk50.SigDigest().Bytes())
 		c.Control.PushConfirmation(&h)
 
-		h2 := types.HeaderConfirmation{blk50.BlockId, dan, ecc.Signature{}}
+		h2 := types.HeaderConfirmation{BlockId: blk50.BlockId, Producer: dan, ProducerSignature: ecc.Signature{}}
 		h2.ProducerSignature, _ = privDan.Sign(blk50.SigDigest().Bytes())
 		c.Control.PushConfirmation(&h2)
 
-		h3 := types.HeaderConfirmation{blk50.BlockId, pam, ecc.Signature{}}
+		h3 := types.HeaderConfirmation{BlockId: blk50.BlockId, Producer: pam, ProducerSignature: ecc.Signature{}}
 		h3.ProducerSignature, _ = privPam.Sign(blk50.SigDigest().Bytes())
 		c.Control.PushConfirmation(&h3)
 		assert.Equal(t, uint32(50), blk50.BftIrreversibleBlocknum)

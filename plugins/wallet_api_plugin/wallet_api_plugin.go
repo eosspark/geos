@@ -3,6 +3,7 @@ package wallet_api_plugin
 import (
 	"encoding/json"
 	"fmt"
+
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto/ecc"
 	. "github.com/eosspark/eos-go/exception"
@@ -11,6 +12,7 @@ import (
 	. "github.com/eosspark/eos-go/plugins/appbase/app"
 	"github.com/eosspark/eos-go/plugins/http_plugin"
 	"github.com/eosspark/eos-go/plugins/wallet_plugin"
+
 	"github.com/urfave/cli"
 )
 

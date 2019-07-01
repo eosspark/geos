@@ -3,13 +3,14 @@ package common
 import (
 	"encoding/json"
 	"fmt"
+	"math"
+	"strconv"
+	"strings"
+
 	"github.com/eosspark/eos-go/crypto/rlp"
 	. "github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/log"
-	"math"
-	"strconv"
-	"strings"
 )
 
 const maxAmount int64 = int64(1)<<62 - 1

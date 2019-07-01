@@ -1,8 +1,8 @@
 package asio
 
 import (
-	"testing"
 	"syscall"
+	"testing"
 	"time"
 )
 

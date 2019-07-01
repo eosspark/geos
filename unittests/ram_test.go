@@ -1,13 +1,15 @@
 package unittests
 
 import (
+	"io/ioutil"
+	"testing"
+
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/exception"
 	"github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/log"
+
 	"github.com/stretchr/testify/assert"
-	"io/ioutil"
-	"testing"
 )
 
 func TestRamTests(t *testing.T) {

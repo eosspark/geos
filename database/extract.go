@@ -14,8 +14,8 @@ const (
 	tagGreater   = "greater"
 	tagInline    = "inline"
 	dbIncrement  = "db_increment"
- undoKey = "undo_stack"
-	dbReversion = "db_reversion"
+	undoKey      = "undo_stack"
+	dbReversion  = "db_reversion"
 )
 
 /*
@@ -27,7 +27,6 @@ tag
 	fieldName	fieldName	fieldName
 	fieldValue	fieldValue	fieldValue
 */
-
 type fieldInfo struct {
 	unique     bool
 	greater    bool
@@ -46,9 +45,9 @@ tag
 //// TODO A separate module for external use in the future
 type structInfo struct {
 	Name   string
-	rId     *reflect.Value //TODO delete
+	rId    *reflect.Value //TODO delete
 	Fields map[string]*fieldInfo
-	id_		int64
+	id_    int64
 }
 
 func isZero(v *reflect.Value) bool {
@@ -319,10 +318,10 @@ type kv struct {
 }
 
 type dbKeyValue struct {
-	idk       kv
+	idk      kv
 	index    []kv
 	typeName []byte
-	id 		 int64
+	id       int64
 }
 
 func structKV(in interface{}, dbKV *dbKeyValue, cfg *structInfo) error {
@@ -335,11 +334,11 @@ func structKV(in interface{}, dbKV *dbKeyValue, cfg *structInfo) error {
 	if err != nil {
 		return err
 	}
-	err = DecodeBytes(objId,&cfg.id_)
+	err = DecodeBytes(objId, &cfg.id_)
 	if err != nil {
 		return err
 	}
-	idk := splicingString([]byte(cfg.Name),objId)
+	idk := splicingString([]byte(cfg.Name), objId)
 	kv_ := kv{}
 	kv_.key = idk
 	kv_.value = objValue
@@ -347,31 +346,32 @@ func structKV(in interface{}, dbKV *dbKeyValue, cfg *structInfo) error {
 	dbKV.typeName = []byte(cfg.Name)
 
 	err = cfgToKV(objId, cfg, dbKV)
-	if err != nil{
+	if err != nil {
 		return err
 	}
 
 	return nil
 }
+
 //xxx aaaxxxx
 //xxx dddxxxx
-func cfgToKV(objId []byte, cfg *structInfo, dbKV *dbKeyValue) error{
+func cfgToKV(objId []byte, cfg *structInfo, dbKV *dbKeyValue) error {
 
 	for tag, fieldCfg := range cfg.Fields {
 		typeName := []byte(cfg.Name)
-		prefix := append(typeName, '_') 					/* 			typeName__ 				*/
+		prefix := append(typeName, '_') /* 			typeName__ 				*/
 		prefix = append(prefix, '_')
-		prefix = append(prefix, tag...) 						/* 			typeName__tagName__ 	*/
-		key,err := fieldValueToByte(fieldCfg)
-		if err != nil{
+		prefix = append(prefix, tag...) /* 			typeName__tagName__ 	*/
+		key, err := fieldValueToByte(fieldCfg)
+		if err != nil {
 			return err
 		}
-		key = append(prefix,key...)
+		key = append(prefix, key...)
 
-		if !fieldCfg.unique && len(fieldCfg.fieldValue) == 1 { 	/* 			non unique 				*/
+		if !fieldCfg.unique && len(fieldCfg.fieldValue) == 1 { /* 			non unique 				*/
 			key = append(key, objId...)
 		}
-		key = append(key,'_')
+		key = append(key, '_')
 
 		kv_ := kv{}
 		kv_.key = key

@@ -6,9 +6,11 @@ package treemap
 
 import (
 	"fmt"
-	. "github.com/eosspark/eos-go/libraries/container/treemap/example"
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	. "github.com/eosspark/eos-go/libraries/container/treemap/example"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestMapPut(t *testing.T) {

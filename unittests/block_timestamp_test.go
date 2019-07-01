@@ -1,10 +1,12 @@
 package unittests
 
 import (
+	"testing"
+
 	. "github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
+
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func TestTimePointToBlockTimeStamp(t *testing.T) {

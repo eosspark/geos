@@ -407,7 +407,7 @@ func Test_Fixunstfti(t *testing.T) {
 func Test_Floattidf(t *testing.T) {
 	in := CreateInt128(1)
 	in.LeftShifts(60)
-	fmt.Printf("%#b", in)
+	fmt.Printf("%b", in)
 	out := Floattidf(in)
 	fmt.Println(out)
 
@@ -472,7 +472,7 @@ func TestFloat128_String(t *testing.T) {
 	plusF128 := Float128{High: 4613251722985340928, Low: 0} //100
 	a := plusF128.String()
 	fmt.Println(a)
-	fmt.Println(plusF128.String2())
+	//fmt.Println(plusF128.String2())
 
 	ff, _ := strconv.ParseFloat("6.666666666666666667e-07", 64)
 	fmt.Println(ff)

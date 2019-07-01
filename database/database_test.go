@@ -10,6 +10,7 @@ import (
 )
 
 var logFlag = false
+
 //var logFlag = true
 
 func Test_rawDb(t *testing.T) {
@@ -19,7 +20,6 @@ func Test_rawDb(t *testing.T) {
 	}
 	pprof.StartCPUProfile(cpuf)
 	defer pprof.StopCPUProfile()
-
 
 	fileName := "./eosspark"
 	reFn := func() {
@@ -53,9 +53,9 @@ func Test_rawDb(t *testing.T) {
 		keys = append(keys, key)
 	}
 	for _, v := range keys {
-		batch.Put(v,v)
+		batch.Put(v, v)
 	}
-	db.Write(batch,nil)
+	db.Write(batch, nil)
 	//for _, v := range keys {
 	//	db.Delete(v, nil)
 	//}
@@ -86,12 +86,12 @@ func Test_insert(t *testing.T) {
 	//defer session.Undo()
 	//defer session.Push()
 	//saveObjs(objs, houses, db)
-	objs_,houses_:=saveObjs(objs, houses, db)
-	remove_obj(objs_,houses_,db)
+	objs_, houses_ := saveObjs(objs, houses, db)
+	remove_obj(objs_, houses_, db)
 
 }
 
-func remove_obj(objs []DbTableIdObject, houses []DbHouse,db DataBase){
+func remove_obj(objs []DbTableIdObject, houses []DbHouse, db DataBase) {
 	for _, v := range houses {
 		//LogObj(v)
 		err := db.Remove(&v)
@@ -136,77 +136,75 @@ func Test_All(t *testing.T) {
 	}
 	defer clo()
 
-
 	objs, houses := Objects()
-	objs_,houses_ := saveObjs(objs, houses, db)
-{
+	objs_, houses_ := saveObjs(objs, houses, db)
+	{
+		tab_obj := DbTableIdObject{}
+		tab_tmp := DbTableIdObject{}
+		err := db.Find("id", tab_obj, &tab_tmp)
+		if err != nil {
+			log.Fatalln(err)
+		}
+
+		hou_obj := DbHouse{}
+		hou_tmp := DbHouse{}
+		err = db.Find("id", hou_obj, &hou_tmp)
+		if err != nil {
+			log.Fatalln(err)
+		}
+
+		if tab_tmp != objs_[0] || hou_tmp != houses_[0] {
+			LogObj(tab_tmp)
+			LogObj(hou_tmp)
+
+			LogObj(objs_[0])
+			LogObj(houses_[0])
+			log.Fatalln("undo all error")
+		}
+
+		session := db.StartSession()
+		err = db.Modify(&tab_tmp, func(object *DbTableIdObject) {
+			object.Code = 200
+		})
+		if err != nil {
+			log.Fatalln(err)
+		}
+		err = db.Modify(&hou_tmp, func(object *DbHouse) {
+			object.Name = "hello world"
+		})
+
+		tab_obj = DbTableIdObject{}
+		tab_tmp = DbTableIdObject{}
+		err = db.Find("id", tab_obj, &tab_tmp)
+		if err != nil {
+			log.Fatalln(err)
+		}
+
+		hou_obj = DbHouse{}
+		hou_tmp = DbHouse{}
+		err = db.Find("id", hou_obj, &hou_tmp)
+		if err != nil {
+			log.Fatalln(err)
+		}
+
+		session.Undo()
+
+	}
+	// TODO  test --> modify
 	tab_obj := DbTableIdObject{}
 	tab_tmp := DbTableIdObject{}
 	err := db.Find("id", tab_obj, &tab_tmp)
-	if err != nil{
+	if err != nil {
 		log.Fatalln(err)
 	}
 
-	hou_obj:= DbHouse{}
-	hou_tmp:= DbHouse{}
+	hou_obj := DbHouse{}
+	hou_tmp := DbHouse{}
 	err = db.Find("id", hou_obj, &hou_tmp)
-	if err != nil{
+	if err != nil {
 		log.Fatalln(err)
 	}
-
-	if tab_tmp != objs_[0] || hou_tmp != houses_[0]{
-		LogObj(tab_tmp)
-		LogObj(hou_tmp)
-
-		LogObj(objs_[0])
-		LogObj(houses_[0])
-		log.Fatalln("undo all error")
-	}
-
-	session := db.StartSession()
-	err = db.Modify(&tab_tmp, func(object *DbTableIdObject) {
-		object.Code = 200
-	})
-	if err != nil{
-		log.Fatalln(err)
-	}
-	err = db.Modify(&hou_tmp, func(object *DbHouse) {
-		object.Name="hello world"
-	})
-
-
-	tab_obj = DbTableIdObject{}
-	tab_tmp = DbTableIdObject{}
-	err = db.Find("id", tab_obj, &tab_tmp)
-	if err != nil{
-		log.Fatalln(err)
-	}
-
-	hou_obj= DbHouse{}
-	hou_tmp= DbHouse{}
-	err = db.Find("id", hou_obj, &hou_tmp)
-	if err != nil{
-		log.Fatalln(err)
-	}
-
-	session.Undo()
-
-}
-// TODO  test --> modify
-	tab_obj := DbTableIdObject{}
-	tab_tmp := DbTableIdObject{}
-	err := db.Find("id", tab_obj, &tab_tmp)
-	if err != nil{
-		log.Fatalln(err)
-	}
-
-	hou_obj:= DbHouse{}
-	hou_tmp:= DbHouse{}
-	err = db.Find("id", hou_obj, &hou_tmp)
-	if err != nil{
-		log.Fatalln(err)
-	}
-	if tab_tmp != objs_[0] || hou_tmp != houses_[0]{
+	if tab_tmp != objs_[0] || hou_tmp != houses_[0] {
 		LogObj(tab_tmp)
 		LogObj(hou_tmp)
 
@@ -236,7 +234,7 @@ func Test_modifyUndo(t *testing.T) {
 		tmp := DbTableIdObject{}
 		it.Data(&tmp)
 		//LogObj(tmp)
-		for it.Next(){
+		for it.Next() {
 
 			tmp = DbTableIdObject{}
 			it.Data(&tmp)
@@ -271,7 +269,6 @@ func Test_modifyUndo(t *testing.T) {
 		it.Release()
 	}
 
-
 	session := db.StartSession()
 	obj_4 := DbTableIdObject{ID: 4, Code: 22, Scope: 22, Table: 26, Payer: 27, Count: 25}
 	obj_4_ := DbTableIdObject{ID: 4, Code: 22, Scope: 22, Table: 26, Payer: 27, Count: 25}
@@ -299,7 +296,7 @@ func Test_modifyUndo(t *testing.T) {
 		if err != nil {
 			log.Fatalln(err)
 		}
-		if tmp != obj_4{
+		if tmp != obj_4 {
 			log.Fatalln("modify err")
 		}
 	}
@@ -311,7 +308,7 @@ func Test_modifyUndo(t *testing.T) {
 		if err != nil {
 			log.Fatalln(err)
 		}
-		if tmp != obj_5{
+		if tmp != obj_5 {
 			log.Fatalln("modify err")
 		}
 	}
@@ -324,7 +321,7 @@ func Test_modifyUndo(t *testing.T) {
 		if err != nil {
 			log.Fatalln(err)
 		}
-		if tmp != obj_4_{
+		if tmp != obj_4_ {
 			LogObj(obj_4_)
 			LogObj(tmp)
 			log.Fatalln("modify err")
@@ -338,7 +335,7 @@ func Test_modifyUndo(t *testing.T) {
 		if err != nil {
 			log.Fatalln(err)
 		}
-		if tmp != obj_5_{
+		if tmp != obj_5_ {
 			LogObj(obj_5_)
 			LogObj(tmp)
 			log.Fatalln("modify err")
@@ -372,13 +369,12 @@ func Test_undoInsert(t *testing.T) {
 	}
 
 	// Code 11 12 13
-		{
-			it, _ := idx.LowerBound(DbTableIdObject{Code: 11})
-			if !idx.CompareEnd(it){
-				log.Fatal("compare end err")
+	{
+		it, _ := idx.LowerBound(DbTableIdObject{Code: 11})
+		if !idx.CompareEnd(it) {
+			log.Fatal("compare end err")
 		}
 	}
-
 
 	//////////////////////////////////////////////		COMMIT		///////////////////////////////////
 
@@ -543,8 +539,6 @@ func Test_undoRemove(t *testing.T) {
 
 }
 
-
-
 func Test_squash(t *testing.T) {
 	db, clo := openDb()
 	if db == nil {
@@ -570,7 +564,6 @@ func Test_squash(t *testing.T) {
 		log.Fatalln(err)
 	}
 
-
 	i := 1
 	table := DbTableIdObject{}
 	it.Data(&table)
@@ -589,16 +582,15 @@ func Test_squash(t *testing.T) {
 		}
 	}
 
-
 	session := db.StartSession()
-	err = db.Remove(&table) 	/*	id --> 3 */
+	err = db.Remove(&table) /*	id --> 3 */
 	if err != nil {
 		log.Fatalln(err)
 	}
 
 	session_ := db.StartSession()
-	tmp :=  objs[1]
-	err = db.Remove(&tmp) 		/*	id --> 2*/
+	tmp := objs[1]
+	err = db.Remove(&tmp) /*	id --> 2*/
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -608,22 +600,21 @@ func Test_squash(t *testing.T) {
 		log.Fatalln(err)
 	}
 
-	if !idx.CompareBegin(beginIt){
+	if !idx.CompareBegin(beginIt) {
 		log.Fatalln("iterator is not begin")
 	}
 
 	if beginIt.Next() {
 		log.Fatalln("iterator next")
 	}
-	if !idx.CompareEnd(beginIt){
+	if !idx.CompareEnd(beginIt) {
 		log.Fatalln("iterator is not end")
 	}
 
 	session.Squash()
 
-
-	defer session.Undo() 	// undo
-	session_.Undo() 		/* after squash undo all */
+	defer session.Undo() // undo
+	session_.Undo()      /* after squash undo all */
 
 	endIt, err := idx.LowerBound(DbTableIdObject{Code: 11})
 	if err != nil {
@@ -693,21 +684,20 @@ func Test_undoAll(t *testing.T) {
 	}
 
 	session := db.StartSession()
-	defer session.Undo() 	// undo
-	err = db.Remove(&table) 	/*	id --> 3 */
+	defer session.Undo()    // undo
+	err = db.Remove(&table) /*	id --> 3 */
 	if err != nil {
 		log.Fatalln(err)
 	}
 
 	session_ := db.StartSession()
-	defer session_.Undo() 		/* after squash undo all */
+	defer session_.Undo() /* after squash undo all */
 
-	tmp :=  objs[1]
-	err = db.Remove(&tmp) 		/*	id --> 2*/
+	tmp := objs[1]
+	err = db.Remove(&tmp) /*	id --> 2*/
 	if err != nil {
 		log.Fatalln(err)
 	}
-
 
 	session.Squash()
 	db.UndoAll()
@@ -792,7 +782,7 @@ func Test_uniqueNoIterator(t *testing.T) {
 	defer clo()
 
 	objs, houses := Objects()
-	objs_,_ := saveObjs(objs, houses, db)
+	objs_, _ := saveObjs(objs, houses, db)
 	idx, err := db.GetIndex("byTable", DbTableIdObject{})
 	if err != nil {
 		log.Fatalln(err)
@@ -801,22 +791,22 @@ func Test_uniqueNoIterator(t *testing.T) {
 	// scope 11 lower prev iterator
 	{
 		obj := DbTableIdObject{Scope: 11}
-		scope11, err := idx.LowerBound(obj,SKIP_ONE)
+		scope11, err := idx.LowerBound(obj, SKIP_ONE)
 		if err != nil {
 			log.Fatalln(err)
 		}
-		if idx.CompareEnd(scope11){
+		if idx.CompareEnd(scope11) {
 			log.Fatalln("scope 11 is end iterator")
 		}
 
-		if !idx.CompareBegin(scope11)	{
+		if !idx.CompareBegin(scope11) {
 			log.Fatalln("scope compare end failed")
 		}
 
 		i := 0
 		tmp := DbTableIdObject{}
 		scope11.Data(&tmp)
-		if objs_[i] != tmp{
+		if objs_[i] != tmp {
 			LogObj(objs_[i])
 			LogObj(tmp)
 			log.Fatalln("compare failed")
@@ -829,45 +819,11 @@ func Test_uniqueNoIterator(t *testing.T) {
 	// scope 11 lower next iterator
 	{
 		obj := DbTableIdObject{Scope: 11}
-		scope11, err := idx.LowerBound(obj,SKIP_ONE)
+		scope11, err := idx.LowerBound(obj, SKIP_ONE)
 		if err != nil {
 			log.Fatalln(err)
 		}
-		if idx.CompareEnd(scope11){
-			log.Fatalln("scope 11 is end iterator")
-		}
-
-		if !idx.CompareBegin(scope11)	{
-			log.Fatalln("scope compare end failed")
-		}
-		i := 0
-		tmp := DbTableIdObject{}
-		scope11.Data(&tmp)
-		if objs_[i] != tmp{
-			LogObj(objs_[i])
-			LogObj(tmp)
-			log.Fatalln("compare failed")
-		}
-
-		for scope11.Next(){
-			i++
-			tmp := DbTableIdObject{}
-			scope11.Data(&tmp)
-			if objs_[i] != tmp{
-				LogObj(objs_[i])
-				LogObj(tmp)
-				log.Fatalln("compare failed")
-			}
-		}
-	}
-	// scope 11 upper prev iterator
-	{
-		obj := DbTableIdObject{Scope: 11}
-		scope11, err := idx.UpperBound(obj,SKIP_ONE)
-		if err != nil {
-			log.Fatalln(err)
-		}
-		if idx.CompareEnd(scope11){
+		if idx.CompareEnd(scope11) {
 			log.Fatalln("scope 11 is end iterator")
 		}
 
@@ -877,44 +833,78 @@ func Test_uniqueNoIterator(t *testing.T) {
 		i := 0
 		tmp := DbTableIdObject{}
 		scope11.Data(&tmp)
-		if objs_[i] != tmp{
+		if objs_[i] != tmp {
 			LogObj(objs_[i])
 			LogObj(tmp)
 			log.Fatalln("compare failed")
 		}
 
-		for scope11.Prev(){
+		for scope11.Next() {
+			i++
+			tmp := DbTableIdObject{}
+			scope11.Data(&tmp)
+			if objs_[i] != tmp {
+				LogObj(objs_[i])
+				LogObj(tmp)
+				log.Fatalln("compare failed")
+			}
+		}
+	}
+	// scope 11 upper prev iterator
+	{
+		obj := DbTableIdObject{Scope: 11}
+		scope11, err := idx.UpperBound(obj, SKIP_ONE)
+		if err != nil {
+			log.Fatalln(err)
+		}
+		if idx.CompareEnd(scope11) {
+			log.Fatalln("scope 11 is end iterator")
+		}
+
+		if !idx.CompareBegin(scope11) {
+			log.Fatalln("scope compare end failed")
+		}
+		i := 0
+		tmp := DbTableIdObject{}
+		scope11.Data(&tmp)
+		if objs_[i] != tmp {
+			LogObj(objs_[i])
+			LogObj(tmp)
+			log.Fatalln("compare failed")
+		}
+
+		for scope11.Prev() {
 			log.Fatalln("compare failed")
 		}
 	}
 	// scope 11 upper next iterator
 	{
 		obj := DbTableIdObject{Scope: 11}
-		scope11, err := idx.UpperBound(obj,SKIP_ONE)
+		scope11, err := idx.UpperBound(obj, SKIP_ONE)
 		if err != nil {
 			log.Fatalln(err)
 		}
-		if idx.CompareEnd(scope11){
+		if idx.CompareEnd(scope11) {
 			log.Fatalln("scope 11 is end iterator")
 		}
 
-		if !idx.CompareBegin(scope11)	{
+		if !idx.CompareBegin(scope11) {
 			log.Fatalln("scope compare end failed")
 		}
 		i := 0
 		tmp := DbTableIdObject{}
 		scope11.Data(&tmp)
-		if objs_[i] != tmp{
+		if objs_[i] != tmp {
 			LogObj(objs_[i])
 			LogObj(tmp)
 			log.Fatalln("compare failed")
 		}
 
-		for scope11.Next(){
+		for scope11.Next() {
 			i++
 			tmp := DbTableIdObject{}
 			scope11.Data(&tmp)
-			if objs_[i] != tmp{
+			if objs_[i] != tmp {
 				LogObj(objs_[i])
 				LogObj(tmp)
 				log.Fatalln("compare failed")
@@ -922,24 +912,23 @@ func Test_uniqueNoIterator(t *testing.T) {
 		}
 	}
 
-
 	/* scope 30 lower prev iterator */
 	{
 		obj := DbTableIdObject{Scope: 30}
-		scope11, err := idx.LowerBound(obj,SKIP_ONE)
+		scope11, err := idx.LowerBound(obj, SKIP_ONE)
 		if err != nil {
 			log.Fatalln(err)
 		}
-		if idx.CompareEnd(scope11){
+		if idx.CompareEnd(scope11) {
 			log.Fatalln("scope is end")
 		}
-		if idx.CompareBegin(scope11){
+		if idx.CompareBegin(scope11) {
 			log.Fatalln("scope is begin")
 		}
 		i := 6
 		tmp := DbTableIdObject{}
 		scope11.Data(&tmp)
-		if objs_[i] != tmp{
+		if objs_[i] != tmp {
 			LogObj(objs_[i])
 			LogObj(tmp)
 			log.Fatalln("compare failed")
@@ -949,7 +938,7 @@ func Test_uniqueNoIterator(t *testing.T) {
 			i--
 			tmp := DbTableIdObject{}
 			scope11.Data(&tmp)
-			if objs_[i] != tmp{
+			if objs_[i] != tmp {
 				LogObj(objs_[i])
 				LogObj(tmp)
 				log.Fatalln("compare failed")
@@ -959,20 +948,20 @@ func Test_uniqueNoIterator(t *testing.T) {
 	/* scope 30 lower next iterator */
 	{
 		obj := DbTableIdObject{Scope: 30}
-		scope11, err := idx.LowerBound(obj,SKIP_ONE)
+		scope11, err := idx.LowerBound(obj, SKIP_ONE)
 		if err != nil {
 			log.Fatalln(err)
 		}
-		if idx.CompareEnd(scope11){
+		if idx.CompareEnd(scope11) {
 			log.Fatalln("scope is end")
 		}
-		if idx.CompareBegin(scope11){
+		if idx.CompareBegin(scope11) {
 			log.Fatalln("scope is begin")
 		}
 		tmp := DbTableIdObject{}
 		scope11.Data(&tmp)
 		i := 6
-		if objs_[i] != tmp{
+		if objs_[i] != tmp {
 			LogObj(objs_[i])
 			LogObj(tmp)
 			log.Fatalln("compare failed")
@@ -981,7 +970,7 @@ func Test_uniqueNoIterator(t *testing.T) {
 			i++
 			tmp := DbTableIdObject{}
 			scope11.Data(&tmp)
-			if objs_[i] != tmp{
+			if objs_[i] != tmp {
 				LogObj(objs_[i])
 				LogObj(tmp)
 				log.Fatalln("compare failed")
@@ -991,21 +980,21 @@ func Test_uniqueNoIterator(t *testing.T) {
 	/* scope 30 upper prev iterator */
 	{
 		obj := DbTableIdObject{Scope: 30}
-		scope11, err := idx.UpperBound(obj,SKIP_ONE)
+		scope11, err := idx.UpperBound(obj, SKIP_ONE)
 		if err != nil {
 			log.Fatalln(err)
 		}
-		if idx.CompareEnd(scope11){
+		if idx.CompareEnd(scope11) {
 			log.Fatalln("scope is end")
 		}
-		if idx.CompareBegin(scope11){
+		if idx.CompareBegin(scope11) {
 			log.Fatalln("scope is begin")
 		}
 
 		tmp := DbTableIdObject{}
 		scope11.Data(&tmp)
 		i := 6
-		if objs_[i] != tmp{
+		if objs_[i] != tmp {
 			LogObj(objs_[i])
 			LogObj(tmp)
 			log.Fatalln("compare failed")
@@ -1015,7 +1004,7 @@ func Test_uniqueNoIterator(t *testing.T) {
 			i--
 			tmp := DbTableIdObject{}
 			scope11.Data(&tmp)
-			if objs_[i] != tmp{
+			if objs_[i] != tmp {
 				LogObj(objs_[i])
 				LogObj(tmp)
 				log.Fatalln("compare failed")
@@ -1025,21 +1014,21 @@ func Test_uniqueNoIterator(t *testing.T) {
 	/* scope 30 upper next iterator */
 	{
 		obj := DbTableIdObject{Scope: 30}
-		scope11, err := idx.UpperBound(obj,SKIP_ONE)
+		scope11, err := idx.UpperBound(obj, SKIP_ONE)
 		if err != nil {
 			log.Fatalln(err)
 		}
-		if idx.CompareEnd(scope11){
+		if idx.CompareEnd(scope11) {
 			log.Fatalln("scope is end")
 		}
-		if idx.CompareBegin(scope11){
+		if idx.CompareBegin(scope11) {
 			log.Fatalln("scope is begin")
 		}
 
 		tmp := DbTableIdObject{}
 		scope11.Data(&tmp)
 		i := 6
-		if objs_[i] != tmp{
+		if objs_[i] != tmp {
 			LogObj(objs_[i])
 			LogObj(tmp)
 			log.Fatalln("compare failed")
@@ -1049,7 +1038,7 @@ func Test_uniqueNoIterator(t *testing.T) {
 			i++
 			tmp := DbTableIdObject{}
 			scope11.Data(&tmp)
-			if objs_[i] != tmp{
+			if objs_[i] != tmp {
 				LogObj(objs_[i])
 				LogObj(tmp)
 				log.Fatalln("compare failed")
@@ -1060,20 +1049,20 @@ func Test_uniqueNoIterator(t *testing.T) {
 	// scope 22 lower prev iterator
 	{
 		obj := DbTableIdObject{Scope: 22}
-		scope11, err := idx.LowerBound(obj,SKIP_ONE)
+		scope11, err := idx.LowerBound(obj, SKIP_ONE)
 		if err != nil {
 			log.Fatalln(err)
 		}
-		if idx.CompareEnd(scope11){
+		if idx.CompareEnd(scope11) {
 			log.Fatalln("scope is end")
 		}
-		if idx.CompareBegin(scope11){
+		if idx.CompareBegin(scope11) {
 			log.Fatalln("scope is begin")
 		}
 		tmp := DbTableIdObject{}
 		scope11.Data(&tmp)
 		i := 3
-		if objs_[i] != tmp{
+		if objs_[i] != tmp {
 			LogObj(objs_[i])
 			LogObj(tmp)
 			log.Fatalln("compare failed")
@@ -1082,7 +1071,7 @@ func Test_uniqueNoIterator(t *testing.T) {
 			i--
 			tmp := DbTableIdObject{}
 			scope11.Data(&tmp)
-			if objs_[i] != tmp{
+			if objs_[i] != tmp {
 				LogObj(objs_[i])
 				LogObj(tmp)
 				log.Fatalln("compare failed")
@@ -1092,20 +1081,20 @@ func Test_uniqueNoIterator(t *testing.T) {
 	// scope 22 lower next iterator
 	{
 		obj := DbTableIdObject{Scope: 22}
-		scope11, err := idx.LowerBound(obj,SKIP_ONE)
+		scope11, err := idx.LowerBound(obj, SKIP_ONE)
 		if err != nil {
 			log.Fatalln(err)
 		}
-		if idx.CompareEnd(scope11){
+		if idx.CompareEnd(scope11) {
 			log.Fatalln("scope is end")
 		}
-		if idx.CompareBegin(scope11){
+		if idx.CompareBegin(scope11) {
 			log.Fatalln("scope is begin")
 		}
 		tmp := DbTableIdObject{}
 		scope11.Data(&tmp)
 		i := 3
-		if objs_[i] != tmp{
+		if objs_[i] != tmp {
 			LogObj(objs_[i])
 			LogObj(tmp)
 			log.Fatalln("compare failed")
@@ -1114,7 +1103,7 @@ func Test_uniqueNoIterator(t *testing.T) {
 			i++
 			tmp := DbTableIdObject{}
 			scope11.Data(&tmp)
-			if objs_[i] != tmp{
+			if objs_[i] != tmp {
 				LogObj(objs_[i])
 				LogObj(tmp)
 				log.Fatalln("compare failed")
@@ -1124,20 +1113,20 @@ func Test_uniqueNoIterator(t *testing.T) {
 	// scope 22 upper prev iterator
 	{
 		obj := DbTableIdObject{Scope: 22}
-		scope11, err := idx.UpperBound(obj,SKIP_ONE)
+		scope11, err := idx.UpperBound(obj, SKIP_ONE)
 		if err != nil {
 			log.Fatalln(err)
 		}
-		if idx.CompareEnd(scope11){
+		if idx.CompareEnd(scope11) {
 			log.Fatalln("scope is end")
 		}
-		if idx.CompareBegin(scope11){
+		if idx.CompareBegin(scope11) {
 			log.Fatalln("scope is begin")
 		}
 		tmp := DbTableIdObject{}
 		scope11.Data(&tmp)
 		i := 6
-		if objs_[i] != tmp{
+		if objs_[i] != tmp {
 			LogObj(objs_[i])
 			LogObj(tmp)
 			log.Fatalln("compare failed")
@@ -1146,7 +1135,7 @@ func Test_uniqueNoIterator(t *testing.T) {
 			i--
 			tmp := DbTableIdObject{}
 			scope11.Data(&tmp)
-			if objs_[i] != tmp{
+			if objs_[i] != tmp {
 				LogObj(objs_[i])
 				LogObj(tmp)
 				log.Fatalln("compare failed")
@@ -1156,20 +1145,20 @@ func Test_uniqueNoIterator(t *testing.T) {
 	// scope 22 upper next iterator
 	{
 		obj := DbTableIdObject{Scope: 22}
-		scope11, err := idx.UpperBound(obj,SKIP_ONE)
+		scope11, err := idx.UpperBound(obj, SKIP_ONE)
 		if err != nil {
 			log.Fatalln(err)
 		}
-		if idx.CompareEnd(scope11){
+		if idx.CompareEnd(scope11) {
 			log.Fatalln("scope is end")
 		}
-		if idx.CompareBegin(scope11){
+		if idx.CompareBegin(scope11) {
 			log.Fatalln("scope is begin")
 		}
 		tmp := DbTableIdObject{}
 		scope11.Data(&tmp)
 		i := 6
-		if objs_[i] != tmp{
+		if objs_[i] != tmp {
 			LogObj(objs_[i])
 			LogObj(tmp)
 			log.Fatalln("compare failed")
@@ -1178,7 +1167,7 @@ func Test_uniqueNoIterator(t *testing.T) {
 			i++
 			tmp := DbTableIdObject{}
 			scope11.Data(&tmp)
-			if objs_[i] != tmp{
+			if objs_[i] != tmp {
 				LogObj(objs_[i])
 				LogObj(tmp)
 				log.Fatalln("compare failed")
@@ -1189,7 +1178,7 @@ func Test_uniqueNoIterator(t *testing.T) {
 	/* compare iterator test */
 	{
 		obj := DbTableIdObject{Scope: 20}
-		scope20, err := idx.LowerBound(obj,SKIP_ONE)
+		scope20, err := idx.LowerBound(obj, SKIP_ONE)
 		if err != nil {
 			log.Fatalln(err)
 		}
@@ -1230,7 +1219,7 @@ func Test_uniqueNoIterator(t *testing.T) {
 		for itT.Prev() {
 			tmp := DbTableIdObject{}
 			itT.Data(&tmp)
-			if objs_[i] != tmp{
+			if objs_[i] != tmp {
 				LogObj(objs_[i])
 				LogObj(tmp)
 				log.Fatalln("compare failed")
@@ -1269,7 +1258,7 @@ func Test_uniqueIterator(t *testing.T) {
 			i := 6
 			tmp := DbTableIdObject{}
 			upIt.Data(&tmp)
-			if objs_[i]	 != tmp{
+			if objs_[i] != tmp {
 				LogObj(tmp)
 				LogObj(objs_[i])
 				log.Fatalln(err)
@@ -1278,7 +1267,7 @@ func Test_uniqueIterator(t *testing.T) {
 				i--
 				tmp := DbTableIdObject{}
 				upIt.Data(&tmp)
-				if objs_[i]	 != tmp{
+				if objs_[i] != tmp {
 					LogObj(tmp)
 					LogObj(objs_[i])
 					log.Fatalln(err)
@@ -1296,7 +1285,7 @@ func Test_uniqueIterator(t *testing.T) {
 			tmp := DbTableIdObject{}
 			upIt.Data(&tmp)
 			i := 6
-			if objs_[i]	 != tmp{
+			if objs_[i] != tmp {
 				LogObj(tmp)
 				LogObj(objs_[i])
 				log.Fatalln(err)
@@ -1306,7 +1295,7 @@ func Test_uniqueIterator(t *testing.T) {
 				i++
 				tmp := DbTableIdObject{}
 				upIt.Data(&tmp)
-				if objs_[i]	 != tmp{
+				if objs_[i] != tmp {
 					LogObj(tmp)
 					LogObj(objs_[i])
 					log.Fatalln(err)
@@ -1318,14 +1307,14 @@ func Test_uniqueIterator(t *testing.T) {
 		// id 5 lower bound pre iterator
 		{
 			lowIt, err := idx.LowerBound(obj)
-			if err != nil{
+			if err != nil {
 				log.Fatalln(err)
 			}
 
 			tmp := DbTableIdObject{}
 			lowIt.Data(&tmp)
 			i := 5
-			if objs_[i]	 != tmp{
+			if objs_[i] != tmp {
 				LogObj(tmp)
 				LogObj(objs_[i])
 				log.Fatalln(err)
@@ -1334,7 +1323,7 @@ func Test_uniqueIterator(t *testing.T) {
 				i--
 				tmp := DbTableIdObject{}
 				lowIt.Data(&tmp)
-				if objs_[i]	 != tmp{
+				if objs_[i] != tmp {
 					LogObj(tmp)
 					LogObj(objs_[i])
 					log.Fatalln(err)
@@ -1344,14 +1333,14 @@ func Test_uniqueIterator(t *testing.T) {
 		// id 5 lower bound next iterator
 		{
 			lowIt, err := idx.LowerBound(obj)
-			if err != nil{
+			if err != nil {
 				log.Fatalln(err)
 			}
 
 			tmp := DbTableIdObject{}
 			lowIt.Data(&tmp)
 			i := 5
-			if objs_[i]	 != tmp{
+			if objs_[i] != tmp {
 				LogObj(tmp)
 				LogObj(objs_[i])
 				log.Fatalln(err)
@@ -1361,7 +1350,7 @@ func Test_uniqueIterator(t *testing.T) {
 				i++
 				tmp := DbTableIdObject{}
 				lowIt.Data(&tmp)
-				if objs_[i]	 != tmp{
+				if objs_[i] != tmp {
 					LogObj(tmp)
 					LogObj(objs_[i])
 					log.Fatalln(err)
@@ -1455,7 +1444,7 @@ func Test_resourceLimitsObject(t *testing.T) {
 		if err != nil {
 			log.Fatalln(err)
 		}
-		limits = append(limits,v)
+		limits = append(limits, v)
 	}
 
 	idx, err := db.GetIndex("byOwner", DbResourceLimitsObject{})
@@ -1466,7 +1455,7 @@ func Test_resourceLimitsObject(t *testing.T) {
 	for !idx.Empty() {
 		tmp := DbResourceLimitsObject{}
 		obj := DbResourceLimitsObject{Pending: false}
-		it, err := idx.LowerBound(obj,SKIP_ONE)
+		it, err := idx.LowerBound(obj, SKIP_ONE)
 		if err != nil {
 			log.Fatalln(err)
 		}
@@ -1700,7 +1689,7 @@ func modifyObjs(db DataBase) {
 
 	obj := DbTableIdObject{ID: 4, Code: 21, Scope: 22, Table: 26, Payer: 27, Count: 25}
 	newobj := DbTableIdObject{ID: 4, Code: 200, Scope: 22, Table: 26, Payer: 27, Count: 25}
-	for i := 0; i < 1 ; i++ {
+	for i := 0; i < 1; i++ {
 		err := db.Modify(&obj, func(object *DbTableIdObject) {
 			object.Code = AccountName(200 + i)
 		})
@@ -1863,7 +1852,7 @@ func MakeResourceLimitsObjects() []DbResourceLimitsObject {
 	return limits
 }
 
-func Test_findIdZero(t *testing.T){
+func Test_findIdZero(t *testing.T) {
 	number := 10
 	i := 11
 	out := DbTableIdObject{}
@@ -1875,11 +1864,11 @@ func Test_findIdZero(t *testing.T){
 	}
 	defer clo()
 	db.Insert(&obj)
-	err := db.Find("id",&tmp,&out)
-	if err != nil{
+	err := db.Find("id", &tmp, &out)
+	if err != nil {
 		log.Fatalln(err)
 	}
-	if tmp != out{
+	if tmp != out {
 		LogObj(out)
 		LogObj(tmp)
 		log.Fatalln("not equal")
@@ -1894,7 +1883,7 @@ func Test_reversion(t *testing.T) {
 		log.Fatalln("new database failed : ", err)
 	}
 
-	for db.Revision() >0 {
+	for db.Revision() > 0 {
 		db.Undo()
 		fmt.Println(db.Revision())
 	}
@@ -1911,4 +1900,3 @@ func Test_reversion(t *testing.T) {
 	fmt.Println(db.Revision())
 	db.Close()
 }
-

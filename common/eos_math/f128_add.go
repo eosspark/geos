@@ -20,7 +20,6 @@ func (a Float128) Add(b Float128) Float128 {
 	} else {
 		return softfloat_subMagsF128(uiA64, uiA0, uiB64, uiB0, signA)
 	}
-	return a
 }
 
 func softfloat_addMagsF128(uiA64, uiA0, uiB64, uiB0 uint64, signZ bool) Float128 {

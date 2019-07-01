@@ -13,7 +13,6 @@ func (s *Signal) Connect(f Caller) {
 	//fmt.Println(s.channels)
 }
 
-
 func (s *Signal) Emit(data ...interface{}) {
 	for _, f := range s.callers {
 		f.Call(data...)

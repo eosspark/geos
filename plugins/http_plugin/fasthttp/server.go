@@ -1270,7 +1270,7 @@ func (ctx *RequestCtx) TimeoutErrorWithResponse(resp *Response) {
 	ctx.timeoutResponse = respCopy
 }
 
-// NextProto adds nph to be processed when key is negotiated when TLS conection is established.
+// NextProto adds nph to be processed when key is negotiated when TLS connection is established.
 //
 // This function can only be called before the server is started.
 func (s *Server) NextProto(key string, nph ServeHandler) {

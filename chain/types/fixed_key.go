@@ -1,12 +1,13 @@
 package types
 
 import (
+	"reflect"
+
 	"github.com/eosspark/eos-go/common"
 	. "github.com/eosspark/eos-go/common/eos_math"
 	. "github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/log"
-	"reflect"
 )
 
 func IsIntegral(T interface{}) bool {

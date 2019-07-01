@@ -292,6 +292,6 @@ package exception
 
 // Exception in plugin
 //go:generate gotemplate -outfmt "gen_%v" "github.com/eosspark/eos-go/exception/template" "ExplainedException(Exception,9000000,\"explained exception,see error log\")"
-//go:generate gotemplate -outfmt "gen_%v" "github.com/eosspark/eos-go/exception/template" "LocalizedException(Exception,10000000,\"an error occured\")"
+//go:generate gotemplate -outfmt "gen_%v" "github.com/eosspark/eos-go/exception/template" "LocalizedException(Exception,10000000,\"an error occurred\")"
 
 //go:generate go build .

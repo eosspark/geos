@@ -4,6 +4,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"os"
+	"strings"
+	"time"
+
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto"
@@ -11,9 +15,6 @@ import (
 	. "github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/log"
-	"os"
-	"strings"
-	"time"
 )
 
 var (
@@ -49,7 +50,7 @@ func walletManager() *WalletManager {
 
 	manager.log = log.New("wallet_plugin")
 	manager.log.SetHandler(log.TerminalHandler)
-	manager.log.SetHandler(log.DiscardHandler())
+	//manager.log.SetHandler(log.DiscardHandler())
 	return manager
 }
 
@@ -103,7 +104,7 @@ func (wm *WalletManager) Create(name string) string {
 
 	password := genPassword()
 
-	var wallet SoftWallet
+	wallet := SoftWallet{my: &SoftWalletImpl{}}
 	wallet.SetPassword(password)
 	walletFileName := fmt.Sprintf("%s/%s%s", wm.dir, name, fileExt)
 	wallet.SetWalletFilename(walletFileName)
@@ -112,7 +113,6 @@ func (wm *WalletManager) Create(name string) string {
 	wallet.Unlock(password)
 	// Explicitly save the wallet file here, to ensure it now exists.
 	wallet.SaveWalletFile(DefaultWalletFilename)
-
 	// If we have name in our map then remove it since we want the emplace below to replace.
 	// This can happen if the wallet file is removed while eos-walletd is running.
 	if _, ok := wm.Wallets[name]; ok {

@@ -1,6 +1,8 @@
 package unittests
 
 import (
+	"testing"
+
 	"github.com/eosspark/eos-go/chain"
 	"github.com/eosspark/eos-go/chain/types"
 	. "github.com/eosspark/eos-go/chain/types/generated_containers"
@@ -9,8 +11,8 @@ import (
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/crypto/rlp"
 	. "github.com/eosspark/eos-go/exception"
+
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func TestBlockWithInvalidTx(t *testing.T) {

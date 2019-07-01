@@ -4,11 +4,12 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
-	"github.com/eosspark/eos-go/exception"
-	. "github.com/eosspark/eos-go/exception/try"
 	"io"
 	"math"
 	"reflect"
+
+	"github.com/eosspark/eos-go/exception"
+	. "github.com/eosspark/eos-go/exception/try"
 )
 
 type Pack interface {

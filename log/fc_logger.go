@@ -20,7 +20,7 @@ func (fl *FcLoggerMap) appendLogger(names ...string) {
 
 		h, err := FileHandler(path, LogfmtFormat())
 		if err != nil {
-			root.Warn("logger[%s] add failed: %s", err.Error())
+			root.Warn("logger[%s] add failed: %s", name, err.Error())
 			return
 		}
 

@@ -24,8 +24,7 @@ func getFieldInfo(fieldName string, value interface{}) (*fieldInfo, error) {
 	return fields, nil
 }
 
-
-func splicingString(k,v[]byte) []byte {
+func splicingString(k, v []byte) []byte {
 	key := cloneByte(k)
 	key = append(key, '_')
 	key = append(key, '_')
@@ -39,29 +38,28 @@ func keyEnd(key []byte) []byte { /* non unique fields --> regexp*/
 	return end
 }
 
-
-func fieldValueToByte(info *fieldInfo,skip... SkipSuffix) ([]byte,error) { /* fieldValue[0]__fieldValue[1]... */
+func fieldValueToByte(info *fieldInfo, skip ...SkipSuffix) ([]byte, error) { /* fieldValue[0]__fieldValue[1]... */
 	cloneKey := []byte{}
 
 	skipNum := 0
-	if len(skip) > 0{
+	if len(skip) > 0 {
 		skipNum = int(skip[0])
 	}
 
 	fieldLen := len(info.fieldValue) - skipNum
 
-	for index := 0; index <fieldLen; index++{
+	for index := 0; index < fieldLen; index++ {
 		v := info.fieldValue[index]
 		cloneKey = append(cloneKey, '_')
 		cloneKey = append(cloneKey, '_')
 		value, err := EncodeToBytes(v.Interface())
 		if err != nil {
-			return nil,err
+			return nil, err
 		}
 		cloneKey = append(cloneKey, value...)
 	}
 
-	return cloneKey,nil
+	return cloneKey, nil
 	//for _, v := range info.fieldValue { // typeName__tag__fieldValue...
 	//	cloneKey = append(cloneKey, '_')
 	//	cloneKey = append(cloneKey, '_')

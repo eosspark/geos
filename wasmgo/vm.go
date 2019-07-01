@@ -1,14 +1,14 @@
 package wasmgo
 
 import (
-	//"bytes"
 	"encoding/binary"
 	"fmt"
-	//"github.com/eosspark/eos-go/wasmgo/wagon/wast"
-	//"io/ioutil"
 	"math"
 	"math/bits"
+	//"io/ioutil"
+	//"bytes"
 
+	//"github.com/eosspark/eos-go/wasmgo/wagon/wast"
 	. "github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/wasmgo/compiler"

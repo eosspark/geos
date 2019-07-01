@@ -4,13 +4,14 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	. "github.com/eosspark/eos-go/exception/try"
+	"reflect"
 	"strings"
 
 	"github.com/eosspark/eos-go/crypto/btcsuite/btcd/btcec"
 	"github.com/eosspark/eos-go/crypto/btcsuite/btcutil/base58"
+	. "github.com/eosspark/eos-go/exception/try"
+
 	"golang.org/x/crypto/ripemd160"
-	"reflect"
 )
 
 const PublicKeyPrefix = "PUB_"

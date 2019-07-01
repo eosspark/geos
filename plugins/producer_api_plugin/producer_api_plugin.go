@@ -2,6 +2,7 @@ package producer_api_plugin
 
 import (
 	"encoding/json"
+
 	"github.com/eosspark/eos-go/chain"
 	"github.com/eosspark/eos-go/chain/types/generated_containers"
 	"github.com/eosspark/eos-go/common"
@@ -12,6 +13,7 @@ import (
 	. "github.com/eosspark/eos-go/plugins/appbase/app"
 	"github.com/eosspark/eos-go/plugins/http_plugin"
 	"github.com/eosspark/eos-go/plugins/producer_plugin"
+
 	"github.com/urfave/cli"
 )
 
@@ -90,7 +92,7 @@ func (c *ProducerApiPlugin) PluginStartup() {
 			if len(params.ActionBlacklist) > 0 {
 				w.ActionBlacklist = generated.NewNamePairSet()
 				for _, v := range params.ActionBlacklist {
-					n := common.NamePair{v.First, v.Second}
+					n := common.NamePair{First: v.First, Second: v.Second}
 					w.ActionBlacklist.Add(n)
 				}
 			}
@@ -116,7 +118,7 @@ func (c *ProducerApiPlugin) PluginStartup() {
 			data := proApi.GetWhitelistBlacklist()
 			result, err := json.Marshal(data)
 			if err != nil {
-				log.Error("producer_plugin ProducerGetWhitelistBlacklist is error:", err)
+				log.Error("producer_plugin ProducerGetWhitelistBlacklist is error: %s", err)
 			}
 			cb(200, result)
 		}).Catch(func(e interface{}) {

@@ -3,6 +3,10 @@ package net_plugin
 import (
 	"encoding/binary"
 	"fmt"
+	"net"
+	"reflect"
+	"runtime"
+
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto"
@@ -10,16 +14,12 @@ import (
 	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
-
-	. "github.com/eosspark/eos-go/plugins/appbase/app"
 	"github.com/eosspark/eos-go/libraries/asio"
+	. "github.com/eosspark/eos-go/plugins/appbase/app"
 	"github.com/eosspark/eos-go/plugins/chain_plugin"
 	. "github.com/eosspark/eos-go/plugins/net_plugin/multi_index"
 	"github.com/eosspark/eos-go/plugins/net_plugin/multi_index/peer_block_state"
 	"github.com/eosspark/eos-go/plugins/net_plugin/multi_index/transaction_state"
-	"net"
-	"reflect"
-	"runtime"
 )
 
 type PeerStatus struct {
@@ -246,7 +246,7 @@ func (c *Connection) handshakePopulate(impl *netPluginIMpl, hello *HandshakeMess
 		Try(func() {
 			hello.LastIrreversibleBlockID = cc.GetBlockIdForNum(hello.LastIrreversibleBlockNum)
 		}).Catch(func(ex *exception.UnknownBlockException) {
-			netLog.Info("caught unkown_block")
+			netLog.Info("caught unknown_block")
 			hello.LastIrreversibleBlockNum = 0
 		}).End()
 	}

@@ -1,10 +1,11 @@
 package asio
 
 import (
+	"fmt"
 	"testing"
 	"time"
+
 	"github.com/stretchr/testify/assert"
-	"fmt"
 )
 
 func TestIoContext_Run(t *testing.T) {
@@ -57,7 +58,7 @@ func TestIoContext_pRun(t *testing.T) {
 	//	ioc.Stop()
 	//})
 
-	for i:=0; i<COUNT; i++ {
+	for i := 0; i < COUNT; i++ {
 		ioc.Post(func(err error) {
 			j++
 			if j == COUNT {

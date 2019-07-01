@@ -3,6 +3,10 @@ package chain_plugin
 import (
 	"encoding/json"
 	"fmt"
+	"os"
+	"path/filepath"
+	"strings"
+
 	"github.com/eosspark/eos-go/chain"
 	"github.com/eosspark/eos-go/chain/types"
 	. "github.com/eosspark/eos-go/common"
@@ -12,10 +16,8 @@ import (
 	"github.com/eosspark/eos-go/log"
 	. "github.com/eosspark/eos-go/plugins/appbase/app"
 	"github.com/eosspark/eos-go/plugins/chain_interface"
+
 	"github.com/urfave/cli"
-	"os"
-	"path/filepath"
-	"strings"
 )
 
 const ChainPlug = PluginTypeName("ChainPlugin")
@@ -227,7 +229,7 @@ func (c *ChainPlugin) PluginInitialize(options *cli.Context) {
 		EosAssert(pos != -1, &PluginConfigException{}, "Invalid entry in action-blacklist: '%s'", action)
 		code := N(action[0:pos])
 		act := N(action[pos+2:])
-		c.my.ChainConfig.ActionBlacklist.Add(NamePair{code, act})
+		c.my.ChainConfig.ActionBlacklist.Add(NamePair{First: code, Second: act})
 	}
 
 	for _, keyStr := range options.StringSlice("key-blacklist") {

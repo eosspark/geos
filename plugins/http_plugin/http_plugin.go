@@ -2,13 +2,15 @@ package http_plugin
 
 import (
 	"encoding/json"
+
 	"github.com/eosspark/eos-go/common"
 	. "github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
+	"github.com/eosspark/eos-go/libraries/asio"
 	"github.com/eosspark/eos-go/log"
 	. "github.com/eosspark/eos-go/plugins/appbase/app"
-	"github.com/eosspark/eos-go/libraries/asio"
 	"github.com/eosspark/eos-go/plugins/http_plugin/fasthttp"
+
 	"github.com/urfave/cli"
 )
 
@@ -88,7 +90,7 @@ func (h *HttpPlugin) SetProgramOptions(options *[]cli.Flag) {
 		},
 		cli.StringSliceFlag{
 			Name:  "http-alias",
-			Usage: "Additionaly acceptable values for the \"Host\" header of incoming HTTP requests,can be specified multiple times. Include http/s_server_address by default.",
+			Usage: "Additionally acceptable values for the \"Host\" header of incoming HTTP requests,can be specified multiple times. Include http/s_server_address by default.",
 		},
 	)
 }

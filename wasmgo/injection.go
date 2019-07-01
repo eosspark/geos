@@ -4,14 +4,13 @@ import (
 	//"fmt"
 	"github.com/eosspark/eos-go/wasmgo/wagon/disasm"
 	"github.com/eosspark/eos-go/wasmgo/wagon/wasm"
-
 	ops "github.com/eosspark/eos-go/wasmgo/wagon/wasm/operators"
 )
 
 func Inject(m *wasm.Module) {
 
 	//inject checktime
-	importChecktime := wasm.ImportEntry{ModuleName: "env", FieldName: "checktime", Type: wasm.FuncImport{uint32(GetOrCreateCheckTimeSig(m))}}
+	importChecktime := wasm.ImportEntry{ModuleName: "env", FieldName: "checktime", Type: wasm.FuncImport{Type: uint32(GetOrCreateCheckTimeSig(m))}}
 	m.Import.Entries = append([]wasm.ImportEntry{importChecktime}, m.Import.Entries[0:]...)
 
 	for i, f := range m.FunctionIndexSpace {
@@ -86,7 +85,12 @@ func GetOrCreateCheckTimeSig(m *wasm.Module) int {
 		}
 	}
 
-	m.Types.Entries = append(m.Types.Entries, wasm.FunctionSig{0, make([]wasm.ValueType, 0), make([]wasm.ValueType, 0)})
+	m.Types.Entries = append(m.Types.Entries,
+		wasm.FunctionSig{
+			Form:        0,
+			ParamTypes:  make([]wasm.ValueType, 0),
+			ReturnTypes: make([]wasm.ValueType, 0),
+		})
 	return len(m.Types.Entries) - 1
 
 }

@@ -2,17 +2,19 @@ package app
 
 import (
 	"fmt"
+	"os"
+	"path/filepath"
+	"runtime"
+	"syscall"
+
 	"github.com/eosspark/eos-go/common"
 	. "github.com/eosspark/eos-go/exception"
 	"github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/libraries/asio"
 	. "github.com/eosspark/eos-go/plugins/appbase/app/include"
 	. "github.com/eosspark/eos-go/plugins/chain_interface"
+
 	"github.com/urfave/cli"
-	"os"
-	"path/filepath"
-	"runtime"
-	"syscall"
 )
 
 type ApplicationImpl struct {

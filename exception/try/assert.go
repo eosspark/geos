@@ -1,10 +1,11 @@
 package try
 
 import (
+	"os"
+
 	//. "github.com/eosspark/eos-go/exceptionx"
 	. "github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/log"
-	"os"
 )
 
 func Assert(expr bool, message string) {

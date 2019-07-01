@@ -1,10 +1,11 @@
 package abi_serializer
 
 import (
+	"reflect"
+
 	"github.com/eosspark/eos-go/common"
 	. "github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
-	"reflect"
 )
 
 type abiTraverseContext struct {
@@ -21,14 +22,14 @@ func newAbiTraverseContextWithDeadline(maxSerializationTime common.Microseconds,
 	return abiTraverseContext{maxSerializationTime: maxSerializationTime, deadline: deadline}
 }
 
-func outputName(s string, str string, shorten bool, maxLength common.SizeT){
+func outputName(s string, str string, shorten bool, maxLength common.SizeT) {
 	minNumCharactersAtEnds := common.SizeT(4)
 	preferredNumTailEndCharacters := common.SizeT(6)
 	fillIn := "..."
 	Assert(minNumCharactersAtEnds <= preferredNumTailEndCharacters, "preferred number of tail end characters cannot be less than the imposed absolute minimum")
 	fillInLength := len(fillIn)
-	minLength := fillInLength + 2 * minNumCharactersAtEnds
-	preferredMinLength := fillInLength + 2 * preferredNumTailEndCharacters
+	minLength := fillInLength + 2*minNumCharactersAtEnds
+	preferredMinLength := fillInLength + 2*preferredNumTailEndCharacters
 
 	maxLength = common.SizeT(common.Max(uint64(maxLength), uint64(minLength)))
 	if !shorten || len(str) <= maxLength {
@@ -38,11 +39,11 @@ func outputName(s string, str string, shorten bool, maxLength common.SizeT){
 
 	actualNumTailEndCharacters := preferredNumTailEndCharacters
 	if maxLength < preferredMinLength {
-		actualNumTailEndCharacters = minNumCharactersAtEnds + (maxLength - minLength) / 2
+		actualNumTailEndCharacters = minNumCharactersAtEnds + (maxLength-minLength)/2
 	}
-	s += string([]byte(str)[:maxLength - fillInLength - actualNumTailEndCharacters])
+	s += string([]byte(str)[:maxLength-fillInLength-actualNumTailEndCharacters])
 	s += fillIn
-	s += string([]byte(str + string(len(str) - actualNumTailEndCharacters))[:actualNumTailEndCharacters])
+	s += string([]byte(str + string(len(str)-actualNumTailEndCharacters))[:actualNumTailEndCharacters])
 }
 
 func (a abiTraverseContext) checkDeadline() {
@@ -65,21 +66,21 @@ type defMapItr struct {
 	second interface{}
 }
 
-type emptyPathRoot struct {}
+type emptyPathRoot struct{}
 
-type arrayTypePathRoot struct {}
+type arrayTypePathRoot struct{}
 
 type structTypePathRoot struct {
-	structItr   defMapItr
+	structItr defMapItr
 }
 
 type variantTypePathRoot struct {
-	variantItr  defMapItr
+	variantItr defMapItr
 }
 
 type pathRoot = common.StaticVariant
 
-type emptyPathItem struct {}
+type emptyPathItem struct{}
 
 type arrayIndexPathItem struct {
 	typeHint   pathRoot
@@ -131,11 +132,11 @@ func (aw abiTraverseContextWithPath) setPathRoot(typename typeName) {
 	} else {
 		structDef, ok := aw.abis.structs[rtype]
 		if ok {
-			aw.rootOfPath = structTypePathRoot{structItr:defMapItr{first: rtype, second: structDef}}
+			aw.rootOfPath = structTypePathRoot{structItr: defMapItr{first: rtype, second: structDef}}
 		} else {
 			variantDef, ok := aw.abis.variants[rtype]
 			if ok {
-				aw.rootOfPath = variantTypePathRoot{variantItr:defMapItr{first: rtype, second: variantDef}}
+				aw.rootOfPath = variantTypePathRoot{variantItr: defMapItr{first: rtype, second: variantDef}}
 			}
 		}
 	}
@@ -178,7 +179,7 @@ func (aw abiTraverseContextWithPath) hintStructTypeIfInArray(itr defMapItr) {
 	}
 
 	arrayItem := aw.path[len-1].(arrayIndexPathItem)
-	arrayItem.typeHint = structTypePathRoot{structItr:itr}
+	arrayItem.typeHint = structTypePathRoot{structItr: itr}
 	aw.path[len-1] = arrayItem
 }
 
@@ -189,7 +190,7 @@ func (aw abiTraverseContextWithPath) hintVariantTypeIfInArray(itr defMapItr) {
 	}
 
 	arrayItem := aw.path[len-1].(arrayIndexPathItem)
-	arrayItem.typeHint = variantTypePathRoot{variantItr:itr}
+	arrayItem.typeHint = variantTypePathRoot{variantItr: itr}
 	aw.path[len-1] = arrayItem
 }
 
@@ -203,7 +204,7 @@ func (aw abiTraverseContextWithPath) maybeShorten(str string) string {
 }
 
 type pathItemTypeVisitor struct {
-    s            string
+	s            string
 	shortenNames bool
 }
 

@@ -3,15 +3,17 @@ package console
 import (
 	"encoding/json"
 	"fmt"
+	"sort"
+	"strings"
+	"time"
+
 	"github.com/eosspark/eos-go/chain/abi_serializer"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/plugins/chain_plugin"
+
 	"github.com/robertkrimen/otto"
 	"github.com/tidwall/gjson"
-	"sort"
-	"strings"
-	"time"
 )
 
 type chainAPI struct {
@@ -415,8 +417,8 @@ var indent string = strings.Repeat(" ", 5)
 func PrintAccountResult(res *chain_plugin.GetAccountResult) {
 	var staked, unstaking common.Asset
 	if res.CoreLiquidBalance.Valid() {
-		unstaking = common.Asset{0, res.CoreLiquidBalance.Symbol}
-		staked = common.Asset{0, res.CoreLiquidBalance.Symbol}
+		unstaking = common.Asset{Amount: 0, Symbol: res.CoreLiquidBalance.Symbol}
+		staked = common.Asset{Amount: 0, Symbol: res.CoreLiquidBalance.Symbol}
 	}
 	fmt.Println("created: ", res.Created.String())
 	if res.Privileged {
@@ -499,8 +501,8 @@ func PrintAccountResult(res *chain_plugin.GetAccountResult) {
 		netTotal := common.Asset{}.FromString(&netWeightStr)
 		if netTotal.Symbol != unstaking.Symbol {
 			// Core symbol of nodeos responding to the request is different than core symbol built into cleos
-			unstaking = common.Asset{0, netTotal.Symbol}
-			staked = common.Asset{0, netTotal.Symbol}
+			unstaking = common.Asset{Amount: 0, Symbol: netTotal.Symbol}
+			staked = common.Asset{Amount: 0, Symbol: netTotal.Symbol}
 		}
 
 		if res.SelfDelegatedBandwidth != nil {

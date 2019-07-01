@@ -4,15 +4,16 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
-	"github.com/eosspark/eos-go/common"
-	"github.com/eosspark/eos-go/log"
-	"github.com/eosspark/eos-go/plugins/http_plugin"
 	"io"
 	"net"
 	"net/http"
 	"net/http/httputil"
 	"strings"
 	"time"
+
+	"github.com/eosspark/eos-go/common"
+	"github.com/eosspark/eos-go/log"
+	"github.com/eosspark/eos-go/plugins/http_plugin"
 )
 
 var BaseUrl string

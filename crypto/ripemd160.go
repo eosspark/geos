@@ -4,10 +4,12 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"encoding/json"
+	"hash"
+
 	"github.com/eosspark/eos-go/crypto/rlp"
 	. "github.com/eosspark/eos-go/exception/try"
+
 	"golang.org/x/crypto/ripemd160"
-	"hash"
 )
 
 type Ripemd160 struct {

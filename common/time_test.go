@@ -2,10 +2,12 @@ package common
 
 import (
 	"fmt"
-	"github.com/eosspark/eos-go/libraries/asio"
-	"github.com/stretchr/testify/assert"
 	_ "net/http/pprof"
 	"testing"
+
+	"github.com/eosspark/eos-go/libraries/asio"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func Test_TimePoint(t *testing.T) {

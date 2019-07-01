@@ -3,6 +3,11 @@ package net_plugin
 import (
 	"context"
 	"encoding/binary"
+	"io"
+	"net"
+	"strings"
+	"time"
+
 	"github.com/eosspark/eos-go/chain"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
@@ -10,18 +15,13 @@ import (
 	"github.com/eosspark/eos-go/crypto/ecc"
 	. "github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
-	"github.com/eosspark/eos-go/log"
-
-	. "github.com/eosspark/eos-go/plugins/appbase/app"
 	. "github.com/eosspark/eos-go/libraries/asio"
+	"github.com/eosspark/eos-go/log"
+	. "github.com/eosspark/eos-go/plugins/appbase/app"
 	"github.com/eosspark/eos-go/plugins/chain_plugin"
 	"github.com/eosspark/eos-go/plugins/net_plugin/multi_index"
 	"github.com/eosspark/eos-go/plugins/net_plugin/multi_index/node_transaction"
 	"github.com/eosspark/eos-go/plugins/producer_plugin"
-	"io"
-	"net"
-	"strings"
-	"time"
 )
 
 var netLog log.Logger
@@ -608,7 +608,7 @@ func (impl *netPluginIMpl) signCompact(signer *ecc.PublicKey, digest *crypto.Sha
 }
 
 func (impl *netPluginIMpl) handleChainSize(c *Connection, msg *ChainSizeMessage) {
-	FcLog.Info("%s : receives chain_size_message", c.peerAddr, msg.String())
+	FcLog.Info("%s : receives chain_size_message %s", c.peerAddr, msg.String())
 }
 
 func (impl *netPluginIMpl) handleHandshake(c *Connection, msg *HandshakeMessage) {

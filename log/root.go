@@ -6,8 +6,9 @@ import (
 )
 
 var (
-	root            = &logger{name: "", h: new(swapHandler), enable: true}
-	fcLogs          = []string{"producer_plugin", "transaction_tracing", "net_plugin"}
+	root   = &logger{name: "", h: new(swapHandler), enable: true}
+	fcLogs = []string{"producer_plugin", "transaction_tracing", "net_plugin"}
+	//fcLogs          = []string{}
 	StdoutHandler   = StreamHandler(os.Stdout, LogfmtFormat())
 	TerminalHandler = StreamHandler(os.Stdout, TerminalFormat(true))
 )

@@ -2,11 +2,12 @@ package types
 
 import (
 	"fmt"
+	"strconv"
+	"strings"
+
 	. "github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/crypto/rlp"
-	"strconv"
-	"strings"
 )
 
 type WeightType uint16

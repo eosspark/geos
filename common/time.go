@@ -2,10 +2,11 @@ package common
 
 import (
 	"encoding/json"
-	"github.com/eosspark/eos-go/libraries/asio"
 	"strconv"
 	"strings"
 	"time"
+
+	"github.com/eosspark/eos-go/libraries/asio"
 )
 
 const format = "2006-01-02T15:04:05"

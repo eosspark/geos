@@ -4,12 +4,14 @@ import (
 	"bytes"
 	"encoding/hex"
 	"fmt"
+	"strings"
+	"testing"
+
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/stretchr/testify/assert"
+
 	"github.com/tidwall/gjson"
-	"strings"
-	"testing"
 )
 
 var abiString = `

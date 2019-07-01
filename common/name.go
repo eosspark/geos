@@ -4,11 +4,12 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"reflect"
+	"strings"
+
 	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
-	"reflect"
-	"strings"
 )
 
 // ported from libraries/chain/name.cpp in eosio

@@ -5,6 +5,8 @@ import (
 	"compress/zlib"
 	"encoding/json"
 	"fmt"
+	"io/ioutil"
+
 	. "github.com/eosspark/eos-go/chain/types/generated_containers"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/common/eos_math"
@@ -13,7 +15,6 @@ import (
 	"github.com/eosspark/eos-go/crypto/rlp"
 	. "github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
-	"io/ioutil"
 )
 
 type Extension struct {
@@ -531,7 +532,7 @@ type DeferredTransaction struct {
 	SenderID     eos_math.Uint128    `json:"sender_id"` // ID assigned by sender of generated, accessible via WASM api when executing normal or error
 	Sender       common.AccountName  `json:"sender"`    // receives error handler callback
 	Payer        common.AccountName  `json:"payer"`
-	ExecuteAfter common.TimePointSec `json::execute_after` // delayed execution
+	ExecuteAfter common.TimePointSec `json:"execute_after"` // delayed execution
 }
 
 func NewDeferredTransaction(senderID eos_math.Uint128, sender common.AccountName, payer common.AccountName,
@@ -558,5 +559,5 @@ func NewDeferredReference(sender common.AccountName, senderID eos_math.Uint128) 
 }
 
 func TransactionIDtoSenderID(tid common.TransactionIdType) eos_math.Uint128 {
-	return eos_math.Uint128{tid.Hash[3], tid.Hash[2]}
+	return eos_math.Uint128{Low: tid.Hash[3], High: tid.Hash[2]}
 }

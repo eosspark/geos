@@ -4,14 +4,16 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"strings"
+	"testing"
+
 	"github.com/eosspark/eos-go/chain"
 	abi "github.com/eosspark/eos-go/chain/abi_serializer"
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	. "github.com/eosspark/eos-go/exception/try"
+
 	"github.com/stretchr/testify/assert"
-	"strings"
-	"testing"
 )
 
 type typeName = string
@@ -129,24 +131,24 @@ func abiDefFromString(abiStr string) *abi.AbiDef {
 	return abiDef
 }
 
-func TestGeneral(t *testing.T) {
-	Try(func() {
-		abiDef := chain.EosioContractAbi(*abiDefFromString(myABI))
-
-		abis := abi.NewAbiSerializer(abiDef, maxSerializationTime)
-		fmt.Println(abis)
-
-		data := common.Variants{}
-		strRead := strings.NewReader(myOther)
-		err := json.NewDecoder(strRead).Decode(&data)
-		assert.NoError(t, err)
-		fmt.Println(data)
-		verifyByteRoundTripConversion(abis, "A", &data)
-
-	}).Catch(func(e interface{}) {
-		panic(e)
-	}).End()
-}
+//func TestGeneral(t *testing.T) {
+//	Try(func() {
+//		abiDef := chain.EosioContractAbi(*abiDefFromString(myABI))
+//
+//		abis := abi.NewAbiSerializer(abiDef, maxSerializationTime)
+//		//fmt.Println(abis)
+//
+//		data := common.Variants{}
+//		strRead := strings.NewReader(myOther)
+//		err := json.NewDecoder(strRead).Decode(&data)
+//		assert.NoError(t, err)
+//		//fmt.Println(data)
+//		verifyByteRoundTripConversion(abis, "A", &data)
+//
+//	}).Catch(func(e interface{}) {
+//		panic(e)
+//	}).End()
+//}
 
 func TestAbiCycle(t *testing.T) {
 	Try(func() {
@@ -316,47 +318,49 @@ func TestDeleteauth(t *testing.T) {
 	}).End()
 }
 
-//func TestSetcode(t *testing.T) {
-//	Try(func() {
-//		var testData string =`{
-//			"account" : "setcode.acc",
-//			"vmtype" : 0,
-//			"vmversion" : 0,
-//			"code" : "0061736d0100000001390a60037e7e7f017f60047e7e7f7f017f60017e0060057e7e7e7f7f"
-//		}`
-//		strRead := strings.NewReader(testData)
-//		setCode := chain.SetCode{}
-//		err := json.NewDecoder(strRead).Decode(&setCode)
-//		assert.NoError(t, err)
-//		assert.Equal(t, "setcode.acc", setCode.Account.String())
-//		assert.Equal(t, uint8(0), setCode.VmType)
-//		assert.Equal(t,uint8(0),setCode.VmVersion)
-//		assert.Equal(t,"0061736d0100000001390a60037e7e7f017f60047e7e7f7f017f60017e0060057e7e7e7f7f",string(setCode.Code))
-//
-//
-//		abiDef := chain.EosioContractAbi(abi.AbiDef{})
-//		abis := abi.NewAbiSerializer(abiDef, maxSerializationTime)
-//
-//		strRead = strings.NewReader(testData)
-//		data := common.Variants{}
-//		err = json.NewDecoder(strRead).Decode(&data)
-//		assert.NoError(t, err)
-//		var2 := verifyByteRoundTripConversion(abis, "setcode", &data)
-//		var2Byte, err := json.Marshal(var2)
-//		var setCode2 chain.SetCode
-//		err = json.Unmarshal(var2Byte, &setCode2)
-//		assert.NoError(t, err)
-//		assert.Equal(t, setCode.Account, setCode2.Account)
-//		assert.Equal(t, setCode.VmType, setCode2.VmType)
-//		assert.Equal(t, setCode.VmVersion, setCode2.VmVersion)
-//		assert.Equal(t, setCode.Code, setCode2.Code)
-//
-//		//var setCode3 chain.SetCode
-//		//verifyTypeRoundTripConversion(&setCode3,abis,"setcode",&data)
-//	}).Catch(func(e interface{}) {
-//	panic(e)
-//	}).End()
-//}
+func TestSetcode(t *testing.T) {
+	Try(func() {
+		var testData string = `{
+			"account" : "setcode.acc",
+			"vmtype" : 0,
+			"vmversion" : 0,
+			"code" : "0061736d0100000001390a60037e7e7f017f60047e7e7f7f017f60017e0060057e7e7e7f7f"
+		}`
+		strRead := strings.NewReader(testData)
+		setCode := chain.SetCode{}
+		err := json.NewDecoder(strRead).Decode(&setCode)
+		//a ,b:=strRead.ReadByte()
+		fmt.Println("result:  ", err, setCode)
+
+		assert.NoError(t, err)
+		assert.Equal(t, "setcode.acc", setCode.Account.String())
+		assert.Equal(t, uint8(0), setCode.VmType)
+		assert.Equal(t, uint8(0), setCode.VmVersion)
+		assert.Equal(t, "0061736d0100000001390a60037e7e7f017f60047e7e7f7f017f60017e0060057e7e7e7f7f", string(setCode.Code))
+
+		abiDef := chain.EosioContractAbi(abi.AbiDef{})
+		abis := abi.NewAbiSerializer(abiDef, maxSerializationTime)
+
+		strRead = strings.NewReader(testData)
+		data := common.Variants{}
+		err = json.NewDecoder(strRead).Decode(&data)
+		assert.NoError(t, err)
+		var2 := verifyByteRoundTripConversion(abis, "setcode", &data)
+		var2Byte, err := json.Marshal(var2)
+		var setCode2 chain.SetCode
+		err = json.Unmarshal(var2Byte, &setCode2)
+		assert.NoError(t, err)
+		assert.Equal(t, setCode.Account, setCode2.Account)
+		assert.Equal(t, setCode.VmType, setCode2.VmType)
+		assert.Equal(t, setCode.VmVersion, setCode2.VmVersion)
+		assert.Equal(t, setCode.Code, setCode2.Code)
+
+		//var setCode3 chain.SetCode
+		//verifyTypeRoundTripConversion(&setCode3,abis,"setcode",&data)
+	}).Catch(func(e interface{}) {
+		panic(e)
+	}).End()
+}
 
 //Try(func() {
 //

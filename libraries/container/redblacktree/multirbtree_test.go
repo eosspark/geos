@@ -6,9 +6,10 @@ package redblacktree
 
 import (
 	"fmt"
-	"github.com/stretchr/testify/assert"
 	"math/rand"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestRedBlackTreeMultiPut(t *testing.T) {

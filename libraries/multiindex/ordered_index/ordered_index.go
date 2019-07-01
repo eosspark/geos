@@ -2,6 +2,7 @@ package ordered_index
 
 import (
 	"fmt"
+
 	"github.com/eosspark/eos-go/libraries/container"
 	"github.com/eosspark/eos-go/libraries/multiindex"
 )

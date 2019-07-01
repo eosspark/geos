@@ -1,6 +1,9 @@
 package unittests
 
 import (
+	"io/ioutil"
+	"testing"
+
 	. "github.com/eosspark/eos-go/chain"
 	"github.com/eosspark/eos-go/chain/abi_serializer"
 	"github.com/eosspark/eos-go/chain/types"
@@ -10,9 +13,8 @@ import (
 	"github.com/eosspark/eos-go/entity"
 	"github.com/eosspark/eos-go/exception"
 	"github.com/eosspark/eos-go/log"
+
 	"github.com/stretchr/testify/assert"
-	"io/ioutil"
-	"testing"
 )
 
 type EosioMsigTester struct {
@@ -79,7 +81,7 @@ func (e EosioMsigTester) CreateAccountWithResources(name common.AccountName, cre
 	act := &types.Action{
 		Account:       newAccount.GetAccount(),
 		Name:          newAccount.GetName(),
-		Authorization: []common.PermissionLevel{{creator, common.DefaultConfig.ActiveName}},
+		Authorization: []common.PermissionLevel{{Actor: creator, Permission: common.DefaultConfig.ActiveName}},
 		Data:          data,
 	}
 	trx.Actions = append(trx.Actions, act)
@@ -92,7 +94,7 @@ func (e EosioMsigTester) CreateAccountWithResources(name common.AccountName, cre
 	buyRam := e.GetAction(
 		eosio,
 		common.N("buyram"),
-		[]common.PermissionLevel{{creator, common.DefaultConfig.ActiveName}},
+		[]common.PermissionLevel{{Actor: creator, Permission: common.DefaultConfig.ActiveName}},
 		&buyRamData,
 	)
 	trx.Actions = append(trx.Actions, buyRam)
@@ -107,7 +109,7 @@ func (e EosioMsigTester) CreateAccountWithResources(name common.AccountName, cre
 	delegate := e.GetAction(
 		eosio,
 		common.N("delegatebw"),
-		[]common.PermissionLevel{{creator, common.DefaultConfig.ActiveName}},
+		[]common.PermissionLevel{{Actor: creator, Permission: common.DefaultConfig.ActiveName}},
 		&delegateData,
 	)
 	trx.Actions = append(trx.Actions, delegate)
@@ -264,7 +266,7 @@ func (e EosioMsigTester) Exec(executer common.AccountName, proposer common.Accou
 func TestProposeApproveExecute(t *testing.T) {
 	e := initEosioMsigTester()
 	trx := e.ReqAuth(alice, []common.PermissionLevel{{Actor: alice, Permission: common.DefaultConfig.ActiveName}}, e.AbiSerializerMaxTime)
-	trace := e.Propose(alice, common.N("first"), trx, []common.PermissionLevel{{alice, common.DefaultConfig.ActiveName}})
+	trace := e.Propose(alice, common.N("first"), trx, []common.PermissionLevel{{Actor: alice, Permission: common.DefaultConfig.ActiveName}})
 	assert.True(t, e.ChainHasTransaction(&trace.ID))
 
 	//fail to execute before approval
@@ -272,7 +274,7 @@ func TestProposeApproveExecute(t *testing.T) {
 	CheckThrowExceptionAndMsg(t, &exception.EosioAssertMessageException{}, "transaction authorization failed", exec)
 
 	//approve and execute
-	trace = e.Approve(alice, alice, common.N("first"), common.PermissionLevel{Actor:alice, Permission:common.DefaultConfig.ActiveName})
+	trace = e.Approve(alice, alice, common.N("first"), common.PermissionLevel{Actor: alice, Permission: common.DefaultConfig.ActiveName})
 	assert.True(t, e.ChainHasTransaction(&trace.ID))
 	trace = e.Exec(alice, alice, common.N("first"))
 	assert.True(t, e.ChainHasTransaction(&trace.ID))
@@ -284,11 +286,11 @@ func TestProposeApproveExecute(t *testing.T) {
 func TestProposeApproveUnapprove(t *testing.T) {
 	e := initEosioMsigTester()
 	trx := e.ReqAuth(alice, []common.PermissionLevel{{Actor: alice, Permission: common.DefaultConfig.ActiveName}}, e.AbiSerializerMaxTime)
-	trace := e.Propose(alice, common.N("first"), trx, []common.PermissionLevel{{alice, common.DefaultConfig.ActiveName}})
+	trace := e.Propose(alice, common.N("first"), trx, []common.PermissionLevel{{Actor: alice, Permission: common.DefaultConfig.ActiveName}})
 	assert.True(t, e.ChainHasTransaction(&trace.ID))
-	trace = e.Approve(alice, alice, common.N("first"), common.PermissionLevel{Actor:alice, Permission:common.DefaultConfig.ActiveName})
+	trace = e.Approve(alice, alice, common.N("first"), common.PermissionLevel{Actor: alice, Permission: common.DefaultConfig.ActiveName})
 	assert.True(t, e.ChainHasTransaction(&trace.ID))
-	trace = e.UnApprove(alice, alice, common.N("first"), common.PermissionLevel{Actor:alice, Permission:common.DefaultConfig.ActiveName})
+	trace = e.UnApprove(alice, alice, common.N("first"), common.PermissionLevel{Actor: alice, Permission: common.DefaultConfig.ActiveName})
 	assert.True(t, e.ChainHasTransaction(&trace.ID))
 	exec := func() { e.Exec(alice, alice, common.N("first")) }
 	CheckThrowExceptionAndMsg(t, &exception.EosioAssertMessageException{}, "transaction authorization failed", exec)
@@ -298,11 +300,11 @@ func TestProposeApproveUnapprove(t *testing.T) {
 func TestProposeApproveByTwo(t *testing.T) {
 	e := initEosioMsigTester()
 	trx := e.ReqAuth(alice, []common.PermissionLevel{{Actor: alice, Permission: common.DefaultConfig.ActiveName}, {Actor: bob, Permission: common.DefaultConfig.ActiveName}}, e.AbiSerializerMaxTime)
-	trace := e.Propose(alice, common.N("first"), trx, []common.PermissionLevel{{alice, common.DefaultConfig.ActiveName}, {Actor: bob, Permission: common.DefaultConfig.ActiveName}})
+	trace := e.Propose(alice, common.N("first"), trx, []common.PermissionLevel{{Actor: alice, Permission: common.DefaultConfig.ActiveName}, {Actor: bob, Permission: common.DefaultConfig.ActiveName}})
 	assert.True(t, e.ChainHasTransaction(&trace.ID))
 
 	//approve by alice
-	trace = e.Approve(alice, alice, common.N("first"), common.PermissionLevel{Actor:alice, Permission:common.DefaultConfig.ActiveName})
+	trace = e.Approve(alice, alice, common.N("first"), common.PermissionLevel{Actor: alice, Permission: common.DefaultConfig.ActiveName})
 	assert.True(t, e.ChainHasTransaction(&trace.ID))
 
 	//fail because approval by bob is missing
@@ -310,7 +312,7 @@ func TestProposeApproveByTwo(t *testing.T) {
 	CheckThrowExceptionAndMsg(t, &exception.EosioAssertMessageException{}, "transaction authorization failed", exec)
 
 	//approve by bob
-	trace = e.Approve(bob, alice, common.N("first"), common.PermissionLevel{Actor:bob, Permission:common.DefaultConfig.ActiveName})
+	trace = e.Approve(bob, alice, common.N("first"), common.PermissionLevel{Actor: bob, Permission: common.DefaultConfig.ActiveName})
 	assert.True(t, e.ChainHasTransaction(&trace.ID))
 
 	trace = e.Exec(alice, alice, common.N("first"))
@@ -326,7 +328,7 @@ func TestProposeWithWrongRequestedAuth(t *testing.T) {
 
 	//try with not enough requested auth
 	propose := func() {
-		e.Propose(alice, common.N("first"), trx, []common.PermissionLevel{{alice, common.DefaultConfig.ActiveName}})
+		e.Propose(alice, common.N("first"), trx, []common.PermissionLevel{{Actor: alice, Permission: common.DefaultConfig.ActiveName}})
 	}
 	CheckThrowExceptionAndMsg(t, &exception.EosioAssertMessageException{}, "transaction authorization failed", propose)
 }
@@ -353,13 +355,13 @@ func TestBigTransaction(t *testing.T) {
 		trx.RefBlockNum = 2
 		trx.RefBlockPrefix = 3
 	}
-	trace := e.Propose(alice, common.N("first"), trx, []common.PermissionLevel{{alice, common.DefaultConfig.ActiveName}, {Actor: bob, Permission: common.DefaultConfig.ActiveName}})
+	trace := e.Propose(alice, common.N("first"), trx, []common.PermissionLevel{{Actor: alice, Permission: common.DefaultConfig.ActiveName}, {Actor: bob, Permission: common.DefaultConfig.ActiveName}})
 	assert.True(t, e.ChainHasTransaction(&trace.ID))
 
 	//approve by alice and bob, then exec
-	trace = e.Approve(alice, alice, common.N("first"), common.PermissionLevel{Actor:alice, Permission:common.DefaultConfig.ActiveName})
+	trace = e.Approve(alice, alice, common.N("first"), common.PermissionLevel{Actor: alice, Permission: common.DefaultConfig.ActiveName})
 	assert.True(t, e.ChainHasTransaction(&trace.ID))
-	trace = e.Approve(bob, alice, common.N("first"), common.PermissionLevel{Actor:bob, Permission:common.DefaultConfig.ActiveName})
+	trace = e.Approve(bob, alice, common.N("first"), common.PermissionLevel{Actor: bob, Permission: common.DefaultConfig.ActiveName})
 	assert.True(t, e.ChainHasTransaction(&trace.ID))
 	trace = e.Exec(alice, alice, common.N("first"))
 	assert.True(t, e.ChainHasTransaction(&trace.ID))
@@ -382,7 +384,7 @@ func TestUpdateSystemContractAllApprove(t *testing.T) {
 		common.DefaultConfig.ActiveName,
 		authority,
 		common.DefaultConfig.OwnerName,
-		&[]common.PermissionLevel{{eosio, common.DefaultConfig.ActiveName}},
+		&[]common.PermissionLevel{{Actor: eosio, Permission: common.DefaultConfig.ActiveName}},
 		&[]ecc.PrivateKey{e.getPrivateKey(eosio, "active")},
 	)
 	e.SetProducers(&[]common.AccountName{alice, bob, carol})
@@ -414,8 +416,8 @@ func TestUpdateSystemContractAllApprove(t *testing.T) {
 	e.CreateAccountWithResources(carol2, eosio, CoreFromString("1.0000"), false, CoreFromString("10.0000"), CoreFromString("10.0000"))
 	assert.Equal(t, CoreFromString("1000000000.0000").Amount, e.GetBalance(eosio).Amount+e.GetBalance(eosioRamFee).Amount+e.GetBalance(eosioStake).Amount+e.GetBalance(eosioRam).Amount)
 
-	perm := []common.PermissionLevel{{alice, common.DefaultConfig.ActiveName}, {bob, common.DefaultConfig.ActiveName}, {carol, common.DefaultConfig.ActiveName}}
-	actionPerm := []common.PermissionLevel{{eosio, common.DefaultConfig.ActiveName}}
+	perm := []common.PermissionLevel{{Actor: alice, Permission: common.DefaultConfig.ActiveName}, {Actor: bob, Permission: common.DefaultConfig.ActiveName}, {Actor: carol, Permission: common.DefaultConfig.ActiveName}}
+	actionPerm := []common.PermissionLevel{{Actor: eosio, Permission: common.DefaultConfig.ActiveName}}
 	trx := types.Transaction{}
 	{
 		wasmName = "test_contracts/test_api.wasm"
@@ -441,11 +443,11 @@ func TestUpdateSystemContractAllApprove(t *testing.T) {
 	assert.True(t, e.ChainHasTransaction(&trace.ID))
 
 	//approve by alice, bob and carol
-	trace = e.Approve(alice, alice, common.N("first"), common.PermissionLevel{Actor:alice, Permission:common.DefaultConfig.ActiveName})
+	trace = e.Approve(alice, alice, common.N("first"), common.PermissionLevel{Actor: alice, Permission: common.DefaultConfig.ActiveName})
 	assert.True(t, e.ChainHasTransaction(&trace.ID))
-	trace = e.Approve(bob, alice, common.N("first"), common.PermissionLevel{Actor:bob, Permission:common.DefaultConfig.ActiveName})
+	trace = e.Approve(bob, alice, common.N("first"), common.PermissionLevel{Actor: bob, Permission: common.DefaultConfig.ActiveName})
 	assert.True(t, e.ChainHasTransaction(&trace.ID))
-	trace = e.Approve(carol, alice, common.N("first"), common.PermissionLevel{Actor:carol, Permission:common.DefaultConfig.ActiveName})
+	trace = e.Approve(carol, alice, common.N("first"), common.PermissionLevel{Actor: carol, Permission: common.DefaultConfig.ActiveName})
 	assert.True(t, e.ChainHasTransaction(&trace.ID))
 
 	// execute by alice to replace the eosio system contract
@@ -471,7 +473,7 @@ func TestUpdateSystemContractMajorApprove(t *testing.T) {
 		common.DefaultConfig.ActiveName,
 		authority,
 		common.DefaultConfig.OwnerName,
-		&[]common.PermissionLevel{{eosio, common.DefaultConfig.ActiveName}},
+		&[]common.PermissionLevel{{Actor: eosio, Permission: common.DefaultConfig.ActiveName}},
 		&[]ecc.PrivateKey{e.getPrivateKey(eosio, "active")},
 	)
 	e.CreateAccounts([]common.AccountName{apple}, false, true)
@@ -505,12 +507,12 @@ func TestUpdateSystemContractMajorApprove(t *testing.T) {
 	assert.Equal(t, CoreFromString("1000000000.0000").Amount, e.GetBalance(eosio).Amount+e.GetBalance(eosioRamFee).Amount+e.GetBalance(eosioStake).Amount+e.GetBalance(eosioRam).Amount)
 
 	perm := []common.PermissionLevel{
-		{alice, common.DefaultConfig.ActiveName},
-		{bob, common.DefaultConfig.ActiveName},
-		{carol, common.DefaultConfig.ActiveName},
-		{apple, common.DefaultConfig.ActiveName},
+		{Actor: alice, Permission: common.DefaultConfig.ActiveName},
+		{Actor: bob, Permission: common.DefaultConfig.ActiveName},
+		{Actor: carol, Permission: common.DefaultConfig.ActiveName},
+		{Actor: apple, Permission: common.DefaultConfig.ActiveName},
 	}
-	actionPerm := []common.PermissionLevel{{eosio, common.DefaultConfig.ActiveName}}
+	actionPerm := []common.PermissionLevel{{Actor: eosio, Permission: common.DefaultConfig.ActiveName}}
 	trx := types.Transaction{}
 	{
 		wasmName = "test_contracts/test_api.wasm"
@@ -536,9 +538,9 @@ func TestUpdateSystemContractMajorApprove(t *testing.T) {
 	assert.True(t, e.ChainHasTransaction(&trace.ID))
 
 	//approve by alice, bob
-	trace = e.Approve(alice, alice, common.N("first"), common.PermissionLevel{Actor:alice, Permission:common.DefaultConfig.ActiveName})
+	trace = e.Approve(alice, alice, common.N("first"), common.PermissionLevel{Actor: alice, Permission: common.DefaultConfig.ActiveName})
 	assert.True(t, e.ChainHasTransaction(&trace.ID))
-	trace = e.Approve(bob, alice, common.N("first"), common.PermissionLevel{Actor:bob, Permission:common.DefaultConfig.ActiveName})
+	trace = e.Approve(bob, alice, common.N("first"), common.PermissionLevel{Actor: bob, Permission: common.DefaultConfig.ActiveName})
 	assert.True(t, e.ChainHasTransaction(&trace.ID))
 
 	// not enough approvers
@@ -546,7 +548,7 @@ func TestUpdateSystemContractMajorApprove(t *testing.T) {
 	CheckThrowExceptionAndMsg(t, &exception.EosioAssertMessageException{}, "transaction authorization failed", exec)
 
 	//approve by apple
-	trace = e.Approve(apple, alice, common.N("first"), common.PermissionLevel{Actor:apple, Permission:common.DefaultConfig.ActiveName})
+	trace = e.Approve(apple, alice, common.N("first"), common.PermissionLevel{Actor: apple, Permission: common.DefaultConfig.ActiveName})
 	assert.True(t, e.ChainHasTransaction(&trace.ID))
 
 	// execute by another producer different from proposer

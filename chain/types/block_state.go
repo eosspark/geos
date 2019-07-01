@@ -1,9 +1,10 @@
 package types
 
 import (
+	"reflect"
+
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto"
-	"reflect"
 )
 
 type BlockState struct {

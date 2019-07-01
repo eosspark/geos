@@ -1,15 +1,17 @@
 package chain
 
 import (
+	"io/ioutil"
+	"testing"
+
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/eosspark/eos-go/entity"
+
 	"github.com/stretchr/testify/assert"
-	"io/ioutil"
-	"testing"
 )
 
 func TestApplyEosioNewAccount(t *testing.T) {
@@ -167,7 +169,7 @@ func TestApplyEosioUpdateauth(t *testing.T) {
 			Data:    buffer,
 			Authorization: []common.PermissionLevel{
 				//common.PermissionLevel{Actor: common.AccountName(common.N("eosio.token")), Permission: common.PermissionName(common.N("active"))},
-				{common.AccountName(common.N(account1)), common.PermissionName(common.N("active"))},
+				{Actor: common.AccountName(common.N(account1)), Permission: common.N("active")},
 			},
 		}
 
@@ -175,7 +177,7 @@ func TestApplyEosioUpdateauth(t *testing.T) {
 		applyEosioUpdateauth(a)
 
 		authorization := a.Control.GetMutableAuthorizationManager()
-		permission := authorization.FindPermission(&common.PermissionLevel{updateAuth.Account, updateAuth.Permission})
+		permission := authorization.FindPermission(&common.PermissionLevel{Actor: updateAuth.Account, Permission: updateAuth.Permission})
 		assert.Equal(t, permission.Auth.Threshold, updateAuth.Auth.Threshold)
 
 		// accountObject := entity.AccountObject{Name: action.Account}

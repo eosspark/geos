@@ -2,6 +2,10 @@ package chain
 
 import (
 	"fmt"
+	"os"
+	"reflect"
+	"unsafe"
+
 	"github.com/eosspark/eos-go/chain/types"
 	. "github.com/eosspark/eos-go/chain/types/generated_containers"
 	"github.com/eosspark/eos-go/common"
@@ -13,9 +17,6 @@ import (
 	. "github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/log"
-	"os"
-	"reflect"
-	"unsafe"
 )
 
 type ApplyContext struct {
@@ -436,7 +437,7 @@ func (a *ApplyContext) ExecuteInline(act *types.Action) {
 		checkTime := a.TrxContext.CheckTime
 		providedKeys := NewPublicKeySet()
 		providedPermissions := NewPermissionLevelSet()
-		providedPermissions.Add(common.PermissionLevel{a.Receiver, common.DefaultConfig.EosioCodeName})
+		providedPermissions.Add(common.PermissionLevel{Actor: a.Receiver, Permission: common.DefaultConfig.EosioCodeName})
 		a.Control.GetAuthorizationManager().CheckAuthorization([]*types.Action{act},
 			providedKeys,
 			providedPermissions,
@@ -496,7 +497,7 @@ func (a *ApplyContext) ScheduleDeferredTransaction(sendId *eos_math.Uint128, pay
 			checkTime := a.TrxContext.CheckTime
 			providedKeys := NewPublicKeySet()
 			providedPermissions := NewPermissionLevelSet()
-			providedPermissions.AddItem(common.PermissionLevel{a.Receiver, common.DefaultConfig.EosioCodeName})
+			providedPermissions.AddItem(common.PermissionLevel{Actor: a.Receiver, Permission: common.DefaultConfig.EosioCodeName})
 
 			a.Control.GetAuthorizationManager().CheckAuthorization(
 				trx.Actions,
@@ -1231,7 +1232,7 @@ func (a *ApplyContext) AddRamUsage(account common.AccountName, ramDelta int64) {
 
 	a.TrxContext.AddRamUsage(account, ramDelta)
 
-	accountDelta := common.AccountDelta{account, ramDelta}
+	accountDelta := common.AccountDelta{Account: account, Delta: ramDelta}
 	a.AccountRamDeltas.AddItem(accountDelta)
 	//p, ok := a.AccountRamDeltas.Insert(&accountDelta)
 	//if !ok {

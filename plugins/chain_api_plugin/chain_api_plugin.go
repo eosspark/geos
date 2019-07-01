@@ -2,6 +2,7 @@ package chain_api_plugin
 
 import (
 	"encoding/json"
+
 	"github.com/eosspark/eos-go/chain"
 	"github.com/eosspark/eos-go/common"
 	. "github.com/eosspark/eos-go/exception"
@@ -10,6 +11,7 @@ import (
 	. "github.com/eosspark/eos-go/plugins/appbase/app"
 	"github.com/eosspark/eos-go/plugins/chain_plugin"
 	"github.com/eosspark/eos-go/plugins/http_plugin"
+
 	"github.com/urfave/cli"
 )
 

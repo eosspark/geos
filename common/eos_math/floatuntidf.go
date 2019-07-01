@@ -101,6 +101,4 @@ func clzti2_u(a Uint128) int {
 		}
 		return 64 - i
 	}
-	return 0
-
 }

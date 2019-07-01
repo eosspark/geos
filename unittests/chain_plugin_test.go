@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"encoding/json"
 	"fmt"
+	"testing"
+
 	"github.com/eosspark/eos-go/chain/abi_serializer"
 	"github.com/eosspark/eos-go/chain/types"
 	. "github.com/eosspark/eos-go/chain/types/generated_containers"
@@ -14,8 +16,8 @@ import (
 	"github.com/eosspark/eos-go/log"
 	"github.com/eosspark/eos-go/plugins/chain_plugin"
 	"github.com/eosspark/eos-go/unittests/test_contracts"
+
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func TestGetBlockWithInvalidAbi(t *testing.T) {
@@ -60,7 +62,7 @@ func TestGetBlockWithInvalidAbi(t *testing.T) {
 		//		"name":    "procassert",
 		//		"authorization": common.Variants{
 		//			"actor":     "asserter",
-		//			"permisson": common.DefaultConfig.ActiveName.String(),
+		//			"permission": common.DefaultConfig.ActiveName.String(),
 		//		},
 		//		"data": common.Variants{
 		//			"condition": 1,
@@ -98,7 +100,7 @@ func TestGetBlockWithInvalidAbi(t *testing.T) {
 		// retrieve block num
 		headNum := tester.Control.HeadBlockNum()
 		headNumStr := fmt.Sprintf("%d", headNum)
-		param := chain_plugin.GetBlockParams{headNumStr}
+		param := chain_plugin.GetBlockParams{BlockNumOrID: headNumStr}
 		plugin := chain_plugin.NewReadOnly(tester.Control, common.MaxMicroseconds())
 
 		// block should be decoded successfully

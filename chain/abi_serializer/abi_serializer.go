@@ -3,13 +3,14 @@ package abi_serializer
 import (
 	"encoding/json"
 	"fmt"
+	"strconv"
+	"strings"
+
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
-	"strconv"
-	"strings"
 )
 
 var maxRecursionDepth = 32
@@ -493,7 +494,7 @@ func FromVariant(v *common.Variants, o *types.SignedTransaction, resolver func(a
 	fmt.Println(o, err)
 
 	type Actions struct {
-		Actions []types.Action `json:'actions'`
+		Actions []types.Action `json:"actions"`
 	}
 	var actions Actions
 	err = json.Unmarshal(data, &actions)

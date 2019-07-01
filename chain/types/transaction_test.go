@@ -2,12 +2,13 @@ package types
 
 import (
 	"encoding/json"
+	"testing"
+
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func TestTransaction(t *testing.T) {
@@ -72,7 +73,7 @@ func TestTransactionID(t *testing.T) {
 	transactions := signedBlock.Transactions
 	for _, TrxReceipt := range transactions {
 
-		if TrxReceipt.Trx.TransactionID == common.TransactionIdType(*crypto.NewSha256Nil()) {
+		if TrxReceipt.Trx.TransactionID == common.TransactionIdType(crypto.NewSha256Nil()) {
 			packedTrx := TrxReceipt.Trx.PackedTransaction
 
 			//enc, _ := rlp.EncodeToBytes(packedTrx)

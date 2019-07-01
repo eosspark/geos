@@ -2,6 +2,7 @@ package console
 
 import (
 	"github.com/eosspark/eos-go/common"
+
 	"github.com/robertkrimen/otto"
 )
 

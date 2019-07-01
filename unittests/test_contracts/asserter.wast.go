@@ -2937,4 +2937,3 @@ var AsserterWast = []byte(`(module
  )
 )
 `)
-

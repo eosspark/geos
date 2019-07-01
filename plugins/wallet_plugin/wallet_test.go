@@ -2,8 +2,9 @@ package wallet_plugin
 
 import (
 	"encoding/hex"
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestWalletPassword(t *testing.T) {

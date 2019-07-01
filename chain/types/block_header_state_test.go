@@ -1,12 +1,13 @@
 package types
 
 import (
+	"testing"
+
 	. "github.com/eosspark/eos-go/chain/types/generated_containers"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func NewBlockHeaderState(t *testing.T) *BlockHeaderState {

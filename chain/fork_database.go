@@ -2,6 +2,10 @@ package chain
 
 import (
 	"bytes"
+	"io/ioutil"
+	"os"
+	"strconv"
+
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/chain/types/generated_containers/forkdb_multi_index"
 	"github.com/eosspark/eos-go/common"
@@ -9,9 +13,6 @@ import (
 	. "github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/plugins/appbase/app/include"
-	"io/ioutil"
-	"os"
-	"strconv"
 )
 
 type ForkDatabase struct {

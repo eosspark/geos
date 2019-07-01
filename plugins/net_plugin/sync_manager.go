@@ -52,7 +52,7 @@ func stageStr(s stages) string {
 	case inSync:
 		return "in sync"
 	default:
-		return "unkown"
+		return "unknown"
 	}
 }
 
@@ -67,7 +67,7 @@ func (s *syncManager) setStage(newState stages) {
 func (s *syncManager) isActive(c *Connection) bool {
 	if s.state == headCatchup && c != nil {
 		fhSet := c.forkHead != common.BlockIdNil()
-		FcLog.Info("fork_head_num = %d fork_head set = %s", c.forkHeadNum, fhSet)
+		FcLog.Info("fork_head_num = %d fork_head set = %v", c.forkHeadNum, fhSet)
 
 		return c.forkHead != common.BlockIdNil() && c.forkHeadNum < s.chainPlugin.Chain().ForkDbHeadBlockNum()
 	}

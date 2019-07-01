@@ -28,8 +28,8 @@ error 				-->		error 	(Iterator invalid)
 
 */
 
-func (index *MultiIndex) LowerBound(in interface{},skip... SkipSuffix) (Iterator, error) {
-	it, err := index.db.LowerBound(index.begin, index.end, index.fieldName, in,skip...)
+func (index *MultiIndex) LowerBound(in interface{}, skip ...SkipSuffix) (Iterator, error) {
+	it, err := index.db.LowerBound(index.begin, index.end, index.fieldName, in, skip...)
 	if err != nil {
 		return index.db.EndIterator(index.begin, index.end, index.typeName)
 	}
@@ -47,8 +47,8 @@ error 				-->		error 	(Iterator invalid)
 
 */
 
-func (index *MultiIndex) UpperBound(in interface{},skip... SkipSuffix) (Iterator, error) {
-	it, err := index.db.UpperBound(index.begin, index.end, index.fieldName, in,skip...)
+func (index *MultiIndex) UpperBound(in interface{}, skip ...SkipSuffix) (Iterator, error) {
+	it, err := index.db.UpperBound(index.begin, index.end, index.fieldName, in, skip...)
 	if err != nil {
 		return index.db.EndIterator(index.begin, index.end, index.typeName)
 	}
@@ -66,8 +66,8 @@ error 				-->		error
 
 */
 
-func (index *MultiIndex) Find(in interface{}, out interface{},skip... SkipSuffix) error {
-	return index.db.Find(string(index.fieldName), in, out,skip...)
+func (index *MultiIndex) Find(in interface{}, out interface{}, skip ...SkipSuffix) error {
+	return index.db.Find(string(index.fieldName), in, out, skip...)
 }
 
 /*
@@ -87,7 +87,7 @@ func (index *MultiIndex) CompareBegin(in Iterator) bool {
 		return false
 	}
 	it := index.Begin()
-	return index.CompareIterator(in,it)
+	return index.CompareIterator(in, it)
 }
 
 /*
@@ -209,8 +209,6 @@ func (index *MultiIndex) IteratorTo(in interface{}) Iterator {
 	it, err := index.db.IteratorTo(index.begin, index.end, index.fieldName, in)
 	if err != nil {
 		panic(err)
-		//log ?
-		return nil
 	}
 	return it
 }

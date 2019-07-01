@@ -7,6 +7,9 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io/ioutil"
+	"os"
+
 	"github.com/eosspark/eos-go/chain/types/generated_containers"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto"
@@ -15,8 +18,6 @@ import (
 	. "github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/log"
-	"io/ioutil"
-	"os"
 )
 
 var (
@@ -131,7 +132,7 @@ func (w *SoftWalletImpl) GetPrivateKey(pubkey ecc.PublicKey) ecc.PrivateKey {
 func (w *SoftWalletImpl) ImportKey(wifKey string) bool {
 	priv, err := ecc.NewPrivateKey(wifKey)
 	if err != nil {
-		log.Error("Wrong to NewPrivateKey", err)
+		log.Error("Wrong to NewPrivateKey %s", err)
 		return false
 	}
 	wifPubKey := priv.PublicKey()
@@ -146,7 +147,7 @@ func (w *SoftWalletImpl) ImportKey(wifKey string) bool {
 func (w *SoftWalletImpl) RemoveKey(key string) bool {
 	pub, err := ecc.NewPublicKey(key)
 	if err != nil {
-		log.Error("Wrong to NewPublicKey", err)
+		log.Error("Wrong to NewPublicKey %s", err)
 		return false
 	}
 	if _, find := w.Keys[pub]; find {

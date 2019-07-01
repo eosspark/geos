@@ -3,6 +3,10 @@ package console
 import (
 	"encoding/json"
 	"fmt"
+	"sort"
+	"strconv"
+	"strings"
+
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/chain/types/generated_containers"
 	"github.com/eosspark/eos-go/common"
@@ -11,10 +15,8 @@ import (
 	"github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/plugins/chain_plugin"
+
 	"github.com/robertkrimen/otto"
-	"sort"
-	"strconv"
-	"strings"
 )
 
 type system struct {
@@ -90,7 +92,7 @@ func (s *system) RegProducer(call otto.FunctionCall) (response otto.Value) {
 
 	regprodVar := regProducerVariant(common.N(params.Producer), producerKey, params.Url, params.Loc)
 
-	action := createAction([]common.PermissionLevel{{common.N(params.Producer), common.DefaultConfig.ActiveName}},
+	action := createAction([]common.PermissionLevel{{Actor: common.N(params.Producer), Permission: common.DefaultConfig.ActiveName}},
 		common.DefaultConfig.SystemAccountName, common.N("regproducer"), regprodVar)
 
 	sendActions([]*types.Action{action}, 1000, types.CompressionNone, &params)
@@ -104,7 +106,7 @@ func (s *system) Unregprod(call otto.FunctionCall) (response otto.Value) {
 
 	actPayload := common.Variants{"producer": params.Producer}
 
-	action := createAction([]common.PermissionLevel{{common.N(params.Producer), common.DefaultConfig.ActiveName}},
+	action := createAction([]common.PermissionLevel{{Actor: common.N(params.Producer), Permission: common.DefaultConfig.ActiveName}},
 		common.DefaultConfig.SystemAccountName, common.N("unregprod"), &actPayload)
 	sendActions([]*types.Action{action}, 1000, types.CompressionNone, &params)
 	return
@@ -120,7 +122,7 @@ func (s *system) VoteproducerProxy(call otto.FunctionCall) (response otto.Value)
 		"proxy":     params.Proxy,
 		"producers": []common.AccountName{},
 	}
-	action := createAction([]common.PermissionLevel{{common.N(params.Voter), common.DefaultConfig.ActiveName}},
+	action := createAction([]common.PermissionLevel{{Actor: common.N(params.Voter), Permission: common.DefaultConfig.ActiveName}},
 		common.DefaultConfig.SystemAccountName, common.N("voteproduer"), &actPayload)
 	sendActions([]*types.Action{action}, 1000, types.CompressionNone, &params)
 	return
@@ -140,7 +142,7 @@ func (s *system) VoteproducerProds(call otto.FunctionCall) (response otto.Value)
 		"producers": params.ProducerNames,
 	}
 
-	action := createAction([]common.PermissionLevel{{common.N(params.Voter), common.DefaultConfig.ActiveName}},
+	action := createAction([]common.PermissionLevel{{Actor: common.N(params.Voter), Permission: common.DefaultConfig.ActiveName}},
 		common.DefaultConfig.SystemAccountName, common.N("voteproducer"), &actPayload)
 	sendActions([]*types.Action{action}, 10000, types.CompressionNone, &params)
 	return
@@ -205,7 +207,7 @@ func (s *system) Approveroducer(call otto.FunctionCall) (response otto.Value) {
 		"producers": prods,
 	}
 
-	action := createAction([]common.PermissionLevel{{params.Voter, common.DefaultConfig.ActiveName}},
+	action := createAction([]common.PermissionLevel{{Actor: params.Voter, Permission: common.DefaultConfig.ActiveName}},
 		common.DefaultConfig.SystemAccountName, common.N("voteproducer"), &actPayload)
 	sendActions([]*types.Action{action}, 10000, types.CompressionNone, &params)
 	return
@@ -267,7 +269,7 @@ func (s *system) UnapproveProducer(call otto.FunctionCall) (response otto.Value)
 		"proxy":     "",
 		"producers": prods,
 	}
-	action := createAction([]common.PermissionLevel{{params.Voter, common.DefaultConfig.ActiveName}},
+	action := createAction([]common.PermissionLevel{{Actor: params.Voter, Permission: common.DefaultConfig.ActiveName}},
 		common.DefaultConfig.SystemAccountName, common.N("voteproducer"), &actPayload)
 
 	sendActions([]*types.Action{action}, 10000, types.CompressionNone, &params)
@@ -348,7 +350,7 @@ func (s *system) Delegatebw(call otto.FunctionCall) (response otto.Value) {
 		"transfer":           params.Transfer,
 	}
 
-	action := createAction([]common.PermissionLevel{{common.N(params.From), common.DefaultConfig.ActiveName}},
+	action := createAction([]common.PermissionLevel{{Actor: common.N(params.From), Permission: common.DefaultConfig.ActiveName}},
 		common.DefaultConfig.SystemAccountName, common.N("delegatebw"), &actPayload)
 	acts := []*types.Action{action}
 
@@ -373,7 +375,7 @@ func (s *system) Undelegatebw(call otto.FunctionCall) (response otto.Value) {
 		"unstake_net_quantity": toAssetFromString(params.UnstakeNetAmount),
 		"unstake_cpu_quantity": toAssetFromString(params.UnstakeCpuAmount),
 	}
-	action := createAction([]common.PermissionLevel{{common.N(params.From), common.DefaultConfig.ActiveName}},
+	action := createAction([]common.PermissionLevel{{Actor: common.N(params.From), Permission: common.DefaultConfig.ActiveName}},
 		common.DefaultConfig.SystemAccountName, common.N("undelegatebw"), &actPayload)
 	sendActions([]*types.Action{action}, 1000, types.CompressionNone, &params)
 	return
@@ -425,7 +427,7 @@ func (s *system) Bidname(call otto.FunctionCall) (response otto.Value) {
 		"newname": params.NewName,
 		"bid":     toAssetFromString(params.BidAmount),
 	}
-	action := createAction([]common.PermissionLevel{{common.N(params.Bidder), common.DefaultConfig.ActiveName}},
+	action := createAction([]common.PermissionLevel{{Actor: common.N(params.Bidder), Permission: common.DefaultConfig.ActiveName}},
 		common.DefaultConfig.SystemAccountName, common.N("bidname"), &actPayload)
 
 	sendActions([]*types.Action{action}, 1000, types.CompressionNone, &params)
@@ -505,7 +507,7 @@ func (s *system) Sellram(call otto.FunctionCall) (response otto.Value) {
 		"account": params.Receiver,
 		"bytes":   params.Amount,
 	}
-	action := createAction([]common.PermissionLevel{{common.N(params.Receiver), common.DefaultConfig.ActiveName}},
+	action := createAction([]common.PermissionLevel{{Actor: common.N(params.Receiver), Permission: common.DefaultConfig.ActiveName}},
 		common.DefaultConfig.SystemAccountName, common.N("sellram"), &actPayload)
 	sendActions([]*types.Action{action}, 1000, types.CompressionNone, &params)
 	return
@@ -519,7 +521,7 @@ func (s *system) Claimrewards(call otto.FunctionCall) (response otto.Value) {
 	actPayload := common.Variants{
 		"owner": params.Owner,
 	}
-	action := createAction([]common.PermissionLevel{{common.N(params.Owner), common.DefaultConfig.ActiveName}},
+	action := createAction([]common.PermissionLevel{{Actor: common.N(params.Owner), Permission: common.DefaultConfig.ActiveName}},
 		common.DefaultConfig.SystemAccountName, common.N("claimrewards"), &actPayload)
 
 	sendActions([]*types.Action{action}, 1000, types.CompressionNone, &params)
@@ -534,7 +536,7 @@ func (s *system) Regproxy(call otto.FunctionCall) (response otto.Value) {
 		"proxy":   params.Proxy,
 		"isproxy": true,
 	}
-	action := createAction([]common.PermissionLevel{{common.N(params.Proxy), common.DefaultConfig.ActiveName}},
+	action := createAction([]common.PermissionLevel{{Actor: common.N(params.Proxy), Permission: common.DefaultConfig.ActiveName}},
 		common.DefaultConfig.SystemAccountName, common.N("regproxy"), &actPayload)
 	sendActions([]*types.Action{action}, 1000, types.CompressionNone, &params)
 	return
@@ -549,7 +551,7 @@ func (s *system) Unregproxy(call otto.FunctionCall) (response otto.Value) {
 		"proxy":   params.Proxy,
 		"isproxy": false,
 	}
-	action := createAction([]common.PermissionLevel{{common.N(params.Proxy), common.DefaultConfig.ActiveName}},
+	action := createAction([]common.PermissionLevel{{Actor: common.N(params.Proxy), Permission: common.DefaultConfig.ActiveName}},
 		common.DefaultConfig.SystemAccountName, common.N("regproxy"), &actPayload)
 	sendActions([]*types.Action{action}, 1000, types.CompressionNone, &params)
 	return
@@ -560,7 +562,7 @@ func (s *system) Canceldelay(call otto.FunctionCall) (response otto.Value) {
 	var params CanceldelayParams
 	readParams(&params, call)
 
-	cancelingAuth := common.PermissionLevel{common.N(params.CancelingAccount), common.N(params.CanclingPermission)}
+	cancelingAuth := common.PermissionLevel{Actor: common.N(params.CancelingAccount), Permission: common.N(params.CanclingPermission)}
 	actPayload := common.Variants{
 		"canceling_auth": cancelingAuth,
 		"trx_id":         params.TrxID,

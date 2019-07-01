@@ -33,7 +33,7 @@ func (e LocalizedException) Name() string {
 }
 
 func (e LocalizedException) What() string {
-	return "an error occured"
+	return "an error occurred"
 }
 
 func (e *LocalizedException) AppendLog(l log.Message) {
@@ -85,7 +85,7 @@ func (e LocalizedException) MarshalJSON() ([]byte, error) {
 	except := Exception{
 		Code: 10000000,
 		Name: LocalizedExceptionName,
-		What: "an error occured",
+		What: "an error occurred",
 	}
 
 	return json.Marshal(except)

@@ -4,14 +4,16 @@ import (
 	"bytes"
 	"encoding/hex"
 	"fmt"
+	"testing"
+
 	"github.com/eosspark/eos-go/chain/types"
 	. "github.com/eosspark/eos-go/chain/types/generated_containers"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/crypto/rlp"
+
 	"github.com/stretchr/testify/assert"
-	"testing"
 )
 
 func TestEncoderName(t *testing.T) {
@@ -381,73 +383,73 @@ type TreeMapExp struct {
 	ProducerToLastProduced AccountNameUint32Map
 }
 
-func TestTreeMap(t *testing.T) {
-	keyvalue := map[common.Name]uint32{
-		common.N("eos"):   100,
-		common.N("sys"):   101,
-		common.N("hello"): 90,
-	}
-	tree := TreeMapExp{}
-	tree.ProducerToLastProduced = *NewAccountNameUint32Map()
-	for k, v := range keyvalue {
-		tree.ProducerToLastProduced.Put(k, v)
-	}
-	tree.ProducerToLastProduced.Each(func(key common.AccountName, value uint32) {
-
-	})
-	bytes, err := rlp.EncodeToBytes(tree)
-	if err != nil {
-		fmt.Println(err)
-	}
-	fmt.Println(bytes)
-
-	tree2 := TreeMapExp{}
-	tree2.ProducerToLastProduced = *NewAccountNameUint32Map()
-
-	err = rlp.DecodeBytes(bytes, &tree2)
-	assert.NoError(t, err, err)
-	tree2.ProducerToLastProduced.Each(func(key common.AccountName, value uint32) {
-
-	})
-	json1, _ := tree.ProducerToLastProduced.ToJSON()
-	json2, _ := tree2.ProducerToLastProduced.ToJSON()
-	assert.Equal(t, json1, json2)
-}
-
-var AccountNameUint32MapBytes = []byte{90, 91, 123, 34, 107, 101, 121, 34, 58, 34, 101, 111, 115, 105, 111, 34, 44, 34, 118, 97, 108, 34, 58, 49, 48, 48, 125, 44, 123, 34, 107, 101, 121, 34, 58, 34, 101, 111, 115, 105, 111, 46, 108, 108, 108, 108, 108, 108, 34, 44, 34, 118, 97, 108, 34, 58, 57, 57, 125, 44, 123, 34, 107, 101, 121, 34, 58, 34, 101, 111, 115, 105, 111, 46, 116, 111, 107, 101, 110, 34, 44, 34, 118, 97, 108, 34, 58, 57, 57, 125, 93}
-
-func TestAccountNameUint32Map(t *testing.T) {
-	type BlockHead struct {
-		NewProducerToLastProduced *AccountNameUint32Map
-	}
-	var a BlockHead
-
-	a.NewProducerToLastProduced = NewAccountNameUint32Map()
-	a.NewProducerToLastProduced.Put(common.N("eosio"), 100)
-	a.NewProducerToLastProduced.Put(common.N("eosio.token"), 99)
-	a.NewProducerToLastProduced.Put(common.N("eosio.llllll"), 99)
-	jsonree, _ := a.NewProducerToLastProduced.ToJSON()
-	fmt.Println("*****:  ", jsonree)
-	bytes, err := rlp.EncodeToBytes(a)
-	fmt.Println(bytes, err)
-	//
-	//fmt.Printf("%v", bytes)
-	//var str string
-	//for i := 0; i < len(bytes); i++ {
-	//	str1 := fmt.Sprintf("%d,", bytes[i])
-	//	str = str + str1
-	//	fmt.Println(str)
-	//}
-
-	//fmt.Println(str)
-	//var test types.AccountNameUint32Map
-	//test = *types.NewAccountNameUint32Map()
-	//err = rlp.DecodeBytes(bytes,&test)
-	//fmt.Println("end:",err,test)
-
-	var test BlockHead
-	test.NewProducerToLastProduced = NewAccountNameUint32Map()
-	err = rlp.DecodeBytes(bytes, &test)
-	fmt.Println("end:", err, test)
-
-}
+//func TestTreeMap(t *testing.T) {
+//	keyvalue := map[common.Name]uint32{
+//		common.N("eos"):   100,
+//		common.N("sys"):   101,
+//		common.N("hello"): 90,
+//	}
+//	tree := TreeMapExp{}
+//	tree.ProducerToLastProduced = *NewAccountNameUint32Map()
+//	for k, v := range keyvalue {
+//		tree.ProducerToLastProduced.Put(k, v)
+//	}
+//	tree.ProducerToLastProduced.Each(func(key common.AccountName, value uint32) {
+//
+//	})
+//	bytes, err := rlp.EncodeToBytes(tree)
+//	if err != nil {
+//		fmt.Println(err)
+//	}
+//	fmt.Println(bytes)
+//
+//	tree2 := TreeMapExp{}
+//	tree2.ProducerToLastProduced = *NewAccountNameUint32Map()
+//
+//	err = rlp.DecodeBytes(bytes, &tree2)
+//	assert.NoError(t, err, err)
+//	tree2.ProducerToLastProduced.Each(func(key common.AccountName, value uint32) {
+//
+//	})
+//	json1, _ := tree.ProducerToLastProduced.ToJSON()
+//	json2, _ := tree2.ProducerToLastProduced.ToJSON()
+//	assert.Equal(t, json1, json2)
+//}
+//
+//var AccountNameUint32MapBytes = []byte{90, 91, 123, 34, 107, 101, 121, 34, 58, 34, 101, 111, 115, 105, 111, 34, 44, 34, 118, 97, 108, 34, 58, 49, 48, 48, 125, 44, 123, 34, 107, 101, 121, 34, 58, 34, 101, 111, 115, 105, 111, 46, 108, 108, 108, 108, 108, 108, 34, 44, 34, 118, 97, 108, 34, 58, 57, 57, 125, 44, 123, 34, 107, 101, 121, 34, 58, 34, 101, 111, 115, 105, 111, 46, 116, 111, 107, 101, 110, 34, 44, 34, 118, 97, 108, 34, 58, 57, 57, 125, 93}
+//
+//func TestAccountNameUint32Map(t *testing.T) {
+//	type BlockHead struct {
+//		NewProducerToLastProduced *AccountNameUint32Map
+//	}
+//	var a BlockHead
+//
+//	a.NewProducerToLastProduced = NewAccountNameUint32Map()
+//	a.NewProducerToLastProduced.Put(common.N("eosio"), 100)
+//	a.NewProducerToLastProduced.Put(common.N("eosio.token"), 99)
+//	a.NewProducerToLastProduced.Put(common.N("eosio.llllll"), 99)
+//	jsonree, _ := a.NewProducerToLastProduced.ToJSON()
+//	fmt.Println("*****:  ", jsonree)
+//	bytes, err := rlp.EncodeToBytes(a)
+//	fmt.Println(bytes, err)
+//	//
+//	//fmt.Printf("%v", bytes)
+//	//var str string
+//	//for i := 0; i < len(bytes); i++ {
+//	//	str1 := fmt.Sprintf("%d,", bytes[i])
+//	//	str = str + str1
+//	//	fmt.Println(str)
+//	//}
+//
+//	//fmt.Println(str)
+//	//var test types.AccountNameUint32Map
+//	//test = *types.NewAccountNameUint32Map()
+//	//err = rlp.DecodeBytes(bytes,&test)
+//	//fmt.Println("end:",err,test)
+//
+//	var test BlockHead
+//	test.NewProducerToLastProduced = NewAccountNameUint32Map()
+//	err = rlp.DecodeBytes(bytes, &test)
+//	fmt.Println("end:", err, test)
+//
+//}

@@ -2,6 +2,7 @@ package common
 
 import (
 	"encoding/json"
+
 	. "github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
 )

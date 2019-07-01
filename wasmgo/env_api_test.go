@@ -9,16 +9,6 @@ import (
 	"crypto/sha256"
 	"encoding/json"
 	"fmt"
-	"github.com/eosspark/eos-go/chain"
-	abi "github.com/eosspark/eos-go/chain/abi_serializer"
-	"github.com/eosspark/eos-go/chain/types"
-	. "github.com/eosspark/eos-go/chain/types/generated_containers"
-	"github.com/eosspark/eos-go/common"
-	"github.com/eosspark/eos-go/crypto"
-	"github.com/eosspark/eos-go/crypto/ecc"
-	"github.com/eosspark/eos-go/entity"
-	"github.com/eosspark/eos-go/exception"
-	"github.com/eosspark/eos-go/exception/try"
 	"io/ioutil"
 	"path/filepath"
 	"reflect"
@@ -26,9 +16,20 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/eosspark/eos-go/chain"
+	abi "github.com/eosspark/eos-go/chain/abi_serializer"
+	"github.com/eosspark/eos-go/chain/types"
+	. "github.com/eosspark/eos-go/chain/types/generated_containers"
+	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/common/eos_math"
+	"github.com/eosspark/eos-go/crypto"
+	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/crypto/rlp"
+	"github.com/eosspark/eos-go/entity"
+	"github.com/eosspark/eos-go/exception"
+	"github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/wasmgo"
+
 	"github.com/stretchr/testify/assert"
 )
 
@@ -99,7 +100,7 @@ func TestAction(t *testing.T) {
 		testRequireNotice := func(b *BaseTester, data []byte, scope []common.AccountName) {
 			trx := NewTransaction()
 
-			pl := []common.PermissionLevel{{scope[0], common.PermissionName(common.N("active"))}}
+			pl := []common.PermissionLevel{{Actor: scope[0], Permission: common.PermissionName(common.N("active"))}}
 			a := testApiAction{wasmTestAction("test_action", "require_notice")}
 			act := newAction(pl, &a)
 			act.Data = data
@@ -123,13 +124,13 @@ func TestAction(t *testing.T) {
 			exception.MissingAuthException{}.Code(), "missing authority of")
 		assert.Equal(t, retException, true)
 
-		a3only := []common.PermissionLevel{{common.AccountName(common.N("acc3")), common.PermissionName(common.N("active"))}}
+		a3only := []common.PermissionLevel{{Actor: common.N("acc3"), Permission: common.N("active")}}
 		load, _ = rlp.EncodeToBytes(&a3only)
 		retException = callTestFunctionCheckExceptionF2(t, b, &testApiAction{wasmTestAction("test_action", "require_auth")}, load, []common.AccountName{common.AccountName(common.N("testapi"))},
 			exception.MissingAuthException{}.Code(), "missing authority of")
 		assert.Equal(t, retException, true)
 
-		a4only := []common.PermissionLevel{{common.AccountName(common.N("acc4")), common.PermissionName(common.N("active"))}}
+		a4only := []common.PermissionLevel{{Actor: common.N("acc4"), Permission: common.N("active")}}
 		load, _ = rlp.EncodeToBytes(&a4only)
 		retException = callTestFunctionCheckExceptionF2(t, b, &testApiAction{wasmTestAction("test_action", "require_auth")}, load, []common.AccountName{common.AccountName(common.N("testapi"))},
 			exception.MissingAuthException{}.Code(), "missing authority of")
@@ -235,7 +236,7 @@ func TestRequireNoticeTests(t *testing.T) {
 
 		trx := NewTransaction()
 		a := testApiAction{wasmTestAction("test_action", "require_notice_tests")}
-		pl := []common.PermissionLevel{{common.AccountName(common.N("testapi")), common.PermissionName(common.N("active"))}}
+		pl := []common.PermissionLevel{{Actor: common.N("testapi"), Permission: common.N("active")}}
 
 		act := newAction(pl, &a)
 		trx.Transaction.Actions = append(trx.Transaction.Actions, act)
@@ -271,17 +272,17 @@ func TestRamBillingInNotifyTests(t *testing.T) {
 		b.SetCode(common.AccountName(common.N("testapi2")), code, nil)
 		b.ProduceBlocks(1, false)
 
-		data := eos_math.Int128{uint64(common.N("testapi")), uint64(common.N("testapi2"))}
+		data := eos_math.Int128{Low: uint64(common.N("testapi")), High: uint64(common.N("testapi2"))}
 		load, _ := rlp.EncodeToBytes(&data)
 		retException := callTestFunctionCheckExceptionF2(t, b, &testApiAction{wasmTestAction("test_action", "test_ram_billing_in_notify")}, load, []common.AccountName{common.AccountName(common.N("testapi"))},
 			exception.SubjectiveBlockProductionException{}.Code(), "Cannot charge RAM to other accounts during notify.")
 		assert.Equal(t, retException, true)
 
-		data = eos_math.Int128{0, uint64(common.N("testapi2"))}
+		data = eos_math.Int128{Low: 0, High: uint64(common.N("testapi2"))}
 		load, _ = rlp.EncodeToBytes(&data)
 		callTestF2(t, b, &testApiAction{wasmTestAction("test_action", "test_ram_billing_in_notify")}, load, []common.AccountName{common.AccountName(common.N("testapi"))})
 
-		data = eos_math.Int128{uint64(common.N("testapi2")), uint64(common.N("testapi2"))}
+		data = eos_math.Int128{Low: uint64(common.N("testapi2")), High: uint64(common.N("testapi2"))}
 		load, _ = rlp.EncodeToBytes(&data)
 		callTestF2(t, b, &testApiAction{wasmTestAction("test_action", "test_ram_billing_in_notify")}, load, []common.AccountName{common.AccountName(common.N("testapi"))})
 
@@ -373,7 +374,7 @@ func TestContextFreeAction(t *testing.T) {
 
 		da := dummy_action{DUMMY_ACTION_DEFAULT_A, DUMMY_ACTION_DEFAULT_B, DUMMY_ACTION_DEFAULT_C}
 		permissions := []common.PermissionLevel{
-			common.PermissionLevel{common.AccountName(common.N("testapi")), common.PermissionName(common.N("active"))},
+			{Actor: common.N("testapi"), Permission: common.N("active")},
 		}
 		act = newAction(permissions, &da)
 		trx.Transaction.Actions = append(trx.Transaction.Actions, act)
@@ -516,9 +517,7 @@ func TestStatefulApi(t *testing.T) {
 				Keys:      []types.KeyWeight{{Key: *getPublicKey(name, "active"), Weight: 1}},
 			},
 		}
-		permissions := []common.PermissionLevel{
-			common.PermissionLevel{creator, common.PermissionName(common.N("active"))},
-		}
+		permissions := []common.PermissionLevel{{Actor: creator, Permission: common.N("active")}}
 
 		act := newAction(permissions, &c)
 		trx := newSignedTransaction(control)
@@ -778,12 +777,12 @@ func TestPrint(t *testing.T) {
 		assert.Equal(t, s[1], "-3.750000000000000e+00")
 		assert.Equal(t, s[2], "6.666666666666666e-07")
 
-		//ret = callTestF2(t, b, &testApiAction{wasmTestAction("test_print", "test_printqf")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
-		//retCnsl = ret.ActionTraces[0].Console
-		//s = strings.Split(retCnsl, "\n")
-		//assert.Equal(t, s[0], "5.000000000000000000e-01")
-		//assert.Equal(t, s[1], "-3.750000000000000000e+00")
-		//assert.Equal(t, s[2], "6.666666666666666667e-07")
+		ret = callTestF2(t, b, &testApiAction{wasmTestAction("test_print", "test_printqf")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))})
+		retCnsl = ret.ActionTraces[0].Console
+		s = strings.Split(retCnsl, "\n")
+		assert.Equal(t, "5.000000000000000000e-01", s[0])
+		assert.Equal(t, "-3.750000000000000000e+00", s[1])
+		assert.Equal(t, "6.666666666666666667e-07", s[2])
 
 		b.close()
 
@@ -1460,7 +1459,7 @@ func TestDB(t *testing.T) {
 			Account:       common.AccountName(common.N("testapi")),
 			Name:          common.AccountName(wasmTestAction("test_db", "test_invalid_access")),
 			Data:          payload,
-			Authorization: []common.PermissionLevel{{common.AccountName(common.N("testapi")), common.PermissionName(common.N("active"))}},
+			Authorization: []common.PermissionLevel{{Actor: common.N("testapi"), Permission: common.N("active")}},
 		}
 		ret := b.PushAction(t, &act, common.AccountName(common.N("testapi")))
 		assert.Equal(t, ret, "")
@@ -1468,57 +1467,57 @@ func TestDB(t *testing.T) {
 		actionInvalidAccess2 := invalidAccessAction{actionInvalidAccess1.Code, 20, 0, true}
 		payload, _ = rlp.EncodeToBytes(&actionInvalidAccess2)
 		act = types.Action{
-			Account:       common.AccountName(common.N("testapi2")),
+			Account:       common.N("testapi2"),
 			Name:          common.AccountName(wasmTestAction("test_db", "test_invalid_access")),
 			Data:          payload,
-			Authorization: []common.PermissionLevel{{common.AccountName(common.N("testapi2")), common.PermissionName(common.N("active"))}},
+			Authorization: []common.PermissionLevel{{Actor: common.N("testapi2"), Permission: common.N("active")}},
 		}
-		ret = b.PushAction(t, &act, common.AccountName(common.N("testapi2")))
+		ret = b.PushAction(t, &act, common.N("testapi2"))
 		assert.Equal(t, inString(ret, "db access violation"), true)
 
 		actionInvalidAccess1.Store = false
 		payload, _ = rlp.EncodeToBytes(&actionInvalidAccess1)
 		act = types.Action{
-			Account:       common.AccountName(common.N("testapi")),
+			Account:       common.N("testapi"),
 			Name:          common.AccountName(wasmTestAction("test_db", "test_invalid_access")),
 			Data:          payload,
-			Authorization: []common.PermissionLevel{{common.AccountName(common.N("testapi")), common.PermissionName(common.N("active"))}},
+			Authorization: []common.PermissionLevel{{Actor: common.N("testapi"), Permission: common.N("active")}},
 		}
-		ret = b.PushAction(t, &act, common.AccountName(common.N("testapi")))
+		ret = b.PushAction(t, &act, common.N("testapi"))
 		assert.Equal(t, ret, "")
 
 		actionInvalidAccess1.Store = true
 		actionInvalidAccess1.Index = 1
 		payload, _ = rlp.EncodeToBytes(&actionInvalidAccess1)
 		act = types.Action{
-			Account:       common.AccountName(common.N("testapi")),
+			Account:       common.N("testapi"),
 			Name:          common.AccountName(wasmTestAction("test_db", "test_invalid_access")),
 			Data:          payload,
-			Authorization: []common.PermissionLevel{{common.AccountName(common.N("testapi")), common.PermissionName(common.N("active"))}},
+			Authorization: []common.PermissionLevel{{Actor: common.N("testapi"), Permission: common.N("active")}},
 		}
-		ret = b.PushAction(t, &act, common.AccountName(common.N("testapi")))
+		ret = b.PushAction(t, &act, common.N("testapi"))
 		assert.Equal(t, ret, "")
 
 		actionInvalidAccess2.Index = 1
 		payload, _ = rlp.EncodeToBytes(&actionInvalidAccess2)
 		act = types.Action{
-			Account:       common.AccountName(common.N("testapi2")),
+			Account:       common.N("testapi2"),
 			Name:          common.AccountName(wasmTestAction("test_db", "test_invalid_access")),
 			Data:          payload,
-			Authorization: []common.PermissionLevel{{common.AccountName(common.N("testapi2")), common.PermissionName(common.N("active"))}},
+			Authorization: []common.PermissionLevel{{Actor: common.N("testapi2"), Permission: common.N("active")}},
 		}
-		ret = b.PushAction(t, &act, common.AccountName(common.N("testapi2")))
+		ret = b.PushAction(t, &act, common.N("testapi2"))
 		assert.Equal(t, inString(ret, "db access violation"), true)
 
 		actionInvalidAccess1.Store = true
 		payload, _ = rlp.EncodeToBytes(&actionInvalidAccess1)
 		act = types.Action{
-			Account:       common.AccountName(common.N("testapi")),
+			Account:       common.N("testapi"),
 			Name:          common.AccountName(wasmTestAction("test_db", "test_invalid_access")),
 			Data:          payload,
-			Authorization: []common.PermissionLevel{{common.AccountName(common.N("testapi")), common.PermissionName(common.N("active"))}},
+			Authorization: []common.PermissionLevel{{Actor: common.N("testapi"), Permission: common.N("active")}},
 		}
-		ret = b.PushAction(t, &act, common.AccountName(common.N("testapi")))
+		ret = b.PushAction(t, &act, common.N("testapi"))
 		assert.Equal(t, ret, "")
 
 		retException := callTestFunctionCheckExceptionF2(t, b, &testApiAction{wasmTestAction("test_db", "idx_double_nan_create_fail")}, []byte{}, []common.AccountName{common.AccountName(common.N("testapi"))},
@@ -1648,7 +1647,7 @@ func (t BaseTester) PushAction(test *testing.T, act *types.Action, authorizer co
 	trx := NewTransaction()
 
 	if !common.Empty(authorizer) {
-		act.Authorization = append(act.Authorization, common.PermissionLevel{authorizer, common.PermissionName(common.N("active"))})
+		act.Authorization = append(act.Authorization, common.PermissionLevel{Actor: authorizer, Permission: common.N("active")})
 	}
 
 	trx.Transaction.Actions = append(trx.Transaction.Actions, act)
@@ -2020,7 +2019,7 @@ func pushAction(control *chain.Controller, code []byte, cls string, method strin
 }
 
 func startBlock() *chain.Controller {
-	control := chain.GetControllerInstance()
+	control := chain.NewController(chain.NewConfig())
 	//blockTimeStamp := types.NewBlockTimeStamp(common.Now())
 
 	blockTimeStamp := types.NewBlockTimeStamp(control.HeadBlockTime() + common.TimePoint(common.Milliseconds(common.DefaultConfig.BlockIntervalMs)))
@@ -2138,13 +2137,13 @@ func callTestExceptionF2(test *testing.T, t *BaseTester, a actionInterface, data
 
 	trx := NewTransaction()
 
-	pl := []common.PermissionLevel{{scope[0], common.PermissionName(common.N("active"))}}
+	pl := []common.PermissionLevel{{Actor: scope[0], Permission: common.N("active")}}
 	if len(scope) > 1 {
 		for i, account := range scope {
 			if i == 0 {
 				continue
 			}
-			pl = append(pl, common.PermissionLevel{account, common.PermissionName(common.N("active"))})
+			pl = append(pl, common.PermissionLevel{Actor: account, Permission: common.N("active")})
 		}
 	}
 
@@ -2185,13 +2184,13 @@ func callTestFunctionCheckExceptionF2(test *testing.T, t *BaseTester, a actionIn
 
 	trx := NewTransaction()
 
-	pl := []common.PermissionLevel{{scope[0], common.PermissionName(common.N("active"))}}
+	pl := []common.PermissionLevel{{Actor: scope[0], Permission: common.N("active")}}
 	if len(scope) > 1 {
 		for i, account := range scope {
 			if i == 0 {
 				continue
 			}
-			pl = append(pl, common.PermissionLevel{account, common.PermissionName(common.N("active"))})
+			pl = append(pl, common.PermissionLevel{Actor: account, Permission: common.N("active")})
 		}
 	}
 
@@ -2232,13 +2231,13 @@ func callTestF2(test *testing.T, t *BaseTester, a actionInterface, data []byte, 
 
 	trx := NewTransaction()
 
-	pl := []common.PermissionLevel{{scope[0], common.PermissionName(common.N("active"))}}
+	pl := []common.PermissionLevel{{Actor: scope[0], Permission: common.N("active")}}
 	if len(scope) > 1 {
 		for i, account := range scope {
 			if i == 0 {
 				continue
 			}
-			pl = append(pl, common.PermissionLevel{account, common.PermissionName(common.N("active"))})
+			pl = append(pl, common.PermissionLevel{Actor: account, Permission: common.N("active")})
 		}
 	}
 
@@ -2499,7 +2498,7 @@ func (t BaseTester) CreateAccount(name common.AccountName, creator common.Accoun
 	act := &types.Action{
 		Account:       new.getAccount(),
 		Name:          new.getName(),
-		Authorization: []common.PermissionLevel{{creator, common.DefaultConfig.ActiveName}},
+		Authorization: []common.PermissionLevel{{Actor: creator, Permission: common.DefaultConfig.ActiveName}},
 		Data:          data,
 	}
 	trx.Actions = append(trx.Actions, act)
@@ -2602,9 +2601,9 @@ func (t BaseTester) SetCode(account common.AccountName, wasm []byte, signer *ecc
 	act := types.Action{
 		//Account:       setCode.getAccount(),
 		//Name:          setCode.getName(),
-		Account:       common.AccountName(common.N("eosio")),
-		Name:          common.ActionName(common.N("setcode")),
-		Authorization: []common.PermissionLevel{{account, common.DefaultConfig.ActiveName}},
+		Account:       common.N("eosio"),
+		Name:          common.N("setcode"),
+		Authorization: []common.PermissionLevel{{Actor: account, Permission: common.DefaultConfig.ActiveName}},
 		Data:          data,
 	}
 	trx.Actions = append(trx.Actions, &act)
@@ -2644,7 +2643,7 @@ func (t BaseTester) SetAbi(account common.AccountName, abiJson []byte, signer *e
 	act := types.Action{
 		Account:       setAbi.getAccount(),
 		Name:          setAbi.getName(),
-		Authorization: []common.PermissionLevel{{account, common.DefaultConfig.ActiveName}},
+		Authorization: []common.PermissionLevel{{Actor: account, Permission: common.DefaultConfig.ActiveName}},
 		Data:          data,
 	}
 	trx.Actions = append(trx.Actions, &act)
@@ -2708,7 +2707,7 @@ func (t BaseTester) PushAction4(code common.AccountName, acttype common.AccountN
 func (t BaseTester) GetAction(code common.AccountName, actType common.AccountName,
 	auths []common.PermissionLevel, data *common.Variants) *types.Action {
 
-	action := types.Action{code, actType, auths, nil}
+	action := types.Action{Account: code, Name: actType, Authorization: auths, Data: nil}
 	try.Try(func() {
 		acnt := t.Control.GetAccount(code)
 		a := acnt.GetAbi()

@@ -1,11 +1,12 @@
 package multi_index_container
 
 import (
+	"unsafe"
+
 	"github.com/eosspark/eos-go/libraries/container"
 	"github.com/eosspark/eos-go/libraries/interprocess/allocator"
 	. "github.com/eosspark/eos-go/libraries/interprocess/offsetptr"
 	"github.com/eosspark/eos-go/libraries/multiindex"
-	"unsafe"
 )
 
 // template type MultiIndex(SuperIndex,SuperNode,Value,Allocator)

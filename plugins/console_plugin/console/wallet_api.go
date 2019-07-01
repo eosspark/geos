@@ -2,11 +2,13 @@ package console
 
 import (
 	"fmt"
+
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/exception"
 	"github.com/eosspark/eos-go/exception/try"
+
 	"github.com/robertkrimen/otto"
 )
 

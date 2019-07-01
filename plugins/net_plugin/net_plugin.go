@@ -4,19 +4,21 @@ import (
 	"crypto/rand"
 	"encoding/json"
 	"fmt"
+	"net"
+	"time"
+
 	"github.com/eosspark/eos-go/chain"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto"
 	"github.com/eosspark/eos-go/crypto/ecc"
 	"github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
-	. "github.com/eosspark/eos-go/plugins/appbase/app"
 	"github.com/eosspark/eos-go/libraries/asio"
+	. "github.com/eosspark/eos-go/plugins/appbase/app"
 	"github.com/eosspark/eos-go/plugins/chain_interface"
 	"github.com/eosspark/eos-go/plugins/chain_plugin"
+
 	"github.com/urfave/cli"
-	"net"
-	"time"
 )
 
 const NetPlug = PluginTypeName("NetPlugin")

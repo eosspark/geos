@@ -4,12 +4,14 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+
 	"github.com/eosspark/eos-go/chain/types"
 	"github.com/eosspark/eos-go/common"
 	"github.com/eosspark/eos-go/crypto/rlp"
 	"github.com/eosspark/eos-go/exception"
 	"github.com/eosspark/eos-go/exception/try"
 	"github.com/eosspark/eos-go/plugins/chain_plugin"
+
 	"github.com/robertkrimen/otto"
 	"github.com/tidwall/gjson"
 )
@@ -59,7 +61,7 @@ func (m *multiSig) Propose(call otto.FunctionCall) (response otto.Value) {
 	accountPermissions := getAccountPermissions(params.TxPermission)
 	if len(accountPermissions) == 0 {
 		if len(params.Proposer) > 0 {
-			accountPermissions = []common.PermissionLevel{{common.N(params.Proposer), common.DefaultConfig.ActiveName}}
+			accountPermissions = []common.PermissionLevel{{Actor: common.N(params.Proposer), Permission: common.DefaultConfig.ActiveName}}
 		} else {
 			try.EosThrow(&exception.MissingAuthException{}, "Authority is not provided (either by multisig parameter <proposer> or -p")
 		}
@@ -126,7 +128,7 @@ func (m *multiSig) ProposeTrx(call otto.FunctionCall) (response otto.Value) {
 	accountPermissions := getAccountPermissions(params.TxPermission)
 	if len(accountPermissions) == 0 {
 		if len(params.Proposer) > 0 {
-			accountPermissions = []common.PermissionLevel{{common.N(params.Proposer), common.DefaultConfig.ActiveName}}
+			accountPermissions = []common.PermissionLevel{{Actor: common.N(params.Proposer), Permission: common.DefaultConfig.ActiveName}}
 		} else {
 			try.EosThrow(&exception.MissingAuthException{}, "Authority is not provided (either by multisig parameter <proposer> or -p")
 		}
@@ -223,7 +225,7 @@ func (m *multiSig) approveOrUnapprove(action string, p *ApproveAndUnapproveParam
 
 	var accountPermissions []common.PermissionLevel
 	if len(p.TxPermission) == 0 {
-		accountPermissions = []common.PermissionLevel{{common.N(p.Proposer), common.DefaultConfig.ActiveName}}
+		accountPermissions = []common.PermissionLevel{{Actor: common.N(p.Proposer), Permission: common.DefaultConfig.ActiveName}}
 	} else {
 		accountPermissions = getAccountPermissions(p.TxPermission)
 	}
@@ -248,7 +250,7 @@ func (m *multiSig) Cancel(call otto.FunctionCall) (response otto.Value) {
 	accountPermissions := getAccountPermissions(params.TxPermission)
 	if len(accountPermissions) == 0 {
 		if len(params.Proposer) > 0 {
-			accountPermissions = []common.PermissionLevel{{common.N(params.Canceler), common.DefaultConfig.ActiveName}}
+			accountPermissions = []common.PermissionLevel{{Actor: common.N(params.Canceler), Permission: common.DefaultConfig.ActiveName}}
 		} else {
 			try.EosThrow(&exception.MissingAuthException{}, "Authority is not provided (either by multisig parameter <proposer> or -p")
 		}
@@ -279,7 +281,7 @@ func (m *multiSig) Exec(call otto.FunctionCall) (response otto.Value) {
 	accountPermissions := getAccountPermissions(params.TxPermission)
 	if len(accountPermissions) == 0 {
 		if len(params.Proposer) > 0 {
-			accountPermissions = []common.PermissionLevel{{common.N(params.Executer), common.DefaultConfig.ActiveName}}
+			accountPermissions = []common.PermissionLevel{{Actor: common.N(params.Executer), Permission: common.DefaultConfig.ActiveName}}
 		} else {
 			try.EosThrow(&exception.MissingAuthException{}, "Authority is not provided (either by multisig parameter <proposer> or -p")
 		}

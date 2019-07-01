@@ -2,9 +2,10 @@ package log
 
 import (
 	"fmt"
-	"github.com/go-stack/stack"
 	"sync/atomic"
 	"time"
+
+	"github.com/go-stack/stack"
 )
 
 const skipLevel = 2

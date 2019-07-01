@@ -4,6 +4,10 @@ import (
 	"bytes"
 	"encoding/hex"
 	"fmt"
+	"math"
+	"strconv"
+	"strings"
+
 	"github.com/eosspark/eos-go/chain/types"
 	. "github.com/eosspark/eos-go/chain/types/generated_containers"
 	"github.com/eosspark/eos-go/common"
@@ -13,9 +17,6 @@ import (
 	"github.com/eosspark/eos-go/crypto/rlp"
 	. "github.com/eosspark/eos-go/exception"
 	. "github.com/eosspark/eos-go/exception/try"
-	"math"
-	"strconv"
-	"strings"
 )
 
 func min(x, y int) int {
