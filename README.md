@@ -1,4 +1,4 @@
-EOS Go
+GEOS
 =========================
 
 golang implementation of the EOS protocol
