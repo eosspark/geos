@@ -42,7 +42,7 @@ var plog log.Logger
 
 func init() {
 	plog = log.New("database pack")
-	plog.SetHandler(log.TerminalHandler)
+	//plog.SetHandler(log.TerminalHandler)
 }
 
 func newEncoder(w io.Writer) *encoder {

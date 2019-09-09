@@ -1,6 +1,7 @@
 package main
 
 import (
+	"github.com/eosspark/eos-go/plugins/console_plugin"
 	"os"
 	"strings"
 
@@ -47,6 +48,7 @@ func main() {
 			http_plugin.HttpPlug,
 			net_plugin.NetPlug,
 			wallet_plugin.WalletPlug,
+			console_plugin.ConsolePlug,
 		}) {
 			os.Exit(INITIALIZE_FAIL)
 		}

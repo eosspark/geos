@@ -89,7 +89,7 @@ type Decoder struct {
 
 func init() {
 	rlplog = log.New("rlp")
-	rlplog.SetHandler(log.TerminalHandler)
+	//rlplog.SetHandler(log.TerminalHandler)
 	rlplog.SetHandler(log.DiscardHandler())
 }
 
