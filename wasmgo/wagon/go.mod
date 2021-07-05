@@ -1,1 +1,1 @@
-module github.com/go-interpreter/wagon
+module github.com/eosspark/eos-go/wasmgo/wagon
